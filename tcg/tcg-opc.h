@@ -204,8 +204,45 @@ DEF(qemu_ld_i64, DATA64_ARGS, TLADDR_ARGS, 1,
 DEF(qemu_st_i64, 0, TLADDR_ARGS + DATA64_ARGS, 1,
     TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS | TCG_OPF_64BIT)
 
+/* Host vector support.  */
+
+#define IMPLVEC  \
+    IMPL(TCG_TARGET_HAS_v64 | TCG_TARGET_HAS_v128 | TCG_TARGET_HAS_v256)
+
+DEF(mov_vec, 1, 1, 1, TCG_OPF_NOT_PRESENT)
+
+/* ??? Simple, but perhaps dupiN would be more descriptive.  */
+DEF(movi_vec, 1, 0, 2, TCG_OPF_NOT_PRESENT)
+
+DEF(ld_vec, 1, 1, 2, IMPLVEC)
+DEF(ldz_vec, 1, 1, 3, IMPLVEC)
+DEF(st_vec, 0, 2, 2, IMPLVEC)
+
+DEF(add8_vec, 1, 2, 1, IMPLVEC)
+DEF(add16_vec, 1, 2, 1, IMPLVEC)
+DEF(add32_vec, 1, 2, 1, IMPLVEC)
+DEF(add64_vec, 1, 2, 1, IMPLVEC)
+
+DEF(sub8_vec, 1, 2, 1, IMPLVEC)
+DEF(sub16_vec, 1, 2, 1, IMPLVEC)
+DEF(sub32_vec, 1, 2, 1, IMPLVEC)
+DEF(sub64_vec, 1, 2, 1, IMPLVEC)
+
+DEF(neg8_vec, 1, 1, 1, IMPLVEC | IMPL(TCG_TARGET_HAS_neg_vec))
+DEF(neg16_vec, 1, 1, 1, IMPLVEC | IMPL(TCG_TARGET_HAS_neg_vec))
+DEF(neg32_vec, 1, 1, 1, IMPLVEC | IMPL(TCG_TARGET_HAS_neg_vec))
+DEF(neg64_vec, 1, 1, 1, IMPLVEC | IMPL(TCG_TARGET_HAS_neg_vec))
+
+DEF(and_vec, 1, 2, 1, IMPLVEC)
+DEF(or_vec, 1, 2, 1, IMPLVEC)
+DEF(xor_vec, 1, 2, 1, IMPLVEC)
+DEF(andc_vec, 1, 2, 1, IMPLVEC | IMPL(TCG_TARGET_HAS_andc_vec))
+DEF(orc_vec, 1, 2, 1, IMPLVEC | IMPL(TCG_TARGET_HAS_orc_vec))
+DEF(not_vec, 1, 1, 1, IMPLVEC | IMPL(TCG_TARGET_HAS_not_vec))
+
 #undef TLADDR_ARGS
 #undef DATA64_ARGS
 #undef IMPL
 #undef IMPL64
+#undef IMPLVEC
 #undef DEF

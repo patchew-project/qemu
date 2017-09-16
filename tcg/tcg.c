@@ -116,7 +116,7 @@ static int tcg_target_const_match(tcg_target_long val, TCGType type,
 static bool tcg_out_ldst_finalize(TCGContext *s);
 #endif
 
-static TCGRegSet tcg_target_available_regs[2];
+static TCGRegSet tcg_target_available_regs[TCG_TYPE_COUNT];
 static TCGRegSet tcg_target_call_clobber_regs;
 
 #if TCG_TARGET_INSN_UNIT_SIZE == 1
@@ -664,6 +664,44 @@ TCGv_i64 tcg_temp_new_internal_i64(int temp_local)
     return MAKE_TCGV_I64(idx);
 }
 
+TCGv_vec tcg_temp_new_vec(TCGType type)
+{
+    int idx;
+
+#ifdef CONFIG_DEBUG_TCG
+    switch (type) {
+    case TCG_TYPE_V64:
+        assert(TCG_TARGET_HAS_v64);
+        break;
+    case TCG_TYPE_V128:
+        assert(TCG_TARGET_HAS_v128);
+        break;
+    case TCG_TYPE_V256:
+        assert(TCG_TARGET_HAS_v256);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+#endif
+
+    idx = tcg_temp_new_internal(type, 0);
+    return MAKE_TCGV_VEC(idx);
+}
+
+TCGv_vec tcg_temp_new_vec_matching(TCGv_vec match)
+{
+    TCGContext *s = &tcg_ctx;
+    int idx = GET_TCGV_VEC(match);
+    TCGTemp *ts;
+
+    tcg_debug_assert(idx >= s->nb_globals && idx < s->nb_temps);
+    ts = &s->temps[idx];
+    tcg_debug_assert(ts->temp_allocated != 0);
+
+    idx = tcg_temp_new_internal(ts->base_type, 0);
+    return MAKE_TCGV_VEC(idx);
+}
+
 static void tcg_temp_free_internal(int idx)
 {
     TCGContext *s = &tcg_ctx;
@@ -694,6 +732,11 @@ void tcg_temp_free_i32(TCGv_i32 arg)
 void tcg_temp_free_i64(TCGv_i64 arg)
 {
     tcg_temp_free_internal(GET_TCGV_I64(arg));
+}
+
+void tcg_temp_free_vec(TCGv_vec arg)
+{
+    tcg_temp_free_internal(GET_TCGV_VEC(arg));
 }
 
 TCGv_i32 tcg_const_i32(int32_t val)
@@ -753,6 +796,9 @@ int tcg_check_temp_count(void)
    Test the runtime variable that controls each opcode.  */
 bool tcg_op_supported(TCGOpcode op)
 {
+    const bool have_vec
+        = TCG_TARGET_HAS_v64 | TCG_TARGET_HAS_v128 | TCG_TARGET_HAS_v256;
+
     switch (op) {
     case INDEX_op_discard:
     case INDEX_op_set_label:
@@ -965,6 +1011,35 @@ bool tcg_op_supported(TCGOpcode op)
         return TCG_TARGET_HAS_muluh_i64;
     case INDEX_op_mulsh_i64:
         return TCG_TARGET_HAS_mulsh_i64;
+
+    case INDEX_op_mov_vec:
+    case INDEX_op_movi_vec:
+    case INDEX_op_ld_vec:
+    case INDEX_op_ldz_vec:
+    case INDEX_op_st_vec:
+    case INDEX_op_add8_vec:
+    case INDEX_op_add16_vec:
+    case INDEX_op_add32_vec:
+    case INDEX_op_add64_vec:
+    case INDEX_op_sub8_vec:
+    case INDEX_op_sub16_vec:
+    case INDEX_op_sub32_vec:
+    case INDEX_op_sub64_vec:
+    case INDEX_op_and_vec:
+    case INDEX_op_or_vec:
+    case INDEX_op_xor_vec:
+        return have_vec;
+    case INDEX_op_not_vec:
+        return have_vec && TCG_TARGET_HAS_not_vec;
+    case INDEX_op_neg8_vec:
+    case INDEX_op_neg16_vec:
+    case INDEX_op_neg32_vec:
+    case INDEX_op_neg64_vec:
+        return have_vec && TCG_TARGET_HAS_neg_vec;
+    case INDEX_op_andc_vec:
+        return have_vec && TCG_TARGET_HAS_andc_vec;
+    case INDEX_op_orc_vec:
+        return have_vec && TCG_TARGET_HAS_orc_vec;
 
     case NB_OPS:
         break;

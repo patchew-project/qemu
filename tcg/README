@@ -503,6 +503,52 @@ of the memory access.
 For a 32-bit host, qemu_ld/st_i64 is guaranteed to only be used with a
 64-bit memory access specified in flags.
 
+********* Host vector operations
+
+All of the vector ops have a final constant argument that specifies the
+length of the vector operation LEN as 64 << LEN bits.
+
+* mov_vec   v0, v1, len
+* ld_vec    v0, t1, len
+* st_vec    v0, t1, len
+
+  Move, load and store.
+
+* movi_vec  v0, c, len
+
+  Copy C across the entire vector.
+  At present the only supported values for C are 0 and -1.
+
+* add8_vec    v0, v1, v2, len
+* add16_vec   v0, v1, v2, len
+* add32_vec   v0, v1, v2, len
+* add64_vec   v0, v1, v2, len
+
+  v0 = v1 + v2, in elements of 8/16/32/64 bits, across len.
+
+* sub8_vec    v0, v1, v2, len
+* sub16_vec   v0, v1, v2, len
+* sub32_vec   v0, v1, v2, len
+* sub64_vec   v0, v1, v2, len
+
+  Similarly, v0 = v1 - v2.
+
+* neg8_vec    v0, v1, len
+* neg16_vec   v0, v1, len
+* neg32_vec   v0, v1, len
+* neg64_vec   v0, v1, len
+
+  Similarly, v0 = -v1.
+
+* and_vec     v0, v1, v2, len
+* or_vec      v0, v1, v2, len
+* xor_vec     v0, v1, v2, len
+* andc_vec    v0, v1, v2, len
+* orc_vec     v0, v1, v2, len
+* not_vec     v0, v1, len
+
+  Similarly, logical operations.
+
 *********
 
 Note 1: Some shortcuts are defined when the last operand is known to be

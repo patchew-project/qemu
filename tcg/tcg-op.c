@@ -3072,3 +3072,237 @@ static void tcg_gen_mov2_i64(TCGv_i64 r, TCGv_i64 a, TCGv_i64 b)
 GEN_ATOMIC_HELPER(xchg, mov2, 0)
 
 #undef GEN_ATOMIC_HELPER
+
+static void tcg_gen_op2_vec(TCGOpcode opc, TCGv_vec r, TCGv_vec a)
+{
+    TCGArg ri = GET_TCGV_VEC(r);
+    TCGArg ai = GET_TCGV_VEC(a);
+    TCGTemp *rt = &tcg_ctx.temps[ri];
+    TCGTemp *at = &tcg_ctx.temps[ai];
+    TCGType type = rt->base_type;
+
+    tcg_debug_assert(at->base_type == type);
+    tcg_gen_op3(&tcg_ctx, opc, ri, ai, type - TCG_TYPE_V64);
+}
+
+static void tcg_gen_op3_vec(TCGOpcode opc, TCGv_vec r, TCGv_vec a, TCGv_vec b)
+{
+    TCGArg ri = GET_TCGV_VEC(r);
+    TCGArg ai = GET_TCGV_VEC(a);
+    TCGArg bi = GET_TCGV_VEC(b);
+    TCGTemp *rt = &tcg_ctx.temps[ri];
+    TCGTemp *at = &tcg_ctx.temps[ai];
+    TCGTemp *bt = &tcg_ctx.temps[bi];
+    TCGType type = rt->base_type;
+
+    tcg_debug_assert(at->base_type == type);
+    tcg_debug_assert(bt->base_type == type);
+    tcg_gen_op4(&tcg_ctx, opc, ri, ai, bi, type - TCG_TYPE_V64);
+}
+
+void tcg_gen_mov_vec(TCGv_vec r, TCGv_vec a)
+{
+    if (!TCGV_EQUAL_VEC(r, a)) {
+        tcg_gen_op2_vec(INDEX_op_mov_vec, r, a);
+    }
+}
+
+void tcg_gen_movi_vec(TCGv_vec r, tcg_target_long a)
+{
+    TCGArg ri = GET_TCGV_VEC(r);
+    TCGTemp *rt = &tcg_ctx.temps[ri];
+    TCGType type = rt->base_type;
+
+    tcg_debug_assert(a == 0 || a == -1);
+    tcg_gen_op3(&tcg_ctx, INDEX_op_movi_vec, ri, a, type - TCG_TYPE_V64);
+}
+
+void tcg_gen_ld_vec(TCGv_vec r, TCGv_ptr b, TCGArg o)
+{
+    TCGArg ri = GET_TCGV_VEC(r);
+    TCGArg bi = GET_TCGV_PTR(b);
+    TCGTemp *rt = &tcg_ctx.temps[ri];
+    TCGType type = rt->base_type;
+
+    tcg_gen_op4(&tcg_ctx, INDEX_op_ld_vec, ri, bi, o, type - TCG_TYPE_V64);
+}
+
+void tcg_gen_st_vec(TCGv_vec r, TCGv_ptr b, TCGArg o)
+{
+    TCGArg ri = GET_TCGV_VEC(r);
+    TCGArg bi = GET_TCGV_PTR(b);
+    TCGTemp *rt = &tcg_ctx.temps[ri];
+    TCGType type = rt->base_type;
+
+    tcg_gen_op4(&tcg_ctx, INDEX_op_st_vec, ri, bi, o, type - TCG_TYPE_V64);
+}
+
+/* Load data into a vector R from B+O using TYPE.  If R is wider than TYPE,
+   fill the high bits with zeros.  */
+void tcg_gen_ldz_vec(TCGv_vec r, TCGv_ptr b, TCGArg o, TCGType type)
+{
+    TCGArg ri = GET_TCGV_VEC(r);
+    TCGArg bi = GET_TCGV_PTR(b);
+    TCGTemp *rt = &tcg_ctx.temps[ri];
+    TCGType btype = rt->base_type;
+
+    if (type < btype) {
+        tcg_gen_op5(&tcg_ctx, INDEX_op_ldz_vec, ri, bi, o,
+                    type - TCG_TYPE_V64, btype - TCG_TYPE_V64);
+    } else {
+        tcg_debug_assert(type == btype);
+        tcg_gen_op4(&tcg_ctx, INDEX_op_ld_vec, ri, bi, o, type - TCG_TYPE_V64);
+    }
+}
+
+/* Store data from vector R into B+O using TYPE.  If R is wider than TYPE,
+   store only the low bits.  */
+void tcg_gen_stl_vec(TCGv_vec r, TCGv_ptr b, TCGArg o, TCGType type)
+{
+    TCGArg ri = GET_TCGV_VEC(r);
+    TCGArg bi = GET_TCGV_PTR(b);
+    TCGTemp *rt = &tcg_ctx.temps[ri];
+    TCGType btype = rt->base_type;
+
+    tcg_debug_assert(type <= btype);
+    tcg_gen_op4(&tcg_ctx, INDEX_op_st_vec, ri, bi, o, type - TCG_TYPE_V64);
+}
+
+void tcg_gen_add8_vec(TCGv_vec r, TCGv_vec a, TCGv_vec b)
+{
+    tcg_gen_op3_vec(INDEX_op_add8_vec, r, a, b);
+}
+
+void tcg_gen_add16_vec(TCGv_vec r, TCGv_vec a, TCGv_vec b)
+{
+    tcg_gen_op3_vec(INDEX_op_add16_vec, r, a, b);
+}
+
+void tcg_gen_add32_vec(TCGv_vec r, TCGv_vec a, TCGv_vec b)
+{
+    tcg_gen_op3_vec(INDEX_op_add32_vec, r, a, b);
+}
+
+void tcg_gen_add64_vec(TCGv_vec r, TCGv_vec a, TCGv_vec b)
+{
+    tcg_gen_op3_vec(INDEX_op_add64_vec, r, a, b);
+}
+
+void tcg_gen_sub8_vec(TCGv_vec r, TCGv_vec a, TCGv_vec b)
+{
+    tcg_gen_op3_vec(INDEX_op_sub8_vec, r, a, b);
+}
+
+void tcg_gen_sub16_vec(TCGv_vec r, TCGv_vec a, TCGv_vec b)
+{
+    tcg_gen_op3_vec(INDEX_op_sub16_vec, r, a, b);
+}
+
+void tcg_gen_sub32_vec(TCGv_vec r, TCGv_vec a, TCGv_vec b)
+{
+    tcg_gen_op3_vec(INDEX_op_sub32_vec, r, a, b);
+}
+
+void tcg_gen_sub64_vec(TCGv_vec r, TCGv_vec a, TCGv_vec b)
+{
+    tcg_gen_op3_vec(INDEX_op_sub64_vec, r, a, b);
+}
+
+void tcg_gen_and_vec(TCGv_vec r, TCGv_vec a, TCGv_vec b)
+{
+    tcg_gen_op3_vec(INDEX_op_and_vec, r, a, b);
+}
+
+void tcg_gen_or_vec(TCGv_vec r, TCGv_vec a, TCGv_vec b)
+{
+    tcg_gen_op3_vec(INDEX_op_or_vec, r, a, b);
+}
+
+void tcg_gen_xor_vec(TCGv_vec r, TCGv_vec a, TCGv_vec b)
+{
+    tcg_gen_op3_vec(INDEX_op_xor_vec, r, a, b);
+}
+
+void tcg_gen_andc_vec(TCGv_vec r, TCGv_vec a, TCGv_vec b)
+{
+    if (TCG_TARGET_HAS_andc_vec) {
+        tcg_gen_op3_vec(INDEX_op_andc_vec, r, a, b);
+    } else {
+        TCGv_vec t = tcg_temp_new_vec_matching(r);
+        tcg_gen_not_vec(t, b);
+        tcg_gen_and_vec(r, a, t);
+        tcg_temp_free_vec(t);
+    }
+}
+
+void tcg_gen_orc_vec(TCGv_vec r, TCGv_vec a, TCGv_vec b)
+{
+    if (TCG_TARGET_HAS_orc_vec) {
+        tcg_gen_op3_vec(INDEX_op_orc_vec, r, a, b);
+    } else {
+        TCGv_vec t = tcg_temp_new_vec_matching(r);
+        tcg_gen_not_vec(t, b);
+        tcg_gen_or_vec(r, a, t);
+        tcg_temp_free_vec(t);
+    }
+}
+
+void tcg_gen_not_vec(TCGv_vec r, TCGv_vec a)
+{
+    if (TCG_TARGET_HAS_not_vec) {
+        tcg_gen_op2_vec(INDEX_op_orc_vec, r, a);
+    } else {
+        TCGv_vec t = tcg_temp_new_vec_matching(r);
+        tcg_gen_movi_vec(t, -1);
+        tcg_gen_xor_vec(r, a, t);
+        tcg_temp_free_vec(t);
+    }
+}
+
+void tcg_gen_neg8_vec(TCGv_vec r, TCGv_vec a)
+{
+    if (TCG_TARGET_HAS_neg_vec) {
+        tcg_gen_op2_vec(INDEX_op_neg8_vec, r, a);
+    } else {
+        TCGv_vec t = tcg_temp_new_vec_matching(r);
+        tcg_gen_movi_vec(t, 0);
+        tcg_gen_sub8_vec(r, t, a);
+        tcg_temp_free_vec(t);
+    }
+}
+
+void tcg_gen_neg16_vec(TCGv_vec r, TCGv_vec a)
+{
+    if (TCG_TARGET_HAS_neg_vec) {
+        tcg_gen_op2_vec(INDEX_op_neg16_vec, r, a);
+    } else {
+        TCGv_vec t = tcg_temp_new_vec_matching(r);
+        tcg_gen_movi_vec(t, 0);
+        tcg_gen_sub16_vec(r, t, a);
+        tcg_temp_free_vec(t);
+    }
+}
+
+void tcg_gen_neg32_vec(TCGv_vec r, TCGv_vec a)
+{
+    if (TCG_TARGET_HAS_neg_vec) {
+        tcg_gen_op2_vec(INDEX_op_neg32_vec, r, a);
+    } else {
+        TCGv_vec t = tcg_temp_new_vec_matching(r);
+        tcg_gen_movi_vec(t, 0);
+        tcg_gen_sub32_vec(r, t, a);
+        tcg_temp_free_vec(t);
+    }
+}
+
+void tcg_gen_neg64_vec(TCGv_vec r, TCGv_vec a)
+{
+    if (TCG_TARGET_HAS_neg_vec) {
+        tcg_gen_op2_vec(INDEX_op_neg64_vec, r, a);
+    } else {
+        TCGv_vec t = tcg_temp_new_vec_matching(r);
+        tcg_gen_movi_vec(t, 0);
+        tcg_gen_sub64_vec(r, t, a);
+        tcg_temp_free_vec(t);
+    }
+}
