@@ -1570,11 +1570,14 @@ static const VMStateDescription vmstate_openpic_irqsource = {
 
 static const VMStateDescription vmstate_openpic_timer = {
     .name = "openpic_timer",
-    .version_id = 0,
-    .minimum_version_id = 0,
+    .version_id = 1,
+    .minimum_version_id = 1,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(tccr, OpenPICTimer),
         VMSTATE_UINT32(tbcr, OpenPICTimer),
+        VMSTATE_BOOL(qemu_timer_active, OpenPICTimer),
+        VMSTATE_TIMER_PTR(qemu_timer, OpenPICTimer),
+        VMSTATE_UINT64(origin_time, OpenPICTimer),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -1620,7 +1623,7 @@ static const VMStateDescription vmstate_openpic = {
         VMSTATE_UINT32_EQUAL(nb_cpus, OpenPICState, NULL),
         VMSTATE_STRUCT_VARRAY_UINT32(dst, OpenPICState, nb_cpus, 0,
                                      vmstate_openpic_irqdest, IRQDest),
-        VMSTATE_STRUCT_ARRAY(timers, OpenPICState, OPENPIC_MAX_TMR, 0,
+        VMSTATE_STRUCT_ARRAY(timers, OpenPICState, OPENPIC_MAX_TMR, 1,
                              vmstate_openpic_timer, OpenPICTimer),
         VMSTATE_STRUCT_ARRAY(msi, OpenPICState, MAX_MSI, 0,
                              vmstate_openpic_msi, OpenPICMSI),
