@@ -236,6 +236,7 @@ typedef struct IRQSource {
     int last_cpu;
     int output;     /* IRQ level, e.g. OPENPIC_OUTPUT_INT */
     int pending;    /* TRUE if IRQ is pending */
+    int cur_level;  /* Cache current level */
     IRQType type;
     bool level:1;   /* level-triggered */
     bool nomask:1;  /* critical interrupts ignore mask on some FSL MPICs */
@@ -552,14 +553,26 @@ static void openpic_set_irq(void *opaque, int n_IRQ, int level)
     }
 
     src = &opp->src[n_IRQ];
-    DPRINTF("openpic: set irq %d = %d ivpr=0x%08x\n",
-            n_IRQ, level, src->ivpr);
+    DPRINTF("openpic: set irq %d = %d ivpr=0x%08x (l=%d,cl=%d)\n",
+            n_IRQ, level, src->ivpr, src->level, src->cur_level);
+
+    /* Keep track of the current input level in order to properly deal
+     * with the configuration of the source changing from edge to level
+     * after it's been latched. Otherwise the interrupt can get stuck.
+     */
+    src->cur_level = level;
+
     if (src->level) {
-        /* level-sensitive irq */
         src->pending = level;
         openpic_update_irq(opp, n_IRQ);
     } else {
-        /* edge-sensitive irq */
+        /* edge-sensitive irq
+         *
+         * In an ideal world we would only set pending on an "edge", ie
+         * if level is set and src->cur_level as clear. However that would
+         * require all the devices to properly send "pulses" rather than
+         * just "raise" which isn't the case today.
+         */
         if (level) {
             src->pending = 1;
             openpic_update_irq(opp, n_IRQ);
@@ -676,6 +689,13 @@ static inline void write_IRQreg_ivpr(OpenPICState *opp, int n_IRQ, uint32_t val)
     switch (opp->src[n_IRQ].type) {
     case IRQ_TYPE_NORMAL:
         opp->src[n_IRQ].level = !!(opp->src[n_IRQ].ivpr & IVPR_SENSE_MASK);
+
+        /* If we switched to level we need to re-evaluate "pending" based
+         * on the actual input state.
+         */
+        if (opp->src[n_IRQ].level) {
+            opp->src[n_IRQ].pending = opp->src[n_IRQ].cur_level;
+        }
         break;
 
     case IRQ_TYPE_FSLINT:
@@ -687,6 +707,7 @@ static inline void write_IRQreg_ivpr(OpenPICState *opp, int n_IRQ, uint32_t val)
         break;
     }
 
+    /* Re-evaluate a level irq */
     openpic_update_irq(opp, n_IRQ);
     DPRINTF("Set IVPR %d to 0x%08x -> 0x%08x\n", n_IRQ, val,
             opp->src[n_IRQ].ivpr);
@@ -1232,7 +1253,7 @@ static uint32_t openpic_iack(OpenPICState *opp, IRQDest *dst, int cpu)
     }
 
     if (!src->level) {
-        /* edge-sensitive IRQ */
+        /* edge-sensitive IRQ or level dropped */
         src->ivpr &= ~IVPR_ACTIVITY_MASK;
         src->pending = 0;
         IRQ_resetbit(&dst->raised, irq);
@@ -1564,6 +1585,7 @@ static const VMStateDescription vmstate_openpic_irqsource = {
         VMSTATE_UINT32(destmask, IRQSource),
         VMSTATE_INT32(last_cpu, IRQSource),
         VMSTATE_INT32(pending, IRQSource),
+        VMSTATE_INT32(cur_level, IRQSource),
         VMSTATE_END_OF_LIST()
     }
 };
