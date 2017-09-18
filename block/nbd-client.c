@@ -79,7 +79,11 @@ static coroutine_fn void nbd_read_reply_entry(void *opaque)
     while (!s->quit) {
         ret = nbd_receive_reply(s->ioc, &reply, &local_err);
         if (ret < 0) {
-            error_report_err(local_err);
+            if (s->quit) {
+                error_free(local_err);
+            } else {
+                error_report_err(local_err);
+            }
         }
         if (ret <= 0 || s->quit) {
             break;
@@ -112,19 +116,8 @@ static coroutine_fn void nbd_read_reply_entry(void *opaque)
             }
         }
 
-        /* We're woken up again by the request itself.  Note that there
-         * is no race between yielding and reentering read_reply_co.  This
-         * is because:
-         *
-         * - if the request runs on the same AioContext, it is only
-         *   entered after we yield
-         *
-         * - if the request runs on a different AioContext, reentering
-         *   read_reply_co happens through a bottom half, which can only
-         *   run after we yield.
-         */
+        s->requests[i].receiving = false;
         aio_co_wake(s->requests[i].coroutine);
-        qemu_coroutine_yield();
     }
 
     s->quit = true;
@@ -157,6 +150,7 @@ static int nbd_co_send_request(BlockDriverState *bs,
 
     s->requests[i].coroutine = qemu_coroutine_self();
     s->requests[i].receiving = false;
+    s->requests[i].ret = -EIO;
 
     request->handle = INDEX_TO_HANDLE(s, i);
     s->requests[i].request = request;
@@ -210,18 +204,13 @@ static int nbd_co_receive_reply(NBDClientSession *s, NBDRequest *request)
     s->requests[i].receiving = true;
     qemu_coroutine_yield();
     s->requests[i].receiving = false;
-    if (!s->ioc || s->quit) {
+    if (!s->ioc) {
         ret = -EIO;
     } else {
         ret = s->requests[i].ret;
     }
 
     s->requests[i].coroutine = NULL;
-
-    /* Kick the read_reply_co to get the next reply.  */
-    if (s->read_reply_co) {
-        aio_co_wake(s->read_reply_co);
-    }
 
     qemu_co_mutex_lock(&s->send_mutex);
     s->in_flight--;
@@ -363,6 +352,8 @@ void nbd_client_close(BlockDriverState *bs)
     }
 
     nbd_send_request(client->ioc, &request);
+
+    client->quit = true;
 
     nbd_teardown_connection(bs);
 }
