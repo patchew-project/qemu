@@ -280,6 +280,7 @@ const char *cc_name(enum cc_op cc_op);
 void load_psw(CPUS390XState *env, uint64_t mask, uint64_t addr);
 uint32_t calc_cc(CPUS390XState *env, uint32_t cc_op, uint64_t src, uint64_t dst,
                  uint64_t vr);
+void handle_wait(S390CPU *cpu);
 
 
 /* cpu.c */
