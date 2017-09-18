@@ -1141,8 +1141,7 @@ static void amdvi_realize(DeviceState *dev, Error **err)
     AMDVIState *s = AMD_IOMMU_DEVICE(dev);
     X86IOMMUState *x86_iommu = X86_IOMMU_DEVICE(dev);
     MachineState *ms = MACHINE(qdev_get_machine());
-    PCMachineState *pcms =
-        PC_MACHINE(object_dynamic_cast(OBJECT(ms), TYPE_PC_MACHINE));
+    PCMachineState *pcms = PC_MACHINE(ms);
     PCIBus *bus = pcms->bus;
 
     s->iotlb = g_hash_table_new_full(amdvi_uint64_hash,
