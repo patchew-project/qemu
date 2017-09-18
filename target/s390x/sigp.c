@@ -14,6 +14,7 @@
 #include "internal.h"
 #include "sysemu/hw_accel.h"
 #include "exec/address-spaces.h"
+#include "exec/exec-all.h"
 #include "sysemu/sysemu.h"
 #include "trace.h"
 
@@ -286,6 +287,7 @@ static void sigp_set_prefix(CPUState *cs, run_on_cpu_data arg)
     }
 
     cpu->env.psa = addr;
+    tlb_flush(cs);
     cpu_synchronize_post_init(cs);
     si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
 }
