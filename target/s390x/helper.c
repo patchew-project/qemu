@@ -245,6 +245,44 @@ void s390_cpu_recompute_watchpoints(CPUState *cs)
     }
 }
 
+#define SAVE_AREA_SIZE 512
+int s390_store_status(S390CPU *cpu, hwaddr addr, bool store_arch)
+{
+    static const uint8_t ar_id = 1;
+    uint64_t ckc = cpu->env.ckc >> 8;
+    void *mem;
+    int i;
+    hwaddr len = SAVE_AREA_SIZE;
+
+    mem = cpu_physical_memory_map(addr, &len, 1);
+    if (!mem) {
+        return -EFAULT;
+    }
+    if (len != SAVE_AREA_SIZE) {
+        cpu_physical_memory_unmap(mem, len, 1, 0);
+        return -EFAULT;
+    }
+
+    if (store_arch) {
+        cpu_physical_memory_write(offsetof(LowCore, ar_access_id), &ar_id, 1);
+    }
+    for (i = 0; i < 16; ++i) {
+        *((uint64_t *)mem + i) = get_freg(&cpu->env, i)->ll;
+    }
+    memcpy(mem + 128, &cpu->env.regs, 128);
+    memcpy(mem + 256, &cpu->env.psw, 16);
+    memcpy(mem + 280, &cpu->env.psa, 4);
+    memcpy(mem + 284, &cpu->env.fpc, 4);
+    memcpy(mem + 292, &cpu->env.todpr, 4);
+    memcpy(mem + 296, &cpu->env.cputm, 8);
+    memcpy(mem + 304, &ckc, 8);
+    memcpy(mem + 320, &cpu->env.aregs, 64);
+    memcpy(mem + 384, &cpu->env.cregs, 128);
+
+    cpu_physical_memory_unmap(mem, len, 1, len);
+
+    return 0;
+}
 #endif /* CONFIG_USER_ONLY */
 
 void s390_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
