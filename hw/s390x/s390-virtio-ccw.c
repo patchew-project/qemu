@@ -65,9 +65,7 @@ static void s390_init_cpus(MachineState *machine)
         machine->cpu_model = s390_default_cpu_model_name();
     }
     if (tcg_enabled() && max_cpus > 1) {
-        error_report("Number of SMP CPUs requested (%d) exceeds max CPUs "
-                     "supported by TCG (1) on s390x", max_cpus);
-        exit(1);
+        error_report("WARNING: SMP support on s390x is experimental!");
     }
 
     /* initialize possible_cpus */
