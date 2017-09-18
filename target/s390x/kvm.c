@@ -1941,15 +1941,31 @@ static bool is_special_wait_psw(CPUState *cs)
     return cs->kvm_run->psw_addr == 0xfffUL;
 }
 
-static void unmanageable_intercept(S390CPU *cpu, const char *str, int pswoffset)
+static void unmanageable_intercept(S390CPU *cpu, int32_t reason, int pswoffset)
 {
     CPUState *cs = CPU(cpu);
+    const char *str;
 
+    switch (reason) {
+    case EXCP_CRASH_PGM:
+        str = "program interrupt";
+        break;
+    case EXCP_CRASH_EXT:
+        str = "external interrupt";
+        break;
+    case EXCP_CRASH_OPEREXC:
+        str = "operation exception loop";
+        break;
+    default:
+        str = "unknown crash reason";
+        break;
+    }
     error_report("Unmanageable %s! CPU%i new PSW: 0x%016lx:%016lx",
                  str, cs->cpu_index, ldq_phys(cs->as, cpu->env.psa + pswoffset),
                  ldq_phys(cs->as, cpu->env.psa + pswoffset + 8));
     s390_cpu_halt(cpu);
-    qemu_system_guest_panicked(NULL);
+    cs->exception_index = reason;
+    qemu_system_guest_panicked(cpu_get_crash_info(cs));
 }
 
 /* try to detect pgm check loops */
@@ -1979,7 +1995,7 @@ static int handle_oper_loop(S390CPU *cpu, struct kvm_run *run)
         !(oldpsw.mask & PSW_MASK_PSTATE) &&
         (newpsw.mask & PSW_MASK_ASC) == (oldpsw.mask & PSW_MASK_ASC) &&
         (newpsw.mask & PSW_MASK_DAT) == (oldpsw.mask & PSW_MASK_DAT)) {
-        unmanageable_intercept(cpu, "operation exception loop",
+        unmanageable_intercept(cpu, EXCP_CRASH_OPEREXC,
                                offsetof(LowCore, program_new_psw));
         return EXCP_HALTED;
     }
@@ -2000,12 +2016,12 @@ static int handle_intercept(S390CPU *cpu)
             r = handle_instruction(cpu, run);
             break;
         case ICPT_PROGRAM:
-            unmanageable_intercept(cpu, "program interrupt",
+            unmanageable_intercept(cpu, EXCP_CRASH_PGM,
                                    offsetof(LowCore, program_new_psw));
             r = EXCP_HALTED;
             break;
         case ICPT_EXT_INT:
-            unmanageable_intercept(cpu, "external interrupt",
+            unmanageable_intercept(cpu, EXCP_CRASH_EXT,
                                    offsetof(LowCore, external_new_psw));
             r = EXCP_HALTED;
             break;
@@ -2016,7 +2032,8 @@ static int handle_intercept(S390CPU *cpu)
                 if (is_special_wait_psw(cs)) {
                     qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
                 } else {
-                    qemu_system_guest_panicked(NULL);
+                    cs->exception_index = EXCP_CRASH_WAITPSW;
+                    qemu_system_guest_panicked(cpu_get_crash_info(cs));
                 }
             }
             r = EXCP_HALTED;

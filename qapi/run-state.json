@@ -320,10 +320,12 @@
 #
 # An enumeration of the guest panic information types
 #
+# @kvm-s390: s390 guest panic information type (Since: 2.11)
+#
 # Since: 2.9
 ##
 { 'enum': 'GuestPanicInformationType',
-  'data': [ 'hyper-v'] }
+  'data': [ 'hyper-v', 'kvm-s390' ] }
 
 ##
 # @GuestPanicInformation:
@@ -335,7 +337,8 @@
 {'union': 'GuestPanicInformation',
  'base': {'type': 'GuestPanicInformationType'},
  'discriminator': 'type',
- 'data': { 'hyper-v': 'GuestPanicInformationHyperV' } }
+ 'data': { 'hyper-v': 'GuestPanicInformationHyperV',
+           'kvm-s390': 'GuestPanicInformationKVMS390' } }
 
 ##
 # @GuestPanicInformationHyperV:
@@ -350,3 +353,15 @@
            'arg3': 'uint64',
            'arg4': 'uint64',
            'arg5': 'uint64' } }
+
+##
+# @GuestPanicInformationKVMS390:
+#
+# KVM-S390 specific guest panic information (PSW)
+#
+# Since: 2.11
+##
+{'struct': 'GuestPanicInformationKVMS390',
+ 'data': { 'psw_mask': 'uint64',
+           'psw_addr': 'uint64',
+           'reason': 'str' } }

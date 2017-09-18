@@ -396,6 +396,12 @@ static inline void cpu_get_tb_cpu_state(CPUS390XState* env, target_ulong *pc,
 #define EXCP_IO  7 /* I/O interrupt */
 #define EXCP_MCHK 8 /* machine check */
 
+/* Crash cases. */
+#define EXCP_CRASH_PGM 9
+#define EXCP_CRASH_EXT 10
+#define EXCP_CRASH_WAITPSW 11
+#define EXCP_CRASH_OPEREXC 12
+
 #define INTERRUPT_EXT        (1 << 0)
 #define INTERRUPT_TOD        (1 << 1)
 #define INTERRUPT_CPUTIMER   (1 << 2)
