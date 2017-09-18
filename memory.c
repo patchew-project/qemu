@@ -917,36 +917,66 @@ static void address_space_update_topology_pass(AddressSpace *as,
     }
 }
 
-static void address_space_update_topology(AddressSpace *as)
+static gboolean flatview_unref_g_hash(gpointer key, gpointer value,
+                                      gpointer user_data)
 {
-    FlatView *old_view = address_space_get_flatview(as);
-    MemoryRegion *physmr = memory_region_unalias_entire(old_view->root);
-    FlatView *new_view = generate_memory_topology(physmr);
+    flatview_unref((FlatView *) value);
+    return true;
+}
+
+static void flatview_update_topology(void)
+{
     int i;
+    AddressSpace *as;
+    FlatView *old_view, *new_view;
+    GHashTable *views = g_hash_table_new(g_direct_hash, g_direct_equal);
+    MemoryRegion *physmr;
+    gpointer key;
 
-    new_view->dispatch = address_space_dispatch_new(new_view);
-    for (i = 0; i < new_view->nr; i++) {
-        MemoryRegionSection mrs =
-            section_from_flat_range(&new_view->ranges[i], new_view);
-        flatview_add_to_dispatch(new_view, &mrs);
+    /* Render unique FVs */
+    QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
+        old_view = as->current_map;
+        physmr = memory_region_unalias_entire(old_view->root);
+
+        key = !physmr->enabled ? 0 : physmr;
+        new_view = (FlatView *) g_hash_table_lookup(views, key);
+        if (new_view) {
+            continue;
+        }
+
+        new_view = generate_memory_topology(physmr);
+
+        new_view->dispatch = address_space_dispatch_new(new_view);
+        for (i = 0; i < new_view->nr; i++) {
+            MemoryRegionSection mrs =
+                section_from_flat_range(&new_view->ranges[i], new_view);
+            flatview_add_to_dispatch(new_view, &mrs);
+        }
+        address_space_dispatch_compact(new_view->dispatch);
+
+        g_hash_table_insert(views, key, new_view);
     }
-    address_space_dispatch_compact(new_view->dispatch);
-    address_space_update_topology_pass(as, old_view, new_view, false);
-    address_space_update_topology_pass(as, old_view, new_view, true);
 
-    /* Writes are protected by the BQL.  */
-    atomic_rcu_set(&as->current_map, new_view);
-    call_rcu(old_view, flatview_unref, rcu);
+    /* Replace FVs in ASes */
+    QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
+        old_view = as->current_map;
+        physmr = memory_region_unalias_entire(old_view->root);
 
-    /* Note that all the old MemoryRegions are still alive up to this
-     * point.  This relieves most MemoryListeners from the need to
-     * ref/unref the MemoryRegions they get---unless they use them
-     * outside the iothread mutex, in which case precise reference
-     * counting is necessary.
-     */
-    flatview_unref(old_view);
+        key = !physmr->enabled ? 0 : physmr;
+        new_view = (FlatView *) g_hash_table_lookup(views, key);
+        assert(new_view);
 
-    address_space_update_ioeventfds(as);
+        address_space_update_topology_pass(as, old_view, new_view, false);
+        address_space_update_topology_pass(as, old_view, new_view, true);
+
+        flatview_ref(new_view);
+        atomic_rcu_set(&as->current_map, new_view);
+        flatview_unref(old_view);
+    }
+
+    /* Unref FVs from temporary table */
+    g_hash_table_foreach_remove(views, flatview_unref_g_hash, 0);
+    g_hash_table_unref(views);
 }
 
 void memory_region_transaction_begin(void)
@@ -966,9 +996,10 @@ void memory_region_transaction_commit(void)
     if (!memory_region_transaction_depth) {
         if (memory_region_update_pending) {
             MEMORY_LISTENER_CALL_GLOBAL(begin, Forward);
+            flatview_update_topology();
 
             QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
-                address_space_update_topology(as);
+                address_space_update_ioeventfds(as);
             }
             memory_region_update_pending = false;
             MEMORY_LISTENER_CALL_GLOBAL(commit, Forward);
@@ -2689,13 +2720,6 @@ static void do_address_space_destroy(AddressSpace *as)
 AddressSpace *address_space_init_shareable(MemoryRegion *root, const char *name)
 {
     AddressSpace *as;
-
-    QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
-        if (root == as->root && as->malloced) {
-            as->ref_count++;
-            return as;
-        }
-    }
 
     as = g_malloc0(sizeof *as);
     address_space_init(as, root, name);
