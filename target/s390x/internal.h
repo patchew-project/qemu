@@ -350,6 +350,8 @@ void cpu_inject_ext(S390CPU *cpu, uint32_t code, uint32_t param,
                     uint64_t param64);
 void cpu_inject_clock_comparator(S390CPU *cpu);
 void cpu_inject_cpu_timer(S390CPU *cpu);
+void cpu_inject_emergency_signal(S390CPU *cpu, uint16_t src_cpu_addr);
+int cpu_inject_external_call(S390CPU *cpu, uint16_t src_cpu_addr);
 
 
 /* ioinst.c */
