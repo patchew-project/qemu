@@ -960,12 +960,12 @@ void HELPER(pre_smc)(CPUARMState *env, uint32_t syndrome)
         return;
     }
 
-    if (!arm_feature(env, ARM_FEATURE_EL3)) {
-        /* If we have no EL3 then SMC always UNDEFs */
-        undef = true;
-    } else if (!secure && cur_el == 1 && (env->cp15.hcr_el2 & HCR_TSC)) {
+    if (!secure && cur_el == 1 && (env->cp15.hcr_el2 & HCR_TSC)) {
         /* In NS EL1, HCR controlled routing to EL2 has priority over SMD. */
         raise_exception(env, EXCP_HYP_TRAP, syndrome, 2);
+    } else if (!arm_feature(env, ARM_FEATURE_EL3)) {
+        /* If we have no EL3 then SMC always UNDEFs */
+        undef = true;
     }
 
     if (undef) {

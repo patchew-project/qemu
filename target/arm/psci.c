@@ -35,6 +35,8 @@ bool arm_is_psci_call(ARMCPU *cpu, int excp_type)
      */
     CPUARMState *env = &cpu->env;
     uint64_t param = is_a64(env) ? env->xregs[0] : env->regs[0];
+    int cur_el = arm_current_el(env);
+    bool secure = arm_is_secure(env);
 
     switch (excp_type) {
     case EXCP_HVC:
@@ -44,6 +46,10 @@ bool arm_is_psci_call(ARMCPU *cpu, int excp_type)
         break;
     case EXCP_SMC:
         if (cpu->psci_conduit != QEMU_PSCI_CONDUIT_SMC) {
+            return false;
+        }
+        if (!secure && cur_el == 1 && (env->cp15.hcr_el2 & HCR_TSC)) {
+            /* The EL2 will handle this. */
             return false;
         }
         break;
