@@ -544,8 +544,9 @@ static void imx_eth_enable_rx(IMXFECState *s)
 
     if (rx_ring_full) {
         FEC_PRINTF("RX buffer full\n");
-    } else if (!s->regs[ENET_RDAR]) {
+    } else if (s->needs_flush) {
         qemu_flush_queued_packets(qemu_get_queue(s->nic));
+        s->needs_flush = false;
     }
 
     s->regs[ENET_RDAR] = rx_ring_full ? 0 : ENET_RDAR_RDAR;
@@ -930,7 +931,8 @@ static int imx_eth_can_receive(NetClientState *nc)
 
     FEC_PRINTF("\n");
 
-    return s->regs[ENET_RDAR] ? 1 : 0;
+    s->needs_flush = !s->regs[ENET_RDAR];
+    return !!s->regs[ENET_RDAR];
 }
 
 static ssize_t imx_fec_receive(NetClientState *nc, const uint8_t *buf,
