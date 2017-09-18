@@ -267,17 +267,24 @@ int s390_store_status(S390CPU *cpu, hwaddr addr, bool store_arch)
         cpu_physical_memory_write(offsetof(LowCore, ar_access_id), &ar_id, 1);
     }
     for (i = 0; i < 16; ++i) {
-        *((uint64_t *)mem + i) = get_freg(&cpu->env, i)->ll;
+        *((uint64_t *)mem + i) = cpu_to_be64(get_freg(&cpu->env, i)->ll);
     }
-    memcpy(mem + 128, &cpu->env.regs, 128);
-    memcpy(mem + 256, &cpu->env.psw, 16);
-    memcpy(mem + 280, &cpu->env.psa, 4);
-    memcpy(mem + 284, &cpu->env.fpc, 4);
-    memcpy(mem + 292, &cpu->env.todpr, 4);
-    memcpy(mem + 296, &cpu->env.cputm, 8);
-    memcpy(mem + 304, &ckc, 8);
-    memcpy(mem + 320, &cpu->env.aregs, 64);
-    memcpy(mem + 384, &cpu->env.cregs, 128);
+    for (i = 0; i < 16; ++i) {
+        *((uint64_t *)(mem + 128) + i) = cpu_to_be64(cpu->env.regs[i]);
+    }
+    *((uint64_t *)(mem + 256)) = cpu_to_be64(get_psw_mask(&cpu->env));
+    *((uint64_t *)(mem + 264)) = cpu_to_be64(cpu->env.psw.addr);
+    *((uint32_t *)(mem + 280)) = cpu_to_be32(cpu->env.psa);
+    *((uint32_t *)(mem + 284)) = cpu_to_be32(cpu->env.fpc);
+    *((uint32_t *)(mem + 292)) = cpu_to_be32(cpu->env.todpr);
+    *((uint64_t *)(mem + 296)) = cpu_to_be64(cpu->env.cputm);
+    *((uint64_t *)(mem + 304)) = cpu_to_be64(ckc);
+    for (i = 0; i < 16; ++i) {
+        *((uint32_t *)(mem + 320) + i) = cpu_to_be32(cpu->env.aregs[i]);
+    }
+    for (i = 0; i < 16; ++i) {
+        *((uint64_t *)(mem + 384) + i) = cpu_to_be64(cpu->env.cregs[i]);
+    }
 
     cpu_physical_memory_unmap(mem, len, 1, len);
 
