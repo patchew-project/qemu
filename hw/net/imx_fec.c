@@ -1032,9 +1032,7 @@ static ssize_t imx_enet_receive(NetClientState *nc, const uint8_t *buf,
     IMXENETBufDesc bd;
     uint32_t flags = 0;
     uint32_t addr;
-    uint32_t crc;
     uint32_t buf_addr;
-    uint8_t *crc_ptr;
     unsigned int buf_len;
     size_t size = len;
 
@@ -1048,8 +1046,6 @@ static ssize_t imx_enet_receive(NetClientState *nc, const uint8_t *buf,
 
     /* 4 bytes for the CRC.  */
     size += 4;
-    crc = cpu_to_be32(crc32(~0, buf, size));
-    crc_ptr = (uint8_t *) &crc;
 
     /* Huge frames are truncted.  */
     if (size > ENET_MAX_FRAME_SIZE) {
@@ -1090,9 +1086,10 @@ static ssize_t imx_enet_receive(NetClientState *nc, const uint8_t *buf,
         dma_memory_write(&address_space_memory, buf_addr, buf, buf_len);
         buf += buf_len;
         if (size < 4) {
+            const uint8_t zeros[4] = { 0 };
+
             dma_memory_write(&address_space_memory, buf_addr + buf_len,
-                             crc_ptr, 4 - size);
-            crc_ptr += 4 - size;
+                             zeros, 4 - size);
         }
         bd.flags &= ~ENET_BD_E;
         if (size == 0) {
