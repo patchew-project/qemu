@@ -92,7 +92,9 @@ static coroutine_fn void nbd_read_reply_entry(void *opaque)
         i = HANDLE_TO_INDEX(s, s->reply.handle);
         if (i >= MAX_NBD_REQUESTS ||
             !s->requests[i].coroutine ||
-            !s->requests[i].receiving) {
+            !s->requests[i].receiving ||
+            s->reply.handle != s->requests[i].request->handle)
+        {
             break;
         }
 
@@ -142,6 +144,7 @@ static int nbd_co_send_request(BlockDriverState *bs,
     s->requests[i].receiving = false;
 
     request->handle = INDEX_TO_HANDLE(s, i);
+    s->requests[i].request = request;
 
     if (s->quit) {
         rc = -EIO;
@@ -189,9 +192,10 @@ static int nbd_co_receive_reply(NBDClientSession *s,
     s->requests[i].receiving = true;
     qemu_coroutine_yield();
     s->requests[i].receiving = false;
-    if (s->reply.handle != request->handle || !s->ioc || s->quit) {
+    if (!s->ioc || s->quit) {
         ret = -EIO;
     } else {
+        assert(s->reply.handle == request->handle);
         ret = -s->reply.error;
         if (qiov && s->reply.error == 0) {
             assert(request->len == iov_size(qiov->iov, qiov->niov));
