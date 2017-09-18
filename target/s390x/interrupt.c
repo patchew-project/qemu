@@ -119,22 +119,28 @@ int cpu_inject_external_call(S390CPU *cpu, uint16_t src_cpu_addr)
 
 void cpu_inject_restart(S390CPU *cpu)
 {
+    CPUS390XState *env = &cpu->env;
+
     if (kvm_enabled()) {
         kvm_s390_restart_interrupt(cpu);
         return;
     }
-    /* FIXME TCG */
-    g_assert_not_reached();
+
+    env->pending_int |= INTERRUPT_RESTART;
+    cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
 }
 
 void cpu_inject_stop(S390CPU *cpu)
 {
+    CPUS390XState *env = &cpu->env;
+
     if (kvm_enabled()) {
         kvm_s390_stop_interrupt(cpu);
         return;
     }
-    /* FIXME TCG */
-    g_assert_not_reached();
+
+    env->pending_int |= INTERRUPT_STOP;
+    cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
 }
 
 static void cpu_inject_io(S390CPU *cpu, uint16_t subchannel_id,

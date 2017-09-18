@@ -65,7 +65,9 @@ static bool s390_cpu_has_work(CPUState *cs)
     }
 
     return (cs->interrupt_request & CPU_INTERRUPT_HARD) &&
-           (env->psw.mask & PSW_MASK_EXT);
+            ((env->psw.mask & PSW_MASK_EXT) ||
+             env->pending_int & INTERRUPT_STOP ||
+             env->pending_int & INTERRUPT_RESTART);
 }
 
 #if !defined(CONFIG_USER_ONLY)

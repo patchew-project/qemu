@@ -452,6 +452,14 @@ void s390_cpu_do_interrupt(CPUState *cs)
             cs->exception_index = EXCP_IO;
         }
     }
+    /* RESTART interrupt */
+    if (cs->exception_index == -1 && env->pending_int & INTERRUPT_RESTART) {
+        cs->exception_index = EXCP_RESTART;
+    }
+    /* STOP interrupt has least priority */
+    if (cs->exception_index == -1 && env->pending_int & INTERRUPT_STOP) {
+        cs->exception_index = EXCP_STOP;
+    }
 
     switch (cs->exception_index) {
     case EXCP_PGM:
@@ -468,6 +476,12 @@ void s390_cpu_do_interrupt(CPUState *cs)
         break;
     case EXCP_MCHK:
         do_mchk_interrupt(env);
+        break;
+    case EXCP_RESTART:
+        do_restart_interrupt(env);
+        break;
+    case EXCP_STOP:
+        do_stop_interrupt(env);
         break;
     }
     cs->exception_index = -1;
@@ -488,7 +502,9 @@ bool s390_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
                the parent EXECUTE insn.  */
             return false;
         }
-        if (env->psw.mask & PSW_MASK_EXT) {
+        if (env->psw.mask & PSW_MASK_EXT ||
+            env->pending_int & INTERRUPT_STOP ||
+            env->pending_int & INTERRUPT_RESTART) {
             s390_cpu_do_interrupt(cs);
             return true;
         }

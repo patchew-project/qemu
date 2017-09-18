@@ -498,6 +498,7 @@ void do_stop_interrupt(CPUS390XState *env)
         s390_store_status(cpu, S390_STORE_STATUS_DEF_ADDR, true);
     }
     env->sigp_order = 0;
+    env->pending_int &= ~INTERRUPT_STOP;
 }
 
 void s390_init_sigp(void)
