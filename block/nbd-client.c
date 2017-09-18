@@ -189,6 +189,9 @@ static int nbd_co_send_request(BlockDriverState *bs,
     }
 
 err:
+    if (rc >= 0 && s->quit) {
+        rc = -EIO;
+    }
     if (rc < 0) {
         s->quit = true;
         s->requests[i].coroutine = NULL;
