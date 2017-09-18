@@ -87,7 +87,7 @@ static void x86_iommu_realize(DeviceState *dev, Error **errp)
     PCMachineState *pcms = PC_MACHINE(ms);
     QLIST_INIT(&x86_iommu->iec_notifiers);
 
-    if (!pcms) {
+    if (!pcms || !pcms->bus) {
         error_setg(errp, "Machine-type '%s' not supported by IOMMU",
                    mc->name);
         return;
