@@ -21,6 +21,7 @@ typedef struct {
     Coroutine *coroutine;
     bool receiving;         /* waiting for read_reply_co? */
     NBDRequest *request;
+    QEMUIOVector *qiov;
 } NBDClientRequest;
 
 typedef struct NBDClientSession {
