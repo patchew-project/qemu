@@ -1748,6 +1748,9 @@ static int coroutine_fn v9fs_do_readdir_with_stat(V9fsPDU *pdu,
         if (err < 0) {
             break;
         }
+        v9fs_path_free(&path);
+
+        v9fs_path_sprintf(&path, "%s", dent->d_name);
         err = stat_to_v9stat(pdu, &path, &stbuf, &v9stat);
         if (err < 0) {
             break;
