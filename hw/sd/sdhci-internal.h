@@ -91,6 +91,8 @@
 #define SDHC_CTRL_ADMA2_32             0x10
 #define SDHC_CTRL_ADMA2_64             0x18
 #define SDHC_DMA_TYPE(x)               ((x) & SDHC_CTRL_DMA_CHECK_MASK)
+#define SDHC_CTRL_4BITBUS              0x02
+#define SDHC_CTRL_8BITBUS              0x20
 
 /* R/W Power Control Register 0x0 */
 #define SDHC_PWRCON                    0x29
@@ -228,5 +230,18 @@ enum {
 };
 
 extern const VMStateDescription sdhci_vmstate;
+
+
+#define ESDHC_MIX_CTRL			0x48
+#define ESDHC_VENDOR_SPEC		0xc0
+#define ESDHC_DLL_CTRL			0x60
+
+#define ESDHC_TUNING_CTRL		0xcc
+#define ESDHC_TUNE_CTRL_STATUS		0x68
+#define ESDHC_WTMK_LVL			0x44
+
+#define ESDHC_CTRL_4BITBUS		(0x1 << 1)
+#define ESDHC_CTRL_8BITBUS		(0x2 << 1)
+
 
 #endif
