@@ -81,7 +81,7 @@ static coroutine_fn void nbd_read_reply_entry(void *opaque)
         if (ret < 0) {
             error_report_err(local_err);
         }
-        if (ret <= 0) {
+        if (ret <= 0 || s->quit) {
             break;
         }
 
@@ -105,9 +105,8 @@ static coroutine_fn void nbd_read_reply_entry(void *opaque)
             assert(qiov != NULL);
             assert(s->requests[i].request->len ==
                    iov_size(qiov->iov, qiov->niov));
-            if (qio_channel_readv_all(s->ioc, qiov->iov, qiov->niov,
-                                      NULL) < 0)
-            {
+            ret = qio_channel_readv_all(s->ioc, qiov->iov, qiov->niov, NULL);
+            if (ret < 0 || s->quit) {
                 s->requests[i].ret = -EIO;
                 break;
             }
