@@ -282,6 +282,9 @@ static void ccw_init(MachineState *machine)
     /* init CPUs (incl. CPU model) early so s390_has_feature() works */
     s390_init_cpus(machine);
 
+    /* init the SIGP facility */
+    s390_init_sigp();
+
     s390_flic_init();
 
     /* get a BUS */
