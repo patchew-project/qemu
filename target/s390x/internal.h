@@ -341,6 +341,7 @@ void s390x_cpu_timer(void *opaque);
 void do_restart_interrupt(CPUS390XState *env);
 #define S390_STORE_STATUS_DEF_ADDR offsetof(LowCore, floating_pt_save_area)
 int s390_store_status(S390CPU *cpu, hwaddr addr, bool store_arch);
+int s390_store_adtl_status(S390CPU *cpu, hwaddr addr, hwaddr len);
 #ifndef CONFIG_USER_ONLY
 LowCore *cpu_map_lowcore(CPUS390XState *env);
 void cpu_unmap_lowcore(LowCore *lowcore);
