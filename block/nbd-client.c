@@ -74,10 +74,10 @@ static coroutine_fn void nbd_read_reply_entry(void *opaque)
     uint64_t i;
     int ret = 0;
     Error *local_err = NULL;
+    NBDReply reply;
 
     while (!s->quit) {
-        assert(s->reply.handle == 0);
-        ret = nbd_receive_reply(s->ioc, &s->reply, &local_err);
+        ret = nbd_receive_reply(s->ioc, &reply, &local_err);
         if (ret < 0) {
             error_report_err(local_err);
         }
@@ -89,18 +89,18 @@ static coroutine_fn void nbd_read_reply_entry(void *opaque)
          * handler acts as a synchronization point and ensures that only
          * one coroutine is called until the reply finishes.
          */
-        i = HANDLE_TO_INDEX(s, s->reply.handle);
+        i = HANDLE_TO_INDEX(s, reply.handle);
         if (i >= MAX_NBD_REQUESTS ||
             !s->requests[i].coroutine ||
             !s->requests[i].receiving ||
-            s->reply.handle != s->requests[i].request->handle)
+            reply.handle != s->requests[i].request->handle)
         {
             break;
         }
 
-        if (s->reply.error == 0 &&
-            s->requests[i].request->type == NBD_CMD_READ)
-        {
+        s->requests[i].ret = -reply.error;
+
+        if (reply.error == 0 && s->requests[i].request->type == NBD_CMD_READ) {
             QEMUIOVector *qiov = s->requests[i].qiov;
             assert(qiov != NULL);
             assert(s->requests[i].request->len ==
@@ -108,7 +108,7 @@ static coroutine_fn void nbd_read_reply_entry(void *opaque)
             if (qio_channel_readv_all(s->ioc, qiov->iov, qiov->niov,
                                       NULL) < 0)
             {
-                s->reply.error = EIO;
+                s->requests[i].ret = -EIO;
                 break;
             }
         }
@@ -211,11 +211,7 @@ static int nbd_co_receive_reply(NBDClientSession *s, NBDRequest *request)
     if (!s->ioc || s->quit) {
         ret = -EIO;
     } else {
-        assert(s->reply.handle == request->handle);
-        ret = -s->reply.error;
-
-        /* Tell the read handler to read another header.  */
-        s->reply.handle = 0;
+        ret = s->requests[i].ret;
     }
 
     s->requests[i].coroutine = NULL;

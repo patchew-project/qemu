@@ -22,6 +22,7 @@ typedef struct {
     bool receiving;         /* waiting for read_reply_co? */
     NBDRequest *request;
     QEMUIOVector *qiov;
+    int ret;
 } NBDClientRequest;
 
 typedef struct NBDClientSession {
@@ -35,7 +36,6 @@ typedef struct NBDClientSession {
     int in_flight;
 
     NBDClientRequest requests[MAX_NBD_REQUESTS];
-    NBDReply reply;
     bool quit;
 } NBDClientSession;
 
