@@ -913,7 +913,6 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtIOBlock *s = VIRTIO_BLK(dev);
     VirtIOBlkConf *conf = &s->conf;
-    Error *err = NULL;
     unsigned i;
 
     if (!conf->conf.blk) {
@@ -930,17 +929,13 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
     }
 
     blkconf_serial(&conf->conf, &conf->serial);
-    blkconf_apply_backend_options(&conf->conf,
-                                  blk_is_read_only(conf->conf.blk), true,
-                                  &err);
-    if (err) {
-        error_propagate(errp, err);
+    if (!blkconf_apply_backend_options(&conf->conf,
+                                       blk_is_read_only(conf->conf.blk),
+                                       true, errp)) {
         return;
     }
     s->original_wce = blk_enable_write_cache(conf->conf.blk);
-    blkconf_geometry(&conf->conf, NULL, 65535, 255, 255, &err);
-    if (err) {
-        error_propagate(errp, err);
+    if (!blkconf_geometry(&conf->conf, NULL, 65535, 255, 255, errp)) {
         return;
     }
     blkconf_blocksizes(&conf->conf);
@@ -955,9 +950,7 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
     for (i = 0; i < conf->num_queues; i++) {
         virtio_add_queue(vdev, 128, virtio_blk_handle_output);
     }
-    virtio_blk_data_plane_create(vdev, conf, &s->dataplane, &err);
-    if (err != NULL) {
-        error_propagate(errp, err);
+    if (!virtio_blk_data_plane_create(vdev, conf, &s->dataplane, errp)) {
         virtio_cleanup(vdev);
         return;
     }
