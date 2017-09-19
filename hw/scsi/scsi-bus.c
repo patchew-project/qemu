@@ -2123,6 +2123,7 @@ static void scsi_device_class_init(ObjectClass *klass, void *data)
     k->realize   = scsi_qdev_realize;
     k->unrealize = scsi_qdev_unrealize;
     k->props     = scsi_props;
+    k->hotpluggable = true;
 }
 
 static void scsi_dev_instance_init(Object *obj)

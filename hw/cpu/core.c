@@ -82,6 +82,7 @@ static void cpu_core_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     set_bit(DEVICE_CATEGORY_CPU, dc->categories);
+    dc->hotpluggable = true;
 }
 
 static const TypeInfo cpu_core_type_info = {

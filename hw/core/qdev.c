@@ -1120,13 +1120,11 @@ static void device_class_init(ObjectClass *class, void *data)
     dc->realize = device_realize;
     dc->unrealize = device_unrealize;
 
-    /* by default all devices were considered as hotpluggable,
-     * so with intent to check it in generic qdev_unplug() /
-     * device_set_realized() functions make every device
-     * hotpluggable. Devices that shouldn't be hotpluggable,
-     * should override it in their class_init()
+    /*
+     * All devices are considered as cold-pluggable by default. The devices
+     * that are hotpluggable should override it in their class_init().
      */
-    dc->hotpluggable = true;
+    dc->hotpluggable = false;
     dc->user_creatable = true;
 }
 

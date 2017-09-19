@@ -2534,6 +2534,7 @@ static void pci_device_class_init(ObjectClass *klass, void *data)
     k->unrealize = pci_qdev_unrealize;
     k->bus_type = TYPE_PCI_BUS;
     k->props = pci_props;
+    k->hotpluggable = true;
     pc->realize = pci_default_realize;
 }
 
