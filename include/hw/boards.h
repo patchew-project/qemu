@@ -141,6 +141,8 @@ typedef struct {
  *    should instead use "unimplemented-device" for all memory ranges where
  *    the guest will attempt to probe for a device that QEMU doesn't
  *    implement and a stub device is required.
+ * @add_numa_node_implicitly:
+ *    Enable NUMA implicitly by add a new NUMA node automatically.
  */
 struct MachineClass {
     /*< private >*/
@@ -191,6 +193,8 @@ struct MachineClass {
     CpuInstanceProperties (*cpu_index_to_instance_props)(MachineState *machine,
                                                          unsigned cpu_index);
     const CPUArchIdList *(*possible_cpu_arch_ids)(MachineState *machine);
+
+    void (*add_numa_node_implicitly)(QemuOptsList *list);
 };
 
 /**

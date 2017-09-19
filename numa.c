@@ -423,12 +423,37 @@ void numa_default_auto_assign_ram(MachineClass *mc, NodeInfo *nodes,
     nodes[i].node_mem = size - usedmem;
 }
 
-void parse_numa_opts(MachineState *ms)
+void numa_add_node_implicitly(QemuOptsList *list)
+{
+    qemu_opts_parse_noisily(list, "node", true);
+}
+
+void parse_numa_opts(MachineState *ms, uint64_t ram_slots)
 {
     int i;
     MachineClass *mc = MACHINE_GET_CLASS(ms);
+    QemuOptsList *numa_opts = qemu_find_opts("numa");
 
-    if (qemu_opts_foreach(qemu_find_opts("numa"), parse_numa, ms, NULL)) {
+    /*
+     * If memory hotplug is enabled (slots > 0) but without '-numa'
+     * options explicitly on CLI, guestes will break.
+     *
+     *   Windows: won't enable memory hotplug without SRAT table at all
+     *
+     *   Linux: if QEMU is started with initial memory all below 4Gb
+     *   and no SRAT table present, guest kernel will use nommu DMA ops,
+     *   which breaks 32bit hw drivers when memory is hotplugged and
+     *   guest tries to use it with that drivers.
+     *
+     * Enable NUMA implicitly by adding a new NUMA node manually.
+     */
+    if (ram_slots > 0 && numa_opts->head.tqh_first == NULL) {
+        if (mc->add_numa_node_implicitly) {
+            mc->add_numa_node_implicitly(numa_opts);
+        }
+    }
+
+    if (qemu_opts_foreach(numa_opts, parse_numa, ms, NULL)) {
         exit(1);
     }
 

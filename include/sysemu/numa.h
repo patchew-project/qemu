@@ -30,7 +30,7 @@ struct NumaNodeMem {
 };
 
 extern NodeInfo numa_info[MAX_NODES];
-void parse_numa_opts(MachineState *ms);
+void parse_numa_opts(MachineState *ms, uint64_t ram_slots);
 void query_numa_node_mem(NumaNodeMem node_mem[]);
 extern QemuOptsList qemu_numa_opts;
 void numa_set_mem_node_id(ram_addr_t addr, uint64_t size, uint32_t node);
@@ -41,4 +41,5 @@ void numa_legacy_auto_assign_ram(MachineClass *mc, NodeInfo *nodes,
 void numa_default_auto_assign_ram(MachineClass *mc, NodeInfo *nodes,
                                   int nb_nodes, ram_addr_t size);
 void numa_cpu_pre_plug(const CPUArchId *slot, DeviceState *dev, Error **errp);
+void numa_add_node_implicitly(QemuOptsList *list);
 #endif
