@@ -34,6 +34,8 @@
 #define HV_VP_INDEX_AVAILABLE        (1u << 6)
 #define HV_RESET_AVAILABLE           (1u << 7)
 #define HV_REFERENCE_TSC_AVAILABLE   (1u << 9)
+#define HV_ACCESS_FREQUENCY_MSRS     (1u << 11)
+
 
 /*
  * HV_CPUID_FEATURES.EDX bits
@@ -44,6 +46,7 @@
 #define HV_CPU_DYNAMIC_PARTITIONING_AVAILABLE   (1u << 3)
 #define HV_HYPERCALL_PARAMS_XMM_AVAILABLE       (1u << 4)
 #define HV_GUEST_IDLE_STATE_AVAILABLE           (1u << 5)
+#define HV_FREQUENCY_MSRS_AVAILABLE             (1u << 8)
 #define HV_GUEST_CRASH_MSR_AVAILABLE            (1u << 10)
 
 /*
