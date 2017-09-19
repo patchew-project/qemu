@@ -2829,6 +2829,8 @@ static abi_long do_setsockopt(int sockfd, int level, int optname,
     int val;
     struct ip_mreqn *ip_mreq;
     struct ip_mreq_source *ip_mreq_source;
+    struct linger lg;
+    struct target_linger *tlg;
 
     switch(level) {
     case SOL_TCP:
@@ -3071,6 +3073,20 @@ set_timeout:
 		unlock_user (dev_ifname, optval_addr, 0);
 		return ret;
 	}
+        case TARGET_SO_LINGER:
+                optname = SO_LINGER;
+                if (optlen != sizeof(struct target_linger)) {
+                    return -TARGET_EINVAL;
+                }
+                if (!lock_user_struct(VERIFY_READ, tlg, optval_addr, 1)) {
+                    return -TARGET_EFAULT;
+                }
+                __get_user(lg.l_onoff, &tlg->l_onoff);
+                __get_user(lg.l_linger, &tlg->l_linger);
+                ret = get_errno(setsockopt(sockfd, SOL_SOCKET, optname,
+                                &lg, sizeof(lg)));
+                unlock_user_struct(tlg, optval_addr, 0);
+                return ret;
             /* Options with 'int' argument.  */
         case TARGET_SO_DEBUG:
 		optname = SO_DEBUG;
