@@ -308,15 +308,21 @@ bool vmstate_save_needed(const VMStateDescription *vmsd, void *opaque)
 }
 
 
-void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
+int vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
                         void *opaque, QJSON *vmdesc)
 {
+    int ret = 0;
     VMStateField *field = vmsd->fields;
 
     trace_vmstate_save_state_top(vmsd->name);
 
     if (vmsd->pre_save) {
-        vmsd->pre_save(opaque);
+        ret = vmsd->pre_save(opaque);
+        trace_vmstate_save_state_pre_save_res(vmsd->name, ret);
+        if (ret) {
+            error_report("pre-save failed: %s", vmsd->name);
+            return ret;
+        }
     }
 
     if (vmdesc) {
@@ -353,7 +359,11 @@ void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
                     assert(field->flags & VMS_ARRAY_OF_POINTER);
                     vmstate_info_nullptr.put(f, curr_elem, size, NULL, NULL);
                 } else if (field->flags & VMS_STRUCT) {
-                    vmstate_save_state(f, field->vmsd, curr_elem, vmdesc_loop);
+                    int ret = vmstate_save_state(f, field->vmsd, curr_elem,
+                                                 vmdesc_loop);
+                    if (ret) {
+                        return ret;
+                    }
                 } else {
                     field->info->put(f, curr_elem, size, field, vmdesc_loop);
                 }
@@ -381,6 +391,8 @@ void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
     }
 
     vmstate_subsection_save(f, vmsd, opaque, vmdesc);
+
+    return 0;
 }
 
 static const VMStateDescription *
