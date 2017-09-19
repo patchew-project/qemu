@@ -320,10 +320,12 @@
 #
 # An enumeration of the guest panic information types
 #
+# @s390: s390 guest panic information type (Since: 2.11)
+#
 # Since: 2.9
 ##
 { 'enum': 'GuestPanicInformationType',
-  'data': [ 'hyper-v'] }
+  'data': [ 'hyper-v', 's390' ] }
 
 ##
 # @GuestPanicInformation:
@@ -335,7 +337,8 @@
 {'union': 'GuestPanicInformation',
  'base': {'type': 'GuestPanicInformationType'},
  'discriminator': 'type',
- 'data': { 'hyper-v': 'GuestPanicInformationHyperV' } }
+ 'data': { 'hyper-v': 'GuestPanicInformationHyperV',
+           's390': 'GuestPanicInformationS390' } }
 
 ##
 # @GuestPanicInformationHyperV:
@@ -350,3 +353,15 @@
            'arg3': 'uint64',
            'arg4': 'uint64',
            'arg5': 'uint64' } }
+
+##
+# @GuestPanicInformationS390:
+#
+# S390 specific guest panic information (PSW)
+#
+# Since: 2.11
+##
+{'struct': 'GuestPanicInformationS390',
+ 'data': { 'psw-mask': 'uint64',
+           'psw-addr': 'uint64',
+           'reason': 'str' } }
