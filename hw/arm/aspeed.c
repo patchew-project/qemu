@@ -251,6 +251,17 @@ static void aspeed_board_init(MachineState *machine,
     arm_load_kernel(ARM_CPU(first_cpu), &aspeed_board_binfo);
 }
 
+static void aspeed_i2c_add_eeprom(I2CBus *bus, uint8_t address, size_t size)
+{
+    uint8_t *eeprom_buf = g_malloc0(size);
+    DeviceState *dev;
+
+    dev = qdev_create((BusState *) bus, "smbus-eeprom");
+    qdev_prop_set_uint8(dev, "address", address);
+    qdev_prop_set_ptr(dev, "data", eeprom_buf);
+    qdev_init_nofail(dev);
+}
+
 static void palmetto_bmc_i2c_init(AspeedBoardState *bmc)
 {
     AspeedSoCState *soc = &bmc->soc;
@@ -259,6 +270,9 @@ static void palmetto_bmc_i2c_init(AspeedBoardState *bmc)
     /* The palmetto platform expects a ds3231 RTC but a ds1338 is
      * enough to provide basic RTC features. Alarms will be missing */
     i2c_create_slave(aspeed_i2c_get_bus(DEVICE(&soc->i2c), 0), "ds1338", 0x68);
+
+    aspeed_i2c_add_eeprom(aspeed_i2c_get_bus(DEVICE(&soc->i2c), 0), 0x50,
+                          256 * 1024);
 
     /* add a TMP423 temperature sensor */
     dev = i2c_create_slave(aspeed_i2c_get_bus(DEVICE(&soc->i2c), 2),
@@ -297,6 +311,9 @@ static const TypeInfo palmetto_bmc_type = {
 static void ast2500_evb_i2c_init(AspeedBoardState *bmc)
 {
     AspeedSoCState *soc = &bmc->soc;
+
+    aspeed_i2c_add_eeprom(aspeed_i2c_get_bus(DEVICE(&soc->i2c), 3), 0x50,
+                          8 * 1024);
 
     /* The AST2500 EVB expects a LM75 but a TMP105 is compatible */
     i2c_create_slave(aspeed_i2c_get_bus(DEVICE(&soc->i2c), 7), "tmp105", 0x4d);
@@ -377,6 +394,9 @@ static void witherspoon_bmc_i2c_init(AspeedBoardState *bmc)
     /* The witherspoon board expects Epson RX8900 I2C RTC but a ds1338 is
      * good enough */
     i2c_create_slave(aspeed_i2c_get_bus(DEVICE(&soc->i2c), 11), "ds1338", 0x32);
+
+    aspeed_i2c_add_eeprom(aspeed_i2c_get_bus(DEVICE(&soc->i2c), 11), 0x51,
+                          8 * 1024);
 }
 
 static void witherspoon_bmc_init(MachineState *machine)
