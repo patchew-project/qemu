@@ -110,8 +110,7 @@ static void virtio_iommu_put_dev(gpointer data)
     g_free(dev);
 }
 
-viommu_as *virtio_iommu_get_as(VirtIOIOMMU *s, uint32_t asid);
-viommu_as *virtio_iommu_get_as(VirtIOIOMMU *s, uint32_t asid)
+static viommu_as *virtio_iommu_get_as(VirtIOIOMMU *s, uint32_t asid)
 {
     viommu_as *as;
 
@@ -205,6 +204,8 @@ static int virtio_iommu_attach(VirtIOIOMMU *s,
     uint32_t asid = le32_to_cpu(req->address_space);
     uint32_t devid = le32_to_cpu(req->device);
     uint32_t reserved = le32_to_cpu(req->reserved);
+    viommu_as *as;
+    viommu_dev *dev;
 
     trace_virtio_iommu_attach(asid, devid);
 
@@ -212,7 +213,22 @@ static int virtio_iommu_attach(VirtIOIOMMU *s,
         return VIRTIO_IOMMU_S_INVAL;
     }
 
-    return VIRTIO_IOMMU_S_UNSUPP;
+    dev = virtio_iommu_get_dev(s, devid);
+    if (dev->as) {
+        /*
+         * the device is already attached to an address space,
+         * detach it first
+         */
+        virtio_iommu_detach_dev_from_as(dev);
+    }
+
+    as = virtio_iommu_get_as(s, asid);
+    QLIST_INSERT_HEAD(&as->device_list, dev, next);
+
+    dev->as = as;
+    g_tree_ref(as->mappings);
+
+    return VIRTIO_IOMMU_S_OK;
 }
 
 static int virtio_iommu_detach(VirtIOIOMMU *s,
@@ -220,14 +236,24 @@ static int virtio_iommu_detach(VirtIOIOMMU *s,
 {
     uint32_t devid = le32_to_cpu(req->device);
     uint32_t reserved = le32_to_cpu(req->reserved);
-
-    trace_virtio_iommu_detach(devid);
+    viommu_dev *dev;
 
     if (reserved) {
         return VIRTIO_IOMMU_S_INVAL;
     }
 
-    return VIRTIO_IOMMU_S_UNSUPP;
+    dev = g_tree_lookup(s->devices, GUINT_TO_POINTER(devid));
+    if (!dev) {
+        return VIRTIO_IOMMU_S_NOENT;
+    }
+
+    if (!dev->as) {
+        return VIRTIO_IOMMU_S_INVAL;
+    }
+
+    virtio_iommu_detach_dev_from_as(dev);
+    trace_virtio_iommu_detach(devid);
+    return VIRTIO_IOMMU_S_OK;
 }
 
 static int virtio_iommu_map(VirtIOIOMMU *s,
