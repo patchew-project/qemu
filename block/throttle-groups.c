@@ -592,7 +592,20 @@ void throttle_group_attach_aio_context(ThrottleGroupMember *tgm,
 void throttle_group_detach_aio_context(ThrottleGroupMember *tgm)
 {
     ThrottleTimers *tt = &tgm->throttle_timers;
+    ThrottleGroup *tg = container_of(tgm->throttle_state, ThrottleGroup, ts);
+
     throttle_timers_detach_aio_context(tt);
+
+    /* Forget about these timers, they have been destroyed */
+    qemu_mutex_lock(&tg->lock);
+    if (tg->tokens[0] == tgm) {
+        tg->any_timer_armed[0] = false;
+    }
+    if (tg->tokens[1] == tgm) {
+        tg->any_timer_armed[1] = false;
+    }
+    qemu_mutex_unlock(&tg->lock);
+
     tgm->aio_context = NULL;
 }
 
