@@ -30,6 +30,7 @@
 #include "ui/console.h"
 #include "hw/boards.h"
 #include "hw/i2c/i2c.h"
+#include "hw/input/keypad.h"
 #include "hw/devices.h"
 #include "hw/block/flash.h"
 #include "hw/hw.h"
@@ -412,7 +413,7 @@ static void n810_kbd_setup(struct n800_s *s)
     /* Attach the LM8322 keyboard to the I2C bus,
      * should happen in n8x0_i2c_setup and s->kbd be initialised here.  */
     s->kbd = i2c_create_slave(omap_i2c_bus(s->mpu->i2c[0]),
-                           "lm8323", N810_LM8323_ADDR);
+                              TYPE_LM8323, N810_LM8323_ADDR);
     qdev_connect_gpio_out(s->kbd, 0, kbd_irq);
 }
 
