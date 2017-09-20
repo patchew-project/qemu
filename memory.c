@@ -38,6 +38,7 @@
 
 static unsigned memory_region_transaction_depth;
 static bool memory_region_update_pending;
+static bool memory_region_full_update_pending;
 static bool ioeventfd_update_pending;
 static bool global_dirty_log = false;
 
@@ -1040,7 +1041,30 @@ void memory_region_transaction_begin(void)
     ++memory_region_transaction_depth;
 }
 
-void memory_region_transaction_commit(void)
+static bool memory_region_transaction_fast_commit(MemoryRegion *mr)
+{
+    FlatView *old_view, *new_view;
+    MemoryRegion *physmr;
+
+    while (mr->container) {
+        mr = mr->container;
+    }
+
+    physmr = memory_region_get_flatview_root(mr);
+
+    flatviews_init();
+    old_view = g_hash_table_lookup(flat_views, physmr);
+    if (!old_view) {
+        return false;
+    }
+
+    new_view = generate_memory_topology(physmr);
+    g_hash_table_replace(flat_views, physmr, new_view);
+
+    return true;
+}
+
+static void memory_region_transaction_commit_mr(MemoryRegion *mr)
 {
     AddressSpace *as;
 
@@ -1050,7 +1074,10 @@ void memory_region_transaction_commit(void)
     --memory_region_transaction_depth;
     if (!memory_region_transaction_depth) {
         if (memory_region_update_pending) {
-            flatviews_reset();
+            if (memory_region_full_update_pending || !mr ||
+                !memory_region_transaction_fast_commit(mr)) {
+                flatviews_reset();
+            }
 
             MEMORY_LISTENER_CALL_GLOBAL(begin, Forward);
 
@@ -1060,6 +1087,8 @@ void memory_region_transaction_commit(void)
             }
             memory_region_update_pending = false;
             MEMORY_LISTENER_CALL_GLOBAL(commit, Forward);
+            memory_region_full_update_pending = false;
+
         } else if (ioeventfd_update_pending) {
             QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
                 address_space_update_ioeventfds(as);
@@ -1067,6 +1096,12 @@ void memory_region_transaction_commit(void)
             ioeventfd_update_pending = false;
         }
    }
+}
+
+void memory_region_transaction_commit(void)
+{
+    memory_region_full_update_pending = true;
+    memory_region_transaction_commit_mr(NULL);
 }
 
 static void memory_region_destructor_none(MemoryRegion *mr)
@@ -1678,7 +1713,7 @@ static void memory_region_finalize(Object *obj)
         MemoryRegion *subregion = QTAILQ_FIRST(&mr->subregions);
         memory_region_del_subregion(mr, subregion);
     }
-    memory_region_transaction_commit();
+    memory_region_transaction_commit_mr(mr);
 
     mr->destructor(mr);
     memory_region_clear_coalescing(mr);
@@ -1903,7 +1938,7 @@ void memory_region_set_log(MemoryRegion *mr, bool log, unsigned client)
     memory_region_transaction_begin();
     mr->dirty_log_mask = (mr->dirty_log_mask & ~mask) | (log * mask);
     memory_region_update_pending |= mr->enabled;
-    memory_region_transaction_commit();
+    memory_region_transaction_commit_mr(mr);
 }
 
 bool memory_region_get_dirty(MemoryRegion *mr, hwaddr addr,
@@ -1983,7 +2018,7 @@ void memory_region_set_readonly(MemoryRegion *mr, bool readonly)
         memory_region_transaction_begin();
         mr->readonly = readonly;
         memory_region_update_pending |= mr->enabled;
-        memory_region_transaction_commit();
+        memory_region_transaction_commit_mr(mr);
     }
 }
 
@@ -1993,7 +2028,7 @@ void memory_region_rom_device_set_romd(MemoryRegion *mr, bool romd_mode)
         memory_region_transaction_begin();
         mr->romd_mode = romd_mode;
         memory_region_update_pending |= mr->enabled;
-        memory_region_transaction_commit();
+        memory_region_transaction_commit_mr(mr);
     }
 }
 
@@ -2208,7 +2243,7 @@ void memory_region_add_eventfd(MemoryRegion *mr,
             sizeof(*mr->ioeventfds) * (mr->ioeventfd_nb-1 - i));
     mr->ioeventfds[i] = mrfd;
     ioeventfd_update_pending |= mr->enabled;
-    memory_region_transaction_commit();
+    memory_region_transaction_commit_mr(mr);
 }
 
 void memory_region_del_eventfd(MemoryRegion *mr,
@@ -2243,7 +2278,7 @@ void memory_region_del_eventfd(MemoryRegion *mr,
     mr->ioeventfds = g_realloc(mr->ioeventfds,
                                   sizeof(*mr->ioeventfds)*mr->ioeventfd_nb + 1);
     ioeventfd_update_pending |= mr->enabled;
-    memory_region_transaction_commit();
+    memory_region_transaction_commit_mr(mr);
 }
 
 static void memory_region_update_container_subregions(MemoryRegion *subregion)
@@ -2263,7 +2298,7 @@ static void memory_region_update_container_subregions(MemoryRegion *subregion)
     QTAILQ_INSERT_TAIL(&mr->subregions, subregion, subregions_link);
 done:
     memory_region_update_pending |= mr->enabled && subregion->enabled;
-    memory_region_transaction_commit();
+    memory_region_transaction_commit_mr(mr);
 }
 
 static void memory_region_add_subregion_common(MemoryRegion *mr,
@@ -2302,7 +2337,7 @@ void memory_region_del_subregion(MemoryRegion *mr,
     QTAILQ_REMOVE(&mr->subregions, subregion, subregions_link);
     memory_region_unref(subregion);
     memory_region_update_pending |= mr->enabled && subregion->enabled;
-    memory_region_transaction_commit();
+    memory_region_transaction_commit_mr(mr);
 }
 
 void memory_region_set_enabled(MemoryRegion *mr, bool enabled)
@@ -2313,7 +2348,7 @@ void memory_region_set_enabled(MemoryRegion *mr, bool enabled)
     memory_region_transaction_begin();
     mr->enabled = enabled;
     memory_region_update_pending = true;
-    memory_region_transaction_commit();
+    memory_region_transaction_commit_mr(enabled ? mr : NULL);
 }
 
 void memory_region_set_size(MemoryRegion *mr, uint64_t size)
@@ -2329,7 +2364,7 @@ void memory_region_set_size(MemoryRegion *mr, uint64_t size)
     memory_region_transaction_begin();
     mr->size = s;
     memory_region_update_pending = true;
-    memory_region_transaction_commit();
+    memory_region_transaction_commit_mr(mr);
 }
 
 static void memory_region_readd_subregion(MemoryRegion *mr)
@@ -2343,7 +2378,7 @@ static void memory_region_readd_subregion(MemoryRegion *mr)
         mr->container = container;
         memory_region_update_container_subregions(mr);
         memory_region_unref(mr);
-        memory_region_transaction_commit();
+        memory_region_transaction_commit_mr(mr);
     }
 }
 
@@ -2366,7 +2401,7 @@ void memory_region_set_alias_offset(MemoryRegion *mr, hwaddr offset)
     memory_region_transaction_begin();
     mr->alias_offset = offset;
     memory_region_update_pending |= mr->enabled;
-    memory_region_transaction_commit();
+    memory_region_transaction_commit_mr(mr);
 }
 
 uint64_t memory_region_get_alignment(const MemoryRegion *mr)
@@ -2654,7 +2689,7 @@ bool memory_region_request_mmio_ptr(MemoryRegion *mr, hwaddr addr)
     host = mr->ops->request_ptr(mr->opaque, addr - mr->addr, &size, &offset);
 
     if (!host || !size) {
-        memory_region_transaction_commit();
+        memory_region_transaction_commit_mr(mr);
         return false;
     }
 
@@ -2666,7 +2701,7 @@ bool memory_region_request_mmio_ptr(MemoryRegion *mr, hwaddr addr)
     qdev_prop_set_ptr(DEVICE(new_interface), "subregion", mr);
     object_property_set_bool(OBJECT(new_interface), true, "realized", NULL);
 
-    memory_region_transaction_commit();
+    memory_region_transaction_commit_mr(mr);
     return true;
 }
 
