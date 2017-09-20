@@ -113,20 +113,20 @@ typedef struct {
     uint16_t v;
 } float16;
 #define float16_val(x) (((float16)(x)).v)
-#define make_float16(x) __extension__ ({ float16 f16_val = {x}; f16_val; })
+#define make_float16(x) ((float16) { x })
 #define const_float16(x) { x }
 typedef struct {
     uint32_t v;
 } float32;
 /* The cast ensures an error if the wrong type is passed.  */
 #define float32_val(x) (((float32)(x)).v)
-#define make_float32(x) __extension__ ({ float32 f32_val = {x}; f32_val; })
+#define make_float32(x) ((float32) { x })
 #define const_float32(x) { x }
 typedef struct {
     uint64_t v;
 } float64;
 #define float64_val(x) (((float64)(x)).v)
-#define make_float64(x) __extension__ ({ float64 f64_val = {x}; f64_val; })
+#define make_float64(x) ((float64) { x })
 #define const_float64(x) { x }
 #else
 typedef uint16_t float16;
@@ -147,7 +147,7 @@ typedef struct {
     uint16_t high;
 } floatx80;
 #define make_floatx80(exp, mant) ((floatx80) { mant, exp })
-#define make_floatx80_init(exp, mant) { .low = mant, .high = exp }
+#define const_floatx80(exp, mant) { .low = mant, .high = exp }
 typedef struct {
 #ifdef HOST_WORDS_BIGENDIAN
     uint64_t high, low;
@@ -156,7 +156,7 @@ typedef struct {
 #endif
 } float128;
 #define make_float128(high_, low_) ((float128) { .high = high_, .low = low_ })
-#define make_float128_init(high_, low_) { .high = high_, .low = low_ }
+#define const_float128(high_, low_) { .high = high_, .low = low_ }
 
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE floating-point underflow tininess-detection mode.
