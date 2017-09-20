@@ -153,6 +153,7 @@ typedef struct {
     Coroutine *co;
     BlockDriverState *bs;
     bool done;
+    bool begin;
 } BdrvCoDrainData;
 
 static void coroutine_fn bdrv_drain_invoke_entry(void *opaque)
@@ -160,18 +161,23 @@ static void coroutine_fn bdrv_drain_invoke_entry(void *opaque)
     BdrvCoDrainData *data = opaque;
     BlockDriverState *bs = data->bs;
 
-    bs->drv->bdrv_co_drain(bs);
+    if (data->begin) {
+        bs->drv->bdrv_co_drain(bs);
+    } else {
+        bs->drv->bdrv_co_drain_end(bs);
+    }
 
     /* Set data->done before reading bs->wakeup.  */
     atomic_mb_set(&data->done, true);
     bdrv_wakeup(bs);
 }
 
-static void bdrv_drain_invoke(BlockDriverState *bs)
+static void bdrv_drain_invoke(BlockDriverState *bs, bool begin)
 {
-    BdrvCoDrainData data = { .bs = bs, .done = false };
+    BdrvCoDrainData data = { .bs = bs, .done = false, .begin = begin};
 
-    if (!bs->drv || !bs->drv->bdrv_co_drain) {
+    if (!bs->drv || (begin && !bs->drv->bdrv_co_drain) ||
+            (!begin && !bs->drv->bdrv_co_drain_end)) {
         return;
     }
 
@@ -180,7 +186,7 @@ static void bdrv_drain_invoke(BlockDriverState *bs)
     BDRV_POLL_WHILE(bs, !data.done);
 }
 
-static bool bdrv_drain_recurse(BlockDriverState *bs)
+static bool bdrv_drain_recurse(BlockDriverState *bs, bool begin)
 {
     BdrvChild *child, *tmp;
     bool waited;
@@ -188,7 +194,7 @@ static bool bdrv_drain_recurse(BlockDriverState *bs)
     waited = BDRV_POLL_WHILE(bs, atomic_read(&bs->in_flight) > 0);
 
     /* Ensure any pending metadata writes are submitted to bs->file.  */
-    bdrv_drain_invoke(bs);
+    bdrv_drain_invoke(bs, begin);
 
     QLIST_FOREACH_SAFE(child, &bs->children, next, tmp) {
         BlockDriverState *bs = child->bs;
@@ -205,7 +211,7 @@ static bool bdrv_drain_recurse(BlockDriverState *bs)
              */
             bdrv_ref(bs);
         }
-        waited |= bdrv_drain_recurse(bs);
+        waited |= bdrv_drain_recurse(bs, begin);
         if (in_main_loop) {
             bdrv_unref(bs);
         }
@@ -221,12 +227,18 @@ static void bdrv_co_drain_bh_cb(void *opaque)
     BlockDriverState *bs = data->bs;
 
     bdrv_dec_in_flight(bs);
-    bdrv_drained_begin(bs);
+    if (data->begin) {
+        bdrv_drained_begin(bs);
+    } else {
+        bdrv_drained_end(bs);
+    }
+
     data->done = true;
     aio_co_wake(co);
 }
 
-static void coroutine_fn bdrv_co_yield_to_drain(BlockDriverState *bs)
+static void coroutine_fn bdrv_co_yield_to_drain(BlockDriverState *bs,
+                                                bool begin)
 {
     BdrvCoDrainData data;
 
@@ -239,6 +251,7 @@ static void coroutine_fn bdrv_co_yield_to_drain(BlockDriverState *bs)
         .co = qemu_coroutine_self(),
         .bs = bs,
         .done = false,
+        .begin = begin,
     };
     bdrv_inc_in_flight(bs);
     aio_bh_schedule_oneshot(bdrv_get_aio_context(bs),
@@ -253,7 +266,7 @@ static void coroutine_fn bdrv_co_yield_to_drain(BlockDriverState *bs)
 void bdrv_drained_begin(BlockDriverState *bs)
 {
     if (qemu_in_coroutine()) {
-        bdrv_co_yield_to_drain(bs);
+        bdrv_co_yield_to_drain(bs, true);
         return;
     }
 
@@ -262,17 +275,22 @@ void bdrv_drained_begin(BlockDriverState *bs)
         bdrv_parent_drained_begin(bs);
     }
 
-    bdrv_drain_recurse(bs);
+    bdrv_drain_recurse(bs, true);
 }
 
 void bdrv_drained_end(BlockDriverState *bs)
 {
+    if (qemu_in_coroutine()) {
+        bdrv_co_yield_to_drain(bs, false);
+        return;
+    }
     assert(bs->quiesce_counter > 0);
     if (atomic_fetch_dec(&bs->quiesce_counter) > 1) {
         return;
     }
 
     bdrv_parent_drained_end(bs);
+    bdrv_drain_recurse(bs, false);
     aio_enable_external(bdrv_get_aio_context(bs));
 }
 
@@ -350,7 +368,7 @@ void bdrv_drain_all_begin(void)
             aio_context_acquire(aio_context);
             for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
                 if (aio_context == bdrv_get_aio_context(bs)) {
-                    waited |= bdrv_drain_recurse(bs);
+                    waited |= bdrv_drain_recurse(bs, true);
                 }
             }
             aio_context_release(aio_context);
@@ -371,6 +389,7 @@ void bdrv_drain_all_end(void)
         aio_context_acquire(aio_context);
         aio_enable_external(aio_context);
         bdrv_parent_drained_end(bs);
+        bdrv_drain_recurse(bs, false);
         aio_context_release(aio_context);
     }
 

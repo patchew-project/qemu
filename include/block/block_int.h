@@ -359,6 +359,8 @@ struct BlockDriver {
      */
     void coroutine_fn (*bdrv_co_drain)(BlockDriverState *bs);
 
+    void coroutine_fn (*bdrv_co_drain_end)(BlockDriverState *bs);
+
     void (*bdrv_add_child)(BlockDriverState *parent, BlockDriverState *child,
                            Error **errp);
     void (*bdrv_del_child)(BlockDriverState *parent, BdrvChild *child,
