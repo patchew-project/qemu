@@ -1020,6 +1020,20 @@ static void flatview_set_to_address_space(AddressSpace *as)
     }
 }
 
+static void flatview_update_topology_single(AddressSpace *as)
+{
+    MemoryRegion *physmr = memory_region_get_flatview_root(as->root);
+    FlatView *new_view;
+
+    flatviews_init();
+    new_view = g_hash_table_lookup(flat_views, physmr);
+    if (!new_view) {
+        new_view = generate_memory_topology(physmr);
+        g_hash_table_insert(flat_views, physmr, new_view);
+    }
+    flatview_set_to_address_space(as);
+}
+
 void memory_region_transaction_begin(void)
 {
     qemu_flush_coalesced_mmio_buffer();
@@ -2731,7 +2745,6 @@ void memory_region_invalidate_mmio_ptr(MemoryRegion *mr, hwaddr offset,
 void address_space_init(AddressSpace *as, MemoryRegion *root, const char *name)
 {
     memory_region_ref(root);
-    memory_region_transaction_begin();
     as->root = root;
     as->current_map = NULL;
     as->ioeventfd_nb = 0;
@@ -2739,8 +2752,7 @@ void address_space_init(AddressSpace *as, MemoryRegion *root, const char *name)
     QTAILQ_INIT(&as->listeners);
     QTAILQ_INSERT_TAIL(&address_spaces, as, address_spaces_link);
     as->name = g_strdup(name ? name : "anonymous");
-    memory_region_update_pending |= root->enabled;
-    memory_region_transaction_commit();
+    flatview_update_topology_single(as);
 }
 
 static void do_address_space_destroy(AddressSpace *as)
