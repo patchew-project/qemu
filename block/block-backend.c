@@ -1288,22 +1288,23 @@ BlockAIOCB *blk_aio_pwrite_zeroes(BlockBackend *blk, int64_t offset,
 
 int blk_pread(BlockBackend *blk, int64_t offset, void *buf, int count)
 {
-    int ret = blk_prw(blk, offset, buf, count, blk_read_entry, 0);
+    int ret = blk_check_byte_request(blk, offset, count);
     if (ret < 0) {
         return ret;
     }
-    return count;
+    ret = blk_prw(blk, offset, buf, count, blk_read_entry, 0);
+    return ret < 0 ? ret : count;
 }
 
 int blk_pwrite(BlockBackend *blk, int64_t offset, const void *buf, int count,
                BdrvRequestFlags flags)
 {
-    int ret = blk_prw(blk, offset, (void *) buf, count, blk_write_entry,
-                      flags);
+    int ret = blk_check_byte_request(blk, offset, count);
     if (ret < 0) {
         return ret;
     }
-    return count;
+    ret = blk_prw(blk, offset, (void *) buf, count, blk_write_entry, flags);
+    return ret < 0 ? ret : count;
 }
 
 int64_t blk_getlength(BlockBackend *blk)
