@@ -48,6 +48,7 @@ static QTAILQ_HEAD(, AddressSpace) address_spaces
     = QTAILQ_HEAD_INITIALIZER(address_spaces);
 
 static GHashTable *flat_views;
+static FlatView *empty_view;
 
 typedef struct AddrRange AddrRange;
 
@@ -754,6 +755,19 @@ static FlatView *generate_memory_topology(MemoryRegion *mr)
                              addrrange_make(int128_zero(), int128_2_64()), false);
     }
     flatview_simplify(view);
+
+    if (!view->nr) {
+        flatview_unref(view);
+        if (!empty_view) {
+            empty_view = flatview_new(NULL);
+        }
+        view = empty_view;
+        flatview_ref(view);
+    }
+
+    if (view->dispatch) {
+        return view;
+    }
 
     view->dispatch = address_space_dispatch_new(view);
     for (i = 0; i < view->nr; i++) {
