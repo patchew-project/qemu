@@ -430,14 +430,14 @@ static void test_migrate(void)
      * machine, so also set the downtime.
      */
     global_qtest = from;
-    rsp = qmp("{ 'execute': 'migrate_set_speed',"
-              "'arguments': { 'value': 100000000 } }");
+    rsp = qmp("{ 'execute': 'migrate-set-parameters',"
+              "'arguments': { 'max-bandwidth': 100000000 } }");
     g_assert(qdict_haskey(rsp, "return"));
     QDECREF(rsp);
 
     /* 1ms downtime - it should never finish precopy */
-    rsp = qmp("{ 'execute': 'migrate_set_downtime',"
-              "'arguments': { 'value': 0.001 } }");
+    rsp = qmp("{ 'execute': 'migrate-set-parameters',"
+              "'arguments': { 'downtime-limit': 1 } }");
     g_assert(qdict_haskey(rsp, "return"));
     QDECREF(rsp);
 
