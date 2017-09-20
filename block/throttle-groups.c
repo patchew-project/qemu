@@ -592,6 +592,17 @@ void throttle_group_attach_aio_context(ThrottleGroupMember *tgm,
 void throttle_group_detach_aio_context(ThrottleGroupMember *tgm)
 {
     ThrottleTimers *tt = &tgm->throttle_timers;
+    ThrottleGroup *tg = container_of(tgm->throttle_state, ThrottleGroup, ts);
+
+    qemu_mutex_lock(&tg->lock);
+    if (timer_pending(tt->timers[0])) {
+        tg->any_timer_armed[0] = false;
+    }
+    if (timer_pending(tt->timers[1])) {
+        tg->any_timer_armed[1] = false;
+    }
+    qemu_mutex_unlock(&tg->lock);
+
     throttle_timers_detach_aio_context(tt);
     tgm->aio_context = NULL;
 }
