@@ -312,7 +312,9 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     }
 
     /* Try to enable AIS facility */
-    kvm_vm_enable_cap(s, KVM_CAP_S390_AIS, 0);
+    if (ais_allowed()) {
+       kvm_vm_enable_cap(s, KVM_CAP_S390_AIS, 0);
+    }
 
     qemu_mutex_init(&qemu_sigp_mutex);
 
