@@ -294,6 +294,22 @@ STEXI
 Show dynamic compiler opcode counters
 ETEXI
 
+#if defined(CONFIG_TCG)
+    {
+        .name       = "translate",
+        .args_type  = "addr:l,flags:s",
+        .params     = "addr [flags]",
+        .help       = "show translation info",
+        .cmd        = hmp_info_translate,
+    },
+#endif
+
+STEXI
+@item info translate
+@findex translate
+Show dynamic compiler info.
+ETEXI
+
     {
         .name       = "kvm",
         .args_type  = "",

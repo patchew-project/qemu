@@ -1115,6 +1115,21 @@ static void hmp_info_opcount(Monitor *mon, const QDict *qdict)
 {
     dump_opcount_info((FILE *)mon, monitor_fprintf);
 }
+
+static void hmp_info_translate(Monitor *mon, const QDict *qdict)
+{
+    target_ulong addr;
+
+    if (!tcg_enabled()) {
+        error_report("translation information is only available with accel=tcg");
+        return;
+    }
+
+    addr = qdict_get_int(qdict, "addr");
+
+    dump_translate_info((FILE *)mon, monitor_fprintf, addr,
+                        CPU_LOG_TB_IN_ASM | CPU_LOG_TB_OUT_ASM | CPU_LOG_TB_OP);
+}
 #endif
 
 static void hmp_info_history(Monitor *mon, const QDict *qdict)

@@ -1947,6 +1947,29 @@ void dump_opcount_info(FILE *f, fprintf_function cpu_fprintf)
     tcg_dump_op_count(f, cpu_fprintf);
 }
 
+/*
+ * To dump translation info we temporally translate the given address
+ * while tweak the log flags to dump information.
+ *
+ * It might make more sense to push this off to an safe async function
+ * to do this in a less racey manner.
+ */
+
+void dump_translate_info(FILE *f, fprintf_function cpu_fprintf,
+                         target_ulong addr, int flags)
+{
+    int old_flags = qemu_loglevel;
+
+    /* grab the lock, currently that means no other translation */
+    tb_lock();
+    qemu_loglevel = flags;
+
+    tb_gen_code(first_cpu, addr, 0, 0, CF_NOCACHE | CF_IGNORE_ICOUNT);
+
+    qemu_loglevel = old_flags;
+    tb_unlock();
+}
+
 #else /* CONFIG_USER_ONLY */
 
 void cpu_interrupt(CPUState *cpu, int mask)

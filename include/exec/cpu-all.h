@@ -340,6 +340,8 @@ CPUArchState *cpu_copy(CPUArchState *env);
 
 void dump_exec_info(FILE *f, fprintf_function cpu_fprintf);
 void dump_opcount_info(FILE *f, fprintf_function cpu_fprintf);
+void dump_translate_info(FILE *f, fprintf_function cpu_fprintf,
+                         target_ulong addr, int flags);
 #endif /* !CONFIG_USER_ONLY */
 
 int cpu_memory_rw_debug(CPUState *cpu, target_ulong addr,
