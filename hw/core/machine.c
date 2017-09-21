@@ -758,6 +758,41 @@ void machine_run_board_init(MachineState *machine)
     if (nb_numa_nodes) {
         machine_numa_finish_init(machine);
     }
+
+    if (machine_class->valid_cpu_types && machine->cpu_type) {
+        int i;
+
+        for (i = 0; machine_class->valid_cpu_types[i]; i++) {
+            ObjectClass *class = object_class_by_name(machine->cpu_type);
+
+            if (!class) {
+                break;
+            }
+
+            if (object_class_dynamic_cast(class,
+                                          machine_class->valid_cpu_types[i])) {
+                /* The user specificed CPU is in the valid field, we are
+                 * good to go.
+                 */
+                goto done;
+            }
+        }
+
+        /* The user specified CPU must not be a valid CPU, print a sane
+         * error
+         */
+        error_report("Invalid CPU: %s", machine->cpu_type);
+        error_printf("The valid options are: %s",
+                     machine_class->valid_cpu_types[0]);
+        for (i = 1; machine_class->valid_cpu_types[i]; i++) {
+            error_printf(", %s", machine_class->valid_cpu_types[i]);
+        }
+        error_printf("\n");
+
+        exit(1);
+    }
+
+done:
     machine_class->init(machine);
 }
 
