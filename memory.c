@@ -748,8 +748,13 @@ static FlatView *generate_memory_topology(MemoryRegion *mr)
     int i;
     FlatView *view;
     bool use_empty = false;
+    MemoryRegion *child = QTAILQ_FIRST(&mr->subregions);
 
     if (!mr->enabled) {
+        use_empty = true;
+    } else if (child && !child->enabled &&
+               !QTAILQ_NEXT(child, subregions_link) &&
+               !child->addr && int128_eq(child->size, mr->size)) {
         use_empty = true;
     } else {
         view = flatview_new(mr);
