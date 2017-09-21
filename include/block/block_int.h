@@ -362,7 +362,7 @@ struct BlockDriver {
      * manage scheduled I/O requests, or toggle an internal state. After an
      * bdrv_co_drain_end() invocation new requests will continue normally.
      */
-    void coroutine_fn (*bdrv_co_drain)(BlockDriverState *bs);
+    void coroutine_fn (*bdrv_co_drain_begin)(BlockDriverState *bs);
     void coroutine_fn (*bdrv_co_drain_end)(BlockDriverState *bs);
 
     void (*bdrv_add_child)(BlockDriverState *parent, BlockDriverState *child,
