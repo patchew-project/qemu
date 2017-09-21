@@ -48,6 +48,7 @@ static QTAILQ_HEAD(, AddressSpace) address_spaces
     = QTAILQ_HEAD_INITIALIZER(address_spaces);
 
 static GHashTable *flat_views;
+static FlatView *empty_view;
 
 typedef struct AddrRange AddrRange;
 
@@ -746,22 +747,43 @@ static FlatView *generate_memory_topology(MemoryRegion *mr)
 {
     int i;
     FlatView *view;
+    bool use_empty = false;
 
-    view = flatview_new(mr);
+    if (!mr->enabled) {
+        use_empty = true;
+    } else {
+        view = flatview_new(mr);
+        if (mr) {
+            render_memory_region(view, mr, int128_zero(),
+                                 addrrange_make(int128_zero(), int128_2_64()),
+                                 false);
+        }
+        flatview_simplify(view);
 
-    if (mr) {
-        render_memory_region(view, mr, int128_zero(),
-                             addrrange_make(int128_zero(), int128_2_64()), false);
+        if (!view->nr) {
+            flatview_destroy(view);
+            use_empty = true;
+        }
     }
-    flatview_simplify(view);
 
-    view->dispatch = address_space_dispatch_new(view);
-    for (i = 0; i < view->nr; i++) {
-        MemoryRegionSection mrs =
-            section_from_flat_range(&view->ranges[i], view);
-        flatview_add_to_dispatch(view, &mrs);
+    if (use_empty) {
+        if (!empty_view) {
+            empty_view = flatview_new(NULL);
+        }
+        view = empty_view;
+        flatview_ref(view);
     }
-    address_space_dispatch_compact(view->dispatch);
+
+    if (!view->dispatch) {
+        view->dispatch = address_space_dispatch_new(view);
+        for (i = 0; i < view->nr; i++) {
+            MemoryRegionSection mrs =
+                section_from_flat_range(&view->ranges[i], view);
+            flatview_add_to_dispatch(view, &mrs);
+        }
+        address_space_dispatch_compact(view->dispatch);
+    }
+
     g_hash_table_replace(flat_views, mr, view);
 
     return view;
