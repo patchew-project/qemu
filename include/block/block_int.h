@@ -356,8 +356,14 @@ struct BlockDriver {
     /**
      * Drain and stop any internal sources of requests in the driver, and
      * remain so until next I/O callback (e.g. bdrv_co_writev) is called.
+     *
+     * The callbacks are called at the beginning and ending of the drain
+     * respectively. They should be implemented if the driver needs to e.g.
+     * manage scheduled I/O requests, or toggle an internal state. After an
+     * bdrv_co_drain_end() invocation new requests will continue normally.
      */
     void coroutine_fn (*bdrv_co_drain)(BlockDriverState *bs);
+    void coroutine_fn (*bdrv_co_drain_end)(BlockDriverState *bs);
 
     void (*bdrv_add_child)(BlockDriverState *parent, BlockDriverState *child,
                            Error **errp);
