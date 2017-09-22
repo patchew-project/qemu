@@ -17,3 +17,4 @@ cd "$BUILD_DIR"
 
 build_qemu
 make check $MAKEFLAGS
+install_qemu

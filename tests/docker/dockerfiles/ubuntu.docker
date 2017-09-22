@@ -7,7 +7,7 @@ ENV PACKAGES flex bison \
     libseccomp-dev libgnutls-dev libssh2-1-dev  libspice-server-dev \
     libspice-protocol-dev libnss3-dev libfdt-dev \
     libgtk-3-dev libvte-2.90-dev libsdl1.2-dev libpng12-dev libpixman-1-dev \
-    git make ccache python-yaml gcc clang sparse
+    gettext git make ccache python-yaml gcc clang sparse
 RUN apt-get -y install $PACKAGES
 RUN dpkg -l $PACKAGES | sort > /packages.txt
 ENV FEATURES clang pyyaml

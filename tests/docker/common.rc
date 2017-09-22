@@ -36,3 +36,11 @@ build_qemu()
     $QEMU_SRC/configure $config_opts
     make $MAKEFLAGS
 }
+
+install_qemu()
+{
+    make install $MAKEFLAGS DESTDIR=$PWD/=destdir
+    ret=$?
+    rm -rf $PWD/=destdir
+    return $ret
+}
