@@ -52,37 +52,33 @@
 #define PHY_ADVERTISE_100FULL   0x0100  /* Try for 100mbps full-duplex */
 
 struct qemu_phy {
-    uint32_t regs[NUM_PHY_REGS];
+    uint16_t regs[NUM_PHY_REGS];
     const uint16_t *regs_readonly_mask; /* 0=writable, 1=read-only */
 
-    int link;
+    bool link;
 
-    unsigned int (*read)(struct qemu_phy *phy, unsigned int req);
-    void (*write)(struct qemu_phy *phy, unsigned int req, unsigned int data);
+    uint16_t (*read)(struct qemu_phy *phy, unsigned int req);
+    void (*write)(struct qemu_phy *phy, unsigned int req, uint16_t data);
 };
 
 struct qemu_mdio {
-    /* bus. */
-    int mdc;
-    int mdio;
-
-    /* decoder.  */
+    /* bitbanging state machine */
+    bool mdc;
+    bool mdio;
     enum {
         PREAMBLE,
-        SOF,
         OPC,
         ADDR,
         REQ,
         TURNAROUND,
         DATA
     } state;
-    unsigned int drive;
 
-    unsigned int cnt;
-    unsigned int addr;
-    unsigned int opc;
-    unsigned int req;
-    unsigned int data;
+    uint16_t cnt; /* Bit count for current state */
+    uint16_t addr; /* PHY Address; retrieved during ADDR state */
+    uint16_t opc; /* Operation; 2:read */
+    uint16_t req; /* Register address */
+    uint32_t shiftreg; /* shift register; bits in to or out from PHY */
 
     struct qemu_phy *devs[32];
 };
@@ -91,7 +87,16 @@ void mdio_phy_init(struct qemu_phy *phy, uint16_t id1, uint16_t id2);
 void mdio_attach(struct qemu_mdio *bus, struct qemu_phy *phy,
                  unsigned int addr);
 uint16_t mdio_read_req(struct qemu_mdio *bus, uint8_t addr, uint8_t req);
-void mdio_write_req(struct qemu_mdio *bus, uint8_t addr, uint8_t req, uint16_t data);
-void mdio_cycle(struct qemu_mdio *bus);
+void mdio_write_req(struct qemu_mdio *bus, uint8_t addr, uint8_t req,
+                    uint16_t data);
+void mdio_bitbang_set_clk(struct qemu_mdio *bus, bool mdc);
+static inline void mdio_bitbang_set_data(struct qemu_mdio *bus, bool mdio)
+{
+    bus->mdio = mdio;
+}
+static inline bool mdio_bitbang_get_data(struct qemu_mdio *bus)
+{
+    return bus->mdio;
+}
 
 #endif

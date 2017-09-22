@@ -43,7 +43,7 @@
  * linux driver (PHYID and Diagnostics reg).
  * TODO: Add friendly names for the register nums.
  */
-static unsigned int mdio_phy_read(struct qemu_phy *phy, unsigned int req)
+static uint16_t mdio_phy_read(struct qemu_phy *phy, unsigned int req)
 {
     int regnum;
     unsigned r = 0;
@@ -107,7 +107,8 @@ static unsigned int mdio_phy_read(struct qemu_phy *phy, unsigned int req)
     return r;
 }
 
-static void mdio_phy_write(struct qemu_phy *phy, unsigned int req, unsigned int data)
+static void mdio_phy_write(struct qemu_phy *phy, unsigned int req,
+                           uint16_t data)
 {
     int regnum = req & 0x1f;
     uint16_t mask = phy->regs_readonly_mask[regnum];
@@ -136,13 +137,14 @@ void mdio_phy_init(struct qemu_phy *phy, uint16_t id1, uint16_t id2)
     /* Autonegotiation advertisement reg. */
     phy->regs[PHY_AUTONEG_ADV] = 0x01e1;
     phy->regs_readonly_mask = default_readonly_mask;
-    phy->link = 1;
+    phy->link = true;
 
     phy->read = mdio_phy_read;
     phy->write = mdio_phy_write;
 }
 
-void mdio_attach(struct qemu_mdio *bus, struct qemu_phy *phy, unsigned int addr)
+void mdio_attach(struct qemu_mdio *bus, struct qemu_phy *phy,
+                 unsigned int addr)
 {
     bus->devs[addr & 0x1f] = phy;
 }
@@ -169,99 +171,77 @@ void mdio_write_req(struct qemu_mdio *bus, uint8_t addr, uint8_t req,
     }
 }
 
-void mdio_cycle(struct qemu_mdio *bus)
+/**
+ * mdio_bitbang_update() - internal function to check how many clocks have
+ * passed and move to the next state if necessary. Returns TRUE on state change.
+ */
+static bool mdio_bitbang_update(struct qemu_mdio *bus, int num_bits, int next,
+                                uint16_t *reg)
 {
-    bus->cnt++;
+    if (bus->cnt < num_bits) {
+        return false;
+    }
+    if (reg) {
+        *reg = bus->shiftreg;
+    }
+    bus->state = next;
+    bus->cnt = 0;
+    bus->shiftreg = 0;
+    return true;
+}
 
+/**
+ * mdio_bitbang_set_clk() - set value of mdc signal and update state
+ */
+void mdio_bitbang_set_clk(struct qemu_mdio *bus, bool mdc)
+{
+    uint16_t tmp;
+
+    if (mdc == bus->mdc) {
+        return; /* Clock state hasn't changed; do nothing */
+    }
+
+    bus->mdc = mdc;
+    if (bus->mdc) {
+        /* Falling (inactive) clock edge */
+        if ((bus->state == DATA) && (bus->opc == 2)) {
+            bus->mdio = !!(bus->shiftreg & 0x8000);
+        }
+        return;
+    }
+
+    /* Rising clock Edge */
+    bus->shiftreg = (bus->shiftreg << 1) | bus->mdio;
+    bus->cnt++;
     D(printf("mdc=%d mdio=%d state=%d cnt=%d drv=%d\n",
-             bus->mdc, bus->mdio, bus->state, bus->cnt, bus->drive));
+             bus->mdc, bus->mdio, bus->state, bus->cnt));
     switch (bus->state) {
     case PREAMBLE:
-        if (bus->mdc) {
-            if (bus->cnt >= (32 * 2) && !bus->mdio) {
-                bus->cnt = 0;
-                bus->state = SOF;
-                bus->data = 0;
-            }
-        }
-        break;
-    case SOF:
-        if (bus->mdc) {
-            if (bus->mdio != 1) {
-                printf("WARNING: no SOF\n");
-            }
-            if (bus->cnt == 1 * 2) {
-                bus->cnt = 0;
-                bus->opc = 0;
-                bus->state = OPC;
-            }
+        /* MDIO must be 30 clocks high, 1 low, and 1 high to get out of
+           preamble */
+        if (bus->shiftreg == 0xfffffffd) {
+            mdio_bitbang_update(bus, 0, OPC, NULL);
         }
         break;
     case OPC:
-        if (bus->mdc) {
-            bus->opc <<= 1;
-            bus->opc |= bus->mdio & 1;
-            if (bus->cnt == 2 * 2) {
-                bus->cnt = 0;
-                bus->addr = 0;
-                bus->state = ADDR;
-            }
-        }
+        mdio_bitbang_update(bus, 2, ADDR, &bus->opc);
         break;
     case ADDR:
-        if (bus->mdc) {
-            bus->addr <<= 1;
-            bus->addr |= bus->mdio & 1;
-
-            if (bus->cnt == 5 * 2) {
-                bus->cnt = 0;
-                bus->req = 0;
-                bus->state = REQ;
-            }
-        }
+        mdio_bitbang_update(bus, 5, REQ, &bus->addr);
         break;
     case REQ:
-        if (bus->mdc) {
-            bus->req <<= 1;
-            bus->req |= bus->mdio & 1;
-            if (bus->cnt == 5 * 2) {
-                bus->cnt = 0;
-                bus->state = TURNAROUND;
-            }
-        }
+        mdio_bitbang_update(bus, 5, TURNAROUND, &bus->req);
         break;
     case TURNAROUND:
-        if (bus->mdc && bus->cnt == 2 * 2) {
-            bus->mdio = 0;
-            bus->cnt = 0;
-
-            if (bus->opc == 2) {
-                bus->drive = 1;
-                bus->data = mdio_read_req(bus, bus->addr, bus->req);
-                bus->mdio = bus->data & 1;
-            }
-            bus->state = DATA;
+        /* If beginning of DATA READ cycle, then read PHY into shift register */
+        if (mdio_bitbang_update(bus, 2, DATA, NULL) && (bus->opc == 2)) {
+            bus->shiftreg = mdio_read_req(bus, bus->addr, bus->req);
         }
         break;
     case DATA:
-        if (!bus->mdc) {
-            if (bus->drive) {
-                bus->mdio = !!(bus->data & (1 << 15));
-                bus->data <<= 1;
-            }
-        } else {
-            if (!bus->drive) {
-                bus->data <<= 1;
-                bus->data |= bus->mdio;
-            }
-            if (bus->cnt == 16 * 2) {
-                bus->cnt = 0;
-                bus->state = PREAMBLE;
-                if (!bus->drive) {
-                    mdio_write_req(bus, bus->addr, bus->req, bus->data);
-                }
-                bus->drive = 0;
-            }
+        /* If end of DATA WRITE cycle, then write shift register to PHY */
+        if (mdio_bitbang_update(bus, 16, PREAMBLE, &tmp) && (bus->opc == 1)) {
+            mdio_write_req(bus, bus->addr, bus->req, tmp);
         }
         break;
     default:

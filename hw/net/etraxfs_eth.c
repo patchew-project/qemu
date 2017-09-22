@@ -119,7 +119,7 @@ eth_read(void *opaque, hwaddr addr, unsigned int size)
 
     switch (addr) {
     case R_STAT:
-        r = eth->mdio_bus.mdio & 1;
+        r = mdio_bitbang_get_data(&eth->mdio_bus);
         break;
     default:
         r = eth->regs[addr];
@@ -177,13 +177,10 @@ eth_write(void *opaque, hwaddr addr,
     case RW_MGM_CTRL:
         /* Attach an MDIO/PHY abstraction.  */
         if (value & 2) {
-            eth->mdio_bus.mdio = value & 1;
+            mdio_bitbang_set_data(&eth->mdio_bus, value & 1);
         }
-        if (eth->mdio_bus.mdc != (value & 4)) {
-            mdio_cycle(&eth->mdio_bus);
-            eth_validate_duplex(eth);
-        }
-        eth->mdio_bus.mdc = !!(value & 4);
+        mdio_bitbang_set_clk(&eth->mdio_bus, value & 4);
+        eth_validate_duplex(eth);
         eth->regs[addr] = value;
         break;
 
