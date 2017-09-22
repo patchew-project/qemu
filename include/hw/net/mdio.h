@@ -25,14 +25,34 @@
  * THE SOFTWARE.
  */
 
-/* PHY Advertisement control register */
+/* PHY MII Register/Bit Definitions */
+/* PHY Registers defined by IEEE */
+#define PHY_CTRL         0x00 /* Control Register */
+#define PHY_STATUS       0x01 /* Status Regiser */
+#define PHY_ID1          0x02 /* Phy Id Reg (word 1) */
+#define PHY_ID2          0x03 /* Phy Id Reg (word 2) */
+#define PHY_AUTONEG_ADV  0x04 /* Autoneg Advertisement */
+#define PHY_LP_ABILITY   0x05 /* Link Partner Ability (Base Page) */
+#define PHY_AUTONEG_EXP  0x06 /* Autoneg Expansion Reg */
+#define PHY_NEXT_PAGE_TX 0x07 /* Next Page TX */
+#define PHY_LP_NEXT_PAGE 0x08 /* Link Partner Next Page */
+#define PHY_1000T_CTRL   0x09 /* 1000Base-T Control Reg */
+#define PHY_1000T_STATUS 0x0A /* 1000Base-T Status Reg */
+#define PHY_EXT_STATUS   0x0F /* Extended Status Reg */
+
+#define NUM_PHY_REGS     0x20  /* 5 bit address bus (0-0x1F) */
+
+#define PHY_CTRL_RST            0x8000 /* PHY reset command */
+#define PHY_CTRL_ANEG_RST       0x0200 /* Autonegotiation reset command */
+
+/* PHY Advertisement control and remote capability registers (same bitfields) */
 #define PHY_ADVERTISE_10HALF    0x0020  /* Try for 10mbps half-duplex  */
 #define PHY_ADVERTISE_10FULL    0x0040  /* Try for 10mbps full-duplex  */
 #define PHY_ADVERTISE_100HALF   0x0080  /* Try for 100mbps half-duplex */
 #define PHY_ADVERTISE_100FULL   0x0100  /* Try for 100mbps full-duplex */
 
 struct qemu_phy {
-    uint32_t regs[32];
+    uint32_t regs[NUM_PHY_REGS];
 
     int link;
 
