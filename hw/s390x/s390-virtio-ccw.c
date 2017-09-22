@@ -279,10 +279,14 @@ static void ccw_init(MachineState *machine)
     s390_sclp_init();
     s390_memory_init(machine->ram_size);
 
+    /*
+     * This might also enable some KVM features like AIS, so it must
+     * be called before the CPU model
+     */
+    s390_flic_init();
+
     /* init CPUs (incl. CPU model) early so s390_has_feature() works */
     s390_init_cpus(machine);
-
-    s390_flic_init();
 
     /* get a BUS */
     css_bus = virtual_css_bus_init();

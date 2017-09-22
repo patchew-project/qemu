@@ -23,6 +23,7 @@
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/qmp/qbool.h"
 #ifndef CONFIG_USER_ONLY
+#include "hw/s390x/s390_flic.h"
 #include "sysemu/arch_init.h"
 #endif
 
@@ -900,6 +901,11 @@ static inline void apply_cpu_model(const S390CPUModel *model, Error **errp)
         if (model) {
             applied_model = *model;
         }
+    }
+
+    if (model &&
+        test_bit(S390_FEAT_ADAPTER_INT_SUPPRESSION, model->features)) {
+        s390_flic_enable_ais();
     }
 #endif
 }

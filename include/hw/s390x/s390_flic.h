@@ -90,6 +90,7 @@ void s390_flic_init(void);
 
 S390FLICState *s390_get_flic(void);
 bool ais_needed(void *opaque);
+void s390_flic_enable_ais(void);
 
 #ifdef CONFIG_KVM
 DeviceState *s390_flic_kvm_create(void);

@@ -1,7 +1,7 @@
 /*
  * QEMU S390x floating interrupt controller (flic)
  *
- * Copyright 2014 IBM Corp.
+ * Copyright 2014,2017 IBM Corp.
  * Author(s): Jens Freimann <jfrei@linux.vnet.ibm.com>
  *            Cornelia Huck <cornelia.huck@de.ibm.com>
  *
@@ -47,6 +47,13 @@ void s390_flic_init(void)
                                   OBJECT(dev), NULL);
     }
     qdev_init_nofail(dev);
+}
+
+void s390_flic_enable_ais(void)
+{
+    S390FLICState *fs = s390_get_flic();
+
+    fs->ais_supported = true;
 }
 
 static int qemu_s390_register_io_adapter(S390FLICState *fs, uint32_t id,
@@ -186,7 +193,7 @@ static void s390_flic_common_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    fs->ais_supported = s390_has_feat(S390_FEAT_ADAPTER_INT_SUPPRESSION);
+    fs->ais_supported = false;
 }
 
 static void s390_flic_class_init(ObjectClass *oc, void *data)

@@ -1,7 +1,7 @@
 /*
  * QEMU S390x KVM floating interrupt controller (flic)
  *
- * Copyright 2014 IBM Corp.
+ * Copyright 2014,2017 IBM Corp.
  * Author(s): Jens Freimann <jfrei@linux.vnet.ibm.com>
  *            Cornelia Huck <cornelia.huck@de.ibm.com>
  *
@@ -557,6 +557,12 @@ static void kvm_s390_flic_realize(DeviceState *dev, Error **errp)
     test_attr.group = KVM_DEV_FLIC_CLEAR_IO_IRQ;
     flic_state->clear_io_supported = !ioctl(flic_state->fd,
                                             KVM_HAS_DEVICE_ATTR, test_attr);
+    /* try enable the AIS facility */
+    test_attr.group = KVM_DEV_FLIC_AISM_ALL;
+    if (!ioctl(flic_state->fd, KVM_HAS_DEVICE_ATTR, test_attr)) {
+            kvm_vm_enable_cap(kvm_state, KVM_CAP_S390_AIS, 0);
+    }
+
     return;
 fail:
     error_propagate(errp, errp_local);
