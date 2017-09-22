@@ -11,6 +11,7 @@
 #include "hw/sysbus.h"
 #include "net/net.h"
 #include "hw/devices.h"
+#include "hw/net/mdio.h"
 /* For crc32 */
 #include <zlib.h>
 
@@ -49,12 +50,16 @@ typedef struct {
     uint8_t int_level;
     uint8_t int_mask;
     MemoryRegion mmio;
+
+    /* MDIO bus and the attached phy */
+    struct qemu_mdio mdio_bus;
+    struct qemu_phy phy;
 } smc91c111_state;
 
 static const VMStateDescription vmstate_smc91c111 = {
     .name = "smc91c111",
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .fields = (VMStateField[]) {
         VMSTATE_UINT16(tcr, smc91c111_state),
         VMSTATE_UINT16(rcr, smc91c111_state),
@@ -76,6 +81,8 @@ static const VMStateDescription vmstate_smc91c111 = {
         VMSTATE_BUFFER_UNSAFE(data, smc91c111_state, 0, NUM_PACKETS * 2048),
         VMSTATE_UINT8(int_level, smc91c111_state),
         VMSTATE_UINT8(int_mask, smc91c111_state),
+        VMSTATE_MDIO(mdio_bus, smc91c111_state),
+        VMSTATE_MDIO_PHY(phy, smc91c111_state),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -466,7 +473,15 @@ static void smc91c111_writeb(void *opaque, hwaddr offset,
             /* Multicast table.  */
             /* Not implemented.  */
             return;
-        case 8: case 9: /* Management Interface.  */
+        case 8: /* Management Interface.  */
+            /* Update MDIO data line status; but only if output is enabled */
+            if (value & 8) {
+                mdio_bitbang_set_data(&s->mdio_bus, !!(value & 1));
+            }
+            /* Process the clock */
+            mdio_bitbang_set_clk(&s->mdio_bus, value & 4);
+            return;
+        case 9: /* Management Interface.  */
             /* Not implemented.  */
             return;
         case 12: /* Early receive.  */
@@ -606,8 +621,7 @@ static uint32_t smc91c111_readb(void *opaque, hwaddr offset)
             /* Not implemented.  */
             return 0;
         case 8: /* Management Interface.  */
-            /* Not implemented.  */
-            return 0x30;
+            return 0x30 | (mdio_bitbang_get_data(&s->mdio_bus) ? 2 : 0);
         case 9:
             return 0x33;
         case 10: /* Revision.  */
@@ -774,6 +788,9 @@ static int smc91c111_init1(SysBusDevice *sbd)
     s->nic = qemu_new_nic(&net_smc91c111_info, &s->conf,
                           object_get_typename(OBJECT(dev)), dev->id, s);
     qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
+
+    mdio_phy_init(&s->phy, 0x0016, 0xf84);
+    mdio_attach(&s->mdio_bus, &s->phy, 0);
     /* ??? Save/restore.  */
     return 0;
 }
