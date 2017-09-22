@@ -43,7 +43,7 @@
  * linux driver (PHYID and Diagnostics reg).
  * TODO: Add friendly names for the register nums.
  */
-static unsigned int tdk_read(struct qemu_phy *phy, unsigned int req)
+static unsigned int mdio_phy_read(struct qemu_phy *phy, unsigned int req)
 {
     int regnum;
     unsigned r = 0;
@@ -107,7 +107,7 @@ static unsigned int tdk_read(struct qemu_phy *phy, unsigned int req)
     return r;
 }
 
-static void tdk_write(struct qemu_phy *phy, unsigned int req, unsigned int data)
+static void mdio_phy_write(struct qemu_phy *phy, unsigned int req, unsigned int data)
 {
     int regnum;
 
@@ -120,18 +120,18 @@ static void tdk_write(struct qemu_phy *phy, unsigned int req, unsigned int data)
     }
 }
 
-void tdk_init(struct qemu_phy *phy)
+void mdio_phy_init(struct qemu_phy *phy, uint16_t id1, uint16_t id2)
 {
     phy->regs[PHY_CTRL] = 0x3100;
     /* PHY Id. */
-    phy->regs[PHY_ID1] = 0x0300;
-    phy->regs[PHY_ID2] = 0xe400;
+    phy->regs[PHY_ID1] = id1;
+    phy->regs[PHY_ID2] = id2;
     /* Autonegotiation advertisement reg. */
     phy->regs[PHY_AUTONEG_ADV] = 0x01e1;
     phy->link = 1;
 
-    phy->read = tdk_read;
-    phy->write = tdk_write;
+    phy->read = mdio_phy_read;
+    phy->write = mdio_phy_write;
 }
 
 void mdio_attach(struct qemu_mdio *bus, struct qemu_phy *phy, unsigned int addr)

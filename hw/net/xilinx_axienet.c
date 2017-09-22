@@ -791,7 +791,7 @@ static void xilinx_enet_realize(DeviceState *dev, Error **errp)
                           object_get_typename(OBJECT(dev)), dev->id, s);
     qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
 
-    tdk_init(&s->TEMAC.phy);
+    mdio_phy_init(&s->TEMAC.phy, 0x0300, 0xe400);
     mdio_attach(&s->TEMAC.mdio_bus, &s->TEMAC.phy, s->c_phyaddr);
 
     s->TEMAC.parent = s;

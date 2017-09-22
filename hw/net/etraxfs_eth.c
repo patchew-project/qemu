@@ -333,7 +333,7 @@ static int fs_eth_init(SysBusDevice *sbd)
     qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
 
 
-    tdk_init(&s->phy);
+    mdio_phy_init(&s->phy, 0x0300, 0xe400);
     mdio_attach(&s->mdio_bus, &s->phy, s->phyaddr);
     return 0;
 }

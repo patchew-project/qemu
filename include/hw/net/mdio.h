@@ -86,7 +86,7 @@ struct qemu_mdio {
     struct qemu_phy *devs[32];
 };
 
-void tdk_init(struct qemu_phy *phy);
+void mdio_phy_init(struct qemu_phy *phy, uint16_t id1, uint16_t id2);
 void mdio_attach(struct qemu_mdio *bus, struct qemu_phy *phy,
                  unsigned int addr);
 uint16_t mdio_read_req(struct qemu_mdio *bus, uint8_t addr, uint8_t req);
