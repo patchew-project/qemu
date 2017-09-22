@@ -1,10 +1,10 @@
-#if defined(TARGET_MIPS)
+#if defined(TARGET_MIPS) || defined(TARGET_MIPS64)
 #include "mips/sockbits.h"
 #elif defined(TARGET_ALPHA)
 #include "alpha/sockbits.h"
 #elif defined(TARGET_HPPA)
 #include "hppa/sockbits.h"
-#elif defined(TARGET_SPARC)
+#elif defined(TARGET_SPARC) || defined(TARGET_SPARC64)
 #include "sparc/sockbits.h"
 #else
 
