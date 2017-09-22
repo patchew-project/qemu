@@ -109,16 +109,23 @@ static unsigned int mdio_phy_read(struct qemu_phy *phy, unsigned int req)
 
 static void mdio_phy_write(struct qemu_phy *phy, unsigned int req, unsigned int data)
 {
-    int regnum;
+    int regnum = req & 0x1f;
+    uint16_t mask = phy->regs_readonly_mask[regnum];
 
-    regnum = req & 0x1f;
-    D(printf("%s reg[%d] = %x\n", __func__, regnum, data));
+    D(printf("%s reg[%d] = %x; mask=%x\n", __func__, regnum, data, mask));
     switch (regnum) {
     default:
-        phy->regs[regnum] = data;
+        phy->regs[regnum] = (phy->regs[regnum] & mask) | (data & ~mask);
         break;
     }
 }
+
+static const uint16_t default_readonly_mask[32] = {
+    [PHY_CTRL] = PHY_CTRL_RST | PHY_CTRL_ANEG_RST,
+    [PHY_ID1] = 0xffff,
+    [PHY_ID2] = 0xffff,
+    [PHY_LP_ABILITY] = 0xffff,
+};
 
 void mdio_phy_init(struct qemu_phy *phy, uint16_t id1, uint16_t id2)
 {
@@ -128,6 +135,7 @@ void mdio_phy_init(struct qemu_phy *phy, uint16_t id1, uint16_t id2)
     phy->regs[PHY_ID2] = id2;
     /* Autonegotiation advertisement reg. */
     phy->regs[PHY_AUTONEG_ADV] = 0x01e1;
+    phy->regs_readonly_mask = default_readonly_mask;
     phy->link = 1;
 
     phy->read = mdio_phy_read;

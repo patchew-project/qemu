@@ -53,6 +53,7 @@
 
 struct qemu_phy {
     uint32_t regs[NUM_PHY_REGS];
+    const uint16_t *regs_readonly_mask; /* 0=writable, 1=read-only */
 
     int link;
 
