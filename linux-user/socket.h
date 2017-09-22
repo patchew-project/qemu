@@ -27,8 +27,8 @@
     #define TARGET_SO_PRIORITY     12
     #define TARGET_SO_LINGER       13
     #define TARGET_SO_BSDCOMPAT    14
-    /* To add :#define TARGET_SO_REUSEPORT 15 */
-#if defined(TARGET_PPC)
+    #define TARGET_SO_REUSEPORT    15
+#if defined(TARGET_PPC) || defined(TARGET_PPC64)
     #define TARGET_SO_RCVLOWAT     16
     #define TARGET_SO_SNDLOWAT     17
     #define TARGET_SO_RCVTIMEO     18
@@ -49,21 +49,58 @@
     #define TARGET_SO_SECURITY_ENCRYPTION_TRANSPORT        23
     #define TARGET_SO_SECURITY_ENCRYPTION_NETWORK          24
 
-    #define TARGET_SO_BINDTODEVICE 25
+    #define TARGET_SO_BINDTODEVICE            25
 
     /* Socket filtering */
-    #define TARGET_SO_ATTACH_FILTER        26
-    #define TARGET_SO_DETACH_FILTER        27
+    #define TARGET_SO_ATTACH_FILTER           26
+    #define TARGET_SO_DETACH_FILTER           27
+    #define TARGET_SO_GET_FILTER              TARGET_SO_ATTACH_FILTER
 
-    #define TARGET_SO_PEERNAME             28
-    #define TARGET_SO_TIMESTAMP            29
-    #define TARGET_SCM_TIMESTAMP           TARGET_SO_TIMESTAMP
+    #define TARGET_SO_PEERNAME                28
+    #define TARGET_SO_TIMESTAMP               29
+    #define TARGET_SCM_TIMESTAMP              TARGET_SO_TIMESTAMP
 
-    #define TARGET_SO_ACCEPTCONN           30
+    #define TARGET_SO_ACCEPTCONN              30
 
-    #define TARGET_SO_PEERSEC              31
+    #define TARGET_SO_PEERSEC                 31
+    #define TARGET_SO_PASSSEC                 34
+    #define TARGET_SO_TIMESTAMPNS             35
+    #define TARGET_SCM_TIMESTAMPNS            TARGET_SO_TIMESTAMPNS
 
-    #define TARGET_SO_PASSSEC              34
+    #define TARGET_SO_MARK                    36
+
+    #define TARGET_SO_TIMESTAMPING            37
+    #define TARGET_SCM_TIMESTAMPING           TARGET_SO_TIMESTAMPING
+
+    #define TARGET_SO_PROTOCOL                38
+    #define TARGET_SO_DOMAIN                  39
+
+    #define TARGET_SO_RXQ_OVFL                40
+
+    #define TARGET_SO_WIFI_STATUS             41
+    #define TARGET_SCM_WIFI_STATUS            TARGET_SO_WIFI_STATUS
+    #define TARGET_SO_PEEK_OFF                42
+
+    #define TARGET_SO_NOFCS                   43
+    #define TARGET_SO_LOCK_FILTER             44
+    #define TARGET_SO_SELECT_ERR_QUEUE        45
+    #define TARGET_SO_BUSY_POLL               46
+    #define TARGET_SO_MAX_PACING_RATE         47
+    #define TARGET_SO_BPF_EXTENSIONS          48
+    #define TARGET_SO_INCOMING_CPU            49
+    #define TARGET_SO_ATTACH_BPF              50
+    #define TARGET_SO_DETACH_BPF              TARGET_SO_DETACH_FILTER
+    #define TARGET_SO_ATTACH_REUSEPORT_CBPF   51
+    #define TARGET_SO_ATTACH_REUSEPORT_EBPF   52
+    #define TARGET_SO_CNX_ADVICE              53
+    #define TARGET_SCM_TIMESTAMPING_OPT_STATS 54
+    #define TARGET_SO_MEMINFO                 55
+    #define TARGET_SO_INCOMING_NAPI_ID        56
+    #define TARGET_SO_COOKIE                  57
+    #define TARGET_SCM_TIMESTAMPING_PKTINFO   58
+    #define TARGET_SO_PEERGROUPS              59
+    #define TARGET_SO_ZEROCOPY                60
+
 #endif
 
 #ifndef ARCH_HAS_SOCKET_TYPES
@@ -94,6 +131,6 @@
     };
 
     #define TARGET_SOCK_MAX (TARGET_SOCK_PACKET + 1)
-    #define TARGET_SOCK_TYPE_MASK    0xf  /* Covers up to TARGET_SOCK_MAX-1. */
+    #define TARGET_SOCK_TYPE_MASK  0xf  /* Covers up to TARGET_SOCK_MAX - 1. */
 
 #endif
