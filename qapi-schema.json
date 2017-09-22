@@ -93,6 +93,10 @@
 { 'include': 'qapi/trace.json' }
 { 'include': 'qapi/introspect.json' }
 
+# QAPI fsdev definitions
+{ 'include': 'qapi/fsdev.json' }
+
+
 ##
 # = Miscellanea
 ##
