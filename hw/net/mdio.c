@@ -248,3 +248,33 @@ void mdio_bitbang_set_clk(struct qemu_mdio *bus, bool mdc)
         break;
     }
 }
+
+const VMStateDescription vmstate_mdio = {
+    .name = "mdio",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_BOOL(mdc, struct qemu_mdio),
+        VMSTATE_BOOL(mdio, struct qemu_mdio),
+        VMSTATE_UINT32(state, struct qemu_mdio),
+        VMSTATE_UINT16(cnt, struct qemu_mdio),
+        VMSTATE_UINT16(addr, struct qemu_mdio),
+        VMSTATE_UINT16(opc, struct qemu_mdio),
+        VMSTATE_UINT16(req, struct qemu_mdio),
+        VMSTATE_UINT32(shiftreg, struct qemu_mdio),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+const VMStateDescription vmstate_mdio_phy = {
+    .name = "mdio",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT16_ARRAY(regs, struct qemu_phy, 32),
+        VMSTATE_BOOL(link, struct qemu_phy),
+        VMSTATE_END_OF_LIST()
+    }
+};

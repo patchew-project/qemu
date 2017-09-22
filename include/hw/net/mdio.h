@@ -25,6 +25,8 @@
  * THE SOFTWARE.
  */
 
+#include "migration/vmstate.h"
+
 /* PHY MII Register/Bit Definitions */
 /* PHY Registers defined by IEEE */
 #define PHY_CTRL         0x00 /* Control Register */
@@ -61,6 +63,16 @@ struct qemu_phy {
     void (*write)(struct qemu_phy *phy, unsigned int req, uint16_t data);
 };
 
+extern const VMStateDescription vmstate_mdio_phy;
+
+#define VMSTATE_MDIO_PHY(_field, _state) {                           \
+    .name   = (stringify(_field)),                                   \
+    .size   = sizeof(struct qemu_phy),                               \
+    .vmsd   = &vmstate_mdio_phy,                                     \
+    .flags  = VMS_STRUCT,                                            \
+    .offset = vmstate_offset_value(_state, _field, struct qemu_phy), \
+}
+
 struct qemu_mdio {
     /* bitbanging state machine */
     bool mdc;
@@ -82,6 +94,16 @@ struct qemu_mdio {
 
     struct qemu_phy *devs[32];
 };
+
+extern const VMStateDescription vmstate_mdio;
+
+#define VMSTATE_MDIO(_field, _state) {                                 \
+    .name   = (stringify(_field)),                                     \
+    .size   = sizeof(struct qemu_mdio),                                \
+    .vmsd   = &vmstate_mdio,                                           \
+    .flags  = VMS_STRUCT,                                              \
+    .offset = vmstate_offset_value(_state, _field, struct qemu_mdio),  \
+}
 
 void mdio_phy_init(struct qemu_phy *phy, uint16_t id1, uint16_t id2);
 void mdio_attach(struct qemu_mdio *bus, struct qemu_phy *phy,
