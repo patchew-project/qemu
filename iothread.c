@@ -354,3 +354,24 @@ GMainContext *iothread_get_g_main_context(IOThread *iothread)
 
     return iothread->worker_context;
 }
+
+static Object *iothread_get_internal_parent(void)
+{
+    return container_get(object_get_root(), "/internal-iothreads");
+}
+
+IOThread *iothread_create(const char *id, Error **errp)
+{
+    Object *obj;
+
+    obj = object_new_with_props(TYPE_IOTHREAD,
+                                iothread_get_internal_parent(),
+                                id, errp, NULL);
+
+    return IOTHREAD(obj);
+}
+
+void iothread_destroy(IOThread *iothread)
+{
+    object_unparent(OBJECT(iothread));
+}
