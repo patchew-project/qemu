@@ -22,6 +22,7 @@
 #include "hw/s390x/s390_flic.h"
 #include "hw/s390x/adapter.h"
 #include "hw/s390x/css.h"
+#include "hw/s390x/s390-virtio-ccw.h"
 #include "trace.h"
 
 #define FLIC_SAVE_INITIAL_SIZE getpagesize()
@@ -559,7 +560,8 @@ static void kvm_s390_flic_realize(DeviceState *dev, Error **errp)
                                             KVM_HAS_DEVICE_ATTR, test_attr);
     /* try enable the AIS facility */
     test_attr.group = KVM_DEV_FLIC_AISM_ALL;
-    if (!ioctl(flic_state->fd, KVM_HAS_DEVICE_ATTR, test_attr)) {
+    if (ais_allowed() &&
+        !ioctl(flic_state->fd, KVM_HAS_DEVICE_ATTR, test_attr)) {
             kvm_vm_enable_cap(kvm_state, KVM_CAP_S390_AIS, 0);
     }
 
