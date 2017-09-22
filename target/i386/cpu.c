@@ -4170,6 +4170,8 @@ static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
     dc->realize = x86_cpu_realizefn;
     dc->unrealize = x86_cpu_unrealizefn;
     dc->props = x86_cpu_properties;
+    dc->user_creatable = true;
+    dc->hotpluggable = true;
 
     xcc->parent_reset = cc->reset;
     cc->reset = x86_cpu_reset;
@@ -4215,8 +4217,6 @@ static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
 #endif
     cc->cpu_exec_enter = x86_cpu_exec_enter;
     cc->cpu_exec_exit = x86_cpu_exec_exit;
-
-    dc->user_creatable = true;
 }
 
 static const TypeInfo x86_cpu_type_info = {

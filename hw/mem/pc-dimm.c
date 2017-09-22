@@ -443,6 +443,7 @@ static void pc_dimm_class_init(ObjectClass *oc, void *data)
     dc->unrealize = pc_dimm_unrealize;
     dc->props = pc_dimm_properties;
     dc->desc = "DIMM memory module";
+    dc->hotpluggable = true;
 
     ddc->get_memory_region = pc_dimm_get_memory_region;
     ddc->get_vmstate_memory_region = pc_dimm_get_vmstate_memory_region;

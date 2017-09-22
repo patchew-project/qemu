@@ -1499,6 +1499,7 @@ static void ccid_card_class_init(ObjectClass *klass, void *data)
     k->init = ccid_card_init;
     k->exit = ccid_card_exit;
     k->props = ccid_props;
+    k->hotpluggable = true;
 }
 
 static const TypeInfo ccid_card_type_info = {

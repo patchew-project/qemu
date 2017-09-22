@@ -1097,6 +1097,7 @@ static void virtio_serial_port_class_init(ObjectClass *klass, void *data)
     k->realize = virtser_port_device_realize;
     k->unrealize = virtser_port_device_unrealize;
     k->props = virtser_props;
+    k->hotpluggable = true;
 }
 
 static const TypeInfo virtio_serial_port_type_info = {

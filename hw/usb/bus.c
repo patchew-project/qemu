@@ -793,6 +793,7 @@ static void usb_device_class_init(ObjectClass *klass, void *data)
     k->realize  = usb_qdev_realize;
     k->unrealize = usb_qdev_unrealize;
     k->props    = usb_props;
+    k->hotpluggable = true;
 }
 
 static const TypeInfo usb_device_type_info = {
