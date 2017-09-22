@@ -695,9 +695,9 @@ int net_init_socket(const Netdev *netdev, const char *name,
     assert(netdev->type == NET_CLIENT_DRIVER_SOCKET);
     sock = &netdev->u.socket;
 
-    if (sock->has_listen + sock->has_connect + sock->has_mcast +
-        sock->has_udp > 1) {
-        error_setg(errp, "exactly one of listen=, connect=, mcast= or udp="
+    if (sock->has_fd + sock->has_listen + sock->has_connect + sock->has_mcast +
+        sock->has_udp == 0) {
+        error_setg(errp, "at least one of fd=, listen=, connect=, mcast= or udp="
                    " is required");
         return -1;
     }
