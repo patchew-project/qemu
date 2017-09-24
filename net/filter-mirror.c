@@ -213,14 +213,22 @@ static void filter_mirror_setup(NetFilterState *nf, Error **errp)
     MirrorState *s = FILTER_MIRROR(nf);
     Chardev *chr;
 
+    if (s->outdev == NULL) {
+        goto err;
+    }
+
     chr = qemu_chr_find(s->outdev);
+
     if (chr == NULL) {
-        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
-                  "Device '%s' not found", s->outdev);
-        return;
+        goto err;
     }
 
     qemu_chr_fe_init(&s->chr_out, chr, errp);
+
+err:
+    error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND, "Device '%s' not found",
+              nf->netdev_id);
+    return;
 }
 
 static void redirector_rs_finalize(SocketReadState *rs)
