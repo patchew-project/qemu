@@ -2345,6 +2345,10 @@ static void ppc_spapr_init(MachineState *machine)
     }
 
     /* init CPUs */
+    if (kvm_enabled()) {
+        spapr_cpu_core_register_host_type();
+    }
+
     if (machine->cpu_model == NULL) {
         machine->cpu_model = kvm_enabled() ? "host" : smc->tcg_default_cpu;
     }

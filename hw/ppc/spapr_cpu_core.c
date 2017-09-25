@@ -317,7 +317,7 @@ static Property spapr_cpu_core_properties[] = {
     DEFINE_PROP_END_OF_LIST()
 };
 
-void spapr_cpu_core_class_init(ObjectClass *oc, void *data)
+static void spapr_cpu_core_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     sPAPRCPUCoreClass *scc = SPAPR_CPU_CORE_CLASS(oc);
@@ -337,6 +337,20 @@ static const TypeInfo spapr_cpu_core_type_info = {
     .class_size = sizeof(sPAPRCPUCoreClass),
 };
 
+static void spapr_cpu_core_register_type(const char *model_name)
+{
+    TypeInfo type_info = {
+        .parent = TYPE_SPAPR_CPU_CORE,
+        .instance_size = sizeof(sPAPRCPUCore),
+        .class_init = spapr_cpu_core_class_init,
+        .class_data = (void *) model_name,
+    };
+
+    type_info.name = g_strdup_printf("%s-"TYPE_SPAPR_CPU_CORE, model_name);
+    type_register(&type_info);
+    g_free((void *)type_info.name);
+}
+
 static void spapr_cpu_core_register_types(void)
 {
     int i;
@@ -344,18 +358,14 @@ static void spapr_cpu_core_register_types(void)
     type_register_static(&spapr_cpu_core_type_info);
 
     for (i = 0; i < ARRAY_SIZE(spapr_core_models); i++) {
-        TypeInfo type_info = {
-            .parent = TYPE_SPAPR_CPU_CORE,
-            .instance_size = sizeof(sPAPRCPUCore),
-            .class_init = spapr_cpu_core_class_init,
-            .class_data = (void *) spapr_core_models[i],
-        };
-
-        type_info.name = g_strdup_printf("%s-" TYPE_SPAPR_CPU_CORE,
-                                         spapr_core_models[i]);
-        type_register(&type_info);
-        g_free((void *)type_info.name);
+        spapr_cpu_core_register_type(spapr_core_models[i]);
     }
+
+}
+
+void spapr_cpu_core_register_host_type(void)
+{
+    spapr_cpu_core_register_type("host");
 }
 
 type_init(spapr_cpu_core_register_types)

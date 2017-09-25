@@ -36,5 +36,5 @@ typedef struct sPAPRCPUCoreClass {
 } sPAPRCPUCoreClass;
 
 char *spapr_get_cpu_core_type(const char *model);
-void spapr_cpu_core_class_init(ObjectClass *oc, void *data);
+void spapr_cpu_core_register_host_type(void);
 #endif

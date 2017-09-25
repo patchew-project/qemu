@@ -37,7 +37,6 @@
 #include "hw/sysbus.h"
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_vio.h"
-#include "hw/ppc/spapr_cpu_core.h"
 #include "hw/ppc/ppc.h"
 #include "sysemu/watchdog.h"
 #include "trace.h"
@@ -2506,17 +2505,6 @@ static int kvm_ppc_register_host_cpu_type(void)
 
     oc = object_class_by_name(type_info.name);
     g_assert(oc);
-
-#if defined(TARGET_PPC64)
-    type_info.name = g_strdup_printf("%s-"TYPE_SPAPR_CPU_CORE, "host");
-    type_info.parent = TYPE_SPAPR_CPU_CORE,
-    type_info.instance_size = sizeof(sPAPRCPUCore);
-    type_info.instance_init = NULL;
-    type_info.class_init = spapr_cpu_core_class_init;
-    type_info.class_data = (void *) "host";
-    type_register(&type_info);
-    g_free((void *)type_info.name);
-#endif
 
     /*
      * Update generic CPU family class alias (e.g. on a POWER8NVL host,
