@@ -570,6 +570,10 @@ static void ppc_powernv_init(MachineState *machine)
     }
 
     fw_filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
+    if (!fw_filename) {
+        error_report("Could not find OPAL '%s'", bios_name);
+        exit(1);
+    }
 
     fw_size = load_image_targphys(fw_filename, FW_LOAD_ADDR, FW_MAX_SIZE);
     if (fw_size < 0) {
