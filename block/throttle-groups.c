@@ -420,6 +420,23 @@ static void throttle_group_restart_queue(ThrottleGroupMember *tgm, bool is_write
 void throttle_group_restart_tgm(ThrottleGroupMember *tgm)
 {
     if (tgm->throttle_state) {
+        ThrottleState *ts = tgm->throttle_state;
+        ThrottleGroup *tg = container_of(ts, ThrottleGroup, ts);
+        ThrottleTimers *tt = &tgm->throttle_timers;
+
+        /* Cancel pending timers */
+        qemu_mutex_lock(&tg->lock);
+        if (timer_pending(tt->timers[0])) {
+            timer_del(tt->timers[0]);
+            tg->any_timer_armed[0] = false;
+        }
+        if (timer_pending(tt->timers[1])) {
+            timer_del(tt->timers[1]);
+            tg->any_timer_armed[1] = false;
+        }
+        qemu_mutex_unlock(&tg->lock);
+
+        /* This also schedules the next request in other TGMs, if necessary */
         throttle_group_restart_queue(tgm, 0);
         throttle_group_restart_queue(tgm, 1);
     }
@@ -592,6 +609,17 @@ void throttle_group_attach_aio_context(ThrottleGroupMember *tgm,
 void throttle_group_detach_aio_context(ThrottleGroupMember *tgm)
 {
     ThrottleTimers *tt = &tgm->throttle_timers;
+
+    /* Requests must have been drained */
+    assert(tgm->pending_reqs[0] == 0);
+    assert(tgm->pending_reqs[1] == 0);
+    assert(qemu_co_queue_empty(&tgm->throttled_reqs[0]));
+    assert(qemu_co_queue_empty(&tgm->throttled_reqs[1]));
+
+    /* Timers must be disabled */
+    assert(!timer_pending(tt->timers[0]));
+    assert(!timer_pending(tt->timers[1]));
+
     throttle_timers_detach_aio_context(tt);
     tgm->aio_context = NULL;
 }
