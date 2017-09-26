@@ -102,6 +102,22 @@ SizedBuf kd_gen_exception_sc(CPUState *cpu)
     return buf;
 }
 
+SizedBuf kd_gen_load_symbols_sc(CPUState *cpu)
+{
+    SizedBuf buf;
+    SBUF_MALLOC(buf, sizeof(DBGKD_ANY_WAIT_STATE_CHANGE));
+
+    DBGKD_ANY_WAIT_STATE_CHANGE *sc = (DBGKD_ANY_WAIT_STATE_CHANGE *) buf.data;
+    kd_init_state_change(cpu, sc);
+
+    sc->NewState = DbgKdLoadSymbolsStateChange;
+    sc->NewState = ldl_p(&sc->NewState);
+
+    sc->u.LoadSymbols.PathNameLength = 0;
+
+    return buf;
+}
+
 bool windbg_on_load(void)
 {
     CPUState *cpu = qemu_get_cpu(0);

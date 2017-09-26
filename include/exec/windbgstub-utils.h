@@ -103,6 +103,7 @@ typedef struct SizedBuf {
 } while (false)
 
 SizedBuf kd_gen_exception_sc(CPUState *cpu);
+SizedBuf kd_gen_load_symbols_sc(CPUState *cpu);
 
 bool windbg_on_load(void);
 void windbg_on_exit(void);
