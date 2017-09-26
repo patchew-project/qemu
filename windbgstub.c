@@ -11,6 +11,7 @@
 
 #include "qemu/osdep.h"
 #include "exec/windbgstub.h"
+#include "exec/windbgstub-utils.h"
 
 int windbg_server_start(const char *device)
 {
