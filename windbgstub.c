@@ -68,7 +68,6 @@ static uint32_t compute_checksum(uint8_t *data, uint16_t len)
     return checksum;
 }
 
-__attribute__ ((unused)) /* unused yet */
 static void windbg_send_data_packet(uint8_t *data, uint16_t byte_count,
                                     uint16_t type)
 {
@@ -113,6 +112,16 @@ static void windbg_send_control_packet(uint16_t type)
     windbg_state->ctrl_packet_id ^= 1;
 }
 
+static void windbg_vm_stop(void)
+{
+    CPUState *cpu = qemu_get_cpu(0);
+    vm_stop(RUN_STATE_PAUSED);
+
+    SizedBuf buf = kd_gen_exception_sc(cpu);
+    windbg_send_data_packet(buf.data, buf.size, PACKET_TYPE_KD_STATE_CHANGE64);
+    SBUF_FREE(buf);
+}
+
 static void windbg_process_data_packet(ParsingContext *ctx)
 {}
 
@@ -126,7 +135,7 @@ static void windbg_ctx_handler(ParsingContext *ctx)
         break;
 
     case RESULT_BREAKIN_BYTE:
-        vm_stop(RUN_STATE_PAUSED);
+        windbg_vm_stop();
         break;
 
     case RESULT_CONTROL_PACKET:
