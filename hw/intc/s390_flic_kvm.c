@@ -1,7 +1,7 @@
 /*
  * QEMU S390x KVM floating interrupt controller (flic)
  *
- * Copyright 2014 IBM Corp.
+ * Copyright IBM Corp. 2014, 2017
  * Author(s): Jens Freimann <jfrei@linux.vnet.ibm.com>
  *            Cornelia Huck <cornelia.huck@de.ibm.com>
  *
@@ -164,7 +164,7 @@ static int kvm_s390_modify_ais_mode(S390FLICState *fs, uint8_t isc,
         .addr = (uint64_t)&req,
     };
 
-    if (!fs->ais_supported) {
+    if (!s390_has_feat(S390_FEAT_ADAPTER_INT_SUPPRESSION)) {
         return -ENOSYS;
     }
 
@@ -181,7 +181,7 @@ static int kvm_s390_inject_airq(S390FLICState *fs, uint8_t type,
         .attr = id,
     };
 
-    if (!fs->ais_supported) {
+    if (!s390_has_feat(S390_FEAT_ADAPTER_INT_SUPPRESSION)) {
         return -ENOSYS;
     }
 
@@ -459,7 +459,7 @@ static int kvm_flic_ais_post_load(void *opaque, int version_id)
      * migration from a host that has AIS to a host that has no AIS.
      * In that case the target system will reject the migration here.
      */
-    if (!ais_needed(flic)) {
+    if (!s390_has_feat(S390_FEAT_ADAPTER_INT_SUPPRESSION)) {
         return -ENOSYS;
     }
 
@@ -557,6 +557,12 @@ static void kvm_s390_flic_realize(DeviceState *dev, Error **errp)
     test_attr.group = KVM_DEV_FLIC_CLEAR_IO_IRQ;
     flic_state->clear_io_supported = !ioctl(flic_state->fd,
                                             KVM_HAS_DEVICE_ATTR, test_attr);
+    /* try enable the AIS facility */
+    test_attr.group = KVM_DEV_FLIC_AISM_ALL;
+    if (!ioctl(flic_state->fd, KVM_HAS_DEVICE_ATTR, test_attr)) {
+            kvm_vm_enable_cap(kvm_state, KVM_CAP_S390_AIS, 0);
+    }
+
     return;
 fail:
     error_propagate(errp, errp_local);
@@ -578,7 +584,7 @@ static void kvm_s390_flic_reset(DeviceState *dev)
 
     flic_disable_wait_pfault(flic);
 
-    if (fs->ais_supported) {
+    if (s390_has_feat(S390_FEAT_ADAPTER_INT_SUPPRESSION)) {
         for (isc = 0; isc <= MAX_ISC; isc++) {
             rc = kvm_s390_modify_ais_mode(fs, isc, SIC_IRQ_MODE_ALL);
             if (rc) {

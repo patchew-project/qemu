@@ -1,7 +1,7 @@
 /*
  * Channel subsystem base support.
  *
- * Copyright 2012 IBM Corp.
+ * Copyright IBM Corp. 2012, 2017
  * Author(s): Cornelia Huck <cornelia.huck@de.ibm.com>
  *
  * This work is licensed under the terms of the GNU GPL, version 2 or (at
@@ -672,7 +672,7 @@ void css_adapter_interrupt(CssIoAdapterType type, uint8_t isc)
     }
 
     trace_css_adapter_interrupt(isc);
-    if (fs->ais_supported) {
+    if (s390_has_feat(S390_FEAT_ADAPTER_INT_SUPPRESSION)) {
         if (fsc->inject_airq(fs, type, isc, adapter->flags)) {
             error_report("Failed to inject airq with AIS supported");
             exit(1);

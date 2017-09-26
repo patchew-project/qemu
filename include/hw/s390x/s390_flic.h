@@ -44,7 +44,6 @@ typedef struct S390FLICState {
     SysBusDevice parent_obj;
     /* to limit AdapterRoutes.num_routes for compat */
     uint32_t adapter_routes_max_batch;
-    bool ais_supported;
 } S390FLICState;
 
 #define S390_FLIC_COMMON_CLASS(klass) \
