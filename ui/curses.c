@@ -423,7 +423,7 @@ void curses_display_init(DisplayState *ds, int full_screen)
 {
 #ifndef _WIN32
     if (!isatty(1)) {
-        fprintf(stderr, "We need a terminal output\n");
+        error_report("We need a terminal output");
         exit(1);
     }
 #endif

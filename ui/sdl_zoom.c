@@ -12,6 +12,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "sdl_zoom.h"
 
 static void sdl_zoom_rgb16(SDL_Surface *src, SDL_Surface *dst, int smooth,
@@ -81,7 +82,7 @@ int sdl_zoom_blit(SDL_Surface *src_sfc, SDL_Surface *dst_sfc, int smooth,
     else if (src_sfc->format->BitsPerPixel == 16)
         sdl_zoom_rgb16(src_sfc, dst_sfc, smooth, &zoom);
     else {
-        fprintf(stderr, "pixel format not supported\n");
+        error_report("pixel format not supported");
         return -1;
     }
 

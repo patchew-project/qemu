@@ -1254,7 +1254,7 @@ static gboolean gd_win_grab(void *opaque)
 {
     VirtualConsole *vc = opaque;
 
-    fprintf(stderr, "%s: %s\n", __func__, vc->label);
+    error_report("%s: %s", __func__, vc->label);
     if (vc->s->ptr_owner) {
         gd_ungrab_pointer(vc->s);
     } else {
@@ -2210,12 +2210,12 @@ static void gd_set_keycode_type(GtkDisplayState *s)
             keycodes = XGetAtomName(x11_display, desc->names->keycodes);
         }
         if (keycodes == NULL) {
-            fprintf(stderr, "could not lookup keycode name\n");
+            error_report("could not lookup keycode name");
         } else if (strstart(keycodes, "evdev", NULL)) {
             s->has_evdev = true;
         } else if (!strstart(keycodes, "xfree86", NULL)) {
-            fprintf(stderr, "unknown keycodes `%s', please report to "
-                    "qemu-devel@nongnu.org\n", keycodes);
+            error_report("unknown keycodes `%s', please report to "
+                    "qemu-devel@nongnu.org", keycodes);
         }
 
         if (desc) {
@@ -2239,7 +2239,7 @@ void gtk_display_init(DisplayState *ds, bool full_screen, bool grab_on_hover)
     GdkDisplay *window_display;
 
     if (!gtkinit) {
-        fprintf(stderr, "gtk initialization failed\n");
+        error_report("gtk initialization failed");
         exit(1);
     }
 

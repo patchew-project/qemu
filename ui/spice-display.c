@@ -630,13 +630,13 @@ static int interface_req_cursor_notification(QXLInstance *sin)
 
 static void interface_notify_update(QXLInstance *sin, uint32_t update_id)
 {
-    fprintf(stderr, "%s: abort()\n", __func__);
+    error_report("%s: abort()", __func__);
     abort();
 }
 
 static int interface_flush_resources(QXLInstance *sin)
 {
-    fprintf(stderr, "%s: abort()\n", __func__);
+    error_report("%s: abort()", __func__);
     abort();
     return 0;
 }
@@ -646,7 +646,7 @@ static void interface_update_area_complete(QXLInstance *sin,
         QXLRect *dirty, uint32_t num_updated_rects)
 {
     /* should never be called, used in qxl native mode only */
-    fprintf(stderr, "%s: abort()\n", __func__);
+    error_report("%s: abort()", __func__);
     abort();
 }
 
@@ -671,7 +671,7 @@ static void interface_async_complete(QXLInstance *sin, uint64_t cookie_token)
 #endif
     default:
         /* should never be called, used in qxl native mode only */
-        fprintf(stderr, "%s: abort()\n", __func__);
+        error_report("%s: abort()", __func__);
         abort();
     }
     g_free(cookie);
@@ -955,7 +955,7 @@ static void qemu_spice_gl_scanout_texture(DisplayChangeListener *dcl,
     assert(tex_id);
     fd = egl_get_fd_for_texture(tex_id, &stride, &fourcc);
     if (fd < 0) {
-        fprintf(stderr, "%s: failed to get fd for texture\n", __func__);
+        error_report("%s: failed to get fd for texture", __func__);
         return;
     }
     dprint(1, "%s: %dx%d (stride %d, fourcc 0x%x)\n", __func__,

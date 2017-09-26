@@ -800,7 +800,7 @@ static int tight_init_stream(VncState *vs, int stream_id,
                            MAX_MEM_LEVEL, strategy);
 
         if (err != Z_OK) {
-            fprintf(stderr, "VNC: error initializing zlib\n");
+            error_report("VNC: error initializing zlib");
             return -1;
         }
 
@@ -865,7 +865,7 @@ static int tight_compress_data(VncState *vs, int stream_id, size_t bytes,
 
     /* start encoding */
     if (deflate(zstream, Z_SYNC_FLUSH) != Z_OK) {
-        fprintf(stderr, "VNC: error during tight compression\n");
+        error_report("VNC: error during tight compression");
         return -1;
     }
 

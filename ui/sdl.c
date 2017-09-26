@@ -91,7 +91,7 @@ static void sdl_update(DisplayChangeListener *dcl,
             SDL_BlitSurface(guest_screen, &rec, real_screen, &rec);
         } else {
             if (sdl_zoom_blit(guest_screen, real_screen, SMOOTHING_ON, &rec) < 0) {
-                fprintf(stderr, "Zoom blit failed\n");
+                error_report("Zoom blit failed");
                 exit(1);
             }
         }
@@ -120,7 +120,7 @@ static void do_sdl_resize(int width, int height, int bpp)
     tmp_screen = SDL_SetVideoMode(width, height, bpp, flags);
     if (!real_screen) {
         if (!tmp_screen) {
-            fprintf(stderr, "Could not open SDL display (%dx%dx%d): %s\n",
+            error_report("Could not open SDL display (%dx%dx%d): %s",
                     width, height, bpp, SDL_GetError());
             exit(1);
         }
@@ -130,7 +130,7 @@ static void do_sdl_resize(int width, int height, int bpp)
          * resolution failed.
          */
         if (!tmp_screen) {
-            fprintf(stderr, "Failed to set SDL display (%dx%dx%d): %s\n",
+            error_report("Failed to set SDL display (%dx%dx%d): %s",
                     width, height, bpp, SDL_GetError());
             return;
         }
@@ -241,12 +241,12 @@ static int check_for_evdev(void)
                      XkbKeycodesNameMask, desc) == Success)) {
         keycodes = XGetAtomName(info.info.x11.display, desc->names->keycodes);
         if (keycodes == NULL) {
-            fprintf(stderr, "could not lookup keycode name\n");
+            error_report("could not lookup keycode name");
         } else if (strstart(keycodes, "evdev", NULL)) {
             has_evdev = 1;
         } else if (!strstart(keycodes, "xfree86", NULL)) {
-            fprintf(stderr, "unknown keycodes `%s', please report to "
-                    "qemu-devel@nongnu.org\n", keycodes);
+            error_report("unknown keycodes `%s', please report to "
+                    "qemu-devel@nongnu.org", keycodes);
         }
     }
 
@@ -988,7 +988,7 @@ void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
 
     flags = SDL_INIT_VIDEO | SDL_INIT_NOPARACHUTE;
     if (SDL_Init (flags)) {
-        fprintf(stderr, "Could not initialize SDL(%s) - exiting\n",
+        error_report("Could not initialize SDL(%s) - exiting",
                 SDL_GetError());
         exit(1);
     }

@@ -5,6 +5,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "qemu-common.h"
 #include "qemu/config-file.h"
@@ -241,7 +242,7 @@ static void input_linux_event(void *opaque)
         rc = read(il->fd, &p[il->read_offset], read_size);
         if (rc != read_size) {
             if (rc < 0 && errno != EAGAIN) {
-                fprintf(stderr, "%s: read: %s\n", __func__, strerror(errno));
+                error_report("%s: read: %s", __func__, strerror(errno));
                 qemu_set_fd_handler(il->fd, NULL, NULL, NULL);
                 close(il->fd);
             } else if (rc > 0) {

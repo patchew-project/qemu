@@ -80,7 +80,7 @@ static int vnc_zlib_stop(VncState *vs)
                            MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY);
 
         if (err != Z_OK) {
-            fprintf(stderr, "VNC: error initializing zlib\n");
+            error_report("VNC: error initializing zlib");
             return -1;
         }
 
@@ -109,7 +109,7 @@ static int vnc_zlib_stop(VncState *vs)
 
     // start encoding
     if (deflate(zstream, Z_SYNC_FLUSH) != Z_OK) {
-        fprintf(stderr, "VNC: error during zlib compression\n");
+        error_report("VNC: error during zlib compression");
         return -1;
     }
 

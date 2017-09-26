@@ -105,7 +105,7 @@ static kbd_layout_t *parse_keyboard_layout(const name2keysym_t *table,
     f = filename ? fopen(filename, "r") : NULL;
     g_free(filename);
     if (!f) {
-        fprintf(stderr, "Could not read keymap file: '%s'\n", language);
+        error_report("Could not read keymap file: '%s'", language);
         return NULL;
     }
 
@@ -150,7 +150,7 @@ static kbd_layout_t *parse_keyboard_layout(const name2keysym_t *table,
                     if (strstr(rest, "numlock")) {
                         add_to_key_range(&k->keypad_range, keycode);
                         add_to_key_range(&k->numlock_range, keysym);
-                        /* fprintf(stderr, "keypad keysym %04x keycode %d\n",
+                        /* error_report("keypad keysym %04x keycode %d",
                                    keysym, keycode); */
                     }
 

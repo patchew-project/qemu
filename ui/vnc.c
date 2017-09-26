@@ -71,7 +71,7 @@ static void vnc_set_share_mode(VncState *vs, VncShareMode mode)
         [VNC_SHARE_MODE_EXCLUSIVE]    = "exclusive",
         [VNC_SHARE_MODE_DISCONNECTED] = "disconnected",
     };
-    fprintf(stderr, "%s/%p: %s -> %s\n", __func__,
+    error_report("%s/%p: %s -> %s", __func__,
             vs->ioc, mn[vs->share_mode], mn[mode]);
 #endif
 

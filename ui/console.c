@@ -1417,7 +1417,7 @@ void register_displaychangelistener(DisplayChangeListener *dcl)
         /* display has opengl support */
         assert(dcl->con);
         if (dcl->con->gl) {
-            fprintf(stderr, "can't register two opengl displays (%s, %s)\n",
+            error_report("can't register two opengl displays (%s, %s)",
                     dcl->ops->dpy_name, dcl->con->gl->ops->dpy_name);
             exit(1);
         }

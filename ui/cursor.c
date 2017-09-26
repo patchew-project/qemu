@@ -18,12 +18,12 @@ static QEMUCursor *cursor_parse_xpm(const char *xpm[])
     /* parse header line: width, height, #colors, #chars */
     if (sscanf(xpm[line], "%u %u %u %u",
                &width, &height, &colors, &chars) != 4) {
-        fprintf(stderr, "%s: header parse error: \"%s\"\n",
-                __func__, xpm[line]);
+        error_report("%s: header parse error: \"%s\"",
+                     __func__, xpm[line]);
         return NULL;
     }
     if (chars != 1) {
-        fprintf(stderr, "%s: chars != 1 not supported\n", __func__);
+        error_report("%s: chars != 1 not supported", __func__);
         return NULL;
     }
     line++;
@@ -40,7 +40,7 @@ static QEMUCursor *cursor_parse_xpm(const char *xpm[])
                 continue;
             }
         }
-        fprintf(stderr, "%s: color parse error: \"%s\"\n",
+        error_report("%s: color parse error: \"%s\"",
                 __func__, xpm[line]);
         return NULL;
     }
@@ -75,7 +75,7 @@ void cursor_print_ascii_art(QEMUCursor *c, const char *prefix)
                 fprintf(stderr, "o"); /* other */
             }
         }
-        fprintf(stderr, "|\n");
+        error_report("|");
     }
 }
 

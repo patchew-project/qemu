@@ -400,7 +400,7 @@ static void handle_keydown(SDL_Event *ev)
                             160);
                 height = (surface_height(scon->surface) * width) /
                     surface_width(scon->surface);
-                fprintf(stderr, "%s: scale to %dx%d\n",
+                error_report("%s: scale to %dx%d",
                         __func__, width, height);
                 sdl_scale(scon, width, height);
                 sdl2_redraw(scon);
@@ -686,13 +686,13 @@ static void sdl_mouse_define(DisplayChangeListener *dcl,
                                  0xff0000, 0x00ff00, 0xff, 0xff000000);
 
     if (!guest_sprite_surface) {
-        fprintf(stderr, "Failed to make rgb surface from %p\n", c);
+        error_report("Failed to make rgb surface from %p", c);
         return;
     }
     guest_sprite = SDL_CreateColorCursor(guest_sprite_surface,
                                          c->hot_x, c->hot_y);
     if (!guest_sprite) {
-        fprintf(stderr, "Failed to make color cursor from %p\n", c);
+        error_report("Failed to make color cursor from %p", c);
         return;
     }
     if (guest_cursor &&
@@ -783,7 +783,7 @@ void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
 
     flags = SDL_INIT_VIDEO | SDL_INIT_NOPARACHUTE;
     if (SDL_Init(flags)) {
-        fprintf(stderr, "Could not initialize SDL(%s) - exiting\n",
+        error_report("Could not initialize SDL(%s) - exiting",
                 SDL_GetError());
         exit(1);
     }

@@ -85,7 +85,7 @@ static int zrle_compress_data(VncState *vs, int level)
                            MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY);
 
         if (err != Z_OK) {
-            fprintf(stderr, "VNC: error initializing zlib\n");
+            error_report("VNC: error initializing zlib");
             return -1;
         }
 
@@ -104,7 +104,7 @@ static int zrle_compress_data(VncState *vs, int level)
 
     /* start encoding */
     if (deflate(zstream, Z_SYNC_FLUSH) != Z_OK) {
-        fprintf(stderr, "VNC: error during zrle compression\n");
+        error_report("VNC: error during zrle compression");
         return -1;
     }
 
