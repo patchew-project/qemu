@@ -15,6 +15,7 @@
 #define WINDBG "windbg"
 #define WINDBG_DEBUG_ON false
 
+void windbg_try_load(void);
 int windbg_server_start(const char *device);
 
 #endif

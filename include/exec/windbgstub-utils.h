@@ -62,4 +62,7 @@
     _t;                                                       \
 })
 
+bool windbg_on_load(void);
+void windbg_on_exit(void);
+
 #endif

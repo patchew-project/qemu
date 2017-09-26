@@ -39,8 +39,16 @@ static void windbg_chr_receive(void *opaque, const uint8_t *buf, int size)
     }
 }
 
+void windbg_try_load(void)
+{
+    if (windbg_state && !windbg_state->is_loaded) {
+        windbg_state->is_loaded = windbg_on_load();
+    }
+}
+
 static void windbg_exit(void)
 {
+    windbg_on_exit();
     g_free(windbg_state);
 }
 
