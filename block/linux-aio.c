@@ -8,6 +8,7 @@
  * See the COPYING file in the top-level directory.
  */
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "qemu-common.h"
 #include "block/aio.h"
 #include "qemu/queue.h"
@@ -389,7 +390,7 @@ static int laio_do_submit(int fd, struct qemu_laiocb *laiocb, off_t offset,
 	break;
     /* Currently Linux kernel does not support other operations */
     default:
-        fprintf(stderr, "%s: invalid AIO request type 0x%x.\n",
+        error_report("%s: invalid AIO request type 0x%x.",
                         __func__, type);
         return -EIO;
     }
@@ -499,7 +500,7 @@ void laio_cleanup(LinuxAioState *s)
     event_notifier_cleanup(&s->e);
 
     if (io_destroy(s->ctx) != 0) {
-        fprintf(stderr, "%s: destroy AIO context %p failed\n",
+        error_report("%s: destroy AIO context %p failed",
                         __func__, &s->ctx);
     }
     g_free(s);

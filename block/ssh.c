@@ -53,7 +53,7 @@
 #define DPRINTF(fmt, ...)                           \
     do {                                            \
         if (DEBUG_SSH) {                            \
-            fprintf(stderr, "ssh: %-15s " fmt "\n", \
+            error_report("ssh: %-15s " fmt "", \
                     __func__, ##__VA_ARGS__);       \
         }                                           \
     } while (0)
@@ -1217,7 +1217,7 @@ static void bdrv_ssh_init(void)
 
     r = libssh2_init(0);
     if (r != 0) {
-        fprintf(stderr, "libssh2 initialization failed, %d\n", r);
+        error_report("libssh2 initialization failed, %d", r);
         exit(EXIT_FAILURE);
     }
 

@@ -71,7 +71,7 @@ int qcow2_grow_l1_table(BlockDriverState *bs, uint64_t min_size,
     }
 
 #ifdef DEBUG_ALLOC2
-    fprintf(stderr, "grow l1_table from %d to %" PRId64 "\n",
+    error_report("grow l1_table from %d to %" PRId64 "",
             s->l1_size, new_l1_size);
 #endif
 

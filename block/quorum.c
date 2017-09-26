@@ -14,6 +14,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "qemu/cutils.h"
 #include "block/block_int.h"
 #include "qapi/qmp/qbool.h"
@@ -927,8 +928,8 @@ static int quorum_open(BlockDriverState *bs, QDict *options, int flags,
             s->num_children == 2 && s->threshold == 2) {
             s->is_blkverify = true;
         } else if (qemu_opt_get_bool(opts, QUORUM_OPT_BLKVERIFY, false)) {
-            fprintf(stderr, "blkverify mode is set by setting blkverify=on "
-                    "and using two files with vote_threshold=2\n");
+            error_report("blkverify mode is set by setting blkverify=on "
+                    "and using two files with vote_threshold=2");
         }
 
         s->rewrite_corrupted = qemu_opt_get_bool(opts, QUORUM_OPT_REWRITE,

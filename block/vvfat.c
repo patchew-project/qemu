@@ -59,7 +59,7 @@ static void checkpoint(void);
 
 #ifdef __MINGW32__
 void nonono(const char* file, int line, const char* msg) {
-    fprintf(stderr, "Nonono! %s:%d %s\n", file, line, msg);
+    error_report("Nonono! %s:%d %s", file, line, msg);
     exit(-5);
 }
 #undef assert
@@ -446,7 +446,7 @@ static direntry_t *create_long_filename(BDRVVVFATState *s, const char *filename)
 
     gunichar2 *longname = g_utf8_to_utf16(filename, -1, NULL, &length, NULL);
     if (!longname) {
-        fprintf(stderr, "vvfat: invalid UTF-8 name: %s\n", filename);
+        error_report("vvfat: invalid UTF-8 name: %s", filename);
         return NULL;
     }
 
@@ -803,7 +803,7 @@ static int read_directory(BDRVVVFATState* s, int mapping_index)
         int is_dotdot=!strcmp(entry->d_name,"..");
 
         if (first_cluster == 0 && s->directory.next >= s->root_entries - 1) {
-            fprintf(stderr, "Too many entries in root directory\n");
+            error_report("Too many entries in root directory");
             closedir(dir);
             return -2;
         }
@@ -840,7 +840,7 @@ static int read_directory(BDRVVVFATState* s, int mapping_index)
         else
             direntry->begin=0; /* do that later */
         if (st.st_size > 0x7fffffff) {
-            fprintf(stderr, "File %s is larger than 2GB\n", buffer);
+            error_report("File %s is larger than 2GB", buffer);
             g_free(buffer);
             closedir(dir);
             return -2;
@@ -1251,8 +1251,7 @@ static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
     s->fat2 = NULL;
     s->downcase_short_names = 1;
 
-    fprintf(stderr, "vvfat %s chs %d,%d,%d\n",
-            dirname, cyls, heads, secs);
+    error_report("vvfat %s chs %d,%d,%d", dirname, cyls, heads, secs);
 
     s->sector_count = cyls * heads * secs - s->offset_to_bootsector;
 
@@ -1458,7 +1457,7 @@ static void print_direntry(const direntry_t* direntry)
         for(i=28;i<32 && c[i] && c[i]!=0xff;i+=2)
             ADD_CHAR(c[i]);
         buffer[j] = 0;
-        fprintf(stderr, "%s\n", buffer);
+        error_report("%s", buffer);
     } else {
         int i;
         for(i=0;i<11;i++)
@@ -1479,9 +1478,11 @@ static void print_mapping(const mapping_t* mapping)
         mapping->first_mapping_index, mapping->path, mapping->mode);
 
     if (mapping->mode & MODE_DIRECTORY)
-        fprintf(stderr, "parent_mapping_index = %d, first_dir_index = %d\n", mapping->info.dir.parent_mapping_index, mapping->info.dir.first_dir_index);
+        error_report("parent_mapping_index = %d, first_dir_index = %d",
+                     mapping->info.dir.parent_mapping_index,
+                     mapping->info.dir.first_dir_index);
     else
-        fprintf(stderr, "offset = %d\n", mapping->info.file.offset);
+        error_report("offset = %d", mapping->info.file.offset);
 }
 #endif
 
@@ -1503,9 +1504,9 @@ static int vvfat_read(BlockDriverState *bs, int64_t sector_num,
                 return ret;
             }
             if (ret) {
-                DLOG(fprintf(stderr, "sectors %" PRId64 "+%" PRId64
-                             " allocated\n", sector_num,
-                             n >> BDRV_SECTOR_BITS));
+                DLOG(error_report("sectors %" PRId64 "+%" PRId64
+                                  " allocated", sector_num,
+                                  n >> BDRV_SECTOR_BITS));
                 if (bdrv_read(s->qcow, sector_num, buf + i * 0x200,
                               n >> BDRV_SECTOR_BITS)) {
                     return -1;
@@ -1514,8 +1515,8 @@ static int vvfat_read(BlockDriverState *bs, int64_t sector_num,
                 sector_num += (n >> BDRV_SECTOR_BITS) - 1;
                 continue;
             }
-            DLOG(fprintf(stderr, "sector %" PRId64 " not allocated\n",
-                         sector_num));
+            DLOG(error_report("sector %" PRId64 " not allocated",
+                              sector_num));
         }
         if (sector_num < s->offset_to_root_dir) {
             if (sector_num < s->offset_to_fat) {
@@ -1615,7 +1616,7 @@ typedef struct commit_t {
 static void clear_commits(BDRVVVFATState* s)
 {
     int i;
-DLOG(fprintf(stderr, "clear_commits (%d commits)\n", s->commits.next));
+DLOG(error_report("clear_commits (%d commits)", s->commits.next));
     for (i = 0; i < s->commits.next; i++) {
         commit_t* commit = array_get(&(s->commits), i);
         assert(commit->path || commit->action == ACTION_WRITEOUT);
@@ -2065,16 +2066,17 @@ static int check_directory_consistency(BDRVVVFATState *s,
         ret++;
 
         if (s->used_clusters[cluster_num] & USED_ANY) {
-            fprintf(stderr, "cluster %d used more than once\n", (int)cluster_num);
+            error_report("cluster %d used more than once", (int)cluster_num);
             goto fail;
         }
         s->used_clusters[cluster_num] = USED_DIRECTORY;
 
-DLOG(fprintf(stderr, "read cluster %d (sector %d)\n", (int)cluster_num, (int)cluster2sector(s, cluster_num)));
+DLOG(error_report("read cluster %d (sector %d)",
+                  (int)cluster_num, (int)cluster2sector(s, cluster_num)));
         subret = vvfat_read(s->bs, cluster2sector(s, cluster_num), cluster,
                 s->sectors_per_cluster);
         if (subret) {
-            fprintf(stderr, "Error fetching direntries\n");
+            error_report("Error fetching direntries");
         fail:
             g_free(cluster);
             return 0;
@@ -2083,14 +2085,14 @@ DLOG(fprintf(stderr, "read cluster %d (sector %d)\n", (int)cluster_num, (int)clu
         for (i = 0; i < 0x10 * s->sectors_per_cluster; i++) {
             int cluster_count = 0;
 
-DLOG(fprintf(stderr, "check direntry %d:\n", i); print_direntry(direntries + i));
+DLOG(error_report("check direntry %d:", i); print_direntry(direntries + i));
             if (is_volume_label(direntries + i) || is_dot(direntries + i) ||
                     is_free(direntries + i))
                 continue;
 
             subret = parse_long_name(&lfn, direntries + i);
             if (subret < 0) {
-                fprintf(stderr, "Error in long name\n");
+                error_report("Error in long name");
                 goto fail;
             }
             if (subret == 0 || is_free(direntries + i))
@@ -2099,7 +2101,7 @@ DLOG(fprintf(stderr, "check direntry %d:\n", i); print_direntry(direntries + i))
             if (fat_chksum(direntries+i) != lfn.checksum) {
                 subret = parse_short_name(s, &lfn, direntries + i);
                 if (subret < 0) {
-                    fprintf(stderr, "Error in short name (%d)\n", subret);
+                    error_report("Error in short name (%d)", subret);
                     goto fail;
                 }
                 if (subret > 0 || !strcmp((char*)lfn.name, ".")
@@ -2109,7 +2111,7 @@ DLOG(fprintf(stderr, "check direntry %d:\n", i); print_direntry(direntries + i))
             lfn.checksum = 0x100; /* cannot use long name twice */
 
             if (path_len + 1 + lfn.len >= PATH_MAX) {
-                fprintf(stderr, "Name too long: %s/%s\n", path, lfn.name);
+                error_report("Name too long: %s/%s", path, lfn.name);
                 goto fail;
             }
             pstrcpy(path2 + path_len + 1, sizeof(path2) - path_len - 1,
@@ -2117,13 +2119,15 @@ DLOG(fprintf(stderr, "check direntry %d:\n", i); print_direntry(direntries + i))
 
             if (is_directory(direntries + i)) {
                 if (begin_of_direntry(direntries + i) == 0) {
-                    DLOG(fprintf(stderr, "invalid begin for directory: %s\n", path2); print_direntry(direntries + i));
+                    DLOG(error_report("invalid begin for directory: %s", path2);
+                         print_direntry(direntries + i));
                     goto fail;
                 }
                 cluster_count = check_directory_consistency(s,
                         begin_of_direntry(direntries + i), path2);
                 if (cluster_count == 0) {
-                    DLOG(fprintf(stderr, "problem in directory %s:\n", path2); print_direntry(direntries + i));
+                    DLOG(error_report("problem in directory %s:", path2);
+                         print_direntry(direntries + i));
                     goto fail;
                 }
             } else if (is_file(direntries + i)) {
@@ -2131,7 +2135,7 @@ DLOG(fprintf(stderr, "check direntry %d:\n", i); print_direntry(direntries + i))
                 cluster_count = get_cluster_count_for_direntry(s, direntries + i, path2);
                 if (cluster_count !=
             DIV_ROUND_UP(le32_to_cpu(direntries[i].size), s->cluster_size)) {
-                    DLOG(fprintf(stderr, "Cluster count mismatch\n"));
+                    DLOG(error_report("Cluster count mismatch"));
                     goto fail;
                 }
             } else
@@ -2175,7 +2179,7 @@ DLOG(checkpoint());
     check = vvfat_read(s->bs,
             s->offset_to_fat, s->fat2, s->sectors_per_fat);
     if (check) {
-        fprintf(stderr, "Could not copy fat\n");
+        error_report("Could not copy fat");
         return 0;
     }
     assert (s->used_clusters);
@@ -2195,7 +2199,7 @@ DLOG(checkpoint());
 
     used_clusters_count = check_directory_consistency(s, 0, s->path);
     if (used_clusters_count <= 0) {
-        DLOG(fprintf(stderr, "problem in directory\n"));
+        DLOG(error_report("problem in directory"));
         return 0;
     }
 
@@ -2203,7 +2207,8 @@ DLOG(checkpoint());
     for (i = check; i < sector2cluster(s, s->sector_count); i++) {
         if (modified_fat_get(s, i)) {
             if(!s->used_clusters[i]) {
-                DLOG(fprintf(stderr, "FAT was modified (%d), but cluster is not used?\n", i));
+                DLOG(error_report("FAT was modified (%d), but cluster"
+                                  " is not used?", i));
                 return 0;
             }
             check++;
@@ -2211,7 +2216,7 @@ DLOG(checkpoint());
 
         if (s->used_clusters[i] == USED_ALLOCATED) {
             /* allocated, but not used... */
-            DLOG(fprintf(stderr, "unused, modified cluster: %d\n", i));
+            DLOG(error_report("unused, modified cluster: %d", i));
             return 0;
         }
     }
@@ -2438,7 +2443,8 @@ static int commit_direntries(BDRVVVFATState* s,
     int ret, i;
     uint32_t c;
 
-DLOG(fprintf(stderr, "commit_direntries for %s, parent_mapping_index %d\n", mapping->path, parent_mapping_index));
+DLOG(error_report("commit_direntries for %s, parent_mapping_index %d",
+                  mapping->path, parent_mapping_index));
 
     assert(direntry);
     assert(mapping);
@@ -2529,8 +2535,8 @@ static int commit_one_file(BDRVVVFATState* s,
 
     fd = qemu_open(mapping->path, O_RDWR | O_CREAT | O_BINARY, 0666);
     if (fd < 0) {
-        fprintf(stderr, "Could not open %s... (%s, %d)\n", mapping->path,
-                strerror(errno), errno);
+        error_report("Could not open %s... (%s, %d)", mapping->path,
+                     strerror(errno), errno);
         g_free(cluster);
         return fd;
     }
@@ -2592,7 +2598,7 @@ static void check1(BDRVVVFATState* s)
     for (i = 0; i < s->mapping.next; i++) {
         mapping_t* mapping = array_get(&(s->mapping), i);
         if (mapping->mode & MODE_DELETED) {
-            fprintf(stderr, "deleted\n");
+            error_report("deleted");
             continue;
         }
         assert(mapping->dir_index < s->directory.next);
@@ -2658,10 +2664,12 @@ static int handle_renames_and_mkdirs(BDRVVVFATState* s)
     int i;
 
 #ifdef DEBUG
-    fprintf(stderr, "handle_renames\n");
+    error_report("handle_renames");
     for (i = 0; i < s->commits.next; i++) {
         commit_t* commit = array_get(&(s->commits), i);
-        fprintf(stderr, "%d, %s (%d, %d)\n", i, commit->path ? commit->path : "(null)", commit->param.rename.cluster, commit->action);
+        error_report("%d, %s (%d, %d)", i,
+                     commit->path ? commit->path : "(null)",
+                     commit->param.rename.cluster, commit->action);
     }
 #endif
 
@@ -2893,7 +2901,9 @@ static int handle_deletes(BDRVVVFATState* s)
                         return -4;
                     deleted++;
                 }
-                DLOG(fprintf(stderr, "DELETE (%d)\n", i); print_mapping(mapping); print_direntry(entry));
+                DLOG(error_report("DELETE (%d)", i);
+                     print_mapping(mapping);
+                     print_direntry(entry));
                 remove_mapping(s, i);
             }
         }
@@ -2922,7 +2932,7 @@ static int do_commit(BDRVVVFATState* s)
 
     ret = handle_renames_and_mkdirs(s);
     if (ret) {
-        fprintf(stderr, "Error handling renames (%d)\n", ret);
+        error_report("Error handling renames (%d)", ret);
         abort();
         return ret;
     }
@@ -2933,21 +2943,21 @@ static int do_commit(BDRVVVFATState* s)
     /* recurse direntries from root (using bs->bdrv_read) */
     ret = commit_direntries(s, 0, -1);
     if (ret) {
-        fprintf(stderr, "Fatal: error while committing (%d)\n", ret);
+        error_report("Fatal: error while committing (%d)", ret);
         abort();
         return ret;
     }
 
     ret = handle_commits(s);
     if (ret) {
-        fprintf(stderr, "Error handling commits (%d)\n", ret);
+        error_report("Error handling commits (%d)", ret);
         abort();
         return ret;
     }
 
     ret = handle_deletes(s);
     if (ret) {
-        fprintf(stderr, "Error deleting\n");
+        error_report("Error deleting");
         abort();
         return ret;
     }
@@ -2999,7 +3009,7 @@ DLOG(checkpoint());
         mapping_t* mapping = find_mapping_for_cluster(s, i);
         if (mapping) {
             if (mapping->read_only) {
-                fprintf(stderr, "Tried to write to write-protected file %s\n",
+                error_report("Tried to write to write-protected file %s",
                         mapping->path);
                 return -1;
             }
@@ -3043,10 +3053,11 @@ DLOG(checkpoint());
     /*
      * Use qcow backend. Commit later.
      */
-DLOG(fprintf(stderr, "Write to qcow backend: %d + %d\n", (int)sector_num, nb_sectors));
+DLOG(error_report("Write to qcow backend: %d + %d",
+                  (int)sector_num, nb_sectors));
     ret = bdrv_write(s->qcow, sector_num, buf, nb_sectors);
     if (ret < 0) {
-        fprintf(stderr, "Error writing to qcow backend\n");
+        error_report("Error writing to qcow backend");
         return ret;
     }
 
@@ -3277,7 +3288,7 @@ static void checkpoint(void) {
     assert(!vvv->current_mapping || vvv->current_fd || (vvv->current_mapping->mode & MODE_DIRECTORY));
 #if 0
     if (((direntry_t*)vvv->directory.pointer)[1].attributes != 0xf)
-        fprintf(stderr, "Nonono!\n");
+        error_report("Nonono!");
     mapping_t* mapping;
     direntry_t* direntry;
     assert(vvv->mapping.size >= vvv->mapping.item_size * vvv->mapping.next);

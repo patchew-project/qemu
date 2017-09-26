@@ -28,6 +28,7 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "qemu-common.h"
 #include "block/block_int.h"
@@ -397,7 +398,7 @@ static int parallels_check(BlockDriverState *bs, BdrvCheckResult *res,
     }
 
     if (s->header_unclean) {
-        fprintf(stderr, "%s image was not closed correctly\n",
+        error_report("%s image was not closed correctly",
                 fix & BDRV_FIX_ERRORS ? "Repairing" : "ERROR");
         res->corruptions++;
         if (fix & BDRV_FIX_ERRORS) {
@@ -421,7 +422,7 @@ static int parallels_check(BlockDriverState *bs, BdrvCheckResult *res,
 
         /* cluster outside the image */
         if (off > size) {
-            fprintf(stderr, "%s cluster %u is outside image\n",
+            error_report("%s cluster %u is outside image",
                     fix & BDRV_FIX_ERRORS ? "Repairing" : "ERROR", i);
             res->corruptions++;
             if (fix & BDRV_FIX_ERRORS) {
@@ -456,7 +457,7 @@ static int parallels_check(BlockDriverState *bs, BdrvCheckResult *res,
     if (size > res->image_end_offset) {
         int64_t count;
         count = DIV_ROUND_UP(size - res->image_end_offset, cluster_size);
-        fprintf(stderr, "%s space leaked at the end of the image %" PRId64 "\n",
+        error_report("%s space leaked at the end of the image %" PRId64 "",
                 fix & BDRV_FIX_LEAKS ? "Repairing" : "ERROR",
                 size - res->image_end_offset);
         res->leaks += count;

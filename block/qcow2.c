@@ -4162,11 +4162,11 @@ void qcow2_signal_corruption(BlockDriverState *bs, bool fatal, int64_t offset,
     va_end(ap);
 
     if (fatal) {
-        fprintf(stderr, "qcow2: Marking image as corrupt: %s; further "
-                "corruption events will be suppressed\n", message);
+        error_report("qcow2: Marking image as corrupt: %s; further "
+                "corruption events will be suppressed", message);
     } else {
-        fprintf(stderr, "qcow2: Image is corrupt: %s; further non-fatal "
-                "corruption events will be suppressed\n", message);
+        error_report("qcow2: Image is corrupt: %s; further non-fatal "
+                "corruption events will be suppressed", message);
     }
 
     node_name = bdrv_get_node_name(bs);

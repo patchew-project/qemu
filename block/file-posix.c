@@ -198,7 +198,7 @@ static int raw_normalize_devicepath(const char **filename)
     fname = *filename;
     dp = strrchr(fname, '/');
     if (lstat(fname, &sb) < 0) {
-        fprintf(stderr, "%s: stat failed: %s\n",
+        error_report("%s: stat failed: %s",
             fname, strerror(errno));
         return -errno;
     }
@@ -215,7 +215,7 @@ static int raw_normalize_devicepath(const char **filename)
     }
     fprintf(stderr, "%s is a block device", fname);
     *filename = namebuf;
-    fprintf(stderr, ", using %s\n", *filename);
+    error_report(", using %s", *filename);
 
     return 0;
 }
@@ -1499,7 +1499,7 @@ static int aio_worker(void *arg)
         ret = handle_aiocb_write_zeroes(aiocb);
         break;
     default:
-        fprintf(stderr, "invalid aio request (0x%x)\n", aiocb->aio_type);
+        error_report("invalid aio request (0x%x)", aiocb->aio_type);
         ret = -EINVAL;
         break;
     }
