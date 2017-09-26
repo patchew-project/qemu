@@ -300,11 +300,27 @@ static const int qcode_to_number[] = {
 };
 
 static int number_to_qcode[0x100];
+static unsigned int qcode_to_linux[Q_KEY_CODE__MAX];
 
 int qemu_input_linux_to_qcode(unsigned int lnx)
 {
     assert(lnx < KEY_CNT);
     return linux_to_qcode[lnx];
+}
+
+unsigned int qemu_input_qcode_to_linux(int qcode)
+{
+    static int first = true;
+
+    if (first) {
+        unsigned int lnx;
+        first = false;
+        for (lnx = 0; lnx < KEY_CNT; ++lnx) {
+            qcode_to_linux[linux_to_qcode[lnx]] = lnx;
+        }
+    }
+
+    return qcode_to_linux[qcode];
 }
 
 int qemu_input_key_value_to_number(const KeyValue *value)
