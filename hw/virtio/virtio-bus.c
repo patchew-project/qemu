@@ -30,6 +30,7 @@
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio.h"
 #include "exec/address-spaces.h"
+#include "monitor/monitor.h"
 
 /* #define DEBUG_VIRTIO_BUS */
 
@@ -304,6 +305,64 @@ static char *virtio_bus_get_dev_path(DeviceState *dev)
     BusState *bus = qdev_get_parent_bus(dev);
     DeviceState *proxy = DEVICE(bus->parent);
     return qdev_get_dev_path(proxy);
+}
+
+static void hmp_info_virtio_print(Monitor *mon, VirtIODevice *vdev)
+{
+    VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
+    const int indent = 2;
+    const int field = 32;
+    int idx;
+
+    monitor_printf(mon, "%s\n", object_get_typename(OBJECT(vdev)));
+    monitor_printf(mon, "%*shost features:  0x%016"PRIx64"\n", indent, "",
+                   vdev->host_features);
+    monitor_printf(mon, "%*sguest features: 0x%016"PRIx64"\n", indent, "",
+                   vdev->guest_features);
+    if (!vdc->get_feature_name) {
+        return;
+    }
+    for (idx = 0; idx < 64; idx++) {
+        const char *name = vdc->get_feature_name(vdev, idx);
+        const char *ack;
+
+        if (!name) {
+            continue;
+        }
+        if (!(vdev->host_features & (1 << idx))) {
+            continue;
+        }
+        ack = vdev->guest_features & (1 << idx) ? "acked" : "";
+        monitor_printf(mon, "%*s%*s%*s\n", indent, "", field, name, field, ack);
+    }
+}
+
+static void hmp_info_virtio_recursive(Monitor *mon, BusState *bus)
+{
+    BusChild *kid;
+
+    QTAILQ_FOREACH(kid, &bus->children, sibling) {
+        DeviceState *dev = kid->child;
+        BusState *child;
+
+        if (object_dynamic_cast(OBJECT(dev), TYPE_VIRTIO_DEVICE)) {
+            hmp_info_virtio_print(mon, VIRTIO_DEVICE(dev));
+        }
+        QLIST_FOREACH(child, &dev->child_bus, sibling) {
+            hmp_info_virtio_recursive(mon, child);
+        }
+    }
+}
+
+void hmp_info_virtio(Monitor *mon, const QDict *qdict)
+{
+    BusState *bus = sysbus_get_default();
+
+    if (!bus) {
+        return;
+    }
+
+    hmp_info_virtio_recursive(mon, bus);
 }
 
 static char *virtio_bus_get_fw_dev_path(DeviceState *dev)
