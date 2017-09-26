@@ -141,6 +141,14 @@ static void windbg_process_manipulate_packet(ParsingContext *ctx)
         kd_api_write_virtual_memory(cpu, &ctx->data);
         break;
 
+    case DbgKdGetContextApi:
+        kd_api_get_context(cpu, &ctx->data);
+        break;
+
+    case DbgKdSetContextApi:
+        kd_api_set_context(cpu, &ctx->data);
+        break;
+
     default:
         kd_api_unsupported(cpu, &ctx->data);
         break;

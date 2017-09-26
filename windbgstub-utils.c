@@ -277,6 +277,18 @@ typedef struct KDData {
 
 static KDData *kd;
 
+static int windbg_read_context(CPUState *cpu, uint8_t *buf, int len,
+                               int offset)
+{
+    return 0;
+}
+
+static int windbg_write_context(CPUState *cpu, uint8_t *buf, int len,
+                                int offset)
+{
+    return 0;
+}
+
 void kd_api_read_virtual_memory(CPUState *cpu, PacketData *pd)
 {
     DBGKD_READ_MEMORY64 *mem = &pd->m64.u.ReadMemory;
@@ -321,6 +333,31 @@ void kd_api_write_virtual_memory(CPUState *cpu, PacketData *pd)
 
         WINDBG_DEBUG("read_write_memory: No physical page mapped: " FMT_ADDR,
                      (target_ulong) mem->TargetBaseAddress);
+    }
+}
+
+void kd_api_get_context(CPUState *cpu, PacketData *pd)
+{
+    int err;
+
+    pd->extra_size = sizeof(CPU_CONTEXT);
+    err = windbg_read_context(cpu, pd->extra, pd->extra_size, 0);
+
+    if (err) {
+        pd->extra_size = 0;
+        pd->m64.ReturnStatus = STATUS_UNSUCCESSFUL;
+    }
+}
+
+void kd_api_set_context(CPUState *cpu, PacketData *pd)
+{
+    int err;
+
+    err = windbg_write_context(cpu, pd->extra, pd->extra_size, 0);
+    pd->extra_size = 0;
+
+    if (err) {
+        pd->m64.ReturnStatus = STATUS_UNSUCCESSFUL;
     }
 }
 
