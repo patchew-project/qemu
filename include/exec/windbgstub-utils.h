@@ -86,6 +86,21 @@ typedef struct PacketData {
     uint16_t extra_size;
 } PacketData;
 
+typedef struct SizedBuf {
+    uint8_t *data;
+    size_t size;
+} SizedBuf;
+
+#define SBUF_INIT(buf, mem_ptr, len) do { \
+    buf.data = mem_ptr;                   \
+    buf.size = len;                       \
+} while (false)
+#define SBUF_MALLOC(buf, size) SBUF_INIT(buf, g_malloc0(size), size)
+#define SBUF_FREE(buf) do { \
+    g_free(buf.data);       \
+    buf.data = NULL;        \
+    buf.size = 0;           \
+} while (false)
 bool windbg_on_load(void);
 void windbg_on_exit(void);
 
