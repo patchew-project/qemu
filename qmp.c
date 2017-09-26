@@ -517,14 +517,9 @@ static DevicePropertyInfo *make_device_property_info(ObjectClass *klass,
     return info;
 }
 
-DevicePropertyInfoList *qmp_device_list_properties(const char *typename,
-                                                   Error **errp)
+static DeviceClass *get_device_class(const char *typename, Error **errp)
 {
     ObjectClass *klass;
-    Object *obj;
-    ObjectProperty *prop;
-    ObjectPropertyIterator iter;
-    DevicePropertyInfoList *prop_list = NULL;
 
     klass = object_class_by_name(typename);
     if (klass == NULL) {
@@ -536,6 +531,23 @@ DevicePropertyInfoList *qmp_device_list_properties(const char *typename,
     klass = object_class_dynamic_cast(klass, TYPE_DEVICE);
     if (klass == NULL) {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "typename", TYPE_DEVICE);
+        return NULL;
+    }
+
+    return DEVICE_CLASS(klass);
+}
+
+DevicePropertyInfoList *qmp_device_list_properties(const char *typename,
+                                                   Error **errp)
+{
+    ObjectClass *klass;
+    Object *obj;
+    ObjectProperty *prop;
+    ObjectPropertyIterator iter;
+    DevicePropertyInfoList *prop_list = NULL;
+
+    klass = OBJECT_CLASS(get_device_class(typename, errp));
+    if (!klass) {
         return NULL;
     }
 
