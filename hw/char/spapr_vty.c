@@ -15,6 +15,7 @@ typedef struct VIOsPAPRVTYDevice {
     CharBackend chardev;
     uint32_t in, out;
     uint8_t buf[VTERM_BUFSIZE];
+    bool is_default;
 } VIOsPAPRVTYDevice;
 
 #define TYPE_VIO_SPAPR_VTY_DEVICE "spapr-vty"
@@ -153,6 +154,7 @@ void spapr_vty_create(VIOsPAPRBus *bus, Chardev *chardev)
 static Property spapr_vty_properties[] = {
     DEFINE_SPAPR_PROPERTIES(VIOsPAPRVTYDevice, sdev),
     DEFINE_PROP_CHR("chardev", VIOsPAPRVTYDevice, chardev),
+    DEFINE_PROP_BOOL("default", VIOsPAPRVTYDevice, is_default, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -194,11 +196,13 @@ static const TypeInfo spapr_vty_info = {
 VIOsPAPRDevice *spapr_vty_get_default(VIOsPAPRBus *bus)
 {
     VIOsPAPRDevice *sdev, *selected;
+    VIOsPAPRVTYDevice *dev;
     BusChild *kid;
 
     /*
      * To avoid the console bouncing around we want one VTY to be
-     * the "default". We haven't really got anything to go on, so
+     * the "default". If the user doesn't provide the information
+     * we haven't really got anything to go on, so
      * arbitrarily choose the one with the lowest reg value.
      */
 
@@ -212,6 +216,13 @@ VIOsPAPRDevice *spapr_vty_get_default(VIOsPAPRBus *bus)
         }
 
         sdev = VIO_SPAPR_DEVICE(iter);
+
+        /* The user can provide the default console to use */
+
+        dev = VIO_SPAPR_VTY_DEVICE(sdev);
+        if (dev->is_default) {
+            return sdev;
+        }
 
         /* First VTY we've found, so it is selected for now */
         if (!selected) {
