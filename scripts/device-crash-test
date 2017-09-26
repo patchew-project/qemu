@@ -318,19 +318,6 @@ def qomListTypeNames(vm, **kwargs):
     return [t['name'] for t in types]
 
 
-def infoQDM(vm):
-    """Parse 'info qdm' output"""
-    args = {'command-line': 'info qdm'}
-    devhelp = vm.command('human-monitor-command', **args)
-    for l in devhelp.split('\n'):
-        l = l.strip()
-        if l == '' or l.endswith(':'):
-            continue
-        d = {'name': re.search(r'name "([^"]+)"', l).group(1),
-             'no-user': (re.search(', no-user', l) is not None)}
-        yield d
-
-
 class QemuBinaryInfo(object):
     def __init__(self, binary, devtype):
         if devtype is None:
@@ -346,11 +333,9 @@ class QemuBinaryInfo(object):
         vm.launch()
         try:
             self.alldevs = set(qomListTypeNames(vm, implements=devtype, abstract=False))
-            # there's no way to query DeviceClass::user_creatable using QMP,
-            # so use 'info qdm':
-            self.no_user_devs = set([d['name'] for d in infoQDM(vm, ) if d['no-user']])
+            self.dev_info = dict((t, vm.command('query-device-type', typename=t)) for t in self.alldevs)
+            self.user_devs = set(d for d in self.alldevs if self.dev_info[d]['user-creatable'])
             self.machines = list(m['name'] for m in vm.command('query-machines'))
-            self.user_devs = self.alldevs.difference(self.no_user_devs)
             self.kvm_available = vm.command('query-kvm')['enabled']
         finally:
             vm.shutdown()
