@@ -62,6 +62,11 @@
     _t;                                                       \
 })
 
+typedef struct InitedAddr {
+    target_ulong addr;
+    bool is_init;
+} InitedAddr;
+
 bool windbg_on_load(void);
 void windbg_on_exit(void);
 
