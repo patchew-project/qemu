@@ -34,6 +34,7 @@
 #include "sysemu/sysemu.h"
 #include "trace.h"
 #include "qapi/error.h"
+#include "qemu/error-report.h"
 #include "qemu/sockets.h"
 #include <libgen.h>
 #include <sys/signal.h>
@@ -87,7 +88,7 @@ int qemu_daemon(int nochdir, int noclose)
 void *qemu_oom_check(void *ptr)
 {
     if (ptr == NULL) {
-        fprintf(stderr, "Failed to allocate memory: %s\n", strerror(errno));
+        error_report("Failed to allocate memory: %s", strerror(errno));
         abort();
     }
     return ptr;

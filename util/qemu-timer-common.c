@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "qemu/timer.h"
 
 /***********************************************************/
@@ -37,7 +38,7 @@ static void __attribute__((constructor)) init_get_clock(void)
     int ret;
     ret = QueryPerformanceFrequency(&freq);
     if (ret == 0) {
-        fprintf(stderr, "Could not calibrate ticks\n");
+        error_report("Could not calibrate ticks");
         exit(1);
     }
     clock_freq = freq.QuadPart;

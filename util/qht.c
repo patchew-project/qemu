@@ -154,7 +154,7 @@ static void qht_bucket_debug__locked(struct qht_bucket *b)
                 continue;
             }
             if (seen_empty) {
-                fprintf(stderr, "%s: b: %p, pos: %i, hash: 0x%x, p: %p\n",
+                error_report("%s: b: %p, pos: %i, hash: 0x%x, p: %p",
                         __func__, b, i, b->hashes[i], b->pointers[i]);
                 corrupt = true;
             }

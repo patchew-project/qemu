@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "qemu-common.h"
 
 struct progress_state {
@@ -68,7 +69,7 @@ static void sigusr_print(int signal)
 static void progress_dummy_print(void)
 {
     if (print_pending) {
-        fprintf(stderr, "    (%3.2f/100%%)\n", state.current);
+        error_report("    (%3.2f/100%%)", state.current);
         print_pending = 0;
     }
 }

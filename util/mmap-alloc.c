@@ -11,6 +11,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "qemu/mmap-alloc.h"
 #include "qemu/host-utils.h"
 
@@ -51,7 +52,7 @@ size_t qemu_mempath_getpagesize(const char *mem_path)
     } while (ret != 0 && errno == EINTR);
 
     if (ret != 0) {
-        fprintf(stderr, "Couldn't statfs() memory path: %s\n",
+        error_report("Couldn't statfs() memory path: %s",
                 strerror(errno));
         exit(1);
     }

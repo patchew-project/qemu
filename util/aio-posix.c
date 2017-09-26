@@ -15,6 +15,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu-common.h"
+#include "qemu/error-report.h"
 #include "block/block.h"
 #include "qemu/rcu_queue.h"
 #include "qemu/sockets.h"
@@ -696,8 +697,8 @@ void aio_context_setup(AioContext *ctx)
 {
     /* TODO remove this in final patch submission */
     if (getenv("QEMU_AIO_POLL_MAX_NS")) {
-        fprintf(stderr, "The QEMU_AIO_POLL_MAX_NS environment variable has "
-                "been replaced with -object iothread,poll-max-ns=NUM\n");
+        error_report("The QEMU_AIO_POLL_MAX_NS environment variable has "
+                "been replaced with -object iothread,poll-max-ns=NUM");
         exit(1);
     }
 

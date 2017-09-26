@@ -30,6 +30,7 @@
  * see the license comment there.
  */
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include <windows.h>
 #include "qapi/error.h"
 #include "sysemu/sysemu.h"
@@ -44,7 +45,7 @@
 void *qemu_oom_check(void *ptr)
 {
     if (ptr == NULL) {
-        fprintf(stderr, "Failed to allocate memory: %lu\n", GetLastError());
+        error_report("Failed to allocate memory: %lu", GetLastError());
         abort();
     }
     return ptr;

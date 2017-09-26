@@ -13,6 +13,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "trace.h"
 #include "qemu-common.h"
 #include "qemu/thread.h"
@@ -110,7 +111,7 @@ void qemu_aio_coroutine_enter(AioContext *ctx, Coroutine *co)
     trace_qemu_aio_coroutine_enter(ctx, self, co, co->entry_arg);
 
     if (co->caller) {
-        fprintf(stderr, "Co-routine re-entered recursively\n");
+        error_report("Co-routine re-entered recursively");
         abort();
     }
 
@@ -164,7 +165,7 @@ void coroutine_fn qemu_coroutine_yield(void)
     trace_qemu_coroutine_yield(self, to);
 
     if (!to) {
-        fprintf(stderr, "Co-routine is yielding to no one\n");
+        error_report("Co-routine is yielding to no one");
         abort();
     }
 

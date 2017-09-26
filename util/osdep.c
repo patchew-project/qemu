@@ -425,7 +425,7 @@ void fips_set_state(bool requested)
 #endif /* __linux__ */
 
 #ifdef _FIPS_DEBUG
-    fprintf(stderr, "FIPS mode %s (requested %s)\n",
+    error_report("FIPS mode %s (requested %s)",
 	    (fips_enabled ? "enabled" : "disabled"),
 	    (requested ? "enabled" : "disabled"));
 #endif
@@ -452,7 +452,7 @@ int socket_init(void)
     ret = WSAStartup(MAKEWORD(2, 2), &Data);
     if (ret != 0) {
         err = WSAGetLastError();
-        fprintf(stderr, "WSAStartup: %d\n", err);
+        error_report("WSAStartup: %d", err);
         return -1;
     }
     atexit(socket_cleanup);
