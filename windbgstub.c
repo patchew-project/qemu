@@ -126,7 +126,31 @@ static void windbg_process_data_packet(ParsingContext *ctx)
 {}
 
 static void windbg_process_control_packet(ParsingContext *ctx)
-{}
+{
+    switch (ctx->packet.PacketType) {
+    case PACKET_TYPE_KD_ACKNOWLEDGE:
+        break;
+
+    case PACKET_TYPE_KD_RESET:
+    {
+        SizedBuf buf = kd_gen_load_symbols_sc(qemu_get_cpu(0));
+
+        windbg_send_data_packet(buf.data, buf.size,
+                                PACKET_TYPE_KD_STATE_CHANGE64);
+        windbg_send_control_packet(ctx->packet.PacketType);
+        windbg_state->ctrl_packet_id = INITIAL_PACKET_ID;
+        SBUF_FREE(buf);
+        break;
+    }
+    default:
+        WINDBG_ERROR("Catched unsupported control packet 0x%x",
+                     ctx->packet.PacketType);
+
+        windbg_state->ctrl_packet_id = 0;
+        windbg_send_control_packet(PACKET_TYPE_KD_RESEND);
+        break;
+    }
+}
 
 static void windbg_ctx_handler(ParsingContext *ctx)
 {
