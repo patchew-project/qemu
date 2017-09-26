@@ -967,13 +967,13 @@ static void inject_vcpu_irq_legacy(CPUState *cs, struct kvm_s390_irq *irq)
 
     r = s390_kvm_irq_to_interrupt(irq, &kvmint);
     if (r < 0) {
-        fprintf(stderr, "%s called with bogus interrupt\n", __func__);
+        error_report("%s called with bogus interrupt", __func__);
         exit(1);
     }
 
     r = kvm_vcpu_ioctl(cs, KVM_S390_INTERRUPT, &kvmint);
     if (r < 0) {
-        fprintf(stderr, "KVM failed to inject interrupt\n");
+        error_report("KVM failed to inject interrupt");
         exit(1);
     }
 }
@@ -1002,13 +1002,13 @@ static void __kvm_s390_floating_interrupt(struct kvm_s390_irq *irq)
 
     r = s390_kvm_irq_to_interrupt(irq, &kvmint);
     if (r < 0) {
-        fprintf(stderr, "%s called with bogus interrupt\n", __func__);
+        error_report("%s called with bogus interrupt", __func__);
         exit(1);
     }
 
     r = kvm_vm_ioctl(kvm_state, KVM_S390_INTERRUPT, &kvmint);
     if (r < 0) {
-        fprintf(stderr, "KVM failed to inject interrupt\n");
+        error_report("KVM failed to inject interrupt");
         exit(1);
     }
 }
@@ -1116,14 +1116,14 @@ static int handle_b2(S390CPU *cpu, struct kvm_run *run, uint8_t ipa1)
         break;
     case PRIV_B2_TSCH:
         /* We should only get tsch via KVM_EXIT_S390_TSCH. */
-        fprintf(stderr, "Spurious tsch intercept\n");
+        error_report("Spurious tsch intercept");
         break;
     case PRIV_B2_CHSC:
         ioinst_handle_chsc(cpu, run->s390_sieic.ipb);
         break;
     case PRIV_B2_TPI:
         /* This should have been handled by kvm already. */
-        fprintf(stderr, "Spurious tpi intercept\n");
+        error_report("Spurious tpi intercept");
         break;
     case PRIV_B2_SCHM:
         ioinst_handle_schm(cpu, env->regs[1], env->regs[2],
@@ -2050,15 +2050,15 @@ static int handle_intercept(S390CPU *cpu)
             }
             break;
         case ICPT_SOFT_INTERCEPT:
-            fprintf(stderr, "KVM unimplemented icpt SOFT\n");
+            error_report("KVM unimplemented icpt SOFT");
             exit(1);
             break;
         case ICPT_IO:
-            fprintf(stderr, "KVM unimplemented icpt IO\n");
+            error_report("KVM unimplemented icpt IO");
             exit(1);
             break;
         default:
-            fprintf(stderr, "Unknown intercept code: %d\n", icpt_code);
+            error_report("Unknown intercept code: %d", icpt_code);
             exit(1);
             break;
     }
@@ -2215,7 +2215,7 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
             ret = kvm_arch_handle_debug_exit(cpu);
             break;
         default:
-            fprintf(stderr, "Unknown KVM exit: %d\n", run->exit_reason);
+            error_report("Unknown KVM exit: %d", run->exit_reason);
             break;
     }
     qemu_mutex_unlock_iothread();

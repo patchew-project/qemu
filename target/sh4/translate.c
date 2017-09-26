@@ -438,7 +438,7 @@ static void _decode_opc(DisasContext * ctx)
 	}
 
 #if 0
-    fprintf(stderr, "Translating opcode 0x%04x\n", ctx->opcode);
+    error_report("Translating opcode 0x%04x", ctx->opcode);
 #endif
 
     switch (ctx->opcode) {
@@ -1799,7 +1799,7 @@ static void _decode_opc(DisasContext * ctx)
         break;
     }
 #if 0
-    fprintf(stderr, "unknown instruction 0x%04x at pc 0x%08x\n",
+    error_report("unknown instruction 0x%04x at pc 0x%08x",
 	    ctx->opcode, ctx->pc);
     fflush(stderr);
 #endif

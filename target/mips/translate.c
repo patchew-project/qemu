@@ -10886,7 +10886,7 @@ static void gen_branch(DisasContext *ctx, int insn_bytes)
             tcg_gen_lookup_and_goto_ptr(cpu_PC);
             break;
         default:
-            fprintf(stderr, "unknown branch 0x%x\n", proc_hflags);
+            error_report("unknown branch 0x%x", proc_hflags);
             abort();
         }
     }

@@ -33,7 +33,7 @@ static int hax_open_device(hax_fd *fd)
                          0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 
     if (hDevice == INVALID_HANDLE_VALUE) {
-        fprintf(stderr, "Failed to open the HAX device!\n");
+        error_report("Failed to open the HAX device!");
         errNum = GetLastError();
         if (errNum == ERROR_FILE_NOT_FOUND) {
             return -1;
@@ -52,7 +52,7 @@ static int hax_open_device(hax_fd *fd)
 
     ret = hax_open_device(&fd);
     if (ret != 0) {
-        fprintf(stderr, "Open HAX device failed\n");
+        error_report("Open HAX device failed");
     }
 
     return fd;
@@ -66,7 +66,7 @@ int hax_populate_ram(uint64_t va, uint32_t size)
     DWORD dSize = 0;
 
     if (!hax_global.vm || !hax_global.vm->fd) {
-        fprintf(stderr, "Allocate memory before vm create?\n");
+        error_report("Allocate memory before vm create?");
         return -EINVAL;
     }
 
@@ -81,7 +81,7 @@ int hax_populate_ram(uint64_t va, uint32_t size)
                           (LPOVERLAPPED) NULL);
 
     if (!ret) {
-        fprintf(stderr, "Failed to allocate %x memory\n", size);
+        error_report("Failed to allocate %x memory", size);
         return ret;
     }
 
@@ -119,7 +119,7 @@ int hax_capability(struct hax_state *hax, struct hax_capabilityinfo *cap)
     DWORD err = 0;
 
     if (hax_invalid_fd(hDevice)) {
-        fprintf(stderr, "Invalid fd for hax device!\n");
+        error_report("Invalid fd for hax device!");
         return -ENODEV;
     }
 
@@ -129,9 +129,9 @@ int hax_capability(struct hax_state *hax, struct hax_capabilityinfo *cap)
     if (!ret) {
         err = GetLastError();
         if (err == ERROR_INSUFFICIENT_BUFFER || err == ERROR_MORE_DATA) {
-            fprintf(stderr, "hax capability is too long to hold.\n");
+            error_report("hax capability is too long to hold.");
         }
-        fprintf(stderr, "Failed to get Hax capability:%luu\n", err);
+        error_report("Failed to get Hax capability:%luu", err);
         return -EFAULT;
     } else {
         return 0;
@@ -146,7 +146,7 @@ int hax_mod_version(struct hax_state *hax, struct hax_module_version *version)
     DWORD err = 0;
 
     if (hax_invalid_fd(hDevice)) {
-        fprintf(stderr, "Invalid fd for hax device!\n");
+        error_report("Invalid fd for hax device!");
         return -ENODEV;
     }
 
@@ -159,9 +159,9 @@ int hax_mod_version(struct hax_state *hax, struct hax_module_version *version)
     if (!ret) {
         err = GetLastError();
         if (err == ERROR_INSUFFICIENT_BUFFER || err == ERROR_MORE_DATA) {
-            fprintf(stderr, "hax module verion is too long to hold.\n");
+            error_report("hax module verion is too long to hold.");
         }
-        fprintf(stderr, "Failed to get Hax module version:%lu\n", err);
+        error_report("Failed to get Hax module version:%lu", err);
         return -EFAULT;
     } else {
         return 0;
@@ -173,7 +173,7 @@ static char *hax_vm_devfs_string(int vm_id)
     char *name;
 
     if (vm_id > MAX_VM_ID) {
-        fprintf(stderr, "Too big VM id\n");
+        error_report("Too big VM id");
         return NULL;
     }
 
@@ -192,7 +192,7 @@ static char *hax_vcpu_devfs_string(int vm_id, int vcpu_id)
     char *name;
 
     if (vm_id > MAX_VM_ID || vcpu_id > MAX_VCPU_ID) {
-        fprintf(stderr, "Too big vm id %x or vcpu id %x\n", vm_id, vcpu_id);
+        error_report("Too big vm id %x or vcpu id %x", vm_id, vcpu_id);
         return NULL;
     }
 
@@ -226,7 +226,7 @@ int hax_host_create_vm(struct hax_state *hax, int *vmid)
                           NULL, 0, &vm_id, sizeof(vm_id), &dSize,
                           (LPOVERLAPPED) NULL);
     if (!ret) {
-        fprintf(stderr, "Failed to create VM. Error code: %lu\n",
+        error_report("Failed to create VM. Error code: %lu",
                 GetLastError());
         return -1;
     }
@@ -241,7 +241,7 @@ hax_fd hax_host_open_vm(struct hax_state *hax, int vm_id)
 
     vm_name = hax_vm_devfs_string(vm_id);
     if (!vm_name) {
-        fprintf(stderr, "Failed to open VM. VM name is null\n");
+        error_report("Failed to open VM. VM name is null");
         return INVALID_HANDLE_VALUE;
     }
 
@@ -249,7 +249,7 @@ hax_fd hax_host_open_vm(struct hax_state *hax, int vm_id)
                            GENERIC_READ | GENERIC_WRITE,
                            0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
     if (hDeviceVM == INVALID_HANDLE_VALUE) {
-        fprintf(stderr, "Open the vm device error:%s, ec:%lu\n",
+        error_report("Open the vm device error:%s, ec:%lu",
                 vm_name, GetLastError());
     }
 
@@ -269,7 +269,7 @@ int hax_notify_qemu_version(hax_fd vm_fd, struct hax_qemu_version *qversion)
                           qversion, sizeof(struct hax_qemu_version),
                           NULL, 0, &dSize, (LPOVERLAPPED) NULL);
     if (!ret) {
-        fprintf(stderr, "Failed to notify qemu API version\n");
+        error_report("Failed to notify qemu API version");
         return -1;
     }
     return 0;
@@ -285,7 +285,7 @@ int hax_host_create_vcpu(hax_fd vm_fd, int vcpuid)
                           &vcpuid, sizeof(vcpuid), NULL, 0, &dSize,
                           (LPOVERLAPPED) NULL);
     if (!ret) {
-        fprintf(stderr, "Failed to create vcpu %x\n", vcpuid);
+        error_report("Failed to create vcpu %x", vcpuid);
         return -1;
     }
 
@@ -299,7 +299,7 @@ hax_fd hax_host_open_vcpu(int vmid, int vcpuid)
 
     devfs_path = hax_vcpu_devfs_string(vmid, vcpuid);
     if (!devfs_path) {
-        fprintf(stderr, "Failed to get the devfs\n");
+        error_report("Failed to get the devfs");
         return INVALID_HANDLE_VALUE;
     }
 
@@ -309,7 +309,7 @@ hax_fd hax_host_open_vcpu(int vmid, int vcpuid)
                              NULL);
 
     if (hDeviceVCPU == INVALID_HANDLE_VALUE) {
-        fprintf(stderr, "Failed to open the vcpu devfs\n");
+        error_report("Failed to open the vcpu devfs");
     }
     g_free(devfs_path);
     return hDeviceVCPU;
@@ -327,12 +327,12 @@ int hax_host_setup_vcpu_channel(struct hax_vcpu_state *vcpu)
                           NULL, 0, &info, sizeof(info), &dSize,
                           (LPOVERLAPPED) NULL);
     if (!ret) {
-        fprintf(stderr, "Failed to setup the hax tunnel\n");
+        error_report("Failed to setup the hax tunnel");
         return -1;
     }
 
     if (!valid_hax_tunnel_size(info.size)) {
-        fprintf(stderr, "Invalid hax tunnel size %x\n", info.size);
+        error_report("Invalid hax tunnel size %x", info.size);
         ret = -EINVAL;
         return ret;
     }

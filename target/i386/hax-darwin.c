@@ -24,7 +24,7 @@ hax_fd hax_mod_open(void)
 {
     int fd = open("/dev/HAX", O_RDWR);
     if (fd == -1) {
-        fprintf(stderr, "Failed to open the hax module\n");
+        error_report("Failed to open the hax module");
     }
 
     fcntl(fd, F_SETFD, FD_CLOEXEC);
@@ -38,7 +38,7 @@ int hax_populate_ram(uint64_t va, uint32_t size)
     struct hax_alloc_ram_info info;
 
     if (!hax_global.vm || !hax_global.vm->fd) {
-        fprintf(stderr, "Allocate memory before vm create?\n");
+        error_report("Allocate memory before vm create?");
         return -EINVAL;
     }
 
@@ -46,7 +46,7 @@ int hax_populate_ram(uint64_t va, uint32_t size)
     info.va = va;
     ret = ioctl(hax_global.vm->fd, HAX_VM_IOCTL_ALLOC_RAM, &info);
     if (ret < 0) {
-        fprintf(stderr, "Failed to allocate %x memory\n", size);
+        error_report("Failed to allocate %x memory", size);
         return ret;
     }
     return 0;
@@ -75,7 +75,7 @@ int hax_capability(struct hax_state *hax, struct hax_capabilityinfo *cap)
 
     ret = ioctl(hax->fd, HAX_IOCTL_CAPABILITY, cap);
     if (ret == -1) {
-        fprintf(stderr, "Failed to get HAX capability\n");
+        error_report("Failed to get HAX capability");
         return -errno;
     }
 
@@ -88,7 +88,7 @@ int hax_mod_version(struct hax_state *hax, struct hax_module_version *version)
 
     ret = ioctl(hax->fd, HAX_IOCTL_VERSION, version);
     if (ret == -1) {
-        fprintf(stderr, "Failed to get HAX version\n");
+        error_report("Failed to get HAX version");
         return -errno;
     }
 
@@ -100,7 +100,7 @@ static char *hax_vm_devfs_string(int vm_id)
     char *name;
 
     if (vm_id > MAX_VM_ID) {
-        fprintf(stderr, "Too big VM id\n");
+        error_report("Too big VM id");
         return NULL;
     }
 
@@ -119,7 +119,7 @@ static char *hax_vcpu_devfs_string(int vm_id, int vcpu_id)
     char *name;
 
     if (vm_id > MAX_VM_ID || vcpu_id > MAX_VCPU_ID) {
-        fprintf(stderr, "Too big vm id %x or vcpu id %x\n", vm_id, vcpu_id);
+        error_report("Too big vm id %x or vcpu id %x", vm_id, vcpu_id);
         return NULL;
     }
 
@@ -181,7 +181,7 @@ int hax_notify_qemu_version(hax_fd vm_fd, struct hax_qemu_version *qversion)
     ret = ioctl(vm_fd, HAX_VM_IOCTL_NOTIFY_QEMU_VERSION, qversion);
 
     if (ret < 0) {
-        fprintf(stderr, "Failed to notify qemu API version\n");
+        error_report("Failed to notify qemu API version");
         return ret;
     }
     return 0;
@@ -196,7 +196,7 @@ int hax_host_create_vcpu(hax_fd vm_fd, int vcpuid)
 
     ret = ioctl(vm_fd, HAX_VM_IOCTL_VCPU_CREATE, &vcpuid);
     if (ret < 0) {
-        fprintf(stderr, "Failed to create vcpu %x\n", vcpuid);
+        error_report("Failed to create vcpu %x", vcpuid);
     }
 
     return ret;
@@ -209,14 +209,14 @@ hax_fd hax_host_open_vcpu(int vmid, int vcpuid)
 
     devfs_path = hax_vcpu_devfs_string(vmid, vcpuid);
     if (!devfs_path) {
-        fprintf(stderr, "Failed to get the devfs\n");
+        error_report("Failed to get the devfs");
         return -EINVAL;
     }
 
     fd = open(devfs_path, O_RDWR);
     g_free(devfs_path);
     if (fd < 0) {
-        fprintf(stderr, "Failed to open the vcpu devfs\n");
+        error_report("Failed to open the vcpu devfs");
     }
     fcntl(fd, F_SETFD, FD_CLOEXEC);
     return fd;
@@ -229,12 +229,12 @@ int hax_host_setup_vcpu_channel(struct hax_vcpu_state *vcpu)
 
     ret = ioctl(vcpu->fd, HAX_VCPU_IOCTL_SETUP_TUNNEL, &info);
     if (ret) {
-        fprintf(stderr, "Failed to setup the hax tunnel\n");
+        error_report("Failed to setup the hax tunnel");
         return ret;
     }
 
     if (!valid_hax_tunnel_size(info.size)) {
-        fprintf(stderr, "Invalid hax tunnel size %x\n", info.size);
+        error_report("Invalid hax tunnel size %x", info.size);
         ret = -EINVAL;
         return ret;
     }

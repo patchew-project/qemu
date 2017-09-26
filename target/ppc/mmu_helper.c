@@ -2600,7 +2600,7 @@ void helper_booke206_tlbwe(CPUPPCState *env)
     if (((env->spr[SPR_BOOKE_MAS0] & MAS0_ATSEL) == MAS0_ATSEL_LRAT) &&
         !msr_gs) {
         /* XXX we don't support direct LRAT setting yet */
-        fprintf(stderr, "cpu: don't support LRAT setting yet\n");
+        error_report("cpu: don't support LRAT setting yet");
         return;
     }
 

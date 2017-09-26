@@ -377,7 +377,7 @@ static int ppc_hash64_amr_prot(PowerPCCPU *cpu, ppc_hash_pte64_t pte)
     key = HPTE64_R_KEY(pte.pte1);
     amrbits = (env->spr[SPR_AMR] >> 2*(31 - key)) & 0x3;
 
-    /* fprintf(stderr, "AMR protection: key=%d AMR=0x%" PRIx64 "\n", key, */
+    /* error_report("AMR protection: key=%d AMR=0x%" PRIx64 "", key, */
     /*         env->spr[SPR_AMR]); */
 
     /*

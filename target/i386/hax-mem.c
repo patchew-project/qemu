@@ -247,8 +247,8 @@ static void hax_transaction_commit(MemoryListener *listener)
             }
             if (hax_set_ram(entry->start_pa, entry->size,
                             entry->host_va, entry->flags)) {
-                fprintf(stderr, "%s: Failed mapping @0x%016" PRIx64 "+0x%"
-                        PRIx32 " flags %02x\n", __func__, entry->start_pa,
+                error_report("%s: Failed mapping @0x%016" PRIx64 "+0x%"
+                        PRIx32 " flags %02x", __func__, entry->start_pa,
                         entry->size, entry->flags);
             }
             QTAILQ_REMOVE(&mappings, entry, entry);

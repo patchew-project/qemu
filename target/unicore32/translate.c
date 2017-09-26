@@ -515,7 +515,7 @@ static void gen_test_cc(int cc, TCGLabel *label)
         tcg_gen_brcondi_i32(TCG_COND_LT, tmp, 0, label);
         break;
     default:
-        fprintf(stderr, "Bad condition code 0x%x\n", cc);
+        error_report("Bad condition code 0x%x", cc);
         abort();
     }
     dead_tmp(tmp);
@@ -1940,7 +1940,7 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb)
         disas_uc32_insn(env, dc);
 
         if (num_temps) {
-            fprintf(stderr, "Internal resource leak before %08x\n", dc->pc);
+            error_report("Internal resource leak before %08x", dc->pc);
             num_temps = 0;
         }
 

@@ -282,7 +282,7 @@ hwaddr cris_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
     if (!miss) {
         phy = res.phy;
     }
-    D(fprintf(stderr, "%s %x -> %x\n", __func__, addr, phy));
+    D(error_report("%s %x -> %x", __func__, addr, phy));
     return phy;
 }
 #endif

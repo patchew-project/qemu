@@ -100,13 +100,13 @@ static int hax_get_capability(struct hax_state *hax)
     }
 
     if (!(cap->winfo & HAX_CAP_UG)) {
-        fprintf(stderr, "UG mode is not supported by the hardware.\n");
+        error_report("UG mode is not supported by the hardware.");
         return -ENOTSUP;
     }
 
     if (cap->wstatus & HAX_CAP_MEMQUOTA) {
         if (cap->mem_quota < hax->mem_quota) {
-            fprintf(stderr, "The VM memory needed exceeds the driver limit.\n");
+            error_report("The VM memory needed exceeds the driver limit.");
             return -ENOSPC;
         }
     }
@@ -126,13 +126,13 @@ static int hax_version_support(struct hax_state *hax)
     if (hax_min_version > version.cur_version) {
         fprintf(stderr, "Incompatible HAX module version %d,",
                 version.cur_version);
-        fprintf(stderr, "requires minimum version %d\n", hax_min_version);
+        error_report("requires minimum version %d", hax_min_version);
         return 0;
     }
     if (hax_cur_version < version.compat_version) {
         fprintf(stderr, "Incompatible QEMU HAX API version %x,",
                 hax_cur_version);
-        fprintf(stderr, "requires minimum HAX API version %x\n",
+        error_report("requires minimum HAX API version %x",
                 version.compat_version);
         return 0;
     }
@@ -146,18 +146,18 @@ int hax_vcpu_create(int id)
     int ret;
 
     if (!hax_global.vm) {
-        fprintf(stderr, "vcpu %x created failed, vm is null\n", id);
+        error_report("vcpu %x created failed, vm is null", id);
         return -1;
     }
 
     if (hax_global.vm->vcpus[id]) {
-        fprintf(stderr, "vcpu %x allocated already\n", id);
+        error_report("vcpu %x allocated already", id);
         return 0;
     }
 
     vcpu = g_malloc(sizeof(struct hax_vcpu_state));
     if (!vcpu) {
-        fprintf(stderr, "Failed to alloc vcpu state\n");
+        error_report("Failed to alloc vcpu state");
         return -ENOMEM;
     }
 
@@ -165,14 +165,14 @@ int hax_vcpu_create(int id)
 
     ret = hax_host_create_vcpu(hax_global.vm->fd, id);
     if (ret) {
-        fprintf(stderr, "Failed to create vcpu %x\n", id);
+        error_report("Failed to create vcpu %x", id);
         goto error;
     }
 
     vcpu->vcpu_id = id;
     vcpu->fd = hax_host_open_vcpu(hax_global.vm->id, id);
     if (hax_invalid_fd(vcpu->fd)) {
-        fprintf(stderr, "Failed to open the vcpu\n");
+        error_report("Failed to open the vcpu");
         ret = -ENODEV;
         goto error;
     }
@@ -181,7 +181,7 @@ int hax_vcpu_create(int id)
 
     ret = hax_host_setup_vcpu_channel(vcpu);
     if (ret) {
-        fprintf(stderr, "Invalid hax tunnel size\n");
+        error_report("Invalid hax tunnel size");
         ret = -EINVAL;
         goto error;
     }
@@ -203,7 +203,7 @@ int hax_vcpu_destroy(CPUState *cpu)
     struct hax_vcpu_state *vcpu = cpu->hax_vcpu;
 
     if (!hax_global.vm) {
-        fprintf(stderr, "vcpu %x destroy failed, vm is null\n", vcpu->vcpu_id);
+        error_report("vcpu %x destroy failed, vm is null", vcpu->vcpu_id);
         return -1;
     }
 
@@ -227,7 +227,7 @@ int hax_init_vcpu(CPUState *cpu)
 
     ret = hax_vcpu_create(cpu->cpu_index);
     if (ret < 0) {
-        fprintf(stderr, "Failed to create HAX vcpu\n");
+        error_report("Failed to create HAX vcpu");
         exit(-1);
     }
 
@@ -258,13 +258,13 @@ struct hax_vm *hax_vm_create(struct hax_state *hax)
     memset(vm, 0, sizeof(struct hax_vm));
     ret = hax_host_create_vm(hax, &vm_id);
     if (ret) {
-        fprintf(stderr, "Failed to create vm %x\n", ret);
+        error_report("Failed to create vm %x", ret);
         goto error;
     }
     vm->id = vm_id;
     vm->fd = hax_host_open_vm(hax, vm_id);
     if (hax_invalid_fd(vm->fd)) {
-        fprintf(stderr, "Failed to open vm %d\n", vm_id);
+        error_report("Failed to open vm %d", vm_id);
         goto error;
     }
 
@@ -283,7 +283,7 @@ int hax_vm_destroy(struct hax_vm *vm)
 
     for (i = 0; i < HAX_MAX_VCPU; i++)
         if (vm->vcpus[i]) {
-            fprintf(stderr, "VCPU should be cleaned before vm clean\n");
+            error_report("VCPU should be cleaned before vm clean");
             return -1;
         }
     hax_close_fd(vm->fd);
@@ -335,7 +335,7 @@ static int hax_init(ram_addr_t ram_size)
 
     hax->vm = hax_vm_create(hax);
     if (!hax->vm) {
-        fprintf(stderr, "Failed to create HAX VM\n");
+        error_report("Failed to create HAX VM");
         ret = -EINVAL;
         goto error;
     }
@@ -364,7 +364,7 @@ static int hax_accel_init(MachineState *ms)
     int ret = hax_init(ms->ram_size);
 
     if (ret && (ret != -ENOSPC)) {
-        fprintf(stderr, "No accelerator found.\n");
+        error_report("No accelerator found.");
     } else {
         fprintf(stdout, "HAX is %s and emulator runs in %s mode.\n",
                 !ret ? "working" : "not working",
@@ -526,7 +526,7 @@ static int hax_vcpu_hax_exec(CPUArchState *env)
         }
 
         if (hax_ret < 0) {
-            fprintf(stderr, "vcpu run failed for vcpu  %x\n", vcpu->vcpu_id);
+            error_report("vcpu run failed for vcpu  %x", vcpu->vcpu_id);
             abort();
         }
         switch (ht->_exit_status) {
@@ -546,7 +546,7 @@ static int hax_vcpu_hax_exec(CPUArchState *env)
             ret = 1;
             break;
         case HAX_EXIT_UNKNOWN_VMEXIT:
-            fprintf(stderr, "Unknown VMX exit %x from guest\n",
+            error_report("Unknown VMX exit %x from guest",
                     ht->_exit_reason);
             qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
             hax_vcpu_sync_state(env, 0);
@@ -569,16 +569,16 @@ static int hax_vcpu_hax_exec(CPUArchState *env)
             break;
         case HAX_EXIT_MMIO:
             /* Should not happen on UG system */
-            fprintf(stderr, "HAX: unsupported MMIO emulation\n");
+            error_report("HAX: unsupported MMIO emulation");
             ret = -1;
             break;
         case HAX_EXIT_REAL:
             /* Should not happen on UG system */
-            fprintf(stderr, "HAX: unimplemented real mode emulation\n");
+            error_report("HAX: unimplemented real mode emulation");
             ret = -1;
             break;
         default:
-            fprintf(stderr, "Unknown exit %x from HAX\n", ht->_exit_status);
+            error_report("Unknown exit %x from HAX", ht->_exit_status);
             qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
             hax_vcpu_sync_state(env, 0);
             cpu_dump_state(cpu, stderr, fprintf, 0);
@@ -662,7 +662,7 @@ int hax_smp_cpu_exec(CPUState *cpu)
         fatal = hax_vcpu_hax_exec(env);
 
         if (fatal) {
-            fprintf(stderr, "Unsupported HAX vcpu return\n");
+            error_report("Unsupported HAX vcpu return");
             abort();
         }
     }
@@ -1079,17 +1079,17 @@ static int hax_arch_set_registers(CPUArchState *env)
     ret = hax_sync_vcpu_register(env, 1);
 
     if (ret < 0) {
-        fprintf(stderr, "Failed to sync vcpu reg\n");
+        error_report("Failed to sync vcpu reg");
         return ret;
     }
     ret = hax_set_fpu(env);
     if (ret < 0) {
-        fprintf(stderr, "FPU failed\n");
+        error_report("FPU failed");
         return ret;
     }
     ret = hax_set_msrs(env);
     if (ret < 0) {
-        fprintf(stderr, "MSR failed\n");
+        error_report("MSR failed");
         return ret;
     }
 

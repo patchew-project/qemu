@@ -9,6 +9,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "cpu.h"
 #include "cpu-qom.h"
 #include "internals.h"
@@ -24,7 +25,7 @@
 #define DPRINTF(fmt, args...) \
     do { \
         if (DEBUG_ARM_POWERCTL) { \
-            fprintf(stderr, "[ARM]%s: " fmt , __func__, ##args); \
+            error_report("[ARM]%s: " fmt , __func__, ##args); \
         } \
     } while (0)
 
@@ -32,7 +33,7 @@ CPUState *arm_get_cpu_by_id(uint64_t id)
 {
     CPUState *cpu;
 
-    DPRINTF("cpu %" PRId64 "\n", id);
+    DPRINTF("cpu %" PRId64 "", id);
 
     CPU_FOREACH(cpu) {
         ARMCPU *armcpu = ARM_CPU(cpu);

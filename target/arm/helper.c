@@ -5460,9 +5460,9 @@ static void add_cpreg_to_hashtable(ARMCPU *cpu, const ARMCPRegInfo *r,
         ARMCPRegInfo *oldreg;
         oldreg = g_hash_table_lookup(cpu->cp_regs, key);
         if (oldreg && !(oldreg->type & ARM_CP_OVERRIDE)) {
-            fprintf(stderr, "Register redefined: cp=%d %d bit "
+            error_report("Register redefined: cp=%d %d bit "
                     "crn=%d crm=%d opc1=%d opc2=%d, "
-                    "was %s, now %s\n", r2->cp, 32 + 32 * is64,
+                    "was %s, now %s", r2->cp, 32 + 32 * is64,
                     r2->crn, r2->crm, r2->opc1, r2->opc2,
                     oldreg->name, r2->name);
             g_assert_not_reached();

@@ -159,8 +159,8 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     cap_ppc_pvr_compat = false;
 
     if (!cap_interrupt_level) {
-        fprintf(stderr, "KVM: Couldn't find level irq capability. Expect the "
-                        "VM to stall at times!\n");
+        error_report("KVM: Couldn't find level irq capability. Expect the "
+                        "VM to stall at times!");
     }
 
     kvm_ppc_register_host_cpu_type();
@@ -188,7 +188,7 @@ static int kvm_arch_sync_sregs(PowerPCCPU *cpu)
         return 0;
     } else {
         if (!cap_segstate) {
-            fprintf(stderr, "kvm error: missing PVR setting capability\n");
+            error_report("kvm error: missing PVR setting capability");
             return -ENOSYS;
         }
     }
@@ -237,7 +237,7 @@ static int kvm_booke206_tlb_init(PowerPCCPU *cpu)
 
     ret = kvm_vcpu_enable_cap(cs, KVM_CAP_SW_TLB, 0, (uintptr_t)&cfg);
     if (ret < 0) {
-        fprintf(stderr, "%s: couldn't enable KVM_CAP_SW_TLB: %s\n",
+        error_report("%s: couldn't enable KVM_CAP_SW_TLB: %s",
                 __func__, strerror(-ret));
         return ret;
     }
@@ -552,7 +552,7 @@ static void kvmppc_hw_debug_points_init(CPUPPCState *cenv)
     }
 
     if ((max_hw_breakpoint + max_hw_watchpoint) > MAX_HW_BKPTS) {
-        fprintf(stderr, "Error initializing h/w breakpoints\n");
+        error_report("Error initializing h/w breakpoints");
         return;
     }
 }
@@ -623,7 +623,7 @@ static void kvm_sw_tlb_put(PowerPCCPU *cpu)
 
     ret = kvm_vcpu_ioctl(cs, KVM_DIRTY_TLB, &dirty_tlb);
     if (ret) {
-        fprintf(stderr, "%s: KVM_DIRTY_TLB: %s\n",
+        error_report("%s: KVM_DIRTY_TLB: %s",
                 __func__, strerror(-ret));
     }
 
@@ -1474,7 +1474,7 @@ static int kvmppc_handle_halt(PowerPCCPU *cpu)
 static int kvmppc_handle_dcr_read(CPUPPCState *env, uint32_t dcrn, uint32_t *data)
 {
     if (ppc_dcr_read(env->dcr_env, dcrn, data) < 0)
-        fprintf(stderr, "Read to unhandled DCR (0x%x)\n", dcrn);
+        error_report("Read to unhandled DCR (0x%x)", dcrn);
 
     return 0;
 }
@@ -1482,7 +1482,7 @@ static int kvmppc_handle_dcr_read(CPUPPCState *env, uint32_t dcrn, uint32_t *dat
 static int kvmppc_handle_dcr_write(CPUPPCState *env, uint32_t dcrn, uint32_t data)
 {
     if (ppc_dcr_write(env->dcr_env, dcrn, data) < 0)
-        fprintf(stderr, "Write to unhandled DCR (0x%x)\n", dcrn);
+        error_report("Write to unhandled DCR (0x%x)", dcrn);
 
     return 0;
 }
@@ -1793,7 +1793,7 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
         break;
 
     default:
-        fprintf(stderr, "KVM: unknown exit reason %d\n", run->exit_reason);
+        error_report("KVM: unknown exit reason %d", run->exit_reason);
         ret = -1;
         break;
     }
@@ -1857,7 +1857,7 @@ int kvmppc_booke_watchdog_enable(PowerPCCPU *cpu)
 
     ret = kvm_vcpu_enable_cap(cs, KVM_CAP_PPC_BOOKE_WATCHDOG, 0);
     if (ret < 0) {
-        fprintf(stderr, "%s: couldn't enable KVM_CAP_PPC_BOOKE_WATCHDOG: %s\n",
+        error_report("%s: couldn't enable KVM_CAP_PPC_BOOKE_WATCHDOG: %s",
                 __func__, strerror(-ret));
         return ret;
     }
@@ -2192,7 +2192,7 @@ off_t kvmppc_alloc_rma(void **rma)
 
     fd = kvm_vm_ioctl(kvm_state, KVM_ALLOCATE_RMA, &ret);
     if (fd < 0) {
-        fprintf(stderr, "KVM: Error on KVM_ALLOCATE_RMA: %s\n",
+        error_report("KVM: Error on KVM_ALLOCATE_RMA: %s",
                 strerror(errno));
         return -1;
     }
@@ -2201,7 +2201,7 @@ off_t kvmppc_alloc_rma(void **rma)
 
     *rma = mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
     if (*rma == MAP_FAILED) {
-        fprintf(stderr, "KVM: Error mapping RMA: %s\n", strerror(errno));
+        error_report("KVM: Error mapping RMA: %s", strerror(errno));
         return -1;
     };
 
@@ -2303,7 +2303,7 @@ void *kvmppc_create_spapr_tce(uint32_t liobn, uint32_t page_shift,
         }
         fd = kvm_vm_ioctl(kvm_state, KVM_CREATE_SPAPR_TCE, &args);
         if (fd < 0) {
-            fprintf(stderr, "KVM: Failed to create TCE table for liobn 0x%x\n",
+            error_report("KVM: Failed to create TCE table for liobn 0x%x",
                     liobn);
             return NULL;
         }
@@ -2316,7 +2316,7 @@ void *kvmppc_create_spapr_tce(uint32_t liobn, uint32_t page_shift,
 
     table = mmap(NULL, len, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
     if (table == MAP_FAILED) {
-        fprintf(stderr, "KVM: Failed to map TCE table for liobn 0x%x\n",
+        error_report("KVM: Failed to map TCE table for liobn 0x%x",
                 liobn);
         close(fd);
         return NULL;
@@ -2563,7 +2563,7 @@ int kvmppc_get_htab_fd(bool write)
     };
 
     if (!cap_htab_fd) {
-        fprintf(stderr, "KVM version doesn't support saving the hash table\n");
+        error_report("KVM version doesn't support saving the hash table");
         return -1;
     }
 
@@ -2579,7 +2579,7 @@ int kvmppc_save_htab(QEMUFile *f, int fd, size_t bufsize, int64_t max_ns)
     do {
         rc = read(fd, buf, bufsize);
         if (rc < 0) {
-            fprintf(stderr, "Error reading data from KVM HTAB fd: %s\n",
+            error_report("Error reading data from KVM HTAB fd: %s",
                     strerror(errno));
             return rc;
         } else if (rc) {
@@ -2624,13 +2624,13 @@ int kvmppc_load_htab_chunk(QEMUFile *f, int fd, uint32_t index,
 
     rc = write(fd, buf, chunksize);
     if (rc < 0) {
-        fprintf(stderr, "Error writing KVM hash table: %s\n",
+        error_report("Error writing KVM hash table: %s",
                 strerror(errno));
         return rc;
     }
     if (rc != chunksize) {
         /* We should never get a short write on a single chunk */
-        fprintf(stderr, "Short write, restoring KVM hash table\n");
+        error_report("Short write, restoring KVM hash table");
         return -1;
     }
     return 0;

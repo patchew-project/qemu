@@ -40,9 +40,9 @@ void HELPER(ill)(CPULM32State *env)
 {
 #ifndef CONFIG_USER_ONLY
     CPUState *cs = CPU(lm32_env_get_cpu(env));
-    fprintf(stderr, "VM paused due to illegal instruction. "
+    error_report("VM paused due to illegal instruction. "
             "Connect a debugger or switch to the monitor console "
-            "to find out more.\n");
+            "to find out more.");
     vm_stop(RUN_STATE_PAUSED);
     cs->halted = 1;
     raise_exception(env, EXCP_HALTED);

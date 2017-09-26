@@ -354,7 +354,7 @@ uint32_t HELPER(sigp)(CPUS390XState *env, uint64_t order_code, uint32_t r1,
 #endif
     default:
         /* unknown sigp */
-        fprintf(stderr, "XXX unknown sigp: 0x%" PRIx64 "\n", order_code);
+        error_report("XXX unknown sigp: 0x%" PRIx64 "", order_code);
         cc = SIGP_CC_NOT_OPERATIONAL;
     }
 

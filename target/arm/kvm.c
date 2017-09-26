@@ -139,7 +139,7 @@ static void kvm_arm_host_cpu_class_init(ObjectClass *oc, void *data)
      * TCG CPUs.
      */
     if (!kvm_arm_get_host_cpu_features(ahcc)) {
-        fprintf(stderr, "Failed to retrieve host CPU features!\n");
+        error_report("Failed to retrieve host CPU features!");
         abort();
     }
 }
@@ -256,7 +256,7 @@ static void kvm_arm_set_device_addr(KVMDevice *kd)
     }
 
     if (ret < 0) {
-        fprintf(stderr, "Failed to set device address: %s\n",
+        error_report("Failed to set device address: %s",
                 strerror(-ret));
         abort();
     }
@@ -352,7 +352,7 @@ int kvm_arm_init_cpreg_list(ARMCPU *cpu)
         case KVM_REG_SIZE_U64:
             break;
         default:
-            fprintf(stderr, "Can't handle size of register in kernel list\n");
+            error_report("Can't handle size of register in kernel list");
             ret = -EINVAL;
             goto out;
         }
@@ -383,7 +383,7 @@ int kvm_arm_init_cpreg_list(ARMCPU *cpu)
         /* Shouldn't happen unless kernel is inconsistent about
          * what registers exist.
          */
-        fprintf(stderr, "Initial read of kernel register state failed\n");
+        error_report("Initial read of kernel register state failed");
         ret = -EINVAL;
         goto out;
     }
@@ -478,11 +478,11 @@ void kvm_arm_reset_vcpu(ARMCPU *cpu)
      */
     ret = kvm_arm_vcpu_init(CPU(cpu));
     if (ret < 0) {
-        fprintf(stderr, "kvm_arm_vcpu_init failed: %s\n", strerror(-ret));
+        error_report("kvm_arm_vcpu_init failed: %s", strerror(-ret));
         abort();
     }
     if (!write_kvmstate_to_list(cpu)) {
-        fprintf(stderr, "write_kvmstate_to_list failed\n");
+        error_report("write_kvmstate_to_list failed");
         abort();
     }
 }
@@ -499,7 +499,7 @@ int kvm_arm_sync_mpstate_to_kvm(ARMCPU *cpu)
         };
         int ret = kvm_vcpu_ioctl(CPU(cpu), KVM_SET_MP_STATE, &mp_state);
         if (ret) {
-            fprintf(stderr, "%s: failed to set MP_STATE %d/%s\n",
+            error_report("%s: failed to set MP_STATE %d/%s",
                     __func__, ret, strerror(-ret));
             return -1;
         }
@@ -517,7 +517,7 @@ int kvm_arm_sync_mpstate_to_qemu(ARMCPU *cpu)
         struct kvm_mp_state mp_state;
         int ret = kvm_vcpu_ioctl(CPU(cpu), KVM_GET_MP_STATE, &mp_state);
         if (ret) {
-            fprintf(stderr, "%s: failed to get MP_STATE %d/%s\n",
+            error_report("%s: failed to get MP_STATE %d/%s",
                     __func__, ret, strerror(-ret));
             abort();
         }

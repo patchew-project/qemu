@@ -219,7 +219,7 @@ static struct kvm_cpuid2 *try_get_cpuid(KVMState *s, int max)
             g_free(cpuid);
             return NULL;
         } else {
-            fprintf(stderr, "KVM_GET_SUPPORTED_CPUID failed: %s\n",
+            error_report("KVM_GET_SUPPORTED_CPUID failed: %s",
                     strerror(-r));
             exit(1);
         }
@@ -470,7 +470,7 @@ static void kvm_mce_inject(X86CPU *cpu, hwaddr paddr, int code)
 
 static void hardware_memory_error(void)
 {
-    fprintf(stderr, "Hardware memory error!\n");
+    error_report("Hardware memory error!");
     exit(1);
 }
 
@@ -497,8 +497,8 @@ void kvm_arch_on_sigbus_vcpu(CPUState *c, int code, void *addr)
             return;
         }
 
-        fprintf(stderr, "Hardware memory error for memory used by "
-                "QEMU itself instead of guest system!\n");
+        error_report("Hardware memory error for memory used by "
+                "QEMU itself instead of guest system!");
     }
 
     if (code == BUS_MCEERR_AR) {
@@ -666,7 +666,7 @@ static int hyperv_handle_properties(CPUState *cs)
 
         if (!has_msr_hv_synic ||
             kvm_vcpu_enable_cap(cs, KVM_CAP_HYPERV_SYNIC, 0)) {
-            fprintf(stderr, "Hyper-V SynIC is not supported by kernel\n");
+            error_report("Hyper-V SynIC is not supported by kernel");
             return -ENOSYS;
         }
 
@@ -678,7 +678,7 @@ static int hyperv_handle_properties(CPUState *cs)
     }
     if (cpu->hyperv_stimer) {
         if (!has_msr_hv_stimer) {
-            fprintf(stderr, "Hyper-V timers aren't supported by kernel\n");
+            error_report("Hyper-V timers aren't supported by kernel");
             return -ENOSYS;
         }
         env->features[FEAT_HYPERV_EAX] |= HV_SYNTIMERS_AVAILABLE;
@@ -811,7 +811,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
 
     for (i = 0; i <= limit; i++) {
         if (cpuid_i == KVM_MAX_CPUID_ENTRIES) {
-            fprintf(stderr, "unsupported level value: 0x%x\n", limit);
+            error_report("unsupported level value: 0x%x", limit);
             abort();
         }
         c = &cpuid_data.entries[cpuid_i++];
@@ -829,8 +829,8 @@ int kvm_arch_init_vcpu(CPUState *cs)
 
             for (j = 1; j < times; ++j) {
                 if (cpuid_i == KVM_MAX_CPUID_ENTRIES) {
-                    fprintf(stderr, "cpuid_data is full, no space for "
-                            "cpuid(eax:2):eax & 0xf = 0x%x\n", times);
+                    error_report("cpuid_data is full, no space for "
+                            "cpuid(eax:2):eax & 0xf = 0x%x", times);
                     abort();
                 }
                 c = &cpuid_data.entries[cpuid_i++];
@@ -862,8 +862,8 @@ int kvm_arch_init_vcpu(CPUState *cs)
                     continue;
                 }
                 if (cpuid_i == KVM_MAX_CPUID_ENTRIES) {
-                    fprintf(stderr, "cpuid_data is full, no space for "
-                            "cpuid(eax:0x%x,ecx:0x%x)\n", i, j);
+                    error_report("cpuid_data is full, no space for "
+                            "cpuid(eax:0x%x,ecx:0x%x)", i, j);
                     abort();
                 }
                 c = &cpuid_data.entries[cpuid_i++];
@@ -899,7 +899,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
 
     for (i = 0x80000000; i <= limit; i++) {
         if (cpuid_i == KVM_MAX_CPUID_ENTRIES) {
-            fprintf(stderr, "unsupported xlevel value: 0x%x\n", limit);
+            error_report("unsupported xlevel value: 0x%x", limit);
             abort();
         }
         c = &cpuid_data.entries[cpuid_i++];
@@ -915,7 +915,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
 
         for (i = 0xC0000000; i <= limit; i++) {
             if (cpuid_i == KVM_MAX_CPUID_ENTRIES) {
-                fprintf(stderr, "unsupported xlevel2 value: 0x%x\n", limit);
+                error_report("unsupported xlevel2 value: 0x%x", limit);
                 abort();
             }
             c = &cpuid_data.entries[cpuid_i++];
@@ -1245,7 +1245,7 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     /* Tell fw_cfg to notify the BIOS to reserve the range. */
     ret = e820_add_entry(identity_base, 0x4000, E820_RESERVED);
     if (ret < 0) {
-        fprintf(stderr, "e820_add_entry() table is full\n");
+        error_report("e820_add_entry() table is full");
         return ret;
     }
     qemu_register_reset(kvm_unpoison_all, NULL);
@@ -2733,7 +2733,7 @@ void kvm_arch_pre_run(CPUState *cpu, struct kvm_run *run)
             DPRINTF("injected NMI\n");
             ret = kvm_vcpu_ioctl(cpu, KVM_NMI);
             if (ret < 0) {
-                fprintf(stderr, "KVM: injection failed, NMI lost (%s)\n",
+                error_report("KVM: injection failed, NMI lost (%s)",
                         strerror(-ret));
             }
         }
@@ -2744,7 +2744,7 @@ void kvm_arch_pre_run(CPUState *cpu, struct kvm_run *run)
             DPRINTF("injected SMI\n");
             ret = kvm_vcpu_ioctl(cpu, KVM_SMI);
             if (ret < 0) {
-                fprintf(stderr, "KVM: injection failed, SMI lost (%s)\n",
+                error_report("KVM: injection failed, SMI lost (%s)",
                         strerror(-ret));
             }
         }
@@ -3141,7 +3141,7 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
         break;
     case KVM_EXIT_FAIL_ENTRY:
         code = run->fail_entry.hardware_entry_failure_reason;
-        fprintf(stderr, "KVM: entry failed, hardware error 0x%" PRIx64 "\n",
+        error_report("KVM: entry failed, hardware error 0x%" PRIx64 "",
                 code);
         if (host_supports_vmx() && code == VMX_INVALID_GUEST_STATE) {
             fprintf(stderr,
@@ -3157,7 +3157,7 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
         ret = -1;
         break;
     case KVM_EXIT_EXCEPTION:
-        fprintf(stderr, "KVM: exception %d exit (error code 0x%x)\n",
+        error_report("KVM: exception %d exit (error code 0x%x)",
                 run->ex.exception, run->ex.error_code);
         ret = -1;
         break;
@@ -3175,7 +3175,7 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
         ret = 0;
         break;
     default:
-        fprintf(stderr, "KVM: unknown exit reason %d\n", run->exit_reason);
+        error_report("KVM: unknown exit reason %d", run->exit_reason);
         ret = -1;
         break;
     }
