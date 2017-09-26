@@ -102,6 +102,8 @@ typedef struct SizedBuf {
     buf.size = 0;           \
 } while (false)
 
+void kd_api_unsupported(CPUState *cpu, PacketData *pd);
+
 SizedBuf kd_gen_exception_sc(CPUState *cpu);
 SizedBuf kd_gen_load_symbols_sc(CPUState *cpu);
 
