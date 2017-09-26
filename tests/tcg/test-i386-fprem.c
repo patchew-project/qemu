@@ -340,7 +340,7 @@ static void test_fprem_pairs(void)
         }
     }
 
-    fprintf(stderr, "test-i386-fprem: tested %llu cases\n", count);
+    error_report("test-i386-fprem: tested %llu cases", count);
 }
 
 int main(int argc, char **argv)

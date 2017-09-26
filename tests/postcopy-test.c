@@ -11,7 +11,7 @@
  */
 
 #include "qemu/osdep.h"
-
+#include "qemu/error-report.h"
 #include "libqtest.h"
 #include "qemu/option.h"
 #include "qemu/range.h"
@@ -214,7 +214,7 @@ static void wait_for_serial(const char *side)
             break;
 
         default:
-            fprintf(stderr, "Unexpected %d on %s serial\n", readvalue, side);
+            error_report("Unexpected %d on %s serial", readvalue, side);
             g_assert_not_reached();
         }
     } while (true);
@@ -333,9 +333,9 @@ static void check_guests_ram(void)
                  */
                 hit_edge = true;
             } else {
-                fprintf(stderr, "Memory content inconsistency at %x"
+                error_report("Memory content inconsistency at %x"
                                 " first_byte = %x last_byte = %x current = %x"
-                                " hit_edge = %x\n",
+                                " hit_edge = %x",
                                 address, first_byte, last_byte, b, hit_edge);
                 bad = true;
             }

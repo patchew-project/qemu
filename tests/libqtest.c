@@ -15,6 +15,7 @@
  *
  */
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "libqtest.h"
 
 #include <sys/socket.h>
@@ -89,7 +90,7 @@ static int socket_accept(int sock)
         ret = accept(sock, (struct sockaddr *)&addr, &addrlen);
     } while (ret == -1 && errno == EINTR);
     if (ret == -1) {
-        fprintf(stderr, "%s failed: %s\n", __func__, strerror(errno));
+        error_report("%s failed: %s", __func__, strerror(errno));
     }
     close(sock);
 
@@ -155,7 +156,7 @@ static const char *qtest_qemu_binary(void)
 
     qemu_bin = getenv("QTEST_QEMU_BINARY");
     if (!qemu_bin) {
-        fprintf(stderr, "Environment variable QTEST_QEMU_BINARY required\n");
+        error_report("Environment variable QTEST_QEMU_BINARY required");
         exit(1);
     }
 
@@ -312,7 +313,7 @@ static GString *qtest_recv_line(QTestState *s)
         }
 
         if (len == -1 || len == 0) {
-            fprintf(stderr, "Broken pipe\n");
+            error_report("Broken pipe");
             exit(1);
         }
 
@@ -397,7 +398,7 @@ static void qmp_response(JSONMessageParser *parser, GQueue *tokens)
 
     obj = json_parser_parse(tokens, NULL);
     if (!obj) {
-        fprintf(stderr, "QMP JSON response parsing failed\n");
+        error_report("QMP JSON response parsing failed");
         exit(1);
     }
 
@@ -423,7 +424,7 @@ QDict *qmp_fd_receive(int fd)
         }
 
         if (len == -1 || len == 0) {
-            fprintf(stderr, "Broken pipe\n");
+            error_report("Broken pipe");
             exit(1);
         }
 
@@ -880,7 +881,7 @@ void qtest_bufread(QTestState *s, uint64_t addr, void *data, size_t size)
 
     g_base64_decode_inplace(args[1], &len);
     if (size != len) {
-        fprintf(stderr, "bufread: asked for %zu bytes but decoded %zu\n",
+        error_report("bufread: asked for %zu bytes but decoded %zu",
                 size, len);
         len = MIN(len, size);
     }

@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include <getopt.h>
 
 #include "libqtest.h"
@@ -1859,7 +1860,7 @@ int main(int argc, char **argv)
             ahci_pedantic = 1;
             break;
         default:
-            fprintf(stderr, "Unrecognized ahci_test option.\n");
+            error_report("Unrecognized ahci_test option.");
             g_assert_not_reached();
         }
     }

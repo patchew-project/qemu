@@ -1,4 +1,5 @@
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include <sys/wait.h>
 
 #include "libqtest.h"
@@ -155,7 +156,7 @@ void migrate(QOSState *from, QOSState *to, const char *uri)
             continue;
         }
 
-        fprintf(stderr, "Migration did not complete, status: %s\n", st);
+        error_report("Migration did not complete, status: %s", st);
         g_assert_not_reached();
     }
 
@@ -199,7 +200,7 @@ void mkimg(const char *file, const char *fmt, unsigned size_mb)
                           fmt, file, size_mb);
     ret = g_spawn_command_line_sync(cli, &out, &out2, &rc, &err);
     if (err) {
-        fprintf(stderr, "%s\n", err->message);
+        error_report("%s", err->message);
         g_error_free(err);
     }
     g_assert(ret && !err);
@@ -210,7 +211,7 @@ void mkimg(const char *file, const char *fmt, unsigned size_mb)
      * 0 is only possible if the program exited normally, so that should be
      * sufficient for our purposes on all platforms, here. */
     if (rc) {
-        fprintf(stderr, "qemu-img returned status code %d\n", rc);
+        error_report("qemu-img returned status code %d", rc);
     }
     g_assert(!rc);
 

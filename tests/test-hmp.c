@@ -15,6 +15,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "libqtest.h"
 
 static int verbose;
@@ -79,7 +80,7 @@ static void test_commands(void)
 
     for (i = 0; hmp_cmds[i] != NULL; i++) {
         if (verbose) {
-            fprintf(stderr, "\t%s\n", hmp_cmds[i]);
+            error_report("\t%s", hmp_cmds[i]);
         }
         response = hmp("%s", hmp_cmds[i]);
         g_free(response);
@@ -102,7 +103,7 @@ static void test_info_commands(void)
         *endp = '\0';
         /* Now run the info command */
         if (verbose) {
-            fprintf(stderr, "\t%s\n", info);
+            error_report("\t%s", info);
         }
         resp = hmp("%s", info);
         g_free(resp);

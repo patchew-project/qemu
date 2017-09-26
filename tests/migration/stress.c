@@ -47,7 +47,7 @@ static __attribute__((noreturn)) void exit_failure(void)
     if (getpid() == 1) {
         sync();
         reboot(RB_POWER_OFF);
-        fprintf(stderr, "%s (%05d): ERROR: cannot reboot: %s\n",
+        error_report("%s (%05d): cannot reboot: %s",
                 argv0, gettid(), strerror(errno));
         abort();
     } else {
@@ -60,7 +60,7 @@ static __attribute__((noreturn)) void exit_success(void)
     if (getpid() == 1) {
         sync();
         reboot(RB_POWER_OFF);
-        fprintf(stderr, "%s (%05d): ERROR: cannot reboot: %s\n",
+        error_report("%s (%05d): cannot reboot: %s",
                 argv0, gettid(), strerror(errno));
         abort();
     } else {
@@ -76,13 +76,13 @@ static int get_command_arg_str(const char *name,
     char *start, *end;
 
     if (fp == NULL) {
-        fprintf(stderr, "%s (%05d): ERROR: cannot open /proc/cmdline: %s\n",
+        error_report("%s (%05d): cannot open /proc/cmdline: %s",
                 argv0, gettid(), strerror(errno));
         return -1;
     }
 
     if (!fgets(line, sizeof line, fp)) {
-        fprintf(stderr, "%s (%05d): ERROR: cannot read /proc/cmdline: %s\n",
+        error_report("%s (%05d): cannot read /proc/cmdline: %s",
                 argv0, gettid(), strerror(errno));
         fclose(fp);
         return -1;
@@ -96,8 +96,8 @@ static int get_command_arg_str(const char *name,
     start += strlen(name);
 
     if (*start != '=') {
-        fprintf(stderr, "%s (%05d): ERROR: no value provided for '%s' in /proc/cmdline\n",
-                argv0, gettid(), name);
+        error_report("%s (%05d): no value provided for '%s' in /proc/cmdline",
+                     argv0, gettid(), name);
     }
     start++;
 
@@ -106,8 +106,8 @@ static int get_command_arg_str(const char *name,
         end = strstr(start, "\n");
 
     if (end == start) {
-        fprintf(stderr, "%s (%05d): ERROR: no value provided for '%s' in /proc/cmdline\n",
-                argv0, gettid(), name);
+        error_report("%s (%05d): no value provided for '%s' in /proc/cmdline",
+                     argv0, gettid(), name);
         return -1;
     }
 
@@ -132,7 +132,7 @@ static int get_command_arg_ull(const char *name,
     errno = 0;
     *val = strtoll(valstr, &end, 10);
     if (errno || *end) {
-        fprintf(stderr, "%s (%05d): ERROR: cannot parse %s value %s\n",
+        error_report("%s (%05d): cannot parse %s value %s",
                 argv0, gettid(), name, valstr);
         free(valstr);
         return -1;
@@ -148,13 +148,13 @@ static int random_bytes(char *buf, size_t len)
 
     fd = open("/dev/urandom", O_RDONLY);
     if (fd < 0) {
-        fprintf(stderr, "%s (%05d): ERROR: cannot open /dev/urandom: %s\n",
+        error_report("%s (%05d): cannot open /dev/urandom: %s",
                 argv0, gettid(), strerror(errno));
         return -1;
     }
 
     if (read(fd, buf, len) != len) {
-        fprintf(stderr, "%s (%05d): ERROR: cannot read /dev/urandom: %s\n",
+        error_report("%s (%05d): cannot read /dev/urandom: %s",
                 argv0, gettid(), strerror(errno));
         close(fd);
         return -1;
@@ -187,12 +187,12 @@ static int stressone(unsigned long long ramsizeMB)
     unsigned long long before, after;
 
     if (!ram) {
-        fprintf(stderr, "%s (%05d): ERROR: cannot allocate %llu MB of RAM: %s\n",
+        error_report("%s (%05d): cannot allocate %llu MB of RAM: %s",
                 argv0, gettid(), ramsizeMB, strerror(errno));
         return -1;
     }
     if (!data) {
-        fprintf(stderr, "%s (%d): ERROR: cannot allocate %d bytes of RAM: %s\n",
+        error_report("%s (%d): cannot allocate %d bytes of RAM: %s",
                 argv0, gettid(), PAGE_SIZE, strerror(errno));
         free(ram);
         return -1;
@@ -271,13 +271,13 @@ static int stress(unsigned long long ramsizeGB, int ncpus)
 static int mount_misc(const char *fstype, const char *dir)
 {
     if (mkdir(dir, 0755) < 0 && errno != EEXIST) {
-        fprintf(stderr, "%s (%05d): ERROR: cannot create %s: %s\n",
+        error_report("%s (%05d): cannot create %s: %s",
                 argv0, gettid(), dir, strerror(errno));
         return -1;
     }
 
     if (mount("none", dir, fstype, 0, NULL) < 0) {
-        fprintf(stderr, "%s (%05d): ERROR: cannot mount %s: %s\n",
+        error_report("%s (%05d): cannot mount %s: %s",
                 argv0, gettid(), dir, strerror(errno));
         return -1;
     }
@@ -322,7 +322,7 @@ int main(int argc, char **argv)
             errno = 0;
             ramsizeGB = strtoll(optarg, &end, 10);
             if (errno != 0 || *end) {
-                fprintf(stderr, "%s (%05d): ERROR: Cannot parse RAM size %s\n",
+                error_report("%s (%05d): Cannot parse RAM size %s",
                         argv0, gettid(), optarg);
                 exit_failure();
             }
@@ -332,7 +332,7 @@ int main(int argc, char **argv)
             errno = 0;
             ncpus = strtoll(optarg, &end, 10);
             if (errno != 0 || *end) {
-                fprintf(stderr, "%s (%05d): ERROR: Cannot parse CPU count %s\n",
+                error_report("%s (%05d): Cannot parse CPU count %s",
                         argv0, gettid(), optarg);
                 exit_failure();
             }
@@ -340,7 +340,7 @@ int main(int argc, char **argv)
 
         case '?':
         case 'h':
-            fprintf(stderr, "%s: [--help][--ramsize GB][--cpus N]\n", argv0);
+            error_report("%s: [--help][--ramsize GB][--cpus N]", argv0);
             exit_failure();
         }
     }

@@ -61,6 +61,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "qemu/atomic.h"
 #include "qemu/rcu.h"
 #include "qemu/thread.h"
@@ -86,7 +87,7 @@ static int n_threads;
 static void create_thread(void *(*func)(void *))
 {
     if (n_threads >= NR_THREADS) {
-        fprintf(stderr, "Thread limit of %d exceeded!\n", NR_THREADS);
+        error_report("Thread limit of %d exceeded!", NR_THREADS);
         exit(-1);
     }
     qemu_thread_create(&threads[n_threads], "test", func, &data[n_threads],
@@ -417,7 +418,7 @@ static void gtest_stress_10_5(void)
 
 static void usage(int argc, char *argv[])
 {
-    fprintf(stderr, "Usage: %s [nreaders [ perf | stress ] ]\n", argv[0]);
+    error_report("Usage: %s [nreaders [ perf | stress ] ]", argv[0]);
     exit(-1);
 }
 

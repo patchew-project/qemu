@@ -181,7 +181,7 @@ vubr_handle_tx(VuDev *dev, int qidx)
         out_num = elem->out_num;
         out_sg = elem->out_sg;
         if (out_num < 1) {
-            fprintf(stderr, "virtio-net header not in first element\n");
+            error_report("virtio-net header not in first element");
             break;
         }
         if (VHOST_USER_BRIDGE_DEBUG) {
@@ -293,7 +293,7 @@ vubr_backend_recv_cb(int sock, void *ctx)
         }
 
         if (elem->in_num < 1) {
-            fprintf(stderr, "virtio-net contains no in buffers\n");
+            error_report("virtio-net contains no in buffers");
             break;
         }
 
@@ -363,7 +363,7 @@ vubr_receive_cb(int sock, void *ctx)
     VubrDev *vubr = (VubrDev *)ctx;
 
     if (!vu_dispatch(&vubr->vudev)) {
-        fprintf(stderr, "Error while dispatching\n");
+        error_report("Error while dispatching");
     }
 }
 
@@ -460,7 +460,7 @@ vubr_panic(VuDev *dev, const char *msg)
 {
     VubrDev *vubr = container_of(dev, VubrDev, vudev);
 
-    fprintf(stderr, "PANIC: %s\n", msg);
+    error_report("PANIC: %s", msg);
 
     dispatcher_remove(&vubr->dispatcher, dev->sock);
     vubr->quit = 1;
@@ -561,14 +561,14 @@ vubr_set_host(struct sockaddr_in *saddr, const char *host)
 {
     if (isdigit(host[0])) {
         if (!inet_aton(host, &saddr->sin_addr)) {
-            fprintf(stderr, "inet_aton() failed.\n");
+            error_report("inet_aton() failed.");
             exit(1);
         }
     } else {
         struct hostent *he = gethostbyname(host);
 
         if (!he) {
-            fprintf(stderr, "gethostbyname() failed.\n");
+            error_report("gethostbyname() failed.");
             exit(1);
         }
         saddr->sin_addr = *(struct in_addr *)he->h_addr;
@@ -589,13 +589,13 @@ vubr_backend_udp_setup(VubrDev *dev,
 
     lport = strtol(local_port, (char **)&r, 0);
     if (r == local_port) {
-        fprintf(stderr, "lport parsing failed.\n");
+        error_report("lport parsing failed.");
         exit(1);
     }
 
     rport = strtol(remote_port, (char **)&r, 0);
     if (r == remote_port) {
-        fprintf(stderr, "rport parsing failed.\n");
+        error_report("rport parsing failed.");
         exit(1);
     }
 
@@ -713,15 +713,15 @@ main(int argc, char *argv[])
     return 0;
 
 out:
-    fprintf(stderr, "Usage: %s ", argv[0]);
-    fprintf(stderr, "[-c] [-u ud_socket_path] [-l lhost:lport] [-r rhost:rport]\n");
-    fprintf(stderr, "\t-u path to unix doman socket. default: %s\n",
+    error_report("Usage: %s ", argv[0]);
+    error_report("[-c] [-u ud_socket_path] [-l lhost:lport] [-r rhost:rport]");
+    error_report("\t-u path to unix doman socket. default: %s",
             DEFAULT_UD_SOCKET);
-    fprintf(stderr, "\t-l local host and port. default: %s:%s\n",
+    fprintf(stderr, "\t-l local host and port. default: %s:%s",
             DEFAULT_LHOST, DEFAULT_LPORT);
-    fprintf(stderr, "\t-r remote host and port. default: %s:%s\n",
+    error_report("\t-r remote host and port. default: %s:%s",
             DEFAULT_RHOST, DEFAULT_RPORT);
-    fprintf(stderr, "\t-c client mode\n");
+    error_report("\t-c client mode");
 
     return 1;
 }

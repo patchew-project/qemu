@@ -11,6 +11,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include <glib/gstdio.h>
 #include "qemu-common.h"
 #include "hw/smbios/smbios.h"
@@ -396,7 +397,7 @@ try_again:
         aml_file = g_strdup_printf("%s/%s/%.4s%s", data_dir, data->machine,
                                    (gchar *)&signature, ext);
         if (getenv("V")) {
-            fprintf(stderr, "\nLooking for expected file '%s'\n", aml_file);
+            error_report("Looking for expected file '%s'", aml_file);
         }
         if (g_file_test(aml_file, G_FILE_TEST_EXISTS)) {
             exp_sdt.aml_file = aml_file;
@@ -408,7 +409,7 @@ try_again:
         }
         g_assert(exp_sdt.aml_file);
         if (getenv("V")) {
-            fprintf(stderr, "\nUsing expected file '%s'\n", aml_file);
+            error_report("Using expected file '%s'", aml_file);
         }
         ret = g_file_get_contents(aml_file, &exp_sdt.aml,
                                   &exp_sdt.aml_len, &error);

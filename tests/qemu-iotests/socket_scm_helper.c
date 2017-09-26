@@ -11,6 +11,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include <sys/socket.h>
 #include <sys/un.h>
 
@@ -53,7 +54,7 @@ static int send_fd(int fd, int fd_to_send)
     } while (ret < 0 && errno == EINTR);
 
     if (ret < 0) {
-        fprintf(stderr, "Failed to send msg, reason: %s\n", strerror(errno));
+        error_report("Failed to send msg, reason: %s", strerror(errno));
     }
 
     return ret;
@@ -69,14 +70,14 @@ static int get_fd_num(const char *fd_str, bool silent)
     sock = strtol(fd_str, &err, 10);
     if (errno) {
         if (!silent) {
-            fprintf(stderr, "Failed in strtol for socket fd, reason: %s\n",
+            error_report("Failed in strtol for socket fd, reason: %s",
                     strerror(errno));
         }
         return -1;
     }
     if (!*fd_str || *err || sock < 0) {
         if (!silent) {
-            fprintf(stderr, "bad numerical value for socket fd '%s'\n", fd_str);
+            error_report("bad numerical value for socket fd '%s'", fd_str);
         }
         return -1;
     }
@@ -96,7 +97,7 @@ int main(int argc, char **argv, char **envp)
 #ifdef SOCKET_SCM_DEBUG
     int i;
     for (i = 0; i < argc; i++) {
-        fprintf(stderr, "Parameter %d: %s\n", i, argv[i]);
+        error_report("Parameter %d: %s", i, argv[i]);
     }
 #endif
 
@@ -120,7 +121,7 @@ int main(int argc, char **argv, char **envp)
            is supposed to fork and exec this program. */
         fd = open(argv[2], O_RDONLY);
         if (fd < 0) {
-            fprintf(stderr, "Failed to open file '%s'\n", argv[2]);
+            error_report("Failed to open file '%s'", argv[2]);
             return EXIT_FAILURE;
         }
     }

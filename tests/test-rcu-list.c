@@ -21,6 +21,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "qemu/atomic.h"
 #include "qemu/rcu.h"
 #include "qemu/thread.h"
@@ -64,7 +65,7 @@ static int select_random_el(int max)
 static void create_thread(void *(*func)(void *))
 {
     if (n_threads >= NR_THREADS) {
-        fprintf(stderr, "Thread limit of %d exceeded!\n", NR_THREADS);
+        error_report("Thread limit of %d exceeded!", NR_THREADS);
         exit(-1);
     }
     qemu_thread_create(&threads[n_threads], "test", func, &data[n_threads],
@@ -255,7 +256,7 @@ static void rcu_qtest(const char *test, int duration, int nreaders)
 
 static void usage(int argc, char *argv[])
 {
-    fprintf(stderr, "Usage: %s duration nreaders\n", argv[0]);
+    error_report("Usage: %s duration nreaders", argv[0]);
     exit(-1);
 }
 

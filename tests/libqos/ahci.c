@@ -23,7 +23,7 @@
  */
 
 #include "qemu/osdep.h"
-
+#include "qemu/error-report.h"
 #include "libqtest.h"
 #include "libqos/ahci.h"
 #include "libqos/pci-pc.h"
@@ -985,9 +985,9 @@ static void ahci_atapi_command_set_offset(AHCICommand *cmd, uint64_t lba)
     default:
         /* SCSI doesn't have uniform packet formats,
          * so you have to add support for it manually. Sorry! */
-        fprintf(stderr, "The Libqos AHCI driver does not support the "
+        error_report("The Libqos AHCI driver does not support the "
                 "set_offset operation for ATAPI command 0x%02x, "
-                "please add support.\n",
+                "please add support.",
                 cbd[0]);
         g_assert_not_reached();
     }
@@ -1060,8 +1060,8 @@ static void ahci_atapi_set_size(AHCICommand *cmd, uint64_t xbytes)
     default:
         /* SCSI doesn't have uniform packet formats,
          * so you have to add support for it manually. Sorry! */
-        fprintf(stderr, "The Libqos AHCI driver does not support the set_size "
-                "operation for ATAPI command 0x%02x, please add support.\n",
+        error_report("The Libqos AHCI driver does not support the set_size "
+                "operation for ATAPI command 0x%02x, please add support.",
                 cbd[0]);
         g_assert_not_reached();
     }

@@ -11,6 +11,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "libqos/malloc.h"
 #include "qemu-common.h"
 #include "qemu/host-utils.h"
@@ -193,7 +194,7 @@ static uint64_t mlist_alloc(QGuestAllocator *s, uint64_t size)
 
     node = mlist_find_space(s->free, size);
     if (!node) {
-        fprintf(stderr, "Out of guest memory.\n");
+        error_report("Out of guest memory.");
         g_assert_not_reached();
     }
     return mlist_fulfill(s, node, size);
@@ -209,8 +210,8 @@ static void mlist_free(QGuestAllocator *s, uint64_t addr)
 
     node = mlist_find_key(s->used, addr);
     if (!node) {
-        fprintf(stderr, "Error: no record found for an allocation at "
-                "0x%016" PRIx64 ".\n",
+        error_report("Error: no record found for an allocation at "
+                "0x%016" PRIx64 ".",
                 addr);
         g_assert_not_reached();
     }
@@ -234,8 +235,8 @@ void alloc_uninit(QGuestAllocator *allocator)
     /* Check for guest leaks, and destroy the list. */
     QTAILQ_FOREACH_SAFE(node, allocator->used, MLIST_ENTNAME, tmp) {
         if (allocator->opts & (ALLOC_LEAK_WARN | ALLOC_LEAK_ASSERT)) {
-            fprintf(stderr, "guest malloc leak @ 0x%016" PRIx64 "; "
-                    "size 0x%016" PRIx64 ".\n",
+            error_report("guest malloc leak @ 0x%016" PRIx64 "; "
+                    "size 0x%016" PRIx64 ".",
                     node->addr, node->size);
         }
         if (allocator->opts & (ALLOC_LEAK_ASSERT)) {
@@ -251,7 +252,7 @@ void alloc_uninit(QGuestAllocator *allocator)
         if ((allocator->opts & mask) == mask) {
             if ((node->addr != allocator->start) ||
                 (node->size != allocator->end - allocator->start)) {
-                fprintf(stderr, "Free list is corrupted.\n");
+                error_report("Free list is corrupted.");
                 g_assert_not_reached();
             }
         }

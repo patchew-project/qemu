@@ -51,7 +51,7 @@ void error1(const char *filename, int line, const char *fmt, ...)
     va_start(ap, fmt);
     fprintf(stderr, "%s:%d: ", filename, line);
     vfprintf(stderr, fmt, ap);
-    fprintf(stderr, "\n");
+    error_report("");
     va_end(ap);
     exit(1);
 }

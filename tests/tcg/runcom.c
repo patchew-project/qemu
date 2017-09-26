@@ -61,7 +61,7 @@ void dump_regs(struct vm86_regs *r)
 #ifdef SIGTEST
 void alarm_handler(int sig)
 {
-    fprintf(stderr, "alarm signal=%d\n", sig);
+    error_report("alarm signal=%d", sig);
     alarm(1);
 }
 #endif
@@ -172,7 +172,7 @@ int main(int argc, char **argv)
                     break;
                 default:
                 unknown_int:
-                    fprintf(stderr, "unsupported int 0x%02x\n", int_num);
+                    error_report("unsupported int 0x%02x", int_num);
                     dump_regs(&ctx.regs);
                     //                    exit(1);
                 }
@@ -184,7 +184,7 @@ int main(int argc, char **argv)
         case VM86_STI:
             break;
         default:
-            fprintf(stderr, "unhandled vm86 return code (0x%x)\n", ret);
+            error_report("unhandled vm86 return code (0x%x)", ret);
             dump_regs(&ctx.regs);
             exit(1);
         }

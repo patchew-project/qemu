@@ -13,7 +13,7 @@
  */
 
 #include "qemu/osdep.h"
-
+#include "qemu/error-report.h"
 #include "libqtest.h"
 #include "libqos/pci.h"
 #include "libqos/pci-pc.h"
@@ -295,18 +295,18 @@ static char *create_blob_file(void)
     ret = -1;
     fd = g_file_open_tmp("blob_XXXXXX", &pathname, &error);
     if (fd == -1) {
-        fprintf(stderr, "unable to create blob file: %s\n", error->message);
+        error_report("unable to create blob file: %s", error->message);
         g_error_free(error);
     } else {
         if (ftruncate(fd, BLOB_SIZE) == -1) {
-            fprintf(stderr, "ftruncate(\"%s\", %zu): %s\n", pathname,
+            error_report("ftruncate(\"%s\", %zu): %s", pathname,
                     BLOB_SIZE, strerror(errno));
         } else {
             void *buf;
 
             buf = mmap(NULL, BLOB_SIZE, PROT_WRITE, MAP_SHARED, fd, 0);
             if (buf == MAP_FAILED) {
-                fprintf(stderr, "mmap(\"%s\", %zu): %s\n", pathname, BLOB_SIZE,
+                error_report("mmap(\"%s\", %zu): %s", pathname, BLOB_SIZE,
                         strerror(errno));
             } else {
                 size_t i;

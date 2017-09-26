@@ -150,8 +150,8 @@ int main(int argc, char *argv[])
     ret = do_test();
     cleanup();
     if (ret) {
-	fprintf(stderr, "test_path: failed on line %i\n", ret);
-	return 1;
+        error_report("test_path: failed on line %i", ret);
+        return 1;
     }
     return 0;
 }

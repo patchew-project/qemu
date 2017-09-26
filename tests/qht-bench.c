@@ -5,6 +5,7 @@
  *   See the COPYING file in the top-level directory.
  */
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "qemu/processor.h"
 #include "qemu/atomic.h"
 #include "qemu/qht.h"
@@ -89,7 +90,7 @@ static const char commands_string[] =
 static void usage_complete(int argc, char *argv[])
 {
     fprintf(stderr, "Usage: %s [options]\n", argv[0]);
-    fprintf(stderr, "options:\n%s\n", commands_string);
+    fprintf(stderr, "options:\n%s", commands_string);
     exit(-1);
 }
 
@@ -328,7 +329,7 @@ static void htable_init(void)
             retries++;
         }
     }
-    fprintf(stderr, " populated after %zu retries\n", retries);
+    error_report(" populated after %zu retries", retries);
 }
 
 static void add_stats(struct thread_stats *s, struct thread_info *info, int n)

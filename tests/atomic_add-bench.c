@@ -29,7 +29,7 @@ static const char commands_string[] =
 static void usage_complete(char *argv[])
 {
     fprintf(stderr, "Usage: %s [options]\n", argv[0]);
-    fprintf(stderr, "options:\n%s\n", commands_string);
+    fprintf(stderr, "options:\n%s", commands_string);
 }
 
 /*
