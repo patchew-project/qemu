@@ -205,6 +205,10 @@ static void windbg_process_manipulate_packet(ParsingContext *ctx)
     case DbgKdClearAllInternalBreakpointsApi:
         return;
 
+    case DbgKdSearchMemoryApi:
+        kd_api_search_memory(cpu, &ctx->data);
+        break;
+
     default:
         kd_api_unsupported(cpu, &ctx->data);
         break;

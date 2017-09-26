@@ -1540,6 +1540,36 @@ void kd_api_write_msr(CPUState *cpu, PacketData *pd)
     pd->m64.ReturnStatus = STATUS_SUCCESS;
 }
 
+void kd_api_search_memory(CPUState *cpu, PacketData *pd)
+{
+    DBGKD_SEARCH_MEMORY *m64c = &pd->m64.u.SearchMemory;
+    int s_len = MAX(1, ldq_p(&m64c->SearchLength));
+    int p_len = MIN(ldl_p(&m64c->PatternLength), pd->extra_size);
+    target_ulong addr = ldq_p(&m64c->SearchAddress);
+
+    uint8_t mem[s_len - 1 + p_len];
+
+    int err = cpu_memory_rw_debug(cpu, addr, mem, sizeof(mem), 0);
+    if (!err) {
+        int i;
+        pd->m64.ReturnStatus = STATUS_NO_MORE_ENTRIES;
+        for (i = 0; i < s_len; ++i) {
+            if (memcmp(mem + i, pd->extra, p_len) == 0) {
+                m64c->FoundAddress = addr + i;
+                m64c->FoundAddress = ldq_p(&m64c->FoundAddress);
+                pd->m64.ReturnStatus = STATUS_SUCCESS;
+                break;
+            }
+        }
+    } else {
+        pd->m64.ReturnStatus = STATUS_UNSUCCESSFUL;
+        WINDBG_DEBUG("search_memory: No physical page mapped: " FMT_ADDR,
+                     addr);
+    }
+
+    pd->extra_size = 0;
+}
+
 void kd_api_unsupported(CPUState *cpu, PacketData *pd)
 {
     WINDBG_ERROR("Catched unimplemented api %s",
