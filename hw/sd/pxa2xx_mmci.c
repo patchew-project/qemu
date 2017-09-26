@@ -330,7 +330,7 @@ static uint64_t pxa2xx_mmci_read(void *opaque, hwaddr offset, unsigned size)
     case MMC_BLKS_REM:
         return s->numblk;
     default:
-        hw_error("%s: Bad offset " REG_FMT "\n", __FUNCTION__, offset);
+        hw_error("%s: Bad offset " REG_FMT "\n", __func__, offset);
     }
 
     return 0;
@@ -369,7 +369,7 @@ static void pxa2xx_mmci_write(void *opaque,
     case MMC_SPI:
         s->spi = value & 0xf;
         if (value & SPI_SPI_MODE)
-            printf("%s: attempted to use card in SPI mode\n", __FUNCTION__);
+            printf("%s: attempted to use card in SPI mode\n", __func__);
         break;
 
     case MMC_CMDAT:
@@ -442,7 +442,7 @@ static void pxa2xx_mmci_write(void *opaque,
         break;
 
     default:
-        hw_error("%s: Bad offset " REG_FMT "\n", __FUNCTION__, offset);
+        hw_error("%s: Bad offset " REG_FMT "\n", __func__, offset);
     }
 }
 

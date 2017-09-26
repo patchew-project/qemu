@@ -253,7 +253,7 @@ static inline int audio_ring_dist (int dst, int src, int len)
 #define AUDIO_STRINGIFY(n) AUDIO_STRINGIFY_(n)
 
 #if defined _MSC_VER || defined __GNUC__
-#define AUDIO_FUNC __FUNCTION__
+#define AUDIO_FUNC __func__
 #else
 #define AUDIO_FUNC __FILE__ ":" AUDIO_STRINGIFY (__LINE__)
 #endif

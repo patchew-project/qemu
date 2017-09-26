@@ -661,12 +661,12 @@ static uint64_t onenand_read(void *opaque, hwaddr addr,
     case 0xff02:	/* ECC Result of spare area data */
     case 0xff03:	/* ECC Result of main area data */
     case 0xff04:	/* ECC Result of spare area data */
-        hw_error("%s: imeplement ECC\n", __FUNCTION__);
+        hw_error("%s: imeplement ECC\n", __func__);
         return 0x0000;
     }
 
     fprintf(stderr, "%s: unknown OneNAND register %x\n",
-                    __FUNCTION__, offset);
+                    __func__, offset);
     return 0;
 }
 
@@ -711,7 +711,7 @@ static void onenand_write(void *opaque, hwaddr addr,
 
         default:
             fprintf(stderr, "%s: unknown OneNAND boot command %"PRIx64"\n",
-                            __FUNCTION__, value);
+                            __func__, value);
         }
         break;
 
@@ -762,7 +762,7 @@ static void onenand_write(void *opaque, hwaddr addr,
 
     default:
         fprintf(stderr, "%s: unknown OneNAND register %x\n",
-                        __FUNCTION__, offset);
+                        __func__, offset);
     }
 }
 
