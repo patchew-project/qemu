@@ -1466,6 +1466,41 @@
   'returns': [ 'DevicePropertyInfo' ] }
 
 ##
+# @DeviceTypeInfo:
+#
+# Information about a device type.
+#
+# @user-creatable: If true, the device can be instantiated using the -device
+#                  command-line option.
+# @hotpluggable: If true, the device can be instantiated using @device_add,
+#                if the machine supports the device.
+#
+# @description: Human-readable description of the device type.
+#
+# Since: 2.11
+##
+{ 'struct': 'DeviceTypeInfo',
+  'base': 'ObjectTypeInfo',
+  'data': { 'hotpluggable': 'bool',
+            'user-creatable': 'bool',
+            '*description': 'str' } }
+
+##
+# @query-device-type:
+#
+# Query information about a device type.
+#
+# @typename: the name of the device type
+#
+# Returns: a DeviceTypeInfo struct
+#
+# Since: 2.11
+##
+{ 'command': 'query-device-type',
+  'data': { 'typename': 'str' },
+  'returns': 'DeviceTypeInfo' }
+
+##
 # @xen-set-global-dirty-log:
 #
 # Enable or disable the global dirty log mode.

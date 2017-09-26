@@ -597,6 +597,31 @@ DevicePropertyInfoList *qmp_device_list_properties(const char *typename,
     return prop_list;
 }
 
+DeviceTypeInfo *qmp_query_device_type(const char *typename, Error **errp)
+{
+    DeviceTypeInfo *info = g_new0(DeviceTypeInfo, 1);
+    DeviceClass *dc = get_device_class(typename, errp);
+
+    if (!dc) {
+        return NULL;
+    }
+
+    qom_type_get_info(OBJECT_CLASS(dc), qapi_DeviceTypeInfo_base(info));
+    info->user_creatable = dc->user_creatable;
+    /*
+     * We have non-user-creatable devices with hotpluggable=true (because they
+     * are instantiated internally by hotpluggable devices), but it doesn't make
+     * sense to tell the user that device_add is supported if the device is not
+     * user-creatable
+     */
+    info->hotpluggable = dc->user_creatable && dc->hotpluggable;
+    if (dc->desc) {
+        info->has_description = true;
+        info->description = g_strdup(dc->desc);
+    }
+    return info;
+}
+
 CpuDefinitionInfoList *qmp_query_cpu_definitions(Error **errp)
 {
     return arch_query_cpu_definitions(errp);
