@@ -1985,9 +1985,7 @@ uint64_t HELPER(lurag)(CPUS390XState *env, uint64_t addr)
 /* store using real address */
 void HELPER(stura)(CPUS390XState *env, uint64_t addr, uint64_t v1)
 {
-    CPUState *cs = CPU(s390_env_get_cpu(env));
-
-    stl_phys(cs->as, wrap_address(env, addr), (uint32_t)v1);
+    cpu_stl_real_ra(env, wrap_address(env, addr), (uint32_t)v1, GETPC());
 
     if ((env->psw.mask & PSW_MASK_PER) &&
         (env->cregs[9] & PER_CR9_EVENT_STORE) &&
@@ -2000,9 +1998,7 @@ void HELPER(stura)(CPUS390XState *env, uint64_t addr, uint64_t v1)
 
 void HELPER(sturg)(CPUS390XState *env, uint64_t addr, uint64_t v1)
 {
-    CPUState *cs = CPU(s390_env_get_cpu(env));
-
-    stq_phys(cs->as, wrap_address(env, addr), v1);
+    cpu_stq_real_ra(env, wrap_address(env, addr), v1, GETPC());
 
     if ((env->psw.mask & PSW_MASK_PER) &&
         (env->cregs[9] & PER_CR9_EVENT_STORE) &&
