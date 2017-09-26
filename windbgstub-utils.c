@@ -11,6 +11,7 @@
 
 #include "exec/windbgstub-utils.h"
 #include "sysemu/sysemu.h"
+#include "exec/address-spaces.h"
 
 #define IS_LOCAL_BP_ENABLED(dr7, index) (((dr7) >> ((index) * 2)) & 1)
 
@@ -1111,6 +1112,62 @@ void kd_api_write_control_space(CPUState *cpu, PacketData *pd)
         mem->ActualBytesWritten = 0;
         pd->m64.ReturnStatus = STATUS_UNSUCCESSFUL;
     }
+}
+
+void kd_api_read_io_space(CPUState *cpu, PacketData *pd)
+{
+    DBGKD_READ_WRITE_IO64 *io = &pd->m64.u.ReadWriteIo;
+    CPUArchState *env = cpu->env_ptr;
+    target_ulong addr = ldtul_p(&io->IoAddress);
+
+    switch (io->DataSize) {
+    case 1:
+        io->DataValue = address_space_ldub(&address_space_io, addr,
+                                           cpu_get_mem_attrs(env), NULL);
+        break;
+    case 2:
+        io->DataValue = address_space_lduw(&address_space_io, addr,
+                                           cpu_get_mem_attrs(env), NULL);
+        break;
+    case 4:
+        io->DataValue = address_space_ldl(&address_space_io, addr,
+                                          cpu_get_mem_attrs(env), NULL);
+        break;
+    default:
+        pd->m64.ReturnStatus = STATUS_UNSUCCESSFUL;
+        return;
+    }
+
+    pd->m64.ReturnStatus = STATUS_SUCCESS;
+}
+
+void kd_api_write_io_space(CPUState *cpu, PacketData *pd)
+{
+    DBGKD_READ_WRITE_IO64 *io = &pd->m64.u.ReadWriteIo;
+    CPUArchState *env = cpu->env_ptr;
+
+    target_ulong addr = ldtul_p(&io->IoAddress);
+    uint32_t value = ldl_p(&io->DataValue);
+
+    switch (io->DataSize) {
+    case 1:
+        address_space_stb(&address_space_io, addr, value,
+                          cpu_get_mem_attrs(env), NULL);
+        break;
+    case 2:
+        address_space_stw(&address_space_io, addr, value,
+                          cpu_get_mem_attrs(env), NULL);
+        break;
+    case 4:
+        address_space_stl(&address_space_io, addr, value,
+                          cpu_get_mem_attrs(env), NULL);
+        break;
+    default:
+        pd->m64.ReturnStatus = STATUS_UNSUCCESSFUL;
+        return;
+    }
+
+    pd->m64.ReturnStatus = STATUS_SUCCESS;
 }
 
 void kd_api_unsupported(CPUState *cpu, PacketData *pd)
