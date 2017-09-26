@@ -10,6 +10,7 @@
  * See the COPYING file in the top-level directory.
  */
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "qemu-common.h"
 #include "cpu.h"
 #include "hw/i386/apic_internal.h"
@@ -128,7 +129,7 @@ static void kvm_apic_vapic_base_update(APICCommonState *s)
 
     ret = kvm_vcpu_ioctl(CPU(s->cpu), KVM_SET_VAPIC_ADDR, &vapid_addr);
     if (ret < 0) {
-        fprintf(stderr, "KVM: setting VAPIC address failed (%s)\n",
+        error_report("KVM: setting VAPIC address failed (%s)",
                 strerror(-ret));
         abort();
     }
@@ -145,7 +146,7 @@ static void kvm_apic_put(CPUState *cs, run_on_cpu_data data)
 
     ret = kvm_vcpu_ioctl(CPU(s->cpu), KVM_SET_LAPIC, &kapic);
     if (ret < 0) {
-        fprintf(stderr, "KVM_SET_LAPIC failed: %s\n", strerror(ret));
+        error_report("KVM_SET_LAPIC failed: %s", strerror(ret));
         abort();
     }
 }
@@ -167,7 +168,7 @@ static void do_inject_external_nmi(CPUState *cpu, run_on_cpu_data data)
     if (!(lvt & APIC_LVT_MASKED) && ((lvt >> 8) & 7) == APIC_DM_NMI) {
         ret = kvm_vcpu_ioctl(cpu, KVM_NMI);
         if (ret < 0) {
-            fprintf(stderr, "KVM: injection failed, NMI lost (%s)\n",
+            error_report("KVM: injection failed, NMI lost (%s)",
                     strerror(-ret));
         }
     }
@@ -184,7 +185,7 @@ static void kvm_send_msi(MSIMessage *msg)
 
     ret = kvm_irqchip_send_msi(kvm_state, *msg);
     if (ret < 0) {
-        fprintf(stderr, "KVM: injection failed, MSI lost (%s)\n",
+        error_report("KVM: injection failed, MSI lost (%s)",
                 strerror(-ret));
     }
 }

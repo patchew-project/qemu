@@ -159,7 +159,7 @@ void tc6393xb_gpio_out_set(TC6393xbState *s, int line,
                     qemu_irq handler)
 {
     if (line >= TC6393XB_GPIOS) {
-        fprintf(stderr, "TC6393xb: no GPIO pin %d\n", line);
+        error_report("TC6393xb: no GPIO pin %d", line);
         return;
     }
 
@@ -190,7 +190,7 @@ static void tc6393xb_l3v(void *opaque, int line, int level)
 {
     TC6393xbState *s = opaque;
     s->blank = !level;
-    fprintf(stderr, "L3V: %d\n", level);
+    error_report("L3V: %d", level);
 }
 
 static void tc6393xb_sub_irq(void *opaque, int line, int level) {
@@ -257,7 +257,7 @@ static uint32_t tc6393xb_scr_readb(TC6393xbState *s, hwaddr addr)
         SCR_REG_B(CONFIG);
         SCR_REG_B(DEBUG);
     }
-    fprintf(stderr, "tc6393xb_scr: unhandled read at %08x\n", (uint32_t) addr);
+    error_report("tc6393xb_scr: unhandled read at %08x", (uint32_t) addr);
     return 0;
 }
 #undef SCR_REG_B
@@ -318,8 +318,8 @@ static void tc6393xb_scr_writeb(TC6393xbState *s, hwaddr addr, uint32_t value)
         SCR_REG_B(CONFIG);
         SCR_REG_B(DEBUG);
     }
-    fprintf(stderr, "tc6393xb_scr: unhandled write at %08x: %02x\n",
-					(uint32_t) addr, value & 0xff);
+    error_report("tc6393xb_scr: unhandled write at %08x: %02x",
+                 (uint32_t) addr, value & 0xff);
 }
 #undef SCR_REG_B
 #undef SCR_REG_W
@@ -341,7 +341,7 @@ static uint32_t tc6393xb_nand_cfg_readb(TC6393xbState *s, hwaddr addr) {
         case NAND_CFG_BASE + 3:
             return s->nand_phys >> (addr - NAND_CFG_BASE);
     }
-    fprintf(stderr, "tc6393xb_nand_cfg: unhandled read at %08x\n", (uint32_t) addr);
+    error_report("tc6393xb_nand_cfg: unhandled read at %08x", (uint32_t) addr);
     return 0;
 }
 static void tc6393xb_nand_cfg_writeb(TC6393xbState *s, hwaddr addr, uint32_t value) {
@@ -357,7 +357,7 @@ static void tc6393xb_nand_cfg_writeb(TC6393xbState *s, hwaddr addr, uint32_t val
             s->nand_phys |= (value & 0xff) << ((addr - NAND_CFG_BASE) * 8);
             return;
     }
-    fprintf(stderr, "tc6393xb_nand_cfg: unhandled write at %08x: %02x\n",
+    error_report("tc6393xb_nand_cfg: unhandled write at %08x: %02x",
 					(uint32_t) addr, value & 0xff);
 }
 
@@ -377,12 +377,14 @@ static uint32_t tc6393xb_nand_readb(TC6393xbState *s, hwaddr addr) {
         case NAND_IMR:
             return s->nand.imr;
     }
-    fprintf(stderr, "tc6393xb_nand: unhandled read at %08x\n", (uint32_t) addr);
+    error_report("tc6393xb_nand: unhandled read at %08x", (uint32_t) addr);
     return 0;
 }
-static void tc6393xb_nand_writeb(TC6393xbState *s, hwaddr addr, uint32_t value) {
-//    fprintf(stderr, "tc6393xb_nand: write at %08x: %02x\n",
-//					(uint32_t) addr, value & 0xff);
+static void tc6393xb_nand_writeb(TC6393xbState *s, hwaddr addr, uint32_t value)
+{
+    /* error_report("tc6393xb_nand: write at %08x: %02x",
+     *              (uint32_t) addr, value & 0xff);
+     */
     switch (addr) {
         case NAND_DATA + 0:
         case NAND_DATA + 1:
@@ -420,7 +422,7 @@ static void tc6393xb_nand_writeb(TC6393xbState *s, hwaddr addr, uint32_t value) 
             tc6393xb_nand_irq(s);
             return;
     }
-    fprintf(stderr, "tc6393xb_nand: unhandled write at %08x: %02x\n",
+    error_report("tc6393xb_nand: unhandled write at %08x: %02x",
 					(uint32_t) addr, value & 0xff);
 }
 
@@ -522,13 +524,15 @@ static uint64_t tc6393xb_readb(void *opaque, hwaddr addr,
     };
 
     if ((addr &~0xff) == s->nand_phys && s->nand_enable) {
-//        return tc6393xb_nand_readb(s, addr & 0xff);
+        /* return tc6393xb_nand_readb(s, addr & 0xff); */
         uint8_t d = tc6393xb_nand_readb(s, addr & 0xff);
-//        fprintf(stderr, "tc6393xb_nand: read at %08x: %02hhx\n", (uint32_t) addr, d);
+        /* error_report("tc6393xb_nand: read at %08x: %02hhx",
+         *              (uint32_t) addr, d);
+         */
         return d;
     }
 
-//    fprintf(stderr, "tc6393xb: unhandled read at %08x\n", (uint32_t) addr);
+    /* error_report("tc6393xb: unhandled read at %08x", (uint32_t) addr); */
     return 0;
 }
 
@@ -548,7 +552,7 @@ static void tc6393xb_writeb(void *opaque, hwaddr addr,
     if ((addr &~0xff) == s->nand_phys && s->nand_enable)
         tc6393xb_nand_writeb(s, addr & 0xff, value);
     else
-        fprintf(stderr, "tc6393xb: unhandled write at %08x: %02x\n",
+        error_report("tc6393xb: unhandled write at %08x: %02x",
                 (uint32_t) addr, (int)value & 0xff);
 }
 

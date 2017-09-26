@@ -25,6 +25,7 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "qemu-common.h"
 #include "cpu.h"
@@ -61,7 +62,7 @@ static void load_kernel(MoxieCPU *cpu, LoaderParams *loader_params)
                            0, 0);
 
     if (kernel_size <= 0) {
-        fprintf(stderr, "qemu: could not load kernel '%s'\n",
+        error_report("qemu: could not load kernel '%s'",
                 loader_params->kernel_filename);
         exit(1);
     }
@@ -85,8 +86,8 @@ static void load_kernel(MoxieCPU *cpu, LoaderParams *loader_params)
                                               ram_size);
         }
         if (initrd_size == (target_ulong)-1) {
-            fprintf(stderr, "qemu: could not load initial ram disk '%s'\n",
-                    loader_params->initrd_filename);
+            error_report("qemu: could not load initial ram disk '%s'",
+                         loader_params->initrd_filename);
             exit(1);
         }
     }

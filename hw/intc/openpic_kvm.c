@@ -150,8 +150,8 @@ static void kvm_openpic_region_add(MemoryListener *listener,
 
     ret = ioctl(opp->fd, KVM_SET_DEVICE_ATTR, &attr);
     if (ret < 0) {
-        fprintf(stderr, "%s: %s %" PRIx64 "\n", __func__,
-                strerror(errno), reg_base);
+        error_report("%s: %s %" PRIx64 "", __func__,
+                     strerror(errno), reg_base);
     }
 }
 
@@ -184,8 +184,8 @@ static void kvm_openpic_region_del(MemoryListener *listener,
 
     ret = ioctl(opp->fd, KVM_SET_DEVICE_ATTR, &attr);
     if (ret < 0) {
-        fprintf(stderr, "%s: %s %" PRIx64 "\n", __func__,
-                strerror(errno), reg_base);
+        error_report("%s: %s %" PRIx64 "", __func__,
+                     strerror(errno), reg_base);
     }
 }
 

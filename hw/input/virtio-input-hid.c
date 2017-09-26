@@ -208,8 +208,8 @@ static void virtio_input_handle_event(DeviceState *dev, QemuConsole *src,
             virtio_input_send(vinput, &event);
         } else {
             if (key->down) {
-                fprintf(stderr, "%s: unmapped key: %d [%s]\n", __func__,
-                        qcode, QKeyCode_str(qcode));
+                error_report("%s: unmapped key: %d [%s]", __func__,
+                             qcode, QKeyCode_str(qcode));
             }
         }
         break;
@@ -222,9 +222,9 @@ static void virtio_input_handle_event(DeviceState *dev, QemuConsole *src,
             virtio_input_send(vinput, &event);
         } else {
             if (btn->down) {
-                fprintf(stderr, "%s: unmapped button: %d [%s]\n", __func__,
-                        btn->button,
-                        InputButton_str(btn->button));
+                error_report("%s: unmapped button: %d [%s]", __func__,
+                             btn->button,
+                             InputButton_str(btn->button));
             }
         }
         break;
@@ -310,8 +310,8 @@ static void virtio_input_hid_handle_status(VirtIOInput *vinput,
         kbd_put_ledstate(vhid->ledstate);
         break;
     default:
-        fprintf(stderr, "%s: unknown type %d\n", __func__,
-                le16_to_cpu(event->type));
+        error_report("%s: unknown type %d", __func__,
+                     le16_to_cpu(event->type));
         break;
     }
 }

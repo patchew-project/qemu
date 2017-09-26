@@ -406,10 +406,10 @@ static void omap_disc_write(void *opaque, hwaddr addr,
         s->lcd.enable = (value >> 0) & 1;
         if (value & (1 << 12))			/* OVERLAY_OPTIMIZATION */
             if (!((s->dispc.l[1].attr | s->dispc.l[2].attr) & 1)) {
-                fprintf(stderr, "%s: Overlay Optimization when no overlay "
-                        "region effectively exists leads to "
-                        "unpredictable behaviour!\n", __func__);
-            }
+                error_report("%s: Overlay Optimization when no overlay "
+                             "region effectively exists leads to "
+                             "unpredictable behaviour!", __func__);
+           }
         if (value & (1 << 6)) {				/* GODIGITAL */
             /* XXX: Shadowed fields are:
              * s->dispc.config
@@ -525,8 +525,8 @@ static void omap_disc_write(void *opaque, hwaddr addr,
     case 0x0a0:	/* DISPC_GFX_ATTRIBUTES */
         s->dispc.l[0].attr = value & 0x7ff;
         if (value & (3 << 9))
-            fprintf(stderr, "%s: Big-endian pixel format not supported\n",
-                            __func__);
+            error_report("%s: Big-endian pixel format not supported",
+                         __func__);
         s->dispc.l[0].enable = value & 1;
         s->dispc.l[0].bpp = (value >> 1) & 0xf;
         s->dispc.invalidate = 1;
@@ -617,7 +617,7 @@ static void omap_rfbi_transfer_start(struct omap_dss_s *s)
     if (s->rfbi.control & (1 << 1)) {				/* BYPASS */
         /* TODO: in non-Bypass mode we probably need to just assert the
          * DRQ and wait for DMA to write the pixels.  */
-        fprintf(stderr, "%s: Bypass mode unimplemented\n", __func__);
+        error_report("%s: Bypass mode unimplemented", __func__);
         return;
     }
 

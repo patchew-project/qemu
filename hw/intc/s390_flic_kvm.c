@@ -83,7 +83,7 @@ static void flic_enable_pfault(KVMS390FLICState *flic)
     rc = ioctl(flic->fd, KVM_SET_DEVICE_ATTR, &attr);
 
     if (rc) {
-        fprintf(stderr, "flic: couldn't enable pfault\n");
+        error_report("flic: couldn't enable pfault");
     }
 }
 
@@ -97,7 +97,7 @@ static void flic_disable_wait_pfault(KVMS390FLICState *flic)
     rc = ioctl(flic->fd, KVM_SET_DEVICE_ATTR, &attr);
 
     if (rc) {
-        fprintf(stderr, "flic: couldn't disable pfault\n");
+        error_report("flic: couldn't disable pfault");
     }
 }
 

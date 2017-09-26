@@ -5,6 +5,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "qemu/iov.h"
 #include "trace.h"
@@ -121,8 +122,8 @@ void virtio_input_add_config(VirtIOInput *vinput,
 
     if (virtio_input_find_config(vinput, config->select, config->subsel)) {
         /* should not happen */
-        fprintf(stderr, "%s: duplicate config: %d/%d\n",
-                __func__, config->select, config->subsel);
+        error_report("%s: duplicate config: %d/%d",
+                     __func__, config->select, config->subsel);
         abort();
     }
 

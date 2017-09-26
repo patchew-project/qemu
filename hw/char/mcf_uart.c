@@ -6,6 +6,7 @@
  * This code is licensed under the GPL
  */
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "hw/hw.h"
 #include "hw/sysbus.h"
 #include "hw/m68k/mcf.h"
@@ -174,7 +175,7 @@ static void mcf_do_command(mcf_uart_state *s, uint8_t cmd)
         mcf_uart_do_tx(s);
         break;
     case 3: /* Reserved.  */
-        fprintf(stderr, "mcf_uart: Bad TX command\n");
+        error_report("mcf_uart: Bad TX command");
         break;
     }
 
@@ -189,7 +190,7 @@ static void mcf_do_command(mcf_uart_state *s, uint8_t cmd)
         s->rx_enabled = 0;
         break;
     case 3: /* Reserved.  */
-        fprintf(stderr, "mcf_uart: Bad RX command\n");
+        error_report("mcf_uart: Bad RX command");
         break;
     }
 }

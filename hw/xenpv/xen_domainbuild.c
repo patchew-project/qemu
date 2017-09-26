@@ -25,22 +25,22 @@ static int xenstore_domain_mkdir(char *path)
     int i;
 
     if (!xs_mkdir(xenstore, 0, path)) {
-        fprintf(stderr, "%s: xs_mkdir %s: failed\n", __func__, path);
-	return -1;
+        error_report("%s: xs_mkdir %s: failed", __func__, path);
+        return -1;
     }
     if (!xs_set_permissions(xenstore, 0, path, perms_ro, 2)) {
-        fprintf(stderr, "%s: xs_set_permissions failed\n", __func__);
-	return -1;
+        error_report("%s: xs_set_permissions failed", __func__);
+        return -1;
     }
 
     for (i = 0; writable[i]; i++) {
         snprintf(subpath, sizeof(subpath), "%s/%s", path, writable[i]);
         if (!xs_mkdir(xenstore, 0, subpath)) {
-            fprintf(stderr, "%s: xs_mkdir %s: failed\n", __func__, subpath);
+            error_report("%s: xs_mkdir %s: failed", __func__, subpath);
             return -1;
         }
         if (!xs_set_permissions(xenstore, 0, subpath, perms_rw, 2)) {
-            fprintf(stderr, "%s: xs_set_permissions failed\n", __func__);
+            error_report("%s: xs_set_permissions failed", __func__);
             return -1;
         }
     }
@@ -235,7 +235,7 @@ int xen_domain_build_pv(const char *kernel, const char *ramdisk,
     memcpy(uuid, &qemu_uuid, sizeof(uuid));
     rc = xen_domain_create(xen_xc, ssidref, uuid, flags, &xen_domid);
     if (rc < 0) {
-        fprintf(stderr, "xen: xc_domain_create() failed\n");
+        error_report("xen: xc_domain_create() failed");
         goto err;
     }
     qemu_log("xen: created domain %d\n", xen_domid);
@@ -248,21 +248,21 @@ int xen_domain_build_pv(const char *kernel, const char *ramdisk,
 
     rc = xc_domain_max_vcpus(xen_xc, xen_domid, smp_cpus);
     if (rc < 0) {
-        fprintf(stderr, "xen: xc_domain_max_vcpus() failed\n");
+        error_report("xen: xc_domain_max_vcpus() failed");
         goto err;
     }
 
 #if 0
     rc = xc_domain_setcpuweight(xen_xc, xen_domid, 256);
     if (rc < 0) {
-        fprintf(stderr, "xen: xc_domain_setcpuweight() failed\n");
+        error_report("xen: xc_domain_setcpuweight() failed");
         goto err;
     }
 #endif
 
     rc = xc_domain_setmaxmem(xen_xc, xen_domid, ram_size >> 10);
     if (rc < 0) {
-        fprintf(stderr, "xen: xc_domain_setmaxmem() failed\n");
+        error_report("xen: xc_domain_setmaxmem() failed");
         goto err;
     }
 
@@ -275,7 +275,7 @@ int xen_domain_build_pv(const char *kernel, const char *ramdisk,
                         xenstore_port, &xenstore_mfn,
                         console_port, &console_mfn);
     if (rc < 0) {
-        fprintf(stderr, "xen: xc_linux_build() failed\n");
+        error_report("xen: xc_linux_build() failed");
         goto err;
     }
 
@@ -285,7 +285,7 @@ int xen_domain_build_pv(const char *kernel, const char *ramdisk,
     qemu_log("xen: unpausing domain %d\n", xen_domid);
     rc = xc_domain_unpause(xen_xc, xen_domid);
     if (rc < 0) {
-        fprintf(stderr, "xen: xc_domain_unpause() failed\n");
+        error_report("xen: xc_domain_unpause() failed");
         goto err;
     }
 

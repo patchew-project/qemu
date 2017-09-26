@@ -187,7 +187,7 @@ static int xilinx_load_device_tree(hwaddr addr,
 
     r = qemu_fdt_setprop_string(fdt, "/chosen", "bootargs", kernel_cmdline);
     if (r < 0)
-        fprintf(stderr, "couldn't set /chosen/bootargs\n");
+        error_report("couldn't set /chosen/bootargs");
     cpu_physical_memory_write(addr, fdt, fdt_size);
     return fdt_size;
 }
@@ -219,7 +219,7 @@ static void virtex_init(MachineState *machine)
     env = &cpu->env;
 
     if (env->mmu_model != POWERPC_MMU_BOOKE) {
-        fprintf(stderr, "MMU model %i not supported by this machine.\n",
+        error_report("MMU model %i not supported by this machine.",
             env->mmu_model);
         exit(1);
     }

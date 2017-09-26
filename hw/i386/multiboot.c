@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "qemu-common.h"
 #include "cpu.h"
 #include "hw/hw.h"
@@ -184,7 +185,7 @@ int load_multiboot(FWCfgState *fw_cfg,
     memset(&mbs, 0, sizeof(mbs));
 
     if (flags & 0x00000004) { /* MULTIBOOT_HEADER_HAS_VBE */
-        fprintf(stderr, "qemu: multiboot knows VBE. we don't.\n");
+        error_report("qemu: multiboot knows VBE. we don't.");
     }
     if (!(flags & 0x00010000)) { /* MULTIBOOT_HEADER_HAS_ADDR */
         uint64_t elf_entry;
@@ -193,7 +194,7 @@ int load_multiboot(FWCfgState *fw_cfg,
         fclose(f);
 
         if (((struct elf64_hdr*)header)->e_machine == EM_X86_64) {
-            fprintf(stderr, "Cannot load x86-64 image, give a 32bit one.\n");
+            error_report("Cannot load x86-64 image, give a 32bit one.");
             exit(1);
         }
 
@@ -201,7 +202,7 @@ int load_multiboot(FWCfgState *fw_cfg,
                                &elf_low, &elf_high, 0, I386_ELF_MACHINE,
                                0, 0);
         if (kernel_size < 0) {
-            fprintf(stderr, "Error while loading elf kernel\n");
+            error_report("Error while loading elf kernel");
             exit(1);
         }
         mh_load_addr = elf_low;
@@ -210,7 +211,7 @@ int load_multiboot(FWCfgState *fw_cfg,
 
         mbs.mb_buf = g_malloc(mb_kernel_size);
         if (rom_copy(mbs.mb_buf, mh_load_addr, mb_kernel_size) != mb_kernel_size) {
-            fprintf(stderr, "Error while fetching elf kernel from rom\n");
+            error_report("Error while fetching elf kernel from rom");
             exit(1);
         }
 
@@ -224,7 +225,7 @@ int load_multiboot(FWCfgState *fw_cfg,
 
         mh_load_addr = ldl_p(header+i+16);
         if (mh_header_addr < mh_load_addr) {
-            fprintf(stderr, "invalid mh_load_addr address\n");
+            error_report("invalid mh_load_addr address");
             exit(1);
         }
 
@@ -234,19 +235,19 @@ int load_multiboot(FWCfgState *fw_cfg,
 
         if (mh_load_end_addr) {
             if (mh_bss_end_addr < mh_load_addr) {
-                fprintf(stderr, "invalid mh_bss_end_addr address\n");
+                error_report("invalid mh_bss_end_addr address");
                 exit(1);
             }
             mb_kernel_size = mh_bss_end_addr - mh_load_addr;
 
             if (mh_load_end_addr < mh_load_addr) {
-                fprintf(stderr, "invalid mh_load_end_addr address\n");
+                error_report("invalid mh_load_end_addr address");
                 exit(1);
             }
             mb_load_size = mh_load_end_addr - mh_load_addr;
         } else {
             if (kernel_file_size < mb_kernel_text_offset) {
-                fprintf(stderr, "invalid kernel_file_size\n");
+                error_report("invalid kernel_file_size");
                 exit(1);
             }
             mb_kernel_size = kernel_file_size - mb_kernel_text_offset;
@@ -269,7 +270,7 @@ int load_multiboot(FWCfgState *fw_cfg,
         mbs.mb_buf = g_malloc(mb_kernel_size);
         fseek(f, mb_kernel_text_offset, SEEK_SET);
         if (fread(mbs.mb_buf, 1, mb_load_size, f) != mb_load_size) {
-            fprintf(stderr, "fread() failed\n");
+            error_report("fread() failed");
             exit(1);
         }
         memset(mbs.mb_buf + mb_load_size, 0, mb_kernel_size - mb_load_size);
@@ -326,7 +327,7 @@ int load_multiboot(FWCfgState *fw_cfg,
             mb_debug("multiboot loading module: %s\n", tmpbuf);
             mb_mod_length = get_image_size(tmpbuf);
             if (mb_mod_length < 0) {
-                fprintf(stderr, "Failed to open file '%s'\n", tmpbuf);
+                error_report("Failed to open file '%s'", tmpbuf);
                 exit(1);
             }
 

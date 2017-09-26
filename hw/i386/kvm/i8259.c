@@ -10,6 +10,7 @@
  * See the COPYING file in the top-level directory.
  */
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "hw/isa/i8259_internal.h"
 #include "hw/i386/apic_internal.h"
 #include "sysemu/kvm.h"
@@ -39,7 +40,7 @@ static void kvm_pic_get(PICCommonState *s)
     chip.chip_id = s->master ? KVM_IRQCHIP_PIC_MASTER : KVM_IRQCHIP_PIC_SLAVE;
     ret = kvm_vm_ioctl(kvm_state, KVM_GET_IRQCHIP, &chip);
     if (ret < 0) {
-        fprintf(stderr, "KVM_GET_IRQCHIP failed: %s\n", strerror(ret));
+        error_report("KVM_GET_IRQCHIP failed: %s", strerror(ret));
         abort();
     }
 
@@ -92,7 +93,7 @@ static void kvm_pic_put(PICCommonState *s)
 
     ret = kvm_vm_ioctl(kvm_state, KVM_SET_IRQCHIP, &chip);
     if (ret < 0) {
-        fprintf(stderr, "KVM_SET_IRQCHIP failed: %s\n", strerror(ret));
+        error_report("KVM_SET_IRQCHIP failed: %s", strerror(ret));
         abort();
     }
 }

@@ -97,7 +97,7 @@ static int virtio_scsi_vring_init(VirtIOSCSI *s, VirtQueue *vq, int n,
     /* Set up virtqueue notify */
     rc = virtio_bus_set_host_notifier(VIRTIO_BUS(qbus), n, true);
     if (rc != 0) {
-        fprintf(stderr, "virtio-scsi: Failed to set host notifier (%d)\n",
+        error_report("virtio-scsi: Failed to set host notifier (%d)",
                 rc);
         s->dataplane_fenced = true;
         return rc;
@@ -141,8 +141,8 @@ int virtio_scsi_dataplane_start(VirtIODevice *vdev)
     /* Set up guest notifier (irq) */
     rc = k->set_guest_notifiers(qbus->parent, vs->conf.num_queues + 2, true);
     if (rc != 0) {
-        fprintf(stderr, "virtio-scsi: Failed to set guest notifiers (%d), "
-                "ensure -enable-kvm is set\n", rc);
+        error_report("virtio-scsi: Failed to set guest notifiers (%d), "
+                "ensure -enable-kvm is set", rc);
         goto fail_guest_notifiers;
     }
 

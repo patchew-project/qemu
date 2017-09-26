@@ -10,6 +10,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "qapi/error.h"
 #include <wchar.h>
 #include <dirent.h>
@@ -546,7 +547,7 @@ static void inotify_watchfn(void *arg)
                 break;
 
             default:
-                fprintf(stderr, "usb-mtp: failed to parse inotify event\n");
+                error_report("usb-mtp: failed to parse inotify event");
                 continue;
             }
 
@@ -617,7 +618,7 @@ static void usb_mtp_object_readdir(MTPState *s, MTPObject *o)
 #ifdef CONFIG_INOTIFY1
     int watchfd = usb_mtp_add_watch(s->inotifyfd, o->path);
     if (watchfd == -1) {
-        fprintf(stderr, "usb-mtp: failed to add watch for %s\n", o->path);
+        error_report("usb-mtp: failed to add watch for %s", o->path);
     } else {
         trace_usb_mtp_inotify_event(s->dev.addr, o->path,
                                     0, "Watch Added");
@@ -1144,7 +1145,7 @@ static void usb_mtp_command(MTPState *s, MTPControl *c)
         usb_mtp_object_alloc(s, s->next_handle++, NULL, s->root);
 #ifdef CONFIG_INOTIFY1
         if (usb_mtp_inotify_init(s)) {
-            fprintf(stderr, "usb-mtp: file monitoring init failed\n");
+            error_report("usb-mtp: file monitoring init failed");
         }
 #endif
         break;
@@ -1348,7 +1349,7 @@ static void usb_mtp_handle_control(USBDevice *dev, USBPacket *p,
 static void usb_mtp_cancel_packet(USBDevice *dev, USBPacket *p)
 {
     /* we don't use async packets, so this should never be called */
-    fprintf(stderr, "%s\n", __func__);
+    error_report("%s", __func__);
 }
 
 static void usb_mtp_handle_data(USBDevice *dev, USBPacket *p)

@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "qemu-common.h"
 #include "cpu.h"
@@ -172,7 +173,7 @@ static void leon3_generic_hw_init(MachineState *machine)
     }
 
     if (bios_size > prom_size) {
-        fprintf(stderr, "qemu: could not load prom '%s': file too big\n",
+        error_report("qemu: could not load prom '%s': file too big",
                 filename);
         exit(1);
     }
@@ -180,11 +181,11 @@ static void leon3_generic_hw_init(MachineState *machine)
     if (bios_size > 0) {
         ret = load_image_targphys(filename, 0x00000000, bios_size);
         if (ret < 0 || ret > prom_size) {
-            fprintf(stderr, "qemu: could not load prom '%s'\n", filename);
+            error_report("qemu: could not load prom '%s'", filename);
             exit(1);
         }
     } else if (kernel_filename == NULL && !qtest_enabled()) {
-        fprintf(stderr, "Can't read bios image %s\n", filename);
+        error_report("Can't read bios image %s", filename);
         exit(1);
     }
     g_free(filename);
@@ -197,7 +198,7 @@ static void leon3_generic_hw_init(MachineState *machine)
         kernel_size = load_elf(kernel_filename, NULL, NULL, &entry, NULL, NULL,
                                1 /* big endian */, EM_SPARC, 0, 0);
         if (kernel_size < 0) {
-            fprintf(stderr, "qemu: could not load kernel '%s'\n",
+            error_report("qemu: could not load kernel '%s'",
                     kernel_filename);
             exit(1);
         }

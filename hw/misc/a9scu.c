@@ -9,6 +9,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "hw/misc/a9scu.h"
 
 static uint64_t a9_scu_read(void *opaque, hwaddr offset,
@@ -59,7 +60,7 @@ static void a9_scu_write(void *opaque, hwaddr offset,
         mask = 0xffffffff;
         break;
     default:
-        fprintf(stderr, "Invalid size %u in write to a9 scu register %x\n",
+        error_report("Invalid size %u in write to a9 scu register %x",
                 size, (unsigned)offset);
         return;
     }

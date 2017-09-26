@@ -6,6 +6,7 @@
  * This code is licensed under the GNU LGPL.
  */
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "hw/hw.h"
 #include "qemu/timer.h"
 #include "hw/ptimer.h"
@@ -56,7 +57,7 @@ static void ptimer_reload(ptimer_state *s, int delta_adjust)
 
     if (s->period == 0) {
         if (!qtest_enabled()) {
-            fprintf(stderr, "Timer with period zero, disabling\n");
+            error_report("Timer with period zero, disabling");
         }
         timer_del(s->timer);
         s->enabled = 0;
@@ -89,7 +90,7 @@ static void ptimer_reload(ptimer_state *s, int delta_adjust)
 
     if (delta == 0) {
         if (!qtest_enabled()) {
-            fprintf(stderr, "Timer with delta zero, disabling\n");
+            error_report("Timer with delta zero, disabling");
         }
         timer_del(s->timer);
         s->enabled = 0;
@@ -263,7 +264,7 @@ void ptimer_run(ptimer_state *s, int oneshot)
 
     if (was_disabled && s->period == 0) {
         if (!qtest_enabled()) {
-            fprintf(stderr, "Timer with period zero, disabling\n");
+            error_report("Timer with period zero, disabling");
         }
         return;
     }

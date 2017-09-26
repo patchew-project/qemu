@@ -47,19 +47,19 @@ static int store_dev_info(int domid, Chardev *cs, const char *string)
     /* We now have everything we need to set the xenstore entry. */
     xs = xs_open(0);
     if (xs == NULL) {
-        fprintf(stderr, "Could not contact XenStore\n");
+        error_report("Could not contact XenStore");
         goto out;
     }
 
     path = xs_get_domain_path(xs, domid);
     if (path == NULL) {
-        fprintf(stderr, "xs_get_domain_path() error\n");
+        error_report("xs_get_domain_path() error");
         goto out;
     }
     newpath = realloc(path, (strlen(path) + strlen(string) +
                 strlen("/tty") + 1));
     if (newpath == NULL) {
-        fprintf(stderr, "realloc error\n");
+        error_report("realloc error");
         goto out;
     }
     path = newpath;
@@ -96,13 +96,13 @@ static void xenstore_record_dm_state(struct xs_handle *xs, const char *state)
     char path[50];
 
     if (xs == NULL) {
-        fprintf(stderr, "xenstore connection not initialized\n");
+        error_report("xenstore connection not initialized");
         exit(1);
     }
 
     snprintf(path, sizeof (path), "device-model/%u/state", xen_domid);
     if (!xs_write(xs, XBT_NULL, path, state, strlen(state))) {
-        fprintf(stderr, "error recording dm state\n");
+        error_report("error recording dm state");
         exit(1);
     }
 }

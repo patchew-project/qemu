@@ -34,6 +34,7 @@
  *
  */
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "hw/hw.h"
 #include "hw/ppc/mac.h"
 #include "hw/pci/pci.h"
@@ -162,7 +163,7 @@ static int inttgt_to_output(int inttgt)
         }
     }
 
-    fprintf(stderr, "%s: unsupported inttgt %d\n", __func__, inttgt);
+    error_report("%s: unsupported inttgt %d", __func__, inttgt);
     return OPENPIC_OUTPUT_INT;
 }
 
@@ -534,7 +535,7 @@ static void openpic_set_irq(void *opaque, int n_IRQ, int level)
     IRQSource *src;
 
     if (n_IRQ >= OPENPIC_MAX_IRQ) {
-        fprintf(stderr, "%s: IRQ %d out of range\n", __func__, n_IRQ);
+        error_report("%s: IRQ %d out of range", __func__, n_IRQ);
         abort();
     }
 
@@ -1208,7 +1209,7 @@ static uint32_t openpic_iack(OpenPICState *opp, IRQDest *dst, int cpu)
     src = &opp->src[irq];
     if (!(src->ivpr & IVPR_ACTIVITY_MASK) ||
             !(IVPR_PRIORITY(src->ivpr) > dst->ctpr)) {
-        fprintf(stderr, "%s: bad raised IRQ %d ctpr %d ivpr 0x%08x\n",
+        error_report("%s: bad raised IRQ %d ctpr %d ivpr 0x%08x",
                 __func__, irq, dst->ctpr, src->ivpr);
         openpic_update_irq(opp, irq);
         retval = opp->spve;

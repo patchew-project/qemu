@@ -43,6 +43,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "hw/hw.h"
 #include "disas/disas.h"
@@ -82,7 +83,7 @@ int load_image(const char *filename, uint8_t *addr)
         return -1;
     size = lseek(fd, 0, SEEK_END);
     if (size == -1) {
-        fprintf(stderr, "file %-20s: get size error: %s\n",
+        error_report("file %-20s: get size error: %s",
                 filename, strerror(errno));
         close(fd);
         return -1;
@@ -623,7 +624,7 @@ static int load_uboot_image(const char *filename, hwaddr *ep, hwaddr *loadaddr,
         goto out;
 
     if (hdr->ih_type != image_type) {
-        fprintf(stderr, "Wrong image type %d, expected %d\n", hdr->ih_type,
+        error_report("Wrong image type %d, expected %d", hdr->ih_type,
                 image_type);
         goto out;
     }
@@ -670,14 +671,14 @@ static int load_uboot_image(const char *filename, hwaddr *ep, hwaddr *loadaddr,
         address = *loadaddr;
         break;
     default:
-        fprintf(stderr, "Unsupported u-boot image type %d\n", hdr->ih_type);
+        error_report("Unsupported u-boot image type %d", hdr->ih_type);
         goto out;
     }
 
     data = g_malloc(hdr->ih_size);
 
     if (read(fd, data, hdr->ih_size) != hdr->ih_size) {
-        fprintf(stderr, "Error reading file\n");
+        error_report("Error reading file");
         goto out;
     }
 
@@ -693,7 +694,7 @@ static int load_uboot_image(const char *filename, hwaddr *ep, hwaddr *loadaddr,
         bytes = gunzip(data, max_bytes, compressed_data, hdr->ih_size);
         g_free(compressed_data);
         if (bytes < 0) {
-            fprintf(stderr, "Unable to decompress gzipped image!\n");
+            error_report("Unable to decompress gzipped image!");
             goto out;
         }
         hdr->ih_size = bytes;
@@ -763,7 +764,7 @@ int load_image_gzipped_buffer(const char *filename, uint64_t max_sz,
     data = g_malloc(max_sz);
     bytes = gunzip(data, max_sz, compressed_data, len);
     if (bytes < 0) {
-        fprintf(stderr, "%s: unable to decompress gzipped kernel file\n",
+        error_report("%s: unable to decompress gzipped kernel file",
                 filename);
         goto out;
     }
@@ -893,8 +894,8 @@ int rom_add_file(const char *file, const char *fw_dir,
     char devpath[100];
 
     if (as && mr) {
-        fprintf(stderr, "Specifying an Address Space and Memory Region is " \
-                "not valid when loading a rom\n");
+        error_report("Specifying an Address Space and Memory Region is " \
+                     "not valid when loading a rom");
         /* We haven't allocated anything so we don't need any cleanup */
         return -1;
     }
@@ -909,7 +910,7 @@ int rom_add_file(const char *file, const char *fw_dir,
 
     fd = open(rom->path, O_RDONLY | O_BINARY);
     if (fd == -1) {
-        fprintf(stderr, "Could not open option rom '%s': %s\n",
+        error_report("Could not open option rom '%s': %s",
                 rom->path, strerror(errno));
         goto err;
     }
@@ -921,7 +922,7 @@ int rom_add_file(const char *file, const char *fw_dir,
     rom->addr     = addr;
     rom->romsize  = lseek(fd, 0, SEEK_END);
     if (rom->romsize == -1) {
-        fprintf(stderr, "rom: file %-20s: get size error: %s\n",
+        error_report("rom: file %-20s: get size error: %s",
                 rom->name, strerror(errno));
         goto err;
     }
@@ -931,7 +932,7 @@ int rom_add_file(const char *file, const char *fw_dir,
     lseek(fd, 0, SEEK_SET);
     rc = read(fd, rom->data, rom->datasize);
     if (rc != rom->datasize) {
-        fprintf(stderr, "rom: file %-20s: read error: rc=%d (expected %zd)\n",
+        error_report("rom: file %-20s: read error: rc=%d (expected %zd)",
                 rom->name, rc, rom->datasize);
         goto err;
     }
@@ -1105,10 +1106,10 @@ int rom_check_and_register_reset(void)
             continue;
         }
         if ((addr > rom->addr) && (as == rom->as)) {
-            fprintf(stderr, "rom: requested regions overlap "
-                    "(rom %s. free=0x" TARGET_FMT_plx
-                    ", addr=0x" TARGET_FMT_plx ")\n",
-                    rom->name, addr, rom->addr);
+            error_report("rom: requested regions overlap "
+                         "(rom %s. free=0x" TARGET_FMT_plx
+                         ", addr=0x" TARGET_FMT_plx ")",
+                         rom->name, addr, rom->addr);
             return -1;
         }
         addr  = rom->addr;

@@ -316,12 +316,12 @@ static void kvm_arm_gic_put(GICState *s)
     num_cpu = ((reg & 0xe0) >> 5) + 1;
 
     if (num_irq < s->num_irq) {
-            fprintf(stderr, "Restoring %u IRQs, but kernel supports max %d\n",
-                    s->num_irq, num_irq);
+            error_report("Restoring %u IRQs, but kernel supports max %d",
+                         s->num_irq, num_irq);
             abort();
     } else if (num_cpu != s->num_cpu) {
-            fprintf(stderr, "Restoring %u CPU interfaces, kernel only has %d\n",
-                    s->num_cpu, num_cpu);
+            error_report("Restoring %u CPU interfaces, kernel only has %d",
+                         s->num_cpu, num_cpu);
             /* Did we not create the VCPUs in the kernel yet? */
             abort();
     }
@@ -411,8 +411,8 @@ static void kvm_arm_gic_get(GICState *s)
     s->num_cpu = ((reg & 0xe0) >> 5) + 1;
 
     if (s->num_irq > GIC_MAXIRQ) {
-            fprintf(stderr, "Too many IRQs reported from the kernel: %d\n",
-                    s->num_irq);
+            error_report("Too many IRQs reported from the kernel: %d",
+                         s->num_irq);
             abort();
     }
 

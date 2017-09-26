@@ -19,6 +19,7 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "hw/hw.h"
 #include "hw/block/flash.h"
 #include "hw/arm/omap.h"
@@ -408,7 +409,7 @@ static void omap_gpmc_cs_map(struct omap_gpmc_s *s, int cs)
     /* TODO: check for overlapping regions and report access errors */
     if (mask != 0x8 && mask != 0xc && mask != 0xe && mask != 0xf
          && !(s->accept_256 && !mask)) {
-        fprintf(stderr, "%s: invalid chip-select mask address (0x%x)\n",
+        error_report("%s: invalid chip-select mask address (0x%x)",
                  __func__, mask);
     }
 
@@ -642,7 +643,7 @@ static void omap_gpmc_write(void *opaque, hwaddr addr,
 
     case 0x010:	/* GPMC_SYSCONFIG */
         if ((value >> 3) == 0x3)
-            fprintf(stderr, "%s: bad SDRAM idle mode %"PRIi64"\n",
+            error_report("%s: bad SDRAM idle mode %"PRIi64"",
                             __func__, value >> 3);
         if (value & 2)
             omap_gpmc_reset(s);
@@ -806,7 +807,7 @@ static void omap_gpmc_write(void *opaque, hwaddr addr,
         break;
     case 0x230:	/* GPMC_TESTMODE_CTRL */
         if (value & 7)
-            fprintf(stderr, "%s: test mode enable attempt\n", __func__);
+            error_report("%s: test mode enable attempt", __func__);
         break;
 
     default:
@@ -864,7 +865,7 @@ void omap_gpmc_attach(struct omap_gpmc_s *s, int cs, MemoryRegion *iomem)
     assert(iomem);
 
     if (cs < 0 || cs >= 8) {
-        fprintf(stderr, "%s: bad chip-select %i\n", __func__, cs);
+        error_report("%s: bad chip-select %i", __func__, cs);
         exit(-1);
     }
     f = &s->cs_file[cs];
@@ -881,7 +882,7 @@ void omap_gpmc_attach_nand(struct omap_gpmc_s *s, int cs, DeviceState *nand)
     assert(nand);
 
     if (cs < 0 || cs >= 8) {
-        fprintf(stderr, "%s: bad chip-select %i\n", __func__, cs);
+        error_report("%s: bad chip-select %i", __func__, cs);
         exit(-1);
     }
     f = &s->cs_file[cs];

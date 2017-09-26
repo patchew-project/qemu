@@ -86,7 +86,7 @@ static int parse_filter(const char *spec, struct USBAutoFilter *f)
     }
 
     if (i < DEV) {
-        fprintf(stderr, "husb: invalid auto filter spec %s\n", spec);
+        error_report("husb: invalid auto filter spec %s", spec);
         return -1;
     }
 

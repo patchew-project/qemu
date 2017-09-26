@@ -18,6 +18,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "qemu-common.h"
 #include "cpu.h"
 #include "hw/hw.h"
@@ -83,7 +84,7 @@ static uint64_t mpc8544_guts_read(void *opaque, hwaddr addr,
         value = env->spr[SPR_E500_SVR];
         break;
     default:
-        fprintf(stderr, "guts: Unknown register read: %x\n", (int)addr);
+        error_report("guts: Unknown register read: %x", (int)addr);
         break;
     }
 
@@ -102,7 +103,7 @@ static void mpc8544_guts_write(void *opaque, hwaddr addr,
         }
         break;
     default:
-        fprintf(stderr, "guts: Unknown register write: %x = %x\n",
+        error_report("guts: Unknown register write: %x = %x",
                 (int)addr, (unsigned)value);
         break;
     }

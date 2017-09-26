@@ -1,5 +1,5 @@
 #include "qemu/osdep.h"
-
+#include "qemu/error-report.h"
 #include "hw/usb.h"
 #include "hw/usb/desc.h"
 #include "trace.h"
@@ -688,7 +688,7 @@ int usb_desc_get_descriptor(USBDevice *dev, USBPacket *p,
         break;
 
     default:
-        fprintf(stderr, "%s: %d unknown type %d (len %zd)\n", __func__,
+        error_report("%s: %d unknown type %d (len %zd)", __func__,
                 dev->addr, type, len);
         break;
     }

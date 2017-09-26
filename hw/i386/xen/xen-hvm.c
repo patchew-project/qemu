@@ -246,9 +246,10 @@ void xen_ram_alloc(ram_addr_t ram_addr, ram_addr_t size, MemoryRegion *mr,
 
     if (runstate_check(RUN_STATE_INMIGRATE)) {
         /* RAM already populated in Xen */
-        fprintf(stderr, "%s: do not alloc "RAM_ADDR_FMT
-                " bytes of ram at "RAM_ADDR_FMT" when runstate is INMIGRATE\n",
-                __func__, size, ram_addr); 
+        error_report("%s: do not alloc "RAM_ADDR_FMT
+                     " bytes of ram at "RAM_ADDR_FMT" when runstate is "
+                     " INMIGRATE",
+                     __func__, size, ram_addr);
         return;
     }
 
@@ -444,8 +445,9 @@ static int xen_remove_from_physmap(XenIOState *state,
 
         rc = xen_xc_domain_add_to_physmap(xen_xc, xen_domid, XENMAPSPACE_gmfn, idx, gpfn);
         if (rc) {
-            fprintf(stderr, "add_to_physmap MFN %"PRI_xen_pfn" to PFN %"
-                    PRI_xen_pfn" failed: %d (errno: %d)\n", idx, gpfn, rc, errno);
+            error_report("add_to_physmap MFN %"PRI_xen_pfn" to PFN %"
+                         PRI_xen_pfn" failed: %d (errno: %d)", idx,
+                         gpfn, rc, errno);
             return -rc;
         }
     }
@@ -1090,11 +1092,11 @@ static void cpu_handle_ioreq(void *opaque)
         req->data = copy.data;
 
         if (req->state != STATE_IOREQ_INPROCESS) {
-            fprintf(stderr, "Badness in I/O request ... not in service?!: "
-                    "%x, ptr: %x, port: %"PRIx64", "
-                    "data: %"PRIx64", count: %u, size: %u, type: %u\n",
-                    req->state, req->data_is_ptr, req->addr,
-                    req->data, req->count, req->size, req->type);
+            error_report("Badness in I/O request ... not in service?!: "
+                         "%x, ptr: %x, port: %"PRIx64", "
+                         "data: %"PRIx64", count: %u, size: %u, type: %u",
+                         req->state, req->data_is_ptr, req->addr,
+                         req->data, req->count, req->size, req->type);
             destroy_hvm_domain(false);
             return;
         }
@@ -1397,16 +1399,16 @@ void destroy_hvm_domain(bool reboot)
 
     xc_handle = xc_interface_open(0, 0, 0);
     if (xc_handle == NULL) {
-        fprintf(stderr, "Cannot acquire xenctrl handle\n");
+        error_report("Cannot acquire xenctrl handle");
     } else {
         sts = xc_domain_shutdown(xc_handle, xen_domid,
                                  reboot ? SHUTDOWN_reboot : SHUTDOWN_poweroff);
         if (sts != 0) {
-            fprintf(stderr, "xc_domain_shutdown failed to issue %s, "
-                    "sts %d, %s\n", reboot ? "reboot" : "poweroff",
+            error_report("xc_domain_shutdown failed to issue %s, "
+                    "sts %d, %s", reboot ? "reboot" : "poweroff",
                     sts, strerror(errno));
         } else {
-            fprintf(stderr, "Issued domain %d %s\n", xen_domid,
+            error_report("Issued domain %d %s", xen_domid,
                     reboot ? "reboot" : "poweroff");
         }
         xc_interface_close(xc_handle);
@@ -1425,7 +1427,7 @@ void xen_shutdown_fatal_error(const char *fmt, ...)
     va_start(ap, fmt);
     vfprintf(stderr, fmt, ap);
     va_end(ap);
-    fprintf(stderr, "Will destroy the domain.\n");
+    error_report("Will destroy the domain.");
     /* destroy the domain */
     qemu_system_shutdown_request(SHUTDOWN_CAUSE_HOST_ERROR);
 }

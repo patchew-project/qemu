@@ -1070,7 +1070,7 @@ ssize_t pcnet_receive(NetClientState *nc, const uint8_t *buf, size_t size_)
             if (!s->looptest) {
                 if (size > 4092) {
 #ifdef PCNET_DEBUG_RMD
-                    fprintf(stderr, "pcnet: truncates rx packet.\n");
+                    error_report("pcnet: truncates rx packet.");
 #endif
                     size = 4092;
                 }

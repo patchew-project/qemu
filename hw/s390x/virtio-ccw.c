@@ -466,7 +466,7 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
                  * passes us zeroes for those we don't support.
                  */
                 if (features.features) {
-                    fprintf(stderr, "Guest bug: features[%i]=%x (expected 0)\n",
+                    error_report("Guest bug: features[%i]=%x (expected 0)",
                             features.index, features.features);
                     /* XXX: do a unit check here? */
                 }

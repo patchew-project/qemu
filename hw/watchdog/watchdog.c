@@ -20,6 +20,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "qemu/option.h"
 #include "qemu/config-file.h"
 #include "qemu/queue.h"
@@ -51,7 +52,7 @@ int select_watchdog(const char *p)
     /* -watchdog ? lists available devices and exits cleanly. */
     if (is_help_option(p)) {
         QLIST_FOREACH(model, &watchdog_list, entry) {
-            fprintf(stderr, "\t%s\t%s\n",
+            error_report("\t%s\t%s",
                      model->wdt_name, model->wdt_description);
         }
         return 2;
@@ -67,9 +68,9 @@ int select_watchdog(const char *p)
         }
     }
 
-    fprintf(stderr, "Unknown -watchdog device. Supported devices are:\n");
+    error_report("Unknown -watchdog device. Supported devices are:");
     QLIST_FOREACH(model, &watchdog_list, entry) {
-        fprintf(stderr, "\t%s\t%s\n",
+        error_report("\t%s\t%s",
                  model->wdt_name, model->wdt_description);
     }
     return 1;
@@ -133,7 +134,7 @@ void watchdog_perform_action(void)
 
     case WDT_DEBUG:
         qapi_event_send_watchdog(WATCHDOG_EXPIRATION_ACTION_DEBUG, &error_abort);
-        fprintf(stderr, "watchdog: timer fired\n");
+        error_report("watchdog: timer fired");
         break;
 
     case WDT_NONE:

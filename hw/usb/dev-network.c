@@ -815,7 +815,7 @@ static int ndis_query(USBNetState *s, uint32_t oid,
         return sizeof(le32);
 
     default:
-        fprintf(stderr, "usbnet: unknown OID 0x%08x\n", oid);
+        error_report("usbnet: unknown OID 0x%08x", oid);
         return 0;
     }
     return -1;
@@ -1084,9 +1084,9 @@ static void usb_net_handle_control(USBDevice *dev, USBPacket *p,
             for (i = 0; i < length; i++) {
                 if (!(i & 15))
                     fprintf(stderr, "\n%04x:", i);
-                fprintf(stderr, " %02x", data[i]);
+                error_report(" %02x", data[i]);
             }
-            fprintf(stderr, "\n\n");
+            fprintf(stderr, "\n");
         }
 #endif
         ret = rndis_parse(s, data, length);
@@ -1111,17 +1111,17 @@ static void usb_net_handle_control(USBDevice *dev, USBPacket *p,
             for (i = 0; i < p->actual_length; i++) {
                 if (!(i & 15))
                     fprintf(stderr, "\n%04x:", i);
-                fprintf(stderr, " %02x", data[i]);
+                error_report(" %02x", data[i]);
             }
-            fprintf(stderr, "\n\n");
+            fprintf(stderr, "\n");
         }
 #endif
         break;
 
     default:
     fail:
-        fprintf(stderr, "usbnet: failed control transaction: "
-                        "request 0x%x value 0x%x index 0x%x length 0x%x\n",
+        error_report("usbnet: failed control transaction: "
+                        "request 0x%x value 0x%x index 0x%x length 0x%x",
                         request, value, index, length);
         p->status = USB_RET_STALL;
         break;
@@ -1190,7 +1190,7 @@ static void usb_net_handle_dataout(USBNetState *s, USBPacket *p)
     uint32_t len;
 
 #ifdef TRAFFIC_DEBUG
-    fprintf(stderr, "usbnet: data out len %zu\n", p->iov.size);
+    error_report("usbnet: data out len %zu", p->iov.size);
     iov_hexdump(p->iov.iov, p->iov.niov, stderr, "usbnet", p->iov.size);
 #endif
 
@@ -1260,8 +1260,8 @@ static void usb_net_handle_data(USBDevice *dev, USBPacket *p)
     }
 
     if (p->status == USB_RET_STALL) {
-        fprintf(stderr, "usbnet: failed data transaction: "
-                        "pid 0x%x ep 0x%x len 0x%zx\n",
+        error_report("usbnet: failed data transaction: "
+                        "pid 0x%x ep 0x%x len 0x%zx",
                         p->pid, p->ep->nr, p->iov.size);
     }
 }

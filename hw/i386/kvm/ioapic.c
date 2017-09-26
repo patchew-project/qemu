@@ -11,6 +11,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "monitor/monitor.h"
 #include "hw/i386/pc.h"
 #include "hw/i386/ioapic_internal.h"
@@ -74,7 +75,7 @@ static void kvm_ioapic_get(IOAPICCommonState *s)
     chip.chip_id = KVM_IRQCHIP_IOAPIC;
     ret = kvm_vm_ioctl(kvm_state, KVM_GET_IRQCHIP, &chip);
     if (ret < 0) {
-        fprintf(stderr, "KVM_GET_IRQCHIP failed: %s\n", strerror(ret));
+        error_report("KVM_GET_IRQCHIP failed: %s", strerror(ret));
         abort();
     }
 
@@ -107,7 +108,7 @@ static void kvm_ioapic_put(IOAPICCommonState *s)
 
     ret = kvm_vm_ioctl(kvm_state, KVM_SET_IRQCHIP, &chip);
     if (ret < 0) {
-        fprintf(stderr, "KVM_GET_IRQCHIP failed: %s\n", strerror(ret));
+        error_report("KVM_GET_IRQCHIP failed: %s", strerror(ret));
         abort();
     }
 }

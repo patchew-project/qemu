@@ -78,7 +78,7 @@ void qxl_render_resize(PCIQXLDevice *qxl)
         qxl->guest_primary.bits_pp = 32;
         break;
     default:
-        fprintf(stderr, "%s: unhandled format: %x\n", __func__,
+        error_report("%s: unhandled format: %x", __func__,
                 qxl->guest_primary.surface.format);
         qxl->guest_primary.bytes_pp = 4;
         qxl->guest_primary.bits_pp = 32;
@@ -247,7 +247,7 @@ static QEMUCursor *qxl_cursor(PCIQXLDevice *qxl, QXLCursor *cursor,
         }
         break;
     default:
-        fprintf(stderr, "%s: not implemented: type %d\n",
+        error_report("%s: not implemented: type %d",
                 __func__, cursor->header.type);
         goto fail;
     }
@@ -275,9 +275,8 @@ int qxl_render_cursor(PCIQXLDevice *qxl, QXLCommandExt *ext)
     }
 
     if (qxl->debug > 1 && cmd->type != QXL_CURSOR_MOVE) {
-        fprintf(stderr, "%s", __func__);
+        error_report("%s", __func__);
         qxl_log_cmd_cursor(qxl, cmd, ext->group_id);
-        fprintf(stderr, "\n");
     }
     switch (cmd->type) {
     case QXL_CURSOR_SET:

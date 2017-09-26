@@ -14,7 +14,7 @@
  */
 
 #include "qemu/osdep.h"
-
+#include "qemu/error-report.h"
 #include "hw/hw.h"
 #include "hw/pci/pci.h"
 #include "hw/scsi/scsi.h"
@@ -1501,7 +1501,7 @@ again:
            This is apparently sufficient to beat the drivers into submission.
          */
         if (!(s->sien0 & LSI_SIST0_UDC))
-            fprintf(stderr, "inf. loop with UDC masked\n");
+            error_report("inf. loop with UDC masked");
         lsi_script_scsi_interrupt(s, LSI_SIST0_UDC, 0);
         lsi_disconnect(s);
     } else if (s->istat1 & LSI_ISTAT1_SRUN && !s->waiting) {

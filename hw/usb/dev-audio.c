@@ -30,6 +30,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "qemu-common.h"
 #include "hw/usb.h"
 #include "hw/usb/desc.h"
@@ -398,7 +399,7 @@ static int usb_audio_set_output_altset(USBAudioState *s, int altset)
     }
 
     if (s->debug) {
-        fprintf(stderr, "usb-audio: set interface %d\n", altset);
+        error_report("usb-audio: set interface %d", altset);
     }
     s->out.altset = altset;
     return 0;
@@ -478,7 +479,7 @@ static int usb_audio_set_control(USBAudioState *s, uint8_t attrib,
             uint16_t vol = data[0] + (data[1] << 8);
 
             if (s->debug) {
-                fprintf(stderr, "usb-audio: vol %04x\n", (uint16_t)vol);
+                error_report("usb-audio: vol %04x", (uint16_t)vol);
             }
 
             vol -= 0x8000;
@@ -496,7 +497,7 @@ static int usb_audio_set_control(USBAudioState *s, uint8_t attrib,
 
     if (set_vol) {
         if (s->debug) {
-            fprintf(stderr, "usb-audio: mute %d, lvol %3d, rvol %3d\n",
+            error_report("usb-audio: mute %d, lvol %3d, rvol %3d",
                     s->out.mute, s->out.vol[0], s->out.vol[1]);
         }
         AUD_set_volume_out(s->out.voice, s->out.mute,
@@ -514,8 +515,8 @@ static void usb_audio_handle_control(USBDevice *dev, USBPacket *p,
     int ret = 0;
 
     if (s->debug) {
-        fprintf(stderr, "usb-audio: control transaction: "
-                "request 0x%04x value 0x%04x index 0x%04x length 0x%04x\n",
+        error_report("usb-audio: control transaction: "
+                "request 0x%04x value 0x%04x index 0x%04x length 0x%04x",
                 request, value, index, length);
     }
 
@@ -533,7 +534,7 @@ static void usb_audio_handle_control(USBDevice *dev, USBPacket *p,
                                     length, data);
         if (ret < 0) {
             if (s->debug) {
-                fprintf(stderr, "usb-audio: fail: get control\n");
+                error_report("usb-audio: fail: get control");
             }
             goto fail;
         }
@@ -548,7 +549,7 @@ static void usb_audio_handle_control(USBDevice *dev, USBPacket *p,
                                     length, data);
         if (ret < 0) {
             if (s->debug) {
-                fprintf(stderr, "usb-audio: fail: set control\n");
+                error_report("usb-audio: fail: set control");
             }
             goto fail;
         }
@@ -557,8 +558,8 @@ static void usb_audio_handle_control(USBDevice *dev, USBPacket *p,
     default:
 fail:
         if (s->debug) {
-            fprintf(stderr, "usb-audio: failed control transaction: "
-                    "request 0x%04x value 0x%04x index 0x%04x length 0x%04x\n",
+            error_report("usb-audio: failed control transaction: "
+                    "request 0x%04x value 0x%04x index 0x%04x length 0x%04x",
                     request, value, index, length);
         }
         p->status = USB_RET_STALL;
@@ -581,7 +582,7 @@ static void usb_audio_handle_reset(USBDevice *dev)
     USBAudioState *s = USB_AUDIO(dev);
 
     if (s->debug) {
-        fprintf(stderr, "usb-audio: reset\n");
+        error_report("usb-audio: reset");
     }
     usb_audio_set_output_altset(s, ALTSET_OFF);
 }
@@ -595,7 +596,7 @@ static void usb_audio_handle_dataout(USBAudioState *s, USBPacket *p)
 
     streambuf_put(&s->out.buf, p);
     if (p->actual_length < p->iov.size && s->debug > 1) {
-        fprintf(stderr, "usb-audio: output overrun (%zd bytes)\n",
+        error_report("usb-audio: output overrun (%zd bytes)",
                 p->iov.size - p->actual_length);
     }
 }
@@ -611,8 +612,8 @@ static void usb_audio_handle_data(USBDevice *dev, USBPacket *p)
 
     p->status = USB_RET_STALL;
     if (s->debug) {
-        fprintf(stderr, "usb-audio: failed data transaction: "
-                        "pid 0x%x ep 0x%x len 0x%zx\n",
+        error_report("usb-audio: failed data transaction: "
+                        "pid 0x%x ep 0x%x len 0x%zx",
                         p->pid, p->ep->nr, p->iov.size);
     }
 }
@@ -622,7 +623,7 @@ static void usb_audio_unrealize(USBDevice *dev, Error **errp)
     USBAudioState *s = USB_AUDIO(dev);
 
     if (s->debug) {
-        fprintf(stderr, "usb-audio: destroy\n");
+        error_report("usb-audio: destroy");
     }
 
     usb_audio_set_output_altset(s, ALTSET_OFF);

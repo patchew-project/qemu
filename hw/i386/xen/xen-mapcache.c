@@ -377,7 +377,7 @@ ram_addr_t xen_ram_addr_from_mapcache(void *ptr)
         }
     }
     if (!found) {
-        fprintf(stderr, "%s, could not find %p\n", __func__, ptr);
+        error_report("%s, could not find %p", __func__, ptr);
         QTAILQ_FOREACH(reventry, &mapcache->locked_entries, next) {
             DPRINTF("   "TARGET_FMT_plx" -> %p is present\n", reventry->paddr_index,
                     reventry->vaddr_req);
@@ -477,9 +477,9 @@ void xen_invalidate_map_cache(void)
         if (!reventry->dma) {
             continue;
         }
-        fprintf(stderr, "Locked DMA mapping while invalidating mapcache!"
-                " "TARGET_FMT_plx" -> %p is present\n",
-                reventry->paddr_index, reventry->vaddr_req);
+        error_report("Locked DMA mapping while invalidating mapcache!"
+                     " "TARGET_FMT_plx" -> %p is present",
+                     reventry->paddr_index, reventry->vaddr_req);
     }
 
     for (i = 0; i < mapcache->nr_buckets; i++) {
@@ -545,8 +545,8 @@ static uint8_t *xen_replace_cache_entry_unlocked(hwaddr old_phys_addr,
     address_index  = new_phys_addr >> MCACHE_BUCKET_SHIFT;
     address_offset = new_phys_addr & (MCACHE_BUCKET_SIZE - 1);
 
-    fprintf(stderr, "Replacing a dummy mapcache entry for "TARGET_FMT_plx \
-            " with "TARGET_FMT_plx"\n", old_phys_addr, new_phys_addr);
+    error_report("Replacing a dummy mapcache entry for "TARGET_FMT_plx \
+                 " with "TARGET_FMT_plx"", old_phys_addr, new_phys_addr);
 
     xen_remap_bucket(entry, entry->vaddr_base,
                      cache_size, address_index, false);

@@ -353,7 +353,7 @@ static const void *boston_fdt_filter(void *opaque, const void *fdt_orig,
 
     err = fdt_open_into(fdt_orig, fdt, fdt_sz);
     if (err) {
-        fprintf(stderr, "unable to open FDT\n");
+        error_report("unable to open FDT");
         return NULL;
     }
 
@@ -361,7 +361,7 @@ static const void *boston_fdt_filter(void *opaque, const void *fdt_orig,
             ? machine->kernel_cmdline : " ";
     err = qemu_fdt_setprop_string(fdt, "/chosen", "bootargs", cmdline);
     if (err < 0) {
-        fprintf(stderr, "couldn't set /chosen/bootargs\n");
+        error_report("couldn't set /chosen/bootargs");
         return NULL;
     }
 

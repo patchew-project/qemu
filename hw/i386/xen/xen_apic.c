@@ -24,7 +24,7 @@ static void xen_apic_mem_write(void *opaque, hwaddr addr,
                                uint64_t data, unsigned size)
 {
     if (size != sizeof(uint32_t)) {
-        fprintf(stderr, "Xen: APIC write data size = %d, invalid\n", size);
+        error_report("Xen: APIC write data size = %d, invalid", size);
         return;
     }
 

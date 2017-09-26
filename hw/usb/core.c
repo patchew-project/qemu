@@ -24,6 +24,7 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "qemu-common.h"
 #include "hw/usb.h"
 #include "qemu/iov.h"
@@ -599,7 +600,7 @@ void usb_packet_copy(USBPacket *p, void *ptr, size_t bytes)
         iov_from_buf(iov->iov, iov->niov, p->actual_length, ptr, bytes);
         break;
     default:
-        fprintf(stderr, "%s: invalid pid: %x\n", __func__, p->pid);
+        error_report("%s: invalid pid: %x", __func__, p->pid);
         abort();
     }
     p->actual_length += bytes;
@@ -681,7 +682,7 @@ void usb_ep_dump(USBDevice *dev)
     };
     int ifnum, ep, first;
 
-    fprintf(stderr, "Device \"%s\", config %d\n",
+    error_report("Device \"%s\", config %d",
             dev->product_desc, dev->configuration);
     for (ifnum = 0; ifnum < 16; ifnum++) {
         first = 1;
@@ -690,10 +691,10 @@ void usb_ep_dump(USBDevice *dev)
                 dev->ep_in[ep].ifnum == ifnum) {
                 if (first) {
                     first = 0;
-                    fprintf(stderr, "  Interface %d, alternative %d\n",
+                    error_report("  Interface %d, alternative %d",
                             ifnum, dev->altsetting[ifnum]);
                 }
-                fprintf(stderr, "    Endpoint %d, IN, %s, %d max\n", ep,
+                error_report("    Endpoint %d, IN, %s, %d max", ep,
                         tname[dev->ep_in[ep].type],
                         dev->ep_in[ep].max_packet_size);
             }
@@ -701,16 +702,16 @@ void usb_ep_dump(USBDevice *dev)
                 dev->ep_out[ep].ifnum == ifnum) {
                 if (first) {
                     first = 0;
-                    fprintf(stderr, "  Interface %d, alternative %d\n",
+                    error_report("  Interface %d, alternative %d",
                             ifnum, dev->altsetting[ifnum]);
                 }
-                fprintf(stderr, "    Endpoint %d, OUT, %s, %d max\n", ep,
+                error_report("    Endpoint %d, OUT, %s, %d max", ep,
                         tname[dev->ep_out[ep].type],
                         dev->ep_out[ep].max_packet_size);
             }
         }
     }
-    fprintf(stderr, "--\n");
+    error_report("--");
 }
 
 struct USBEndpoint *usb_ep_get(USBDevice *dev, int pid, int ep)

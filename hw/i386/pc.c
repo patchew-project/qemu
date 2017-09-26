@@ -856,14 +856,14 @@ static void load_linux(PCMachineState *pcms,
     if (!f || !(kernel_size = get_file_size(f)) ||
         fread(header, 1, MIN(ARRAY_SIZE(header), kernel_size), f) !=
         MIN(ARRAY_SIZE(header), kernel_size)) {
-        fprintf(stderr, "qemu: could not load kernel '%s': %s\n",
+        error_report("qemu: could not load kernel '%s': %s",
                 kernel_filename, strerror(errno));
         exit(1);
     }
 
     /* kernel protocol version */
 #if 0
-    fprintf(stderr, "header magic: %#x\n", ldl_p(header+0x202));
+    error_report("header magic: %#x", ldl_p(header + 0x202));
 #endif
     if (ldl_p(header+0x202) == 0x53726448) {
         protocol = lduw_p(header+0x206);
@@ -960,13 +960,13 @@ static void load_linux(PCMachineState *pcms,
     /* load initrd */
     if (initrd_filename) {
         if (protocol < 0x200) {
-            fprintf(stderr, "qemu: linux kernel too old to load a ram disk\n");
+            error_report("qemu: linux kernel too old to load a ram disk");
             exit(1);
         }
 
         initrd_size = get_image_size(initrd_filename);
         if (initrd_size < 0) {
-            fprintf(stderr, "qemu: error reading initrd %s: %s\n",
+            error_report("qemu: error reading initrd %s: %s",
                     initrd_filename, strerror(errno));
             exit(1);
         }
@@ -991,7 +991,7 @@ static void load_linux(PCMachineState *pcms,
     }
     setup_size = (setup_size+1)*512;
     if (setup_size > kernel_size) {
-        fprintf(stderr, "qemu: invalid kernel header\n");
+        error_report("qemu: invalid kernel header");
         exit(1);
     }
     kernel_size -= setup_size;
@@ -1000,11 +1000,11 @@ static void load_linux(PCMachineState *pcms,
     kernel = g_malloc(kernel_size);
     fseek(f, 0, SEEK_SET);
     if (fread(setup, 1, setup_size, f) != setup_size) {
-        fprintf(stderr, "fread() failed\n");
+        error_report("fread() failed");
         exit(1);
     }
     if (fread(kernel, 1, kernel_size, f) != kernel_size) {
-        fprintf(stderr, "fread() failed\n");
+        error_report("fread() failed");
         exit(1);
     }
     fclose(f);
@@ -1012,13 +1012,13 @@ static void load_linux(PCMachineState *pcms,
     /* append dtb to kernel */
     if (dtb_filename) {
         if (protocol < 0x209) {
-            fprintf(stderr, "qemu: Linux kernel too old to load a dtb\n");
+            error_report("qemu: Linux kernel too old to load a dtb");
             exit(1);
         }
 
         dtb_size = get_image_size(dtb_filename);
         if (dtb_size <= 0) {
-            fprintf(stderr, "qemu: error reading dtb %s: %s\n",
+            error_report("qemu: error reading dtb %s: %s",
                     dtb_filename, strerror(errno));
             exit(1);
         }

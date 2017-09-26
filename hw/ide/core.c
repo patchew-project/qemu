@@ -2762,7 +2762,7 @@ static void ide_drive_pio_pre_save(void *opaque)
 
     idx = transfer_end_table_idx(s->end_transfer_func);
     if (idx == -1) {
-        fprintf(stderr, "%s: invalid end_transfer_func for DRQ_STAT\n",
+        error_report("%s: invalid end_transfer_func for DRQ_STAT",
                         __func__);
         s->end_transfer_fn_idx = 2;
     } else {

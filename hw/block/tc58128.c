@@ -50,8 +50,8 @@ static void init_dev(tc58128_dev * dev, const char *filename)
 	    dev->flash_contents[1] = (blocks >> 8) & 0xff;
 	    dev->flash_contents[2] = (blocks >> 16) & 0xff;
 	    dev->flash_contents[3] = (blocks >> 24) & 0xff;
-	    fprintf(stderr, "loaded %d bytes for %s into flash\n", ret,
-		    filename);
+        error_report("loaded %d bytes for %s into flash", ret,
+                     filename);
 	}
     }
 }
@@ -60,26 +60,26 @@ static void handle_command(tc58128_dev * dev, uint8_t command)
 {
     switch (command) {
     case 0xff:
-	fprintf(stderr, "reset flash device\n");
-	dev->state = WAIT;
-	break;
+        error_report("reset flash device");
+        dev->state = WAIT;
+        break;
     case 0x00:
-	fprintf(stderr, "read mode 1\n");
-	dev->state = READ1;
-	dev->address_cycle = 0;
-	break;
+        error_report("read mode 1");
+        dev->state = READ1;
+        dev->address_cycle = 0;
+        break;
     case 0x01:
-	fprintf(stderr, "read mode 2\n");
-	dev->state = READ2;
-	dev->address_cycle = 0;
-	break;
+        error_report("read mode 2");
+        dev->state = READ2;
+        dev->address_cycle = 0;
+        break;
     case 0x50:
-	fprintf(stderr, "read mode 3\n");
-	dev->state = READ3;
-	dev->address_cycle = 0;
-	break;
+        error_report("read mode 3");
+        dev->state = READ3;
+        dev->address_cycle = 0;
+        break;
     default:
-	fprintf(stderr, "unknown flash command 0x%02x\n", command);
+        error_report("unknown flash command 0x%02x", command);
         abort();
     }
 }
@@ -103,8 +103,8 @@ static void handle_address(tc58128_dev * dev, uint8_t data)
 	    break;
 	case 2:
 	    dev->address += data * 528;
-	    fprintf(stderr, "address pointer in flash: 0x%08x\n",
-		    dev->address);
+        error_report("address pointer in flash: 0x%08x",
+                     dev->address);
 	    break;
 	default:
 	    /* Invalid data */
@@ -119,10 +119,6 @@ static void handle_address(tc58128_dev * dev, uint8_t data)
 
 static uint8_t handle_read(tc58128_dev * dev)
 {
-#if 0
-    if (dev->address % 0x100000 == 0)
-	fprintf(stderr, "reading flash at address 0x%08x\n", dev->address);
-#endif
     return dev->flash_contents[dev->address++];
 }
 

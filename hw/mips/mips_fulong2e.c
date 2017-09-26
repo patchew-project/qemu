@@ -143,7 +143,7 @@ static int64_t load_kernel (CPUMIPSState *env)
                                      initrd_offset, ram_size - initrd_offset);
         }
         if (initrd_size == (target_ulong) -1) {
-            fprintf(stderr, "qemu: could not load initial ram disk '%s'\n",
+            error_report("qemu: could not load initial ram disk '%s'",
                     loaderparams.initrd_filename);
             exit(1);
         }
@@ -342,7 +342,7 @@ static void mips_fulong2e_init(MachineState *machine)
 
     isa_bus = vt82c686b_init(pci_bus, PCI_DEVFN(FULONG2E_VIA_SLOT, 0));
     if (!isa_bus) {
-        fprintf(stderr, "vt82c686b_init error\n");
+        error_report("vt82c686b_init error");
         exit(1);
     }
 

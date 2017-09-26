@@ -73,7 +73,7 @@ void xen_pt_log(const PCIDevice *d, const char *f, ...)
 
     va_start(ap, f);
     if (d) {
-        fprintf(stderr, "[%02x:%02x.%d] ", pci_bus_num(d->bus),
+        error_report("[%02x:%02x.%d] ", pci_bus_num(d->bus),
                 PCI_SLOT(d->devfn), PCI_FUNC(d->devfn));
     }
     vfprintf(stderr, f, ap);
@@ -87,7 +87,7 @@ static int xen_pt_pci_config_access_check(PCIDevice *d, uint32_t addr, int len)
     /* check offset range */
     if (addr > 0xFF) {
         XEN_PT_ERR(d, "Failed to access register with offset exceeding 0xFF. "
-                   "(addr: 0x%02x, len: %d)\n", addr, len);
+                   "(addr: 0x%02x, len: %d)", addr, len);
         return -1;
     }
 

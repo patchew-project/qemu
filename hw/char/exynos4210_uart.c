@@ -296,7 +296,7 @@ static void exynos4210_uart_update_irq(Exynos4210UartState *s)
         qemu_irq_raise(s->irq);
 
 #if DEBUG_IRQ
-        fprintf(stderr, "UART%d: IRQ has been raised: %08x\n",
+        error_report("UART%d: IRQ has been raised: %08x",
                 s->channel, s->reg[I_(UINTP)]);
 #endif
 
@@ -388,7 +388,7 @@ static void exynos4210_uart_write(void *opaque, hwaddr offset,
              * qemu_chr_fe_write and background I/O callbacks */
             qemu_chr_fe_write_all(&s->chr, &ch, 1);
 #if DEBUG_Tx_DATA
-            fprintf(stderr, "%c", ch);
+            error_report("%c", ch);
 #endif
             s->reg[I_(UTRSTAT)] |= UTRSTAT_TRANSMITTER_EMPTY |
                     UTRSTAT_Tx_BUFFER_EMPTY;
@@ -400,7 +400,7 @@ static void exynos4210_uart_write(void *opaque, hwaddr offset,
     case UINTP:
         s->reg[I_(UINTP)] &= ~val;
         s->reg[I_(UINTSP)] &= ~val;
-        PRINT_DEBUG("UART%d: UINTP [%04x] have been cleared: %08x\n",
+        PRINT_DEBUG("UART%d: UINTP [%04x] have been cleared: %08x",
                     s->channel, offset, s->reg[I_(UINTP)]);
         exynos4210_uart_update_irq(s);
         break;

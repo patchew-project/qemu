@@ -261,7 +261,7 @@ static unsigned long sun4m_load_kernel(const char *kernel_filename,
                                               KERNEL_LOAD_ADDR,
                                               RAM_size - KERNEL_LOAD_ADDR);
         if (kernel_size < 0) {
-            fprintf(stderr, "qemu: could not load kernel '%s'\n",
+            error_report("qemu: could not load kernel '%s'",
                     kernel_filename);
             exit(1);
         }
@@ -273,8 +273,8 @@ static unsigned long sun4m_load_kernel(const char *kernel_filename,
                                               INITRD_LOAD_ADDR,
                                               RAM_size - INITRD_LOAD_ADDR);
             if (initrd_size < 0) {
-                fprintf(stderr, "qemu: could not load initial ram disk '%s'\n",
-                        initrd_filename);
+                error_report("qemu: could not load initial ram disk '%s'",
+                             initrd_filename);
                 exit(1);
             }
         }
@@ -688,7 +688,7 @@ static void prom_init(hwaddr addr, const char *bios_name)
         ret = -1;
     }
     if (ret < 0 || ret > PROM_SIZE_MAX) {
-        fprintf(stderr, "qemu: could not load prom '%s'\n", bios_name);
+        error_report("qemu: could not load prom '%s'", bios_name);
         exit(1);
     }
 }

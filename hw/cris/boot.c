@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "qemu-common.h"
 #include "cpu.h"
 #include "hw/hw.h"
@@ -86,14 +87,14 @@ void cris_load_image(CRISCPU *cpu, struct cris_load_info *li)
     }
 
     if (image_size < 0) {
-        fprintf(stderr, "qemu: could not load kernel '%s'\n",
+        error_report("qemu: could not load kernel '%s'",
                 li->image_filename);
         exit(1);
     }
 
     if (li->cmdline && (kcmdline_len = strlen(li->cmdline))) {
         if (kcmdline_len > 256) {
-            fprintf(stderr, "Too long CRIS kernel cmdline (max 256)\n");
+            error_report("Too long CRIS kernel cmdline (max 256)");
             exit(1);
         }
         pstrcpy_targphys("cmdline", 0x40000000, 256, li->cmdline);

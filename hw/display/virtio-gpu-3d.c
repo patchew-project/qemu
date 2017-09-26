@@ -473,7 +473,7 @@ void virtio_gpu_virgl_process_cmd(VirtIOGPU *g,
         return;
     }
     if (cmd->error) {
-        fprintf(stderr, "%s: ctrl 0x%x, error 0x%x\n", __func__,
+        error_report("%s: ctrl 0x%x, error 0x%x", __func__,
                 cmd->cmd_hdr.type, cmd->error);
         virtio_gpu_ctrl_response_nodata(g, cmd, cmd->error);
         return;
@@ -556,7 +556,7 @@ static void virtio_gpu_print_stats(void *opaque)
     VirtIOGPU *g = opaque;
 
     if (g->stats.requests) {
-        fprintf(stderr, "stats: vq req %4d, %3d -- 3D %4d (%5d)\n",
+        error_report("stats: vq req %4d, %3d -- 3D %4d (%5d)",
                 g->stats.requests,
                 g->stats.max_inflight,
                 g->stats.req_3d,

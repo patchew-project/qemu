@@ -539,8 +539,8 @@ static void omap2_inth_write(void *opaque, hwaddr addr,
         /* TODO: Make a bitmap (or sizeof(char)map) of access privileges
          * for every register, see Chapter 3 and 4 for privileged mode.  */
         if (value & 1)
-            fprintf(stderr, "%s: protection mode enable attempt\n",
-                            __func__);
+            error_report("%s: protection mode enable attempt",
+                          __func__);
         return;
 
     case 0x50:	/* INTC_IDLE */

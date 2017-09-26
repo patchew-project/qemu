@@ -614,7 +614,7 @@ static void menelaus_write(void *opaque, uint8_t addr, uint8_t value)
             break;
         rtc_badness:
         default:
-            fprintf(stderr, "%s: bad RTC_UPDATE value %02x\n",
+            error_report("%s: bad RTC_UPDATE value %02x",
                             __func__, value);
             s->status |= 1 << 10;				/* RTCERR */
             menelaus_update(s);

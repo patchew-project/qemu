@@ -24,6 +24,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include <linux/kvm.h>
 #include "qapi/error.h"
 #include "qemu/timer.h"
@@ -101,7 +102,7 @@ static void kvm_pit_get(PITCommonState *pit)
     if (kvm_has_pit_state2()) {
         ret = kvm_vm_ioctl(kvm_state, KVM_GET_PIT2, &kpit);
         if (ret < 0) {
-            fprintf(stderr, "KVM_GET_PIT2 failed: %s\n", strerror(ret));
+            error_report("KVM_GET_PIT2 failed: %s", strerror(ret));
             abort();
         }
         pit->channels[0].irq_disabled = kpit.flags & KVM_PIT_FLAGS_HPET_LEGACY;
@@ -112,7 +113,7 @@ static void kvm_pit_get(PITCommonState *pit)
          */
         ret = kvm_vm_ioctl(kvm_state, KVM_GET_PIT, &kpit);
         if (ret < 0) {
-            fprintf(stderr, "KVM_GET_PIT failed: %s\n", strerror(ret));
+            error_report("KVM_GET_PIT failed: %s", strerror(ret));
             abort();
         }
     }
@@ -175,7 +176,7 @@ static void kvm_pit_put(PITCommonState *pit)
                        kvm_has_pit_state2() ? KVM_SET_PIT2 : KVM_SET_PIT,
                        &kpit);
     if (ret < 0) {
-        fprintf(stderr, "%s failed: %s\n",
+        error_report("%s failed: %s",
                 kvm_has_pit_state2() ? "KVM_SET_PIT2" : "KVM_SET_PIT",
                 strerror(ret));
         abort();

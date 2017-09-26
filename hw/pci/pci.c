@@ -515,7 +515,7 @@ static int get_pci_irq_state(QEMUFile *f, void *pv, size_t size,
     for (i = 0; i < PCI_NUM_PINS; ++i) {
         irq_state[i] = qemu_get_be32(f);
         if (irq_state[i] != 0x1 && irq_state[i] != 0) {
-            fprintf(stderr, "irq state %d: must be 0 or 1.\n",
+            error_report("irq state %d: must be 0 or 1.",
                     irq_state[i]);
             return -EINVAL;
         }
@@ -678,7 +678,7 @@ static PCIBus *pci_get_bus_devfn(int *devfnp, PCIBus *root,
     unsigned slot;
 
     if (!root) {
-        fprintf(stderr, "No primary PCI bus\n");
+        error_report("No primary PCI bus");
         return NULL;
     }
 
@@ -694,7 +694,7 @@ static PCIBus *pci_get_bus_devfn(int *devfnp, PCIBus *root,
     }
 
     if (dom != 0) {
-        fprintf(stderr, "No support for non-zero PCI domains\n");
+        error_report("No support for non-zero PCI domains");
         return NULL;
     }
 
@@ -1118,8 +1118,8 @@ void pci_register_bar(PCIDevice *pci_dev, int region_num,
     assert(region_num >= 0);
     assert(region_num < PCI_NUM_REGIONS);
     if (size & (size-1)) {
-        fprintf(stderr, "ERROR: PCI region size must be pow2 "
-                    "type=0x%x, size=0x%"FMT_PCIBUS"\n", type, size);
+        error_report("ERROR: PCI region size must be pow2 "
+                    "type=0x%x, size=0x%"FMT_PCIBUS"", type, size);
         exit(1);
     }
 

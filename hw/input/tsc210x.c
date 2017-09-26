@@ -396,8 +396,8 @@ static uint16_t tsc2102_data_register_read(TSC210xState *s, int reg)
 
     default:
 #ifdef TSC_VERBOSE
-        fprintf(stderr, "tsc2102_data_register_read: "
-                        "no such register: 0x%02x\n", reg);
+        error_report("tsc2102_data_register_read: "
+                     "no such register: 0x%02x", reg);
 #endif
         return 0xffff;
     }
@@ -447,8 +447,8 @@ static uint16_t tsc2102_control_register_read(
     default:
     bad_reg:
 #ifdef TSC_VERBOSE
-        fprintf(stderr, "tsc2102_control_register_read: "
-                        "no such register: 0x%02x\n", reg);
+        error_report("tsc2102_control_register_read: "
+                     "no such register: 0x%02x", reg);
 #endif
         return 0xffff;
     }
@@ -528,8 +528,8 @@ static uint16_t tsc2102_audio_register_read(TSC210xState *s, int reg)
 
     default:
 #ifdef TSC_VERBOSE
-        fprintf(stderr, "tsc2102_audio_register_read: "
-                        "no such register: 0x%02x\n", reg);
+        error_report("tsc2102_audio_register_read: "
+                     "no such register: 0x%02x", reg);
 #endif
         return 0xffff;
     }
@@ -553,8 +553,8 @@ static void tsc2102_data_register_write(
 
     default:
 #ifdef TSC_VERBOSE
-        fprintf(stderr, "tsc2102_data_register_write: "
-                        "no such register: 0x%02x\n", reg);
+        error_report("tsc2102_data_register_write: "
+                     "no such register: 0x%02x", reg);
 #endif
     }
 }
@@ -606,8 +606,8 @@ static void tsc2102_control_register_write(
             tsc210x_reset(s);
 #ifdef TSC_VERBOSE
         } else {
-            fprintf(stderr, "tsc2102_control_register_write: "
-                            "wrong value written into RESET\n");
+            error_report("tsc2102_control_register_write: "
+                         "wrong value written into RESET");
 #endif
         }
         return;
@@ -616,8 +616,8 @@ static void tsc2102_control_register_write(
         s->timing = value & 0x3f;
 #ifdef TSC_VERBOSE
         if (value & ~0x3f)
-            fprintf(stderr, "tsc2102_control_register_write: "
-                            "wrong value written into CONFIG\n");
+            error_report("tsc2102_control_register_write: "
+                         "wrong value written into CONFIG");
 #endif
         return;
 
@@ -637,8 +637,8 @@ static void tsc2102_control_register_write(
     default:
     bad_reg:
 #ifdef TSC_VERBOSE
-        fprintf(stderr, "tsc2102_control_register_write: "
-                        "no such register: 0x%02x\n", reg);
+        error_report("tsc2102_control_register_write: "
+                     "no such register: 0x%02x", reg);
 #endif
     }
 }
@@ -651,8 +651,8 @@ static void tsc2102_audio_register_write(
         s->audio_ctrl1 = value & 0x0f3f;
 #ifdef TSC_VERBOSE
         if ((value & ~0x0f3f) || ((value & 7) != ((value >> 3) & 7)))
-            fprintf(stderr, "tsc2102_audio_register_write: "
-                            "wrong value written into Audio 1\n");
+            error_report("tsc2102_audio_register_write: "
+                         "wrong value written into Audio 1");
 #endif
         tsc2102_audio_rate_update(s);
         tsc2102_audio_output_update(s);
@@ -661,8 +661,8 @@ static void tsc2102_audio_register_write(
     case 0x01:
 #ifdef TSC_VERBOSE
         if (value != 0xff00)
-            fprintf(stderr, "tsc2102_audio_register_write: "
-                            "wrong value written into reg 0x01\n");
+            error_report("tsc2102_audio_register_write: "
+                         "wrong value written into reg 0x01");
 #endif
         return;
 
@@ -674,8 +674,8 @@ static void tsc2102_audio_register_write(
     case 0x03:
 #ifdef TSC_VERBOSE
         if (value != 0x8b00)
-            fprintf(stderr, "tsc2102_audio_register_write: "
-                            "wrong value written into reg 0x03\n");
+            error_report("tsc2102_audio_register_write: "
+                         "wrong value written into reg 0x03");
 #endif
         return;
 
@@ -683,8 +683,8 @@ static void tsc2102_audio_register_write(
         s->audio_ctrl2 = value & 0xf7f2;
 #ifdef TSC_VERBOSE
         if (value & ~0xf7fd)
-            fprintf(stderr, "tsc2102_audio_register_write: "
-                            "wrong value written into Audio 2\n");
+            error_report("tsc2102_audio_register_write: "
+                         "wrong value written into Audio 2");
 #endif
         return;
 
@@ -695,8 +695,8 @@ static void tsc2102_audio_register_write(
         s->dac_power = value & 0x9543;
 #ifdef TSC_VERBOSE
         if ((value & ~0x9543) != 0x2aa0)
-            fprintf(stderr, "tsc2102_audio_register_write: "
-                            "wrong value written into Power\n");
+            error_report("tsc2102_audio_register_write: "
+                         "wrong value written into Power");
 #endif
         tsc2102_audio_rate_update(s);
         tsc2102_audio_output_update(s);
@@ -707,8 +707,8 @@ static void tsc2102_audio_register_write(
         s->audio_ctrl3 |= value & 0xf800;
 #ifdef TSC_VERBOSE
         if (value & ~0xf8c7)
-            fprintf(stderr, "tsc2102_audio_register_write: "
-                            "wrong value written into Audio 3\n");
+            error_report("tsc2102_audio_register_write: "
+                         "wrong value written into Audio 3");
 #endif
         tsc2102_audio_output_update(s);
         return;
@@ -740,8 +740,8 @@ static void tsc2102_audio_register_write(
         s->pll[0] = value & 0xfffc;
 #ifdef TSC_VERBOSE
         if (value & ~0xfffc)
-            fprintf(stderr, "tsc2102_audio_register_write: "
-                            "wrong value written into PLL 1\n");
+            error_report("tsc2102_audio_register_write: "
+                         "wrong value written into PLL 1");
 #endif
         return;
 
@@ -749,8 +749,8 @@ static void tsc2102_audio_register_write(
         s->pll[1] = value & 0xfffc;
 #ifdef TSC_VERBOSE
         if (value & ~0xfffc)
-            fprintf(stderr, "tsc2102_audio_register_write: "
-                            "wrong value written into PLL 2\n");
+            error_report("tsc2102_audio_register_write: "
+                         "wrong value written into PLL 2");
 #endif
         return;
 
@@ -758,15 +758,15 @@ static void tsc2102_audio_register_write(
         s->softstep = !(value & 0x4000);
 #ifdef TSC_VERBOSE
         if (value & ~0x4000)
-            fprintf(stderr, "tsc2102_audio_register_write: "
-                            "wrong value written into Audio 4\n");
+            error_report("tsc2102_audio_register_write: "
+                         "wrong value written into Audio 4");
 #endif
         return;
 
     default:
 #ifdef TSC_VERBOSE
-        fprintf(stderr, "tsc2102_audio_register_write: "
-                        "no such register: 0x%02x\n", reg);
+        error_report("tsc2102_audio_register_write: "
+                     "no such register: 0x%02x", reg);
 #endif
     }
 }
@@ -847,7 +847,7 @@ static uint16_t tsc210x_read(TSC210xState *s)
     uint16_t ret = 0x0000;
 
     if (!s->command)
-        fprintf(stderr, "tsc210x_read: SPI underrun!\n");
+        error_report("tsc210x_read: SPI underrun!");
 
     switch (s->page) {
     case TSC_DATA_REGISTERS_PAGE:
@@ -886,7 +886,7 @@ static void tsc210x_write(TSC210xState *s, uint16_t value)
         s->state = true;
     } else {
         if (s->command)
-            fprintf(stderr, "tsc210x_write: SPI overrun!\n");
+            error_report("tsc210x_write: SPI overrun!");
         else
             switch (s->page) {
             case TSC_DATA_REGISTERS_PAGE:

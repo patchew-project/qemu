@@ -174,7 +174,7 @@ static void pl110_update_display(void *opaque)
         dest_width = 4;
         break;
     default:
-        fprintf(stderr, "pl110: Bad color depth\n");
+        error_report("pl110: Bad color depth");
         exit(1);
     }
     if (s->cr & PL110_CR_BGR)

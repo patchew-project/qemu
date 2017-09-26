@@ -598,7 +598,7 @@ static void onenand_command(OneNANDState *s)
     default:
         s->status |= ONEN_ERR_CMD;
         s->intstatus |= ONEN_INT;
-        fprintf(stderr, "%s: unknown OneNAND command %x\n",
+        error_report("%s: unknown OneNAND command %x",
                         __func__, s->command);
     }
 
@@ -665,7 +665,7 @@ static uint64_t onenand_read(void *opaque, hwaddr addr,
         return 0x0000;
     }
 
-    fprintf(stderr, "%s: unknown OneNAND register %x\n",
+    error_report("%s: unknown OneNAND register %x",
                     __func__, offset);
     return 0;
 }
@@ -710,7 +710,7 @@ static void onenand_write(void *opaque, hwaddr addr,
             break;
 
         default:
-            fprintf(stderr, "%s: unknown OneNAND boot command %"PRIx64"\n",
+            error_report("%s: unknown OneNAND boot command %"PRIx64"",
                             __func__, value);
         }
         break;
@@ -761,7 +761,7 @@ static void onenand_write(void *opaque, hwaddr addr,
         break;
 
     default:
-        fprintf(stderr, "%s: unknown OneNAND register %x\n",
+        error_report("%s: unknown OneNAND register %x",
                         __func__, offset);
     }
 }

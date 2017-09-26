@@ -80,7 +80,7 @@ static uint64_t vmport_ioport_read(void *opaque, hwaddr addr,
     if (!s->func[command])
     {
 #ifdef VMPORT_DEBUG
-        fprintf(stderr, "vmport: unknown command %x\n", command);
+        error_report("vmport: unknown command %x", command);
 #endif
         return eax;
     }

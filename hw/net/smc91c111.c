@@ -8,6 +8,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "hw/sysbus.h"
 #include "net/net.h"
 #include "hw/devices.h"
@@ -362,9 +363,9 @@ static void smc91c111_writeb(void *opaque, hwaddr offset,
             return;
         case 12: /* Control */
             if (value & 1)
-                fprintf(stderr, "smc91c111:EEPROM store not implemented\n");
+                error_report("smc91c111:EEPROM store not implemented");
             if (value & 2)
-                fprintf(stderr, "smc91c111:EEPROM reload not implemented\n");
+                error_report("smc91c111:EEPROM reload not implemented");
             value &= ~3;
             SET_LOW(ctr, value);
             return;

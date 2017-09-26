@@ -333,13 +333,13 @@ static int ppce500_load_device_tree(MachineState *machine,
         ret = qemu_fdt_setprop_cell(fdt, "/chosen", "linux,initrd-start",
                                     initrd_base);
         if (ret < 0) {
-            fprintf(stderr, "couldn't set /chosen/linux,initrd-start\n");
+            error_report("couldn't set /chosen/linux,initrd-start");
         }
 
         ret = qemu_fdt_setprop_cell(fdt, "/chosen", "linux,initrd-end",
                                     (initrd_base + initrd_size));
         if (ret < 0) {
-            fprintf(stderr, "couldn't set /chosen/linux,initrd-end\n");
+            error_report("couldn't set /chosen/linux,initrd-end");
         }
 
     }
@@ -353,7 +353,7 @@ static int ppce500_load_device_tree(MachineState *machine,
     ret = qemu_fdt_setprop_string(fdt, "/chosen", "bootargs",
                                       machine->kernel_cmdline);
     if (ret < 0)
-        fprintf(stderr, "couldn't set /chosen/bootargs\n");
+        error_report("couldn't set /chosen/bootargs");
 
     if (kvm_enabled()) {
         /* Read out host's frequencies */
@@ -720,7 +720,7 @@ static DeviceState *ppce500_init_mpic_kvm(PPCE500Params *params,
 
     CPU_FOREACH(cs) {
         if (kvm_openpic_connect_vcpu(dev, cs)) {
-            fprintf(stderr, "%s: failed to connect vcpu to irqchip\n",
+            error_report("%s: failed to connect vcpu to irqchip",
                     __func__);
             abort();
         }
@@ -821,7 +821,7 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
         cs = CPU(cpu);
 
         if (env->mmu_model != POWERPC_MMU_BOOKE206) {
-            fprintf(stderr, "MMU model %i not supported by this machine.\n",
+            error_report("MMU model %i not supported by this machine.",
                 env->mmu_model);
             exit(1);
         }
@@ -967,7 +967,7 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
                                           cur_base,
                                           ram_size - cur_base);
         if (kernel_size < 0) {
-            fprintf(stderr, "qemu: could not load kernel '%s'\n",
+            error_report("qemu: could not load kernel '%s'",
                     machine->kernel_filename);
             exit(1);
         }
@@ -982,8 +982,8 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
                                           ram_size - initrd_base);
 
         if (initrd_size < 0) {
-            fprintf(stderr, "qemu: could not load initial ram disk '%s'\n",
-                    machine->initrd_filename);
+            error_report("qemu: could not load initial ram disk '%s'",
+                         machine->initrd_filename);
             exit(1);
         }
 
@@ -1024,7 +1024,7 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
         kernel_size = load_uimage(filename, &bios_entry, &loadaddr, NULL,
                                   NULL, NULL);
         if (kernel_size < 0) {
-            fprintf(stderr, "qemu: could not load firmware '%s'\n", filename);
+            error_report("qemu: could not load firmware '%s'", filename);
             exit(1);
         }
     }
@@ -1037,7 +1037,7 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
                                        initrd_base, initrd_size,
                                        kernel_base, kernel_size);
     if (dt_size < 0) {
-        fprintf(stderr, "couldn't load device tree\n");
+        error_report("couldn't load device tree");
         exit(1);
     }
     assert(dt_size < DTB_MAX_SIZE);

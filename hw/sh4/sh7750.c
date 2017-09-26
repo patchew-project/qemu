@@ -23,6 +23,7 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "hw/hw.h"
 #include "hw/sh4/sh.h"
 #include "sysemu/sysemu.h"
@@ -147,9 +148,9 @@ static void porta_changed(SH7750State * s, uint16_t prev)
     int i, r = 0;
 
 #if 0
-    fprintf(stderr, "porta changed from 0x%04x to 0x%04x\n",
+    error_report("porta changed from 0x%04x to 0x%04x",
 	    prev, porta_lines(s));
-    fprintf(stderr, "pdtra=0x%04x, pctra=0x%08x\n", s->pdtra, s->pctra);
+    error_report("pdtra=0x%04x, pctra=0x%08x", s->pdtra, s->pctra);
 #endif
     currenta = porta_lines(s);
     if (currenta == prev)
@@ -200,13 +201,13 @@ static void portb_changed(SH7750State * s, uint16_t prev)
 
 static void error_access(const char *kind, hwaddr addr)
 {
-    fprintf(stderr, "%s to %s (0x" TARGET_FMT_plx ") not supported\n",
+    error_report("%s to %s (0x" TARGET_FMT_plx ") not supported",
 	    kind, regname(addr), addr);
 }
 
 static void ignore_access(const char *kind, hwaddr addr)
 {
-    fprintf(stderr, "%s to %s (0x" TARGET_FMT_plx ") ignored\n",
+    error_report("%s to %s (0x" TARGET_FMT_plx ") ignored",
 	    kind, regname(addr), addr);
 }
 
@@ -326,47 +327,48 @@ static void sh7750_mem_writew(void *opaque, hwaddr addr,
     uint16_t temp;
 
     switch (addr) {
-	/* SDRAM controller */
+    /* SDRAM controller */
     case SH7750_BCR2_A7:
         s->bcr2 = mem_value;
         return;
     case SH7750_BCR3_A7:
-	if(!has_bcr3_and_bcr4(s))
-	    error_access("word write", addr);
-	s->bcr3 = mem_value;
-	return;
+        if (!has_bcr3_and_bcr4(s)) {
+            error_access("word write", addr);
+        }
+        s->bcr3 = mem_value;
+        return;
     case SH7750_PCR_A7:
-	s->pcr = mem_value;
-	return;
+        s->pcr = mem_value;
+        return;
     case SH7750_RTCNT_A7:
     case SH7750_RTCOR_A7:
     case SH7750_RTCSR_A7:
-	ignore_access("word write", addr);
-	return;
-	/* IO ports */
+        ignore_access("word write", addr);
+        return;
+        /* IO ports */
     case SH7750_PDTRA_A7:
-	temp = porta_lines(s);
-	s->pdtra = mem_value;
-	porta_changed(s, temp);
-	return;
+        temp = porta_lines(s);
+        s->pdtra = mem_value;
+        porta_changed(s, temp);
+        return;
     case SH7750_PDTRB_A7:
-	temp = portb_lines(s);
-	s->pdtrb = mem_value;
-	portb_changed(s, temp);
-	return;
+        temp = portb_lines(s);
+        s->pdtrb = mem_value;
+        portb_changed(s, temp);
+        return;
     case SH7750_RFCR_A7:
-	fprintf(stderr, "Write access to refresh count register\n");
-	s->rfcr = mem_value;
-	return;
+        error_report("Write access to refresh count register");
+        s->rfcr = mem_value;
+        return;
     case SH7750_GPIOIC_A7:
-	s->gpioic = mem_value;
-	if (mem_value != 0) {
-	    fprintf(stderr, "I/O interrupts not implemented\n");
+        s->gpioic = mem_value;
+        if (mem_value != 0) {
+            error_report("I/O interrupts not implemented");
             abort();
-	}
-	return;
+        }
+        return;
     default:
-	error_access("word write", addr);
+        error_access("word write", addr);
         abort();
     }
 }

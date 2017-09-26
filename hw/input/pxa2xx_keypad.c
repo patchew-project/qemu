@@ -326,7 +326,7 @@ void pxa27x_register_keypad(PXA2xxKeyPadState *kp,
                             const struct keymap *map, int size)
 {
     if(!map || size < 0x80) {
-        fprintf(stderr, "%s - No PXA keypad map defined\n", __func__);
+        error_report("%s - No PXA keypad map defined", __func__);
         exit(-1);
     }
 

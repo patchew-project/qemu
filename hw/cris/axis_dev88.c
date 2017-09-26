@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "qemu-common.h"
 #include "cpu.h"
@@ -349,7 +350,7 @@ void axisdev88_init(MachineState *machine)
         li.cmdline = kernel_cmdline;
         cris_load_image(cpu, &li);
     } else if (!qtest_enabled()) {
-        fprintf(stderr, "Kernel image must be specified\n");
+        error_report("Kernel image must be specified");
         exit(1);
     }
 }

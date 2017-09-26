@@ -875,7 +875,7 @@ static void interface_notify_update(QXLInstance *sin, uint32_t update_id)
      * Probably was at some earlier version that is prior to git start (2009),
      * and is still guest trigerrable.
      */
-    fprintf(stderr, "%s: deprecated\n", __func__);
+    error_report("%s: deprecated", __func__);
 }
 
 /* called from spice server thread context only */
@@ -905,7 +905,7 @@ static void interface_async_complete_io(PCIQXLDevice *qxl, QXLCookie *cookie)
 
     trace_qxl_interface_async_complete_io(qxl->id, current_async, cookie);
     if (!cookie) {
-        fprintf(stderr, "qxl: %s: error, cookie is NULL\n", __func__);
+        error_report("qxl: %s: error, cookie is NULL", __func__);
         return;
     }
     if (cookie && current_async != cookie->io) {
@@ -930,7 +930,7 @@ static void interface_async_complete_io(PCIQXLDevice *qxl, QXLCookie *cookie)
         qxl_spice_destroy_surface_wait_complete(qxl, cookie->u.surface_id);
         break;
     default:
-        fprintf(stderr, "qxl: %s: unexpected current_async %d\n", __func__,
+        error_report("qxl: %s: unexpected current_async %d", __func__,
                 current_async);
     }
     qxl_send_events(qxl, QXL_INTERRUPT_IO_CMD);
@@ -998,7 +998,7 @@ static void interface_async_complete(QXLInstance *sin, uint64_t cookie_token)
     case QXL_COOKIE_TYPE_POST_LOAD_MONITORS_CONFIG:
         break;
     default:
-        fprintf(stderr, "qxl: %s: unexpected cookie type %d\n",
+        error_report("qxl: %s: unexpected cookie type %d",
                 __func__, cookie->type);
         g_free(cookie);
     }
@@ -1875,7 +1875,7 @@ static void qxl_send_events(PCIQXLDevice *d, uint32_t events)
     trace_qxl_send_events(d->id, events);
     if (!qemu_spice_display_is_running(&d->ssd)) {
         /* spice-server tracks guest running state and should not do this */
-        fprintf(stderr, "%s: spice-server bug: guest stopped, ignoring\n",
+        error_report("%s: spice-server bug: guest stopped, ignoring",
                 __func__);
         trace_qxl_send_events_vm_stopped(d->id, events);
         return;

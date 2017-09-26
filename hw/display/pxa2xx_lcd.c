@@ -1050,7 +1050,7 @@ PXA2xxLCDState *pxa2xx_lcdc_init(MemoryRegion *sysmem,
         s->dest_width = 4;
         break;
     default:
-        fprintf(stderr, "%s: Bad color depth\n", __func__);
+        error_report("%s: Bad color depth", __func__);
         exit(1);
     }
 

@@ -135,7 +135,7 @@ static int vhost_net_get_fd(NetClientState *backend)
     case NET_CLIENT_DRIVER_TAP:
         return tap_get_fd(backend);
     default:
-        fprintf(stderr, "vhost-net requires tap backend\n");
+        error_report("vhost-net requires tap backend");
         return -EBADFD;
     }
 }
@@ -148,7 +148,7 @@ struct vhost_net *vhost_net_init(VhostNetOptions *options)
     uint64_t features = 0;
 
     if (!options->net_backend) {
-        fprintf(stderr, "vhost-net requires net backend to be setup\n");
+        error_report("vhost-net requires net backend to be setup");
         goto fail;
     }
     net->nc = options->net_backend;
@@ -186,8 +186,8 @@ struct vhost_net *vhost_net_init(VhostNetOptions *options)
             net->dev.features &= ~(1ULL << VIRTIO_NET_F_MRG_RXBUF);
         }
         if (~net->dev.features & net->dev.backend_features) {
-            fprintf(stderr, "vhost lacks feature mask %" PRIu64
-                   " for backend\n",
+            error_report("vhost lacks feature mask %" PRIu64
+                   " for backend",
                    (uint64_t)(~net->dev.features & net->dev.backend_features));
             goto fail;
         }
@@ -197,8 +197,8 @@ struct vhost_net *vhost_net_init(VhostNetOptions *options)
     if (net->nc->info->type == NET_CLIENT_DRIVER_VHOST_USER) {
         features = vhost_user_get_acked_features(net->nc);
         if (~net->dev.features & features) {
-            fprintf(stderr, "vhost lacks feature mask %" PRIu64
-                    " for backend\n",
+            error_report("vhost lacks feature mask %" PRIu64
+                    " for backend",
                     (uint64_t)(~net->dev.features & features));
             goto fail;
         }
@@ -349,7 +349,7 @@ err_start:
     }
     e = k->set_guest_notifiers(qbus->parent, total_queues * 2, false);
     if (e < 0) {
-        fprintf(stderr, "vhost guest notifier cleanup failed: %d\n", e);
+        error_report("vhost guest notifier cleanup failed: %d", e);
         fflush(stderr);
     }
 err:
@@ -370,7 +370,7 @@ void vhost_net_stop(VirtIODevice *dev, NetClientState *ncs,
 
     r = k->set_guest_notifiers(qbus->parent, total_queues * 2, false);
     if (r < 0) {
-        fprintf(stderr, "vhost guest notifier cleanup failed: %d\n", r);
+        error_report("vhost guest notifier cleanup failed: %d", r);
         fflush(stderr);
     }
     assert(r >= 0);

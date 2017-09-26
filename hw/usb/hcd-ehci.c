@@ -419,7 +419,7 @@ static int ehci_get_pid(EHCIqtd *qtd)
     case 2:
         return USB_TOKEN_SETUP;
     default:
-        fprintf(stderr, "bad token\n");
+        error_report("bad token");
         return 0;
     }
 }
@@ -1033,7 +1033,7 @@ static void ehci_opreg_write(void *ptr, hwaddr addr,
 
         /* not supporting dynamic frame list size at the moment */
         if ((val & USBCMD_FLS) && !(s->usbcmd & USBCMD_FLS)) {
-            fprintf(stderr, "attempt to set frame list size -- value %d\n",
+            error_report("attempt to set frame list size -- value %d",
                     (int)val & USBCMD_FLS);
             val &= ~USBCMD_FLS;
         }
@@ -1190,7 +1190,7 @@ static int ehci_init_transfer(EHCIPacket *p)
 
     while (bytes > 0) {
         if (cpage > 4) {
-            fprintf(stderr, "cpage out of range (%d)\n", cpage);
+            error_report("cpage out of range (%d)", cpage);
             qemu_sglist_destroy(&p->sgl);
             return -1;
         }
@@ -1296,7 +1296,7 @@ static void ehci_execute_complete(EHCIQueue *q)
         break;
     default:
         /* should not be triggerable */
-        fprintf(stderr, "USB invalid response %d\n", p->packet.status);
+        error_report("USB invalid response %d", p->packet.status);
         g_assert_not_reached();
         break;
     }
@@ -1345,7 +1345,7 @@ static int ehci_execute(EHCIPacket *p, const char *action)
            p->async == EHCI_ASYNC_INITIALIZED);
 
     if (!(p->qtd.token & QTD_TOKEN_ACTIVE)) {
-        fprintf(stderr, "Attempting to execute inactive qtd\n");
+        error_report("Attempting to execute inactive qtd");
         return -1;
     }
 
@@ -1383,7 +1383,7 @@ static int ehci_execute(EHCIPacket *p, const char *action)
             p->packet.actual_length);
 
     if (p->packet.actual_length > BUFF_SIZE) {
-        fprintf(stderr, "ret from usb_handle_packet > BUFF_SIZE\n");
+        error_report("ret from usb_handle_packet > BUFF_SIZE");
         return -1;
     }
 
@@ -1461,7 +1461,7 @@ static int ehci_process_itd(EHCIState *ehci,
             case USB_RET_SUCCESS:
                 break;
             default:
-                fprintf(stderr, "Unexpected iso usb result: %d\n",
+                error_report("Unexpected iso usb result: %d",
                         ehci->ipacket.status);
                 /* Fall through */
             case USB_RET_IOERROR:
@@ -1564,7 +1564,7 @@ static int ehci_state_fetchentry(EHCIState *ehci, int async)
 
     /* section 4.8, only QH in async schedule */
     if (async && (NLPTR_TYPE_GET(entry) != NLPTR_TYPE_QH)) {
-        fprintf(stderr, "non queue head request in async schedule\n");
+        error_report("non queue head request in async schedule");
         return -1;
     }
 
@@ -1586,8 +1586,8 @@ static int ehci_state_fetchentry(EHCIState *ehci, int async)
 
     default:
         /* TODO: handle FSTN type */
-        fprintf(stderr, "FETCHENTRY: entry at %X is of type %d "
-                "which is not supported yet\n", entry, NLPTR_TYPE_GET(entry));
+        error_report("FETCHENTRY: entry at %X is of type %d "
+                "which is not supported yet", entry, NLPTR_TYPE_GET(entry));
         return -1;
     }
 
@@ -2086,7 +2086,7 @@ static void ehci_advance_state(EHCIState *ehci, int async)
             break;
 
         default:
-            fprintf(stderr, "Bad state!\n");
+            error_report("Bad state!");
             again = -1;
             g_assert_not_reached();
             break;
@@ -2094,7 +2094,7 @@ static void ehci_advance_state(EHCIState *ehci, int async)
 
         if (again < 0 || itd_count > 16) {
             /* TODO: notify guest (raise HSE irq?) */
-            fprintf(stderr, "processing error - resetting ehci HC\n");
+            error_report("processing error - resetting ehci HC");
             ehci_reset(ehci);
             again = 0;
         }
@@ -2151,8 +2151,8 @@ static void ehci_advance_async_state(EHCIState *ehci)
 
     default:
         /* this should only be due to a developer mistake */
-        fprintf(stderr, "ehci: Bad asynchronous state %d. "
-                "Resetting to active\n", ehci->astate);
+        error_report("ehci: Bad asynchronous state %d. "
+                "Resetting to active", ehci->astate);
         g_assert_not_reached();
     }
 }
@@ -2201,8 +2201,8 @@ static void ehci_advance_periodic_state(EHCIState *ehci)
 
     default:
         /* this should only be due to a developer mistake */
-        fprintf(stderr, "ehci: Bad periodic state %d. "
-                "Resetting to active\n", ehci->pstate);
+        error_report("ehci: Bad periodic state %d. "
+                "Resetting to active", ehci->pstate);
         g_assert_not_reached();
     }
 }
