@@ -10,10 +10,36 @@
  */
 
 #include "qemu/osdep.h"
+#include "chardev/char.h"
+#include "chardev/char-fe.h"
 #include "exec/windbgstub.h"
 #include "exec/windbgstub-utils.h"
 
+typedef struct WindbgState {
+    bool is_loaded;
+
+    uint32_t ctrl_packet_id;
+    uint32_t data_packet_id;
+} WindbgState;
+
+static WindbgState *windbg_state;
+
+static void windbg_exit(void)
+{
+    g_free(windbg_state);
+}
+
 int windbg_server_start(const char *device)
 {
+    if (windbg_state) {
+        WINDBG_ERROR("Multiple instances are not supported");
+        exit(1);
+    }
+
+    windbg_state = g_new0(WindbgState, 1);
+    windbg_state->ctrl_packet_id = RESET_PACKET_ID;
+    windbg_state->data_packet_id = INITIAL_PACKET_ID;
+
+    atexit(windbg_exit);
     return 0;
 }
