@@ -101,6 +101,9 @@ typedef struct SizedBuf {
     buf.data = NULL;        \
     buf.size = 0;           \
 } while (false)
+
+SizedBuf kd_gen_exception_sc(CPUState *cpu);
+
 bool windbg_on_load(void);
 void windbg_on_exit(void);
 

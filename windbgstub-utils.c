@@ -34,7 +34,6 @@ static void kd_breakpoint_remove_range(CPUState *cpu, target_ulong base,
                                        target_ulong limit)
 {}
 
-__attribute__ ((unused)) /* unused yet */
 static void kd_init_state_change(CPUState *cpu,
                                  DBGKD_ANY_WAIT_STATE_CHANGE *sc)
 {
@@ -81,6 +80,26 @@ static void kd_init_state_change(CPUState *cpu,
         kd_breakpoint_remove_range(cpu, sc->ProgramCounter,
                                    sc->ProgramCounter + DBGKD_MAXSTREAM);
     }
+}
+
+SizedBuf kd_gen_exception_sc(CPUState *cpu)
+{
+    CPUArchState *env = cpu->env_ptr;
+    SizedBuf buf;
+    SBUF_MALLOC(buf, sizeof(DBGKD_ANY_WAIT_STATE_CHANGE) + sizeof(int));
+
+    DBGKD_ANY_WAIT_STATE_CHANGE *sc = (DBGKD_ANY_WAIT_STATE_CHANGE *) buf.data;
+    kd_init_state_change(cpu, sc);
+
+    sc->NewState = DbgKdExceptionStateChange;
+    sc->NewState = ldl_p(&sc->NewState);
+
+    DBGKM_EXCEPTION_RECORD64 *exc = &sc->u.Exception.ExceptionRecord;
+    exc->ExceptionCode = 0x80000003;
+    exc->ExceptionCode = ldl_p(&exc->ExceptionCode);
+    exc->ExceptionAddress = ldtul_p(&env->eip);
+
+    return buf;
 }
 
 bool windbg_on_load(void)
