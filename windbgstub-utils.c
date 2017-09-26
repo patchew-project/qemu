@@ -288,6 +288,8 @@ typedef struct _CPU_KPROCESSOR_STATE {
 typedef struct KDData {
     InitedAddr KPCR;
     InitedAddr version;
+
+    InitedAddr bps[KD_BREAKPOINT_MAX];
 } KDData;
 
 static KDData *kd;
@@ -971,6 +973,62 @@ void kd_api_set_context(CPUState *cpu, PacketData *pd)
     }
 }
 
+void kd_api_write_breakpoint(CPUState *cpu, PacketData *pd)
+{
+    DBGKD_WRITE_BREAKPOINT64 *m64c = &pd->m64.u.WriteBreakPoint;
+    target_ulong addr = ldtul_p(&m64c->BreakPointAddress);
+    int i = 0, err = 0;
+
+    for (; i < KD_BREAKPOINT_MAX; ++i) {
+        if (!kd->bps[i].is_init) {
+            err = cpu_breakpoint_insert(cpu, addr, BP_GDB, NULL);
+            if (!err) {
+                kd->bps[i].addr = addr;
+                kd->bps[i].is_init = true;
+                WINDBG_DEBUG("write_breakpoint: " FMT_ADDR, addr);
+                break;
+            } else {
+                WINDBG_ERROR("write_breakpoint: " FMT_ADDR ", " FMT_ERR,
+                             addr, err);
+                pd->m64.ReturnStatus = STATUS_UNSUCCESSFUL;
+                return;
+            }
+        } else if (addr == kd->bps[i].addr) {
+            break;
+        }
+    }
+
+    if (!err) {
+        m64c->BreakPointHandle = i + 1;
+        pd->m64.ReturnStatus = STATUS_SUCCESS;
+    } else {
+        WINDBG_ERROR("write_breakpoint: All breakpoints occupied");
+        pd->m64.ReturnStatus = STATUS_UNSUCCESSFUL;
+    }
+}
+
+void kd_api_restore_breakpoint(CPUState *cpu, PacketData *pd)
+{
+    DBGKD_RESTORE_BREAKPOINT *m64c = &pd->m64.u.RestoreBreakPoint;
+    uint8_t index = ldtul_p(&m64c->BreakPointHandle) - 1;
+    int err = -1;
+
+    if (kd->bps[index].is_init) {
+        err = cpu_breakpoint_remove(cpu, kd->bps[index].addr, BP_GDB);
+        if (!err) {
+            WINDBG_DEBUG("restore_breakpoint: " FMT_ADDR ", index(%d)",
+                         kd->bps[index].addr, index);
+        } else {
+            WINDBG_ERROR("restore_breakpoint: " FMT_ADDR ", index(%d), "
+                         FMT_ERR, kd->bps[index].addr, index, err);
+        }
+        kd->bps[index].is_init = false;
+        pd->m64.ReturnStatus = STATUS_SUCCESS;
+    } else {
+        pd->m64.ReturnStatus = STATUS_UNSUCCESSFUL;
+    }
+}
+
 void kd_api_read_control_space(CPUState *cpu, PacketData *pd)
 {
     DBGKD_READ_MEMORY64 *mem = &pd->m64.u.ReadMemory;
@@ -1052,7 +1110,24 @@ void kd_api_unsupported(CPUState *cpu, PacketData *pd)
 
 static void kd_breakpoint_remove_range(CPUState *cpu, target_ulong base,
                                        target_ulong limit)
-{}
+{
+    int i = 0, err = 0;
+    for (; i < KD_BREAKPOINT_MAX; ++i) {
+        if (kd->bps[i].is_init && kd->bps[i].addr >= base &&
+            kd->bps[i].addr < limit) {
+            err = cpu_breakpoint_remove(cpu, kd->bps[i].addr, BP_GDB);
+            if (!err) {
+                WINDBG_DEBUG("breakpoint_remove_range: " FMT_ADDR
+                             ", index(%d)", kd->bps[i].addr, i);
+            } else {
+                WINDBG_ERROR("breakpoint_remove_range: " FMT_ADDR
+                             ", index(%d), " FMT_ERR,
+                             kd->bps[i].addr, i, err);
+            }
+            kd->bps[i].is_init = false;
+        }
+    }
+}
 
 static void kd_init_state_change(CPUState *cpu,
                                  DBGKD_ANY_WAIT_STATE_CHANGE *sc)
