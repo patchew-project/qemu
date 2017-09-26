@@ -133,6 +133,14 @@ static void windbg_process_manipulate_packet(ParsingContext *ctx)
 
     switch (ctx->data.m64.ApiNumber) {
 
+    case DbgKdReadVirtualMemoryApi:
+        kd_api_read_virtual_memory(cpu, &ctx->data);
+        break;
+
+    case DbgKdWriteVirtualMemoryApi:
+        kd_api_write_virtual_memory(cpu, &ctx->data);
+        break;
+
     default:
         kd_api_unsupported(cpu, &ctx->data);
         break;
