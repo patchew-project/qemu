@@ -29,7 +29,7 @@
 /* Marker for missing code. */
 #define TODO() \
     do { \
-        fprintf(stderr, "TODO %s:%u: %s()\n", \
+        error_report("TODO %s:%u: %s()", \
                 __FILE__, __LINE__, __func__); \
         tcg_abort(); \
     } while (0)
@@ -403,7 +403,7 @@ static const char *target_parse_constraint(TCGArgConstraint *ct,
 void tci_disas(uint8_t opc)
 {
     const TCGOpDef *def = &tcg_op_defs[opc];
-    fprintf(stderr, "TCG %s %u, %u, %u\n",
+    error_report("TCG %s %u, %u, %u",
             def->name, def->nb_oargs, def->nb_iargs, def->nb_cargs);
 }
 #endif

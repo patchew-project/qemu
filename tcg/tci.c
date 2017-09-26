@@ -35,7 +35,7 @@
 /* Marker for missing code. */
 #define TODO() \
     do { \
-        fprintf(stderr, "TODO %s:%u: %s()\n", \
+        error_report("TODO %s:%u: %s()", \
                 __FILE__, __LINE__, __func__); \
         tcg_abort(); \
     } while (0)
