@@ -271,6 +271,8 @@ static void s390_create_virtio_net(BusState *bus, const char *name)
     }
 }
 
+static S390CcwMachineClass *get_machine_class(void);
+
 static void ccw_init(MachineState *machine)
 {
     int ret;
@@ -290,7 +292,7 @@ static void ccw_init(MachineState *machine)
                       machine->initrd_filename, "s390-ccw.img",
                       "s390-netboot.img", true);
 
-    if (s390_has_feat(S390_FEAT_ZPCI)) {
+    if (s390_has_feat(S390_FEAT_ZPCI) || get_machine_class()->phb_compat) {
         DeviceState *dev = qdev_create(NULL, TYPE_S390_PCI_HOST_BRIDGE);
         object_property_add_child(qdev_get_machine(),
                                   TYPE_S390_PCI_HOST_BRIDGE,
@@ -431,6 +433,7 @@ static void ccw_machine_class_init(ObjectClass *oc, void *data)
     s390mc->cpu_model_allowed = true;
     s390mc->css_migration_enabled = true;
     s390mc->gs_allowed = true;
+    s390mc->phb_compat = false;
     mc->init = ccw_init;
     mc->reset = s390_machine_reset;
     mc->hot_add_cpu = s390_hot_add_cpu;
@@ -738,6 +741,9 @@ static void ccw_machine_2_10_instance_options(MachineState *machine)
 
 static void ccw_machine_2_10_class_options(MachineClass *mc)
 {
+    S390CcwMachineClass *s390mc = S390_MACHINE_CLASS(mc);
+
+    s390mc->phb_compat = pci_available;
     ccw_machine_2_11_class_options(mc);
     SET_MACHINE_COMPAT(mc, CCW_COMPAT_2_10);
 }

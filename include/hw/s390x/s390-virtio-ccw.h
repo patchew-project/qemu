@@ -41,6 +41,7 @@ typedef struct S390CcwMachineClass {
     bool cpu_model_allowed;
     bool css_migration_enabled;
     bool gs_allowed;
+    bool phb_compat;
 } S390CcwMachineClass;
 
 /* runtime-instrumentation allowed by the machine */
