@@ -64,19 +64,15 @@ static void vm_change_state_handler(void *opaque, int running,
 {
     GICv3ITSState *s = (GICv3ITSState *)opaque;
     Error *err = NULL;
-    int ret;
 
     if (running) {
         return;
     }
 
-    ret = kvm_device_access(s->dev_fd, KVM_DEV_ARM_VGIC_GRP_CTRL,
-                            KVM_DEV_ARM_ITS_SAVE_TABLES, NULL, true, &err);
+    kvm_device_access(s->dev_fd, KVM_DEV_ARM_VGIC_GRP_CTRL,
+                      KVM_DEV_ARM_ITS_SAVE_TABLES, NULL, true, &err);
     if (err) {
         error_report_err(err);
-    }
-    if (ret < 0 && ret != -EFAULT) {
-        abort();
     }
 }
 
@@ -157,6 +153,7 @@ static void kvm_arm_its_pre_save(GICv3ITSState *s)
  */
 static void kvm_arm_its_post_load(GICv3ITSState *s)
 {
+    Error *err = NULL;
     int i;
 
     if (!s->iidr) {
@@ -188,7 +185,11 @@ static void kvm_arm_its_post_load(GICv3ITSState *s)
 
     kvm_device_access(s->dev_fd, KVM_DEV_ARM_VGIC_GRP_CTRL,
                       KVM_DEV_ARM_ITS_RESTORE_TABLES, NULL, true,
-                      &error_abort);
+                      &err);
+
+    if (err) {
+        error_report_err(err);
+    }
 
     kvm_device_access(s->dev_fd, KVM_DEV_ARM_VGIC_GRP_ITS_REGS,
                       GITS_CTLR, &s->ctlr, true, &error_abort);
