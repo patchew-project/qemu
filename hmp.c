@@ -43,6 +43,7 @@
 #include "hw/intc/intc.h"
 #include "migration/snapshot.h"
 #include "migration/misc.h"
+#include "hw/virtio/virtio.h"
 
 #ifdef CONFIG_SPICE
 #include <spice/enums.h>
@@ -2893,4 +2894,151 @@ void hmp_info_memory_size_summary(Monitor *mon, const QDict *qdict)
         qapi_free_MemoryInfo(info);
     }
     hmp_handle_error(mon, &err);
+}
+
+#define HMP_INFO_VIRTIO_INDENT 2
+#define HMP_INFO_VIRTIO_FIELD 32
+
+static void hmp_info_virtio_print_status(Monitor *mon, VirtIODevice *vdev)
+{
+    uint8_t status[] = {
+        VIRTIO_CONFIG_S_ACKNOWLEDGE,
+        VIRTIO_CONFIG_S_DRIVER,
+        VIRTIO_CONFIG_S_DRIVER_OK,
+        VIRTIO_CONFIG_S_FEATURES_OK,
+        VIRTIO_CONFIG_S_NEEDS_RESET,
+        VIRTIO_CONFIG_S_FAILED,
+    };
+    const char *names[] = {
+        "acknowledge",
+        "driver",
+        "driver_ok",
+        "features_ok",
+        "needs_reset"
+        "failed",
+    };
+    const char *comma = "";
+    int idx;
+
+    monitor_printf(mon, "%*sstatus:           0x%02"PRIx8" ",
+                   HMP_INFO_VIRTIO_INDENT, "", vdev->status);
+
+    for (idx = 0; idx < ARRAY_SIZE(status); idx++) {
+        if (!(vdev->status & status[idx])) {
+            continue;
+        }
+        monitor_printf(mon, "%s%s", comma, names[idx]);
+        if (names[idx]) {
+            comma = ",";
+        }
+    }
+    monitor_printf(mon, "\n");
+}
+
+static void hmp_info_virtio_print_common_features(Monitor *mon,
+                                                  VirtIODevice *vdev)
+{
+    uint64_t features[] = {
+        VIRTIO_RING_F_INDIRECT_DESC,
+        VIRTIO_RING_F_EVENT_IDX,
+        VIRTIO_F_NOTIFY_ON_EMPTY,
+        VIRTIO_F_ANY_LAYOUT,
+        VIRTIO_F_IOMMU_PLATFORM,
+        VIRTIO_F_VERSION_1,
+    };
+    const char *names[] = {
+        "indirect_desc",
+        "event_idx",
+        "notify_on_empty",
+        "any_layout",
+        "iommu_platform",
+        "version_1",
+    };
+    int idx;
+
+    monitor_printf(mon, "%*scommon features:\n", HMP_INFO_VIRTIO_INDENT, "");
+
+    for (idx = 0; idx < ARRAY_SIZE(features); idx++) {
+        const char *ack = vdev->guest_features & features[idx] ? "acked" : "";
+
+        if (!(vdev->host_features & features[idx])) {
+            continue;
+        }
+        monitor_printf(mon, "%*s%*s%*s\n", HMP_INFO_VIRTIO_INDENT, "",
+                       HMP_INFO_VIRTIO_FIELD, names[idx],
+                       HMP_INFO_VIRTIO_FIELD, ack);
+    }
+}
+
+static void hmp_info_virtio_print_specific_features(Monitor *mon,
+                                                    VirtIODevice *vdev)
+{
+    VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
+    int idx;
+
+    if (!vdc->get_feature_name) {
+        return;
+    }
+
+    monitor_printf(mon, "%*sspecific features:\n", HMP_INFO_VIRTIO_INDENT, "");
+
+    for (idx = 0; idx < 64; idx++) {
+        const char *name = vdc->get_feature_name(vdev, idx);
+        const char *ack = vdev->guest_features & (1 << idx) ? "acked" : "";
+
+        if (!name) {
+            continue;
+        }
+        if (!(vdev->host_features & (1 << idx))) {
+            continue;
+        }
+        monitor_printf(mon, "%*s%*s%*s\n", HMP_INFO_VIRTIO_INDENT, "",
+                       HMP_INFO_VIRTIO_FIELD, name, HMP_INFO_VIRTIO_FIELD, ack);
+    }
+}
+
+static void hmp_info_virtio_print(Monitor *mon, VirtIODevice *vdev)
+{
+    char *path = qdev_get_dev_path(DEVICE(vdev));
+
+    monitor_printf(mon, "%s at %s\n", object_get_typename(OBJECT(vdev)), path);
+    g_free(path);
+
+    hmp_info_virtio_print_status(mon, vdev);
+
+    monitor_printf(mon, "%*shost features:    0x%016"PRIx64"\n",
+                   HMP_INFO_VIRTIO_INDENT, "", vdev->host_features);
+    monitor_printf(mon, "%*sguest features:   0x%016"PRIx64"\n",
+                   HMP_INFO_VIRTIO_INDENT, "", vdev->guest_features);
+
+    hmp_info_virtio_print_common_features(mon, vdev);
+    hmp_info_virtio_print_specific_features(mon, vdev);
+}
+
+static void hmp_info_virtio_recursive(Monitor *mon, BusState *bus)
+{
+    BusChild *kid;
+
+    QTAILQ_FOREACH(kid, &bus->children, sibling) {
+        DeviceState *dev = kid->child;
+        BusState *child;
+
+        if (object_dynamic_cast(OBJECT(dev), TYPE_VIRTIO_DEVICE)) {
+            hmp_info_virtio_print(mon, VIRTIO_DEVICE(dev));
+        }
+        QLIST_FOREACH(child, &dev->child_bus, sibling) {
+            hmp_info_virtio_recursive(mon, child);
+        }
+    }
+}
+
+void hmp_info_virtio(Monitor *mon, const QDict *qdict)
+{
+    BusState *bus = sysbus_get_default();
+
+    if (!bus) {
+        return;
+    }
+
+    hmp_info_virtio_recursive(mon, bus);
 }
