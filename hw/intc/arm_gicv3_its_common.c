@@ -129,15 +129,14 @@ static void gicv3_its_common_reset(DeviceState *dev)
     s->creadr = 0;
     s->iidr = 0;
     memset(&s->baser, 0, sizeof(s->baser));
-
-    gicv3_its_post_load(s, 0);
 }
 
 static void gicv3_its_common_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    GICv3ITSCommonClass *c = ARM_GICV3_ITS_COMMON_CLASS(klass);
 
-    dc->reset = gicv3_its_common_reset;
+    c->parent_reset = gicv3_its_common_reset;
     dc->vmsd = &vmstate_its;
 }
 

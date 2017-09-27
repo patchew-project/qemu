@@ -79,6 +79,7 @@ struct GICv3ITSCommonClass {
     int (*send_msi)(GICv3ITSState *s, uint32_t data, uint16_t devid);
     void (*pre_save)(GICv3ITSState *s);
     void (*post_load)(GICv3ITSState *s);
+    void (*parent_reset)(DeviceState *dev);
 };
 
 typedef struct GICv3ITSCommonClass GICv3ITSCommonClass;
