@@ -4069,24 +4069,25 @@ output to stdout. This can be later used as input file for @code{-readconfig} op
 ETEXI
 DEF("nodefconfig", 0, QEMU_OPTION_nodefconfig,
     "-nodefconfig\n"
-    "                do not load default config files at startup\n",
+    "                do not load default config files at startup (deprecated)\n",
     QEMU_ARCH_ALL)
 STEXI
 @item -nodefconfig
 @findex -nodefconfig
-Normally QEMU loads configuration files from @var{sysconfdir} and @var{datadir} at startup.
-The @code{-nodefconfig} option will prevent QEMU from loading any of those config files.
+This option was used to disable loading of config files from @var{sysconfdir}
+and @var{datadir}, but it is deprecated as QEMU doesn't load any config files
+from @var{datadir} anymore.  To disable loading of config files from
+@var{sysconfdir}, use @code{-no-user-config} instead.
 ETEXI
 DEF("no-user-config", 0, QEMU_OPTION_nouserconfig,
     "-no-user-config\n"
-    "                do not load user-provided config files at startup\n",
+    "                do not load default user-provided config files at startup\n",
     QEMU_ARCH_ALL)
 STEXI
 @item -no-user-config
 @findex -no-user-config
 The @code{-no-user-config} option makes QEMU not load any of the user-provided
-config files on @var{sysconfdir}, but won't make it skip the QEMU-provided config
-files from @var{datadir}.
+config files on @var{sysconfdir}.
 ETEXI
 DEF("trace", HAS_ARG, QEMU_OPTION_trace,
     "-trace [[enable=]<pattern>][,events=<file>][,file=<file>]\n"
