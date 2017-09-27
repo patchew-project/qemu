@@ -26,6 +26,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__),
 import argparse
 import fnmatch
 import platform
+import logging
 
 from guestperf.hardware import Hardware
 from guestperf.engine import Engine
@@ -63,6 +64,11 @@ class BaseShell(object):
         parser.add_argument("--locked-pages", dest="locked_pages", default=False)
 
         self._parser = parser
+
+    def init_logging(self, args):
+        logging.basicConfig(level=(logging.DEBUG if args.debug else
+                                   logging.INFO if args.verbose else
+                                   logging.WARN))
 
     def get_engine(self, args):
         return Engine(binary=args.binary,
@@ -147,6 +153,7 @@ class Shell(BaseShell):
 
     def run(self, argv):
         args = self._parser.parse_args(argv)
+        self.init_logging(args)
 
         engine = self.get_engine(args)
         hardware = self.get_hardware(args)
@@ -179,6 +186,7 @@ class BatchShell(BaseShell):
 
     def run(self, argv):
         args = self._parser.parse_args(argv)
+        self.init_logging(args)
 
         engine = self.get_engine(args)
         hardware = self.get_hardware(args)
@@ -231,6 +239,7 @@ class PlotShell(object):
 
     def run(self, argv):
         args = self._parser.parse_args(argv)
+        self.init_logging(args)
 
         if len(args.reports) == 0:
             print >>sys.stderr, "At least one report required"
