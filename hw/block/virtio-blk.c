@@ -1017,6 +1017,26 @@ static Property virtio_blk_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static const char *virtio_blk_get_feature_name(VirtIODevice *vdev,
+                                               unsigned feature)
+{
+    static const char *names[] = {
+        [VIRTIO_BLK_F_BARRIER] = "barrier",
+        [VIRTIO_BLK_F_SIZE_MAX] = "size_max",
+        [VIRTIO_BLK_F_SEG_MAX] = "seg_max",
+        [VIRTIO_BLK_F_RO] = "ro",
+        [VIRTIO_BLK_F_BLK_SIZE] = "blk_size",
+        [VIRTIO_BLK_F_SCSI] = "scsi",
+        [VIRTIO_BLK_F_TOPOLOGY] = "topology",
+        [VIRTIO_BLK_F_FLUSH] = "flush",
+        [VIRTIO_BLK_F_MQ] = "mq",
+    };
+    if (feature >= ARRAY_SIZE(names)) {
+        return NULL;
+    }
+    return names[feature];
+}
+
 static void virtio_blk_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -1030,6 +1050,7 @@ static void virtio_blk_class_init(ObjectClass *klass, void *data)
     vdc->get_config = virtio_blk_update_config;
     vdc->set_config = virtio_blk_set_config;
     vdc->get_features = virtio_blk_get_features;
+    vdc->get_feature_name = virtio_blk_get_feature_name;
     vdc->set_status = virtio_blk_set_status;
     vdc->reset = virtio_blk_reset;
     vdc->save = virtio_blk_save_device;

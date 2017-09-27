@@ -942,6 +942,21 @@ static const VMStateDescription vmstate_virtio_scsi = {
     },
 };
 
+static const char *virtio_scsi_get_feature_name(VirtIODevice *vdev,
+                                                unsigned feature)
+{
+    static const char *names[] = {
+        [VIRTIO_SCSI_F_INOUT] = "inout",
+        [VIRTIO_SCSI_F_HOTPLUG] = "hotplug",
+        [VIRTIO_SCSI_F_CHANGE] = "change",
+        [VIRTIO_SCSI_F_T10_PI] = "t10_pi",
+    };
+    if (feature >= ARRAY_SIZE(names)) {
+        return NULL;
+    }
+    return names[feature];
+}
+
 static void virtio_scsi_common_class_init(ObjectClass *klass, void *data)
 {
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
@@ -964,6 +979,7 @@ static void virtio_scsi_class_init(ObjectClass *klass, void *data)
     vdc->unrealize = virtio_scsi_device_unrealize;
     vdc->set_config = virtio_scsi_set_config;
     vdc->get_features = virtio_scsi_get_features;
+    vdc->get_feature_name = virtio_scsi_get_feature_name;
     vdc->reset = virtio_scsi_reset;
     vdc->start_ioeventfd = virtio_scsi_dataplane_start;
     vdc->stop_ioeventfd = virtio_scsi_dataplane_stop;

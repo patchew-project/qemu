@@ -2154,6 +2154,40 @@ static Property virtio_net_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static const char *virtio_net_get_feature_name(VirtIODevice *vdev,
+                                               unsigned feature)
+{
+    static const char *names[] = {
+        [VIRTIO_NET_F_CSUM] = "csum",
+        [VIRTIO_NET_F_GUEST_CSUM] = "guest_csum",
+        [VIRTIO_NET_F_CTRL_GUEST_OFFLOADS] = "ctrl_guest_offloads",
+        [VIRTIO_NET_F_MTU] = "mtu",
+        [VIRTIO_NET_F_MAC] = "mac",
+        [VIRTIO_NET_F_GSO] = "gso",
+        [VIRTIO_NET_F_GUEST_TSO4] = "guest_tso4",
+        [VIRTIO_NET_F_GUEST_TSO6] = "guest_tso6",
+        [VIRTIO_NET_F_GUEST_ECN] = "guest_ecn",
+        [VIRTIO_NET_F_GUEST_UFO] = "guest_ufo",
+        [VIRTIO_NET_F_HOST_TSO4] = "host_tso4",
+        [VIRTIO_NET_F_HOST_TSO6] = "host_tso6",
+        [VIRTIO_NET_F_HOST_ECN] = "host_ecn",
+        [VIRTIO_NET_F_HOST_UFO] = "host_ufo",
+        [VIRTIO_NET_F_MRG_RXBUF] = "mrg_rxbuf",
+        [VIRTIO_NET_F_STATUS] = "status",
+        [VIRTIO_NET_F_CTRL_VQ] = "ctrl_vq",
+        [VIRTIO_NET_F_CTRL_RX] = "ctrl_rx",
+        [VIRTIO_NET_F_CTRL_VLAN] = "ctrl_vlan",
+        [VIRTIO_NET_F_CTRL_RX_EXTRA] = "ctrl_rx_extra",
+        [VIRTIO_NET_F_GUEST_ANNOUNCE] = "guest_announce",
+        [VIRTIO_NET_F_MQ] = "mq",
+        [VIRTIO_NET_F_CTRL_MAC_ADDR] = "ctrl_mac_addr",
+    };
+    if (feature >= ARRAY_SIZE(names)) {
+        return NULL;
+    }
+    return names[feature];
+}
+
 static void virtio_net_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -2169,6 +2203,7 @@ static void virtio_net_class_init(ObjectClass *klass, void *data)
     vdc->get_features = virtio_net_get_features;
     vdc->set_features = virtio_net_set_features;
     vdc->bad_features = virtio_net_bad_features;
+    vdc->get_feature_name = virtio_net_get_feature_name;
     vdc->reset = virtio_net_reset;
     vdc->set_status = virtio_net_set_status;
     vdc->guest_notifier_mask = virtio_net_guest_notifier_mask;
