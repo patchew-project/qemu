@@ -1675,6 +1675,16 @@ static const VMStateDescription vmstate_spapr_patb_entry = {
     },
 };
 
+static const VMStateDescription vmstate_spapr_rtas_addr = {
+    .name = "spapr_rtas_addr",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64(rtas_addr, sPAPRMachineState),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 static const VMStateDescription vmstate_spapr = {
     .name = "spapr",
     .version_id = 3,
@@ -1694,6 +1704,7 @@ static const VMStateDescription vmstate_spapr = {
         &vmstate_spapr_ov5_cas,
         &vmstate_spapr_patb_entry,
         &vmstate_spapr_pending_events,
+        &vmstate_spapr_rtas_addr,
         NULL
     }
 };
