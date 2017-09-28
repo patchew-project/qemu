@@ -275,6 +275,7 @@ static void ccw_init(MachineState *machine)
 {
     int ret;
     VirtualCssBus *css_bus;
+    DeviceState *dev;
 
     s390_sclp_init();
     s390_memory_init(machine->ram_size);
@@ -290,13 +291,14 @@ static void ccw_init(MachineState *machine)
                       machine->initrd_filename, "s390-ccw.img",
                       "s390-netboot.img", true);
 
-    if (s390_has_feat(S390_FEAT_ZPCI)) {
-        DeviceState *dev = qdev_create(NULL, TYPE_S390_PCI_HOST_BRIDGE);
-        object_property_add_child(qdev_get_machine(),
-                                  TYPE_S390_PCI_HOST_BRIDGE,
-                                  OBJECT(dev), NULL);
-        qdev_init_nofail(dev);
-    }
+    /*
+     * We cannot easily make the pci host bridge conditional as older QEMUs
+     * always created it. Doing so would break migration across QEMU versions
+     */
+    dev = qdev_create(NULL, TYPE_S390_PCI_HOST_BRIDGE);
+    object_property_add_child(qdev_get_machine(), TYPE_S390_PCI_HOST_BRIDGE,
+                              OBJECT(dev), NULL);
+    qdev_init_nofail(dev);
 
     /* register hypercalls */
     virtio_ccw_register_hcalls();
