@@ -47,6 +47,7 @@
 #include "trace.h"
 #include "hw/ppc/fdt.h"
 #include "kvm_ppc.h"
+#include "migration/blocker.h"
 
 static void rtas_display_character(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                                    uint32_t token, uint32_t nargs,
@@ -390,6 +391,8 @@ static void rtas_ibm_nmi_interlock(PowerPCCPU *cpu,
         spapr->mc_status = -1;
         qemu_cond_signal(&spapr->mc_delivery_cond);
         rtas_st(rets, 0, RTAS_OUT_SUCCESS);
+        migrate_del_blocker(spapr->migration_blocker);
+        error_free(spapr->migration_blocker);
     }
 }
 

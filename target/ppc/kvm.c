@@ -52,6 +52,7 @@
 #endif
 #include "elf.h"
 #include "sysemu/kvm_int.h"
+#include "migration/blocker.h"
 
 //#define DEBUG_KVM
 
@@ -2770,9 +2771,25 @@ int kvm_handle_nmi(PowerPCCPU *cpu, struct kvm_run *run)
     sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
     target_ulong msr = 0;
+    Error *local_err = NULL;
+    int ret;
     bool type, le;
 
     cpu_synchronize_state(CPU(cpu));
+
+    error_setg(&spapr->migration_blocker,
+            "Live migration not supported during machine check error handling");
+    ret = migrate_add_blocker(spapr->migration_blocker, &local_err);
+    if (ret < 0) {
+        /*
+         * We don't want to abort and let the migration to continue. In a
+         * rare case, the machine check handler will run on the target
+         * hardware. Though this is not preferable, it is better than aborting
+         * the migration or killing the VM.
+         */
+        error_free(spapr->migration_blocker);
+        fprintf(stderr, "Warning: Machine check during VM migration\n");
+    }
 
     /*
      * Properly set bits in MSR before we invoke the handler.

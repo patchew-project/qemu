@@ -7,6 +7,7 @@
 #include "hw/ppc/spapr_drc.h"
 #include "hw/mem/pc-dimm.h"
 #include "hw/ppc/spapr_ovec.h"
+#include "qapi/error.h"
 
 struct VIOsPAPRBus;
 struct sPAPRPHBState;
@@ -136,6 +137,7 @@ struct sPAPRMachineState {
     MemoryHotplugState hotplug_memory;
 
     const char *icp_type;
+    Error *migration_blocker;
 };
 
 #define H_SUCCESS         0
