@@ -272,15 +272,19 @@ static ssize_t tcp_chr_recv(Chardev *chr, char *buf, size_t len)
     size_t i;
     int *msgfds = NULL;
     size_t msgfds_num = 0;
+    Error *local_err = NULL;
 
     if (qio_channel_has_feature(s->ioc, QIO_CHANNEL_FEATURE_FD_PASS)) {
         ret = qio_channel_readv_full(s->ioc, &iov, 1,
                                      &msgfds, &msgfds_num,
-                                     NULL);
+                                     &local_err);
     } else {
         ret = qio_channel_readv_full(s->ioc, &iov, 1,
                                      NULL, NULL,
-                                     NULL);
+                                     &local_err);
+    }
+    if (local_err) {
+        error_report_err(local_err);
     }
 
     if (ret == QIO_CHANNEL_ERR_BLOCK) {

@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "chardev/char-io.h"
 
 typedef struct IOWatchPoll {
@@ -152,6 +153,7 @@ int io_channel_send_full(QIOChannel *ioc,
                          int *fds, size_t nfds)
 {
     size_t offset = 0;
+    Error *local_err = NULL;
 
     while (offset < len) {
         ssize_t ret = 0;
@@ -160,7 +162,10 @@ int io_channel_send_full(QIOChannel *ioc,
 
         ret = qio_channel_writev_full(
             ioc, &iov, 1,
-            fds, nfds, NULL);
+            fds, nfds, &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+        }
         if (ret == QIO_CHANNEL_ERR_BLOCK) {
             if (offset) {
                 return offset;
