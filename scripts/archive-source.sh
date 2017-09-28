@@ -26,7 +26,7 @@ vroot_dir="${tar_file}.vroot"
 # independant of what the developer currently has initialized
 # in their checkout, because the build environment is completely
 # different to the host OS.
-submodules="dtc"
+submodules="dtc ui/keycodemapdb"
 
 if test $? -ne 0; then
     error "git submodule command failed"
