@@ -18,15 +18,29 @@ if test $# -lt 1; then
     error "Usage: $0 <output tarball>"
 fi
 
-tar_file="$1"
-list_file="$1.list"
-submodules=$(git submodule foreach --recursive --quiet 'echo $name')
+tar_file=`realpath "$1"`
+list_file="${tar_file}.list"
+vroot_dir="${tar_file}.vroot"
+
+# We want a predictable list of submodules for builds, that is
+# independant of what the developer currently has initialized
+# in their checkout, because the build environment is completely
+# different to the host OS.
+submodules="dtc"
 
 if test $? -ne 0; then
     error "git submodule command failed"
 fi
 
 trap "status=$?; rm -f \"$list_file\"; exit \$status" 0 1 2 3 15
+
+git clone --shared . "$vroot_dir"
+here=`pwd`
+cd "$vroot_dir"
+
+for sm in $submodules; do
+    git submodule update --init $sm
+done
 
 if test -n "$submodules"; then
     {
@@ -47,5 +61,8 @@ if test $? -ne 0; then
 fi
 
 tar -cf "$tar_file" -T "$list_file" || error "failed to create tar file"
+
+cd "$here"
+rm -rf "$vroot_dir"
 
 exit 0
