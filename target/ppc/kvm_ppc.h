@@ -28,6 +28,7 @@ void kvmppc_enable_clear_ref_mod_hcalls(void);
 void kvmppc_set_papr(PowerPCCPU *cpu);
 int kvmppc_set_compat(PowerPCCPU *cpu, uint32_t compat_pvr);
 void kvmppc_set_mpic_proxy(PowerPCCPU *cpu, int mpic_proxy);
+int kvmppc_fwnmi_enable(PowerPCCPU *cpu);
 int kvmppc_smt_threads(void);
 void kvmppc_hint_smt_possible(Error **errp);
 int kvmppc_set_smt_threads(int smt);
@@ -155,6 +156,11 @@ static inline int kvmppc_set_compat(PowerPCCPU *cpu, uint32_t compat_pvr)
 
 static inline void kvmppc_set_mpic_proxy(PowerPCCPU *cpu, int mpic_proxy)
 {
+}
+
+int kvmppc_fwnmi_enable(PowerPCCPU *cpu)
+{
+    return 1;
 }
 
 static inline int kvmppc_smt_threads(void)
