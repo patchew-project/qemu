@@ -112,6 +112,7 @@
 /docs/version.texi
 *.tps
 .stgit-*
+.git-submodule-status
 cscope.*
 tags
 TAGS

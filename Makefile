@@ -14,6 +14,27 @@ ifneq ($(wildcard config-host.mak),)
 all:
 include config-host.mak
 
+git-submodule-update:
+
+Makefile: git-submodule-update
+
+.PHONY: git-submodule-update
+
+ifeq (0,$(MAKELEVEL))
+  git_module_status := $(shell \
+    cd '$(SRC_PATH)'; \
+    ./scripts/git-submodule.sh status $(GIT_SUBMODULES); \
+    echo $$?; \
+  )
+
+ifeq (1,$(git_module_status))
+git-submodule-update:
+	$(call quiet-command, \
+          (cd $(SRC_PATH); ./scripts/git-submodule.sh update $(GIT_SUBMODULES)), \
+          "GIT","$(GIT_SUBMODULES)")
+endif
+endif
+
 # Check that we're not trying to do an out-of-tree build from
 # a tree that's been used for an in-tree build.
 ifneq ($(realpath $(SRC_PATH)),$(realpath .))
