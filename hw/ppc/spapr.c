@@ -1477,6 +1477,11 @@ static void ppc_spapr_reset(void)
     first_ppc_cpu->env.nip = SPAPR_ENTRY_POINT;
 
     spapr->cas_reboot = false;
+
+    spapr->mc_status = -1;
+    spapr->guest_machine_check_addr = 0;
+    qemu_cond_destroy(&spapr->mc_delivery_cond);
+    qemu_cond_init(&spapr->mc_delivery_cond);
 }
 
 static void spapr_create_nvram(sPAPRMachineState *spapr)
@@ -2598,6 +2603,9 @@ static void ppc_spapr_init(MachineState *machine)
 
         kvmppc_spapr_enable_inkernel_multitce();
     }
+
+    spapr->mc_status = -1;
+    qemu_cond_init(&spapr->mc_delivery_cond);
 }
 
 static int spapr_kvm_type(const char *vm_type)
