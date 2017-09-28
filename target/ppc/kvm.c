@@ -1798,6 +1798,11 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
         ret = 0;
         break;
 
+    case KVM_EXIT_NMI:
+        DPRINTF("handle NMI exception\n");
+        ret = kvm_handle_nmi(cpu, run);
+        break;
+
     default:
         fprintf(stderr, "KVM: unknown exit reason %d\n", run->exit_reason);
         ret = -1;
@@ -2744,6 +2749,63 @@ int kvm_arch_release_virq_post(int virq)
 int kvm_arch_msi_data_to_gsi(uint32_t data)
 {
     return data & 0xffff;
+}
+
+int kvm_handle_nmi(PowerPCCPU *cpu, struct kvm_run *run)
+{
+    CPUPPCState *env = &cpu->env;
+    sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
+    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
+    target_ulong msr = 0;
+    bool type, le;
+
+    cpu_synchronize_state(CPU(cpu));
+
+    /*
+     * Properly set bits in MSR before we invoke the handler.
+     * SRR0/1, DAR and DSISR are properly set by KVM
+     */
+    if (!(*pcc->interrupts_big_endian)(cpu)) {
+        msr |= (1ULL << MSR_LE);
+    }
+
+    if (env->msr && (1ULL << MSR_SF)) {
+        msr |= (1ULL << MSR_SF);
+    }
+
+    msr |= (1ULL << MSR_ME);
+    env->msr = msr;
+
+    if (!spapr->guest_machine_check_addr) {
+        /*
+         * If OS has not registered with "ibm,nmi-register"
+         * jump to 0x200
+         */
+        env->nip = 0x200;
+        return 0;
+    }
+
+    while (spapr->mc_status != -1) {
+        /*
+         * Check whether the same CPU got machine check error
+         * while still handling the mc error (i.e., before
+         * that CPU called "ibm,nmi-interlock"
+         */
+        if (spapr->mc_status == cpu->vcpu_id) {
+            qemu_system_guest_panicked(NULL);
+        }
+        qemu_cond_wait_iothread(&spapr->mc_delivery_cond);
+    }
+
+    spapr->mc_status = cpu->vcpu_id;
+
+    type = !!(env->spr[SPR_DSISR] & P7_DSISR_MC_UE);
+    le = !!(env->msr & (1ULL << MSR_LE));
+    env->gpr[3] = spapr_mce_req_event(env->gpr[3], spapr->rtas_addr,
+                                      run->flags, type, le);
+    env->nip = spapr->guest_machine_check_addr;
+
+    return 0;
 }
 
 int kvmppc_enable_hwrng(void)

@@ -71,6 +71,20 @@ bool kvmppc_pvr_workaround_required(PowerPCCPU *cpu);
 
 bool kvmppc_is_mem_backend_page_size_ok(const char *obj_path);
 
+int kvm_handle_nmi(PowerPCCPU *cpu, struct kvm_run *run);
+
+/*
+ * Currently KVM only passes on the uncorrected machine
+ * check memory error to guest. Other machine check errors
+ * such as SLB multi-hit and TLB multi-hit are recovered
+ * in KVM and are not passed on to guest.
+ *
+ * DSISR Bit for uncorrected machine check error. Based
+ * on arch/powerpc/include/asm/mce.h
+ */
+#define PPC_BIT(bit)                (0x8000000000000000ULL >> bit)
+#define P7_DSISR_MC_UE              (PPC_BIT(48))  /* P8 too */
+
 #else
 
 static inline uint32_t kvmppc_get_tbfreq(void)

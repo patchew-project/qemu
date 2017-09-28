@@ -41,6 +41,7 @@
 #include "qemu/bcd.h"
 #include "hw/ppc/spapr_ovec.h"
 #include <libfdt.h>
+#include <linux/kvm.h>
 
 #define RTAS_LOG_VERSION_MASK                   0xff000000
 #define   RTAS_LOG_VERSION_6                    0x06000000
@@ -173,6 +174,22 @@ struct epow_extended_log {
     struct rtas_event_log_v6_mainb mainb;
     struct rtas_event_log_v6_epow epow;
 } QEMU_PACKED;
+
+/*
+ * Data format in RTAS Blob
+ *
+ * This structure contains error information related to Machine
+ * Check exception. This is filled up and copied to rtas blob
+ * upon machine check exception. The address of rtas blob is
+ * passed on to OS registered machine check notification
+ * routines upon machine check exception.
+ */
+struct rtas_event_log_mce {
+    target_ulong r3;
+    struct rtas_error_log rtas_error_log;
+    unsigned char   buffer[1];      /* Start of extended log */
+} QEMU_PACKED;
+
 
 union drc_identifier {
     uint32_t index;
@@ -621,6 +638,51 @@ void spapr_hotplug_req_remove_by_count_indexed(sPAPRDRConnectorType drc_type,
     drc_id.count_indexed.index = index;
     spapr_hotplug_req_event(RTAS_LOG_V6_HP_ID_DRC_COUNT_INDEXED,
                             RTAS_LOG_V6_HP_ACTION_REMOVE, drc_type, &drc_id);
+}
+
+ssize_t spapr_get_rtas_size(void)
+{
+    return RTAS_ERRLOG_OFFSET + sizeof(struct rtas_event_log_mce);
+}
+
+target_ulong spapr_mce_req_event(target_ulong r3, hwaddr rtas_addr,
+                                 uint16_t flags, bool err_type, bool le)
+{
+    struct rtas_event_log_mce mc_log;
+    uint32_t summary;
+
+    /* Set error log fields */
+    mc_log.r3 = r3;
+
+    summary = RTAS_LOG_SEVERITY_ERROR_SYNC;
+
+    if (flags & KVM_RUN_PPC_NMI_DISP_FULLY_RECOV) {
+        summary |= RTAS_LOG_DISPOSITION_FULLY_RECOVERED;
+    } else {
+        summary |= RTAS_LOG_DISPOSITION_NOT_RECOVERED;
+    }
+
+    summary |= (RTAS_LOG_INITIATOR_MEMORY | RTAS_LOG_TARGET_MEMORY);
+
+    if (err_type) {
+        summary |= RTAS_LOG_TYPE_ECC_UNCORR;
+    } else {
+        summary |= RTAS_LOG_TYPE_ECC_CORR;
+    }
+
+    mc_log.rtas_error_log.summary = cpu_to_be32(summary);
+
+    /* Handle all Host/Guest LE/BE combinations */
+    if (le) {
+        mc_log.r3 = cpu_to_le64(mc_log.r3);
+    } else {
+        mc_log.r3 = cpu_to_be64(mc_log.r3);
+    }
+
+    cpu_physical_memory_write(rtas_addr + RTAS_ERRLOG_OFFSET,
+                              &mc_log, sizeof(mc_log));
+
+    return rtas_addr + RTAS_ERRLOG_OFFSET;
 }
 
 static void check_exception(PowerPCCPU *cpu, sPAPRMachineState *spapr,
