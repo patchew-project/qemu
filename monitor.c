@@ -3971,6 +3971,8 @@ static void monitor_qmp_bh_dispatcher(void *data)
     }
 }
 
+#define  QMP_ASYNC_QUEUE_LEN_MAX  (8)
+
 static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens,
                                void *opaque)
 {
@@ -4001,6 +4003,19 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens,
     req_obj->mon = mon;
     req_obj->id = id;
     req_obj->req = req;
+
+    /* Drop the request if queue is full. */
+    if (mon->qmp_requests->length >= QMP_ASYNC_QUEUE_LEN_MAX) {
+        const char *id_str = qobject_get_try_str(id);
+
+        qapi_event_send_request_dropped(id_str ? id_str : "",
+                                        REQUEST_DROP_REASON_QUEUE_FULL,
+                                        NULL);
+        qobject_decref(id);
+        qobject_decref(req);
+        g_free(req_obj);
+        return;
+    }
 
     /*
      * Put the request to the end of queue so that requests will be
