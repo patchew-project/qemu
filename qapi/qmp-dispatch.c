@@ -52,6 +52,12 @@ static QDict *qmp_dispatch_check_obj(const QObject *request, Error **errp)
                            "QMP input member 'arguments' must be an object");
                 return NULL;
             }
+        } else if (!strcmp(arg_name, "control")) {
+            if (qobject_type(arg_obj) != QTYPE_QDICT) {
+                error_setg(errp,
+                           "QMP input member 'control' must be a dict");
+                return NULL;
+            }
         } else {
             error_setg(errp, "QMP input member '%s' is unexpected",
                        arg_name);
@@ -120,6 +126,34 @@ QObject *qmp_build_error_object(Error *err)
     return qobject_from_jsonf("{ 'class': %s, 'desc': %s }",
                               QapiErrorClass_str(error_get_class(err)),
                               error_get_pretty(err));
+}
+
+/*
+ * Detect whether a request should be run out-of-band, by quickly
+ * peeking at whether we have: { "control": { "run-oob": True } }. By
+ * default commands are run in-band.
+ */
+bool qmp_is_oob(const QObject *request)
+{
+    QDict *dict;
+    QBool *bool_obj;
+
+    dict = qobject_to_qdict(request);
+    if (!dict) {
+        return false;
+    }
+
+    dict = qdict_get_qdict(dict, "control");
+    if (!dict) {
+        return false;
+    }
+
+    bool_obj = qobject_to_qbool(qdict_get(dict, "run-oob"));
+    if (!bool_obj) {
+        return false;
+    }
+
+    return qbool_get_bool(bool_obj);
 }
 
 QObject *qmp_dispatch(QmpCommandList *cmds, QObject *request)
