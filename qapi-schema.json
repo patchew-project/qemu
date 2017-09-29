@@ -3191,3 +3191,38 @@
 # Since 2.9
 ##
 { 'command': 'query-vm-generation-id', 'returns': 'GuidInfo' }
+
+##
+# @RequestDropReason:
+#
+# Reasons that caused one request to be dropped.
+#
+# @queue-full: the queue of request is full.
+#
+# Since: 2.11
+##
+{ 'enum': 'RequestDropReason',
+  'data': ['queue-full' ] }
+
+##
+# @REQUEST_DROPPED:
+#
+# Emitted when one QMP request is dropped due to some reason.
+#
+# @id:    If the original request contains an string-typed "id" field,
+#         it'll be put into this field.  Otherwise it'll be an empty
+#         string.
+#
+# @reason: The reason why the request is dropped.
+#
+# Since: 2.11
+#
+# Example:
+#
+# { "event": "REQUEST_DROPPED",
+#   "data": {"result": {"id": "libvirt-102",
+#                       "reason": "queue-full" } } }
+#
+##
+{ 'event': 'REQUEST_DROPPED' ,
+  'data': { 'id': 'str', 'reason': 'RequestDropReason' } }
