@@ -312,7 +312,10 @@ STDAPI COMRegister(void)
 
     /* Setup roles of the applicaion */
 
-    chk(getNameByStringSID(administratorsGroupSID, buffer, &bufferLen));
+    hr = getNameByStringSID(administratorsGroupSID, buffer, &bufferLen);
+    if (FAILED(hr)) {
+        wsprintfW(buffer, L"%ls", L"Administrators");
+    }
     chk(pApps->GetCollection(_bstr_t(L"Roles"), key,
                              (IDispatch **)pRoles.replace()));
     chk(pRoles->Populate());
@@ -333,7 +336,10 @@ STDAPI COMRegister(void)
     chk(put_Value(pObj, L"User", _bstr_t(".\\") + name));
 
     bufferLen = BUFFER_SIZE;
-    chk(getNameByStringSID(systemUserSID, buffer, &bufferLen));
+    hr = getNameByStringSID(systemUserSID, buffer, &bufferLen);
+    if (FAILED(hr)) {
+        wsprintfW(buffer, L"%ls", L"SYSTEM");
+    }
     chk(pUsersInRole->Add((IDispatch **)pObj.replace()));
     chk(put_Value(pObj, L"User", buffer));
     chk(pUsersInRole->SaveChanges(&n));
