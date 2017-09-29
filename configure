@@ -3359,6 +3359,7 @@ int main(void) {
 EOF
 if compile_prog "" "" ; then
   pthread=yes
+  PTHREAD_LIB="-pthread"
 else
   for pthread_lib in $PTHREADLIBS_LIST; do
     if compile_prog "" "$pthread_lib" ; then
