@@ -1663,7 +1663,7 @@ void helper_mtc0_watchlo(CPUMIPSState *env, target_ulong arg1, uint32_t sel)
 void helper_mtc0_watchhi(CPUMIPSState *env, target_ulong arg1, uint32_t sel)
 {
     int mask = 0x40000FF8 | (env->CP0_EntryHi_ASID_mask << CP0WH_ASID);
-    env->CP0_WatchHi[sel] = arg1 & mask;
+    env->CP0_WatchHi[sel] ^= (env->CP0_WatchHi[sel] ^ arg1) & mask;
     env->CP0_WatchHi[sel] &= ~(env->CP0_WatchHi[sel] & arg1 & 0x7);
 }
 
