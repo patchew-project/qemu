@@ -76,6 +76,7 @@
 #include "qmp-introspect.h"
 #include "sysemu/qtest.h"
 #include "sysemu/cpus.h"
+#include "sysemu/iothread.h"
 #include "qemu/cutils.h"
 #include "qapi/qmp/dispatch.h"
 
@@ -207,6 +208,12 @@ struct Monitor {
     QLIST_HEAD(,mon_fd_t) fds;
     QLIST_ENTRY(Monitor) entry;
 };
+
+struct MonitorGlobal {
+    IOThread *mon_io_thread;
+};
+
+static struct MonitorGlobal mon_global;
 
 /* QMP checker flags */
 #define QMP_ACCEPT_UNKNOWNS 1
@@ -4047,12 +4054,29 @@ static void sortcmdlist(void)
     qsort((void *)info_cmds, array_num, elem_size, compare_mon_cmd);
 }
 
+static GMainContext *monitor_io_context_get(void)
+{
+    return iothread_get_g_main_context(mon_global.mon_io_thread);
+}
+
+static void monitor_io_thread_init(void)
+{
+    mon_global.mon_io_thread = iothread_create("monitor_io_thr",
+                                               &error_abort);
+    /*
+     * Gcontext in iothread is using lazy init - the first time we
+     * fetch the context we'll have that initialized.
+     */
+    monitor_io_context_get();
+}
+
 void monitor_init_globals(void)
 {
     monitor_init_qmp_commands();
     monitor_qapi_event_init();
     sortcmdlist();
     qemu_mutex_init(&monitor_lock);
+    monitor_io_thread_init();
 }
 
 /* These functions just adapt the readline interface in a typesafe way.  We
@@ -4126,9 +4150,22 @@ void monitor_init(Chardev *chr, int flags)
     qemu_mutex_unlock(&monitor_lock);
 }
 
+static void monitor_io_thread_destroy(void)
+{
+    iothread_destroy(mon_global.mon_io_thread);
+    mon_global.mon_io_thread = NULL;
+}
+
 void monitor_cleanup(void)
 {
     Monitor *mon, *next;
+
+    /*
+     * We need to explicitly stop the iothread (but not destroy it),
+     * cleanup the monitor resources, then destroy the iothread.  See
+     * again on the glib bug mentioned in 2b316774f6 for a reason.
+     */
+    iothread_stop(mon_global.mon_io_thread);
 
     qemu_mutex_lock(&monitor_lock);
     QLIST_FOREACH_SAFE(mon, &mon_list, entry, next) {
@@ -4137,6 +4174,8 @@ void monitor_cleanup(void)
         g_free(mon);
     }
     qemu_mutex_unlock(&monitor_lock);
+
+    monitor_io_thread_destroy();
 }
 
 QemuOptsList qemu_mon_opts = {
