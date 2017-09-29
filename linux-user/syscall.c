@@ -7783,6 +7783,11 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         }
         break;
     case TARGET_NR_write:
+        if (arg2 == 0 && arg3 == 0) {
+            /* special case: write(fd, NULL, 0) returns success. */
+            ret = 0;
+            break;
+        }
         if (!(p = lock_user(VERIFY_READ, arg2, arg3, 1)))
             goto efault;
         if (fd_trans_target_to_host_data(arg1)) {
