@@ -83,16 +83,21 @@ The greeting message format is:
 2.2.1 Capabilities
 ------------------
 
-As of the date this document was last revised, no server or client
-capability strings have been defined.
+Currently supported capabilities:
 
+- "oob": it means the QMP server supports "Out-Of-Band" command
+  execution.  For more detail, please see "run-oob" parameter in
+  "Issuing Commands" section below.  Not all commands allow this "oob"
+  execution.  One can know whether one command supports "oob" by
+  "query-qmp-schema" command.
 
 2.3 Issuing Commands
 --------------------
 
 The format for command execution is:
 
-{ "execute": json-string, "arguments": json-object, "id": json-value }
+{ "execute": json-string, "arguments": json-object, "id": json-value,
+  "control": json-dict }
 
  Where,
 
@@ -106,12 +111,25 @@ The format for command execution is:
   provided. The "id" member can be any json-value, although most
   clients merely use a json-number incremented for each successive
   command
+- The "control" member is optionally, and currently only used for
+  "out-of-band" execution.  For some commands that always complete
+  "quickly" can be executed directly during parsing at the QMP
+  client's request.  This kind of commands that allow direct execution
+  is called "out-of-band" ("oob" as shortcut) commands. The response
+  of "oob" commands can overtake prior in-band commands' responses.
+  To enable "oob" feature, just provide a control field with:
+  { "control": { "run-oob": true } }
 
 2.4 Commands Responses
 ----------------------
 
 There are two possible responses which the Server will issue as the result
 of a command execution: success or error.
+
+As long as the commands were issued with a proper "id" field, then the
+same "id" field will be attached in the corresponding response message
+so that requests and responses can match.  Clients should drop all the
+responses that are with unknown "id" field.
 
 2.4.1 success
 -------------

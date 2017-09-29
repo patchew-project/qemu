@@ -556,7 +556,8 @@ following example objects:
 
 Usage: { 'command': STRING, '*data': COMPLEX-TYPE-NAME-OR-DICT,
          '*returns': TYPE-NAME, '*boxed': true,
-         '*gen': false, '*success-response': false }
+         '*gen': false, '*success-response': false,
+         '*allow-oob': false }
 
 Commands are defined by using a dictionary containing several members,
 where three members are most common.  The 'command' member is a
@@ -636,6 +637,44 @@ possible, the command expression should include the optional key
 'success-response' with boolean value false.  So far, only QGA makes
 use of this member.
 
+Most of the QMP commands are handled sequentially in such a order:
+Firstly, the JSON Parser parses the command request into some internal
+message, delivers the message to QMP dispatchers. Secondly, the QMP
+dispatchers will handle the commands one by one in time order, respond
+when necessary.  For some commands that always complete "quickly" can
+instead be executed directly during parsing, at the QMP client's
+request.  This kind of commands that allow direct execution is called
+"out-of-band" ("oob" as shortcut) commands. The response can overtake
+prior in-band commands' responses.  By default, commands are always
+in-band.  We need to explicitly specify "allow-oob" to "True" to show
+that one command can be run out-of-band.
+
+One thing to mention for developers is that, although out-of-band
+execution of commands benefit from quick and asynchronous execution,
+it need to satisfy at least the following:
+
+(1) It is extremely quick and never blocks, so that its execution will
+    not block parsing routine of any other monitors.
+
+(2) It does not need BQL, since the parser can be run without BQL,
+    while the dispatcher is always with BQL held.
+
+If not, the command is not suitable to be allowed to run out-of-band,
+and it should set its "allow-oob" to "False".  Whether a command is
+allowed to run out-of-band can also be introspected using
+query-qmp-schema command.  Please see the section "Client JSON
+Protocol introspection" for more information.
+
+To execute a command in out-of-band way, we need to specify the
+"control" field in the request, with "run-oob" set to true. Example:
+
+ => { "execute": "command-support-oob",
+      "arguments": { ... },
+      "control": { "run-oob": true } }
+ <= { "return": { } }
+
+Without it, even the commands that supports out-of-band execution will
+still be run in-band.
 
 === Events ===
 
@@ -739,10 +778,12 @@ references by name.
 QAPI schema definitions not reachable that way are omitted.
 
 The SchemaInfo for a command has meta-type "command", and variant
-members "arg-type" and "ret-type".  On the wire, the "arguments"
-member of a client's "execute" command must conform to the object type
-named by "arg-type".  The "return" member that the server passes in a
-success response conforms to the type named by "ret-type".
+members "arg-type", "ret-type" and "allow-oob".  On the wire, the
+"arguments" member of a client's "execute" command must conform to the
+object type named by "arg-type".  The "return" member that the server
+passes in a success response conforms to the type named by
+"ret-type".  When "allow-oob" is set, it means the command supports
+out-of-band execution.
 
 If the command takes no arguments, "arg-type" names an object type
 without members.  Likewise, if the command returns nothing, "ret-type"
