@@ -104,12 +104,17 @@ void isa_connect_gpio_out(ISADevice *isadev, int gpioirq, int isairq)
     qdev_connect_gpio_out(DEVICE(isadev), gpioirq, irq);
 }
 
-void isa_bus_dma(ISABus *bus, IsaDma *dma8, IsaDma *dma16)
+void isa_bus_dma(ISABus *bus, IsaDma *dma8, IsaDma *dma16, Error **errp)
 {
+    Error *local_err = NULL;
     assert(bus && dma8 && dma16);
-    assert(!bus->dma[0] && !bus->dma[1]);
+    if (bus->dma[0] && bus->dma[1]) {
+        error_setg(errp, "isa dma device i82374 already created");
+        return;
+    }
     bus->dma[0] = dma8;
     bus->dma[1] = dma16;
+    error_propagate(errp, local_err);
 }
 
 IsaDma *isa_get_dma(ISABus *bus, int nchan)

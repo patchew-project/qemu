@@ -27,6 +27,7 @@
 #include "hw/isa/i8257.h"
 #include "qemu/main-loop.h"
 #include "trace.h"
+#include "qapi/error.h"
 
 #define I8257(obj) \
     OBJECT_CHECK(I8257State, (obj), TYPE_I8257)
@@ -622,10 +623,11 @@ static void i8257_register_types(void)
 
 type_init(i8257_register_types)
 
-void DMA_init(ISABus *bus, int high_page_enable)
+void DMA_init(ISABus *bus, int high_page_enable, Error **errp)
 {
     ISADevice *isa1, *isa2;
     DeviceState *d;
+    Error *local_err = NULL;
 
     isa1 = isa_create(bus, TYPE_I8257);
     d = DEVICE(isa1);
@@ -643,5 +645,6 @@ void DMA_init(ISABus *bus, int high_page_enable)
     qdev_prop_set_int32(d, "dshift", 1);
     qdev_init_nofail(d);
 
-    isa_bus_dma(bus, ISADMA(isa1), ISADMA(isa2));
+    isa_bus_dma(bus, ISADMA(isa1), ISADMA(isa2), &local_err);
+    error_propagate(errp, local_err);
 }
