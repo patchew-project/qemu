@@ -4160,12 +4160,23 @@ void monitor_resume(Monitor *mon)
 
 static QObject *get_qmp_greeting(void)
 {
+    QDict *result = qdict_new(), *qmp = qdict_new();
+    QList *cap_list = qlist_new();
     QObject *ver = NULL;
+    QMPCapability cap;
+
+    qdict_put(result, "QMP", qmp);
 
     qmp_marshal_query_version(NULL, &ver, NULL);
+    qdict_put_obj(qmp, "version", ver);
 
-    return qobject_from_jsonf("{'QMP': {'version': %p, 'capabilities': []}}",
-                              ver);
+    for (cap = 0; cap < QMP_CAPABILITY__MAX; cap++) {
+        qlist_append(cap_list, qstring_from_str(
+                         QMPCapability_str(cap)));
+    }
+    qdict_put(qmp, "capabilities", cap_list);
+
+    return QOBJECT(result);
 }
 
 static void monitor_qmp_event(void *opaque, int event)

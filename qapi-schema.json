@@ -119,6 +119,19 @@
 { 'command': 'qmp_capabilities' }
 
 ##
+# @QMPCapability:
+#
+# QMP supported capabilities to be broadcasted to the clients.
+#
+# @oob:   QMP ability to support Out-Of-Band requests.
+#
+# Since: 2.11
+#
+##
+{ 'enum': 'QMPCapability',
+  'data': [ 'oob' ] }
+
+##
 # @VersionTriple:
 #
 # A three-part version number.
