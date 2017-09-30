@@ -325,7 +325,9 @@ static int get_cpsr(QEMUFile *f, void *opaque, size_t size,
         return 0;
     }
 
+    pmu_sync(env);
     env->aarch64 = ((val & PSTATE_nRW) == 0);
+    pmu_sync(env);
 
     if (is_a64(env)) {
         pstate_write(env, val);
