@@ -18,7 +18,7 @@ LDFLAGS=
 # also, pi_10.com runs indefinitely
 
 I386_TESTS=hello-i386 \
-	   linux-test \
+	   linux-test-i386 \
 	   testthread \
 	   sha1-i386 \
 	   test-i386 \
@@ -47,7 +47,7 @@ run-%: %
 	-$(QEMU) ./$*
 
 run-hello-i386: hello-i386
-run-linux-test: linux-test
+run-linux-test-i386: linux-test-i386
 run-testthread: testthread
 run-sha1-i386: sha1-i386
 
@@ -105,8 +105,11 @@ test-x86_64: test-i386.c \
 	$(CC_X86_64) $(QEMU_INCLUDES) $(CFLAGS) $(LDFLAGS) -o $@ $(<D)/test-i386.c -lm
 
 # generic Linux and CPU test
-linux-test: linux-test.c
-	$(CC_I386) $(CFLAGS) $(LDFLAGS) -o $@ $< -lm
+linux-test-i386: linux-test.c
+	$(CC_I386) $(QEMU_INCLUDES) $(CFLAGS) $(LDFLAGS) -o $@ $< -lm
+
+linux-test-x86_64: linux-test.c
+	$(CC_X86_64) $(QEMU_INCLUDES) $(CFLAGS) $(LDFLAGS) -o $@ $< -lm
 
 # vm86 test
 runcom: runcom.c

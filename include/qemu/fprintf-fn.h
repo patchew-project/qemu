@@ -8,6 +8,8 @@
 #ifndef QEMU_FPRINTF_FN_H
 #define QEMU_FPRINTF_FN_H
 
+#include "compiler.h"
+
 typedef int (*fprintf_function)(FILE *f, const char *fmt, ...)
     GCC_FMT_ATTR(2, 3);
 

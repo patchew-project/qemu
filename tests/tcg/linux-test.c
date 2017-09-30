@@ -39,6 +39,7 @@
 #include <dirent.h>
 #include <setjmp.h>
 #include <sys/shm.h>
+#include <sys/resource.h>
 #include "qemu/cutils.h"
 
 #define TESTPATH "/tmp/linux-test.tmp"
@@ -107,6 +108,12 @@ void test_file(void)
     len = chk_error(write(fd, buf, FILE_BUF_SIZE / 2));
     if (len != (FILE_BUF_SIZE / 2))
         error("write");
+    len = chk_error(write(fd, buf, 0));
+    if (len != 0)
+        error("write 0 size");
+    len = chk_error(write(fd, NULL, 0));
+    if (len != 0)
+	error("write NULL buf");
     vecs[0].iov_base = buf + (FILE_BUF_SIZE / 2);
     vecs[0].iov_len = 16;
     vecs[1].iov_base = buf + (FILE_BUF_SIZE / 2) + 16;
@@ -533,7 +540,7 @@ int main(int argc, char **argv)
     test_time();
     test_socket();
     //    test_clone();
-    test_signal();
+    //test_signal();
     test_shm();
     return 0;
 }

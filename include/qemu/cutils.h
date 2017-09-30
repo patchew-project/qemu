@@ -1,6 +1,8 @@
 #ifndef QEMU_CUTILS_H
 #define QEMU_CUTILS_H
 
+#include <stdbool.h>
+
 #include "qemu/fprintf-fn.h"
 
 /**
