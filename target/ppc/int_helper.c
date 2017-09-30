@@ -210,7 +210,7 @@ target_ulong helper_cmpb(target_ulong rs, target_ulong rb)
 
 /* shift right arithmetic helper */
 target_ulong helper_sraw(CPUPPCState *env, target_ulong value,
-                         target_ulong shift)
+                         target_ulong shift, target_ulong is_isa300)
 {
     int32_t ret;
 
@@ -231,12 +231,15 @@ target_ulong helper_sraw(CPUPPCState *env, target_ulong value,
         ret = (int32_t)value >> 31;
         env->ca = (ret != 0);
     }
+    if (is_isa300) {
+        env->ca32 = env->ca;
+    }
     return (target_long)ret;
 }
 
 #if defined(TARGET_PPC64)
 target_ulong helper_srad(CPUPPCState *env, target_ulong value,
-                         target_ulong shift)
+                         target_ulong shift, target_ulong is_isa300)
 {
     int64_t ret;
 
@@ -256,6 +259,9 @@ target_ulong helper_srad(CPUPPCState *env, target_ulong value,
     } else {
         ret = (int64_t)value >> 63;
         env->ca = (ret != 0);
+    }
+    if (is_isa300) {
+        env->ca32 = env->ca;
     }
     return ret;
 }

@@ -2166,8 +2166,11 @@ static void gen_slw(DisasContext *ctx)
 /* sraw & sraw. */
 static void gen_sraw(DisasContext *ctx)
 {
+    TCGv t0;
+
+    t0 = tcg_const_tl(is_isa300(ctx));
     gen_helper_sraw(cpu_gpr[rA(ctx->opcode)], cpu_env,
-                    cpu_gpr[rS(ctx->opcode)], cpu_gpr[rB(ctx->opcode)]);
+                    cpu_gpr[rS(ctx->opcode)], cpu_gpr[rB(ctx->opcode)], t0);
     if (unlikely(Rc(ctx->opcode) != 0))
         gen_set_Rc0(ctx, cpu_gpr[rA(ctx->opcode)]);
 }
@@ -2191,6 +2194,9 @@ static void gen_srawi(DisasContext *ctx)
         tcg_temp_free(t0);
         tcg_gen_setcondi_tl(TCG_COND_NE, cpu_ca, cpu_ca, 0);
         tcg_gen_sari_tl(dst, dst, sh);
+    }
+    if (is_isa300(ctx)) {
+        tcg_gen_mov_tl(cpu_ca32, cpu_ca);
     }
     if (unlikely(Rc(ctx->opcode) != 0)) {
         gen_set_Rc0(ctx, dst);
@@ -2245,8 +2251,11 @@ static void gen_sld(DisasContext *ctx)
 /* srad & srad. */
 static void gen_srad(DisasContext *ctx)
 {
+    TCGv t0;
+
+    t0 = tcg_const_tl(is_isa300(ctx));
     gen_helper_srad(cpu_gpr[rA(ctx->opcode)], cpu_env,
-                    cpu_gpr[rS(ctx->opcode)], cpu_gpr[rB(ctx->opcode)]);
+                    cpu_gpr[rS(ctx->opcode)], cpu_gpr[rB(ctx->opcode)], t0);
     if (unlikely(Rc(ctx->opcode) != 0))
         gen_set_Rc0(ctx, cpu_gpr[rA(ctx->opcode)]);
 }
@@ -2268,6 +2277,9 @@ static inline void gen_sradi(DisasContext *ctx, int n)
         tcg_temp_free(t0);
         tcg_gen_setcondi_tl(TCG_COND_NE, cpu_ca, cpu_ca, 0);
         tcg_gen_sari_tl(dst, src, sh);
+    }
+    if (is_isa300(ctx)) {
+        tcg_gen_mov_tl(cpu_ca32, cpu_ca);
     }
     if (unlikely(Rc(ctx->opcode) != 0)) {
         gen_set_Rc0(ctx, dst);
