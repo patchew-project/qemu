@@ -10509,6 +10509,10 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             arg4 = arg5;
             arg5 = arg6;
         }
+        if (arg2 == 0 && arg3 == 0) {
+            ret = get_errno(pwrite64(arg1, NULL, arg3, target_offset64(arg4, arg5)));
+            break;
+        }
         if (!(p = lock_user(VERIFY_READ, arg2, arg3, 1)))
             goto efault;
         ret = get_errno(pwrite64(arg1, p, arg3, target_offset64(arg4, arg5)));
