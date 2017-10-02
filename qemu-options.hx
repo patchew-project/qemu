@@ -2915,19 +2915,18 @@ The general form of a TPM device option is:
 
 @item -tpmdev @var{backend} ,id=@var{id} [,@var{options}]
 @findex -tpmdev
-Backend type must be:
-@option{passthrough}.
 
 The specific backend type will determine the applicable options.
 The @code{-tpmdev} option creates the TPM backend and requires a
 @code{-device} option that specifies the TPM frontend interface model.
 
-Options to each backend are described below.
+Use @code{-tpmdev help} to print all available TPM backend types.
 
-Use 'help' to print all available TPM backend types.
-@example
-qemu -tpmdev help
-@end example
+@end table
+
+The available backends are:
+
+@table @option
 
 @item -tpmdev passthrough, id=@var{id}, path=@var{path}, cancel-path=@var{cancel-path}
 
@@ -2966,10 +2965,11 @@ To create a passthrough TPM use the following two options:
 Note that the @code{-tpmdev} id is @code{tpm0} and is referenced by
 @code{tpmdev=tpm0} in the device option.
 
-@end table
-
 ETEXI
 
+STEXI
+@end table
+ETEXI
 DEFHEADING()
 
 #endif
