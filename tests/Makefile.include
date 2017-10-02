@@ -803,7 +803,7 @@ tests/numa-test$(EXESUF): tests/numa-test.o
 tests/vmgenid-test$(EXESUF): tests/vmgenid-test.o tests/boot-sector.o tests/acpi-utils.o
 
 tests/migration/stress$(EXESUF): tests/migration/stress.o
-	$(call quiet-command, $(LINKPROG) -static -O3 $(PTHREAD_LIB) -o $@ $< ,"LINK","$(TARGET_DIR)$@")
+	$(call quiet-command, $(CC) -static -O3 $(PTHREAD_LIB) -o $@ $< ,"LINK","$(TARGET_DIR)$@")
 
 INITRD_WORK_DIR=tests/migration/initrd
 
