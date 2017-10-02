@@ -383,7 +383,8 @@ static void extract_common_blockdev_options(QemuOpts *opts, int *bdrv_flags,
 
     /* disk I/O throttling */
     if (throttling_group) {
-        *throttling_group = qemu_opt_get(opts, "throttling.group");
+        *throttling_group = qemu_opt_get(opts, THROTTLE_OPT_PREFIX
+                                         QEMU_OPT_THROTTLE_GROUP_NAME);
     }
 
     if (throttle_cfg) {
@@ -802,25 +803,25 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
         const char *from;
         const char *to;
     } opt_renames[] = {
-        { "iops",           "throttling.iops-total" },
-        { "iops_rd",        "throttling.iops-read" },
-        { "iops_wr",        "throttling.iops-write" },
+        { "iops",           THROTTLE_OPT_PREFIX QEMU_OPT_IOPS_TOTAL },
+        { "iops_rd",        THROTTLE_OPT_PREFIX QEMU_OPT_IOPS_READ },
+        { "iops_wr",        THROTTLE_OPT_PREFIX QEMU_OPT_IOPS_WRITE },
 
-        { "bps",            "throttling.bps-total" },
-        { "bps_rd",         "throttling.bps-read" },
-        { "bps_wr",         "throttling.bps-write" },
+        { "bps",            THROTTLE_OPT_PREFIX QEMU_OPT_BPS_TOTAL },
+        { "bps_rd",         THROTTLE_OPT_PREFIX QEMU_OPT_BPS_READ },
+        { "bps_wr",         THROTTLE_OPT_PREFIX QEMU_OPT_BPS_WRITE },
 
-        { "iops_max",       "throttling.iops-total-max" },
-        { "iops_rd_max",    "throttling.iops-read-max" },
-        { "iops_wr_max",    "throttling.iops-write-max" },
+        { "iops_max",       THROTTLE_OPT_PREFIX QEMU_OPT_IOPS_TOTAL_MAX },
+        { "iops_rd_max",    THROTTLE_OPT_PREFIX QEMU_OPT_IOPS_READ_MAX },
+        { "iops_wr_max",    THROTTLE_OPT_PREFIX QEMU_OPT_IOPS_WRITE_MAX },
 
-        { "bps_max",        "throttling.bps-total-max" },
-        { "bps_rd_max",     "throttling.bps-read-max" },
-        { "bps_wr_max",     "throttling.bps-write-max" },
+        { "bps_max",        THROTTLE_OPT_PREFIX QEMU_OPT_BPS_TOTAL_MAX },
+        { "bps_rd_max",     THROTTLE_OPT_PREFIX QEMU_OPT_BPS_READ_MAX },
+        { "bps_wr_max",     THROTTLE_OPT_PREFIX QEMU_OPT_BPS_WRITE_MAX },
 
-        { "iops_size",      "throttling.iops-size" },
+        { "iops_size",      THROTTLE_OPT_PREFIX QEMU_OPT_IOPS_SIZE },
 
-        { "group",          "throttling.group" },
+        { "group",          THROTTLE_OPT_PREFIX QEMU_OPT_THROTTLE_GROUP_NAME },
 
         { "readonly",       BDRV_OPT_READ_ONLY },
     };
@@ -4089,7 +4090,7 @@ QemuOptsList qemu_common_drive_opts = {
         THROTTLE_OPTS,
 
         {
-            .name = "throttling.group",
+            .name = THROTTLE_OPT_PREFIX QEMU_OPT_THROTTLE_GROUP_NAME,
             .type = QEMU_OPT_STRING,
             .help = "name of the block throttling group",
         },{
