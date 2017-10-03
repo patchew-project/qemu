@@ -3766,6 +3766,20 @@ void qmp_block_job_complete(const char *device, Error **errp)
     aio_context_release(aio_context);
 }
 
+void qmp_block_job_cull(const char *device, Error **errp)
+{
+    AioContext *aio_context;
+    BlockJob *job = find_block_job(device, &aio_context, errp);
+
+    if (!job) {
+        return;
+    }
+
+    trace_qmp_block_job_cull(job);
+    block_job_cull(&job, errp);
+    aio_context_release(aio_context);
+}
+
 void qmp_change_backing_file(const char *device,
                              const char *image_node_name,
                              const char *backing_file,

@@ -2161,6 +2161,27 @@
 { 'command': 'block-job-complete', 'data': { 'device': 'str' } }
 
 ##
+# @block-job-cull:
+#
+# For jobs that have already completed, remove them from the block-job-query
+# list. This command only needs to be run for jobs which were started with the
+# manual-cull=true option.
+#
+# This command will refuse to operate on any job that has not yet reached
+# its terminal state. "cancel" or "complete" will still need to be used as
+# appropriate.
+#
+# @device: The job identifier. This used to be a device name (hence
+#          the name of the parameter), but since QEMU 2.7 it can have
+#          other values.
+#
+# Returns: Nothing on success
+#
+# Since: 2.11
+##
+{ 'command': 'block-job-cull', 'data': { 'device': 'str' } }
+
+##
 # @BlockdevDiscardOptions:
 #
 # Determines how to handle discard requests.
