@@ -984,9 +984,10 @@
 # Since: 1.1
 ##
 { 'struct': 'BlockJobInfo',
-  'data': {'type': 'str', 'device': 'str', 'len': 'int',
-           'offset': 'int', 'busy': 'bool', 'paused': 'bool', 'speed': 'int',
-           'io-status': 'BlockDeviceIoStatus', 'ready': 'bool'} }
+  'data': {'type': 'str', 'device': 'str', 'len': 'int', 'offset': 'int',
+           'busy': 'bool', 'paused': 'bool', 'speed': 'int',
+           'io-status': 'BlockDeviceIoStatus', 'ready': 'bool',
+           'finished': 'bool'} }
 
 ##
 # @query-block-jobs:

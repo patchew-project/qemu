@@ -336,6 +336,8 @@ static void block_job_completed_single(BlockJob *job)
         QLIST_REMOVE(job, txn_list);
         block_job_txn_unref(job->txn);
     }
+
+    job->finished = true;
     block_job_unref(job);
 }
 
@@ -350,6 +352,13 @@ static void block_job_cancel_async(BlockJob *job)
         job->pause_count--;
     }
     job->cancelled = true;
+}
+
+static void block_job_do_cull(BlockJob *job)
+{
+    assert(job && job->manual_cull == true);
+    job->manual_cull = false;
+    block_job_unref(job);
 }
 
 static int block_job_finish_sync(BlockJob *job,
@@ -381,6 +390,9 @@ static int block_job_finish_sync(BlockJob *job,
         aio_poll(qemu_get_aio_context(), true);
     }
     ret = (job->cancelled && job->ret == 0) ? -ECANCELED : job->ret;
+    if (job->manual_cull) {
+        block_job_do_cull(job);
+    }
     block_job_unref(job);
     return ret;
 }
@@ -483,6 +495,26 @@ void block_job_complete(BlockJob *job, Error **errp)
     job->driver->complete(job, errp);
 }
 
+void block_job_cull(BlockJob **jobptr, Error **errp)
+{
+    BlockJob *job = *jobptr;
+    /* similarly to _complete, this is QMP-interface only. */
+    assert(job->id);
+    if (!job->manual_cull) {
+        error_setg(errp, "The active block job '%s' was not started with "
+                   "\'manual-cull\': true, and so cannot be culled as it will "
+                   "clean up after itself automatically", job->id);
+        return;
+    } else if (!job->finished) {
+        error_setg(errp, "The active block job '%s' has not yet terminated, "
+                   "and cannot be culled yet", job->id);
+        return;
+    }
+
+    block_job_do_cull(job);
+    *jobptr = NULL;
+}
+
 void block_job_user_pause(BlockJob *job)
 {
     job->user_paused = true;
@@ -505,7 +537,9 @@ void block_job_user_resume(BlockJob *job)
 
 void block_job_cancel(BlockJob *job)
 {
-    if (block_job_started(job)) {
+    if (job->finished) {
+        return;
+    } else if (block_job_started(job)) {
         block_job_cancel_async(job);
         block_job_enter(job);
     } else {
@@ -562,6 +596,7 @@ BlockJobInfo *block_job_query(BlockJob *job, Error **errp)
     info->speed     = job->speed;
     info->io_status = job->iostatus;
     info->ready     = job->ready;
+    info->finished  = job->finished;
     return info;
 }
 
@@ -609,7 +644,7 @@ static void block_job_event_completed(BlockJob *job, const char *msg)
  */
 
 void *block_job_create(const char *job_id, const BlockJobDriver *driver,
-                       BlockDriverState *bs, uint64_t perm,
+                       bool manual_cull, BlockDriverState *bs, uint64_t perm,
                        uint64_t shared_perm, int64_t speed, int flags,
                        BlockCompletionFunc *cb, void *opaque, Error **errp)
 {
@@ -664,6 +699,7 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
     job->paused        = true;
     job->pause_count   = 1;
     job->refcnt        = 1;
+    job->manual_cull   = manual_cull;
 
     error_setg(&job->blocker, "block device is in use by block job: %s",
                BlockJobType_str(driver->job_type));
@@ -689,6 +725,12 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
             return NULL;
         }
     }
+
+    /* Hang on to an extra reference on behalf of the QMP monitor */
+    if (job->manual_cull) {
+        block_job_ref(job);
+    }
+
     return job;
 }
 
