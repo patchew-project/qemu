@@ -626,6 +626,15 @@ DeviceState *qdev_device_add(QemuOpts *opts, Error **errp)
         return NULL;
     }
 
+    /* In case we don't have a bus, there must be a machine hotplug handler */
+    if (qdev_hotplug && !bus && !qdev_get_machine_hotplug_handler(dev)) {
+        error_setg(errp, "Device '%s' can not be hotplugged on this machine",
+                   driver);
+        object_unparent(OBJECT(dev));
+        object_unref(OBJECT(dev));
+        return NULL;
+    }
+
     dev->opts = opts;
     object_property_set_bool(OBJECT(dev), true, "realized", &err);
     if (err != NULL) {
