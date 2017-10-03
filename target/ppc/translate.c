@@ -2192,6 +2192,10 @@ static void gen_srawi(DisasContext *ctx)
         tcg_gen_setcondi_tl(TCG_COND_NE, cpu_ca, cpu_ca, 0);
         tcg_gen_sari_tl(dst, dst, sh);
     }
+
+    /* update CA32 for ISA v3.0 */
+    tcg_gen_mov_tl(cpu_ca32, cpu_ca);
+
     if (unlikely(Rc(ctx->opcode) != 0)) {
         gen_set_Rc0(ctx, dst);
     }
@@ -2269,6 +2273,10 @@ static inline void gen_sradi(DisasContext *ctx, int n)
         tcg_gen_setcondi_tl(TCG_COND_NE, cpu_ca, cpu_ca, 0);
         tcg_gen_sari_tl(dst, src, sh);
     }
+
+    /* update CA32 for ISA v3.0 */
+    tcg_gen_mov_tl(cpu_ca32, cpu_ca);
+
     if (unlikely(Rc(ctx->opcode) != 0)) {
         gen_set_Rc0(ctx, dst);
     }

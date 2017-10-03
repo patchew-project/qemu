@@ -231,6 +231,10 @@ target_ulong helper_sraw(CPUPPCState *env, target_ulong value,
         ret = (int32_t)value >> 31;
         env->ca = (ret != 0);
     }
+
+    /* update CA32 for ISA v3.0 */
+    env->ca32 = env->ca;
+
     return (target_long)ret;
 }
 
@@ -257,6 +261,10 @@ target_ulong helper_srad(CPUPPCState *env, target_ulong value,
         ret = (int64_t)value >> 63;
         env->ca = (ret != 0);
     }
+
+    /* update CA32 for ISA v3.0 */
+    env->ca32 = env->ca;
+
     return ret;
 }
 #endif
