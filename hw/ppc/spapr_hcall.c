@@ -1656,6 +1656,37 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
     return H_SUCCESS;
 }
 
+static target_ulong h_update_dt(PowerPCCPU *cpu, sPAPRMachineState *spapr,
+                                target_ulong opcode, target_ulong *args)
+{
+    target_ulong dt = ppc64_phys_to_real(args[0]);
+    struct fdt_header hdr = { 0 };
+    unsigned cb, magic, old_cb = fdt_totalsize(spapr->fdt_blob);
+
+    cpu_physical_memory_read(dt, &hdr, sizeof(hdr));
+    cb = fdt32_to_cpu(hdr.totalsize);
+    magic = fdt32_to_cpu(hdr.magic);
+    if (magic != FDT_MAGIC || cb / old_cb > 2) {
+        trace_spapr_update_dt_failed(old_cb, cb, magic);
+        return H_PARAMETER;
+    }
+
+    g_free(spapr->fdt_blob);
+    spapr->fdt_blob = g_malloc0(cb);
+    cpu_physical_memory_read(dt, spapr->fdt_blob, cb);
+
+#ifdef DEBUG
+    {
+        FILE *f = fopen("dbg.dtb", "wb");
+        fwrite(spapr->fdt_blob, cb, 1, f);
+        fclose(f);
+    }
+#endif
+    trace_spapr_update_dt(cb);
+
+    return H_SUCCESS;
+}
+
 static spapr_hcall_fn papr_hypercall_table[(MAX_HCALL_OPCODE / 4) + 1];
 static spapr_hcall_fn kvmppc_hypercall_table[KVMPPC_HCALL_MAX - KVMPPC_HCALL_BASE + 1];
 
@@ -1753,6 +1784,8 @@ static void hypercall_register_types(void)
 
     /* ibm,client-architecture-support support */
     spapr_register_hypercall(KVMPPC_H_CAS, h_client_architecture_support);
+
+    spapr_register_hypercall(KVMPPC_H_UPDATE_DT, h_update_dt);
 }
 
 type_init(hypercall_register_types)

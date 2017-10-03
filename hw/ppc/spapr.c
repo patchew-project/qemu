@@ -1467,7 +1467,9 @@ static void ppc_spapr_reset(void)
     /* Load the fdt */
     qemu_fdt_dumpdtb(fdt, fdt_totalsize(fdt));
     cpu_physical_memory_write(fdt_addr, fdt, fdt_totalsize(fdt));
-    g_free(fdt);
+    g_free(spapr->fdt_blob);
+    spapr->fdt_blob = fdt;
+    spapr->fdt_size = fdt_totalsize(fdt);
 
     /* Set up the entry state */
     first_ppc_cpu = POWERPC_CPU(first_cpu);
