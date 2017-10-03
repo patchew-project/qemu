@@ -115,6 +115,18 @@ static void pci_bus_realize(BusState *qbus, Error **errp)
     qemu_add_machine_init_done_notifier(&bus->machine_done);
 
     vmstate_register(NULL, -1, &vmstate_pcibus, bus);
+
+    /* a PCI-E bus can supported extended config space if it's the
+     * root bus, or if the bus/bridge above it does as well */
+    if (pci_bus_is_root(bus)) {
+        bus->flags |= PCI_BUS_EXTENDED_CONFIG_SPACE;
+    } else {
+        PCIBus *parent_bus = bus->parent_dev->bus;
+
+        if (pci_bus_extended_config_space(parent_bus)) {
+            bus->flags |= PCI_BUS_EXTENDED_CONFIG_SPACE;
+        }
+    }
 }
 
 static void pci_bus_unrealize(BusState *qbus, Error **errp)

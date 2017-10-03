@@ -401,6 +401,8 @@ typedef AddressSpace *(*PCIIOMMUFunc)(PCIBus *, void *, int);
 enum PCIBusFlags {
     /* This bus is the root of a PCI domain */
     PCI_BUS_IS_ROOT                                         = 0x0001,
+    /* PCIe extended configuration space is accessible on this bus */
+    PCI_BUS_EXTENDED_CONFIG_SPACE                           = 0x0002,
 };
 
 typedef struct PCIBusClass {
@@ -443,6 +445,11 @@ struct PCIBus {
 static inline bool pci_bus_is_root(PCIBus *bus)
 {
     return !!(bus->flags & PCI_BUS_IS_ROOT);
+}
+
+static inline bool pci_bus_extended_config_space(PCIBus *bus)
+{
+    return !!(bus->flags & PCI_BUS_EXTENDED_CONFIG_SPACE);
 }
 
 bool pci_bus_is_express(PCIBus *bus);
@@ -779,7 +786,8 @@ static inline int pci_is_express(const PCIDevice *d)
 
 static inline uint32_t pci_config_size(const PCIDevice *d)
 {
-    return pci_is_express(d) ? PCIE_CONFIG_SPACE_SIZE : PCI_CONFIG_SPACE_SIZE;
+    return (pci_is_express(d) && pci_bus_extended_config_space(d->bus))
+        ? PCIE_CONFIG_SPACE_SIZE : PCI_CONFIG_SPACE_SIZE;
 }
 
 static inline uint16_t pci_get_bdf(PCIDevice *dev)
