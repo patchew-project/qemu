@@ -52,6 +52,16 @@ typedef enum {
 #define type_init(function) module_init(function, MODULE_INIT_QOM)
 #define trace_init(function) module_init(function, MODULE_INIT_TRACE)
 
+#define REGISTER_STATIC_TYPES(t, nr)                                        \
+static void do_qemu_init_ ## t(void)                                        \
+{                                                                           \
+    type_register_static_array(t, nr);                                      \
+}                                                                           \
+type_init(do_qemu_init_ ## t)
+
+#define REGISTER_STATIC_TYPE(t)                                             \
+    REGISTER_STATIC_TYPES(t, 1)
+
 #define block_module_load_one(lib) module_load_one("block-", lib)
 
 void register_module_init(void (*fn)(void), module_init_type type);
