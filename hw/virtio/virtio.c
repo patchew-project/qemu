@@ -13,6 +13,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qmp-commands.h"
 #include "qemu-common.h"
 #include "cpu.h"
 #include "trace.h"
@@ -2664,6 +2665,106 @@ bool virtio_device_ioeventfd_enabled(VirtIODevice *vdev)
     VirtioBusState *vbus = VIRTIO_BUS(qbus);
 
     return virtio_bus_ioeventfd_enabled(vbus);
+}
+
+static void virtio_info_bit_list_add(VirtioInfoBitList **list, unsigned bit,
+    const char *name)
+{
+    VirtioInfoBitList *info = g_new0(VirtioInfoBitList, 1);
+
+    info->next = *list;
+    *list = info;
+
+    info->value = g_new0(VirtioInfoBit, 1);
+    info->value->bit = bit;
+    info->value->name = g_strdup(name);
+}
+
+static void virtio_info_device_list_add(VirtioInfoDeviceList **list,
+                                        VirtIODevice *vdev)
+{
+    VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
+    VirtioInfoDeviceList *device;
+    unsigned idx;
+
+    device = g_new0(VirtioInfoDeviceList, 1);
+    device->value = g_new0(VirtioInfoDevice, 1);
+    device->next = *list;
+
+    *list = device;
+
+    device->value->qom_path = object_get_canonical_path(OBJECT(vdev));
+    device->value->host_features = vdev->host_features;
+    device->value->guest_features = vdev->guest_features;
+    device->value->status = vdev->status;
+
+    if (!vdc->get_feature_name) {
+        return;
+    }
+
+    for (idx = 64; idx--; ) {
+        const char *name = vdc->get_feature_name(vdev, idx);
+        if (!name) {
+            continue;
+        }
+        virtio_info_bit_list_add(&device->value->feature_names, idx, name);
+    }
+}
+
+static void qmp_query_virtio_recursive(VirtioInfo *info, BusState *bus)
+{
+    BusChild *kid;
+
+    QTAILQ_FOREACH(kid, &bus->children, sibling) {
+        DeviceState *dev = kid->child;
+        BusState *child;
+
+        if (object_dynamic_cast(OBJECT(dev), TYPE_VIRTIO_DEVICE)) {
+            virtio_info_device_list_add(&info->devices, VIRTIO_DEVICE(dev));
+        }
+        QLIST_FOREACH(child, &dev->child_bus, sibling) {
+            qmp_query_virtio_recursive(info, child);
+        }
+    }
+}
+
+VirtioInfo *qmp_query_virtio(Error **errp)
+{
+    BusState *bus = sysbus_get_default();
+    VirtioInfo *info = g_new0(VirtioInfo, 1);
+
+    /* Common features */
+    virtio_info_bit_list_add(&info->feature_names, VIRTIO_F_IOMMU_PLATFORM,
+                             "iommu_platform");
+    virtio_info_bit_list_add(&info->feature_names, VIRTIO_F_VERSION_1,
+                             "version_1");
+    virtio_info_bit_list_add(&info->feature_names, VIRTIO_RING_F_EVENT_IDX,
+                             "event_idx");
+    virtio_info_bit_list_add(&info->feature_names, VIRTIO_RING_F_INDIRECT_DESC,
+                             "indirect_desc");
+    virtio_info_bit_list_add(&info->feature_names, VIRTIO_F_ANY_LAYOUT,
+                             "any_layout");
+    virtio_info_bit_list_add(&info->feature_names, VIRTIO_F_NOTIFY_ON_EMPTY,
+                             "notify_on_empty");
+
+    /* Status bits */
+    virtio_info_bit_list_add(&info->status_names, 7 /* VIRTIO_CONFIG_S_FAILED */,
+                             "failed");
+    virtio_info_bit_list_add(&info->status_names, 6 /* VIRTIO_CONFIG_S_NEEDS_RESET */,
+                             "needs_reset");
+    virtio_info_bit_list_add(&info->status_names, 3 /* VIRTIO_CONFIG_S_FEATURES_OK */,
+                             "features_ok");
+    virtio_info_bit_list_add(&info->status_names, 2 /* VIRTIO_CONFIG_S_DRIVER_OK */,
+                             "driver_ok");
+    virtio_info_bit_list_add(&info->status_names, 1 /* VIRTIO_CONFIG_S_DRIVER */,
+                             "driver");
+    virtio_info_bit_list_add(&info->status_names, 0 /* VIRTIO_CONFIG_S_ACKNOWLEDGE */,
+                             "acknowledge");
+
+    if (bus) {
+        qmp_query_virtio_recursive(info, bus);
+    }
+    return info;
 }
 
 static const TypeInfo virtio_device_info = {

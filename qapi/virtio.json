@@ -1,0 +1,94 @@
+# -*- Mode: Python -*-
+#
+
+##
+# = Virtio devices
+##
+
+{ 'include': 'common.json' }
+
+##
+# @VirtioInfoBit:
+#
+# Named virtio bit
+#
+# @bit: bit number
+#
+# @name: bit name
+#
+# Since: 2.11.0
+#
+##
+{
+    'struct': 'VirtioInfoBit',
+    'data': {
+        'bit': 'uint64',
+        'name': 'str'
+    }
+}
+
+##
+# @VirtioInfoDevice:
+#
+# Information about specific virtio device
+#
+# @qom_path: QOM path of the device
+#
+# @feature-names: names of device-specific features
+#
+# @host-features: bitmask of features, provided by devices
+#
+# @guest-features: bitmask of features, acknowledged by guest
+#
+# @status: virtio device status bitmask
+#
+# Since: 2.11.0
+#
+##
+{
+    'struct': 'VirtioInfoDevice',
+    'data': {
+        'qom_path': 'str',
+        'feature-names': ['VirtioInfoBit'],
+        'host-features': 'uint64',
+        'guest-features': 'uint64',
+        'status': 'uint64'
+    }
+}
+
+##
+# @VirtioInfo:
+#
+# Information about virtio devices
+#
+# @feature-names: names of common virtio features
+#
+# @status-names: names of bits which represents virtio device status
+#
+# @devices: list of per-device virtio information
+#
+# Since: 2.11.0
+#
+##
+{
+    'struct': 'VirtioInfo',
+    'data': {
+        'feature-names': ['VirtioInfoBit'],
+        'status-names': ['VirtioInfoBit'],
+        'devices': ['VirtioInfoDevice']
+    }
+}
+
+
+##
+# @query-virtio:
+#
+# Returns generic and per-device virtio information
+#
+# Since: 2.11.0
+#
+##
+{
+    'command': 'query-virtio',
+    'returns': 'VirtioInfo'
+}
