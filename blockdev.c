@@ -3198,6 +3198,9 @@ static BlockJob *do_drive_backup(DriveBackup *backup, BlockJobTxn *txn,
     if (!backup->has_job_id) {
         backup->job_id = NULL;
     }
+    if (!backup->has_manual_cull) {
+        backup->manual_cull = false;
+    }
     if (!backup->has_compress) {
         backup->compress = false;
     }
@@ -3290,7 +3293,7 @@ static BlockJob *do_drive_backup(DriveBackup *backup, BlockJobTxn *txn,
         }
     }
 
-    job = backup_job_create(backup->job_id, false, bs, target_bs,
+    job = backup_job_create(backup->job_id, backup->manual_cull, bs, target_bs,
                             backup->speed, backup->sync, bmap, backup->compress,
                             backup->on_source_error, backup->on_target_error,
                             BLOCK_JOB_DEFAULT, NULL, NULL, txn, &local_err);
@@ -3341,6 +3344,9 @@ BlockJob *do_blockdev_backup(BlockdevBackup *backup, BlockJobTxn *txn,
     if (!backup->has_job_id) {
         backup->job_id = NULL;
     }
+    if (!backup->has_manual_cull) {
+        backup->manual_cull = false;
+    }
     if (!backup->has_compress) {
         backup->compress = false;
     }
@@ -3369,7 +3375,7 @@ BlockJob *do_blockdev_backup(BlockdevBackup *backup, BlockJobTxn *txn,
             goto out;
         }
     }
-    job = backup_job_create(backup->job_id, false, bs, target_bs,
+    job = backup_job_create(backup->job_id, backup->manual_cull, bs, target_bs,
                             backup->speed, backup->sync, NULL, backup->compress,
                             backup->on_source_error, backup->on_target_error,
                             BLOCK_JOB_DEFAULT, NULL, NULL, txn, &local_err);
