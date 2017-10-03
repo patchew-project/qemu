@@ -398,6 +398,11 @@ typedef AddressSpace *(*PCIIOMMUFunc)(PCIBus *, void *, int);
 #define PCI_BUS_GET_CLASS(obj) OBJECT_GET_CLASS(PCIBusClass, (obj), TYPE_PCI_BUS)
 #define TYPE_PCIE_BUS "PCIE"
 
+enum PCIBusFlags {
+    /* This bus is the root of a PCI domain */
+    PCI_BUS_IS_ROOT                                         = 0x0001,
+};
+
 typedef struct PCIBusClass {
     /*< private >*/
     BusClass parent_class;
@@ -410,6 +415,7 @@ typedef struct PCIBusClass {
 
 struct PCIBus {
     BusState qbus;
+    enum PCIBusFlags flags;
     PCIIOMMUFunc iommu_fn;
     void *iommu_opaque;
     uint8_t devfn_min;
@@ -434,8 +440,12 @@ struct PCIBus {
     Notifier machine_done;
 };
 
+static inline bool pci_bus_is_root(PCIBus *bus)
+{
+    return !!(bus->flags & PCI_BUS_IS_ROOT);
+}
+
 bool pci_bus_is_express(PCIBus *bus);
-bool pci_bus_is_root(PCIBus *bus);
 void pci_root_bus_new_inplace(PCIBus *bus, size_t bus_size, DeviceState *parent,
                               const char *name,
                               MemoryRegion *address_space_mem,
