@@ -27,7 +27,6 @@
 #define QEMU_PCI_BRIDGE_H
 
 #include "hw/pci/pci.h"
-#include "hw/pci/pci_bus.h"
 
 typedef struct PCIBridgeWindows PCIBridgeWindows;
 

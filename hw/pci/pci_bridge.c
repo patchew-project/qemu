@@ -31,7 +31,6 @@
 
 #include "qemu/osdep.h"
 #include "hw/pci/pci_bridge.h"
-#include "hw/pci/pci_bus.h"
 #include "qemu/range.h"
 #include "qapi/error.h"
 

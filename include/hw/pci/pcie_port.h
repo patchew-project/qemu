@@ -22,7 +22,6 @@
 #define QEMU_PCIE_PORT_H
 
 #include "hw/pci/pci_bridge.h"
-#include "hw/pci/pci_bus.h"
 
 #define TYPE_PCIE_PORT "pcie-port"
 #define PCIE_PORT(obj) OBJECT_CHECK(PCIEPort, (obj), TYPE_PCIE_PORT)

@@ -386,11 +386,53 @@ typedef void (*pci_set_irq_fn)(void *opaque, int irq_num, int level);
 typedef int (*pci_map_irq_fn)(PCIDevice *pci_dev, int irq_num);
 typedef PCIINTxRoute (*pci_route_irq_fn)(void *opaque, int pin);
 
+typedef AddressSpace *(*PCIIOMMUFunc)(PCIBus *, void *, int);
+
+/*
+ * PCI Bus datastructures.
+ */
+
 #define TYPE_PCI_BUS "PCI"
 #define PCI_BUS(obj) OBJECT_CHECK(PCIBus, (obj), TYPE_PCI_BUS)
 #define PCI_BUS_CLASS(klass) OBJECT_CLASS_CHECK(PCIBusClass, (klass), TYPE_PCI_BUS)
 #define PCI_BUS_GET_CLASS(obj) OBJECT_GET_CLASS(PCIBusClass, (obj), TYPE_PCI_BUS)
 #define TYPE_PCIE_BUS "PCIE"
+
+typedef struct PCIBusClass {
+    /*< private >*/
+    BusClass parent_class;
+    /*< public >*/
+
+    bool (*is_root)(PCIBus *bus);
+    int (*bus_num)(PCIBus *bus);
+    uint16_t (*numa_node)(PCIBus *bus);
+} PCIBusClass;
+
+struct PCIBus {
+    BusState qbus;
+    PCIIOMMUFunc iommu_fn;
+    void *iommu_opaque;
+    uint8_t devfn_min;
+    uint32_t slot_reserved_mask;
+    pci_set_irq_fn set_irq;
+    pci_map_irq_fn map_irq;
+    pci_route_irq_fn route_intx_to_irq;
+    void *irq_opaque;
+    PCIDevice *devices[PCI_SLOT_MAX * PCI_FUNC_MAX];
+    PCIDevice *parent_dev;
+    MemoryRegion *address_space_mem;
+    MemoryRegion *address_space_io;
+
+    QLIST_HEAD(, PCIBus) child; /* this will be replaced by qdev later */
+    QLIST_ENTRY(PCIBus) sibling;/* this will be replaced by qdev later */
+
+    /* The bus IRQ state is the logical OR of the connected devices.
+       Keep a count of the number of devices with raised IRQs.  */
+    int nirq;
+    int *irq_count;
+
+    Notifier machine_done;
+};
 
 bool pci_bus_is_express(PCIBus *bus);
 bool pci_bus_is_root(PCIBus *bus);
@@ -461,8 +503,6 @@ int pci_qdev_find_device(const char *id, PCIDevice **pdev);
 void pci_bus_get_w64_range(PCIBus *bus, Range *range);
 
 void pci_device_deassert_intx(PCIDevice *dev);
-
-typedef AddressSpace *(*PCIIOMMUFunc)(PCIBus *, void *, int);
 
 AddressSpace *pci_device_iommu_address_space(PCIDevice *dev);
 void pci_setup_iommu(PCIBus *bus, PCIIOMMUFunc fn, void *opaque);

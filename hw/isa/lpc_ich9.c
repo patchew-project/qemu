@@ -44,7 +44,6 @@
 #include "hw/i386/ich9.h"
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/ich9.h"
-#include "hw/pci/pci_bus.h"
 #include "exec/address-spaces.h"
 #include "sysemu/sysemu.h"
 #include "qom/cpu.h"
