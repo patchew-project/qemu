@@ -135,6 +135,15 @@ typedef struct BlockJob {
      */
     int ret;
 
+    /* True if this job must remain present post-completion until
+     * it can be queried and removed via block-job-reap. */
+    bool persistent;
+
+    /* True if and only if persistent is true and the job has finished
+     * calling either abort or commit (if applicable) and can be reaped
+     * via interactive user command. */
+    bool finished;
+
     /** Non-NULL if this job is part of a transaction */
     BlockJobTxn *txn;
     QLIST_ENTRY(BlockJob) txn_list;
@@ -225,6 +234,18 @@ void block_job_cancel(BlockJob *job);
  * Asynchronously complete the specified job.
  */
 void block_job_complete(BlockJob *job, Error **errp);
+
+/**
+ * block_job_reap:
+ * @job: The job to be reaped.
+ * @errp: Error object.
+ *
+ * For completed or canceled jobs, remove the job object
+ * from the block_job_query list and perform final cleanup.
+ *
+ * Note that at this stage, the job cannot be rolled back.
+ */
+void block_job_reap(BlockJob **job, Error **errp);
 
 /**
  * block_job_query:

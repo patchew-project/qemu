@@ -532,15 +532,15 @@ static const BlockJobDriver backup_job_driver = {
     .drain                  = backup_drain,
 };
 
-BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
-                  BlockDriverState *target, int64_t speed,
-                  MirrorSyncMode sync_mode, BdrvDirtyBitmap *sync_bitmap,
-                  bool compress,
-                  BlockdevOnError on_source_error,
-                  BlockdevOnError on_target_error,
-                  int creation_flags,
-                  BlockCompletionFunc *cb, void *opaque,
-                  BlockJobTxn *txn, Error **errp)
+BlockJob *backup_job_create(const char *job_id, bool persistent,
+                            BlockDriverState *bs, BlockDriverState *target,
+                            int64_t speed, MirrorSyncMode sync_mode,
+                            BdrvDirtyBitmap *sync_bitmap, bool compress,
+                            BlockdevOnError on_source_error,
+                            BlockdevOnError on_target_error,
+                            int creation_flags,
+                            BlockCompletionFunc *cb, void *opaque,
+                            BlockJobTxn *txn, Error **errp)
 {
     int64_t len;
     BlockDriverInfo bdi;
@@ -608,7 +608,7 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
     }
 
     /* job->common.len is fixed, so we can't allow resize */
-    job = block_job_create(job_id, &backup_job_driver, bs,
+    job = block_job_create(job_id, &backup_job_driver, persistent, bs,
                            BLK_PERM_CONSISTENT_READ,
                            BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE |
                            BLK_PERM_WRITE_UNCHANGED | BLK_PERM_GRAPH_MOD,

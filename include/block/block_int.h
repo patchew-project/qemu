@@ -944,6 +944,8 @@ void mirror_start(const char *job_id, BlockDriverState *bs,
  * backup_job_create:
  * @job_id: The id of the newly-created job, or %NULL to use the
  * device name of @bs.
+ * @persistent: Whether or not this job, when completed, will need to be
+ *               manually reaped via block-job-reap or not.
  * @bs: Block device to operate on.
  * @target: Block device to write to.
  * @speed: The maximum speed, in bytes per second, or 0 for unlimited.
@@ -960,9 +962,9 @@ void mirror_start(const char *job_id, BlockDriverState *bs,
  * Create a backup operation on @bs.  Clusters in @bs are written to @target
  * until the job is cancelled or manually completed.
  */
-BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
-                            BlockDriverState *target, int64_t speed,
-                            MirrorSyncMode sync_mode,
+BlockJob *backup_job_create(const char *job_id, bool persistent,
+                            BlockDriverState *bs, BlockDriverState *target,
+                            int64_t speed, MirrorSyncMode sync_mode,
                             BdrvDirtyBitmap *sync_bitmap,
                             bool compress,
                             BlockdevOnError on_source_error,
