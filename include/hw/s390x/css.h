@@ -75,6 +75,18 @@ typedef struct CMBE {
     uint32_t reserved[7];
 } QEMU_PACKED CMBE;
 
+/* IO instructions conclude according this */
+typedef struct IOInstEnding {
+        /*
+         * General semantic of cc codes of IO instructions is (brief):
+         * 0 -- produced expected result
+         * 1 --  status conditions were present or produced alternate result
+         * 2 -- ineffective, because busy with previously initiated function
+         * 3 -- ineffective, not operational
+         */
+        int cc;
+} IOInstEnding;
+
 typedef struct SubchDev SubchDev;
 struct SubchDev {
     /* channel-subsystem related things: */
