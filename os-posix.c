@@ -43,6 +43,8 @@
 #endif
 
 static struct passwd *user_pwd;
+static uid_t user_uid = (uid_t)-1;
+static gid_t user_gid = (gid_t)-1;
 static const char *chroot_dir;
 static int daemonize;
 static int daemon_pipe;
@@ -134,6 +136,9 @@ void os_set_proc_name(const char *s)
  */
 void os_parse_cmd_args(int index, const char *optarg)
 {
+    unsigned long lv;
+    char *ep;
+    int rc;
     switch (index) {
 #ifdef CONFIG_SLIRP
     case QEMU_OPTION_smb:
@@ -147,6 +152,22 @@ void os_parse_cmd_args(int index, const char *optarg)
         user_pwd = getpwnam(optarg);
         if (!user_pwd) {
             fprintf(stderr, "User \"%s\" doesn't exist\n", optarg);
+            exit(1);
+        }
+        break;
+    case QEMU_OPTION_runasid:
+        errno = 0;
+        lv = strtoul(optarg, &ep, 0); /* can't qemu_strtoul, want *ep=='.' */
+        user_uid = lv; /* overflow here is ID in C99 */
+        if (errno || *ep != '.' || user_uid != lv || user_uid == (uid_t)-1) {
+            fprintf(stderr, "Could not obtain uid from \"%s\"", optarg);
+            exit(1);
+        }
+        lv = 0;
+        rc = qemu_strtoul(ep + 1, 0, 0, &lv);
+        user_gid = lv; /* overflow here is ID in C99 */
+        if (rc || user_gid != lv || user_gid == (gid_t)-1) {
+            fprintf(stderr, "Could not obtain gid from \"%s\"", optarg);
             exit(1);
         }
         break;
@@ -166,17 +187,19 @@ void os_parse_cmd_args(int index, const char *optarg)
 
 static void change_process_uid(void)
 {
-    if (user_pwd) {
-        if (setgid(user_pwd->pw_gid) < 0) {
+    if (user_pwd || user_uid != (uid_t)-1) {
+        if (setgid(user_pwd ? user_pwd->pw_gid : user_gid) < 0) {
             fprintf(stderr, "Failed to setgid(%d)\n", user_pwd->pw_gid);
             exit(1);
         }
-        if (initgroups(user_pwd->pw_name, user_pwd->pw_gid) < 0) {
+        if ((user_pwd
+             ? initgroups(user_pwd->pw_name, user_pwd->pw_gid)
+             : setgroups(1, &user_gid)) < 0) {
             fprintf(stderr, "Failed to initgroups(\"%s\", %d)\n",
                     user_pwd->pw_name, user_pwd->pw_gid);
             exit(1);
         }
-        if (setuid(user_pwd->pw_uid) < 0) {
+        if (setuid(user_pwd ? user_pwd->pw_uid : user_gid) < 0) {
             fprintf(stderr, "Failed to setuid(%d)\n", user_pwd->pw_uid);
             exit(1);
         }
