@@ -1104,6 +1104,11 @@
 # @job-id: identifier for the newly-created block job. If
 #          omitted, the device name will be used. (Since 2.7)
 #
+# @persistent: Whether or not the job created by this command needs to be
+#              cleaned up manually via block-job-reap or not. The default is
+#              false. When true, the job will remain in a "completed" state
+#              until reaped manually with block-job-reap. (Since 2.11)
+#
 # @device: the device name or node-name of a root node which should be copied.
 #
 # @target: the target of the new image. If the file exists, or if it
@@ -1144,9 +1149,10 @@
 # Since: 1.6
 ##
 { 'struct': 'DriveBackup',
-  'data': { '*job-id': 'str', 'device': 'str', 'target': 'str',
-            '*format': 'str', 'sync': 'MirrorSyncMode', '*mode': 'NewImageMode',
-            '*speed': 'int', '*bitmap': 'str', '*compress': 'bool',
+  'data': { '*job-id': 'str', '*persistent': 'bool', 'device': 'str',
+            'target': 'str', '*format': 'str', 'sync': 'MirrorSyncMode',
+            '*mode': 'NewImageMode', '*speed': 'int', '*bitmap': 'str',
+            '*compress': 'bool',
             '*on-source-error': 'BlockdevOnError',
             '*on-target-error': 'BlockdevOnError' } }
 
@@ -1155,6 +1161,11 @@
 #
 # @job-id: identifier for the newly-created block job. If
 #          omitted, the device name will be used. (Since 2.7)
+#
+# @persistent: Whether or not the job created by this command needs to be
+#              cleaned up manually via block-job-reap or not. The default is
+#              false. When true, the job will remain in a "completed" state
+#              until reaped manually with block-job-reap. (Since 2.11)
 #
 # @device: the device name or node-name of a root node which should be copied.
 #
@@ -1185,8 +1196,8 @@
 # Since: 2.3
 ##
 { 'struct': 'BlockdevBackup',
-  'data': { '*job-id': 'str', 'device': 'str', 'target': 'str',
-            'sync': 'MirrorSyncMode',
+  'data': { '*job-id': 'str', '*persistent': 'bool', 'device': 'str',
+            'target': 'str', 'sync': 'MirrorSyncMode',
             '*speed': 'int',
             '*compress': 'bool',
             '*on-source-error': 'BlockdevOnError',
