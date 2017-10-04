@@ -4898,6 +4898,7 @@ int main(int argc, char **argv, char **envp)
     }
 
     os_setup_post();
+    xen_setup_post();
 
     main_loop();
     replay_disable_events();
