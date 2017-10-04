@@ -1774,9 +1774,9 @@ static int64_t coroutine_fn bdrv_co_get_block_status(BlockDriverState *bs,
         return total_sectors;
     }
 
-    if (sector_num >= total_sectors) {
+    if (sector_num >= total_sectors || !nb_sectors) {
         *pnum = 0;
-        return BDRV_BLOCK_EOF;
+        return sector_num >= total_sectors ? BDRV_BLOCK_EOF : 0;
     }
 
     n = total_sectors - sector_num;
