@@ -23,6 +23,7 @@
 #include "hw/s390x/s390-ccw.h"
 #include "hw/s390x/ccw-device.h"
 #include "qemu/error-report.h"
+#include "cpu.h"
 
 #define TYPE_VFIO_CCW "vfio-ccw"
 typedef struct VFIOCCWDevice {
@@ -47,9 +48,9 @@ struct VFIODeviceOps vfio_ccw_ops = {
     .vfio_compute_needs_reset = vfio_ccw_compute_needs_reset,
 };
 
-static int vfio_ccw_handle_request(ORB *orb, SCSW *scsw, void *data)
+static IOInstEnding vfio_ccw_handle_request(SubchDev *sch)
 {
-    S390CCWDevice *cdev = data;
+    S390CCWDevice *cdev = sch->driver_data;
     VFIOCCWDevice *vcdev = DO_UPCAST(VFIOCCWDevice, cdev, cdev);
     struct ccw_io_region *region = vcdev->io_region;
     int ret;
@@ -60,8 +61,8 @@ static int vfio_ccw_handle_request(ORB *orb, SCSW *scsw, void *data)
 
     memset(region, 0, sizeof(*region));
 
-    memcpy(region->orb_area, orb, sizeof(ORB));
-    memcpy(region->scsw_area, scsw, sizeof(SCSW));
+    memcpy(region->orb_area, &sch->orb, sizeof(ORB));
+    memcpy(region->scsw_area, &sch->curr_status.scsw, sizeof(SCSW));
 
 again:
     ret = pwrite(vcdev->vdev.fd, region,
@@ -71,10 +72,25 @@ again:
             goto again;
         }
         error_report("vfio-ccw: wirte I/O region failed with errno=%d", errno);
-        return -errno;
+        ret = -errno;
+    } else {
+        ret = region->ret_code;
     }
-
-    return region->ret_code;
+    switch (-ret) {
+    /* Currently we don't update control block and just return the cc code. */
+    case 0:
+        return (IOInstEnding){.cc = 0};
+    case EBUSY:
+        return (IOInstEnding){.cc = 2};
+    case ENODEV:
+    case EACCES:
+        return (IOInstEnding){.cc = 3};
+    case EFAULT:
+    default:
+        sch_gen_unit_exception(sch);
+        css_inject_io_interrupt(sch);
+        return (IOInstEnding){.cc = 0};
+    }
 }
 
 static void vfio_ccw_reset(DeviceState *dev)
