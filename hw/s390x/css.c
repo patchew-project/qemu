@@ -1223,20 +1223,17 @@ out:
     return ret;
 }
 
-int css_do_xsch(SubchDev *sch)
+IOInstEnding css_do_xsch(SubchDev *sch)
 {
     SCSW *s = &sch->curr_status.scsw;
     PMCW *p = &sch->curr_status.pmcw;
-    int ret;
 
     if (~(p->flags) & (PMCW_FLAGS_MASK_DNV | PMCW_FLAGS_MASK_ENA)) {
-        ret = -ENODEV;
-        goto out;
+        return (IOInstEnding){.cc = 3};
     }
 
     if (s->ctrl & SCSW_CTRL_MASK_STCTL) {
-        ret = -EINPROGRESS;
-        goto out;
+        return (IOInstEnding){.cc = 1};
     }
 
     if (!(s->ctrl & SCSW_CTRL_MASK_FCTL) ||
@@ -1244,8 +1241,7 @@ int css_do_xsch(SubchDev *sch)
         (!(s->ctrl &
            (SCSW_ACTL_RESUME_PEND | SCSW_ACTL_START_PEND | SCSW_ACTL_SUSP))) ||
         (s->ctrl & SCSW_ACTL_SUBCH_ACTIVE)) {
-        ret = -EBUSY;
-        goto out;
+        return (IOInstEnding){.cc = 2};
     }
 
     /* Cancel the current operation. */
@@ -1257,10 +1253,7 @@ int css_do_xsch(SubchDev *sch)
     sch->last_cmd_valid = false;
     s->dstat = 0;
     s->cstat = 0;
-    ret = 0;
-
-out:
-    return ret;
+    return (IOInstEnding){.cc = 0};
 }
 
 int css_do_csch(SubchDev *sch)
