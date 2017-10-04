@@ -6941,10 +6941,42 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                         }
                         neon_store_reg64(cpu_V0, rd + pass);
                     }
-
-
                     break;
-                default: /* 14 and 15 are RESERVED */
+                case 14: /* VQRDMLAH scalar */
+                case 15: /* VQRDMLSH scalar */
+                    if (!arm_dc_feature(s, ARM_FEATURE_V8_1_SIMD)) {
+                        return 1;
+                    }
+                    if (u && ((rd | rn) & 1)) {
+                        return 1;
+                    }
+                    tmp2 = neon_get_scalar(size, rm);
+                    for (pass = 0; pass < (u ? 4 : 2); pass++) {
+                        void (*fn)(TCGv_i32, TCGv_env, TCGv_i32,
+                                   TCGv_i32, TCGv_i32);
+
+                        tmp = neon_load_reg(rn, pass);
+                        tmp3 = neon_load_reg(rd, pass);
+                        if (op == 14) {
+                            if (size == 1) {
+                                fn = gen_helper_neon_qrdmlah_s16;
+                            } else {
+                                fn = gen_helper_neon_qrdmlah_s32;
+                            }
+                        } else {
+                            if (size == 1) {
+                                fn = gen_helper_neon_qrdmlsh_s16;
+                            } else {
+                                fn = gen_helper_neon_qrdmlsh_s32;
+                            }
+                        }
+                        fn(tmp, cpu_env, tmp, tmp2, tmp3);
+                        tcg_temp_free_i32(tmp3);
+                        neon_store_reg(rd, pass, tmp);
+                    }
+                    tcg_temp_free_i32(tmp2);
+                    break;
+                default:
                     return 1;
                 }
             }
