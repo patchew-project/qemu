@@ -9835,6 +9835,10 @@ static void disas_simd_three_reg_same_extra(DisasContext *s, uint32_t insn)
         }
         feature = ARM_FEATURE_V8_1_SIMD;
         break;
+    case 0x8: /* FCMLA, #0 */
+    case 0x9: /* FCMLA, #90 */
+    case 0xa: /* FCMLA, #180 */
+    case 0xb: /* FCMLA, #270 */
     case 0xc: /* FCADD, #90 */
     case 0xe: /* FCADD, #270 */
         if (size != 2 && (size != 3 || !is_q)) { /* FIXME: fp16 support */
@@ -9889,6 +9893,24 @@ static void disas_simd_three_reg_same_extra(DisasContext *s, uint32_t insn)
                            0, fn_gvec_ptr);
         break;
 
+    case 0x8: /* FCMLA, #0 */
+    case 0x9: /* FCMLA, #90 */
+    case 0xa: /* FCMLA, #180 */
+    case 0xb: /* FCMLA, #270 */
+        switch (size) {
+        case 2:
+            fn_gvec_ptr = gen_helper_gvec_fcmlas;
+            break;
+        case 3:
+            fn_gvec_ptr = gen_helper_gvec_fcmlad;
+            break;
+        default:
+            g_assert_not_reached();
+        }
+        data = extract32(opcode, 0, 2);
+        goto do_fpst;
+        break;
+
     case 0xc: /* FCADD, #90 */
     case 0xe: /* FCADD, #270 */
         switch (size) {
@@ -9902,6 +9924,7 @@ static void disas_simd_three_reg_same_extra(DisasContext *s, uint32_t insn)
             g_assert_not_reached();
         }
         data = extract32(opcode, 1, 1);
+    do_fpst:
         fpst = get_fpstatus_ptr();
         tcg_gen_gvec_3_ptr(vec_full_reg_offset(s, rd),
                            vec_full_reg_offset(s, rn),
@@ -10681,76 +10704,75 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
     int rn = extract32(insn, 5, 5);
     int rd = extract32(insn, 0, 5);
     bool is_long = false;
-    bool is_fp = false;
+    int is_fp = 0;
     int index;
     TCGv_ptr fpst;
 
-    switch (opcode) {
-    case 0x0: /* MLA */
-    case 0x4: /* MLS */
-        if (!u || is_scalar) {
+    switch (16 * u + opcode) {
+    case 0x00: /* MLA */
+    case 0x04: /* MLS */
+    case 0x08: /* MUL */
+        if (is_scalar) {
             unallocated_encoding(s);
             return;
         }
         break;
-    case 0x2: /* SMLAL, SMLAL2, UMLAL, UMLAL2 */
-    case 0x6: /* SMLSL, SMLSL2, UMLSL, UMLSL2 */
-    case 0xa: /* SMULL, SMULL2, UMULL, UMULL2 */
+    case 0x02: /* SMLAL, SMLAL2 */
+    case 0x12: /* UMLAL, UMLAL2 */
+    case 0x06: /* SMLSL, SMLSL2 */
+    case 0x16: /* UMLSL, UMLSL2 */
+    case 0x0a: /* SMULL, SMULL2 */
+    case 0x1a: /* UMULL, UMULL2 */
         if (is_scalar) {
             unallocated_encoding(s);
             return;
         }
         is_long = true;
         break;
-    case 0x3: /* SQDMLAL, SQDMLAL2 */
-    case 0x7: /* SQDMLSL, SQDMLSL2 */
-    case 0xb: /* SQDMULL, SQDMULL2 */
+    case 0x03: /* SQDMLAL, SQDMLAL2 */
+    case 0x07: /* SQDMLSL, SQDMLSL2 */
+    case 0x0b: /* SQDMULL, SQDMULL2 */
         is_long = true;
-        /* fall through */
-    case 0xc: /* SQDMULH */
-        if (u) {
+        break;
+    case 0x0c: /* SQDMULH */
+    case 0x0d: /* SQRDMULH */
+        break;
+    case 0x1d: /* SQRDMLAH */
+    case 0x1f: /* SQRDMLSH */
+        if (!arm_dc_feature(s, ARM_FEATURE_V8_1_SIMD)) {
             unallocated_encoding(s);
             return;
         }
         break;
-    case 0xd: /* SQRDMULH / SQRDMLAH */
-        if (u && !arm_dc_feature(s, ARM_FEATURE_V8_1_SIMD)) {
+    case 0x11: /* FCMLA #0 */
+    case 0x13: /* FCMLA #90 */
+    case 0x15: /* FCMLA #180 */
+    case 0x17: /* FCMLA #270 */
+        if (size != 2 /* FIXME fp16 */
+            || (l || !is_q)
+            || !arm_dc_feature(s, ARM_FEATURE_V8_FCMA)) {
             unallocated_encoding(s);
             return;
         }
+        is_fp = 2;
         break;
-    case 0xf: /* SQRDMLSH */
-        if (!u || !arm_dc_feature(s, ARM_FEATURE_V8_1_SIMD)) {
-            unallocated_encoding(s);
-            return;
-        }
-        break;
-    case 0x8: /* MUL */
-        if (u || is_scalar) {
-            unallocated_encoding(s);
-            return;
-        }
-        break;
-    case 0x1: /* FMLA */
-    case 0x5: /* FMLS */
-        if (u) {
-            unallocated_encoding(s);
-            return;
-        }
-        /* fall through */
-    case 0x9: /* FMUL, FMULX */
+    case 0x01: /* FMLA */
+    case 0x05: /* FMLS */
+    case 0x09: /* FMUL */
+    case 0x19: /* FMULX */
         if (!extract32(size, 1, 1)) {
             unallocated_encoding(s);
             return;
         }
-        is_fp = true;
+        is_fp = 1;
         break;
     default:
         unallocated_encoding(s);
         return;
     }
 
-    if (is_fp) {
+    switch (is_fp) {
+    case 1: /* normal fp */
         /* low bit of size indicates single/double */
         size = extract32(size, 0, 1) ? 3 : 2;
         if (size == 2) {
@@ -10763,7 +10785,15 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
             index = h;
         }
         rm |= (m << 4);
-    } else {
+        break;
+
+    case 2: /* complex fp */
+        /* FIXME fp16 */
+        index = h;
+        rm |= (m << 4);
+        break;
+
+    default: /* integer */
         switch (size) {
         case 1:
             index = h << 2 | l << 1 | m;
@@ -10786,6 +10816,21 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
         fpst = get_fpstatus_ptr();
     } else {
         TCGV_UNUSED_PTR(fpst);
+    }
+
+    switch (16 * u + opcode) {
+    case 0x11: /* FCMLA #0 */
+    case 0x13: /* FCMLA #90 */
+    case 0x15: /* FCMLA #180 */
+    case 0x17: /* FCMLA #270 */
+        tcg_gen_gvec_3_ptr(vec_full_reg_offset(s, rd),
+                           vec_full_reg_offset(s, rn),
+                           vec_reg_offset(s, rm, index, MO_64), fpst,
+                           is_q ? 16 : 8, vec_full_reg_size(s),
+                           extract32(insn, 13, 2), /* rot */
+                           gen_helper_gvec_fcmlas_idx);
+        tcg_temp_free_ptr(fpst);
+        return;
     }
 
     if (size == 3) {
