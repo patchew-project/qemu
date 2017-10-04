@@ -10677,8 +10677,19 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
         is_long = true;
         /* fall through */
     case 0xc: /* SQDMULH */
-    case 0xd: /* SQRDMULH */
         if (u) {
+            unallocated_encoding(s);
+            return;
+        }
+        break;
+    case 0xd: /* SQRDMULH / SQRDMLAH */
+        if (u && !arm_dc_feature(s, ARM_FEATURE_V8_1_SIMD)) {
+            unallocated_encoding(s);
+            return;
+        }
+        break;
+    case 0xf: /* SQRDMLSH */
+        if (!u || !arm_dc_feature(s, ARM_FEATURE_V8_1_SIMD)) {
             unallocated_encoding(s);
             return;
         }
@@ -10869,13 +10880,36 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
                                                tcg_op, tcg_idx);
                 }
                 break;
-            case 0xd: /* SQRDMULH */
+            case 0xd: /* SQRDMULH / SQRDMLAH */
+                if (u) { /* SQRDMLAH */
+                    read_vec_element_i32(s, tcg_res, rd, pass,
+                                         is_scalar ? size : MO_32);
+                    if (size == 1) {
+                        gen_helper_neon_qrdmlah_s16(tcg_res, cpu_env,
+                                                    tcg_op, tcg_idx, tcg_res);
+                    } else {
+                        gen_helper_neon_qrdmlah_s32(tcg_res, cpu_env,
+                                                    tcg_op, tcg_idx, tcg_res);
+                    }
+                } else { /* SQRDMULH */
+                    if (size == 1) {
+                        gen_helper_neon_qrdmulh_s16(tcg_res, cpu_env,
+                                                    tcg_op, tcg_idx);
+                    } else {
+                        gen_helper_neon_qrdmulh_s32(tcg_res, cpu_env,
+                                                    tcg_op, tcg_idx);
+                    }
+                }
+                break;
+            case 0xf: /* SQRDMLSH */
+                read_vec_element_i32(s, tcg_res, rd, pass,
+                                     is_scalar ? size : MO_32);
                 if (size == 1) {
-                    gen_helper_neon_qrdmulh_s16(tcg_res, cpu_env,
-                                                tcg_op, tcg_idx);
+                    gen_helper_neon_qrdmlsh_s16(tcg_res, cpu_env,
+                                                tcg_op, tcg_idx, tcg_res);
                 } else {
-                    gen_helper_neon_qrdmulh_s32(tcg_res, cpu_env,
-                                                tcg_op, tcg_idx);
+                    gen_helper_neon_qrdmlsh_s32(tcg_res, cpu_env,
+                                                tcg_op, tcg_idx, tcg_res);
                 }
                 break;
             default:
