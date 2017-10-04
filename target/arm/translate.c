@@ -7693,6 +7693,53 @@ static int disas_neon_insn_cp8_3same(DisasContext *s, uint32_t insn)
     return 0;
 }
 
+/* ARMv8.3 reclaims a portion of the CDP2 coprocessor 8 space.  */
+
+static int disas_neon_insn_cp8_index(DisasContext *s, uint32_t insn)
+{
+    int rd, rn, rm, rot, size, opr_sz;
+    TCGv_ptr fpst;
+    bool q;
+
+    /* FIXME: this access check should not take precedence over UNDEF
+     * for invalid encodings; we will generate incorrect syndrome information
+     * for attempts to execute invalid vfp/neon encodings with FP disabled.
+     */
+    if (s->fp_excp_el) {
+        gen_exception_insn(s, 4, EXCP_UDEF,
+                           syn_fp_access_trap(1, 0xe, false), s->fp_excp_el);
+        return 0;
+    }
+    if (!s->vfp_enabled || !arm_dc_feature(s, ARM_FEATURE_V8_FCMA)) {
+        return 1;
+    }
+
+    q = extract32(insn, 6, 1);
+    size = extract32(insn, 23, 1);
+
+    if (size == 0) { /* FIXME: fp16 support */
+        return 1;
+    }
+
+    VFP_DREG_D(rd, insn);
+    VFP_DREG_N(rn, insn);
+    VFP_DREG_M(rm, insn);
+    if ((rd | rn) & q) {
+        return 1;
+    }
+
+    /* This entire space is VCMLA (indexed).  */
+    rot = extract32(insn, 20, 2);
+    opr_sz = (1 + q) * 8;
+    fpst = get_fpstatus_ptr(1);
+    tcg_gen_gvec_3_ptr(vfp_reg_offset(1, rd),
+                       vfp_reg_offset(1, rn),
+                       vfp_reg_offset(1, rm), fpst,
+                       opr_sz, opr_sz, rot, gen_helper_gvec_fcmlas_idx);
+    tcg_temp_free_ptr(fpst);
+    return 0;
+}
+
 static int disas_coproc_insn(DisasContext *s, uint32_t insn)
 {
     int cpnum, is64, crn, crm, opc1, opc2, isread, rt, rt2;
@@ -8411,6 +8458,12 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
         } else if ((insn & 0x0e000f10) == 0x0c000800) {
             /* ARMv8.3 neon ldc2/stc2 coprocessor 8 extension.  */
             if (disas_neon_insn_cp8_3same(s, insn)) {
+                goto illegal_op;
+            }
+            return;
+        } else if ((insn & 0x0f000f10) == 0x0e000800) {
+            /* ARMv8.3 neon cdp2 coprocessor 8 extension.  */
+            if (disas_neon_insn_cp8_index(s, insn)) {
                 goto illegal_op;
             }
             return;
