@@ -2370,6 +2370,14 @@ they were first deprecated in the 2.10.0 release.
 What follows is a list of all features currently marked as
 deprecated.
 
+@section Automatic loading of @file{qemu.conf} (since 2.11.0)
+
+The automatic loading of an user-provided @file{qemu.conf} file from the QEMU
+config directory is deprecated and behavior will change in future QEMU versions.
+To load an user-provided @file{qemu.conf} file and keep compatibility with
+future versions, the arguments @samp{-no-user-config -readconfig
+@var{CONFDIR}/qemu.conf} may be used.
+
 @section System emulator command line arguments
 
 @subsection -drive boot=on|off (since 1.3.0)

@@ -3066,6 +3066,12 @@ static int qemu_read_default_config_file(void)
         return ret;
     }
 
+    if (ret > 0) {
+        loc_set_none();
+        warn_report("Future QEMU versions won't load %s automatically",
+                     CONFIG_QEMU_CONFDIR "/qemu.conf");
+    }
+
     return 0;
 }
 
