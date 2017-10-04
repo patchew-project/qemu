@@ -231,7 +231,7 @@ void target_disas(FILE *out, CPUState *cpu, target_ulong code,
     s.info.disassembler_options = (char *)"any";
     s.info.print_insn = print_insn_ppc;
 #endif
-    if (s.info.print_insn == NULL) {
+    if (1 || s.info.print_insn == NULL) {
         s.info.print_insn = print_insn_od_target;
     }
 
