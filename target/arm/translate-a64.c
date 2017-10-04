@@ -9818,7 +9818,8 @@ static void disas_simd_three_reg_same_extra(DisasContext *s, uint32_t insn)
     int size = extract32(insn, 22, 2);
     bool u = extract32(insn, 29, 1);
     bool is_q = extract32(insn, 30, 1);
-    int feature;
+    int feature, data;
+    TCGv_ptr fpst;
 
     if (!u) {
         unallocated_encoding(s);
@@ -9833,6 +9834,14 @@ static void disas_simd_three_reg_same_extra(DisasContext *s, uint32_t insn)
             return;
         }
         feature = ARM_FEATURE_V8_1_SIMD;
+        break;
+    case 0xc: /* FCADD, #90 */
+    case 0xe: /* FCADD, #270 */
+        if (size != 2 && (size != 3 || !is_q)) { /* FIXME: fp16 support */
+            unallocated_encoding(s);
+            return;
+        }
+        feature = ARM_FEATURE_V8_FCMA;
         break;
     default:
         unallocated_encoding(s);
@@ -9878,6 +9887,28 @@ static void disas_simd_three_reg_same_extra(DisasContext *s, uint32_t insn)
                            vec_full_reg_offset(s, rm), cpu_env,
                            is_q ? 16 : 8, vec_full_reg_size(s),
                            0, fn_gvec_ptr);
+        break;
+
+    case 0xc: /* FCADD, #90 */
+    case 0xe: /* FCADD, #270 */
+        switch (size) {
+        case 2:
+            fn_gvec_ptr = gen_helper_gvec_fcadds;
+            break;
+        case 3:
+            fn_gvec_ptr = gen_helper_gvec_fcaddd;
+            break;
+        default:
+            g_assert_not_reached();
+        }
+        data = extract32(opcode, 1, 1);
+        fpst = get_fpstatus_ptr();
+        tcg_gen_gvec_3_ptr(vec_full_reg_offset(s, rd),
+                           vec_full_reg_offset(s, rn),
+                           vec_full_reg_offset(s, rm), fpst,
+                           is_q ? 16 : 8, vec_full_reg_size(s),
+                           data, fn_gvec_ptr);
+        tcg_temp_free_ptr(fpst);
         break;
 
     default:
