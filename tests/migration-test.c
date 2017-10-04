@@ -466,6 +466,13 @@ static void test_precopy_unix(void)
     g_free(uri);
 }
 
+static void test_precopy_tcp(void)
+{
+    const char *uri = "tcp:0:44444";
+
+    test_precopy(uri);
+}
+
 int main(int argc, char **argv)
 {
     char template[] = "/tmp/migration-test-XXXXXX";
@@ -482,6 +489,7 @@ int main(int argc, char **argv)
     module_call_init(MODULE_INIT_QOM);
 
     qtest_add_func("/migration/precopy/unix", test_precopy_unix);
+    qtest_add_func("/migration/precopy/tcp", test_precopy_tcp);
 
     ret = g_test_run();
 
