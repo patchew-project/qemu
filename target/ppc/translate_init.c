@@ -10277,6 +10277,19 @@ PowerPCCPUClass *ppc_cpu_class_by_pvr_mask(uint32_t pvr)
     return pcc;
 }
 
+static const char *ppc_cpu_lookup_alias(const char *alias)
+{
+    int ai;
+
+    for (ai = 0; ppc_cpu_aliases[ai].alias != NULL; ai++) {
+        if (strcmp(ppc_cpu_aliases[ai].alias, alias) == 0) {
+            return ppc_cpu_aliases[ai].model;
+        }
+    }
+
+    return NULL;
+}
+
 static ObjectClass *ppc_cpu_class_by_name(const char *name)
 {
     char *cpu_model, *typename;
@@ -10368,19 +10381,6 @@ static void ppc_cpu_parse_featurestr(const char *typename, char *features,
     /* do property processing with generic handler */
     pcc = POWERPC_CPU_CLASS(object_class_by_name(typename));
     pcc->parent_parse_features(typename, features, errp);
-}
-
-const char *ppc_cpu_lookup_alias(const char *alias)
-{
-    int ai;
-
-    for (ai = 0; ppc_cpu_aliases[ai].alias != NULL; ai++) {
-        if (strcmp(ppc_cpu_aliases[ai].alias, alias) == 0) {
-            return ppc_cpu_aliases[ai].model;
-        }
-    }
-
-    return NULL;
 }
 
 PowerPCCPUClass *ppc_cpu_get_family_class(PowerPCCPUClass *pcc)
