@@ -17,6 +17,7 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "qemu/osdep.h"
+#include <sys/ioctl.h>
 #include "qemu/error-report.h"
 #include "hw/hw.h"
 #include "qemu/log.h"
@@ -173,6 +174,34 @@ static void spapr_tce_notify_flag_changed(IOMMUMemoryRegion *iommu,
     }
 }
 
+static void spapr_tce_add_vfio_group(IOMMUMemoryRegion *iommu_mr,
+                                     int vfio_kvm_fd, int groupfd)
+{
+    sPAPRTCETable *tcet = container_of(iommu_mr, sPAPRTCETable, iommu);
+    struct kvm_vfio_spapr_tce param = {
+        .tablefd = tcet->fd,
+        .groupfd = groupfd,
+    };
+    struct kvm_device_attr attr = {
+        .group = KVM_DEV_VFIO_GROUP,
+        .attr = KVM_DEV_VFIO_GROUP_SET_SPAPR_TCE,
+        .addr = (uint64_t)(unsigned long)&param,
+    };
+
+    if (!kvmppc_has_cap_spapr_vfio()) {
+        return;
+    }
+
+    if (param.tablefd != -1) {
+        if (ioctl(vfio_kvm_fd, KVM_SET_DEVICE_ATTR, &attr)) {
+            error_report("vfio: failed to setup fd %d for a group with fd %d: %s",
+                         param.tablefd, param.groupfd, strerror(errno));
+            return;
+        }
+    }
+    trace_spapr_iommu_add_vfio_group(groupfd, param.tablefd);
+}
+
 static int spapr_tce_table_post_load(void *opaque, int version_id)
 {
     sPAPRTCETable *tcet = SPAPR_TCE_TABLE(opaque);
@@ -283,6 +312,10 @@ void spapr_tce_set_need_vfio(sPAPRTCETable *tcet, bool need_vfio)
     g_assert(need_vfio != tcet->need_vfio);
 
     tcet->need_vfio = need_vfio;
+
+    if (!need_vfio || (tcet->fd != -1 && kvmppc_has_cap_spapr_vfio())) {
+        return;
+    }
 
     oldtable = tcet->table;
 
@@ -643,6 +676,7 @@ static void spapr_iommu_memory_region_class_init(ObjectClass *klass, void *data)
     imrc->translate = spapr_tce_translate_iommu;
     imrc->get_min_page_size = spapr_tce_get_min_page_size;
     imrc->notify_flag_changed = spapr_tce_notify_flag_changed;
+    imrc->add_vfio_group = spapr_tce_add_vfio_group;
 }
 
 static const TypeInfo spapr_iommu_memory_region_info = {

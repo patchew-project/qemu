@@ -36,6 +36,7 @@ spapr_iommu_ddw_query(uint64_t buid, uint32_t cfgaddr, unsigned wa, uint64_t win
 spapr_iommu_ddw_create(uint64_t buid, uint32_t cfgaddr, uint64_t pg_size, uint64_t req_size, uint64_t start, uint32_t liobn) "buid=0x%"PRIx64" addr=0x%"PRIx32", page size=0x%"PRIx64", requested=0x%"PRIx64", start addr=0x%"PRIx64", liobn=0x%"PRIx32
 spapr_iommu_ddw_remove(uint32_t liobn) "liobn=0x%"PRIx32
 spapr_iommu_ddw_reset(uint64_t buid, uint32_t cfgaddr) "buid=0x%"PRIx64" addr=0x%"PRIx32
+spapr_iommu_add_vfio_group(int groupfd, int tablefd) "Attached groupfd %d to liobn fd %d"
 
 # hw/ppc/spapr_drc.c
 spapr_drc_set_isolation_state(uint32_t index, int state) "drc: 0x%"PRIx32", state: 0x%"PRIx32
