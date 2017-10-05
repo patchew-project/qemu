@@ -1026,6 +1026,7 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
     address_space_init(&pci_dev->bus_master_as,
                        &pci_dev->bus_master_container_region, pci_dev->name);
 
+    bus->devices[devfn] = pci_dev;
     if (qdev_hotplug) {
         pci_init_bus_master(pci_dev);
     }
@@ -1062,6 +1063,7 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
     if (local_err) {
         error_propagate(errp, local_err);
         do_pci_unregister_device(pci_dev);
+        bus->devices[devfn] = NULL;
         return NULL;
     }
 
@@ -1071,7 +1073,6 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
         config_write = pci_default_write_config;
     pci_dev->config_read = config_read;
     pci_dev->config_write = config_write;
-    bus->devices[devfn] = pci_dev;
     pci_dev->version_id = 2; /* Current pci device vmstate version */
     return pci_dev;
 }
