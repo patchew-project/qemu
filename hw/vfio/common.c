@@ -481,6 +481,21 @@ static void vfio_listener_region_add(MemoryListener *listener,
         VFIOGuestIOMMU *giommu;
         IOMMUMemoryRegion *iommu_mr = IOMMU_MEMORY_REGION(section->mr);
 
+#ifdef CONFIG_KVM
+        if (kvm_enabled()) {
+            VFIOGroup *group;
+            IOMMUMemoryRegionClass *imrc =
+                IOMMU_MEMORY_REGION_GET_CLASS(iommu_mr);
+
+            QLIST_FOREACH(group, &container->group_list, container_next) {
+                if (imrc->add_vfio_group) {
+                    imrc->add_vfio_group(iommu_mr, vfio_kvm_device_fd,
+                                         group->fd);
+                }
+            }
+        }
+#endif
+
         trace_vfio_listener_region_add_iommu(iova, end);
         /*
          * FIXME: For VFIO iommu types which have KVM acceleration to

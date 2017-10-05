@@ -210,6 +210,10 @@ typedef struct IOMMUMemoryRegionClass {
                                 IOMMUNotifierFlag new_flags);
     /* Set this up to provide customized IOMMU replay function */
     void (*replay)(IOMMUMemoryRegion *iommu, IOMMUNotifier *notifier);
+
+    /* Notifies IOMMUMR about attached VFIO IOMMU group */
+    void (*add_vfio_group)(IOMMUMemoryRegion *iommu_mr, int vfio_kvm_fd,
+                           int groupfd);
 } IOMMUMemoryRegionClass;
 
 typedef struct CoalescedMemoryRange CoalescedMemoryRange;
