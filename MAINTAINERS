@@ -1947,3 +1947,9 @@ M: Daniel P. Berrange <berrange@redhat.com>
 S: Odd Fixes
 F: docs/devel/build-system.txt
 
+Build System
+------------
+GIT submodules
+M: Daniel P. Berrange <berrange@redhat.com>
+S: Odd Fixes
+F: scripts/git-submodule.sh
