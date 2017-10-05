@@ -10313,6 +10313,62 @@ static ObjectClass *ppc_cpu_class_by_name(const char *name)
 
     return NULL;
 }
+static void ppc_cpu_parse_featurestr(const char *typename, char *features,
+                                     Error **errp)
+{
+    const PowerPCCPUClass *pcc;
+    char *compat_str = NULL;
+    char *s = features;
+    char **inpieces;
+    Error *local_err = NULL;
+    int i;
+
+    if (!features) {
+        return;
+    }
+
+    /*
+     * Backwards compatibility hack:
+     *
+     *   CPUs had a "compat=" property which didn't make sense for
+     *   anything except pseries.  It was replaced by "max-cpu-compat"
+     *   machine option.  This supports old command lines like
+     *       -cpu POWER8,compat=power7
+     *   By stripping the compat option and applying it to the machine
+     *   before passing it on to the cpu level parser.
+     */
+    inpieces = g_strsplit(features, ",", 0);
+    *s = '\0';
+    for (i = 0; inpieces[i]; i++) {
+        if (g_str_has_prefix(inpieces[i], "compat=")) {
+            compat_str = inpieces[i];
+            continue;
+        }
+        if ((i != 0) && (s != features)) {
+            s = g_stpcpy(s, ",");
+        }
+        s = g_stpcpy(s, inpieces[i]);
+    }
+
+    if (compat_str) {
+        Object *machine = qdev_get_machine();
+        if (machine) {
+            char *v = compat_str + strlen("compat=");
+            object_property_set_str(machine, v, "max-cpu-compat", &local_err);
+        } else {
+            error_setg(&local_err, "Not supported property: %s", compat_str);
+        }
+    }
+    g_strfreev(inpieces);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    /* do property processing with generic handler */
+    pcc = POWERPC_CPU_CLASS(object_class_by_name(typename));
+    pcc->parent_parse_features(typename, features, errp);
+}
 
 const char *ppc_cpu_lookup_alias(const char *alias)
 {
@@ -10706,6 +10762,8 @@ static void ppc_cpu_class_init(ObjectClass *oc, void *data)
     cc->reset = ppc_cpu_reset;
 
     cc->class_by_name = ppc_cpu_class_by_name;
+    pcc->parent_parse_features = cc->parse_features;
+    cc->parse_features = ppc_cpu_parse_featurestr;
     cc->has_work = ppc_cpu_has_work;
     cc->do_interrupt = ppc_cpu_do_interrupt;
     cc->cpu_exec_interrupt = ppc_cpu_exec_interrupt;
