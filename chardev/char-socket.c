@@ -332,10 +332,6 @@ static void tcp_chr_free_connection(Chardev *chr)
     SocketChardev *s = SOCKET_CHARDEV(chr);
     int i;
 
-    if (!s->connected) {
-        return;
-    }
-
     if (s->read_msgfds_num) {
         for (i = 0; i < s->read_msgfds_num; i++) {
             close(s->read_msgfds[i]);
@@ -347,10 +343,14 @@ static void tcp_chr_free_connection(Chardev *chr)
 
     tcp_set_msgfds(chr, NULL, 0);
     remove_fd_in_watch(chr);
-    object_unref(OBJECT(s->sioc));
-    s->sioc = NULL;
-    object_unref(OBJECT(s->ioc));
-    s->ioc = NULL;
+    if (s->sioc) {
+        object_unref(OBJECT(s->sioc));
+        s->sioc = NULL;
+    }
+    if (s->ioc) {
+        object_unref(OBJECT(s->ioc));
+        s->ioc = NULL;
+    }
     g_free(chr->filename);
     chr->filename = NULL;
     s->connected = 0;
@@ -394,22 +394,25 @@ static void update_disconnected_filename(SocketChardev *s)
                                          s->is_listen, s->is_telnet);
 }
 
+/* NB may be called even if tcp_chr_connect has not been
+ * reached, due to TLS or telnet initialization failure,
+ * so can *not* assume s->connected == true
+ */
 static void tcp_chr_disconnect(Chardev *chr)
 {
     SocketChardev *s = SOCKET_CHARDEV(chr);
-
-    if (!s->connected) {
-        return;
-    }
+    bool emitClose = s->connected;
 
     tcp_chr_free_connection(chr);
 
-    if (s->listen_ioc) {
+    if (s->listen_ioc && s->listen_tag == 0) {
         s->listen_tag = qio_channel_add_watch(
             QIO_CHANNEL(s->listen_ioc), G_IO_IN, tcp_chr_accept, chr, NULL);
     }
     update_disconnected_filename(s);
-    qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
+    if (emitClose) {
+        qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
+    }
     if (s->reconnect_time) {
         qemu_chr_socket_restart_timer(chr);
     }
