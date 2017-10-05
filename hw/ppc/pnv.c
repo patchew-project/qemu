@@ -55,6 +55,16 @@
 #define KERNEL_LOAD_ADDR        0x20000000
 #define INITRD_LOAD_ADDR        0x40000000
 
+static const char *pvn_chip_core_typename(const PnvChip *o)
+{
+    const char *chip_type = object_class_get_name(object_get_class(OBJECT(o)));
+    int len = strlen(chip_type) - strlen(PNV_CHIP_TYPE_SUFFIX);
+    char *s = g_strdup_printf(PNV_CORE_TYPE_NAME("%.*s"), len, chip_type);
+    const char *core_type = object_class_get_name(object_class_by_name(s));
+    g_free(s);
+    return core_type;
+}
+
 /*
  * On Power Systems E880 (POWER8), the max cpus (threads) should be :
  *     4 * 4 sockets * 12 cores * 8 threads = 1536
@@ -270,8 +280,7 @@ static int pnv_chip_lpc_offset(PnvChip *chip, void *fdt)
 
 static void powernv_populate_chip(PnvChip *chip, void *fdt)
 {
-    PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
-    char *typename = pnv_core_typename(pcc->cpu_model);
+    const char *typename = pvn_chip_core_typename(chip);
     size_t typesize = object_type_get_instance_size(typename);
     int i;
 
@@ -301,7 +310,6 @@ static void powernv_populate_chip(PnvChip *chip, void *fdt)
         powernv_populate_memory_node(fdt, chip->chip_id, chip->ram_start,
                                      chip->ram_size);
     }
-    g_free(typename);
 }
 
 static void powernv_populate_rtc(ISADevice *d, void *fdt, int lpc_off)
@@ -713,7 +721,6 @@ static void pnv_chip_power8e_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PnvChipClass *k = PNV_CHIP_CLASS(klass);
 
-    k->cpu_model = "power8e_v2.1";
     k->chip_type = PNV_CHIP_POWER8E;
     k->chip_cfam_id = 0x221ef04980000000ull;  /* P8 Murano DD2.1 */
     k->cores_mask = POWER8E_CORE_MASK;
@@ -735,7 +742,6 @@ static void pnv_chip_power8_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PnvChipClass *k = PNV_CHIP_CLASS(klass);
 
-    k->cpu_model = "power8_v2.0";
     k->chip_type = PNV_CHIP_POWER8;
     k->chip_cfam_id = 0x220ea04980000000ull; /* P8 Venice DD2.0 */
     k->cores_mask = POWER8_CORE_MASK;
@@ -757,7 +763,6 @@ static void pnv_chip_power8nvl_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PnvChipClass *k = PNV_CHIP_CLASS(klass);
 
-    k->cpu_model = "power8nvl_v1.0";
     k->chip_type = PNV_CHIP_POWER8NVL;
     k->chip_cfam_id = 0x120d304980000000ull;  /* P8 Naples DD1.0 */
     k->cores_mask = POWER8_CORE_MASK;
@@ -779,7 +784,6 @@ static void pnv_chip_power9_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PnvChipClass *k = PNV_CHIP_CLASS(klass);
 
-    k->cpu_model = "power9_v1.0";
     k->chip_type = PNV_CHIP_POWER9;
     k->chip_cfam_id = 0x100d104980000000ull; /* P9 Nimbus DD1.0 */
     k->cores_mask = POWER9_CORE_MASK;
@@ -854,7 +858,7 @@ static void pnv_chip_init(Object *obj)
 static void pnv_chip_icp_realize(PnvChip *chip, Error **errp)
 {
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
-    char *typename = pnv_core_typename(pcc->cpu_model);
+    const char *typename = pvn_chip_core_typename(chip);
     size_t typesize = object_type_get_instance_size(typename);
     int i, j;
     char *name;
@@ -879,8 +883,6 @@ static void pnv_chip_icp_realize(PnvChip *chip, Error **errp)
             memory_region_add_subregion(&chip->icp_mmio, pir << 12, &icp->mmio);
         }
     }
-
-    g_free(typename);
 }
 
 static void pnv_chip_realize(DeviceState *dev, Error **errp)
@@ -888,7 +890,7 @@ static void pnv_chip_realize(DeviceState *dev, Error **errp)
     PnvChip *chip = PNV_CHIP(dev);
     Error *error = NULL;
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
-    char *typename = pnv_core_typename(pcc->cpu_model);
+    const char *typename = pvn_chip_core_typename(chip);
     size_t typesize = object_type_get_instance_size(typename);
     int i, core_hwid;
 
@@ -947,7 +949,6 @@ static void pnv_chip_realize(DeviceState *dev, Error **errp)
                                 &PNV_CORE(pnv_core)->xscom_regs);
         i++;
     }
-    g_free(typename);
 
     /* Create LPC controller */
     object_property_set_bool(OBJECT(&chip->lpc), true, "realized",
