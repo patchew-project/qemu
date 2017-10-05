@@ -619,25 +619,22 @@ QemuCocoaView *cocoaView;
                 return;
             }
 
-            // default
+            // console selection
+            if (([event modifierFlags] & NSEventModifierFlagControl) &&
+                ([event modifierFlags] & NSEventModifierFlagOption) &&
+                (keycode >= Q_KEY_CODE_1 && keycode <= Q_KEY_CODE_9)) {
+                console_select(keycode - 11);
+            }
 
-            // handle control + alt Key Combos (ctrl+alt+[1..9,g] is reserved for QEMU)
-            if (([event modifierFlags] & NSEventModifierFlagControl) && ([event modifierFlags] & NSEventModifierFlagOption)) {
-                switch (keycode) {
+            // mouse ungrab
+            else if (([event modifierFlags] & NSEventModifierFlagControl) &&
+                     ([event modifierFlags] & NSEventModifierFlagOption) &&
+                     (keycode == Q_KEY_CODE_G)) {
+                [self ungrabMouse];
+            }
 
-                    // enable graphic console
-                    case Q_KEY_CODE_1 ... Q_KEY_CODE_9: // '1' to '9' keys
-                        console_select(keycode - 11);
-                        break;
-
-                    // release the mouse grab
-                    case Q_KEY_CODE_G:
-                        [self ungrabMouse];
-                        break;
-                }
-
-            // handle keys for graphic console
-            } else if (qemu_console_is_graphic(NULL)) {
+            // send to guest
+            else if (qemu_console_is_graphic(NULL)) {
                 qemu_input_event_send_key_qcode(dcl->con, keycode, true);
 
             // handlekeys for Monitor
