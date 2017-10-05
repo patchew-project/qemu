@@ -281,6 +281,7 @@ static void handleAnyDeviceErrors(Error * err)
 - (void) grabMouse;
 - (void) ungrabMouse;
 - (void) toggleFullScreen:(id)sender;
+- (void) handleMonitorInput:(NSEvent *)event;
 - (void) handleEvent:(NSEvent *)event;
 - (void) setAbsoluteEnabled:(BOOL)tIsAbsoluteEnabled;
 /* The state surrounding mouse grabbing is potentially confusing.
@@ -554,6 +555,60 @@ QemuCocoaView *cocoaView;
     qemu_input_event_send_key_qcode(dcl->con, keycode, false);
 }
 
+// Does the work of sending input to the monitor
+- (void) handleMonitorInput:(NSEvent *)event
+{
+    int keysym = 0;
+    int control_key = 0;
+
+    // if the control key is down
+    if ([event modifierFlags] & NSEventModifierFlagControl) {
+        control_key = 4; // shifts by one nibble (hex digit)
+    }
+
+    /* translates Macintosh keycodes to QEMU's keysym */
+    int translation_matrix[] = {
+        [0 ... 0xff] = 0,   // invalid key
+
+        [kVK_UpArrow]       = QEMU_KEY_UP,
+        [kVK_DownArrow]     = QEMU_KEY_DOWN,
+        [kVK_RightArrow]    = QEMU_KEY_RIGHT,
+        [kVK_LeftArrow]     = QEMU_KEY_LEFT,
+        [kVK_Home]          = QEMU_KEY_HOME,
+        [kVK_End]           = QEMU_KEY_END,
+        [kVK_PageUp]        = QEMU_KEY_PAGEUP,
+        [kVK_PageDown]      = QEMU_KEY_PAGEDOWN,
+        [kVK_ForwardDelete] = QEMU_KEY_DELETE,
+        [kVK_Delete]        = QEMU_KEY_BACKSPACE,
+
+        /*
+         * Shift value by one hex digit.
+         * Since no key has a 3 digit hex value there is no chance
+         * for overlap.
+         */
+        [kVK_UpArrow << 4]       = QEMU_KEY_CTRL_UP,
+        [kVK_DownArrow << 4]     = QEMU_KEY_CTRL_DOWN,
+        [kVK_RightArrow << 4]    = QEMU_KEY_CTRL_RIGHT,
+        [kVK_LeftArrow << 4]     = QEMU_KEY_CTRL_LEFT,
+        [kVK_Home << 4]          = QEMU_KEY_CTRL_HOME,
+        [kVK_End << 4]           = QEMU_KEY_CTRL_END,
+        [kVK_PageUp << 4]        = QEMU_KEY_CTRL_PAGEUP,
+        [kVK_PageDown << 4]      = QEMU_KEY_CTRL_PAGEDOWN,
+    };
+
+    keysym = translation_matrix[[event keyCode] << control_key];
+
+    // if not a key that needs translating
+    if (keysym == 0) {
+        NSString *ks = [event characters];
+        if ([ks length] > 0)
+            keysym = [ks characterAtIndex:0];
+    }
+
+    if(keysym)
+        kbd_put_keysym(keysym);
+}
+
 - (void) handleEvent:(NSEvent *)event
 {
     COCOA_DEBUG("QemuCocoaView: handleEvent\n");
@@ -641,38 +696,7 @@ QemuCocoaView *cocoaView;
 
             // handlekeys for Monitor
             } else {
-                int keysym = 0;
-                switch([event keyCode]) {
-                case 115:
-                    keysym = QEMU_KEY_HOME;
-                    break;
-                case 117:
-                    keysym = QEMU_KEY_DELETE;
-                    break;
-                case 119:
-                    keysym = QEMU_KEY_END;
-                    break;
-                case 123:
-                    keysym = QEMU_KEY_LEFT;
-                    break;
-                case 124:
-                    keysym = QEMU_KEY_RIGHT;
-                    break;
-                case 125:
-                    keysym = QEMU_KEY_DOWN;
-                    break;
-                case 126:
-                    keysym = QEMU_KEY_UP;
-                    break;
-                default:
-                    {
-                        NSString *ks = [event characters];
-                        if ([ks length] > 0)
-                            keysym = [ks characterAtIndex:0];
-                    }
-                }
-                if (keysym)
-                    kbd_put_keysym(keysym);
+                [self handleMonitorInput: event];
             }
             break;
         case NSEventTypeKeyUp:
