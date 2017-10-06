@@ -231,7 +231,7 @@ static WAVConf glob_conf = {
 
 static void *wav_audio_init (void)
 {
-    WAVConf *conf = g_malloc(sizeof(WAVConf));
+    WAVConf *conf = g_new(WAVConf, 1);
     *conf = glob_conf;
     return conf;
 }

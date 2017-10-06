@@ -687,7 +687,7 @@ static CoreaudioConf glob_conf = {
 
 static void *coreaudio_audio_init (void)
 {
-    CoreaudioConf *conf = g_malloc(sizeof(CoreaudioConf));
+    CoreaudioConf *conf = g_new(CoreaudioConf, 1);
     *conf = glob_conf;
 
     return conf;

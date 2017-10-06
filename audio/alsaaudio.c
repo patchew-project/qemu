@@ -1126,7 +1126,7 @@ static ALSAConf glob_conf = {
 
 static void *alsa_audio_init (void)
 {
-    ALSAConf *conf = g_malloc(sizeof(ALSAConf));
+    ALSAConf *conf = g_new(ALSAConf, 1);
     *conf = glob_conf;
     return conf;
 }

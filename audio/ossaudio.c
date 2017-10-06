@@ -846,7 +846,7 @@ static OSSConf glob_conf = {
 
 static void *oss_audio_init (void)
 {
-    OSSConf *conf = g_malloc(sizeof(OSSConf));
+    OSSConf *conf = g_new(OSSConf, 1);
     *conf = glob_conf;
 
     if (access(conf->devpath_in, R_OK | W_OK) < 0 ||
