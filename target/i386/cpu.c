@@ -1577,14 +1577,15 @@ static PropValue kvm_default_props[] = {
     { "kvm-nopiodelay", "on" },
     { "kvm-asyncpf", "on" },
     { "kvm-steal-time", "on" },
-    { "kvm-pv-eoi", "on" },
     { "kvmclock-stable-bit", "on" },
-    { "x2apic", "on" },
     { "acpi", "off" },
     { "monitor", "off" },
-    { "svm", "off" },
     { NULL, NULL },
 };
+
+bool kvm_auto_disable_svm = true;
+bool kvm_auto_enable_x2apic = true;
+bool kvm_auto_enable_pv_eoi = true;
 
 /* TCG-specific defaults that override all CPU models when using TCG
  */
@@ -1593,22 +1594,6 @@ static PropValue tcg_default_props[] = {
     { NULL, NULL },
 };
 
-
-void x86_cpu_change_kvm_default(const char *prop, const char *value)
-{
-    PropValue *pv;
-    for (pv = kvm_default_props; pv->prop; pv++) {
-        if (!strcmp(pv->prop, prop)) {
-            pv->value = value;
-            break;
-        }
-    }
-
-    /* It is valid to call this function only for properties that
-     * are already present in the kvm_default_props table.
-     */
-    assert(pv->prop);
-}
 
 static uint32_t x86_cpu_get_supported_feature_word(FeatureWord w,
                                                    bool migratable_only);
@@ -2439,7 +2424,19 @@ static void x86_cpu_load_def(X86CPU *cpu, X86CPUDefinition *def, Error **errp)
     /* Special cases not set in the X86CPUDefinition structs: */
     if (kvm_enabled()) {
         if (!kvm_irqchip_in_kernel()) {
-            x86_cpu_change_kvm_default("x2apic", "off");
+            object_property_set_bool(OBJECT(cpu), false, "x2apic",
+                                     &error_abort);
+        } else if (kvm_auto_enable_x2apic) {
+            object_property_set_bool(OBJECT(cpu), true, "x2apic",
+                                     &error_abort);
+        }
+        if (kvm_auto_disable_svm) {
+            object_property_set_bool(OBJECT(cpu), false, "svm",
+                                     &error_abort);
+        }
+        if (kvm_auto_enable_pv_eoi) {
+            object_property_set_bool(OBJECT(cpu), true, "kvm-pv-eoi",
+                                     &error_abort);
         }
 
         x86_cpu_apply_props(cpu, kvm_default_props);

@@ -328,7 +328,7 @@ static void pc_compat_2_2(MachineState *machine)
 static void pc_compat_2_1(MachineState *machine)
 {
     pc_compat_2_2(machine);
-    x86_cpu_change_kvm_default("svm", NULL);
+    kvm_auto_disable_svm = false;
 }
 
 static void pc_compat_2_0(MachineState *machine)
@@ -339,7 +339,7 @@ static void pc_compat_2_0(MachineState *machine)
 static void pc_compat_1_7(MachineState *machine)
 {
     pc_compat_2_0(machine);
-    x86_cpu_change_kvm_default("x2apic", NULL);
+    kvm_auto_enable_x2apic = false;
 }
 
 static void pc_compat_1_6(MachineState *machine)
@@ -367,7 +367,7 @@ static void pc_compat_1_3(MachineState *machine)
 static void pc_compat_1_2(MachineState *machine)
 {
     pc_compat_1_3(machine);
-    x86_cpu_change_kvm_default("kvm-pv-eoi", NULL);
+    kvm_auto_enable_pv_eoi = false;
 }
 
 /* PC compat function for pc-0.10 to pc-0.13 */

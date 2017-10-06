@@ -1700,15 +1700,13 @@ void apic_handle_tpr_access_report(DeviceState *d, target_ulong ip,
                                    TPRAccess access);
 
 
-/* Change the value of a KVM-specific default
- *
- * If value is NULL, no default will be set and the original
- * value from the CPU model table will be kept.
- *
- * It is valid to call this function only for properties that
- * are already present in the kvm_default_props table.
+/*
+ * Compat globals to control features automatically enabled/disabled by KVM.
+ * TODO: convert them to X86CPU fields set by MachineClass::compat_props
  */
-void x86_cpu_change_kvm_default(const char *prop, const char *value);
+extern bool kvm_auto_disable_svm;
+extern bool kvm_auto_enable_x2apic;
+extern bool kvm_auto_enable_pv_eoi;
 
 /* mpx_helper.c */
 void cpu_sync_bndcs_hflags(CPUX86State *env);
