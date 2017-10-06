@@ -4089,7 +4089,7 @@ static decNumber * decAddOp(decNumber *res, const decNumber *lhs,
       acc=accbuff;			/* assume use local buffer */
       if (need*sizeof(Unit)>sizeof(accbuff)) {
 	/* printf("malloc add %ld %ld\n", need, sizeof(accbuff)); */
-	allocacc=(Unit *)malloc(need*sizeof(Unit));
+	allocacc=g_new(uint16_t, need);
 	if (allocacc==NULL) {		/* hopeless -- abandon */
 	  *status|=DEC_Insufficient_storage;
 	  break;}
@@ -4452,7 +4452,7 @@ static decNumber * decDivideOp(decNumber *res,
     acclength=D2U(reqdigits+DECDPUN);	/* in Units */
     if (acclength*sizeof(Unit)>sizeof(accbuff)) {
       /* printf("malloc dvacc %ld units\n", acclength); */
-      allocacc=(Unit *)malloc(acclength*sizeof(Unit));
+      allocacc=g_new(uint16_t, acclength);
       if (allocacc==NULL) {		/* hopeless -- abandon */
 	*status|=DEC_Insufficient_storage;
 	break;}
@@ -4477,7 +4477,7 @@ static decNumber * decDivideOp(decNumber *res,
     if (!(op&DIVIDE)) var1units++;
     if ((var1units+1)*sizeof(Unit)>sizeof(varbuff)) {
       /* printf("malloc dvvar %ld units\n", var1units+1); */
-      varalloc=(Unit *)malloc((var1units+1)*sizeof(Unit));
+      varalloc=g_new(uint16_t, (var1units+1));
       if (varalloc==NULL) {		/* hopeless -- abandon */
 	*status|=DEC_Insufficient_storage;
 	break;}
@@ -6314,7 +6314,7 @@ static Int decUnitCompare(const Unit *a, Int alength,
   need+=2;
   acc=accbuff;				/* assume use local buffer */
   if (need*sizeof(Unit)>sizeof(accbuff)) {
-    allocacc=(Unit *)malloc(need*sizeof(Unit));
+    allocacc=g_new(uint16_t, need);
     if (allocacc==NULL) return BADINT;	/* hopeless -- abandon */
     acc=allocacc;
     }
