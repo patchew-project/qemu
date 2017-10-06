@@ -518,7 +518,7 @@ static inline QEMUTimer *timer_new_tl(QEMUTimerList *timer_list,
                                       QEMUTimerCB *cb,
                                       void *opaque)
 {
-    QEMUTimer *ts = g_malloc0(sizeof(QEMUTimer));
+    QEMUTimer *ts = g_new0(QEMUTimer, 1);
     timer_init_tl(ts, timer_list, scale, cb, opaque);
     return ts;
 }

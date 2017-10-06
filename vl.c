@@ -1416,7 +1416,7 @@ static int add_semihosting_arg(void *opaque,
     if (strcmp(name, "arg") == 0) {
         s->argc++;
         /* one extra element as g_strjoinv() expects NULL-terminated array */
-        s->argv = g_realloc(s->argv, (s->argc + 1) * sizeof(void *));
+        s->argv = g_renew(const char *, s->argv, s->argc + 1);
         s->argv[s->argc - 1] = val;
         s->argv[s->argc] = NULL;
     }
@@ -1589,7 +1589,7 @@ MachineInfoList *qmp_query_machines(Error **errp)
         MachineInfoList *entry;
         MachineInfo *info;
 
-        info = g_malloc0(sizeof(*info));
+        info = g_new0(MachineInfo, 1);
         if (mc->is_default) {
             info->has_is_default = true;
             info->is_default = true;
@@ -1604,7 +1604,7 @@ MachineInfoList *qmp_query_machines(Error **errp)
         info->cpu_max = !mc->max_cpus ? 1 : mc->max_cpus;
         info->hotpluggable_cpus = mc->has_hotpluggable_cpus;
 
-        entry = g_malloc0(sizeof(*entry));
+        entry = g_new0(MachineInfoList, 1);
         entry->value = info;
         entry->next = mach_list;
         mach_list = entry;
@@ -1657,7 +1657,7 @@ VMChangeStateEntry *qemu_add_vm_change_state_handler(VMChangeStateHandler *cb,
 {
     VMChangeStateEntry *e;
 
-    e = g_malloc0(sizeof (*e));
+    e = g_new0(VMChangeStateEntry, 1);
 
     e->cb = cb;
     e->opaque = opaque;
@@ -2546,7 +2546,7 @@ static void add_device_config(int type, const char *cmdline)
 {
     struct device_config *conf;
 
-    conf = g_malloc0(sizeof(*conf));
+    conf = g_new0(struct device_config, 1);
     conf->type = type;
     conf->cmdline = cmdline;
     loc_save(&conf->loc);
@@ -3047,7 +3047,7 @@ static int global_init_func(void *opaque, QemuOpts *opts, Error **errp)
 {
     GlobalProperty *g;
 
-    g = g_malloc0(sizeof(*g));
+    g = g_new0(GlobalProperty, 1);
     g->driver   = qemu_opt_get(opts, "driver");
     g->property = qemu_opt_get(opts, "property");
     g->value    = qemu_opt_get(opts, "value");
