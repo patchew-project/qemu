@@ -227,7 +227,7 @@ static abi_long do_freebsd_sysctl(abi_ulong namep, int32_t namelen, abi_ulong ol
     void *hnamep, *holdp, *hnewp = NULL;
     size_t holdlen;
     abi_ulong oldlen = 0;
-    int32_t *snamep = g_malloc(sizeof(int32_t) * namelen), *p, *q, i;
+    int32_t *snamep, *p, *q, i;
     uint32_t kind = 0;
 
     if (oldlenp)
@@ -239,6 +239,7 @@ static abi_long do_freebsd_sysctl(abi_ulong namep, int32_t namelen, abi_ulong ol
     if (!(holdp = lock_user(VERIFY_WRITE, oldp, oldlen, 0)))
         return -TARGET_EFAULT;
     holdlen = oldlen;
+    snamep = g_new(int32_t, namelen);
     for (p = hnamep, q = snamep, i = 0; i < namelen; p++, i++)
        *q++ = tswap32(*p);
     oidfmt(snamep, namelen, NULL, &kind);
