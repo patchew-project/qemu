@@ -300,7 +300,7 @@ qemu_irq *ppcuic_init (CPUPPCState *env, qemu_irq *irqs,
     ppcuic_t *uic;
     int i;
 
-    uic = g_malloc0(sizeof(ppcuic_t));
+    uic = g_new0(ppcuic_t, 1);
     uic->dcr_base = dcr_base;
     uic->irqs = irqs;
     if (has_vr)
@@ -648,7 +648,7 @@ void ppc4xx_sdram_init (CPUPPCState *env, qemu_irq irq, int nbanks,
 {
     ppc4xx_sdram_t *sdram;
 
-    sdram = g_malloc0(sizeof(ppc4xx_sdram_t));
+    sdram = g_new0(ppc4xx_sdram_t, 1);
     sdram->irq = irq;
     sdram->nbanks = nbanks;
     sdram->ram_memories = ram_memories;
@@ -911,7 +911,7 @@ void ppc4xx_mal_init(CPUPPCState *env, uint8_t txcnum, uint8_t rxcnum,
     int i;
 
     assert(txcnum <= 32 && rxcnum <= 32);
-    mal = g_malloc0(sizeof(*mal));
+    mal = g_new0(ppc4xx_mal_t, 1);
     mal->txcnum = txcnum;
     mal->rxcnum = rxcnum;
     mal->txctpr = g_new0(uint32_t, txcnum);
