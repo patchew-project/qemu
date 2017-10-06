@@ -365,7 +365,7 @@ void sh_serial_init(MemoryRegion *sysmem,
 {
     sh_serial_state *s;
 
-    s = g_malloc0(sizeof(sh_serial_state));
+    s = g_new0(sh_serial_state, 1);
 
     s->feat = feat;
     s->flags = SH_SERIAL_FLAG_TEND | SH_SERIAL_FLAG_TDE;
