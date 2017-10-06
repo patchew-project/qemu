@@ -173,6 +173,17 @@ expression s, e;
   ... when != p
   *p = e;
 
+// g_strfreev()
+@@
+identifier p, a;
+@@
+-   for (p = a; *p; p++) {
+-       g_free(*p);
+-   }
+    ... when != a
+-    g_free(a);
++    g_strfreev(a);
+
 ////////////////////////////////////////
 //
 // last transformations: cleanups
