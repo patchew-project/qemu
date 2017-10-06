@@ -2423,22 +2423,6 @@ static void x86_cpu_load_def(X86CPU *cpu, X86CPUDefinition *def, Error **errp)
 
     /* Special cases not set in the X86CPUDefinition structs: */
     if (kvm_enabled()) {
-        if (!kvm_irqchip_in_kernel()) {
-            object_property_set_bool(OBJECT(cpu), false, "x2apic",
-                                     &error_abort);
-        } else if (kvm_auto_enable_x2apic) {
-            object_property_set_bool(OBJECT(cpu), true, "x2apic",
-                                     &error_abort);
-        }
-        if (kvm_auto_disable_svm) {
-            object_property_set_bool(OBJECT(cpu), false, "svm",
-                                     &error_abort);
-        }
-        if (kvm_auto_enable_pv_eoi) {
-            object_property_set_bool(OBJECT(cpu), true, "kvm-pv-eoi",
-                                     &error_abort);
-        }
-
         x86_cpu_apply_props(cpu, kvm_default_props);
     } else if (tcg_enabled()) {
         x86_cpu_apply_props(cpu, tcg_default_props);
@@ -3511,6 +3495,31 @@ static void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
     FeatureWord w;
     GList *l;
     Error *local_err = NULL;
+    X86CPUClass *xcc = X86_CPU_GET_CLASS(cpu);
+
+    /*
+     * Note: "base" is a static CPU model and shouldn't auto-enable KVM
+     * defaults, so we check xcc->cpu_def here.
+     */
+    if (xcc->cpu_def && kvm_enabled()) {
+        /* KVM-specific defaults that depend on compatibility globals: */
+
+        if (!kvm_irqchip_in_kernel()) {
+            x86_cpu_expand_feature(cpu, FEAT_1_ECX, CPUID_EXT_X2APIC, 0);
+        } else if (kvm_auto_enable_x2apic) {
+            x86_cpu_expand_feature(cpu, FEAT_1_ECX, CPUID_EXT_X2APIC,
+                                   CPUID_EXT_X2APIC);
+        }
+
+        if (kvm_auto_disable_svm) {
+            x86_cpu_expand_feature(cpu, FEAT_8000_0001_ECX, CPUID_EXT3_SVM, 0);
+        }
+
+        if (kvm_auto_enable_pv_eoi) {
+            x86_cpu_expand_feature(cpu, FEAT_KVM, (1 << KVM_FEATURE_PV_EOI),
+                                   (1 << KVM_FEATURE_PV_EOI));
+        }
+    }
 
     /*TODO: Now cpu->max_features doesn't overwrite features
      * set using QOM properties, and we can convert
