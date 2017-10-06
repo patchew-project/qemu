@@ -66,7 +66,7 @@ QXLCookie *qxl_cookie_new(int type, uint64_t io)
 {
     QXLCookie *cookie;
 
-    cookie = g_malloc0(sizeof(*cookie));
+    cookie = g_new0(QXLCookie, 1);
     cookie->type = type;
     cookie->io = io;
     return cookie;
@@ -142,7 +142,7 @@ static void qemu_spice_create_one_update(SimpleSpiceDisplay *ssd,
            rect->left, rect->right,
            rect->top, rect->bottom);
 
-    update   = g_malloc0(sizeof(*update));
+    update = g_new0(SimpleSpiceUpdate, 1);
     drawable = &update->drawable;
     image    = &update->image;
     cmd      = &update->ext.cmd;

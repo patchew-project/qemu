@@ -63,7 +63,7 @@ static SpiceTimer *timer_add(SpiceTimerFunc func, void *opaque)
 {
     SpiceTimer *timer;
 
-    timer = g_malloc0(sizeof(*timer));
+    timer = g_new0(SpiceTimer, 1);
     timer->timer = timer_new_ms(QEMU_CLOCK_REALTIME, func, opaque);
     QTAILQ_INSERT_TAIL(&timers, timer, next);
     return timer;
@@ -127,7 +127,7 @@ static SpiceWatch *watch_add(int fd, int event_mask, SpiceWatchFunc func, void *
 {
     SpiceWatch *watch;
 
-    watch = g_malloc0(sizeof(*watch));
+    watch = g_new0(SpiceWatch, 1);
     watch->fd     = fd;
     watch->func   = func;
     watch->opaque = opaque;
@@ -155,7 +155,7 @@ static void channel_list_add(SpiceChannelEventInfo *info)
 {
     ChannelList *item;
 
-    item = g_malloc0(sizeof(*item));
+    item = g_new0(ChannelList, 1);
     item->info = info;
     QTAILQ_INSERT_TAIL(&channel_list, item, link);
 }
@@ -380,7 +380,7 @@ static SpiceChannelList *qmp_query_spice_channels(void)
 
         assert(item->info->flags & SPICE_CHANNEL_EVENT_FLAG_ADDR_EXT);
 
-        chan = g_malloc0(sizeof(*chan));
+        chan = g_new0(SpiceChannelList, 1);
         chan->value = g_malloc0(sizeof(*chan->value));
 
         paddr = (struct sockaddr *)&item->info->paddr_ext;
@@ -525,7 +525,7 @@ SpiceInfo *qmp_query_spice(Error **errp)
     unsigned int minor;
     unsigned int micro;
 
-    info = g_malloc0(sizeof(*info));
+    info = g_new0(SpiceInfo, 1);
 
     if (!spice_server || !opts) {
         info->enabled = false;
