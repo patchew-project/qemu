@@ -836,7 +836,7 @@ int cpu_watchpoint_insert(CPUState *cpu, vaddr addr, vaddr len,
                      VADDR_PRIx ", len=%" VADDR_PRIu, addr, len);
         return -EINVAL;
     }
-    wp = g_malloc(sizeof(*wp));
+    wp = g_new(CPUWatchpoint, 1);
 
     wp->vaddr = addr;
     wp->len = len;
@@ -922,7 +922,7 @@ int cpu_breakpoint_insert(CPUState *cpu, vaddr pc, int flags,
 {
     CPUBreakpoint *bp;
 
-    bp = g_malloc(sizeof(*bp));
+    bp = g_new(CPUBreakpoint, 1);
 
     bp->pc = pc;
     bp->flags = flags;
@@ -1975,7 +1975,7 @@ RAMBlock *qemu_ram_alloc_from_fd(ram_addr_t size, MemoryRegion *mr,
         return NULL;
     }
 
-    new_block = g_malloc0(sizeof(*new_block));
+    new_block = g_new0(RAMBlock, 1);
     new_block->mr = mr;
     new_block->used_length = size;
     new_block->max_length = size;
@@ -2036,7 +2036,7 @@ RAMBlock *qemu_ram_alloc_internal(ram_addr_t size, ram_addr_t max_size,
 
     size = HOST_PAGE_ALIGN(size);
     max_size = HOST_PAGE_ALIGN(max_size);
-    new_block = g_malloc0(sizeof(*new_block));
+    new_block = g_new0(RAMBlock, 1);
     new_block->mr = mr;
     new_block->resized = resized;
     new_block->used_length = size;
