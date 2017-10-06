@@ -65,7 +65,7 @@ void register_module_init(void (*fn)(void), module_init_type type)
     ModuleEntry *e;
     ModuleTypeList *l;
 
-    e = g_malloc0(sizeof(*e));
+    e = g_new0(ModuleEntry, 1);
     e->init = fn;
     e->type = type;
 
@@ -80,7 +80,7 @@ void register_dso_module_init(void (*fn)(void), module_init_type type)
 
     init_lists();
 
-    e = g_malloc0(sizeof(*e));
+    e = g_new0(ModuleEntry, 1);
     e->init = fn;
     e->type = type;
 

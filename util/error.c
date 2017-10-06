@@ -56,7 +56,7 @@ static void error_setv(Error **errp,
     }
     assert(*errp == NULL);
 
-    err = g_malloc0(sizeof(*err));
+    err = g_new0(Error, 1);
     err->msg = g_strdup_vprintf(fmt, ap);
     if (suffix) {
         char *msg = err->msg;

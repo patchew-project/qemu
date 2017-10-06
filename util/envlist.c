@@ -24,7 +24,7 @@ envlist_create(void)
 {
 	envlist_t *envlist;
 
-	envlist = g_malloc(sizeof(*envlist));
+	envlist = g_new(envlist_t, 1);
 
 	QLIST_INIT(&envlist->el_entries);
 	envlist->el_count = 0;
@@ -158,7 +158,7 @@ envlist_setenv(envlist_t *envlist, const char *env)
 		envlist->el_count++;
 	}
 
-	entry = g_malloc(sizeof(*entry));
+	entry = g_new(struct envlist_entry, 1);
 	entry->ev_var = g_strdup(env);
 	QLIST_INSERT_HEAD(&envlist->el_entries, entry, ev_link);
 
@@ -218,7 +218,7 @@ envlist_to_environ(const envlist_t *envlist, size_t *count)
 	struct envlist_entry *entry;
 	char **env, **penv;
 
-	penv = env = g_malloc((envlist->el_count + 1) * sizeof(char *));
+	penv = env = g_new(char *, envlist->el_count + 1);
 
 	for (entry = envlist->el_entries.lh_first; entry != NULL;
 	    entry = entry->ev_link.le_next) {

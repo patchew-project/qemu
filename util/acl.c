@@ -56,7 +56,7 @@ qemu_acl *qemu_acl_init(const char *aclname)
     if (acl)
         return acl;
 
-    acl = g_malloc(sizeof(*acl));
+    acl = g_new(qemu_acl, 1);
     acl->aclname = g_strdup(aclname);
     /* Deny by default, so there is no window of "open
      * access" between QEMU starting, and the user setting
@@ -117,7 +117,7 @@ int qemu_acl_append(qemu_acl *acl,
 {
     qemu_acl_entry *entry;
 
-    entry = g_malloc(sizeof(*entry));
+    entry = g_new(qemu_acl_entry, 1);
     entry->match = g_strdup(match);
     entry->deny = deny;
 
@@ -146,7 +146,7 @@ int qemu_acl_insert(qemu_acl *acl,
         i++;
         if (i == index) {
             qemu_acl_entry *entry;
-            entry = g_malloc(sizeof(*entry));
+            entry = g_new(qemu_acl_entry, 1);
             entry->match = g_strdup(match);
             entry->deny = deny;
 
