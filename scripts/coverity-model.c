@@ -363,7 +363,7 @@ int g_poll (GPollFD *fds, unsigned nfds, int timeout)
 typedef struct _GIOChannel GIOChannel;
 GIOChannel *g_io_channel_unix_new(int fd)
 {
-    GIOChannel *c = g_malloc0(sizeof(GIOChannel));
+    GIOChannel *c = g_new0(GIOChannel, 1);
     __coverity_escape__(fd);
     return c;
 }
