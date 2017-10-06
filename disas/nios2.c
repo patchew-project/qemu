@@ -2625,8 +2625,7 @@ nios2_init_opcode_hash (nios2_disassembler_state *state)
 
 	if (bucket)
 	  {
-	    new_hash =
-	      (nios2_opcode_hash *) malloc (sizeof (nios2_opcode_hash));
+	    new_hash = g_new(nios2_opcode_hash, 1);
 	    if (new_hash == NULL)
 	      {
 		fprintf (stderr,

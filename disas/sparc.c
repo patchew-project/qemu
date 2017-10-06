@@ -2684,8 +2684,7 @@ print_insn_sparc (bfd_vma memaddr, disassemble_info *info)
       current_arch_mask = compute_arch_mask (info->mach);
 
       if (!opcodes_initialized)
-        sorted_opcodes =
-          malloc (sparc_num_opcodes * sizeof (sparc_opcode *));
+        sorted_opcodes = g_new(const sparc_opcode *, sparc_num_opcodes);
       /* Reset the sorted table so we can resort it.  */
       for (i = 0; i < sparc_num_opcodes; ++i)
         sorted_opcodes[i] = &sparc_opcodes[i];
