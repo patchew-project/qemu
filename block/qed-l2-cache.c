@@ -90,7 +90,7 @@ CachedL2Table *qed_alloc_l2_cache_entry(L2TableCache *l2_cache)
 {
     CachedL2Table *entry;
 
-    entry = g_malloc0(sizeof(*entry));
+    entry = g_new0(CachedL2Table, 1);
     entry->ref++;
 
     trace_qed_alloc_l2_cache_entry(l2_cache, entry);

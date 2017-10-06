@@ -210,7 +210,7 @@ static void coroutine_fn commit_run(void *opaque)
 out:
     qemu_vfree(buf);
 
-    data = g_malloc(sizeof(*data));
+    data = g_new(CommitCompleteData, 1);
     data->ret = ret;
     block_job_defer_to_main_loop(&s->common, commit_complete, data);
 }

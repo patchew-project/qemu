@@ -244,7 +244,7 @@ static void vhdx_region_register(BDRVVHDXState *s,
 {
     VHDXRegionEntry *r;
 
-    r = g_malloc0(sizeof(*r));
+    r = g_new0(VHDXRegionEntry, 1);
 
     r->start = start;
     r->end = start + length;

@@ -175,7 +175,7 @@ static int add_rule(void *opaque, QemuOpts *opts, Error **errp)
     }
 
     /* Set attributes common for all actions */
-    rule = g_malloc0(sizeof(*rule));
+    rule = g_new(struct BlkdebugRule, 1);
     *rule = (struct BlkdebugRule) {
         .event  = event,
         .action = d->action,
@@ -726,7 +726,7 @@ static int blkdebug_debug_breakpoint(BlockDriverState *bs, const char *event,
         return -ENOENT;
     }
 
-    rule = g_malloc(sizeof(*rule));
+    rule = g_new(struct BlkdebugRule, 1);
     *rule = (struct BlkdebugRule) {
         .event  = blkdebug_event,
         .action = ACTION_SUSPEND,

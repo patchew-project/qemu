@@ -202,7 +202,7 @@ static void coroutine_fn stream_run(void *opaque)
 
 out:
     /* Modify backing chain and close BDSes in main loop */
-    data = g_malloc(sizeof(*data));
+    data = g_new(StreamCompleteData, 1);
     data->ret = ret;
     block_job_defer_to_main_loop(&s->common, stream_complete, data);
 }

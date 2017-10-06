@@ -514,7 +514,7 @@ static void coroutine_fn backup_run(void *opaque)
     qemu_co_rwlock_unlock(&job->flush_rwlock);
     g_free(job->done_bitmap);
 
-    data = g_malloc(sizeof(*data));
+    data = g_new(BackupCompleteData, 1);
     data->ret = ret;
     block_job_defer_to_main_loop(&job->common, backup_complete, data);
 }

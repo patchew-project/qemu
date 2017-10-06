@@ -455,7 +455,7 @@ static BlockStats *bdrv_query_bds_stats(BlockDriverState *bs,
 {
     BlockStats *s = NULL;
 
-    s = g_malloc0(sizeof(*s));
+    s = g_new0(BlockStats, 1);
     s->stats = g_malloc0(sizeof(*s->stats));
 
     if (!bs) {
@@ -503,7 +503,7 @@ BlockInfoList *qmp_query_block(Error **errp)
             continue;
         }
 
-        info = g_malloc0(sizeof(*info));
+        info = g_new0(BlockInfoList, 1);
         bdrv_query_info(blk, &info->value, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);

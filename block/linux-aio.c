@@ -474,7 +474,7 @@ LinuxAioState *laio_init(void)
 {
     LinuxAioState *s;
 
-    s = g_malloc0(sizeof(*s));
+    s = g_new0(LinuxAioState, 1);
     if (event_notifier_init(&s->e, false) < 0) {
         goto out_free_state;
     }

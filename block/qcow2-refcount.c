@@ -755,7 +755,7 @@ static void update_refcount_discard(BlockDriverState *bs,
         }
     }
 
-    d = g_malloc(sizeof(*d));
+    d = g_new(Qcow2DiscardRegion, 1);
     *d = (Qcow2DiscardRegion) {
         .bs     = bs,
         .offset = offset,
@@ -2189,9 +2189,8 @@ write_refblocks:
 
             reftable_size = ROUND_UP((refblock_index + 1) * sizeof(uint64_t),
                                      s->cluster_size) / sizeof(uint64_t);
-            new_on_disk_reftable = g_try_realloc(on_disk_reftable,
-                                                 reftable_size *
-                                                 sizeof(uint64_t));
+            new_on_disk_reftable = g_try_renew(uint64_t, on_disk_reftable,
+                                               reftable_size);
             if (!new_on_disk_reftable) {
                 res->check_errors++;
                 ret = -ENOMEM;
@@ -2656,8 +2655,7 @@ static int alloc_refblock(BlockDriverState *bs, uint64_t **reftable,
             return -ENOTSUP;
         }
 
-        new_reftable = g_try_realloc(*reftable, new_reftable_size *
-                                                sizeof(uint64_t));
+        new_reftable = g_try_renew(uint64_t, *reftable, new_reftable_size);
         if (!new_reftable) {
             error_setg(errp, "Failed to increase reftable buffer size");
             return -ENOMEM;
@@ -3119,7 +3117,7 @@ int qcow2_shrink_reftable(BlockDriverState *bs)
 {
     BDRVQcow2State *s = bs->opaque;
     uint64_t *reftable_tmp =
-        g_malloc(s->refcount_table_size * sizeof(uint64_t));
+        g_new(uint64_t, s->refcount_table_size);
     int i, ret;
 
     for (i = 0; i < s->refcount_table_size; i++) {

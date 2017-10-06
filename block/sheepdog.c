@@ -467,7 +467,7 @@ static inline AIOReq *alloc_aio_req(BDRVSheepdogState *s, SheepdogAIOCB *acb,
 {
     AIOReq *aio_req;
 
-    aio_req = g_malloc(sizeof(*aio_req));
+    aio_req = g_new(AIOReq, 1);
     aio_req->aiocb = acb;
     aio_req->iov_offset = iov_offset;
     aio_req->oid = oid;

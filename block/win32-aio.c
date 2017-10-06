@@ -190,7 +190,7 @@ QEMUWin32AIOState *win32_aio_init(void)
 {
     QEMUWin32AIOState *s;
 
-    s = g_malloc0(sizeof(*s));
+    s = g_new0(QEMUWin32AIOState, 1);
     if (event_notifier_init(&s->e, false) < 0) {
         goto out_free_state;
     }

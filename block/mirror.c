@@ -904,7 +904,7 @@ immediate_exit:
     g_free(s->in_flight_bitmap);
     bdrv_dirty_iter_free(s->dbi);
 
-    data = g_malloc(sizeof(*data));
+    data = g_new(MirrorExitData, 1);
     data->ret = ret;
 
     if (need_drain) {
