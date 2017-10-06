@@ -118,6 +118,15 @@ T *m;
 +m = g_try_new0(T, 1);
 )
 
+@@
+type T;
+identifier m;
+@@
+T **m;
+...
+- *m = g_malloc0(sizeof(**m));
++ *m = g_new0(T *, 1);
+
 ////////////////////////////////////////
 //
 // last transformations: cleanups
