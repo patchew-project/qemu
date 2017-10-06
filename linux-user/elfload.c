@@ -3014,7 +3014,7 @@ static void fill_thread_info(struct elf_note_info *info, const CPUArchState *env
     TaskState *ts = (TaskState *)cpu->opaque;
     struct elf_thread_status *ets;
 
-    ets = g_malloc0(sizeof (*ets));
+    ets = g_new0(struct elf_thread_status, 1);
     ets->num_notes = 1; /* only prstatus is dumped */
     fill_prstatus(&ets->prstatus, ts, 0);
     elf_core_copy_regs(&ets->prstatus.pr_reg, env);
