@@ -394,7 +394,7 @@ void qemu_thread_create(QemuThread *thread, const char *name,
     HANDLE hThread;
     struct QemuThreadData *data;
 
-    data = g_malloc(sizeof *data);
+    data = g_new(struct QemuThreadData, 1);
     data->start_routine = start_routine;
     data->arg = arg;
     data->mode = mode;
