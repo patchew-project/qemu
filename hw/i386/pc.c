@@ -1175,7 +1175,7 @@ static void pc_build_feature_control_file(PCMachineState *pcms)
         return;
     }
 
-    val = g_malloc(sizeof(*val));
+    val = g_new(uint64_t, 1);
     *val = cpu_to_le64(feature_control_bits | FEATURE_CONTROL_LOCKED);
     fw_cfg_add_file(pcms->fw_cfg, "etc/msr_feature_control", val, sizeof(*val));
 }
@@ -1336,11 +1336,11 @@ void pc_memory_init(PCMachineState *pcms,
      * aliases to address portions of it, mostly for backwards compatibility
      * with older qemus that used qemu_ram_alloc().
      */
-    ram = g_malloc(sizeof(*ram));
+    ram = g_new(MemoryRegion, 1);
     memory_region_allocate_system_memory(ram, NULL, "pc.ram",
                                          machine->ram_size);
     *ram_memory = ram;
-    ram_below_4g = g_malloc(sizeof(*ram_below_4g));
+    ram_below_4g = g_new(MemoryRegion, 1);
     memory_region_init_alias(ram_below_4g, NULL, "ram-below-4g", ram,
                              0, pcms->below_4g_mem_size);
     memory_region_add_subregion(system_memory, 0, ram_below_4g);
@@ -1408,7 +1408,7 @@ void pc_memory_init(PCMachineState *pcms,
     /* Initialize PC system firmware */
     pc_system_firmware_init(rom_memory, !pcmc->pci_enabled);
 
-    option_rom_mr = g_malloc(sizeof(*option_rom_mr));
+    option_rom_mr = g_new(MemoryRegion, 1);
     memory_region_init_ram(option_rom_mr, NULL, "pc.rom", PC_ROM_SIZE,
                            &error_fatal);
     if (pcmc->pci_enabled) {

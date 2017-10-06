@@ -777,7 +777,7 @@ static void crs_range_insert(GPtrArray *ranges, uint64_t base, uint64_t limit)
 {
     CrsRangeEntry *entry;
 
-    entry = g_malloc(sizeof(*entry));
+    entry = g_new(CrsRangeEntry, 1);
     entry->base = base;
     entry->limit = limit;
 
@@ -2877,7 +2877,7 @@ void acpi_setup(void)
         return;
     }
 
-    build_state = g_malloc0(sizeof *build_state);
+    build_state = g_new0(AcpiBuildState, 1);
 
     acpi_build_tables_init(&tables);
     acpi_build(&tables, MACHINE(pcms));
