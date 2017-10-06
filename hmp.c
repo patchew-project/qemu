@@ -1917,7 +1917,7 @@ void hmp_migrate(Monitor *mon, const QDict *qdict)
             return;
         }
 
-        status = g_malloc0(sizeof(*status));
+        status = g_new0(HMPMigrationStatus, 1);
         status->mon = mon;
         status->is_block_migration = blk || inc;
         status->timer = timer_new_ms(QEMU_CLOCK_REALTIME, hmp_migrate_status_cb,
