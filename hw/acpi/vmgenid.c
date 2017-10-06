@@ -269,7 +269,7 @@ GuidInfo *qmp_query_vm_generation_id(Error **errp)
     }
     vms = VMGENID(obj);
 
-    info = g_malloc0(sizeof(*info));
+    info = g_new0(GuidInfo, 1);
     info->guid = qemu_uuid_unparse_strdup(&vms->guid);
     return info;
 }
