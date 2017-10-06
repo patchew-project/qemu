@@ -115,7 +115,7 @@ static const MemoryRegionOps lx60_fpga_ops = {
 static Lx60FpgaState *lx60_fpga_init(MemoryRegion *address_space,
         hwaddr base)
 {
-    Lx60FpgaState *s = g_malloc(sizeof(Lx60FpgaState));
+    Lx60FpgaState *s = g_new(Lx60FpgaState, 1);
 
     memory_region_init_io(&s->iomem, NULL, &lx60_fpga_ops, s,
             "lx60.fpga", 0x10000);
