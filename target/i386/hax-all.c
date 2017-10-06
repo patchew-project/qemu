@@ -155,7 +155,7 @@ int hax_vcpu_create(int id)
         return 0;
     }
 
-    vcpu = g_malloc(sizeof(struct hax_vcpu_state));
+    vcpu = g_new(struct hax_vcpu_state, 1);
     if (!vcpu) {
         fprintf(stderr, "Failed to alloc vcpu state\n");
         return -ENOMEM;
@@ -251,7 +251,7 @@ struct hax_vm *hax_vm_create(struct hax_state *hax)
         return hax->vm;
     }
 
-    vm = g_malloc(sizeof(struct hax_vm));
+    vm = g_new(struct hax_vm, 1);
     if (!vm) {
         return NULL;
     }

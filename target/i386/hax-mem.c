@@ -82,7 +82,7 @@ static void hax_insert_mapping_before(HAXMapping *next, uint64_t start_pa,
 {
     HAXMapping *entry;
 
-    entry = g_malloc0(sizeof(*entry));
+    entry = g_new0(HAXMapping, 1);
     entry->start_pa = start_pa;
     entry->size = size;
     entry->host_va = host_va;

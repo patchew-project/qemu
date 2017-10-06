@@ -2344,7 +2344,7 @@ static void x86_cpu_definition_entry(gpointer data, gpointer user_data)
     CpuDefinitionInfoList *entry;
     CpuDefinitionInfo *info;
 
-    info = g_malloc0(sizeof(*info));
+    info = g_new0(CpuDefinitionInfo, 1);
     info->name = x86_cpu_class_get_model_name(cc);
     x86_cpu_class_check_missing_features(cc, &info->unavailable_features);
     info->has_unavailable_features = true;
@@ -2353,7 +2353,7 @@ static void x86_cpu_definition_entry(gpointer data, gpointer user_data)
     info->has_migration_safe = true;
     info->q_static = cc->static_model;
 
-    entry = g_malloc0(sizeof(*entry));
+    entry = g_new0(CpuDefinitionInfoList, 1);
     entry->value = info;
     entry->next = *cpu_list;
     *cpu_list = entry;
@@ -3933,7 +3933,7 @@ static GuestPanicInformation *x86_cpu_get_crash_info(CPUState *cs)
     GuestPanicInformation *panic_info = NULL;
 
     if (env->features[FEAT_HYPERV_EDX] & HV_GUEST_CRASH_MSR_AVAILABLE) {
-        panic_info = g_malloc0(sizeof(GuestPanicInformation));
+        panic_info = g_new0(GuestPanicInformation, 1);
 
         panic_info->type = GUEST_PANIC_INFORMATION_TYPE_HYPER_V;
 
