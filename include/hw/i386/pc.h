@@ -375,6 +375,10 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
         .driver   = TYPE_X86_CPU,\
         .property = "x-hv-max-vps",\
         .value    = "0x40",\
+    },{\
+        .driver = TYPE_X86_CPU,\
+        .property = "x-kvm-auto-enable-pv-unhalt",\
+        .value = "off",\
     },
 
 #define PC_COMPAT_2_9 \

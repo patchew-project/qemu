@@ -1276,6 +1276,9 @@ struct X86CPU {
     /* KVM automatically enables kvm-pv-eoi if not explicitly disabled by user */
     bool kvm_auto_enable_pv_eoi;
 
+    /* KVM automatically enables kvm-pv-unhalt if not explicitly disabled */
+    bool kvm_auto_enable_pv_unhalt;
+
     /* Number of physical address bits supported */
     uint32_t phys_bits;
 

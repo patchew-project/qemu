@@ -3515,6 +3515,11 @@ static void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
             x86_cpu_expand_feature(cpu, FEAT_KVM, (1 << KVM_FEATURE_PV_EOI),
                                    (1 << KVM_FEATURE_PV_EOI));
         }
+
+        if (cpu->kvm_auto_enable_pv_unhalt) {
+            x86_cpu_expand_feature(cpu, FEAT_KVM, (1 << KVM_FEATURE_PV_UNHALT),
+                                   (1 << KVM_FEATURE_PV_UNHALT));
+        }
     }
 
     /*TODO: Now cpu->max_features doesn't overwrite features
@@ -4164,6 +4169,8 @@ static Property x86_cpu_properties[] = {
                      X86CPU, kvm_auto_enable_x2apic, true),
     DEFINE_PROP_BOOL("x-kvm-auto-enable-pv-eoi",
                      X86CPU, kvm_auto_enable_pv_eoi, true),
+    DEFINE_PROP_BOOL("x-kvm-auto-enable-pv-unhalt",
+                     X86CPU, kvm_auto_enable_pv_unhalt, true),
     DEFINE_PROP_BOOL("vmware-cpuid-freq", X86CPU, vmware_cpuid_freq, true),
     DEFINE_PROP_BOOL("tcg-cpuid", X86CPU, expose_tcg, true),
 

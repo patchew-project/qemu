@@ -2355,7 +2355,7 @@ Run the emulation in single step mode.
 @section KVM kernel module
 
 On x86_64 hosts, the default set of CPU features enabled by the KVM accelerator
-require the host to be running Linux v3.6 or newer.
+require the host to be running Linux v3.12 or newer.
 
 
 @include qemu-tech.texi
