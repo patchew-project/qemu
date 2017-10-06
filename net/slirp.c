@@ -869,7 +869,7 @@ net_init_slirp_configs(const StringList *fwd, int flags)
     while (fwd) {
         struct slirp_config_str *config;
 
-        config = g_malloc0(sizeof(*config));
+        config = g_new0(struct slirp_config_str, 1);
         pstrcpy(config->str, sizeof(config->str), fwd->value->str);
         config->flags = flags;
         config->next = slirp_configs;
@@ -973,7 +973,7 @@ int net_slirp_parse_legacy(QemuOptsList *opts_list, const char *optarg, int *ret
     if (QTAILQ_EMPTY(&slirp_stacks)) {
         struct slirp_config_str *config;
 
-        config = g_malloc(sizeof(*config));
+        config = g_new(struct slirp_config_str, 1);
         pstrcpy(config->str, sizeof(config->str), optarg);
         config->flags = SLIRP_CFG_LEGACY;
         config->next = slirp_configs;

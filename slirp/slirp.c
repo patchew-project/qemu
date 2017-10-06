@@ -288,7 +288,7 @@ Slirp *slirp_init(int restricted, bool in_enabled, struct in_addr vnetwork,
                   struct in6_addr vnameserver6, const char **vdnssearch,
                   void *opaque)
 {
-    Slirp *slirp = g_malloc0(sizeof(Slirp));
+    Slirp *slirp = g_new0(Slirp, 1);
 
     slirp_init_once();
 

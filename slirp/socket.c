@@ -48,7 +48,7 @@ socreate(Slirp *slirp)
 {
   struct socket *so;
 
-  so = (struct socket *)malloc(sizeof(struct socket));
+  so = g_new(struct socket, 1);
   if(so) {
     memset(so, 0, sizeof(struct socket));
     so->so_state = SS_NOFDREF;
