@@ -3968,6 +3968,18 @@ Immediately before starting guest execution, drop root privileges, switching
 to the specified user.
 ETEXI
 
+#ifndef _WIN32
+DEF("runasid", HAS_ARG, QEMU_OPTION_runasid, \
+    "-runasid uid.gid     change to numeric uid and gid just before starting the VM\n",
+    QEMU_ARCH_ALL)
+#endif
+STEXI
+@item -runasid @var{uid}.@var{gid}
+@findex -runasid
+Immediately before starting guest execution, drop root privileges, switching
+to the specified uid and gid.
+ETEXI
+
 DEF("prom-env", HAS_ARG, QEMU_OPTION_prom_env,
     "-prom-env variable=value\n"
     "                set OpenBIOS nvram variables\n",
