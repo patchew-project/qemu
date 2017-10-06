@@ -328,7 +328,6 @@ static void pc_compat_2_2(MachineState *machine)
 static void pc_compat_2_1(MachineState *machine)
 {
     pc_compat_2_2(machine);
-    kvm_auto_disable_svm = false;
 }
 
 static void pc_compat_2_0(MachineState *machine)
@@ -339,7 +338,6 @@ static void pc_compat_2_0(MachineState *machine)
 static void pc_compat_1_7(MachineState *machine)
 {
     pc_compat_2_0(machine);
-    kvm_auto_enable_x2apic = false;
 }
 
 static void pc_compat_1_6(MachineState *machine)
@@ -367,7 +365,6 @@ static void pc_compat_1_3(MachineState *machine)
 static void pc_compat_1_2(MachineState *machine)
 {
     pc_compat_1_3(machine);
-    kvm_auto_enable_pv_eoi = false;
 }
 
 /* PC compat function for pc-0.10 to pc-0.13 */
@@ -705,6 +702,10 @@ DEFINE_I440FX_MACHINE(v1_3, "pc-1.3", pc_compat_1_3,
             .driver   = "VGA",\
             .property = "mmio",\
             .value    = "off",\
+        },{\
+            .driver = TYPE_X86_CPU,\
+            .property = "x-kvm-auto-enable-pv-eoi",\
+            .value = "off",\
         },
 
 static void pc_i440fx_1_2_machine_options(MachineClass *m)

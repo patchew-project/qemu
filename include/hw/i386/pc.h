@@ -753,6 +753,10 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
         .driver = "core2duo" "-" TYPE_X86_CPU,\
         .property = "vmx",\
         .value = "on",\
+    },{\
+        .driver = TYPE_X86_CPU,\
+        .property = "x-kvm-auto-disable-svm",\
+        .value = "off",\
     },
 
 #define PC_COMPAT_2_0 \
@@ -831,6 +835,10 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
         .driver   = "hpet",\
         .property = HPET_INTCAP,\
         .value    = stringify(4),\
+    },{\
+        .driver = TYPE_X86_CPU,\
+        .property = "x-kvm-auto-enable-x2apic",\
+        .value = "off",\
     },
 
 #define PC_COMPAT_1_6 \

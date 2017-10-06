@@ -1267,6 +1267,15 @@ struct X86CPU {
     /* Stop SMI delivery for migration compatibility with old machines */
     bool kvm_no_smi_migration;
 
+    /* KVM automatically disables SVM if not explicitly enabled by user */
+    bool kvm_auto_disable_svm;
+
+    /* KVM automatically enables x2apic if not explicitly disabled by user */
+    bool kvm_auto_enable_x2apic;
+
+    /* KVM automatically enables kvm-pv-eoi if not explicitly disabled by user */
+    bool kvm_auto_enable_pv_eoi;
+
     /* Number of physical address bits supported */
     uint32_t phys_bits;
 
@@ -1699,14 +1708,6 @@ void cpu_report_tpr_access(CPUX86State *env, TPRAccess access);
 void apic_handle_tpr_access_report(DeviceState *d, target_ulong ip,
                                    TPRAccess access);
 
-
-/*
- * Compat globals to control features automatically enabled/disabled by KVM.
- * TODO: convert them to X86CPU fields set by MachineClass::compat_props
- */
-extern bool kvm_auto_disable_svm;
-extern bool kvm_auto_enable_x2apic;
-extern bool kvm_auto_enable_pv_eoi;
 
 /* mpx_helper.c */
 void cpu_sync_bndcs_hflags(CPUX86State *env);

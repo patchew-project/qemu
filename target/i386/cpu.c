@@ -1583,10 +1583,6 @@ static PropValue kvm_default_props[] = {
     { NULL, NULL },
 };
 
-bool kvm_auto_disable_svm = true;
-bool kvm_auto_enable_x2apic = true;
-bool kvm_auto_enable_pv_eoi = true;
-
 /* TCG-specific defaults that override all CPU models when using TCG
  */
 static PropValue tcg_default_props[] = {
@@ -3502,20 +3498,20 @@ static void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
      * defaults, so we check xcc->cpu_def here.
      */
     if (xcc->cpu_def && kvm_enabled()) {
-        /* KVM-specific defaults that depend on compatibility globals: */
+        /* KVM-specific defaults that depend on compatibility properties: */
 
         if (!kvm_irqchip_in_kernel()) {
             x86_cpu_expand_feature(cpu, FEAT_1_ECX, CPUID_EXT_X2APIC, 0);
-        } else if (kvm_auto_enable_x2apic) {
+        } else if (cpu->kvm_auto_enable_x2apic) {
             x86_cpu_expand_feature(cpu, FEAT_1_ECX, CPUID_EXT_X2APIC,
                                    CPUID_EXT_X2APIC);
         }
 
-        if (kvm_auto_disable_svm) {
+        if (cpu->kvm_auto_disable_svm) {
             x86_cpu_expand_feature(cpu, FEAT_8000_0001_ECX, CPUID_EXT3_SVM, 0);
         }
 
-        if (kvm_auto_enable_pv_eoi) {
+        if (cpu->kvm_auto_enable_pv_eoi) {
             x86_cpu_expand_feature(cpu, FEAT_KVM, (1 << KVM_FEATURE_PV_EOI),
                                    (1 << KVM_FEATURE_PV_EOI));
         }
@@ -4162,6 +4158,12 @@ static Property x86_cpu_properties[] = {
     DEFINE_PROP_BOOL("l3-cache", X86CPU, enable_l3_cache, true),
     DEFINE_PROP_BOOL("kvm-no-smi-migration", X86CPU, kvm_no_smi_migration,
                      false),
+    DEFINE_PROP_BOOL("x-kvm-auto-disable-svm",
+                     X86CPU, kvm_auto_disable_svm, true),
+    DEFINE_PROP_BOOL("x-kvm-auto-enable-x2apic",
+                     X86CPU, kvm_auto_enable_x2apic, true),
+    DEFINE_PROP_BOOL("x-kvm-auto-enable-pv-eoi",
+                     X86CPU, kvm_auto_enable_pv_eoi, true),
     DEFINE_PROP_BOOL("vmware-cpuid-freq", X86CPU, vmware_cpuid_freq, true),
     DEFINE_PROP_BOOL("tcg-cpuid", X86CPU, expose_tcg, true),
 
