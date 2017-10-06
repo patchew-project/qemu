@@ -119,7 +119,7 @@ QPCIBus *qpci_init_pc(QGuestAllocator *alloc)
 {
     QPCIBusPC *ret;
 
-    ret = g_malloc(sizeof(*ret));
+    ret = g_new(QPCIBusPC, 1);
 
     ret->bus.pio_readb = qpci_pc_pio_readb;
     ret->bus.pio_readw = qpci_pc_pio_readw;

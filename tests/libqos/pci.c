@@ -54,7 +54,7 @@ QPCIDevice *qpci_device_find(QPCIBus *bus, int devfn)
 {
     QPCIDevice *dev;
 
-    dev = g_malloc0(sizeof(*dev));
+    dev = g_new0(QPCIDevice, 1);
     dev->bus = bus;
     dev->devfn = devfn;
 

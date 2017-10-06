@@ -1644,7 +1644,7 @@ static PciMemoryRegionList *qmp_query_pci_regions(const PCIDevice *dev)
             continue;
         }
 
-        region = g_malloc0(sizeof(*region));
+        region = g_new0(PciMemoryRegionList, 1);
         region->value = g_malloc0(sizeof(*region->value));
 
         if (r->type & PCI_BASE_ADDRESS_SPACE_IO) {
