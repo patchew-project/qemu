@@ -95,7 +95,7 @@ static void pvpanic_isa_realizefn(DeviceState *dev, Error **errp)
         return;
     }
 
-    pvpanic_port = g_malloc(sizeof(*pvpanic_port));
+    pvpanic_port = g_new(uint16_t, 1);
     *pvpanic_port = cpu_to_le16(s->ioport);
     fw_cfg_add_file(fw_cfg, "etc/pvpanic-port", pvpanic_port,
                     sizeof(*pvpanic_port));
