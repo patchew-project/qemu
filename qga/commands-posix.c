@@ -906,16 +906,16 @@ static void build_guest_fsinfo_for_real_device(char const *syspath,
         }
     }
 
-    pciaddr = g_malloc0(sizeof(*pciaddr));
+    pciaddr = g_new0(GuestPCIAddress, 1);
     pciaddr->domain = pci[0];
     pciaddr->bus = pci[1];
     pciaddr->slot = pci[2];
     pciaddr->function = pci[3];
 
-    disk = g_malloc0(sizeof(*disk));
+    disk = g_new0(GuestDiskAddress, 1);
     disk->pci_controller = pciaddr;
 
-    list = g_malloc0(sizeof(*list));
+    list = g_new0(GuestDiskAddressList, 1);
     list->value = disk;
 
     if (strcmp(driver, "ata_piix") == 0) {
@@ -1380,7 +1380,7 @@ qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **errp)
         return NULL;
     }
 
-    response = g_malloc0(sizeof(*response));
+    response = g_new0(GuestFilesystemTrimResponse, 1);
 
     QTAILQ_FOREACH(mount, &mounts, next) {
         result = g_malloc0(sizeof(*result));
@@ -1897,12 +1897,12 @@ GuestLogicalProcessorList *qmp_guest_get_vcpus(Error **errp)
         GuestLogicalProcessor *vcpu;
         GuestLogicalProcessorList *entry;
 
-        vcpu = g_malloc0(sizeof *vcpu);
+        vcpu = g_new0(GuestLogicalProcessor, 1);
         vcpu->logical_id = current++;
         vcpu->has_can_offline = true; /* lolspeak ftw */
         transfer_vcpu(vcpu, true, &local_err);
 
-        entry = g_malloc0(sizeof *entry);
+        entry = g_new0(GuestLogicalProcessorList, 1);
         entry->value = vcpu;
 
         *link = entry;
@@ -2267,13 +2267,13 @@ GuestMemoryBlockList *qmp_guest_get_memory_blocks(Error **errp)
             continue;
         }
 
-        mem_blk = g_malloc0(sizeof *mem_blk);
+        mem_blk = g_new0(GuestMemoryBlock, 1);
         /* The d_name is "memoryXXX",  phys_index is block id, same as XXX */
         mem_blk->phys_index = strtoul(&de->d_name[6], NULL, 10);
         mem_blk->has_can_offline = true; /* lolspeak ftw */
         transfer_memory_block(mem_blk, true, NULL, &local_err);
 
-        entry = g_malloc0(sizeof *entry);
+        entry = g_new0(GuestMemoryBlockList, 1);
         entry->value = mem_blk;
 
         *link = entry;
@@ -2308,13 +2308,13 @@ qmp_guest_set_memory_blocks(GuestMemoryBlockList *mem_blks, Error **errp)
         GuestMemoryBlockResponseList *entry;
         GuestMemoryBlock *current_mem_blk = mem_blks->value;
 
-        result = g_malloc0(sizeof(*result));
+        result = g_new0(GuestMemoryBlockResponse, 1);
         result->phys_index = current_mem_blk->phys_index;
         transfer_memory_block(current_mem_blk, false, result, &local_err);
         if (local_err) { /* should never happen */
             goto err;
         }
-        entry = g_malloc0(sizeof *entry);
+        entry = g_new0(GuestMemoryBlockResponseList, 1);
         entry->value = result;
 
         *link = entry;

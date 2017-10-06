@@ -617,7 +617,7 @@ static GuestDiskAddressList *build_guest_disk_info(char *guid, Error **errp)
         goto out_close;
     }
 
-    disk = g_malloc0(sizeof(*disk));
+    disk = g_new0(GuestDiskAddress, 1);
     disk->bus_type = find_bus_type(bus);
     if (bus == BusTypeScsi || bus == BusTypeAta || bus == BusTypeRAID
 #if (_WIN32_WINNT >= 0x0600)
@@ -641,7 +641,7 @@ static GuestDiskAddressList *build_guest_disk_info(char *guid, Error **errp)
          disk->pci_controller = NULL;
     }
 
-    list = g_malloc0(sizeof(*list));
+    list = g_new0(GuestDiskAddressList, 1);
     list->value = disk;
     list->next = NULL;
 out_close:
@@ -694,7 +694,7 @@ static GuestFilesystemInfo *build_guest_fsinfo(char *guid, Error **errp)
     }
 
     fs_name[sizeof(fs_name) - 1] = 0;
-    fs = g_malloc(sizeof(*fs));
+    fs = g_new(GuestFilesystemInfo, 1);
     fs->name = g_strdup(guid);
     if (len == 0) {
         fs->mountpoint = g_strdup("System Reserved");
@@ -877,7 +877,7 @@ qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **errp)
             continue;
         }
 
-        uc_path = g_malloc(sizeof(WCHAR) * char_count);
+        uc_path = g_new(WCHAR, char_count);
         if (!GetVolumePathNamesForVolumeNameW(guid, uc_path, char_count,
                                               &char_count) || !*uc_path) {
             /* strange, but this condition could be faced even with size == 2 */
@@ -1348,12 +1348,12 @@ GuestLogicalProcessorList *qmp_guest_get_vcpus(Error **errp)
                     GuestLogicalProcessor *vcpu;
                     GuestLogicalProcessorList *entry;
 
-                    vcpu = g_malloc0(sizeof *vcpu);
+                    vcpu = g_new0(GuestLogicalProcessor, 1);
                     vcpu->logical_id = current++;
                     vcpu->online = true;
                     vcpu->has_can_offline = true;
 
-                    entry = g_malloc0(sizeof *entry);
+                    entry = g_new0(GuestLogicalProcessorList, 1);
                     entry->value = vcpu;
 
                     *link = entry;
