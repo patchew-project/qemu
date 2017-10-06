@@ -341,7 +341,7 @@ Visitor *string_output_visitor_new(bool human, char **result)
 {
     StringOutputVisitor *v;
 
-    v = g_malloc0(sizeof(*v));
+    v = g_new0(StringOutputVisitor, 1);
 
     v->string = g_string_new(NULL);
     v->human = human;

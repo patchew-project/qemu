@@ -120,7 +120,7 @@ Visitor *qapi_dealloc_visitor_new(void)
 {
     QapiDeallocVisitor *v;
 
-    v = g_malloc0(sizeof(*v));
+    v = g_new0(QapiDeallocVisitor, 1);
 
     v->visitor.type = VISITOR_DEALLOC;
     v->visitor.start_struct = qapi_dealloc_start_struct;

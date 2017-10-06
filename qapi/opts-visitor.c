@@ -539,7 +539,7 @@ opts_visitor_new(const QemuOpts *opts)
     OptsVisitor *ov;
 
     assert(opts);
-    ov = g_malloc0(sizeof *ov);
+    ov = g_new0(OptsVisitor, 1);
 
     ov->visitor.type = VISITOR_INPUT;
 

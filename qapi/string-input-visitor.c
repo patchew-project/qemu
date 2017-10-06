@@ -356,7 +356,7 @@ Visitor *string_input_visitor_new(const char *str)
     StringInputVisitor *v;
 
     assert(str);
-    v = g_malloc0(sizeof(*v));
+    v = g_new0(StringInputVisitor, 1);
 
     v->visitor.type = VISITOR_INPUT;
     v->visitor.type_int64 = parse_type_int64;
