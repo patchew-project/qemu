@@ -947,11 +947,7 @@ int main(int argc, char **argv)
         _exit(1);
     }
 
-    for (wrk = target_environ; *wrk; wrk++) {
-        g_free(*wrk);
-    }
-
-    g_free(target_environ);
+    g_strfreev(target_environ);
 
     if (qemu_loglevel_mask(CPU_LOG_PAGE)) {
         qemu_log("guest_base  0x%lx\n", guest_base);
