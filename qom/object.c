@@ -940,7 +940,7 @@ object_property_add(Object *obj, const char *name, const char *type,
         return NULL;
     }
 
-    prop = g_malloc0(sizeof(*prop));
+    prop = g_new0(ObjectProperty, 1);
 
     prop->name = g_strdup(name);
     prop->type = g_strdup(type);
@@ -973,7 +973,7 @@ object_class_property_add(ObjectClass *klass,
         return NULL;
     }
 
-    prop = g_malloc0(sizeof(*prop));
+    prop = g_new0(ObjectProperty, 1);
 
     prop->name = g_strdup(name);
     prop->type = g_strdup(type);
@@ -2281,7 +2281,7 @@ void object_property_add_alias(Object *obj, const char *name,
         prop_type = g_strdup(target_prop->type);
     }
 
-    prop = g_malloc(sizeof(*prop));
+    prop = g_new(AliasProperty, 1);
     prop->target_obj = target_obj;
     prop->target_name = g_strdup(target_name);
 
