@@ -109,7 +109,7 @@ void xen_map_cache_init(phys_offset_to_gaddr_t f, void *opaque)
     unsigned long size;
     struct rlimit rlimit_as;
 
-    mapcache = g_malloc0(sizeof (MapCache));
+    mapcache = g_new0(MapCache, 1);
 
     mapcache->phys_offset_to_gaddr = f;
     mapcache->opaque = opaque;
@@ -165,8 +165,7 @@ static void xen_remap_bucket(MapCacheEntry *entry,
 
     trace_xen_remap_bucket(address_index);
 
-    pfns = g_malloc0(nb_pfn * sizeof (xen_pfn_t));
-    err = g_malloc0(nb_pfn * sizeof (int));
+    err = g_new0(int, nb_pfn);
 
     if (entry->vaddr_base != NULL) {
         if (!(entry->flags & XEN_MAPCACHE_ENTRY_DUMMY)) {
@@ -180,6 +179,7 @@ static void xen_remap_bucket(MapCacheEntry *entry,
     g_free(entry->valid_mapping);
     entry->valid_mapping = NULL;
 
+    pfns = g_new(xen_pfn_t, nb_pfn);
     for (i = 0; i < nb_pfn; i++) {
         pfns[i] = (address_index << (MCACHE_BUCKET_SHIFT-XC_PAGE_SHIFT)) + i;
     }
@@ -212,8 +212,8 @@ static void xen_remap_bucket(MapCacheEntry *entry,
     entry->vaddr_base = vaddr_base;
     entry->paddr_index = address_index;
     entry->size = size;
-    entry->valid_mapping = (unsigned long *) g_malloc0(sizeof(unsigned long) *
-            BITS_TO_LONGS(size >> XC_PAGE_SHIFT));
+    entry->valid_mapping = g_new0(unsigned long,
+                                  BITS_TO_LONGS(size >> XC_PAGE_SHIFT));
 
     if (dummy) {
         entry->flags |= XEN_MAPCACHE_ENTRY_DUMMY;
@@ -300,7 +300,7 @@ tryagain:
         pentry = free_pentry;
     }
     if (!entry) {
-        entry = g_malloc0(sizeof (MapCacheEntry));
+        entry = g_new0(MapCacheEntry, 1);
         pentry->next = entry;
         xen_remap_bucket(entry, NULL, cache_size, address_index, dummy);
     } else if (!entry->lock) {
@@ -334,7 +334,7 @@ tryagain:
 
     mapcache->last_entry = entry;
     if (lock) {
-        MapCacheRev *reventry = g_malloc0(sizeof(MapCacheRev));
+        MapCacheRev *reventry = g_new0(MapCacheRev, 1);
         entry->lock++;
         reventry->dma = dma;
         reventry->vaddr_req = mapcache->last_entry->vaddr_base + address_offset;

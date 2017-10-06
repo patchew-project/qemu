@@ -43,7 +43,7 @@ static void xenstore_cleanup_dir(char *dir)
 {
     struct xs_dirs *d;
 
-    d = g_malloc(sizeof(*d));
+    d = g_new(struct xs_dirs, 1);
     d->xs_dir = dir;
     QTAILQ_INSERT_TAIL(&xs_cleanup, d, list);
 }
