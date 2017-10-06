@@ -80,6 +80,49 @@ expression p, n;
 -g_try_realloc(p, sizeof(T) * (n))
 +g_try_renew(T, p, n)
 
+@@
+type T;
+expression n;
+@@
+(
+-g_malloc_n(n, sizeof(T))
++g_new(T, n)
+|
+-g_malloc0_n(n, sizeof(T))
++g_new0(T, n)
+|
+-g_try_malloc_n(n, sizeof(T))
++g_try_new(T, n)
+|
+-g_try_malloc0_n(n, sizeof(T))
++g_try_new0(T, n)
+)
+
+@@
+type T;
+identifier m;
+@@
+T *m;
+...
+(
+-m = g_malloc(sizeof(*m));
++m = g_new(T, 1);
+|
+-m = g_malloc0(sizeof(*m));
++m = g_new0(T, 1);
+|
+-m = g_try_malloc(sizeof(*m));
++m = g_try_new(T, 1);
+|
+-m = g_try_malloc0(sizeof(*m));
++m = g_try_new0(T, 1);
+)
+
+////////////////////////////////////////
+//
+// last transformations: cleanups
+//
+
 // drop superfluous cast
 @@
 type T;
@@ -99,3 +142,33 @@ expression p, n;
 @@
 -(T *)g_renew(T, p, n)
 +g_renew(T, p, n)
+@@
+type T;
+expression n;
+@@
+(
+-(T *)g_try_new(T, n)
++g_try_new(T, n)
+|
+-(T *)g_try_new0(T, n)
++g_try_new0(T, n)
+)
+
+// drop superfluous parenthesis
+@@
+type T;
+expression c;
+@@
+(
+-g_new(T, (c))
++g_new(T, c)
+|
+-g_try_new(T, (c))
++g_try_new(T, c)
+|
+-g_new0(T, (c))
++g_new0(T, c)
+|
+-g_try_new0(T, (c))
++g_try_new0(T, c)
+)
