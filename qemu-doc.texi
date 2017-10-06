@@ -37,6 +37,7 @@
 * QEMU System emulator for non PC targets::
 * QEMU Guest Agent::
 * QEMU User space emulator::
+* System requirements::
 * Implementation notes::
 * Deprecated features::
 * License::
@@ -2347,6 +2348,14 @@ Act as if the host page size was 'pagesize' bytes
 @item -singlestep
 Run the emulation in single step mode.
 @end table
+
+@node System requirements
+@chapter System requirements
+
+@section KVM kernel module
+
+On x86_64 hosts, the default set of CPU features enabled by the KVM accelerator
+require the host to be running Linux v3.6 or newer.
 
 
 @include qemu-tech.texi
