@@ -97,7 +97,7 @@ BalloonInfo *qmp_query_balloon(Error **errp)
         return NULL;
     }
 
-    info = g_malloc0(sizeof(*info));
+    info = g_new0(BalloonInfo, 1);
     balloon_stat_fn(balloon_opaque, info);
     return info;
 }
