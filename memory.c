@@ -2762,7 +2762,7 @@ void memory_region_invalidate_mmio_ptr(MemoryRegion *mr, hwaddr offset,
     }
 
     if (!invalidate_data) {
-        invalidate_data = g_malloc0(sizeof(MMIOPtrInvalidate));
+        invalidate_data = g_new0(MMIOPtrInvalidate, 1);
         invalidate_data->allocated = 1;
     }
 
