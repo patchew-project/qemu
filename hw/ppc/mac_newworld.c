@@ -295,7 +295,7 @@ static void ppc_core99_init(MachineState *machine)
     memory_region_init_io(unin2_memory, NULL, &unin_ops, token, "unin", 0x1000);
     memory_region_add_subregion(get_system_memory(), 0xf3000000, unin2_memory);
 
-    openpic_irqs = g_malloc0(smp_cpus * sizeof(qemu_irq *));
+    openpic_irqs = g_new0(qemu_irq *, smp_cpus);
     openpic_irqs[0] =
         g_malloc0(smp_cpus * sizeof(qemu_irq) * OPENPIC_OUTPUT_NB);
     for (i = 0; i < smp_cpus; i++) {
@@ -339,8 +339,6 @@ static void ppc_core99_init(MachineState *machine)
         }
     }
 
-    pic = g_new0(qemu_irq, 64);
-
     dev = qdev_create(NULL, TYPE_OPENPIC);
     qdev_prop_set_uint32(dev, "model", OPENPIC_MODEL_KEYLARGO);
     qdev_init_nofail(dev);
@@ -353,6 +351,7 @@ static void ppc_core99_init(MachineState *machine)
         }
     }
 
+    pic = g_new(qemu_irq, 64);
     for (i = 0; i < 64; i++) {
         pic[i] = qdev_get_gpio_in(dev, i);
     }
