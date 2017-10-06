@@ -38,7 +38,7 @@ void qvirtio_pci_device_free(QVirtioPCIDevice *dev)
 static QVirtioPCIDevice *qpcidevice_to_qvirtiodevice(QPCIDevice *pdev)
 {
     QVirtioPCIDevice *vpcidev;
-    vpcidev = g_malloc0(sizeof(*vpcidev));
+    vpcidev = g_new0(QVirtioPCIDevice, 1);
 
     if (pdev) {
         vpcidev->pdev = pdev;
@@ -229,7 +229,7 @@ static QVirtQueue *qvirtio_pci_virtqueue_setup(QVirtioDevice *d,
     uint64_t addr;
     QVirtQueuePCI *vqpci;
 
-    vqpci = g_malloc0(sizeof(*vqpci));
+    vqpci = g_new0(QVirtQueuePCI, 1);
     feat = qvirtio_pci_get_guest_features(d);
 
     qvirtio_pci_queue_select(d, index);

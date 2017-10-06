@@ -359,7 +359,7 @@ static RxFilterInfo *virtio_net_query_rxfilter(NetClientState *nc)
     strList *str_list, *entry;
     int i;
 
-    info = g_malloc0(sizeof(*info));
+    info = g_new0(RxFilterInfo, 1);
     info->name = g_strdup(nc->name);
     info->promiscuous = n->promisc;
 
@@ -1978,7 +1978,7 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
         virtio_cleanup(vdev);
         return;
     }
-    n->vqs = g_malloc0(sizeof(VirtIONetQueue) * n->max_queues);
+    n->vqs = g_new0(VirtIONetQueue, n->max_queues);
     n->curr_queues = 1;
     n->tx_timeout = n->net_conf.txtimer;
 

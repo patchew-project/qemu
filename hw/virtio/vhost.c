@@ -742,7 +742,7 @@ static void vhost_iommu_region_add(MemoryListener *listener,
         return;
     }
 
-    iommu = g_malloc0(sizeof(*iommu));
+    iommu = g_new0(struct vhost_iommu, 1);
     end = int128_add(int128_make64(section->offset_within_region),
                      section->size);
     end = int128_sub(end, int128_one());

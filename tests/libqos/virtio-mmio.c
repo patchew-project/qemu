@@ -127,7 +127,7 @@ static QVirtQueue *qvirtio_mmio_virtqueue_setup(QVirtioDevice *d,
     QVirtQueue *vq;
     uint64_t addr;
 
-    vq = g_malloc0(sizeof(*vq));
+    vq = g_new0(QVirtQueue, 1);
     qvirtio_mmio_queue_select(d, index);
     writel(dev->addr + QVIRTIO_MMIO_QUEUE_ALIGN, dev->page_size);
 
@@ -191,7 +191,7 @@ QVirtioMMIODevice *qvirtio_mmio_init_device(uint64_t addr, uint32_t page_size)
 {
     QVirtioMMIODevice *dev;
     uint32_t magic;
-    dev = g_malloc0(sizeof(*dev));
+    dev = g_new0(QVirtioMMIODevice, 1);
 
     magic = readl(addr + QVIRTIO_MMIO_MAGIC_VALUE);
     g_assert(magic == ('v' | 'i' << 8 | 'r' << 16 | 't' << 24));
