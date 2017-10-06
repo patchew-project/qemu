@@ -57,7 +57,7 @@ PageCache *cache_init(int64_t num_pages, unsigned int page_size)
     }
 
     /* We prefer not to abort if there is no memory */
-    cache = g_try_malloc(sizeof(*cache));
+    cache = g_try_new(PageCache, 1);
     if (!cache) {
         DPRINTF("Failed to allocate cache\n");
         return NULL;
