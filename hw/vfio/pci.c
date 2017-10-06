@@ -1395,7 +1395,7 @@ static void vfio_msix_early_setup(VFIOPCIDevice *vdev, Error **errp)
     table = le32_to_cpu(table);
     pba = le32_to_cpu(pba);
 
-    msix = g_malloc0(sizeof(*msix));
+    msix = g_new0(VFIOMSIXInfo, 1);
     msix->table_bar = table & PCI_MSIX_FLAGS_BIRMASK;
     msix->table_offset = table & ~PCI_MSIX_FLAGS_BIRMASK;
     msix->pba_bar = pba & PCI_MSIX_FLAGS_BIRMASK;
@@ -1437,8 +1437,7 @@ static int vfio_msix_setup(VFIOPCIDevice *vdev, int pos, Error **errp)
     int ret;
     Error *err = NULL;
 
-    vdev->msix->pending = g_malloc0(BITS_TO_LONGS(vdev->msix->entries) *
-                                    sizeof(unsigned long));
+    vdev->msix->pending = g_new0(unsigned long, BITS_TO_LONGS(vdev->msix->entries));
     ret = msix_init(&vdev->pdev, vdev->msix->entries,
                     vdev->bars[vdev->msix->table_bar].region.mem,
                     vdev->msix->table_bar, vdev->msix->table_offset,
@@ -2076,7 +2075,7 @@ static int vfio_pci_hot_reset(VFIOPCIDevice *vdev, bool single)
     }
     vdev->vbasedev.needs_reset = false;
 
-    info = g_malloc0(sizeof(*info));
+    info = g_new0(struct vfio_pci_hot_reset_info, 1);
     info->argsz = sizeof(*info);
 
     ret = ioctl(vdev->vbasedev.fd, VFIO_DEVICE_GET_PCI_HOT_RESET_INFO, info);

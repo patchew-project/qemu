@@ -288,7 +288,7 @@ static void vfio_vga_probe_ati_3c3_quirk(VFIOPCIDevice *vdev)
         return;
     }
 
-    quirk = g_malloc0(sizeof(*quirk));
+    quirk = g_new0(VFIOQuirk, 1);
     quirk->mem = g_new0(MemoryRegion, 1);
     quirk->nr_mem = 1;
 
@@ -323,7 +323,7 @@ static void vfio_probe_ati_bar4_quirk(VFIOPCIDevice *vdev, int nr)
         return;
     }
 
-    quirk = g_malloc0(sizeof(*quirk));
+    quirk = g_new0(VFIOQuirk, 1);
     quirk->mem = g_new0(MemoryRegion, 2);
     quirk->nr_mem = 2;
     window = quirk->data = g_malloc0(sizeof(*window) +
@@ -371,7 +371,7 @@ static void vfio_probe_ati_bar2_quirk(VFIOPCIDevice *vdev, int nr)
         return;
     }
 
-    quirk = g_malloc0(sizeof(*quirk));
+    quirk = g_new0(VFIOQuirk, 1);
     mirror = quirk->data = g_malloc0(sizeof(*mirror));
     mirror->mem = quirk->mem = g_new0(MemoryRegion, 1);
     quirk->nr_mem = 1;
@@ -547,7 +547,7 @@ static void vfio_vga_probe_nvidia_3d0_quirk(VFIOPCIDevice *vdev)
         return;
     }
 
-    quirk = g_malloc0(sizeof(*quirk));
+    quirk = g_new0(VFIOQuirk, 1);
     quirk->data = data = g_malloc0(sizeof(*data));
     quirk->mem = g_new0(MemoryRegion, 2);
     quirk->nr_mem = 2;
@@ -665,7 +665,7 @@ static void vfio_probe_nvidia_bar5_quirk(VFIOPCIDevice *vdev, int nr)
         return;
     }
 
-    quirk = g_malloc0(sizeof(*quirk));
+    quirk = g_new0(VFIOQuirk, 1);
     quirk->mem = g_new0(MemoryRegion, 4);
     quirk->nr_mem = 4;
     bar5 = quirk->data = g_malloc0(sizeof(*bar5) +
@@ -759,7 +759,7 @@ static void vfio_probe_nvidia_bar0_quirk(VFIOPCIDevice *vdev, int nr)
         return;
     }
 
-    quirk = g_malloc0(sizeof(*quirk));
+    quirk = g_new0(VFIOQuirk, 1);
     mirror = quirk->data = g_malloc0(sizeof(*mirror));
     mirror->mem = quirk->mem = g_new0(MemoryRegion, 1);
     quirk->nr_mem = 1;
@@ -942,7 +942,7 @@ static void vfio_probe_rtl8168_bar2_quirk(VFIOPCIDevice *vdev, int nr)
         return;
     }
 
-    quirk = g_malloc0(sizeof(*quirk));
+    quirk = g_new0(VFIOQuirk, 1);
     quirk->mem = g_new0(MemoryRegion, 2);
     quirk->nr_mem = 2;
     quirk->data = rtl = g_malloc0(sizeof(*rtl));
@@ -1500,7 +1500,7 @@ static void vfio_probe_igd_bar4_quirk(VFIOPCIDevice *vdev, int nr)
     }
 
     /* Setup our quirk to munge GTT addresses to the VM allocated buffer */
-    quirk = g_malloc0(sizeof(*quirk));
+    quirk = g_new0(VFIOQuirk, 1);
     quirk->mem = g_new0(MemoryRegion, 2);
     quirk->nr_mem = 2;
     igd = quirk->data = g_malloc0(sizeof(*igd));
@@ -1553,7 +1553,7 @@ static void vfio_probe_igd_bar4_quirk(VFIOPCIDevice *vdev, int nr)
      * memory region must be written to the device BDSM regsiter at PCI
      * config offset 0x5C.
      */
-    bdsm_size = g_malloc(sizeof(*bdsm_size));
+    bdsm_size = g_new(uint64_t, 1);
     *bdsm_size = cpu_to_le64((ggms_mb + gms_mb) * 1024 * 1024);
     fw_cfg_add_file(fw_cfg_find(), "etc/igd-bdsm-size",
                     bdsm_size, sizeof(*bdsm_size));

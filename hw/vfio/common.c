@@ -272,7 +272,7 @@ static void vfio_host_win_add(VFIOContainer *container,
         }
     }
 
-    hostwin = g_malloc0(sizeof(*hostwin));
+    hostwin = g_new0(VFIOHostDMAWindow, 1);
 
     hostwin->min_iova = min_iova;
     hostwin->max_iova = max_iova;
@@ -488,7 +488,7 @@ static void vfio_listener_region_add(MemoryListener *listener,
          * would be the right place to wire that up (tell the KVM
          * device emulation the VFIO iommu handles to use).
          */
-        giommu = g_malloc0(sizeof(*giommu));
+        giommu = g_new0(VFIOGuestIOMMU, 1);
         giommu->iommu = iommu_mr;
         giommu->iommu_offset = section->offset_within_address_space -
                                section->offset_within_region;
@@ -688,7 +688,7 @@ static int vfio_setup_region_sparse_mmaps(VFIORegion *region,
     }
 
     region->nr_mmaps = j;
-    region->mmaps = g_realloc(region->mmaps, j * sizeof(VFIOMmap));
+    region->mmaps = g_renew(VFIOMmap, region->mmaps, j);
 
     return 0;
 }
@@ -938,7 +938,7 @@ static VFIOAddressSpace *vfio_get_address_space(AddressSpace *as)
     }
 
     /* No suitable VFIOAddressSpace, create a new one */
-    space = g_malloc0(sizeof(*space));
+    space = g_new0(VFIOAddressSpace, 1);
     space->as = as;
     QLIST_INIT(&space->containers);
 
@@ -987,7 +987,7 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
         goto close_fd_exit;
     }
 
-    container = g_malloc0(sizeof(*container));
+    container = g_new0(VFIOContainer, 1);
     container->space = space;
     container->fd = fd;
     if (ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_TYPE1_IOMMU) ||
@@ -1202,7 +1202,7 @@ VFIOGroup *vfio_get_group(int groupid, AddressSpace *as, Error **errp)
         }
     }
 
-    group = g_malloc0(sizeof(*group));
+    group = g_new0(VFIOGroup, 1);
 
     snprintf(path, sizeof(path), "/dev/vfio/%d", groupid);
     group->fd = qemu_open(path, O_RDWR);
