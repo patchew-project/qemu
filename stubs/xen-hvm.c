@@ -13,6 +13,7 @@
 #include "hw/xen/xen.h"
 #include "exec/memory.h"
 #include "qmp-commands.h"
+#include "sysemu/sysemu.h"
 
 int xen_pci_slot_get_pirq(PCIDevice *pci_dev, int irq_num)
 {
@@ -59,5 +60,9 @@ void xen_hvm_init(PCMachineState *pcms, MemoryRegion **ram_memory)
 }
 
 void qmp_xen_set_global_dirty_log(bool enable, Error **errp)
+{
+}
+
+void xen_setup_post(void)
 {
 }
