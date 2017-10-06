@@ -157,7 +157,7 @@ void bt_vhci_init(struct HCIInfo *info)
         exit(-1);
     }
 
-    s = g_malloc0(sizeof(struct bt_vhci_s));
+    s = g_new0(struct bt_vhci_s, 1);
     s->fd = fd;
     s->info = info ?: qemu_next_hci();
     s->info->opaque = s;

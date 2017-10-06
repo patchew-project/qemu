@@ -177,7 +177,7 @@ struct HCIInfo *bt_host_hci(const char *id)
     }
 # endif
 
-    s = g_malloc0(sizeof(struct bt_host_hci_s));
+    s = g_new0(struct bt_host_hci_s, 1);
     s->fd = fd;
     s->hci.cmd_send = bt_host_cmd;
     s->hci.sco_send = bt_host_sco;

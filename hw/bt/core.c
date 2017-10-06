@@ -55,7 +55,7 @@ static void bt_dummy_lmp_acl_resp(struct bt_link_s *link,
 /* Slaves that don't hold any additional per link state can use these */
 static void bt_dummy_lmp_connection_request(struct bt_link_s *req)
 {
-    struct bt_link_s *link = g_malloc0(sizeof(struct bt_link_s));
+    struct bt_link_s *link = g_new0(struct bt_link_s, 1);
 
     link->slave = req->slave;
     link->host = req->host;
@@ -135,7 +135,7 @@ struct bt_scatternet_s *qemu_find_bt_vlan(int id)
         if (vlan->id == id)
             return &vlan->net;
     }
-    vlan = g_malloc0(sizeof(struct bt_vlan_s));
+    vlan = g_new0(struct bt_vlan_s, 1);
     vlan->id = id;
     pvlan = &first_bt_vlan;
     while (*pvlan != NULL)
