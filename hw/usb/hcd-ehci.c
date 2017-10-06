@@ -545,7 +545,7 @@ static EHCIQueue *ehci_alloc_queue(EHCIState *ehci, uint32_t addr, int async)
     EHCIQueueHead *head = async ? &ehci->aqueues : &ehci->pqueues;
     EHCIQueue *q;
 
-    q = g_malloc0(sizeof(*q));
+    q = g_new0(EHCIQueue, 1);
     q->ehci = ehci;
     q->qhaddr = addr;
     q->async = async;
