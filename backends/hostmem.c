@@ -78,7 +78,7 @@ host_memory_backend_get_host_nodes(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    *node = g_malloc0(sizeof(**node));
+    *node = g_new0(uint16List, 1);
     (*node)->value = value;
     node = &(*node)->next;
 
@@ -88,7 +88,7 @@ host_memory_backend_get_host_nodes(Object *obj, Visitor *v, const char *name,
             break;
         }
 
-        *node = g_malloc0(sizeof(**node));
+        *node = g_new0(uint16List, 1);
         (*node)->value = value;
         node = &(*node)->next;
     } while (true);
