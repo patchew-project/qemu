@@ -3486,6 +3486,25 @@ static void x86_cpu_enable_xsave_components(X86CPU *cpu)
  *   any CPUID data based on host capabilities.
  */
 
+/**
+ * x86_cpu_expand_feature:
+ *
+ * Change cpu->features, being careful to not override features explicitly
+ * configured bv the user.
+ *
+ * @w: the feature word to be changed
+ * @mask: the bits to be changed in cpu->features[w]
+ * @value: the new value for the bits in (cpu->features[w] & @mask)
+ */
+static void x86_cpu_expand_feature(X86CPU *cpu, FeatureWord w,
+                                   uint32_t mask, uint32_t value)
+{
+    assert((value & mask) == value);
+    mask &= ~cpu->env.user_features[w];
+    cpu->env.features[w] &= ~mask;
+    cpu->env.features[w] |= value & mask;
+}
+
 /* Expand CPU configuration data, based on configured features
  * and host/accelerator capabilities when appropriate.
  */
@@ -3503,12 +3522,8 @@ static void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
      */
     if (cpu->max_features) {
         for (w = 0; w < FEATURE_WORDS; w++) {
-            /* Override only features that weren't set explicitly
-             * by the user.
-             */
-            env->features[w] |=
-                x86_cpu_get_supported_feature_word(w, cpu->migratable) &
-                ~env->user_features[w];
+            uint32_t f = x86_cpu_get_supported_feature_word(w, cpu->migratable);
+            x86_cpu_expand_feature(cpu, w, ~0, f);
         }
     }
 
