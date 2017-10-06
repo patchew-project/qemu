@@ -768,7 +768,7 @@ void *etraxfs_dmac_init(hwaddr base, int nr_channels)
 {
 	struct fs_dma_ctrl *ctrl = NULL;
 
-	ctrl = g_malloc0(sizeof *ctrl);
+	ctrl = g_new0(struct fs_dma_ctrl, 1);
 
         ctrl->bh = qemu_bh_new(DMA_run, ctrl);
 
