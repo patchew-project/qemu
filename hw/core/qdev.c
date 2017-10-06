@@ -378,7 +378,7 @@ static NamedGPIOList *qdev_get_named_gpio_list(DeviceState *dev,
         }
     }
 
-    ngl = g_malloc0(sizeof(*ngl));
+    ngl = g_new0(NamedGPIOList, 1);
     ngl->name = g_strdup(name);
     QLIST_INSERT_HEAD(&dev->gpios, ngl, node);
     return ngl;
