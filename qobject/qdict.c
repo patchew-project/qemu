@@ -30,7 +30,7 @@ QDict *qdict_new(void)
 {
     QDict *qdict;
 
-    qdict = g_malloc0(sizeof(*qdict));
+    qdict = g_new0(QDict, 1);
     qobject_init(QOBJECT(qdict), QTYPE_QDICT);
 
     return qdict;
@@ -70,7 +70,7 @@ static QDictEntry *alloc_entry(const char *key, QObject *value)
 {
     QDictEntry *entry;
 
-    entry = g_malloc0(sizeof(*entry));
+    entry = g_new0(QDictEntry, 1);
     entry->key = g_strdup(key);
     entry->value = value;
 

@@ -42,7 +42,7 @@ QString *qstring_from_substr(const char *str, int start, int end)
 {
     QString *qstring;
 
-    qstring = g_malloc(sizeof(*qstring));
+    qstring = g_new(QString, 1);
     qobject_init(QOBJECT(qstring), QTYPE_QSTRING);
 
     qstring->length = end - start + 1;

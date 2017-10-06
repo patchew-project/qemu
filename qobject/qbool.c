@@ -25,7 +25,7 @@ QBool *qbool_from_bool(bool value)
 {
     QBool *qb;
 
-    qb = g_malloc(sizeof(*qb));
+    qb = g_new(QBool, 1);
     qobject_init(QOBJECT(qb), QTYPE_QBOOL);
     qb->value = value;
 

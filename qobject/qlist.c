@@ -25,7 +25,7 @@ QList *qlist_new(void)
 {
     QList *qlist;
 
-    qlist = g_malloc(sizeof(*qlist));
+    qlist = g_new(QList, 1);
     qobject_init(QOBJECT(qlist), QTYPE_QLIST);
     QTAILQ_INIT(&qlist->head);
 
@@ -58,7 +58,7 @@ void qlist_append_obj(QList *qlist, QObject *value)
 {
     QListEntry *entry;
 
-    entry = g_malloc(sizeof(*entry));
+    entry = g_new(QListEntry, 1);
     entry->value = value;
 
     QTAILQ_INSERT_TAIL(&qlist->head, entry, next);

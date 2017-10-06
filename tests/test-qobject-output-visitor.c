@@ -182,7 +182,7 @@ static void test_visitor_out_struct_nested(TestOutputVisitorData *data,
     const char *strings[] = { "forty two", "forty three", "forty four",
                               "forty five" };
 
-    ud2 = g_malloc0(sizeof(*ud2));
+    ud2 = g_new0(UserDefTwo, 1);
     ud2->string0 = g_strdup(strings[0]);
 
     ud2->dict1 = g_malloc0(sizeof(*ud2->dict1));
@@ -372,7 +372,7 @@ static void test_visitor_out_union_flat(TestOutputVisitorData *data,
 {
     QDict *qdict;
 
-    UserDefFlatUnion *tmp = g_malloc0(sizeof(UserDefFlatUnion));
+    UserDefFlatUnion *tmp = g_new0(UserDefFlatUnion, 1);
     tmp->enum1 = ENUM_ONE_VALUE1;
     tmp->string = g_strdup("str");
     tmp->integer = 41;
