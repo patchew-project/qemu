@@ -56,7 +56,7 @@ VncPalette *palette_new(size_t max, int bpp)
 {
     VncPalette *palette;
 
-    palette = g_malloc0(sizeof(*palette));
+    palette = g_new0(VncPalette, 1);
     palette_init(palette, max, bpp);
     return palette;
 }

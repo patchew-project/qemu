@@ -231,7 +231,7 @@ static VncServerInfo *vnc_server_info_get(VncDisplay *vd)
         return NULL;
     }
 
-    info = g_malloc0(sizeof(*info));
+    info = g_new0(VncServerInfo, 1);
     vnc_init_basic_info_from_server_addr(vd->lsock[0],
                                          qapi_VncServerInfo_base(info), &err);
     info->has_auth = true;
@@ -316,7 +316,7 @@ static VncClientInfo *qmp_query_vnc_client(const VncState *client)
     VncClientInfo *info;
     Error *err = NULL;
 
-    info = g_malloc0(sizeof(*info));
+    info = g_new0(VncClientInfo, 1);
 
     vnc_init_basic_info_from_remote_addr(client->sioc,
                                          qapi_VncClientInfo_base(info),
@@ -3047,7 +3047,7 @@ void vnc_display_init(const char *id)
     if (vnc_display_find(id) != NULL) {
         return;
     }
-    vd = g_malloc0(sizeof(*vd));
+    vd = g_new0(VncDisplay, 1);
 
     vd->id = strdup(id);
     QTAILQ_INSERT_TAIL(&vnc_displays, vd, next);
