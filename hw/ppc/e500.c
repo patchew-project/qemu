@@ -737,8 +737,6 @@ static qemu_irq *ppce500_init_mpic(MachineState *machine, PPCE500Params *params,
     SysBusDevice *s;
     int i;
 
-    mpic = g_new0(qemu_irq, 256);
-
     if (kvm_enabled()) {
         Error *err = NULL;
 
@@ -756,6 +754,7 @@ static qemu_irq *ppce500_init_mpic(MachineState *machine, PPCE500Params *params,
         dev = ppce500_init_mpic_qemu(params, irqs);
     }
 
+    mpic = g_new(qemu_irq, 256);
     for (i = 0; i < 256; i++) {
         mpic[i] = qdev_get_gpio_in(dev, i);
     }
@@ -808,7 +807,7 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
         machine->cpu_model = "e500v2_v30";
     }
 
-    irqs = g_malloc0(smp_cpus * sizeof(qemu_irq *));
+    irqs = g_new0(qemu_irq *, smp_cpus);
     irqs[0] = g_malloc0(smp_cpus * sizeof(qemu_irq) * OPENPIC_OUTPUT_NB);
     for (i = 0; i < smp_cpus; i++) {
         PowerPCCPU *cpu;
@@ -844,7 +843,7 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
         if (!i) {
             /* Primary CPU */
             struct boot_info *boot_info;
-            boot_info = g_malloc0(sizeof(struct boot_info));
+            boot_info = g_new0(struct boot_info, 1);
             qemu_register_reset(ppce500_cpu_reset, cpu);
             env->load_info = boot_info;
         } else {
