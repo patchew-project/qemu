@@ -158,7 +158,7 @@ QPCIBus *qpci_init_spapr(QGuestAllocator *alloc)
 {
     QPCIBusSPAPR *ret;
 
-    ret = g_malloc(sizeof(*ret));
+    ret = g_new(QPCIBusSPAPR, 1);
 
     ret->alloc = alloc;
 

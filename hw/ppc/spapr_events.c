@@ -437,7 +437,7 @@ static void spapr_powerdown_req(Notifier *n, void *opaque)
     struct epow_extended_log *new_epow;
 
     entry = g_new(sPAPREventLogEntry, 1);
-    new_epow = g_malloc0(sizeof(*new_epow));
+    new_epow = g_new0(struct epow_extended_log, 1);
     entry->extended_log = new_epow;
 
     v6hdr = &new_epow->v6hdr;
@@ -490,7 +490,7 @@ static void spapr_hotplug_req_event(uint8_t hp_id, uint8_t hp_action,
     struct rtas_event_log_v6_hp *hp;
 
     entry = g_new(sPAPREventLogEntry, 1);
-    new_hp = g_malloc0(sizeof(struct hp_extended_log));
+    new_hp = g_new0(struct hp_extended_log, 1);
     entry->extended_log = new_hp;
 
     v6hdr = &new_hp->v6hdr;

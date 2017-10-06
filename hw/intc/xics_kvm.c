@@ -143,7 +143,7 @@ static void icp_kvm_realize(ICPState *icp, Error **errp)
                    strerror(errno));
         return;
     }
-    enabled_icp = g_malloc(sizeof(*enabled_icp));
+    enabled_icp = g_new(KVMEnabledICP, 1);
     enabled_icp->vcpu_id = vcpu_id;
     QLIST_INSERT_HEAD(&kvm_enabled_icps, enabled_icp, node);
 }
@@ -334,7 +334,7 @@ static void ics_kvm_realize(ICSState *ics, Error **errp)
         error_setg(errp, "Number of interrupts needs to be greater 0");
         return;
     }
-    ics->irqs = g_malloc0(ics->nr_irqs * sizeof(ICSIRQState));
+    ics->irqs = g_new0(ICSIRQState, ics->nr_irqs);
     ics->qirqs = qemu_allocate_irqs(ics_kvm_set_irq, ics, ics->nr_irqs);
 
     qemu_register_reset(ics_kvm_reset, ics);
