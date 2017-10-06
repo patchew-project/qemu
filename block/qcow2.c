@@ -2738,7 +2738,7 @@ static int qcow2_create2(const char *filename, int64_t total_size,
 
     /* Write the header */
     QEMU_BUILD_BUG_ON((1 << MIN_CLUSTER_BITS) < sizeof(*header));
-    header = g_malloc0(cluster_size);
+    header = g_malloc(cluster_size);
     *header = (QCowHeader) {
         .magic                      = cpu_to_be32(QCOW_MAGIC),
         .version                    = cpu_to_be32(version),

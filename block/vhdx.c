@@ -244,10 +244,11 @@ static void vhdx_region_register(BDRVVHDXState *s,
 {
     VHDXRegionEntry *r;
 
-    r = g_new0(VHDXRegionEntry, 1);
-
-    r->start = start;
-    r->end = start + length;
+    r = g_new(VHDXRegionEntry, 1);
+    *r = (VHDXRegionEntry) {
+        .start = start,
+        .end = start + length,
+    };
 
     QLIST_INSERT_HEAD(&s->regions, r, entries);
 }
