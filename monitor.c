@@ -906,7 +906,7 @@ static void query_commands_cb(QmpCommand *cmd, void *opaque)
         return;
     }
 
-    info = g_malloc0(sizeof(*info));
+    info = g_new0(CommandInfoList, 1);
     info->value = g_malloc0(sizeof(*info->value));
     info->value->name = g_strdup(cmd->name);
     info->next = *list;
@@ -1799,7 +1799,7 @@ static void hmp_wavcapture(Monitor *mon, const QDict *qdict)
     int nchannels = qdict_get_try_int(qdict, "nchannels", -1);
     CaptureState *s;
 
-    s = g_malloc0 (sizeof (*s));
+    s = g_new0(CaptureState, 1);
 
     freq = has_freq ? freq : 44100;
     bits = has_bits ? bits : 16;
@@ -1947,7 +1947,7 @@ void qmp_getfd(const char *fdname, Error **errp)
         return;
     }
 
-    monfd = g_malloc0(sizeof(mon_fd_t));
+    monfd = g_new0(mon_fd_t, 1);
     monfd->name = g_strdup(fdname);
     monfd->fd = fd;
 
@@ -2110,7 +2110,7 @@ FdsetInfoList *qmp_query_fdsets(Error **errp)
         QLIST_FOREACH(mon_fdset_fd, &mon_fdset->fds, next) {
             FdsetFdInfoList *fdsetfd_info;
 
-            fdsetfd_info = g_malloc0(sizeof(*fdsetfd_info));
+            fdsetfd_info = g_new0(FdsetFdInfoList, 1);
             fdsetfd_info->value = g_malloc0(sizeof(*fdsetfd_info->value));
             fdsetfd_info->value->fd = mon_fdset_fd->fd;
             if (mon_fdset_fd->opaque) {
@@ -2199,7 +2199,7 @@ AddfdInfo *monitor_fdset_add_fd(int fd, bool has_fdset_id, int64_t fdset_id,
         }
     }
 
-    mon_fdset_fd = g_malloc0(sizeof(*mon_fdset_fd));
+    mon_fdset_fd = g_new0(MonFdsetFd, 1);
     mon_fdset_fd->fd = fd;
     mon_fdset_fd->removed = false;
     if (has_opaque) {
@@ -2207,7 +2207,7 @@ AddfdInfo *monitor_fdset_add_fd(int fd, bool has_fdset_id, int64_t fdset_id,
     }
     QLIST_INSERT_HEAD(&mon_fdset->fds, mon_fdset_fd, next);
 
-    fdinfo = g_malloc0(sizeof(*fdinfo));
+    fdinfo = g_new0(AddfdInfo, 1);
     fdinfo->fdset_id = mon_fdset->id;
     fdinfo->fd = mon_fdset_fd->fd;
 
@@ -4102,7 +4102,7 @@ void monitor_init(Chardev *chr, int flags)
         is_first_init = 0;
     }
 
-    mon = g_malloc(sizeof(*mon));
+    mon = g_new(Monitor, 1);
     monitor_data_init(mon);
 
     qemu_chr_fe_init(&mon->chr, chr, &error_abort);

@@ -232,7 +232,7 @@ ObjectPropertyInfoList *qmp_qom_list(const char *path, Error **errp)
     while ((prop = object_property_iter_next(&iter))) {
         ObjectPropertyInfoList *entry = g_malloc0(sizeof(*entry));
 
-        entry->value = g_malloc0(sizeof(ObjectPropertyInfo));
+        entry->value = g_new0(ObjectPropertyInfo, 1);
         entry->next = props;
         props = entry;
 
@@ -432,7 +432,7 @@ static void qom_list_types_tramp(ObjectClass *klass, void *data)
     ObjectTypeInfo *info;
     ObjectClass *parent = object_class_get_parent(klass);
 
-    info = g_malloc0(sizeof(*info));
+    info = g_new0(ObjectTypeInfo, 1);
     info->name = g_strdup(object_class_get_name(klass));
     info->has_abstract = info->abstract = object_class_is_abstract(klass);
     if (parent) {
@@ -440,7 +440,7 @@ static void qom_list_types_tramp(ObjectClass *klass, void *data)
         info->parent = g_strdup(object_class_get_name(parent));
     }
 
-    e = g_malloc0(sizeof(*e));
+    e = g_new0(ObjectTypeInfoList, 1);
     e->value = info;
     e->next = *pret;
     *pret = e;
@@ -490,7 +490,7 @@ static DevicePropertyInfo *make_device_property_info(ObjectClass *klass,
                 return NULL;           /* no way to set it, don't show */
             }
 
-            info = g_malloc0(sizeof(*info));
+            info = g_new0(DevicePropertyInfo, 1);
             info->name = g_strdup(prop->name);
             info->type = default_type ? g_strdup(default_type)
                                       : g_strdup(prop->info->name);
@@ -502,7 +502,7 @@ static DevicePropertyInfo *make_device_property_info(ObjectClass *klass,
     } while (klass != object_class_by_name(TYPE_DEVICE));
 
     /* Not a qdev property, use the default type */
-    info = g_malloc0(sizeof(*info));
+    info = g_new0(DevicePropertyInfo, 1);
     info->name = g_strdup(name);
     info->type = g_strdup(default_type);
     info->has_description = !!description;
@@ -568,7 +568,7 @@ DevicePropertyInfoList *qmp_device_list_properties(const char *typename,
             continue;
         }
 
-        entry = g_malloc0(sizeof(*entry));
+        entry = g_new0(DevicePropertyInfoList, 1);
         entry->value = info;
         entry->next = prop_list;
         prop_list = entry;
@@ -712,7 +712,7 @@ ACPIOSTInfoList *qmp_query_acpi_ospm_status(Error **errp)
 
 MemoryInfo *qmp_query_memory_size_summary(Error **errp)
 {
-    MemoryInfo *mem_info = g_malloc0(sizeof(MemoryInfo));
+    MemoryInfo *mem_info = g_new0(MemoryInfo, 1);
 
     mem_info->base_memory = ram_size;
 
