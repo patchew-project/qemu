@@ -36,6 +36,15 @@
  */
 #define KVM_CPUID_FEATURES       0
 
+#define KVM_FEATURE_CLOCKSOURCE  0
+#define KVM_FEATURE_NOP_IO_DELAY 0
+#define KVM_FEATURE_MMU_OP       0
+#define KVM_FEATURE_CLOCKSOURCE2 0
+#define KVM_FEATURE_ASYNC_PF     0
+#define KVM_FEATURE_STEAL_TIME   0
+#define KVM_FEATURE_PV_EOI       0
+#define KVM_FEATURE_PV_UNHALT    0
+
 #endif  /* CONFIG_KVM */
 
 bool kvm_allows_irq0_override(void);
