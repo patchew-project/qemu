@@ -364,7 +364,7 @@ struct ppc_radix_page_info *kvm_get_radix_page_info(void)
     if (kvm_vm_ioctl(s, KVM_PPC_GET_RMMU_INFO, &rmmu_info)) {
         return NULL;
     }
-    radix_page_info = g_malloc0(sizeof(*radix_page_info));
+    radix_page_info = g_new0(struct ppc_radix_page_info, 1);
     radix_page_info->count = 0;
     for (i = 0; i < PPC_PAGE_SIZES_MAX_SZ; i++) {
         if (rmmu_info.ap_encodings[i]) {

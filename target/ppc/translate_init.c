@@ -9341,13 +9341,13 @@ static void init_ppc_proc(PowerPCCPU *cpu)
             nb_tlb *= 2;
         switch (env->tlb_type) {
         case TLB_6XX:
-            env->tlb.tlb6 = g_malloc0(nb_tlb * sizeof(ppc6xx_tlb_t));
+            env->tlb.tlb6 = g_new0(ppc6xx_tlb_t, nb_tlb);
             break;
         case TLB_EMB:
-            env->tlb.tlbe = g_malloc0(nb_tlb * sizeof(ppcemb_tlb_t));
+            env->tlb.tlbe = g_new0(ppcemb_tlb_t, nb_tlb);
             break;
         case TLB_MAS:
-            env->tlb.tlbm = g_malloc0(nb_tlb * sizeof(ppcmas_tlb_t));
+            env->tlb.tlbm = g_new0(ppcmas_tlb_t, nb_tlb);
             break;
         }
         /* Pre-compute some useful values */
@@ -10442,11 +10442,11 @@ static void ppc_cpu_defs_entry(gpointer data, gpointer user_data)
     }
 
     typename = object_class_get_name(oc);
-    info = g_malloc0(sizeof(*info));
+    info = g_new0(CpuDefinitionInfo, 1);
     info->name = g_strndup(typename,
                            strlen(typename) - strlen(POWERPC_CPU_TYPE_SUFFIX));
 
-    entry = g_malloc0(sizeof(*entry));
+    entry = g_new0(CpuDefinitionInfoList, 1);
     entry->value = info;
     entry->next = *first;
     *first = entry;
@@ -10473,11 +10473,11 @@ CpuDefinitionInfoList *arch_query_cpu_definitions(Error **errp)
             continue;
         }
 
-        info = g_malloc0(sizeof(*info));
+        info = g_new0(CpuDefinitionInfo, 1);
         info->name = g_strdup(alias->alias);
         info->q_typename = g_strdup(object_class_get_name(oc));
 
-        entry = g_malloc0(sizeof(*entry));
+        entry = g_new0(CpuDefinitionInfoList, 1);
         entry->value = info;
         entry->next = cpu_list;
         cpu_list = entry;
