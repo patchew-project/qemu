@@ -58,7 +58,7 @@ static inline HWSetup *hwsetup_init(void)
 {
     HWSetup *hw;
 
-    hw = g_malloc(sizeof(HWSetup));
+    hw = g_new(HWSetup, 1);
     hw->data = g_malloc0(TARGET_PAGE_SIZE);
     hw->ptr = hw->data;
 
