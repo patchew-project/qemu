@@ -1073,7 +1073,7 @@ static void send_msg(IPMIBmcSim *ibs,
         return;
     }
 
-    msg = g_malloc(sizeof(*msg));
+    msg = g_new(IPMIRcvBufEntry, 1);
     msg->buf[0] = ((netfn | 1) << 2) | rqLun; /* NetFN, and make a response */
     msg->buf[1] = ipmb_checksum(msg->buf, 1, 0);
     msg->buf[2] = cmd[0]; /* rsSA */
