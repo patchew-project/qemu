@@ -79,7 +79,7 @@ static NetHub *net_hub_new(int id)
 {
     NetHub *hub;
 
-    hub = g_malloc(sizeof(*hub));
+    hub = g_new(NetHub, 1);
     hub->id = id;
     hub->num_ports = 0;
     QLIST_INIT(&hub->ports);
