@@ -129,6 +129,52 @@ T **m;
 
 ////////////////////////////////////////
 //
+// no point in zeroing the allocation
+//
+
+// the loop right afterwards fully initializes the memory
+@@
+type T;
+identifier a, i;
+expression c, e;
+@@
+(
+-a = g_new0(T, c);
+    ... when != a, c
++a = g_new(T, c);
+    for (i = 0; i < c; i++) {
+        a[i] = e;
+    }
+|
+-a = g_try_new0(T, c);
+    ... when != a, c
++a = g_try_new(T, c);
+    for (i = 0; i < c; i++) {
+        a[i] = e;
+    }
+)
+
+// compound literals
+@@
+type T;
+identifier p;
+expression s, e;
+@@
+(
+- p = g_malloc0(s);
++ p = g_malloc(s);
+|
+- p = g_try_malloc0(s);
++ p = g_try_malloc(s);
+|
+- p = g_new0(T, 1);
++ p = g_new(T, 1);
+)
+  ... when != p
+  *p = e;
+
+////////////////////////////////////////
+//
 // last transformations: cleanups
 //
 
