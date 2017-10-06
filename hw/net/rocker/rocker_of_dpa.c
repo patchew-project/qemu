@@ -2306,7 +2306,7 @@ static void of_dpa_flow_fill(void *cookie, void *value, void *user_data)
         return;
     }
 
-    new = g_malloc0(sizeof(*new));
+    new = g_new0(RockerOfDpaFlowList, 1);
     nflow = new->value = g_malloc0(sizeof(*nflow));
     nkey = nflow->key = g_malloc0(sizeof(*nkey));
     nmask = nflow->mask = g_malloc0(sizeof(*nmask));
@@ -2478,7 +2478,7 @@ static void of_dpa_group_fill(void *key, void *value, void *user_data)
         return;
     }
 
-    new = g_malloc0(sizeof(*new));
+    new = g_new0(RockerOfDpaGroupList, 1);
     ngroup = new->value = g_malloc0(sizeof(*ngroup));
 
     ngroup->id = group->id;
