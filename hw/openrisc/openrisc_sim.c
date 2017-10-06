@@ -114,7 +114,7 @@ static void openrisc_sim_init(MachineState *machine)
         main_cpu_reset(cpu);
     }
 
-    ram = g_malloc(sizeof(*ram));
+    ram = g_new(MemoryRegion, 1);
     memory_region_init_ram(ram, NULL, "openrisc.ram", ram_size, &error_fatal);
     memory_region_add_subregion(get_system_memory(), 0, ram);
 
