@@ -616,7 +616,7 @@ pvscsi_queue_pending_descriptor(PVSCSIState *s, SCSIDevice **d,
     PVSCSIRequest *pvscsi_req;
     uint8_t lun;
 
-    pvscsi_req = g_malloc0(sizeof(*pvscsi_req));
+    pvscsi_req = g_new0(PVSCSIRequest, 1);
     pvscsi_req->dev = s;
     pvscsi_req->req = *descr;
     pvscsi_req->cmp.context = pvscsi_req->req.context;
