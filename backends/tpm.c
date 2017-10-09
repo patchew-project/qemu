@@ -17,7 +17,6 @@
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
 #include "sysemu/tpm.h"
-#include "hw/tpm/tpm_int.h"
 #include "qemu/thread.h"
 
 static void tpm_backend_worker_thread(gpointer data, gpointer user_data)
@@ -44,9 +43,15 @@ enum TpmType tpm_backend_get_type(TPMBackend *s)
     return k->type;
 }
 
-int tpm_backend_init(TPMBackend *s, TPMState *state)
+int tpm_backend_init(TPMBackend *s, TPMIf *tpmif)
 {
-    s->tpm_state = state;
+    if (s->tpmif) {
+        return -1;
+    }
+
+    s->tpmif = tpmif;
+    object_ref(OBJECT(tpmif));
+
     s->had_startup_error = false;
 
     return 0;
@@ -194,6 +199,7 @@ static void tpm_backend_instance_finalize(Object *obj)
 {
     TPMBackend *s = TPM_BACKEND(obj);
 
+    object_unref(OBJECT(s->tpmif));
     g_free(s->id);
     tpm_backend_thread_end(s);
 }

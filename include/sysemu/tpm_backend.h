@@ -18,6 +18,7 @@
 #include "qapi-types.h"
 #include "qemu/option.h"
 #include "sysemu/tpm.h"
+#include "hw/tpm/tpm_int.h"
 
 #define TYPE_TPM_BACKEND "tpm-backend"
 #define TPM_BACKEND(obj) \
@@ -43,8 +44,8 @@ struct TPMBackend {
     Object parent;
 
     /*< protected >*/
+    TPMIf *tpmif;
     bool opened;
-    TPMState *tpm_state;
     GThreadPool *thread_pool;
     bool had_startup_error;
 
@@ -96,14 +97,14 @@ enum TpmType tpm_backend_get_type(TPMBackend *s);
 /**
  * tpm_backend_init:
  * @s: the backend to initialized
- * @state: TPMState
+ * @tpmif: TPM interface
  * @datacb: callback for sending data to frontend
  *
  * Initialize the backend with the given variables.
  *
  * Returns 0 on success.
  */
-int tpm_backend_init(TPMBackend *s, TPMState *state);
+int tpm_backend_init(TPMBackend *s, TPMIf *tpmif);
 
 /**
  * tpm_backend_startup_tpm:
