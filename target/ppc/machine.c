@@ -4,6 +4,7 @@
 #include "exec/exec-all.h"
 #include "hw/hw.h"
 #include "hw/boards.h"
+#include "hw/ppc/ppc.h"
 #include "sysemu/kvm.h"
 #include "helper_regs.h"
 #include "mmu-hash64.h"
@@ -210,7 +211,7 @@ static int cpu_pre_save(void *opaque)
  * between sufficiently similar PVRs, as determined by the CPU class's
  * pvr_match() hook.
  */
-static bool pvr_match(PowerPCCPU *cpu, uint32_t pvr)
+bool ppc_cpu_pvr_match(PowerPCCPU *cpu, uint32_t pvr)
 {
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
 
@@ -247,7 +248,7 @@ static int cpu_post_load(void *opaque, int version_id)
     } else
 #endif
     {
-        if (!pvr_match(cpu, env->spr[SPR_PVR])) {
+        if (!ppc_cpu_pvr_match(cpu, env->spr[SPR_PVR])) {
             return -1;
         }
     }
