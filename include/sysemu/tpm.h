@@ -47,6 +47,9 @@ void tpm_cleanup(void);
 
 #define TYPE_TPM_TIS                "tpm-tis"
 
+#define TPM_IS_TIS(chr)                             \
+    object_dynamic_cast(OBJECT(chr), TYPE_TPM_TIS)
+
 static inline TPMIf *tpm_find(void)
 {
     Object *obj = object_resolve_path_type("", TYPE_TPM_IF, NULL);
