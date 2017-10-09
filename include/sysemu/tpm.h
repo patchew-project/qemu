@@ -12,32 +12,56 @@
 #ifndef QEMU_TPM_H
 #define QEMU_TPM_H
 
-#include "qemu/option.h"
+#include "qom/object.h"
+#include "qapi-types.h"
 
-int tpm_config_parse(QemuOptsList *opts_list, const char *optarg);
-int tpm_init(void);
-void tpm_cleanup(void);
-
-typedef enum  TPMVersion {
+typedef enum TPMVersion {
     TPM_VERSION_UNSPEC = 0,
     TPM_VERSION_1_2 = 1,
     TPM_VERSION_2_0 = 2,
 } TPMVersion;
 
-TPMVersion tpm_tis_get_tpm_version(Object *obj);
+#define TYPE_TPM_IF "tpm-if"
+#define TPM_IF_CLASS(klass)                                 \
+    OBJECT_CLASS_CHECK(TPMIfClass, (klass), TYPE_TPM_IF)
+#define TPM_IF_GET_CLASS(obj)                           \
+    OBJECT_GET_CLASS(TPMIfClass, (obj), TYPE_TPM_IF)
+#define TPM_IF(obj)                             \
+    INTERFACE_CHECK(TPMIf, (obj), TYPE_TPM_IF)
+
+typedef struct TPMIf {
+    Object parent_obj;
+} TPMIf;
+
+typedef struct TPMIfClass {
+    InterfaceClass parent_class;
+
+    enum TpmModel model;
+    void (*request_completed)(TPMIf *obj);
+} TPMIfClass;
+
+int tpm_config_parse(QemuOptsList *opts_list, const char *optarg);
+int tpm_init(void);
+void tpm_cleanup(void);
 
 #define TYPE_TPM_TIS                "tpm-tis"
 
-static inline TPMVersion tpm_get_version(void)
+static inline TPMIf *tpm_find(void)
 {
-#ifdef CONFIG_TPM
-    Object *obj = object_resolve_path_type("", TYPE_TPM_TIS, NULL);
+    Object *obj = object_resolve_path_type("", TYPE_TPM_IF, NULL);
 
-    if (obj) {
-        return tpm_tis_get_tpm_version(obj);
+    return TPM_IF(obj);
+}
+
+TPMVersion tpm_tis_get_tpm_version(Object *obj);
+
+static inline TPMVersion tpm_get_version(TPMIf *ti)
+{
+    if (!ti) {
+        return TPM_VERSION_UNSPEC;
     }
-#endif
-    return TPM_VERSION_UNSPEC;
+
+    return tpm_tis_get_tpm_version(OBJECT(ti));
 }
 
 #endif /* QEMU_TPM_H */
