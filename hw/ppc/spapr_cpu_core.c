@@ -20,6 +20,7 @@
 #include "sysemu/numa.h"
 #include "sysemu/hw_accel.h"
 #include "qemu/error-report.h"
+#include "target/ppc/cpu-models.h"
 
 void spapr_cpu_parse_features(sPAPRMachineState *spapr)
 {
@@ -86,6 +87,17 @@ static void spapr_cpu_reset(void *opaque)
     cs->halted = 1;
 
     env->spr[SPR_HIOR] = 0;
+
+    /* Don't let the decremeter wake up CPUs other than the boot
+     * CPUs. this can cause issues when rebooting the guest */
+    if (cs != first_cpu) {
+        if (ppc_cpu_pvr_match(cpu, CPU_POWERPC_LOGICAL_3_00)) {
+            env->spr[SPR_LPCR] &= ~LPCR_DEE;
+        } else {
+            /* P7 and P8 both have same bit for DECR */
+            env->spr[SPR_LPCR] &= ~LPCR_P8_PECE3;
+        }
+    }
 }
 
 static void spapr_cpu_destroy(PowerPCCPU *cpu)
