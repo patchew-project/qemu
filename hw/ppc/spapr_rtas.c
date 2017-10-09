@@ -46,6 +46,7 @@
 #include "qemu/cutils.h"
 #include "trace.h"
 #include "hw/ppc/fdt.h"
+#include "target/ppc/cpu-models.h"
 
 static void rtas_display_character(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                                    uint32_t token, uint32_t nargs,
@@ -174,6 +175,15 @@ static void rtas_start_cpu(PowerPCCPU *cpu_, sPAPRMachineState *spapr,
         kvm_cpu_synchronize_state(cs);
 
         env->msr = (1ULL << MSR_SF) | (1ULL << MSR_ME);
+
+        /* Enable DECR interrupt */
+        if (ppc_cpu_pvr_match(cpu, CPU_POWERPC_LOGICAL_3_00)) {
+            env->spr[SPR_LPCR] |= LPCR_DEE;
+        } else {
+            /* P7 and P8 both have same bit for DECR */
+            env->spr[SPR_LPCR] |= LPCR_P8_PECE3;
+        }
+
         env->nip = start;
         env->gpr[3] = r3;
         cs->halted = 0;
@@ -210,6 +220,16 @@ static void rtas_stop_self(PowerPCCPU *cpu, sPAPRMachineState *spapr,
      * no need to bother with specific bits, we just clear it.
      */
     env->msr = 0;
+
+    /* Don't let the decremeter run on a CPU being stopped. This could
+     * deliver an interrupt on a dying CPU and crash the guest.
+     */
+    if (ppc_cpu_pvr_match(cpu, CPU_POWERPC_LOGICAL_3_00)) {
+        env->spr[SPR_LPCR] &= ~LPCR_DEE;
+    } else {
+        /* P7 and P8 both have same bit for DECR */
+        env->spr[SPR_LPCR] &= ~LPCR_P8_PECE3;
+    }
 }
 
 static inline int sysparm_st(target_ulong addr, target_ulong len,
