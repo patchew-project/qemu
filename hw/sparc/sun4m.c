@@ -307,13 +307,12 @@ static void *iommu_init(hwaddr addr, uint32_t version, qemu_irq irq)
     return s;
 }
 
-static void *sparc32_dma_init(hwaddr daddr, void *iommu, int is_ledma)
+static void *sparc32_dma_init(hwaddr daddr)
 {
     DeviceState *dev;
     SysBusDevice *s;
 
-    dev = qdev_create(NULL, is_ledma ? "sparc32-ledma" : "sparc32-espdma");
-    object_property_set_link(OBJECT(dev), OBJECT(iommu), "iommu", &error_abort);
+    dev = qdev_create(NULL, TYPE_SPARC32_DMA);
     qdev_init_nofail(dev);
     s = SYS_BUS_DEVICE(dev);
     sysbus_mmio_map(s, 0, daddr);
@@ -818,8 +817,8 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
     DeviceState *slavio_intctl;
     const char *cpu_model = machine->cpu_model;
     unsigned int i;
-    void *iommu, *nvram;
-    DeviceState *espdma, *ledma;
+    void *nvram;
+    DeviceState *dma, *espdma, *ledma;
     SysBusDevice *sbd;
     qemu_irq *cpu_irqs[MAX_CPUS], slavio_irq[32], slavio_cpu_irq[MAX_CPUS];
     qemu_irq esp_reset, dma_enable;
@@ -869,8 +868,7 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
         afx_init(hwdef->afx_base);
     }
 
-    iommu = iommu_init(hwdef->iommu_base, hwdef->iommu_version,
-                       slavio_irq[30]);
+    iommu_init(hwdef->iommu_base, hwdef->iommu_version, slavio_irq[30]);
 
     if (hwdef->iommu_pad_base) {
         /* On the real hardware (SS-5, LX) the MMU is not padded, but aliased.
@@ -880,11 +878,13 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
         empty_slot_init(hwdef->iommu_pad_base,hwdef->iommu_pad_len);
     }
 
-    espdma = sparc32_dma_init(hwdef->dma_base, iommu, 0);
+    dma = sparc32_dma_init(hwdef->dma_base);
+
+    espdma = DEVICE(object_resolve_path_component(OBJECT(dma), "espdma"));
     sbd = SYS_BUS_DEVICE(espdma);
     sysbus_connect_irq(sbd, 0, slavio_irq[18]);
 
-    ledma = sparc32_dma_init(hwdef->dma_base + 16ULL, iommu, 1);
+    ledma = DEVICE(object_resolve_path_component(OBJECT(dma), "ledma"));
     sbd = SYS_BUS_DEVICE(ledma);
     sysbus_connect_irq(sbd, 0, slavio_irq[16]);
 
