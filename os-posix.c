@@ -43,6 +43,8 @@
 #endif
 
 static struct passwd *user_pwd;
+static uid_t user_uid = (uid_t)-1;
+static gid_t user_gid = (gid_t)-1;
 static const char *chroot_dir;
 static int daemonize;
 static int daemon_pipe;
@@ -128,6 +130,34 @@ void os_set_proc_name(const char *s)
 #endif
 }
 
+
+static bool os_parse_runas_uid_gid(const char *optarg)
+{
+    unsigned long lv;
+    char *ep;
+    uid_t got_uid;
+    gid_t got_gid;
+    int rc;
+
+    errno = 0;
+    lv = strtoul(optarg, &ep, 0); /* can't qemu_strtoul, want *ep=='.' */
+    got_uid = lv; /* overflow here is ID in C99 */
+    if (errno || *ep != '.' || got_uid != lv || got_uid == (uid_t)-1) {
+        return false;
+    }
+
+    lv = 0;
+    rc = qemu_strtoul(ep + 1, 0, 0, &lv);
+    got_gid = lv; /* overflow here is ID in C99 */
+    if (rc || got_gid != lv || got_gid == (gid_t)-1) {
+        return false;
+    }
+
+    user_uid = got_uid;
+    user_gid = got_gid;
+    return true;
+}
+
 /*
  * Parse OS specific command line options.
  * return 0 if option handled, -1 otherwise
@@ -145,8 +175,10 @@ void os_parse_cmd_args(int index, const char *optarg)
 #endif
     case QEMU_OPTION_runas:
         user_pwd = getpwnam(optarg);
-        if (!user_pwd) {
-            fprintf(stderr, "User \"%s\" doesn't exist\n", optarg);
+        if (!user_pwd && !os_parse_runas_uid_gid(optarg)) {
+            fprintf(stderr,
+                    "User \"%s\" doesn't exist (and is not <uid>.<gid>)\n",
+                    optarg);
             exit(1);
         }
         break;
@@ -166,18 +198,28 @@ void os_parse_cmd_args(int index, const char *optarg)
 
 static void change_process_uid(void)
 {
-    if (user_pwd) {
-        if (setgid(user_pwd->pw_gid) < 0) {
-            fprintf(stderr, "Failed to setgid(%d)\n", user_pwd->pw_gid);
+    if (user_pwd || user_uid != (uid_t)-1) {
+        gid_t intended_gid = user_pwd ? user_pwd->pw_gid : user_gid;
+        uid_t intended_uid = user_pwd ? user_pwd->pw_uid : user_uid;
+        if (setgid(intended_gid) < 0) {
+            fprintf(stderr, "Failed to setgid(%d)\n", intended_gid);
             exit(1);
         }
-        if (initgroups(user_pwd->pw_name, user_pwd->pw_gid) < 0) {
-            fprintf(stderr, "Failed to initgroups(\"%s\", %d)\n",
-                    user_pwd->pw_name, user_pwd->pw_gid);
-            exit(1);
+        if (user_pwd) {
+            if (initgroups(user_pwd->pw_name, user_pwd->pw_gid) < 0) {
+                fprintf(stderr, "Failed to initgroups(\"%s\", %d)\n",
+                        user_pwd->pw_name, user_pwd->pw_gid);
+                exit(1);
+            }
+        } else {
+            if (setgroups(1, &user_gid) < 0) {
+                fprintf(stderr, "Failed to setgroups(1, [%d])",
+                        user_gid);
+                exit(1);
+            }
         }
-        if (setuid(user_pwd->pw_uid) < 0) {
-            fprintf(stderr, "Failed to setuid(%d)\n", user_pwd->pw_uid);
+        if (setuid(intended_uid) < 0) {
+            fprintf(stderr, "Failed to setuid(%d)\n", intended_uid);
             exit(1);
         }
         if (setuid(0) != -1) {
