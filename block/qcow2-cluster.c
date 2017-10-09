@@ -748,8 +748,8 @@ uint64_t qcow2_alloc_compressed_cluster_offset(BlockDriverState *bs,
         return 0;
     }
 
-    nb_csectors = ((cluster_offset + compressed_size - 1) >> 9) -
-                  (cluster_offset >> 9);
+    nb_csectors = ((cluster_offset + compressed_size - 1) >> BDRV_SECTOR_BITS) -
+                  (cluster_offset >> BDRV_SECTOR_BITS);
 
     cluster_offset |= QCOW_OFLAG_COMPRESSED |
                       ((uint64_t)nb_csectors << s->csize_shift);
@@ -1582,7 +1582,7 @@ int qcow2_decompress_cluster(BlockDriverState *bs, uint64_t cluster_offset)
         }
 
         BLKDBG_EVENT(bs->file, BLKDBG_READ_COMPRESSED);
-        ret = bdrv_read(bs->file, coffset >> 9, s->cluster_data,
+        ret = bdrv_read(bs->file, coffset >> BDRV_SECTOR_BITS, s->cluster_data,
                         nb_csectors);
         if (ret < 0) {
             return ret;
