@@ -337,7 +337,7 @@ dtc/%:
 	mkdir -p $@
 
 $(SUBDIR_RULES): libqemuutil.a $(common-obj-y) $(chardev-obj-y) \
-	$(qom-obj-y) $(crypto-aes-obj-$(CONFIG_USER_ONLY))
+	$(qom-obj-y) $(crypto-aes-obj-$(CONFIG_USER_ONLY)) libvhost-user.a
 
 ROMSUBDIR_RULES=$(patsubst %,romsubdir-%, $(ROMS))
 # Only keep -O and -g cflags
@@ -357,6 +357,7 @@ Makefile: $(version-obj-y)
 # Build libraries
 
 libqemuutil.a: $(util-obj-y) $(trace-obj-y) $(stub-obj-y)
+libvhost-user.a: $(libvhost-user-obj-y)
 
 ######################################################################
 
