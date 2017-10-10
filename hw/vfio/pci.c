@@ -430,13 +430,16 @@ static int vfio_enable_vectors(VFIOPCIDevice *vdev, bool msix)
 static void vfio_add_kvm_msi_virq(VFIOPCIDevice *vdev, VFIOMSIVector *vector,
                                   int vector_n, bool msix)
 {
-    int virq;
+    int virq, ret;
 
     if ((msix && vdev->no_kvm_msix) || (!msix && vdev->no_kvm_msi)) {
         return;
     }
 
-    if (event_notifier_init(&vector->kvm_interrupt, 0)) {
+    ret = event_notifier_init(&vector->kvm_interrupt, 0);
+    if (ret) {
+        error_report("vfio (%s): Error: unable to init event notifier: %s (%d)",
+                     __func__, strerror(-ret), -ret);
         return;
     }
 
@@ -486,8 +489,11 @@ static int vfio_msix_vector_do_use(PCIDevice *pdev, unsigned int nr,
     if (!vector->use) {
         vector->vdev = vdev;
         vector->virq = -1;
-        if (event_notifier_init(&vector->interrupt, 0)) {
-            error_report("vfio: Error: event_notifier_init failed");
+        ret = event_notifier_init(&vector->interrupt, 0);
+        if (ret) {
+            error_report("vfio (%s): Error: "
+                         "unable to init event notifier: %s (%d)",
+                         __func__, strerror(-ret), -ret);
         }
         vector->use = true;
         msix_vector_use(pdev, nr);
@@ -658,8 +664,11 @@ retry:
         vector->virq = -1;
         vector->use = true;
 
-        if (event_notifier_init(&vector->interrupt, 0)) {
-            error_report("vfio: Error: event_notifier_init failed");
+        ret = event_notifier_init(&vector->interrupt, 0);
+        if (ret) {
+            error_report("vfio (%s): Error: "
+                         "unable to init event notifier: %s (%d)",
+                         __func__, strerror(-ret), -ret);
         }
 
         qemu_set_fd_handler(event_notifier_get_fd(&vector->interrupt),
@@ -2479,8 +2488,10 @@ static void vfio_register_err_notifier(VFIOPCIDevice *vdev)
         return;
     }
 
-    if (event_notifier_init(&vdev->err_notifier, 0)) {
-        error_report("vfio: Unable to init event notifier for error detection");
+    ret = event_notifier_init(&vdev->err_notifier, 0);
+    if (ret) {
+        error_report("vfio (%s): Error: unable to init event notifier: %s (%d)"
+            " for error detection", __func__, strerror(-ret), -ret);
         vdev->pci_aer = false;
         return;
     }
@@ -2561,7 +2572,7 @@ static void vfio_register_req_notifier(VFIOPCIDevice *vdev)
 {
     struct vfio_irq_info irq_info = { .argsz = sizeof(irq_info),
                                       .index = VFIO_PCI_REQ_IRQ_INDEX };
-    int argsz;
+    int argsz, ret;
     struct vfio_irq_set *irq_set;
     int32_t *pfd;
 
@@ -2574,8 +2585,10 @@ static void vfio_register_req_notifier(VFIOPCIDevice *vdev)
         return;
     }
 
-    if (event_notifier_init(&vdev->req_notifier, 0)) {
-        error_report("vfio: Unable to init event notifier for device request");
+    ret = event_notifier_init(&vdev->req_notifier, 0);
+    if (ret) {
+        error_report("vfio (%s): Error: unable to init event notifier: %s (%d)"
+            " for device request", __func__, strerror(-ret), -ret);
         return;
     }
 
