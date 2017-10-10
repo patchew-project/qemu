@@ -2535,7 +2535,7 @@ sub process {
 
 # check for new externs in .c files.
 		if ($realfile =~ /\.c$/ && defined $stat &&
-		    $stat =~ /^.\s*(?:extern\s+)?$Type\s+($Ident)(\s*)\(/s)
+		    $stat =~ /^.\s*(?:extern\s+)$Type\s+($Ident)(\s*)\(/s)
 		{
 			my $function_name = $1;
 			my $paren_space = $2;
