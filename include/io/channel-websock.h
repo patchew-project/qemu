@@ -59,7 +59,6 @@ struct QIOChannelWebsock {
     Buffer encinput;
     Buffer encoutput;
     Buffer rawinput;
-    Buffer rawoutput;
     size_t payload_remain;
     size_t ping_remain;
     QIOChannelWebsockMask mask;
