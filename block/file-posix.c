@@ -514,7 +514,8 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
 
     s->lock_fd = -1;
     if (s->use_lock) {
-        fd = qemu_open(filename, s->open_flags);
+        /* open it read-only, as we do not reopen it on bdrv_reopen */
+        fd = qemu_open(filename, (s->open_flags & ~BDRV_O_RDWR));
         if (fd < 0) {
             ret = -errno;
             error_setg_errno(errp, errno, "Could not open '%s' for locking",
