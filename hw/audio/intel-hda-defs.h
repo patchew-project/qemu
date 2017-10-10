@@ -3,6 +3,7 @@
 
 /* qemu */
 #define HDA_BUFFER_SIZE 256
+#define HDA_TIMER_TICKS (SCALE_MS)
 
 /* --------------------------------------------------------------------- */
 /* from linux/sound/pci/hda/hda_intel.c                                  */
