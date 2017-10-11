@@ -353,6 +353,7 @@ static void qio_channel_websock_handshake_send_res_ok(QIOChannelWebsock *ioc,
                             QIO_CHANNEL_WEBSOCK_GUID_LEN,
                             &accept,
                             errp) < 0) {
+        g_free(date);
         qio_channel_websock_handshake_send_res_err(
             ioc, QIO_CHANNEL_WEBSOCK_HANDSHAKE_RES_SERVER_ERR);
         return;
