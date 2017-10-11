@@ -1967,6 +1967,46 @@ fail:
 }
 
 /**
+ * migration_maybe_pause: Pause if required to by migrate_pause_before_device
+ * called with the iothread locked
+ * Returns: 0 on success
+ */
+static int migration_maybe_pause(MigrationState *s, int *current_active_state)
+{
+    int ret;
+    if (!migrate_pause_before_device()) {
+        return 0;
+    }
+    ret = bdrv_inactivate_all();
+    if (ret) {
+        error_report("%s: bdrv_inactivate_all() failed (%d)",
+                     __func__, ret);
+        return ret;
+    }
+
+    s->block_inactive = true;
+
+    /* Since leaving this state is not atomic with posting the semaphore
+     * it's possible that someone could have issued multiple migrate_continue
+     * and the semaphore is incorrectly positive at this point;
+     * the docs say it's undefined to reinit a semaphore that's already
+     * init'd, so use timedwait to eat up any existing posts.
+     */
+    while (qemu_sem_timedwait(&s->pause_sem, 1) == 0);
+
+    qemu_mutex_unlock_iothread();
+    migrate_set_state(&s->state, *current_active_state,
+                      MIGRATION_STATUS_PAUSE_BEFORE_DEVICE);
+    qemu_sem_wait(&s->pause_sem);
+    migrate_set_state(&s->state, MIGRATION_STATUS_PAUSE_BEFORE_DEVICE,
+                      MIGRATION_STATUS_DEVICE);
+    *current_active_state = MIGRATION_STATUS_DEVICE;
+    qemu_mutex_lock_iothread();
+
+    return s->state == MIGRATION_STATUS_DEVICE ? 0 : -EINVAL;
+}
+
+/**
  * migration_completion: Used by migration_thread when there's not much left.
  *   The caller 'breaks' the loop when this returns.
  *
@@ -1991,6 +2031,11 @@ static void migration_completion(MigrationState *s, int current_active_state,
         if (!ret) {
             bool inactivate = !migrate_colo_enabled();
             ret = vm_stop_force_state(RUN_STATE_FINISH_MIGRATE);
+            if (ret >= 0) {
+                ret = migration_maybe_pause(s, &current_active_state);
+                /* If this worked it will already have inactivated */
+                inactivate &= !migrate_pause_before_device();
+            }
             if (ret >= 0) {
                 qemu_file_set_rate_limit(s->to_dst_file, INT64_MAX);
                 ret = qemu_savevm_state_complete_precopy(s->to_dst_file, false,
@@ -2372,6 +2417,7 @@ static void migration_instance_finalize(Object *obj)
 
     g_free(params->tls_hostname);
     g_free(params->tls_creds);
+    qemu_sem_destroy(&ms->pause_sem);
 }
 
 static void migration_instance_init(Object *obj)
@@ -2382,6 +2428,7 @@ static void migration_instance_init(Object *obj)
     ms->state = MIGRATION_STATUS_NONE;
     ms->xbzrle_cache_size = DEFAULT_MIGRATE_CACHE_SIZE;
     ms->mbps = -1;
+    qemu_sem_init(&ms->pause_sem, 0);
 
     params->tls_hostname = g_strdup("");
     params->tls_creds = g_strdup("");
