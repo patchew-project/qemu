@@ -1443,7 +1443,7 @@ sub process {
 		}
 
 # check we are in a valid source file if not then ignore this hunk
-		next if ($realfile !~ /\.(h|c|cpp|s|S|pl|py|sh)$/);
+		next if ($realfile !~ /\.(h|c|cpp|s|S|py|sh)$/);
 
 #90 column limit
 		if ($line =~ /^\+/ &&
