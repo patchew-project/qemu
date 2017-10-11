@@ -2547,7 +2547,7 @@ sub process {
 			if ($s =~ /^\s*;/ &&
 			    $function_name ne 'uninitialized_var')
 			{
-				ERROR("externs should be avoided in .c files\n" .  $herecurr);
+				WARN("externs should be avoided in .c files\n" .  $herecurr);
 			}
 
 			if ($paren_space =~ /\n/) {
@@ -2557,7 +2557,7 @@ sub process {
 		} elsif ($realfile =~ /\.c$/ && defined $stat &&
 		    $stat =~ /^.\s*extern\s+/)
 		{
-			ERROR("externs should be avoided in .c files\n" .  $herecurr);
+			WARN("externs should be avoided in .c files\n" .  $herecurr);
 		}
 
 # check for pointless casting of g_malloc return
