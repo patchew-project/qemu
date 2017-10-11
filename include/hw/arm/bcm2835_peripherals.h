@@ -20,6 +20,7 @@
 #include "hw/intc/bcm2835_ic.h"
 #include "hw/misc/bcm2835_property.h"
 #include "hw/misc/bcm2835_rng.h"
+#include "hw/timer/bcm2835_armtimer.h"
 #include "hw/misc/bcm2835_mbox.h"
 #include "hw/sd/sdhci.h"
 #include "hw/sd/bcm2835_sdhost.h"
@@ -43,6 +44,7 @@ typedef struct BCM2835PeripheralState {
     BCM2835FBState fb;
     BCM2835DMAState dma;
     BCM2835ICState ic;
+    BCM2835ARMTimerState armtimer;
     BCM2835PropertyState property;
     BCM2835RngState rng;
     BCM2835MboxState mboxes;

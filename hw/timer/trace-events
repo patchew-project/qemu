@@ -60,3 +60,7 @@ systick_write(uint64_t addr, uint32_t value, unsigned size) "systick write addr 
 cmsdk_apb_timer_read(uint64_t offset, uint64_t data, unsigned size) "CMSDK APB timer read: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %u"
 cmsdk_apb_timer_write(uint64_t offset, uint64_t data, unsigned size) "CMSDK APB timer write: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %u"
 cmsdk_apb_timer_reset(void) "CMSDK APB timer: reset"
+
+# hw/timer/bcm2535_armtimer.c
+bcm2835_armtimer_interrupt(void) "irq"
+bcm2835_armtimer_ack(void) "ack"
