@@ -66,7 +66,7 @@ static int tpm_util_test(int fd,
     resp = (struct tpm_resp_hdr *)buf;
     /* check the header */
     if (be32_to_cpu(resp->len) != n) {
-        return EBADMSG;
+        return EMSGSIZE;
     }
 
     *return_tag = be16_to_cpu(resp->tag);
