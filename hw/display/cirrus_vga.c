@@ -2047,8 +2047,11 @@ static void cirrus_mem_writeb_mode4and5_8bpp(CirrusVGAState * s,
 	}
 	val <<= 1;
 	dst++;
+        if (dst >= s->vga.vram_ptr + s->vga.vram_size) {
+            break;
+        }
     }
-    memory_region_set_dirty(&s->vga.vram, offset, 8);
+    memory_region_set_dirty(&s->vga.vram, offset, x);
 }
 
 static void cirrus_mem_writeb_mode4and5_16bpp(CirrusVGAState * s,
@@ -2071,8 +2074,11 @@ static void cirrus_mem_writeb_mode4and5_16bpp(CirrusVGAState * s,
 	}
 	val <<= 1;
 	dst += 2;
+        if (dst >= s->vga.vram_ptr + s->vga.vram_size) {
+            break;
+        }
     }
-    memory_region_set_dirty(&s->vga.vram, offset, 16);
+    memory_region_set_dirty(&s->vga.vram, offset, x << 1);
 }
 
 /***************************************
