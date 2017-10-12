@@ -203,6 +203,11 @@ enum {
 #define NBD_SREP_TYPE_ERROR         NBD_SREP_ERR(1)
 #define NBD_SREP_TYPE_ERROR_OFFSET  NBD_SREP_ERR(2)
 
+static inline bool nbd_srep_type_is_error(int type)
+{
+    return type & (1 << 15);
+}
+
 /* NBD errors are based on errno numbers, so there is a 1:1 mapping,
  * but only a limited set of errno values is specified in the protocol.
  * Everything else is squashed to EINVAL.
@@ -241,6 +246,7 @@ static inline int nbd_errno_to_system_errno(int err)
 struct NBDExportInfo {
     /* Set by client before nbd_receive_negotiate() */
     bool request_sizes;
+    bool structured_reply;
     /* Set by server results during nbd_receive_negotiate() */
     uint64_t size;
     uint16_t flags;
