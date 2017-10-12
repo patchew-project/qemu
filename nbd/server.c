@@ -98,6 +98,8 @@ struct NBDClient {
     QTAILQ_ENTRY(NBDClient) next;
     int nb_requests;
     bool closing;
+
+    bool structured_reply;
 };
 
 /* That's all folks */
@@ -760,6 +762,20 @@ static int nbd_negotiate_options(NBDClient *client, uint16_t myflags,
                     return ret;
                 }
                 break;
+
+            case NBD_OPT_STRUCTURED_REPLY:
+                if (client->structured_reply) {
+                    error_setg(errp, "Double negotiation of structured reply");
+                    return -EINVAL;
+                }
+                ret = nbd_negotiate_send_rep(client->ioc, NBD_REP_ACK, option,
+                                             errp);
+                if (ret < 0) {
+                    return ret;
+                }
+                client->structured_reply = true;
+                break;
+
             default:
                 if (nbd_drop(client->ioc, length, errp) < 0) {
                     return -EIO;
@@ -1233,6 +1249,61 @@ static int nbd_co_send_simple_reply(NBDClient *client,
     return nbd_co_send_iov(client, iov, len ? 2 : 1, errp);
 }
 
+static inline void set_be_chunk(NBDStructuredReplyChunk *chunk, uint16_t flags,
+                                uint16_t type, uint64_t handle, uint32_t length)
+{
+    stl_be_p(&chunk->magic, NBD_STRUCTURED_REPLY_MAGIC);
+    stw_be_p(&chunk->flags, flags);
+    stw_be_p(&chunk->type, type);
+    stq_be_p(&chunk->handle, handle);
+    stl_be_p(&chunk->length, length);
+}
+
+static inline int coroutine_fn nbd_co_send_buf(NBDClient *client, void *buf,
+                                               size_t size, Error **errp)
+{
+    struct iovec iov[] = {
+        {.iov_base = buf, .iov_len = size}
+    };
+
+    return nbd_co_send_iov(client, iov, 1, errp);
+}
+
+static int coroutine_fn nbd_co_send_structured_read(NBDClient *client,
+                                                    uint64_t handle,
+                                                    uint64_t offset,
+                                                    void *data,
+                                                    size_t size,
+                                                    Error **errp)
+{
+    NBDStructuredRead chunk;
+    struct iovec iov[] = {
+        {.iov_base = &chunk, .iov_len = sizeof(chunk)},
+        {.iov_base = data, .iov_len = size}
+    };
+
+    set_be_chunk(&chunk.h, NBD_SREP_FLAG_DONE, NBD_SREP_TYPE_OFFSET_DATA,
+                 handle, sizeof(chunk) - sizeof(chunk.h) + size);
+    stq_be_p(&chunk.offset, offset);
+
+    return nbd_co_send_iov(client, iov, 2, errp);
+}
+
+static int coroutine_fn nbd_co_send_structured_error(NBDClient *client,
+                                                     uint64_t handle,
+                                                     uint32_t error,
+                                                     Error **errp)
+{
+    NBDStructuredError chunk;
+
+    set_be_chunk(&chunk.h, NBD_SREP_FLAG_DONE, NBD_SREP_TYPE_ERROR, handle,
+                 sizeof(chunk) - sizeof(chunk.h));
+    stl_be_p(&chunk.error, error);
+    stw_be_p(&chunk.message_length, 0);
+
+    return nbd_co_send_buf(client, &chunk, sizeof(chunk), errp);
+}
+
 /* nbd_co_receive_request
  * Collect a client request. Return 0 if request looks valid, -EIO to drop
  * connection right away, and any other negative value to report an error to
@@ -1304,8 +1375,15 @@ static int nbd_co_receive_request(NBDRequestData *req, NBDRequest *request,
                    (uint64_t)client->exp->size);
         return request->type == NBD_CMD_WRITE ? -ENOSPC : -EINVAL;
     }
-    if (request->flags & ~(NBD_CMD_FLAG_FUA | NBD_CMD_FLAG_NO_HOLE)) {
+    if (request->flags & ~(NBD_CMD_FLAG_FUA | NBD_CMD_FLAG_NO_HOLE |
+                           NBD_CMD_FLAG_DF))
+    {
         error_setg(errp, "unsupported flags (got 0x%x)", request->flags);
+        return -EINVAL;
+    }
+    if (request->type != NBD_CMD_READ && (request->flags & NBD_CMD_FLAG_DF)) {
+        error_setg(errp, "DF flag used with command %d (%s) which is not READ",
+                   request->type, nbd_cmd_lookup(request->type));
         return -EINVAL;
     }
     if (request->type != NBD_CMD_WRITE_ZEROES &&
@@ -1374,7 +1452,6 @@ static coroutine_fn void nbd_trip(void *opaque)
         }
 
         reply_data_len = request.len;
-
         break;
     case NBD_CMD_WRITE:
         if (exp->nbdflags & NBD_FLAG_READ_ONLY) {
@@ -1447,10 +1524,21 @@ reply:
         local_err = NULL;
     }
 
-    if (nbd_co_send_simple_reply(req->client, request.handle,
-                                 ret < 0 ? -ret : 0,
-                                 req->data, reply_data_len, &local_err) < 0)
-    {
+    if (client->structured_reply && request.type == NBD_CMD_READ) {
+        if (ret < 0) {
+            ret = nbd_co_send_structured_error(req->client, request.handle,
+                                               -ret, &local_err);
+        } else {
+            ret = nbd_co_send_structured_read(req->client, request.handle,
+                                              request.from, req->data,
+                                              reply_data_len, &local_err);
+        }
+    } else {
+        ret = nbd_co_send_simple_reply(req->client, request.handle,
+                                       ret < 0 ? -ret : 0,
+                                       req->data, reply_data_len, &local_err);
+    }
+    if (ret < 0) {
         error_prepend(&local_err, "Failed to send reply: ");
         goto disconnect;
     }
