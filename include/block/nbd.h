@@ -77,6 +77,9 @@ typedef struct NBDStructuredReplyChunk {
     uint32_t length; /* length of payload */
 } QEMU_PACKED NBDStructuredReplyChunk;
 
+#define NBD_SIMPLE_REPLY_MAGIC      0x67446698
+#define NBD_STRUCTURED_REPLY_MAGIC  0x668e33ef
+
 typedef struct NBDStructuredRead {
     NBDStructuredReplyChunk h;
     uint64_t offset;
@@ -182,6 +185,40 @@ enum {
 #define NBD_SREP_TYPE_ERROR         NBD_SREP_ERR(1)
 #define NBD_SREP_TYPE_ERROR_OFFSET  NBD_SREP_ERR(2)
 
+/* NBD errors are based on errno numbers, so there is a 1:1 mapping,
+ * but only a limited set of errno values is specified in the protocol.
+ * Everything else is squashed to EINVAL.
+ */
+#define NBD_SUCCESS    0
+#define NBD_EPERM      1
+#define NBD_EIO        5
+#define NBD_ENOMEM     12
+#define NBD_EINVAL     22
+#define NBD_ENOSPC     28
+#define NBD_ESHUTDOWN  108
+
+static inline int nbd_errno_to_system_errno(int err)
+{
+    switch (err) {
+    case NBD_SUCCESS:
+        return 0;
+    case NBD_EPERM:
+        return EPERM;
+    case NBD_EIO:
+        return EIO;
+    case NBD_ENOMEM:
+        return ENOMEM;
+    case NBD_ENOSPC:
+        return ENOSPC;
+    case NBD_ESHUTDOWN:
+        return ESHUTDOWN;
+    case NBD_EINVAL:
+        return EINVAL;
+    }
+
+    return EINVAL;
+}
+
 /* Details collected by NBD_OPT_EXPORT_NAME and NBD_OPT_GO */
 struct NBDExportInfo {
     /* Set by client before nbd_receive_negotiate() */
@@ -234,5 +271,16 @@ void nbd_client_put(NBDClient *client);
 
 void nbd_server_start(SocketAddress *addr, const char *tls_creds,
                       Error **errp);
+
+/* nbd_read
+ * Reads @size bytes from @ioc. Returns 0 on success.
+ */
+static inline int nbd_read(QIOChannel *ioc, void *buffer, size_t size,
+                           Error **errp)
+{
+    return qio_channel_read_all(ioc, buffer, size, errp) < 0 ? -EIO : 0;
+}
+
+int nbd_drop(QIOChannel *ioc, size_t size, Error **errp);
 
 #endif
