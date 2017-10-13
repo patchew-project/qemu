@@ -16,6 +16,31 @@ typedef struct {
     uint8_t final_exception_flags;
 } f16_test_data;
 
+static void test_f16_convert_to_int(void)
+{
+    int i;
+    float16 out;
+    float_status flags, *fp = &flags;
+    f16_test_data test_data[] = {
+        /* from risu fcvtps  v23.4h, v16.4h */
+        { { .float_rounding_mode = float_round_up}, 0xa619, 0xb860, 0 },
+        { { .float_rounding_mode = float_round_up}, 0x83c0, 0xff91, 0 },
+        { { .float_rounding_mode = float_round_up}, 0x6966, 0x0001, 0 },
+        { { .float_rounding_mode = float_round_up}, 0x06b1, 0x0001, 0 },
+    };
+
+    for (i = 0; i < ARRAY_SIZE(test_data); ++i) {
+        flags = test_data[i].initial_status;
+        out = float16_to_int16(test_data[i].in, fp);
+
+        if (!(test_data[i].out == out)) {
+            fprintf(stderr, "%s[%d]: expected %#04x got %#04x\n",
+                    __func__, i, test_data[i].out, out);
+            g_test_fail();
+        }
+    }
+}
+
 static void test_f16_round_to_int(void)
 {
     int i;
@@ -54,5 +79,6 @@ int main(int argc, char *argv[])
 {
     g_test_init(&argc, &argv, NULL);
     g_test_add_func("/softfloat/f16/round_to_int", test_f16_round_to_int);
+    g_test_add_func("/softfloat/f16/convert_to_int", test_f16_convert_to_int);
     return g_test_run();
 }
