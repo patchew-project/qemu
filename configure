@@ -255,7 +255,21 @@ cross_prefix=""
 audio_drv_list=""
 block_drv_rw_whitelist=""
 block_drv_ro_whitelist=""
-host_cc="cc"
+
+case `uname -s` in
+    OpenBSD)
+    # Default system cc in OpenBSD is unsufficient
+    # we need the 'gcc' pkg added, whch provides
+    # these modified binary names
+    host_cc="egcc"
+    host_cxx="eg++"
+    ;;
+         *)
+    host_cc="cc"
+    host_cxx="c++"
+    ;;
+esac
+
 libs_softmmu=""
 libs_tools=""
 audio_pt_int=""
@@ -459,7 +473,7 @@ else
 fi
 
 if test -z "${CXX}${cross_prefix}"; then
-  cxx="c++"
+  cxx="$host_cxx"
 else
   cxx="${CXX-${cross_prefix}g++}"
 fi
