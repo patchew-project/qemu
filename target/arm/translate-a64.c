@@ -7785,6 +7785,7 @@ static void handle_2misc_fcmp_zero(DisasContext *s, int opcode,
         TCGv_i32 tcg_res = tcg_temp_new_i32();
         NeonGenTwoSingleOPFn *genfn;
         bool swap = false;
+        bool hp = (size == 1 ? true : false);
         int pass, maxpasses;
 
         switch (opcode) {
@@ -7792,7 +7793,7 @@ static void handle_2misc_fcmp_zero(DisasContext *s, int opcode,
             swap = true;
             /* fall through */
         case 0x2c: /* FCMGT (zero) */
-            genfn = gen_helper_neon_cgt_f32;
+            genfn = hp ? gen_helper_advsimd_cgt_f16 : gen_helper_neon_cgt_f32;
             break;
         case 0x2d: /* FCMEQ (zero) */
             genfn = gen_helper_neon_ceq_f32;
@@ -7814,7 +7815,7 @@ static void handle_2misc_fcmp_zero(DisasContext *s, int opcode,
         }
 
         for (pass = 0; pass < maxpasses; pass++) {
-            read_vec_element_i32(s, tcg_op, rn, pass, MO_32);
+            read_vec_element_i32(s, tcg_op, rn, pass, hp ? MO_16 : MO_32);
             if (swap) {
                 genfn(tcg_res, tcg_zero, tcg_op, fpst);
             } else {
@@ -7823,7 +7824,7 @@ static void handle_2misc_fcmp_zero(DisasContext *s, int opcode,
             if (is_scalar) {
                 write_fp_sreg(s, rd, tcg_res);
             } else {
-                write_vec_element_i32(s, tcg_res, rd, pass, MO_32);
+                write_vec_element_i32(s, tcg_res, rd, pass, hp ? MO_16 : MO_32);
             }
         }
         tcg_temp_free_i32(tcg_res);
@@ -9809,6 +9810,9 @@ static void disas_simd_three_reg_same_fp16(DisasContext *s, uint32_t insn)
         case 0x2: /* FADD */
             gen_helper_advsimd_addh(tcg_res, tcg_op1, tcg_op2, fpst);
             break;
+        case 0x6: /* FMAX */
+            gen_helper_advsimd_maxh(tcg_res, tcg_op1, tcg_op2, fpst);
+            break;
         case 0x23: /* FMUL */
             gen_helper_advsimd_mulh(tcg_res, tcg_op1, tcg_op2, fpst);
             break;
@@ -10580,13 +10584,10 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
 static void disas_simd_two_reg_misc_fp16(DisasContext *s, uint32_t insn)
 {
     int fpop, opcode, a;
+    int rn, rd;
 
     if (!arm_dc_feature(s, ARM_FEATURE_V8_FP16)) {
         unallocated_encoding(s);
-        return;
-    }
-
-    if (!fp_access_check(s)) {
         return;
     }
 
@@ -10594,7 +10595,17 @@ static void disas_simd_two_reg_misc_fp16(DisasContext *s, uint32_t insn)
     a = extract32(insn, 23, 1);
     fpop = deposit32(opcode, 5, 1, a);
 
+    rn = extract32(insn, 5, 5);
+    rd = extract32(insn, 0, 5);
+
     switch (fpop) {
+    case 0x2c: /* FCMGT (zero) */
+    case 0x2d: /* FCMEQ (zero) */
+    case 0x2e: /* FCMLT (zero) */
+    case 0x6c: /* FCMGE (zero) */
+    case 0x6d: /* FCMLE (zero) */
+        handle_2misc_fcmp_zero(s, fpop, true, 0, false, 1, rn, rd);
+        break;
     default:
         fprintf(stderr,"%s: insn %#04x fpop %#2x\n", __func__, insn, fpop);
         g_assert_not_reached();
