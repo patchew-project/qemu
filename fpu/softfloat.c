@@ -3533,6 +3533,88 @@ static void normalizeFloat16Subnormal(uint32_t aSig, int *zExpPtr,
 }
 
 /*----------------------------------------------------------------------------
+| Rounds the half-precision floating-point value `a' to an integer,
+| and returns the result as a half-precision floating-point value. The
+| operation is performed according to the IEC/IEEE Standard for Binary
+| Floating-Point Arithmetic.
+*----------------------------------------------------------------------------*/
+
+float16 float16_round_to_int(float16 a, float_status *status)
+{
+    flag aSign;
+    int aExp;
+    uint16_t lastBitMask, roundBitsMask;
+    uint16_t z;
+    a = float16_squash_input_denormal(a, status);
+
+    aExp = extractFloat16Exp( a );
+    if ( 0x19 <= aExp ) {
+        if ( ( aExp == 0x1F ) && extractFloat16Frac( a ) ) {
+            return propagateFloat16NaN(a, a, status);
+        }
+        return a;
+    }
+    if ( aExp <= 0xE ) {
+        if ( (uint16_t) ( float16_val(a)<<1 ) == 0 ) return a;
+        status->float_exception_flags |= float_flag_inexact;
+        aSign = extractFloat16Sign( a );
+        switch (status->float_rounding_mode) {
+        case float_round_nearest_even:
+            if ( ( aExp == 0xE ) && extractFloat16Frac( a ) ) {
+                return packFloat16( aSign, 0xF, 0 );
+            }
+            break;
+        case float_round_ties_away:
+            if (aExp == 0xE) {
+                return packFloat16(aSign, 0xF, 0);
+            }
+            break;
+        case float_round_down:
+            return make_float16(aSign ? 0xBC00 : 0);
+        case float_round_up:
+            /* -0.0/1.0f */
+            return make_float16(aSign ? 0x8000 : 0x3C00);
+        }
+        return packFloat16( aSign, 0, 0 );
+    }
+    lastBitMask = 1;
+    lastBitMask <<= 0x19 - aExp;
+    roundBitsMask = lastBitMask - 1;
+    z = float16_val(a);
+    switch (status->float_rounding_mode) {
+    case float_round_nearest_even:
+        z += lastBitMask>>1;
+        if ((z & roundBitsMask) == 0) {
+            z &= ~lastBitMask;
+        }
+        break;
+    case float_round_ties_away:
+        z += lastBitMask >> 1;
+        break;
+    case float_round_to_zero:
+        break;
+    case float_round_up:
+        if (!extractFloat16Sign(make_float16(z))) {
+            z += roundBitsMask;
+        }
+        break;
+    case float_round_down:
+        if (extractFloat16Sign(make_float16(z))) {
+            z += roundBitsMask;
+        }
+        break;
+    default:
+        abort();
+    }
+    z &= ~ roundBitsMask;
+    if (z != float16_val(a)) {
+        status->float_exception_flags |= float_flag_inexact;
+    }
+    return make_float16(z);
+
+}
+
+/*----------------------------------------------------------------------------
 | Returns the result of adding the absolute values of the half-precision
 | floating-point values `a' and `b'.  If `zSign' is 1, the sum is negated
 | before being returned.  `zSign' is ignored if the result is a NaN.
