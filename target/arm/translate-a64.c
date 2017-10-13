@@ -10588,6 +10588,12 @@ static void disas_simd_two_reg_misc_fp16(DisasContext *s, uint32_t insn)
 {
     int fpop, opcode, a;
     int rn, rd;
+    int is_q;
+    int pass;
+    TCGv_i32 tcg_rmode;
+    TCGv_ptr tcg_fpstatus;
+    bool need_rmode = false;
+    int rmode;
 
     if (!arm_dc_feature(s, ARM_FEATURE_V8_FP16)) {
         unallocated_encoding(s);
@@ -10608,12 +10614,62 @@ static void disas_simd_two_reg_misc_fp16(DisasContext *s, uint32_t insn)
     case 0x6c: /* FCMGE (zero) */
     case 0x6d: /* FCMLE (zero) */
         handle_2misc_fcmp_zero(s, fpop, true, 0, false, 1, rn, rd);
+        return;
+        break;
+    case 0x28: /* FRINTP */
+        need_rmode = true;
+        rmode = FPROUNDING_POSINF;
         break;
     default:
         fprintf(stderr,"%s: insn %#04x fpop %#2x\n", __func__, insn, fpop);
         g_assert_not_reached();
     }
 
+    is_q = extract32(insn, 30, 1);
+
+    if (!fp_access_check(s)) {
+        return;
+    }
+
+    tcg_fpstatus = get_fpstatus_ptr();
+
+    if (need_rmode) {
+        tcg_rmode = tcg_const_i32(arm_rmode_to_sf(rmode));
+        gen_helper_set_rmode(tcg_rmode, tcg_rmode, cpu_env);
+    } else {
+        TCGV_UNUSED_I32(tcg_rmode);
+    }
+
+    for (pass = 0; pass < (is_q ? 8 : 4); pass++) {
+        TCGv_i32 tcg_op = tcg_temp_new_i32();
+        TCGv_i32 tcg_res = tcg_temp_new_i32();
+
+        read_vec_element_i32(s, tcg_op, rn, pass, MO_16);
+
+        switch (fpop) {
+        case 0x28: /* FRINTP */
+            gen_helper_advsimd_rinth(tcg_res, tcg_op, tcg_fpstatus);
+            break;
+        default:
+            g_assert_not_reached();
+        }
+
+        write_vec_element_i32(s, tcg_res, rd, pass, MO_16);
+
+        tcg_temp_free_i32(tcg_res);
+        tcg_temp_free_i32(tcg_op);
+    }
+
+    if (!is_q) {
+        clear_vec_high(s, rd);
+    }
+
+    if (need_rmode) {
+        gen_helper_set_rmode(tcg_rmode, tcg_rmode, cpu_env);
+        tcg_temp_free_i32(tcg_rmode);
+    }
+
+    tcg_temp_free_ptr(tcg_fpstatus);
 }
 
 /* AdvSIMD scalar x indexed element
