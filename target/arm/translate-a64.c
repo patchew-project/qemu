@@ -10757,7 +10757,7 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
         TCGV_UNUSED_PTR(fpst);
     }
 
-    if (size == 3) {
+    if (size == MO_64) {
         TCGv_i64 tcg_idx = tcg_temp_new_i64();
         int pass;
 
@@ -10802,11 +10802,12 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
 
         tcg_temp_free_i64(tcg_idx);
     } else if (!is_long) {
-        /* 32 bit floating point, or 16 or 32 bit integer.
+        /* 16 or 32 bit floating point, or 16 or 32 bit integer.
          * For the 16 bit scalar case we use the usual Neon helpers and
          * rely on the fact that 0 op 0 == 0 with no side effects.
          */
         TCGv_i32 tcg_idx = tcg_temp_new_i32();
+        bool hp = (size == MO_16 ? true : false);
         int pass, maxpasses;
 
         if (is_scalar) {
@@ -10829,7 +10830,7 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
             TCGv_i32 tcg_op = tcg_temp_new_i32();
             TCGv_i32 tcg_res = tcg_temp_new_i32();
 
-            read_vec_element_i32(s, tcg_op, rn, pass, is_scalar ? size : MO_32);
+            read_vec_element_i32(s, tcg_op, rn, pass, size);
 
             switch (opcode) {
             case 0x0: /* MLA */
@@ -10861,8 +10862,14 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
                 gen_helper_vfp_negs(tcg_op, tcg_op);
                 /* fall through */
             case 0x1: /* FMLA */
-                read_vec_element_i32(s, tcg_res, rd, pass, MO_32);
-                gen_helper_vfp_muladds(tcg_res, tcg_op, tcg_idx, tcg_res, fpst);
+                read_vec_element_i32(s, tcg_res, rd, pass, size);
+                if (hp) {
+                    gen_helper_advsimd_muladdh(tcg_res, tcg_op,
+                                               tcg_idx, tcg_res, fpst);
+                } else {
+                    gen_helper_vfp_muladds(tcg_res, tcg_op,
+                                           tcg_idx, tcg_res, fpst);
+                }
                 break;
             case 0x9: /* FMUL, FMULX */
                 switch (size) {
@@ -10909,7 +10916,7 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
             if (is_scalar) {
                 write_fp_sreg(s, rd, tcg_res);
             } else {
-                write_vec_element_i32(s, tcg_res, rd, pass, MO_32);
+                write_vec_element_i32(s, tcg_res, rd, pass, size);
             }
 
             tcg_temp_free_i32(tcg_op);
