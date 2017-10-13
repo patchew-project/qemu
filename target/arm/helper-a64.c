@@ -609,10 +609,10 @@ uint32_t HELPER(advsimd_acge_f16)(float16 a, float16 b, void *fpstp)
     return -float16_le(f1, f0, fpst);
 }
 
-/* uint32_t HELPER(advsimd_acgt_f16)(float16 a, float16 b, void *fpstp) */
-/* { */
-/*     float_status *fpst = fpstp; */
-/*     float16 f0 = float16_abs(a); */
-/*     float16 f1 = float16_abs(b); */
-/*     return -float16_lt(f1, f0, fpst); */
-/* } */
+uint32_t HELPER(advsimd_acgt_f16)(float16 a, float16 b, void *fpstp)
+{
+    float_status *fpst = fpstp;
+    float16 f0 = float16_abs(a);
+    float16 f1 = float16_abs(b);
+    return -float16_lt(f1, f0, fpst);
+}
