@@ -10620,6 +10620,10 @@ static void disas_simd_two_reg_misc_fp16(DisasContext *s, uint32_t insn)
         need_rmode = true;
         rmode = FPROUNDING_POSINF;
         break;
+    case 0x2a: /* FCVTPS */
+        need_rmode = true;
+        rmode = FPROUNDING_POSINF;
+        break;
     default:
         fprintf(stderr,"%s: insn %#04x fpop %#2x\n", __func__, insn, fpop);
         g_assert_not_reached();
@@ -10647,6 +10651,9 @@ static void disas_simd_two_reg_misc_fp16(DisasContext *s, uint32_t insn)
         read_vec_element_i32(s, tcg_op, rn, pass, MO_16);
 
         switch (fpop) {
+        case 0x2a: /* FCVTPS */
+            gen_helper_advsimd_f16tosinth(tcg_res, tcg_op, tcg_fpstatus);
+            break;
         case 0x28: /* FRINTP */
             gen_helper_advsimd_rinth(tcg_res, tcg_op, tcg_fpstatus);
             break;
