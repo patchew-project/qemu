@@ -3489,6 +3489,27 @@ static float16 roundAndPackFloat16(flag zSign, int zExp,
 }
 
 /*----------------------------------------------------------------------------
+| Takes an abstract floating-point value having sign `zSign', exponent `zExp',
+| and significand `zSig', and returns the proper single-precision floating-
+| point value corresponding to the abstract input.  This routine is just like
+| `roundAndPackFloat32' except that `zSig' does not have to be normalized.
+| Bit 15 of `zSig' must be zero, and `zExp' must be 1 less than the ``true''
+| floating-point exponent.
+*----------------------------------------------------------------------------*/
+
+static float16
+ normalizeRoundAndPackFloat16(flag zSign, int zExp, uint16_t zSig,
+                              float_status *status)
+{
+    int8_t shiftCount;
+
+    shiftCount = countLeadingZeros16( zSig ) - 1;
+    return roundAndPackFloat16(zSign, zExp - shiftCount, zSig<<shiftCount,
+                               true, status);
+
+}
+
+/*----------------------------------------------------------------------------
 | If `a' is denormal and we are in flush-to-zero mode then set the
 | input-denormal exception and return zero. Otherwise just return the value.
 *----------------------------------------------------------------------------*/

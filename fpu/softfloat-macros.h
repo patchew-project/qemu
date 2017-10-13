@@ -89,6 +89,31 @@ this code that are retained.
 # define SOFTFLOAT_GNUC_PREREQ(maj, min) 0
 #endif
 
+/*----------------------------------------------------------------------------
+| Shifts `a' right by the number of bits given in `count'.  If any nonzero
+| bits are shifted off, they are ``jammed'' into the least significant bit of
+| the result by setting the least significant bit to 1.  The value of `count'
+| can be arbitrarily large; in particular, if `count' is greater than 16, the
+| result will be either 0 or 1, depending on whether `a' is zero or nonzero.
+| The result is stored in the location pointed to by `zPtr'.
+*----------------------------------------------------------------------------*/
+
+static inline void shift16RightJamming(uint16_t a, int count, uint16_t *zPtr)
+{
+    uint16_t z;
+
+    if ( count == 0 ) {
+        z = a;
+    }
+    else if ( count < 16 ) {
+        z = ( a>>count ) | ( ( a<<( ( - count ) & 16 ) ) != 0 );
+    }
+    else {
+        z = ( a != 0 );
+    }
+    *zPtr = z;
+
+}
 
 /*----------------------------------------------------------------------------
 | Shifts `a' right by the number of bits given in `count'.  If any nonzero
@@ -662,6 +687,20 @@ static uint32_t estimateSqrt32(int aExp, uint32_t a)
     }
     return ( (uint32_t) ( ( ( (uint64_t) a )<<31 ) / z ) ) + ( z>>1 );
 
+}
+
+/*----------------------------------------------------------------------------
+| Returns the number of leading 0 bits before the most-significant 1 bit of
+| `a'.  If `a' is zero, 16 is returned.
+*----------------------------------------------------------------------------*/
+
+static int8_t countLeadingZeros16( uint16_t a )
+{
+    if (a) {
+        return __builtin_clz(a);
+    } else {
+        return 16;
+    }
 }
 
 /*----------------------------------------------------------------------------
