@@ -729,6 +729,58 @@ static float16 propagateFloat16NaN(float16 a, float16 b, float_status *status)
 }
 
 /*----------------------------------------------------------------------------
+| Takes three half-precision floating-point values `a', `b' and `c', one of
+| which is a NaN, and returns the appropriate NaN result.  If any of  `a',
+| `b' or `c' is a signaling NaN, the invalid exception is raised.
+| The input infzero indicates whether a*b was 0*inf or inf*0 (in which case
+| obviously c is a NaN, and whether to propagate c or some other NaN is
+| implementation defined).
+*----------------------------------------------------------------------------*/
+
+static float16 propagateFloat16MulAddNaN(float16 a, float16 b,
+                                         float16 c, flag infzero,
+                                         float_status *status)
+{
+    flag aIsQuietNaN, aIsSignalingNaN, bIsQuietNaN, bIsSignalingNaN,
+        cIsQuietNaN, cIsSignalingNaN;
+    int which;
+
+    aIsQuietNaN = float16_is_quiet_nan(a, status);
+    aIsSignalingNaN = float16_is_signaling_nan(a, status);
+    bIsQuietNaN = float16_is_quiet_nan(b, status);
+    bIsSignalingNaN = float16_is_signaling_nan(b, status);
+    cIsQuietNaN = float16_is_quiet_nan(c, status);
+    cIsSignalingNaN = float16_is_signaling_nan(c, status);
+
+    if (aIsSignalingNaN | bIsSignalingNaN | cIsSignalingNaN) {
+        float_raise(float_flag_invalid, status);
+    }
+
+    which = pickNaNMulAdd(aIsQuietNaN, aIsSignalingNaN,
+                          bIsQuietNaN, bIsSignalingNaN,
+                          cIsQuietNaN, cIsSignalingNaN, infzero, status);
+
+    if (status->default_nan_mode) {
+        /* Note that this check is after pickNaNMulAdd so that function
+         * has an opportunity to set the Invalid flag.
+         */
+        return float16_default_nan(status);
+    }
+
+    switch (which) {
+    case 0:
+        return float16_maybe_silence_nan(a, status);
+    case 1:
+        return float16_maybe_silence_nan(b, status);
+    case 2:
+        return float16_maybe_silence_nan(c, status);
+    case 3:
+    default:
+        return float16_default_nan(status);
+    }
+}
+
+/*----------------------------------------------------------------------------
 | Takes two single-precision floating-point values `a' and `b', one of which
 | is a NaN, and returns the appropriate NaN result.  If either `a' or `b' is a
 | signaling NaN, the invalid exception is raised.
