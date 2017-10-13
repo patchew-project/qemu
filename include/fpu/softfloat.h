@@ -338,6 +338,7 @@ static inline float64 uint16_to_float64(uint16_t v, float_status *status)
 | Software half-precision conversion routines.
 *----------------------------------------------------------------------------*/
 float16 float32_to_float16(float32, flag, float_status *status);
+int16_t float16_to_int16(float32 a, float_status *status);
 float32 float16_to_float32(float16, flag, float_status *status);
 float16 float64_to_float16(float64 a, flag ieee, float_status *status);
 float64 float16_to_float64(float16 a, flag ieee, float_status *status);

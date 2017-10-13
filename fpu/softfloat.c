@@ -133,6 +133,62 @@ static inline flag extractFloat16Sign(float16 a)
 }
 
 /*----------------------------------------------------------------------------
+| Takes a 32-bit fixed-point value `absZ' with binary point between bits 6
+| and 7, and returns the properly rounded 16-bit integer corresponding to the
+| input.  If `zSign' is 1, the input is negated before being converted to an
+| integer.  Bit 31 of `absZ' must be zero.  Ordinarily, the fixed-point input
+| is simply rounded to an integer, with the inexact exception raised if the
+| input cannot be represented exactly as an integer.  However, if the fixed-
+| point input is too large, the invalid exception is raised and the largest
+| positive or negative integer is returned.
+*----------------------------------------------------------------------------*/
+
+static int16_t roundAndPackInt16(flag zSign, uint32_t absZ, float_status *status)
+{
+    int8_t roundingMode;
+    flag roundNearestEven;
+    int8_t roundIncrement, roundBits;
+    int16_t z;
+
+    roundingMode = status->float_rounding_mode;
+    roundNearestEven = ( roundingMode == float_round_nearest_even );
+
+    switch (roundingMode) {
+    case float_round_nearest_even:
+    case float_round_ties_away:
+        roundIncrement = 0x40;
+        break;
+    case float_round_to_zero:
+        roundIncrement = 0;
+        break;
+    case float_round_up:
+        roundIncrement = zSign ? 0 : 0x7f;
+        break;
+    case float_round_down:
+        roundIncrement = zSign ? 0x7f : 0;
+        break;
+    default:
+        abort();
+    }
+    roundBits = absZ & 0x7F;
+
+    absZ = ( absZ + roundIncrement )>>7;
+    absZ &= ~ ( ( ( roundBits ^ 0x40 ) == 0 ) & roundNearestEven );
+    z = absZ;
+    if ( zSign ) z = - z;
+
+    if ( ( absZ>>16 ) || ( z && ( ( z < 0 ) ^ zSign ) ) ) {
+        float_raise(float_flag_invalid, status);
+        return zSign ? (int16_t) 0x8000 : 0x7FFF;
+    }
+    if (roundBits) {
+        status->float_exception_flags |= float_flag_inexact;
+    }
+    return z;
+
+}
+
+/*----------------------------------------------------------------------------
 | Takes a 64-bit fixed-point value `absZ' with binary point between bits 6
 | and 7, and returns the properly rounded 32-bit integer corresponding to the
 | input.  If `zSign' is 1, the input is negated before being converted to an
@@ -4507,6 +4563,48 @@ int float16_unordered_quiet(float16 a, float16 b, float_status *status)
         return 1;
     }
     return 0;
+}
+
+/*----------------------------------------------------------------------------
+| Returns the result of converting the half-precision floating-point value
+| `a' to the 16-bit two's complement integer format.  The conversion is
+| performed according to the IEC/IEEE Standard for Binary Floating-Point
+| Arithmetic---which means in particular that the conversion is rounded
+| according to the current rounding mode.  If `a' is a NaN, the largest
+| positive integer is returned.  Otherwise, if the conversion overflows, the
+| largest integer with the same sign as `a' is returned.
+*----------------------------------------------------------------------------*/
+
+int16_t float16_to_int16(float32 a, float_status *status)
+{
+    flag aSign;
+    int aExp;
+    uint32_t aSig;
+
+    a = float16_squash_input_denormal(a, status);
+    aSig = extractFloat16Frac( a );
+    aExp = extractFloat16Exp( a );
+    aSign = extractFloat16Sign( a );
+    if ( ( aExp == 0x1F ) && aSig ) aSign = 0;
+    if ( aExp ) aSig |= 0x0400; /* implicit bit */
+
+    /* At this point the binary point is between 10:9, we need to
+     * shift the significand it up by the +ve exponent to get the
+     * integer and then move the binary point down to the  7:6 for
+     * the final roundAnPackInt16.
+     *
+     * Even with the maximum +ve shift everything happily fits in the
+     * 32 bit aSig.
+     */
+    aExp -= 15; /* exp bias */
+    if (aExp >= 3) {
+        aSig <<= aExp - 3;
+    } else {
+        /* ensure small numbers still get rounded */
+        shift32RightJamming( aSig, 3 - aExp, &aSig );
+    }
+
+    return roundAndPackInt16(aSign, aSig, status);
 }
 
 /* Half precision floats come in two formats: standard IEEE and "ARM" format.
