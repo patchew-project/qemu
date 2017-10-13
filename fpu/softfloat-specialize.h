@@ -686,6 +686,49 @@ static int pickNaNMulAdd(flag aIsQNaN, flag aIsSNaN, flag bIsQNaN, flag bIsSNaN,
 #endif
 
 /*----------------------------------------------------------------------------
+| Takes two half-precision floating-point values `a' and `b', one of which
+| is a NaN, and returns the appropriate NaN result.  If either `a' or `b' is a
+| signaling NaN, the invalid exception is raised.
+*----------------------------------------------------------------------------*/
+
+static float16 propagateFloat16NaN(float16 a, float16 b, float_status *status)
+{
+    flag aIsQuietNaN, aIsSignalingNaN, bIsQuietNaN, bIsSignalingNaN;
+    flag aIsLargerSignificand;
+    uint16_t av, bv;
+
+    aIsQuietNaN = float16_is_quiet_nan(a, status);
+    aIsSignalingNaN = float16_is_signaling_nan(a, status);
+    bIsQuietNaN = float16_is_quiet_nan(b, status);
+    bIsSignalingNaN = float16_is_signaling_nan(b, status);
+    av = float16_val(a);
+    bv = float16_val(b);
+
+    if (aIsSignalingNaN | bIsSignalingNaN) {
+        float_raise(float_flag_invalid, status);
+    }
+
+    if (status->default_nan_mode) {
+        return float16_default_nan(status);
+    }
+
+    if ((uint16_t)(av << 1) < (uint16_t)(bv << 1)) {
+        aIsLargerSignificand = 0;
+    } else if ((uint16_t)(bv << 1) < (uint16_t)(av << 1)) {
+        aIsLargerSignificand = 1;
+    } else {
+        aIsLargerSignificand = (av < bv) ? 1 : 0;
+    }
+
+    if (pickNaN(aIsQuietNaN, aIsSignalingNaN, bIsQuietNaN, bIsSignalingNaN,
+                aIsLargerSignificand)) {
+        return float16_maybe_silence_nan(b, status);
+    } else {
+        return float16_maybe_silence_nan(a, status);
+    }
+}
+
+/*----------------------------------------------------------------------------
 | Takes two single-precision floating-point values `a' and `b', one of which
 | is a NaN, and returns the appropriate NaN result.  If either `a' or `b' is a
 | signaling NaN, the invalid exception is raised.
