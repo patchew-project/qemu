@@ -7579,6 +7579,7 @@ int float ## s ## _compare_quiet(float ## s a, float ## s b,                 \
     return float ## s ## _compare_internal(a, b, 1, status);                 \
 }
 
+COMPARE(16, 0x1f)
 COMPARE(32, 0xff)
 COMPARE(64, 0x7ff)
 
@@ -7779,6 +7780,7 @@ float ## s float ## s ## _maxnummag(float ## s a, float ## s b,         \
     return float ## s ## _minmax(a, b, 0, 1, 1, status);                \
 }
 
+MINMAX(16)
 MINMAX(32)
 MINMAX(64)
 
