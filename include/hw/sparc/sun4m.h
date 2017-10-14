@@ -5,6 +5,8 @@
 #include "exec/hwaddr.h"
 #include "qapi/qmp/types.h"
 #include "hw/sysbus.h"
+#include "net/net.h"
+#include "hw/net/pcnet.h"
 
 /* Devices used by sparc32 system.  */
 
@@ -39,6 +41,17 @@ static inline void sparc_iommu_memory_write(void *opaque,
 {
     sparc_iommu_memory_rw(opaque, addr, buf, len, 1);
 }
+
+/* lance.c */
+#define TYPE_LANCE "lance"
+#define SYSBUS_PCNET(obj) \
+    OBJECT_CHECK(SysBusPCNetState, (obj), TYPE_LANCE)
+
+typedef struct {
+    SysBusDevice parent_obj;
+
+    PCNetState state;
+} SysBusPCNetState;
 
 /* sparc32_dma.c */
 #include "hw/sparc/sparc32_dma.h"
