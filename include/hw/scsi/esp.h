@@ -52,6 +52,19 @@ struct ESPState {
     void (*dma_cb)(ESPState *s);
 };
 
+#define TYPE_ESP "esp"
+#define ESP_STATE(obj) OBJECT_CHECK(SysBusESPState, (obj), TYPE_ESP)
+
+typedef struct {
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
+    MemoryRegion iomem;
+    uint32_t it_shift;
+    ESPState esp;
+} SysBusESPState;
+
 #define ESP_TCLO   0x0
 #define ESP_TCMID  0x1
 #define ESP_FIFO   0x2
