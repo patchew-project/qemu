@@ -159,12 +159,6 @@ static uint64_t dma_mem_read(void *opaque, hwaddr addr,
     DMADeviceState *s = opaque;
     uint32_t saddr;
 
-    if (s->is_ledma && (addr > DMA_MAX_REG_OFFSET)) {
-        /* aliased to espdma, but we can't get there from here */
-        /* buggy driver if using undocumented behavior, just return 0 */
-        trace_sparc32_dma_mem_readl(addr, 0);
-        return 0;
-    }
     saddr = (addr & DMA_MASK) >> 2;
     trace_sparc32_dma_mem_readl(addr, s->dmaregs[saddr]);
     return s->dmaregs[saddr];
@@ -176,11 +170,6 @@ static void dma_mem_write(void *opaque, hwaddr addr,
     DMADeviceState *s = opaque;
     uint32_t saddr;
 
-    if (s->is_ledma && (addr > DMA_MAX_REG_OFFSET)) {
-        /* aliased to espdma, but we can't get there from here */
-        trace_sparc32_dma_mem_writel(addr, 0, val);
-        return;
-    }
     saddr = (addr & DMA_MASK) >> 2;
     trace_sparc32_dma_mem_writel(addr, s->dmaregs[saddr], val);
     switch (saddr) {
@@ -295,7 +284,6 @@ static void sparc32_espdma_device_init(Object *obj)
 
     memory_region_init_io(&s->iomem, OBJECT(s), &dma_mem_ops, s,
                           "espdma-mmio", DMA_SIZE);
-    s->is_ledma = 0;
 }
 
 static void sparc32_espdma_device_realize(DeviceState *dev, Error **errp)
@@ -336,8 +324,7 @@ static void sparc32_ledma_device_init(Object *obj)
     DMADeviceState *s = SPARC32_DMA_DEVICE(obj);
 
     memory_region_init_io(&s->iomem, OBJECT(s), &dma_mem_ops, s,
-                          "ledma-mmio", DMA_ETH_SIZE);
-    s->is_ledma = 1;
+                          "ledma-mmio", DMA_SIZE);
 }
 
 static void sparc32_ledma_device_realize(DeviceState *dev, Error **errp)
@@ -410,6 +397,11 @@ static void sparc32_dma_realize(DeviceState *dev, Error **errp)
     sbd = SYS_BUS_DEVICE(ledma);
     memory_region_add_subregion(&s->dmamem, 0x10,
                                 sysbus_mmio_get_region(sbd, 0));
+
+    /* Add ledma alias to handle SunOS 5.7 - Solaris 9 invalid access bug */
+    memory_region_init_alias(&s->ledma_alias, OBJECT(dev), "ledma-alias",
+                             sysbus_mmio_get_region(sbd, 0), 0x4, 0x4);
+    memory_region_add_subregion(&s->dmamem, 0x20, &s->ledma_alias);
 }
 
 static void sparc32_dma_init(Object *obj)
