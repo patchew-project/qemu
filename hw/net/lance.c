@@ -45,15 +45,6 @@
 #include "trace.h"
 #include "sysemu/sysemu.h"
 
-#define TYPE_LANCE "lance"
-#define SYSBUS_PCNET(obj) \
-    OBJECT_CHECK(SysBusPCNetState, (obj), TYPE_LANCE)
-
-typedef struct {
-    SysBusDevice parent_obj;
-
-    PCNetState state;
-} SysBusPCNetState;
 
 static void parent_lance_reset(void *opaque, int irq, int level)
 {
