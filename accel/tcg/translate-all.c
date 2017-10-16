@@ -1463,14 +1463,12 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
                                    int is_cpu_write_access)
 {
     TranslationBlock *tb, *tb_next;
-#if defined(TARGET_HAS_PRECISE_SMC)
-    CPUState *cpu = current_cpu;
-    CPUArchState *env = NULL;
-#endif
     tb_page_addr_t tb_start, tb_end;
     PageDesc *p;
     int n;
 #ifdef TARGET_HAS_PRECISE_SMC
+    CPUState *cpu = current_cpu;
+    CPUArchState *env = NULL;
     int current_tb_not_found = is_cpu_write_access;
     TranslationBlock *current_tb = NULL;
     int current_tb_modified = 0;
@@ -1547,11 +1545,7 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
 #endif
 #ifdef TARGET_HAS_PRECISE_SMC
     if (current_tb_modified) {
-        /* we generate a block containing just the instruction
-           modifying the memory. It will ensure that it cannot modify
-           itself */
-        tb_gen_code(cpu, current_pc, current_cs_base, current_flags,
-                    1 | curr_cflags());
+        cpu->step_next_tb = true;
         cpu_loop_exit_noexc(cpu);
     }
 #endif
@@ -1666,11 +1660,7 @@ static bool tb_invalidate_phys_page(tb_page_addr_t addr, uintptr_t pc)
     p->first_tb = NULL;
 #ifdef TARGET_HAS_PRECISE_SMC
     if (current_tb_modified) {
-        /* we generate a block containing just the instruction
-           modifying the memory. It will ensure that it cannot modify
-           itself */
-        tb_gen_code(cpu, current_pc, current_cs_base, current_flags,
-                    1 | curr_cflags());
+        cpu->step_next_tb = true;
         /* tb_lock will be reset after cpu_loop_exit_noexc longjmps
          * back into the cpu_exec loop. */
         return true;
