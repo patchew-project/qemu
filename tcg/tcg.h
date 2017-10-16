@@ -734,11 +734,16 @@ struct TCGContext {
 extern TCGContext tcg_ctx;
 extern bool parallel_cpus;
 
-static inline TCGArg temp_arg(TCGTemp *ts)
+static inline size_t temp_idx(TCGTemp *ts)
 {
     ptrdiff_t n = ts - tcg_ctx.temps;
     tcg_debug_assert(n >= 0 && n < tcg_ctx.nb_temps);
     return n;
+}
+
+static inline TCGArg temp_arg(TCGTemp *ts)
+{
+    return temp_idx(ts);
 }
 
 static inline TCGTemp *arg_temp(TCGArg a)
