@@ -5862,9 +5862,8 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock * tb)
 #endif
 }
 
-void gen_intermediate_code_init(CPUSPARCState *env)
+void sparc_tcg_init(void)
 {
-    static int inited;
     static const char gregnames[32][4] = {
         "g0", "g1", "g2", "g3", "g4", "g5", "g6", "g7",
         "o0", "o1", "o2", "o3", "o4", "o5", "o6", "o7",
@@ -5916,12 +5915,6 @@ void gen_intermediate_code_init(CPUSPARCState *env)
     };
 
     unsigned int i;
-
-    /* init various static tables */
-    if (inited) {
-        return;
-    }
-    inited = 1;
 
     cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
     tcg_ctx.tcg_env = cpu_env;
