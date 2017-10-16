@@ -5772,7 +5772,7 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock * tb)
 #endif
 
     num_insns = 0;
-    max_insns = tb->cflags & CF_COUNT_MASK;
+    max_insns = tb_cflags(tb) & CF_COUNT_MASK;
     if (max_insns == 0) {
         max_insns = CF_COUNT_MASK;
     }
@@ -5801,7 +5801,7 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock * tb)
             goto exit_gen_loop;
         }
 
-        if (num_insns == max_insns && (tb->cflags & CF_LAST_IO)) {
+        if (num_insns == max_insns && (tb_cflags(tb) & CF_LAST_IO)) {
             gen_io_start();
         }
 
@@ -5828,7 +5828,7 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock * tb)
              num_insns < max_insns);
 
  exit_gen_loop:
-    if (tb->cflags & CF_LAST_IO) {
+    if (tb_cflags(tb) & CF_LAST_IO) {
         gen_io_end();
     }
     if (!dc->is_br) {
