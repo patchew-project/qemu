@@ -1656,6 +1656,46 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
     return H_SUCCESS;
 }
 
+static target_ulong h_update_dt(PowerPCCPU *cpu, sPAPRMachineState *spapr,
+                                target_ulong opcode, target_ulong *args)
+{
+    target_ulong dt = ppc64_phys_to_real(args[0]);
+    struct fdt_header hdr = { 0 };
+    unsigned cb;
+    sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
+
+    cpu_physical_memory_read(dt, &hdr, sizeof(hdr));
+    cb = fdt32_to_cpu(hdr.totalsize);
+
+    if (fdt_check_header(&hdr) ||
+        fdt32_to_cpu(hdr.boot_cpuid_phys) ||
+        fdt32_to_cpu(hdr.off_dt_struct) >= cb ||
+        fdt32_to_cpu(hdr.off_dt_strings) >= cb ||
+        fdt32_to_cpu(hdr.off_mem_rsvmap) >= cb ||
+        fdt32_to_cpu(hdr.totalsize) != fdt32_to_cpu(hdr.size_dt_strings) +
+                fdt32_to_cpu(hdr.size_dt_struct) +
+                sizeof(struct fdt_reserve_entry) +
+                sizeof(hdr) ||
+        cb / spapr->fdt_initial_size > 2) {
+        trace_spapr_update_dt_failed(spapr->fdt_initial_size, cb,
+            fdt32_to_cpu(hdr.magic));
+        return H_PARAMETER;
+    }
+
+    if (!smc->update_dt_enabled) {
+        return H_SUCCESS;
+    }
+
+    g_free(spapr->fdt_blob);
+    spapr->fdt_size = cb;
+    spapr->fdt_blob = g_malloc0(cb);
+    cpu_physical_memory_read(dt, spapr->fdt_blob, cb);
+
+    trace_spapr_update_dt(cb);
+
+    return H_SUCCESS;
+}
+
 static spapr_hcall_fn papr_hypercall_table[(MAX_HCALL_OPCODE / 4) + 1];
 static spapr_hcall_fn kvmppc_hypercall_table[KVMPPC_HCALL_MAX - KVMPPC_HCALL_BASE + 1];
 
@@ -1753,6 +1793,8 @@ static void hypercall_register_types(void)
 
     /* ibm,client-architecture-support support */
     spapr_register_hypercall(KVMPPC_H_CAS, h_client_architecture_support);
+
+    spapr_register_hypercall(KVMPPC_H_UPDATE_DT, h_update_dt);
 }
 
 type_init(hypercall_register_types)
