@@ -1075,6 +1075,8 @@ static void migrate_fd_cleanup(void *opaque)
 
     notifier_list_notify(&migration_state_notifiers, s);
     block_cleanup_parameters(s);
+
+    qemu_sem_destroy(&s->postcopy_pause_sem);
 }
 
 void migrate_fd_error(MigrationState *s, const Error *error)
@@ -1218,6 +1220,7 @@ MigrationState *migrate_init(void)
     s->migration_thread_running = false;
     error_free(s->error);
     s->error = NULL;
+    qemu_sem_init(&s->postcopy_pause_sem, 0);
 
     migrate_set_state(&s->state, MIGRATION_STATUS_NONE, MIGRATION_STATUS_SETUP);
 
@@ -2060,6 +2063,80 @@ bool migrate_colo_enabled(void)
     return s->enabled_capabilities[MIGRATION_CAPABILITY_X_COLO];
 }
 
+typedef enum MigThrError {
+    /* No error detected */
+    MIG_THR_ERR_NONE = 0,
+    /* Detected error, but resumed successfully */
+    MIG_THR_ERR_RECOVERED = 1,
+    /* Detected fatal error, need to exit */
+    MIG_THR_ERR_FATAL = 2,
+} MigThrError;
+
+/*
+ * We don't return until we are in a safe state to continue current
+ * postcopy migration.  Returns MIG_THR_ERR_RECOVERED if recovered, or
+ * MIG_THR_ERR_FATAL if unrecovery failure happened.
+ */
+static MigThrError postcopy_pause(MigrationState *s)
+{
+    assert(s->state == MIGRATION_STATUS_POSTCOPY_ACTIVE);
+    migrate_set_state(&s->state, MIGRATION_STATUS_POSTCOPY_ACTIVE,
+                      MIGRATION_STATUS_POSTCOPY_PAUSED);
+
+    /* Current channel is possibly broken. Release it. */
+    assert(s->to_dst_file);
+    qemu_file_shutdown(s->to_dst_file);
+    qemu_fclose(s->to_dst_file);
+    s->to_dst_file = NULL;
+
+    error_report("Detected IO failure for postcopy. "
+                 "Migration paused.");
+
+    /*
+     * We wait until things fixed up. Then someone will setup the
+     * status back for us.
+     */
+    while (s->state == MIGRATION_STATUS_POSTCOPY_PAUSED) {
+        qemu_sem_wait(&s->postcopy_pause_sem);
+    }
+
+    trace_postcopy_pause_continued();
+
+    return MIG_THR_ERR_RECOVERED;
+}
+
+static MigThrError migration_detect_error(MigrationState *s)
+{
+    int ret;
+
+    /* Try to detect any file errors */
+    ret = qemu_file_get_error(s->to_dst_file);
+
+    if (!ret) {
+        /* Everything is fine */
+        return MIG_THR_ERR_NONE;
+    }
+
+    if (s->state == MIGRATION_STATUS_POSTCOPY_ACTIVE && ret == -EIO) {
+        /*
+         * For postcopy, we allow the network to be down for a
+         * while. After that, it can be continued by a
+         * recovery phase.
+         */
+        return postcopy_pause(s);
+    } else {
+        /*
+         * For precopy (or postcopy with error outside IO), we fail
+         * with no time.
+         */
+        migrate_set_state(&s->state, s->state, MIGRATION_STATUS_FAILED);
+        trace_migration_thread_file_err();
+
+        /* Time to stop the migration, now. */
+        return MIG_THR_ERR_FATAL;
+    }
+}
+
 /*
  * Master migration thread on the source VM.
  * It drives the migration and pumps the data down the outgoing channel.
@@ -2084,6 +2161,7 @@ static void *migration_thread(void *opaque)
     /* The active state we expect to be in; ACTIVE or POSTCOPY_ACTIVE */
     enum MigrationStatus current_active_state = MIGRATION_STATUS_ACTIVE;
     bool enable_colo = migrate_colo_enabled();
+    MigThrError thr_error;
 
     rcu_register_thread();
 
@@ -2156,12 +2234,24 @@ static void *migration_thread(void *opaque)
             }
         }
 
-        if (qemu_file_get_error(s->to_dst_file)) {
-            migrate_set_state(&s->state, current_active_state,
-                              MIGRATION_STATUS_FAILED);
-            trace_migration_thread_file_err();
+        /*
+         * Try to detect any kind of failures, and see whether we
+         * should stop the migration now.
+         */
+        thr_error = migration_detect_error(s);
+        if (thr_error == MIG_THR_ERR_FATAL) {
+            /* Stop migration */
             break;
+        } else if (thr_error == MIG_THR_ERR_RECOVERED) {
+            /*
+             * Just recovered from a e.g. network failure, reset all
+             * the local variables. This is important to avoid
+             * breaking transferred_bytes and bandwidth calculation
+             */
+            initial_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+            initial_bytes = 0;
         }
+
         current_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
         if (current_time >= initial_time + BUFFER_DELAY) {
             uint64_t transferred_bytes = qemu_ftell(s->to_dst_file) -
