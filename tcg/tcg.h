@@ -741,24 +741,29 @@ static inline size_t temp_idx(TCGTemp *ts)
     return n;
 }
 
+static inline TCGTemp *idx_temp(size_t n)
+{
+    return n == TCG_CALL_DUMMY_ARG ? NULL : &tcg_ctx.temps[n];
+}
+
 static inline TCGArg temp_arg(TCGTemp *ts)
 {
-    return temp_idx(ts);
+    return (uintptr_t)ts;
 }
 
 static inline TCGTemp *arg_temp(TCGArg a)
 {
-    return a == TCG_CALL_DUMMY_ARG ? NULL : &tcg_ctx.temps[a];
+    return (TCGTemp *)a;
 }
 
 static inline size_t arg_index(TCGArg a)
 {
-    return a;
+    return temp_idx(arg_temp(a));
 }
 
 static inline TCGArg index_arg(size_t n)
 {
-    return n;
+    return temp_arg(idx_temp(n));
 }
 
 static inline TCGArg tcgv_i32_arg(TCGv_i32 t)
