@@ -471,13 +471,13 @@ static inline intptr_t QEMU_ARTIFICIAL GET_TCGV_PTR(TCGv_ptr t)
 #define TCGV_EQUAL_PTR(a, b) (GET_TCGV_PTR(a) == GET_TCGV_PTR(b))
 
 /* Dummy definition to avoid compiler warnings.  */
-#define TCGV_UNUSED_I32(x) x = MAKE_TCGV_I32(-1)
-#define TCGV_UNUSED_I64(x) x = MAKE_TCGV_I64(-1)
-#define TCGV_UNUSED_PTR(x) x = MAKE_TCGV_PTR(-1)
+#define TCGV_UNUSED_I32(x) ((x) = NULL)
+#define TCGV_UNUSED_I64(x) ((x) = NULL)
+#define TCGV_UNUSED_PTR(x) ((x) = NULL)
 
-#define TCGV_IS_UNUSED_I32(x) (GET_TCGV_I32(x) == -1)
-#define TCGV_IS_UNUSED_I64(x) (GET_TCGV_I64(x) == -1)
-#define TCGV_IS_UNUSED_PTR(x) (GET_TCGV_PTR(x) == -1)
+#define TCGV_IS_UNUSED_I32(x) (GET_TCGV_I32(x) == 0)
+#define TCGV_IS_UNUSED_I64(x) (GET_TCGV_I64(x) == 0)
+#define TCGV_IS_UNUSED_PTR(x) (GET_TCGV_PTR(x) == 0)
 
 /* call flags */
 /* Helper does not read globals (either directly or through an exception). It
@@ -496,7 +496,7 @@ static inline intptr_t QEMU_ARTIFICIAL GET_TCGV_PTR(TCGv_ptr t)
 #define TCG_CALL_NO_WG_SE       (TCG_CALL_NO_WG | TCG_CALL_NO_SE)
 
 /* used to align parameters */
-#define TCG_CALL_DUMMY_ARG      ((TCGArg)(-1))
+#define TCG_CALL_DUMMY_ARG      ((TCGArg)0)
 
 /* Conditions.  Note that these are laid out for easy manipulation by
    the functions below:
@@ -737,7 +737,7 @@ extern bool parallel_cpus;
 static inline size_t temp_idx(TCGTemp *ts)
 {
     ptrdiff_t n = ts - tcg_ctx.temps;
-    tcg_debug_assert(n >= 0 && n < tcg_ctx.nb_temps);
+    tcg_debug_assert(n > 0 && n < tcg_ctx.nb_temps);
     return n;
 }
 

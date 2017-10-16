@@ -333,7 +333,10 @@ void tcg_context_init(TCGContext *s)
     int *sorted_args;
 
     memset(s, 0, sizeof(*s));
-    s->nb_globals = 0;
+    /* Reserve temp index 0 so that, with the funny casting that we do,
+       the first one doesn't look like NULL.  */
+    s->nb_globals = 1;
+    s->nb_temps = 1;
 
     /* Count total number of arguments and allocate the corresponding
        space */
