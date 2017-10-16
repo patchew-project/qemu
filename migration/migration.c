@@ -176,6 +176,17 @@ void migration_incoming_state_destroy(void)
     qemu_event_reset(&mis->main_thread_load_event);
 }
 
+static bool migrate_incoming_detach_listen(MigrationIncomingState *mis)
+{
+    if (mis->listen_task_tag) {
+        /* Never fail */
+        g_source_remove(mis->listen_task_tag);
+        mis->listen_task_tag = 0;
+        return true;
+    }
+    return false;
+}
+
 static void migrate_generate_event(int new_state)
 {
     if (migrate_use_events()) {
@@ -460,10 +471,9 @@ void migration_fd_process_incoming(QEMUFile *f)
 
     /*
      * When reach here, we should not need the listening port any
-     * more. We'll detach the listening task soon, let's reset the
-     * listen task tag.
+     * more.  Detach the listening port explicitly.
      */
-    mis->listen_task_tag = 0;
+    migrate_incoming_detach_listen(mis);
 }
 
 void migration_ioc_process_incoming(QIOChannel *ioc)
@@ -1373,13 +1383,35 @@ void qmp_migrate_incoming(const char *uri, Error **errp)
 {
     Error *local_err = NULL;
     static bool once = true;
+    MigrationIncomingState *mis = migration_incoming_get_current();
 
-    if (!deferred_incoming) {
-        error_setg(errp, "For use with '-incoming defer'");
-        return;
-    }
-    if (!once) {
-        error_setg(errp, "The incoming migration has already been started");
+    if (mis->state == MIGRATION_STATUS_POSTCOPY_PAUSED &&
+        mis->listen_task_tag == 0) {
+        /*
+         * We are in postcopy-paused state, and we don't have
+         * listening port.  It's very possible that the old listening
+         * port is already gone, so we allow to create a new one.
+         *
+         * NOTE: RDMA migration currently does not really use
+         * listen_task_tag for now, so even if listen_task_tag is
+         * zero, RDMA can still have its accept port listening.
+         * However, RDMA is not supported by postcopy at all (yet), so
+         * we are safe here.
+         */
+        trace_migrate_incoming_recover();
+    } else if (deferred_incoming) {
+        /*
+         * We don't need recovery, but we possibly has a deferred
+         * incoming parameter, this allows us to manually specify
+         * incoming port once.
+         */
+        if (!once) {
+            error_setg(errp, "The incoming migration has already been started");
+            return;
+        } else {
+            /* PASS */
+            trace_migrate_incoming_deferred();
+        }
     }
 
     qemu_start_incoming_migration(uri, &local_err);

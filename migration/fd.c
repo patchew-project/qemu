@@ -49,7 +49,7 @@ static gboolean fd_accept_incoming_migration(QIOChannel *ioc,
 {
     migration_channel_process_incoming(ioc);
     object_unref(OBJECT(ioc));
-    return G_SOURCE_REMOVE;
+    return G_SOURCE_CONTINUE;
 }
 
 /*
