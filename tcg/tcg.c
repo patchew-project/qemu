@@ -1941,7 +1941,7 @@ static bool liveness_pass_2(TCGContext *s, uint8_t *temp_state)
                     TCGOp *lop = tcg_op_insert_before(s, op, lopc, 3);
 
                     lop->args[0] = dir;
-                    lop->args[1] = temp_idx(s, its->mem_base);
+                    lop->args[1] = temp_arg(its->mem_base);
                     lop->args[2] = its->mem_offset;
 
                     /* Loaded, but synced with memory.  */
@@ -2012,7 +2012,7 @@ static bool liveness_pass_2(TCGContext *s, uint8_t *temp_state)
                 TCGOp *sop = tcg_op_insert_after(s, op, sopc, 3);
 
                 sop->args[0] = dir;
-                sop->args[1] = temp_idx(s, its->mem_base);
+                sop->args[1] = temp_arg(its->mem_base);
                 sop->args[2] = its->mem_offset;
 
                 temp_state[arg] = TS_MEM;
