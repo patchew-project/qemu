@@ -1053,7 +1053,7 @@ int monitor_set_cpu(int cpu_index)
 
 CPUState *mon_get_cpu(void)
 {
-    if (!cur_mon->mon_cpu) {
+    if (!cur_mon->mon_cpu || cur_mon->mon_cpu->unplug) {
         if (!first_cpu) {
             return NULL;
         }
