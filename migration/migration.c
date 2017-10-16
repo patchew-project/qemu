@@ -172,6 +172,7 @@ void migration_incoming_state_destroy(void)
         mis->from_src_file = NULL;
     }
 
+    mis->listen_task_tag = 0;
     qemu_event_reset(&mis->main_thread_load_event);
 }
 
@@ -266,25 +267,31 @@ int migrate_send_rp_req_pages(MigrationIncomingState *mis, const char *rbname,
 void qemu_start_incoming_migration(const char *uri, Error **errp)
 {
     const char *p;
+    guint task_tag = 0;
+    MigrationIncomingState *mis = migration_incoming_get_current();
 
     qapi_event_send_migration(MIGRATION_STATUS_SETUP, &error_abort);
     if (!strcmp(uri, "defer")) {
         deferred_incoming_migration(errp);
     } else if (strstart(uri, "tcp:", &p)) {
-        tcp_start_incoming_migration(p, errp);
+        task_tag = tcp_start_incoming_migration(p, errp);
 #ifdef CONFIG_RDMA
     } else if (strstart(uri, "rdma:", &p)) {
+        /* TODO: store task tag for RDMA migrations */
         rdma_start_incoming_migration(p, errp);
 #endif
     } else if (strstart(uri, "exec:", &p)) {
-        exec_start_incoming_migration(p, errp);
+        task_tag = exec_start_incoming_migration(p, errp);
     } else if (strstart(uri, "unix:", &p)) {
-        unix_start_incoming_migration(p, errp);
+        task_tag = unix_start_incoming_migration(p, errp);
     } else if (strstart(uri, "fd:", &p)) {
-        fd_start_incoming_migration(p, errp);
+        task_tag = fd_start_incoming_migration(p, errp);
     } else {
         error_setg(errp, "unknown migration protocol: %s", uri);
+        return;
     }
+
+    mis->listen_task_tag = task_tag;
 }
 
 static void process_incoming_migration_bh(void *opaque)
@@ -450,6 +457,13 @@ void migration_fd_process_incoming(QEMUFile *f)
         migration_incoming_setup(f);
         migration_incoming_process();
     }
+
+    /*
+     * When reach here, we should not need the listening port any
+     * more. We'll detach the listening task soon, let's reset the
+     * listen task tag.
+     */
+    mis->listen_task_tag = 0;
 }
 
 void migration_ioc_process_incoming(QIOChannel *ioc)

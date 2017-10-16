@@ -27,6 +27,8 @@
 /* State for the incoming migration */
 struct MigrationIncomingState {
     QEMUFile *from_src_file;
+    /* Task tag for incoming listen port. Valid when >0. */
+    guint listen_task_tag;
 
     /*
      * Free at the start of the main state load, set as the main thread finishes
