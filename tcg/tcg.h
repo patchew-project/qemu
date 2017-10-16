@@ -756,6 +756,26 @@ static inline size_t arg_index(TCGArg a)
     return a;
 }
 
+static inline TCGArg index_arg(size_t n)
+{
+    return n;
+}
+
+static inline TCGArg tcgv_i32_arg(TCGv_i32 t)
+{
+    return index_arg(GET_TCGV_I32(t));
+}
+
+static inline TCGArg tcgv_i64_arg(TCGv_i64 t)
+{
+    return index_arg(GET_TCGV_I64(t));
+}
+
+static inline TCGArg tcgv_ptr_arg(TCGv_ptr t)
+{
+    return index_arg(GET_TCGV_PTR(t));
+}
+
 static inline void tcg_set_insn_param(int op_idx, int arg, TCGArg v)
 {
     tcg_ctx.gen_op_buf[op_idx].args[arg] = v;

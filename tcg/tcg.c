@@ -1054,25 +1054,25 @@ void tcg_gen_callN(void *func, TCGArg ret, int nargs, TCGArg *args)
                two return temporaries, and reassemble below.  */
             retl = tcg_temp_new_i64();
             reth = tcg_temp_new_i64();
-            op->args[pi++] = GET_TCGV_I64(reth);
-            op->args[pi++] = GET_TCGV_I64(retl);
+            op->args[pi++] = tcgv_i64_arg(reth);
+            op->args[pi++] = tcgv_i64_arg(retl);
             nb_rets = 2;
         } else {
-            op->args[pi++] = ret;
+            op->args[pi++] = index_arg(ret);
             nb_rets = 1;
         }
 #else
         if (TCG_TARGET_REG_BITS < 64 && (sizemask & 1)) {
 #ifdef HOST_WORDS_BIGENDIAN
-            op->args[pi++] = ret + 1;
-            op->args[pi++] = ret;
+            op->args[pi++] = index_arg(ret + 1);
+            op->args[pi++] = index_arg(ret);
 #else
-            op->args[pi++] = ret;
-            op->args[pi++] = ret + 1;
+            op->args[pi++] = index_arg(ret);
+            op->args[pi++] = index_arg(ret + 1);
 #endif
             nb_rets = 2;
         } else {
-            op->args[pi++] = ret;
+            op->args[pi++] = index_arg(ret);
             nb_rets = 1;
         }
 #endif
@@ -1103,17 +1103,17 @@ void tcg_gen_callN(void *func, TCGArg ret, int nargs, TCGArg *args)
               have to get more complicated to differentiate between
               stack arguments and register arguments.  */
 #if defined(HOST_WORDS_BIGENDIAN) != defined(TCG_TARGET_STACK_GROWSUP)
-            op->args[pi++] = args[i] + 1;
-            op->args[pi++] = args[i];
+            op->args[pi++] = index_arg(args[i] + 1);
+            op->args[pi++] = index_arg(args[i]);
 #else
-            op->args[pi++] = args[i];
-            op->args[pi++] = args[i] + 1;
+            op->args[pi++] = index_arg(args[i]);
+            op->args[pi++] = index_arg(args[i] + 1);
 #endif
             real_args += 2;
             continue;
         }
 
-        op->args[pi++] = args[i];
+        op->args[pi++] = index_arg(args[i]);
         real_args++;
     }
     op->args[pi++] = (uintptr_t)func;
