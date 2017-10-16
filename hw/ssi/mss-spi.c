@@ -76,9 +76,10 @@
 #define C_BIGFIFO            (1 << 29)
 #define C_RESET              (1 << 31)
 
-#define FRAMESZ_MASK         0x1F
+#define FRAMESZ_MASK         0x3F
 #define FMCOUNT_MASK         0x00FFFF00
 #define FMCOUNT_SHIFT        8
+#define FRAMESZ_MAX          32
 
 static void txfifo_reset(MSSSpiState *s)
 {
@@ -106,8 +107,6 @@ static void set_fifodepth(MSSSpiState *s)
         s->fifo_depth = 16;
     } else if (size <= 32) {
         s->fifo_depth = 8;
-    } else {
-        s->fifo_depth = 4;
     }
 }
 
@@ -299,6 +298,9 @@ static void spi_write(void *opaque, hwaddr addr,
 
     case R_SPI_DFSIZE:
         if (s->enabled) {
+            break;
+        }
+        if ((value & FRAMESZ_MASK) > FRAMESZ_MAX) {
             break;
         }
         s->regs[R_SPI_DFSIZE] = value;
