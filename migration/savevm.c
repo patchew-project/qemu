@@ -1584,8 +1584,6 @@ static void *postcopy_ram_listen_thread(void *opaque)
     QEMUFile *f = mis->from_src_file;
     int load_res;
 
-    migrate_set_state(&mis->state, MIGRATION_STATUS_ACTIVE,
-                                   MIGRATION_STATUS_POSTCOPY_ACTIVE);
     qemu_sem_post(&mis->listen_thread_sem);
     trace_postcopy_ram_listen_thread_start();
 
@@ -1747,6 +1745,14 @@ static int loadvm_postcopy_handle_run(MigrationIncomingState *mis)
         error_report("CMD_POSTCOPY_RUN in wrong postcopy state (%d)", ps);
         return -1;
     }
+
+    /*
+     * Declare that we are in postcopy now.  We should already have
+     * all the device states loaded ready when reach here, and also
+     * the ram load thread running.
+     */
+    migrate_set_state(&mis->state, MIGRATION_STATUS_ACTIVE,
+                                   MIGRATION_STATUS_POSTCOPY_ACTIVE);
 
     data = g_new(HandleRunBhData, 1);
     data->bh = qemu_bh_new(loadvm_postcopy_handle_run_bh, data);
