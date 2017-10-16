@@ -162,8 +162,12 @@ out:
 }
 
 
-static void socket_start_incoming_migration(SocketAddress *saddr,
-                                            Error **errp)
+/*
+ * Returns the tag ID of the watch that is attached to global main
+ * loop (>0), or zero if failure detected.
+ */
+static guint socket_start_incoming_migration(SocketAddress *saddr,
+                                             Error **errp)
 {
     QIOChannelSocket *listen_ioc = qio_channel_socket_new();
 
@@ -172,30 +176,38 @@ static void socket_start_incoming_migration(SocketAddress *saddr,
 
     if (qio_channel_socket_listen_sync(listen_ioc, saddr, errp) < 0) {
         object_unref(OBJECT(listen_ioc));
-        return;
+        return 0;
     }
 
-    qio_channel_add_watch(QIO_CHANNEL(listen_ioc),
-                          G_IO_IN,
-                          socket_accept_incoming_migration,
-                          listen_ioc,
-                          (GDestroyNotify)object_unref);
+    return qio_channel_add_watch(QIO_CHANNEL(listen_ioc),
+                                 G_IO_IN,
+                                 socket_accept_incoming_migration,
+                                 listen_ioc,
+                                 (GDestroyNotify)object_unref);
 }
 
-void tcp_start_incoming_migration(const char *host_port, Error **errp)
+guint tcp_start_incoming_migration(const char *host_port, Error **errp)
 {
     Error *err = NULL;
     SocketAddress *saddr = tcp_build_address(host_port, &err);
+    guint tag = 0;
+
     if (!err) {
-        socket_start_incoming_migration(saddr, &err);
+        tag = socket_start_incoming_migration(saddr, &err);
     }
     error_propagate(errp, err);
     qapi_free_SocketAddress(saddr);
+
+    return tag;
 }
 
-void unix_start_incoming_migration(const char *path, Error **errp)
+guint unix_start_incoming_migration(const char *path, Error **errp)
 {
     SocketAddress *saddr = unix_build_address(path);
-    socket_start_incoming_migration(saddr, errp);
+    guint tag;
+
+    tag = socket_start_incoming_migration(saddr, errp);
     qapi_free_SocketAddress(saddr);
+
+    return tag;
 }
