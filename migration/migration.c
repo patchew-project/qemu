@@ -1426,6 +1426,24 @@ void qmp_migrate_incoming(const char *uri, Error **errp)
     once = false;
 }
 
+void qmp_migrate_pause(Error **errp)
+{
+    int ret;
+    MigrationState *ms = migrate_get_current();
+
+    if (ms->state != MIGRATION_STATUS_POSTCOPY_ACTIVE) {
+        error_setg(errp, "Migration pause is currently only allowed during"
+                   " an active postcopy phase.");
+        return;
+    }
+
+    ret = qemu_file_shutdown(ms->to_dst_file);
+
+    if (ret) {
+        error_setg(errp, "Failed to pause migration stream.");
+    }
+}
+
 bool migration_is_blocked(Error **errp)
 {
     if (qemu_savevm_state_blocked(errp)) {

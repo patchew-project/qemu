@@ -1028,6 +1028,28 @@
 { 'command': 'migrate-incoming', 'data': {'uri': 'str' } }
 
 ##
+# @migrate-pause:
+#
+# Pause an migration.  Currently it can only pause a postcopy
+# migration.  Pausing a precopy migration is not supported yet.
+#
+# It is mostly used as a manual way to trigger the postcopy paused
+# state when the network sockets hang due to some reason, so that we
+# can try a recovery afterward.
+#
+# Returns: nothing on success
+#
+# Since: 2.10
+#
+# Example:
+#
+# -> { "execute": "migrate-pause" }
+# <- { "return": {} }
+#
+##
+{ 'command': 'migrate-pause' }
+
+##
 # @xen-save-devices-state:
 #
 # Save the state of all devices to file. The RAM and the block devices
