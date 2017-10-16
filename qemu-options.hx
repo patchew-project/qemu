@@ -4173,7 +4173,7 @@ property must be set.  These objects are placed in the
 
 @table @option
 
-@item -object memory-backend-file,id=@var{id},size=@var{size},mem-path=@var{dir},share=@var{on|off},discard-data=@var{on|off}
+@item -object memory-backend-file,id=@var{id},size=@var{size},mem-path=@var{dir},share=@var{on|off},discard-data=@var{on|off},nopin=@var{on|off}
 
 Creates a memory file backend object, which can be used to back
 the guest RAM with huge pages. The @option{id} parameter is a
@@ -4191,6 +4191,10 @@ to avoid unnecessarily flushing data to the backing file.  Note
 that @option{discard-data} is only an optimization, and QEMU
 might not discard file contents if it aborts unexpectedly or is
 terminated using SIGKILL.
+Setting the @option{nopin} boolean option to @var{on} indicates
+that if the memory-backend-file is nvdimm or else, the memory
+pining can be disable during VFIO device hotplug. The default
+nopin is still off, which is same with previous value.
 
 @item -object rng-random,id=@var{id},filename=@var{/dev/random}
 
