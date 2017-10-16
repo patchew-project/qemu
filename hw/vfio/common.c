@@ -408,7 +408,8 @@ static void vfio_listener_region_add(MemoryListener *listener,
     void *vaddr;
     int ret;
     VFIOHostDMAWindow *hostwin;
-    bool hostwin_found;
+    bool hostwin_found, nopin;
+    Object *obj = section->mr->owner;
 
     if (vfio_listener_skipped_section(section)) {
         trace_vfio_listener_region_add_skip(
@@ -422,6 +423,15 @@ static void vfio_listener_region_add(MemoryListener *listener,
                  (section->offset_within_region & ~TARGET_PAGE_MASK))) {
         error_report("%s received unaligned region", __func__);
         return;
+    }
+
+    if (obj && object_dynamic_cast(obj, "memory-backend-file")) {
+        nopin = object_property_get_bool(obj, "nopin", NULL);
+        if (nopin) {
+            error_report("warning: If VFIO DMA still map to NVDIMM memory, "
+                         "the VM will crash");
+            return;
+        }
     }
 
     iova = TARGET_PAGE_ALIGN(section->offset_within_address_space);

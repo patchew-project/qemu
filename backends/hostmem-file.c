@@ -33,6 +33,7 @@ struct HostMemoryBackendFile {
 
     bool share;
     bool discard_data;
+    bool nopin;
     char *mem_path;
 };
 
@@ -128,6 +129,25 @@ static void file_backend_unparent(Object *obj)
     }
 }
 
+static bool file_memory_backend_get_nopin(Object *o, Error **errp)
+{
+    HostMemoryBackendFile *fb = MEMORY_BACKEND_FILE(o);
+
+    return fb->nopin;
+}
+
+static void file_memory_backend_set_nopin(Object *o, bool value, Error **errp)
+{
+    HostMemoryBackend *backend = MEMORY_BACKEND(o);
+    HostMemoryBackendFile *fb = MEMORY_BACKEND_FILE(o);
+
+    if (memory_region_size(&backend->mr)) {
+        error_setg(errp, "cannot change property value");
+        return;
+    }
+    fb->nopin = value;
+}
+
 static void
 file_backend_class_init(ObjectClass *oc, void *data)
 {
@@ -141,6 +161,9 @@ file_backend_class_init(ObjectClass *oc, void *data)
         &error_abort);
     object_class_property_add_bool(oc, "discard-data",
         file_memory_backend_get_discard_data, file_memory_backend_set_discard_data,
+        &error_abort);
+    object_class_property_add_bool(oc, "nopin",
+        file_memory_backend_get_nopin, file_memory_backend_set_nopin,
         &error_abort);
     object_class_property_add_str(oc, "mem-path",
         get_mem_path, set_mem_path,
