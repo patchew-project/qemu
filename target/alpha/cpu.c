@@ -260,7 +260,9 @@ static void alpha_cpu_initfn(Object *obj)
     cs->env_ptr = env;
     tlb_flush(cs);
 
-    alpha_translate_init();
+    if (tcg_enabled()) {
+        alpha_translate_init();
+    }
 
     env->lock_addr = -1;
 #if defined(CONFIG_USER_ONLY)
