@@ -980,6 +980,20 @@ as the -incoming option).
 ETEXI
 
     {
+        .name       = "migrate_pause",
+        .args_type  = "",
+        .params     = "",
+        .help       = "Pause a migration stream (only supported by postcopy)",
+        .cmd        = hmp_migrate_pause,
+    },
+
+STEXI
+@item migrate_pause
+@findex migrate_pause
+Pause an existing migration manually.  Currently it only support postcopy.
+ETEXI
+
+    {
         .name       = "migrate_set_cache_size",
         .args_type  = "value:o",
         .params     = "value",
