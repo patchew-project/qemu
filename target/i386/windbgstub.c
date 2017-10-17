@@ -271,6 +271,45 @@ typedef struct _CPU_KPROCESSOR_STATE {
 
 #endif
 
+static int windbg_read_context(CPUState *cpu, uint8_t *buf, int buf_size,
+                               int offset, int len)
+{
+    return 0;
+}
+
+static int windbg_write_context(CPUState *cpu, uint8_t *buf, int buf_size,
+                                int offset, int len)
+{
+    return 0;
+}
+
+void kd_api_get_context(CPUState *cpu, PacketData *pd)
+{
+    int err;
+
+    pd->extra_size = sizeof(CPU_CONTEXT);
+    err = windbg_read_context(cpu, pd->extra, pd->extra_size, 0,
+                              pd->extra_size);
+
+    if (err) {
+        pd->extra_size = 0;
+        pd->m64.ReturnStatus = STATUS_UNSUCCESSFUL;
+    }
+}
+
+void kd_api_set_context(CPUState *cpu, PacketData *pd)
+{
+    int err;
+
+    err = windbg_write_context(cpu, pd->extra, pd->extra_size, 0,
+                               sizeof(CPU_CONTEXT));
+    pd->extra_size = 0;
+
+    if (err) {
+        pd->m64.ReturnStatus = STATUS_UNSUCCESSFUL;
+    }
+}
+
 bool windbg_on_load(void)
 {
     CPUState *cpu = qemu_get_cpu(0);

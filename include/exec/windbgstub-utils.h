@@ -95,6 +95,8 @@ InitedAddr *windbg_get_version(void);
 
 void kd_api_read_virtual_memory(CPUState *cpu, PacketData *pd);
 void kd_api_write_virtual_memory(CPUState *cpu, PacketData *pd);
+void kd_api_get_context(CPUState *cpu, PacketData *pd);
+void kd_api_set_context(CPUState *cpu, PacketData *pd);
 void kd_api_unsupported(CPUState *cpu, PacketData *pd);
 
 SizedBuf kd_gen_exception_sc(CPUState *cpu);
