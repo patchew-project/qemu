@@ -24,7 +24,7 @@
 #include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "ui/console.h"
-#include "hw/input/ps2.h"
+#include "hw/input/i8042.h"
 #include "hw/i386/pc.h"
 #include "hw/qdev.h"
 
@@ -52,7 +52,6 @@
 #define DPRINTF(fmt, ...) do { } while (0)
 #endif
 
-#define TYPE_VMMOUSE "vmmouse"
 #define VMMOUSE(obj) OBJECT_CHECK(VMMouseState, (obj), TYPE_VMMOUSE)
 
 typedef struct VMMouseState

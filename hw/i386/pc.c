@@ -40,6 +40,7 @@
 #include "multiboot.h"
 #include "hw/timer/mc146818rtc.h"
 #include "hw/timer/i8254.h"
+#include "hw/input/i8042.h"
 #include "hw/audio/pcspk.h"
 #include "hw/pci/msi.h"
 #include "hw/sysbus.h"
@@ -1564,11 +1565,11 @@ void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
     parallel_hds_isa_init(isa_bus, MAX_PARALLEL_PORTS);
 
     a20_line = qemu_allocate_irqs(handle_a20_line_change, first_cpu, 2);
-    i8042 = isa_create_simple(isa_bus, "i8042");
+    i8042 = isa_create_simple(isa_bus, TYPE_I8042);
     i8042_setup_a20_line(i8042, a20_line[0]);
     if (!no_vmport) {
         vmport_init(isa_bus);
-        vmmouse = isa_try_create(isa_bus, "vmmouse");
+        vmmouse = isa_try_create(isa_bus, TYPE_VMMOUSE);
     } else {
         vmmouse = NULL;
     }

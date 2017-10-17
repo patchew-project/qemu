@@ -45,6 +45,7 @@
 #include "hw/loader.h"
 #include "elf.h"
 #include "hw/timer/mc146818rtc.h"
+#include "hw/input/i8042.h"
 #include "hw/timer/i8254.h"
 #include "sysemu/blockdev.h"
 #include "exec/address-spaces.h"
@@ -1221,7 +1222,7 @@ void mips_malta_init(MachineState *machine)
     DMA_init(isa_bus, 0);
 
     /* Super I/O */
-    isa_create_simple(isa_bus, "i8042");
+    isa_create_simple(isa_bus, TYPE_I8042);
 
     rtc_init(isa_bus, 2000, NULL);
     serial_hds_isa_init(isa_bus, 0, 2);

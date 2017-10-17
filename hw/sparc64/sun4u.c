@@ -31,6 +31,7 @@
 #include "hw/i386/pc.h"
 #include "hw/char/serial.h"
 #include "hw/timer/m48t59.h"
+#include "hw/input/i8042.h"
 #include "hw/block/fdc.h"
 #include "net/net.h"
 #include "qemu/timer.h"
@@ -492,7 +493,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
 
     pci_cmd646_ide_init(pci_bus, hd, 1);
 
-    isa_create_simple(isa_bus, "i8042");
+    isa_create_simple(isa_bus, TYPE_I8042);
 
     /* Floppy */
     for(i = 0; i < MAX_FD; i++) {
