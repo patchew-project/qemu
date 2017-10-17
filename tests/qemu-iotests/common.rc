@@ -51,7 +51,7 @@ _qemu_wrapper()
 {
     (
         if [ -n "${QEMU_NEED_PID}" ]; then
-            echo $BASHPID > "${QEMU_TEST_DIR}/qemu-${_QEMU_HANDLE}.pid"
+            echo $BASHPID >> "${QEMU_TEST_DIR}/qemu-pidlist.pid"
         fi
         exec "$QEMU_PROG" $QEMU_OPTIONS "$@"
     )
