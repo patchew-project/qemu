@@ -156,6 +156,14 @@ static void windbg_process_manipulate_packet(ParsingContext *ctx)
         kd_api_set_context(cpu, &ctx->data);
         break;
 
+    case DbgKdReadControlSpaceApi:
+        kd_api_read_control_space(cpu, &ctx->data);
+        break;
+
+    case DbgKdWriteControlSpaceApi:
+        kd_api_write_control_space(cpu, &ctx->data);
+        break;
+
     default:
         kd_api_unsupported(cpu, &ctx->data);
         break;
