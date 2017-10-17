@@ -50,6 +50,14 @@
     _t;                                                       \
 })
 
+#if TARGET_LONG_BITS == 64
+# define sttul_p(p, v) stq_p(p, v)
+# define ldtul_p(p) ldq_p(p)
+#else
+# define sttul_p(p, v) stl_p(p, v)
+# define ldtul_p(p) ldl_p(p)
+#endif
+
 typedef struct InitedAddr {
     target_ulong addr;
     bool is_init;
