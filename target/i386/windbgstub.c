@@ -594,6 +594,45 @@ static int windbg_write_context(CPUState *cpu, uint8_t *buf, int buf_size,
 static int windbg_read_ks_regs(CPUState *cpu, uint8_t *buf, int buf_size,
                                int offset, int len)
 {
+    CPUArchState *env = cpu->env_ptr;
+    CPU_KSPECIAL_REGISTERS *ckr;
+    bool new_mem;
+
+    new_mem = (len != sizeof(CPU_KSPECIAL_REGISTERS) || offset != 0);
+    if (new_mem) {
+        ckr = g_new(CPU_KSPECIAL_REGISTERS, 1);
+    } else {
+        ckr = (CPU_KSPECIAL_REGISTERS *) buf;
+    }
+
+    memset(ckr, 0, len);
+
+    ckr->Cr0 = ldl_p(&env->cr[0]);
+    ckr->Cr2 = ldl_p(&env->cr[2]);
+    ckr->Cr3 = ldl_p(&env->cr[3]);
+    ckr->Cr4 = ldl_p(&env->cr[4]);
+
+    ckr->KernelDr0 = ldtul_p(&env->dr[0]);
+    ckr->KernelDr1 = ldtul_p(&env->dr[1]);
+    ckr->KernelDr2 = ldtul_p(&env->dr[2]);
+    ckr->KernelDr3 = ldtul_p(&env->dr[3]);
+    ckr->KernelDr6 = ldtul_p(&env->dr[6]);
+    ckr->KernelDr7 = ldtul_p(&env->dr[7]);
+
+    ckr->Gdtr.Pad = lduw_p(&env->gdt.selector);
+    ckr->Idtr.Pad = lduw_p(&env->idt.selector);
+
+    ckr->Gdtr.Limit = lduw_p(&env->gdt.limit);
+    ckr->Gdtr.Base  = ldtul_p(&env->gdt.base);
+    ckr->Idtr.Limit = lduw_p(&env->idt.limit);
+    ckr->Idtr.Base  = ldtul_p(&env->idt.base);
+    ckr->Tr         = lduw_p(&env->tr.selector);
+    ckr->Ldtr       = lduw_p(&env->ldt.selector);
+
+    if (new_mem) {
+        memcpy(buf, (uint8_t *) ckr + offset, len);
+        g_free(ckr);
+    }
     return 0;
 }
 
