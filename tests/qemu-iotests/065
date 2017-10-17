@@ -26,19 +26,18 @@ import iotests
 from iotests import qemu_img, qemu_img_pipe
 import unittest
 
-test_img = os.path.join(iotests.test_dir, 'test.img')
 
 class TestImageInfoSpecific(iotests.QMPTestCase):
     '''Abstract base class for ImageInfoSpecific tests'''
+    test_img = ''
 
     def setUp(self):
+        self.test_img = os.path.join(self.workdir, 'test.img')
         if self.img_options is None:
             self.skipTest('Skipping abstract test class')
         qemu_img('create', '-f', iotests.imgfmt, '-o', self.img_options,
-                 test_img, '128K')
+                 self.test_img, '128K')
 
-    def tearDown(self):
-        os.remove(test_img)
 
 class TestQemuImgInfo(TestImageInfoSpecific):
     '''Abstract base class for qemu-img info tests'''
@@ -48,13 +47,13 @@ class TestQemuImgInfo(TestImageInfoSpecific):
     human_compare = None
 
     def test_json(self):
-        data = json.loads(qemu_img_pipe('info', '--output=json', test_img))
+        data = json.loads(qemu_img_pipe('info', '--output=json', self.test_img))
         data = data['format-specific']
         self.assertEqual(data['type'], iotests.imgfmt)
         self.assertEqual(data['data'], self.json_compare)
 
     def test_human(self):
-        data = qemu_img_pipe('info', '--output=human', test_img).split('\n')
+        data = qemu_img_pipe('info', '--output=human', self.test_img).split('\n')
         data = data[(data.index('Format specific information:') + 1)
                     :data.index('')]
         for field in data:
@@ -71,7 +70,7 @@ class TestQMP(TestImageInfoSpecific):
 
     def setUp(self):
         self.TestImageInfoSpecific.setUp(self)
-        self.vm = iotests.VM().add_drive(test_img, self.qemu_options)
+        self.vm = iotests.VM().add_drive(self.test_img, self.qemu_options)
         self.vm.launch()
 
     def tearDown(self):

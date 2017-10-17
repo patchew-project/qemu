@@ -22,14 +22,6 @@
 import os
 import iotests
 
-imgs = (os.path.join(iotests.test_dir, 'quorum0.img'),
-        os.path.join(iotests.test_dir, 'quorum1.img'),
-        os.path.join(iotests.test_dir, 'quorum2.img'))
-
-img_conf = (os.path.join(iotests.test_dir, 'quorum0.conf'),
-            os.path.join(iotests.test_dir, 'quorum1.conf'),
-            os.path.join(iotests.test_dir, 'quorum2.conf'))
-
 event_rate = 1000000000
 sector_size = 512
 offset = 10
@@ -48,15 +40,23 @@ sector = "%d"
         file.close()
 
     def setUp(self):
+        self.imgs = (os.path.join(self.workdir, 'quorum0.img'),
+                     os.path.join(self.workdir, 'quorum1.img'),
+                     os.path.join(self.workdir, 'quorum2.img'))
+
+        self.img_conf = (os.path.join(self.workdir, 'quorum0.conf'),
+                         os.path.join(self.workdir, 'quorum1.conf'),
+                         os.path.join(self.workdir, 'quorum2.conf'))
+
         driveopts = ['driver=quorum', 'vote-threshold=2']
         driveopts.append('read-pattern=%s' % self.read_pattern)
-        for i in range(len(imgs)):
-            iotests.qemu_img('create', '-f', iotests.imgfmt, imgs[i], '1M')
-            self.create_blkdebug_file(img_conf[i], i + offset)
+        for i in range(len(self.imgs)):
+            iotests.qemu_img('create', '-f', iotests.imgfmt, self.imgs[i], '1M')
+            self.create_blkdebug_file(self.img_conf[i], i + offset)
             driveopts.append('children.%d.driver=%s' % (i, iotests.imgfmt))
             driveopts.append('children.%d.file.driver=blkdebug' % i)
-            driveopts.append('children.%d.file.config=%s' % (i, img_conf[i]))
-            driveopts.append('children.%d.file.image.filename=%s' % (i, imgs[i]))
+            driveopts.append('children.%d.file.config=%s' % (i, self.img_conf[i]))
+            driveopts.append('children.%d.file.image.filename=%s' % (i, self.imgs[i]))
             driveopts.append('children.%d.node-name=img%d' % (i, i))
         self.vm = iotests.VM()
         self.vm.add_drive(None, opts = ','.join(driveopts))
@@ -64,9 +64,6 @@ sector = "%d"
 
     def tearDown(self):
         self.vm.shutdown()
-        for i in range(len(imgs)):
-            os.remove(imgs[i])
-            os.remove(img_conf[i])
 
     def do_check_event(self, node, sector = 0):
         if node == None:
@@ -107,7 +104,7 @@ sector = "%d"
 
         # I/O errors in different children: all events are emitted
         delay = 10
-        for i in range(len(imgs)):
+        for i in range(len(self.imgs)):
             self.vm.hmp_qemu_io("drive0", "aio_read %d %d" %
                                 ((offset + i) * sector_size, sector_size))
             self.vm.qtest("clock_step %d" % delay)
@@ -119,7 +116,7 @@ sector = "%d"
 
         # I/O errors in different children: all events are emitted
         delay = 2 * event_rate
-        for i in range(len(imgs)):
+        for i in range(len(self.imgs)):
             self.vm.hmp_qemu_io("drive0", "aio_read %d %d" %
                                 ((offset + i) * sector_size, sector_size))
             self.vm.qtest("clock_step %d" % delay)

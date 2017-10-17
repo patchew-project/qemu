@@ -23,8 +23,6 @@ import os
 import iotests
 import time
 
-base_img = os.path.join(iotests.test_dir, 'base.img')
-new_img = os.path.join(iotests.test_dir, 'new.img')
 if iotests.qemu_default_machine == 's390-ccw-virtio':
     default_virtio_blk = 'virtio-blk-ccw'
 else:
@@ -33,7 +31,9 @@ else:
 class TestBlockdevDel(iotests.QMPTestCase):
 
     def setUp(self):
-        iotests.qemu_img('create', '-f', iotests.imgfmt, base_img, '1M')
+        self.base_img = os.path.join(self.workdir, 'base.img')
+        self.new_img = os.path.join(self.workdir, 'new.img')
+        iotests.qemu_img('create', '-f', iotests.imgfmt, self.base_img, '1M')
         self.vm = iotests.VM()
         if iotests.qemu_default_machine == 's390-ccw-virtio':
             self.vm.add_device("virtio-scsi-ccw,id=virtio-scsi")
@@ -44,9 +44,6 @@ class TestBlockdevDel(iotests.QMPTestCase):
 
     def tearDown(self):
         self.vm.shutdown()
-        os.remove(base_img)
-        if os.path.isfile(new_img):
-            os.remove(new_img)
 
     # Check whether a BlockDriverState exists
     def checkBlockDriverState(self, node, must_exist = True):
@@ -64,7 +61,7 @@ class TestBlockdevDel(iotests.QMPTestCase):
                 'node-name': node,
                 'file': {'driver': 'file',
                          'node-name': file_node,
-                         'filename': base_img}}
+                         'filename': self.base_img}}
         result = self.vm.qmp('blockdev-add', conv_keys = False, **opts)
         self.assert_qmp(result, 'return', {})
         self.checkBlockDriverState(node)
@@ -74,12 +71,12 @@ class TestBlockdevDel(iotests.QMPTestCase):
     def addBlockDriverStateOverlay(self, node):
         self.checkBlockDriverState(node, False)
         iotests.qemu_img('create', '-u', '-f', iotests.imgfmt,
-                         '-b', base_img, new_img, '1M')
+                         '-b', self.base_img, self.new_img, '1M')
         opts = {'driver': iotests.imgfmt,
                 'node-name': node,
                 'backing': None,
                 'file': {'driver': 'file',
-                         'filename': new_img}}
+                         'filename': self.new_img}}
         result = self.vm.qmp('blockdev-add', conv_keys = False, **opts)
         self.assert_qmp(result, 'return', {})
         self.checkBlockDriverState(node)
@@ -143,7 +140,7 @@ class TestBlockdevDel(iotests.QMPTestCase):
         self.checkBlockDriverState(node)
         self.checkBlockDriverState(overlay, False)
         opts = {'node-name': node,
-                'snapshot-file': new_img,
+                'snapshot-file': self.new_img,
                 'snapshot-node-name': overlay,
                 'format': iotests.imgfmt}
         result = self.vm.qmp('blockdev-snapshot-sync', conv_keys=False, **opts)
@@ -166,7 +163,7 @@ class TestBlockdevDel(iotests.QMPTestCase):
         self.checkBlockDriverState(new_node, False)
         opts = {'device': node,
                 'job-id': node,
-                'target': new_img,
+                'target': self.new_img,
                 'node-name': new_node,
                 'sync': 'top',
                 'format': iotests.imgfmt}
@@ -189,7 +186,7 @@ class TestBlockdevDel(iotests.QMPTestCase):
         image = {'driver': iotests.imgfmt,
                  'node-name': node,
                  'file': {'driver': 'file',
-                          'filename': base_img}}
+                          'filename': self.base_img}}
         opts = {'driver': 'blkdebug',
                 'node-name': debug,
                 'image': image}
@@ -205,15 +202,15 @@ class TestBlockdevDel(iotests.QMPTestCase):
         self.checkBlockDriverState(test, False)
         self.checkBlockDriverState(raw, False)
         self.checkBlockDriverState(blkverify, False)
-        iotests.qemu_img('create', '-f', iotests.imgfmt, new_img, '1M')
+        iotests.qemu_img('create', '-f', iotests.imgfmt, self.new_img, '1M')
         node_0 = {'driver': iotests.imgfmt,
                   'node-name': test,
                   'file': {'driver': 'file',
-                           'filename': base_img}}
+                           'filename': self.base_img}}
         node_1 = {'driver': iotests.imgfmt,
                   'node-name': raw,
                   'file': {'driver': 'file',
-                           'filename': new_img}}
+                           'filename': self.new_img}}
         opts = {'driver': 'blkverify',
                 'node-name': blkverify,
                 'test': node_0,
@@ -229,15 +226,15 @@ class TestBlockdevDel(iotests.QMPTestCase):
         self.checkBlockDriverState(child0, False)
         self.checkBlockDriverState(child1, False)
         self.checkBlockDriverState(quorum, False)
-        iotests.qemu_img('create', '-f', iotests.imgfmt, new_img, '1M')
+        iotests.qemu_img('create', '-f', iotests.imgfmt, self.new_img, '1M')
         child_0 = {'driver': iotests.imgfmt,
                    'node-name': child0,
                    'file': {'driver': 'file',
-                            'filename': base_img}}
+                            'filename': self.base_img}}
         child_1 = {'driver': iotests.imgfmt,
                    'node-name': child1,
                    'file': {'driver': 'file',
-                            'filename': new_img}}
+                            'filename': self.new_img}}
         opts = {'driver': 'quorum',
                 'node-name': quorum,
                 'vote-threshold': 1,

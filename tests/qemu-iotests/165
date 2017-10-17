@@ -23,7 +23,6 @@ import re
 import iotests
 from iotests import qemu_img
 
-disk = os.path.join(iotests.test_dir, 'disk')
 disk_size = 0x40000000 # 1G
 
 # regions for qemu_io: (start, count) in bytes
@@ -36,16 +35,14 @@ regions2 = ((0x10000000, 0x20000),
 class TestPersistentDirtyBitmap(iotests.QMPTestCase):
 
     def setUp(self):
-        qemu_img('create', '-f', iotests.imgfmt, disk, str(disk_size))
-
-    def tearDown(self):
-        os.remove(disk)
+        self.disk = os.path.join(self.workdir, 'disk')
+        qemu_img('create', '-f', iotests.imgfmt, self.disk, str(disk_size))
 
     def mkVm(self):
-        return iotests.VM().add_drive(disk)
+        return iotests.VM().add_drive(self.disk)
 
     def mkVmRo(self):
-        return iotests.VM().add_drive(disk, opts='readonly=on')
+        return iotests.VM().add_drive(self.disk, opts='readonly=on')
 
     def getSha256(self):
         result = self.vm.qmp('x-debug-block-dirty-bitmap-sha256',

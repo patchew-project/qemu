@@ -27,8 +27,6 @@ from iotests import cachemode, imgfmt, qemu_img, qemu_nbd
 
 NBD_PORT = 10811
 
-test_img = os.path.join(iotests.test_dir, 'test.img')
-unix_socket = os.path.join(iotests.test_dir, 'nbd.socket')
 
 
 def flatten_sock_addr(crumpled_address):
@@ -38,6 +36,11 @@ def flatten_sock_addr(crumpled_address):
 
 
 class NBDBlockdevAddBase(iotests.QMPTestCase):
+
+    def setUp(self):
+        self.test_img = os.path.join(self.workdir, 'test.img')
+        self.unix_socket = os.path.join(self.workdir, 'nbd.socket')
+
     def blockdev_add_options(self, address, export=None):
         options = { 'node-name': 'nbd-blockdev',
                     'driver': 'raw',
@@ -70,20 +73,16 @@ class NBDBlockdevAddBase(iotests.QMPTestCase):
 
 class QemuNBD(NBDBlockdevAddBase):
     def setUp(self):
-        qemu_img('create', '-f', iotests.imgfmt, test_img, '64k')
+        NBDBlockdevAddBase.setUp(self)
+        qemu_img('create', '-f', iotests.imgfmt, self.test_img, '64k')
         self.vm = iotests.VM()
         self.vm.launch()
 
     def tearDown(self):
         self.vm.shutdown()
-        os.remove(test_img)
-        try:
-            os.remove(unix_socket)
-        except OSError:
-            pass
 
     def _server_up(self, *args):
-        self.assertEqual(qemu_nbd('-f', imgfmt, test_img, *args), 0)
+        self.assertEqual(qemu_nbd('-f', imgfmt, self.test_img, *args), 0)
 
     def test_inet(self):
         self._server_up('-p', str(NBD_PORT))
@@ -96,21 +95,22 @@ class QemuNBD(NBDBlockdevAddBase):
                          flatten_sock_addr(address))
 
     def test_unix(self):
-        self._server_up('-k', unix_socket)
+        self._server_up('-k', self.unix_socket)
         address = { 'type': 'unix',
-                    'data': { 'path': unix_socket } }
-        self.client_test('nbd+unix://?socket=' + unix_socket,
+                    'data': { 'path': self.unix_socket } }
+        self.client_test('nbd+unix://?socket=' + self.unix_socket,
                          flatten_sock_addr(address))
 
 
 class BuiltinNBD(NBDBlockdevAddBase):
     def setUp(self):
-        qemu_img('create', '-f', iotests.imgfmt, test_img, '64k')
+        NBDBlockdevAddBase.setUp(self)
+        qemu_img('create', '-f', iotests.imgfmt, self.test_img, '64k')
         self.vm = iotests.VM()
         self.vm.launch()
         self.server = iotests.VM('.server')
         self.server.add_drive_raw('if=none,id=nbd-export,' +
-                                  'file=%s,' % test_img +
+                                  'file=%s,' % self.test_img +
                                   'format=%s,' % imgfmt +
                                   'cache=%s' % cachemode)
         self.server.launch()
@@ -118,11 +118,6 @@ class BuiltinNBD(NBDBlockdevAddBase):
     def tearDown(self):
         self.vm.shutdown()
         self.server.shutdown()
-        os.remove(test_img)
-        try:
-            os.remove(unix_socket)
-        except OSError:
-            pass
 
     def _server_up(self, address):
         result = self.server.qmp('nbd-server-start', addr=address)
@@ -173,18 +168,18 @@ class BuiltinNBD(NBDBlockdevAddBase):
 
     def test_unix(self):
         address = { 'type': 'unix',
-                    'data': { 'path': unix_socket } }
+                    'data': { 'path': self.unix_socket } }
         self._server_up(address)
-        self.client_test('nbd+unix:///nbd-export?socket=' + unix_socket,
+        self.client_test('nbd+unix:///nbd-export?socket=' + self.unix_socket,
                          flatten_sock_addr(address), 'nbd-export')
         self._server_down()
 
     def test_fd(self):
         self._server_up({ 'type': 'unix',
-                          'data': { 'path': unix_socket } })
+                          'data': { 'path': self.unix_socket } })
 
         sockfd = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        sockfd.connect(unix_socket)
+        sockfd.connect(self.unix_socket)
 
         result = self.vm.send_fd_scm(str(sockfd.fileno()))
         self.assertEqual(result, 0, 'Failed to send socket FD')

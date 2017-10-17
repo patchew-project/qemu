@@ -27,7 +27,6 @@ nsec_per_sec = 1000000000
 op_latency = nsec_per_sec / 1000 # See qtest_latency_ns in accounting.c
 bad_sector = 8192
 bad_offset = bad_sector * 512
-blkdebug_file = os.path.join(iotests.test_dir, 'blkdebug.conf')
 
 class BlockDeviceStatsTestCase(iotests.QMPTestCase):
     test_img = "null-aio://"
@@ -53,7 +52,7 @@ class BlockDeviceStatsTestCase(iotests.QMPTestCase):
         raise Exception("Device not found for blockstats: %s" % device)
 
     def create_blkdebug_file(self):
-        file = open(blkdebug_file, 'w')
+        file = open(self.blkdebug_file, 'w')
         file.write('''
 [inject-error]
 event = "read_aio"
@@ -68,6 +67,7 @@ sector = "%d"
         file.close()
 
     def setUp(self):
+        self.blkdebug_file = os.path.join(self.workdir, 'blkdebug.conf')
         drive_args = []
         drive_args.append("stats-intervals.0=%d" % interval_length)
         drive_args.append("stats-account-invalid=%s" %
@@ -76,7 +76,7 @@ sector = "%d"
                           (self.account_failed and "on" or "off"))
         self.create_blkdebug_file()
         self.vm = iotests.VM().add_drive('blkdebug:%s:%s' %
-                                         (blkdebug_file, self.test_img),
+                                         (self.blkdebug_file, self.test_img),
                                          ','.join(drive_args))
         self.vm.launch()
         # Set an initial value for the clock
@@ -84,7 +84,6 @@ sector = "%d"
 
     def tearDown(self):
         self.vm.shutdown()
-        os.remove(blkdebug_file)
 
     def accounted_ops(self, read = False, write = False, flush = False):
         ops = 0

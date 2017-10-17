@@ -23,13 +23,15 @@ import iotests
 import os
 
 class TestLiveSnapshot(iotests.QMPTestCase):
-    base_img = os.path.join(iotests.test_dir, 'base.img')
-    target_img = os.path.join(iotests.test_dir, 'target.img')
+    base_img = ''
+    target_img = ''
     group = 'mygroup'
     iops = 6000
     iops_size = 1024
 
     def setUp(self):
+        self.base_img = os.path.join(self.workdir, 'base.img')
+        self.target_img = os.path.join(self.workdir, 'target.img')
         opts = []
         opts.append('node-name=base')
         opts.append('throttling.group=%s' % self.group)
@@ -41,8 +43,6 @@ class TestLiveSnapshot(iotests.QMPTestCase):
 
     def tearDown(self):
         self.vm.shutdown()
-        os.remove(self.base_img)
-        os.remove(self.target_img)
 
     def checkConfig(self, active_layer):
         result = self.vm.qmp('query-block')

@@ -22,39 +22,34 @@ import os
 import iotests
 from iotests import qemu_img
 
-test_img = os.path.join(iotests.test_dir, 'test.img')
-target_img = os.path.join(iotests.test_dir, 'target.img')
 
 class TestUnaligned(iotests.QMPTestCase):
     def setUp(self):
-        qemu_img('create', '-f', iotests.imgfmt, test_img, '512')
-        self.vm = iotests.VM().add_drive(test_img)
+        self.test_img = os.path.join(self.workdir, 'test.img')
+        self.target_img = os.path.join(self.workdir, 'target.img')
+        qemu_img('create', '-f', iotests.imgfmt, self.test_img, '512')
+        self.vm = iotests.VM().add_drive(self.test_img)
         self.vm.launch()
 
     def tearDown(self):
         self.vm.shutdown()
-        os.remove(test_img)
-        try:
-            os.remove(target_img)
-        except OSError:
-            pass
 
     def test_unaligned(self):
         result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
-                             granularity=65536, target=target_img)
+                             granularity=65536, target=self.target_img)
         self.complete_and_wait()
         self.vm.shutdown()
-        self.assertEqual(iotests.image_size(test_img), iotests.image_size(target_img),
+        self.assertEqual(iotests.image_size(self.test_img), iotests.image_size(self.target_img),
                          "Target size doesn't match source when granularity when unaligend")
 
     def test_unaligned_with_update(self):
         result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
-                             granularity=65536, target=target_img)
+                             granularity=65536, target=self.target_img)
         self.wait_ready()
         self.vm.hmp_qemu_io('drive0', 'write 0 512')
         self.complete_and_wait(wait_ready=False)
         self.vm.shutdown()
-        self.assertEqual(iotests.image_size(test_img), iotests.image_size(target_img),
+        self.assertEqual(iotests.image_size(self.test_img), iotests.image_size(self.target_img),
                          "Target size doesn't match source when granularity when unaligend")
 
 
