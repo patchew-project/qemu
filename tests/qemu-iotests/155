@@ -25,11 +25,6 @@ import os
 import iotests
 from iotests import qemu_img
 
-back0_img = os.path.join(iotests.test_dir, 'back0.' + iotests.imgfmt)
-back1_img = os.path.join(iotests.test_dir, 'back1.' + iotests.imgfmt)
-back2_img = os.path.join(iotests.test_dir, 'back2.' + iotests.imgfmt)
-source_img = os.path.join(iotests.test_dir, 'source.' + iotests.imgfmt)
-target_img = os.path.join(iotests.test_dir, 'target.' + iotests.imgfmt)
 
 
 # Class variables for controlling its behavior:
@@ -51,10 +46,15 @@ class BaseClass(iotests.QMPTestCase):
     target_real_backing = None
 
     def setUp(self):
-        qemu_img('create', '-f', iotests.imgfmt, back0_img, '1M')
-        qemu_img('create', '-f', iotests.imgfmt, '-b', back0_img, back1_img)
-        qemu_img('create', '-f', iotests.imgfmt, '-b', back1_img, back2_img)
-        qemu_img('create', '-f', iotests.imgfmt, '-b', back2_img, source_img)
+        self.back0_img = os.path.join(self.workdir, 'back0.' + iotests.imgfmt)
+        self.back1_img = os.path.join(self.workdir, 'back1.' + iotests.imgfmt)
+        self.back2_img = os.path.join(self.workdir, 'back2.' + iotests.imgfmt)
+        self.source_img = os.path.join(self.workdir, 'source.' + iotests.imgfmt)
+        self.target_img = os.path.join(self.workdir, 'target.' + iotests.imgfmt)
+        qemu_img('create', '-f', iotests.imgfmt, self.back0_img, '1M')
+        qemu_img('create', '-f', iotests.imgfmt, '-b', self.back0_img, self.back1_img)
+        qemu_img('create', '-f', iotests.imgfmt, '-b', self.back1_img, self.back2_img)
+        qemu_img('create', '-f', iotests.imgfmt, '-b', self.back2_img, self.source_img)
 
         self.vm = iotests.VM()
         self.vm.add_drive(None, '', 'none')
@@ -66,7 +66,7 @@ class BaseClass(iotests.QMPTestCase):
                              node_name='source',
                              driver=iotests.imgfmt,
                              file={'driver': 'file',
-                                   'filename': source_img})
+                                   'filename': self.source_img})
         self.assert_qmp(result, 'return', {})
 
         result = self.vm.qmp('x-blockdev-insert-medium',
@@ -78,15 +78,15 @@ class BaseClass(iotests.QMPTestCase):
         if self.existing:
             if self.target_backing:
                 qemu_img('create', '-f', iotests.imgfmt,
-                         '-b', self.target_backing, target_img, '1M')
+                         '-b', self.target_backing, self.target_img, '1M')
             else:
-                qemu_img('create', '-f', iotests.imgfmt, target_img, '1M')
+                qemu_img('create', '-f', iotests.imgfmt, self.target_img, '1M')
 
             if self.cmd == 'blockdev-mirror':
                 options = { 'node-name': 'target',
                             'driver': iotests.imgfmt,
                             'file': { 'driver': 'file',
-                                      'filename': target_img } }
+                                      'filename': self.target_img } }
                 if self.target_blockdev_backing:
                     options['backing'] = self.target_blockdev_backing
 
@@ -95,14 +95,6 @@ class BaseClass(iotests.QMPTestCase):
 
     def tearDown(self):
         self.vm.shutdown()
-        os.remove(source_img)
-        os.remove(back2_img)
-        os.remove(back1_img)
-        os.remove(back0_img)
-        try:
-            os.remove(target_img)
-        except OSError:
-            pass
 
     def findBlockNode(self, node_name, id=None):
         if id:
@@ -124,13 +116,13 @@ class BaseClass(iotests.QMPTestCase):
         node = self.findBlockNode('source')
 
         self.assert_qmp(node, 'image' + '/backing-image' * 0 + '/filename',
-                        source_img)
+                        self.source_img)
         self.assert_qmp(node, 'image' + '/backing-image' * 1 + '/filename',
-                        back2_img)
+                        self.back2_img)
         self.assert_qmp(node, 'image' + '/backing-image' * 2 + '/filename',
-                        back1_img)
+                        self.back1_img)
         self.assert_qmp(node, 'image' + '/backing-image' * 3 + '/filename',
-                        back0_img)
+                        self.back0_img)
         self.assert_qmp_absent(node, 'image' + '/backing-image' * 4)
 
     def assertCorrectBackingImage(self, node, default_image):
@@ -163,7 +155,7 @@ class MirrorBaseClass(BaseClass):
             else:
                 mode = 'absolute-paths'
             result = self.vm.qmp(self.cmd, device='drive0', sync=sync,
-                                 target=target_img, format=iotests.imgfmt,
+                                 target=self.target_img, format=iotests.imgfmt,
                                  mode=mode, node_name='target')
 
         self.assert_qmp(result, 'return', {})
@@ -186,14 +178,14 @@ class MirrorBaseClass(BaseClass):
         self.runMirror('top')
 
         node = self.findBlockNode('target', 'drive0')
-        self.assertCorrectBackingImage(node, back2_img)
+        self.assertCorrectBackingImage(node, self.back2_img)
         self.assertIntactSourceBackingChain()
 
     def testNone(self):
         self.runMirror('none')
 
         node = self.findBlockNode('target', 'drive0')
-        self.assertCorrectBackingImage(node, source_img)
+        self.assertCorrectBackingImage(node, self.source_img)
         self.assertIntactSourceBackingChain()
 
 
@@ -233,7 +225,7 @@ class TestCommit(BaseClass):
     existing = False
 
     def testCommit(self):
-        result = self.vm.qmp('block-commit', device='drive0', base=back1_img)
+        result = self.vm.qmp('block-commit', device='drive0', base=self.back1_img)
         self.assert_qmp(result, 'return', {})
 
         self.vm.event_wait('BLOCK_JOB_READY')
@@ -245,9 +237,9 @@ class TestCommit(BaseClass):
 
         node = self.findBlockNode(None, 'drive0')
         self.assert_qmp(node, 'image' + '/backing-image' * 0 + '/filename',
-                        back1_img)
+                        self.back1_img)
         self.assert_qmp(node, 'image' + '/backing-image' * 1 + '/filename',
-                        back0_img)
+                        self.back0_img)
         self.assert_qmp_absent(node, 'image' + '/backing-image' * 2 +
                                '/filename')
 

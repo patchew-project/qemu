@@ -216,7 +216,7 @@ class ThrottleTestGroupNames(iotests.QMPTestCase):
     max_drives = 3
 
     def setUp(self):
-        self.vm = iotests.VM()
+        self.vm = iotests.VM(workdir=self.workdir)
         for i in range(0, self.max_drives):
             self.vm.add_drive(self.test_img, "throttling.iops-total=100")
         self.vm.launch()

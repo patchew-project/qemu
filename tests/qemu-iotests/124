@@ -54,11 +54,12 @@ def transaction_drive_backup(device, target, **kwargs):
 
 
 class Bitmap:
-    def __init__(self, name, drive):
+    def __init__(self, name, drive, workdir=iotests.test_dir):
         self.name = name
         self.drive = drive
         self.num = 0
         self.backups = list()
+        self.workdir = workdir
 
     def base_target(self):
         return (self.drive['backup'], None)
@@ -67,7 +68,7 @@ class Bitmap:
         if num is None:
             num = self.num
         self.num = num + 1
-        base = os.path.join(iotests.test_dir,
+        base = os.path.join(self.workdir,
                             "%s.%s." % (self.drive['id'], self.name))
         suff = "%i.%s" % (num, self.drive['fmt'])
         target = base + "inc" + suff
@@ -85,12 +86,6 @@ class Bitmap:
             try_remove(image)
         self.num -= 1
 
-    def cleanup(self):
-        for backup in self.backups:
-            for image in backup:
-                try_remove(image)
-
-
 class TestIncrementalBackupBase(iotests.QMPTestCase):
     def __init__(self, *args):
         super(TestIncrementalBackupBase, self).__init__(*args)
@@ -98,7 +93,7 @@ class TestIncrementalBackupBase(iotests.QMPTestCase):
         self.files = list()
         self.drives = list()
         self.vm = iotests.VM()
-        self.err_img = os.path.join(iotests.test_dir, 'err.%s' % iotests.imgfmt)
+        self.err_img = os.path.join(self.workdir, 'err.%s' % iotests.imgfmt)
 
 
     def setUp(self):
@@ -118,9 +113,9 @@ class TestIncrementalBackupBase(iotests.QMPTestCase):
 
     def add_node(self, node_id, fmt=iotests.imgfmt, path=None, backup=None):
         if path is None:
-            path = os.path.join(iotests.test_dir, '%s.%s' % (node_id, fmt))
+            path = os.path.join(self.workdir, '%s.%s' % (node_id, fmt))
         if backup is None:
-            backup = os.path.join(iotests.test_dir,
+            backup = os.path.join(self.workdir,
                                   '%s.full.backup.%s' % (node_id, fmt))
 
         self.drives.append({
@@ -196,7 +191,7 @@ class TestIncrementalBackupBase(iotests.QMPTestCase):
 
 
     def add_bitmap(self, name, drive, **kwargs):
-        bitmap = Bitmap(name, drive)
+        bitmap = Bitmap(name, drive, self.workdir)
         self.bitmaps.append(bitmap)
         result = self.vm.qmp('block-dirty-bitmap-add', node=drive['id'],
                              name=bitmap.name, **kwargs)
@@ -273,11 +268,6 @@ class TestIncrementalBackupBase(iotests.QMPTestCase):
 
     def tearDown(self):
         self.vm.shutdown()
-        for bitmap in self.bitmaps:
-            bitmap.cleanup()
-        for filename in self.files:
-            try_remove(filename)
-
 
 
 class TestIncrementalBackup(TestIncrementalBackupBase):

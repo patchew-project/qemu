@@ -25,50 +25,45 @@ import os
 import iotests
 from iotests import qemu_img, qemu_io, create_image
 
-backing_img = os.path.join(iotests.test_dir, 'backing.img')
-test_img = os.path.join(iotests.test_dir, 'test.img')
-target_img = os.path.join(iotests.test_dir, 'target.img')
 
 class TestSyncModesNoneAndTop(iotests.QMPTestCase):
     image_len = 64 * 1024 * 1024 # MB
 
     def setUp(self):
-        create_image(backing_img, TestSyncModesNoneAndTop.image_len)
-        qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, test_img)
-        qemu_io('-c', 'write -P0x41 0 512', test_img)
-        qemu_io('-c', 'write -P0xd5 1M 32k', test_img)
-        qemu_io('-c', 'write -P0xdc 32M 124k', test_img)
-        qemu_io('-c', 'write -P0xdc 67043328 64k', test_img)
-        self.vm = iotests.VM().add_drive(test_img)
+        self.backing_img = os.path.join(self.workdir, 'backing.img')
+        self.test_img = os.path.join(self.workdir, 'test.img')
+        self.target_img = os.path.join(self.workdir, 'target.img')
+        create_image(self.backing_img, TestSyncModesNoneAndTop.image_len)
+        qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % self.backing_img, self.test_img)
+        qemu_io('-c', 'write -P0x41 0 512', self.test_img)
+        qemu_io('-c', 'write -P0xd5 1M 32k', self.test_img)
+        qemu_io('-c', 'write -P0xdc 32M 124k', self.test_img)
+        qemu_io('-c', 'write -P0xdc 67043328 64k', self.test_img)
+        self.vm = iotests.VM().add_drive(self.test_img)
         self.vm.launch()
 
     def tearDown(self):
         self.vm.shutdown()
-        os.remove(test_img)
-        os.remove(backing_img)
-        try:
-            os.remove(target_img)
-        except OSError:
-            pass
+        pass
 
     def test_complete_top(self):
         self.assert_no_active_block_jobs()
         result = self.vm.qmp('drive-backup', device='drive0', sync='top',
-                             format=iotests.imgfmt, target=target_img)
+                             format=iotests.imgfmt, target=self.target_img)
         self.assert_qmp(result, 'return', {})
 
         self.wait_until_completed(check_offset=False)
 
         self.assert_no_active_block_jobs()
         self.vm.shutdown()
-        self.assertTrue(iotests.compare_images(test_img, target_img),
+        self.assertTrue(iotests.compare_images(self.test_img, self.target_img),
                         'target image does not match source after backup')
 
     def test_cancel_sync_none(self):
         self.assert_no_active_block_jobs()
 
         result = self.vm.qmp('drive-backup', device='drive0',
-                             sync='none', target=target_img)
+                             sync='none', target=self.target_img)
         self.assert_qmp(result, 'return', {})
         time.sleep(1)
         self.vm.hmp_qemu_io('drive0', 'write -P0x5e 0 512')
@@ -80,21 +75,21 @@ class TestSyncModesNoneAndTop(iotests.QMPTestCase):
 
         self.vm.shutdown()
         time.sleep(1)
-        self.assertEqual(-1, qemu_io('-c', 'read -P0x41 0 512', target_img).find("verification failed"))
+        self.assertEqual(-1, qemu_io('-c', 'read -P0x41 0 512', self.target_img).find("verification failed"))
 
 class TestBeforeWriteNotifier(iotests.QMPTestCase):
     def setUp(self):
+        self.target_img = os.path.join(self.workdir, 'target.img')
         self.vm = iotests.VM().add_drive_raw("file=blkdebug::null-co://,id=drive0,align=65536,driver=blkdebug")
         self.vm.launch()
 
     def tearDown(self):
         self.vm.shutdown()
-        os.remove(target_img)
 
     def test_before_write_notifier(self):
         self.vm.pause_drive("drive0")
         result = self.vm.qmp('drive-backup', device='drive0',
-                             sync='full', target=target_img,
+                             sync='full', target=self.target_img,
                              format="file", speed=1)
         self.assert_qmp(result, 'return', {})
         result = self.vm.qmp('block-job-pause', device="drive0")

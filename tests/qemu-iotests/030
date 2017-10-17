@@ -23,27 +23,24 @@ import os
 import iotests
 from iotests import qemu_img, qemu_io
 
-backing_img = os.path.join(iotests.test_dir, 'backing.img')
-mid_img = os.path.join(iotests.test_dir, 'mid.img')
-test_img = os.path.join(iotests.test_dir, 'test.img')
 
 class TestSingleDrive(iotests.QMPTestCase):
     image_len = 1 * 1024 * 1024 # MB
 
     def setUp(self):
-        iotests.create_image(backing_img, TestSingleDrive.image_len)
-        qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, mid_img)
-        qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % mid_img, test_img)
-        qemu_io('-f', 'raw', '-c', 'write -P 0x1 0 512', backing_img)
-        qemu_io('-f', iotests.imgfmt, '-c', 'write -P 0x1 524288 512', mid_img)
-        self.vm = iotests.VM().add_drive("blkdebug::" + test_img, "backing.node-name=mid")
+        self.backing_img = os.path.join(self.workdir, 'backing.img')
+        self.mid_img = os.path.join(self.workdir, 'mid.img')
+        self.test_img = os.path.join(self.workdir, 'test.img')
+        iotests.create_image(self.backing_img, TestSingleDrive.image_len)
+        qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % self.backing_img, self.mid_img)
+        qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % self.mid_img, self.test_img)
+        qemu_io('-f', 'raw', '-c', 'write -P 0x1 0 512', self.backing_img)
+        qemu_io('-f', iotests.imgfmt, '-c', 'write -P 0x1 524288 512', self.mid_img)
+        self.vm = iotests.VM().add_drive("blkdebug::" + self.test_img, "backing.node-name=mid")
         self.vm.launch()
 
     def tearDown(self):
         self.vm.shutdown()
-        os.remove(test_img)
-        os.remove(mid_img)
-        os.remove(backing_img)
 
     def test_stream(self):
         self.assert_no_active_block_jobs()
@@ -56,15 +53,15 @@ class TestSingleDrive(iotests.QMPTestCase):
         self.assert_no_active_block_jobs()
         self.vm.shutdown()
 
-        self.assertEqual(qemu_io('-f', 'raw', '-c', 'map', backing_img),
-                         qemu_io('-f', iotests.imgfmt, '-c', 'map', test_img),
+        self.assertEqual(qemu_io('-f', 'raw', '-c', 'map', self.backing_img),
+                         qemu_io('-f', iotests.imgfmt, '-c', 'map', self.test_img),
                          'image file map does not match backing file after streaming')
 
     def test_stream_intermediate(self):
         self.assert_no_active_block_jobs()
 
-        self.assertNotEqual(qemu_io('-f', 'raw', '-rU', '-c', 'map', backing_img),
-                            qemu_io('-f', iotests.imgfmt, '-rU', '-c', 'map', mid_img),
+        self.assertNotEqual(qemu_io('-f', 'raw', '-rU', '-c', 'map', self.backing_img),
+                            qemu_io('-f', iotests.imgfmt, '-rU', '-c', 'map', self.mid_img),
                             'image file map matches backing file before streaming')
 
         result = self.vm.qmp('block-stream', device='mid', job_id='stream-mid')
@@ -75,8 +72,8 @@ class TestSingleDrive(iotests.QMPTestCase):
         self.assert_no_active_block_jobs()
         self.vm.shutdown()
 
-        self.assertEqual(qemu_io('-f', 'raw', '-c', 'map', backing_img),
-                         qemu_io('-f', iotests.imgfmt, '-c', 'map', mid_img),
+        self.assertEqual(qemu_io('-f', 'raw', '-c', 'map', self.backing_img),
+                         qemu_io('-f', iotests.imgfmt, '-c', 'map', self.mid_img),
                          'image file map does not match backing file after streaming')
 
     def test_stream_pause(self):
@@ -107,18 +104,18 @@ class TestSingleDrive(iotests.QMPTestCase):
         self.assert_no_active_block_jobs()
         self.vm.shutdown()
 
-        self.assertEqual(qemu_io('-f', 'raw', '-c', 'map', backing_img),
-                         qemu_io('-f', iotests.imgfmt, '-c', 'map', test_img),
+        self.assertEqual(qemu_io('-f', 'raw', '-c', 'map', self.backing_img),
+                         qemu_io('-f', iotests.imgfmt, '-c', 'map', self.test_img),
                          'image file map does not match backing file after streaming')
 
     def test_stream_no_op(self):
         self.assert_no_active_block_jobs()
 
         # The image map is empty before the operation
-        empty_map = qemu_io('-f', iotests.imgfmt, '-rU', '-c', 'map', test_img)
+        empty_map = qemu_io('-f', iotests.imgfmt, '-rU', '-c', 'map', self.test_img)
 
         # This is a no-op: no data should ever be copied from the base image
-        result = self.vm.qmp('block-stream', device='drive0', base=mid_img)
+        result = self.vm.qmp('block-stream', device='drive0', base=self.mid_img)
         self.assert_qmp(result, 'return', {})
 
         self.wait_until_completed()
@@ -126,13 +123,13 @@ class TestSingleDrive(iotests.QMPTestCase):
         self.assert_no_active_block_jobs()
         self.vm.shutdown()
 
-        self.assertEqual(qemu_io('-f', iotests.imgfmt, '-c', 'map', test_img),
+        self.assertEqual(qemu_io('-f', iotests.imgfmt, '-c', 'map', self.test_img),
                          empty_map, 'image file map changed after a no-op')
 
     def test_stream_partial(self):
         self.assert_no_active_block_jobs()
 
-        result = self.vm.qmp('block-stream', device='drive0', base=backing_img)
+        result = self.vm.qmp('block-stream', device='drive0', base=self.backing_img)
         self.assert_qmp(result, 'return', {})
 
         self.wait_until_completed()
@@ -140,8 +137,8 @@ class TestSingleDrive(iotests.QMPTestCase):
         self.assert_no_active_block_jobs()
         self.vm.shutdown()
 
-        self.assertEqual(qemu_io('-f', iotests.imgfmt, '-c', 'map', mid_img),
-                         qemu_io('-f', iotests.imgfmt, '-c', 'map', test_img),
+        self.assertEqual(qemu_io('-f', iotests.imgfmt, '-c', 'map', self.mid_img),
+                         qemu_io('-f', iotests.imgfmt, '-c', 'map', self.test_img),
                          'image file map does not match backing file after streaming')
 
     def test_device_not_found(self):
@@ -157,7 +154,6 @@ class TestParallelOps(iotests.QMPTestCase):
     num_ops = 4 # Number of parallel block-stream operations
     num_imgs = num_ops * 2 + 1
     image_len = num_ops * 1024 * 1024
-    imgs = []
 
     def setUp(self):
         opts = []
@@ -167,7 +163,7 @@ class TestParallelOps(iotests.QMPTestCase):
         for i in range(self.num_imgs):
             img_depth = self.num_imgs - i - 1
             opts.append("backing." * img_depth + "node-name=node%d" % i)
-            self.imgs.append(os.path.join(iotests.test_dir, 'img-%d.img' % i))
+            self.imgs.append(os.path.join(self.workdir, 'img-%d.img' % i))
 
         # Create all images
         iotests.create_image(self.imgs[0], self.image_len)
@@ -192,8 +188,6 @@ class TestParallelOps(iotests.QMPTestCase):
 
     def tearDown(self):
         self.vm.shutdown()
-        for img in self.imgs:
-            os.remove(img)
 
     # Test that it's possible to run several block-stream operations
     # in parallel in the same snapshot chain
@@ -395,8 +389,8 @@ class TestQuorum(iotests.QMPTestCase):
 
         # Initialize file names and command-line options
         for i in range(self.num_children):
-            child_img = os.path.join(iotests.test_dir, 'img-%d.img' % i)
-            backing_img = os.path.join(iotests.test_dir, 'backing-%d.img' % i)
+            child_img = os.path.join(self.workdir, 'img-%d.img' % i)
+            backing_img = os.path.join(self.workdir, 'backing-%d.img' % i)
             self.children.append(child_img)
             self.backing.append(backing_img)
             qemu_img('create', '-f', iotests.imgfmt, backing_img, '1M')
@@ -414,10 +408,6 @@ class TestQuorum(iotests.QMPTestCase):
 
     def tearDown(self):
         self.vm.shutdown()
-        for img in self.children:
-            os.remove(img)
-        for img in self.backing:
-            os.remove(img)
 
     def test_stream_quorum(self):
         if not iotests.supports_quorum():
@@ -446,6 +436,8 @@ class TestSmallerBackingFile(iotests.QMPTestCase):
     image_len = 2 * backing_len
 
     def setUp(self):
+        backing_img = os.path.join(self.workdir, 'backing.img')
+        test_img = os.path.join(self.workdir, 'test.img')
         iotests.create_image(backing_img, self.backing_len)
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, test_img, str(self.image_len))
         self.vm = iotests.VM().add_drive(test_img)
@@ -495,6 +487,8 @@ new_state = "1"
 
 class TestEIO(TestErrors):
     def setUp(self):
+        backing_img = os.path.join(self.workdir, 'backing.img')
+        test_img = os.path.join(self.workdir, 'test.img')
         self.blkdebug_file = backing_img + ".blkdebug"
         iotests.create_image(backing_img, TestErrors.image_len)
         self.create_blkdebug_file(self.blkdebug_file, "read_aio", 5)
@@ -507,9 +501,6 @@ class TestEIO(TestErrors):
 
     def tearDown(self):
         self.vm.shutdown()
-        os.remove(test_img)
-        os.remove(backing_img)
-        os.remove(self.blkdebug_file)
 
     def test_report(self):
         self.assert_no_active_block_jobs()
@@ -637,6 +628,8 @@ class TestEIO(TestErrors):
 
 class TestENOSPC(TestErrors):
     def setUp(self):
+        backing_img = os.path.join(self.workdir, 'backing.img')
+        test_img = os.path.join(self.workdir, 'test.img')
         self.blkdebug_file = backing_img + ".blkdebug"
         iotests.create_image(backing_img, TestErrors.image_len)
         self.create_blkdebug_file(self.blkdebug_file, "read_aio", 28)
@@ -649,9 +642,6 @@ class TestENOSPC(TestErrors):
 
     def tearDown(self):
         self.vm.shutdown()
-        os.remove(test_img)
-        os.remove(backing_img)
-        os.remove(self.blkdebug_file)
 
     def test_enospc(self):
         self.assert_no_active_block_jobs()
@@ -695,6 +685,8 @@ class TestStreamStop(iotests.QMPTestCase):
     image_len = 8 * 1024 * 1024 * 1024 # GB
 
     def setUp(self):
+        backing_img = os.path.join(self.workdir, 'backing.img')
+        test_img = os.path.join(self.workdir, 'test.img')
         qemu_img('create', backing_img, str(TestStreamStop.image_len))
         qemu_io('-f', 'raw', '-c', 'write -P 0x1 0 32M', backing_img)
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, test_img)
@@ -704,8 +696,6 @@ class TestStreamStop(iotests.QMPTestCase):
 
     def tearDown(self):
         self.vm.shutdown()
-        os.remove(test_img)
-        os.remove(backing_img)
 
     def test_stream_stop(self):
         self.assert_no_active_block_jobs()
@@ -724,6 +714,8 @@ class TestSetSpeed(iotests.QMPTestCase):
     image_len = 80 * 1024 * 1024 # MB
 
     def setUp(self):
+        backing_img = os.path.join(self.workdir, 'backing.img')
+        test_img = os.path.join(self.workdir, 'test.img')
         qemu_img('create', backing_img, str(TestSetSpeed.image_len))
         qemu_io('-f', 'raw', '-c', 'write -P 0x1 0 32M', backing_img)
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, test_img)
@@ -733,8 +725,6 @@ class TestSetSpeed(iotests.QMPTestCase):
 
     def tearDown(self):
         self.vm.shutdown()
-        os.remove(test_img)
-        os.remove(backing_img)
 
     # This is a short performance test which is not run by default.
     # Invoke "IMGFMT=qed ./030 TestSetSpeed.perf_test_throughput"

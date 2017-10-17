@@ -22,26 +22,25 @@ import os
 import iotests
 from iotests import qemu_img
 
-image0 = os.path.join(iotests.test_dir, 'image0')
-image1 = os.path.join(iotests.test_dir, 'image1')
-image2 = os.path.join(iotests.test_dir, 'image2')
-image3 = os.path.join(iotests.test_dir, 'image3')
-image4 = os.path.join(iotests.test_dir, 'image4')
-
 class TestFdSets(iotests.QMPTestCase):
 
     def setUp(self):
+        self.image0 = os.path.join(self.workdir, 'image0')
+        self.image1 = os.path.join(self.workdir, 'image1')
+        self.image2 = os.path.join(self.workdir, 'image2')
+        self.image3 = os.path.join(self.workdir, 'image3')
+        self.image4 = os.path.join(self.workdir, 'image4')
         self.vm = iotests.VM()
-        qemu_img('create', '-f', iotests.imgfmt, image0, '128K')
-        qemu_img('create', '-f', iotests.imgfmt, image1, '128K')
-        qemu_img('create', '-f', iotests.imgfmt, image2, '128K')
-        qemu_img('create', '-f', iotests.imgfmt, image3, '128K')
-        qemu_img('create', '-f', iotests.imgfmt, image4, '128K')
-        self.file0 = open(image0, 'r')
-        self.file1 = open(image1, 'w+')
-        self.file2 = open(image2, 'r')
-        self.file3 = open(image3, 'r')
-        self.file4 = open(image4, 'r')
+        qemu_img('create', '-f', iotests.imgfmt, self.image0, '128K')
+        qemu_img('create', '-f', iotests.imgfmt, self.image1, '128K')
+        qemu_img('create', '-f', iotests.imgfmt, self.image2, '128K')
+        qemu_img('create', '-f', iotests.imgfmt, self.image3, '128K')
+        qemu_img('create', '-f', iotests.imgfmt, self.image4, '128K')
+        self.file0 = open(self.image0, 'r')
+        self.file1 = open(self.image1, 'w+')
+        self.file2 = open(self.image2, 'r')
+        self.file3 = open(self.image3, 'r')
+        self.file4 = open(self.image4, 'r')
         self.vm.add_fd(self.file0.fileno(), 1, 'image0:r')
         self.vm.add_fd(self.file1.fileno(), 1, 'image1:w+')
         self.vm.add_fd(self.file2.fileno(), 0, 'image2:r')
@@ -57,11 +56,6 @@ class TestFdSets(iotests.QMPTestCase):
         self.file2.close()
         self.file3.close()
         self.file4.close()
-        os.remove(image0)
-        os.remove(image1)
-        os.remove(image2)
-        os.remove(image3)
-        os.remove(image4)
 
     def test_query_fdset(self):
         result = self.vm.qmp('query-fdsets')
@@ -128,8 +122,9 @@ class TestFdSets(iotests.QMPTestCase):
 # Add fd at runtime, there are two ways: monitor related or fdset related
 class TestSCMFd(iotests.QMPTestCase):
     def setUp(self):
+        self.image0 = os.path.join(self.workdir, 'image0')
         self.vm = iotests.VM()
-        qemu_img('create', '-f', iotests.imgfmt, image0, '128K')
+        qemu_img('create', '-f', iotests.imgfmt, self.image0, '128K')
         # Add an unused monitor, to verify it works fine when two monitor
         # instances present
         self.vm.add_monitor_telnet("0",4445)
@@ -137,10 +132,9 @@ class TestSCMFd(iotests.QMPTestCase):
 
     def tearDown(self):
         self.vm.shutdown()
-        os.remove(image0)
 
     def _send_fd_by_SCM(self):
-        ret = self.vm.send_fd_scm(image0)
+        ret = self.vm.send_fd_scm(self.image0)
         self.assertEqual(ret, 0, 'Failed to send fd with UNIX SCM')
 
     def test_add_fd(self):

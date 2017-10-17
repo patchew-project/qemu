@@ -26,8 +26,6 @@ import iotests
 from iotests import qemu_img, qemu_io
 
 test_img = os.path.join(iotests.test_dir, 'test.img')
-target_img = os.path.join(iotests.test_dir, 'target.img')
-blockdev_target_img = os.path.join(iotests.test_dir, 'blockdev-target.img')
 
 image_len = 64 * 1024 * 1024 # MB
 
@@ -40,27 +38,23 @@ def setUpModule():
     qemu_io('-f', iotests.imgfmt, '-c', 'write -P0xdc 32M 124k', test_img)
     qemu_io('-f', iotests.imgfmt, '-c', 'write -P0x33 67043328 64k', test_img)
 
-def tearDownModule():
-    os.remove(test_img)
 
 
 class TestSingleDrive(iotests.QMPTestCase):
     def setUp(self):
-        qemu_img('create', '-f', iotests.imgfmt, blockdev_target_img, str(image_len))
+        self.target_img = os.path.join(self.workdir, 'target.img')
+        self.blockdev_target_img = os.path.join(self.workdir, 'blockdev-target.img')
+        qemu_img('create', '-f', iotests.imgfmt, self.blockdev_target_img, str(image_len))
 
         self.vm = iotests.VM().add_drive(test_img)
-        self.vm.add_drive(blockdev_target_img, interface="none")
+        self.vm.add_drive(self.blockdev_target_img, interface="none")
         if iotests.qemu_default_machine == 'pc':
             self.vm.add_drive(None, 'media=cdrom', 'ide')
         self.vm.launch()
 
     def tearDown(self):
         self.vm.shutdown()
-        os.remove(blockdev_target_img)
-        try:
-            os.remove(target_img)
-        except OSError:
-            pass
+        pass
 
     def do_test_cancel(self, cmd, target):
         self.assert_no_active_block_jobs()
@@ -72,7 +66,7 @@ class TestSingleDrive(iotests.QMPTestCase):
         self.assert_qmp(event, 'data/type', 'backup')
 
     def test_cancel_drive_backup(self):
-        self.do_test_cancel('drive-backup', target_img)
+        self.do_test_cancel('drive-backup', self.target_img)
 
     def test_cancel_blockdev_backup(self):
         self.do_test_cancel('blockdev-backup', 'drive1')
@@ -108,17 +102,17 @@ class TestSingleDrive(iotests.QMPTestCase):
                         'target image does not match source after backup')
 
     def test_pause_drive_backup(self):
-        self.do_test_pause('drive-backup', target_img, target_img)
+        self.do_test_pause('drive-backup', self.target_img, self.target_img)
 
     def test_pause_blockdev_backup(self):
-        self.do_test_pause('blockdev-backup', 'drive1', blockdev_target_img)
+        self.do_test_pause('blockdev-backup', 'drive1', self.blockdev_target_img)
 
     def test_medium_not_found(self):
         if iotests.qemu_default_machine != 'pc':
             return
 
         result = self.vm.qmp('drive-backup', device='drive2', # CD-ROM
-                             target=target_img, sync='full')
+                             target=self.target_img, sync='full')
         self.assert_qmp(result, 'error/class', 'GenericError')
 
     def test_medium_not_found_blockdev_backup(self):
@@ -131,12 +125,12 @@ class TestSingleDrive(iotests.QMPTestCase):
 
     def test_image_not_found(self):
         result = self.vm.qmp('drive-backup', device='drive0',
-                             target=target_img, sync='full', mode='existing')
+                             target=self.target_img, sync='full', mode='existing')
         self.assert_qmp(result, 'error/class', 'GenericError')
 
     def test_invalid_format(self):
         result = self.vm.qmp('drive-backup', device='drive0',
-                             target=target_img, sync='full',
+                             target=self.target_img, sync='full',
                              format='spaghetti-noodles')
         self.assert_qmp(result, 'error/class', 'GenericError')
 
@@ -146,7 +140,7 @@ class TestSingleDrive(iotests.QMPTestCase):
 
     def test_device_not_found(self):
         self.do_test_device_not_found('drive-backup', device='nonexistent',
-                                      target=target_img, sync='full')
+                                      target=self.target_img, sync='full')
 
         self.do_test_device_not_found('blockdev-backup', device='nonexistent',
                                       target='drive0', sync='full')
@@ -164,19 +158,17 @@ class TestSingleDrive(iotests.QMPTestCase):
 
 class TestSetSpeed(iotests.QMPTestCase):
     def setUp(self):
-        qemu_img('create', '-f', iotests.imgfmt, blockdev_target_img, str(image_len))
+        self.target_img = os.path.join(self.workdir, 'target.img')
+        self.blockdev_target_img = os.path.join(self.workdir, 'blockdev-target.img')
+        qemu_img('create', '-f', iotests.imgfmt, self.blockdev_target_img, str(image_len))
 
         self.vm = iotests.VM().add_drive(test_img)
-        self.vm.add_drive(blockdev_target_img, interface="none")
+        self.vm.add_drive(self.blockdev_target_img, interface="none")
         self.vm.launch()
 
     def tearDown(self):
         self.vm.shutdown()
-        os.remove(blockdev_target_img)
-        try:
-            os.remove(target_img)
-        except OSError:
-            pass
+        pass
 
     def do_test_set_speed(self, cmd, target):
         self.assert_no_active_block_jobs()
@@ -215,7 +207,7 @@ class TestSetSpeed(iotests.QMPTestCase):
         self.assert_qmp(event, 'data/type', 'backup')
 
     def test_set_speed_drive_backup(self):
-        self.do_test_set_speed('drive-backup', target_img)
+        self.do_test_set_speed('drive-backup', self.target_img)
 
     def test_set_speed_blockdev_backup(self):
         self.do_test_set_speed('blockdev-backup', 'drive1')
@@ -241,28 +233,27 @@ class TestSetSpeed(iotests.QMPTestCase):
         self.assert_qmp(event, 'data/type', 'backup')
 
     def test_set_speed_invalid_drive_backup(self):
-        self.do_test_set_speed_invalid('drive-backup', target_img)
+        self.do_test_set_speed_invalid('drive-backup', self.target_img)
 
     def test_set_speed_invalid_blockdev_backup(self):
         self.do_test_set_speed_invalid('blockdev-backup',  'drive1')
 
 class TestSingleTransaction(iotests.QMPTestCase):
+
     def setUp(self):
-        qemu_img('create', '-f', iotests.imgfmt, blockdev_target_img, str(image_len))
+        self.target_img = os.path.join(self.workdir, 'target.img')
+        self.blockdev_target_img = os.path.join(self.workdir, 'blockdev-target.img')
+        qemu_img('create', '-f', iotests.imgfmt, self.blockdev_target_img, str(image_len))
 
         self.vm = iotests.VM().add_drive(test_img)
-        self.vm.add_drive(blockdev_target_img, interface="none")
+        self.vm.add_drive(self.blockdev_target_img, interface="none")
         if iotests.qemu_default_machine == 'pc':
             self.vm.add_drive(None, 'media=cdrom', 'ide')
         self.vm.launch()
 
     def tearDown(self):
         self.vm.shutdown()
-        os.remove(blockdev_target_img)
-        try:
-            os.remove(target_img)
-        except OSError:
-            pass
+        pass
 
     def do_test_cancel(self, cmd, target):
         self.assert_no_active_block_jobs()
@@ -281,7 +272,7 @@ class TestSingleTransaction(iotests.QMPTestCase):
         self.assert_qmp(event, 'data/type', 'backup')
 
     def test_cancel_drive_backup(self):
-        self.do_test_cancel('drive-backup', target_img)
+        self.do_test_cancel('drive-backup', self.target_img)
 
     def test_cancel_blockdev_backup(self):
         self.do_test_cancel('blockdev-backup', 'drive1')
@@ -322,10 +313,10 @@ class TestSingleTransaction(iotests.QMPTestCase):
                         'target image does not match source after backup')
 
     def test_pause_drive_backup(self):
-        self.do_test_pause('drive-backup', target_img, target_img)
+        self.do_test_pause('drive-backup', self.target_img, self.target_img)
 
     def test_pause_blockdev_backup(self):
-        self.do_test_pause('blockdev-backup', 'drive1', blockdev_target_img)
+        self.do_test_pause('blockdev-backup', 'drive1', self.blockdev_target_img)
 
     def do_test_medium_not_found(self, cmd, target):
         if iotests.qemu_default_machine != 'pc':
@@ -341,7 +332,7 @@ class TestSingleTransaction(iotests.QMPTestCase):
         self.assert_qmp(result, 'error/class', 'GenericError')
 
     def test_medium_not_found_drive_backup(self):
-        self.do_test_medium_not_found('drive-backup', target_img)
+        self.do_test_medium_not_found('drive-backup', self.target_img)
 
     def test_medium_not_found_blockdev_backup(self):
         self.do_test_medium_not_found('blockdev-backup', 'drive1')
@@ -351,7 +342,7 @@ class TestSingleTransaction(iotests.QMPTestCase):
                 'type': 'drive-backup',
                 'data': { 'device': 'drive0',
                           'mode': 'existing',
-                          'target': target_img,
+                          'target': self.target_img,
                           'sync': 'full' },
             }
         ])
@@ -362,7 +353,7 @@ class TestSingleTransaction(iotests.QMPTestCase):
                 'type': 'drive-backup',
                 'data': { 'device': 'nonexistent',
                           'mode': 'existing',
-                          'target': target_img,
+                          'target': self.target_img,
                           'sync': 'full' },
             }
         ])
@@ -410,7 +401,7 @@ class TestSingleTransaction(iotests.QMPTestCase):
                 'type': 'drive-backup',
                 'data': { 'device': 'nonexistent',
                           'mode': 'existing',
-                          'target': target_img,
+                          'target': self.target_img,
                           'sync': 'full' },
             }, {
                 'type': 'Abort',
@@ -452,21 +443,21 @@ class TestDriveCompression(iotests.QMPTestCase):
     fmt_supports_compression = [{'type': 'qcow2', 'args': ()},
                                 {'type': 'vmdk', 'args': ('-o', 'subformat=streamOptimized')}]
 
+    def setUp(self):
+        self.target_img = os.path.join(self.workdir, 'target.img')
+        self.blockdev_target_img = os.path.join(self.workdir, 'blockdev-target.img')
+
     def tearDown(self):
         self.vm.shutdown()
-        os.remove(blockdev_target_img)
-        try:
-            os.remove(target_img)
-        except OSError:
-            pass
+        pass
 
     def do_prepare_drives(self, fmt, args, attach_target):
         self.vm = iotests.VM().add_drive(test_img)
 
-        qemu_img('create', '-f', fmt, blockdev_target_img,
+        qemu_img('create', '-f', fmt, self.blockdev_target_img,
                  str(TestDriveCompression.image_len), *args)
         if attach_target:
-            self.vm.add_drive(blockdev_target_img, format=fmt, interface="none")
+            self.vm.add_drive(self.blockdev_target_img, format=fmt, interface="none")
 
         self.vm.launch()
 
@@ -481,14 +472,14 @@ class TestDriveCompression(iotests.QMPTestCase):
         self.wait_until_completed()
 
         self.vm.shutdown()
-        self.assertTrue(iotests.compare_images(test_img, blockdev_target_img,
+        self.assertTrue(iotests.compare_images(test_img, self.blockdev_target_img,
                                                iotests.imgfmt, format['type']),
                         'target image does not match source after backup')
 
     def test_complete_compress_drive_backup(self):
         for format in TestDriveCompression.fmt_supports_compression:
             self.do_test_compress_complete('drive-backup', format, False,
-                                           target=blockdev_target_img, mode='existing')
+                                           target=self.blockdev_target_img, mode='existing')
 
     def test_complete_compress_blockdev_backup(self):
         for format in TestDriveCompression.fmt_supports_compression:
@@ -511,7 +502,7 @@ class TestDriveCompression(iotests.QMPTestCase):
     def test_compress_cancel_drive_backup(self):
         for format in TestDriveCompression.fmt_supports_compression:
             self.do_test_compress_cancel('drive-backup', format, False,
-                                         target=blockdev_target_img, mode='existing')
+                                         target=self.blockdev_target_img, mode='existing')
 
     def test_compress_cancel_blockdev_backup(self):
        for format in TestDriveCompression.fmt_supports_compression:
@@ -546,14 +537,14 @@ class TestDriveCompression(iotests.QMPTestCase):
         self.wait_until_completed()
 
         self.vm.shutdown()
-        self.assertTrue(iotests.compare_images(test_img, blockdev_target_img,
+        self.assertTrue(iotests.compare_images(test_img, self.blockdev_target_img,
                                                iotests.imgfmt, format['type']),
                         'target image does not match source after backup')
 
     def test_compress_pause_drive_backup(self):
         for format in TestDriveCompression.fmt_supports_compression:
             self.do_test_compress_pause('drive-backup', format, False,
-                                        target=blockdev_target_img, mode='existing')
+                                        target=self.blockdev_target_img, mode='existing')
 
     def test_compress_pause_blockdev_backup(self):
         for format in TestDriveCompression.fmt_supports_compression:

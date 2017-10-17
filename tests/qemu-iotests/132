@@ -23,36 +23,31 @@ import os
 import iotests
 from iotests import qemu_img, qemu_io
 
-test_img = os.path.join(iotests.test_dir, 'test.img')
-target_img = os.path.join(iotests.test_dir, 'target.img')
 
 class TestSingleDrive(iotests.QMPTestCase):
     image_len = 2 * 1024 * 1024 # MB
 
     def setUp(self):
+        self.test_img = os.path.join(self.workdir, 'test.img')
+        self.target_img = os.path.join(self.workdir, 'target.img')
         # Write data to the image so we can compare later
-        qemu_img('create', '-f', iotests.imgfmt, test_img, str(TestSingleDrive.image_len))
-        qemu_io('-f', iotests.imgfmt, '-c', 'write -P0x5d 0 2M', test_img)
+        qemu_img('create', '-f', iotests.imgfmt, self.test_img, str(TestSingleDrive.image_len))
+        qemu_io('-f', iotests.imgfmt, '-c', 'write -P0x5d 0 2M', self.test_img)
 
-        self.vm = iotests.VM().add_drive(test_img, 'discard=unmap')
+        self.vm = iotests.VM().add_drive(self.test_img, 'discard=unmap')
         self.vm.launch()
 
     def tearDown(self):
         self.vm.shutdown()
-        os.remove(test_img)
-        try:
-            os.remove(target_img)
-        except OSError:
-            pass
 
     def test_mirror_discard(self):
         result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
-                             target=target_img)
+                             target=self.target_img)
         self.assert_qmp(result, 'return', {})
         self.vm.hmp_qemu_io('drive0', 'discard 0 64k')
         self.complete_and_wait('drive0')
         self.vm.shutdown()
-        self.assertTrue(iotests.compare_images(test_img, target_img),
+        self.assertTrue(iotests.compare_images(self.test_img, self.target_img),
                         'target image does not match source after mirroring')
 
 if __name__ == '__main__':

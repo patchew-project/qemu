@@ -23,11 +23,11 @@ import iotests
 import time
 
 class TestStopWithBlockJob(iotests.QMPTestCase):
-    test_img = os.path.join(iotests.test_dir, 'test.img')
-    target_img = os.path.join(iotests.test_dir, 'target.img')
-    base_img = os.path.join(iotests.test_dir, 'base.img')
 
     def setUp(self):
+        self.test_img = os.path.join(self.workdir, 'test.img')
+        self.target_img = os.path.join(self.workdir, 'target.img')
+        self.base_img = os.path.join(self.workdir, 'base.img')
         iotests.qemu_img('create', '-f', iotests.imgfmt, self.base_img, "1G")
         iotests.qemu_img('create', '-f', iotests.imgfmt, self.test_img, "-b", self.base_img)
         iotests.qemu_io('-f', iotests.imgfmt, '-c', 'write -P0x5d 1M 128M', self.test_img)

@@ -38,7 +38,7 @@ class ImageSnapshotTestCase(iotests.QMPTestCase):
         self.vm = iotests.VM()
         for i in range(0, image_num):
             filename = '%s%d' % (test_img_base_name, i)
-            img = os.path.join(iotests.test_dir, filename)
+            img = os.path.join(self.workdir, filename)
             device = '%s%d' % (test_drv_base_name, i)
             qemu_img('create', '-f', iotests.imgfmt, img, str(self.image_len))
             self.vm.add_drive(img)
@@ -49,8 +49,6 @@ class ImageSnapshotTestCase(iotests.QMPTestCase):
 
     def tearDown(self):
         self.vm.shutdown()
-        for dev_expect in self.expect:
-            os.remove(dev_expect['image'])
 
     def createSnapshotInTransaction(self, snapshot_num, abort = False):
         actions = []
