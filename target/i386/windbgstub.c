@@ -275,7 +275,22 @@ static void windbg_set_dr(CPUState *cpu, int index, target_ulong value)
 {}
 
 static void windbg_set_sr(CPUState *cpu, int sr, uint16_t selector)
-{}
+{
+    CPUArchState *env = cpu->env_ptr;
+
+    if (selector != env->segs[sr].selector &&
+        (!(env->cr[0] & CR0_PE_MASK) || (env->eflags & VM_MASK))) {
+        unsigned int limit, flags;
+        target_ulong base;
+
+        int dpl = (env->eflags & VM_MASK) ? 3 : 0;
+        base = selector << 4;
+        limit = 0xffff;
+        flags = DESC_P_MASK | DESC_S_MASK | DESC_W_MASK |
+                DESC_A_MASK | (dpl << DESC_DPL_SHIFT);
+        cpu_x86_load_seg_cache(env, sr, selector, base, limit, flags);
+    }
+}
 
 static int windbg_read_context(CPUState *cpu, uint8_t *buf, int buf_size,
                                int offset, int len)
