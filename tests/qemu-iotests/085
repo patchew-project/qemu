@@ -37,8 +37,6 @@ snapshot_virt1="snapshot-v1.qcow2"
 
 SNAPSHOTS=10
 
-trap "_cleanup_qemu; exit \$status" 0 1 2 3 15
-
 # get standard environment, filters and checks
 . ./common.rc
 . ./common.filter

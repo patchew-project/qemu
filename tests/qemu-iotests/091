@@ -31,8 +31,6 @@ status=1    # failure is the default!
 
 MIG_FIFO="${TEST_DIR}/migrate"
 
-trap "_cleanup_qemu; exit \$status" 0 1 2 3 15
-
 # get standard environment, filters and checks
 . ./common.rc
 . ./common.filter

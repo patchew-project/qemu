@@ -845,10 +845,13 @@ do
         # TEST_DIR / QEMU_TEST_DIR
         (
         export TEST_DIR=$TEST_DIR_SEQ
-        . "$source_iotests/common.config"
-        . "$source_iotests/common.rc"
+        cd "$source_iotests";
+        . ./common.config
+        . ./common.rc
+        . ./common.qemu
 
         _cleanup_protocols
+        _cleanup_qemu
         )
         rm -rf "$TEST_DIR_SEQ"
 
