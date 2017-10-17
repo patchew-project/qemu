@@ -220,6 +220,10 @@ static void windbg_process_manipulate_packet(ParsingContext *ctx)
         kd_api_fill_memory(cpu, &ctx->data);
         break;
 
+    case DbgKdQueryMemoryApi:
+        kd_api_query_memory(cpu, &ctx->data);
+        break;
+
     default:
         kd_api_unsupported(cpu, &ctx->data);
         break;
