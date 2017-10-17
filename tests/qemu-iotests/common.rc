@@ -40,7 +40,6 @@ poke_file()
     printf "$3" | dd "of=$1" bs=1 "seek=$2" conv=notrunc &>/dev/null
 }
 
-
 if ! . ./common.config
     then
     echo "$0: failed to source common.config"
@@ -51,7 +50,7 @@ _qemu_wrapper()
 {
     (
         if [ -n "${QEMU_NEED_PID}" ]; then
-            echo $BASHPID > "${QEMU_TEST_DIR}/qemu-${_QEMU_HANDLE}.pid"
+            echo $BASHPID >> "${QEMU_TEST_DIR}/qemu-pid.lst"
         fi
         exec "$QEMU_PROG" $QEMU_OPTIONS "$@"
     )

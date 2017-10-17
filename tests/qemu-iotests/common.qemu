@@ -33,6 +33,10 @@ QEMU_FIFO_OUT="${QEMU_TEST_DIR}/qmp-out-$$"
 QEMU_HANDLE=0
 export _QEMU_HANDLE=0
 
+QEMU_PID_LIST="${QEMU_TEST_DIR}"/qemu-pid.lst
+QEMU_OUT_FD_LIST="${QEMU_TEST_DIR}"/qemu-out-fd.lst
+QEMU_IN_FD_LIST="${QEMU_TEST_DIR}"/qemu-in-fd.lst
+QEMU_FIFO_LIST="${QEMU_TEST_DIR}"/qemu-fifo.lst
 # If bash version is >= 4.1, these will be overwritten and dynamic
 # file descriptor values assigned.
 _out_fd=3
@@ -193,6 +197,10 @@ function _launch_qemu()
     QEMU_OUT[${_QEMU_HANDLE}]=${_out_fd}
     QEMU_IN[${_QEMU_HANDLE}]=${_in_fd}
     QEMU_STATUS[${_QEMU_HANDLE}]=0
+    echo ${_out_fd} >> "$QEMU_OUT_FD_LIST"
+    echo ${_in_fd} >> "$QEMU_IN_FD_LIST"
+    echo ${fifo_in} >> "$QEMU_FIFO_LIST"
+    echo ${fifo_out} >> "$QEMU_FIFO_LIST"
 
     if [ "${qemu_comm_method}" == "qmp" ]
     then
@@ -209,35 +217,71 @@ function _launch_qemu()
 
 # Silenty kills the QEMU process
 #
+# This is able to kill and clean up after QEMU processes without the
+# need for any subshell-specific variables, so long as the qemu-pidlist
+# and qemu-out-fd.list and qemu-in-fd.list files are properly maintained.
+#
 # If $wait is set to anything other than the empty string, the process will not
 # be killed but only waited for, and any output will be forwarded to stdout. If
 # $wait is empty, the process will be killed and all output will be suppressed.
 function _cleanup_qemu()
 {
-    # QEMU_PID[], QEMU_IN[], QEMU_OUT[] all use same indices
-    for i in "${!QEMU_OUT[@]}"
+    local fifo_path=
+    local testdir_path=
+
+    if [ ! -e "${QEMU_PID_LIST}" ]; then
+        return
+    fi
+
+    # get line count, and therefore number of processes to kill
+    numproc=$(wc -l "${QEMU_PID_LIST}" | sed 's/\s.*//')
+
+    for i in $(seq 1 $numproc)
     do
         local QEMU_PID
-        if [ -f "${QEMU_TEST_DIR}/qemu-${i}.pid" ]; then
-            read QEMU_PID < "${QEMU_TEST_DIR}/qemu-${i}.pid"
-            rm -f "${QEMU_TEST_DIR}/qemu-${i}.pid"
-            if [ -z "${wait}" ] && [ -n "${QEMU_PID}" ]; then
-                kill -KILL ${QEMU_PID} 2>/dev/null
-            fi
-            if [ -n "${QEMU_PID}" ]; then
-                wait ${QEMU_PID} 2>/dev/null # silent kill
-            fi
+        local OUT_FD
+        local IN_FD
+        j=$(expr $i - 1)
+
+        QEMU_PID=$(tail -n+${i} "${QEMU_PID_LIST}" | head -n1)
+        OUT_FD=$(tail -n+${i} "${QEMU_OUT_FD_LIST}" | head -n1)
+        IN_FD=$(tail -n+${i} "${QEMU_IN_FD_LIST}" | head -n1)
+
+        if [ -z "${wait}" ] && [ -n "${QEMU_PID}" ]; then
+            kill -KILL ${QEMU_PID} 2>/dev/null
+        fi
+        if [ -n "${QEMU_PID}" ]; then
+            wait ${QEMU_PID} 2>/dev/null # silent kill
         fi
 
-        if [ -n "${wait}" ]; then
-            cat <&${QEMU_OUT[$i]} | _filter_testdir | _filter_qemu \
-                                  | _filter_qemu_io | _filter_qmp | _filter_hmp
+        if [ -n "${wait}" ] && [ -n "${OUT_FD}" ]; then
+            cat <&${OUT_FD} | _filter_testdir | _filter_qemu \
+                            | _filter_qemu_io | _filter_qmp | _filter_hmp
         fi
-        rm -f "${QEMU_FIFO_IN}_${i}" "${QEMU_FIFO_OUT}_${i}"
-        eval "exec ${QEMU_IN[$i]}<&-"   # close file descriptors
-        eval "exec ${QEMU_OUT[$i]}<&-"
 
-        unset QEMU_IN[$i]
-        unset QEMU_OUT[$i]
+        if [ -n "${IN_FD}" ]; then
+            eval "exec ${IN_FD}<&-"   # close file descriptors
+        fi
+        if [ -n "${OUT_FD}" ]; then
+            eval "exec ${OUT_FD}<&-"
+        fi
+
+        unset QEMU_IN[$j]
+        unset QEMU_OUT[$j]
     done
+
+    # The FIFOs do not correspond to process entry in the pidlist, so
+    # just clean them up afterwards
+    while read fifo_name
+    do
+        # make sure entries are inside the $TEST_DIR
+        fifo_path=$(dirname -z $(realpath "$fifo_name"))
+        testdir_path=$(realpath "$QEMU_TEST_DIR")
+        if [ "$fifo_path" == "$testdir_path" ]
+        then
+            rm -f "$fifo_name"
+        fi
+    done < "${QEMU_FIFO_LIST}"
+
+    rm -f "${QEMU_PID_LIST}" "${QEMU_OUT_FD_LIST}" "${QEMU_IN_FD_LIST}" "$QEMU_FIFO_LIST}"
 }
