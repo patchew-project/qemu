@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "hw/isa/isa.h"
 
 #define TYPE_I82374 "i82374"
@@ -117,13 +118,19 @@ static const MemoryRegionPortio i82374_portio_list[] = {
 static void i82374_realize(DeviceState *dev, Error **errp)
 {
     I82374State *s = I82374(dev);
+    ISABus *isa_bus = isa_bus_from_device(ISA_DEVICE(dev));
+
+    if (isa_bus->dma[0] || isa_bus->dma[1]) {
+        error_setg(errp, "DMA already initialized on ISA bus");
+        return;
+    }
 
     portio_list_init(&s->port_list, OBJECT(s), i82374_portio_list, s,
                      "i82374");
     portio_list_add(&s->port_list, isa_address_space_io(&s->parent_obj),
                     s->iobase);
 
-    DMA_init(isa_bus_from_device(ISA_DEVICE(dev)), 1);
+    DMA_init(isa_bus, 1);
     memset(s->commands, 0, sizeof(s->commands));
 }
 
