@@ -102,6 +102,14 @@ if [ -z "$TEST_DIR" ]; then
         TEST_DIR=`pwd`/scratch
 fi
 
+case $TEST_DIR in
+    *[[:blank:]]*)
+        echo "The TEST_DIR pathname '$TEST_DIR' contains whitespace. "
+        echo "This is currently unsupported by qemu-iotests"
+        exit 1
+        ;;
+esac
+
 if [ ! -e "$TEST_DIR" ]; then
         mkdir "$TEST_DIR"
 fi
