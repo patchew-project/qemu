@@ -757,6 +757,8 @@ do
         fi
         export OUTPUT_DIR=$PWD
         if $debug; then
+            # Do this in a sub-shell, so we are operating on the right
+            # TEST_DIR / QEMU_TEST_DIR
             (
             export TEST_DIR=$TEST_DIR_SEQ
             cd "$source_iotests";
@@ -766,6 +768,8 @@ do
                     $run_command -d 2>&1 | tee $tmp.out
             )
         else
+            # Do this in a sub-shell, so we are operating on the right
+            # TEST_DIR / QEMU_TEST_DIR
             (
             export TEST_DIR=$TEST_DIR_SEQ
             cd "$source_iotests";
@@ -837,6 +841,15 @@ do
             fi
         fi
 
+        # Do this in a sub-shell, so we are operating on the right
+        # TEST_DIR / QEMU_TEST_DIR
+        (
+        export TEST_DIR=$TEST_DIR_SEQ
+        . "$source_iotests/common.config"
+        . "$source_iotests/common.rc"
+
+        _cleanup_protocols
+        )
         rm -rf "$TEST_DIR_SEQ"
 
     fi
