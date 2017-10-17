@@ -392,7 +392,7 @@ _img_info()
 #
 _notrun()
 {
-    echo "$*" >"$OUTPUT_DIR/$seq.notrun"
+    printf "$*" >"$OUTPUT_DIR/$seq.notrun"
     echo "$seq not run: $*"
     status=0
     exit
