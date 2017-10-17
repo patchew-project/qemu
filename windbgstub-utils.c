@@ -23,3 +23,13 @@ InitedAddr *windbg_get_version(void)
 {
     return &version;
 }
+
+void kd_api_unsupported(CPUState *cpu, PacketData *pd)
+{
+    WINDBG_ERROR("Caught unimplemented api %s",
+                 KD_API_NAME(pd->m64.ApiNumber));
+    pd->m64.ReturnStatus = STATUS_UNSUCCESSFUL;
+    pd->extra_size = 0;
+
+    exit(1);
+}
