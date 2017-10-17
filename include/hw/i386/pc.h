@@ -249,7 +249,8 @@ int cmos_get_fd_drive_type(FloppyDriveType fd0);
 
 #define FW_CFG_IO_BASE     0x510
 
-#define PORT92_A20_LINE "a20"
+#define TYPE_PORT92 "port92"
+void port92_init(ISADevice *dev, qemu_irq a20_out);
 
 /* acpi_piix.c */
 
