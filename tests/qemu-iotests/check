@@ -125,6 +125,7 @@ sortme=false
 expunge=true
 have_test_arg=false
 cachemode=false
+save_on_err=false
 
 tmp="${TEST_DIR}"/$$
 rm -f $tmp.list $tmp.tmp $tmp.sed
@@ -263,6 +264,8 @@ other options
     -o options          -o options to pass to qemu-img create/convert
     -T                  output timestamps
     -c mode             cache mode
+    -s                  save test scratch directory on test failure
+
 
 testlist options
     -g group[,group...]        include tests from these groups
@@ -433,6 +436,10 @@ testlist options
             ;;
         -x)        # -x group ... exclude from group file
             xgroup=true
+            xpand=false
+            ;;
+        -s)
+            save_on_err=true
             xpand=false
             ;;
         '[0-9][0-9][0-9] [0-9][0-9][0-9][0-9]')
@@ -853,7 +860,11 @@ do
         _cleanup_protocols
         _cleanup_qemu
         )
-        rm -rf "$TEST_DIR_SEQ"
+
+        if [ "$save_on_err" != "true" ] || [ "$err" != "true" ]
+        then
+            rm -rf "$TEST_DIR_SEQ"
+        fi
 
     fi
 
