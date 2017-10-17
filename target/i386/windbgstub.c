@@ -68,7 +68,6 @@ bool windbg_on_load(void)
     return true;
 }
 
-__attribute__ ((unused)) /* unused yet */
 static void kd_init_state_change(CPUState *cpu,
                                  DBGKD_ANY_WAIT_STATE_CHANGE *sc)
 {
@@ -111,4 +110,23 @@ static void kd_init_state_change(CPUState *cpu,
     if (!err) {
         stw_p(&cr->InstructionCount, DBGKD_MAXSTREAM);
     }
+}
+
+SizedBuf kd_gen_exception_sc(CPUState *cpu)
+{
+    CPUArchState *env = cpu->env_ptr;
+    DBGKD_ANY_WAIT_STATE_CHANGE *sc;
+    DBGKM_EXCEPTION_RECORD64 *exc;
+    SizedBuf buf;
+
+    SBUF_MALLOC(buf, sizeof(DBGKD_ANY_WAIT_STATE_CHANGE) + sizeof(int));
+    sc = (DBGKD_ANY_WAIT_STATE_CHANGE *) buf.data;
+    exc = &sc->u.Exception.ExceptionRecord;
+    kd_init_state_change(cpu, sc);
+
+    stl_p(&sc->NewState, DbgKdExceptionStateChange);
+    stl_p(&exc->ExceptionCode, 0x80000003);
+    sttul_p(&exc->ExceptionAddress, env->eip);
+
+    return buf;
 }
