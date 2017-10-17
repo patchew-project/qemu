@@ -30,7 +30,7 @@ static void bcm2836_init(Object *obj)
 
     for (n = 0; n < BCM2836_NCPUS; n++) {
         object_initialize(&s->cpus[n], sizeof(s->cpus[n]),
-                          "cortex-a15-" TYPE_ARM_CPU);
+                          ARM_CPU_TYPE_NAME("cortex-a7"));
         object_property_add_child(obj, "cpu[*]", OBJECT(&s->cpus[n]),
                                   &error_abort);
     }
