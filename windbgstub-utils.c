@@ -239,6 +239,28 @@ void kd_api_write_physical_memory(CPUState *cpu, PacketData *pd)
     stl_p(&mem->ActualBytesWritten, len);
 }
 
+void kd_api_get_version(CPUState *cpu, PacketData *pd)
+{
+    DBGKD_GET_VERSION64 *kdver;
+    int err = cpu_memory_rw_debug(cpu, version.addr, PTR(pd->m64) + 0x10,
+                                  sizeof(DBGKD_MANIPULATE_STATE64) - 0x10, 0);
+    if (!err) {
+        kdver = (DBGKD_GET_VERSION64 *) (PTR(pd->m64) + 0x10);
+
+        stw_p(&kdver->MajorVersion, kdver->MajorVersion);
+        stw_p(&kdver->MinorVersion, kdver->MinorVersion);
+        stw_p(&kdver->Flags, kdver->Flags);
+        stw_p(&kdver->MachineType, kdver->MachineType);
+        stw_p(&kdver->Unused[0], kdver->Unused[0]);
+        sttul_p(&kdver->KernBase, kdver->KernBase);
+        sttul_p(&kdver->PsLoadedModuleList, kdver->PsLoadedModuleList);
+        sttul_p(&kdver->DebuggerDataList, kdver->DebuggerDataList);
+    } else {
+        pd->m64.ReturnStatus = STATUS_UNSUCCESSFUL;
+        WINDBG_ERROR("get_version: " FMT_ERR, err);
+    }
+}
+
 void kd_api_unsupported(CPUState *cpu, PacketData *pd)
 {
     WINDBG_ERROR("Caught unimplemented api %s",
