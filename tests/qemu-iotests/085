@@ -37,18 +37,7 @@ snapshot_virt1="snapshot-v1.qcow2"
 
 SNAPSHOTS=10
 
-_cleanup()
-{
-    _cleanup_qemu
-    for i in $(seq 1 ${SNAPSHOTS})
-    do
-        rm -f "${TEST_DIR}/${i}-${snapshot_virt0}"
-        rm -f "${TEST_DIR}/${i}-${snapshot_virt1}"
-    done
-    rm -f "${TEST_IMG}" "${TEST_IMG}.1" "${TEST_IMG}.2" "${TEST_IMG}.base"
-
-}
-trap "_cleanup; exit \$status" 0 1 2 3 15
+trap "_cleanup_qemu; exit \$status" 0 1 2 3 15
 
 # get standard environment, filters and checks
 . ./common.rc

@@ -15,4 +15,3 @@ qemu-img: Error while reading offset 0 of blkdebug:TEST_DIR/blkdebug.conf:TEST_D
 qemu-img: Error while reading offset 0 of blkdebug:TEST_DIR/blkdebug.conf:TEST_DIR/t.IMGFMT: Input/output error
 Warning: Image size mismatch!
 4
-Cleanup

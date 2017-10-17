@@ -39,4 +39,3 @@ wrote 512/512 bytes at offset 512
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 Content mismatch at offset 512!
 1
-Cleanup
