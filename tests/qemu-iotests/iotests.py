@@ -262,6 +262,17 @@ index_re = re.compile(r'([^\[]+)\[([^\]]+)\]')
 class QMPTestCase(unittest.TestCase):
     '''Abstract base class for QMP test cases'''
 
+    def __init__(self, *args):
+        super(QMPTestCase, self).__init__(*args)
+        self.workdir = os.path.join(test_dir, self.__class__.__name__,
+                                    self._testMethodName)
+        try:
+            os.makedirs(self.workdir)
+        except OSError, error:
+            if error.errno != errno.EEXIST:
+                raise
+        os.chdir(self.workdir)
+
     def dictpath(self, d, path):
         '''Traverse a path in a nested dict'''
         for component in path.split('/'):
