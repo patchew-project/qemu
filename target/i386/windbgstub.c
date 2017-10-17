@@ -639,6 +639,117 @@ static int windbg_read_ks_regs(CPUState *cpu, uint8_t *buf, int buf_size,
 static int windbg_write_ks_regs(CPUState *cpu, uint8_t *buf, int buf_size,
                                 int offset, int len)
 {
+    CPUArchState *env = cpu->env_ptr;
+    int mem_size;
+    uint8_t *mem_ptr = buf;
+    while (len > 0 && offset < sizeof(CPU_KSPECIAL_REGISTERS)) {
+        mem_size = 1;
+        switch (offset) {
+
+        case offsetof(CPU_KSPECIAL_REGISTERS, Cr0):
+            mem_size = sizeof_field(CPU_KSPECIAL_REGISTERS, Cr0);
+            cpu_x86_update_cr0(env, ldtul_p(buf + offset));
+            break;
+
+        case offsetof(CPU_KSPECIAL_REGISTERS, Cr2):
+            mem_size = sizeof_field(CPU_KSPECIAL_REGISTERS, Cr2);
+            env->cr[2] = ldtul_p(buf + offset);
+            break;
+
+        case offsetof(CPU_KSPECIAL_REGISTERS, Cr3):
+            mem_size = sizeof_field(CPU_KSPECIAL_REGISTERS, Cr3);
+            cpu_x86_update_cr3(env, ldtul_p(buf + offset));
+            break;
+
+        case offsetof(CPU_KSPECIAL_REGISTERS, Cr4):
+            mem_size = sizeof_field(CPU_KSPECIAL_REGISTERS, Cr4);
+            cpu_x86_update_cr4(env, ldtul_p(buf + offset));
+            break;
+
+        case offsetof(CPU_KSPECIAL_REGISTERS, KernelDr0):
+            mem_size = sizeof_field(CPU_KSPECIAL_REGISTERS, KernelDr0);
+            windbg_set_dr(cpu, 0, ldtul_p(buf + offset));
+            break;
+
+        case offsetof(CPU_KSPECIAL_REGISTERS, KernelDr1):
+            mem_size = sizeof_field(CPU_KSPECIAL_REGISTERS, KernelDr1);
+            windbg_set_dr(cpu, 1, ldtul_p(buf + offset));
+            break;
+
+        case offsetof(CPU_KSPECIAL_REGISTERS, KernelDr2):
+            mem_size = sizeof_field(CPU_KSPECIAL_REGISTERS, KernelDr2);
+            windbg_set_dr(cpu, 2, ldtul_p(buf + offset));
+            break;
+
+        case offsetof(CPU_KSPECIAL_REGISTERS, KernelDr3):
+            mem_size = sizeof_field(CPU_KSPECIAL_REGISTERS, KernelDr3);
+            windbg_set_dr(cpu, 3, ldtul_p(buf + offset));
+            break;
+
+        case offsetof(CPU_KSPECIAL_REGISTERS, KernelDr6):
+            mem_size = sizeof_field(CPU_KSPECIAL_REGISTERS, KernelDr6);
+            windbg_set_dr(cpu, 6, ldtul_p(buf + offset));
+            break;
+
+        case offsetof(CPU_KSPECIAL_REGISTERS, KernelDr7):
+            mem_size = sizeof_field(CPU_KSPECIAL_REGISTERS, KernelDr7);
+            windbg_set_dr(cpu, 7, ldtul_p(buf + offset));
+            break;
+
+        case offsetof(CPU_KSPECIAL_REGISTERS, Gdtr.Pad):
+            mem_size = sizeof_field(CPU_KSPECIAL_REGISTERS, Gdtr.Pad);
+            env->gdt.selector = lduw_p(buf + offset);
+            break;
+
+        case offsetof(CPU_KSPECIAL_REGISTERS, Gdtr.Limit):
+            mem_size = sizeof_field(CPU_KSPECIAL_REGISTERS, Gdtr.Limit);
+            env->gdt.limit = lduw_p(buf + offset);
+            break;
+
+        case offsetof(CPU_KSPECIAL_REGISTERS, Gdtr.Base):
+            mem_size = sizeof_field(CPU_KSPECIAL_REGISTERS, Gdtr.Base);
+            env->gdt.base = ldtul_p(buf + offset);
+            break;
+
+        case offsetof(CPU_KSPECIAL_REGISTERS, Idtr.Pad):
+            mem_size = sizeof_field(CPU_KSPECIAL_REGISTERS, Idtr.Pad);
+            env->idt.selector = lduw_p(buf + offset);
+            break;
+
+        case offsetof(CPU_KSPECIAL_REGISTERS, Idtr.Limit):
+            mem_size = sizeof_field(CPU_KSPECIAL_REGISTERS, Idtr.Limit);
+            env->idt.limit = lduw_p(buf + offset);
+            break;
+
+        case offsetof(CPU_KSPECIAL_REGISTERS, Idtr.Base):
+            mem_size = sizeof_field(CPU_KSPECIAL_REGISTERS, Idtr.Base);
+            env->idt.base = ldtul_p(buf + offset);
+            break;
+
+        case offsetof(CPU_KSPECIAL_REGISTERS, Tr):
+            mem_size = sizeof_field(CPU_KSPECIAL_REGISTERS, Tr);
+            env->tr.selector = lduw_p(buf + offset);
+            break;
+
+        case offsetof(CPU_KSPECIAL_REGISTERS, Ldtr):
+            mem_size = sizeof_field(CPU_KSPECIAL_REGISTERS, Ldtr);
+            env->ldt.selector = lduw_p(buf + offset);
+            break;
+
+        case offsetof(CPU_KSPECIAL_REGISTERS, Reserved):
+            mem_size = sizeof_field(CPU_KSPECIAL_REGISTERS, Reserved);
+            break;
+
+        default:
+            WINDBG_ERROR("write_context: Unknown offset %d", offset);
+            return -1;
+        }
+
+        mem_ptr += mem_size;
+        offset += mem_size;
+        len -= mem_size;
+    }
+
     return 0;
 }
 
