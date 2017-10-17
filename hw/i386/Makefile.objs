@@ -7,6 +7,6 @@ obj-y += amd_iommu.o
 obj-$(CONFIG_XEN) += ../xenpv/ xen/
 
 obj-y += kvmvapic.o
-obj-y += acpi-build.o
+obj-y += acpi-build.o pvpanic.o
 obj-y += pci-assign-load-rom.o
 obj-y += vmport.o
