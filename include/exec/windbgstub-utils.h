@@ -50,4 +50,6 @@
     _t;                                                       \
 })
 
+bool windbg_on_load(void);
+
 #endif

@@ -11,3 +11,8 @@
 
 #include "qemu/osdep.h"
 #include "exec/windbgstub-utils.h"
+
+bool windbg_on_load(void)
+{
+    return false;
+}
