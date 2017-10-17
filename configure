@@ -4412,7 +4412,15 @@ fi
 # capstone
 
 if test "$capstone" != no; then
-  if $pkg_config capstone; then
+  # have GIT checkout, so activate capstone submodule
+  if test -e "${source_path}/.git" ; then
+    git_submodules="${git_submodules} capstone"
+    capstone=yes
+    capstone_internal=yes
+    mkdir -p capstone
+    QEMU_CFLAGS="$QEMU_CFLAGS -I\$(SRC_PATH)/capstone/include"
+    LIBS="\$(BUILD_DIR)/capstone/libcapstone.a $LIBS"
+  elif $pkg_config capstone; then
     capstone=yes
     QEMU_CFLAGS="$QEMU_CFLAGS $($pkg_config --cflags capstone)"
     LIBS="$($pkg_config --libs capstone) $LIBS"
@@ -6641,6 +6649,9 @@ done # for target in $targets
 
 if [ "$dtc_internal" = "yes" ]; then
   echo "config-host.h: subdir-dtc" >> $config_host_mak
+fi
+if [ "$capstone_internal" = "yes" ]; then
+  echo "config-host.h: subdir-capstone" >> $config_host_mak
 fi
 
 if test "$numa" = "yes"; then
