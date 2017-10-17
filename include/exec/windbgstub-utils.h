@@ -99,6 +99,7 @@ void kd_api_get_context(CPUState *cpu, PacketData *pd);
 void kd_api_set_context(CPUState *cpu, PacketData *pd);
 void kd_api_write_breakpoint(CPUState *cpu, PacketData *pd);
 void kd_api_restore_breakpoint(CPUState *cpu, PacketData *pd);
+void kd_api_continue(CPUState *cpu, PacketData *pd);
 void kd_api_read_control_space(CPUState *cpu, PacketData *pd);
 void kd_api_write_control_space(CPUState *cpu, PacketData *pd);
 void kd_api_unsupported(CPUState *cpu, PacketData *pd);
