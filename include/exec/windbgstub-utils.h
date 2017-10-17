@@ -94,6 +94,7 @@ InitedAddr *windbg_get_KPCR(void);
 InitedAddr *windbg_get_version(void);
 
 SizedBuf kd_gen_exception_sc(CPUState *cpu);
+SizedBuf kd_gen_load_symbols_sc(CPUState *cpu);
 
 bool windbg_on_load(void);
 

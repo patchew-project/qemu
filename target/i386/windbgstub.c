@@ -130,3 +130,18 @@ SizedBuf kd_gen_exception_sc(CPUState *cpu)
 
     return buf;
 }
+
+SizedBuf kd_gen_load_symbols_sc(CPUState *cpu)
+{
+    DBGKD_ANY_WAIT_STATE_CHANGE *sc;
+    SizedBuf buf;
+
+    SBUF_MALLOC(buf, sizeof(DBGKD_ANY_WAIT_STATE_CHANGE));
+    sc = (DBGKD_ANY_WAIT_STATE_CHANGE *) buf.data;
+    kd_init_state_change(cpu, sc);
+
+    stl_p(&sc->NewState, DbgKdLoadSymbolsStateChange);
+    stl_p(&sc->u.LoadSymbols.PathNameLength, 0);
+
+    return buf;
+}
