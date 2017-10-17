@@ -101,7 +101,7 @@ _qemu_nbd_wrapper()
 _qemu_vxhs_wrapper()
 {
     (
-        echo $BASHPID > "${TEST_DIR}/qemu-vxhs.pid"
+        echo $BASHPID > "${QEMU_TEST_DIR}/qemu-vxhs.pid"
         exec "$QEMU_VXHS_PROG" $QEMU_VXHS_OPTIONS "$@"
     )
 }
@@ -248,7 +248,7 @@ _make_test_img()
 
     # Start QNIO server on image directory for vxhs protocol
     if [ $IMGPROTO = "vxhs" ]; then
-        eval "$QEMU_VXHS -d  $TEST_DIR > /dev/null &"
+        eval "$QEMU_VXHS -d  $QEMU_TEST_DIR > /dev/null &"
         sleep 1 # Wait for server to come up.
     fi
 }
@@ -264,29 +264,64 @@ _rm_test_img()
     rm -f "$img"
 }
 
-_cleanup_test_img()
+_cleanup_nbd()
 {
+    if [ -f "${QEMU_TEST_DIR}/qemu-nbd.pid" ]; then
+        local QEMU_NBD_PID
+        read QEMU_NBD_PID < "${QEMU_TEST_DIR}/qemu-nbd.pid"
+        rm -f "${QEMU_TEST_DIR}/qemu-nbd.pid"
+        kill ${QEMU_NBD_PID} >/dev/null 2>&1
+     fi
+}
+
+_cleanup_vxhs()
+{
+    if [ -f "${QEMU_TEST_DIR}/qemu-vxhs.pid" ]; then
+        local QEMU_VXHS_PID
+        read QEMU_VXHS_PID < "${QEMU_TEST_DIR}/qemu-vxhs.pid"
+        rm -f "${QEMU_TEST_DIR}/qemu-vxhs.pid"
+        kill ${QEMU_VXHS_PID} >/dev/null 2>&1
+    fi
+}
+
+_cleanup_rbd()
+{
+    rbd --no-progress rm "$QEMU_TEST_DIR/t.$IMGFMT" > /dev/null
+}
+
+_cleanup_sheepdog()
+{
+    collie vdi delete "$QEMU_TEST_DIR/t.$IMGFMT"
+}
+
+
+_cleanup_protocols()
+{
+    # Some tests (e.g. 058) start some protocols
+    # even though the protocol was not specified when running
+    # check.  If the wrappers create pidfiles, go ahead and clean
+    # up without checking $IMGPROTO.
+    _cleanup_nbd
+    _cleanup_vxhs
+
     case "$IMGPROTO" in
 
-        nbd)
-            if [ -f "${QEMU_TEST_DIR}/qemu-nbd.pid" ]; then
-                local QEMU_NBD_PID
-                read QEMU_NBD_PID < "${QEMU_TEST_DIR}/qemu-nbd.pid"
-                kill ${QEMU_NBD_PID}
-                rm -f "${QEMU_TEST_DIR}/qemu-nbd.pid"
-            fi
-            rm -f "$TEST_IMG_FILE"
-            ;;
-        vxhs)
-            if [ -f "${TEST_DIR}/qemu-vxhs.pid" ]; then
-                local QEMU_VXHS_PID
-                read QEMU_VXHS_PID < "${TEST_DIR}/qemu-vxhs.pid"
-                kill ${QEMU_VXHS_PID} >/dev/null 2>&1
-                rm -f "${TEST_DIR}/qemu-vxhs.pid"
-            fi
-            rm -f "$TEST_IMG_FILE"
+        rbd)
+            _cleanup_rbd
             ;;
 
+        sheepdog)
+            _cleanup_sheepdog
+            ;;
+
+    esac
+}
+
+_cleanup_test_img()
+{
+    _cleanup_protocols
+
+    case "$IMGPROTO" in
         file)
             _rm_test_img "$TEST_DIR/t.$IMGFMT"
             _rm_test_img "$TEST_DIR/t.$IMGFMT.orig"
@@ -298,16 +333,12 @@ _cleanup_test_img()
                 TEST_IMG="$ORIG_TEST_IMG"
             fi
             ;;
-
-        rbd)
-            rbd --no-progress rm "$TEST_DIR/t.$IMGFMT" > /dev/null
-            ;;
-
-        sheepdog)
-            collie vdi delete "$TEST_DIR/t.$IMGFMT"
-            ;;
-
     esac
+
+    if [ -n "$TEST_IMG_FILE" ]
+    then
+        rm -f "$TEST_IMG_FILE"
+    fi
 }
 
 _check_test_img()
