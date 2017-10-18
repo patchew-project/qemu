@@ -111,15 +111,15 @@ static void XBZRLE_cache_unlock(void)
  * migration may be using the cache and might finish during this call,
  * hence changes to the cache are protected by XBZRLE.lock().
  *
- * Returns the new_size or negative in case of error.
+ * Returns the 0 or negative in case of error.
  *
  * @new_size: new cache size
  * @errp: set *errp if the check failed, with reason
  */
-int64_t xbzrle_cache_resize(int64_t new_size, Error **errp)
+int xbzrle_cache_resize(int64_t new_size, Error **errp)
 {
     PageCache *new_cache;
-    int64_t ret;
+    int64_t ret = 0;
 
     /* Check for truncation */
     if (new_size != (size_t)new_size) {
@@ -152,8 +152,6 @@ int64_t xbzrle_cache_resize(int64_t new_size, Error **errp)
         cache_fini(XBZRLE.cache);
         XBZRLE.cache = new_cache;
     }
-
-    ret = new_size;
 out:
     XBZRLE_cache_unlock();
     return ret;
