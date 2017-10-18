@@ -19,6 +19,9 @@
 #define ARM_CPU_FREQ 1000000000 /* FIXME: 1 GHz, should be configurable */
 
 #ifndef CONFIG_USER_ONLY
+static inline bool regime_using_lpae_format(CPUARMState *env,
+                                            ARMMMUIdx mmu_idx);
+
 static bool get_phys_addr(CPUARMState *env, target_ulong address,
                           MMUAccessType access_type, ARMMMUIdx mmu_idx,
                           hwaddr *phys_ptr, MemTxAttrs *attrs, int *prot,
@@ -2148,6 +2151,54 @@ static CPAccessResult ats_access(CPUARMState *env, const ARMCPRegInfo *ri,
     return CP_ACCESS_OK;
 }
 
+static uint8_t get_memattrs(CPUARMState *env, ARMMMUIdx mmu_idx,
+                            uint8_t attrindx)
+{
+    uint64_t mair;
+
+    if (!regime_using_lpae_format(env, mmu_idx)) {
+        qemu_log_mask(LOG_UNIMP,
+                      "arm: short PTE memory attributes not implemented");
+        return 0; /* keep consistency with the prior implementation */
+    }
+
+    switch (mmu_idx) {
+    case ARMMMUIdx_S1E2:
+        mair = env->cp15.mair_el[2];
+        break;
+
+    case ARMMMUIdx_S1E3:
+        mair = env->cp15.mair_el[3];
+        break;
+
+    case ARMMMUIdx_S1SE0:
+    case ARMMMUIdx_S1SE1:
+        /* XXX: is this correct? */
+        mair = (uint64_t)env->cp15.mair1_s << 32 | env->cp15.mair0_s;
+        break;
+
+    case ARMMMUIdx_S1NSE0:
+    case ARMMMUIdx_S1NSE1:
+        /* XXX: is this correct? */
+        mair = (uint64_t)env->cp15.mair1_ns << 32 | env->cp15.mair0_ns;
+        break;
+
+    case ARMMMUIdx_S12NSE0:
+    case ARMMMUIdx_S12NSE1:
+    case ARMMMUIdx_S2NS:
+        /* these cases (involving stage 2 attribute combining) are also NYI */
+        qemu_log_mask(LOG_UNIMP,
+                      "arm: stage 2 memory attributes not implemented");
+        return 0;
+
+    default:
+        abort(); /* M-profile code shouldn't reach here */
+    }
+
+    assert(attrindx <= 7);
+    return extract64(mair, attrindx * 8, 8);
+}
+
 static uint64_t do_ats_write(CPUARMState *env, uint64_t value,
                              MMUAccessType access_type, ARMMMUIdx mmu_idx)
 {
@@ -2173,7 +2224,9 @@ static uint64_t do_ats_write(CPUARMState *env, uint64_t value,
             if (!attrs.secure) {
                 par64 |= (1 << 9); /* NS */
             }
-            /* We don't set the ATTR or SH fields in the PAR. */
+            par64 |= (uint64_t)get_memattrs(env, mmu_idx,
+                                            attrs.arm_attrindx) << 56; /*ATTR*/
+            par64 |= attrs.arm_shareability << 7; /* SH */
         } else {
             par64 |= 1; /* F */
             par64 |= (fsr & 0x3f) << 1; /* FS */
@@ -8929,6 +8982,8 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
          */
         txattrs->secure = false;
     }
+    txattrs->arm_attrindx = extract32(attrs, 0, 3);
+    txattrs->arm_shareability = extract32(attrs, 6, 2);
     *phys_ptr = descaddr;
     *page_size_ptr = page_size;
     return false;

@@ -37,6 +37,9 @@ typedef struct MemTxAttrs {
     unsigned int user:1;
     /* Requester ID (for MSI for example) */
     unsigned int requester_id:16;
+    /* ARM: memory cacheability and shareability attributes */
+    unsigned int arm_attrindx:3;
+    unsigned int arm_shareability:2;
 } MemTxAttrs;
 
 /* Bus masters which don't specify any attributes will get this,
