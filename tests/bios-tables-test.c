@@ -304,6 +304,7 @@ static bool load_asl(GArray *sdts, AcpiSdtTable *sdt)
     gchar *out, *out_err;
     gboolean ret;
     int i;
+    int status;
 
     fd = g_file_open_tmp("asl-XXXXXX.dsl", &sdt->asl_file, &error);
     g_assert_no_error(error);
@@ -324,14 +325,25 @@ static bool load_asl(GArray *sdts, AcpiSdtTable *sdt)
     g_string_append_printf(command_line, "-d %s", sdt->aml_file);
 
     /* pass 'out' and 'out_err' in order to be redirected */
-    ret = g_spawn_command_line_sync(command_line->str, &out, &out_err, NULL, &error);
+    ret = g_spawn_command_line_sync(command_line->str, &out, &out_err, &status, &error);
     g_assert_no_error(error);
     if (ret) {
-        ret = g_file_get_contents(sdt->asl_file, (gchar **)&sdt->asl,
-                                  &sdt->asl_len, &error);
-        g_assert(ret);
-        g_assert_no_error(error);
-        ret = (sdt->asl_len > 0);
+        if (status != 0) {
+            g_printerr("'%s' exited with status %d", command_line->str, status);
+            if (!g_str_equal(out, "")) {
+                g_printerr("%s", out);
+            }
+            if (!g_str_equal(out_err, "")) {
+                g_printerr("%s", out_err);
+            }
+            ret = FALSE;
+        } else {
+            ret = g_file_get_contents(sdt->asl_file, (gchar **)&sdt->asl,
+                                      &sdt->asl_len, &error);
+            g_assert(ret);
+            g_assert_no_error(error);
+            ret = (sdt->asl_len > 0);
+        }
     }
 
     g_free(out);
