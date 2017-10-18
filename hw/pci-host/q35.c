@@ -104,11 +104,15 @@ static void q35_host_get_pci_hole64_start(Object *obj, Visitor *v,
                                           Error **errp)
 {
     PCIHostState *h = PCI_HOST_BRIDGE(obj);
+    Q35PCIHost *s = Q35_HOST_DEVICE(obj);
     Range w64;
     uint64_t value;
 
     pci_bus_get_w64_range(h->bus, &w64);
     value = range_is_empty(&w64) ? 0 : range_lob(&w64);
+    if (!value && s->pci_hole64_fix) {
+        value = pc_pci_hole64_start();
+    }
     visit_type_uint64(v, name, &value, errp);
 }
 
@@ -117,11 +121,15 @@ static void q35_host_get_pci_hole64_end(Object *obj, Visitor *v,
                                         Error **errp)
 {
     PCIHostState *h = PCI_HOST_BRIDGE(obj);
+    Q35PCIHost *s = Q35_HOST_DEVICE(obj);
     Range w64;
     uint64_t value;
 
     pci_bus_get_w64_range(h->bus, &w64);
     value = range_is_empty(&w64) ? 0 : range_upb(&w64) + 1;
+    if (s->pci_hole64_fix && value < PCI_HOST_PCI_HOLE64_END) {
+        value = PCI_HOST_PCI_HOLE64_END;
+    }
     visit_type_uint64(v, name, &value, errp);
 }
 
@@ -143,6 +151,7 @@ static Property q35_host_props[] = {
                      mch.below_4g_mem_size, 0),
     DEFINE_PROP_SIZE(PCI_HOST_ABOVE_4G_MEM_SIZE, Q35PCIHost,
                      mch.above_4g_mem_size, 0),
+    DEFINE_PROP_BOOL("x-pci-hole64-fix", Q35PCIHost, pci_hole64_fix, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
