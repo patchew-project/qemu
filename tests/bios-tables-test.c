@@ -446,7 +446,7 @@ static void test_acpi_asl(test_data *data)
         exp_asl = normalize_asl(exp_sdt->asl);
 
         /* TODO: check for warnings */
-        g_assert(!err || exp_err);
+        g_assert(!err && !exp_err);
 
         if (g_strcmp0(asl->str, exp_asl->str)) {
             if (exp_err) {
