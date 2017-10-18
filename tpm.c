@@ -194,6 +194,12 @@ int tpm_config_parse(QemuOptsList *opts_list, const char *optarg)
     return 0;
 }
 
+#else
+
+void tpm_cleanup(void)
+{
+}
+
 #endif /* CONFIG_TPM */
 
 static const TPMDriverOps *tpm_driver_find_by_type(enum TpmType type)
