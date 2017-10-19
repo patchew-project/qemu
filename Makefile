@@ -287,7 +287,7 @@ endif
 	$(call quiet-command, if test -f $@; then \
 	  if cmp -s $@.old $@; then \
 	    mv $@.tmp $@; \
-	    cp -p $@ $@.old; \
+	    cp $@ $@.old; \
 	  else \
 	    if test -f $@.old; then \
 	      echo "WARNING: $@ (user modified) out of date.";\
@@ -299,7 +299,7 @@ endif
 	  fi; \
 	 else \
 	  mv $@.tmp $@; \
-	  cp -p $@ $@.old; \
+	  cp $@ $@.old; \
 	 fi,"GEN","$@");
 
 defconfig:
