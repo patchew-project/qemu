@@ -84,6 +84,11 @@ typedef void (*vhost_set_iotlb_callback_op)(struct vhost_dev *dev,
                                            int enabled);
 typedef int (*vhost_send_device_iotlb_msg_op)(struct vhost_dev *dev,
                                               struct vhost_iotlb_msg *imsg);
+typedef int (*vhost_set_config_op)(struct vhost_dev *dev, const uint8_t *config,
+                                   size_t config_len);
+typedef int (*vhost_get_config_op)(struct vhost_dev *dev, uint8_t *config,
+                                   size_t config_len);
+typedef int (*vhost_set_config_fd_op)(struct vhost_dev *dev, int fd);
 
 typedef struct VhostOps {
     VhostBackendType backend_type;
@@ -118,6 +123,9 @@ typedef struct VhostOps {
     vhost_vsock_set_running_op vhost_vsock_set_running;
     vhost_set_iotlb_callback_op vhost_set_iotlb_callback;
     vhost_send_device_iotlb_msg_op vhost_send_device_iotlb_msg;
+    vhost_get_config_op vhost_get_config;
+    vhost_set_config_op vhost_set_config;
+    vhost_set_config_fd_op vhost_set_config_fd;
 } VhostOps;
 
 extern const VhostOps user_ops;
