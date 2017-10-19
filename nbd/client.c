@@ -685,6 +685,16 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name,
         if (fixedNewStyle) {
             int result;
 
+            if (info->structured_reply) {
+                result = nbd_request_simple_option(ioc,
+                                                   NBD_OPT_STRUCTURED_REPLY,
+                                                   errp);
+                if (result < 0) {
+                    goto fail;
+                }
+                info->structured_reply = result == 1;
+            }
+
             /* Try NBD_OPT_GO first - if it works, we are done (it
              * also gives us a good message if the server requires
              * TLS).  If it is not available, fall back to
