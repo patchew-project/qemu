@@ -93,6 +93,8 @@ void qemu_remove_machine_init_done_notifier(Notifier *notify);
 
 void qemu_announce_self(void);
 
+void xen_setup_post(void);
+
 extern int autostart;
 
 typedef enum {
