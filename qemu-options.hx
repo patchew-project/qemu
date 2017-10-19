@@ -3972,6 +3972,20 @@ Immediately before starting guest execution, chroot to the specified
 directory.  Especially useful in combination with -runas.
 ETEXI
 
+#ifdef CONFIG_SETNS
+DEF("unshare", HAS_ARG, QEMU_OPTION_unshare, \
+    "-unshare [mount][,net][,ipc]\n" \
+    "                unshare namespaces just before starting the VM\n",
+    QEMU_ARCH_ALL)
+#endif
+STEXI
+@item -unshare @code{[mount][,net][,ipc]}
+@findex -unshare
+Immediately before starting guest execution, unshare the specified namespaces.
+The namespaces that can be unshared are the mount namespace, the network
+namespace and the IPC namespace.
+ETEXI
+
 #ifndef _WIN32
 DEF("runas", HAS_ARG, QEMU_OPTION_runas, \
     "-runas user     change to user id user just before starting the VM\n",

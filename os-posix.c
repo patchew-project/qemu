@@ -45,6 +45,7 @@ static struct passwd *user_pwd;
 static const char *chroot_dir;
 static int daemonize;
 static int daemon_pipe;
+static int unshare_flags;
 
 void os_setup_early_signal_handling(void)
 {
@@ -160,6 +161,28 @@ void os_parse_cmd_args(int index, const char *optarg)
         fips_set_state(true);
         break;
 #endif
+#ifdef CONFIG_SETNS
+    case QEMU_OPTION_unshare:
+        {
+            char *flag;
+            char *opts = g_strdup(optarg);
+
+            while ((flag = qemu_strsep(&opts, ",")) != NULL) {
+                if (!strcmp(flag, "mount")) {
+                    unshare_flags |= CLONE_NEWNS;
+                } else if (!strcmp(flag, "net")) {
+                    unshare_flags |= CLONE_NEWNET;
+                } else if (!strcmp(flag, "ipc")) {
+                    unshare_flags |= CLONE_NEWIPC;
+                } else {
+                    fprintf(stderr, "Unknown unshare option: %s\n", flag);
+                    exit(1);
+                }
+            }
+            g_free(opts);
+        }
+        break;
+#endif
     }
 }
 
@@ -199,6 +222,16 @@ static void change_root(void)
         }
     }
 
+}
+
+static void unshare_namespaces(void)
+{
+    if (unshare_flags) {
+        if (unshare(unshare_flags) < 0) {
+            perror("could not unshare");
+            exit(1);
+        }
+    }
 }
 
 void os_daemonize(void)
@@ -266,6 +299,7 @@ void os_setup_post(void)
     }
 
     change_root();
+    unshare_namespaces();
     change_process_uid();
 
     if (daemonize) {
