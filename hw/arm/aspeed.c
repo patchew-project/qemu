@@ -166,6 +166,19 @@ static void aspeed_board_init_flashes(AspeedSMCState *s, const char *flashtype,
     }
 }
 
+static void boot_rom_rw_flash_write(void *opaque, hwaddr offset, uint64_t value,
+                              unsigned size)
+{
+    qemu_log_mask(LOG_GUEST_ERROR,
+                  "%s: 0x%" HWADDR_PRIx " <- 0x%" PRIx64 " [%u]\n",
+                  __func__, offset, value, size);
+}
+
+static const MemoryRegionOps boot_rom_rw_flash_ops = {
+    .write = boot_rom_rw_flash_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+};
+
 static void aspeed_board_init(MachineState *machine,
                               const AspeedBoardConfig *cfg)
 {
@@ -209,6 +222,7 @@ static void aspeed_board_init(MachineState *machine,
     if (drive0) {
         AspeedSMCFlash *fl = &bmc->soc.fmc.flashes[0];
         MemoryRegion *boot_rom = g_new(MemoryRegion, 1);
+        MemoryRegion *boot_rom_rw =  g_new(MemoryRegion, 1);
 
         /*
          * create a ROM region using the default mapping window size of
@@ -221,6 +235,16 @@ static void aspeed_board_init(MachineState *machine,
         memory_region_add_subregion(get_system_memory(), FIRMWARE_ADDR,
                                     boot_rom);
         write_boot_rom(drive0, FIRMWARE_ADDR, fl->size, &error_abort);
+
+        /*
+         * Create a fake ROM region to track invalid writes done by
+         * some legacy firmwares
+         */
+        memory_region_init_rom_device(boot_rom_rw, NULL, &boot_rom_rw_flash_ops,
+                                      NULL, "aspeed.boot_rom_rw", fl->size,
+                                      &error_abort);
+        memory_region_add_subregion_overlap(get_system_memory(), FIRMWARE_ADDR,
+                                            boot_rom_rw, 0);
     }
 
     aspeed_board_binfo.kernel_filename = machine->kernel_filename;
