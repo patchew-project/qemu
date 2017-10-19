@@ -166,12 +166,31 @@ static void aspeed_board_init_flashes(AspeedSMCState *s, const char *flashtype,
     }
 }
 
+/*
+ * This is to track invalid writes done in the ROM by some legacy
+ * firmwares
+ */
+static void boot_rom_write(void *opaque, hwaddr offset, uint64_t value,
+                           unsigned size)
+{
+    qemu_log_mask(LOG_GUEST_ERROR,
+                  "%s: 0x%" HWADDR_PRIx " <- 0x%" PRIx64 " [%u]\n",
+                  __func__, offset, value, size);
+}
+
+static const MemoryRegionOps boot_rom_ops = {
+    .write = boot_rom_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+};
+
 static void aspeed_board_init(MachineState *machine,
                               const AspeedBoardConfig *cfg)
 {
     AspeedBoardState *bmc;
     AspeedSoCClass *sc;
     DriveInfo *drive0 = drive_get(IF_MTD, 0, 0);
+    MemoryRegion *boot_rom;
+    size_t boot_rom_size;
 
     bmc = g_new0(AspeedBoardState, 1);
     object_initialize(&bmc->soc, (sizeof(bmc->soc)), cfg->soc_name);
@@ -205,22 +224,24 @@ static void aspeed_board_init(MachineState *machine,
     aspeed_board_init_flashes(&bmc->soc.fmc, cfg->fmc_model, &error_abort);
     aspeed_board_init_flashes(&bmc->soc.spi[0], cfg->spi_model, &error_abort);
 
-    /* Install first FMC flash content as a boot rom. */
-    if (drive0) {
-        AspeedSMCFlash *fl = &bmc->soc.fmc.flashes[0];
-        MemoryRegion *boot_rom = g_new(MemoryRegion, 1);
+    /*
+     * create a ROM region using the default mapping window size of
+     * the FMC CS0 flash module. The window size is 64MB for the
+     * AST2400 SoC and 128MB for the AST2500 SoC, which is twice as
+     * big as needed by the flash modules of the Aspeed machines.
+     */
+    boot_rom = g_new(MemoryRegion, 1);
+    boot_rom_size = bmc->soc.fmc.flashes[0].size;
 
-        /*
-         * create a ROM region using the default mapping window size of
-         * the flash module. The window size is 64MB for the AST2400
-         * SoC and 128MB for the AST2500 SoC, which is twice as big as
-         * needed by the flash modules of the Aspeed machines.
-         */
-        memory_region_init_rom_nomigrate(boot_rom, OBJECT(bmc), "aspeed.boot_rom",
-                               fl->size, &error_abort);
-        memory_region_add_subregion(get_system_memory(), FIRMWARE_ADDR,
-                                    boot_rom);
-        write_boot_rom(drive0, FIRMWARE_ADDR, fl->size, &error_abort);
+    memory_region_init_rom_device(boot_rom, OBJECT(bmc), &boot_rom_ops,
+                                  NULL, "aspeed.boot_rom", boot_rom_size,
+                                  &error_abort);
+    memory_region_add_subregion(get_system_memory(), FIRMWARE_ADDR,
+                                boot_rom);
+
+    /* Install first FMC flash content (if any) as a boot rom. */
+    if (drive0) {
+        write_boot_rom(drive0, FIRMWARE_ADDR, boot_rom_size, &error_abort);
     }
 
     aspeed_board_binfo.kernel_filename = machine->kernel_filename;
