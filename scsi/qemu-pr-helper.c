@@ -258,12 +258,12 @@ static void *dm_dev_ioctl(int fd, int ioc, struct dm_ioctl *dm)
 
 static void dm_init(void)
 {
+    struct dm_ioctl dm = {};
     control_fd = open(CONTROL_PATH, O_RDWR);
     if (control_fd < 0) {
         perror("Cannot open " CONTROL_PATH);
         exit(1);
     }
-    struct dm_ioctl dm = { 0 };
     if (!dm_ioctl(DM_VERSION, &dm)) {
         perror("ioctl");
         exit(1);
