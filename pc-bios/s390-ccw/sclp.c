@@ -76,17 +76,28 @@ static int _strlen(const char *str)
 long write(int fd, const void *str, size_t len)
 {
     WriteEventData *sccb = (void *)_sccb;
+    const char *p;
+    size_t data_len = 0;
 
     if (fd != 1 && fd != 2) {
         return -EIO;
     }
 
-    sccb->h.length = sizeof(WriteEventData) + len;
+    for (p = str; *p; ++p) {
+        if (data_len > SCCB_DATA_LEN - 1) {
+            return -EFBIG;
+        }
+        if (*p == '\n') {
+            sccb->data[data_len++] = '\r';
+        }
+        sccb->data[data_len++] = *p;
+    }
+
+    sccb->h.length = sizeof(WriteEventData) + data_len;
     sccb->h.function_code = SCLP_FC_NORMAL_WRITE;
-    sccb->ebh.length = sizeof(EventBufferHeader) + len;
+    sccb->ebh.length = sizeof(EventBufferHeader) + data_len;
     sccb->ebh.type = SCLP_EVENT_ASCII_CONSOLE_DATA;
     sccb->ebh.flags = 0;
-    memcpy(sccb->data, str, len);
 
     sclp_service_call(SCLP_CMD_WRITE_EVENT_DATA, sccb);
 

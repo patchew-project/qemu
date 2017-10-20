@@ -33,6 +33,9 @@ typedef unsigned long long __u64;
 #ifndef EBUSY
 #define EBUSY   2
 #endif
+#ifndef EFBIG
+#define EFBIG   3
+#endif
 #ifndef NULL
 #define NULL    0
 #endif
