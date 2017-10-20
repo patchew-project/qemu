@@ -701,65 +701,61 @@ static inline size_t temp_idx(TCGTemp *ts)
 
 static inline TCGArg temp_arg(TCGTemp *ts)
 {
-    ptrdiff_t a = (void *)ts - (void *)&tcg_ctx;
-    tcg_debug_assert(a >= offsetof(TCGContext, temps)
-                     && a < offsetof(TCGContext, temps[tcg_ctx.nb_temps]));
-    return a;
+    return (uintptr_t)ts;
 }
 
 static inline TCGTemp *arg_temp(TCGArg a)
 {
-    if (a == TCG_CALL_DUMMY_ARG) {
-        return NULL;
-    }
-    tcg_debug_assert(a >= offsetof(TCGContext, temps)
-                     && a < offsetof(TCGContext, temps[tcg_ctx.nb_temps]));
-    return (void *)&tcg_ctx + a;
+    return (TCGTemp *)a;
 }
 
-static inline TCGArg tcgv_i32_arg(TCGv_i32 t)
+static inline TCGTemp *tcgv_i32_temp(TCGv_i32 v)
 {
-    return (intptr_t)t;
+    uintptr_t o = (uintptr_t)v;
+    TCGTemp *t = (void *)&tcg_ctx + o;
+    tcg_debug_assert(offsetof(TCGContext, temps[temp_idx(t)]) == o);
+    return t;
 }
 
-static inline TCGArg tcgv_i64_arg(TCGv_i64 t)
+static inline TCGTemp *tcgv_i64_temp(TCGv_i64 v)
 {
-    return (intptr_t)t;
+    return tcgv_i32_temp((TCGv_i32)v);
 }
 
-static inline TCGArg tcgv_ptr_arg(TCGv_ptr t)
+static inline TCGTemp *tcgv_ptr_temp(TCGv_ptr v)
 {
-    return (intptr_t)t;
+    return tcgv_i32_temp((TCGv_i32)v);
 }
 
-static inline TCGTemp *tcgv_i32_temp(TCGv_i32 t)
+static inline TCGArg tcgv_i32_arg(TCGv_i32 v)
 {
-    return arg_temp(tcgv_i32_arg(t));
+    return temp_arg(tcgv_i32_temp(v));
 }
 
-static inline TCGTemp *tcgv_i64_temp(TCGv_i64 t)
+static inline TCGArg tcgv_i64_arg(TCGv_i64 v)
 {
-    return arg_temp(tcgv_i64_arg(t));
+    return temp_arg(tcgv_i64_temp(v));
 }
 
-static inline TCGTemp *tcgv_ptr_temp(TCGv_ptr t)
+static inline TCGArg tcgv_ptr_arg(TCGv_ptr v)
 {
-    return arg_temp(tcgv_ptr_arg(t));
+    return temp_arg(tcgv_ptr_temp(v));
 }
 
 static inline TCGv_i32 temp_tcgv_i32(TCGTemp *t)
 {
-    return (TCGv_i32)temp_arg(t);
+    (void)temp_idx(t); /* trigger embedded assert */
+    return (TCGv_i32)((void *)t - (void *)&tcg_ctx);
 }
 
 static inline TCGv_i64 temp_tcgv_i64(TCGTemp *t)
 {
-    return (TCGv_i64)temp_arg(t);
+    return (TCGv_i64)temp_tcgv_i32(t);
 }
 
 static inline TCGv_ptr temp_tcgv_ptr(TCGTemp *t)
 {
-    return (TCGv_ptr)temp_arg(t);
+    return (TCGv_ptr)temp_tcgv_i32(t);
 }
 
 #if TCG_TARGET_REG_BITS == 32
