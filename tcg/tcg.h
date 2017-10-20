@@ -429,13 +429,13 @@ typedef TCGv_ptr TCGv_env;
 #endif
 
 /* Dummy definition to avoid compiler warnings.  */
-#define TCGV_UNUSED_I32(x) (x = (TCGv_i32)-1)
-#define TCGV_UNUSED_I64(x) (x = (TCGv_i64)-1)
-#define TCGV_UNUSED_PTR(x) (x = (TCGv_ptr)-1)
+#define TCGV_UNUSED_I32(x) (x = (TCGv_i32)NULL)
+#define TCGV_UNUSED_I64(x) (x = (TCGv_i64)NULL)
+#define TCGV_UNUSED_PTR(x) (x = (TCGv_ptr)NULL)
 
-#define TCGV_IS_UNUSED_I32(x) ((x) == (TCGv_i32)-1)
-#define TCGV_IS_UNUSED_I64(x) ((x) == (TCGv_i64)-1)
-#define TCGV_IS_UNUSED_PTR(x) ((x) == (TCGv_ptr)-1)
+#define TCGV_IS_UNUSED_I32(x) ((x) == (TCGv_i32)NULL)
+#define TCGV_IS_UNUSED_I64(x) ((x) == (TCGv_i64)NULL)
+#define TCGV_IS_UNUSED_PTR(x) ((x) == (TCGv_ptr)NULL)
 
 /* call flags */
 /* Helper does not read globals (either directly or through an exception). It
@@ -454,7 +454,7 @@ typedef TCGv_ptr TCGv_env;
 #define TCG_CALL_NO_WG_SE       (TCG_CALL_NO_WG | TCG_CALL_NO_SE)
 
 /* used to align parameters */
-#define TCG_CALL_DUMMY_ARG      ((TCGArg)(-1))
+#define TCG_CALL_DUMMY_ARG      ((TCGArg)0)
 
 /* Conditions.  Note that these are laid out for easy manipulation by
    the functions below:
@@ -701,17 +701,20 @@ static inline size_t temp_idx(TCGTemp *ts)
 
 static inline TCGArg temp_arg(TCGTemp *ts)
 {
-    return temp_idx(ts);
+    ptrdiff_t a = (void *)ts - (void *)&tcg_ctx;
+    tcg_debug_assert(a >= offsetof(TCGContext, temps)
+                     && a < offsetof(TCGContext, temps[tcg_ctx.nb_temps]));
+    return a;
 }
 
 static inline TCGTemp *arg_temp(TCGArg a)
 {
-    return a == TCG_CALL_DUMMY_ARG ? NULL : &tcg_ctx.temps[a];
-}
-
-static inline size_t arg_index(TCGArg a)
-{
-    return a;
+    if (a == TCG_CALL_DUMMY_ARG) {
+        return NULL;
+    }
+    tcg_debug_assert(a >= offsetof(TCGContext, temps)
+                     && a < offsetof(TCGContext, temps[tcg_ctx.nb_temps]));
+    return (void *)&tcg_ctx + a;
 }
 
 static inline TCGArg tcgv_i32_arg(TCGv_i32 t)
@@ -746,17 +749,17 @@ static inline TCGTemp *tcgv_ptr_temp(TCGv_ptr t)
 
 static inline TCGv_i32 temp_tcgv_i32(TCGTemp *t)
 {
-    return (TCGv_i32)temp_idx(t);
+    return (TCGv_i32)temp_arg(t);
 }
 
 static inline TCGv_i64 temp_tcgv_i64(TCGTemp *t)
 {
-    return (TCGv_i64)temp_idx(t);
+    return (TCGv_i64)temp_arg(t);
 }
 
 static inline TCGv_ptr temp_tcgv_ptr(TCGTemp *t)
 {
-    return (TCGv_ptr)temp_idx(t);
+    return (TCGv_ptr)temp_arg(t);
 }
 
 #if TCG_TARGET_REG_BITS == 32
