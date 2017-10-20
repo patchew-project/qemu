@@ -207,7 +207,7 @@ static int inet_listen_saddr(InetSocketAddress *saddr,
     char uaddr[INET6_ADDRSTRLEN+1];
     char uport[33];
     int rc, port_min, port_max, p;
-    int slisten = 0;
+    int slisten = -1;
     int saved_errno = 0;
     bool socket_created = false;
     Error *err = NULL;
@@ -267,16 +267,28 @@ static int inet_listen_saddr(InetSocketAddress *saddr,
 		        uaddr,INET6_ADDRSTRLEN,uport,32,
 		        NI_NUMERICHOST | NI_NUMERICSERV);
 
-        slisten = create_fast_reuse_socket(e);
-        if (slisten < 0) {
-            continue;
-        }
-
         socket_created = true;
         port_min = inet_getport(e);
         port_max = saddr->has_to ? saddr->to + port_offset : port_min;
         for (p = port_min; p <= port_max; p++) {
             inet_setport(e, p);
+
+            slisten = create_fast_reuse_socket(e);
+            if (slisten < 0) {
+                /* First time we expect we might fail to create the socket
+                 * eg if 'e' has AF_INET6 but ipv6 kmod is not loaded.
+                 * Later iterations should always succeeed if first iteration
+                 * worked though, so treat that as fatal.
+                 */
+                if (p == port_min) {
+                    continue;
+                } else {
+                    error_setg_errno(errp, errno,
+                                     "Failed to recreate failed listening socket");
+                    goto listen_failed;
+                }
+            }
+
             rc = try_bind(slisten, saddr, e);
             if (rc) {
                 if (errno == EADDRINUSE) {
@@ -299,12 +311,7 @@ static int inet_listen_saddr(InetSocketAddress *saddr,
              * socket to allow bind attempts for subsequent ports:
              */
             closesocket(slisten);
-            slisten = create_fast_reuse_socket(e);
-            if (slisten < 0) {
-                error_setg_errno(errp, errno,
-                                 "Failed to recreate failed listening socket");
-                goto listen_failed;
-            }
+            slisten = -1;
         }
     }
     error_setg_errno(errp, errno,
