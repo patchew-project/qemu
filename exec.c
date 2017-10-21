@@ -370,7 +370,8 @@ static inline bool section_covers_addr(const MemoryRegionSection *section,
      * the section must cover the entire address space.
      */
     return int128_gethi(section->size) ||
-           range_covers_byte(section->offset_within_address_space,
+           range_covers_byte(section->offset_within_address_space +
+                             section->offset_within_region,
                              int128_getlo(section->size), addr);
 }
 
