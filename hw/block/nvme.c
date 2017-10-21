@@ -605,6 +605,23 @@ static uint16_t nvme_identify(NvmeCtrl *n, NvmeCmd *cmd)
     }
 }
 
+static uint32_t nvme_get_feature_hmb(NvmeCtrl *n, NvmeCmd *cmd)
+{
+    uint32_t result = n->hmb_flag.flag;
+    uint64_t prp1 = le64_to_cpu(cmd->prp1);
+    uint64_t prp2 = le64_to_cpu(cmd->prp2);
+    NvmeHmbAttr attr = {0, };
+
+    attr.hsize = cpu_to_le32(n->hmb_attr.hsize);
+    attr.hmdlal = cpu_to_le32(n->hmb_attr.hmdlal);
+    attr.hmdlau = cpu_to_le32(n->hmb_attr.hmdlau);
+    attr.hmdlec = cpu_to_le32(n->hmb_attr.hmdlec);
+
+    nvme_dma_read_prp(n, (uint8_t *)&attr, sizeof(attr), prp1, prp2);
+
+    return result;
+}
+
 static uint16_t nvme_get_feature(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
 {
     uint32_t dw10 = le32_to_cpu(cmd->cdw10);
@@ -617,12 +634,25 @@ static uint16_t nvme_get_feature(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
     case NVME_NUMBER_OF_QUEUES:
         result = cpu_to_le32((n->num_queues - 2) | ((n->num_queues - 2) << 16));
         break;
+    case NVME_HOST_MEMORY_BUFFER:
+        result = nvme_get_feature_hmb(n, cmd);
+        break;
     default:
         return NVME_INVALID_FIELD | NVME_DNR;
     }
 
     req->cqe.result = result;
     return NVME_SUCCESS;
+}
+
+static void nvme_set_feature_hmb(NvmeCtrl *n, NvmeCmd *cmd)
+{
+    n->hmb_flag.flag = le32_to_cpu(cmd->cdw11);
+
+    n->hmb_attr.hsize = le32_to_cpu(cmd->cdw12);
+    n->hmb_attr.hmdlal = le32_to_cpu(cmd->cdw13);
+    n->hmb_attr.hmdlau = le32_to_cpu(cmd->cdw14);
+    n->hmb_attr.hmdlec = le32_to_cpu(cmd->cdw15);
 }
 
 static uint16_t nvme_set_feature(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
@@ -637,6 +667,9 @@ static uint16_t nvme_set_feature(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
     case NVME_NUMBER_OF_QUEUES:
         req->cqe.result =
             cpu_to_le32((n->num_queues - 2) | ((n->num_queues - 2) << 16));
+        break;
+    case NVME_HOST_MEMORY_BUFFER:
+        nvme_set_feature_hmb(n, cmd);
         break;
     default:
         return NVME_INVALID_FIELD | NVME_DNR;
@@ -985,6 +1018,8 @@ static int nvme_init(PCIDevice *pci_dev)
     id->oacs = cpu_to_le16(0);
     id->frmw = 7 << 1;
     id->lpa = 1 << 0;
+    id->hmpre = 0x2000;
+    id->hmmin = 0x0;
     id->sqes = (0x6 << 4) | 0x6;
     id->cqes = (0x4 << 4) | 0x4;
     id->nn = cpu_to_le32(n->num_namespaces);

@@ -552,7 +552,10 @@ typedef struct NvmeIdCtrl {
     uint8_t     lpa;
     uint8_t     elpe;
     uint8_t     npss;
-    uint8_t     rsvd511[248];
+    uint8_t     rsvd271[8];
+    uint32_t    hmpre;
+    uint32_t    hmmin;
+    uint8_t     rsvd511[232];
     uint8_t     sqes;
     uint8_t     cqes;
     uint16_t    rsvd515;
@@ -623,8 +626,21 @@ enum NvmeFeatureIds {
     NVME_INTERRUPT_VECTOR_CONF      = 0x9,
     NVME_WRITE_ATOMICITY            = 0xa,
     NVME_ASYNCHRONOUS_EVENT_CONF    = 0xb,
+    NVME_HOST_MEMORY_BUFFER         = 0xd,
     NVME_SOFTWARE_PROGRESS_MARKER   = 0x80
 };
+
+typedef struct NvmeHmbFlag {
+    uint32_t    flag;
+} NvmeHmbFlag;
+
+typedef struct NvmeHmbAttr {
+    uint32_t    hsize;
+    uint32_t    hmdlal;
+    uint32_t    hmdlau;
+    uint32_t    hmdlec;
+    uint8_t     rsvd4095[4080];
+} NvmeHmbAttr;
 
 typedef struct NvmeRangeType {
     uint8_t     type;
@@ -775,6 +791,9 @@ typedef struct NvmeCtrl {
     uint32_t    cmbsz;
     uint32_t    cmbloc;
     uint8_t     *cmbuf;
+
+    NvmeHmbFlag hmb_flag;
+    NvmeHmbAttr hmb_attr;
 
     char            *serial;
     NvmeNamespace   *namespaces;
