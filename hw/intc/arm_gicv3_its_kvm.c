@@ -215,9 +215,19 @@ static void kvm_arm_its_post_load(GICv3ITSState *s)
 
 static void kvm_arm_its_reset(DeviceState *dev)
 {
+    GICv3ITSState *s = ARM_GICV3_ITS_COMMON(dev);
     KVMARMITSClass *c = KVM_ARM_ITS_GET_CLASS(s);
 
     c->parent_reset(dev);
+
+    if (!kvm_device_check_attr(s->dev_fd, KVM_DEV_ARM_VGIC_GRP_CTRL,
+                               KVM_DEV_ARM_ITS_CTRL_RESET)) {
+        error_report("ITS KVM: reset is not supported by the kernel");
+        return;
+    }
+
+    kvm_device_access(s->dev_fd, KVM_DEV_ARM_VGIC_GRP_CTRL,
+                      KVM_DEV_ARM_ITS_CTRL_RESET, NULL, true, &error_abort);
 }
 
 static Property kvm_arm_its_props[] = {
