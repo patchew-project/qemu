@@ -49,6 +49,14 @@
 #define QEMU_CMD        QEMU_CMD_MEM QEMU_CMD_CHR \
                         QEMU_CMD_NETDEV QEMU_CMD_NET
 
+#define GET_QEMU_CMD(s)                                         \
+    g_strdup_printf(QEMU_CMD, 512, 512, (root), (s)->chr_name,  \
+                    (s)->socket_path, "", (s)->chr_name)
+
+#define GET_QEMU_CMDE(s, mem, chr_opts, extra, ...)                     \
+    g_strdup_printf(QEMU_CMD extra, (mem), (mem), (root), (s)->chr_name, \
+                    (s)->socket_path, (chr_opts), (s)->chr_name, ##__VA_ARGS__)
+
 #define HUGETLBFS_MAGIC       0x958458f6
 
 /*********** FROM hw/virtio/vhost-user.c *************************************/
@@ -156,6 +164,10 @@ typedef struct TestServer {
     int queues;
 } TestServer;
 
+static TestServer *test_server_new(const gchar *name);
+static void test_server_free(TestServer *server);
+static void test_server_listen(TestServer *server);
+
 static const char *tmpfs;
 static const char *root;
 
@@ -205,9 +217,8 @@ static void wait_for_fds(TestServer *s)
     g_mutex_unlock(&s->data_mutex);
 }
 
-static void read_guest_mem(const void *data)
+static void read_guest_mem_server(TestServer *s)
 {
-    TestServer *s = (void *)data;
     uint32_t *guest_mem;
     int i, j;
     size_t size;
@@ -246,6 +257,26 @@ static void read_guest_mem(const void *data)
     }
 
     g_mutex_unlock(&s->data_mutex);
+}
+
+static void read_guest_mem(void)
+{
+    TestServer *s;
+    char *qemu_cmd;
+
+    s = test_server_new("test");
+    test_server_listen(s);
+
+    qemu_cmd = GET_QEMU_CMD(s);
+
+    qtest_start(qemu_cmd);
+    g_free(qemu_cmd);
+    init_virtio_dev(s);
+
+    read_guest_mem_server(s);
+
+    qtest_end();
+    test_server_free(s);
 }
 
 static void *thread_function(void *data)
@@ -472,14 +503,6 @@ static void test_server_listen(TestServer *server)
     test_server_create_chr(server, ",server,nowait");
 }
 
-#define GET_QEMU_CMD(s)                                         \
-    g_strdup_printf(QEMU_CMD, 512, 512, (root), (s)->chr_name,  \
-                    (s)->socket_path, "", (s)->chr_name)
-
-#define GET_QEMU_CMDE(s, mem, chr_opts, extra, ...)                     \
-    g_strdup_printf(QEMU_CMD extra, (mem), (mem), (root), (s)->chr_name, \
-                    (s)->socket_path, (chr_opts), (s)->chr_name, ##__VA_ARGS__)
-
 static gboolean _test_server_free(TestServer *server)
 {
     int i;
@@ -686,7 +709,7 @@ static void test_migrate(void)
     global_qtest = to;
     qmp_eventwait("RESUME");
 
-    read_guest_mem(dest);
+    read_guest_mem_server(dest);
 
     g_source_destroy(source);
     g_source_unref(source);
@@ -918,10 +941,7 @@ static void test_multiqueue(void)
 
 int main(int argc, char **argv)
 {
-    QTestState *s = NULL;
-    TestServer *server = NULL;
     const char *hugefs;
-    char *qemu_cmd = NULL;
     int ret;
     char template[] = "/tmp/vhost-test-XXXXXX";
     GMainLoop *loop;
@@ -946,20 +966,11 @@ int main(int argc, char **argv)
         root = tmpfs;
     }
 
-    server = test_server_new("test");
-    test_server_listen(server);
-
     loop = g_main_loop_new(NULL, FALSE);
     /* run the main loop thread so the chardev may operate */
     thread = g_thread_new(NULL, thread_function, loop);
 
-    qemu_cmd = GET_QEMU_CMD(server);
-
-    s = qtest_start(qemu_cmd);
-    g_free(qemu_cmd);
-    init_virtio_dev(server);
-
-    qtest_add_data_func("/vhost-user/read-guest-mem", server, read_guest_mem);
+    qtest_add_func("/vhost-user/read-guest-mem", read_guest_mem);
     qtest_add_func("/vhost-user/migrate", test_migrate);
     qtest_add_func("/vhost-user/multiqueue", test_multiqueue);
 
@@ -979,13 +990,6 @@ int main(int argc, char **argv)
 #endif
 
     ret = g_test_run();
-
-    if (s) {
-        qtest_quit(s);
-    }
-
-    /* cleanup */
-    test_server_free(server);
 
     /* finish the helper thread and dispatch pending sources */
     g_main_loop_quit(loop);
