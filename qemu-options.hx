@@ -4208,6 +4208,21 @@ that @option{discard-data} is only an optimization, and QEMU
 might not discard file contents if it aborts unexpectedly or is
 terminated using SIGKILL.
 
+@item -object memory-backend-memfd,id=@var{id},size=@var{size},seal=@var{on|off},hugetlb=@var{on|off}
+
+Creates an anonymous memory file backend object, which allows QEMU to
+share the memory with an external process in some cases (e.g. when
+using vhost-user). The memory is allocated with memfd and optional
+sealing. (Linux only)
+
+The @option{id} parameter is a unique ID that will be used to
+reference this memory region when configuring the @option{-numa}
+argument. The @option{size} option provides the size of the memory
+region, and accepts common suffixes, eg @option{500M}. The
+@option{seal} option creates a sealed-file, that will block further
+resizing the memory ('on' by default). The @option{hugetlb} option
+specify the file to be created resides in the hugetlbfs filesystem.
+
 @item -object rng-random,id=@var{id},filename=@var{/dev/random}
 
 Creates a random number generator backend which obtains entropy from

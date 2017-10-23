@@ -31,7 +31,7 @@
 #include <linux/virtio_net.h>
 #include <sys/vfs.h>
 
-#define VHOST_USER_NET_TESTS_WORKING 0 /* broken as of 2.10.0 */
+#define VHOST_USER_NET_TESTS_WORKING 1 /* broken as of 2.10.0 */
 
 /* GLIB version compatibility flags */
 #if !GLIB_CHECK_VERSION(2, 26, 0)
