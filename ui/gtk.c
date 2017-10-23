@@ -692,6 +692,12 @@ static const DisplayChangeListenerOps dcl_egl_ops = {
     .dpy_gl_ctx_get_current  = qemu_egl_get_current_context,
     .dpy_gl_scanout_disable  = gd_egl_scanout_disable,
     .dpy_gl_scanout_texture  = gd_egl_scanout_texture,
+#ifdef CONFIG_OPENGL_DMABUF
+    .dpy_gl_scanout_dmabuf   = gd_egl_scanout_dmabuf,
+    .dpy_gl_cursor_dmabuf    = gd_egl_cursor_dmabuf,
+    .dpy_gl_cursor_position  = gd_egl_cursor_position,
+    .dpy_gl_release_dmabuf   = gd_egl_release_dmabuf,
+#endif
     .dpy_gl_update           = gd_egl_scanout_flush,
 };
 
