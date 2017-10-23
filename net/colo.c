@@ -197,12 +197,6 @@ Connection *connection_get(GHashTable *connection_track_table,
             trace_colo_proxy_main("colo proxy connection hashtable full,"
                                   " clear it");
             connection_hashtable_reset(connection_track_table);
-            /*
-             * clear the conn_list
-             */
-            while (!g_queue_is_empty(conn_list)) {
-                connection_destroy(g_queue_pop_head(conn_list));
-            }
         }
 
         g_hash_table_insert(connection_track_table, new_key, conn);
