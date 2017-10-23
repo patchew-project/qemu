@@ -30,8 +30,6 @@ void tpm_register_model(enum TpmModel model)
     tpm_models[model] = true;
 }
 
-#ifdef CONFIG_TPM
-
 static const TPMBackendClass *
 tpm_be_find_by_type(enum TpmType type)
 {
@@ -47,6 +45,8 @@ tpm_be_find_by_type(enum TpmType type)
 
     return TPM_BACKEND_CLASS(oc);
 }
+
+#ifdef CONFIG_TPM
 
 /*
  * Walk the list of available TPM backend drivers and display them on the
@@ -208,8 +208,9 @@ TPMInfoList *qmp_query_tpm(Error **errp)
             continue;
         }
         info = g_new0(TPMInfoList, 1);
+#ifdef CONFIG_TPM
         info->value = tpm_backend_query_tpm(drv);
-
+#endif
         if (!cur_item) {
             head = cur_item = info;
         } else {
