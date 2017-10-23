@@ -30,8 +30,6 @@ void tpm_register_model(enum TpmModel model)
     tpm_models[model] = true;
 }
 
-#ifdef CONFIG_TPM
-
 static const TPMBackendClass *
 tpm_be_find_by_type(enum TpmType type)
 {
@@ -47,6 +45,8 @@ tpm_be_find_by_type(enum TpmType type)
 
     return TPM_BACKEND_CLASS(oc);
 }
+
+#ifdef CONFIG_TPM
 
 /*
  * Walk the list of available TPM backend drivers and display them on the
@@ -146,20 +146,6 @@ static int tpm_init_tpmdev(void *dummy, QemuOpts *opts, Error **errp)
 }
 
 /*
- * Walk the list of TPM backend drivers that are in use and call their
- * destroy function to have them cleaned up.
- */
-void tpm_cleanup(void)
-{
-    TPMBackend *drv, *next;
-
-    QLIST_FOREACH_SAFE(drv, &tpm_backends, list, next) {
-        QLIST_REMOVE(drv, list);
-        object_unref(OBJECT(drv));
-    }
-}
-
-/*
  * Initialize the TPM. Process the tpmdev command line options describing the
  * TPM backend.
  */
@@ -195,6 +181,20 @@ int tpm_config_parse(QemuOptsList *opts_list, const char *optarg)
 #endif /* CONFIG_TPM */
 
 /*
+ * Walk the list of TPM backend drivers that are in use and call their
+ * destroy function to have them cleaned up.
+ */
+void tpm_cleanup(void)
+{
+    TPMBackend *drv, *next;
+
+    QLIST_FOREACH_SAFE(drv, &tpm_backends, list, next) {
+        QLIST_REMOVE(drv, list);
+        object_unref(OBJECT(drv));
+    }
+}
+
+/*
  * Walk the list of active TPM backends and collect information about them
  * following the schema description in qapi-schema.json.
  */
@@ -208,8 +208,9 @@ TPMInfoList *qmp_query_tpm(Error **errp)
             continue;
         }
         info = g_new0(TPMInfoList, 1);
+#ifdef CONFIG_TPM
         info->value = tpm_backend_query_tpm(drv);
-
+#endif
         if (!cur_item) {
             head = cur_item = info;
         } else {
