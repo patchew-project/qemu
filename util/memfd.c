@@ -27,8 +27,6 @@
 
 #include "qemu/osdep.h"
 
-#include <glib/gprintf.h>
-
 #include "qemu/memfd.h"
 
 #ifdef CONFIG_MEMFD
