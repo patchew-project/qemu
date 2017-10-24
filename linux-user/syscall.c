@@ -7496,26 +7496,32 @@ static int open_self_auxv(void *cpu_env, int fd)
 
 static int is_proc_myself(const char *filename, const char *entry)
 {
-    if (!strncmp(filename, "/proc/", strlen("/proc/"))) {
-        filename += strlen("/proc/");
-        if (!strncmp(filename, "self/", strlen("self/"))) {
-            filename += strlen("self/");
-        } else if (*filename >= '1' && *filename <= '9') {
-            char myself[80];
-            snprintf(myself, sizeof(myself), "%d/", getpid());
-            if (!strncmp(filename, myself, strlen(myself))) {
-                filename += strlen(myself);
-            } else {
-                return 0;
-            }
-        } else {
-            return 0;
-        }
-        if (!strcmp(filename, entry)) {
-            return 1;
-        }
+    char proc_self_entry[PATH_MAX + 1];
+    char proc_self_entry_realpath[PATH_MAX + 1];
+    char filename_realpath[PATH_MAX + 1];
+
+    if(PATH_MAX < snprintf(proc_self_entry, sizeof(proc_self_entry), "/proc/self/%s", entry)) {
+        /* Full path to "entry" is too long to fit in the buffer */
+        return 0;
     }
-    return 0;
+
+    if (!realpath(filename, filename_realpath)) {
+        /* File does not exist, or can't be canonicalized */
+        return 0;
+    }
+
+    if (!realpath(proc_self_entry, proc_self_entry_realpath)) {
+        /* Procfs entry does not exist */
+        return 0;
+    }
+
+    if (strcmp(filename_realpath, proc_self_entry_realpath) != 0) {
+        /* Paths are different */
+        return 0;
+    }
+
+    /* filename refers to /proc/self/<entry> */
+    return 1;
 }
 
 #if defined(HOST_WORDS_BIGENDIAN) != defined(TARGET_WORDS_BIGENDIAN)
