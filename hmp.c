@@ -43,6 +43,7 @@
 #include "hw/intc/intc.h"
 #include "migration/snapshot.h"
 #include "migration/misc.h"
+#include "hw/virtio/virtio.h"
 
 #ifdef CONFIG_SPICE
 #include <spice/enums.h>
@@ -2900,4 +2901,125 @@ void hmp_info_memory_size_summary(Monitor *mon, const QDict *qdict)
         qapi_free_MemoryInfo(info);
     }
     hmp_handle_error(mon, &err);
+}
+
+#define HMP_INFO_VIRTIO_INDENT 2
+#define HMP_INFO_VIRTIO_ITEM 16
+#define HMP_INFO_VIRTIO_FIELD 24
+
+static void hmp_info_virtio_print_status(Monitor *mon, VirtioInfo *info)
+{
+    VirtioStatusList *status;
+    const char *space = " ";
+
+    monitor_printf(mon, "%*s%-*s0x%02"PRIx8"", HMP_INFO_VIRTIO_INDENT, "",
+                   HMP_INFO_VIRTIO_ITEM, "status:", info->status);
+
+    for (status = info->status_names; status; status = status->next) {
+        monitor_printf(mon, "%s%s", space, VirtioStatus_str(status->value));
+        space = ",";
+    }
+
+    monitor_printf(mon, "\n");
+}
+
+static void hmp_info_virtio_print_features(Monitor *mon, VirtioInfo *info)
+{
+    VirtioFeatureList *head;
+
+    monitor_printf(mon, "%*s%-*s0x%016"PRIx64"\n", HMP_INFO_VIRTIO_INDENT, "",
+                   HMP_INFO_VIRTIO_ITEM, "host features:",
+                   info->host_features);
+    monitor_printf(mon, "%*s%-*s0x%016"PRIx64"\n", HMP_INFO_VIRTIO_INDENT, "",
+                   HMP_INFO_VIRTIO_ITEM, "guest features:",
+                   info->guest_features);
+
+    if (info->features) {
+        monitor_printf(mon, "%*s%-*s\n", HMP_INFO_VIRTIO_INDENT, "",
+                       HMP_INFO_VIRTIO_ITEM, "feature names:");
+        monitor_printf(mon, "%*s%-*s%-*s%-*s%-*s\n", HMP_INFO_VIRTIO_INDENT, "",
+                       HMP_INFO_VIRTIO_FIELD, "TYPE",
+                       HMP_INFO_VIRTIO_FIELD, "NAME",
+                       HMP_INFO_VIRTIO_FIELD, "HOST",
+                       HMP_INFO_VIRTIO_FIELD, "GUEST");
+    }
+
+    for (head = info->features; head; head = head->next) {
+        VirtioFeature *feature = head->value;
+        const char *type = VirtioFeatureNameKind_str(feature->name->type);
+        const char *host = feature->host ? "true" : "false";
+        const char *guest = feature->guest ? "true" : "false";
+        const char *name;
+
+        switch (feature->name->type) {
+        case VIRTIO_FEATURE_NAME_KIND_COMMON:
+            name = VirtioFeatureCommon_str(feature->name->u.common.data);
+            break;
+        case VIRTIO_FEATURE_NAME_KIND_NET:
+            name = VirtioFeatureNet_str(feature->name->u.net.data);
+            break;
+        case VIRTIO_FEATURE_NAME_KIND_BLK:
+            name = VirtioFeatureBlk_str(feature->name->u.blk.data);
+            break;
+        case VIRTIO_FEATURE_NAME_KIND_SERIAL:
+            name = VirtioFeatureSerial_str(feature->name->u.serial.data);
+            break;
+        case VIRTIO_FEATURE_NAME_KIND_BALLOON:
+            name = VirtioFeatureBalloon_str(feature->name->u.balloon.data);
+            break;
+        case VIRTIO_FEATURE_NAME_KIND_SCSI:
+            name = VirtioFeatureScsi_str(feature->name->u.scsi.data);
+            break;
+        case VIRTIO_FEATURE_NAME_KIND_VIRTFS:
+            name = VirtioFeatureVirtfs_str(feature->name->u.virtfs.data);
+            break;
+        case VIRTIO_FEATURE_NAME_KIND_GPU:
+            name = VirtioFeatureGpu_str(feature->name->u.gpu.data);
+            break;
+        default:
+        case VIRTIO_FEATURE_NAME_KIND_OTHER:
+            name = VirtioFeatureOther_str(feature->name->u.other.data);
+            break;
+        }
+
+        monitor_printf(mon, "%*s%-*s%-*s%-*s%-*s\n", HMP_INFO_VIRTIO_INDENT, "",
+                       HMP_INFO_VIRTIO_FIELD, type,
+                       HMP_INFO_VIRTIO_FIELD, name,
+                       HMP_INFO_VIRTIO_FIELD, host,
+                       HMP_INFO_VIRTIO_FIELD, guest);
+    }
+}
+
+static void hmp_info_virtio_print(Monitor *mon, VirtioInfo *info)
+{
+    Object *obj = object_resolve_path(info->qom_path, NULL);
+    char *path = qdev_get_dev_path(DEVICE(obj));
+
+    monitor_printf(mon, "%s at %s\n", object_get_typename(obj), path);
+    g_free(path);
+
+    monitor_printf(mon, "%*s%-*s%s\n", HMP_INFO_VIRTIO_INDENT, "",
+                   HMP_INFO_VIRTIO_ITEM, "QOM path:", info->qom_path);
+
+    hmp_info_virtio_print_status(mon, info);
+    hmp_info_virtio_print_features(mon, info);
+}
+
+void hmp_info_virtio(Monitor *mon, const QDict *qdict)
+{
+    const char *path = qdict_get_try_str(qdict, "path");
+    Error *err = NULL;
+    VirtioInfoList *head, *info;
+
+
+    head = qmp_query_virtio(!!path, path, &err);
+    if (err) {
+        return;
+    }
+
+    for (info = head; info; info = info->next) {
+        hmp_info_virtio_print(mon, info->value);
+    }
+
+    qapi_free_VirtioInfoList(head);
 }
