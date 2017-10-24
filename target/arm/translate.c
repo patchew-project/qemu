@@ -12124,6 +12124,7 @@ static void arm_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
     }
 
     insn = arm_ldl_code(env, dc->pc, dc->sctlr_b);
+    dc->insn = insn;
     dc->pc += 4;
     disas_arm_insn(dc, insn);
 
@@ -12191,6 +12192,7 @@ static void thumb_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
     }
 
     insn = arm_lduw_code(env, dc->pc, dc->sctlr_b);
+    dc->insn = insn;
     is_16bit = thumb_insn_is_16bit(dc, insn);
     dc->pc += 2;
     if (!is_16bit) {
@@ -12325,12 +12327,17 @@ static void arm_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
             /* nothing more to generate */
             break;
         case DISAS_WFI:
-            gen_helper_wfi(cpu_env);
+        {
+            TCGv_i32 tmp = tcg_const_i32((dc->thumb &&
+                                          !(dc->insn & (1U << 31))) ? 2 : 4);
+            gen_helper_wfi(cpu_env, tmp);
+            tcg_temp_free_i32(tmp);
             /* The helper doesn't necessarily throw an exception, but we
              * must go back to the main loop to check for interrupts anyway.
              */
             tcg_gen_exit_tb(0);
             break;
+        }
         case DISAS_WFE:
             gen_helper_wfe(cpu_env);
             break;
