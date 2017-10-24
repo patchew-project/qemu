@@ -33,6 +33,8 @@ status)
     ;;
 update)
     git submodule update --init $modules 1>/dev/null 2>&1
-    git submodule status $modules > "${substat}"
+    substat_tmp=$(mktemp)
+    git submodule status $modules > "$substat_tmp"
+    diff "${substat_tmp}" "${substat}" || mv "${substat_tmp}" "${substat}"
     ;;
 esac
