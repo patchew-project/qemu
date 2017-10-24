@@ -341,7 +341,7 @@ static void blk_delete(BlockBackend *blk)
     assert(!blk->name);
     assert(!blk->dev);
     if (blk->public.throttle_group_member.throttle_state) {
-        blk_io_limits_disable(blk);
+        throttle_group_unregister_tgm(&blk->public.throttle_group_member);
     }
     if (blk->root) {
         blk_remove_bs(blk);

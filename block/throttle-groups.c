@@ -576,7 +576,9 @@ void throttle_group_unregister_tgm(ThrottleGroupMember *tgm)
 
     /* remove the current tgm from the list */
     QLIST_REMOVE(tgm, round_robin);
-    throttle_timers_destroy(&tgm->throttle_timers);
+    if (throttle_timers_are_initialized(&tgm->throttle_timers)) {
+        throttle_timers_destroy(&tgm->throttle_timers);
+    }
     qemu_mutex_unlock(&tg->lock);
 
     throttle_group_unref(&tg->ts);
