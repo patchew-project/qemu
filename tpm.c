@@ -223,8 +223,11 @@ TPMInfoList *qmp_query_tpm(Error **errp)
 
 TpmTypeList *qmp_query_tpm_types(Error **errp)
 {
+    TpmTypeList *head = NULL;
+
+#ifdef CONFIG_TPM
     unsigned int i = 0;
-    TpmTypeList *head = NULL, *prev = NULL, *cur_item;
+    TpmTypeList *prev = NULL, *cur_item;
 
     for (i = 0; i < TPM_TYPE__MAX; i++) {
         if (!tpm_be_find_by_type(i)) {
@@ -241,6 +244,7 @@ TpmTypeList *qmp_query_tpm_types(Error **errp)
         }
         prev = cur_item;
     }
+#endif
 
     return head;
 }

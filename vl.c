@@ -4905,7 +4905,9 @@ int main(int argc, char **argv, char **envp)
     res_free();
 
     /* vhost-user must be cleaned up before chardevs.  */
+#ifdef CONFIG_TPM
     tpm_cleanup();
+#endif
     net_cleanup();
     audio_cleanup();
     monitor_cleanup();
