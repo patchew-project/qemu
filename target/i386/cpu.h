@@ -774,10 +774,15 @@ typedef enum {
     CC_OP_SARL,
     CC_OP_SARQ,
 
-    CC_OP_BMILGB, /* Z,S via CC_DST, C = SRC==0; O=0; P,A undefined */
+    CC_OP_BMILGB, /* Z,S via DST, C = SRC==0; O=0; P,A undefined */
     CC_OP_BMILGW,
     CC_OP_BMILGL,
     CC_OP_BMILGQ,
+
+    CC_OP_TBMADDB, /* Z,S via DST; C = SRC==-1; O=0; P,A undefined */
+    CC_OP_TBMADDW,
+    CC_OP_TBMADDL,
+    CC_OP_TBMADDQ,
 
     CC_OP_ADCX, /* CC_DST = C, CC_SRC = rest.  */
     CC_OP_ADOX, /* CC_DST = O, CC_SRC = rest.  */
