@@ -4536,8 +4536,9 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
 #endif
     case 0xc5: /* 2-byte VEX */
     case 0xc4: /* 3-byte VEX */
+    case 0x8f: /* 3-byte XOP */
         /* VEX prefixes cannot be used except in 32-bit mode.
-           Otherwise the instruction is LES or LDS.  */
+           Otherwise the instruction is LES, LDS, or POP.  */
         if (s->code32 && !s->vm86) {
             static const int pp_prefix[4] = {
                 0, PREFIX_DATA, PREFIX_REPZ, PREFIX_REPNZ
@@ -4546,7 +4547,13 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
 
             if (!CODE64(s) && (vex2 & 0xc0) != 0xc0) {
                 /* 4.1.4.6: In 32-bit mode, bits [7:6] must be 11b,
-                   otherwise the instruction is LES or LDS.  */
+                   otherwise the instruction is LES, LDS, or POP.  */
+                break;
+            }
+            if (b == 0x8f && (vex2 & 0x1f) < 8) {
+                /* If the value of the XOP.map_select field is less than 8,
+                   the first two bytes of the three-byte XOP are interpreted
+                   as a form of the POP instruction.  */
                 break;
             }
             s->pc++;
@@ -4572,18 +4579,25 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
 #endif
                 vex3 = x86_ldub_code(env, s);
                 rex_w = (vex3 >> 7) & 1;
-                switch (vex2 & 0x1f) {
-                case 0x01: /* Implied 0f leading opcode bytes.  */
-                    b = x86_ldub_code(env, s) | 0x100;
-                    break;
-                case 0x02: /* Implied 0f 38 leading opcode bytes.  */
-                    b = 0x138;
-                    break;
-                case 0x03: /* Implied 0f 3a leading opcode bytes.  */
-                    b = 0x13a;
-                    break;
-                default:   /* Reserved for future use.  */
-                    goto unknown_op;
+                if (b == 0xc4) {
+                    switch (vex2 & 0x1f) {
+                    case 0x01: /* Implied 0f leading opcode bytes.  */
+                        b = x86_ldub_code(env, s) | 0x100;
+                        break;
+                    case 0x02: /* Implied 0f 38 leading opcode bytes.  */
+                        b = 0x138;
+                        break;
+                    case 0x03: /* Implied 0f 3a leading opcode bytes.  */
+                        b = 0x13a;
+                        break;
+                    default:   /* Reserved for future use.  */
+                        goto unknown_op;
+                    }
+                } else {
+                    /* Unlike VEX, XOP.map_select does not overlap the
+                       base instruction set.  Prepend the map_select to
+                       the next opcode byte.  */
+                    b = x86_ldub_code(env, s) + (vex2 & 0x1f) * 0x100;
                 }
             }
             s->vex_v = (~vex3 >> 3) & 0xf;
@@ -8307,6 +8321,10 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
     case 0x1d0 ... 0x1fe:
         gen_sse(env, s, b, pc_start, rex_r);
         break;
+
+    case 0x800 ... 0x8ff: /* XOP opcode map 8 */
+    case 0x900 ... 0x9ff: /* XOP opcode map 9 */
+    case 0xa00 ... 0xaff: /* XOP opcode map 10 */
     default:
         goto unknown_op;
     }
