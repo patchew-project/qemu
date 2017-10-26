@@ -133,6 +133,7 @@ DWORD WINAPI service_ctrl_handler(DWORD ctrl, DWORD type, LPVOID data,
                                   LPVOID ctx);
 VOID WINAPI service_main(DWORD argc, TCHAR *argv[]);
 #endif
+static int run_agent(GAState *s);
 
 static void
 init_dfl_pathnames(void)
@@ -768,7 +769,7 @@ VOID WINAPI service_main(DWORD argc, TCHAR *argv[])
     service->status.dwWaitHint = 0;
     SetServiceStatus(service->status_handle, &service->status);
 
-    g_main_loop_run(ga_state->main_loop);
+    run_agent(ga_state);
 
     service->status.dwCurrentState = SERVICE_STOPPED;
     SetServiceStatus(service->status_handle, &service->status);
@@ -1377,17 +1378,8 @@ static int run_agent(GAState *s)
         g_critical("failed to initialize guest agent channel");
         return EXIT_FAILURE;
     }
-#ifndef _WIN32
+
     g_main_loop_run(ga_state->main_loop);
-#else
-    if (config->daemonize) {
-        SERVICE_TABLE_ENTRY service_table[] = {
-            { (char *)QGA_SERVICE_NAME, service_main }, { NULL, NULL } };
-        StartServiceCtrlDispatcher(service_table);
-    } else {
-        g_main_loop_run(ga_state->main_loop);
-    }
-#endif
 
     return EXIT_SUCCESS;
 }
@@ -1473,7 +1465,18 @@ int main(int argc, char **argv)
         g_critical("error initializing guest agent");
         goto end;
     }
+
+#ifdef _WIN32
+    if (config->daemonize) {
+        SERVICE_TABLE_ENTRY service_table[] = {
+            { (char *)QGA_SERVICE_NAME, service_main }, { NULL, NULL } };
+        StartServiceCtrlDispatcher(service_table);
+    } else {
+        ret = run_agent(s);
+    }
+#endif
     ret = run_agent(s);
+
     cleanup_agent(s);
 
 end:
