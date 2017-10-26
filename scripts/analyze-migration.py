@@ -36,23 +36,28 @@ class MigrationFile(object):
         self.file = open(self.filename, "rb")
 
     def read64(self):
-        return np.asscalar(np.fromfile(self.file, count=1, dtype='>i8')[0])
+        buffer = file.read(64)
+        return struct.unpack('>i16', buffer)[0]
 
     def read32(self):
-        return np.asscalar(np.fromfile(self.file, count=1, dtype='>i4')[0])
+        buffer = file.read(32)
+        return struct.unpack('>i8', buffer)[0]
 
     def read16(self):
-        return np.asscalar(np.fromfile(self.file, count=1, dtype='>i2')[0])
+        buffer = file.read(16)
+        return struct.unpack('>i4', buffer)[0]
 
     def read8(self):
-        return np.asscalar(np.fromfile(self.file, count=1, dtype='>i1')[0])
+        buffer = file.read(8)
+        return struct.unpack('>i2', buffer)[0]
 
     def readstr(self, len = None):
+        buffer = file.read(8)
         if len is None:
             len = self.read8()
         if len == 0:
             return ""
-        return np.fromfile(self.file, count=1, dtype=('S%d' % len))[0]
+        return np.array(struct.unpack(str(len) + 'd', buffer)[0])
 
     def readvar(self, size = None):
         if size is None:
@@ -303,8 +308,8 @@ class VMSDFieldInt(VMSDFieldGeneric):
 
     def read(self):
         super(VMSDFieldInt, self).read()
-        self.sdata = np.fromstring(self.data, count=1, dtype=(self.sdtype))[0]
-        self.udata = np.fromstring(self.data, count=1, dtype=(self.udtype))[0]
+        self.sdata = np.array(struct.unpack(self.sdtype, self.data)[0])
+        self.udata = np.array(struct.unpack(self.udtype, self.data)[0])
         self.data = self.sdata
         return self.data
 
