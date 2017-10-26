@@ -107,7 +107,10 @@ void isa_connect_gpio_out(ISADevice *isadev, int gpioirq, int isairq)
 void isa_bus_dma(ISABus *bus, IsaDma *dma8, IsaDma *dma16)
 {
     assert(bus && dma8 && dma16);
-    assert(!bus->dma[0] && !bus->dma[1]);
+    if (bus->dma[0] || bus->dma[1]) {
+        error_setg(&error_fatal,
+                   "DMA is already set to ISA bus, duplicated DMA controller?");
+    }
     bus->dma[0] = dma8;
     bus->dma[1] = dma16;
 }
