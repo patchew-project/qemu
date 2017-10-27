@@ -292,6 +292,9 @@ static void xenfb_key_event(void *opaque, int scancode)
     }
     trace_xenfb_key_event(opaque, scancode2linux[scancode], down);
     xenfb_send_key(xenfb, down, scancode2linux[scancode]);
+    if (down) { /* simulate auto-repeat key events */
+    xenfb_send_key(xenfb, 0, scancode2linux[scancode]);
+    }
 }
 
 /*
