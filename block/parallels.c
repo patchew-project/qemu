@@ -100,6 +100,8 @@ typedef struct BDRVParallelsState {
     unsigned int tracks;
 
     unsigned int off_multiplier;
+
+    bool first_write_latch;
 } BDRVParallelsState;
 
 
@@ -317,6 +319,16 @@ static coroutine_fn int parallels_co_writev(BlockDriverState *bs,
     QEMUIOVector hd_qiov;
     int ret = 0;
 
+    if (s->first_write_latch) {
+        s->first_write_latch = false;
+        qemu_co_mutex_lock(&s->lock);
+        ret = parallels_update_header(bs);
+        qemu_co_mutex_unlock(&s->lock);
+    }
+    if (ret < 0) {
+        return ret;
+    }
+
     qemu_iovec_init(&hd_qiov, qiov->niov);
 
     while (nb_sectors > 0) {
@@ -416,6 +428,9 @@ static int parallels_check(BlockDriverState *bs, BdrvCheckResult *res,
             /* parallels_close will do the job right */
             res->corruptions_fixed++;
             s->header_unclean = false;
+            /* set that a write has occurred, so that parallels_close() will
+             * update the inuse field in the header */
+            s->first_write_latch = false;
         }
     }
 
@@ -597,6 +612,8 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
     Error *local_err = NULL;
     char *buf;
 
+    s->first_write_latch = true;
+
     bs->file = bdrv_open_child(NULL, options, "file", bs, &child_file,
                                false, errp);
     if (!bs->file) {
@@ -710,10 +727,6 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
 
     if (flags & BDRV_O_RDWR) {
         s->header->inuse = cpu_to_le32(HEADER_INUSE_MAGIC);
-        ret = parallels_update_header(bs);
-        if (ret < 0) {
-            goto fail;
-        }
     }
 
     s->bat_dirty_block = 4 * getpagesize();
@@ -741,7 +754,9 @@ static void parallels_close(BlockDriverState *bs)
 {
     BDRVParallelsState *s = bs->opaque;
 
-    if (bs->open_flags & BDRV_O_RDWR) {
+    /* Only need to update the header, if we ever actually wrote to the
+     * image at all */
+    if ((bs->open_flags & BDRV_O_RDWR) && !s->first_write_latch) {
         s->header->inuse = 0;
         parallels_update_header(bs);
     }
