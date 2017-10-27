@@ -159,6 +159,18 @@ static int cluster_remainder(BDRVParallelsState *s, int64_t sector_num,
     return MIN(nb_sectors, ret);
 }
 
+static int parallels_update_header(BlockDriverState *bs)
+{
+    BDRVParallelsState *s = bs->opaque;
+    unsigned size = MAX(bdrv_opt_mem_align(bs->file->bs),
+                        sizeof(ParallelsHeader));
+
+    if (size > s->header_size) {
+        size = s->header_size;
+    }
+    return bdrv_pwrite_sync(bs->file, 0, s->header, size);
+}
+
 static int64_t block_status(BDRVParallelsState *s, int64_t sector_num,
                             int nb_sectors, int *pnum)
 {
@@ -573,18 +585,6 @@ static int parallels_probe(const uint8_t *buf, int buf_size,
     }
 
     return 0;
-}
-
-static int parallels_update_header(BlockDriverState *bs)
-{
-    BDRVParallelsState *s = bs->opaque;
-    unsigned size = MAX(bdrv_opt_mem_align(bs->file->bs),
-                        sizeof(ParallelsHeader));
-
-    if (size > s->header_size) {
-        size = s->header_size;
-    }
-    return bdrv_pwrite_sync(bs->file, 0, s->header, size);
 }
 
 static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
