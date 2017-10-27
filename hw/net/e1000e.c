@@ -281,6 +281,17 @@ static const uint16_t e1000e_eeprom_template[64] = {
     0xffff, 0xffff, 0xffff, 0xffff, 0x0000, 0x0120, 0xffff, 0x0000,
 };
 
+static const uint16_t e1000_eeprom_template[64] = {
+    0x0000, 0x0000, 0x0000, 0x0000,      0xffff, 0x0000,      0x0000, 0x0000,
+    0x3000, 0x1000, 0x6403, 0 /*DevId*/, 0x8086, 0 /*DevId*/, 0x8086, 0x3040,
+    0x0008, 0x2000, 0x7e14, 0x0048,      0x1000, 0x00d8,      0x0000, 0x2700,
+    0x6cc9, 0x3150, 0x0722, 0x040b,      0x0984, 0x0000,      0xc000, 0x0706,
+    0x1008, 0x0000, 0x0f04, 0x7fff,      0x4d01, 0xffff,      0xffff, 0xffff,
+    0xffff, 0xffff, 0xffff, 0xffff,      0xffff, 0xffff,      0xffff, 0xffff,
+    0x0100, 0x4000, 0x121c, 0xffff,      0xffff, 0xffff,      0xffff, 0xffff,
+    0xffff, 0xffff, 0xffff, 0xffff,      0xffff, 0xffff,      0xffff, 0x0000,
+};
+
 static void e1000e_core_realize(E1000EState *s)
 {
     s->core.owner = &s->parent_obj;
@@ -775,6 +786,45 @@ static const E1000EInfo e1000e_devices[] = {
         .eeprom_templ        = e1000e_eeprom_template,
         .eeprom_size         = sizeof(e1000e_eeprom_template),
         .phy_id2             = E1000_PHY_ID2_82574x,
+    },
+    {
+        .name                = "e1000-ng",
+        .desc                = "Intel 82540EM Gigabit Ethernet Controller",
+        .device_id           = E1000_DEV_ID_82540EM,
+        .revision            = 3,
+        .subsystem_vendor_id = PCI_SUBVENDOR_ID_REDHAT_QUMRANET,
+        .subsystem_id        = PCI_SUBDEVICE_ID_QEMU,
+        .is_express          = 0,
+        .romfile             = "efi-e1000.rom",
+        .eeprom_templ        = e1000_eeprom_template,
+        .eeprom_size         = sizeof(e1000_eeprom_template),
+        .phy_id2             = E1000_PHY_ID2_8254xx_DEFAULT,
+    },
+    {
+        .name                = "e1000-82544gc-ng",
+        .desc                = "Intel 82544GC Gigabit Ethernet Controller",
+        .device_id           = E1000_DEV_ID_82544GC_COPPER,
+        .revision            = 3,
+        .subsystem_vendor_id = PCI_SUBVENDOR_ID_REDHAT_QUMRANET,
+        .subsystem_id        = PCI_SUBDEVICE_ID_QEMU,
+        .is_express          = 0,
+        .romfile             = "efi-e1000.rom",
+        .eeprom_templ        = e1000_eeprom_template,
+        .eeprom_size         = sizeof(e1000_eeprom_template),
+        .phy_id2             = E1000_PHY_ID2_82544x,
+    },
+    {
+        .name                = "e1000-82545em-ng",
+        .desc                = "Intel 82545EM Gigabit Ethernet Controller",
+        .device_id           = E1000_DEV_ID_82545EM_COPPER,
+        .revision            = 3,
+        .subsystem_vendor_id = PCI_SUBVENDOR_ID_REDHAT_QUMRANET,
+        .subsystem_id        = PCI_SUBDEVICE_ID_QEMU,
+        .is_express          = 0,
+        .romfile             = "efi-e1000.rom",
+        .eeprom_templ        = e1000_eeprom_template,
+        .eeprom_size         = sizeof(e1000_eeprom_template),
+        .phy_id2             = E1000_PHY_ID2_8254xx_DEFAULT,
     },
 };
 

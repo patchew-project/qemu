@@ -59,6 +59,7 @@ struct E1000Core {
     uint16_t phy_id2;
     const char (*phy_regcap)[E1000E_PHY_PAGES][E1000E_PHY_PAGE_SIZE];
     const uint16_t (*phy_reg_init)[E1000E_PHY_PAGES][E1000E_PHY_PAGE_SIZE];
+    bool clear_icr_on_read;
 
     uint32_t mac[E1000E_MAC_SIZE];
     uint16_t phy[E1000E_PHY_PAGES][E1000E_PHY_PAGE_SIZE];
@@ -107,6 +108,17 @@ struct E1000Core {
     uint16_t vet;
 
     uint8_t permanent_mac[ETH_ALEN];
+
+    int eerw_done;
+    int eerw_addr_shift;
+    int eerw_addr_mask;
+    struct {
+        uint32_t val_in; /* shifted in from guest driver */
+        uint16_t bitnum_in;
+        uint16_t bitnum_out;
+        uint16_t reading;
+        uint32_t old_eecd;
+    } eecd_state;
 
     NICState *owner_nic;
     PCIDevice *owner;
