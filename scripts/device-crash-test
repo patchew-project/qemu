@@ -163,6 +163,18 @@ ERROR_WHITELIST = [
     # "spapr-cpu-core needs a pseries machine"
     {'machine':'(?!pseries).*', 'device':'.*-spapr-cpu-core', 'expected':True},
 
+    # vmcoreinfo requires a fw_cfg device and will fail in these ppc64 machines
+    {'machine':'pseries.*', 'device':'vmcoreinfo', 'expected':True},
+    {'machine':'40p', 'device':'vmcoreinfo', 'expected':True},
+    {'machine':'bamboo', 'device':'vmcoreinfo', 'expected':True},
+    {'machine':'g3beige', 'device':'vmcoreinfo', 'expected':True},
+    {'machine':'mac99', 'device':'vmcoreinfo', 'expected':True},
+    {'machine':'mpc8544ds', 'device':'vmcoreinfo', 'expected':True},
+    {'machine':'powernv', 'device':'vmcoreinfo', 'expected':True},
+    {'machine':'ppce500', 'device':'vmcoreinfo', 'expected':True},
+    {'machine':'prep', 'device':'vmcoreinfo', 'expected':True},
+    {'machine':'virtex-ml507', 'device':'vmcoreinfo', 'expected':True},
+
     # KVM-specific devices shouldn't be tried without accel=kvm:
     {'accel':'(?!kvm).*', 'device':'kvmclock', 'expected':True},
     {'accel':'(?!kvm).*', 'device':'kvm-pci-assign', 'expected':True},
