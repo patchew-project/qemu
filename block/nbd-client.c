@@ -654,7 +654,8 @@ static int nbd_co_request(BlockDriverState *bs, NBDRequest *request,
 
     ret = nbd_co_receive_return_code(client, request->handle, &local_err);
     if (local_err) {
-        error_report_err(local_err);
+        assert(ret < 0);
+//        error_report_err(local_err);
     }
     return ret;
 }
@@ -682,7 +683,7 @@ int nbd_client_co_preadv(BlockDriverState *bs, uint64_t offset,
     ret = nbd_co_receive_cmdread_reply(client, request.handle, offset, qiov,
                                        &local_err);
     if (ret < 0) {
-        error_report_err(local_err);
+        //error_report_err(local_err);
     }
     return ret;
 }
