@@ -56,6 +56,10 @@ typedef struct E1000IntrDelayTimer_st {
 } E1000IntrDelayTimer;
 
 struct E1000Core {
+    uint16_t phy_id2;
+    const char (*phy_regcap)[E1000E_PHY_PAGES][E1000E_PHY_PAGE_SIZE];
+    const uint16_t (*phy_reg_init)[E1000E_PHY_PAGES][E1000E_PHY_PAGE_SIZE];
+
     uint32_t mac[E1000E_MAC_SIZE];
     uint16_t phy[E1000E_PHY_PAGES][E1000E_PHY_PAGE_SIZE];
     uint16_t eeprom[E1000E_EEPROM_SIZE];
@@ -116,10 +120,11 @@ uint64_t
 e1000e_core_read(E1000ECore *core, hwaddr addr, unsigned size);
 
 void
-e1000e_core_pci_realize(E1000ECore      *regs,
-                       const uint16_t *eeprom_templ,
-                       uint32_t        eeprom_size,
-                       const uint8_t  *macaddr);
+e1000e_core_pci_realize(E1000ECore     *regs,
+                        const uint16_t *eeprom_templ,
+                        uint32_t        eeprom_size,
+                        const uint8_t  *macaddr,
+                        uint16_t        phy_id2);
 
 void
 e1000e_core_reset(E1000ECore *core);

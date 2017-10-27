@@ -2213,7 +2213,7 @@ e1000e_get_reg_index_with_offset(const uint16_t *mac_reg_access, hwaddr addr)
     return index + (mac_reg_access[index] & 0xfffe);
 }
 
-static const char e1000e_phy_regcap[E1000E_PHY_PAGES][0x20] = {
+static const char e1000e_phy_regcap[E1000E_PHY_PAGES][E1000E_PHY_PAGE_SIZE] = {
     [0] = {
         [PHY_CTRL]          = PHY_ANYPAGE | PHY_RW,
         [PHY_STATUS]        = PHY_ANYPAGE | PHY_R,
@@ -2266,14 +2266,14 @@ e1000e_phy_reg_check_cap(E1000ECore *core, uint32_t addr,
                          char cap, uint8_t *page)
 {
     *page =
-        (e1000e_phy_regcap[0][addr] & PHY_ANYPAGE) ? 0
-                                                    : core->phy[0][PHY_PAGE];
+        ((*core->phy_regcap)[0][addr] & PHY_ANYPAGE) ? 0
+                                                  : core->phy[0][PHY_PAGE];
 
     if (*page >= E1000E_PHY_PAGES) {
         return false;
     }
 
-    return e1000e_phy_regcap[*page][addr] & cap;
+    return (*core->phy_regcap)[*page][addr] & cap;
 }
 
 static void
@@ -2729,6 +2729,12 @@ e1000e_mac_setmacaddr(E1000ECore *core, int index, uint32_t val)
     trace_e1000e_mac_set_sw(MAC_ARG(macaddr));
 }
 
+static uint32_t
+e1000e_get_eecd(E1000ECore *core, int index)
+{
+    return e1000e_mac_readreg(core, index);
+}
+
 static void
 e1000e_set_eecd(E1000ECore *core, int index, uint32_t val)
 {
@@ -3028,6 +3034,7 @@ static uint32_t (*e1000e_macreg_readops[])(E1000ECore *, int) = {
     [TARC1]   = e1000e_get_tarc,
     [SWSM]    = e1000e_mac_swsm_read,
     [IMS]     = e1000e_mac_ims_read,
+    [EECD]    = e1000e_get_eecd,
 
     [CRCERRS ... MPC]      = e1000e_mac_readreg,
     [IP6AT ... IP6AT + 3]  = e1000e_mac_readreg,
@@ -3305,56 +3312,6 @@ e1000e_vm_state_change(void *opaque, int running, RunState state)
     }
 }
 
-void
-e1000e_core_pci_realize(E1000ECore     *core,
-                        const uint16_t *eeprom_templ,
-                        uint32_t        eeprom_size,
-                        const uint8_t  *macaddr)
-{
-    int i;
-
-    core->autoneg_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL,
-                                       e1000e_autoneg_timer, core);
-    e1000e_intrmgr_pci_realize(core);
-
-    core->vmstate =
-        qemu_add_vm_change_state_handler(e1000e_vm_state_change, core);
-
-    for (i = 0; i < E1000E_NUM_QUEUES; i++) {
-        net_tx_pkt_init(&core->tx[i].tx_pkt, core->owner,
-                        E1000E_MAX_TX_FRAGS, core->has_vnet);
-    }
-
-    net_rx_pkt_init(&core->rx_pkt, core->has_vnet);
-
-    e1000x_core_prepare_eeprom(core->eeprom,
-                               eeprom_templ,
-                               eeprom_size,
-                               PCI_DEVICE_GET_CLASS(core->owner)->device_id,
-                               macaddr);
-    e1000e_update_rx_offloads(core);
-}
-
-void
-e1000e_core_pci_uninit(E1000ECore *core)
-{
-    int i;
-
-    timer_del(core->autoneg_timer);
-    timer_free(core->autoneg_timer);
-
-    e1000e_intrmgr_pci_unint(core);
-
-    qemu_del_vm_change_state_handler(core->vmstate);
-
-    for (i = 0; i < E1000E_NUM_QUEUES; i++) {
-        net_tx_pkt_reset(core->tx[i].tx_pkt);
-        net_tx_pkt_uninit(core->tx[i].tx_pkt);
-    }
-
-    net_rx_pkt_uninit(core->rx_pkt);
-}
-
 static const uint16_t
 e1000e_phy_reg_init[E1000E_PHY_PAGES][E1000E_PHY_PAGE_SIZE] = {
     [0] = {
@@ -3373,7 +3330,7 @@ e1000e_phy_reg_init[E1000E_PHY_PAGES][E1000E_PHY_PAGE_SIZE] = {
                        MII_SR_100X_FD_CAPS,
 
         [PHY_ID1]               = 0x141,
-        [PHY_ID2]               = E1000_PHY_ID2_82574x,
+     /* [PHY_ID2] set by e1000e_core_reset() */
         [PHY_AUTONEG_ADV]       = 0xde1,
         [PHY_LP_ABILITY]        = 0x7e0,
         [PHY_AUTONEG_EXP]       = BIT(2),
@@ -3438,6 +3395,67 @@ static const uint32_t e1000e_mac_reg_init[] = {
 };
 
 void
+e1000e_core_pci_realize(E1000ECore     *core,
+                        const uint16_t *eeprom_templ,
+                        uint32_t        eeprom_size,
+                        const uint8_t  *macaddr,
+                        uint16_t        phy_id2)
+{
+    int i;
+
+    core->phy_id2 = phy_id2;
+    switch (phy_id2) {
+    case E1000_PHY_ID2_82574x:
+        core->phy_regcap = &e1000e_phy_regcap;
+        core->phy_reg_init = &e1000e_phy_reg_init;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    core->autoneg_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL,
+                                       e1000e_autoneg_timer, core);
+    e1000e_intrmgr_pci_realize(core);
+
+    core->vmstate =
+        qemu_add_vm_change_state_handler(e1000e_vm_state_change, core);
+
+    for (i = 0; i < E1000E_NUM_QUEUES; i++) {
+        net_tx_pkt_init(&core->tx[i].tx_pkt, core->owner,
+                        E1000E_MAX_TX_FRAGS, core->has_vnet);
+    }
+
+    net_rx_pkt_init(&core->rx_pkt, core->has_vnet);
+
+    e1000x_core_prepare_eeprom(core->eeprom,
+                               eeprom_templ,
+                               eeprom_size,
+                               PCI_DEVICE_GET_CLASS(core->owner)->device_id,
+                               macaddr);
+    e1000e_update_rx_offloads(core);
+}
+
+void
+e1000e_core_pci_uninit(E1000ECore *core)
+{
+    int i;
+
+    timer_del(core->autoneg_timer);
+    timer_free(core->autoneg_timer);
+
+    e1000e_intrmgr_pci_unint(core);
+
+    qemu_del_vm_change_state_handler(core->vmstate);
+
+    for (i = 0; i < E1000E_NUM_QUEUES; i++) {
+        net_tx_pkt_reset(core->tx[i].tx_pkt);
+        net_tx_pkt_uninit(core->tx[i].tx_pkt);
+    }
+
+    net_rx_pkt_uninit(core->rx_pkt);
+}
+
+void
 e1000e_core_reset(E1000ECore *core)
 {
     int i;
@@ -3447,7 +3465,8 @@ e1000e_core_reset(E1000ECore *core)
     e1000e_intrmgr_reset(core);
 
     memset(core->phy, 0, sizeof core->phy);
-    memmove(core->phy, e1000e_phy_reg_init, sizeof e1000e_phy_reg_init);
+    memmove(core->phy, *core->phy_reg_init, sizeof *core->phy_reg_init);
+    core->phy[0][PHY_ID2] = core->phy_id2;
     memset(core->mac, 0, sizeof core->mac);
     memmove(core->mac, e1000e_mac_reg_init, sizeof e1000e_mac_reg_init);
 

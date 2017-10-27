@@ -49,8 +49,13 @@
 #include "trace.h"
 #include "qapi/error.h"
 
-#define TYPE_E1000E "e1000e"
-#define E1000E(obj) OBJECT_CHECK(E1000EState, (obj), TYPE_E1000E)
+#define TYPE_E1000E_BASE "e1000e-base"
+#define E1000E(obj) \
+    OBJECT_CHECK(E1000EState, (obj), TYPE_E1000E_BASE)
+#define E1000E_DEVICE_CLASS(klass) \
+    OBJECT_CLASS_CHECK(E1000EBaseClass, (klass), TYPE_E1000E_BASE)
+#define E1000E_DEVICE_GET_CLASS(obj) \
+    OBJECT_GET_CLASS(E1000EBaseClass, (obj), TYPE_E1000E_BASE)
 
 typedef struct E1000EState {
     PCIDevice parent_obj;
@@ -75,6 +80,28 @@ typedef struct E1000EState {
     E1000ECore core;
 
 } E1000EState;
+
+typedef struct E1000EInfo {
+    const char *name;
+    const char *desc;
+
+    uint16_t    device_id;
+    uint8_t     revision;
+    uint16_t    subsystem_vendor_id;
+    uint16_t    subsystem_id;
+    int         is_express;
+    const char *romfile;
+
+    const uint16_t *eeprom_templ;
+    uint32_t        eeprom_size;
+
+    uint16_t phy_id2;
+} E1000EInfo;
+
+typedef struct E1000EBaseClass {
+    PCIDeviceClass    parent_class;
+    const E1000EInfo *info;
+} E1000EBaseClass;
 
 #define E1000E_MMIO_IDX     0
 #define E1000E_FLASH_IDX    1
@@ -416,7 +443,9 @@ static void e1000e_pci_realize(PCIDevice *pci_dev, Error **errp)
     static const uint16_t e1000e_pcie_offset = 0x0E0;
     static const uint16_t e1000e_aer_offset =  0x100;
     static const uint16_t e1000e_dsn_offset =  0x140;
+    PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(pci_dev);
     E1000EState *s = E1000E(pci_dev);
+    E1000EBaseClass *edc = E1000E_DEVICE_GET_CLASS(s);
     uint8_t *macaddr;
     int ret;
 
@@ -427,11 +456,16 @@ static void e1000e_pci_realize(PCIDevice *pci_dev, Error **errp)
     pci_dev->config[PCI_CACHE_LINE_SIZE] = 0x10;
     pci_dev->config[PCI_INTERRUPT_PIN] = 1;
 
-    pci_set_word(pci_dev->config + PCI_SUBSYSTEM_VENDOR_ID, s->subsys_ven);
-    pci_set_word(pci_dev->config + PCI_SUBSYSTEM_ID, s->subsys);
+    if (s->subsys_ven != (uint16_t)-1) {
+        pci_set_word(pci_dev->config + PCI_SUBSYSTEM_VENDOR_ID, s->subsys_ven);
+    }
+    if (s->subsys != (uint16_t)-1) {
+        pci_set_word(pci_dev->config + PCI_SUBSYSTEM_ID, s->subsys);
+    }
 
-    s->subsys_ven_used = s->subsys_ven;
-    s->subsys_used = s->subsys;
+    s->subsys_ven_used = pci_get_word(pci_dev->config
+                                      + PCI_SUBSYSTEM_VENDOR_ID);
+    s->subsys_used = pci_get_word(pci_dev->config + PCI_SUBSYSTEM_ID);
 
     /* Define IO/MMIO regions */
     memory_region_init_io(&s->mmio, OBJECT(s), &mmio_ops, s,
@@ -453,38 +487,42 @@ static void e1000e_pci_realize(PCIDevice *pci_dev, Error **errp)
     pci_register_bar(pci_dev, E1000E_IO_IDX,
                      PCI_BASE_ADDRESS_SPACE_IO, &s->io);
 
-    memory_region_init(&s->msix, OBJECT(s), "e1000e-msix",
-                       E1000E_MSIX_SIZE);
-    pci_register_bar(pci_dev, E1000E_MSIX_IDX,
-                     PCI_BASE_ADDRESS_SPACE_MEMORY, &s->msix);
+    if (pc->is_express) {
+        memory_region_init(&s->msix, OBJECT(s), "e1000e-msix",
+                           E1000E_MSIX_SIZE);
+        pci_register_bar(pci_dev, E1000E_MSIX_IDX,
+                         PCI_BASE_ADDRESS_SPACE_MEMORY, &s->msix);
+    }
 
     /* Create networking backend */
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     macaddr = s->conf.macaddr.a;
 
-    e1000e_init_msix(s);
+    if (pc->is_express) {
+        e1000e_init_msix(s);
 
-    if (pcie_endpoint_cap_v1_init(pci_dev, e1000e_pcie_offset) < 0) {
-        hw_error("Failed to initialize PCIe capability");
+        if (pcie_endpoint_cap_v1_init(pci_dev, e1000e_pcie_offset) < 0) {
+            hw_error("Failed to initialize PCIe capability");
+        }
+
+        ret = msi_init(PCI_DEVICE(s), 0xD0, 1, true, false, NULL);
+        if (ret) {
+            trace_e1000e_msi_init_fail(ret);
+        }
+
+        if (e1000e_add_pm_capability(pci_dev, e1000e_pmrb_offset,
+                                     PCI_PM_CAP_DSI) < 0) {
+            hw_error("Failed to initialize PM capability");
+        }
+
+        if (pcie_aer_init(pci_dev, PCI_ERR_VER, e1000e_aer_offset,
+                          PCI_ERR_SIZEOF, NULL) < 0) {
+            hw_error("Failed to initialize AER capability");
+        }
+
+        pcie_dev_ser_num_init(pci_dev, e1000e_dsn_offset,
+                              e1000e_gen_dsn(macaddr));
     }
-
-    ret = msi_init(PCI_DEVICE(s), 0xD0, 1, true, false, NULL);
-    if (ret) {
-        trace_e1000e_msi_init_fail(ret);
-    }
-
-    if (e1000e_add_pm_capability(pci_dev, e1000e_pmrb_offset,
-                                  PCI_PM_CAP_DSI) < 0) {
-        hw_error("Failed to initialize PM capability");
-    }
-
-    if (pcie_aer_init(pci_dev, PCI_ERR_VER, e1000e_aer_offset,
-                      PCI_ERR_SIZEOF, NULL) < 0) {
-        hw_error("Failed to initialize AER capability");
-    }
-
-    pcie_dev_ser_num_init(pci_dev, e1000e_dsn_offset,
-                          e1000e_gen_dsn(macaddr));
 
     e1000e_init_net_peer(s, pci_dev, macaddr);
 
@@ -492,26 +530,32 @@ static void e1000e_pci_realize(PCIDevice *pci_dev, Error **errp)
     e1000e_core_realize(s);
 
     e1000e_core_pci_realize(&s->core,
-                            e1000e_eeprom_template,
-                            sizeof(e1000e_eeprom_template),
-                            macaddr);
+                            edc->info->eeprom_templ,
+                            edc->info->eeprom_size,
+                            macaddr,
+                            edc->info->phy_id2);
 }
 
 static void e1000e_pci_uninit(PCIDevice *pci_dev)
 {
+    PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(pci_dev);
     E1000EState *s = E1000E(pci_dev);
 
     trace_e1000e_cb_pci_uninit();
 
     e1000e_core_pci_uninit(&s->core);
 
-    pcie_aer_exit(pci_dev);
-    pcie_cap_exit(pci_dev);
+    if (pc->is_express) {
+        pcie_aer_exit(pci_dev);
+        pcie_cap_exit(pci_dev);
+    }
 
     qemu_del_nic(s->nic);
 
-    e1000e_cleanup_msix(s);
-    msi_uninit(pci_dev);
+    if (pc->is_express) {
+        e1000e_cleanup_msix(s);
+        msi_uninit(pci_dev);
+    }
 }
 
 static void e1000e_qdev_reset(DeviceState *dev)
@@ -655,10 +699,9 @@ static Property e1000e_properties[] = {
     DEFINE_NIC_PROPERTIES(E1000EState, conf),
     DEFINE_PROP_SIGNED("disable_vnet_hdr", E1000EState, disable_vnet, false,
                         e1000e_prop_disable_vnet, bool),
-    DEFINE_PROP_SIGNED("subsys_ven", E1000EState, subsys_ven,
-                        PCI_VENDOR_ID_INTEL,
+    DEFINE_PROP_SIGNED("subsys_ven", E1000EState, subsys_ven, -1,
                         e1000e_prop_subsys_ven, uint16_t),
-    DEFINE_PROP_SIGNED("subsys", E1000EState, subsys, 0,
+    DEFINE_PROP_SIGNED("subsys", E1000EState, subsys, -1,
                         e1000e_prop_subsys, uint16_t),
     DEFINE_PROP_END_OF_LIST(),
 };
@@ -667,20 +710,26 @@ static void e1000e_class_init(ObjectClass *class, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(class);
     PCIDeviceClass *c = PCI_DEVICE_CLASS(class);
+    E1000EBaseClass *edc = E1000E_DEVICE_CLASS(class);
+    const E1000EInfo *info = data;
 
     c->realize = e1000e_pci_realize;
     c->exit = e1000e_pci_uninit;
     c->vendor_id = PCI_VENDOR_ID_INTEL;
-    c->device_id = E1000_DEV_ID_82574L;
-    c->revision = 0;
-    c->romfile = "efi-e1000e.rom";
+    c->device_id = info->device_id;
+    c->revision = info->revision;
     c->class_id = PCI_CLASS_NETWORK_ETHERNET;
-    c->is_express = 1;
+    c->subsystem_vendor_id = info->subsystem_vendor_id;
+    c->subsystem_id = info->subsystem_id;
+    c->is_express = info->is_express;
+    c->romfile = info->romfile;
 
-    dc->desc = "Intel 82574L GbE Controller";
+    dc->desc = info->desc;
     dc->reset = e1000e_qdev_reset;
     dc->vmsd = &e1000e_vmstate;
     dc->props = e1000e_properties;
+
+    edc->info = info;
 
     e1000e_prop_disable_vnet = qdev_prop_uint8;
     e1000e_prop_disable_vnet.description = "Do not use virtio headers, "
@@ -704,21 +753,52 @@ static void e1000e_instance_init(Object *obj)
                                   DEVICE(obj), NULL);
 }
 
-static const TypeInfo e1000e_info = {
-    .name = TYPE_E1000E,
+static const TypeInfo e1000e_base_info = {
+    .name = TYPE_E1000E_BASE,
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(E1000EState),
-    .class_init = e1000e_class_init,
     .instance_init = e1000e_instance_init,
-    .interfaces = (InterfaceInfo[]) {
-        { INTERFACE_PCIE_DEVICE },
-        { }
+    .class_size = sizeof(E1000EBaseClass),
+    .abstract = true,
+};
+
+static const E1000EInfo e1000e_devices[] = {
+    {
+        .name                = "e1000e",
+        .desc                = "Intel 82574L GbE Controller",
+        .device_id           = E1000_DEV_ID_82574L,
+        .revision            = 0,
+        .subsystem_vendor_id = PCI_VENDOR_ID_INTEL,
+        .subsystem_id        = 0,
+        .is_express          = 1,
+        .romfile             = "efi-e1000e.rom",
+        .eeprom_templ        = e1000e_eeprom_template,
+        .eeprom_size         = sizeof(e1000e_eeprom_template),
+        .phy_id2             = E1000_PHY_ID2_82574x,
     },
 };
 
 static void e1000e_register_types(void)
 {
-    type_register_static(&e1000e_info);
+    int i;
+
+    type_register_static(&e1000e_base_info);
+    for (i = 0; i < ARRAY_SIZE(e1000e_devices); i++) {
+        const E1000EInfo *info = &e1000e_devices[i];
+        TypeInfo type_info = {};
+
+        type_info.name = info->name;
+        type_info.parent = TYPE_E1000E_BASE;
+        type_info.class_data = (void *)info;
+        type_info.class_init = e1000e_class_init;
+        type_info.interfaces = (InterfaceInfo[]) {
+            { info->is_express ? INTERFACE_PCIE_DEVICE
+              : INTERFACE_CONVENTIONAL_PCI_DEVICE },
+            { }
+        };
+
+        type_register(&type_info);
+    }
 }
 
 type_init(e1000e_register_types)
