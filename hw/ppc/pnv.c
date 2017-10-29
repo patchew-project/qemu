@@ -1035,6 +1035,21 @@ static bool pnv_irq_test(XICSFabric *xi, int irq)
     return false;
 }
 
+static bool pnv_irq_is_lsi(XICSFabric *xi, int irq)
+{
+    PnvMachineState *pnv = POWERNV_MACHINE(xi);
+    int i;
+
+    /* PowerNV machine only has PSI interrupts which are all LSIs */
+    for (i = 0; i < pnv->num_chips; i++) {
+        ICSState *ics = &pnv->chips[i]->psi.ics;
+        if (ics_valid_irq(ics, irq)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 static void pnv_pic_print_info(InterruptStatsProvider *obj,
                                Monitor *mon)
 {
@@ -1120,6 +1135,7 @@ static void powernv_machine_class_init(ObjectClass *oc, void *data)
     xic->ics_get = pnv_ics_get;
     xic->ics_resend = pnv_ics_resend;
     xic->irq_test = pnv_irq_test;
+    xic->irq_is_lsi = pnv_irq_is_lsi;
     ispc->print_info = pnv_pic_print_info;
 
     powernv_machine_class_props_init(oc);

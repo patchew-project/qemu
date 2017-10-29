@@ -3626,6 +3626,19 @@ static void spapr_irq_free_block(XICSFabric *xi, int irq, int num)
     bitmap_clear(spapr->irq_map, srcno, num);
 }
 
+static bool spapr_irq_is_lsi(XICSFabric *xi, int irq)
+{
+    sPAPRMachineState *spapr = SPAPR_MACHINE(xi);
+    sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
+    int srcno = irq - spapr->irq_base;
+
+    if (smc->pre_2_11_has_no_bitmap) {
+        return spapr->ics->irqs[srcno].flags & XICS_FLAGS_IRQ_LSI;
+    } else {
+        return (srcno >= 0) && (srcno < SPAPR_MAX_LSI);
+    }
+}
+
 static void spapr_pic_print_info(InterruptStatsProvider *obj,
                                  Monitor *mon)
 {
@@ -3723,6 +3736,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     xic->irq_test = spapr_irq_test;
     xic->irq_alloc_block = spapr_irq_alloc_block;
     xic->irq_free_block = spapr_irq_free_block;
+    xic->irq_is_lsi = spapr_irq_is_lsi;
 
     ispc->print_info = spapr_pic_print_info;
     /* Force NUMA node memory size to be a multiple of

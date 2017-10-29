@@ -258,7 +258,7 @@ static int ics_set_kvm_state(ICSState *ics, int version_id)
             state |= KVM_XICS_MASKED;
         }
 
-        if (ics->irqs[i].flags & XICS_FLAGS_IRQ_LSI) {
+        if (ics_is_lsi(ics, i)) {
             state |= KVM_XICS_LEVEL_SENSITIVE;
             if (irq->status & XICS_STATUS_ASSERTED) {
                 state |= KVM_XICS_PENDING;
@@ -293,7 +293,7 @@ static void ics_kvm_set_irq(void *opaque, int srcno, int val)
     int rc;
 
     args.irq = srcno + ics->offset;
-    if (ics->irqs[srcno].flags & XICS_FLAGS_IRQ_MSI) {
+    if (!ics_is_lsi(ics, srcno)) {
         if (!val) {
             return;
         }

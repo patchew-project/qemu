@@ -179,6 +179,7 @@ typedef struct XICSFabricClass {
     bool (*irq_test)(XICSFabric *xi, int irq);
     int (*irq_alloc_block)(XICSFabric *xi, int count, int align, bool lsi);
     void (*irq_free_block)(XICSFabric *xi, int irq, int num);
+    bool (*irq_is_lsi)(XICSFabric *xi, int irq);
 } XICSFabricClass;
 
 #define XICS_IRQS_SPAPR               1024
@@ -205,6 +206,7 @@ void ics_simple_write_xive(ICSState *ics, int nr, int server,
 void ics_set_irq_type(ICSState *ics, int srcno, bool lsi);
 void icp_pic_print_info(ICPState *icp, Monitor *mon);
 void ics_pic_print_info(ICSState *ics, Monitor *mon);
+bool ics_is_lsi(ICSState *ics, int srno);
 
 void ics_resend(ICSState *ics);
 void icp_resend(ICPState *ss);
