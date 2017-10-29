@@ -1681,6 +1681,24 @@ static const VMStateDescription vmstate_spapr_patb_entry = {
     },
 };
 
+static bool spapr_irq_map_needed(void *opaque)
+{
+    sPAPRMachineState *spapr = opaque;
+
+    return find_first_bit(spapr->irq_map, spapr->nr_irqs) < spapr->nr_irqs;
+}
+
+static const VMStateDescription vmstate_spapr_irq_map = {
+    .name = "spapr_irq_map",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .needed = spapr_irq_map_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_BITMAP(irq_map, sPAPRMachineState, 0, nr_irqs),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 static const VMStateDescription vmstate_spapr = {
     .name = "spapr",
     .version_id = 3,
@@ -1700,6 +1718,7 @@ static const VMStateDescription vmstate_spapr = {
         &vmstate_spapr_ov5_cas,
         &vmstate_spapr_patb_entry,
         &vmstate_spapr_pending_events,
+        &vmstate_spapr_irq_map,
         NULL
     }
 };
@@ -2337,8 +2356,13 @@ static void ppc_spapr_init(MachineState *machine)
     /* Setup a load limit for the ramdisk leaving room for SLOF and FDT */
     load_limit = MIN(spapr->rma_size, RTAS_MAX_ADDR) - FW_OVERHEAD;
 
+    /* Initialize the IRQ allocator */
+    spapr->nr_irqs  = XICS_IRQS_SPAPR;
+    spapr->irq_map  = bitmap_new(spapr->nr_irqs);
+    spapr->irq_base = XICS_IRQ_BASE;
+
     /* Set up Interrupt Controller before we create the VCPUs */
-    xics_system_init(machine, XICS_IRQS_SPAPR, &error_fatal);
+    xics_system_init(machine, spapr->nr_irqs, &error_fatal);
 
     /* Set up containers for ibm,client-architecture-support negotiated options
      */
@@ -3536,6 +3560,38 @@ static ICPState *spapr_icp_get(XICSFabric *xi, int vcpu_id)
     return cpu ? ICP(cpu->intc) : NULL;
 }
 
+static bool spapr_irq_test(XICSFabric *xi, int irq)
+{
+    sPAPRMachineState *spapr = SPAPR_MACHINE(xi);
+    int srcno = irq - spapr->irq_base;
+
+    return test_bit(srcno, spapr->irq_map);
+}
+
+static int spapr_irq_alloc_block(XICSFabric *xi, int count, int align)
+{
+    sPAPRMachineState *spapr = SPAPR_MACHINE(xi);
+    int start = 0;
+    int srcno;
+
+    srcno = bitmap_find_next_zero_area(spapr->irq_map, spapr->nr_irqs, start,
+                                       count, align);
+    if (srcno == spapr->nr_irqs) {
+        return -1;
+    }
+
+    bitmap_set(spapr->irq_map, srcno, count);
+    return srcno + spapr->irq_base;
+}
+
+static void spapr_irq_free_block(XICSFabric *xi, int irq, int num)
+{
+    sPAPRMachineState *spapr = SPAPR_MACHINE(xi);
+    int srcno = irq - spapr->irq_base;
+
+    bitmap_clear(spapr->irq_map, srcno, num);
+}
+
 static void spapr_pic_print_info(InterruptStatsProvider *obj,
                                  Monitor *mon)
 {
@@ -3630,6 +3686,10 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     xic->ics_get = spapr_ics_get;
     xic->ics_resend = spapr_ics_resend;
     xic->icp_get = spapr_icp_get;
+    xic->irq_test = spapr_irq_test;
+    xic->irq_alloc_block = spapr_irq_alloc_block;
+    xic->irq_free_block = spapr_irq_free_block;
+
     ispc->print_info = spapr_pic_print_info;
     /* Force NUMA node memory size to be a multiple of
      * SPAPR_MEMORY_BLOCK_SIZE (256M) since that's the granularity

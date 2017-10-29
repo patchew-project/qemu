@@ -53,6 +53,7 @@ void icp_pic_print_info(ICPState *icp, Monitor *mon)
 void ics_pic_print_info(ICSState *ics, Monitor *mon)
 {
     uint32_t i;
+    XICSFabricClass *xic = XICS_FABRIC_GET_CLASS(ics->xics);
 
     monitor_printf(mon, "ICS %4x..%4x %p\n",
                    ics->offset, ics->offset + ics->nr_irqs - 1, ics);
@@ -64,7 +65,7 @@ void ics_pic_print_info(ICSState *ics, Monitor *mon)
     for (i = 0; i < ics->nr_irqs; i++) {
         ICSIRQState *irq = ics->irqs + i;
 
-        if (!(irq->flags & XICS_FLAGS_IRQ_MASK)) {
+        if (!xic->irq_test(ics->xics, i + ics->offset)) {
             continue;
         }
         monitor_printf(mon, "  %4x %s %02x %02x\n",
