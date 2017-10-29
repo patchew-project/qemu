@@ -304,25 +304,10 @@ int spapr_ics_alloc_block(ICSState *ics, int num, bool lsi,
     return first;
 }
 
-static void ics_free(ICSState *ics, int irq, int num)
-{
-    int i;
-    XICSFabricClass *xic = XICS_FABRIC_GET_CLASS(ics->xics);
-
-    for (i = irq; i < irq + num; ++i) {
-        if (xic->irq_test(ics->xics, i)) {
-            trace_xics_ics_free_warn(0, i);
-        }
-        xic->irq_free_block(ics->xics, i, 1);
-    }
-}
-
 void spapr_ics_free(ICSState *ics, int irq, int num)
 {
-    if (ics_valid_irq(ics, irq)) {
-        trace_xics_ics_free(0, irq, num);
-        ics_free(ics, irq, num);
-    }
+    XICSFabricClass *xic = XICS_FABRIC_GET_CLASS(ics->xics);
+    xic->irq_free_block(ics->xics, irq, num);
 }
 
 void spapr_dt_xics(int nr_servers, void *fdt, uint32_t phandle)

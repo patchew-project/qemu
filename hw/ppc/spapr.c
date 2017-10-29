@@ -3629,8 +3629,17 @@ static void spapr_irq_free_block(XICSFabric *xi, int irq, int num)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(xi);
     int srcno = irq - spapr->irq_base;
+    int i;
 
-    bitmap_clear(spapr->irq_map, srcno, num);
+    if (srcno >= 0 && srcno < spapr->nr_irqs) {
+        trace_spapr_irq_free(0, irq, num);
+        for (i = srcno; i < srcno + num; ++i) {
+            if (!test_bit(i, spapr->irq_map)) {
+                trace_spapr_irq_free_warn(0, i);
+            }
+        }
+        bitmap_clear(spapr->irq_map, srcno, num);
+    }
 }
 
 static bool spapr_irq_is_lsi(XICSFabric *xi, int irq)
