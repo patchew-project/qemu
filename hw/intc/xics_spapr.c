@@ -264,7 +264,6 @@ int spapr_ics_alloc(ICSState *ics, int irq_hint, bool lsi, Error **errp)
         }
     }
 
-    ics_set_irq_type(ics, irq - ics->offset, lsi);
     trace_xics_alloc(irq);
 
     return irq;
@@ -277,7 +276,7 @@ int spapr_ics_alloc(ICSState *ics, int irq_hint, bool lsi, Error **errp)
 int spapr_ics_alloc_block(ICSState *ics, int num, bool lsi,
                           bool align, Error **errp)
 {
-    int i, first = -1;
+    int first = -1;
     XICSFabricClass *xic = XICS_FABRIC_GET_CLASS(ics->xics);
 
 
@@ -298,12 +297,6 @@ int spapr_ics_alloc_block(ICSState *ics, int num, bool lsi,
     if (first < 0) {
         error_setg(errp, "can't find a free %d-IRQ block", num);
         return -1;
-    }
-
-    if (first >= 0) {
-        for (i = first; i < first + num; ++i) {
-            ics_set_irq_type(ics, i - ics->offset, lsi);
-        }
     }
 
     trace_xics_alloc_block(first, num, lsi, align);

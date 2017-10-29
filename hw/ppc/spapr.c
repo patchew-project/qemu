@@ -3598,7 +3598,7 @@ static int spapr_irq_alloc_block(XICSFabric *xi, int count, int align, bool lsi)
     sPAPRMachineState *spapr = SPAPR_MACHINE(xi);
     sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
     int start = 0;
-    int srcno;
+    int srcno, i;
 
     if (!lsi && !smc->pre_2_11_has_no_bitmap) {
         start = SPAPR_MAX_LSI;
@@ -3612,6 +3612,13 @@ static int spapr_irq_alloc_block(XICSFabric *xi, int count, int align, bool lsi)
 
     if (lsi && !smc->pre_2_11_has_no_bitmap && srcno >= SPAPR_MAX_LSI) {
         return -1;
+    }
+
+    if (lsi && smc->pre_2_11_has_no_bitmap) {
+        for (i = srcno; i < srcno + count; ++i) {
+            assert(!(spapr->ics->irqs[srcno].flags & XICS_FLAGS_IRQ_MASK));
+            spapr->ics->irqs[srcno].flags = XICS_FLAGS_IRQ_LSI;
+        }
     }
 
     bitmap_set(spapr->irq_map, srcno, count);
