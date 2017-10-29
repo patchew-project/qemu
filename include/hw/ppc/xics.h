@@ -184,10 +184,13 @@ typedef struct XICSFabricClass {
 
 #define XICS_IRQS_SPAPR               1024
 
-int spapr_ics_alloc(ICSState *ics, int irq_hint, bool lsi, Error **errp);
-int spapr_ics_alloc_block(ICSState *ics, int num, bool lsi, bool align,
-                           Error **errp);
-void spapr_ics_free(ICSState *ics, int irq, int num);
+typedef struct sPAPRMachineState sPAPRMachineState;
+
+int spapr_irq_alloc(sPAPRMachineState *spapr, int irq_hint, bool lsi,
+                    Error **errp);
+int spapr_irq_alloc_block(sPAPRMachineState *spapr, int num, bool lsi,
+                          bool align, Error **errp);
+void spapr_irq_free(sPAPRMachineState *spapr, int irq, int num);
 void spapr_dt_xics(int nr_servers, void *fdt, uint32_t phandle);
 
 qemu_irq xics_get_qirq(XICSFabric *xi, int irq);
@@ -210,8 +213,6 @@ bool ics_is_lsi(ICSState *ics, int srno);
 
 void ics_resend(ICSState *ics);
 void icp_resend(ICPState *ss);
-
-typedef struct sPAPRMachineState sPAPRMachineState;
 
 int xics_kvm_init(sPAPRMachineState *spapr, Error **errp);
 void xics_spapr_init(sPAPRMachineState *spapr);
