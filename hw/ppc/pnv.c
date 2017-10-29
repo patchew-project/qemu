@@ -1018,6 +1018,23 @@ static ICPState *pnv_icp_get(XICSFabric *xi, int pir)
     return cpu ? ICP(cpu->intc) : NULL;
 }
 
+static bool pnv_irq_test(XICSFabric *xi, int irq)
+{
+    PnvMachineState *pnv = POWERNV_MACHINE(xi);
+    int i;
+
+    /* We don't have a IRQ allocator for the PowerNV machine yet, so
+     * just check that the IRQ number is valid for the PSI source
+     */
+    for (i = 0; i < pnv->num_chips; i++) {
+        ICSState *ics = &pnv->chips[i]->psi.ics;
+        if (ics_valid_irq(ics, irq)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 static void pnv_pic_print_info(InterruptStatsProvider *obj,
                                Monitor *mon)
 {
@@ -1102,6 +1119,7 @@ static void powernv_machine_class_init(ObjectClass *oc, void *data)
     xic->icp_get = pnv_icp_get;
     xic->ics_get = pnv_ics_get;
     xic->ics_resend = pnv_ics_resend;
+    xic->irq_test = pnv_irq_test;
     ispc->print_info = pnv_pic_print_info;
 
     powernv_machine_class_props_init(oc);
