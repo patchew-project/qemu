@@ -1696,6 +1696,13 @@ static const VMStateDescription vmstate_spapr_patb_entry = {
     },
 };
 
+/*
+ * Let's provision 4 LSIs per PHBs
+ */
+#define SPAPR_MAX_PHBS ((SPAPR_PCI_LIMIT - SPAPR_PCI_BASE) / \
+                        SPAPR_PCI_MEM64_WIN_SIZE - 1)
+#define SPAPR_MAX_LSI (SPAPR_MAX_PHBS * 4)
+
 static bool spapr_irq_map_needed(void *opaque)
 {
     sPAPRMachineState *spapr = opaque;
@@ -3523,8 +3530,6 @@ static void spapr_phb_placement(sPAPRMachineState *spapr, uint32_t index,
      * 1TiB 64-bit MMIO windows for each PHB.
      */
     const uint64_t base_buid = 0x800000020000000ULL;
-#define SPAPR_MAX_PHBS ((SPAPR_PCI_LIMIT - SPAPR_PCI_BASE) / \
-                        SPAPR_PCI_MEM64_WIN_SIZE - 1)
     int i;
 
     /* Sanity check natural alignments */
@@ -3583,15 +3588,29 @@ static bool spapr_irq_test(XICSFabric *xi, int irq)
     return test_bit(srcno, spapr->irq_map);
 }
 
-static int spapr_irq_alloc_block(XICSFabric *xi, int count, int align)
+/*
+ * Split the IRQ number space of the machine in two: first the LSIs
+ * and then the MSIs. This allows us to keep the LSI IRQ numbers in a
+ * well known range which is useful for PHB hotplug.
+ */
+static int spapr_irq_alloc_block(XICSFabric *xi, int count, int align, bool lsi)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(xi);
+    sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
     int start = 0;
     int srcno;
+
+    if (!lsi && !smc->pre_2_11_has_no_bitmap) {
+        start = SPAPR_MAX_LSI;
+    }
 
     srcno = bitmap_find_next_zero_area(spapr->irq_map, spapr->nr_irqs, start,
                                        count, align);
     if (srcno == spapr->nr_irqs) {
+        return -1;
+    }
+
+    if (lsi && !smc->pre_2_11_has_no_bitmap && srcno >= SPAPR_MAX_LSI) {
         return -1;
     }
 

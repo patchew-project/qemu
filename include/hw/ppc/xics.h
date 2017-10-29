@@ -177,7 +177,7 @@ typedef struct XICSFabricClass {
     ICPState *(*icp_get)(XICSFabric *xi, int server);
     /* IRQ allocator helpers */
     bool (*irq_test)(XICSFabric *xi, int irq);
-    int (*irq_alloc_block)(XICSFabric *xi, int count, int align);
+    int (*irq_alloc_block)(XICSFabric *xi, int count, int align, bool lsi);
     void (*irq_free_block)(XICSFabric *xi, int irq, int num);
 } XICSFabricClass;
 
