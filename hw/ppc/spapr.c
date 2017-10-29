@@ -1532,6 +1532,7 @@ static bool spapr_vga_init(PCIBus *pci_bus, Error **errp)
 static int spapr_post_load(void *opaque, int version_id)
 {
     sPAPRMachineState *spapr = (sPAPRMachineState *)opaque;
+    sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
     int err = 0;
 
     if (!object_dynamic_cast(OBJECT(spapr->ics), TYPE_ICS_KVM)) {
@@ -1562,6 +1563,20 @@ static int spapr_post_load(void *opaque, int version_id)
         }
     }
 
+    /*
+     * synchronize the IRQ number bitmap with the ICSIRQState array
+     * coming from an pre-2.11 pseries machine
+     */
+    if (smc->pre_2_11_has_no_bitmap) {
+        int srcno;
+
+        for (srcno = 0; srcno < spapr->ics->nr_irqs; srcno++) {
+            if (spapr->ics->irqs[srcno].flags & XICS_FLAGS_IRQ_MASK &&
+                !test_bit(srcno, spapr->irq_map)) {
+                bitmap_set(spapr->irq_map, srcno, 1);
+            }
+        }
+    }
     return err;
 }
 
@@ -3772,8 +3787,12 @@ static void spapr_machine_2_10_instance_options(MachineState *machine)
 
 static void spapr_machine_2_10_class_options(MachineClass *mc)
 {
+    sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
+
     spapr_machine_2_11_class_options(mc);
     SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_10);
+
+    smc->pre_2_11_has_no_bitmap = true;
 }
 
 DEFINE_SPAPR_MACHINE(2_10, "2.10", false);
