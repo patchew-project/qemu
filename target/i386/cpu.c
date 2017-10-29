@@ -3110,6 +3110,22 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
             *edx = 0;
         }
         break;
+    case 0x8000001E:
+        /* AMD CPU Topology */
+        if (env->cpuid_vendor1 != CPUID_VENDOR_INTEL_1 ||
+            env->cpuid_vendor2 != CPUID_VENDOR_INTEL_2 ||
+            env->cpuid_vendor3 != CPUID_VENDOR_INTEL_3) {
+            *eax = cpu->apic_id;
+            *ebx = (cs->nr_threads - 1 ) << 8 | cpu->core_id;
+            *ecx = cpu->socket_id;
+            *edx = 0;
+        } else {
+            *eax = 0;
+            *ebx = 0;
+            *ecx = 0;
+            *edx = 0;
+        }
+        break;
     case 0xC0000000:
         *eax = env->cpuid_xlevel2;
         *ebx = 0;
@@ -3777,7 +3793,7 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
      * NOTE: the following code has to follow qemu_init_vcpu(). Otherwise
      * cs->nr_threads hasn't be populated yet and the checking is incorrect.
      */
-    if (!IS_INTEL_CPU(env) && cs->nr_threads > 1 && !ht_warned) {
+    if (!IS_INTEL_CPU(env) && cs->nr_threads > 1 && !ht_warned && (env->cpuid_version & 0xFF00F00) != 0x800F00) {
         error_report("AMD CPU doesn't support hyperthreading. Please configure"
                      " -smp options properly.");
         ht_warned = true;
