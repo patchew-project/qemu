@@ -2764,6 +2764,39 @@ static gint machine_class_cmp(gconstpointer a, gconstpointer b)
     exit(!name || !is_help_option(name));
 }
 
+static void accel_list_entry(gpointer data, gpointer user_data)
+{
+    ObjectClass *oc = data;
+    const char *typename = object_class_get_name(oc);
+    int len;
+
+    if (!qtest_driver() && !g_strcmp0(typename, ACCEL_CLASS_NAME("qtest"))) {
+        return; /* used by test cases */
+    }
+
+    len = strlen(typename) - strlen("-" TYPE_ACCEL);
+    if (len > 0) {
+        error_printf("  %.*s\n", len, typename);
+    }
+}
+
+static void accel_parse(const char *name, QemuOpts *accel_opts)
+{
+    const char *optarg = qemu_opt_get(accel_opts, "accel");
+    GSList *list;
+
+    if (!is_help_option(optarg)) {
+        return;
+    }
+
+    list = object_class_get_list(TYPE_ACCEL, false);
+    error_printf("Possible accelerators:\n");
+    g_slist_foreach(list, accel_list_entry, NULL);
+    g_slist_free(list);
+
+    exit(0);
+}
+
 void qemu_add_exit_notifier(Notifier *notify)
 {
     notifier_list_add(&exit_notifiers, notify);
@@ -3881,11 +3914,7 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_accel:
                 accel_opts = qemu_opts_parse_noisily(qemu_find_opts("accel"),
                                                      optarg, true);
-                optarg = qemu_opt_get(accel_opts, "accel");
-                if (!optarg || is_help_option(optarg)) {
-                    error_printf("Possible accelerators: kvm, xen, hax, tcg\n");
-                    exit(0);
-                }
+                accel_parse(optarg, accel_opts);
                 opts = qemu_opts_create(qemu_find_opts("machine"), NULL,
                                         false, &error_abort);
                 qemu_opt_set(opts, "accel", optarg, &error_abort);
