@@ -322,13 +322,16 @@ listen_failed:
 
 listen_ok:
     if (update_addr) {
+        SocketAddress *addr;
+
+        addr = socket_local_address(slisten, errp);
         g_free(saddr->host);
-        saddr->host = g_strdup(uaddr);
+        saddr->host = g_strdup(addr->u.inet.host);
         g_free(saddr->port);
-        saddr->port = g_strdup_printf("%d",
-                                      inet_getport(e) - port_offset);
+        saddr->port = g_strdup(addr->u.inet.port);
         saddr->has_ipv6 = saddr->ipv6 = e->ai_family == PF_INET6;
         saddr->has_ipv4 = saddr->ipv4 = e->ai_family != PF_INET6;
+        qapi_free_SocketAddress(addr);
     }
     freeaddrinfo(res);
     return slisten;
@@ -1047,7 +1050,7 @@ int socket_listen(SocketAddress *addr, Error **errp)
 
     switch (addr->type) {
     case SOCKET_ADDRESS_TYPE_INET:
-        fd = inet_listen_saddr(&addr->u.inet, 0, false, errp);
+        fd = inet_listen_saddr(&addr->u.inet, 0, true, errp);
         break;
 
     case SOCKET_ADDRESS_TYPE_UNIX:
