@@ -29,8 +29,14 @@ fifo = os.path.join(iotests.test_dir, 'mig_fifo')
 
 class TestDirtyBitmapMigration(iotests.QMPTestCase):
 
-    def setUp(self):
-        size = 0x400000000 # 1G
+    def tearDown(self):
+        self.vm_a.shutdown()
+        self.vm_b.shutdown()
+        os.remove(disk_a)
+        os.remove(disk_b)
+        os.remove(fifo)
+
+    def init(self, size):
         os.mkfifo(fifo)
         qemu_img('create', '-f', iotests.imgfmt, disk_a, str(size))
         qemu_img('create', '-f', iotests.imgfmt, disk_b, str(size))
@@ -40,14 +46,8 @@ class TestDirtyBitmapMigration(iotests.QMPTestCase):
         self.vm_a.launch()
         self.vm_b.launch()
 
-    def tearDown(self):
-        self.vm_a.shutdown()
-        self.vm_b.shutdown()
-        os.remove(disk_a)
-        os.remove(disk_b)
-        os.remove(fifo)
-
     def test_migration(self):
+        self.init(0x400000000) # 1G
         granularity = 512
         regions = [
             { 'start': 0,           'count': 0x100000 },
@@ -81,6 +81,60 @@ class TestDirtyBitmapMigration(iotests.QMPTestCase):
                                node='drive0', name='bitmap')
         self.assert_qmp(result, 'return/sha256', sha256);
 
+    def test_postcopy(self):
+        self.init(0x4000000000) # 256G
+        write_size = 0x40000000
+        granularity = 512
+        chunk = 4096
+
+        result = self.vm_a.qmp('block-dirty-bitmap-add', node='drive0',
+                               name='bitmap', granularity=granularity)
+        self.assert_qmp(result, 'return', {});
+
+        s = 0
+        while s < write_size:
+            self.vm_a.hmp_qemu_io('drive0', 'write %d %d' % (s, chunk))
+            s += 0x10000
+        s = 0x8000
+        while s < write_size:
+            self.vm_a.hmp_qemu_io('drive0', 'write %d %d' % (s, chunk))
+            s += 0x10000
+
+        result = self.vm_a.qmp('x-debug-block-dirty-bitmap-sha256',
+                               node='drive0', name='bitmap')
+        sha256 = result['return']['sha256']
+
+        result = self.vm_a.qmp('block-dirty-bitmap-clear', node='drive0',
+                               name='bitmap')
+        self.assert_qmp(result, 'return', {});
+        s = 0
+        while s < write_size:
+            self.vm_a.hmp_qemu_io('drive0', 'write %d %d' % (s, chunk))
+            s += 0x10000
+
+        result = self.vm_a.qmp('migrate-set-capabilities',
+                               capabilities=[{'capability': 'dirty-bitmaps',
+                                              'state': True}])
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm_a.qmp('migrate', uri='exec:cat>' + fifo)
+        self.assertNotEqual(self.vm_a.event_wait("STOP"), None)
+        self.assertNotEqual(self.vm_b.event_wait("RESUME"), None)
+
+        s = 0x8000
+        while s < write_size:
+            self.vm_b.hmp_qemu_io('drive0', 'write %d %d' % (s, chunk))
+            s += 0x10000
+
+        result = self.vm_b.qmp('query-block');
+        while len(result['return'][0]['dirty-bitmaps']) > 1:
+            time.sleep(2)
+            result = self.vm_b.qmp('query-block');
+
+        result = self.vm_b.qmp('x-debug-block-dirty-bitmap-sha256',
+                               node='drive0', name='bitmap')
+
+        self.assert_qmp(result, 'return/sha256', sha256);
 
 if __name__ == '__main__':
-    iotests.main()
+    iotests.main(supported_fmts=['qcow2'], supported_cache_modes=['none'])
