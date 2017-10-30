@@ -46,7 +46,7 @@ class TestDirtyBitmapMigration(iotests.QMPTestCase):
         self.vm_a.launch()
         self.vm_b.launch()
 
-    def test_migration(self):
+    def do_test_migration(self, persistent=False):
         self.init(0x400000000) # 1G
         granularity = 512
         regions = [
@@ -55,8 +55,13 @@ class TestDirtyBitmapMigration(iotests.QMPTestCase):
             { 'start': 0x399900000, 'count': 0x100000  }
             ]
 
-        result = self.vm_a.qmp('block-dirty-bitmap-add', node='drive0',
-                               name='bitmap', granularity=granularity)
+        if persistent:
+            result = self.vm_a.qmp('block-dirty-bitmap-add', node='drive0',
+                                   name='bitmap', granularity=granularity,
+                                   persistent=True, autoload=True)
+        else:
+            result = self.vm_a.qmp('block-dirty-bitmap-add', node='drive0',
+                                   name='bitmap', granularity=granularity)
         self.assert_qmp(result, 'return', {});
 
         for r in regions:
@@ -77,9 +82,19 @@ class TestDirtyBitmapMigration(iotests.QMPTestCase):
         self.assertNotEqual(self.vm_b.event_wait("RESUME"), None)
         time.sleep(2)
 
+        if persistent:
+            self.vm_b.shutdown()
+            self.vm_b.launch()
+
         result = self.vm_b.qmp('x-debug-block-dirty-bitmap-sha256',
                                node='drive0', name='bitmap')
         self.assert_qmp(result, 'return/sha256', sha256);
+
+    def test_migration(self):
+        self.do_test_migration()
+
+    def test_migration_persistent(self):
+        self.do_test_migration(persistent=True)
 
     def test_postcopy(self):
         self.init(0x4000000000) # 256G
