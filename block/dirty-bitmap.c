@@ -40,6 +40,8 @@ struct BdrvDirtyBitmap {
     QemuMutex *mutex;
     HBitmap *bitmap;            /* Dirty bitmap implementation */
     HBitmap *meta;              /* Meta dirty bitmap */
+    bool frozen;                /* Bitmap is frozen, it can't be modified
+                                   through QMP */
     BdrvDirtyBitmap *successor; /* Anonymous child; implies frozen status */
     char *name;                 /* Optional non-empty unique ID */
     int64_t size;               /* Size of the bitmap, in bytes */
@@ -183,13 +185,22 @@ const char *bdrv_dirty_bitmap_name(const BdrvDirtyBitmap *bitmap)
 /* Called with BQL taken.  */
 bool bdrv_dirty_bitmap_frozen(BdrvDirtyBitmap *bitmap)
 {
-    return bitmap->successor;
+    return bitmap->frozen;
+}
+
+/* Called with BQL taken.  */
+void bdrv_dirty_bitmap_set_frozen(BdrvDirtyBitmap *bitmap, bool frozen)
+{
+    qemu_mutex_lock(bitmap->mutex);
+    assert(bitmap->successor == NULL);
+    bitmap->frozen = frozen;
+    qemu_mutex_unlock(bitmap->mutex);
 }
 
 /* Called with BQL taken.  */
 bool bdrv_dirty_bitmap_enabled(BdrvDirtyBitmap *bitmap)
 {
-    return !(bitmap->disabled || bitmap->successor);
+    return !(bitmap->disabled || (bitmap->successor != NULL));
 }
 
 /* Called with BQL taken.  */
@@ -234,6 +245,7 @@ int bdrv_dirty_bitmap_create_successor(BlockDriverState *bs,
 
     /* Install the successor and freeze the parent */
     bitmap->successor = child;
+    bitmap->frozen = true;
     return 0;
 }
 
@@ -266,6 +278,8 @@ BdrvDirtyBitmap *bdrv_dirty_bitmap_abdicate(BlockDriverState *bs,
     name = bitmap->name;
     bitmap->name = NULL;
     successor->name = name;
+    assert(bitmap->frozen);
+    bitmap->frozen = false;
     bitmap->successor = NULL;
     successor->persistent = bitmap->persistent;
     bitmap->persistent = false;
@@ -298,6 +312,8 @@ BdrvDirtyBitmap *bdrv_reclaim_dirty_bitmap(BlockDriverState *bs,
         return NULL;
     }
     bdrv_release_dirty_bitmap(bs, successor);
+    assert(parent->frozen);
+    parent->frozen = false;
     parent->successor = NULL;
 
     return parent;
@@ -439,6 +455,8 @@ void bdrv_dirty_bitmap_release_successor(BlockDriverState *bs,
 
     if (parent->successor) {
         bdrv_release_dirty_bitmap_locked(bs, parent->successor);
+        assert(parent->frozen);
+        parent->frozen = false;
         parent->successor = NULL;
     }
 
