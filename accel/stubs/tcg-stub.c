@@ -17,6 +17,25 @@
 #include "exec/cpu-common.h"
 #include "exec/exec-all.h"
 
+bool parallel_cpus;
+
 void tb_flush(CPUState *cpu)
+{
+}
+
+void tlb_reset_dirty(CPUState *cpu, ram_addr_t start1, ram_addr_t length)
+{
+}
+
+int cpu_exec(CPUState *cpu)
+{
+    return -1;
+}
+
+void cpu_exec_step_atomic(CPUState *cpu)
+{
+}
+
+void cpu_reloading_memory_map(void)
 {
 }
