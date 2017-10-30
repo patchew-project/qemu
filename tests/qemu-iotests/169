@@ -1,0 +1,86 @@
+#!/usr/bin/env python
+#
+# Tests for dirty bitmaps migration.
+#
+# Copyright (C) Vladimir Sementsov-Ogievskiy 2015-2016
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import os
+import iotests
+import time
+from iotests import qemu_img
+
+disk_a = os.path.join(iotests.test_dir, 'disk_a')
+disk_b = os.path.join(iotests.test_dir, 'disk_b')
+fifo = os.path.join(iotests.test_dir, 'mig_fifo')
+
+class TestDirtyBitmapMigration(iotests.QMPTestCase):
+
+    def setUp(self):
+        size = 0x400000000 # 1G
+        os.mkfifo(fifo)
+        qemu_img('create', '-f', iotests.imgfmt, disk_a, str(size))
+        qemu_img('create', '-f', iotests.imgfmt, disk_b, str(size))
+        self.vm_a = iotests.VM(path_suffix='a').add_drive(disk_a)
+        self.vm_b = iotests.VM(path_suffix='b').add_drive(disk_b)
+        self.vm_b.add_incoming("exec: cat '" + fifo + "'")
+        self.vm_a.launch()
+        self.vm_b.launch()
+
+    def tearDown(self):
+        self.vm_a.shutdown()
+        self.vm_b.shutdown()
+        os.remove(disk_a)
+        os.remove(disk_b)
+        os.remove(fifo)
+
+    def test_migration(self):
+        granularity = 512
+        regions = [
+            { 'start': 0,           'count': 0x100000 },
+            { 'start': 0x100000000, 'count': 0x200000  },
+            { 'start': 0x399900000, 'count': 0x100000  }
+            ]
+
+        result = self.vm_a.qmp('block-dirty-bitmap-add', node='drive0',
+                               name='bitmap', granularity=granularity)
+        self.assert_qmp(result, 'return', {});
+
+        for r in regions:
+            self.vm_a.hmp_qemu_io('drive0',
+                                  'write %d %d' % (r['start'], r['count']))
+
+        result = self.vm_a.qmp('x-debug-block-dirty-bitmap-sha256',
+                               node='drive0', name='bitmap')
+        sha256 = result['return']['sha256']
+
+        result = self.vm_a.qmp('migrate-set-capabilities',
+                               capabilities=[{'capability': 'dirty-bitmaps',
+                                              'state': True}])
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm_a.qmp('migrate', uri='exec:cat>' + fifo)
+        self.assertNotEqual(self.vm_a.event_wait("STOP"), None)
+        self.assertNotEqual(self.vm_b.event_wait("RESUME"), None)
+        time.sleep(2)
+
+        result = self.vm_b.qmp('x-debug-block-dirty-bitmap-sha256',
+                               node='drive0', name='bitmap')
+        self.assert_qmp(result, 'return/sha256', sha256);
+
+
+if __name__ == '__main__':
+    iotests.main()
