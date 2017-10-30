@@ -216,6 +216,8 @@ class VM(qtest.QEMUQtestMachine):
             options.append('file=%s' % path)
             options.append('format=%s' % format)
             options.append('cache=%s' % cachemode)
+            if 'node-name' not in opts:
+                options.append('node-name=drivenode%d' % self._num_drives)
 
         if opts:
             options.append(opts)
