@@ -43,3 +43,7 @@ void cpu_reloading_memory_map(void)
 void tcg_region_init(void)
 {
 }
+
+void tcg_register_thread(void)
+{
+}
