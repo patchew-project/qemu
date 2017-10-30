@@ -240,10 +240,21 @@ void migrate_send_rp_req_pages(MigrationIncomingState *mis, const char *rbname,
     }
 }
 
+void migrate_set_uri(const char *uri, Error **errp)
+{
+    MigrateSetParameters p = {
+        .has_uri = true,
+        .uri = (char *)uri,
+    };
+
+    qmp_migrate_set_parameters(&p, errp);
+}
+
 void qemu_start_incoming_migration(const char *uri, Error **errp)
 {
     const char *p;
 
+    migrate_set_uri(uri, errp);
     qapi_event_send_migration(MIGRATION_STATUS_SETUP, &error_abort);
     if (!strcmp(uri, "defer")) {
         deferred_incoming_migration(errp);
@@ -1363,7 +1374,7 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
         error_setg(errp, "Guest is waiting for an incoming migration");
         return;
     }
-
+    migrate_set_uri(uri, errp);
     if (migration_is_blocked(errp)) {
         return;
     }
@@ -1388,20 +1399,20 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
 
     s = migrate_init();
 
-    if (strstart(uri, "tcp:", &p)) {
+    if (strstart(s->parameters.uri, "tcp:", &p)) {
         tcp_start_outgoing_migration(s, p, &local_err);
 #ifdef CONFIG_RDMA
-    } else if (strstart(uri, "rdma:", &p)) {
+    } else if (strstart(s->parameters.uri, "rdma:", &p)) {
         rdma_start_outgoing_migration(s, p, &local_err);
 #endif
-    } else if (strstart(uri, "exec:", &p)) {
+    } else if (strstart(s->parameters.uri, "exec:", &p)) {
         exec_start_outgoing_migration(s, p, &local_err);
-    } else if (strstart(uri, "unix:", &p)) {
+    } else if (strstart(s->parameters.uri, "unix:", &p)) {
         unix_start_outgoing_migration(s, p, &local_err);
-    } else if (strstart(uri, "fd:", &p)) {
+    } else if (strstart(s->parameters.uri, "fd:", &p)) {
         fd_start_outgoing_migration(s, p, &local_err);
     } else {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "uri",
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "s->parameters.uri",
                    "a valid migration protocol");
         migrate_set_state(&s->state, MIGRATION_STATUS_SETUP,
                           MIGRATION_STATUS_FAILED);

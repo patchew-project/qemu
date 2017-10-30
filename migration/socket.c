@@ -187,7 +187,14 @@ void tcp_start_incoming_migration(const char *host_port, Error **errp)
     Error *err = NULL;
     SocketAddress *saddr = tcp_build_address(host_port, &err);
     if (!err) {
+        char *new_uri;
         socket_start_incoming_migration(saddr, &err);
+        if (!err) {
+            new_uri = g_strdup_printf("tcp:%s:%s", saddr->u.inet.host,
+                                      saddr->u.inet.port);
+            migrate_set_uri(new_uri, &err);
+            g_free(new_uri);
+        }
     }
     qapi_free_SocketAddress(saddr);
     error_propagate(errp, err);
