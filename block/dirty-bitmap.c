@@ -431,6 +431,20 @@ void bdrv_enable_dirty_bitmap(BdrvDirtyBitmap *bitmap)
     bitmap->disabled = false;
 }
 
+/* Called with BQL taken. */
+void bdrv_dirty_bitmap_release_successor(BlockDriverState *bs,
+                                         BdrvDirtyBitmap *parent)
+{
+    qemu_mutex_lock(parent->mutex);
+
+    if (parent->successor) {
+        bdrv_release_dirty_bitmap_locked(bs, parent->successor);
+        parent->successor = NULL;
+    }
+
+    qemu_mutex_unlock(parent->mutex);
+}
+
 BlockDirtyInfoList *bdrv_query_dirty_bitmaps(BlockDriverState *bs)
 {
     BdrvDirtyBitmap *bm;
