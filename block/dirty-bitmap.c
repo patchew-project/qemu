@@ -326,13 +326,13 @@ static bool bdrv_dirty_bitmap_has_name(BdrvDirtyBitmap *bitmap)
     return !!bdrv_dirty_bitmap_name(bitmap);
 }
 
-/* Called with BQL taken.  */
-static void bdrv_do_release_matching_dirty_bitmap(
+/* Called within bdrv_dirty_bitmap_lock..unlock */
+static void bdrv_do_release_matching_dirty_bitmap_locked(
     BlockDriverState *bs, BdrvDirtyBitmap *bitmap,
     bool (*cond)(BdrvDirtyBitmap *bitmap))
 {
     BdrvDirtyBitmap *bm, *next;
-    bdrv_dirty_bitmaps_lock(bs);
+
     QLIST_FOREACH_SAFE(bm, &bs->dirty_bitmaps, list, next) {
         if ((!bitmap || bm == bitmap) && (!cond || cond(bm))) {
             assert(!bm->active_iterators);
@@ -344,16 +344,31 @@ static void bdrv_do_release_matching_dirty_bitmap(
             g_free(bm);
 
             if (bitmap) {
-                goto out;
+                return;
             }
         }
     }
+
     if (bitmap) {
         abort();
     }
+}
 
-out:
+/* Called with BQL taken.  */
+static void bdrv_do_release_matching_dirty_bitmap(
+    BlockDriverState *bs, BdrvDirtyBitmap *bitmap,
+    bool (*cond)(BdrvDirtyBitmap *bitmap))
+{
+    bdrv_dirty_bitmaps_lock(bs);
+    bdrv_do_release_matching_dirty_bitmap_locked(bs, bitmap, cond);
     bdrv_dirty_bitmaps_unlock(bs);
+}
+
+/* Called within bdrv_dirty_bitmap_lock..unlock */
+static void bdrv_release_dirty_bitmap_locked(BlockDriverState *bs,
+                                             BdrvDirtyBitmap *bitmap)
+{
+    bdrv_do_release_matching_dirty_bitmap_locked(bs, bitmap, NULL);
 }
 
 /* Called with BQL taken.  */
