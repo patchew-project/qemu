@@ -3883,7 +3883,20 @@ int main(int argc, char **argv, char **envp)
                                                      optarg, true);
                 optarg = qemu_opt_get(accel_opts, "accel");
                 if (!optarg || is_help_option(optarg)) {
-                    error_printf("Possible accelerators: kvm, xen, hax, tcg\n");
+                    error_printf("Possible accelerators: ");
+#ifdef CONFIG_KVM_IS_POSSIBLE
+                    error_printf("kvm ");
+#endif
+#ifdef CONFIG_XEN
+                    error_printf("xen ");
+#endif
+#ifdef CONFIG_HAX
+                    error_printf("hax ");
+#endif
+#ifdef CONFIG_TCG
+                    error_printf("tcg ");
+#endif
+                    error_printf("\n");
                     exit(0);
                 }
                 opts = qemu_opts_create(qemu_find_opts("machine"), NULL,
