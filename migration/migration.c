@@ -2216,20 +2216,21 @@ static void *migration_thread(void *opaque)
         uint64_t pending_size;
 
         if (!qemu_file_rate_limit(s->to_dst_file)) {
-            uint64_t pend_post, pend_nonpost;
+            uint64_t pend_pre, pend_compat, pend_post;
 
-            qemu_savevm_state_pending(s->to_dst_file, threshold_size,
-                                      &pend_nonpost, &pend_post);
-            pending_size = pend_nonpost + pend_post;
+            qemu_savevm_state_pending(s->to_dst_file, threshold_size, &pend_pre,
+                                      &pend_compat, &pend_post);
+            pending_size = pend_pre + pend_compat + pend_post;
             trace_migrate_pending(pending_size, threshold_size,
-                                  pend_post, pend_nonpost);
+                                  pend_pre, pend_compat, pend_post);
             if (pending_size && pending_size >= threshold_size) {
                 /* Still a significant amount to transfer */
 
                 if (migrate_postcopy() &&
                     s->state != MIGRATION_STATUS_POSTCOPY_ACTIVE &&
-                    pend_nonpost <= threshold_size &&
-                    atomic_read(&s->start_postcopy)) {
+                    pend_pre <= threshold_size &&
+                    (atomic_read(&s->start_postcopy) ||
+                     (pend_pre + pend_compat <= threshold_size))) {
 
                     if (!postcopy_start(s, &old_vm_running)) {
                         current_active_state = MIGRATION_STATUS_POSTCOPY_ACTIVE;
