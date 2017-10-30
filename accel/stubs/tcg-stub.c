@@ -39,3 +39,7 @@ void cpu_exec_step_atomic(CPUState *cpu)
 void cpu_reloading_memory_map(void)
 {
 }
+
+void tcg_region_init(void)
+{
+}
