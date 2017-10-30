@@ -345,6 +345,9 @@ void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "%s: %" PRId64 "\n",
             MigrationParameter_str(MIGRATION_PARAMETER_XBZRLE_CACHE_SIZE),
             params->xbzrle_cache_size);
+        monitor_printf(mon, "%s: %s\n",
+            MigrationParameter_str(MIGRATION_PARAMETER_URI),
+            params->uri);
     }
 
     qapi_free_MigrationParameters(params);
@@ -1666,6 +1669,10 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
             break;
         }
         p->xbzrle_cache_size = cache_size;
+        break;
+    case MIGRATION_PARAMETER_URI:
+        p->has_uri = true;
+        visit_type_str(v, param, &p->uri, &err);
         break;
     default:
         assert(0);

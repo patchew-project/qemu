@@ -517,6 +517,8 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
     params->x_multifd_page_count = s->parameters.x_multifd_page_count;
     params->has_xbzrle_cache_size = true;
     params->xbzrle_cache_size = s->parameters.xbzrle_cache_size;
+    params->has_uri = true;
+    params->uri = g_strdup(s->parameters.uri);
 
     return params;
 }
@@ -893,6 +895,9 @@ static void migrate_params_test_apply(MigrateSetParameters *params,
     if (params->has_xbzrle_cache_size) {
         dest->xbzrle_cache_size = params->xbzrle_cache_size;
     }
+    if (params->has_uri) {
+        dest->uri = g_strdup(params->uri);
+    }
 }
 
 static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
@@ -964,6 +969,10 @@ static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
     if (params->has_xbzrle_cache_size) {
         s->parameters.xbzrle_cache_size = params->xbzrle_cache_size;
         xbzrle_cache_resize(params->xbzrle_cache_size, errp);
+    }
+    if (params->has_uri) {
+        g_free(s->parameters.uri);
+        s->parameters.uri = g_strdup(params->uri);
     }
 }
 
@@ -2431,6 +2440,8 @@ static Property migration_properties[] = {
     DEFINE_PROP_SIZE("xbzrle-cache-size", MigrationState,
                       parameters.xbzrle_cache_size,
                       DEFAULT_MIGRATE_XBZRLE_CACHE_SIZE),
+    DEFINE_PROP_STRING("x-uri", MigrationState,
+                       parameters.uri),
 
     /* Migration capabilities */
     DEFINE_PROP_MIG_CAP("x-xbzrle", MIGRATION_CAPABILITY_XBZRLE),
@@ -2465,6 +2476,7 @@ static void migration_instance_finalize(Object *obj)
     qemu_mutex_destroy(&ms->error_mutex);
     g_free(params->tls_hostname);
     g_free(params->tls_creds);
+    g_free(params->uri);
     qemu_sem_destroy(&ms->pause_sem);
 }
 
@@ -2480,6 +2492,7 @@ static void migration_instance_init(Object *obj)
 
     params->tls_hostname = g_strdup("");
     params->tls_creds = g_strdup("");
+    params->uri = g_strdup("");
 
     /* Set has_* up only for parameter checks */
     params->has_compress_level = true;
