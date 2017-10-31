@@ -1640,14 +1640,14 @@ static void musicpal_init(MachineState *machine)
                               "musicpal.flash", flash_size,
                               blk, 0x10000, (flash_size + 0xffff) >> 16,
                               MP_FLASH_SIZE_MAX / flash_size,
-                              2, 0x00BF, 0x236D, 0x0000, 0x0000,
+                              2, 1, 0x00BF, 0x236D, 0x0000, 0x0000,
                               0x5555, 0x2AAA, 1);
 #else
         pflash_cfi02_register(0x100000000ULL-MP_FLASH_SIZE_MAX, NULL,
                               "musicpal.flash", flash_size,
                               blk, 0x10000, (flash_size + 0xffff) >> 16,
                               MP_FLASH_SIZE_MAX / flash_size,
-                              2, 0x00BF, 0x236D, 0x0000, 0x0000,
+                              2, 1, 0x00BF, 0x236D, 0x0000, 0x0000,
                               0x5555, 0x2AAA, 0);
 #endif
 

@@ -241,9 +241,8 @@ static void ref405ep_init(MachineState *machine)
 #endif
         pflash_cfi02_register((uint32_t)(-bios_size),
                               NULL, "ef405ep.bios", bios_size,
-                              blk, 65536, fl_sectors, 1,
-                              2, 0x0001, 0x22DA, 0x0000, 0x0000, 0x555, 0x2AA,
-                              1);
+                              blk, 65536, fl_sectors, 1, 2, 1,
+                              0x0001, 0x22DA, 0x0000, 0x0000, 0x555, 0x2AA, 1);
         fl_idx++;
     } else
 #endif
@@ -539,9 +538,8 @@ static void taihu_405ep_init(MachineState *machine)
 #endif
         pflash_cfi02_register((uint32_t)(-bios_size),
                               NULL, "taihu_405ep.bios", bios_size,
-                              blk, 65536, fl_sectors, 1,
-                              4, 0x0001, 0x22DA, 0x0000, 0x0000, 0x555, 0x2AA,
-                              1);
+                              blk, 65536, fl_sectors, 1, 4, 1,
+                              0x0001, 0x22DA, 0x0000, 0x0000, 0x555, 0x2AA, 1);
         fl_idx++;
     } else
 #endif
@@ -586,9 +584,8 @@ static void taihu_405ep_init(MachineState *machine)
                blk_name(blk));
 #endif
         pflash_cfi02_register(0xfc000000, NULL, "taihu_405ep.flash", bios_size,
-                              blk, 65536, fl_sectors, 1,
-                              4, 0x0001, 0x22DA, 0x0000, 0x0000, 0x555, 0x2AA,
-                              1);
+                              blk, 65536, fl_sectors, 1, 4, 1,
+                              0x0001, 0x22DA, 0x0000, 0x0000, 0x555, 0x2AA, 1);
         fl_idx++;
     }
     /* Register CLPD & LCD display */

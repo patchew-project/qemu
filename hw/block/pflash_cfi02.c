@@ -28,11 +28,28 @@
  * - unlock bypass command
  * - CFI queries
  *
- * It does not support flash interleaving.
  * It does not implement boot blocs with reduced size
  * It does not implement software data protection as found in many real chips
  * It does not implement erase suspend/resume commands
  * It does not implement multiple sectors erase
+ *
+ * Flash interleaving is partially supported using the interleave_num
+ * parameter, which indicates how many "devices" comprise the flash array.
+ * The supported flash access pattern is one where commands are sent to all
+ * devices simultaneously and the read result is duplicated according to the
+ * interleave number. For example, given a flash array of width 8,
+ * interleave 4, the command sequence
+ *
+ * 0x00AA00AA00AA00AA
+ * 0x0055005500550055
+ * 0x0090009000900090
+ *
+ * sends the auto-select command sequence. If a read to address 0 is
+ * issued, the user would expect the following:
+ * 0x0001000100010001
+ * to identify the AMD device array.
+ *
+ * Issuing commands to individual members of the flash array is not supported.
  */
 
 #include "qemu/osdep.h"
@@ -97,6 +114,7 @@ struct pflash_t {
     int read_counter; /* used for lazy switch-back to rom mode */
     char *name;
     void *storage;
+    uint8_t interleave_num; /* number of devices that comprise the array */
 };
 
 /*
@@ -144,6 +162,8 @@ static uint64_t pflash_read(pflash_t *pfl, hwaddr offset,
     hwaddr boff;
     uint64_t ret;
     uint8_t *p;
+    int i;
+    uint8_t intlv_shift = (pfl->width / pfl->interleave_num) << 3;
 
     DPRINTF("%s: offset " TARGET_FMT_plx "\n", __func__, offset);
     ret = -1;
@@ -231,6 +251,10 @@ static uint64_t pflash_read(pflash_t *pfl, hwaddr offset,
         case 0x00:
         case 0x01:
             ret = boff & 0x01 ? pfl->ident1 : pfl->ident0;
+            for (i = 1; i < pfl->interleave_num; ++i) {
+                ret = (ret << intlv_shift) | ret;
+            }
+
             break;
         case 0x02:
             ret = 0x00; /* Pretend all sectors are unprotected */
@@ -240,6 +264,9 @@ static uint64_t pflash_read(pflash_t *pfl, hwaddr offset,
             ret = boff & 0x01 ? pfl->ident3 : pfl->ident2;
             if (ret == (uint8_t)-1) {
                 goto flash_read;
+            }
+            for (i = 1; i < pfl->interleave_num; ++i) {
+                ret <<= intlv_shift;
             }
             break;
         default:
@@ -253,6 +280,9 @@ static uint64_t pflash_read(pflash_t *pfl, hwaddr offset,
     case 0x30:
         /* Status register read */
         ret = pfl->status;
+        for (i = 1; i < pfl->interleave_num; ++i) {
+            ret <<= intlv_shift;
+        }
         DPRINTF("%s: status %" PRIx64 "\n", __func__, ret);
         /* Toggle bit 6 */
         pfl->status ^= 0x40;
@@ -263,6 +293,9 @@ static uint64_t pflash_read(pflash_t *pfl, hwaddr offset,
             ret = 0;
         else
             ret = pfl->cfi_table[boff];
+        for (i = 1; i < pfl->interleave_num; ++i) {
+            ret <<= intlv_shift;
+        }
         break;
     }
 
@@ -745,6 +778,7 @@ static Property pflash_cfi02_properties[] = {
     DEFINE_PROP_UINT16("unlock-addr0", struct pflash_t, unlock_addr0, 0),
     DEFINE_PROP_UINT16("unlock-addr1", struct pflash_t, unlock_addr1, 0),
     DEFINE_PROP_STRING("name", struct pflash_t, name),
+    DEFINE_PROP_UINT8("interleave_num", struct pflash_t, interleave_num, 1),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -776,6 +810,7 @@ pflash_t *pflash_cfi02_register(hwaddr base,
                                 hwaddr size,
                                 BlockBackend *blk, uint32_t sector_len,
                                 int nb_blocs, int nb_mappings, int width,
+                                int interleave_num,
                                 uint16_t id0, uint16_t id1,
                                 uint16_t id2, uint16_t id3,
                                 uint16_t unlock_addr0, uint16_t unlock_addr1,
@@ -798,6 +833,7 @@ pflash_t *pflash_cfi02_register(hwaddr base,
     qdev_prop_set_uint16(dev, "unlock-addr0", unlock_addr0);
     qdev_prop_set_uint16(dev, "unlock-addr1", unlock_addr1);
     qdev_prop_set_string(dev, "name", name);
+    qdev_prop_set_uint32(dev, "interleave_num", MAX(interleave_num, 1));
     qdev_init_nofail(dev);
 
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);

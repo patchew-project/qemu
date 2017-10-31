@@ -133,7 +133,7 @@ static void digic4_add_k8p3215uqb_rom(DigicBoardState *s, hwaddr addr,
                           NULL, FLASH_K8P3215UQB_SECTOR_SIZE,
                           FLASH_K8P3215UQB_SIZE / FLASH_K8P3215UQB_SECTOR_SIZE,
                           DIGIC4_ROM_MAX_SIZE / FLASH_K8P3215UQB_SIZE,
-                          4,
+                          4, 1,
                           0x00EC, 0x007E, 0x0003, 0x0001,
                           0x0555, 0x2aa, 0);
 

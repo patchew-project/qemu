@@ -293,7 +293,7 @@ static void r2d_init(MachineState *machine)
     pflash_cfi02_register(0x0, NULL, "r2d.flash", FLASH_SIZE,
                           dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
                           (16 * 1024), FLASH_SIZE >> 16,
-                          1, 4, 0x0000, 0x0000, 0x0000, 0x0000,
+                          1, 4, 1, 0x0000, 0x0000, 0x0000, 0x0000,
                           0x555, 0x2aa, 0);
 
     /* NIC: rtl8139 on-board, and 2 slots. */
