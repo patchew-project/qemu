@@ -2143,8 +2143,8 @@ int save_snapshot(const char *name, Error **errp)
     AioContext *aio_context;
 
     if (!replay_can_snapshot()) {
-        monitor_printf(mon, "Record/replay does not allow making snapshot "
-                        "right now. Try once more later.\n");
+        error_report("Record/replay does not allow making snapshot "
+                     "right now. Try once more later.\n");
         return ret;
     }
 
