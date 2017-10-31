@@ -5,6 +5,17 @@
 #include "libqos/libqos-spapr.h"
 #include "libqos/rtas.h"
 
+#if defined(__APPLE__)
+#    include <libkern/OSByteOrder.h>
+
+#    define be32toh(x) OSSwapBigToHostInt32(x)
+#    define __BYTE_ORDER    BYTE_ORDER
+#    define __BIG_ENDIAN    BIG_ENDIAN
+#    define __LITTLE_ENDIAN LITTLE_ENDIAN
+#else
+#    include <endian.h>
+#endif
+
 #define EVENT_MASK_EPOW (1 << 30)
 #define EVENT_LOG_LEN 2048
 
