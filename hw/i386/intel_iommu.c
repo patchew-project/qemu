@@ -2687,6 +2687,12 @@ static const MemoryRegionOps vtd_mem_ir_ops = {
     },
 };
 
+static IOMMUObject *vtd_as_iommu_get(AddressSpace *as)
+{
+    VTDAddressSpace *vtd_dev_as = container_of(as, VTDAddressSpace, as);
+    return &vtd_dev_as->iommu_object;
+}
+
 VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus, int devfn)
 {
     uintptr_t key = (uintptr_t)bus;
@@ -2748,6 +2754,7 @@ VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus, int devfn)
                                             VTD_INTERRUPT_ADDR_FIRST,
                                             &vtd_dev_as->iommu_ir, 64);
         address_space_init(&vtd_dev_as->as, &vtd_dev_as->root, name);
+        vtd_dev_as->as.as_ops.iommu_get = vtd_as_iommu_get;
         memory_region_add_subregion_overlap(&vtd_dev_as->root, 0,
                                             &vtd_dev_as->sys_alias, 1);
         memory_region_add_subregion_overlap(&vtd_dev_as->root, 0,
