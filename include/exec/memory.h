@@ -26,6 +26,7 @@
 #include "qom/object.h"
 #include "qemu/rcu.h"
 #include "hw/qdev-core.h"
+#include "hw/core/iommu.h"
 
 #define RAM_ADDR_INVALID (~(ram_addr_t)0)
 
@@ -301,6 +302,19 @@ struct MemoryListener {
 };
 
 /**
+ * AddressSpaceOps: callbacks structure for address space specific operations
+ *
+ * @iommu_get: returns an IOMMU object that backs the address space.
+ *             Normally this should be NULL for generic address
+ *             spaces, and it's only used when there is one
+ *             translation unit behind this address space.
+ */
+struct AddressSpaceOps {
+    IOMMUObject *(*iommu_get)(AddressSpace *as);
+};
+typedef struct AddressSpaceOps AddressSpaceOps;
+
+/**
  * AddressSpace: describes a mapping of addresses to #MemoryRegion objects
  */
 struct AddressSpace {
@@ -316,6 +330,7 @@ struct AddressSpace {
     struct MemoryRegionIoeventfd *ioeventfds;
     QTAILQ_HEAD(memory_listeners_as, MemoryListener) listeners;
     QTAILQ_ENTRY(AddressSpace) address_spaces_link;
+    AddressSpaceOps as_ops;
 };
 
 FlatView *address_space_to_flatview(AddressSpace *as);
@@ -1987,6 +2002,13 @@ address_space_write_cached(MemoryRegionCache *cache, hwaddr addr,
     assert(addr < cache->len && len <= cache->len - addr);
     address_space_write(cache->as, cache->xlat + addr, MEMTXATTRS_UNSPECIFIED, buf, len);
 }
+
+/**
+ * address_space_iommu_get: Get the backend IOMMU for the address space
+ *
+ * @as: the address space to fetch IOMMU from
+ */
+IOMMUObject *address_space_iommu_get(AddressSpace *as);
 
 #endif
 
