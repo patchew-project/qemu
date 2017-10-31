@@ -2642,6 +2642,8 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
     VFIOPCIDevice *vdev = DO_UPCAST(VFIOPCIDevice, pdev, pdev);
     VFIODevice *vbasedev_iter;
     VFIOGroup *group;
+    AddressSpace *as;
+    IOMMUObject *iommu;
     char *tmp, group_path[PATH_MAX], *group_name;
     Error *err = NULL;
     ssize_t len;
@@ -2694,7 +2696,8 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
 
     trace_vfio_realize(vdev->vbasedev.name, groupid);
 
-    group = vfio_get_group(groupid, pci_device_iommu_address_space(pdev), errp);
+    as = pci_device_iommu_address_space(pdev);
+    group = vfio_get_group(groupid, as, errp);
     if (!group) {
         goto error;
     }
@@ -2877,6 +2880,17 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
     vfio_register_req_notifier(vdev);
     vfio_setup_resetfn_quirk(vdev);
 
+    iommu = address_space_iommu_get(as);
+    if (iommu != NULL) {
+        VFIOGuestIOMMUObject *giommu;
+        giommu = g_malloc0(sizeof(*giommu));
+        giommu->iommu = iommu;
+        giommu->container = group->container;
+        QLIST_INSERT_HEAD(&group->container->giommu_object_list,
+                          giommu,
+                          giommu_next);
+    }
+
     return;
 
 out_teardown:
@@ -2907,6 +2921,28 @@ static void vfio_instance_finalize(Object *obj)
     vfio_put_group(group);
 }
 
+static void vfio_release_iommu_object(PCIDevice *pdev)
+{
+    VFIOPCIDevice *vdev = DO_UPCAST(VFIOPCIDevice, pdev, pdev);
+    AddressSpace *as;
+    IOMMUObject *iommu;
+
+    as = pci_device_iommu_address_space(pdev);
+    iommu = address_space_iommu_get(as);
+    if (iommu != NULL) {
+        VFIOGuestIOMMUObject *giommu, *tmp;
+        VFIOGroup *group;
+        group = vdev->vbasedev.group;
+
+        QLIST_FOREACH_SAFE(giommu,
+                           &group->container->giommu_object_list,
+                           giommu_next, tmp) {
+            QLIST_REMOVE(giommu, giommu_next);
+            g_free(giommu);
+        }
+    }
+    return;
+}
 static void vfio_exitfn(PCIDevice *pdev)
 {
     VFIOPCIDevice *vdev = DO_UPCAST(VFIOPCIDevice, pdev, pdev);
@@ -2915,6 +2951,7 @@ static void vfio_exitfn(PCIDevice *pdev)
     vfio_unregister_err_notifier(vdev);
     pci_device_set_intx_routing_notifier(&vdev->pdev, NULL);
     vfio_disable_interrupts(vdev);
+    vfio_release_iommu_object(pdev);
     if (vdev->intx.mmap_timer) {
         timer_free(vdev->intx.mmap_timer);
     }
