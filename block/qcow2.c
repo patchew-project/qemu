@@ -674,6 +674,11 @@ static QemuOptsList qcow2_runtime_opts = {
         },
         BLOCK_CRYPTO_OPT_DEF_KEY_SECRET("encrypt.",
             "ID of secret providing qcow2 AES key or LUKS passphrase"),
+        {
+            .name = QCOW2_OPT_PREALLOC_SIZE,
+            .type = QEMU_OPT_SIZE,
+            .help = "Preallocation amount at image expand",
+        },
         { /* end of list */ }
     },
 };
@@ -1014,6 +1019,15 @@ static int qcow2_update_options_prepare(BlockDriverState *bs,
     if (s->crypt_method_header != QCOW_CRYPT_NONE && !r->crypto_opts) {
         ret = -EINVAL;
         goto fail;
+    }
+
+    s->prealloc_size =
+        ROUND_UP(qemu_opt_get_size_del(opts, QCOW2_OPT_PREALLOC_SIZE, 0),
+                 s->cluster_size);
+    if (s->prealloc_size &&
+        !(bs->file->bs->supported_zero_flags & BDRV_REQ_ALLOCATE))
+    {
+        s->prealloc_size = 0;
     }
 
     ret = 0;
@@ -1924,6 +1938,31 @@ static bool is_zero_cow(BlockDriverState *bs, QCowL2Meta *m)
     return true;
 }
 
+/*
+ * If the specified area is beyond EOF, allocates it + prealloc_size
+ * bytes ahead.
+ */
+static void coroutine_fn handle_prealloc(BlockDriverState *bs,
+                                         const QCowL2Meta *m)
+{
+    BDRVQcow2State *s = bs->opaque;
+    uint64_t start = m->alloc_offset;
+    uint64_t end = start + m->nb_clusters * s->cluster_size;
+    int64_t flen = bdrv_getlength(bs->file->bs);
+
+    if (flen < 0) {
+        return;
+    }
+
+    if (end > flen) {
+        /* try to alloc host space in one chunk for better locality */
+        bdrv_co_pwrite_zeroes(bs->file, flen,
+                              QEMU_ALIGN_UP(end + s->prealloc_size - flen,
+                                            s->cluster_size),
+                              BDRV_REQ_ALLOCATE);
+    }
+}
+
 static void handle_alloc_space(BlockDriverState *bs, QCowL2Meta *l2meta)
 {
     BDRVQcow2State *s = bs->opaque;
@@ -1931,6 +1970,10 @@ static void handle_alloc_space(BlockDriverState *bs, QCowL2Meta *l2meta)
 
     for (m = l2meta; m != NULL; m = m->next) {
         int ret;
+
+        if (s->prealloc_size) {
+            handle_prealloc(bs, m);
+        }
 
         if (!m->cow_start.nb_bytes && !m->cow_end.nb_bytes) {
             continue;
