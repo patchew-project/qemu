@@ -632,7 +632,7 @@ struct BlockDriverState {
     /* Flags honored during pwrite (so far: BDRV_REQ_FUA) */
     unsigned int supported_write_flags;
     /* Flags honored during pwrite_zeroes (so far: BDRV_REQ_FUA,
-     * BDRV_REQ_MAY_UNMAP) */
+     * BDRV_REQ_MAY_UNMAP, BDRV_REQ_ALLOCATE) */
     unsigned int supported_zero_flags;
 
     /* the following member gives a name to every node on the bs graph. */
