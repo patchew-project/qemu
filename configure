@@ -467,6 +467,23 @@ else
   cc="${CC-${cross_prefix}gcc}"
 fi
 
+write_c_skeleton() {
+    cat > $TMPC <<EOF
+int main(void) { return 0; }
+EOF
+}
+
+# check that the C compiler works.
+write_c_skeleton;
+if compile_object ; then
+  : C compiler works ok
+else
+    error_exit "\"$cc\" either does not exist or does not work"
+fi
+if ! compile_prog ; then
+    error_exit "\"$cc\" cannot build an executable (is your linker broken?)"
+fi
+
 if test -z "${CXX}${cross_prefix}"; then
   cxx="c++"
 else
@@ -535,12 +552,6 @@ cat > $TMPC <<EOF
 int main(void) { return 0; }
 EOF
   compile_object
-}
-
-write_c_skeleton() {
-    cat > $TMPC <<EOF
-int main(void) { return 0; }
-EOF
 }
 
 if check_define __linux__ ; then
@@ -1591,17 +1602,6 @@ if test -z "$werror" ; then
     else
         werror="no"
     fi
-fi
-
-# check that the C compiler works.
-write_c_skeleton;
-if compile_object ; then
-  : C compiler works ok
-else
-    error_exit "\"$cc\" either does not exist or does not work"
-fi
-if ! compile_prog ; then
-    error_exit "\"$cc\" cannot build an executable (is your linker broken?)"
 fi
 
 if test "$bogus_os" = "yes"; then
