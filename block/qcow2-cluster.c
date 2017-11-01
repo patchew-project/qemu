@@ -783,7 +783,7 @@ static int perform_cow(BlockDriverState *bs, QCowL2Meta *m)
     assert(start->offset + start->nb_bytes <= end->offset);
     assert(!m->data_qiov || m->data_qiov->size == data_bytes);
 
-    if (start->nb_bytes == 0 && end->nb_bytes == 0) {
+    if ((start->nb_bytes == 0 && end->nb_bytes == 0) || m->zero_cow) {
         return 0;
     }
 
@@ -1383,6 +1383,7 @@ static int handle_alloc(BlockDriverState *bs, uint64_t guest_offset,
             .offset     = nb_bytes,
             .nb_bytes   = avail_bytes - nb_bytes,
         },
+        .zero_cow = false,
     };
     qemu_co_queue_init(&(*m)->dependent_requests);
     QLIST_INSERT_HEAD(&s->cluster_allocs, *m, next_in_flight);

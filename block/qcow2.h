@@ -377,6 +377,12 @@ typedef struct QCowL2Meta
     Qcow2COWRegion cow_end;
 
     /**
+     * Indicates that both COW areas are empty (nb_bytes == 0)
+     * or filled with zeroes and do not require any more copying
+     */
+    bool zero_cow;
+
+    /**
      * The I/O vector with the data from the actual guest write request.
      * If non-NULL, this is meant to be merged together with the data
      * from @cow_start and @cow_end into one single write operation.
