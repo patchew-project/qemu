@@ -530,10 +530,42 @@ int qcow2_mark_consistent(BlockDriverState *bs)
     return 0;
 }
 
+static int qcow2_check_extra_preallocation(BlockDriverState *bs,
+    BdrvCheckResult *res, BdrvCheckMode fix)
+{
+    BDRVQcow2State *s = bs->opaque;
+    uint64_t img_size = bdrv_getlength(bs->file->bs);
+
+    if (res->image_end_offset < img_size) {
+        uint64_t count =
+            DIV_ROUND_UP(img_size - res->image_end_offset, s->cluster_size);
+        fprintf(stderr, "%s space leaked at the end of the image %jd\n",
+                fix & BDRV_FIX_LEAKS ? "Repairing" : "ERROR",
+                img_size - res->image_end_offset);
+        res->leaks += count;
+        if (fix & BDRV_FIX_LEAKS) {
+            int ret = bdrv_truncate(bs->file, res->image_end_offset,
+                                    PREALLOC_MODE_OFF, NULL);
+            if (ret < 0) {
+                res->check_errors++;
+                return ret;
+            }
+            res->leaks_fixed += count;
+        }
+    }
+
+    return 0;
+}
+
 static int qcow2_check(BlockDriverState *bs, BdrvCheckResult *result,
                        BdrvCheckMode fix)
 {
     int ret = qcow2_check_refcounts(bs, result, fix);
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = qcow2_check_extra_preallocation(bs, result, fix);
     if (ret < 0) {
         return ret;
     }
