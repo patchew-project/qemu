@@ -363,6 +363,12 @@ typedef struct QCowL2Meta
     bool keep_old_clusters;
 
     /**
+     * True if the area is allocated at the end of data area
+     * (i.e. >= BDRVQcow2State::data_end)
+     */
+    bool clusters_are_trailing;
+
+    /**
      * Requests that overlap with this allocation and wait to be restarted
      * when the allocating request has completed.
      */

@@ -1975,26 +1975,40 @@ static bool is_zero_cow(BlockDriverState *bs, QCowL2Meta *m)
 /*
  * If the specified area is beyond EOF, allocates it + prealloc_size
  * bytes ahead.
+ *
+ * Returns
+ *   true if the space is allocated and contains zeroes
  */
-static void coroutine_fn handle_prealloc(BlockDriverState *bs,
+static bool coroutine_fn handle_prealloc(BlockDriverState *bs,
                                          const QCowL2Meta *m)
 {
     BDRVQcow2State *s = bs->opaque;
     uint64_t start = m->alloc_offset;
     uint64_t end = start + m->nb_clusters * s->cluster_size;
+    int ret;
     int64_t flen = bdrv_getlength(bs->file->bs);
 
     if (flen < 0) {
-        return;
+        return false;
     }
 
     if (end > flen) {
         /* try to alloc host space in one chunk for better locality */
-        bdrv_co_pwrite_zeroes(bs->file, flen,
-                              QEMU_ALIGN_UP(end + s->prealloc_size - flen,
-                                            s->cluster_size),
-                              BDRV_REQ_ALLOCATE);
+        ret = bdrv_co_pwrite_zeroes(bs->file, flen,
+                                    QEMU_ALIGN_UP(end + s->prealloc_size - flen,
+                                                  s->cluster_size),
+                                    BDRV_REQ_ALLOCATE);
+        if (ret < 0) {
+            return false;
+        }
     }
+
+    /* We're safe to assume that the area is zeroes if the area
+     * was allocated at the end of data (s->data_end).
+     * In this case, the only way for file length to be bigger is that
+     * the area was preallocated by this or another request.
+     */
+    return m->clusters_are_trailing;
 }
 
 static void handle_alloc_space(BlockDriverState *bs, QCowL2Meta *l2meta)
@@ -2004,9 +2018,10 @@ static void handle_alloc_space(BlockDriverState *bs, QCowL2Meta *l2meta)
 
     for (m = l2meta; m != NULL; m = m->next) {
         int ret;
+        bool preallocated_zeroes = false;
 
         if (s->prealloc_size) {
-            handle_prealloc(bs, m);
+            preallocated_zeroes = handle_prealloc(bs, m);
         }
 
         if (!m->cow_start.nb_bytes && !m->cow_end.nb_bytes) {
@@ -2017,13 +2032,15 @@ static void handle_alloc_space(BlockDriverState *bs, QCowL2Meta *l2meta)
             continue;
         }
 
-        /* instead of writing zero COW buffers,
-           efficiently zero out the whole clusters */
-        ret = bdrv_co_pwrite_zeroes(bs->file, m->alloc_offset,
-                                    m->nb_clusters * s->cluster_size,
-                                    BDRV_REQ_ALLOCATE);
-        if (ret < 0) {
-            continue;
+        if (!preallocated_zeroes) {
+            /* instead of writing zero COW buffers,
+               efficiently zero out the whole clusters */
+            ret = bdrv_co_pwrite_zeroes(bs->file, m->alloc_offset,
+                                        m->nb_clusters * s->cluster_size,
+                                        BDRV_REQ_ALLOCATE);
+            if (ret < 0) {
+                continue;
+            }
         }
 
         trace_qcow2_skip_cow(qemu_coroutine_self(), m->offset, m->nb_clusters);
