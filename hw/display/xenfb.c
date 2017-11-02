@@ -292,6 +292,11 @@ static void xenfb_key_event(void *opaque, int scancode)
     }
     trace_xenfb_key_event(opaque, scancode2linux[scancode], down);
     xenfb_send_key(xenfb, down, scancode2linux[scancode]);
+
+    /* insert an up event for regular down key event */
+    if (down && !xenfb->extended) {
+        xenfb_send_key(xenfb, 0, scancode2linux[scancode]);
+    }
 }
 
 /*
