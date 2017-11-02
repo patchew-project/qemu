@@ -1589,8 +1589,6 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
             return ;
         }
         /* legacy and transitional */
-        pci_set_word(config + PCI_SUBSYSTEM_VENDOR_ID,
-                     pci_get_word(config + PCI_VENDOR_ID));
         pci_set_word(config + PCI_SUBSYSTEM_ID, virtio_bus_get_vdev_id(bus));
     } else {
         /* pure virtio-1.0 */
