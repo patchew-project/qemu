@@ -168,7 +168,7 @@ static inline void reloc_26(tcg_insn_unit *pc, tcg_insn_unit *target)
     *pc = deposit32(*pc, 0, 26, reloc_26_val(pc, target));
 }
 
-static void patch_reloc(tcg_insn_unit *code_ptr, int type,
+static inline void patch_reloc(tcg_insn_unit *code_ptr, int type,
                         intptr_t value, intptr_t addend)
 {
     tcg_debug_assert(type == R_MIPS_PC16);
@@ -507,7 +507,7 @@ static inline void tcg_out_opc_sa(TCGContext *s, MIPSInsn opc,
 
 }
 
-static void tcg_out_opc_sa64(TCGContext *s, MIPSInsn opc1, MIPSInsn opc2,
+static inline void tcg_out_opc_sa64(TCGContext *s, MIPSInsn opc1, MIPSInsn opc2,
                              TCGReg rd, TCGReg rt, TCGArg sa)
 {
     int32_t inst;
@@ -637,13 +637,13 @@ static inline void tcg_out_bswap16s(TCGContext *s, TCGReg ret, TCGReg arg)
     }
 }
 
-static void tcg_out_bswap_subr(TCGContext *s, tcg_insn_unit *sub)
+static inline void tcg_out_bswap_subr(TCGContext *s, tcg_insn_unit *sub)
 {
     bool ok = tcg_out_opc_jmp(s, OPC_JAL, sub);
     tcg_debug_assert(ok);
 }
 
-static void tcg_out_bswap32(TCGContext *s, TCGReg ret, TCGReg arg)
+static inline void tcg_out_bswap32(TCGContext *s, TCGReg ret, TCGReg arg)
 {
     if (use_mips32r2_instructions) {
         tcg_out_opc_reg(s, OPC_WSBH, ret, 0, arg);
@@ -656,7 +656,7 @@ static void tcg_out_bswap32(TCGContext *s, TCGReg ret, TCGReg arg)
     }
 }
 
-static void tcg_out_bswap32u(TCGContext *s, TCGReg ret, TCGReg arg)
+static inline void tcg_out_bswap32u(TCGContext *s, TCGReg ret, TCGReg arg)
 {
     if (use_mips32r2_instructions) {
         tcg_out_opc_reg(s, OPC_DSBH, ret, 0, arg);
@@ -670,7 +670,7 @@ static void tcg_out_bswap32u(TCGContext *s, TCGReg ret, TCGReg arg)
     }
 }
 
-static void tcg_out_bswap64(TCGContext *s, TCGReg ret, TCGReg arg)
+static inline void tcg_out_bswap64(TCGContext *s, TCGReg ret, TCGReg arg)
 {
     if (use_mips32r2_instructions) {
         tcg_out_opc_reg(s, OPC_DSBH, ret, 0, arg);
@@ -1103,7 +1103,7 @@ static void tcg_out_call_int(TCGContext *s, tcg_insn_unit *arg, bool tail)
     }
 }
 
-static void tcg_out_call(TCGContext *s, tcg_insn_unit *arg)
+static inline void tcg_out_call(TCGContext *s, tcg_insn_unit *arg)
 {
     tcg_out_call_int(s, arg, false);
     tcg_out_nop(s);
@@ -1661,7 +1661,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is_64)
 #endif
 }
 
-static void tcg_out_mb(TCGContext *s, TCGArg a0)
+static inline void tcg_out_mb(TCGContext *s, TCGArg a0)
 {
     static const MIPSInsn sync[] = {
         /* Note that SYNC_MB is a slightly weaker than SYNC 0,
@@ -2433,7 +2433,7 @@ static void tcg_target_detect_isa(void)
     sigaction(SIGILL, &sa_old, NULL);
 }
 
-static tcg_insn_unit *align_code_ptr(TCGContext *s)
+static inline tcg_insn_unit *align_code_ptr(TCGContext *s)
 {
     uintptr_t p = (uintptr_t)s->code_ptr;
     if (p & 15) {
