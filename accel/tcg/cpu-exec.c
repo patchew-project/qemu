@@ -256,9 +256,6 @@ void cpu_exec_step_atomic(CPUState *cpu)
         trace_exec_tb(tb, pc);
         cpu_tb_exec(cpu, tb);
         cc->cpu_exec_exit(cpu);
-        parallel_cpus = true;
-
-        end_exclusive();
     } else {
         /* We may have exited due to another problem here, so we need
          * to reset any tb_locks we may have taken but didn't release.
@@ -270,6 +267,9 @@ void cpu_exec_step_atomic(CPUState *cpu)
 #endif
         tb_lock_reset();
     }
+
+    parallel_cpus = true;
+    end_exclusive();
 }
 
 struct tb_desc {
