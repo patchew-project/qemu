@@ -1,3 +1,4 @@
 # CAN bus interfaces emulation and infrastructure
 
 common-obj-$(CONFIG_CAN_CORE) += can_core.o
+common-obj-$(CONFIG_CAN_SJA1000) += can_sja1000.o
