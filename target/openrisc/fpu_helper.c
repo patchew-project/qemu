@@ -66,9 +66,9 @@ static inline void update_fpcsr(OpenRISCCPU *cpu)
     }
 }
 
-uint64_t HELPER(itofd)(CPUOpenRISCState *env, uint64_t val)
+float64 HELPER(itofd)(CPUOpenRISCState *env, uint64_t val)
 {
-    uint64_t itofd;
+    float64 itofd;
     OpenRISCCPU *cpu = openrisc_env_get_cpu(env);
 
     set_float_exception_flags(0, &cpu->env.fp_status);
@@ -78,9 +78,9 @@ uint64_t HELPER(itofd)(CPUOpenRISCState *env, uint64_t val)
     return itofd;
 }
 
-uint32_t HELPER(itofs)(CPUOpenRISCState *env, uint32_t val)
+float32 HELPER(itofs)(CPUOpenRISCState *env, uint32_t val)
 {
-    uint32_t itofs;
+    float32 itofs;
     OpenRISCCPU *cpu = openrisc_env_get_cpu(env);
 
     set_float_exception_flags(0, &cpu->env.fp_status);
@@ -90,7 +90,7 @@ uint32_t HELPER(itofs)(CPUOpenRISCState *env, uint32_t val)
     return itofs;
 }
 
-uint64_t HELPER(ftoid)(CPUOpenRISCState *env, uint64_t val)
+uint64_t HELPER(ftoid)(CPUOpenRISCState *env, float32 val)
 {
     uint64_t ftoid;
     OpenRISCCPU *cpu = openrisc_env_get_cpu(env);
@@ -102,7 +102,7 @@ uint64_t HELPER(ftoid)(CPUOpenRISCState *env, uint64_t val)
     return ftoid;
 }
 
-uint32_t HELPER(ftois)(CPUOpenRISCState *env, uint32_t val)
+uint32_t HELPER(ftois)(CPUOpenRISCState *env, float32 val)
 {
     uint32_t ftois;
     OpenRISCCPU *cpu = openrisc_env_get_cpu(env);
@@ -117,10 +117,10 @@ uint32_t HELPER(ftois)(CPUOpenRISCState *env, uint32_t val)
 #define FLOAT_OP(name, p) void helper_float_##_##p(void)
 
 #define FLOAT_CALC(name)                                                  \
-uint64_t helper_float_ ## name ## _d(CPUOpenRISCState *env,               \
-                                     uint64_t fdt0, uint64_t fdt1)        \
+float64 helper_float_ ## name ## _d(CPUOpenRISCState *env,                \
+                                    float64 fdt0, float64 fdt1)          \
 {                                                                         \
-    uint64_t result;                                                      \
+    float64 result;                                                       \
     OpenRISCCPU *cpu = openrisc_env_get_cpu(env);                         \
     set_float_exception_flags(0, &cpu->env.fp_status);                    \
     result = float64_ ## name(fdt0, fdt1, &cpu->env.fp_status);           \
@@ -128,10 +128,10 @@ uint64_t helper_float_ ## name ## _d(CPUOpenRISCState *env,               \
     return result;                                                        \
 }                                                                         \
                                                                           \
-uint32_t helper_float_ ## name ## _s(CPUOpenRISCState *env,               \
-                                     uint32_t fdt0, uint32_t fdt1)        \
+float32 helper_float_ ## name ## _s(CPUOpenRISCState *env,                \
+                                    float32 fdt0, float32 fdt1)           \
 {                                                                         \
-    uint32_t result;                                                      \
+    float32 result;                                                       \
     OpenRISCCPU *cpu = openrisc_env_get_cpu(env);                         \
     set_float_exception_flags(0, &cpu->env.fp_status);                    \
     result = float32_ ## name(fdt0, fdt1, &cpu->env.fp_status);           \
@@ -147,11 +147,11 @@ FLOAT_CALC(rem)
 #undef FLOAT_CALC
 
 
-uint64_t helper_float_madd_d(CPUOpenRISCState *env, uint64_t a,
-                             uint64_t b, uint64_t c)
+float64 helper_float_madd_d(CPUOpenRISCState *env, float64 a,
+                             float64 b, float64 c)
 {
     OpenRISCCPU *cpu = openrisc_env_get_cpu(env);
-    uint64_t result;
+    float64 result;
     set_float_exception_flags(0, &cpu->env.fp_status);
     /* Note that or1ksim doesn't use merged operation.  */
     result = float64_mul(b, c, &cpu->env.fp_status);
@@ -160,11 +160,11 @@ uint64_t helper_float_madd_d(CPUOpenRISCState *env, uint64_t a,
     return result;
 }
 
-uint32_t helper_float_madd_s(CPUOpenRISCState *env, uint32_t a,
-                             uint32_t b, uint32_t c)
+float32 helper_float_madd_s(CPUOpenRISCState *env, float32 a,
+                             float32 b, float32 c)
 {
     OpenRISCCPU *cpu = openrisc_env_get_cpu(env);
-    uint32_t result;
+    float32 result;
     set_float_exception_flags(0, &cpu->env.fp_status);
     /* Note that or1ksim doesn't use merged operation.  */
     result = float32_mul(b, c, &cpu->env.fp_status);
@@ -176,7 +176,7 @@ uint32_t helper_float_madd_s(CPUOpenRISCState *env, uint32_t a,
 
 #define FLOAT_CMP(name)                                                   \
 uint64_t helper_float_ ## name ## _d(CPUOpenRISCState *env,               \
-                                     uint64_t fdt0, uint64_t fdt1)        \
+                                    float64 fdt0, float64 fdt1)           \
 {                                                                         \
     int res;                                                              \
     OpenRISCCPU *cpu = openrisc_env_get_cpu(env);                         \
@@ -187,7 +187,7 @@ uint64_t helper_float_ ## name ## _d(CPUOpenRISCState *env,               \
 }                                                                         \
                                                                           \
 uint32_t helper_float_ ## name ## _s(CPUOpenRISCState *env,               \
-                                             uint32_t fdt0, uint32_t fdt1)\
+                                    float32 fdt0, float32 fdt1)           \
 {                                                                         \
     int res;                                                              \
     OpenRISCCPU *cpu = openrisc_env_get_cpu(env);                         \
@@ -205,7 +205,7 @@ FLOAT_CMP(lt)
 
 #define FLOAT_CMPNE(name)                                                 \
 uint64_t helper_float_ ## name ## _d(CPUOpenRISCState *env,               \
-                                     uint64_t fdt0, uint64_t fdt1)        \
+                                     float64 fdt0, float64 fdt1)          \
 {                                                                         \
     int res;                                                              \
     OpenRISCCPU *cpu = openrisc_env_get_cpu(env);                         \
@@ -216,7 +216,7 @@ uint64_t helper_float_ ## name ## _d(CPUOpenRISCState *env,               \
 }                                                                         \
                                                                           \
 uint32_t helper_float_ ## name ## _s(CPUOpenRISCState *env,               \
-                                     uint32_t fdt0, uint32_t fdt1)        \
+                                     float32 fdt0, float32 fdt1)          \
 {                                                                         \
     int res;                                                              \
     OpenRISCCPU *cpu = openrisc_env_get_cpu(env);                         \
@@ -231,7 +231,7 @@ FLOAT_CMPNE(ne)
 
 #define FLOAT_CMPGT(name)                                                 \
 uint64_t helper_float_ ## name ## _d(CPUOpenRISCState *env,               \
-                                     uint64_t fdt0, uint64_t fdt1)        \
+                                     float64 fdt0, float64 fdt1)          \
 {                                                                         \
     int res;                                                              \
     OpenRISCCPU *cpu = openrisc_env_get_cpu(env);                         \
@@ -242,7 +242,7 @@ uint64_t helper_float_ ## name ## _d(CPUOpenRISCState *env,               \
 }                                                                         \
                                                                           \
 uint32_t helper_float_ ## name ## _s(CPUOpenRISCState *env,               \
-                                     uint32_t fdt0, uint32_t fdt1)        \
+                                     float32 fdt0, float32 fdt1)          \
 {                                                                         \
     int res;                                                              \
     OpenRISCCPU *cpu = openrisc_env_get_cpu(env);                         \
@@ -256,7 +256,7 @@ FLOAT_CMPGT(gt)
 
 #define FLOAT_CMPGE(name)                                                 \
 uint64_t helper_float_ ## name ## _d(CPUOpenRISCState *env,               \
-                                     uint64_t fdt0, uint64_t fdt1)        \
+                                     float64 fdt0, float64 fdt1)          \
 {                                                                         \
     int res;                                                              \
     OpenRISCCPU *cpu = openrisc_env_get_cpu(env);                         \
@@ -267,7 +267,7 @@ uint64_t helper_float_ ## name ## _d(CPUOpenRISCState *env,               \
 }                                                                         \
                                                                           \
 uint32_t helper_float_ ## name ## _s(CPUOpenRISCState *env,               \
-                                     uint32_t fdt0, uint32_t fdt1)        \
+                                     float32 fdt0, float32 fdt1)          \
 {                                                                         \
     int res;                                                              \
     OpenRISCCPU *cpu = openrisc_env_get_cpu(env);                         \

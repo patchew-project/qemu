@@ -24,17 +24,17 @@ DEF_HELPER_FLAGS_1(ove_ov, TCG_CALL_NO_WG, void, env)
 DEF_HELPER_FLAGS_1(ove_cyov, TCG_CALL_NO_WG, void, env)
 
 /* float */
-DEF_HELPER_FLAGS_2(itofd, TCG_CALL_NO_WG, i64, env, i64)
-DEF_HELPER_FLAGS_2(itofs, TCG_CALL_NO_WG, i32, env, i32)
-DEF_HELPER_FLAGS_2(ftoid, TCG_CALL_NO_WG, i64, env, i64)
-DEF_HELPER_FLAGS_2(ftois, TCG_CALL_NO_WG, i32, env, i32)
+DEF_HELPER_FLAGS_2(itofd, TCG_CALL_NO_WG, f64, env, i64)
+DEF_HELPER_FLAGS_2(itofs, TCG_CALL_NO_WG, f32, env, i32)
+DEF_HELPER_FLAGS_2(ftoid, TCG_CALL_NO_WG, i64, env, f32)
+DEF_HELPER_FLAGS_2(ftois, TCG_CALL_NO_WG, i32, env, f32)
 
-DEF_HELPER_FLAGS_4(float_madd_s, TCG_CALL_NO_WG, i32, env, i32, i32, i32)
-DEF_HELPER_FLAGS_4(float_madd_d, TCG_CALL_NO_WG, i64, env, i64, i64, i64)
+DEF_HELPER_FLAGS_4(float_madd_s, TCG_CALL_NO_WG, f32, env, f32, f32, f32)
+DEF_HELPER_FLAGS_4(float_madd_d, TCG_CALL_NO_WG, f64, env, f64, f64, f64)
 
 #define FOP_CALC(op)                                            \
-DEF_HELPER_FLAGS_3(float_ ## op ## _s, TCG_CALL_NO_WG, i32, env, i32, i32) \
-DEF_HELPER_FLAGS_3(float_ ## op ## _d, TCG_CALL_NO_WG, i64, env, i64, i64)
+DEF_HELPER_FLAGS_3(float_ ## op ## _s, TCG_CALL_NO_WG, f32, env, f32, f32) \
+DEF_HELPER_FLAGS_3(float_ ## op ## _d, TCG_CALL_NO_WG, f64, env, f64, f64)
 FOP_CALC(add)
 FOP_CALC(sub)
 FOP_CALC(mul)
@@ -43,8 +43,8 @@ FOP_CALC(rem)
 #undef FOP_CALC
 
 #define FOP_CMP(op)                                              \
-DEF_HELPER_FLAGS_3(float_ ## op ## _s, TCG_CALL_NO_WG, i32, env, i32, i32) \
-DEF_HELPER_FLAGS_3(float_ ## op ## _d, TCG_CALL_NO_WG, i64, env, i64, i64)
+DEF_HELPER_FLAGS_3(float_ ## op ## _s, TCG_CALL_NO_WG, i32, env, f32, f32) \
+DEF_HELPER_FLAGS_3(float_ ## op ## _d, TCG_CALL_NO_WG, i64, env, f64, f64)
 FOP_CMP(eq)
 FOP_CMP(lt)
 FOP_CMP(le)
