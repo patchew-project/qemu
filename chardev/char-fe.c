@@ -209,9 +209,8 @@ bool qemu_chr_fe_init(CharBackend *b, Chardev *s, Error **errp)
         tag = d->mux_cnt++;
     } else if (s->be) {
         goto unavailable;
-    } else {
-        s->be = b;
     }
+    s->be = b;
 
     b->fe_open = false;
     b->tag = tag;
