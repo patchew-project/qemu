@@ -7700,11 +7700,9 @@ static inline float ## s float ## s ## _minmax(float ## s a, float ## s b,     \
     }                                                                   \
     aSign = extractFloat ## s ## Sign(a);                               \
     bSign = extractFloat ## s ## Sign(b);                               \
-    av = float ## s ## _val(a);                                         \
-    bv = float ## s ## _val(b);                                         \
     if (ismag) {                                                        \
-        aav = float ## s ## _abs(av);                                   \
-        abv = float ## s ## _abs(bv);                                   \
+        aav = float ## s ## _val(float ## s ## _abs(a));                \
+        abv = float ## s ## _val(float ## s ## _abs(b));                \
         if (aav != abv) {                                               \
             if (ismin) {                                                \
                 return (aav < abv) ? a : b;                             \
@@ -7713,6 +7711,8 @@ static inline float ## s float ## s ## _minmax(float ## s a, float ## s b,     \
             }                                                           \
         }                                                               \
     }                                                                   \
+    av = float ## s ## _val(a);                                         \
+    bv = float ## s ## _val(b);                                         \
     if (aSign != bSign) {                                               \
         if (ismin) {                                                    \
             return aSign ? a : b;                                       \
