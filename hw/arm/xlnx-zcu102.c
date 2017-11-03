@@ -185,6 +185,9 @@ static void xlnx_ep108_machine_class_init(ObjectClass *oc, void *data)
     mc->block_default_type = IF_IDE;
     mc->units_per_default_bus = 1;
     mc->ignore_memory_transaction_failures = true;
+    mc->max_cpus = XLNX_ZYNQMP_NUM_APU_CPUS + XLNX_ZYNQMP_NUM_RPU_CPUS;
+    mc->min_cpus = XLNX_ZYNQMP_NUM_APU_CPUS;
+    mc->default_cpus = XLNX_ZYNQMP_NUM_APU_CPUS;
 }
 
 static const TypeInfo xlnx_ep108_machine_init_typeinfo = {
@@ -241,6 +244,8 @@ static void xlnx_zcu102_machine_class_init(ObjectClass *oc, void *data)
     mc->units_per_default_bus = 1;
     mc->ignore_memory_transaction_failures = true;
     mc->max_cpus = XLNX_ZYNQMP_NUM_APU_CPUS + XLNX_ZYNQMP_NUM_RPU_CPUS;
+    mc->min_cpus = XLNX_ZYNQMP_NUM_APU_CPUS;
+    mc->default_cpus = XLNX_ZYNQMP_NUM_APU_CPUS;
 }
 
 static const TypeInfo xlnx_zcu102_machine_init_typeinfo = {

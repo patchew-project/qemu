@@ -160,8 +160,8 @@ Chardev *virtcon_hds[MAX_VIRTIO_CONSOLES];
 Chardev *sclp_hds[MAX_SCLP_CONSOLES];
 int win2k_install_hack = 0;
 int singlestep = 0;
-int smp_cpus = 1;
-unsigned int max_cpus = 1;
+int smp_cpus;
+unsigned int max_cpus;
 int smp_cores = 1;
 int smp_threads = 1;
 int acpi_enabled = 1;
@@ -4330,10 +4330,32 @@ int main(int argc, char **argv, char **envp)
     smp_parse(qemu_opts_find(qemu_find_opts("smp-opts"), NULL));
 
     machine_class->max_cpus = machine_class->max_cpus ?: 1; /* Default to UP */
+    machine_class->min_cpus = machine_class->min_cpus ?: 1;
+    machine_class->default_cpus = machine_class->default_cpus ?: 1;
+
+    /* if -smp is not set, default to mc->default_cpus */
+    if (!smp_cpus) {
+        smp_cpus = machine_class->default_cpus;
+        max_cpus = machine_class->default_cpus;
+    }
+
+    /* sanity-check smp_cpus and max_cpus */
+    if (smp_cpus < machine_class->min_cpus) {
+        error_report("Invalid SMP CPUs %d. The min CPUs "
+                     "supported by machine '%s' is %d", smp_cpus,
+                     machine_class->name, machine_class->min_cpus);
+        exit(1);
+    }
     if (max_cpus > machine_class->max_cpus) {
-        error_report("Invalid SMP CPUs %d. The max CPUs "
+        error_report("Invalid max SMP CPUs %d. The max CPUs "
                      "supported by machine '%s' is %d", max_cpus,
                      machine_class->name, machine_class->max_cpus);
+        exit(1);
+    }
+    if (max_cpus < machine_class->min_cpus) {
+        error_report("Invalid max SMP CPUs %d. The min CPUs "
+                     "supported by machine '%s' is %d", max_cpus,
+                     machine_class->name, machine_class->min_cpus);
         exit(1);
     }
 
