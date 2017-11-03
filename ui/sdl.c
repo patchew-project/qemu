@@ -364,7 +364,7 @@ static void sdl_update_caption(void)
     if (!runstate_is_running())
         status = " [Stopped]";
     else if (gui_grab) {
-        status = " - Press Ctrl-Alt to exit mouse grab";
+        status = " - Press Ctrl-Alt-G to exit mouse grab";
     }
 
     if (qemu_name) {
@@ -561,6 +561,16 @@ static void handle_keydown(SDL_Event *ev)
             toggle_full_screen();
             gui_keysym = 1;
             break;
+        case 0x22: /* 'g' key */
+            if (!gui_grab) {
+                if (qemu_console_is_graphic(NULL)) {
+                    sdl_grab_start();
+                }
+            } else if (!gui_fullscreen) {
+                sdl_grab_end();
+            }
+            gui_keysym = 1;
+            break;
         case 0x16: /* 'u' key on US keyboard */
             if (scaling_active) {
                 scaling_active = 0;
@@ -692,20 +702,6 @@ static void handle_keyup(SDL_Event *ev)
     mod_state = (ev->key.keysym.mod & gui_grab_code);
     if (!mod_state && gui_key_modifier_pressed) {
         gui_key_modifier_pressed = 0;
-        if (gui_keysym == 0) {
-            /* exit/enter grab if pressing Ctrl-Alt */
-            if (!gui_grab) {
-                if (qemu_console_is_graphic(NULL)) {
-                    sdl_grab_start();
-                }
-            } else if (!gui_fullscreen) {
-                sdl_grab_end();
-            }
-            /* SDL does not send back all the modifiers key, so we must
-             * correct it. */
-            reset_keys();
-            return;
-        }
         gui_keysym = 0;
     }
     if (qemu_console_is_graphic(NULL) && !gui_keysym) {
