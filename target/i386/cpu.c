@@ -115,7 +115,9 @@
 /* L1 instruction cache: */
 #define L1I_LINE_SIZE         64
 #define L1I_ASSOCIATIVITY      8
+#define L1I_ASSOC_AMD_ZEN      4
 #define L1I_SETS              64
+#define L1I_SETS_AMD_ZEN     256
 #define L1I_PARTITIONS         1
 /* Size = LINE_SIZE*ASSOCIATIVITY*SETS*PARTITIONS = 32KiB */
 #define L1I_DESCRIPTOR CPUID_2_L1I_32KB_8WAY_64B
@@ -127,7 +129,9 @@
 /* Level 2 unified cache: */
 #define L2_LINE_SIZE          64
 #define L2_ASSOCIATIVITY      16
+#define L2_ASSOC_AMD_ZEN       8
 #define L2_SETS             4096
+#define L2_SETS_AMD_ZEN     1024
 #define L2_PARTITIONS          1
 /* Size = LINE_SIZE*ASSOCIATIVITY*SETS*PARTITIONS = 4MiB */
 /*FIXME: CPUID leaf 2 descriptor is inconsistent with CPUID leaf 4 */
@@ -144,6 +148,7 @@
 #define L3_N_LINE_SIZE         64
 #define L3_N_ASSOCIATIVITY     16
 #define L3_N_SETS           16384
+#define L3_N_SETS_AMD_ZEN    4096
 #define L3_N_PARTITIONS         1
 #define L3_N_DESCRIPTOR CPUID_2_L3_16MB_16WAY_64B
 #define L3_N_LINES_PER_TAG      1
@@ -3110,6 +3115,91 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
             *edx = 0;
         }
         break;
+    case 0x8000001D: /* AMD TOPOEXT cache info for ZEN */
+        if (cpu->cache_info_passthrough) {
+            host_cpuid(index, count, eax, ebx, ecx, edx);
+            break;
+        } else if ((env->cpuid_version & 0xFF00F00) == 0x800F00) {
+            *eax = 0;
+            switch (count) {
+            case 0: /* L1 dcache info */
+                *eax |= CPUID_4_TYPE_DCACHE | \
+                        CPUID_4_LEVEL(1) | \
+                        CPUID_4_SELF_INIT_LEVEL | \
+                        ((cs->nr_threads - 1) << 14);
+                *ebx = (L1D_LINE_SIZE - 1) | \
+                       ((L1D_PARTITIONS - 1) << 12) | \
+                       ((L1D_ASSOCIATIVITY - 1) << 22);
+                *ecx = L1D_SETS - 1;
+                *edx = 0;
+                break;
+            case 1: /* L1 icache info */
+                *eax |= CPUID_4_TYPE_ICACHE | \
+                        CPUID_4_LEVEL(1) | \
+                        CPUID_4_SELF_INIT_LEVEL | \
+                        ((cs->nr_threads - 1) << 14);
+                *ebx = (L1I_LINE_SIZE - 1) | \
+                       ((L1I_PARTITIONS - 1) << 12) | \
+                       ((L1I_ASSOC_AMD_ZEN - 1) << 22);
+                *ecx = L1I_SETS_AMD_ZEN - 1;
+                *edx = 0;
+                break;
+            case 2: /* L2 cache info */
+                *eax |= CPUID_4_TYPE_UNIFIED | \
+                        CPUID_4_LEVEL(2) | \
+                        CPUID_4_SELF_INIT_LEVEL | \
+                        ((cs->nr_threads - 1) << 14);
+                *ebx = (L2_LINE_SIZE - 1) | \
+                       ((L2_PARTITIONS - 1) << 12) | \
+                       ((L2_ASSOC_AMD_ZEN - 1) << 22);
+                *ecx = L2_SETS_AMD_ZEN - 1;
+                *edx = CPUID_4_INCLUSIVE;
+                break;
+            case 3: /* L3 cache info */
+                if (!cpu->enable_l3_cache) {
+                    *eax = 0;
+                    *ebx = 0;
+                    *ecx = 0;
+                    *edx = 0;
+                    break;
+                }
+                *eax |= CPUID_4_TYPE_UNIFIED | \
+                        CPUID_4_LEVEL(3) | \
+                        CPUID_4_SELF_INIT_LEVEL | \
+                        ((cs->nr_cores * cs->nr_threads - 1) << 14);
+                *ebx = (L3_N_LINE_SIZE - 1) | \
+                       ((L3_N_PARTITIONS - 1) << 12) | \
+                       ((L3_N_ASSOCIATIVITY - 1) << 22);
+                *ecx = L3_N_SETS_AMD_ZEN - 1;
+                *edx = CPUID_4_NO_INVD_SHARING;
+                break;
+            default: /* end of info */
+                *eax = 0;
+                *ebx = 0;
+                *ecx = 0;
+                *edx = 0;
+                break;
+            }
+        } else {
+            *eax = 0;
+            *ebx = 0;
+            *ecx = 0;
+            *edx = 0;
+        }
+        break;
+    case 0x8000001E: /* AMD TOPOEXT cpu topology info for ZEN */
+        if ((env->cpuid_version & 0xFF00F00) == 0x800F00) {
+            *eax = cpu->apic_id;
+            *ebx = (cs->nr_threads - 1) << 8 | cpu->core_id;
+            *ecx = cpu->socket_id;
+            *edx = 0;
+        } else {
+            *eax = 0;
+            *ebx = 0;
+            *ecx = 0;
+            *edx = 0;
+        }
+        break;
     case 0xC0000000:
         *eax = env->cpuid_xlevel2;
         *ebx = 0;
@@ -3777,7 +3867,8 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
      * NOTE: the following code has to follow qemu_init_vcpu(). Otherwise
      * cs->nr_threads hasn't be populated yet and the checking is incorrect.
      */
-    if (!IS_INTEL_CPU(env) && cs->nr_threads > 1 && !ht_warned) {
+    if (!IS_INTEL_CPU(env) && cs->nr_threads > 1 && !ht_warned && \
+       (env->cpuid_version & 0xFF00F00) != 0x800F00) {
         error_report("AMD CPU doesn't support hyperthreading. Please configure"
                      " -smp options properly.");
         ht_warned = true;
