@@ -1298,10 +1298,14 @@ void print_net_client(Monitor *mon, NetClientState *nc)
 {
     NetFilterState *nf;
 
-    monitor_printf(mon, "%s: index=%d,type=%s,%s\n", nc->name,
+    monitor_printf(mon, "%s: index=%d,type=%s,%s", nc->name,
                    nc->queue_index,
                    NetClientDriver_str(nc->info->type),
                    nc->info_str);
+    if (nc->info->type == NET_CLIENT_DRIVER_NIC) {
+        monitor_printf(mon, ",link status:%s", nc->link_down ? "down" : "up");
+    }
+    monitor_printf(mon, "\n");
     if (!QTAILQ_EMPTY(&nc->filters)) {
         monitor_printf(mon, "filters:\n");
     }
