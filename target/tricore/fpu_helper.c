@@ -21,10 +21,10 @@
 #include "cpu.h"
 #include "exec/helper-proto.h"
 
-#define QUIET_NAN 0x7fc00000
-#define ADD_NAN   0x7fc00001
-#define DIV_NAN   0x7fc00008
-#define MUL_NAN   0x7fc00002
+#define QUIET_NAN make_float32(0x7fc00000)
+#define ADD_NAN   make_float32(0x7fc00001)
+#define DIV_NAN   make_float32(0x7fc00008)
+#define MUL_NAN   make_float32(0x7fc00002)
 #define FPU_FS PSW_USB_C
 #define FPU_FI PSW_USB_V
 #define FPU_FV PSW_USB_SV
@@ -63,13 +63,13 @@ static inline float32 f_maddsub_nan_result(float32 arg1, float32 arg2,
     } else if (float32_is_zero(arg1) && float32_is_infinity(arg2)) {
         return MUL_NAN;
     } else {
-        aSign = arg1 >> 31;
-        bSign = arg2 >> 31;
-        cSign = arg3 >> 31;
+        aSign = float32_val(arg1) >> 31;
+        bSign = float32_val(arg2) >> 31;
+        cSign = float32_val(arg3) >> 31;
 
-        aExp = (arg1 >> 23) & 0xff;
-        bExp = (arg2 >> 23) & 0xff;
-        cExp = (arg3 >> 23) & 0xff;
+        aExp = (float32_val(arg1) >> 23) & 0xff;
+        bExp = (float32_val(arg2) >> 23) & 0xff;
+        cExp = (float32_val(arg3) >> 23) & 0xff;
 
         if (muladd_negate_c) {
             cSign ^= 1;
@@ -139,7 +139,7 @@ uint32_t helper_f##op(CPUTriCoreState *env, uint32_t r1, uint32_t r2)          \
     } else {                                                                   \
         env->FPU_FS = 0;                                                       \
     }                                                                          \
-    return (uint32_t)f_result;                                                 \
+    return float32_val(f_result);                                              \
 }
 FADD_SUB(add)
 FADD_SUB(sub)
@@ -166,7 +166,7 @@ uint32_t helper_fmul(CPUTriCoreState *env, uint32_t r1, uint32_t r2)
     } else {
         env->FPU_FS = 0;
     }
-    return (uint32_t)f_result;
+    return float32_val(f_result);
 
 }
 
@@ -193,7 +193,7 @@ uint32_t helper_fdiv(CPUTriCoreState *env, uint32_t r1, uint32_t r2)
         env->FPU_FS = 0;
     }
 
-    return (uint32_t)f_result;
+    return float32_val(f_result);
 }
 
 uint32_t helper_fmadd(CPUTriCoreState *env, uint32_t r1,
@@ -219,7 +219,7 @@ uint32_t helper_fmadd(CPUTriCoreState *env, uint32_t r1,
     } else {
         env->FPU_FS = 0;
     }
-    return (uint32_t)f_result;
+    return float32_val(f_result);
 }
 
 uint32_t helper_fmsub(CPUTriCoreState *env, uint32_t r1,
@@ -247,7 +247,7 @@ uint32_t helper_fmsub(CPUTriCoreState *env, uint32_t r1,
     } else {
         env->FPU_FS = 0;
     }
-    return (uint32_t)f_result;
+    return float32_val(f_result);
 }
 
 uint32_t helper_fcmp(CPUTriCoreState *env, uint32_t r1, uint32_t r2)
@@ -304,7 +304,7 @@ uint32_t helper_itof(CPUTriCoreState *env, uint32_t arg)
     } else {
         env->FPU_FS = 0;
     }
-    return (uint32_t)f_result;
+    return float32_val(f_result);
 }
 
 uint32_t helper_ftouz(CPUTriCoreState *env, uint32_t arg)
@@ -321,7 +321,7 @@ uint32_t helper_ftouz(CPUTriCoreState *env, uint32_t arg)
         if (float32_is_any_nan(f_arg)) {
             result = 0;
         }
-    } else if (float32_lt_quiet(f_arg, 0, &env->fp_status)) {
+    } else if (float32_lt_quiet(f_arg, float32_zero, &env->fp_status)) {
         flags = float_flag_invalid;
         result = 0;
     }
