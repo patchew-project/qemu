@@ -157,6 +157,98 @@ static void test_qmp_protocol(void)
     qtest_end();
 }
 
+/* Tests for Out-Of-Band support. */
+static void test_qmp_oob(void)
+{
+    QDict *resp;
+    int acks = 0;
+    char *qtest_params;
+    const char *cmd_id, *extra_params;
+    const char *arch = qtest_get_arch();
+
+    /*
+     * Some archs need to specify cpu to make sure dump-guest-memory
+     * can work.  I chose CPU type randomly.
+     */
+    if (g_strcmp0(arch, "aarch64") == 0) {
+        extra_params = "-cpu cortex-a57";
+    } else if (g_strcmp0(arch, "ppc64") == 0) {
+        extra_params = "-cpu power8";
+    } else {
+        extra_params = "";
+    }
+
+    /*
+     * Let's have some memory to make sure dump-guest-memory will be
+     * time consuming.  That is required to test OOB functionaility.
+     */
+    qtest_params = g_strdup_printf("-nodefaults -machine none -m 1G %s",
+                                   extra_params);
+    global_qtest = qtest_init_without_qmp_handshake(qtest_params);
+    g_free(qtest_params);
+
+    /* Ignore the greeting message. */
+    resp = qmp_receive();
+    g_assert(qdict_get_qdict(resp, "QMP"));
+    QDECREF(resp);
+
+    /* Try a fake capability, it should fail. */
+    resp = qmp("{ 'execute': 'qmp_capabilities', "
+               "  'arguments': { 'enable': [ 'cap-does-not-exist' ] } }");
+    g_assert(qdict_haskey(resp, "error"));
+
+    /* Now, enable OOB in current QMP session, it should success. */
+    resp = qmp("{ 'execute': 'qmp_capabilities', "
+               "  'arguments': { 'enable': [ 'oob' ] } }");
+    g_assert(qdict_haskey(resp, "return"));
+
+    /*
+     * Try any command that does not support OOB but with OOB flag. We
+     * should get failure.
+     */
+    resp = qmp("{ 'execute': 'query-cpus',"
+               "  'control': { 'run-oob': true } }");
+    g_assert(qdict_haskey(resp, "error"));
+
+    /*
+     * Try a time-consuming command, following by a OOB command, make
+     * sure we get OOB command before the time-consuming one (which is
+     * run in the parser).
+     *
+     * When writting up this test script, the only command that
+     * support OOB is migrate-incoming.  It's not the best command to
+     * test OOB but we don't really have a choice here.  We will check
+     * arriving order but not command errors, which does not really
+     * matter to us.
+     */
+    qmp_async("{ 'execute': 'dump-guest-memory',"
+              "  'arguments': { 'paging': true, "
+              "                 'protocol': 'file:/dev/null' }, "
+              "  'id': 'time-consuming-cmd'}");
+    qmp_async("{ 'execute': 'migrate-incoming', "
+              "  'control': { 'run-oob': true }, "
+              "  'id': 'oob-cmd' }");
+
+    /* Ignore all events.  Wait for 2 acks */
+    while (acks < 2) {
+        resp = qmp_receive();
+        if (qdict_haskey(resp, "event")) {
+            /* Skip possible events */
+            continue;
+        }
+        cmd_id = qdict_get_str(resp, "id");
+        if (acks == 0) {
+            /* Need to receive OOB response first */
+            g_assert_cmpstr(cmd_id, ==, "oob-cmd");
+        } else if (acks == 1) {
+            g_assert_cmpstr(cmd_id, ==, "time-consuming-cmd");
+        }
+        acks++;
+    }
+
+    qtest_end();
+}
+
 static int query_error_class(const char *cmd)
 {
     static struct {
@@ -335,6 +427,7 @@ int main(int argc, char *argv[])
     g_test_init(&argc, &argv, NULL);
 
     qtest_add_func("qmp/protocol", test_qmp_protocol);
+    qtest_add_func("qmp/oob", test_qmp_oob);
     qmp_schema_init(&schema);
     add_query_tests(&schema);
 
