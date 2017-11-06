@@ -33,6 +33,11 @@ static inline int virtio_crypto_vq2q(int queue_index)
     return queue_index;
 }
 
+static inline bool virtio_crypto_in_mux_mode(VirtIODevice *vdev)
+{
+    return virtio_vdev_has_feature(vdev, VIRTIO_CRYPTO_F_MUX_MODE);
+}
+
 static int
 virtio_crypto_cipher_session_helper(VirtIODevice *vdev,
            CryptoDevBackendSymSessionInfo *info,
@@ -223,6 +228,9 @@ static void virtio_crypto_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
     uint8_t status;
     size_t s;
 
+#define ctrl_req_payload_size(vdev, req)                        \
+        (virtio_crypto_in_mux_mode((vdev)) ? sizeof((req)) :    \
+        VIRTIO_CRYPTO_CTRL_REQ_PAYLOAD_SIZE_NONMUX)
     for (;;) {
         elem = virtqueue_pop(vq, sizeof(VirtQueueElement));
         if (!elem) {
@@ -259,7 +267,7 @@ static void virtio_crypto_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
 
             iov_to_buf(out_iov, out_num, 0, &req, sizeof(req));
             /* The unused part of the req will be ingored */
-            s = VIRTIO_CRYPTO_CTRL_REQ_PAYLOAD_SIZE_NONMUX;
+            s = ctrl_req_payload_size(vdev, req);
             if (unlikely(s != iov_discard_front(&out_iov, &out_num, s))) {
                 virtio_error(vdev, "virtio-crypto request additional "
                              "parameters too short");
@@ -304,7 +312,7 @@ static void virtio_crypto_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
 
             iov_to_buf(out_iov, out_num, 0, &req, sizeof(req));
             /* The unused part of the req will be ingored */
-            s = VIRTIO_CRYPTO_CTRL_REQ_PAYLOAD_SIZE_NONMUX;
+            s = ctrl_req_payload_size(vdev, req);
             if (unlikely(s != iov_discard_front(&out_iov, &out_num, s))) {
                 virtio_error(vdev, "virtio-crypto request additional "
                              "parameters too short");
@@ -346,6 +354,7 @@ static void virtio_crypto_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
 
         g_free(elem);
     } /* end for loop */
+#undef ctrl_req_payload_size
 }
 
 static void virtio_crypto_init_request(VirtIOCrypto *vcrypto, VirtQueue *vq,

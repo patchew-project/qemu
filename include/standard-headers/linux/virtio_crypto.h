@@ -38,6 +38,13 @@
 #define VIRTIO_CRYPTO_SERVICE_MAC    2
 #define VIRTIO_CRYPTO_SERVICE_AEAD   3
 
+/* The features for virtio crypto device */
+#define VIRTIO_CRYPTO_F_MUX_MODE                0
+#define VIRTIO_CRYPTO_F_CIPHER_STATELESS_MODE   1
+#define VIRTIO_CRYPTO_F_HASH_STATELESS_MODE     2
+#define VIRTIO_CRYPTO_F_MAC_STATELESS_MODE      3
+#define VIRTIO_CRYPTO_F_AEAD_STATELESS_MODE     4
+
 #define VIRTIO_CRYPTO_OPCODE(service, op)   (((service) << 8) | (op))
 
 struct virtio_crypto_ctrl_header {
