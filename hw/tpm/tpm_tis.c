@@ -1068,8 +1068,6 @@ static void tpm_tis_realizefn(DeviceState *dev, Error **errp)
         return;
     }
 
-    s->be_driver->fe_model = TPM_MODEL_TPM_TIS;
-
     if (tpm_backend_init(s->be_driver, TPM_IF(s), errp)) {
         return;
     }
@@ -1104,6 +1102,7 @@ static void tpm_tis_class_init(ObjectClass *klass, void *data)
     dc->props = tpm_tis_properties;
     dc->reset = tpm_tis_reset;
     dc->vmsd  = &vmstate_tpm_tis;
+    tc->model = TPM_MODEL_TPM_TIS;
     tc->request_completed = tpm_tis_request_completed;
 }
 
