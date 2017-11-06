@@ -17,7 +17,6 @@
 # You should have received a copy of the GNU Lesser General Public
 # License along with this library; if not, see <http://www.gnu.org/licenses/>.
 
-import numpy as np
 import json
 import os
 import argparse
@@ -36,23 +35,29 @@ class MigrationFile(object):
         self.file = open(self.filename, "rb")
 
     def read64(self):
-        return np.asscalar(np.fromfile(self.file, count=1, dtype='>i8')[0])
+        buffer = file.read(64)
+        return struct.unpack('>i16', buffer)[0]
 
     def read32(self):
-        return np.asscalar(np.fromfile(self.file, count=1, dtype='>i4')[0])
+        buffer = file.read(32)
+        return struct.unpack('>i8', buffer)[0]
 
     def read16(self):
-        return np.asscalar(np.fromfile(self.file, count=1, dtype='>i2')[0])
+        buffer = file.read(16)
+        return struct.unpack('>i4', buffer)[0]
 
     def read8(self):
-        return np.asscalar(np.fromfile(self.file, count=1, dtype='>i1')[0])
+        buffer = file.read(8)
+        return struct.unpack('>i2', buffer)[0]
 
     def readstr(self, len = None):
+        read_format = str(len) + 'd'
         if len is None:
             len = self.read8()
         if len == 0:
             return ""
-        return np.fromfile(self.file, count=1, dtype=('S%d' % len))[0]
+        buffer = file.read(8)
+        return struct.unpack(read_format, buffer[0:(0 + struct.calcsize(read_format))])
 
     def readvar(self, size = None):
         if size is None:
@@ -303,8 +308,10 @@ class VMSDFieldInt(VMSDFieldGeneric):
 
     def read(self):
         super(VMSDFieldInt, self).read()
-        self.sdata = np.fromstring(self.data, count=1, dtype=(self.sdtype))[0]
-        self.udata = np.fromstring(self.data, count=1, dtype=(self.udtype))[0]
+        buffer = file.read(self.data)
+        read_format = self.sdtype
+        self.sdata = struct.unpack(self.sdtype, buffer[0:(0 + struct.calcsize(self.sdtype))])
+        self.sdata = struct.unpack(self.udtype, buffer[0:(0 + struct.calcsize(self.udtype))])
         self.data = self.sdata
         return self.data
 
