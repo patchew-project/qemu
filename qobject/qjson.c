@@ -28,7 +28,8 @@ typedef struct JSONParsingState
     Error *err;
 } JSONParsingState;
 
-static void parse_json(JSONMessageParser *parser, GQueue *tokens)
+static void parse_json(JSONMessageParser *parser, GQueue *tokens,
+                       void *opaque)
 {
     JSONParsingState *s = container_of(parser, JSONParsingState, parser);
 
@@ -41,7 +42,7 @@ QObject *qobject_from_jsonv(const char *string, va_list *ap, Error **errp)
 
     state.ap = ap;
 
-    json_message_parser_init(&state.parser, parse_json);
+    json_message_parser_init(&state.parser, parse_json, NULL);
     json_message_parser_feed(&state.parser, string, strlen(string));
     json_message_parser_flush(&state.parser);
     json_message_parser_destroy(&state.parser);
