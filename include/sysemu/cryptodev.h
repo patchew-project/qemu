@@ -58,6 +58,7 @@ typedef struct CryptoDevBackend CryptoDevBackend;
 
 enum CryptoDevBackendAlgType {
     CRYPTODEV_BACKEND_ALG_SYM,
+    CRYPTODEV_BACKEND_ALG_SYM_STATELESS,
     CRYPTODEV_BACKEND_ALG__MAX,
 };
 
@@ -146,6 +147,20 @@ typedef struct CryptoDevBackendSymOpInfo {
     uint8_t data[0];
 } CryptoDevBackendSymOpInfo;
 
+/**
+ * CryptoDevBackendSymStatelessInfo:
+ *
+ * @session_info: session information, see above
+ *  CryptoDevBackendSymSessionInfo
+ * @op_info: crypto operation information, see above
+ *  CryptoDevBackendSymOpInfo, @session_id is ignored
+ *
+ **/
+typedef struct CryptoDevBackendSymStatelessInfo {
+    CryptoDevBackendSymSessionInfo session_info;
+    CryptoDevBackendSymOpInfo op_info;
+} CryptoDevBackendSymStatelessInfo;
+
 typedef struct CryptoDevBackendClass {
     ObjectClass parent_class;
 
@@ -160,6 +175,9 @@ typedef struct CryptoDevBackendClass {
                            uint32_t queue_index, Error **errp);
     int (*do_sym_op)(CryptoDevBackend *backend,
                      CryptoDevBackendSymOpInfo *op_info,
+                     uint32_t queue_index, Error **errp);
+    int (*do_sym_stateless_op)(CryptoDevBackend *backend,
+                     CryptoDevBackendSymStatelessInfo *op_info,
                      uint32_t queue_index, Error **errp);
 } CryptoDevBackendClass;
 
