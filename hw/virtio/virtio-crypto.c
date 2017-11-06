@@ -221,7 +221,6 @@ static void virtio_crypto_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
     struct iovec *out_iov;
     unsigned in_num;
     unsigned out_num;
-    uint32_t queue_id;
     uint32_t opcode;
     struct virtio_crypto_session_input input;
     int64_t session_id;
@@ -258,7 +257,6 @@ static void virtio_crypto_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
         iov_discard_front(&out_iov, &out_num, s);
 
         opcode = ldl_le_p(&hdr.opcode);
-        queue_id = ldl_le_p(&hdr.queue_id);
 
         switch (opcode) {
         case VIRTIO_CRYPTO_CIPHER_CREATE_SESSION:
@@ -277,8 +275,8 @@ static void virtio_crypto_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
 
             memset(&input, 0, sizeof(input));
             session_id = virtio_crypto_create_sym_session(vcrypto,
-                                            &req, queue_id, opcode,
-                                            out_iov, out_num);
+                                            &req, virtio_get_queue_index(vq),
+                                            opcode, out_iov, out_num);
             /* Serious errors, need to reset virtio crypto device */
             if (session_id == -EFAULT) {
                 virtqueue_detach_element(vq, elem, 0);
@@ -321,7 +319,7 @@ static void virtio_crypto_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
             }
 
             status = virtio_crypto_handle_close_session(vcrypto,
-                                                &req, queue_id);
+                                         &req, virtio_get_queue_index(vq));
             /* The status only occupy one byte, we can directly use it */
             s = iov_from_buf(in_iov, in_num, 0, &status, sizeof(status));
             if (unlikely(s != sizeof(status))) {

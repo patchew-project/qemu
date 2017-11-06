@@ -67,8 +67,7 @@ struct virtio_crypto_ctrl_header {
 	uint32_t opcode;
 	uint32_t algo;
 	uint32_t flag;
-	/* data virtqueue id */
-	uint32_t queue_id;
+	uint32_t reserved;
 };
 
 struct virtio_crypto_cipher_session_para {
