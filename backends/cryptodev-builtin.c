@@ -152,6 +152,66 @@ err:
    return -1;
 }
 
+static int
+cryptodev_builtin_get_cipher_alg_mode(
+                    CryptoDevBackendSymSessionInfo *sess_info,
+                    int *algo, int *mode,
+                    Error **errp)
+{
+    switch (sess_info->cipher_alg) {
+    case VIRTIO_CRYPTO_CIPHER_AES_ECB:
+        *mode = QCRYPTO_CIPHER_MODE_ECB;
+        *algo = cryptodev_builtin_get_aes_algo(sess_info->key_len,
+                                               *mode, errp);
+        if (*algo < 0)  {
+            return -1;
+        }
+        break;
+    case VIRTIO_CRYPTO_CIPHER_AES_CBC:
+        *mode = QCRYPTO_CIPHER_MODE_CBC;
+        *algo = cryptodev_builtin_get_aes_algo(sess_info->key_len,
+                                               *mode, errp);
+        if (*algo < 0)  {
+            return -1;
+        }
+        break;
+    case VIRTIO_CRYPTO_CIPHER_AES_CTR:
+        *mode = QCRYPTO_CIPHER_MODE_CTR;
+        *algo = cryptodev_builtin_get_aes_algo(sess_info->key_len,
+                                              *mode, errp);
+        if (*algo < 0)  {
+            return -1;
+        }
+        break;
+    case VIRTIO_CRYPTO_CIPHER_AES_XTS:
+        *mode = QCRYPTO_CIPHER_MODE_XTS;
+        *algo = cryptodev_builtin_get_aes_algo(sess_info->key_len,
+                                               *mode, errp);
+        if (*algo < 0)  {
+            return -1;
+        }
+        break;
+    case VIRTIO_CRYPTO_CIPHER_3DES_ECB:
+        *mode = QCRYPTO_CIPHER_MODE_ECB;
+        *algo = QCRYPTO_CIPHER_ALG_3DES;
+        break;
+    case VIRTIO_CRYPTO_CIPHER_3DES_CBC:
+        *mode = QCRYPTO_CIPHER_MODE_CBC;
+        *algo = QCRYPTO_CIPHER_ALG_3DES;
+        break;
+    case VIRTIO_CRYPTO_CIPHER_3DES_CTR:
+        *mode = QCRYPTO_CIPHER_MODE_CTR;
+        *algo = QCRYPTO_CIPHER_ALG_3DES;
+        break;
+    default:
+        error_setg(errp, "Unsupported cipher alg :%u",
+                   sess_info->cipher_alg);
+        return -1;
+    }
+
+    return 0;
+}
+
 static int cryptodev_builtin_create_cipher_session(
                     CryptoDevBackendBuiltin *builtin,
                     CryptoDevBackendSymSessionInfo *sess_info,
@@ -162,6 +222,7 @@ static int cryptodev_builtin_create_cipher_session(
     QCryptoCipher *cipher;
     int index;
     CryptoDevBackendBuiltinSession *sess;
+    int ret;
 
     if (sess_info->op_type != VIRTIO_CRYPTO_SYM_OP_CIPHER) {
         error_setg(errp, "Unsupported optype :%u", sess_info->op_type);
@@ -175,54 +236,9 @@ static int cryptodev_builtin_create_cipher_session(
         return -1;
     }
 
-    switch (sess_info->cipher_alg) {
-    case VIRTIO_CRYPTO_CIPHER_AES_ECB:
-        mode = QCRYPTO_CIPHER_MODE_ECB;
-        algo = cryptodev_builtin_get_aes_algo(sess_info->key_len,
-                                                    mode, errp);
-        if (algo < 0)  {
-            return -1;
-        }
-        break;
-    case VIRTIO_CRYPTO_CIPHER_AES_CBC:
-        mode = QCRYPTO_CIPHER_MODE_CBC;
-        algo = cryptodev_builtin_get_aes_algo(sess_info->key_len,
-                                                    mode, errp);
-        if (algo < 0)  {
-            return -1;
-        }
-        break;
-    case VIRTIO_CRYPTO_CIPHER_AES_CTR:
-        mode = QCRYPTO_CIPHER_MODE_CTR;
-        algo = cryptodev_builtin_get_aes_algo(sess_info->key_len,
-                                                    mode, errp);
-        if (algo < 0)  {
-            return -1;
-        }
-        break;
-    case VIRTIO_CRYPTO_CIPHER_AES_XTS:
-        mode = QCRYPTO_CIPHER_MODE_XTS;
-        algo = cryptodev_builtin_get_aes_algo(sess_info->key_len,
-                                                    mode, errp);
-        if (algo < 0)  {
-            return -1;
-        }
-        break;
-    case VIRTIO_CRYPTO_CIPHER_3DES_ECB:
-        mode = QCRYPTO_CIPHER_MODE_ECB;
-        algo = QCRYPTO_CIPHER_ALG_3DES;
-        break;
-    case VIRTIO_CRYPTO_CIPHER_3DES_CBC:
-        mode = QCRYPTO_CIPHER_MODE_CBC;
-        algo = QCRYPTO_CIPHER_ALG_3DES;
-        break;
-    case VIRTIO_CRYPTO_CIPHER_3DES_CTR:
-        mode = QCRYPTO_CIPHER_MODE_CTR;
-        algo = QCRYPTO_CIPHER_ALG_3DES;
-        break;
-    default:
-        error_setg(errp, "Unsupported cipher alg :%u",
-                   sess_info->cipher_alg);
+    ret = cryptodev_builtin_get_cipher_alg_mode(sess_info,
+                                                &algo, &mode, errp);
+    if (ret < 0) {
         return -1;
     }
 
