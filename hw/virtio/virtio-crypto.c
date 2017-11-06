@@ -663,6 +663,9 @@ virtio_crypto_handle_request(VirtIOCryptoReq *request)
     opcode = ldl_le_p(&hdr.opcode);
     session_id = ldq_le_p(&hdr.session_id);
 
+#define data_req_payload_size(vdev, req)                        \
+        (virtio_crypto_in_mux_mode((vdev)) ? sizeof((req)) :    \
+        VIRTIO_CRYPTO_DATA_REQ_PAYLOAD_SIZE_NONMUX)
     switch (opcode) {
     case VIRTIO_CRYPTO_CIPHER_ENCRYPT:
     case VIRTIO_CRYPTO_CIPHER_DECRYPT:
@@ -671,7 +674,7 @@ virtio_crypto_handle_request(VirtIOCryptoReq *request)
 
         iov_to_buf(out_iov, out_num, 0, &req, sizeof(req));
         /* The unused part of the req will be ingored */
-        s = VIRTIO_CRYPTO_DATA_REQ_PAYLOAD_SIZE_NONMUX;
+        s = data_req_payload_size(vdev, req);
         if (unlikely(s != iov_discard_front(&out_iov, &out_num, s))) {
             virtio_error(vdev, "virtio-crypto request additional "
                          "parameters too short");
@@ -718,6 +721,7 @@ virtio_crypto_handle_request(VirtIOCryptoReq *request)
         virtio_crypto_req_complete(request, VIRTIO_CRYPTO_NOTSUPP);
         virtio_crypto_free_request(request);
     }
+#undef data_req_payload_size
 
     return 0;
 }
