@@ -60,7 +60,9 @@ int qcrypto_hash_bytesv(QCryptoHashAlgorithm alg,
      * TODO:
      * Maybe we should treat some afalg errors as fatal
      */
-    error_free(*errp);
+    if (errp && *errp) {
+        error_free(*errp);
+    }
 #endif
 
     return qcrypto_hash_lib_driver.hash_bytesv(alg, iov, niov,
