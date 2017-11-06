@@ -379,18 +379,7 @@ struct virtio_crypto_aead_data_req {
 	uint8_t padding[32];
 };
 
-/* The request of the data virtqueue's packet */
-struct virtio_crypto_op_data_req {
-	struct virtio_crypto_op_header header;
-
-	union {
-		struct virtio_crypto_sym_data_req  sym_req;
-		struct virtio_crypto_hash_data_req hash_req;
-		struct virtio_crypto_mac_data_req mac_req;
-		struct virtio_crypto_aead_data_req aead_req;
-		uint8_t padding[48];
-	} u;
-};
+#define VIRTIO_CRYPTO_DATA_REQ_PAYLOAD_SIZE_NONMUX 48
 
 #define VIRTIO_CRYPTO_OK        0
 #define VIRTIO_CRYPTO_ERR       1

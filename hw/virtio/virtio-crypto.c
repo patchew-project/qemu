@@ -611,7 +611,7 @@ virtio_crypto_handle_request(VirtIOCryptoReq *request)
     VirtIODevice *vdev = VIRTIO_DEVICE(vcrypto);
     VirtQueueElement *elem = &request->elem;
     int queue_index = virtio_crypto_vq2q(virtio_get_queue_index(request->vq));
-    struct virtio_crypto_op_data_req req;
+    struct virtio_crypto_op_header hdr;
     int ret;
     struct iovec *in_iov;
     struct iovec *out_iov;
@@ -622,6 +622,7 @@ virtio_crypto_handle_request(VirtIOCryptoReq *request)
     uint64_t session_id;
     CryptoDevBackendSymOpInfo *sym_op_info = NULL;
     Error *local_err = NULL;
+    size_t s;
 
     if (elem->out_num < 1 || elem->in_num < 1) {
         virtio_error(vdev, "virtio-crypto dataq missing headers");
@@ -632,12 +633,13 @@ virtio_crypto_handle_request(VirtIOCryptoReq *request)
     out_iov = elem->out_sg;
     in_num = elem->in_num;
     in_iov = elem->in_sg;
-    if (unlikely(iov_to_buf(out_iov, out_num, 0, &req, sizeof(req))
-                != sizeof(req))) {
+
+    s = sizeof(hdr);
+    if (unlikely(s != iov_to_buf(out_iov, out_num, 0, &hdr, s))) {
         virtio_error(vdev, "virtio-crypto request outhdr too short");
         return -1;
     }
-    iov_discard_front(&out_iov, &out_num, sizeof(req));
+    iov_discard_front(&out_iov, &out_num, s);
 
     if (in_iov[in_num - 1].iov_len <
             sizeof(struct virtio_crypto_inhdr)) {
@@ -658,16 +660,27 @@ virtio_crypto_handle_request(VirtIOCryptoReq *request)
     request->in_num = in_num;
     request->in_iov = in_iov;
 
-    opcode = ldl_le_p(&req.header.opcode);
-    session_id = ldq_le_p(&req.header.session_id);
+    opcode = ldl_le_p(&hdr.opcode);
+    session_id = ldq_le_p(&hdr.session_id);
 
     switch (opcode) {
     case VIRTIO_CRYPTO_CIPHER_ENCRYPT:
     case VIRTIO_CRYPTO_CIPHER_DECRYPT:
-        ret = virtio_crypto_handle_sym_req(vcrypto,
-                         &req.u.sym_req,
-                         &sym_op_info,
-                         out_iov, out_num);
+    {
+        struct virtio_crypto_sym_data_req req;
+
+        iov_to_buf(out_iov, out_num, 0, &req, sizeof(req));
+        /* The unused part of the req will be ingored */
+        s = VIRTIO_CRYPTO_DATA_REQ_PAYLOAD_SIZE_NONMUX;
+        if (unlikely(s != iov_discard_front(&out_iov, &out_num, s))) {
+            virtio_error(vdev, "virtio-crypto request additional "
+                         "parameters too short");
+            return -1;
+        }
+
+        ret = virtio_crypto_handle_sym_req(vcrypto, &req,
+                                           &sym_op_info,
+                                           out_iov, out_num);
         /* Serious errors, need to reset virtio crypto device */
         if (ret == -EFAULT) {
             return -1;
@@ -694,6 +707,7 @@ virtio_crypto_handle_request(VirtIOCryptoReq *request)
             virtio_crypto_free_request(request);
         }
         break;
+    }
     case VIRTIO_CRYPTO_HASH:
     case VIRTIO_CRYPTO_MAC:
     case VIRTIO_CRYPTO_AEAD_ENCRYPT:
