@@ -234,24 +234,7 @@ struct virtio_crypto_destroy_session_req {
 	uint8_t padding[48];
 };
 
-/* The request of the control virtqueue's packet */
-struct virtio_crypto_op_ctrl_req {
-	struct virtio_crypto_ctrl_header header;
-
-	union {
-		struct virtio_crypto_sym_create_session_req
-			sym_create_session;
-		struct virtio_crypto_hash_create_session_req
-			hash_create_session;
-		struct virtio_crypto_mac_create_session_req
-			mac_create_session;
-		struct virtio_crypto_aead_create_session_req
-			aead_create_session;
-		struct virtio_crypto_destroy_session_req
-			destroy_session;
-		uint8_t padding[56];
-	} u;
-};
+#define VIRTIO_CRYPTO_CTRL_REQ_PAYLOAD_SIZE_NONMUX 56
 
 struct virtio_crypto_op_header {
 #define VIRTIO_CRYPTO_CIPHER_ENCRYPT \

@@ -210,7 +210,7 @@ virtio_crypto_handle_close_session(VirtIOCrypto *vcrypto,
 static void virtio_crypto_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
 {
     VirtIOCrypto *vcrypto = VIRTIO_CRYPTO(vdev);
-    struct virtio_crypto_op_ctrl_req ctrl;
+    struct virtio_crypto_ctrl_header hdr;
     VirtQueueElement *elem;
     struct iovec *in_iov;
     struct iovec *out_iov;
@@ -239,25 +239,38 @@ static void virtio_crypto_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
         out_iov = elem->out_sg;
         in_num = elem->in_num;
         in_iov = elem->in_sg;
-        if (unlikely(iov_to_buf(out_iov, out_num, 0, &ctrl, sizeof(ctrl))
-                    != sizeof(ctrl))) {
+
+        s = sizeof(hdr);
+        if (unlikely(s != iov_to_buf(out_iov, out_num, 0, &hdr, s))) {
             virtio_error(vdev, "virtio-crypto request ctrl_hdr too short");
             virtqueue_detach_element(vq, elem, 0);
             g_free(elem);
             break;
         }
-        iov_discard_front(&out_iov, &out_num, sizeof(ctrl));
+        iov_discard_front(&out_iov, &out_num, s);
 
-        opcode = ldl_le_p(&ctrl.header.opcode);
-        queue_id = ldl_le_p(&ctrl.header.queue_id);
+        opcode = ldl_le_p(&hdr.opcode);
+        queue_id = ldl_le_p(&hdr.queue_id);
 
         switch (opcode) {
         case VIRTIO_CRYPTO_CIPHER_CREATE_SESSION:
+        {
+            struct virtio_crypto_sym_create_session_req req;
+
+            iov_to_buf(out_iov, out_num, 0, &req, sizeof(req));
+            /* The unused part of the req will be ingored */
+            s = VIRTIO_CRYPTO_CTRL_REQ_PAYLOAD_SIZE_NONMUX;
+            if (unlikely(s != iov_discard_front(&out_iov, &out_num, s))) {
+                virtio_error(vdev, "virtio-crypto request additional "
+                             "parameters too short");
+                virtqueue_detach_element(vq, elem, 0);
+                break;
+            }
+
             memset(&input, 0, sizeof(input));
             session_id = virtio_crypto_create_sym_session(vcrypto,
-                             &ctrl.u.sym_create_session,
-                             queue_id, opcode,
-                             out_iov, out_num);
+                                            &req, queue_id, opcode,
+                                            out_iov, out_num);
             /* Serious errors, need to reset virtio crypto device */
             if (session_id == -EFAULT) {
                 virtqueue_detach_element(vq, elem, 0);
@@ -281,12 +294,26 @@ static void virtio_crypto_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
             virtqueue_push(vq, elem, sizeof(input));
             virtio_notify(vdev, vq);
             break;
+        }
         case VIRTIO_CRYPTO_CIPHER_DESTROY_SESSION:
         case VIRTIO_CRYPTO_HASH_DESTROY_SESSION:
         case VIRTIO_CRYPTO_MAC_DESTROY_SESSION:
         case VIRTIO_CRYPTO_AEAD_DESTROY_SESSION:
+        {
+            struct virtio_crypto_destroy_session_req req;
+
+            iov_to_buf(out_iov, out_num, 0, &req, sizeof(req));
+            /* The unused part of the req will be ingored */
+            s = VIRTIO_CRYPTO_CTRL_REQ_PAYLOAD_SIZE_NONMUX;
+            if (unlikely(s != iov_discard_front(&out_iov, &out_num, s))) {
+                virtio_error(vdev, "virtio-crypto request additional "
+                             "parameters too short");
+                virtqueue_detach_element(vq, elem, 0);
+                break;
+            }
+
             status = virtio_crypto_handle_close_session(vcrypto,
-                   &ctrl.u.destroy_session, queue_id);
+                                                &req, queue_id);
             /* The status only occupy one byte, we can directly use it */
             s = iov_from_buf(in_iov, in_num, 0, &status, sizeof(status));
             if (unlikely(s != sizeof(status))) {
@@ -297,6 +324,7 @@ static void virtio_crypto_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
             virtqueue_push(vq, elem, sizeof(status));
             virtio_notify(vdev, vq);
             break;
+        }
         case VIRTIO_CRYPTO_HASH_CREATE_SESSION:
         case VIRTIO_CRYPTO_MAC_CREATE_SESSION:
         case VIRTIO_CRYPTO_AEAD_CREATE_SESSION:
