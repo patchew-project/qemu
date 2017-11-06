@@ -657,6 +657,9 @@ struct ARMCPU {
     /* Should CPU start in PSCI powered-off state? */
     bool start_powered_off;
 
+    /* GICv3 sysregs present */
+    bool gicv3_sysregs;
+
     /* Current power state, access guarded by BQL */
     ARMPSCIState power_state;
 
