@@ -418,6 +418,12 @@ static int raw_open(BlockDriverState *bs, QDict *options, int flags,
         bs->file->bs->supported_write_flags;
     bs->supported_zero_flags = (BDRV_REQ_FUA | BDRV_REQ_MAY_UNMAP) &
         bs->file->bs->supported_zero_flags;
+    if (bdrv_is_read_only(bs->file->bs)) {
+        ret = bdrv_set_read_only(bs, true, errp);
+        if (ret < 0) {
+            return ret;
+        }
+    }
 
     if (bs->probed && !bdrv_is_read_only(bs)) {
         fprintf(stderr,
