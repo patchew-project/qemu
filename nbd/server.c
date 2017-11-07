@@ -1328,12 +1328,14 @@ static int coroutine_fn nbd_co_send_sparse_read(NBDClient *client,
                                              offset + progress,
                                              size - progress, &pnum, NULL,
                                              NULL);
+        bool final;
 
         if (status < 0) {
             error_setg_errno(errp, -status, "unable to check for holes");
             return status;
         }
         assert(pnum && pnum <= size - progress);
+        final = progress + pnum == size;
         if (status & BDRV_BLOCK_ZERO) {
             NBDStructuredReadHole chunk;
             struct iovec iov[] = {
@@ -1342,7 +1344,8 @@ static int coroutine_fn nbd_co_send_sparse_read(NBDClient *client,
 
             trace_nbd_co_send_structured_read_hole(handle, offset + progress,
                                                    pnum);
-            set_be_chunk(&chunk.h, 0, NBD_REPLY_TYPE_OFFSET_HOLE,
+            set_be_chunk(&chunk.h, final ? NBD_REPLY_FLAG_DONE : 0,
+                         NBD_REPLY_TYPE_OFFSET_HOLE,
                          handle, sizeof(chunk) - sizeof(chunk.h));
             stq_be_p(&chunk.offset, offset + progress);
             stl_be_p(&chunk.length, pnum);
@@ -1355,7 +1358,7 @@ static int coroutine_fn nbd_co_send_sparse_read(NBDClient *client,
                 break;
             }
             ret = nbd_co_send_structured_read(client, handle, offset + progress,
-                                              data + progress, pnum, false,
+                                              data + progress, pnum, final,
                                               errp);
         }
 
@@ -1363,9 +1366,6 @@ static int coroutine_fn nbd_co_send_sparse_read(NBDClient *client,
             break;
         }
         progress += pnum;
-    }
-    if (!ret) {
-        ret = nbd_co_send_structured_done(client, handle, errp);
     }
     return ret;
 }
@@ -1531,7 +1531,8 @@ static coroutine_fn void nbd_trip(void *opaque)
             }
         }
 
-        if (client->structured_reply && !(request.flags & NBD_CMD_FLAG_DF)) {
+        if (client->structured_reply && !(request.flags & NBD_CMD_FLAG_DF) &&
+            request.len) {
             ret = nbd_co_send_sparse_read(req->client, request.handle,
                                           request.from, req->data, request.len,
                                           &local_err);
