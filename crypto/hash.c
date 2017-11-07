@@ -51,16 +51,10 @@ int qcrypto_hash_bytesv(QCryptoHashAlgorithm alg,
 
     ret = qcrypto_hash_afalg_driver.hash_bytesv(alg, iov, niov,
                                                 result, resultlen,
-                                                errp);
+                                                NULL);
     if (ret == 0) {
         return ret;
     }
-
-    /*
-     * TODO:
-     * Maybe we should treat some afalg errors as fatal
-     */
-    error_free(*errp);
 #endif
 
     return qcrypto_hash_lib_driver.hash_bytesv(alg, iov, niov,
