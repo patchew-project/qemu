@@ -357,16 +357,20 @@ bool cpu_restore_state(CPUState *cpu, uintptr_t retaddr)
     TranslationBlock *tb;
     bool r = false;
 
-    /* A retaddr of zero is invalid so we really shouldn't have ended
-     * up here. The target code has likely forgotten to check retaddr
-     * != 0 before attempting to restore state. We return early to
-     * avoid blowing up on a recursive tb_lock(). The target must have
-     * previously survived a failed cpu_restore_state because
-     * tb_find_pc(0) would have failed anyway. It still should be
-     * fixed though.
+    /* The retaddr has to be in the region of current code buffer. If
+     * it's not we will not be able to resolve it here. If it is zero
+     * the calling code has likely forgotten to check retaddr before
+     * calling here. If it is not in the translated code we could be
+     * faulting during translation itself.
+     *
+     * Either way we need return early to avoid blowing up on a
+     * recursive tb_lock() as we can't resolve it here.
      */
 
-    if (!retaddr) {
+    if (!retaddr ||
+        (retaddr < (uintptr_t) tcg_init_ctx.code_gen_buffer) ||
+        (retaddr > (uintptr_t) (tcg_init_ctx.code_gen_buffer +
+                                tcg_init_ctx.code_gen_buffer_size))) {
         return r;
     }
 
