@@ -83,12 +83,28 @@ typedef struct BDRVSSHState {
     bool unsafe_flush_warning;
 } BDRVSSHState;
 
-static void ssh_state_init(BDRVSSHState *s)
+static bool ssh_libinit_called;
+
+static int ssh_state_init(BDRVSSHState *s, Error **errp)
 {
+    int ret;
+
+    if (!ssh_libinit_called) {
+        ret = libssh2_init(0);
+        if (ret) {
+            error_setg(errp, "libssh2 initialization failed with %d", ret);
+            return ret;
+        }
+        ssh_libinit_called = true;
+    }
+
+
     memset(s, 0, sizeof *s);
     s->sock = -1;
     s->offset = -1;
     qemu_co_mutex_init(&s->lock);
+
+    return 0;
 }
 
 static void ssh_state_free(BDRVSSHState *s)
@@ -773,7 +789,9 @@ static int ssh_file_open(BlockDriverState *bs, QDict *options, int bdrv_flags,
     int ret;
     int ssh_flags;
 
-    ssh_state_init(s);
+    if (ssh_state_init(s, errp)) {
+        return -EIO;
+    }
 
     ssh_flags = LIBSSH2_FXF_READ;
     if (bdrv_flags & BDRV_O_RDWR) {
@@ -821,8 +839,13 @@ static int ssh_create(const char *filename, QemuOpts *opts, Error **errp)
     BDRVSSHState s;
     ssize_t r2;
     char c[1] = { '\0' };
+    Error *local_err = NULL;
 
-    ssh_state_init(&s);
+    ret = ssh_state_init(&s, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return ret;
+    }
 
     /* Get desired file size. */
     total_size = ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),
@@ -1213,14 +1236,6 @@ static BlockDriver bdrv_ssh = {
 
 static void bdrv_ssh_init(void)
 {
-    int r;
-
-    r = libssh2_init(0);
-    if (r != 0) {
-        fprintf(stderr, "libssh2 initialization failed, %d\n", r);
-        exit(EXIT_FAILURE);
-    }
-
     bdrv_register(&bdrv_ssh);
 }
 
