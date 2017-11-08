@@ -78,6 +78,14 @@ static const int spi_intr[XLNX_ZYNQMP_NUM_SPIS] = {
     19, 20,
 };
 
+static const uint64_t ttc_addr[XLNX_ZYNQMP_NUM_TTC] = {
+    0xFF110000, 0xFF120000, 0xFF130000, 0xFF140000,
+};
+
+static const uint64_t ttc_intr[XLNX_ZYNQMP_NUM_TTC] = {
+    36, 39, 42, 45,
+};
+
 typedef struct XlnxZynqMPGICRegion {
     int region_index;
     uint32_t address;
@@ -174,6 +182,11 @@ static void xlnx_zynqmp_init(Object *obj)
 
     object_initialize(&s->dpdma, sizeof(s->dpdma), TYPE_XLNX_DPDMA);
     qdev_set_parent_bus(DEVICE(&s->dpdma), sysbus_get_default());
+
+    for (i = 0; i < XLNX_ZYNQMP_NUM_TTC; i++) {
+        object_initialize(&s->ttc[i], sizeof(s->ttc[i]), TYPE_CADENCE_TTC);
+        qdev_set_parent_bus(DEVICE(&s->ttc[i]), sysbus_get_default());
+    }
 }
 
 static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
@@ -422,6 +435,18 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
                              &error_abort);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->dpdma), 0, DPDMA_ADDR);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->dpdma), 0, gic_spi[DPDMA_IRQ]);
+
+    for (i = 0; i < XLNX_ZYNQMP_NUM_TTC; i++) {
+        object_property_set_bool(OBJECT(&s->ttc[i]), true, "realized", &err);
+
+        if (err) {
+            error_propagate(errp, err);
+            return;
+        }
+        sysbus_mmio_map(SYS_BUS_DEVICE(&s->ttc[i]), 0, ttc_addr[i]);
+        sysbus_connect_irq(SYS_BUS_DEVICE(&s->ttc[i]), 0,
+                           gic_spi[ttc_intr[i]]);
+    }
 }
 
 static Property xlnx_zynqmp_props[] = {
