@@ -941,6 +941,7 @@ static void pc_i440fx_0_11_machine_options(MachineClass *m)
     pc_i440fx_0_12_machine_options(m);
     m->hw_version = "0.11";
     SET_MACHINE_COMPAT(m, PC_COMPAT_0_11);
+    m->deprecated_reason = "Too old";
 }
 
 DEFINE_I440FX_MACHINE(v0_11, "pc-0.11", pc_compat_0_13,
@@ -976,6 +977,7 @@ static void pc_i440fx_0_10_machine_options(MachineClass *m)
     pc_i440fx_0_11_machine_options(m);
     m->hw_version = "0.10";
     SET_MACHINE_COMPAT(m, PC_COMPAT_0_10);
+    m->deprecated_reason = "Too old";
 }
 
 DEFINE_I440FX_MACHINE(v0_10, "pc-0.10", pc_compat_0_13,
