@@ -18,7 +18,6 @@
 
 /* Protection Key Register */
 #define R_PROT            (0x00 / 4)
-#define   PROT_KEY_UNLOCK     0xFC600309
 
 /* Configuration Register */
 #define R_CONF            (0x04 / 4)

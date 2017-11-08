@@ -16,6 +16,8 @@
 
 #define ASPEED_SDMC_NR_REGS (0x8 >> 2)
 
+#define PROT_KEY_UNLOCK 0xFC600309
+
 typedef struct AspeedSDMCState {
     /*< private >*/
     SysBusDevice parent_obj;
