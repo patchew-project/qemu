@@ -182,6 +182,7 @@ struct MachineClass {
     const char *default_boot_order;
     const char *default_display;
     GArray *compat_props;
+    const char *deprecated_reason;
     const char *hw_version;
     ram_addr_t default_ram_size;
     const char *default_cpu_type;

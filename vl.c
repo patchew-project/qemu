@@ -2742,6 +2742,10 @@ static gint machine_class_cmp(gconstpointer a, gconstpointer b)
     }
     if (mc) {
         g_slist_free(machines);
+        if (mc->deprecated_reason) {
+            warn_report("The %s machine is deprecated (%s)",
+                        mc->desc, mc->deprecated_reason);
+        }
         return mc;
     }
     if (name && !is_help_option(name)) {
@@ -2752,6 +2756,9 @@ static gint machine_class_cmp(gconstpointer a, gconstpointer b)
         machines = g_slist_sort(machines, machine_class_cmp);
         for (el = machines; el; el = el->next) {
             MachineClass *mc = el->data;
+            if (mc->deprecated_reason) {
+                continue;
+            }
             if (mc->alias) {
                 printf("%-20s %s (alias of %s)\n", mc->alias, mc->desc, mc->name);
             }
