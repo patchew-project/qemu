@@ -95,6 +95,9 @@ struct TPMState {
     char *backend;
     TPMBackend *be_driver;
     TPMVersion be_tpm_version;
+
+    unsigned int established_flag:1;
+    unsigned int established_flag_cached:1;
 };
 
 #define TPM(obj) OBJECT_CHECK(TPMState, (obj), TYPE_TPM_TIS)
@@ -529,6 +532,26 @@ static void tpm_tis_dump_state(void *opaque, hwaddr addr)
 }
 #endif
 
+static void tpm_tis_reset_tpm_established_flag(TPMState *s,
+                                               uint8_t locty)
+{
+    s->established_flag_cached = 0;
+
+    tpm_backend_reset_tpm_established_flag(s->be_driver, locty);
+}
+
+static unsigned int tpm_tis_get_tpm_established_flag(TPMState *s)
+{
+    if (s->established_flag_cached) {
+        return s->established_flag;
+    }
+
+    s->established_flag = !tpm_backend_get_tpm_established_flag(s->be_driver);
+    s->established_flag_cached = 1;
+
+    return s->established_flag;
+}
+
 /*
  * Read a register of the TIS interface
  * See specs pages 33-63 for description of the registers
@@ -556,7 +579,7 @@ static uint64_t tpm_tis_mmio_read(void *opaque, hwaddr addr,
         if (tpm_tis_check_request_use_except(s, locty)) {
             val |= TPM_TIS_ACCESS_PENDING_REQUEST;
         }
-        val |= !tpm_backend_get_tpm_established_flag(s->be_driver);
+        val |= tpm_tis_get_tpm_established_flag(s);
         break;
     case TPM_TIS_REG_INT_ENABLE:
         val = s->loc[locty].inte;
@@ -840,7 +863,7 @@ static void tpm_tis_mmio_write(void *opaque, hwaddr addr,
 
             if (val & TPM_TIS_STS_RESET_ESTABLISHMENT_BIT) {
                 if (locty == 3 || locty == 4) {
-                    tpm_backend_reset_tpm_established_flag(s->be_driver, locty);
+                    tpm_tis_reset_tpm_established_flag(s, locty);
                 }
             }
         }
