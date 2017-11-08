@@ -164,6 +164,8 @@ static void xlnx_ep108_init(MachineState *machine)
 {
     XlnxZCU102 *s = EP108_MACHINE(machine);
 
+    info_report("Please use the ZCU102 machine instead of this machine.");
+
     xlnx_zynqmp_init(s, machine);
 }
 
@@ -180,11 +182,13 @@ static void xlnx_ep108_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
-    mc->desc = "Xilinx ZynqMP EP108 board (Deprecated, please use xlnx-zcu102)";
+    mc->desc = "Xilinx ZynqMP EP108 board";
     mc->init = xlnx_ep108_init;
     mc->block_default_type = IF_IDE;
     mc->units_per_default_bus = 1;
     mc->ignore_memory_transaction_failures = true;
+    mc->deprecated_reason =
+        "The ZCU102 machine has the same features supported";
 }
 
 static const TypeInfo xlnx_ep108_machine_init_typeinfo = {
