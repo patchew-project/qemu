@@ -31,9 +31,7 @@ raise_exception_sync_internal(CPUTriCoreState *env, uint32_t class, int tin,
 {
     CPUState *cs = CPU(tricore_env_get_cpu(env));
     /* in case we come from a helper-call we need to restore the PC */
-    if (pc) {
-        cpu_restore_state(cs, pc);
-    }
+    cpu_restore_state(cs, pc);
 
     /* Tin is loaded into d[15] */
     env->gpr_d[15] = tin;
@@ -2804,11 +2802,8 @@ static inline void QEMU_NORETURN do_raise_exception_err(CPUTriCoreState *env,
     CPUState *cs = CPU(tricore_env_get_cpu(env));
     cs->exception_index = exception;
     env->error_code = error_code;
-
-    if (pc) {
-        /* now we have a real cpu fault */
-        cpu_restore_state(cs, pc);
-    }
+    /* now we have a real cpu fault */
+    cpu_restore_state(cs, pc);
 
     cpu_loop_exit(cs);
 }

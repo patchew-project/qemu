@@ -175,11 +175,8 @@ void tlb_fill(CPUState *cs, target_ulong addr, MMUAccessType access_type,
     if (unlikely(ret)) {
         ARMCPU *cpu = ARM_CPU(cs);
         uint32_t fsc;
-
-        if (retaddr) {
-            /* now we have a real cpu fault */
-            cpu_restore_state(cs, retaddr);
-        }
+        /* now we have a real cpu fault */
+        cpu_restore_state(cs, retaddr);
 
         if (fsr & (1 << 9)) {
             /* LPAE format fault status register : bottom 6 bits are
@@ -210,11 +207,8 @@ void arm_cpu_do_unaligned_access(CPUState *cs, vaddr vaddr,
     uint32_t fsr, fsc;
     ARMMMUFaultInfo fi = {};
     ARMMMUIdx arm_mmu_idx = core_to_arm_mmu_idx(env, mmu_idx);
-
-    if (retaddr) {
         /* now we have a real cpu fault */
-        cpu_restore_state(cs, retaddr);
-    }
+    cpu_restore_state(cs, retaddr);
 
     /* the DFSR for an alignment fault depends on whether we're using
      * the LPAE long descriptor format, or the short descriptor format
@@ -244,11 +238,8 @@ void arm_cpu_do_transaction_failed(CPUState *cs, hwaddr physaddr,
     uint32_t fsr, fsc;
     ARMMMUFaultInfo fi = {};
     ARMMMUIdx arm_mmu_idx = core_to_arm_mmu_idx(env, mmu_idx);
-
-    if (retaddr) {
         /* now we have a real cpu fault */
-        cpu_restore_state(cs, retaddr);
-    }
+    cpu_restore_state(cs, retaddr);
 
     /* The EA bit in syndromes and fault status registers is an
      * IMPDEF classification of external aborts. ARM implementations
