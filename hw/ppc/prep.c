@@ -682,6 +682,7 @@ static void prep_machine_init(MachineClass *mc)
     mc->max_cpus = MAX_CPUS;
     mc->default_boot_order = "cad";
     mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("602");
+    mc->deprecated_reason = "Obsoleted by the \"40p\" machine";
 }
 
 static int prep_set_cmos_checksum(DeviceState *dev, void *opaque)
