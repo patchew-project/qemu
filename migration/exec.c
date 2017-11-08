@@ -52,7 +52,11 @@ static gboolean exec_accept_incoming_migration(QIOChannel *ioc,
     return G_SOURCE_REMOVE;
 }
 
-void exec_start_incoming_migration(const char *command, Error **errp)
+/*
+ * Returns the tag ID of the watch that is attached to global main
+ * loop (>0), or zero if failure detected.
+ */
+guint exec_start_incoming_migration(const char *command, Error **errp)
 {
     QIOChannel *ioc;
     const char *argv[] = { "/bin/sh", "-c", command, NULL };
@@ -62,13 +66,13 @@ void exec_start_incoming_migration(const char *command, Error **errp)
                                                     O_RDWR,
                                                     errp));
     if (!ioc) {
-        return;
+        return 0;
     }
 
     qio_channel_set_name(ioc, "migration-exec-incoming");
-    qio_channel_add_watch(ioc,
-                          G_IO_IN,
-                          exec_accept_incoming_migration,
-                          NULL,
-                          NULL);
+    return qio_channel_add_watch(ioc,
+                                 G_IO_IN,
+                                 exec_accept_incoming_migration,
+                                 NULL,
+                                 NULL);
 }
