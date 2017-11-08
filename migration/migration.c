@@ -2843,6 +2843,7 @@ static void migration_instance_finalize(Object *obj)
     g_free(params->tls_hostname);
     g_free(params->tls_creds);
     qemu_sem_destroy(&ms->pause_sem);
+    qemu_sem_destroy(&ms->rp_state.rp_sem);
 }
 
 static void migration_instance_init(Object *obj)
@@ -2871,6 +2872,8 @@ static void migration_instance_init(Object *obj)
     params->has_x_multifd_channels = true;
     params->has_x_multifd_page_count = true;
     params->has_xbzrle_cache_size = true;
+
+    qemu_sem_init(&ms->rp_state.rp_sem, 0);
 }
 
 /*
