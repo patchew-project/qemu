@@ -104,11 +104,15 @@ static void q35_host_get_pci_hole64_start(Object *obj, Visitor *v,
                                           Error **errp)
 {
     PCIHostState *h = PCI_HOST_BRIDGE(obj);
+    Q35PCIHost *s = Q35_HOST_DEVICE(obj);
     Range w64;
     uint64_t value;
 
     pci_bus_get_w64_range(h->bus, &w64);
     value = range_is_empty(&w64) ? 0 : range_lob(&w64);
+    if (!value && s->pci_hole64_fix) {
+        value = pc_pci_hole64_start();
+    }
     visit_type_uint64(v, name, &value, errp);
 }
 
@@ -117,11 +121,16 @@ static void q35_host_get_pci_hole64_end(Object *obj, Visitor *v,
                                         Error **errp)
 {
     PCIHostState *h = PCI_HOST_BRIDGE(obj);
+    Q35PCIHost *s = Q35_HOST_DEVICE(obj);
+    uint64_t hole64_start = pc_pci_hole64_start();
     Range w64;
     uint64_t value;
 
     pci_bus_get_w64_range(h->bus, &w64);
     value = range_is_empty(&w64) ? 0 : range_upb(&w64) + 1;
+    if (s->pci_hole64_fix && value < (hole64_start + s->mch.pci_hole64_size)) {
+        value = hole64_start + s->mch.pci_hole64_size;
+    }
     visit_type_uint64(v, name, &value, errp);
 }
 
@@ -136,13 +145,15 @@ static void q35_host_get_mmcfg_size(Object *obj, Visitor *v, const char *name,
 static Property q35_host_props[] = {
     DEFINE_PROP_UINT64(PCIE_HOST_MCFG_BASE, Q35PCIHost, parent_obj.base_addr,
                         MCH_HOST_BRIDGE_PCIEXBAR_DEFAULT),
+    /* The default value is overriden in q35_host_initfn */
     DEFINE_PROP_SIZE(PCI_HOST_PROP_PCI_HOLE64_SIZE, Q35PCIHost,
-                     mch.pci_hole64_size, DEFAULT_PCI_HOLE64_SIZE),
+                     mch.pci_hole64_size, 1ULL << 35),
     DEFINE_PROP_UINT32("short_root_bus", Q35PCIHost, mch.short_root_bus, 0),
     DEFINE_PROP_SIZE(PCI_HOST_BELOW_4G_MEM_SIZE, Q35PCIHost,
                      mch.below_4g_mem_size, 0),
     DEFINE_PROP_SIZE(PCI_HOST_ABOVE_4G_MEM_SIZE, Q35PCIHost,
                      mch.above_4g_mem_size, 0),
+    DEFINE_PROP_BOOL("x-pci-hole64-fix", Q35PCIHost, pci_hole64_fix, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -174,7 +185,9 @@ static void q35_host_initfn(Object *obj)
     object_property_add_child(OBJECT(s), "mch", OBJECT(&s->mch), NULL);
     qdev_prop_set_int32(DEVICE(&s->mch), "addr", PCI_DEVFN(0, 0));
     qdev_prop_set_bit(DEVICE(&s->mch), "multifunction", false);
-
+    /* mch's object_initialize resets the default value, set it again */
+    qdev_prop_set_uint64(DEVICE(s), PCI_HOST_PROP_PCI_HOLE64_SIZE,
+                         1ULL << 35);
     object_property_add(obj, PCI_HOST_PROP_PCI_HOLE_START, "uint32",
                         q35_host_get_pci_hole_start,
                         NULL, NULL, NULL, NULL);
