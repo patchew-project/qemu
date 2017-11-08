@@ -1114,6 +1114,7 @@ static void isapc_machine_options(MachineClass *m)
     pcmc->smbios_legacy_mode = true;
     pcmc->has_reserved_memory = false;
     m->default_cpu_type = X86_CPU_TYPE_NAME("486");
+    m->deprecated_reason = "Use the \"pc\" machine instead";
 }
 
 DEFINE_PC_MACHINE(isapc, "isapc", pc_init_isa,
