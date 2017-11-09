@@ -1532,6 +1532,7 @@ static bool spapr_vga_init(PCIBus *pci_bus, Error **errp)
 static int spapr_post_load(void *opaque, int version_id)
 {
     sPAPRMachineState *spapr = (sPAPRMachineState *)opaque;
+    sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
     int err = 0;
 
     if (!object_dynamic_cast(OBJECT(spapr->ics), TYPE_ICS_KVM)) {
@@ -1562,6 +1563,20 @@ static int spapr_post_load(void *opaque, int version_id)
         }
     }
 
+    /*
+     * Synchronize the IRQ number bitmap with the ICSIRQState array
+     * coming from an older pseries machine
+     */
+    if (!smc->has_irq_bitmap) {
+        int srcno;
+
+        for (srcno = 0; srcno < spapr->ics->nr_irqs; srcno++) {
+            if (spapr->ics->irqs[srcno].flags & XICS_FLAGS_IRQ_MASK &&
+                !test_bit(srcno, spapr->irq_map)) {
+                bitmap_set(spapr->irq_map, srcno, 1);
+            }
+        }
+    }
     return err;
 }
 
@@ -1681,6 +1696,30 @@ static const VMStateDescription vmstate_spapr_patb_entry = {
     },
 };
 
+static bool spapr_irq_map_needed(void *opaque)
+{
+    sPAPRMachineState *spapr = opaque;
+    sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
+
+    /* Never transfer the bitmap on older machines, it doesn't exist */
+    if (!smc->has_irq_bitmap) {
+        return false;
+    }
+
+    return true;
+}
+
+static const VMStateDescription vmstate_spapr_irq_map = {
+    .name = "spapr_irq_map",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .needed = spapr_irq_map_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_BITMAP(irq_map, sPAPRMachineState, 0, nr_irqs),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 static const VMStateDescription vmstate_spapr = {
     .name = "spapr",
     .version_id = 3,
@@ -1700,6 +1739,7 @@ static const VMStateDescription vmstate_spapr = {
         &vmstate_spapr_ov5_cas,
         &vmstate_spapr_patb_entry,
         &vmstate_spapr_pending_events,
+        &vmstate_spapr_irq_map,
         NULL
     }
 };
@@ -2337,8 +2377,12 @@ static void ppc_spapr_init(MachineState *machine)
     /* Setup a load limit for the ramdisk leaving room for SLOF and FDT */
     load_limit = MIN(spapr->rma_size, RTAS_MAX_ADDR) - FW_OVERHEAD;
 
+    /* Initialize the IRQ allocator */
+    spapr->nr_irqs  = XICS_IRQS_SPAPR;
+    spapr->irq_map  = bitmap_new(spapr->nr_irqs);
+
     /* Set up Interrupt Controller before we create the VCPUs */
-    xics_system_init(machine, XICS_IRQS_SPAPR, &error_fatal);
+    xics_system_init(machine, spapr->nr_irqs, &error_fatal);
 
     /* Set up containers for ibm,client-architecture-support negotiated options
      */
@@ -3536,50 +3580,37 @@ static ICPState *spapr_icp_get(XICSFabric *xi, int vcpu_id)
     return cpu ? ICP(cpu->intc) : NULL;
 }
 
-#define ICS_IRQ_FREE(ics, srcno)   \
-    (!((ics)->irqs[(srcno)].flags & (XICS_FLAGS_IRQ_MASK)))
-
-static int ics_find_free_block(ICSState *ics, int num, int alignnum)
-{
-    int first, i;
-
-    for (first = 0; first < ics->nr_irqs; first += alignnum) {
-        if (num > (ics->nr_irqs - first)) {
-            return -1;
-        }
-        for (i = first; i < first + num; ++i) {
-            if (!ICS_IRQ_FREE(ics, i)) {
-                break;
-            }
-        }
-        if (i == (first + num)) {
-            return first;
-        }
-    }
-
-    return -1;
-}
-
 static bool spapr_irq_test(XICSFabric *xi, int irq)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(xi);
     ICSState *ics = spapr->ics;
     int srcno = irq - ics->offset;
 
-    return ICS_IRQ_FREE(ics, srcno);
+    return test_bit(srcno, spapr->irq_map);
 }
 
 static int spapr_irq_alloc_block(XICSFabric *xi, int count, int align)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(xi);
     ICSState *ics = spapr->ics;
+    int start = 0;
     int srcno;
 
-    srcno = ics_find_free_block(ics, count, align);
-    if (srcno == -1) {
+    /*
+     * The 'align_mask' parameter of bitmap_find_next_zero_area()
+     * should be one less than a power of 2; 0 means no
+     * alignment. Adapt the 'align' value of the former allocator to
+     * fit the requirements of bitmap_find_next_zero_area()
+     */
+    align -= 1;
+
+    srcno = bitmap_find_next_zero_area(spapr->irq_map, spapr->nr_irqs, start,
+                                       count, align);
+    if (srcno == spapr->nr_irqs) {
         return -1;
     }
 
+    bitmap_set(spapr->irq_map, srcno, count);
     return srcno + ics->offset;
 }
 
@@ -3593,11 +3624,11 @@ static void spapr_irq_free_block(XICSFabric *xi, int irq, int num)
     if (ics_valid_irq(ics, irq)) {
         trace_spapr_irq_free(0, irq, num);
         for (i = srcno; i < srcno + num; ++i) {
-            if (ICS_IRQ_FREE(ics, i)) {
+            if (!test_bit(i, spapr->irq_map)) {
                 trace_spapr_irq_free_warn(0, i + ics->offset);
             }
-            memset(&ics->irqs[i], 0, sizeof(ICSIRQState));
         }
+        bitmap_clear(spapr->irq_map, srcno, num);
     }
 }
 
@@ -3679,6 +3710,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     hc->unplug_request = spapr_machine_device_unplug_request;
 
     smc->dr_lmb_enabled = true;
+    smc->has_irq_bitmap = true;
     mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("power8_v2.0");
     mc->has_hotpluggable_cpus = true;
     smc->resize_hpt_default = SPAPR_RESIZE_HPT_ENABLED;
@@ -3778,7 +3810,10 @@ static void spapr_machine_2_11_instance_options(MachineState *machine)
 
 static void spapr_machine_2_11_class_options(MachineClass *mc)
 {
-    /* Defaults for the latest behaviour inherited from the base class */
+    sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
+
+    spapr_machine_2_12_class_options(mc);
+    smc->has_irq_bitmap = false;
 }
 
 DEFINE_SPAPR_MACHINE(2_11, "2.11", false);
