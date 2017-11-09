@@ -340,7 +340,10 @@ void bdrv_drain_all_begin(void)
     bool waited = true;
     BlockDriverState *bs;
     BdrvNextIterator it;
-    GSList *aio_ctxs = NULL, *ctx;
+    GSList *aio_ctxs = NULL, *ctx, *bs_list = NULL, *bs_list_entry;
+
+    /* Must be called from the main loop */
+    assert(qemu_get_current_aio_context() == qemu_get_aio_context());
 
     block_job_pause_all();
 
@@ -355,6 +358,12 @@ void bdrv_drain_all_begin(void)
         if (!g_slist_find(aio_ctxs, aio_context)) {
             aio_ctxs = g_slist_prepend(aio_ctxs, aio_context);
         }
+
+        /* Keep a strong reference to all root BDS and copy them into
+         * an own list because draining them may lead to graph
+         * modifications. */
+        bdrv_ref(bs);
+        bs_list = g_slist_prepend(bs_list, bs);
     }
 
     /* Note that completion of an asynchronous I/O operation can trigger any
@@ -370,7 +379,11 @@ void bdrv_drain_all_begin(void)
             AioContext *aio_context = ctx->data;
 
             aio_context_acquire(aio_context);
-            for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
+            for (bs_list_entry = bs_list; bs_list_entry;
+                 bs_list_entry = bs_list_entry->next)
+            {
+                bs = bs_list_entry->data;
+
                 if (aio_context == bdrv_get_aio_context(bs)) {
                     waited |= bdrv_drain_recurse(bs, true);
                 }
@@ -379,23 +392,51 @@ void bdrv_drain_all_begin(void)
         }
     }
 
+    for (bs_list_entry = bs_list; bs_list_entry;
+         bs_list_entry = bs_list_entry->next)
+    {
+        bdrv_unref(bs_list_entry->data);
+    }
+
     g_slist_free(aio_ctxs);
+    g_slist_free(bs_list);
 }
 
 void bdrv_drain_all_end(void)
 {
     BlockDriverState *bs;
     BdrvNextIterator it;
+    GSList *bs_list = NULL, *bs_list_entry;
 
+    /* Must be called from the main loop */
+    assert(qemu_get_current_aio_context() == qemu_get_aio_context());
+
+    /* Keep a strong reference to all root BDS and copy them into an
+     * own list because draining them may lead to graph modifications.
+     */
     for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
-        AioContext *aio_context = bdrv_get_aio_context(bs);
+        bdrv_ref(bs);
+        bs_list = g_slist_prepend(bs_list, bs);
+    }
+
+    for (bs_list_entry = bs_list; bs_list_entry;
+         bs_list_entry = bs_list_entry->next)
+    {
+        AioContext *aio_context;
+
+        bs = bs_list_entry->data;
+        aio_context = bdrv_get_aio_context(bs);
 
         aio_context_acquire(aio_context);
         aio_enable_external(aio_context);
         bdrv_parent_drained_end(bs);
         bdrv_drain_recurse(bs, false);
         aio_context_release(aio_context);
+
+        bdrv_unref(bs);
     }
+
+    g_slist_free(bs_list);
 
     block_job_resume_all();
 }
