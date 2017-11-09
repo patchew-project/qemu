@@ -245,50 +245,26 @@ void xics_spapr_init(sPAPRMachineState *spapr)
     spapr_register_hypercall(H_IPOLL, h_ipoll);
 }
 
-#define ICS_IRQ_FREE(ics, srcno)   \
-    (!((ics)->irqs[(srcno)].flags & (XICS_FLAGS_IRQ_MASK)))
-
-static int ics_find_free_block(ICSState *ics, int num, int alignnum)
-{
-    int first, i;
-
-    for (first = 0; first < ics->nr_irqs; first += alignnum) {
-        if (num > (ics->nr_irqs - first)) {
-            return -1;
-        }
-        for (i = first; i < first + num; ++i) {
-            if (!ICS_IRQ_FREE(ics, i)) {
-                break;
-            }
-        }
-        if (i == (first + num)) {
-            return first;
-        }
-    }
-
-    return -1;
-}
-
 int spapr_ics_alloc(ICSState *ics, int irq_hint, bool lsi, Error **errp)
 {
     int irq;
+    XICSFabricClass *xic = XICS_FABRIC_GET_CLASS(ics->xics);
 
     if (!ics) {
         return -1;
     }
     if (irq_hint) {
-        if (!ICS_IRQ_FREE(ics, irq_hint - ics->offset)) {
+        if (xic->irq_test(ics->xics, irq_hint)) {
             error_setg(errp, "can't allocate IRQ %d: already in use", irq_hint);
             return -1;
         }
         irq = irq_hint;
     } else {
-        irq = ics_find_free_block(ics, 1, 1);
+        irq = xic->irq_alloc_block(ics->xics, 1, 1);
         if (irq < 0) {
             error_setg(errp, "can't allocate IRQ: no IRQ left");
             return -1;
         }
-        irq += ics->offset;
     }
 
     ics_set_irq_type(ics, irq - ics->offset, lsi);
@@ -305,6 +281,7 @@ int spapr_ics_alloc_block(ICSState *ics, int num, bool lsi,
                           bool align, Error **errp)
 {
     int i, first = -1;
+    XICSFabricClass *xic = XICS_FABRIC_GET_CLASS(ics->xics);
 
     if (!ics) {
         return -1;
@@ -320,9 +297,9 @@ int spapr_ics_alloc_block(ICSState *ics, int num, bool lsi,
     if (align) {
         assert((num == 1) || (num == 2) || (num == 4) ||
                (num == 8) || (num == 16) || (num == 32));
-        first = ics_find_free_block(ics, num, num);
+        first = xic->irq_alloc_block(ics->xics, num, num);
     } else {
-        first = ics_find_free_block(ics, num, 1);
+        first = xic->irq_alloc_block(ics->xics, num, 1);
     }
     if (first < 0) {
         error_setg(errp, "can't find a free %d-IRQ block", num);
@@ -330,33 +307,19 @@ int spapr_ics_alloc_block(ICSState *ics, int num, bool lsi,
     }
 
     for (i = first; i < first + num; ++i) {
-        ics_set_irq_type(ics, i, lsi);
+        ics_set_irq_type(ics, i - ics->offset, lsi);
     }
-    first += ics->offset;
 
     trace_xics_alloc_block(first, num, lsi, align);
 
     return first;
 }
 
-static void ics_free(ICSState *ics, int srcno, int num)
-{
-    int i;
-
-    for (i = srcno; i < srcno + num; ++i) {
-        if (ICS_IRQ_FREE(ics, i)) {
-            trace_xics_ics_free_warn(0, i + ics->offset);
-        }
-        memset(&ics->irqs[i], 0, sizeof(ICSIRQState));
-    }
-}
-
 void spapr_ics_free(ICSState *ics, int irq, int num)
 {
-    if (ics_valid_irq(ics, irq)) {
-        trace_xics_ics_free(0, irq, num);
-        ics_free(ics, irq - ics->offset, num);
-    }
+    XICSFabricClass *xic = XICS_FABRIC_GET_CLASS(ics->xics);
+
+    xic->irq_free_block(ics->xics, irq, num);
 }
 
 void spapr_dt_xics(int nr_servers, void *fdt, uint32_t phandle)
