@@ -2261,6 +2261,24 @@ static const char e1000e_phy_regcap[E1000E_PHY_PAGES][E1000E_PHY_PAGE_SIZE] = {
     }
 };
 
+static const char e1000_phy_regcap[E1000E_PHY_PAGES][E1000E_PHY_PAGE_SIZE] = {
+    [0] = {
+        [PHY_CTRL]                   = PHY_RW,
+        [PHY_STATUS]                 = PHY_R,
+        [PHY_ID1]                    = PHY_R,
+        [PHY_ID2]                    = PHY_R,
+        [PHY_AUTONEG_ADV]            = PHY_RW,
+        [PHY_LP_ABILITY]             = PHY_R,
+        [PHY_AUTONEG_EXP]            = PHY_R,
+        [PHY_1000T_CTRL]             = PHY_RW,
+        [PHY_1000T_STATUS]           = PHY_R,
+        [M88E1000_PHY_SPEC_CTRL]     = PHY_RW,
+        [M88E1000_PHY_SPEC_STATUS]   = PHY_R,
+        [M88E1000_EXT_PHY_SPEC_CTRL] = PHY_RW,
+        [M88E1000_RX_ERR_CNTR]       = PHY_R,
+    }
+};
+
 static bool
 e1000e_phy_reg_check_cap(E1000ECore *core, uint32_t addr,
                          char cap, uint8_t *page)
@@ -2616,6 +2634,10 @@ e1000e_mac_icr_read(E1000ECore *core, int index)
         e1000e_clear_ims_bits(core, core->mac[IAM]);
     }
 
+    if (core->clear_icr_on_read) {
+        core->mac[ICR] = 0;
+    }
+
     trace_e1000e_irq_icr_read_exit(core->mac[ICR]);
     e1000e_update_interrupt_state(core);
     return ret;
@@ -2732,50 +2754,83 @@ e1000e_mac_setmacaddr(E1000ECore *core, int index, uint32_t val)
 static uint32_t
 e1000e_get_eecd(E1000ECore *core, int index)
 {
-    return e1000e_mac_readreg(core, index);
+    uint32_t ret = E1000_EECD_PRES | E1000_EECD_GNT | core->eecd_state.old_eecd;
+
+    if (!core->eecd_state.reading ||
+        ((core->eeprom[(core->eecd_state.bitnum_out >> 4) & 0x3f] >>
+          ((core->eecd_state.bitnum_out & 0xf) ^ 0xf))) & 1) {
+        ret |= E1000_EECD_DO;
+    }
+    return ret;
 }
 
 static void
 e1000e_set_eecd(E1000ECore *core, int index, uint32_t val)
 {
-    static const uint32_t ro_bits = E1000_EECD_PRES          |
-                                    E1000_EECD_AUTO_RD       |
-                                    E1000_EECD_SIZE_EX_MASK;
+    uint32_t oldval = core->eecd_state.old_eecd;
 
-    core->mac[EECD] = (core->mac[EECD] & ro_bits) | (val & ~ro_bits);
+    core->eecd_state.old_eecd = val & (E1000_EECD_SK | E1000_EECD_CS |
+                                       E1000_EECD_DI | E1000_EECD_FWE_MASK |
+                                       E1000_EECD_REQ);
+    if (!(E1000_EECD_CS & val)) { /* CS inactive; nothing to do */
+        return;
+    }
+    if (E1000_EECD_CS & (val ^ oldval)) { /* CS rise edge; reset state */
+        core->eecd_state.val_in = 0;
+        core->eecd_state.bitnum_in = 0;
+        core->eecd_state.bitnum_out = 0;
+        core->eecd_state.reading = 0;
+    }
+    if (!(E1000_EECD_SK & (val ^ oldval))) { /* no clock edge */
+        return;
+    }
+    if (!(E1000_EECD_SK & val)) { /* falling edge */
+        core->eecd_state.bitnum_out++;
+        return;
+    }
+    core->eecd_state.val_in <<= 1;
+    if (val & E1000_EECD_DI) {
+        core->eecd_state.val_in |= 1;
+    }
+    if (++core->eecd_state.bitnum_in == 9 && !core->eecd_state.reading) {
+        core->eecd_state.bitnum_out = ((core->eecd_state.val_in & 0x3f)
+                                       << 4) - 1;
+        core->eecd_state.reading = (((core->eecd_state.val_in >> 6) & 7) ==
+                                    EEPROM_READ_OPCODE_MICROWIRE);
+    }
 }
 
 static void
 e1000e_set_eerd(E1000ECore *core, int index, uint32_t val)
 {
-    uint32_t addr = (val >> E1000_EERW_ADDR_SHIFT) & E1000_EERW_ADDR_MASK;
+    uint32_t addr = (val >> core->eerw_addr_shift) & core->eerw_addr_mask;
     uint32_t flags = 0;
     uint32_t data = 0;
 
     if ((addr < E1000E_EEPROM_SIZE) && (val & E1000_EERW_START)) {
         data = core->eeprom[addr];
-        flags = E1000_EERW_DONE;
+        flags = core->eerw_done;
     }
 
     core->mac[EERD] = flags                           |
-                      (addr << E1000_EERW_ADDR_SHIFT) |
+                      (addr << core->eerw_addr_shift) |
                       (data << E1000_EERW_DATA_SHIFT);
 }
 
 static void
 e1000e_set_eewr(E1000ECore *core, int index, uint32_t val)
 {
-    uint32_t addr = (val >> E1000_EERW_ADDR_SHIFT) & E1000_EERW_ADDR_MASK;
+    uint32_t addr = (val >> core->eerw_addr_shift) & core->eerw_addr_mask;
     uint32_t data = (val >> E1000_EERW_DATA_SHIFT) & E1000_EERW_DATA_MASK;
     uint32_t flags = 0;
 
     if ((addr < E1000E_EEPROM_SIZE) && (val & E1000_EERW_START)) {
         core->eeprom[addr] = data;
-        flags = E1000_EERW_DONE;
+        flags = core->eerw_done;
     }
 
     core->mac[EERD] = flags                           |
-                      (addr << E1000_EERW_ADDR_SHIFT) |
+                      (addr << core->eerw_addr_shift) |
                       (data << E1000_EERW_DATA_SHIFT);
 }
 
@@ -3352,6 +3407,36 @@ e1000e_phy_reg_init[E1000E_PHY_PAGES][E1000E_PHY_PAGE_SIZE] = {
     }
 };
 
+static const uint16_t
+e1000_phy_reg_init[E1000E_PHY_PAGES][E1000E_PHY_PAGE_SIZE] = {
+    [0] = {
+        [PHY_CTRL] =   MII_CR_SPEED_SELECT_MSB  |
+                       MII_CR_FULL_DUPLEX       |
+                       MII_CR_AUTO_NEG_EN,
+
+        [PHY_STATUS] = MII_SR_EXTENDED_CAPS     |
+                       MII_SR_LINK_STATUS       |
+                       MII_SR_AUTONEG_CAPS      |
+                       MII_SR_PREAMBLE_SUPPRESS |
+                       MII_SR_EXTENDED_STATUS   |
+                       MII_SR_10T_HD_CAPS       |
+                       MII_SR_10T_FD_CAPS       |
+                       MII_SR_100X_HD_CAPS      |
+                       MII_SR_100X_FD_CAPS,
+
+        [PHY_ID1]          = 0x141,
+     /* [PHY_ID2] set by e1000e_core_reset() */
+        [PHY_AUTONEG_ADV]  = 0xde1,
+        [PHY_LP_ABILITY]   = 0x1e0,
+        [PHY_1000T_CTRL]   = 0x0e00,
+        [PHY_1000T_STATUS] = 0x3c00,
+
+        [M88E1000_PHY_SPEC_CTRL]     = 0x360,
+        [M88E1000_PHY_SPEC_STATUS]   = 0xac00,
+        [M88E1000_EXT_PHY_SPEC_CTRL] = 0x0d60,
+    }
+};
+
 static const uint32_t e1000e_mac_reg_init[] = {
     [PBA]           =     0x00140014,
     [LEDCTL]        =  BIT(1) | BIT(8) | BIT(9) | BIT(15) | BIT(17) | BIT(18),
@@ -3408,6 +3493,19 @@ e1000e_core_pci_realize(E1000ECore     *core,
     case E1000_PHY_ID2_82574x:
         core->phy_regcap = &e1000e_phy_regcap;
         core->phy_reg_init = &e1000e_phy_reg_init;
+        core->clear_icr_on_read = false;
+        core->eerw_done = BIT(1);
+        core->eerw_addr_shift = 2;
+        core->eerw_addr_mask = ((1L << 14) - 1);
+        break;
+    case E1000_PHY_ID2_8254xx_DEFAULT:
+    case E1000_PHY_ID2_82544x:
+        core->phy_regcap = &e1000_phy_regcap;
+        core->phy_reg_init = &e1000_phy_reg_init;
+        core->clear_icr_on_read = true;
+        core->eerw_done = BIT(4);
+        core->eerw_addr_shift = 8;
+        core->eerw_addr_mask = ((1L << 8) - 1);
         break;
     default:
         g_assert_not_reached();

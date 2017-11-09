@@ -281,6 +281,17 @@ static const uint16_t e1000e_eeprom_template[64] = {
     0xffff, 0xffff, 0xffff, 0xffff, 0x0000, 0x0120, 0xffff, 0x0000,
 };
 
+static const uint16_t e1000_eeprom_template[64] = {
+    0x0000, 0x0000, 0x0000, 0x0000,      0xffff, 0x0000,      0x0000, 0x0000,
+    0x3000, 0x1000, 0x6403, 0 /*DevId*/, 0x8086, 0 /*DevId*/, 0x8086, 0x3040,
+    0x0008, 0x2000, 0x7e14, 0x0048,      0x1000, 0x00d8,      0x0000, 0x2700,
+    0x6cc9, 0x3150, 0x0722, 0x040b,      0x0984, 0x0000,      0xc000, 0x0706,
+    0x1008, 0x0000, 0x0f04, 0x7fff,      0x4d01, 0xffff,      0xffff, 0xffff,
+    0xffff, 0xffff, 0xffff, 0xffff,      0xffff, 0xffff,      0xffff, 0xffff,
+    0x0100, 0x4000, 0x121c, 0xffff,      0xffff, 0xffff,      0xffff, 0xffff,
+    0xffff, 0xffff, 0xffff, 0xffff,      0xffff, 0xffff,      0xffff, 0x0000,
+};
+
 static void e1000e_core_realize(E1000EState *s)
 {
     s->core.owner = &s->parent_obj;
@@ -644,8 +655,8 @@ static const VMStateDescription e1000e_vmstate_intr_timer = {
 
 static const VMStateDescription e1000e_vmstate = {
     .name = "e1000e",
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .pre_save = e1000e_pre_save,
     .post_load = e1000e_post_load,
     .fields = (VMStateField[]) {
@@ -691,6 +702,61 @@ static const VMStateDescription e1000e_vmstate = {
 
         VMSTATE_STRUCT_ARRAY(core.tx, E1000EState, E1000E_NUM_QUEUES, 0,
                              e1000e_vmstate_tx, struct e1000e_tx),
+
+        VMSTATE_UINT32(core.eecd_state.val_in, E1000EState),
+        VMSTATE_UINT16(core.eecd_state.bitnum_in, E1000EState),
+        VMSTATE_UINT16(core.eecd_state.bitnum_out, E1000EState),
+        VMSTATE_UINT16(core.eecd_state.reading, E1000EState),
+        VMSTATE_UINT32(core.eecd_state.old_eecd, E1000EState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription e1000_vmstate = {
+    .name = "e1000-ng",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .pre_save = e1000e_pre_save,
+    .post_load = e1000e_post_load,
+    .fields = (VMStateField[]) {
+        VMSTATE_PCI_DEVICE(parent_obj, E1000EState),
+
+        VMSTATE_UINT32(ioaddr, E1000EState),
+        VMSTATE_UINT32(core.rxbuf_min_shift, E1000EState),
+        VMSTATE_UINT8(core.rx_desc_len, E1000EState),
+        VMSTATE_UINT32_ARRAY(core.rxbuf_sizes, E1000EState,
+                             E1000_PSRCTL_BUFFS_PER_DESC),
+        VMSTATE_UINT32(core.rx_desc_buf_size, E1000EState),
+        VMSTATE_UINT16_ARRAY(core.eeprom, E1000EState, E1000E_EEPROM_SIZE),
+        VMSTATE_UINT16_2DARRAY(core.phy, E1000EState,
+                               E1000E_PHY_PAGES, E1000E_PHY_PAGE_SIZE),
+        VMSTATE_UINT32_ARRAY(core.mac, E1000EState, E1000E_MAC_SIZE),
+        VMSTATE_UINT8_ARRAY(core.permanent_mac, E1000EState, ETH_ALEN),
+
+        VMSTATE_UINT32(core.delayed_causes, E1000EState),
+
+        VMSTATE_UINT16(subsys, E1000EState),
+        VMSTATE_UINT16(subsys_ven, E1000EState),
+
+        VMSTATE_E1000E_INTR_DELAY_TIMER(core.rdtr, E1000EState),
+        VMSTATE_E1000E_INTR_DELAY_TIMER(core.radv, E1000EState),
+        VMSTATE_E1000E_INTR_DELAY_TIMER(core.raid, E1000EState),
+        VMSTATE_E1000E_INTR_DELAY_TIMER(core.tadv, E1000EState),
+        VMSTATE_E1000E_INTR_DELAY_TIMER(core.tidv, E1000EState),
+
+        VMSTATE_E1000E_INTR_DELAY_TIMER(core.itr, E1000EState),
+        VMSTATE_BOOL(core.itr_intr_pending, E1000EState),
+
+        VMSTATE_UINT16(core.vet, E1000EState),
+
+        VMSTATE_STRUCT_ARRAY(core.tx, E1000EState, E1000E_NUM_QUEUES, 0,
+                             e1000e_vmstate_tx, struct e1000e_tx),
+
+        VMSTATE_UINT32(core.eecd_state.val_in, E1000EState),
+        VMSTATE_UINT16(core.eecd_state.bitnum_in, E1000EState),
+        VMSTATE_UINT16(core.eecd_state.bitnum_out, E1000EState),
+        VMSTATE_UINT16(core.eecd_state.reading, E1000EState),
+        VMSTATE_UINT32(core.eecd_state.old_eecd, E1000EState),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -730,7 +796,7 @@ static void e1000e_class_init(ObjectClass *class, void *data)
 
     dc->desc = info->desc;
     dc->reset = e1000e_qdev_reset;
-    dc->vmsd = &e1000e_vmstate;
+    dc->vmsd = info->is_express ? &e1000e_vmstate : &e1000_vmstate;
     dc->props = e1000e_properties;
 
     edc->info = info;
@@ -779,6 +845,45 @@ static const E1000EInfo e1000e_devices[] = {
         .eeprom_templ        = e1000e_eeprom_template,
         .eeprom_size         = sizeof(e1000e_eeprom_template),
         .phy_id2             = E1000_PHY_ID2_82574x,
+    },
+    {
+        .name                = "e1000-ng",
+        .desc                = "Intel 82540EM Gigabit Ethernet Controller",
+        .device_id           = E1000_DEV_ID_82540EM,
+        .revision            = 3,
+        .subsystem_vendor_id = PCI_SUBVENDOR_ID_REDHAT_QUMRANET,
+        .subsystem_id        = PCI_SUBDEVICE_ID_QEMU,
+        .is_express          = 0,
+        .romfile             = "efi-e1000.rom",
+        .eeprom_templ        = e1000_eeprom_template,
+        .eeprom_size         = sizeof(e1000_eeprom_template),
+        .phy_id2             = E1000_PHY_ID2_8254xx_DEFAULT,
+    },
+    {
+        .name                = "e1000-82544gc-ng",
+        .desc                = "Intel 82544GC Gigabit Ethernet Controller",
+        .device_id           = E1000_DEV_ID_82544GC_COPPER,
+        .revision            = 3,
+        .subsystem_vendor_id = PCI_SUBVENDOR_ID_REDHAT_QUMRANET,
+        .subsystem_id        = PCI_SUBDEVICE_ID_QEMU,
+        .is_express          = 0,
+        .romfile             = "efi-e1000.rom",
+        .eeprom_templ        = e1000_eeprom_template,
+        .eeprom_size         = sizeof(e1000_eeprom_template),
+        .phy_id2             = E1000_PHY_ID2_82544x,
+    },
+    {
+        .name                = "e1000-82545em-ng",
+        .desc                = "Intel 82545EM Gigabit Ethernet Controller",
+        .device_id           = E1000_DEV_ID_82545EM_COPPER,
+        .revision            = 3,
+        .subsystem_vendor_id = PCI_SUBVENDOR_ID_REDHAT_QUMRANET,
+        .subsystem_id        = PCI_SUBDEVICE_ID_QEMU,
+        .is_express          = 0,
+        .romfile             = "efi-e1000.rom",
+        .eeprom_templ        = e1000_eeprom_template,
+        .eeprom_size         = sizeof(e1000_eeprom_template),
+        .phy_id2             = E1000_PHY_ID2_8254xx_DEFAULT,
     },
 };
 
