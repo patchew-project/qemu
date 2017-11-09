@@ -3619,11 +3619,10 @@ static int spapr_irq_alloc_block(XICSFabric *xi, int count, int align)
 static void spapr_irq_free_block(XICSFabric *xi, int irq, int num)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(xi);
-    ICSState *ics = spapr->ics;
     int srcno = irq - spapr->irq_base;
     int i;
 
-    if (ics_valid_irq(ics, irq)) {
+    if (srcno >= 0 && srcno < spapr->nr_irqs) {
         trace_spapr_irq_free(0, irq, num);
         for (i = srcno; i < srcno + num; ++i) {
             if (!test_bit(i, spapr->irq_map)) {
