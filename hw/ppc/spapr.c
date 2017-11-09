@@ -3592,6 +3592,13 @@ static bool spapr_irq_test(XICSFabric *xi, int irq)
     return test_bit(srcno, spapr->irq_map);
 }
 
+static void ics_set_irq_type(ICSState *ics, int srcno, bool lsi)
+{
+    assert(!(ics->irqs[srcno].flags & XICS_FLAGS_IRQ_MASK));
+
+    ics->irqs[srcno].flags |=
+        lsi ? XICS_FLAGS_IRQ_LSI : XICS_FLAGS_IRQ_MSI;
+}
 
 /*
  * Let's provision 4 LSIs per PHBs
@@ -3630,6 +3637,13 @@ static int spapr_irq_alloc_block(XICSFabric *xi, int count, int align, bool lsi)
 
     if (lsi && smc->has_irq_bitmap && srcno >= SPAPR_MAX_LSI) {
         return -1;
+    }
+
+    if (!smc->has_irq_bitmap) {
+        int i;
+        for (i = srcno; i < srcno + count; ++i) {
+            ics_set_irq_type(spapr->ics, i, lsi);
+        }
     }
 
     bitmap_set(spapr->irq_map, srcno, count);

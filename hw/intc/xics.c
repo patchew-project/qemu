@@ -710,14 +710,6 @@ ICPState *xics_icp_get(XICSFabric *xi, int server)
     return xic->icp_get(xi, server);
 }
 
-void ics_set_irq_type(ICSState *ics, int srcno, bool lsi)
-{
-    assert(!(ics->irqs[srcno].flags & XICS_FLAGS_IRQ_MASK));
-
-    ics->irqs[srcno].flags |=
-        lsi ? XICS_FLAGS_IRQ_LSI : XICS_FLAGS_IRQ_MSI;
-}
-
 static void xics_register_types(void)
 {
     type_register_static(&ics_simple_info);

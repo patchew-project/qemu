@@ -487,10 +487,6 @@ static void pnv_psi_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    for (i = 0; i < ics->nr_irqs; i++) {
-        ics_set_irq_type(ics, i, true);
-    }
-
     /* XSCOM region for PSI registers */
     pnv_xscom_region_init(&psi->xscom_regs, OBJECT(dev), &pnv_psi_xscom_ops,
                 psi, "xscom-psi", PNV_XSCOM_PSIHB_SIZE);
