@@ -3044,6 +3044,7 @@ void vnc_display_init(const char *id)
 {
     VncDisplay *vd;
 
+    fprintf(stderr, "%s: %s\n", __func__, id);
     if (vnc_display_find(id) != NULL) {
         return;
     }
@@ -3982,6 +3983,7 @@ void vnc_display_open(const char *id, Error **errp)
     }
 
     if (con != vd->dcl.con) {
+        fprintf(stderr, "%s: %s\n", __func__, id);
         unregister_displaychangelistener(&vd->dcl);
         vd->dcl.con = con;
         register_displaychangelistener(&vd->dcl);
