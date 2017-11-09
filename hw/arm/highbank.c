@@ -117,6 +117,9 @@ static void hb_regs_write(void *opaque, hwaddr offset,
         }
     }
 
+    if (offset / 4 >= NUM_REGS) {
+        return;
+    }
     regs[offset/4] = value;
 }
 
@@ -124,6 +127,10 @@ static uint64_t hb_regs_read(void *opaque, hwaddr offset,
                              unsigned size)
 {
     uint32_t *regs = opaque;
+
+    if (offset / 4 >= NUM_REGS) {
+        return 0;
+    }
     uint32_t value = regs[offset/4];
 
     if ((offset == 0x100) || (offset == 0x108) || (offset == 0x10C)) {
