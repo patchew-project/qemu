@@ -3610,7 +3610,8 @@ static void ics_set_irq_type(ICSState *ics, int srcno, bool lsi)
  * and then the MSIs. This allows us to keep the LSI IRQ numbers in a
  * well known range which is useful for PHB hotplug.
  */
-static int spapr_irq_alloc_block(XICSFabric *xi, int count, int align, bool lsi)
+static int spapr_irq_alloc_block_xi(XICSFabric *xi, int count, int align,
+                                    bool lsi)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(xi);
     sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
@@ -3776,7 +3777,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     xic->ics_resend = spapr_ics_resend;
     xic->icp_get = spapr_icp_get;
     xic->irq_test = spapr_irq_test;
-    xic->irq_alloc_block = spapr_irq_alloc_block;
+    xic->irq_alloc_block = spapr_irq_alloc_block_xi;
     xic->irq_free_block = spapr_irq_free_block;
     xic->irq_is_lsi = spapr_irq_is_lsi;
 
