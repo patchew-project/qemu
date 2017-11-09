@@ -3536,6 +3536,21 @@ static ICPState *spapr_icp_get(XICSFabric *xi, int vcpu_id)
     return cpu ? ICP(cpu->intc) : NULL;
 }
 
+static bool spapr_irq_test(XICSFabric *xi, int irq)
+{
+    return false;
+}
+
+static int spapr_irq_alloc_block(XICSFabric *xi, int count, int align)
+{
+    return -1;
+}
+
+static void spapr_irq_free_block(XICSFabric *xi, int irq, int num)
+{
+    ;
+}
+
 static void spapr_pic_print_info(InterruptStatsProvider *obj,
                                  Monitor *mon)
 {
@@ -3630,6 +3645,10 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     xic->ics_get = spapr_ics_get;
     xic->ics_resend = spapr_ics_resend;
     xic->icp_get = spapr_icp_get;
+    xic->irq_test = spapr_irq_test;
+    xic->irq_alloc_block = spapr_irq_alloc_block;
+    xic->irq_free_block = spapr_irq_free_block;
+
     ispc->print_info = spapr_pic_print_info;
     /* Force NUMA node memory size to be a multiple of
      * SPAPR_MEMORY_BLOCK_SIZE (256M) since that's the granularity
