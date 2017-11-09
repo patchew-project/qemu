@@ -3592,9 +3592,21 @@ static bool spapr_irq_test(XICSFabric *xi, int irq)
     return test_bit(srcno, spapr->irq_map);
 }
 
-static int spapr_irq_alloc_block(XICSFabric *xi, int count, int align)
+
+/*
+ * Let's provision 4 LSIs per PHBs
+ */
+#define SPAPR_MAX_LSI (SPAPR_MAX_PHBS * 4)
+
+/*
+ * Split the IRQ number space of the machine in two: first the LSIs
+ * and then the MSIs. This allows us to keep the LSI IRQ numbers in a
+ * well known range which is useful for PHB hotplug.
+ */
+static int spapr_irq_alloc_block(XICSFabric *xi, int count, int align, bool lsi)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(xi);
+    sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
     int start = 0;
     int srcno;
 
@@ -3606,9 +3618,17 @@ static int spapr_irq_alloc_block(XICSFabric *xi, int count, int align)
      */
     align -= 1;
 
+    if (!lsi && smc->has_irq_bitmap) {
+        start = SPAPR_MAX_LSI;
+    }
+
     srcno = bitmap_find_next_zero_area(spapr->irq_map, spapr->nr_irqs, start,
                                        count, align);
     if (srcno == spapr->nr_irqs) {
+        return -1;
+    }
+
+    if (lsi && smc->has_irq_bitmap && srcno >= SPAPR_MAX_LSI) {
         return -1;
     }
 
@@ -3636,7 +3656,12 @@ static void spapr_irq_free_block(XICSFabric *xi, int irq, int num)
 static bool spapr_irq_is_lsi(XICSFabric *xi, int irq)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(xi);
+    sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
     int srcno = irq - spapr->irq_base;
+
+    if (smc->has_irq_bitmap) {
+        return (srcno >= 0) && (srcno < SPAPR_MAX_LSI);
+    }
 
     return spapr->ics->irqs[srcno].flags & XICS_FLAGS_IRQ_LSI;
 }
