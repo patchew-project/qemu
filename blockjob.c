@@ -799,7 +799,7 @@ void block_job_sleep_ns(BlockJob *job, QEMUClockType type, int64_t ns)
 
     job->busy = false;
     if (!block_job_should_pause(job)) {
-        co_aio_sleep_ns(blk_get_aio_context(job->blk), type, ns);
+        qemu_co_sleep_ns(type, ns);
     }
     job->busy = true;
 
