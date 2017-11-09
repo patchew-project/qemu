@@ -1437,6 +1437,9 @@ static void ppc_spapr_reset(void)
     qemu_devices_reset();
     spapr_clear_pending_events(spapr);
 
+    spapr->irq_map_ref = bitmap_new(spapr->nr_irqs);
+    bitmap_copy(spapr->irq_map_ref, spapr->irq_map, spapr->nr_irqs);
+
     /*
      * We place the device tree and RTAS just below either the top of the RMA,
      * or just below 2GB, whichever is lowere, so that it can be
@@ -1706,7 +1709,7 @@ static bool spapr_irq_map_needed(void *opaque)
         return false;
     }
 
-    return true;
+    return !bitmap_equal(spapr->irq_map, spapr->irq_map_ref, spapr->nr_irqs);
 }
 
 static const VMStateDescription vmstate_spapr_irq_map = {
