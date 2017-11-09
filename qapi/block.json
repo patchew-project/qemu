@@ -223,6 +223,26 @@
 { 'command': 'nbd-server-add', 'data': {'device': 'str', '*writable': 'bool'} }
 
 ##
+# @nbd-server-remove:
+#
+# Stop exporting block node through QEMU's embedded NBD server.
+#
+# @device: The device name or node name of the exported node. Should be equal
+#          to @device parameter for corresponding nbd-server-add command call.
+#
+# @force: Whether active connections to the export should be closed. If this
+#         parameter is false the export is only removed from named exports list,
+#         so new connetions are impossible and it would be freed after all
+#         clients are disconnected (default false).
+#
+# Returns: error if the server is not running or the device is not marked for
+#          export.
+#
+# Since: 2.12
+##
+{ 'command': 'nbd-server-remove', 'data': {'device': 'str', '*force': 'bool'} }
+
+##
 # @nbd-server-stop:
 #
 # Stop QEMU's embedded NBD server, and unregister all devices previously
