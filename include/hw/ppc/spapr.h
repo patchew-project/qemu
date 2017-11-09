@@ -83,6 +83,7 @@ struct sPAPRMachineState {
     int32_t nr_irqs;
     unsigned long *irq_map;
     unsigned long *irq_map_ref;
+    uint32_t irq_base;
     ICSState *ics;
     sPAPRRTCState rtc;
 
