@@ -2362,6 +2362,7 @@ static void ppc_spapr_init(MachineState *machine)
     /* Initialize the IRQ allocator */
     spapr->nr_irqs  = XICS_IRQS_SPAPR;
     spapr->irq_map  = bitmap_new(spapr->nr_irqs);
+    spapr->irq_base = XICS_IRQ_BASE;
 
     /* Set up Interrupt Controller before we create the VCPUs */
     xics_system_init(machine, spapr->nr_irqs, &error_fatal);
@@ -3630,7 +3631,7 @@ static void spapr_irq_free_block_2_11(XICSFabric *xi, int irq, int num)
 static bool spapr_irq_test(XICSFabric *xi, int irq)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(xi);
-    int srcno = irq - spapr->ics->offset;
+    int srcno = irq - spapr->irq_base;
 
     return test_bit(srcno, spapr->irq_map);
 }
@@ -3656,13 +3657,13 @@ static int spapr_irq_alloc_block(XICSFabric *xi, int count, int align)
     }
 
     bitmap_set(spapr->irq_map, srcno, count);
-    return srcno + spapr->ics->offset;
+    return srcno + spapr->irq_base;
 }
 
 static void spapr_irq_free_block(XICSFabric *xi, int irq, int num)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(xi);
-    int srcno = irq - spapr->ics->offset;
+    int srcno = irq - spapr->irq_base;
 
     bitmap_clear(spapr->irq_map, srcno, num);
 }
