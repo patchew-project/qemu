@@ -2554,6 +2554,10 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
     /* See cautionary note on accessing @options above */
     backing = qdict_get_try_str(options, "backing");
     if (qdict_is_qnull(options, "backing") || (backing && *backing == '\0')) {
+        if (backing) {
+            warn_report("Use of \"backing\": \"\" is deprecated; "
+                        "use \"backing\": null instead");
+        }
         flags |= BDRV_O_NO_BACKING;
         qdict_del(options, "backing");
     }
