@@ -3536,19 +3536,69 @@ static ICPState *spapr_icp_get(XICSFabric *xi, int vcpu_id)
     return cpu ? ICP(cpu->intc) : NULL;
 }
 
+#define ICS_IRQ_FREE(ics, srcno)   \
+    (!((ics)->irqs[(srcno)].flags & (XICS_FLAGS_IRQ_MASK)))
+
+static int ics_find_free_block(ICSState *ics, int num, int alignnum)
+{
+    int first, i;
+
+    for (first = 0; first < ics->nr_irqs; first += alignnum) {
+        if (num > (ics->nr_irqs - first)) {
+            return -1;
+        }
+        for (i = first; i < first + num; ++i) {
+            if (!ICS_IRQ_FREE(ics, i)) {
+                break;
+            }
+        }
+        if (i == (first + num)) {
+            return first;
+        }
+    }
+
+    return -1;
+}
+
 static bool spapr_irq_test(XICSFabric *xi, int irq)
 {
-    return false;
+    sPAPRMachineState *spapr = SPAPR_MACHINE(xi);
+    ICSState *ics = spapr->ics;
+    int srcno = irq - ics->offset;
+
+    return !ICS_IRQ_FREE(ics, srcno);
 }
 
 static int spapr_irq_alloc_block(XICSFabric *xi, int count, int align)
 {
-    return -1;
+    sPAPRMachineState *spapr = SPAPR_MACHINE(xi);
+    ICSState *ics = spapr->ics;
+    int srcno;
+
+    srcno = ics_find_free_block(ics, count, align);
+    if (srcno == -1) {
+        return -1;
+    }
+
+    return srcno + ics->offset;
 }
 
 static void spapr_irq_free_block(XICSFabric *xi, int irq, int num)
 {
-    ;
+    sPAPRMachineState *spapr = SPAPR_MACHINE(xi);
+    ICSState *ics = spapr->ics;
+    int srcno = irq - ics->offset;
+    int i;
+
+    if (ics_valid_irq(ics, irq)) {
+        trace_spapr_irq_free(0, irq, num);
+        for (i = srcno; i < srcno + num; ++i) {
+            if (ICS_IRQ_FREE(ics, i)) {
+                trace_spapr_irq_free_warn(0, i + ics->offset);
+            }
+            memset(&ics->irqs[i], 0, sizeof(ICSIRQState));
+        }
+    }
 }
 
 static void spapr_pic_print_info(InterruptStatsProvider *obj,
