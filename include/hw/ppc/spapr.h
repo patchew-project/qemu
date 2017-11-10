@@ -7,6 +7,7 @@
 #include "hw/ppc/spapr_drc.h"
 #include "hw/mem/pc-dimm.h"
 #include "hw/ppc/spapr_ovec.h"
+#include "qemu/bitmap.h"
 
 struct VIOsPAPRBus;
 struct sPAPRPHBState;
@@ -78,6 +79,8 @@ struct sPAPRMachineState {
     struct VIOsPAPRBus *vio_bus;
     QLIST_HEAD(, sPAPRPHBState) phbs;
     struct sPAPRNVRAM *nvram;
+    int32_t nr_irqs;
+    unsigned long *irq_map;
     ICSState *ics;
     sPAPRRTCState rtc;
 
