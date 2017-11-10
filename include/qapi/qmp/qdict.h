@@ -74,6 +74,7 @@ int64_t qdict_get_try_int(const QDict *qdict, const char *key,
                           int64_t def_value);
 bool qdict_get_try_bool(const QDict *qdict, const char *key, bool def_value);
 const char *qdict_get_try_str(const QDict *qdict, const char *key);
+bool qdict_is_qnull(const QDict *qdict, const char *key);
 
 void qdict_copy_default(QDict *dst, QDict *src, const char *key);
 void qdict_set_default_str(QDict *dst, const char *key, const char *val);

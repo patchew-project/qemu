@@ -294,6 +294,16 @@ const char *qdict_get_try_str(const QDict *qdict, const char *key)
 }
 
 /**
+ * qdict_is_qnull(): Return true if the value for 'key' is QNull
+ */
+bool qdict_is_qnull(const QDict *qdict, const char *key)
+{
+    QObject *value = qdict_get(qdict, key);
+
+    return value && value->type == QTYPE_QNULL;
+}
+
+/**
  * qdict_iter(): Iterate over all the dictionary's stored values.
  *
  * This function allows the user to provide an iterator, which will be
