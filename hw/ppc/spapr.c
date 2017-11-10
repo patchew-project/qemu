@@ -3596,16 +3596,29 @@ static bool spapr_irq_test_2_11(XICSFabric *xi, int irq)
     return !ICS_IRQ_FREE(ics, srcno);
 }
 
+static void ics_set_irq_type(ICSState *ics, int srcno, bool lsi)
+{
+    assert(!(ics->irqs[srcno].flags & XICS_FLAGS_IRQ_MASK));
+
+    ics->irqs[srcno].flags |=
+        lsi ? XICS_FLAGS_IRQ_LSI : XICS_FLAGS_IRQ_MSI;
+}
+
 static int spapr_irq_alloc_block_2_11(XICSFabric *xi, int count, int align,
                                       bool lsi)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(xi);
     ICSState *ics = spapr->ics;
     int srcno;
+    int i;
 
     srcno = ics_find_free_block(ics, count, align);
     if (srcno == -1) {
         return -1;
+    }
+
+    for (i = srcno; i < srcno + count; ++i) {
+        ics_set_irq_type(ics, i, lsi);
     }
 
     return srcno + ics->offset;
