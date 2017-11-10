@@ -2803,13 +2803,21 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
     int flags = 0, ret = 0, invalid_flags = 0;
     static uint64_t seq_iter;
     int len = 0;
-    /*
-     * If system is running in postcopy mode, page inserts to host memory must
-     * be atomic
-     */
-    bool postcopy_running = postcopy_state_get() >= POSTCOPY_INCOMING_LISTENING;
-    /* ADVISE is earlier, it shows the source has the postcopy capability on */
-    bool postcopy_advised = postcopy_state_get() >= POSTCOPY_INCOMING_ADVISE;
+    bool postcopy_advised = false, postcopy_running = false;
+    uint8_t postcopy_state = postcopy_state_get();
+
+    if (postcopy_state != POSTCOPY_INCOMING_END) {
+        /*
+         * If system is running in postcopy mode, page inserts to host memory
+         * must be atomic
+         */
+        postcopy_running = postcopy_state >= POSTCOPY_INCOMING_LISTENING;
+
+        /* ADVISE is earlier, it shows the source has the postcopy
+         * capability on
+         */
+        postcopy_advised = postcopy_state >= POSTCOPY_INCOMING_ADVISE;
+    }
 
     seq_iter++;
 
