@@ -33,6 +33,7 @@
 #include "trace.h"
 #include "qemu/timer.h"
 #include "hw/ppc/xics.h"
+#include "hw/ppc/spapr.h"
 #include "qemu/error-report.h"
 #include "qapi/visitor.h"
 #include "monitor/monitor.h"
@@ -81,8 +82,7 @@ void ics_pic_print_info(ICSState *ics, Monitor *mon)
         }
         monitor_printf(mon, "  %4x %s %02x %02x\n",
                        ics->offset + i,
-                       (irq->flags & XICS_FLAGS_IRQ_LSI) ?
-                       "LSI" : "MSI",
+                       ics_is_lsi(ics, i) ? "LSI" : "MSI",
                        irq->priority, irq->status);
     }
 }
@@ -388,6 +388,14 @@ static const TypeInfo icp_info = {
 /*
  * ICS: Source layer
  */
+bool ics_is_lsi(ICSState *ics, int srcno)
+{
+    XICSFabric *xi = ics->xics;
+    XICSFabricClass *xic = XICS_FABRIC_GET_CLASS(xi);
+
+    return xic->irq_is_lsi(xi, srcno + ics->offset);
+}
+
 static void ics_simple_resend_msi(ICSState *ics, int srcno)
 {
     ICSIRQState *irq = ics->irqs + srcno;
@@ -446,7 +454,7 @@ static void ics_simple_set_irq(void *opaque, int srcno, int val)
 {
     ICSState *ics = (ICSState *)opaque;
 
-    if (ics->irqs[srcno].flags & XICS_FLAGS_IRQ_LSI) {
+    if (ics_is_lsi(ics, srcno)) {
         ics_simple_set_irq_lsi(ics, srcno, val);
     } else {
         ics_simple_set_irq_msi(ics, srcno, val);
@@ -483,7 +491,7 @@ void ics_simple_write_xive(ICSState *ics, int srcno, int server,
     trace_xics_ics_simple_write_xive(ics->offset + srcno, srcno, server,
                                      priority);
 
-    if (ics->irqs[srcno].flags & XICS_FLAGS_IRQ_LSI) {
+    if (ics_is_lsi(ics, srcno)) {
         ics_simple_write_xive_lsi(ics, srcno);
     } else {
         ics_simple_write_xive_msi(ics, srcno);
@@ -495,10 +503,10 @@ static void ics_simple_reject(ICSState *ics, uint32_t nr)
     ICSIRQState *irq = ics->irqs + nr - ics->offset;
 
     trace_xics_ics_simple_reject(nr, nr - ics->offset);
-    if (irq->flags & XICS_FLAGS_IRQ_MSI) {
-        irq->status |= XICS_STATUS_REJECTED;
-    } else if (irq->flags & XICS_FLAGS_IRQ_LSI) {
+    if (ics_is_lsi(ics, nr - ics->offset)) {
         irq->status &= ~XICS_STATUS_SENT;
+    } else {
+        irq->status |= XICS_STATUS_REJECTED;
     }
 }
 
@@ -508,7 +516,7 @@ static void ics_simple_resend(ICSState *ics)
 
     for (i = 0; i < ics->nr_irqs; i++) {
         /* FIXME: filter by server#? */
-        if (ics->irqs[i].flags & XICS_FLAGS_IRQ_LSI) {
+        if (ics_is_lsi(ics, i)) {
             ics_simple_resend_lsi(ics, i);
         } else {
             ics_simple_resend_msi(ics, i);
@@ -523,7 +531,7 @@ static void ics_simple_eoi(ICSState *ics, uint32_t nr)
 
     trace_xics_ics_simple_eoi(nr);
 
-    if (ics->irqs[srcno].flags & XICS_FLAGS_IRQ_LSI) {
+    if (ics_is_lsi(ics, srcno)) {
         irq->status &= ~XICS_STATUS_SENT;
     }
 }

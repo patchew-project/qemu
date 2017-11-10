@@ -3628,6 +3628,14 @@ static void spapr_irq_free_block_2_11(XICSFabric *xi, int irq, int num)
     }
 }
 
+static bool spapr_irq_is_lsi(XICSFabric *xi, int irq)
+{
+    sPAPRMachineState *spapr = SPAPR_MACHINE(xi);
+    int srcno = irq - spapr->ics->offset;
+
+    return spapr->ics->irqs[srcno].flags & XICS_FLAGS_IRQ_LSI;
+}
+
 static bool spapr_irq_test(XICSFabric *xi, int irq)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(xi);
@@ -3765,6 +3773,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     xic->irq_test = spapr_irq_test;
     xic->irq_alloc_block = spapr_irq_alloc_block;
     xic->irq_free_block = spapr_irq_free_block;
+    xic->irq_is_lsi = spapr_irq_is_lsi;
 
     ispc->print_info = spapr_pic_print_info;
     /* Force NUMA node memory size to be a multiple of
