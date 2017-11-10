@@ -260,7 +260,7 @@ int spapr_ics_alloc(ICSState *ics, int irq_hint, bool lsi, Error **errp)
         }
         irq = irq_hint;
     } else {
-        irq = xic->irq_alloc_block(ics->xics, 1, 1);
+        irq = xic->irq_alloc_block(ics->xics, 1, 1, lsi);
         if (irq < 0) {
             error_setg(errp, "can't allocate IRQ: no IRQ left");
             return -1;
@@ -297,9 +297,9 @@ int spapr_ics_alloc_block(ICSState *ics, int num, bool lsi,
     if (align) {
         assert((num == 1) || (num == 2) || (num == 4) ||
                (num == 8) || (num == 16) || (num == 32));
-        first = xic->irq_alloc_block(ics->xics, num, num);
+        first = xic->irq_alloc_block(ics->xics, num, num, lsi);
     } else {
-        first = xic->irq_alloc_block(ics->xics, num, 1);
+        first = xic->irq_alloc_block(ics->xics, num, 1, lsi);
     }
     if (first < 0) {
         error_setg(errp, "can't find a free %d-IRQ block", num);

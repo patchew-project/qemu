@@ -3596,7 +3596,8 @@ static bool spapr_irq_test_2_11(XICSFabric *xi, int irq)
     return !ICS_IRQ_FREE(ics, srcno);
 }
 
-static int spapr_irq_alloc_block_2_11(XICSFabric *xi, int count, int align)
+static int spapr_irq_alloc_block_2_11(XICSFabric *xi, int count, int align,
+                                      bool lsi)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(xi);
     ICSState *ics = spapr->ics;
@@ -3628,7 +3629,7 @@ static void spapr_irq_free_block_2_11(XICSFabric *xi, int irq, int num)
     }
 }
 
-static bool spapr_irq_is_lsi(XICSFabric *xi, int irq)
+static bool spapr_irq_is_lsi_2_11(XICSFabric *xi, int irq)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(xi);
     int srcno = irq - spapr->ics->offset;
@@ -3644,10 +3645,21 @@ static bool spapr_irq_test(XICSFabric *xi, int irq)
     return test_bit(srcno, spapr->irq_map);
 }
 
-static int spapr_irq_alloc_block(XICSFabric *xi, int count, int align)
+
+/*
+ * Let's provision 4 LSIs per PHBs
+ */
+#define SPAPR_MAX_LSI (SPAPR_MAX_PHBS * 4)
+
+/*
+ * Split the IRQ number space of the machine in two: first the LSIs
+ * and then the MSIs. This allows us to keep the LSI IRQ numbers in a
+ * well known range which is useful for PHB hotplug.
+ */
+static int spapr_irq_alloc_block(XICSFabric *xi, int count, int align, bool lsi)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(xi);
-    int start = 0;
+    int start = lsi ? 0 : SPAPR_MAX_LSI;
     int srcno;
 
     /*
@@ -3664,6 +3676,10 @@ static int spapr_irq_alloc_block(XICSFabric *xi, int count, int align)
         return -1;
     }
 
+    if (lsi && srcno >= SPAPR_MAX_LSI) {
+        return -1;
+    }
+
     bitmap_set(spapr->irq_map, srcno, count);
     return srcno + spapr->irq_base;
 }
@@ -3674,6 +3690,14 @@ static void spapr_irq_free_block(XICSFabric *xi, int irq, int num)
     int srcno = irq - spapr->irq_base;
 
     bitmap_clear(spapr->irq_map, srcno, num);
+}
+
+static bool spapr_irq_is_lsi(XICSFabric *xi, int irq)
+{
+    sPAPRMachineState *spapr = SPAPR_MACHINE(xi);
+    int srcno = irq - spapr->irq_base;
+
+    return (srcno >= 0) && (srcno < SPAPR_MAX_LSI);
 }
 
 static void spapr_pic_print_info(InterruptStatsProvider *obj,
@@ -3860,6 +3884,7 @@ static void spapr_machine_2_11_class_options(MachineClass *mc)
     xic->irq_test = spapr_irq_test_2_11;
     xic->irq_alloc_block = spapr_irq_alloc_block_2_11;
     xic->irq_free_block = spapr_irq_free_block_2_11;
+    xic->irq_is_lsi = spapr_irq_is_lsi_2_11;
 }
 
 DEFINE_SPAPR_MACHINE(2_11, "2.11", false);
