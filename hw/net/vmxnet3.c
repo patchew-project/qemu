@@ -222,7 +222,7 @@ vmxnet3_dump_tx_descr(struct Vmxnet3_TxDesc *descr)
               "addr %" PRIx64 ", len: %d, gen: %d, rsvd: %d, "
               "dtype: %d, ext1: %d, msscof: %d, hlen: %d, om: %d, "
               "eop: %d, cq: %d, ext2: %d, ti: %d, tci: %d",
-              le64_to_cpu(descr->addr), descr->len, descr->gen, descr->rsvd,
+              descr->addr, descr->len, descr->gen, descr->rsvd,
               descr->dtype, descr->ext1, descr->msscof, descr->hlen, descr->om,
               descr->eop, descr->cq, descr->ext2, descr->ti, descr->tci);
 }
@@ -241,7 +241,7 @@ vmxnet3_dump_rx_descr(struct Vmxnet3_RxDesc *descr)
 {
     VMW_PKPRN("RX DESCR: addr %" PRIx64 ", len: %d, gen: %d, rsvd: %d, "
               "dtype: %d, ext1: %d, btype: %d",
-              le64_to_cpu(descr->addr), descr->len, descr->gen,
+              descr->addr, descr->len, descr->gen,
               descr->rsvd, descr->dtype, descr->ext1, descr->btype);
 }
 
@@ -535,7 +535,8 @@ static void vmxnet3_complete_packet(VMXNET3State *s, int qidx, uint32_t tx_ridx)
     memset(&txcq_descr, 0, sizeof(txcq_descr));
     txcq_descr.txdIdx = tx_ridx;
     txcq_descr.gen = vmxnet3_ring_curr_gen(&s->txq_descr[qidx].comp_ring);
-
+    txcq_descr.val1 = cpu_to_le32(txcq_descr.val1);
+    txcq_descr.val2 = cpu_to_le32(txcq_descr.val2);
     vmxnet3_ring_write_curr_cell(d, &s->txq_descr[qidx].comp_ring, &txcq_descr);
 
     /* Flush changes in TX descriptor before changing the counter value */
@@ -695,11 +696,17 @@ vmxnet3_pop_next_tx_descr(VMXNET3State *s,
     PCIDevice *d = PCI_DEVICE(s);
 
     vmxnet3_ring_read_curr_cell(d, ring, txd);
+    txd->addr = le64_to_cpu(txd->addr);
+    txd->val1 = le32_to_cpu(txd->val1);
+    txd->val2 = le32_to_cpu(txd->val2);
     if (txd->gen == vmxnet3_ring_curr_gen(ring)) {
         /* Only read after generation field verification */
         smp_rmb();
         /* Re-read to be sure we got the latest version */
         vmxnet3_ring_read_curr_cell(d, ring, txd);
+        txd->addr = le64_to_cpu(txd->addr);
+        txd->val1 = le32_to_cpu(txd->val1);
+        txd->val2 = le32_to_cpu(txd->val2);
         VMXNET3_RING_DUMP(VMW_RIPRN, "TX", qidx, ring);
         *descr_idx = vmxnet3_ring_curr_cell_idx(ring);
         vmxnet3_inc_tx_consumption_counter(s, qidx);
@@ -749,7 +756,7 @@ static void vmxnet3_process_tx_queue(VMXNET3State *s, int qidx)
 
         if (!s->skip_current_tx_pkt) {
             data_len = (txd.len > 0) ? txd.len : VMXNET3_MAX_TX_BUF_SIZE;
-            data_pa = le64_to_cpu(txd.addr);
+            data_pa = txd.addr;
 
             if (!net_tx_pkt_add_raw_fragment(s->tx_pkt,
                                                 data_pa,
@@ -792,6 +799,9 @@ vmxnet3_read_next_rx_descr(VMXNET3State *s, int qidx, int ridx,
     Vmxnet3Ring *ring = &s->rxq_descr[qidx].rx_ring[ridx];
     *didx = vmxnet3_ring_curr_cell_idx(ring);
     vmxnet3_ring_read_curr_cell(d, ring, dbuf);
+    dbuf->addr = le64_to_cpu(dbuf->addr);
+    dbuf->val1 = le32_to_cpu(dbuf->val1);
+    dbuf->ext1 = le32_to_cpu(dbuf->ext1);
 }
 
 static inline uint8_t
@@ -811,6 +821,9 @@ vmxnet3_pop_rxc_descr(VMXNET3State *s, int qidx, uint32_t *descr_gen)
 
     pci_dma_read(PCI_DEVICE(s),
                  daddr, &rxcd, sizeof(struct Vmxnet3_RxCompDesc));
+    rxcd.val1 = le32_to_cpu(rxcd.val1);
+    rxcd.val2 = le32_to_cpu(rxcd.val2);
+    rxcd.val3 = le32_to_cpu(rxcd.val3);
     ring_gen = vmxnet3_ring_curr_gen(&s->rxq_descr[qidx].comp_ring);
 
     if (rxcd.gen != ring_gen) {
@@ -1098,14 +1111,16 @@ vmxnet3_indicate_packet(VMXNET3State *s)
         }
 
         chunk_size = MIN(bytes_left, rxd.len);
-        vmxnet3_pci_dma_writev(d, data, bytes_copied,
-                               le64_to_cpu(rxd.addr), chunk_size);
+        vmxnet3_pci_dma_writev(d, data, bytes_copied, rxd.addr, chunk_size);
         bytes_copied += chunk_size;
         bytes_left -= chunk_size;
 
         vmxnet3_dump_rx_descr(&rxd);
 
         if (ready_rxcd_pa != 0) {
+            rxcd.val1 = le32_to_cpu(rxcd.val1);
+            rxcd.val2 = le32_to_cpu(rxcd.val2);
+            rxcd.val3 = le32_to_cpu(rxcd.val3);
             pci_dma_write(d, ready_rxcd_pa, &rxcd, sizeof(rxcd));
         }
 
@@ -1138,6 +1153,9 @@ vmxnet3_indicate_packet(VMXNET3State *s)
         rxcd.eop = 1;
         rxcd.err = (bytes_left != 0);
 
+        rxcd.val1 = le32_to_cpu(rxcd.val1);
+        rxcd.val2 = le32_to_cpu(rxcd.val2);
+        rxcd.val3 = le32_to_cpu(rxcd.val3);
         pci_dma_write(d, ready_rxcd_pa, &rxcd, sizeof(rxcd));
 
         /* Flush RX descriptor changes */
