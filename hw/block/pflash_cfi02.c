@@ -18,7 +18,7 @@
  */
 
 /*
- * For now, this code can emulate flashes of 1, 2 or 4 bytes width.
+ * For now, this code can emulate flashes of 1, 2, 4, or 8 bytes width.
  * Supported commands/modes are:
  * - flash read
  * - flash write
@@ -138,11 +138,72 @@ static void pflash_timer (void *opaque)
     pfl->cmd = 0;
 }
 
+static uint64_t _flash_read(pflash_t *pfl, hwaddr offset,
+                            int width, int be)
+{
+    /* Flash area read */
+    uint64_t ret = 0;
+    uint8_t *p = pfl->storage;
+
+    switch (width) {
+    case 1:
+        ret = p[offset];
+        /* DPRINTF("%s: data offset %08x %02x\n", __func__, offset, ret); */
+        break;
+    case 2:
+        if (be) {
+            ret = p[offset] << 8;
+            ret |= p[offset + 1];
+        } else {
+            ret = p[offset];
+            ret |= p[offset + 1] << 8;
+        }
+        /* DPRINTF("%s: data offset %08x %04x\n", __func__, offset, ret); */
+        break;
+    case 4:
+        if (be) {
+            ret = p[offset] << 24;
+            ret |= p[offset + 1] << 16;
+            ret |= p[offset + 2] << 8;
+            ret |= p[offset + 3];
+        } else {
+            ret = p[offset];
+            ret |= p[offset + 1] << 8;
+            ret |= p[offset + 2] << 16;
+            ret |= p[offset + 3] << 24;
+        }
+        /* DPRINTF("%s: data offset %08x %08x\n", __func__, offset, ret); */
+        break;
+    case 8:
+        if (be) {
+            ret = (uint64_t)p[offset] << 56;
+            ret |= (uint64_t)p[offset + 1] << 48;
+            ret |= (uint64_t)p[offset + 2] << 40;
+            ret |= (uint64_t)p[offset + 3] << 32;
+            ret |= (uint64_t)p[offset + 4] << 24;
+            ret |= (uint64_t)p[offset + 5] << 16;
+            ret |= (uint64_t)p[offset + 6] << 8;
+            ret |= (uint64_t)p[offset + 7];
+        } else {
+            ret = (uint64_t)p[offset];
+            ret |= (uint64_t)p[offset + 1] << 8;
+            ret |= (uint64_t)p[offset + 2] << 16;
+            ret |= (uint64_t)p[offset + 3] << 24;
+            ret |= (uint64_t)p[offset + 4] << 32;
+            ret |= (uint64_t)p[offset + 5] << 40;
+            ret |= (uint64_t)p[offset + 6] << 48;
+            ret |= (uint64_t)p[offset + 7] << 56;
+        }
+        break;
+    }
+
+    return ret;
+}
+
 static uint64_t pflash_read(pflash_t *pfl, hwaddr offset,
                             int width, int be)
 {
     hwaddr boff;
-    uint8_t *p;
     uint64_t ret;
 
     DPRINTF("%s: offset " TARGET_FMT_plx "\n", __func__, offset);
@@ -158,6 +219,8 @@ static uint64_t pflash_read(pflash_t *pfl, hwaddr offset,
         boff = boff >> 1;
     else if (pfl->width == 4)
         boff = boff >> 2;
+    else if (pfl->width == 8)
+        boff = boff >> 3;
     switch (pfl->cmd) {
     default:
         /* This should never happen : reset state & treat it as a read*/
@@ -170,37 +233,7 @@ static uint64_t pflash_read(pflash_t *pfl, hwaddr offset,
     case 0x00:
     flash_read:
         /* Flash area read */
-        p = pfl->storage;
-        switch (width) {
-        case 1:
-            ret = p[offset];
-//            DPRINTF("%s: data offset %08x %02x\n", __func__, offset, ret);
-            break;
-        case 2:
-            if (be) {
-                ret = p[offset] << 8;
-                ret |= p[offset + 1];
-            } else {
-                ret = p[offset];
-                ret |= p[offset + 1] << 8;
-            }
-//            DPRINTF("%s: data offset %08x %04x\n", __func__, offset, ret);
-            break;
-        case 4:
-            if (be) {
-                ret = p[offset] << 24;
-                ret |= p[offset + 1] << 16;
-                ret |= p[offset + 2] << 8;
-                ret |= p[offset + 3];
-            } else {
-                ret = p[offset];
-                ret |= p[offset + 1] << 8;
-                ret |= p[offset + 2] << 16;
-                ret |= p[offset + 3] << 24;
-            }
-//            DPRINTF("%s: data offset %08x %08x\n", __func__, offset, ret);
-            break;
-        }
+        ret = _flash_read(pfl, offset, width, be);
         break;
     case 0x90:
         /* flash ID read */
@@ -260,8 +293,8 @@ static void pflash_update(pflash_t *pfl, int offset,
     }
 }
 
-static void pflash_write (pflash_t *pfl, hwaddr offset,
-                          uint64_t value, int width, int be)
+static void pflash_write(pflash_t *pfl, hwaddr offset,
+                         uint64_t value, int width, int be)
 {
     hwaddr boff;
     uint8_t *p;
@@ -275,17 +308,19 @@ static void pflash_write (pflash_t *pfl, hwaddr offset,
 #endif
         goto reset_flash;
     }
-    DPRINTF("%s: offset " TARGET_FMT_plx " %08x %d %d\n", __func__,
-            offset, value, width, pfl->wcycle);
+    DPRINTF("%s: offset " TARGET_FMT_plx " %08" PRIx64 " %d %d\n",
+            __func__, offset, value, width, pfl->wcycle);
     offset &= pfl->chip_len - 1;
 
-    DPRINTF("%s: offset " TARGET_FMT_plx " %08x %d\n", __func__,
-            offset, value, width);
+    DPRINTF("%s: offset " TARGET_FMT_plx " %08" PRIx64 " %d\n",
+            __func__, offset, value, width);
     boff = offset & (pfl->sector_len - 1);
     if (pfl->width == 2)
         boff = boff >> 1;
     else if (pfl->width == 4)
         boff = boff >> 2;
+    else if (pfl->width == 8)
+        boff = boff >> 3;
     switch (pfl->wcycle) {
     case 0:
         /* Set the device in I/O access mode if required */
@@ -346,8 +381,8 @@ static void pflash_write (pflash_t *pfl, hwaddr offset,
             /* We need another unlock sequence */
             goto check_unlock0;
         case 0xA0:
-            DPRINTF("%s: write data offset " TARGET_FMT_plx " %08x %d\n",
-                    __func__, offset, value, width);
+            DPRINTF("%s: write data offset " TARGET_FMT_plx
+                    " %08" PRIx64 " %d\n", __func__, offset, value, width);
             p = pfl->storage;
             if (!pfl->ro) {
                 switch (width) {
@@ -378,6 +413,28 @@ static void pflash_write (pflash_t *pfl, hwaddr offset,
                         p[offset + 3] &= value >> 24;
                     }
                     pflash_update(pfl, offset, 4);
+                    break;
+                case 8:
+                    if (be) {
+                        p[offset] &= value >> 56;
+                        p[offset + 1] &= value >> 48;
+                        p[offset + 2] &= value >> 40;
+                        p[offset + 3] &= value >> 32;
+                        p[offset + 4] &= value >> 24;
+                        p[offset + 5] &= value >> 16;
+                        p[offset + 6] &= value >> 8;
+                        p[offset + 7] &= value;
+                    } else {
+                        p[offset] &= value;
+                        p[offset + 1] &= value >> 8;
+                        p[offset + 2] &= value >> 16;
+                        p[offset + 3] &= value >> 24;
+                        p[offset + 4] &= value >> 32;
+                        p[offset + 5] &= value >> 40;
+                        p[offset + 6] &= value >> 48;
+                        p[offset + 7] &= value >> 56;
+                    }
+                    pflash_update(pfl, offset, 8);
                     break;
                 }
             }
@@ -524,12 +581,16 @@ static const MemoryRegionOps pflash_cfi02_ops_be = {
     .read = pflash_read_be,
     .write = pflash_write_be,
     .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid.max_access_size = 8,
+    .impl.max_access_size = 8,
 };
 
 static const MemoryRegionOps pflash_cfi02_ops_le = {
     .read = pflash_read_le,
     .write = pflash_write_le,
     .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid.max_access_size = 8,
+    .impl.max_access_size = 8,
 };
 
 static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
