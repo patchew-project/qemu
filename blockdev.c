@@ -1962,6 +1962,7 @@ typedef struct BlockDirtyBitmapState {
     AioContext *aio_context;
     HBitmap *backup;
     bool prepared;
+    bool was_enabled;
 } BlockDirtyBitmapState;
 
 static void block_dirty_bitmap_add_prepare(BlkActionState *common,
@@ -2069,6 +2070,74 @@ static void block_dirty_bitmap_clear_clean(BlkActionState *common)
     }
 }
 
+static void block_dirty_bitmap_enable_prepare(BlkActionState *common,
+                                              Error **errp)
+{
+    BlockDirtyBitmap *action;
+    BlockDirtyBitmapState *state = DO_UPCAST(BlockDirtyBitmapState,
+                                             common, common);
+
+    if (action_check_completion_mode(common, errp) < 0) {
+        return;
+    }
+
+    action = common->action->u.block_dirty_bitmap_enable.data;
+    state->bitmap = block_dirty_bitmap_lookup(action->node,
+                                              action->name,
+                                              &state->bs,
+                                              errp);
+    if (!state->bitmap) {
+        return;
+    }
+
+    state->was_enabled = bdrv_dirty_bitmap_enabled(state->bitmap);
+    bdrv_enable_dirty_bitmap(state->bitmap);
+}
+
+static void block_dirty_bitmap_enable_abort(BlkActionState *common)
+{
+    BlockDirtyBitmapState *state = DO_UPCAST(BlockDirtyBitmapState,
+                                             common, common);
+
+    if (!state->was_enabled) {
+        bdrv_disable_dirty_bitmap(state->bitmap);
+    }
+}
+
+static void block_dirty_bitmap_disable_prepare(BlkActionState *common,
+                                               Error **errp)
+{
+    BlockDirtyBitmap *action;
+    BlockDirtyBitmapState *state = DO_UPCAST(BlockDirtyBitmapState,
+                                             common, common);
+
+    if (action_check_completion_mode(common, errp) < 0) {
+        return;
+    }
+
+    action = common->action->u.block_dirty_bitmap_disable.data;
+    state->bitmap = block_dirty_bitmap_lookup(action->node,
+                                              action->name,
+                                              &state->bs,
+                                              errp);
+    if (!state->bitmap) {
+        return;
+    }
+
+    state->was_enabled = bdrv_dirty_bitmap_enabled(state->bitmap);
+    bdrv_disable_dirty_bitmap(state->bitmap);
+}
+
+static void block_dirty_bitmap_disable_abort(BlkActionState *common)
+{
+    BlockDirtyBitmapState *state = DO_UPCAST(BlockDirtyBitmapState,
+                                             common, common);
+
+    if (state->was_enabled) {
+        bdrv_enable_dirty_bitmap(state->bitmap);
+    }
+}
+
 static void abort_prepare(BlkActionState *common, Error **errp)
 {
     error_setg(errp, "Transaction aborted using Abort action");
@@ -2130,6 +2199,16 @@ static const BlkActionOps actions[] = {
         .commit = block_dirty_bitmap_clear_commit,
         .abort = block_dirty_bitmap_clear_abort,
         .clean = block_dirty_bitmap_clear_clean,
+    },
+    [TRANSACTION_ACTION_KIND_BLOCK_DIRTY_BITMAP_ENABLE] = {
+        .instance_size = sizeof(BlockDirtyBitmapState),
+        .prepare = block_dirty_bitmap_enable_prepare,
+        .abort = block_dirty_bitmap_enable_abort,
+    },
+    [TRANSACTION_ACTION_KIND_BLOCK_DIRTY_BITMAP_DISABLE] = {
+        .instance_size = sizeof(BlockDirtyBitmapState),
+        .prepare = block_dirty_bitmap_disable_prepare,
+        .abort = block_dirty_bitmap_disable_abort,
     }
 };
 
