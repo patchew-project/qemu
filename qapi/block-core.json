@@ -1672,6 +1672,48 @@
   'data': 'BlockDirtyBitmap' }
 
 ##
+# @block-dirty-bitmap-enable:
+#
+# Enable dirty bitmap, so that it will continue tracking disk changes.
+#
+# Returns: nothing on success
+#          If @node is not a valid block device, DeviceNotFound
+#          If @name is not found, GenericError with an explanation
+#
+# Since: 2.12
+#
+# Example:
+#
+# -> { "execute": "block-dirty-bitmap-enable",
+#      "arguments": { "node": "drive0", "name": "bitmap0" } }
+# <- { "return": {} }
+#
+##
+  { 'command': 'block-dirty-bitmap-enable',
+    'data': 'BlockDirtyBitmap' }
+
+##
+# @block-dirty-bitmap-disable:
+#
+# Disable dirty bitmap, so that it will stop tracking disk changes.
+#
+# Returns: nothing on success
+#          If @node is not a valid block device, DeviceNotFound
+#          If @name is not found, GenericError with an explanation
+#
+# Since: 2.12
+#
+# Example:
+#
+# -> { "execute": "block-dirty-bitmap-disable",
+#      "arguments": { "node": "drive0", "name": "bitmap0" } }
+# <- { "return": {} }
+#
+##
+    { 'command': 'block-dirty-bitmap-disable',
+      'data': 'BlockDirtyBitmap' }
+
+##
 # @BlockDirtyBitmapSha256:
 #
 # SHA256 hash of dirty bitmap data
