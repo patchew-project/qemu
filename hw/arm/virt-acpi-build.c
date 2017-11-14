@@ -487,7 +487,12 @@ build_srat(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     AcpiSratProcessorGiccAffinity *core;
     AcpiSratMemoryAffinity *numamem;
     int i, srat_start;
-    uint64_t mem_base;
+    hwaddr region_offset = 0;       /* region base addr offset */
+    hwaddr region_eat_size = 0;     /* region consumed size */
+    hwaddr node_mem_size = 0;
+    RAMRegion *begin_search_region = QLIST_FIRST(&vms->bootinfo.mem_list);
+    RAMRegion *reg;
+
     MachineClass *mc = MACHINE_GET_CLASS(vms);
     const CPUArchIdList *cpu_list = mc->possible_cpu_arch_ids(MACHINE(vms));
 
@@ -504,12 +509,37 @@ build_srat(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
         core->flags = cpu_to_le32(1);
     }
 
-    mem_base = vms->memmap[VIRT_MEM].base;
     for (i = 0; i < nb_numa_nodes; ++i) {
         numamem = acpi_data_push(table_data, sizeof(*numamem));
-        build_srat_memory(numamem, mem_base, numa_info[i].node_mem, i,
-                          MEM_AFFINITY_ENABLED);
-        mem_base += numa_info[i].node_mem;
+        node_mem_size = numa_info[i].node_mem;
+        QLIST_FOREACH(reg, &vms->bootinfo.mem_list, next) {
+            if (reg->base != begin_search_region->base) {
+                continue;
+            }
+
+            if (node_mem_size >= (reg->size - region_offset)) {
+                region_eat_size = reg->size - region_offset;
+            } else {
+                region_eat_size = node_mem_size;
+            }
+
+            build_srat_memory(numamem, reg->base + region_offset,
+                              region_eat_size, i, MEM_AFFINITY_ENABLED);
+
+            node_mem_size -= region_eat_size;
+            region_offset += region_eat_size;
+            begin_search_region = reg;
+
+            /* The region is depleted */
+            if (reg->size == region_offset) {
+                region_offset = 0;
+                begin_search_region = QLIST_NEXT(reg, next);
+            }
+
+            if (node_mem_size == 0) {
+                break;
+            }
+        }
     }
 
     build_header(linker, table_data, (void *)srat, "SRAT",
