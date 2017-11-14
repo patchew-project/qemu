@@ -944,6 +944,7 @@ static void vmxnet3_rx_need_csum_calculate(struct NetRxPkt *pkt,
     bool isip4, isip6, istcp, isudp;
     uint8_t *data;
     int len;
+    uint16_t sum;
 
     if (!net_rx_pkt_has_virt_hdr(pkt)) {
         return;
@@ -971,8 +972,10 @@ static void vmxnet3_rx_need_csum_calculate(struct NetRxPkt *pkt,
 
     data = (uint8_t *)pkt_data + vhdr->csum_start;
     len = pkt_len - vhdr->csum_start;
-    /* Put the checksum obtained into the packet */
-    stw_be_p(data + vhdr->csum_offset, net_raw_checksum(data, len));
+    sum = net_raw_checksum(data, len);
+    /* Put the checksum obtained into the packet; for UDP, zero checksum */
+    /* must be sent as 0xFFFF */
+    stw_be_p(data + vhdr->csum_offset, sum ? sum : 0xFFFF);
 
     vhdr->flags &= ~VIRTIO_NET_HDR_F_NEEDS_CSUM;
     vhdr->flags |= VIRTIO_NET_HDR_F_DATA_VALID;

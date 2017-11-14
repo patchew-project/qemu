@@ -589,6 +589,9 @@ bool net_rx_pkt_fix_l4_csum(struct NetRxPkt *pkt)
 
     /* Calculate L4 checksum */
     csum = cpu_to_be16(_net_rx_pkt_calc_l4_csum(pkt));
+    if (!csum) {
+        csum = 0xFFFF; /* For UDP, zero checksum must be sent as 0xFFFF */
+    }
 
     /* Set calculated checksum to checksum word */
     iov_from_buf(pkt->vec, pkt->vec_len,

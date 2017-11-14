@@ -136,6 +136,9 @@ void net_tx_pkt_update_ip_checksums(struct NetTxPkt *pkt)
         return;
     }
 
+    if (!csum) {
+        csum = 0xFFFF; /* For UDP, zero checksum must be sent as 0xFFFF */
+    }
     iov_from_buf(&pkt->vec[NET_TX_PKT_PL_START_FRAG], pkt->payload_frags,
                  pkt->virt_hdr.csum_offset, &csum, sizeof(csum));
 }
@@ -487,6 +490,9 @@ static void net_tx_pkt_do_sw_csum(struct NetTxPkt *pkt)
 
     /* Put the checksum obtained into the packet */
     csum = cpu_to_be16(net_checksum_finish(csum_cntr));
+    if (!csum) {
+        csum = 0xFFFF; /* For UDP, zero checksum must be sent as 0xFFFF */
+    }
     iov_from_buf(iov, iov_len, csum_offset, &csum, sizeof csum);
 }
 
