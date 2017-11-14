@@ -1225,6 +1225,19 @@ void virt_machine_done(Notifier *notifier, void *data)
     virt_build_smbios(vms);
 }
 
+static void virt_ram_memory_region_init(Notifier *notifier, void *data)
+{
+    MachineState *machine = MACHINE(qdev_get_machine());
+    MemoryRegion *sysmem = get_system_memory();
+    MemoryRegion *ram = g_new(MemoryRegion, 1);
+    VirtMachineState *vms = container_of(notifier, VirtMachineState,
+                                         ram_memory_region_init);
+
+    memory_region_allocate_system_memory(ram, NULL, "mach-virt.ram",
+                                         machine->ram_size);
+    memory_region_add_subregion(sysmem, vms->memmap[VIRT_MEM].base, ram);
+}
+
 static uint64_t virt_cpu_mp_affinity(VirtMachineState *vms, int idx)
 {
     uint8_t clustersz = ARM_DEFAULT_CPUS_PER_CLUSTER;
@@ -1258,7 +1271,6 @@ static void machvirt_init(MachineState *machine)
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *secure_sysmem = NULL;
     int n, virt_max_cpus;
-    MemoryRegion *ram = g_new(MemoryRegion, 1);
     bool firmware_loaded = bios_name || drive_get(IF_PFLASH, 0, 0);
 
     /* We can probe only here because during property set
@@ -1409,10 +1421,6 @@ static void machvirt_init(MachineState *machine)
     fdt_add_cpu_nodes(vms);
     fdt_add_psci_node(vms);
 
-    memory_region_allocate_system_memory(ram, NULL, "mach-virt.ram",
-                                         machine->ram_size);
-    memory_region_add_subregion(sysmem, vms->memmap[VIRT_MEM].base, ram);
-
     create_flash(vms, sysmem, secure_sysmem ? secure_sysmem : sysmem);
 
     create_gic(vms, pic);
@@ -1462,6 +1470,9 @@ static void machvirt_init(MachineState *machine)
      * Notifiers are executed in registration reverse order.
      */
     create_platform_bus(vms, pic);
+
+    vms->ram_memory_region_init.notify = virt_ram_memory_region_init;
+    qemu_add_machine_init_done_notifier(&vms->ram_memory_region_init);
 }
 
 static bool virt_get_secure(Object *obj, Error **errp)

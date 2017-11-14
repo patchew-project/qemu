@@ -90,6 +90,7 @@ typedef struct {
 typedef struct {
     MachineState parent;
     Notifier machine_done;
+    Notifier ram_memory_region_init;
     FWCfgState *fw_cfg;
     bool secure;
     bool highmem;
