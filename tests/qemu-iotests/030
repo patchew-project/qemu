@@ -21,7 +21,7 @@
 import time
 import os
 import iotests
-from iotests import qemu_img, qemu_io
+from iotests import qemu_img, qemu_img_pipe, qemu_io
 
 backing_img = os.path.join(iotests.test_dir, 'backing.img')
 mid_img = os.path.join(iotests.test_dir, 'mid.img')
@@ -803,6 +803,73 @@ class TestSetSpeed(iotests.QMPTestCase):
         self.assert_qmp(result, 'error/class', 'GenericError')
 
         self.cancel_and_wait(resume=True)
+
+class TestCompressed(iotests.QMPTestCase):
+    supported_fmts = ['qcow2']
+    cluster_size = 64 * 1024;
+    image_len = 1 * 1024 * 1024;
+
+    def setUp(self):
+        qemu_img('create', backing_img, str(TestCompressed.image_len))
+        qemu_io('-f', 'raw', '-c', 'write -P 1 0 ' + str(TestCompressed.image_len), backing_img)
+        qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, test_img)
+
+        # write '4' in every 4th cluster
+        step=4
+        for i in range(TestCompressed.image_len / TestCompressed.cluster_size / step + 1):
+            qemu_io('-c', 'write -P %d %d %d' %
+                    (step, step * i * TestCompressed.cluster_size,
+                     TestCompressed.cluster_size),
+                    test_img)
+
+        self.vm = iotests.VM().add_drive(test_img)
+        self.vm.launch()
+
+    def tearDown(self):
+        os.remove(test_img)
+        os.remove(backing_img)
+
+    def _pattern(self, x, divs):
+        return divs[-1] if not x%divs[-1] else self._pattern(x, divs[:-1])
+
+    def test_compressed(self):
+        self.assert_no_active_block_jobs()
+
+        result = self.vm.qmp('block-stream', device='drive0', compress=True)
+        if iotests.imgfmt not in TestCompressed.supported_fmts:
+            self.assert_qmp(
+                result, 'error/desc',
+                'Compression is not supported for this drive drive0')
+            return
+        self.assert_qmp(result, 'return', {})
+
+        # write '2' in every 2nd cluster
+        step = 2
+        for i in range(TestCompressed.image_len / TestCompressed.cluster_size / step + 1):
+            result = self.vm.qmp('human-monitor-command',
+                                 command_line=
+                                 'qemu-io drive0 \"write -P %d %d %d\"' %
+                                 (step, step * i * TestCompressed.cluster_size,
+                                  TestCompressed.cluster_size))
+            self.assert_qmp(result, 'return', "")
+
+        self.wait_until_completed()
+        self.assert_no_active_block_jobs()
+
+        self.vm.shutdown()
+
+        for i in range(TestCompressed.image_len / TestCompressed.cluster_size):
+            outp = qemu_io('-c', 'read -P %d %d %d' %
+                           (self._pattern(i, [1,4,2]),
+                            i * TestCompressed.cluster_size,
+                            TestCompressed.cluster_size),
+                           test_img)
+            self.assertTrue(not 'fail' in outp)
+            self.assertTrue('read' in outp and 'at offset' in outp)
+
+        self.assertTrue(
+            "File contains external, encrypted or compressed clusters."
+            in qemu_img_pipe('map', test_img))
 
 if __name__ == '__main__':
     iotests.main(supported_fmts=['qcow2', 'qed'])
