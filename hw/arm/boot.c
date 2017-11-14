@@ -384,6 +384,25 @@ static void set_kernel_args_old(const struct arm_boot_info *info)
     }
 }
 
+static char *create_memory_fdt(void *fdt, uint32_t acells, hwaddr mem_base,
+                                          uint32_t scells, hwaddr mem_len)
+{
+    char *nodename = NULL;
+    int rc;
+
+    nodename = g_strdup_printf("/memory@%" PRIx64, mem_base);
+    qemu_fdt_add_subnode(fdt, nodename);
+    qemu_fdt_setprop_string(fdt, nodename, "device_type", "memory");
+    rc = qemu_fdt_setprop_sized_cells(fdt, nodename, "reg", acells, mem_base,
+                                      scells, mem_len);
+    if (rc < 0) {
+        fprintf(stderr, "couldn't set %s/reg\n", nodename);
+        g_free(nodename);
+    }
+
+    return nodename;
+}
+
 /**
  * load_dtb() - load a device tree binary image into memory
  * @addr:       the address to load the image at
@@ -412,7 +431,7 @@ static int load_dtb(hwaddr addr, const struct arm_boot_info *binfo,
     uint32_t acells, scells;
     char *nodename;
     unsigned int i;
-    hwaddr mem_base, mem_len;
+    RAMRegion *reg;
 
     if (binfo->dtb_filename) {
         char *filename;
@@ -464,49 +483,65 @@ static int load_dtb(hwaddr addr, const struct arm_boot_info *binfo,
         goto fail;
     }
 
+    /*
+     * Turn the /memory node created before into a NOP node, then create
+     * /memory@addr nodes for all numa nodes respectively.
+     */
+    qemu_fdt_nop_node(fdt, "/memory");
+
     if (nb_numa_nodes > 0) {
-        /*
-         * Turn the /memory node created before into a NOP node, then create
-         * /memory@addr nodes for all numa nodes respectively.
-         */
-        qemu_fdt_nop_node(fdt, "/memory");
-        mem_base = binfo->loader_start;
+        hwaddr reg_offset = 0; /* region base addr offset */
+        hwaddr reg_alloc_size = 0; /* region consumed size */
+        hwaddr node_mem_size = 0;
+        RAMRegion *tmp_reg = QLIST_FIRST(&binfo->mem_list);
+
         for (i = 0; i < nb_numa_nodes; i++) {
-            mem_len = numa_info[i].node_mem;
-            nodename = g_strdup_printf("/memory@%" PRIx64, mem_base);
-            qemu_fdt_add_subnode(fdt, nodename);
-            qemu_fdt_setprop_string(fdt, nodename, "device_type", "memory");
-            rc = qemu_fdt_setprop_sized_cells(fdt, nodename, "reg",
-                                              acells, mem_base,
-                                              scells, mem_len);
-            if (rc < 0) {
-                fprintf(stderr, "couldn't set %s/reg for node %d\n", nodename,
-                        i);
+            node_mem_size = numa_info[i].node_mem;
+            QLIST_FOREACH(reg, &binfo->mem_list, next) {
+                if (reg->base != tmp_reg->base) {
+                    continue;
+                }
+
+                if (node_mem_size >= (reg->size - reg_offset)) {
+                    reg_alloc_size = reg->size - reg_offset;
+                } else {
+                    reg_alloc_size = node_mem_size;
+                }
+
+                nodename = create_memory_fdt(fdt, acells,
+                                             reg->base + reg_offset,
+                                             scells, reg_alloc_size);
+                if (!nodename) {
+                    goto fail;
+                }
+
+                qemu_fdt_setprop_cell(fdt, nodename, "numa-node-id", i);
+                g_free(nodename);
+
+                node_mem_size -= reg_alloc_size;
+                reg_offset += reg_alloc_size;
+                tmp_reg = reg;
+
+                /* The region is depleted */
+                if (reg->size == reg_offset) {
+                    reg_offset = 0;
+                    tmp_reg = QLIST_NEXT(reg, next);
+                }
+
+                if (node_mem_size == 0) {
+                    break;
+                }
+            }
+        }
+    } else {
+        QLIST_FOREACH(reg, &binfo->mem_list, next) {
+            nodename = create_memory_fdt(fdt, acells, reg->base,
+                                         scells, reg->size);
+            if (!nodename) {
                 goto fail;
             }
 
-            qemu_fdt_setprop_cell(fdt, nodename, "numa-node-id", i);
-            mem_base += mem_len;
             g_free(nodename);
-        }
-    } else {
-        Error *err = NULL;
-
-        rc = fdt_path_offset(fdt, "/memory");
-        if (rc < 0) {
-            qemu_fdt_add_subnode(fdt, "/memory");
-        }
-
-        if (!qemu_fdt_getprop(fdt, "/memory", "device_type", NULL, &err)) {
-            qemu_fdt_setprop_string(fdt, "/memory", "device_type", "memory");
-        }
-
-        rc = qemu_fdt_setprop_sized_cells(fdt, "/memory", "reg",
-                                          acells, binfo->loader_start,
-                                          scells, binfo->ram_size);
-        if (rc < 0) {
-            fprintf(stderr, "couldn't set /memory/reg\n");
-            goto fail;
         }
     }
 
@@ -814,6 +849,35 @@ static uint64_t load_aarch64_image(const char *filename, hwaddr mem_base,
     return size;
 }
 
+/* Find the max size memory region after info->initrd_start.
+ * TODO: we may have a corner case where the memory node size may not correctly
+ * fit into kernel/initrd/dtb Image sizes.
+ * */
+static RAMRegion *find_initrd_memregion(const struct arm_boot_info *info,
+                                        hwaddr *initrd_start)
+{
+    RAMRegion *reg, *initrd_reg = NULL;
+    hwaddr max_size = 0;
+    hwaddr addr = *initrd_start;
+
+    QLIST_FOREACH(reg, &info->mem_list, next) {
+        if (addr < reg->base) {
+            if (max_size < reg->size) {
+                max_size = reg->size;
+                *initrd_start = reg->base;
+                initrd_reg = reg;
+            }
+        } else if (addr >= reg->base && addr < (reg->base + reg->size)) {
+            if (max_size < reg->base + reg->size - addr) {
+                max_size = reg->base + reg->size - addr;
+                initrd_reg = reg;
+            }
+        }
+    }
+
+    return initrd_reg;
+}
+
 static void arm_load_kernel_notify(Notifier *notifier, void *data)
 {
     CPUState *cs;
@@ -837,11 +901,11 @@ static void arm_load_kernel_notify(Notifier *notifier, void *data)
     assert(!(info->secure_board_setup && kvm_enabled()));
 
     /* If machine is not virt, the mem_list will empty. */
-    if (QLIST_EMPTY(&vms->bootinfo.mem_list)) {
+    if (QLIST_EMPTY(&info->mem_list)) {
         RAMRegion *new = g_new(RAMRegion, 1);
         new->base = info->loader_start;
         new->size = info->ram_size;
-        QLIST_INSERT_HEAD(&vms->bootinfo.mem_list, new, next);
+        QLIST_INSERT_HEAD(&info->mem_list, new, next);
     }
 
     info->dtb_filename = qemu_opt_get(qemu_get_machine_opts(), "dtb");
@@ -973,14 +1037,16 @@ static void arm_load_kernel_notify(Notifier *notifier, void *data)
         uint32_t fixupcontext[FIXUP_MAX];
 
         if (info->initrd_filename) {
+            RAMRegion *reg = find_initrd_memregion(info, &info->initrd_start);
+
             initrd_size = load_ramdisk(info->initrd_filename,
                                        info->initrd_start,
-                                       info->ram_size -
+                                       reg->base + reg->size -
                                        info->initrd_start);
             if (initrd_size < 0) {
                 initrd_size = load_image_targphys(info->initrd_filename,
                                                   info->initrd_start,
-                                                  info->ram_size -
+                                                  reg->base + reg->size -
                                                   info->initrd_start);
             }
             if (initrd_size < 0) {
@@ -1027,7 +1093,8 @@ static void arm_load_kernel_notify(Notifier *notifier, void *data)
             }
             fixupcontext[FIXUP_ARGPTR] = dtb_start;
         } else {
-            fixupcontext[FIXUP_ARGPTR] = info->loader_start + KERNEL_ARGS_ADDR;
+            hwaddr kernel_args_addr = info->loader_start + KERNEL_ARGS_ADDR;
+            fixupcontext[FIXUP_ARGPTR] = kernel_args_addr;
             if (info->ram_size >= (1ULL << 32)) {
                 fprintf(stderr, "qemu: RAM size must be less than 4GB to boot"
                         " Linux kernel using ATAGS (try passing a device tree"
