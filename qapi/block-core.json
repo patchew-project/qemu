@@ -2065,6 +2065,14 @@
 # BLOCK_JOB_CANCELLED event.  Before that happens the job is still visible when
 # enumerated using query-block-jobs.
 #
+# Note: The 'block-job-cancel' command will emit the event BLOCK_JOB_COMPLETED
+# if you issue it ('block-job-cancel') after 'drive-mirror' has
+# indicated (by emitting the event BLOCK_JOB_READY) that the source and
+# destination remain synchronized.  In this case, the BLOCK_JOB_COMPLETED event
+# indicates that synchronization (from `drive-mirror`) has successfully ended
+# and the destination now has a point-in-time copy, which is at the time of
+# cancel.
+#
 # For streaming, the image file retains its backing file unless the streaming
 # operation happens to complete just as it is being cancelled.  A new streaming
 # operation can be started at a later time to finish copying all data from the
