@@ -3332,11 +3332,9 @@ static int qcow2_truncate(BlockDriverState *bs, int64_t offset,
     return 0;
 }
 
-/* XXX: put compressed sectors first, then all the cluster aligned
-   tables to avoid losing bytes in alignment */
 static coroutine_fn int
-qcow2_co_pwritev_compressed(BlockDriverState *bs, uint64_t offset,
-                            uint64_t bytes, QEMUIOVector *qiov)
+qcow2_co_pwritev_cluster_compressed(BlockDriverState *bs, uint64_t offset,
+                                    uint64_t bytes, QEMUIOVector *qiov)
 {
     BDRVQcow2State *s = bs->opaque;
     QEMUIOVector hd_qiov;
@@ -3346,25 +3344,12 @@ qcow2_co_pwritev_compressed(BlockDriverState *bs, uint64_t offset,
     uint8_t *buf, *out_buf;
     int64_t cluster_offset;
 
-    if (bytes == 0) {
-        /* align end of file to a sector boundary to ease reading with
-           sector based I/Os */
-        cluster_offset = bdrv_getlength(bs->file->bs);
-        if (cluster_offset < 0) {
-            return cluster_offset;
-        }
-        return bdrv_truncate(bs->file, cluster_offset, PREALLOC_MODE_OFF, NULL);
-    }
-
-    if (offset_into_cluster(s, offset)) {
-        return -EINVAL;
-    }
+    assert(bytes <= s->cluster_size);
+    assert(!offset_into_cluster(s, offset));
 
     buf = qemu_blockalign(bs, s->cluster_size);
-    if (bytes != s->cluster_size) {
-        if (bytes > s->cluster_size ||
-            offset + bytes != bs->total_sectors << BDRV_SECTOR_BITS)
-        {
+    if (bytes < s->cluster_size) {
+        if (offset + bytes != bs->total_sectors << BDRV_SECTOR_BITS) {
             qemu_vfree(buf);
             return -EINVAL;
         }
@@ -3441,6 +3426,56 @@ success:
 fail:
     qemu_vfree(buf);
     g_free(out_buf);
+    return ret;
+}
+
+/* XXX: put compressed sectors first, then all the cluster aligned
+   tables to avoid losing bytes in alignment */
+static coroutine_fn int
+qcow2_co_pwritev_compressed(BlockDriverState *bs, uint64_t offset,
+                            uint64_t bytes, QEMUIOVector *qiov)
+{
+    BDRVQcow2State *s = bs->opaque;
+    QEMUIOVector hd_qiov;
+    uint64_t curr_off = 0;
+    int ret;
+
+    if (bytes == 0) {
+        /* align end of file to a sector boundary to ease reading with
+           sector based I/Os */
+        int64_t cluster_offset = bdrv_getlength(bs->file->bs);
+        if (cluster_offset < 0) {
+            return cluster_offset;
+        }
+        return bdrv_truncate(bs->file, cluster_offset, PREALLOC_MODE_OFF, NULL);
+    }
+
+    if (offset_into_cluster(s, offset)) {
+        return -EINVAL;
+    }
+
+    qemu_iovec_init(&hd_qiov, qiov->niov);
+    do {
+        uint32_t chunk_size;
+
+        qemu_iovec_reset(&hd_qiov);
+        chunk_size = MIN(bytes, s->cluster_size);
+        qemu_iovec_concat(&hd_qiov, qiov, curr_off, chunk_size);
+
+        ret = qcow2_co_pwritev_cluster_compressed(bs, offset + curr_off,
+                                                  chunk_size, &hd_qiov);
+        if (ret == -ENOTSUP) {
+            ret = qcow2_co_pwritev(bs, offset + curr_off, chunk_size,
+                                   &hd_qiov, 0);
+        }
+        if (ret < 0) {
+            break;
+        }
+        curr_off += chunk_size;
+        bytes -= chunk_size;
+    } while (bytes);
+    qemu_iovec_destroy(&hd_qiov);
+
     return ret;
 }
 
