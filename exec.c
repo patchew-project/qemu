@@ -413,6 +413,7 @@ static MemoryRegionSection *address_space_lookup_region(AddressSpaceDispatch *d,
     bool update;
 
     if (section && section != &d->map.sections[PHYS_SECTION_UNASSIGNED] &&
+        (resolve_subpage || !section->offset_within_region) &&
         section_covers_addr(section, addr)) {
         update = false;
     } else {
