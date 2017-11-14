@@ -46,6 +46,13 @@
         OBJECT_GET_CLASS(IOMMUMemoryRegionClass, (obj), \
                          TYPE_IOMMU_MEMORY_REGION)
 
+/* Scattered RAM memory region struct */
+typedef struct RAMRegion {
+    hwaddr base;
+    hwaddr size;
+    QLIST_ENTRY(RAMRegion) next;
+} RAMRegion;
+
 typedef struct MemoryRegionOps MemoryRegionOps;
 typedef struct MemoryRegionMmio MemoryRegionMmio;
 

@@ -40,6 +40,8 @@ struct vfio_group_head vfio_group_list =
     QLIST_HEAD_INITIALIZER(vfio_group_list);
 struct vfio_as_head vfio_address_spaces =
     QLIST_HEAD_INITIALIZER(vfio_address_spaces);
+struct reserved_ram_head reserved_ram_regions =
+    QLIST_HEAD_INITIALIZER(reserved_ram_regions);
 
 #ifdef CONFIG_KVM
 /*
@@ -51,6 +53,71 @@ struct vfio_as_head vfio_address_spaces =
  */
 static int vfio_kvm_device_fd = -1;
 #endif
+
+void update_reserved_regions(hwaddr addr, hwaddr size)
+{
+    RAMRegion *reg, *new;
+
+    new = g_new(RAMRegion, 1);
+    new->base = addr;
+    new->size = size;
+
+    if (QLIST_EMPTY(&reserved_ram_regions)) {
+        QLIST_INSERT_HEAD(&reserved_ram_regions, new, next);
+        return;
+    }
+
+    /* make the base of reserved_ram_regions increase */
+    QLIST_FOREACH(reg, &reserved_ram_regions, next) {
+        if (addr > (reg->base + reg->size - 1)) {
+            if (!QLIST_NEXT(reg, next)) {
+                QLIST_INSERT_AFTER(reg, new, next);
+                break;
+            }
+            continue;
+        } else if (addr >= reg->base && addr <= (reg->base + reg->size - 1)) {
+            /* discard the duplicate entry */
+            if (addr == reg->base && size == reg->size) {
+                g_free(new);
+                break;
+            } else {
+                QLIST_INSERT_AFTER(reg, new, next);
+                break;
+            }
+        } else {
+            QLIST_INSERT_BEFORE(reg, new, next);
+            break;
+        }
+    }
+}
+
+void vfio_get_iommu_group_reserved_region(char *group_path)
+{
+    char *filename;
+    FILE *fp;
+    hwaddr start, end;
+    char str[10];
+    struct stat st;
+
+    filename = g_strdup_printf("%s/iommu_group/reserved_regions", group_path);
+    if (stat(filename, &st) < 0) {
+        g_free(filename);
+        return;
+    }
+
+    fp = fopen(filename, "r");
+    if (!fp) {
+        g_free(filename);
+        return;
+    }
+
+    while (fscanf(fp, "%"PRIx64" %"PRIx64" %s", &start, &end, str) != EOF) {
+        update_reserved_regions(start, (end - start + 1));
+    }
+
+    g_free(filename);
+    fclose(fp);
+}
 
 /*
  * Common VFIO interrupt disable

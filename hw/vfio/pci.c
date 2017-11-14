@@ -2674,6 +2674,8 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
     vdev->vbasedev.type = VFIO_DEVICE_TYPE_PCI;
     vdev->vbasedev.dev = &vdev->pdev.qdev;
 
+    vfio_get_iommu_group_reserved_region(vdev->vbasedev.sysfsdev);
+
     tmp = g_strdup_printf("%s/iommu_group", vdev->vbasedev.sysfsdev);
     len = readlink(tmp, group_path, sizeof(group_path));
     g_free(tmp);
