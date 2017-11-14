@@ -999,6 +999,10 @@ static enum TPMVersion tpm_tis_get_tpm_version(TPMIf *ti)
         return TPM_VERSION_UNSPEC;
     }
 
+    if (tpm_backend_had_startup_error(s->be_driver)) {
+        return TPM_VERSION_UNSPEC;
+    }
+
     return tpm_backend_get_tpm_version(s->be_driver);
 }
 
