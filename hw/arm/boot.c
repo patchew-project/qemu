@@ -836,6 +836,14 @@ static void arm_load_kernel_notify(Notifier *notifier, void *data)
      */
     assert(!(info->secure_board_setup && kvm_enabled()));
 
+    /* If machine is not virt, the mem_list will empty. */
+    if (QLIST_EMPTY(&vms->bootinfo.mem_list)) {
+        RAMRegion *new = g_new(RAMRegion, 1);
+        new->base = info->loader_start;
+        new->size = info->ram_size;
+        QLIST_INSERT_HEAD(&vms->bootinfo.mem_list, new, next);
+    }
+
     info->dtb_filename = qemu_opt_get(qemu_get_machine_opts(), "dtb");
 
     /* Load the kernel.  */

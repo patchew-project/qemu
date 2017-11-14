@@ -124,6 +124,7 @@ struct arm_boot_info {
     bool secure_board_setup;
 
     arm_endianness endianness;
+    QLIST_HEAD(, RAMRegion) mem_list;
 };
 
 /**
