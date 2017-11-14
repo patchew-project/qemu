@@ -89,6 +89,7 @@ class QEMUMachine(object):
         self._qemu_full_args = None
         self._test_dir = test_dir
         self._temp_dir = None
+        self._launched = False
 
         # just in case logging wasn't configured by the main script:
         logging.basicConfig()
@@ -210,10 +211,14 @@ class QEMUMachine(object):
         if self.is_running():
             raise QEMUMachineError('VM already running')
 
+        if self._launched:
+            raise QEMUMachineError('Shutdown pending after previous launch')
+
         self._iolog = None
         self._qemu_full_args = None
         try:
             self._launch()
+            self._launched = True
         except:
             self.shutdown()
 
@@ -265,6 +270,8 @@ class QEMUMachine(object):
             else:
                 command = ''
             LOG.warn(msg, exitcode, command)
+
+        self._launched = False
 
     def qmp(self, cmd, conv_keys=True, **args):
         '''Invoke a QMP command and return the response dict'''
