@@ -169,6 +169,8 @@ void replay_finish_event(void)
     replay_fetch_data_kind();
 }
 
+static __thread bool replay_locked;
+
 void replay_mutex_init(void)
 {
     qemu_mutex_init(&lock);
@@ -179,9 +181,7 @@ void replay_mutex_destroy(void)
     qemu_mutex_destroy(&lock);
 }
 
-static __thread bool replay_locked;
-
-static bool replay_mutex_locked(void)
+bool replay_mutex_locked(void)
 {
     return replay_locked;
 }
@@ -204,7 +204,7 @@ void replay_mutex_unlock(void)
 void replay_save_instructions(void)
 {
     if (replay_file && replay_mode == REPLAY_MODE_RECORD) {
-        replay_mutex_lock();
+        g_assert(replay_mutex_locked());
         int diff = (int)(replay_get_current_step() - replay_state.current_step);
 
         /* Time can only go forward */
@@ -215,6 +215,5 @@ void replay_save_instructions(void)
             replay_put_dword(diff);
             replay_state.current_step += diff;
         }
-        replay_mutex_unlock();
     }
 }
