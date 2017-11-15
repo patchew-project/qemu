@@ -90,7 +90,7 @@ typedef struct {
     /* Keep the data array 256 bytes long, which compatibility
      with older qemu versions. */
     uint8_t data[256];
-    int rptr, wptr, count;
+    uint8_t rptr, wptr, count;
 } PS2Queue;
 
 struct PS2State {
@@ -1225,24 +1225,18 @@ static void ps2_common_reset(PS2State *s)
 static void ps2_common_post_load(PS2State *s)
 {
     PS2Queue *q = &s->queue;
-    int size;
-    int i;
-    int tmp_data[PS2_QUEUE_SIZE];
+    uint8_t i, size;
+    uint8_t tmp_data[PS2_QUEUE_SIZE];
 
     /* set the useful data buffer queue size, < PS2_QUEUE_SIZE */
     size = q->count > PS2_QUEUE_SIZE ? 0 : q->count;
 
     /* move the queue elements to the start of data array */
-    if (size > 0) {
-        for (i = 0; i < size; i++) {
-            /* move the queue elements to the temporary buffer */
-            tmp_data[i] = q->data[q->rptr];
-            if (++q->rptr == 256) {
-                q->rptr = 0;
-            }
-        }
-        memcpy(q->data, tmp_data, size);
+    for (i = 0; i < size; i++) {
+        tmp_data[i] = q->data[q->rptr++];
     }
+    memcpy(q->data, tmp_data, size);
+
     /* reset rptr/wptr/count */
     q->rptr = 0;
     q->wptr = size;
@@ -1286,9 +1280,9 @@ static const VMStateDescription vmstate_ps2_common = {
     .minimum_version_id = 2,
     .fields = (VMStateField[]) {
         VMSTATE_INT32(write_cmd, PS2State),
-        VMSTATE_INT32(queue.rptr, PS2State),
-        VMSTATE_INT32(queue.wptr, PS2State),
-        VMSTATE_INT32(queue.count, PS2State),
+        VMSTATE_UINT8(queue.rptr, PS2State),
+        VMSTATE_UINT8(queue.wptr, PS2State),
+        VMSTATE_UINT8(queue.count, PS2State),
         VMSTATE_BUFFER(queue.data, PS2State),
         VMSTATE_END_OF_LIST()
     }
