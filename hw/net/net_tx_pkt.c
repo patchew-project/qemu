@@ -126,12 +126,12 @@ void net_tx_pkt_update_ip_checksums(struct NetTxPkt *pkt)
 
         /* Calculate IP pseudo header checksum */
         cntr = eth_calc_ip4_pseudo_hdr_csum(ip_hdr, pkt->payload_len, &cso);
-        csum = cpu_to_be16(~net_checksum_finish(cntr));
+        csum = cpu_to_be16(~net_checksum_finish_hdr(cntr));
     } else if (gso_type == VIRTIO_NET_HDR_GSO_TCPV6) {
         /* Calculate IP pseudo header checksum */
         cntr = eth_calc_ip6_pseudo_hdr_csum(ip_hdr, pkt->payload_len,
                                             IP_PROTO_TCP, &cso);
-        csum = cpu_to_be16(~net_checksum_finish(cntr));
+        csum = cpu_to_be16(~net_checksum_finish_hdr(cntr));
     } else {
         return;
     }
@@ -486,7 +486,7 @@ static void net_tx_pkt_do_sw_csum(struct NetTxPkt *pkt)
         net_checksum_add_iov(iov, iov_len, pkt->virt_hdr.csum_start, csl, cso);
 
     /* Put the checksum obtained into the packet */
-    csum = cpu_to_be16(net_checksum_finish(csum_cntr));
+    csum = cpu_to_be16(net_checksum_finish_hdr(csum_cntr));
     iov_from_buf(iov, iov_len, csum_offset, &csum, sizeof csum);
 }
 
