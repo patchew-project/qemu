@@ -25,6 +25,7 @@
  *
  */
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "hw/pci/pci.h"
 #include "hw/i386/pc.h"
 #include "hw/loader.h"
@@ -37,18 +38,41 @@
 
 typedef struct ISASGAState {
     ISADevice parent_obj;
+    bool use_sgabios;
 } ISASGAState;
 
 static void sga_realizefn(DeviceState *dev, Error **errp)
 {
-    rom_add_vga(SGABIOS_FILENAME);
+    MachineState *machine = MACHINE(qdev_get_machine());
+    ISASGAState *sga = SGA(dev);
+
+    if (sga->use_sgabios) {
+        rom_add_vga(SGABIOS_FILENAME);
+    } else if (machine->enable_graphics) {
+        warn_report("sgabios is deprecated for your machine type, "
+                    "please use -machine graphics=off instead of "
+                    "-device sga");
+        rom_add_vga(SGABIOS_FILENAME);
+    } else {
+        /*
+         * For this machine type we expect SeaBIOS to provide a
+         * serial console for -machine graphics=off.  No need to
+         * do anything here.
+         */
+    }
 }
+
+static Property sga_properties[] = {
+    DEFINE_PROP_BOOL("use-sgabios", ISASGAState, use_sgabios, false),
+    DEFINE_PROP_END_OF_LIST(),
+};
 
 static void sga_class_initfn(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
+    dc->props = sga_properties;
     dc->realize = sga_realizefn;
     dc->desc = "Serial Graphics Adapter";
 }

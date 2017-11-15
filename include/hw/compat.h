@@ -14,6 +14,10 @@
         .driver   = "i82559a",\
         .property = "x-use-alt-device-id",\
         .value    = "false",\
+    },{\
+        .driver   = "sga",\
+        .property = "use-sgabios",\
+        .value    = "true",\
     },
 
 #define HW_COMPAT_2_9 \
