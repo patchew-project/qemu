@@ -1038,6 +1038,16 @@ static void monitor_init_qmp_commands(void)
                          qmp_marshal_qmp_capabilities, QCO_NO_OPTIONS);
 }
 
+static bool qmp_cap_enabled(Monitor *mon, QMPCapability cap)
+{
+    return mon->qmp.qmp_caps[cap];
+}
+
+static bool qmp_oob_enabled(Monitor *mon)
+{
+    return qmp_cap_enabled(mon, QMP_CAPABILITY_OOB);
+}
+
 static void qmp_caps_check(Monitor *mon, QMPCapabilityList *list,
                            Error **errp)
 {
