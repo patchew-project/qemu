@@ -27,6 +27,7 @@
 #include "hw/virtio/virtio-access.h"
 #include "migration/blocker.h"
 #include "sysemu/dma.h"
+#include "migration/migration.h"
 
 /* enabled until disconnected backend stabilizes */
 #define _VHOST_DEBUG 1
@@ -882,20 +883,24 @@ static int vhost_migration_log(MemoryListener *listener, int enable)
 static void vhost_log_global_start(MemoryListener *listener)
 {
     int r;
+    Error *errp = NULL;
 
     r = vhost_migration_log(listener, true);
     if (r < 0) {
-        abort();
+        error_setg(&errp, "Failed to start vhost migration log");
+        migrate_fd_error(migrate_get_current(), errp);
     }
 }
 
 static void vhost_log_global_stop(MemoryListener *listener)
 {
     int r;
+    Error *errp = NULL;
 
     r = vhost_migration_log(listener, false);
     if (r < 0) {
-        abort();
+        error_setg(&errp, "Failed to stop vhost migration log");
+        migrate_fd_error(migrate_get_current(), errp);
     }
 }
 
