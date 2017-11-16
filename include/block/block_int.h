@@ -863,6 +863,7 @@ int is_windows_drive(const char *filename);
  * @backing_file_str: The file name that will be written to @bs as the
  * the new backing file if the job completes. Ignored if @base is %NULL.
  * @speed: The maximum speed, in bytes per second, or 0 for unlimited.
+ * @compress: True to compress data.
  * @on_error: The action to take upon error.
  * @errp: Error object.
  *
@@ -875,7 +876,8 @@ int is_windows_drive(const char *filename);
  */
 void stream_start(const char *job_id, BlockDriverState *bs,
                   BlockDriverState *base, const char *backing_file_str,
-                  int64_t speed, BlockdevOnError on_error, Error **errp);
+                  int64_t speed, bool compress,
+                  BlockdevOnError on_error, Error **errp);
 
 /**
  * commit_start:

@@ -38,23 +38,29 @@ typedef struct StreamBlockJob {
     BlockdevOnError on_error;
     char *backing_file_str;
     int bs_flags;
+    bool compress;
 } StreamBlockJob;
 
 static int coroutine_fn stream_populate(BlockBackend *blk,
                                         int64_t offset, uint64_t bytes,
-                                        void *buf)
+                                        void *buf, bool compress)
 {
     struct iovec iov = {
         .iov_base = buf,
         .iov_len  = bytes,
     };
     QEMUIOVector qiov;
+    int flags = BDRV_REQ_COPY_ON_READ;
+
+    if (compress) {
+        flags |= BDRV_REQ_WRITE_COMPRESSED;
+    }
 
     assert(bytes < SIZE_MAX);
     qemu_iovec_init_external(&qiov, &iov, 1);
 
     /* Copy-on-read the unallocated clusters */
-    return blk_co_preadv(blk, offset, qiov.size, &qiov, BDRV_REQ_COPY_ON_READ);
+    return blk_co_preadv(blk, offset, qiov.size, &qiov, flags);
 }
 
 typedef struct {
@@ -166,7 +172,7 @@ static void coroutine_fn stream_run(void *opaque)
         }
         trace_stream_one_iteration(s, offset, n, ret);
         if (copy) {
-            ret = stream_populate(blk, offset, n, buf);
+            ret = stream_populate(blk, offset, n, buf, s->compress);
         }
         if (ret < 0) {
             BlockErrorAction action =
@@ -227,7 +233,8 @@ static const BlockJobDriver stream_job_driver = {
 
 void stream_start(const char *job_id, BlockDriverState *bs,
                   BlockDriverState *base, const char *backing_file_str,
-                  int64_t speed, BlockdevOnError on_error, Error **errp)
+                  int64_t speed, bool compress,
+                  BlockdevOnError on_error, Error **errp)
 {
     StreamBlockJob *s;
     BlockDriverState *iter;
@@ -267,6 +274,7 @@ void stream_start(const char *job_id, BlockDriverState *bs,
     s->base = base;
     s->backing_file_str = g_strdup(backing_file_str);
     s->bs_flags = orig_bs_flags;
+    s->compress = compress;
 
     s->on_error = on_error;
     trace_stream_start(bs, base, s);
