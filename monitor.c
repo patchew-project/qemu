@@ -4025,6 +4025,7 @@ static void monitor_qmp_bh_dispatcher(void *data)
         if (!req_obj) {
             break;
         }
+        trace_monitor_qmp_cmd_in_band(qobject_get_try_str(req_obj->id));
         monitor_qmp_dispatch_one(req_obj);
     }
 }
@@ -4051,9 +4052,25 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens,
         return;
     }
 
+    if (!qmp_oob_enabled(mon) && qmp_is_oob(req)) {
+        error_setg(&err, "Out-Of-Band is only allowed "
+                   "when OOB is enabled.");
+        monitor_qmp_respond(mon, NULL, err, NULL);
+        qobject_decref(req);
+        return;
+    }
+
     qdict = qobject_to_qdict(req);
     if (qdict) {
         id = qdict_get(qdict, "id");
+        /* When OOB is enabled, the "id" field is mandatory. */
+        if (qmp_oob_enabled(mon) && !id) {
+            error_setg(&err, "Out-Of-Band capability requires that "
+                       "every command contains an 'id' field.");
+            monitor_qmp_respond(mon, NULL, err, NULL);
+            qobject_decref(req);
+            return;
+        }
         qobject_incref(id);
         qdict_del(qdict, "id");
     } /* else will fail qmp_dispatch() */
@@ -4064,6 +4081,13 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens,
     req_obj->req = req;
 
     if (qmp_oob_enabled(mon)) {
+        if (qmp_is_oob(req)) {
+            /* Out-Of-Band (OOB) requests are executed directly in parser. */
+            trace_monitor_qmp_cmd_out_of_band(qobject_get_try_str(req_obj->id));
+            monitor_qmp_dispatch_one(req_obj);
+            return;
+        }
+
         /* Drop the request if queue is full. */
         if (mon->qmp.qmp_requests->length >= QMP_REQ_QUEUE_LEN_MAX) {
             qapi_event_send_request_dropped(id,
