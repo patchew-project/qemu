@@ -345,13 +345,22 @@ static int zpci_endian_swap(uint64_t *ptr, uint8_t len)
     return 0;
 }
 
+static MemTxResult zpci_read_bar(S390PCIBusDevice *pbdev, uint8_t pcias,
+                                 uint64_t offset, uint64_t *data, uint8_t len)
+{
+    MemoryRegion *mr;
+
+    mr = pbdev->pdev->io_regions[pcias].memory;
+    return memory_region_dispatch_read(mr, offset, data, len,
+                                       MEMTXATTRS_UNSPECIFIED);
+}
+
 int pcilg_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2)
 {
     CPUS390XState *env = &cpu->env;
     S390PCIBusDevice *pbdev;
     uint64_t offset;
     uint64_t data;
-    MemoryRegion *mr;
     MemTxResult result;
     uint8_t len;
     uint32_t fh;
@@ -402,9 +411,7 @@ int pcilg_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2)
             program_interrupt(env, PGM_OPERAND, 4);
             return 0;
         }
-        mr = pbdev->pdev->io_regions[pcias].memory;
-        result = memory_region_dispatch_read(mr, offset, &data, len,
-                                             MEMTXATTRS_UNSPECIFIED);
+        result = zpci_read_bar(pbdev, pcias, offset, &data, len);
         if (result != MEMTX_OK) {
             program_interrupt(env, PGM_OPERAND, 4);
             return 0;
