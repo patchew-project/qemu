@@ -3222,3 +3222,37 @@
 # Since: 2.11
 ##
 { 'command': 'watchdog-set-action', 'data' : {'action': 'WatchdogAction'} }
+
+##
+# @RequestDropReason:
+#
+# Reasons that caused one command to be dropped.
+#
+# @queue-full: the queue of request is full.
+#
+# Since: 2.12
+##
+{ 'enum': 'RequestDropReason',
+  'data': [ 'queue-full' ] }
+
+##
+# @REQUEST_DROPPED:
+#
+# Emitted when one QMP request is dropped due to some reason.
+# REQUEST_DROPPED is only emitted when the oob capability is enabled.
+#
+# @id: The dropped command's "id" field.
+#
+# @reason: The reason why the request is dropped.
+#
+# Since: 2.12
+#
+# Example:
+#
+# { "event": "REQUEST_DROPPED",
+#   "data": {"result": {"id": "libvirt-102",
+#                       "reason": "queue-full" } } }
+#
+##
+{ 'event': 'REQUEST_DROPPED' ,
+  'data': { 'id': 'any', 'reason': 'RequestDropReason' } }
