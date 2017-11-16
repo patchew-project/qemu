@@ -55,6 +55,7 @@
 /scsi/qemu-pr-helper
 /vscclient
 /vhost-user-scsi
+/vhost-user-blk
 /fsdev/virtfs-proxy-helper
 *.tmp
 *.[1-9]
