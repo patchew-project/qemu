@@ -593,7 +593,8 @@ static void process_command(GAState *s, QDict *req)
 }
 
 /* handle requests/control events coming in over the channel */
-static void process_event(JSONMessageParser *parser, GQueue *tokens)
+static void process_event(JSONMessageParser *parser, GQueue *tokens,
+                          void *opaque)
 {
     GAState *s = container_of(parser, GAState, parser);
     QDict *qdict;
@@ -1320,7 +1321,7 @@ static int run_agent(GAState *s, GAConfig *config, int socket_activation)
     s->command_state = ga_command_state_new();
     ga_command_state_init(s, s->command_state);
     ga_command_state_init_all(s->command_state);
-    json_message_parser_init(&s->parser, process_event);
+    json_message_parser_init(&s->parser, process_event, NULL);
 
 #ifndef _WIN32
     if (!register_signal_handlers()) {
