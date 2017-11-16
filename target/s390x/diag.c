@@ -27,7 +27,6 @@ static int modified_clear_reset(S390CPU *cpu)
     S390CPUClass *scc = S390_CPU_GET_CLASS(cpu);
     CPUState *t;
 
-    pause_all_vcpus();
     cpu_synchronize_all_states();
     CPU_FOREACH(t) {
         run_on_cpu(t, s390_do_cpu_full_reset, RUN_ON_CPU_NULL);
@@ -37,7 +36,6 @@ static int modified_clear_reset(S390CPU *cpu)
     s390_crypto_reset();
     scc->load_normal(CPU(cpu));
     cpu_synchronize_all_post_reset();
-    resume_all_vcpus();
     return 0;
 }
 
@@ -53,7 +51,6 @@ static int load_normal_reset(S390CPU *cpu)
     S390CPUClass *scc = S390_CPU_GET_CLASS(cpu);
     CPUState *t;
 
-    pause_all_vcpus();
     cpu_synchronize_all_states();
     CPU_FOREACH(t) {
         run_on_cpu(t, s390_do_cpu_reset, RUN_ON_CPU_NULL);
@@ -63,7 +60,6 @@ static int load_normal_reset(S390CPU *cpu)
     scc->initial_cpu_reset(CPU(cpu));
     scc->load_normal(CPU(cpu));
     cpu_synchronize_all_post_reset();
-    resume_all_vcpus();
     return 0;
 }
 
