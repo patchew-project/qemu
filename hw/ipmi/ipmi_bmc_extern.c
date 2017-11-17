@@ -192,13 +192,6 @@ static void ipmi_bmc_extern_handle_command(IPMIBmc *b,
     uint8_t err = 0, csum;
     unsigned int i;
 
-    if (ibe->outlen) {
-        /* We already have a command queued.  Shouldn't ever happen. */
-        fprintf(stderr, "IPMI KCS: Got command when not finished with the"
-                " previous command\n");
-        abort();
-    }
-
     /* If it's too short or it was truncated, return an error. */
     if (cmd_len < 2) {
         err = IPMI_CC_REQUEST_DATA_LENGTH_INVALID;
@@ -206,7 +199,10 @@ static void ipmi_bmc_extern_handle_command(IPMIBmc *b,
         err = IPMI_CC_REQUEST_DATA_TRUNCATED;
     } else if (!ibe->connected) {
         err = IPMI_CC_BMC_INIT_IN_PROGRESS;
+    } else if (ibe->wdt_state.trans_fail) {
+        err = IPMI_CC_BMC_INIT_IN_PROGRESS;
     }
+
     if (err) {
         IPMIInterfaceClass *k = IPMI_INTERFACE_GET_CLASS(s);
         unsigned char rsp[3];
@@ -216,6 +212,13 @@ static void ipmi_bmc_extern_handle_command(IPMIBmc *b,
         ibe->waiting_rsp = false;
         k->handle_rsp(s, msg_id, rsp, 3);
         goto out;
+    }
+
+    if (ibe->outlen) {
+        /* We already have a command queued.  Shouldn't ever happen. */
+        fprintf(stderr, "IPMI KCS: Got command when not finished with the"
+                " previous command\n");
+        abort();
     }
 
     addchar(ibe, msg_id);
