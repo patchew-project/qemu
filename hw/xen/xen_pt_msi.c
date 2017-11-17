@@ -47,25 +47,6 @@ static inline uint32_t msi_ext_dest_id(uint32_t addr_hi)
     return addr_hi & 0xffffff00;
 }
 
-static uint32_t msi_gflags(uint32_t data, uint64_t addr)
-{
-    uint32_t result = 0;
-    int rh, dm, dest_id, deliv_mode, trig_mode;
-
-    rh = (addr >> MSI_ADDR_REDIRECTION_SHIFT) & 0x1;
-    dm = (addr >> MSI_ADDR_DEST_MODE_SHIFT) & 0x1;
-    dest_id = msi_dest_id(addr);
-    deliv_mode = (data >> MSI_DATA_DELIVERY_MODE_SHIFT) & 0x7;
-    trig_mode = (data >> MSI_DATA_TRIGGER_SHIFT) & 0x1;
-
-    result = dest_id | (rh << XEN_PT_GFLAGS_SHIFT_RH)
-        | (dm << XEN_PT_GFLAGS_SHIFT_DM)
-        | (deliv_mode << XEN_PT_GFLAGSSHIFT_DELIV_MODE)
-        | (trig_mode << XEN_PT_GFLAGSSHIFT_TRG_MODE);
-
-    return result;
-}
-
 static inline uint64_t msi_addr64(XenPTMSI *msi)
 {
     return (uint64_t)msi->addr_hi << 32 | msi->addr_lo;
@@ -160,23 +141,20 @@ static int msi_msix_update(XenPCIPassthroughState *s,
                            bool masked)
 {
     PCIDevice *d = &s->dev;
-    uint8_t gvec = msi_vector(data);
-    uint32_t gflags = msi_gflags(data, addr);
+    uint32_t gflags = masked ? 0 : (1u << XEN_PT_GFLAGSSHIFT_UNMASKED);
     int rc = 0;
     uint64_t table_addr = 0;
 
-    XEN_PT_LOG(d, "Updating MSI%s with pirq %d gvec %#x gflags %#x"
-               " (entry: %#x)\n",
-               is_msix ? "-X" : "", pirq, gvec, gflags, msix_entry);
+    XEN_PT_LOG(d, "Updating MSI%s with pirq %d gvec %#x addr %"PRIx64
+               " data %#x gflags %#x (entry: %#x)\n",
+               is_msix ? "-X" : "", pirq, addr, data, gflags, msix_entry);
 
     if (is_msix) {
         table_addr = s->msix->mmio_base_addr;
     }
 
-    gflags |= masked ? 0 : (1u << XEN_PT_GFLAGSSHIFT_UNMASKED);
-
-    rc = xc_domain_update_msi_irq(xen_xc, xen_domid, gvec,
-                                  pirq, gflags, table_addr);
+    rc = xc_domain_update_msi_irq(xen_xc, xen_domid, pirq, addr,
+                                  data, gflags, table_addr);
 
     if (rc) {
         XEN_PT_ERR(d, "Updating of MSI%s failed. (err: %d)\n",
@@ -199,8 +177,6 @@ static int msi_msix_disable(XenPCIPassthroughState *s,
                             bool is_binded)
 {
     PCIDevice *d = &s->dev;
-    uint8_t gvec = msi_vector(data);
-    uint32_t gflags = msi_gflags(data, addr);
     int rc = 0;
 
     if (pirq == XEN_PT_UNASSIGNED_PIRQ) {
@@ -208,12 +184,13 @@ static int msi_msix_disable(XenPCIPassthroughState *s,
     }
 
     if (is_binded) {
-        XEN_PT_LOG(d, "Unbind MSI%s with pirq %d, gvec %#x\n",
-                   is_msix ? "-X" : "", pirq, gvec);
-        rc = xc_domain_unbind_msi_irq(xen_xc, xen_domid, gvec, pirq, gflags);
+        XEN_PT_LOG(d, "Unbind MSI%s with pirq %d, addr %"PRIx64", data %#x\n",
+                   is_msix ? "-X" : "", pirq, addr, data);
+        rc = xc_domain_unbind_msi_irq(xen_xc, xen_domid, pirq, addr, data);
         if (rc) {
-            XEN_PT_ERR(d, "Unbinding of MSI%s failed. (err: %d, pirq: %d, gvec: %#x)\n",
-                       is_msix ? "-X" : "", errno, pirq, gvec);
+            XEN_PT_ERR(d, "Unbinding of MSI%s failed. (err: %d, pirq: %d, "
+                       "addr: %"PRIx64", data: %#x)\n",
+                       is_msix ? "-X" : "", errno, pirq, addr, data);
             return rc;
         }
     }
