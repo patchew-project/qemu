@@ -982,3 +982,47 @@
   'data': { '*device': 'str',
             '*head'  : 'int',
             'events' : [ 'InputEvent' ] } }
+
+
+##
+# @DisplayNoOpts:
+#
+# WIP
+#
+##
+{ 'struct'  : 'DisplayNoOpts',
+  'data'    : { } }
+
+##
+# @DisplayGTK:
+#
+# WIP
+#
+##
+{ 'struct'  : 'DisplayGTK',
+  'data'    : { '*grab-on-hover' : 'bool' } }
+
+##
+# @DisplayType:
+#
+# WIP
+#
+##
+{ 'enum'    : 'DisplayType',
+  'data'    : [ 'default', 'none', 'gtk' ] }
+
+##
+# @DisplayOptions:
+#
+# WIP
+#
+##
+{ 'union'   : 'DisplayOptions',
+  'base'    : { 'type'           : 'DisplayType',
+                '*full-screen'   : 'bool',
+                '*window-close'  : 'bool',
+                '*gl'            : 'bool' },
+  'discriminator' : 'type',
+  'data'    : { 'default'        : 'DisplayNoOpts',
+                'none'           : 'DisplayNoOpts',
+                'gtk'            : 'DisplayGTK' } }
