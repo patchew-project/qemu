@@ -2189,13 +2189,7 @@ static void parse_display(const char *p)
             exit(1);
         }
     } else if (strstart(p, "egl-headless", &opts)) {
-#ifdef CONFIG_OPENGL_DMABUF
-        display_opengl = 1;
         dpy.type = DISPLAY_TYPE_EGL_HEADLESS;
-#else
-        fprintf(stderr, "egl support is disabled\n");
-        exit(1);
-#endif
     } else if (strstart(p, "curses", &opts)) {
         dpy.type = DISPLAY_TYPE_CURSES;
     } else if (strstart(p, "gtk", &opts)) {
@@ -4776,12 +4770,6 @@ int main(int argc, char **argv, char **envp)
     if (using_spice) {
         qemu_spice_display_init();
     }
-
-#ifdef CONFIG_OPENGL_DMABUF
-    if (dpy.type == DISPLAY_TYPE_EGL_HEADLESS) {
-        egl_headless_init(&dpy);
-    }
-#endif
 
     if (foreach_device_config(DEV_GDB, gdbserver_start) < 0) {
         exit(1);

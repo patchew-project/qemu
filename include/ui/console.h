@@ -478,7 +478,4 @@ static inline int vnc_init_func(void *opaque, QemuOpts *opts, Error **errp)
 /* input.c */
 int index_from_key(const char *key, size_t key_length);
 
-/* egl-headless.c */
-void egl_headless_init(DisplayOptions *opts);
-
 #endif
