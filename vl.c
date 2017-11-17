@@ -175,8 +175,6 @@ QEMUOptionRom option_rom[MAX_OPTION_ROMS];
 int nb_option_roms;
 int old_param = 0;
 const char *qemu_name;
-int alt_grab = 0;
-int ctrl_grab = 0;
 unsigned int nb_prom_envs = 0;
 const char *prom_envs[MAX_PROM_ENVS];
 int boot_menu;
@@ -2167,22 +2165,10 @@ static DisplayType select_display(const char *p)
                 warn_report("frame sdl option is unsupported, ignoring");
             } else if (strstart(opts, ",alt_grab=", &nextopt)) {
                 opts = nextopt;
-                if (strstart(opts, "on", &nextopt)) {
-                    alt_grab = 1;
-                } else if (strstart(opts, "off", &nextopt)) {
-                    alt_grab = 0;
-                } else {
-                    goto invalid_sdl_args;
-                }
+                warn_report("ctrl_grab sdl option is unsupported, ignoring");
             } else if (strstart(opts, ",ctrl_grab=", &nextopt)) {
                 opts = nextopt;
-                if (strstart(opts, "on", &nextopt)) {
-                    ctrl_grab = 1;
-                } else if (strstart(opts, "off", &nextopt)) {
-                    ctrl_grab = 0;
-                } else {
-                    goto invalid_sdl_args;
-                }
+                warn_report("alt_grab sdl option is unsupported, ignoring");
             } else if (strstart(opts, ",window_close=", &nextopt)) {
                 opts = nextopt;
                 if (strstart(opts, "on", &nextopt)) {
@@ -3780,10 +3766,10 @@ int main(int argc, char **argv, char **envp)
                 warn_report("-no-frame switch is unsupported, ignoring");
                 break;
             case QEMU_OPTION_alt_grab:
-                alt_grab = 1;
+                warn_report("-alt-grab switch is unsupported, ignoring");
                 break;
             case QEMU_OPTION_ctrl_grab:
-                ctrl_grab = 1;
+                warn_report("-ctrl-grab switch is unsupported, ignoring");
                 break;
             case QEMU_OPTION_no_quit:
                 no_quit = 1;
@@ -4466,10 +4452,6 @@ int main(int argc, char **argv, char **envp)
 #endif
     }
 
-    if ((alt_grab || ctrl_grab) && display_type != DT_SDL) {
-        error_report("-no-frame, -alt-grab and -ctrl-grab are only valid "
-                     "for SDL, ignoring option");
-    }
     if (no_quit && (display_type != DT_GTK && display_type != DT_SDL)) {
         error_report("-no-quit is only valid for GTK and SDL, "
                      "ignoring option");

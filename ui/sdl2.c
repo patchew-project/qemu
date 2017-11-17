@@ -139,13 +139,7 @@ static void sdl_update_caption(struct sdl2_console *scon)
     if (!runstate_is_running()) {
         status = " [Stopped]";
     } else if (gui_grab) {
-        if (alt_grab) {
-            status = " - Press Ctrl-Alt-Shift to exit grab";
-        } else if (ctrl_grab) {
-            status = " - Press Right-Ctrl to exit grab";
-        } else {
-            status = " - Press Ctrl-Alt to exit grab";
-        }
+        status = " - Press Ctrl-Alt to exit grab";
     }
 
     if (qemu_name) {
@@ -336,14 +330,7 @@ static void handle_keydown(SDL_Event *ev)
     int mod_state, win;
     struct sdl2_console *scon = get_scon_from_window(ev->key.windowID);
 
-    if (alt_grab) {
-        mod_state = (SDL_GetModState() & (gui_grab_code | KMOD_LSHIFT)) ==
-            (gui_grab_code | KMOD_LSHIFT);
-    } else if (ctrl_grab) {
-        mod_state = (SDL_GetModState() & KMOD_RCTRL) == KMOD_RCTRL;
-    } else {
-        mod_state = (SDL_GetModState() & gui_grab_code) == gui_grab_code;
-    }
+    mod_state = (SDL_GetModState() & gui_grab_code) == gui_grab_code;
     gui_key_modifier_pressed = mod_state;
 
     if (gui_key_modifier_pressed) {
@@ -420,11 +407,7 @@ static void handle_keyup(SDL_Event *ev)
     int mod_state;
     struct sdl2_console *scon = get_scon_from_window(ev->key.windowID);
 
-    if (!alt_grab) {
-        mod_state = (ev->key.keysym.mod & gui_grab_code);
-    } else {
-        mod_state = (ev->key.keysym.mod & (gui_grab_code | KMOD_LSHIFT));
-    }
+    mod_state = (ev->key.keysym.mod & gui_grab_code);
     if (!mod_state && gui_key_modifier_pressed) {
         gui_key_modifier_pressed = 0;
         if (gui_keysym == 0) {
