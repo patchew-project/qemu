@@ -26,6 +26,7 @@
  * IBM's contributions to this file may be relicensed under LGPLv2 or later.
  */
 
+#include <malloc.h>
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qemu/rcu.h"
@@ -272,6 +273,9 @@ static void *call_rcu_thread(void *opaque)
             node->func(node);
         }
         qemu_mutex_unlock_iothread();
+#ifdef CONFIG_LINUX
+        malloc_trim(0);
+#endif
     }
     abort();
 }
