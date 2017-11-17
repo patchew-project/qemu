@@ -1009,7 +1009,7 @@
 #
 ##
 { 'enum'    : 'DisplayType',
-  'data'    : [ 'default', 'none', 'gtk' ] }
+  'data'    : [ 'default', 'none', 'gtk', 'sdl' ] }
 
 ##
 # @DisplayOptions:
@@ -1025,4 +1025,5 @@
   'discriminator' : 'type',
   'data'    : { 'default'        : 'DisplayNoOpts',
                 'none'           : 'DisplayNoOpts',
-                'gtk'            : 'DisplayGTK' } }
+                'gtk'            : 'DisplayGTK',
+                'sdl'            : 'DisplayNoOpts' } }
