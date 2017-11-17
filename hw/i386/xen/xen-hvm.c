@@ -145,8 +145,16 @@ void xen_piix_pci_write_config_client(uint32_t address, uint32_t val, int len)
     }
 }
 
-int xen_is_pirq_msi(uint32_t msi_data)
+int xen_is_pirq_msi(uint32_t msi_addr_lo, uint32_t msi_data)
 {
+    /* If the MSI address is configured in remapping format, the MSI will not
+     * be remapped into a pirq. This 'if' test excludes Intel-specific
+     * remappable msi.
+     */
+#define MSI_ADDR_IF_MASK 0x00000010
+    if (msi_addr_lo & MSI_ADDR_IF_MASK) {
+        return 0;
+    }
     /* If vector is 0, the msi is remapped into a pirq, passed as
      * dest_id.
      */
