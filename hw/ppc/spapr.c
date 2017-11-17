@@ -44,6 +44,7 @@
 #include "migration/register.h"
 #include "mmu-hash64.h"
 #include "mmu-book3s-v3.h"
+#include "cpu-models.h"
 #include "qom/cpu.h"
 
 #include "hw/boards.h"
@@ -252,9 +253,10 @@ static int spapr_fixup_cpu_numa_dt(void *fdt, int offset, PowerPCCPU *cpu)
 }
 
 /* Populate the "ibm,pa-features" property */
-static void spapr_populate_pa_features(CPUPPCState *env, void *fdt, int offset,
-                                      bool legacy_guest)
+static void spapr_populate_pa_features(PowerPCCPU *cpu, void *fdt, int offset,
+                                       bool legacy_guest)
 {
+    CPUPPCState *env = &cpu->env;
     uint8_t pa_features_206[] = { 6, 0,
         0xf6, 0x1f, 0xc7, 0x00, 0x80, 0xc0 };
     uint8_t pa_features_207[] = { 24, 0,
@@ -290,16 +292,36 @@ static void spapr_populate_pa_features(CPUPPCState *env, void *fdt, int offset,
     uint8_t *pa_features;
     size_t pa_size;
 
-    switch (POWERPC_MMU_VER(env->mmu_model)) {
-    case POWERPC_MMU_VER_2_06:
+    switch (cpu->compat_pvr) {
+    case 0:
+        /* If not in a compat mode then determine based on the mmu model */
+        switch (POWERPC_MMU_VER(env->mmu_model)) {
+        case POWERPC_MMU_VER_2_06:
+            pa_features = pa_features_206;
+            pa_size = sizeof(pa_features_206);
+            break;
+        case POWERPC_MMU_VER_2_07:
+            pa_features = pa_features_207;
+            pa_size = sizeof(pa_features_207);
+            break;
+        case POWERPC_MMU_VER_3_00:
+            pa_features = pa_features_300;
+            pa_size = sizeof(pa_features_300);
+            break;
+        default:
+            return;
+        }
+        break;
+    case CPU_POWERPC_LOGICAL_2_06:
+    case CPU_POWERPC_LOGICAL_2_06_PLUS:
         pa_features = pa_features_206;
         pa_size = sizeof(pa_features_206);
         break;
-    case POWERPC_MMU_VER_2_07:
+    case CPU_POWERPC_LOGICAL_2_07:
         pa_features = pa_features_207;
         pa_size = sizeof(pa_features_207);
         break;
-    case POWERPC_MMU_VER_3_00:
+    case CPU_POWERPC_LOGICAL_3_00:
         pa_features = pa_features_300;
         pa_size = sizeof(pa_features_300);
         break;
@@ -340,7 +362,6 @@ static int spapr_fixup_cpu_dt(void *fdt, sPAPRMachineState *spapr)
 
     CPU_FOREACH(cs) {
         PowerPCCPU *cpu = POWERPC_CPU(cs);
-        CPUPPCState *env = &cpu->env;
         DeviceClass *dc = DEVICE_GET_CLASS(cs);
         int index = spapr_vcpu_id(cpu);
         int compat_smt = MIN(smp_threads, ppc_compat_max_threads(cpu));
@@ -384,7 +405,7 @@ static int spapr_fixup_cpu_dt(void *fdt, sPAPRMachineState *spapr)
             return ret;
         }
 
-        spapr_populate_pa_features(env, fdt, offset,
+        spapr_populate_pa_features(cpu, fdt, offset,
                                          spapr->cas_legacy_guest_workaround);
     }
     return ret;
@@ -579,7 +600,7 @@ static void spapr_populate_cpu_dt(CPUState *cs, void *fdt, int offset,
                           page_sizes_prop, page_sizes_prop_size)));
     }
 
-    spapr_populate_pa_features(env, fdt, offset, false);
+    spapr_populate_pa_features(cpu, fdt, offset, false);
 
     _FDT((fdt_setprop_cell(fdt, offset, "ibm,chip-id",
                            cs->cpu_index / vcpus_per_socket)));
@@ -941,6 +962,7 @@ static void spapr_dt_rtas(sPAPRMachineState *spapr, void *fdt)
 static void spapr_dt_ov5_platform_support(void *fdt, int chosen)
 {
     PowerPCCPU *first_ppc_cpu = POWERPC_CPU(first_cpu);
+    CPUPPCState *env = &first_ppc_cpu->env;
 
     char val[2 * 4] = {
         23, 0x00, /* Xive mode, filled in below. */
@@ -949,7 +971,11 @@ static void spapr_dt_ov5_platform_support(void *fdt, int chosen)
         26, 0x40, /* Radix options: GTSE == yes. */
     };
 
-    if (kvm_enabled()) {
+    if (first_ppc_cpu->compat_pvr && (first_ppc_cpu->compat_pvr <
+                                      CPU_POWERPC_LOGICAL_3_00)) {
+        /* If we're in a pre POWER9 compat mode then the guest should do hash */
+        val[3] = 0x00; /* Hash */
+    } else if (kvm_enabled()) {
         if (kvmppc_has_cap_mmu_radix() && kvmppc_has_cap_mmu_hash_v3()) {
             val[3] = 0x80; /* OV5_MMU_BOTH */
         } else if (kvmppc_has_cap_mmu_radix()) {
@@ -958,7 +984,7 @@ static void spapr_dt_ov5_platform_support(void *fdt, int chosen)
             val[3] = 0x00; /* Hash */
         }
     } else {
-        if (first_ppc_cpu->env.mmu_model & POWERPC_MMU_V3) {
+        if (env->mmu_model & POWERPC_MMU_V3) {
             /* V3 MMU supports both hash and radix (with dynamic switching) */
             val[3] = 0xC0;
         } else {
