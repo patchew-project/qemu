@@ -151,7 +151,6 @@ static int rtc_date_offset = -1; /* -1 means no change */
 QEMUClockType rtc_clock;
 int vga_interface_type = VGA_NONE;
 static int full_screen = 0;
-static int no_frame = 0;
 int no_quit = 0;
 static bool grab_on_hover;
 Chardev *serial_hds[MAX_SERIAL_PORTS];
@@ -2165,13 +2164,7 @@ static DisplayType select_display(const char *p)
 
             if (strstart(opts, ",frame=", &nextopt)) {
                 opts = nextopt;
-                if (strstart(opts, "on", &nextopt)) {
-                    no_frame = 0;
-                } else if (strstart(opts, "off", &nextopt)) {
-                    no_frame = 1;
-                } else {
-                    goto invalid_sdl_args;
-                }
+                warn_report("frame sdl option is unsupported, ignoring");
             } else if (strstart(opts, ",alt_grab=", &nextopt)) {
                 opts = nextopt;
                 if (strstart(opts, "on", &nextopt)) {
@@ -3784,7 +3777,7 @@ int main(int argc, char **argv, char **envp)
                 full_screen = 1;
                 break;
             case QEMU_OPTION_no_frame:
-                no_frame = 1;
+                warn_report("-no-frame switch is unsupported, ignoring");
                 break;
             case QEMU_OPTION_alt_grab:
                 alt_grab = 1;
@@ -4473,7 +4466,7 @@ int main(int argc, char **argv, char **envp)
 #endif
     }
 
-    if ((no_frame || alt_grab || ctrl_grab) && display_type != DT_SDL) {
+    if ((alt_grab || ctrl_grab) && display_type != DT_SDL) {
         error_report("-no-frame, -alt-grab and -ctrl-grab are only valid "
                      "for SDL, ignoring option");
     }
@@ -4823,7 +4816,7 @@ int main(int argc, char **argv, char **envp)
         curses_display_init(ds, full_screen);
         break;
     case DT_SDL:
-        sdl_display_init(ds, full_screen, no_frame);
+        sdl_display_init(ds, full_screen);
         break;
     case DT_COCOA:
         cocoa_display_init(ds, full_screen);

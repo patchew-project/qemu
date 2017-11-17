@@ -48,7 +48,6 @@ static int gui_saved_width;
 static int gui_saved_height;
 static int gui_saved_grab;
 static int gui_fullscreen;
-static int gui_noframe;
 static int gui_key_modifier_pressed;
 static int gui_keysym;
 static int gui_grab_code = KMOD_LALT | KMOD_LCTRL;
@@ -114,8 +113,6 @@ static void do_sdl_resize(int width, int height, int bpp)
     } else {
         flags |= SDL_RESIZABLE;
     }
-    if (gui_noframe)
-        flags |= SDL_NOFRAME;
 
     tmp_screen = SDL_SetVideoMode(width, height, bpp, flags);
     if (!real_screen) {
@@ -944,7 +941,7 @@ void sdl_display_early_init(int opengl)
     }
 }
 
-void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
+void sdl_display_init(DisplayState *ds, int full_screen)
 {
     int flags;
     uint8_t data = 0;
@@ -962,9 +959,6 @@ void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
         if (!kbd_layout)
             exit(1);
     }
-
-    if (no_frame)
-        gui_noframe = 1;
 
     if (!full_screen) {
         setenv("SDL_VIDEO_ALLOW_SCREENSAVER", "1", 0);
