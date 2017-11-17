@@ -1225,28 +1225,17 @@ static void ps2_common_reset(PS2State *s)
 static void ps2_common_post_load(PS2State *s)
 {
     PS2Queue *q = &s->queue;
-    int size;
-    int i;
-    int tmp_data[PS2_QUEUE_SIZE];
 
-    /* set the useful data buffer queue size, < PS2_QUEUE_SIZE */
-    size = q->count > PS2_QUEUE_SIZE ? 0 : q->count;
-
-    /* move the queue elements to the start of data array */
-    if (size > 0) {
-        for (i = 0; i < size; i++) {
-            /* move the queue elements to the temporary buffer */
-            tmp_data[i] = q->data[q->rptr];
-            if (++q->rptr == 256) {
-                q->rptr = 0;
-            }
-        }
-        memcpy(q->data, tmp_data, size);
+    if (q->count < 0 || q->count > PS2_QUEUE_SIZE ||
+        q->rptr  < 0 || q->rptr  >= PS2_QUEUE_SIZE ||
+        q->wptr  < 0 || q->wptr  >= PS2_QUEUE_SIZE) {
+        /* sanity check failed -> drop input events */
+        ps2_reset_queue(s);
+        return;
     }
-    /* reset rptr/wptr/count */
-    q->rptr = 0;
-    q->wptr = size;
-    q->count = size;
+
+    /* wptr is redundant.  Set it for consistency reasons. */
+    q->wptr = (q->rptr + q->count) % PS2_QUEUE_SIZE;
     s->update_irq(s->update_arg, q->count != 0);
 }
 
