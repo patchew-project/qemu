@@ -523,12 +523,12 @@ static void mirror_exit(BlockJob *job, void *opaque)
                             &error_abort);
     if (s->backing_mode == MIRROR_SOURCE_BACKING_CHAIN) {
         BlockDriverState *backing = s->is_none_mode ? src : s->base;
-        if (backing_bs(target_bs) != backing) {
-            bdrv_set_backing_hd(target_bs, backing, &local_err);
-            if (local_err) {
-                error_report_err(local_err);
-                data->ret = -EPERM;
-            }
+
+        assert(!target_bs->backing);
+        bdrv_set_backing_hd(target_bs, backing, &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+            data->ret = -EPERM;
         }
     }
 
