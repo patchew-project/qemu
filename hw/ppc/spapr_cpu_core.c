@@ -35,6 +35,13 @@ static void spapr_cpu_reset(void *opaque)
     cs->halted = 1;
 
     env->spr[SPR_HIOR] = 0;
+
+    /* Disable Power-saving mode Exit Cause exceptions for the CPU.
+     * This can cause issues when rebooting the guest if a secondary
+     * is awaken */
+    if (cs != first_cpu) {
+        env->spr[SPR_LPCR] &= ~cpu_ppc_papr_pece_bits(env);
+    }
 }
 
 static void spapr_cpu_destroy(PowerPCCPU *cpu)
