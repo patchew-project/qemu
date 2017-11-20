@@ -61,7 +61,7 @@ wrote 65536/65536 bytes at offset 1048576
                 },
                 "backing-filename-format": "qcow2",
                 "virtual-size": 67108864,
-                "filename": "TEST_DIR/t.qcow2.ovl2",
+                "filename": "json:{"backing": {"backing": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/t.qcow2.base"}}, "driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/t.qcow2.mid"}}, "driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/t.qcow2.ovl2"}}",
                 "cluster-size": 65536,
                 "format": "qcow2",
                 "actual-size": SIZE,
@@ -95,7 +95,7 @@ wrote 65536/65536 bytes at offset 1048576
                 "direct": false,
                 "writeback": true
             },
-            "file": "TEST_DIR/t.qcow2.ovl2",
+            "file": "json:{"backing": {"backing": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/t.qcow2.base"}}, "driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/t.qcow2.mid"}}, "driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/t.qcow2.ovl2"}}",
             "encryption_key_missing": false
         },
         {
@@ -150,7 +150,7 @@ wrote 65536/65536 bytes at offset 1048576
                 },
                 "backing-filename-format": "qcow2",
                 "virtual-size": 67108864,
-                "filename": "TEST_DIR/t.qcow2",
+                "filename": "json:{"backing": {"backing": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/t.qcow2.base"}}, "driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/t.qcow2.mid"}}, "driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/t.qcow2"}}",
                 "cluster-size": 65536,
                 "format": "qcow2",
                 "actual-size": SIZE,
@@ -184,7 +184,7 @@ wrote 65536/65536 bytes at offset 1048576
                 "direct": false,
                 "writeback": true
             },
-            "file": "TEST_DIR/t.qcow2",
+            "file": "json:{"backing": {"backing": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/t.qcow2.base"}}, "driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/t.qcow2.mid"}}, "driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/t.qcow2"}}",
             "encryption_key_missing": false
         },
         {
@@ -464,7 +464,7 @@ wrote 65536/65536 bytes at offset 1048576
                 },
                 "backing-filename-format": "qcow2",
                 "virtual-size": 67108864,
-                "filename": "TEST_DIR/t.qcow2.ovl2",
+                "filename": "json:{"backing": {"backing": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/t.qcow2.base"}}, "driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/t.qcow2.mid"}}, "driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/t.qcow2.ovl2"}}",
                 "cluster-size": 65536,
                 "format": "qcow2",
                 "actual-size": SIZE,
@@ -498,7 +498,7 @@ wrote 65536/65536 bytes at offset 1048576
                 "direct": false,
                 "writeback": true
             },
-            "file": "TEST_DIR/t.qcow2.ovl2",
+            "file": "json:{"backing": {"backing": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/t.qcow2.base"}}, "driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/t.qcow2.mid"}}, "driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/t.qcow2.ovl2"}}",
             "encryption_key_missing": false
         },
         {
@@ -554,7 +554,7 @@ wrote 65536/65536 bytes at offset 1048576
                     },
                     "backing-filename-format": "qcow2",
                     "virtual-size": 67108864,
-                    "filename": "TEST_DIR/t.qcow2.ovl2",
+                    "filename": "json:{"backing": {"backing": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/t.qcow2.base"}}, "driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/t.qcow2.mid"}}, "driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/t.qcow2.ovl2"}}",
                     "cluster-size": 65536,
                     "format": "qcow2",
                     "actual-size": SIZE,
@@ -573,7 +573,7 @@ wrote 65536/65536 bytes at offset 1048576
                 },
                 "backing-filename-format": "qcow2",
                 "virtual-size": 67108864,
-                "filename": "TEST_DIR/t.qcow2.ovl3",
+                "filename": "json:{"backing": {"backing": {"backing": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/t.qcow2.base"}}, "driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/t.qcow2.mid"}}, "driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/t.qcow2.ovl2"}}, "driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/t.qcow2.ovl3"}}",
                 "cluster-size": 65536,
                 "format": "qcow2",
                 "actual-size": SIZE,
@@ -586,8 +586,8 @@ wrote 65536/65536 bytes at offset 1048576
                         "corrupt": false
                     }
                 },
-                "full-backing-filename": "TEST_DIR/t.qcow2.ovl2",
-                "backing-filename": "TEST_DIR/t.qcow2.ovl2",
+                "full-backing-filename": "json:{"backing": {"backing": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/t.qcow2.base"}}, "driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/t.qcow2.mid"}}, "driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/t.qcow2.ovl2"}}",
+                "backing-filename": "json:{"backing": {"backing": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/t.qcow2.base"}}, "driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/t.qcow2.mid"}}, "driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/t.qcow2.ovl2"}}",
                 "dirty-flag": false
             },
             "iops_wr": 0,
@@ -598,7 +598,7 @@ wrote 65536/65536 bytes at offset 1048576
             "iops": 0,
             "bps_wr": 0,
             "write_threshold": 0,
-            "backing_file": "TEST_DIR/t.qcow2.ovl2",
+            "backing_file": "json:{"backing": {"backing": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/t.qcow2.base"}}, "driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/t.qcow2.mid"}}, "driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/t.qcow2.ovl2"}}",
             "encrypted": false,
             "bps": 0,
             "bps_rd": 0,
@@ -607,7 +607,7 @@ wrote 65536/65536 bytes at offset 1048576
                 "direct": false,
                 "writeback": true
             },
-            "file": "TEST_DIR/t.qcow2.ovl3",
+            "file": "json:{"backing": {"backing": {"backing": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/t.qcow2.base"}}, "driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/t.qcow2.mid"}}, "driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/t.qcow2.ovl2"}}, "driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/t.qcow2.ovl3"}}",
             "encryption_key_missing": false
         },
         {

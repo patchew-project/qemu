@@ -5018,6 +5018,7 @@ void bdrv_refresh_filename(BlockDriverState *bs)
 
         opts = qdict_new();
         has_open_options = append_open_options(opts, bs);
+        has_open_options |= bs->backing_overridden;
 
         /* If no specific options have been given for this BDS, the filename of
          * the underlying file should suffice for this one as well */
@@ -5029,10 +5030,19 @@ void bdrv_refresh_filename(BlockDriverState *bs)
          * file BDS. The full options QDict of that file BDS should somehow
          * contain a representation of the filename, therefore the following
          * suffices without querying the (exact_)filename of this BDS. */
-        if (bs->file->bs->full_open_options) {
+        if (bs->file->bs->full_open_options &&
+            (!bs->backing || bs->backing->bs->full_open_options))
+        {
             qdict_put_str(opts, "driver", drv->format_name);
             QINCREF(bs->file->bs->full_open_options);
             qdict_put(opts, "file", bs->file->bs->full_open_options);
+
+            if (bs->backing) {
+                QINCREF(bs->backing->bs->full_open_options);
+                qdict_put(opts, "backing", bs->backing->bs->full_open_options);
+            } else if (bs->backing_overridden && !bs->backing) {
+                qdict_put(opts, "backing", qstring_new());
+            }
 
             bs->full_open_options = opts;
         } else {
