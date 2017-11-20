@@ -389,6 +389,7 @@ typedef struct TrimAIOCB {
     QEMUIOVector *qiov;
     BlockAIOCB *aiocb;
     int i, j;
+    BlockAcctCookie acct;
 } TrimAIOCB;
 
 static void trim_aio_cancel(BlockAIOCB *acb)
@@ -426,6 +427,14 @@ static void ide_trim_bh_cb(void *opaque)
 static void ide_issue_trim_cb(void *opaque, int ret)
 {
     TrimAIOCB *iocb = opaque;
+    if (iocb->i >= 0) {
+        if (ret >= 0) {
+            block_acct_done(blk_get_stats(iocb->blk), &iocb->acct);
+        } else {
+            block_acct_failed(blk_get_stats(iocb->blk), &iocb->acct);
+        }
+    }
+
     if (ret >= 0) {
         while (iocb->j < iocb->qiov->niov) {
             int j = iocb->j;
@@ -441,6 +450,9 @@ static void ide_issue_trim_cb(void *opaque, int ret)
                 if (count == 0) {
                     continue;
                 }
+
+                block_acct_start(blk_get_stats(iocb->blk), &iocb->acct,
+                                 count << BDRV_SECTOR_BITS, BLOCK_ACCT_UNMAP);
 
                 /* Got an entry! Submit and exit.  */
                 iocb->aiocb = blk_aio_pdiscard(iocb->blk,
