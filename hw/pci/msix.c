@@ -500,11 +500,12 @@ void msix_reset(PCIDevice *dev)
         return;
     }
     msix_clear_all_vectors(dev);
+    msix_mask_all(dev, dev->msix_entries_nr);
     dev->config[dev->msix_cap + MSIX_CONTROL_OFFSET] &=
 	    ~dev->wmask[dev->msix_cap + MSIX_CONTROL_OFFSET];
     memset(dev->msix_table, 0, dev->msix_entries_nr * PCI_MSIX_ENTRY_SIZE);
     memset(dev->msix_pba, 0, QEMU_ALIGN_UP(dev->msix_entries_nr, 64) / 8);
-    msix_mask_all(dev, dev->msix_entries_nr);
+    msix_update_function_masked(dev);
 }
 
 /* PCI spec suggests that devices make it possible for software to configure
