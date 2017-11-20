@@ -8901,11 +8901,28 @@ POWERPC_FAMILY(POWER9)(ObjectClass *oc, void *data)
 }
 
 #if !defined(CONFIG_USER_ONLY)
+
+target_ulong cpu_ppc_papr_pece_bits(CPUPPCState *env)
+{
+    switch (env->mmu_model) {
+    case POWERPC_MMU_3_00:
+        return LPCR_PDEE | LPCR_HDEE | LPCR_EEE | LPCR_DEE | LPCR_OEE;
+    default:
+        /* P7 and P8 has slightly different PECE bits, mostly because P8 adds
+         * bit 47 and 48 which are reserved on P7. Here we set them all, which
+         * will work as expected for both implementations
+         */
+        return LPCR_P8_PECE0 | LPCR_P8_PECE1 | LPCR_P8_PECE2 | LPCR_P8_PECE3 |
+            LPCR_P8_PECE4;
+    }
+}
+
 void cpu_ppc_set_papr(PowerPCCPU *cpu, PPCVirtualHypervisor *vhyp)
 {
     CPUPPCState *env = &cpu->env;
     ppc_spr_t *lpcr = &env->spr_cb[SPR_LPCR];
     ppc_spr_t *amor = &env->spr_cb[SPR_AMOR];
+    CPUState *cs = CPU(cpu);
 
     cpu->vhyp = vhyp;
 
@@ -8947,16 +8964,16 @@ void cpu_ppc_set_papr(PowerPCCPU *cpu, PPCVirtualHypervisor *vhyp)
         } else {
             lpcr->default_value &= ~(LPCR_UPRT | LPCR_GTSE);
         }
-        lpcr->default_value |= LPCR_PDEE | LPCR_HDEE | LPCR_EEE | LPCR_DEE |
-                               LPCR_OEE;
         break;
     default:
-        /* P7 and P8 has slightly different PECE bits, mostly because P8 adds
-         * bit 47 and 48 which are reserved on P7. Here we set them all, which
-         * will work as expected for both implementations
-         */
-        lpcr->default_value |= LPCR_P8_PECE0 | LPCR_P8_PECE1 | LPCR_P8_PECE2 |
-                               LPCR_P8_PECE3 | LPCR_P8_PECE4;
+        ;
+    }
+
+    /* Only enable Power-saving mode Exit Cause exceptions on the boot
+     * CPU. The RTAS command start-cpu will enable them on secondaries.
+     */
+    if (cs == first_cpu) {
+        lpcr->default_value |= cpu_ppc_papr_pece_bits(env);
     }
 
     /* We should be followed by a CPU reset but update the active value
