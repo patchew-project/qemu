@@ -4342,6 +4342,12 @@ static QemuOptsList qcow2_create_opts = {
     }
 };
 
+static const char *const qcow2_sgfnt_runtime_opts[] = {
+    "encrypt." BLOCK_CRYPTO_OPT_QCOW_KEY_SECRET,
+
+    NULL
+};
+
 BlockDriver bdrv_qcow2 = {
     .format_name        = "qcow2",
     .instance_size      = sizeof(BDRVQcow2State),
@@ -4387,6 +4393,7 @@ BlockDriver bdrv_qcow2 = {
     .bdrv_inactivate            = qcow2_inactivate,
 
     .create_opts         = &qcow2_create_opts,
+    .sgfnt_runtime_opts  = qcow2_sgfnt_runtime_opts,
     .bdrv_check          = qcow2_check,
     .bdrv_amend_options  = qcow2_amend_options,
 

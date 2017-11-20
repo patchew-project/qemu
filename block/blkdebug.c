@@ -886,6 +886,21 @@ static int blkdebug_reopen_prepare(BDRVReopenState *reopen_state,
     return 0;
 }
 
+static const char *const blkdebug_sgfnt_runtime_opts[] = {
+    "config",
+    "inject-error.",
+    "set-state.",
+    "suspend.",
+    "align",
+    "max-transfer",
+    "opt-write-zero",
+    "max-write-zero",
+    "opt-discard",
+    "max-discard",
+
+    NULL
+};
+
 static BlockDriver bdrv_blkdebug = {
     .format_name            = "blkdebug",
     .protocol_name          = "blkdebug",
@@ -915,6 +930,8 @@ static BlockDriver bdrv_blkdebug = {
                                 = blkdebug_debug_remove_breakpoint,
     .bdrv_debug_resume          = blkdebug_debug_resume,
     .bdrv_debug_is_suspended    = blkdebug_debug_is_suspended,
+
+    .sgfnt_runtime_opts         = blkdebug_sgfnt_runtime_opts,
 };
 
 static void bdrv_blkdebug_init(void)

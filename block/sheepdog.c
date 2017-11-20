@@ -3077,6 +3077,15 @@ static QemuOptsList sd_create_opts = {
     }
 };
 
+static const char *const sd_sgfnt_runtime_opts[] = {
+    "vdi",
+    "snap-id",
+    "tag",
+    "server.",
+
+    NULL
+};
+
 static BlockDriver bdrv_sheepdog = {
     .format_name    = "sheepdog",
     .protocol_name  = "sheepdog",
@@ -3111,6 +3120,7 @@ static BlockDriver bdrv_sheepdog = {
     .bdrv_attach_aio_context = sd_attach_aio_context,
 
     .create_opts    = &sd_create_opts,
+    .sgfnt_runtime_opts = sd_sgfnt_runtime_opts,
 };
 
 static BlockDriver bdrv_sheepdog_tcp = {
@@ -3147,6 +3157,7 @@ static BlockDriver bdrv_sheepdog_tcp = {
     .bdrv_attach_aio_context = sd_attach_aio_context,
 
     .create_opts    = &sd_create_opts,
+    .sgfnt_runtime_opts = sd_sgfnt_runtime_opts,
 };
 
 static BlockDriver bdrv_sheepdog_unix = {
@@ -3183,6 +3194,7 @@ static BlockDriver bdrv_sheepdog_unix = {
     .bdrv_attach_aio_context = sd_attach_aio_context,
 
     .create_opts    = &sd_create_opts,
+    .sgfnt_runtime_opts = sd_sgfnt_runtime_opts,
 };
 
 static void bdrv_sheepdog_init(void)

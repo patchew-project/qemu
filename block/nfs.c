@@ -896,6 +896,15 @@ static void nfs_invalidate_cache(BlockDriverState *bs,
 }
 #endif
 
+static const char *nfs_sgfnt_runtime_opts[] = {
+    "path",
+    "user",
+    "group",
+    "server.",
+
+    NULL
+};
+
 static BlockDriver bdrv_nfs = {
     .format_name                    = "nfs",
     .protocol_name                  = "nfs",
@@ -921,6 +930,8 @@ static BlockDriver bdrv_nfs = {
     .bdrv_attach_aio_context        = nfs_attach_aio_context,
     .bdrv_refresh_filename          = nfs_refresh_filename,
     .bdrv_dirname                   = nfs_dirname,
+
+    .sgfnt_runtime_opts             = nfs_sgfnt_runtime_opts,
 
 #ifdef LIBNFS_FEATURE_PAGECACHE
     .bdrv_invalidate_cache          = nfs_invalidate_cache,

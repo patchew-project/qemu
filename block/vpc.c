@@ -1084,6 +1084,12 @@ static QemuOptsList vpc_create_opts = {
     }
 };
 
+static const char *const vpc_sgfnt_runtime_opts[] = {
+    VPC_OPT_SIZE_CALC,
+
+    NULL
+};
+
 static BlockDriver bdrv_vpc = {
     .format_name    = "vpc",
     .instance_size  = sizeof(BDRVVPCState),
@@ -1103,6 +1109,7 @@ static BlockDriver bdrv_vpc = {
 
     .create_opts            = &vpc_create_opts,
     .bdrv_has_zero_init     = vpc_has_zero_init,
+    .sgfnt_runtime_opts     = vpc_sgfnt_runtime_opts,
 };
 
 static void bdrv_vpc_init(void)
