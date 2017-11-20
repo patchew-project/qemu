@@ -36,9 +36,6 @@ ifneq ($(call find-in-path, $(CC_I386)),)
 TESTS += $(I386_TESTS)
 endif
 
-all: $(patsubst %,run-%,$(TESTS))
-test: all
-
 # rules to run tests
 
 .PHONY: $(patsubst %,run-%,$(TESTS))
