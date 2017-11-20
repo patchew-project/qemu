@@ -730,6 +730,23 @@
 # @timed_stats: Statistics specific to the set of previously defined
 #               intervals of time (Since 2.5)
 #
+# @unmap_bytes: The number of bytes unmapped by the device (Since 2.12)
+#
+# @unmap_operations: The number of unmap operations performed by the device
+#                    (Since 2.12)
+#
+# @unmap_total_time_ns: Total time spent on unmap operations in nano-seconds
+#                       (Since 2.12)
+#
+# @unmap_merged: Number of unmap requests that have been merged into another
+#                request (Since 2.12)
+#
+# @failed_unmap_operations: The number of failed unmap operations performed
+#                           by the device (Since 2.12)
+#
+# @invalid_unmap_operations: The number of invalid unmap operations performed
+#                            by the device (Since 2.12)
+#
 # Since: 0.14.0
 ##
 { 'struct': 'BlockDeviceStats',
@@ -741,6 +758,9 @@
            'failed_rd_operations': 'int', 'failed_wr_operations': 'int',
            'failed_flush_operations': 'int', 'invalid_rd_operations': 'int',
            'invalid_wr_operations': 'int', 'invalid_flush_operations': 'int',
+           'unmap_bytes' : 'int', 'unmap_operations': 'int',
+           'unmap_total_time_ns': 'int', 'unmap_merged': 'int',
+           'failed_unmap_operations': 'int', 'invalid_unmap_operations': 'int',
            'account_invalid': 'bool', 'account_failed': 'bool',
            'timed_stats': ['BlockDeviceTimedStats'] } }
 
