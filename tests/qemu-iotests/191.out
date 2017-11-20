@@ -220,6 +220,74 @@ wrote 65536/65536 bytes at offset 1048576
             "iops_rd": 0,
             "detect_zeroes": "off",
             "image": {
+                "virtual-size": 67108864,
+                "filename": "TEST_DIR/t.qcow2.base",
+                "cluster-size": 65536,
+                "format": "qcow2",
+                "actual-size": SIZE,
+                "format-specific": {
+                    "type": "qcow2",
+                    "data": {
+                        "compat": "1.1",
+                        "lazy-refcounts": false,
+                        "refcount-bits": 16,
+                        "corrupt": false
+                    }
+                },
+                "dirty-flag": false
+            },
+            "iops_wr": 0,
+            "ro": true,
+            "node-name": "NODE_NAME",
+            "backing_file_depth": 0,
+            "drv": "qcow2",
+            "iops": 0,
+            "bps_wr": 0,
+            "write_threshold": 0,
+            "encrypted": false,
+            "bps": 0,
+            "bps_rd": 0,
+            "cache": {
+                "no-flush": false,
+                "direct": false,
+                "writeback": true
+            },
+            "file": "TEST_DIR/t.qcow2.base",
+            "encryption_key_missing": false
+        },
+        {
+            "iops_rd": 0,
+            "detect_zeroes": "off",
+            "image": {
+                "virtual-size": 393216,
+                "filename": "TEST_DIR/t.qcow2.base",
+                "format": "file",
+                "actual-size": SIZE,
+                "dirty-flag": false
+            },
+            "iops_wr": 0,
+            "ro": true,
+            "node-name": "NODE_NAME",
+            "backing_file_depth": 0,
+            "drv": "file",
+            "iops": 0,
+            "bps_wr": 0,
+            "write_threshold": 0,
+            "encrypted": false,
+            "bps": 0,
+            "bps_rd": 0,
+            "cache": {
+                "no-flush": false,
+                "direct": false,
+                "writeback": true
+            },
+            "file": "TEST_DIR/t.qcow2.base",
+            "encryption_key_missing": false
+        },
+        {
+            "iops_rd": 0,
+            "detect_zeroes": "off",
+            "image": {
                 "backing-image": {
                     "virtual-size": 67108864,
                     "filename": "TEST_DIR/t.qcow2.base",
@@ -303,74 +371,6 @@ wrote 65536/65536 bytes at offset 1048576
                 "writeback": true
             },
             "file": "TEST_DIR/t.qcow2.mid",
-            "encryption_key_missing": false
-        },
-        {
-            "iops_rd": 0,
-            "detect_zeroes": "off",
-            "image": {
-                "virtual-size": 67108864,
-                "filename": "TEST_DIR/t.qcow2.base",
-                "cluster-size": 65536,
-                "format": "qcow2",
-                "actual-size": SIZE,
-                "format-specific": {
-                    "type": "qcow2",
-                    "data": {
-                        "compat": "1.1",
-                        "lazy-refcounts": false,
-                        "refcount-bits": 16,
-                        "corrupt": false
-                    }
-                },
-                "dirty-flag": false
-            },
-            "iops_wr": 0,
-            "ro": false,
-            "node-name": "base",
-            "backing_file_depth": 0,
-            "drv": "qcow2",
-            "iops": 0,
-            "bps_wr": 0,
-            "write_threshold": 0,
-            "encrypted": false,
-            "bps": 0,
-            "bps_rd": 0,
-            "cache": {
-                "no-flush": false,
-                "direct": false,
-                "writeback": true
-            },
-            "file": "TEST_DIR/t.qcow2.base",
-            "encryption_key_missing": false
-        },
-        {
-            "iops_rd": 0,
-            "detect_zeroes": "off",
-            "image": {
-                "virtual-size": 393216,
-                "filename": "TEST_DIR/t.qcow2.base",
-                "format": "file",
-                "actual-size": SIZE,
-                "dirty-flag": false
-            },
-            "iops_wr": 0,
-            "ro": false,
-            "node-name": "NODE_NAME",
-            "backing_file_depth": 0,
-            "drv": "file",
-            "iops": 0,
-            "bps_wr": 0,
-            "write_threshold": 0,
-            "encrypted": false,
-            "bps": 0,
-            "bps_rd": 0,
-            "cache": {
-                "no-flush": false,
-                "direct": false,
-                "writeback": true
-            },
-            "file": "TEST_DIR/t.qcow2.base",
             "encryption_key_missing": false
         }
     ]
