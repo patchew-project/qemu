@@ -136,6 +136,23 @@ struct BlockDriver {
     void (*bdrv_refresh_filename)(BlockDriverState *bs, QDict *options);
 
     /*
+     * Gathers the open options for all children into @target.
+     * A simple format driver (without backing file support) might
+     * implement this function like this:
+     *
+     *     QINCREF(bs->file->bs->full_open_options);
+     *     qdict_put(target, "file", bs->file->bs->full_open_options);
+     *
+     * If not specified, the generic implementation will simply put
+     * all children's options under their respective name.
+     *
+     * Note that ideally this function would not be needed.  Every
+     * block driver which implements it is probably doing something
+     * shady regarding its runtime option structure.
+     */
+    void (*bdrv_gather_child_options)(BlockDriverState *bs, QDict *target);
+
+    /*
      * Returns an allocated string which is the directory name of this BDS: It
      * will be used to make relative filenames absolute by prepending this
      * function's return value to them.
