@@ -106,6 +106,8 @@ void kd_api_search_memory(CPUState *cpu, PacketData *pd);
 void kd_api_fill_memory(CPUState *cpu, PacketData *pd);
 void kd_api_unsupported(CPUState *cpu, PacketData *pd);
 void kd_api_query_memory(CPUState *cpu, PacketData *pd);
+void kd_api_get_context_ex(CPUState *cpu, PacketData *pd);
+void kd_api_set_context_ex(CPUState *cpu, PacketData *pd);
 
 SizedBuf kd_gen_exception_sc(CPUState *cpu);
 SizedBuf kd_gen_load_symbols_sc(CPUState *cpu);

@@ -899,6 +899,52 @@ static int windbg_write_ks_regs(CPUState *cpu, uint8_t *buf, int buf_size,
     return 0;
 }
 
+static int windbg_rw_context_ex(CPUState *cpu, uint8_t *buf, int buf_size,
+                                int offset, int len, bool is_read)
+{
+    uint32_t context_len;
+    uint32_t ks_regs_len;
+    int err = -1;
+
+    if (offset < sizeof(CPU_KPROCESSOR_STATE)) {
+        len = MIN(len, sizeof(CPU_KPROCESSOR_STATE) - offset);
+
+        context_len = MAX(0, (int) (sizeof(CPU_CONTEXT) - offset));
+        ks_regs_len = len - context_len;
+
+        if (context_len > 0) {
+            if (is_read) {
+                err = windbg_read_context(cpu, buf, context_len, offset,
+                                          context_len);
+            } else {
+                err = windbg_write_context(cpu, buf, context_len, offset,
+                                           context_len);
+            }
+
+            if (err) {
+                return err;
+            }
+        }
+
+        if (ks_regs_len > 0) {
+            offset += context_len - sizeof(CPU_CONTEXT);
+            if (is_read) {
+                err = windbg_read_ks_regs(cpu, buf + context_len, ks_regs_len,
+                                          offset, ks_regs_len);
+            } else {
+                err = windbg_write_ks_regs(cpu, buf + context_len, ks_regs_len,
+                                           offset, ks_regs_len);
+            }
+
+            if (err) {
+                return err;
+            }
+        }
+    }
+
+    return err;
+}
+
 void kd_api_get_context(CPUState *cpu, PacketData *pd)
 {
     int err;
@@ -930,31 +976,14 @@ void kd_api_read_control_space(CPUState *cpu, PacketData *pd)
 {
     DBGKD_READ_MEMORY64 *mem = &pd->m64.u.ReadMemory;
     uint32_t len;
-    uint32_t context_len;
-    uint32_t ks_regs_len;
     target_ulong addr;
-    int err = -1;
+    int err;
 
     len = MIN(ldl_p(&mem->TransferCount),
               PACKET_MAX_SIZE - sizeof(DBGKD_MANIPULATE_STATE64));
     addr = ldtul_p(&mem->TargetBaseAddress);
 
-    if (addr < sizeof(CPU_KPROCESSOR_STATE)) {
-        len = MIN(len, sizeof(CPU_KPROCESSOR_STATE) - addr);
-
-        context_len = MAX(0, (int) (sizeof(CPU_CONTEXT) - addr));
-        ks_regs_len = len - context_len;
-
-        if (context_len > 0) {
-            err = windbg_read_context(cpu, pd->extra, context_len, addr,
-                                      context_len);
-        }
-        if (ks_regs_len > 0) {
-            addr = addr - sizeof(CPU_CONTEXT) + context_len;
-            err = windbg_read_ks_regs(cpu, pd->extra + context_len,
-                                      ks_regs_len, addr, ks_regs_len);
-        }
-    }
+    err = windbg_rw_context_ex(cpu, pd->extra, len, addr, len, true);
 
     if (err) {
         len = 0;
@@ -969,38 +998,64 @@ void kd_api_write_control_space(CPUState *cpu, PacketData *pd)
 {
     DBGKD_WRITE_MEMORY64 *mem = &pd->m64.u.WriteMemory;
     uint32_t len;
-    uint32_t context_len;
-    uint32_t ks_regs_len;
     target_ulong addr;
-    int err = -1;
+    int err;
 
     len = MIN(ldl_p(&mem->TransferCount), pd->extra_size);
     addr = ldtul_p(&mem->TargetBaseAddress);
 
-    if (addr < sizeof(CPU_KPROCESSOR_STATE)) {
-        len = MIN(len, sizeof(CPU_KPROCESSOR_STATE) - addr);
-
-        context_len = MAX(0, (int) (sizeof(CPU_CONTEXT) - addr));
-        ks_regs_len = len - context_len;
-
-        if (context_len > 0) {
-            err = windbg_write_context(cpu, pd->extra, context_len, addr,
-                                       context_len);
-        }
-        if (ks_regs_len > 0) {
-            addr = addr - sizeof(CPU_CONTEXT) + context_len;
-            err = windbg_write_ks_regs(cpu, pd->extra + context_len,
-                                       ks_regs_len, addr, ks_regs_len);
-        }
-    }
+    err = windbg_rw_context_ex(cpu, pd->extra, len, addr, len, false);
 
     if (err) {
-        mem->ActualBytesWritten = 0;
+        len = 0;
         pd->m64.ReturnStatus = STATUS_UNSUCCESSFUL;
     }
 
     pd->extra_size = 0;
     stl_p(&mem->ActualBytesWritten, len);
+}
+
+void kd_api_get_context_ex(CPUState *cpu, PacketData *pd)
+{
+    DBGKD_CONTEXT_EX *ctx = &pd->m64.u.ContextEx;
+    uint32_t offset;
+    uint32_t len;
+    int err;
+
+    len = MIN(ldl_p(&ctx->ByteCount),
+              PACKET_MAX_SIZE - sizeof(DBGKD_MANIPULATE_STATE64));
+    offset = ldl_p(&ctx->Offset);
+
+    err = windbg_rw_context_ex(cpu, pd->extra, len, offset, len, true);
+
+    if (err) {
+        len = 0;
+        pd->m64.ReturnStatus = STATUS_UNSUCCESSFUL;
+    }
+
+    pd->extra_size = len;
+    stl_p(&ctx->BytesCopied, len);
+}
+
+void kd_api_set_context_ex(CPUState *cpu, PacketData *pd)
+{
+    DBGKD_CONTEXT_EX *ctx = &pd->m64.u.ContextEx;
+    uint32_t offset;
+    uint32_t len;
+    int err;
+
+    len = MIN(ldl_p(&ctx->ByteCount), pd->extra_size);
+    offset = ldl_p(&ctx->Offset);
+
+    err = windbg_rw_context_ex(cpu, pd->extra, len, offset, len, false);
+
+    if (err) {
+        len = 0;
+        pd->m64.ReturnStatus = STATUS_UNSUCCESSFUL;
+    }
+
+    pd->extra_size = 0;
+    stl_p(&ctx->BytesCopied, len);
 }
 
 void kd_api_read_msr(CPUState *cpu, PacketData *pd)
