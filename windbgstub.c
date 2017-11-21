@@ -11,6 +11,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "sysemu/sysemu.h"
 #include "chardev/char.h"
 #include "chardev/char-fe.h"
 #include "qemu/cutils.h"
@@ -97,7 +98,6 @@ static void windbg_send_data_packet(uint8_t *data, uint16_t byte_count,
     windbg_state->data_packet_id ^= 1;
 }
 
-__attribute__ ((unused)) /* unused yet */
 static void windbg_send_control_packet(uint16_t type)
 {
     KD_PACKET packet = {
@@ -116,8 +116,40 @@ static void windbg_send_control_packet(uint16_t type)
     windbg_state->ctrl_packet_id ^= 1;
 }
 
-static void windbg_ctx_handler(ParsingContext *ctx)
+static void windbg_process_data_packet(ParsingContext *ctx)
 {}
+
+static void windbg_process_control_packet(ParsingContext *ctx)
+{}
+
+static void windbg_ctx_handler(ParsingContext *ctx)
+{
+    switch (ctx->result) {
+    case RESULT_NONE:
+        break;
+
+    case RESULT_BREAKIN_BYTE:
+        vm_stop(RUN_STATE_PAUSED);
+        break;
+
+    case RESULT_CONTROL_PACKET:
+        windbg_process_control_packet(ctx);
+        break;
+
+    case RESULT_DATA_PACKET:
+        windbg_process_data_packet(ctx);
+        break;
+
+    case RESULT_UNKNOWN_PACKET:
+    case RESULT_ERROR:
+        windbg_state->ctrl_packet_id = 0;
+        windbg_send_control_packet(PACKET_TYPE_KD_RESEND);
+        break;
+
+    default:
+        break;
+    }
+}
 
 static void windbg_read_byte(ParsingContext *ctx, uint8_t byte)
 {
