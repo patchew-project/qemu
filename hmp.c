@@ -1454,7 +1454,7 @@ void hmp_info_snapshots(Monitor *mon, const QDict *qdict)
             /* The ID is not guaranteed to be the same on all images, so
              * overwrite it.
              */
-            pstrcpy(sn->id_str, sizeof(sn->id_str), "--");
+            pstrcpy(sn->id_str, sizeof(sn->id_str), sn->id_str);
             bdrv_snapshot_dump((fprintf_function)monitor_printf, mon, sn);
             monitor_printf(mon, "\n");
         }
