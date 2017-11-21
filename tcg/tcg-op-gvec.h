@@ -77,6 +77,25 @@ typedef struct {
 typedef struct {
     /* Expand inline as a 64-bit or 32-bit integer.
        Only one of these will be non-NULL.  */
+    void (*fni8)(TCGv_i64, TCGv_i64, unsigned);
+    void (*fni4)(TCGv_i32, TCGv_i32, unsigned);
+    /* Expand inline with a host vector type.  */
+    void (*fniv)(unsigned, TCGv_vec, TCGv_vec, unsigned);
+    /* Expand out-of-line helper w/descriptor.  */
+    gen_helper_gvec_2 *fno;
+    /* The opcode, if any, to which this corresponds.  */
+    TCGOpcode opc;
+    /* The vector element size, if applicable.  */
+    uint8_t vece;
+    /* Prefer i64 to v64.  */
+    bool prefer_i64;
+    /* Load dest as a 3rd source operand.  */
+    bool load_dest;
+} GVecGen2i;
+
+typedef struct {
+    /* Expand inline as a 64-bit or 32-bit integer.
+       Only one of these will be non-NULL.  */
     void (*fni8)(TCGv_i64, TCGv_i64, TCGv_i64);
     void (*fni4)(TCGv_i32, TCGv_i32, TCGv_i32);
     /* Expand inline with a host vector type.  */
@@ -97,6 +116,8 @@ typedef struct {
 
 void tcg_gen_gvec_2(uint32_t dofs, uint32_t aofs,
                     uint32_t opsz, uint32_t clsz, const GVecGen2 *);
+void tcg_gen_gvec_2i(uint32_t dofs, uint32_t aofs, uint32_t opsz,
+                     uint32_t clsz, unsigned c, const GVecGen2i *);
 void tcg_gen_gvec_3(uint32_t dofs, uint32_t aofs, uint32_t bofs,
                     uint32_t opsz, uint32_t clsz, const GVecGen3 *);
 
@@ -137,6 +158,13 @@ void tcg_gen_gvec_dup16i(uint32_t dofs, uint32_t s, uint32_t m, uint16_t x);
 void tcg_gen_gvec_dup32i(uint32_t dofs, uint32_t s, uint32_t m, uint32_t x);
 void tcg_gen_gvec_dup64i(uint32_t dofs, uint32_t s, uint32_t m, uint64_t x);
 
+void tcg_gen_gvec_shli(unsigned vece, uint32_t dofs, uint32_t aofs,
+                       uint32_t opsz, uint32_t clsz, unsigned shift);
+void tcg_gen_gvec_shri(unsigned vece, uint32_t dofs, uint32_t aofs,
+                       uint32_t opsz, uint32_t clsz, unsigned shift);
+void tcg_gen_gvec_sari(unsigned vece, uint32_t dofs, uint32_t aofs,
+                       uint32_t opsz, uint32_t clsz, unsigned shift);
+
 void tcg_gen_gvec_zipl(unsigned vece, uint32_t dofs, uint32_t aofs,
                        uint32_t bofs, uint32_t opsz, uint32_t clsz);
 void tcg_gen_gvec_ziph(unsigned vece, uint32_t dofs, uint32_t aofs,
@@ -167,3 +195,10 @@ void tcg_gen_vec_add32_i64(TCGv_i64 d, TCGv_i64 a, TCGv_i64 b);
 void tcg_gen_vec_sub8_i64(TCGv_i64 d, TCGv_i64 a, TCGv_i64 b);
 void tcg_gen_vec_sub16_i64(TCGv_i64 d, TCGv_i64 a, TCGv_i64 b);
 void tcg_gen_vec_sub32_i64(TCGv_i64 d, TCGv_i64 a, TCGv_i64 b);
+
+void tcg_gen_vec_shl8i_i64(TCGv_i64 d, TCGv_i64 a, unsigned);
+void tcg_gen_vec_shl16i_i64(TCGv_i64 d, TCGv_i64 a, unsigned);
+void tcg_gen_vec_shr8i_i64(TCGv_i64 d, TCGv_i64 a, unsigned);
+void tcg_gen_vec_shr16i_i64(TCGv_i64 d, TCGv_i64 a, unsigned);
+void tcg_gen_vec_sar8i_i64(TCGv_i64 d, TCGv_i64 a, unsigned);
+void tcg_gen_vec_sar16i_i64(TCGv_i64 d, TCGv_i64 a, unsigned);

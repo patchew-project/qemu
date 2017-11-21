@@ -927,6 +927,11 @@ void tcg_gen_andc_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b);
 void tcg_gen_orc_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b);
 void tcg_gen_not_vec(unsigned vece, TCGv_vec r, TCGv_vec a);
 void tcg_gen_neg_vec(unsigned vece, TCGv_vec r, TCGv_vec a);
+
+void tcg_gen_shli_vec(unsigned vece, TCGv_vec r, TCGv_vec a, unsigned i);
+void tcg_gen_shri_vec(unsigned vece, TCGv_vec r, TCGv_vec a, unsigned i);
+void tcg_gen_sari_vec(unsigned vece, TCGv_vec r, TCGv_vec a, unsigned i);
+
 void tcg_gen_zipl_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b);
 void tcg_gen_ziph_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b);
 void tcg_gen_uzpe_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b);
