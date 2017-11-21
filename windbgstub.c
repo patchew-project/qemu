@@ -16,6 +16,7 @@
 #include "qemu/cutils.h"
 #include "exec/windbgstub.h"
 #include "exec/windbgstub-utils.h"
+#include "sysemu/kvm.h"
 
 typedef struct WindbgState {
     bool is_loaded;
@@ -45,12 +46,24 @@ static void windbg_exit(void)
     g_free(windbg_state);
 }
 
+void windbg_try_load(void)
+{
+    if (windbg_state && !windbg_state->is_loaded) {
+        windbg_state->is_loaded = windbg_on_load();
+    }
+}
+
 int windbg_server_start(const char *device)
 {
     Chardev *chr = NULL;
 
     if (windbg_state) {
         WINDBG_ERROR("Multiple instances of windbg are not supported.");
+        exit(1);
+    }
+
+    if (kvm_enabled()) {
+        WINDBG_ERROR("KVM is not supported.");
         exit(1);
     }
 

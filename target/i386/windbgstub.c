@@ -10,3 +10,13 @@
  */
 
 #include "qemu/osdep.h"
+
+#ifndef TARGET_X86_64
+#include "exec/windbgstub-utils.h"
+
+bool windbg_on_load(void)
+{
+    return false;
+}
+
+#endif
