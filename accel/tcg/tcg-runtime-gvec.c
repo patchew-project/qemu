@@ -588,3 +588,29 @@ DO_CMP2(8)
 DO_CMP2(16)
 DO_CMP2(32)
 DO_CMP2(64)
+
+#define DO_EXT(NAME, TYPE1, TYPE2) \
+void HELPER(NAME)(void *d, void *a, uint32_t desc)                           \
+{                                                                            \
+    intptr_t oprsz = simd_oprsz(desc);                                       \
+    intptr_t oprsz_2 = oprsz / 2;                                            \
+    intptr_t i;                                                              \
+    /* We produce output faster than we consume input.                       \
+       Therefore we must be mindful of possible overlap.  */                 \
+    if (unlikely((a - d) < (uintptr_t)oprsz)) {                              \
+        void *a_new = alloca(oprsz_2);                                       \
+        memcpy(a_new, a, oprsz_2);                                           \
+        a = a_new;                                                           \
+    }                                                                        \
+    for (i = 0; i < oprsz_2; i += sizeof(TYPE1)) {                           \
+        *(TYPE2 *)(d + 2 * i) = *(TYPE1 *)(a + i);                           \
+    }                                                                        \
+    clear_high(d, oprsz, desc);                                              \
+}
+
+DO_EXT(gvec_extu8, uint8_t, uint16_t)
+DO_EXT(gvec_extu16, uint16_t, uint32_t)
+DO_EXT(gvec_extu32, uint32_t, uint64_t)
+DO_EXT(gvec_exts8, int8_t, int16_t)
+DO_EXT(gvec_exts16, int16_t, int32_t)
+DO_EXT(gvec_exts32, int32_t, int64_t)

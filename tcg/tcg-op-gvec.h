@@ -180,6 +180,15 @@ void tcg_gen_gvec_trne(unsigned vece, uint32_t dofs, uint32_t aofs,
 void tcg_gen_gvec_trno(unsigned vece, uint32_t dofs, uint32_t aofs,
                        uint32_t bofs, uint32_t opsz, uint32_t clsz);
 
+void tcg_gen_gvec_extul(unsigned vece, uint32_t dofs, uint32_t aofs,
+                        uint32_t opsz, uint32_t clsz);
+void tcg_gen_gvec_extuh(unsigned vece, uint32_t dofs, uint32_t aofs,
+                        uint32_t opsz, uint32_t clsz);
+void tcg_gen_gvec_extsl(unsigned vece, uint32_t dofs, uint32_t aofs,
+                        uint32_t opsz, uint32_t clsz);
+void tcg_gen_gvec_extsh(unsigned vece, uint32_t dofs, uint32_t aofs,
+                        uint32_t opsz, uint32_t clsz);
+
 void tcg_gen_gvec_cmp(TCGCond cond, unsigned vece, uint32_t dofs,
                       uint32_t aofs, uint32_t bofs,
                       uint32_t opsz, uint32_t clsz);

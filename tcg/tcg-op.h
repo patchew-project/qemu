@@ -940,6 +940,11 @@ void tcg_gen_uzpo_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b);
 void tcg_gen_trne_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b);
 void tcg_gen_trno_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b);
 
+void tcg_gen_extul_vec(unsigned vece, TCGv_vec r, TCGv_vec a);
+void tcg_gen_extuh_vec(unsigned vece, TCGv_vec r, TCGv_vec a);
+void tcg_gen_extsl_vec(unsigned vece, TCGv_vec r, TCGv_vec a);
+void tcg_gen_extsh_vec(unsigned vece, TCGv_vec r, TCGv_vec a);
+
 void tcg_gen_cmp_vec(TCGCond cond, unsigned vece, TCGv_vec r,
                      TCGv_vec a, TCGv_vec b);
 

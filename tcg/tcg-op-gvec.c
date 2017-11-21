@@ -1870,3 +1870,141 @@ void tcg_gen_gvec_cmp(TCGCond cond, unsigned vece, uint32_t dofs,
     }
     tcg_gen_gvec_3_ool(dofs, aofs, bofs, oprsz, maxsz, 0, fn);
 }
+
+static void do_ext(unsigned vece, uint32_t dofs, uint32_t aofs,
+                   uint32_t oprsz, uint32_t maxsz, bool high, bool is_sign)
+{
+    static gen_helper_gvec_2 * const extu_fn[3] = {
+        gen_helper_gvec_extu8, gen_helper_gvec_extu16, gen_helper_gvec_extu32
+    };
+    static gen_helper_gvec_2 * const exts_fn[3] = {
+        gen_helper_gvec_exts8, gen_helper_gvec_exts16, gen_helper_gvec_exts32
+    };
+
+    TCGType type;
+    uint32_t step, i, n;
+    TCGOpcode opc;
+
+    check_size_align(oprsz, maxsz, dofs | aofs);
+    check_overlap_2(dofs, aofs, oprsz);
+    tcg_debug_assert(vece < MO_64);
+
+    /* Quick check for sizes we won't support inline.  */
+    if (oprsz > 4 * 32 || maxsz > MAX_UNROLL * 32) {
+        goto do_ool;
+    }
+
+    opc = is_sign ? (high ? INDEX_op_extsh_vec : INDEX_op_extsl_vec)
+                  : (high ? INDEX_op_extuh_vec : INDEX_op_extul_vec);
+
+    /* Since these operations don't operate in lock-step lanes,
+       we must care for overlap.  */
+    if (TCG_TARGET_HAS_v256 && oprsz % 32 == 0 && oprsz / 32 <= 8
+        && tcg_can_emit_vec_op(opc, TCG_TYPE_V256, vece)) {
+        type = TCG_TYPE_V256;
+        step = 32;
+        n = oprsz / 32;
+    } else if (TCG_TARGET_HAS_v128 && oprsz % 16 == 0 && oprsz / 16 <= 8
+               && tcg_can_emit_vec_op(opc, TCG_TYPE_V128, vece)) {
+        type = TCG_TYPE_V128;
+        step = 16;
+        n = oprsz / 16;
+    } else if (TCG_TARGET_HAS_v64 && oprsz % 8 == 0 && oprsz / 8 <= 8
+               && tcg_can_emit_vec_op(opc, TCG_TYPE_V64, vece)) {
+        type = TCG_TYPE_V64;
+        step = 8;
+        n = oprsz / 8;
+    } else {
+        goto do_ool;
+    }
+
+    if (n == 1) {
+        TCGv_vec t1 = tcg_temp_new_vec(type);
+
+        tcg_gen_ld_vec(t1, cpu_env, aofs);
+        if (high) {
+            if (is_sign) {
+                tcg_gen_extsh_vec(vece, t1, t1);
+            } else {
+                tcg_gen_extuh_vec(vece, t1, t1);
+            }
+        } else {
+            if (is_sign) {
+                tcg_gen_extsl_vec(vece, t1, t1);
+            } else {
+                tcg_gen_extul_vec(vece, t1, t1);
+            }
+        }
+        tcg_gen_st_vec(t1, cpu_env, dofs);
+        tcg_temp_free_vec(t1);
+    } else {
+        TCGv_vec ta[4], tmp;
+
+        if (high) {
+            aofs += oprsz / 2;
+        }
+
+        for (i = 0; i < (n / 2 + n % 2); ++i) {
+            ta[i] = tcg_temp_new_vec(type);
+            tcg_gen_ld_vec(ta[i], cpu_env, aofs + i * step);
+        }
+
+        tmp = tcg_temp_new_vec(type);
+        for (i = 0; i < n; ++i) {
+            if (i & 1) {
+                if (is_sign) {
+                    tcg_gen_extsh_vec(vece, tmp, ta[i / 2]);
+                } else {
+                    tcg_gen_extuh_vec(vece, tmp, ta[i / 2]);
+                }
+            } else {
+                if (is_sign) {
+                    tcg_gen_extsl_vec(vece, tmp, ta[i / 2]);
+                } else {
+                    tcg_gen_extul_vec(vece, tmp, ta[i / 2]);
+                }
+            }
+            tcg_gen_st_vec(tmp, cpu_env, dofs + i * step);
+        }
+        tcg_temp_free_vec(tmp);
+
+        for (i = 0; i < (n / 2 + n % 2); ++i) {
+            tcg_temp_free_vec(ta[i]);
+        }
+    }
+    if (oprsz < maxsz) {
+        expand_clr(dofs + oprsz, maxsz - oprsz);
+    }
+    return;
+
+ do_ool:
+    if (high) {
+        aofs += oprsz / 2;
+    }
+    tcg_gen_gvec_2_ool(dofs, aofs, oprsz, maxsz, 0,
+                       is_sign ? exts_fn[vece] : extu_fn[vece]);
+}
+
+void tcg_gen_gvec_extul(unsigned vece, uint32_t dofs, uint32_t aofs,
+                        uint32_t oprsz, uint32_t maxsz)
+{
+    do_ext(vece, dofs, aofs, oprsz, maxsz, false, false);
+}
+
+void tcg_gen_gvec_extuh(unsigned vece, uint32_t dofs, uint32_t aofs,
+                        uint32_t oprsz, uint32_t maxsz)
+{
+    do_ext(vece, dofs, aofs, oprsz, maxsz, true, false);
+}
+
+void tcg_gen_gvec_extsl(unsigned vece, uint32_t dofs, uint32_t aofs,
+                        uint32_t oprsz, uint32_t maxsz)
+{
+    do_ext(vece, dofs, aofs, oprsz, maxsz, false, true);
+}
+
+void tcg_gen_gvec_extsh(unsigned vece, uint32_t dofs, uint32_t aofs,
+                        uint32_t oprsz, uint32_t maxsz)
+{
+    do_ext(vece, dofs, aofs, oprsz, maxsz, true, true);
+}

@@ -525,3 +525,42 @@ void tcg_gen_mul_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b)
         tcg_expand_vec_op(INDEX_op_mul_vec, type, vece, ri, ai, bi);
     }
 }
+
+static void do_ext(TCGOpcode opc, unsigned vece, TCGv_vec r, TCGv_vec a)
+{
+    TCGTemp *rt = tcgv_vec_temp(r);
+    TCGTemp *at = tcgv_vec_temp(a);
+    TCGArg ri = temp_arg(rt);
+    TCGArg ai = temp_arg(at);
+    TCGType type = rt->base_type;
+    int can;
+
+    tcg_debug_assert(at->base_type == type);
+    can = tcg_can_emit_vec_op(opc, type, vece);
+    if (can > 0) {
+        vec_gen_2(opc, type, vece, ri, ai);
+    } else {
+        tcg_debug_assert(can < 0);
+        tcg_expand_vec_op(opc, type, vece, ri, ai);
+    }
+}
+
+void tcg_gen_extul_vec(unsigned vece, TCGv_vec r, TCGv_vec a)
+{
+    do_ext(INDEX_op_extul_vec, vece, r, a);
+}
+
+void tcg_gen_extuh_vec(unsigned vece, TCGv_vec r, TCGv_vec a)
+{
+    do_ext(INDEX_op_extuh_vec, vece, r, a);
+}
+
+void tcg_gen_extsl_vec(unsigned vece, TCGv_vec r, TCGv_vec a)
+{
+    do_ext(INDEX_op_extsl_vec, vece, r, a);
+}
+
+void tcg_gen_extsh_vec(unsigned vece, TCGv_vec r, TCGv_vec a)
+{
+    do_ext(INDEX_op_extsh_vec, vece, r, a);
+}

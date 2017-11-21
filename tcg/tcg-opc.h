@@ -249,6 +249,11 @@ DEF(uzpo_vec, 1, 2, 0, IMPLVEC | IMPL(TCG_TARGET_HAS_uzp_vec))
 DEF(trne_vec, 1, 2, 0, IMPLVEC | IMPL(TCG_TARGET_HAS_trn_vec))
 DEF(trno_vec, 1, 2, 0, IMPLVEC | IMPL(TCG_TARGET_HAS_trn_vec))
 
+DEF(extul_vec, 1, 1, 0, IMPLVEC | IMPL(TCG_TARGET_HAS_extl_vec))
+DEF(extuh_vec, 1, 1, 0, IMPLVEC | IMPL(TCG_TARGET_HAS_exth_vec))
+DEF(extsl_vec, 1, 1, 0, IMPLVEC | IMPL(TCG_TARGET_HAS_extl_vec))
+DEF(extsh_vec, 1, 1, 0, IMPLVEC | IMPL(TCG_TARGET_HAS_exth_vec))
+
 DEF(cmp_vec, 1, 2, 1, IMPLVEC)
 
 DEF(last_generic, 0, 0, 0, TCG_OPF_NOT_PRESENT)
