@@ -1639,3 +1639,205 @@ void tcg_gen_gvec_trno(unsigned vece, uint32_t dofs, uint32_t aofs,
     tcg_debug_assert(vece <= MO_64);
     tcg_gen_gvec_3(dofs, aofs, bofs, opsz, maxsz, &g[vece]);
 }
+
+/* Expand OPSZ bytes worth of three-operand operations using i32 elements.  */
+static void expand_cmp_i32(uint32_t dofs, uint32_t aofs, uint32_t bofs,
+                           uint32_t opsz, TCGCond cond)
+{
+    TCGv_i32 t0 = tcg_temp_new_i32();
+    TCGv_i32 t1 = tcg_temp_new_i32();
+    uint32_t i;
+
+    for (i = 0; i < opsz; i += 4) {
+        tcg_gen_ld_i32(t0, cpu_env, aofs + i);
+        tcg_gen_ld_i32(t1, cpu_env, bofs + i);
+        tcg_gen_setcond_i32(cond, t0, t0, t1);
+        tcg_gen_neg_i32(t0, t0);
+        tcg_gen_st_i32(t0, cpu_env, dofs + i);
+    }
+    tcg_temp_free_i32(t1);
+    tcg_temp_free_i32(t0);
+}
+
+static void expand_cmp_i64(uint32_t dofs, uint32_t aofs, uint32_t bofs,
+                           uint32_t opsz, TCGCond cond)
+{
+    TCGv_i64 t0 = tcg_temp_new_i64();
+    TCGv_i64 t1 = tcg_temp_new_i64();
+    uint32_t i;
+
+    for (i = 0; i < opsz; i += 8) {
+        tcg_gen_ld_i64(t0, cpu_env, aofs + i);
+        tcg_gen_ld_i64(t1, cpu_env, bofs + i);
+        tcg_gen_setcond_i64(cond, t0, t0, t1);
+        tcg_gen_neg_i64(t0, t0);
+        tcg_gen_st_i64(t0, cpu_env, dofs + i);
+    }
+    tcg_temp_free_i64(t1);
+    tcg_temp_free_i64(t0);
+}
+
+static void expand_cmp_vec(unsigned vece, uint32_t dofs, uint32_t aofs,
+                           uint32_t bofs, uint32_t opsz, uint32_t tysz,
+                           TCGType type, TCGCond cond)
+{
+    TCGv_vec t0 = tcg_temp_new_vec(type);
+    TCGv_vec t1 = tcg_temp_new_vec(type);
+    uint32_t i;
+
+    for (i = 0; i < opsz; i += tysz) {
+        tcg_gen_ld_vec(t0, cpu_env, aofs + i);
+        tcg_gen_ld_vec(t1, cpu_env, bofs + i);
+        tcg_gen_cmp_vec(cond, vece, t0, t0, t1);
+        tcg_gen_st_vec(t0, cpu_env, dofs + i);
+    }
+    tcg_temp_free_vec(t1);
+    tcg_temp_free_vec(t0);
+}
+
+void tcg_gen_gvec_cmp(TCGCond cond, unsigned vece, uint32_t dofs,
+                      uint32_t aofs, uint32_t bofs,
+                      uint32_t oprsz, uint32_t maxsz)
+{
+    static gen_helper_gvec_3 * const eq_fn[4] = {
+        gen_helper_gvec_eq8, gen_helper_gvec_eq16,
+        gen_helper_gvec_eq32, gen_helper_gvec_eq64
+    };
+    static gen_helper_gvec_3 * const ne_fn[4] = {
+        gen_helper_gvec_ne8, gen_helper_gvec_ne16,
+        gen_helper_gvec_ne32, gen_helper_gvec_ne64
+    };
+    static gen_helper_gvec_3 * const lt_fn[4] = {
+        gen_helper_gvec_lt8, gen_helper_gvec_lt16,
+        gen_helper_gvec_lt32, gen_helper_gvec_lt64
+    };
+    static gen_helper_gvec_3 * const le_fn[4] = {
+        gen_helper_gvec_le8, gen_helper_gvec_le16,
+        gen_helper_gvec_le32, gen_helper_gvec_le64
+    };
+    static gen_helper_gvec_3 * const ltu_fn[4] = {
+        gen_helper_gvec_ltu8, gen_helper_gvec_ltu16,
+        gen_helper_gvec_ltu32, gen_helper_gvec_ltu64
+    };
+    static gen_helper_gvec_3 * const leu_fn[4] = {
+        gen_helper_gvec_leu8, gen_helper_gvec_leu16,
+        gen_helper_gvec_leu32, gen_helper_gvec_leu64
+    };
+    gen_helper_gvec_3 *fn;
+    uint32_t tmp;
+
+    check_size_align(oprsz, maxsz, dofs | aofs | bofs);
+    check_overlap_3(dofs, aofs, bofs, maxsz);
+
+    if (cond == TCG_COND_NEVER || cond == TCG_COND_ALWAYS) {
+        tcg_gen_gvec_dup32i(dofs, oprsz, maxsz, -(cond == TCG_COND_ALWAYS));
+        return;
+    }
+
+    /* Quick check for sizes we won't support inline.  */
+    if (oprsz > MAX_UNROLL * 32 || maxsz > MAX_UNROLL * 32) {
+        goto do_ool;
+    }
+
+    /* Recall that ARM SVE allows vector sizes that are not a power of 2.
+       Expand with successively smaller host vector sizes.  The intent is
+       that e.g. oprsz == 80 would be expanded with 2x32 + 1x16.  */
+    /* ??? For maxsz > oprsz, the host may be able to use an op-sized
+       operation, zeroing the balance of the register.  We can then
+       use a cl-sized store to implement the clearing without an extra
+       store operation.  This is true for aarch64 and x86_64 hosts.  */
+
+    if (TCG_TARGET_HAS_v256 && check_size_impl(oprsz, 32)
+        && tcg_can_emit_vec_op(INDEX_op_cmp_vec, TCG_TYPE_V256, vece)) {
+        uint32_t done = QEMU_ALIGN_DOWN(oprsz, 32);
+        expand_cmp_vec(vece, dofs, aofs, bofs, done, 32, TCG_TYPE_V256, cond);
+        dofs += done;
+        aofs += done;
+        bofs += done;
+        oprsz -= done;
+        maxsz -= done;
+    }
+
+    if (TCG_TARGET_HAS_v128 && check_size_impl(oprsz, 16)
+        && tcg_can_emit_vec_op(INDEX_op_cmp_vec, TCG_TYPE_V128, vece)) {
+        uint32_t done = QEMU_ALIGN_DOWN(oprsz, 16);
+        expand_cmp_vec(vece, dofs, aofs, bofs, done, 16, TCG_TYPE_V128, cond);
+        dofs += done;
+        aofs += done;
+        bofs += done;
+        oprsz -= done;
+        maxsz -= done;
+    }
+
+    if (check_size_impl(oprsz, 8)) {
+        uint32_t done = QEMU_ALIGN_DOWN(oprsz, 8);
+        if (TCG_TARGET_HAS_v64
+            && (TCG_TARGET_REG_BITS == 32 || vece != MO_64)
+            && tcg_can_emit_vec_op(INDEX_op_cmp_vec, TCG_TYPE_V64, vece)) {
+            expand_cmp_vec(vece, dofs, aofs, bofs, done, 8, TCG_TYPE_V64, cond);
+        } else if (vece == MO_64) {
+            expand_cmp_i64(dofs, aofs, bofs, done, cond);
+        } else {
+            done = 0;
+        }
+        dofs += done;
+        aofs += done;
+        bofs += done;
+        oprsz -= done;
+        maxsz -= done;
+    }
+
+    if (vece == MO_32 && check_size_impl(oprsz, 4)) {
+        uint32_t done = QEMU_ALIGN_DOWN(oprsz, 4);
+        expand_cmp_i32(dofs, aofs, bofs, done, cond);
+        dofs += done;
+        aofs += done;
+        bofs += done;
+        oprsz -= done;
+        maxsz -= done;
+    }
+
+    if (oprsz == 0) {
+        if (maxsz != 0) {
+            expand_clr(dofs, maxsz);
+        }
+        return;
+    }
+
+ do_ool:
+    switch (cond) {
+    case TCG_COND_EQ:
+        fn = eq_fn[vece];
+        break;
+    case TCG_COND_NE:
+        fn = ne_fn[vece];
+        break;
+    case TCG_COND_GT:
+        tmp = aofs, aofs = bofs, bofs = tmp;
+        /* fallthru */
+    case TCG_COND_LT:
+        fn = lt_fn[vece];
+        break;
+    case TCG_COND_GE:
+        tmp = aofs, aofs = bofs, bofs = tmp;
+        /* fallthru */
+    case TCG_COND_LE:
+        fn = le_fn[vece];
+        break;
+    case TCG_COND_GTU:
+        tmp = aofs, aofs = bofs, bofs = tmp;
+        /* fallthru */
+    case TCG_COND_LTU:
+        fn = ltu_fn[vece];
+        break;
+    case TCG_COND_GEU:
+        tmp = aofs, aofs = bofs, bofs = tmp;
+        /* fallthru */
+    case TCG_COND_LEU:
+        fn = leu_fn[vece];
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    tcg_gen_gvec_3_ool(dofs, aofs, bofs, oprsz, maxsz, 0, fn);
+}
