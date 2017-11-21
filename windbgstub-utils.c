@@ -10,6 +10,7 @@
  */
 
 #include "exec/windbgstub-utils.h"
+#include "sysemu/sysemu.h"
 
 static InitedAddr KPCR;
 static InitedAddr version;
@@ -130,6 +131,20 @@ void kd_api_restore_breakpoint(CPUState *cpu, PacketData *pd)
         pd->m64.ReturnStatus = STATUS_SUCCESS;
     } else {
         pd->m64.ReturnStatus = STATUS_UNSUCCESSFUL;
+    }
+}
+
+void kd_api_continue(CPUState *cpu, PacketData *pd)
+{
+    uint32_t status = ldl_p(&pd->m64.u.Continue2.ContinueStatus);
+    uint32_t trace = ldl_p(&pd->m64.u.Continue2.ControlSet.TraceFlag);
+    int ssFlag = trace ? SSTEP_ENABLE | SSTEP_NOIRQ | SSTEP_NOTIMER : 0;
+
+    if (NT_SUCCESS(status)) {
+        cpu_single_step(cpu, ssFlag);
+        if (!runstate_needs_reset()) {
+            vm_start();
+        }
     }
 }
 
