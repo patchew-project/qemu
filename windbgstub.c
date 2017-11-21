@@ -115,14 +115,18 @@ static void windbg_send_control_packet(uint16_t type)
     windbg_state->ctrl_packet_id ^= 1;
 }
 
+static void windbg_bp_handler(CPUState *cpu)
+{
+    SizedBuf buf = kd_gen_exception_sc(cpu);
+    windbg_send_data_packet(buf.data, buf.size, PACKET_TYPE_KD_STATE_CHANGE64);
+    SBUF_FREE(buf);
+}
+
 static void windbg_vm_stop(void)
 {
     CPUState *cpu = qemu_get_cpu(0);
     vm_stop(RUN_STATE_PAUSED);
-
-    SizedBuf buf = kd_gen_exception_sc(cpu);
-    windbg_send_data_packet(buf.data, buf.size, PACKET_TYPE_KD_STATE_CHANGE64);
-    SBUF_FREE(buf);
+    windbg_bp_handler(cpu);
 }
 
 static void windbg_process_manipulate_packet(ParsingContext *ctx)
@@ -431,6 +435,10 @@ int windbg_server_start(const char *device)
                              windbg_chr_receive, NULL, NULL, NULL, NULL, true);
 
     qemu_register_reset(windbg_handle_reset, NULL);
+
+    if (!register_excp_debug_handler(windbg_bp_handler)) {
+        exit(1);
+    }
 
     atexit(windbg_exit);
     return 0;
