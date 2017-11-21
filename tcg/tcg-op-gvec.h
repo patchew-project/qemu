@@ -66,6 +66,8 @@ typedef struct {
     gen_helper_gvec_2 *fno;
     /* The opcode, if any, to which this corresponds.  */
     TCGOpcode opc;
+    /* The data argument to the out-of-line helper.  */
+    uint32_t data;
     /* The vector element size, if applicable.  */
     uint8_t vece;
     /* Prefer i64 to v64.  */
@@ -83,6 +85,8 @@ typedef struct {
     gen_helper_gvec_3 *fno;
     /* The opcode, if any, to which this corresponds.  */
     TCGOpcode opc;
+    /* The data argument to the out-of-line helper.  */
+    uint32_t data;
     /* The vector element size, if applicable.  */
     uint8_t vece;
     /* Prefer i64 to v64.  */
@@ -132,6 +136,19 @@ void tcg_gen_gvec_dup8i(uint32_t dofs, uint32_t s, uint32_t m, uint8_t x);
 void tcg_gen_gvec_dup16i(uint32_t dofs, uint32_t s, uint32_t m, uint16_t x);
 void tcg_gen_gvec_dup32i(uint32_t dofs, uint32_t s, uint32_t m, uint32_t x);
 void tcg_gen_gvec_dup64i(uint32_t dofs, uint32_t s, uint32_t m, uint64_t x);
+
+void tcg_gen_gvec_zipl(unsigned vece, uint32_t dofs, uint32_t aofs,
+                       uint32_t bofs, uint32_t opsz, uint32_t clsz);
+void tcg_gen_gvec_ziph(unsigned vece, uint32_t dofs, uint32_t aofs,
+                       uint32_t bofs, uint32_t opsz, uint32_t clsz);
+void tcg_gen_gvec_uzpe(unsigned vece, uint32_t dofs, uint32_t aofs,
+                       uint32_t bofs, uint32_t opsz, uint32_t clsz);
+void tcg_gen_gvec_uzpo(unsigned vece, uint32_t dofs, uint32_t aofs,
+                       uint32_t bofs, uint32_t opsz, uint32_t clsz);
+void tcg_gen_gvec_trne(unsigned vece, uint32_t dofs, uint32_t aofs,
+                       uint32_t bofs, uint32_t opsz, uint32_t clsz);
+void tcg_gen_gvec_trno(unsigned vece, uint32_t dofs, uint32_t aofs,
+                       uint32_t bofs, uint32_t opsz, uint32_t clsz);
 
 /*
  * 64-bit vector operations.  Use these when the register has been allocated

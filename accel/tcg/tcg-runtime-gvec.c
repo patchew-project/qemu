@@ -293,3 +293,81 @@ void HELPER(gvec_orc)(void *d, void *a, void *b, uint32_t desc)
     }
     clear_high(d, oprsz, desc);
 }
+
+/* The size of the alloca in the following is currently bounded to 2k.  */
+
+#define DO_ZIP(NAME, TYPE) \
+void HELPER(NAME)(void *d, void *a, void *b, uint32_t desc)                  \
+{                                                                            \
+    intptr_t oprsz = simd_oprsz(desc);                                       \
+    intptr_t oprsz_2 = oprsz / 2;                                            \
+    intptr_t i;                                                              \
+    /* We produce output faster than we consume input.                       \
+       Therefore we must be mindful of possible overlap.  */                 \
+    if (unlikely((a - d) < (uintptr_t)oprsz)) {                              \
+        void *a_new = alloca(oprsz_2);                                       \
+        memcpy(a_new, a, oprsz_2);                                           \
+        a = a_new;                                                           \
+    }                                                                        \
+    if (unlikely((b - d) < (uintptr_t)oprsz)) {                              \
+        void *b_new = alloca(oprsz_2);                                       \
+        memcpy(b_new, b, oprsz_2);                                           \
+        b = b_new;                                                           \
+    }                                                                        \
+    for (i = 0; i < oprsz_2; i += sizeof(TYPE)) {                            \
+	*(TYPE *)(d + 2 * i + 0) = *(TYPE *)(a + i);                         \
+	*(TYPE *)(d + 2 * i + sizeof(TYPE)) = *(TYPE *)(b + i);              \
+    }                                                                        \
+    clear_high(d, oprsz, desc);                                              \
+}
+
+DO_ZIP(gvec_zip8, uint8_t)
+DO_ZIP(gvec_zip16, uint16_t)
+DO_ZIP(gvec_zip32, uint32_t)
+DO_ZIP(gvec_zip64, uint64_t)
+
+#define DO_UZP(NAME, TYPE) \
+void HELPER(NAME)(void *d, void *a, void *b, uint32_t desc)                  \
+{                                                                            \
+    intptr_t oprsz = simd_oprsz(desc);                                       \
+    intptr_t oprsz_2 = oprsz / 2;                                            \
+    intptr_t odd_ofs = simd_data(desc);                                      \
+    intptr_t i;                                                              \
+    if (unlikely((b - d) < (uintptr_t)oprsz)) {                              \
+        void *b_new = alloca(oprsz);                                         \
+        memcpy(b_new, b, oprsz);                                             \
+        b = b_new;                                                           \
+    }                                                                        \
+    for (i = 0; i < oprsz_2; i += sizeof(TYPE)) {                            \
+        *(TYPE *)(d + i) = *(TYPE *)(a + 2 * i + odd_ofs);                   \
+    }                                                                        \
+    for (i = 0; i < oprsz_2; i += sizeof(TYPE)) {                            \
+        *(TYPE *)(d + oprsz_2 + i) = *(TYPE *)(b + 2 * i + odd_ofs);         \
+    }                                                                        \
+    clear_high(d, oprsz, desc);                                              \
+}
+
+DO_UZP(gvec_uzp8, uint8_t)
+DO_UZP(gvec_uzp16, uint16_t)
+DO_UZP(gvec_uzp32, uint32_t)
+DO_UZP(gvec_uzp64, uint64_t)
+
+#define DO_TRN(NAME, TYPE) \
+void HELPER(NAME)(void *d, void *a, void *b, uint32_t desc)                  \
+{                                                                            \
+    intptr_t oprsz = simd_oprsz(desc);                                       \
+    intptr_t odd_ofs = simd_data(desc);                                      \
+    intptr_t i;                                                              \
+    for (i = 0; i < oprsz; i += 2 * sizeof(TYPE)) {                          \
+        TYPE ae = *(TYPE *)(a + i + odd_ofs);                                \
+        TYPE be = *(TYPE *)(b + i + odd_ofs);                                \
+	*(TYPE *)(d + i + 0) = ae;                                           \
+	*(TYPE *)(d + i + sizeof(TYPE)) = be;                                \
+    }                                                                        \
+    clear_high(d, oprsz, desc);                                              \
+}
+
+DO_TRN(gvec_trn8, uint8_t)
+DO_TRN(gvec_trn16, uint16_t)
+DO_TRN(gvec_trn32, uint32_t)
+DO_TRN(gvec_trn64, uint64_t)

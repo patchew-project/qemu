@@ -1403,6 +1403,15 @@ bool tcg_op_supported(TCGOpcode op)
         return have_vec && TCG_TARGET_HAS_andc_vec;
     case INDEX_op_orc_vec:
         return have_vec && TCG_TARGET_HAS_orc_vec;
+    case INDEX_op_zipl_vec:
+    case INDEX_op_ziph_vec:
+        return have_vec && TCG_TARGET_HAS_zip_vec;
+    case INDEX_op_uzpe_vec:
+    case INDEX_op_uzpo_vec:
+        return have_vec && TCG_TARGET_HAS_uzp_vec;
+    case INDEX_op_trne_vec:
+    case INDEX_op_trno_vec:
+        return have_vec && TCG_TARGET_HAS_trn_vec;
 
     default:
         tcg_debug_assert(op > INDEX_op_last_generic && op < NB_OPS);
