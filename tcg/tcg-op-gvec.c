@@ -1208,7 +1208,11 @@ void tcg_gen_gvec_shli(unsigned vece, uint32_t dofs, uint32_t aofs,
     };
 
     tcg_debug_assert(vece <= MO_64);
-    tcg_gen_gvec_2i(dofs, aofs, opsz, clsz, shift, &g[vece]);
+    if (shift == 0) {
+        tcg_gen_gvec_mov(vece, dofs, aofs, opsz, clsz);
+    } else {
+        tcg_gen_gvec_2i(dofs, aofs, opsz, clsz, shift, &g[vece]);
+    }
 }
 
 void tcg_gen_vec_shr8i_i64(TCGv_i64 d, TCGv_i64 a, unsigned c)
@@ -1253,7 +1257,11 @@ void tcg_gen_gvec_shri(unsigned vece, uint32_t dofs, uint32_t aofs,
     };
 
     tcg_debug_assert(vece <= MO_64);
-    tcg_gen_gvec_2i(dofs, aofs, opsz, clsz, shift, &g[vece]);
+    if (shift == 0) {
+        tcg_gen_gvec_mov(vece, dofs, aofs, opsz, clsz);
+    } else {
+        tcg_gen_gvec_2i(dofs, aofs, opsz, clsz, shift, &g[vece]);
+    }
 }
 
 void tcg_gen_vec_sar8i_i64(TCGv_i64 d, TCGv_i64 a, unsigned c)
@@ -1312,7 +1320,11 @@ void tcg_gen_gvec_sari(unsigned vece, uint32_t dofs, uint32_t aofs,
     };
 
     tcg_debug_assert(vece <= MO_64);
-    tcg_gen_gvec_2i(dofs, aofs, opsz, clsz, shift, &g[vece]);
+    if (shift == 0) {
+        tcg_gen_gvec_mov(vece, dofs, aofs, opsz, clsz);
+    } else {
+        tcg_gen_gvec_2i(dofs, aofs, opsz, clsz, shift, &g[vece]);
+    }
 }
 
 static void do_zip(unsigned vece, uint32_t dofs, uint32_t aofs,

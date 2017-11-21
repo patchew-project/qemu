@@ -389,11 +389,16 @@ static void do_shifti(TCGOpcode opc, unsigned vece,
     TCGArg ri = temp_arg(rt);
     TCGArg ai = temp_arg(at);
     TCGType type = rt->base_type;
-    unsigned vecl = type - TCG_TYPE_V64;
     int can;
 
     tcg_debug_assert(at->base_type == type);
     tcg_debug_assert(i < (8 << vece));
+
+    if (i == 0) {
+        tcg_gen_mov_vec(r, a);
+        return;
+    }
+
     can = tcg_can_emit_vec_op(opc, type, vece);
     if (can > 0) {
         vec_gen_3(opc, type, vece, ri, ai, i);
@@ -402,7 +407,7 @@ static void do_shifti(TCGOpcode opc, unsigned vece,
            to the target.  Often, but not always, dupi can feed a vector
            shift easier than a scalar.  */
         tcg_debug_assert(can < 0);
-        tcg_expand_vec_op(opc, vecl, vece, ri, ai, i);
+        tcg_expand_vec_op(opc, type, vece, ri, ai, i);
     }
 }
 
