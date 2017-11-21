@@ -184,8 +184,8 @@ extern bool have_avx2;
 #define TCG_TARGET_HAS_uzp_vec          0
 #define TCG_TARGET_HAS_trn_vec          0
 #define TCG_TARGET_HAS_cmp_vec          1
-#define TCG_TARGET_HAS_mul_vec          0
-#define TCG_TARGET_HAS_extl_vec         0
+#define TCG_TARGET_HAS_mul_vec          1
+#define TCG_TARGET_HAS_extl_vec         1
 #define TCG_TARGET_HAS_exth_vec         0
 
 #define TCG_TARGET_deposit_i32_valid(ofs, len) \
