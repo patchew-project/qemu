@@ -125,8 +125,26 @@ static void windbg_vm_stop(void)
     SBUF_FREE(buf);
 }
 
-static void windbg_process_data_packet(ParsingContext *ctx)
+static void windbg_process_manipulate_packet(ParsingContext *ctx)
 {}
+
+static void windbg_process_data_packet(ParsingContext *ctx)
+{
+    switch (ctx->packet.PacketType) {
+    case PACKET_TYPE_KD_STATE_MANIPULATE:
+        windbg_send_control_packet(PACKET_TYPE_KD_ACKNOWLEDGE);
+        windbg_process_manipulate_packet(ctx);
+        break;
+
+    default:
+        WINDBG_ERROR("Caught unsupported data packet 0x%x",
+                     ctx->packet.PacketType);
+
+        windbg_state->ctrl_packet_id = 0;
+        windbg_send_control_packet(PACKET_TYPE_KD_RESEND);
+        break;
+    }
+}
 
 static void windbg_process_control_packet(ParsingContext *ctx)
 {
