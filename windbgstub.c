@@ -17,6 +17,7 @@
 #include "exec/windbgstub.h"
 #include "exec/windbgstub-utils.h"
 #include "sysemu/kvm.h"
+#include "sysemu/reset.h"
 
 typedef struct WindbgState {
     bool is_loaded;
@@ -44,6 +45,13 @@ static void windbg_chr_receive(void *opaque, const uint8_t *buf, int size)
 static void windbg_exit(void)
 {
     g_free(windbg_state);
+}
+
+static void windbg_handle_reset(void *opaque)
+{
+    windbg_state->is_loaded = false;
+    windbg_get_KPCR()->is_init = false;
+    windbg_get_version()->is_init = false;
 }
 
 void windbg_try_load(void)
@@ -84,6 +92,8 @@ int windbg_server_start(const char *device)
     qemu_chr_fe_init(&windbg_state->chr, chr, &error_abort);
     qemu_chr_fe_set_handlers(&windbg_state->chr, windbg_chr_can_receive,
                              windbg_chr_receive, NULL, NULL, NULL, NULL, true);
+
+    qemu_register_reset(windbg_handle_reset, NULL);
 
     atexit(windbg_exit);
     return 0;

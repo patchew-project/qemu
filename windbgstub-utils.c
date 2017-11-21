@@ -10,3 +10,16 @@
  */
 
 #include "exec/windbgstub-utils.h"
+
+static InitedAddr KPCR;
+static InitedAddr version;
+
+InitedAddr *windbg_get_KPCR(void)
+{
+    return &KPCR;
+}
+
+InitedAddr *windbg_get_version(void)
+{
+    return &version;
+}
