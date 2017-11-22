@@ -162,17 +162,24 @@ out:
 }
 
 
-static void socket_start_incoming_migration(SocketAddress *saddr,
-                                            Error **errp)
+static SocketAddress *socket_start_incoming_migration(SocketAddress *saddr,
+                                                      Error **errp)
 {
     QIOChannelSocket *listen_ioc = qio_channel_socket_new();
+    SocketAddress *address;
 
     qio_channel_set_name(QIO_CHANNEL(listen_ioc),
                          "migration-socket-listener");
 
     if (qio_channel_socket_listen_sync(listen_ioc, saddr, errp) < 0) {
         object_unref(OBJECT(listen_ioc));
-        return;
+        return NULL;
+    }
+
+    address = qio_channel_socket_get_local_address(listen_ioc, errp);
+    if (address < 0) {
+        object_unref(OBJECT(listen_ioc));
+        return NULL;
     }
 
     qio_channel_add_watch(QIO_CHANNEL(listen_ioc),
@@ -180,14 +187,31 @@ static void socket_start_incoming_migration(SocketAddress *saddr,
                           socket_accept_incoming_migration,
                           listen_ioc,
                           (GDestroyNotify)object_unref);
+    return address;
 }
 
 void tcp_start_incoming_migration(const char *host_port, Error **errp)
 {
     Error *err = NULL;
     SocketAddress *saddr = tcp_build_address(host_port, &err);
+
     if (!err) {
-        socket_start_incoming_migration(saddr, &err);
+        SocketAddress *address = socket_start_incoming_migration(saddr, &err);
+
+        if (address &&
+            (strcmp(address->u.inet.port, saddr->u.inet.port) ||
+             strcmp(address->u.inet.host, saddr->u.inet.host))) {
+            char *new_uri;
+            InetSocketAddress *iaddr = &saddr->u.inet;
+
+            new_uri = g_strdup_printf("tcp:%s:%s%s%s", address->u.inet.host,
+                                      address->u.inet.port,
+                                      iaddr->has_ipv4 ? ",ipv4" : "",
+                                      iaddr->has_ipv6 ? ",ipv6" : "");
+            migrate_set_uri(new_uri, errp);
+            g_free(new_uri);
+            qapi_free_SocketAddress(address);
+        }
     }
     qapi_free_SocketAddress(saddr);
     error_propagate(errp, err);
@@ -196,6 +220,9 @@ void tcp_start_incoming_migration(const char *host_port, Error **errp)
 void unix_start_incoming_migration(const char *path, Error **errp)
 {
     SocketAddress *saddr = unix_build_address(path);
-    socket_start_incoming_migration(saddr, errp);
+    SocketAddress *address;
+
+    address = socket_start_incoming_migration(saddr, errp);
+    qapi_free_SocketAddress(address);
     qapi_free_SocketAddress(saddr);
 }
