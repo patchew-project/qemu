@@ -2869,7 +2869,12 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
         pci_device_set_intx_routing_notifier(&vdev->pdev, vfio_intx_update);
         ret = vfio_intx_enable(vdev, errp);
         if (ret) {
-            goto out_teardown;
+            if (vdev->no_intx) {
+                error_report_err(*errp);
+                *errp = NULL;
+            } else {
+                goto out_teardown;
+            }
         }
     }
 
@@ -2986,6 +2991,7 @@ static Property vfio_pci_dev_properties[] = {
     DEFINE_PROP_BIT("x-igd-opregion", VFIOPCIDevice, features,
                     VFIO_FEATURE_ENABLE_IGD_OPREGION_BIT, false),
     DEFINE_PROP_BOOL("x-no-mmap", VFIOPCIDevice, vbasedev.no_mmap, false),
+    DEFINE_PROP_BOOL("x-no-intx", VFIOPCIDevice, no_intx, false),
     DEFINE_PROP_BOOL("x-no-kvm-intx", VFIOPCIDevice, no_kvm_intx, false),
     DEFINE_PROP_BOOL("x-no-kvm-msi", VFIOPCIDevice, no_kvm_msi, false),
     DEFINE_PROP_BOOL("x-no-kvm-msix", VFIOPCIDevice, no_kvm_msix, false),
