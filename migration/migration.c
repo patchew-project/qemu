@@ -1356,7 +1356,7 @@ bool migration_is_blocked(Error **errp)
     return false;
 }
 
-void qmp_migrate(const char *uri, bool has_blk, bool blk,
+void qmp_migrate(bool has_uri, const char *uri, bool has_blk, bool blk,
                  bool has_inc, bool inc, bool has_detach, bool detach,
                  Error **errp)
 {
@@ -1374,7 +1374,13 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
         error_setg(errp, "Guest is waiting for an incoming migration");
         return;
     }
-    migrate_set_uri(uri, errp);
+    if (has_uri && uri) {
+        migrate_set_uri(uri, errp);
+    }
+    if (!s->parameters.uri) {
+        error_setg(errp, "Migration uri needs to be set");
+        return;
+    }
     if (migration_is_blocked(errp)) {
         return;
     }
@@ -1412,7 +1418,7 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
     } else if (strstart(s->parameters.uri, "fd:", &p)) {
         fd_start_outgoing_migration(s, p, &local_err);
     } else {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "s->parameters.uri",
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "migration uri",
                    "a valid migration protocol");
         migrate_set_state(&s->state, MIGRATION_STATUS_SETUP,
                           MIGRATION_STATUS_FAILED);
