@@ -1472,19 +1472,10 @@ static void blk_aio_ioctl_entry(void *opaque)
     blk_aio_complete(acb);
 }
 
-BlockAIOCB *blk_aio_ioctl(BlockBackend *blk, unsigned long int req, void *buf,
+BlockAIOCB *blk_aio_ioctl(BlockBackend *blk, unsigned long int req, QEMUIOVector *qiov,
                           BlockCompletionFunc *cb, void *opaque)
 {
-    QEMUIOVector qiov;
-    struct iovec iov;
-
-    iov = (struct iovec) {
-        .iov_base = buf,
-        .iov_len = 0,
-    };
-    qemu_iovec_init_external(&qiov, &iov, 1);
-
-    return blk_aio_prwv(blk, req, 0, &qiov, blk_aio_ioctl_entry, 0, cb, opaque);
+    return blk_aio_prwv(blk, req, 0, qiov, blk_aio_ioctl_entry, 0, cb, opaque);
 }
 
 int blk_co_pdiscard(BlockBackend *blk, int64_t offset, int bytes)

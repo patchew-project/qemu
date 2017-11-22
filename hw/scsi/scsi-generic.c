@@ -46,6 +46,8 @@ typedef struct SCSIGenericReq {
     int buflen;
     int len;
     sg_io_hdr_t io_header;
+    QEMUIOVector qiov;
+    struct iovec iov;
 } SCSIGenericReq;
 
 static void scsi_generic_save_request(QEMUFile *f, SCSIRequest *req)
@@ -135,7 +137,12 @@ static int execute_command(BlockBackend *blk,
     r->io_header.usr_ptr = r;
     r->io_header.flags |= SG_FLAG_DIRECT_IO;
 
-    r->req.aiocb = blk_aio_ioctl(blk, SG_IO, &r->io_header, complete, r);
+    r->iov.iov_base = &r->io_header;
+    r->iov.iov_len = 0;
+
+    qemu_iovec_init_external(&r->qiov, &r->iov, 1);
+
+    r->req.aiocb = blk_aio_ioctl(blk, SG_IO, &r->qiov, complete, r);
     if (r->req.aiocb == NULL) {
         return -EIO;
     }

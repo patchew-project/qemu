@@ -2636,6 +2636,9 @@ typedef struct SCSIBlockReq {
     SCSIDiskReq req;
     sg_io_hdr_t io_header;
 
+    QEMUIOVector qiov;
+    struct iovec iov;
+
     /* Selected bytes of the original CDB, copied into our own CDB.  */
     uint8_t cmd, cdb1, group_number;
 
@@ -2722,7 +2725,12 @@ static BlockAIOCB *scsi_block_do_sgio(SCSIBlockReq *req,
     io_header->usr_ptr = r;
     io_header->flags |= SG_FLAG_DIRECT_IO;
 
-    aiocb = blk_aio_ioctl(s->qdev.conf.blk, SG_IO, io_header, cb, opaque);
+    req->iov.iov_base = io_header;
+    req->iov.iov_len = 0;
+
+    qemu_iovec_init_external(&req->qiov, &req->iov, 1);
+
+    aiocb = blk_aio_ioctl(s->qdev.conf.blk, SG_IO, &req->qiov, cb, opaque);
     assert(aiocb != NULL);
     return aiocb;
 }

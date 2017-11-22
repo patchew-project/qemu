@@ -151,6 +151,8 @@ out:
 typedef struct {
     VirtIOBlockReq *req;
     struct sg_io_hdr hdr;
+    QEMUIOVector qiov;
+    struct iovec iov;
 } VirtIOBlockIoctlReq;
 
 static void virtio_blk_ioctl_complete(void *opaque, int status)
@@ -298,7 +300,12 @@ static int virtio_blk_handle_scsi_req(VirtIOBlockReq *req)
     ioctl_req->hdr.sbp = elem->in_sg[elem->in_num - 3].iov_base;
     ioctl_req->hdr.mx_sb_len = elem->in_sg[elem->in_num - 3].iov_len;
 
-    acb = blk_aio_ioctl(blk->blk, SG_IO, &ioctl_req->hdr,
+    ioctl_req->iov.iov_base = &ioctl_req->hdr;
+    ioctl_req->iov.iov_len = 0;
+
+    qemu_iovec_init_external(&ioctl_req->qiov, &ioctl_req->iov, 1);
+
+    acb = blk_aio_ioctl(blk->blk, SG_IO, &ioctl_req->qiov,
                         virtio_blk_ioctl_complete, ioctl_req);
     if (!acb) {
         g_free(ioctl_req);
