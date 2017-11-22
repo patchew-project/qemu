@@ -294,6 +294,7 @@ int clp_service_call(S390CPU *cpu, uint8_t r2)
         stq_p(&resgrp->msia, ZPCI_MSI_ADDR);
         stw_p(&resgrp->mui, 0);
         stw_p(&resgrp->i, 128);
+        stw_p(&resgrp->maxstbl, 128);
         resgrp->version = 0;
 
         stw_p(&resgrp->hdr.rsp, CLP_RC_OK);
@@ -645,6 +646,7 @@ int pcistb_service_call(S390CPU *cpu, uint8_t r1, uint8_t r3, uint64_t gaddr,
     S390PCIBusDevice *pbdev;
     MemoryRegion *mr;
     MemTxResult result;
+    uint64_t offset;
     int i;
     uint32_t fh;
     uint8_t pcias;
@@ -659,22 +661,10 @@ int pcistb_service_call(S390CPU *cpu, uint8_t r1, uint8_t r3, uint64_t gaddr,
     fh = env->regs[r1] >> 32;
     pcias = (env->regs[r1] >> 16) & 0xf;
     len = env->regs[r1] & 0xff;
+    offset = env->regs[r3];
 
-    if (pcias > 5) {
-        DPRINTF("pcistb invalid space\n");
-        setcc(cpu, ZPCI_PCI_LS_ERR);
-        s390_set_status_code(env, r1, ZPCI_PCI_ST_INVAL_AS);
-        return 0;
-    }
-
-    switch (len) {
-    case 16:
-    case 32:
-    case 64:
-    case 128:
-        break;
-    default:
-        program_interrupt(env, PGM_SPECIFICATION, 6);
+    if (!(fh & FH_MASK_ENABLE)) {
+        setcc(cpu, ZPCI_PCI_LS_INVAL_HANDLE);
         return 0;
     }
 
@@ -686,12 +676,7 @@ int pcistb_service_call(S390CPU *cpu, uint8_t r1, uint8_t r3, uint64_t gaddr,
     }
 
     switch (pbdev->state) {
-    case ZPCI_FS_RESERVED:
-    case ZPCI_FS_STANDBY:
-    case ZPCI_FS_DISABLED:
     case ZPCI_FS_PERMANENT_ERROR:
-        setcc(cpu, ZPCI_PCI_LS_INVAL_HANDLE);
-        return 0;
     case ZPCI_FS_ERROR:
         setcc(cpu, ZPCI_PCI_LS_ERR);
         s390_set_status_code(env, r1, ZPCI_PCI_ST_BLOCKED);
@@ -700,8 +685,34 @@ int pcistb_service_call(S390CPU *cpu, uint8_t r1, uint8_t r3, uint64_t gaddr,
         break;
     }
 
+    if (pcias > 5) {
+        DPRINTF("pcistb invalid space\n");
+        setcc(cpu, ZPCI_PCI_LS_ERR);
+        s390_set_status_code(env, r1, ZPCI_PCI_ST_INVAL_AS);
+        return 0;
+    }
+
+    /* Verify the address, offset and length */
+    /* offset must be a multiple of 8 */
+    if (offset % 8) {
+        goto addressing_error;
+    }
+    /* Length must be greater than 8, a multiple of 8 */
+    /* and not greater than maxstbl */
+    if ((len <= 8) || (len % 8) || (len > pbdev->maxstbl)) {
+        goto addressing_error;
+    }
+    /* Do not cross a 4K-byte boundary */
+    if (((offset & 0xfff) + len) > 0x1000) {
+        goto addressing_error;
+    }
+    /* Guest address must be double word aligned */
+    if (gaddr & 0x07UL) {
+        goto addressing_error;
+    }
+
     mr = pbdev->pdev->io_regions[pcias].memory;
-    if (!memory_region_access_valid(mr, env->regs[r3], len, true)) {
+    if (!memory_region_access_valid(mr, offset, len, true)) {
         program_interrupt(env, PGM_OPERAND, 6);
         return 0;
     }
@@ -711,9 +722,9 @@ int pcistb_service_call(S390CPU *cpu, uint8_t r1, uint8_t r3, uint64_t gaddr,
     }
 
     for (i = 0; i < len / 8; i++) {
-        result = memory_region_dispatch_write(mr, env->regs[r3] + i * 8,
-                                     ldq_p(buffer + i * 8), 8,
-                                     MEMTXATTRS_UNSPECIFIED);
+        result = memory_region_dispatch_write(mr, offset + i * 8,
+                                              ldq_p(buffer + i * 8), 8,
+                                              MEMTXATTRS_UNSPECIFIED);
         if (result != MEMTX_OK) {
             program_interrupt(env, PGM_OPERAND, 6);
             return 0;
@@ -721,6 +732,10 @@ int pcistb_service_call(S390CPU *cpu, uint8_t r1, uint8_t r3, uint64_t gaddr,
     }
 
     setcc(cpu, ZPCI_PCI_LS_OK);
+    return 0;
+
+addressing_error:
+    program_interrupt(env, PGM_SPECIFICATION, 6);
     return 0;
 }
 
