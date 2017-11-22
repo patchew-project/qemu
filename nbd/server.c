@@ -139,6 +139,19 @@ static void nbd_client_receive_next_request(NBDClient *client);
 
 */
 
+static inline int nbd_opt_read(NBDClient *client, void *buffer, size_t size,
+                               Error **errp)
+{
+    client->optlen -= size;
+    return qio_channel_read_all(client->ioc, buffer, size, errp) < 0 ? -EIO : 0;
+}
+
+static inline int nbd_opt_drop(NBDClient *client, size_t size, Error **errp)
+{
+    client->optlen -= size;
+    return nbd_drop(client->ioc, size, errp);
+}
+
 /* Send a reply header, including length, but no payload.
  * Return -errno on error, 0 on success. */
 static int nbd_negotiate_send_rep_len(NBDClient *client, uint32_t type,
@@ -299,7 +312,7 @@ static int nbd_negotiate_handle_export_name(NBDClient *client,
         error_setg(errp, "Bad length received");
         return -EINVAL;
     }
-    if (nbd_read(client->ioc, name, client->optlen, errp) < 0) {
+    if (nbd_opt_read(client, name, client->optlen, errp) < 0) {
         error_prepend(errp, "read failed: ");
         return -EINVAL;
     }
@@ -383,40 +396,36 @@ static int nbd_negotiate_handle_info(NBDClient *client, uint16_t myflags,
         msg = "overall request too short";
         goto invalid;
     }
-    if (nbd_read(client->ioc, &namelen, sizeof(namelen), errp) < 0) {
+    if (nbd_opt_read(client, &namelen, sizeof(namelen), errp) < 0) {
         return -EIO;
     }
     be32_to_cpus(&namelen);
-    client->optlen -= sizeof(namelen);
     if (namelen > client->optlen - sizeof(requests) ||
         (client->optlen - namelen) % 2)
     {
         msg = "name length is incorrect";
         goto invalid;
     }
-    if (nbd_read(client->ioc, name, namelen, errp) < 0) {
+    if (nbd_opt_read(client, name, namelen, errp) < 0) {
         return -EIO;
     }
     name[namelen] = '\0';
-    client->optlen -= namelen;
     trace_nbd_negotiate_handle_export_name_request(name);
 
-    if (nbd_read(client->ioc, &requests, sizeof(requests), errp) < 0) {
+    if (nbd_opt_read(client, &requests, sizeof(requests), errp) < 0) {
         return -EIO;
     }
     be16_to_cpus(&requests);
-    client->optlen -= sizeof(requests);
     trace_nbd_negotiate_handle_info_requests(requests);
     if (requests != client->optlen / sizeof(request)) {
         msg = "incorrect number of  requests for overall length";
         goto invalid;
     }
     while (requests--) {
-        if (nbd_read(client->ioc, &request, sizeof(request), errp) < 0) {
+        if (nbd_opt_read(client, &request, sizeof(request), errp) < 0) {
             return -EIO;
         }
         be16_to_cpus(&request);
-        client->optlen -= sizeof(request);
         trace_nbd_negotiate_handle_info_request(request,
                                                 nbd_info_lookup(request));
         /* We care about NBD_INFO_NAME and NBD_INFO_BLOCK_SIZE;
@@ -521,7 +530,7 @@ static int nbd_negotiate_handle_info(NBDClient *client, uint16_t myflags,
     return rc;
 
  invalid:
-    if (nbd_drop(client->ioc, client->optlen, errp) < 0) {
+    if (nbd_opt_drop(client, client->optlen, errp) < 0) {
         return -EIO;
     }
     return nbd_negotiate_send_rep_err(client, NBD_REP_ERR_INVALID,
@@ -715,7 +724,7 @@ static int nbd_negotiate_options(NBDClient *client, uint16_t myflags,
                 return -EINVAL;
 
             default:
-                if (nbd_drop(client->ioc, length, errp) < 0) {
+                if (nbd_opt_drop(client, length, errp) < 0) {
                     return -EIO;
                 }
                 ret = nbd_negotiate_send_rep_err(client,
@@ -791,7 +800,7 @@ static int nbd_negotiate_options(NBDClient *client, uint16_t myflags,
                 break;
 
             default:
-                if (nbd_drop(client->ioc, length, errp) < 0) {
+                if (nbd_opt_drop(client, length, errp) < 0) {
                     return -EIO;
                 }
                 ret = nbd_negotiate_send_rep_err(client,
@@ -821,6 +830,7 @@ static int nbd_negotiate_options(NBDClient *client, uint16_t myflags,
         if (ret < 0) {
             return ret;
         }
+        assert(client->optlen == 0);
     }
 }
 
