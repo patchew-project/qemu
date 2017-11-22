@@ -199,20 +199,15 @@ static int nbd_negotiate_send_rep(NBDClient *client, uint32_t type,
     return nbd_negotiate_send_rep_len(client, type, 0, errp);
 }
 
-/* Send an error reply.
- * Return -errno on error, 0 on success. */
-static int GCC_FMT_ATTR(4, 5)
-nbd_negotiate_send_rep_err(NBDClient *client, uint32_t type,
-                           Error **errp, const char *fmt, ...)
+static int GCC_FMT_ATTR(3, 0)
+nbd_negotiate_send_rep_err_v(NBDClient *client, uint32_t type,
+                             const char *fmt, va_list va, Error **errp)
 {
-    va_list va;
     char *msg;
     int ret;
     size_t len;
 
-    va_start(va, fmt);
     msg = g_strdup_vprintf(fmt, va);
-    va_end(va);
     len = strlen(msg);
     assert(len < 4096);
     trace_nbd_negotiate_send_rep_err(msg);
@@ -229,6 +224,43 @@ nbd_negotiate_send_rep_err(NBDClient *client, uint32_t type,
 
 out:
     g_free(msg);
+    return ret;
+}
+
+static int GCC_FMT_ATTR(4, 5)
+nbd_negotiate_send_rep_err(NBDClient *client, uint32_t type,
+                           Error **errp, const char *fmt, ...)
+{
+    va_list va;
+    int ret;
+
+    va_start(va, fmt);
+    ret = nbd_negotiate_send_rep_err_v(client, type, fmt, va, errp);
+    va_end(va);
+
+    return ret;
+}
+
+/* nbd_opt_invalid
+ * Drop reminded option data and reply with NBD_REP_ERR_INVALID
+ */
+static int nbd_opt_invalid(NBDClient *client,
+                          Error **errp, const char *fmt, ...)
+{
+    int ret;
+    va_list va;
+
+    if (client->optlen > 0) {
+        if (nbd_opt_drop(client, client->optlen, errp) < 0) {
+            return -EIO;
+        }
+    }
+
+    va_start(va, fmt);
+    ret = nbd_negotiate_send_rep_err_v(client, NBD_REP_ERR_INVALID,
+                                       fmt, va, errp);
+    va_end(va);
+
     return ret;
 }
 
@@ -384,7 +416,6 @@ static int nbd_negotiate_handle_info(NBDClient *client, uint16_t myflags,
     bool blocksize = false;
     uint32_t sizes[3];
     char buf[sizeof(uint64_t) + sizeof(uint16_t)];
-    const char *msg;
 
     /* Client sends:
         4 bytes: L, name length (can be 0)
@@ -393,8 +424,7 @@ static int nbd_negotiate_handle_info(NBDClient *client, uint16_t myflags,
         N * 2 bytes: N requests
     */
     if (client->optlen < sizeof(namelen) + sizeof(requests)) {
-        msg = "overall request too short";
-        goto invalid;
+        return nbd_opt_invalid(client, errp, "overall request too short");
     }
     if (nbd_opt_read(client, &namelen, sizeof(namelen), errp) < 0) {
         return -EIO;
@@ -403,8 +433,7 @@ static int nbd_negotiate_handle_info(NBDClient *client, uint16_t myflags,
     if (namelen > client->optlen - sizeof(requests) ||
         (client->optlen - namelen) % 2)
     {
-        msg = "name length is incorrect";
-        goto invalid;
+        return nbd_opt_invalid(client, errp, "name length is incorrect");
     }
     if (nbd_opt_read(client, name, namelen, errp) < 0) {
         return -EIO;
@@ -418,8 +447,8 @@ static int nbd_negotiate_handle_info(NBDClient *client, uint16_t myflags,
     be16_to_cpus(&requests);
     trace_nbd_negotiate_handle_info_requests(requests);
     if (requests != client->optlen / sizeof(request)) {
-        msg = "incorrect number of  requests for overall length";
-        goto invalid;
+        return nbd_opt_invalid(
+            client, errp, "incorrect number of requests for overall length");
     }
     while (requests--) {
         if (nbd_opt_read(client, &request, sizeof(request), errp) < 0) {
@@ -528,13 +557,6 @@ static int nbd_negotiate_handle_info(NBDClient *client, uint16_t myflags,
         rc = 1;
     }
     return rc;
-
- invalid:
-    if (nbd_opt_drop(client, client->optlen, errp) < 0) {
-        return -EIO;
-    }
-    return nbd_negotiate_send_rep_err(client, NBD_REP_ERR_INVALID,
-                                      errp, "%s", msg);
 }
 
 
@@ -597,12 +619,8 @@ static int nbd_reject_length(NBDClient *client, bool fatal, Error **errp)
     int ret;
 
     assert(client->optlen);
-    if (nbd_drop(client->ioc, client->optlen, errp) < 0) {
-        return -EIO;
-    }
-    ret = nbd_negotiate_send_rep_err(client, NBD_REP_ERR_INVALID, errp,
-                                     "option '%s' should have zero length",
-                                     nbd_opt_lookup(client->opt));
+    ret = nbd_opt_invalid(client, errp, "option '%s' should have zero length",
+                         nbd_opt_lookup(client->opt));
     if (fatal && !ret) {
         error_setg(errp, "option '%s' should have zero length",
                    nbd_opt_lookup(client->opt));
