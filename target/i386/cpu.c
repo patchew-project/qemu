@@ -2732,6 +2732,13 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
     uint32_t limit;
     uint32_t signature[3];
 
+    /*
+     * Pull up max xlevel in case the one we've specified on the cmdline is
+     * higher.
+     */
+    if (cpu->cpuid_leaf && env->cpuid_xlevel < cpu->cpuid_leaf)
+	    env->cpuid_xlevel = cpu->cpuid_leaf;
+
     /* Calculate & apply limits for different index ranges */
     if (index >= 0xC0000000) {
         limit = env->cpuid_xlevel2;
@@ -3139,6 +3146,22 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         *ecx = 0;
         *edx = 0;
         break;
+    }
+
+    /* Do CPUID overrides: */
+    if (cpu->cpuid_leaf && cpu->cpuid_leaf == index) {
+
+	    if (cpu->eax)
+		    *eax = cpu->eax;
+
+	    if (cpu->ebx)
+		    *ebx = cpu->ebx;
+
+	    if (cpu->ecx)
+		    *ecx = cpu->ecx;
+
+	    if (cpu->edx)
+		    *edx = cpu->edx;
     }
 }
 
@@ -4173,6 +4196,11 @@ static Property x86_cpu_properties[] = {
      * to the specific Windows version being used."
      */
     DEFINE_PROP_INT32("x-hv-max-vps", X86CPU, hv_max_vps, -1),
+    DEFINE_PROP_UINT32("cpuid-leaf", X86CPU, cpuid_leaf, UINT32_MAX),
+    DEFINE_PROP_UINT32("eax", X86CPU, eax, UINT32_MAX),
+    DEFINE_PROP_UINT32("ebx", X86CPU, ebx, UINT32_MAX),
+    DEFINE_PROP_UINT32("ecx", X86CPU, ecx, UINT32_MAX),
+    DEFINE_PROP_UINT32("edx", X86CPU, edx, UINT32_MAX),
     DEFINE_PROP_END_OF_LIST()
 };
 

@@ -1284,6 +1284,13 @@ struct X86CPU {
     int32_t thread_id;
 
     int32_t hv_max_vps;
+
+    /*
+     * CPUID overrides:
+     */
+    uint32_t cpuid_leaf;
+    uint32_t eax, ebx, ecx, edx;
+
 };
 
 static inline X86CPU *x86_env_get_cpu(CPUX86State *env)
