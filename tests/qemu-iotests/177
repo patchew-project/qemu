@@ -39,6 +39,8 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 
 _supported_fmt qcow2
 _supported_proto file
+# This test assumes that discard leaves zero clusters
+_unsupported_imgopts 'compat=0.10'
 
 CLUSTER_SIZE=1M
 size=128M
@@ -93,15 +95,6 @@ echo "== verify image content =="
 
 function verify_io()
 {
-    if ($QEMU_IMG info -f "$IMGFMT" "$TEST_IMG" |
-	    grep "compat: 0.10" > /dev/null); then
-        # For v2 images, discarded clusters are read from the backing file
-        discarded=11
-    else
-        # Discarded clusters are zeroed for v3 or later
-        discarded=0
-    fi
-
     echo read -P 22 0 1000
     echo read -P 33 1000 128k
     echo read -P 22 132072 7871512
@@ -109,7 +102,7 @@ function verify_io()
     echo read -P 22 10096640 23457792
     echo read -P 0 32M 32M
     echo read -P 22 64M 13M
-    echo read -P $discarded 77M 29M
+    echo read -P 0 77M 29M
     echo read -P 22 106M 4M
     echo read -P 11 110M 18M
 }
