@@ -674,6 +674,26 @@ static void pci_hotplug(void)
     qtest_shutdown(qs);
 }
 
+static void test_vring_align(void)
+{
+    QPCIBar bar0;
+    QOSState *qs;
+    QPCIDevice *dev;
+
+    qs = pci_test_start();
+    dev = qpci_device_find(qs->pcibus, QPCI_DEVFN(4, 0));
+    g_assert(dev != NULL);
+
+    qpci_device_enable(dev);
+    bar0 = qpci_iomap(dev, 0, NULL);
+
+    qpci_io_writeb(dev, bar0, VIRTIO_PCI_QUEUE_SEL, 2);
+    qpci_io_writel(dev, bar0, VIRTIO_PCI_QUEUE_PFN, 1);
+
+    g_free(dev);
+    qtest_shutdown(qs);
+}
+
 static void mmio_basic(void)
 {
     QVirtioMMIODevice *dev;
@@ -724,6 +744,7 @@ int main(int argc, char **argv)
         qtest_add_func("/virtio/blk/pci/basic", pci_basic);
         qtest_add_func("/virtio/blk/pci/indirect", pci_indirect);
         qtest_add_func("/virtio/blk/pci/config", pci_config);
+        qtest_add_func("/virtio/blk/pci/vring", test_vring_align);
         if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
             qtest_add_func("/virtio/blk/pci/msix", pci_msix);
             qtest_add_func("/virtio/blk/pci/idx", pci_idx);
