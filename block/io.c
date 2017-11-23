@@ -192,13 +192,15 @@ static void bdrv_drain_invoke(BlockDriverState *bs, bool begin)
 static bool bdrv_drain_recurse(BlockDriverState *bs, bool begin)
 {
     BdrvChild *child, *tmp;
-    bool waited;
+    bool waited = false;
 
     /* Ensure any pending metadata writes are submitted to bs->file.  */
     bdrv_drain_invoke(bs, begin);
 
-    /* Wait for drained requests to finish */
-    waited = BDRV_POLL_WHILE(bs, atomic_read(&bs->in_flight) > 0);
+    if (begin) {
+        /* Wait for drained requests to finish */
+        waited = BDRV_POLL_WHILE(bs, atomic_read(&bs->in_flight) > 0);
+    }
 
     QLIST_FOREACH_SAFE(child, &bs->children, next, tmp) {
         BlockDriverState *bs = child->bs;
