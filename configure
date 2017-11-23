@@ -6012,6 +6012,10 @@ if test "$opengl" = "yes" ; then
   fi
 fi
 
+if test "$tcmalloc" = "yes" || test "$jemalloc" = "yes" ; then
+  echo "CONFIG_NONGLIBMALLOC=y" >> $config_host_mak
+fi
+
 if test "$avx2_opt" = "yes" ; then
   echo "CONFIG_AVX2_OPT=y" >> $config_host_mak
 fi
