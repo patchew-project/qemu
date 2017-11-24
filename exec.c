@@ -221,7 +221,7 @@ static MemoryRegion io_mem_watch;
  */
 struct CPUAddressSpace {
     CPUState *cpu;
-    AddressSpace *as;
+    AddressSpace as;
     struct AddressSpaceDispatch *memory_dispatch;
     MemoryListener tcg_as_listener;
 };
@@ -712,10 +712,19 @@ void cpu_address_space_init(CPUState *cpu, int asidx,
                             const char *prefix, MemoryRegion *mr)
 {
     CPUAddressSpace *newas;
-    AddressSpace *as = g_new0(AddressSpace, 1);
+    AddressSpace *as;
     char *as_name;
 
     assert(mr);
+
+    if (!cpu->cpu_ases) {
+        /* This should be setup before calling the function. */
+        assert(cpu->num_ases > 0);
+        cpu->cpu_ases = g_new0(CPUAddressSpace, cpu->num_ases);
+    }
+    newas = &cpu->cpu_ases[asidx];
+    as = &newas->as;
+
     as_name = g_strdup_printf("%s-%d", prefix, cpu->cpu_index);
     address_space_init(as, mr, as_name);
     g_free(as_name);
@@ -731,13 +740,7 @@ void cpu_address_space_init(CPUState *cpu, int asidx,
     /* KVM cannot currently support multiple address spaces. */
     assert(asidx == 0 || !kvm_enabled());
 
-    if (!cpu->cpu_ases) {
-        cpu->cpu_ases = g_new0(CPUAddressSpace, cpu->num_ases);
-    }
-
-    newas = &cpu->cpu_ases[asidx];
     newas->cpu = cpu;
-    newas->as = as;
     if (tcg_enabled()) {
         newas->tcg_as_listener.commit = tcg_commit;
         memory_listener_register(&newas->tcg_as_listener, as);
@@ -747,7 +750,7 @@ void cpu_address_space_init(CPUState *cpu, int asidx,
 AddressSpace *cpu_get_address_space(CPUState *cpu, int asidx)
 {
     /* Return the AddressSpace corresponding to the specified index */
-    return cpu->cpu_ases[asidx].as;
+    return &cpu->cpu_ases[asidx].as;
 }
 #endif
 
@@ -830,7 +833,7 @@ static void breakpoint_invalidate(CPUState *cpu, target_ulong pc)
     int asidx = cpu_asidx_from_attrs(cpu, attrs);
     if (phys != -1) {
         /* Locks grabbed by tb_invalidate_phys_addr */
-        tb_invalidate_phys_addr(cpu->cpu_ases[asidx].as,
+        tb_invalidate_phys_addr(cpu_get_address_space(cpu, asidx),
                                 phys | (pc & ~TARGET_PAGE_MASK));
     }
 }
@@ -2518,7 +2521,7 @@ static MemTxResult watch_mem_read(void *opaque, hwaddr addr, uint64_t *pdata,
     MemTxResult res;
     uint64_t data;
     int asidx = cpu_asidx_from_attrs(current_cpu, attrs);
-    AddressSpace *as = current_cpu->cpu_ases[asidx].as;
+    AddressSpace *as = cpu_get_address_space(current_cpu, asidx);
 
     check_watchpoint(addr & ~TARGET_PAGE_MASK, size, attrs, BP_MEM_READ);
     switch (size) {
@@ -2546,7 +2549,7 @@ static MemTxResult watch_mem_write(void *opaque, hwaddr addr,
 {
     MemTxResult res;
     int asidx = cpu_asidx_from_attrs(current_cpu, attrs);
-    AddressSpace *as = current_cpu->cpu_ases[asidx].as;
+    AddressSpace *as = cpu_get_address_space(current_cpu, asidx);
 
     check_watchpoint(addr & ~TARGET_PAGE_MASK, size, attrs, BP_MEM_WRITE);
     switch (size) {
@@ -2793,7 +2796,7 @@ static void tcg_commit(MemoryListener *listener)
      * We reload the dispatch pointer now because cpu_reloading_memory_map()
      * may have split the RCU critical section.
      */
-    d = address_space_to_dispatch(cpuas->as);
+    d = address_space_to_dispatch(&cpuas->as);
     atomic_rcu_set(&cpuas->memory_dispatch, d);
     tlb_flush(cpuas->cpu);
 }
@@ -3539,10 +3542,10 @@ int cpu_memory_rw_debug(CPUState *cpu, target_ulong addr,
             l = len;
         phys_addr += (addr & ~TARGET_PAGE_MASK);
         if (is_write) {
-            cpu_physical_memory_write_rom(cpu->cpu_ases[asidx].as,
+            cpu_physical_memory_write_rom(cpu_get_address_space(cpu, asidx),
                                           phys_addr, buf, l);
         } else {
-            address_space_rw(cpu->cpu_ases[asidx].as, phys_addr,
+            address_space_rw(cpu_get_address_space(cpu, asidx), phys_addr,
                              MEMTXATTRS_UNSPECIFIED,
                              buf, l, 0);
         }
