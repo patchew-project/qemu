@@ -24,6 +24,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/isa/isa.h"
+#include "qapi/error.h"
 
 #define TYPE_I82374 "i82374"
 #define I82374(obj) OBJECT_CHECK(I82374State, (obj), TYPE_I82374)
@@ -118,13 +119,13 @@ static void i82374_realize(DeviceState *dev, Error **errp)
 {
     I82374State *s = I82374(dev);
 
-    portio_list_init(&s->port_list, OBJECT(s), i82374_portio_list, s,
-                     "i82374");
-    portio_list_add(&s->port_list, isa_address_space_io(&s->parent_obj),
+    if (DMA_init(isa_bus_from_device(ISA_DEVICE(dev)), 1, errp) == 0) {
+        portio_list_init(&s->port_list, OBJECT(s), i82374_portio_list, s,
+                    "i82374");
+        portio_list_add(&s->port_list, isa_address_space_io(&s->parent_obj),
                     s->iobase);
-
-    DMA_init(isa_bus_from_device(ISA_DEVICE(dev)), 1);
-    memset(s->commands, 0, sizeof(s->commands));
+        memset(s->commands, 0, sizeof(s->commands));
+    }
 }
 
 static Property i82374_properties[] = {
