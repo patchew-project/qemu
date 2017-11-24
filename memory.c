@@ -235,8 +235,6 @@ struct FlatView {
     MemoryRegion *root;
 };
 
-typedef struct AddressSpaceOps AddressSpaceOps;
-
 #define FOR_EACH_FLAT_RANGE(var, view)          \
     for (var = (view)->ranges; var < (view)->ranges + (view)->nr; ++var)
 
@@ -2791,6 +2789,14 @@ static void do_address_space_destroy(AddressSpace *as)
     g_free(as->name);
     g_free(as->ioeventfds);
     memory_region_unref(as->root);
+}
+
+IOMMUObject *address_space_iommu_get(AddressSpace *as)
+{
+    if (!as->as_ops.iommu_get) {
+        return NULL;
+    }
+    return as->as_ops.iommu_get(as);
 }
 
 void address_space_destroy(AddressSpace *as)
