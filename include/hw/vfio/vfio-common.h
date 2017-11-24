@@ -87,19 +87,19 @@ typedef struct VFIOContainer {
      * contiguous IOVA window.  We may need to generalize that in
      * future
      */
-    QLIST_HEAD(, VFIOGuestIOMMU) giommu_list;
+    QLIST_HEAD(, VFIOGuestIOMMUMR) giommu_mr_list;
     QLIST_HEAD(, VFIOHostDMAWindow) hostwin_list;
     QLIST_HEAD(, VFIOGroup) group_list;
     QLIST_ENTRY(VFIOContainer) next;
 } VFIOContainer;
 
-typedef struct VFIOGuestIOMMU {
+typedef struct VFIOGuestIOMMUMR {
     VFIOContainer *container;
     IOMMUMemoryRegion *iommu;
     hwaddr iommu_offset;
     IOMMUMRNotifier n;
-    QLIST_ENTRY(VFIOGuestIOMMU) giommu_next;
-} VFIOGuestIOMMU;
+    QLIST_ENTRY(VFIOGuestIOMMUMR) giommu_next;
+} VFIOGuestIOMMUMR;
 
 typedef struct VFIOHostDMAWindow {
     hwaddr min_iova;
