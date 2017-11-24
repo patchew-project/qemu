@@ -2637,6 +2637,14 @@ static void vfio_unregister_req_notifier(VFIOPCIDevice *vdev)
     vdev->req_enabled = false;
 }
 
+static void vfio_iommu_bind_pasidtbl_notify(IOMMUNotifier *n,
+                                            IOMMUEventData *event_data)
+{
+/*  Sample code, would be detailed in coming virt-SVM patchset.
+    VFIOGuestIOMMUObject *giommu = container_of(n, VFIOGuestIOMMUObject, n);
+    VFIOContainer *container = giommu->container;
+*/
+}
 static void vfio_realize(PCIDevice *pdev, Error **errp)
 {
     VFIOPCIDevice *vdev = DO_UPCAST(VFIOPCIDevice, pdev, pdev);
@@ -2889,6 +2897,12 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
         QLIST_INSERT_HEAD(&group->container->giommu_object_list,
                           giommu,
                           giommu_next);
+        /* Register vfio_iommu_bind_pasidtbl_notify with event flag
+           IOMMU_EVENT_BIND_PASIDT */
+        iommu_notifier_register(iommu,
+                                &giommu->n,
+                                vfio_iommu_bind_pasidtbl_notify,
+                                IOMMU_EVENT_BIND_PASIDT);
     }
 
     return;
