@@ -517,32 +517,27 @@ static int pci_apb_map_irq(PCIDevice *pci_dev, int irq_num)
     return irq_num;
 }
 
-static int pci_pbm_map_irq(PCIDevice *pci_dev, int irq_num)
+static int pci_pbmA_map_irq(PCIDevice *pci_dev, int irq_num)
 {
-    PBMPCIBridge *br = PBM_PCI_BRIDGE(pci_bridge_get_device(
-                           PCI_BUS(qdev_get_parent_bus(DEVICE(pci_dev)))));
-
-    int bus_offset;
-    if (br->busA) {
-        bus_offset = 0x0;
-
-        /* The on-board devices have fixed (legacy) OBIO intnos */
-        switch (PCI_SLOT(pci_dev->devfn)) {
-        case 1:
-            /* Onboard NIC */
-            return 0x21;
-        case 3:
-            /* Onboard IDE */
-            return 0x20;
-
-        default:
-            /* Normal intno, fall through */
-            break;
-        }
-    } else {
-        bus_offset = 0x10;
+    /* The on-board devices have fixed (legacy) OBIO intnos */
+    switch (PCI_SLOT(pci_dev->devfn)) {
+    case 1:
+        /* Onboard NIC */
+        return 0x21;
+    case 3:
+        /* Onboard IDE */
+        return 0x20;
+    default:
+        /* Normal intno, fall through */
+        break;
     }
-    return (bus_offset + (PCI_SLOT(pci_dev->devfn) << 2) + irq_num) & 0x1f;
+
+    return ((PCI_SLOT(pci_dev->devfn) << 2) + irq_num) & 0x1f;
+}
+
+static int pci_pbmB_map_irq(PCIDevice *pci_dev, int irq_num)
+{
+    return (0x10 + (PCI_SLOT(pci_dev->devfn) << 2) + irq_num) & 0x1f;
 }
 
 static void pci_apb_set_irq(void *opaque, int irq_num, int level)
@@ -591,9 +586,11 @@ static void apb_pci_bridge_realize(PCIDevice *dev, Error **errp)
 
     pci_bridge_initfn(dev, TYPE_PCI_BUS);
 
-    /* If initialising busA, ensure that we allow IO transactions so that
-       we get the early serial console until OpenBIOS configures the bridge */
-    if (br->busA) {
+    /* If this is the busA PCI bridge which contains the on-board devices
+     * attached to the ebus, ensure that we initially allow IO transactions
+     * so that we get the early serial console until OpenBIOS can properly
+     * configure the PCI bridge itself */
+    if (dev->devfn == PCI_DEVFN(1, 1)) {
         cmd |= PCI_COMMAND_IO;
     }
 
@@ -673,14 +670,13 @@ static void pci_pbm_realize(DeviceState *dev, Error **errp)
     pci_dev = pci_create_multifunction(phb->bus, PCI_DEVFN(1, 0), true,
                                    TYPE_PBM_PCI_BRIDGE);
     s->bridgeB = PCI_BRIDGE(pci_dev);
-    pci_bridge_map_irq(s->bridgeB, "pciB", pci_pbm_map_irq);
+    pci_bridge_map_irq(s->bridgeB, "pciB", pci_pbmB_map_irq);
     qdev_init_nofail(&pci_dev->qdev);
 
     pci_dev = pci_create_multifunction(phb->bus, PCI_DEVFN(1, 1), true,
                                    TYPE_PBM_PCI_BRIDGE);
     s->bridgeA = PCI_BRIDGE(pci_dev);
-    pci_bridge_map_irq(s->bridgeA, "pciA", pci_pbm_map_irq);
-    qdev_prop_set_bit(DEVICE(pci_dev), "busA", true);
+    pci_bridge_map_irq(s->bridgeA, "pciA", pci_pbmA_map_irq);
     qdev_init_nofail(&pci_dev->qdev);
 }
 
@@ -789,11 +785,6 @@ static const TypeInfo pbm_host_info = {
     .class_init    = pbm_host_class_init,
 };
 
-static Property pbm_pci_properties[] = {
-    DEFINE_PROP_BOOL("busA", PBMPCIBridge, busA, false),
-    DEFINE_PROP_END_OF_LIST(),
-};
-
 static void pbm_pci_bridge_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -809,7 +800,6 @@ static void pbm_pci_bridge_class_init(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->reset = pci_bridge_reset;
     dc->vmsd = &vmstate_pci_device;
-    dc->props = pbm_pci_properties;
 }
 
 static const TypeInfo pbm_pci_bridge_info = {
