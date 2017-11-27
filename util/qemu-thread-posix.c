@@ -482,12 +482,33 @@ static void __attribute__((constructor)) qemu_thread_atexit_init(void)
 /* Attempt to set the threads name; note that this is for debug, so
  * we're not going to fail if we can't set it.
  */
-static void qemu_thread_set_name(QemuThread *thread, const char *name)
+static void qemu_thread_set_name(pthread_t thread, const char *name)
 {
 #ifdef CONFIG_PTHREAD_SETNAME_NP
-    pthread_setname_np(thread->thread, name);
+    pthread_setname_np(thread, name);
 #endif
 }
+
+static void *qemu_thread_start(void *args)
+{
+    QemuThread_args *qemu_thread_args;
+    void *ret;
+
+    qemu_thread_args = (QemuThread_args *)args;
+    if (qemu_thread_args->name) {
+        qemu_thread_set_name(pthread_self(), qemu_thread_args->name);
+        g_free(qemu_thread_args->name);
+    }
+
+    if (qemu_thread_args->mode == QEMU_THREAD_DETACHED) {
+        pthread_detach(pthread_self());
+    }
+    ret = qemu_thread_args->start_routine(qemu_thread_args->arg);
+
+    g_free(qemu_thread_args);
+    return ret;
+}
+
 
 void qemu_thread_create(QemuThread *thread, const char *name,
                        void *(*start_routine)(void*),
@@ -496,6 +517,7 @@ void qemu_thread_create(QemuThread *thread, const char *name,
     sigset_t set, oldset;
     int err;
     pthread_attr_t attr;
+    QemuThread_args *qemu_thread_args;
 
     err = pthread_attr_init(&attr);
     if (err) {
@@ -505,7 +527,15 @@ void qemu_thread_create(QemuThread *thread, const char *name,
     /* Leave signal handling to the iothread.  */
     sigfillset(&set);
     pthread_sigmask(SIG_SETMASK, &set, &oldset);
-    err = pthread_create(&thread->thread, &attr, start_routine, arg);
+
+    qemu_thread_args = g_new0(QemuThread_args, 1);
+    qemu_thread_args->mode = mode;
+    qemu_thread_args->name = name_threads ? g_strdup_printf("%s", name) : NULL;
+    qemu_thread_args->start_routine = start_routine;
+    qemu_thread_args->arg = arg;
+
+    err = pthread_create(&thread->thread, &attr,
+                         qemu_thread_start, qemu_thread_args);
     if (err)
         error_exit(err, __func__);
 
