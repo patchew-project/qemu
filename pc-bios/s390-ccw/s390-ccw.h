@@ -71,6 +71,7 @@ unsigned int get_loadparm_index(void);
 void sclp_print(const char *string);
 void sclp_setup(void);
 void sclp_get_loadparm_ascii(char *loadparm);
+int sclp_read(char **buf_ptr, uint64_t timeout);
 
 /* virtio.c */
 unsigned long virtio_load_direct(ulong rec_list1, ulong rec_list2,
@@ -83,6 +84,11 @@ ulong get_second(void);
 
 /* bootmap.c */
 void zipl_load(void);
+
+/* menu.c */
+void menu_enable(uint16_t boot_menu_timeout);
+int menu_is_enabled(void);
+int menu_get_zipl_boot_index(const char *data);
 
 static inline void fill_hex(char *out, unsigned char val)
 {

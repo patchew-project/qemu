@@ -12,6 +12,9 @@
 #include "s390-ccw.h"
 #include "virtio.h"
 
+#define LOADPARM_EMPTY  "........"
+#define LOADPARM_PROMPT "PROMPT  "
+
 char stack[PAGE_SIZE * 8] __attribute__((__aligned__(PAGE_SIZE)));
 static SubChannelId blk_schid = { .one = 1 };
 IplParameterBlock iplb __attribute__((__aligned__(PAGE_SIZE)));
@@ -73,6 +76,16 @@ static bool find_dev(Schib *schib, int dev_no)
     return false;
 }
 
+static void set_boot_menu(uint8_t boot_menu_enabled,
+                          uint16_t boot_menu_timeout)
+{
+    if (memcmp(loadparm, LOADPARM_EMPTY, 8) == 0 && boot_menu_enabled) {
+        menu_enable(boot_menu_timeout);
+    } else if (memcmp(loadparm, LOADPARM_PROMPT, 8) == 0) {
+        menu_enable(0);
+    }
+}
+
 static void virtio_setup(void)
 {
     Schib schib;
@@ -101,6 +114,8 @@ static void virtio_setup(void)
             blk_schid.ssid = iplb.ccw.ssid & 0x3;
             debug_print_int("ssid ", blk_schid.ssid);
             found = find_dev(&schib, dev_no);
+            set_boot_menu(iplb.ccw.boot_menu_enabled,
+                          iplb.ccw.boot_menu_timeout);
             break;
         case S390_IPL_TYPE_QEMU_SCSI:
             vdev->scsi_device_selected = true;
@@ -109,6 +124,8 @@ static void virtio_setup(void)
             vdev->selected_scsi_device.lun = iplb.scsi.lun;
             blk_schid.ssid = iplb.scsi.ssid & 0x3;
             found = find_dev(&schib, iplb.scsi.devno);
+            set_boot_menu(iplb.scsi.boot_menu_enabled,
+                          iplb.scsi.boot_menu_timeout);
             break;
         default:
             panic("List-directed IPL not supported yet!\n");
@@ -122,7 +139,6 @@ static void virtio_setup(void)
             }
         }
     }
-
     IPL_assert(found, "No virtio device found");
 
     if (virtio_get_device_type() == VIRTIO_ID_NET) {

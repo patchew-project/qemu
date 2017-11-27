@@ -74,6 +74,7 @@ typedef struct ScsiMbr {
 } __attribute__ ((packed)) ScsiMbr;
 
 #define ZIPL_MAGIC              "zIPL"
+#define ZIPL_MAGIC_EBCDIC       "\xa9\xc9\xd7\xd3"
 #define IPL1_MAGIC "\xc9\xd7\xd3\xf1" /* == "IPL1" in EBCDIC */
 #define IPL2_MAGIC "\xc9\xd7\xd3\xf2" /* == "IPL2" in EBCDIC */
 #define VOL1_MAGIC "\xe5\xd6\xd3\xf1" /* == "VOL1" in EBCDIC */
@@ -229,6 +230,7 @@ typedef struct BootInfo {          /* @ 0x70, record #0    */
 /*
  * Structs for IPL
  */
+#define STAGE2_MAX_SIZE     0x3000
 #define STAGE2_BLK_CNT_MAX  24 /* Stage 1b can load up to 24 blocks */
 
 typedef struct EckdCdlIpl1 {
