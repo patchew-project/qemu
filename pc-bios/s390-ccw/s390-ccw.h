@@ -89,6 +89,7 @@ void zipl_load(void);
 void menu_enable(uint16_t boot_menu_timeout);
 int menu_is_enabled(void);
 int menu_get_zipl_boot_index(const char *data);
+int menu_get_enum_boot_index(int entries);
 
 static inline void fill_hex(char *out, unsigned char val)
 {

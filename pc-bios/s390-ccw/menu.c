@@ -96,6 +96,20 @@ int menu_get_zipl_boot_index(const char *data)
     return menu_get_boot_index(i - 1);
 }
 
+int menu_get_enum_boot_index(int entries)
+{
+    char tmp[4];
+
+    sclp_print("s390x Enumerated Boot Menu.\n\n");
+
+    sclp_print(itostr(entries, tmp));
+    sclp_print(" entries detected. Select from boot index 0 to ");
+    sclp_print(itostr(entries - 1, tmp));
+    sclp_print(".\n\n");
+
+    return menu_get_boot_index(entries);
+}
+
 void menu_enable(uint16_t boot_menu_timeout)
 {
     timeout = boot_menu_timeout;
