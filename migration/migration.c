@@ -1131,7 +1131,7 @@ void migrate_fd_error(MigrationState *s, const Error *error)
     block_cleanup_parameters(s);
 }
 
-static void migrate_fd_cancel(MigrationState *s)
+void migrate_fd_cancel(MigrationState *s)
 {
     int old_state ;
     QEMUFile *f = migrate_get_current()->to_dst_file;
