@@ -23,6 +23,8 @@
 #include "hw/s390x/ebcdic.h"
 #include "ipl.h"
 #include "qemu/error-report.h"
+#include "qemu/config-file.h"
+#include "qemu/cutils.h"
 
 #define KERN_IMAGE_START                0x010000UL
 #define KERN_PARM_AREA                  0x010480UL
@@ -219,6 +221,23 @@ static Property s390_ipl_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static void s390_ipl_set_boot_menu(uint8_t *boot_menu_enabled,
+                                   uint16_t *boot_menu_timeout)
+{
+    QemuOptsList *plist = qemu_find_opts("boot-opts");
+    QemuOpts *opts = QTAILQ_FIRST(&plist->head);
+    const char *p;
+    long result = 0;
+
+    *boot_menu_enabled = qemu_opt_get_bool(opts, "menu", false);
+
+    if (*boot_menu_enabled) {
+        p = qemu_opt_get(opts, "splash-time");
+        qemu_strtol(p, NULL, 10, &result);
+        *boot_menu_timeout = result;
+    }
+}
+
 static bool s390_gen_initial_iplb(S390IPLState *ipl)
 {
     DeviceState *dev_st;
@@ -245,6 +264,8 @@ static bool s390_gen_initial_iplb(S390IPLState *ipl)
             ipl->iplb.pbt = S390_IPL_TYPE_CCW;
             ipl->iplb.ccw.devno = cpu_to_be16(ccw_dev->sch->devno);
             ipl->iplb.ccw.ssid = ccw_dev->sch->ssid & 3;
+            s390_ipl_set_boot_menu(&ipl->iplb.ccw.boot_menu_enabled,
+                                   &ipl->iplb.ccw.boot_menu_timeout);
         } else if (sd) {
             SCSIBus *bus = scsi_bus_from_device(sd);
             VirtIOSCSI *vdev = container_of(bus, VirtIOSCSI, bus);
@@ -266,6 +287,8 @@ static bool s390_gen_initial_iplb(S390IPLState *ipl)
             ipl->iplb.scsi.channel = cpu_to_be16(sd->channel);
             ipl->iplb.scsi.devno = cpu_to_be16(ccw_dev->sch->devno);
             ipl->iplb.scsi.ssid = ccw_dev->sch->ssid & 3;
+            s390_ipl_set_boot_menu(&ipl->iplb.scsi.boot_menu_enabled,
+                                   &ipl->iplb.scsi.boot_menu_timeout);
         } else {
             return false; /* unknown device */
         }
