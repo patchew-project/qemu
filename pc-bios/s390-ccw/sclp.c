@@ -12,6 +12,11 @@
 #include "s390-ccw.h"
 #include "sclp.h"
 
+#define KEYCODE_NO_INP '\0'
+#define KEYCODE_ARROWS '\033'
+#define KEYCODE_BACKSP '\177'
+#define KEYCODE_ENTER  '\r'
+
 long write(int fd, const void *str, size_t len);
 
 static char _sccb[PAGE_SIZE] __attribute__((__aligned__(4096)));
@@ -126,4 +131,131 @@ void sclp_get_loadparm_ascii(char *loadparm)
     if (!sclp_service_call(SCLP_CMDW_READ_SCP_INFO, sccb)) {
         ebcdic_to_ascii((char *) sccb->loadparm, loadparm, 8);
     }
+}
+
+static void read(char **str)
+{
+    ReadEventData *sccb = (void *)_sccb;
+    *str = (char *)(&sccb->ebh) + 7;
+
+    sccb->h.length = SCCB_SIZE;
+    sccb->h.function_code = SCLP_UNCONDITIONAL_READ;
+    sccb->ebh.length = sizeof(EventBufferHeader);
+    sccb->ebh.type = SCLP_EVENT_ASCII_CONSOLE_DATA;
+    sccb->ebh.flags = 0;
+
+    sclp_service_call(SCLP_CMD_READ_EVENT_DATA, sccb);
+}
+
+static inline void enable_clock_int(void)
+{
+    uint64_t tmp = 0;
+
+    asm volatile(
+        "stctg      0,0,%0\n"
+        "oi         6+%0, 0x8\n"
+        "lctlg      0,0,%0"
+        : : "Q" (tmp)
+    );
+}
+
+static inline void disable_clock_int(void)
+{
+    uint64_t tmp = 0;
+
+    asm volatile(
+        "stctg      0,0,%0\n"
+        "ni         6+%0, 0xf7\n"
+        "lctlg      0,0,%0"
+        : : "Q" (tmp)
+    );
+}
+
+static inline bool check_clock_int(void)
+{
+    uint16_t code;
+
+    consume_sclp_int();
+
+    asm volatile(
+        "lh         1, 0x86(0,0)\n"
+        "sth        1, %0"
+        : "=r" (code)
+    );
+
+    return code == 0x1004;
+}
+
+static inline void set_clock_comparator(uint64_t time)
+{
+    asm volatile("sckc %0" : : "Q" (time));
+}
+
+/* sclp_read
+ *
+ * Reads user input from the sclp console into a buffer. The buffer
+ * is set and the length is returned only if the enter key was detected.
+ *
+ * @param buf_ptr - a pointer to the buffer
+ *
+ * @param timeout - time (in milliseconds) to wait before abruptly
+ *                  ending user-input read loop. if 0, then loop
+ *                  until an enter key is detected
+ *
+ * @return - the length of the data in the buffer
+ */
+int sclp_read(char **buf_ptr, uint64_t timeout)
+{
+    char *inp = NULL;
+    char buf[255];
+    uint8_t len = 0;
+    uint64_t seconds;
+
+    memset(buf, 0, sizeof(buf));
+
+    if (timeout) {
+        seconds = get_second() + timeout / 1000;
+        set_clock_comparator((seconds * 1000000) << 12);
+        enable_clock_int();
+    }
+
+    while (!check_clock_int()) {
+        read(&inp);
+
+        switch (inp[0]) {
+        case KEYCODE_NO_INP:
+        case KEYCODE_ARROWS:
+            continue;
+        case KEYCODE_BACKSP:
+            if (len > 0) {
+                len--;
+
+                /* Remove last character */
+                buf[len] = ' ';
+                write(1, "\r", 1);
+                write(1, buf, len + 1);
+
+                /* Reset cursor */
+                buf[len] = 0;
+                write(1, "\r", 1);
+                write(1, buf, len);
+            }
+            continue;
+        case KEYCODE_ENTER:
+            disable_clock_int();
+
+            *buf_ptr = buf;
+            return len;
+        }
+
+        /* Echo input and add to buffer */
+        if (len < sizeof(buf)) {
+            buf[len] = inp[0];
+            len++;
+            write(1, inp, 1);
+        }
+    }
+
+    disable_clock_int();
+    return 0;
 }

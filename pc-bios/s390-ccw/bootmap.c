@@ -28,6 +28,7 @@
 
 /* Scratch space */
 static uint8_t sec[MAX_SECTOR_SIZE*4] __attribute__((__aligned__(PAGE_SIZE)));
+static uint8_t s2_area[STAGE2_MAX_SIZE] __attribute__((__aligned__(PAGE_SIZE)));
 
 typedef struct ResetInfo {
     uint32_t ipl_mask;
@@ -182,7 +183,66 @@ static block_number_t load_eckd_segments(block_number_t blk, uint64_t *address)
     return block_nr;
 }
 
-static void run_eckd_boot_script(block_number_t mbr_block_nr)
+static block_number_t chs(const BootEckdSeekarg seek)
+{
+    /* we cannot have a sector of 0 */
+    if (seek.sec == 0) {
+        return 0;
+    }
+
+    const uint64_t sectors = virtio_get_sectors();
+    const uint64_t heads = virtio_get_heads();
+
+    return (seek.cyl * heads + seek.head) * sectors + (seek.sec - 1);
+}
+
+static void read_stage2(block_number_t s1b_block_nr, void **stage2_data)
+{
+    block_number_t s2_block_nr;
+    BootEckdStage1b *s1b = (void *)sec;
+    int i;
+
+    /* Get Stage1b data */
+    memset(sec, FREE_SPACE_FILLER, sizeof(sec));
+    read_block(s1b_block_nr, s1b, "Cannot read stage1b boot loader.");
+
+    /* Get Stage2 data */
+    *stage2_data = (void *)s2_area;
+    memset(s2_area, FREE_SPACE_FILLER, sizeof(s2_area));
+
+    for (i = 0; i < STAGE2_MAX_SIZE / MAX_SECTOR_SIZE; i++) {
+        s2_block_nr = chs(s1b->seek[i]);
+        if (!s2_block_nr) {
+            break;
+        }
+        read_block(s2_block_nr, (*stage2_data + MAX_SECTOR_SIZE * i),
+                   "Error reading Stage2 data");
+    }
+}
+
+static int zipl_boot_menu(block_number_t s1b_block_nr)
+{
+    void *stage2_data, *menu_offset;
+
+    read_stage2(s1b_block_nr, &stage2_data);
+    menu_offset = stage2_data;
+
+    /* Menu banner starts with "zIPL" */
+    while (menu_offset < stage2_data + STAGE2_MAX_SIZE - 4) {
+        if (magic_match(menu_offset, ZIPL_MAGIC_EBCDIC)) {
+            return menu_get_zipl_boot_index(menu_offset);
+        }
+        menu_offset++;
+    }
+
+    panic("\n! No menu data found !\n");
+
+    /* should not reach here */
+    return 0;
+}
+
+static void run_eckd_boot_script(block_number_t mbr_block_nr,
+                                 block_number_t s1b_block_nr)
 {
     int i;
     unsigned int loadparm = get_loadparm_index();
@@ -190,6 +250,10 @@ static void run_eckd_boot_script(block_number_t mbr_block_nr)
     uint64_t address;
     ScsiMbr *bte = (void *)sec; /* Eckd bootmap table entry */
     BootMapScript *bms = (void *)sec;
+
+    if (menu_is_enabled()) {
+        loadparm = zipl_boot_menu(s1b_block_nr);
+    }
 
     debug_print_int("loadparm", loadparm);
     IPL_assert(loadparm < 31, "loadparm value greater than"
@@ -224,6 +288,7 @@ static void ipl_eckd_cdl(void)
     EckdCdlIpl2 *ipl2 = (void *)sec;
     IplVolumeLabel *vlbl = (void *)sec;
     block_number_t mbr_block_nr;
+    block_number_t s1b_block_nr;
 
     /* we have just read the block #0 and recognized it as "IPL1" */
     sclp_print("CDL\n");
@@ -241,6 +306,9 @@ static void ipl_eckd_cdl(void)
     /* save pointer to Boot Script */
     mbr_block_nr = eckd_block_num((void *)&(mbr->blockptr));
 
+    /* save pointer to Stage1b Data */
+    s1b_block_nr = chs(ipl2->stage1.seek[0]);
+
     memset(sec, FREE_SPACE_FILLER, sizeof(sec));
     read_block(2, vlbl, "Cannot read Volume Label at block 2");
     IPL_assert(magic_match(vlbl->key, VOL1_MAGIC),
@@ -249,7 +317,7 @@ static void ipl_eckd_cdl(void)
                "Invalid magic of volser block");
     print_volser(vlbl->f.volser);
 
-    run_eckd_boot_script(mbr_block_nr);
+    run_eckd_boot_script(mbr_block_nr, s1b_block_nr);
     /* no return */
 }
 
@@ -281,6 +349,7 @@ static void print_eckd_ldl_msg(ECKD_IPL_mode_t mode)
 static void ipl_eckd_ldl(ECKD_IPL_mode_t mode)
 {
     block_number_t mbr_block_nr;
+    block_number_t s1b_block_nr;
     EckdLdlIpl1 *ipl1 = (void *)sec;
 
     if (mode != ECKD_LDL_UNLABELED) {
@@ -302,7 +371,9 @@ static void ipl_eckd_ldl(ECKD_IPL_mode_t mode)
     mbr_block_nr =
         eckd_block_num((void *)&(ipl1->boot_info.bp.ipl.bm_ptr.eckd.bptr));
 
-    run_eckd_boot_script(mbr_block_nr);
+    s1b_block_nr = chs(ipl1->stage1.seek[0]);
+
+    run_eckd_boot_script(mbr_block_nr, s1b_block_nr);
     /* no return */
 }
 
