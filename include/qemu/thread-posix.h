@@ -44,4 +44,12 @@ struct QemuThread {
     pthread_t thread;
 };
 
+typedef struct {
+    void *(*start_routine)(void *);
+    void *arg;
+    char *name;
+    int mode;
+} QemuThreadArgs;
+
+
 #endif
