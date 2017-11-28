@@ -1,0 +1,82 @@
+#!/usr/bin/env python
+#
+# Tests for dirty bitmaps migration.
+#
+# Copyright (c) 2016-2017 Parallels International GmbH
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import os
+import iotests
+import time
+from iotests import qemu_img
+
+disk = os.path.join(iotests.test_dir, 'disk')
+migfile = os.path.join(iotests.test_dir, 'migfile')
+
+class TestPersistentDirtyBitmapSuspendResume(iotests.QMPTestCase):
+
+    def tearDown(self):
+        self.vm_a.shutdown()
+        self.vm_b.shutdown()
+        os.remove(disk)
+        os.remove(migfile)
+
+    def setUp(self):
+        qemu_img('create', '-f', iotests.imgfmt, disk, '1M')
+
+        self.vm_a = iotests.VM(path_suffix='a').add_drive(disk)
+        self.vm_a.launch()
+
+        self.vm_b = iotests.VM(path_suffix='b').add_drive(disk)
+        self.vm_b.add_incoming("exec: cat '" + migfile + "'")
+
+    def test_migration_persistent_shared_offline(self):
+        """ A kind of suspend-resume """
+        granularity = 512
+        regions = [
+            { 'start': 0,           'count': 0x10000 },
+            { 'start': 0xf0000,     'count': 0x10000 },
+            { 'start': 0xa0201,     'count': 0x1000  }
+            ]
+
+        result = self.vm_a.qmp('block-dirty-bitmap-add', node='drive0',
+                               name='bitmap0', granularity=granularity,
+                               persistent=True, autoload=True)
+        self.assert_qmp(result, 'return', {});
+
+        for r in regions:
+            self.vm_a.hmp_qemu_io('drive0',
+                                  'write %d %d' % (r['start'], r['count']))
+
+        result = self.vm_a.qmp('x-debug-block-dirty-bitmap-sha256',
+                               node='drive0', name='bitmap0')
+        sha256 = result['return']['sha256']
+
+        result = self.vm_a.qmp('migrate', uri='exec:cat>' + migfile)
+        self.assert_qmp(result, 'return', {});
+        self.assertNotEqual(self.vm_a.event_wait("STOP"), None)
+        self.vm_a.shutdown()
+
+        self.vm_b.launch()
+        self.vm_b.event_wait("RESUME", timeout=10)
+
+        result = self.vm_b.qmp('x-debug-block-dirty-bitmap-sha256',
+                               node='drive0', name='bitmap0')
+        self.assert_qmp(result, 'return/sha256', sha256);
+
+
+if __name__ == '__main__':
+    iotests.main(supported_fmts=['qcow2'])
