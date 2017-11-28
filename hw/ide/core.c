@@ -758,7 +758,7 @@ static void ide_sector_read(IDEState *s)
 
     trace_ide_sector_read(sector_num, n);
 
-    if (!ide_sect_range_ok(s, sector_num, n)) {
+    if (!ide_sect_range_ok(s, sector_num, n) || !blk_is_available(s->blk)) {
         ide_rw_error(s);
         block_acct_invalid(blk_get_stats(s->blk), BLOCK_ACCT_READ);
         return;
@@ -1023,7 +1023,7 @@ static void ide_sector_write(IDEState *s)
 
     trace_ide_sector_write(sector_num, n);
 
-    if (!ide_sect_range_ok(s, sector_num, n)) {
+    if (!ide_sect_range_ok(s, sector_num, n) || !blk_is_available(s->blk)) {
         ide_rw_error(s);
         block_acct_invalid(blk_get_stats(s->blk), BLOCK_ACCT_WRITE);
         return;

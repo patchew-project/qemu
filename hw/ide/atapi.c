@@ -119,6 +119,11 @@ cd_read_sector_sync(IDEState *s)
 
     trace_cd_read_sector_sync(s->lba);
 
+    if (!blk_is_available(s->blk)) {
+        ret = -ENOMEDIUM;
+        goto fail;
+    }
+
     switch (s->cd_sector_size) {
     case 2048:
         ret = blk_pread(s->blk, (int64_t)s->lba << ATAPI_SECTOR_BITS,
@@ -132,8 +137,8 @@ cd_read_sector_sync(IDEState *s)
         }
         break;
     default:
-        block_acct_invalid(blk_get_stats(s->blk), BLOCK_ACCT_READ);
-        return -EIO;
+        ret = -EIO;
+        goto fail;
     }
 
     if (ret < 0) {
@@ -144,6 +149,10 @@ cd_read_sector_sync(IDEState *s)
         s->io_buffer_index = 0;
     }
 
+    return ret;
+
+fail:
+    block_acct_invalid(blk_get_stats(s->blk), BLOCK_ACCT_READ);
     return ret;
 }
 
@@ -174,9 +183,15 @@ static void cd_read_sector_cb(void *opaque, int ret)
 
 static int cd_read_sector(IDEState *s)
 {
+    int err;
+
     if (s->cd_sector_size != 2048 && s->cd_sector_size != 2352) {
-        block_acct_invalid(blk_get_stats(s->blk), BLOCK_ACCT_READ);
-        return -EINVAL;
+        err = -EINVAL;
+        goto fail;
+    }
+    if (!blk_is_available(s->blk)) {
+        err = -ENOMEDIUM;
+        goto fail;
     }
 
     s->iov.iov_base = (s->cd_sector_size == 2352) ?
@@ -195,6 +210,10 @@ static int cd_read_sector(IDEState *s)
 
     s->status |= BUSY_STAT;
     return 0;
+
+fail:
+    block_acct_invalid(blk_get_stats(s->blk), BLOCK_ACCT_READ);
+    return err;
 }
 
 void ide_atapi_cmd_ok(IDEState *s)
@@ -402,6 +421,11 @@ static void ide_atapi_cmd_read_dma_cb(void *opaque, int ret)
         s->nsector = (s->nsector & ~7) | ATAPI_INT_REASON_IO | ATAPI_INT_REASON_CD;
         ide_set_irq(s->bus);
         goto eot;
+    }
+
+    if (!blk_is_available(s->blk)) {
+        ide_atapi_cmd_read_dma_cb(s, -ENOMEDIUM);
+        return;
     }
 
     s->io_buffer_index = 0;
