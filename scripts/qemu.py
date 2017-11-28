@@ -291,7 +291,13 @@ class QEMUMachine(object):
         branch processing on match's value None
            {"foo": {"bar": 1}} matches {"foo": None}
            {"foo": {"bar": 1}} does not matches {"foo": {"baz": None}}
+
+        @raise QMPTimeoutError: If timeout period elapses.
+        @raise QMPConnectError: If some other error occurred.
         '''
+
+        assert isinstance(timeout, float) or isinstance(timeout, int)
+
         def event_match(event, match=None):
             if match is None:
                 return True
@@ -316,12 +322,10 @@ class QEMUMachine(object):
 
         # Poll for new events
         while True:
-            event = self._qmp.pull_event(wait=timeout)
+            event = self._qmp.pull_event(wait=float(timeout))
             if (event['event'] == name) and event_match(event, match):
                 return event
             self._events.append(event)
-
-        return None
 
     def get_log(self):
         '''
