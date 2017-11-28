@@ -45,6 +45,14 @@ typedef struct Packet {
     int64_t creation_ms;
     /* Get vnet_hdr_len from filter */
     uint32_t vnet_hdr_len;
+    uint32_t tcp_seq; /* sequence number */
+    uint32_t tcp_ack; /* acknowledgement number */
+    /* the sequence number of the last byte of the packet */
+    uint32_t seq_end;
+    uint8_t hdsize;  /* the header length */
+    uint16_t pdsize; /* the payload length */
+    /* record the payload offset(the length that has been compared) */
+    uint16_t offset;
 } Packet;
 
 typedef struct ConnectionKey {
@@ -64,6 +72,12 @@ typedef struct Connection {
     /* flag to enqueue unprocessed_connections */
     bool processing;
     uint8_t ip_proto;
+    /* record the sequence number that has been compared */
+    uint32_t compare_seq;
+    /* the maximum of acknowledgement number in primary_list queue */
+    uint32_t pack;
+    /* the maximum of acknowledgement number in secondary_list queue */
+    uint32_t sack;
     /* offset = secondary_seq - primary_seq */
     tcp_seq  offset;
     /*
