@@ -35,6 +35,7 @@
 #include "cpu_models.h"
 #include "qapi/qmp/qerror.h"
 #include "hw/nmi.h"
+#include "include/monitor/qdev.h"
 
 S390CPU *s390_cpu_addr2state(uint16_t cpu_addr)
 {
@@ -259,6 +260,7 @@ static void s390_create_virtio_net(BusState *bus, const char *name)
 
         dev = qdev_create(bus, name);
         qdev_set_nic_properties(dev, nd);
+        qdev_set_id(dev, NULL);
         qdev_init_nofail(dev);
     }
 }
