@@ -2336,6 +2336,9 @@ void hmp_qemu_io(Monitor *mon, const QDict *qdict)
         } else {
             goto fail;
         }
+    } else if (!blk_is_available(blk)) {
+        error_setg(&err, "No media in the device '%s'", device);
+        goto fail;
     }
 
     aio_context = blk_get_aio_context(blk);
