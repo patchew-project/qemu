@@ -53,6 +53,7 @@ typedef struct Packet {
     uint16_t pdsize; /* the payload length */
     /* record the payload offset(the length that has been compared) */
     uint16_t offset;
+    uint8_t flags; /* Flags(aka Control bits) */
 } Packet;
 
 typedef struct ConnectionKey {

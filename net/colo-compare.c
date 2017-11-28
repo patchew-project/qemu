@@ -129,6 +129,7 @@ static void fill_pkt_seq(void *data, uint32_t *max_ack)
                   + (tcphd->th_off << 2) - pkt->vnet_hdr_len;
     pkt->pdsize = pkt->size - pkt->hdsize;
     pkt->seq_end = pkt->tcp_seq + pkt->pdsize;
+    pkt->flags = tcphd->th_flags;
 }
 
 /*
@@ -337,6 +338,16 @@ sec:
     }
 
     if (colo_mark_tcp_pkt(ppkt, spkt, &mark, max_ack)) {
+        trace_colo_compare_tcp_info("pri",
+                                    ppkt->tcp_seq, ppkt->tcp_ack,
+                                    ppkt->hdsize, ppkt->pdsize,
+                                    ppkt->offset, ppkt->flags);
+
+        trace_colo_compare_tcp_info("sec",
+                                    spkt->tcp_seq, spkt->tcp_ack,
+                                    spkt->hdsize, spkt->pdsize,
+                                    spkt->offset, spkt->flags);
+
         if (mark == COLO_COMPARE_FREE_PRIMARY) {
             conn->compare_seq = ppkt->seq_end;
             colo_release_primary_pkt(s, ppkt);
@@ -355,6 +366,11 @@ sec:
             goto pri;
         }
     } else {
+        qemu_hexdump((char *)ppkt->data, stderr,
+                     "colo-compare ppkt", ppkt->size);
+        qemu_hexdump((char *)spkt->data, stderr,
+                     "colo-compare spkt", spkt->size);
+
         g_queue_push_head(&conn->primary_list, ppkt);
         g_queue_push_head(&conn->secondary_list, spkt);
 

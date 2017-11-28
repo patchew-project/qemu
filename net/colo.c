@@ -171,6 +171,7 @@ Packet *packet_new(const void *data, int size, int vnet_hdr_len)
     pkt->hdsize = 0;
     pkt->pdsize = 0;
     pkt->offset = 0;
+    pkt->flags = 0;
 
     return pkt;
 }
