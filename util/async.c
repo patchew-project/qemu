@@ -372,6 +372,7 @@ static bool event_notifier_poll(void *opaque)
 static void co_schedule_bh_cb(void *opaque)
 {
     AioContext *ctx = opaque;
+    AioContext *scheduled_ctx;
     QSLIST_HEAD(, Coroutine) straight, reversed;
 
     QSLIST_MOVE_ATOMIC(&reversed, &ctx->scheduled_coroutines);
@@ -388,7 +389,16 @@ static void co_schedule_bh_cb(void *opaque)
         QSLIST_REMOVE_HEAD(&straight, co_scheduled_next);
         trace_aio_co_schedule_bh_cb(ctx, co);
         aio_context_acquire(ctx);
-        qemu_coroutine_enter(co);
+        scheduled_ctx = atomic_mb_read(&co->scheduled);
+        if (scheduled_ctx == ctx) {
+            qemu_coroutine_enter(co);
+        } else {
+            /* This must be a cancelled aio_co_schedule() because the coroutine
+             * was already entered before this BH had a chance to run. If a
+             * coroutine is scheduled for two different AioContexts, something
+             * is very wrong. */
+            assert(scheduled_ctx == NULL);
+        }
         aio_context_release(ctx);
     }
 }
@@ -438,6 +448,9 @@ fail:
 void aio_co_schedule(AioContext *ctx, Coroutine *co)
 {
     trace_aio_co_schedule(ctx, co);
+
+    /* Set co->scheduled before the coroutine becomes visible in the list */
+    atomic_mb_set(&co->scheduled, ctx);
     QSLIST_INSERT_HEAD_ATOMIC(&ctx->scheduled_coroutines,
                               co, co_scheduled_next);
     qemu_bh_schedule(ctx->co_schedule_bh);

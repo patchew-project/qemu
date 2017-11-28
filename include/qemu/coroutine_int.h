@@ -40,6 +40,7 @@ struct Coroutine {
     CoroutineEntry *entry;
     void *entry_arg;
     Coroutine *caller;
+    AioContext *scheduled;
 
     /* Only used when the coroutine has terminated.  */
     QSLIST_ENTRY(Coroutine) pool_next;

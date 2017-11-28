@@ -122,6 +122,23 @@ void qemu_aio_coroutine_enter(AioContext *ctx, Coroutine *co)
      */
     smp_wmb();
 
+    /* Make sure that a coroutine that can alternatively reentered from two
+     * different sources isn't reentered more than once when the first caller
+     * uses aio_co_schedule() and the other one enters to coroutine directly.
+     * This is achieved by cancelling the pending aio_co_schedule().
+     *
+     * The other way round, if aio_co_schedule() would be called after this
+     * point, this would be a problem, too, but in practice it doesn't happen
+     * because we're holding the AioContext lock here and aio_co_schedule()
+     * callers must do the same. This means that the coroutine just needs to
+     * prevent other callers from calling aio_co_schedule() before it yields
+     * (e.g. block job coroutines by setting job->busy = true).
+     *
+     * We still want to ensure that the second case doesn't happen, so reset
+     * co->scheduled only after setting co->caller to make the above check
+     * effective for the co_schedule_bh_cb() case. */
+    atomic_set(&co->scheduled, NULL);
+
     ret = qemu_coroutine_switch(self, co, COROUTINE_ENTER);
 
     qemu_co_queue_run_restart(co);
