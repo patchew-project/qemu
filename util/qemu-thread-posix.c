@@ -489,6 +489,30 @@ static void qemu_thread_set_name(QemuThread *thread, const char *name)
 #endif
 }
 
+static void *qemu_thread_start(void *args)
+{
+    QemuThread_args *qemu_thread_args;
+    void *ret;
+    QemuThread qemu_thread;
+
+    qemu_thread_args = (QemuThread_args *)args;
+    qemu_thread_get_self(&qemu_thread);
+
+    if (qemu_thread_args->name) {
+        qemu_thread_set_name(&qemu_thread, qemu_thread_args->name);
+        g_free(qemu_thread_args->name);
+    }
+
+    if (qemu_thread_args->mode == QEMU_THREAD_DETACHED) {
+        pthread_detach(qemu_thread.thread);
+    }
+    ret = qemu_thread_args->start_routine(qemu_thread_args->arg);
+
+    g_free(qemu_thread_args);
+    return ret;
+}
+
+
 void qemu_thread_create(QemuThread *thread, const char *name,
                        void *(*start_routine)(void*),
                        void *arg, int mode)
@@ -496,6 +520,7 @@ void qemu_thread_create(QemuThread *thread, const char *name,
     sigset_t set, oldset;
     int err;
     pthread_attr_t attr;
+    QemuThread_args *qemu_thread_args;
 
     err = pthread_attr_init(&attr);
     if (err) {
@@ -505,20 +530,18 @@ void qemu_thread_create(QemuThread *thread, const char *name,
     /* Leave signal handling to the iothread.  */
     sigfillset(&set);
     pthread_sigmask(SIG_SETMASK, &set, &oldset);
-    err = pthread_create(&thread->thread, &attr, start_routine, arg);
+
+    qemu_thread_args = g_new0(QemuThread_args, 1);
+    qemu_thread_args->mode = mode;
+    qemu_thread_args->name = name_threads ? g_strdup_printf("%s", name) : NULL;
+    qemu_thread_args->start_routine = start_routine;
+    qemu_thread_args->arg = arg;
+
+    err = pthread_create(&thread->thread, &attr,
+                         qemu_thread_start, qemu_thread_args);
     if (err)
         error_exit(err, __func__);
 
-    if (name_threads) {
-        qemu_thread_set_name(thread, name);
-    }
-
-    if (mode == QEMU_THREAD_DETACHED) {
-        err = pthread_detach(thread->thread);
-        if (err) {
-            error_exit(err, __func__);
-        }
-    }
     pthread_sigmask(SIG_SETMASK, &oldset, NULL);
 
     pthread_attr_destroy(&attr);

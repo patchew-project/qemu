@@ -10,6 +10,7 @@ typedef struct QemuSemaphore QemuSemaphore;
 typedef struct QemuEvent QemuEvent;
 typedef struct QemuLockCnt QemuLockCnt;
 typedef struct QemuThread QemuThread;
+typedef struct QemuThread_args QemuThread_args;
 
 #ifdef _WIN32
 #include "qemu/thread-win32.h"
