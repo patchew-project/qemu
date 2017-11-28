@@ -257,6 +257,12 @@ Where addr is the guest physical address.
 
 Use atomic operations, as the log may be concurrently manipulated.
 
+Note that master is not expected to issue more than one VHOST_USER_SET_LOG_BASE
+request before the rings are fully stopped by the master. Thus no modifications
+to log_base address are allowed before the rings are restated and the client
+can ignore all subsequent VHOST_USER_SET_LOG_BASE requests after the log_base
+address has been established.
+
 Note that when logging modifications to the used ring (when VHOST_VRING_F_LOG
 is set for this ring), log_guest_addr should be used to calculate the log
 offset: the write to first byte of the used ring is logged at this offset from
