@@ -629,6 +629,43 @@ static void vhost_begin(MemoryListener *listener)
     dev->mem_changed_start_addr = -1;
 }
 
+struct vhost_update_mem_tmp {
+    struct vhost_dev   *dev;
+    uint32_t nregions;
+    struct vhost_memory_region *regions;
+};
+
+/* Called for each MRS from vhost_update_mem */
+static int vhost_update_mem_cb(MemoryRegionSection *mrs, void *opaque)
+{
+    if (!vhost_section(mrs)) {
+        return 0;
+    }
+
+    /* TODO */
+    return 0;
+}
+
+static int vhost_update_mem(struct vhost_dev *dev)
+{
+    int res;
+    struct vhost_update_mem_tmp vtmp;
+    vtmp.regions = 0;
+    vtmp.nregions = 0;
+    vtmp.dev = dev;
+
+    res = address_space_iterate(&address_space_memory,
+                                vhost_update_mem_cb, &vtmp);
+    if (res) {
+        goto out;
+    }
+
+    /* TODO */
+out:
+    g_free(vtmp.regions);
+    return res;
+}
+
 static void vhost_commit(MemoryListener *listener)
 {
     struct vhost_dev *dev = container_of(listener, struct vhost_dev,
@@ -645,6 +682,10 @@ static void vhost_commit(MemoryListener *listener)
         return;
     }
     if (dev->mem_changed_start_addr > dev->mem_changed_end_addr) {
+        return;
+    }
+
+    if (vhost_update_mem(dev)) {
         return;
     }
 
@@ -1523,6 +1564,9 @@ int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
         goto fail_features;
     }
 
+    if (vhost_update_mem(hdev)) {
+        goto fail_mem;
+    }
     if (vhost_dev_has_iommu(hdev)) {
         memory_listener_register(&hdev->iommu_listener, vdev->dma_as);
     }
