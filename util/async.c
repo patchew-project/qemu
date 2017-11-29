@@ -402,6 +402,7 @@ AioContext *aio_context_new(Error **errp)
     AioContext *ctx;
 
     ctx = (AioContext *) g_source_new(&aio_source_funcs, sizeof(AioContext));
+    QTAILQ_INIT(&ctx->drain_ops);
     aio_context_setup(ctx);
 
     ret = event_notifier_init(&ctx->notifier, false);
@@ -505,4 +506,76 @@ void aio_context_acquire(AioContext *ctx)
 void aio_context_release(AioContext *ctx)
 {
     qemu_rec_mutex_unlock(&ctx->lock);
+}
+
+/* Called with ctx->lock */
+void aio_context_drained_begin(AioContext *ctx)
+{
+    AioDrainOps *ops;
+
+    /* TODO: When all external fds are handled in the following drain_ops
+     * callbacks, aio_disable_external can be dropped. */
+    aio_disable_external(ctx);
+restart:
+    ctx->drain_ops_updated = false;
+    QTAILQ_FOREACH(ops, &ctx->drain_ops, next) {
+        ops->drained_begin(ops->opaque);
+        if (ctx->drain_ops_updated) {
+            goto restart;
+        }
+    }
+}
+
+/* Called with ctx->lock */
+void aio_context_drained_end(AioContext *ctx)
+{
+    AioDrainOps *ops;
+
+restart:
+    ctx->drain_ops_updated = false;
+    QTAILQ_FOREACH(ops, &ctx->drain_ops, next) {
+        if (ops->is_new) {
+            continue;
+        }
+        ops->drained_end(ops->opaque);
+        if (ctx->drain_ops_updated) {
+            goto restart;
+        }
+    }
+    if (aio_enable_external(ctx)) {
+        QTAILQ_FOREACH(ops, &ctx->drain_ops, next) {
+            ops->is_new = false;
+        }
+    }
+}
+
+/* Called with ctx->lock */
+void aio_context_add_drain_ops(AioContext *ctx,
+                               AioDrainFn *begin, AioDrainFn *end, void *opaque)
+{
+    AioDrainOps *ops = g_new0(AioDrainOps, 1);
+    ops->drained_begin = begin;
+    ops->drained_end = end;
+    ops->opaque = opaque;
+    ops->is_new = true;
+    QTAILQ_INSERT_TAIL(&ctx->drain_ops, ops, next);
+    ctx->drain_ops_updated = true;
+}
+
+/* Called with ctx->lock */
+void aio_context_del_drain_ops(AioContext *ctx,
+                               AioDrainFn *begin, AioDrainFn *end, void *opaque)
+{
+    AioDrainOps *ops;
+
+    QTAILQ_FOREACH(ops, &ctx->drain_ops, next) {
+        if (ops->drained_begin == begin &&
+            ops->drained_end == end &&
+            ops->opaque == opaque) {
+            QTAILQ_REMOVE(&ctx->drain_ops, ops, next);
+            ctx->drain_ops_updated = true;
+            g_free(ops);
+            return;
+        }
+    }
 }

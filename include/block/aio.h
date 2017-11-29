@@ -47,6 +47,15 @@ typedef void QEMUBHFunc(void *opaque);
 typedef bool AioPollFn(void *opaque);
 typedef void IOHandler(void *opaque);
 
+typedef void AioDrainFn(void *opaque);
+typedef struct AioDrainOps {
+    AioDrainFn *drained_begin;
+    AioDrainFn *drained_end;
+    void *opaque;
+    bool is_new;
+    QTAILQ_ENTRY(AioDrainOps) next;
+} AioDrainOps;
+
 struct Coroutine;
 struct ThreadPool;
 struct LinuxAioState;
@@ -147,6 +156,9 @@ struct AioContext {
     int epollfd;
     bool epoll_enabled;
     bool epoll_available;
+
+    QTAILQ_HEAD(, AioDrainOps) drain_ops;
+    bool drain_ops_updated;
 };
 
 /**
@@ -441,9 +453,9 @@ int64_t aio_compute_timeout(AioContext *ctx);
  *
  * Disable the further processing of external clients.
  */
-static inline void aio_disable_external(AioContext *ctx)
+static inline bool aio_disable_external(AioContext *ctx)
 {
-    atomic_inc(&ctx->external_disable_cnt);
+    return atomic_fetch_inc(&ctx->external_disable_cnt) == 0;
 }
 
 /**
@@ -452,7 +464,7 @@ static inline void aio_disable_external(AioContext *ctx)
  *
  * Enable the processing of external clients.
  */
-static inline void aio_enable_external(AioContext *ctx)
+static inline bool aio_enable_external(AioContext *ctx)
 {
     int old;
 
@@ -462,6 +474,7 @@ static inline void aio_enable_external(AioContext *ctx)
         /* Kick event loop so it re-arms file descriptors */
         aio_notify(ctx);
     }
+    return old == 1;
 }
 
 /**
@@ -563,5 +576,13 @@ void aio_context_setup(AioContext *ctx);
 void aio_context_set_poll_params(AioContext *ctx, int64_t max_ns,
                                  int64_t grow, int64_t shrink,
                                  Error **errp);
+
+void aio_context_drained_begin(AioContext *ctx);
+void aio_context_drained_end(AioContext *ctx);
+
+void aio_context_add_drain_ops(AioContext *ctx,
+                               AioDrainFn *begin, AioDrainFn *end, void *opaque);
+void aio_context_del_drain_ops(AioContext *ctx,
+                               AioDrainFn *begin, AioDrainFn *end, void *opaque);
 
 #endif
