@@ -810,18 +810,6 @@ static char *bdrv_child_get_parent_desc(BdrvChild *c)
     return g_strdup(bdrv_get_device_or_node_name(parent));
 }
 
-static void bdrv_child_cb_drained_begin(BdrvChild *child)
-{
-    BlockDriverState *bs = child->opaque;
-    bdrv_drained_begin(bs);
-}
-
-static void bdrv_child_cb_drained_end(BdrvChild *child)
-{
-    BlockDriverState *bs = child->opaque;
-    bdrv_drained_end(bs);
-}
-
 static int bdrv_child_cb_inactivate(BdrvChild *child)
 {
     BlockDriverState *bs = child->opaque;
@@ -887,8 +875,6 @@ static void bdrv_inherited_options(int *child_flags, QDict *child_options,
 const BdrvChildRole child_file = {
     .get_parent_desc = bdrv_child_get_parent_desc,
     .inherit_options = bdrv_inherited_options,
-    .drained_begin   = bdrv_child_cb_drained_begin,
-    .drained_end     = bdrv_child_cb_drained_end,
     .inactivate      = bdrv_child_cb_inactivate,
 };
 
@@ -909,8 +895,6 @@ static void bdrv_inherited_fmt_options(int *child_flags, QDict *child_options,
 const BdrvChildRole child_format = {
     .get_parent_desc = bdrv_child_get_parent_desc,
     .inherit_options = bdrv_inherited_fmt_options,
-    .drained_begin   = bdrv_child_cb_drained_begin,
-    .drained_end     = bdrv_child_cb_drained_end,
     .inactivate      = bdrv_child_cb_inactivate,
 };
 
@@ -1022,8 +1006,6 @@ const BdrvChildRole child_backing = {
     .attach          = bdrv_backing_attach,
     .detach          = bdrv_backing_detach,
     .inherit_options = bdrv_backing_options,
-    .drained_begin   = bdrv_child_cb_drained_begin,
-    .drained_end     = bdrv_child_cb_drained_end,
     .inactivate      = bdrv_child_cb_inactivate,
     .update_filename = bdrv_backing_update_filename,
 };
@@ -1973,9 +1955,6 @@ static void bdrv_replace_child_noperm(BdrvChild *child,
         assert(bdrv_get_aio_context(old_bs) == bdrv_get_aio_context(new_bs));
     }
     if (old_bs) {
-        if (old_bs->quiesce_counter && child->role->drained_end) {
-            child->role->drained_end(child);
-        }
         if (child->role->detach) {
             child->role->detach(child);
         }
@@ -1986,9 +1965,6 @@ static void bdrv_replace_child_noperm(BdrvChild *child,
 
     if (new_bs) {
         QLIST_INSERT_HEAD(&new_bs->parents, child, next_parent);
-        if (new_bs->quiesce_counter && child->role->drained_begin) {
-            child->role->drained_begin(child);
-        }
 
         if (child->role->attach) {
             child->role->attach(child);

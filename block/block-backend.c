@@ -68,7 +68,6 @@ struct BlockBackend {
 
     NotifierList remove_bs_notifiers, insert_bs_notifiers;
 
-    int quiesce_counter;
     VMChangeStateEntry *vmsh;
     bool force_allow_inactivate;
 };
@@ -244,9 +243,6 @@ static const BdrvChildRole child_root = {
     .resize             = blk_root_resize,
     .get_name           = blk_root_get_name,
     .get_parent_desc    = blk_root_get_parent_desc,
-
-    .drained_begin      = blk_root_drained_begin,
-    .drained_end        = blk_root_drained_end,
 
     .activate           = blk_root_activate,
     .inactivate         = blk_root_inactivate,
@@ -887,11 +883,6 @@ void blk_set_dev_ops(BlockBackend *blk, const BlockDevOps *ops,
 
     blk->dev_ops = ops;
     blk->dev_opaque = opaque;
-
-    /* Are we currently quiesced? Should we enforce this right now? */
-    if (blk->quiesce_counter && ops->drained_begin) {
-        ops->drained_begin(opaque);
-    }
 }
 
 /*
@@ -2068,12 +2059,6 @@ static void blk_root_drained_begin(BdrvChild *child)
 {
     BlockBackend *blk = child->opaque;
 
-    if (++blk->quiesce_counter == 1) {
-        if (blk->dev_ops && blk->dev_ops->drained_begin) {
-            blk->dev_ops->drained_begin(blk->dev_opaque);
-        }
-    }
-
     /* Note that blk->root may not be accessible here yet if we are just
      * attaching to a BlockDriverState that is drained. Use child instead. */
 
@@ -2085,14 +2070,7 @@ static void blk_root_drained_begin(BdrvChild *child)
 static void blk_root_drained_end(BdrvChild *child)
 {
     BlockBackend *blk = child->opaque;
-    assert(blk->quiesce_counter);
 
     assert(blk->public.throttle_group_member.io_limits_disabled);
     atomic_dec(&blk->public.throttle_group_member.io_limits_disabled);
-
-    if (--blk->quiesce_counter == 0) {
-        if (blk->dev_ops && blk->dev_ops->drained_end) {
-            blk->dev_ops->drained_end(blk->dev_opaque);
-        }
-    }
 }
