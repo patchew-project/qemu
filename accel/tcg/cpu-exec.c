@@ -525,19 +525,15 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
                                         TranslationBlock **last_tb)
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
-    int32_t insns_left;
 
     /* Clear the interrupt flag now since we're processing
      * cpu->interrupt_request and cpu->exit_request.
      */
-    insns_left = atomic_read(&cpu->icount_decr.u32);
     atomic_set(&cpu->icount_decr.u16.high, 0);
-    if (unlikely(insns_left < 0)) {
-        /* Ensure the zeroing of icount_decr comes before the next read
-         * of cpu->exit_request or cpu->interrupt_request.
-         */
-        smp_mb();
-    }
+    /* Ensure zeroing happens before reading cpu->exit_request or
+     * cpu->interrupt_request. (also see cpu_exit())
+     */
+    smp_mb();
 
     if (unlikely(atomic_read(&cpu->interrupt_request))) {
         int interrupt_request;
