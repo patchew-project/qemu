@@ -2,6 +2,8 @@
 
 # hw/virtio/vhost.c
 vhost_section(const char *name, int r) "%s:%d"
+vhost_update_mem_cb(const char *name, uint64_t gpa, uint64_t size, uint64_t host) "%s: 0x%"PRIx64"+0x%"PRIx64" @ 0x%"PRIx64
+vhost_update_mem_cb_abut(const char *name, uint64_t new_size) "%s: 0x%"PRIx64
 
 # hw/virtio/virtio.c
 virtqueue_alloc_element(void *elem, size_t sz, unsigned in_num, unsigned out_num) "elem %p size %zd in_num %u out_num %u"
