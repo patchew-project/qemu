@@ -2,6 +2,9 @@
 
 # hw/virtio/vhost.c
 vhost_section(const char *name, int r) "%s:%d"
+vhost_update_compare_list_loopn(int newi, int oldi, uint64_t gpa, uint64_t size) "%d/%d: (new) 0x%"PRIx64"+0x%"PRIx64
+vhost_update_compare_list_loopo(int newi, int oldi, uint64_t gpa, uint64_t size) "%d/%d: (old) 0x%"PRIx64"+0x%"PRIx64
+vhost_update_mem_comparison(bool update, uint64_t start, uint64_t end) "update: %d  0x%"PRIx64" - 0x%"PRIx64
 vhost_update_mem_cb(const char *name, uint64_t gpa, uint64_t size, uint64_t host) "%s: 0x%"PRIx64"+0x%"PRIx64" @ 0x%"PRIx64
 vhost_update_mem_cb_abut(const char *name, uint64_t new_size) "%s: 0x%"PRIx64
 

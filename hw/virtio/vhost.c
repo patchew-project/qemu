@@ -699,10 +699,79 @@ static int vhost_update_mem_cb(MemoryRegionSection *mrs, void *opaque)
     return 0;
 }
 
+static bool vhost_update_compare_list(struct vhost_dev *dev,
+                                      struct vhost_update_mem_tmp *vtmp,
+                                      hwaddr *change_start, hwaddr *change_end)
+{
+    uint32_t oldi, newi;
+    *change_start = 0;
+    *change_end = 0;
+
+    for (newi = 0, oldi = 0; newi < vtmp->nregions; newi++) {
+        struct vhost_memory_region *newr = &vtmp->regions[newi];
+        hwaddr newr_last = range_get_last(newr->guest_phys_addr,
+                                          newr->memory_size);
+        trace_vhost_update_compare_list_loopn(newi, oldi,
+                                        newr->guest_phys_addr,
+                                        newr->memory_size);
+        bool whole_change = true;
+        while (oldi < dev->mem->nregions) {
+            struct vhost_memory_region *oldr = &dev->mem->regions[oldi];
+            hwaddr oldr_last = range_get_last(oldr->guest_phys_addr,
+                                          oldr->memory_size);
+            trace_vhost_update_compare_list_loopo(newi, oldi,
+                                        oldr->guest_phys_addr,
+                                        oldr->memory_size);
+            if (newr->guest_phys_addr == oldr->guest_phys_addr &&
+                newr->memory_size == oldr->memory_size) {
+                /* Match in GPA and size, but it could be different
+                 * in host address or flags
+                 */
+                whole_change = newr->userspace_addr != oldr->userspace_addr ||
+                               newr->flags_padding != oldr->flags_padding;
+                oldi++;
+                break; /* inner old loop */
+            }
+            /* There's a difference - need to figure out what */
+            if (oldr_last < newr->guest_phys_addr) {
+                /* There used to be a region before us that's gone */
+                *change_start = MIN(*change_start, oldr->guest_phys_addr);
+                *change_end = MAX(*change_end, oldr_last);
+                oldi++;
+                continue; /* inner old loop */
+            }
+            if (oldr->guest_phys_addr > newr_last) {
+                /* We've passed all the old mappings that could have overlapped
+                 * this one
+                 */
+                break; /* Inner old loop */
+            }
+            /* Overlap case */
+            *change_start = MIN(*change_start,
+                                MIN(oldr->guest_phys_addr,
+                                    newr->guest_phys_addr));
+            *change_end = MAX(*change_end,
+                                MAX(oldr_last, newr_last));
+            whole_change = false;
+            /* There might be more old mappings that overlap */
+            oldi++;
+        }
+        if (whole_change) {
+            /* No old region to compare against, this must be a change */
+            *change_start = MIN(*change_start, newr->guest_phys_addr);
+            *change_end = MAX(*change_end, newr_last);
+        }
+    }
+
+    return *change_start || *change_end;
+}
+
 static int vhost_update_mem(struct vhost_dev *dev)
 {
     int res;
     struct vhost_update_mem_tmp vtmp;
+    hwaddr change_start, change_end;
+    bool need_update;
     vtmp.regions = 0;
     vtmp.nregions = 0;
     vtmp.dev = dev;
@@ -713,6 +782,11 @@ static int vhost_update_mem(struct vhost_dev *dev)
         goto out;
     }
 
+    need_update = vhost_update_compare_list(dev, &vtmp,
+                                            &change_start, &change_end);
+    trace_vhost_update_mem_comparison(need_update,
+                                      (uint64_t)change_start,
+                                      (uint64_t)change_end);
     /* TODO */
 out:
     g_free(vtmp.regions);
