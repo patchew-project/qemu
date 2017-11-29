@@ -787,7 +787,21 @@ static int vhost_update_mem(struct vhost_dev *dev)
     trace_vhost_update_mem_comparison(need_update,
                                       (uint64_t)change_start,
                                       (uint64_t)change_end);
-    /* TODO */
+    if (need_update) {
+        /* Update the main regions list from our tmp */
+        size_t mem_size = offsetof(struct vhost_memory, regions) +
+            (vtmp.nregions + 1) * sizeof dev->mem->regions[0];
+
+        dev->mem = g_realloc(dev->mem, mem_size);
+        dev->mem->nregions = vtmp.nregions;
+        memcpy(dev->mem->regions, vtmp.regions,
+               vtmp.nregions * sizeof dev->mem->regions[0]);
+        used_memslots = vtmp.nregions;
+
+        dev->mem_changed_start_addr = change_start;
+        dev->mem_changed_end_addr = change_end;
+    }
+
 out:
     g_free(vtmp.regions);
     return res;
