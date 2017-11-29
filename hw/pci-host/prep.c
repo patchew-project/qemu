@@ -27,7 +27,6 @@
 #include "qapi/error.h"
 #include "hw/hw.h"
 #include "hw/pci/pci.h"
-#include "hw/pci/pci_bus.h"
 #include "hw/pci/pci_host.h"
 #include "hw/i386/pc.h"
 #include "hw/loader.h"

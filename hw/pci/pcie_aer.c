@@ -27,7 +27,6 @@
 #include "hw/pci/pcie.h"
 #include "hw/pci/msix.h"
 #include "hw/pci/msi.h"
-#include "hw/pci/pci_bus.h"
 #include "hw/pci/pcie_regs.h"
 #include "qapi/error.h"
 

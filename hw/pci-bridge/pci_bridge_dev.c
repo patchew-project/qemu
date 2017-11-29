@@ -27,7 +27,6 @@
 #include "hw/pci/shpc.h"
 #include "hw/pci/slotid_cap.h"
 #include "exec/memory.h"
-#include "hw/pci/pci_bus.h"
 #include "hw/hotplug.h"
 
 #define TYPE_PCI_BRIDGE_DEV      "pci-bridge"

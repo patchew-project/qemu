@@ -10,7 +10,6 @@
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "hw/pci/pci.h"
-#include "hw/pci/pci_bus.h"
 #include "hw/pci/pci_host.h"
 #include "exec/address-spaces.h"
 #include "qemu/log.h"

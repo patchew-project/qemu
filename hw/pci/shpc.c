@@ -5,7 +5,6 @@
 #include "qemu/error-report.h"
 #include "hw/pci/shpc.h"
 #include "hw/pci/pci.h"
-#include "hw/pci/pci_bus.h"
 #include "hw/pci/msi.h"
 
 /* TODO: model power only and disabled slot states. */

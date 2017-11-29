@@ -34,7 +34,6 @@
 #include "sysemu/sysemu.h"
 #include "exec/ioport.h"
 #include "exec/address-spaces.h"
-#include "hw/pci/pci_bus.h"
 #include "qapi/error.h"
 #include "qom/qom-qobject.h"
 
