@@ -337,12 +337,33 @@ static void qed_cancel_need_check_timer(BDRVQEDState *s)
     timer_del(s->need_check_timer);
 }
 
+static void bdrv_qed_drained_begin(void *opaque)
+{
+    BlockDriverState *bs = opaque;
+    BDRVQEDState *s = bs->opaque;
+
+    /* Fire the timer immediately in order to start doing I/O as soon as the
+     * header is flushed.
+     */
+    if (s->need_check_timer && timer_pending(s->need_check_timer)) {
+        qed_cancel_need_check_timer(s);
+        qed_need_check_timer_entry(s);
+    }
+}
+
+static void bdrv_qed_drained_end(void *opaque)
+{
+}
+
 static void bdrv_qed_detach_aio_context(BlockDriverState *bs)
 {
     BDRVQEDState *s = bs->opaque;
 
     qed_cancel_need_check_timer(s);
     timer_free(s->need_check_timer);
+    aio_context_del_drain_ops(bdrv_get_aio_context(bs),
+                              bdrv_qed_drained_begin, bdrv_qed_drained_end,
+                              bs);
 }
 
 static void bdrv_qed_attach_aio_context(BlockDriverState *bs,
@@ -356,19 +377,14 @@ static void bdrv_qed_attach_aio_context(BlockDriverState *bs,
     if (s->header.features & QED_F_NEED_CHECK) {
         qed_start_need_check_timer(s);
     }
+    aio_context_add_drain_ops(new_context,
+                              bdrv_qed_drained_begin, bdrv_qed_drained_end,
+                              bs);
 }
 
 static void coroutine_fn bdrv_qed_co_drain_begin(BlockDriverState *bs)
 {
-    BDRVQEDState *s = bs->opaque;
-
-    /* Fire the timer immediately in order to start doing I/O as soon as the
-     * header is flushed.
-     */
-    if (s->need_check_timer && timer_pending(s->need_check_timer)) {
-        qed_cancel_need_check_timer(s);
-        qed_need_check_timer_entry(s);
-    }
+    bdrv_qed_drained_begin(bs);
 }
 
 static void bdrv_qed_init_state(BlockDriverState *bs)
