@@ -148,6 +148,23 @@ static void block_job_attached_aio_context(AioContext *new_context,
                                            void *opaque);
 static void block_job_detach_aio_context(void *opaque);
 
+static void block_job_drained_begin(void *opaque)
+{
+    BlockJob *job = opaque;
+    block_job_pause(job);
+}
+
+static void block_job_drained_end(void *opaque)
+{
+    BlockJob *job = opaque;
+    block_job_resume(job);
+}
+
+static const BlockDevOps block_job_dev_ops = {
+    .drained_begin = block_job_drained_begin,
+    .drained_end = block_job_drained_end,
+};
+
 void block_job_unref(BlockJob *job)
 {
     if (--job->refcnt == 0) {
@@ -157,6 +174,10 @@ void block_job_unref(BlockJob *job)
         blk_remove_aio_context_notifier(job->blk,
                                         block_job_attached_aio_context,
                                         block_job_detach_aio_context, job);
+        aio_context_del_drain_ops(blk_get_aio_context(job->blk),
+                                  block_job_drained_begin,
+                                  block_job_drained_end,
+                                  job);
         blk_unref(job->blk);
         error_free(job->blocker);
         g_free(job->id);
@@ -170,6 +191,9 @@ static void block_job_attached_aio_context(AioContext *new_context,
 {
     BlockJob *job = opaque;
 
+    aio_context_add_drain_ops(blk_get_aio_context(job->blk),
+                              block_job_drained_begin, block_job_drained_end,
+                              job);
     if (job->driver->attached_aio_context) {
         job->driver->attached_aio_context(job, new_context);
     }
@@ -192,6 +216,9 @@ static void block_job_detach_aio_context(void *opaque)
 {
     BlockJob *job = opaque;
 
+    aio_context_del_drain_ops(blk_get_aio_context(job->blk),
+                              block_job_drained_begin, block_job_drained_end,
+                              job);
     /* In case the job terminates during aio_poll()... */
     block_job_ref(job);
 
@@ -215,23 +242,6 @@ static char *child_job_get_parent_desc(BdrvChild *c)
 static const BdrvChildRole child_job = {
     .get_parent_desc    = child_job_get_parent_desc,
     .stay_at_node       = true,
-};
-
-static void block_job_drained_begin(void *opaque)
-{
-    BlockJob *job = opaque;
-    block_job_pause(job);
-}
-
-static void block_job_drained_end(void *opaque)
-{
-    BlockJob *job = opaque;
-    block_job_resume(job);
-}
-
-static const BlockDevOps block_job_dev_ops = {
-    .drained_begin = block_job_drained_begin,
-    .drained_end = block_job_drained_end,
 };
 
 void block_job_remove_all_bdrv(BlockJob *job)
@@ -671,6 +681,9 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
     bs->job = job;
 
     blk_set_dev_ops(blk, &block_job_dev_ops, job);
+    aio_context_add_drain_ops(blk_get_aio_context(blk),
+                              block_job_drained_begin, block_job_drained_end,
+                              job);
     bdrv_op_unblock(bs, BLOCK_OP_TYPE_DATAPLANE, job->blocker);
 
     QLIST_INSERT_HEAD(&block_jobs, job, job_list);
