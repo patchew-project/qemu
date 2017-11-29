@@ -70,6 +70,25 @@ fin:
     return ret;
 }
 
+static void throttle_drained_begin(void *opaque)
+{
+    BlockDriverState *bs = opaque;
+    ThrottleGroupMember *tgm = bs->opaque;
+
+    if (atomic_fetch_inc(&tgm->io_limits_disabled) == 0) {
+        throttle_group_restart_tgm(tgm);
+    }
+}
+
+static void throttle_drained_end(void *opaque)
+{
+    BlockDriverState *bs = opaque;
+    ThrottleGroupMember *tgm = bs->opaque;
+
+    assert(tgm->io_limits_disabled);
+    atomic_dec(&tgm->io_limits_disabled);
+}
+
 static int throttle_open(BlockDriverState *bs, QDict *options,
                          int flags, Error **errp)
 {
@@ -146,6 +165,9 @@ static int throttle_co_flush(BlockDriverState *bs)
 static void throttle_detach_aio_context(BlockDriverState *bs)
 {
     ThrottleGroupMember *tgm = bs->opaque;
+    aio_context_del_drain_ops(bdrv_get_aio_context(bs),
+                              throttle_drained_begin, throttle_drained_end,
+                              bs);
     throttle_group_detach_aio_context(tgm);
 }
 
@@ -153,6 +175,9 @@ static void throttle_attach_aio_context(BlockDriverState *bs,
                                         AioContext *new_context)
 {
     ThrottleGroupMember *tgm = bs->opaque;
+    aio_context_add_drain_ops(new_context,
+                              throttle_drained_begin, throttle_drained_end,
+                              bs);
     throttle_group_attach_aio_context(tgm, new_context);
 }
 
@@ -199,17 +224,12 @@ static bool throttle_recurse_is_first_non_filter(BlockDriverState *bs,
 
 static void coroutine_fn throttle_co_drain_begin(BlockDriverState *bs)
 {
-    ThrottleGroupMember *tgm = bs->opaque;
-    if (atomic_fetch_inc(&tgm->io_limits_disabled) == 0) {
-        throttle_group_restart_tgm(tgm);
-    }
+    throttle_drained_begin(bs);
 }
 
 static void coroutine_fn throttle_co_drain_end(BlockDriverState *bs)
 {
-    ThrottleGroupMember *tgm = bs->opaque;
-    assert(tgm->io_limits_disabled);
-    atomic_dec(&tgm->io_limits_disabled);
+    throttle_drained_end(bs);
 }
 
 static BlockDriver bdrv_throttle = {
