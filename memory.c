@@ -2810,6 +2810,28 @@ void address_space_destroy(AddressSpace *as)
     call_rcu(as, do_address_space_destroy, rcu);
 }
 
+int address_space_iterate(AddressSpace *as, ASIterateCallback cb,
+                          void *opaque)
+{
+    int res = 0;
+    FlatView *fv = address_space_to_flatview(as);
+    FlatRange *range;
+
+    flatview_ref(fv);
+
+    FOR_EACH_FLAT_RANGE(range, fv) {
+        MemoryRegionSection mrs = section_from_flat_range(range, fv);
+        res = cb(&mrs, opaque);
+        if (res) {
+            break;
+        }
+    }
+
+    flatview_unref(fv);
+
+    return res;
+}
+
 static const char *memory_region_type(MemoryRegion *mr)
 {
     if (memory_region_is_ram_device(mr)) {
