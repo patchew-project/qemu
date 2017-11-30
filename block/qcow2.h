@@ -98,6 +98,7 @@
 #define QCOW2_OPT_OVERLAP_SNAPSHOT_TABLE "overlap-check.snapshot-table"
 #define QCOW2_OPT_OVERLAP_INACTIVE_L1 "overlap-check.inactive-l1"
 #define QCOW2_OPT_OVERLAP_INACTIVE_L2 "overlap-check.inactive-l2"
+#define QCOW2_OPT_OVERLAP_BITMAP_DIRECTORY "overlap-check.bitmap-directory"
 #define QCOW2_OPT_CACHE_SIZE "cache-size"
 #define QCOW2_OPT_L2_CACHE_SIZE "l2-cache-size"
 #define QCOW2_OPT_REFCOUNT_CACHE_SIZE "refcount-cache-size"
@@ -406,8 +407,9 @@ typedef enum QCow2MetadataOverlap {
     QCOW2_OL_SNAPSHOT_TABLE_BITNR = 5,
     QCOW2_OL_INACTIVE_L1_BITNR    = 6,
     QCOW2_OL_INACTIVE_L2_BITNR    = 7,
+    QCOW2_OL_BITMAP_DIRECTORY_BITNR = 8,
 
-    QCOW2_OL_MAX_BITNR            = 8,
+    QCOW2_OL_MAX_BITNR              = 9,
 
     QCOW2_OL_NONE           = 0,
     QCOW2_OL_MAIN_HEADER    = (1 << QCOW2_OL_MAIN_HEADER_BITNR),
@@ -420,12 +422,13 @@ typedef enum QCow2MetadataOverlap {
     /* NOTE: Checking overlaps with inactive L2 tables will result in bdrv
      * reads. */
     QCOW2_OL_INACTIVE_L2    = (1 << QCOW2_OL_INACTIVE_L2_BITNR),
+    QCOW2_OL_BITMAP_DIRECTORY = (1 << QCOW2_OL_BITMAP_DIRECTORY_BITNR),
 } QCow2MetadataOverlap;
 
 /* Perform all overlap checks which can be done in constant time */
 #define QCOW2_OL_CONSTANT \
     (QCOW2_OL_MAIN_HEADER | QCOW2_OL_ACTIVE_L1 | QCOW2_OL_REFCOUNT_TABLE | \
-     QCOW2_OL_SNAPSHOT_TABLE)
+     QCOW2_OL_SNAPSHOT_TABLE | QCOW2_OL_BITMAP_DIRECTORY)
 
 /* Perform all overlap checks which don't require disk access */
 #define QCOW2_OL_CACHED \
