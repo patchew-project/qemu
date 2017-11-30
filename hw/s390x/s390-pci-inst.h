@@ -302,4 +302,8 @@ int pcistb_service_call(S390CPU *cpu, uint8_t r1, uint8_t r3, uint64_t gaddr,
 int mpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba, uint8_t ar);
 int stpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba, uint8_t ar);
 
+#define ZPCI_IO_BAR_MIN 0
+#define ZPCI_IO_BAR_MAX 5
+#define ZPCI_CONFIG_BAR 15
+
 #endif
