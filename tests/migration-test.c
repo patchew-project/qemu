@@ -369,7 +369,7 @@ static void migrate_check_parameter(QTestState *who, const char *parameter,
     QDECREF(rsp);
 }
 
-static void migrate_set_downtime(QTestState *who, const double value)
+static void deprecated_set_downtime(QTestState *who, const double value)
 {
     QDict *rsp;
     gchar *cmd;
@@ -388,7 +388,7 @@ static void migrate_set_downtime(QTestState *who, const double value)
     g_free(expected);
 }
 
-static void migrate_set_speed(QTestState *who, const char *value)
+static void deprecated_set_speed(QTestState *who, const char *value)
 {
     QDict *rsp;
     gchar *cmd;
@@ -400,6 +400,30 @@ static void migrate_set_speed(QTestState *who, const char *value)
     g_assert(qdict_haskey(rsp, "return"));
     QDECREF(rsp);
     migrate_check_parameter(who, "max-bandwidth", value);
+}
+
+static void migrate_set_parameter(QTestState *who, const char *parameter,
+                                  const char *value)
+{
+    QDict *rsp;
+    gchar *cmd;
+
+    if (strcmp(parameter, "downtime-limit") == 0) {
+        deprecated_set_downtime(who, 0.12345);
+    }
+
+    if (strcmp(parameter, "max-bandwidth") == 0) {
+        deprecated_set_speed(who, "12345");
+    }
+
+    cmd = g_strdup_printf("{ 'execute': 'migrate-set-parameters',"
+                          "'arguments': { '%s': %s } }",
+                          parameter, value);
+    rsp = qtest_qmp(who, cmd);
+    g_free(cmd);
+    g_assert(qdict_haskey(rsp, "return"));
+    QDECREF(rsp);
+    migrate_check_parameter(who, parameter, value);
 }
 
 static void migrate_set_capability(QTestState *who, const char *capability,
@@ -530,8 +554,8 @@ static void test_migrate(void)
      * quickly, but that it doesn't complete precopy even on a slow
      * machine, so also set the downtime.
      */
-    migrate_set_speed(from, "100000000");
-    migrate_set_downtime(from, 0.001);
+    migrate_set_parameter(from, "max-bandwidth", "100000000");
+    migrate_set_parameter(from, "downtime-limit", "1");
 
     /* Wait for the first serial output from the source */
     wait_for_serial("src_serial");
