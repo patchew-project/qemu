@@ -421,11 +421,22 @@ static int64_t cvtnum(const char *s)
     return value;
 }
 
+static const char *get_format(const char *filename)
+{
+    const char *fmt = strrchr(filename, '.');
+    if (fmt == NULL || bdrv_find_format(++fmt) == NULL) {
+        fmt = "raw";
+    }
+    printf("!!! %s format was detected.\n"
+           "!!! If you meant another format, specify it with -f.\n", fmt);
+    return fmt;
+}
+
 static int img_create(int argc, char **argv)
 {
     int c;
     uint64_t img_size = -1;
-    const char *fmt = "raw";
+    const char *fmt = NULL;
     const char *base_fmt = NULL;
     const char *filename;
     const char *base_filename = NULL;
@@ -496,6 +507,9 @@ static int img_create(int argc, char **argv)
 
     /* Get the filename */
     filename = (optind < argc) ? argv[optind] : NULL;
+    if (fmt == NULL) {
+        fmt = get_format(filename);
+    }
     if (options && has_help_option(options)) {
         g_free(options);
         return print_block_option_help(filename, fmt);
@@ -4181,7 +4195,7 @@ static int img_dd(int argc, char **argv)
     Error *local_err = NULL;
     bool image_opts = false;
     int c, i;
-    const char *out_fmt = "raw";
+    const char *out_fmt = NULL;
     const char *fmt = NULL;
     int64_t size = 0;
     int64_t block_count = 0, out_pos, in_pos;
@@ -4308,6 +4322,9 @@ static int img_dd(int argc, char **argv)
         goto out;
     }
 
+    if (out_fmt == NULL) {
+        out_fmt = get_format(out.filename);
+    }
     drv = bdrv_find_format(out_fmt);
     if (!drv) {
         error_report("Unknown file format");
