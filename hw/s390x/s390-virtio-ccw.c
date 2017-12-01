@@ -553,6 +553,10 @@ static inline void machine_set_squash_mcss(Object *obj, bool value,
     S390CcwMachineState *ms = S390_CCW_MACHINE(obj);
 
     ms->s390_squash_mcss = value;
+    if (ms->s390_squash_mcss) {
+        warn_report("The machine property 's390-squash-mcss' is deprecated"
+                    " (obsoleted by lifting the cssid restrictions).");
+    }
 }
 
 static inline void s390_machine_initfn(Object *obj)
@@ -582,7 +586,7 @@ static inline void s390_machine_initfn(Object *obj)
     object_property_add_bool(obj, "s390-squash-mcss",
                              machine_get_squash_mcss,
                              machine_set_squash_mcss, NULL);
-    object_property_set_description(obj, "s390-squash-mcss",
+    object_property_set_description(obj, "s390-squash-mcss", "(deprecated) "
             "enable/disable squashing subchannels into the default css",
             NULL);
     object_property_set_bool(obj, false, "s390-squash-mcss", NULL);
