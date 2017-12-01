@@ -3691,6 +3691,7 @@ static const TypeInfo spapr_machine_info = {
         if (latest) {                                                \
             mc->alias = "pseries";                                   \
             mc->is_default = 1;                                      \
+            mc->max_cpus = 240;                                      \
         }                                                            \
     }                                                                \
     static void spapr_machine_##suffix##_instance_init(Object *obj)  \
