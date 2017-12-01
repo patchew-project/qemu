@@ -1889,7 +1889,7 @@ static int coroutine_fn bdrv_co_block_status(BlockDriverState *bs,
 
     /* Must be non-NULL or bdrv_getlength() would have failed */
     assert(bs->drv);
-    if (!bs->drv->bdrv_co_get_block_status) {
+    if (!bs->drv->bdrv_co_get_block_status && !bs->drv->bdrv_co_block_status) {
         *pnum = bytes;
         ret = BDRV_BLOCK_DATA | BDRV_BLOCK_ALLOCATED;
         if (offset + bytes == total_size) {
@@ -1906,13 +1906,14 @@ static int coroutine_fn bdrv_co_block_status(BlockDriverState *bs,
     bdrv_inc_in_flight(bs);
 
     /* Round out to request_alignment boundaries */
-    /* TODO: until we have a byte-based driver callback, we also have to
-     * round out to sectors, even if that is bigger than request_alignment */
-    align = MAX(bs->bl.request_alignment, BDRV_SECTOR_SIZE);
+    align = bs->bl.request_alignment;
+    if (bs->drv->bdrv_co_get_block_status && align < BDRV_SECTOR_SIZE) {
+        align = BDRV_SECTOR_SIZE;
+    }
     aligned_offset = QEMU_ALIGN_DOWN(offset, align);
     aligned_bytes = ROUND_UP(offset + bytes, align) - aligned_offset;
 
-    {
+    if (bs->drv->bdrv_co_get_block_status) {
         int count; /* sectors */
         int64_t longret;
 
@@ -1937,8 +1938,28 @@ static int coroutine_fn bdrv_co_block_status(BlockDriverState *bs,
         }
         ret = longret & ~BDRV_BLOCK_OFFSET_MASK;
         *pnum = count * BDRV_SECTOR_SIZE;
+        goto refine;
     }
 
+    ret = bs->drv->bdrv_co_block_status(bs, want_zero, aligned_offset,
+                                        aligned_bytes, pnum, &local_map,
+                                        &local_file);
+    if (ret < 0) {
+        *pnum = 0;
+        goto out;
+    }
+    assert(*pnum); /* The block driver must make progress */
+
+    /*
+     * total_size is always sector-aligned, by sometimes exceeding actual
+     * file size. Expand pnum if it lands mid-sector due to end-of-file.
+     */
+    if (QEMU_ALIGN_UP(*pnum + aligned_offset,
+                      BDRV_SECTOR_SIZE) == total_size) {
+        *pnum = total_size - aligned_offset;
+    }
+
+refine:
     /*
      * The driver's result must be a multiple of request_alignment.
      * Clamp pnum and adjust map to original request.
