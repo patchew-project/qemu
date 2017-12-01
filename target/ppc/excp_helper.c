@@ -207,7 +207,13 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
                         "Entering checkstop state\n");
             }
             cs->halted = 1;
-            cs->interrupt_request |= CPU_INTERRUPT_EXITTB;
+            if (!qemu_mutex_iothread_locked()) {
+                qemu_mutex_lock_iothread();
+                cpu_interrupt(cs, CPU_INTERRUPT_EXITTB);
+                qemu_mutex_unlock_iothread();
+            } else {
+                cpu_interrupt(cs, CPU_INTERRUPT_EXITTB);
+            }
         }
         if (env->msr_mask & MSR_HVB) {
             /* ISA specifies HV, but can be delivered to guest with HV clear
@@ -940,7 +946,9 @@ void helper_store_msr(CPUPPCState *env, target_ulong val)
 
     if (excp != 0) {
         CPUState *cs = CPU(ppc_env_get_cpu(env));
-        cs->interrupt_request |= CPU_INTERRUPT_EXITTB;
+        qemu_mutex_lock_iothread();
+        cpu_interrupt(cs, CPU_INTERRUPT_EXITTB);
+        qemu_mutex_unlock_iothread();
         raise_exception(env, excp);
     }
 }
@@ -995,7 +1003,9 @@ static inline void do_rfi(CPUPPCState *env, target_ulong nip, target_ulong msr)
     /* No need to raise an exception here,
      * as rfi is always the last insn of a TB
      */
-    cs->interrupt_request |= CPU_INTERRUPT_EXITTB;
+    qemu_mutex_lock_iothread();
+    cpu_interrupt(cs, CPU_INTERRUPT_EXITTB);
+    qemu_mutex_unlock_iothread();
 
     /* Reset the reservation */
     env->reserve_addr = -1;
