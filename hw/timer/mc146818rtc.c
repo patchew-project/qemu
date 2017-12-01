@@ -98,6 +98,9 @@ static void rtc_set_cmos(RTCState *s, const struct tm *tm);
 static inline int rtc_from_bcd(RTCState *s, int a);
 static uint64_t get_next_alarm(RTCState *s);
 
+/* Used to indicate that RTC_REG_C is about to be accessed */
+bool ready_to_access_rtc_reg_c;
+
 static inline bool rtc_running(RTCState *s)
 {
     return (!(s->cmos_data[RTC_REG_B] & REG_B_SET) &&
@@ -473,6 +476,10 @@ static void cmos_ioport_write(void *opaque, hwaddr addr,
 
     if ((addr & 1) == 0) {
         s->cmos_index = data & 0x7f;
+
+        if (s->cmos_index == RTC_REG_C) {
+            ready_to_access_rtc_reg_c = true;
+        }
     } else {
         CMOS_DPRINTF("cmos: write index=0x%02x val=0x%02" PRIx64 "\n",
                      s->cmos_index, data);
@@ -575,6 +582,8 @@ static void cmos_ioport_write(void *opaque, hwaddr addr,
             check_update_timer(s);
             break;
         case RTC_REG_C:
+            ready_to_access_rtc_reg_c = false;
+            break;
         case RTC_REG_D:
             /* cannot write to them */
             break;
@@ -702,6 +711,32 @@ static int update_in_progress(RTCState *s)
     return 0;
 }
 
+static int cmos_ioport_read_rtc_reg_c(RTCState *s)
+{
+    int ret;
+
+    ret = s->cmos_data[RTC_REG_C];
+    qemu_irq_lower(s->irq);
+    s->cmos_data[RTC_REG_C] = 0x00;
+    if (ret & (REG_C_UF | REG_C_AF)) {
+        check_update_timer(s);
+    }
+
+    if (s->irq_coalesced &&
+            (s->cmos_data[RTC_REG_B] & REG_B_PIE) &&
+            s->irq_reinject_on_ack_count < RTC_REINJECT_ON_ACK_COUNT) {
+        s->irq_reinject_on_ack_count++;
+        s->cmos_data[RTC_REG_C] |= REG_C_IRQF | REG_C_PF;
+        DPRINTF_C("cmos: injecting on ack\n");
+        if (rtc_policy_slew_deliver_irq(s)) {
+            s->irq_coalesced--;
+            DPRINTF_C("cmos: coalesced irqs decreased to %d\n",
+                      s->irq_coalesced);
+        }
+    }
+    return ret;
+}
+
 static uint64_t cmos_ioport_read(void *opaque, hwaddr addr,
                                  unsigned size)
 {
@@ -710,6 +745,15 @@ static uint64_t cmos_ioport_read(void *opaque, hwaddr addr,
     if ((addr & 1) == 0) {
         return 0xff;
     } else {
+        /*
+         * It indicate that the cmos_index for RTC_REG_C is overwritten
+         * if the condition is met, we should execute read RTC_REG_C manually.
+         */
+        if (ready_to_access_rtc_reg_c && s->cmos_index != RTC_REG_C) {
+            cmos_ioport_read_rtc_reg_c(s);
+            ready_to_access_rtc_reg_c = false;
+        }
+
         switch(s->cmos_index) {
 	case RTC_IBM_PS2_CENTURY_BYTE:
             s->cmos_index = RTC_CENTURY;
@@ -736,25 +780,8 @@ static uint64_t cmos_ioport_read(void *opaque, hwaddr addr,
             }
             break;
         case RTC_REG_C:
-            ret = s->cmos_data[s->cmos_index];
-            qemu_irq_lower(s->irq);
-            s->cmos_data[RTC_REG_C] = 0x00;
-            if (ret & (REG_C_UF | REG_C_AF)) {
-                check_update_timer(s);
-            }
-
-            if(s->irq_coalesced &&
-                    (s->cmos_data[RTC_REG_B] & REG_B_PIE) &&
-                    s->irq_reinject_on_ack_count < RTC_REINJECT_ON_ACK_COUNT) {
-                s->irq_reinject_on_ack_count++;
-                s->cmos_data[RTC_REG_C] |= REG_C_IRQF | REG_C_PF;
-                DPRINTF_C("cmos: injecting on ack\n");
-                if (rtc_policy_slew_deliver_irq(s)) {
-                    s->irq_coalesced--;
-                    DPRINTF_C("cmos: coalesced irqs decreased to %d\n",
-                              s->irq_coalesced);
-                }
-            }
+            ret = cmos_ioport_read_rtc_reg_c(s);
+            ready_to_access_rtc_reg_c = false;
             break;
         default:
             ret = s->cmos_data[s->cmos_index];
