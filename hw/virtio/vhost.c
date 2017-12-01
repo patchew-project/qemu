@@ -26,6 +26,8 @@
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio-access.h"
 #include "migration/blocker.h"
+#include "migration/migration.h"
+#include "migration/qemu-file.h"
 #include "sysemu/dma.h"
 
 /* enabled until disconnected backend stabilizes */
@@ -885,7 +887,10 @@ static void vhost_log_global_start(MemoryListener *listener)
 
     r = vhost_migration_log(listener, true);
     if (r < 0) {
-        abort();
+        error_report("Failed to start vhost dirty log");
+        if (migrate_get_current()->migration_thread_running) {
+            qemu_file_set_error(migrate_get_current()->to_dst_file, -ECHILD);
+        }
     }
 }
 
@@ -895,7 +900,10 @@ static void vhost_log_global_stop(MemoryListener *listener)
 
     r = vhost_migration_log(listener, false);
     if (r < 0) {
-        abort();
+        error_report("Failed to stop vhost dirty log");
+        if (migrate_get_current()->migration_thread_running) {
+            qemu_file_set_error(migrate_get_current()->to_dst_file, -ECHILD);
+        }
     }
 }
 
