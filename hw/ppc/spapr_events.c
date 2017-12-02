@@ -283,7 +283,7 @@ void spapr_dt_events(sPAPRMachineState *spapr, void *fdt)
         }
 
         interrupts[0] = cpu_to_be32(source->irq);
-        interrupts[1] = 0;
+        interrupts[1] = SPAPR_DT_INTERRUPT_IDENTIFIER_EDGE;
 
         _FDT(node_offset = fdt_add_subnode(fdt, event_sources, source_name));
         _FDT(fdt_setprop(fdt, node_offset, "interrupts", interrupts,

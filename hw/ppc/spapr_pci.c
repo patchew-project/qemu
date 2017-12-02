@@ -1231,6 +1231,8 @@ static void spapr_populate_pci_child_dt(PCIDevice *dev, void *fdt, int offset,
     if (pci_default_read_config(dev, PCI_INTERRUPT_PIN, 1)) {
         _FDT(fdt_setprop_cell(fdt, offset, "interrupts",
                  pci_default_read_config(dev, PCI_INTERRUPT_PIN, 1)));
+        _FDT(fdt_appendprop_cell(fdt, offset, "interrupts",
+                                 SPAPR_DT_INTERRUPT_IDENTIFIER_LEVEL));
     }
 
     if (!is_bridge) {
@@ -2122,7 +2124,7 @@ int spapr_populate_pci_dt(sPAPRPHBState *phb,
             irqmap[3] = cpu_to_be32(j+1);
             irqmap[4] = cpu_to_be32(xics_phandle);
             irqmap[5] = cpu_to_be32(phb->lsi_table[lsi_num].irq);
-            irqmap[6] = cpu_to_be32(0x8);
+            irqmap[6] = cpu_to_be32(SPAPR_DT_INTERRUPT_IDENTIFIER_LEVEL);
         }
     }
     /* Write interrupt map */

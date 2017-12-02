@@ -590,6 +590,9 @@ void spapr_load_rtas(sPAPRMachineState *spapr, void *fdt, hwaddr addr);
 
 #define RTAS_EVENT_SCAN_RATE    1
 
+#define SPAPR_DT_INTERRUPT_IDENTIFIER_EDGE  0
+#define SPAPR_DT_INTERRUPT_IDENTIFIER_LEVEL 1
+
 typedef struct sPAPRTCETable sPAPRTCETable;
 
 #define TYPE_SPAPR_TCE_TABLE "spapr-tce-table"

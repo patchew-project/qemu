@@ -126,7 +126,8 @@ static int vio_make_devnode(VIOsPAPRDevice *dev,
     }
 
     if (dev->irq) {
-        uint32_t ints_prop[] = {cpu_to_be32(dev->irq), 0};
+        uint32_t ints_prop[] = { cpu_to_be32(dev->irq),
+                                 SPAPR_DT_INTERRUPT_IDENTIFIER_EDGE };
 
         ret = fdt_setprop(fdt, node_off, "interrupts", ints_prop,
                           sizeof(ints_prop));
