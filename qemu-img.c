@@ -580,7 +580,7 @@ static void dump_human_image_check(ImageCheck *check, bool quiet)
         if (check->leaks) {
             qprintf(quiet,
                     "\n%" PRId64 " leaked clusters were found on the image.\n"
-                    "This means waste of disk space, but no harm to data.\n",
+                    "This means disk space is wasted, but data is safe.\n",
                     check->leaks);
         }
 
