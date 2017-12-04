@@ -163,6 +163,17 @@ void HELPER(sckc)(CPUS390XState *env, uint64_t time)
     timer_mod(env->tod_timer, env->tod_basetime + time);
 }
 
+/* Set Tod Programmable Field */
+void HELPER(sckpf)(CPUS390XState *env)
+{
+    uint32_t val = env->regs[0];
+
+    if (val & 0xffff0000UL) {
+        s390_program_interrupt(env, PGM_SPECIFICATION, 2, GETPC());
+    }
+    env->todpr = val;
+}
+
 /* Store Clock Comparator */
 uint64_t HELPER(stckc)(CPUS390XState *env)
 {
