@@ -131,6 +131,17 @@
 
 #define ERDP_EHB        (1<<3)
 
+typedef struct XHCIClass {
+    PCIDeviceClass parent_class;
+    DeviceRealize parent_dc_realize;
+} XHCIClass;
+
+#define XHCI_DEVICE_CLASS(klass) \
+    OBJECT_CLASS_CHECK(XHCIClass, (klass), TYPE_XHCI)
+#define XHCI_DEVICE_GET_CLASS(obj) \
+    OBJECT_GET_CLASS(XHCIClass, (obj), TYPE_XHCI)
+
+
 #define TRB_SIZE 16
 typedef struct XHCITRB {
     uint64_t parameter;
@@ -3649,11 +3660,24 @@ static Property xhci_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static void before_usb_xhci_realize(DeviceState *qdev, Error **errp)
+{
+    XHCIClass *vc = XHCI_DEVICE_GET_CLASS(qdev);
+    PCIDevice *pci_dev = PCI_DEVICE(qdev);
+
+    pci_dev->cap_present |= QEMU_PCI_CAP_EXPRESS;
+
+    vc->parent_dc_realize(qdev, errp);
+}
+
 static void xhci_class_init(ObjectClass *klass, void *data)
 {
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    XHCIClass *vc = XHCI_DEVICE_CLASS(klass);
 
+    vc->parent_dc_realize = dc->realize;
+    dc->realize = before_usb_xhci_realize;
     dc->vmsd    = &vmstate_xhci;
     dc->props   = xhci_properties;
     dc->reset   = xhci_reset;
@@ -3661,12 +3685,12 @@ static void xhci_class_init(ObjectClass *klass, void *data)
     k->realize      = usb_xhci_realize;
     k->exit         = usb_xhci_exit;
     k->class_id     = PCI_CLASS_SERIAL_USB;
-    k->is_express   = 1;
 }
 
 static const TypeInfo xhci_info = {
     .name          = TYPE_XHCI,
     .parent        = TYPE_PCI_DEVICE,
+    .class_size    = sizeof(XHCIClass),
     .instance_size = sizeof(XHCIState),
     .class_init    = xhci_class_init,
     .abstract      = true,

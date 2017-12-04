@@ -275,6 +275,7 @@ typedef void (*USBDeviceUnrealize)(USBDevice *dev, Error **errp);
 
 typedef struct USBDeviceClass {
     DeviceClass parent_class;
+    DeviceRealize parent_dc_realize;
 
     USBDeviceRealize realize;
     USBDeviceUnrealize unrealize;

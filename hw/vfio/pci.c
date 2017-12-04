@@ -35,6 +35,18 @@
 
 #define MSIX_CAP_LENGTH 12
 
+typedef struct VFIOClass {
+    PCIDeviceClass parent_class;
+    DeviceRealize parent_dc_realize;
+} VFIOClass;
+
+#define TYPE_VFIOPCI "vfio-pci"
+
+#define VFIO_DEVICE_CLASS(klass) \
+    OBJECT_CLASS_CHECK(VFIOClass, (klass), TYPE_VFIOPCI)
+#define VFIO_DEVICE_GET_CLASS(obj) \
+    OBJECT_GET_CLASS(VFIOClass, (obj), TYPE_VFIOPCI)
+
 static void vfio_disable_interrupts(VFIOPCIDevice *vdev);
 static void vfio_mmap_set_enabled(VFIOPCIDevice *vdev, bool enabled);
 
@@ -3012,26 +3024,39 @@ static const VMStateDescription vfio_pci_vmstate = {
     .unmigratable = 1,
 };
 
+static void before_vfio_realize(DeviceState *qdev, Error **errp)
+{
+    VFIOClass *vc = VFIO_DEVICE_GET_CLASS(qdev);
+    PCIDevice *pci_dev = PCI_DEVICE(qdev);
+
+    pci_dev->cap_present |= QEMU_PCI_CAP_EXPRESS;
+
+    vc->parent_dc_realize(qdev, errp);
+}
+
 static void vfio_pci_dev_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *pdc = PCI_DEVICE_CLASS(klass);
+    PCIDeviceClass *c = PCI_DEVICE_CLASS(klass);
+    VFIOClass *vc = VFIO_DEVICE_CLASS(klass);
 
+    vc->parent_dc_realize = dc->realize;
+    dc->realize = before_vfio_realize;
     dc->reset = vfio_pci_reset;
     dc->props = vfio_pci_dev_properties;
     dc->vmsd = &vfio_pci_vmstate;
     dc->desc = "VFIO-based PCI device assignment";
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
-    pdc->realize = vfio_realize;
-    pdc->exit = vfio_exitfn;
-    pdc->config_read = vfio_pci_read_config;
-    pdc->config_write = vfio_pci_write_config;
-    pdc->is_express = 1; /* We might be */
+    c->realize = vfio_realize;
+    c->exit = vfio_exitfn;
+    c->config_read = vfio_pci_read_config;
+    c->config_write = vfio_pci_write_config;
 }
 
 static const TypeInfo vfio_pci_dev_info = {
     .name = "vfio-pci",
     .parent = TYPE_PCI_DEVICE,
+    .class_size = sizeof(VFIOClass),
     .instance_size = sizeof(VFIOPCIDevice),
     .class_init = vfio_pci_dev_class_init,
     .instance_init = vfio_instance_init,
