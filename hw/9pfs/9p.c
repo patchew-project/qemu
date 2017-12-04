@@ -630,6 +630,23 @@ static void coroutine_fn pdu_complete(V9fsPDU *pdu, ssize_t len)
     V9fsState *s = pdu->s;
     int ret;
 
+    /*
+     * The 9p spec requires that successfully cancelled pdus receive no reply.
+     * Sending a reply would confuse clients because they would
+     * assume that any EINTR is the actual result of the operation,
+     * rather than a consequence of the cancellation. However, if
+     * the operation completed (succesfully or with an error other
+     * than caused be cancellation), we do send out that reply, both
+     * for efficiency and to avoid confusing the rest of the state machine
+     * that assumes passing a non-error here will mean a successful
+     * transmission of the reply.
+     */
+    if (pdu->cancelled && len == -EINTR) {
+        trace_v9fs_rcancel(pdu->tag, pdu->id);
+        pdu->s->transport->discard(pdu);
+        goto out_wakeup;
+    }
+
     if (len < 0) {
         int err = -len;
         len = 7;
@@ -672,6 +689,7 @@ static void coroutine_fn pdu_complete(V9fsPDU *pdu, ssize_t len)
 out_notify:
     pdu->s->transport->push_and_notify(pdu);
 
+out_wakeup:
     /* Now wakeup anybody waiting in flush for this request */
     if (!qemu_co_queue_next(&pdu->complete)) {
         pdu_free(pdu);
