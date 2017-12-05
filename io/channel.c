@@ -312,7 +312,7 @@ guint qio_channel_add_watch(QIOChannel *ioc,
 
     g_source_set_callback(source, (GSourceFunc)func, user_data, notify);
 
-    id = g_source_attach(source, NULL);
+    id = g_source_attach(source, g_main_context_get_thread_default());
     g_source_unref(source);
 
     return id;
