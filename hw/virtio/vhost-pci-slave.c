@@ -23,7 +23,7 @@
 #include "hw/virtio/vhost-user.h"
 #include "hw/virtio/vhost-pci-net.h"
 
-#define VHOST_USER_PROTOCOL_FEATURES 0
+#define VHOST_USER_PROTOCOL_FEATURES (1UL << VHOST_USER_PROTOCOL_F_VHOST_PCI)
 
 static int vp_slave_write(CharBackend *chr_be, VhostUserMsg *msg)
 {

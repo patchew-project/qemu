@@ -25,6 +25,7 @@
 #include "exec/address-spaces.h"
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio-access.h"
+#include "hw/virtio/vhost-user.h"
 #include "migration/blocker.h"
 #include "sysemu/dma.h"
 
@@ -1005,6 +1006,12 @@ out:
     rcu_read_unlock();
 
     return ret;
+}
+
+bool vhost_pci_enabled(struct vhost_dev *dev)
+{
+    return ((dev->protocol_features &
+            (1ULL << VHOST_USER_PROTOCOL_F_VHOST_PCI)) != 0);
 }
 
 static int vhost_virtqueue_start(struct vhost_dev *dev,

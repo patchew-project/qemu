@@ -106,4 +106,6 @@ int vhost_net_set_backend(struct vhost_dev *hdev,
                           struct vhost_vring_file *file);
 
 int vhost_device_iotlb_miss(struct vhost_dev *dev, uint64_t iova, int write);
+
+bool vhost_pci_enabled(struct vhost_dev *dev);
 #endif

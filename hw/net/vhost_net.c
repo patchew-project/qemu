@@ -296,6 +296,7 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(dev)));
     VirtioBusState *vbus = VIRTIO_BUS(qbus);
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(vbus);
+    struct vhost_net *last_net;
     int r, e, i;
 
     if (!k->set_guest_notifiers) {
@@ -341,6 +342,18 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
         }
     }
 
+    last_net = get_vhost_net(ncs[total_queues - 1].peer);
+    if (vhost_pci_enabled(&last_net->dev)) {
+        /*
+         * All the msgs have been sync-ed to the vhost-pci device. This is the
+         * last one to signal the vhost-pci device to link up.
+         */
+        r = vhost_set_vhost_pci(ncs[total_queues - 1].peer, true);
+        if (r < 0) {
+            goto err_start;
+        }
+    }
+
     return 0;
 
 err_start:
@@ -362,7 +375,14 @@ void vhost_net_stop(VirtIODevice *dev, NetClientState *ncs,
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(dev)));
     VirtioBusState *vbus = VIRTIO_BUS(qbus);
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(vbus);
+    struct vhost_net *last_net;
     int i, r;
+
+    last_net = get_vhost_net(ncs[total_queues - 1].peer);
+    if (vhost_pci_enabled(&last_net->dev)) {
+        /* Signal the vhost-pci device to stop. */
+        vhost_set_vhost_pci(ncs[total_queues - 1].peer, false);
+    }
 
     for (i = 0; i < total_queues; i++) {
         vhost_net_stop_one(get_vhost_net(ncs[i].peer), dev);
@@ -450,6 +470,18 @@ int vhost_net_set_mtu(struct vhost_net *net, uint16_t mtu)
     return vhost_ops->vhost_net_set_mtu(&net->dev, mtu);
 }
 
+int vhost_set_vhost_pci(NetClientState *nc, bool up)
+{
+    VHostNetState *net = get_vhost_net(nc);
+    const VhostOps *vhost_ops = net->dev.vhost_ops;
+
+    if (vhost_ops && vhost_ops->vhost_set_vhost_pci) {
+        return vhost_ops->vhost_set_vhost_pci(&net->dev, up);
+    }
+
+    return 0;
+}
+
 #else
 uint64_t vhost_net_get_max_queues(VHostNetState *net)
 {
@@ -518,6 +550,11 @@ int vhost_set_vring_enable(NetClientState *nc, int enable)
 }
 
 int vhost_net_set_mtu(struct vhost_net *net, uint16_t mtu)
+{
+    return 0;
+}
+
+int vhost_set_vhost_pci(NetClientState *nc, bool up)
 {
     return 0;
 }
