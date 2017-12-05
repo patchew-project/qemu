@@ -37,4 +37,6 @@ typedef struct VhostPCINet {
     CharBackend chr_be;
 } VhostPCINet;
 
+void vpnet_set_link_up(VhostPCINet *vpnet, bool up);
+
 #endif

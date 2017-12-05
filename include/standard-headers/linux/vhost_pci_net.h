@@ -35,6 +35,8 @@
 
 #define MAX_REMOTE_REGION 8
 
+/* Set by the device to indicate that the device (e.g. metadata) is ready */
+#define VPNET_S_LINK_UP 1
 struct vpnet_config {
 	uint16_t status;
 };

@@ -287,6 +287,9 @@ void vp_slave_read(void *opaque, const uint8_t *buf, int size)
     case VHOST_USER_SET_VRING_ENABLE:
         vp_slave_set_vring_enable(vpnet, &msg);
         break;
+    case VHOST_USER_SET_VHOST_PCI:
+        vpnet_set_link_up(vpnet, (bool)msg.payload.u64);
+        break;
     case VHOST_USER_SET_LOG_BASE:
         break;
     case VHOST_USER_SET_LOG_FD:

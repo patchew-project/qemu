@@ -32,6 +32,19 @@ static uint64_t vpnet_get_features(VirtIODevice *vdev, uint64_t features,
     return features;
 }
 
+void vpnet_set_link_up(VhostPCINet *vpnet, bool up)
+{
+    VirtIODevice *vdev = VIRTIO_DEVICE(vpnet);
+
+    if (up) {
+        vpnet->status |= VPNET_S_LINK_UP;
+    } else {
+        vpnet->status &= ~VPNET_S_LINK_UP;
+    }
+
+    virtio_notify_config(vdev);
+}
+
 static void vpnet_get_config(VirtIODevice *vdev, uint8_t *config)
 {
     VhostPCINet *vpnet = VHOST_PCI_NET(vdev);
