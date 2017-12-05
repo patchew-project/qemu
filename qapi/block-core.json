@@ -3949,3 +3949,39 @@
   'data' : { 'parent': 'str',
              '*child': 'str',
              '*node': 'str' } }
+
+##
+# @x-blockdev-set-iothread:
+#
+# Move @node and its children into the @iothread.  If @iothread is empty then
+# move @node and its children into the main loop.
+#
+# The node must not be attached to a BlockBackend.
+#
+# @node-name: the name of the block driver node
+#
+# @iothread: the name of the IOThread object
+#
+# Note: this command is experimental and intended for test cases that need
+# control over IOThreads only.
+#
+# Since: 2.12
+#
+# Example:
+#
+# 1. Move a node into an IOThread
+# -> { "execute": "x-blockdev-set-iothread",
+#      "arguments": { "node-name": "disk1",
+#                     "iothread": "iothread0" } }
+# <- { "return": {} }
+#
+# 2. Move a node into the main loop
+# -> { "execute": "x-blockdev-set-iothread",
+#      "arguments": { "node-name": "disk1",
+#                     "iothread": "" } }
+# <- { "return": {} }
+#
+##
+{ 'command': 'x-blockdev-set-iothread',
+  'data' : { 'node-name': 'str',
+             'iothread': 'str' } }
