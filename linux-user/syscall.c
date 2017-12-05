@@ -7228,7 +7228,18 @@ static abi_long do_name_to_handle_at(abi_long dirfd, abi_long pathname,
     fh = g_malloc0(total_size);
     fh->handle_bytes = size;
 
-    ret = get_errno(name_to_handle_at(dirfd, path(name), fh, &mid, flags));
+    switch (interp_dirfd > 0 && name[0] == '/') {
+    case true:
+        ret = name_to_handle_at(interp_dirfd, name + 1, fh, &mid, flags);
+        if (ret == 0 || errno != ENOENT) {
+            break;
+        }
+        /* fallthru */
+    default:
+        ret = name_to_handle_at(dirfd, name, fh, &mid, flags);
+        break;
+    }
+    ret = get_errno(ret);
     unlock_user(name, pathname, 0);
 
     /* man name_to_handle_at(2):
@@ -7604,6 +7615,7 @@ static int do_openat(void *cpu_env, int dirfd, const char *pathname, int flags, 
 #endif
         { NULL, NULL, NULL }
     };
+    int ret;
 
     if (is_proc_myself(pathname, "exe")) {
         int execfd = qemu_getauxval(AT_EXECFD);
@@ -7643,7 +7655,18 @@ static int do_openat(void *cpu_env, int dirfd, const char *pathname, int flags, 
         return fd;
     }
 
-    return safe_openat(dirfd, path(pathname), flags, mode);
+    switch (interp_dirfd > 0 && pathname[0] == '/') {
+    case true:
+        ret = safe_openat(interp_dirfd, pathname + 1, flags, mode);
+        if (ret >= 0 || errno != ENOENT) {
+            break;
+        }
+        /* fallthru */
+    default:
+        ret = safe_openat(dirfd, pathname, flags, mode);
+        break;
+    }
+    return ret;
 }
 
 #define TIMER_MAGIC 0x0caf0000
@@ -7729,6 +7752,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     struct stat st;
     struct statfs stfs;
     void *p;
+    char *fn;
 
 #if defined(DEBUG_ERESTARTSYS)
     /* Debug-only code for exercising the syscall-restart code paths
@@ -8260,10 +8284,21 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             } else {
                 tvp = NULL;
             }
-            if (!(p = lock_user_string(arg2)))
+            if (!(fn = lock_user_string(arg2)))
                 goto efault;
-            ret = get_errno(futimesat(arg1, path(p), tvp));
-            unlock_user(p, arg2, 0);
+            switch (interp_dirfd > 0 && fn[0] == '/') {
+            case true:
+                ret = futimesat(interp_dirfd, fn + 1, tvp);
+                if (ret == 0 || errno != ENOENT) {
+                    break;
+                }
+                /* fallthru */
+            default:
+                ret = futimesat(arg1, fn, tvp);
+                break;
+            }
+            ret = get_errno(ret);
+            unlock_user(fn, arg2, 0);
         }
         break;
 #endif
@@ -8277,18 +8312,42 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #endif
 #ifdef TARGET_NR_access
     case TARGET_NR_access:
-        if (!(p = lock_user_string(arg1)))
+        if (!(fn = lock_user_string(arg1))) {
             goto efault;
-        ret = get_errno(access(path(p), arg2));
-        unlock_user(p, arg1, 0);
+        }
+        switch (interp_dirfd > 0 && fn[0] == '/') {
+        case true:
+            ret = faccessat(interp_dirfd, fn + 1, arg2, 0);
+            if (ret == 0 || errno != ENOENT) {
+                break;
+            }
+            /* fallthru */
+        default:
+            ret = access(fn, arg2);
+            break;
+        }
+        ret = get_errno(ret);
+        unlock_user(fn, arg1, 0);
         break;
 #endif
 #if defined(TARGET_NR_faccessat) && defined(__NR_faccessat)
     case TARGET_NR_faccessat:
-        if (!(p = lock_user_string(arg2)))
+        if (!(fn = lock_user_string(arg2))) {
             goto efault;
-        ret = get_errno(faccessat(arg1, p, arg3, 0));
-        unlock_user(p, arg2, 0);
+        }
+        switch (interp_dirfd > 0 && fn[0] == '/') {
+        case true:
+            ret = faccessat(interp_dirfd, fn + 1, arg3, 0);
+            if (ret == 0 || errno != ENOENT) {
+                break;
+            }
+            /* fallthru */
+        default:
+            ret = faccessat(arg1, fn, arg3, 0);
+            break;
+        }
+        ret = get_errno(ret);
+        unlock_user(fn, arg2, 0);
         break;
 #endif
 #ifdef TARGET_NR_nice /* not on alpha */
@@ -8415,7 +8474,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         } else {
             if (!(p = lock_user_string(arg1)))
                 goto efault;
-            ret = get_errno(acct(path(p)));
+            ret = get_errno(acct(p));
             unlock_user(p, arg1, 0);
         }
         break;
@@ -9181,14 +9240,14 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_readlink:
         {
             void *p2;
-            p = lock_user_string(arg1);
+            fn = lock_user_string(arg1);
             p2 = lock_user(VERIFY_WRITE, arg2, arg3, 0);
-            if (!p || !p2) {
+            if (!fn || !p2) {
                 ret = -TARGET_EFAULT;
             } else if (!arg3) {
                 /* Short circuit this for the magic exe check. */
                 ret = -TARGET_EINVAL;
-            } else if (is_proc_myself((const char *)p, "exe")) {
+            } else if (is_proc_myself(fn, "exe")) {
                 char real[PATH_MAX], *temp;
                 temp = realpath(exec_path, real);
                 /* Return value is # of bytes that we wrote to the buffer. */
@@ -9202,10 +9261,21 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                     memcpy(p2, real, ret);
                 }
             } else {
-                ret = get_errno(readlink(path(p), p2, arg3));
+                switch (interp_dirfd > 0 && fn[0] == '/') {
+                case true:
+                    ret = readlinkat(interp_dirfd, fn + 1, p2, arg3);
+                    if (ret == 0 || errno != ENOENT) {
+                        break;
+                    }
+                    /* fallthru */
+                default:
+                    ret = readlink(fn, p2, arg3);
+                    break;
+                }
+                ret = get_errno(ret);
             }
             unlock_user(p2, arg2, ret);
-            unlock_user(p, arg1, 0);
+            unlock_user(fn, arg1, 0);
         }
         break;
 #endif
@@ -9213,20 +9283,31 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_readlinkat:
         {
             void *p2;
-            p  = lock_user_string(arg2);
+            fn = lock_user_string(arg2);
             p2 = lock_user(VERIFY_WRITE, arg3, arg4, 0);
-            if (!p || !p2) {
+            if (!fn || !p2) {
                 ret = -TARGET_EFAULT;
-            } else if (is_proc_myself((const char *)p, "exe")) {
+            } else if (is_proc_myself(fn, "exe")) {
                 char real[PATH_MAX], *temp;
                 temp = realpath(exec_path, real);
                 ret = temp == NULL ? get_errno(-1) : strlen(real) ;
                 snprintf((char *)p2, arg4, "%s", real);
             } else {
-                ret = get_errno(readlinkat(arg1, path(p), p2, arg4));
+                switch (interp_dirfd && fn[0] == '/') {
+                case true:
+                    ret = readlinkat(interp_dirfd, fn + 1, p2, arg4);
+                    if (ret == 0 || errno != ENOENT) {
+                        break;
+                    }
+                    /* fallthru */
+                default:
+                    ret = readlinkat(arg1, fn, p2, arg4);
+                    break;
+                }
+                ret = get_errno(ret);
             }
             unlock_user(p2, arg3, ret);
-            unlock_user(p, arg2, 0);
+            unlock_user(fn, arg2, 0);
         }
         break;
 #endif
@@ -9395,7 +9476,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_statfs:
         if (!(p = lock_user_string(arg1)))
             goto efault;
-        ret = get_errno(statfs(path(p), &stfs));
+        ret = get_errno(statfs(p, &stfs));
         unlock_user(p, arg1, 0);
     convert_statfs:
         if (!is_error(ret)) {
@@ -9425,7 +9506,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_statfs64:
         if (!(p = lock_user_string(arg1)))
             goto efault;
-        ret = get_errno(statfs(path(p), &stfs));
+        ret = get_errno(statfs(p, &stfs));
         unlock_user(p, arg1, 0);
     convert_statfs64:
         if (!is_error(ret)) {
@@ -9654,18 +9735,42 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         break;
 #ifdef TARGET_NR_stat
     case TARGET_NR_stat:
-        if (!(p = lock_user_string(arg1)))
+        if (!(fn = lock_user_string(arg1))) {
             goto efault;
-        ret = get_errno(stat(path(p), &st));
-        unlock_user(p, arg1, 0);
+        }
+        switch (interp_dirfd > 0 && fn[0] == '/') {
+        case true:
+            ret = fstatat(interp_dirfd, fn + 1, &st, 0);
+            if (ret == 0 || errno != ENOENT) {
+                break;
+            }
+            /* fallthru */
+        default:
+            ret = stat(fn, &st);
+            break;
+        }
+        ret = get_errno(ret);
+        unlock_user(fn, arg1, 0);
         goto do_stat;
 #endif
 #ifdef TARGET_NR_lstat
     case TARGET_NR_lstat:
-        if (!(p = lock_user_string(arg1)))
+        if (!(fn = lock_user_string(arg1))) {
             goto efault;
-        ret = get_errno(lstat(path(p), &st));
-        unlock_user(p, arg1, 0);
+        }
+        switch (interp_dirfd > 0 && fn[0] == '/') {
+        case true:
+            ret = fstatat(interp_dirfd, fn + 1, &st, AT_SYMLINK_NOFOLLOW);
+            if (ret == 0 || errno != ENOENT) {
+                break;
+            }
+            /* fallthru */
+        default:
+            ret = lstat(fn, &st);
+            break;
+        }
+        ret = get_errno(ret);
+        unlock_user(fn, arg1, 0);
         goto do_stat;
 #endif
     case TARGET_NR_fstat:
@@ -10745,20 +10850,44 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #endif
 #ifdef TARGET_NR_stat64
     case TARGET_NR_stat64:
-        if (!(p = lock_user_string(arg1)))
+        if (!(fn = lock_user_string(arg1))) {
             goto efault;
-        ret = get_errno(stat(path(p), &st));
-        unlock_user(p, arg1, 0);
+        }
+        switch (interp_dirfd > 0 && fn[0] == '/') {
+        case true:
+            ret = fstatat(interp_dirfd, fn + 1, &st, 0);
+            if (ret == 0 || errno != ENOENT) {
+                break;
+            }
+            /* fallthru */
+        default:
+            ret = stat(fn, &st);
+            break;
+        }
+        ret = get_errno(ret);
+        unlock_user(fn, arg1, 0);
         if (!is_error(ret))
             ret = host_to_target_stat64(cpu_env, arg2, &st);
         break;
 #endif
 #ifdef TARGET_NR_lstat64
     case TARGET_NR_lstat64:
-        if (!(p = lock_user_string(arg1)))
+        if (!(fn = lock_user_string(arg1))) {
             goto efault;
-        ret = get_errno(lstat(path(p), &st));
-        unlock_user(p, arg1, 0);
+        }
+        switch (interp_dirfd > 0 && fn[0] == '/') {
+        case true:
+            ret = fstatat(interp_dirfd, fn + 1, &st, AT_SYMLINK_NOFOLLOW);
+            if (ret == 0 || errno != ENOENT) {
+                break;
+            }
+            /* fallthru */
+        default:
+            ret = lstat(fn, &st);
+            break;
+        }
+        ret = get_errno(ret);
+        unlock_user(fn, arg1, 0);
         if (!is_error(ret))
             ret = host_to_target_stat64(cpu_env, arg2, &st);
         break;
@@ -10777,9 +10906,21 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #ifdef TARGET_NR_newfstatat
     case TARGET_NR_newfstatat:
 #endif
-        if (!(p = lock_user_string(arg2)))
+        if (!(fn = lock_user_string(arg2)))
             goto efault;
-        ret = get_errno(fstatat(arg1, path(p), &st, arg4));
+        switch (interp_dirfd > 0 && fn[0] == '/') {
+        case true:
+            ret = fstatat(interp_dirfd, fn + 1, &st, arg4);
+            if (ret == 0 || errno != ENOENT) {
+                break;
+            }
+            /* fallthru */
+        default:
+            ret = fstatat(arg1, fn, &st, arg4);
+            break;
+        }
+        ret = get_errno(ret);
+        unlock_user(fn, arg2, 0);
         if (!is_error(ret))
             ret = host_to_target_stat64(cpu_env, arg3, &st);
         break;
@@ -11776,12 +11917,23 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             if (!arg2)
                 ret = get_errno(sys_utimensat(arg1, NULL, tsp, arg4));
             else {
-                if (!(p = lock_user_string(arg2))) {
+                if (!(fn = lock_user_string(arg2))) {
                     ret = -TARGET_EFAULT;
                     goto fail;
                 }
-                ret = get_errno(sys_utimensat(arg1, path(p), tsp, arg4));
-                unlock_user(p, arg2, 0);
+                switch (interp_dirfd > 0 && fn[0] == '/') {
+                case true:
+                    ret = sys_utimensat(interp_dirfd, fn + 1, tsp, arg4);
+                    if (ret == 0 || errno != ENOENT) {
+                        break;
+                    }
+                    /* fallthru */
+                default:
+                    ret = sys_utimensat(arg1, fn, tsp, arg4);
+                    break;
+                }
+                ret = get_errno(ret);
+                unlock_user(fn, arg2, 0);
             }
         }
 	break;
@@ -11811,7 +11963,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #if defined(TARGET_NR_inotify_add_watch) && defined(__NR_inotify_add_watch)
     case TARGET_NR_inotify_add_watch:
         p = lock_user_string(arg2);
-        ret = get_errno(sys_inotify_add_watch(arg1, path(p), arg3));
+        ret = get_errno(sys_inotify_add_watch(arg1, p, arg3));
         unlock_user(p, arg2, 0);
         break;
 #endif
