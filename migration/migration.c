@@ -1535,7 +1535,23 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
 
 void qmp_migrate_cancel(Error **errp)
 {
-    migrate_fd_cancel(migrate_get_current());
+    MigrationState *ms = migrate_get_current();
+    int ret;
+
+    if (ms->state == MIGRATION_STATUS_POSTCOPY_ACTIVE) {
+        /*
+         * Cancelling a postcopy migration does not really make sense.
+         * Here instead we pause the migration only, so another
+         * recovery can take place if needed.
+         */
+        ret = qemu_file_shutdown(ms->to_dst_file);
+        if (ret) {
+            error_setg(errp, "Failed to pause migration stream.");
+        }
+        return;
+    }
+
+    migrate_fd_cancel(ms);
 }
 
 void qmp_migrate_continue(MigrationStatus state, Error **errp)

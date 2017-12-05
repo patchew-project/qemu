@@ -952,14 +952,18 @@ ETEXI
         .name       = "migrate_cancel",
         .args_type  = "",
         .params     = "",
-        .help       = "cancel the current VM migration",
+        .help       = "cancel the current VM precopy migration, or "
+                      "pause the migration if it's in postcopy state, "
+                      "so that a postcopy recovery can be carried out later.",
         .cmd        = hmp_migrate_cancel,
     },
 
 STEXI
 @item migrate_cancel
 @findex migrate_cancel
-Cancel the current VM migration.
+If during a precopy, this command cancels the migration.  If during
+postcopy, this command pauses the migration (so that a postcopy
+recovery can be carried out afterward).
 ETEXI
 
     {

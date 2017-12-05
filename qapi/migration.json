@@ -881,7 +881,8 @@
 ##
 # @migrate_cancel:
 #
-# Cancel the current executing migration process.
+# Cancel the current executing migration process for precopy.  For
+# postcopy, it'll pause the migration instead.
 #
 # Returns: nothing on success
 #
