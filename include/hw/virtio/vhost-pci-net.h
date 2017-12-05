@@ -27,7 +27,10 @@ typedef struct VhostPCINet {
     VirtIODevice parent_obj;
     MemoryRegion bar_region;
     MemoryRegion metadata_region;
+    MemoryRegion *remote_mem_region;
     struct vpnet_metadata *metadata;
+    void *remote_mem_base[MAX_REMOTE_REGION];
+    uint64_t remote_mem_map_size[MAX_REMOTE_REGION];
     uint32_t host_features;
     size_t config_size;
     uint16_t status;

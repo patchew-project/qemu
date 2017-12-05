@@ -21,6 +21,7 @@
 #include "hw/virtio/virtio-access.h"
 #include "hw/virtio/vhost-pci-net.h"
 #include "hw/virtio/virtio-net.h"
+#include "hw/virtio/vhost-pci-slave.h"
 
 static uint64_t vpnet_get_features(VirtIODevice *vdev, uint64_t features,
                                    Error **errp)
@@ -45,6 +46,10 @@ static void vpnet_device_realize(DeviceState *dev, Error **errp)
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VhostPCINet *vpnet = VHOST_PCI_NET(vdev);
 
+    qemu_chr_fe_set_handlers(&vpnet->chr_be, vp_slave_can_read,
+                             vp_slave_read, vp_slave_event, NULL,
+                             vpnet, NULL, true);
+
     virtio_init(vdev, "vhost-pci-net", VIRTIO_ID_VHOST_PCI_NET,
                 vpnet->config_size);
 
@@ -59,7 +64,20 @@ static void vpnet_device_realize(DeviceState *dev, Error **errp)
 static void vpnet_device_unrealize(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
+    VhostPCINet *vpnet = VHOST_PCI_NET(vdev);
+    int i, ret, nregions = vpnet->metadata->nregions;
 
+    for (i = 0; i < nregions; i++) {
+        ret = munmap(vpnet->remote_mem_base[i], vpnet->remote_mem_map_size[i]);
+        if (ret < 0) {
+            error_report("%s: failed to unmap mr[%d]", __func__, i);
+            continue;
+        }
+        memory_region_del_subregion(&vpnet->bar_region,
+                                    &vpnet->remote_mem_region[i]);
+    }
+
+    qemu_chr_fe_deinit(&vpnet->chr_be, true);
     virtio_cleanup(vdev);
 }
 
