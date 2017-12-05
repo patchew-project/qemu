@@ -322,13 +322,16 @@ static void gen_delayed_conditional_jump(DisasContext * ctx)
         gen_jump(ctx);
 
         gen_set_label(l1);
-        return;
+        goto done;
     }
 
     tcg_gen_brcondi_i32(TCG_COND_NE, ds, 0, l1);
     gen_goto_tb(ctx, 1, ctx->pc + 2);
     gen_set_label(l1);
     gen_jump(ctx);
+
+done:
+    tcg_temp_free(ds);
 }
 
 static inline void gen_load_fpr64(DisasContext *ctx, TCGv_i64 t, int reg)
