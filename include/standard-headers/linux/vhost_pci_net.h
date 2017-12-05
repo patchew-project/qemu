@@ -29,7 +29,10 @@
 
 #include "standard-headers/linux/virtio_ids.h"
 
+#define REMOTE_MEM_BAR_ID 2
+#define REMOTE_MEM_BAR_SIZE 0x1000000000
 #define METADATA_SIZE 4096
+
 #define MAX_REMOTE_REGION 8
 
 struct vpnet_config {
