@@ -717,3 +717,12 @@ MemoryInfo *qmp_query_memory_size_summary(Error **errp)
 
     return mem_info;
 }
+
+WakeupSuspendSupportInfo *qmp_query_wakeup_from_suspend_support(Error **errp)
+{
+    WakeupSuspendSupportInfo *info = g_malloc0(sizeof(*info));
+
+    info->enabled = !qemu_wakeup_notifier_is_empty();
+
+    return info;
+}

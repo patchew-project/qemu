@@ -3189,3 +3189,26 @@
 # Since: 2.11
 ##
 { 'command': 'watchdog-set-action', 'data' : {'action': 'WatchdogAction'} }
+
+##
+# @WakeupSuspendSupportInfo:
+#
+# Information about the wake up from suspend support of the VM.
+#
+# @enabled: true if the target supports wake up from suspend
+#
+# Since: 2.12
+##
+{ 'struct': 'WakeupSuspendSupportInfo',
+  'data': { 'enabled': 'bool' } }
+
+##
+# @query-wakeup-from-suspend-support:
+#
+# Return information about the wake up from suspend support of the VM.
+#
+# Returns: WakeupSuspendSupportInfo
+#
+# Since: 2.12
+##
+{ 'command': 'query-wakeup-from-suspend-support', 'returns': 'WakeupSuspendSupportInfo' }
