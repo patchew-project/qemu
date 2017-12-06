@@ -2918,3 +2918,14 @@ void hmp_info_memory_size_summary(Monitor *mon, const QDict *qdict)
     }
     hmp_handle_error(mon, &err);
 }
+
+void hmp_info_wakeup_from_suspend_support(Monitor *mon, const QDict *qdict)
+{
+    WakeupSuspendSupportInfo *info;
+
+    info = qmp_query_wakeup_from_suspend_support(NULL);
+    monitor_printf(mon, "wake up from suspend support: %s\n",
+                   info->enabled ? "enabled" : "disabled");
+
+    qapi_free_WakeupSuspendSupportInfo(info);
+}

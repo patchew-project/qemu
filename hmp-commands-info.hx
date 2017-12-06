@@ -867,6 +867,21 @@ Display the amount of initially allocated and present hotpluggable (if
 enabled) memory in bytes.
 ETEXI
 
+    {
+        .name       = "wakeup_from_suspend_support",
+        .args_type  = "",
+        .params     = "",
+        .help       = "shows if the guest has support for wake up "
+                      "from suspend",
+        .cmd        = hmp_info_wakeup_from_suspend_support,
+    },
+
+STEXI
+@item info wakeup_from_suspend_support
+@findex info wakeup_from_suspend_support
+Shows if the guest has support for wake up from suspended state.
+ETEXI
+
 STEXI
 @end table
 ETEXI
