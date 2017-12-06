@@ -273,7 +273,7 @@ static void esp_do_dma(ESPState *s)
         s->ti_size += len;
     else
         s->ti_size -= len;
-    if (s->async_len == 0) {
+    if (s->current_req && s->async_len == 0) {
         scsi_req_continue(s->current_req);
         /* If there is still data to be read from the device then
            complete the DMA operation immediately.  Otherwise defer

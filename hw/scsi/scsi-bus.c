@@ -1338,6 +1338,9 @@ void scsi_req_unref(SCSIRequest *req)
    will start the next chunk or complete the command.  */
 void scsi_req_continue(SCSIRequest *req)
 {
+    if (!req) {
+        return;
+    }
     if (req->io_canceled) {
         trace_scsi_req_continue_canceled(req->dev->id, req->lun, req->tag);
         return;
