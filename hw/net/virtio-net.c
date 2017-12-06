@@ -177,8 +177,8 @@ static void virtio_net_vhost_status(VirtIONet *n, uint8_t status)
             n->vhost_started = 0;
         }
     } else {
-        vhost_net_stop(vdev, n->nic->ncs, queues);
         n->vhost_started = 0;
+        vhost_net_stop(vdev, n->nic->ncs, queues);
     }
 }
 
