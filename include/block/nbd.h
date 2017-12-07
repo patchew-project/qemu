@@ -261,12 +261,13 @@ NBDExport *nbd_export_new(BlockDriverState *bs, off_t dev_offset, off_t size,
                           bool writethrough, BlockBackend *on_eject_blk,
                           Error **errp);
 void nbd_export_close(NBDExport *exp);
+void nbd_export_hide(NBDExport *exp);
 void nbd_export_get(NBDExport *exp);
 void nbd_export_put(NBDExport *exp);
 
 BlockBackend *nbd_export_get_blockdev(NBDExport *exp);
 
-NBDExport *nbd_export_find(const char *name);
+NBDExport *nbd_export_find(const char *name, bool include_hidden);
 void nbd_export_set_name(NBDExport *exp, const char *name);
 void nbd_export_set_description(NBDExport *exp, const char *description);
 void nbd_export_close_all(void);

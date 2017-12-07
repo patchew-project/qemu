@@ -78,6 +78,10 @@ struct NBDExport {
 
     BlockBackend *eject_notifier_blk;
     Notifier eject_notifier;
+
+    /* hidden export is not available for new connections and should be removed
+     * after last client disconnect */
+    bool hidden;
 };
 
 static QTAILQ_HEAD(, NBDExport) exports = QTAILQ_HEAD_INITIALIZER(exports);
@@ -300,7 +304,7 @@ static int nbd_negotiate_handle_export_name(NBDClient *client, uint32_t length,
 
     trace_nbd_negotiate_handle_export_name_request(name);
 
-    client->exp = nbd_export_find(name);
+    client->exp = nbd_export_find(name, false);
     if (!client->exp) {
         error_setg(errp, "export not found");
         return -EINVAL;
@@ -429,7 +433,7 @@ static int nbd_negotiate_handle_info(NBDClient *client, uint32_t length,
     }
     assert(length == 0);
 
-    exp = nbd_export_find(name);
+    exp = nbd_export_find(name, false);
     if (!exp) {
         return nbd_negotiate_send_rep_err(client->ioc, NBD_REP_ERR_UNKNOWN,
                                           opt, errp, "export '%s' not present",
@@ -966,6 +970,9 @@ void nbd_client_put(NBDClient *client)
         if (client->exp) {
             QTAILQ_REMOVE(&client->exp->clients, client, next);
             nbd_export_put(client->exp);
+            if (client->exp->hidden && QTAILQ_EMPTY(&client->exp->clients)) {
+                nbd_export_close(client->exp);
+            }
         }
         g_free(client);
     }
@@ -1125,10 +1132,14 @@ fail:
     return NULL;
 }
 
-NBDExport *nbd_export_find(const char *name)
+NBDExport *nbd_export_find(const char *name, bool include_hidden)
 {
     NBDExport *exp;
     QTAILQ_FOREACH(exp, &exports, next) {
+        if (!include_hidden && exp->hidden) {
+            continue;
+        }
+
         if (strcmp(name, exp->name) == 0) {
             return exp;
         }
@@ -1175,6 +1186,14 @@ void nbd_export_close(NBDExport *exp)
     nbd_export_set_name(exp, NULL);
     nbd_export_set_description(exp, NULL);
     nbd_export_put(exp);
+}
+
+void nbd_export_hide(NBDExport *exp)
+{
+    exp->hidden = true;
+    if (QTAILQ_EMPTY(&exp->clients)) {
+        nbd_export_close(exp);
+    }
 }
 
 void nbd_export_get(NBDExport *exp)

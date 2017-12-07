@@ -228,6 +228,24 @@
   'data': {'device': 'str', '*name': 'str', '*writable': 'bool'} }
 
 ##
+# @nbd-server-remove:
+#
+# Remove NBD export by name.
+#
+# @name: Export name.
+#
+# @force: Whether active connections to the export should be closed. If this
+#         parameter is false the export only becomes hidden from clients (new
+#         connections are impossible), and would be automatically freed after
+#         all clients are disconnected (default false).
+#
+# Returns: error if the server is not running or export is not found.
+#
+# Since: 2.12
+##
+{ 'command': 'nbd-server-remove', 'data': {'name': 'str', '*force': 'bool'} }
+
+##
 # @nbd-server-stop:
 #
 # Stop QEMU's embedded NBD server, and unregister all devices previously

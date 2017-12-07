@@ -174,7 +174,7 @@ void qmp_nbd_server_add(const char *device, bool has_name, const char *name,
         name = device;
     }
 
-    if (nbd_export_find(name)) {
+    if (nbd_export_find(name, true)) {
         error_setg(errp, "NBD server already has export named '%s'", name);
         return;
     }
@@ -205,6 +205,33 @@ void qmp_nbd_server_add(const char *device, bool has_name, const char *name,
      * our only way of accessing it is through nbd_export_find(), so we can drop
      * the strong reference that is @exp. */
     nbd_export_put(exp);
+}
+
+void qmp_nbd_server_remove(const char *name, bool has_force, bool force,
+                           Error **errp)
+{
+    NBDExport *exp;
+
+    if (!nbd_server) {
+        error_setg(errp, "NBD server not running");
+        return;
+    }
+
+    exp = nbd_export_find(name, true);
+    if (exp == NULL) {
+        error_setg(errp, "Export '%s' is not found", name);
+        return;
+    }
+
+    if (!has_force) {
+        force = false;
+    }
+
+    if (force) {
+        nbd_export_close(exp);
+    } else {
+        nbd_export_hide(exp);
+    }
 }
 
 void qmp_nbd_server_stop(Error **errp)
