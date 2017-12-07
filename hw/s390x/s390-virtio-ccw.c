@@ -152,14 +152,41 @@ static void virtio_ccw_register_hcalls(void)
                                    virtio_ccw_hcall_early_printk);
 }
 
+/*
+ * KVM does only support memory slots up to KVM_MEM_MAX_NR_PAGES pages
+ * as the dirty bitmap must be managed by bitops that take an int as
+ * position indicator. If we have a guest beyond that we will split off
+ * new subregions.
+ */
+#define KVM_SLOT_MAX ((((1UL << 31) - 1) * 4096) & ~0xfffffUL )
+
 static void s390_memory_init(ram_addr_t mem_size)
 {
     MemoryRegion *sysmem = get_system_memory();
-    MemoryRegion *ram = g_new(MemoryRegion, 1);
+    ram_addr_t chunk, offset;
+    unsigned int number;
+    gchar *name;
 
     /* allocate RAM for core */
-    memory_region_allocate_system_memory(ram, NULL, "s390.ram", mem_size);
-    memory_region_add_subregion(sysmem, 0, ram);
+    offset = 0;
+    number = 0;
+    name = g_strdup_printf("s390.ram");
+    while (mem_size) {
+        MemoryRegion *ram = g_new(MemoryRegion, 1);
+        chunk = mem_size;
+        /* KVM does not allow memslots >= 8 TB */
+        if (chunk > KVM_SLOT_MAX) {
+            chunk = KVM_SLOT_MAX;
+        }
+        memory_region_allocate_system_memory(ram, NULL, name, chunk);
+        memory_region_add_subregion(sysmem, offset, ram);
+        mem_size -= chunk;
+        offset += chunk;
+	number++;
+        g_free(name);
+        name = g_strdup_printf("s390.ram.%u", number);
+    }
+    g_free(name);
 
     /* Initialize storage key device */
     s390_skeys_init();
