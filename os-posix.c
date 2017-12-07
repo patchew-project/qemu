@@ -134,14 +134,6 @@ void os_set_proc_name(const char *s)
 void os_parse_cmd_args(int index, const char *optarg)
 {
     switch (index) {
-#ifdef CONFIG_SLIRP
-    case QEMU_OPTION_smb:
-        error_report("The -smb option is deprecated. "
-                     "Please use '-netdev user,smb=...' instead.");
-        if (net_slirp_smb(optarg) < 0)
-            exit(1);
-        break;
-#endif
     case QEMU_OPTION_runas:
         user_pwd = getpwnam(optarg);
         if (!user_pwd) {
