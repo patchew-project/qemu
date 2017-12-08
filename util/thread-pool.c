@@ -78,7 +78,7 @@ static void *worker_thread(void *opaque)
 {
     ThreadPool *pool = opaque;
 
-    qemu_mutex_lock(&pool->lock);
+    QEMU_LOCK_GUARD(QemuMutex, pool_guard, &pool->lock);
     pool->pending_threads--;
     do_spawn_thread(pool);
 
@@ -88,9 +88,9 @@ static void *worker_thread(void *opaque)
 
         do {
             pool->idle_threads++;
-            qemu_mutex_unlock(&pool->lock);
+            qemu_lock_guard_unlock(&pool_guard);
             ret = qemu_sem_timedwait(&pool->sem, 10000);
-            qemu_mutex_lock(&pool->lock);
+            qemu_lock_guard_lock(&pool_guard);
             pool->idle_threads--;
         } while (ret == -1 && !QTAILQ_EMPTY(&pool->request_list));
         if (ret == -1 || pool->stopping) {
@@ -100,7 +100,7 @@ static void *worker_thread(void *opaque)
         req = QTAILQ_FIRST(&pool->request_list);
         QTAILQ_REMOVE(&pool->request_list, req, reqs);
         req->state = THREAD_ACTIVE;
-        qemu_mutex_unlock(&pool->lock);
+        qemu_lock_guard_unlock(&pool_guard);
 
         ret = req->func(req->arg);
 
@@ -109,14 +109,13 @@ static void *worker_thread(void *opaque)
         smp_wmb();
         req->state = THREAD_DONE;
 
-        qemu_mutex_lock(&pool->lock);
+        qemu_lock_guard_lock(&pool_guard);
 
         qemu_bh_schedule(pool->completion_bh);
     }
 
     pool->cur_threads--;
     qemu_cond_signal(&pool->worker_stopped);
-    qemu_mutex_unlock(&pool->lock);
     return NULL;
 }
 
@@ -139,9 +138,8 @@ static void spawn_thread_bh_fn(void *opaque)
 {
     ThreadPool *pool = opaque;
 
-    qemu_mutex_lock(&pool->lock);
+    QEMU_LOCK_GUARD(QemuMutex, pool_guard, &pool->lock);
     do_spawn_thread(pool);
-    qemu_mutex_unlock(&pool->lock);
 }
 
 static void spawn_thread(ThreadPool *pool)
@@ -208,10 +206,10 @@ static void thread_pool_cancel(BlockAIOCB *acb)
 {
     ThreadPoolElement *elem = (ThreadPoolElement *)acb;
     ThreadPool *pool = elem->pool;
+    QEMU_LOCK_GUARD(QemuMutex, pool_guard, &pool->lock);
 
     trace_thread_pool_cancel(elem, elem->common.opaque);
 
-    qemu_mutex_lock(&pool->lock);
     if (elem->state == THREAD_QUEUED &&
         /* No thread has yet started working on elem. we can try to "steal"
          * the item from the worker if we can get a signal from the
@@ -225,8 +223,6 @@ static void thread_pool_cancel(BlockAIOCB *acb)
         elem->state = THREAD_DONE;
         elem->ret = -ECANCELED;
     }
-
-    qemu_mutex_unlock(&pool->lock);
 }
 
 static AioContext *thread_pool_get_aio_context(BlockAIOCB *acb)
@@ -258,12 +254,12 @@ BlockAIOCB *thread_pool_submit_aio(ThreadPool *pool,
 
     trace_thread_pool_submit(pool, req, arg);
 
-    qemu_mutex_lock(&pool->lock);
+    QEMU_LOCK_GUARD(QemuMutex, pool_guard, &pool->lock);
     if (pool->idle_threads == 0 && pool->cur_threads < pool->max_threads) {
         spawn_thread(pool);
     }
     QTAILQ_INSERT_TAIL(&pool->request_list, req, reqs);
-    qemu_mutex_unlock(&pool->lock);
+    qemu_lock_guard_unlock(&pool_guard);
     qemu_sem_post(&pool->sem);
     return &req->common;
 }
@@ -330,7 +326,7 @@ void thread_pool_free(ThreadPool *pool)
 
     assert(QLIST_EMPTY(&pool->head));
 
-    qemu_mutex_lock(&pool->lock);
+    QEMU_LOCK_GUARD(QemuMutex, pool_guard, &pool->lock);
 
     /* Stop new threads from spawning */
     qemu_bh_delete(pool->new_thread_bh);
@@ -344,7 +340,7 @@ void thread_pool_free(ThreadPool *pool)
         qemu_cond_wait(&pool->worker_stopped, &pool->lock);
     }
 
-    qemu_mutex_unlock(&pool->lock);
+    qemu_lock_guard_unlock(&pool_guard);
 
     qemu_bh_delete(pool->completion_bh);
     qemu_sem_destroy(&pool->sem);
