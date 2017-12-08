@@ -31,6 +31,25 @@
 #include <valgrind/valgrind.h>
 #endif
 
+#if (defined(__has_feature) && __has_feature(address_sanitizer)) || \
+    __SANITIZE_ADDRESS__
+#include <sanitizer/asan_interface.h>
+#else
+/* stub to check correct arguments */
+static inline void
+__sanitizer_start_switch_fiber(void **fake_stack_save,
+                               const void *bottom, size_t size)
+{
+}
+
+static inline void
+__sanitizer_finish_switch_fiber(void *fake_stack_save,
+                                const void **bottom_old,
+                                size_t *size_old)
+{
+}
+#endif
+
 typedef struct {
     Coroutine base;
     void *stack;
@@ -64,6 +83,15 @@ static void coroutine_trampoline(int i0, int i1)
     union cc_arg arg;
     CoroutineUContext *self;
     Coroutine *co;
+    const void *bottom_old;
+    size_t size_old;
+    void *fake_stack_save;
+
+    __sanitizer_finish_switch_fiber(NULL, &bottom_old, &size_old);
+    if (!leader.stack) {
+        leader.stack = (void *)bottom_old;
+        leader.stack_size = size_old;
+    }
 
     arg.i[0] = i0;
     arg.i[1] = i1;
@@ -72,8 +100,13 @@ static void coroutine_trampoline(int i0, int i1)
 
     /* Initialize longjmp environment and switch back the caller */
     if (!sigsetjmp(self->env, 0)) {
+        __sanitizer_start_switch_fiber(&fake_stack_save,
+                                       bottom_old, size_old);
         siglongjmp(*(sigjmp_buf *)co->entry_arg, 1);
     }
+
+    __sanitizer_finish_switch_fiber(&fake_stack_save,
+                                    NULL, NULL);
 
     while (true) {
         co->entry(co->entry_arg);
@@ -87,6 +120,7 @@ Coroutine *qemu_coroutine_new(void)
     ucontext_t old_uc, uc;
     sigjmp_buf old_env;
     union cc_arg arg = {0};
+    void *fake_stack_save;
 
     /* The ucontext functions preserve signal masks which incurs a
      * system call overhead.  sigsetjmp(buf, 0)/siglongjmp() does not
@@ -122,8 +156,13 @@ Coroutine *qemu_coroutine_new(void)
 
     /* swapcontext() in, siglongjmp() back out */
     if (!sigsetjmp(old_env, 0)) {
+        __sanitizer_start_switch_fiber(&fake_stack_save,
+                                       co->stack, co->stack_size);
         swapcontext(&old_uc, &uc);
     }
+
+    __sanitizer_finish_switch_fiber(&fake_stack_save, NULL, NULL);
+
     return &co->base;
 }
 
@@ -169,13 +208,21 @@ qemu_coroutine_switch(Coroutine *from_, Coroutine *to_,
     CoroutineUContext *from = DO_UPCAST(CoroutineUContext, base, from_);
     CoroutineUContext *to = DO_UPCAST(CoroutineUContext, base, to_);
     int ret;
+    void *fake_stack_save;
 
     current = to_;
 
     ret = sigsetjmp(from->env, 0);
     if (ret == 0) {
+
+        __sanitizer_start_switch_fiber(action == COROUTINE_TERMINATE ?
+                                       NULL : &fake_stack_save,
+                                       to->stack, to->stack_size);
         siglongjmp(to->env, action);
     }
+
+    __sanitizer_finish_switch_fiber(&fake_stack_save, NULL, NULL);
+
     return ret;
 }
 
