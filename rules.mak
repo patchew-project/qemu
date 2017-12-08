@@ -131,6 +131,11 @@ modules:
 # If called with only a single argument, will print nothing in quiet mode.
 quiet-command = $(if $(V),$1,$(if $(2),@printf "  %-7s %s\n" $2 $3 && $1, @$1))
 
+makeflags_ = $(makeflags_0)
+makeflags_0 = --no-print-directory -s
+makeflags_1 =
+MAKEFLAGS += $(makeflags_$(V))
+
 # cc-option
 # Usage: CFLAGS+=$(call cc-option, -falign-functions=0, -malign-functions=0)
 
