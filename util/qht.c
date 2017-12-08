@@ -248,18 +248,18 @@ void qht_map_lock_buckets__no_stale(struct qht *ht, struct qht_map **pmap)
     map = atomic_rcu_read(&ht->map);
     qht_map_lock_buckets(map);
     if (likely(!qht_map_is_stale__locked(ht, map))) {
-        *pmap = map;
-        return;
+        goto out;
     }
     qht_map_unlock_buckets(map);
 
     /* we raced with a resize; acquire ht->lock to see the updated ht->map */
-    qemu_mutex_lock(&ht->lock);
-    map = ht->map;
-    qht_map_lock_buckets(map);
-    qemu_mutex_unlock(&ht->lock);
+    QEMU_WITH_LOCK(QemuMutex, ht_guard, &ht->lock) {
+        map = ht->map;
+        qht_map_lock_buckets(map);
+    }
+
+out:
     *pmap = map;
-    return;
 }
 
 /*
@@ -282,17 +282,18 @@ struct qht_bucket *qht_bucket_lock__no_stale(struct qht *ht, uint32_t hash,
 
     qemu_spin_lock(&b->lock);
     if (likely(!qht_map_is_stale__locked(ht, map))) {
-        *pmap = map;
-        return b;
+        goto out;
     }
     qemu_spin_unlock(&b->lock);
 
     /* we raced with a resize; acquire ht->lock to see the updated ht->map */
-    qemu_mutex_lock(&ht->lock);
-    map = ht->map;
-    b = qht_map_to_bucket(map, hash);
-    qemu_spin_lock(&b->lock);
-    qemu_mutex_unlock(&ht->lock);
+    QEMU_WITH_LOCK(QemuMutex, ht_guard, &ht->lock) {
+        map = ht->map;
+        b = qht_map_to_bucket(map, hash);
+        qemu_spin_lock(&b->lock);
+    }
+
+out:
     *pmap = map;
     return b;
 }
@@ -427,13 +428,13 @@ bool qht_reset_size(struct qht *ht, size_t n_elems)
 
     n_buckets = qht_elems_to_buckets(n_elems);
 
-    qemu_mutex_lock(&ht->lock);
-    map = ht->map;
-    if (n_buckets != map->n_buckets) {
-        new = qht_map_create(n_buckets);
+    QEMU_WITH_LOCK(QemuMutex, ht_guard, &ht->lock) {
+        map = ht->map;
+        if (n_buckets != map->n_buckets) {
+            new = qht_map_create(n_buckets);
+        }
+        qht_do_resize_and_reset(ht, new);
     }
-    qht_do_resize_and_reset(ht, new);
-    qemu_mutex_unlock(&ht->lock);
 
     return !!new;
 }
@@ -771,19 +772,17 @@ static void qht_do_resize_reset(struct qht *ht, struct qht_map *new, bool reset)
 bool qht_resize(struct qht *ht, size_t n_elems)
 {
     size_t n_buckets = qht_elems_to_buckets(n_elems);
-    size_t ret = false;
 
-    qemu_mutex_lock(&ht->lock);
-    if (n_buckets != ht->map->n_buckets) {
-        struct qht_map *new;
+    QEMU_WITH_LOCK(QemuMutex, ht_guard, &ht->lock) {
+        if (n_buckets != ht->map->n_buckets) {
+            struct qht_map *new;
 
-        new = qht_map_create(n_buckets);
-        qht_do_resize(ht, new);
-        ret = true;
+            new = qht_map_create(n_buckets);
+            qht_do_resize(ht, new);
+            return true;
+        }
     }
-    qemu_mutex_unlock(&ht->lock);
-
-    return ret;
+    return false;
 }
 
 /* pass @stats to qht_statistics_destroy() when done */
