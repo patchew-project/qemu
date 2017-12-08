@@ -758,17 +758,6 @@ static void ivshmem_msix_vector_use(IVShmemState *s)
     }
 }
 
-static void ivshmem_reset(DeviceState *d)
-{
-    IVShmemState *s = IVSHMEM_COMMON(d);
-
-    s->intrstatus = 0;
-    s->intrmask = 0;
-    if (ivshmem_has_feature(s, IVSHMEM_MSI)) {
-        ivshmem_msix_vector_use(s);
-    }
-}
-
 static int ivshmem_setup_interrupts(IVShmemState *s, Error **errp)
 {
     /* allocate QEMU callback data for receiving interrupts */
@@ -853,6 +842,19 @@ static void ivshmem_disable_irqfd(IVShmemState *s)
         ivshmem_remove_kvm_msi_virq(s, i);
     }
 
+}
+
+static void ivshmem_reset(DeviceState *d)
+{
+    IVShmemState *s = IVSHMEM_COMMON(d);
+
+    ivshmem_disable_irqfd(s);
+
+    s->intrstatus = 0;
+    s->intrmask = 0;
+    if (ivshmem_has_feature(s, IVSHMEM_MSI)) {
+        ivshmem_msix_vector_use(s);
+    }
 }
 
 static void ivshmem_write_config(PCIDevice *pdev, uint32_t address,
