@@ -5129,6 +5129,11 @@ elif test "$fortify_source" = "yes" ; then
   CFLAGS="-O2 -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 $CFLAGS"
 elif test "$debug" = "no"; then
   CFLAGS="-O2 $CFLAGS"
+elif test "$debug" = "yes"; then
+    write_c_skeleton;
+    if compile_prog "-fsanitize=address" ""; then
+        CFLAGS="-fsanitize=address $CFLAGS"
+    fi
 fi
 
 ##########################################
