@@ -72,6 +72,7 @@ enum {
     VIRT_GPIO,
     VIRT_SECURE_UART,
     VIRT_SECURE_MEM,
+    VIRT_UART_2,
 };
 
 typedef struct MemMapEntry {
@@ -85,6 +86,7 @@ typedef struct {
     bool no_its;
     bool no_pmu;
     bool claim_edge_triggered_timers;
+    bool no_second_uart;
 } VirtMachineClass;
 
 typedef struct {
