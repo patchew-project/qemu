@@ -192,14 +192,11 @@ bool timerlist_expired(QEMUTimerList *timer_list)
         return false;
     }
 
-    qemu_mutex_lock(&timer_list->active_timers_lock);
+    QEMU_LOCK_GUARD(QemuMutex, timers_guard, &timer_list->active_timers_lock);
     if (!timer_list->active_timers) {
-        qemu_mutex_unlock(&timer_list->active_timers_lock);
         return false;
     }
     expire_time = timer_list->active_timers->expire_time;
-    qemu_mutex_unlock(&timer_list->active_timers_lock);
-
     return expire_time <= qemu_clock_get_ns(timer_list->clock->type);
 }
 
@@ -231,13 +228,13 @@ int64_t timerlist_deadline_ns(QEMUTimerList *timer_list)
      * value but ->notify_cb() is called when the deadline changes.  Therefore
      * the caller should notice the change and there is no race condition.
      */
-    qemu_mutex_lock(&timer_list->active_timers_lock);
-    if (!timer_list->active_timers) {
-        qemu_mutex_unlock(&timer_list->active_timers_lock);
-        return -1;
+    QEMU_WITH_LOCK(QemuMutex, timers_guard,
+                         &timer_list->active_timers_lock) {
+        if (!timer_list->active_timers) {
+            return -1;
+        }
+        expire_time = timer_list->active_timers->expire_time;
     }
-    expire_time = timer_list->active_timers->expire_time;
-    qemu_mutex_unlock(&timer_list->active_timers_lock);
 
     delta = expire_time - qemu_clock_get_ns(timer_list->clock->type);
 
@@ -410,9 +407,8 @@ void timer_del(QEMUTimer *ts)
     QEMUTimerList *timer_list = ts->timer_list;
 
     if (timer_list) {
-        qemu_mutex_lock(&timer_list->active_timers_lock);
+        QEMU_LOCK_GUARD(QemuMutex, timers_guard, &timer_list->active_timers_lock);
         timer_del_locked(timer_list, ts);
-        qemu_mutex_unlock(&timer_list->active_timers_lock);
     }
 }
 
@@ -423,10 +419,11 @@ void timer_mod_ns(QEMUTimer *ts, int64_t expire_time)
     QEMUTimerList *timer_list = ts->timer_list;
     bool rearm;
 
-    qemu_mutex_lock(&timer_list->active_timers_lock);
-    timer_del_locked(timer_list, ts);
-    rearm = timer_mod_ns_locked(timer_list, ts, expire_time);
-    qemu_mutex_unlock(&timer_list->active_timers_lock);
+    QEMU_WITH_LOCK(QemuMutex, timers_guard,
+                         &timer_list->active_timers_lock) {
+        timer_del_locked(timer_list, ts);
+        rearm = timer_mod_ns_locked(timer_list, ts, expire_time);
+    }
 
     if (rearm) {
         timerlist_rearm(timer_list);
@@ -441,16 +438,17 @@ void timer_mod_anticipate_ns(QEMUTimer *ts, int64_t expire_time)
     QEMUTimerList *timer_list = ts->timer_list;
     bool rearm;
 
-    qemu_mutex_lock(&timer_list->active_timers_lock);
-    if (ts->expire_time == -1 || ts->expire_time > expire_time) {
-        if (ts->expire_time != -1) {
-            timer_del_locked(timer_list, ts);
+    QEMU_WITH_LOCK(QemuMutex, timers_guard,
+                         &timer_list->active_timers_lock) {
+        if (ts->expire_time == -1 || ts->expire_time > expire_time) {
+            if (ts->expire_time != -1) {
+                timer_del_locked(timer_list, ts);
+            }
+            rearm = timer_mod_ns_locked(timer_list, ts, expire_time);
+        } else {
+            rearm = false;
         }
-        rearm = timer_mod_ns_locked(timer_list, ts, expire_time);
-    } else {
-        rearm = false;
     }
-    qemu_mutex_unlock(&timer_list->active_timers_lock);
 
     if (rearm) {
         timerlist_rearm(timer_list);
@@ -516,25 +514,27 @@ bool timerlist_run_timers(QEMUTimerList *timer_list)
     }
 
     current_time = qemu_clock_get_ns(timer_list->clock->type);
-    for(;;) {
-        qemu_mutex_lock(&timer_list->active_timers_lock);
-        ts = timer_list->active_timers;
-        if (!timer_expired_ns(ts, current_time)) {
-            qemu_mutex_unlock(&timer_list->active_timers_lock);
-            break;
+    QEMU_WITH_LOCK(QemuMutex, timers_guard,
+                         &timer_list->active_timers_lock) {
+        for(;;) {
+            ts = timer_list->active_timers;
+            if (!timer_expired_ns(ts, current_time)) {
+                break;
+            }
+
+            /* remove timer from the list before calling the callback */
+            timer_list->active_timers = ts->next;
+            ts->next = NULL;
+            ts->expire_time = -1;
+            cb = ts->cb;
+            opaque = ts->opaque;
+
+            /* run the callback (the timer list can be modified) */
+            qemu_lock_guard_unlock(&timers_guard);
+            cb(opaque);
+            progress = true;
+            qemu_lock_guard_lock(&timers_guard);
         }
-
-        /* remove timer from the list before calling the callback */
-        timer_list->active_timers = ts->next;
-        ts->next = NULL;
-        ts->expire_time = -1;
-        cb = ts->cb;
-        opaque = ts->opaque;
-        qemu_mutex_unlock(&timer_list->active_timers_lock);
-
-        /* run the callback (the timer list can be modified) */
-        cb(opaque);
-        progress = true;
     }
 
 out:
