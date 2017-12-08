@@ -94,6 +94,21 @@
 #define QEMU_BUILD_BUG_ON_ZERO(x) (sizeof(QEMU_BUILD_BUG_ON_STRUCT(x)) - \
                                    sizeof(QEMU_BUILD_BUG_ON_STRUCT(x)))
 
+/* Provide an extern declaration for a C99 inline function.  This can
+ * be simply placed in a C file but, unfortunately, this means the
+ * declaration comes after the inline definition, and GCC thus
+ * stubbornly raises a -Wredundant-decls warning.
+ *
+ * Putting the declaration before the header would be uglier (it couldn't
+ * just use typeof) and not always possible if the function requires types
+ * that are defined in the header.  Therefore, we just shut up the warning.
+ */
+#define QEMU_EXTERN_INLINE(func)                             \
+    _Pragma("GCC diagnostic push");                          \
+    _Pragma("GCC diagnostic ignored \"-Wredundant-decls\""); \
+    extern typeof(func) func;                                \
+    _Pragma("GCC diagnostic pop")                            \
+
 #if defined __GNUC__
 # if !QEMU_GNUC_PREREQ(4, 4)
    /* gcc versions before 4.4.x don't support gnu_printf, so use printf. */
