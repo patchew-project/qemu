@@ -17,6 +17,7 @@
 
 #include "qemu/queue.h"
 #include "qemu/timer.h"
+#include "qemu/lock-guard.h"
 
 /**
  * Coroutines are a mechanism for stack switching and can be used for
@@ -161,6 +162,9 @@ void coroutine_fn qemu_co_mutex_lock(CoMutex *mutex);
  * lock to be run.
  */
 void coroutine_fn qemu_co_mutex_unlock(CoMutex *mutex);
+
+#define QEMU_LOCK_GUARD_FUNCS_CoMutex \
+    QEMU_INIT_LOCK_GUARD(CoMutex, qemu_co_mutex_lock, qemu_co_mutex_unlock)
 
 
 /**

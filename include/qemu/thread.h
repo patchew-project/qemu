@@ -3,6 +3,7 @@
 
 #include "qemu/processor.h"
 #include "qemu/atomic.h"
+#include "qemu/lock-guard.h"
 
 typedef struct QemuMutex QemuMutex;
 typedef struct QemuCond QemuCond;
@@ -25,6 +26,9 @@ void qemu_mutex_destroy(QemuMutex *mutex);
 void qemu_mutex_lock(QemuMutex *mutex);
 int qemu_mutex_trylock(QemuMutex *mutex);
 void qemu_mutex_unlock(QemuMutex *mutex);
+
+#define QEMU_LOCK_GUARD_FUNCS_QemuMutex \
+    QEMU_INIT_LOCK_GUARD(QemuMutex, qemu_mutex_lock, qemu_mutex_unlock)
 
 /* Prototypes for other functions are in thread-posix.h/thread-win32.h.  */
 void qemu_rec_mutex_init(QemuRecMutex *mutex);
@@ -98,6 +102,9 @@ static inline void qemu_spin_unlock(QemuSpin *spin)
 {
     __sync_lock_release(&spin->value);
 }
+
+#define QEMU_LOCK_GUARD_FUNCS_QemuSpin \
+    QEMU_INIT_LOCK_GUARD(QemuSpin, qemu_spin_lock, qemu_spin_lock)
 
 struct QemuLockCnt {
 #ifndef CONFIG_LINUX
