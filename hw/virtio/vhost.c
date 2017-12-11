@@ -408,6 +408,13 @@ static int vhost_update_mem_cb(MemoryRegionSection *mrs, void *opaque)
     if (!vhost_section(mrs)) {
         return 0;
     }
+    ++vtmp->dev->n_mem_sections;
+    vtmp->dev->mem_sections = g_renew(MemoryRegionSection,
+                                      vtmp->dev->mem_sections,
+                                      vtmp->dev->n_mem_sections);
+    vtmp->dev->mem_sections[vtmp->dev->n_mem_sections - 1] = *mrs;
+    memory_region_ref(mrs->mr);
+
     mrs_size = int128_get64(mrs->size);
     mrs_gpa  = mrs->offset_within_address_space;
     mrs_host = (uintptr_t)memory_region_get_ram_ptr(mrs->mr) +
@@ -461,6 +468,7 @@ static int vhost_update_mem_cb(MemoryRegionSection *mrs, void *opaque)
 static int vhost_update_mem(struct vhost_dev *dev, bool *changed)
 {
     int res;
+    unsigned i;
     struct vhost_update_mem_tmp vtmp;
     size_t mem_size;
     vtmp.regions = 0;
@@ -469,6 +477,14 @@ static int vhost_update_mem(struct vhost_dev *dev, bool *changed)
 
     trace_vhost_update_mem();
     *changed = false;
+    /* Clear out the section list, it'll get rebuilt */
+    for (i = 0; i < dev->n_mem_sections; i++) {
+        memory_region_unref(dev->mem_sections[i].mr);
+    }
+    g_free(dev->mem_sections);
+    dev->mem_sections = NULL;
+    dev->n_mem_sections = 0;
+
     res = address_space_iterate(&address_space_memory,
                                 vhost_update_mem_cb, &vtmp);
     if (res) {
@@ -550,46 +566,6 @@ static void vhost_commit(MemoryListener *listener)
     /* To log less, can only decrease log size after table update. */
     if (dev->log_size > log_size + VHOST_LOG_BUFFER) {
         vhost_dev_log_resize(dev, log_size);
-    }
-}
-
-static void vhost_region_add(MemoryListener *listener,
-                             MemoryRegionSection *section)
-{
-    struct vhost_dev *dev = container_of(listener, struct vhost_dev,
-                                         memory_listener);
-
-    if (!vhost_section(section)) {
-        return;
-    }
-
-    ++dev->n_mem_sections;
-    dev->mem_sections = g_renew(MemoryRegionSection, dev->mem_sections,
-                                dev->n_mem_sections);
-    dev->mem_sections[dev->n_mem_sections - 1] = *section;
-    memory_region_ref(section->mr);
-}
-
-static void vhost_region_del(MemoryListener *listener,
-                             MemoryRegionSection *section)
-{
-    struct vhost_dev *dev = container_of(listener, struct vhost_dev,
-                                         memory_listener);
-    int i;
-
-    if (!vhost_section(section)) {
-        return;
-    }
-
-    memory_region_unref(section->mr);
-    for (i = 0; i < dev->n_mem_sections; ++i) {
-        if (dev->mem_sections[i].offset_within_address_space
-            == section->offset_within_address_space) {
-            --dev->n_mem_sections;
-            memmove(&dev->mem_sections[i], &dev->mem_sections[i+1],
-                    (dev->n_mem_sections - i) * sizeof(*dev->mem_sections));
-            break;
-        }
     }
 }
 
@@ -1165,8 +1141,6 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
 
     hdev->memory_listener = (MemoryListener) {
         .commit = vhost_commit,
-        .region_add = vhost_region_add,
-        .region_del = vhost_region_del,
         .region_nop = vhost_region_nop,
         .log_start = vhost_log_start,
         .log_stop = vhost_log_stop,
