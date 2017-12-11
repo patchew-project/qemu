@@ -1482,6 +1482,9 @@ void cpu_x86_update_cr3(CPUX86State *env, target_ulong new_cr3);
 void cpu_x86_update_cr4(CPUX86State *env, uint32_t new_cr4);
 void cpu_x86_update_dr7(CPUX86State *env, uint32_t new_dr7);
 
+void cpu_x86_write_msr(CPUX86State *env, uint64_t val);
+uint64_t cpu_x86_read_msr(CPUX86State *env);
+
 /* hw/pc.c */
 uint64_t cpu_get_tsc(CPUX86State *env);
 
