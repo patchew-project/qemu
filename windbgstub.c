@@ -60,6 +60,62 @@ typedef struct WindbgState {
 
 static WindbgState *windbg_state;
 
+static uint32_t compute_checksum(uint8_t *data, uint16_t len)
+{
+    uint32_t checksum = 0;
+    while (len) {
+        --len;
+        checksum += *data++;
+    }
+    return checksum;
+}
+
+__attribute__ ((unused)) /* unused yet */
+static void windbg_send_data_packet(uint8_t *data, uint16_t byte_count,
+                                    uint16_t type)
+{
+    uint8_t trailing_byte = PACKET_TRAILING_BYTE;
+
+    KD_PACKET packet = {
+        .PacketLeader = PACKET_LEADER,
+        .PacketType = type,
+        .ByteCount = byte_count,
+        .PacketId = windbg_state->data_packet_id,
+        .Checksum = compute_checksum(data, byte_count)
+    };
+
+    stw_p(&packet.PacketType, packet.PacketType);
+    stw_p(&packet.ByteCount, packet.ByteCount);
+    stl_p(&packet.PacketId, packet.PacketId);
+    stl_p(&packet.Checksum, packet.Checksum);
+
+    qemu_chr_fe_write(&windbg_state->chr, PTR(packet), sizeof(packet));
+    qemu_chr_fe_write(&windbg_state->chr, data, byte_count);
+    qemu_chr_fe_write(&windbg_state->chr, &trailing_byte,
+                      sizeof(trailing_byte));
+
+    windbg_state->data_packet_id ^= 1;
+}
+
+__attribute__ ((unused)) /* unused yet */
+static void windbg_send_control_packet(uint16_t type)
+{
+    KD_PACKET packet = {
+        .PacketLeader = CONTROL_PACKET_LEADER,
+        .PacketType = type,
+        .ByteCount = 0,
+        .PacketId = windbg_state->ctrl_packet_id,
+        .Checksum = 0
+    };
+
+    stw_p(&packet.PacketType, packet.PacketType);
+    stl_p(&packet.PacketId, packet.PacketId);
+
+    qemu_chr_fe_write(&windbg_state->chr, PTR(packet), sizeof(packet));
+
+    windbg_state->ctrl_packet_id ^= 1;
+}
+
 static void windbg_ctx_handler(ParsingContext *ctx)
 {}
 
