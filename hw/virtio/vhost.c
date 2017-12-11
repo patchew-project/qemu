@@ -634,11 +634,51 @@ static void vhost_begin(MemoryListener *listener)
     dev->mem_changed_start_addr = -1;
 }
 
+struct vhost_update_mem_tmp {
+    struct vhost_dev   *dev;
+    uint32_t nregions;
+    struct vhost_memory_region *regions;
+};
+
+/* Called for each MRS from vhost_update_mem */
+static int vhost_update_mem_cb(MemoryRegionSection *mrs, void *opaque)
+{
+    if (!vhost_section(mrs)) {
+        return 0;
+    }
+
+    /* TODO */
+    return 0;
+}
+
+static int vhost_update_mem(struct vhost_dev *dev, bool *changed)
+{
+    int res;
+    struct vhost_update_mem_tmp vtmp;
+    vtmp.regions = 0;
+    vtmp.nregions = 0;
+    vtmp.dev = dev;
+
+    *changed = false;
+    res = address_space_iterate(&address_space_memory,
+                                vhost_update_mem_cb, &vtmp);
+    if (res) {
+        goto out;
+    }
+
+    /* TODO */
+    *changed = dev->mem_changed_start_addr < dev->mem_changed_end_addr;
+out:
+    g_free(vtmp.regions);
+    return res;
+}
+
 static void vhost_commit(MemoryListener *listener)
 {
     struct vhost_dev *dev = container_of(listener, struct vhost_dev,
                                          memory_listener);
     uint64_t log_size;
+    bool changed;
     int r;
 
     if (!dev->memory_changed) {
@@ -647,7 +687,12 @@ static void vhost_commit(MemoryListener *listener)
     if (!dev->started) {
         return;
     }
-    if (dev->mem_changed_start_addr > dev->mem_changed_end_addr) {
+    if (vhost_update_mem(dev, &changed)) {
+        return;
+    }
+
+    if (!changed) {
+        /* None of the mappings we care about changed */
         return;
     }
 
@@ -1523,6 +1568,7 @@ void vhost_ack_features(struct vhost_dev *hdev, const int *feature_bits,
 int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
 {
     int i, r;
+    bool changed;
 
     /* should only be called after backend is connected */
     assert(hdev->vhost_ops);
@@ -1535,6 +1581,9 @@ int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
         goto fail_features;
     }
 
+    if (vhost_update_mem(hdev, &changed)) {
+        goto fail_mem;
+    }
     if (vhost_dev_has_iommu(hdev)) {
         memory_listener_register(&hdev->iommu_listener, vdev->dma_as);
     }
