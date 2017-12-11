@@ -643,11 +643,63 @@ struct vhost_update_mem_tmp {
 /* Called for each MRS from vhost_update_mem */
 static int vhost_update_mem_cb(MemoryRegionSection *mrs, void *opaque)
 {
+    struct vhost_update_mem_tmp *vtmp = opaque;
+    struct vhost_memory_region *cur_vmr;
+    bool need_add = true;
+    uint64_t mrs_size;
+    uint64_t mrs_gpa;
+    uintptr_t mrs_host;
+
     if (!vhost_section(mrs)) {
         return 0;
     }
+    mrs_size = int128_get64(mrs->size);
+    mrs_gpa  = mrs->offset_within_address_space;
+    mrs_host = (uintptr_t)memory_region_get_ram_ptr(mrs->mr) +
+                         mrs->offset_within_region;
 
-    /* TODO */
+    trace_vhost_update_mem_cb(mrs->mr->name, mrs_gpa, mrs_size, mrs_host);
+
+    if (vtmp->nregions) {
+        /* Since we already have at least one region, lets see if
+         * this extends it; since we're scanning in order, we only
+         * have to look at the last one, and the FlatView that calls
+         * us shouldn't have overlaps.
+         */
+        struct vhost_memory_region *prev_vmr = vtmp->regions +
+                                               (vtmp->nregions - 1);
+        uint64_t prev_gpa_start = prev_vmr->guest_phys_addr;
+        uint64_t prev_gpa_end   = range_get_last(prev_gpa_start,
+                                                 prev_vmr->memory_size);
+        uint64_t prev_host_start = prev_vmr->userspace_addr;
+        uint64_t prev_host_end   = range_get_last(prev_host_start,
+                                                  prev_vmr->memory_size);
+
+        if (prev_gpa_end + 1 == mrs_gpa &&
+            prev_host_end + 1 == mrs_host &&
+            (!vtmp->dev->vhost_ops->vhost_backend_can_merge ||
+                vtmp->dev->vhost_ops->vhost_backend_can_merge(vtmp->dev,
+                    mrs_host, mrs_size,
+                    prev_host_start, prev_vmr->memory_size))) {
+            /* The two regions abut */
+            need_add = false;
+            mrs_size = mrs_size + prev_vmr->memory_size;
+            prev_vmr->memory_size = mrs_size;
+            trace_vhost_update_mem_cb_abut(mrs->mr->name, mrs_size);
+        }
+    }
+
+    if (need_add) {
+        vtmp->nregions++;
+        vtmp->regions = g_realloc_n(vtmp->regions, vtmp->nregions,
+                                    sizeof(vtmp->regions[0]));
+        cur_vmr = &vtmp->regions[vtmp->nregions - 1];
+        cur_vmr->guest_phys_addr = mrs_gpa;
+        cur_vmr->memory_size     = mrs_size;
+        cur_vmr->userspace_addr  = mrs_host;
+        cur_vmr->flags_padding = 0;
+    }
+
     return 0;
 }
 
