@@ -42,4 +42,35 @@ static inline void *memcpy(void *s1, const void *s2, size_t n)
     return s1;
 }
 
+static inline int memcmp(const void *s1, const void *s2, size_t n)
+{
+    int i;
+    const uint8_t *p1 = s1, *p2 = s2;
+
+    for (i = 0; i < n; i++) {
+        if (p1[i] != p2[i]) {
+            return p1[i] > p2[i] ? 1 : -1;
+        }
+    }
+
+    return 0;
+}
+
+static inline size_t strlen(const char *str)
+{
+    size_t i;
+    for (i = 0; *str; i++) {
+        str++;
+    }
+    return i;
+}
+
+static inline int isdigit(int c)
+{
+    return (c >= '0') && (c <= '9');
+}
+
+int atoi(const char *str);
+char *itostr(int num, char *str, size_t len);
+
 #endif
