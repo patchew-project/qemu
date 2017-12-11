@@ -47,4 +47,6 @@ typedef struct SizedBuf {
     size_t size;
 } SizedBuf;
 
+bool windbg_on_load(void);
+
 #endif
