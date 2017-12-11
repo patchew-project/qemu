@@ -126,7 +126,31 @@ static void windbg_vm_stop(void)
 }
 
 static void windbg_process_manipulate_packet(ParsingContext *ctx)
-{}
+{
+    CPUState *cpu;
+
+    ctx->data.extra_size = ctx->packet.ByteCount -
+                           sizeof(DBGKD_MANIPULATE_STATE64);
+    ctx->data.m64.ReturnStatus = STATUS_SUCCESS;
+
+    cpu = qemu_get_cpu(ctx->data.m64.Processor);
+    if (cpu == NULL) {
+        cpu = qemu_get_cpu(0);
+    }
+
+    switch (ctx->data.m64.ApiNumber) {
+
+    default:
+        kd_api_unsupported(cpu, &ctx->data);
+        break;
+    }
+
+    stl_p(&ctx->data.m64.ReturnStatus, ctx->data.m64.ReturnStatus);
+
+    windbg_send_data_packet(ctx->data.buf, ctx->data.extra_size +
+                            sizeof(DBGKD_MANIPULATE_STATE64),
+                            ctx->packet.PacketType);
+}
 
 static void windbg_process_data_packet(ParsingContext *ctx)
 {
