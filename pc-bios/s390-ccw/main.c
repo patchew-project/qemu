@@ -112,6 +112,8 @@ static void virtio_setup(void)
             vdev->selected_scsi_device.lun = iplb.scsi.lun;
             blk_schid.ssid = iplb.scsi.ssid & 0x3;
             found = find_dev(&schib, iplb.scsi.devno);
+            menu_set_parms(iplb.scsi.boot_menu_flags,
+                            iplb.scsi.boot_menu_timeout);
             break;
         default:
             panic("List-directed IPL not supported yet!\n");

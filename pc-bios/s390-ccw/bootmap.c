@@ -552,14 +552,17 @@ static void ipl_scsi(void)
         }
 
         program_table_entries++;
-        if (program_table_entries == loadparm + 1) {
-            break; /* selected entry found */
-        }
     }
 
     debug_print_int("program table entries", program_table_entries);
 
     IPL_assert(program_table_entries != 0, "Empty Program Table");
+
+    if (menu_check_flags(BOOT_MENU_FLAG_BOOT_OPTS)) {
+        loadparm = menu_get_enum_boot_index(program_table_entries);
+    }
+
+    prog_table_entry = (ScsiBlockPtr *)(sec + pte_len * (loadparm + 1));
 
     zipl_run(prog_table_entry); /* no return */
 }
