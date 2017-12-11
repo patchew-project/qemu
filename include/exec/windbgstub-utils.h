@@ -47,6 +47,14 @@ typedef struct SizedBuf {
     size_t size;
 } SizedBuf;
 
+typedef struct InitedAddr {
+    target_ulong addr;
+    bool is_init;
+} InitedAddr;
+
+InitedAddr *windbg_get_KPCR(void);
+InitedAddr *windbg_get_version(void);
+
 bool windbg_on_load(void);
 
 #endif
