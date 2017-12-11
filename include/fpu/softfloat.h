@@ -395,6 +395,13 @@ static inline float16 float16_set_sign(float16 a, int sign)
     return make_float16((float16_val(a) & 0x7fff) | (sign << 15));
 }
 
+#define float16_zero make_float16(0)
+#define float16_one make_float16(0x3a00)
+#define float16_ln2 make_float16(0x34d1)
+#define float16_pi make_float16(0x4448)
+#define float16_half make_float16(0x3800)
+#define float16_infinity make_float16(0x7a00)
+
 /*----------------------------------------------------------------------------
 | The pattern for a default generated half-precision NaN.
 *----------------------------------------------------------------------------*/
