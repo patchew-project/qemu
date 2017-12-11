@@ -23,6 +23,8 @@
 #include "hw/s390x/ebcdic.h"
 #include "ipl.h"
 #include "qemu/error-report.h"
+#include "qemu/config-file.h"
+#include "qemu/cutils.h"
 
 #define KERN_IMAGE_START                0x010000UL
 #define KERN_PARM_AREA                  0x010480UL
@@ -32,6 +34,9 @@
 #define PARMFILE_START                  0x001000UL
 #define ZIPL_IMAGE_START                0x009000UL
 #define IPL_PSW_MASK                    (PSW_MASK_32 | PSW_MASK_64)
+
+#define BOOT_MENU_FLAG_BOOT_OPTS 0x80
+#define BOOT_MENU_FLAG_ZIPL_OPTS 0x40
 
 static bool iplb_extended_needed(void *opaque)
 {
@@ -219,6 +224,51 @@ static Property s390_ipl_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static void s390_ipl_set_boot_menu(uint8_t *boot_menu_flags,
+                                   uint16_t *boot_menu_timeout)
+{
+    MachineState *machine = MACHINE(qdev_get_machine());
+    char *lp = object_property_get_str(OBJECT(machine), "loadparm", NULL);
+    QemuOptsList *plist = qemu_find_opts("boot-opts");
+    QemuOpts *opts = QTAILQ_FIRST(&plist->head);
+    const char *p = qemu_opt_get(opts, "menu");
+    unsigned long timeout = 0;
+
+    if (memcmp(lp, "PROMPT  ", 8) == 0) {
+        *boot_menu_flags = BOOT_MENU_FLAG_BOOT_OPTS;
+
+    } else if (*lp) {
+        /* If loadparm is set to any value, then discard boot menu */
+        return;
+
+    } else if (!p) {
+        /* In the absence of -boot menu, use zipl loader parameters */
+        *boot_menu_flags = BOOT_MENU_FLAG_ZIPL_OPTS;
+
+    } else if (strncmp(p, "on", 2) == 0) {
+        *boot_menu_flags = BOOT_MENU_FLAG_BOOT_OPTS;
+
+        p = qemu_opt_get(opts, "splash-time");
+
+        if (p && qemu_strtoul(p, NULL, 10, &timeout)) {
+            error_report("splash-time value is invalid, forcing it to 0.");
+            return;
+        }
+
+        /* Store timeout value as seconds */
+        timeout /= 1000;
+
+        if (timeout > 0xffff) {
+            error_report("splash-time value is greater than 65535000,"
+                         " forcing it to 65535000.");
+            *boot_menu_timeout = 0xffff;
+            return;
+        }
+
+        *boot_menu_timeout = timeout;
+    }
+}
+
 static bool s390_gen_initial_iplb(S390IPLState *ipl)
 {
     DeviceState *dev_st;
@@ -245,6 +295,8 @@ static bool s390_gen_initial_iplb(S390IPLState *ipl)
             ipl->iplb.pbt = S390_IPL_TYPE_CCW;
             ipl->iplb.ccw.devno = cpu_to_be16(ccw_dev->sch->devno);
             ipl->iplb.ccw.ssid = ccw_dev->sch->ssid & 3;
+            s390_ipl_set_boot_menu(&ipl->iplb.ccw.boot_menu_flags,
+                                   &ipl->iplb.ccw.boot_menu_timeout);
         } else if (sd) {
             SCSIBus *bus = scsi_bus_from_device(sd);
             VirtIOSCSI *vdev = container_of(bus, VirtIOSCSI, bus);
@@ -266,6 +318,8 @@ static bool s390_gen_initial_iplb(S390IPLState *ipl)
             ipl->iplb.scsi.channel = cpu_to_be16(sd->channel);
             ipl->iplb.scsi.devno = cpu_to_be16(ccw_dev->sch->devno);
             ipl->iplb.scsi.ssid = ccw_dev->sch->ssid & 3;
+            s390_ipl_set_boot_menu(&ipl->iplb.scsi.boot_menu_flags,
+                                   &ipl->iplb.scsi.boot_menu_timeout);
         } else {
             return false; /* unknown device */
         }
@@ -273,6 +327,7 @@ static bool s390_gen_initial_iplb(S390IPLState *ipl)
         if (!s390_ipl_set_loadparm(ipl->iplb.loadparm)) {
             ipl->iplb.flags |= DIAG308_FLAGS_LP_VALID;
         }
+
         return true;
     }
 
