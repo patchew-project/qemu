@@ -224,6 +224,14 @@ static void windbg_process_manipulate_packet(ParsingContext *ctx)
         kd_api_query_memory(cpu, &ctx->data);
         break;
 
+    case DbgKdGetContextExApi:
+        kd_api_get_context_ex(cpu, &ctx->data);
+        break;
+
+    case DbgKdSetContextExApi:
+        kd_api_set_context_ex(cpu, &ctx->data);
+        break;
+
     default:
         kd_api_unsupported(cpu, &ctx->data);
         break;
@@ -262,13 +270,13 @@ static void windbg_process_control_packet(ParsingContext *ctx)
 
     case PACKET_TYPE_KD_RESET:
     {
+        windbg_send_control_packet(ctx->packet.PacketType);
+        windbg_state->ctrl_packet_id = INITIAL_PACKET_ID;
+
         SizedBuf buf = kd_gen_load_symbols_sc(qemu_get_cpu(0));
         windbg_send_data_packet(buf.data, buf.size,
                                 PACKET_TYPE_KD_STATE_CHANGE64);
         g_free(buf.data);
-
-        windbg_send_control_packet(ctx->packet.PacketType);
-        windbg_state->ctrl_packet_id = INITIAL_PACKET_ID;
         break;
     }
     default:
