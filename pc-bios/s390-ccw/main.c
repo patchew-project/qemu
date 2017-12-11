@@ -11,6 +11,7 @@
 #include "libc.h"
 #include "s390-ccw.h"
 #include "virtio.h"
+#include "menu.h"
 
 char stack[PAGE_SIZE * 8] __attribute__((__aligned__(PAGE_SIZE)));
 static SubChannelId blk_schid = { .one = 1 };
@@ -101,6 +102,8 @@ static void virtio_setup(void)
             blk_schid.ssid = iplb.ccw.ssid & 0x3;
             debug_print_int("ssid ", blk_schid.ssid);
             found = find_dev(&schib, dev_no);
+            menu_set_parms(iplb.ccw.boot_menu_flags,
+                           iplb.ccw.boot_menu_timeout);
             break;
         case S390_IPL_TYPE_QEMU_SCSI:
             vdev->scsi_device_selected = true;
