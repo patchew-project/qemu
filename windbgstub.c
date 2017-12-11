@@ -60,6 +60,105 @@ typedef struct WindbgState {
 
 static WindbgState *windbg_state;
 
+static void windbg_ctx_handler(ParsingContext *ctx)
+{}
+
+static void windbg_read_byte(ParsingContext *ctx, uint8_t byte)
+{
+    switch (ctx->state) {
+    case STATE_LEADER:
+        ctx->result = RESULT_NONE;
+        if (byte == PACKET_LEADER_BYTE || byte == CONTROL_PACKET_LEADER_BYTE) {
+            if (ctx->index > 0 && byte != PTR(ctx->packet.PacketLeader)[0]) {
+                ctx->index = 0;
+            }
+            PTR(ctx->packet.PacketLeader)[ctx->index] = byte;
+            ++ctx->index;
+            if (ctx->index == sizeof(ctx->packet.PacketLeader)) {
+                ctx->state = STATE_PACKET_TYPE;
+                ctx->index = 0;
+            }
+        } else if (byte == BREAKIN_PACKET_BYTE) {
+            ctx->result = RESULT_BREAKIN_BYTE;
+            ctx->index = 0;
+        } else {
+            ctx->index = 0;
+        }
+        break;
+
+    case STATE_PACKET_TYPE:
+        PTR(ctx->packet.PacketType)[ctx->index] = byte;
+        ++ctx->index;
+        if (ctx->index == sizeof(ctx->packet.PacketType)) {
+            ctx->packet.PacketType = lduw_p(&ctx->packet.PacketType);
+            if (ctx->packet.PacketType >= PACKET_TYPE_MAX) {
+                ctx->state = STATE_LEADER;
+                ctx->result = RESULT_UNKNOWN_PACKET;
+            } else {
+                ctx->state = STATE_PACKET_BYTE_COUNT;
+            }
+            ctx->index = 0;
+        }
+        break;
+
+    case STATE_PACKET_BYTE_COUNT:
+        PTR(ctx->packet.ByteCount)[ctx->index] = byte;
+        ++ctx->index;
+        if (ctx->index == sizeof(ctx->packet.ByteCount)) {
+            ctx->packet.ByteCount = lduw_p(&ctx->packet.ByteCount);
+            ctx->state = STATE_PACKET_ID;
+            ctx->index = 0;
+        }
+        break;
+
+    case STATE_PACKET_ID:
+        PTR(ctx->packet.PacketId)[ctx->index] = byte;
+        ++ctx->index;
+        if (ctx->index == sizeof(ctx->packet.PacketId)) {
+            ctx->packet.PacketId = ldl_p(&ctx->packet.PacketId);
+            ctx->state = STATE_PACKET_CHECKSUM;
+            ctx->index = 0;
+        }
+        break;
+
+    case STATE_PACKET_CHECKSUM:
+        PTR(ctx->packet.Checksum)[ctx->index] = byte;
+        ++ctx->index;
+        if (ctx->index == sizeof(ctx->packet.Checksum)) {
+            ctx->packet.Checksum = ldl_p(&ctx->packet.Checksum);
+            if (ctx->packet.PacketLeader == CONTROL_PACKET_LEADER) {
+                ctx->state = STATE_LEADER;
+                ctx->result = RESULT_CONTROL_PACKET;
+            } else if (ctx->packet.ByteCount > PACKET_MAX_SIZE) {
+                ctx->state = STATE_LEADER;
+                ctx->result = RESULT_ERROR;
+            } else {
+                ctx->state = STATE_PACKET_DATA;
+            }
+            ctx->index = 0;
+        }
+        break;
+
+    case STATE_PACKET_DATA:
+        ctx->data.buf[ctx->index] = byte;
+        ++ctx->index;
+        if (ctx->index == ctx->packet.ByteCount) {
+            ctx->state = STATE_TRAILING_BYTE;
+            ctx->index = 0;
+        }
+        break;
+
+    case STATE_TRAILING_BYTE:
+        if (byte == PACKET_TRAILING_BYTE) {
+            ctx->result = RESULT_DATA_PACKET;
+        } else {
+            ctx->result = RESULT_ERROR;
+        }
+        ctx->state = STATE_LEADER;
+        break;
+    }
+}
+
 static int windbg_chr_can_receive(void *opaque)
 {
     return PACKET_MAX_SIZE;
@@ -67,8 +166,18 @@ static int windbg_chr_can_receive(void *opaque)
 
 static void windbg_chr_receive(void *opaque, const uint8_t *buf, int size)
 {
+    static ParsingContext ctx = {
+        .state = STATE_LEADER,
+        .result = RESULT_NONE,
+        .name = ""
+    };
+
     if (windbg_state->is_loaded) {
-        /* T0D0: parse data */
+        int i;
+        for (i = 0; i < size; i++) {
+            windbg_read_byte(&ctx, buf[i]);
+            windbg_ctx_handler(&ctx);
+        }
     }
 }
 
