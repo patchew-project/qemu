@@ -1987,6 +1987,29 @@ address_space_write_cached(MemoryRegionCache *cache, hwaddr addr,
     address_space_write(cache->as, cache->xlat + addr, MEMTXATTRS_UNSPECIFIED, buf, len);
 }
 
+/**
+ * ASIterateCallback: Function type called by address_space_iterate
+ *
+ * Return 0 on success or a negative error code.
+ *
+ * @mrs: Memory region section for this range
+ * @opaque: The opaque value passed in to the iterator.
+ */
+typedef int (*ASIterateCallback)(MemoryRegionSection *mrs, void *opaque);
+
+/**
+ * address_space_iterate: Call the function for each address range in the
+ *                        AddressSpace, in sorted order.
+ *
+ * Return 0 on success or a negative error code.
+ *
+ * @as: Address space to iterate over
+ * @cb: Function to call.  If the function returns none-0 the iteration will
+ *     stop.
+ * @opaque: Value to pass to the function
+ */
+int
+address_space_iterate(AddressSpace *as, ASIterateCallback cb, void *opaque);
 #endif
 
 #endif
