@@ -483,6 +483,7 @@ static void block_job_completed_txn_success(BlockJob *job)
 void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
 {
     Error *local_err = NULL;
+    int64_t old_speed = job->speed;
 
     if (!job->driver->set_speed) {
         error_setg(errp, QERR_UNSUPPORTED);
@@ -495,6 +496,10 @@ void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
     }
 
     job->speed = speed;
+    /* Kick the job to recompute its delay */
+    if ((speed > old_speed) && timer_pending(&job->sleep_timer)) {
+        block_job_enter(job);
+    }
 }
 
 void block_job_complete(BlockJob *job, Error **errp)
