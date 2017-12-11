@@ -175,6 +175,10 @@ static void tc6393xb_gpio_handler_update(TC6393xbState *s)
 
     for (diff = s->prev_level ^ level; diff; diff ^= 1 << bit) {
         bit = ctz32(diff);
+        if (bit >= TC6393XB_GPIOS) {
+            fprintf(stderr, "TC6393xb: no GPIO pin %d\n", bit);
+            return;
+        }
         qemu_set_irq(s->handler[bit], (level >> bit) & 1);
     }
 
