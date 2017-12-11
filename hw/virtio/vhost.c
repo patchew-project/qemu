@@ -707,10 +707,12 @@ static int vhost_update_mem(struct vhost_dev *dev, bool *changed)
 {
     int res;
     struct vhost_update_mem_tmp vtmp;
+    size_t mem_size;
     vtmp.regions = 0;
     vtmp.nregions = 0;
     vtmp.dev = dev;
 
+    trace_vhost_update_mem();
     *changed = false;
     res = address_space_iterate(&address_space_memory,
                                 vhost_update_mem_cb, &vtmp);
@@ -718,8 +720,21 @@ static int vhost_update_mem(struct vhost_dev *dev, bool *changed)
         goto out;
     }
 
-    /* TODO */
-    *changed = dev->mem_changed_start_addr < dev->mem_changed_end_addr;
+    mem_size = offsetof(struct vhost_memory, regions) +
+               (vtmp.nregions + 1) * sizeof dev->mem->regions[0];
+
+    if (vtmp.nregions != dev->mem->nregions ||
+       memcmp(vtmp.regions, dev->mem->regions, mem_size)) {
+        *changed = true;
+        /* Update the main regions list from our tmp */
+        dev->mem = g_realloc(dev->mem, mem_size);
+        dev->mem->nregions = vtmp.nregions;
+        memcpy(dev->mem->regions, vtmp.regions,
+               vtmp.nregions * sizeof dev->mem->regions[0]);
+        used_memslots = vtmp.nregions;
+        trace_vhost_update_mem_changed();
+    }
+
 out:
     g_free(vtmp.regions);
     return res;
