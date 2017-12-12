@@ -480,6 +480,30 @@ static void vfio_listener_region_add(MemoryListener *listener,
     if (memory_region_is_iommu(section->mr)) {
         VFIOGuestIOMMU *giommu;
         IOMMUMemoryRegion *iommu_mr = IOMMU_MEMORY_REGION(section->mr);
+#ifdef CONFIG_KVM
+        struct kvm_vfio_spapr_tce param;
+        IOMMUMemoryRegionClass *imrc = IOMMU_MEMORY_REGION_GET_CLASS(iommu_mr);
+        VFIOGroup *group;
+        struct kvm_device_attr attr = {
+            .group = KVM_DEV_VFIO_GROUP,
+            .attr = KVM_DEV_VFIO_GROUP_SET_SPAPR_TCE,
+            .addr = (uint64_t)(unsigned long)&param,
+        };
+
+        if (kvm_enabled() && imrc->get_attr &&
+            !imrc->get_attr(iommu_mr, IOMMU_ATTR_KVM_FD, &param.tablefd)) {
+
+            QLIST_FOREACH(group, &container->group_list, container_next) {
+                param.groupfd = group->fd;
+                if (ioctl(vfio_kvm_device_fd, KVM_SET_DEVICE_ATTR, &attr)) {
+                    error_report("vfio: failed to setup fd %d for a group with fd %d: %s",
+                                 param.tablefd, param.groupfd, strerror(errno));
+                    return;
+                }
+                trace_vfio_spapr_group_attach(param.groupfd, param.tablefd);
+            }
+        }
+#endif
 
         trace_vfio_listener_region_add_iommu(iova, end);
         /*
