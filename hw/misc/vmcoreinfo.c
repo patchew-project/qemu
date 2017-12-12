@@ -31,6 +31,9 @@ static void vmcoreinfo_reset(void *dev)
     s->vmcoreinfo.host_format = cpu_to_le16(VMCOREINFO_FORMAT_ELF);
 }
 
+/* this variable is exported for gdb script dump-guest-memory.py */
+VMCoreInfoState *vmcoreinfo_state;
+
 static void vmcoreinfo_realize(DeviceState *dev, Error **errp)
 {
     VMCoreInfoState *s = VMCOREINFO(dev);
@@ -56,6 +59,7 @@ static void vmcoreinfo_realize(DeviceState *dev, Error **errp)
                              &s->vmcoreinfo, sizeof(s->vmcoreinfo), false);
 
     qemu_register_reset(vmcoreinfo_reset, dev);
+    vmcoreinfo_state = s;
 }
 
 static const VMStateDescription vmstate_vmcoreinfo = {
