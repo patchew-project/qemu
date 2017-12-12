@@ -3716,13 +3716,21 @@ static const TypeInfo spapr_machine_info = {
 /*
  * pseries-2.11
  */
+#define SPAPR_COMPAT_2_11                                             \
+    HW_COMPAT_2_10                                                    \
+    {                                                                 \
+        .driver = "vfio-pci",                                         \
+        .property = "msix-no-mmap",                                   \
+        .value    = "on",                                             \
+    },                                                                \
+
 static void spapr_machine_2_11_instance_options(MachineState *machine)
 {
 }
 
 static void spapr_machine_2_11_class_options(MachineClass *mc)
 {
-    /* Defaults for the latest behaviour inherited from the base class */
+    SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_11);
 }
 
 DEFINE_SPAPR_MACHINE(2_11, "2.11", true);
