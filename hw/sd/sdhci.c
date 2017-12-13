@@ -603,14 +603,12 @@ typedef struct ADMADescr {
 
 static void get_adma_description(SDHCIState *s, ADMADescr *dscr)
 {
-    uint32_t adma1 = 0;
-    uint64_t adma2 = 0;
+    uint32_t adma1;
+    uint64_t adma2;
     hwaddr entry_addr = (hwaddr)s->admasysaddr;
     switch (SDHC_DMA_TYPE(s->hostctl)) {
     case SDHC_CTRL_ADMA2_32:
-        dma_memory_read(&address_space_memory, entry_addr, (uint8_t *)&adma2,
-                        sizeof(adma2));
-        adma2 = le64_to_cpu(adma2);
+        adma2 = ldq_le_dma(&address_space_memory, entry_addr);
         /* The spec does not specify endianness of descriptor table.
          * We currently assume that it is LE.
          */
@@ -620,9 +618,7 @@ static void get_adma_description(SDHCIState *s, ADMADescr *dscr)
         dscr->incr = 8;
         break;
     case SDHC_CTRL_ADMA1_32:
-        dma_memory_read(&address_space_memory, entry_addr, (uint8_t *)&adma1,
-                        sizeof(adma1));
-        adma1 = le32_to_cpu(adma1);
+        adma1 = ldl_le_dma(&address_space_memory, entry_addr);
         dscr->addr = (hwaddr)(adma1 & 0xFFFFF000);
         dscr->attr = (uint8_t)extract32(adma1, 0, 7);
         dscr->incr = 4;
@@ -633,14 +629,9 @@ static void get_adma_description(SDHCIState *s, ADMADescr *dscr)
         }
         break;
     case SDHC_CTRL_ADMA2_64:
-        dma_memory_read(&address_space_memory, entry_addr,
-                        (uint8_t *)(&dscr->attr), 1);
-        dma_memory_read(&address_space_memory, entry_addr + 2,
-                        (uint8_t *)(&dscr->length), 2);
-        dscr->length = le16_to_cpu(dscr->length);
-        dma_memory_read(&address_space_memory, entry_addr + 4,
-                        (uint8_t *)(&dscr->addr), 8);
-        dscr->attr = le64_to_cpu(dscr->attr);
+        dscr->attr = ldub_dma(&address_space_memory, entry_addr);
+        dscr->length = lduw_le_dma(&address_space_memory, entry_addr + 2);
+        dscr->attr = ldq_le_dma(&address_space_memory, entry_addr + 4);
         dscr->attr &= 0xfffffff8;
         dscr->incr = 12;
         break;
