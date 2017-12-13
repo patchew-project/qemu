@@ -6,6 +6,8 @@
 #include "hw/virtio/virtio.h"
 #include "exec/memory.h"
 
+extern bool used_memslots_exceeded;
+
 /* Generic structures common for any vhost based device. */
 struct vhost_virtqueue {
     int kick;

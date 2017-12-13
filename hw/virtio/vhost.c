@@ -47,6 +47,8 @@ static unsigned int used_memslots;
 static QLIST_HEAD(, vhost_dev) vhost_devices =
     QLIST_HEAD_INITIALIZER(vhost_devices);
 
+bool used_memslots_exceeded;
+
 bool vhost_has_free_slot(void)
 {
     unsigned int slots_limit = ~0U;
@@ -1254,6 +1256,7 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
     if (used_memslots > hdev->vhost_ops->vhost_backend_memslots_limit(hdev)) {
         error_report("vhost backend memory slots limit is less"
                 " than current number of present memory slots");
+        used_memslots_exceeded = true;
         r = -1;
         goto fail;
     }

@@ -17,6 +17,7 @@
 #include "qemu/error-report.h"
 #include "qmp-commands.h"
 #include "trace.h"
+#include "include/hw/virtio/vhost.h"
 
 typedef struct VhostUserState {
     NetClientState nc;
@@ -311,6 +312,10 @@ static int net_vhost_user_init(NetClientState *peer, const char *device,
         qemu_chr_fe_set_handlers(&s->chr, NULL, NULL,
                                  net_vhost_user_event, NULL, nc0->name, NULL,
                                  true);
+        if (used_memslots_exceeded) {
+            error_report("used memslots exceeded the backend limit, quit loop");
+            return -1;
+        }
     } while (!s->started);
 
     assert(s->vhost_net);
