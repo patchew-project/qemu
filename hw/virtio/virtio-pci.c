@@ -1757,6 +1757,9 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
     if (proxy->disable_legacy == ON_OFF_AUTO_AUTO) {
         proxy->disable_legacy = pcie_port ? ON_OFF_AUTO_ON : ON_OFF_AUTO_OFF;
     }
+    /* Set the PCI Subsystem Vendor ID */
+    k->parent_class.subsystem_vendor_id = proxy->subsystem_vendor_id;
+    pci_set_word(pci_dev->config + PCI_SUBSYSTEM_VENDOR_ID, proxy->subsystem_vendor_id);
 
     if (!virtio_pci_modern(proxy) && !virtio_pci_legacy(proxy)) {
         error_setg(errp, "device cannot work as neither modern nor legacy mode"
@@ -1876,6 +1879,8 @@ static Property virtio_pci_properties[] = {
                     VIRTIO_PCI_FLAG_INIT_LNKCTL_BIT, true),
     DEFINE_PROP_BIT("x-pcie-pm-init", VirtIOPCIProxy, flags,
                     VIRTIO_PCI_FLAG_INIT_PM_BIT, true),
+    DEFINE_PROP_UINT16("subsystem-vendor-id", VirtIOPCIProxy,
+                       subsystem_vendor_id, PCI_VENDOR_ID_REDHAT_QUMRANET),
     DEFINE_PROP_END_OF_LIST(),
 };
 
