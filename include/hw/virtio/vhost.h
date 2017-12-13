@@ -67,9 +67,6 @@ struct vhost_dev {
     bool log_enabled;
     uint64_t log_size;
     Error *migration_blocker;
-    bool memory_changed;
-    hwaddr mem_changed_start_addr;
-    hwaddr mem_changed_end_addr;
     struct vhost_memory *tmp_mem;
     const VhostOps *vhost_ops;
     void *opaque;
