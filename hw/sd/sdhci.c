@@ -590,7 +590,7 @@ static void get_adma_description(SDHCIState *s, ADMADescr *dscr)
     hwaddr entry_addr = (hwaddr)s->admasysaddr;
     switch (SDHC_DMA_TYPE(s->hostctl)) {
     case SDHC_CTRL_ADMA2_32:
-        adma2 = ldq_le_dma(&address_space_memory, entry_addr);
+        adma2 = ldq_le_dma(&s->dma_as, entry_addr);
         /* The spec does not specify endianness of descriptor table.
          * We currently assume that it is LE.
          */
@@ -600,7 +600,7 @@ static void get_adma_description(SDHCIState *s, ADMADescr *dscr)
         dscr->incr = 8;
         break;
     case SDHC_CTRL_ADMA1_32:
-        adma1 = ldl_le_dma(&address_space_memory, entry_addr);
+        adma1 = ldl_le_dma(&s->dma_as, entry_addr);
         dscr->addr = (hwaddr)(adma1 & 0xFFFFF000);
         dscr->attr = (uint8_t)extract32(adma1, 0, 7);
         dscr->incr = 4;
@@ -611,9 +611,9 @@ static void get_adma_description(SDHCIState *s, ADMADescr *dscr)
         }
         break;
     case SDHC_CTRL_ADMA2_64:
-        dscr->attr = ldub_dma(&address_space_memory, entry_addr);
-        dscr->length = lduw_le_dma(&address_space_memory, entry_addr + 2);
-        dscr->attr = ldq_le_dma(&address_space_memory, entry_addr + 4);
+        dscr->attr = ldub_dma(&s->dma_as, entry_addr);
+        dscr->length = lduw_le_dma(&s->dma_as, entry_addr + 2);
+        dscr->attr = ldq_le_dma(&s->dma_as, entry_addr + 4);
         dscr->attr &= 0xfffffff8;
         dscr->incr = 12;
         break;
@@ -670,7 +670,7 @@ static void sdhci_do_adma(SDHCIState *s)
                         s->data_count = block_size;
                         length -= block_size - begin;
                     }
-                    dma_memory_write(&address_space_memory, dscr.addr,
+                    dma_memory_write(&s->dma_as, dscr.addr,
                                      &s->fifo_buffer[begin],
                                      s->data_count - begin);
                     dscr.addr += s->data_count - begin;
@@ -1172,10 +1172,20 @@ static void sdhci_realizefn(SDHCIState *s, Error **errp)
 
     memory_region_init_io(&s->iomem, OBJECT(s), &sdhci_mmio_ops, s, "sdhci",
                           SDHC_REGISTERS_MAP_SIZE);
+
+    /* use system_memory() if property "dma-memory" not set */
+    address_space_init(&s->dma_as,
+                       s->dma_mr ? s->dma_mr : get_system_memory(),
+                       "sdhci-dma");
 }
 
 static void sdhci_unrealizefn(SDHCIState *s, Error **errp)
 {
+    if (s->dma_mr) {
+        address_space_destroy(&s->dma_as);
+        object_unparent(OBJECT(&s->dma_mr));
+    }
+
     g_free(s->fifo_buffer);
     s->fifo_buffer = NULL;
 }
@@ -1257,6 +1267,8 @@ static Property sdhci_properties[] = {
     DEFINE_PROP_UINT32("maxcurr", SDHCIState, maxcurr, 0),
     DEFINE_PROP_BOOL("pending-insert-quirk", SDHCIState, pending_insert_quirk,
                      false),
+    DEFINE_PROP_LINK("dma-memory", SDHCIState, dma_mr,
+                     TYPE_MEMORY_REGION, MemoryRegion *),
     DEFINE_PROP_END_OF_LIST(),
 };
 
