@@ -100,6 +100,13 @@
 
 #define MASKED_WRITE(reg, mask, val)  (reg = (reg & (mask)) | (val))
 
+static void sdhci_init_capareg(SDHCIState *s, Error **errp)
+{
+    if (s->capareg == UINT32_MAX) {
+        s->capareg = SDHC_CAPAB_REG_DEFAULT;
+    }
+}
+
 static uint8_t sdhci_slotint(SDHCIState *s)
 {
     return (s->norintsts & s->norintsigen) || (s->errintsts & s->errintsigen) ||
@@ -1158,6 +1165,8 @@ static void sdhci_initfn(SDHCIState *s)
 
 static void sdhci_realizefn(SDHCIState *s, Error **errp)
 {
+    sdhci_init_capareg(s, errp);
+
     s->buf_maxsz = sdhci_get_fifolen(s);
     s->fifo_buffer = g_malloc0(s->buf_maxsz);
 
@@ -1244,8 +1253,7 @@ const VMStateDescription sdhci_vmstate = {
 /* Capabilities registers provide information on supported features of this
  * specific host controller implementation */
 static Property sdhci_properties[] = {
-    DEFINE_PROP_UINT32("capareg", SDHCIState, capareg,
-            SDHC_CAPAB_REG_DEFAULT),
+    DEFINE_PROP_UINT32("capareg", SDHCIState, capareg, UINT32_MAX),
     DEFINE_PROP_UINT32("maxcurr", SDHCIState, maxcurr, 0),
     DEFINE_PROP_BOOL("pending-insert-quirk", SDHCIState, pending_insert_quirk,
                      false),
