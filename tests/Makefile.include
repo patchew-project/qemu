@@ -828,7 +828,7 @@ endif
 TARGETS=$(patsubst %-softmmu,%, $(filter %-softmmu,$(TARGET_DIRS)))
 ifeq ($(CONFIG_POSIX),y)
 QTEST_TARGETS = $(TARGETS)
-check-qtest-y=$(foreach TARGET,$(TARGETS), $(check-qtest-$(TARGET)-y))
+check-qtest-y=$(foreach TARGET,$(TARGETS), $(filter-out %.py, $(check-qtest-$(TARGET)-y)))
 check-qtest-y += $(check-qtest-generic-y)
 else
 QTEST_TARGETS =
@@ -843,6 +843,7 @@ tests/test-qga$(EXESUF): tests/test-qga.o $(qtest-obj-y)
 SPEED = quick
 GTESTER_OPTIONS = -k $(if $(V),--verbose,-q)
 GCOV_OPTIONS = -n $(if $(V),-f,)
+QPYTHONS_OPTIONS = $(if $(V),-v,)
 
 # gtester tests, possibly with verbose output
 
@@ -852,11 +853,15 @@ $(patsubst %, check-qtest-%, $(QTEST_TARGETS)): check-qtest-%: subdir-%-softmmu 
 	$(call quiet-command,QTEST_QEMU_BINARY=$*-softmmu/qemu-system-$* \
 		QTEST_QEMU_IMG=qemu-img$(EXESUF) \
 		MALLOC_PERTURB_=$${MALLOC_PERTURB_:-$$(( $${RANDOM:-0} % 255 + 1))} \
-		gtester $(GTESTER_OPTIONS) -m=$(SPEED) $(check-qtest-$*-y) $(check-qtest-generic-y),"GTESTER","$@")
+		gtester $(GTESTER_OPTIONS) -m=$(SPEED) $(filter-out %.py,$(check-qtest-$*-y) $(check-qtest-generic-y)),"GTESTER","$@")
 	$(if $(CONFIG_GCOV),@for f in $(gcov-files-$*-y) $(gcov-files-generic-y); do \
 	  echo Gcov report for $$f:;\
 	  $(GCOV) $(GCOV_OPTIONS) $$f -o `dirname $$f`; \
 	done,)
+	$(if $(filter %.py,$(check-qtest-$*-y)), \
+		$(call quiet-command,PYTHONPATH=$(SRC_PATH)/scripts \
+			QEMU_PROG=$*-softmmu/qemu-system-$* \
+			$(PYTHON) $(SRC_PATH)/$(filter %.py,$(check-qtest-$*-y)) $(QPYTHONS_OPTIONS),"PYTEST","$@"),)
 
 .PHONY: $(patsubst %, check-%, $(check-unit-y) $(check-speed-y))
 $(patsubst %, check-%, $(check-unit-y) $(check-speed-y)): check-%: %
@@ -874,7 +879,7 @@ $(patsubst %, check-%, $(check-unit-y) $(check-speed-y)): check-%: %
 $(patsubst %, check-report-qtest-%.xml, $(QTEST_TARGETS)): check-report-qtest-%.xml: $(check-qtest-y)
 	$(call quiet-command,QTEST_QEMU_BINARY=$*-softmmu/qemu-system-$* \
 		QTEST_QEMU_IMG=qemu-img$(EXESUF) \
-	  gtester -q $(GTESTER_OPTIONS) -o $@ -m=$(SPEED) $(check-qtest-$*-y) $(check-qtest-generic-y),"GTESTER","$@")
+	  gtester -q $(GTESTER_OPTIONS) -o $@ -m=$(SPEED) $(filter-out %.py,$(check-qtest-$*-y) $(check-qtest-generic-y)),"GTESTER","$@")
 
 check-report-unit.xml: $(check-unit-y)
 	$(call quiet-command,gtester -q $(GTESTER_OPTIONS) -o $@ -m=$(SPEED) $^,"GTESTER","$@")
