@@ -632,6 +632,8 @@ static void vhost_begin(MemoryListener *listener)
                                          memory_listener);
     dev->mem_changed_end_addr = 0;
     dev->mem_changed_start_addr = -1;
+
+    dev->tmp_mem = g_malloc0(offsetof(struct vhost_memory, regions));
 }
 
 static void vhost_commit(MemoryListener *listener)
@@ -641,6 +643,7 @@ static void vhost_commit(MemoryListener *listener)
     uint64_t log_size;
     int r;
 
+    g_free(dev->tmp_mem);
     if (!dev->memory_changed) {
         return;
     }

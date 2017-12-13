@@ -70,6 +70,7 @@ struct vhost_dev {
     bool memory_changed;
     hwaddr mem_changed_start_addr;
     hwaddr mem_changed_end_addr;
+    struct vhost_memory *tmp_mem;
     const VhostOps *vhost_ops;
     void *opaque;
     struct vhost_log *log;
