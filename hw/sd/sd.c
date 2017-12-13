@@ -32,7 +32,6 @@
 #include "qemu/osdep.h"
 #include "hw/qdev.h"
 #include "hw/hw.h"
-#include "sysemu/block-backend.h"
 #include "hw/sd/sd.h"
 #include "qapi/error.h"
 #include "qemu/bitmap.h"
@@ -40,6 +39,7 @@
 #include "qemu/error-report.h"
 #include "qemu/timer.h"
 #include "qemu/log.h"
+#include "sd-internal.h"
 
 //#define DEBUG_SD 1
 
@@ -1466,8 +1466,8 @@ static int cmd_valid_while_locked(SDState *sd, SDRequest *req)
             || sd_cmd_class[req->cmd & 0x3F] == 7;
 }
 
-int sd_do_command(SDState *sd, SDRequest *req,
-                  uint8_t *response) {
+int sd_do_command(SDState *sd, SDRequest *req, uint8_t *response)
+{
     int last_state;
     sd_rsp_type_t rtype;
     int rsplen;

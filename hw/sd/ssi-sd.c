@@ -11,11 +11,11 @@
  */
 
 #include "qemu/osdep.h"
-#include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
 #include "hw/ssi/ssi.h"
 #include "hw/sd/sd.h"
 #include "qapi/error.h"
+#include "sd-internal.h"
 
 //#define DEBUG_SSI_SD 1
 

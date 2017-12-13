@@ -20,9 +20,8 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/qdev-core.h"
-#include "sysemu/block-backend.h"
 #include "hw/sd/sd.h"
+#include "sd-internal.h"
 
 static SDState *get_card(SDBus *sdbus)
 {

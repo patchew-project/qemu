@@ -20,6 +20,7 @@
 #include "hw/hw.h"
 #include "hw/arm/omap.h"
 #include "hw/sd/sd.h"
+#include "sd-internal.h"
 
 struct omap_mmc_s {
     qemu_irq irq;

@@ -24,12 +24,12 @@
 
 #include "qemu/osdep.h"
 #include "hw/hw.h"
-#include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
 #include "sysemu/dma.h"
 #include "qemu/timer.h"
 #include "qemu/bitops.h"
 #include "sdhci-internal.h"
+#include "sd-internal.h"
 #include "qemu/log.h"
 
 /* host controller debug messages */
