@@ -116,6 +116,19 @@ Depending on the request type, payload can be:
     - 3: IOTLB invalidate
     - 4: IOTLB access fail
 
+ * Virtio device config space
+   -----------------------------------
+   | offset | size | flags | payload |
+   -----------------------------------
+
+   Offset: a 32-bit offset of virtio device's configuration space
+   Size: a 32-bit configuration space access size in bytes
+   Flags: a 32-bit value:
+    - 0: Vhost master messages used for writeable fields
+    - 1: Vhost master messages used for live migration
+   Payload: Size bytes array holding the contents of the virtio
+       device's configuration space
+
 In QEMU the vhost-user message is implemented with the following struct:
 
 typedef struct VhostUserMsg {
@@ -129,6 +142,7 @@ typedef struct VhostUserMsg {
         VhostUserMemory memory;
         VhostUserLog log;
         struct vhost_iotlb_msg iotlb;
+        VhostUserConfig config;
     };
 } QEMU_PACKED VhostUserMsg;
 
@@ -595,6 +609,37 @@ Master message types
       Backends that negotiated this feature should handle both endianesses
       and expect this message once (per VQ) during device configuration
       (ie. before the master starts the VQ).
+
+ * VHOST_USER_GET_CONFIG
+      Id: 24
+      Equivalent ioctl: N/A
+      Master payload: virtio device config space
+
+      Submitted by the vhost-user master to fetch the contents of the virtio
+      device configuration space, vhost-user slave uses zero length of payload
+      to indicate an error to vhost-user master. The vhost-user master may
+      cache the contents to avoid repeated VHOST_USER_GET_CONFIG calls.
+
+* VHOST_USER_SET_CONFIG
+      Id: 25
+      Equivalent ioctl: N/A
+      Master payload: virtio device config space
+
+      Submitted by the vhost-user master when the Guest changes the virtio
+      device configuration space and also can be used for live migration
+      on the destination host. The vhost-user slave must check the flags
+      field, and slaves MUST NOT accept SET_CONFIG for read-only
+      configuration space fields unless the live migration bit is set.
+
+* VHOST_USER_SET_CONFIG_FD
+      Id: 26
+      Equivalent ioctl: N/A
+      Master payload: N/A
+
+      Sets the notifier file descriptor, which is passed as ancillary data.
+      The vhost-user slave uses the file descriptor to notify the vhost-user
+      master of changes to the virtio configuration space. The vhost-user
+      master can read the virtio configuration space to get the latest update.
 
 Slave message types
 -------------------
