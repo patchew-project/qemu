@@ -154,10 +154,10 @@ static void vhost_vsock_stop(VirtIODevice *vdev)
     vhost_dev_disable_notifiers(&vsock->vhost_dev, vdev);
 }
 
-static void vhost_vsock_set_status(VirtIODevice *vdev, uint8_t status)
+static void vhost_vsock_set_status(VirtIODevice *vdev, uint8_t old_status)
 {
     VHostVSock *vsock = VHOST_VSOCK(vdev);
-    bool should_start = status & VIRTIO_CONFIG_S_DRIVER_OK;
+    bool should_start = vdev->status & VIRTIO_CONFIG_S_DRIVER_OK;
 
     if (!vdev->vm_running) {
         should_start = false;
@@ -370,11 +370,14 @@ static void vhost_vsock_device_unrealize(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VHostVSock *vsock = VHOST_VSOCK(dev);
+    uint8_t old_status;
 
     vhost_vsock_post_load_timer_cleanup(vsock);
 
     /* This will stop vhost backend if appropriate. */
-    vhost_vsock_set_status(vdev, 0);
+    old_status = vdev->status;
+    vdev->status = 0;
+    vhost_vsock_set_status(vdev, old_status);
 
     vhost_dev_cleanup(&vsock->vhost_dev);
     virtio_cleanup(vdev);

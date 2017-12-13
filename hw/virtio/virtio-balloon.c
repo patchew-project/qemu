@@ -468,12 +468,12 @@ static void virtio_balloon_device_reset(VirtIODevice *vdev)
     }
 }
 
-static void virtio_balloon_set_status(VirtIODevice *vdev, uint8_t status)
+static void virtio_balloon_set_status(VirtIODevice *vdev, uint8_t old_status)
 {
     VirtIOBalloon *s = VIRTIO_BALLOON(vdev);
 
     if (!s->stats_vq_elem && vdev->vm_running &&
-        (status & VIRTIO_CONFIG_S_DRIVER_OK) && virtqueue_rewind(s->svq, 1)) {
+        (vdev->status & VIRTIO_CONFIG_S_DRIVER_OK) && virtqueue_rewind(s->svq, 1)) {
         /* poll stats queue for the element we have discarded when the VM
          * was stopped */
         virtio_balloon_receive_stats(vdev, s->svq);

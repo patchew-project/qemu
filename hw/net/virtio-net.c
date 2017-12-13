@@ -124,7 +124,7 @@ static void virtio_net_announce_timer(void *opaque)
     virtio_notify_config(vdev);
 }
 
-static void virtio_net_vhost_status(VirtIONet *n, uint8_t status)
+static void virtio_net_vhost_status(VirtIONet *n, uint8_t old_status)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(n);
     NetClientState *nc = qemu_get_queue(n->nic);
@@ -134,7 +134,7 @@ static void virtio_net_vhost_status(VirtIONet *n, uint8_t status)
         return;
     }
 
-    if ((virtio_net_started(n, status) && !nc->peer->link_down) ==
+    if ((virtio_net_started(n, vdev->status) && !nc->peer->link_down) ==
         !!n->vhost_started) {
         return;
     }
@@ -212,12 +212,12 @@ static bool virtio_net_set_vnet_endian(VirtIODevice *vdev, NetClientState *ncs,
     return false;
 }
 
-static void virtio_net_vnet_endian_status(VirtIONet *n, uint8_t status)
+static void virtio_net_vnet_endian_status(VirtIONet *n, uint8_t old_status)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(n);
     int queues = n->multiqueue ? n->max_queues : 1;
 
-    if (virtio_net_started(n, status)) {
+    if (virtio_net_started(n, vdev->status)) {
         /* Before using the device, we tell the network backend about the
          * endianness to use when parsing vnet headers. If the backend
          * can't do it, we fallback onto fixing the headers in the core
@@ -225,7 +225,7 @@ static void virtio_net_vnet_endian_status(VirtIONet *n, uint8_t status)
          */
         n->needs_vnet_hdr_swap = virtio_net_set_vnet_endian(vdev, n->nic->ncs,
                                                             queues, true);
-    } else if (virtio_net_started(n, vdev->status)) {
+    } else if (virtio_net_started(n, old_status)) {
         /* After using the device, we need to reset the network backend to
          * the default (guest native endianness), otherwise the guest may
          * lose network connectivity if it is rebooted into a different
@@ -243,15 +243,15 @@ static void virtio_net_drop_tx_queue_data(VirtIODevice *vdev, VirtQueue *vq)
     }
 }
 
-static void virtio_net_set_status(struct VirtIODevice *vdev, uint8_t status)
+static void virtio_net_set_status(struct VirtIODevice *vdev, uint8_t old_status)
 {
     VirtIONet *n = VIRTIO_NET(vdev);
     VirtIONetQueue *q;
     int i;
     uint8_t queue_status;
 
-    virtio_net_vnet_endian_status(n, status);
-    virtio_net_vhost_status(n, status);
+    virtio_net_vnet_endian_status(n, old_status);
+    virtio_net_vhost_status(n, old_status);
 
     for (i = 0; i < n->max_queues; i++) {
         NetClientState *ncs = qemu_get_subqueue(n->nic, i);
@@ -261,7 +261,7 @@ static void virtio_net_set_status(struct VirtIODevice *vdev, uint8_t status)
         if ((!n->multiqueue && i != 0) || i >= n->curr_queues) {
             queue_status = 0;
         } else {
-            queue_status = status;
+            queue_status = vdev->status;
         }
         queue_started =
             virtio_net_started(n, queue_status) && !n->vhost_started;
@@ -2048,9 +2048,11 @@ static void virtio_net_device_unrealize(DeviceState *dev, Error **errp)
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtIONet *n = VIRTIO_NET(dev);
     int i, max_queues;
+    uint8_t old_status = vdev->status;
 
     /* This will stop vhost backend if appropriate. */
-    virtio_net_set_status(vdev, 0);
+    vdev->status = 0;
+    virtio_net_set_status(vdev, old_status);
 
     g_free(n->netclient_name);
     n->netclient_name = NULL;

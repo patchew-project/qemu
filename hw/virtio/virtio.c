@@ -1128,6 +1128,8 @@ static int virtio_validate_features(VirtIODevice *vdev)
 int virtio_set_status(VirtIODevice *vdev, uint8_t val)
 {
     VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
+    uint8_t old_status;
+
     trace_virtio_set_status(vdev, val);
 
     if (virtio_vdev_has_feature(vdev, VIRTIO_F_VERSION_1)) {
@@ -1140,10 +1142,13 @@ int virtio_set_status(VirtIODevice *vdev, uint8_t val)
             }
         }
     }
-    if (k->set_status) {
-        k->set_status(vdev, val);
-    }
+
+    old_status = vdev->status;
     vdev->status = val;
+
+    if (k->set_status) {
+        k->set_status(vdev, old_status);
+    }
     return 0;
 }
 

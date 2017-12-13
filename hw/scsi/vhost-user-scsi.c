@@ -38,11 +38,11 @@ static const int user_feature_bits[] = {
     VHOST_INVALID_FEATURE_BIT
 };
 
-static void vhost_user_scsi_set_status(VirtIODevice *vdev, uint8_t status)
+static void vhost_user_scsi_set_status(VirtIODevice *vdev, uint8_t old_status)
 {
     VHostUserSCSI *s = (VHostUserSCSI *)vdev;
     VHostSCSICommon *vsc = VHOST_SCSI_COMMON(s);
-    bool start = (status & VIRTIO_CONFIG_S_DRIVER_OK) && vdev->vm_running;
+    bool start = (vdev->status & VIRTIO_CONFIG_S_DRIVER_OK) && vdev->vm_running;
 
     if (vsc->dev.started == start) {
         return;

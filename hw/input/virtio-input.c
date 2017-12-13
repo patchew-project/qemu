@@ -188,12 +188,12 @@ static uint64_t virtio_input_get_features(VirtIODevice *vdev, uint64_t f,
     return f;
 }
 
-static void virtio_input_set_status(VirtIODevice *vdev, uint8_t val)
+static void virtio_input_set_status(VirtIODevice *vdev, uint8_t old_val)
 {
     VirtIOInputClass *vic = VIRTIO_INPUT_GET_CLASS(vdev);
     VirtIOInput *vinput = VIRTIO_INPUT(vdev);
 
-    if (val & VIRTIO_CONFIG_S_DRIVER_OK) {
+    if (vdev->status & VIRTIO_CONFIG_S_DRIVER_OK) {
         if (!vinput->active) {
             vinput->active = true;
             if (vic->change_active) {

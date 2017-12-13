@@ -616,7 +616,7 @@ static void guest_reset(VirtIOSerial *vser)
     }
 }
 
-static void set_status(VirtIODevice *vdev, uint8_t status)
+static void set_status(VirtIODevice *vdev, uint8_t old_status)
 {
     VirtIOSerial *vser;
     VirtIOSerialPort *port;
@@ -625,7 +625,7 @@ static void set_status(VirtIODevice *vdev, uint8_t status)
     port = find_port_by_id(vser, 0);
 
     if (port && !use_multiport(port->vser)
-        && (status & VIRTIO_CONFIG_S_DRIVER_OK)) {
+        && (vdev->status & VIRTIO_CONFIG_S_DRIVER_OK)) {
         /*
          * Non-multiport guests won't be able to tell us guest
          * open/close status.  Such guests can only have a port at id
@@ -634,7 +634,7 @@ static void set_status(VirtIODevice *vdev, uint8_t status)
          */
         port->guest_connected = true;
     }
-    if (!(status & VIRTIO_CONFIG_S_DRIVER_OK)) {
+    if (!(vdev->status & VIRTIO_CONFIG_S_DRIVER_OK)) {
         guest_reset(vser);
     }
 

@@ -108,11 +108,11 @@ static void vhost_scsi_stop(VHostSCSI *s)
     vhost_scsi_common_stop(vsc);
 }
 
-static void vhost_scsi_set_status(VirtIODevice *vdev, uint8_t val)
+static void vhost_scsi_set_status(VirtIODevice *vdev, uint8_t old_val)
 {
     VHostSCSI *s = VHOST_SCSI(vdev);
     VHostSCSICommon *vsc = VHOST_SCSI_COMMON(s);
-    bool start = (val & VIRTIO_CONFIG_S_DRIVER_OK);
+    bool start = vdev->status & VIRTIO_CONFIG_S_DRIVER_OK;
 
     if (vsc->dev.started == start) {
         return;
