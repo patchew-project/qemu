@@ -27,7 +27,7 @@ backing_img = os.path.join(iotests.test_dir, 'backing.img')
 mid_img = os.path.join(iotests.test_dir, 'mid.img')
 test_img = os.path.join(iotests.test_dir, 'test.img')
 
-class TestSingleDrive(iotests.QMPTestCase):
+class TestSingleDrive(iotests.BlockQMPTestCase):
     image_len = 1 * 1024 * 1024 # MB
 
     def setUp(self):
@@ -153,7 +153,7 @@ class TestSingleDrive(iotests.QMPTestCase):
         self.assert_qmp(result, 'error/class', 'GenericError')
 
 
-class TestParallelOps(iotests.QMPTestCase):
+class TestParallelOps(iotests.BlockQMPTestCase):
     num_ops = 4 # Number of parallel block-stream operations
     num_imgs = num_ops * 2 + 1
     image_len = num_ops * 1024 * 1024
@@ -385,7 +385,7 @@ class TestParallelOps(iotests.QMPTestCase):
                          qemu_io('-f', iotests.imgfmt, '-c', 'map', self.imgs[3]),
                          'image file map matches backing file after streaming')
 
-class TestQuorum(iotests.QMPTestCase):
+class TestQuorum(iotests.BlockQMPTestCase):
     num_children = 3
     children = []
     backing = []
@@ -441,7 +441,7 @@ class TestQuorum(iotests.QMPTestCase):
                          qemu_io('-f', iotests.imgfmt, '-c', 'map', self.backing[0]),
                          'image file map does not match backing file after streaming')
 
-class TestSmallerBackingFile(iotests.QMPTestCase):
+class TestSmallerBackingFile(iotests.BlockQMPTestCase):
     backing_len = 1 * 1024 * 1024 # MB
     image_len = 2 * backing_len
 
@@ -464,7 +464,7 @@ class TestSmallerBackingFile(iotests.QMPTestCase):
         self.assert_no_active_block_jobs()
         self.vm.shutdown()
 
-class TestErrors(iotests.QMPTestCase):
+class TestErrors(iotests.BlockQMPTestCase):
     image_len = 2 * 1024 * 1024 # MB
 
     # this should match STREAM_BUFFER_SIZE/512 in block/stream.c
@@ -694,7 +694,7 @@ class TestENOSPC(TestErrors):
         self.assert_no_active_block_jobs()
         self.vm.shutdown()
 
-class TestStreamStop(iotests.QMPTestCase):
+class TestStreamStop(iotests.BlockQMPTestCase):
     image_len = 8 * 1024 * 1024 * 1024 # GB
 
     def setUp(self):
@@ -723,7 +723,7 @@ class TestStreamStop(iotests.QMPTestCase):
 
         self.cancel_and_wait(resume=True)
 
-class TestSetSpeed(iotests.QMPTestCase):
+class TestSetSpeed(iotests.BlockQMPTestCase):
     image_len = 80 * 1024 * 1024 # MB
 
     def setUp(self):

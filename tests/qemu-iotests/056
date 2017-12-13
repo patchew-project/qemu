@@ -29,7 +29,7 @@ backing_img = os.path.join(iotests.test_dir, 'backing.img')
 test_img = os.path.join(iotests.test_dir, 'test.img')
 target_img = os.path.join(iotests.test_dir, 'target.img')
 
-class TestSyncModesNoneAndTop(iotests.QMPTestCase):
+class TestSyncModesNoneAndTop(iotests.BlockQMPTestCase):
     image_len = 64 * 1024 * 1024 # MB
 
     def setUp(self):
@@ -82,7 +82,7 @@ class TestSyncModesNoneAndTop(iotests.QMPTestCase):
         time.sleep(1)
         self.assertEqual(-1, qemu_io('-c', 'read -P0x41 0 512', target_img).find("verification failed"))
 
-class TestBeforeWriteNotifier(iotests.QMPTestCase):
+class TestBeforeWriteNotifier(iotests.BlockQMPTestCase):
     def setUp(self):
         self.vm = iotests.VM().add_drive_raw("file=blkdebug::null-co://,id=drive0,align=65536,driver=blkdebug")
         self.vm.launch()

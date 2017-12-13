@@ -28,7 +28,7 @@ import unittest
 
 test_img = os.path.join(iotests.test_dir, 'test.img')
 
-class TestImageInfoSpecific(iotests.QMPTestCase):
+class TestImageInfoSpecific(iotests.BlockQMPTestCase):
     '''Abstract base class for ImageInfoSpecific tests'''
 
     def setUp(self):

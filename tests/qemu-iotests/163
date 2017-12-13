@@ -28,7 +28,7 @@ def size_to_int(str):
     suff = ['B', 'K', 'M', 'G', 'T']
     return int(str[:-1]) * 1024**suff.index(str[-1:])
 
-class ShrinkBaseClass(iotests.QMPTestCase):
+class ShrinkBaseClass(iotests.BlockQMPTestCase):
     image_len = '128M'
     shrink_size = '10M'
     chunk_size = '16M'

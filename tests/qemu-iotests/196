@@ -26,7 +26,7 @@ from iotests import qemu_img
 disk = os.path.join(iotests.test_dir, 'disk')
 migfile = os.path.join(iotests.test_dir, 'migfile')
 
-class TestInvalidateAutoclear(iotests.QMPTestCase):
+class TestInvalidateAutoclear(iotests.BlockQMPTestCase):
 
     def tearDown(self):
         self.vm_a.shutdown()

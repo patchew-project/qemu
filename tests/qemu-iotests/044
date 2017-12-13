@@ -29,7 +29,7 @@ import subprocess
 
 test_img = os.path.join(iotests.test_dir, 'test.img')
 
-class TestRefcountTableGrowth(iotests.QMPTestCase):
+class TestRefcountTableGrowth(iotests.BlockQMPTestCase):
     '''Abstract base class for image mirroring test cases'''
 
     def preallocate(self, name):

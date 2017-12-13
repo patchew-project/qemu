@@ -34,7 +34,7 @@ quorum_img3 = os.path.join(iotests.test_dir, 'quorum3.img')
 quorum_repair_img = os.path.join(iotests.test_dir, 'quorum_repair.img')
 quorum_snapshot_file = os.path.join(iotests.test_dir, 'quorum_snapshot.img')
 
-class TestSingleDrive(iotests.QMPTestCase):
+class TestSingleDrive(iotests.BlockQMPTestCase):
     image_len = 1 * 1024 * 1024 # MB
     qmp_cmd = 'drive-mirror'
     qmp_target = target_img
@@ -254,7 +254,7 @@ class TestSingleDriveUnalignedLength(TestSingleDrive):
 class TestSingleBlockdevUnalignedLength(TestSingleBlockdev):
     image_len = 1025 * 1024
 
-class TestMirrorNoBacking(iotests.QMPTestCase):
+class TestMirrorNoBacking(iotests.BlockQMPTestCase):
     image_len = 2 * 1024 * 1024 # MB
 
     def setUp(self):
@@ -323,7 +323,7 @@ class TestMirrorNoBacking(iotests.QMPTestCase):
         self.assertTrue(iotests.compare_images(test_img, target_img),
                         'target image does not match source after mirroring')
 
-class TestMirrorResized(iotests.QMPTestCase):
+class TestMirrorResized(iotests.BlockQMPTestCase):
     backing_len = 1 * 1024 * 1024 # MB
     image_len = 2 * 1024 * 1024 # MB
 
@@ -371,7 +371,7 @@ class TestMirrorResized(iotests.QMPTestCase):
         self.assertTrue(iotests.compare_images(test_img, target_img),
                         'target image does not match source after mirroring')
 
-class TestReadErrors(iotests.QMPTestCase):
+class TestReadErrors(iotests.BlockQMPTestCase):
     image_len = 2 * 1024 * 1024 # MB
 
     # this should be a multiple of twice the default granularity
@@ -526,7 +526,7 @@ new_state = "1"
         self.assert_no_active_block_jobs()
         self.vm.shutdown()
 
-class TestWriteErrors(iotests.QMPTestCase):
+class TestWriteErrors(iotests.BlockQMPTestCase):
     image_len = 2 * 1024 * 1024 # MB
 
     # this should be a multiple of twice the default granularity
@@ -653,7 +653,7 @@ new_state = "1"
         self.assert_no_active_block_jobs()
         self.vm.shutdown()
 
-class TestSetSpeed(iotests.QMPTestCase):
+class TestSetSpeed(iotests.BlockQMPTestCase):
     image_len = 80 * 1024 * 1024 # MB
 
     def setUp(self):
@@ -719,7 +719,7 @@ class TestSetSpeed(iotests.QMPTestCase):
 
         self.wait_ready_and_cancel()
 
-class TestUnbackedSource(iotests.QMPTestCase):
+class TestUnbackedSource(iotests.BlockQMPTestCase):
     image_len = 2 * 1024 * 1024 # MB
 
     def setUp(self):
@@ -760,7 +760,7 @@ class TestUnbackedSource(iotests.QMPTestCase):
         self.complete_and_wait()
         self.assert_no_active_block_jobs()
 
-class TestGranularity(iotests.QMPTestCase):
+class TestGranularity(iotests.BlockQMPTestCase):
     image_len = 10 * 1024 * 1024 # MB
 
     def setUp(self):
@@ -790,7 +790,7 @@ class TestGranularity(iotests.QMPTestCase):
         self.complete_and_wait(drive='drive0', wait_ready=False)
         self.assert_no_active_block_jobs()
 
-class TestRepairQuorum(iotests.QMPTestCase):
+class TestRepairQuorum(iotests.BlockQMPTestCase):
     """ This class test quorum file repair using drive-mirror.
         It's mostly a fork of TestSingleDrive """
     image_len = 1 * 1024 * 1024 # MB
@@ -1002,7 +1002,7 @@ class TestRepairQuorum(iotests.QMPTestCase):
 
 # Test mirroring with a source that does not have any parents (not even a
 # BlockBackend)
-class TestOrphanedSource(iotests.QMPTestCase):
+class TestOrphanedSource(iotests.BlockQMPTestCase):
     def setUp(self):
         blk0 = { 'node-name': 'src',
                  'driver': 'null-co' }

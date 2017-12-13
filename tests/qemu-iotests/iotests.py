@@ -315,6 +315,10 @@ class QMPTestCase(unittest.TestCase):
         result = self.dictpath(d, path)
         self.assertEqual(result, value, 'values not equal "%s" and "%s"' % (str(result), str(value)))
 
+
+class BlockQMPTestCase(QMPTestCase):
+    '''Abstract base class for Block QMP test cases'''
+
     def assert_no_active_block_jobs(self):
         result = self.vm.qmp('query-block-jobs')
         self.assert_qmp(result, 'return', [])

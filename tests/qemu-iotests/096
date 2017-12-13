@@ -22,7 +22,7 @@
 import iotests
 import os
 
-class TestLiveSnapshot(iotests.QMPTestCase):
+class TestLiveSnapshot(iotests.BlockQMPTestCase):
     base_img = os.path.join(iotests.test_dir, 'base.img')
     target_img = os.path.join(iotests.test_dir, 'target.img')
     group = 'mygroup'

@@ -91,7 +91,7 @@ class Bitmap:
                 try_remove(image)
 
 
-class TestIncrementalBackupBase(iotests.QMPTestCase):
+class TestIncrementalBackupBase(iotests.BlockQMPTestCase):
     def __init__(self, *args):
         super(TestIncrementalBackupBase, self).__init__(*args)
         self.bitmaps = list()

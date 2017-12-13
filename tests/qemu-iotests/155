@@ -46,7 +46,7 @@ target_img = os.path.join(iotests.test_dir, 'target.' + iotests.imgfmt)
 #                      target_blockdev_backing is not None
 #                      (None: same as target_backing)
 
-class BaseClass(iotests.QMPTestCase):
+class BaseClass(iotests.BlockQMPTestCase):
     target_blockdev_backing = None
     target_real_backing = None
 

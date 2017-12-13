@@ -44,7 +44,7 @@ def tearDownModule():
     os.remove(test_img)
 
 
-class TestSingleDrive(iotests.QMPTestCase):
+class TestSingleDrive(iotests.BlockQMPTestCase):
     def setUp(self):
         qemu_img('create', '-f', iotests.imgfmt, blockdev_target_img, str(image_len))
 
@@ -163,7 +163,7 @@ class TestSingleDrive(iotests.QMPTestCase):
                              target='drive0', sync='full')
         self.assert_qmp(result, 'error/class', 'GenericError')
 
-class TestSetSpeed(iotests.QMPTestCase):
+class TestSetSpeed(iotests.BlockQMPTestCase):
     def setUp(self):
         qemu_img('create', '-f', iotests.imgfmt, blockdev_target_img, str(image_len))
 
@@ -249,7 +249,7 @@ class TestSetSpeed(iotests.QMPTestCase):
 
 # Note: We cannot use pause_drive() here, or the transaction command
 #       would stall.  Instead, we limit the block job speed here.
-class TestSingleTransaction(iotests.QMPTestCase):
+class TestSingleTransaction(iotests.BlockQMPTestCase):
     def setUp(self):
         qemu_img('create', '-f', iotests.imgfmt, blockdev_target_img, str(image_len))
 
@@ -453,7 +453,7 @@ class TestSingleTransaction(iotests.QMPTestCase):
         self.assert_no_active_block_jobs()
 
 
-class TestDriveCompression(iotests.QMPTestCase):
+class TestDriveCompression(iotests.BlockQMPTestCase):
     image_len = 64 * 1024 * 1024 # MB
     fmt_supports_compression = [{'type': 'qcow2', 'args': ()},
                                 {'type': 'vmdk', 'args': ('-o', 'subformat=streamOptimized')}]

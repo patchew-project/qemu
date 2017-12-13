@@ -23,7 +23,7 @@ import iotests
 
 nsec_per_sec = 1000000000
 
-class ThrottleTestCase(iotests.QMPTestCase):
+class ThrottleTestCase(iotests.BlockQMPTestCase):
     test_img = "null-aio://"
     max_drives = 3
 
@@ -211,7 +211,7 @@ class ThrottleTestCase(iotests.QMPTestCase):
 class ThrottleTestCoroutine(ThrottleTestCase):
     test_img = "null-co://"
 
-class ThrottleTestGroupNames(iotests.QMPTestCase):
+class ThrottleTestGroupNames(iotests.BlockQMPTestCase):
     test_img = "null-aio://"
     max_drives = 3
 
@@ -308,7 +308,7 @@ class ThrottleTestGroupNames(iotests.QMPTestCase):
             groupname = "group%d" % i
             self.verify_name(devname, groupname)
 
-class ThrottleTestRemovableMedia(iotests.QMPTestCase):
+class ThrottleTestRemovableMedia(iotests.BlockQMPTestCase):
     def setUp(self):
         self.vm = iotests.VM()
         if iotests.qemu_default_machine == 's390-ccw-virtio':

@@ -32,7 +32,7 @@ backing_img = os.path.join(iotests.test_dir, 'backing.img')
 mid_img = os.path.join(iotests.test_dir, 'mid.img')
 test_img = os.path.join(iotests.test_dir, 'test.img')
 
-class ImageCommitTestCase(iotests.QMPTestCase):
+class ImageCommitTestCase(iotests.BlockQMPTestCase):
     '''Abstract base class for image commit test cases'''
 
     def wait_for_complete(self, need_ready=False):

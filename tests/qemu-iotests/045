@@ -28,7 +28,7 @@ image2 = os.path.join(iotests.test_dir, 'image2')
 image3 = os.path.join(iotests.test_dir, 'image3')
 image4 = os.path.join(iotests.test_dir, 'image4')
 
-class TestFdSets(iotests.QMPTestCase):
+class TestFdSets(iotests.BlockQMPTestCase):
 
     def setUp(self):
         self.vm = iotests.VM()
@@ -126,7 +126,7 @@ class TestFdSets(iotests.QMPTestCase):
         self.vm.shutdown()
 
 # Add fd at runtime, there are two ways: monitor related or fdset related
-class TestSCMFd(iotests.QMPTestCase):
+class TestSCMFd(iotests.BlockQMPTestCase):
     def setUp(self):
         self.vm = iotests.VM()
         qemu_img('create', '-f', iotests.imgfmt, image0, '128K')

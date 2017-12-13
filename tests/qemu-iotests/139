@@ -30,7 +30,7 @@ if iotests.qemu_default_machine == 's390-ccw-virtio':
 else:
     default_virtio_blk = 'virtio-blk-pci'
 
-class TestBlockdevDel(iotests.QMPTestCase):
+class TestBlockdevDel(iotests.BlockQMPTestCase):
 
     def setUp(self):
         iotests.qemu_img('create', '-f', iotests.imgfmt, base_img, '1M')

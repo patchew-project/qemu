@@ -33,7 +33,7 @@ regions1 = ((0x0fff00, 0x10000),
 regions2 = ((0x10000000, 0x20000),
             (0x3fff0000, 0x10000))
 
-class TestPersistentDirtyBitmap(iotests.QMPTestCase):
+class TestPersistentDirtyBitmap(iotests.BlockQMPTestCase):
 
     def setUp(self):
         qemu_img('create', '-f', iotests.imgfmt, disk, str(disk_size))

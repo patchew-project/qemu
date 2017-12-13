@@ -34,7 +34,7 @@ event_rate = 1000000000
 sector_size = 512
 offset = 10
 
-class TestQuorumEvents(iotests.QMPTestCase):
+class TestQuorumEvents(iotests.BlockQMPTestCase):
     read_pattern = 'quorum'
 
     def create_blkdebug_file(self, blkdebug_file, bad_sector):

@@ -22,7 +22,7 @@ import os
 import iotests
 import time
 
-class TestStopWithBlockJob(iotests.QMPTestCase):
+class TestStopWithBlockJob(iotests.BlockQMPTestCase):
     test_img = os.path.join(iotests.test_dir, 'test.img')
     target_img = os.path.join(iotests.test_dir, 'target.img')
     base_img = os.path.join(iotests.test_dir, 'base.img')

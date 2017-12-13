@@ -29,7 +29,7 @@ bad_sector = 8192
 bad_offset = bad_sector * 512
 blkdebug_file = os.path.join(iotests.test_dir, 'blkdebug.conf')
 
-class BlockDeviceStatsTestCase(iotests.QMPTestCase):
+class BlockDeviceStatsTestCase(iotests.BlockQMPTestCase):
     test_img = "null-aio://"
     total_rd_bytes = 0
     total_rd_ops = 0

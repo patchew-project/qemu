@@ -28,7 +28,7 @@ from iotests import qemu_img
 old_img = os.path.join(iotests.test_dir, 'test0.img')
 new_img = os.path.join(iotests.test_dir, 'test1.img')
 
-class ChangeBaseClass(iotests.QMPTestCase):
+class ChangeBaseClass(iotests.BlockQMPTestCase):
     has_opened = False
     has_closed = False
 

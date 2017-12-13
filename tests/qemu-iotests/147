@@ -37,7 +37,7 @@ def flatten_sock_addr(crumpled_address):
     return result
 
 
-class NBDBlockdevAddBase(iotests.QMPTestCase):
+class NBDBlockdevAddBase(iotests.BlockQMPTestCase):
     def blockdev_add_options(self, address, export=None):
         options = { 'node-name': 'nbd-blockdev',
                     'driver': 'raw',

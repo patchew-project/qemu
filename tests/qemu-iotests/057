@@ -27,7 +27,7 @@ from iotests import qemu_img, qemu_io
 
 test_drv_base_name = 'drive'
 
-class ImageSnapshotTestCase(iotests.QMPTestCase):
+class ImageSnapshotTestCase(iotests.BlockQMPTestCase):
     image_len = 120 * 1024 * 1024 # MB
 
     def __init__(self, *args):

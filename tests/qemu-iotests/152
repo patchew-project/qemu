@@ -25,7 +25,7 @@ from iotests import qemu_img
 test_img = os.path.join(iotests.test_dir, 'test.img')
 target_img = os.path.join(iotests.test_dir, 'target.img')
 
-class TestUnaligned(iotests.QMPTestCase):
+class TestUnaligned(iotests.BlockQMPTestCase):
     def setUp(self):
         qemu_img('create', '-f', iotests.imgfmt, test_img, '512')
         self.vm = iotests.VM().add_drive(test_img)

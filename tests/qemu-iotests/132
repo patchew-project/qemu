@@ -26,7 +26,7 @@ from iotests import qemu_img, qemu_io
 test_img = os.path.join(iotests.test_dir, 'test.img')
 target_img = os.path.join(iotests.test_dir, 'target.img')
 
-class TestSingleDrive(iotests.QMPTestCase):
+class TestSingleDrive(iotests.BlockQMPTestCase):
     image_len = 2 * 1024 * 1024 # MB
 
     def setUp(self):
