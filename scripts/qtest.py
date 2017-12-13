@@ -18,12 +18,13 @@ import qemu
 import re
 import unittest
 import logging
+import tempfile
 
 
 qemu_prog = os.environ.get('QEMU_PROG', 'qemu')
 qemu_opts = os.environ.get('QEMU_OPTIONS', '').strip().split(' ')
 
-test_dir = os.environ.get('TEST_DIR')
+test_dir = os.environ.get('TEST_DIR', tempfile.gettempdir())
 output_dir = os.environ.get('OUTPUT_DIR', '.')
 qemu_default_machine = os.environ.get('QEMU_DEFAULT_MACHINE')
 
