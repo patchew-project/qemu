@@ -12,9 +12,32 @@
 #
 
 import socket
+import sys
 import os
 import qemu
+import re
+import unittest
+import logging
 
+
+qemu_prog = os.environ.get('QEMU_PROG', 'qemu')
+qemu_opts = os.environ.get('QEMU_OPTIONS', '').strip().split(' ')
+
+test_dir = os.environ.get('TEST_DIR')
+output_dir = os.environ.get('OUTPUT_DIR', '.')
+qemu_default_machine = os.environ.get('QEMU_DEFAULT_MACHINE')
+
+socket_scm_helper = os.environ.get('SOCKET_SCM_HELPER', 'socket_scm_helper')
+debug = False
+
+
+def filter_qmp_event(event):
+    '''Filter a QMP event dict'''
+    event = dict(event)
+    if 'timestamp' in event:
+        event['timestamp']['seconds'] = 'SECS'
+        event['timestamp']['microseconds'] = 'USECS'
+    return event
 
 class QEMUQtestProtocol(object):
     def __init__(self, address, server=False):
@@ -107,3 +130,82 @@ class QEMUQtestMachine(qemu.QEMUMachine):
     def qtest(self, cmd):
         '''Send a qtest command to guest'''
         return self._qtest.cmd(cmd)
+
+
+def createQtestMachine(path_suffix=''):
+    name = "qemu%s-%d" % (path_suffix, os.getpid())
+    return QEMUQtestMachine(qemu_prog, qemu_opts, name=name,
+                             test_dir=test_dir,
+                             socket_scm_helper=socket_scm_helper)
+
+class QMPTestCase(unittest.TestCase):
+    '''Abstract base class for QMP test cases'''
+
+    index_re = re.compile(r'([^\[]+)\[([^\]]+)\]')
+
+    def dictpath(self, d, path):
+        '''Traverse a path in a nested dict'''
+        for component in path.split('/'):
+            m = QMPTestCase.index_re.match(component)
+            if m:
+                component, idx = m.groups()
+                idx = int(idx)
+
+            if not isinstance(d, dict) or component not in d:
+                self.fail('failed path traversal for "%s" in "%s"' % (path,
+                                                                      str(d)))
+            d = d[component]
+
+            if m:
+                if not isinstance(d, list):
+                    self.fail(('path component "%s" in "%s" is not a list ' +
+                              'in "%s"') % (component, path, str(d)))
+                try:
+                    d = d[idx]
+                except IndexError:
+                    self.fail(('invalid index "%s" in path "%s" ' +
+                              'in "%s"') % (idx, path, str(d)))
+        return d
+
+    def flatten_qmp_object(self, obj, output=None, basestr=''):
+        if output is None:
+            output = dict()
+        if isinstance(obj, list):
+            for i in range(len(obj)):
+                self.flatten_qmp_object(obj[i], output, basestr + str(i) + '.')
+        elif isinstance(obj, dict):
+            for key in obj:
+                self.flatten_qmp_object(obj[key], output, basestr + key + '.')
+        else:
+            output[basestr[:-1]] = obj # Strip trailing '.'
+        return output
+
+    def qmp_to_opts(self, obj):
+        obj = self.flatten_qmp_object(obj)
+        output_list = list()
+        for key in obj:
+            output_list += [key + '=' + obj[key]]
+        return ','.join(output_list)
+
+    def assert_qmp_absent(self, d, path):
+        try:
+            result = self.dictpath(d, path)
+        except AssertionError:
+            return
+        self.fail('path "%s" has value "%s"' % (path, str(result)))
+
+    def assert_qmp(self, d, path, value):
+        '''Assert that the value for a specific path in a QMP dict matches'''
+        result = self.dictpath(d, path)
+        self.assertEqual(result, value, ('values not equal "%s" ' +
+                         'and "%s"') % (str(result), str(value)))
+
+
+def notrun(reason):
+    '''Skip this test suite'''
+    print '%s not run: %s' % (seq, reason)
+    sys.exit(0)
+
+def verify_platform(supported_oses=['linux']):
+    if True not in [sys.platform.startswith(x) for x in supported_oses]:
+        notrun('not suitable for this OS: %s' % sys.platform)

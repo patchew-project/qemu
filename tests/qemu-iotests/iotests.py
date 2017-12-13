@@ -20,7 +20,6 @@ import errno
 import os
 import re
 import subprocess
-import string
 import unittest
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'scripts'))
@@ -30,6 +29,10 @@ import json
 import signal
 import logging
 
+# use the following imports from qtest instead of iotests.
+from qtest import qemu_prog, qemu_opts, test_dir, output_dir
+from qtest import qemu_default_machine, socket_scm_helper
+from qtest import filter_qmp_event, verify_platform
 
 # This will not work if arguments contain spaces but is necessary if we
 # want to support the override options that ./check supports.
@@ -45,18 +48,10 @@ qemu_nbd_args = [os.environ.get('QEMU_NBD_PROG', 'qemu-nbd')]
 if os.environ.get('QEMU_NBD_OPTIONS'):
     qemu_nbd_args += os.environ['QEMU_NBD_OPTIONS'].strip().split(' ')
 
-qemu_prog = os.environ.get('QEMU_PROG', 'qemu')
-qemu_opts = os.environ.get('QEMU_OPTIONS', '').strip().split(' ')
-
 imgfmt = os.environ.get('IMGFMT', 'raw')
 imgproto = os.environ.get('IMGPROTO', 'file')
-test_dir = os.environ.get('TEST_DIR')
-output_dir = os.environ.get('OUTPUT_DIR', '.')
 cachemode = os.environ.get('CACHEMODE')
-qemu_default_machine = os.environ.get('QEMU_DEFAULT_MACHINE')
 
-socket_scm_helper = os.environ.get('SOCKET_SCM_HELPER', 'socket_scm_helper')
-debug = False
 
 def qemu_img(*args):
     '''Run qemu-img and return the exit code'''
@@ -133,14 +128,6 @@ def filter_qemu_io(msg):
 chown_re = re.compile(r"chown [0-9]+:[0-9]+")
 def filter_chown(msg):
     return chown_re.sub("chown UID:GID", msg)
-
-def filter_qmp_event(event):
-    '''Filter a QMP event dict'''
-    event = dict(event)
-    if 'timestamp' in event:
-        event['timestamp']['seconds'] = 'SECS'
-        event['timestamp']['microseconds'] = 'USECS'
-    return event
 
 def log(msg, filters=[]):
     for flt in filters:
@@ -257,66 +244,7 @@ class VM(qtest.QEMUQtestMachine):
                         command_line='qemu-io %s "%s"' % (drive, cmd))
 
 
-index_re = re.compile(r'([^\[]+)\[([^\]]+)\]')
-
-class QMPTestCase(unittest.TestCase):
-    '''Abstract base class for QMP test cases'''
-
-    def dictpath(self, d, path):
-        '''Traverse a path in a nested dict'''
-        for component in path.split('/'):
-            m = index_re.match(component)
-            if m:
-                component, idx = m.groups()
-                idx = int(idx)
-
-            if not isinstance(d, dict) or component not in d:
-                self.fail('failed path traversal for "%s" in "%s"' % (path, str(d)))
-            d = d[component]
-
-            if m:
-                if not isinstance(d, list):
-                    self.fail('path component "%s" in "%s" is not a list in "%s"' % (component, path, str(d)))
-                try:
-                    d = d[idx]
-                except IndexError:
-                    self.fail('invalid index "%s" in path "%s" in "%s"' % (idx, path, str(d)))
-        return d
-
-    def flatten_qmp_object(self, obj, output=None, basestr=''):
-        if output is None:
-            output = dict()
-        if isinstance(obj, list):
-            for i in range(len(obj)):
-                self.flatten_qmp_object(obj[i], output, basestr + str(i) + '.')
-        elif isinstance(obj, dict):
-            for key in obj:
-                self.flatten_qmp_object(obj[key], output, basestr + key + '.')
-        else:
-            output[basestr[:-1]] = obj # Strip trailing '.'
-        return output
-
-    def qmp_to_opts(self, obj):
-        obj = self.flatten_qmp_object(obj)
-        output_list = list()
-        for key in obj:
-            output_list += [key + '=' + obj[key]]
-        return ','.join(output_list)
-
-    def assert_qmp_absent(self, d, path):
-        try:
-            result = self.dictpath(d, path)
-        except AssertionError:
-            return
-        self.fail('path "%s" has value "%s"' % (path, str(result)))
-
-    def assert_qmp(self, d, path, value):
-        '''Assert that the value for a specific path in a QMP dict matches'''
-        result = self.dictpath(d, path)
-        self.assertEqual(result, value, 'values not equal "%s" and "%s"' % (str(result), str(value)))
-
-
-class BlockQMPTestCase(QMPTestCase):
+class BlockQMPTestCase(qtest.QMPTestCase):
     '''Abstract base class for Block QMP test cases'''
 
     def assert_no_active_block_jobs(self):
@@ -429,10 +357,6 @@ def verify_image_format(supported_fmts=[], unsupported_fmts=[]):
         notrun('not suitable for this image format: %s' % imgfmt)
     if unsupported_fmts and (imgfmt in unsupported_fmts):
         notrun('not suitable for this image format: %s' % imgfmt)
-
-def verify_platform(supported_oses=['linux']):
-    if True not in [sys.platform.startswith(x) for x in supported_oses]:
-        notrun('not suitable for this OS: %s' % sys.platform)
 
 def supports_quorum():
     return 'quorum' in qemu_img_pipe('--help')
