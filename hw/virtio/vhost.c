@@ -694,6 +694,67 @@ static void vhost_commit(MemoryListener *listener)
     dev->memory_changed = false;
 }
 
+/* Adds the section data to the tmp_mem structure.
+ * It relies on the listener calling us in memory address order
+ * and for each region (via the _add and _nop methods).
+ */
+static void vhost_region_add_tmp(struct vhost_dev *dev,
+                                 MemoryRegionSection *section)
+{
+    bool need_add = true;
+    uint64_t mrs_size = int128_get64(section->size);
+    uint64_t mrs_gpa = section->offset_within_address_space;
+    uintptr_t mrs_host = (uintptr_t)memory_region_get_ram_ptr(section->mr) +
+                         section->offset_within_region;
+
+    trace_vhost_region_add_tmp(section->mr->name, mrs_gpa, mrs_size, mrs_host);
+
+    if (dev->tmp_mem->nregions) {
+        /* Since we already have at least one region, lets see if
+         * this extends it; since we're scanning in order, we only
+         * have to look at the last one, and the FlatView that calls
+         * us shouldn't have overlaps.
+         */
+        struct vhost_memory_region *prev_vmr = dev->tmp_mem->regions +
+                                               (dev->tmp_mem->nregions - 1);
+        uint64_t prev_gpa_start = prev_vmr->guest_phys_addr;
+        uint64_t prev_gpa_end   = range_get_last(prev_gpa_start,
+                                                 prev_vmr->memory_size);
+        uint64_t prev_host_start = prev_vmr->userspace_addr;
+        uint64_t prev_host_end   = range_get_last(prev_host_start,
+                                                  prev_vmr->memory_size);
+
+        if (prev_gpa_end + 1 == mrs_gpa &&
+            prev_host_end + 1 == mrs_host &&
+            (!dev->vhost_ops->vhost_backend_can_merge ||
+                dev->vhost_ops->vhost_backend_can_merge(dev,
+                    mrs_host, mrs_size,
+                    prev_host_start, prev_vmr->memory_size))) {
+            /* The two regions abut */
+            need_add = false;
+            mrs_size = mrs_size + prev_vmr->memory_size;
+            prev_vmr->memory_size = mrs_size;
+            trace_vhost_region_add_tmp_abut(section->mr->name, mrs_size);
+        }
+    }
+
+    if (need_add) {
+        uint32_t nregions = dev->tmp_mem->nregions;
+        size_t s = offsetof(struct vhost_memory, regions) +
+                            (nregions + 1) * sizeof dev->tmp_mem->regions[0];
+        dev->tmp_mem = g_realloc(dev->tmp_mem, s);
+        dev->tmp_mem->nregions++;
+        struct vhost_memory_region *cur_vmr = &dev->tmp_mem->regions[nregions];
+
+        cur_vmr->guest_phys_addr = mrs_gpa;
+        cur_vmr->memory_size     = mrs_size;
+        cur_vmr->userspace_addr  = mrs_host;
+        cur_vmr->flags_padding = 0;
+    }
+
+
+}
+
 static void vhost_region_add(MemoryListener *listener,
                              MemoryRegionSection *section)
 {
@@ -703,6 +764,7 @@ static void vhost_region_add(MemoryListener *listener,
     if (!vhost_section(section)) {
         return;
     }
+    vhost_region_add_tmp(dev, section);
 
     ++dev->n_mem_sections;
     dev->mem_sections = g_renew(MemoryRegionSection, dev->mem_sections,
@@ -800,9 +862,17 @@ static void vhost_iommu_region_del(MemoryListener *listener,
     }
 }
 
+/* Called on regions that have not changed */
 static void vhost_region_nop(MemoryListener *listener,
                              MemoryRegionSection *section)
 {
+    struct vhost_dev *dev = container_of(listener, struct vhost_dev,
+                                         memory_listener);
+    if (!vhost_section(section)) {
+        return;
+    }
+
+    vhost_region_add_tmp(dev, section);
 }
 
 static int vhost_virtqueue_set_addr(struct vhost_dev *dev,
