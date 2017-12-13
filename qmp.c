@@ -115,7 +115,9 @@ void qmp_system_powerdown(Error **erp)
 
 void qmp_cpu(int64_t index, Error **errp)
 {
-    /* Just do nothing */
+    if (monitor_set_cpu(index) < 0) {
+        error_setg(errp, "Invalid CPU index");
+    }
 }
 
 void qmp_cpu_add(int64_t id, Error **errp)

@@ -1048,11 +1048,19 @@
 ##
 # @cpu:
 #
-# This command is a nop that is only provided for the purposes of compatibility.
+# Set the default CPU.
 #
-# Since: 0.14.0
+# @index: The index of the virtual CPU to be set as default
 #
-# Notes: Do not use this command.
+# Returns: Nothing on success
+#
+# Since: 2.12.0
+#
+# Example:
+#
+# -> { "execute": "cpu", "arguments": { "index": 2 } }
+# <- { "return": {} }
+#
 ##
 { 'command': 'cpu', 'data': {'index': 'int'} }
 
