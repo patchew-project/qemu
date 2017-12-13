@@ -363,11 +363,7 @@ void hmp_info_cpus(Monitor *mon, const QDict *qdict)
     cpu_list = qmp_query_cpus(NULL);
 
     for (cpu = cpu_list; cpu; cpu = cpu->next) {
-        int active = ' ';
-
-        if (cpu->value->CPU == monitor_get_cpu_index()) {
-            active = '*';
-        }
+        int active = cpu->value->current ? '*' : ' ';
 
         monitor_printf(mon, "%c CPU #%" PRId64 ":", active, cpu->value->CPU);
 

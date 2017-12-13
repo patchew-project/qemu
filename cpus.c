@@ -1919,7 +1919,7 @@ CpuInfoList *qmp_query_cpus(Error **errp)
         info = g_malloc0(sizeof(*info));
         info->value = g_malloc0(sizeof(*info->value));
         info->value->CPU = cpu->cpu_index;
-        info->value->current = (cpu == first_cpu);
+        info->value->current = (cpu->cpu_index == monitor_get_cpu_index());
         info->value->halted = cpu->halted;
         info->value->qom_path = object_get_canonical_path(OBJECT(cpu));
         info->value->thread_id = cpu->thread_id;
