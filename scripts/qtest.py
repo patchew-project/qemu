@@ -19,6 +19,7 @@ import re
 import unittest
 import logging
 import tempfile
+import subprocess
 
 
 qemu_prog = os.environ.get('QEMU_PROG', 'qemu')
@@ -210,3 +211,18 @@ def notrun(reason):
 def verify_platform(supported_oses=['linux']):
     if True not in [sys.platform.startswith(x) for x in supported_oses]:
         notrun('not suitable for this OS: %s' % sys.platform)
+
+def verify_machine(supported_machines):
+    if 'any' in supported_machines:
+        return
+    args = list((qemu_prog, "-machine", "help"))
+    subp = subprocess.Popen(args, stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT)
+    exitcode = subp.wait()
+    if exitcode < 0:
+        sys.stderr.write('qemu received signal %i: %s\n' % (-exitcode,
+                                                            ' '.join(args)))
+    machines = re.split("\n([\w\.-]+)\s.*", subp.communicate()[0])
+
+    if True not in [x in machines for x in supported_machines]:
+        notrun('not machine suitable for this test')
