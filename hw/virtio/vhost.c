@@ -642,15 +642,25 @@ static void vhost_commit(MemoryListener *listener)
                                          memory_listener);
     uint64_t log_size;
     int r;
+    bool changed = false;
 
-    g_free(dev->tmp_mem);
-    if (!dev->memory_changed) {
-        return;
+    if (dev->mem->nregions != dev->tmp_mem->nregions) {
+        changed = true;
+    } else {
+        /* Same size, lets check the contents */
+        size_t region_size = dev->mem->nregions * sizeof dev->mem->regions[0];
+        changed = memcmp(dev->mem->regions, dev->tmp_mem->regions,
+                         region_size) != 0;
     }
+    g_free(dev->mem);
+    dev->mem = dev->tmp_mem;
+    dev->tmp_mem = NULL;
+
+    trace_vhost_commit(dev->started, changed);
     if (!dev->started) {
         return;
     }
-    if (dev->mem_changed_start_addr > dev->mem_changed_end_addr) {
+    if (!changed) {
         return;
     }
 
