@@ -49,14 +49,21 @@ static QLIST_HEAD(, vhost_dev) vhost_devices =
 
 bool vhost_has_free_slot(void)
 {
-    unsigned int slots_limit = ~0U;
     struct vhost_dev *hdev;
 
     QLIST_FOREACH(hdev, &vhost_devices, entry) {
         unsigned int r = hdev->vhost_ops->vhost_backend_memslots_limit(hdev);
-        slots_limit = MIN(slots_limit, r);
+
+        if (hdev->vhost_ops->vhost_get_used_memslots) {
+            if (hdev->vhost_ops->vhost_get_used_memslots() >= r) {
+                return false;
+            }
+        } else if (used_memslots >= r) {
+            return false;
+        }
     }
-    return slots_limit > used_memslots;
+
+    return true;
 }
 
 static void vhost_dev_sync_region(struct vhost_dev *dev,
@@ -607,6 +614,9 @@ static void vhost_set_memory(MemoryListener *listener,
     dev->mem_changed_end_addr = MAX(dev->mem_changed_end_addr, start_addr + size - 1);
     dev->memory_changed = true;
     used_memslots = dev->mem->nregions;
+    if (dev->vhost_ops->vhost_set_used_memslots) {
+        dev->vhost_ops->vhost_set_used_memslots(dev);
+    }
 }
 
 static bool vhost_section(MemoryRegionSection *section)
@@ -1239,6 +1249,7 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
     uint64_t features;
     int i, r, n_initialized_vqs = 0;
     Error *local_err = NULL;
+    unsigned int n_memslots = 0;
 
     hdev->vdev = NULL;
     hdev->migration_blocker = NULL;
@@ -1251,7 +1262,13 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
         goto fail;
     }
 
-    if (used_memslots > hdev->vhost_ops->vhost_backend_memslots_limit(hdev)) {
+    if (hdev->vhost_ops->vhost_get_used_memslots) {
+        n_memslots = hdev->vhost_ops->vhost_get_used_memslots();
+    } else {
+        n_memslots = used_memslots;
+    }
+
+    if (n_memslots > hdev->vhost_ops->vhost_backend_memslots_limit(hdev)) {
         error_report("vhost backend memory slots limit is less"
                 " than current number of present memory slots");
         r = -1;
