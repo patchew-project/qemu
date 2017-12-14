@@ -96,6 +96,19 @@ struct virtio_scsi_ctrl_an_resp {
 	uint8_t response;
 } QEMU_PACKED;
 
+/* Target rescan */
+struct virtio_scsi_rescan_req {
+	__virtio32 type;
+	__virtio32 next_id;
+} QEMU_PACKED;
+
+struct virtio_scsi_rescan_resp {
+	__virtio32 id;
+	__virtio32 transport;
+	uint8_t node_wwn[8];
+	uint8_t port_wwn[8];
+} QEMU_PACKED;
+
 struct virtio_scsi_event {
 	__virtio32 event;
 	uint8_t lun[8];
@@ -120,6 +133,7 @@ struct virtio_scsi_config {
 #define VIRTIO_SCSI_F_HOTPLUG                  1
 #define VIRTIO_SCSI_F_CHANGE                   2
 #define VIRTIO_SCSI_F_T10_PI                   3
+#define VIRTIO_SCSI_F_RESCAN                   4
 
 /* Response codes */
 #define VIRTIO_SCSI_S_OK                       0
@@ -140,6 +154,7 @@ struct virtio_scsi_config {
 #define VIRTIO_SCSI_T_TMF                      0
 #define VIRTIO_SCSI_T_AN_QUERY                 1
 #define VIRTIO_SCSI_T_AN_SUBSCRIBE             2
+#define VIRTIO_SCSI_T_RESCAN                   3
 
 /* Valid TMF subtypes.  */
 #define VIRTIO_SCSI_T_TMF_ABORT_TASK           0

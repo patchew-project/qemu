@@ -71,19 +71,21 @@ struct SCSIDevice
     DeviceState qdev;
     VMChangeStateEntry *vmsentry;
     QEMUBH *bh;
-    uint32_t id;
     BlockConf conf;
     SCSISense unit_attention;
     bool sense_is_ua;
     uint8_t sense[SCSI_SENSE_BUF_SIZE];
     uint32_t sense_len;
     QTAILQ_HEAD(, SCSIRequest) requests;
+    uint32_t id;
     uint32_t channel;
     uint64_t lun;
     int blocksize;
-    int type;
+    uint8_t type;
+    uint8_t protocol;
     uint64_t max_lba;
     uint64_t wwn;
+    uint64_t node_wwn;
     uint64_t port_wwn;
 };
 

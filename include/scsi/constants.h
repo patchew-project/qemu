@@ -223,6 +223,17 @@
 #define TYPE_INACTIVE       0x20
 #define TYPE_NO_LUN         0x7f
 
+/*
+ * Protocol identifiers
+ */
+
+#define SCSI_PROTOCOL_FCP    0x00
+#define SCSI_PROTOCOL_SPI    0x01
+#define SCSI_PROTOCOL_SRP    0x04
+#define SCSI_PROTOCOL_ISCSI  0x05
+#define SCSI_PROTOCOL_SAS    0x06
+#define SCSI_PROTOCOL_UAS    0x09
+#define SCSI_PROTOCOL_UNSPEC 0x0f
 /* Mode page codes for mode sense/set */
 #define MODE_PAGE_R_W_ERROR                   0x01
 #define MODE_PAGE_HD_GEOMETRY                 0x04

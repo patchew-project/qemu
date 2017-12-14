@@ -21,6 +21,7 @@ static Property scsi_props[] = {
     DEFINE_PROP_UINT32("channel", SCSIDevice, channel, 0),
     DEFINE_PROP_UINT32("scsi-id", SCSIDevice, id, -1),
     DEFINE_PROP_UINT64("lun", SCSIDevice, lun, -1),
+    DEFINE_PROP_UINT8("protocol", SCSIDevice, protocol, SCSI_PROTOCOL_SAS),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -189,6 +190,15 @@ static void scsi_qdev_realize(DeviceState *qdev, Error **errp)
         }
     }
 
+    if (dev->protocol != SCSI_PROTOCOL_FCP &&
+        dev->protocol != SCSI_PROTOCOL_SPI &&
+        dev->protocol != SCSI_PROTOCOL_SRP &&
+        dev->protocol != SCSI_PROTOCOL_ISCSI &&
+        dev->protocol != SCSI_PROTOCOL_SAS &&
+        dev->protocol != SCSI_PROTOCOL_UAS) {
+        error_setg(errp, "invalid scsi protocol id: %d", dev->protocol);
+        return;
+    }
     if (dev->id == -1) {
         int id = -1;
         if (dev->lun == -1) {

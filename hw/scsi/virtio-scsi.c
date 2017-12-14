@@ -19,6 +19,7 @@
 #include "hw/virtio/virtio-scsi.h"
 #include "qemu/error-report.h"
 #include "qemu/iov.h"
+#include "qemu/cutils.h"
 #include "sysemu/block-backend.h"
 #include "hw/scsi/scsi.h"
 #include "scsi/constants.h"
@@ -386,6 +387,7 @@ fail:
 static void virtio_scsi_handle_ctrl_req(VirtIOSCSI *s, VirtIOSCSIReq *req)
 {
     VirtIODevice *vdev = (VirtIODevice *)s;
+    VirtIOSCSICommon *c = VIRTIO_SCSI_COMMON(vdev);
     uint32_t type;
     int r = 0;
 
@@ -414,6 +416,55 @@ static void virtio_scsi_handle_ctrl_req(VirtIOSCSI *s, VirtIOSCSIReq *req)
         } else {
             req->resp.an.event_actual = 0;
             req->resp.an.response = VIRTIO_SCSI_S_OK;
+        }
+    } else if (type == VIRTIO_SCSI_T_RESCAN) {
+        if (virtio_scsi_parse_req(req, sizeof(VirtIOSCSIRescanReq),
+                                  sizeof(VirtIOSCSIRescanResp)) < 0) {
+            virtio_scsi_bad_req(req);
+            return;
+        } else {
+            BusChild *kid;
+            SCSIDevice *dev = NULL;
+
+            if (req->req.rescan.next_id != -1) {
+                QTAILQ_FOREACH(kid, &s->bus.qbus.children, sibling) {
+                    DeviceState *qdev = kid->child;
+                    SCSIDevice *d = SCSI_DEVICE(qdev);
+
+                    if (d->id >= req->req.rescan.next_id) {
+                        dev = d;
+                        break;
+                    }
+                }
+            }
+            if (dev) {
+                req->resp.rescan.id = dev->id;
+                req->resp.rescan.transport = dev->protocol;
+                if (dev->protocol == SCSI_PROTOCOL_FCP &&
+                    dev->port_wwn && !dev->node_wwn) {
+                    dev->node_wwn = ((uint64_t)1 << 56) |
+                        (dev->port_wwn & ~((uint64_t)0xff << 56));
+                }
+                stq_be_p(req->resp.rescan.node_wwn, dev->node_wwn);
+                stq_be_p(req->resp.rescan.port_wwn, dev->port_wwn);
+            } else {
+                req->resp.rescan.id = -1;
+                if (c->conf.wwnn && c->conf.wwpn) {
+                    req->resp.rescan.transport = SCSI_PROTOCOL_FCP;
+                } else {
+                    req->resp.rescan.transport = SCSI_PROTOCOL_SAS;
+                }
+                if (c->conf.wwnn) {
+                    uint64_t wwnn;
+                    qemu_strtou64(c->conf.wwnn, NULL, 16, &wwnn);
+                    stq_be_p(req->resp.rescan.node_wwn, wwnn);
+                }
+                if (c->conf.wwpn) {
+                    uint64_t wwpn;
+                    qemu_strtou64(c->conf.wwpn, NULL, 16, &wwpn);
+                    stq_be_p(req->resp.rescan.port_wwn, wwpn);
+                }
+            }
         }
     }
     if (r == 0) {
@@ -927,8 +978,12 @@ static Property virtio_scsi_properties[] = {
                                            VIRTIO_SCSI_F_HOTPLUG, true),
     DEFINE_PROP_BIT("param_change", VirtIOSCSI, host_features,
                                                 VIRTIO_SCSI_F_CHANGE, true),
+    DEFINE_PROP_BIT("rescan", VirtIOSCSI, host_features,
+                                          VIRTIO_SCSI_F_RESCAN, true),
     DEFINE_PROP_LINK("iothread", VirtIOSCSI, parent_obj.conf.iothread,
                      TYPE_IOTHREAD, IOThread *),
+    DEFINE_PROP_STRING("wwpn", VirtIOSCSI, parent_obj.conf.wwpn),
+    DEFINE_PROP_STRING("wwnn", VirtIOSCSI, parent_obj.conf.wwnn),
     DEFINE_PROP_END_OF_LIST(),
 };
 
