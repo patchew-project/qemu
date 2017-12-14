@@ -1243,13 +1243,31 @@ static void vhost_virtqueue_cleanup(struct vhost_virtqueue *vq)
     event_notifier_cleanup(&vq->masked_notifier);
 }
 
+static bool vhost_dev_memslots_is_exceeded(struct vhost_dev *hdev)
+{
+    unsigned int n_memslots = 0;
+
+    if (hdev->vhost_ops->vhost_get_used_memslots) {
+        n_memslots = hdev->vhost_ops->vhost_get_used_memslots();
+    } else {
+        n_memslots = used_memslots;
+    }
+
+    if (n_memslots > hdev->vhost_ops->vhost_backend_memslots_limit(hdev)) {
+        error_report("vhost backend memory slots limit is less"
+                " than current number of present memory slots");
+        return true;
+    }
+
+    return false;
+}
+
 int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
                    VhostBackendType backend_type, uint32_t busyloop_timeout)
 {
     uint64_t features;
     int i, r, n_initialized_vqs = 0;
     Error *local_err = NULL;
-    unsigned int n_memslots = 0;
 
     hdev->vdev = NULL;
     hdev->migration_blocker = NULL;
@@ -1262,15 +1280,7 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
         goto fail;
     }
 
-    if (hdev->vhost_ops->vhost_get_used_memslots) {
-        n_memslots = hdev->vhost_ops->vhost_get_used_memslots();
-    } else {
-        n_memslots = used_memslots;
-    }
-
-    if (n_memslots > hdev->vhost_ops->vhost_backend_memslots_limit(hdev)) {
-        error_report("vhost backend memory slots limit is less"
-                " than current number of present memory slots");
+    if (vhost_dev_memslots_is_exceeded(hdev)) {
         r = -1;
         goto fail;
     }
@@ -1356,6 +1366,16 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
     hdev->memory_changed = false;
     memory_listener_register(&hdev->memory_listener, &address_space_memory);
     QLIST_INSERT_HEAD(&vhost_devices, hdev, entry);
+
+    if (vhost_dev_memslots_is_exceeded(hdev)) {
+        r = -1;
+        if (busyloop_timeout) {
+            goto fail_busyloop;
+        } else {
+            goto fail;
+        }
+    }
+
     return 0;
 
 fail_busyloop:
