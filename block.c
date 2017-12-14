@@ -3801,6 +3801,42 @@ BlockDriverState *bdrv_find_node(const char *node_name)
     return NULL;
 }
 
+void bdrv_find_shared(BlockDriverState *bs)
+{
+    BlockDriverState *tmp_bs;
+    int max_shared_no = 0;
+    unsigned long shared_bits = 0;
+
+    if (!bs->filename)
+        return;
+    QTAILQ_FOREACH(tmp_bs, &graph_bdrv_states, node_list) {
+        if (tmp_bs == bs)
+            continue;
+        if (!strcmp(bs->filename, tmp_bs->filename)) {
+            if (tmp_bs->shared_no > 0) {
+                set_bit(tmp_bs->shared_no - 1, &shared_bits);
+            }
+            max_shared_no++;
+        }
+    }
+    if (max_shared_no > 0) {
+        int bit;
+
+        QTAILQ_FOREACH(tmp_bs, &graph_bdrv_states, node_list) {
+            if (!strcmp(bs->filename, tmp_bs->filename) && !tmp_bs->shared_no) {
+                bit = find_first_zero_bit(&shared_bits, sizeof(unsigned long));
+                tmp_bs->shared_no = bit + 1;
+                set_bit(bit, &shared_bits);
+            }
+        }
+    }
+}
+
+int bdrv_get_shared(BlockDriverState *bs)
+{
+    return bs->shared_no;
+}
+
 /* Put this QMP function here so it can access the static graph_bdrv_states. */
 BlockDeviceInfoList *bdrv_named_nodes_list(Error **errp)
 {

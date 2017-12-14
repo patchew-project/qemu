@@ -443,6 +443,8 @@ void bdrv_lock_medium(BlockDriverState *bs, bool locked);
 void bdrv_eject(BlockDriverState *bs, bool eject_flag);
 const char *bdrv_get_format_name(BlockDriverState *bs);
 BlockDriverState *bdrv_find_node(const char *node_name);
+void bdrv_find_shared(BlockDriverState *bs);
+int bdrv_get_shared(BlockDriverState *bs);
 BlockDeviceInfoList *bdrv_named_nodes_list(Error **errp);
 BlockDriverState *bdrv_lookup_bs(const char *device,
                                  const char *node_name,

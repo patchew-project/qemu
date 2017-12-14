@@ -634,6 +634,8 @@ struct BlockDriverState {
     /* Flags honored during pwrite_zeroes (so far: BDRV_REQ_FUA,
      * BDRV_REQ_MAY_UNMAP) */
     unsigned int supported_zero_flags;
+    /* Shared instance count */
+    unsigned int shared_no;
 
     /* the following member gives a name to every node on the bs graph. */
     char node_name[32];

@@ -2333,6 +2333,7 @@ static void scsi_realize(SCSIDevice *dev, Error **errp)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, dev);
     Error *err = NULL;
+    int port_no;
 
     if (!s->qdev.conf.blk) {
         error_setg(errp, "drive property not set");
@@ -2396,6 +2397,11 @@ static void scsi_realize(SCSIDevice *dev, Error **errp)
     blk_set_guest_block_size(s->qdev.conf.blk, s->qdev.blocksize);
 
     blk_iostatus_enable(s->qdev.conf.blk);
+    bdrv_find_shared(blk_bs(s->qdev.conf.blk));
+    port_no = bdrv_get_shared(blk_bs(s->qdev.conf.blk));
+    if (port_no && !s->port_index) {
+        s->port_index = port_no;
+    }
 }
 
 static void scsi_hd_realize(SCSIDevice *dev, Error **errp)
