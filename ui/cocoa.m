@@ -106,6 +106,9 @@ bool stretch_video;
 NSTextField *pauseLabel;
 NSArray * supportedImageFileTypes;
 
+int get_ungrab_key_value(void);
+const char * get_ungrab_key_name(void);
+
 // Mac to QKeyCode conversion
 const int mac_to_qkeycode_map[] = {
     [kVK_ANSI_A] = Q_KEY_CODE_A,
@@ -678,6 +681,12 @@ QemuCocoaView *cocoaView;
         case NSEventTypeKeyDown:
             keycode = cocoa_keycode_to_qemu([event keyCode]);
 
+            // if the user wants to release the mouse grab
+            if (keycode == get_ungrab_key_value()) {
+                [self ungrabMouse];
+                return;
+            }
+
             // forward command key combos to the host UI unless the mouse is grabbed
             if (!isMouseGrabbed && ([event modifierFlags] & NSEventModifierFlagCommand)) {
                 [NSApp sendEvent:event];
@@ -842,10 +851,17 @@ QemuCocoaView *cocoaView;
     COCOA_DEBUG("QemuCocoaView: grabMouse\n");
 
     if (!isFullscreen) {
+        NSString * message_string;
+        if (get_ungrab_key_value() < 0) {
+            message_string = [NSString stringWithFormat: @"- (Press ctrl + alt + g to release Mouse"];
+        } else {
+            message_string = [NSString stringWithFormat: @"- (Press ctrl + alt + g or %s to release Mouse", get_ungrab_key_name()];
+        }
+
         if (qemu_name)
-            [normalWindow setTitle:[NSString stringWithFormat:@"QEMU %s - (Press ctrl + alt + g to release Mouse)", qemu_name]];
+            [normalWindow setTitle:[NSString stringWithFormat: @"QEMU %s %@", qemu_name, message_string]];
         else
-            [normalWindow setTitle:@"QEMU - (Press ctrl + alt + g to release Mouse)"];
+            [normalWindow setTitle:[NSString stringWithFormat: @"QEMU %@", message_string]];
     }
     [self hideCursor];
     if (!isAbsoluteEnabled) {

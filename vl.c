@@ -185,7 +185,8 @@ bool boot_strict;
 uint8_t *boot_splash_filedata;
 size_t boot_splash_filedata_size;
 uint8_t qemu_extra_params_fw[2];
-
+int ungrab_key_value = -1;
+char *ungrab_key_name;
 int icount_align_option;
 
 /* The bytes in qemu_uuid are in the order specified by RFC4122, _not_ in the
@@ -3088,6 +3089,73 @@ static void register_global_properties(MachineState *ms)
     user_register_global_props();
 }
 
+/* Sets the mouse ungrab key to what the user wants */
+static void set_ungrab_key(const char *new_key)
+{
+    const char *keys[] = {
+        [0 ... 0xff]    = "",
+        [Q_KEY_CODE_F1] = "f1",
+        [Q_KEY_CODE_F2] = "f2",
+        [Q_KEY_CODE_F3] = "f3",
+        [Q_KEY_CODE_F4] = "f4",
+        [Q_KEY_CODE_F5] = "f5",
+        [Q_KEY_CODE_F6] = "f6",
+        [Q_KEY_CODE_F7] = "f7",
+        [Q_KEY_CODE_F8] = "f8",
+        [Q_KEY_CODE_F9] = "f9",
+        [Q_KEY_CODE_F10] = "f10",
+        [Q_KEY_CODE_F11] = "f11",
+        [Q_KEY_CODE_F12] = "f12",
+        [Q_KEY_CODE_PRINT] = "f13",
+        [Q_KEY_CODE_SCROLL_LOCK] = "f14",
+        [Q_KEY_CODE_PAUSE] = "f15",
+    };
+
+    int key_value = -1;
+    int i;
+
+    /* see if the user's key is recognized */
+    for (i = 0; i < ARRAY_SIZE(keys); i++) {
+        if (strcmp(keys[i], new_key) == 0) {
+            key_value = i;
+            break;
+        }
+    }
+
+    /* if the user's key isn't recognized print the usable keys */
+    if (key_value == -1) {
+        printf("Unrecognized key: %s\n", new_key);
+        printf("Usable ungrab keys: ");
+        for (i = 0; i < ARRAY_SIZE(keys); i++) {
+            if (strlen(keys[i]) > 0) { /* filters out undefined values */
+                printf("%s ", keys[i]);
+            }
+        }
+        printf("\n\n");
+        exit(1);
+    }
+
+    ungrab_key_name = (char *) malloc(4 * sizeof(char));
+    strncpy(ungrab_key_name, new_key, 3);
+    ungrab_key_value = key_value;
+}
+
+int get_ungrab_key_value(void);
+
+/* Returns the user specified ungrab key's value or -1 if not specified */
+int get_ungrab_key_value(void)
+{
+    return ungrab_key_value;
+}
+
+const char *get_ungrab_key_name(void);
+
+/* Returns the name of the user specified ungrab key */
+const char *get_ungrab_key_name(void)
+{
+    return ungrab_key_name;
+}
+
 int main(int argc, char **argv, char **envp)
 {
     int i;
@@ -4203,6 +4271,9 @@ int main(int argc, char **argv, char **envp)
                     error_report("open %s: %s", optarg, strerror(errno));
                     exit(1);
                 }
+                break;
+            case QEMU_OPTION_ungrab:
+                set_ungrab_key(optarg);
                 break;
             default:
                 os_parse_cmd_args(popt->index, optarg);
