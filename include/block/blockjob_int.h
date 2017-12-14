@@ -29,6 +29,8 @@
 #include "block/blockjob.h"
 #include "block/block.h"
 
+#define SLICE_TIME 100000000ULL /* ns */
+
 /**
  * BlockJobDriver:
  *
