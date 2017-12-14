@@ -276,7 +276,7 @@ static int mptsas_scsi_device_find(MPTSASState *s, int bus, int target,
         return MPI_IOCSTATUS_SCSI_INVALID_TARGETID;
     }
 
-    *sdev = scsi_device_find(&s->bus, bus, target, lun[1]);
+    *sdev = scsi_device_find(&s->bus, bus, target, scsi_lun_from_str(lun));
     if (!*sdev) {
         return MPI_IOCSTATUS_SCSI_DEVICE_NOT_THERE;
     }
@@ -322,7 +322,7 @@ static int mptsas_process_scsi_io_request(MPTSASState *s,
     }
 
     req->sreq = scsi_req_new(sdev, scsi_io->MsgContext,
-                            scsi_io->LUN[1], scsi_io->CDB, req);
+                             sdev->lun, scsi_io->CDB, req);
 
     if (req->sreq->cmd.xfer > scsi_io->DataLength) {
         goto overrun;
@@ -430,7 +430,7 @@ static void mptsas_process_scsi_task_mgmt(MPTSASState *s, MPIMsgSCSITaskMgmt *re
             reply.IOCStatus = status;
             goto out;
         }
-        if (sdev->lun != req->LUN[1]) {
+        if (sdev->lun != scsi_lun_from_str(req->LUN)) {
             reply.ResponseCode = MPI_SCSITASKMGMT_RSP_TM_INVALID_LUN;
             goto out;
         }
@@ -477,7 +477,7 @@ static void mptsas_process_scsi_task_mgmt(MPTSASState *s, MPIMsgSCSITaskMgmt *re
             reply.IOCStatus = status;
             goto out;
         }
-        if (sdev->lun != req->LUN[1]) {
+        if (sdev->lun != scsi_lun_from_str(req->LUN)) {
             reply.ResponseCode = MPI_SCSITASKMGMT_RSP_TM_INVALID_LUN;
             goto out;
         }
@@ -515,7 +515,7 @@ reply_maybe_async:
             reply.IOCStatus = status;
             goto out;
         }
-        if (sdev->lun != req->LUN[1]) {
+        if (sdev->lun != scsi_lun_from_str(req->LUN)) {
             reply.ResponseCode = MPI_SCSITASKMGMT_RSP_TM_INVALID_LUN;
             goto out;
         }

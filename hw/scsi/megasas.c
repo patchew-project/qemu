@@ -756,7 +756,7 @@ static int megasas_ctrl_get_info(MegasasState *s, MegasasCmd *cmd)
         uint16_t pd_id;
 
         if (num_pd_disks < 8) {
-            pd_id = ((sdev->id & 0xFF) << 8) | (sdev->lun & 0xFF);
+            pd_id = ((sdev->id & 0xFF) << 8) | scsi_lun_to_int(sdev->lun);
             info.device.port_addr[num_pd_disks] =
                 cpu_to_le64(megasas_get_sata_addr(pd_id));
         }
@@ -975,7 +975,7 @@ static int megasas_dcmd_pd_get_list(MegasasState *s, MegasasCmd *cmd)
         if (num_pd_disks >= max_pd_disks)
             break;
 
-        pd_id = ((sdev->id & 0xFF) << 8) | (sdev->lun & 0xFF);
+        pd_id = ((sdev->id & 0xFF) << 8) | scsi_lun_to_int(sdev->lun);
         info.addr[num_pd_disks].device_id = cpu_to_le16(pd_id);
         info.addr[num_pd_disks].encl_device_id = 0xFFFF;
         info.addr[num_pd_disks].encl_index = 0;
@@ -1028,7 +1028,8 @@ static int megasas_pd_get_info_submit(SCSIDevice *sdev, int lun,
         info->inquiry_data[0] = 0x7f; /* Force PQual 0x3, PType 0x1f */
         info->vpd_page83[0] = 0x7f;
         megasas_setup_inquiry(cmdbuf, 0, sizeof(info->inquiry_data));
-        cmd->req = scsi_req_new(sdev, cmd->index, lun, cmdbuf, cmd);
+        cmd->req = scsi_req_new(sdev, cmd->index, scsi_lun_from_int(lun),
+                                cmdbuf, cmd);
         if (!cmd->req) {
             trace_megasas_dcmd_req_alloc_failed(cmd->index,
                                                 "PD get info std inquiry");
@@ -1110,7 +1111,7 @@ static int megasas_dcmd_pd_get_info(MegasasState *s, MegasasCmd *cmd)
     pd_id = le16_to_cpu(cmd->frame->dcmd.mbox[0]);
     target_id = (pd_id >> 8) & 0xFF;
     lun_id = pd_id & 0xFF;
-    sdev = scsi_device_find(&s->bus, 0, target_id, lun_id);
+    sdev = scsi_device_find(&s->bus, 0, target_id, scsi_lun_from_int(lun_id));
     trace_megasas_dcmd_pd_get_info(cmd->index, pd_id);
 
     if (sdev) {
@@ -1200,7 +1201,7 @@ static int megasas_dcmd_ld_list_query(MegasasState *s, MegasasCmd *cmd)
         if (num_ld_disks >= max_ld_disks) {
             break;
         }
-        info.targetid[num_ld_disks] = sdev->lun;
+        info.targetid[num_ld_disks] = scsi_lun_to_int(sdev->lun);
         num_ld_disks++;
         dcmd_size++;
     }
@@ -1335,7 +1336,7 @@ static int megasas_dcmd_cfg_read(MegasasState *s, MegasasCmd *cmd)
 
     QTAILQ_FOREACH(kid, &s->bus.qbus.children, sibling) {
         SCSIDevice *sdev = SCSI_DEVICE(kid->child);
-        uint16_t sdev_id = ((sdev->id & 0xFF) << 8) | (sdev->lun & 0xFF);
+        uint16_t sdev_id = ((sdev->id & 0xFF) << 8) | scsi_lun_to_int(sdev->lun);
         struct mfi_array *array;
         struct mfi_ld_config *ld;
         uint64_t pd_size;
@@ -1595,7 +1596,7 @@ static int megasas_finish_internal_dcmd(MegasasCmd *cmd,
                                         SCSIRequest *req, size_t resid)
 {
     int retval = MFI_STAT_OK;
-    int lun = req->lun;
+    int lun = scsi_lun_to_int(req->lun);
 
     trace_megasas_dcmd_internal_finish(cmd->index, cmd->dcmd_opcode, lun);
     cmd->iov_size -= resid;
@@ -1671,7 +1672,7 @@ static int megasas_handle_scsi(MegasasState *s, MegasasCmd *cmd,
             return MFI_STAT_DEVICE_NOT_FOUND;
         }
     }
-    sdev = scsi_device_find(&s->bus, 0, target_id, lun_id);
+    sdev = scsi_device_find(&s->bus, 0, target_id, scsi_lun_from_int(lun_id));
 
     cmd->iov_size = le32_to_cpu(cmd->frame->header.data_len);
     trace_megasas_handle_scsi(mfi_frame_desc[frame_cmd], is_logical,
@@ -1700,7 +1701,8 @@ static int megasas_handle_scsi(MegasasState *s, MegasasCmd *cmd,
         return MFI_STAT_SCSI_DONE_WITH_ERROR;
     }
 
-    cmd->req = scsi_req_new(sdev, cmd->index, lun_id, cdb, cmd);
+    cmd->req = scsi_req_new(sdev, cmd->index, scsi_lun_from_int(lun_id),
+                            cdb, cmd);
     if (!cmd->req) {
         trace_megasas_scsi_req_alloc_failed(
                 mfi_frame_desc[frame_cmd], target_id, lun_id);
@@ -1744,7 +1746,7 @@ static int megasas_handle_io(MegasasState *s, MegasasCmd *cmd, int frame_cmd)
     cdb_len = cmd->frame->header.cdb_len;
 
     if (target_id < MFI_MAX_LD && lun_id == 0) {
-        sdev = scsi_device_find(&s->bus, 0, target_id, lun_id);
+        sdev = scsi_device_find(&s->bus, 0, target_id, 0);
     }
 
     trace_megasas_handle_io(cmd->index,
@@ -1775,7 +1777,7 @@ static int megasas_handle_io(MegasasState *s, MegasasCmd *cmd, int frame_cmd)
 
     megasas_encode_lba(cdb, lba_start, lba_count, is_write);
     cmd->req = scsi_req_new(sdev, cmd->index,
-                            lun_id, cdb, cmd);
+                            scsi_lun_from_int(lun_id), cdb, cmd);
     if (!cmd->req) {
         trace_megasas_scsi_req_alloc_failed(
             mfi_frame_desc[frame_cmd], target_id, lun_id);

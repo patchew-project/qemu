@@ -25,9 +25,9 @@
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio-access.h"
 
-static inline int virtio_scsi_get_lun(uint8_t *lun)
+static inline uint64_t virtio_scsi_get_lun(uint8_t *lun)
 {
-    return ((lun[2] << 8) | lun[3]) & 0x3FFF;
+    return (((uint64_t)(lun[2] << 8) | lun[3]) & 0x3FFF) << 48;
 }
 
 static inline SCSIDevice *virtio_scsi_device_find(VirtIOSCSI *s, uint8_t *lun)
@@ -737,10 +737,10 @@ void virtio_scsi_push_event(VirtIOSCSI *s, SCSIDevice *dev,
         evt->lun[1] = dev->id;
 
         /* Linux wants us to keep the same encoding we use for REPORT LUNS.  */
-        if (dev->lun >= 256) {
-            evt->lun[2] = (dev->lun >> 8) | 0x40;
+        if (scsi_lun_to_int(dev->lun) >= 256) {
+            evt->lun[2] = (scsi_lun_to_int(dev->lun) >> 8) | 0x40;
         }
-        evt->lun[3] = dev->lun & 0xFF;
+        evt->lun[3] = scsi_lun_to_int(dev->lun) & 0xFF;
     }
     virtio_scsi_complete_req(req);
 }

@@ -135,7 +135,7 @@ typedef struct PVSCSIRequest {
     PVSCSIState *dev;
     uint8_t sense_key;
     uint8_t completed;
-    int lun;
+    uint64_t lun;
     QEMUSGList sgl;
     PVSCSISGState sg;
     struct PVSCSIRingReqDesc req;
@@ -551,7 +551,7 @@ pvscsi_send_msg(PVSCSIState *s, SCSIDevice *dev, uint32_t msg_type)
         msg.type = msg_type;
         msg.bus = dev->channel;
         msg.target = dev->id;
-        msg.lun[1] = dev->lun;
+        scsi_lun_to_str(dev->lun, msg.lun);
 
         pvscsi_msg_ring_put(s, (PVSCSIRingMsgDesc *)&msg);
         pvscsi_ring_flush_msg(&s->rings);
@@ -597,15 +597,15 @@ pvscsi_request_cancelled(SCSIRequest *req)
 
 static SCSIDevice*
 pvscsi_device_find(PVSCSIState *s, int channel, int target,
-                   uint8_t *requested_lun, uint8_t *target_lun)
+                   uint8_t *requested_lun, uint64_t *target_lun)
 {
-    if (requested_lun[0] || requested_lun[2] || requested_lun[3] ||
-        requested_lun[4] || requested_lun[5] || requested_lun[6] ||
-        requested_lun[7] || (target > PVSCSI_MAX_DEVS)) {
+    uint64_t lun64 = scsi_lun_from_str(requested_lun);
+
+    if (scsi_lun_to_int(lun64) > 255 || (target > PVSCSI_MAX_DEVS)) {
         return NULL;
     } else {
-        *target_lun = requested_lun[1];
-        return scsi_device_find(&s->bus, channel, target, *target_lun);
+        *target_lun = lun64;
+        return scsi_device_find(&s->bus, channel, target, lun64);
     }
 }
 
@@ -614,7 +614,7 @@ pvscsi_queue_pending_descriptor(PVSCSIState *s, SCSIDevice **d,
                                 struct PVSCSIRingReqDesc *descr)
 {
     PVSCSIRequest *pvscsi_req;
-    uint8_t lun;
+    uint64_t lun;
 
     pvscsi_req = g_malloc0(sizeof(*pvscsi_req));
     pvscsi_req->dev = s;
@@ -823,14 +823,14 @@ pvscsi_on_cmd_unknown(PVSCSIState *s)
 static uint64_t
 pvscsi_on_cmd_reset_device(PVSCSIState *s)
 {
-    uint8_t target_lun = 0;
+    uint64_t target_lun = 0;
     struct PVSCSICmdDescResetDevice *cmd =
         (struct PVSCSICmdDescResetDevice *) s->curr_cmd_data;
     SCSIDevice *sdev;
 
     sdev = pvscsi_device_find(s, 0, cmd->target, cmd->lun, &target_lun);
 
-    trace_pvscsi_on_cmd_reset_dev(cmd->target, (int) target_lun, sdev);
+    trace_pvscsi_on_cmd_reset_dev(cmd->target, scsi_lun_to_int(target_lun), sdev);
 
     if (sdev != NULL) {
         s->resetting++;

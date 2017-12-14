@@ -136,9 +136,9 @@ static void vscsi_put_req(vscsi_req *req)
     req->active = 0;
 }
 
-static SCSIDevice *vscsi_device_find(SCSIBus *bus, uint64_t srp_lun, int *lun)
+static SCSIDevice *vscsi_device_find(SCSIBus *bus, uint64_t srp_lun, uint64_t *lun)
 {
-    int channel = 0, id = 0;
+    int channel = 0, id = 0, l;
 
 retry:
     switch (srp_lun >> 62) {
@@ -149,16 +149,16 @@ retry:
             srp_lun <<= 16;
             goto retry;
         }
-        *lun = (srp_lun >> 48) & 0xff;
+        l = (srp_lun >> 48) & 0xff;
         break;
 
     case 1:
-        *lun = (srp_lun >> 48) & 0x3fff;
+        l = (srp_lun >> 48) & 0x3fff;
         break;
     case 2:
         channel = (srp_lun >> 53) & 0x7;
         id = (srp_lun >> 56) & 0x3f;
-        *lun = (srp_lun >> 48) & 0x1f;
+        l = (srp_lun >> 48) & 0x1f;
         break;
     case 3:
         *lun = -1;
@@ -166,7 +166,7 @@ retry:
     default:
         abort();
     }
-
+    *lun = scsi_lun_from_int(l);
     return scsi_device_find(bus, channel, id, *lun);
 }
 
@@ -752,7 +752,7 @@ static void vscsi_report_luns(VSCSIState *s, vscsi_req *req)
         }
         resp_data[i] |= dev->id;
         resp_data[i+1] = (dev->channel << 5);
-        resp_data[i+1] |= dev->lun;
+        resp_data[i+1] |= scsi_lun_to_int(dev->lun);
         i += 8;
     }
 
@@ -822,8 +822,9 @@ static int vscsi_process_tsk_mgmt(VSCSIState *s, vscsi_req *req)
 {
     union viosrp_iu *iu = &req->iu;
     vscsi_req *tmpreq;
-    int i, lun = 0, resp = SRP_TSK_MGMT_COMPLETE;
+    int i, resp = SRP_TSK_MGMT_COMPLETE;
     SCSIDevice *d;
+    uint64_t lun = 0;
     uint64_t tag = iu->srp.rsp.tag;
     uint8_t sol_not = iu->srp.cmd.sol_not;
 

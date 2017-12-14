@@ -371,11 +371,12 @@ static void usb_msd_handle_control(USBDevice *dev, USBPacket *p,
     case ClassInterfaceRequest | GetMaxLun:
         maxlun = 0;
         for (;;) {
-            scsi_dev = scsi_device_find(&s->bus, 0, 0, maxlun+1);
+            scsi_dev = scsi_device_find(&s->bus, 0, 0,
+                                        scsi_lun_from_int(maxlun+1));
             if (scsi_dev == NULL) {
                 break;
             }
-            if (scsi_dev->lun != maxlun+1) {
+            if (scsi_lun_to_int(scsi_dev->lun) != maxlun+1) {
                 break;
             }
             maxlun++;
@@ -429,7 +430,8 @@ static void usb_msd_handle_data(USBDevice *dev, USBPacket *p)
                 goto fail;
             }
             DPRINTF("Command on LUN %d\n", cbw.lun);
-            scsi_dev = scsi_device_find(&s->bus, 0, 0, cbw.lun);
+            scsi_dev = scsi_device_find(&s->bus, 0, 0,
+                                        scsi_lun_from_int(cbw.lun));
             if (scsi_dev == NULL) {
                 error_report("usb-msd: Bad LUN %d", cbw.lun);
                 goto fail;
@@ -447,7 +449,8 @@ static void usb_msd_handle_data(USBDevice *dev, USBPacket *p)
                     tag, cbw.flags, cbw.cmd_len, s->data_len);
             assert(le32_to_cpu(s->csw.residue) == 0);
             s->scsi_len = 0;
-            s->req = scsi_req_new(scsi_dev, tag, cbw.lun, cbw.cmd, NULL);
+            s->req = scsi_req_new(scsi_dev, tag, scsi_lun_from_int(cbw.lun),
+                                  cbw.cmd, NULL);
 #ifdef DEBUG_MSD
             scsi_req_print(s->req);
 #endif

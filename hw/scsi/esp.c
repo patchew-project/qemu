@@ -136,8 +136,10 @@ static void do_busid_cmd(ESPState *s, uint8_t *buf, uint8_t busid)
 
     trace_esp_do_busid_cmd(busid);
     lun = busid & 7;
-    current_lun = scsi_device_find(&s->bus, 0, s->current_dev->id, lun);
-    s->current_req = scsi_req_new(current_lun, 0, lun, buf, s);
+    current_lun = scsi_device_find(&s->bus, 0, s->current_dev->id,
+                                   scsi_lun_from_int(lun));
+    s->current_req = scsi_req_new(current_lun, 0, scsi_lun_from_int(lun),
+                                  buf, s);
     datalen = scsi_req_enqueue(s->current_req);
     s->ti_size = datalen;
     if (datalen != 0) {

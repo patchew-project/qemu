@@ -811,7 +811,7 @@ static void lsi_do_command(LSIState *s)
     s->command_complete = 0;
 
     id = (s->select_tag >> 8) & 0xf;
-    dev = scsi_device_find(&s->bus, 0, id, s->current_lun);
+    dev = scsi_device_find(&s->bus, 0, id, scsi_lun_from_int(s->current_lun));
     if (!dev) {
         lsi_bad_selection(s, id);
         return;
@@ -820,8 +820,9 @@ static void lsi_do_command(LSIState *s)
     assert(s->current == NULL);
     s->current = g_new0(lsi_request, 1);
     s->current->tag = s->select_tag;
-    s->current->req = scsi_req_new(dev, s->current->tag, s->current_lun, buf,
-                                   s->current);
+    s->current->req = scsi_req_new(dev, s->current->tag,
+                                   scsi_lun_from_int(s->current_lun),
+                                   buf, s->current);
 
     n = scsi_req_enqueue(s->current->req);
     if (n) {

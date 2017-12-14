@@ -2517,7 +2517,7 @@ static const SCSIReqOps *const scsi_disk_reqops_dispatch[256] = {
     [WRITE_VERIFY_16]                 = &scsi_disk_dma_reqops,
 };
 
-static SCSIRequest *scsi_new_request(SCSIDevice *d, uint32_t tag, uint32_t lun,
+static SCSIRequest *scsi_new_request(SCSIDevice *d, uint32_t tag, uint64_t lun,
                                      uint8_t *buf, void *hba_private)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, d);
@@ -2533,7 +2533,7 @@ static SCSIRequest *scsi_new_request(SCSIDevice *d, uint32_t tag, uint32_t lun,
     req = scsi_req_alloc(ops, &s->qdev, tag, lun, hba_private);
 
 #ifdef DEBUG_SCSI
-    DPRINTF("Command: lun=%d tag=0x%x data=0x%02x", lun, tag, buf[0]);
+    DPRINTF("Command: lun=%"PRIu64" tag=0x%x data=0x%02x", lun, tag, buf[0]);
     {
         int i;
         for (i = 1; i < scsi_cdb_length(buf); i++) {
@@ -2847,7 +2847,7 @@ static const SCSIReqOps scsi_block_dma_reqops = {
 };
 
 static SCSIRequest *scsi_block_new_request(SCSIDevice *d, uint32_t tag,
-                                           uint32_t lun, uint8_t *buf,
+                                           uint64_t lun, uint8_t *buf,
                                            void *hba_private)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, d);

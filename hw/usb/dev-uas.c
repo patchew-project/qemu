@@ -461,19 +461,6 @@ static void usb_uas_queue_write_ready(UASRequest *req)
 
 /* --------------------------------------------------------------------- */
 
-static int usb_uas_get_lun(uint64_t lun64)
-{
-    return (lun64 >> 48) & 0xff;
-}
-
-static SCSIDevice *usb_uas_get_dev(UASDevice *uas, uint64_t lun64)
-{
-    if ((lun64 >> 56) != 0x00) {
-        return NULL;
-    }
-    return scsi_device_find(&uas->bus, 0, 0, usb_uas_get_lun(lun64));
-}
-
 static void usb_uas_complete_data_packet(UASRequest *req)
 {
     USBPacket *p;
@@ -547,7 +534,7 @@ static UASRequest *usb_uas_alloc_request(UASDevice *uas, uas_iu *iu)
     req->uas = uas;
     req->tag = be16_to_cpu(iu->hdr.tag);
     req->lun = be64_to_cpu(iu->command.lun);
-    req->dev = usb_uas_get_dev(req->uas, req->lun);
+    req->dev = scsi_device_find(&uas->bus, 0, 0, req->lun);
     return req;
 }
 
@@ -709,7 +696,7 @@ static void usb_uas_command(UASDevice *uas, uas_iu *iu)
     }
 
     trace_usb_uas_command(uas->dev.addr, req->tag,
-                          usb_uas_get_lun(req->lun),
+                          scsi_lun_to_int(req->lun),
                           req->lun >> 32, req->lun & 0xffffffff);
     QTAILQ_INSERT_TAIL(&uas->requests, req, next);
     if (uas_using_streams(uas) && uas->data3[req->tag] != NULL) {
@@ -719,7 +706,7 @@ static void usb_uas_command(UASDevice *uas, uas_iu *iu)
     }
 
     req->req = scsi_req_new(req->dev, req->tag,
-                            usb_uas_get_lun(req->lun),
+                            scsi_lun_to_int(req->lun),
                             iu->command.cdb, req);
     if (uas->requestlog) {
         scsi_req_print(req->req);
@@ -747,9 +734,8 @@ bad_target:
 static void usb_uas_task(UASDevice *uas, uas_iu *iu)
 {
     uint16_t tag = be16_to_cpu(iu->hdr.tag);
-    uint64_t lun64 = be64_to_cpu(iu->task.lun);
-    SCSIDevice *dev = usb_uas_get_dev(uas, lun64);
-    int lun = usb_uas_get_lun(lun64);
+    uint64_t lun = be64_to_cpu(iu->task.lun);
+    SCSIDevice *dev = scsi_device_find(&uas->bus, 0, 0, lun);
     UASRequest *req;
     uint16_t task_tag;
 
@@ -776,7 +762,8 @@ static void usb_uas_task(UASDevice *uas, uas_iu *iu)
         break;
 
     case UAS_TMF_LOGICAL_UNIT_RESET:
-        trace_usb_uas_tmf_logical_unit_reset(uas->dev.addr, tag, lun);
+        trace_usb_uas_tmf_logical_unit_reset(uas->dev.addr, tag,
+                                             scsi_lun_to_int(lun));
         qdev_reset_all(&dev->qdev);
         usb_uas_queue_response(uas, tag, UAS_RC_TMF_COMPLETE);
         break;
