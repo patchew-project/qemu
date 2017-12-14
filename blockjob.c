@@ -706,6 +706,7 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
     job->paused        = true;
     job->pause_count   = 1;
     job->refcnt        = 1;
+    job->last_yield_ns = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
     aio_timer_init(qemu_get_aio_context(), &job->sleep_timer,
                    QEMU_CLOCK_REALTIME, SCALE_NS,
                    block_job_sleep_timer_cb, job);
@@ -790,6 +791,7 @@ static void block_job_do_yield(BlockJob *job, uint64_t ns)
     job->busy = false;
     block_job_unlock();
     qemu_coroutine_yield();
+    job->last_yield_ns = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
 
     /* Set by block_job_enter before re-entering the coroutine.  */
     assert(job->busy);
