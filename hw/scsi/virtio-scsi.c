@@ -26,20 +26,30 @@
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio-access.h"
 
-static inline uint64_t virtio_scsi_get_lun(uint8_t *lun)
+static inline uint64_t virtio_scsi_get_lun(VirtIODevice *vdev, uint8_t *lun)
 {
-    return (((uint64_t)(lun[2] << 8) | lun[3]) & 0x3FFF) << 48;
+    uint64_t lun64;
+
+    if (virtio_vdev_has_feature(vdev, VIRTIO_SCSI_F_NATIVE_LUN)) {
+        lun64 = scsi_lun_from_str(lun) << 16;
+    } else {
+        lun64 = (((uint64_t)(lun[2] << 8) | lun[3]) & 0x3FFF) << 48;
+    }
+    return lun64;
 }
 
 static inline SCSIDevice *virtio_scsi_device_find(VirtIOSCSI *s, uint8_t *lun)
 {
+    VirtIODevice *vdev = VIRTIO_DEVICE(s);
+
     if (lun[0] != 1) {
         return NULL;
     }
-    if (lun[2] != 0 && !(lun[2] >= 0x40 && lun[2] < 0x80)) {
+    if (!virtio_vdev_has_feature(vdev, VIRTIO_SCSI_F_NATIVE_LUN) &&
+        lun[2] != 0 && !(lun[2] >= 0x40 && lun[2] < 0x80)) {
         return NULL;
     }
-    return scsi_device_find(&s->bus, 0, lun[1], virtio_scsi_get_lun(lun));
+    return scsi_device_find(&s->bus, 0, lun[1], virtio_scsi_get_lun(vdev, lun));
 }
 
 void virtio_scsi_init_req(VirtIOSCSI *s, VirtQueue *vq, VirtIOSCSIReq *req)
@@ -270,7 +280,7 @@ static int virtio_scsi_do_tmf(VirtIOSCSI *s, VirtIOSCSIReq *req)
         if (!d) {
             goto fail;
         }
-        if (d->lun != virtio_scsi_get_lun(req->req.tmf.lun)) {
+        if (d->lun != virtio_scsi_get_lun(VIRTIO_DEVICE(s), req->req.tmf.lun)) {
             goto incorrect_lun;
         }
         QTAILQ_FOREACH_SAFE(r, &d->requests, next, next) {
@@ -307,7 +317,7 @@ static int virtio_scsi_do_tmf(VirtIOSCSI *s, VirtIOSCSIReq *req)
         if (!d) {
             goto fail;
         }
-        if (d->lun != virtio_scsi_get_lun(req->req.tmf.lun)) {
+        if (d->lun != virtio_scsi_get_lun(VIRTIO_DEVICE(s), req->req.tmf.lun)) {
             goto incorrect_lun;
         }
         s->resetting++;
@@ -321,7 +331,7 @@ static int virtio_scsi_do_tmf(VirtIOSCSI *s, VirtIOSCSIReq *req)
         if (!d) {
             goto fail;
         }
-        if (d->lun != virtio_scsi_get_lun(req->req.tmf.lun)) {
+        if (d->lun != virtio_scsi_get_lun(VIRTIO_DEVICE(s), req->req.tmf.lun)) {
             goto incorrect_lun;
         }
 
@@ -609,7 +619,8 @@ static int virtio_scsi_handle_cmd_req_prepare(VirtIOSCSI *s, VirtIOSCSIReq *req)
     }
     virtio_scsi_ctx_check(s, d);
     req->sreq = scsi_req_new(d, req->req.cmd.tag,
-                             virtio_scsi_get_lun(req->req.cmd.lun),
+                             virtio_scsi_get_lun(VIRTIO_DEVICE(s),
+                                                 req->req.cmd.lun),
                              req->req.cmd.cdb, req);
 
     if (req->sreq->cmd.mode != SCSI_XFER_NONE
@@ -980,6 +991,8 @@ static Property virtio_scsi_properties[] = {
                                                 VIRTIO_SCSI_F_CHANGE, true),
     DEFINE_PROP_BIT("rescan", VirtIOSCSI, host_features,
                                           VIRTIO_SCSI_F_RESCAN, true),
+    DEFINE_PROP_BIT("native_lun", VirtIOSCSI, host_features,
+                                              VIRTIO_SCSI_F_NATIVE_LUN, true),
     DEFINE_PROP_LINK("iothread", VirtIOSCSI, parent_obj.conf.iothread,
                      TYPE_IOTHREAD, IOThread *),
     DEFINE_PROP_STRING("wwpn", VirtIOSCSI, parent_obj.conf.wwpn),

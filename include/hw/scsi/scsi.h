@@ -175,8 +175,8 @@ static inline uint64_t scsi_lun_from_str(uint8_t *lun)
     uint64_t lun64 = 0;
 
     for (i = 0; i < 8; i += 2) {
-        lun64 |= (uint64_t)lun[i] << ((i + 1) * 8) |
-            (uint64_t)lun[i + 1] << (i * 8);
+        lun64 = lun64 << 16;
+        lun64 |= ((uint64_t)lun[i] << 8) | (uint64_t)lun[i + 1];
     }
     return lun64;
 }
