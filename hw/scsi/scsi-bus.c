@@ -548,7 +548,7 @@ static int32_t scsi_target_send_command(SCSIRequest *req, uint8_t *buf)
     int fixed_sense = (req->cmd.buf[1] & 1) == 0;
 
     if (req->lun != 0 &&
-        buf[0] != INQUIRY && buf[0] != REQUEST_SENSE) {
+        buf[0] != INQUIRY && buf[0] != REQUEST_SENSE && buf[0] != REPORT_LUNS) {
         scsi_req_build_sense(req, SENSE_CODE(LUN_NOT_SUPPORTED));
         scsi_req_complete(req, CHECK_CONDITION);
         return 0;
