@@ -676,6 +676,13 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
                 buflen += 8;
             }
 
+            if (bdrv_get_shared(blk_bs(s->qdev.conf.blk))) {
+                outbuf[buflen++] = 0x61; // SAS / Binary
+                outbuf[buflen++] = 0x95; // PIV / Target port / target port group
+                outbuf[buflen++] = 0; // reserved
+                outbuf[buflen++] = 4;
+                buflen += 4;
+            }
             if (s->port_index) {
                 outbuf[buflen++] = 0x61; // SAS / Binary
                 outbuf[buflen++] = 0x94; // PIV / Target port / relative target port
@@ -817,6 +824,11 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
         /* If the allocation length of CDB is too small,
                the additional length is not adjusted */
         outbuf[4] = 36 - 5;
+    }
+
+    /* Enable TGPS bit */
+    if (bdrv_get_shared(blk_bs(s->qdev.conf.blk))) {
+        outbuf[5] = 0x10;
     }
 
     /* Sync data transfer and TCQ.  */
@@ -1869,6 +1881,47 @@ static void scsi_disk_emulate_write_data(SCSIRequest *req)
     }
 }
 
+static int scsi_emulate_report_target_port_groups(SCSIDiskState *s,
+                                                  uint8_t *inbuf)
+{
+    uint8_t *p, *pg;
+    int buflen = 0, i, count = 0;
+    unsigned long shared_mask = 0;
+
+    if (!bdrv_get_shared(blk_bs(s->qdev.conf.blk))) {
+        return -1;
+    }
+
+    bdrv_shared_mask(blk_bs(s->qdev.conf.blk), &shared_mask);
+    if (!shared_mask) {
+        return -1;
+    }
+
+    pg = &inbuf[4];
+    pg[0] = 0; /* Active/Optimized */
+    pg[1] = 0x1; /* Only Active/Optimized is supported */
+
+    p = &pg[8];
+    buflen += 8;
+    for (i = 0; i < 32; i++) {
+        if (!test_bit(i, &shared_mask))
+            continue;
+        p[2] = (i + 1) >> 8;
+        p[3] = (i + 1) & 0xFF;
+        p += 4;
+        buflen += 4;
+        count++;
+    }
+    pg[7] = count;
+
+    inbuf[0] = (buflen >> 24) & 0xff;
+    inbuf[1] = (buflen >> 16) & 0xff;
+    inbuf[2] = (buflen >> 8) & 0xff;
+    inbuf[3] = buflen & 0xff;
+
+    return buflen + 4;
+}
+
 static int32_t scsi_disk_emulate_command(SCSIRequest *req, uint8_t *buf)
 {
     SCSIDiskReq *r = DO_UPCAST(SCSIDiskReq, req, req);
@@ -2009,6 +2062,19 @@ static int32_t scsi_disk_emulate_command(SCSIRequest *req, uint8_t *buf)
         if (buflen < 0) {
             goto illegal_request;
         }
+        break;
+    case MAINTENANCE_IN:
+        if ((req->cmd.buf[1] & 31) == MI_REPORT_TARGET_PORT_GROUPS) {
+            DPRINTF("MI REPORT TARGET PORT GROUPS\n");
+            memset(outbuf, 0, req->cmd.xfer);
+            buflen = scsi_emulate_report_target_port_groups(s, outbuf);
+            if (buflen < 0) {
+                goto illegal_request;
+            }
+            break;
+        }
+        DPRINTF("Unsupported Maintenance In\n");
+        goto illegal_request;
         break;
     case MECHANISM_STATUS:
         buflen = scsi_emulate_mechanism_status(s, outbuf);

@@ -156,6 +156,11 @@
 #define SAI_READ_CAPACITY_16  0x10
 
 /*
+ * MAINTENANCE IN subcodes
+ */
+#define MI_REPORT_TARGET_PORT_GROUPS 0xa
+
+/*
  * READ POSITION service action codes
  */
 #define SHORT_FORM_BLOCK_ID  0x00

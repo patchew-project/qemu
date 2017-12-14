@@ -445,6 +445,7 @@ const char *bdrv_get_format_name(BlockDriverState *bs);
 BlockDriverState *bdrv_find_node(const char *node_name);
 void bdrv_find_shared(BlockDriverState *bs);
 int bdrv_get_shared(BlockDriverState *bs);
+void bdrv_shared_mask(BlockDriverState *bs, unsigned long *shared_mask);
 BlockDeviceInfoList *bdrv_named_nodes_list(Error **errp);
 BlockDriverState *bdrv_lookup_bs(const char *device,
                                  const char *node_name,
