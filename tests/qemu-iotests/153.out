@@ -390,6 +390,9 @@ _qemu_img_wrapper info TEST_DIR/t.qcow2
 _qemu_io_wrapper TEST_DIR/t.qcow2 -c write 0 512
 can't open device TEST_DIR/t.qcow2: Failed to get "write" lock
 Is another process using the image?
+Creating overlay with qemu-img when the guest is running should be allowed
+
+_qemu_img_wrapper create -f qcow2 -b TEST_DIR/t.qcow2 TEST_DIR/t.qcow2.overlay
 Closing the other
 
 _qemu_io_wrapper TEST_DIR/t.qcow2 -c write 0 512

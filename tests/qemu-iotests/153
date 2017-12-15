@@ -32,6 +32,7 @@ _cleanup()
 {
     _cleanup_test_img
     rm -f "${TEST_IMG}.base"
+    rm -f "${TEST_IMG}.overlay"
     rm -f "${TEST_IMG}.convert"
     rm -f "${TEST_IMG}.a"
     rm -f "${TEST_IMG}.b"
@@ -217,6 +218,9 @@ _send_qemu_cmd $QEMU_HANDLE \
     ""
 
 _run_cmd $QEMU_IO "${TEST_IMG}" -c 'write 0 512'
+
+echo "Creating overlay with qemu-img when the guest is running should be allowed"
+_run_cmd $QEMU_IMG create -f $IMGFMT -b "${TEST_IMG}" "${TEST_IMG}.overlay"
 
 echo "Closing the other"
 _send_qemu_cmd $QEMU_HANDLE \
