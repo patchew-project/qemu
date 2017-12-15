@@ -1901,7 +1901,7 @@ static int decode_gusa(DisasContext *ctx, CPUSH4State *env, int *pmax_insns)
     op_dst = op_src = op_opc = -1;
     mt_dst = -1;
     st_src = st_mop = -1;
-    TCGV_UNUSED(op_arg);
+    op_arg = NULL;
     i = 0;
 
 #define NEXT_INSN \
