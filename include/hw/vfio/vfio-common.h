@@ -171,6 +171,7 @@ int vfio_get_region_info(VFIODevice *vbasedev, int index,
                          struct vfio_region_info **info);
 int vfio_get_dev_region_info(VFIODevice *vbasedev, uint32_t type,
                              uint32_t subtype, struct vfio_region_info **info);
+bool vfio_is_cap_present(VFIODevice *vbasedev, uint16_t cap_type, int region);
 #endif
 extern const MemoryListener vfio_prereg_listener;
 

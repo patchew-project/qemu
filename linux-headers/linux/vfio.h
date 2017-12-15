@@ -301,6 +301,11 @@ struct vfio_region_info_cap_type {
 #define VFIO_REGION_SUBTYPE_INTEL_IGD_HOST_CFG	(2)
 #define VFIO_REGION_SUBTYPE_INTEL_IGD_LPC_CFG	(3)
 
+/*
+ * The MSIX mappable capability informs that MSIX data of a BAR can be mmapped.
+ */
+#define VFIO_REGION_INFO_CAP_MSIX_MAPPABLE	3
+
 /**
  * VFIO_DEVICE_GET_IRQ_INFO - _IOWR(VFIO_TYPE, VFIO_BASE + 9,
  *				    struct vfio_irq_info)
