@@ -202,6 +202,16 @@ static void sdhci_poweron_reset(DeviceState *dev)
     }
 }
 
+static void sdhci_led_handler(void *opaque, int line, int level)
+{
+    SDHCIState *s = (SDHCIState *)opaque;
+
+    if (s->access_led_level != level) {
+        trace_sdhci_led(level);
+        s->access_led_level = level;
+    }
+}
+
 static void sdhci_data_transfer(void *opaque);
 
 static void sdhci_send_command(SDHCIState *s)
@@ -1050,6 +1060,7 @@ sdhci_write(void *opaque, hwaddr offset, uint64_t val, unsigned size)
                 !(s->capareg & (1 << (31 - ((s->pwrcon >> 1) & 0x7))))) {
             s->pwrcon &= ~SDHC_POWER_ON;
         }
+        qemu_set_irq(s->access_led, s->hostctl & 1);
         break;
     case SDHC_CLKCON:
         if (!(mask & 0xFF000000)) {
@@ -1160,6 +1171,7 @@ static void sdhci_initfn(SDHCIState *s)
     qbus_create_inplace(&s->sdbus, sizeof(s->sdbus),
                         TYPE_SDHCI_BUS, DEVICE(s), "sd-bus");
 
+    s->access_led = qemu_allocate_irq(sdhci_led_handler, s, 0);
     s->insert_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, sdhci_raise_insertion_irq, s);
     s->transfer_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, sdhci_data_transfer, s);
 }
@@ -1185,6 +1197,7 @@ static void sdhci_uninitfn(SDHCIState *s)
     timer_del(s->transfer_timer);
     timer_free(s->transfer_timer);
 
+    qemu_free_irq(s->access_led);
     qemu_free_irq(s->eject_cb);
     qemu_free_irq(s->ro_cb);
 }

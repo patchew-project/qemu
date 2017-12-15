@@ -47,6 +47,8 @@ typedef struct SDHCIState {
     qemu_irq eject_cb;
     qemu_irq ro_cb;
     qemu_irq irq;
+    qemu_irq access_led;
+    int access_led_level;
 
     uint32_t sdmasysad;    /* SDMA System Address register */
     uint16_t blksize;      /* Host DMA Buff Boundary and Transfer BlkSize Reg */
