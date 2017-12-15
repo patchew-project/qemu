@@ -12,6 +12,7 @@
 
 #define SDHC_CAPAB                      0x40
 FIELD(SDHC_CAPAB, BASECLKFREQ,               8, 8); /* since v2 */
+FIELD(SDHC_CAPAB, SDMA,                     22, 1);
 #define SDHC_HCVER                      0xFE
 
 static const struct sdhci_t {
@@ -21,16 +22,19 @@ static const struct sdhci_t {
         uintptr_t addr;
         uint8_t version;
         uint8_t baseclock;
+        struct {
+            bool sdma;
+        } capab;
     } sdhci;
 } models[] = {
     { "arm",    "smdkc210",
-        {0x12510000, 2, 0} },
+        {0x12510000, 2, 0, {1} } },
     { "arm",    "sabrelite",
-        {0x02190000, 3, 0} },
+        {0x02190000, 3, 0, {1} } },
     { "arm",    "raspi2",           /* bcm2835 */
-        {0x3f300000, 3, 52} },
+        {0x3f300000, 3, 52, {0} } },
     { "arm",    "xilinx-zynq-a9",   /* exynos4210 */
-        {0xe0100000, 3, 0} },
+        {0xe0100000, 3, 0, {1} } },
 };
 
 static uint32_t sdhci_readl(uintptr_t base, uint32_t reg_addr)
@@ -90,6 +94,15 @@ static void check_capab_baseclock(uintptr_t addr, uint8_t expected_freq)
     g_assert_cmpuint(capab_freq, ==, expected_freq);
 }
 
+static void check_capab_sdma(uintptr_t addr, bool supported)
+{
+    uint64_t capab, capab_sdma;
+
+    capab = sdhci_readq(addr, SDHC_CAPAB);
+    capab_sdma = FIELD_EX64(capab, SDHC_CAPAB, SDMA);
+    g_assert_cmpuint(capab_sdma, ==, supported);
+}
+
 static void test_machine(const void *data)
 {
     const struct sdhci_t *test = data;
@@ -98,6 +111,7 @@ static void test_machine(const void *data)
 
     check_specs_version(test->sdhci.addr, test->sdhci.version);
     check_capab_readonly(test->sdhci.addr);
+    check_capab_sdma(test->sdhci.addr, test->sdhci.capab.sdma);
     check_capab_baseclock(test->sdhci.addr, test->sdhci.baseclock);
 
     qtest_quit(global_qtest);
