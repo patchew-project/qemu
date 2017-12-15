@@ -31,6 +31,8 @@ typedef struct testdef {
 static testdef_t x86_tests[] = {
     { "pc", "e1000" },
     { "pc", "virtio", "-device virtio-net-pci,netdev=" NETNAME },
+    { "q35", "e1000e" },
+    { "q35", "virtio", "-device virtio-net-pci,netdev=" NETNAME },
     { NULL },
 };
 
@@ -44,11 +46,11 @@ static testdef_t x86_tests_slow[] = {
 
 static testdef_t ppc64_tests[] = {
     { "pseries", "spapr-vlan" },
+    { "pseries", "virtio", "-device virtio-net-pci,netdev=" NETNAME },
     { NULL },
 };
 
 static testdef_t ppc64_tests_slow[] = {
-    { "pseries", "virtio", "-device virtio-net-pci,netdev=" NETNAME },
     { "pseries", "e1000" },
     { NULL },
 };
