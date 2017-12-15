@@ -660,20 +660,20 @@ fail:
  * get_cluster_table
  *
  * for a given disk offset, load (and allocate if needed)
- * the l2 table.
+ * the appropiate slice of its l2 table.
  *
- * the cluster index in the l2 table is given to the caller.
+ * the cluster index in the l2 slice is given to the caller.
  *
  * Returns 0 on success, -errno in failure case
  */
 static int get_cluster_table(BlockDriverState *bs, uint64_t offset,
-                             uint64_t **new_l2_table,
+                             uint64_t **new_l2_slice,
                              int *new_l2_index)
 {
     BDRVQcow2State *s = bs->opaque;
     unsigned int l2_index;
     uint64_t l1_index, l2_offset;
-    uint64_t *l2_table = NULL;
+    uint64_t *l2_slice = NULL;
     int ret;
 
     /* seek to the l2 offset in the l1 table */
@@ -695,11 +695,11 @@ static int get_cluster_table(BlockDriverState *bs, uint64_t offset,
         return -EIO;
     }
 
-    /* seek the l2 table of the given l2 offset */
+    /* seek the l2 slice of the given l2 offset */
 
     if (s->l1_table[l1_index] & QCOW_OFLAG_COPIED) {
-        /* load the l2 table in memory */
-        ret = l2_load(bs, offset, l2_offset, &l2_table);
+        /* load the l2 slice in memory */
+        ret = l2_load(bs, offset, l2_offset, &l2_slice);
         if (ret < 0) {
             return ret;
         }
@@ -714,8 +714,8 @@ static int get_cluster_table(BlockDriverState *bs, uint64_t offset,
         /* Get the offset of the newly-allocated l2 table */
         new_l2_offset = s->l1_table[l1_index] & L1E_OFFSET_MASK;
         assert(offset_into_cluster(s, new_l2_offset) == 0);
-        /* Load the l2 table in memory */
-        ret = l2_load(bs, offset, new_l2_offset, &l2_table);
+        /* Load the l2 slice in memory */
+        ret = l2_load(bs, offset, new_l2_offset, &l2_slice);
         if (ret < 0) {
             return ret;
         }
@@ -729,9 +729,9 @@ static int get_cluster_table(BlockDriverState *bs, uint64_t offset,
 
     /* find the cluster offset for the given disk offset */
 
-    l2_index = offset_to_l2_index(s, offset);
+    l2_index = offset_to_l2_slice_index(s, offset);
 
-    *new_l2_table = l2_table;
+    *new_l2_slice = l2_slice;
     *new_l2_index = l2_index;
 
     return 0;
