@@ -515,7 +515,7 @@ type_init(pnv_lpc_register_types)
  */
 static void pnv_lpc_isa_irq_handler_cpld(void *opaque, int n, int level)
 {
-    PnvMachineState *pnv = POWERNV_MACHINE(qdev_get_machine());
+    PnvMachineState *pnv = PNV_MACHINE(qdev_get_machine());
     uint32_t old_state = pnv->cpld_irqstate;
     PnvLpcController *lpc = PNV_LPC(opaque);
 
