@@ -89,6 +89,9 @@ typedef struct SDHCIState {
     /* Force Event Auto CMD12 Error Interrupt Reg - write only */
     /* Force Event Error Interrupt Register- write only */
     /* RO Host Controller Version Register always reads as 0x2401 */
+    struct {
+        uint8_t spec_version;
+    } capabilities;
 } SDHCIState;
 
 #define TYPE_PCI_SDHCI "sdhci-pci"
@@ -97,5 +100,12 @@ typedef struct SDHCIState {
 #define TYPE_SYSBUS_SDHCI "generic-sdhci"
 #define SYSBUS_SDHCI(obj)                               \
      OBJECT_CHECK(SDHCIState, (obj), TYPE_SYSBUS_SDHCI)
+
+/* Host Controller Specification Version */
+enum sdhci_spec_version {
+    SD_HOST_SPECv1_VERS     = 0x00,
+    SD_HOST_SPECv2_VERS     = 0x01,
+    SD_HOST_SPECv3_VERS     = 0x02
+};
 
 #endif /* SDHCI_H */
