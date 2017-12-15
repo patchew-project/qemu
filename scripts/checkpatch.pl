@@ -2476,7 +2476,12 @@ sub process {
 # no volatiles please
 		my $asm_volatile = qr{\b(__asm__|asm)\s+(__volatile__|volatile)\b};
 		if ($line =~ /\bvolatile\b/ && $line !~ /$asm_volatile/) {
-			ERROR("Use of volatile is usually wrong: see Documentation/volatile-considered-harmful.txt\n" . $herecurr);
+			my $msg = "Use of volatile is usually wrong: see Documentation/volatile-considered-harmful.txt\n" . $herecurr;
+			if (ctx_has_comment($first_line, $linenr)) {
+				WARN($msg);
+			} else {
+				ERROR($msg);
+			}
 		}
 
 # warn about #if 0
