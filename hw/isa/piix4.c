@@ -31,6 +31,7 @@
 #include "hw/char/isa.h"
 #include "hw/sysbus.h"
 #include "hw/timer/i8254.h"
+#include "hw/timer/mc146818rtc.h"
 #include "qapi/error.h"
 
 PCIDevice *piix4_dev;
@@ -43,6 +44,7 @@ typedef struct PIIX4State {
     FDCtrlISABus floppy;
     ISASerialState serial[2];
     ISAParallelState parallel;
+    RTCState rtc;
 
     /* Reset Control Register */
     MemoryRegion rcr_mem;
@@ -202,6 +204,15 @@ static void piix4_realize(PCIDevice *pci, Error **errp)
         return;
     }
 
+    /* timer */
+    qdev_set_parent_bus(DEVICE(&s->rtc), BUS(isa_bus));
+    object_property_set_bool(OBJECT(&s->rtc), true, "realized", &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+    isa_init_irq(ISA_DEVICE(&s->rtc), &s->rtc.irq, RTC_ISA_IRQ);
+
     piix4_dev = pci;
     qemu_register_reset(piix4_reset, s);
 }
@@ -216,6 +227,7 @@ static void piix4_init(Object *obj)
         object_initialize(&s->serial[i], sizeof(s->serial[i]), TYPE_ISA_SERIAL);
     }
     object_initialize(&s->parallel, sizeof(s->parallel), TYPE_ISA_PARALLEL);
+    object_initialize(&s->rtc, sizeof(s->rtc), TYPE_MC146818_RTC);
 
     object_property_add_alias(obj, "floppy", OBJECT(&s->floppy), "driveA",
                               &error_abort);
