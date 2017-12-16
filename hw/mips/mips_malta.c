@@ -1003,7 +1003,7 @@ void mips_malta_init(MachineState *machine)
     int i;
     DriveInfo *dinfo;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
-    DriveInfo *fd[MAX_FD];
+    DriveInfo *fd;
     int fl_idx = 0;
     int fl_sectors = bios_size >> 16;
     int be;
@@ -1025,6 +1025,9 @@ void mips_malta_init(MachineState *machine)
             snprintf(label, sizeof(label), "serial%d", i);
             serial_hds[i] = qemu_chr_new(label, "null");
         }
+    }
+    if (!parallel_hds[0]) {
+        parallel_hds[0] = qemu_chr_new("parallel", "null");
     }
 
     /* create CPU */
@@ -1184,9 +1187,25 @@ void mips_malta_init(MachineState *machine)
     /* Southbridge */
     ide_drive_get(hd, ARRAY_SIZE(hd));
 
-    pci = pci_create_simple_multifunction(pci_bus, PCI_DEVFN(10, 0),
-                                          true, "PIIX4");
+    pci = pci_create_multifunction(pci_bus, PCI_DEVFN(10, 0),
+                                   true, "PIIX4");
     dev = DEVICE(pci);
+
+    /* Floppy */
+    fd = drive_get(IF_FLOPPY, 0, 0);
+    if (fd) {
+        qdev_prop_set_drive(dev, "floppy", blk_by_legacy_dinfo(fd),
+                            &error_fatal);
+    }
+
+    /* Serial ports */
+    qdev_prop_set_chr(dev, "serial0", serial_hds[0]);
+    qdev_prop_set_chr(dev, "serial1", serial_hds[1]);
+
+    /* Parallel port */
+    qdev_prop_set_chr(dev, "parallel", parallel_hds[0]);
+
+    qdev_init_nofail(dev);
     isa_bus = ISA_BUS(qdev_get_child_bus(dev, "isa.0"));
     piix4_devfn = pci->devfn;
 
@@ -1204,13 +1223,6 @@ void mips_malta_init(MachineState *machine)
     g_free(smbus_eeprom_buf);
 
     rtc_init(isa_bus, 2000, NULL);
-    serial_hds_isa_init(isa_bus, 0, 2);
-    parallel_hds_isa_init(isa_bus, 1);
-
-    for(i = 0; i < MAX_FD; i++) {
-        fd[i] = drive_get(IF_FLOPPY, 0, i);
-    }
-    fdctrl_init_isa(isa_bus, fd);
 
     /* Network card */
     network_init(pci_bus);
