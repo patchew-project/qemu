@@ -158,6 +158,9 @@ static void piix4_realize(PCIDevice *pci, Error **errp)
     /* initialize ISA irqs */
     isa_bus_irqs(isa_bus, s->isa);
 
+    /* DMA */
+    DMA_init(isa_bus, 0);
+
     piix4_dev = pci;
     qemu_register_reset(piix4_reset, s);
 }
