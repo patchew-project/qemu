@@ -868,6 +868,20 @@ enabled) memory in bytes.
 ETEXI
 
 STEXI
+@item info virtio
+@findex virtio
+Display guest and host fetures for all virtio devices.
+ETEXI
+
+    {
+        .name       = "virtio",
+        .args_type  = "path:s?",
+        .params     = "[path]",
+        .help       = "show virtio info",
+        .cmd        = hmp_info_virtio,
+    },
+
+STEXI
 @end table
 ETEXI
 

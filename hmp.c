@@ -43,6 +43,7 @@
 #include "hw/intc/intc.h"
 #include "migration/snapshot.h"
 #include "migration/misc.h"
+#include "hw/virtio/virtio.h"
 
 #ifdef CONFIG_SPICE
 #include <spice/enums.h>
@@ -2917,4 +2918,77 @@ void hmp_info_memory_size_summary(Monitor *mon, const QDict *qdict)
         qapi_free_MemoryInfo(info);
     }
     hmp_handle_error(mon, &err);
+}
+
+#define HMP_INFO_VIRTIO_INDENT 2
+#define HMP_INFO_VIRTIO_FEATURE 40
+
+static void hmp_info_virtio_print(Monitor *mon, VirtioInfo *info)
+{
+    Object *obj = object_resolve_path(info->qom_path, NULL);
+    char *path = qdev_get_dev_path(DEVICE(obj));
+    VirtioFeatureList *feat;
+    strList *status;
+
+    monitor_printf(mon, "%s at %s\n", object_get_typename(obj), path);
+    g_free(path);
+
+    monitor_printf(mon, "%*sQOM path: %s\n",
+                   HMP_INFO_VIRTIO_INDENT, "", info->qom_path);
+
+    /* device status */
+    monitor_printf(mon, "%*sstatus: 0x%02"PRIx8"\n",
+                   HMP_INFO_VIRTIO_INDENT, "", info->status);
+    for (status = info->status_names; status; status = status->next) {
+        monitor_printf(mon, "%*s%s\n",
+                       HMP_INFO_VIRTIO_INDENT * 2, "", status->value);
+    }
+
+
+    /* host and guest feature */
+    monitor_printf(mon, "%*shost features:  0x%016"PRIx64"\n",
+                   HMP_INFO_VIRTIO_INDENT, "", info->host_features);
+    monitor_printf(mon, "%*sguest features: 0x%016"PRIx64"\n",
+                   HMP_INFO_VIRTIO_INDENT, "", info->guest_features);
+
+    /* common features */
+    monitor_printf(mon, "%*scommon features:%s\n",
+                   HMP_INFO_VIRTIO_INDENT, "",
+                   info->common_features_names ? "" : " (none)");
+    for (feat = info->common_features_names; feat; feat = feat->next) {
+        monitor_printf(mon, "%*s%-*s%s\n",
+                       HMP_INFO_VIRTIO_INDENT * 2, "",
+                       HMP_INFO_VIRTIO_FEATURE, feat->value->name,
+                       feat->value->acked ? " acked" : "");
+    }
+
+    /* device features */
+    monitor_printf(mon, "%*sdevice features:%s\n",
+                   HMP_INFO_VIRTIO_INDENT, "",
+                   info->device_features_names ? "" : " (none)");
+    for (feat = info->device_features_names; feat; feat = feat->next) {
+        monitor_printf(mon, "%*s%-*s%s\n",
+                       HMP_INFO_VIRTIO_INDENT * 2, "",
+                       HMP_INFO_VIRTIO_FEATURE, feat->value->name,
+                       feat->value->acked ? " acked" : "");
+    }
+}
+
+void hmp_info_virtio(Monitor *mon, const QDict *qdict)
+{
+    const char *path = qdict_get_try_str(qdict, "path");
+    Error *err = NULL;
+    VirtioInfoList *head, *info;
+
+
+    head = qmp_query_virtio(!!path, path, &err);
+    if (err) {
+        return;
+    }
+
+    for (info = head; info; info = info->next) {
+        hmp_info_virtio_print(mon, info->value);
+    }
+
+    qapi_free_VirtioInfoList(head);
 }
