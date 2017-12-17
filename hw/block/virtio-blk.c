@@ -1017,6 +1017,25 @@ static Property virtio_blk_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static const char *virtio_blk_tell_feature_name(VirtIODevice *vdev,
+                                                unsigned fbit)
+{
+#define FBIT(fbit) case fbit: return #fbit
+    switch (fbit) {
+    FBIT(VIRTIO_BLK_F_BARRIER);
+    FBIT(VIRTIO_BLK_F_SIZE_MAX);
+    FBIT(VIRTIO_BLK_F_SEG_MAX);
+    FBIT(VIRTIO_BLK_F_RO);
+    FBIT(VIRTIO_BLK_F_BLK_SIZE);
+    FBIT(VIRTIO_BLK_F_SCSI);
+    FBIT(VIRTIO_BLK_F_TOPOLOGY);
+    FBIT(VIRTIO_BLK_F_FLUSH);
+    FBIT(VIRTIO_BLK_F_MQ);
+    }
+#undef FBIT
+    return NULL;
+}
+
 static void virtio_blk_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -1030,6 +1049,7 @@ static void virtio_blk_class_init(ObjectClass *klass, void *data)
     vdc->get_config = virtio_blk_update_config;
     vdc->set_config = virtio_blk_set_config;
     vdc->get_features = virtio_blk_get_features;
+    vdc->tell_feature_name = virtio_blk_tell_feature_name;
     vdc->set_status = virtio_blk_set_status;
     vdc->reset = virtio_blk_reset;
     vdc->save = virtio_blk_save_device;

@@ -141,6 +141,8 @@ typedef struct VirtioDeviceClass {
     void (*save)(VirtIODevice *vdev, QEMUFile *f);
     int (*load)(VirtIODevice *vdev, QEMUFile *f, int version_id);
     const VMStateDescription *vmsd;
+    /* Tells the name of device specific feature */
+    const char *(*tell_feature_name)(VirtIODevice *vdev, unsigned fbit);
 } VirtioDeviceClass;
 
 void virtio_instance_init_common(Object *proxy_obj, void *data,
@@ -291,6 +293,10 @@ void virtio_queue_aio_set_host_notifier_handler(VirtQueue *vq, AioContext *ctx,
                                                 VirtIOHandleAIOOutput handle_output);
 VirtQueue *virtio_vector_first_queue(VirtIODevice *vdev, uint16_t vector);
 VirtQueue *virtio_vector_next_queue(VirtQueue *vq);
+
+const char *virtio_tell_status_name(VirtIODevice *vdev, unsigned sbit);
+const char *virtio_tell_common_feature_name(VirtIODevice *vdev, unsigned fbit);
+const char *virtio_tell_device_feature_name(VirtIODevice *vdev, unsigned fbit);
 
 static inline void virtio_add_feature(uint64_t *features, unsigned int fbit)
 {

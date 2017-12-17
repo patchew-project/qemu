@@ -2163,6 +2163,39 @@ static Property virtio_net_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static const char *virtio_net_tell_feature_name(VirtIODevice *vdev,
+                                               unsigned fbit)
+{
+#define FBIT(fbit) case fbit: return #fbit
+    switch (fbit) {
+    FBIT(VIRTIO_NET_F_CSUM);
+    FBIT(VIRTIO_NET_F_GUEST_CSUM);
+    FBIT(VIRTIO_NET_F_CTRL_GUEST_OFFLOADS);
+    FBIT(VIRTIO_NET_F_MTU);
+    FBIT(VIRTIO_NET_F_MAC);
+    FBIT(VIRTIO_NET_F_GSO);
+    FBIT(VIRTIO_NET_F_GUEST_TSO4);
+    FBIT(VIRTIO_NET_F_GUEST_TSO6);
+    FBIT(VIRTIO_NET_F_GUEST_ECN);
+    FBIT(VIRTIO_NET_F_GUEST_UFO);
+    FBIT(VIRTIO_NET_F_HOST_TSO4);
+    FBIT(VIRTIO_NET_F_HOST_TSO6);
+    FBIT(VIRTIO_NET_F_HOST_ECN);
+    FBIT(VIRTIO_NET_F_HOST_UFO);
+    FBIT(VIRTIO_NET_F_MRG_RXBUF);
+    FBIT(VIRTIO_NET_F_STATUS);
+    FBIT(VIRTIO_NET_F_CTRL_VQ);
+    FBIT(VIRTIO_NET_F_CTRL_RX);
+    FBIT(VIRTIO_NET_F_CTRL_VLAN);
+    FBIT(VIRTIO_NET_F_CTRL_RX_EXTRA);
+    FBIT(VIRTIO_NET_F_GUEST_ANNOUNCE);
+    FBIT(VIRTIO_NET_F_MQ);
+    FBIT(VIRTIO_NET_F_CTRL_MAC_ADDR);
+    };
+#undef FBIT
+    return NULL;
+}
+
 static void virtio_net_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -2178,6 +2211,7 @@ static void virtio_net_class_init(ObjectClass *klass, void *data)
     vdc->get_features = virtio_net_get_features;
     vdc->set_features = virtio_net_set_features;
     vdc->bad_features = virtio_net_bad_features;
+    vdc->tell_feature_name = virtio_net_tell_feature_name;
     vdc->reset = virtio_net_reset;
     vdc->set_status = virtio_net_set_status;
     vdc->guest_notifier_mask = virtio_net_guest_notifier_mask;

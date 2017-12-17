@@ -1156,6 +1156,19 @@ static Property virtio_serial_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static const char *virtio_serial_tell_feature_name(VirtIODevice *vdev,
+                                                   unsigned fbit)
+{
+#define FBIT(fbit) case fbit: return #fbit
+    switch (fbit) {
+    FBIT(VIRTIO_CONSOLE_F_SIZE);
+    FBIT(VIRTIO_CONSOLE_F_MULTIPORT);
+    FBIT(VIRTIO_CONSOLE_F_EMERG_WRITE);
+    };
+#undef FBIT
+    return NULL;
+}
+
 static void virtio_serial_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -1170,6 +1183,7 @@ static void virtio_serial_class_init(ObjectClass *klass, void *data)
     vdc->realize = virtio_serial_device_realize;
     vdc->unrealize = virtio_serial_device_unrealize;
     vdc->get_features = get_features;
+    vdc->tell_feature_name = virtio_serial_tell_feature_name;
     vdc->get_config = get_config;
     vdc->set_config = set_config;
     vdc->set_status = set_status;

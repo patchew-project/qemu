@@ -2198,6 +2198,47 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
     return 0;
 }
 
+const char *virtio_tell_status_name(VirtIODevice *vdev, unsigned sbit)
+{
+#define SBIT(sbit) case sbit: return #sbit
+    switch (1 << sbit) {
+    SBIT(VIRTIO_CONFIG_S_ACKNOWLEDGE);
+    SBIT(VIRTIO_CONFIG_S_DRIVER);
+    SBIT(VIRTIO_CONFIG_S_DRIVER_OK);
+    SBIT(VIRTIO_CONFIG_S_FEATURES_OK);
+    SBIT(VIRTIO_CONFIG_S_NEEDS_RESET);
+    SBIT(VIRTIO_CONFIG_S_FAILED);
+    }
+#undef SBIT
+    return NULL;
+}
+
+const char *virtio_tell_common_feature_name(VirtIODevice *vdev, unsigned fbit)
+{
+#define FBIT(fbit) case fbit: return #fbit
+    switch (fbit) {
+    FBIT(VIRTIO_F_NOTIFY_ON_EMPTY);
+    FBIT(VIRTIO_F_ANY_LAYOUT);
+    FBIT(VIRTIO_RING_F_INDIRECT_DESC);
+    FBIT(VIRTIO_RING_F_EVENT_IDX);
+    FBIT(VIRTIO_F_BAD_FEATURE);
+    FBIT(VIRTIO_F_VERSION_1);
+    FBIT(VIRTIO_F_IOMMU_PLATFORM);
+    }
+#undef FBIT
+    return NULL;
+}
+
+const char *virtio_tell_device_feature_name(VirtIODevice *vdev, unsigned fbit)
+{
+    VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
+
+    if (vdc->tell_feature_name) {
+        return vdc->tell_feature_name(vdev, fbit);
+    }
+    return NULL;
+}
+
 void virtio_cleanup(VirtIODevice *vdev)
 {
     qemu_del_vm_change_state_handler(vdev->vmstate);

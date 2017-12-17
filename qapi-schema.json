@@ -3200,3 +3200,73 @@
 # Since: 2.11
 ##
 { 'command': 'watchdog-set-action', 'data' : {'action': 'WatchdogAction'} }
+
+##
+# @VirtioFeature:
+#
+# Virtio feature bit with negotiation status
+#
+# @name: name of feature bit
+#
+# @acked: negotiation status, `true' if guest acknowledged the feature
+#
+# Since: 2.12
+##
+{
+    'struct': 'VirtioFeature',
+    'data': {
+        'name': 'str',
+        'acked': 'bool'
+    }
+}
+
+##
+# @VirtioInfo:
+#
+# Information about virtio device
+#
+# @qom-path: QOM path of the device
+#
+# @status: status bitmask
+#
+# @host-features: bitmask of features, exposed by device
+#
+# @guest-features: bitmask of features, acknowledged by guest
+#
+# @status-names: names of checked bits in status bitmask
+#
+# @common-features-names: names exposed features and negotiation status,
+# that are common to all devices
+#
+# @device-features-names: names exposed features and negotiation status,
+# that are specific to this device
+#
+# Since: 2.12
+##
+{
+    'struct': 'VirtioInfo',
+    'data': {
+        'qom-path': 'str',
+
+        'status': 'uint8',
+        'host-features': 'uint64',
+        'guest-features': 'uint64',
+
+        'status-names': ['str'],
+        'common-features-names': ['VirtioFeature'],
+        'device-features-names': ['VirtioFeature']
+    }
+}
+
+##
+# @query-virtio:
+#
+# Returns virtio information such as device status and features
+#
+# Since: 2.12
+##
+{
+    'command': 'query-virtio',
+    'data': {'*path': 'str'},
+    'returns': ['VirtioInfo']
+}

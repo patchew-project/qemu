@@ -942,6 +942,20 @@ static const VMStateDescription vmstate_virtio_scsi = {
     },
 };
 
+static const char *virtio_scsi_tell_feature_name(VirtIODevice *vdev,
+                                                 unsigned fbit)
+{
+#define FBIT(fbit) case fbit: return #fbit
+    switch (fbit) {
+    FBIT(VIRTIO_SCSI_F_INOUT);
+    FBIT(VIRTIO_SCSI_F_HOTPLUG);
+    FBIT(VIRTIO_SCSI_F_CHANGE);
+    FBIT(VIRTIO_SCSI_F_T10_PI);
+    };
+#undef FBIT
+    return NULL;
+}
+
 static void virtio_scsi_common_class_init(ObjectClass *klass, void *data)
 {
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
@@ -964,6 +978,7 @@ static void virtio_scsi_class_init(ObjectClass *klass, void *data)
     vdc->unrealize = virtio_scsi_device_unrealize;
     vdc->set_config = virtio_scsi_set_config;
     vdc->get_features = virtio_scsi_get_features;
+    vdc->tell_feature_name = virtio_scsi_tell_feature_name;
     vdc->reset = virtio_scsi_reset;
     vdc->start_ioeventfd = virtio_scsi_dataplane_start;
     vdc->stop_ioeventfd = virtio_scsi_dataplane_stop;

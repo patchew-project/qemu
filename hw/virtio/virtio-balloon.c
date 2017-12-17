@@ -509,6 +509,19 @@ static Property virtio_balloon_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static const char *virtio_balloon_tell_feature_name(VirtIODevice *vdev,
+                                                    unsigned fbit)
+{
+#define FBIT(fbit) case fbit: return #fbit
+    switch (fbit) {
+    FBIT(VIRTIO_BALLOON_F_MUST_TELL_HOST);
+    FBIT(VIRTIO_BALLOON_F_STATS_VQ);
+    FBIT(VIRTIO_BALLOON_F_DEFLATE_ON_OOM);
+    };
+#undef FBIT
+    return NULL;
+}
+
 static void virtio_balloon_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -523,6 +536,7 @@ static void virtio_balloon_class_init(ObjectClass *klass, void *data)
     vdc->get_config = virtio_balloon_get_config;
     vdc->set_config = virtio_balloon_set_config;
     vdc->get_features = virtio_balloon_get_features;
+    vdc->tell_feature_name = virtio_balloon_tell_feature_name;
     vdc->set_status = virtio_balloon_set_status;
     vdc->vmsd = &vmstate_virtio_balloon_device;
 }
