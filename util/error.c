@@ -24,6 +24,7 @@ struct Error
     const char *src, *func;
     int line;
     GString *hint;
+    GString *pretty;
 };
 
 Error *error_abort;
@@ -166,6 +167,11 @@ void error_append_hint(Error **errp, const char *fmt, ...)
     g_string_append_vprintf(err->hint, fmt, ap);
     va_end(ap);
 
+    if (!err->pretty) {
+        err->pretty = g_string_new(NULL);
+    }
+    g_string_printf(err->pretty, "%s\n%s", err->msg, err->hint->str);
+
     errno = saved_errno;
 }
 
@@ -206,8 +212,10 @@ Error *error_copy(const Error *err)
     err_new->src = err->src;
     err_new->line = err->line;
     err_new->func = err->func;
+    assert(!!err->hint == !!err->pretty);
     if (err->hint) {
         err_new->hint = g_string_new(err->hint->str);
+        err_new->pretty = g_string_new(err->pretty->str);
     }
 
     return err_new;
@@ -220,24 +228,24 @@ ErrorClass error_get_class(const Error *err)
 
 const char *error_get_pretty(const Error *err)
 {
-    return err->msg;
+    if (err->pretty) {
+        assert(err->hint);
+        return err->pretty->str;
+    } else {
+        assert(!err->hint);
+        return err->msg;
+    }
 }
 
 void error_report_err(Error *err)
 {
     error_report("%s", error_get_pretty(err));
-    if (err->hint) {
-        error_printf_unless_qmp("%s", err->hint->str);
-    }
     error_free(err);
 }
 
 void warn_report_err(Error *err)
 {
     warn_report("%s", error_get_pretty(err));
-    if (err->hint) {
-        error_printf_unless_qmp("%s", err->hint->str);
-    }
     error_free(err);
 }
 
@@ -268,6 +276,7 @@ void error_free(Error *err)
         g_free(err->msg);
         if (err->hint) {
             g_string_free(err->hint, true);
+            g_string_free(err->pretty, true);
         }
         g_free(err);
     }
