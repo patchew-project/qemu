@@ -115,7 +115,7 @@ void qmp_system_powerdown(Error **erp)
 
 void qmp_cpu(int64_t index, Error **errp)
 {
-    /* Just do nothing */
+    error_setg(errp, "qmp_cpu is deprecated, do not use this command");
 }
 
 void qmp_cpu_add(int64_t id, Error **errp)
