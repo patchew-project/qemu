@@ -90,6 +90,9 @@ matrix:
     - env: CONFIG="--disable-tcg"
            TEST_CMD=""
       compiler: gcc
+    - env: CONFIG="--disable-tpm"
+           TEST_CMD=""
+      compiler: gcc
     - env: CONFIG=""
       os: osx
       compiler: clang
