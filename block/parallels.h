@@ -31,6 +31,8 @@
 #define BLOCK_PARALLELS_H
 #include "qemu/module.h"
 
+#define HEADS_NUMBER 16
+#define SEC_IN_CYL 32
 #define DEFAULT_CLUSTER_SIZE 1048576        /* 1 MiB */
 
 /* always little-endian */
