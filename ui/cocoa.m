@@ -25,7 +25,6 @@
 #include "qemu/osdep.h"
 
 #import <Cocoa/Cocoa.h>
-#include <crt_externs.h>
 
 #include "qemu-common.h"
 #include "ui/console.h"
@@ -1050,7 +1049,7 @@ QemuCocoaView *cocoaView;
     COCOA_DEBUG("QemuCocoaAppController: startEmulationWithArgc\n");
 
     int status;
-    status = qemu_main(argc, argv, *_NSGetEnviron());
+    status = main(argc, argv);
     exit(status);
 }
 
@@ -1391,7 +1390,7 @@ int main (int argc, const char * argv[]) {
                 !strcmp(opt, "-curses") ||
                 !strcmp(opt, "-display") ||
                 !strcmp(opt, "-qtest")) {
-                return qemu_main(gArgc, gArgv, *_NSGetEnviron());
+                return main(gArgc, gArgv);
             }
         }
     }
