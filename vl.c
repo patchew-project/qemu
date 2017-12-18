@@ -4860,6 +4860,8 @@ int main(int argc, char **argv, char **envp)
         }
     } else if (autostart) {
         vm_start();
+    } else {
+        bdrv_inactivate_all();
     }
 
     os_setup_post();
