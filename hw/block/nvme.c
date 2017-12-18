@@ -920,9 +920,9 @@ static const MemoryRegionOps nvme_cmb_ops = {
     },
 };
 
-static int nvme_init(PCIDevice *pci_dev)
+static void nvme_realize(PCIDevice *pci, Error **errp)
 {
-    NvmeCtrl *n = NVME(pci_dev);
+    NvmeCtrl *n = NVME(pci);
     NvmeIdCtrl *id = &n->id_ctrl;
 
     int i;
@@ -931,30 +931,33 @@ static int nvme_init(PCIDevice *pci_dev)
     Error *local_err = NULL;
 
     if (!n->conf.blk) {
-        return -1;
+        error_setg(errp, "Block device missing");
+        return;
     }
 
     bs_size = blk_getlength(n->conf.blk);
     if (bs_size < 0) {
-        return -1;
+        error_setg_errno(errp, -bs_size, "Could not get length of device");
+        return;
     }
 
     blkconf_serial(&n->conf, &n->serial);
     if (!n->serial) {
-        return -1;
+        error_setg(errp, "Could not get device serial number");
+        return;
     }
     blkconf_blocksizes(&n->conf);
     blkconf_apply_backend_options(&n->conf, blk_is_read_only(n->conf.blk),
                                   false, &local_err);
     if (local_err) {
-        error_report_err(local_err);
-        return -1;
+        error_propagate(errp, local_err);
+        return;
     }
 
-    pci_conf = pci_dev->config;
+    pci_conf = pci->config;
     pci_conf[PCI_INTERRUPT_PIN] = 1;
-    pci_config_set_prog_interface(pci_dev->config, 0x2);
-    pci_config_set_class(pci_dev->config, PCI_CLASS_STORAGE_EXPRESS);
+    pci_config_set_prog_interface(pci->config, 0x2);
+    pci_config_set_class(pci->config, PCI_CLASS_STORAGE_EXPRESS);
     pcie_endpoint_cap_init(&n->parent_obj, 0x80);
 
     n->num_namespaces = 1;
@@ -1046,12 +1049,11 @@ static int nvme_init(PCIDevice *pci_dev)
             cpu_to_le64(n->ns_size >>
                 id_ns->lbaf[NVME_ID_NS_FLBAS_INDEX(ns->id_ns.flbas)].ds);
     }
-    return 0;
 }
 
-static void nvme_exit(PCIDevice *pci_dev)
+static void nvme_exit(PCIDevice *pci)
 {
-    NvmeCtrl *n = NVME(pci_dev);
+    NvmeCtrl *n = NVME(pci);
 
     nvme_clear_ctrl(n);
     g_free(n->namespaces);
@@ -1061,7 +1063,7 @@ static void nvme_exit(PCIDevice *pci_dev)
         memory_region_unref(&n->ctrl_mem);
     }
 
-    msix_uninit_exclusive_bar(pci_dev);
+    msix_uninit_exclusive_bar(pci);
 }
 
 static Property nvme_props[] = {
@@ -1081,7 +1083,7 @@ static void nvme_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
     PCIDeviceClass *pc = PCI_DEVICE_CLASS(oc);
 
-    pc->init = nvme_init;
+    pc->realize = nvme_realize;
     pc->exit = nvme_exit;
     pc->class_id = PCI_CLASS_STORAGE_EXPRESS;
     pc->vendor_id = PCI_VENDOR_ID_INTEL;
