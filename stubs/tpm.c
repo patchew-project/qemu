@@ -7,6 +7,7 @@
 #include "qemu/osdep.h"
 #include "sysemu/tpm.h"
 #include "qmp-commands.h"
+#include "sysemu/tpm_backend.h"
 
 int tpm_init(void)
 {
@@ -30,4 +31,18 @@ TpmTypeList *qmp_query_tpm_types(Error **errp)
 TpmModelList *qmp_query_tpm_models(Error **errp)
 {
     return NULL;
+}
+
+TPMBackend *qemu_find_tpm_be(const char *id)
+{
+    return NULL;
+}
+
+int tpm_backend_init(TPMBackend *s, TPMIf *tpmif, Error **errp)
+{
+    return -1;
+}
+
+void tpm_backend_reset(TPMBackend *s)
+{
 }
