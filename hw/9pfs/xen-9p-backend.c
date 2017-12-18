@@ -210,7 +210,7 @@ static void xen_9pfs_init_in_iov_from_pdu(V9fsPDU *pdu,
     *pniov = num;
 }
 
-static void xen_9pfs_push_and_notify(V9fsPDU *pdu)
+static void xen_9pfs_pdu_complete(V9fsPDU *pdu, bool discard)
 {
     RING_IDX prod;
     Xen9pfsDev *priv = container_of(pdu->s, Xen9pfsDev, state);
@@ -222,10 +222,12 @@ static void xen_9pfs_push_and_notify(V9fsPDU *pdu)
     ring->intf->out_cons = ring->out_cons;
     xen_wmb();
 
-    prod = ring->intf->in_prod;
-    xen_rmb();
-    ring->intf->in_prod = prod + pdu->size;
-    xen_wmb();
+    if (!discard) {
+        prod = ring->intf->in_prod;
+        xen_rmb();
+        ring->intf->in_prod = prod + pdu->size;
+        xen_wmb();
+    }
 
     ring->inprogress = false;
     xenevtchn_notify(ring->evtchndev, ring->local_port);
@@ -238,7 +240,7 @@ static const V9fsTransport xen_9p_transport = {
     .pdu_vunmarshal = xen_9pfs_pdu_vunmarshal,
     .init_in_iov_from_pdu = xen_9pfs_init_in_iov_from_pdu,
     .init_out_iov_from_pdu = xen_9pfs_init_out_iov_from_pdu,
-    .push_and_notify = xen_9pfs_push_and_notify,
+    .pdu_complete = xen_9pfs_pdu_complete,
 };
 
 static int xen_9pfs_init(struct XenDevice *xendev)

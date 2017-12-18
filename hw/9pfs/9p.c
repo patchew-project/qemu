@@ -642,7 +642,7 @@ static void coroutine_fn pdu_complete(V9fsPDU *pdu, ssize_t len)
 
             ret = pdu_marshal(pdu, len, "s", &str);
             if (ret < 0) {
-                goto out_notify;
+                goto out_complete;
             }
             len += ret;
             id = P9_RERROR;
@@ -650,7 +650,7 @@ static void coroutine_fn pdu_complete(V9fsPDU *pdu, ssize_t len)
 
         ret = pdu_marshal(pdu, len, "d", err);
         if (ret < 0) {
-            goto out_notify;
+            goto out_complete;
         }
         len += ret;
 
@@ -662,15 +662,15 @@ static void coroutine_fn pdu_complete(V9fsPDU *pdu, ssize_t len)
 
     /* fill out the header */
     if (pdu_marshal(pdu, 0, "dbw", (int32_t)len, id, pdu->tag) < 0) {
-        goto out_notify;
+        goto out_complete;
     }
 
     /* keep these in sync */
     pdu->size = len;
     pdu->id = id;
 
-out_notify:
-    pdu->s->transport->push_and_notify(pdu);
+out_complete:
+    pdu->s->transport->pdu_complete(pdu, false);
 
     /* Now wakeup anybody waiting in flush for this request */
     if (!qemu_co_queue_next(&pdu->complete)) {

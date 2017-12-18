@@ -20,14 +20,17 @@
 #include "hw/virtio/virtio-access.h"
 #include "qemu/iov.h"
 
-static void virtio_9p_push_and_notify(V9fsPDU *pdu)
+static void virtio_pdu_complete(V9fsPDU *pdu, bool discard)
 {
     V9fsState *s = pdu->s;
     V9fsVirtioState *v = container_of(s, V9fsVirtioState, state);
     VirtQueueElement *elem = v->elems[pdu->idx];
 
-    /* push onto queue and notify */
-    virtqueue_push(v->vq, elem, pdu->size);
+    if (discard) {
+        virtqueue_detach_element(v->vq, elem, 0);
+    } else {
+        virtqueue_push(v->vq, elem, pdu->size);
+    }
     g_free(elem);
     v->elems[pdu->idx] = NULL;
 
@@ -189,7 +192,7 @@ static const V9fsTransport virtio_9p_transport = {
     .pdu_vunmarshal = virtio_pdu_vunmarshal,
     .init_in_iov_from_pdu = virtio_init_in_iov_from_pdu,
     .init_out_iov_from_pdu = virtio_init_out_iov_from_pdu,
-    .push_and_notify = virtio_9p_push_and_notify,
+    .pdu_complete = virtio_pdu_complete,
 };
 
 static void virtio_9p_device_realize(DeviceState *dev, Error **errp)
