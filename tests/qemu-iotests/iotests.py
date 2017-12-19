@@ -16,6 +16,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+from __future__ import print_function
 import errno
 import os
 import re
@@ -145,7 +146,7 @@ def filter_qmp_event(event):
 def log(msg, filters=[]):
     for flt in filters:
         msg = flt(msg)
-    print msg
+    print(msg)
 
 class Timeout:
     def __init__(self, seconds, errmsg = "Timeout"):
@@ -417,7 +418,7 @@ def notrun(reason):
     seq = os.path.basename(sys.argv[0])
 
     open('%s/%s.notrun' % (output_dir, seq), 'wb').write(reason + '\n')
-    print '%s not run: %s' % (seq, reason)
+    print("{} not run: {}".format(seq, reason))
     sys.exit(0)
 
 def verify_image_format(supported_fmts=[], unsupported_fmts=[]):
