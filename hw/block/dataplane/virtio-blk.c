@@ -32,7 +32,6 @@ struct VirtIOBlockDataPlane {
 
     VirtIOBlkConf *conf;
     VirtIODevice *vdev;
-    QEMUBH *bh;                     /* bh for guest notification */
     unsigned long *batch_notify_vqs;
 
     /* Note that these EventNotifiers are assigned by value.  This is
@@ -44,14 +43,7 @@ struct VirtIOBlockDataPlane {
     AioContext *ctx;
 };
 
-/* Raise an interrupt to signal guest, if necessary */
-void virtio_blk_data_plane_notify(VirtIOBlockDataPlane *s, VirtQueue *vq)
-{
-    set_bit(virtio_get_queue_index(vq), s->batch_notify_vqs);
-    qemu_bh_schedule(s->bh);
-}
-
-static void notify_guest_bh(void *opaque)
+static void notify_guest(void *opaque)
 {
     VirtIOBlockDataPlane *s = opaque;
     unsigned nvqs = s->conf->num_queues;
@@ -75,7 +67,12 @@ static void notify_guest_bh(void *opaque)
     }
 }
 
-/* Context: QEMU global mutex held */
+/* Raise an interrupt to signal guest, if necessary */
+void virtio_blk_data_plane_notify(VirtIOBlockDataPlane *s, VirtQueue *vq)
+{
+    set_bit(virtio_get_queue_index(vq), s->batch_notify_vqs);
+    notify_guest(s);
+}
 void virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *conf,
                                   VirtIOBlockDataPlane **dataplane,
                                   Error **errp)
@@ -122,7 +119,6 @@ void virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *conf,
     } else {
         s->ctx = qemu_get_aio_context();
     }
-    s->bh = aio_bh_new(s->ctx, notify_guest_bh, s);
     s->batch_notify_vqs = bitmap_new(conf->num_queues);
 
     *dataplane = s;
@@ -140,7 +136,6 @@ void virtio_blk_data_plane_destroy(VirtIOBlockDataPlane *s)
     vblk = VIRTIO_BLK(s->vdev);
     assert(!vblk->dataplane_started);
     g_free(s->batch_notify_vqs);
-    qemu_bh_delete(s->bh);
     if (s->iothread) {
         object_unref(OBJECT(s->iothread));
     }
