@@ -77,7 +77,7 @@ typedef enum VhostUserSlaveRequest {
 typedef struct VhostUserMemoryRegion {
     uint64_t guest_phys_addr;
     uint64_t memory_size;
-    uint64_t userspace_addr;
+    uint64_t user_addr;
     uint64_t mmap_offset;
 } VhostUserMemoryRegion;
 
@@ -317,7 +317,7 @@ static int vhost_user_set_mem_table(struct vhost_dev *dev,
                                      &offset);
         fd = memory_region_get_fd(mr);
         if (fd > 0) {
-            msg.payload.memory.regions[fd_num].userspace_addr = reg->userspace_addr;
+            msg.payload.memory.regions[fd_num].user_addr = reg->userspace_addr;
             msg.payload.memory.regions[fd_num].memory_size  = reg->memory_size;
             msg.payload.memory.regions[fd_num].guest_phys_addr = reg->guest_phys_addr;
             msg.payload.memory.regions[fd_num].mmap_offset = offset;
