@@ -20,7 +20,7 @@
 #include "qapi-types.h"
 #include "qapi/qmp/qerror.h"
 
-static QDict *qmp_dispatch_check_obj(const QObject *request, Error **errp)
+QDict *qmp_dispatch_check_obj(const QObject *request, Error **errp)
 {
     const QDictEntry *ent;
     const char *arg_name;
@@ -52,6 +52,8 @@ static QDict *qmp_dispatch_check_obj(const QObject *request, Error **errp)
                            "QMP input member 'arguments' must be an object");
                 return NULL;
             }
+        } else if (!strcmp(arg_name, "id")) {
+            continue;
         } else {
             error_setg(errp, "QMP input member '%s' is unexpected",
                        arg_name);
