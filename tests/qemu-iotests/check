@@ -597,6 +597,8 @@ fi
 if [ -x "$build_iotests/socket_scm_helper" ]
 then
     export SOCKET_SCM_HELPER="$build_iotests/socket_scm_helper"
+else
+    _init_error "socket_scm_helper not found"
 fi
 
 default_machine=$($QEMU_PROG -machine help | sed -n '/(default)/ s/ .*//p')
