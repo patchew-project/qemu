@@ -41,7 +41,7 @@ class ShrinkBaseClass(iotests.QMPTestCase):
         div_roundup = lambda n, d: (n + d - 1) / d
 
         def split_by_n(data, n):
-            for x in xrange(0, len(data), n):
+            for x in range(0, len(data), n):
                 yield struct.unpack('>Q', data[x:x + n])[0] & l1_mask
 
         def check_l1_table(h, l1_data):
