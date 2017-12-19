@@ -459,13 +459,16 @@ def main(supported_fmts=[], supported_oses=['linux']):
 
     # We need to filter out the time taken from the output so that qemu-iotest
     # can reliably diff the results against master output.
-    import StringIO
     if debug:
         output = sys.stdout
         verbosity = 2
         sys.argv.remove('-d')
     else:
-        output = StringIO.StringIO()
+        try:
+            from StringIO import StringIO
+        except ImportError:
+            from io import StringIO
+        output = StringIO()
 
     logging.basicConfig(level=(logging.DEBUG if debug else logging.WARN))
 
