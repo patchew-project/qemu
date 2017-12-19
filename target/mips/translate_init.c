@@ -404,7 +404,7 @@ const mips_def_t mips_defs[] =
                     (1 << FCR0_F64) | (1 << FCR0_L) | (1 << FCR0_W) |
                     (1 << FCR0_D) | (1 << FCR0_S) | (0x03 << FCR0_PRID),
         .CP1_fcr31 = (1 << FCR31_ABS2008) | (1 << FCR31_NAN2008),
-        .CP1_fcr31_rw_bitmask = 0xFF83FFFF,
+        .CP1_fcr31_rw_bitmask = 0xFF8FFFFF,
         .SEGBITS = 32,
         .PABITS = 40,
         .insn_flags = CPU_MIPS32R5 | ASE_MSA,

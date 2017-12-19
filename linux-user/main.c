@@ -4323,7 +4323,7 @@ int main(int argc, char **argv, char **envp)
 #if defined(TARGET_ABI_MIPSN32) || defined(TARGET_ABI_MIPSN64)
         cpu_model = "5KEf";
 #else
-        cpu_model = "24Kf";
+        cpu_model = "P5600";
 #endif
 #elif defined TARGET_OPENRISC
         cpu_model = "or1200";
