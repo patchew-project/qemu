@@ -433,7 +433,8 @@ static int vhost_dev_has_iommu(struct vhost_dev *dev)
 static void *vhost_memory_map(struct vhost_dev *dev, hwaddr addr,
                               hwaddr *plen, int is_write)
 {
-    if (!vhost_dev_has_iommu(dev)) {
+    if (dev->vhost_ops->uaddr_type == VHOST_UADDR_TYPE_HVA &&
+            !vhost_dev_has_iommu(dev)) {
         return cpu_physical_memory_map(addr, plen, is_write);
     } else {
         return (void *)(uintptr_t)addr;
@@ -444,7 +445,8 @@ static void vhost_memory_unmap(struct vhost_dev *dev, void *buffer,
                                hwaddr len, int is_write,
                                hwaddr access_len)
 {
-    if (!vhost_dev_has_iommu(dev)) {
+    if (dev->vhost_ops->uaddr_type == VHOST_UADDR_TYPE_HVA &&
+            !vhost_dev_has_iommu(dev)) {
         cpu_physical_memory_unmap(buffer, len, is_write, access_len);
     }
 }
@@ -975,7 +977,7 @@ static int vhost_memory_region_lookup(struct vhost_dev *hdev,
 int vhost_device_iotlb_miss(struct vhost_dev *dev, uint64_t iova, int write)
 {
     IOMMUTLBEntry iotlb;
-    uint64_t uaddr, len;
+    uint64_t userspace_addr, uaddr, len;
     int ret = -EFAULT;
 
     rcu_read_lock();
@@ -984,7 +986,7 @@ int vhost_device_iotlb_miss(struct vhost_dev *dev, uint64_t iova, int write)
                                           iova, write);
     if (iotlb.target_as != NULL) {
         ret = vhost_memory_region_lookup(dev, iotlb.translated_addr,
-                                         &uaddr, &len);
+                                         &userspace_addr, &len);
         if (ret) {
             error_report("Fail to lookup the translated address "
                          "%"PRIx64, iotlb.translated_addr);
@@ -993,6 +995,12 @@ int vhost_device_iotlb_miss(struct vhost_dev *dev, uint64_t iova, int write)
 
         len = MIN(iotlb.addr_mask + 1, len);
         iova = iova & ~iotlb.addr_mask;
+
+        if (dev->vhost_ops->uaddr_type == VHOST_UADDR_TYPE_GPA) {
+            uaddr = iotlb.translated_addr;
+        } else {
+            uaddr = userspace_addr;
+        }
 
         ret = vhost_backend_update_device_iotlb(dev, iova, uaddr,
                                                 len, iotlb.perm);

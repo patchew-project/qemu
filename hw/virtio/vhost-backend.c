@@ -235,6 +235,7 @@ static void vhost_kernel_set_iotlb_callback(struct vhost_dev *dev,
 
 static const VhostOps kernel_ops = {
         .backend_type = VHOST_BACKEND_TYPE_KERNEL,
+        .uaddr_type = VHOST_UADDR_TYPE_HVA,
         .vhost_backend_init = vhost_kernel_init,
         .vhost_backend_cleanup = vhost_kernel_cleanup,
         .vhost_backend_memslots_limit = vhost_kernel_memslots_limit,

@@ -924,6 +924,7 @@ static void vhost_user_set_iotlb_callback(struct vhost_dev *dev, int enabled)
 
 const VhostOps user_ops = {
         .backend_type = VHOST_BACKEND_TYPE_USER,
+        .uaddr_type = VHOST_UADDR_TYPE_HVA,
         .vhost_backend_init = vhost_user_init,
         .vhost_backend_cleanup = vhost_user_cleanup,
         .vhost_backend_memslots_limit = vhost_user_memslots_limit,

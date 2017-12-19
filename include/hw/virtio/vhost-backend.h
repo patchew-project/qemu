@@ -20,6 +20,11 @@ typedef enum VhostBackendType {
     VHOST_BACKEND_TYPE_MAX = 3,
 } VhostBackendType;
 
+typedef enum VhostUaddrType {
+    VHOST_UADDR_TYPE_HVA = 0,
+    VHOST_UADDR_TYPE_GPA = 1,
+} VhostUaddrType;
+
 struct vhost_dev;
 struct vhost_log;
 struct vhost_memory;
@@ -87,6 +92,7 @@ typedef int (*vhost_send_device_iotlb_msg_op)(struct vhost_dev *dev,
 
 typedef struct VhostOps {
     VhostBackendType backend_type;
+    VhostUaddrType uaddr_type;
     vhost_backend_init vhost_backend_init;
     vhost_backend_cleanup vhost_backend_cleanup;
     vhost_backend_memslots_limit vhost_backend_memslots_limit;
