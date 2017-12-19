@@ -29,7 +29,7 @@
 
 /* main function, renamed */
 #if defined(CONFIG_COCOA)
-int qemu_main(int argc, char **argv, char **envp);
+int qemu_main(int argc, char **argv);
 #endif
 
 void qemu_get_timedate(struct tm *tm, int offset);
