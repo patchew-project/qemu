@@ -317,7 +317,8 @@ static int vhost_user_set_mem_table(struct vhost_dev *dev,
                                      &offset);
         fd = memory_region_get_fd(mr);
         if (fd > 0) {
-            msg.payload.memory.regions[fd_num].user_addr = reg->userspace_addr;
+            /* Use GPA as user address not to leak QEMU VAs to the backend */
+            msg.payload.memory.regions[fd_num].user_addr = reg->guest_phys_addr;
             msg.payload.memory.regions[fd_num].memory_size  = reg->memory_size;
             msg.payload.memory.regions[fd_num].guest_phys_addr = reg->guest_phys_addr;
             msg.payload.memory.regions[fd_num].mmap_offset = offset;
@@ -924,7 +925,7 @@ static void vhost_user_set_iotlb_callback(struct vhost_dev *dev, int enabled)
 
 const VhostOps user_ops = {
         .backend_type = VHOST_BACKEND_TYPE_USER,
-        .uaddr_type = VHOST_UADDR_TYPE_HVA,
+        .uaddr_type = VHOST_UADDR_TYPE_GPA,
         .vhost_backend_init = vhost_user_init,
         .vhost_backend_cleanup = vhost_user_cleanup,
         .vhost_backend_memslots_limit = vhost_user_memslots_limit,
