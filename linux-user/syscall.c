@@ -10530,6 +10530,30 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
              * need. */
             ret = -TARGET_EINVAL;
             break;
+#ifdef TARGET_MIPS
+        case PR_GET_FP_MODE:
+        {
+            CPUMIPSState *env = ((CPUMIPSState *)cpu_env);
+            ret = 0;
+            if (env->CP0_Status & (1 << CP0St_FR)) {
+                ret |= PR_FP_MODE_FR;
+            }
+            if (env->CP0_Config5 & (1 << CP0C5_FRE)) {
+                ret |= PR_FP_MODE_FRE;
+            }
+            break;
+        }
+        case PR_SET_FP_MODE:
+        {
+            CPUMIPSState *env = ((CPUMIPSState *)cpu_env);
+            ret = mips_prctl_set_fp_mode(env, arg2);
+            if (ret < 0) {
+                ret = -TARGET_EOPNOTSUPP;
+                goto fail;
+            }
+            break;
+        }
+#endif
         default:
             /* Most prctl options have no pointer arguments */
             ret = get_errno(prctl(arg1, arg2, arg3, arg4, arg5));

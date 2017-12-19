@@ -769,4 +769,13 @@ static inline void cpu_get_tb_cpu_state(CPUMIPSState *env, target_ulong *pc,
                             MIPS_HFLAG_HWRENA_ULR);
 }
 
+/* prctl interface.  */
+#if defined(CONFIG_USER_ONLY)
+#define PR_SET_FP_MODE 45
+#define PR_GET_FP_MODE 46
+#define PR_FP_MODE_FR  (1 << 0)
+#define PR_FP_MODE_FRE (1 << 1)
+abi_long mips_prctl_set_fp_mode(CPUMIPSState *env, abi_long arg2);
+#endif
+
 #endif /* MIPS_CPU_H */

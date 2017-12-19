@@ -4750,6 +4750,9 @@ int main(int argc, char **argv, char **envp)
             }
             restore_snan_bit_mode(env);
         }
+        if ((info->elf_flags & EF_MIPS_FP64) != 0) {
+            env->CP0_Status |= (1 << CP0St_FR);
+        }
     }
 #elif defined(TARGET_NIOS2)
     {
