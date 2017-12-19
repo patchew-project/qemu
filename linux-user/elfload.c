@@ -2224,6 +2224,42 @@ static void load_elf_interp(const char *filename, struct image_info *info,
     exit(-1);
 }
 
+uint32_t get_elf_eflags(const char *filename)
+{
+    int fd, retval;
+    char bprm_buf[BPRM_BUF_SIZE];
+
+    fd = open(path(filename), O_RDONLY);
+    if (fd < 0) {
+        return 0;
+    }
+    retval = read(fd, bprm_buf, BPRM_BUF_SIZE);
+    close(fd);
+    if (retval < 0) {
+        return 0;
+    }
+    if (retval < BPRM_BUF_SIZE) {
+        memset(bprm_buf + retval, 0, BPRM_BUF_SIZE - retval);
+    }
+
+    if (bprm_buf[0] != 0x7f
+             || bprm_buf[1] != 'E'
+             || bprm_buf[2] != 'L'
+             || bprm_buf[3] != 'F') {
+        return 0;
+    }
+
+    struct elfhdr *ehdr = (struct elfhdr *)bprm_buf;
+    if (!elf_check_ident(ehdr)) {
+        return 0;
+    }
+    bswap_ehdr(ehdr);
+    if (!elf_check_ehdr(ehdr)) {
+        return 0;
+    }
+    return ehdr->e_flags;
+}
+
 static int symfind(const void *s0, const void *s1)
 {
     target_ulong addr = *(target_ulong *)s0;

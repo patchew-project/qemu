@@ -4287,6 +4287,21 @@ int main(int argc, char **argv, char **envp)
     }
     trace_init_file(trace_file);
 
+#if defined(TARGET_MIPS)
+    if (cpu_model == NULL) {
+        uint32_t eflags = get_elf_eflags(filename);
+#if defined(TARGET_ABI_MIPSN32) || defined(TARGET_ABI_MIPSN64)
+        if ((eflags & EF_MIPS_ARCH_64R6) != 0) {
+            cpu_model = "I6400";
+        }
+#else
+        if ((eflags & EF_MIPS_ARCH_32R6) != 0) {
+            cpu_model = "mips32r6-generic";
+        }
+#endif
+    }
+#endif
+
     /* Zero out regs */
     memset(regs, 0, sizeof(struct target_pt_regs));
 
