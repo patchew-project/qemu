@@ -919,7 +919,7 @@ check-qapi-schema: $(patsubst %,check-%, $(check-qapi-schema-y)) check-tests/qap
 check-qtest: $(patsubst %,check-qtest-%, $(QTEST_TARGETS))
 check-unit: $(patsubst %,check-%, $(check-unit-y))
 check-speed: $(patsubst %,check-%, $(check-speed-y))
-check-block: $(patsubst %,check-%, $(check-block-y))
+check-block: $(patsubst %,check-%, $(check-block-y)) QEMU_IOTESTS_HELPERS-$(CONFIG_LINUX)
 check: check-qapi-schema check-unit check-qtest
 check-clean:
 	$(MAKE) -C tests/tcg clean
