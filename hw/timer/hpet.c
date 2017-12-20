@@ -221,7 +221,9 @@ static int hpet_pre_save(void *opaque)
     HPETState *s = opaque;
 
     /* save current counter value */
-    s->hpet_counter = hpet_get_ticks(s);
+    if (hpet_enabled(s)) {
+        s->hpet_counter = hpet_get_ticks(s);
+    }
 
     return 0;
 }
@@ -252,7 +254,10 @@ static int hpet_post_load(void *opaque, int version_id)
     HPETState *s = opaque;
 
     /* Recalculate the offset between the main counter and guest time */
-    s->hpet_offset = ticks_to_ns(s->hpet_counter) - qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    if (version_id <= 2) {
+        s->hpet_offset = ticks_to_ns(s->hpet_counter)
+                        - qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    }
 
     /* Push number of timers into capability returned via HPET_ID */
     s->capability &= ~HPET_ID_NUM_TIM_MASK;
@@ -303,7 +308,7 @@ static const VMStateDescription vmstate_hpet_timer = {
 
 static const VMStateDescription vmstate_hpet = {
     .name = "hpet",
-    .version_id = 2,
+    .version_id = 3,
     .minimum_version_id = 1,
     .pre_save = hpet_pre_save,
     .pre_load = hpet_pre_load,
@@ -312,6 +317,7 @@ static const VMStateDescription vmstate_hpet = {
         VMSTATE_UINT64(config, HPETState),
         VMSTATE_UINT64(isr, HPETState),
         VMSTATE_UINT64(hpet_counter, HPETState),
+        VMSTATE_UINT64_V(hpet_offset, HPETState, 3),
         VMSTATE_UINT8_V(num_timers, HPETState, 2),
         VMSTATE_VALIDATE("num_timers in range", hpet_validate_num_timers),
         VMSTATE_STRUCT_VARRAY_UINT8(timer, HPETState, num_timers, 0,
