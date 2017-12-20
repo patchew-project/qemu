@@ -734,7 +734,6 @@ int hvf_vcpu_exec(CPUState *cpu)
             uint32_t port =  exit_qual >> 16;
             /*uint32_t rep = (exit_qual & 0x20) != 0;*/
 
-#if 1
             if (!string && in) {
                 uint64_t val = 0;
                 load_regs(cpu);
@@ -757,7 +756,6 @@ int hvf_vcpu_exec(CPUState *cpu)
                 macvm_set_rip(cpu, rip + ins_len);
                 break;
             }
-#endif
             struct x86_decode decode;
 
             load_regs(cpu);
