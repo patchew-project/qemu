@@ -75,6 +75,17 @@
   'data': [ 'on', 'off', 'split' ] }
 
 ##
+# @Int:
+#
+# A fat type wrapping 'int', to be embedded in lists.
+#
+# Since: 2.12
+##
+{ 'struct': 'Int',
+  'data': {
+    'i': 'int' } }
+
+##
 # @String:
 #
 # A fat type wrapping 'str', to be embedded in lists.

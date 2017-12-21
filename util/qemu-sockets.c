@@ -1049,6 +1049,22 @@ int socket_connect(SocketAddress *addr, Error **errp)
         fd = monitor_get_fd(cur_mon, addr->u.fd.str, errp);
         break;
 
+    case SOCKET_ADDRESS_TYPE_FDSET:
+        fd = monitor_fdset_get_fd(addr->u.fdset.i, O_RDWR);
+        if (fd < 0) {
+            error_setg_errno(errp, errno,
+                             "Unable to get FD from fdset %" PRId64,
+                             addr->u.fdset.i);
+            return -1;
+        }
+        if (!fd_is_socket(fd)) {
+            error_setg(errp, "Expected a socket FD from fdset %" PRId64,
+                       addr->u.fdset.i);
+            close(fd);
+            return -1;
+        }
+        break;
+
     case SOCKET_ADDRESS_TYPE_VSOCK:
         fd = vsock_connect_saddr(&addr->u.vsock, errp);
         break;
@@ -1074,6 +1090,22 @@ int socket_listen(SocketAddress *addr, Error **errp)
 
     case SOCKET_ADDRESS_TYPE_FD:
         fd = monitor_get_fd(cur_mon, addr->u.fd.str, errp);
+        break;
+
+    case SOCKET_ADDRESS_TYPE_FDSET:
+        fd = monitor_fdset_get_fd(addr->u.fdset.i, O_RDWR);
+        if (fd < 0) {
+            error_setg_errno(errp, errno,
+                             "Unable to get FD from fdset %" PRId64,
+                             addr->u.fdset.i);
+            return -1;
+        }
+        if (!fd_is_socket(fd)) {
+            error_setg(errp, "Expected a socket FD from fdset %" PRId64,
+                       addr->u.fdset.i);
+            close(fd);
+            return -1;
+        }
         break;
 
     case SOCKET_ADDRESS_TYPE_VSOCK:
@@ -1292,6 +1324,10 @@ SocketAddress *socket_address_flatten(SocketAddressLegacy *addr_legacy)
     case SOCKET_ADDRESS_LEGACY_KIND_FD:
         addr->type = SOCKET_ADDRESS_TYPE_FD;
         QAPI_CLONE_MEMBERS(String, &addr->u.fd, addr_legacy->u.fd.data);
+        break;
+    case SOCKET_ADDRESS_LEGACY_KIND_FDSET:
+        addr->type = SOCKET_ADDRESS_TYPE_FDSET;
+        QAPI_CLONE_MEMBERS(Int, &addr->u.fdset, addr_legacy->u.fdset.data);
         break;
     default:
         abort();

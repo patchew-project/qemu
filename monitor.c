@@ -1962,6 +1962,11 @@ int monitor_get_fd(Monitor *mon, const char *fdname, Error **errp)
 {
     mon_fd_t *monfd;
 
+    if (mon == NULL) {
+        error_setg(errp, "No monitor is available to acquire FD");
+        return -1;
+    }
+
     QLIST_FOREACH(monfd, &mon->fds, next) {
         int fd;
 

@@ -799,6 +799,12 @@ QemuOptsList qemu_chardev_opts = {
             .name = "port",
             .type = QEMU_OPT_STRING,
         },{
+            .name = "fd",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "fdset",
+            .type = QEMU_OPT_STRING,
+        },{
             .name = "localaddr",
             .type = QEMU_OPT_STRING,
         },{

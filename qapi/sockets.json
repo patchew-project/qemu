@@ -112,7 +112,8 @@
     'inet': 'InetSocketAddress',
     'unix': 'UnixSocketAddress',
     'vsock': 'VsockSocketAddress',
-    'fd': 'String' } }
+    'fd': 'String',
+    'fdset': 'Int' } }
 
 ##
 # @SocketAddressType:
@@ -123,10 +124,16 @@
 #
 # @unix:  Unix domain socket
 #
+# @vsock: VSOCK socket
+#
+# @fd: socket file descriptor passed over monitor
+#
+# @fdset: socket file descriptor passed via CLI (since 2.12)
+#
 # Since: 2.9
 ##
 { 'enum': 'SocketAddressType',
-  'data': [ 'inet', 'unix', 'vsock', 'fd' ] }
+  'data': [ 'inet', 'unix', 'vsock', 'fd', 'fdset' ] }
 
 ##
 # @SocketAddress:
@@ -144,4 +151,5 @@
   'data': { 'inet': 'InetSocketAddress',
             'unix': 'UnixSocketAddress',
             'vsock': 'VsockSocketAddress',
-            'fd': 'String' } }
+            'fd': 'String',
+            'fdset': 'Int' } }
