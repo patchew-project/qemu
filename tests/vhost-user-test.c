@@ -652,7 +652,7 @@ static void test_read_guest_mem(void)
     s = qtest_start(qemu_cmd);
     g_free(qemu_cmd);
 
-    init_virtio_dev(server, VIRTIO_NET_F_MAC);
+    init_virtio_dev(server, 1u << VIRTIO_NET_F_MAC);
 
     read_guest_mem(server);
 
@@ -681,7 +681,7 @@ static void test_migrate(void)
     from = qtest_start(cmd);
     g_free(cmd);
 
-    init_virtio_dev(s, VIRTIO_NET_F_MAC);
+    init_virtio_dev(s, 1u << VIRTIO_NET_F_MAC);
     wait_for_fds(s);
     size = get_log_size(s);
     g_assert_cmpint(size, ==, (2 * 1024 * 1024) / (VHOST_LOG_PAGE * 8));
@@ -803,7 +803,7 @@ static void test_reconnect_subprocess(void)
     qtest_start(cmd);
     g_free(cmd);
 
-    init_virtio_dev(s, VIRTIO_NET_F_MAC);
+    init_virtio_dev(s, 1u << VIRTIO_NET_F_MAC);
     wait_for_fds(s);
     wait_for_rings_started(s, 2);
 
@@ -841,7 +841,7 @@ static void test_connect_fail_subprocess(void)
     qtest_start(cmd);
     g_free(cmd);
 
-    init_virtio_dev(s, VIRTIO_NET_F_MAC);
+    init_virtio_dev(s, 1u << VIRTIO_NET_F_MAC);
     wait_for_fds(s);
     wait_for_rings_started(s, 2);
 
@@ -871,7 +871,7 @@ static void test_flags_mismatch_subprocess(void)
     qtest_start(cmd);
     g_free(cmd);
 
-    init_virtio_dev(s, VIRTIO_NET_F_MAC);
+    init_virtio_dev(s, 1u << VIRTIO_NET_F_MAC);
     wait_for_fds(s);
     wait_for_rings_started(s, 2);
 
