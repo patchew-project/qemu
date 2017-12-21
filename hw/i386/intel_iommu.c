@@ -916,7 +916,7 @@ static int vtd_dev_to_context_entry(IntelIOMMUState *s, uint8_t bus_num,
  * happens, otherwise return the shifted type to check against
  * VTD_CONTEXT_TT_*.
  */
-static int vtd_dev_get_trans_type(VTDAddressSpace *as)
+static int vtd_dev_get_trans_type(VTDAddressSpace *as, uint32_t *tt)
 {
     IntelIOMMUState *s;
     VTDContextEntry ce;
@@ -930,16 +930,18 @@ static int vtd_dev_get_trans_type(VTDAddressSpace *as)
         return ret;
     }
 
-    return vtd_ce_get_type(&ce);
+    *tt = vtd_ce_get_type(&ce);
+    return 0;
 }
 
 static bool vtd_dev_pt_enabled(VTDAddressSpace *as)
 {
     int ret;
+    uint32_t tt;
 
     assert(as);
 
-    ret = vtd_dev_get_trans_type(as);
+    ret = vtd_dev_get_trans_type(as, &tt);
     if (ret < 0) {
         /*
          * Possibly failed to parse the context entry for some reason
@@ -950,7 +952,7 @@ static bool vtd_dev_pt_enabled(VTDAddressSpace *as)
         return false;
     }
 
-    return ret == VTD_CONTEXT_TT_PASS_THROUGH;
+    return tt == VTD_CONTEXT_TT_PASS_THROUGH;
 }
 
 /* Return whether the device is using IOMMU translation. */
