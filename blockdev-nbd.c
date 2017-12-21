@@ -203,6 +203,33 @@ void qmp_nbd_server_add(const char *device, bool has_writable, bool writable,
     nbd_export_put(exp);
 }
 
+void qmp_nbd_server_remove(const char *device, bool has_force, bool force,
+                           Error **errp)
+{
+    NBDExport *exp;
+
+    if (!nbd_server) {
+        error_setg(errp, "NBD server not running");
+        return;
+    }
+
+    exp = nbd_export_find(device);
+    if (exp == NULL) {
+        error_setg(errp, "'%s' is not exported", device);
+        return;
+    }
+
+    if (!has_force) {
+        force = false;
+    }
+
+    if (force) {
+        nbd_export_close(exp);
+    } else {
+        nbd_export_set_name(exp, NULL);
+    }
+}
+
 void qmp_nbd_server_stop(Error **errp)
 {
     nbd_export_close_all();
