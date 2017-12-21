@@ -589,6 +589,11 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
         s->needs_alignment = true;
     }
 #endif
+    if (S_ISDIR(st.st_mode)) {
+        ret = -EISDIR;
+        error_setg_errno(errp, errno, "Cannot open directory as file");
+        goto fail;
+    }
 
 #ifdef CONFIG_XFS
     if (platform_test_xfs_fd(s->fd)) {
