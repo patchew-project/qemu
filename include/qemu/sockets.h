@@ -12,6 +12,7 @@ int inet_aton(const char *cp, struct in_addr *ia);
 #include "qapi-types.h"
 
 /* misc helpers */
+bool fd_is_socket(int fd);
 int qemu_socket(int domain, int type, int protocol);
 int qemu_accept(int s, struct sockaddr *addr, socklen_t *addrlen);
 int socket_set_cork(int fd, int v);
