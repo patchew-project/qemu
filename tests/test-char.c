@@ -10,6 +10,7 @@
 #include "qapi/error.h"
 #include "qom/qom-qobject.h"
 #include "qmp-commands.h"
+#include "monitor/monitor.h"
 
 static bool quit;
 
@@ -301,9 +302,8 @@ static int socket_can_read_hello(void *opaque)
     return 10;
 }
 
-static void char_socket_test(void)
+static void char_socket_test_common(Chardev *chr)
 {
-    Chardev *chr = qemu_chr_new("server", "tcp:127.0.0.1:0,server,nowait");
     Chardev *chr_client;
     QObject *addr;
     QDict *qdict;
@@ -357,6 +357,169 @@ static void char_socket_test(void)
 
     object_unparent(OBJECT(chr));
 }
+
+
+static void char_socket_basic_test(void)
+{
+    Chardev *chr = qemu_chr_new("server", "tcp:127.0.0.1:0,server,nowait");
+
+    char_socket_test_common(chr);
+}
+
+
+static int char_socket_listener(void)
+{
+    SocketAddress *addr = g_new0(SocketAddress, 1);
+    int srv;
+
+    addr->type = SOCKET_ADDRESS_TYPE_INET;
+    addr->u.inet.host = g_strdup("127.0.0.1");
+    addr->u.inet.port = g_strdup("0");
+
+    srv = socket_listen(addr, &error_abort);
+    g_assert(srv >= 0);
+
+    qapi_free_SocketAddress(addr);
+    return srv;
+}
+
+
+/* If a monitor is not active (ie cur_mon == NULL), then
+ * we should be able to use fd=<NUMBER> syntax
+ */
+static void char_socket_fdpass_cli_test(void)
+{
+    Chardev *chr;
+    char *optstr;
+    QemuOpts *opts;
+    int fd;
+
+    g_assert_null(cur_mon);
+
+    fd = char_socket_listener();
+
+    optstr = g_strdup_printf("socket,id=cdev,fd=%d,server,nowait", fd);
+
+    opts = qemu_opts_parse_noisily(qemu_find_opts("chardev"),
+                                   optstr, true);
+    g_assert_nonnull(opts);
+
+    chr = qemu_chr_new_from_opts(opts, &error_abort);
+
+    qemu_opts_del(opts);
+
+    char_socket_test_common(chr);
+}
+
+
+static int mon_fd = -1;
+
+int monitor_get_fd(Monitor *mon, const char *fdname, Error **errp)
+{
+    if (mon_fd == -1) {
+        error_setg(errp, "No fd named %s", fdname);
+        return -1;
+    }
+    return mon_fd;
+}
+
+/* Syms in libqemustub.a are discarded at .o file granularity.
+ * To replace monitor_get_fd() we must ensure everything in
+ * stubs/monitor.c is defined, to make sure monitor.o is discarded
+ * otherwise we get duplicate syms at link time.
+ */
+Monitor *cur_mon = NULL;
+void monitor_init(Chardev *chr, int flags) {}
+
+/* If a monitor is active (ie cur_mon != NULL), then
+ * we should be able to use fd=<NAME> syntax
+ */
+static void char_socket_fdpass_mon_test(void)
+{
+    Chardev *chr;
+    const char *optstr;
+    QemuOpts *opts;
+    int fd;
+
+    fd = char_socket_listener();
+    mon_fd = fd;
+    cur_mon = g_malloc(1); /* Pretend we have a mon available */
+
+    optstr = "socket,id=cdev,fd=myfd,server,nowait";
+
+    opts = qemu_opts_parse_noisily(qemu_find_opts("chardev"),
+                                   optstr, true);
+    g_assert_nonnull(opts);
+
+    chr = qemu_chr_new_from_opts(opts, &error_abort);
+
+    qemu_opts_del(opts);
+
+    char_socket_test_common(chr);
+    mon_fd = -1;
+    g_free(cur_mon);
+    cur_mon = NULL;
+}
+
+
+/* If a monitor is active (ie cur_mon != NULL), then
+ * we should not allow using fd=<NUMBER> syntax
+ */
+static void char_socket_fdpass_nocli_test(void)
+{
+    Chardev *chr;
+    char *optstr;
+    QemuOpts *opts;
+    int fd;
+    Error *local_err = NULL;
+
+    fd = char_socket_listener();
+    cur_mon = g_malloc(1); /* Pretend we have a mon available */
+
+    optstr = g_strdup_printf("socket,id=cdev,fd=%d,server,nowait", fd);
+
+    opts = qemu_opts_parse_noisily(qemu_find_opts("chardev"),
+                                   optstr, true);
+    g_assert_nonnull(opts);
+
+    chr = qemu_chr_new_from_opts(opts, &local_err);
+
+    qemu_opts_del(opts);
+
+    g_assert_nonnull(local_err);
+    g_assert_null(chr);
+    error_free(local_err);
+    g_free(cur_mon);
+    cur_mon = NULL;
+}
+
+
+/* If a monitor is not active (ie cur_mon == NULL), then
+ * we should not allow using fd=<NAME> syntax
+ */
+static void char_socket_fdpass_nomon_test(void)
+{
+    Chardev *chr;
+    const char *optstr;
+    QemuOpts *opts;
+    Error *local_err = NULL;
+
+    g_assert_null(cur_mon);
+    optstr = "socket,id=cdev,fd=myfd,server,nowait";
+
+    opts = qemu_opts_parse_noisily(qemu_find_opts("chardev"),
+                                   optstr, true);
+    g_assert_nonnull(opts);
+
+    chr = qemu_chr_new_from_opts(opts, &local_err);
+
+    qemu_opts_del(opts);
+
+    g_assert_nonnull(local_err);
+    g_assert_null(chr);
+    error_free(local_err);
+}
+
 
 #ifndef _WIN32
 static void char_pipe_test(void)
@@ -774,7 +937,11 @@ int main(int argc, char **argv)
 #ifndef _WIN32
     g_test_add_func("/char/file-fifo", char_file_fifo_test);
 #endif
-    g_test_add_func("/char/socket", char_socket_test);
+    g_test_add_func("/char/socket/basic", char_socket_basic_test);
+    g_test_add_func("/char/socket/fdpass/cli", char_socket_fdpass_cli_test);
+    g_test_add_func("/char/socket/fdpass/mon", char_socket_fdpass_mon_test);
+    g_test_add_func("/char/socket/fdpass/nocli", char_socket_fdpass_nocli_test);
+    g_test_add_func("/char/socket/fdpass/nomon", char_socket_fdpass_nomon_test);
     g_test_add_func("/char/udp", char_udp_test);
 #ifdef HAVE_CHARDEV_SERIAL
     g_test_add_func("/char/serial", char_serial_test);

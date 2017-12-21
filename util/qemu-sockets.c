@@ -1025,7 +1025,26 @@ int socket_connect(SocketAddress *addr, Error **errp)
         break;
 
     case SOCKET_ADDRESS_TYPE_FD:
-        fd = monitor_get_fd(cur_mon, addr->u.fd.str, errp);
+        if (cur_mon) {
+            fd = monitor_get_fd(cur_mon, addr->u.fd.str, errp);
+            if (fd < 0) {
+                return -1;
+            }
+        } else {
+            unsigned long i;
+            if (qemu_strtoul(addr->u.fd.str, NULL, 10, &i) < 0) {
+                error_setg_errno(errp, errno,
+                                 "Unable to parse FD number %s",
+                                 addr->u.fd.str);
+                return -1;
+            }
+            fd = i;
+        }
+        if (!fd_is_socket(fd)) {
+            error_setg(errp, "Expected a socket FD %s", addr->u.fd.str);
+            close(fd);
+            return -1;
+        }
         break;
 
     case SOCKET_ADDRESS_TYPE_VSOCK:
@@ -1052,7 +1071,26 @@ int socket_listen(SocketAddress *addr, Error **errp)
         break;
 
     case SOCKET_ADDRESS_TYPE_FD:
-        fd = monitor_get_fd(cur_mon, addr->u.fd.str, errp);
+        if (cur_mon) {
+            fd = monitor_get_fd(cur_mon, addr->u.fd.str, errp);
+            if (fd < 0) {
+                return -1;
+            }
+        } else {
+            unsigned long i;
+            if (qemu_strtoul(addr->u.fd.str, NULL, 10, &i) < 0) {
+                error_setg_errno(errp, errno,
+                                 "Unable to parse FD number %s",
+                                 addr->u.fd.str);
+                return -1;
+            }
+            fd = i;
+        }
+        if (!fd_is_socket(fd)) {
+            error_setg(errp, "Expected a socket FD %s", addr->u.fd.str);
+            close(fd);
+            return -1;
+        }
         break;
 
     case SOCKET_ADDRESS_TYPE_VSOCK:
