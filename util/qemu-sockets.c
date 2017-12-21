@@ -91,6 +91,19 @@ NetworkAddressFamily inet_netfamily(int family)
     return NETWORK_ADDRESS_FAMILY_UNKNOWN;
 }
 
+bool fd_is_socket(int fd)
+{
+    int optval;
+    socklen_t optlen;
+    optlen = sizeof(optval);
+    return qemu_getsockopt(fd,
+                           SOL_SOCKET,
+                           SO_TYPE,
+                           (char *)&optval,
+                           &optlen) == 0;
+}
+
+
 /*
  * Matrix we're trying to apply
  *
