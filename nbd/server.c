@@ -1190,6 +1190,7 @@ void nbd_export_put(NBDExport *exp)
         nbd_export_close(exp);
     }
 
+    assert(exp->refcount > 0);
     if (--exp->refcount == 0) {
         assert(exp->name == NULL);
         assert(exp->description == NULL);
