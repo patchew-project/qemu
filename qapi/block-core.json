@@ -3660,6 +3660,11 @@
 #           io-status is present, please see query-block documentation
 #           for more information (since: 2.2)
 #
+# @errno: int describing the error cause, provided for applications.
+#         (Note: while most errnos are posix compliant between OSs, it
+#         is possible some errno values can vary among different OSs.)
+#         (since 2.12)
+#
 # @reason: human readable string describing the error cause.
 #          (This field is a debugging aid for humans, it should not
 #           be parsed by applications) (since: 2.2)
@@ -3675,14 +3680,17 @@
 #      "data": { "device": "ide0-hd1",
 #                "node-name": "#block212",
 #                "operation": "write",
-#                "action": "stop" },
+#                "action": "stop",
+#                "nospace": false,
+#                "errno": 5,
+#                "reason": "Input/output error" },
 #      "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
 #
 ##
 { 'event': 'BLOCK_IO_ERROR',
   'data': { 'device': 'str', 'node-name': 'str', 'operation': 'IoOperationType',
             'action': 'BlockErrorAction', '*nospace': 'bool',
-            'reason': 'str' } }
+            'errno': 'int', 'reason': 'str' } }
 
 ##
 # @BLOCK_JOB_COMPLETED:
