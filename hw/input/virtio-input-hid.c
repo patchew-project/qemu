@@ -139,6 +139,13 @@ static const unsigned int keymap_qcode[Q_KEY_CODE__MAX] = {
     [Q_KEY_CODE_META_L]              = KEY_LEFTMETA,
     [Q_KEY_CODE_META_R]              = KEY_RIGHTMETA,
     [Q_KEY_CODE_MENU]                = KEY_MENU,
+
+    [Q_KEY_CODE_MUHENKAN]            = KEY_MUHENKAN,
+    [Q_KEY_CODE_HENKAN]              = KEY_HENKAN,
+    [Q_KEY_CODE_KATAKANAHIRAGANA]    = KEY_KATAKANAHIRAGANA,
+    [Q_KEY_CODE_COMPOSE]             = KEY_COMPOSE,
+    [Q_KEY_CODE_RO]                  = KEY_RO,
+    [Q_KEY_CODE_YEN]                 = KEY_YEN,
 };
 
 static const unsigned int keymap_button[INPUT_BUTTON__MAX] = {
