@@ -532,8 +532,8 @@ static uint64_t do_paired_cmpxchg64_be(CPUARMState *env, uint64_t addr,
 
         success = int128_eq(oldv, cmpv);
         if (success) {
-            stq_be_p(haddr + 0, int128_gethi(newv));
-            stq_be_p(haddr + 1, int128_getlo(newv));
+            stq_be_p(haddr + 0, int128_getlo(newv));
+            stq_be_p(haddr + 1, int128_gethi(newv));
         }
         helper_retaddr = 0;
 #else
@@ -541,14 +541,14 @@ static uint64_t do_paired_cmpxchg64_be(CPUARMState *env, uint64_t addr,
         TCGMemOpIdx oi0 = make_memop_idx(MO_BEQ | MO_ALIGN_16, mem_idx);
         TCGMemOpIdx oi1 = make_memop_idx(MO_BEQ, mem_idx);
 
-        o1 = helper_be_ldq_mmu(env, addr + 0, oi0, ra);
-        o0 = helper_be_ldq_mmu(env, addr + 8, oi1, ra);
+        o0 = helper_be_ldq_mmu(env, addr + 0, oi0, ra);
+        o1 = helper_be_ldq_mmu(env, addr + 8, oi1, ra);
         oldv = int128_make128(o0, o1);
 
         success = int128_eq(oldv, cmpv);
         if (success) {
-            helper_be_stq_mmu(env, addr + 0, int128_gethi(newv), oi1, ra);
-            helper_be_stq_mmu(env, addr + 8, int128_getlo(newv), oi1, ra);
+            helper_be_stq_mmu(env, addr + 0, int128_getlo(newv), oi1, ra);
+            helper_be_stq_mmu(env, addr + 8, int128_gethi(newv), oi1, ra);
         }
 #endif
     }
