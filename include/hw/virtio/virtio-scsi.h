@@ -19,6 +19,7 @@
 #define VIRTIO_SCSI_SENSE_SIZE 0
 #include "standard-headers/linux/virtio_scsi.h"
 #include "hw/virtio/virtio.h"
+#include "hw/virtio/vhost-user.h"
 #include "hw/pci/pci.h"
 #include "hw/scsi/scsi.h"
 #include "chardev/char-fe.h"
@@ -54,7 +55,10 @@ struct VirtIOSCSIConf {
     char *vhostfd;
     char *wwpn;
 #endif
-    CharBackend chardev;
+    union {
+        VhostUser vhost_user;
+        CharBackend chardev;
+    };
     uint32_t boot_tpgt;
     IOThread *iothread;
 };
