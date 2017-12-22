@@ -14,6 +14,8 @@
 #include "hw/virtio/vhost-backend.h"
 #include "hw/virtio/vhost-user.h"
 #include "hw/virtio/virtio-net.h"
+#include "hw/virtio/virtio-pci.h"
+#include "hw/vfio/vfio.h"
 #include "chardev/char-fe.h"
 #include "sysemu/kvm.h"
 #include "qemu/error-report.h"
@@ -35,6 +37,7 @@ enum VhostUserProtocolFeature {
     VHOST_USER_PROTOCOL_F_NET_MTU = 4,
     VHOST_USER_PROTOCOL_F_SLAVE_REQ = 5,
     VHOST_USER_PROTOCOL_F_CROSS_ENDIAN = 6,
+    VHOST_USER_PROTOCOL_F_VFIO = 7,
 
     VHOST_USER_PROTOCOL_F_MAX
 };
@@ -72,6 +75,8 @@ typedef enum VhostUserRequest {
 typedef enum VhostUserSlaveRequest {
     VHOST_USER_SLAVE_NONE = 0,
     VHOST_USER_SLAVE_IOTLB_MSG = 1,
+    VHOST_USER_SLAVE_VFIO_SET_VRING_GROUP_FD = 2,
+    VHOST_USER_SLAVE_VFIO_SET_VRING_NOTIFY_AREA = 3,
     VHOST_USER_SLAVE_MAX
 }  VhostUserSlaveRequest;
 
@@ -93,6 +98,12 @@ typedef struct VhostUserLog {
     uint64_t mmap_offset;
 } VhostUserLog;
 
+typedef struct VhostUserVringArea {
+    uint64_t u64;
+    uint64_t size;
+    uint64_t offset;
+} VhostUserVringArea;
+
 typedef struct VhostUserMsg {
     VhostUserRequest request;
 
@@ -110,6 +121,7 @@ typedef struct VhostUserMsg {
         VhostUserMemory memory;
         VhostUserLog log;
         struct vhost_iotlb_msg iotlb;
+        VhostUserVringArea area;
     } payload;
 } QEMU_PACKED VhostUserMsg;
 
@@ -609,6 +621,342 @@ static int vhost_user_reset_device(struct vhost_dev *dev)
     return 0;
 }
 
+#ifdef CONFIG_KVM
+static int vfio_group_fd_to_id(int group_fd)
+{
+    char linkname[PATH_MAX];
+    char pathname[PATH_MAX];
+    char *filename;
+    int group_id, ret;
+
+    snprintf(linkname, sizeof(linkname), "/proc/self/fd/%d", group_fd);
+
+    ret = readlink(linkname, pathname, sizeof(pathname));
+    if (ret < 0) {
+        return -1;
+    }
+
+    filename = g_path_get_basename(pathname);
+    group_id = atoi(filename);
+    g_free(filename);
+
+    return group_id;
+}
+
+static int vhost_user_kvm_add_vfio_group(struct vhost_dev *dev,
+                                         int group_id, int group_fd)
+{
+    struct vhost_user *u = dev->opaque;
+    struct vhost_user_vfio_state *vfio = &u->shared->vfio;
+    struct kvm_device_attr attr = {
+        .group = KVM_DEV_VFIO_GROUP,
+        .attr = KVM_DEV_VFIO_GROUP_ADD,
+    };
+    bool found = false;
+    int i, ret;
+
+    for (i = 0; i < vfio->nr_group; i++) {
+        if (vfio->group[i].id == group_id) {
+            found = true;
+            break;
+        }
+    }
+
+    if (found) {
+        close(group_fd);
+        vfio->group[i].refcnt++;
+        return 0;
+    }
+
+    if (vfio->nr_group >= VIRTIO_QUEUE_MAX) {
+        return -1;
+    }
+
+    vfio->group[i].id = group_id;
+    vfio->group[i].fd = group_fd;
+    vfio->group[i].refcnt = 1;
+
+    attr.addr = (uint64_t)(uintptr_t)&vfio->group[i].fd;
+
+again:
+    /* XXX: improve this */
+    if (vfio_kvm_device_fd < 0) {
+        struct kvm_create_device cd = {
+            .type = KVM_DEV_TYPE_VFIO,
+        };
+
+        ret = kvm_vm_ioctl(kvm_state, KVM_CREATE_DEVICE, &cd);
+        if (ret < 0) {
+            if (errno == EBUSY) {
+                goto again;
+            }
+            error_report("Failed to create KVM VFIO device.");
+            return -1;
+        }
+
+        vfio_kvm_device_fd = cd.fd;
+    }
+
+    ret = ioctl(vfio_kvm_device_fd, KVM_SET_DEVICE_ATTR, &attr);
+    if (ret < 0) {
+        error_report("Failed to add group %d to KVM VFIO device.",
+                     group_id);
+        return -1;
+    }
+
+    vfio->nr_group++;
+
+    return 0;
+}
+
+static int vhost_user_kvm_del_vfio_group(struct vhost_dev *dev, int group_id)
+{
+    struct vhost_user *u = dev->opaque;
+    struct vhost_user_vfio_state *vfio = &u->shared->vfio;
+    struct kvm_device_attr attr = {
+        .group = KVM_DEV_VFIO_GROUP,
+        .attr = KVM_DEV_VFIO_GROUP_DEL,
+    };
+    bool found = false;
+    int i, ret;
+
+    kvm_irqchip_commit_routes(kvm_state);
+
+    for (i = 0; i < vfio->nr_group; i++) {
+        if (vfio->group[i].id == group_id) {
+            found = true;
+            break;
+        }
+    }
+
+    if (!found) {
+        return 0;
+    }
+
+    vfio->group[i].refcnt--;
+
+    if (vfio->group[i].refcnt == 0) {
+        attr.addr = (uint64_t)(uintptr_t)&vfio->group[i].fd;
+        ret = ioctl(vfio_kvm_device_fd, KVM_SET_DEVICE_ATTR, &attr);
+        if (ret < 0) {
+            error_report("Failed to remove group %d from KVM VFIO device.",
+                    group_id);
+            vfio->group[i].refcnt++;
+            return -1;
+        }
+
+        close(vfio->group[i].fd);
+
+        for (; i + 1 < vfio->nr_group; i++) {
+            vfio->group[i] = vfio->group[i + 1];
+        }
+        vfio->nr_group--;
+    }
+
+    return 0;
+}
+
+static int vhost_user_handle_vfio_set_vring_group_fd(struct vhost_dev *dev,
+                                                     uint64_t u64,
+                                                     int group_fd)
+{
+    struct vhost_user *u = dev->opaque;
+    struct vhost_user_vfio_state *vfio = &u->shared->vfio;
+    int qid = u64 & VHOST_USER_VRING_IDX_MASK;
+    int group_id, nvqs, ret = 0;
+
+    qemu_mutex_lock(&vfio->lock);
+
+    if (!virtio_has_feature(dev->protocol_features,
+                            VHOST_USER_PROTOCOL_F_VFIO)) {
+        ret = -1;
+        goto out;
+    }
+
+    if (dev->vdev == NULL) {
+        error_report("vhost_dev isn't available.");
+        ret = -1;
+        goto out;
+    }
+
+    nvqs = virtio_get_num_queues(dev->vdev);
+    if (qid >= nvqs) {
+        error_report("invalid queue index.");
+        ret = -1;
+        goto out;
+    }
+
+    if (u64 & VHOST_USER_VRING_NOFD_MASK) {
+        group_id = vfio->group_id[qid];
+        if (group_id != -1) {
+            if (vhost_user_kvm_del_vfio_group(dev, group_id) < 0) {
+                ret = -1;
+                goto out;
+            }
+            vfio->group_id[qid] = -1;
+        }
+        goto out;
+    }
+
+    group_id = vfio_group_fd_to_id(group_fd);
+    if (group_id == -1) {
+        ret = -1;
+        goto out;
+    }
+
+    if (vfio->group_id[qid] == group_id) {
+        close(group_fd);
+        goto out;
+    }
+
+    if (vfio->group_id[qid] != -1) {
+        if (vhost_user_kvm_del_vfio_group(dev, vfio->group_id[qid]) < 0) {
+            ret = -1;
+            goto out;
+        }
+        vfio->group_id[qid] = -1;
+    }
+
+    if (vhost_user_kvm_add_vfio_group(dev, group_id, group_fd) < 0) {
+        ret = -1;
+        goto out;
+    }
+    vfio->group_id[qid] = group_id;
+
+out:
+    kvm_irqchip_commit_routes(kvm_state);
+    qemu_mutex_unlock(&vfio->lock);
+
+    if (ret != 0 && group_fd != -1) {
+        close(group_fd);
+    }
+
+    return ret;
+}
+#else
+static int vhost_user_handle_vfio_set_vring_group_fd(struct vhost_dev *dev,
+                                                     uint64_t u64,
+                                                     int group_fd)
+{
+    if (group_fd != -1) {
+        close(group_fd);
+    }
+
+    return 0;
+}
+#endif
+
+static int vhost_user_add_mapping(struct vhost_dev *dev, int qid, int fd,
+                                  uint64_t size, uint64_t offset)
+{
+    struct vhost_user *u = dev->opaque;
+    struct vhost_user_vfio_state *vfio = &u->shared->vfio;
+    MemoryRegion *sysmem = get_system_memory();
+    VirtIONetPCI *d;
+    VirtIOPCIProxy *proxy; /* XXX: handle non-PCI case */
+    uint64_t paddr;
+    void *addr;
+    char *name;
+
+    d = container_of(dev->vdev, VirtIONetPCI, vdev.parent_obj);
+    proxy = &d->parent_obj;
+
+    if ((proxy->flags & VIRTIO_PCI_FLAG_PAGE_PER_VQ) == 0 ||
+        size != virtio_pci_queue_mem_mult(proxy)) {
+        return -1;
+    }
+
+    addr = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, offset);
+    if (addr == MAP_FAILED) {
+        error_report("Can't map notify region.");
+        return -1;
+    }
+
+    vfio->notify[qid].mmap.addr = addr;
+    vfio->notify[qid].mmap.size = size;
+
+    /* The notify_offset of each queue is queue_select */
+    paddr = proxy->modern_bar.addr + proxy->notify.offset +
+                virtio_pci_queue_mem_mult(proxy) * qid;
+
+    name = g_strdup_printf("vhost-user/vfio@%p mmaps[%d]", vfio, qid);
+    memory_region_init_ram_device_ptr(&vfio->notify[qid].mr,
+                                      memory_region_owner(sysmem),
+                                      name, size, addr);
+    g_free(name);
+    memory_region_add_subregion(sysmem, paddr, &vfio->notify[qid].mr);
+
+    return 0;
+}
+
+static int vhost_user_del_mapping(struct vhost_dev *dev, int qid)
+{
+    struct vhost_user *u = dev->opaque;
+    struct vhost_user_vfio_state *vfio = &u->shared->vfio;
+    MemoryRegion *sysmem = get_system_memory();
+
+    if (vfio->notify[qid].mmap.addr == NULL) {
+        return 0;
+    }
+
+    memory_region_del_subregion(sysmem, &vfio->notify[qid].mr);
+    object_unparent(OBJECT(&vfio->notify[qid].mr));
+
+    munmap(vfio->notify[qid].mmap.addr, vfio->notify[qid].mmap.size);
+    vfio->notify[qid].mmap.addr = NULL;
+    vfio->notify[qid].mmap.size = 0;
+
+    return 0;
+}
+
+static int vhost_user_handle_vfio_set_vring_notify_area(struct vhost_dev *dev,
+        VhostUserVringArea *notify_area, int fd)
+{
+    struct vhost_user *u = dev->opaque;
+    struct vhost_user_vfio_state *vfio = &u->shared->vfio;
+    int qid = notify_area->u64 & VHOST_USER_VRING_IDX_MASK;
+    int nvqs, ret = 0;
+
+    qemu_mutex_lock(&vfio->lock);
+
+    if (!virtio_has_feature(dev->protocol_features,
+                            VHOST_USER_PROTOCOL_F_VFIO)) {
+        ret = -1;
+        goto out;
+    }
+
+    if (dev->vdev == NULL) {
+        error_report("vhost_dev isn't available.");
+        ret = -1;
+        goto out;
+    }
+
+    nvqs = virtio_get_num_queues(dev->vdev);
+    if (qid >= nvqs) {
+        error_report("invalid queue index.");
+        ret = -1;
+        goto out;
+    }
+
+    if (vfio->notify[qid].mmap.addr != NULL) {
+        vhost_user_del_mapping(dev, qid);
+    }
+
+    if (notify_area->u64 & VHOST_USER_VRING_NOFD_MASK) {
+        goto out;
+    }
+
+    ret = vhost_user_add_mapping(dev, qid, fd, notify_area->size,
+                                 notify_area->offset);
+
+out:
+    if (fd != -1) {
+        close(fd);
+    }
+    qemu_mutex_unlock(&vfio->lock);
+    return ret;
+}
+
 static void slave_read(void *opaque)
 {
     struct vhost_dev *dev = opaque;
@@ -669,6 +1017,14 @@ static void slave_read(void *opaque)
     switch (msg.request) {
     case VHOST_USER_SLAVE_IOTLB_MSG:
         ret = vhost_backend_handle_iotlb_msg(dev, &msg.payload.iotlb);
+        break;
+    case VHOST_USER_SLAVE_VFIO_SET_VRING_GROUP_FD:
+        ret = vhost_user_handle_vfio_set_vring_group_fd(dev,
+                    msg.payload.u64, fd);
+        break;
+    case VHOST_USER_SLAVE_VFIO_SET_VRING_NOTIFY_AREA:
+        ret = vhost_user_handle_vfio_set_vring_notify_area(dev,
+                    &msg.payload.area, fd);
         break;
     default:
         error_report("Received unexpected msg type.");
@@ -763,7 +1119,7 @@ static int vhost_user_init(struct vhost_dev *dev, void *opaque)
 {
     uint64_t features, protocol_features;
     struct vhost_user *u;
-    int err;
+    int i, err;
 
     assert(dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_USER);
 
@@ -771,6 +1127,13 @@ static int vhost_user_init(struct vhost_dev *dev, void *opaque)
     u->shared = opaque;
     u->slave_fd = -1;
     dev->opaque = u;
+
+    if (dev->vq_index == 0) {
+        for (i = 0; i < VIRTIO_QUEUE_MAX; i++) {
+            u->shared->vfio.group_id[i] = -1;
+        }
+        qemu_mutex_init(&u->shared->vfio.lock);
+    }
 
     err = vhost_user_get_features(dev, &features);
     if (err < 0) {
@@ -832,6 +1195,7 @@ static int vhost_user_init(struct vhost_dev *dev, void *opaque)
 static int vhost_user_cleanup(struct vhost_dev *dev)
 {
     struct vhost_user *u;
+    int i;
 
     assert(dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_USER);
 
@@ -841,6 +1205,21 @@ static int vhost_user_cleanup(struct vhost_dev *dev)
         close(u->slave_fd);
         u->slave_fd = -1;
     }
+
+    if (dev->vq_index == 0) {
+        for (i = 0; i < VIRTIO_QUEUE_MAX; i++) {
+            vhost_user_del_mapping(dev, i);
+        }
+
+#ifdef CONFIG_KVM
+        while (u->shared->vfio.nr_group > 0) {
+            int group_id;
+            group_id = u->shared->vfio.group[0].id;
+            vhost_user_kvm_del_vfio_group(dev, group_id);
+        }
+#endif
+    }
+
     g_free(u);
     dev->opaque = 0;
 

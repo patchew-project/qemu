@@ -209,6 +209,14 @@ static inline void virtio_pci_disable_modern(VirtIOPCIProxy *proxy)
     proxy->disable_modern = true;
 }
 
+#define QEMU_VIRTIO_PCI_QUEUE_MEM_MULT 0x1000
+
+static inline int virtio_pci_queue_mem_mult(struct VirtIOPCIProxy *proxy)
+{
+    return (proxy->flags & VIRTIO_PCI_FLAG_PAGE_PER_VQ) ?
+        QEMU_VIRTIO_PCI_QUEUE_MEM_MULT : 4;
+}
+
 /*
  * virtio-scsi-pci: This extends VirtioPCIProxy.
  */
