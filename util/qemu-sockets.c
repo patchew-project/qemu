@@ -1006,6 +1006,20 @@ fail:
     return NULL;
 }
 
+static int socket_get_fd(const char *fdstr, Error **errp)
+{
+    int fd = monitor_get_fd(cur_mon, fdstr, errp);
+    if (fd < 0) {
+        return -1;
+    }
+    if (!fd_is_socket(fd)) {
+        error_setg(errp, "File descriptor '%s' is not a socket", fdstr);
+        close(fd);
+        return -1;
+    }
+    return fd;
+}
+
 int socket_connect(SocketAddress *addr, Error **errp)
 {
     int fd;
@@ -1020,7 +1034,7 @@ int socket_connect(SocketAddress *addr, Error **errp)
         break;
 
     case SOCKET_ADDRESS_TYPE_FD:
-        fd = monitor_get_fd(cur_mon, addr->u.fd.str, errp);
+        fd = socket_get_fd(addr->u.fd.str, errp);
         break;
 
     case SOCKET_ADDRESS_TYPE_VSOCK:
@@ -1047,7 +1061,7 @@ int socket_listen(SocketAddress *addr, Error **errp)
         break;
 
     case SOCKET_ADDRESS_TYPE_FD:
-        fd = monitor_get_fd(cur_mon, addr->u.fd.str, errp);
+        fd = socket_get_fd(addr->u.fd.str, errp);
         break;
 
     case SOCKET_ADDRESS_TYPE_VSOCK:
