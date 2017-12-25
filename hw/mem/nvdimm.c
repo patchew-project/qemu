@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/pmem.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
 #include "hw/mem/nvdimm.h"
@@ -135,6 +136,8 @@ static void nvdimm_write_label_data(NVDIMMDevice *nvdimm, const void *buf,
     nvdimm_validate_rw_label_data(nvdimm, size, offset);
 
     memcpy(nvdimm->label_data + offset, buf, size);
+    /* Make QEMU writes persistent in case the backend is a real NVDIMM. */
+    pmem_persistent(nvdimm->label_data + offset, size);
 
     mr = host_memory_backend_get_memory(dimm->hostmem, &error_abort);
     backend_offset = memory_region_size(mr) - nvdimm->label_size + offset;
