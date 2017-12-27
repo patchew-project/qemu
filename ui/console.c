@@ -63,6 +63,18 @@ typedef struct QEMUFIFO {
     int count, wptr, rptr;
 } QEMUFIFO;
 
+/* max number of user specified keys that can be used as the ungrab keys*/
+static const int max_keys = 3;
+
+/* stores the ungrab keys' values */
+static int key_value_array[max_keys + 1];
+
+/* stores the length the user's ungrab sequence */
+int ungrab_seq_length;
+
+/* stores the string that is returned by console_ungrab_key_string */
+static char *ungrab_key_string;
+
 static int qemu_fifo_write(QEMUFIFO *f, const uint8_t *buf, int len1)
 {
     int l, len;
@@ -2237,6 +2249,54 @@ void qemu_console_early_init(void)
 static void register_types(void)
 {
     type_register_static(&qemu_console_info);
+}
+
+/* Sets the mouse ungrab key sequence to what the user wants */
+void set_ungrab_seq(const char *new_seq)
+{
+    char *buffer1 = (char *) malloc(strlen(new_seq) * sizeof(char));
+    char *buffer2 = (char *) malloc(strlen(new_seq) * sizeof(char));
+    int count = 0;
+    int key_value;
+    char *token;
+    const char *separator = "-";  /* What the user places between keys */
+
+    sprintf(buffer1, "%s", new_seq); /* edited by strtok */
+    sprintf(buffer2, "%s", new_seq); /* used for ungrab_key_string */
+    ungrab_key_string = buffer2;
+
+    token = strtok(buffer1, separator);
+    while (token != NULL && count < max_keys) {
+        /* Translate the names into Q_KEY_CODE values */
+        key_value = index_from_key(token, strlen(token));
+        if (key_value == Q_KEY_CODE__MAX) {
+            printf("-ungrab: unknown key: %s\n", token);
+            exit(EXIT_FAILURE);
+        }
+        key_value_array[count] = key_value;
+
+        count++;
+        token = strtok(NULL, separator);
+    }
+    ungrab_seq_length = count;
+}
+
+/* Returns the user specified ungrab key sequence */
+int *console_ungrab_key_sequence(void)
+{
+    return key_value_array;
+}
+
+/* Returns the name of the user specified ungrab keys */
+const char *console_ungrab_key_string(void)
+{
+    return ungrab_key_string;
+}
+
+/* indicates how many keys the user ungrab sequence is */
+int console_ungrab_sequence_length(void)
+{
+    return ungrab_seq_length;
 }
 
 type_init(register_types);
