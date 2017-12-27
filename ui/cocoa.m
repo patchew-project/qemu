@@ -303,6 +303,7 @@ static void handleAnyDeviceErrors(Error * err)
 - (float) cdy;
 - (QEMUScreen) gscreen;
 - (void) raiseAllKeys;
+- (bool) user_ungrab_seq;
 @end
 
 QemuCocoaView *cocoaView;
@@ -674,9 +675,24 @@ QemuCocoaView *cocoaView;
                 }
             }
 
+            /*
+             * This code has to be here because the user might use a modifier
+             * key like shift as an ungrab key.
+             */
+            if ([self user_ungrab_seq] == true) {
+                [self ungrabMouse];
+                return;
+            }
             break;
         case NSEventTypeKeyDown:
             keycode = cocoa_keycode_to_qemu([event keyCode]);
+            [self toggleModifier: keycode];
+
+            // If the user is issuing the custom ungrab key sequence
+            if ([self user_ungrab_seq] == true) {
+                [self ungrabMouse];
+                return;
+            }
 
             // forward command key combos to the host UI unless the mouse is grabbed
             if (!isMouseGrabbed && ([event modifierFlags] & NSEventModifierFlagCommand)) {
@@ -714,6 +730,7 @@ QemuCocoaView *cocoaView;
             break;
         case NSEventTypeKeyUp:
             keycode = cocoa_keycode_to_qemu([event keyCode]);
+            [self toggleModifier: keycode];
 
             // don't pass the guest a spurious key-up if we treated this
             // command-key combo as a host UI action
@@ -842,10 +859,18 @@ QemuCocoaView *cocoaView;
     COCOA_DEBUG("QemuCocoaView: grabMouse\n");
 
     if (!isFullscreen) {
+        NSString * message_string;
+        if (console_ungrab_sequence_length() == 0) {
+            message_string = [NSString stringWithFormat: @"- (Press ctrl + alt + g to release Mouse"];
+        } else {
+            message_string = [NSString stringWithFormat: @"- (Press ctrl + alt + g or %s to release Mouse", console_ungrab_key_string()];
+        }
+
+
         if (qemu_name)
-            [normalWindow setTitle:[NSString stringWithFormat:@"QEMU %s - (Press ctrl + alt + g to release Mouse)", qemu_name]];
+            [normalWindow setTitle:[NSString stringWithFormat: @"QEMU %s %@", qemu_name, message_string]];
         else
-            [normalWindow setTitle:@"QEMU - (Press ctrl + alt + g to release Mouse)"];
+            [normalWindow setTitle:[NSString stringWithFormat: @"QEMU %@", message_string]];
     }
     [self hideCursor];
     if (!isAbsoluteEnabled) {
@@ -898,6 +923,25 @@ QemuCocoaView *cocoaView;
        }
    }
 }
+
+/* Determines if the user specified ungrab sequence is being used */
+- (bool) user_ungrab_seq
+{
+    int *ungrab_seq, index, length;
+    bool return_value = true;
+
+    ungrab_seq = console_ungrab_key_sequence();
+    length = console_ungrab_sequence_length();
+
+    for (index = 0; index < length; index++) {
+        if (modifiers_state[ungrab_seq[index]] == NO) {
+            return_value = false;
+            break;
+        }
+    }
+    return return_value;
+}
+
 @end
 
 
