@@ -18,7 +18,18 @@
 
 #ifdef CONFIG_LINUX
 #include <sys/vfs.h>
+
+/*
+ * MAP_SHARED_VALIDATE and MAP_SYNC were introduced in 4.15 kernel, so
+ * they may not be defined when compiling on older kernels.
+ */
+#ifndef MAP_SHARED_VALIDATE
+#define MAP_SHARED_VALIDATE   0x3
 #endif
+#ifndef MAP_SYNC
+#define MAP_SYNC              0x80000
+#endif
+#endif /* CONFIG_LINUX */
 
 size_t qemu_fd_getpagesize(int fd)
 {
@@ -97,6 +108,7 @@ void *qemu_ram_mmap(int fd, size_t size, size_t align, bool shared)
 #endif
     size_t offset;
     void *ptr1;
+    int xflags = 0;
 
     if (ptr == MAP_FAILED) {
         return MAP_FAILED;
@@ -107,12 +119,34 @@ void *qemu_ram_mmap(int fd, size_t size, size_t align, bool shared)
     assert(align >= getpagesize());
 
     offset = QEMU_ALIGN_UP((uintptr_t)ptr, align) - (uintptr_t)ptr;
+
+#if defined(__linux__)
+    /*
+     * If 'fd' refers to a file supporting DAX, mmap it with MAP_SYNC
+     * will guarantee the guest write persistence without other
+     * actions in QEMU (e.g., fsync() in QEMU).
+     *
+     * MAP_SHARED_VALIDATE ensures mmap with MAP_SYNC fails if
+     * MAP_SYNC is not supported by the kernel or the file.
+     *
+     * On failures of mmap with xflags, QEMU will retry mmap without
+     * xflags.
+     */
+    xflags = shared ? (MAP_SHARED_VALIDATE | MAP_SYNC) : 0;
+#endif
+
+ retry_mmap_fd:
     ptr1 = mmap(ptr + offset, size, PROT_READ | PROT_WRITE,
                 MAP_FIXED |
                 (fd == -1 ? MAP_ANONYMOUS : 0) |
-                (shared ? MAP_SHARED : MAP_PRIVATE),
+                (shared ? MAP_SHARED : MAP_PRIVATE) | xflags,
                 fd, 0);
     if (ptr1 == MAP_FAILED) {
+        if (xflags) {
+            xflags = 0;
+            goto retry_mmap_fd;
+        }
+
         munmap(ptr, total);
         return MAP_FAILED;
     }
