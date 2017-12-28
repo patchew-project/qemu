@@ -701,7 +701,7 @@ static char *cpu_slot_to_string(const CPUArchId *cpu)
     return g_string_free(s, false);
 }
 
-static void machine_numa_finish_init(MachineState *machine)
+void machine_numa_finish_init(MachineState *machine)
 {
     int i;
     bool default_mapping;

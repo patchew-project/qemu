@@ -4690,6 +4690,10 @@ int main(int argc, char **argv, char **envp)
     current_machine->boot_order = boot_order;
     current_machine->cpu_model = cpu_model;
 
+    if (qemu_opts_foreach(qemu_find_opts("numa"), parse_numa,
+                          current_machine, NULL)) {
+        exit(1);
+    }
     parse_numa_opts(current_machine);
 
     /* parse features once if machine provides default cpu_type */

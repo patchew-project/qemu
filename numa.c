@@ -53,7 +53,7 @@ static int max_numa_nodeid; /* Highest specified NUMA node ID, plus one.
 int nb_numa_nodes;
 bool have_numa_distance;
 NodeInfo numa_info[MAX_NODES];
-
+static bool numa_inited;
 
 static void parse_numa_node(MachineState *ms, NumaNodeOptions *node,
                             Error **errp)
@@ -172,6 +172,11 @@ static
 void parse_NumaOptions(MachineState *ms, NumaOptions *object, Error **errp)
 {
     Error *err = NULL;
+
+    if (numa_inited && runstate_check(RUN_STATE_PRELAUNCH)) {
+        qemu_system_reset_request(SHUTDOWN_CAUSE_HOST_QMP);
+    }
+    numa_inited = false;
 
     switch (object->type) {
     case NUMA_OPTIONS_TYPE_NODE:
@@ -352,9 +357,10 @@ void parse_numa_opts(MachineState *ms)
     int i;
     MachineClass *mc = MACHINE_GET_CLASS(ms);
 
-    if (qemu_opts_foreach(qemu_find_opts("numa"), parse_numa, ms, NULL)) {
-        exit(1);
+    if (numa_inited) {
+        return;
     }
+    numa_inited = true;
 
     /*
      * If memory hotplug is enabled (slots > 0) but without '-numa'
@@ -439,6 +445,8 @@ void parse_numa_opts(MachineState *ms)
             /* Validation succeeded, now fill in any missing distances. */
             complete_init_numa_distance();
         }
+
+        machine_numa_finish_init(ms);
     }
 }
 

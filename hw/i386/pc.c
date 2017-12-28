@@ -2244,6 +2244,7 @@ static void pc_machine_reset(void)
     CPUState *cs;
     X86CPU *cpu;
 
+    parse_numa_opts(MACHINE(qdev_get_machine()));
     qemu_devices_reset();
 
     /* Reset APIC after devices have been reset to cancel
