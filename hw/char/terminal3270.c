@@ -94,8 +94,8 @@ static void terminal_read(void *opaque, const uint8_t *buf, int size)
         g_source_remove(t->timer_tag);
         t->timer_tag = 0;
     }
-    t->timer_tag = g_timeout_add_seconds(600, send_timing_mark_cb, t);
-
+    t->timer_tag = qemu_chr_timeout_add(t->chr.chr, 600,
+                                        send_timing_mark_cb, t);
     memcpy(&t->inv[t->in_len], buf, size);
     t->in_len += size;
     if (t->in_len < 2) {
@@ -157,7 +157,8 @@ static void chr_event(void *opaque, int event)
          * char-socket.c. Once qemu receives the terminal-type of the
          * client, mark handshake done and trigger everything rolling again.
          */
-        t->timer_tag = g_timeout_add_seconds(600, send_timing_mark_cb, t);
+        t->timer_tag = qemu_chr_timeout_add(t->chr.chr, 600,
+                                            send_timing_mark_cb, t);
         break;
     case CHR_EVENT_CLOSED:
         sch->curr_status.scsw.dstat = SCSW_DSTAT_DEVICE_END;

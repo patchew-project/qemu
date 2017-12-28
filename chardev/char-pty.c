@@ -78,13 +78,8 @@ static void pty_chr_rearm_timer(Chardev *chr, int ms)
         s->timer_tag = 0;
     }
 
-    if (ms == 1000) {
-        name = g_strdup_printf("pty-timer-secs-%s", chr->label);
-        s->timer_tag = g_timeout_add_seconds(1, pty_chr_timer, chr);
-    } else {
-        name = g_strdup_printf("pty-timer-ms-%s", chr->label);
-        s->timer_tag = g_timeout_add(ms, pty_chr_timer, chr);
-    }
+    name = g_strdup_printf("pty-timer-ms-%s", chr->label);
+    s->timer_tag = qemu_chr_timeout_add(chr, ms, pty_chr_timer, chr);
     g_source_set_name_by_id(s->timer_tag, name);
     g_free(name);
 }

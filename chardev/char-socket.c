@@ -73,8 +73,8 @@ static void qemu_chr_socket_restart_timer(Chardev *chr)
     char *name;
 
     assert(s->connected == 0);
-    s->reconnect_timer = g_timeout_add_seconds(s->reconnect_time,
-                                               socket_reconnect_timeout, chr);
+    s->reconnect_timer = qemu_chr_timeout_add(chr, s->reconnect_time,
+                                              socket_reconnect_timeout, chr);
     name = g_strdup_printf("chardev-socket-reconnect-%s", chr->label);
     g_source_set_name_by_id(s->reconnect_timer, name);
     g_free(name);

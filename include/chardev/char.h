@@ -258,5 +258,7 @@ extern int term_escape_char;
 
 /* console.c */
 void qemu_chr_parse_vc(QemuOpts *opts, ChardevBackend *backend, Error **errp);
+guint qemu_chr_timeout_add(Chardev *chr, guint ms, GSourceFunc func,
+                           void *private);
 
 #endif
