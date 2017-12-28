@@ -43,6 +43,7 @@
 #include "hw/intc/intc.h"
 #include "migration/snapshot.h"
 #include "migration/misc.h"
+#include "sysemu/numa.h"
 
 #ifdef CONFIG_SPICE
 #include <spice/enums.h>
@@ -2917,4 +2918,26 @@ void hmp_info_memory_size_summary(Monitor *mon, const QDict *qdict)
         qapi_free_MemoryInfo(info);
     }
     hmp_handle_error(mon, &err);
+}
+
+void hmp_set_numa_node(Monitor *mon, const QDict *qdict)
+{
+    QemuOpts *opts;
+    Error *err = NULL;
+    MachineState *ms = MACHINE(qdev_get_machine());
+
+    opts = qemu_opts_from_qdict(qemu_find_opts("numa"), qdict, &err);
+    if (err) {
+        goto end;
+    }
+
+    parse_numa(ms, opts, &err);
+    if (err) {
+        goto end;
+    }
+
+end:
+    if (err) {
+        hmp_handle_error(mon, &err);
+    }
 }

@@ -1816,6 +1816,19 @@ Print QOM properties of object at location @var{path}
 ETEXI
 
     {
+        .name       = "set-numa-node",
+        .args_type  = "numa:O",
+        .params     = "see -numa CLI option for possible options",
+        .help       = "assign CPU to numa node",
+        .cmd        = hmp_set_numa_node,
+    },
+
+STEXI
+@item qom-set @var{path} @var{property} @var{value}
+Set QOM property @var{property} of object at location @var{path} to value @var{value}
+ETEXI
+
+    {
         .name       = "qom-set",
         .args_type  = "path:s,property:s,value:s",
         .params     = "path property value",
