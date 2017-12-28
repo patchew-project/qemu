@@ -21,6 +21,7 @@
 #include "qemu/error-report.h"
 #include "qemu/cutils.h"
 #include "sysemu/qtest.h"
+#include "qmp-commands.h"
 
 static char *machine_get_accel(Object *obj, Error **errp)
 {
