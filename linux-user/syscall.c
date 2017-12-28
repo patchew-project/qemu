@@ -10341,6 +10341,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         {
             unsigned int mask_size;
             unsigned long *mask;
+            abi_ulong *abimask;
+            unsigned i, j;
 
             /*
              * sched_getaffinity needs multiples of ulong, so need to take
@@ -10353,6 +10355,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             mask_size = (arg2 + (sizeof(*mask) - 1)) & ~(sizeof(*mask) - 1);
 
             mask = alloca(mask_size);
+            memset(mask, 0, mask_size);
             ret = get_errno(sys_sched_getaffinity(arg1, mask_size, mask));
 
             if (!is_error(ret)) {
@@ -10372,9 +10375,27 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                     ret = arg2;
                 }
 
-                if (copy_to_user(arg3, mask, ret)) {
+                abimask = lock_user(VERIFY_WRITE, arg3, arg2, 0);
+                if (!abimask) {
                     goto efault;
                 }
+
+                for (i = 0 ; i < arg2 / sizeof(abi_ulong); i++) {
+                    unsigned abi_ubits = sizeof(abi_ulong) * 8;
+                    unsigned ubits = sizeof(*mask) * 8;
+                    unsigned bit = i * abi_ubits;
+                    abi_ulong val = 0;
+
+                    for (j = 0; j < abi_ubits; j++, bit++) {
+                        if (mask[bit / ubits] & (1UL << (bit % ubits))) {
+                            val |= 1UL << j;
+                        }
+                    }
+                    __put_user(val, &abimask[i]);
+                }
+
+                unlock_user(abimask, arg3, arg2);
+
             }
         }
         break;
@@ -10382,6 +10403,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         {
             unsigned int mask_size;
             unsigned long *mask;
+            abi_ulong *abimask;
+            unsigned i, j;
 
             /*
              * sched_setaffinity needs multiples of ulong, so need to take
@@ -10394,11 +10417,28 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             mask_size = (arg2 + (sizeof(*mask) - 1)) & ~(sizeof(*mask) - 1);
 
             mask = alloca(mask_size);
-            if (!lock_user_struct(VERIFY_READ, p, arg3, 1)) {
+            memset(mask, 0, mask_size);
+
+            abimask = lock_user(VERIFY_READ, arg3, arg2, 1);
+            if (!abimask) {
                 goto efault;
             }
-            memcpy(mask, p, arg2);
-            unlock_user_struct(p, arg2, 0);
+
+            for (i = 0 ; i < arg2 / sizeof(abi_ulong); i++) {
+                unsigned abi_ubits = sizeof(abi_ulong) * 8;
+                unsigned ubits = sizeof(*mask) * 8;
+                unsigned bit = i * abi_ubits;
+                abi_ulong val;
+
+                __get_user(val, &abimask[i]);
+                for (j = 0; j < abi_ubits; j++, bit++) {
+                    if (val & (1UL << j)) {
+                        mask[bit / ubits] |= 1UL << (bit % ubits);
+                    }
+                }
+            }
+
+            unlock_user(abimask, arg3, 0);
 
             ret = get_errno(sys_sched_setaffinity(arg1, mask_size, mask));
         }
