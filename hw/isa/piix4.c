@@ -30,6 +30,7 @@
 #include "hw/isa/isa.h"
 #include "hw/char/isa.h"
 #include "hw/sysbus.h"
+#include "hw/audio/pcspk.h"
 #include "hw/timer/i8254.h"
 #include "hw/timer/mc146818rtc.h"
 #include "qapi/error.h"
@@ -144,6 +145,7 @@ static void piix4_realize(PCIDevice *pci, Error **errp)
     DeviceState *dev = DEVICE(pci);
     PIIX4State *s = DO_UPCAST(PIIX4State, dev, pci);
     ISABus *isa_bus;
+    ISADevice *pit;
     qemu_irq *i8259_out_irq;
     int i;
     Error *err = NULL;
@@ -170,7 +172,10 @@ static void piix4_realize(PCIDevice *pci, Error **errp)
     isa_bus_irqs(isa_bus, s->isa);
 
     /* initialize pit */
-    i8254_pit_init(isa_bus, 0x40, 0, NULL);
+    pit = i8254_pit_init(isa_bus, 0x40, 0, NULL);
+
+    /* speaker */
+    pcspk_init(isa_bus, pit);
 
     /* DMA */
     DMA_init(isa_bus, 0);
