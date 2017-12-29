@@ -1751,9 +1751,15 @@ void qemu_system_reset(ShutdownCause reason)
     cpu_synchronize_all_post_reset();
 }
 
-void qemu_system_guest_panicked(GuestPanicInformation *info)
+void qemu_system_guest_panicked(GuestPanicInformation *info,
+                                bool abort_on_panic)
 {
-    qemu_log_mask(LOG_GUEST_ERROR, "Guest crashed\n");
+    if (abort_on_panic) {
+        qemu_log_mask(LOG_GUEST_ERROR, "Guest crashed, aborting\n");
+        abort();
+    } else {
+        qemu_log_mask(LOG_GUEST_ERROR, "Guest crashed\n");
+    }
 
     if (current_cpu) {
         current_cpu->crash_occurred = true;

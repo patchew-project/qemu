@@ -294,7 +294,7 @@ static void rtas_ibm_os_term(PowerPCCPU *cpu,
                             target_ulong args,
                             uint32_t nret, target_ulong rets)
 {
-    qemu_system_guest_panicked(NULL);
+    qemu_system_guest_panicked(NULL, false);
 
     rtas_st(rets, 0, RTAS_OUT_SUCCESS);
 }

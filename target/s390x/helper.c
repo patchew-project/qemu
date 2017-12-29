@@ -89,7 +89,7 @@ void s390_handle_wait(S390CPU *cpu)
         if (is_special_wait_psw(cpu->env.psw.addr)) {
             qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
         } else {
-            qemu_system_guest_panicked(NULL);
+            qemu_system_guest_panicked(NULL, false);
         }
 #endif
     }
