@@ -122,6 +122,8 @@ static VhostUserMsg m __attribute__ ((unused));
 /* The version of the protocol we support */
 #define VHOST_USER_VERSION    (0x1)
 
+static unsigned int vhost_user_used_memslots;
+
 struct vhost_user {
     CharBackend *chr;
     int slave_fd;
@@ -289,12 +291,53 @@ static int vhost_user_set_log_base(struct vhost_dev *dev, uint64_t base,
     return 0;
 }
 
+static int vhost_user_prepare_msg(struct vhost_dev *dev, VhostUserMsg *msg,
+                                  int *fds)
+{
+    int r = 0;
+    int i, fd;
+    size_t fd_num = 0;
+
+    for (i = 0; i < dev->mem->nregions; ++i) {
+        struct vhost_memory_region *reg = dev->mem->regions + i;
+        ram_addr_t offset;
+        MemoryRegion *mr;
+
+        assert((uintptr_t)reg->userspace_addr == reg->userspace_addr);
+        mr = memory_region_from_host((void *)(uintptr_t)reg->userspace_addr,
+                                     &offset);
+        fd = memory_region_get_fd(mr);
+        if (fd > 0) {
+            if (fd_num < VHOST_MEMORY_MAX_NREGIONS) {
+                msg->payload.memory.nregions++;
+                msg->payload.memory.regions[fd_num].userspace_addr =
+                                                    reg->userspace_addr;
+                msg->payload.memory.regions[fd_num].memory_size =
+                                                    reg->memory_size;
+                msg->payload.memory.regions[fd_num].guest_phys_addr =
+                                                    reg->guest_phys_addr;
+                msg->payload.memory.regions[fd_num].mmap_offset = offset;
+                fds[fd_num] = fd;
+            } else {
+                r = -1;
+            }
+            fd_num++;
+        }
+    }
+
+    /* Save the number of memory slots available for vhost user,
+     * vhost_user_get_used_memslots() can use it next time
+     */
+    vhost_user_used_memslots = fd_num;
+
+    return r;
+}
+
 static int vhost_user_set_mem_table(struct vhost_dev *dev,
                                     struct vhost_memory *mem)
 {
     int fds[VHOST_MEMORY_MAX_NREGIONS];
-    int i, fd;
-    size_t fd_num = 0;
+    size_t fd_num;
     bool reply_supported = virtio_has_feature(dev->protocol_features,
                                               VHOST_USER_PROTOCOL_F_REPLY_ACK);
 
@@ -307,26 +350,12 @@ static int vhost_user_set_mem_table(struct vhost_dev *dev,
         msg.flags |= VHOST_USER_NEED_REPLY_MASK;
     }
 
-    for (i = 0; i < dev->mem->nregions; ++i) {
-        struct vhost_memory_region *reg = dev->mem->regions + i;
-        ram_addr_t offset;
-        MemoryRegion *mr;
-
-        assert((uintptr_t)reg->userspace_addr == reg->userspace_addr);
-        mr = memory_region_from_host((void *)(uintptr_t)reg->userspace_addr,
-                                     &offset);
-        fd = memory_region_get_fd(mr);
-        if (fd > 0) {
-            msg.payload.memory.regions[fd_num].userspace_addr = reg->userspace_addr;
-            msg.payload.memory.regions[fd_num].memory_size  = reg->memory_size;
-            msg.payload.memory.regions[fd_num].guest_phys_addr = reg->guest_phys_addr;
-            msg.payload.memory.regions[fd_num].mmap_offset = offset;
-            assert(fd_num < VHOST_MEMORY_MAX_NREGIONS);
-            fds[fd_num++] = fd;
-        }
+    if (vhost_user_prepare_msg(dev, &msg, fds) < 0) {
+        error_report("Failed preparing vhost-user memory table msg");
+        return -1;
     }
 
-    msg.payload.memory.nregions = fd_num;
+    fd_num = msg.payload.memory.nregions;
 
     if (!fd_num) {
         error_report("Failed initializing vhost-user memory map, "
@@ -922,6 +951,19 @@ static void vhost_user_set_iotlb_callback(struct vhost_dev *dev, int enabled)
     /* No-op as the receive channel is not dedicated to IOTLB messages. */
 }
 
+static void vhost_user_set_used_memslots(struct vhost_dev *dev)
+{
+    int fds[VHOST_MEMORY_MAX_NREGIONS];
+    VhostUserMsg msg;
+
+    vhost_user_prepare_msg(dev, &msg, fds);
+}
+
+static unsigned int vhost_user_get_used_memslots(void)
+{
+    return vhost_user_used_memslots;
+}
+
 const VhostOps user_ops = {
         .backend_type = VHOST_BACKEND_TYPE_USER,
         .vhost_backend_init = vhost_user_init,
@@ -948,4 +990,6 @@ const VhostOps user_ops = {
         .vhost_net_set_mtu = vhost_user_net_set_mtu,
         .vhost_set_iotlb_callback = vhost_user_set_iotlb_callback,
         .vhost_send_device_iotlb_msg = vhost_user_send_device_iotlb_msg,
+        .vhost_set_used_memslots = vhost_user_set_used_memslots,
+        .vhost_get_used_memslots = vhost_user_get_used_memslots,
 };
