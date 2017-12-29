@@ -28,7 +28,7 @@
 #define ISA_PVPANIC_DEVICE(obj)    \
     OBJECT_CHECK(PVPanicState, (obj), TYPE_PVPANIC)
 
-static void handle_event(int event)
+static void handle_event(int event, bool abort_on_panic)
 {
     static bool logged;
 
@@ -38,7 +38,7 @@ static void handle_event(int event)
     }
 
     if (event & PVPANIC_PANICKED) {
-        qemu_system_guest_panicked(NULL, false);
+        qemu_system_guest_panicked(NULL, abort_on_panic);
         return;
     }
 }
@@ -50,6 +50,7 @@ typedef struct PVPanicState {
 
     MemoryRegion io;
     uint16_t ioport;
+    bool abort_on_panic;
 } PVPanicState;
 
 /* return supported events on read */
@@ -61,7 +62,8 @@ static uint64_t pvpanic_ioport_read(void *opaque, hwaddr addr, unsigned size)
 static void pvpanic_ioport_write(void *opaque, hwaddr addr, uint64_t val,
                                  unsigned size)
 {
-    handle_event(val);
+    PVPanicState *s = opaque;
+    handle_event(val, s->abort_on_panic);
 }
 
 static const MemoryRegionOps pvpanic_ops = {
@@ -100,6 +102,7 @@ static void pvpanic_isa_realizefn(DeviceState *dev, Error **errp)
 }
 
 #define PVPANIC_IOPORT_PROP "ioport"
+#define PVPANIC_ABORT_PROP "abort"
 
 uint16_t pvpanic_port(void)
 {
@@ -112,6 +115,7 @@ uint16_t pvpanic_port(void)
 
 static Property pvpanic_isa_properties[] = {
     DEFINE_PROP_UINT16(PVPANIC_IOPORT_PROP, PVPanicState, ioport, 0x505),
+    DEFINE_PROP_BOOL(PVPANIC_ABORT_PROP, PVPanicState, abort_on_panic, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
