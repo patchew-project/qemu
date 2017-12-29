@@ -153,4 +153,7 @@ static inline ISABus *isa_bus_from_device(ISADevice *d)
 
 /* i8257.c */
 void DMA_init(ISABus *bus, int high_page_enable);
+
+#define TYPE_PIIX4_PCI_DEVICE "piix4-isa"
+
 #endif
