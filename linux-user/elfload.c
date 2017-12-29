@@ -2203,7 +2203,12 @@ static void load_elf_interp(const char *filename, struct image_info *info,
 {
     int fd, retval;
 
-    fd = open(path(filename), O_RDONLY);
+    if (interp_dirfd < 0
+        || filename[0] != '/'
+        || (fd = openat(interp_dirfd, filename + 1, O_RDONLY),
+            fd < 0 && errno == ENOENT)) {
+        fd = open(filename, O_RDONLY);
+    }
     if (fd < 0) {
         goto exit_perror;
     }
