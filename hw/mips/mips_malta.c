@@ -995,7 +995,6 @@ void mips_malta_init(MachineState *machine)
     uint8_t *smbus_eeprom_buf = g_malloc0(smbus_eeprom_size);
     int64_t kernel_entry, bootloader_run_addr;
     PCIBus *pci_bus;
-    ISABus *isa_bus;
     qemu_irq cbus_irq, i8259_irq;
     PCIDevice *pci;
     int piix4_devfn;
@@ -1197,7 +1196,6 @@ void mips_malta_init(MachineState *machine)
     qdev_prop_set_chr(dev, "parallel", parallel_hds[0]);
 
     qdev_init_nofail(dev);
-    isa_bus = ISA_BUS(qdev_get_child_bus(dev, "isa.0"));
     piix4_devfn = pci->devfn;
 
     /* Interrupt controller */
@@ -1212,9 +1210,6 @@ void mips_malta_init(MachineState *machine)
                           isa_get_irq(NULL, 9), NULL, 0, NULL);
     smbus_eeprom_init(smbus, 8, smbus_eeprom_buf, smbus_eeprom_size);
     g_free(smbus_eeprom_buf);
-
-    /* Super I/O */
-    mc146818_rtc_init(isa_bus, 2000, NULL);
 
     /* Network card */
     network_init(pci_bus);
