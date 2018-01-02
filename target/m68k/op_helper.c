@@ -947,3 +947,40 @@ uint64_t HELPER(bfffo_mem)(CPUM68KState *env, uint32_t addr,
        is already zero.  */
     return n | ffo;
 }
+
+void HELPER(chk)(CPUM68KState *env, int32_t val, int32_t ub)
+{
+    if (val < 0 || val > ub) {
+        CPUState *cs = CPU(m68k_env_get_cpu(env));
+
+        /* Recover PC and CC_OP for the beginning of the insn.  */
+        cpu_restore_state(cs, GETPC());
+
+        /* Adjust PC and FLAGS to end of the insn.  */
+        env->pc += 2;
+        helper_flush_flags(env, env->cc_op);
+        env->cc_n = val;
+
+        cs->exception_index = EXCP_CHK;
+        cpu_loop_exit(cs);
+    }
+}
+
+void HELPER(chk2)(CPUM68KState *env, int32_t val, int32_t lb, int32_t ub)
+{
+    helper_flush_flags(env, env->cc_op);
+
+    env->cc_z = val != lb && val != ub;
+    env->cc_c = lb <= ub ? val < lb || val > ub : val > ub && val < lb;
+
+    if (env->cc_c) {
+        CPUState *cs = CPU(m68k_env_get_cpu(env));
+
+        cpu_restore_state(cs, GETPC());
+        env->cc_op = CC_OP_FLAGS;
+        env->pc += 4;
+
+        cs->exception_index = EXCP_CHK;
+        cpu_loop_exit(cs);
+    }
+}
