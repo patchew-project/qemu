@@ -4203,6 +4203,140 @@ DISAS_INSN(ff1)
     gen_helper_ff1(reg, reg);
 }
 
+DISAS_INSN(chk)
+{
+    TCGv tsrc, src, reg;
+    int opsize;
+    TCGLabel *l1, *l2;
+
+    switch ((insn >> 7) & 3) {
+    case 3:
+        opsize = OS_WORD;
+        break;
+    case 2:
+        if (m68k_feature(env, M68K_FEATURE_CHK2)) {
+            opsize = OS_LONG;
+            break;
+        }
+        /* fallthru */
+    default:
+        gen_exception(s, s->insn_pc, EXCP_ILLEGAL);
+        return;
+    }
+    SRC_EA(env, tsrc, opsize, 1, NULL);
+    src = tcg_temp_local_new();
+    tcg_gen_mov_i32(src, tsrc);
+
+    reg = tcg_temp_local_new();
+    gen_ext(reg, DREG(insn, 9), opsize, 1);
+    gen_flush_flags(s);
+    update_cc_op(s);
+
+    l1 = gen_new_label();
+    l2 = gen_new_label();
+    tcg_gen_brcondi_i32(TCG_COND_GE, reg, 0, l1);
+    tcg_gen_movi_i32(QREG_CC_N, -1);
+    tcg_gen_movi_i32(QREG_PC, s->pc);
+    gen_raise_exception(EXCP_CHK);
+    tcg_gen_br(l2);
+    gen_set_label(l1);
+    tcg_gen_brcond_i32(TCG_COND_LE, reg, src, l2);
+    tcg_gen_movi_i32(QREG_CC_N, 0);
+    tcg_gen_movi_i32(QREG_PC, s->pc);
+    gen_raise_exception(EXCP_CHK);
+    gen_set_label(l2);
+    tcg_temp_free(src);
+    tcg_temp_free(reg);
+}
+
+DISAS_INSN(chk2)
+{
+    uint16_t ext;
+    TCGv addr1, addr2, bound1, bound2, res1, res2, reg, one, tmp;
+    int opsize;
+    TCGLabel *l1;
+
+    switch ((insn >> 9) & 3) {
+    case 0:
+        opsize = OS_BYTE;
+        break;
+    case 1:
+        opsize = OS_WORD;
+        break;
+    case 2:
+        opsize = OS_LONG;
+        break;
+    default:
+        gen_exception(s, s->insn_pc, EXCP_ILLEGAL);
+        return;
+    }
+
+    ext = read_im16(env, s);
+    if ((ext & 0x0800) == 0) {
+        gen_exception(s, s->insn_pc, EXCP_ILLEGAL);
+        return;
+    }
+
+    addr1 = gen_lea(env, s, insn, OS_UNSIZED);
+    addr2 = tcg_temp_new();
+    tcg_gen_addi_i32(addr2, addr1, opsize_bytes(opsize));
+
+    bound1 = gen_load(s, opsize, addr1, 1);
+    tcg_temp_free(addr1);
+    bound2 = gen_load(s, opsize, addr2, 1);
+    tcg_temp_free(addr2);
+
+    reg = tcg_temp_new();
+    if (ext & 0x8000) {
+        tcg_gen_mov_i32(reg, AREG(ext, 12));
+    } else {
+        gen_ext(reg, DREG(ext, 12), opsize, 1);
+    }
+
+    gen_flush_flags(s);
+
+    /* Z is set if reg is equal to either bound, cleared otherwise,
+     * QREG_CC_Z is 0 if Z is true, 1 if Z if false
+     */
+    tmp = tcg_const_i32(0);
+    tcg_gen_setcond_i32(TCG_COND_NE, QREG_CC_Z, reg, bound1);
+    tcg_gen_movcond_i32(TCG_COND_EQ, QREG_CC_Z, reg, bound2, tmp, QREG_CC_Z);
+
+    /* from real m68040:
+     * if bound1 <= bound2, trap if reg < bound1 or  reg > bound2
+     * if bound1 > bound2,  trap if reg > bound2 and reg < bound1
+    */
+    one = tcg_const_i32(1);
+
+    /* reg < bound1 or reg > bound2 */
+    res1 = tcg_temp_new();
+    tcg_gen_setcond_i32(TCG_COND_LT, res1, reg, bound1);
+    tcg_gen_movcond_i32(TCG_COND_GT, res1, reg, bound2, one, res1);
+
+    /* reg > bound2 and reg < bound1 */
+    res2 = tcg_temp_new();
+    tcg_gen_setcond_i32(TCG_COND_GT, res2, reg, bound2);
+    tcg_gen_setcond_i32(TCG_COND_LT, tmp, reg, bound1);
+    tcg_gen_and_i32(res2, res2, tmp);
+    tcg_temp_free(tmp);
+
+    /* if bound1 <= bound2, C = res1 else C = res2 */
+    tcg_gen_movcond_i32(TCG_COND_LE, QREG_CC_C, bound1, bound2, res1, res2);
+
+    tcg_temp_free(res1);
+    tcg_temp_free(res2);
+    tcg_temp_free(bound1);
+    tcg_temp_free(bound2);
+    tcg_temp_free(reg);
+
+    update_cc_op(s);
+    l1 = gen_new_label();
+    tcg_gen_brcond_i32(TCG_COND_NE, QREG_CC_C, one, l1);
+    tcg_gen_movi_i32(QREG_PC, s->pc);
+    gen_raise_exception(EXCP_CHK);
+    gen_set_label(l1);
+}
+
 static TCGv gen_get_sr(DisasContext *s)
 {
     TCGv ccr;
@@ -5306,7 +5440,7 @@ void register_m68k_insns (CPUM68KState *env)
     BASE(undef,     0000, 0000);
     INSN(arith_im,  0080, fff8, CF_ISA_A);
     INSN(arith_im,  0000, ff00, M68000);
-    INSN(undef,     00c0, ffc0, M68000);
+    INSN(chk2,      00c0, f9c0, CHK2);
     INSN(bitrev,    00c0, fff8, CF_ISA_APLUSC);
     BASE(bitop_reg, 0100, f1c0);
     BASE(bitop_reg, 0140, f1c0);
@@ -5339,6 +5473,7 @@ void register_m68k_insns (CPUM68KState *env)
     BASE(move,      1000, f000);
     BASE(move,      2000, f000);
     BASE(move,      3000, f000);
+    INSN(chk,       4000, f040, M68000);
     INSN(strldsr,   40e7, ffff, CF_ISA_APLUSC);
     INSN(negx,      4080, fff8, CF_ISA_A);
     INSN(negx,      4000, ff00, M68000);
