@@ -1713,6 +1713,7 @@ R: Laurent Vivier <laurent@vivier.eu>
 S: Maintained
 F: linux-user/
 F: default-configs/*-linux-user.mak
+F: scripts/qemu-binfmt-conf.sh
 
 Tiny Code Generator (TCG)
 -------------------------
