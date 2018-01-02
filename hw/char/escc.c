@@ -45,14 +45,21 @@
  * mouse and keyboard ports don't implement all functions and they are
  * only asynchronous. There is no DMA.
  *
- * Z85C30 is also used on PowerMacs. There are some small differences
- * between Sparc version (sunzilog) and PowerMac (pmac):
+ * Z85C30 is also used on PowerMacs and m68k Macs.
+ *
+ * There are some small differences between Sparc version (sunzilog)
+ * and PowerMac (pmac):
  *  Offset between control and data registers
  *  There is some kind of lockup bug, but we can ignore it
  *  CTS is inverted
  *  DMA on pmac using DBDMA chip
  *  pmac can do IRDA and faster rates, sunzilog can only do 38400
  *  pmac baud rate generator clock is 3.6864 MHz, sunzilog 4.9152 MHz
+ *
+ * Linux driver for m68k Macs is the same as for PowerMac (pmac_zilog),
+ * but registers are grouped by type and not by channel:
+ * channel is selected by bit 0 of the address (instead of bit 1)
+ * and register is selected by bit 1 of the address (instead of bit 0).
  */
 
 /*
@@ -107,6 +114,7 @@ typedef struct ESCCState {
 
     struct ChannelState chn[2];
     uint32_t it_shift;
+    uint32_t reg_bit;
     MemoryRegion mmio;
     uint32_t disabled;
     uint32_t frequency;
@@ -479,8 +487,8 @@ static void escc_mem_write(void *opaque, hwaddr addr,
     int newreg, channel;
 
     val &= 0xff;
-    saddr = (addr >> serial->it_shift) & 1;
-    channel = (addr >> (serial->it_shift + 1)) & 1;
+    saddr = (addr >> (serial->it_shift + serial->reg_bit)) & 1;
+    channel = (addr >> (serial->it_shift + (1 - serial->reg_bit))) & 1;
     s = &serial->chn[channel];
     switch (saddr) {
     case SERIAL_CTRL:
@@ -583,8 +591,8 @@ static uint64_t escc_mem_read(void *opaque, hwaddr addr,
     uint32_t ret;
     int channel;
 
-    saddr = (addr >> serial->it_shift) & 1;
-    channel = (addr >> (serial->it_shift + 1)) & 1;
+    saddr = (addr >> (serial->it_shift + serial->reg_bit)) & 1;
+    channel = (addr >> (serial->it_shift + (1 - serial->reg_bit))) & 1;
     s = &serial->chn[channel];
     switch (saddr) {
     case SERIAL_CTRL:
@@ -691,7 +699,7 @@ static const VMStateDescription vmstate_escc = {
 
 MemoryRegion *escc_init(hwaddr base, qemu_irq irqA, qemu_irq irqB,
               Chardev *chrA, Chardev *chrB,
-              int clock, int it_shift)
+              int clock, int it_shift, int reg_bit)
 {
     DeviceState *dev;
     SysBusDevice *s;
@@ -701,6 +709,7 @@ MemoryRegion *escc_init(hwaddr base, qemu_irq irqA, qemu_irq irqB,
     qdev_prop_set_uint32(dev, "disabled", 0);
     qdev_prop_set_uint32(dev, "frequency", clock);
     qdev_prop_set_uint32(dev, "it_shift", it_shift);
+    qdev_prop_set_uint32(dev, "reg_bit", reg_bit);
     qdev_prop_set_chr(dev, "chrB", chrB);
     qdev_prop_set_chr(dev, "chrA", chrA);
     qdev_prop_set_uint32(dev, "chnBtype", ser);
@@ -1033,6 +1042,7 @@ static void escc_realize(DeviceState *dev, Error **errp)
 static Property escc_properties[] = {
     DEFINE_PROP_UINT32("frequency", ESCCState, frequency,   0),
     DEFINE_PROP_UINT32("it_shift",  ESCCState, it_shift,    0),
+    DEFINE_PROP_UINT32("reg_bit",   ESCCState, reg_bit,     0),
     DEFINE_PROP_UINT32("disabled",  ESCCState, disabled,    0),
     DEFINE_PROP_UINT32("chnBtype",  ESCCState, chn[0].type, 0),
     DEFINE_PROP_UINT32("chnAtype",  ESCCState, chn[1].type, 0),
