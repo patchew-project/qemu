@@ -90,6 +90,19 @@ struct MigrationState
     QEMUBH *cleanup_bh;
     QEMUFile *to_dst_file;
 
+    /*
+     * Migration thread statistic variables, mostly used in
+     * migration_thread() iterations only.
+     */
+    uint64_t initial_bytes;
+    int64_t initial_time;
+    /*
+     * The final stage happens when the remaining data is smaller than
+     * this threshold; it's calculated from the requested downtime and
+     * measured bandwidth
+     */
+    int64_t threshold_size;
+
     /* params from 'migrate-set-parameters' */
     MigrationParameters parameters;
 
