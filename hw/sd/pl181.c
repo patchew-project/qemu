@@ -12,6 +12,7 @@
 #include "sysemu/blockdev.h"
 #include "hw/sysbus.h"
 #include "hw/sd/sd.h"
+#include "hw/sd/sdcard_legacy.h"
 #include "qemu/log.h"
 #include "qapi/error.h"
 
