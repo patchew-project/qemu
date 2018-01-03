@@ -159,12 +159,8 @@ static void sdhci_set_readonly(DeviceState *dev, bool level)
 {
     SDHCIState *s = (SDHCIState *)dev;
 
-    if (level) {
-        s->prnsts &= ~SDHC_WRITE_PROTECT;
-    } else {
-        /* Write enabled */
-        s->prnsts |= SDHC_WRITE_PROTECT;
-    }
+    /* Write enabled */
+    s->prnsts = FIELD_DP32(s->prnsts, SDHC_PRNSTS, WRITE_PROTECT, level);
 }
 
 static void sdhci_reset(SDHCIState *s)

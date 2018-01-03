@@ -24,6 +24,8 @@
 #ifndef SDHCI_INTERNAL_H
 #define SDHCI_INTERNAL_H
 
+#include "hw/registerfields.h"
+
 /* R/W SDMA System Address register 0x0 */
 #define SDHC_SYSAD                     0x00
 
@@ -77,8 +79,8 @@
 #define SDHC_SPACE_AVAILABLE           0x00000400
 #define SDHC_DATA_AVAILABLE            0x00000800
 #define SDHC_CARD_PRESENT              0x00010000
-#define SDHC_CARD_DETECT               0x00040000
-#define SDHC_WRITE_PROTECT             0x00080000
+FIELD(SDHC_PRNSTS, CARD_DETECT,        18, 1);
+FIELD(SDHC_PRNSTS, WRITE_PROTECT,      19, 1);
 #define TRANSFERRING_DATA(x)           \
     ((x) & (SDHC_DOING_READ | SDHC_DOING_WRITE))
 
