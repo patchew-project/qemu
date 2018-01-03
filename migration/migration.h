@@ -107,6 +107,8 @@ struct MigrationState
     int64_t mig_start_time;
     /* Total time used by latest migration (ms) */
     int64_t mig_total_time;
+    /* Timestamp when VM is down (ms) to migrate the last stuff */
+    int64_t vm_down_start_time;
     int64_t downtime;
     int64_t expected_downtime;
     bool enabled_capabilities[MIGRATION_CAPABILITY__MAX];
