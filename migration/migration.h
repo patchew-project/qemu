@@ -111,6 +111,12 @@ struct MigrationState
     int64_t expected_downtime;
     bool enabled_capabilities[MIGRATION_CAPABILITY__MAX];
     int64_t setup_time;
+    /*
+     * Whether the old VM is running for the last migration.  This is
+     * used to resume the VM when precopy failed or cancelled somehow.
+     * It's never used for postcopy.
+     */
+    bool old_vm_running;
 
     /* Flag set once the migration has been asked to enter postcopy */
     bool start_postcopy;
