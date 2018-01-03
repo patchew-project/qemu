@@ -2309,7 +2309,8 @@ static void *migration_thread(void *opaque)
         }
         runstate_set(RUN_STATE_POSTMIGRATE);
     } else {
-        if (s->state == MIGRATION_STATUS_ACTIVE && enable_colo) {
+        if (s->state == MIGRATION_STATUS_ACTIVE) {
+            assert(enable_colo);
             migrate_start_colo_process(s);
             qemu_savevm_state_cleanup();
             /*
