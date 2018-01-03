@@ -103,7 +103,10 @@ struct MigrationState
     } rp_state;
 
     double mbps;
-    int64_t total_time;
+    /* Timestamp when recent migration starts (ms) */
+    int64_t mig_start_time;
+    /* Total time used by latest migration (ms) */
+    int64_t mig_total_time;
     int64_t downtime;
     int64_t expected_downtime;
     bool enabled_capabilities[MIGRATION_CAPABILITY__MAX];

@@ -613,7 +613,7 @@ MigrationInfo *qmp_query_migrate(Error **errp)
         info->has_status = true;
         info->has_total_time = true;
         info->total_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME)
-            - s->total_time;
+            - s->mig_start_time;
         info->has_expected_downtime = true;
         info->expected_downtime = s->expected_downtime;
         info->has_setup_time = true;
@@ -629,7 +629,7 @@ MigrationInfo *qmp_query_migrate(Error **errp)
     case MIGRATION_STATUS_COMPLETED:
         info->has_status = true;
         info->has_total_time = true;
-        info->total_time = s->total_time;
+        info->total_time = s->mig_total_time;
         info->has_downtime = true;
         info->downtime = s->downtime;
         info->has_setup_time = true;
@@ -1270,7 +1270,8 @@ MigrationState *migrate_init(void)
 
     migrate_set_state(&s->state, MIGRATION_STATUS_NONE, MIGRATION_STATUS_SETUP);
 
-    s->total_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+    s->mig_start_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+    s->mig_total_time = 0;
     return s;
 }
 
@@ -2293,13 +2294,13 @@ static void *migration_thread(void *opaque)
     qemu_mutex_lock_iothread();
     if (s->state == MIGRATION_STATUS_COMPLETED) {
         uint64_t transferred_bytes = qemu_ftell(s->to_dst_file);
-        s->total_time = end_time - s->total_time;
+        s->mig_total_time = end_time - s->mig_start_time;
         if (!entered_postcopy) {
             s->downtime = end_time - start_time;
         }
-        if (s->total_time) {
+        if (s->mig_total_time) {
             s->mbps = (((double) transferred_bytes * 8.0) /
-                       ((double) s->total_time)) / 1000;
+                       ((double) s->mig_total_time)) / 1000;
         }
         runstate_set(RUN_STATE_POSTMIGRATE);
     } else {
