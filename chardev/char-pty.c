@@ -210,9 +210,14 @@ static void pty_chr_state(Chardev *chr, int connected)
             s->timer_tag = 0;
         }
         if (!s->connected) {
+            GSource *source = g_idle_source_new();
+
             g_assert(s->open_tag == 0);
             s->connected = 1;
-            s->open_tag = g_idle_add(qemu_chr_be_generic_open_func, chr);
+            g_source_set_callback(source, qemu_chr_be_generic_open_func,
+                                  chr, NULL);
+            s->open_tag = g_source_attach(source, chr->gcontext);
+            g_source_unref(source);
         }
         if (!chr->gsource) {
             chr->gsource = io_add_watch_poll(chr, s->ioc,
