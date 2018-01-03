@@ -255,24 +255,29 @@ static void milkymist_memcard_reset(DeviceState *d)
 static int milkymist_memcard_init(SysBusDevice *dev)
 {
     MilkymistMemcardState *s = MILKYMIST_MEMCARD(dev);
-    DriveInfo *dinfo;
-    BlockBackend *blk;
-
-    /* FIXME use a qdev drive property instead of drive_get_next() */
-    dinfo = drive_get_next(IF_SD);
-    blk = dinfo ? blk_by_legacy_dinfo(dinfo) : NULL;
-    s->card = sd_init(blk, false);
-    if (s->card == NULL) {
-        return -1;
-    }
-
-    s->enabled = blk && blk_is_inserted(blk);
 
     memory_region_init_io(&s->regs_region, OBJECT(s), &memcard_mmio_ops, s,
             "milkymist-memcard", R_MAX * 4);
     sysbus_init_mmio(dev, &s->regs_region);
 
     return 0;
+}
+
+static void milkymist_memcard_realize(DeviceState *dev, Error **errp)
+{
+    MilkymistMemcardState *s = MILKYMIST_MEMCARD(dev);
+    BlockBackend *blk;
+    DriveInfo *dinfo;
+
+    /* FIXME use a qdev drive property instead of drive_get_next() */
+    dinfo = drive_get_next(IF_SD);
+    blk = dinfo ? blk_by_legacy_dinfo(dinfo) : NULL;
+    s->card = sd_init(blk, false);
+    if (s->card == NULL) {
+        error_setg(errp, "failed to init SD card");
+        return;
+    }
+    s->enabled = blk && blk_is_inserted(blk);
 }
 
 static const VMStateDescription vmstate_milkymist_memcard = {
@@ -298,6 +303,7 @@ static void milkymist_memcard_class_init(ObjectClass *klass, void *data)
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = milkymist_memcard_init;
+    dc->realize = milkymist_memcard_realize;
     dc->reset = milkymist_memcard_reset;
     dc->vmsd = &vmstate_milkymist_memcard;
     /* Reason: init() method uses drive_get_next() */
