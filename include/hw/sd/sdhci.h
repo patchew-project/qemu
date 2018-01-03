@@ -45,6 +45,8 @@ typedef struct SDHCIState {
     QEMUTimer *insert_timer;       /* timer for 'changing' sd card. */
     QEMUTimer *transfer_timer;
     qemu_irq irq;
+    qemu_irq access_led;
+    int access_led_level;
 
     /* Registers cleared on reset */
     /* 0x00 */
