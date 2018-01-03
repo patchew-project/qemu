@@ -86,9 +86,9 @@ typedef struct SDHCIState {
 
     /* Read-only registers */
     /* 0x40 */
-    uint32_t capareg;      /* Capabilities Register */
+    uint64_t capareg;      /* Capabilities Register */
     /* 0x48 */
-    uint32_t maxcurr;      /* Maximum Current Capabilities Register */
+    uint64_t maxcurr;      /* Maximum Current Capabilities Register */
 
     uint8_t  *fifo_buffer; /* SD host i/o FIFO buffer */
     uint32_t buf_maxsz;
