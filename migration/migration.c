@@ -2177,7 +2177,6 @@ static void *migration_thread(void *opaque)
     bool entered_postcopy = false;
     /* The active state we expect to be in; ACTIVE or POSTCOPY_ACTIVE */
     enum MigrationStatus current_active_state = MIGRATION_STATUS_ACTIVE;
-    bool enable_colo = migrate_colo_enabled();
 
     rcu_register_thread();
 
@@ -2305,7 +2304,7 @@ static void *migration_thread(void *opaque)
         runstate_set(RUN_STATE_POSTMIGRATE);
     } else {
         if (s->state == MIGRATION_STATUS_ACTIVE) {
-            assert(enable_colo);
+            assert(migrate_colo_enabled());
             migrate_start_colo_process(s);
             /*
             * Fixme: we will run VM in COLO no matter its old running state.
