@@ -150,7 +150,7 @@ static void xlnx_zynqmp_init(Object *obj)
     qdev_set_parent_bus(DEVICE(&s->gic), sysbus_get_default());
 
     for (i = 0; i < XLNX_ZYNQMP_NUM_GEMS; i++) {
-        object_initialize(&s->gem[i], sizeof(s->gem[i]), TYPE_CADENCE_GEM);
+        object_initialize(&s->gem[i], sizeof(s->gem[i]), "cdns,zynqmp-gem");
         qdev_set_parent_bus(DEVICE(&s->gem[i]), sysbus_get_default());
     }
 
