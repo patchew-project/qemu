@@ -4578,8 +4578,6 @@ int main(int argc, char **argv, char **envp)
 #endif
     }
 
-    colo_info_init();
-
     if (net_init_clients() < 0) {
         exit(1);
     }
