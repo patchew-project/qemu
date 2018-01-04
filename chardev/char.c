@@ -1084,6 +1084,27 @@ void qmp_chardev_send_break(const char *id, Error **errp)
     qemu_chr_be_event(chr, CHR_EVENT_BREAK);
 }
 
+/*
+ * Add a timeout callback for the chardev (in milliseconds). Please
+ * use this to add timeout hook for chardev instead of g_timeout_add()
+ * and g_timeout_add_seconds(), to make sure the gcontext that the
+ * task bound to is correct.  Returns the ID of the timeout GSource in
+ * gcontext of the chardev.
+ */
+guint qemu_chr_timeout_add_ms(Chardev *chr, guint ms, GSourceFunc func,
+                              void *private)
+{
+    GSource *source = g_timeout_source_new(ms);
+    guint id;
+
+    assert(func);
+    g_source_set_callback(source, func, private, NULL);
+    id = g_source_attach(source, chr->gcontext);
+    g_source_unref(source);
+
+    return id;
+}
+
 void qemu_chr_cleanup(void)
 {
     object_unparent(get_chardevs_root());
