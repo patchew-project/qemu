@@ -155,7 +155,7 @@ static void xlnx_zynqmp_init(Object *obj)
     }
 
     for (i = 0; i < XLNX_ZYNQMP_NUM_UARTS; i++) {
-        object_initialize(&s->uart[i], sizeof(s->uart[i]), TYPE_CADENCE_UART);
+        object_initialize(&s->uart[i], sizeof(s->uart[i]), "xlnx,zynqmp-uart");
         qdev_set_parent_bus(DEVICE(&s->uart[i]), sysbus_get_default());
     }
 
