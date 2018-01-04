@@ -320,10 +320,8 @@ int scsi_convert_sense(uint8_t *in_buf, int in_len,
                        uint8_t *buf, int len, bool fixed)
 {
     SCSISense sense;
-    bool fixed_in;
 
-    fixed_in = (in_buf[0] & 2) == 0;
-    if (in_len && fixed == fixed_in) {
+    if (in_len && !!fixed == ((in_buf[0] & 2) == 0)) {
         memcpy(buf, in_buf, MIN(len, in_len));
         return MIN(len, in_len);
     }
