@@ -1544,6 +1544,12 @@ static void gem_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo gem_info = {
     .name  = TYPE_CADENCE_GEM,
+    .aliases       = (const char * []) {
+                        "cdns,gem",
+                        "cdns,zynq-gem",    /* Zynq-7xxx SoC */
+                        "cdns,zynqmp-gem",  /* Zynq Ultrascale+ MPSoC */
+                        NULL
+                     },
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size  = sizeof(CadenceGEMState),
     .instance_init = gem_init,
