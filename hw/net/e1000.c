@@ -1648,6 +1648,7 @@ typedef struct E1000Info {
     uint16_t   device_id;
     uint8_t    revision;
     uint16_t   phy_id2;
+    const char **aliases;
 } E1000Info;
 
 static void e1000_class_init(ObjectClass *klass, void *data)
@@ -1695,10 +1696,11 @@ static const TypeInfo e1000_base_info = {
 
 static const E1000Info e1000_devices[] = {
     {
-        .name      = "e1000",
+        .name      = "e1000-82540em",
         .device_id = E1000_DEV_ID_82540EM,
         .revision  = 0x03,
         .phy_id2   = E1000_PHY_ID2_8254xx_DEFAULT,
+        .aliases   = (const char * []) {"e1000", NULL},
     },
     {
         .name      = "e1000-82544gc",
@@ -1725,6 +1727,7 @@ static void e1000_register_types(void)
 
         type_info.name = info->name;
         type_info.parent = TYPE_E1000_BASE;
+        type_info.aliases = info->aliases;
         type_info.class_data = (void *)info;
         type_info.class_init = e1000_class_init;
         type_info.instance_init = e1000_instance_init;
