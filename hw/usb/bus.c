@@ -297,36 +297,6 @@ static void usb_qdev_unrealize(DeviceState *qdev, Error **errp)
     }
 }
 
-typedef struct LegacyUSBFactory
-{
-    const char *name;
-    const char *usbdevice_name;
-    USBDevice *(*usbdevice_init)(USBBus *bus, const char *params);
-} LegacyUSBFactory;
-
-static GSList *legacy_usb_factory;
-
-void usb_legacy_register(const char *typename, const char *usbdevice_name,
-                         USBDevice *(*usbdevice_init)(USBBus *bus,
-                                                      const char *params))
-{
-    if (usbdevice_name) {
-        LegacyUSBFactory *f = g_malloc0(sizeof(*f));
-        f->name = typename;
-        f->usbdevice_name = usbdevice_name;
-        f->usbdevice_init = usbdevice_init;
-        legacy_usb_factory = g_slist_append(legacy_usb_factory, f);
-    }
-}
-
-USBDevice *usb_create(USBBus *bus, const char *name)
-{
-    DeviceState *dev;
-
-    dev = qdev_create(&bus->qbus, name);
-    return USB_DEVICE(dev);
-}
-
 static USBDevice *usb_try_create_simple(USBBus *bus, const char *name,
                                         Error **errp)
 {
@@ -652,74 +622,6 @@ void hmp_info_usb(Monitor *mon, const QDict *qdict)
                            dev->qdev.id ?: "");
         }
     }
-}
-
-/* handle legacy -usbdevice cmd line option */
-USBDevice *usbdevice_create(const char *cmdline)
-{
-    USBBus *bus = usb_bus_find(-1 /* any */);
-    LegacyUSBFactory *f = NULL;
-    Error *err = NULL;
-    GSList *i;
-    char driver[32];
-    const char *params;
-    int len;
-    USBDevice *dev;
-
-    params = strchr(cmdline,':');
-    if (params) {
-        params++;
-        len = params - cmdline;
-        if (len > sizeof(driver))
-            len = sizeof(driver);
-        pstrcpy(driver, len, cmdline);
-    } else {
-        params = "";
-        pstrcpy(driver, sizeof(driver), cmdline);
-    }
-
-    for (i = legacy_usb_factory; i; i = i->next) {
-        f = i->data;
-        if (strcmp(f->usbdevice_name, driver) == 0) {
-            break;
-        }
-    }
-    if (i == NULL) {
-#if 0
-        /* no error because some drivers are not converted (yet) */
-        error_report("usbdevice %s not found", driver);
-#endif
-        return NULL;
-    }
-
-    if (!bus) {
-        error_report("Error: no usb bus to attach usbdevice %s, "
-                     "please try -machine usb=on and check that "
-                     "the machine model supports USB", driver);
-        return NULL;
-    }
-
-    if (f->usbdevice_init) {
-        dev = f->usbdevice_init(bus, params);
-    } else {
-        if (*params) {
-            error_report("usbdevice %s accepts no params", driver);
-            return NULL;
-        }
-        dev = usb_create(bus, f->name);
-    }
-    if (!dev) {
-        error_report("Failed to create USB device '%s'", f->name);
-        return NULL;
-    }
-    object_property_set_bool(OBJECT(dev), true, "realized", &err);
-    if (err) {
-        error_reportf_err(err, "Failed to initialize USB device '%s': ",
-                          f->name);
-        object_unparent(OBJECT(dev));
-        return NULL;
-    }
-    return dev;
 }
 
 static bool usb_get_attached(Object *obj, Error **errp)

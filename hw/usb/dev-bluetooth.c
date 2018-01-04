@@ -522,27 +522,6 @@ static void usb_bt_realize(USBDevice *dev, Error **errp)
     s->intr = usb_ep_get(dev, USB_TOKEN_IN, USB_EVT_EP);
 }
 
-static USBDevice *usb_bt_init(USBBus *bus, const char *cmdline)
-{
-    USBDevice *dev;
-    struct USBBtState *s;
-    HCIInfo *hci;
-    const char *name = TYPE_USB_BT;
-
-    if (*cmdline) {
-        hci = hci_init(cmdline);
-    } else {
-        hci = bt_new_hci(qemu_find_bt_vlan(0));
-    }
-    if (!hci)
-        return NULL;
-
-    dev = usb_create(bus, name);
-    s = USB_BT(dev);
-    s->hci = hci;
-    return dev;
-}
-
 static const VMStateDescription vmstate_usb_bt = {
     .name = "usb-bt",
     .unmigratable = 1,
@@ -574,7 +553,6 @@ static const TypeInfo bt_info = {
 static void usb_bt_register_types(void)
 {
     type_register_static(&bt_info);
-    usb_legacy_register(TYPE_USB_BT, "bt", usb_bt_init);
 }
 
 type_init(usb_bt_register_types)

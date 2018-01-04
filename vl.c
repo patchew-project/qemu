@@ -1446,49 +1446,6 @@ static void igd_gfx_passthru(void)
 }
 
 /***********************************************************/
-/* USB devices */
-
-static int usb_device_add(const char *devname)
-{
-    USBDevice *dev = NULL;
-#ifndef CONFIG_LINUX
-    const char *p;
-#endif
-
-    if (!machine_usb(current_machine)) {
-        return -1;
-    }
-
-    /* drivers with .usbdevice_name entry in USBDeviceInfo */
-    dev = usbdevice_create(devname);
-    if (dev)
-        goto done;
-
-    /* the other ones */
-#ifndef CONFIG_LINUX
-    /* only the linux version is qdev-ified, usb-bsd still needs this */
-    if (strstart(devname, "host:", &p)) {
-        dev = usb_host_device_open(usb_bus_find(-1), p);
-    }
-#endif
-    if (!dev)
-        return -1;
-
-done:
-    return 0;
-}
-
-static int usb_parse(const char *cmdline)
-{
-    int r;
-    r = usb_device_add(cmdline);
-    if (r < 0) {
-        error_report("could not add USB device '%s'", cmdline);
-    }
-    return r;
-}
-
-/***********************************************************/
 /* machine registration */
 
 MachineState *current_machine;
@@ -2480,7 +2437,6 @@ static void monitor_parse(const char *optarg, const char *mode, bool pretty)
 
 struct device_config {
     enum {
-        DEV_USB,       /* -usbdevice     */
         DEV_BT,        /* -bt            */
         DEV_SERIAL,    /* -serial        */
         DEV_PARALLEL,  /* -parallel      */
@@ -3845,13 +3801,6 @@ int main(int argc, char **argv, char **envp)
                 olist = qemu_find_opts("machine");
                 qemu_opts_parse_noisily(olist, "usb=on", false);
                 break;
-            case QEMU_OPTION_usbdevice:
-                error_report("'-usbdevice' is deprecated, please use "
-                             "'-device usb-...' instead");
-                olist = qemu_find_opts("machine");
-                qemu_opts_parse_noisily(olist, "usb=on", false);
-                add_device_config(DEV_USB, optarg);
-                break;
             case QEMU_OPTION_device:
                 if (!qemu_opts_parse_noisily(qemu_find_opts("device"),
                                              optarg, true)) {
@@ -4714,12 +4663,6 @@ int main(int argc, char **argv, char **envp)
     if (qemu_opts_foreach(qemu_find_opts("fw_cfg"),
                           parse_fw_cfg, fw_cfg_find(), NULL) != 0) {
         exit(1);
-    }
-
-    /* init USB devices */
-    if (machine_usb(current_machine)) {
-        if (foreach_device_config(DEV_USB, usb_parse) < 0)
-            exit(1);
     }
 
     /* Check if IGD GFX passthrough. */

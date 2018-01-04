@@ -873,11 +873,8 @@ static void usb_hid_register_types(void)
 {
     type_register_static(&usb_hid_type_info);
     type_register_static(&usb_tablet_info);
-    usb_legacy_register("usb-tablet", "tablet", NULL);
     type_register_static(&usb_mouse_info);
-    usb_legacy_register("usb-mouse", "mouse", NULL);
     type_register_static(&usb_keyboard_info);
-    usb_legacy_register("usb-kbd", "keyboard", NULL);
 }
 
 type_init(usb_hid_register_types)
