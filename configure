@@ -5161,6 +5161,13 @@ if test "$gcov" = "yes" ; then
 elif test "$fortify_source" = "yes" ; then
   CFLAGS="-O2 -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 $CFLAGS"
 elif test "$debug" = "yes"; then
+  write_c_skeleton;
+  if compile_prog "-fsanitize=address" ""; then
+      CFLAGS="-fsanitize=address $CFLAGS"
+  fi
+  if compile_prog "-fsanitize=undefined" ""; then
+      CFLAGS="-fsanitize=undefined $CFLAGS"
+  fi
   if compile_prog "-Og" ""; then
       CFLAGS="-Og $CFLAGS"
   elif compile_prog "-O1" ""; then
