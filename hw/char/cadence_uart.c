@@ -552,6 +552,13 @@ static void cadence_uart_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo cadence_uart_info = {
     .name          = TYPE_CADENCE_UART,
+    .aliases       = (const char * []) {
+                        "cdns,uart-r1p8",
+                        "xlnx,xuartps",     /* Zynq-7xxx SoC */
+                        "cdns,uart-r1p12",
+                        "xlnx,zynqmp-uart", /* Zynq Ultrascale+ MPSoC */
+                        NULL
+                     },
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(CadenceUARTState),
     .instance_init = cadence_uart_init,
