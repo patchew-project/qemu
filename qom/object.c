@@ -83,10 +83,15 @@ static GHashTable *type_table_get(void)
 
 static bool enumerating_types;
 
-static void type_table_add(TypeImpl *ti)
+static void type_table_add_with_key(TypeImpl *ti, const char *key_name)
 {
     assert(!enumerating_types);
-    g_hash_table_insert(type_table_get(), (void *)ti->name, ti);
+    g_hash_table_insert(type_table_get(), (void *)key_name, ti);
+}
+
+static void type_table_add(TypeImpl *ti)
+{
+    type_table_add_with_key(ti, ti->name);
 }
 
 static TypeImpl *type_table_lookup(const char *name)
@@ -137,6 +142,15 @@ static TypeImpl *type_register_internal(const TypeInfo *info)
     ti = type_new(info);
 
     type_table_add(ti);
+
+    if (info->aliases) {
+        int i;
+
+        for (i = 0; info->aliases[i]; i++) {
+            type_table_add_with_key(ti, info->aliases[i]);
+        }
+    }
+
     return ti;
 }
 

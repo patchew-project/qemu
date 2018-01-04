@@ -428,6 +428,8 @@ struct Object
  * TypeInfo:
  * @name: The name of the type.
  * @parent: The name of the parent type.
+ * @aliases: A list of alias names for the type. This should point to a static
+ *   array that's terminated with a zero filled element.
  * @instance_size: The size of the object (derivative of #Object).  If
  *   @instance_size is 0, then the size of the object will be the size of the
  *   parent object.
@@ -468,6 +470,7 @@ struct TypeInfo
 {
     const char *name;
     const char *parent;
+    const char **aliases;
 
     size_t instance_size;
     void (*instance_init)(Object *obj);
