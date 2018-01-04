@@ -854,6 +854,19 @@
 ##
 { 'enum': 'FailoverStatus',
   'data': [ 'none', 'require', 'active', 'completed', 'relaunch' ] }
+##
+# @COLOExitReason:
+#
+# The reason for a COLO exit
+#
+# @request: COLO exit is due to an external request
+#
+# @error: COLO exit is due to an internal error
+#
+# Since: 2.11
+##
+{ 'enum': 'COLOExitReason',
+  'data': [ 'request', 'error' ] }
 
 ##
 # @x-colo-lost-heartbeat:
