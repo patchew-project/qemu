@@ -522,6 +522,8 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
     params->x_multifd_page_count = s->parameters.x_multifd_page_count;
     params->has_xbzrle_cache_size = true;
     params->xbzrle_cache_size = s->parameters.xbzrle_cache_size;
+    params->has_tcp_port = true;
+    params->tcp_port = s->parameters.tcp_port;
 
     return params;
 }
@@ -923,6 +925,9 @@ static void migrate_params_test_apply(MigrateSetParameters *params,
     if (params->has_xbzrle_cache_size) {
         dest->xbzrle_cache_size = params->xbzrle_cache_size;
     }
+    if (params->has_tcp_port) {
+        dest->tcp_port = params->tcp_port;
+    }
 }
 
 static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
@@ -994,6 +999,9 @@ static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
     if (params->has_xbzrle_cache_size) {
         s->parameters.xbzrle_cache_size = params->xbzrle_cache_size;
         xbzrle_cache_resize(params->xbzrle_cache_size, errp);
+    }
+    if (params->has_tcp_port) {
+        s->parameters.tcp_port = params->tcp_port;
     }
 }
 
@@ -2470,6 +2478,8 @@ static Property migration_properties[] = {
     DEFINE_PROP_SIZE("xbzrle-cache-size", MigrationState,
                       parameters.xbzrle_cache_size,
                       DEFAULT_MIGRATE_XBZRLE_CACHE_SIZE),
+    DEFINE_PROP_UINT16("tcp-port", MigrationState,
+                       parameters.tcp_port, 0),
 
     /* Migration capabilities */
     DEFINE_PROP_MIG_CAP("x-xbzrle", MIGRATION_CAPABILITY_XBZRLE),

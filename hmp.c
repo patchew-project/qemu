@@ -360,6 +360,9 @@ void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "%s: %" PRIu64 "\n",
             MigrationParameter_str(MIGRATION_PARAMETER_XBZRLE_CACHE_SIZE),
             params->xbzrle_cache_size);
+        monitor_printf(mon, "%s: %d\n",
+            MigrationParameter_str(MIGRATION_PARAMETER_TCP_PORT),
+            params->tcp_port);
     }
 
     qapi_free_MigrationParameters(params);
@@ -1673,6 +1676,10 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
             break;
         }
         p->xbzrle_cache_size = cache_size;
+        break;
+    case MIGRATION_PARAMETER_TCP_PORT:
+        p->has_tcp_port = true;
+        visit_type_uint16(v, param, &p->tcp_port, &err);
         break;
     default:
         assert(0);
