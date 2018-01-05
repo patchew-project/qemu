@@ -2605,6 +2605,20 @@ static int img_info(int argc, char **argv)
 
     list = collect_image_info_list(image_opts, filename, fmt, chain,
                                    force_share, &local_err);
+    if (!list && !force_share) {
+        Error *local_err2 = NULL;
+        list = collect_image_info_list(image_opts, filename, fmt, chain,
+                                       true, &local_err2);
+        if (list) {
+            error_report("WARNING: --force-share (-U) is not used but it "
+                         "seems the image is attached to a running guest; "
+                         "the information may be inaccurate if it is being "
+                         "updated.");
+            error_free(local_err);
+        } else {
+            error_free(local_err2);
+        }
+    }
     if (!list) {
         error_reportf_err(local_err, "Could not open '%s': ", filename);
         return 1;

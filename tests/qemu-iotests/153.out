@@ -41,8 +41,7 @@ Is another process using the image?
 no file open, try 'help open'
 
 _qemu_img_wrapper info TEST_DIR/t.qcow2
-qemu-img: Could not open 'TEST_DIR/t.qcow2': Failed to get shared "write" lock
-Is another process using the image?
+qemu-img: WARNING: --force-share (-U) is not used but it seems the image is attached to a running guest; the information may be inaccurate if it is being updated.
 
 _qemu_img_wrapper check TEST_DIR/t.qcow2
 qemu-img: Could not open 'TEST_DIR/t.qcow2': Failed to get shared "write" lock
