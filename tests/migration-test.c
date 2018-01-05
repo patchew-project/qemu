@@ -464,8 +464,9 @@ static void test_migrate_start(QTestState **from, QTestState **to,
         cmd_dst = g_strdup_printf("-machine accel=%s -m 256M"
                                   " -name pcdest,debug-threads=on"
                                   " -serial file:%s/dest_serial"
+                                  " -drive file=%s,if=pflash,format=raw"
                                   " -incoming %s",
-                                  accel, tmpfs, uri);
+                                  accel, tmpfs, bootpath, uri);
     } else {
         g_assert_not_reached();
     }
