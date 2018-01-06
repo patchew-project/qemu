@@ -2,5 +2,9 @@
 
 ifeq ($(CONFIG_CAN_CORE),y)
 common-obj-y += can_core.o
+ifeq ($(CONFIG_LINUX),y)
+common-obj-y += can_socketcan.o
+else
 common-obj-y += can_host_stub.o
+endif
 endif
