@@ -28,8 +28,10 @@
 #include "hw/i386/pc.h"
 #include "hw/pci/pci.h"
 #include "hw/isa/isa.h"
+#include "hw/char/isa.h"
 #include "hw/sysbus.h"
 #include "hw/timer/i8254.h"
+#include "qapi/error.h"
 
 PCIDevice *piix4_dev;
 
@@ -37,6 +39,10 @@ typedef struct PIIX4State {
     PCIDevice dev;
     qemu_irq cpu_intr;
     qemu_irq *isa;
+
+    FDCtrlISABus floppy;
+    ISASerialState serial[2];
+    ISAParallelState parallel;
 
     /* Reset Control Register */
     MemoryRegion rcr_mem;
@@ -141,6 +147,8 @@ static void piix4_realize(PCIDevice *pci_dev, Error **errp)
     PIIX4State *s = DO_UPCAST(PIIX4State, dev, pci_dev);
     ISABus *isa_bus;
     qemu_irq *i8259_out_irq;
+    int i;
+    Error *err = NULL;
 
     isa_bus = isa_bus_new(dev, pci_address_space(pci_dev),
                           pci_address_space_io(pci_dev), errp);
@@ -172,8 +180,66 @@ static void piix4_realize(PCIDevice *pci_dev, Error **errp)
     /* Super I/O */
     isa_create_simple(isa_bus, "i8042");
 
+    /* floppy */
+    qdev_set_parent_bus(DEVICE(&s->floppy), BUS(isa_bus));
+    object_property_set_bool(OBJECT(&s->floppy), true, "realized", &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+
+    /* serial ports */
+    for (i = 0; i < 2; i++) {
+        qdev_set_parent_bus(DEVICE(&s->serial[i]), BUS(isa_bus));
+        if (!qemu_chr_fe_backend_connected(&s->serial[i].state.chr)) {
+            char prop[] = "serial?";
+            char label[] = "piix4.serial?";
+            prop[6] = i + '0';
+            label[12] = i + '0';
+            qdev_prop_set_chr(dev, prop, qemu_chr_new(label, "null"));
+        }
+        object_property_set_bool(OBJECT(&s->serial[i]), true, "realized", &err);
+        if (err) {
+            error_propagate(errp, err);
+            return;
+        }
+    }
+
+    /* parallel port */
+    qdev_set_parent_bus(DEVICE(&s->parallel), BUS(isa_bus));
+    if (!qemu_chr_fe_backend_connected(&s->parallel.state.chr)) {
+        qdev_prop_set_chr(dev, "parallel",
+                          qemu_chr_new("pii4x.parallel", "null"));
+    }
+    object_property_set_bool(OBJECT(&s->parallel), true, "realized", &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+
     piix4_dev = pci_dev;
     qemu_register_reset(piix4_reset, s);
+}
+
+static void piix4_init(Object *obj)
+{
+    PIIX4State *s = PIIX4_PCI_DEVICE(obj);
+    int i;
+
+    object_initialize(&s->floppy, sizeof(s->floppy), TYPE_ISA_FDC);
+    for (i = 0; i < 2; i++) {
+        object_initialize(&s->serial[i], sizeof(s->serial[i]), TYPE_ISA_SERIAL);
+    }
+    object_initialize(&s->parallel, sizeof(s->parallel), TYPE_ISA_PARALLEL);
+
+    object_property_add_alias(obj, "floppy", OBJECT(&s->floppy), "driveA",
+                              &error_abort);
+    object_property_add_alias(obj, "serial0", OBJECT(&s->serial[0]), "chardev",
+                              &error_abort);
+    object_property_add_alias(obj, "serial1", OBJECT(&s->serial[1]), "chardev",
+                              &error_abort);
+    object_property_add_alias(obj, "parallel", OBJECT(&s->parallel), "chardev",
+                              &error_abort);
 }
 
 static void piix4_class_init(ObjectClass *klass, void *data)
@@ -199,6 +265,7 @@ static const TypeInfo piix4_info = {
     .name          = TYPE_PIIX4_PCI_DEVICE,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PIIX4State),
+    .instance_init = piix4_init,
     .class_init    = piix4_class_init,
     .interfaces = (InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
