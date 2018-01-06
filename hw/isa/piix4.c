@@ -87,16 +87,17 @@ static const VMStateDescription vmstate_piix4 = {
     }
 };
 
-static void piix4_realize(PCIDevice *dev, Error **errp)
+static void piix4_realize(PCIDevice *pci_dev, Error **errp)
 {
-    PIIX4State *d = PIIX4_PCI_DEVICE(dev);
+    DeviceState *dev = DEVICE(pci_dev);
+    PIIX4State *s = DO_UPCAST(PIIX4State, dev, pci_dev);
 
-    if (!isa_bus_new(DEVICE(d), pci_address_space(dev),
-                     pci_address_space_io(dev), errp)) {
+    if (!isa_bus_new(dev, pci_address_space(pci_dev),
+                     pci_address_space_io(pci_dev), errp)) {
         return;
     }
-    piix4_dev = &d->dev;
-    qemu_register_reset(piix4_reset, d);
+    piix4_dev = pci_dev;
+    qemu_register_reset(piix4_reset, s);
 }
 
 int piix4_init(PCIBus *bus, ISABus **isa_bus, int devfn)
