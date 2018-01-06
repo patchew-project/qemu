@@ -29,6 +29,7 @@
 #include "hw/pci/pci.h"
 #include "hw/isa/isa.h"
 #include "hw/sysbus.h"
+#include "hw/timer/i8254.h"
 
 PCIDevice *piix4_dev;
 
@@ -161,6 +162,9 @@ static void piix4_realize(PCIDevice *pci_dev, Error **errp)
 
     /* initialize ISA irqs */
     isa_bus_irqs(isa_bus, s->isa);
+
+    /* initialize pit */
+    i8254_pit_init(isa_bus, 0x40, 0, NULL);
 
     /* DMA */
     DMA_init(isa_bus, 0);
