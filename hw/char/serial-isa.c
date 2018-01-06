@@ -26,18 +26,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "hw/char/serial.h"
-#include "hw/isa/isa.h"
-
-#define ISA_SERIAL(obj) OBJECT_CHECK(ISASerialState, (obj), TYPE_ISA_SERIAL)
-
-typedef struct ISASerialState {
-    ISADevice parent_obj;
-
-    uint32_t index;
-    uint32_t iobase;
-    uint32_t isairq;
-    SerialState state;
-} ISASerialState;
+#include "hw/char/isa.h"
 
 static const int isa_serial_io[MAX_SERIAL_PORTS] = {
     0x3f8, 0x2f8, 0x3e8, 0x2e8

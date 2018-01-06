@@ -41,7 +41,7 @@
 #include "hw/ppc/pnv_xscom.h"
 
 #include "hw/isa/isa.h"
-#include "hw/char/serial.h"
+#include "hw/char/isa.h"
 #include "hw/timer/mc146818rtc.h"
 
 #include <libfdt.h>
