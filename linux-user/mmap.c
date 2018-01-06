@@ -221,7 +221,7 @@ static abi_ulong mmap_find_vma_reserved(abi_ulong start, abi_ulong size)
     addr = end_addr - qemu_host_page_size;
 
     while (1) {
-        if (addr > end_addr) {
+        if (!addr || addr > end_addr) {
             if (looped) {
                 return (abi_ulong)-1;
             }
