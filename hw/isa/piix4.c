@@ -169,6 +169,9 @@ static void piix4_realize(PCIDevice *pci_dev, Error **errp)
     /* DMA */
     DMA_init(isa_bus, 0);
 
+    /* Super I/O */
+    isa_create_simple(isa_bus, "i8042");
+
     piix4_dev = pci_dev;
     qemu_register_reset(piix4_reset, s);
 }
