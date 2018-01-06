@@ -343,7 +343,19 @@ static int spapr_fixup_cpu_dt(void *fdt, sPAPRMachineState *spapr)
         PowerPCCPU *cpu = POWERPC_CPU(cs);
         DeviceClass *dc = DEVICE_GET_CLASS(cs);
         int index = spapr_vcpu_id(cpu);
-        int compat_smt = MIN(smp_threads, ppc_compat_max_threads(cpu));
+
+        /* set smt to maximum for this current pvr if the number
+         * passed is higher than defined by PVR compat mode AND
+         * if KVM cannot emulate it.*/
+        int compat_smt = smp_threads;
+        if ((kvmppc_cap_smt_possible() & smp_threads) != smp_threads &&
+                smp_threads > ppc_compat_max_threads(cpu)) {
+            compat_smt = ppc_compat_max_threads(cpu);
+
+            trace_spapr_fixup_cpu_smt(index, smp_threads,
+                    kvmppc_cap_smt_possible(),
+                    ppc_compat_max_threads(cpu));
+        }
 
         if ((index % smt) != 0) {
             continue;
