@@ -967,17 +967,16 @@ static void rtc_realizefn(DeviceState *dev, Error **errp)
                               OBJECT(s), "date", NULL);
 
     qdev_init_gpio_out(dev, &s->irq, 1);
+    QLIST_INSERT_HEAD(&rtc_devices, s, link);
 }
 
 ISADevice *mc146818_rtc_init(ISABus *bus, int base_year, qemu_irq intercept_irq)
 {
     DeviceState *dev;
     ISADevice *isadev;
-    RTCState *s;
 
     isadev = isa_create(bus, TYPE_MC146818_RTC);
     dev = DEVICE(isadev);
-    s = MC146818_RTC(isadev);
     qdev_prop_set_int32(dev, "base_year", base_year);
     qdev_init_nofail(dev);
     if (intercept_irq) {
@@ -985,7 +984,6 @@ ISADevice *mc146818_rtc_init(ISABus *bus, int base_year, qemu_irq intercept_irq)
     } else {
         isa_connect_gpio_out(isadev, 0, RTC_ISA_IRQ);
     }
-    QLIST_INSERT_HEAD(&rtc_devices, s, link);
 
     return isadev;
 }
@@ -1016,8 +1014,6 @@ static void rtc_class_initfn(ObjectClass *klass, void *data)
     dc->reset = rtc_resetdev;
     dc->vmsd = &vmstate_rtc;
     dc->props = mc146818rtc_properties;
-    /* Reason: needs to be wired up by rtc_init() */
-    dc->user_creatable = false;
 }
 
 static void rtc_finalize(Object *obj)
