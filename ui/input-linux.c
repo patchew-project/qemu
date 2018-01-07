@@ -5,6 +5,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/cutils.h"
 #include "qapi/error.h"
 #include "qemu-common.h"
 #include "qemu/config-file.h"
@@ -62,6 +63,8 @@ struct InputLinux {
     int         abs_y_max;
     struct input_event event;
     int         read_offset;
+    long        rhotkey;
+    long        lhotkey;
 
     QTAILQ_ENTRY(InputLinux) next;
 };
@@ -134,8 +137,8 @@ static void input_linux_handle_keyboard(InputLinux *il,
         }
 
         /* hotkey -> record switch request ... */
-        if (il->keydown[KEY_LEFTCTRL] &&
-            il->keydown[KEY_RIGHTCTRL]) {
+        if (il->keydown[il->rhotkey] &&
+            il->keydown[il->lhotkey]) {
             il->grab_request = true;
         }
 
@@ -274,6 +277,14 @@ static void input_linux_complete(UserCreatable *uc, Error **errp)
         return;
     }
 
+    if (!il->rhotkey) {
+        il->rhotkey = KEY_RIGHTCTRL;
+    }
+
+    if (!il->lhotkey) {
+        il->lhotkey = KEY_LEFTCTRL;
+    }
+
     il->fd = open(il->evdev, O_RDWR);
     if (il->fd < 0)  {
         error_setg_file_open(errp, errno, il->evdev);
@@ -395,6 +406,62 @@ static void input_linux_set_grab_all(Object *obj, bool value,
     il->grab_all = value;
 }
 
+static void input_linux_set_rhotkey(Object *obj, const char *value,
+                                   Error **errp)
+{
+    InputLinux *il = INPUT_LINUX(obj);
+    InputLinux *item;
+    long rhotkey;
+    int res = qemu_strtol(value, NULL, 0, &rhotkey);
+    if (res != 0) {
+        rhotkey = KEY_RIGHTCTRL;
+    }
+    il->rhotkey = rhotkey;
+
+    QTAILQ_FOREACH(item, &inputs, next) {
+        if (item == il || item->rhotkey) {
+            continue;
+        }
+        item->rhotkey = rhotkey;
+    }
+}
+
+static char *input_linux_get_rhotkey(Object *obj, Error **errp)
+{
+    InputLinux *il = INPUT_LINUX(obj);
+    char buf[sizeof(int) * 4];
+    sprintf(buf, "%ld", il->rhotkey);
+    return g_strdup(buf);
+}
+
+static void input_linux_set_lhotkey(Object *obj, const char *value,
+                                   Error **errp)
+{
+    InputLinux *il = INPUT_LINUX(obj);
+    InputLinux *item;
+    long lhotkey = KEY_LEFTCTRL;
+    int res = qemu_strtol(value, NULL, 0, &lhotkey);
+    if (res != 0) {
+        lhotkey = KEY_LEFTCTRL;
+    }
+    il->lhotkey = lhotkey;
+
+    QTAILQ_FOREACH(item, &inputs, next) {
+        if (item == il || item->lhotkey) {
+            continue;
+        }
+        item->lhotkey = lhotkey;
+    }
+}
+
+static char *input_linux_get_lhotkey(Object *obj, Error **errp)
+{
+    InputLinux *il = INPUT_LINUX(obj);
+    char buf[sizeof(int) * 4];
+    sprintf(buf, "%ld", il->lhotkey);
+    return g_strdup(buf);
+}
+
 static bool input_linux_get_repeat(Object *obj, Error **errp)
 {
     InputLinux *il = INPUT_LINUX(obj);
@@ -421,6 +488,12 @@ static void input_linux_instance_init(Object *obj)
     object_property_add_bool(obj, "repeat",
                              input_linux_get_repeat,
                              input_linux_set_repeat, NULL);
+    object_property_add_str(obj, "rhotkey",
+                            input_linux_get_rhotkey,
+                            input_linux_set_rhotkey, NULL);
+    object_property_add_str(obj, "lhotkey",
+                            input_linux_get_lhotkey,
+                            input_linux_set_lhotkey, NULL);
 }
 
 static void input_linux_class_init(ObjectClass *oc, void *data)
