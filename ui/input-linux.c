@@ -134,8 +134,8 @@ static void input_linux_handle_keyboard(InputLinux *il,
         }
 
         /* hotkey -> record switch request ... */
-        if (il->keydown[KEY_LEFTCTRL] &&
-            il->keydown[KEY_RIGHTCTRL]) {
+        if (il->keydown[qemu_evdev_lhotkey] &&
+            il->keydown[qemu_evdev_rhotkey]) {
             il->grab_request = true;
         }
 

@@ -4264,6 +4264,19 @@ contents of @code{iv.b64} to the second secret
 
 ETEXI
 
+DEF("evdev-lhotkey", HAS_ARG, QEMU_OPTION_evdev_lhotkey, "--evdev-lhotkey    left hotkey for evdev input toggle, default=LEFTCTRL(29)\n", QEMU_ARCH_ALL)
+STEXI
+@item --evdev-lhotkey @var{evdevLHotkey}
+@findex --evdev-lhotkey
+Left keycode to use in toggling evdev
+ETEXI
+
+DEF("evdev-rhotkey", HAS_ARG, QEMU_OPTION_evdev_rhotkey, "--evdev-rhotkey     right hotkey for evdev input toggle, default=RIGHTCTRL(97)\n", QEMU_ARCH_ALL)
+STEXI
+@item --evdev-rhotkey @var{evdevRHotkey}
+@findex --evdev-rhotkey
+Right keycode to use in toggling evdev
+ETEXI
 
 HXCOMM This is the last statement. Insert new options before this line!
 STEXI

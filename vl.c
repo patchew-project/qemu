@@ -184,6 +184,8 @@ bool boot_strict;
 uint8_t *boot_splash_filedata;
 size_t boot_splash_filedata_size;
 uint8_t qemu_extra_params_fw[2];
+int qemu_evdev_lhotkey = 29;  /* LEFTCONTROL */
+int qemu_evdev_rhotkey = 97;  /* RIGHTCONTROL */
 
 int icount_align_option;
 
@@ -3377,6 +3379,12 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_initrd:
                 qemu_opts_set(qemu_find_opts("machine"), 0, "initrd", optarg,
                               &error_abort);
+                break;
+            case QEMU_OPTION_evdev_rhotkey:
+                qemu_evdev_rhotkey = strtol(optarg, NULL, 0);
+                break;
+            case QEMU_OPTION_evdev_lhotkey:
+                qemu_evdev_lhotkey = strtol(optarg, NULL, 0);
                 break;
             case QEMU_OPTION_append:
                 qemu_opts_set(qemu_find_opts("machine"), 0, "append", optarg,
