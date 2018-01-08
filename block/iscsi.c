@@ -659,8 +659,7 @@ static int64_t coroutine_fn iscsi_co_get_block_status(BlockDriverState *bs,
     int64_t ret;
 
     if (!is_sector_request_lun_aligned(sector_num, nb_sectors, iscsilun)) {
-        ret = -EINVAL;
-        goto out;
+        return -EINVAL;
     }
 
     /* default to all sectors allocated */
