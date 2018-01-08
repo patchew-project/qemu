@@ -8,6 +8,25 @@
 
 #include "net/eth.h"
 
+#ifdef __GNUC__
+# undef IN6_IS_ADDR_UNSPECIFIED
+# pragma GCC poison IN6_IS_ADDR_UNSPECIFIED
+# undef IN6_IS_ADDR_LOOPBACK
+# pragma GCC poison IN6_IS_ADDR_LOOPBACK
+# undef IN6_IS_ADDR_LINKLOCAL
+# pragma GCC poison IN6_IS_ADDR_LINKLOCAL
+# undef IN6_IS_ADDR_SITELOCAL
+# pragma GCC poison IN6_IS_ADDR_SITELOCAL
+# undef IN6_IS_ADDR_V4MAPPED
+# pragma GCC poison IN6_IS_ADDR_V4MAPPED
+# undef IN6_IS_ADDR_V4COMPAT
+# pragma GCC poison IN6_IS_ADDR_V4COMPAT
+# undef IN6_ARE_ADDR_EQUAL
+# pragma GCC poison IN6_ARE_ADDR_EQUAL
+# undef IN6_IS_ADDR_MULTICAST
+# pragma GCC poison IN6_IS_ADDR_MULTICAST
+#endif
+
 #define ALLNODES_MULTICAST  { .s6_addr = \
                             { 0xff, 0x02, 0x00, 0x00,\
                             0x00, 0x00, 0x00, 0x00,\
