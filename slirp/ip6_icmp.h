@@ -17,20 +17,20 @@
 struct icmp6_echo { /* Echo Messages */
     uint16_t id;
     uint16_t seq_num;
-};
+} QEMU_PACKED;
 
 union icmp6_error_body {
     uint32_t unused;
     uint32_t pointer;
     uint32_t mtu;
-};
+} QEMU_PACKED;
 
 /*
  * NDP Messages
  */
 struct ndp_rs {     /* Router Solicitation Message */
     uint32_t reserved;
-};
+} QEMU_PACKED;
 
 struct ndp_ra {     /* Router Advertisement Message */
     uint8_t chl;    /* Cur Hop Limit */
