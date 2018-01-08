@@ -51,11 +51,19 @@
                         0x00, 0x00, 0x00, 0x00,\
                         0x00, 0x00, 0x00, 0x00 } }
 
+#ifdef HOST_SUPPORTS_UNALIGNED_ACCESS
 static inline bool in6_equal(const struct in6_addr *a, const struct in6_addr *b)
 {
     return memcmp(a, b, sizeof(*a)) == 0;
 }
+#else
+static inline bool in6_equal(const void *a, const void *b)
+{
+    return memcmp(a, b, sizeof(struct in6_addr)) == 0;
+}
+#endif
 
+#ifdef HOST_SUPPORTS_UNALIGNED_ACCESS
 static inline bool in6_equal_net(const struct in6_addr *a,
                                  const struct in6_addr *b,
                                  int prefix_len)
@@ -71,7 +79,28 @@ static inline bool in6_equal_net(const struct in6_addr *a,
     return a->s6_addr[prefix_len / 8] >> (8 - (prefix_len % 8))
         == b->s6_addr[prefix_len / 8] >> (8 - (prefix_len % 8));
 }
+#else
+static inline bool in6_equal_net(const void *a,
+                                 const void *b,
+                                 int prefix_len)
+{
+    const uint8_t *aa = (uint8_t *)a;
+    const uint8_t *ab = (uint8_t *)b;
 
+    if (memcmp(a, b, prefix_len / 8) != 0) {
+        return 0;
+    }
+
+    if (prefix_len % 8 == 0) {
+        return 1;
+    }
+
+    return (aa[prefix_len / 8] >> (8 - (prefix_len % 8)))
+        == (ab[prefix_len / 8] >> (8 - (prefix_len % 8)));
+}
+#endif
+
+#ifdef HOST_SUPPORTS_UNALIGNED_ACCESS
 static inline bool in6_equal_mach(const struct in6_addr *a,
                                   const struct in6_addr *b,
                                   int prefix_len)
@@ -89,6 +118,28 @@ static inline bool in6_equal_mach(const struct in6_addr *a,
     return (a->s6_addr[prefix_len / 8] & ((1U << (8 - (prefix_len % 8))) - 1))
         == (b->s6_addr[prefix_len / 8] & ((1U << (8 - (prefix_len % 8))) - 1));
 }
+#else
+static inline bool in6_equal_mach(const void *a,
+                                  const void *b,
+                                  int prefix_len)
+{
+    const uint8_t *aa = (uint8_t *)a;
+    const uint8_t *ab = (uint8_t *)b;
+
+    if (memcmp(&(aa[DIV_ROUND_UP(prefix_len, 8)]),
+               &(ab[DIV_ROUND_UP(prefix_len, 8)]),
+               16 - DIV_ROUND_UP(prefix_len, 8)) != 0) {
+        return 0;
+    }
+
+    if (prefix_len % 8 == 0) {
+        return 1;
+    }
+
+    return (aa[prefix_len / 8] & ((1U << (8 - (prefix_len % 8))) - 1))
+        == (ab[prefix_len / 8] & ((1U << (8 - (prefix_len % 8))) - 1));
+}
+#endif
 
 
 #define in6_equal_router(a)\
@@ -112,10 +163,17 @@ static inline bool in6_equal_mach(const struct in6_addr *a,
 #define in6_zero(a)\
     (in6_equal(a, &(struct in6_addr)ZERO_ADDR))
 
+#ifdef HOST_SUPPORTS_UNALIGNED_ACCESS
 static inline bool in6_multicast(const struct in6_addr *a)
 {
     return a->s6_addr[0] == 0xff;
 }
+#else
+static inline bool in6_multicast(const void *a)
+{
+    return ((const uint8_t *)a)[0] == 0xff;
+}
+#endif
 
 /* Compute emulated host MAC address from its ipv6 address */
 static inline void in6_compute_ethaddr(struct in6_addr ip,
