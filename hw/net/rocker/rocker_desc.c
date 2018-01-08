@@ -23,6 +23,19 @@
 #include "rocker_hw.h"
 #include "rocker_desc.h"
 
+/*
+ * Rocker DMA Descriptor
+ */
+
+typedef struct rocker_desc {
+    __le64 buf_addr;
+    uint64_t cookie;
+    __le16 buf_size;
+    __le16 tlv_size;
+    __le16 rsvd[5];   /* pad to 32 bytes */
+    __le16 comp_err;
+} QEMU_PACKED QEMU_ALIGNED(8) RockerDesc;
+
 struct desc_ring {
     hwaddr base_addr;
     uint32_t size;
