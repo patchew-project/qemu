@@ -48,6 +48,8 @@ static char cpu_reg_names[2 * 8 * 3 + 5 * 4];
 static TCGv cpu_dregs[8];
 static TCGv cpu_aregs[8];
 static TCGv_i64 cpu_macc[4];
+static TCGv QEMU_DFC;
+static TCGv QEMU_SFC;
 
 #define REG(insn, pos)  (((insn) >> (pos)) & 7)
 #define DREG(insn, pos) cpu_dregs[REG(insn, pos)]
@@ -103,6 +105,10 @@ void m68k_tcg_init(void)
         p += 5;
     }
 
+    QEMU_DFC = tcg_global_mem_new(cpu_env, offsetof(CPUM68KState, dfc),
+                                  "DFC");
+    QEMU_SFC = tcg_global_mem_new(cpu_env, offsetof(CPUM68KState, sfc),
+                                  "SFC");
     NULL_QREG = tcg_global_mem_new(cpu_env, -4, "NULL");
     store_dummy = tcg_global_mem_new(cpu_env, -8, "NULL");
 }
@@ -4449,6 +4455,70 @@ DISAS_INSN(move_from_sr)
 }
 
 #if defined(CONFIG_SOFTMMU)
+DISAS_INSN(moves)
+{
+    int opsize;
+    uint16_t ext;
+    TCGv reg;
+    TCGv addr;
+    TCGv size;
+    int extend;
+
+    if (IS_USER(s)) {
+        gen_exception(s, s->insn_pc, EXCP_PRIVILEGE);
+        return;
+    }
+
+    ext = read_im16(env, s);
+
+    opsize = insn_opsize(insn);
+
+    if (ext & 0x8000) {
+        /* address register */
+        reg = AREG(ext, 12);
+        extend = 1;
+    } else {
+        /* data register */
+        reg = DREG(ext, 12);
+        extend = 0;
+    }
+
+    addr = gen_lea(env, s, insn, opsize);
+    if (IS_NULL_QREG(addr)) {
+        gen_addr_fault(s);
+        return;
+    }
+
+    size = tcg_const_i32(opsize);
+    if (ext & 0x0800) {
+        /* from reg to ea */
+        gen_helper_moves_store(cpu_env, reg, addr, size);
+    } else {
+        /* from ea to reg */
+        TCGv tmp = tcg_temp_new();
+        gen_helper_moves_load(tmp, cpu_env, addr, size);
+        if (extend) {
+            gen_ext(reg, tmp, opsize, 1);
+        } else {
+            gen_partset_reg(opsize, reg, tmp);
+        }
+        tcg_temp_free(tmp);
+    }
+    tcg_temp_free(size);
+
+    switch (extract32(insn, 3, 3)) {
+    case 3: /* Indirect postincrement.  */
+        tcg_gen_addi_i32(AREG(insn, 0), addr,
+                         REG(insn, 0) == 7 && opsize == OS_BYTE
+                         ? 2
+                         : opsize_bytes(opsize));
+        break;
+    case 4: /* Indirect predecrememnt.  */
+        tcg_gen_mov_i32(AREG(insn, 0), addr);
+        break;
+    }
+}
+
 DISAS_INSN(move_to_sr)
 {
     if (IS_USER(s)) {
@@ -5601,6 +5671,9 @@ void register_m68k_insns (CPUM68KState *env)
     BASE(bitop_im,  08c0, ffc0);
     INSN(arith_im,  0a80, fff8, CF_ISA_A);
     INSN(arith_im,  0a00, ff00, M68000);
+#if defined(CONFIG_SOFTMMU)
+    INSN(moves,     0e00, ff00, M68000);
+#endif
     INSN(cas,       0ac0, ffc0, CAS);
     INSN(cas,       0cc0, ffc0, CAS);
     INSN(cas,       0ec0, ffc0, CAS);
@@ -5981,6 +6054,7 @@ void m68k_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
                env->current_sp == M68K_USP ? "->" : "  ", env->sp[M68K_USP],
                env->current_sp == M68K_ISP ? "->" : "  ", env->sp[M68K_ISP]);
     cpu_fprintf(f, "VBR = 0x%08x\n", env->vbr);
+    cpu_fprintf(f, "SFC = %x DFC %x\n", env->sfc, env->dfc);
     cpu_fprintf(f, "SSW %08x TCR %08x URP %08x SRP %08x\n",
                 env->mmu.ssw, env->mmu.tcr, env->mmu.urp, env->mmu.srp);
     cpu_fprintf(f, "DTTR0/1: %08x/%08x ITTR0/1: %08x/%08x\n",

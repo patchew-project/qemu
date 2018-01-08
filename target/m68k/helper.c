@@ -21,6 +21,7 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "exec/exec-all.h"
+#include "exec/cpu_ldst.h"
 #include "exec/gdbstub.h"
 
 #include "exec/helper-proto.h"
@@ -203,6 +204,12 @@ void HELPER(m68k_movec_to)(CPUM68KState *env, uint32_t reg, uint32_t val)
 
     switch (reg) {
     /* MC680[1234]0 */
+    case M68K_CR_SFC:
+        env->sfc = val & 7;
+        return;
+    case M68K_CR_DFC:
+        env->dfc = val & 7;
+        return;
     case M68K_CR_VBR:
         env->vbr = val;
         return;
@@ -254,6 +261,10 @@ uint32_t HELPER(m68k_movec_from)(CPUM68KState *env, uint32_t reg)
 
     switch (reg) {
     /* MC680[1234]0 */
+    case M68K_CR_SFC:
+        return env->sfc;
+    case M68K_CR_DFC:
+        return env->dfc;
     case M68K_CR_VBR:
         return env->vbr;
     /* MC680[234]0 */
@@ -1066,6 +1077,77 @@ void HELPER(set_mac_extu)(CPUM68KState *env, uint32_t val, uint32_t acc)
 }
 
 #if defined(CONFIG_SOFTMMU)
+void HELPER(moves_store)(CPUM68KState *env, uint32_t val,
+                         uint32_t addr, uint32_t size)
+{
+    if (env->dfc & 4) { /* kernel */
+        switch (size) {
+        case OS_BYTE:
+            cpu_stb_kernel_ra(env, addr, val, GETPC());
+            break;
+        case OS_WORD:
+            cpu_stw_kernel_ra(env, addr, val, GETPC());
+            break;
+        case OS_LONG:
+            cpu_stl_kernel_ra(env, addr, val, GETPC());
+            break;
+        default:
+            g_assert_not_reached();
+        }
+    } else { /* user */
+        switch (size) {
+        case OS_BYTE:
+            cpu_stb_user_ra(env, addr, val, GETPC());
+            break;
+        case OS_WORD:
+            cpu_stw_user_ra(env, addr, val, GETPC());
+            break;
+        case OS_LONG:
+            cpu_stl_user_ra(env, addr, val, GETPC());
+            break;
+        default:
+            g_assert_not_reached();
+        }
+    }
+}
+
+uint32_t HELPER(moves_load)(CPUM68KState *env, uint32_t addr, uint32_t size)
+{
+    uint32_t val;
+
+    if (env->sfc & 4) { /* kernel */
+        switch (size) {
+        case OS_BYTE:
+            val = cpu_ldub_kernel_ra(env, addr, GETPC());
+            break;
+        case OS_WORD:
+            val = cpu_lduw_kernel_ra(env, addr, GETPC());
+            break;
+        case OS_LONG:
+            val = cpu_ldl_kernel_ra(env, addr, GETPC());
+            break;
+        default:
+            g_assert_not_reached();
+        }
+    } else { /* user */
+        switch (size) {
+        case OS_BYTE:
+            val = cpu_ldub_user_ra(env, addr, GETPC());
+            break;
+        case OS_WORD:
+            val = cpu_lduw_user_ra(env, addr, GETPC());
+            break;
+        case OS_LONG:
+            val = cpu_ldl_user_ra(env, addr, GETPC());
+            break;
+        default:
+            g_assert_not_reached();
+        }
+    }
+
+    return val;
+}
+
 void HELPER(reset)(CPUM68KState *env)
 {
     /* FIXME: reset all except CPU */

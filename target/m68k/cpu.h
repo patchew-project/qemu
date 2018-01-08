@@ -137,6 +137,8 @@ typedef struct CPUM68KState {
     uint32_t mbar;
     uint32_t rambar0;
     uint32_t cacr;
+    uint32_t sfc;
+    uint32_t dfc;
 
     int pending_vector;
     int pending_level;
