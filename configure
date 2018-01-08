@@ -276,6 +276,7 @@ cc_i386=i386-pc-linux-gnu-gcc
 libs_qga=""
 debug_info="yes"
 stack_protector=""
+host_supports_unaligned_access="no"
 
 if test -e "$source_path/.git"
 then
@@ -691,6 +692,13 @@ esac
 if test -z "$ARCH"; then
   ARCH="$cpu"
 fi
+
+# ARCH specific
+case "$ARCH" in
+  i386|x86_64)
+    host_supports_unaligned_access="yes"
+  ;;
+esac
 
 # OS specific
 
@@ -4990,6 +4998,15 @@ if test "$fortify_source" != "no"; then
     fortify_source="no";
   else
     fortify_source="yes"
+  fi
+fi
+
+#################################################
+# check if host supports unaligned access
+
+if test "$host_supports_unaligned_access" != "no"; then
+  if compile_prog "-Werror -Wno-address-of-packed-member" "" ; then
+    QEMU_CFLAGS="-Wno-address-of-packed-member $QEMU_CFLAGS"
   fi
 fi
 
