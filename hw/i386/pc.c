@@ -93,12 +93,12 @@ struct e820_entry {
     uint64_t address;
     uint64_t length;
     uint32_t type;
-} QEMU_PACKED __attribute((__aligned__(4)));
+} QEMU_PACKED QEMU_ALIGNED(4);
 
 struct e820_table {
     uint32_t count;
     struct e820_entry entry[E820_NR_ENTRIES];
-} QEMU_PACKED __attribute((__aligned__(4)));
+} QEMU_PACKED QEMU_ALIGNED(4);
 
 static struct e820_table e820_reserve;
 static struct e820_entry *e820_table;
