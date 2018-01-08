@@ -23,7 +23,7 @@
 
 struct MACAddr {
     uint8_t a[6];
-};
+} QEMU_PACKED;
 
 /* qdev nic properties */
 
