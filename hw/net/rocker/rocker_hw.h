@@ -130,7 +130,7 @@ typedef struct rocker_desc {
     __le16 tlv_size;
     __le16 rsvd[5];   /* pad to 32 bytes */
     __le16 comp_err;
-} __attribute__((packed, aligned(8))) RockerDesc;
+} QEMU_PACKED QEMU_ALIGNED(8) RockerDesc;
 
 /*
  * Rocker TLV type fields
@@ -140,7 +140,7 @@ typedef struct rocker_tlv {
     __le32 type;
     __le16 len;
     __le16 rsvd;
-} __attribute__((packed, aligned(8))) RockerTlv;
+} QEMU_PACKED QEMU_ALIGNED(8) RockerTlv;
 
 /* cmd msg */
 enum {
