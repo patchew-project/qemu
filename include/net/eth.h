@@ -36,12 +36,12 @@ struct eth_header {
     uint8_t  h_dest[ETH_ALEN];   /* destination eth addr */
     uint8_t  h_source[ETH_ALEN]; /* source ether addr    */
     uint16_t h_proto;            /* packet type ID field */
-};
+} QEMU_PACKED;
 
 struct vlan_header {
     uint16_t  h_tci;     /* priority and VLAN ID  */
     uint16_t  h_proto;   /* encapsulated protocol */
-};
+} QEMU_PACKED;
 
 struct ip_header {
     uint8_t  ip_ver_len;     /* version and header length */
@@ -53,9 +53,9 @@ struct ip_header {
     uint8_t  ip_p;           /* protocol */
     uint16_t ip_sum;         /* checksum */
     uint32_t ip_src, ip_dst; /* source and destination address */
-};
+} QEMU_PACKED;
 
-typedef struct tcp_header {
+typedef struct QEMU_PACKED tcp_header {
     uint16_t th_sport;          /* source port */
     uint16_t th_dport;          /* destination port */
     uint32_t th_seq;            /* sequence number */
@@ -77,14 +77,14 @@ typedef struct tcp_header {
 #define TCP_HEADER_DATA_OFFSET(tcp) \
     (((be16_to_cpu((tcp)->th_offset_flags) >> 12) & 0xf) << 2)
 
-typedef struct udp_header {
+typedef struct QEMU_PACKED udp_header {
     uint16_t uh_sport; /* source port */
     uint16_t uh_dport; /* destination port */
     uint16_t uh_ulen;  /* udp length */
     uint16_t uh_sum;   /* udp checksum */
 } udp_header;
 
-typedef struct ip_pseudo_header {
+typedef struct QEMU_PACKED ip_pseudo_header {
     uint32_t ip_src;
     uint32_t ip_dst;
     uint8_t  zeros;
@@ -116,9 +116,9 @@ struct ip6_header {
     } ip6_ctlun;
     struct in6_address ip6_src;    /* source address */
     struct in6_address ip6_dst;    /* destination address */
-};
+} QEMU_PACKED;
 
-typedef struct ip6_pseudo_header {
+typedef struct QEMU_PACKED ip6_pseudo_header {
     struct in6_address ip6_src;
     struct in6_address ip6_dst;
     uint32_t           len;
@@ -129,7 +129,7 @@ typedef struct ip6_pseudo_header {
 struct ip6_ext_hdr {
     uint8_t        ip6r_nxt;   /* next header */
     uint8_t        ip6r_len;   /* length in units of 8 octets */
-};
+} QEMU_PACKED;
 
 struct ip6_ext_hdr_routing {
     uint8_t     nxt;
@@ -137,21 +137,21 @@ struct ip6_ext_hdr_routing {
     uint8_t     rtype;
     uint8_t     segleft;
     uint8_t     rsvd[4];
-};
+} QEMU_PACKED;
 
 struct ip6_option_hdr {
 #define IP6_OPT_PAD1   (0x00)
 #define IP6_OPT_HOME   (0xC9)
     uint8_t type;
     uint8_t len;
-};
+} QEMU_PACKED;
 
 struct udp_hdr {
   uint16_t uh_sport;           /* source port */
   uint16_t uh_dport;           /* destination port */
   uint16_t uh_ulen;            /* udp length */
   uint16_t uh_sum;             /* udp checksum */
-};
+} QEMU_PACKED;
 
 struct tcp_hdr {
     u_short     th_sport;   /* source port */
@@ -180,7 +180,7 @@ struct tcp_hdr {
     u_short th_win;      /* window */
     u_short th_sum;      /* checksum */
     u_short th_urp;      /* urgent pointer */
-};
+} QEMU_PACKED;
 
 #define ip6_nxt      ip6_ctlun.ip6_un1.ip6_un1_nxt
 #define ip6_ecn_acc  ip6_ctlun.ip6_un3.ip6_un3_ecn
