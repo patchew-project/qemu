@@ -222,6 +222,9 @@ void HELPER(m68k_movec_to)(CPUM68KState *env, uint32_t reg, uint32_t val)
     case M68K_CR_TC:
         env->mmu.tcr = val;
         return;
+    case M68K_CR_MMUSR:
+        env->mmu.mmusr = val;
+        return;
     case M68K_CR_SRP:
         env->mmu.srp = val;
         return;
@@ -273,6 +276,8 @@ uint32_t HELPER(m68k_movec_from)(CPUM68KState *env, uint32_t reg)
     /* MC680[34]0 */
     case M68K_CR_TC:
         return env->mmu.tcr;
+    case M68K_CR_MMUSR:
+        return env->mmu.mmusr;
     case M68K_CR_SRP:
         return env->mmu.srp;
     case M68K_CR_USP:
@@ -432,6 +437,10 @@ static int get_physical_address(CPUM68KState *env, hwaddr *physical,
     for (i = 0; i < M68K_MAX_TTR; i++) {
         if (check_TTR(env->mmu.TTR(access_type, i),
                       prot, address, access_type)) {
+            if (access_type & ACCESS_PTEST) {
+                /* Transparent Translation Register bit */
+                env->mmu.mmusr = M68K_MMU_T_040 | M68K_MMU_R_040;
+            }
             *physical = address;
             *page_size = TARGET_PAGE_SIZE;
             return 0;
@@ -460,6 +469,9 @@ static int get_physical_address(CPUM68KState *env, hwaddr *physical,
         stl_phys(cs->as, entry, next | M68K_DESC_USED);
     }
     if (next & M68K_DESC_WRITEPROT) {
+        if (access_type & ACCESS_PTEST) {
+            env->mmu.mmusr |= M68K_MMU_WP_040;
+        }
         *prot &= ~PAGE_WRITE;
         if (access_type & ACCESS_STORE) {
             return -1;
@@ -477,6 +489,9 @@ static int get_physical_address(CPUM68KState *env, hwaddr *physical,
         stl_phys(cs->as, entry, next | M68K_DESC_USED);
     }
     if (next & M68K_DESC_WRITEPROT) {
+        if (access_type & ACCESS_PTEST) {
+            env->mmu.mmusr |= M68K_MMU_WP_040;
+        }
         *prot &= ~PAGE_WRITE;
         if (access_type & ACCESS_STORE) {
             return -1;
@@ -522,6 +537,12 @@ static int get_physical_address(CPUM68KState *env, hwaddr *physical,
         *page_size = 4096;
         page_offset = address & 0x0fff;
         *physical = (next & ~0x0fff) + page_offset;
+    }
+
+    if (access_type & ACCESS_PTEST) {
+        env->mmu.mmusr |= next & M68K_MMU_SR_MASK_040;
+        env->mmu.mmusr |= *physical & 0xfffff000;
+        env->mmu.mmusr |= M68K_MMU_R_040;
     }
 
     if (next & M68K_DESC_WRITEPROT) {
@@ -1146,6 +1167,57 @@ uint32_t HELPER(moves_load)(CPUM68KState *env, uint32_t addr, uint32_t size)
     }
 
     return val;
+}
+
+void HELPER(ptest)(CPUM68KState *env, uint32_t addr, uint32_t is_read)
+{
+    M68kCPU *cpu = m68k_env_get_cpu(env);
+    CPUState *cs = CPU(cpu);
+    hwaddr physical;
+    int access_type;
+    int prot;
+    int ret;
+    target_ulong page_size;
+
+    access_type = ACCESS_PTEST;
+    if (env->dfc & 4) {
+        access_type |= ACCESS_SUPER;
+    }
+    if ((env->dfc & 3) == 2) {
+        access_type |= ACCESS_CODE;
+    }
+    if (!is_read) {
+        access_type |= ACCESS_STORE;
+    }
+
+    env->mmu.mmusr = 0;
+    env->mmu.ssw = 0;
+    ret = get_physical_address(env, &physical, &prot, addr,
+                               access_type, &page_size);
+    if (ret == 0) {
+        tlb_set_page(cs, addr & TARGET_PAGE_MASK,
+                     physical & TARGET_PAGE_MASK,
+                     prot, access_type & ACCESS_SUPER ?
+                     MMU_KERNEL_IDX : MMU_USER_IDX, page_size);
+    }
+}
+
+void HELPER(pflush)(CPUM68KState *env, uint32_t addr, uint32_t opmode)
+{
+    M68kCPU *cpu = m68k_env_get_cpu(env);
+
+    switch (opmode) {
+    case 0: /* Flush page entry if not global */
+    case 1: /* Flush page entry */
+        tlb_flush_page(CPU(cpu), addr);
+        break;
+    case 2: /* Flush all except global entries */
+        tlb_flush(CPU(cpu));
+        break;
+    case 3: /* Flush all entries */
+        tlb_flush(CPU(cpu));
+        break;
+    }
 }
 
 void HELPER(reset)(CPUM68KState *env)
