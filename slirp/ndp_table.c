@@ -23,7 +23,7 @@ void ndp_table_add(Slirp *slirp, struct in6_addr ip_addr,
                 ethaddr[0], ethaddr[1], ethaddr[2],
                 ethaddr[3], ethaddr[4], ethaddr[5]));
 
-    if (IN6_IS_ADDR_MULTICAST(&ip_addr) || in6_zero(&ip_addr)) {
+    if (in6_multicast(&ip_addr) || in6_zero(&ip_addr)) {
         /* Do not register multicast or unspecified addresses */
         DEBUG_CALL(" abort: do not register multicast or unspecified address");
         return;
@@ -63,7 +63,7 @@ bool ndp_table_search(Slirp *slirp, struct in6_addr ip_addr,
     assert(!in6_zero(&ip_addr));
 
     /* Multicast address: fec0::abcd:efgh/8 -> 33:33:ab:cd:ef:gh */
-    if (IN6_IS_ADDR_MULTICAST(&ip_addr)) {
+    if (in6_multicast(&ip_addr)) {
         out_ethaddr[0] = 0x33; out_ethaddr[1] = 0x33;
         out_ethaddr[2] = ip_addr.s6_addr[12];
         out_ethaddr[3] = ip_addr.s6_addr[13];

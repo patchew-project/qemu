@@ -93,6 +93,11 @@ static inline bool in6_equal_mach(const struct in6_addr *a,
 #define in6_zero(a)\
     (in6_equal(a, &(struct in6_addr)ZERO_ADDR))
 
+static inline bool in6_multicast(const struct in6_addr *a)
+{
+    return a->s6_addr[0] == 0xff;
+}
+
 /* Compute emulated host MAC address from its ipv6 address */
 static inline void in6_compute_ethaddr(struct in6_addr ip,
                                        uint8_t eth[ETH_ALEN])

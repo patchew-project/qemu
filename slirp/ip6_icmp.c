@@ -76,7 +76,7 @@ void icmp6_send_error(struct mbuf *m, uint8_t type, uint8_t code)
     DEBUG_CALL("icmp6_send_error");
     DEBUG_ARGS((dfd, " type = %d, code = %d\n", type, code));
 
-    if (IN6_IS_ADDR_MULTICAST(&ip->ip_src) ||
+    if (in6_multicast(&ip->ip_src) ||
             in6_zero(&ip->ip_src)) {
         /* TODO icmp error? */
         return;
@@ -291,7 +291,7 @@ static void ndp_send_na(Slirp *slirp, struct ip6 *ip, struct icmp6 *icmp)
 
     /* NDP */
     ricmp->icmp6_nna.R = NDP_IsRouter;
-    ricmp->icmp6_nna.S = !IN6_IS_ADDR_MULTICAST(&rip->ip_dst);
+    ricmp->icmp6_nna.S = !in6_multicast(&rip->ip_dst);
     ricmp->icmp6_nna.O = 1;
     ricmp->icmp6_nna.reserved_hi = 0;
     ricmp->icmp6_nna.reserved_lo = 0;
@@ -348,7 +348,7 @@ static void ndp_input(struct mbuf *m, Slirp *slirp, struct ip6 *ip,
         DEBUG_CALL(" type = Neighbor Solicitation");
         if (ip->ip_hl == 255
                 && icmp->icmp6_code == 0
-                && !IN6_IS_ADDR_MULTICAST(&icmp->icmp6_nns.target)
+                && !in6_multicast(&icmp->icmp6_nns.target)
                 && ntohs(ip->ip_pl) >= ICMP6_NDP_NS_MINLEN
                 && (!in6_zero(&ip->ip_src)
                     || in6_solicitednode_multicast(&ip->ip_dst))) {
@@ -365,8 +365,8 @@ static void ndp_input(struct mbuf *m, Slirp *slirp, struct ip6 *ip,
         if (ip->ip_hl == 255
                 && icmp->icmp6_code == 0
                 && ntohs(ip->ip_pl) >= ICMP6_NDP_NA_MINLEN
-                && !IN6_IS_ADDR_MULTICAST(&icmp->icmp6_nna.target)
-                && (!IN6_IS_ADDR_MULTICAST(&ip->ip_dst)
+                && !in6_multicast(&icmp->icmp6_nna.target)
+                && (!in6_multicast(&ip->ip_dst)
                     || icmp->icmp6_nna.S == 0)) {
             ndp_table_add(slirp, ip->ip_src, eth->h_source);
         }
