@@ -24,6 +24,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
+#include "hw/sysbus-fdt.h"
 #include "hw/dma/xlnx_dpdma.h"
 
 #ifndef DEBUG_DPDMA
@@ -607,6 +608,7 @@ static const TypeInfo xlnx_dpdma_info = {
 
 static void xlnx_dpdma_register_types(void)
 {
+    type_register_fdt_alias(TYPE_XLNX_DPDMA, "xlnx,axi-dpdma-1.0"); /* ZynqMP */
     type_register_static(&xlnx_dpdma_info);
 }
 
