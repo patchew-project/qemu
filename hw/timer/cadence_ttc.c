@@ -18,6 +18,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
+#include "hw/sysbus-fdt.h"
 #include "qemu/timer.h"
 
 #ifdef CADENCE_TTC_ERR_DEBUG
@@ -488,6 +489,13 @@ static const TypeInfo cadence_ttc_info = {
 
 static void cadence_ttc_register_types(void)
 {
+    static const char *cadence_ttc_fdt_aliases[] = {
+        "cdns.ttc",         /* Zynq */
+        "xlnx.ps7-ttc",     /* Zynq-7xxx SoC */
+        NULL
+    };
+
+    type_register_fdt_aliases(TYPE_CADENCE_TTC, cadence_ttc_fdt_aliases);
     type_register_static(&cadence_ttc_info);
 }
 
