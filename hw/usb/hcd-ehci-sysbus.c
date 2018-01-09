@@ -16,6 +16,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "hw/sysbus-fdt.h"
 #include "hw/usb/hcd-ehci.h"
 
 static const VMStateDescription vmstate_ehci_sysbus = {
@@ -244,6 +245,13 @@ static const TypeInfo ehci_fusbh200_type_info = {
 
 static void ehci_sysbus_register_types(void)
 {
+    static const char *xlnx_ehci_fdt_aliases[] = {
+        "xlnx.zynq-usb",    /* Zynq */
+        "xlnx.ps7-usb",     /* Zynq-7xxx SoC */
+        NULL
+    };
+
+    type_register_fdt_aliases("xlnx,ps7-usb", xlnx_ehci_fdt_aliases);
     type_register_static(&ehci_type_info);
     type_register_static(&ehci_xlnx_type_info);
     type_register_static(&ehci_exynos4210_type_info);
