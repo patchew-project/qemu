@@ -25,6 +25,7 @@
 #include "qemu/osdep.h"
 #include <zlib.h> /* For crc32 */
 
+#include "hw/sysbus-fdt.h"
 #include "hw/net/cadence_gem.h"
 #include "qapi/error.h"
 #include "qemu/log.h"
@@ -1552,6 +1553,15 @@ static const TypeInfo gem_info = {
 
 static void gem_register_types(void)
 {
+    static const char *gem_fdt_aliases[] = {
+        "cdns,gem",
+        "cdns,zynq-gem",    /* Zynq-7xxx SoC */
+        "xlnx.ps7-ethernet",
+        "cdns,zynqmp-gem",  /* Zynq Ultrascale+ MPSoC */
+        NULL
+    };
+
+    type_register_fdt_aliases(TYPE_CADENCE_GEM, gem_fdt_aliases);
     type_register_static(&gem_info);
 }
 
