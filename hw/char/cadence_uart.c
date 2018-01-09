@@ -23,6 +23,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
+#include "hw/sysbus-fdt.h"
 #include "chardev/char-fe.h"
 #include "chardev/char-serial.h"
 #include "qemu/timer.h"
@@ -560,6 +561,17 @@ static const TypeInfo cadence_uart_info = {
 
 static void cadence_uart_register_types(void)
 {
+    static const char *cadence_uart_fdt_aliases[] = {
+        "cdns.uart",
+        "cdns,uart-r1p8",
+        "xlnx,xuartps",     /* Zynq-7xxx SoC */
+        "xlnx.ps7-uart",
+        "cdns,uart-r1p12",
+        "xlnx,zynqmp-uart", /* Zynq Ultrascale+ MPSoC */
+        NULL
+    };
+
+    type_register_fdt_aliases(TYPE_CADENCE_UART, cadence_uart_fdt_aliases);
     type_register_static(&cadence_uart_info);
 }
 
