@@ -24,6 +24,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
+#include "hw/sysbus-fdt.h"
 #include "qapi/error.h"
 #include "qemu/timer.h"
 #include "hw/ptimer.h"
@@ -648,6 +649,7 @@ static const TypeInfo xilinx_axidma_control_stream_info = {
 
 static void xilinx_axidma_register_types(void)
 {
+    type_register_fdt_alias(TYPE_XILINX_AXI_DMA, "xlnx,eth-dma");
     type_register_static(&axidma_info);
     type_register_static(&xilinx_axidma_data_stream_info);
     type_register_static(&xilinx_axidma_control_stream_info);
