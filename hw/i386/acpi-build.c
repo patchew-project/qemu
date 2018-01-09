@@ -2432,6 +2432,8 @@ build_mcfg_q35(GArray *table_data, BIOSLinker *linker, AcpiMcfgInfo *info)
 {
     AcpiTableMcfg *mcfg;
     const char *sig;
+    const char *oem;
+    const char *oem_id;
     int len = sizeof(*mcfg) + 1 * sizeof(mcfg->allocation[0]);
 
     mcfg = acpi_data_push(table_data, len);
@@ -2444,16 +2446,21 @@ build_mcfg_q35(GArray *table_data, BIOSLinker *linker, AcpiMcfgInfo *info)
     /* MCFG is used for ECAM which can be enabled or disabled by guest.
      * To avoid table size changes (which create migration issues),
      * always create the table even if there are no allocations,
-     * but set the signature to a reserved value in this case.
-     * ACPI spec requires OSPMs to ignore such tables.
+     * but fill it with Noop values.
+     * OSPMs ignore such tables.
      */
     if (info->mcfg_base == PCIE_BASE_ADDR_UNMAPPED) {
-        /* Reserved signature: ignored by OSPM */
-        sig = "QEMU";
+        sig = "SSDT";
+        oem = "QEMU ";
+        oem_id = "NOOP";
+        /* 0xa3 - NoopOp */
+        memset(&mcfg->reserved, 0xa3, len - offsetof(AcpiTableMcfg, reserved));
     } else {
         sig = "MCFG";
+        oem = NULL;
+        oem_id = NULL;
     }
-    build_header(linker, table_data, (void *)mcfg, sig, len, 1, NULL, NULL);
+    build_header(linker, table_data, (void *)mcfg, sig, len, 1, oem, oem_id);
 }
 
 /*
