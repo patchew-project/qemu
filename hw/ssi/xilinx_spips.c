@@ -24,6 +24,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
+#include "hw/sysbus-fdt.h"
 #include "sysemu/sysemu.h"
 #include "hw/ptimer.h"
 #include "qemu/log.h"
@@ -1443,6 +1444,7 @@ static const TypeInfo xlnx_zynqmp_qspips_info = {
 
 static void xilinx_spips_register_types(void)
 {
+    type_register_fdt_alias(TYPE_XILINX_QSPIPS, "xlnx.zynq-qspi");
     type_register_static(&xilinx_spips_info);
     type_register_static(&xilinx_qspips_info);
     type_register_static(&xlnx_zynqmp_qspips_info);
