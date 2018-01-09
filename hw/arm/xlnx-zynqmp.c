@@ -24,6 +24,7 @@
 #include "exec/address-spaces.h"
 #include "sysemu/kvm.h"
 #include "kvm_arm.h"
+#include "hw/sysbus-fdt.h"
 
 #define GIC_NUM_SPI_INTR 160
 
@@ -138,6 +139,7 @@ static void xlnx_zynqmp_init(Object *obj)
     XlnxZynqMPState *s = XLNX_ZYNQMP(obj);
     int i;
     int num_apus = MIN(smp_cpus, XLNX_ZYNQMP_NUM_APU_CPUS);
+    const char *type_name;
 
     for (i = 0; i < num_apus; i++) {
         object_initialize(&s->apu_cpu[i], sizeof(s->apu_cpu[i]),
@@ -150,12 +152,14 @@ static void xlnx_zynqmp_init(Object *obj)
     qdev_set_parent_bus(DEVICE(&s->gic), sysbus_get_default());
 
     for (i = 0; i < XLNX_ZYNQMP_NUM_GEMS; i++) {
-        object_initialize(&s->gem[i], sizeof(s->gem[i]), TYPE_CADENCE_GEM);
+        type_name = type_resolve_fdt_alias("cdns,zynqmp-gem");
+        object_initialize(&s->gem[i], sizeof(s->gem[i]), type_name);
         qdev_set_parent_bus(DEVICE(&s->gem[i]), sysbus_get_default());
     }
 
     for (i = 0; i < XLNX_ZYNQMP_NUM_UARTS; i++) {
-        object_initialize(&s->uart[i], sizeof(s->uart[i]), TYPE_CADENCE_UART);
+        type_name = type_resolve_fdt_alias("xlnx,zynqmp-uart");
+        object_initialize(&s->uart[i], sizeof(s->uart[i]), type_name);
         qdev_set_parent_bus(DEVICE(&s->uart[i]), sysbus_get_default());
     }
 
@@ -175,13 +179,15 @@ static void xlnx_zynqmp_init(Object *obj)
         qdev_set_parent_bus(DEVICE(&s->spi[i]), sysbus_get_default());
     }
 
-    object_initialize(&s->qspi, sizeof(s->qspi), TYPE_XLNX_ZYNQMP_QSPIPS);
+    type_name = type_resolve_fdt_alias("xlnx.zynq-qspi");
+    object_initialize(&s->qspi, sizeof(s->qspi), type_name);
     qdev_set_parent_bus(DEVICE(&s->qspi), sysbus_get_default());
 
     object_initialize(&s->dp, sizeof(s->dp), TYPE_XLNX_DP);
     qdev_set_parent_bus(DEVICE(&s->dp), sysbus_get_default());
 
-    object_initialize(&s->dpdma, sizeof(s->dpdma), TYPE_XLNX_DPDMA);
+    type_name = type_resolve_fdt_alias("xlnx,axi-dpdma-1.0");
+    object_initialize(&s->dpdma, sizeof(s->dpdma), type_name);
     qdev_set_parent_bus(DEVICE(&s->dpdma), sysbus_get_default());
 }
 
