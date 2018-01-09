@@ -754,7 +754,7 @@ struct X86CPUDefinition {
     int model;
     int stepping;
     FeatureWordArray features;
-    char model_id[48];
+    const char *model_id;
 };
 
 static X86CPUDefinition builtin_x86_defs[] = {
@@ -2717,6 +2717,9 @@ static void x86_cpu_cpudef_class_init(ObjectClass *oc, void *data)
 {
     X86CPUDefinition *cpudef = data;
     X86CPUClass *xcc = X86_CPU_CLASS(oc);
+
+    /* catch mistakes instead of silently truncating model_id when too long */
+    assert(!cpudef->model_id || strlen(cpudef->model_id) <= 48);
 
     xcc->cpu_def = cpudef;
     xcc->migration_safe = true;
