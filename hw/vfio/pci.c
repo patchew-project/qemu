@@ -1440,9 +1440,9 @@ static int vfio_msix_setup(VFIOPCIDevice *vdev, int pos, Error **errp)
     vdev->msix->pending = g_malloc0(BITS_TO_LONGS(vdev->msix->entries) *
                                     sizeof(unsigned long));
     ret = msix_init(&vdev->pdev, vdev->msix->entries,
-                    vdev->bars[vdev->msix->table_bar].region.mem,
+                    vdev->bars[vdev->msix->table_bar].mr,
                     vdev->msix->table_bar, vdev->msix->table_offset,
-                    vdev->bars[vdev->msix->pba_bar].region.mem,
+                    vdev->bars[vdev->msix->pba_bar].mr,
                     vdev->msix->pba_bar, vdev->msix->pba_offset, pos,
                     &err);
     if (ret < 0) {
@@ -1482,8 +1482,8 @@ static void vfio_teardown_msi(VFIOPCIDevice *vdev)
 
     if (vdev->msix) {
         msix_uninit(&vdev->pdev,
-                    vdev->bars[vdev->msix->table_bar].region.mem,
-                    vdev->bars[vdev->msix->pba_bar].region.mem);
+                    vdev->bars[vdev->msix->table_bar].mr,
+                    vdev->bars[vdev->msix->pba_bar].mr);
         g_free(vdev->msix->pending);
     }
 }
@@ -1500,12 +1500,11 @@ static void vfio_mmap_set_enabled(VFIOPCIDevice *vdev, bool enabled)
     }
 }
 
-static void vfio_bar_setup(VFIOPCIDevice *vdev, int nr)
+static void vfio_bar_prepare(VFIOPCIDevice *vdev, int nr)
 {
     VFIOBAR *bar = &vdev->bars[nr];
 
     uint32_t pci_bar;
-    uint8_t type;
     int ret;
 
     /* Skip both unimplemented BARs and the upper half of 64bit BARS. */
@@ -1524,23 +1523,52 @@ static void vfio_bar_setup(VFIOPCIDevice *vdev, int nr)
     pci_bar = le32_to_cpu(pci_bar);
     bar->ioport = (pci_bar & PCI_BASE_ADDRESS_SPACE_IO);
     bar->mem64 = bar->ioport ? 0 : (pci_bar & PCI_BASE_ADDRESS_MEM_TYPE_64);
-    type = pci_bar & (bar->ioport ? ~PCI_BASE_ADDRESS_IO_MASK :
-                                    ~PCI_BASE_ADDRESS_MEM_MASK);
-
-    if (vfio_region_mmap(&bar->region)) {
-        error_report("Failed to mmap %s BAR %d. Performance may be slow",
-                     vdev->vbasedev.name, nr);
-    }
-
-    pci_register_bar(&vdev->pdev, nr, type, bar->region.mem);
+    bar->type = pci_bar & (bar->ioport ? ~PCI_BASE_ADDRESS_IO_MASK :
+                                         ~PCI_BASE_ADDRESS_MEM_MASK);
+    bar->size = bar->region.size;
 }
 
-static void vfio_bars_setup(VFIOPCIDevice *vdev)
+static void vfio_bars_prepare(VFIOPCIDevice *vdev)
 {
     int i;
 
     for (i = 0; i < PCI_ROM_SLOT; i++) {
-        vfio_bar_setup(vdev, i);
+        vfio_bar_prepare(vdev, i);
+    }
+}
+
+static void vfio_bar_register(VFIOPCIDevice *vdev, int nr)
+{
+    VFIOBAR *bar = &vdev->bars[nr];
+    char *name;
+
+    if (!bar->size) {
+        return;
+    }
+
+    bar->mr = g_new0(MemoryRegion, 1);
+    name = g_strdup_printf("%s base BAR %d", vdev->vbasedev.name, nr);
+    memory_region_init_io(bar->mr, OBJECT(vdev), NULL, NULL, name, bar->size);
+    g_free(name);
+
+    if (bar->region.size) {
+        memory_region_add_subregion(bar->mr, 0, bar->region.mem);
+
+        if (vfio_region_mmap(&bar->region)) {
+            error_report("Failed to mmap %s BAR %d. Performance may be slow",
+                         vdev->vbasedev.name, nr);
+        }
+    }
+
+    pci_register_bar(&vdev->pdev, nr, bar->type, bar->mr);
+}
+
+static void vfio_bars_register(VFIOPCIDevice *vdev)
+{
+    int i;
+
+    for (i = 0; i < PCI_ROM_SLOT; i++) {
+        vfio_bar_register(vdev, i);
     }
 }
 
@@ -1549,8 +1577,13 @@ static void vfio_bars_exit(VFIOPCIDevice *vdev)
     int i;
 
     for (i = 0; i < PCI_ROM_SLOT; i++) {
+        VFIOBAR *bar = &vdev->bars[i];
+
         vfio_bar_quirk_exit(vdev, i);
-        vfio_region_exit(&vdev->bars[i].region);
+        vfio_region_exit(&bar->region);
+        if (bar->region.size) {
+            memory_region_del_subregion(bar->mr, bar->region.mem);
+        }
     }
 
     if (vdev->vga) {
@@ -1564,8 +1597,14 @@ static void vfio_bars_finalize(VFIOPCIDevice *vdev)
     int i;
 
     for (i = 0; i < PCI_ROM_SLOT; i++) {
+        VFIOBAR *bar = &vdev->bars[i];
+
         vfio_bar_quirk_finalize(vdev, i);
-        vfio_region_finalize(&vdev->bars[i].region);
+        vfio_region_finalize(&bar->region);
+        if (bar->size) {
+            object_unparent(OBJECT(bar->mr));
+            g_free(bar->mr);
+        }
     }
 
     if (vdev->vga) {
@@ -2810,7 +2849,8 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
         goto error;
     }
 
-    vfio_bars_setup(vdev);
+    vfio_bars_prepare(vdev);
+    vfio_bars_register(vdev);
 
     ret = vfio_add_capabilities(vdev, errp);
     if (ret) {
