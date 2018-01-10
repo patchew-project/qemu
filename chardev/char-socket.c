@@ -37,6 +37,8 @@
 
 #define TCP_MAX_FDS 16
 
+#define DATA_TIMEOUT 1
+
 typedef struct {
     Chardev parent;
     QIOChannel *ioc; /* Client I/O channel */
@@ -56,6 +58,9 @@ typedef struct {
     bool is_listen;
     bool is_telnet;
     bool is_tn3270;
+
+    guint data_timer;
+    guint destroy_tag;
 
     guint reconnect_timer;
     int64_t reconnect_time;
@@ -341,6 +346,15 @@ static void tcp_chr_free_connection(Chardev *chr)
         s->read_msgfds_num = 0;
     }
 
+    if (s->destroy_tag != 0) {
+        g_source_remove(s->destroy_tag);
+        s->destroy_tag = 0;
+    }
+    if (s->data_timer != 0) {
+        g_source_remove(s->data_timer);
+        s->data_timer = 0;
+    }
+
     tcp_set_msgfds(chr, NULL, 0);
     remove_fd_in_watch(chr);
     object_unref(OBJECT(s->sioc));
@@ -444,6 +458,37 @@ static gboolean tcp_chr_read(QIOChannel *chan, GIOCondition cond, void *opaque)
     return TRUE;
 }
 
+static gboolean tcp_chr_data_timeout(gpointer opaque)
+{
+    Chardev *chr = CHARDEV(opaque);
+
+    if (tcp_chr_read_poll(chr) <= 0) {
+        tcp_chr_disconnect(chr);
+        return TRUE;
+    } else {
+        tcp_chr_read(NULL, 0, opaque);
+        return TRUE;
+    }
+}
+
+static gboolean tcp_chr_destroy(QIOChannel *channel,
+                               GIOCondition cond,
+                               void *opaque)
+{
+    Chardev *chr = CHARDEV(opaque);
+    SocketChardev *s = SOCKET_CHARDEV(chr);
+    tcp_chr_read(channel, cond, opaque);
+    if (s->connected != 0) {
+        s->data_timer = g_timeout_add_seconds(DATA_TIMEOUT,
+                                              tcp_chr_data_timeout, chr);
+        if (s->destroy_tag != 0) {
+            g_source_remove(s->destroy_tag);
+            s->destroy_tag = 0;
+        }
+    }
+    return TRUE;
+}
+
 static int tcp_chr_sync_read(Chardev *chr, const uint8_t *buf, int len)
 {
     SocketChardev *s = SOCKET_CHARDEV(chr);
@@ -517,6 +562,10 @@ static void tcp_chr_connect(void *opaque)
                                            tcp_chr_read,
                                            chr, chr->gcontext);
     }
+    if (s->destroy_tag == 0) {
+        s->destroy_tag = qio_channel_add_watch(s->ioc, G_IO_HUP,
+                                           tcp_chr_destroy, chr, NULL);
+    }
     qemu_chr_be_event(chr, CHR_EVENT_OPENED);
 }
 
@@ -535,7 +584,11 @@ static void tcp_chr_update_read_handler(Chardev *chr)
                                            tcp_chr_read, chr,
                                            chr->gcontext);
     }
-}
+    if (s->destroy_tag == 0) {
+        s->destroy_tag = qio_channel_add_watch(s->ioc, G_IO_HUP,
+                                           tcp_chr_destroy, chr, NULL);
+    }
+ }
 
 typedef struct {
     Chardev *chr;
