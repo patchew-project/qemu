@@ -31,4 +31,10 @@
 
 #define TPM2_START_METHOD_MMIO      6
 
+/*
+ * Physical Presence Interface
+ */
+#define TPM_PPI_ADDR_SIZE           0x100
+#define TPM_PPI_ADDR_BASE           0xffff0000
+
 #endif /* HW_ACPI_TPM_H */
