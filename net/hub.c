@@ -13,6 +13,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "monitor/monitor.h"
 #include "net/net.h"
 #include "clients.h"
@@ -286,12 +287,32 @@ int net_init_hubport(const Netdev *netdev, const char *name,
                      NetClientState *peer, Error **errp)
 {
     const NetdevHubPortOptions *hubport;
+    NetClientState *hubncs;
 
     assert(netdev->type == NET_CLIENT_DRIVER_HUBPORT);
     assert(!peer);
     hubport = &netdev->u.hubport;
 
-    net_hub_add_port(hubport->hubid, name);
+    hubncs = net_hub_add_port(hubport->hubid, name);
+    if (!hubncs) {
+        error_setg(errp, "failed to add port to hub %i with id '%s'",
+                   hubport->hubid, name);
+        return -1;
+    }
+
+    if (hubport->has_netdev) {
+        NetClientState *hubpeer;
+
+        hubpeer = qemu_find_netdev(hubport->netdev);
+        if (!hubpeer) {
+            error_setg(errp, "netdev '%s' not found", hubport->netdev);
+            return -1;
+        }
+        assert(!hubncs->peer && !hubpeer->peer);
+        hubncs->peer = hubpeer;
+        hubpeer->peer = hubncs;
+    }
+
     return 0;
 }
 
