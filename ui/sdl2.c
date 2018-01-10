@@ -349,7 +349,7 @@ static void handle_keydown(SDL_Event *ev)
     }
     gui_key_modifier_pressed = mod_state;
 
-    if (gui_key_modifier_pressed) {
+    if (gui_key_modifier_pressed && !ev->key.repeat) {
         switch (ev->key.keysym.scancode) {
         case SDL_SCANCODE_2:
         case SDL_SCANCODE_3:
