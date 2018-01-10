@@ -887,9 +887,6 @@ static int hax_sync_vcpu_register(CPUArchState *env, int set)
             return -1;
         }
     }
-    if (!set) {
-        hax_setup_qemu_emulator(env);
-    }
     return 0;
 }
 
@@ -1070,6 +1067,7 @@ static int hax_arch_get_registers(CPUArchState *env)
         return ret;
     }
 
+    hax_setup_qemu_emulator(env);
     return 0;
 }
 
