@@ -348,6 +348,34 @@ static int nbd_negotiate_send_info(NBDClient *client, uint32_t opt,
     return 0;
 }
 
+/* nbd_reject_length: Handle any unexpected payload.
+ * @fatal requests that we quit talking to the client, even if we are able
+ * to successfully send an error to the guest.
+ * Return:
+ * -errno  transmission error occurred or @fatal was requested, errp is set
+ * 0       error message successfully sent to client, errp is not set
+ */
+static int nbd_reject_length(NBDClient *client, uint32_t length,
+                             uint32_t option, bool fatal, Error **errp)
+{
+    int ret;
+
+    assert(length);
+    if (nbd_drop(client->ioc, length, errp) < 0) {
+        return -EIO;
+    }
+    ret = nbd_negotiate_send_rep_err(client->ioc, NBD_REP_ERR_INVALID,
+                                     option, errp,
+                                     "option '%s' should have zero length",
+                                     nbd_opt_lookup(option));
+    if (fatal && !ret) {
+        error_setg(errp, "option '%s' should have zero length",
+                   nbd_opt_lookup(option));
+        return -EINVAL;
+    }
+    return ret;
+}
+
 /* Handle NBD_OPT_INFO and NBD_OPT_GO.
  * Return -errno on error, 0 if ready for next option, and 1 to move
  * into transmission phase.  */
@@ -568,34 +596,6 @@ static QIOChannel *nbd_negotiate_handle_starttls(NBDClient *client,
     }
 
     return QIO_CHANNEL(tioc);
-}
-
-/* nbd_reject_length: Handle any unexpected payload.
- * @fatal requests that we quit talking to the client, even if we are able
- * to successfully send an error to the guest.
- * Return:
- * -errno  transmission error occurred or @fatal was requested, errp is set
- * 0       error message successfully sent to client, errp is not set
- */
-static int nbd_reject_length(NBDClient *client, uint32_t length,
-                             uint32_t option, bool fatal, Error **errp)
-{
-    int ret;
-
-    assert(length);
-    if (nbd_drop(client->ioc, length, errp) < 0) {
-        return -EIO;
-    }
-    ret = nbd_negotiate_send_rep_err(client->ioc, NBD_REP_ERR_INVALID,
-                                     option, errp,
-                                     "option '%s' should have zero length",
-                                     nbd_opt_lookup(option));
-    if (fatal && !ret) {
-        error_setg(errp, "option '%s' should have zero length",
-                   nbd_opt_lookup(option));
-        return -EINVAL;
-    }
-    return ret;
 }
 
 /* nbd_negotiate_options
