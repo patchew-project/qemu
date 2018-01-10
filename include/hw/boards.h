@@ -80,6 +80,7 @@ void machine_set_cpu_numa_node(MachineState *machine,
  * CPUArchId:
  * @arch_id - architecture-dependent CPU ID of present or possible CPU
  * @cpu - pointer to corresponding CPU object if it's present on NULL otherwise
+ * @type - QOM class name of possible @cpu object
  * @props - CPU object properties, initialized by board
  * #vcpus_count - number of threads provided by @cpu object
  */
@@ -88,6 +89,7 @@ typedef struct {
     int64_t vcpus_count;
     CpuInstanceProperties props;
     Object *cpu;
+    const char *type;
 } CPUArchId;
 
 /**
