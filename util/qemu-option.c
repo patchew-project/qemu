@@ -1009,9 +1009,10 @@ void qemu_opts_absorb_qdict(QemuOpts *opts, QDict *qdict, Error **errp)
  * TODO We'll want to use types appropriate for opt->desc->type, but
  * this is enough for now.
  */
-QDict *qemu_opts_to_qdict(QemuOpts *opts, QDict *qdict)
+QDict *qemu_opts_to_qdict_filtered(QemuOpts *opts, QDict *qdict,
+                                   QemuOptsList *list, bool del)
 {
-    QemuOpt *opt;
+    QemuOpt *opt, *next;
 
     if (!qdict) {
         qdict = qdict_new();
@@ -1019,10 +1020,31 @@ QDict *qemu_opts_to_qdict(QemuOpts *opts, QDict *qdict)
     if (opts->id) {
         qdict_put_str(qdict, "id", opts->id);
     }
-    QTAILQ_FOREACH(opt, &opts->head, next) {
+    QTAILQ_FOREACH_SAFE(opt, &opts->head, next, next) {
+        if (list) {
+            QemuOptDesc *desc;
+            bool found = false;
+            for (desc = list->desc; desc->name; desc++) {
+                if (!strcmp(desc->name, opt->name)) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                continue;
+            }
+        }
         qdict_put_str(qdict, opt->name, opt->str);
+        if (del) {
+            qemu_opt_del_all(opts, opt->name);
+        }
     }
     return qdict;
+}
+
+QDict *qemu_opts_to_qdict(QemuOpts *opts, QDict *qdict)
+{
+    return qemu_opts_to_qdict_filtered(opts, qdict, NULL, false);
 }
 
 /* Validate parsed opts against descriptions where no
