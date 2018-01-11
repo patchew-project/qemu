@@ -3320,6 +3320,70 @@
 { 'command': 'blockdev-del', 'data': { 'node-name': 'str' } }
 
 ##
+# @BlockdevCreateDummy:
+#
+# FIXME To be removed. Only there to make the QAPI generator happy while we're
+# adding driver by driver. Leaving out union branches is not allowed.
+#
+# Since: 2.12
+##
+{ 'struct': 'BlockdevCreateDummy', 'data': {}}
+
+##
+# @BlockdevCreateOptions:
+#
+# Options for creating an image format on a given node.
+#
+# @driver           block driver to create the image format
+# @node             node to create the image format on
+#
+# Since: 2.12
+##
+{ 'union': 'BlockdevCreateOptions',
+  'base': {
+      'driver':         'BlockdevDriver',
+      'node':           'BlockdevRef' },
+  'discriminator': 'driver',
+  'data': {
+      'blkdebug':       'BlockdevCreateDummy',
+      'blkverify':      'BlockdevCreateDummy',
+      'bochs':          'BlockdevCreateDummy',
+      'cloop':          'BlockdevCreateDummy',
+      'dmg':            'BlockdevCreateDummy',
+      'file':           'BlockdevCreateDummy',
+      'ftp':            'BlockdevCreateDummy',
+      'ftps':           'BlockdevCreateDummy',
+      'gluster':        'BlockdevCreateDummy',
+      'host_cdrom':     'BlockdevCreateDummy',
+      'host_device':    'BlockdevCreateDummy',
+      'http':           'BlockdevCreateDummy',
+      'https':          'BlockdevCreateDummy',
+      'iscsi':          'BlockdevCreateDummy',
+      'luks':           'BlockdevCreateDummy',
+      'nbd':            'BlockdevCreateDummy',
+      'nfs':            'BlockdevCreateDummy',
+      'null-aio':       'BlockdevCreateDummy',
+      'null-co':        'BlockdevCreateDummy',
+      'parallels':      'BlockdevCreateDummy',
+      'qcow2':          'BlockdevCreateDummy',
+      'qcow':           'BlockdevCreateDummy',
+      'qed':            'BlockdevCreateDummy',
+      'quorum':         'BlockdevCreateDummy',
+      'raw':            'BlockdevCreateDummy',
+      'rbd':            'BlockdevCreateDummy',
+      'replication':    'BlockdevCreateDummy',
+      'sheepdog':       'BlockdevCreateDummy',
+      'ssh':            'BlockdevCreateDummy',
+      'throttle':       'BlockdevCreateDummy',
+      'vdi':            'BlockdevCreateDummy',
+      'vhdx':           'BlockdevCreateDummy',
+      'vmdk':           'BlockdevCreateDummy',
+      'vpc':            'BlockdevCreateDummy',
+      'vvfat':          'BlockdevCreateDummy',
+      'vxhs':           'BlockdevCreateDummy'
+  } }
+
+##
 # @blockdev-open-tray:
 #
 # Opens a block device's tray. If there is a block driver state tree inserted as
