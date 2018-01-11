@@ -1449,39 +1449,43 @@ static void *qemu_tcg_rr_cpu_thread_fn(void *arg)
             cpu = first_cpu;
         }
 
-        while (cpu && !cpu->queued_work_first && !cpu->exit_request) {
+        if (!replay_has_checkpoint()) {
+            while (cpu && !cpu->queued_work_first && !cpu->exit_request) {
 
-            atomic_mb_set(&tcg_current_rr_cpu, cpu);
-            current_cpu = cpu;
+                atomic_mb_set(&tcg_current_rr_cpu, cpu);
+                current_cpu = cpu;
 
-            qemu_clock_enable(QEMU_CLOCK_VIRTUAL,
-                              (cpu->singlestep_enabled & SSTEP_NOTIMER) == 0);
+                qemu_clock_enable(QEMU_CLOCK_VIRTUAL,
+                                  (cpu->singlestep_enabled & SSTEP_NOTIMER) == 0);
 
-            if (cpu_can_run(cpu)) {
-                int r;
+                if (cpu_can_run(cpu)) {
+                    int r;
 
-                prepare_icount_for_run(cpu);
+                    prepare_icount_for_run(cpu);
 
-                r = tcg_cpu_exec(cpu);
+                    r = tcg_cpu_exec(cpu);
 
-                process_icount_data(cpu);
+                    process_icount_data(cpu);
 
-                if (r == EXCP_DEBUG) {
-                    cpu_handle_guest_debug(cpu);
-                    break;
-                } else if (r == EXCP_ATOMIC) {
-                    cpu_exec_step_atomic(cpu);
+                    if (r == EXCP_DEBUG) {
+                        cpu_handle_guest_debug(cpu);
+                        break;
+                    } else if (r == EXCP_ATOMIC) {
+                        cpu_exec_step_atomic(cpu);
+                        break;
+                    }
+                } else if (cpu->stop) {
+                    if (cpu->unplug) {
+                        cpu = CPU_NEXT(cpu);
+                    }
                     break;
                 }
-            } else if (cpu->stop) {
-                if (cpu->unplug) {
-                    cpu = CPU_NEXT(cpu);
-                }
-                break;
-            }
 
-            cpu = CPU_NEXT(cpu);
-        } /* while (cpu && !cpu->exit_request).. */
+                cpu = CPU_NEXT(cpu);
+            } /* while (cpu && !cpu->exit_request).. */
+        } else {
+            qemu_notify_event();
+        }
 
         /* Does not need atomic_mb_set because a spurious wakeup is okay.  */
         atomic_set(&tcg_current_rr_cpu, NULL);

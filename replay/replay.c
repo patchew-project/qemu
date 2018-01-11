@@ -219,6 +219,19 @@ out:
     return res;
 }
 
+bool replay_has_checkpoint(void)
+{
+    bool res = false;
+    if (replay_mode == REPLAY_MODE_PLAY) {
+        replay_mutex_lock();
+        replay_account_executed_instructions();
+        res = EVENT_CHECKPOINT <= replay_state.data_kind
+            && replay_state.data_kind <= EVENT_CHECKPOINT_LAST;
+        replay_mutex_unlock();
+    }
+    return res;
+}
+
 void replay_init_locks(void)
 {
     replay_mutex_init();
