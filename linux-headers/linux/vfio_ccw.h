@@ -22,4 +22,10 @@ struct ccw_io_region {
 	__u32	ret_code;
 } __attribute__((packed));
 
+struct ccw_schib_region {
+        __u8	cc;
+#define SCHIB_AREA_SIZE 52
+        __u8	schib_area[SCHIB_AREA_SIZE];
+} __attribute__((packed));
+
 #endif
