@@ -36,6 +36,8 @@ typedef struct VFIOCCWDevice {
     uint64_t schib_region_size;
     uint64_t schib_region_offset;
     struct ccw_schib_region *schib_region;
+
+    EventNotifier chp_notifier;
 } VFIOCCWDevice;
 
 static void vfio_ccw_compute_needs_reset(VFIODevice *vdev)
@@ -172,33 +174,56 @@ read_err:
     css_inject_io_interrupt(sch);
 }
 
-static void vfio_ccw_register_io_notifier(VFIOCCWDevice *vcdev, Error **errp)
+static void vfio_ccw_chp_notifier_handler(void *opaque)
+{
+    VFIOCCWDevice *vcdev = opaque;
+
+    if (!event_notifier_test_and_clear(&vcdev->chp_notifier)) {
+        return;
+    }
+
+    /* TODO: further process on path informaion. */
+}
+
+static void vfio_ccw_register_event_notifier(VFIOCCWDevice *vcdev, int irq,
+                                             Error **errp)
 {
     VFIODevice *vdev = &vcdev->vdev;
     struct vfio_irq_info *irq_info;
     struct vfio_irq_set *irq_set;
     size_t argsz;
     int32_t *pfd;
+    EventNotifier *notifier;
+    IOHandler *fd_read;
 
-    if (vdev->num_irqs < VFIO_CCW_IO_IRQ_INDEX + 1) {
-        error_setg(errp, "vfio: unexpected number of io irqs %u",
-                   vdev->num_irqs);
+    switch (irq) {
+    case VFIO_CCW_IO_IRQ_INDEX:
+        notifier = &vcdev->io_notifier;
+        fd_read = vfio_ccw_io_notifier_handler;
+        break;
+    case VFIO_CCW_CHP_IRQ_INDEX:
+        notifier = &vcdev->chp_notifier;
+        fd_read = vfio_ccw_chp_notifier_handler;
+        break;
+    default:
+        error_setg(errp, "vfio: Unsupported device irq(%d) fd: %m", irq);
         return;
     }
 
     argsz = sizeof(*irq_info);
     irq_info = g_malloc0(argsz);
-    irq_info->index = VFIO_CCW_IO_IRQ_INDEX;
+    irq_info->index = irq;
     irq_info->argsz = argsz;
     if (ioctl(vdev->fd, VFIO_DEVICE_GET_IRQ_INFO,
               irq_info) < 0 || irq_info->count < 1) {
-        error_setg_errno(errp, errno, "vfio: Error getting irq info");
+        error_setg_errno(errp, errno, "vfio: Error getting irq(%d) info", irq);
         goto out_free_info;
     }
 
-    if (event_notifier_init(&vcdev->io_notifier, 0)) {
+    if (event_notifier_init(notifier, 0)) {
         error_setg_errno(errp, errno,
-                         "vfio: Unable to init event notifier for IO");
+                         "vfio: Unable to init event notifier for irq(%d)",
+                         irq);
         goto out_free_info;
     }
 
@@ -207,17 +232,18 @@ static void vfio_ccw_register_io_notifier(VFIOCCWDevice *vcdev, Error **errp)
     irq_set->argsz = argsz;
     irq_set->flags = VFIO_IRQ_SET_DATA_EVENTFD |
                      VFIO_IRQ_SET_ACTION_TRIGGER;
-    irq_set->index = VFIO_CCW_IO_IRQ_INDEX;
+    irq_set->index = irq;
     irq_set->start = 0;
     irq_set->count = 1;
     pfd = (int32_t *) &irq_set->data;
 
-    *pfd = event_notifier_get_fd(&vcdev->io_notifier);
-    qemu_set_fd_handler(*pfd, vfio_ccw_io_notifier_handler, NULL, vcdev);
+    *pfd = event_notifier_get_fd(notifier);
+    qemu_set_fd_handler(*pfd, fd_read, NULL, vcdev);
     if (ioctl(vdev->fd, VFIO_DEVICE_SET_IRQS, irq_set)) {
-        error_setg(errp, "vfio: Failed to set up io notification");
+        error_setg(errp, "vfio: Failed to set up notification for irq(%d)",
+                   irq);
         qemu_set_fd_handler(*pfd, NULL, NULL, vcdev);
-        event_notifier_cleanup(&vcdev->io_notifier);
+        event_notifier_cleanup(notifier);
     }
 
     g_free(irq_set);
@@ -226,30 +252,42 @@ out_free_info:
     g_free(irq_info);
 }
 
-static void vfio_ccw_unregister_io_notifier(VFIOCCWDevice *vcdev)
+static void vfio_ccw_unregister_event_notifier(VFIOCCWDevice *vcdev, int irq)
 {
     struct vfio_irq_set *irq_set;
     size_t argsz;
     int32_t *pfd;
+    EventNotifier *notifier;
+
+    switch (irq) {
+    case VFIO_CCW_IO_IRQ_INDEX:
+        notifier = &vcdev->io_notifier;
+        break;
+    case VFIO_CCW_CHP_IRQ_INDEX:
+        notifier = &vcdev->chp_notifier;
+        break;
+    default:
+        error_report("vfio: Unsupported device irq(%d) fd: %m", irq);
+        return;
+    }
 
     argsz = sizeof(*irq_set) + sizeof(*pfd);
     irq_set = g_malloc0(argsz);
     irq_set->argsz = argsz;
     irq_set->flags = VFIO_IRQ_SET_DATA_EVENTFD |
                      VFIO_IRQ_SET_ACTION_TRIGGER;
-    irq_set->index = VFIO_CCW_IO_IRQ_INDEX;
+    irq_set->index = irq;
     irq_set->start = 0;
     irq_set->count = 1;
     pfd = (int32_t *) &irq_set->data;
     *pfd = -1;
 
     if (ioctl(vcdev->vdev.fd, VFIO_DEVICE_SET_IRQS, irq_set)) {
-        error_report("vfio: Failed to de-assign device io fd: %m");
+        error_report("vfio: Failed to de-assign device irq(%d) fd: %m", irq);
     }
 
-    qemu_set_fd_handler(event_notifier_get_fd(&vcdev->io_notifier),
-                        NULL, NULL, vcdev);
-    event_notifier_cleanup(&vcdev->io_notifier);
+    qemu_set_fd_handler(event_notifier_get_fd(notifier), NULL, NULL, vcdev);
+    event_notifier_cleanup(notifier);
 
     g_free(irq_set);
 }
@@ -269,6 +307,11 @@ static void vfio_ccw_get_region(VFIOCCWDevice *vcdev, Error **errp)
     if (vdev->num_regions < VFIO_CCW_CONFIG_REGION_INDEX + 1) {
         error_setg(errp, "vfio: Unexpected number of the I/O region %u",
                    vdev->num_regions);
+        return;
+    }
+
+    if (vdev->num_irqs < VFIO_CCW_IO_IRQ_INDEX + 1) {
+        error_setg(errp, "vfio: Unexpected number of irqs %u", vdev->num_irqs);
         return;
     }
 
@@ -392,7 +435,11 @@ static void vfio_ccw_realize(DeviceState *dev, Error **errp)
         goto out_region_err;
     }
 
-    vfio_ccw_register_io_notifier(vcdev, &err);
+    vfio_ccw_register_event_notifier(vcdev, VFIO_CCW_IO_IRQ_INDEX, &err);
+    if (err) {
+        goto out_notifier_err;
+    }
+    vfio_ccw_register_event_notifier(vcdev, VFIO_CCW_CHP_IRQ_INDEX, &err);
     if (err) {
         goto out_notifier_err;
     }
@@ -421,7 +468,8 @@ static void vfio_ccw_unrealize(DeviceState *dev, Error **errp)
     S390CCWDeviceClass *cdc = S390_CCW_DEVICE_GET_CLASS(cdev);
     VFIOGroup *group = vcdev->vdev.group;
 
-    vfio_ccw_unregister_io_notifier(vcdev);
+    vfio_ccw_unregister_event_notifier(vcdev, VFIO_CCW_IO_IRQ_INDEX);
+    vfio_ccw_unregister_event_notifier(vcdev, VFIO_CCW_CHP_IRQ_INDEX);
     vfio_ccw_put_region(vcdev);
     vfio_put_device(vcdev);
     vfio_put_group(group);
