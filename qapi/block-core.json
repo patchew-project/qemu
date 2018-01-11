@@ -3320,6 +3320,37 @@
 { 'command': 'blockdev-del', 'data': { 'node-name': 'str' } }
 
 ##
+# @BlockdevQcow2CompatLevel:
+# @0_10:    The original QCOW2 format as introduced in qemu 0.10 (version 2)
+# @1_1:     The extended QCOW2 format as introduced in qemu 1.1 (version 3)
+#
+# Since: 2.10
+##
+{ 'enum': 'BlockdevQcow2CompatLevel',
+  'data': [ '0_10', '1_1' ] }
+
+
+##
+# @BlockdevCreateOptionsQcow2:
+#
+# Driver specific image creation options for qcow2.
+#
+# TODO Describe fields
+#
+# Since: 2.12
+##
+{ 'struct': 'BlockdevCreateOptionsQcow2',
+  'data': { 'size':             'size',
+            '*compat':          'BlockdevQcow2CompatLevel',
+            '*backing-file':    'str',
+            '*backing-fmt':     'BlockdevDriver',
+            '*encrypt':         'QCryptoBlockCreateOptions',
+            '*cluster-size':    'size',
+            '*preallocation':   'PreallocMode',
+            '*lazy-refcounts':  'bool',
+            '*refcount-bits':   'int' } }
+
+##
 # @BlockdevCreateDummy:
 #
 # FIXME To be removed. Only there to make the QAPI generator happy while we're
@@ -3365,7 +3396,7 @@
       'null-aio':       'BlockdevCreateDummy',
       'null-co':        'BlockdevCreateDummy',
       'parallels':      'BlockdevCreateDummy',
-      'qcow2':          'BlockdevCreateDummy',
+      'qcow2':          'BlockdevCreateOptionsQcow2',
       'qcow':           'BlockdevCreateDummy',
       'qed':            'BlockdevCreateDummy',
       'quorum':         'BlockdevCreateDummy',
