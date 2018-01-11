@@ -32,6 +32,10 @@ typedef struct VFIOCCWDevice {
     uint64_t io_region_offset;
     struct ccw_io_region *io_region;
     EventNotifier io_notifier;
+
+    uint64_t schib_region_size;
+    uint64_t schib_region_offset;
+    struct ccw_schib_region *schib_region;
 } VFIOCCWDevice;
 
 static void vfio_ccw_compute_needs_reset(VFIODevice *vdev)
@@ -268,9 +272,10 @@ static void vfio_ccw_get_region(VFIOCCWDevice *vcdev, Error **errp)
         return;
     }
 
+    /* Get I/O region info. */
     ret = vfio_get_region_info(vdev, VFIO_CCW_CONFIG_REGION_INDEX, &info);
     if (ret) {
-        error_setg_errno(errp, -ret, "vfio: Error getting config info");
+        error_setg_errno(errp, -ret, "vfio: Error getting config region info");
         return;
     }
 
@@ -283,13 +288,30 @@ static void vfio_ccw_get_region(VFIOCCWDevice *vcdev, Error **errp)
 
     vcdev->io_region_offset = info->offset;
     vcdev->io_region = g_malloc0(info->size);
+    g_free(info);
 
+    /* Get SCHIB region info. */
+    ret = vfio_get_region_info(vdev, VFIO_CCW_SCHIB_REGION_INDEX, &info);
+    if (ret) {
+        error_setg_errno(errp, -ret, "vfio: Error getting schib region info");
+        return;
+    }
+
+    vcdev->schib_region_size = info->size;
+    if (sizeof(*vcdev->schib_region) != vcdev->schib_region_size) {
+        error_setg(errp, "vfio: Unexpected size of the schib region");
+        g_free(info);
+        return;
+    }
+    vcdev->schib_region_offset = info->offset;
+    vcdev->schib_region = g_malloc0(info->size);
     g_free(info);
 }
 
 static void vfio_ccw_put_region(VFIOCCWDevice *vcdev)
 {
     g_free(vcdev->io_region);
+    g_free(vcdev->schib_region);
 }
 
 static void vfio_put_device(VFIOCCWDevice *vcdev)
