@@ -1149,6 +1149,8 @@ static bool qemu_tcg_should_sleep(CPUState *cpu)
 
 static void qemu_tcg_wait_io_event(CPUState *cpu)
 {
+    qemu_mutex_lock_iothread();
+
     while (qemu_tcg_should_sleep(cpu)) {
         stop_tcg_kick_timer();
         qemu_cond_wait(cpu->halt_cond, &qemu_global_mutex);
@@ -1157,15 +1159,21 @@ static void qemu_tcg_wait_io_event(CPUState *cpu)
     start_tcg_kick_timer();
 
     qemu_wait_io_event_common(cpu);
+
+    qemu_mutex_unlock_iothread();
 }
 
 static void qemu_kvm_wait_io_event(CPUState *cpu)
 {
+    qemu_mutex_lock_iothread();
+
     while (cpu_thread_is_idle(cpu)) {
         qemu_cond_wait(cpu->halt_cond, &qemu_global_mutex);
     }
 
     qemu_wait_io_event_common(cpu);
+
+    qemu_mutex_unlock_iothread();
 }
 
 static void qemu_hvf_wait_io_event(CPUState *cpu)
@@ -1199,6 +1207,8 @@ static void *qemu_kvm_cpu_thread_fn(void *arg)
 
     /* signal CPU creation */
     cpu->created = true;
+    qemu_mutex_unlock_iothread();
+
     qemu_cond_signal(&qemu_cpu_cond);
 
     do {
@@ -1241,10 +1251,10 @@ static void *qemu_dummy_cpu_thread_fn(void *arg)
 
     /* signal CPU creation */
     cpu->created = true;
+    qemu_mutex_unlock_iothread();
     qemu_cond_signal(&qemu_cpu_cond);
 
     while (1) {
-        qemu_mutex_unlock_iothread();
         do {
             int sig;
             r = sigwait(&waitset, &sig);
@@ -1255,6 +1265,7 @@ static void *qemu_dummy_cpu_thread_fn(void *arg)
         }
         qemu_mutex_lock_iothread();
         qemu_wait_io_event_common(cpu);
+        qemu_mutex_unlock_iothread();
     }
 
     return NULL;
@@ -1343,11 +1354,9 @@ static int tcg_cpu_exec(CPUState *cpu)
 #ifdef CONFIG_PROFILER
     ti = profile_getclock();
 #endif
-    qemu_mutex_unlock_iothread();
     cpu_exec_start(cpu);
     ret = cpu_exec(cpu);
     cpu_exec_end(cpu);
-    qemu_mutex_lock_iothread();
 #ifdef CONFIG_PROFILER
     tcg_time += profile_getclock() - ti;
 #endif
@@ -1407,6 +1416,7 @@ static void *qemu_tcg_rr_cpu_thread_fn(void *arg)
             qemu_wait_io_event_common(cpu);
         }
     }
+    qemu_mutex_unlock_iothread();
 
     start_tcg_kick_timer();
 
@@ -1416,6 +1426,9 @@ static void *qemu_tcg_rr_cpu_thread_fn(void *arg)
     cpu->exit_request = 1;
 
     while (1) {
+
+        qemu_mutex_lock_iothread();
+
         /* Account partial waits to QEMU_CLOCK_VIRTUAL.  */
         qemu_account_warp_timer();
 
@@ -1423,6 +1436,8 @@ static void *qemu_tcg_rr_cpu_thread_fn(void *arg)
          * waking up the I/O thread and waiting for completion.
          */
         handle_icount_deadline();
+
+        qemu_mutex_unlock_iothread();
 
         if (!cpu) {
             cpu = first_cpu;
@@ -1449,9 +1464,7 @@ static void *qemu_tcg_rr_cpu_thread_fn(void *arg)
                     cpu_handle_guest_debug(cpu);
                     break;
                 } else if (r == EXCP_ATOMIC) {
-                    qemu_mutex_unlock_iothread();
                     cpu_exec_step_atomic(cpu);
-                    qemu_mutex_lock_iothread();
                     break;
                 }
             } else if (cpu->stop) {
@@ -1492,6 +1505,7 @@ static void *qemu_hax_cpu_thread_fn(void *arg)
     current_cpu = cpu;
 
     hax_init_vcpu(cpu);
+    qemu_mutex_unlock_iothread();
     qemu_cond_signal(&qemu_cpu_cond);
 
     while (1) {
@@ -1584,6 +1598,7 @@ static void *qemu_tcg_cpu_thread_fn(void *arg)
     cpu->created = true;
     cpu->can_do_io = 1;
     current_cpu = cpu;
+    qemu_mutex_unlock_iothread();
     qemu_cond_signal(&qemu_cpu_cond);
 
     /* process any pending work */
@@ -1608,9 +1623,7 @@ static void *qemu_tcg_cpu_thread_fn(void *arg)
                 g_assert(cpu->halted);
                 break;
             case EXCP_ATOMIC:
-                qemu_mutex_unlock_iothread();
                 cpu_exec_step_atomic(cpu);
-                qemu_mutex_lock_iothread();
             default:
                 /* Ignore everything else? */
                 break;
