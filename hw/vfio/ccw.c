@@ -146,6 +146,8 @@ static IOInstEnding vfio_ccw_update_schib(SubchDev *sch)
         p->chpid[i] = schib->pmcw.chpid[i];
     }
 
+    /* TODO: add chpid? */
+
     return region->cc;
 }
 
@@ -454,9 +456,8 @@ static void vfio_ccw_realize(DeviceState *dev, Error **errp)
     S390CCWDeviceClass *cdc = S390_CCW_DEVICE_GET_CLASS(cdev);
     Error *err = NULL;
 
-    /* Call the class init function for subchannel. */
-    if (cdc->realize) {
-        cdc->realize(cdev, vcdev->vdev.sysfsdev, &err);
+    if (cdc->pre_realize) {
+        cdc->pre_realize(cdev, vcdev->vdev.sysfsdev, &err);
         if (err) {
             goto out_err_propagate;
         }
@@ -464,7 +465,7 @@ static void vfio_ccw_realize(DeviceState *dev, Error **errp)
 
     group = vfio_ccw_get_group(cdev, &err);
     if (!group) {
-        goto out_group_err;
+        goto out_err_propagate;
     }
 
     vcdev->vdev.ops = &vfio_ccw_ops;
@@ -491,27 +492,34 @@ static void vfio_ccw_realize(DeviceState *dev, Error **errp)
 
     vfio_ccw_register_event_notifier(vcdev, VFIO_CCW_IO_IRQ_INDEX, &err);
     if (err) {
-        goto out_notifier_err;
+        goto out_io_notifier_err;
     }
     vfio_ccw_register_event_notifier(vcdev, VFIO_CCW_CHP_IRQ_INDEX, &err);
     if (err) {
-        goto out_notifier_err;
+        goto out_chp_notifier_err;
     }
 
     vcdev->schib_need_update = true;
+    /* Call the class init function for subchannel. */
+    if (cdc->realize) {
+        cdc->realize(cdev, &err);
+        if (err) {
+            goto out_notifier_err;
+        }
+    }
 
     return;
 
 out_notifier_err:
+    vfio_ccw_unregister_event_notifier(vcdev, VFIO_CCW_CHP_IRQ_INDEX);
+out_chp_notifier_err:
+    vfio_ccw_unregister_event_notifier(vcdev, VFIO_CCW_IO_IRQ_INDEX);
+out_io_notifier_err:
     vfio_ccw_put_region(vcdev);
 out_region_err:
     vfio_put_device(vcdev);
 out_device_err:
     vfio_put_group(group);
-out_group_err:
-    if (cdc->unrealize) {
-        cdc->unrealize(cdev, NULL);
-    }
 out_err_propagate:
     error_propagate(errp, err);
 }

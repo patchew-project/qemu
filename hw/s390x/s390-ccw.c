@@ -72,7 +72,18 @@ static void s390_ccw_get_dev_info(S390CCWDevice *cdev,
     cdev->hostid.valid = true;
 }
 
-static void s390_ccw_realize(S390CCWDevice *cdev, char *sysfsdev, Error **errp)
+static void s390_ccw_pre_realize(S390CCWDevice *cdev, char *sysfsdev,
+                                 Error **errp)
+{
+    Error *err = NULL;
+
+    s390_ccw_get_dev_info(cdev, sysfsdev, &err);
+    if (err) {
+        error_propagate(errp, err);
+    }
+}
+
+static void s390_ccw_realize(S390CCWDevice *cdev, Error **errp)
 {
     CcwDevice *ccw_dev = CCW_DEVICE(cdev);
     CCWDeviceClass *ck = CCW_DEVICE_GET_CLASS(ccw_dev);
@@ -82,11 +93,6 @@ static void s390_ccw_realize(S390CCWDevice *cdev, char *sysfsdev, Error **errp)
     SubchDev *sch;
     int ret;
     Error *err = NULL;
-
-    s390_ccw_get_dev_info(cdev, sysfsdev, &err);
-    if (err) {
-        goto out_err_propagate;
-    }
 
     sch = css_create_sch(ccw_dev->devno, cbus->squash_mcss, &err);
     if (!sch) {
@@ -119,7 +125,6 @@ out_err:
     g_free(sch);
 out_mdevid_free:
     g_free(cdev->mdevid);
-out_err_propagate:
     error_propagate(errp, err);
 }
 
@@ -143,6 +148,7 @@ static void s390_ccw_class_init(ObjectClass *klass, void *data)
     S390CCWDeviceClass *cdc = S390_CCW_DEVICE_CLASS(klass);
 
     dc->bus_type = TYPE_VIRTUAL_CSS_BUS;
+    cdc->pre_realize = s390_ccw_pre_realize;
     cdc->realize = s390_ccw_realize;
     cdc->unrealize = s390_ccw_unrealize;
 }

@@ -2417,72 +2417,6 @@ SubchDev *css_create_sch(CssDevId bus_id, bool squash_mcss, Error **errp)
     return sch;
 }
 
-static int css_sch_get_chpids(SubchDev *sch, CssDevId *dev_id)
-{
-    char *fid_path;
-    FILE *fd;
-    uint32_t chpid[8];
-    int i;
-    PMCW *p = &sch->curr_status.pmcw;
-
-    fid_path = g_strdup_printf("/sys/bus/css/devices/%x.%x.%04x/chpids",
-                               dev_id->cssid, dev_id->ssid, dev_id->devid);
-    fd = fopen(fid_path, "r");
-    if (fd == NULL) {
-        error_report("%s: open %s failed", __func__, fid_path);
-        g_free(fid_path);
-        return -EINVAL;
-    }
-
-    if (fscanf(fd, "%x %x %x %x %x %x %x %x",
-        &chpid[0], &chpid[1], &chpid[2], &chpid[3],
-        &chpid[4], &chpid[5], &chpid[6], &chpid[7]) != 8) {
-        fclose(fd);
-        g_free(fid_path);
-        return -EINVAL;
-    }
-
-    for (i = 0; i < ARRAY_SIZE(p->chpid); i++) {
-        p->chpid[i] = chpid[i];
-    }
-
-    fclose(fd);
-    g_free(fid_path);
-
-    return 0;
-}
-
-static int css_sch_get_path_masks(SubchDev *sch, CssDevId *dev_id)
-{
-    char *fid_path;
-    FILE *fd;
-    uint32_t pim, pam, pom;
-    PMCW *p = &sch->curr_status.pmcw;
-
-    fid_path = g_strdup_printf("/sys/bus/css/devices/%x.%x.%04x/pimpampom",
-                               dev_id->cssid, dev_id->ssid, dev_id->devid);
-    fd = fopen(fid_path, "r");
-    if (fd == NULL) {
-        error_report("%s: open %s failed", __func__, fid_path);
-        g_free(fid_path);
-        return -EINVAL;
-    }
-
-    if (fscanf(fd, "%x %x %x", &pim, &pam, &pom) != 3) {
-        fclose(fd);
-        g_free(fid_path);
-        return -EINVAL;
-    }
-
-    p->pim = pim;
-    p->pam = pam;
-    p->pom = pom;
-    fclose(fd);
-    g_free(fid_path);
-
-    return 0;
-}
-
 static int css_sch_get_chpid_type(uint8_t chpid, uint32_t *type,
                                   CssDevId *dev_id)
 {
@@ -2529,19 +2463,14 @@ int css_sch_build_schib(SubchDev *sch, CssDevId *dev_id)
     /* We are dealing with I/O subchannels only. */
     p->devno = sch->devno;
 
-    /* Grab path mask from sysfs. */
-    ret = css_sch_get_path_masks(sch, dev_id);
-    if (ret) {
-        return ret;
+    /* Read schib from the physical device. */
+    /* g_assert(sch->update_schib != NULL) ? */
+    if (sch->update_schib &&
+        (sch->update_schib(sch) != IOINST_CC_EXPECTED)) {
+        return -ENODEV;
     }
 
-    /* Grab chpids from sysfs. */
-    ret = css_sch_get_chpids(sch, dev_id);
-    if (ret) {
-        return ret;
-    }
-
-   /* Build chpid type. */
+    /* Build chpid type. */
     for (i = 0; i < ARRAY_SIZE(p->chpid); i++) {
         if (p->chpid[i] && !css->chpids[p->chpid[i]].in_use) {
             ret = css_sch_get_chpid_type(p->chpid[i], &type, dev_id);
