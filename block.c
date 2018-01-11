@@ -485,6 +485,54 @@ int bdrv_create_file(const char *filename, QemuOpts *opts, Error **errp)
     return ret;
 }
 
+typedef struct BlockdevCreateCo {
+    BlockDriver *drv;
+    BlockdevCreateOptions *opts;
+    int ret;
+    Error **errp;
+} BlockdevCreateCo;
+
+static void coroutine_fn bdrv_co_create_co_entry(void *opaque)
+{
+    BlockdevCreateCo *cco = opaque;
+    cco->ret = cco->drv->bdrv_co_create(cco->opts, cco->errp);
+}
+
+void qmp_x_blockdev_create(BlockdevCreateOptions *options, Error **errp)
+{
+    const char *fmt = BlockdevDriver_str(options->driver);
+    BlockDriver* drv = bdrv_find_format(fmt);
+    Coroutine *co;
+    BlockdevCreateCo cco;
+
+    /* If the driver is in the schema, we know that it exists. But it may not
+     * be whitelisted. */
+    assert(drv);
+    if (bdrv_uses_whitelist() && !bdrv_is_whitelisted(drv, true)) {
+        error_setg(errp, "Driver is not whitelisted");
+        return;
+    }
+
+    /* Call callback if it exists */
+    if (!drv->bdrv_co_create) {
+        error_setg(errp, "Driver does not support blockdev-create");
+        return;
+    }
+
+    cco = (BlockdevCreateCo) {
+        .drv = drv,
+        .opts = options,
+        .ret = NOT_DONE,
+        .errp = errp,
+    };
+
+    co = qemu_coroutine_create(bdrv_co_create_co_entry, &cco);
+    qemu_coroutine_enter(co);
+    while (cco.ret == NOT_DONE) {
+        aio_poll(qemu_get_aio_context(), true);
+    }
+}
+
 /**
  * Try to get @bs's logical and physical block size.
  * On success, store them in @bsz struct and return 0.
