@@ -1297,11 +1297,16 @@ static void copy_schib_to_guest(SCHIB *dest, const SCHIB *src)
     }
 }
 
-int css_do_stsch(SubchDev *sch, SCHIB *schib)
+IOInstEnding css_do_stsch(SubchDev *sch, SCHIB *schib)
 {
+    if (sch->update_schib &&
+        (sch->update_schib(sch) != IOINST_CC_EXPECTED)) {
+        return IOINST_CC_NOT_OPERATIONAL;
+    }
+
     /* Use current status. */
     copy_schib_to_guest(schib, &sch->curr_status);
-    return 0;
+    return IOINST_CC_EXPECTED;
 }
 
 static void copy_pmcw_from_guest(PMCW *dest, const PMCW *src)
@@ -1585,6 +1590,11 @@ int css_do_tsch_get_irb(SubchDev *sch, IRB *target_irb, int *irb_len)
     PMCW *p = &sch->curr_status.pmcw;
     uint16_t stctl;
     IRB irb;
+
+    if (sch->update_schib &&
+        (sch->update_schib(sch) != IOINST_CC_EXPECTED)) {
+        return IOINST_CC_NOT_OPERATIONAL;
+    }
 
     if (~(p->flags) & (PMCW_FLAGS_MASK_DNV | PMCW_FLAGS_MASK_ENA)) {
         return 3;

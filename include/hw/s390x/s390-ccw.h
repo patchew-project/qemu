@@ -34,6 +34,7 @@ typedef struct S390CCWDeviceClass {
     void (*realize)(S390CCWDevice *dev, char *sysfsdev, Error **errp);
     void (*unrealize)(S390CCWDevice *dev, Error **errp);
     IOInstEnding (*handle_request) (SubchDev *sch);
+    IOInstEnding (*update_schib) (SubchDev *);
 } S390CCWDeviceClass;
 
 #endif

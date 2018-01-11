@@ -33,6 +33,7 @@ typedef struct VFIOCCWDevice {
     struct ccw_io_region *io_region;
     EventNotifier io_notifier;
 
+    bool schib_need_update;
     uint64_t schib_region_size;
     uint64_t schib_region_offset;
     struct ccw_schib_region *schib_region;
@@ -95,6 +96,57 @@ again:
         css_inject_io_interrupt(sch);
         return IOINST_CC_EXPECTED;
     }
+}
+
+static IOInstEnding vfio_ccw_update_schib(SubchDev *sch)
+{
+
+    S390CCWDevice *cdev = sch->driver_data;
+    VFIOCCWDevice *vcdev = DO_UPCAST(VFIOCCWDevice, cdev, cdev);
+    struct ccw_schib_region *region = vcdev->schib_region;
+    PMCW *p = &sch->curr_status.pmcw;
+    SCSW *s = &sch->curr_status.scsw;
+    SCHIB *schib;
+    int size;
+    int i;
+
+    /*
+     * If there is no update that interested us since last read,
+     * we do not read then.
+     */
+    if (!vcdev->schib_need_update) {
+        return IOINST_CC_EXPECTED;
+    }
+    vcdev->schib_need_update = false;
+
+    /* Read schib region, and update schib for virtual subchannel. */
+    size = pread(vcdev->vdev.fd, region, vcdev->schib_region_size,
+                 vcdev->schib_region_offset);
+    if (size != vcdev->schib_region_size) {
+        return IOINST_CC_NOT_OPERATIONAL;
+    }
+    if (region->cc) {
+        g_assert(region->cc == IOINST_CC_NOT_OPERATIONAL);
+        return region->cc;
+    }
+
+    schib = (SCHIB *)region->schib_area;
+
+    /* Path mask. */
+    p->pim = schib->pmcw.pim;
+    p->pam = schib->pmcw.pam;
+    p->pom = schib->pmcw.pom;
+
+    /* We use PNO and PNOM to indicate path related events. */
+    p->pnom = ~schib->pmcw.pam;
+    s->flags |= SCSW_FLAGS_MASK_PNO;
+
+    /* Chp id. */
+    for (i = 0; i < ARRAY_SIZE(p->chpid); i++) {
+        p->chpid[i] = schib->pmcw.chpid[i];
+    }
+
+    return region->cc;
 }
 
 static void vfio_ccw_reset(DeviceState *dev)
@@ -182,7 +234,9 @@ static void vfio_ccw_chp_notifier_handler(void *opaque)
         return;
     }
 
-    /* TODO: further process on path informaion. */
+    vcdev->schib_need_update = true;
+
+    /* TODO: Generate channel path crw? */
 }
 
 static void vfio_ccw_register_event_notifier(VFIOCCWDevice *vcdev, int irq,
@@ -444,6 +498,8 @@ static void vfio_ccw_realize(DeviceState *dev, Error **errp)
         goto out_notifier_err;
     }
 
+    vcdev->schib_need_update = true;
+
     return;
 
 out_notifier_err:
@@ -503,6 +559,7 @@ static void vfio_ccw_class_init(ObjectClass *klass, void *data)
     dc->reset = vfio_ccw_reset;
 
     cdc->handle_request = vfio_ccw_handle_request;
+    cdc->update_schib = vfio_ccw_update_schib;
 }
 
 static const TypeInfo vfio_ccw_info = {

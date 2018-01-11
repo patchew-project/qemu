@@ -28,6 +28,17 @@ IOInstEnding s390_ccw_cmd_request(SubchDev *sch)
     return cdc->handle_request(sch);
 }
 
+static IOInstEnding s390_ccw_update_schib(SubchDev *sch)
+{
+    S390CCWDeviceClass *cdc = S390_CCW_DEVICE_GET_CLASS(sch->driver_data);
+
+    if (!cdc->update_schib) {
+        /* g_assert_not_reached()? */
+        return IOINST_CC_NOT_OPERATIONAL;
+    }
+    return cdc->update_schib(sch);
+}
+
 static void s390_ccw_get_dev_info(S390CCWDevice *cdev,
                                   char *sysfsdev,
                                   Error **errp)
@@ -83,6 +94,7 @@ static void s390_ccw_realize(S390CCWDevice *cdev, char *sysfsdev, Error **errp)
     }
     sch->driver_data = cdev;
     sch->do_subchannel_work = do_subchannel_work_passthrough;
+    sch->update_schib = s390_ccw_update_schib;
 
     ccw_dev->sch = sch;
     ret = css_sch_build_schib(sch, &cdev->hostid);
