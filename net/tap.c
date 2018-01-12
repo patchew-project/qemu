@@ -651,6 +651,9 @@ static void net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
     tap_set_sndbuf(s->fd, tap, &err);
     if (err) {
         error_propagate(errp, err);
+        if (!tap->has_fd && !tap->has_fds) {
+            close(fd);
+        }
         return;
     }
 
@@ -687,14 +690,14 @@ static void net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
             vhostfd = monitor_fd_param(cur_mon, vhostfdname, &err);
             if (vhostfd == -1) {
                 error_propagate(errp, err);
-                return;
+                goto cleanup;
             }
         } else {
             vhostfd = open("/dev/vhost-net", O_RDWR);
             if (vhostfd < 0) {
                 error_setg_errno(errp, errno,
                                  "tap: open vhost char device failed");
-                return;
+                goto cleanup;
             }
             fcntl(vhostfd, F_SETFL, O_NONBLOCK);
         }
@@ -704,11 +707,18 @@ static void net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
         if (!s->vhost_net) {
             error_setg(errp,
                        "vhost-net requested but could not be initialized");
-            return;
+            goto cleanup;
         }
     } else if (vhostfdname) {
         error_setg(errp, "vhostfd(s)= is not valid without vhost");
     }
+
+cleanup:
+    if (!tap->has_fd && !tap->has_fds && tap->has_vhostforce &&
+        tap->vhostforce) {
+        close(fd);
+    }
+    return;
 }
 
 static int get_fds(char *str, char *fds[], int max)
@@ -877,7 +887,6 @@ free_fail:
                          vnet_hdr, fd, &err);
         if (err) {
             error_propagate(errp, err);
-            close(fd);
             return -1;
         }
     } else {
@@ -916,7 +925,6 @@ free_fail:
                              vhostfdname, vnet_hdr, fd, &err);
             if (err) {
                 error_propagate(errp, err);
-                close(fd);
                 return -1;
             }
         }
