@@ -34,6 +34,7 @@ enum VhostUserProtocolFeature {
     VHOST_USER_PROTOCOL_F_NET_MTU = 4,
     VHOST_USER_PROTOCOL_F_SLAVE_REQ = 5,
     VHOST_USER_PROTOCOL_F_CROSS_ENDIAN = 6,
+    VHOST_USER_PROTOCOL_F_SET_QUEUE_NUM = 7,
 
     VHOST_USER_PROTOCOL_F_MAX
 };
@@ -65,6 +66,7 @@ typedef enum VhostUserRequest {
     VHOST_USER_SET_SLAVE_REQ_FD = 21,
     VHOST_USER_IOTLB_MSG = 22,
     VHOST_USER_SET_VRING_ENDIAN = 23,
+    VHOST_USER_SET_QUEUE_NUM = 24,
     VHOST_USER_MAX
 } VhostUserRequest;
 
@@ -922,6 +924,27 @@ static void vhost_user_set_iotlb_callback(struct vhost_dev *dev, int enabled)
     /* No-op as the receive channel is not dedicated to IOTLB messages. */
 }
 
+static int vhost_user_set_queue_num(struct vhost_dev *dev, uint64_t queues)
+{
+    VhostUserMsg msg = {
+        .request = VHOST_USER_SET_QUEUE_NUM,
+        .size = sizeof(msg.payload.u64),
+        .flags = VHOST_USER_VERSION,
+        .payload.u64 = queues,
+    };
+
+    if (!(dev->protocol_features &
+                (1ULL << VHOST_USER_PROTOCOL_F_SET_QUEUE_NUM))) {
+        return 0;
+    }
+
+    if (vhost_user_write(dev, &msg, NULL, 0) < 0) {
+        return -1;
+    }
+
+    return 0;
+}
+
 const VhostOps user_ops = {
         .backend_type = VHOST_BACKEND_TYPE_USER,
         .vhost_backend_init = vhost_user_init,
@@ -948,4 +971,5 @@ const VhostOps user_ops = {
         .vhost_net_set_mtu = vhost_user_net_set_mtu,
         .vhost_set_iotlb_callback = vhost_user_set_iotlb_callback,
         .vhost_send_device_iotlb_msg = vhost_user_send_device_iotlb_msg,
+        .vhost_set_queue_num = vhost_user_set_queue_num,
 };

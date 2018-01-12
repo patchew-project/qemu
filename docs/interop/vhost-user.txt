@@ -218,6 +218,9 @@ The max number of queue pairs the slave supports can be queried with message
 VHOST_USER_GET_QUEUE_NUM. Master should stop when the number of
 requested queues is bigger than that.
 
+When VHOST_USER_PROTOCOL_F_SET_QUEUE_NUM is negotiated, the master must send
+the number of queue pairs initialized with message VHOST_USER_SET_QUEUE_NUM.
+
 As all queues share one connection, the master uses a unique index for each
 queue in the sent message to identify a specified queue. One queue pair
 is enabled initially. More queues are enabled dynamically, by sending
@@ -354,6 +357,7 @@ Protocol features
 #define VHOST_USER_PROTOCOL_F_MTU            4
 #define VHOST_USER_PROTOCOL_F_SLAVE_REQ      5
 #define VHOST_USER_PROTOCOL_F_CROSS_ENDIAN   6
+#define VHOST_USER_PROTOCOL_F_SET_QUEUE_NUM  7
 
 Master message types
 --------------------
@@ -622,6 +626,18 @@ Master message types
       Backends that negotiated this feature should handle both endianesses
       and expect this message once (per VQ) during device configuration
       (ie. before the master starts the VQ).
+
+ * VHOST_USER_SET_QUEUE_NUM
+
+      Id: 24
+      Equivalent ioctl: N/A
+      Master payload: u64
+
+      Set the number of queue pairs initialized.
+      Master sends such request to notify the slave the number of queue pairs
+      that have been initialized.
+      This request should only be sent if VHOST_USER_PROTOCOL_F_SET_QUEUE_NUM
+      feature has been successfully negotiated.
 
 Slave message types
 -------------------
