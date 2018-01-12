@@ -638,8 +638,11 @@ static void slave_read(void *opaque)
 
     switch (msg.request) {
     case VHOST_USER_SLAVE_IOTLB_MSG:
-        ret = vhost_backend_handle_iotlb_msg(dev, &msg.payload.iotlb);
-        break;
+        {
+            struct vhost_iotlb_msg iotlb = msg.payload.iotlb;
+            ret = vhost_backend_handle_iotlb_msg(dev, &iotlb);
+            break;
+        }
     default:
         error_report("Received unexpected msg type.");
         ret = -EINVAL;
