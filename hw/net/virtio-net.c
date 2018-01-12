@@ -561,11 +561,16 @@ static int peer_detach(VirtIONet *n, int index)
 
 static void virtio_net_set_queues(VirtIONet *n)
 {
+    NetClientState *nc = qemu_get_queue(n->nic);
     int i;
     int r;
 
     if (n->nic->peer_deleted) {
         return;
+    }
+
+    if (get_vhost_net(nc->peer)) {
+        vhost_net_set_queue_num(nc->peer, n->curr_queues);
     }
 
     for (i = 0; i < n->max_queues; i++) {
