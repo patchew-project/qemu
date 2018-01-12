@@ -43,20 +43,19 @@
 static struct vhost_log *vhost_log;
 static struct vhost_log *vhost_log_shm;
 
-static unsigned int used_memslots;
 static QLIST_HEAD(, vhost_dev) vhost_devices =
     QLIST_HEAD_INITIALIZER(vhost_devices);
 
 bool vhost_has_free_slot(void)
 {
-    unsigned int slots_limit = ~0U;
     struct vhost_dev *hdev;
 
     QLIST_FOREACH(hdev, &vhost_devices, entry) {
-        unsigned int r = hdev->vhost_ops->vhost_backend_memslots_limit(hdev);
-        slots_limit = MIN(slots_limit, r);
+        if (!hdev->vhost_ops->vhost_backend_has_free_memslots(hdev)) {
+            return false;
+        }
     }
-    return slots_limit > used_memslots;
+    return true;
 }
 
 static void vhost_dev_sync_region(struct vhost_dev *dev,
@@ -606,7 +605,7 @@ static void vhost_set_memory(MemoryListener *listener,
     dev->mem_changed_start_addr = MIN(dev->mem_changed_start_addr, start_addr);
     dev->mem_changed_end_addr = MAX(dev->mem_changed_end_addr, start_addr + size - 1);
     dev->memory_changed = true;
-    used_memslots = dev->mem->nregions;
+    dev->vhost_ops->vhost_set_used_memslots(dev);
 }
 
 static bool vhost_section(MemoryRegionSection *section)
@@ -1333,7 +1332,7 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
     memory_listener_register(&hdev->memory_listener, &address_space_memory);
     QLIST_INSERT_HEAD(&vhost_devices, hdev, entry);
 
-    if (used_memslots > hdev->vhost_ops->vhost_backend_memslots_limit(hdev)) {
+    if (!hdev->vhost_ops->vhost_backend_has_free_memslots(hdev)) {
         error_report("vhost backend memory slots limit is less"
                 " than current number of present memory slots");
         r = -1;

@@ -15,6 +15,8 @@
 #include "hw/virtio/vhost-backend.h"
 #include "qemu/error-report.h"
 
+static unsigned int vhost_kernel_used_memslots;
+
 static int vhost_kernel_call(struct vhost_dev *dev, unsigned long int request,
                              void *arg)
 {
@@ -60,6 +62,11 @@ static int vhost_kernel_memslots_limit(struct vhost_dev *dev)
     }
     g_free(s);
     return limit;
+}
+
+static bool vhost_kernel_has_free_memslots(struct vhost_dev *dev)
+{
+    return vhost_kernel_used_memslots < vhost_kernel_memslots_limit(dev);
 }
 
 static int vhost_kernel_net_set_backend(struct vhost_dev *dev,
@@ -233,11 +240,16 @@ static void vhost_kernel_set_iotlb_callback(struct vhost_dev *dev,
         qemu_set_fd_handler((uintptr_t)dev->opaque, NULL, NULL, NULL);
 }
 
+static void vhost_kernel_set_used_memslots(struct vhost_dev *dev)
+{
+    vhost_kernel_used_memslots = dev->mem->nregions;
+}
+
 static const VhostOps kernel_ops = {
         .backend_type = VHOST_BACKEND_TYPE_KERNEL,
         .vhost_backend_init = vhost_kernel_init,
         .vhost_backend_cleanup = vhost_kernel_cleanup,
-        .vhost_backend_memslots_limit = vhost_kernel_memslots_limit,
+        .vhost_backend_has_free_memslots = vhost_kernel_has_free_memslots,
         .vhost_net_set_backend = vhost_kernel_net_set_backend,
         .vhost_scsi_set_endpoint = vhost_kernel_scsi_set_endpoint,
         .vhost_scsi_clear_endpoint = vhost_kernel_scsi_clear_endpoint,
@@ -264,6 +276,7 @@ static const VhostOps kernel_ops = {
 #endif /* CONFIG_VHOST_VSOCK */
         .vhost_set_iotlb_callback = vhost_kernel_set_iotlb_callback,
         .vhost_send_device_iotlb_msg = vhost_kernel_send_device_iotlb_msg,
+        .vhost_set_used_memslots = vhost_kernel_set_used_memslots,
 };
 
 int vhost_set_backend_type(struct vhost_dev *dev, VhostBackendType backend_type)
