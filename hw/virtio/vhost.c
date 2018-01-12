@@ -1532,6 +1532,8 @@ int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
         goto fail_mem;
     }
     for (i = 0; i < hdev->nvqs; ++i) {
+        if (virtio_queue_get_desc_addr(vdev, hdev->vq_index + i) == 0) 
+            continue;
         r = vhost_virtqueue_start(hdev,
                                   vdev,
                                   hdev->vqs + i,
