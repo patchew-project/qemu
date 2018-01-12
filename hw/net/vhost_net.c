@@ -124,6 +124,18 @@ uint64_t vhost_net_get_max_queues(VHostNetState *net)
     return net->dev.max_queues;
 }
 
+int vhost_net_set_queue_num(NetClientState *nc, uint64_t queues)
+{
+    VHostNetState *net = get_vhost_net(nc);
+    const VhostOps *vhost_ops = net->dev.vhost_ops;
+
+    if (vhost_ops->vhost_set_queue_num) {
+        return vhost_ops->vhost_set_queue_num(&net->dev, queues);
+    }
+
+    return 0;
+}
+
 uint64_t vhost_net_get_acked_features(VHostNetState *net)
 {
     return net->dev.acked_features;
@@ -454,6 +466,11 @@ int vhost_net_set_mtu(struct vhost_net *net, uint16_t mtu)
 uint64_t vhost_net_get_max_queues(VHostNetState *net)
 {
     return 1;
+}
+
+int vhost_net_set_queue_num(NetClientState *nc, uint64_t queues)
+{
+    return 0;
 }
 
 struct vhost_net *vhost_net_init(VhostNetOptions *options)
