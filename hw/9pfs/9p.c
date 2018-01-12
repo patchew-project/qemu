@@ -574,11 +574,7 @@ static void coroutine_fn virtfs_reset(V9fsPDU *pdu)
 /* This is the algorithm from ufs in spfs */
 static void stat_to_qid(const struct stat *stbuf, V9fsQID *qidp)
 {
-    size_t size;
-
-    memset(&qidp->path, 0, sizeof(qidp->path));
-    size = MIN(sizeof(stbuf->st_ino), sizeof(qidp->path));
-    memcpy(&qidp->path, &stbuf->st_ino, size);
+    qidp->path = stbuf->st_ino ^ ((int64_t)stbuf->st_dev << 16);
     qidp->version = stbuf->st_mtime ^ (stbuf->st_size << 8);
     qidp->type = 0;
     if (S_ISDIR(stbuf->st_mode)) {
