@@ -5186,6 +5186,13 @@ if compile_prog "" "" ; then
 fi
 
 ##########################################
+# check for asan header
+have_asan_iface_h=yes
+if ! check_include "sanitizer/asan_interface.h" ; then
+    have_asan_iface_h=no
+fi
+
+##########################################
 # End of CC checks
 # After here, no more $cc or $ld runs
 
@@ -5198,6 +5205,10 @@ elif test "$debug" = "yes"; then
   write_c_skeleton;
   if compile_prog "-fsanitize=address" ""; then
       CFLAGS="-fsanitize=address $CFLAGS"
+      if test "$have_asan_iface_h" = "no" ; then
+          print_error "ASAN build enabled, but ASAN header missing." \
+                      "Without code annotation, the report may be inferior."
+      fi
   fi
   if compile_prog "-fsanitize=undefined" ""; then
       CFLAGS="-fsanitize=undefined $CFLAGS"
@@ -6318,6 +6329,10 @@ fi
 
 if test "$have_utmpx" = "yes" ; then
   echo "HAVE_UTMPX=y" >> $config_host_mak
+fi
+
+if test "$have_asan_iface_h" = "yes" ; then
+    echo "HAVE_ASAN_IFACE_H=y" >> $config_host_mak
 fi
 
 if test "$ivshmem" = "yes" ; then
