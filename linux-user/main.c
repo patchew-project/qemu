@@ -4285,9 +4285,19 @@ static const char *get_cpu_model(int fd)
     return "Fujitsu MB86904";
 #endif
 #elif defined(TARGET_MIPS)
+    int ret;
+    uint32_t eflags;
+
+    ret = get_elf_eflags(fd, &eflags);
 #if defined(TARGET_ABI_MIPSN32) || defined(TARGET_ABI_MIPSN64)
+    if (ret == 0 && (eflags & EF_MIPS_ARCH_64R6) != 0) {
+        return "I6400";
+    }
     return "5KEf";
 #else
+    if (ret == 0 && (eflags & EF_MIPS_ARCH_32R6) != 0) {
+        return "mips32r6-generic";
+    }
     return "24Kf";
 #endif
 #elif defined TARGET_OPENRISC
