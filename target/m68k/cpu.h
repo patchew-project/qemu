@@ -138,6 +138,8 @@ typedef struct CPUM68KState {
     uint32_t mbar;
     uint32_t rambar0;
     uint32_t cacr;
+    uint32_t sfc;
+    uint32_t dfc;
 
     int pending_vector;
     int pending_level;
@@ -547,8 +549,12 @@ static inline void cpu_get_tb_cpu_state(CPUM68KState *env, target_ulong *pc,
 {
     *pc = env->pc;
     *cs_base = 0;
-    *flags = (env->sr & SR_S)                   /* Bit  13 */
-            | ((env->macsr >> 4) & 0xf);        /* Bits 0-3 */
+    *flags = (env->macsr >> 4) & 0xf;           /* Bits 0-3 */
+    if (env->sr & SR_S) {
+        *flags |= SR_S;                         /* Bit  13 */
+        *flags |= (env->sfc & 4) << 12;         /* Bit  14 */
+        *flags |= (env->dfc & 4) << 13;         /* Bit  15 */
+    }
 }
 
 #endif
