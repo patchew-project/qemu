@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "hw/hw.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
@@ -1185,8 +1186,23 @@ static inline unsigned int sdhci_get_fifolen(SDHCIState *s)
     }
 }
 
+/* --- qdev common --- */
+
+/* Capabilities registers provide information on supported features of this
+ * specific host controller implementation */
+static Property sdhci_capareg_property =
+    DEFINE_PROP_UINT32("capareg", SDHCIState, capareg, SDHC_CAPAB_REG_DEFAULT);
+
+static Property sdhci_maxcurr_property =
+    DEFINE_PROP_UINT32("maxcurr", SDHCIState, maxcurr, 0);
+
 static void sdhci_initfn(SDHCIState *s)
 {
+    DeviceState *dev = DEVICE(s);
+
+    qdev_property_add_static(dev, &sdhci_capareg_property, &error_abort);
+    qdev_property_add_static(dev, &sdhci_maxcurr_property, &error_abort);
+
     qbus_create_inplace(&s->sdbus, sizeof(s->sdbus),
                         TYPE_SDHCI_BUS, DEVICE(s), "sd-bus");
 
@@ -1264,14 +1280,7 @@ const VMStateDescription sdhci_vmstate = {
     },
 };
 
-/* Capabilities registers provide information on supported features of this
- * specific host controller implementation */
-static Property sdhci_pci_properties[] = {
-    DEFINE_PROP_UINT32("capareg", SDHCIState, capareg,
-            SDHC_CAPAB_REG_DEFAULT),
-    DEFINE_PROP_UINT32("maxcurr", SDHCIState, maxcurr, 0),
-    DEFINE_PROP_END_OF_LIST(),
-};
+/* --- qdev PCI --- */
 
 static void sdhci_pci_realize(PCIDevice *dev, Error **errp)
 {
@@ -1305,7 +1314,6 @@ static void sdhci_pci_class_init(ObjectClass *klass, void *data)
     k->class_id = PCI_CLASS_SYSTEM_SDHCI;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     dc->vmsd = &sdhci_vmstate;
-    dc->props = sdhci_pci_properties;
     dc->reset = sdhci_poweron_reset;
 }
 
@@ -1320,20 +1328,21 @@ static const TypeInfo sdhci_pci_info = {
     },
 };
 
-static Property sdhci_sysbus_properties[] = {
-    DEFINE_PROP_UINT32("capareg", SDHCIState, capareg,
-            SDHC_CAPAB_REG_DEFAULT),
-    DEFINE_PROP_UINT32("maxcurr", SDHCIState, maxcurr, 0),
-    DEFINE_PROP_BOOL("pending-insert-quirk", SDHCIState, pending_insert_quirk,
-                     false),
-    DEFINE_PROP_END_OF_LIST(),
-};
+/* --- qdev SysBus --- */
+
+static Property sdhci_sysbus_pending_insert_quirk_property =
+     DEFINE_PROP_BOOL("pending-insert-quirk", SDHCIState,
+                      pending_insert_quirk, false);
 
 static void sdhci_sysbus_init(Object *obj)
 {
     SDHCIState *s = SYSBUS_SDHCI(obj);
 
     sdhci_initfn(s);
+
+    qdev_property_add_static(DEVICE(obj),
+                             &sdhci_sysbus_pending_insert_quirk_property,
+                             &error_abort);
 }
 
 static void sdhci_sysbus_finalize(Object *obj)
@@ -1360,7 +1369,6 @@ static void sdhci_sysbus_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->vmsd = &sdhci_vmstate;
-    dc->props = sdhci_sysbus_properties;
     dc->realize = sdhci_sysbus_realize;
     dc->reset = sdhci_poweron_reset;
 }
@@ -1373,6 +1381,8 @@ static const TypeInfo sdhci_sysbus_info = {
     .instance_finalize = sdhci_sysbus_finalize,
     .class_init = sdhci_sysbus_class_init,
 };
+
+/* --- qdev bus master --- */
 
 static void sdhci_bus_class_init(ObjectClass *klass, void *data)
 {
