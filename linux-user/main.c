@@ -4267,6 +4267,16 @@ static const char *get_cpu_model(int fd)
 #elif defined(TARGET_UNICORE32)
     return "any";
 #elif defined(TARGET_M68K)
+    int ret;
+    uint32_t eflags;
+
+    ret = get_elf_eflags(fd, &eflags);
+    if (ret == 0 && eflags == 0) {
+        /* 680x0 */
+        return "m68020";
+    }
+
+    /* Coldfire */
     return "any";
 #elif defined(TARGET_SPARC)
 #ifdef TARGET_SPARC64
