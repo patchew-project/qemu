@@ -1,0 +1,6 @@
+# CAN bus interfaces emulation and infrastructure
+
+ifeq ($(CONFIG_CAN_CORE),y)
+common-obj-y += can_core.o
+common-obj-y += can_host_stub.o
+endif
