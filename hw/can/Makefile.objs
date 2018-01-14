@@ -7,4 +7,5 @@ common-obj-y += can_socketcan.o
 else
 common-obj-y += can_host_stub.o
 endif
+common-obj-$(CONFIG_CAN_SJA1000) += can_sja1000.o
 endif
