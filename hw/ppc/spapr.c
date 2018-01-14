@@ -2249,10 +2249,20 @@ static void spapr_set_vsmt_mode(sPAPRMachineState *spapr, Error **errp)
                      "on a pseries machine");
         goto out;
     }
+
     if (!is_power_of_2(smp_threads)) {
         error_setg(&local_err, "Cannot support %d threads/core on a pseries "
                      "machine because it must be a power of 2", smp_threads);
         goto out;
+    }
+
+    if (kvm_enabled() && kvmppc_cap_smt_possible() > 0) {
+        if ((kvmppc_cap_smt_possible() & smp_threads) != smp_threads) {
+            error_setg(&local_err, "KVM does not support %d threads/core.",
+                    smp_threads);
+            kvmppc_hint_smt_possible(&local_err);
+            goto out;
+        }
     }
 
     /* Detemine the VSMT mode to use: */

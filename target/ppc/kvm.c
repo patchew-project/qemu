@@ -2471,6 +2471,11 @@ bool kvmppc_has_cap_mmu_hash_v3(void)
     return cap_mmu_hash_v3;
 }
 
+int kvmppc_cap_smt_possible(void)
+{
+    return cap_ppc_smt_possible;
+}
+
 PowerPCCPUClass *kvm_ppc_get_host_cpu_class(void)
 {
     uint32_t host_pvr = mfpvr();
