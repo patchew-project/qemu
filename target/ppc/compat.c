@@ -73,7 +73,7 @@ static const CompatInfo compat_table[] = {
         .pvr = CPU_POWERPC_LOGICAL_3_00,
         .pcr = PCR_COMPAT_3_00,
         .pcr_level = PCR_COMPAT_3_00,
-        .max_threads = 4,
+        .max_threads = 8,
     },
 };
 
