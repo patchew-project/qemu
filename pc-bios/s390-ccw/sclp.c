@@ -119,3 +119,23 @@ void sclp_get_loadparm_ascii(char *loadparm)
         ebcdic_to_ascii((char *) sccb->loadparm, loadparm, 8);
     }
 }
+
+void sclp_read(char *str, size_t len)
+{
+    ReadEventData *sccb = (void *)_sccb;
+    char *buf = (char *)(&sccb->ebh) + 7;
+
+    /* Len should not exceed the maximum size of the event buffer */
+    if (len > SCCB_SIZE - 8) {
+        len = SCCB_SIZE - 8;
+    }
+
+    sccb->h.length = SCCB_SIZE;
+    sccb->h.function_code = SCLP_UNCONDITIONAL_READ;
+    sccb->ebh.length = sizeof(EventBufferHeader);
+    sccb->ebh.type = SCLP_EVENT_ASCII_CONSOLE_DATA;
+    sccb->ebh.flags = 0;
+
+    sclp_service_call(SCLP_CMD_READ_EVENT_DATA, sccb);
+    memcpy(str, buf, len);
+}
