@@ -269,8 +269,7 @@ static int eckd_get_boot_menu_index(block_number_t s1b_block_nr)
         return 0;
     }
 
-    zipl_parms.menu_start++; /* make compiler happy -- does nothing vital */
-    return 0; /* implemented next patch */
+    return menu_get_zipl_boot_index(s2_cur_blk, zipl_parms);
 }
 
 static void run_eckd_boot_script(block_number_t mbr_block_nr,

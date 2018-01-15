@@ -27,6 +27,7 @@ typedef struct ZiplParms {
     uint64_t menu_start;
 } ZiplParms;
 
+int menu_get_zipl_boot_index(const void *stage2, ZiplParms zipl_parms);
 void menu_set_parms(uint8_t boot_menu_flags, uint16_t boot_menu_timeout);
 bool menu_check_flags(uint8_t check_flags);
 
