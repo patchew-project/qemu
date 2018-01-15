@@ -539,6 +539,8 @@ static void flash_erase(Flash *s, int offset, FlashCMD cmd)
     uint32_t len;
     uint8_t capa_to_assert = 0;
 
+    assert(0 <= offset && offset < s->size);
+
     switch (cmd) {
     case ERASE_4K:
     case ERASE4_4K:
@@ -581,6 +583,14 @@ static void flash_erase(Flash *s, int offset, FlashCMD cmd)
         qemu_log_mask(LOG_GUEST_ERROR, "M25P80: erase with write protect!\n");
         return;
     }
+
+    if (offset + len > s->size) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                            "M25P80: trying to erase beyond the flash size! "
+                            "Truncating the length...\n");
+        len = s->size - offset;
+    }
+
     memset(s->storage + offset, 0xff, len);
     flash_sync_area(s, offset, len);
 }
