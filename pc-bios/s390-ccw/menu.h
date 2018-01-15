@@ -17,6 +17,16 @@
 #define BOOT_MENU_FLAG_BOOT_OPTS 0x80
 #define BOOT_MENU_FLAG_ZIPL_OPTS 0x40
 
+/* Offsets from zipl fields to zipl banner start */
+#define ZIPL_TIMEOUT_OFFSET 138
+#define ZIPL_FLAG_OFFSET    140
+
+typedef struct ZiplParms {
+    uint16_t flag;
+    uint16_t timeout;
+    uint64_t menu_start;
+} ZiplParms;
+
 void menu_set_parms(uint8_t boot_menu_flags, uint16_t boot_menu_timeout);
 bool menu_check_flags(uint8_t check_flags);
 
