@@ -15,9 +15,14 @@
 #include "hw/qdev.h"
 #include "cpu.h"
 
+#define BOOT_MENU_FLAG_BOOT_OPTS 0x80
+#define BOOT_MENU_FLAG_ZIPL_OPTS 0x40
+
 struct IplBlockCcw {
     uint64_t netboot_start_addr;
-    uint8_t  reserved0[77];
+    uint8_t  reserved0[74];
+    uint16_t boot_menu_timeout;
+    uint8_t  boot_menu_flags;
     uint8_t  ssid;
     uint16_t devno;
     uint8_t  vm_flags;
@@ -51,7 +56,9 @@ struct IplBlockQemuScsi {
     uint32_t lun;
     uint16_t target;
     uint16_t channel;
-    uint8_t  reserved0[77];
+    uint8_t  reserved0[74];
+    uint16_t boot_menu_timeout;
+    uint8_t  boot_menu_flags;
     uint8_t  ssid;
     uint16_t devno;
 } QEMU_PACKED;
