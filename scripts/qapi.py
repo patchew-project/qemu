@@ -11,6 +11,7 @@
 # This work is licensed under the terms of the GNU GPL, version 2.
 # See the COPYING file in the top-level directory.
 
+from __future__ import print_function
 import errno
 import getopt
 import os
@@ -244,7 +245,7 @@ class QAPIDoc(object):
                                "'Returns:' is only valid for commands")
 
     def check(self):
-        bogus = [name for name, section in self.args.iteritems()
+        bogus = [name for name, section in self.args.items()
                  if not section.member]
         if bogus:
             raise QAPISemError(
@@ -299,7 +300,7 @@ class QAPISchemaParser(object):
                 if not isinstance(pragma, dict):
                     raise QAPISemError(
                         info, "Value of 'pragma' must be a dictionary")
-                for name, value in pragma.iteritems():
+                for name, value in pragma.items():
                     self._pragma(name, value, info)
             else:
                 expr_elem = {'expr': expr,
@@ -1467,7 +1468,7 @@ class QAPISchema(object):
             self._def_exprs()
             self.check()
         except QAPIError as err:
-            print >>sys.stderr, err
+            print(err, file=sys.stderr)
             exit(1)
 
     def _def_entity(self, ent):
@@ -1565,7 +1566,7 @@ class QAPISchema(object):
 
     def _make_members(self, data, info):
         return [self._make_member(key, value, info)
-                for (key, value) in data.iteritems()]
+                for (key, value) in data.items()]
 
     def _def_struct_type(self, expr, info, doc):
         name = expr['struct']
@@ -1597,11 +1598,11 @@ class QAPISchema(object):
                 name, info, doc, 'base', self._make_members(base, info)))
         if tag_name:
             variants = [self._make_variant(key, value)
-                        for (key, value) in data.iteritems()]
+                        for (key, value) in data.items()]
             members = []
         else:
             variants = [self._make_simple_variant(key, value, info)
-                        for (key, value) in data.iteritems()]
+                        for (key, value) in data.items()]
             typ = self._make_implicit_enum_type(name, info,
                                                 [v.name for v in variants])
             tag_member = QAPISchemaObjectTypeMember('type', typ, False)
@@ -1616,7 +1617,7 @@ class QAPISchema(object):
         name = expr['alternate']
         data = expr['data']
         variants = [self._make_variant(key, value)
-                    for (key, value) in data.iteritems()]
+                    for (key, value) in data.items()]
         tag_member = QAPISchemaObjectTypeMember('type', 'QType', False)
         self._def_entity(
             QAPISchemaAlternateType(name, info, doc,
@@ -1931,7 +1932,7 @@ def parse_command_line(extra_options='', extra_long_options=[]):
                                        ['source', 'header', 'prefix=',
                                         'output-dir='] + extra_long_options)
     except getopt.GetoptError as err:
-        print >>sys.stderr, "%s: %s" % (sys.argv[0], str(err))
+        print("%s: %s" % (sys.argv[0], str(err)), file=sys.stderr)
         sys.exit(1)
 
     output_dir = ''
@@ -1945,9 +1946,8 @@ def parse_command_line(extra_options='', extra_long_options=[]):
         if o in ('-p', '--prefix'):
             match = re.match(r'([A-Za-z_.-][A-Za-z0-9_.-]*)?', a)
             if match.end() != len(a):
-                print >>sys.stderr, \
-                    "%s: 'funny character '%s' in argument of --prefix" \
-                    % (sys.argv[0], a[match.end()])
+                print("%s: 'funny character '%s' in argument of --prefix" \
+                      % (sys.argv[0], a[match.end()]), file=sys.stderr)
                 sys.exit(1)
             prefix = a
         elif o in ('-o', '--output-dir'):
@@ -1964,7 +1964,7 @@ def parse_command_line(extra_options='', extra_long_options=[]):
         do_h = True
 
     if len(args) != 1:
-        print >>sys.stderr, "%s: need exactly one argument" % sys.argv[0]
+        print("%s: need exactly one argument" % sys.argv[0], file=sys.stderr)
         sys.exit(1)
     fname = args[0]
 
