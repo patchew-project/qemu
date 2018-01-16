@@ -18,6 +18,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "hw/sysbus.h"
 #include "monitor/monitor.h"
 #include "exec/address-spaces.h"
@@ -200,22 +201,19 @@ void sysbus_init_ioports(SysBusDevice *dev, uint32_t ioport, uint32_t size)
     }
 }
 
-/* TODO remove, once users are converted to realize */
-static int sysbus_device_init(DeviceState *dev)
-{
-    SysBusDevice *sd = SYS_BUS_DEVICE(dev);
-    SysBusDeviceClass *sbc = SYS_BUS_DEVICE_GET_CLASS(sd);
-
-    if (!sbc->init) {
-        return 0;
-    }
-    return sbc->init(sd);
-}
-
 static void sysbus_realize(DeviceState *dev, Error **errp)
 {
     SysBusDevice *sd = SYS_BUS_DEVICE(dev);
     SysBusDeviceClass *sbc = SYS_BUS_DEVICE_GET_CLASS(sd);
+
+    /* TODO remove, once users are converted to realize */
+    if (sbc->init) {
+        int rc = sbc->init(sd);
+        if (rc < 0) {
+            error_setg(errp, "Device initialization failed.");
+            return;
+        }
+    }
 
     if (sbc->realize) {
         sbc->realize(sd, errp);
@@ -345,7 +343,6 @@ MemoryRegion *sysbus_address_space(SysBusDevice *dev)
 static void sysbus_device_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
-    k->init = sysbus_device_init;
     k->realize = sysbus_realize;
     k->unrealize = sysbus_unrealize;
     k->bus_type = TYPE_SYSTEM_BUS;

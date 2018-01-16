@@ -221,15 +221,6 @@ void device_listener_unregister(DeviceListener *listener)
 
 static void device_realize(DeviceState *dev, Error **errp)
 {
-    DeviceClass *dc = DEVICE_GET_CLASS(dev);
-
-    if (dc->init) {
-        int rc = dc->init(dev);
-        if (rc < 0) {
-            error_setg(errp, "Device initialization failed.");
-            return;
-        }
-    }
 }
 
 static void device_unrealize(DeviceState *dev, Error **errp)
