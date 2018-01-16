@@ -551,7 +551,7 @@ Master message types
       Master payload: N/A
       Slave payload: u64
 
-      Query how many queues the backend supports. This request should be
+      Query how many queue pairs the backend supports. This request should be
       sent only when VHOST_USER_PROTOCOL_F_MQ is set in queried protocol
       features by VHOST_USER_GET_PROTOCOL_FEATURES.
 
