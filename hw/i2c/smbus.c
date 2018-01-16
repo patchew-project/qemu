@@ -207,7 +207,11 @@ static int smbus_device_init(I2CSlave *i2c)
     SMBusDevice *dev = SMBUS_DEVICE(i2c);
     SMBusDeviceClass *sc = SMBUS_DEVICE_GET_CLASS(dev);
 
-    return sc->init(dev);
+    if (sc->init) {
+        return sc->init(dev);
+    }
+
+    return 0;
 }
 
 /* Master device commands.  */
