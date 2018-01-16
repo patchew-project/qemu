@@ -1427,6 +1427,12 @@ bool tcg_op_supported(TCGOpcode op)
     case INDEX_op_trne_vec:
     case INDEX_op_trno_vec:
         return have_vec && TCG_TARGET_HAS_trn_vec;
+    case INDEX_op_extul_vec:
+    case INDEX_op_extsl_vec:
+        return have_vec && TCG_TARGET_HAS_extl_vec;
+    case INDEX_op_extuh_vec:
+    case INDEX_op_extsh_vec:
+        return have_vec && TCG_TARGET_HAS_exth_vec;
 
     default:
         tcg_debug_assert(op > INDEX_op_last_generic && op < NB_OPS);
