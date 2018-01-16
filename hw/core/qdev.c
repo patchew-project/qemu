@@ -225,15 +225,6 @@ static void device_realize(DeviceState *dev, Error **errp)
 
 static void device_unrealize(DeviceState *dev, Error **errp)
 {
-    DeviceClass *dc = DEVICE_GET_CLASS(dev);
-
-    if (dc->exit) {
-        int rc = dc->exit(dev);
-        if (rc < 0) {
-            error_setg(errp, "Device exit failed.");
-            return;
-        }
-    }
 }
 
 void qdev_set_legacy_instance_id(DeviceState *dev, int alias_id,
