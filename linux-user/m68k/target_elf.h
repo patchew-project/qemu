@@ -9,6 +9,12 @@
 #define M68K_TARGET_ELF_H
 static inline const char *cpu_get_model(uint32_t eflags)
 {
+    if (eflags == 0) {
+        /* 680x0 */
+        return "m68020";
+    }
+
+    /* Coldfire */
     return "any";
 }
 #endif
