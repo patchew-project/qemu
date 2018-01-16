@@ -578,6 +578,8 @@ struct AcpiTableQemu {
     ACPI_TABLE_HEADER_DEF
     uint32_t tpmppi_addr;
     uint8_t tpm_version; /* 1 = 1.2, 2 = 2 */
+    uint8_t tpmppi_version;
+#define TPM_PPI_VERSION_1_30  1
 };
 typedef struct AcpiTableQemu AcpiTableQemu;
 
