@@ -40,6 +40,10 @@ typedef struct SysBusDeviceClass {
     DeviceClass parent_class;
     /*< public >*/
 
+    void (*realize)(SysBusDevice *dev, Error **errp);
+    void (*unrealize)(SysBusDevice *dev, Error **errp);
+
+    /* TODO remove, once users are converted to realize */
     int (*init)(SysBusDevice *dev);
 
     /*

@@ -200,6 +200,7 @@ void sysbus_init_ioports(SysBusDevice *dev, uint32_t ioport, uint32_t size)
     }
 }
 
+/* TODO remove, once users are converted to realize */
 static int sysbus_device_init(DeviceState *dev)
 {
     SysBusDevice *sd = SYS_BUS_DEVICE(dev);
@@ -209,6 +210,26 @@ static int sysbus_device_init(DeviceState *dev)
         return 0;
     }
     return sbc->init(sd);
+}
+
+static void sysbus_realize(DeviceState *dev, Error **errp)
+{
+    SysBusDevice *sd = SYS_BUS_DEVICE(dev);
+    SysBusDeviceClass *sbc = SYS_BUS_DEVICE_GET_CLASS(sd);
+
+    if (sbc->realize) {
+        sbc->realize(sd, errp);
+    }
+}
+
+static void sysbus_unrealize(DeviceState *dev, Error **errp)
+{
+    SysBusDevice *sd = SYS_BUS_DEVICE(dev);
+    SysBusDeviceClass *sbc = SYS_BUS_DEVICE_GET_CLASS(sd);
+
+    if (sbc->unrealize) {
+        sbc->unrealize(sd, errp);
+    }
 }
 
 DeviceState *sysbus_create_varargs(const char *name,
@@ -325,6 +346,8 @@ static void sysbus_device_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
     k->init = sysbus_device_init;
+    k->realize = sysbus_realize;
+    k->unrealize = sysbus_unrealize;
     k->bus_type = TYPE_SYSTEM_BUS;
     /*
      * device_add plugs devices into a suitable bus.  For "real" buses,
