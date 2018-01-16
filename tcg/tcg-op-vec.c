@@ -380,3 +380,58 @@ void tcg_gen_neg_vec(unsigned vece, TCGv_vec r, TCGv_vec a)
         tcg_temp_free_vec(t);
     }
 }
+
+static void do_interleave(TCGOpcode opc, unsigned vece,
+                          TCGv_vec r, TCGv_vec a, TCGv_vec b)
+{
+    TCGTemp *rt = tcgv_vec_temp(r);
+    TCGTemp *at = tcgv_vec_temp(a);
+    TCGTemp *bt = tcgv_vec_temp(b);
+    TCGArg ri = temp_arg(rt);
+    TCGArg ai = temp_arg(at);
+    TCGArg bi = temp_arg(bt);
+    TCGType type = rt->base_type;
+    unsigned vecl = type - TCG_TYPE_V64;
+    int can;
+
+    tcg_debug_assert(at->base_type == type);
+    tcg_debug_assert(bt->base_type == type);
+    tcg_debug_assert((8 << vece) <= (32 << vecl));
+    can = tcg_can_emit_vec_op(opc, type, vece);
+    if (can > 0) {
+        vec_gen_3(opc, type, vece, ri, ai, bi);
+    } else {
+        tcg_debug_assert(can < 0);
+        tcg_expand_vec_op(opc, type, vece, ri, ai, bi);
+    }
+}
+
+void tcg_gen_zipl_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b)
+{
+    do_interleave(INDEX_op_zipl_vec, vece, r, a, b);
+}
+
+void tcg_gen_ziph_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b)
+{
+    do_interleave(INDEX_op_ziph_vec, vece, r, a, b);
+}
+
+void tcg_gen_uzpe_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b)
+{
+    do_interleave(INDEX_op_uzpe_vec, vece, r, a, b);
+}
+
+void tcg_gen_uzpo_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b)
+{
+    do_interleave(INDEX_op_uzpo_vec, vece, r, a, b);
+}
+
+void tcg_gen_trne_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b)
+{
+    do_interleave(INDEX_op_trne_vec, vece, r, a, b);
+}
+
+void tcg_gen_trno_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b)
+{
+    do_interleave(INDEX_op_trno_vec, vece, r, a, b);
+}
