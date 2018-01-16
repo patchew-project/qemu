@@ -31,6 +31,7 @@
 #include "sysemu/tpm_backend.h"
 #include "tpm_int.h"
 #include "tpm_util.h"
+#include "tpm_ppi.h"
 
 #define TPM_TIS_NUM_LOCALITIES      5     /* per spec */
 #define TPM_TIS_LOCALITY_SHIFT      12
@@ -80,6 +81,8 @@ typedef struct TPMState {
     TPMVersion be_tpm_version;
 
     size_t be_buffer_size;
+
+    TPMPPI ppi;
 } TPMState;
 
 #define TPM(obj) OBJECT_CHECK(TPMState, (obj), TYPE_TPM_TIS)
@@ -1041,6 +1044,8 @@ static void tpm_tis_realizefn(DeviceState *dev, Error **errp)
 
     memory_region_add_subregion(isa_address_space(ISA_DEVICE(dev)),
                                 TPM_TIS_ADDR_BASE, &s->mmio);
+
+    tpm_ppi_init_io(&s->ppi, isa_address_space(ISA_DEVICE(dev)), OBJECT(s));
 }
 
 static void tpm_tis_initfn(Object *obj)
