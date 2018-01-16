@@ -106,6 +106,28 @@ void tcg_gen_gvec_2_ool(uint32_t dofs, uint32_t aofs,
     tcg_temp_free_i32(desc);
 }
 
+/* Generate a call to a gvec-style helper with two vector operands
+   and one scalar operand.  */
+void tcg_gen_gvec_2i_ool(uint32_t dofs, uint32_t aofs, TCGv_i64 c,
+                         uint32_t oprsz, uint32_t maxsz, int32_t data,
+                         gen_helper_gvec_2i *fn)
+{
+    TCGv_ptr a0, a1;
+    TCGv_i32 desc = tcg_const_i32(simd_desc(oprsz, maxsz, data));
+
+    a0 = tcg_temp_new_ptr();
+    a1 = tcg_temp_new_ptr();
+
+    tcg_gen_addi_ptr(a0, cpu_env, dofs);
+    tcg_gen_addi_ptr(a1, cpu_env, aofs);
+
+    fn(a0, a1, c, desc);
+
+    tcg_temp_free_ptr(a0);
+    tcg_temp_free_ptr(a1);
+    tcg_temp_free_i32(desc);
+}
+
 /* Generate a call to a gvec-style helper with three vector operands.  */
 void tcg_gen_gvec_3_ool(uint32_t dofs, uint32_t aofs, uint32_t bofs,
                         uint32_t oprsz, uint32_t maxsz, int32_t data,
@@ -859,7 +881,13 @@ void tcg_gen_gvec_2i(uint32_t dofs, uint32_t aofs, uint32_t oprsz,
     } else if (g->fni4 && check_size_impl(oprsz, 4)) {
         expand_2i_i32(dofs, aofs, oprsz, c, g->load_dest, g->fni4);
     } else {
-        tcg_gen_gvec_2_ool(dofs, aofs, oprsz, maxsz, c, g->fno);
+        if (g->fno) {
+            tcg_gen_gvec_2_ool(dofs, aofs, oprsz, maxsz, c, g->fno);
+        } else {
+            TCGv_i64 tcg_c = tcg_const_i64(c);
+            tcg_gen_gvec_2i_ool(dofs, aofs, tcg_c, oprsz, maxsz, c, g->fnoi);
+            tcg_temp_free_i64(tcg_c);
+        }
         return;
     }
 
@@ -1183,6 +1211,59 @@ void tcg_gen_gvec_add(unsigned vece, uint32_t dofs, uint32_t aofs,
     tcg_gen_gvec_3(dofs, aofs, bofs, oprsz, maxsz, &g[vece]);
 }
 
+static void tcg_gen_vec_addi8_i64(TCGv_i64 d, TCGv_i64 a, int64_t b)
+{
+    TCGv_i64 t = tcg_const_i64((b & 0xff) * (-1ull / 0xff));
+    tcg_gen_vec_add8_i64(d, a, t);
+    tcg_temp_free_i64(t);
+}
+
+static void tcg_gen_vec_addi16_i64(TCGv_i64 d, TCGv_i64 a, int64_t b)
+{
+    TCGv_i64 t = tcg_const_i64((b & 0xffff) * (-1ull / 0xffff));
+    tcg_gen_vec_add16_i64(d, a, t);
+    tcg_temp_free_i64(t);
+}
+
+static void tcg_gen_addi_vec(unsigned vece, TCGv_vec d, TCGv_vec a, int64_t b)
+{
+    TCGv_vec t = tcg_temp_new_vec_matching(d);
+    tcg_gen_dupi_vec(vece, t, b);
+    tcg_gen_add_vec(vece, d, a, t);
+    tcg_temp_free_vec(t);
+}
+
+void tcg_gen_gvec_addi(unsigned vece, uint32_t dofs, uint32_t aofs,
+                       int64_t c, uint32_t oprsz, uint32_t maxsz)
+{
+    static const GVecGen2i g[4] = {
+        { .fni8 = tcg_gen_vec_addi8_i64,
+          .fniv = tcg_gen_addi_vec,
+          .fnoi = gen_helper_gvec_adds8,
+          .opc = INDEX_op_add_vec,
+          .vece = MO_8 },
+        { .fni8 = tcg_gen_vec_addi16_i64,
+          .fniv = tcg_gen_addi_vec,
+          .fnoi = gen_helper_gvec_adds16,
+          .opc = INDEX_op_add_vec,
+          .vece = MO_16 },
+        { .fni4 = tcg_gen_addi_i32,
+          .fniv = tcg_gen_addi_vec,
+          .fnoi = gen_helper_gvec_adds32,
+          .opc = INDEX_op_add_vec,
+          .vece = MO_32 },
+        { .fni8 = tcg_gen_addi_i64,
+          .fniv = tcg_gen_addi_vec,
+          .fnoi = gen_helper_gvec_adds64,
+          .opc = INDEX_op_add_vec,
+          .prefer_i64 = TCG_TARGET_REG_BITS == 64,
+          .vece = MO_64 },
+    };
+
+    tcg_debug_assert(vece <= MO_64);
+    tcg_gen_gvec_2i(dofs, aofs, oprsz, maxsz, c, &g[vece]);
+}
+
 /* Perform a vector subtraction using normal subtraction and a mask.
    Compare gen_addv_mask above.  */
 static void gen_subv_mask(TCGv_i64 d, TCGv_i64 a, TCGv_i64 b, TCGv_i64 m)
@@ -1289,6 +1370,43 @@ void tcg_gen_gvec_mul(unsigned vece, uint32_t dofs, uint32_t aofs,
 
     tcg_debug_assert(vece <= MO_64);
     tcg_gen_gvec_3(dofs, aofs, bofs, oprsz, maxsz, &g[vece]);
+}
+
+static void tcg_gen_muli_vec(unsigned vece, TCGv_vec d, TCGv_vec a, int64_t b)
+{
+    TCGv_vec t = tcg_temp_new_vec_matching(d);
+    tcg_gen_dupi_vec(vece, t, b);
+    tcg_gen_mul_vec(vece, d, a, t);
+    tcg_temp_free_vec(t);
+}
+
+void tcg_gen_gvec_muli(unsigned vece, uint32_t dofs, uint32_t aofs,
+                       int64_t c, uint32_t oprsz, uint32_t maxsz)
+{
+    static const GVecGen2i g[4] = {
+        { .fniv = tcg_gen_muli_vec,
+          .fnoi = gen_helper_gvec_muls8,
+          .opc = INDEX_op_mul_vec,
+          .vece = MO_8 },
+        { .fniv = tcg_gen_muli_vec,
+          .fnoi = gen_helper_gvec_muls16,
+          .opc = INDEX_op_mul_vec,
+          .vece = MO_16 },
+        { .fni4 = tcg_gen_muli_i32,
+          .fniv = tcg_gen_muli_vec,
+          .fnoi = gen_helper_gvec_muls32,
+          .opc = INDEX_op_mul_vec,
+          .vece = MO_32 },
+        { .fni8 = tcg_gen_muli_i64,
+          .fniv = tcg_gen_muli_vec,
+          .fnoi = gen_helper_gvec_muls64,
+          .opc = INDEX_op_mul_vec,
+          .prefer_i64 = TCG_TARGET_REG_BITS == 64,
+          .vece = MO_64 },
+    };
+
+    tcg_debug_assert(vece <= MO_64);
+    tcg_gen_gvec_2i(dofs, aofs, oprsz, maxsz, c, &g[vece]);
 }
 
 void tcg_gen_gvec_ssadd(unsigned vece, uint32_t dofs, uint32_t aofs,
@@ -1521,6 +1639,72 @@ void tcg_gen_gvec_orc(unsigned vece, uint32_t dofs, uint32_t aofs,
         .prefer_i64 = TCG_TARGET_REG_BITS == 64,
     };
     tcg_gen_gvec_3(dofs, aofs, bofs, oprsz, maxsz, &g);
+}
+
+static void tcg_gen_andi_vec(unsigned vece, TCGv_vec d, TCGv_vec a, int64_t b)
+{
+    TCGv_vec t = tcg_temp_new_vec_matching(d);
+    tcg_gen_dupi_vec(vece, t, b);
+    tcg_gen_and_vec(vece, d, a, t);
+    tcg_temp_free_vec(t);
+}
+
+void tcg_gen_gvec_andi(unsigned vece, uint32_t dofs, uint32_t aofs,
+                       int64_t c, uint32_t oprsz, uint32_t maxsz)
+{
+    static const GVecGen2i g = {
+        .fni8 = tcg_gen_andi_i64,
+        .fniv = tcg_gen_andi_vec,
+        .fnoi = gen_helper_gvec_andi,
+        .opc = INDEX_op_and_vec,
+        .prefer_i64 = TCG_TARGET_REG_BITS == 64,
+        .vece = MO_64
+    };
+    tcg_gen_gvec_2i(dofs, aofs, oprsz, maxsz, c, &g);
+}
+
+static void tcg_gen_xori_vec(unsigned vece, TCGv_vec d, TCGv_vec a, int64_t b)
+{
+    TCGv_vec t = tcg_temp_new_vec_matching(d);
+    tcg_gen_dupi_vec(vece, t, b);
+    tcg_gen_xor_vec(vece, d, a, t);
+    tcg_temp_free_vec(t);
+}
+
+void tcg_gen_gvec_xori(unsigned vece, uint32_t dofs, uint32_t aofs,
+                       int64_t c, uint32_t oprsz, uint32_t maxsz)
+{
+    static const GVecGen2i g = {
+        .fni8 = tcg_gen_xori_i64,
+        .fniv = tcg_gen_xori_vec,
+        .fnoi = gen_helper_gvec_xori,
+        .opc = INDEX_op_xor_vec,
+        .prefer_i64 = TCG_TARGET_REG_BITS == 64,
+        .vece = MO_64
+    };
+    tcg_gen_gvec_2i(dofs, aofs, oprsz, maxsz, c, &g);
+}
+
+static void tcg_gen_ori_vec(unsigned vece, TCGv_vec d, TCGv_vec a, int64_t b)
+{
+    TCGv_vec t = tcg_temp_new_vec_matching(d);
+    tcg_gen_dupi_vec(vece, t, b);
+    tcg_gen_or_vec(vece, d, a, t);
+    tcg_temp_free_vec(t);
+}
+
+void tcg_gen_gvec_ori(unsigned vece, uint32_t dofs, uint32_t aofs,
+                       int64_t c, uint32_t oprsz, uint32_t maxsz)
+{
+    static const GVecGen2i g = {
+        .fni8 = tcg_gen_ori_i64,
+        .fniv = tcg_gen_ori_vec,
+        .fnoi = gen_helper_gvec_ori,
+        .opc = INDEX_op_or_vec,
+        .prefer_i64 = TCG_TARGET_REG_BITS == 64,
+        .vece = MO_64
+    };
+    tcg_gen_gvec_2i(dofs, aofs, oprsz, maxsz, c, &g);
 }
 
 void tcg_gen_vec_shl8i_i64(TCGv_i64 d, TCGv_i64 a, int64_t c)
