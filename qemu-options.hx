@@ -1961,7 +1961,7 @@ DEF("netdev", HAS_ARG, QEMU_OPTION_netdev,
     "                use 'queues=n' to specify the number of queues to be created for multiqueue TAP\n"
     "                use 'poll-us=n' to speciy the maximum number of microseconds that could be\n"
     "                spent on busy polling for vhost net\n"
-    "-netdev bridge,id=str[,br=bridge][,helper=helper]\n"
+    "-netdev bridge,id=str[,br=bridge][,helper=helper][,ifname=name]\n"
     "                configure a host TAP network backend with ID 'str' that is\n"
     "                connected to a bridge (default=" DEFAULT_BRIDGE_INTERFACE ")\n"
     "                using the program 'helper (default=" DEFAULT_BRIDGE_HELPER ")\n"

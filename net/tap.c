@@ -472,7 +472,7 @@ static int recv_fd(int c)
 }
 
 static int net_bridge_run_helper(const char *helper, const char *bridge,
-                                 Error **errp)
+                                 const char *ifname, Error **errp)
 {
     sigset_t oldmask, mask;
     int pid, status;
@@ -499,7 +499,9 @@ static int net_bridge_run_helper(const char *helper, const char *bridge,
         int open_max = sysconf(_SC_OPEN_MAX), i;
         char fd_buf[6+10];
         char br_buf[6+IFNAMSIZ] = {0};
-        char helper_cmd[PATH_MAX + sizeof(fd_buf) + sizeof(br_buf) + 15];
+        char ifname_buf[10 + IFNAMSIZ];
+        char helper_cmd[PATH_MAX + sizeof(fd_buf) + sizeof(br_buf)
+                        + sizeof(ifname_buf) + 16];
 
         for (i = 3; i < open_max; i++) {
             if (i != sv[1]) {
@@ -516,8 +518,13 @@ static int net_bridge_run_helper(const char *helper, const char *bridge,
                 snprintf(br_buf, sizeof(br_buf), "%s%s", "--br=", bridge);
             }
 
-            snprintf(helper_cmd, sizeof(helper_cmd), "%s %s %s %s",
-                     helper, "--use-vnet", fd_buf, br_buf);
+            if (strstr(helper, "--ifname=") == NULL && ifname != NULL) {
+                snprintf(ifname_buf, sizeof(ifname_buf), "%s%s", "--ifname=",
+                         ifname);
+            }
+
+            snprintf(helper_cmd, sizeof(helper_cmd), "%s %s %s %s %s",
+                     helper, "--use-vnet", fd_buf, br_buf, ifname_buf);
 
             parg = args;
             *parg++ = (char *)"sh";
@@ -536,6 +543,13 @@ static int net_bridge_run_helper(const char *helper, const char *bridge,
             *parg++ = (char *)"--use-vnet";
             *parg++ = fd_buf;
             *parg++ = br_buf;
+
+            if (ifname != NULL) {
+                snprintf(ifname_buf, sizeof(ifname_buf), "%s%s", "--ifname=",
+                         ifname);
+                *parg++ = ifname_buf;
+            }
+
             *parg++ = NULL;
 
             execv(helper, args);
@@ -586,7 +600,7 @@ int net_init_bridge(const Netdev *netdev, const char *name,
     helper = bridge->has_helper ? bridge->helper : DEFAULT_BRIDGE_HELPER;
     br     = bridge->has_br     ? bridge->br     : DEFAULT_BRIDGE_INTERFACE;
 
-    fd = net_bridge_run_helper(helper, br, errp);
+    fd = net_bridge_run_helper(helper, br, bridge->ifname, errp);
     if (fd == -1) {
         return -1;
     }
@@ -854,16 +868,17 @@ free_fail:
         g_free(vhost_fds);
         return -1;
     } else if (tap->has_helper) {
-        if (tap->has_ifname || tap->has_script || tap->has_downscript ||
-            tap->has_vnet_hdr || tap->has_queues || tap->has_vhostfds) {
-            error_setg(errp, "ifname=, script=, downscript=, vnet_hdr=, "
-                       "queues=, and vhostfds= are invalid with helper=");
+        if (tap->has_script || tap->has_downscript || tap->has_vnet_hdr ||
+            tap->has_queues || tap->has_vhostfds) {
+            error_setg(errp, "script=, downscript=, vnet_hdr=, queues=, and "
+                       "vhostfds= are invalid with helper=");
             return -1;
         }
 
         fd = net_bridge_run_helper(tap->helper,
                                    tap->has_br ?
                                    tap->br : DEFAULT_BRIDGE_INTERFACE,
+                                   tap->ifname,
                                    errp);
         if (fd == -1) {
             return -1;

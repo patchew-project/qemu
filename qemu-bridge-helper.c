@@ -57,7 +57,7 @@ typedef QSIMPLEQ_HEAD(ACLList, ACLRule) ACLList;
 static void usage(void)
 {
     fprintf(stderr,
-            "Usage: qemu-bridge-helper [--use-vnet] --br=bridge --fd=unixfd\n");
+            "Usage: qemu-bridge-helper [--use-vnet] --br=bridge --fd=unixfd [--ifname=name]\n");
 }
 
 static int parse_acl_file(const char *filename, ACLList *acl_list)
@@ -223,6 +223,7 @@ int main(int argc, char **argv)
     int use_vnet = 0;
     int mtu;
     const char *bridge = NULL;
+    const char *ifname = NULL;
     char iface[IFNAMSIZ];
     int index;
     ACLRule *acl_rule;
@@ -249,6 +250,8 @@ int main(int argc, char **argv)
             bridge = &argv[index][5];
         } else if (strncmp(argv[index], "--fd=", 5) == 0) {
             unixfd = atoi(&argv[index][5]);
+        } else if (strncmp(argv[index], "--ifname=", 9) == 0) {
+            ifname = &argv[index][9];
         } else {
             usage();
             return EXIT_FAILURE;
@@ -320,7 +323,11 @@ int main(int argc, char **argv)
 
     /* request a tap device, disable PI, and add vnet header support if
      * requested and it's available. */
-    prep_ifreq(&ifr, "tap%d");
+    if (ifname == NULL) {
+        prep_ifreq(&ifr, "tap%d");
+    } else {
+        prep_ifreq(&ifr, ifname);
+    }
     ifr.ifr_flags = IFF_TAP|IFF_NO_PI;
     if (use_vnet && has_vnet_hdr(fd)) {
         ifr.ifr_flags |= IFF_VNET_HDR;
