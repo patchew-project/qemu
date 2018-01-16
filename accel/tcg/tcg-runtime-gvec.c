@@ -520,3 +520,27 @@ DO_TRN(gvec_trn8, uint8_t)
 DO_TRN(gvec_trn16, uint16_t)
 DO_TRN(gvec_trn32, uint32_t)
 DO_TRN(gvec_trn64, uint64_t)
+
+#define DO_CMP1(NAME, TYPE, OP)                                              \
+void HELPER(NAME)(void *d, void *a, void *b, uint32_t desc)                  \
+{                                                                            \
+    intptr_t oprsz = simd_oprsz(desc);                                       \
+    intptr_t i;                                                              \
+    for (i = 0; i < oprsz; i += sizeof(vec64)) {                             \
+        *(TYPE *)(d + i) = *(TYPE *)(a + i) OP *(TYPE *)(b + i);             \
+    }                                                                        \
+    clear_high(d, oprsz, desc);                                              \
+}
+
+#define DO_CMP2(SZ) \
+    DO_CMP1(gvec_eq##SZ, vec##SZ, ==)    \
+    DO_CMP1(gvec_ne##SZ, vec##SZ, !=)    \
+    DO_CMP1(gvec_lt##SZ, svec##SZ, <)    \
+    DO_CMP1(gvec_le##SZ, svec##SZ, <=)   \
+    DO_CMP1(gvec_ltu##SZ, vec##SZ, <)    \
+    DO_CMP1(gvec_leu##SZ, vec##SZ, <=)
+
+DO_CMP2(8)
+DO_CMP2(16)
+DO_CMP2(32)
+DO_CMP2(64)
