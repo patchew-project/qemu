@@ -417,6 +417,7 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
     case POWERPC_EXCP_HISI:      /* Hypervisor instruction storage exception */
     case POWERPC_EXCP_HDSEG:     /* Hypervisor data segment exception        */
     case POWERPC_EXCP_HISEG:     /* Hypervisor instruction segment exception */
+    case POWERPC_EXCP_SDOOR_HV:  /* Hypervisor Doorbell interrupt            */
     case POWERPC_EXCP_HV_EMU:
         srr0 = SPR_HSRR0;
         srr1 = SPR_HSRR1;
@@ -846,6 +847,11 @@ static void ppc_hw_interrupt(CPUPPCState *env)
             powerpc_excp(cpu, env->excp_model, POWERPC_EXCP_DOORI);
             return;
         }
+        if (env->pending_interrupts & (1 << PPC_INTERRUPT_HDOORBELL)) {
+            env->pending_interrupts &= ~(1 << PPC_INTERRUPT_HDOORBELL);
+            powerpc_excp(cpu, env->excp_model, POWERPC_EXCP_SDOOR_HV);
+            return;
+        }
         if (env->pending_interrupts & (1 << PPC_INTERRUPT_PERFM)) {
             env->pending_interrupts &= ~(1 << PPC_INTERRUPT_PERFM);
             powerpc_excp(cpu, env->excp_model, POWERPC_EXCP_PERFM);
@@ -1088,8 +1094,8 @@ void helper_rfsvc(CPUPPCState *env)
     do_rfi(env, env->lr, env->ctr & 0x0000FFFF);
 }
 
-/* Embedded.Processor Control */
-static int dbell2irq(target_ulong rb)
+/* Server and Embedded Processor Control */
+static int dbell2irq(target_ulong rb, bool book3s)
 {
     int msg = rb & DBELL_TYPE_MASK;
     int irq = -1;
@@ -1109,12 +1115,21 @@ static int dbell2irq(target_ulong rb)
         break;
     }
 
+    /* A Directed Hypervisor Doorbell message is sent only if the
+     * message type is 5. All other types are reserved and the
+     * instruction is a no-op */
+    if (book3s && msg == DBELL_TYPE_DBELL_SERVER) {
+        irq = PPC_INTERRUPT_HDOORBELL;
+    }
+
     return irq;
 }
 
 void helper_msgclr(CPUPPCState *env, target_ulong rb)
 {
-    int irq = dbell2irq(rb);
+    /* 64-bit server processors compliant with arch 2.x */
+    bool book3s = (env->insns_flags & PPC_SEGMENT_64B);
+    int irq = dbell2irq(rb, book3s);
 
     if (irq < 0) {
         return;
@@ -1123,10 +1138,11 @@ void helper_msgclr(CPUPPCState *env, target_ulong rb)
     env->pending_interrupts &= ~(1 << irq);
 }
 
-void helper_msgsnd(target_ulong rb)
+void helper_msgsnd(CPUPPCState *env, target_ulong rb)
 {
-    int irq = dbell2irq(rb);
-    int pir = rb & DBELL_PIRTAG_MASK;
+    /* 64-bit server processors compliant with arch 2.x */
+    bool book3s = (env->insns_flags & PPC_SEGMENT_64B);
+    int irq = dbell2irq(rb, book3s);
     CPUState *cs;
 
     if (irq < 0) {
@@ -1137,8 +1153,17 @@ void helper_msgsnd(target_ulong rb)
     CPU_FOREACH(cs) {
         PowerPCCPU *cpu = POWERPC_CPU(cs);
         CPUPPCState *cenv = &cpu->env;
+        bool send;
 
-        if ((rb & DBELL_BRDCAST) || (cenv->spr[SPR_BOOKE_PIR] == pir)) {
+        /* TODO: broadcast message to all threads of the same  processor */
+        if (book3s) {
+            int pir = rb & DBELL_PROCIDTAG_MASK;
+            send = (cenv->spr_cb[SPR_PIR].default_value == pir);
+        } else {
+            int pir = rb & DBELL_PROCIDTAG_MASK;
+            send = (rb & DBELL_BRDCAST) || (cenv->spr[SPR_BOOKE_PIR] == pir);
+        }
+        if (send) {
             cenv->pending_interrupts |= 1 << irq;
             cpu_interrupt(cs, CPU_INTERRUPT_HARD);
         }
