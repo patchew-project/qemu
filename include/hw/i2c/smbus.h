@@ -38,7 +38,7 @@
 typedef struct SMBusDeviceClass
 {
     I2CSlaveClass parent_class;
-    int (*init)(SMBusDevice *dev);
+    void (*realize)(SMBusDevice *dev, Error **errp);
     void (*quick_cmd)(SMBusDevice *dev, uint8_t read);
     void (*send_byte)(SMBusDevice *dev, uint8_t val);
     uint8_t (*receive_byte)(SMBusDevice *dev);

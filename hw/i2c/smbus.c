@@ -202,16 +202,14 @@ static int smbus_i2c_send(I2CSlave *s, uint8_t data)
     return 0;
 }
 
-static int smbus_device_init(I2CSlave *i2c)
+static void smbus_device_realize(I2CSlave *i2c, Error **errp)
 {
     SMBusDevice *dev = SMBUS_DEVICE(i2c);
     SMBusDeviceClass *sc = SMBUS_DEVICE_GET_CLASS(dev);
 
-    if (sc->init) {
-        return sc->init(dev);
+    if (sc->realize) {
+        sc->realize(dev, errp);
     }
-
-    return 0;
 }
 
 /* Master device commands.  */
@@ -354,7 +352,7 @@ static void smbus_device_class_init(ObjectClass *klass, void *data)
 {
     I2CSlaveClass *sc = I2C_SLAVE_CLASS(klass);
 
-    sc->init = smbus_device_init;
+    sc->realize = smbus_device_realize;
     sc->event = smbus_i2c_event;
     sc->recv = smbus_i2c_recv;
     sc->send = smbus_i2c_send;

@@ -30,7 +30,7 @@ typedef struct I2CSlaveClass
     DeviceClass parent_class;
 
     /* Callbacks provided by the device.  */
-    int (*init)(I2CSlave *dev);
+    void (*realize)(I2CSlave *slave, Error **errp);
 
     /* Master to slave. Returns non-zero for a NAK, 0 for success. */
     int (*send)(I2CSlave *s, uint8_t data);

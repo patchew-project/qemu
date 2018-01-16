@@ -853,10 +853,10 @@ static const VMStateDescription vmstate_menelaus = {
     }
 };
 
-static int twl92230_init(I2CSlave *i2c)
+static void twl92230_realize(I2CSlave *slave, Error **errp)
 {
-    DeviceState *dev = DEVICE(i2c);
-    MenelausState *s = TWL92230(i2c);
+    DeviceState *dev = DEVICE(slave);
+    MenelausState *s = TWL92230(slave);
 
     s->rtc.hz_tm = timer_new_ms(rtc_clock, menelaus_rtc_hz, s);
     /* Three output pins plus one interrupt pin.  */
@@ -865,9 +865,7 @@ static int twl92230_init(I2CSlave *i2c)
     /* Three input pins plus one power-button pin.  */
     qdev_init_gpio_in(dev, menelaus_gpio_set, 4);
 
-    menelaus_reset(i2c);
-
-    return 0;
+    menelaus_reset(slave);
 }
 
 static void twl92230_class_init(ObjectClass *klass, void *data)
@@ -875,7 +873,7 @@ static void twl92230_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     I2CSlaveClass *sc = I2C_SLAVE_CLASS(klass);
 
-    sc->init = twl92230_init;
+    sc->realize = twl92230_realize;
     sc->event = menelaus_event;
     sc->recv = menelaus_rx;
     sc->send = menelaus_tx;
