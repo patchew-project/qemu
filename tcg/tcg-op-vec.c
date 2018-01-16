@@ -78,7 +78,7 @@ static void vec_gen_op2(TCGOpcode opc, unsigned vece, TCGv_vec r, TCGv_vec a)
     TCGTemp *at = tcgv_vec_temp(a);
     TCGType type = rt->base_type;
 
-    tcg_debug_assert(at->base_type == type);
+    tcg_debug_assert(at->base_type >= type);
     vec_gen_2(opc, type, vece, temp_arg(rt), temp_arg(at));
 }
 
@@ -90,8 +90,8 @@ static void vec_gen_op3(TCGOpcode opc, unsigned vece,
     TCGTemp *bt = tcgv_vec_temp(b);
     TCGType type = rt->base_type;
 
-    tcg_debug_assert(at->base_type == type);
-    tcg_debug_assert(bt->base_type == type);
+    tcg_debug_assert(at->base_type >= type);
+    tcg_debug_assert(bt->base_type >= type);
     vec_gen_3(opc, type, vece, temp_arg(rt), temp_arg(at), temp_arg(bt));
 }
 
@@ -257,14 +257,14 @@ void tcg_gen_dup_i64_vec(unsigned vece, TCGv_vec r, TCGv_i64 a)
 
     if (TCG_TARGET_REG_BITS == 64) {
         TCGArg ai = tcgv_i64_arg(a);
-        vec_gen_2(INDEX_op_dup_vec, type, MO_64, ri, ai);
+        vec_gen_2(INDEX_op_dup_vec, type, vece, ri, ai);
     } else if (vece == MO_64) {
         TCGArg al = tcgv_i32_arg(TCGV_LOW(a));
         TCGArg ah = tcgv_i32_arg(TCGV_HIGH(a));
         vec_gen_3(INDEX_op_dup2_vec, type, MO_64, ri, al, ah);
     } else {
         TCGArg ai = tcgv_i32_arg(TCGV_LOW(a));
-        vec_gen_2(INDEX_op_dup_vec, type, MO_64, ri, ai);
+        vec_gen_2(INDEX_op_dup_vec, type, vece, ri, ai);
     }
 }
 
@@ -493,8 +493,8 @@ void tcg_gen_cmp_vec(TCGCond cond, unsigned vece,
     TCGType type = rt->base_type;
     int can;
 
-    tcg_debug_assert(at->base_type == type);
-    tcg_debug_assert(bt->base_type == type);
+    tcg_debug_assert(at->base_type >= type);
+    tcg_debug_assert(bt->base_type >= type);
     can = tcg_can_emit_vec_op(INDEX_op_cmp_vec, type, vece);
     if (can > 0) {
         vec_gen_4(INDEX_op_cmp_vec, type, vece, ri, ai, bi, cond);
@@ -515,8 +515,8 @@ void tcg_gen_mul_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b)
     TCGType type = rt->base_type;
     int can;
 
-    tcg_debug_assert(at->base_type == type);
-    tcg_debug_assert(bt->base_type == type);
+    tcg_debug_assert(at->base_type >= type);
+    tcg_debug_assert(bt->base_type >= type);
     can = tcg_can_emit_vec_op(INDEX_op_mul_vec, type, vece);
     if (can > 0) {
         vec_gen_3(INDEX_op_mul_vec, type, vece, ri, ai, bi);
