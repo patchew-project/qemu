@@ -8705,12 +8705,7 @@ static void handle_vec_simd_wshli(DisasContext *s, bool is_q, bool is_u,
     int size = 32 - clz32(immh) - 1;
     int immhb = immh << 3 | immb;
     int shift = immhb - (8 << size);
-    int dsize = 64;
-    int esize = 8 << size;
-    int elements = dsize/esize;
-    TCGv_i64 tcg_rn = new_tmp_a64(s);
-    TCGv_i64 tcg_rd = new_tmp_a64(s);
-    int i;
+    GVecGen2Fn *gvec_fn;
 
     if (size >= 3) {
         unallocated_encoding(s);
@@ -8721,18 +8716,18 @@ static void handle_vec_simd_wshli(DisasContext *s, bool is_q, bool is_u,
         return;
     }
 
-    /* For the LL variants the store is larger than the load,
-     * so if rd == rn we would overwrite parts of our input.
-     * So load everything right now and use shifts in the main loop.
-     */
-    read_vec_element(s, tcg_rn, rn, is_q ? 1 : 0, MO_64);
-
-    for (i = 0; i < elements; i++) {
-        tcg_gen_shri_i64(tcg_rd, tcg_rn, i * esize);
-        ext_and_shift_reg(tcg_rd, tcg_rd, size | (!is_u << 2), 0);
-        tcg_gen_shli_i64(tcg_rd, tcg_rd, shift);
-        write_vec_element(s, tcg_rd, rd, i, size + 1);
+    if (is_u) {
+        gvec_fn = is_q ? tcg_gen_gvec_extuh : tcg_gen_gvec_extul;
+    } else {
+        gvec_fn = is_q ? tcg_gen_gvec_extsh : tcg_gen_gvec_extsl;
     }
+    gvec_fn(size, vec_full_reg_offset(s, rd),
+            vec_full_reg_offset(s, rn), 16, 16);
+
+    /* Perform the shift in the wider format.  */
+    tcg_gen_gvec_shli(size + 1, vec_full_reg_offset(s, rd),
+                      vec_full_reg_offset(s, rd),
+                      16, vec_full_reg_size(s), shift);
 }
 
 /* SHRN/RSHRN - Shift right with narrowing (and potential rounding) */
