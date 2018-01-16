@@ -573,6 +573,14 @@ struct Acpi20TPM2 {
 } QEMU_PACKED;
 typedef struct Acpi20TPM2 Acpi20TPM2;
 
+/* QEMU - Custom QEMU table */
+struct AcpiTableQemu {
+    ACPI_TABLE_HEADER_DEF
+    uint32_t tpmppi_addr;
+    uint8_t tpm_version; /* 1 = 1.2, 2 = 2 */
+};
+typedef struct AcpiTableQemu AcpiTableQemu;
+
 /* DMAR - DMA Remapping table r2.2 */
 struct AcpiTableDmar {
     ACPI_TABLE_HEADER_DEF

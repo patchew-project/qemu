@@ -2628,6 +2628,20 @@ static bool acpi_get_mcfg(AcpiMcfgInfo *mcfg)
     return true;
 }
 
+static void build_qemu(GArray *table_data, BIOSLinker *linker,
+                       TPMVersion tpm_version)
+{
+    AcpiTableQemu *qemu = acpi_data_push(table_data, sizeof(*qemu));
+
+    if (tpm_version != TPM_VERSION_UNSPEC) {
+        qemu->tpmppi_addr = TPM_PPI_ADDR_BASE;
+        qemu->tpm_version = tpm_version;
+    }
+
+    build_header(linker, table_data,
+                 (void *)qemu, "QEMU", sizeof(*qemu), 1, "QEMU", "CONF");
+}
+
 static
 void acpi_build(AcpiBuildTables *tables, MachineState *machine)
 {
@@ -2732,6 +2746,11 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
     if (pcms->acpi_nvdimm_state.is_enabled) {
         nvdimm_build_acpi(table_offsets, tables_blob, tables->linker,
                           &pcms->acpi_nvdimm_state, machine->ram_slots);
+    }
+
+    if (misc.tpm_version != TPM_VERSION_UNSPEC) {
+        acpi_add_table(table_offsets, tables_blob);
+        build_qemu(tables_blob, tables->linker, misc.tpm_version);
     }
 
     /* Add tables supplied by user (if any) */
