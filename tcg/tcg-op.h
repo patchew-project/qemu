@@ -914,6 +914,7 @@ void tcg_gen_dup8i_vec(TCGv_vec, uint32_t);
 void tcg_gen_dup16i_vec(TCGv_vec, uint32_t);
 void tcg_gen_dup32i_vec(TCGv_vec, uint32_t);
 void tcg_gen_dup64i_vec(TCGv_vec, uint64_t);
+void tcg_gen_dupi_vec(unsigned vece, TCGv_vec, uint64_t);
 void tcg_gen_movi_v64(TCGv_vec, uint64_t);
 void tcg_gen_movi_v128(TCGv_vec, uint64_t, uint64_t);
 void tcg_gen_movi_v256(TCGv_vec, uint64_t, uint64_t, uint64_t, uint64_t);

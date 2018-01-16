@@ -104,7 +104,7 @@ void tcg_gen_mov_vec(TCGv_vec r, TCGv_vec a)
 
 #define MO_REG  (TCG_TARGET_REG_BITS == 64 ? MO_64 : MO_32)
 
-static void tcg_gen_dupi_vec(TCGv_vec r, unsigned vece, TCGArg a)
+static void do_dupi_vec(TCGv_vec r, unsigned vece, TCGArg a)
 {
     TCGTemp *rt = tcgv_vec_temp(r);
     vec_gen_2(INDEX_op_dupi_vec, rt->base_type, vece, temp_arg(rt), a);
@@ -113,14 +113,14 @@ static void tcg_gen_dupi_vec(TCGv_vec r, unsigned vece, TCGArg a)
 TCGv_vec tcg_const_zeros_vec(TCGType type)
 {
     TCGv_vec ret = tcg_temp_new_vec(type);
-    tcg_gen_dupi_vec(ret, MO_REG, 0);
+    do_dupi_vec(ret, MO_REG, 0);
     return ret;
 }
 
 TCGv_vec tcg_const_ones_vec(TCGType type)
 {
     TCGv_vec ret = tcg_temp_new_vec(type);
-    tcg_gen_dupi_vec(ret, MO_REG, -1);
+    do_dupi_vec(ret, MO_REG, -1);
     return ret;
 }
 
@@ -139,9 +139,9 @@ TCGv_vec tcg_const_ones_vec_matching(TCGv_vec m)
 void tcg_gen_dup64i_vec(TCGv_vec r, uint64_t a)
 {
     if (TCG_TARGET_REG_BITS == 32 && a == deposit64(a, 32, 32, a)) {
-        tcg_gen_dupi_vec(r, MO_32, a);
+        do_dupi_vec(r, MO_32, a);
     } else if (TCG_TARGET_REG_BITS == 64 || a == (uint64_t)(int32_t)a) {
-        tcg_gen_dupi_vec(r, MO_64, a);
+        do_dupi_vec(r, MO_64, a);
     } else {
         TCGv_i64 c = tcg_const_i64(a);
         tcg_gen_dup_i64_vec(MO_64, r, c);
@@ -151,17 +151,37 @@ void tcg_gen_dup64i_vec(TCGv_vec r, uint64_t a)
 
 void tcg_gen_dup32i_vec(TCGv_vec r, uint32_t a)
 {
-    tcg_gen_dupi_vec(r, MO_REG, ((TCGArg)-1 / 0xffffffffu) * a);
+    do_dupi_vec(r, MO_REG, ((TCGArg)-1 / 0xffffffffu) * a);
 }
 
 void tcg_gen_dup16i_vec(TCGv_vec r, uint32_t a)
 {
-    tcg_gen_dupi_vec(r, MO_REG, ((TCGArg)-1 / 0xffff) * (a & 0xffff));
+    do_dupi_vec(r, MO_REG, ((TCGArg)-1 / 0xffff) * (a & 0xffff));
 }
 
 void tcg_gen_dup8i_vec(TCGv_vec r, uint32_t a)
 {
-    tcg_gen_dupi_vec(r, MO_REG, ((TCGArg)-1 / 0xff) * (a & 0xff));
+    do_dupi_vec(r, MO_REG, ((TCGArg)-1 / 0xff) * (a & 0xff));
+}
+
+void tcg_gen_dupi_vec(unsigned vece, TCGv_vec r, uint64_t a)
+{
+    switch (vece) {
+    case MO_8:
+        tcg_gen_dup8i_vec(r, a);
+        break;
+    case MO_16:
+        tcg_gen_dup16i_vec(r, a);
+        break;
+    case MO_32:
+        tcg_gen_dup32i_vec(r, a);
+        break;
+    case MO_64:
+        tcg_gen_dup64i_vec(r, a);
+        break;
+    default:
+        g_assert_not_reached();
+    }
 }
 
 void tcg_gen_movi_v64(TCGv_vec r, uint64_t a)
