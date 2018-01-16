@@ -267,6 +267,7 @@ Aml *aml_lor(Aml *arg1, Aml *arg2);
 Aml *aml_shiftleft(Aml *arg1, Aml *count);
 Aml *aml_shiftright(Aml *arg1, Aml *count, Aml *dst);
 Aml *aml_lless(Aml *arg1, Aml *arg2);
+Aml *aml_lless_equal(Aml *arg1, Aml *arg2);
 Aml *aml_add(Aml *arg1, Aml *arg2, Aml *dst);
 Aml *aml_subtract(Aml *arg1, Aml *arg2, Aml *dst);
 Aml *aml_increment(Aml *arg);
