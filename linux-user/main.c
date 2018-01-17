@@ -4327,8 +4327,6 @@ int main(int argc, char **argv, char **envp)
 #endif
 #elif defined(TARGET_UNICORE32)
         cpu_model = "any";
-#elif defined(TARGET_M68K)
-        cpu_model = "any";
 #elif defined(TARGET_SPARC)
 #ifdef TARGET_SPARC64
         cpu_model = "TI UltraSparc II";

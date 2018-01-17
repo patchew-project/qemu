@@ -405,6 +405,7 @@ void register_m68k_insns (CPUM68KState *env);
 
 #define M68K_CPU_TYPE_SUFFIX "-" TYPE_M68K_CPU
 #define M68K_CPU_TYPE_NAME(model) model M68K_CPU_TYPE_SUFFIX
+#define TARGET_DEFAULT_CPU_TYPE M68K_CPU_TYPE_NAME("any")
 
 #define cpu_signal_handler cpu_m68k_signal_handler
 #define cpu_list m68k_cpu_list
