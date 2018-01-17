@@ -26,6 +26,8 @@
 
 #define QEMU_WARN_UNUSED_RESULT __attribute__((warn_unused_result))
 
+#define QEMU_WARN_NONNULL_ARGS(args...) __attribute__((nonnull(args)))
+
 #define QEMU_SENTINEL __attribute__((sentinel))
 
 #if QEMU_GNUC_PREREQ(4, 3)
