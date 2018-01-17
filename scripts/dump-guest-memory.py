@@ -564,7 +564,9 @@ shape and this command should mostly work."""
 
         vmcoreinfo = self.phys_memory_read(addr, size)
         if vmcoreinfo:
-            self.elf.add_vmcoreinfo_note(vmcoreinfo.tobytes())
+            # Python 2.7 returns a buffer
+            vmciview = memoryview(vmcoreinfo)
+            self.elf.add_vmcoreinfo_note(vmciview.tobytes())
 
     def invoke(self, args, from_tty):
         """Handles command invocation from gdb."""
