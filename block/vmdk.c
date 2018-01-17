@@ -1875,7 +1875,8 @@ static int filename_decompose(const char *filename, char *path, char *prefix,
     return VMDK_OK;
 }
 
-static int vmdk_create(const char *filename, QemuOpts *opts, Error **errp)
+static int coroutine_fn vmdk_co_create(const char *filename, QemuOpts *opts,
+                                       Error **errp)
 {
     int idx = 0;
     BlockBackend *new_blk = NULL;
@@ -2391,7 +2392,7 @@ static BlockDriver bdrv_vmdk = {
     .bdrv_co_pwritev_compressed   = vmdk_co_pwritev_compressed,
     .bdrv_co_pwrite_zeroes        = vmdk_co_pwrite_zeroes,
     .bdrv_close                   = vmdk_close,
-    .bdrv_create                  = vmdk_create,
+    .bdrv_co_create               = vmdk_co_create,
     .bdrv_co_flush_to_disk        = vmdk_co_flush,
     .bdrv_co_get_block_status     = vmdk_co_get_block_status,
     .bdrv_get_allocated_file_size = vmdk_get_allocated_file_size,

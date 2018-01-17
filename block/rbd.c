@@ -348,7 +348,9 @@ static QemuOptsList runtime_opts = {
     },
 };
 
-static int qemu_rbd_create(const char *filename, QemuOpts *opts, Error **errp)
+static int coroutine_fn qemu_rbd_co_create(const char *filename,
+                                           QemuOpts *opts,
+                                           Error **errp)
 {
     Error *local_err = NULL;
     int64_t bytes = 0;
@@ -1129,7 +1131,7 @@ static BlockDriver bdrv_rbd = {
     .bdrv_file_open         = qemu_rbd_open,
     .bdrv_close             = qemu_rbd_close,
     .bdrv_reopen_prepare    = qemu_rbd_reopen_prepare,
-    .bdrv_create            = qemu_rbd_create,
+    .bdrv_co_create         = qemu_rbd_co_create,
     .bdrv_has_zero_init     = bdrv_has_zero_init_1,
     .bdrv_get_info          = qemu_rbd_getinfo,
     .create_opts            = &qemu_rbd_create_opts,

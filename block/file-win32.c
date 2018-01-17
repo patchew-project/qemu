@@ -550,7 +550,8 @@ static int64_t raw_get_allocated_file_size(BlockDriverState *bs)
     return st.st_size;
 }
 
-static int raw_create(const char *filename, QemuOpts *opts, Error **errp)
+static int coroutine_fn raw_create(const char *filename, QemuOpts *opts,
+                                   Error **errp)
 {
     int fd;
     int64_t total_size = 0;

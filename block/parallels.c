@@ -479,7 +479,9 @@ static int parallels_check(BlockDriverState *bs, BdrvCheckResult *res,
 }
 
 
-static int parallels_create(const char *filename, QemuOpts *opts, Error **errp)
+static int coroutine_fn parallels_co_create(const char *filename,
+                                            QemuOpts *opts,
+                                            Error **errp)
 {
     int64_t total_size, cl_size;
     uint8_t tmp[BDRV_SECTOR_SIZE];
@@ -799,7 +801,7 @@ static BlockDriver bdrv_parallels = {
     .bdrv_co_readv  = parallels_co_readv,
     .bdrv_co_writev = parallels_co_writev,
 
-    .bdrv_create    = parallels_create,
+    .bdrv_co_create = parallels_co_create,
     .bdrv_check     = parallels_check,
     .create_opts    = &parallels_create_opts,
 };

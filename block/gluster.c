@@ -962,8 +962,8 @@ static coroutine_fn int qemu_gluster_co_pwrite_zeroes(BlockDriverState *bs,
 }
 #endif
 
-static int qemu_gluster_create(const char *filename,
-                               QemuOpts *opts, Error **errp)
+static int coroutine_fn qemu_gluster_co_create(const char *filename,
+                                               QemuOpts *opts, Error **errp)
 {
     BlockdevOptionsGluster *gconf;
     struct glfs *glfs;
@@ -1424,7 +1424,7 @@ static BlockDriver bdrv_gluster = {
     .bdrv_reopen_commit           = qemu_gluster_reopen_commit,
     .bdrv_reopen_abort            = qemu_gluster_reopen_abort,
     .bdrv_close                   = qemu_gluster_close,
-    .bdrv_create                  = qemu_gluster_create,
+    .bdrv_co_create               = qemu_gluster_co_create,
     .bdrv_getlength               = qemu_gluster_getlength,
     .bdrv_get_allocated_file_size = qemu_gluster_allocated_file_size,
     .bdrv_truncate                = qemu_gluster_truncate,
@@ -1452,7 +1452,7 @@ static BlockDriver bdrv_gluster_tcp = {
     .bdrv_reopen_commit           = qemu_gluster_reopen_commit,
     .bdrv_reopen_abort            = qemu_gluster_reopen_abort,
     .bdrv_close                   = qemu_gluster_close,
-    .bdrv_create                  = qemu_gluster_create,
+    .bdrv_co_create               = qemu_gluster_co_create,
     .bdrv_getlength               = qemu_gluster_getlength,
     .bdrv_get_allocated_file_size = qemu_gluster_allocated_file_size,
     .bdrv_truncate                = qemu_gluster_truncate,
@@ -1480,7 +1480,7 @@ static BlockDriver bdrv_gluster_unix = {
     .bdrv_reopen_commit           = qemu_gluster_reopen_commit,
     .bdrv_reopen_abort            = qemu_gluster_reopen_abort,
     .bdrv_close                   = qemu_gluster_close,
-    .bdrv_create                  = qemu_gluster_create,
+    .bdrv_co_create               = qemu_gluster_co_create,
     .bdrv_getlength               = qemu_gluster_getlength,
     .bdrv_get_allocated_file_size = qemu_gluster_allocated_file_size,
     .bdrv_truncate                = qemu_gluster_truncate,
@@ -1514,7 +1514,7 @@ static BlockDriver bdrv_gluster_rdma = {
     .bdrv_reopen_commit           = qemu_gluster_reopen_commit,
     .bdrv_reopen_abort            = qemu_gluster_reopen_abort,
     .bdrv_close                   = qemu_gluster_close,
-    .bdrv_create                  = qemu_gluster_create,
+    .bdrv_co_create               = qemu_gluster_co_create,
     .bdrv_getlength               = qemu_gluster_getlength,
     .bdrv_get_allocated_file_size = qemu_gluster_allocated_file_size,
     .bdrv_truncate                = qemu_gluster_truncate,
