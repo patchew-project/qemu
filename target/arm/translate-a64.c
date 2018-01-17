@@ -6135,7 +6135,6 @@ static void disas_simd_mod_imm(DisasContext *s, uint32_t insn)
     bool is_neg = extract32(insn, 29, 1);
     bool is_q = extract32(insn, 30, 1);
     uint64_t imm = 0;
-    int i;
 
     if (o2 != 0 || ((cmode == 0xf) && is_neg && !is_q)) {
         unallocated_encoding(s);
@@ -6221,28 +6220,25 @@ static void disas_simd_mod_imm(DisasContext *s, uint32_t insn)
         tcg_gen_gvec_dup64i(vec_full_reg_offset(s, rd), is_q ? 16 : 8,
                             vec_full_reg_size(s), imm);
     } else {
+        /* ORR or BIC, with BIC negation to AND handled above.  */
+        static const GVecGen2s ops[2] = {
+            { .fni8 = tcg_gen_or_i64,
+              .fniv = tcg_gen_or_vec,
+              .opc = INDEX_op_or_vec,
+              .vece = MO_64,
+              .prefer_i64 = TCG_TARGET_REG_BITS == 64 },
+            { .fni8 = tcg_gen_and_i64,
+              .fniv = tcg_gen_and_vec,
+              .opc = INDEX_op_and_vec,
+              .vece = MO_64,
+              .prefer_i64 = TCG_TARGET_REG_BITS == 64 }
+        };
         TCGv_i64 tcg_imm = tcg_const_i64(imm);
-        TCGv_i64 tcg_rd = new_tmp_a64(s);
 
-        for (i = 0; i < 2; i++) {
-            int foffs = vec_reg_offset(s, rd, i, MO_64);
-
-            if (i == 1 && !is_q) {
-                /* non-quad ops clear high half of vector */
-                tcg_gen_movi_i64(tcg_rd, 0);
-            } else {
-                tcg_gen_ld_i64(tcg_rd, cpu_env, foffs);
-                if (is_neg) {
-                    /* AND (BIC) */
-                    tcg_gen_and_i64(tcg_rd, tcg_rd, tcg_imm);
-                } else {
-                    /* ORR */
-                    tcg_gen_or_i64(tcg_rd, tcg_rd, tcg_imm);
-                }
-            }
-            tcg_gen_st_i64(tcg_rd, cpu_env, foffs);
-        }
-
+        tcg_gen_gvec_2s(vec_full_reg_offset(s, rd),
+                        vec_full_reg_offset(s, rd),
+                        is_q ? 16 : 8, vec_full_reg_size(s),
+                        tcg_imm, &ops[is_neg]);
         tcg_temp_free_i64(tcg_imm);
     }
 }
