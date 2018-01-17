@@ -4325,8 +4325,6 @@ int main(int argc, char **argv, char **envp)
 #else
         cpu_model = "qemu32";
 #endif
-#elif defined(TARGET_UNICORE32)
-        cpu_model = "any";
 #elif defined(TARGET_SPARC)
 #ifdef TARGET_SPARC64
         cpu_model = "TI UltraSparc II";
