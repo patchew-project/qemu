@@ -22,7 +22,7 @@
 #include "sysemu/hw_accel.h"
 #include "qemu/error-report.h"
 
-static void spapr_cpu_reset(void *opaque)
+void spapr_cpu_reset(void *opaque)
 {
     PowerPCCPU *cpu = opaque;
     CPUState *cs = CPU(cpu);
@@ -63,7 +63,11 @@ static void spapr_cpu_init(sPAPRMachineState *spapr, PowerPCCPU *cpu,
     cpu_ppc_set_papr(cpu, PPC_VIRTUAL_HYPERVISOR(spapr));
 
     qemu_register_reset(spapr_cpu_reset, cpu);
-    spapr_cpu_reset(cpu);
+
+    /* CPU must not execute anything until explicitely started otherwise the
+     * guest will crash.
+     */
+    CPU(cpu)->halted = 1;
 }
 
 /*

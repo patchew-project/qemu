@@ -3279,6 +3279,14 @@ static void spapr_core_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
         void *fdt;
         int fdt_offset;
 
+        if (hotplugged) {
+            int i;
+
+            for (i = 0; i < cc->nr_threads; i++) {
+                spapr_cpu_reset(core->threads[i]);
+            }
+        }
+
         fdt = spapr_populate_hotplug_cpu_dt(cs, &fdt_offset, spapr);
 
         spapr_drc_attach(drc, dev, fdt, fdt_offset, &local_err);

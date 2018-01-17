@@ -38,4 +38,6 @@ typedef struct sPAPRCPUCoreClass {
 } sPAPRCPUCoreClass;
 
 const char *spapr_get_cpu_core_type(const char *cpu_type);
+void spapr_cpu_reset(void *opaque);
+
 #endif
