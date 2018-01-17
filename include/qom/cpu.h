@@ -673,17 +673,6 @@ CPUState *cpu_create(const char *typename);
 const char *cpu_parse_cpu_model(const char *typename, const char *cpu_model);
 
 /**
- * cpu_generic_init:
- * @typename: The CPU base type.
- * @cpu_model: The model string including optional parameters.
- *
- * Instantiates a CPU, processes optional parameters and realizes the CPU.
- *
- * Returns: A #CPUState or %NULL if an error occurred.
- */
-CPUState *cpu_generic_init(const char *typename, const char *cpu_model);
-
-/**
  * cpu_has_work:
  * @cpu: The vCPU to check.
  *
