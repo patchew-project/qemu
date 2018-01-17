@@ -37,6 +37,8 @@ typedef struct virtio_balloon_stat_modern {
 typedef struct VirtIOBalloon {
     VirtIODevice parent_obj;
     VirtQueue *ivq, *dvq, *svq, *free_page_vq;
+    /* The host is requesting the guest to stop free page reporting */
+    bool host_stop_free_page;
     uint32_t free_page_report_status;
     uint32_t num_pages;
     uint32_t actual;
@@ -45,8 +47,10 @@ typedef struct VirtIOBalloon {
     VirtQueueElement *stats_vq_elem;
     size_t stats_vq_offset;
     QEMUTimer *stats_timer;
+    QEMUTimer *free_page_timer;
     int64_t stats_last_update;
     int64_t stats_poll_interval;
+    int64_t free_page_wait_time;
     uint32_t host_features;
 } VirtIOBalloon;
 

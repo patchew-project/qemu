@@ -213,6 +213,66 @@ static void balloon_stats_set_poll_interval(Object *obj, Visitor *v,
     balloon_stats_change_timer(s, 0);
 }
 
+static void balloon_free_page_change_timer(VirtIOBalloon *s, int64_t ms)
+{
+    timer_mod(s->free_page_timer,
+              qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + ms);
+}
+
+static void balloon_stop_free_page_report(void *opaque)
+{
+    VirtIOBalloon *dev = opaque;
+    VirtIODevice *vdev = VIRTIO_DEVICE(dev);
+
+    timer_del(dev->free_page_timer);
+    timer_free(dev->free_page_timer);
+    dev->free_page_timer = NULL;
+
+    if (atomic_read(&dev->free_page_report_status) ==
+        FREE_PAGE_REPORT_S_IN_PROGRESS) {
+        dev->host_stop_free_page = true;
+        virtio_notify_config(vdev);
+    }
+}
+
+static void balloon_free_page_get_wait_time(Object *obj, Visitor *v,
+                                            const char *name, void *opaque,
+                                            Error **errp)
+{
+    VirtIOBalloon *s = opaque;
+
+    visit_type_int(v, name, &s->free_page_wait_time, errp);
+}
+
+static void balloon_free_page_set_wait_time(Object *obj, Visitor *v,
+                                            const char *name, void *opaque,
+                                            Error **errp)
+{
+    VirtIOBalloon *s = opaque;
+    Error *local_err = NULL;
+    int64_t value;
+
+    visit_type_int(v, name, &value, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+    if (value < 0) {
+        error_setg(errp, "free page wait time must be greater than zero");
+        return;
+    }
+
+    if (value > UINT32_MAX) {
+        error_setg(errp, "free page wait time value is too big");
+        return;
+    }
+
+    s->free_page_wait_time = value;
+    g_assert(s->free_page_timer == NULL);
+    s->free_page_timer = timer_new_ms(QEMU_CLOCK_REALTIME,
+                                      balloon_stop_free_page_report, s);
+}
+
 static void virtio_balloon_handle_output(VirtIODevice *vdev, VirtQueue *vq)
 {
     VirtIOBalloon *s = VIRTIO_BALLOON(vdev);
@@ -332,6 +392,7 @@ static void virtio_balloon_handle_free_pages(VirtIODevice *vdev, VirtQueue *vq)
                 atomic_set(&dev->free_page_report_status,
                            FREE_PAGE_REPORT_S_IN_PROGRESS);
             } else {
+                dev->host_stop_free_page = false;
                 atomic_set(&dev->free_page_report_status,
                            FREE_PAGE_REPORT_S_STOP);
             }
@@ -386,6 +447,10 @@ static void virtio_balloon_free_page_stop(void *opaque)
         return;
     }
 
+    if (dev->free_page_wait_time) {
+        balloon_free_page_change_timer(dev, dev->free_page_wait_time);
+    }
+
     /* Wait till a stop sign is received from the guest */
     while (atomic_read(&dev->free_page_report_status) !=
            FREE_PAGE_REPORT_S_STOP)
@@ -399,7 +464,19 @@ static void virtio_balloon_get_config(VirtIODevice *vdev, uint8_t *config_data)
 
     config.num_pages = cpu_to_le32(dev->num_pages);
     config.actual = cpu_to_le32(dev->actual);
-    config.free_page_report_cmd_id = cpu_to_le32(dev->free_page_report_cmd_id);
+    if (dev->host_stop_free_page) {
+        /*
+         * Host is actively requesting to stop the free page report, send the
+         * stop sign to the guest. This happens when the migration thread has
+         * reached the phase to send pages to the destination while the guest
+         * hasn't done the reporting.
+         */
+        config.free_page_report_cmd_id =
+                                    VIRTIO_BALLOON_FREE_PAGE_REPORT_STOP_ID;
+    } else {
+        config.free_page_report_cmd_id =
+                                    cpu_to_le32(dev->free_page_report_cmd_id);
+    }
 
     trace_virtio_balloon_get_config(config.num_pages, config.actual);
     memcpy(config_data, &config, sizeof(struct virtio_balloon_config));
@@ -526,6 +603,7 @@ static void virtio_balloon_device_realize(DeviceState *dev, Error **errp)
         s->free_page_vq = virtio_add_queue(vdev, 128,
                                            virtio_balloon_handle_free_pages);
         atomic_set(&s->free_page_report_status, FREE_PAGE_REPORT_S_STOP);
+        s->host_stop_free_page = false;
     }
     reset_stats(s);
 }
@@ -596,6 +674,11 @@ static void virtio_balloon_instance_init(Object *obj)
     object_property_add(obj, "guest-stats-polling-interval", "int",
                         balloon_stats_get_poll_interval,
                         balloon_stats_set_poll_interval,
+                        NULL, s, NULL);
+
+    object_property_add(obj, "free-page-wait-time", "int",
+                        balloon_free_page_get_wait_time,
+                        balloon_free_page_set_wait_time,
                         NULL, s, NULL);
 }
 
