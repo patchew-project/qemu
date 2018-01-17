@@ -722,7 +722,7 @@ void init_task_state(TaskState *ts)
 int main(int argc, char **argv)
 {
     const char *filename;
-    const char *cpu_model;
+    const char *cpu_type = TARGET_DEFAULT_CPU_TYPE;
     const char *log_file = NULL;
     const char *log_mask = NULL;
     struct target_pt_regs regs1, *regs = &regs1;
@@ -751,8 +751,6 @@ int main(int argc, char **argv)
     for (wrk = environ; *wrk != NULL; wrk++) {
         (void) envlist_setenv(envlist, *wrk);
     }
-
-    cpu_model = NULL;
 
     qemu_add_opts(&qemu_trace_opts);
 
@@ -811,7 +809,7 @@ int main(int argc, char **argv)
         } else if (!strcmp(r, "r")) {
             qemu_uname_release = argv[optind++];
         } else if (!strcmp(r, "cpu")) {
-            cpu_model = argv[optind++];
+            const char *cpu_model = argv[optind++];
             if (is_help_option(cpu_model)) {
 /* XXX: implement xxx_cpu_list for targets that still miss it */
 #if defined(cpu_list)
@@ -819,6 +817,7 @@ int main(int argc, char **argv)
 #endif
                 exit(1);
             }
+            cpu_type = cpu_parse_cpu_model(TARGET_DEFAULT_CPU_TYPE, cpu_model);
         } else if (!strcmp(r, "B")) {
            guest_base = strtol(argv[optind++], NULL, 0);
            have_guest_base = 1;
@@ -880,27 +879,10 @@ int main(int argc, char **argv)
     /* Scan interp_prefix dir for replacement files. */
     init_paths(interp_prefix);
 
-    if (cpu_model == NULL) {
-#if defined(TARGET_I386)
-#ifdef TARGET_X86_64
-        cpu_model = "qemu64";
-#else
-        cpu_model = "qemu32";
-#endif
-#elif defined(TARGET_SPARC)
-#ifdef TARGET_SPARC64
-        cpu_model = "TI UltraSparc II";
-#else
-        cpu_model = "Fujitsu MB86904";
-#endif
-#else
-        cpu_model = "any";
-#endif
-    }
     tcg_exec_init(0);
     /* NOTE: we need to init the CPU at this stage to get
        qemu_host_page_size */
-    cpu = cpu_init(cpu_model);
+    cpu = cpu_create(cpu_type);
     env = cpu->env_ptr;
 #if defined(TARGET_SPARC) || defined(TARGET_PPC)
     cpu_reset(cpu);

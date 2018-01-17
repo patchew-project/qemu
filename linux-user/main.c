@@ -43,7 +43,7 @@ static const char *filename;
 static const char *argv0;
 static int gdbstub_port;
 static envlist_t *envlist;
-static const char *cpu_model;
+static const char *cpu_type = TARGET_DEFAULT_CPU_TYPE;
 unsigned long mmap_min_addr;
 unsigned long guest_base;
 int have_guest_base;
@@ -3847,7 +3847,7 @@ void init_task_state(TaskState *ts)
 CPUArchState *cpu_copy(CPUArchState *env)
 {
     CPUState *cpu = ENV_GET_CPU(env);
-    CPUState *new_cpu = cpu_init(cpu_model);
+    CPUState *new_cpu = cpu_create(cpu_type);
     CPUArchState *new_env = new_cpu->env_ptr;
     CPUBreakpoint *bp;
     CPUWatchpoint *wp;
@@ -3982,7 +3982,7 @@ static void handle_arg_uname(const char *arg)
 
 static void handle_arg_cpu(const char *arg)
 {
-    cpu_model = strdup(arg);
+    const char *cpu_model = strdup(arg);
     if (cpu_model == NULL || is_help_option(cpu_model)) {
         /* XXX: implement xxx_cpu_list for targets that still miss it */
 #if defined(cpu_list)
@@ -3990,6 +3990,7 @@ static void handle_arg_cpu(const char *arg)
 #endif
         exit(EXIT_FAILURE);
     }
+    cpu_type = cpu_parse_cpu_model(TARGET_DEFAULT_CPU_TYPE, cpu_model);
 }
 
 static void handle_arg_guest_base(const char *arg)
@@ -4292,8 +4293,6 @@ int main(int argc, char **argv, char **envp)
         }
     }
 
-    cpu_model = NULL;
-
     srand(time(NULL));
 
     qemu_add_opts(&qemu_trace_opts);
@@ -4318,45 +4317,10 @@ int main(int argc, char **argv, char **envp)
 
     init_qemu_uname_release();
 
-    if (cpu_model == NULL) {
-#if defined(TARGET_I386)
-#ifdef TARGET_X86_64
-        cpu_model = "qemu64";
-#else
-        cpu_model = "qemu32";
-#endif
-#elif defined(TARGET_SPARC)
-#ifdef TARGET_SPARC64
-        cpu_model = "TI UltraSparc II";
-#else
-        cpu_model = "Fujitsu MB86904";
-#endif
-#elif defined(TARGET_MIPS)
-#if defined(TARGET_ABI_MIPSN32) || defined(TARGET_ABI_MIPSN64)
-        cpu_model = "5KEf";
-#else
-        cpu_model = "24Kf";
-#endif
-#elif defined TARGET_OPENRISC
-        cpu_model = "or1200";
-#elif defined(TARGET_PPC)
-# ifdef TARGET_PPC64
-        cpu_model = "power8_v2.0";
-# else
-        cpu_model = "750_v3.1";
-# endif
-#elif defined TARGET_SH4
-        cpu_model = "sh7785";
-#elif defined TARGET_S390X
-        cpu_model = "qemu";
-#else
-        cpu_model = "any";
-#endif
-    }
     tcg_exec_init(0);
     /* NOTE: we need to init the CPU at this stage to get
        qemu_host_page_size */
-    cpu = cpu_init(cpu_model);
+    cpu = cpu_create(cpu_type);
     env = cpu->env_ptr;
     cpu_reset(cpu);
 
