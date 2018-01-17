@@ -85,6 +85,7 @@ typedef void CryptoTwoOpEnvFn(TCGv_ptr, TCGv_i32, TCGv_i32);
 typedef void CryptoThreeOpEnvFn(TCGv_ptr, TCGv_i32, TCGv_i32, TCGv_i32);
 
 /* Note that the gvec expanders operate on offsets + sizes.  */
+typedef void GVecGen2Fn(unsigned, uint32_t, uint32_t, uint32_t, uint32_t);
 typedef void GVecGen3Fn(unsigned, uint32_t, uint32_t,
                         uint32_t, uint32_t, uint32_t);
 
@@ -4579,14 +4580,19 @@ static void handle_fp_1src_double(DisasContext *s, int opcode, int rd, int rn)
     TCGv_i64 tcg_op;
     TCGv_i64 tcg_res;
 
+    switch (opcode) {
+    case 0x0: /* FMOV */
+        tcg_gen_gvec_mov(0, vec_full_reg_offset(s, rd),
+                         vec_full_reg_offset(s, rn),
+                         8, vec_full_reg_size(s));
+        return;
+    }
+
     fpst = get_fpstatus_ptr();
     tcg_op = read_fp_dreg(s, rn);
     tcg_res = tcg_temp_new_i64();
 
     switch (opcode) {
-    case 0x0: /* FMOV */
-        tcg_gen_mov_i64(tcg_res, tcg_op);
-        break;
     case 0x1: /* FABS */
         gen_helper_vfp_absd(tcg_res, tcg_op);
         break;
@@ -9170,6 +9176,12 @@ static void disas_simd_3same_logic(DisasContext *s, uint32_t insn)
         gvec_fn = tcg_gen_gvec_andc;
         goto do_fn;
     case 2: /* ORR */
+        if (rn == rm) { /* MOV */
+            tcg_gen_gvec_mov(0, vec_full_reg_offset(s, rd),
+                             vec_full_reg_offset(s, rn),
+                             is_q ? 16 : 8, vec_full_reg_size(s));
+            return;
+        }
         gvec_fn = tcg_gen_gvec_or;
         goto do_fn;
     case 3: /* ORN */
@@ -10049,6 +10061,7 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
     int rmode = -1;
     TCGv_i32 tcg_rmode;
     TCGv_ptr tcg_fpstatus;
+    GVecGen2Fn *gvec_fn;
 
     switch (opcode) {
     case 0x0: /* REV64, REV32 */
@@ -10057,8 +10070,7 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
         return;
     case 0x5: /* CNT, NOT, RBIT */
         if (u && size == 0) {
-            /* NOT: adjust size so we can use the 64-bits-at-a-time loop. */
-            size = 3;
+            /* NOT */
             break;
         } else if (u && size == 1) {
             /* RBIT */
@@ -10308,6 +10320,27 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
         gen_helper_set_rmode(tcg_rmode, tcg_rmode, cpu_env);
     } else {
         tcg_rmode = NULL;
+    }
+
+    switch (opcode) {
+    case 0x5:
+        if (u && size == 0) { /* NOT */
+            gvec_fn = tcg_gen_gvec_not;
+            goto do_fn;
+        }
+        break;
+    case 0xb:
+        if (u) { /* NEG */
+            gvec_fn = tcg_gen_gvec_neg;
+            goto do_fn;
+        }
+        break;
+
+    do_fn:
+        gvec_fn(size, vec_full_reg_offset(s, rd),
+                vec_full_reg_offset(s, rn),
+                is_q ? 16 : 8, vec_full_reg_size(s));
+        return;
     }
 
     if (size == 3) {
