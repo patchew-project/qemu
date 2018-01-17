@@ -744,6 +744,12 @@ int cpu_mips_signal_handler(int host_signum, void *pinfo, void *puc);
 #define MIPS_CPU_TYPE_SUFFIX "-" TYPE_MIPS_CPU
 #define MIPS_CPU_TYPE_NAME(model) model MIPS_CPU_TYPE_SUFFIX
 
+#if defined(TARGET_ABI_MIPSN32) || defined(TARGET_ABI_MIPSN64)
+#define TARGET_DEFAULT_CPU_TYPE MIPS_CPU_TYPE_NAME("5KEf")
+#else
+#define TARGET_DEFAULT_CPU_TYPE MIPS_CPU_TYPE_NAME("24Kf")
+#endif
+
 bool cpu_supports_cps_smp(const char *cpu_type);
 bool cpu_supports_isa(const char *cpu_type, unsigned int isa);
 void cpu_set_exception_base(int vp_index, target_ulong address);
