@@ -4343,9 +4343,9 @@ int main(int argc, char **argv, char **envp)
         cpu_model = "or1200";
 #elif defined(TARGET_PPC)
 # ifdef TARGET_PPC64
-        cpu_model = "POWER8";
+        cpu_model = "power8_v2.0";
 # else
-        cpu_model = "750";
+        cpu_model = "750_v3.1";
 # endif
 #elif defined TARGET_SH4
         cpu_model = "sh7785";

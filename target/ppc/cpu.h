@@ -1377,6 +1377,12 @@ int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, uint32_t val);
 #define POWERPC_CPU_TYPE_SUFFIX "-" TYPE_POWERPC_CPU
 #define POWERPC_CPU_TYPE_NAME(model) model POWERPC_CPU_TYPE_SUFFIX
 
+#ifdef TARGET_PPC64
+#define TARGET_DEFAULT_CPU_TYPE POWERPC_CPU_TYPE_NAME("power8_v2.0")
+#else
+#define TARGET_DEFAULT_CPU_TYPE POWERPC_CPU_TYPE_NAME("750_v3.1")
+#endif
+
 #define cpu_signal_handler cpu_ppc_signal_handler
 #define cpu_list ppc_cpu_list
 
