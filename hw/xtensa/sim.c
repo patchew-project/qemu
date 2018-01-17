@@ -128,7 +128,7 @@ static void xtensa_sim_machine_init(MachineClass *mc)
     mc->init = xtensa_sim_init;
     mc->max_cpus = 4;
     mc->no_serial = 1;
-    mc->default_cpu_type = XTENSA_DEFAULT_CPU_TYPE;
+    mc->default_cpu_type = TARGET_DEFAULT_CPU_TYPE;
 }
 
 DEFINE_MACHINE("sim", xtensa_sim_machine_init)

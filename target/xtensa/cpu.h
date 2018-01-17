@@ -506,7 +506,7 @@ void xtensa_cpu_do_unaligned_access(CPUState *cpu, vaddr addr,
 #else
 #define XTENSA_DEFAULT_CPU_MODEL "dc232b"
 #endif
-#define XTENSA_DEFAULT_CPU_TYPE XTENSA_CPU_TYPE_NAME(XTENSA_DEFAULT_CPU_MODEL)
+#define TARGET_DEFAULT_CPU_TYPE XTENSA_CPU_TYPE_NAME(XTENSA_DEFAULT_CPU_MODEL)
 
 #define cpu_init(cpu_model) cpu_generic_init(TYPE_XTENSA_CPU, cpu_model)
 
