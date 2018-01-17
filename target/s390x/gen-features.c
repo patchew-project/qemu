@@ -357,6 +357,7 @@ static uint16_t full_GEN7_GA1[] = {
     S390_FEAT_SIE_GPERE,
     S390_FEAT_SIE_IB,
     S390_FEAT_SIE_CEI,
+    S390_FEAT_PPA15,
     S390_FEAT_BPB,
 };
 
