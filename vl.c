@@ -2154,6 +2154,15 @@ static DisplayType select_display(const char *p)
                 } else {
                     goto invalid_sdl_args;
                 }
+            } else if (strstart(opts, ",gles=", &nextopt)) {
+                opts = nextopt;
+                if (strstart(opts, "on", &nextopt)) {
+                    request_opengl = 2;
+                } else if (strstart(opts, "off", &nextopt)) {
+                    request_opengl = 0;
+                } else {
+                    goto invalid_sdl_args;
+                }
             } else if (strstart(opts, ",gl=", &nextopt)) {
                 opts = nextopt;
                 if (strstart(opts, "on", &nextopt)) {
@@ -4364,7 +4373,7 @@ int main(int argc, char **argv, char **envp)
 
     qemu_console_early_init();
 
-    if (request_opengl == 1 && display_opengl == 0) {
+    if ((request_opengl == 1 || request_opengl == 2) && display_opengl == 0) {
 #if defined(CONFIG_OPENGL)
         error_report("OpenGL is not supported by the display");
 #else

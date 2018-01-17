@@ -1257,7 +1257,7 @@ ETEXI
 
 DEF("display", HAS_ARG, QEMU_OPTION_display,
     "-display sdl[,frame=on|off][,alt_grab=on|off][,ctrl_grab=on|off]\n"
-    "            [,window_close=on|off][,gl=on|off]\n"
+    "            [,window_close=on|off][,gl=on|off][,gles=on|off]\n"
     "-display gtk[,grab_on_hover=on|off][,gl=on|off]|\n"
     "-display vnc=<display>[,<optargs>]\n"
     "-display curses\n"
@@ -1491,6 +1491,9 @@ Enable/disable spice seamless migration. Default is off.
 
 @item gl=[on|off]
 Enable/disable OpenGL context. Default is off.
+
+@item gles=[on|off]
+Enable/disable OpenGL ES context. Default is off.
 
 @item rendernode=<file>
 DRM render node for OpenGL rendering. If not specified, it will pick

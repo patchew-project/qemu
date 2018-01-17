@@ -762,6 +762,7 @@ void sdl_display_early_init(int opengl)
     case 0:  /* off */
         break;
     case 1: /* on */
+    case 2: /* gles = on */
 #ifdef CONFIG_OPENGL
         display_opengl = 1;
 #endif
