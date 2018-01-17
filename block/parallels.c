@@ -382,8 +382,9 @@ static coroutine_fn int parallels_co_readv(BlockDriverState *bs,
 }
 
 
-static int parallels_check(BlockDriverState *bs, BdrvCheckResult *res,
-                           BdrvCheckMode fix)
+static int coroutine_fn parallels_co_check(BlockDriverState *bs,
+                                           BdrvCheckResult *res,
+                                           BdrvCheckMode fix)
 {
     BDRVParallelsState *s = bs->opaque;
     int64_t size, prev_off, high_off;
@@ -398,6 +399,7 @@ static int parallels_check(BlockDriverState *bs, BdrvCheckResult *res,
         return size;
     }
 
+    qemu_co_mutex_lock(&s->lock);
     if (s->header_unclean) {
         fprintf(stderr, "%s image was not closed correctly\n",
                 fix & BDRV_FIX_ERRORS ? "Repairing" : "ERROR");
@@ -446,11 +448,12 @@ static int parallels_check(BlockDriverState *bs, BdrvCheckResult *res,
         prev_off = off;
     }
 
+    ret = 0;
     if (flush_bat) {
         ret = bdrv_pwrite_sync(bs->file, 0, s->header, s->header_size);
         if (ret < 0) {
             res->check_errors++;
-            return ret;
+            goto out;
         }
     }
 
@@ -469,13 +472,15 @@ static int parallels_check(BlockDriverState *bs, BdrvCheckResult *res,
             if (ret < 0) {
                 error_report_err(local_err);
                 res->check_errors++;
-                return ret;
+                goto out;
             }
             res->leaks_fixed += count;
         }
     }
 
-    return 0;
+out:
+    qemu_co_mutex_unlock(&s->lock);
+    return ret;
 }
 
 
@@ -802,7 +807,7 @@ static BlockDriver bdrv_parallels = {
     .bdrv_co_writev = parallels_co_writev,
 
     .bdrv_co_create = parallels_co_create,
-    .bdrv_check     = parallels_check,
+    .bdrv_co_check  = parallels_co_check,
     .create_opts    = &parallels_create_opts,
 };
 
