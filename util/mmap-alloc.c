@@ -73,7 +73,8 @@ size_t qemu_mempath_getpagesize(const char *mem_path)
     return getpagesize();
 }
 
-void *qemu_ram_mmap(int fd, size_t size, size_t align, bool shared)
+void *qemu_ram_mmap(int fd, size_t size, size_t align, bool shared,
+                    OnOffAuto sync)
 {
     /*
      * Note: this always allocates at least one extra page of virtual address
@@ -97,6 +98,7 @@ void *qemu_ram_mmap(int fd, size_t size, size_t align, bool shared)
 #endif
     size_t offset;
     void *ptr1;
+    int xflags = 0;
 
     if (ptr == MAP_FAILED) {
         return MAP_FAILED;
@@ -106,13 +108,31 @@ void *qemu_ram_mmap(int fd, size_t size, size_t align, bool shared)
     /* Always align to host page size */
     assert(align >= getpagesize());
 
+    if (!QEMU_HAS_MAP_SYNC || !shared) {
+        if (sync == ON_OFF_AUTO_ON) {
+            return MAP_FAILED;
+        }
+        sync = ON_OFF_AUTO_OFF;
+    }
+    if (sync != ON_OFF_AUTO_OFF) {
+        /* MAP_SYNC is only available with MAP_SHARED_VALIDATE. */
+        xflags |= MAP_SYNC | MAP_SHARED_VALIDATE;
+    }
+
     offset = QEMU_ALIGN_UP((uintptr_t)ptr, align) - (uintptr_t)ptr;
+ retry_mmap_fd:
     ptr1 = mmap(ptr + offset, size, PROT_READ | PROT_WRITE,
                 MAP_FIXED |
                 (fd == -1 ? MAP_ANONYMOUS : 0) |
-                (shared ? MAP_SHARED : MAP_PRIVATE),
+                (shared ? MAP_SHARED : MAP_PRIVATE) | xflags,
                 fd, 0);
     if (ptr1 == MAP_FAILED) {
+        if (sync == ON_OFF_AUTO_AUTO) {
+            xflags &= ~(MAP_SYNC | MAP_SHARED_VALIDATE);
+            sync = ON_OFF_AUTO_OFF;
+            goto retry_mmap_fd;
+        }
+
         munmap(ptr, total);
         return MAP_FAILED;
     }

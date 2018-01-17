@@ -372,6 +372,24 @@ void qemu_anon_ram_free(void *ptr, size_t size);
 #  define QEMU_VMALLOC_ALIGN getpagesize()
 #endif
 
+/*
+ * MAP_SHARED_VALIDATE and MAP_SYNC were introduced in Linux kernel
+ * 4.15, so they may not be defined when compiling on older kernels.
+ */
+#ifdef CONFIG_LINUX
+#ifndef MAP_SHARED_VALIDATE
+#define MAP_SHARED_VALIDATE   0x3
+#endif
+#ifndef MAP_SYNC
+#define MAP_SYNC              0x80000
+#endif
+#define QEMU_HAS_MAP_SYNC     true
+#else  /* !CONFIG_LINUX */
+#define MAP_SHARED_VALIDATE   0x0
+#define MAP_SYNC              0x0
+#define QEMU_HAS_MAP_SYNC     false
+#endif /* CONFIG_LINUX */
+
 #ifdef CONFIG_POSIX
 struct qemu_signalfd_siginfo {
     uint32_t ssi_signo;   /* Signal number */
