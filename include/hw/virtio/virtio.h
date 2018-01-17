@@ -292,12 +292,14 @@ void virtio_queue_aio_set_host_notifier_handler(VirtQueue *vq, AioContext *ctx,
 VirtQueue *virtio_vector_first_queue(VirtIODevice *vdev, uint16_t vector);
 VirtQueue *virtio_vector_next_queue(VirtQueue *vq);
 
+QEMU_WARN_NONNULL_ARGS(1)
 static inline void virtio_add_feature(uint64_t *features, unsigned int fbit)
 {
     assert(fbit < 64);
     *features |= (1ULL << fbit);
 }
 
+QEMU_WARN_NONNULL_ARGS(1)
 static inline void virtio_clear_feature(uint64_t *features, unsigned int fbit)
 {
     assert(fbit < 64);
