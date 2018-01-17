@@ -9,10 +9,10 @@
 #include "ui/input-keymap-qcode-to-atset1.c"
 #include "ui/input-keymap-qcode-to-atset2.c"
 #include "ui/input-keymap-qcode-to-atset3.c"
+#include "ui/input-keymap-qcode-to-linux.c"
 #include "ui/input-keymap-qcode-to-qnum.c"
 #include "ui/input-keymap-qcode-to-sun.c"
 #include "ui/input-keymap-qnum-to-qcode.c"
-#include "ui/input-keymap-qcode-to-linux.c"
 
 int qemu_input_linux_to_qcode(unsigned int lnx)
 {
