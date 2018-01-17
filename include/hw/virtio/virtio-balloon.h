@@ -43,6 +43,7 @@ typedef struct VirtIOBalloon {
     uint32_t num_pages;
     uint32_t actual;
     uint32_t free_page_report_cmd_id;
+    uint32_t poison_val;
     uint64_t stats[VIRTIO_BALLOON_S_NR];
     VirtQueueElement *stats_vq_elem;
     size_t stats_vq_offset;

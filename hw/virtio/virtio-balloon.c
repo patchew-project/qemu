@@ -403,7 +403,7 @@ static void virtio_balloon_handle_free_pages(VirtIODevice *vdev, VirtQueue *vq)
             ram_addr_t offset;
 
             if (atomic_read(&dev->free_page_report_status) ==
-                FREE_PAGE_REPORT_S_IN_PROGRESS) {
+                FREE_PAGE_REPORT_S_IN_PROGRESS && !dev->poison_val) {
                 block = qemu_ram_block_from_host(elem->in_sg[0].iov_base,
                                                  false, &offset);
                 size = elem->in_sg[0].iov_len;
@@ -530,6 +530,7 @@ static void virtio_balloon_set_config(VirtIODevice *vdev,
                         ((ram_addr_t) dev->actual << VIRTIO_BALLOON_PFN_SHIFT),
                         &error_abort);
     }
+    dev->poison_val = le32_to_cpu(config.poison_val);
     trace_virtio_balloon_set_config(dev->actual, oldactual);
 }
 

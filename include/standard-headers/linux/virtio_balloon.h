@@ -47,6 +47,8 @@ struct virtio_balloon_config {
 	uint32_t actual;
         /* The free_page report command id, readonly by guest */
 	uint32_t free_page_report_cmd_id;
+	/* Stores PAGE_POISON if page poisoning with sanity check is in use */
+	uint32_t poison_val;
 };
 
 #define VIRTIO_BALLOON_S_SWAP_IN  0   /* Amount of memory swapped in */
