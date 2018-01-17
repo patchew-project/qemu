@@ -1392,6 +1392,7 @@ bool tcg_op_supported(TCGOpcode op)
     case INDEX_op_and_vec:
     case INDEX_op_or_vec:
     case INDEX_op_xor_vec:
+    case INDEX_op_cmp_vec:
         return have_vec;
     case INDEX_op_dup2_vec:
         return have_vec && TCG_TARGET_REG_BITS == 32;
@@ -1782,6 +1783,7 @@ void tcg_dump_ops(TCGContext *s)
             case INDEX_op_brcond_i64:
             case INDEX_op_setcond_i64:
             case INDEX_op_movcond_i64:
+            case INDEX_op_cmp_vec:
                 if (op->args[k] < ARRAY_SIZE(cond_name)
                     && cond_name[op->args[k]]) {
                     col += qemu_log(",%s", cond_name[op->args[k++]]);
