@@ -124,6 +124,7 @@ int cpu_moxie_signal_handler(int host_signum, void *pinfo,
 
 #define MOXIE_CPU_TYPE_SUFFIX "-" TYPE_MOXIE_CPU
 #define MOXIE_CPU_TYPE_NAME(model) model MOXIE_CPU_TYPE_SUFFIX
+#define TARGET_DEFAULT_CPU_TYPE MOXIE_CPU_TYPE_NAME("any")
 
 #define cpu_signal_handler cpu_moxie_signal_handler
 
