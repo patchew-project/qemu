@@ -237,6 +237,7 @@ KEYCODEMAP_FILES = \
 		 ui/input-keymap-qcode-to-atset2.c \
 		 ui/input-keymap-qcode-to-atset3.c \
 		 ui/input-keymap-qcode-to-qnum.c \
+		 ui/input-keymap-qcode-to-sun.c \
 		 ui/input-keymap-qnum-to-qcode.c \
 		 ui/input-keymap-qcode-to-linux.c \
 		 $(NULL)
