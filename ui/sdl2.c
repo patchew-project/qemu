@@ -762,9 +762,14 @@ void sdl_display_early_init(int opengl)
     case 0:  /* off */
         break;
     case 1: /* on */
+#ifdef CONFIG_OPENGL
+        display_opengl = 1;
+#endif
+        break;
     case 2: /* gles = on */
 #ifdef CONFIG_OPENGL
         display_opengl = 1;
+        use_opengl_es = true;
 #endif
         break;
     default:
@@ -829,9 +834,11 @@ void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
 #ifdef CONFIG_OPENGL
         sdl2_console[i].opengl = display_opengl;
         sdl2_console[i].dcl.ops = display_opengl ? &dcl_gl_ops : &dcl_2d_ops;
+        sdl2_console[i].opengl_es = use_opengl_es;
 #else
         sdl2_console[i].opengl = 0;
         sdl2_console[i].dcl.ops = &dcl_2d_ops;
+        sdl2_console[i].opengl_es = false;
 #endif
         sdl2_console[i].dcl.con = con;
         register_displaychangelistener(&sdl2_console[i].dcl);

@@ -137,6 +137,7 @@ const char *bios_name = NULL;
 enum vga_retrace_method vga_retrace_method = VGA_RETRACE_DUMB;
 int request_opengl = -1;
 int display_opengl;
+bool use_opengl_es;
 const char* keyboard_layout = NULL;
 ram_addr_t ram_size;
 const char *mem_path = NULL;

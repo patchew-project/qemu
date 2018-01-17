@@ -108,6 +108,7 @@ extern int graphic_width;
 extern int graphic_height;
 extern int graphic_depth;
 extern int display_opengl;
+extern bool use_opengl_es;
 extern const char *keyboard_layout;
 extern int win2k_install_hack;
 extern int alt_grab;
