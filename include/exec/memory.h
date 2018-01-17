@@ -468,6 +468,9 @@ void memory_region_init_resizeable_ram(MemoryRegion *mr,
  * @align: alignment of the region base address; if 0, the default alignment
  *         (getpagesize()) will be used.
  * @share: %true if memory must be mmaped with the MAP_SHARED flag
+ * @sync: %ON_OFF_AUTO_ON if memory must be mapped with MAP_SYNC flag;
+ *        %ON_OFF_AUTO_OFF if memory cannot be mapped with MAP_SYNC flag;
+ *        %ON_OFF_AUTO_AUTO directs QEMU to mmap with MAP_SYNC flag if possible
  * @path: the path in which to allocate the RAM.
  * @errp: pointer to Error*, to store an error if it happens.
  *
@@ -480,6 +483,7 @@ void memory_region_init_ram_from_file(MemoryRegion *mr,
                                       uint64_t size,
                                       uint64_t align,
                                       bool share,
+                                      OnOffAuto sync,
                                       const char *path,
                                       Error **errp);
 

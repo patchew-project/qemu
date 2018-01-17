@@ -1607,6 +1607,7 @@ static void *file_ram_alloc(RAMBlock *block,
                             ram_addr_t memory,
                             int fd,
                             bool truncate,
+                            OnOffAuto sync,
                             Error **errp)
 {
     void *area;
@@ -1653,7 +1654,7 @@ static void *file_ram_alloc(RAMBlock *block,
     }
 
     area = qemu_ram_mmap(fd, memory, block->mr->align,
-                         block->flags & RAM_SHARED, ON_OFF_AUTO_OFF);
+                         block->flags & RAM_SHARED, sync);
     if (area == MAP_FAILED) {
         error_setg_errno(errp, errno,
                          "unable to map backing store for guest RAM");
@@ -2000,7 +2001,7 @@ static void ram_block_add(RAMBlock *new_block, Error **errp)
 
 #ifdef __linux__
 RAMBlock *qemu_ram_alloc_from_fd(ram_addr_t size, MemoryRegion *mr,
-                                 bool share, int fd,
+                                 bool share, OnOffAuto sync, int fd,
                                  Error **errp)
 {
     RAMBlock *new_block;
@@ -2043,7 +2044,8 @@ RAMBlock *qemu_ram_alloc_from_fd(ram_addr_t size, MemoryRegion *mr,
     new_block->used_length = size;
     new_block->max_length = size;
     new_block->flags = share ? RAM_SHARED : 0;
-    new_block->host = file_ram_alloc(new_block, size, fd, !file_size, errp);
+    new_block->host = file_ram_alloc(new_block, size, fd, !file_size, sync,
+                                     errp);
     if (!new_block->host) {
         g_free(new_block);
         return NULL;
@@ -2061,7 +2063,8 @@ RAMBlock *qemu_ram_alloc_from_fd(ram_addr_t size, MemoryRegion *mr,
 
 
 RAMBlock *qemu_ram_alloc_from_file(ram_addr_t size, MemoryRegion *mr,
-                                   bool share, const char *mem_path,
+                                   bool share, OnOffAuto sync,
+                                   const char *mem_path,
                                    Error **errp)
 {
     int fd;
@@ -2073,7 +2076,7 @@ RAMBlock *qemu_ram_alloc_from_file(ram_addr_t size, MemoryRegion *mr,
         return NULL;
     }
 
-    block = qemu_ram_alloc_from_fd(size, mr, share, fd, errp);
+    block = qemu_ram_alloc_from_fd(size, mr, share, sync, fd, errp);
     if (!block) {
         if (created) {
             unlink(mem_path);

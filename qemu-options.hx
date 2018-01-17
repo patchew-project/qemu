@@ -3974,7 +3974,7 @@ property must be set.  These objects are placed in the
 
 @table @option
 
-@item -object memory-backend-file,id=@var{id},size=@var{size},mem-path=@var{dir},share=@var{on|off},discard-data=@var{on|off},merge=@var{on|off},dump=@var{on|off},prealloc=@var{on|off},host-nodes=@var{host-nodes},policy=@var{default|preferred|bind|interleave},align=@var{align}
+@item -object memory-backend-file,id=@var{id},size=@var{size},mem-path=@var{dir},share=@var{on|off},discard-data=@var{on|off},merge=@var{on|off},dump=@var{on|off},prealloc=@var{on|off},host-nodes=@var{host-nodes},policy=@var{default|preferred|bind|interleave},align=@var{align},sync=@var{on|off|auto}
 
 Creates a memory file backend object, which can be used to back
 the guest RAM with huge pages.
@@ -4033,6 +4033,25 @@ QEMU mmap(2) @option{mem-path}, and accepts common suffixes, eg
 requires an alignment different than the default one used by QEMU, eg
 the device DAX /dev/dax0.0 requires 2M alignment rather than 4K. In
 such cases, users can specify the required alignment via this option.
+
+The @option{sync} option specifies whether QEMU mmap(2) @option{mem-path}
+with MAP_SYNC flag, which can fully guarantee the guest write
+persistence to @option{mem-path}. MAP_SYNC requires supports from both
+the host kernel (since Linux kernel 4.15) and @option{mem-path} (only
+files supporting DAX). It can take one of following values:
+
+@table @option
+@item @var{on}
+try to pass MAP_SYNC to mmap(2); if MAP_SYNC is not supported or
+@option{share}=@var{off}, QEMU will abort
+
+@item @var{off}
+never pass MAP_SYNC to mmap(2)
+
+@item @var{auto} (default)
+if MAP_SYNC is supported and @option{share}=@var{on}, work as if
+@option{sync}=@var{on}; otherwise, work as if @option{sync}=@var{off}
+@end table
 
 @item -object memory-backend-ram,id=@var{id},merge=@var{on|off},dump=@var{on|off},prealloc=@var{on|off},size=@var{size},host-nodes=@var{host-nodes},policy=@var{default|preferred|bind|interleave}
 

@@ -15,6 +15,7 @@
 #include "sysemu/hostmem.h"
 #include "sysemu/sysemu.h"
 #include "qom/object_interfaces.h"
+#include "qapi-visit.h"
 
 /* hostmem-file.c */
 /**
@@ -35,6 +36,7 @@ struct HostMemoryBackendFile {
     bool discard_data;
     char *mem_path;
     uint64_t align;
+    OnOffAuto sync;
 };
 
 static void
@@ -60,7 +62,7 @@ file_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
         memory_region_init_ram_from_file(&backend->mr, OBJECT(backend),
                                  path,
                                  backend->size, fb->align, fb->share,
-                                 fb->mem_path, errp);
+                                 fb->sync, fb->mem_path, errp);
         g_free(path);
     }
 #endif
@@ -153,6 +155,39 @@ static void file_memory_backend_set_align(Object *o, Visitor *v,
     error_propagate(errp, local_err);
 }
 
+static void file_memory_backend_get_sync(
+    Object *obj, Visitor *v, const char *name, void *opaque, Error **errp)
+{
+    HostMemoryBackendFile *fb = MEMORY_BACKEND_FILE(obj);
+    OnOffAuto value = fb->sync;
+
+    visit_type_OnOffAuto(v, name, &value, errp);
+}
+
+static void file_memory_backend_set_sync(
+    Object *obj, Visitor *v, const char *name, void *opaque, Error **errp)
+{
+    HostMemoryBackend *backend = MEMORY_BACKEND(obj);
+    HostMemoryBackendFile *fb = MEMORY_BACKEND_FILE(obj);
+    Error *local_err = NULL;
+    OnOffAuto value;
+
+    if (host_memory_backend_mr_inited(backend)) {
+        error_setg(&local_err, "cannot change property '%s' of %s '%s'",
+                   name, object_get_typename(obj), backend->id);
+        goto out;
+    }
+
+    visit_type_OnOffAuto(v, name, &value, &local_err);
+    if (local_err) {
+        goto out;
+    }
+    fb->sync = value;
+
+ out:
+    error_propagate(errp, local_err);
+}
+
 static void file_backend_unparent(Object *obj)
 {
     HostMemoryBackend *backend = MEMORY_BACKEND(obj);
@@ -186,6 +221,9 @@ file_backend_class_init(ObjectClass *oc, void *data)
     object_class_property_add(oc, "align", "int",
         file_memory_backend_get_align,
         file_memory_backend_set_align,
+        NULL, NULL, &error_abort);
+    object_class_property_add(oc, "sync", "OnOffAuto",
+        file_memory_backend_get_sync, file_memory_backend_set_sync,
         NULL, NULL, &error_abort);
 }
 
