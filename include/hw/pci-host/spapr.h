@@ -57,6 +57,7 @@ struct sPAPRPHBState {
     uint64_t mem64_win_pciaddr;
     hwaddr io_win_addr, io_win_size;
     MemoryRegion mem32window, mem64window, iowindow, msiwindow;
+    MemoryRegion mem32windowpci, mem64windowpci;
 
     uint32_t dma_liobn[SPAPR_PCI_DMA_MAX_WINDOWS];
     hwaddr dma_win_addr, dma_win_size;

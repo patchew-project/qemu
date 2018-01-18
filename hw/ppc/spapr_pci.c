@@ -1642,6 +1642,18 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
     address_space_init(&sphb->iommu_as, &sphb->iommu_root,
                        sphb->dtbusname);
 
+    /* Map memory space onto the PHB address space */
+    namebuf = g_strdup_printf("%s.mmio32-alias-pci", sphb->dtbusname);
+    memory_region_init_alias(&sphb->mem32windowpci, OBJECT(sphb), namebuf,
+                             &sphb->mem32window, 0, sphb->mem_win_size);
+    memory_region_add_subregion(&sphb->iommu_root, SPAPR_PCI_MEM_WIN_BUS_OFFSET,
+                                &sphb->mem32windowpci);
+    namebuf = g_strdup_printf("%s.mmio64-alias-pci", sphb->dtbusname);
+    memory_region_init_alias(&sphb->mem64windowpci, OBJECT(sphb), namebuf,
+                             &sphb->mem64window, 0, sphb->mem64_win_size);
+    memory_region_add_subregion(&sphb->iommu_root, sphb->mem64_win_pciaddr,
+                                &sphb->mem64windowpci);
+
     /*
      * As MSI/MSIX interrupts trigger by writing at MSI/MSIX vectors,
      * we need to allocate some memory to catch those writes coming
