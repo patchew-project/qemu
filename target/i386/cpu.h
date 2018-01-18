@@ -1575,6 +1575,9 @@ uint64_t cpu_get_tsc(CPUX86State *env);
 #define TARGET_DEFAULT_CPU_TYPE X86_CPU_TYPE_NAME("qemu32")
 #endif
 
+/* used to get target's callback in cpu_parse_cpu_model() */
+#define CPU_RESOLVING_TYPE TYPE_X86_CPU
+
 #define cpu_signal_handler cpu_x86_signal_handler
 #define cpu_list x86_cpu_list
 
