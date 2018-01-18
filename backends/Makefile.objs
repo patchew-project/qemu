@@ -8,3 +8,7 @@ common-obj-$(CONFIG_LINUX) += hostmem-file.o
 
 common-obj-y += cryptodev.o
 common-obj-y += cryptodev-builtin.o
+
+ifeq ($(CONFIG_VIRTIO),y)
+common-obj-$(CONFIG_LINUX) += cryptodev-vhost.o cryptodev-vhost-user.o
+endif
