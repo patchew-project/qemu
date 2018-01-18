@@ -1553,8 +1553,8 @@ ETEXI
 
     {
         .name       = "nbd_server_add",
-        .args_type  = "writable:-w,device:B",
-        .params     = "nbd_server_add [-w] device",
+        .args_type  = "name:-n,writable:-w,device:B",
+        .params     = "nbd_server_add [-n] [-w] device",
         .help       = "export a block device via NBD",
         .cmd        = hmp_nbd_server_add,
     },
@@ -1562,8 +1562,9 @@ STEXI
 @item nbd_server_add @var{device}
 @findex nbd_server_add
 Export a block device through QEMU's NBD server, which must be started
-beforehand with @command{nbd_server_start}.  The @option{-w} option makes the
-exported device writable too.
+beforehand with @command{nbd_server_start}. The @option{-n} option sets export
+name. If @option{-n} option is unspecified, the @var{device} parameter is used.
+The @option{-w} option makes the exported device writable too.
 ETEXI
 
     {
