@@ -4609,7 +4609,6 @@ int main(int argc, char **argv, char **envp)
     current_machine->maxram_size = maxram_size;
     current_machine->ram_slots = ram_slots;
     current_machine->boot_order = boot_order;
-    current_machine->cpu_model = cpu_model;
 
     parse_numa_opts(current_machine);
 
@@ -4619,6 +4618,13 @@ int main(int argc, char **argv, char **envp)
         if (cpu_model) {
             current_machine->cpu_type =
                 cpu_parse_cpu_model(machine_class->default_cpu_type, cpu_model);
+
+            /* machine 'none' depends on default cpu type pointer not being
+             * equal to resolved type name pointer to fugure out if type was
+             * user provided, make sure that if it becomes not true in future
+             * it won't beark silently */
+            g_assert(
+                current_machine->cpu_type != machine_class->default_cpu_type);
         }
     }
 

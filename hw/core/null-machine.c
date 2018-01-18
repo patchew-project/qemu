@@ -23,10 +23,18 @@
 static void machine_none_init(MachineState *mch)
 {
     CPUState *cpu = NULL;
+#ifdef CPU_RESOLVING_TYPE
+    MachineClass *mc = MACHINE_GET_CLASS(mch);
 
-    /* Initialize CPU (if a model has been specified) */
+    /* Initialize CPU if cpu_type pointer is user provided
+     * (i.e. != to pointer tot static default cpu type string)
+     */
+    if (mch->cpu_type != mc->default_cpu_type) {
+        cpu = cpu_create(mch->cpu_type);
+#else
     if (mch->cpu_model) {
         cpu = cpu_init(mch->cpu_model);
+#endif
         if (!cpu) {
             error_report("Unable to initialize CPU");
             exit(1);
@@ -54,6 +62,9 @@ static void machine_none_machine_init(MachineClass *mc)
     mc->init = machine_none_init;
     mc->max_cpus = 1;
     mc->default_ram_size = 0;
+#ifdef CPU_RESOLVING_TYPE
+    mc->default_cpu_type = CPU_RESOLVING_TYPE;
+#endif
 }
 
 DEFINE_MACHINE("none", machine_none_machine_init)
