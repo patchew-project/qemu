@@ -23,14 +23,18 @@
  */
 
 #include "qemu/osdep.h"
+#include "hw/virtio/virtio-bus.h"
+#include "sysemu/cryptodev-vhost.h"
+
+#ifdef CONFIG_VHOST_CRYPTO
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/error-report.h"
-#include "sysemu/cryptodev-vhost.h"
 #include "hw/virtio/virtio-crypto.h"
-#include "hw/virtio/virtio-bus.h"
-#include "sysemu/cryptodev-vhost-user.h"
 
+#ifdef CONFIG_VHOST_USER
+#include "sysemu/cryptodev-vhost-user.h"
+#endif
 
 uint64_t
 cryptodev_vhost_get_max_queues(
@@ -123,9 +127,11 @@ cryptodev_get_vhost(CryptoDevBackendClient *cc,
     }
 
     switch (cc->type) {
+#ifdef CONFIG_VHOST_USER
     case CRYPTODEV_BACKEND_TYPE_VHOST_USER:
         vhost_crypto = cryptodev_vhost_user_get_vhost(cc, b, queue);
         break;
+#endif
     default:
         break;
     }
@@ -295,3 +301,48 @@ bool cryptodev_vhost_virtqueue_pending(VirtIODevice *dev,
 
     return vhost_virtqueue_pending(&vhost_crypto->dev, idx);
 }
+
+#else
+uint64_t
+cryptodev_vhost_get_max_queues(CryptoDevBackendVhost *crypto)
+{
+    return 0;
+}
+
+void cryptodev_vhost_cleanup(CryptoDevBackendVhost *crypto)
+{
+}
+
+struct CryptoDevBackendVhost *
+cryptodev_vhost_init(CryptoDevBackendVhostOptions *options)
+{
+    return NULL;
+}
+
+CryptoDevBackendVhost *
+cryptodev_get_vhost(CryptoDevBackendClient *cc, CryptoDevBackend *b,
+                    uint16_t queue)
+{
+    return NULL;
+}
+
+int cryptodev_vhost_start(VirtIODevice *dev, int total_queues)
+{
+    return -1;
+}
+
+void cryptodev_vhost_stop(VirtIODevice *dev, int total_queues)
+{
+}
+
+void cryptodev_vhost_virtqueue_mask(VirtIODevice *dev, int queue,
+                                    int idx, bool mask)
+{
+}
+
+bool cryptodev_vhost_virtqueue_pending(VirtIODevice *dev,
+                                       int queue, int idx)
+{
+    return false;
+}
+#endif

@@ -2867,9 +2867,11 @@ static bool object_create_initial(const char *type)
         return false;
     }
 
+#if defined(CONFIG_VHOST_CRYPTO) && defined(CONFIG_VHOST_USER)
     if (g_str_equal(type, "cryptodev-vhost-user")) {
         return false;
     }
+#endif
 
     /*
      * return false for concrete netfilters since
