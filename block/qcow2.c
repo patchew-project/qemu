@@ -1866,6 +1866,23 @@ static bool merge_cow(uint64_t offset, unsigned bytes,
     return false;
 }
 
+static bool is_zero(BlockDriverState *bs, int64_t offset, int64_t bytes)
+{
+    int64_t nr;
+    int res;
+
+    /* Clamp to image length, before checking status of underlying sectors */
+    if (offset + bytes > bs->total_sectors * BDRV_SECTOR_SIZE) {
+        bytes = bs->total_sectors * BDRV_SECTOR_SIZE - offset;
+    }
+
+    if (!bytes) {
+        return true;
+    }
+    res = bdrv_block_status_above(bs, NULL, offset, bytes, &nr, NULL, NULL);
+    return res >= 0 && (res & BDRV_BLOCK_ZERO) && nr == bytes;
+}
+
 static coroutine_fn int qcow2_co_pwritev(BlockDriverState *bs, uint64_t offset,
                                          uint64_t bytes, QEMUIOVector *qiov,
                                          int flags)
@@ -2981,24 +2998,6 @@ finish:
     g_free(encryptfmt);
     g_free(buf);
     return ret;
-}
-
-
-static bool is_zero(BlockDriverState *bs, int64_t offset, int64_t bytes)
-{
-    int64_t nr;
-    int res;
-
-    /* Clamp to image length, before checking status of underlying sectors */
-    if (offset + bytes > bs->total_sectors * BDRV_SECTOR_SIZE) {
-        bytes = bs->total_sectors * BDRV_SECTOR_SIZE - offset;
-    }
-
-    if (!bytes) {
-        return true;
-    }
-    res = bdrv_block_status_above(bs, NULL, offset, bytes, &nr, NULL, NULL);
-    return res >= 0 && (res & BDRV_BLOCK_ZERO) && nr == bytes;
 }
 
 static coroutine_fn int qcow2_co_pwrite_zeroes(BlockDriverState *bs,
