@@ -605,7 +605,8 @@ void bdrv_dec_in_flight(BlockDriverState *bs)
     bdrv_wakeup(bs);
 }
 
-static bool coroutine_fn wait_serialising_requests(BdrvTrackedRequest *self)
+static bool coroutine_fn wait_serialising_requests(BdrvTrackedRequest *self,
+                                                   bool nowait)
 {
     BlockDriverState *bs = self->bs;
     BdrvTrackedRequest *req;
@@ -636,11 +637,14 @@ static bool coroutine_fn wait_serialising_requests(BdrvTrackedRequest *self)
                  * will wait for us as soon as it wakes up, then just go on
                  * (instead of producing a deadlock in the former case). */
                 if (!req->waiting_for) {
+                    waited = true;
+                    if (nowait) {
+                        break;
+                    }
                     self->waiting_for = req;
                     qemu_co_queue_wait(&req->wait_queue, &bs->reqs_lock);
                     self->waiting_for = NULL;
                     retry = true;
-                    waited = true;
                     break;
                 }
             }
@@ -1206,7 +1210,7 @@ static int coroutine_fn bdrv_aligned_preadv(BdrvChild *child,
     }
 
     if (!(flags & BDRV_REQ_NO_SERIALISING)) {
-        wait_serialising_requests(req);
+        wait_serialising_requests(req, false);
     }
 
     if (flags & BDRV_REQ_COPY_ON_READ) {
@@ -1504,7 +1508,10 @@ static int coroutine_fn bdrv_aligned_pwritev(BdrvChild *child,
     max_transfer = QEMU_ALIGN_DOWN(MIN_NON_ZERO(bs->bl.max_transfer, INT_MAX),
                                    align);
 
-    waited = wait_serialising_requests(req);
+    waited = wait_serialising_requests(req, flags & BDRV_REQ_ALLOCATE);
+    if (waited && flags & BDRV_REQ_ALLOCATE) {
+        return -EAGAIN;
+    }
     assert(!waited || !req->serialising);
     assert(req->overlap_offset <= offset);
     assert(offset + bytes <= req->overlap_offset + req->overlap_bytes);
@@ -1608,7 +1615,7 @@ static int coroutine_fn bdrv_co_do_zero_pwritev(BdrvChild *child,
 
         /* RMW the unaligned part before head. */
         mark_request_serialising(req, align);
-        wait_serialising_requests(req);
+        wait_serialising_requests(req, false);
         bdrv_debug_event(bs, BLKDBG_PWRITEV_RMW_HEAD);
         ret = bdrv_aligned_preadv(child, req, offset & ~(align - 1), align,
                                   align, &local_qiov, 0);
@@ -1626,6 +1633,10 @@ static int coroutine_fn bdrv_co_do_zero_pwritev(BdrvChild *child,
         }
         offset += zero_bytes;
         bytes -= zero_bytes;
+    }
+
+    if (flags & BDRV_REQ_ALLOCATE) {
+        mark_request_serialising(req, align);
     }
 
     assert(!bytes || (offset & (align - 1)) == 0);
@@ -1646,7 +1657,7 @@ static int coroutine_fn bdrv_co_do_zero_pwritev(BdrvChild *child,
         assert(align == tail_padding_bytes + bytes);
         /* RMW the unaligned part after tail. */
         mark_request_serialising(req, align);
-        wait_serialising_requests(req);
+        wait_serialising_requests(req, false);
         bdrv_debug_event(bs, BLKDBG_PWRITEV_RMW_TAIL);
         ret = bdrv_aligned_preadv(child, req, offset, align,
                                   align, &local_qiov, 0);
@@ -1717,7 +1728,7 @@ int coroutine_fn bdrv_co_pwritev(BdrvChild *child,
         struct iovec head_iov;
 
         mark_request_serialising(&req, align);
-        wait_serialising_requests(&req);
+        wait_serialising_requests(&req, false);
 
         head_buf = qemu_blockalign(bs, align);
         head_iov = (struct iovec) {
@@ -1758,7 +1769,7 @@ int coroutine_fn bdrv_co_pwritev(BdrvChild *child,
         bool waited;
 
         mark_request_serialising(&req, align);
-        waited = wait_serialising_requests(&req);
+        waited = wait_serialising_requests(&req, false);
         assert(!waited || !use_local_qiov);
 
         tail_buf = qemu_blockalign(bs, align);
