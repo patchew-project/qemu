@@ -42,6 +42,7 @@ typedef struct {
     QIOChannel *ioc; /* Client I/O channel */
     QIOChannelSocket *sioc; /* Client master channel */
     QIONetListener *listener;
+    guint hup_tag;
     QCryptoTLSCreds *tls_creds;
     int connected;
     int max_size;
@@ -352,6 +353,11 @@ static void tcp_chr_free_connection(Chardev *chr)
         s->read_msgfds_num = 0;
     }
 
+    if (s->hup_tag != 0) {
+        g_source_remove(s->hup_tag);
+        s->hup_tag = 0;
+    }
+
     tcp_set_msgfds(chr, NULL, 0);
     remove_fd_in_watch(chr);
     object_unref(OBJECT(s->sioc));
@@ -455,6 +461,19 @@ static gboolean tcp_chr_read(QIOChannel *chan, GIOCondition cond, void *opaque)
     return TRUE;
 }
 
+static gboolean tcp_chr_hup(QIOChannel *channel,
+                               GIOCondition cond,
+                               void *opaque)
+{
+    Chardev *chr = CHARDEV(opaque);
+    SocketChardev *s = SOCKET_CHARDEV(chr);
+    tcp_chr_read(channel, cond, opaque);
+    if (s->connected != 0) {
+        tcp_chr_disconnect(chr);
+    }
+    return TRUE;
+}
+
 static int tcp_chr_sync_read(Chardev *chr, const uint8_t *buf, int len)
 {
     SocketChardev *s = SOCKET_CHARDEV(chr);
@@ -528,6 +547,10 @@ static void tcp_chr_connect(void *opaque)
                                            tcp_chr_read,
                                            chr, chr->gcontext);
     }
+    if (s->hup_tag == 0) {
+        s->hup_tag = qio_channel_add_watch(s->ioc, G_IO_HUP,
+                                           tcp_chr_hup, chr, NULL);
+    }
     qemu_chr_be_event(chr, CHR_EVENT_OPENED);
 }
 
@@ -546,7 +569,11 @@ static void tcp_chr_update_read_handler(Chardev *chr)
                                            tcp_chr_read, chr,
                                            chr->gcontext);
     }
-}
+    if (s->hup_tag == 0) {
+        s->hup_tag = qio_channel_add_watch(s->ioc, G_IO_HUP,
+                                           tcp_chr_hup, chr, NULL);
+    }
+ }
 
 typedef struct {
     Chardev *chr;
