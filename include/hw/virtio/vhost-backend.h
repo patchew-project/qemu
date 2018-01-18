@@ -85,6 +85,12 @@ typedef void (*vhost_set_iotlb_callback_op)(struct vhost_dev *dev,
 typedef int (*vhost_send_device_iotlb_msg_op)(struct vhost_dev *dev,
                                               struct vhost_iotlb_msg *imsg);
 
+typedef int (*vhost_crypto_create_session_op)(struct vhost_dev *dev,
+                                      void *session_info,
+                                      uint64_t *session_id);
+typedef int (*vhost_crypto_close_session_op)(struct vhost_dev *dev,
+                                      uint64_t session_id);
+
 typedef struct VhostOps {
     VhostBackendType backend_type;
     vhost_backend_init vhost_backend_init;
@@ -118,6 +124,8 @@ typedef struct VhostOps {
     vhost_vsock_set_running_op vhost_vsock_set_running;
     vhost_set_iotlb_callback_op vhost_set_iotlb_callback;
     vhost_send_device_iotlb_msg_op vhost_send_device_iotlb_msg;
+    vhost_crypto_create_session_op vhost_crypto_create_session;
+    vhost_crypto_close_session_op vhost_crypto_close_session;
 } VhostOps;
 
 extern const VhostOps user_ops;
