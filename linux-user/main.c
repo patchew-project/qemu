@@ -44,6 +44,7 @@ static const char *argv0;
 static int gdbstub_port;
 static envlist_t *envlist;
 static const char *cpu_model;
+static const char *cpu_type;
 unsigned long mmap_min_addr;
 unsigned long guest_base;
 int have_guest_base;
@@ -3847,7 +3848,7 @@ void init_task_state(TaskState *ts)
 CPUArchState *cpu_copy(CPUArchState *env)
 {
     CPUState *cpu = ENV_GET_CPU(env);
-    CPUState *new_cpu = cpu_init(cpu_model);
+    CPUState *new_cpu = cpu_create(cpu_type);
     CPUArchState *new_env = new_cpu->env_ptr;
     CPUBreakpoint *bp;
     CPUWatchpoint *wp;
@@ -4362,7 +4363,17 @@ int main(int argc, char **argv, char **envp)
     tcg_exec_init(0);
     /* NOTE: we need to init the CPU at this stage to get
        qemu_host_page_size */
+
+#ifdef CPU_RESOLVING_TYPE
+    cpu_type = cpu_parse_cpu_model(CPU_RESOLVING_TYPE, cpu_model);
+    if (!cpu_type) {
+        exit(1);
+    }
+    cpu_create(cpu_type);
+#else
     cpu = cpu_init(cpu_model);
+    cpu_type = object_class_get_name(object_get_class(OBJECT(cpu)));
+#endif
     env = cpu->env_ptr;
     cpu_reset(cpu);
 
