@@ -1143,23 +1143,24 @@ static void qemu_wait_io_event_common(CPUState *cpu)
 static void qemu_tcg_rr_wait_io_event(CPUState *cpu)
 {
     while (all_cpu_threads_idle()) {
+        qemu_mutex_lock_iothread();
         stop_tcg_kick_timer();
         qemu_cond_wait(cpu->halt_cond, &qemu_global_mutex);
+        qemu_mutex_unlock_iothread();
     }
 
     start_tcg_kick_timer();
 
     qemu_wait_io_event_common(cpu);
-
-    qemu_mutex_unlock_iothread();
 }
 
 static void qemu_wait_io_event(CPUState *cpu)
 {
-    qemu_mutex_lock_iothread();
 
     while (cpu_thread_is_idle(cpu)) {
+        qemu_mutex_lock_iothread();
         qemu_cond_wait(cpu->halt_cond, &qemu_global_mutex);
+        qemu_mutex_unlock_iothread();
     }
 
 #ifdef _WIN32

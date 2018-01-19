@@ -310,6 +310,11 @@ void async_safe_run_on_cpu(CPUState *cpu, run_on_cpu_func func,
     queue_work_on_cpu(cpu, wi);
 }
 
+/* Work items run outside of the BQL. This is essential for avoiding a
+ * deadlock for exclusive work but also applies to non-exclusive work.
+ * If the work requires cross-vCPU changes then it should use the
+ * exclusive mechanism.
+ */
 void process_queued_cpu_work(CPUState *cpu)
 {
     struct qemu_work_item *wi;
@@ -327,17 +332,9 @@ void process_queued_cpu_work(CPUState *cpu)
         }
         qemu_mutex_unlock(&cpu->work_mutex);
         if (wi->exclusive) {
-            /* Running work items outside the BQL avoids the following deadlock:
-             * 1) start_exclusive() is called with the BQL taken while another
-             * CPU is running; 2) cpu_exec in the other CPU tries to takes the
-             * BQL, so it goes to sleep; start_exclusive() is sleeping too, so
-             * neither CPU can proceed.
-             */
-            qemu_mutex_unlock_iothread();
             start_exclusive();
             wi->func(cpu, wi->data);
             end_exclusive();
-            qemu_mutex_lock_iothread();
         } else {
             wi->func(cpu, wi->data);
         }
