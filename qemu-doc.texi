@@ -2708,6 +2708,12 @@ that can be specified with the ``-device'' parameter.
 The drive addr argument is replaced by the the addr argument
 that can be specified with the ``-device'' parameter.
 
+@subsection -drive file=json:@{...@{'driver':'file'@}@} (since 2.12.0)
+
+The 'file' driver for drives is no longer appropriate for character or host
+devices and will only accept regular files (S_IFREG). The correct driver
+for these file types is 'host_cdrom' or 'host_device' as appropriate.
+
 @subsection -net dump (since 2.10.0)
 
 The ``--net dump'' argument is now replaced with the
