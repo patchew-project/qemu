@@ -534,6 +534,11 @@ DEF_HELPER_4(crypto_sha256h2, void, env, i32, i32, i32)
 DEF_HELPER_3(crypto_sha256su0, void, env, i32, i32)
 DEF_HELPER_4(crypto_sha256su1, void, env, i32, i32, i32)
 
+DEF_HELPER_4(crypto_sha512h, void, env, i32, i32, i32)
+DEF_HELPER_4(crypto_sha512h2, void, env, i32, i32, i32)
+DEF_HELPER_3(crypto_sha512su0, void, env, i32, i32)
+DEF_HELPER_4(crypto_sha512su1, void, env, i32, i32, i32)
+
 DEF_HELPER_FLAGS_3(crc32, TCG_CALL_NO_RWG_SE, i32, i32, i32, i32)
 DEF_HELPER_FLAGS_3(crc32c, TCG_CALL_NO_RWG_SE, i32, i32, i32, i32)
 DEF_HELPER_2(dc_zva, void, env, i64)

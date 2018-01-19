@@ -1,7 +1,7 @@
 /*
  * crypto_helper.c - emulate v8 Crypto Extensions instructions
  *
- * Copyright (C) 2013 - 2014 Linaro Ltd <ard.biesheuvel@linaro.org>
+ * Copyright (C) 2013 - 2018 Linaro Ltd <ard.biesheuvel@linaro.org>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -462,4 +462,101 @@ void HELPER(crypto_sha256su1)(CPUARMState *env, uint32_t rd, uint32_t rn,
 
     env->vfp.regs[rd] = make_float64(d.l[0]);
     env->vfp.regs[rd + 1] = make_float64(d.l[1]);
+}
+
+/*
+ * The SHA-512 logical functions (same as above but using 64-bit operands)
+ */
+
+static uint64_t cho512(uint64_t x, uint64_t y, uint64_t z)
+{
+    return (x & (y ^ z)) ^ z;
+}
+
+static uint64_t maj512(uint64_t x, uint64_t y, uint64_t z)
+{
+    return (x & y) | ((x | y) & z);
+}
+
+static uint64_t S0_512(uint64_t x)
+{
+    return ror64(x, 28) ^ ror64(x, 34) ^ ror64(x, 39);
+}
+
+static uint64_t S1_512(uint64_t x)
+{
+    return ror64(x, 14) ^ ror64(x, 18) ^ ror64(x, 41);
+}
+
+static uint64_t s0_512(uint64_t x)
+{
+    return ror64(x, 1) ^ ror64(x, 8) ^ (x >> 7);
+}
+
+static uint64_t s1_512(uint64_t x)
+{
+    return ror64(x, 19) ^ ror64(x, 61) ^ (x >> 6);
+}
+
+void HELPER(crypto_sha512h)(CPUARMState *env, uint32_t rd, uint32_t rn,
+                            uint32_t rm)
+{
+    uint64_t d0 = float64_val(env->vfp.regs[rd]);
+    uint64_t d1 = float64_val(env->vfp.regs[rd + 1]);
+    uint64_t n0 = float64_val(env->vfp.regs[rn]);
+    uint64_t n1 = float64_val(env->vfp.regs[rn + 1]);
+    uint64_t m0 = float64_val(env->vfp.regs[rm]);
+    uint64_t m1 = float64_val(env->vfp.regs[rm + 1]);
+
+    d1 += S1_512(m1) + cho512(m1, n0, n1);
+    d0 += S1_512(d1 + m0) + cho512(d1 + m0, m1, n0);
+
+    env->vfp.regs[rd] = make_float64(d0);
+    env->vfp.regs[rd + 1] = make_float64(d1);
+}
+
+void HELPER(crypto_sha512h2)(CPUARMState *env, uint32_t rd, uint32_t rn,
+                             uint32_t rm)
+{
+    uint64_t d0 = float64_val(env->vfp.regs[rd]);
+    uint64_t d1 = float64_val(env->vfp.regs[rd + 1]);
+    uint64_t n0 = float64_val(env->vfp.regs[rn]);
+    uint64_t m0 = float64_val(env->vfp.regs[rm]);
+    uint64_t m1 = float64_val(env->vfp.regs[rm + 1]);
+
+    d1 += S0_512(m0) + maj512(n0, m1, m0);
+    d0 += S0_512(d1) + maj512(d1, m0, m1);
+
+    env->vfp.regs[rd] = make_float64(d0);
+    env->vfp.regs[rd + 1] = make_float64(d1);
+}
+
+void HELPER(crypto_sha512su0)(CPUARMState *env, uint32_t rd, uint32_t rn)
+{
+    uint64_t d0 = float64_val(env->vfp.regs[rd]);
+    uint64_t d1 = float64_val(env->vfp.regs[rd + 1]);
+    uint64_t n0 = float64_val(env->vfp.regs[rn]);
+
+    d0 += s0_512(d1);
+    d1 += s0_512(n0);
+
+    env->vfp.regs[rd] = make_float64(d0);
+    env->vfp.regs[rd + 1] = make_float64(d1);
+}
+
+void HELPER(crypto_sha512su1)(CPUARMState *env, uint32_t rd, uint32_t rn,
+                              uint32_t rm)
+{
+    uint64_t d0 = float64_val(env->vfp.regs[rd]);
+    uint64_t d1 = float64_val(env->vfp.regs[rd + 1]);
+    uint64_t n0 = float64_val(env->vfp.regs[rn]);
+    uint64_t n1 = float64_val(env->vfp.regs[rn + 1]);
+    uint64_t m0 = float64_val(env->vfp.regs[rm]);
+    uint64_t m1 = float64_val(env->vfp.regs[rm + 1]);
+
+    d0 += s1_512(n0) + m0;
+    d1 += s1_512(n1) + m1;
+
+    env->vfp.regs[rd] = make_float64(d0);
+    env->vfp.regs[rd + 1] = make_float64(d1);
 }
