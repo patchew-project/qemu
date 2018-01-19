@@ -36,3 +36,5 @@ virtio_iommu_attach(uint32_t domain_id, uint32_t ep_id) "domain=%d endpoint=%d"
 virtio_iommu_detach(uint32_t ep_id) "endpoint=%d"
 virtio_iommu_map(uint32_t domain_id, uint64_t phys_addr, uint64_t virt_addr, uint64_t size, uint32_t flags) "domain=%d phys_addr=0x%"PRIx64" virt_addr=0x%"PRIx64" size=0x%"PRIx64" flags=%d"
 virtio_iommu_unmap(uint32_t domain_id, uint64_t virt_addr, uint64_t size) "domain=%d virt_addr=0x%"PRIx64" size=0x%"PRIx64
+virtio_iommu_translate(const char *name, uint32_t rid, uint64_t iova, int flag) "mr=%s rid=%d addr=0x%"PRIx64" flag=%d"
+virtio_iommu_init_iommu_mr(char *iommu_mr) "init %s"
