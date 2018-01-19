@@ -673,7 +673,8 @@ enum {
         ACPI_IORT_NODE_NAMED_COMPONENT = 0x01,
         ACPI_IORT_NODE_PCI_ROOT_COMPLEX = 0x02,
         ACPI_IORT_NODE_SMMU = 0x03,
-        ACPI_IORT_NODE_SMMU_V3 = 0x04
+        ACPI_IORT_NODE_SMMU_V3 = 0x04,
+        ACPI_IORT_NODE_PARAVIRT = 0x05
 };
 
 struct AcpiIortIdMapping {
@@ -699,6 +700,24 @@ struct AcpiIortItsGroup {
     uint32_t identifiers[0];
 } QEMU_PACKED;
 typedef struct AcpiIortItsGroup AcpiIortItsGroup;
+
+struct AcpiIortPVIommu {
+    ACPI_IORT_NODE_HEADER_DEF
+    uint64_t base_address;
+    uint64_t span;
+    uint32_t model;
+    uint32_t flags;
+    uint32_t interrupt_count;
+    uint64_t interrupts[1];
+    AcpiIortIdMapping id_mapping_array[0];
+} QEMU_PACKED;
+typedef struct AcpiIortPVIommu AcpiIortPVIommu;
+
+enum {
+    ACPI_IORT_NODE_PV_VIRTIO_IOMMU = 0x00,
+};
+
+#define ACPI_IORT_NODE_PV_CACHE_COHERENT    (1 << 0)
 
 struct AcpiIortRC {
     ACPI_IORT_NODE_HEADER_DEF

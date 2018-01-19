@@ -1027,6 +1027,11 @@ static void virtio_iommu_notifier(Notifier *notifier, void *data)
 
     object_property_set_bool(obj, false, "msi_bypass", &error_fatal);
 
+    vms->iommu_info.type = VIRT_IOMMU_VIRTIO;
+    vms->iommu_info.reg.base = vms->memmap[VIRT_IOMMU].base;
+    vms->iommu_info.reg.size = vms->memmap[VIRT_IOMMU].size;
+    vms->iommu_info.irq_base = vms->irqmap[VIRT_IOMMU];
+
     qemu_fdt_setprop_cells(fdt, vms->pcie_host_nodename, "iommu-map",
                            0x0, vms->iommu_phandle, 0x0, 0x10000);
 }
