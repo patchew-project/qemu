@@ -876,7 +876,16 @@ bool block_job_is_cancelled(BlockJob *job)
     return job->cancelled;
 }
 
-int block_job_sleep_ns(BlockJob *job, int64_t ns)
+/**
+ * block_job_sleep_ns:
+ * @job: The job that calls the function.
+ * @ns: How many nanoseconds to stop for.
+ *
+ * Put the job to sleep (assuming that it wasn't canceled) for @ns
+ * %QEMU_CLOCK_REALTIME nanoseconds.  Canceling the job will immediately
+ * interrupt the wait.
+ */
+static int block_job_sleep_ns(BlockJob *job, int64_t ns)
 {
     assert(job->busy);
 

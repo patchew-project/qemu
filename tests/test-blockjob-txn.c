@@ -44,7 +44,7 @@ static void coroutine_fn test_block_job_run(void *opaque)
 
     while (s->iterations--) {
         if (s->use_timer) {
-            block_job_sleep_ns(job, 0);
+            block_job_relax(job, 0);
         } else {
             block_job_yield(job);
         }

@@ -506,7 +506,7 @@ static void coroutine_fn test_job_start(void *opaque)
     TestBlockJob *s = opaque;
 
     while (!s->should_complete) {
-        block_job_sleep_ns(&s->common, 100000);
+        block_job_relax(&s->common, 100000);
     }
 
     block_job_defer_to_main_loop(&s->common, test_job_completed, NULL);
