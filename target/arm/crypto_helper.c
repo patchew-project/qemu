@@ -560,3 +560,72 @@ void HELPER(crypto_sha512su1)(CPUARMState *env, uint32_t rd, uint32_t rn,
     env->vfp.regs[rd] = make_float64(d0);
     env->vfp.regs[rd + 1] = make_float64(d1);
 }
+
+void HELPER(crypto_rax1)(CPUARMState *env, uint32_t rd, uint32_t rn,
+                         uint32_t rm)
+{
+    uint64_t d0 = float64_val(env->vfp.regs[rd]);
+    uint64_t d1 = float64_val(env->vfp.regs[rd + 1]);
+    uint64_t n0 = float64_val(env->vfp.regs[rn]);
+    uint64_t n1 = float64_val(env->vfp.regs[rn + 1]);
+    uint64_t m0 = float64_val(env->vfp.regs[rm]);
+    uint64_t m1 = float64_val(env->vfp.regs[rm + 1]);
+
+    d0 = n0 ^ rol64(m0, 1);
+    d1 = n1 ^ rol64(m1, 1);
+
+    env->vfp.regs[rd] = make_float64(d0);
+    env->vfp.regs[rd + 1] = make_float64(d1);
+}
+
+void HELPER(crypto_eor3)(CPUARMState *env, uint32_t rd, uint32_t rn,
+                         uint32_t ra, uint32_t rm)
+{
+    uint64_t d0, d1;
+    uint64_t n0 = float64_val(env->vfp.regs[rn]);
+    uint64_t n1 = float64_val(env->vfp.regs[rn + 1]);
+    uint64_t a0 = float64_val(env->vfp.regs[ra]);
+    uint64_t a1 = float64_val(env->vfp.regs[ra + 1]);
+    uint64_t m0 = float64_val(env->vfp.regs[rm]);
+    uint64_t m1 = float64_val(env->vfp.regs[rm + 1]);
+
+    d0 = n0 ^ a0 ^ m0;
+    d1 = n1 ^ a1 ^ m1;
+
+    env->vfp.regs[rd] = make_float64(d0);
+    env->vfp.regs[rd + 1] = make_float64(d1);
+}
+
+void HELPER(crypto_bcax)(CPUARMState *env, uint32_t rd, uint32_t rn,
+                         uint32_t ra, uint32_t rm)
+{
+    uint64_t d0, d1;
+    uint64_t n0 = float64_val(env->vfp.regs[rn]);
+    uint64_t n1 = float64_val(env->vfp.regs[rn + 1]);
+    uint64_t a0 = float64_val(env->vfp.regs[ra]);
+    uint64_t a1 = float64_val(env->vfp.regs[ra + 1]);
+    uint64_t m0 = float64_val(env->vfp.regs[rm]);
+    uint64_t m1 = float64_val(env->vfp.regs[rm + 1]);
+
+    d0 = n0 ^ (~a0 & m0);
+    d1 = n1 ^ (~a1 & m1);
+
+    env->vfp.regs[rd] = make_float64(d0);
+    env->vfp.regs[rd + 1] = make_float64(d1);
+}
+
+void HELPER(crypto_xar)(CPUARMState *env, uint32_t rd, uint32_t rn,
+                        uint32_t imm6, uint32_t rm)
+{
+    uint64_t d0, d1;
+    uint64_t n0 = float64_val(env->vfp.regs[rn]);
+    uint64_t n1 = float64_val(env->vfp.regs[rn + 1]);
+    uint64_t m0 = float64_val(env->vfp.regs[rm]);
+    uint64_t m1 = float64_val(env->vfp.regs[rm + 1]);
+
+    d0 = ror64(n0 ^ m0, imm6);
+    d1 = ror64(n1 ^ m1, imm6);
+
+    env->vfp.regs[rd] = make_float64(d0);
+    env->vfp.regs[rd + 1] = make_float64(d1);
+}

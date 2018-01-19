@@ -82,6 +82,8 @@ typedef void NeonGenTwoDoubleOPFn(TCGv_i64, TCGv_i64, TCGv_i64, TCGv_ptr);
 typedef void NeonGenOneOpFn(TCGv_i64, TCGv_i64);
 typedef void CryptoTwoOpEnvFn(TCGv_ptr, TCGv_i32, TCGv_i32);
 typedef void CryptoThreeOpEnvFn(TCGv_ptr, TCGv_i32, TCGv_i32, TCGv_i32);
+typedef void CryptoFourOpEnvFn(TCGv_ptr, TCGv_i32, TCGv_i32, TCGv_i32,
+                               TCGv_i32);
 
 /* initialize TCG globals.  */
 void a64_translate_init(void)
@@ -11142,6 +11144,7 @@ static void disas_crypto_three_reg_sha512(DisasContext *s, uint32_t insn)
     int rn = extract32(insn, 5, 5);
     int rd = extract32(insn, 0, 5);
     TCGv_i32 tcg_rd_regno, tcg_rn_regno, tcg_rm_regno;
+    int feature;
     CryptoThreeOpEnvFn *genfn;
 
     if (o != 0) {
@@ -11151,20 +11154,24 @@ static void disas_crypto_three_reg_sha512(DisasContext *s, uint32_t insn)
 
     switch (opcode) {
     case 0: /* SHA512H */
+        feature = ARM_FEATURE_V8_SHA512;
         genfn = gen_helper_crypto_sha512h;
         break;
     case 1: /* SHA512H2 */
+        feature = ARM_FEATURE_V8_SHA512;
         genfn = gen_helper_crypto_sha512h2;
         break;
     case 2: /* SHA512SU1 */
+        feature = ARM_FEATURE_V8_SHA512;
         genfn = gen_helper_crypto_sha512su1;
         break;
-    default:
-        unallocated_encoding(s);
-        return;
+    case 3: /* RAX1 */
+        feature = ARM_FEATURE_V8_SHA3;
+        genfn = gen_helper_crypto_rax1;
+        break;
     }
 
-    if (!arm_dc_feature(s, ARM_FEATURE_V8_SHA512)) {
+    if (!arm_dc_feature(s, feature)) {
         unallocated_encoding(s);
         return;
     }
@@ -11225,6 +11232,97 @@ static void disas_crypto_two_reg_sha512(DisasContext *s, uint32_t insn)
     tcg_temp_free_i32(tcg_rn_regno);
 }
 
+/* Crypto four-register
+ *  31               23 22 21 20  16 15  14  10 9    5 4    0
+ * +-------------------+-----+------+---+------+------+------+
+ * | 1 1 0 0 1 1 1 0 0 | Op0 |  Rm  | 0 |  Ra  |  Rn  |  Rd  |
+ * +-------------------+-----+------+---+------+------+------+
+ */
+static void disas_crypto_four_reg(DisasContext *s, uint32_t insn)
+{
+    int op0 = extract32(insn, 21, 2);
+    int rm = extract32(insn, 16, 5);
+    int ra = extract32(insn, 10, 5);
+    int rn = extract32(insn, 5, 5);
+    int rd = extract32(insn, 0, 5);
+    TCGv_i32 tcg_rd_regno, tcg_rn_regno, tcg_ra_regno, tcg_rm_regno;
+    int feature;
+    CryptoFourOpEnvFn *genfn;
+
+    switch (op0) {
+    case 0: /* EOR3 */
+        feature = ARM_FEATURE_V8_SHA3;
+        genfn = gen_helper_crypto_eor3;
+        break;
+    case 1: /* BCAX */
+        feature = ARM_FEATURE_V8_SHA3;
+        genfn = gen_helper_crypto_bcax;
+        break;
+    default:
+        unallocated_encoding(s);
+        return;
+    }
+
+    if (!arm_dc_feature(s, feature)) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    if (!fp_access_check(s)) {
+        return;
+    }
+
+    tcg_rd_regno = tcg_const_i32(rd << 1);
+    tcg_rn_regno = tcg_const_i32(rn << 1);
+    tcg_ra_regno = tcg_const_i32(ra << 1);
+    tcg_rm_regno = tcg_const_i32(rm << 1);
+
+    genfn(cpu_env, tcg_rd_regno, tcg_rn_regno, tcg_ra_regno, tcg_rm_regno);
+
+    tcg_temp_free_i32(tcg_rd_regno);
+    tcg_temp_free_i32(tcg_rn_regno);
+    tcg_temp_free_i32(tcg_ra_regno);
+    tcg_temp_free_i32(tcg_rm_regno);
+}
+
+/* Crypto XAR
+ *  31                   21 20  16 15    10 9    5 4    0
+ * +-----------------------+------+--------+------+------+
+ * | 1 1 0 0 1 1 1 0 1 0 0 |  Rm  |  imm6  |  Rn  |  Rd  |
+ * +-----------------------+------+--------+------+------+
+ */
+static void disas_crypto_xar(DisasContext *s, uint32_t insn)
+{
+    int rm = extract32(insn, 16, 5);
+    int imm6 = extract32(insn, 10, 6);
+    int rn = extract32(insn, 5, 5);
+    int rd = extract32(insn, 0, 5);
+    TCGv_i32 tcg_rd_regno, tcg_rn_regno, tcg_imm6, tcg_rm_regno;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_V8_SHA3)) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    if (!fp_access_check(s)) {
+        return;
+    }
+
+    tcg_rd_regno = tcg_const_i32(rd << 1);
+    tcg_rn_regno = tcg_const_i32(rn << 1);
+    tcg_imm6 = tcg_const_i32(imm6);
+    tcg_rm_regno = tcg_const_i32(rm << 1);
+
+    gen_helper_crypto_xar(cpu_env, tcg_rd_regno, tcg_rn_regno, tcg_imm6,
+                          tcg_rm_regno);
+
+    tcg_temp_free_i32(tcg_rd_regno);
+    tcg_temp_free_i32(tcg_rn_regno);
+    tcg_temp_free_i32(tcg_imm6);
+    tcg_temp_free_i32(tcg_rm_regno);
+
+}
+
 /* C3.6 Data processing - SIMD, inc Crypto
  *
  * As the decode gets a little complex we are using a table based
@@ -11256,6 +11354,8 @@ static const AArch64DecodeTable data_proc_simd[] = {
     { 0x5e280800, 0xff3e0c00, disas_crypto_two_reg_sha },
     { 0xce608000, 0xffe0b000, disas_crypto_three_reg_sha512 },
     { 0xcec08000, 0xfffff000, disas_crypto_two_reg_sha512 },
+    { 0xce000000, 0xff808000, disas_crypto_four_reg },
+    { 0xce800000, 0xffe00000, disas_crypto_xar },
     { 0x00000000, 0x00000000, NULL }
 };
 
