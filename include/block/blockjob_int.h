@@ -160,11 +160,15 @@ void block_job_yield(BlockJob *job);
 /**
  * block_job_relax:
  * @job: The job that calls the function.
+ * @delay_ns: The amount of time to sleep for
  *
- * Yield if it has been SLICE_TIME nanoseconds since the last yield.
- * Otherwise, check if we need to pause, and yield if so.
+ * Sleep for delay_ns nanoseconds.
+ *
+ * If delay_ns is 0, yield if it has been SLICE_TIME
+ * nanoseconds since the last yield. Otherwise, check
+ * if we need to yield for a pause event.
  */
-void block_job_relax(BlockJob *job);
+void block_job_relax(BlockJob *job, int64_t delay_ns);
 
 /**
  * block_job_pause_all:

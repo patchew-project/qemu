@@ -906,12 +906,11 @@ void block_job_yield(BlockJob *job)
     block_job_pause_point(job);
 }
 
-void block_job_relax(BlockJob *job)
+void block_job_relax(BlockJob *job, int64_t delay_ns)
 {
-    int64_t now = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
-
-    if (now - job->last_enter_ns > SLICE_TIME) {
-        block_job_sleep_ns(job, 0);
+    if (delay_ns || (qemu_clock_get_ns(QEMU_CLOCK_REALTIME) - \
+                     job->last_enter_ns > SLICE_TIME)) {
+        block_job_sleep_ns(job, delay_ns);
     } else {
         block_job_pause_point(job);
     }
