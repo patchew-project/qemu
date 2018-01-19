@@ -648,17 +648,17 @@ static void mark_postcopy_blocktime_begin(uintptr_t addr, uint32_t ptid,
         atomic_inc(&dc->smp_cpus_down);
     }
 
-    atomic_xchg__nocheck(&dc->last_begin, now_ms);
-    atomic_xchg__nocheck(&dc->page_fault_vcpu_time[cpu], now_ms);
-    atomic_xchg__nocheck(&dc->vcpu_addr[cpu], addr);
+    atomic_xchg(&dc->last_begin, now_ms);
+    atomic_xchg(&dc->page_fault_vcpu_time[cpu], now_ms);
+    atomic_xchg(&dc->vcpu_addr[cpu], addr);
 
     /* check it here, not at the begining of the function,
      * due to, check could accur early than bitmap_set in
      * qemu_ufd_copy_ioctl */
     already_received = ramblock_recv_bitmap_test(rb, (void *)addr);
     if (already_received) {
-        atomic_xchg__nocheck(&dc->vcpu_addr[cpu], 0);
-        atomic_xchg__nocheck(&dc->page_fault_vcpu_time[cpu], 0);
+        atomic_xchg(&dc->vcpu_addr[cpu], 0);
+        atomic_xchg(&dc->page_fault_vcpu_time[cpu], 0);
         atomic_dec(&dc->smp_cpus_down);
     }
     trace_mark_postcopy_blocktime_begin(addr, dc, dc->page_fault_vcpu_time[cpu],
@@ -719,7 +719,7 @@ static void mark_postcopy_blocktime_end(uintptr_t addr)
             read_vcpu_time == 0) {
             continue;
         }
-        atomic_xchg__nocheck(&dc->vcpu_addr[i], 0);
+        atomic_xchg(&dc->vcpu_addr[i], 0);
         vcpu_blocktime = now_ms - read_vcpu_time;
         affected_cpu += 1;
         /* we need to know is that mark_postcopy_end was due to
