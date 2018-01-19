@@ -257,9 +257,39 @@ static enum TPMVersion tpm_crb_get_version(TPMIf *ti)
     return tpm_backend_get_tpm_version(s->tpmbe);
 }
 
+/* persistent state handling */
+
+static int tpm_crb_pre_save(void *opaque)
+{
+    CRBState *s = opaque;
+
+    tpm_backend_finish_sync(s->tpmbe);
+
+    return 0;
+}
+
 static const VMStateDescription vmstate_tpm_crb = {
     .name = "tpm-crb",
-    .unmigratable = 1,
+    .pre_save  = tpm_crb_pre_save,
+    .fields      = (VMStateField[]) {
+        VMSTATE_UINT32(regs.loc_state.reg, CRBState),
+        VMSTATE_UINT32(regs.loc_ctrl, CRBState),
+        VMSTATE_UINT32(regs.loc_sts.reg, CRBState),
+        VMSTATE_UINT64(regs.intf_id.reg, CRBState),
+        VMSTATE_UINT64(regs.ctrl_ext, CRBState),
+        VMSTATE_UINT32(regs.ctrl_req, CRBState),
+        VMSTATE_UINT32(regs.ctrl_sts.reg, CRBState),
+        VMSTATE_UINT32(regs.ctrl_cancel, CRBState),
+        VMSTATE_UINT32(regs.ctrl_start, CRBState),
+        VMSTATE_UINT32(regs.ctrl_int_enable, CRBState),
+        VMSTATE_UINT32(regs.ctrl_int_sts, CRBState),
+        VMSTATE_UINT32(regs.ctrl_cmd_size, CRBState),
+        VMSTATE_UINT32(regs.ctrl_cmd_pa_low, CRBState),
+        VMSTATE_UINT32(regs.ctrl_rsp_size, CRBState),
+        VMSTATE_UINT64(regs.ctrl_rsp_pa, CRBState),
+
+        VMSTATE_END_OF_LIST(),
+    }
 };
 
 static Property tpm_crb_properties[] = {
