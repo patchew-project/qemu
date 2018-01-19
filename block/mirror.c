@@ -63,7 +63,6 @@ typedef struct MirrorBlockJob {
     QSIMPLEQ_HEAD(, MirrorBuffer) buf_free;
     int buf_free_count;
 
-    uint64_t last_pause_ns;
     unsigned long *in_flight_bitmap;
     int in_flight;
     int64_t bytes_in_flight;
@@ -596,8 +595,7 @@ static void mirror_throttle(MirrorBlockJob *s)
 {
     int64_t now = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
 
-    if (now - s->last_pause_ns > SLICE_TIME) {
-        s->last_pause_ns = now;
+    if (now - s->common.last_enter_ns > SLICE_TIME) {
         block_job_sleep_ns(&s->common, 0);
     } else {
         block_job_pause_point(&s->common);
@@ -769,7 +767,6 @@ static void coroutine_fn mirror_run(void *opaque)
 
     mirror_free_init(s);
 
-    s->last_pause_ns = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
     if (!s->is_none_mode) {
         ret = mirror_dirty_init(s);
         if (ret < 0 || block_job_is_cancelled(&s->common)) {
@@ -803,7 +800,7 @@ static void coroutine_fn mirror_run(void *opaque)
          * We do so every SLICE_TIME nanoseconds, or when there is an error,
          * or when the source is clean, whichever comes first.
          */
-        delta = qemu_clock_get_ns(QEMU_CLOCK_REALTIME) - s->last_pause_ns;
+        delta = qemu_clock_get_ns(QEMU_CLOCK_REALTIME) - s->common.last_enter_ns;
         if (delta < SLICE_TIME &&
             s->common.iostatus == BLOCK_DEVICE_IO_STATUS_OK) {
             if (s->in_flight >= MAX_IN_FLIGHT || s->buf_free_count == 0 ||
@@ -878,7 +875,6 @@ static void coroutine_fn mirror_run(void *opaque)
             delay_ns = (s->in_flight == 0 && cnt == 0 ? SLICE_TIME : 0);
             block_job_sleep_ns(&s->common, delay_ns);
         }
-        s->last_pause_ns = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
     }
 
 immediate_exit:

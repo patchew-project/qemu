@@ -141,6 +141,11 @@ typedef struct BlockJob {
      */
     QEMUTimer sleep_timer;
 
+    /**
+     * Timestamp of the last yield
+     */
+    uint64_t last_enter_ns;
+
     /** Non-NULL if this job is part of a transaction */
     BlockJobTxn *txn;
     QLIST_ENTRY(BlockJob) txn_list;

@@ -321,6 +321,7 @@ void block_job_start(BlockJob *job)
     job->pause_count--;
     job->busy = true;
     job->paused = false;
+    job->last_enter_ns = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
     bdrv_coroutine_enter(blk_bs(job->blk), job->co);
 }
 
@@ -786,6 +787,7 @@ static void block_job_do_yield(BlockJob *job, uint64_t ns)
     job->busy = false;
     block_job_unlock();
     qemu_coroutine_yield();
+    job->last_enter_ns = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
 
     /* Set by block_job_enter before re-entering the coroutine.  */
     assert(job->busy);
