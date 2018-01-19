@@ -336,6 +336,8 @@ static void backup_complete(BlockJob *job, void *opaque)
 
 static bool coroutine_fn yield_and_check(BackupBlockJob *job)
 {
+    uint64_t delay_ns = 0;
+
     if (block_job_is_cancelled(&job->common)) {
         return true;
     }
@@ -344,14 +346,12 @@ static bool coroutine_fn yield_and_check(BackupBlockJob *job)
      * (without, VM does not reboot)
      */
     if (job->common.speed) {
-        uint64_t delay_ns = ratelimit_calculate_delay(&job->limit,
-                                                      job->bytes_read);
+        delay_ns = ratelimit_calculate_delay(&job->limit,
+                                             job->bytes_read);
         job->bytes_read = 0;
-        block_job_sleep_ns(&job->common, delay_ns);
-    } else {
-        block_job_sleep_ns(&job->common, 0);
     }
 
+    block_job_relax(&job->common, delay_ns);
     if (block_job_is_cancelled(&job->common)) {
         return true;
     }
