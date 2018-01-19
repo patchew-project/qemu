@@ -60,6 +60,7 @@ static void __attribute__((__constructor__)) block_job_init(void)
 static void block_job_event_cancelled(BlockJob *job);
 static void block_job_event_completed(BlockJob *job, const char *msg);
 static void block_job_enter_cond(BlockJob *job, bool(*fn)(BlockJob *job));
+static int coroutine_fn block_job_pause_point(BlockJob *job);
 
 /* Transactional group of block jobs */
 struct BlockJobTxn {
@@ -793,7 +794,14 @@ static void block_job_do_yield(BlockJob *job, uint64_t ns)
     assert(job->busy);
 }
 
-int coroutine_fn block_job_pause_point(BlockJob *job)
+/**
+ * block_job_pause_point:
+ * @job: The job that is ready to pause.
+ *
+ * Pause now if block_job_pause() has been called.  Block jobs that perform
+ * lots of I/O must call this between requests so that the job can be paused.
+ */
+static int coroutine_fn block_job_pause_point(BlockJob *job)
 {
     assert(job && block_job_started(job));
 

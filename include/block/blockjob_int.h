@@ -202,15 +202,6 @@ void block_job_completed(BlockJob *job, int ret);
 bool block_job_is_cancelled(BlockJob *job);
 
 /**
- * block_job_pause_point:
- * @job: The job that is ready to pause.
- *
- * Pause now if block_job_pause() has been called.  Block jobs that perform
- * lots of I/O must call this between requests so that the job can be paused.
- */
-int coroutine_fn block_job_pause_point(BlockJob *job);
-
-/**
  * block_job_enter:
  * @job: The job to enter.
  *

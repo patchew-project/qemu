@@ -345,7 +345,9 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
         mirror_wait_for_io(s);
     }
 
-    block_job_pause_point(&s->common);
+    if (block_job_relax(&s->common, 0)) {
+        return 0;
+    }
 
     /* Find the number of consective dirty chunks following the first dirty
      * one, and wait for in flight requests in them. */
