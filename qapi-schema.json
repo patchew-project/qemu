@@ -1455,6 +1455,35 @@
   'returns': [ 'DevicePropertyInfo' ] }
 
 ##
+# @QOMPropertyInfo:
+#
+# Information about object properties.
+#
+# @name: the name of the property
+# @type: the typename of the property
+# @description: if specified, the description of the property.
+#
+# Since: 2.12
+##
+{ 'struct': 'QOMPropertyInfo',
+  'data': { 'name': 'str', 'type': 'str', '*description': 'str' } }
+
+##
+# @qom-list-properties:
+#
+# List properties associated with a QOM object.
+#
+# @typename: the type name of an object
+#
+# Returns: a list of QOMPropertyInfo describing object properties
+#
+# Since: 2.12
+##
+{ 'command': 'qom-list-properties',
+  'data': { 'typename': 'str'},
+  'returns': [ 'QOMPropertyInfo' ] }
+
+##
 # @xen-set-global-dirty-log:
 #
 # Enable or disable the global dirty log mode.
