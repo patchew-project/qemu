@@ -334,29 +334,17 @@ static void backup_complete(BlockJob *job, void *opaque)
     g_free(data);
 }
 
-static bool coroutine_fn yield_and_check(BackupBlockJob *job)
+static uint64_t get_delay_ns(BackupBlockJob *job)
 {
     uint64_t delay_ns = 0;
 
-    if (block_job_is_cancelled(&job->common)) {
-        return true;
-    }
-
-    /* we need to yield so that bdrv_drain_all() returns.
-     * (without, VM does not reboot)
-     */
     if (job->common.speed) {
         delay_ns = ratelimit_calculate_delay(&job->limit,
                                              job->bytes_read);
         job->bytes_read = 0;
     }
 
-    block_job_relax(&job->common, delay_ns);
-    if (block_job_is_cancelled(&job->common)) {
-        return true;
-    }
-
-    return false;
+    return delay_ns;
 }
 
 static int coroutine_fn backup_run_incremental(BackupBlockJob *job)
@@ -369,7 +357,7 @@ static int coroutine_fn backup_run_incremental(BackupBlockJob *job)
     hbitmap_iter_init(&hbi, job->copy_bitmap, 0);
     while ((cluster = hbitmap_iter_next(&hbi)) != -1) {
         do {
-            if (yield_and_check(job)) {
+            if (block_job_relax(&job->common, get_delay_ns(job))) {
                 return 0;
             }
             ret = backup_do_cow(job, cluster * job->cluster_size,
@@ -465,7 +453,7 @@ static void coroutine_fn backup_run(void *opaque)
             bool error_is_read;
             int alloced = 0;
 
-            if (yield_and_check(job)) {
+            if (block_job_relax(&job->common, get_delay_ns(job))) {
                 break;
             }
 
