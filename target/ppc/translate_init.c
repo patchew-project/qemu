@@ -10634,6 +10634,11 @@ static void ppc_cpu_register_types(void)
 {
     type_register_static(&ppc_cpu_type_info);
     type_register_static(&ppc_vhyp_type_info);
+
+#ifdef TARGET_PPCEMB
+    warn_report("qemu-system-ppcemb is deprecated, "
+                "please use qemu-system-ppc instead.");
+#endif
 }
 
 type_init(ppc_cpu_register_types)
