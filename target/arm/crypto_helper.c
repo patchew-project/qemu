@@ -629,3 +629,146 @@ void HELPER(crypto_xar)(CPUARMState *env, uint32_t rd, uint32_t rn,
     env->vfp.regs[rd] = make_float64(d0);
     env->vfp.regs[rd + 1] = make_float64(d1);
 }
+
+void HELPER(crypto_sm3partw1)(CPUARMState *env, uint32_t rd, uint32_t rn,
+                              uint32_t rm)
+{
+    union CRYPTO_STATE d = { .l = {
+        float64_val(env->vfp.regs[rd]),
+        float64_val(env->vfp.regs[rd + 1])
+    } };
+    union CRYPTO_STATE n = { .l = {
+        float64_val(env->vfp.regs[rn]),
+        float64_val(env->vfp.regs[rn + 1])
+    } };
+    union CRYPTO_STATE m = { .l = {
+        float64_val(env->vfp.regs[rm]),
+        float64_val(env->vfp.regs[rm + 1])
+    } };
+    uint32_t t;
+
+    t = CR_ST_WORD(d, 0) ^ CR_ST_WORD(n, 0) ^ ror32(CR_ST_WORD(m, 1), 17);
+    CR_ST_WORD(d, 0) = t ^ ror32(t, 17) ^ ror32(t, 9);
+
+    t = CR_ST_WORD(d, 1) ^ CR_ST_WORD(n, 1) ^ ror32(CR_ST_WORD(m, 2), 17);
+    CR_ST_WORD(d, 1) = t ^ ror32(t, 17) ^ ror32(t, 9);
+
+    t = CR_ST_WORD(d, 2) ^ CR_ST_WORD(n, 2) ^ ror32(CR_ST_WORD(m, 3), 17);
+    CR_ST_WORD(d, 2) = t ^ ror32(t, 17) ^ ror32(t, 9);
+
+    t = CR_ST_WORD(d, 3) ^ CR_ST_WORD(n, 3) ^ ror32(CR_ST_WORD(d, 0), 17);
+    CR_ST_WORD(d, 3) = t ^ ror32(t, 17) ^ ror32(t, 9);
+
+    env->vfp.regs[rd] = make_float64(d.l[0]);
+    env->vfp.regs[rd + 1] = make_float64(d.l[1]);
+}
+
+void HELPER(crypto_sm3partw2)(CPUARMState *env, uint32_t rd, uint32_t rn,
+                              uint32_t rm)
+{
+    union CRYPTO_STATE d = { .l = {
+        float64_val(env->vfp.regs[rd]),
+        float64_val(env->vfp.regs[rd + 1])
+    } };
+    union CRYPTO_STATE n = { .l = {
+        float64_val(env->vfp.regs[rn]),
+        float64_val(env->vfp.regs[rn + 1])
+    } };
+    union CRYPTO_STATE m = { .l = {
+        float64_val(env->vfp.regs[rm]),
+        float64_val(env->vfp.regs[rm + 1])
+    } };
+    uint32_t t = CR_ST_WORD(n, 0) ^ ror32(CR_ST_WORD(m, 0), 25);
+
+    CR_ST_WORD(d, 0) ^= t;
+    CR_ST_WORD(d, 1) ^= CR_ST_WORD(n, 1) ^ ror32(CR_ST_WORD(m, 1), 25);
+    CR_ST_WORD(d, 2) ^= CR_ST_WORD(n, 2) ^ ror32(CR_ST_WORD(m, 2), 25);
+    CR_ST_WORD(d, 3) ^= CR_ST_WORD(n, 3) ^ ror32(CR_ST_WORD(m, 3), 25) ^
+                        ror32(t, 17) ^ ror32(t, 2) ^ ror32(t, 26);
+
+    env->vfp.regs[rd] = make_float64(d.l[0]);
+    env->vfp.regs[rd + 1] = make_float64(d.l[1]);
+}
+
+void HELPER(crypto_sm3ss1)(CPUARMState *env, uint32_t rd, uint32_t rn,
+                           uint32_t ra, uint32_t rm)
+{
+    union CRYPTO_STATE d;
+    union CRYPTO_STATE a = { .l = {
+        float64_val(env->vfp.regs[ra]),
+        float64_val(env->vfp.regs[ra + 1])
+    } };
+    union CRYPTO_STATE n = { .l = {
+        float64_val(env->vfp.regs[rn]),
+        float64_val(env->vfp.regs[rn + 1])
+    } };
+    union CRYPTO_STATE m = { .l = {
+        float64_val(env->vfp.regs[rm]),
+        float64_val(env->vfp.regs[rm + 1])
+    } };
+
+    CR_ST_WORD(d, 0) = 0;
+    CR_ST_WORD(d, 1) = 0;
+    CR_ST_WORD(d, 2) = 0;
+    CR_ST_WORD(d, 3) = ror32(ror32(CR_ST_WORD(n, 3), 20) + CR_ST_WORD(m, 3) +
+                             CR_ST_WORD(a, 3), 25);
+
+    env->vfp.regs[rd] = make_float64(d.l[0]);
+    env->vfp.regs[rd + 1] = make_float64(d.l[1]);
+}
+
+void HELPER(crypto_sm3tt)(CPUARMState *env, uint32_t rd, uint32_t rn,
+                          uint32_t rm, uint32_t imm2, uint32_t opcode)
+{
+    union CRYPTO_STATE d = { .l = {
+        float64_val(env->vfp.regs[rd]),
+        float64_val(env->vfp.regs[rd + 1])
+    } };
+    union CRYPTO_STATE n = { .l = {
+        float64_val(env->vfp.regs[rn]),
+        float64_val(env->vfp.regs[rn + 1])
+    } };
+    union CRYPTO_STATE m = { .l = {
+        float64_val(env->vfp.regs[rm]),
+        float64_val(env->vfp.regs[rm + 1])
+    } };
+    uint32_t t;
+
+    assert(imm2 < 4);
+
+    if (opcode == 0 || opcode == 2) {
+        /* SM3TT1A, SM3TT2A */
+        t = par(CR_ST_WORD(d, 3), CR_ST_WORD(d, 2), CR_ST_WORD(d, 1));
+    } else if (opcode == 1) {
+        /* SM3TT1B */
+        t = maj(CR_ST_WORD(d, 3), CR_ST_WORD(d, 2), CR_ST_WORD(d, 1));
+    } else if (opcode == 3) {
+        /* SM3TT2B */
+        t = cho(CR_ST_WORD(d, 3), CR_ST_WORD(d, 2), CR_ST_WORD(d, 1));
+    } else {
+        g_assert_not_reached();
+    }
+
+    t += CR_ST_WORD(d, 0) + CR_ST_WORD(m, imm2);
+
+    CR_ST_WORD(d, 0) = CR_ST_WORD(d, 1);
+
+    if (opcode < 2) {
+        /* SM3TT1A, SM3TT1B */
+        t += CR_ST_WORD(n, 3) ^ ror32(CR_ST_WORD(d, 3), 20);
+
+        CR_ST_WORD(d, 1) = ror32(CR_ST_WORD(d, 2), 23);
+    } else {
+        /* SM3TT2A, SM3TT2B */
+        t += CR_ST_WORD(n, 3);
+        t ^= rol32(t, 9) ^ rol32(t, 17);
+
+        CR_ST_WORD(d, 1) = ror32(CR_ST_WORD(d, 2), 13);
+    }
+
+    CR_ST_WORD(d, 2) = CR_ST_WORD(d, 3);
+    CR_ST_WORD(d, 3) = t;
+
+    env->vfp.regs[rd] = make_float64(d.l[0]);
+    env->vfp.regs[rd + 1] = make_float64(d.l[1]);
+}

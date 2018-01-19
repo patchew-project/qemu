@@ -11147,28 +11147,39 @@ static void disas_crypto_three_reg_sha512(DisasContext *s, uint32_t insn)
     int feature;
     CryptoThreeOpEnvFn *genfn;
 
-    if (o != 0) {
-        unallocated_encoding(s);
-        return;
-    }
-
-    switch (opcode) {
-    case 0: /* SHA512H */
-        feature = ARM_FEATURE_V8_SHA512;
-        genfn = gen_helper_crypto_sha512h;
-        break;
-    case 1: /* SHA512H2 */
-        feature = ARM_FEATURE_V8_SHA512;
-        genfn = gen_helper_crypto_sha512h2;
-        break;
-    case 2: /* SHA512SU1 */
-        feature = ARM_FEATURE_V8_SHA512;
-        genfn = gen_helper_crypto_sha512su1;
-        break;
-    case 3: /* RAX1 */
-        feature = ARM_FEATURE_V8_SHA3;
-        genfn = gen_helper_crypto_rax1;
-        break;
+    if (o == 0) {
+        switch (opcode) {
+        case 0: /* SHA512H */
+            feature = ARM_FEATURE_V8_SHA512;
+            genfn = gen_helper_crypto_sha512h;
+            break;
+        case 1: /* SHA512H2 */
+            feature = ARM_FEATURE_V8_SHA512;
+            genfn = gen_helper_crypto_sha512h2;
+            break;
+        case 2: /* SHA512SU1 */
+            feature = ARM_FEATURE_V8_SHA512;
+            genfn = gen_helper_crypto_sha512su1;
+            break;
+        case 3: /* RAX1 */
+            feature = ARM_FEATURE_V8_SHA3;
+            genfn = gen_helper_crypto_rax1;
+            break;
+        }
+    } else {
+        switch (opcode) {
+        case 0: /* SM3PARTW1 */
+            feature = ARM_FEATURE_V8_SM3;
+            genfn = gen_helper_crypto_sm3partw1;
+            break;
+        case 1: /* SM3PARTW2 */
+            feature = ARM_FEATURE_V8_SM3;
+            genfn = gen_helper_crypto_sm3partw2;
+            break;
+        default:
+            unallocated_encoding(s);
+            return;
+        }
     }
 
     if (!arm_dc_feature(s, feature)) {
@@ -11258,6 +11269,10 @@ static void disas_crypto_four_reg(DisasContext *s, uint32_t insn)
         feature = ARM_FEATURE_V8_SHA3;
         genfn = gen_helper_crypto_bcax;
         break;
+    case 2: /* SM3SS1 */
+        feature = ARM_FEATURE_V8_SM3;
+        genfn = gen_helper_crypto_sm3ss1;
+        break;
     default:
         unallocated_encoding(s);
         return;
@@ -11323,6 +11338,46 @@ static void disas_crypto_xar(DisasContext *s, uint32_t insn)
 
 }
 
+/* Crypto three-reg imm2
+ *  31                   21 20  16 15  14 13 12  11  10  9    5 4    0
+ * +-----------------------+------+-----+------+--------+------+------+
+ * | 1 1 0 0 1 1 1 0 0 1 0 |  Rm  | 1 0 | imm2 | opcode |  Rn  |  Rd  |
+ * +-----------------------+------+-----+------+--------+------+------+
+ */
+static void disas_crypto_three_reg_imm2(DisasContext *s, uint32_t insn)
+{
+    int opcode = extract32(insn, 10, 2);
+    int imm2 = extract32(insn, 12, 2);
+    int rm = extract32(insn, 16, 5);
+    int rn = extract32(insn, 5, 5);
+    int rd = extract32(insn, 0, 5);
+    TCGv_i32 tcg_rd_regno, tcg_rn_regno, tcg_rm_regno, tcg_imm2, tcg_opcode;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_V8_SM3)) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    if (!fp_access_check(s)) {
+        return;
+    }
+
+    tcg_rd_regno = tcg_const_i32(rd << 1);
+    tcg_rn_regno = tcg_const_i32(rn << 1);
+    tcg_rm_regno = tcg_const_i32(rm << 1);
+    tcg_imm2 = tcg_const_i32(imm2);
+    tcg_opcode = tcg_const_i32(opcode);
+
+    gen_helper_crypto_sm3tt(cpu_env, tcg_rd_regno, tcg_rn_regno, tcg_rm_regno,
+                            tcg_imm2, tcg_opcode);
+
+    tcg_temp_free_i32(tcg_rd_regno);
+    tcg_temp_free_i32(tcg_rn_regno);
+    tcg_temp_free_i32(tcg_rm_regno);
+    tcg_temp_free_i32(tcg_imm2);
+    tcg_temp_free_i32(tcg_opcode);
+}
+
 /* C3.6 Data processing - SIMD, inc Crypto
  *
  * As the decode gets a little complex we are using a table based
@@ -11356,6 +11411,7 @@ static const AArch64DecodeTable data_proc_simd[] = {
     { 0xcec08000, 0xfffff000, disas_crypto_two_reg_sha512 },
     { 0xce000000, 0xff808000, disas_crypto_four_reg },
     { 0xce800000, 0xffe00000, disas_crypto_xar },
+    { 0xce408000, 0xffe0c000, disas_crypto_three_reg_imm2 },
     { 0x00000000, 0x00000000, NULL }
 };
 
