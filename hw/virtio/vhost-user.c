@@ -17,6 +17,7 @@
 #include "sysemu/kvm.h"
 #include "qemu/error-report.h"
 #include "qemu/sockets.h"
+#include "sysemu/cryptodev.h"
 
 #include <sys/ioctl.h>
 #include <sys/socket.h>
@@ -34,6 +35,7 @@ enum VhostUserProtocolFeature {
     VHOST_USER_PROTOCOL_F_NET_MTU = 4,
     VHOST_USER_PROTOCOL_F_SLAVE_REQ = 5,
     VHOST_USER_PROTOCOL_F_CROSS_ENDIAN = 6,
+    VHOST_USER_PROTOCOL_F_CRYPTO_SESSION = 7,
 
     VHOST_USER_PROTOCOL_F_MAX
 };
@@ -65,6 +67,8 @@ typedef enum VhostUserRequest {
     VHOST_USER_SET_SLAVE_REQ_FD = 21,
     VHOST_USER_IOTLB_MSG = 22,
     VHOST_USER_SET_VRING_ENDIAN = 23,
+    VHOST_USER_CREATE_CRYPTO_SESSION = 24,
+    VHOST_USER_CLOSE_CRYPTO_SESSION = 25,
     VHOST_USER_MAX
 } VhostUserRequest;
 
@@ -92,6 +96,17 @@ typedef struct VhostUserLog {
     uint64_t mmap_offset;
 } VhostUserLog;
 
+#define VHOST_CRYPTO_SYM_HMAC_MAX_KEY_LEN    512
+#define VHOST_CRYPTO_SYM_CIPHER_MAX_KEY_LEN  64
+
+typedef struct VhostUserCryptoSession {
+    /* session id for success, -1 on errors */
+    int64_t session_id;
+    CryptoDevBackendSymSessionInfo session_setup_data;
+    uint8_t key[VHOST_CRYPTO_SYM_CIPHER_MAX_KEY_LEN];
+    uint8_t auth_key[VHOST_CRYPTO_SYM_HMAC_MAX_KEY_LEN];
+} VhostUserCryptoSession;
+
 typedef struct VhostUserMsg {
     VhostUserRequest request;
 
@@ -109,6 +124,7 @@ typedef struct VhostUserMsg {
         VhostUserMemory memory;
         VhostUserLog log;
         struct vhost_iotlb_msg iotlb;
+        VhostUserCryptoSession session;
     } payload;
 } QEMU_PACKED VhostUserMsg;
 
@@ -922,6 +938,92 @@ static void vhost_user_set_iotlb_callback(struct vhost_dev *dev, int enabled)
     /* No-op as the receive channel is not dedicated to IOTLB messages. */
 }
 
+static int vhost_user_crypto_create_session(struct vhost_dev *dev,
+                              void *session_info,
+                              uint64_t *session_id)
+{
+    bool crypto_session = virtio_has_feature(dev->protocol_features,
+                                       VHOST_USER_PROTOCOL_F_CRYPTO_SESSION);
+    CryptoDevBackendSymSessionInfo *sess_info = session_info;
+    VhostUserMsg msg = {
+        .request = VHOST_USER_CREATE_CRYPTO_SESSION,
+        .flags = VHOST_USER_VERSION,
+        .size = sizeof(msg.payload.session),
+    };
+
+    assert(dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_USER);
+
+    if (!crypto_session) {
+        error_report("vhost-user trying to send unhandled ioctl");
+        return -1;
+    }
+
+    memcpy(&msg.payload.session.session_setup_data, sess_info,
+              sizeof(CryptoDevBackendSymSessionInfo));
+    if (sess_info->key_len) {
+        memcpy(&msg.payload.session.key, sess_info->cipher_key,
+               sess_info->key_len);
+    }
+    if (sess_info->auth_key_len > 0) {
+        memcpy(&msg.payload.session.auth_key, sess_info->auth_key,
+               sess_info->auth_key_len);
+    }
+    if (vhost_user_write(dev, &msg, NULL, 0) < 0) {
+        error_report("vhost_user_write() return -1, create session failed");
+        return -1;
+    }
+
+    if (vhost_user_read(dev, &msg) < 0) {
+        error_report("vhost_user_read() return -1, create session failed");
+        return -1;
+    }
+
+    if (msg.request != VHOST_USER_CREATE_CRYPTO_SESSION) {
+        error_report("Received unexpected msg type. Expected %d received %d",
+                     VHOST_USER_CREATE_CRYPTO_SESSION, msg.request);
+        return -1;
+    }
+
+    if (msg.size != sizeof(msg.payload.session)) {
+        error_report("Received bad msg size.");
+        return -1;
+    }
+
+    if (msg.payload.session.session_id < 0) {
+        error_report("Bad session id: %" PRId64 "",
+                              msg.payload.session.session_id);
+        return -1;
+    }
+    *session_id = msg.payload.session.session_id;
+
+    return 0;
+}
+
+static int
+vhost_user_crypto_close_session(struct vhost_dev *dev, uint64_t session_id)
+{
+    bool crypto_session = virtio_has_feature(dev->protocol_features,
+                                       VHOST_USER_PROTOCOL_F_CRYPTO_SESSION);
+    VhostUserMsg msg = {
+        .request = VHOST_USER_CLOSE_CRYPTO_SESSION,
+        .flags = VHOST_USER_VERSION,
+        .size = sizeof(msg.payload.u64),
+    };
+    msg.payload.u64 = session_id;
+
+    if (!crypto_session) {
+        error_report("vhost-user trying to send unhandled ioctl");
+        return -1;
+    }
+
+    if (vhost_user_write(dev, &msg, NULL, 0) < 0) {
+        error_report("vhost_user_write() return -1, close session failed");
+        return -1;
+    }
+
+    return 0;
+}
+
 const VhostOps user_ops = {
         .backend_type = VHOST_BACKEND_TYPE_USER,
         .vhost_backend_init = vhost_user_init,
@@ -948,4 +1050,6 @@ const VhostOps user_ops = {
         .vhost_net_set_mtu = vhost_user_net_set_mtu,
         .vhost_set_iotlb_callback = vhost_user_set_iotlb_callback,
         .vhost_send_device_iotlb_msg = vhost_user_send_device_iotlb_msg,
+        .vhost_crypto_create_session = vhost_user_crypto_create_session,
+        .vhost_crypto_close_session = vhost_user_crypto_close_session,
 };
