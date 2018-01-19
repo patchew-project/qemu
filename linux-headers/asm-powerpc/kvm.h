@@ -443,6 +443,14 @@ struct kvm_ppc_rmmu_info {
 	__u32	ap_encodings[8];
 };
 
+/* For KVM_PPC_GET_CPU_CHAR */
+struct kvm_ppc_cpu_char {
+        __u64   character;      /* characteristics of the CPU */
+        __u64   behaviour;      /* recommended software behaviour */
+        __u64   c_mask;         /* valid bits in character */
+        __u64   b_mask;         /* valid bits in behaviour */
+};
+
 /* Per-vcpu XICS interrupt controller state */
 #define KVM_REG_PPC_ICP_STATE	(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0x8c)
 
