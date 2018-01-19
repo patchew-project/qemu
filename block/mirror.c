@@ -590,17 +590,6 @@ static void mirror_exit(BlockJob *job, void *opaque)
     bdrv_unref(src);
 }
 
-static void mirror_throttle(MirrorBlockJob *s)
-{
-    int64_t now = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
-
-    if (now - s->common.last_enter_ns > SLICE_TIME) {
-        block_job_sleep_ns(&s->common, 0);
-    } else {
-        block_job_pause_point(&s->common);
-    }
-}
-
 static int coroutine_fn mirror_dirty_init(MirrorBlockJob *s)
 {
     int64_t offset;
@@ -621,7 +610,7 @@ static int coroutine_fn mirror_dirty_init(MirrorBlockJob *s)
             int bytes = MIN(s->bdev_length - offset,
                             QEMU_ALIGN_DOWN(INT_MAX, s->granularity));
 
-            mirror_throttle(s);
+            block_job_relax(&s->common);
 
             if (block_job_is_cancelled(&s->common)) {
                 s->initial_zeroing_ongoing = false;
@@ -649,7 +638,7 @@ static int coroutine_fn mirror_dirty_init(MirrorBlockJob *s)
         int bytes = MIN(s->bdev_length - offset,
                         QEMU_ALIGN_DOWN(INT_MAX, s->granularity));
 
-        mirror_throttle(s);
+        block_job_relax(&s->common);
 
         if (block_job_is_cancelled(&s->common)) {
             return 0;

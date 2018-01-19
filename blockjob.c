@@ -906,6 +906,17 @@ void block_job_yield(BlockJob *job)
     block_job_pause_point(job);
 }
 
+void block_job_relax(BlockJob *job)
+{
+    int64_t now = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
+
+    if (now - job->last_enter_ns > SLICE_TIME) {
+        block_job_sleep_ns(job, 0);
+    } else {
+        block_job_pause_point(job);
+    }
+}
+
 void block_job_iostatus_reset(BlockJob *job)
 {
     if (job->iostatus == BLOCK_DEVICE_IO_STATUS_OK) {
