@@ -761,7 +761,7 @@ static void coroutine_fn mirror_run(void *opaque)
     assert(!s->dbi);
     s->dbi = bdrv_dirty_iter_new(s->dirty_bitmap);
     for (;;) {
-        uint64_t delay_ns = 0;
+        static uint64_t delay_ns = 0;
         int64_t cnt, delta;
         bool should_complete;
 
@@ -770,9 +770,16 @@ static void coroutine_fn mirror_run(void *opaque)
             goto immediate_exit;
         }
 
-        block_job_pause_point(&s->common);
-
         cnt = bdrv_get_dirty_count(s->dirty_bitmap);
+
+        trace_mirror_before_relax(s, cnt, s->synced, delay_ns);
+        if (block_job_relax(&s->common, delay_ns)) {
+            if (!s->synced) {
+                goto immediate_exit;
+            }
+        }
+        delay_ns = 0;
+
         /* s->common.offset contains the number of bytes already processed so
          * far, cnt is the number of dirty bytes remaining and
          * s->bytes_in_flight is the number of bytes currently being
@@ -849,15 +856,8 @@ static void coroutine_fn mirror_run(void *opaque)
         }
 
         ret = 0;
-        trace_mirror_before_sleep(s, cnt, s->synced, delay_ns);
-        if (!s->synced) {
-            block_job_sleep_ns(&s->common, delay_ns);
-            if (block_job_is_cancelled(&s->common)) {
-                break;
-            }
-        } else if (!should_complete) {
+        if (s->synced && !should_complete) {
             delay_ns = (s->in_flight == 0 && cnt == 0 ? SLICE_TIME : 0);
-            block_job_sleep_ns(&s->common, delay_ns);
         }
     }
 
