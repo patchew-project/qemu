@@ -4266,6 +4266,82 @@ static const ARMCPRegInfo debug_lpae_cp_reginfo[] = {
     REGINFO_SENTINEL
 };
 
+/* Return the exception level to which SVE-disabled exceptions should
+ * be taken, or 0 if SVE is enabled.
+ */
+static int sve_exception_el(CPUARMState *env)
+{
+#ifndef CONFIG_USER_ONLY
+    int highest_el = arm_highest_el(env);
+    int current_el = arm_current_el(env);
+    int i;
+
+    for (i = highest_el; i >= MAX(1, current_el); --i) {
+        switch (i) {
+        case 3:
+            if ((env->cp15.cptr_el[3] & CPTR_EZ) == 0) {
+                return 3;
+            }
+            break;
+        case 2:
+            if (env->cp15.cptr_el[2] & CPTR_TZ) {
+                return 2;
+            }
+            break;
+        case 1:
+            switch (extract32(env->cp15.cpacr_el1, 16, 2)) {
+            case 1:
+                return current_el == 0 ? 1 : 0;
+            case 3:
+                return 0;
+            default:
+                return 1;
+            }
+        }
+    }
+#endif
+    return 0;
+}
+
+static CPAccessResult zcr_access(CPUARMState *env, const ARMCPRegInfo *ri,
+                                 bool isread)
+{
+    switch (sve_exception_el(env)) {
+    case 3:
+        return CP_ACCESS_TRAP_EL3;
+    case 2:
+        return CP_ACCESS_TRAP_EL2;
+    case 1:
+        return CP_ACCESS_TRAP;
+    }
+    return CP_ACCESS_OK;
+}
+
+static void zcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                      uint64_t value)
+{
+    /* Bits other than [3:0] are RAZ/WI.  */
+    raw_write(env, ri, value & 0xf);
+}
+
+static const ARMCPRegInfo sve_cp_reginfo[] = {
+    { .name = "ZCR_EL1", .state = ARM_CP_STATE_AA64,
+      .opc0 = 2, .opc1 = 0, .crn = 1, .crm = 2, .opc2 = 0,
+      .access = PL1_RW, .accessfn = zcr_access, .type = ARM_CP_64BIT,
+      .fieldoffset = offsetof(CPUARMState, vfp.zcr_el[1]),
+      .writefn = zcr_write, .raw_writefn = raw_write, },
+    { .name = "ZCR_EL2", .state = ARM_CP_STATE_AA64,
+      .opc0 = 2, .opc1 = 4, .crn = 1, .crm = 2, .opc2 = 0,
+      .access = PL2_RW, .accessfn = zcr_access, .type = ARM_CP_64BIT,
+      .fieldoffset = offsetof(CPUARMState, vfp.zcr_el[2]),
+      .writefn = zcr_write, .raw_writefn = raw_write, },
+    { .name = "ZCR_EL3", .state = ARM_CP_STATE_AA64,
+      .opc0 = 2, .opc1 = 6, .crn = 1, .crm = 2, .opc2 = 0,
+      .access = PL1_RW, .accessfn = zcr_access, .type = ARM_CP_64BIT,
+      .fieldoffset = offsetof(CPUARMState, vfp.zcr_el[3]),
+      .writefn = zcr_write, .raw_writefn = raw_write, },
+};
+
 void hw_watchpoint_update(ARMCPU *cpu, int n)
 {
     CPUARMState *env = &cpu->env;
@@ -5331,6 +5407,10 @@ void register_cp_regs_for_features(ARMCPU *cpu)
             sctlr.type |= ARM_CP_SUPPRESS_TB_END;
         }
         define_one_arm_cp_reg(cpu, &sctlr);
+    }
+
+    if (arm_feature(env, ARM_FEATURE_SVE)) {
+        define_arm_cp_regs(cpu, sve_cp_reginfo);
     }
 }
 
