@@ -774,6 +774,40 @@
            'timed_stats': ['BlockDeviceTimedStats'] } }
 
 ##
+# @BlockDriverStatsFile:
+#
+# File driver statistics
+#
+# @discard_nb_ok: The number of succeeded discard operations performed by
+#                 the driver.
+#
+# @discard_nb_failed: The number of failed discard operations performed by
+#                     the driver.
+#
+# @discard_bytes_ok: The number of bytes discarded by the driver.
+#
+# Since 2.12
+##
+{ 'struct': 'BlockDriverStatsFile',
+  'data': {
+      'discard_nb_ok': 'int',
+      'discard_nb_failed': 'int',
+      'discard_bytes_ok': 'int'
+  } }
+
+##
+# @BlockDriverStats:
+#
+# Statistics of a block driver (driver-specific)
+#
+# Since: 2.12
+##
+{ 'union': 'BlockDriverStats',
+  'data': {
+      'file': 'BlockDriverStatsFile'
+  } }
+
+##
 # @BlockStats:
 #
 # Statistics of a virtual block device or a block backing device.
@@ -784,6 +818,8 @@
 # @node-name: The node name of the device. (Since 2.3)
 #
 # @stats:  A @BlockDeviceStats for the device.
+#
+# @driver-stats: Optional driver-specific statistics. (Since 2.12)
 #
 # @parent: This describes the file block device if it has one.
 #          Contains recursively the statistics of the underlying
@@ -798,6 +834,7 @@
 { 'struct': 'BlockStats',
   'data': {'*device': 'str', '*node-name': 'str',
            'stats': 'BlockDeviceStats',
+           '*driver-stats': 'BlockDriverStats',
            '*parent': 'BlockStats',
            '*backing': 'BlockStats'} }
 
