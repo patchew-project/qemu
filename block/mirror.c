@@ -610,9 +610,7 @@ static int coroutine_fn mirror_dirty_init(MirrorBlockJob *s)
             int bytes = MIN(s->bdev_length - offset,
                             QEMU_ALIGN_DOWN(INT_MAX, s->granularity));
 
-            block_job_relax(&s->common, 0);
-
-            if (block_job_is_cancelled(&s->common)) {
+            if (block_job_relax(&s->common, 0)) {
                 s->initial_zeroing_ongoing = false;
                 return 0;
             }
@@ -638,9 +636,7 @@ static int coroutine_fn mirror_dirty_init(MirrorBlockJob *s)
         int bytes = MIN(s->bdev_length - offset,
                         QEMU_ALIGN_DOWN(INT_MAX, s->granularity));
 
-        block_job_relax(&s->common, 0);
-
-        if (block_job_is_cancelled(&s->common)) {
+        if (block_job_relax(&s->common, 0)) {
             return 0;
         }
 
