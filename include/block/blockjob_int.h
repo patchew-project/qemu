@@ -147,7 +147,7 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
  * %QEMU_CLOCK_REALTIME nanoseconds.  Canceling the job will immediately
  * interrupt the wait.
  */
-void block_job_sleep_ns(BlockJob *job, int64_t ns);
+int block_job_sleep_ns(BlockJob *job, int64_t ns);
 
 /**
  * block_job_yield:
@@ -167,8 +167,10 @@ void block_job_yield(BlockJob *job);
  * If delay_ns is 0, yield if it has been SLICE_TIME
  * nanoseconds since the last yield. Otherwise, check
  * if we need to yield for a pause event.
+ *
+ * returns ECANCELED if the job has been canceled.
  */
-void block_job_relax(BlockJob *job, int64_t delay_ns);
+int block_job_relax(BlockJob *job, int64_t delay_ns);
 
 /**
  * block_job_pause_all:
@@ -217,7 +219,7 @@ bool block_job_is_cancelled(BlockJob *job);
  * Pause now if block_job_pause() has been called.  Block jobs that perform
  * lots of I/O must call this between requests so that the job can be paused.
  */
-void coroutine_fn block_job_pause_point(BlockJob *job);
+int coroutine_fn block_job_pause_point(BlockJob *job);
 
 /**
  * block_job_enter:

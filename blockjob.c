@@ -793,15 +793,15 @@ static void block_job_do_yield(BlockJob *job, uint64_t ns)
     assert(job->busy);
 }
 
-void coroutine_fn block_job_pause_point(BlockJob *job)
+int coroutine_fn block_job_pause_point(BlockJob *job)
 {
     assert(job && block_job_started(job));
 
-    if (!block_job_should_pause(job)) {
-        return;
-    }
     if (block_job_is_cancelled(job)) {
-        return;
+        return -ECANCELED;
+    }
+    if (!block_job_should_pause(job)) {
+        return 0;
     }
 
     if (job->driver->pause) {
@@ -817,6 +817,8 @@ void coroutine_fn block_job_pause_point(BlockJob *job)
     if (job->driver->resume) {
         job->driver->resume(job);
     }
+
+    return 0;
 }
 
 void block_job_resume_all(void)
@@ -874,20 +876,20 @@ bool block_job_is_cancelled(BlockJob *job)
     return job->cancelled;
 }
 
-void block_job_sleep_ns(BlockJob *job, int64_t ns)
+int block_job_sleep_ns(BlockJob *job, int64_t ns)
 {
     assert(job->busy);
 
     /* Check cancellation *before* setting busy = false, too!  */
     if (block_job_is_cancelled(job)) {
-        return;
+        return -ECANCELED;
     }
 
     if (!block_job_should_pause(job)) {
         block_job_do_yield(job, qemu_clock_get_ns(QEMU_CLOCK_REALTIME) + ns);
     }
 
-    block_job_pause_point(job);
+    return block_job_pause_point(job);
 }
 
 void block_job_yield(BlockJob *job)
@@ -906,13 +908,17 @@ void block_job_yield(BlockJob *job)
     block_job_pause_point(job);
 }
 
-void block_job_relax(BlockJob *job, int64_t delay_ns)
+int block_job_relax(BlockJob *job, int64_t delay_ns)
 {
+    if (block_job_is_cancelled(job)) {
+        return -ECANCELED;
+    }
+
     if (delay_ns || (qemu_clock_get_ns(QEMU_CLOCK_REALTIME) - \
                      job->last_enter_ns > SLICE_TIME)) {
-        block_job_sleep_ns(job, delay_ns);
+        return block_job_sleep_ns(job, delay_ns);
     } else {
-        block_job_pause_point(job);
+        return block_job_pause_point(job);
     }
 }
 
