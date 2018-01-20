@@ -1113,6 +1113,9 @@ static void qemu_kvm_destroy_vcpu(CPUState *cpu)
         error_report("kvm_destroy_vcpu failed");
         exit(EXIT_FAILURE);
     }
+    g_free(cpu->thread);
+    g_free(cpu->halt_cond);
+    g_free(cpu->cpu_ases);
 }
 
 static void qemu_tcg_destroy_vcpu(CPUState *cpu)
@@ -1205,6 +1208,7 @@ static void *qemu_kvm_cpu_thread_fn(void *arg)
     cpu->created = false;
     qemu_cond_signal(&qemu_cpu_cond);
     qemu_mutex_unlock_iothread();
+    rcu_unregister_thread();
     return NULL;
 }
 
@@ -1850,7 +1854,7 @@ static void qemu_kvm_start_vcpu(CPUState *cpu)
     snprintf(thread_name, VCPU_THREAD_NAME_SIZE, "CPU %d/KVM",
              cpu->cpu_index);
     qemu_thread_create(cpu->thread, thread_name, qemu_kvm_cpu_thread_fn,
-                       cpu, QEMU_THREAD_JOINABLE);
+                       cpu, QEMU_THREAD_DETACHED);
     while (!cpu->created) {
         qemu_cond_wait(&qemu_cpu_cond, &qemu_global_mutex);
     }
