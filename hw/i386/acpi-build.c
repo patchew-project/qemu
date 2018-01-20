@@ -153,21 +153,21 @@ static void acpi_get_pm_info(AcpiPmInfo *pm)
     /* Fill in optional s3/s4 related properties */
     o = object_property_get_qobject(obj, ACPI_PM_PROP_S3_DISABLED, NULL);
     if (o) {
-        pm->s3_disabled = qnum_get_uint(qobject_to_qnum(o));
+        pm->s3_disabled = qnum_get_uint(qobject_to(o, QNum));
     } else {
         pm->s3_disabled = false;
     }
     qobject_decref(o);
     o = object_property_get_qobject(obj, ACPI_PM_PROP_S4_DISABLED, NULL);
     if (o) {
-        pm->s4_disabled = qnum_get_uint(qobject_to_qnum(o));
+        pm->s4_disabled = qnum_get_uint(qobject_to(o, QNum));
     } else {
         pm->s4_disabled = false;
     }
     qobject_decref(o);
     o = object_property_get_qobject(obj, ACPI_PM_PROP_S4_VAL, NULL);
     if (o) {
-        pm->s4_val = qnum_get_uint(qobject_to_qnum(o));
+        pm->s4_val = qnum_get_uint(qobject_to(o, QNum));
     } else {
         pm->s4_val = false;
     }
@@ -513,7 +513,7 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
 
     bsel = object_property_get_qobject(OBJECT(bus), ACPI_PCIHP_PROP_BSEL, NULL);
     if (bsel) {
-        uint64_t bsel_val = qnum_get_uint(qobject_to_qnum(bsel));
+        uint64_t bsel_val = qnum_get_uint(qobject_to(bsel, QNum));
 
         aml_append(parent_scope, aml_name_decl("BSEL", aml_int(bsel_val)));
         notify_method = aml_method("DVNT", 2, AML_NOTSERIALIZED);
@@ -623,7 +623,7 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
 
     /* If bus supports hotplug select it and notify about local events */
     if (bsel) {
-        uint64_t bsel_val = qnum_get_uint(qobject_to_qnum(bsel));
+        uint64_t bsel_val = qnum_get_uint(qobject_to(bsel, QNum));
 
         aml_append(method, aml_store(aml_int(bsel_val), aml_name("BNUM")));
         aml_append(method,
@@ -2637,12 +2637,12 @@ static bool acpi_get_mcfg(AcpiMcfgInfo *mcfg)
     if (!o) {
         return false;
     }
-    mcfg->mcfg_base = qnum_get_uint(qobject_to_qnum(o));
+    mcfg->mcfg_base = qnum_get_uint(qobject_to(o, QNum));
     qobject_decref(o);
 
     o = object_property_get_qobject(pci_host, PCIE_HOST_MCFG_SIZE, NULL);
     assert(o);
-    mcfg->mcfg_size = qnum_get_uint(qobject_to_qnum(o));
+    mcfg->mcfg_size = qnum_get_uint(qobject_to(o, QNum));
     qobject_decref(o);
     return true;
 }

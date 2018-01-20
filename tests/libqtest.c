@@ -424,7 +424,7 @@ static void qmp_response(JSONMessageParser *parser, GQueue *tokens)
     }
 
     g_assert(!qmp->response);
-    qmp->response = qobject_to_qdict(obj);
+    qmp->response = qobject_to(obj, QDict);
     g_assert(qmp->response);
 }
 
@@ -998,11 +998,11 @@ void qtest_cb_for_every_machine(void (*cb)(const char *machine))
     g_assert(list);
 
     for (p = qlist_first(list); p; p = qlist_next(p)) {
-        minfo = qobject_to_qdict(qlist_entry_obj(p));
+        minfo = qobject_to(qlist_entry_obj(p), QDict);
         g_assert(minfo);
         qobj = qdict_get(minfo, "name");
         g_assert(qobj);
-        qstr = qobject_to_qstring(qobj);
+        qstr = qobject_to(qobj, QString);
         g_assert(qstr);
         mname = qstring_get_str(qstr);
         cb(mname);

@@ -916,15 +916,15 @@ static void qemu_opts_from_qdict_1(const char *key, QObject *obj, void *opaque)
 
     switch (qobject_type(obj)) {
     case QTYPE_QSTRING:
-        value = qstring_get_str(qobject_to_qstring(obj));
+        value = qstring_get_str(qobject_to(obj, QString));
         break;
     case QTYPE_QNUM:
-        tmp = qnum_to_string(qobject_to_qnum(obj));
+        tmp = qnum_to_string(qobject_to(obj, QNum));
         value = tmp;
         break;
     case QTYPE_QBOOL:
         pstrcpy(buf, sizeof(buf),
-                qbool_get_bool(qobject_to_qbool(obj)) ? "on" : "off");
+                qbool_get_bool(qobject_to(obj, QBool)) ? "on" : "off");
         value = buf;
         break;
     default:

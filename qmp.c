@@ -652,7 +652,7 @@ void qmp_object_add(const char *type, const char *id,
     Object *obj;
 
     if (props) {
-        pdict = qobject_to_qdict(props);
+        pdict = qobject_to(props, QDict);
         if (!pdict) {
             error_setg(errp, QERR_INVALID_PARAMETER_TYPE, "props", "dict");
             return;

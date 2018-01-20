@@ -219,7 +219,7 @@ static const char *keyval_parse_one(QDict *qdict, const char *params,
             if (!next) {
                 return NULL;
             }
-            cur = qobject_to_qdict(next);
+            cur = qobject_to(next, QDict);
             assert(cur);
         }
 
@@ -312,7 +312,7 @@ static QObject *keyval_listify(QDict *cur, GSList *key_of_cur, Error **errp)
             has_member = true;
         }
 
-        qdict = qobject_to_qdict(ent->value);
+        qdict = qobject_to(ent->value, QDict);
         if (!qdict) {
             continue;
         }

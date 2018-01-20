@@ -1454,7 +1454,7 @@ static QDict *parse_json_filename(const char *filename, Error **errp)
         return NULL;
     }
 
-    options = qobject_to_qdict(options_obj);
+    options = qobject_to(options_obj, QDict);
     if (!options) {
         qobject_decref(options_obj);
         error_setg(errp, "Invalid JSON object given");
