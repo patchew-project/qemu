@@ -27,6 +27,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include <eventt.h>
 #include <vevent.h>
 #include <vreader.h>
@@ -480,7 +481,7 @@ static uint32_t parse_enumeration(char *str,
     return ret;
 }
 
-static int emulated_initfn(CCIDCardState *base)
+static void emulated_realize(CCIDCardState *base, Error **errp)
 {
     EmulatedState *card = EMULATED_CCID_CARD(base);
     VCardEmulError ret;
@@ -495,7 +496,8 @@ static int emulated_initfn(CCIDCardState *base)
     card->reader = NULL;
     card->quit_apdu_thread = 0;
     if (init_event_notifier(card) < 0) {
-        return -1;
+        error_setg(errp, TYPE_EMULATED_CCID ": event notifier creation failed");
+        return;
     }
 
     card->backend = 0;
@@ -505,11 +507,12 @@ static int emulated_initfn(CCIDCardState *base)
     }
 
     if (card->backend == 0) {
-        printf("backend must be one of:\n");
+        error_setg(errp, TYPE_EMULATED_CCID ": no backend specified.");
+        error_append_hint(errp, "backend must be one of:\n");
         for (ptable = backend_enum_table; ptable->name != NULL; ++ptable) {
-            printf("%s\n", ptable->name);
+            error_append_hint(errp, "%s\n", ptable->name);
         }
-        return -1;
+        return;
     }
 
     /* TODO: a passthru backened that works on local machine. third card type?*/
@@ -517,37 +520,37 @@ static int emulated_initfn(CCIDCardState *base)
         if (card->cert1 != NULL && card->cert2 != NULL && card->cert3 != NULL) {
             ret = emulated_initialize_vcard_from_certificates(card);
         } else {
-            printf("%s: you must provide all three certs for"
-                   " certificates backend\n", TYPE_EMULATED_CCID);
-            return -1;
+            error_setg(errp, TYPE_EMULATED_CCID ": you must provide all three "
+                             "certs for certificates backend");
+            return;
         }
     } else {
         if (card->backend != BACKEND_NSS_EMULATED) {
-            printf("%s: bad backend specified. The options are:\n%s (default),"
-                " %s.\n", TYPE_EMULATED_CCID, BACKEND_NSS_EMULATED_NAME,
-                BACKEND_CERTIFICATES_NAME);
-            return -1;
+            error_setg(errp, TYPE_EMULATED_CCID ": no backend specified.");
+            error_append_hint(errp, "The options are: %s (default), %s.",
+                              BACKEND_NSS_EMULATED_NAME,
+                              BACKEND_CERTIFICATES_NAME);
+            return;
         }
         if (card->cert1 != NULL || card->cert2 != NULL || card->cert3 != NULL) {
-            printf("%s: unexpected cert parameters to nss emulated backend\n",
-                   TYPE_EMULATED_CCID);
-            return -1;
+            error_setg(errp, TYPE_EMULATED_CCID ": unexpected cert parameters "
+                             "to nss emulated backend");
+            return;
         }
         /* default to mirroring the local hardware readers */
         ret = wrap_vcard_emul_init(NULL);
     }
     if (ret != VCARD_EMUL_OK) {
-        printf("%s: failed to initialize vcard\n", TYPE_EMULATED_CCID);
-        return -1;
+        error_setg(errp, TYPE_EMULATED_CCID ": failed to initialize vcard");
+        return;
     }
     qemu_thread_create(&card->event_thread_id, "ccid/event", event_thread,
                        card, QEMU_THREAD_JOINABLE);
     qemu_thread_create(&card->apdu_thread_id, "ccid/apdu", handle_apdu_thread,
                        card, QEMU_THREAD_JOINABLE);
-    return 0;
 }
 
-static void emulated_exitfn(CCIDCardState *base)
+static void emulated_unrealize(CCIDCardState *base, Error **errp)
 {
     EmulatedState *card = EMULATED_CCID_CARD(base);
     VEvent *vevent = vevent_new(VEVENT_LAST, NULL, NULL);
@@ -581,8 +584,8 @@ static void emulated_class_initfn(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     CCIDCardClass *cc = CCID_CARD_CLASS(klass);
 
-    cc->initfn = emulated_initfn;
-    cc->exitfn = emulated_exitfn;
+    cc->realize = emulated_realize;
+    cc->unrealize = emulated_unrealize;
     cc->get_atr = emulated_get_atr;
     cc->apdu_from_guest = emulated_apdu_from_guest;
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
