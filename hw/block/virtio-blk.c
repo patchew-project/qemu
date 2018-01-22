@@ -507,6 +507,13 @@ static int virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb)
         return -1;
     }
 
+    /* If the drive was forcibly removed (e.g. HMP 'drive_del'), the block
+     * driver state may be NULL and there is nothing left to do. */
+    if (!blk_bs(req->dev->blk)) {
+        virtio_error(vdev, "virtio-blk BlockDriverState is NULL");
+        return -1;
+    }
+
     /* We always touch the last byte, so just see how big in_iov is.  */
     req->in_len = iov_size(in_iov, in_num);
     req->in = (void *)in_iov[in_num - 1].iov_base
