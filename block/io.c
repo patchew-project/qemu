@@ -189,31 +189,51 @@ static void bdrv_drain_invoke(BlockDriverState *bs, bool begin, bool recursive)
 
 static bool bdrv_drain_recurse(BlockDriverState *bs)
 {
-    BdrvChild *child, *tmp;
+    BdrvChild *child;
     bool waited;
+    struct BDSToDrain {
+        BlockDriverState *bs;
+        QLIST_ENTRY(BDSToDrain) next;
+    };
+    QLIST_HEAD(, BDSToDrain) bs_list = QLIST_HEAD_INITIALIZER(bs_list);
+    bool in_main_loop =
+        qemu_get_current_aio_context() == qemu_get_aio_context();
 
     /* Wait for drained requests to finish */
     waited = BDRV_POLL_WHILE(bs, atomic_read(&bs->in_flight) > 0);
 
-    QLIST_FOREACH_SAFE(child, &bs->children, next, tmp) {
-        BlockDriverState *bs = child->bs;
-        bool in_main_loop =
-            qemu_get_current_aio_context() == qemu_get_aio_context();
-        assert(bs->refcnt > 0);
+    /* Draining children may result in other children being removed from this
+     * parent and maybe even deleted, so copy the children list first */
+    QLIST_FOREACH(child, &bs->children, next) {
+        struct BDSToDrain *bs2d = g_new0(struct BDSToDrain, 1);
+
+        bs2d->bs = child->bs;
         if (in_main_loop) {
             /* In case the recursive bdrv_drain_recurse processes a
              * block_job_defer_to_main_loop BH and modifies the graph,
-             * let's hold a reference to bs until we are done.
+             * let's hold a reference to the BDS until we are done.
              *
              * IOThread doesn't have such a BH, and it is not safe to call
              * bdrv_unref without BQL, so skip doing it there.
              */
-            bdrv_ref(bs);
+            bdrv_ref(bs2d->bs);
         }
-        waited |= bdrv_drain_recurse(bs);
+
+        QLIST_INSERT_HEAD(&bs_list, bs2d, next);
+    }
+
+    while (!QLIST_EMPTY(&bs_list)) {
+        struct BDSToDrain *bs2d = QLIST_FIRST(&bs_list);
+        QLIST_REMOVE(bs2d, next);
+
+        assert(bs2d->bs->refcnt > 0);
+
+        waited |= bdrv_drain_recurse(bs2d->bs);
         if (in_main_loop) {
-            bdrv_unref(bs);
+            bdrv_unref(bs2d->bs);
         }
+
+        g_free(bs2d);
     }
 
     return waited;
