@@ -587,6 +587,8 @@ struct BdrvChild {
     QLIST_ENTRY(BdrvChild) next_parent;
 };
 
+typedef QLIST_HEAD(BdrvChildList, BdrvChild) BdrvChildList;
+
 /*
  * Note: the function bdrv_append() copies and swaps contents of
  * BlockDriverStates, so if you add new fields to this struct, please
