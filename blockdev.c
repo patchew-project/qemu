@@ -529,6 +529,8 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
             goto early_err;
         }
         qdict_put_str(bs_opts, "driver", buf);
+    } else if (qdict_haskey(bs_opts, "file.driver")) {
+        qdict_put_str(bs_opts, "driver", qdict_get_str(bs_opts, "file.driver"));
     }
 
     on_write_error = BLOCKDEV_ON_ERROR_ENOSPC;
