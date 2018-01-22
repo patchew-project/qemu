@@ -64,7 +64,8 @@ typedef uint64_t vaddr;
 typedef enum MMUAccessType {
     MMU_DATA_LOAD  = 0,
     MMU_DATA_STORE = 1,
-    MMU_INST_FETCH = 2
+    MMU_INST_FETCH = 2,
+    MMU_DEBUG_LOAD = 3
 } MMUAccessType;
 
 typedef struct CPUWatchpoint CPUWatchpoint;
