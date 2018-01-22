@@ -89,6 +89,7 @@ struct MirrorOp {
     int64_t *bytes_handled;
 
     bool is_pseudo_op;
+    bool is_active_write;
     CoQueue waiting_requests;
 
     QTAILQ_ENTRY(MirrorOp) next;
@@ -281,8 +282,10 @@ static inline void mirror_wait_for_free_in_flight_slot(MirrorBlockJob *s)
          * some other operation to start, which may in fact be the
          * caller of this function.  Since there is only one pseudo op
          * at any given time, we will always find some real operation
-         * to wait on. */
-        if (!op->is_pseudo_op) {
+         * to wait on.
+         * Also, only non-active operations use up in-flight slots, so
+         * we can ignore active operations. */
+        if (!op->is_pseudo_op && !op->is_active_write) {
             qemu_co_queue_wait(&op->waiting_requests, NULL);
             return;
         }
