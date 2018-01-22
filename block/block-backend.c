@@ -1094,17 +1094,13 @@ int coroutine_fn blk_co_preadv(BlockBackend *blk, int64_t offset,
         return ret;
     }
 
-    bdrv_inc_in_flight(bs);
-
     /* throttling disk I/O */
     if (blk->public.throttle_group_member.throttle_state) {
         throttle_group_co_io_limits_intercept(&blk->public.throttle_group_member,
                 bytes, false);
     }
 
-    ret = bdrv_co_preadv(blk->root, offset, bytes, qiov, flags);
-    bdrv_dec_in_flight(bs);
-    return ret;
+    return bdrv_co_preadv(blk->root, offset, bytes, qiov, flags);
 }
 
 int coroutine_fn blk_co_pwritev(BlockBackend *blk, int64_t offset,
@@ -1121,7 +1117,6 @@ int coroutine_fn blk_co_pwritev(BlockBackend *blk, int64_t offset,
         return ret;
     }
 
-    bdrv_inc_in_flight(bs);
     /* throttling disk I/O */
     if (blk->public.throttle_group_member.throttle_state) {
         throttle_group_co_io_limits_intercept(&blk->public.throttle_group_member,
@@ -1132,9 +1127,7 @@ int coroutine_fn blk_co_pwritev(BlockBackend *blk, int64_t offset,
         flags |= BDRV_REQ_FUA;
     }
 
-    ret = bdrv_co_pwritev(blk->root, offset, bytes, qiov, flags);
-    bdrv_dec_in_flight(bs);
-    return ret;
+    return bdrv_co_pwritev(blk->root, offset, bytes, qiov, flags);
 }
 
 typedef struct BlkRwCo {
