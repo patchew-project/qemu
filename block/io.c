@@ -294,10 +294,25 @@ void bdrv_do_drained_begin(BlockDriverState *bs, bool recursive,
                            BdrvChild *parent)
 {
     BdrvChild *child, *next;
+    bool in_main_loop =
+        qemu_get_current_aio_context() == qemu_get_aio_context();
+    /* bdrv_close() invokes bdrv_drain() with bs->refcnt == 0; then,
+     * we may not invoke bdrv_ref()/bdrv_unref() because the latter
+     * would result in the refcount going back to 0, creating an
+     * infinite loop.
+     * Also, we have to be in the main loop because we may not call
+     * bdrv_unref() elsewhere.  But because of that, the BDS is not in
+     * danger of going away without the bdrv_ref()/bdrv_unref() pair
+     * elsewhere, so we are fine then. */
+    bool add_ref = in_main_loop && bs->refcnt > 0;
 
     if (qemu_in_coroutine()) {
         bdrv_co_yield_to_drain(bs, true, recursive, parent);
         return;
+    }
+
+    if (add_ref) {
+        bdrv_ref(bs);
     }
 
     /* Stop things in parent-to-child order */
@@ -314,6 +329,10 @@ void bdrv_do_drained_begin(BlockDriverState *bs, bool recursive,
         QLIST_FOREACH_SAFE(child, &bs->children, next, next) {
             bdrv_do_drained_begin(child->bs, true, child);
         }
+    }
+
+    if (add_ref) {
+        bdrv_unref(bs);
     }
 }
 
