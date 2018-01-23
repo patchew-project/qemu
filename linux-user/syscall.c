@@ -4032,7 +4032,7 @@ static abi_long do_recvfrom(int fd, abi_ulong msg, size_t len, int flags,
     if (!host_msg)
         return -TARGET_EFAULT;
     if (target_addr) {
-        if (get_user_u32(addrlen, target_addrlen)) {
+        if (get_user_ual(addrlen, target_addrlen)) {
             ret = -TARGET_EFAULT;
             goto fail;
         }
@@ -4053,7 +4053,7 @@ static abi_long do_recvfrom(int fd, abi_ulong msg, size_t len, int flags,
         }
         if (target_addr) {
             host_to_target_sockaddr(target_addr, addr, addrlen);
-            if (put_user_u32(addrlen, target_addrlen)) {
+            if (put_user_ual(addrlen, target_addrlen)) {
                 ret = -TARGET_EFAULT;
                 goto fail;
             }
