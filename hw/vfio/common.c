@@ -530,6 +530,10 @@ static void vfio_listener_region_add(MemoryListener *listener,
     return;
 
 fail:
+    if (memory_region_is_ram_device(section->mr)) {
+        error_report("failed to vfio_dma_map. pci p2p may not work");
+        return;
+    }
     /*
      * On the initfn path, store the first error in the container so we
      * can gracefully fail.  Runtime, there's not much we can do other
@@ -1385,6 +1389,21 @@ int vfio_get_dev_region_info(VFIODevice *vbasedev, uint32_t type,
 
     *info = NULL;
     return -ENODEV;
+}
+
+bool vfio_is_cap_present(VFIODevice *vbasedev, uint16_t cap_type, int region)
+{
+    struct vfio_region_info *info = NULL;
+    bool ret = false;
+
+    if (!vfio_get_region_info(vbasedev, region, &info)) {
+        if (vfio_get_region_info_cap(info, cap_type)) {
+            ret = true;
+        }
+        g_free(info);
+    }
+
+    return ret;
 }
 
 /*
