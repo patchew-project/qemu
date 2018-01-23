@@ -1005,7 +1005,6 @@ static int do_vm_stop(RunState state)
     }
 
     bdrv_drain_all();
-    replay_disable_events();
     ret = bdrv_flush_all();
 
     return ret;
@@ -1988,7 +1987,6 @@ int vm_prepare_start(void)
         qapi_event_send_stop(&error_abort);
         res = -1;
     } else {
-        replay_enable_events();
         cpu_enable_ticks();
         runstate_set(RUN_STATE_RUNNING);
         vm_state_notify(1, RUN_STATE_RUNNING);
