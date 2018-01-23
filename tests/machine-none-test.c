@@ -45,6 +45,8 @@ static struct arch2cpu cpus_map[] = {
     { "ppc64", "power8e_v2.1" },
     { "ppcemb", "440epb" },
     { "s390x", "qemu" },
+    { "sh4", "sh7750r" },
+    { "sh4eb", "sh7751r" },
 };
 
 static const char *get_cpu_model_by_arch(const char *arch)
