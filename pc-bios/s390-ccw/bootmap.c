@@ -537,6 +537,7 @@ static void ipl_scsi(void)
     ScsiMbr *mbr = (void *)sec;
     BootMapTable *bmt = (void *)sec;
     unsigned int loadparm = get_loadparm_index();
+    int entries = 0;
 
     /* Grab the MBR */
     memset(sec, FREE_SPACE_FILLER, sizeof(sec));
@@ -557,6 +558,14 @@ static void ipl_scsi(void)
     read_block(mbr->bmt.blockno, sec, "Error reading Program Table");
 
     IPL_assert(magic_match(sec, ZIPL_MAGIC), "No zIPL magic in PT");
+
+    if (menu_check_flags(BOOT_MENU_FLAG_BOOT_OPTS)) {
+        while (bmt->bte[entries].scsi.blockno) {
+            entries++;
+        }
+        debug_print_int("program table entries", entries);
+        loadparm = menu_get_enum_boot_index(entries);
+    }
 
     debug_print_int("loadparm index", loadparm);
 

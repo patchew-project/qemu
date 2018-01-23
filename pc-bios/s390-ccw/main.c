@@ -90,6 +90,9 @@ static void menu_setup(void)
     case S390_IPL_TYPE_CCW:
         menu_set_parms(iplb.ccw.boot_menu_flags, iplb.ccw.boot_menu_timeout);
         return;
+    case S390_IPL_TYPE_QEMU_SCSI:
+        menu_set_parms(iplb.scsi.boot_menu_flags, iplb.scsi.boot_menu_timeout);
+        return;
     }
 }
 
