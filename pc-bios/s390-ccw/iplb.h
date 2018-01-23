@@ -81,6 +81,9 @@ extern IplParameterBlock iplb __attribute__((__aligned__(PAGE_SIZE)));
 #define S390_IPL_TYPE_CCW 0x02
 #define S390_IPL_TYPE_QEMU_SCSI 0xff
 
+#define LOADPARM_PROMPT "PROMPT  "
+#define LOADPARM_EMPTY  "........"
+
 static inline bool store_iplb(IplParameterBlock *iplb)
 {
     register unsigned long addr asm("0") = (unsigned long) iplb;
