@@ -30,6 +30,7 @@ static struct arch2cpu cpus_map[] = {
     { "i386", "qemu32,apic-id=0" },
     { "alpha", "ev67" },
     { "cris", "crisv32" },
+    { "lm32", "lm32-full" },
 };
 
 static const char *get_cpu_model_by_arch(const char *arch)
