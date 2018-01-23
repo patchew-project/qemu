@@ -40,6 +40,7 @@ static struct arch2cpu cpus_map[] = {
     { "mips64el", "20Kc" },
     { "moxie", "MoxieLite" },
     { "nios2", "FIXME" },
+    { "or1k", "or1200" },
 };
 
 static const char *get_cpu_model_by_arch(const char *arch)
