@@ -513,11 +513,9 @@ static int hax_vcpu_hax_exec(CPUArchState *env)
 
         hax_vcpu_interrupt(env);
 
-        qemu_mutex_unlock_iothread();
         cpu_exec_start(cpu);
         hax_ret = hax_vcpu_run(vcpu);
         cpu_exec_end(cpu);
-        qemu_mutex_lock_iothread();
 
         /* Simply continue the vcpu_run if system call interrupted */
         if (hax_ret == -EINTR || hax_ret == -EAGAIN) {
