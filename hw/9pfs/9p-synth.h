@@ -54,5 +54,10 @@ int qemu_v9fs_synth_add_file(V9fsSynthNode *parent, int mode,
 #define QTEST_V9FS_SYNTH_WALK_FILE "WALK%d"
 #define QTEST_V9FS_SYNTH_LOPEN_FILE "LOPEN"
 #define QTEST_V9FS_SYNTH_WRITE_FILE "WRITE"
+#define QTEST_V9FS_SYNTH_FLUSH_FILE "FLUSH"
+
+typedef struct {
+    uint32_t usec_timeout;
+} QtestV9fsSynthFlushData;
 
 #endif
