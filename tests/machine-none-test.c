@@ -47,6 +47,8 @@ static struct arch2cpu cpus_map[] = {
     { "s390x", "qemu" },
     { "sh4", "sh7750r" },
     { "sh4eb", "sh7751r" },
+    { "sparc", "LEON2" },
+    { "sparc64", "Fujitsu Sparc64" },
 };
 
 static const char *get_cpu_model_by_arch(const char *arch)
@@ -72,7 +74,7 @@ static void test_machine_cpu_cli(void)
                 " add it to cpus_map\n", arch);
         return; /* TODO: die here to force all targets have a test */
     }
-    global_qtest = qtest_startf("-machine none -cpu %s", cpu_model);
+    global_qtest = qtest_startf("-machine none -cpu '%s'", cpu_model);
 
     response = qmp("{ 'execute': 'quit' }");
     g_assert(qdict_haskey(response, "return"));
