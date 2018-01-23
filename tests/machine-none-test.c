@@ -34,6 +34,10 @@ static struct arch2cpu cpus_map[] = {
     { "m68k", "m5206" },
     /* FIXME: { "microblaze", "any" }, doesn't work with -M none -cpu any */
     /* FIXME: { "microblazeel", "any" }, doesn't work with -M none -cpu any */
+    { "mips", "4Kc" },
+    { "mipsel", "4Kc" },
+    { "mips64", "20Kc" },
+    { "mips64el", "20Kc" },
 };
 
 static const char *get_cpu_model_by_arch(const char *arch)
