@@ -23,6 +23,8 @@
 #include "hw/s390x/ebcdic.h"
 #include "ipl.h"
 #include "qemu/error-report.h"
+#include "qemu/config-file.h"
+#include "qemu/cutils.h"
 
 #define KERN_IMAGE_START                0x010000UL
 #define KERN_PARM_AREA                  0x010480UL
@@ -219,6 +221,56 @@ static Property s390_ipl_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static void s390_ipl_set_boot_menu(IplParameterBlock *iplb)
+{
+    QemuOptsList *plist = qemu_find_opts("boot-opts");
+    QemuOpts *opts = QTAILQ_FIRST(&plist->head);
+    uint8_t *flags;
+    uint16_t *timeout;
+    const char *tmp;
+    unsigned long result = 0;
+
+    switch (iplb->pbt) {
+    case S390_IPL_TYPE_CCW:
+        flags = &iplb->ccw.boot_menu_flags;
+        timeout = &iplb->ccw.boot_menu_timeout;
+        break;
+    case S390_IPL_TYPE_QEMU_SCSI:
+        flags = &iplb->scsi.boot_menu_flags;
+        timeout = &iplb->scsi.boot_menu_timeout;
+        break;
+    default:
+        error_report("boot menu is not supported for this device type.");
+        return;
+    }
+
+    /* In the absence of -boot menu, use zipl parameters */
+    if (!qemu_opt_get(opts, "menu")) {
+        *flags = BOOT_MENU_FLAG_ZIPL_OPTS;
+    } else if (boot_menu) {
+        *flags = BOOT_MENU_FLAG_BOOT_OPTS;
+
+        tmp = qemu_opt_get(opts, "splash-time");
+
+        if (tmp && qemu_strtoul(tmp, NULL, 10, &result)) {
+            error_report("splash-time value is invalid, forcing it to 0.");
+            *timeout = 0;
+            return;
+        }
+
+        result = (result + 500) / 1000; /* Round and convert to seconds */
+
+        if (result > 0xffff) {
+            error_report("splash-time value is greater than 65535000,"
+                         " forcing it to 65535000.");
+            *timeout = 0xffff;
+            return;
+        }
+
+        *timeout = cpu_to_be16(result);
+    }
+}
+
 static bool s390_gen_initial_iplb(S390IPLState *ipl)
 {
     DeviceState *dev_st;
@@ -273,6 +325,9 @@ static bool s390_gen_initial_iplb(S390IPLState *ipl)
         if (!s390_ipl_set_loadparm(ipl->iplb.loadparm)) {
             ipl->iplb.flags |= DIAG308_FLAGS_LP_VALID;
         }
+
+        s390_ipl_set_boot_menu(&ipl->iplb);
+
         return true;
     }
 
