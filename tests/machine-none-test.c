@@ -50,6 +50,7 @@ static struct arch2cpu cpus_map[] = {
     { "sparc", "LEON2" },
     { "sparc64", "Fujitsu Sparc64" },
     { "tricore", "tc1796" },
+    { "unicore32", "UniCore-II" },
 };
 
 static const char *get_cpu_model_by_arch(const char *arch)
