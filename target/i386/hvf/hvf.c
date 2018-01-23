@@ -36,6 +36,7 @@
 #include "x86_emu.h"
 #include "x86_task.h"
 #include "x86hvf.h"
+#include "ept_fault.h"
 
 #include <Hypervisor/hv.h>
 #include <Hypervisor/hv_vmx.h>
@@ -290,43 +291,6 @@ void _hvf_cpu_synchronize_post_init(CPUState *cpu, run_on_cpu_data arg)
 void hvf_cpu_synchronize_post_init(CPUState *cpu_state)
 {
     run_on_cpu(cpu_state, _hvf_cpu_synchronize_post_init, RUN_ON_CPU_NULL);
-}
-
-static bool ept_emulation_fault(hvf_slot *slot, uint64_t gpa, uint64_t ept_qual)
-{
-    int read, write;
-
-    /* EPT fault on an instruction fetch doesn't make sense here */
-    if (ept_qual & EPT_VIOLATION_INST_FETCH) {
-        return false;
-    }
-
-    /* EPT fault must be a read fault or a write fault */
-    read = ept_qual & EPT_VIOLATION_DATA_READ ? 1 : 0;
-    write = ept_qual & EPT_VIOLATION_DATA_WRITE ? 1 : 0;
-    if ((read | write) == 0) {
-        return false;
-    }
-
-    if (write && slot) {
-        if (slot->flags & HVF_SLOT_LOG) {
-            memory_region_set_dirty(slot->region, gpa - slot->start, 1);
-            hv_vm_protect((hv_gpaddr_t)slot->start, (size_t)slot->size,
-                          HV_MEMORY_READ | HV_MEMORY_WRITE);
-        }
-    }
-
-    /*
-     * The EPT violation must have been caused by accessing a
-     * guest-physical address that is a translation of a guest-linear
-     * address.
-     */
-    if ((ept_qual & EPT_VIOLATION_GLA_VALID) == 0 ||
-        (ept_qual & EPT_VIOLATION_XLAT_VALID) == 0) {
-        return false;
-    }
-
-    return !slot;
 }
 
 static void hvf_set_dirty_tracking(MemoryRegionSection *section, bool on)
