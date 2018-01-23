@@ -31,6 +31,7 @@ static struct arch2cpu cpus_map[] = {
     { "alpha", "ev67" },
     { "cris", "crisv32" },
     { "lm32", "lm32-full" },
+    { "m68k", "m5206" },
 };
 
 static const char *get_cpu_model_by_arch(const char *arch)
