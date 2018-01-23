@@ -1863,7 +1863,6 @@ int kvm_cpu_exec(CPUState *cpu)
 
     qemu_mutex_unlock_iothread();
     cpu_exec_start(cpu);
-
     do {
         MemTxAttrs attrs;
 
