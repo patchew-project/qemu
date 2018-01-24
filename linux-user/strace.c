@@ -335,12 +335,15 @@ static void print_siginfo(const target_siginfo_t *tinfo)
 }
 
 static void
-print_sockaddr(abi_ulong addr, abi_long addrlen)
+print_sockaddr_ptr(abi_ulong addr, abi_long addrlen, bool addrlen_ptr)
 {
     struct target_sockaddr *sa;
     int i;
     int sa_family;
 
+    if (addrlen_ptr) {
+        get_user_ual(addrlen, addrlen);
+    }
     sa = lock_user(VERIFY_READ, addr, addrlen, 1);
     if (sa) {
         sa_family = tswap16(sa->sa_family);
@@ -417,7 +420,17 @@ print_sockaddr(abi_ulong addr, abi_long addrlen)
     } else {
         print_raw_param("0x"TARGET_ABI_FMT_lx, addr, 0);
     }
-    gemu_log(", "TARGET_ABI_FMT_ld, addrlen);
+    if (addrlen_ptr) {
+        gemu_log(", ["TARGET_ABI_FMT_ld"]", addrlen);
+    } else {
+        gemu_log(", "TARGET_ABI_FMT_ld, addrlen);
+    }
+}
+
+static void
+print_sockaddr(abi_ulong addr, abi_long addrlen)
+{
+    print_sockaddr_ptr(addr, addrlen, false);
 }
 
 static void
