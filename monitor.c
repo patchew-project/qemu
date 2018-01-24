@@ -247,6 +247,21 @@ static inline bool monitor_is_qmp(const Monitor *mon)
 }
 
 /**
+ * Whether @mon is using readline?  Note: not all HMP monitors can are
+ * using readline, e.g., gdbserver has non-interactive HMP monitor, so
+ * readline is not used there.
+ */
+static inline bool monitor_uses_readline(const Monitor *mon)
+{
+    return mon->flags & MONITOR_USE_READLINE;
+}
+
+static inline bool monitor_is_hmp_non_interactive(const Monitor *mon)
+{
+    return !monitor_is_qmp(mon) && !monitor_uses_readline(mon);
+}
+
+/**
  * Is the current monitor, if any, a QMP monitor?
  */
 bool monitor_cur_is_qmp(void)
@@ -3994,19 +4009,43 @@ static void monitor_command_cb(void *opaque, const char *cmdline,
 
 int monitor_suspend(Monitor *mon)
 {
-    if (!mon->rs)
+    if (monitor_is_hmp_non_interactive(mon)) {
         return -ENOTTY;
+    }
+
+    if (monitor_is_qmp(mon)) {
+        /*
+         * Kick iothread to make sure this takes effect.  It'll be
+         * evaluated again in prepare() of the watch object.
+         */
+        aio_notify(iothread_get_aio_context(mon_global.mon_iothread));
+    }
     atomic_inc(&mon->suspend_cnt);
+    trace_monitor_suspend(mon, 1);
     return 0;
 }
 
 void monitor_resume(Monitor *mon)
 {
-    if (!mon->rs)
+    if (monitor_is_hmp_non_interactive(mon)) {
         return;
-    if (atomic_dec_fetch(&mon->suspend_cnt) == 0) {
-        readline_show_prompt(mon->rs);
     }
+
+    if (atomic_dec_fetch(&mon->suspend_cnt) == 0) {
+        if (monitor_is_qmp(mon)) {
+            /*
+             * For QMP monitors that are running in IOThread, let's
+             * kick the thread in case it's sleeping.
+             */
+            if (mon->use_io_thr) {
+                aio_notify(iothread_get_aio_context(mon_global.mon_iothread));
+            }
+        } else {
+            assert(mon->rs);
+            readline_show_prompt(mon->rs);
+        }
+    }
+    trace_monitor_suspend(mon, -1);
 }
 
 static QObject *get_qmp_greeting(Monitor *mon)
