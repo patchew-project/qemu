@@ -156,7 +156,7 @@ void hppa_cpu_do_interrupt(CPUState *cs)
 
                     vaddr = hppa_form_gva_psw(old_psw, iasq_f, vaddr);
                     t = hppa_get_physical_address(env, vaddr, 0,
-                                                  MMU_INST_FETCH,
+                                                  MMU_DEBUG_LOAD,
                                                   &paddr, &prot);
                     if (t >= 0) {
                         /* We can't re-load the instruction.  */

@@ -131,12 +131,21 @@ int hppa_get_physical_address(CPUHPPAState *env, vaddr addr, int mmu_idx,
     /* ??? Check PSW_P and ent->access_prot.  This can remove PROT_WRITE.  */
 
     /* Map MMUAccessType to QEMU protection.  */
-    if (ifetch) {
-        a_prot = PROT_EXEC;
-    } else if (type == MMU_DATA_STORE) {
-        a_prot = PROT_WRITE;
-    } else {
+    switch (type) {
+    case MMU_DATA_LOAD:
         a_prot = PROT_READ;
+        break;
+    case MMU_DATA_STORE:
+        a_prot = PROT_WRITE;
+        break;
+    case MMU_INST_FETCH:
+        a_prot = PROT_EXEC;
+        break;
+    case MMU_DEBUG_LOAD:
+        ret = -1;
+        goto egress;
+    default:
+        g_assert_not_reached();
     }
 
     if (unlikely(!(prot & a_prot))) {
