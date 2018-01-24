@@ -4069,6 +4069,11 @@ static abi_long do_recvfrom(int fd, abi_ulong msg, size_t len, int flags,
             ret = -TARGET_EINVAL;
             goto fail;
         }
+        if (!access_ok(VERIFY_WRITE, target_addr, addrlen)) {
+            ret = -TARGET_EFAULT;
+            goto fail;
+        }
+
         addr = alloca(addrlen);
         ret = get_errno(safe_recvfrom(fd, host_msg, len, flags,
                                       addr, &addrlen));
