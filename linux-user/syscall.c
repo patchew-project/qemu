@@ -4052,8 +4052,8 @@ static abi_long do_recvfrom(int fd, abi_ulong msg, size_t len, int flags,
                             abi_ulong target_addr,
                             abi_ulong target_addrlen)
 {
-    socklen_t addrlen;
-    void *addr;
+    socklen_t addrlen = 0;
+    void *addr = NULL;
     void *host_msg;
     abi_long ret;
 
@@ -4075,12 +4075,9 @@ static abi_long do_recvfrom(int fd, abi_ulong msg, size_t len, int flags,
         }
 
         addr = alloca(addrlen);
-        ret = get_errno(safe_recvfrom(fd, host_msg, len, flags,
-                                      addr, &addrlen));
-    } else {
-        addr = NULL; /* To keep compiler quiet.  */
-        ret = get_errno(safe_recvfrom(fd, host_msg, len, flags, NULL, 0));
     }
+    ret = get_errno(safe_recvfrom(fd, host_msg, len, flags, addr, &addrlen));
+
     if (!is_error(ret)) {
         if (fd_trans_host_to_target_data(fd)) {
             ret = fd_trans_host_to_target_data(fd)(host_msg, ret);
