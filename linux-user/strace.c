@@ -1935,6 +1935,19 @@ print_socketcall(const struct syscallname *name,
 }
 #endif
 
+#if defined(TARGET_NR_bind)
+static void
+print_bind(const struct syscallname *name,
+           abi_long arg0, abi_long arg1, abi_long arg2,
+           abi_long arg3, abi_long arg4, abi_long arg5)
+{
+    print_syscall_prologue(name);
+    print_raw_param(TARGET_ABI_FMT_ld, arg0, 0);
+    print_sockaddr(arg1, arg2);
+    print_syscall_epilogue(name);
+}
+#endif
+
 #if defined(TARGET_NR_getsockname)
 static void
 print_getsockname(const struct syscallname *name,
