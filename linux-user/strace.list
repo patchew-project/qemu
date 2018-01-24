@@ -371,7 +371,7 @@
 { TARGET_NR_getsid, "getsid" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_getsockname
-{ TARGET_NR_getsockname, "getsockname" , NULL, NULL, NULL },
+{ TARGET_NR_getsockname, "getsockname" , NULL, print_getsockname, NULL },
 #endif
 #ifdef TARGET_NR_getsockopt
 { TARGET_NR_getsockopt, "getsockopt" , NULL, NULL, NULL },
