@@ -514,13 +514,21 @@ static void vfio_listener_region_add(MemoryListener *listener,
             section->offset_within_region +
             (iova - section->offset_within_address_space);
 
-    trace_vfio_listener_region_add_ram(iova, end, vaddr);
-
     llsize = int128_sub(llend, int128_make64(iova));
 
     ret = vfio_dma_map(container, iova, int128_get64(llsize),
                        vaddr, section->readonly);
+    trace_vfio_listener_region_add_ram(iova, end, vaddr, ret);
+
     if (ret) {
+        hwaddr pgmask = (1ULL << ctz64(hostwin->iova_pgsizes)) - 1;
+
+        if (memory_region_is_ram_device(section->mr) &&
+            ((section->offset_within_region & pgmask) ||
+             (int128_getlo(section->size) & pgmask))) {
+            return;
+        }
+
         error_report("vfio_dma_map(%p, 0x%"HWADDR_PRIx", "
                      "0x%"HWADDR_PRIx", %p) = %d (%m)",
                      container, iova, int128_get64(llsize), vaddr, ret);
@@ -1385,6 +1393,21 @@ int vfio_get_dev_region_info(VFIODevice *vbasedev, uint32_t type,
 
     *info = NULL;
     return -ENODEV;
+}
+
+bool vfio_is_cap_present(VFIODevice *vbasedev, uint16_t cap_type, int region)
+{
+    struct vfio_region_info *info = NULL;
+    bool ret = false;
+
+    if (!vfio_get_region_info(vbasedev, region, &info)) {
+        if (vfio_get_region_info_cap(info, cap_type)) {
+            ret = true;
+        }
+        g_free(info);
+    }
+
+    return ret;
 }
 
 /*
