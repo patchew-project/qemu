@@ -58,8 +58,10 @@ static gboolean pty_chr_timer(gpointer opaque)
 
     qemu_mutex_lock(&chr->chr_write_lock);
     s->timer_src = NULL;
-    g_source_unref(s->open_source);
-    s->open_source = NULL;
+    if (s->open_source) {
+        g_source_unref(s->open_source);
+        s->open_source = NULL;
+    }
     if (!s->connected) {
         /* Next poll ... */
         pty_chr_update_read_handler_locked(chr);
