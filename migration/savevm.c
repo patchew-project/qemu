@@ -861,15 +861,9 @@ int qemu_savevm_send_packaged(QEMUFile *f, const uint8_t *buf, size_t len)
 {
     uint32_t tmp;
 
-    if (len > MAX_VM_CMD_PACKAGED_SIZE) {
-        error_report("%s: Unreasonably large packaged state: %zu",
-                     __func__, len);
-        return -1;
-    }
-
     tmp = cpu_to_be32(len);
 
-    trace_qemu_savevm_send_packaged();
+    trace_qemu_savevm_send_packaged(len, MAX_VM_CMD_PACKAGED_SIZE);
     qemu_savevm_command_send(f, MIG_CMD_PACKAGED, 4, (uint8_t *)&tmp);
 
     qemu_put_buffer(f, buf, len);
@@ -1718,12 +1712,7 @@ static int loadvm_handle_cmd_packaged(MigrationIncomingState *mis)
     QIOChannelBuffer *bioc;
 
     length = qemu_get_be32(mis->from_src_file);
-    trace_loadvm_handle_cmd_packaged(length);
-
-    if (length > MAX_VM_CMD_PACKAGED_SIZE) {
-        error_report("Unreasonably large packaged state: %zu", length);
-        return -1;
-    }
+    trace_loadvm_handle_cmd_packaged(length, MAX_VM_CMD_PACKAGED_SIZE);
 
     bioc = qio_channel_buffer_new(length);
     qio_channel_set_name(QIO_CHANNEL(bioc), "migration-loadvm-buffer");
