@@ -10496,10 +10496,15 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                         ret = -TARGET_EINVAL;
                         break;
                     }
-                    ret = arg2;
+                } else if (arg2 > ret) {
+                    arg2 = ret;
                 }
 
                 ret = host_to_target_cpu_mask(mask, mask_size, arg3, arg2);
+
+                if (ret == 0) {
+                    ret = arg2;
+                }
             }
         }
         break;
