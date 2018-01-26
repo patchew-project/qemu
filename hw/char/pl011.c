@@ -229,6 +229,8 @@ static int pl011_can_receive(void *opaque)
     PL011State *s = (PL011State *)opaque;
     int r;
 
+    if (!s->int_enabled)
+	return 0;
     if (s->lcr & 0x10) {
         r = s->read_count < 16;
     } else {
