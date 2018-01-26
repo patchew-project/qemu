@@ -3261,8 +3261,9 @@ static int qcow2_truncate(BlockDriverState *bs, int64_t offset,
         guest_offset = old_length;
         while (nb_new_data_clusters) {
             int64_t guest_cluster = guest_offset >> s->cluster_bits;
-            int64_t nb_clusters = MIN(nb_new_data_clusters,
-                                      s->l2_size - guest_cluster % s->l2_size);
+            int64_t nb_clusters = MIN(
+                nb_new_data_clusters,
+                s->l2_slice_size - guest_cluster % s->l2_slice_size);
             QCowL2Meta allocation = {
                 .offset       = guest_offset,
                 .alloc_offset = host_offset,
