@@ -63,6 +63,12 @@ typedef struct QEMUFIFO {
     int count, wptr, rptr;
 } QEMUFIFO;
 
+/* stores the ungrab keys' values */
+static int key_value_array[MAX_UNGRAB_KEYS + 1];
+
+/* stores the string that is returned by console_ungrab_key_string */
+static char *ungrab_key_string;
+
 static int qemu_fifo_write(QEMUFIFO *f, const uint8_t *buf, int len1)
 {
     int l, len;
@@ -2237,6 +2243,62 @@ void qemu_console_early_init(void)
 static void register_types(void)
 {
     type_register_static(&qemu_console_info);
+}
+
+/* Sets the mouse ungrab key sequence to what the user wants */
+void set_ungrab_seq(const char *new_seq)
+{
+    const char *separator = "-";  /* What the user places between keys */
+    gchar **key_array;
+    int key_value, count;
+
+    count = 0;
+    key_array = g_strsplit(new_seq, separator, -1);
+    ungrab_key_string = g_strdup(new_seq);
+
+    for (; *key_array; key_array++) {
+        key_value = index_from_key(*key_array, strlen(*key_array));
+        if (key_value == Q_KEY_CODE__MAX) {
+            printf("-ungrab: unknown key: %s\n", *key_array);
+            exit(EXIT_FAILURE);
+        }
+        key_value_array[count] = key_value;
+        count++;
+    }
+}
+
+/* Returns the user specified ungrab key sequence */
+int *console_ungrab_key_sequence(void)
+{
+    return key_value_array;
+}
+
+/* Returns the name of the user specified ungrab keys */
+const char *console_ungrab_key_string(void)
+{
+    return ungrab_key_string;
+}
+
+/* Sets the UI to use the default ungrab key sequence */
+void use_default_ungrab_keys(void)
+{
+    /* Default ungrab keys: Control Alt g */
+    ungrab_key_string = (char *) malloc(sizeof(char) * 14);
+    sprintf(ungrab_key_string, "%s", "ctrl-alt-g");
+    key_value_array[0] = Q_KEY_CODE_CTRL;
+    key_value_array[1] = Q_KEY_CODE_ALT;
+    key_value_array[2] = Q_KEY_CODE_G;
+}
+
+/*
+ * Initializes the ungrab key settings - should be called by the front-end on
+ * startup.
+ */
+void init_ungrab_keys(void)
+{
+    if (console_ungrab_key_string() == NULL) {
+        use_default_ungrab_keys();
+    }
 }
 
 type_init(register_types);

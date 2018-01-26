@@ -4058,6 +4058,9 @@ int main(int argc, char **argv, char **envp)
                     exit(1);
                 }
                 break;
+            case QEMU_OPTION_ungrab:
+                set_ungrab_seq(optarg);
+                break;
             default:
                 os_parse_cmd_args(popt->index, optarg);
             }

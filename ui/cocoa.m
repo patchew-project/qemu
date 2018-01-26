@@ -105,6 +105,8 @@ char **gArgv;
 bool stretch_video;
 NSTextField *pauseLabel;
 NSArray * supportedImageFileTypes;
+NSMutableSet *key_set, *ungrab_set;
+int ungrab_sequence_length;
 
 // Mac to QKeyCode conversion
 const int mac_to_qkeycode_map[] = {
@@ -303,6 +305,7 @@ static void handleAnyDeviceErrors(Error * err)
 - (float) cdy;
 - (QEMUScreen) gscreen;
 - (void) raiseAllKeys;
+- (BOOL) is_ungrab_seq;
 @end
 
 QemuCocoaView *cocoaView;
@@ -488,8 +491,6 @@ QemuCocoaView *cocoaView;
         [[fullScreenWindow contentView] setFrame:[[NSScreen mainScreen] frame]];
         [normalWindow setFrame:NSMakeRect([normalWindow frame].origin.x, [normalWindow frame].origin.y - h + oldh, w, h + [normalWindow frame].size.height - oldh) display:NO animate:NO];
     } else {
-        if (qemu_name)
-            [normalWindow setTitle:[NSString stringWithFormat:@"QEMU %s", qemu_name]];
         [normalWindow setFrame:NSMakeRect([normalWindow frame].origin.x, [normalWindow frame].origin.y - h + oldh, w, h + [normalWindow frame].size.height - oldh) display:YES animate:NO];
     }
 
@@ -669,14 +670,29 @@ QemuCocoaView *cocoaView;
                 if (keycode == Q_KEY_CODE_CAPS_LOCK ||
                     keycode == Q_KEY_CODE_NUM_LOCK) {
                     [self toggleStatefulModifier:keycode];
-                } else if (qemu_console_is_graphic(NULL)) {
+                } else {
                   [self toggleModifier:keycode];
                 }
             }
 
+            /*
+             * This code has to be here because the user might use a modifier
+             * key like shift as an ungrab key.
+             */
+            if (modifiers_state[keycode] == YES) { // if the key is down
+                [self check_key: keycode];
+            } else {                               // if the key is up
+                if ([self is_ungrab_seq] == YES) {
+                    [self ungrabMouse];
+                    [self clear_ungrab_array];
+                    return;
+                }
+                [self remove_key_from_ungrab_array: keycode];
+            }
             break;
         case NSEventTypeKeyDown:
             keycode = cocoa_keycode_to_qemu([event keyCode]);
+            [self check_key: keycode];
 
             // forward command key combos to the host UI unless the mouse is grabbed
             if (!isMouseGrabbed && ([event modifierFlags] & NSEventModifierFlagCommand)) {
@@ -686,7 +702,7 @@ QemuCocoaView *cocoaView;
 
             // default
 
-            // handle control + alt Key Combos (ctrl+alt+[1..9,g] is reserved for QEMU)
+            // handle control + alt Key Combos (ctrl+alt+[1..9] is reserved for QEMU)
             if (([event modifierFlags] & NSEventModifierFlagControl) && ([event modifierFlags] & NSEventModifierFlagOption)) {
                 NSString *keychar = [event charactersIgnoringModifiers];
                 if ([keychar length] == 1) {
@@ -696,11 +712,6 @@ QemuCocoaView *cocoaView;
                         // enable graphic console
                         case '1' ... '9':
                             console_select(key - '0' - 1); /* ascii math */
-                            return;
-
-                        // release the mouse grab
-                        case 'g':
-                            [self ungrabMouse];
                             return;
                     }
                 }
@@ -714,6 +725,13 @@ QemuCocoaView *cocoaView;
             break;
         case NSEventTypeKeyUp:
             keycode = cocoa_keycode_to_qemu([event keyCode]);
+
+            if ([self is_ungrab_seq] == YES) {
+                [self ungrabMouse];
+                [self clear_ungrab_array];
+                return;
+            }
+            [self remove_key_from_ungrab_array: keycode];
 
             // don't pass the guest a spurious key-up if we treated this
             // command-key combo as a host UI action
@@ -853,10 +871,13 @@ QemuCocoaView *cocoaView;
     COCOA_DEBUG("QemuCocoaView: grabMouse\n");
 
     if (!isFullscreen) {
+        NSString * message_string;
+        message_string = [NSString stringWithFormat: @"- (Press %s to release Mouse)", console_ungrab_key_string()];
+
         if (qemu_name)
-            [normalWindow setTitle:[NSString stringWithFormat:@"QEMU %s - (Press ctrl + alt + g to release Mouse)", qemu_name]];
+            [normalWindow setTitle:[NSString stringWithFormat: @"QEMU %s %@", qemu_name, message_string]];
         else
-            [normalWindow setTitle:@"QEMU - (Press ctrl + alt + g to release Mouse)"];
+            [normalWindow setTitle:[NSString stringWithFormat: @"QEMU %@", message_string]];
     }
     [self hideCursor];
     if (!isAbsoluteEnabled) {
@@ -909,6 +930,47 @@ QemuCocoaView *cocoaView;
        }
    }
 }
+
+/* Determines if a key is one of the mouse ungrab keys */
+- (BOOL) is_an_ungrab_key: (int) keycode
+{
+    return [ungrab_set containsObject: [NSNumber numberWithInt: keycode]];
+}
+
+/* Adds an ungrab key to an array that tracks if the ungrab keys are pushed */
+- (void) add_key_to_ungrab_array: (int) keycode
+{
+    [key_set addObject: [NSNumber numberWithInt: keycode]];
+}
+
+/* Removes a key from ungrab key tracking */
+- (void) remove_key_from_ungrab_array: (int) keycode
+{
+    [key_set removeObject: [NSNumber numberWithInt: keycode]];
+}
+
+/* Clears the array used to track the ungrab keys */
+- (void) clear_ungrab_array
+{
+    [key_set removeAllObjects];
+}
+
+/* Check the keycode to see if it one of the ungrab keys */
+- (void) check_key: (int) keycode
+{
+    if ([self is_an_ungrab_key: keycode]) {
+        [self add_key_to_ungrab_array: keycode];
+    } else {
+        [self clear_ungrab_array];
+    }
+}
+
+/* Determines if the user specified ungrab sequence is being used */
+- (BOOL) is_ungrab_seq
+{
+    return [ungrab_set isEqualToSet: key_set];
+}
+
 @end
 
 
@@ -1682,6 +1744,29 @@ static void addRemovableDevicesMenuItems(void)
     qapi_free_BlockInfoList(pointerToFree);
 }
 
+/* initializes the mouse ungrab system */
+static void ungrab_init(void)
+{
+    key_set = [NSMutableSet new];
+    ungrab_set = [NSMutableSet new];
+    init_ungrab_keys();
+
+    /* determine length of the mouse ungrab sequence */
+    int index, *ungrab_seq;
+    ungrab_sequence_length = 0;
+    ungrab_seq = console_ungrab_key_sequence();
+    for (index = 0; index < MAX_UNGRAB_KEYS; index++) {
+        if (ungrab_seq[index] != 0) {
+            ungrab_sequence_length++;
+        }
+    }
+
+    /* make the ungrab set */
+    for (index = 0; index < ungrab_sequence_length; index++) {
+        [ungrab_set addObject: [NSNumber numberWithInt: ungrab_seq[index]]];
+    }
+}
+
 void cocoa_display_init(DisplayState *ds, int full_screen)
 {
     COCOA_DEBUG("qemu_cocoa: cocoa_display_init\n");
@@ -1711,4 +1796,6 @@ void cocoa_display_init(DisplayState *ds, int full_screen)
      * find out what removable devices it has.
      */
     addRemovableDevicesMenuItems();
+
+    ungrab_init();
 }

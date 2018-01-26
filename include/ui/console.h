@@ -533,4 +533,12 @@ static inline void early_gtk_display_init(int opengl)
 /* egl-headless.c */
 void egl_headless_init(void);
 
+/* console.c */
+/* max number of keys that can be used as the ungrab keys */
+#define MAX_UNGRAB_KEYS 3
+void set_ungrab_seq(const char *new_seq);
+int *console_ungrab_key_sequence(void);
+const char *console_ungrab_key_string(void);
+void use_default_ungrab_keys(void);
+void init_ungrab_keys(void);
 #endif

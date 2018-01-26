@@ -4282,6 +4282,8 @@ contents of @code{iv.b64} to the second secret
 
 ETEXI
 
+DEF("ungrab", HAS_ARG, QEMU_OPTION_ungrab, \
+    "-ungrab <key sequence>", QEMU_ARCH_ALL)
 
 HXCOMM This is the last statement. Insert new options before this line!
 STEXI
