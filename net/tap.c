@@ -648,12 +648,6 @@ static void net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
     TAPState *s = net_tap_fd_init(peer, model, name, fd, vnet_hdr);
     int vhostfd;
 
-    tap_set_sndbuf(s->fd, tap, &err);
-    if (err) {
-        error_propagate(errp, err);
-        return;
-    }
-
     if (tap->has_fd || tap->has_fds) {
         snprintf(s->nc.info_str, sizeof(s->nc.info_str), "fd=%d", fd);
     } else if (tap->has_helper) {
@@ -781,6 +775,12 @@ int net_init_tap(const Netdev *netdev, const char *name,
 
         vnet_hdr = tap_probe_vnet_hdr(fd);
 
+        tap_set_sndbuf(fd, tap, &err);
+        if (err) {
+            error_propagate(errp, err);
+            return -1;
+        }
+
         net_init_tap_one(tap, peer, "tap", name, NULL,
                          script, downscript,
                          vhostfdname, vnet_hdr, fd, &err);
@@ -832,6 +832,12 @@ int net_init_tap(const Netdev *netdev, const char *name,
                 goto free_fail;
             }
 
+            tap_set_sndbuf(fd, tap, &err);
+            if (err) {
+                error_propagate(errp, err);
+                goto free_fail;
+            }
+
             net_init_tap_one(tap, peer, "tap", name, ifname,
                              script, downscript,
                              tap->has_vhostfds ? vhost_fds[i] : NULL,
@@ -872,12 +878,21 @@ free_fail:
         fcntl(fd, F_SETFL, O_NONBLOCK);
         vnet_hdr = tap_probe_vnet_hdr(fd);
 
+        tap_set_sndbuf(fd, tap, &err);
+        if (err) {
+            error_propagate(errp, err);
+            close(fd);
+            return -1;
+        }
+
         net_init_tap_one(tap, peer, "bridge", name, ifname,
                          script, downscript, vhostfdname,
                          vnet_hdr, fd, &err);
         if (err) {
             error_propagate(errp, err);
-            close(fd);
+            if (tap->has_vhostforce && tap->vhostforce) {
+                close(fd);
+            }
             return -1;
         }
     } else {
@@ -910,13 +925,22 @@ free_fail:
                 }
             }
 
+            tap_set_sndbuf(fd, tap, &err);
+            if (err) {
+                error_propagate(errp, err);
+                close(fd);
+                return -1;
+            }
+
             net_init_tap_one(tap, peer, "tap", name, ifname,
                              i >= 1 ? "no" : script,
                              i >= 1 ? "no" : downscript,
                              vhostfdname, vnet_hdr, fd, &err);
             if (err) {
                 error_propagate(errp, err);
-                close(fd);
+                if (tap->has_vhostforce && tap->vhostforce) {
+                    close(fd);
+                }
                 return -1;
             }
         }
