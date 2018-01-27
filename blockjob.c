@@ -61,6 +61,7 @@ enum BlockJobVerb {
     BLOCK_JOB_VERB_RESUME,
     BLOCK_JOB_VERB_SET_SPEED,
     BLOCK_JOB_VERB_COMPLETE,
+    BLOCK_JOB_VERB_FINALIZE,
     BLOCK_JOB_VERB_DISMISS,
     BLOCK_JOB_VERB__MAX
 };
@@ -72,6 +73,7 @@ bool BlockJobVerb[BLOCK_JOB_VERB__MAX][BLOCK_JOB_STATUS__MAX] = {
     [BLOCK_JOB_VERB_RESUME]               = {0, 0, 0, 1, 0, 0, 0, 0},
     [BLOCK_JOB_VERB_SET_SPEED]            = {0, 1, 1, 1, 1, 0, 0, 0},
     [BLOCK_JOB_VERB_COMPLETE]             = {0, 0, 0, 0, 1, 0, 0, 0},
+    [BLOCK_JOB_VERB_FINALIZE]             = {0, 0, 0, 0, 0, 0, 1, 0},
     [BLOCK_JOB_VERB_DISMISS]              = {0, 0, 0, 0, 0, 0, 0, 1},
 };
 
@@ -459,6 +461,15 @@ static void block_job_completed_single(BlockJob *job)
     block_job_unref(job);
 }
 
+static void block_job_await_finalization(BlockJob *job)
+{
+    if (!job->manual) {
+        block_job_completed_single(job);
+    } else {
+        block_job_event_pending(job);
+    }
+}
+
 static void block_job_cancel_async(BlockJob *job)
 {
     if (job->iostatus != BLOCK_DEVICE_IO_STATUS_OK) {
@@ -558,6 +569,19 @@ static void block_job_completed_txn_abort(BlockJob *job)
     block_job_txn_unref(txn);
 }
 
+static void block_job_txn_apply(BlockJobTxn *txn, void fn(BlockJob *))
+{
+    AioContext *ctx;
+    BlockJob *job, *next;
+
+    QLIST_FOREACH_SAFE(job, &txn->jobs, txn_list, next) {
+        ctx = blk_get_aio_context(job->blk);
+        aio_context_acquire(ctx);
+        fn(job);
+        aio_context_release(ctx);
+    }
+}
+
 static void block_job_completed_txn_success(BlockJob *job)
 {
     AioContext *ctx;
@@ -590,20 +614,24 @@ static void block_job_completed_txn_success(BlockJob *job)
         }
     }
 
-    /* We are the last completed job, commit the transaction. */
-    QLIST_FOREACH_SAFE(other_job, &txn->jobs, txn_list, next) {
-        ctx = blk_get_aio_context(other_job->blk);
-        aio_context_acquire(ctx);
-        assert(other_job->ret == 0);
-        block_job_completed_single(other_job);
-        aio_context_release(ctx);
-    }
+    /* We are the last completed job, either commit the transaction
+     * or prepare for finalization via user intervention. */
+    block_job_txn_apply(txn, block_job_await_finalization);
 }
 
 /* Assumes the block_job_mutex is held */
 static bool block_job_timer_pending(BlockJob *job)
 {
     return timer_pending(&job->sleep_timer);
+}
+
+static void block_job_txn_completed(BlockJob *job, int ret)
+{
+    if (ret < 0 || block_job_is_cancelled(job)) {
+        block_job_completed_txn_abort(job);
+    } else {
+        block_job_completed_txn_success(job);
+    }
 }
 
 void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
@@ -642,6 +670,27 @@ void block_job_complete(BlockJob *job, Error **errp)
     }
 
     job->driver->complete(job, errp);
+}
+
+void block_job_finalize(BlockJob *job, Error **errp)
+{
+    assert(job->id);
+    if (!job->manual) {
+        error_setg(errp, "The block job '%s' was not started with "
+                   "\'manual\': true, and so cannot be finalized as it will"
+                   "do so automatically upon finishing its task", job->id);
+        return;
+    } else if (job->status != BLOCK_JOB_STATUS_PENDING) {
+        error_setg(errp, "The active block job '%s' is not yet awaiting "
+                   "finalization and cannot be finalized", job->id);
+        return;
+    }
+
+    if (!job->txn) {
+        block_job_completed_single(job);
+    } else {
+        block_job_txn_apply(job->txn, block_job_completed_single);
+    }
 }
 
 void block_job_dismiss(BlockJob **jobptr, Error **errp)
@@ -807,7 +856,6 @@ static void block_job_event_waiting(BlockJob *job)
                                       &error_abort);
 }
 
-__attribute__((__unused__)) /* FIXME */
 static void block_job_event_pending(BlockJob *job)
 {
     if (block_job_is_internal(job) || !job->manual) {
@@ -952,12 +1000,10 @@ void block_job_completed(BlockJob *job, int ret)
     job->completed = true;
     job->ret = ret;
     if (!job->txn) {
-        block_job_completed_single(job);
-    } else if (ret < 0 || block_job_is_cancelled(job)) {
-        block_job_completed_txn_abort(job);
+        block_job_await_finalization(job);
     } else {
         block_job_event_waiting(job);
-        block_job_completed_txn_success(job);
+        block_job_txn_completed(job, ret);
     }
 }
 
