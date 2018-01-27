@@ -966,7 +966,7 @@
 ##
 { 'enum': 'BlockJobStatus',
   'data': ['undefined', 'created', 'running', 'paused', 'ready',
-           'waiting', 'concluded' ] }
+           'waiting', 'pending', 'concluded' ] }
 
 ##
 # @BlockJobInfo:
@@ -3887,6 +3887,30 @@
 #
 ##
 { 'event': 'BLOCK_JOB_WAITING',
+  'data': { 'type'  : 'BlockJobType',
+            'id'    : 'str' } }
+
+##
+# @BLOCK_JOB_PENDING:
+#
+# Emitted when a block job is awaiting explicit authorization to finalize graph
+# changes via @block-job-finalize. If this job is part of a transaction, it will
+# not emit this event until the transaction has converged first.
+#
+# @type: job type
+#
+# @id: The job identifier.
+#
+# Since: 2.12
+#
+# Example:
+#
+# <- { "event": "BLOCK_JOB_WAITING",
+#      "data": { "device": "drive0", "type": "mirror" },
+#      "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
+#
+##
+{ 'event': 'BLOCK_JOB_PENDING',
   'data': { 'type'  : 'BlockJobType',
             'id'    : 'str' } }
 

@@ -44,14 +44,15 @@ static QemuMutex block_job_mutex;
 
 /* BlockJob State Transition Table */
 bool BlockJobSTT[BLOCK_JOB_STATUS__MAX][BLOCK_JOB_STATUS__MAX] = {
-                                          /* U, C, R, P, Y, W, E */
-    /* U: */ [BLOCK_JOB_STATUS_UNDEFINED] = {0, 1, 0, 0, 0, 0, 0},
-    /* C: */ [BLOCK_JOB_STATUS_CREATED]   = {0, 0, 1, 0, 0, 0, 0},
-    /* R: */ [BLOCK_JOB_STATUS_RUNNING]   = {0, 0, 0, 1, 1, 1, 1},
-    /* P: */ [BLOCK_JOB_STATUS_PAUSED]    = {0, 0, 1, 0, 1, 0, 1},
-    /* Y: */ [BLOCK_JOB_STATUS_READY]     = {0, 0, 0, 1, 0, 1, 1},
-    /* W: */ [BLOCK_JOB_STATUS_WAITING]   = {0, 0, 0, 0, 0, 0, 1},
-    /* E: */ [BLOCK_JOB_STATUS_CONCLUDED] = {1, 0, 0, 0, 0, 0, 0},
+                                          /* U, C, R, P, Y, W, D, E */
+    /* U: */ [BLOCK_JOB_STATUS_UNDEFINED] = {0, 1, 0, 0, 0, 0, 0, 0},
+    /* C: */ [BLOCK_JOB_STATUS_CREATED]   = {0, 0, 1, 0, 0, 0, 0, 0},
+    /* R: */ [BLOCK_JOB_STATUS_RUNNING]   = {0, 0, 0, 1, 1, 1, 1, 1},
+    /* P: */ [BLOCK_JOB_STATUS_PAUSED]    = {0, 0, 1, 0, 1, 0, 0, 1},
+    /* Y: */ [BLOCK_JOB_STATUS_READY]     = {0, 0, 0, 1, 0, 1, 1, 1},
+    /* W: */ [BLOCK_JOB_STATUS_WAITING]   = {0, 0, 0, 0, 0, 0, 1, 1},
+    /* D: */ [BLOCK_JOB_STATUS_PENDING]   = {0, 0, 0, 0, 0, 0, 0, 1},
+    /* E: */ [BLOCK_JOB_STATUS_CONCLUDED] = {1, 0, 0, 0, 0, 0, 0, 0},
 };
 
 enum BlockJobVerb {
@@ -65,13 +66,13 @@ enum BlockJobVerb {
 };
 
 bool BlockJobVerb[BLOCK_JOB_VERB__MAX][BLOCK_JOB_STATUS__MAX] = {
-                                          /* U, C, R, P, Y, W, E */
-    [BLOCK_JOB_VERB_CANCEL]               = {0, 1, 1, 1, 1, 1, 0},
-    [BLOCK_JOB_VERB_PAUSE]                = {0, 1, 1, 1, 1, 0, 0},
-    [BLOCK_JOB_VERB_RESUME]               = {0, 0, 0, 1, 0, 0, 0},
-    [BLOCK_JOB_VERB_SET_SPEED]            = {0, 1, 1, 1, 1, 0, 0},
-    [BLOCK_JOB_VERB_COMPLETE]             = {0, 0, 0, 0, 1, 0, 0},
-    [BLOCK_JOB_VERB_DISMISS]              = {0, 0, 0, 0, 0, 0, 1},
+                                          /* U, C, R, P, Y, W, D, E */
+    [BLOCK_JOB_VERB_CANCEL]               = {0, 1, 1, 1, 1, 1, 1, 0},
+    [BLOCK_JOB_VERB_PAUSE]                = {0, 1, 1, 1, 1, 0, 0, 0},
+    [BLOCK_JOB_VERB_RESUME]               = {0, 0, 0, 1, 0, 0, 0, 0},
+    [BLOCK_JOB_VERB_SET_SPEED]            = {0, 1, 1, 1, 1, 0, 0, 0},
+    [BLOCK_JOB_VERB_COMPLETE]             = {0, 0, 0, 0, 1, 0, 0, 0},
+    [BLOCK_JOB_VERB_DISMISS]              = {0, 0, 0, 0, 0, 0, 0, 1},
 };
 
 static void block_job_state_transition(BlockJob *job, BlockJobStatus s1)
@@ -111,6 +112,7 @@ static void __attribute__((__constructor__)) block_job_init(void)
 static void block_job_event_cancelled(BlockJob *job);
 static void block_job_event_completed(BlockJob *job, const char *msg);
 static void block_job_event_concluded(BlockJob *job);
+static void block_job_event_pending(BlockJob *job);
 static void block_job_enter_cond(BlockJob *job, bool(*fn)(BlockJob *job));
 
 /* Transactional group of block jobs */
@@ -801,6 +803,19 @@ static void block_job_event_waiting(BlockJob *job)
     }
 
     qapi_event_send_block_job_waiting(job->driver->job_type,
+                                      job->id,
+                                      &error_abort);
+}
+
+__attribute__((__unused__)) /* FIXME */
+static void block_job_event_pending(BlockJob *job)
+{
+    if (block_job_is_internal(job) || !job->manual) {
+        return;
+    }
+    block_job_state_transition(job, BLOCK_JOB_STATUS_PENDING);
+
+    qapi_event_send_block_job_pending(job->driver->job_type,
                                       job->id,
                                       &error_abort);
 }
