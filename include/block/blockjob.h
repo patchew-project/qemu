@@ -150,6 +150,9 @@ typedef struct BlockJob {
      */
     BlockJobStatus status;
 
+    /* Job has made preparations to call either commit or abort */
+    bool prepared;
+
     /** Non-NULL if this job is part of a transaction */
     BlockJobTxn *txn;
     QLIST_ENTRY(BlockJob) txn_list;

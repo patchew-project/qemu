@@ -376,9 +376,21 @@ void block_job_start(BlockJob *job)
     bdrv_coroutine_enter(blk_bs(job->blk), job->co);
 }
 
+static int block_job_prepare(BlockJob *job)
+{
+    if (job->prepared) {
+        return job->ret;
+    }
+    job->prepared = true;
+    if (job->ret == 0 && job->driver->prepare) {
+        job->ret = job->driver->prepare(job);
+    }
+    return job->ret;
+}
+
 static void block_job_commit(BlockJob *job)
 {
-    assert(!job->ret);
+    assert(!job->ret && job->prepared);
     if (job->driver->commit) {
         job->driver->commit(job);
     }
@@ -407,6 +419,9 @@ static void block_job_completed_single(BlockJob *job)
     if (job->ret == 0 && block_job_is_cancelled(job)) {
         job->ret = -ECANCELED;
     }
+
+    /* NB: updates job->ret, only if not called on this job yet */
+    block_job_prepare(job);
 
     if (!job->ret) {
         block_job_commit(job);
@@ -545,6 +560,8 @@ static void block_job_completed_txn_success(BlockJob *job)
     AioContext *ctx;
     BlockJobTxn *txn = job->txn;
     BlockJob *other_job, *next;
+    int rc = 0;
+
     /*
      * Successful completion, see if there are other running jobs in this
      * txn.
@@ -554,6 +571,22 @@ static void block_job_completed_txn_success(BlockJob *job)
             return;
         }
     }
+
+    /* Jobs may require some prep-work to complete without failure */
+    QLIST_FOREACH_SAFE(other_job, &txn->jobs, txn_list, next) {
+        ctx = blk_get_aio_context(other_job->blk);
+        aio_context_acquire(ctx);
+        assert(other_job->ret == 0);
+        rc = block_job_prepare(job);
+        aio_context_release(ctx);
+
+        /* This job failed. Cancel this transaction */
+        if (rc) {
+            block_job_completed_txn_abort(other_job);
+            return;
+        }
+    }
+
     /* We are the last completed job, commit the transaction. */
     QLIST_FOREACH_SAFE(other_job, &txn->jobs, txn_list, next) {
         ctx = blk_get_aio_context(other_job->blk);
