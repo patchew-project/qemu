@@ -101,7 +101,7 @@ static BlockJob *test_block_job_start(unsigned int iterations,
     g_assert_nonnull(bs);
 
     snprintf(job_id, sizeof(job_id), "job%u", counter++);
-    s = block_job_create(job_id, &test_block_job_driver, bs,
+    s = block_job_create(job_id, &test_block_job_driver, false, bs,
                          0, BLK_PERM_ALL, 0, BLOCK_JOB_DEFAULT,
                          test_block_job_cb, data, &error_abort);
     s->iterations = iterations;

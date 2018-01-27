@@ -141,6 +141,11 @@ typedef struct BlockJob {
      */
     QEMUTimer sleep_timer;
 
+    /* Set to true when management API has requested 2.12+ job lifetime
+     * management semantics.
+     */
+    bool manual;
+
     /** Non-NULL if this job is part of a transaction */
     BlockJobTxn *txn;
     QLIST_ENTRY(BlockJob) txn_list;

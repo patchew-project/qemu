@@ -981,9 +981,9 @@ void mirror_start(const char *job_id, BlockDriverState *bs,
  * Create a backup operation on @bs.  Clusters in @bs are written to @target
  * until the job is cancelled or manually completed.
  */
-BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
-                            BlockDriverState *target, int64_t speed,
-                            MirrorSyncMode sync_mode,
+BlockJob *backup_job_create(const char *job_id, bool manual,
+                            BlockDriverState *bs, BlockDriverState *target,
+                            int64_t speed, MirrorSyncMode sync_mode,
                             BdrvDirtyBitmap *sync_bitmap,
                             bool compress,
                             BlockdevOnError on_source_error,
