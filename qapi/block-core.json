@@ -965,7 +965,8 @@
 # Since: 2.12
 ##
 { 'enum': 'BlockJobStatus',
-  'data': ['undefined', 'created', 'running', 'paused', 'ready'] }
+  'data': ['undefined', 'created', 'running', 'paused', 'ready',
+           'concluded' ] }
 
 ##
 # @BlockJobInfo:
@@ -2206,8 +2207,9 @@
 # QEMU 2.12+ job lifetime management semantics.
 #
 # This command will refuse to operate on any job that has not yet reached
-# its terminal state. "cancel" or "complete" will still need to be used as
-# appropriate.
+# its terminal state, BLOCK_JOB_STATUS_CONCLUDED. For jobs that make use of
+# BLOCK_JOB_READY event, block-job-cancel or block-job-complete will still need
+# to be used as appropriate.
 #
 # @id: The job identifier.
 #
