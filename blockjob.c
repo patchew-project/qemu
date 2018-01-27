@@ -380,6 +380,11 @@ static void block_job_completed_single(BlockJob *job)
 {
     assert(job->completed);
 
+    /* Ensure abort is called and QMP client is notified of cancellation */
+    if (job->ret == 0 && block_job_is_cancelled(job)) {
+        job->ret = -ECANCELED;
+    }
+
     if (!job->ret) {
         if (job->driver->commit) {
             job->driver->commit(job);
