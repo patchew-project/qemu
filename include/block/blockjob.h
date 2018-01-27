@@ -146,6 +146,10 @@ typedef struct BlockJob {
      */
     bool manual;
 
+    /* Current state, using 2.12+ state names
+     */
+    BlockJobStatus status;
+
     /** Non-NULL if this job is part of a transaction */
     BlockJobTxn *txn;
     QLIST_ENTRY(BlockJob) txn_list;

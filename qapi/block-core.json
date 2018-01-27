@@ -956,6 +956,18 @@
   'data': ['commit', 'stream', 'mirror', 'backup'] }
 
 ##
+# @BlockJobStatus:
+#
+# Block Job State
+#
+#
+#
+# Since: 2.12
+##
+{ 'enum': 'BlockJobStatus',
+  'data': ['undefined', 'created', 'running', 'paused', 'ready'] }
+
+##
 # @BlockJobInfo:
 #
 # Information about a long-running block device operation.
@@ -981,12 +993,15 @@
 #
 # @ready: true if the job may be completed (since 2.2)
 #
+# @status: Current job state/status (since 2.12)
+#
 # Since: 1.1
 ##
 { 'struct': 'BlockJobInfo',
   'data': {'type': 'str', 'device': 'str', 'len': 'int',
            'offset': 'int', 'busy': 'bool', 'paused': 'bool', 'speed': 'int',
-           'io-status': 'BlockDeviceIoStatus', 'ready': 'bool'} }
+           'io-status': 'BlockDeviceIoStatus', 'ready': 'bool',
+           '*status': 'BlockJobStatus' } }
 
 ##
 # @query-block-jobs:
