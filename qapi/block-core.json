@@ -2199,6 +2199,25 @@
 { 'command': 'block-job-complete', 'data': { 'device': 'str' } }
 
 ##
+# @block-job-dismiss:
+#
+# For jobs that have already concluded, remove them from the block-job-query
+# list. This command only needs to be run for jobs which were started with
+# QEMU 2.12+ job lifetime management semantics.
+#
+# This command will refuse to operate on any job that has not yet reached
+# its terminal state. "cancel" or "complete" will still need to be used as
+# appropriate.
+#
+# @id: The job identifier.
+#
+# Returns: Nothing on success
+#
+# Since: 2.12
+##
+{ 'command': 'block-job-dismiss', 'data': { 'id': 'str' } }
+
+##
 # @BlockdevDiscardOptions:
 #
 # Determines how to handle discard requests.

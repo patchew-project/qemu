@@ -58,6 +58,7 @@ enum BlockJobVerb {
     BLOCK_JOB_VERB_RESUME,
     BLOCK_JOB_VERB_SET_SPEED,
     BLOCK_JOB_VERB_COMPLETE,
+    BLOCK_JOB_VERB_DISMISS,
     BLOCK_JOB_VERB__MAX
 };
 
@@ -68,6 +69,7 @@ bool BlockJobVerb[BLOCK_JOB_VERB__MAX][BLOCK_JOB_STATUS__MAX] = {
     [BLOCK_JOB_VERB_RESUME]               = {0, 0, 0, 1, 0},
     [BLOCK_JOB_VERB_SET_SPEED]            = {0, 1, 1, 1, 1},
     [BLOCK_JOB_VERB_COMPLETE]             = {0, 0, 0, 0, 1},
+    [BLOCK_JOB_VERB_DISMISS]              = {0, 0, 0, 0, 0},
 };
 
 static void block_job_state_transition(BlockJob *job, BlockJobStatus s1)
@@ -426,6 +428,13 @@ static void block_job_cancel_async(BlockJob *job)
     job->cancelled = true;
 }
 
+static void block_job_do_dismiss(BlockJob *job)
+{
+    assert(job && job->manual == true);
+    block_job_state_transition(job, BLOCK_JOB_STATUS_UNDEFINED);
+    block_job_unref(job);
+}
+
 static int block_job_finish_sync(BlockJob *job,
                                  void (*finish)(BlockJob *, Error **errp),
                                  Error **errp)
@@ -455,6 +464,9 @@ static int block_job_finish_sync(BlockJob *job,
         aio_poll(qemu_get_aio_context(), true);
     }
     ret = (job->cancelled && job->ret == 0) ? -ECANCELED : job->ret;
+    if (job->manual) {
+        block_job_do_dismiss(job);
+    }
     block_job_unref(job);
     return ret;
 }
@@ -568,6 +580,24 @@ void block_job_complete(BlockJob *job, Error **errp)
     }
 
     job->driver->complete(job, errp);
+}
+
+void block_job_dismiss(BlockJob **jobptr, Error **errp)
+{
+    BlockJob *job = *jobptr;
+    /* similarly to _complete, this is QMP-interface only. */
+    assert(job->id);
+    if (!job->manual) {
+        error_setg(errp, "The active block job '%s' was not started with "
+                   "\'manual\': true, and so cannot be dismissed as it will "
+                   "clean up after itself automatically", job->id);
+        return;
+    }
+
+    error_setg(errp, "unimplemented");
+
+    block_job_do_dismiss(job);
+    *jobptr = NULL;
 }
 
 void block_job_user_pause(BlockJob *job)

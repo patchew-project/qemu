@@ -242,6 +242,15 @@ void block_job_cancel(BlockJob *job);
 void block_job_complete(BlockJob *job, Error **errp);
 
 /**
+ * block_job_dismiss:
+ * @job: The job to be dismissed.
+ * @errp: Error object.
+ *
+ * Remove a concluded job from the query list.
+ */
+void block_job_dismiss(BlockJob **job, Error **errp);
+
+/**
  * block_job_query:
  * @job: The job to get information about.
  *
