@@ -966,7 +966,7 @@
 ##
 { 'enum': 'BlockJobStatus',
   'data': ['undefined', 'created', 'running', 'paused', 'ready',
-           'concluded' ] }
+           'waiting', 'concluded' ] }
 
 ##
 # @BlockJobInfo:
@@ -3866,6 +3866,29 @@
             'len'   : 'int',
             'offset': 'int',
             'speed' : 'int' } }
+
+##
+# @BLOCK_JOB_WAITING:
+#
+# Emitted when a block job that is part of a transction has stopped work and is
+# waiting for other jobs in the transaction to reach the same state.
+#
+# @type: job type
+#
+# @id: The job identifier.
+#
+# Since: 2.12
+#
+# Example:
+#
+# <- { "event": "BLOCK_JOB_WAITING",
+#      "data": { "id": "drive0", "type": "mirror" },
+#      "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
+#
+##
+{ 'event': 'BLOCK_JOB_WAITING',
+  'data': { 'type'  : 'BlockJobType',
+            'id'    : 'str' } }
 
 ##
 # @PreallocMode:
