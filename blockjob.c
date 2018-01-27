@@ -52,6 +52,24 @@ bool BlockJobSTT[BLOCK_JOB_STATUS__MAX][BLOCK_JOB_STATUS__MAX] = {
     /* Y: */ [BLOCK_JOB_STATUS_READY]     = {0, 0, 0, 1, 0},
 };
 
+enum BlockJobVerb {
+    BLOCK_JOB_VERB_CANCEL,
+    BLOCK_JOB_VERB_PAUSE,
+    BLOCK_JOB_VERB_RESUME,
+    BLOCK_JOB_VERB_SET_SPEED,
+    BLOCK_JOB_VERB_COMPLETE,
+    BLOCK_JOB_VERB__MAX
+};
+
+bool BlockJobVerb[BLOCK_JOB_VERB__MAX][BLOCK_JOB_STATUS__MAX] = {
+                                          /* U, C, R, P, Y */
+    [BLOCK_JOB_VERB_CANCEL]               = {0, 1, 1, 1, 1},
+    [BLOCK_JOB_VERB_PAUSE]                = {0, 1, 1, 1, 1},
+    [BLOCK_JOB_VERB_RESUME]               = {0, 0, 0, 1, 0},
+    [BLOCK_JOB_VERB_SET_SPEED]            = {0, 1, 1, 1, 1},
+    [BLOCK_JOB_VERB_COMPLETE]             = {0, 0, 0, 0, 1},
+};
+
 static void block_job_state_transition(BlockJob *job, BlockJobStatus s1)
 {
     BlockJobStatus s0 = job->status;
