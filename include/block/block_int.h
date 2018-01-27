@@ -965,6 +965,9 @@ void mirror_start(const char *job_id, BlockDriverState *bs,
  * backup_job_create:
  * @job_id: The id of the newly-created job, or %NULL to use the
  * device name of @bs.
+ * @manual: Whether or not this job requires manual intervention to transition
+ *          from "PENDING" state to "CONCLUDED" state, and again, manual
+ *          intervention to dismiss CONCLUDED jobs.
  * @bs: Block device to operate on.
  * @target: Block device to write to.
  * @speed: The maximum speed, in bytes per second, or 0 for unlimited.
