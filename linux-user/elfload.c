@@ -6,7 +6,6 @@
 
 #include "qemu.h"
 #include "disas/disas.h"
-#include "qemu/path.h"
 
 #ifdef _ARCH_PPC64
 #undef ARCH_DLINFO
@@ -2204,7 +2203,9 @@ static void load_elf_interp(const char *filename, struct image_info *info,
 {
     int fd, retval;
 
-    fd = open(path(filename), O_RDONLY);
+    CHOOSE_INTERP(fd, filename,
+                  openat(interp_dirfd, filename + 1, O_RDONLY),
+                  open(filename, O_RDONLY));
     if (fd < 0) {
         goto exit_perror;
     }

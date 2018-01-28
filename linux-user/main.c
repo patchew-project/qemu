@@ -23,7 +23,6 @@
 
 #include "qapi/error.h"
 #include "qemu.h"
-#include "qemu/path.h"
 #include "qemu/config-file.h"
 #include "qemu/cutils.h"
 #include "qemu/help_option.h"
@@ -98,7 +97,40 @@ unsigned long reserved_va;
 static void usage(int exitcode);
 
 static const char *interp_prefix = CONFIG_QEMU_INTERP_PREFIX;
+int interp_dirfd;
 const char *qemu_uname_release;
+
+const char *linux_user_path(const char *pathname)
+{
+    static THREAD size_t save_len;
+    static THREAD char *save_buf;
+    size_t len, prefix_len, path_len;
+    int e;
+
+    /* Only consider absolute paths.  */
+    if (pathname[0] != '/' || interp_dirfd < 0) {
+        return pathname;
+    }
+
+    /* Test if the path within interp_dir exists.  */
+    e = faccessat(interp_dirfd, pathname + 1, F_OK, AT_SYMLINK_NOFOLLOW);
+    if (e < 0 && errno != ENOENT) {
+        return pathname;
+    }
+
+    /* It does -- form the new absolute path.  */
+    prefix_len = strlen(interp_prefix);
+    path_len = strlen(pathname) + 1;
+    len = prefix_len + path_len;
+    if (len <= save_len) {
+        save_len = len;
+        save_buf = realloc(save_buf, len);
+    }
+    memcpy(save_buf, interp_prefix, prefix_len);
+    memcpy(save_buf + prefix_len, pathname, path_len);
+
+    return save_buf;
+}
 
 /* XXX: on x86 MAP_GROWSDOWN only works if ESP <= address + 32, so
    we allocate a bigger stack. Need a better solution, for example
@@ -4319,7 +4351,7 @@ int main(int argc, char **argv, char **envp)
     memset(&bprm, 0, sizeof (bprm));
 
     /* Scan interp_prefix dir for replacement files. */
-    init_paths(interp_prefix);
+    interp_dirfd = open(interp_prefix, O_CLOEXEC | O_DIRECTORY | O_PATH);
 
     init_qemu_uname_release();
 

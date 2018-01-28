@@ -437,7 +437,22 @@ void mmap_fork_start(void);
 void mmap_fork_end(int child);
 
 /* main.c */
+extern int interp_dirfd;
 extern unsigned long guest_stack_size;
+
+#define CHOOSE_INTERP(RET, PATH, OPENAT_EXPR, NORMAL_EXPR)  \
+    do {                                                    \
+        if (interp_dirfd >= 0 && PATH[0] == '/') {          \
+            RET = OPENAT_EXPR;                              \
+            if (!(RET < 0 && errno == ENOENT)) {            \
+                break;                                      \
+            }                                               \
+        }                                                   \
+        RET = NORMAL_EXPR;                                  \
+    } while (0)
+
+const char *linux_user_path(const char *);
+#define path(x)  linux_user_path(x)
 
 /* user access */
 
