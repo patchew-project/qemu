@@ -14,6 +14,8 @@
 #ifndef QEMU_SEV_H
 #define QEMU_SEV_H
 
+#include <linux/kvm.h>
+
 #include "qom/object.h"
 #include "qapi/error.h"
 #include "sysemu/kvm.h"
@@ -48,6 +50,14 @@ struct QSevGuestInfo {
 struct QSevGuestInfoClass {
     ObjectClass parent_class;
 };
+
+struct SEVState {
+    QSevGuestInfo *sev_info;
+};
+
+typedef struct SEVState SEVState;
+
+void *sev_guest_init(const char *id);
 
 #endif
 

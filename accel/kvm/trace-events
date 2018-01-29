@@ -13,3 +13,5 @@ kvm_irqchip_add_msi_route(char *name, int vector, int virq) "dev %s vector %d vi
 kvm_irqchip_update_msi_route(int virq) "Updating MSI route virq=%d"
 kvm_irqchip_release_virq(int virq) "virq %d"
 
+# sev.c
+kvm_sev_init(void) ""
