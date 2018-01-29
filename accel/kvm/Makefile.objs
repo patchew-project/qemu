@@ -1,1 +1,1 @@
-obj-$(CONFIG_KVM) += kvm-all.o
+obj-$(CONFIG_KVM) += kvm-all.o sev.o
