@@ -2115,6 +2115,8 @@ static DisplayType select_display(const char *p)
                     goto invalid_sdl_args;
                 }
             } else if (strstart(opts, ",alt_grab=", &nextopt)) {
+                g_printerr("The alt_grab= sdl option is deprecated, and will be\n"
+                           "removed in a future release.\n");
                 opts = nextopt;
                 if (strstart(opts, "on", &nextopt)) {
                     alt_grab = 1;
@@ -2124,6 +2126,8 @@ static DisplayType select_display(const char *p)
                     goto invalid_sdl_args;
                 }
             } else if (strstart(opts, ",ctrl_grab=", &nextopt)) {
+                g_printerr("The ctrl_grab= sdl option is deprecated, and will be\n"
+                           "removed in a future release.\n");
                 opts = nextopt;
                 if (strstart(opts, "on", &nextopt)) {
                     ctrl_grab = 1;
@@ -3649,9 +3653,13 @@ int main(int argc, char **argv, char **envp)
                 no_frame = 1;
                 break;
             case QEMU_OPTION_alt_grab:
+                g_printerr("The -alt-grab switch is deprecated, and will be\n"
+                           "removed in a future release.\n");
                 alt_grab = 1;
                 break;
             case QEMU_OPTION_ctrl_grab:
+                g_printerr("The -ctrl-grab switch is deprecated, and will be\n"
+                           "removed in a future release.\n");
                 ctrl_grab = 1;
                 break;
             case QEMU_OPTION_no_quit:
