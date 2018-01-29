@@ -488,6 +488,9 @@
 #                     and a power of 2
 #                     (Since 2.11)
 #
+# @x-tcp-port: Only used for tcp, to know what the real port is
+#                     (Since 2.12)
+#
 # Since: 2.4
 ##
 { 'enum': 'MigrationParameter',
@@ -496,7 +499,7 @@
            'tls-creds', 'tls-hostname', 'max-bandwidth',
            'downtime-limit', 'x-checkpoint-delay', 'block-incremental',
            'x-multifd-channels', 'x-multifd-page-count',
-           'xbzrle-cache-size' ] }
+           'xbzrle-cache-size', 'x-tcp-port' ] }
 
 ##
 # @MigrateSetParameters:
@@ -564,6 +567,10 @@
 #                     needs to be a multiple of the target page size
 #                     and a power of 2
 #                     (Since 2.11)
+#
+# @x-tcp-port: Only used for tcp, to know what the real port is
+#                     (Since 2.12)
+#
 # Since: 2.4
 ##
 # TODO either fuse back into MigrationParameters, or make
@@ -582,7 +589,8 @@
             '*block-incremental': 'bool',
             '*x-multifd-channels': 'int',
             '*x-multifd-page-count': 'int',
-            '*xbzrle-cache-size': 'size' } }
+            '*xbzrle-cache-size': 'size',
+            '*x-tcp-port': 'uint16'} }
 
 ##
 # @migrate-set-parameters:
@@ -665,6 +673,10 @@
 #                     needs to be a multiple of the target page size
 #                     and a power of 2
 #                     (Since 2.11)
+#
+# @x-tcp-port: Only used for tcp, to know what the real port is
+#                     (Since 2.12)
+#
 # Since: 2.4
 ##
 { 'struct': 'MigrationParameters',
@@ -681,7 +693,8 @@
             '*block-incremental': 'bool' ,
             '*x-multifd-channels': 'uint8',
             '*x-multifd-page-count': 'uint32',
-            '*xbzrle-cache-size': 'size' } }
+            '*xbzrle-cache-size': 'size',
+            '*x-tcp-port': 'uint16'} }
 
 ##
 # @query-migrate-parameters:

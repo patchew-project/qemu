@@ -345,6 +345,9 @@ void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "%s: %" PRIu64 "\n",
             MigrationParameter_str(MIGRATION_PARAMETER_XBZRLE_CACHE_SIZE),
             params->xbzrle_cache_size);
+        monitor_printf(mon, "%s: %d\n",
+            MigrationParameter_str(MIGRATION_PARAMETER_X_TCP_PORT),
+            params->x_tcp_port);
     }
 
     qapi_free_MigrationParameters(params);
