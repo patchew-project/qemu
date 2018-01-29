@@ -150,9 +150,9 @@ static int rtc_date_offset = -1; /* -1 means no change */
 QEMUClockType rtc_clock;
 int vga_interface_type = VGA_NONE;
 static int full_screen = 0;
+static DisplayOptions dpy;
 int no_frame;
 int no_quit = 0;
-static bool grab_on_hover;
 Chardev *serial_hds[MAX_SERIAL_PORTS];
 Chardev *parallel_hds[MAX_PARALLEL_PORTS];
 Chardev *virtcon_hds[MAX_VIRTIO_CONSOLES];
@@ -2191,24 +2191,29 @@ static LegacyDisplayType select_display(const char *p)
     } else if (strstart(p, "gtk", &opts)) {
 #ifdef CONFIG_GTK
         display = DT_GTK;
+        dpy.type = DISPLAY_TYPE_GTK;
         while (*opts) {
             const char *nextopt;
 
             if (strstart(opts, ",grab_on_hover=", &nextopt)) {
                 opts = nextopt;
+                dpy.u.gtk.has_grab_on_hover = true;
                 if (strstart(opts, "on", &nextopt)) {
-                    grab_on_hover = true;
+                    dpy.u.gtk.grab_on_hover = true;
                 } else if (strstart(opts, "off", &nextopt)) {
-                    grab_on_hover = false;
+                    dpy.u.gtk.grab_on_hover = false;
                 } else {
                     goto invalid_gtk_args;
                 }
             } else if (strstart(opts, ",gl=", &nextopt)) {
                 opts = nextopt;
+                dpy.has_gl = true;
                 if (strstart(opts, "on", &nextopt)) {
                     request_opengl = 1;
+                    dpy.gl = true;
                 } else if (strstart(opts, "off", &nextopt)) {
                     request_opengl = 0;
+                    dpy.gl = false;
                 } else {
                     goto invalid_gtk_args;
                 }
@@ -2225,6 +2230,7 @@ static LegacyDisplayType select_display(const char *p)
 #endif
     } else if (strstart(p, "none", &opts)) {
         display = DT_NONE;
+        dpy.type = DISPLAY_TYPE_NONE;
     } else {
         error_report("unknown display type");
         exit(1);
@@ -3259,6 +3265,7 @@ int main(int argc, char **argv, char **envp)
                 qemu_opts_parse_noisily(olist, "graphics=off", false);
                 nographic = true;
                 display_type = DT_NONE;
+                dpy.type = DISPLAY_TYPE_NONE;
                 break;
             case QEMU_OPTION_curses:
 #ifdef CONFIG_CURSES
@@ -3646,6 +3653,8 @@ int main(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_full_screen:
                 full_screen = 1;
+                dpy.has_full_screen = true;
+                dpy.full_screen = true;
                 break;
             case QEMU_OPTION_no_frame:
                 g_printerr("The -no-frame switch is deprecated, and will be\n"
@@ -3664,6 +3673,8 @@ int main(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_no_quit:
                 no_quit = 1;
+                dpy.has_window_close = true;
+                dpy.window_close = false;
                 break;
             case QEMU_OPTION_sdl:
 #ifdef CONFIG_SDL
@@ -4331,6 +4342,7 @@ int main(int argc, char **argv, char **envp)
     if (display_type == DT_DEFAULT && !display_remote) {
 #if defined(CONFIG_GTK)
         display_type = DT_GTK;
+        dpy.type = DISPLAY_TYPE_GTK;
 #elif defined(CONFIG_SDL)
         display_type = DT_SDL;
 #elif defined(CONFIG_COCOA)
@@ -4339,6 +4351,7 @@ int main(int argc, char **argv, char **envp)
         vnc_parse("localhost:0,to=99,id=default", &error_abort);
 #else
         display_type = DT_NONE;
+        dpy.type = DISPLAY_TYPE_NONE;
 #endif
     }
 
@@ -4352,7 +4365,7 @@ int main(int argc, char **argv, char **envp)
     }
 
     if (display_type == DT_GTK) {
-        early_gtk_display_init(request_opengl);
+        early_gtk_display_init(&dpy);
     }
 
     if (display_type == DT_SDL) {
@@ -4697,7 +4710,7 @@ int main(int argc, char **argv, char **envp)
         cocoa_display_init(ds, full_screen);
         break;
     case DT_GTK:
-        gtk_display_init(ds, full_screen, grab_on_hover);
+        gtk_display_init(ds, &dpy);
         break;
     default:
         break;
