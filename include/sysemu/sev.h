@@ -51,6 +51,16 @@ struct QSevGuestInfoClass {
     ObjectClass parent_class;
 };
 
+typedef enum {
+    SEV_STATE_UNINIT = 0,
+    SEV_STATE_LUPDATE,
+    SEV_STATE_SECRET,
+    SEV_STATE_RUNNING,
+    SEV_STATE_SUPDATE,
+    SEV_STATE_RUPDATE,
+    SEV_STATE_MAX
+} SevGuestState;
+
 struct SEVState {
     QSevGuestInfo *sev_info;
 };
