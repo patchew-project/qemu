@@ -23,9 +23,11 @@
 
 #define DEFAULT_GUEST_POLICY    0x1 /* disable debug */
 #define DEFAULT_SEV_DEVICE      "/dev/sev"
+#define GUEST_POLICY_DBG_BIT    0x1
 
 static int sev_fd;
 static SEVState *sev_state;
+static MemoryRegionRAMReadWriteOps  sev_ops;
 
 #define SEV_FW_MAX_ERROR      0x17
 
@@ -501,6 +503,50 @@ sev_vm_state_change(void *opaque, int running, RunState state)
     }
 }
 
+static int
+sev_dbg_enc_dec(uint8_t *dst, const uint8_t *src, uint32_t len, bool write)
+{
+    int ret, error;
+    struct kvm_sev_dbg *dbg;
+    dbg = g_malloc0(sizeof(*dbg));
+    if (!dbg) {
+        return 1;
+    }
+
+    dbg->src_uaddr = (unsigned long)src;
+    dbg->dst_uaddr = (unsigned long)dst;
+    dbg->len = len;
+
+    trace_kvm_sev_debug(write ? "encrypt" : "decrypt", src, dst, len);
+    ret = sev_ioctl(write ? KVM_SEV_DBG_ENCRYPT : KVM_SEV_DBG_DECRYPT,
+                    dbg, &error);
+    if (ret) {
+        error_report("%s (%s) %#llx->%#llx+%#x ret=%d fw_error=%d '%s'",
+                     __func__, write ? "write" : "read", dbg->src_uaddr,
+                     dbg->dst_uaddr, dbg->len, ret, error,
+                     fw_error_to_str(error));
+    }
+
+    g_free(dbg);
+    return ret;
+}
+
+static int
+sev_mem_read(uint8_t *dst, const uint8_t *src, uint32_t len, MemTxAttrs attrs)
+{
+    assert(attrs.debug);
+
+    return sev_dbg_enc_dec(dst, src, len, false);
+}
+
+static int
+sev_mem_write(uint8_t *dst, const uint8_t *src, uint32_t len, MemTxAttrs attrs)
+{
+    assert(attrs.debug);
+
+    return sev_dbg_enc_dec(dst, src, len, true);
+}
+
 void *
 sev_guest_init(const char *id)
 {
@@ -566,6 +612,31 @@ sev_encrypt_data(void *handle, uint8_t *ptr, uint64_t len)
     }
 
     return 0;
+}
+
+void
+sev_set_debug_ops(void *handle, MemoryRegion *mr)
+{
+    int policy;
+    SEVState *s = (SEVState *)handle;
+
+    policy = object_property_get_int(OBJECT(s->sev_info),
+                                     "policy", &error_abort);
+
+    /*
+     * Check if guest policy supports debugging
+     * Bit 0 :
+     *   0 - debug allowed
+     *   1 - debug is not allowed
+     */
+    if (policy & GUEST_POLICY_DBG_BIT) {
+        return;
+    }
+
+    sev_ops.read = sev_mem_read;
+    sev_ops.write = sev_mem_write;
+
+    memory_region_set_ram_debug_ops(mr, &sev_ops);
 }
 
 static void
