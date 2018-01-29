@@ -180,6 +180,12 @@ static void pc_system_flash_init(MemoryRegion *rom_memory)
                     error_report("failed to encrypt pflash rom");
                     exit(1);
                 }
+
+                /*
+                 * The pflash ROM is encrypted, set the debug ops so that any
+                 * debug accesses will use memory encryption APIs.
+                 */
+                kvm_memcrypt_set_debug_ops(flash_mem);
             }
         }
     }

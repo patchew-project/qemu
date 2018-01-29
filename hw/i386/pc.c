@@ -1357,6 +1357,15 @@ void pc_memory_init(PCMachineState *pcms,
         e820_add_entry(0x100000000ULL, pcms->above_4g_mem_size, E820_RAM);
     }
 
+    /*
+     * When memory encryption is enabled, the guest RAM will be encrypted with
+     * a guest unique key. Set the debug ops so that any debug access to the
+     * guest RAM will go through the memory encryption APIs.
+     */
+    if (kvm_memcrypt_enabled()) {
+        kvm_memcrypt_set_debug_ops(ram);
+    }
+
     if (!pcmc->has_reserved_memory &&
         (machine->ram_slots ||
          (machine->maxram_size > machine->ram_size))) {
