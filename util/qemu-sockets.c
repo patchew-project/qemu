@@ -372,9 +372,11 @@ listen_ok:
     ((rc) == -EINPROGRESS)
 #endif
 
-static int inet_connect_addr(struct addrinfo *addr, Error **errp);
+static int inet_connect_addr(struct addrinfo *addr, Error **errp,
+                             QemuSocketConfig *sconf);
 
-static int inet_connect_addr(struct addrinfo *addr, Error **errp)
+static int inet_connect_addr(struct addrinfo *addr, Error **errp,
+                             QemuSocketConfig *sconf)
 {
     int sock, rc;
 
@@ -385,11 +387,25 @@ static int inet_connect_addr(struct addrinfo *addr, Error **errp)
     }
     socket_set_fast_reuse(sock);
 
+    if(parse_socket_options(sock, errp, sconf) < 0) {
+        error_setg_errno(errp, errno, "Failed to set socket options");
+        return -1;
+    }
+
     /* connect to peer */
     do {
         rc = 0;
         if (connect(sock, addr->ai_addr, addr->ai_addrlen) < 0) {
             rc = -errno;
+        }
+        /* More judge for nonblocking socket, borrowed from net_socket_connect_init */
+        if(sconf->nonblocking) {
+            if(rc == -EWOULDBLOCK)
+                continue;
+            else if(rc == -EINPROGRESS ||
+                    rc == -EALREADY ||
+                    rc == -EINVAL)
+                return sock; /* caller needs tp judge errno */
         }
     } while (rc == -EINTR);
 
@@ -459,7 +475,8 @@ static struct addrinfo *inet_parse_connect_saddr(InetSocketAddress *saddr,
  *
  * Returns: -1 on error, file descriptor on success.
  */
-int inet_connect_saddr(InetSocketAddress *saddr, Error **errp)
+int inet_connect_saddr(InetSocketAddress *saddr, Error **errp,
+                       QemuSocketConfig *sconf)
 {
     Error *local_err = NULL;
     struct addrinfo *res, *e;
@@ -473,7 +490,7 @@ int inet_connect_saddr(InetSocketAddress *saddr, Error **errp)
     for (e = res; e != NULL; e = e->ai_next) {
         error_free(local_err);
         local_err = NULL;
-        sock = inet_connect_addr(e, &local_err);
+        sock = inet_connect_addr(e, &local_err, sconf);
         if (sock >= 0) {
             break;
         }
@@ -661,7 +678,7 @@ int inet_connect(const char *str, Error **errp)
     InetSocketAddress *addr = g_new(InetSocketAddress, 1);
 
     if (!inet_parse(addr, str, errp)) {
-        sock = inet_connect_saddr(addr, errp);
+        sock = inet_connect_saddr(addr, errp, NULL);
     }
     qapi_free_InetSocketAddress(addr);
     return sock;
@@ -694,7 +711,8 @@ static bool vsock_parse_vaddr_to_sockaddr(const VsockSocketAddress *vaddr,
     return true;
 }
 
-static int vsock_connect_addr(const struct sockaddr_vm *svm, Error **errp)
+static int vsock_connect_addr(const struct sockaddr_vm *svm, Error **errp,
+                              QemuSocketConfig *sconf)
 {
     int sock, rc;
 
@@ -704,11 +722,24 @@ static int vsock_connect_addr(const struct sockaddr_vm *svm, Error **errp)
         return -1;
     }
 
+    if(parse_socket_options(sock, errp, sconf) < 0) {
+        error_setg_errno(errp, errno, "Failed to set socket option");
+        return -1;
+    }
+
     /* connect to peer */
     do {
         rc = 0;
         if (connect(sock, (const struct sockaddr *)svm, sizeof(*svm)) < 0) {
             rc = -errno;
+        }
+        if(sconf->nonblocking) {
+            if(rc == -EWOULDBLOCK)
+                continue;
+            else if(rc == -EINPROGRESS ||
+                    rc == -EALREADY ||
+                    rc == -EINVAL)
+                return sock;
         }
     } while (rc == -EINTR);
 
@@ -721,7 +752,8 @@ static int vsock_connect_addr(const struct sockaddr_vm *svm, Error **errp)
     return sock;
 }
 
-static int vsock_connect_saddr(VsockSocketAddress *vaddr, Error **errp)
+static int vsock_connect_saddr(VsockSocketAddress *vaddr, Error **errp,\
+                               QemuSocketConfig *sconf)
 {
     struct sockaddr_vm svm;
     int sock = -1;
@@ -730,7 +762,7 @@ static int vsock_connect_saddr(VsockSocketAddress *vaddr, Error **errp)
         return -1;
     }
 
-    sock = vsock_connect_addr(&svm, errp);
+    sock = vsock_connect_addr(&svm, errp, sconf);
 
     return sock;
 }
@@ -798,7 +830,8 @@ static void vsock_unsupported(Error **errp)
     error_setg(errp, "socket family AF_VSOCK unsupported");
 }
 
-static int vsock_connect_saddr(VsockSocketAddress *vaddr, Error **errp)
+static int vsock_connect_saddr(VsockSocketAddress *vaddr, Error **errp,
+                               QemuSocketConfig *sconf)
 {
     vsock_unsupported(errp);
     return -1;
@@ -903,7 +936,8 @@ err:
     return -1;
 }
 
-static int unix_connect_saddr(UnixSocketAddress *saddr, Error **errp)
+static int unix_connect_saddr(UnixSocketAddress *saddr, Error **errp,
+                              QemuSocketConfig *sconf)
 {
     struct sockaddr_un un;
     int sock, rc;
@@ -916,6 +950,11 @@ static int unix_connect_saddr(UnixSocketAddress *saddr, Error **errp)
     sock = qemu_socket(PF_UNIX, SOCK_STREAM, 0);
     if (sock < 0) {
         error_setg_errno(errp, errno, "Failed to create socket");
+        return -1;
+    }
+
+    if(parse_socket_options(sock, errp, sconf) < 0) {
+        error_setg_errno(errp, errno, "Failed to set socket options");
         return -1;
     }
 
@@ -935,6 +974,15 @@ static int unix_connect_saddr(UnixSocketAddress *saddr, Error **errp)
         rc = 0;
         if (connect(sock, (struct sockaddr *) &un, sizeof(un)) < 0) {
             rc = -errno;
+        }
+        /* More judge for nonblocking socket, borrowed from net_socket_connect_init */
+        if(sconf->nonblocking) {
+            if(rc == -EWOULDBLOCK)
+                continue;
+            else if(rc == -EINPROGRESS ||
+                    rc == -EALREADY ||
+                    rc == -EINVAL)
+                break;
         }
     } while (rc == -EINTR);
 
@@ -962,7 +1010,8 @@ static int unix_listen_saddr(UnixSocketAddress *saddr,
     return -1;
 }
 
-static int unix_connect_saddr(UnixSocketAddress *saddr, Error **errp)
+static int unix_connect_saddr(UnixSocketAddress *saddr, Error **errp,
+                              QemuSocketConfig *sconf)
 {
     error_setg(errp, "unix sockets are not available on windows");
     errno = ENOTSUP;
@@ -1004,7 +1053,7 @@ int unix_connect(const char *path, Error **errp)
 
     saddr = g_new0(UnixSocketAddress, 1);
     saddr->path = g_strdup(path);
-    sock = unix_connect_saddr(saddr, errp);
+    sock = unix_connect_saddr(saddr, errp, NULL);
     qapi_free_UnixSocketAddress(saddr);
     return sock;
 }
@@ -1049,17 +1098,18 @@ fail:
     return NULL;
 }
 
-int socket_connect(SocketAddress *addr, Error **errp)
+int socket_connect(SocketAddress *addr, Error **errp,
+                   QemuSocketConfig *sconf)
 {
     int fd;
 
     switch (addr->type) {
     case SOCKET_ADDRESS_TYPE_INET:
-        fd = inet_connect_saddr(&addr->u.inet, errp);
+        fd = inet_connect_saddr(&addr->u.inet, errp, sconf);
         break;
 
     case SOCKET_ADDRESS_TYPE_UNIX:
-        fd = unix_connect_saddr(&addr->u.q_unix, errp);
+        fd = unix_connect_saddr(&addr->u.q_unix, errp, sconf);
         break;
 
     case SOCKET_ADDRESS_TYPE_FD:
@@ -1067,7 +1117,7 @@ int socket_connect(SocketAddress *addr, Error **errp)
         break;
 
     case SOCKET_ADDRESS_TYPE_VSOCK:
-        fd = vsock_connect_saddr(&addr->u.vsock, errp);
+        fd = vsock_connect_saddr(&addr->u.vsock, errp, sconf);
         break;
 
     default:

@@ -46,7 +46,8 @@ int inet_ai_family_from_address(InetSocketAddress *addr,
                                 Error **errp);
 int inet_parse(InetSocketAddress *addr, const char *str, Error **errp);
 int inet_connect(const char *str, Error **errp);
-int inet_connect_saddr(InetSocketAddress *saddr, Error **errp);
+int inet_connect_saddr(InetSocketAddress *saddr, Error **errp,
+                       QemuSocketConfig *sconf);
 
 NetworkAddressFamily inet_netfamily(int family);
 
@@ -54,7 +55,7 @@ int unix_listen(const char *path, Error **errp);
 int unix_connect(const char *path, Error **errp);
 
 SocketAddress *socket_parse(const char *str, Error **errp);
-int socket_connect(SocketAddress *addr, Error **errp);
+int socket_connect(SocketAddress *addr, Error **errp, QemuSocketConfig *sconf);
 int socket_listen(SocketAddress *addr, Error **errp, QemuSocketConfig *sconf);
 void socket_listen_cleanup(int fd, Error **errp);
 int socket_dgram(SocketAddress *remote, SocketAddress *local, Error **errp);
