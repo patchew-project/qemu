@@ -494,35 +494,35 @@ static int net_socket_listen_init(NetClientState *peer,
 {
     NetClientState *nc;
     NetSocketState *s;
-    struct sockaddr_in saddr;
-    int fd, ret;
+    SocketAddress *saddr;
+    QemuSocketConfig *sconf;
+    Error *local_err = NULL;
+    int fd;
 
-    if (parse_host_port(&saddr, host_str, errp) < 0) {
+    saddr = socket_parse(host_str, &local_err);
+    if(NULL != local_err) {
+        error_setg_errno(errp, errno, "socket_parse failed");
         return -1;
     }
 
-    fd = qemu_socket(PF_INET, SOCK_STREAM, 0);
-    if (fd < 0) {
-        error_setg_errno(errp, errno, "can't create stream socket");
+    /* Manually prepare config because socket_listen
++     * will not set O_NONBLOCKING */
+    sconf = g_new0(QemuSocketConfig, 1);
+    if(NULL == sconf) {
+        qapi_free_SocketAddress(saddr);
+        error_setg_errno(errp, errno, "out of memory");
         return -1;
     }
-    qemu_set_nonblock(fd);
+    sconf->nonblocking = true;
+    sconf->options = NULL;
 
-    socket_set_fast_reuse(fd);
-
-    ret = bind(fd, (struct sockaddr *)&saddr, sizeof(saddr));
-    if (ret < 0) {
-        error_setg_errno(errp, errno, "can't bind ip=%s to socket",
-                         inet_ntoa(saddr.sin_addr));
-        closesocket(fd);
+    fd = socket_listen(saddr, errp, sconf);
+    if(fd < 0) {
+        error_setg_errno(errp, errno, "can't listen on address");
+        qapi_free_SocketAddress(saddr);
         return -1;
     }
-    ret = listen(fd, 0);
-    if (ret < 0) {
-        error_setg_errno(errp, errno, "can't listen on socket");
-        closesocket(fd);
-        return -1;
-    }
+    g_free(sconf);
 
     nc = qemu_new_net_client(&net_socket_info, peer, model, name);
     s = DO_UPCAST(NetSocketState, nc, nc);
@@ -532,6 +532,7 @@ static int net_socket_listen_init(NetClientState *peer,
     net_socket_rs_init(&s->rs, net_socket_rs_finalize, false);
 
     qemu_set_fd_handler(s->listen_fd, net_socket_accept, NULL, s);
+    qapi_free_SocketAddress(saddr);
     return 0;
 }
 
