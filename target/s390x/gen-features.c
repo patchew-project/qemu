@@ -574,6 +574,7 @@ static uint16_t qemu_LATEST[] = {
     S390_FEAT_INTERLOCKED_ACCESS_2,
     S390_FEAT_MSA_EXT_4,
     S390_FEAT_MSA_EXT_3,
+    S390_FEAT_ADAPTER_EVENT_NOTIFICATION,
 };
 
 /* add all new definitions before this point */
@@ -582,6 +583,8 @@ static uint16_t qemu_MAX[] = {
     S390_FEAT_STFLE_53,
     /* generates a dependency warning, leave it out for now */
     S390_FEAT_MSA_EXT_5,
+    /* should be conditional on CONFIG_PCI */
+    S390_FEAT_ZPCI,
 };
 
 /****** END FEATURE DEFS ******/
