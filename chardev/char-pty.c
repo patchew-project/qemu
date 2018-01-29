@@ -57,8 +57,8 @@ static gboolean pty_chr_timer(gpointer opaque)
     PtyChardev *s = PTY_CHARDEV(opaque);
 
     qemu_mutex_lock(&chr->chr_write_lock);
+    g_source_unref(s->timer_src);
     s->timer_src = NULL;
-    g_source_unref(s->open_source);
     s->open_source = NULL;
     if (!s->connected) {
         /* Next poll ... */
