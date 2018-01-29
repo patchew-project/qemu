@@ -3192,3 +3192,16 @@
 # Since: 2.11
 ##
 { 'command': 'watchdog-set-action', 'data' : {'action': 'WatchdogAction'} }
+
+##
+# @SEV_MEASUREMENT:
+#
+# Emitted when measurement is available for the SEV guest.
+#
+# @value: measurement value encoded in base64
+#
+# Since: 2.12
+#
+##
+{ 'event' : 'SEV_MEASUREMENT',
+  'data' : { 'value' : 'str' } }
