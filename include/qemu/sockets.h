@@ -11,6 +11,21 @@ int inet_aton(const char *cp, struct in_addr *ia);
 
 #include "qapi-types.h"
 
+struct QemuSocketOption {
+    int level;
+    int optname;
+    void *optval;
+    socklen_t optlen;
+    struct QemuSocketOption *next;
+};
+typedef struct QemuSocketOption QemuSocketOption;
+
+struct QemuSocketConfig {
+    bool nonblocking;
+    QemuSocketOption *options;
+};
+typedef struct QemuSocketConfig QemuSocketConfig;
+
 /* misc helpers */
 int qemu_socket(int domain, int type, int protocol);
 int qemu_accept(int s, struct sockaddr *addr, socklen_t *addrlen);
@@ -40,7 +55,7 @@ int unix_connect(const char *path, Error **errp);
 
 SocketAddress *socket_parse(const char *str, Error **errp);
 int socket_connect(SocketAddress *addr, Error **errp);
-int socket_listen(SocketAddress *addr, Error **errp);
+int socket_listen(SocketAddress *addr, Error **errp, QemuSocketConfig *sconf);
 void socket_listen_cleanup(int fd, Error **errp);
 int socket_dgram(SocketAddress *remote, SocketAddress *local, Error **errp);
 

@@ -43,7 +43,6 @@
 # define AI_NUMERICSERV 0
 #endif
 
-
 static int inet_getport(struct addrinfo *e)
 {
     struct sockaddr_in *i4;
@@ -196,9 +195,40 @@ static int try_bind(int socket, InetSocketAddress *saddr, struct addrinfo *e)
 #endif
 }
 
+static int parse_socket_options(int fd,
+                                Error **errp,
+                                QemuSocketConfig *sconf)
+{
+    QemuSocketOption *sopt;
+
+    if(!sconf) {
+        /* No extra socket options are defined */
+        return fd;
+    }
+
+    if(sconf->nonblocking) {
+        qemu_set_nonblock(fd);
+    } 
+
+    for(sopt = sconf->options; sopt; sopt = sopt->next) {
+        if(sopt->level < IPPROTO_IP || sopt->optname < SO_DEBUG || 
+                              !sopt->optval || sopt->optlen <= 0) {
+            error_setg(errp, "Invalid socket option:\n"
+                             "level=%d, optname=%d, optval=%p, optlen=%d\n",
+                    sopt->level, sopt->optname, sopt->optval, sopt->optlen);
+            return -1;
+        }
+        qemu_setsockopt(fd, sopt->level, sopt->optname, 
+                            sopt->optval, sopt->optlen);
+    }
+
+    return fd;
+}
+
 static int inet_listen_saddr(InetSocketAddress *saddr,
                              int port_offset,
-                             Error **errp)
+                             Error **errp,
+                             QemuSocketConfig *sconf)
 {
     struct addrinfo ai,*res,*e;
     char port[33];
@@ -286,6 +316,11 @@ static int inet_listen_saddr(InetSocketAddress *saddr,
                 }
             }
             socket_created = true;
+
+            if(parse_socket_options(slisten, errp, sconf) < 0) {
+                error_setg_errno(errp, errno, "Failed to set socket options");
+                goto listen_failed;
+            }
 
             rc = try_bind(slisten, saddr, e);
             if (rc < 0) {
@@ -701,7 +736,8 @@ static int vsock_connect_saddr(VsockSocketAddress *vaddr, Error **errp)
 }
 
 static int vsock_listen_saddr(VsockSocketAddress *vaddr,
-                              Error **errp)
+                              Error **errp,
+                              QemuSocketConfig *sconf)
 {
     struct sockaddr_vm svm;
     int slisten;
@@ -713,6 +749,12 @@ static int vsock_listen_saddr(VsockSocketAddress *vaddr,
     slisten = qemu_socket(AF_VSOCK, SOCK_STREAM, 0);
     if (slisten < 0) {
         error_setg_errno(errp, errno, "Failed to create socket");
+        return -1;
+    }
+
+    if(parse_socket_options(slisten, errp, sconf) < 0) {
+        error_setg_errno(errp, errno, "Failed to set socket options");
+        closesocket(slisten);
         return -1;
     }
 
@@ -763,7 +805,8 @@ static int vsock_connect_saddr(VsockSocketAddress *vaddr, Error **errp)
 }
 
 static int vsock_listen_saddr(VsockSocketAddress *vaddr,
-                              Error **errp)
+                              Error **errp,
+                              QemuSocketConfig *sconf)
 {
     vsock_unsupported(errp);
     return -1;
@@ -780,7 +823,8 @@ static int vsock_parse(VsockSocketAddress *addr, const char *str,
 #ifndef _WIN32
 
 static int unix_listen_saddr(UnixSocketAddress *saddr,
-                             Error **errp)
+                             Error **errp,
+                             QemuSocketConfig *sconf)
 {
     struct sockaddr_un un;
     int sock, fd;
@@ -790,6 +834,12 @@ static int unix_listen_saddr(UnixSocketAddress *saddr,
     sock = qemu_socket(PF_UNIX, SOCK_STREAM, 0);
     if (sock < 0) {
         error_setg_errno(errp, errno, "Failed to create Unix socket");
+        return -1;
+    }
+
+    if(parse_socket_options(sock, errp, sconf) < 0) {
+        error_setg_errno(errp, errno, "Failed to set socket option");
+        closesocket(sock);
         return -1;
     }
 
@@ -904,7 +954,8 @@ static int unix_connect_saddr(UnixSocketAddress *saddr, Error **errp)
 #else
 
 static int unix_listen_saddr(UnixSocketAddress *saddr,
-                             Error **errp)
+                             Error **errp,
+                             QemuSocketConfig *sconf)
 {
     error_setg(errp, "unix sockets are not available on windows");
     errno = ENOTSUP;
@@ -940,7 +991,7 @@ int unix_listen(const char *str, Error **errp)
         saddr->path = g_strdup(str);
     }
 
-    sock = unix_listen_saddr(saddr, errp);
+    sock = unix_listen_saddr(saddr, errp, NULL);
 
     qapi_free_UnixSocketAddress(saddr);
     return sock;
@@ -1025,17 +1076,18 @@ int socket_connect(SocketAddress *addr, Error **errp)
     return fd;
 }
 
-int socket_listen(SocketAddress *addr, Error **errp)
+int socket_listen(SocketAddress *addr, Error **errp,
+                  QemuSocketConfig *sconf)
 {
     int fd;
 
     switch (addr->type) {
     case SOCKET_ADDRESS_TYPE_INET:
-        fd = inet_listen_saddr(&addr->u.inet, 0, errp);
+        fd = inet_listen_saddr(&addr->u.inet, 0, errp, sconf);
         break;
 
     case SOCKET_ADDRESS_TYPE_UNIX:
-        fd = unix_listen_saddr(&addr->u.q_unix, errp);
+        fd = unix_listen_saddr(&addr->u.q_unix, errp, sconf);
         break;
 
     case SOCKET_ADDRESS_TYPE_FD:
@@ -1043,7 +1095,7 @@ int socket_listen(SocketAddress *addr, Error **errp)
         break;
 
     case SOCKET_ADDRESS_TYPE_VSOCK:
-        fd = vsock_listen_saddr(&addr->u.vsock, errp);
+        fd = vsock_listen_saddr(&addr->u.vsock, errp, sconf);
         break;
 
     default:
