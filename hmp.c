@@ -88,6 +88,8 @@ void hmp_info_kvm(Monitor *mon, const QDict *qdict)
     monitor_printf(mon, "kvm support: ");
     if (info->present) {
         monitor_printf(mon, "%s\n", info->enabled ? "enabled" : "disabled");
+        monitor_printf(mon, "memory encryption: %s\n",
+                       info->mem_encryption ? "enabled" : "disabled");
     } else {
         monitor_printf(mon, "not compiled\n");
     }
