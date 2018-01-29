@@ -543,48 +543,42 @@ static int net_socket_connect_init(NetClientState *peer,
                                    Error **errp)
 {
     NetSocketState *s;
-    int fd, connected, ret;
-    struct sockaddr_in saddr;
+    int fd, connected;
+    SocketAddress *saddr;
+    QemuSocketConfig *sconf;
+    Error *local_err = NULL;
 
-    if (parse_host_port(&saddr, host_str, errp) < 0) {
+    saddr = socket_parse(host_str, &local_err);
+    if(NULL != local_err) {
+        error_setg_errno(errp, errno, "socket_parse failed");
         return -1;
     }
 
-    fd = qemu_socket(PF_INET, SOCK_STREAM, 0);
-    if (fd < 0) {
-        error_setg_errno(errp, errno, "can't create stream socket");
-        return -1;
-    }
-    qemu_set_nonblock(fd);
+    sconf = g_new0(QemuSocketConfig, 1);
+    sconf->nonblocking = true;
+    sconf->options = NULL;
 
     connected = 0;
-    for(;;) {
-        ret = connect(fd, (struct sockaddr *)&saddr, sizeof(saddr));
-        if (ret < 0) {
-            if (errno == EINTR || errno == EWOULDBLOCK) {
-                /* continue */
-            } else if (errno == EINPROGRESS ||
-                       errno == EALREADY ||
-                       errno == EINVAL) {
-                break;
-            } else {
-                error_setg_errno(errp, errno, "can't connect socket");
-                closesocket(fd);
-                return -1;
-            }
-        } else {
-            connected = 1;
-            break;
-        }
+    fd = socket_connect(saddr, errp, sconf);
+    if(fd < 0) {
+        error_setg_errno(errp, errno, "socket_connect failed");
+        g_free(sconf);
+        qapi_free_SocketAddress(saddr);
+        return -1;
+    } else if(errno != EINPROGRESS && errno != EALREADY && errno != EINVAL) {
+        connected = 1;
     }
+    g_free(sconf);
+
     s = net_socket_fd_init(peer, model, name, fd, connected, NULL, errp);
     if (!s) {
         return -1;
     }
 
     snprintf(s->nc.info_str, sizeof(s->nc.info_str),
-             "socket: connect to %s:%d",
-             inet_ntoa(saddr.sin_addr), ntohs(saddr.sin_port));
+             "socket: connect to %s:%s",
+             saddr->u.inet.host, saddr->u.inet.port);
+    qapi_free_SocketAddress(saddr);
     return 0;
 }
 
