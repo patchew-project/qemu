@@ -3610,6 +3610,47 @@ void address_space_cache_destroy(MemoryRegionCache *cache)
 #define RCU_READ_UNLOCK()        rcu_read_unlock()
 #include "memory_ldst.inc.c"
 
+uint32_t ldl_phys_debug(CPUState *cpu, hwaddr addr)
+{
+    MemTxAttrs attrs;
+    int asidx = cpu_asidx_from_attrs(cpu, attrs);
+    uint32_t val;
+
+    /* set debug attrs to indicate memory access is from the debugger */
+    attrs.debug = 1;
+
+    cpu_physical_memory_rw_internal(cpu->cpu_ases[asidx].as,
+                                          addr, (void *) &val,
+                                          4, attrs, READ_DATA);
+    return tswap32(val);
+}
+
+uint64_t ldq_phys_debug(CPUState *cpu, hwaddr addr)
+{
+    MemTxAttrs attrs;
+    int asidx = cpu_asidx_from_attrs(cpu, attrs);
+    uint64_t val;
+
+    /* set debug attrs to indicate memory access is from the debugger */
+    attrs.debug = 1;
+
+    cpu_physical_memory_rw_internal(cpu->cpu_ases[asidx].as,
+                                          addr, (void *) &val,
+                                          8, attrs, READ_DATA);
+    return val;
+}
+
+void cpu_physical_memory_rw_debug(hwaddr addr, uint8_t *buf,
+                                  int len, int is_write)
+{
+    MemTxAttrs attrs;
+
+    /* set debug attrs to indicate memory access is from the debugger */
+    attrs.debug = 1;
+
+    address_space_rw(&address_space_memory, addr, attrs, buf, len, is_write);
+}
+
 /* virtual memory access for debug (includes writing to ROM) */
 int cpu_memory_rw_debug(CPUState *cpu, target_ulong addr,
                         uint8_t *buf, int len, int is_write)
