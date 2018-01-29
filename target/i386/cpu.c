@@ -234,6 +234,7 @@ static void x86_cpu_vendor_words2str(char *dst, uint32_t vendor1,
 #define TCG_EXT4_FEATURES 0
 #define TCG_SVM_FEATURES 0
 #define TCG_KVM_FEATURES 0
+#define TCG_MEM_ENCRYPT_FEATURES 0
 #define TCG_7_0_EBX_FEATURES (CPUID_7_0_EBX_SMEP | CPUID_7_0_EBX_SMAP | \
           CPUID_7_0_EBX_BMI1 | CPUID_7_0_EBX_BMI2 | CPUID_7_0_EBX_ADX | \
           CPUID_7_0_EBX_PCOMMIT | CPUID_7_0_EBX_CLFLUSHOPT |            \
@@ -545,6 +546,20 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         .cpuid_reg = R_EDX,
         .tcg_features = ~0U,
     },
+    [FEAT_MEM_ENCRYPT] = {
+        .feat_names = {
+            "sme", "sev", "page-flush-msr", "sev-es",
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+        },
+        .cpuid_eax = 0x8000001F, .cpuid_reg = R_EAX,
+        .tcg_features = TCG_MEM_ENCRYPT_FEATURES,
+    }
 };
 
 typedef struct X86RegisterInfo32 {
@@ -1965,6 +1980,9 @@ static X86CPUDefinition builtin_x86_defs[] = {
             CPUID_XSAVE_XGETBV1,
         .features[FEAT_6_EAX] =
             CPUID_6_EAX_ARAT,
+        /* Missing: SEV_ES */
+        .features[FEAT_MEM_ENCRYPT] =
+            CPUID_8000_001F_EAX_SME | CPUID_8000_001F_EAX_SEV,
         .xlevel = 0x8000000A,
         .model_id = "AMD EPYC Processor",
     },
@@ -3589,6 +3607,19 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
             *edx = 0;
         }
         break;
+    case 0x8000001F:
+        if (env->features[FEAT_MEM_ENCRYPT] & CPUID_8000_001F_EAX_SEV) {
+            *eax = env->features[FEAT_MEM_ENCRYPT];
+            host_cpuid(0x8000001F, 0, NULL, ebx, NULL, NULL);
+            *ecx = 0;
+            *edx = 0;
+        } else {
+            *eax = 0;
+            *ebx = 0;
+            *ecx = 0;
+            *edx = 0;
+        }
+        break;
     case 0xC0000000:
         *eax = env->cpuid_xlevel2;
         *ebx = 0;
@@ -4036,9 +4067,14 @@ static void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
         x86_cpu_adjust_feat_level(cpu, FEAT_C000_0001_EDX);
         x86_cpu_adjust_feat_level(cpu, FEAT_SVM);
         x86_cpu_adjust_feat_level(cpu, FEAT_XSAVE);
+        x86_cpu_adjust_feat_level(cpu, FEAT_MEM_ENCRYPT);
         /* SVM requires CPUID[0x8000000A] */
         if (env->features[FEAT_8000_0001_ECX] & CPUID_EXT3_SVM) {
             x86_cpu_adjust_level(cpu, &env->cpuid_min_xlevel, 0x8000000A);
+        }
+        /* SEV requires CPUID[0x8000001F] */
+        if ((env->features[FEAT_MEM_ENCRYPT] & CPUID_8000_001F_EAX_SEV)) {
+            x86_cpu_adjust_level(cpu, &env->cpuid_min_xlevel, 0x8000001F);
         }
     }
 

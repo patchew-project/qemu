@@ -483,6 +483,7 @@ typedef enum FeatureWord {
     FEAT_6_EAX,         /* CPUID[6].EAX */
     FEAT_XSAVE_COMP_LO, /* CPUID[EAX=0xd,ECX=0].EAX */
     FEAT_XSAVE_COMP_HI, /* CPUID[EAX=0xd,ECX=0].EDX */
+    FEAT_MEM_ENCRYPT,   /* CPUID[8000_001F].EAX */
     FEATURE_WORDS,
 } FeatureWord;
 
@@ -678,6 +679,11 @@ typedef uint32_t FeatureWordArray[FEATURE_WORDS];
 #define CPUID_XSAVE_XSAVES     (1U << 3)
 
 #define CPUID_6_EAX_ARAT       (1U << 2)
+
+#define CPUID_8000_001F_EAX_SME             (1U << 0) /* SME */
+#define CPUID_8000_001F_EAX_SEV             (1U << 1) /* SEV */
+#define CPUID_8000_001F_EAX_PAGE_FLUSH_MSR  (1U << 2) /* Page flush MSR */
+#define CPUID_8000_001F_EAX_SEV_ES          (1U << 3) /* SEV-ES */
 
 /* CPUID[0x80000007].EDX flags: */
 #define CPUID_APM_INVTSC       (1U << 8)
