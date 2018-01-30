@@ -365,7 +365,7 @@ static void block_job_completed_single(BlockJob *job)
     block_job_unref(job);
 }
 
-static void block_job_cancel_async(BlockJob *job)
+static void block_job_cancel_async(BlockJob *job, bool force)
 {
     if (job->iostatus != BLOCK_DEVICE_IO_STATUS_OK) {
         block_job_iostatus_reset(job);
@@ -376,6 +376,7 @@ static void block_job_cancel_async(BlockJob *job)
         job->pause_count--;
     }
     job->cancelled = true;
+    job->force = force;
 }
 
 static int block_job_finish_sync(BlockJob *job,
@@ -437,7 +438,7 @@ static void block_job_completed_txn_abort(BlockJob *job)
      * on the caller, so leave it. */
     QLIST_FOREACH(other_job, &txn->jobs, txn_list) {
         if (other_job != job) {
-            block_job_cancel_async(other_job);
+            block_job_cancel_async(other_job, true);
         }
     }
     while (!QLIST_EMPTY(&txn->jobs)) {
@@ -542,10 +543,10 @@ void block_job_user_resume(BlockJob *job)
     }
 }
 
-void block_job_cancel(BlockJob *job)
+void block_job_cancel(BlockJob *job, bool force)
 {
     if (block_job_started(job)) {
-        block_job_cancel_async(job);
+        block_job_cancel_async(job, force);
         block_job_enter(job);
     } else {
         block_job_completed(job, -ECANCELED);
@@ -557,7 +558,7 @@ void block_job_cancel(BlockJob *job)
  * function pointer casts there. */
 static void block_job_cancel_err(BlockJob *job, Error **errp)
 {
-    block_job_cancel(job);
+    block_job_cancel(job, false);
 }
 
 int block_job_cancel_sync(BlockJob *job)

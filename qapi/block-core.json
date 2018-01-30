@@ -2098,8 +2098,10 @@
 #          the name of the parameter), but since QEMU 2.7 it can have
 #          other values.
 #
-# @force: whether to allow cancellation of a paused job (default
-#         false).  Since 1.3.
+# @force: #optional whether to allow cancellation a job without waiting data is
+#         in sync, please not that since 2.12 it's semantic is not exactly the
+#         same as before, from 1.3 to 2.11 it means whether to allow cancellation
+#         of a paused job (default false).  Since 1.3.
 #
 # Returns: Nothing on success
 #          If no background operation is active on this device, DeviceNotActive
