@@ -413,7 +413,7 @@ static inline void bitmap_dir_entry_to_be(Qcow2BitmapDirEntry *entry)
 
 static inline int calc_dir_entry_size(size_t name_size, size_t extra_data_size)
 {
-    return align_offset(sizeof(Qcow2BitmapDirEntry) +
+    return ROUND_UP(sizeof(Qcow2BitmapDirEntry) +
                         name_size + extra_data_size, 8);
 }
 
