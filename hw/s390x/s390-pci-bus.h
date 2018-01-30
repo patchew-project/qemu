@@ -148,6 +148,8 @@ enum ZpciIoatDtype {
 #define ZPCI_STE_FLAG_MASK      0x7ffULL
 #define ZPCI_STE_ADDR_MASK      (~ZPCI_STE_FLAG_MASK)
 
+#define ZPCI_SFAA_MASK          (~((1ULL << 20) - 1))
+
 /* I/O Page tables */
 #define ZPCI_PTE_VALID_MASK             0x400
 #define ZPCI_PTE_INVALID                0x400
@@ -165,6 +167,7 @@ enum ZpciIoatDtype {
 #define ZPCI_TABLE_INVALID              0x20
 #define ZPCI_TABLE_PROTECTED            0x200
 #define ZPCI_TABLE_UNPROTECTED          0x000
+#define ZPCI_TABLE_FC                   0x400
 
 #define ZPCI_TABLE_VALID_MASK           0x20
 #define ZPCI_TABLE_PROT_MASK            0x200
@@ -252,6 +255,13 @@ typedef struct S390MsixInfo {
     uint32_t table_offset;
     uint32_t pba_offset;
 } S390MsixInfo;
+
+typedef struct S390IOTLBEntry {
+    uint64_t iova;
+    uint64_t translated_addr;
+    uint64_t len;
+    uint64_t perm;
+} S390IOTLBEntry;
 
 typedef struct S390PCIBusDevice S390PCIBusDevice;
 typedef struct S390PCIIOMMU {
