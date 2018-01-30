@@ -10,7 +10,9 @@
  * the COPYING file in the top-level directory.
  *
  */
+
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "qemu-fsdev.h"
 #include "qemu/queue.h"
 #include "qemu-common.h"
