@@ -776,7 +776,6 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     PCIBus *pci_bus;
     CPUPPCState *env = NULL;
-    uint64_t loadaddr;
     hwaddr kernel_base = -1LL;
     int kernel_size = 0;
     hwaddr dt_base = 0;
@@ -913,11 +912,6 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
     /* Register spinning region */
     sysbus_create_simple("e500-spin", params->spin_base, NULL);
 
-    if (cur_base < (32 * 1024 * 1024)) {
-        /* u-boot occupies memory up to 32MB, so load blobs above */
-        cur_base = (32 * 1024 * 1024);
-    }
-
     if (params->has_mpc8xxx_gpio) {
         qemu_irq poweroff_irq;
 
@@ -952,36 +946,6 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
                                     sysbus_mmio_get_region(s, 0));
     }
 
-    /* Load kernel. */
-    if (machine->kernel_filename) {
-        kernel_base = cur_base;
-        kernel_size = load_image_targphys(machine->kernel_filename,
-                                          cur_base,
-                                          ram_size - cur_base);
-        if (kernel_size < 0) {
-            fprintf(stderr, "qemu: could not load kernel '%s'\n",
-                    machine->kernel_filename);
-            exit(1);
-        }
-
-        cur_base += kernel_size;
-    }
-
-    /* Load initrd. */
-    if (machine->initrd_filename) {
-        initrd_base = (cur_base + INITRD_LOAD_PAD) & ~INITRD_PAD_MASK;
-        initrd_size = load_image_targphys(machine->initrd_filename, initrd_base,
-                                          ram_size - initrd_base);
-
-        if (initrd_size < 0) {
-            fprintf(stderr, "qemu: could not load initial ram disk '%s'\n",
-                    machine->initrd_filename);
-            exit(1);
-        }
-
-        cur_base = initrd_base + initrd_size;
-    }
-
     /*
      * Smart firmware defaults ahead!
      *
@@ -1006,24 +970,67 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
     }
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
 
-    bios_size = load_elf(filename, NULL, NULL, &bios_entry, &loadaddr, NULL,
+    bios_size = load_elf(filename, NULL, NULL, &bios_entry, &cur_base, NULL,
                          1, PPC_ELF_MACHINE, 0, 0);
     if (bios_size < 0) {
         /*
          * Hrm. No ELF image? Try a uImage, maybe someone is giving us an
          * ePAPR compliant kernel
          */
-        kernel_size = load_uimage(filename, &bios_entry, &loadaddr, NULL,
-                                  NULL, NULL);
-        if (kernel_size < 0) {
+        bios_size = load_uimage(filename, &bios_entry, &cur_base, NULL,
+                                NULL, NULL);
+        if (bios_size < 0) {
             fprintf(stderr, "qemu: could not load firmware '%s'\n", filename);
             exit(1);
         }
     }
+    cur_base += bios_size;
     g_free(filename);
 
+    /* Load bare kernel only if no bios/u-boot has been provided */
+    if (machine->kernel_filename != bios_name) {
+        kernel_base = cur_base;
+        kernel_size = load_image_targphys(machine->kernel_filename,
+                                          cur_base,
+                                          ram_size - cur_base);
+        if (kernel_size < 0) {
+            fprintf(stderr, "qemu: could not load kernel '%s'\n",
+                    machine->kernel_filename);
+            exit(1);
+        }
+
+        cur_base += kernel_size;
+    } else {
+        kernel_base = cur_base;
+        kernel_size = bios_size;
+    }
+
+    if (cur_base < (32 * 1024 * 1024)) {
+        /* u-boot occupies memory up to 32MB, so load blobs above */
+        cur_base = (32 * 1024 * 1024);
+    }
+
+    /* Load initrd. */
+    if (machine->initrd_filename) {
+        initrd_base = (cur_base + INITRD_LOAD_PAD) & ~INITRD_PAD_MASK;
+        initrd_size = load_image_targphys(machine->initrd_filename, initrd_base,
+                                          ram_size - initrd_base);
+
+        if (initrd_size < 0) {
+            fprintf(stderr, "qemu: could not load initial ram disk '%s'\n",
+                    machine->initrd_filename);
+            exit(1);
+        }
+
+        cur_base = initrd_base + initrd_size;
+    }
+
     /* Reserve space for dtb */
-    dt_base = (loadaddr + bios_size + DTC_LOAD_PAD) & ~DTC_PAD_MASK;
+    dt_base = (cur_base + DTC_LOAD_PAD) & ~DTC_PAD_MASK;
+    if (dt_base + DTB_MAX_SIZE > ram_size) {
+            fprintf(stderr, "qemu: not enough memory for device tree\n");
+            exit(1);
+    }
 
     dt_size = ppce500_prep_device_tree(machine, params, dt_base,
                                        initrd_base, initrd_size,
