@@ -40,10 +40,6 @@
 #include "qapi/clone-visitor.h"
 #include "chardev/char-fe.h"
 
-#include <fcntl.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <stdio.h>
 
 #define DEBUG_TPM 0
 
