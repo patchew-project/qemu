@@ -632,7 +632,7 @@ static void command (SB16State *s, uint8_t cmd)
     return;
 
  warn:
-    dolog ("warning: command %#x,%d is not truly understood yet\n",
+    ldebug("warning: command %#x,%d is not truly understood yet\n",
            cmd, s->needed_bytes);
     goto exit;
 
