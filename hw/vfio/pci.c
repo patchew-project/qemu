@@ -2999,6 +2999,7 @@ static Property vfio_pci_dev_properties[] = {
     DEFINE_PROP_UNSIGNED_NODEFAULT("x-nv-gpudirect-clique", VFIOPCIDevice,
                                    nv_gpudirect_clique,
                                    qdev_prop_nv_gpudirect_clique, uint8_t),
+    DEFINE_PROP_BOOL("p2p", VFIOPCIDevice, vbasedev.p2p, false),
     /*
      * TODO - support passed fds... is this necessary?
      * DEFINE_PROP_STRING("vfiofd", VFIOPCIDevice, vfiofd_name),
