@@ -1289,6 +1289,11 @@ static void vfio_pci_fixup_msix_region(VFIOPCIDevice *vdev)
     off_t start, end;
     VFIORegion *region = &vdev->bars[vdev->msix->table_bar].region;
 
+    if (vfio_is_cap_present(&vdev->vbasedev, VFIO_REGION_INFO_CAP_MSIX_MAPPABLE,
+                            vdev->msix->table_bar)) {
+        return;
+    }
+
     /*
      * We expect to find a single mmap covering the whole BAR, anything else
      * means it's either unsupported or already setup.
@@ -1472,6 +1477,11 @@ static int vfio_msix_setup(VFIOPCIDevice *vdev, int pos, Error **errp)
      * PBA emulation is needed and again disable if not.
      */
     memory_region_set_enabled(&vdev->pdev.msix_pba_mmio, false);
+
+    if (object_property_get_bool(OBJECT(qdev_get_machine()),
+                                 "vfio-no-msix-emulation", NULL)) {
+        memory_region_set_enabled(&vdev->pdev.msix_table_mmio, false);
+    }
 
     return 0;
 }
