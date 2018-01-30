@@ -4765,10 +4765,10 @@ int main(int argc, char **argv, char **envp)
     os_setup_post();
 
     main_loop();
-    replay_disable_events();
-    iothread_stop_all();
 
+    replay_disable_events();
     pause_all_vcpus();
+    iothread_stop_all();
     bdrv_close_all();
     res_free();
 
