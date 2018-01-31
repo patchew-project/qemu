@@ -24,10 +24,25 @@
 #include "mmu-book3s-v3.h"
 #include "mmu-radix64.h"
 
+bool ppc64_radix(PowerPCCPU *cpu)
+{
+    CPUPPCState *env = &cpu->env;
+
+    if (msr_hv) {
+        return ldq_phys(CPU(cpu)->as, cpu->env.spr[SPR_PTCR] &
+                        PTCR_PTAB) & PTCR_PTAB_HR;
+    } else  {
+        PPCVirtualHypervisorClass *vhc =
+            PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
+
+        return !!(vhc->get_patbe(cpu->vhyp) & PATBE1_GR);
+    }
+}
+
 int ppc64_v3_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr, int rwx,
                               int mmu_idx)
 {
-    if (ppc64_radix_guest(cpu)) { /* Guest uses radix */
+    if (ppc64_radix(cpu)) { /* radix mode */
         return ppc_radix64_handle_mmu_fault(cpu, eaddr, rwx, mmu_idx);
     } else { /* Guest uses hash */
         return ppc_hash64_handle_mmu_fault(cpu, eaddr, rwx, mmu_idx);

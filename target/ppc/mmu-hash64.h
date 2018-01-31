@@ -106,6 +106,7 @@ void ppc_hash64_update_rmls(CPUPPCState *env);
 /*
  * Partition table definitions
  */
+#define PTCR_PTAB_HR            PPC_BIT(0)            /* 1:Host Radix 0:HPT   */
 #define PTCR_PTAB               0x0FFFFFFFFFFFF000ULL /* Partition Table Base */
 #define PTCR_PTAS               0x000000000000001FULL /* Partition Table Size */
 

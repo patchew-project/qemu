@@ -37,13 +37,7 @@ static inline bool ppc64_use_proc_tbl(PowerPCCPU *cpu)
     return !!(cpu->env.spr[SPR_LPCR] & LPCR_UPRT);
 }
 
-static inline bool ppc64_radix_guest(PowerPCCPU *cpu)
-{
-    PPCVirtualHypervisorClass *vhc =
-        PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
-
-    return !!(vhc->get_patbe(cpu->vhyp) & PATBE1_GR);
-}
+bool ppc64_radix(PowerPCCPU *cpu);
 
 int ppc64_v3_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr, int rwx,
                               int mmu_idx);
