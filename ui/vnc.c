@@ -1407,13 +1407,19 @@ static void vnc_client_write_locked(VncState *vs)
     } else
 #endif /* CONFIG_VNC_SASL */
     {
-        vnc_client_write_plain(vs);
+        if (vs->disconnecting == FALSE) {
+            vnc_client_write_plain(vs);
+        } else {
+            if (vs->ioc_tag != 0) {
+                g_source_remove(vs->ioc_tag);
+                vs->ioc_tag = 0;
+            }
+        }
     }
 }
 
 static void vnc_client_write(VncState *vs)
 {
-
     vnc_lock_output(vs);
     if (vs->output.offset) {
         vnc_client_write_locked(vs);
@@ -1421,8 +1427,12 @@ static void vnc_client_write(VncState *vs)
         if (vs->ioc_tag) {
             g_source_remove(vs->ioc_tag);
         }
-        vs->ioc_tag = qio_channel_add_watch(
-            vs->ioc, G_IO_IN, vnc_client_io, vs, NULL);
+        if (vs->disconnecting == FALSE) {
+            vs->ioc_tag = qio_channel_add_watch(
+                vs->ioc, G_IO_IN, vnc_client_io, vs, NULL);
+        } else {
+            vs->ioc_tag = 0;
+        }
     }
     vnc_unlock_output(vs);
 }
