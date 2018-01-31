@@ -69,8 +69,12 @@ void ppc_hash64_update_rmls(CPUPPCState *env);
 #define HPTE64_V_SSIZE_SHIFT    62
 #define HPTE64_V_AVPN_SHIFT     7
 #define HPTE64_V_AVPN           0x3fffffffffffff80ULL
+#define HPTE64_V_AVPN_3_0       0x000fffffffffff80ULL
 #define HPTE64_V_AVPN_VAL(x)    (((x) & HPTE64_V_AVPN) >> HPTE64_V_AVPN_SHIFT)
+#define HPTE64_V_AVPN_VAL_3_0(x)                        \
+    (((x) & HPTE64_V_AVPN_3_0) >> HPTE64_V_AVPN_SHIFT)
 #define HPTE64_V_COMPARE(x, y)  (!(((x) ^ (y)) & 0xffffffffffffff83ULL))
+#define HPTE64_V_COMPARE_3_0(x, y)  (!(((x) ^ (y)) & 0x3fffffffffffff83ULL))
 #define HPTE64_V_BOLTED         0x0000000000000010ULL
 #define HPTE64_V_LARGE          0x0000000000000004ULL
 #define HPTE64_V_SECONDARY      0x0000000000000002ULL
@@ -81,6 +85,7 @@ void ppc_hash64_update_rmls(CPUPPCState *env);
 #define HPTE64_R_KEY_HI         0x3000000000000000ULL
 #define HPTE64_R_RPN_SHIFT      12
 #define HPTE64_R_RPN            0x0ffffffffffff000ULL
+#define HPTE64_R_RPN_3_0        0x01fffffffffff000ULL
 #define HPTE64_R_FLAGS          0x00000000000003ffULL
 #define HPTE64_R_PP             0x0000000000000003ULL
 #define HPTE64_R_N              0x0000000000000004ULL
@@ -104,9 +109,34 @@ void ppc_hash64_update_rmls(CPUPPCState *env);
 #define PTCR_PTAB               0x0FFFFFFFFFFFF000ULL /* Partition Table Base */
 #define PTCR_PTAS               0x000000000000001FULL /* Partition Table Size */
 
+static inline target_ulong ppc_hash64_hpte_r_rpn(PowerPCCPU *cpu)
+{
+    CPUPPCState *env = &cpu->env;
+
+    return env->mmu_model & POWERPC_MMU_V3 ? HPTE64_R_RPN_3_0 : HPTE64_R_RPN;
+}
+
+static inline target_ulong ppc_hash64_hpte_v_avpn(PowerPCCPU *cpu)
+{
+    CPUPPCState *env = &cpu->env;
+
+    return env->mmu_model & POWERPC_MMU_V3 ? HPTE64_V_AVPN_3_0 : HPTE64_V_AVPN;
+}
+
+static inline target_ulong ppc_hash64_hpte_v_avpn_val(PowerPCCPU *cpu,
+                                                      target_ulong pte0)
+{
+    CPUPPCState *env = &cpu->env;
+
+    return env->mmu_model & POWERPC_MMU_V3 ?
+        HPTE64_V_AVPN_VAL_3_0(pte0) : HPTE64_V_AVPN_VAL(pte0);
+}
+
+hwaddr ppc_hash64_hpt_reg(PowerPCCPU *cpu);
+
 static inline hwaddr ppc_hash64_hpt_base(PowerPCCPU *cpu)
 {
-    return cpu->env.spr[SPR_SDR1] & SDR_64_HTABORG;
+    return ppc_hash64_hpt_reg(cpu) & SDR_64_HTABORG;
 }
 
 static inline hwaddr ppc_hash64_hpt_mask(PowerPCCPU *cpu)
@@ -116,7 +146,7 @@ static inline hwaddr ppc_hash64_hpt_mask(PowerPCCPU *cpu)
             PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
         return vhc->hpt_mask(cpu->vhyp);
     }
-    return (1ULL << ((cpu->env.spr[SPR_SDR1] & SDR_64_HTABSIZE) + 18 - 7)) - 1;
+    return (1ULL << ((ppc_hash64_hpt_reg(cpu) & SDR_64_HTABSIZE) + 18 - 7)) - 1;
 }
 
 struct ppc_hash_pte64 {
