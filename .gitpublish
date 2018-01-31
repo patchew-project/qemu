@@ -1,0 +1,57 @@
+#
+# Common git-publish profiles that can be used to send patches to QEMU upstream.
+#
+# See https://github.com/stefanha/git-publish for more information
+#
+[gitpublishprofile "qemu"]
+base = master
+prefix = PATCH
+to = qemu-devel@nongnu.org
+cccmd = scripts/get_maintainer.pl --noroles --norolestats --nogit --nogit-fallback 2>/dev/null
+
+[gitpublishprofile "qemu-rfc"]
+base = master
+prefix = RFC PATCH
+to = qemu-devel@nongnu.org
+cccmd = scripts/get_maintainer.pl --noroles --norolestats --nogit --nogit-fallback 2>/dev/null
+
+[gitpublishprofile "qemu-stable"]
+base = master
+prefix = PATCH
+to = qemu-devel@nongnu.org
+cc = qemu-stable@nongnu.org
+cccmd = scripts/get_maintainer.pl --noroles --norolestats --nogit --nogit-fallback 2>/dev/null
+
+[gitpublishprofile "qemu-trivial"]
+base = master
+prefix = PATCH
+to = qemu-devel@nongnu.org
+cccmd = scripts/get_maintainer.pl --noroles --norolestats --nogit --nogit-fallback 2>/dev/null
+
+[gitpublishprofile "qemu-block"]
+base = master
+prefix = PATCH
+to = qemu-devel@nongnu.org
+cc = qemu-block@nongnu.org
+cccmd = scripts/get_maintainer.pl --noroles --norolestats --nogit --nogit-fallback 2>/dev/null
+
+[gitpublishprofile "qemu-arm"]
+base = master
+prefix = PATCH
+to = qemu-devel@nongnu.org
+cc = qemu-arm@nongnu.org
+cccmd = scripts/get_maintainer.pl --noroles --norolestats --nogit --nogit-fallback 2>/dev/null
+
+[gitpublishprofile "qemu-s390"]
+base = master
+prefix = PATCH
+to = qemu-devel@nongnu.org
+cc = qemu-s390@nongnu.org
+cccmd = scripts/get_maintainer.pl --noroles --norolestats --nogit --nogit-fallback 2>/dev/null
+
+[gitpublishprofile "qemu-ppc"]
+base = master
+prefix = PATCH
+to = qemu-devel@nongnu.org
+cc = qemu-pcc@nongnu.org
+cccmd = scripts/get_maintainer.pl --noroles --norolestats --nogit --nogit-fallback 2>/dev/null
