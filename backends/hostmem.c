@@ -46,7 +46,8 @@ host_memory_backend_set_size(Object *obj, Visitor *v, const char *name,
     uint64_t value;
 
     if (host_memory_backend_mr_inited(backend)) {
-        error_setg(&local_err, "cannot change property value");
+        error_setg(&local_err, "cannot change property %s of %s '%s'",
+                   name, object_get_typename(obj), backend->id);
         goto out;
     }
 
@@ -55,8 +56,9 @@ host_memory_backend_set_size(Object *obj, Visitor *v, const char *name,
         goto out;
     }
     if (!value) {
-        error_setg(&local_err, "Property '%s.%s' doesn't take value '%"
-                   PRIu64 "'", object_get_typename(obj), name, value);
+        error_setg(&local_err,
+                   "property '%s' of %s '%s' doesn't take value '%" PRIu64 "'",
+                   name, object_get_typename(obj), backend->id, value);
         goto out;
     }
     backend->size = value;
@@ -363,7 +365,8 @@ static void set_id(Object *o, const char *str, Error **errp)
     HostMemoryBackend *backend = MEMORY_BACKEND(o);
 
     if (backend->id) {
-        error_setg(errp, "cannot change property value");
+        error_setg(errp, "cannot change property 'id' of %s '%s'",
+                   object_get_typename(o), backend->id);
         return;
     }
     backend->id = g_strdup(str);
