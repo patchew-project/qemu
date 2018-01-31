@@ -18,6 +18,10 @@ size_t qemu_mempath_getpagesize(const char *mem_path);
  *  @flags: specifies additional properties of the mapping, which can be one or
  *          bit-or of following values
  *          - QEMU_RAM_SHARE: mmap with MAP_SHARED flag
+ *          - One of
+ *            QEMU_RAM_SYNC_ON:   mmap with MAP_SYNC flag
+ *            QEMU_RAM_SYNC_OFF:  do not mmap with MAP_SYNC flag
+ *            QEMU_RAM_SYNC_AUTO: automatically decide the use of MAP_SYNC flag
  *          Other bits are ignored.
  *
  * Return:

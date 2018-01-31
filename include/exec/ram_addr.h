@@ -84,6 +84,10 @@ unsigned long last_ram_page(void);
  *  @flags: specify the properties of the ram block, which can be one
  *          or bit-or of following values
  *          - QEMU_RAM_SHARE: mmap the back file or device with MAP_SHARED
+ *          - One of
+ *            QEMU_RAM_SYNC_ON:   mmap with MAP_SYNC flag
+ *            QEMU_RAM_SYNC_OFF:  do not mmap with MAP_SYNC flag
+ *            QEMU_RAM_SYNC_AUTO: automatically decide the use of MAP_SYNC flag
  *          Other bits are ignored.
  *  @mem_path or @fd: specify the back file or device
  *  @errp: pointer to Error*, to store an error if it happens

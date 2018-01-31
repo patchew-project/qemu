@@ -458,6 +458,28 @@ void memory_region_init_resizeable_ram(MemoryRegion *mr,
 
 #define QEMU_RAM_SHARE      (1UL << 0)
 
+#define QEMU_RAM_SYNC_SHIFT 1
+#define QEMU_RAM_SYNC_MASK  0x6
+#define QEMU_RAM_SYNC_OFF   ((0UL << QEMU_RAM_SYNC_SHIFT) & QEMU_RAM_SYNC_MASK)
+#define QEMU_RAM_SYNC_ON    ((1UL << QEMU_RAM_SYNC_SHIFT) & QEMU_RAM_SYNC_MASK)
+#define QEMU_RAM_SYNC_AUTO  ((2UL << QEMU_RAM_SYNC_SHIFT) & QEMU_RAM_SYNC_MASK)
+
+static inline uint64_t qemu_ram_sync_flags(OnOffAuto v)
+{
+    return v == ON_OFF_AUTO_OFF ? QEMU_RAM_SYNC_OFF :
+           v == ON_OFF_AUTO_ON ? QEMU_RAM_SYNC_ON : QEMU_RAM_SYNC_AUTO;
+}
+
+static inline OnOffAuto qemu_ram_sync_val(uint64_t flags)
+{
+    unsigned int v = (flags & QEMU_RAM_SYNC_MASK) >> QEMU_RAM_SYNC_SHIFT;
+
+    assert(v < 3);
+
+    return v == 0 ? ON_OFF_AUTO_OFF :
+           v == 1 ? ON_OFF_AUTO_ON : ON_OFF_AUTO_AUTO;
+}
+
 #ifdef __linux__
 /**
  * memory_region_init_ram_from_file:  Initialize RAM memory region with a
@@ -473,6 +495,10 @@ void memory_region_init_resizeable_ram(MemoryRegion *mr,
  * @flags: specify properties of this memory region, which can be one or bit-or
  *         of following values:
  *         - QEMU_RAM_SHARE: memory must be mmaped with the MAP_SHARED flag
+ *         - One of
+ *           QEMU_RAM_SYNC_ON:   mmap with MAP_SYNC flag
+ *           QEMU_RAM_SYNC_OFF:  do not mmap with MAP_SYNC flag
+ *           QEMU_RAM_SYNC_AUTO: automatically decide the use of MAP_SYNC flag
  *         Other bits are ignored.
  * @path: the path in which to allocate the RAM.
  * @errp: pointer to Error*, to store an error if it happens.
