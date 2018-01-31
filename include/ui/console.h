@@ -6,7 +6,9 @@
 #include "qapi/qmp/qdict.h"
 #include "qemu/notify.h"
 #include "qemu/error-report.h"
+#ifndef CONFIG_VNC
 #include "qapi/error.h"
+#endif
 
 #ifdef CONFIG_OPENGL
 # include <epoxy/gl.h>
