@@ -36,6 +36,7 @@
 #include "hw/s390x/ebcdic.h"
 #include "hw/s390x/s390-virtio-hcall.h"
 #include "hw/s390x/sclp.h"
+#include "hw/s390x/s390-pci-inst.h"
 #endif
 
 /* #define DEBUG_HELPER */
@@ -560,3 +561,111 @@ uint32_t HELPER(stfle)(CPUS390XState *env, uint64_t addr)
     env->regs[0] = deposit64(env->regs[0], 0, 8, (max_bytes / 8) - 1);
     return count_bytes >= max_bytes ? 0 : 3;
 }
+
+#ifndef CONFIG_USER_ONLY
+void HELPER(clp)(CPUS390XState *env, uint32_t r2)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+    int r;
+
+    qemu_mutex_lock_iothread();
+    r = clp_service_call(cpu, r2, GETPC());
+    qemu_mutex_unlock_iothread();
+    if (r) {
+        s390_program_interrupt(env, PGM_OPERATION, 4, GETPC());
+    }
+}
+
+void HELPER(pcilg)(CPUS390XState *env, uint32_t r1, uint32_t r2)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+    int r;
+
+    qemu_mutex_lock_iothread();
+    r = pcilg_service_call(cpu, r1, r2, GETPC());
+    qemu_mutex_unlock_iothread();
+    if (r) {
+        s390_program_interrupt(env, PGM_OPERATION, 4, GETPC());
+    }
+}
+
+void HELPER(pcistg)(CPUS390XState *env, uint32_t r1, uint32_t r2)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+    int r;
+
+    qemu_mutex_lock_iothread();
+    r = pcistg_service_call(cpu, r1, r2, GETPC());
+    qemu_mutex_unlock_iothread();
+    if (r) {
+        s390_program_interrupt(env, PGM_OPERATION, 4, GETPC());
+    }
+}
+
+void HELPER(stpcifc)(CPUS390XState *env, uint32_t r1, uint64_t fiba,
+                     uint32_t ar)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+    int r;
+
+    qemu_mutex_lock_iothread();
+    r = stpcifc_service_call(cpu, r1, fiba, ar, GETPC());
+    qemu_mutex_unlock_iothread();
+    if (r) {
+        s390_program_interrupt(env, PGM_OPERATION, 4, GETPC());
+    }
+}
+
+void HELPER(sic)(CPUS390XState *env, uint64_t r1, uint64_t r3)
+{
+    int r;
+
+    qemu_mutex_lock_iothread();
+    r = css_do_sic(env, r1 & 0xffff, (r3 >> 27) & 0x7);
+    qemu_mutex_unlock_iothread();
+    if (r) {
+        s390_program_interrupt(env, PGM_OPERATION, 4, GETPC());
+    }
+}
+
+void HELPER(rpcit)(CPUS390XState *env, uint32_t r1, uint32_t r2)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+    int r;
+
+    qemu_mutex_lock_iothread();
+    r = rpcit_service_call(cpu, r1, r2, GETPC());
+    qemu_mutex_unlock_iothread();
+    if (r) {
+        s390_program_interrupt(env, PGM_OPERATION, 4, GETPC());
+    }
+}
+
+void HELPER(pcistb)(CPUS390XState *env, uint32_t r1, uint32_t r3,
+                    uint64_t gaddr, uint32_t ar)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+    int r;
+
+    qemu_mutex_lock_iothread();
+    r = pcistb_service_call(cpu, r1, r3, gaddr, ar, GETPC());
+    qemu_mutex_unlock_iothread();
+    if (r) {
+        s390_program_interrupt(env, PGM_OPERATION, 4, GETPC());
+    }
+}
+
+void HELPER(mpcifc)(CPUS390XState *env, uint32_t r1, uint64_t fiba,
+                    uint32_t ar)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+    int r;
+
+    qemu_mutex_lock_iothread();
+    r = mpcifc_service_call(cpu, r1, fiba, ar, GETPC());
+    qemu_mutex_unlock_iothread();
+    if (r) {
+        s390_program_interrupt(env, PGM_OPERATION, 4, GETPC());
+    }
+}
+#endif
