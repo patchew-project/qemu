@@ -98,6 +98,12 @@ void ppc_hash64_update_rmls(CPUPPCState *env);
 #define HPTE64_V_1TB_SEG        0x4000000000000000ULL
 #define HPTE64_V_VRMA_MASK      0x4001ffffff000000ULL
 
+/*
+ * Partition table definitions
+ */
+#define PTCR_PTAB               0x0FFFFFFFFFFFF000ULL /* Partition Table Base */
+#define PTCR_PTAS               0x000000000000001FULL /* Partition Table Size */
+
 static inline hwaddr ppc_hash64_hpt_base(PowerPCCPU *cpu)
 {
     return cpu->env.spr[SPR_SDR1] & SDR_64_HTABORG;

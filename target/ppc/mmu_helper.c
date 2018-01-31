@@ -2029,6 +2029,34 @@ void ppc_store_sdr1(CPUPPCState *env, target_ulong value)
     env->spr[SPR_SDR1] = value;
 }
 
+#if defined(TARGET_PPC64)
+void ppc_store_ptcr(CPUPPCState *env, target_ulong value)
+{
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+    qemu_log_mask(CPU_LOG_MMU, "%s: " TARGET_FMT_lx "\n", __func__, value);
+
+    assert(!cpu->vhyp);
+
+    if (env->mmu_model & POWERPC_MMU_V3) {
+        target_ulong ptcr_mask = PTCR_PTAB | PTCR_PTAS;
+        target_ulong ptas = value & PTCR_PTAS;
+
+        if (value & ~ptcr_mask) {
+            error_report("Invalid bits 0x"TARGET_FMT_lx" set in PTCR",
+                         value & ~ptcr_mask);
+            value &= ptcr_mask;
+        }
+        if (ptas > 28) {
+            error_report("Invalid PTAS 0x" TARGET_FMT_lx" stored in PTCR",
+                         ptas);
+            return;
+        }
+    }
+    env->spr[SPR_PTCR] = value;
+}
+
+#endif /* defined(TARGET_PPC64) */
+
 /* Segment registers load and store */
 target_ulong helper_load_sr(CPUPPCState *env, target_ulong sr_num)
 {
