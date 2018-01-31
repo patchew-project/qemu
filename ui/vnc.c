@@ -1270,6 +1270,10 @@ void vnc_disconnect_finish(VncState *vs)
     }
     g_free(vs->lossy_rect);
 
+    if (vs->ioc_tag) {
+        g_source_remove(vs->ioc_tag);
+        vs->ioc_tag = 0;
+    }
     object_unref(OBJECT(vs->ioc));
     vs->ioc = NULL;
     object_unref(OBJECT(vs->sioc));
