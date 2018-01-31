@@ -10,7 +10,6 @@
 
 #include "qemu/osdep.h"
 #include "hw/xen/xen_backend.h"
-#include "qmp-commands.h"
 #include "chardev/char.h"
 #include "sysemu/accel.h"
 #include "migration/misc.h"
