@@ -13,8 +13,8 @@
  */
 
 
-#include "inttypes.h"
-#include "stdio.h"
+#include <inttypes.h>
+#include <stdio.h>
 #include "cpu_features_def.h"
 
 #define ARRAY_SIZE(array) (sizeof(array) / sizeof(array[0]))
