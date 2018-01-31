@@ -18,6 +18,7 @@
 #endif
 #ifdef CONFIG_TRACE_LOG
 #include "qemu/log.h"
+#include "qemu/option.h"
 #endif
 #ifdef CONFIG_TRACE_SYSLOG
 #include <syslog.h>
