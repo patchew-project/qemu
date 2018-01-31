@@ -509,6 +509,18 @@ static void vfio_listener_region_add(MemoryListener *listener,
     }
 
     /* Here we assume that memory_region_is_ram(section->mr)==true */
+    if (memory_region_is_ram_device(section->mr)) {
+        hwaddr pgmask = (1ULL << ctz64(hostwin->iova_pgsizes)) - 1;
+
+        if ((section->offset_within_region & pgmask) ||
+            (int128_getlo(section->size) & pgmask)) {
+            error_report("Region %"HWADDR_PRIx"..%"HWADDR_PRIx" is not aligned to %"HWADDR_PRIx" and cannot be mapped for DMA",
+                         section->offset_within_region,
+                         int128_getlo(section->size),
+                         pgmask + 1);
+            return;
+        }
+    }
 
     vaddr = memory_region_get_ram_ptr(section->mr) +
             section->offset_within_region +
@@ -524,6 +536,9 @@ static void vfio_listener_region_add(MemoryListener *listener,
         error_report("vfio_dma_map(%p, 0x%"HWADDR_PRIx", "
                      "0x%"HWADDR_PRIx", %p) = %d (%m)",
                      container, iova, int128_get64(llsize), vaddr, ret);
+        if (memory_region_is_ram_device(section->mr)) {
+            return;
+        }
         goto fail;
     }
 
@@ -551,6 +566,7 @@ static void vfio_listener_region_del(MemoryListener *listener,
     hwaddr iova, end;
     Int128 llend, llsize;
     int ret;
+    bool try_unmap = true;
 
     if (vfio_listener_skipped_section(section)) {
         trace_vfio_listener_region_del_skip(
@@ -603,13 +619,36 @@ static void vfio_listener_region_del(MemoryListener *listener,
 
     trace_vfio_listener_region_del(iova, end);
 
-    ret = vfio_dma_unmap(container, iova, int128_get64(llsize));
-    memory_region_unref(section->mr);
-    if (ret) {
-        error_report("vfio_dma_unmap(%p, 0x%"HWADDR_PRIx", "
-                     "0x%"HWADDR_PRIx") = %d (%m)",
-                     container, iova, int128_get64(llsize), ret);
+    if (memory_region_is_ram_device(section->mr)) {
+        hwaddr pgmask;
+        VFIOHostDMAWindow *hostwin;
+        bool hostwin_found;
+
+        hostwin_found = false;
+        QLIST_FOREACH(hostwin, &container->hostwin_list, hostwin_next) {
+            if (hostwin->min_iova <= iova && end <= hostwin->max_iova) {
+                hostwin_found = true;
+                break;
+            }
+        }
+        assert(hostwin_found);
+
+        pgmask = (1ULL << ctz64(hostwin->iova_pgsizes)) - 1;
+
+        try_unmap = !(section->offset_within_region & pgmask) &&
+            !(int128_getlo(section->size) & pgmask);
     }
+
+    if (try_unmap) {
+        ret = vfio_dma_unmap(container, iova, int128_get64(llsize));
+        if (ret) {
+            error_report("vfio_dma_unmap(%p, 0x%"HWADDR_PRIx", "
+                         "0x%"HWADDR_PRIx") = %d (%m)",
+                         container, iova, int128_get64(llsize), ret);
+        }
+    }
+
+    memory_region_unref(section->mr);
 
     if (container->iommu_type == VFIO_SPAPR_TCE_v2_IOMMU) {
         vfio_spapr_remove_window(container,
@@ -1385,6 +1424,21 @@ int vfio_get_dev_region_info(VFIODevice *vbasedev, uint32_t type,
 
     *info = NULL;
     return -ENODEV;
+}
+
+bool vfio_is_cap_present(VFIODevice *vbasedev, uint16_t cap_type, int region)
+{
+    struct vfio_region_info *info = NULL;
+    bool ret = false;
+
+    if (!vfio_get_region_info(vbasedev, region, &info)) {
+        if (vfio_get_region_info_cap(info, cap_type)) {
+            ret = true;
+        }
+        g_free(info);
+    }
+
+    return ret;
 }
 
 /*
