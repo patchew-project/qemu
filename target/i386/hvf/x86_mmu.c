@@ -23,7 +23,6 @@
 #include "cpu.h"
 #include "x86.h"
 #include "x86_mmu.h"
-#include <string.h>
 #include "vmcs.h"
 #include "vmx.h"
 #include "exec/address-spaces.h"
