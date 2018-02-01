@@ -494,35 +494,23 @@ static int net_socket_listen_init(NetClientState *peer,
 {
     NetClientState *nc;
     NetSocketState *s;
-    struct sockaddr_in saddr;
-    int fd, ret;
+    SocketAddress *saddr;
+    Error *local_err = NULL;
+    int fd;
 
-    if (parse_host_port(&saddr, host_str, errp) < 0) {
+    saddr = socket_parse(host_str, &local_err);
+    if (NULL != local_err) {
+        error_setg_errno(errp, errno, "socket_parse failed");
         return -1;
     }
 
-    fd = qemu_socket(PF_INET, SOCK_STREAM, 0);
+    fd = socket_listen(saddr, errp);
     if (fd < 0) {
-        error_setg_errno(errp, errno, "can't create stream socket");
+        error_setg_errno(errp, errno, "can't listen on address");
+        qapi_free_SocketAddress(saddr);
         return -1;
     }
     qemu_set_nonblock(fd);
-
-    socket_set_fast_reuse(fd);
-
-    ret = bind(fd, (struct sockaddr *)&saddr, sizeof(saddr));
-    if (ret < 0) {
-        error_setg_errno(errp, errno, "can't bind ip=%s to socket",
-                         inet_ntoa(saddr.sin_addr));
-        closesocket(fd);
-        return -1;
-    }
-    ret = listen(fd, 0);
-    if (ret < 0) {
-        error_setg_errno(errp, errno, "can't listen on socket");
-        closesocket(fd);
-        return -1;
-    }
 
     nc = qemu_new_net_client(&net_socket_info, peer, model, name);
     s = DO_UPCAST(NetSocketState, nc, nc);
