@@ -6,6 +6,7 @@ vnc-obj-y += vnc-auth-vencrypt.o
 vnc-obj-$(CONFIG_VNC_SASL) += vnc-auth-sasl.o
 vnc-obj-y += vnc-ws.o
 vnc-obj-y += vnc-jobs.o
+stub-obj-y += vnc-stubs.o
 
 common-obj-y += keymaps.o console.o cursor.o qemu-pixman.o
 common-obj-y += input.o input-keymap.o input-legacy.o
