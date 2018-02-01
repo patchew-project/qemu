@@ -1205,6 +1205,7 @@ static void *qemu_kvm_cpu_thread_fn(void *arg)
     cpu->created = false;
     qemu_cond_signal(&qemu_cpu_cond);
     qemu_mutex_unlock_iothread();
+    rcu_unregister_thread();
     return NULL;
 }
 
@@ -1759,6 +1760,7 @@ void cpu_remove_sync(CPUState *cpu)
     cpu_remove(cpu);
     while (cpu->created) {
         qemu_cond_wait(&qemu_cpu_cond, &qemu_global_mutex);
+        qemu_thread_join(cpu->thread);
     }
 }
 
