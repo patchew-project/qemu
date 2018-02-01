@@ -42,7 +42,6 @@
 #include "keymaps.h"
 #include "vnc-palette.h"
 #include "vnc-enc-zrle.h"
-#include "qapi-types.h"
 
 // #define _VNC_DEBUG 1
 
