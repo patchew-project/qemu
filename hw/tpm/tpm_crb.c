@@ -232,6 +232,11 @@ static void tpm_crb_realize(DeviceState *dev, Error **errp)
         TPM_CRB_ADDR_BASE, &s->mmio);
     memory_region_add_subregion(get_system_memory(),
         TPM_CRB_ADDR_BASE + sizeof(s->regs), &s->cmdmem);
+}
+
+static void tpm_crb_reset(DeviceState *dev)
+{
+    CRBState *s = CRB(dev);
 
     tpm_backend_reset(s->tpmbe);
 
@@ -274,6 +279,7 @@ static void tpm_crb_class_init(ObjectClass *klass, void *data)
 
     dc->realize = tpm_crb_realize;
     dc->props = tpm_crb_properties;
+    dc->reset = tpm_crb_reset;
     dc->vmsd  = &vmstate_tpm_crb;
     dc->user_creatable = true;
     tc->model = TPM_MODEL_TPM_CRB;
