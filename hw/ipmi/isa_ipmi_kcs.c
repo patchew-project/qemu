@@ -422,24 +422,69 @@ static void ipmi_isa_realize(DeviceState *dev, Error **errp)
     isa_register_ioport(isadev, &iik->kcs.io, iik->kcs.io_base);
 }
 
-const VMStateDescription vmstate_ISAIPMIKCSDevice = {
-    .name = TYPE_IPMI_INTERFACE,
+static const VMStateDescription vmstate_IPMIKCS = {
+    .name = TYPE_IPMI_INTERFACE_PREFIX "kcs",
     .version_id = 1,
     .minimum_version_id = 1,
     .fields      = (VMStateField[]) {
-        VMSTATE_BOOL(kcs.obf_irq_set, ISAIPMIKCSDevice),
-        VMSTATE_BOOL(kcs.atn_irq_set, ISAIPMIKCSDevice),
-        VMSTATE_BOOL(kcs.use_irq, ISAIPMIKCSDevice),
-        VMSTATE_BOOL(kcs.irqs_enabled, ISAIPMIKCSDevice),
-        VMSTATE_UINT32(kcs.outpos, ISAIPMIKCSDevice),
-        VMSTATE_UINT8_ARRAY(kcs.outmsg, ISAIPMIKCSDevice, MAX_IPMI_MSG_SIZE),
-        VMSTATE_UINT8_ARRAY(kcs.inmsg, ISAIPMIKCSDevice, MAX_IPMI_MSG_SIZE),
-        VMSTATE_BOOL(kcs.write_end, ISAIPMIKCSDevice),
-        VMSTATE_UINT8(kcs.status_reg, ISAIPMIKCSDevice),
-        VMSTATE_UINT8(kcs.data_out_reg, ISAIPMIKCSDevice),
-        VMSTATE_INT16(kcs.data_in_reg, ISAIPMIKCSDevice),
-        VMSTATE_INT16(kcs.cmd_reg, ISAIPMIKCSDevice),
-        VMSTATE_UINT8(kcs.waiting_rsp, ISAIPMIKCSDevice),
+        VMSTATE_BOOL(obf_irq_set, IPMIKCS),
+        VMSTATE_BOOL(atn_irq_set, IPMIKCS),
+        VMSTATE_BOOL(use_irq, IPMIKCS),
+        VMSTATE_BOOL(irqs_enabled, IPMIKCS),
+        VMSTATE_UINT32(outpos, IPMIKCS),
+        VMSTATE_UINT8_ARRAY(outmsg, IPMIKCS, MAX_IPMI_MSG_SIZE),
+        VMSTATE_UINT32(inlen, IPMIKCS),
+        VMSTATE_UINT8_ARRAY(inmsg, IPMIKCS, MAX_IPMI_MSG_SIZE),
+        VMSTATE_BOOL(write_end, IPMIKCS),
+        VMSTATE_UINT8(status_reg, IPMIKCS),
+        VMSTATE_UINT8(data_out_reg, IPMIKCS),
+        VMSTATE_INT16(data_in_reg, IPMIKCS),
+        VMSTATE_INT16(cmd_reg, IPMIKCS),
+        VMSTATE_UINT8(waiting_rsp, IPMIKCS),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static int isa_ipmi_kcs_load_old(QEMUFile *f, void *opaque, int version_id)
+{
+    ISAIPMIKCSDevice *iik = opaque;
+    IPMIKCS *k = &iik->kcs;
+    unsigned int i;
+
+    if (version_id != 1) {
+        return -EINVAL;
+    }
+
+    k->obf_irq_set = qemu_get_byte(f);
+    k->atn_irq_set = qemu_get_byte(f);
+    qemu_get_byte(f); /* Used to be use_irq, but that's not a good idea. */
+    k->irqs_enabled = qemu_get_byte(f);
+    k->outpos = qemu_get_be32(f);
+    for (i = 0; i < MAX_IPMI_MSG_SIZE; i++) {
+        k->outmsg[i] = qemu_get_byte(f);
+    }
+    k->inlen = 0; /* This was forgotten on version 1, just reset it. */
+    for (i = 0; i < MAX_IPMI_MSG_SIZE; i++) {
+        k->inmsg[i] = qemu_get_byte(f);
+    }
+    k->write_end = qemu_get_byte(f);
+    k->status_reg = qemu_get_byte(f);
+    k->data_out_reg = qemu_get_byte(f);
+    k->data_in_reg = qemu_get_be16(f);
+    k->cmd_reg = qemu_get_be16(f);
+    k->waiting_rsp = qemu_get_byte(f);
+
+    return 0;
+}
+
+static const VMStateDescription vmstate_ISAIPMIKCSDevice = {
+    .name = TYPE_IPMI_INTERFACE_PREFIX "isa-kcs",
+    .version_id = 2,
+    .minimum_version_id = 2,
+    .minimum_version_id_old = 1,
+    .load_state_old = isa_ipmi_kcs_load_old,
+    .fields      = (VMStateField[]) {
+        VMSTATE_STRUCT(kcs, ISAIPMIKCSDevice, 1, vmstate_IPMIKCS, IPMIKCS),
         VMSTATE_END_OF_LIST()
     }
 };
