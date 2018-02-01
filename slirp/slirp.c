@@ -1061,6 +1061,33 @@ int slirp_add_hostfwd(Slirp *slirp, int is_udp, struct in_addr host_addr,
     return 0;
 }
 
+static void slirp_do_update_hostfwd(Slirp *slirp, struct socket *head,
+                                    struct in_addr old_guest_addr,
+                                    struct in_addr new_guest_addr)
+{
+    struct socket *so;
+    char oldaddr[17], newaddr[17];
+
+    for (so = head->so_next; so != head; so = so->so_next) {
+        if ((so->so_state & SS_HOSTFWD) &&
+            so->lhost.sin.sin_addr.s_addr == old_guest_addr.s_addr) {
+            strncpy(oldaddr, inet_ntoa(old_guest_addr), sizeof(oldaddr) - 1);
+            strncpy(newaddr, inet_ntoa(new_guest_addr), sizeof(newaddr) - 1);
+            DEBUG_ARGS((dfd, "Updating forwarding from %s:%d to %s:%d\n",
+                       oldaddr, ntohs(so->lhost.sin.sin_port),
+                       newaddr, ntohs(so->lhost.sin.sin_port)));
+            so->lhost.sin.sin_addr = new_guest_addr;
+        }
+    }
+}
+
+void slirp_update_hostfwd(Slirp *slirp, struct in_addr old_guest_addr,
+                          struct in_addr new_guest_addr)
+{
+    slirp_do_update_hostfwd(slirp, &slirp->udb, old_guest_addr, new_guest_addr);
+    slirp_do_update_hostfwd(slirp, &slirp->tcb, old_guest_addr, new_guest_addr);
+}
+
 int slirp_add_exec(Slirp *slirp, int do_pty, const void *args,
                    struct in_addr *guest_addr, int guest_port)
 {

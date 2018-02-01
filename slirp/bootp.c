@@ -225,6 +225,8 @@ static void bootp_reply(Slirp *slirp, const struct bootp_t *bp)
     /* Update ARP table for this IP address */
     arp_table_add(slirp, daddr.sin_addr.s_addr, client_ethaddr);
 
+    slirp_update_hostfwd(slirp, slirp->vdhcp_startaddr, daddr.sin_addr);
+
     saddr.sin_addr = slirp->vhost_addr;
     saddr.sin_port = htons(BOOTP_SERVER);
 
