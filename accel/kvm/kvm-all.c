@@ -282,9 +282,9 @@ err:
 
 static int kvm_get_vcpu(KVMState *s, unsigned long vcpu_id)
 {
-    struct KVMParkedVcpu *cpu;
+    struct KVMParkedVcpu *cpu, *next_cpu;
 
-    QLIST_FOREACH(cpu, &s->kvm_parked_vcpus, node) {
+    QLIST_FOREACH_SAFE(cpu, &s->kvm_parked_vcpus, node, *next_cpu) {
         if (cpu->vcpu_id == vcpu_id) {
             int kvm_fd;
 
