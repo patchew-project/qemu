@@ -146,7 +146,7 @@ int nb_nics;
 NICInfo nd_table[MAX_NICS];
 int autostart;
 static int rtc_utc = 1;
-static int rtc_date_offset = -1; /* -1 means no change */
+static time_t rtc_date_offset = -1; /* -1 means no change */
 QEMUClockType rtc_clock;
 int vga_interface_type = VGA_NONE;
 static int full_screen = 0;
@@ -812,7 +812,7 @@ void qemu_get_timedate(struct tm *tm, int offset)
     }
 }
 
-int qemu_timedate_diff(struct tm *tm)
+time_t qemu_timedate_diff(struct tm *tm)
 {
     time_t seconds;
 
