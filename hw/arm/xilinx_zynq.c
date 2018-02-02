@@ -313,6 +313,11 @@ static void zynq_init(MachineState *machine)
     arm_load_kernel(ARM_CPU(first_cpu), &zynq_binfo);
 }
 
+static const char *xlnx_zynq_7000_valid_cpus[] = {
+    "cortex-a9",
+    NULL
+};
+
 static void zynq_machine_init(MachineClass *mc)
 {
     mc->desc = "Xilinx Zynq Platform Baseboard for Cortex-A9";
@@ -321,6 +326,7 @@ static void zynq_machine_init(MachineClass *mc)
     mc->no_sdcard = 1;
     mc->ignore_memory_transaction_failures = true;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-a9");
+    mc->valid_cpu_types = xlnx_zynq_7000_valid_cpus;
 }
 
 DEFINE_MACHINE("xilinx-zynq-a9", zynq_machine_init)
