@@ -286,8 +286,11 @@ class QAPISchemaParser(object):
                 if not isinstance(include, str):
                     raise QAPISemError(info,
                                        "Value of 'include' must be a string")
-                exprs_include = self._include(include, info,
-                                              os.path.dirname(self.fname),
+                incl_fname = os.path.join(os.path.dirname(self.fname),
+                                          include)
+                self.exprs.append({'expr': {'include': incl_fname},
+                                   'info': info})
+                exprs_include = self._include(include, info, incl_fname,
                                               previously_included)
                 if exprs_include:
                     self.exprs.extend(exprs_include.exprs)
@@ -322,8 +325,7 @@ class QAPISchemaParser(object):
                 "Documentation for '%s' is not followed by the definition"
                 % doc.symbol)
 
-    def _include(self, include, info, base_dir, previously_included):
-        incl_fname = os.path.join(base_dir, include)
+    def _include(self, include, info, incl_fname, previously_included):
         incl_abs_fname = os.path.abspath(incl_fname)
         # catch inclusion cycle
         inf = info
@@ -889,6 +891,9 @@ def check_exprs(exprs):
         info = expr_elem['info']
         doc = expr_elem.get('doc')
 
+        if 'include' in expr:
+            continue
+
         if not doc and doc_required:
             raise QAPISemError(info,
                                "Expression missing documentation comment")
@@ -927,6 +932,9 @@ def check_exprs(exprs):
 
     # Try again for hidden UnionKind enum
     for expr_elem in exprs:
+        if 'include' in expr:
+            continue
+
         expr = expr_elem['expr']
         if 'union' in expr and not discriminator_find_enum_define(expr):
             name = '%sKind' % expr['union']
@@ -939,6 +947,9 @@ def check_exprs(exprs):
 
     # Validate that exprs make sense
     for expr_elem in exprs:
+        if 'include' in expr:
+            continue
+
         expr = expr_elem['expr']
         info = expr_elem['info']
         doc = expr_elem.get('doc')
@@ -1663,6 +1674,8 @@ class QAPISchema(object):
                 self._def_command(expr, info, doc)
             elif 'event' in expr:
                 self._def_event(expr, info, doc)
+            elif 'include' in expr:
+                pass
             else:
                 assert False
 
