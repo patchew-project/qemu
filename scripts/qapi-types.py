@@ -180,7 +180,7 @@ class QAPISchemaGenTypeVisitor(QAPISchemaVisitor):
         self.decl = ''
         self.defn = ''
         self._fwdecl = ''
-        self._btin = guardstart('QAPI_TYPES_BUILTIN')
+        self._btin = '\n' + guardstart('QAPI_TYPES_BUILTIN')
 
     def visit_end(self):
         self.decl = self._fwdecl + self.decl
@@ -256,26 +256,28 @@ blurb = '''
  * Schema-defined QAPI types
 '''
 
-(fdef, fdecl) = open_output(output_dir, do_c, do_h, prefix,
-                            'qapi-types.c', 'qapi-types.h',
-                            blurb, __doc__)
+genc = QAPIGenC(blurb, __doc__)
+genh = QAPIGenH(blurb, __doc__)
 
-fdef.write(mcgen('''
+genc.body(mcgen('''
 #include "qemu/osdep.h"
 #include "qapi/dealloc-visitor.h"
 #include "%(prefix)sqapi-types.h"
 #include "%(prefix)sqapi-visit.h"
 ''',
-                 prefix=prefix))
+                prefix=prefix))
 
-fdecl.write(mcgen('''
+genh.body(mcgen('''
 #include "qapi/util.h"
 '''))
 
 schema = QAPISchema(input_file)
-gen = QAPISchemaGenTypeVisitor()
-schema.visit(gen)
-fdef.write(gen.defn)
-fdecl.write(gen.decl)
+vis = QAPISchemaGenTypeVisitor()
+schema.visit(vis)
+genc.body(vis.defn)
+genh.body(vis.decl)
 
-close_output(fdef, fdecl)
+if do_c:
+    genc.write(output_dir, prefix + 'qapi-types.c')
+if do_h:
+    genh.write(output_dir, prefix + 'qapi-types.h')

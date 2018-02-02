@@ -181,21 +181,23 @@ blurb = '''
  * QAPI/QMP schema introspection
 '''
 
-(fdef, fdecl) = open_output(output_dir, do_c, do_h, prefix,
-                            'qmp-introspect.c', 'qmp-introspect.h',
-                            blurb, __doc__)
+genc = QAPIGenC(blurb, __doc__)
+genh = QAPIGenH(blurb, __doc__)
 
-fdef.write(mcgen('''
+genc.body(mcgen('''
 #include "qemu/osdep.h"
 #include "%(prefix)sqmp-introspect.h"
 
 ''',
-                 prefix=prefix))
+                prefix=prefix))
 
 schema = QAPISchema(input_file)
-gen = QAPISchemaGenIntrospectVisitor(opt_unmask)
-schema.visit(gen)
-fdef.write(gen.defn)
-fdecl.write(gen.decl)
+vis = QAPISchemaGenIntrospectVisitor(opt_unmask)
+schema.visit(vis)
+genc.body(vis.defn)
+genh.body(vis.decl)
 
-close_output(fdef, fdecl)
+if do_c:
+    genc.write(output_dir, prefix + 'qmp-introspect.c')
+if do_h:
+    genh.write(output_dir, prefix + 'qmp-introspect.h')

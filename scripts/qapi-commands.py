@@ -260,12 +260,10 @@ blurb = '''
  * Schema-defined QAPI/QMP commands
 '''
 
-(fdef, fdecl) = open_output(output_dir, do_c, do_h, prefix,
-                            'qmp-marshal.c', 'qmp-commands.h',
-                            blurb, __doc__)
+genc = QAPIGenC(blurb, __doc__)
+genh = QAPIGenH(blurb, __doc__)
 
-fdef.write(mcgen('''
-
+genc.body(mcgen('''
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qemu/module.h"
@@ -279,21 +277,24 @@ fdef.write(mcgen('''
 #include "%(prefix)sqmp-commands.h"
 
 ''',
-                 prefix=prefix))
+                prefix=prefix))
 
-fdecl.write(mcgen('''
+genh.body(mcgen('''
 #include "%(prefix)sqapi-types.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/dispatch.h"
 
 void %(c_prefix)sqmp_init_marshal(QmpCommandList *cmds);
 ''',
-                  prefix=prefix, c_prefix=c_name(prefix, protect=False)))
+                prefix=prefix, c_prefix=c_name(prefix, protect=False)))
 
 schema = QAPISchema(input_file)
-gen = QAPISchemaGenCommandVisitor()
-schema.visit(gen)
-fdef.write(gen.defn)
-fdecl.write(gen.decl)
+vis = QAPISchemaGenCommandVisitor()
+schema.visit(vis)
+genc.body(vis.defn)
+genh.body(vis.decl)
 
-close_output(fdef, fdecl)
+if do_c:
+    genc.write(output_dir, prefix + 'qmp-marshal.c')
+if do_h:
+    genh.write(output_dir, prefix + 'qmp-commands.h')
