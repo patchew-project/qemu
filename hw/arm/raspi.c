@@ -158,6 +158,11 @@ static void raspi2_init(MachineState *machine)
     setup_boot(machine, 2, machine->ram_size - vcram_size);
 }
 
+static const char *raspi2_valid_cpus[] = {
+    "cortex-a7",
+    NULL
+};
+
 static void raspi2_machine_init(MachineClass *mc)
 {
     mc->desc = "Raspberry Pi 2";
@@ -171,5 +176,7 @@ static void raspi2_machine_init(MachineClass *mc)
     mc->default_cpus = BCM2836_NCPUS;
     mc->default_ram_size = 1024 * 1024 * 1024;
     mc->ignore_memory_transaction_failures = true;
+    mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-a7");
+    mc->valid_cpu_types = raspi2_valid_cpus;
 };
 DEFINE_MACHINE("raspi2", raspi2_machine_init)
