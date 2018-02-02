@@ -2756,6 +2756,12 @@ support for frameless windows, and the other user interfaces never
 implemented this in the first place.  So this will be removed together
 with SDL 1.2 support.
 
+@subsection -alt-grab and -ctrl-grab (since 2.12.0)
+
+The ``-alt-grab'' and ``-ctrl-grab'' arguments are deprecated.  They
+work with SDL only.  They will eventually replaced with a new way to
+configure hotkeys which works consistently across all user interfaces.
+
 @section qemu-img command line arguments
 
 @subsection convert -s (since 2.0.0)
