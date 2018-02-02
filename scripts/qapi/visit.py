@@ -267,58 +267,68 @@ class QAPISchemaGenVisitVisitor(QAPISchemaVisitor):
     def __init__(self, opt_builtins, prefix):
         self._opt_builtins = opt_builtins
         self._prefix = prefix
-        blurb = ' * Schema-defined QAPI visitors'
-        self._genc = QAPIGenC(blurb, __doc__)
-        self._genh = QAPIGenH(blurb, __doc__)
+        self._module = {}
+        self._add_module(None, ' * Built-in QAPI visitors')
+        self._genc.preamble(mcgen('''
+#include "qemu/osdep.h"
+#include "qemu-common.h"
+#include "qapi/error.h"
+#include "qapi-builtin-visit.h"
+'''))
+        self._genh.preamble(mcgen('''
+#include "qapi/visitor.h"
+#include "qapi/qmp/qerror.h"
+#include "qapi-builtin-types.h"
+''',
+                              prefix=prefix))
+
+    def _module_basename(self, name):
+        if name is None:
+            return 'qapi-builtin-visit'
+        return self._prefix + 'qapi-visit'
+
+    def _add_module(self, name, blurb):
+        genc = QAPIGenC(blurb, __doc__)
+        genh = QAPIGenH(blurb, __doc__)
+        self._module[name] = (genc, genh)
+        self._set_module(name)
+
+    def _set_module(self, name):
+        self._genc, self._genh = self._module[name]
+
+    def write(self, output_dir):
+        for name in self._module:
+            if name is None and not self._opt_builtins:
+                continue
+            basename = self._module_basename(name)
+            (genc, genh) = self._module[name]
+            genc.write(output_dir, basename + '.c')
+            genh.write(output_dir, basename + '.h')
+
+    def visit_module(self, name):
+        if len(self._module) != 1:
+            return
+        self._add_module(name, ' * Schema-defined QAPI visitors')
         self._genc.preamble(mcgen('''
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qapi/error.h"
 #include "%(prefix)sqapi-visit.h"
 ''',
-                                  prefix=prefix))
+                                  prefix=self._prefix))
         self._genh.preamble(mcgen('''
-#include "qapi/visitor.h"
-#include "qapi/qmp/qerror.h"
+#include "qapi-builtin-visit.h"
 #include "%(prefix)sqapi-types.h"
 ''',
-                                  prefix=prefix))
-        self._btin = guardstart('QAPI_VISIT_BUILTIN')
-
-    def write(self, output_dir):
-        self._genc.write(output_dir, self._prefix + 'qapi-visit.c')
-        self._genh.write(output_dir, self._prefix + 'qapi-visit.h')
-
-    def visit_end(self):
-        # To avoid header dependency hell, we always generate
-        # declarations for built-in types in our header files and
-        # simply guard them.  See also opt_builtins (command line
-        # option -b).
-        self._btin += guardend('QAPI_VISIT_BUILTIN')
-        self._genh.preamble(self._btin)
-        self._btin = None
+                                  prefix=self._prefix))
 
     def visit_enum_type(self, name, info, values, prefix):
-        # Special case for our lone builtin enum type
-        # TODO use something cleaner than existence of info
-        if not info:
-            self._btin += gen_visit_decl(name, scalar=True)
-            if self._opt_builtins:
-                self._genc.body(gen_visit_enum(name))
-        else:
-            self._genh.body(gen_visit_decl(name, scalar=True))
-            self._genc.body(gen_visit_enum(name))
+        self._genh.body(gen_visit_decl(name, scalar=True))
+        self._genc.body(gen_visit_enum(name))
 
     def visit_array_type(self, name, info, element_type):
-        decl = gen_visit_decl(name)
-        defn = gen_visit_list(name, element_type)
-        if isinstance(element_type, QAPISchemaBuiltinType):
-            self._btin += decl
-            if self._opt_builtins:
-                self._genc.body(defn)
-        else:
-            self._genh.body(decl)
-            self._genc.body(defn)
+        self._genh.body(gen_visit_decl(name))
+        self._genc.body(gen_visit_list(name, element_type))
 
     def visit_object_type(self, name, info, base, members, variants):
         # Nothing to do for the special empty builtin

@@ -1527,11 +1527,10 @@ class QAPISchema(object):
 
     def _def_builtin_type(self, name, json_type, c_type):
         self._def_entity(QAPISchemaBuiltinType(name, json_type, c_type))
-        # TODO As long as we have QAPI_TYPES_BUILTIN to share multiple
-        # qapi-types.h from a single .c, all arrays of builtins must be
-        # declared in the first file whether or not they are used.  Nicer
-        # would be to use lazy instantiation, while figuring out how to
-        # avoid compilation issues with multiple qapi-types.h.
+        # Instantiating only the arrays that are actually used would
+        # be nice, but we can't as long as their generated code
+        # (qapi-builtin-types.[ch]) may be shared by some other
+        # schema.
         self._make_array_type(name, None)
 
     def _def_predefineds(self):
@@ -1985,14 +1984,15 @@ class QAPIGen(object):
         return ''
 
     def write(self, output_dir, fname):
-        if output_dir:
+        pathname = os.path.join(output_dir, fname)
+        dir = os.path.dirname(pathname)
+        if dir:
             try:
-                os.makedirs(output_dir)
+                os.makedirs(dir)
             except os.error as e:
                 if e.errno != errno.EEXIST:
                     raise
-        fd = os.open(os.path.join(output_dir, fname),
-                     os.O_RDWR | os.O_CREAT, 0666)
+        fd = os.open(pathname, os.O_RDWR | os.O_CREAT, 0666)
         f = os.fdopen(fd, 'r+')
         text = (self.top(fname) + self._preamble + self._body
                 + self.bottom(fname))

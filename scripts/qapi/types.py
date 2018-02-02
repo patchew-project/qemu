@@ -171,64 +171,72 @@ class QAPISchemaGenTypeVisitor(QAPISchemaVisitor):
     def __init__(self, opt_builtins, prefix):
         self._opt_builtins = opt_builtins
         self._prefix = prefix
-        blurb = ' * Schema-defined QAPI types'
-        self._genc = QAPIGenC(blurb, __doc__)
-        self._genh = QAPIGenH(blurb, __doc__)
+        self._module = {}
+        self._add_module(None, ' * Built-in QAPI types')
+        self._genc.preamble(mcgen('''
+#include "qemu/osdep.h"
+#include "qapi/dealloc-visitor.h"
+#include "qapi-builtin-types.h"
+#include "qapi-builtin-visit.h"
+'''))
+        self._genh.preamble(mcgen('''
+#include "qapi/util.h"
+'''))
+
+    def _module_basename(self, name):
+        if name is None:
+            return 'qapi-builtin-types'
+        return self._prefix + 'qapi-types'
+
+    def _add_module(self, name, blurb):
+        genc = QAPIGenC(blurb, __doc__)
+        genh = QAPIGenH(blurb, __doc__)
+        self._module[name] = (genc, genh)
+        self._set_module(name)
+
+    def _set_module(self, name):
+        self._genc, self._genh = self._module[name]
+
+    def write(self, output_dir):
+        for name in self._module:
+            if name is None and not self._opt_builtins:
+                continue
+            basename = self._module_basename(name)
+            (genc, genh) = self._module[name]
+            genc.write(output_dir, basename + '.c')
+            genh.write(output_dir, basename + '.h')
+
+    def visit_begin(self, schema):
+        # gen_object() is recursive, ensure it doesn't visit the empty type
+        objects_seen.add(schema.the_empty_object_type.name)
+
+    def visit_module(self, name):
+        if len(self._module) != 1:
+            return
+        self._add_module(name, ' * Schema-defined QAPI types')
         self._genc.preamble(mcgen('''
 #include "qemu/osdep.h"
 #include "qapi/dealloc-visitor.h"
 #include "%(prefix)sqapi-types.h"
 #include "%(prefix)sqapi-visit.h"
 ''',
-                                  prefix=prefix))
+                                  prefix=self._prefix))
         self._genh.preamble(mcgen('''
-#include "qapi/util.h"
+#include "qapi-builtin-types.h"
 '''))
-        self._btin = '\n' + guardstart('QAPI_TYPES_BUILTIN')
-
-    def write(self, output_dir):
-        self._genc.write(output_dir, self._prefix + 'qapi-types.c')
-        self._genh.write(output_dir, self._prefix + 'qapi-types.h')
-
-    def visit_begin(self, schema):
-        # gen_object() is recursive, ensure it doesn't visit the empty type
-        objects_seen.add(schema.the_empty_object_type.name)
-
-    def visit_end(self):
-        # To avoid header dependency hell, we always generate
-        # declarations for built-in types in our header files and
-        # simply guard them.  See also opt_builtins (command line
-        # option -b).
-        self._btin += guardend('QAPI_TYPES_BUILTIN')
-        self._genh.preamble(self._btin)
-        self._btin = None
 
     def _gen_type_cleanup(self, name):
         self._genh.body(gen_type_cleanup_decl(name))
         self._genc.body(gen_type_cleanup(name))
 
     def visit_enum_type(self, name, info, values, prefix):
-        # Special case for our lone builtin enum type
-        # TODO use something cleaner than existence of info
-        if not info:
-            self._btin += gen_enum(name, values, prefix)
-            if self._opt_builtins:
-                self._genc.body(gen_enum_lookup(name, values, prefix))
-        else:
-            self._genh.preamble(gen_enum(name, values, prefix))
-            self._genc.body(gen_enum_lookup(name, values, prefix))
+        self._genh.preamble(gen_enum(name, values, prefix))
+        self._genc.body(gen_enum_lookup(name, values, prefix))
 
     def visit_array_type(self, name, info, element_type):
-        if isinstance(element_type, QAPISchemaBuiltinType):
-            self._btin += gen_fwd_object_or_array(name)
-            self._btin += gen_array(name, element_type)
-            self._btin += gen_type_cleanup_decl(name)
-            if self._opt_builtins:
-                self._genc.body(gen_type_cleanup(name))
-        else:
-            self._genh.preamble(gen_fwd_object_or_array(name))
-            self._genh.body(gen_array(name, element_type))
-            self._gen_type_cleanup(name)
+        self._genh.preamble(gen_fwd_object_or_array(name))
+        self._genh.body(gen_array(name, element_type))
+        self._gen_type_cleanup(name)
 
     def visit_object_type(self, name, info, base, members, variants):
         # Nothing to do for the special empty builtin
