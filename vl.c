@@ -1761,6 +1761,12 @@ void qemu_system_guest_panicked(GuestPanicInformation *info)
                           info->u.hyper_v.arg3,
                           info->u.hyper_v.arg4,
                           info->u.hyper_v.arg5);
+        } else if (info->type == GUEST_PANIC_INFORMATION_TYPE_S390) {
+            qemu_log_mask(LOG_GUEST_ERROR, "S390 crash parameters: (0x%016"
+                          PRIx64" 0x%016" PRIx64")\nS390 crash reason: %s\n",
+                          info->u.s390.psw_mask,
+                          info->u.s390.psw_addr,
+                          info->u.s390.reason);
         }
         qapi_free_GuestPanicInformation(info);
     }
