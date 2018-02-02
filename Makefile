@@ -98,6 +98,7 @@ GENERATED_FILES += qapi/qapi-types-common.h qapi/qapi-types-common.c
 GENERATED_FILES += qapi/qapi-types-crypto.h qapi/qapi-types-crypto.c
 GENERATED_FILES += qapi/qapi-types-introspect.h qapi/qapi-types-introspect.c
 GENERATED_FILES += qapi/qapi-types-migration.h qapi/qapi-types-migration.c
+GENERATED_FILES += qapi/qapi-types-misc.h qapi/qapi-types-misc.c
 GENERATED_FILES += qapi/qapi-types-net.h qapi/qapi-types-net.c
 GENERATED_FILES += qapi/qapi-types-rocker.h qapi/qapi-types-rocker.c
 GENERATED_FILES += qapi/qapi-types-run-state.h qapi/qapi-types-run-state.c
@@ -545,6 +546,7 @@ qapi/qapi-types-common.c qapi/qapi-types-common.h \
 qapi/qapi-types-crypto.c qapi/qapi-types-crypto.h \
 qapi/qapi-types-introspect.c qapi/qapi-types-introspect.h \
 qapi/qapi-types-migration.c qapi/qapi-types-migration.h \
+qapi/qapi-types-misc.c qapi/qapi-types-misc.h \
 qapi/qapi-types-net.c qapi/qapi-types-net.h \
 qapi/qapi-types-rocker.c qapi/qapi-types-rocker.h \
 qapi/qapi-types-run-state.c qapi/qapi-types-run-state.h \

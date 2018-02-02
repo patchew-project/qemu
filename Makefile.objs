@@ -11,6 +11,7 @@ util-obj-y += qapi/qapi-types-common.o
 util-obj-y += qapi/qapi-types-crypto.o
 util-obj-y += qapi/qapi-types-introspect.o
 util-obj-y += qapi/qapi-types-migration.o
+util-obj-y += qapi/qapi-types-misc.o
 util-obj-y += qapi/qapi-types-net.o
 util-obj-y += qapi/qapi-types-rocker.o
 util-obj-y += qapi/qapi-types-run-state.o
