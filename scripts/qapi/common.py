@@ -1457,13 +1457,13 @@ class QAPISchema(object):
     def __init__(self, fname):
         try:
             parser = QAPISchemaParser(open(fname, 'r'))
-            self.exprs = check_exprs(parser.exprs)
+            exprs = check_exprs(parser.exprs)
             self.docs = parser.docs
             self._entity_dict = {}
             self._predefining = True
             self._def_predefineds()
             self._predefining = False
-            self._def_exprs()
+            self._def_exprs(exprs)
             self.check()
         except QAPIError as err:
             print >>sys.stderr, err
@@ -1648,8 +1648,8 @@ class QAPISchema(object):
                 name, info, doc, 'arg', self._make_members(data, info))
         self._def_entity(QAPISchemaEvent(name, info, doc, data, boxed))
 
-    def _def_exprs(self):
-        for expr_elem in self.exprs:
+    def _def_exprs(self, exprs):
+        for expr_elem in exprs:
             expr = expr_elem['expr']
             info = expr_elem['info']
             doc = expr_elem.get('doc')
