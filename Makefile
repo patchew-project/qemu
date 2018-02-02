@@ -91,6 +91,21 @@ GENERATED_FILES = qemu-version.h config-host.h qemu-options.def
 GENERATED_FILES += qmp-commands.h qmp-marshal.c
 GENERATED_FILES += qapi-builtin-types.h qapi-builtin-types.c
 GENERATED_FILES += qapi-types.h qapi-types.c
+GENERATED_FILES += qapi/qapi-types-block-core.h qapi/qapi-types-block-core.c
+GENERATED_FILES += qapi/qapi-types-block.h qapi/qapi-types-block.c
+GENERATED_FILES += qapi/qapi-types-char.h qapi/qapi-types-char.c
+GENERATED_FILES += qapi/qapi-types-common.h qapi/qapi-types-common.c
+GENERATED_FILES += qapi/qapi-types-crypto.h qapi/qapi-types-crypto.c
+GENERATED_FILES += qapi/qapi-types-introspect.h qapi/qapi-types-introspect.c
+GENERATED_FILES += qapi/qapi-types-migration.h qapi/qapi-types-migration.c
+GENERATED_FILES += qapi/qapi-types-net.h qapi/qapi-types-net.c
+GENERATED_FILES += qapi/qapi-types-rocker.h qapi/qapi-types-rocker.c
+GENERATED_FILES += qapi/qapi-types-run-state.h qapi/qapi-types-run-state.c
+GENERATED_FILES += qapi/qapi-types-sockets.h qapi/qapi-types-sockets.c
+GENERATED_FILES += qapi/qapi-types-tpm.h qapi/qapi-types-tpm.c
+GENERATED_FILES += qapi/qapi-types-trace.h qapi/qapi-types-trace.c
+GENERATED_FILES += qapi/qapi-types-transaction.h qapi/qapi-types-transaction.c
+GENERATED_FILES += qapi/qapi-types-ui.h qapi/qapi-types-ui.c
 GENERATED_FILES += qapi-builtin-visit.h qapi-builtin-visit.c
 GENERATED_FILES += qapi-visit.h qapi-visit.c
 GENERATED_FILES += qapi-event.h qapi-event.c
@@ -523,6 +538,21 @@ qapi-modules = $(SRC_PATH)/qapi-schema.json $(SRC_PATH)/qapi/common.json \
 
 qapi-builtin-types.c qapi-builtin-types.h \
 qapi-types.c qapi-types.h \
+qapi/qapi-types-block-core.c qapi/qapi-types-block-core.h \
+qapi/qapi-types-block.c qapi/qapi-types-block.h \
+qapi/qapi-types-char.c qapi/qapi-types-char.h \
+qapi/qapi-types-common.c qapi/qapi-types-common.h \
+qapi/qapi-types-crypto.c qapi/qapi-types-crypto.h \
+qapi/qapi-types-introspect.c qapi/qapi-types-introspect.h \
+qapi/qapi-types-migration.c qapi/qapi-types-migration.h \
+qapi/qapi-types-net.c qapi/qapi-types-net.h \
+qapi/qapi-types-rocker.c qapi/qapi-types-rocker.h \
+qapi/qapi-types-run-state.c qapi/qapi-types-run-state.h \
+qapi/qapi-types-sockets.c qapi/qapi-types-sockets.h \
+qapi/qapi-types-tpm.c qapi/qapi-types-tpm.h \
+qapi/qapi-types-trace.c qapi/qapi-types-trace.h \
+qapi/qapi-types-transaction.c qapi/qapi-types-transaction.h \
+qapi/qapi-types-ui.c qapi/qapi-types-ui.h \
 qapi-builtin-visit.c qapi-builtin-visit.h \
 qapi-visit.c qapi-visit.h \
 qmp-commands.h qmp-marshal.c \

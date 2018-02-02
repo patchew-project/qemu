@@ -3,7 +3,23 @@
 stub-obj-y = stubs/ crypto/
 util-obj-y = util/ qobject/ qapi/
 util-obj-y += qapi-builtin-types.o qapi-builtin-visit.o
-util-obj-y += qmp-introspect.o qapi-types.o qapi-visit.o qapi-event.o
+util-obj-y += qapi-types.o
+util-obj-y += qapi/qapi-types-block-core.o
+util-obj-y += qapi/qapi-types-block.o
+util-obj-y += qapi/qapi-types-char.o
+util-obj-y += qapi/qapi-types-common.o
+util-obj-y += qapi/qapi-types-crypto.o
+util-obj-y += qapi/qapi-types-introspect.o
+util-obj-y += qapi/qapi-types-migration.o
+util-obj-y += qapi/qapi-types-net.o
+util-obj-y += qapi/qapi-types-rocker.o
+util-obj-y += qapi/qapi-types-run-state.o
+util-obj-y += qapi/qapi-types-sockets.o
+util-obj-y += qapi/qapi-types-tpm.o
+util-obj-y += qapi/qapi-types-trace.o
+util-obj-y += qapi/qapi-types-transaction.o
+util-obj-y += qapi/qapi-types-ui.o
+util-obj-y += qmp-introspect.o qapi-visit.o qapi-event.o
 
 chardev-obj-y = chardev/
 

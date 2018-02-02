@@ -172,6 +172,7 @@ class QAPISchemaGenTypeVisitor(QAPISchemaVisitor):
         self._opt_builtins = opt_builtins
         self._prefix = prefix
         self._module = {}
+        self._main_module = None
         self._add_module(None, ' * Built-in QAPI types')
         self._genc.preamble(mcgen('''
 #include "qemu/osdep.h"
@@ -186,7 +187,11 @@ class QAPISchemaGenTypeVisitor(QAPISchemaVisitor):
     def _module_basename(self, name):
         if name is None:
             return 'qapi-builtin-types'
-        return self._prefix + 'qapi-types'
+        basename = os.path.join(os.path.dirname(name),
+                                self._prefix + 'qapi-types')
+        if name == self._main_module:
+            return basename
+        return basename + '-' + os.path.splitext(os.path.basename(name))[0]
 
     def _add_module(self, name, blurb):
         genc = QAPIGenC(blurb, __doc__)
@@ -211,7 +216,10 @@ class QAPISchemaGenTypeVisitor(QAPISchemaVisitor):
         objects_seen.add(schema.the_empty_object_type.name)
 
     def visit_module(self, name):
-        if len(self._module) != 1:
+        if self._main_module is None:
+            self._main_module = name
+        if name in self._module:
+            self._set_module(name)
             return
         self._add_module(name, ' * Schema-defined QAPI types')
         self._genc.preamble(mcgen('''
@@ -224,6 +232,12 @@ class QAPISchemaGenTypeVisitor(QAPISchemaVisitor):
         self._genh.preamble(mcgen('''
 #include "qapi-builtin-types.h"
 '''))
+
+    def visit_include(self, name, info):
+        self._genh.preamble(mcgen('''
+#include "%(basename)s.h"
+''',
+                                  basename=self._module_basename(name)))
 
     def _gen_type_cleanup(self, name):
         self._genh.body(gen_type_cleanup_decl(name))
