@@ -776,13 +776,12 @@ void machine_run_board_init(MachineState *machine)
     /* If the machine supports the valid_cpu_types check and the user
      * specified a CPU with -cpu check here that the user CPU is supported.
      */
-    if (machine_class->valid_cpu_types && machine->cpu_type) {
-        ObjectClass *class = object_class_by_name(machine->cpu_type);
+    if (machine_class->valid_cpu_types && machine->cpu_model) {
         int i;
 
         for (i = 0; machine_class->valid_cpu_types[i]; i++) {
-            if (object_class_dynamic_cast(class,
-                                          machine_class->valid_cpu_types[i])) {
+            if (!strcmp(machine->cpu_model,
+                        machine_class->valid_cpu_types[i])) {
                 /* The user specificed CPU is in the valid field, we are
                  * good to go.
                  */
@@ -792,8 +791,8 @@ void machine_run_board_init(MachineState *machine)
 
         if (!machine_class->valid_cpu_types[i]) {
             /* The user specified CPU is not valid */
-            error_report("Invalid CPU type: %s", machine->cpu_type);
-            error_printf("The valid types are: %s",
+            error_report("Invalid CPU model: %s", machine->cpu_model);
+            error_printf("The valid models are: %s",
                          machine_class->valid_cpu_types[0]);
             for (i = 1; machine_class->valid_cpu_types[i]; i++) {
                 error_printf(", %s", machine_class->valid_cpu_types[i]);
