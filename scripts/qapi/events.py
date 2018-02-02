@@ -12,7 +12,7 @@ This work is licensed under the terms of the GNU GPL, version 2.
 See the COPYING file in the top-level directory.
 """
 
-from qapi import *
+from qapi.common import *
 
 
 def build_event_send_proto(name, arg_type, boxed):
@@ -171,13 +171,8 @@ class QAPISchemaGenEventVisitor(QAPISchemaVisitor):
         self._event_names.append(name)
 
 
-def main(argv):
-    (input_file, output_dir, do_c, do_h, prefix, dummy) = parse_command_line()
-
-    blurb = '''
- * Schema-defined QAPI/QMP events
-'''
-
+def gen_events(schema, output_dir, prefix):
+    blurb = ' * Schema-defined QAPI/QMP events'
     genc = QAPIGenC(blurb, __doc__)
     genh = QAPIGenH(blurb, __doc__)
 
@@ -201,17 +196,9 @@ def main(argv):
 ''',
                     prefix=prefix))
 
-    schema = QAPISchema(input_file)
     vis = QAPISchemaGenEventVisitor(prefix)
     schema.visit(vis)
     genc.body(vis.defn)
     genh.body(vis.decl)
-
-    if do_c:
-        genc.write(output_dir, prefix + 'qapi-event.c')
-    if do_h:
-        genh.write(output_dir, prefix + 'qapi-event.h')
-
-
-if __name__ == '__main__':
-    main(sys.argv)
+    genc.write(output_dir, prefix + 'qapi-event.c')
+    genh.write(output_dir, prefix + 'qapi-event.h')

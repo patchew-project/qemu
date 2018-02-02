@@ -10,7 +10,7 @@
 # See the COPYING file in the top-level directory.
 #
 
-from qapi import *
+from qapi.common import *
 from pprint import pprint
 import os
 import sys

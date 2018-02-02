@@ -4,10 +4,9 @@
 # This work is licensed under the terms of the GNU LGPL, version 2+.
 # See the COPYING file in the top-level directory.
 """This script produces the documentation of a qapi schema in texinfo format"""
-import re
-import sys
 
-import qapi
+import re
+import qapi.common
 
 MSG_FMT = """
 @deftypefn {type} {{}} {name}
@@ -196,7 +195,7 @@ def texi_entity(doc, what, base=None, variants=None,
             + texi_sections(doc))
 
 
-class QAPISchemaGenDocVisitor(qapi.QAPISchemaVisitor):
+class QAPISchemaGenDocVisitor(qapi.common.QAPISchemaVisitor):
     def __init__(self):
         self.out = None
         self.cur_doc = None
@@ -271,20 +270,8 @@ def texi_schema(schema):
     return gen.out
 
 
-def main(argv):
-    """Takes schema argument, prints result to stdout"""
-    if len(argv) != 2:
-        print >>sys.stderr, "%s: need exactly 1 argument: SCHEMA" % argv[0]
-        sys.exit(1)
-
-    schema = qapi.QAPISchema(argv[1])
-    if not qapi.doc_required:
-        print >>sys.stderr, ("%s: need pragma 'doc-required' "
-                             "to generate documentation" % argv[0])
-        sys.exit(1)
-    print '@c AUTOMATICALLY GENERATED, DO NOT MODIFY\n'
-    print texi_schema(schema),
-
-
-if __name__ == '__main__':
-    main(sys.argv)
+def gen_doc(schema, output_dir, prefix):
+    if qapi.common.doc_required:
+        gen = qapi.common.QAPIGenDoc()
+        gen.body(texi_schema(schema))
+        gen.write(output_dir, prefix + 'qapi.texi')
