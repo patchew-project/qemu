@@ -7,7 +7,7 @@
 import getopt
 import re
 import sys
-from qapi.common import QAPISchema
+from qapi.common import QAPIError, QAPISchema
 from qapi.types import gen_types
 from qapi.visit import gen_visit
 from qapi.commands import gen_commands
@@ -77,7 +77,11 @@ def main(argv):
         if o in ('-u', '--unmask-non-abi-names'):
             opt_unmask = True
 
-    schema = QAPISchema(input_file)
+    try:
+        schema = QAPISchema(input_file)
+    except QAPIError as err:
+        print >>sys.stderr, err
+        exit(1)
 
     gen_types(schema, output_dir, prefix, opt_builtins)
     gen_visit(schema, output_dir, prefix, opt_builtins)

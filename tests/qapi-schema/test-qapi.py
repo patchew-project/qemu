@@ -53,7 +53,13 @@ class QAPISchemaTestVisitor(QAPISchemaVisitor):
             for v in variants.variants:
                 print '    case %s: %s' % (v.name, v.type.name)
 
-schema = QAPISchema(sys.argv[1])
+
+try:
+    schema = QAPISchema(sys.argv[1])
+except QAPIError as err:
+    print >>sys.stderr, err
+    exit(1)
+
 schema.visit(QAPISchemaTestVisitor())
 
 for doc in schema.docs:

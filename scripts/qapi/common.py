@@ -15,7 +15,6 @@ import errno
 import os
 import re
 import string
-import sys
 from ordereddict import OrderedDict
 
 builtin_types = {
@@ -1455,19 +1454,15 @@ class QAPISchemaEvent(QAPISchemaEntity):
 
 class QAPISchema(object):
     def __init__(self, fname):
-        try:
-            parser = QAPISchemaParser(open(fname, 'r'))
-            exprs = check_exprs(parser.exprs)
-            self.docs = parser.docs
-            self._entity_dict = {}
-            self._predefining = True
-            self._def_predefineds()
-            self._predefining = False
-            self._def_exprs(exprs)
-            self.check()
-        except QAPIError as err:
-            print >>sys.stderr, err
-            exit(1)
+        parser = QAPISchemaParser(open(fname, 'r'))
+        exprs = check_exprs(parser.exprs)
+        self.docs = parser.docs
+        self._entity_dict = {}
+        self._predefining = True
+        self._def_predefineds()
+        self._predefining = False
+        self._def_exprs(exprs)
+        self.check()
 
     def _def_entity(self, ent):
         # Only the predefined types are allowed to not have info
