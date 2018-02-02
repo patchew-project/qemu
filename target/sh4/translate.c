@@ -1827,11 +1827,8 @@ static void _decode_opc(DisasContext * ctx)
         }
         break;
     }
-#if 0
-    fprintf(stderr, "unknown instruction 0x%04x at pc 0x%08x\n",
-            ctx->opcode, ctx->base.pc_next);
-    fflush(stderr);
-#endif
+    qemu_log_mask(LOG_UNIMP, "unknown instruction 0x%04x at pc 0x%08x\n",
+                  ctx->opcode, ctx->base.pc_next);
  do_illegal:
     if (ctx->envflags & DELAY_SLOT_MASK) {
  do_illegal_slot:
