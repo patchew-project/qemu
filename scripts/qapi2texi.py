@@ -282,7 +282,8 @@ def main(argv):
         print >>sys.stderr, ("%s: need pragma 'doc-required' "
                              "to generate documentation" % argv[0])
         sys.exit(1)
-    print texi_schema(schema)
+    print '@c AUTOMATICALLY GENERATED, DO NOT MODIFY\n'
+    print texi_schema(schema),
 
 
 if __name__ == '__main__':
