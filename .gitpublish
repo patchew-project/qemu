@@ -26,6 +26,7 @@ cccmd = scripts/get_maintainer.pl --noroles --norolestats --nogit --nogit-fallba
 base = master
 prefix = PATCH
 to = qemu-devel@nongnu.org
+cc = qemu-trivial@nongnu.org
 cccmd = scripts/get_maintainer.pl --noroles --norolestats --nogit --nogit-fallback 2>/dev/null
 
 [gitpublishprofile "block"]
