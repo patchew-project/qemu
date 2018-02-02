@@ -184,6 +184,11 @@ static void xlnx_zynqmp_init(XlnxZCU102 *s, MachineState *machine)
     arm_load_kernel(s->soc.boot_cpu_ptr, &xlnx_zcu102_binfo);
 }
 
+static const char *xlnx_zynqmp_valid_cpus[] = {
+    "cortex-a53",
+    NULL
+};
+
 static void xlnx_ep108_init(MachineState *machine)
 {
     XlnxZCU102 *s = EP108_MACHINE(machine);
@@ -216,6 +221,12 @@ static void xlnx_ep108_machine_class_init(ObjectClass *oc, void *data)
     mc->ignore_memory_transaction_failures = true;
     mc->max_cpus = XLNX_ZYNQMP_NUM_APU_CPUS + XLNX_ZYNQMP_NUM_RPU_CPUS;
     mc->default_cpus = XLNX_ZYNQMP_NUM_APU_CPUS;
+    mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-a53");
+    /* The ZynqMP SoC is always a Cortex-A53. We add this here to give
+     * users a sane error if they specify a different CPU, but we never
+     * use their CPU choice.
+     */
+    mc->valid_cpu_types = xlnx_zynqmp_valid_cpus;
 }
 
 static const TypeInfo xlnx_ep108_machine_init_typeinfo = {
@@ -274,6 +285,12 @@ static void xlnx_zcu102_machine_class_init(ObjectClass *oc, void *data)
     mc->ignore_memory_transaction_failures = true;
     mc->max_cpus = XLNX_ZYNQMP_NUM_APU_CPUS + XLNX_ZYNQMP_NUM_RPU_CPUS;
     mc->default_cpus = XLNX_ZYNQMP_NUM_APU_CPUS;
+    mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-a53");
+    /* The ZynqMP SoC is always a Cortex-A53. We add this here to give
+     * users a sane error if they specify a different CPU, but we never
+     * use their CPU choice.
+     */
+    mc->valid_cpu_types = xlnx_zynqmp_valid_cpus;
 }
 
 static const TypeInfo xlnx_zcu102_machine_init_typeinfo = {
