@@ -2181,6 +2181,7 @@ static LegacyDisplayType select_display(const char *p)
         request_opengl = 1;
         display_opengl = 1;
         display = DT_EGL;
+        dpy.type = DISPLAY_TYPE_EGL_HEADLESS;
 #else
         fprintf(stderr, "egl support is disabled\n");
         exit(1);
@@ -4737,7 +4738,7 @@ int main(int argc, char **argv, char **envp)
 
 #ifdef CONFIG_OPENGL_DMABUF
     if (display_type == DT_EGL) {
-        egl_headless_init();
+        egl_headless_init(&dpy);
     }
 #endif
 
