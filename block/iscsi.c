@@ -114,7 +114,6 @@ typedef struct IscsiAIOCB {
     QEMUBH *bh;
     IscsiLun *iscsilun;
     struct scsi_task *task;
-    uint8_t *buf;
     int status;
     int64_t sector_num;
     int nb_sectors;
@@ -146,9 +145,6 @@ iscsi_bh_cb(void *p)
     IscsiAIOCB *acb = p;
 
     qemu_bh_delete(acb->bh);
-
-    g_free(acb->buf);
-    acb->buf = NULL;
 
     acb->common.cb(acb->common.opaque, acb->status);
 
@@ -927,9 +923,6 @@ iscsi_aio_ioctl_cb(struct iscsi_context *iscsi, int status,
 {
     IscsiAIOCB *acb = opaque;
 
-    g_free(acb->buf);
-    acb->buf = NULL;
-
     acb->status = 0;
     if (status < 0) {
         error_report("Failed to ioctl(SG_IO) to iSCSI lun. %s",
@@ -1004,7 +997,6 @@ static BlockAIOCB *iscsi_aio_ioctl(BlockDriverState *bs,
     acb->iscsilun = iscsilun;
     acb->bh          = NULL;
     acb->status      = -EINPROGRESS;
-    acb->buf         = NULL;
     acb->ioh         = buf;
 
     if (req != SG_IO) {
