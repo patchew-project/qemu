@@ -2219,6 +2219,23 @@ static DisplayType select_display(const char *p)
 #endif
     } else if (strstart(p, "none", &opts)) {
         display = DT_NONE;
+    } else if (strstart(p, "cocoa", &opts)) {
+#ifdef CONFIG_COCOA
+        display = DT_COCOA;
+        if (strstart(opts, ",hotkey-grab=", &opts)) {
+            if (strcmp(opts, "") == 0) {
+                error_report("Please add the key(s) argument");
+                exit(1);
+            }
+            set_ungrab_seq(opts);
+        } else {
+            error_report("invalid Cocoa option");
+            exit(1);
+        }
+#else
+        error_report("Cocoa support is disabled");
+        exit(1);
+#endif
     } else {
         error_report("unknown display type");
         exit(1);

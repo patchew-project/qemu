@@ -30,9 +30,13 @@
 #include "chardev/char-fe.h"
 #include "trace.h"
 #include "exec/memory.h"
+#include <stdio.h>
+#include <memory.h>
+#include <stdbool.h>
 
 #define DEFAULT_BACKSCROLL 512
 #define CONSOLE_CURSOR_PERIOD 500
+#define EMPTY_VALUE -1
 
 typedef struct TextAttributes {
     uint8_t fgcol:4;
@@ -62,6 +66,12 @@ typedef struct QEMUFIFO {
     int buf_size;
     int count, wptr, rptr;
 } QEMUFIFO;
+
+/* stores the ungrab keys' values */
+static int key_value_array[MAX_UNGRAB_KEYS + 1];
+
+/* stores the string that is returned by console_ungrab_key_string */
+static char *ungrab_key_string;
 
 static int qemu_fifo_write(QEMUFIFO *f, const uint8_t *buf, int len1)
 {
@@ -2237,6 +2247,165 @@ void qemu_console_early_init(void)
 static void register_types(void)
 {
     type_register_static(&qemu_console_info);
+}
+
+/* Sets the mouse ungrab key sequence to what the user wants */
+void set_ungrab_seq(const char *new_seq)
+{
+    const char *separator = "-";  /* What the user places between keys */
+    gchar **key_array;
+    int key_value, count;
+
+    count = 0;
+    key_array = g_strsplit(new_seq, separator, -1);
+    ungrab_key_string = g_strdup(new_seq);
+
+    for (; *key_array; key_array++) {
+        key_value = index_from_key(*key_array, strlen(*key_array));
+        if (key_value == Q_KEY_CODE__MAX) {
+            error_report("-hotkey-grab: unknown key: %s", *key_array);
+            exit(EXIT_FAILURE);
+        }
+        key_value_array[count] = key_value;
+        count++;
+    }
+}
+
+/* Returns the user specified ungrab key sequence */
+int *console_ungrab_key_sequence(void)
+{
+    return key_value_array;
+}
+
+/* Returns the name of the user specified ungrab keys */
+const char *console_ungrab_key_string(void)
+{
+    return ungrab_key_string;
+}
+
+/* Sets the UI to use the default ungrab key sequence */
+void use_default_ungrab_keys(void)
+{
+    /* Default ungrab keys: Control Alt g */
+    ungrab_key_string = (char *) malloc(sizeof(char) * 14);
+    sprintf(ungrab_key_string, "%s", "ctrl-alt-g");
+    key_value_array[0] = Q_KEY_CODE_CTRL;
+    key_value_array[1] = Q_KEY_CODE_ALT;
+    key_value_array[2] = Q_KEY_CODE_G;
+}
+
+/*
+ * Initializes the ungrab key settings - should be called by the front-end on
+ * startup.
+ */
+void init_ungrab_keys(void)
+{
+    if (console_ungrab_key_string() == NULL) {
+        use_default_ungrab_keys();
+    }
+}
+
+/*
+ * Set implements a set datatype. It is a collection of numbers with no
+ * repeats.
+ */
+
+/* Creates a new Set object with a size of max_size */
+Set *new_set(int max_size)
+{
+    Set *new_set_obj;
+    new_set_obj = (Set *) malloc(sizeof(Set));
+
+    int *array_obj;
+    array_obj = (int *) malloc(sizeof(int) * max_size);
+    new_set_obj->array = array_obj;
+    new_set_obj->size = max_size;
+
+    /* initialize the array */
+    int index;
+    for (index = 0; index < max_size; index++) {
+        new_set_obj->array[index] = EMPTY_VALUE;
+    }
+
+    return new_set_obj;
+}
+
+/* Adds a number to a set */
+void add_number(Set *the_set, int the_number)
+{
+    int index;
+
+    /* Check if the number if already in the list */
+    for (index = 0; index < the_set->size; index++) {
+        if (the_set->array[index] == the_number) {
+            return;
+        }
+    }
+
+    /* Find an empty spot and place the number there */
+    for (index = 0; index < the_set->size; index++) {
+        if (the_set->array[index] == EMPTY_VALUE) {
+            the_set->array[index] = the_number;
+            return;
+        }
+    }
+    error_report("Failed to add number to set");
+}
+
+/* Removes a number from a set */
+void remove_number(Set *the_set, int the_number)
+{
+    int index;
+    for (index = 0; index < the_set->size; index++) {
+        if (the_set->array[index] == the_number) {
+            the_set->array[index] = EMPTY_VALUE;
+        }
+    }
+}
+
+/* Determines if a number is in a set */
+bool contains_number(Set *the_set, int the_number)
+{
+    int index;
+    for (index = 0; index < the_set->size; index++) {
+        if (the_set->array[index] == the_number) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/* Clears a set of all values */
+void clear_set(Set *the_set)
+{
+    int index;
+    for (index = 0; index < the_set->size; index++) {
+        the_set->array[index] = EMPTY_VALUE;
+    }
+}
+
+/* Determines if two sets contain the same values */
+bool are_sets_equal(Set *set1, Set *set2)
+{
+    if (set1->size != set2->size) {
+        return false;
+    }
+
+    /* see if both sets contain the same numbers */
+    int index1, index2, found_value;
+    for (index1 = 0; index1 < set1->size; index1++) {
+        found_value = 0;
+        for (index2 = 0; index2 < set1->size; index2++) {
+            if (set1->array[index1] == set2->array[index2]) {
+                found_value = 1;
+                break;
+            }
+        }
+        if (found_value != 1) {
+            return false;
+        }
+    }
+    return true;
 }
 
 type_init(register_types);

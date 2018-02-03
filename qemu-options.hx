@@ -1243,6 +1243,7 @@ DEF("display", HAS_ARG, QEMU_OPTION_display,
     "            [,window_close=on|off][,gl=on|off]\n"
     "-display gtk[,grab_on_hover=on|off][,gl=on|off]|\n"
     "-display vnc=<display>[,<optargs>]\n"
+    "-display cocoa[hotkey-grab=<key(s)>]\n"
     "-display curses\n"
     "-display none"
     "                select display type\n"
