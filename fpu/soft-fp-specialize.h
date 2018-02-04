@@ -129,3 +129,126 @@ static inline int pick_nan(int a_nan, int b_nan, bool a_larger,
     return a_larger ^ 1;
 #endif
 }
+
+
+/*
+ * Select which NaN to propagate for a three-input FMA operation.
+ *
+ * A_SNAN etc are set iff the operand is an SNaN; QNaN can be
+ * determined from (A_CLS == FP_CLS_NAN && !A_SNAN).
+ *
+ * The return value is 0 to select NaN A, 1 for NaN B, 2 for NaN C,
+ * or 3 to build a new default QNaN.
+ *
+ * Note that signalling NaNs are always squashed to quiet NaNs
+ * by the caller before returning them.
+ */
+static inline int pick_nan_muladd(int a_cls, bool a_snan,
+                                  int b_cls, bool b_snan,
+                                  int c_cls, bool c_snan,
+                                  float_status *status)
+{
+    /* True if the inner product would itself generate a default NaN.  */
+    bool infzero = (a_cls == FP_CLS_INF && b_cls == FP_CLS_ZERO)
+                || (b_cls == FP_CLS_INF && a_cls == FP_CLS_ZERO);
+
+#if defined(TARGET_ARM)
+    /* For ARM, the (inf,zero,qnan) case sets InvalidOp
+     * and returns the default NaN.
+     */
+    if (infzero && c_cls == FP_CLS_NAN && !c_snan) {
+        float_raise(float_flag_invalid, status);
+        return 3;
+    }
+
+    /* This looks different from the ARM ARM pseudocode, because the ARM ARM
+     * puts the operands to a fused mac operation (a*b)+c in the order c,a,b.
+     */
+    if (c_snan) {
+        return 2;
+    } else if (a_snan) {
+        return 0;
+    } else if (b_snan) {
+        return 1;
+    } else if (c_cls == FP_CLS_NAN) {
+        return 2;
+    } else if (a_cls == FP_CLS_NAN) {
+        return 0;
+    } else {
+        return 1;
+    }
+#elif defined(TARGET_MIPS)
+    /* For MIPS, the (inf,zero,*) case sets InvalidOp
+     * and returns the default NaN.
+     */
+    if (infzero) {
+        float_raise(float_flag_invalid, status);
+        return 3;
+    }
+    if (status->snan_bit_is_one) {
+        /* Prefer sNaN over qNaN, in the a, b, c order. */
+        if (a_snan) {
+            return 0;
+        } else if (b_snan) {
+            return 1;
+        } else if (c_snan) {
+            return 2;
+        } else if (a_cls == FP_CLS_NAN) {
+            return 0;
+        } else if (b_cls == FP_CLS_NAN) {
+            return 1;
+        } else {
+            return 2;
+        }
+    } else {
+        /* Prefer sNaN over qNaN, in the c, a, b order. */
+        if (c_snan) {
+            return 2;
+        } else if (a_snan) {
+            return 0;
+        } else if (b_snan) {
+            return 1;
+        } else if (c_cls == FP_CLS_NAN) {
+            return 2;
+        } else if (a_cls == FP_CLS_NAN) {
+            return 0;
+        } else {
+            return 1;
+        }
+    }
+#elif defined(TARGET_PPC)
+    /* For PPC, the (inf,zero,qnan) case sets InvalidOp, but we prefer
+     * to return an input NaN if we have one (ie c) rather than generating
+     * a default NaN
+     */
+    if (infzero) {
+        float_raise(float_flag_invalid, status);
+        return 2;
+    }
+
+    /* If fRA is a NaN return it; otherwise if fRB is a NaN return it;
+     * otherwise return fRC. Note that muladd on PPC is (fRA * fRC) + frB
+     */
+    if (a_cls == FP_CLS_NAN) {
+        return 0;
+    } else if (c_cls == FP_CLS_NAN) {
+        return 2;
+    } else {
+        return 1;
+    }
+#else
+    /* A default implementation, which is unlikely to match any
+     * real implementation.
+     */
+    if (infzero) {
+        float_raise(float_flag_invalid, status);
+    }
+    if (a_cls == FP_CLS_NAN) {
+        return 0;
+    } else if (b_cls == FP_CLS_NAN) {
+        return 1;
+    } else {
+        return 2;
+    }
+#endif
+}

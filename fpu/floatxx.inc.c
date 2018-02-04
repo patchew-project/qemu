@@ -30,6 +30,8 @@
     _FP_CHOOSENAN(fs, wc, R, A, B, OP)
 #define FP_SETQNAN(fs, wc, X) \
     _FP_SETQNAN(fs, wc, X)
+#define FP_FRAC_SNANP(fs, X) \
+    _FP_FRAC_SNANP(fs, X)
 #define FP_ADD_INTERNAL(fs, wc, R, A, B, OP) \
     _FP_ADD_INTERNAL(fs, wc, R, A, B, '-')
 
@@ -143,6 +145,72 @@ FLOATXX glue(FLOATXX,_scalbn)(FLOATXX a, int n, float_status *status)
     FP_HANDLE_EXCEPTIONS;
 
     return a;
+}
+
+FLOATXX glue(FLOATXX,_muladd)(FLOATXX a, FLOATXX b, FLOATXX c, int flags,
+                              float_status *status)
+{
+    FP_DECL_EX;
+    glue(FP_DECL_, FS)(A);
+    glue(FP_DECL_, FS)(B);
+    glue(FP_DECL_, FS)(C);
+    glue(FP_DECL_, FS)(R);
+    FLOATXX r;
+
+    FP_INIT_ROUNDMODE;
+    glue(FP_UNPACK_, FS)(A, a);
+    glue(FP_UNPACK_, FS)(B, b);
+    glue(FP_UNPACK_, FS)(C, c);
+
+    /* R_e is not set in cases where it is not used in packing, but the
+     * compiler does not see that it is set in all cases where it is used,
+     * resulting in warnings that it may be used uninitialized.
+     * For QEMU, we will usually read it before packing, for halve_result.
+     */
+    R_e = 0;
+
+    /* _FP_FMA does pair-wise calls to _FP_CHOOSENAN.  For proper
+       emulation of the target cpu we need to do better than that.  */
+    if (A_c == FP_CLS_NAN || B_c == FP_CLS_NAN || C_c == FP_CLS_NAN) {
+        bool a_snan = A_c == FP_CLS_NAN && FP_FRAC_SNANP(FS, A);
+        bool b_snan = B_c == FP_CLS_NAN && FP_FRAC_SNANP(FS, B);
+        bool c_snan = C_c == FP_CLS_NAN && FP_FRAC_SNANP(FS, C);
+        int p = pick_nan_muladd(A_c, a_snan, B_c, b_snan, C_c, c_snan, status);
+
+        R_c = FP_CLS_NAN;
+        switch (p) {
+        case 0:
+            R_s = A_s;
+            glue(_FP_FRAC_COPY_, WC)(R, A);
+            break;
+        case 1:
+            R_s = B_s;
+            glue(_FP_FRAC_COPY_, WC)(R, B);
+            break;
+        case 2:
+            R_s = C_s;
+            glue(_FP_FRAC_COPY_, WC)(R, C);
+            break;
+        default:
+            R_s = glue(_FP_NANSIGN_, FS);
+            glue(_FP_FRAC_SET_, WC)(R, glue(_FP_NANFRAC_, FS));
+            break;
+        }
+        /* Any SNaN result will be silenced during _FP_PACK_CANONICAL.  */
+    } else {
+        C_s ^= (flags & float_muladd_negate_c) != 0;
+        B_s ^= (flags & float_muladd_negate_product) != 0;
+
+        glue(FP_FMA_, FS)(R, A, B, C);
+
+        R_s ^= ((flags & float_muladd_negate_result) && R_c != FP_CLS_NAN);
+        R_e -= ((flags & float_muladd_halve_result) && R_c == FP_CLS_NORMAL);
+    }
+
+    glue(FP_PACK_, FS)(r, R);
+    FP_HANDLE_EXCEPTIONS;
+
+    return r;
 }
 
 #define DO_FLOAT_TO_INT(NAME, SZ, FP_TO_INT_WHICH)   \
