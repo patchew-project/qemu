@@ -26,6 +26,10 @@
     (X##_e == _FP_EXPMAX_##fs && !_FP_FRAC_ZEROP_##wc (X))
 #define FP_ISNAN(fs, wc, X) \
     _FP_ISNAN(fs, wc, X)
+#define FP_CHOOSENAN(fs, wc, R, A, B, OP) \
+    _FP_CHOOSENAN(fs, wc, R, A, B, OP)
+#define FP_SETQNAN(fs, wc, X) \
+    _FP_SETQNAN(fs, wc, X)
 #define FP_ADD_INTERNAL(fs, wc, R, A, B, OP) \
     _FP_ADD_INTERNAL(fs, wc, R, A, B, '-')
 
@@ -262,4 +266,89 @@ int glue(FLOATXX,_lt_quiet)(FLOATXX a, FLOATXX b, float_status *status)
 int glue(FLOATXX,_unordered_quiet)(FLOATXX a, FLOATXX b, float_status *status)
 {
     return compare_internal(a, b, status, true) == float_relation_unordered;
+}
+
+#define MINMAX_MAX  0
+#define MINMAX_MIN  1
+#define MINMAX_IEEE 2
+#define MINMAX_MAG  4
+
+static FLOATXX minmax_internal(FLOATXX a, FLOATXX b,
+                               float_status *status, int flags)
+{
+    FP_DECL_EX;
+    glue(FP_DECL_, FS)(A);
+    glue(FP_DECL_, FS)(B);
+    bool save_A_s;
+    int cmp;
+
+    FP_INIT_EXCEPTIONS;
+    glue(FP_UNPACK_RAW_, FS)(A, a);
+    glue(FP_UNPACK_RAW_, FS)(B, b);
+
+    /* When comparing magnitudes, squish the signs.  */
+    save_A_s = A_s;
+    if (flags & MINMAX_MAG) {
+        A_s = B_s = 0;
+    }
+
+    glue(FP_CMP_, FS)(cmp, A, B, float_relation_unordered, 1);
+    FP_HANDLE_EXCEPTIONS;
+
+    if (unlikely(cmp == float_relation_unordered)) {
+        glue(FP_DECL_, FS)(R);
+        FLOATXX r;
+
+        if (flags & MINMAX_IEEE) {
+            if (glue(FP_ISSIGNAN_, FS)(A) || glue(FP_ISSIGNAN_, FS)(B)) {
+                /* fall through to FP_CHOOSENAN */
+            } else if (!FP_ISNAN(FS, WC, A)) {
+                return a;
+            } else if (!FP_ISNAN(FS, WC, B)) {
+                return b;
+            }
+        }
+
+        FP_CHOOSENAN(FS, WC, R, A, B, 'm');
+        FP_SETQNAN(FS, WC, R);
+        glue(FP_PACK_RAW_, FS)(r, R);
+        return r;
+    }
+
+    /* Specially handle min(+0.0, -0.0) = -0.0, which compare as equal. */
+    cmp = (cmp == 0 ? save_A_s : cmp < 0);
+    cmp ^= flags & MINMAX_MIN;
+    return cmp ? b : a;
+}
+
+FLOATXX glue(FLOATXX,_max)(FLOATXX a, FLOATXX b, float_status *status)
+{
+    return minmax_internal(a, b, status, MINMAX_MAX);
+}
+
+FLOATXX glue(FLOATXX,_min)(FLOATXX a, FLOATXX b, float_status *status)
+{
+    return minmax_internal(a, b, status, MINMAX_MIN);
+}
+
+FLOATXX glue(FLOATXX,_maxnum)(FLOATXX a, FLOATXX b, float_status *status)
+{
+    return minmax_internal(a, b, status, MINMAX_MAX | MINMAX_IEEE);
+}
+
+FLOATXX glue(FLOATXX,_minnum)(FLOATXX a, FLOATXX b, float_status *status)
+{
+    return minmax_internal(a, b, status, MINMAX_MIN | MINMAX_IEEE);
+}
+
+FLOATXX glue(FLOATXX,_maxnummag)(FLOATXX a, FLOATXX b, float_status *status)
+{
+    return minmax_internal(a, b, status,
+                           MINMAX_MAX | MINMAX_IEEE | MINMAX_MAG);
+}
+
+FLOATXX glue(FLOATXX,_minnummag)(FLOATXX a, FLOATXX b, float_status *status)
+{
+    return minmax_internal(a, b, status,
+                           MINMAX_MIN | MINMAX_IEEE | MINMAX_MAG);
 }
