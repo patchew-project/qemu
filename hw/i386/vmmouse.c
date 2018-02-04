@@ -26,6 +26,8 @@
 #include "ui/console.h"
 #include "hw/i386/pc.h"
 #include "hw/qdev.h"
+#include "hw/input/pckbd.h"
+#include "qapi/error.h"
 
 /* debug only vmmouse */
 //#define DEBUG_VMMOUSE
@@ -271,10 +273,15 @@ static void vmmouse_realizefn(DeviceState *dev, Error **errp)
     vmport_register(VMMOUSE_DATA, vmmouse_ioport_read, s);
 }
 
-static Property vmmouse_properties[] = {
-    DEFINE_PROP_PTR("ps2_mouse", VMMouseState, ps2_mouse),
-    DEFINE_PROP_END_OF_LIST(),
-};
+static void vmmouse_initfn(Object *obj)
+{
+    VMMouseState *s = VMMOUSE(obj);
+
+    object_property_add_link(obj, "ps2_mouse", TYPE_I8042,
+                             (Object **)&s->ps2_mouse,
+                             qdev_prop_allow_set_link_before_realize,
+                             0, &error_abort);
+}
 
 static void vmmouse_class_initfn(ObjectClass *klass, void *data)
 {
@@ -283,15 +290,13 @@ static void vmmouse_class_initfn(ObjectClass *klass, void *data)
     dc->realize = vmmouse_realizefn;
     dc->reset = vmmouse_reset;
     dc->vmsd = &vmstate_vmmouse;
-    dc->props = vmmouse_properties;
-    /* Reason: pointer property "ps2_mouse" */
-    dc->user_creatable = false;
 }
 
 static const TypeInfo vmmouse_info = {
     .name          = TYPE_VMMOUSE,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(VMMouseState),
+    .instance_init = vmmouse_initfn,
     .class_init    = vmmouse_class_initfn,
 };
 

@@ -1598,7 +1598,7 @@ void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
     }
     if (vmmouse) {
         DeviceState *dev = DEVICE(vmmouse);
-        qdev_prop_set_ptr(dev, "ps2_mouse", i8042);
+        object_property_set_link(OBJECT(dev), OBJECT(i8042), "ps2_mouse", NULL);
         qdev_init_nofail(dev);
     }
     port92 = isa_create_simple(isa_bus, "port92");
