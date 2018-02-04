@@ -96,12 +96,10 @@ static uint64_t stm32f2xx_usart_read(void *opaque, hwaddr addr,
     switch (addr) {
     case USART_SR:
         retvalue = s->usart_sr;
-        s->usart_sr &= ~USART_SR_TC;
         qemu_chr_fe_accept_input(&s->chr);
         return retvalue;
     case USART_DR:
         DB_PRINT("Value: 0x%" PRIx32 ", %c\n", s->usart_dr, (char) s->usart_dr);
-        s->usart_sr |= USART_SR_TXE;
         s->usart_sr &= ~USART_SR_RXNE;
         qemu_chr_fe_accept_input(&s->chr);
         qemu_set_irq(s->irq, 0);
@@ -151,8 +149,6 @@ static void stm32f2xx_usart_write(void *opaque, hwaddr addr,
             /* XXX this blocks entire thread. Rewrite to use
              * qemu_chr_fe_write and background I/O callbacks */
             qemu_chr_fe_write_all(&s->chr, &ch, 1);
-            s->usart_sr |= USART_SR_TC;
-            s->usart_sr &= ~USART_SR_TXE;
         }
         return;
     case USART_BRR:
