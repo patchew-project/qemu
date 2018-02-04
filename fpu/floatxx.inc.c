@@ -96,3 +96,48 @@ FLOATXX glue(FLOATXX,_div)(FLOATXX a, FLOATXX b, float_status *status)
 
     return r;
 }
+
+#define DO_FLOAT_TO_INT(NAME, SZ, FP_TO_INT_WHICH)   \
+int##SZ##_t NAME(FLOATXX a, float_status *status) \
+{                                                 \
+    FP_DECL_EX;                                   \
+    glue(FP_DECL_, FS)(A);                        \
+    uint##SZ##_t r;                               \
+    FP_INIT_ROUNDMODE;                            \
+    glue(FP_UNPACK_RAW_, FS)(A, a);               \
+    glue(FP_TO_INT_WHICH, FS)(r, A, SZ, 1);       \
+    FP_HANDLE_EXCEPTIONS;                         \
+    return r;                                     \
+}
+
+#define DO_FLOAT_TO_UINT(NAME, SZ, FP_TO_INT_WHICH)   \
+uint##SZ##_t NAME(FLOATXX a, float_status *status) \
+{                                                  \
+    FP_DECL_EX;                                    \
+    glue(FP_DECL_, FS)(A);                         \
+    uint##SZ##_t r;                                \
+    FP_INIT_ROUNDMODE;                             \
+    glue(FP_UNPACK_RAW_, FS)(A, a);                \
+    glue(FP_TO_INT_WHICH, FS)(r, A, SZ, 0);        \
+    FP_HANDLE_EXCEPTIONS;                          \
+    return r;                                      \
+}
+
+DO_FLOAT_TO_INT(glue(FLOATXX,_to_int16), 16, FP_TO_INT_ROUND_)
+DO_FLOAT_TO_INT(glue(FLOATXX,_to_int32), 32, FP_TO_INT_ROUND_)
+DO_FLOAT_TO_INT(glue(FLOATXX,_to_int64), 64, FP_TO_INT_ROUND_)
+
+DO_FLOAT_TO_INT(glue(FLOATXX,_to_int16_round_to_zero), 16, FP_TO_INT_)
+DO_FLOAT_TO_INT(glue(FLOATXX,_to_int32_round_to_zero), 32, FP_TO_INT_)
+DO_FLOAT_TO_INT(glue(FLOATXX,_to_int64_round_to_zero), 64, FP_TO_INT_)
+
+DO_FLOAT_TO_UINT(glue(FLOATXX,_to_uint16), 16, FP_TO_INT_ROUND_)
+DO_FLOAT_TO_UINT(glue(FLOATXX,_to_uint32), 32, FP_TO_INT_ROUND_)
+DO_FLOAT_TO_UINT(glue(FLOATXX,_to_uint64), 64, FP_TO_INT_ROUND_)
+
+DO_FLOAT_TO_UINT(glue(FLOATXX,_to_uint16_round_to_zero), 16, FP_TO_INT_)
+DO_FLOAT_TO_UINT(glue(FLOATXX,_to_uint32_round_to_zero), 32, FP_TO_INT_)
+DO_FLOAT_TO_UINT(glue(FLOATXX,_to_uint64_round_to_zero), 64, FP_TO_INT_)
+
+#undef DO_FLOAT_TO_INT
+#undef DO_FLOAT_TO_UINT
