@@ -93,6 +93,8 @@
 # define FP_RND_ZERO		1
 # define FP_RND_PINF		2
 # define FP_RND_MINF		3
+# define FP_RND_TIESAWAY	4
+# define FP_RND_ODD		5
 #endif
 #ifndef FP_ROUNDMODE
 # define FP_ROUNDMODE		FP_RND_NEAREST
@@ -282,6 +284,21 @@
     }						\
   while (0)
 
+#define _FP_ROUND_TIESAWAY(wc, X)		\
+  do						\
+    {						\
+      _FP_FRAC_ADDI_##wc (X, _FP_WORK_ROUND);	\
+    }						\
+  while (0)
+
+#define _FP_ROUND_ODD(wc, X)				\
+  do							\
+    {							\
+      if (!(_FP_FRAC_LOW_##wc (X) & _FP_WORK_LSB))	\
+        _FP_FRAC_ADDI_##wc (X, _FP_WORK_LSB - 1);	\
+    }							\
+  while (0)
+
 #define _FP_ROUND(wc, X)			\
   do						\
     {						\
@@ -302,6 +319,14 @@
 	    case FP_RND_MINF:			\
 	      _FP_ROUND_MINF (wc, X);		\
 	      break;				\
+	    case FP_RND_TIESAWAY:		\
+	      _FP_ROUND_TIESAWAY (wc, X);	\
+	      break;				\
+	    case FP_RND_ODD:			\
+	      _FP_ROUND_ODD (wc, X);		\
+	      break;				\
+            default:				\
+	      _FP_UNREACHABLE;			\
 	    }					\
 	}					\
     }						\

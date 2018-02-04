@@ -130,6 +130,7 @@
   do							\
     {							\
       if (FP_ROUNDMODE == FP_RND_NEAREST		\
+	  || FP_ROUNDMODE == FP_RND_TIESAWAY		\
 	  || (FP_ROUNDMODE == FP_RND_PINF && !X##_s)	\
 	  || (FP_ROUNDMODE == FP_RND_MINF && X##_s))	\
 	{						\
@@ -287,6 +288,7 @@
 		  switch (FP_ROUNDMODE)					\
 		    {							\
 		    case FP_RND_NEAREST:				\
+		    case FP_RND_TIESAWAY:				\
 		      X##_c = FP_CLS_INF;				\
 		      break;						\
 		    case FP_RND_PINF:					\
@@ -297,6 +299,10 @@
 		      if (X##_s)					\
 			X##_c = FP_CLS_INF;				\
 		      break;						\
+		    case FP_RND_ODD:					\
+		      break;						\
+		    default:						\
+		      _FP_UNREACHABLE;					\
 		    }							\
 		  if (X##_c == FP_CLS_INF)				\
 		    {							\
@@ -1610,9 +1616,13 @@
 	  switch (FP_ROUNDMODE)						\
 	    {								\
 	    case FP_RND_NEAREST:					\
+	    case FP_RND_TIESAWAY:					\
 	      _FP_TO_INT_ROUND_rounds_away				\
 		= (X##_e == _FP_EXPBIAS_##fs - 1			\
 		   && !_FP_FRAC_ZEROP_##wc (X));			\
+	      break;							\
+	    case FP_RND_ODD:						\
+	      _FP_TO_INT_ROUND_rounds_away = 1;				\
 	      break;							\
 	    case FP_RND_ZERO:						\
 	      /* _FP_TO_INT_ROUND_rounds_away is already 0.  */		\
@@ -1623,6 +1633,8 @@
 	    case FP_RND_MINF:						\
 	      _FP_TO_INT_ROUND_rounds_away = X##_s;			\
 	      break;							\
+	    default:							\
+	      _FP_UNREACHABLE;						\
 	    }								\
 	  if ((rsigned) == 0 && _FP_TO_INT_ROUND_rounds_away && X##_s)	\
 	    {								\
@@ -1740,6 +1752,14 @@
 		    case FP_RND_MINF:					\
 		      _FP_ROUND_MINF (wc, X);				\
 		      break;						\
+		    case FP_RND_TIESAWAY:				\
+		      _FP_ROUND_TIESAWAY (wc, X);			\
+		      break;						\
+		    case FP_RND_ODD:					\
+		      _FP_ROUND_ODD (wc, X);				\
+		      break;						\
+		    default:						\
+		      _FP_UNREACHABLE;					\
 		    }							\
 		}							\
 	      _FP_FRAC_SRL_##wc (X, _FP_WORKBITS);			\
