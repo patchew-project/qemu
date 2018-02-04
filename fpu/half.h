@@ -159,7 +159,19 @@ union _FP_UNION_H
   _FP_TO_INT_ROUND (H, 1, (r), X, (rsz), (rsg))
 #define FP_FROM_INT_H(X, r, rs, rt)	_FP_FROM_INT (H, 1, X, (r), (rs), rt)
 
-/* HFmode arithmetic is not implemented.  */
+#define FP_ISSIGNAN_H(X)                _FP_ISSIGNAN (H, 1, X)
+#define FP_NEG_H(R, X)                  _FP_NEG (H, 1, R, X)
+#define FP_ADD_H(R, X, Y)               _FP_ADD (H, 1, R, X, Y)
+#define FP_SUB_H(R, X, Y)               _FP_SUB (H, 1, R, X, Y)
+#define FP_MUL_H(R, X, Y)               _FP_MUL (H, 1, R, X, Y)
+#define FP_DIV_H(R, X, Y)               _FP_DIV (H, 1, R, X, Y)
+#define FP_SQRT_H(R, X)                 _FP_SQRT (H, 1, R, X)
+#define _FP_SQRT_MEAT_H(R, S, T, X, Q)  _FP_SQRT_MEAT_1 (R, S, T, X, (Q))
+#define FP_FMA_H(R, X, Y, Z)            _FP_FMA (H, 1, 1, R, X, Y, Z)
+
+#define FP_CMP_H(r, X, Y, un, ex)       _FP_CMP (H, 1, (r), X, Y, (un), (ex))
+#define FP_CMP_EQ_H(r, X, Y, ex)        _FP_CMP_EQ (H, 1, (r), X, Y, (ex))
+#define FP_CMP_UNORD_H(r, X, Y, ex)     _FP_CMP_UNORD (H, 1, (r), X, Y, (ex))
 
 #define _FP_FRAC_HIGH_H(X)	_FP_FRAC_HIGH_1 (X)
 #define _FP_FRAC_HIGH_RAW_H(X)	_FP_FRAC_HIGH_1 (X)
