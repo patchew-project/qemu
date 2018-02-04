@@ -117,6 +117,34 @@ FLOATXX glue(FLOATXX,_sqrt)(FLOATXX a, float_status *status)
     return r;
 }
 
+FLOATXX glue(FLOATXX,_scalbn)(FLOATXX a, int n, float_status *status)
+{
+    FP_DECL_EX;
+    glue(FP_DECL_, FS)(A);
+
+    FP_INIT_ROUNDMODE;
+    glue(FP_UNPACK_, FS)(A, a);
+
+    if (likely(A_c == FP_CLS_NORMAL)) {
+        /* Bound N such that the exponent can safely adjusted without
+           overflowing.  The maximum is large enough to take the smallest
+           denormal up beyond the largest normal, which will overflow
+           to infinity when we repack.  */
+        int max = glue(_FP_EXPMAX_, FS) + glue(_FP_FRACBITS_, FS);
+        if (n > max) {
+            n = max;
+        } else if (n < -max) {
+            n = -max;
+        }
+        A_e += n;
+    }
+
+    glue(FP_PACK_, FS)(a, A);
+    FP_HANDLE_EXCEPTIONS;
+
+    return a;
+}
+
 #define DO_FLOAT_TO_INT(NAME, SZ, FP_TO_INT_WHICH)   \
 int##SZ##_t NAME(FLOATXX a, float_status *status) \
 {                                                 \
