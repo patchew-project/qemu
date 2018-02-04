@@ -102,6 +102,7 @@ obj-y += fpu/float16.o
 obj-y += fpu/float32.o
 obj-y += fpu/float64.o
 obj-y += fpu/float128.o
+obj-y += fpu/floatconv.o
 obj-y += target/$(TARGET_BASE_ARCH)/
 obj-y += disas.o
 obj-$(call notempty,$(TARGET_XML_FILES)) += gdbstub-xml.o
