@@ -190,40 +190,36 @@ enum {
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE integer-to-floating-point conversion routines.
 *----------------------------------------------------------------------------*/
+float16 int16_to_float16(int16_t, float_status *status);
+float16 int32_to_float16(int32_t, float_status *status);
+float16 int64_to_float16(int64_t, float_status *status);
+float16 uint16_to_float16(uint16_t, float_status *status);
+float16 uint32_to_float16(uint32_t, float_status *status);
+float16 uint64_to_float16(uint64_t, float_status *status);
+
+float32 int16_to_float32(int16_t, float_status *status);
 float32 int32_to_float32(int32_t, float_status *status);
-float64 int32_to_float64(int32_t, float_status *status);
-float32 uint32_to_float32(uint32_t, float_status *status);
-float64 uint32_to_float64(uint32_t, float_status *status);
-floatx80 int32_to_floatx80(int32_t, float_status *status);
-float128 int32_to_float128(int32_t, float_status *status);
 float32 int64_to_float32(int64_t, float_status *status);
-float64 int64_to_float64(int64_t, float_status *status);
-floatx80 int64_to_floatx80(int64_t, float_status *status);
-float128 int64_to_float128(int64_t, float_status *status);
+float32 uint16_to_float32(uint16_t, float_status *status);
+float32 uint32_to_float32(uint32_t, float_status *status);
 float32 uint64_to_float32(uint64_t, float_status *status);
+
+float64 int16_to_float64(int16_t, float_status *status);
+float64 int32_to_float64(int32_t, float_status *status);
+float64 int64_to_float64(int64_t, float_status *status);
+float64 uint16_to_float64(uint16_t, float_status *status);
+float64 uint32_to_float64(uint32_t, float_status *status);
 float64 uint64_to_float64(uint64_t, float_status *status);
+
+floatx80 int32_to_floatx80(int32_t, float_status *status);
+floatx80 int64_to_floatx80(int64_t, float_status *status);
+
+float128 int16_to_float128(int16_t, float_status *status);
+float128 int32_to_float128(int32_t, float_status *status);
+float128 int64_to_float128(int64_t, float_status *status);
+float128 uint16_to_float128(uint16_t, float_status *status);
+float128 uint32_to_float128(uint32_t, float_status *status);
 float128 uint64_to_float128(uint64_t, float_status *status);
-
-/* We provide the int16 versions for symmetry of API with float-to-int */
-static inline float32 int16_to_float32(int16_t v, float_status *status)
-{
-    return int32_to_float32(v, status);
-}
-
-static inline float32 uint16_to_float32(uint16_t v, float_status *status)
-{
-    return uint32_to_float32(v, status);
-}
-
-static inline float64 int16_to_float64(int16_t v, float_status *status)
-{
-    return int32_to_float64(v, status);
-}
-
-static inline float64 uint16_to_float64(uint16_t v, float_status *status)
-{
-    return uint32_to_float64(v, status);
-}
 
 /*----------------------------------------------------------------------------
 | Software half-precision conversion routines.

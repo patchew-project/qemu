@@ -141,3 +141,58 @@ DO_FLOAT_TO_UINT(glue(FLOATXX,_to_uint64_round_to_zero), 64, FP_TO_INT_)
 
 #undef DO_FLOAT_TO_INT
 #undef DO_FLOAT_TO_UINT
+
+FLOATXX glue(int64_to_,FLOATXX)(int64_t a, float_status *status)
+{
+    FP_DECL_EX;
+    glue(FP_DECL_, FS)(R);
+    FLOATXX r;
+
+    FP_INIT_ROUNDMODE;
+    glue(FP_FROM_INT_, FS)(R, a, 64, uint64_t);
+    glue(FP_PACK_RAW_, FS)(r, R);
+    FP_HANDLE_EXCEPTIONS;
+    return r;
+}
+
+FLOATXX glue(int16_to_,FLOATXX)(int16_t a, float_status *status)
+{
+    return glue(int64_to_,FLOATXX)(a, status);
+}
+
+FLOATXX glue(int32_to_,FLOATXX)(int32_t a, float_status *status)
+{
+    return glue(int64_to_,FLOATXX)(a, status);
+}
+
+/* The code within _FP_FROM_INT always tests A against 0.  For the
+   unsigned conversion, this may result in a compiler warning.
+   For -Werror, we need to suppress this.  */
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wtype-limits"
+
+FLOATXX glue(uint64_to_,FLOATXX)(uint64_t a, float_status *status)
+{
+    FP_DECL_EX;
+    glue(FP_DECL_, FS)(R);
+    FLOATXX r;
+
+    FP_INIT_ROUNDMODE;
+    glue(FP_FROM_INT_, FS)(R, a, 64, uint64_t);
+    glue(FP_PACK_RAW_, FS)(r, R);
+    FP_HANDLE_EXCEPTIONS;
+    return r;
+}
+
+#pragma GCC diagnostic pop
+
+FLOATXX glue(uint16_to_,FLOATXX)(uint16_t a, float_status *status)
+{
+    return glue(uint64_to_,FLOATXX)(a, status);
+}
+
+FLOATXX glue(uint32_to_,FLOATXX)(uint32_t a, float_status *status)
+{
+    return glue(uint64_to_,FLOATXX)(a, status);
+}

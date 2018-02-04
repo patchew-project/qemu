@@ -1236,44 +1236,6 @@ static float128 normalizeRoundAndPackFloat128(flag zSign, int32_t zExp,
 
 /*----------------------------------------------------------------------------
 | Returns the result of converting the 32-bit two's complement integer `a'
-| to the single-precision floating-point format.  The conversion is performed
-| according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
-*----------------------------------------------------------------------------*/
-
-float32 int32_to_float32(int32_t a, float_status *status)
-{
-    flag zSign;
-
-    if ( a == 0 ) return float32_zero;
-    if ( a == (int32_t) 0x80000000 ) return packFloat32( 1, 0x9E, 0 );
-    zSign = ( a < 0 );
-    return normalizeRoundAndPackFloat32(zSign, 0x9C, zSign ? -a : a, status);
-}
-
-/*----------------------------------------------------------------------------
-| Returns the result of converting the 32-bit two's complement integer `a'
-| to the double-precision floating-point format.  The conversion is performed
-| according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
-*----------------------------------------------------------------------------*/
-
-float64 int32_to_float64(int32_t a, float_status *status)
-{
-    flag zSign;
-    uint32_t absA;
-    int8_t shiftCount;
-    uint64_t zSig;
-
-    if ( a == 0 ) return float64_zero;
-    zSign = ( a < 0 );
-    absA = zSign ? - a : a;
-    shiftCount = countLeadingZeros32( absA ) + 21;
-    zSig = absA;
-    return packFloat64( zSign, 0x432 - shiftCount, zSig<<shiftCount );
-
-}
-
-/*----------------------------------------------------------------------------
-| Returns the result of converting the 32-bit two's complement integer `a'
 | to the extended double-precision floating-point format.  The conversion
 | is performed according to the IEC/IEEE Standard for Binary Floating-Point
 | Arithmetic.
@@ -1296,78 +1258,6 @@ floatx80 int32_to_floatx80(int32_t a, float_status *status)
 }
 
 /*----------------------------------------------------------------------------
-| Returns the result of converting the 32-bit two's complement integer `a' to
-| the quadruple-precision floating-point format.  The conversion is performed
-| according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
-*----------------------------------------------------------------------------*/
-
-float128 int32_to_float128(int32_t a, float_status *status)
-{
-    flag zSign;
-    uint32_t absA;
-    int8_t shiftCount;
-    uint64_t zSig0;
-
-    if ( a == 0 ) return packFloat128( 0, 0, 0, 0 );
-    zSign = ( a < 0 );
-    absA = zSign ? - a : a;
-    shiftCount = countLeadingZeros32( absA ) + 17;
-    zSig0 = absA;
-    return packFloat128( zSign, 0x402E - shiftCount, zSig0<<shiftCount, 0 );
-
-}
-
-/*----------------------------------------------------------------------------
-| Returns the result of converting the 64-bit two's complement integer `a'
-| to the single-precision floating-point format.  The conversion is performed
-| according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
-*----------------------------------------------------------------------------*/
-
-float32 int64_to_float32(int64_t a, float_status *status)
-{
-    flag zSign;
-    uint64_t absA;
-    int8_t shiftCount;
-
-    if ( a == 0 ) return float32_zero;
-    zSign = ( a < 0 );
-    absA = zSign ? - a : a;
-    shiftCount = countLeadingZeros64( absA ) - 40;
-    if ( 0 <= shiftCount ) {
-        return packFloat32( zSign, 0x95 - shiftCount, absA<<shiftCount );
-    }
-    else {
-        shiftCount += 7;
-        if ( shiftCount < 0 ) {
-            shift64RightJamming( absA, - shiftCount, &absA );
-        }
-        else {
-            absA <<= shiftCount;
-        }
-        return roundAndPackFloat32(zSign, 0x9C - shiftCount, absA, status);
-    }
-
-}
-
-/*----------------------------------------------------------------------------
-| Returns the result of converting the 64-bit two's complement integer `a'
-| to the double-precision floating-point format.  The conversion is performed
-| according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
-*----------------------------------------------------------------------------*/
-
-float64 int64_to_float64(int64_t a, float_status *status)
-{
-    flag zSign;
-
-    if ( a == 0 ) return float64_zero;
-    if ( a == (int64_t) LIT64( 0x8000000000000000 ) ) {
-        return packFloat64( 1, 0x43E, 0 );
-    }
-    zSign = ( a < 0 );
-    return normalizeRoundAndPackFloat64(zSign, 0x43C, zSign ? -a : a, status);
-}
-
-/*----------------------------------------------------------------------------
 | Returns the result of converting the 64-bit two's complement integer `a'
 | to the extended double-precision floating-point format.  The conversion
 | is performed according to the IEC/IEEE Standard for Binary Floating-Point
@@ -1386,112 +1276,6 @@ floatx80 int64_to_floatx80(int64_t a, float_status *status)
     shiftCount = countLeadingZeros64( absA );
     return packFloatx80( zSign, 0x403E - shiftCount, absA<<shiftCount );
 
-}
-
-/*----------------------------------------------------------------------------
-| Returns the result of converting the 64-bit two's complement integer `a' to
-| the quadruple-precision floating-point format.  The conversion is performed
-| according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
-*----------------------------------------------------------------------------*/
-
-float128 int64_to_float128(int64_t a, float_status *status)
-{
-    flag zSign;
-    uint64_t absA;
-    int8_t shiftCount;
-    int32_t zExp;
-    uint64_t zSig0, zSig1;
-
-    if ( a == 0 ) return packFloat128( 0, 0, 0, 0 );
-    zSign = ( a < 0 );
-    absA = zSign ? - a : a;
-    shiftCount = countLeadingZeros64( absA ) + 49;
-    zExp = 0x406E - shiftCount;
-    if ( 64 <= shiftCount ) {
-        zSig1 = 0;
-        zSig0 = absA;
-        shiftCount -= 64;
-    }
-    else {
-        zSig1 = absA;
-        zSig0 = 0;
-    }
-    shortShift128Left( zSig0, zSig1, shiftCount, &zSig0, &zSig1 );
-    return packFloat128( zSign, zExp, zSig0, zSig1 );
-
-}
-
-/*----------------------------------------------------------------------------
-| Returns the result of converting the 64-bit unsigned integer `a'
-| to the single-precision floating-point format.  The conversion is performed
-| according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
-*----------------------------------------------------------------------------*/
-
-float32 uint64_to_float32(uint64_t a, float_status *status)
-{
-    int shiftcount;
-
-    if (a == 0) {
-        return float32_zero;
-    }
-
-    /* Determine (left) shift needed to put first set bit into bit posn 23
-     * (since packFloat32() expects the binary point between bits 23 and 22);
-     * this is the fast case for smallish numbers.
-     */
-    shiftcount = countLeadingZeros64(a) - 40;
-    if (shiftcount >= 0) {
-        return packFloat32(0, 0x95 - shiftcount, a << shiftcount);
-    }
-    /* Otherwise we need to do a round-and-pack. roundAndPackFloat32()
-     * expects the binary point between bits 30 and 29, hence the + 7.
-     */
-    shiftcount += 7;
-    if (shiftcount < 0) {
-        shift64RightJamming(a, -shiftcount, &a);
-    } else {
-        a <<= shiftcount;
-    }
-
-    return roundAndPackFloat32(0, 0x9c - shiftcount, a, status);
-}
-
-/*----------------------------------------------------------------------------
-| Returns the result of converting the 64-bit unsigned integer `a'
-| to the double-precision floating-point format.  The conversion is performed
-| according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
-*----------------------------------------------------------------------------*/
-
-float64 uint64_to_float64(uint64_t a, float_status *status)
-{
-    int exp = 0x43C;
-    int shiftcount;
-
-    if (a == 0) {
-        return float64_zero;
-    }
-
-    shiftcount = countLeadingZeros64(a) - 1;
-    if (shiftcount < 0) {
-        shift64RightJamming(a, -shiftcount, &a);
-    } else {
-        a <<= shiftcount;
-    }
-    return roundAndPackFloat64(0, exp - shiftcount, a, status);
-}
-
-/*----------------------------------------------------------------------------
-| Returns the result of converting the 64-bit unsigned integer `a'
-| to the quadruple-precision floating-point format.  The conversion is performed
-| according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
-*----------------------------------------------------------------------------*/
-
-float128 uint64_to_float128(uint64_t a, float_status *status)
-{
-    if (a == 0) {
-        return float128_zero;
-    }
-    return normalizeRoundAndPackFloat128(0, 0x406E, a, 0, status);
 }
 
 /*----------------------------------------------------------------------------
@@ -5352,17 +5136,6 @@ int float128_unordered_quiet(float128 a, float128 b, float_status *status)
         return 1;
     }
     return 0;
-}
-
-/* misc functions */
-float32 uint32_to_float32(uint32_t a, float_status *status)
-{
-    return int64_to_float32(a, status);
-}
-
-float64 uint32_to_float64(uint32_t a, float_status *status)
-{
-    return int64_to_float64(a, status);
 }
 
 #define COMPARE(s, nan_exp)                                                  \
