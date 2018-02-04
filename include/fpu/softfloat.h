@@ -250,6 +250,7 @@ float16 float16_add(float16, float16, float_status *status);
 float16 float16_sub(float16, float16, float_status *status);
 float16 float16_mul(float16, float16, float_status *status);
 float16 float16_div(float16, float16, float_status *status);
+float16 float16_sqrt(float16, float_status *status);
 int float16_eq(float16, float16, float_status *status);
 int float16_le(float16, float16, float_status *status);
 int float16_lt(float16, float16, float_status *status);

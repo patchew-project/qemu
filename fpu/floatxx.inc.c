@@ -101,6 +101,22 @@ FLOATXX glue(FLOATXX,_div)(FLOATXX a, FLOATXX b, float_status *status)
     return r;
 }
 
+FLOATXX glue(FLOATXX,_sqrt)(FLOATXX a, float_status *status)
+{
+    FP_DECL_EX;
+    glue(FP_DECL_, FS)(A);
+    glue(FP_DECL_, FS)(R);
+    FLOATXX r;
+
+    FP_INIT_ROUNDMODE;
+    glue(FP_UNPACK_, FS)(A, a);
+    glue(FP_SQRT_, FS)(R, A);
+    glue(FP_PACK_, FS)(r, R);
+    FP_HANDLE_EXCEPTIONS;
+
+    return r;
+}
+
 #define DO_FLOAT_TO_INT(NAME, SZ, FP_TO_INT_WHICH)   \
 int##SZ##_t NAME(FLOATXX a, float_status *status) \
 {                                                 \
