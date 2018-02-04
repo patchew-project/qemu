@@ -34,6 +34,8 @@
     _FP_FRAC_SNANP(fs, X)
 #define FP_ADD_INTERNAL(fs, wc, R, A, B, OP) \
     _FP_ADD_INTERNAL(fs, wc, R, A, B, '-')
+#define FP_ROUND(wc, X) \
+    _FP_ROUND(wc, X)
 
 static FLOATXX addsub_internal(FLOATXX a, FLOATXX b, float_status *status,
                                bool subtract)
@@ -463,4 +465,77 @@ FLOATXX glue(FLOATXX,_minnummag)(FLOATXX a, FLOATXX b, float_status *status)
 {
     return minmax_internal(a, b, status,
                            MINMAX_MIN | MINMAX_IEEE | MINMAX_MAG);
+}
+
+FLOATXX glue(FLOATXX,_round_to_int)(FLOATXX a, float_status *status)
+{
+    const int fracbits = glue(_FP_FRACBITS_, FS);
+    const int wfracbits = glue(_FP_WFRACBITS_, FS);
+    FP_DECL_EX;
+    glue(FP_DECL_, FS)(A);
+    int rshift, lshift;
+
+    FP_INIT_ROUNDMODE;
+    glue(FP_UNPACK_, FS)(A, a);
+
+    switch (A_c) {
+    case FP_CLS_INF:
+        /* No fractional part, never any exceptions, return unchanged.  */
+        return a;
+
+    case FP_CLS_ZERO:
+    case FP_CLS_NAN:
+        /* No fractional part, but maybe exceptions.  In the cases of
+           denormal-flush-to-zero and SNaN, we will have raised an
+           exception during unpack.  For those, we need to go through
+           repack in order to generate zero or silence the NaN.  */
+        if (!FP_CUR_EXCEPTIONS) {
+            return a;
+        }
+        break;
+
+    case FP_CLS_NORMAL:
+        /* Position the 2**0 bit at _FP_WORKBIT,
+           where _FP_ROUND expects to work.  */
+        rshift = fracbits - 1 - A_e;
+        if (rshift <= 0) {
+            /* Already integral, never any exceptions, return unchanged.  */
+            return a;
+        }
+        if (rshift < wfracbits) {
+            glue(_FP_FRAC_SRS_, WC)(A, rshift, wfracbits);
+        } else {
+            glue(_FP_FRAC_SET_, WC)(A, glue(_FP_MINFRAC_, WC));
+        }
+        FP_ROUND(WC, A);
+
+        /* Drop the rounding bits.  Normally this is done via right-shift
+           during the re-packing stage, but we need to put the rest of the
+           fraction back into place.  */
+        glue(_FP_FRAC_LOW_, WC)(A) &= ~(_FP_WORK_LSB - 1);
+
+        /* Notice rounding to zero.  */
+        if (glue(_FP_FRAC_ZEROP_, WC)(A)) {
+            A_c = FP_CLS_ZERO;
+            break;
+        }
+
+        /* Renormalize the fraction.  This takes care of both overflow
+           and fixing up the fraction after the rshift.  */
+        glue(_FP_FRAC_CLZ_, WC)(lshift, A);
+        lshift -= glue(_FP_WFRACXBITS_, FS);
+        assert(lshift >= 0);
+        glue(_FP_FRAC_SLL_, WC)(A, lshift);
+
+        A_e += rshift - lshift;
+        break;
+
+    default:
+        _FP_UNREACHABLE;
+    }
+
+    glue(FP_PACK_, FS)(a, A);
+    FP_HANDLE_EXCEPTIONS;
+
+    return a;
 }

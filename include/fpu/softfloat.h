@@ -246,6 +246,7 @@ float64 float16_to_float64(float16 a, bool ieee, float_status *status);
 | Software half-precision operations.
 *----------------------------------------------------------------------------*/
 
+float16 float16_round_to_int(float16, float_status *status);
 float16 float16_add(float16, float16, float_status *status);
 float16 float16_sub(float16, float16, float_status *status);
 float16 float16_mul(float16, float16, float_status *status);
@@ -463,7 +464,6 @@ float128 float64_to_float128(float64, float_status *status);
 | Software IEC/IEEE double-precision operations.
 *----------------------------------------------------------------------------*/
 float64 float64_round_to_int(float64, float_status *status);
-float64 float64_trunc_to_int(float64, float_status *status);
 float64 float64_add(float64, float64, float_status *status);
 float64 float64_sub(float64, float64, float_status *status);
 float64 float64_mul(float64, float64, float_status *status);
