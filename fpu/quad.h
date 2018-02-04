@@ -69,13 +69,11 @@
 #define _FP_HIGHBIT_DW_Q	\
   ((_FP_W_TYPE) 1 << (_FP_WFRACBITS_DW_Q - 1) % _FP_W_TYPE_SIZE)
 
-typedef float TFtype __attribute__ ((mode (TF)));
-
 #if _FP_W_TYPE_SIZE < 64
 
 union _FP_UNION_Q
 {
-  TFtype flt;
+  float128 flt;
   struct _FP_STRUCT_LAYOUT
   {
 # if __BYTE_ORDER == __BIG_ENDIAN
@@ -202,7 +200,7 @@ union _FP_UNION_Q
 #else   /* not _FP_W_TYPE_SIZE < 64 */
 union _FP_UNION_Q
 {
-  TFtype flt /* __attribute__ ((mode (TF))) */ ;
+  float128 flt;
   struct _FP_STRUCT_LAYOUT
   {
     _FP_W_TYPE a, b;

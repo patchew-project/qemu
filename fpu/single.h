@@ -66,11 +66,9 @@
 /* The implementation of _FP_MUL_MEAT_S and _FP_DIV_MEAT_S should be
    chosen by the target machine.  */
 
-typedef float SFtype __attribute__ ((mode (SF)));
-
 union _FP_UNION_S
 {
-  SFtype flt;
+  float32 flt;
   struct _FP_STRUCT_LAYOUT
   {
 #if __BYTE_ORDER == __BIG_ENDIAN
