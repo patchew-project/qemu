@@ -1242,7 +1242,7 @@
     {									\
       /* The arguments are unordered, which may or may not result in	\
 	 an exception.  */						\
-      if (ex)								\
+      if ((ex) != 0)                                                    \
 	{								\
 	  /* At least some cases of unordered arguments result in	\
 	     exceptions; check whether this is one.  */			\
