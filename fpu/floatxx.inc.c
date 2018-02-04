@@ -196,3 +196,70 @@ FLOATXX glue(uint32_to_,FLOATXX)(uint32_t a, float_status *status)
 {
     return glue(uint64_to_,FLOATXX)(a, status);
 }
+
+static int compare_internal(FLOATXX a, FLOATXX b,
+                            float_status *status, bool quiet)
+{
+    FP_DECL_EX;
+    glue(FP_DECL_, FS)(A);
+    glue(FP_DECL_, FS)(B);
+    int r;
+
+    FP_INIT_EXCEPTIONS;
+    glue(FP_UNPACK_RAW_, FS)(A, a);
+    glue(FP_UNPACK_RAW_, FS)(B, b);
+    glue(FP_CMP_, FS)(r, A, B, float_relation_unordered, (quiet ? 1 : 2));
+    FP_HANDLE_EXCEPTIONS;
+
+    return r;
+}
+
+int glue(FLOATXX,_compare)(FLOATXX a, FLOATXX b, float_status *status)
+{
+    return compare_internal(a, b, status, false);
+}
+
+int glue(FLOATXX,_compare_quiet)(FLOATXX a, FLOATXX b, float_status *status)
+{
+    return compare_internal(a, b, status, true);
+}
+
+int glue(FLOATXX,_eq)(FLOATXX a, FLOATXX b, float_status *status)
+{
+    return compare_internal(a, b, status, false) == 0;
+}
+
+int glue(FLOATXX,_le)(FLOATXX a, FLOATXX b, float_status *status)
+{
+    return compare_internal(a, b, status, false) <= 0;
+}
+
+int glue(FLOATXX,_lt)(FLOATXX a, FLOATXX b, float_status *status)
+{
+    return compare_internal(a, b, status, false) < 0;
+}
+
+int glue(FLOATXX,_unordered)(FLOATXX a, FLOATXX b, float_status *status)
+{
+    return compare_internal(a, b, status, false) == float_relation_unordered;
+}
+
+int glue(FLOATXX,_eq_quiet)(FLOATXX a, FLOATXX b, float_status *status)
+{
+    return compare_internal(a, b, status, true) == 0;
+}
+
+int glue(FLOATXX,_le_quiet)(FLOATXX a, FLOATXX b, float_status *status)
+{
+    return compare_internal(a, b, status, true) <= 0;
+}
+
+int glue(FLOATXX,_lt_quiet)(FLOATXX a, FLOATXX b, float_status *status)
+{
+    return compare_internal(a, b, status, true) < 0;
+}
+
+int glue(FLOATXX,_unordered_quiet)(FLOATXX a, FLOATXX b, float_status *status)
+{
+    return compare_internal(a, b, status, true) == float_relation_unordered;
+}
