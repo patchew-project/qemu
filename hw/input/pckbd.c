@@ -27,6 +27,7 @@
 #include "hw/i386/pc.h"
 #include "hw/input/ps2.h"
 #include "sysemu/sysemu.h"
+#include "pckbd.h"
 
 /* debug PC keyboard */
 //#define DEBUG_KBD
@@ -480,7 +481,6 @@ void i8042_mm_init(qemu_irq kbd_irq, qemu_irq mouse_irq,
     qemu_register_reset(kbd_reset, s);
 }
 
-#define TYPE_I8042 "i8042"
 #define I8042(obj) OBJECT_CHECK(ISAKBDState, (obj), TYPE_I8042)
 
 typedef struct ISAKBDState {
