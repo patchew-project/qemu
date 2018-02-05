@@ -567,6 +567,10 @@ static void ipl_scsi(void)
 
     debug_print_int("program table entries", program_table_entries);
 
+    if (menu_check_flags(BOOT_MENU_FLAG_CMD_OPTS)) {
+        loadparm = menu_get_enum_boot_index(program_table_entries);
+    }
+
     zipl_run(&bmt->bte[loadparm].scsi); /* no return */
 }
 
