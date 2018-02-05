@@ -58,8 +58,13 @@ typedef struct IplBlockQemuScsi IplBlockQemuScsi;
 
 #define DIAG308_FLAGS_LP_VALID 0x80
 
+#define BOOT_MENU_FLAG_CMD_OPTS  0x80
+#define BOOT_MENU_FLAG_ZIPL_OPTS 0x40
+
 struct QemuIplParameters {
-    uint8_t  reserved1[4];
+    uint8_t  boot_menu_flags;
+    uint8_t  reserved1;
+    uint16_t boot_menu_timeout;
     uint64_t netboot_start_addr;
     uint8_t  reserved2[16];
 } QEMU_PACKED;
