@@ -3124,6 +3124,29 @@ set_timeout:
 		unlock_user (dev_ifname, optval_addr, 0);
 		return ret;
 	}
+        case TARGET_SO_LINGER:
+        {
+                struct linger {
+                    int l_onoff;
+                    int l_linger;
+                } linger;
+
+                optname = SO_LINGER;
+
+                if (optlen != sizeof(linger)) {
+                    return -TARGET_EINVAL;
+                }
+                if (copy_from_user(&linger, optval_addr, optlen)) {
+                    return -TARGET_EFAULT;
+                }
+
+                linger.l_onoff = tswap32(linger.l_onoff);
+                linger.l_linger = tswap32(linger.l_linger);
+
+                ret = get_errno(setsockopt(sockfd, SOL_SOCKET, optname,
+                                           &linger, sizeof(linger)));
+                return ret;
+        }
             /* Options with 'int' argument.  */
         case TARGET_SO_DEBUG:
 		optname = SO_DEBUG;
