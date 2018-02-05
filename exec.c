@@ -2366,13 +2366,24 @@ found:
 RAMBlock *qemu_ram_block_by_name(const char *name)
 {
     RAMBlock *block;
+    char *name1, *id1;
+    char *name2, *id2;
+
+    name1 = strdup(name);
+    id1 = basename(name1);
 
     RAMBLOCK_FOREACH(block) {
-        if (!strcmp(name, block->idstr)) {
+        name2 = strdup(block->idstr);
+	id2 = basename(name2);
+        if (!strcmp(id1, id2)) {
+            free(name1);
+	    free(name2);
             return block;
         }
+	free(name2);
     }
 
+    free(name1);
     return NULL;
 }
 
