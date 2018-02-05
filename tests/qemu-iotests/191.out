@@ -52,7 +52,7 @@ wrote 65536/65536 bytes at offset 1048576
                 },
                 "backing-filename-format": "IMGFMT",
                 "virtual-size": 67108864,
-                "filename": "json:{"backing": {"backing": {"driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.base"}}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.mid"}}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.ovl2"}}",
+                "filename": "json:{"backing": {"driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.mid"}}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.ovl2"}}",
                 "cluster-size": 65536,
                 "format": "IMGFMT",
                 "actual-size": SIZE,
@@ -77,7 +77,7 @@ wrote 65536/65536 bytes at offset 1048576
                 "direct": false,
                 "writeback": true
             },
-            "file": "json:{"backing": {"backing": {"driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.base"}}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.mid"}}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.ovl2"}}",
+            "file": "json:{"backing": {"driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.mid"}}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.ovl2"}}",
             "encryption_key_missing": false
         },
         {
@@ -123,7 +123,7 @@ wrote 65536/65536 bytes at offset 1048576
                 },
                 "backing-filename-format": "IMGFMT",
                 "virtual-size": 67108864,
-                "filename": "json:{"backing": {"backing": {"driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.base"}}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.mid"}}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT"}}",
+                "filename": "json:{"backing": {"driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.mid"}}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT"}}",
                 "cluster-size": 65536,
                 "format": "IMGFMT",
                 "actual-size": SIZE,
@@ -148,7 +148,7 @@ wrote 65536/65536 bytes at offset 1048576
                 "direct": false,
                 "writeback": true
             },
-            "file": "json:{"backing": {"backing": {"driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.base"}}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.mid"}}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT"}}",
+            "file": "json:{"backing": {"driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.mid"}}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT"}}",
             "encryption_key_missing": false
         },
         {
@@ -392,7 +392,7 @@ wrote 65536/65536 bytes at offset 1048576
                 },
                 "backing-filename-format": "IMGFMT",
                 "virtual-size": 67108864,
-                "filename": "json:{"backing": {"backing": {"driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.base"}}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.mid"}}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.ovl2"}}",
+                "filename": "json:{"backing": {"driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.mid"}}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.ovl2"}}",
                 "cluster-size": 65536,
                 "format": "IMGFMT",
                 "actual-size": SIZE,
@@ -417,7 +417,7 @@ wrote 65536/65536 bytes at offset 1048576
                 "direct": false,
                 "writeback": true
             },
-            "file": "json:{"backing": {"backing": {"driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.base"}}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.mid"}}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.ovl2"}}",
+            "file": "json:{"backing": {"driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.mid"}}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.ovl2"}}",
             "encryption_key_missing": false
         },
         {
@@ -464,7 +464,7 @@ wrote 65536/65536 bytes at offset 1048576
                     },
                     "backing-filename-format": "IMGFMT",
                     "virtual-size": 67108864,
-                    "filename": "json:{"backing": {"backing": {"driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.base"}}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.mid"}}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.ovl2"}}",
+                    "filename": "json:{"backing": {"driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.mid"}}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.ovl2"}}",
                     "cluster-size": 65536,
                     "format": "IMGFMT",
                     "actual-size": SIZE,
@@ -474,12 +474,12 @@ wrote 65536/65536 bytes at offset 1048576
                 },
                 "backing-filename-format": "IMGFMT",
                 "virtual-size": 67108864,
-                "filename": "json:{"backing": {"backing": {"backing": {"driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.base"}}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.mid"}}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.ovl2"}}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.ovl3"}}",
+                "filename": "json:{"backing": {"backing": {"driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.mid"}}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.ovl2"}}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.ovl3"}}",
                 "cluster-size": 65536,
                 "format": "IMGFMT",
                 "actual-size": SIZE,
-                "full-backing-filename": "json:{"backing": {"backing": {"driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.base"}}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.mid"}}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.ovl2"}}",
-                "backing-filename": "json:{"backing": {"backing": {"driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.base"}}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.mid"}}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.ovl2"}}",
+                "full-backing-filename": "json:{"backing": {"driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.mid"}}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.ovl2"}}",
+                "backing-filename": "json:{"backing": {"driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.mid"}}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.ovl2"}}",
                 "dirty-flag": false
             },
             "iops_wr": 0,
@@ -490,7 +490,7 @@ wrote 65536/65536 bytes at offset 1048576
             "iops": 0,
             "bps_wr": 0,
             "write_threshold": 0,
-            "backing_file": "json:{"backing": {"backing": {"driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.base"}}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.mid"}}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.ovl2"}}",
+            "backing_file": "json:{"backing": {"driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.mid"}}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.ovl2"}}",
             "encrypted": false,
             "bps": 0,
             "bps_rd": 0,
@@ -499,7 +499,7 @@ wrote 65536/65536 bytes at offset 1048576
                 "direct": false,
                 "writeback": true
             },
-            "file": "json:{"backing": {"backing": {"backing": {"driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.base"}}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.mid"}}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.ovl2"}}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.ovl3"}}",
+            "file": "json:{"backing": {"backing": {"driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.mid"}}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.ovl2"}}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.ovl3"}}",
             "encryption_key_missing": false
         },
         {
