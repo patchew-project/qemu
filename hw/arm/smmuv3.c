@@ -94,6 +94,75 @@ void smmuv3_write_gerrorn(SMMUv3State *s, uint32_t new_gerrorn)
     trace_smmuv3_write_gerrorn(acked, s->gerrorn);
 }
 
+static uint32_t queue_index_inc(uint32_t val,
+                                uint32_t qidx_mask, uint32_t qwrap_mask)
+{
+    uint32_t i = (val + 1) & qidx_mask;
+
+    if (i <= (val & qidx_mask)) {
+        i = ((val & qwrap_mask) ^ qwrap_mask) | i;
+    } else {
+        i = (val & qwrap_mask) | i;
+    }
+    return i;
+}
+
+static MemTxResult smmu_queue_read(SMMUQueue *q, void *data)
+{
+    dma_addr_t addr = Q_CONS_ENTRY(q);
+    MemTxResult ret;
+
+    ret = dma_memory_read(&address_space_memory, addr,
+                          (uint8_t *)data, q->entry_size);
+    if (ret != MEMTX_OK) {
+        return ret;
+    }
+
+    q->cons = queue_index_inc(q->cons, INDEX_MASK(q), WRAP_MASK(q));
+    return ret;
+}
+
+static void smmu_queue_write(SMMUQueue *q, void *data)
+{
+    dma_addr_t addr = Q_PROD_ENTRY(q);
+    MemTxResult ret;
+
+    ret = dma_memory_write(&address_space_memory, addr,
+                           (uint8_t *)data, q->entry_size);
+    if (ret != MEMTX_OK) {
+        return;
+    }
+
+    q->prod = queue_index_inc(q->prod, INDEX_MASK(q), WRAP_MASK(q));
+}
+
+static inline MemTxResult smmuv3_read_cmdq(SMMUv3State *s, Cmd *cmd)
+{
+    SMMUQueue *q = &s->cmdq;
+    return smmu_queue_read(q, cmd);
+}
+
+void smmuv3_write_eventq(SMMUv3State *s, Evt *evt)
+{
+    SMMUQueue *q = &s->eventq;
+    bool q_empty = Q_EMPTY(q);
+    bool q_full = Q_FULL(q);
+
+    if (!SMMUV3_EVENTQ_ENABLED(s)) {
+        return;
+    }
+
+    if (q_full) {
+        return;
+    }
+
+    smmu_queue_write(q, evt);
+
+    if (q_empty) {
+        smmuv3_trigger_irq(s, SMMU_IRQ_EVTQ, 0);
+    }
+}
+
 static void smmuv3_init_regs(SMMUv3State *s)
 {
     /**
@@ -131,6 +200,88 @@ static void smmuv3_init_regs(SMMUv3State *s)
 
     s->features = 0;
     s->sid_split = 0;
+}
+
+int smmuv3_cmdq_consume(SMMUv3State *s)
+{
+    SMMUCmdError cmd_error = SMMU_CERROR_NONE;
+    SMMUQueue *q = &s->cmdq;
+
+
+    if (!SMMUV3_CMDQ_ENABLED(s)) {
+        return 0;
+    }
+
+    while (!Q_EMPTY(q)) {
+        uint32_t pending = s->gerror ^ s->gerrorn;
+        uint32_t type;
+        Cmd cmd;
+
+        trace_smmuv3_cmdq_consume(Q_PROD(q), Q_CONS(q),
+                                  Q_PROD_WRAP(q), Q_CONS_WRAP(q));
+
+        if (FIELD_EX32(pending, GERROR, CMDQ_ERR)) {
+            break;
+        }
+
+        if (smmuv3_read_cmdq(s, &cmd) != MEMTX_OK) {
+            cmd_error = SMMU_CERROR_ABT;
+            break;
+        }
+
+        type = CMD_TYPE(&cmd);
+
+        switch (type) {
+        case SMMU_CMD_SYNC:
+            if (CMD_CS(&cmd) & CMD_SYNC_SIG_IRQ) {
+                smmuv3_trigger_irq(s, SMMU_IRQ_CMD_SYNC, 0);
+            }
+            break;
+        case SMMU_CMD_PREFETCH_CONFIG:
+        case SMMU_CMD_PREFETCH_ADDR:
+        case SMMU_CMD_CFGI_STE:
+        case SMMU_CMD_CFGI_STE_RANGE: /* same as SMMU_CMD_CFGI_ALL */
+        case SMMU_CMD_CFGI_CD:
+        case SMMU_CMD_CFGI_CD_ALL:
+        case SMMU_CMD_TLBI_NH_ALL:
+        case SMMU_CMD_TLBI_NH_ASID:
+        case SMMU_CMD_TLBI_NH_VA:
+        case SMMU_CMD_TLBI_NH_VAA:
+        case SMMU_CMD_TLBI_EL3_ALL:
+        case SMMU_CMD_TLBI_EL3_VA:
+        case SMMU_CMD_TLBI_EL2_ALL:
+        case SMMU_CMD_TLBI_EL2_ASID:
+        case SMMU_CMD_TLBI_EL2_VA:
+        case SMMU_CMD_TLBI_EL2_VAA:
+        case SMMU_CMD_TLBI_S12_VMALL:
+        case SMMU_CMD_TLBI_S2_IPA:
+        case SMMU_CMD_TLBI_NSNH_ALL:
+        case SMMU_CMD_ATC_INV:
+        case SMMU_CMD_PRI_RESP:
+        case SMMU_CMD_RESUME:
+        case SMMU_CMD_STALL_TERM:
+            trace_smmuv3_unhandled_cmd(type);
+            break;
+        default:
+            cmd_error = SMMU_CERROR_ILL;
+            error_report("Illegal command type: %d", CMD_TYPE(&cmd));
+            break;
+        }
+        if (type != SMMU_CERROR_ILL) {
+            trace_smmuv3_cmdq_opcode(cmd_stringify[type]);
+        }
+    }
+
+    if (cmd_error) {
+        error_report("GERROR_CMDQ: CONS.ERR=%d", cmd_error);
+        smmu_write_cmdq_err(s, cmd_error);
+        smmuv3_trigger_irq(s, SMMU_IRQ_GERROR, R_GERROR_CMDQ_ERR_MASK);
+    }
+
+    trace_smmuv3_cmdq_consume_out(Q_PROD(q), Q_CONS(q),
+                                  Q_PROD_WRAP(q), Q_CONS_WRAP(q));
+
+    return 0;
 }
 
 static void smmu_write_mmio(void *opaque, hwaddr addr,
