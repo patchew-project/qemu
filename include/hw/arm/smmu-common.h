@@ -129,4 +129,10 @@ static inline uint16_t smmu_get_sid(SMMUDevice *sdev)
 {
     return  ((pci_bus_num(sdev->bus) & 0xff) << 8) | sdev->devfn;
 }
+
+int smmu_ptw(SMMUTransCfg *cfg, IOMMUTLBEntry *tlbe,
+             SMMUPTWEventInfo *info);
+
+SMMUTransTableInfo *select_tt(SMMUTransCfg *cfg, dma_addr_t iova);
+
 #endif  /* HW_ARM_SMMU_COMMON */
