@@ -64,6 +64,20 @@ static inline bool check_clock_int(void)
     return *code == 0x1004;
 }
 
+static void clear_pending_irqs(void)
+{
+    uint64_t time = 50 * TOD_CLOCK_SECOND / 0x3e8;
+
+    sclp_clear_write_mask();
+
+    set_clock_comparator(get_clock() + time);
+    enable_clock_int();
+    consume_sclp_int();
+    disable_clock_int();
+
+    sclp_setup(); /* re-enable write mask */
+}
+
 static int read_prompt(char *buf, size_t len)
 {
     char inp[2] = {};
@@ -164,6 +178,8 @@ static int get_boot_index(int entries)
 
     sclp_print("\nBooting entry #");
     sclp_print(itostr(boot_index, tmp, sizeof(tmp)));
+
+    clear_pending_irqs();
 
     return boot_index;
 }

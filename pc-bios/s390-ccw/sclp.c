@@ -46,6 +46,18 @@ static int sclp_service_call(unsigned int command, void *sccb)
         return 0;
 }
 
+void sclp_clear_write_mask(void)
+{
+    WriteEventMask *sccb = (void *)_sccb;
+
+    sccb->h.length = sizeof(WriteEventMask);
+    sccb->mask_length = sizeof(unsigned int);
+    sccb->cp_receive_mask = 0;
+    sccb->cp_send_mask = 0;
+
+    sclp_service_call(SCLP_CMD_WRITE_EVENT_MASK, sccb);
+}
+
 static void sclp_set_write_mask(void)
 {
     WriteEventMask *sccb = (void *)_sccb;
