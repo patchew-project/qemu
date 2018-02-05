@@ -152,15 +152,31 @@ static inline uint64_t smmu_read64(uint64_t r, unsigned offset,
     return extract64(r, offset << 3, 32);
 }
 
+static inline void smmu_write64(uint64_t *r, unsigned offset,
+                                unsigned size, uint64_t value)
+{
+    if (size == 8 && !offset) {
+        *r  = value;
+    }
+
+    /* 32 bit access */
+
+    if (offset && offset != 4)  {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "SMMUv3 MMIO write: bad offset/size %u/%u\n",
+                      offset, size);
+        return ;
+    }
+
+    *r = deposit64(*r, offset << 3, 32, value);
+}
+
 /* Interrupts */
 
 #define smmuv3_eventq_irq_enabled(s)                   \
     (FIELD_EX32(s->irq_ctrl, IRQ_CTRL, EVENTQ_IRQEN))
 #define smmuv3_gerror_irq_enabled(s)                  \
     (FIELD_EX32(s->irq_ctrl, IRQ_CTRL, GERROR_IRQEN))
-
-void smmuv3_trigger_irq(SMMUv3State *s, SMMUIrq irq, uint32_t gerror_mask);
-void smmuv3_write_gerrorn(SMMUv3State *s, uint32_t gerrorn);
 
 /* Queue Handling */
 
@@ -301,7 +317,5 @@ enum { /* Command completion notification */
             addr |=  extract32((x)->word[3], 12, 20);   \
             addr;                                       \
         })
-
-int smmuv3_cmdq_consume(SMMUv3State *s);
 
 #endif
