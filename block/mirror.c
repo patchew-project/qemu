@@ -530,6 +530,10 @@ static void mirror_exit(BlockJob *job, void *opaque)
             error_report_err(local_err);
             data->ret = -EPERM;
         }
+
+        /* The target image's file already has been created with the backing
+         * file we just set, so there is no need to set backing_overridden or
+         * call bdrv_refresh_filename(). */
     }
 
     if (s->to_replace) {
