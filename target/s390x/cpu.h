@@ -77,6 +77,14 @@ typedef struct MchkQueue {
     uint16_t type;
 } MchkQueue;
 
+/* Crash cases. */
+enum crash_reasons {
+    CRASH_REASON_PGM,
+    CRASH_REASON_EXT,
+    CRASH_REASON_WAITPSW,
+    CRASH_REASON_OPEREXC,
+};
+
 struct CPUS390XState {
     uint64_t regs[16];     /* GP registers */
     /*
@@ -101,6 +109,8 @@ struct CPUS390XState {
     uint64_t retxl;
 
     PSW psw;
+
+    enum crash_reasons crash_reason;
 
     uint64_t cc_src;
     uint64_t cc_dst;
