@@ -453,6 +453,7 @@ typedef struct CPUARMState {
         uint32_t faultmask[M_REG_NUM_BANKS];
         uint32_t aircr; /* only holds r/w state if security extn implemented */
         uint32_t secure; /* Is CPU in Secure state? (not guest visible) */
+        uint32_t csselr[M_REG_NUM_BANKS];
     } v7m;
 
     /* Information associated with an exception about to be taken:
@@ -2441,6 +2442,14 @@ static inline int arm_debug_target_el(CPUARMState *env)
     } else {
         return 1;
     }
+}
+
+static inline bool arm_v7m_csselr_razwi(ARMCPU *cpu)
+{
+    /* If all the CLIDR.Ctypem bits are 0 there are no caches, and
+     * CSSELR is RAZ/WI.
+     */
+    return (cpu->clidr & 0x001fffff) != 0;
 }
 
 static inline bool aa64_generate_debug_exceptions(CPUARMState *env)
