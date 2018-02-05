@@ -555,6 +555,16 @@ static int64_t vxhs_getlength(BlockDriverState *bs)
     return vdisk_size;
 }
 
+static const char *const vxhs_sgfnt_runtime_opts[] = {
+    VXHS_OPT_VDISK_ID,
+    "tls-creds",
+    VXHS_OPT_HOST,
+    VXHS_OPT_PORT,
+    VXHS_OPT_SERVER".",
+
+    NULL
+};
+
 static BlockDriver bdrv_vxhs = {
     .format_name                  = "vxhs",
     .protocol_name                = "vxhs",
@@ -565,6 +575,7 @@ static BlockDriver bdrv_vxhs = {
     .bdrv_getlength               = vxhs_getlength,
     .bdrv_aio_readv               = vxhs_aio_readv,
     .bdrv_aio_writev              = vxhs_aio_writev,
+    .sgfnt_runtime_opts           = vxhs_sgfnt_runtime_opts,
 };
 
 static void bdrv_vxhs_init(void)

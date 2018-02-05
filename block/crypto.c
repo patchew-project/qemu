@@ -609,6 +609,12 @@ block_crypto_get_specific_info_luks(BlockDriverState *bs)
     return spec_info;
 }
 
+static const char *const block_crypto_sgfnt_runtime_opts[] = {
+    BLOCK_CRYPTO_OPT_LUKS_KEY_SECRET,
+
+    NULL
+};
+
 BlockDriver bdrv_crypto_luks = {
     .format_name        = "luks",
     .instance_size      = sizeof(BlockCrypto),
@@ -626,6 +632,8 @@ BlockDriver bdrv_crypto_luks = {
     .bdrv_getlength     = block_crypto_getlength,
     .bdrv_get_info      = block_crypto_get_info_luks,
     .bdrv_get_specific_info = block_crypto_get_specific_info_luks,
+
+    .sgfnt_runtime_opts = block_crypto_sgfnt_runtime_opts,
 };
 
 static void block_crypto_init(void)

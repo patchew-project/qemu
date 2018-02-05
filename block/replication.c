@@ -701,6 +701,13 @@ static void replication_stop(ReplicationState *rs, bool failover, Error **errp)
     aio_context_release(aio_context);
 }
 
+static const char *const replication_sgfnt_runtime_opts[] = {
+    REPLICATION_MODE,
+    REPLICATION_TOP_ID,
+
+    NULL
+};
+
 BlockDriver bdrv_replication = {
     .format_name                = "replication",
     .protocol_name              = "replication",
@@ -718,6 +725,7 @@ BlockDriver bdrv_replication = {
     .bdrv_recurse_is_first_non_filter = replication_recurse_is_first_non_filter,
 
     .has_variable_length        = true,
+    .sgfnt_runtime_opts         = replication_sgfnt_runtime_opts,
 };
 
 static void bdrv_replication_init(void)

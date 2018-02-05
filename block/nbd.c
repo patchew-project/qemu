@@ -584,6 +584,17 @@ static char *nbd_dirname(BlockDriverState *bs, Error **errp)
     return NULL;
 }
 
+static const char *const nbd_sgfnt_runtime_opts[] = {
+    "path",
+    "host",
+    "port",
+    "export",
+    "tls-creds",
+    "server.",
+
+    NULL
+};
+
 static BlockDriver bdrv_nbd = {
     .format_name                = "nbd",
     .protocol_name              = "nbd",
@@ -603,6 +614,7 @@ static BlockDriver bdrv_nbd = {
     .bdrv_refresh_filename      = nbd_refresh_filename,
     .bdrv_get_info              = nbd_get_info,
     .bdrv_dirname               = nbd_dirname,
+    .sgfnt_runtime_opts         = nbd_sgfnt_runtime_opts,
 };
 
 static BlockDriver bdrv_nbd_tcp = {
@@ -624,6 +636,7 @@ static BlockDriver bdrv_nbd_tcp = {
     .bdrv_refresh_filename      = nbd_refresh_filename,
     .bdrv_get_info              = nbd_get_info,
     .bdrv_dirname               = nbd_dirname,
+    .sgfnt_runtime_opts         = nbd_sgfnt_runtime_opts,
 };
 
 static BlockDriver bdrv_nbd_unix = {
@@ -645,6 +658,7 @@ static BlockDriver bdrv_nbd_unix = {
     .bdrv_refresh_filename      = nbd_refresh_filename,
     .bdrv_get_info              = nbd_get_info,
     .bdrv_dirname               = nbd_dirname,
+    .sgfnt_runtime_opts         = nbd_sgfnt_runtime_opts,
 };
 
 static void bdrv_nbd_init(void)

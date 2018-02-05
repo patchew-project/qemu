@@ -1113,6 +1113,12 @@ static QemuOptsList qcow_create_opts = {
     }
 };
 
+static const char *const qcow_sgfnt_runtime_opts[] = {
+    "encrypt." BLOCK_CRYPTO_OPT_QCOW_KEY_SECRET,
+
+    NULL
+};
+
 static BlockDriver bdrv_qcow = {
     .format_name	= "qcow",
     .instance_size	= sizeof(BDRVQcowState),
@@ -1134,6 +1140,7 @@ static BlockDriver bdrv_qcow = {
     .bdrv_get_info          = qcow_get_info,
 
     .create_opts            = &qcow_create_opts,
+    .sgfnt_runtime_opts     = qcow_sgfnt_runtime_opts,
 };
 
 static void bdrv_qcow_init(void)

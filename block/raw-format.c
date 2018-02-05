@@ -481,6 +481,13 @@ static int raw_probe_geometry(BlockDriverState *bs, HDGeometry *geo)
     return bdrv_probe_geometry(bs->file->bs, geo);
 }
 
+static const char *const raw_sgfnt_runtime_opts[] = {
+    "offset",
+    "size",
+
+    NULL
+};
+
 BlockDriver bdrv_raw = {
     .format_name          = "raw",
     .instance_size        = sizeof(BDRVRawState),
@@ -509,7 +516,8 @@ BlockDriver bdrv_raw = {
     .bdrv_lock_medium     = &raw_lock_medium,
     .bdrv_co_ioctl        = &raw_co_ioctl,
     .create_opts          = &raw_create_opts,
-    .bdrv_has_zero_init   = &raw_has_zero_init
+    .bdrv_has_zero_init   = &raw_has_zero_init,
+    .sgfnt_runtime_opts   = raw_sgfnt_runtime_opts,
 };
 
 static void bdrv_raw_init(void)

@@ -1196,6 +1196,17 @@ static int64_t ssh_getlength(BlockDriverState *bs)
     return length;
 }
 
+static const char *const ssh_sgfnt_runtime_opts[] = {
+    "host",
+    "port",
+    "path",
+    "user",
+    "host_key_check",
+    "server.",
+
+    NULL
+};
+
 static BlockDriver bdrv_ssh = {
     .format_name                  = "ssh",
     .protocol_name                = "ssh",
@@ -1210,6 +1221,7 @@ static BlockDriver bdrv_ssh = {
     .bdrv_getlength               = ssh_getlength,
     .bdrv_co_flush_to_disk        = ssh_co_flush,
     .create_opts                  = &ssh_create_opts,
+    .sgfnt_runtime_opts           = ssh_sgfnt_runtime_opts,
 };
 
 static void bdrv_ssh_init(void)
