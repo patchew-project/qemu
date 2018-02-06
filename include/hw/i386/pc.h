@@ -46,6 +46,7 @@ struct PCMachineState {
     uint64_t max_ram_below_4g;
     OnOffAuto vmport;
     OnOffAuto smm;
+    bool vmbus;
 
     AcpiNVDIMMState acpi_nvdimm_state;
 
@@ -80,6 +81,7 @@ struct PCMachineState {
 #define PC_MACHINE_SMBUS            "smbus"
 #define PC_MACHINE_SATA             "sata"
 #define PC_MACHINE_PIT              "pit"
+#define PC_MACHINE_VMBUS            "vmbus"
 
 /**
  * PCMachineClass:
@@ -209,6 +211,7 @@ void i8042_setup_a20_line(ISADevice *dev, qemu_irq a20_out);
 extern int fd_bootchk;
 
 bool pc_machine_is_smm_enabled(PCMachineState *pcms);
+bool pc_machine_is_vmbus_enabled(PCMachineState *pcms);
 void pc_register_ferr_irq(qemu_irq irq);
 void pc_acpi_smi_interrupt(void *opaque, int irq, int level);
 

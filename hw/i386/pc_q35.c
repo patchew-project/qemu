@@ -50,6 +50,7 @@
 #include "hw/usb.h"
 #include "qemu/error-report.h"
 #include "sysemu/numa.h"
+#include "hw/vmbus/vmbus.h"
 
 /* ICH9 AHCI has 6 ports */
 #define MAX_SATA_PORTS     6
@@ -278,6 +279,10 @@ static void pc_q35_init(MachineState *machine)
     if (pcms->acpi_nvdimm_state.is_enabled) {
         nvdimm_init_acpi_state(&pcms->acpi_nvdimm_state, system_io,
                                pcms->fw_cfg, OBJECT(pcms));
+    }
+
+    if (pc_machine_is_vmbus_enabled(pcms)) {
+        vmbus_create();
     }
 }
 

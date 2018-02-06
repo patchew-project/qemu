@@ -2178,6 +2178,34 @@ static void pc_machine_set_smm(Object *obj, Visitor *v, const char *name,
     visit_type_OnOffAuto(v, name, &pcms->smm, errp);
 }
 
+bool pc_machine_is_vmbus_enabled(PCMachineState *pcms)
+{
+    if (!pcms->vmbus) {
+        return false;
+    }
+
+    if (!kvm_enabled()) {
+        error_report("VMBus requires KVM");
+        exit(1);
+    }
+
+    return true;
+}
+
+static bool pc_machine_get_vmbus(Object *obj, Error **errp)
+{
+    PCMachineState *pcms = PC_MACHINE(obj);
+
+    return pcms->vmbus;
+}
+
+static void pc_machine_set_vmbus(Object *obj, bool vmbus, Error **errp)
+{
+    PCMachineState *pcms = PC_MACHINE(obj);
+
+    pcms->vmbus = vmbus;
+}
+
 static bool pc_machine_get_nvdimm(Object *obj, Error **errp)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
@@ -2413,6 +2441,12 @@ static void pc_machine_class_init(ObjectClass *oc, void *data)
 
     object_class_property_add_bool(oc, PC_MACHINE_PIT,
         pc_machine_get_pit, pc_machine_set_pit, &error_abort);
+
+    /* no vmbus by default */
+    object_class_property_add_bool(oc, PC_MACHINE_VMBUS,
+        pc_machine_get_vmbus, pc_machine_set_vmbus, &error_abort);
+    object_class_property_set_description(oc, PC_MACHINE_VMBUS,
+        "Enable Hyper-V VMBus", &error_abort);
 }
 
 static const TypeInfo pc_machine_info = {
