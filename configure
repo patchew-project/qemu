@@ -436,6 +436,7 @@ jemalloc="no"
 replication="yes"
 vxhs=""
 libxml2=""
+vmbus="no"
 
 supported_cpu="no"
 supported_os="no"
@@ -804,6 +805,7 @@ Linux)
   vhost_net="yes"
   vhost_scsi="yes"
   vhost_vsock="yes"
+  vmbus="yes"
   QEMU_INCLUDES="-I\$(SRC_PATH)/linux-headers -I$(pwd)/linux-headers $QEMU_INCLUDES"
   supported_os="yes"
 ;;
@@ -1341,6 +1343,10 @@ for opt do
   ;;
   --disable-git-update) git_update=no
   ;;
+  --disable-vmbus) vmbus="no"
+  ;;
+  --enable-vmbus) vmbus="yes"
+  ;;
   *)
       echo "ERROR: unknown option $opt"
       echo "Try '$0 --help' for more information"
@@ -1592,6 +1598,7 @@ disabled with --disable-FEATURE, default is enabled if available:
   crypto-afalg    Linux AF_ALG crypto backend driver
   vhost-user      vhost-user support
   capstone        capstone disassembler support
+  vmbus           Hyper-V VMBus devices support
 
 NOTE: The object files are built at the place where configure is launched
 EOF
@@ -5657,6 +5664,7 @@ echo "avx2 optimization $avx2_opt"
 echo "replication support $replication"
 echo "VxHS block device $vxhs"
 echo "capstone          $capstone"
+echo "vmbus support     $vmbus"
 
 if test "$sdl_too_old" = "yes"; then
 echo "-> Your SDL version is too old - please upgrade to have SDL support"
@@ -6346,6 +6354,9 @@ fi
 
 if test "$have_static_assert" = "yes" ; then
   echo "CONFIG_STATIC_ASSERT=y" >> $config_host_mak
+fi
+if test "$vmbus" = "yes" ; then
+  echo "CONFIG_VMBUS=y" >> $config_host_mak
 fi
 
 if test "$have_utmpx" = "yes" ; then
