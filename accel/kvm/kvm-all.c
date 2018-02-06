@@ -1423,6 +1423,21 @@ static void kvm_irqchip_create(MachineState *machine, KVMState *s)
     s->gsimap = g_hash_table_new(g_direct_hash, g_direct_equal);
 }
 
+int kvm_set_hv_event_notifier(KVMState *s, uint32_t conn_id, EventNotifier *n)
+{
+    struct kvm_hyperv_eventfd hvevfd = {
+        .conn_id = conn_id,
+        .fd = n ? event_notifier_get_fd(n) : -1,
+        .flags = n ? 0 : KVM_HYPERV_EVENTFD_DEASSIGN,
+    };
+
+    if (!kvm_check_extension(s, KVM_CAP_HYPERV_EVENTFD)) {
+        return -ENOSYS;
+    }
+
+    return kvm_vm_ioctl(s, KVM_HYPERV_EVENTFD, &hvevfd);
+}
+
 /* Find number of supported CPUs using the recommended
  * procedure from the kernel API documentation to cope with
  * older kernels that may be missing capabilities.

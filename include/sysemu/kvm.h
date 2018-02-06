@@ -496,6 +496,7 @@ void kvm_irqchip_set_qemuirq_gsi(KVMState *s, qemu_irq irq, int gsi);
 void kvm_pc_gsi_handler(void *opaque, int n, int level);
 void kvm_pc_setup_irq_routing(bool pci_enabled);
 void kvm_init_irq_routing(KVMState *s);
+int kvm_set_hv_event_notifier(KVMState *s, uint32_t conn_id, EventNotifier *n);
 
 /**
  * kvm_arch_irqchip_create:

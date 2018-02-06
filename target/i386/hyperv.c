@@ -313,7 +313,8 @@ unlock:
     return ret;
 }
 
-int hyperv_set_evt_notifier(uint32_t conn_id, EventNotifier *notifier)
+static int hyperv_set_evt_notifier_userspace(uint32_t conn_id,
+                                             EventNotifier *notifier)
 {
     int ret;
     EvtHandler *eh;
@@ -344,6 +345,24 @@ int hyperv_set_evt_notifier(uint32_t conn_id, EventNotifier *notifier)
 unlock:
     qemu_mutex_unlock(&handlers_mutex);
     return ret;
+}
+
+static bool hv_evt_notifier_userspace;
+
+int hyperv_set_evt_notifier(uint32_t conn_id, EventNotifier *notifier)
+{
+    if (!hv_evt_notifier_userspace) {
+        int ret = kvm_set_hv_event_notifier(kvm_state, conn_id, notifier);
+        if (ret != -ENOSYS) {
+            return ret;
+        }
+
+        hv_evt_notifier_userspace = true;
+        warn_report("Hyper-V event signaling in KVM not supported; "
+                    "using slower userspace hypercall processing");
+    }
+
+    return hyperv_set_evt_notifier_userspace(conn_id, notifier);
 }
 
 static uint64_t hvcall_post_message(uint64_t param, bool fast)
