@@ -1,0 +1,8 @@
+# vmbus
+vmbus_initiate_contact(uint32_t version, uint32_t vcpu, uint64_t monitor_page1, uint64_t monitor_page2, uint64_t interrupt_page) "version requested %d, target vcpu %d, monitor pages 0x%"PRIx64" 0x%"PRIx64", interrupt page 0x%"PRIx64""
+vmbus_recv_message(uint32_t type, uint32_t size) "recvd message type %d, size %d"
+vmbus_signal_event(void) "vmbus event signaled"
+vmbus_signal_channel(uint32_t relid) "signaling channel id %d"
+vmbus_post_msg(uint32_t type, uint32_t size) "posting message type %d, size %d"
+vmbus_post_reply_callback(int status) "staged message status %d"
+vmbus_process_incoming_message(uint32_t message_type) "processing incoming message %d"
