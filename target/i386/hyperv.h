@@ -19,13 +19,12 @@
 #include "qemu/event_notifier.h"
 
 typedef struct HvSintRoute HvSintRoute;
-typedef void (*HvSintAckClb)(void *data);
+typedef void (*HvSintMsgCb)(void *data, int status);
 
 int kvm_hv_handle_exit(X86CPU *cpu, struct kvm_hyperv_exit *exit);
 
 HvSintRoute *hyperv_sint_route_new(uint32_t vp_index, uint32_t sint,
-                                   HvSintAckClb sint_ack_clb,
-                                   void *sint_ack_clb_data);
+                                   HvSintMsgCb cb, void *cb_data);
 void hyperv_sint_route_ref(HvSintRoute *sint_route);
 void hyperv_sint_route_unref(HvSintRoute *sint_route);
 
@@ -39,5 +38,7 @@ void hyperv_synic_reset(X86CPU *cpu);
 void hyperv_synic_update(X86CPU *cpu);
 
 bool hyperv_synic_usable(void);
+
+int hyperv_post_msg(HvSintRoute *sint_route, struct hyperv_message *msg);
 
 #endif

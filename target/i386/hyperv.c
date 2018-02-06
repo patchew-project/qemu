@@ -47,8 +47,20 @@ struct HvSintRoute {
     int gsi;
     EventNotifier sint_set_notifier;
     EventNotifier sint_ack_notifier;
-    HvSintAckClb sint_ack_clb;
-    void *sint_ack_clb_data;
+
+    HvSintMsgCb msg_cb;
+    void *msg_cb_data;
+    struct hyperv_message *msg;
+    /*
+     * the state of the message staged in .msg:
+     * 0        - the staging area is not in use (after init or message
+     *            successfully delivered to guest)
+     * -EBUSY   - the staging area is being used in vcpu thread
+     * -EAGAIN  - delivery attempt failed due to slot being busy, retry
+     * -EXXXX   - error
+     */
+    int msg_status;
+
     unsigned refcount;
 };
 
@@ -119,6 +131,83 @@ static void synic_update(SynICState *synic)
     synic_update_evt_page_addr(synic);
 }
 
+static void sint_msg_bh(void *opaque)
+{
+    HvSintRoute *sint_route = opaque;
+    int status = sint_route->msg_status;
+    sint_route->msg_status = 0;
+    sint_route->msg_cb(sint_route->msg_cb_data, status);
+    /* drop the reference taken in hyperv_post_msg */
+    hyperv_sint_route_unref(sint_route);
+}
+
+/*
+ * Worker to transfer the message from the staging area into the guest-owned
+ * message page in vcpu context, which guarantees serialization with both KVM
+ * vcpu and the guest cpu.
+ */
+static void cpu_post_msg(CPUState *cs, run_on_cpu_data data)
+{
+    int ret;
+    HvSintRoute *sint_route = data.host_ptr;
+    SynICState *synic = sint_route->synic;
+    struct hyperv_message *dst_msg;
+
+    if (!synic->enabled || !synic->msg_page_addr) {
+        ret = -ENXIO;
+        goto notify;
+    }
+
+    dst_msg = &synic->msg_page->slot[sint_route->sint];
+
+    if (dst_msg->header.message_type != HV_MESSAGE_NONE) {
+        dst_msg->header.message_flags |= HV_MESSAGE_FLAG_PENDING;
+        ret = -EAGAIN;
+    } else {
+        memcpy(dst_msg, sint_route->msg, sizeof(*dst_msg));
+        ret = kvm_hv_sint_route_set_sint(sint_route);
+    }
+
+    memory_region_set_dirty(&synic->msg_page_mr, 0, sizeof(*synic->msg_page));
+
+notify:
+    sint_route->msg_status = ret;
+    /* notify the msg originator of the progress made; if the slot was busy we
+     * set msg_pending flag in it so it will be the guest who will do EOM and
+     * trigger the notification from KVM via sint_ack_notifier */
+    if (ret != -EAGAIN) {
+        aio_bh_schedule_oneshot(qemu_get_aio_context(), sint_msg_bh,
+                                sint_route);
+    }
+}
+
+/*
+ * Post a Hyper-V message to the staging area, for delivery to guest in the
+ * vcpu thread.
+ */
+int hyperv_post_msg(HvSintRoute *sint_route, struct hyperv_message *src_msg)
+{
+    int ret = sint_route->msg_status;
+
+    assert(sint_route->msg_cb);
+
+    if (ret == -EBUSY) {
+        return -EAGAIN;
+    }
+    if (ret) {
+        return ret;
+    }
+
+    sint_route->msg_status = -EBUSY;
+    memcpy(sint_route->msg, src_msg, sizeof(*src_msg));
+
+    /* hold a reference on sint_route until the callback is finished */
+    hyperv_sint_route_ref(sint_route);
+
+    async_run_on_cpu(CPU(sint_route->synic->cpu), cpu_post_msg,
+                     RUN_ON_CPU_HOST_PTR(sint_route));
+    return 0;
+}
 
 static void async_synic_update(CPUState *cs, run_on_cpu_data data)
 {
@@ -176,17 +265,20 @@ int kvm_hv_handle_exit(X86CPU *cpu, struct kvm_hyperv_exit *exit)
     }
 }
 
-static void kvm_hv_sint_ack_handler(EventNotifier *notifier)
+static void sint_ack_handler(EventNotifier *notifier)
 {
     HvSintRoute *sint_route = container_of(notifier, HvSintRoute,
                                            sint_ack_notifier);
     event_notifier_test_and_clear(notifier);
-    sint_route->sint_ack_clb(sint_route->sint_ack_clb_data);
+
+    if (sint_route->msg_status == -EAGAIN) {
+        aio_bh_schedule_oneshot(qemu_get_aio_context(), sint_msg_bh,
+                                sint_route);
+    }
 }
 
 HvSintRoute *hyperv_sint_route_new(uint32_t vp_index, uint32_t sint,
-                                   HvSintAckClb sint_ack_clb,
-                                   void *sint_ack_clb_data)
+                                   HvSintMsgCb cb, void *cb_data)
 {
     SynICState *synic;
     HvSintRoute *sint_route;
@@ -208,14 +300,16 @@ HvSintRoute *hyperv_sint_route_new(uint32_t vp_index, uint32_t sint,
         goto err;
     }
 
-    ack_notifier = sint_ack_clb ? &sint_route->sint_ack_notifier : NULL;
+    ack_notifier = cb ? &sint_route->sint_ack_notifier : NULL;
     if (ack_notifier) {
+        sint_route->msg = g_new(struct hyperv_message, 1);
+
         r = event_notifier_init(ack_notifier, false);
         if (r) {
             goto err_sint_set_notifier;
         }
 
-        event_notifier_set_handler(ack_notifier, kvm_hv_sint_ack_handler);
+        event_notifier_set_handler(ack_notifier, sint_ack_handler);
     }
 
     gsi = kvm_irqchip_add_hv_sint_route(kvm_state, vp_index, sint);
@@ -230,8 +324,8 @@ HvSintRoute *hyperv_sint_route_new(uint32_t vp_index, uint32_t sint,
         goto err_irqfd;
     }
     sint_route->gsi = gsi;
-    sint_route->sint_ack_clb = sint_ack_clb;
-    sint_route->sint_ack_clb_data = sint_ack_clb_data;
+    sint_route->msg_cb = cb;
+    sint_route->msg_cb_data = cb_data;
     sint_route->synic = synic;
     sint_route->sint = sint;
     sint_route->refcount = 1;
@@ -244,6 +338,7 @@ err_gsi:
     if (ack_notifier) {
         event_notifier_set_handler(ack_notifier, NULL);
         event_notifier_cleanup(ack_notifier);
+        g_free(sint_route->msg);
     }
 err_sint_set_notifier:
     event_notifier_cleanup(&sint_route->sint_set_notifier);
@@ -274,9 +369,10 @@ void hyperv_sint_route_unref(HvSintRoute *sint_route)
                                           &sint_route->sint_set_notifier,
                                           sint_route->gsi);
     kvm_irqchip_release_virq(kvm_state, sint_route->gsi);
-    if (sint_route->sint_ack_clb) {
+    if (sint_route->msg_cb) {
         event_notifier_set_handler(&sint_route->sint_ack_notifier, NULL);
         event_notifier_cleanup(&sint_route->sint_ack_notifier);
+        g_free(sint_route->msg);
     }
     event_notifier_cleanup(&sint_route->sint_set_notifier);
     g_free(sint_route);
