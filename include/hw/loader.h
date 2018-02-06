@@ -186,7 +186,7 @@ void pstrcpy_targphys(const char *name,
 extern bool option_rom_has_mr;
 extern bool rom_file_has_mr;
 
-int rom_add_file(const char *file, const char *fw_dir,
+int rom_add_file(const char *file, const char *fw_path,
                  hwaddr addr, int32_t bootindex,
                  bool option_rom, MemoryRegion *mr, AddressSpace *as);
 MemoryRegion *rom_add_blob(const char *name, const void *blob, size_t len,

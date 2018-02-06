@@ -817,7 +817,6 @@ struct Rom {
     MemoryRegion *mr;
     AddressSpace *as;
     int isrom;
-    char *fw_dir;
     char *fw_file;
 
     hwaddr addr;
@@ -882,7 +881,7 @@ static void *rom_set_mr(Rom *rom, Object *owner, const char *name, bool ro)
     return data;
 }
 
-int rom_add_file(const char *file, const char *fw_dir,
+int rom_add_file(const char *file, const char *fw_path,
                  hwaddr addr, int32_t bootindex,
                  bool option_rom, MemoryRegion *mr,
                  AddressSpace *as)
@@ -914,10 +913,6 @@ int rom_add_file(const char *file, const char *fw_dir,
         goto err;
     }
 
-    if (fw_dir) {
-        rom->fw_dir  = g_strdup(fw_dir);
-        rom->fw_file = g_strdup(file);
-    }
     rom->addr     = addr;
     rom->romsize  = lseek(fd, 0, SEEK_END);
     if (rom->romsize == -1) {
@@ -937,20 +932,26 @@ int rom_add_file(const char *file, const char *fw_dir,
     }
     close(fd);
     rom_insert(rom);
-    if (rom->fw_file && fw_cfg) {
+    if (fw_path && fw_cfg) {
         const char *basename;
-        char fw_file_name[FW_CFG_MAX_FILE_PATH];
         void *data;
 
-        basename = strrchr(rom->fw_file, '/');
-        if (basename) {
-            basename++;
+        basename = strrchr(fw_path, '/');
+        if (basename && basename[1] == '\0') {
+            /* given path terminates with '/', append basename(file) */
+            basename = strrchr(file, '/');
+            if (basename) {
+                basename++;
+            } else {
+                basename = file;
+            }
+
+            rom->fw_file = g_strdup_printf("%s%s", fw_path, basename);
         } else {
-            basename = rom->fw_file;
+            rom->fw_file = g_strdup(fw_path);
         }
-        snprintf(fw_file_name, sizeof(fw_file_name), "%s/%s", rom->fw_dir,
-                 basename);
-        snprintf(devpath, sizeof(devpath), "/rom@%s", fw_file_name);
+
+        snprintf(devpath, sizeof(devpath), "/rom@%s", rom->fw_file);
 
         if ((!option_rom || mc->option_rom_has_mr) && mc->rom_file_has_mr) {
             data = rom_set_mr(rom, OBJECT(fw_cfg), devpath, true);
@@ -958,7 +959,7 @@ int rom_add_file(const char *file, const char *fw_dir,
             data = rom->data;
         }
 
-        fw_cfg_add_file(fw_cfg, fw_file_name, data, rom->romsize);
+        fw_cfg_add_file(fw_cfg, rom->fw_file, data, rom->romsize);
     } else {
         if (mr) {
             rom->mr = mr;
@@ -978,8 +979,7 @@ err:
     g_free(rom->data);
     g_free(rom->path);
     g_free(rom->name);
-    if (fw_dir) {
-        g_free(rom->fw_dir);
+    if (fw_path) {
         g_free(rom->fw_file);
     }
     g_free(rom);
@@ -1052,12 +1052,12 @@ int rom_add_elf_program(const char *name, void *data, size_t datasize,
 
 int rom_add_vga(const char *file)
 {
-    return rom_add_file(file, "vgaroms", 0, -1, true, NULL, NULL);
+    return rom_add_file(file, "vgaroms/", 0, -1, true, NULL, NULL);
 }
 
 int rom_add_option(const char *file, int32_t bootindex)
 {
-    return rom_add_file(file, "genroms", 0, bootindex, true, NULL, NULL);
+    return rom_add_file(file, "genroms/", 0, bootindex, true, NULL, NULL);
 }
 
 static void rom_reset(void *unused)
@@ -1255,9 +1255,8 @@ void hmp_info_roms(Monitor *mon, const QDict *qdict)
                            rom->isrom ? "rom" : "ram",
                            rom->name);
         } else {
-            monitor_printf(mon, "fw=%s/%s"
+            monitor_printf(mon, "fw=%s"
                            " size=0x%06zx name=\"%s\"\n",
-                           rom->fw_dir,
                            rom->fw_file,
                            rom->romsize,
                            rom->name);
