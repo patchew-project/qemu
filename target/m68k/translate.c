@@ -2078,6 +2078,55 @@ DISAS_INSN(movem)
     tcg_temp_free(addr);
 }
 
+DISAS_INSN(movep)
+{
+    uint8_t i;
+    uint8_t op;
+    uint16_t displ;
+    TCGv reg;
+    TCGv addr;
+    TCGv abuf;
+    TCGv dbuf;
+
+    op = (insn >> 6) & 7;
+    displ = read_im16(env, s);
+
+    addr = AREG(insn, 0);
+    reg = DREG(insn, 9);
+
+    abuf = tcg_temp_new();
+    tcg_gen_addi_i32(abuf, addr, displ);
+    dbuf = tcg_temp_new();
+
+    if (op & 1) {
+        i = 4;
+    } else {
+        i = 2;
+    }
+
+    if (op & 2) {
+        for ( ; i > 0 ; i--) {
+            tcg_gen_shri_i32(dbuf, reg, (i - 1) * 8);
+            gen_store(s, OS_BYTE, abuf, dbuf);
+            if (i > 1) {
+                tcg_gen_addi_i32(abuf, abuf, 2);
+            }
+        }
+    } else {
+        tcg_gen_movi_i32(reg, 0);
+        for ( ; i > 0 ; i--) {
+            dbuf = gen_load(s, OS_BYTE, abuf, 1);
+            tcg_gen_or_i32(reg, reg, dbuf);
+            if (i > 1) {
+                tcg_gen_shli_i32(reg, reg, 8);
+                tcg_gen_addi_i32(abuf, abuf, 2);
+            }
+        }
+    }
+    tcg_temp_free(abuf);
+    tcg_temp_free(dbuf);
+}
+
 DISAS_INSN(bitop_im)
 {
     int opsize;
@@ -5675,9 +5724,13 @@ void register_m68k_insns (CPUM68KState *env)
     INSN(chk2,      00c0, f9c0, CHK2);
     INSN(bitrev,    00c0, fff8, CF_ISA_APLUSC);
     BASE(bitop_reg, 0100, f1c0);
+    BASE(movep,     0108, f1f8);
     BASE(bitop_reg, 0140, f1c0);
+    BASE(movep,     0148, f1f8);
     BASE(bitop_reg, 0180, f1c0);
+    BASE(movep,     0188, f1f8);
     BASE(bitop_reg, 01c0, f1c0);
+    BASE(movep,     01c8, f1f8);
     INSN(arith_im,  0280, fff8, CF_ISA_A);
     INSN(arith_im,  0200, ff00, M68000);
     INSN(undef,     02c0, ffc0, M68000);
