@@ -352,6 +352,11 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
         .property = "extended-tseg-mbytes",\
         .value    = stringify(0),\
     },\
+    {\
+        .driver   = "hyperv-synic",\
+        .property = "in-kvm-only",\
+        .value    = "on",\
+    },\
 
 #define PC_COMPAT_2_8 \
     HW_COMPAT_2_8 \

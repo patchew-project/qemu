@@ -34,8 +34,10 @@ int kvm_hv_sint_route_set_sint(HvSintRoute *sint_route);
 uint32_t hyperv_vp_index(X86CPU *cpu);
 X86CPU *hyperv_find_vcpu(uint32_t vp_index);
 
-void hyperv_synic_add(X86CPU *cpu);
+int hyperv_synic_add(X86CPU *cpu);
 void hyperv_synic_reset(X86CPU *cpu);
 void hyperv_synic_update(X86CPU *cpu);
+
+bool hyperv_synic_usable(void);
 
 #endif

@@ -717,12 +717,10 @@ static int hyperv_init_vcpu(X86CPU *cpu)
     }
 
     if (cpu->hyperv_synic) {
-        if (kvm_vcpu_enable_cap(CPU(cpu), KVM_CAP_HYPERV_SYNIC, 0)) {
-            fprintf(stderr, "failed to enable Hyper-V SynIC\n");
-            return -ENOSYS;
+        int ret = hyperv_synic_add(cpu);
+        if (ret) {
+            return ret;
         }
-
-        hyperv_synic_add(cpu);
     }
 
     return 0;

@@ -14,6 +14,7 @@
 #include "qemu/osdep.h"
 #include "qemu/main-loop.h"
 #include "qapi/error.h"
+#include "qemu/error-report.h"
 #include "hw/qdev-properties.h"
 #include "hyperv.h"
 #include "hyperv-proto.h"
@@ -22,6 +23,8 @@ typedef struct SynICState {
     DeviceState parent_obj;
 
     X86CPU *cpu;
+
+    bool in_kvm_only;
 
     bool enabled;
     hwaddr msg_page_addr;
@@ -78,6 +81,10 @@ static void synic_update_evt_page_addr(SynICState *synic)
 
 static void synic_update(SynICState *synic)
 {
+    if (synic->in_kvm_only) {
+        return;
+    }
+
     synic->enabled = synic->cpu->env.msr_hv_synic_control & HV_SYNIC_ENABLE;
     synic_update_msg_page_addr(synic);
     synic_update_evt_page_addr(synic);
@@ -154,6 +161,7 @@ HvSintRoute *hyperv_sint_route_new(uint32_t vp_index, uint32_t sint,
     }
 
     synic = get_synic(cpu);
+    assert(!synic->in_kvm_only);
 
     sint_route = g_new0(HvSintRoute, 1);
     r = event_notifier_init(&sint_route->sint_set_notifier, false);
@@ -240,10 +248,20 @@ int kvm_hv_sint_route_set_sint(HvSintRoute *sint_route)
     return event_notifier_set(&sint_route->sint_set_notifier);
 }
 
+static Property synic_props[] = {
+    /* user-invisible, only used for compat handling */
+    DEFINE_PROP_BOOL("in-kvm-only", SynICState, in_kvm_only, false),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void synic_realize(DeviceState *dev, Error **errp)
 {
     Object *obj = OBJECT(dev);
     SynICState *synic = SYNIC(dev);
+
+    if (synic->in_kvm_only) {
+        return;
+    }
 
     synic->cpu = X86_CPU(obj->parent);
 }
@@ -251,6 +269,11 @@ static void synic_realize(DeviceState *dev, Error **errp)
 static void synic_reset(DeviceState *dev)
 {
     SynICState *synic = SYNIC(dev);
+
+    if (synic->in_kvm_only) {
+        return;
+    }
+
     synic_update(synic);
 }
 
@@ -258,19 +281,45 @@ static void synic_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
+    dc->props = synic_props;
     dc->realize = synic_realize;
     dc->reset = synic_reset;
     dc->user_creatable = false;
 }
 
-void hyperv_synic_add(X86CPU *cpu)
+int hyperv_synic_add(X86CPU *cpu)
 {
     Object *obj;
+    SynICState *synic;
+    uint32_t synic_cap;
+    int ret;
 
     obj = object_new(TYPE_SYNIC);
     object_property_add_child(OBJECT(cpu), "synic", obj, &error_abort);
     object_unref(obj);
+
+    synic = SYNIC(obj);
+
+    if (!synic->in_kvm_only) {
+        synic_cap = KVM_CAP_HYPERV_SYNIC2;
+        if (!cpu->hyperv_vpindex) {
+            error_report("Hyper-V SynIC requires VP_INDEX support");
+            return -ENOSYS;
+        }
+    } else {
+        /* compat mode: only in-KVM SynIC timers supported */
+        synic_cap = KVM_CAP_HYPERV_SYNIC;
+    }
+
+    ret = kvm_vcpu_enable_cap(CPU(cpu), synic_cap, 0);
+    if (ret) {
+        error_report("failed to enable Hyper-V SynIC in KVM: %s",
+                     strerror(-ret));
+        return ret;
+    }
+
     object_property_set_bool(obj, true, "realized", &error_abort);
+    return 0;
 }
 
 void hyperv_synic_reset(X86CPU *cpu)
@@ -281,6 +330,25 @@ void hyperv_synic_reset(X86CPU *cpu)
 void hyperv_synic_update(X86CPU *cpu)
 {
     synic_update(get_synic(cpu));
+}
+
+bool hyperv_synic_usable(void)
+{
+    CPUState *cs;
+
+    CPU_FOREACH(cs) {
+        X86CPU *cpu = X86_CPU(cs);
+
+        if (!cpu->hyperv_synic) {
+            return false;
+        }
+
+        if (get_synic(cpu)->in_kvm_only) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 static const TypeInfo synic_type_info = {
