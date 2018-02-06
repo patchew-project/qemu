@@ -94,6 +94,86 @@ void block_acct_start(BlockAcctStats *stats, BlockAcctCookie *cookie,
     cookie->type = type;
 }
 
+/* block_latency_histogram_compare_func
+ * Compare @key with interval [@el, @el+1), where @el+1 is a next array element
+ * after @el.
+ * Return: -1 if @key < @el
+ *          0 if @key in [@el, @el+1)
+ *         +1 if @key >= @el+1
+ */
+static int block_latency_histogram_compare_func(const void *key, const void *el)
+{
+    uint64_t k = *(uint64_t *)key;
+    uint64_t a = *(uint64_t *)el;
+    uint64_t b = *((uint64_t *)el + 1);
+
+    return k < a ? -1 : (k < b ? 0 : 1);
+}
+
+static void block_latency_histogram_account(BlockLatencyHistogram *hist,
+                                            enum BlockAcctType type,
+                                            int64_t latency_ns)
+{
+    uint64_t *data, *pos;
+
+    if (hist->points == NULL) {
+        /* histogram disabled */
+        return;
+    }
+
+    data = hist->histogram[type];
+
+    if (latency_ns < hist->points[0]) {
+        data[0]++;
+        return;
+    }
+
+    if (latency_ns >= hist->points[hist->size - 2]) {
+        data[hist->size - 1]++;
+        return;
+    }
+
+    pos = bsearch(&latency_ns, hist->points, hist->size - 2,
+                  sizeof(hist->points[0]),
+                  block_latency_histogram_compare_func);
+    assert(pos != NULL);
+
+    data[pos - hist->points + 1]++;
+}
+
+int block_latency_histogram_set(BlockAcctStats *stats, uint64List *latency)
+{
+    BlockLatencyHistogram *hist = &stats->latency_histogram;
+    uint64List *entry;
+    uint64_t *ptr;
+    int i;
+    uint64_t prev = 0;
+
+    hist->size = 1;
+
+    for (entry = latency; entry; entry = entry->next) {
+        if (entry->value <= prev) {
+            return -EINVAL;
+        }
+        hist->size++;
+        prev = entry->value;
+    }
+
+    hist->points = g_renew(uint64_t, hist->points, hist->size - 1);
+    for (entry = latency, ptr = hist->points; entry;
+         entry = entry->next, ptr++)
+    {
+        *ptr = entry->value;
+    }
+
+    for (i = 0; i < BLOCK_MAX_IOTYPE; i++) {
+        hist->histogram[i] = g_renew(uint64_t, hist->histogram[i], hist->size);
+        memset(hist->histogram[i], 0, hist->size * sizeof(uint64_t));
+    }
+
+    return 0;
+}
+
 static void block_account_one_io(BlockAcctStats *stats, BlockAcctCookie *cookie,
                                  bool failed)
 {
@@ -115,6 +195,9 @@ static void block_account_one_io(BlockAcctStats *stats, BlockAcctCookie *cookie,
         stats->nr_bytes[cookie->type] += cookie->bytes;
         stats->nr_ops[cookie->type]++;
     }
+
+    block_latency_histogram_account(&stats->latency_histogram, cookie->type,
+                                    latency_ns);
 
     if (!failed || stats->account_failed) {
         stats->total_time_ns[cookie->type] += latency_ns;
