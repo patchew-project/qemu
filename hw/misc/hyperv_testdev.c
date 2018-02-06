@@ -2,6 +2,7 @@
  * QEMU KVM Hyper-V test device to support Hyper-V kvm-unit-tests
  *
  * Copyright (C) 2015 Andrey Smetanin <asmetanin@virtuozzo.com>
+ * Copyright (c) 2015-2018 Virtuozzo International GmbH.
  *
  * Authors:
  *  Andrey Smetanin <asmetanin@virtuozzo.com>
