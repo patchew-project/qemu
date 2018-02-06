@@ -665,8 +665,7 @@ static int hyperv_handle_properties(CPUState *cs)
         env->features[FEAT_HYPERV_EAX] |= HV_VP_RUNTIME_AVAILABLE;
     }
     if (cpu->hyperv_synic) {
-        if (!has_msr_hv_synic ||
-            kvm_vcpu_enable_cap(cs, KVM_CAP_HYPERV_SYNIC, 0)) {
+        if (!has_msr_hv_synic) {
             fprintf(stderr, "Hyper-V SynIC is not supported by kernel\n");
             return -ENOSYS;
         }
@@ -715,6 +714,15 @@ static int hyperv_init_vcpu(X86CPU *cpu)
             fprintf(stderr, "kernel's vp_index != QEMU's vp_index\n");
             return -ENXIO;
         }
+    }
+
+    if (cpu->hyperv_synic) {
+        if (kvm_vcpu_enable_cap(CPU(cpu), KVM_CAP_HYPERV_SYNIC, 0)) {
+            fprintf(stderr, "failed to enable Hyper-V SynIC\n");
+            return -ENOSYS;
+        }
+
+        hyperv_synic_add(cpu);
     }
 
     return 0;
@@ -1107,6 +1115,8 @@ void kvm_arch_reset_vcpu(X86CPU *cpu)
         for (i = 0; i < ARRAY_SIZE(env->msr_hv_synic_sint); i++) {
             env->msr_hv_synic_sint[i] = HV_SINT_MASKED;
         }
+
+        hyperv_synic_reset(cpu);
     }
 }
 
