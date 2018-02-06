@@ -19,6 +19,9 @@
 #include "exec/address-spaces.h"
 #include "sysemu/cpus.h"
 #include "qemu/bitops.h"
+#include "qemu/queue.h"
+#include "qemu/rcu.h"
+#include "qemu/rcu_queue.h"
 #include "migration/vmstate.h"
 #include "hyperv.h"
 #include "hyperv-proto.h"
@@ -249,6 +252,106 @@ static void async_synic_update(CPUState *cs, run_on_cpu_data data)
     qemu_mutex_unlock_iothread();
 }
 
+typedef struct EvtHandler {
+    struct rcu_head rcu;
+    QLIST_ENTRY(EvtHandler) le;
+    uint32_t conn_id;
+    EventNotifier *notifier;
+} EvtHandler;
+
+static QLIST_HEAD(, EvtHandler) evt_handlers;
+static QemuMutex handlers_mutex;
+
+static void __attribute__((constructor)) hv_init(void)
+{
+    QLIST_INIT(&evt_handlers);
+    qemu_mutex_init(&handlers_mutex);
+}
+
+int hyperv_set_evt_notifier(uint32_t conn_id, EventNotifier *notifier)
+{
+    int ret;
+    EvtHandler *eh;
+
+    qemu_mutex_lock(&handlers_mutex);
+    QLIST_FOREACH(eh, &evt_handlers, le) {
+        if (eh->conn_id == conn_id) {
+            if (notifier) {
+                ret = -EEXIST;
+            } else {
+                QLIST_REMOVE_RCU(eh, le);
+                g_free_rcu(eh, rcu);
+                ret = 0;
+            }
+            goto unlock;
+        }
+    }
+
+    if (notifier) {
+        eh = g_new(EvtHandler, 1);
+        eh->conn_id = conn_id;
+        eh->notifier = notifier;
+        QLIST_INSERT_HEAD_RCU(&evt_handlers, eh, le);
+        ret = 0;
+    } else {
+        ret = -ENOENT;
+    }
+unlock:
+    qemu_mutex_unlock(&handlers_mutex);
+    return ret;
+}
+
+static uint64_t sigevent_params(hwaddr addr, uint32_t *conn_id)
+{
+    uint64_t ret;
+    hwaddr len;
+    struct hyperv_signal_event_input *msg;
+
+    if (addr & (__alignof__(*msg) - 1)) {
+        return HV_STATUS_INVALID_ALIGNMENT;
+    }
+
+    len = sizeof(*msg);
+    msg = cpu_physical_memory_map(addr, &len, 0);
+    if (len < sizeof(*msg)) {
+        ret = HV_STATUS_INSUFFICIENT_MEMORY;
+    } else {
+        *conn_id = (msg->connection_id & HV_CONNECTION_ID_MASK) +
+            msg->flag_number;
+        ret = 0;
+    }
+    cpu_physical_memory_unmap(msg, len, 0, 0);
+    return ret;
+}
+
+static uint64_t hvcall_signal_event(uint64_t param, bool fast)
+{
+    uint64_t ret;
+    uint32_t conn_id;
+    EvtHandler *eh;
+
+    if (likely(fast)) {
+        conn_id = (param & 0xffffffff) + ((param >> 32) & 0xffff);
+    } else {
+        ret = sigevent_params(param, &conn_id);
+        if (ret) {
+            return ret;
+        }
+    }
+
+    ret = HV_STATUS_INVALID_CONNECTION_ID;
+    rcu_read_lock();
+    QLIST_FOREACH_RCU(eh, &evt_handlers, le) {
+        if (eh->conn_id == conn_id) {
+            event_notifier_set(eh->notifier);
+            ret = 0;
+            break;
+        }
+    }
+    rcu_read_unlock();
+    return ret;
+}
+
 int kvm_hv_handle_exit(X86CPU *cpu, struct kvm_hyperv_exit *exit)
 {
     CPUX86State *env = &cpu->env;
@@ -281,16 +384,18 @@ int kvm_hv_handle_exit(X86CPU *cpu, struct kvm_hyperv_exit *exit)
                               RUN_ON_CPU_HOST_PTR(get_synic(cpu)));
         return 0;
     case KVM_EXIT_HYPERV_HCALL: {
-        uint16_t code;
+        uint16_t code = exit->u.hcall.input & 0xffff;
+        bool fast = exit->u.hcall.input & HV_HYPERCALL_FAST;
+        uint64_t param = exit->u.hcall.params[0];
 
-        code  = exit->u.hcall.input & 0xffff;
         switch (code) {
-        case HV_POST_MESSAGE:
         case HV_SIGNAL_EVENT:
+            exit->u.hcall.result = hvcall_signal_event(param, fast);
+            break;
         default:
             exit->u.hcall.result = HV_STATUS_INVALID_HYPERCALL_CODE;
-            return 0;
         }
+        return 0;
     }
     default:
         return -1;

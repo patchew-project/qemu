@@ -43,4 +43,6 @@ int hyperv_post_msg(HvSintRoute *sint_route, struct hyperv_message *msg);
 
 int hyperv_set_evt_flag(HvSintRoute *sint_route, unsigned evtno);
 
+int hyperv_set_evt_notifier(uint32_t conn_id, EventNotifier *notifier);
+
 #endif
