@@ -49,6 +49,7 @@
 #include "qemu/rcu_queue.h"
 #include "migration/colo.h"
 #include "migration/block.h"
+#include "sysemu/balloon.h"
 
 /***********************************************************/
 /* ram save/restore */
@@ -206,6 +207,10 @@ struct RAMState {
     uint32_t last_version;
     /* We are in the first round */
     bool ram_bulk_stage;
+    /* The feature, skipping the transfer of free pages, is supported */
+    bool free_page_support;
+    /* Skip the transfer of free pages in the bulk stage */
+    bool free_page_done;
     /* How many times we have dirty too many pages */
     int dirty_rate_high_cnt;
     /* these variables are used for bitmap sync */
@@ -773,7 +778,7 @@ unsigned long migration_bitmap_find_dirty(RAMState *rs, RAMBlock *rb,
     unsigned long *bitmap = rb->bmap;
     unsigned long next;
 
-    if (rs->ram_bulk_stage && start > 0) {
+    if (rs->ram_bulk_stage && start > 0 && !rs->free_page_support) {
         next = start + 1;
     } else {
         next = find_next_bit(bitmap, size, start);
@@ -1653,6 +1658,8 @@ static void ram_state_reset(RAMState *rs)
     rs->last_page = 0;
     rs->last_version = ram_list.version;
     rs->ram_bulk_stage = true;
+    rs->free_page_support = balloon_free_page_support();
+    rs->free_page_done = false;
 }
 
 #define MAX_WAIT 50 /* ms, half buffered_file limit */
@@ -2135,7 +2142,7 @@ static int ram_state_init(RAMState **rsp)
     return 0;
 }
 
-static void ram_list_init_bitmaps(void)
+static void ram_list_init_bitmaps(RAMState *rs)
 {
     RAMBlock *block;
     unsigned long pages;
@@ -2145,7 +2152,11 @@ static void ram_list_init_bitmaps(void)
         QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
             pages = block->max_length >> TARGET_PAGE_BITS;
             block->bmap = bitmap_new(pages);
-            bitmap_set(block->bmap, 0, pages);
+            if (rs->free_page_support) {
+                bitmap_set(block->bmap, 1, pages);
+            } else {
+                bitmap_set(block->bmap, 0, pages);
+            }
             if (migrate_postcopy_ram()) {
                 block->unsentmap = bitmap_new(pages);
                 bitmap_set(block->unsentmap, 0, pages);
@@ -2161,7 +2172,7 @@ static void ram_init_bitmaps(RAMState *rs)
     qemu_mutex_lock_ramlist();
     rcu_read_lock();
 
-    ram_list_init_bitmaps();
+    ram_list_init_bitmaps(rs);
     memory_global_dirty_log_start();
     migration_bitmap_sync(rs);
 
@@ -2274,6 +2285,11 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
     smp_rmb();
 
     ram_control_before_iterate(f, RAM_CONTROL_ROUND);
+
+    if (rs->free_page_support && !rs->free_page_done) {
+        balloon_free_page_poll();
+        rs->free_page_done = true;
+    }
 
     t0 = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
     i = 0;
