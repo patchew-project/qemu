@@ -451,6 +451,63 @@
            'status': 'DirtyBitmapStatus'} }
 
 ##
+# @BlockLatencyHistogramInfo:
+#
+# Block latency histogram.
+#
+# @latency: list of latency points in microseconds. Equals to @latency parameter
+#           of last called block-latency-histogram-set.
+#
+# @read: list of read-request counts corresponding to latency region.
+#        len(@read) = len(@latency) + 1
+#        @read[0] corresponds to latency region [0, @latency[0])
+#        for 0 < i < len(@latency): @read[i] corresponds to latency region
+#            [@latency[i-1], @latency[i])
+#        @read.last_element corresponds to latency region
+#            [@latency.last_element, +inf)
+#
+# @write: list of write-request counts (see @read semantics)
+#
+# @flush: list of flush-request counts (see @read semantics)
+#
+# Since: 2.12
+##
+{ 'struct': 'BlockLatencyHistogramInfo',
+  'data': {'latency': ['uint64'],
+           'read': ['uint64'],
+           'write': ['uint64'],
+           'flush': ['uint64'] } }
+
+##
+# @block-latency-histogram-set:
+#
+# Add latency histogram to block device. If latency histogram alredy exists for
+# the device it will be removed and a new one created. Latency histogram may be
+# quered through query-blockstats.
+#
+# @device: device name to set latency histogram for.
+#
+# @latency: list of latency points in microseconds. The sequcence must be
+#           ascending, elements must be greater than zero. Histogram latency
+#           regions would be
+#           [0, @latency[0]), ..., [@latency[i], @latency[i+1]), ...,
+#           [@latency.last_element, +inf)
+#
+# Returns: error if device is not found.
+#
+# Since: 2.12
+#
+# Example:
+#
+# -> { "execute": "block-latency-histogram-set",
+#      "arguments": { "device": "drive0",
+#                     "latency": [500000, 1000000, 2000000] } }
+# <- { "return": {} }
+##
+{ 'command': 'block-latency-histogram-set',
+  'data': {'device': 'str', 'latency': ['uint64'] } }
+
+##
 # @BlockInfo:
 #
 # Block device information.  This structure describes a virtual device and
@@ -730,6 +787,8 @@
 # @timed_stats: Statistics specific to the set of previously defined
 #               intervals of time (Since 2.5)
 #
+# @latency-histogram: @BlockLatencyHistogramInfo. (Since 2.12)
+#
 # Since: 0.14.0
 ##
 { 'struct': 'BlockDeviceStats',
@@ -742,7 +801,8 @@
            'failed_flush_operations': 'int', 'invalid_rd_operations': 'int',
            'invalid_wr_operations': 'int', 'invalid_flush_operations': 'int',
            'account_invalid': 'bool', 'account_failed': 'bool',
-           'timed_stats': ['BlockDeviceTimedStats'] } }
+           'timed_stats': ['BlockDeviceTimedStats'],
+           '*latency-histogram': 'BlockLatencyHistogramInfo' } }
 
 ##
 # @BlockStats:
