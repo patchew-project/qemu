@@ -36,6 +36,8 @@
 
 static QEMUBalloonEvent *balloon_event_fn;
 static QEMUBalloonStatus *balloon_stat_fn;
+static QEMUBalloonFreePageSupport *balloon_free_page_support_fn;
+static QEMUBalloonFreePagePoll *balloon_free_page_poll_fn;
 static void *balloon_opaque;
 static bool balloon_inhibited;
 
@@ -64,19 +66,34 @@ static bool have_balloon(Error **errp)
     return true;
 }
 
-int qemu_add_balloon_handler(QEMUBalloonEvent *event_func,
-                             QEMUBalloonStatus *stat_func, void *opaque)
+bool balloon_free_page_support(void)
 {
-    if (balloon_event_fn || balloon_stat_fn || balloon_opaque) {
-        /* We're already registered one balloon handler.  How many can
-         * a guest really have?
-         */
-        return -1;
+    return balloon_free_page_support_fn &&
+           balloon_free_page_support_fn(balloon_opaque);
+}
+
+void balloon_free_page_poll(void)
+{
+    balloon_free_page_poll_fn(balloon_opaque);
+}
+
+void qemu_add_balloon_handler(QEMUBalloonEvent *event_fn,
+                              QEMUBalloonStatus *stat_fn,
+                              QEMUBalloonFreePageSupport *free_page_support_fn,
+                              QEMUBalloonFreePagePoll *free_page_poll_fn,
+                              void *opaque)
+{
+    if (balloon_event_fn || balloon_stat_fn || balloon_free_page_support_fn ||
+        balloon_free_page_poll_fn || balloon_opaque) {
+        /* We already registered one balloon handler. */
+        return;
     }
-    balloon_event_fn = event_func;
-    balloon_stat_fn = stat_func;
+
+    balloon_event_fn = event_fn;
+    balloon_stat_fn = stat_fn;
+    balloon_free_page_support_fn = free_page_support_fn;
+    balloon_free_page_poll_fn = free_page_poll_fn;
     balloon_opaque = opaque;
-    return 0;
 }
 
 void qemu_remove_balloon_handler(void *opaque)
@@ -86,6 +103,8 @@ void qemu_remove_balloon_handler(void *opaque)
     }
     balloon_event_fn = NULL;
     balloon_stat_fn = NULL;
+    balloon_free_page_support_fn = NULL;
+    balloon_free_page_poll_fn = NULL;
     balloon_opaque = NULL;
 }
 

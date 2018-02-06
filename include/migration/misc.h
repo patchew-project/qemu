@@ -14,11 +14,14 @@
 #ifndef MIGRATION_MISC_H
 #define MIGRATION_MISC_H
 
+#include "exec/cpu-common.h"
 #include "qemu/notify.h"
 
 /* migration/ram.c */
 
 void ram_mig_init(void);
+void skip_free_pages_from_dirty_bitmap(RAMBlock *block, ram_addr_t offset,
+                                       size_t len);
 
 /* migration/block.c */
 

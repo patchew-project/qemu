@@ -18,11 +18,19 @@
 
 typedef void (QEMUBalloonEvent)(void *opaque, ram_addr_t target);
 typedef void (QEMUBalloonStatus)(void *opaque, BalloonInfo *info);
+typedef bool (QEMUBalloonFreePageSupport)(void *opaque);
+typedef void (QEMUBalloonFreePagePoll)(void *opaque);
 
-int qemu_add_balloon_handler(QEMUBalloonEvent *event_func,
-			     QEMUBalloonStatus *stat_func, void *opaque);
 void qemu_remove_balloon_handler(void *opaque);
 bool qemu_balloon_is_inhibited(void);
 void qemu_balloon_inhibit(bool state);
+bool balloon_free_page_support(void);
+void balloon_free_page_poll(void);
+
+void qemu_add_balloon_handler(QEMUBalloonEvent *event_fn,
+                              QEMUBalloonStatus *stat_fn,
+                              QEMUBalloonFreePageSupport *free_page_support_fn,
+                              QEMUBalloonFreePagePoll *free_page_poll_fn,
+                              void *opaque);
 
 #endif

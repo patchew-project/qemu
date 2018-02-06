@@ -2186,6 +2186,16 @@ static int ram_init_all(RAMState **rsp)
     return 0;
 }
 
+void skip_free_pages_from_dirty_bitmap(RAMBlock *block, ram_addr_t offset,
+                                       size_t len)
+{
+    long start = offset >> TARGET_PAGE_BITS,
+         nr = len >> TARGET_PAGE_BITS;
+
+    bitmap_clear(block->bmap, start, nr);
+    ram_state->migration_dirty_pages -= nr;
+}
+
 /*
  * Each of ram_save_setup, ram_save_iterate and ram_save_complete has
  * long-running RCU critical section.  When rcu-reclaims in the code
