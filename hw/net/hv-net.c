@@ -1425,11 +1425,20 @@ static void hv_net_class_init(ObjectClass *klass, void *data)
     vdc->chan_notify_cb = hv_net_notify_cb;
 }
 
+static void hv_net_instance_init(Object *obj)
+{
+    HvNet *s = HV_NET(obj);
+    device_add_bootindex_property(obj, &s->conf.bootindex,
+                                  "bootindex", "/ethernet-phy@0",
+                                  DEVICE(obj), NULL);
+}
+
 static const TypeInfo hv_net_type_info = {
     .name = TYPE_HV_NET,
     .parent = TYPE_VMBUS_DEVICE,
     .instance_size = sizeof(HvNet),
     .class_init = hv_net_class_init,
+    .instance_init = hv_net_instance_init,
 };
 
 static void hv_net_register_types(void)
