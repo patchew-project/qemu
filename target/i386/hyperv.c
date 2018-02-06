@@ -16,6 +16,9 @@
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "hw/qdev-properties.h"
+#include "exec/address-spaces.h"
+#include "sysemu/cpus.h"
+#include "migration/vmstate.h"
 #include "hyperv.h"
 #include "hyperv-proto.h"
 
@@ -29,6 +32,10 @@ typedef struct SynICState {
     bool enabled;
     hwaddr msg_page_addr;
     hwaddr evt_page_addr;
+    MemoryRegion msg_page_mr;
+    MemoryRegion evt_page_mr;
+    struct hyperv_message_page *msg_page;
+    struct hyperv_event_flags_page *evt_page;
 } SynICState;
 
 #define TYPE_SYNIC "hyperv-synic"
@@ -68,6 +75,17 @@ static void synic_update_msg_page_addr(SynICState *synic)
     uint64_t msr = synic->cpu->env.msr_hv_synic_msg_page;
     hwaddr new_addr = (msr & HV_SIMP_ENABLE) ? (msr & TARGET_PAGE_MASK) : 0;
 
+    if (new_addr == synic->msg_page_addr) {
+        return;
+    }
+
+    if (synic->msg_page_addr) {
+        memory_region_del_subregion(get_system_memory(), &synic->msg_page_mr);
+    }
+    if (new_addr) {
+        memory_region_add_subregion(get_system_memory(), new_addr,
+                                    &synic->msg_page_mr);
+    }
     synic->msg_page_addr = new_addr;
 }
 
@@ -76,6 +94,17 @@ static void synic_update_evt_page_addr(SynICState *synic)
     uint64_t msr = synic->cpu->env.msr_hv_synic_evt_page;
     hwaddr new_addr = (msr & HV_SIEFP_ENABLE) ? (msr & TARGET_PAGE_MASK) : 0;
 
+    if (new_addr == synic->evt_page_addr) {
+        return;
+    }
+
+    if (synic->evt_page_addr) {
+        memory_region_del_subregion(get_system_memory(), &synic->evt_page_mr);
+    }
+    if (new_addr) {
+        memory_region_add_subregion(get_system_memory(), new_addr,
+                                    &synic->evt_page_mr);
+    }
     synic->evt_page_addr = new_addr;
 }
 
@@ -90,6 +119,15 @@ static void synic_update(SynICState *synic)
     synic_update_evt_page_addr(synic);
 }
 
+
+static void async_synic_update(CPUState *cs, run_on_cpu_data data)
+{
+    SynICState *synic = data.host_ptr;
+    qemu_mutex_lock_iothread();
+    synic_update(synic);
+    qemu_mutex_unlock_iothread();
+}
+
 int kvm_hv_handle_exit(X86CPU *cpu, struct kvm_hyperv_exit *exit)
 {
     CPUX86State *env = &cpu->env;
@@ -100,11 +138,6 @@ int kvm_hv_handle_exit(X86CPU *cpu, struct kvm_hyperv_exit *exit)
             return -1;
         }
 
-        /*
-         * For now just track changes in SynIC control and msg/evt pages msr's.
-         * When SynIC messaging/events processing will be added in future
-         * here we will do messages queues flushing and pages remapping.
-         */
         switch (exit->u.synic.msr) {
         case HV_X64_MSR_SCONTROL:
             env->msr_hv_synic_control = exit->u.synic.control;
@@ -118,7 +151,13 @@ int kvm_hv_handle_exit(X86CPU *cpu, struct kvm_hyperv_exit *exit)
         default:
             return -1;
         }
-        synic_update(get_synic(cpu));
+        /*
+         * this will run in this cpu thread before it returns to KVM, but in a
+         * safe environment (i.e. when all cpus are quiescent) -- this is
+         * necessary because we're changing memory hierarchy
+         */
+        async_safe_run_on_cpu(CPU(cpu), async_synic_update,
+                              RUN_ON_CPU_HOST_PTR(get_synic(cpu)));
         return 0;
     case KVM_EXIT_HYPERV_HCALL: {
         uint16_t code;
@@ -258,12 +297,29 @@ static void synic_realize(DeviceState *dev, Error **errp)
 {
     Object *obj = OBJECT(dev);
     SynICState *synic = SYNIC(dev);
+    char *msgp_name, *evtp_name;
+    uint32_t vp_index;
 
     if (synic->in_kvm_only) {
         return;
     }
 
     synic->cpu = X86_CPU(obj->parent);
+
+    /* memory region names have to be globally unique */
+    vp_index = hyperv_vp_index(synic->cpu);
+    msgp_name = g_strdup_printf("synic-%u-msg-page", vp_index);
+    evtp_name = g_strdup_printf("synic-%u-evt-page", vp_index);
+
+    memory_region_init_ram(&synic->msg_page_mr, obj, msgp_name,
+                           sizeof(*synic->msg_page), &error_abort);
+    memory_region_init_ram(&synic->evt_page_mr, obj, evtp_name,
+                           sizeof(*synic->evt_page), &error_abort);
+    synic->msg_page = memory_region_get_ram_ptr(&synic->msg_page_mr);
+    synic->evt_page = memory_region_get_ram_ptr(&synic->evt_page_mr);
+
+    g_free(msgp_name);
+    g_free(evtp_name);
 }
 
 static void synic_reset(DeviceState *dev)
@@ -274,6 +330,8 @@ static void synic_reset(DeviceState *dev)
         return;
     }
 
+    memset(synic->msg_page, 0, sizeof(*synic->msg_page));
+    memset(synic->evt_page, 0, sizeof(*synic->evt_page));
     synic_update(synic);
 }
 
