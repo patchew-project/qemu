@@ -43,6 +43,11 @@ int hyperv_post_msg(HvSintRoute *sint_route, struct hyperv_message *msg);
 
 int hyperv_set_evt_flag(HvSintRoute *sint_route, unsigned evtno);
 
+struct hyperv_post_message_input;
+typedef uint64_t (*HvMsgHandler)(const struct hyperv_post_message_input *msg,
+                                 void *data);
+int hyperv_set_msg_handler(uint32_t conn_id, HvMsgHandler handler, void *data);
+
 int hyperv_set_evt_notifier(uint32_t conn_id, EventNotifier *notifier);
 
 #endif
