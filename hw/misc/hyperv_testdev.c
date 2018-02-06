@@ -55,7 +55,7 @@ static void sint_route_create(HypervTestDev *dev, uint8_t vpidx, uint8_t sint)
     sint_route->vpidx = vpidx;
     sint_route->sint = sint;
 
-    sint_route->sint_route = kvm_hv_sint_route_create(vpidx, sint, NULL);
+    sint_route->sint_route = kvm_hv_sint_route_create(vpidx, sint, NULL, NULL);
     assert(sint_route->sint_route);
 
     QLIST_INSERT_HEAD(&dev->sint_routes, sint_route, le);
