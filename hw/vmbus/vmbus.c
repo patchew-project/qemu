@@ -12,6 +12,7 @@
 #include "qapi/error.h"
 #include "hw/vmbus/vmbus.h"
 #include "hw/sysbus.h"
+#include "hw/loader.h"
 #include "trace.h"
 
 #define TYPE_VMBUS "vmbus"
@@ -2061,6 +2062,36 @@ unmap:
     cpu_physical_memory_unmap(int_map, len, 1, is_dirty);
 }
 
+static void vmbus_install_rom(VMBusDevice *vdev)
+{
+    VMBusDeviceClass *vdc = VMBUS_DEVICE_GET_CLASS(vdev);
+    VMBus *vmbus = VMBUS(qdev_get_parent_bus(DEVICE(vdev)));
+    BusChild *child;
+    char uuid[UUID_FMT_LEN + 1];
+    char romname[10 + UUID_FMT_LEN + 4 + 1];
+
+    if (vdev->romfile) {
+        /* device-specific rom */
+        qemu_uuid_unparse(&vdc->instanceid, uuid);
+        snprintf(romname, sizeof(romname), "vmbus/dev/%s.rom", uuid);
+        rom_add_file(vdev->romfile, romname, 0, -1, true, NULL, NULL);
+    } else if (vdc->romfile) {
+        /* class-wide rom */
+        QTAILQ_FOREACH(child, &BUS(vmbus)->children, sibling) {
+            VMBusDevice *chlddev = VMBUS_DEVICE(child->child);
+
+            /* another device of the same class has already installed it */
+            if (chlddev != vdev && !chlddev->romfile &&
+                VMBUS_DEVICE_GET_CLASS(chlddev) == vdc) {
+                return;
+            }
+        }
+        qemu_uuid_unparse(&vdc->classid, uuid);
+        snprintf(romname, sizeof(romname), "vmbus/%s.rom", uuid);
+        rom_add_file(vdc->romfile, romname, 0, -1, true, NULL, NULL);
+    }
+}
+
 static void vmbus_dev_realize(DeviceState *dev, Error **errp)
 {
     VMBusDevice *vdev = VMBUS_DEVICE(dev);
@@ -2097,6 +2128,8 @@ static void vmbus_dev_realize(DeviceState *dev, Error **errp)
     if (err) {
         goto error_out;
     }
+
+    vmbus_install_rom(vdev);
 
     if (vdc->vmdev_realize) {
         vdc->vmdev_realize(vdev, &err);
@@ -2145,6 +2178,11 @@ static void vmbus_dev_unrealize(DeviceState *dev, Error **errp)
     free_channels(vmbus, vdev);
 }
 
+static Property vmbus_dev_props[] = {
+    DEFINE_PROP_STRING("romfile", VMBusDevice, romfile),
+    DEFINE_PROP_END_OF_LIST()
+};
+
 static void vmbus_dev_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *kdev = DEVICE_CLASS(klass);
@@ -2152,6 +2190,7 @@ static void vmbus_dev_class_init(ObjectClass *klass, void *data)
     kdev->realize = vmbus_dev_realize;
     kdev->unrealize = vmbus_dev_unrealize;
     kdev->reset = vmbus_dev_reset;
+    kdev->props = vmbus_dev_props;
 }
 
 static int vmbus_dev_post_load(void *opaque, int version_id)

@@ -49,6 +49,8 @@ typedef struct VMBusDeviceClass {
     int (*open_channel) (VMBusDevice *vdev);
     void (*close_channel) (VMBusDevice *vdev);
     VMBusChannelNotifyCb chan_notify_cb;
+
+    const char *romfile;
 } VMBusDeviceClass;
 
 typedef struct VMBusDevice {
@@ -57,6 +59,7 @@ typedef struct VMBusDevice {
     uint16_t num_channels;
     VMBusChannel *channels;
     AddressSpace *dma_as;
+    char *romfile;
 } VMBusDevice;
 
 extern const VMStateDescription vmstate_vmbus_dev;
