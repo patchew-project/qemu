@@ -2302,6 +2302,9 @@ static void virtio_balloon_pci_instance_init(Object *obj)
     object_property_add_alias(obj, "guest-stats-polling-interval",
                               OBJECT(&dev->vdev),
                               "guest-stats-polling-interval", &error_abort);
+    object_property_add_alias(obj, "free-page-wait-time",
+                              OBJECT(&dev->vdev),
+                              "free-page-wait-time", &error_abort);
 }
 
 static const TypeInfo virtio_balloon_pci_info = {
