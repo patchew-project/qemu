@@ -1423,6 +1423,7 @@ static void hv_net_class_init(ObjectClass *klass, void *data)
     vdc->num_channels = hv_net_num_channels;
     vdc->close_channel = hv_net_close_channel;
     vdc->chan_notify_cb = hv_net_notify_cb;
+    vdc->romfile = "efi-hyperv.rom";
 }
 
 static void hv_net_instance_init(Object *obj)
