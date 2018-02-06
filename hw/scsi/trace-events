@@ -229,3 +229,9 @@ spapr_vscsi_process_login(void) "Got login, sending response !"
 spapr_vscsi_queue_cmd_no_drive(uint64_t lun) "Command for lun 0x%08" PRIx64 " with no drive"
 spapr_vscsi_queue_cmd(uint32_t qtag, unsigned cdb, const char *cmd, int lun, int ret) "Queued command tag 0x%"PRIx32" CMD 0x%x=%s LUN %d ret: %d"
 spapr_vscsi_do_crq(unsigned c0, unsigned c1) "crq: %02x %02x ..."
+
+# hw/scsi/hv-scsi.c
+hvscsi_vstor_request(int operation, uint32_t flags) "vstor packet: operation %d, flags 0x%x"
+hvscsi_srb_packet(uint16_t length, uint8_t target_id, uint8_t lun, uint8_t cdb_length, uint32_t data_transfer_length, uint8_t data_in) "SRB packet: length %d, target %d, lun %d, cdb length %d, data transfer size %d, direction %d"
+hvscsi_command_complete(void *r, int status, size_t resid) "scsi command complete: request %p, status %d, resid %zu"
+hvscsi_missing_target(uint8_t target_id, uint8_t lun) "missing target %d, lun %d"
