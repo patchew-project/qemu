@@ -294,8 +294,9 @@ static void hv_scsi_handle_packet(HvScsiReq *req)
 static void hv_scsi_notify_cb(VMBusChannel *chan)
 {
     HvScsi *scsi = HV_SCSI(vmbus_channel_device(chan));
+    int i;
 
-    for (;;) {
+    for (i = 1024; i; i--) {
         HvScsiReq *req = vmbus_channel_recv(chan, sizeof(*req));
         if (!req) {
             break;
@@ -303,6 +304,10 @@ static void hv_scsi_notify_cb(VMBusChannel *chan)
 
         hv_scsi_init_req(scsi, req);
         hv_scsi_handle_packet(req);
+    }
+
+    if (!i) {
+        vmbus_notify_channel(chan);
     }
 }
 
