@@ -18,6 +18,7 @@
 #include "hw/qdev-properties.h"
 #include "exec/address-spaces.h"
 #include "sysemu/cpus.h"
+#include "qemu/bitops.h"
 #include "migration/vmstate.h"
 #include "hyperv.h"
 #include "hyperv-proto.h"
@@ -207,6 +208,37 @@ int hyperv_post_msg(HvSintRoute *sint_route, struct hyperv_message *src_msg)
     async_run_on_cpu(CPU(sint_route->synic->cpu), cpu_post_msg,
                      RUN_ON_CPU_HOST_PTR(sint_route));
     return 0;
+}
+
+/*
+ * Set given event flag for a given sint on a given vcpu, and signal the sint.
+ */
+int hyperv_set_evt_flag(HvSintRoute *sint_route, unsigned evtno)
+{
+    int ret;
+    SynICState *synic = sint_route->synic;
+    unsigned long *flags, set_mask;
+    unsigned set_idx;
+
+    if (evtno > HV_EVENT_FLAGS_COUNT) {
+        return -EINVAL;
+    }
+    if (!synic->enabled || !synic->evt_page_addr) {
+        return -ENXIO;
+    }
+
+    set_idx = BIT_WORD(evtno);
+    set_mask = BIT_MASK(evtno);
+    flags = synic->evt_page->slot[sint_route->sint].flags;
+
+    if ((atomic_fetch_or(&flags[set_idx], set_mask) & set_mask) != set_mask) {
+        memory_region_set_dirty(&synic->evt_page_mr, 0,
+                                sizeof(*synic->evt_page));
+        ret = kvm_hv_sint_route_set_sint(sint_route);
+    } else {
+        ret = 0;
+    }
+    return ret;
 }
 
 static void async_synic_update(CPUState *cs, run_on_cpu_data data)

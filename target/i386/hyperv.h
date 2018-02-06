@@ -41,4 +41,6 @@ bool hyperv_synic_usable(void);
 
 int hyperv_post_msg(HvSintRoute *sint_route, struct hyperv_message *msg);
 
+int hyperv_set_evt_flag(HvSintRoute *sint_route, unsigned evtno);
+
 #endif
