@@ -32,7 +32,6 @@
 #include "util.h"
 
 #include "monitor/monitor.h"
-#include "qemu-common.h"
 #include "qemu/help_option.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/error-report.h"
@@ -43,6 +42,7 @@
 #include "hw/qdev.h"
 #include "qemu/iov.h"
 #include "qemu/main-loop.h"
+#include "qemu/option.h"
 #include "qapi-visit.h"
 #include "qapi/error.h"
 #include "qapi/opts-visitor.h"
