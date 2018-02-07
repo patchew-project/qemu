@@ -2294,15 +2294,7 @@ static void spapr_set_vsmt_mode(sPAPRMachineState *spapr, Error **errp)
     }
 
     /* Detemine the VSMT mode to use: */
-    if (vsmt_user) {
-        if (spapr->vsmt < smp_threads) {
-            error_setg(&local_err, "Cannot support VSMT mode %d"
-                         " because it must be >= threads/core (%d)",
-                         spapr->vsmt, smp_threads);
-            goto out;
-        }
-        /* In this case, spapr->vsmt has been set by the command line */
-    } else {
+    if (!vsmt_user) {
         /*
          * Default VSMT value is tricky, because we need it to be as
          * consistent as possible (for migration), but this requires
@@ -2311,6 +2303,13 @@ static void spapr_set_vsmt_mode(sPAPRMachineState *spapr, Error **errp)
          * overwhelmingly common case in production systems.
          */
         spapr->vsmt = 8;
+    }
+
+    if (spapr->vsmt < smp_threads) {
+        error_setg(&local_err, "Cannot support VSMT mode %d"
+                   " because it must be >= threads/core (%d)",
+                   spapr->vsmt, smp_threads);
+        goto out;
     }
 
     /* KVM: If necessary, set the SMT mode: */
