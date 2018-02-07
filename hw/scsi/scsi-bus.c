@@ -212,12 +212,16 @@ static void scsi_qdev_realize(DeviceState *qdev, Error **errp)
 static void scsi_qdev_unrealize(DeviceState *qdev, Error **errp)
 {
     SCSIDevice *dev = SCSI_DEVICE(qdev);
+    SCSIDeviceClass *sc = SCSI_DEVICE_GET_CLASS(dev);
 
     if (dev->vmsentry) {
         qemu_del_vm_change_state_handler(dev->vmsentry);
     }
 
     scsi_device_purge_requests(dev, SENSE_CODE(NO_SENSE));
+    if (sc->unrealize) {
+        sc->unrealize(dev, errp);
+    }
     blockdev_mark_auto_del(dev->conf.blk);
 }
 
