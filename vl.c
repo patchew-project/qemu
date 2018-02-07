@@ -3076,6 +3076,8 @@ int main(int argc, char **argv, char **envp)
 
     qemu_init_cpu_list();
     qemu_init_cpu_loop();
+
+    replay_init_locks();
     qemu_mutex_lock_iothread();
 
     atexit(qemu_run_exit_notifiers);

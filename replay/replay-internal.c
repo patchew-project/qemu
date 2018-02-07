@@ -174,10 +174,16 @@ static __thread bool replay_locked;
 void replay_mutex_init(void)
 {
     qemu_mutex_init(&lock);
+    /* Hold the mutex while we start-up */
+    qemu_mutex_lock(&lock);
+    replay_locked = true;
 }
 
 void replay_mutex_destroy(void)
 {
+    if (replay_mutex_locked()) {
+        qemu_mutex_unlock(&lock);
+    }
     qemu_mutex_destroy(&lock);
 }
 
@@ -186,25 +192,31 @@ bool replay_mutex_locked(void)
     return replay_locked;
 }
 
+/* Ordering constraints, replay_lock must be taken before BQL */
 void replay_mutex_lock(void)
 {
-    g_assert(!replay_mutex_locked());
-    qemu_mutex_lock(&lock);
-    replay_locked = true;
+    if (replay_mode != REPLAY_MODE_NONE) {
+        g_assert(!qemu_mutex_iothread_locked());
+        g_assert(!replay_mutex_locked());
+        qemu_mutex_lock(&lock);
+        replay_locked = true;
+    }
 }
 
 void replay_mutex_unlock(void)
 {
-    g_assert(replay_mutex_locked());
-    replay_locked = false;
-    qemu_mutex_unlock(&lock);
+    if (replay_mode != REPLAY_MODE_NONE) {
+        g_assert(replay_mutex_locked());
+        replay_locked = false;
+        qemu_mutex_unlock(&lock);
+    }
 }
 
 /*! Saves cached instructions. */
 void replay_save_instructions(void)
 {
     if (replay_file && replay_mode == REPLAY_MODE_RECORD) {
-        replay_mutex_lock();
+        g_assert(replay_mutex_locked());
         int diff = (int)(replay_get_current_step() - replay_state.current_step);
 
         /* Time can only go forward */
@@ -215,6 +227,5 @@ void replay_save_instructions(void)
             replay_put_dword(diff);
             replay_state.current_step += diff;
         }
-        replay_mutex_unlock();
     }
 }
