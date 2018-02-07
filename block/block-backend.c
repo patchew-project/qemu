@@ -1747,6 +1747,15 @@ bool blk_op_is_blocked(BlockBackend *blk, BlockOpType op, Error **errp)
     return bdrv_op_is_blocked(bs, op, errp);
 }
 
+void blk_op_block(BlockBackend *blk, BlockOpType op, Error *reason)
+{
+    BlockDriverState *bs = blk_bs(blk);
+
+    if (bs) {
+        bdrv_op_block(bs, op, reason);
+    }
+}
+
 void blk_op_unblock(BlockBackend *blk, BlockOpType op, Error *reason)
 {
     BlockDriverState *bs = blk_bs(blk);

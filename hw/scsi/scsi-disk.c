@@ -2578,9 +2578,39 @@ static int get_device_type(SCSIDiskState *s)
     return 0;
 }
 
+typedef struct SCSIBlockState {
+    SCSIDiskState sd;
+    Error *mirror_source;
+    Error *backup_source;
+    Error *commit_source;
+    Notifier insert_bs;
+    Notifier remove_bs;
+} SCSIBlockState;
+
+static void scsi_block_insert_bs(Notifier *n, void *opaque)
+{
+    SCSIBlockState *sb = container_of(n, SCSIBlockState, insert_bs);
+    SCSIDiskState *s = &sb->sd;
+
+    blk_op_block(s->qdev.conf.blk, BLOCK_OP_TYPE_MIRROR_SOURCE, sb->mirror_source);
+    blk_op_block(s->qdev.conf.blk, BLOCK_OP_TYPE_COMMIT_SOURCE, sb->commit_source);
+    blk_op_block(s->qdev.conf.blk, BLOCK_OP_TYPE_BACKUP_SOURCE, sb->backup_source);
+}
+
+static void scsi_block_remove_bs(Notifier *n, void *opaque)
+{
+    SCSIBlockState *sb = container_of(n, SCSIBlockState, remove_bs);
+    SCSIDiskState *s = &sb->sd;
+
+    blk_op_unblock(s->qdev.conf.blk, BLOCK_OP_TYPE_MIRROR_SOURCE, sb->mirror_source);
+    blk_op_unblock(s->qdev.conf.blk, BLOCK_OP_TYPE_COMMIT_SOURCE, sb->commit_source);
+    blk_op_unblock(s->qdev.conf.blk, BLOCK_OP_TYPE_BACKUP_SOURCE, sb->backup_source);
+}
+
 static void scsi_block_realize(SCSIDevice *dev, Error **errp)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, dev);
+    SCSIBlockState *sb = DO_UPCAST(SCSIBlockState, sd, s);
     int sg_version;
     int rc;
 
@@ -2626,6 +2656,36 @@ static void scsi_block_realize(SCSIDevice *dev, Error **errp)
 
     scsi_realize(&s->qdev, errp);
     scsi_generic_read_device_identification(&s->qdev);
+
+    /* For op blockers, due to lack of support for dirty bitmaps.  */
+    error_setg(&sb->mirror_source,
+               "scsi-block does not support acting as a mirroring source");
+    error_setg(&sb->commit_source,
+               "scsi-block does not support acting as an active commit source");
+
+    /* For op blockers, due to lack of support for write notifiers.  */
+    error_setg(&sb->backup_source,
+               "scsi-block does not support acting as a backup source");
+
+    sb->insert_bs.notify = scsi_block_insert_bs;
+    blk_add_insert_bs_notifier(s->qdev.conf.blk, &sb->insert_bs);
+    sb->remove_bs.notify = scsi_block_remove_bs;
+    blk_add_remove_bs_notifier(s->qdev.conf.blk, &sb->remove_bs);
+
+    scsi_block_insert_bs(&sb->insert_bs, s->qdev.conf.blk);
+}
+
+static void scsi_block_unrealize(SCSIDevice *dev, Error **errp)
+{
+    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, dev);
+    SCSIBlockState *sb = DO_UPCAST(SCSIBlockState, sd, s);
+
+    notifier_remove(&sb->insert_bs);
+    notifier_remove(&sb->remove_bs);
+    scsi_block_remove_bs(&sb->insert_bs, s->qdev.conf.blk);
+    error_free(sb->mirror_source);
+    error_free(sb->commit_source);
+    error_free(sb->backup_source);
 }
 
 typedef struct SCSIBlockReq {
@@ -3017,6 +3077,7 @@ static void scsi_block_class_initfn(ObjectClass *klass, void *data)
     SCSIDiskClass *sdc = SCSI_DISK_BASE_CLASS(klass);
 
     sc->realize      = scsi_block_realize;
+    sc->unrealize    = scsi_block_unrealize;
     sc->alloc_req    = scsi_block_new_request;
     sc->parse_cdb    = scsi_block_parse_cdb;
     sdc->dma_readv   = scsi_block_dma_readv;
@@ -3031,6 +3092,7 @@ static const TypeInfo scsi_block_info = {
     .name          = "scsi-block",
     .parent        = TYPE_SCSI_DISK_BASE,
     .class_init    = scsi_block_class_initfn,
+    .instance_size = sizeof(SCSIBlockState),
 };
 #endif
 

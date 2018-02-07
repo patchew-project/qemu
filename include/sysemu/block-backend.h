@@ -182,6 +182,7 @@ void blk_set_guest_block_size(BlockBackend *blk, int align);
 void *blk_try_blockalign(BlockBackend *blk, size_t size);
 void *blk_blockalign(BlockBackend *blk, size_t size);
 bool blk_op_is_blocked(BlockBackend *blk, BlockOpType op, Error **errp);
+void blk_op_block(BlockBackend *blk, BlockOpType op, Error *reason);
 void blk_op_unblock(BlockBackend *blk, BlockOpType op, Error *reason);
 void blk_op_block_all(BlockBackend *blk, Error *reason);
 void blk_op_unblock_all(BlockBackend *blk, Error *reason);
