@@ -45,6 +45,12 @@ struct BlockAcctTimedStats {
     QSLIST_ENTRY(BlockAcctTimedStats) entries;
 };
 
+typedef struct BlockLatencyHistogram {
+    int size;
+    uint64_t *points; /* @size-1 points here (all points, except 0 and +inf) */
+    uint64_t *histogram[BLOCK_MAX_IOTYPE]; /* @size elements for each type */
+} BlockLatencyHistogram;
+
 struct BlockAcctStats {
     QemuMutex lock;
     uint64_t nr_bytes[BLOCK_MAX_IOTYPE];
@@ -57,6 +63,7 @@ struct BlockAcctStats {
     QSLIST_HEAD(, BlockAcctTimedStats) intervals;
     bool account_invalid;
     bool account_failed;
+    BlockLatencyHistogram latency_histogram;
 };
 
 typedef struct BlockAcctCookie {
@@ -82,5 +89,7 @@ void block_acct_merge_done(BlockAcctStats *stats, enum BlockAcctType type,
 int64_t block_acct_idle_time_ns(BlockAcctStats *stats);
 double block_acct_queue_depth(BlockAcctTimedStats *stats,
                               enum BlockAcctType type);
+int block_latency_histogram_set(BlockAcctStats *stats, uint64List *latency);
+void block_latency_histogram_clear(BlockAcctStats *stats);
 
 #endif
