@@ -526,6 +526,10 @@
 #
 # Returns a list of information about each virtual CPU.
 #
+# WARNING: This command incurs a performance penalty for latency
+#          sensitive workloads and hence it's not recommended to
+#          to be used in production. Use query-cpus-fast instead
+#
 # Returns: a list of @CpuInfo for each virtual CPU
 #
 # Since: 0.14.0
