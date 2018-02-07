@@ -389,6 +389,24 @@ static void bdrv_query_info(BlockBackend *blk, BlockInfo **p_info,
     qapi_free_BlockInfo(info);
 }
 
+static uint64List *uint64_list(uint64_t *list, int size)
+{
+    int i;
+    uint64List *out_list = NULL;
+    uint64List **pout_list = &out_list;
+
+    for (i = 0; i < size; i++) {
+        uint64List *entry = g_new(uint64List, 1);
+        entry->value = list[i];
+        *pout_list = entry;
+        pout_list = &entry->next;
+    }
+
+    *pout_list = NULL;
+
+    return out_list;
+}
+
 static void bdrv_query_blk_stats(BlockDeviceStats *ds, BlockBackend *blk)
 {
     BlockAcctStats *stats = blk_get_stats(blk);
@@ -453,6 +471,19 @@ static void bdrv_query_blk_stats(BlockDeviceStats *ds, BlockBackend *blk)
             block_acct_queue_depth(ts, BLOCK_ACCT_READ);
         dev_stats->avg_wr_queue_depth =
             block_acct_queue_depth(ts, BLOCK_ACCT_WRITE);
+    }
+
+    ds->has_latency_histogram = stats->latency_histogram.points != NULL;
+    if (ds->has_latency_histogram) {
+        BlockLatencyHistogramInfo *info = g_new0(BlockLatencyHistogramInfo, 1);
+        BlockLatencyHistogram *h = &stats->latency_histogram;
+
+        ds->latency_histogram = info;
+
+        info->latency = uint64_list(h->points, h->size - 1);
+        info->read = uint64_list(h->histogram[BLOCK_ACCT_READ], h->size);
+        info->write = uint64_list(h->histogram[BLOCK_ACCT_WRITE], h->size);
+        info->flush = uint64_list(h->histogram[BLOCK_ACCT_FLUSH], h->size);
     }
 }
 

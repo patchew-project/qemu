@@ -4176,6 +4176,25 @@ void qmp_x_blockdev_set_iothread(const char *node_name, StrOrNull *iothread,
     aio_context_release(old_context);
 }
 
+void qmp_block_latency_histogram_set(const char *device, bool has_latency,
+                                     uint64List *latency, Error **errp)
+{
+    BlockBackend *blk = blk_by_name(device);
+    if (!blk) {
+        error_setg(errp, "Device '%s' not found", device);
+        return;
+    }
+
+    if (has_latency) {
+        if (block_latency_histogram_set(blk_get_stats(blk), latency) < 0) {
+            error_setg(errp, "Invalid latency array");
+            return;
+        }
+    } else {
+        block_latency_histogram_clear(blk_get_stats(blk));
+    }
+}
+
 QemuOptsList qemu_common_drive_opts = {
     .name = "drive",
     .head = QTAILQ_HEAD_INITIALIZER(qemu_common_drive_opts.head),
