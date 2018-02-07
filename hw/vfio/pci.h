@@ -32,6 +32,8 @@ typedef struct VFIOIOEventFD {
     bool match_data;
     uint64_t data;
     EventNotifier e;
+    VFIORegion *region;
+    hwaddr region_addr;
 } VFIOIOEventFD;
 
 typedef struct VFIOQuirk {
