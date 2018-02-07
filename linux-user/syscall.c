@@ -1826,6 +1826,7 @@ static inline abi_long host_to_target_cmsg(struct target_msghdr *target_msgh,
             default:
                 break;
             }
+        break;
         default:
             tgt_len = len;
             break;
