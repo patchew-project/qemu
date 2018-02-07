@@ -12,6 +12,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
+#include "qemu/main-loop.h"
 #include "qemu/range.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
@@ -278,10 +279,22 @@ static const MemoryRegionOps vfio_ati_3c3_quirk = {
 static VFIOQuirk *vfio_quirk_alloc(int nr_mem)
 {
     VFIOQuirk *quirk = g_malloc0(sizeof(*quirk));
+    QLIST_INIT(&quirk->ioeventfds);
     quirk->mem = g_new0(MemoryRegion, nr_mem);
     quirk->nr_mem = nr_mem;
 
     return quirk;
+}
+
+static void vfio_ioeventfd_exit(VFIOIOEventFD *ioeventfd)
+{
+    QLIST_REMOVE(ioeventfd, next);
+    memory_region_del_eventfd(ioeventfd->mr, ioeventfd->addr, ioeventfd->size,
+                              ioeventfd->match_data, ioeventfd->data,
+                              &ioeventfd->e);
+    qemu_set_fd_handler(event_notifier_get_fd(&ioeventfd->e), NULL, NULL, NULL);
+    event_notifier_cleanup(&ioeventfd->e);
+    g_free(ioeventfd);
 }
 
 static void vfio_vga_probe_ati_3c3_quirk(VFIOPCIDevice *vdev)
@@ -1668,6 +1681,10 @@ void vfio_bar_quirk_exit(VFIOPCIDevice *vdev, int nr)
     int i;
 
     QLIST_FOREACH(quirk, &bar->quirks, next) {
+        while (!QLIST_EMPTY(&quirk->ioeventfds)) {
+            vfio_ioeventfd_exit(QLIST_FIRST(&quirk->ioeventfds));
+        }
+
         for (i = 0; i < quirk->nr_mem; i++) {
             memory_region_del_subregion(bar->region.mem, &quirk->mem[i]);
         }
