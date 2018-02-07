@@ -160,6 +160,20 @@ Show infos for each CPU.
 ETEXI
 
     {
+        .name       = "cpus_fast",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show infos for each CPU without performance penalty",
+        .cmd        = hmp_info_cpus_fast,
+    },
+
+STEXI
+@item info cpus_fast
+@findex info cpus_fast
+Show infos for each CPU without performance penalty.
+ETEXI
+
+    {
         .name       = "history",
         .args_type  = "",
         .params     = "",
