@@ -4716,7 +4716,7 @@ out:
 
 AioContext *bdrv_get_aio_context(BlockDriverState *bs)
 {
-    return bs->aio_context;
+    return bs ? bs->aio_context : qemu_get_aio_context();
 }
 
 void bdrv_coroutine_enter(BlockDriverState *bs, Coroutine *co)
