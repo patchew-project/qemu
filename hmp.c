@@ -390,6 +390,10 @@ void hmp_info_cpus(Monitor *mon, const QDict *qdict)
         case CPU_INFO_ARCH_TRICORE:
             monitor_printf(mon, " PC=0x%016" PRIx64, cpu->value->u.tricore.PC);
             break;
+        case CPU_INFO_ARCH_S390:
+            monitor_printf(mon, " state=%s\n",
+                           CpuS390State_str(cpu->value->u.s390.cpu_state));
+            break;
         default:
             break;
         }
