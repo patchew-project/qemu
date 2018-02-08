@@ -10849,6 +10849,7 @@ static void disas_simd_two_reg_misc_fp16(DisasContext *s, uint32_t insn)
         return;
         break;
     case 0x3d: /* FRECPE */
+    case 0x3f: /* FRECPX */
         break;
     case 0x18: /* FRINTN */
         need_rmode = true;
@@ -10972,6 +10973,9 @@ static void disas_simd_two_reg_misc_fp16(DisasContext *s, uint32_t insn)
             break;
         case 0x3d: /* FRECPE */
             gen_helper_recpe_f16(tcg_res, tcg_op, tcg_fpstatus);
+            break;
+        case 0x3f: /* FRECPX */
+            gen_helper_frecpx_f16(tcg_res, tcg_op, tcg_fpstatus);
             break;
         case 0x5a: /* FCVTNU */
         case 0x5b: /* FCVTMU */
