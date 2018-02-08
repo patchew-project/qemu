@@ -4540,10 +4540,10 @@ static void handle_fp_1src_single(DisasContext *s, int opcode, int rd, int rn)
     {
         TCGv_i32 tcg_rmode = tcg_const_i32(arm_rmode_to_sf(opcode & 7));
 
-        gen_helper_set_rmode(tcg_rmode, tcg_rmode, cpu_env);
+        gen_helper_set_rmode(tcg_rmode, tcg_rmode, fpst);
         gen_helper_rints(tcg_res, tcg_op, fpst);
 
-        gen_helper_set_rmode(tcg_rmode, tcg_rmode, cpu_env);
+        gen_helper_set_rmode(tcg_rmode, tcg_rmode, fpst);
         tcg_temp_free_i32(tcg_rmode);
         break;
     }
@@ -4596,10 +4596,10 @@ static void handle_fp_1src_double(DisasContext *s, int opcode, int rd, int rn)
     {
         TCGv_i32 tcg_rmode = tcg_const_i32(arm_rmode_to_sf(opcode & 7));
 
-        gen_helper_set_rmode(tcg_rmode, tcg_rmode, cpu_env);
+        gen_helper_set_rmode(tcg_rmode, tcg_rmode, fpst);
         gen_helper_rintd(tcg_res, tcg_op, fpst);
 
-        gen_helper_set_rmode(tcg_rmode, tcg_rmode, cpu_env);
+        gen_helper_set_rmode(tcg_rmode, tcg_rmode, fpst);
         tcg_temp_free_i32(tcg_rmode);
         break;
     }
@@ -5126,7 +5126,7 @@ static void handle_fpfpcvt(DisasContext *s, int rd, int rn, int opcode,
 
         tcg_rmode = tcg_const_i32(arm_rmode_to_sf(rmode));
 
-        gen_helper_set_rmode(tcg_rmode, tcg_rmode, cpu_env);
+        gen_helper_set_rmode(tcg_rmode, tcg_rmode, tcg_fpstatus);
 
         if (is_double) {
             TCGv_i64 tcg_double = read_fp_dreg(s, rn);
@@ -5173,7 +5173,7 @@ static void handle_fpfpcvt(DisasContext *s, int rd, int rn, int opcode,
             tcg_temp_free_i32(tcg_single);
         }
 
-        gen_helper_set_rmode(tcg_rmode, tcg_rmode, cpu_env);
+        gen_helper_set_rmode(tcg_rmode, tcg_rmode, tcg_fpstatus);
         tcg_temp_free_i32(tcg_rmode);
 
         if (!sf) {
@@ -6946,8 +6946,8 @@ static void handle_simd_shift_fpint_conv(DisasContext *s, bool is_scalar,
     assert(!(is_scalar && is_q));
 
     tcg_rmode = tcg_const_i32(arm_rmode_to_sf(FPROUNDING_ZERO));
-    gen_helper_set_rmode(tcg_rmode, tcg_rmode, cpu_env);
     tcg_fpstatus = get_fpstatus_ptr(false);
+    gen_helper_set_rmode(tcg_rmode, tcg_rmode, tcg_fpstatus);
     tcg_shift = tcg_const_i32(fracbits);
 
     if (is_double) {
@@ -6993,7 +6993,7 @@ static void handle_simd_shift_fpint_conv(DisasContext *s, bool is_scalar,
 
     tcg_temp_free_ptr(tcg_fpstatus);
     tcg_temp_free_i32(tcg_shift);
-    gen_helper_set_rmode(tcg_rmode, tcg_rmode, cpu_env);
+    gen_helper_set_rmode(tcg_rmode, tcg_rmode, tcg_fpstatus);
     tcg_temp_free_i32(tcg_rmode);
 }
 
@@ -8262,8 +8262,8 @@ static void disas_simd_scalar_two_reg_misc(DisasContext *s, uint32_t insn)
 
     if (is_fcvt) {
         tcg_rmode = tcg_const_i32(arm_rmode_to_sf(rmode));
-        gen_helper_set_rmode(tcg_rmode, tcg_rmode, cpu_env);
         tcg_fpstatus = get_fpstatus_ptr(false);
+        gen_helper_set_rmode(tcg_rmode, tcg_rmode, tcg_fpstatus);
     } else {
         tcg_rmode = NULL;
         tcg_fpstatus = NULL;
@@ -8328,7 +8328,7 @@ static void disas_simd_scalar_two_reg_misc(DisasContext *s, uint32_t insn)
     }
 
     if (is_fcvt) {
-        gen_helper_set_rmode(tcg_rmode, tcg_rmode, cpu_env);
+        gen_helper_set_rmode(tcg_rmode, tcg_rmode, tcg_fpstatus);
         tcg_temp_free_i32(tcg_rmode);
         tcg_temp_free_ptr(tcg_fpstatus);
     }
@@ -10249,14 +10249,14 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
         return;
     }
 
-    if (need_fpstatus) {
+    if (need_fpstatus || need_rmode) {
         tcg_fpstatus = get_fpstatus_ptr(false);
     } else {
         tcg_fpstatus = NULL;
     }
     if (need_rmode) {
         tcg_rmode = tcg_const_i32(arm_rmode_to_sf(rmode));
-        gen_helper_set_rmode(tcg_rmode, tcg_rmode, cpu_env);
+        gen_helper_set_rmode(tcg_rmode, tcg_rmode, tcg_fpstatus);
     } else {
         tcg_rmode = NULL;
     }
@@ -10485,7 +10485,7 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
     }
 
     if (need_rmode) {
-        gen_helper_set_rmode(tcg_rmode, tcg_rmode, cpu_env);
+        gen_helper_set_rmode(tcg_rmode, tcg_rmode, tcg_fpstatus);
         tcg_temp_free_i32(tcg_rmode);
     }
     if (need_fpstatus) {
