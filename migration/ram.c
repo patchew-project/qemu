@@ -2696,6 +2696,16 @@ static int ram_load_postcopy(QEMUFile *f)
         uint8_t ch;
 
         addr = qemu_get_be64(f);
+
+        /*
+         * If qemu file error, we should stop here, and then "addr"
+         * may be invalid
+         */
+        ret = qemu_file_get_error(f);
+        if (ret) {
+            break;
+        }
+
         flags = addr & ~TARGET_PAGE_MASK;
         addr &= TARGET_PAGE_MASK;
 
@@ -2776,9 +2786,15 @@ static int ram_load_postcopy(QEMUFile *f)
             error_report("Unknown combination of migration flags: %#x"
                          " (postcopy mode)", flags);
             ret = -EINVAL;
+            break;
         }
 
-        if (place_needed) {
+        /* Detect for any possible file errors */
+        if (!ret && qemu_file_get_error(f)) {
+            ret = qemu_file_get_error(f);
+        }
+
+        if (!ret && place_needed) {
             /* This gets called at the last target page in the host page */
             void *place_dest = host + TARGET_PAGE_SIZE - block->page_size;
 
@@ -2789,9 +2805,6 @@ static int ram_load_postcopy(QEMUFile *f)
                 ret = postcopy_place_page(mis, place_dest,
                                           place_source, block);
             }
-        }
-        if (!ret) {
-            ret = qemu_file_get_error(f);
         }
     }
 
