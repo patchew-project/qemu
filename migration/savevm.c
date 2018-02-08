@@ -2182,6 +2182,9 @@ static bool postcopy_pause_incoming(MigrationIncomingState *mis)
     /* Notify the fault thread for the invalidated file handle */
     postcopy_fault_thread_notify(mis);
 
+    /* Clear the triggered bit to allow one recovery */
+    mis->postcopy_recover_triggered = false;
+
     error_report("Detected IO failure for postcopy. "
                  "Migration paused.");
 
