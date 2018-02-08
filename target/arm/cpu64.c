@@ -275,6 +275,26 @@ static void aarch64_cpu_set_aarch64(Object *obj, bool value, Error **errp)
     }
 }
 
+#ifdef CONFIG_USER_ONLY
+static bool aarch64_cpu_get_fp16(Object *obj, Error **errp)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+
+    return arm_feature(&cpu->env, ARM_FEATURE_V8_FP16);
+}
+
+static void aarch64_cpu_set_fp16(Object *obj, bool value, Error **errp)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+
+    if (value == false) {
+        unset_feature(&cpu->env, ARM_FEATURE_V8_FP16);
+    } else {
+        set_feature(&cpu->env, ARM_FEATURE_V8_FP16);
+    }
+}
+#endif
+
 static void aarch64_cpu_initfn(Object *obj)
 {
     object_property_add_bool(obj, "aarch64", aarch64_cpu_get_aarch64,
@@ -283,6 +303,13 @@ static void aarch64_cpu_initfn(Object *obj)
                                     "Set on/off to enable/disable aarch64 "
                                     "execution state ",
                                     NULL);
+#ifdef CONFIG_USER_ONLY
+    object_property_add_bool(obj, "fp16", aarch64_cpu_get_fp16,
+                             aarch64_cpu_set_fp16, NULL);
+    object_property_set_description(obj, "fp16",
+                                    "Set on/off to enable/disable FP16 extensions ",
+                                    NULL);
+#endif
 }
 
 static void aarch64_cpu_finalizefn(Object *obj)
