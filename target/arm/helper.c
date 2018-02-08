@@ -10691,6 +10691,7 @@ uint32_t HELPER(vfp_get_fpscr)(CPUARMState *env)
             | (env->vfp.vec_stride << 20);
     i = get_float_exception_flags(&env->vfp.fp_status);
     i |= get_float_exception_flags(&env->vfp.standard_fp_status);
+    i |= get_float_exception_flags(&env->vfp.fp_status_f16);
     fpscr |= vfp_exceptbits_from_host(i);
     return fpscr;
 }
@@ -10749,15 +10750,22 @@ void HELPER(vfp_set_fpscr)(CPUARMState *env, uint32_t val)
         }
         set_float_rounding_mode(i, &env->vfp.fp_status);
     }
-    if (changed & (1 << 24)) {
+    if (changed & (1 << 19)) { /* FPCR:FZ16 */
+        set_flush_to_zero((val & (1 << 19)) != 0, &env->vfp.fp_status_f16);
+        set_flush_inputs_to_zero((val & (1 << 19)) != 0,
+                                 &env->vfp.fp_status_f16);
+    }
+    if (changed & (1 << 24)) { /* FPCR:FZ */
         set_flush_to_zero((val & (1 << 24)) != 0, &env->vfp.fp_status);
         set_flush_inputs_to_zero((val & (1 << 24)) != 0, &env->vfp.fp_status);
     }
-    if (changed & (1 << 25))
+    if (changed & (1 << 25)) { /* FPCR:DN */
         set_default_nan_mode((val & (1 << 25)) != 0, &env->vfp.fp_status);
+    }
 
     i = vfp_exceptbits_to_host(val);
     set_float_exception_flags(i, &env->vfp.fp_status);
+    set_float_exception_flags(i, &env->vfp.fp_status_f16);
     set_float_exception_flags(0, &env->vfp.standard_fp_status);
 }
 
