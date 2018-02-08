@@ -10966,21 +10966,31 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
             }
             case 0x5: /* FMLS */
             case 0x1: /* FMLA */
-                read_vec_element_i32(s, tcg_res, rd, pass, is_scalar ? size : MO_32);
+                read_vec_element_i32(s, tcg_res, rd, pass,
+                                     is_scalar ? size : MO_32);
                 switch (size) {
                 case 1:
                     if (opcode == 0x5) {
-                        /* As usual for ARM, separate negation for fused multiply-add */
+                        /* As usual for ARM, separate negation for fused
+                         * multiply-add. */
                         tcg_gen_xori_i32(tcg_op, tcg_op, 0x80008000);
                     }
-                    gen_helper_advsimd_muladdh(tcg_res, tcg_op, tcg_idx, tcg_res, fpst);
+                    if (is_scalar) {
+                        gen_helper_advsimd_muladdh(tcg_res, tcg_op, tcg_idx,
+                                                   tcg_res, fpst);
+                    } else {
+                        gen_helper_advsimd_muladd2h(tcg_res, tcg_op, tcg_idx,
+                                                    tcg_res, fpst);
+                    }
                     break;
                 case 2:
                     if (opcode == 0x5) {
-                        /* As usual for ARM, separate negation for fused multiply-add */
+                        /* As usual for ARM, separate negation for fused
+                         * multiply-add. */
                         tcg_gen_xori_i32(tcg_op, tcg_op, 0x80000000);
                     }
-                    gen_helper_vfp_muladds(tcg_res, tcg_op, tcg_idx, tcg_res, fpst);
+                    gen_helper_vfp_muladds(tcg_res, tcg_op, tcg_idx,
+                                           tcg_res, fpst);
                     break;
                 default:
                     g_assert_not_reached();
@@ -10990,9 +11000,21 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
                 switch (size) {
                 case 1:
                     if (u) {
-                        gen_helper_advsimd_mulxh(tcg_res, tcg_op, tcg_idx, fpst);
+                        if (is_scalar) {
+                            gen_helper_advsimd_mulxh(tcg_res, tcg_op,
+                                                     tcg_idx, fpst);
+                        } else {
+                            gen_helper_advsimd_mulx2h(tcg_res, tcg_op,
+                                                      tcg_idx, fpst);
+                        }
                     } else {
-                        g_assert_not_reached();
+                        if (is_scalar) {
+                            gen_helper_advsimd_mulh(tcg_res, tcg_op,
+                                                    tcg_idx, fpst);
+                        } else {
+                            gen_helper_advsimd_mul2h(tcg_res, tcg_op,
+                                                     tcg_idx, fpst);
+                        }
                     }
                     break;
                 case 2:
