@@ -4076,6 +4076,9 @@ static int x86_cpu_filter_features(X86CPU *cpu)
             x86_cpu_get_supported_feature_word(w, false);
         uint32_t requested_features = env->features[w];
         env->features[w] &= host_feat;
+        if (cpu->pv_dedicated && (w == FEAT_KVM)) {
+            env->features[w] |= CPUID_PV_DEDICATED;
+        }
         cpu->filtered_features[w] = requested_features & ~env->features[w];
         if (cpu->filtered_features[w]) {
             rv = 1;
@@ -4682,6 +4685,7 @@ static Property x86_cpu_properties[] = {
                      false),
     DEFINE_PROP_BOOL("vmware-cpuid-freq", X86CPU, vmware_cpuid_freq, true),
     DEFINE_PROP_BOOL("tcg-cpuid", X86CPU, expose_tcg, true),
+    DEFINE_PROP_BOOL("pv-dedicated", X86CPU, pv_dedicated, false),
 
     /*
      * From "Requirements for Implementing the Microsoft
