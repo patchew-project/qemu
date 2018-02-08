@@ -2311,6 +2311,12 @@ static void spapr_set_vsmt_mode(sPAPRMachineState *spapr, Error **errp)
          * overwhelmingly common case in production systems.
          */
         spapr->vsmt = 8;
+        if (spapr->vsmt < smp_threads) {
+            error_setg(&local_err, "Cannot support %d threads/core"
+                         " because it must be <= to default VSMT mode (%d)",
+                         smp_threads, spapr->vsmt);
+            goto out;
+        }
     }
 
     /* KVM: If necessary, set the SMT mode: */
