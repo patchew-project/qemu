@@ -488,6 +488,7 @@ typedef struct CPUARMState {
          *  Qn = regs[2n+1]:regs[2n]
          *  Dn = regs[2n]
          *  Sn = regs[2n] bits 31..0
+         *  Hn = regs[2n] bits 15..0 for even n, and bits 31..16 for odd n
          * This corresponds to the architecturally defined mapping between
          * the two execution states, and means we do not need to explicitly
          * map these registers when changing states.
