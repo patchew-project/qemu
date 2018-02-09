@@ -107,7 +107,7 @@ static int fd_write_vmcore(const void *buf, size_t size, void *opaque)
 
     written_size = qemu_write_full(s->fd, buf, size);
     if (written_size != size) {
-        return -1;
+        return -errno;
     }
 
     return 0;
@@ -365,7 +365,11 @@ static void write_data(DumpState *s, void *buf, int length, Error **errp)
 
     ret = fd_write_vmcore(buf, length, s);
     if (ret < 0) {
-        error_setg(errp, "dump: failed to save memory");
+        if (ret == -ENOSPC) {
+            error_setg(errp, "dump: not enough space to save memory");
+        } else {
+            error_setg(errp, "dump: failed to save memory");
+        }
     } else {
         s->written_size += length;
     }
