@@ -1019,6 +1019,33 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
     container->fd = fd;
     QLIST_INIT(&container->giommu_list);
     QLIST_INIT(&container->hostwin_list);
+    container->noiommu = group->noiommu;
+
+    if (container->noiommu) {
+        ret = ioctl(group->fd, VFIO_GROUP_SET_CONTAINER, &fd);
+        if (ret) {
+            error_report("vfio: failed to set group container: %m");
+            ret = -errno;
+            goto free_container_exit;
+        }
+
+        ret = ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_NOIOMMU_IOMMU);
+        if (!ret) {
+            error_report("vfio: No available IOMMU models");
+            ret = -EINVAL;
+            goto free_container_exit;
+        }
+
+        ret = ioctl(fd, VFIO_SET_IOMMU, VFIO_NOIOMMU_IOMMU);
+        if (ret) {
+            error_report("vfio: failed to set iommu for container: %m");
+            ret = -errno;
+            goto free_container_exit;
+        }
+
+        goto listener_register;
+    }
+
     if (ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_TYPE1_IOMMU) ||
         ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_TYPE1v2_IOMMU)) {
         bool v2 = !!ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_TYPE1v2_IOMMU);
@@ -1151,15 +1178,16 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
     group->container = container;
     QLIST_INSERT_HEAD(&container->group_list, group, container_next);
 
-    container->listener = vfio_memory_listener;
-
-    memory_listener_register(&container->listener, container->space->as);
-
-    if (container->error) {
-        ret = container->error;
-        error_setg_errno(errp, -ret,
-                         "memory listener initialization failed for container");
-        goto listener_release_exit;
+listener_register:
+    if (!container->noiommu) {
+        container->listener = vfio_memory_listener;
+        memory_listener_register(&container->listener, container->space->as);
+        if (container->error) {
+            ret = container->error;
+            error_setg_errno(errp, -ret,
+                    "memory listener initialization failed for container");
+            goto listener_release_exit;
+        }
     }
 
     container->initialized = true;
@@ -1169,7 +1197,9 @@ listener_release_exit:
     QLIST_REMOVE(group, container_next);
     QLIST_REMOVE(container, next);
     vfio_kvm_device_del_group(group);
-    vfio_listener_release(container);
+    if (!container->noiommu) {
+        vfio_listener_release(container);
+    }
 
 free_container_exit:
     g_free(container);
@@ -1195,7 +1225,7 @@ static void vfio_disconnect_container(VFIOGroup *group)
      * since unset may destroy the backend container if it's the last
      * group.
      */
-    if (QLIST_EMPTY(&container->group_list)) {
+    if (QLIST_EMPTY(&container->group_list) && !container->noiommu) {
         vfio_listener_release(container);
     }
 
@@ -1249,8 +1279,13 @@ VFIOGroup *vfio_get_group(int groupid, AddressSpace *as, Error **errp)
     snprintf(path, sizeof(path), "/dev/vfio/%d", groupid);
     group->fd = qemu_open(path, O_RDWR);
     if (group->fd < 0) {
-        error_setg_errno(errp, errno, "failed to open %s", path);
-        goto free_group_exit;
+        snprintf(path, sizeof(path), "/dev/vfio/noiommu-%d", groupid);
+        group->fd = qemu_open(path, O_RDWR);
+        if (group->fd < 0) {
+            error_setg_errno(errp, errno, "failed to open %s", path);
+            goto free_group_exit;
+        }
+        group->noiommu = 1;
     }
 
     if (ioctl(group->fd, VFIO_GROUP_GET_STATUS, &status)) {
