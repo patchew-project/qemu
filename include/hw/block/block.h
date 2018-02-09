@@ -17,8 +17,8 @@
 
 typedef struct BlockConf {
     BlockBackend *blk;
-    uint16_t physical_block_size;
-    uint16_t logical_block_size;
+    uint32_t physical_block_size;
+    uint32_t logical_block_size;
     uint16_t min_io_size;
     uint32_t opt_io_size;
     int32_t bootindex;
