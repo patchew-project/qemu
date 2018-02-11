@@ -1,1 +1,1 @@
-tests/qapi-schema/command-int.json:2: built-in 'int' is already defined
+tests/qapi-schema/command-int.qapi:2: built-in 'int' is already defined

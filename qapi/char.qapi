@@ -5,7 +5,7 @@
 # = Character devices
 ##
 
-{ 'include': 'sockets.json' }
+{ 'include': 'sockets.qapi' }
 
 ##
 # @ChardevInfo:

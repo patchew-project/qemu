@@ -16,7 +16,7 @@ Generally speaking, the following steps should be taken in order to write a
 new QMP command (similar steps for QGA).
 
 1. Write the command's and type(s) specification in the appropriate
-   QAPI schema file (qapi/qmp-schema.json, or one of the module .json
+   QAPI schema file (qapi/qmp-schema.qapi, or one of the module .qapi
    files it includes)
 
 2. Write the QMP command itself, which is a regular C function. Preferably,
@@ -90,7 +90,7 @@ Our command will be called "hello-world". It takes no arguments, nor does it
 return any data.
 
 The first step is to add the following line to the bottom of the
-qapi/qmp-schema.json file:
+qapi/qmp-schema.qapi file:
 
 { 'command': 'hello-world' }
 
@@ -235,7 +235,7 @@ this rule:
 If the failure you want to report falls into one of the two cases above,
 use error_set() with a second argument of an ErrorClass value.
 
- * All existing ErrorClass values are defined in the qapi/qmp-schema.json file
+ * All existing ErrorClass values are defined in the qapi/qmp-schema.qapi file
 
 === Command Documentation ===
 
@@ -246,7 +246,7 @@ This is very important. No QMP command will be accepted in QEMU without proper
 documentation.
 
 There are many examples of such documentation in the schema file already, but
-here goes "hello-world"'s new entry for the qapi/qmp-schema.json file:
+here goes "hello-world"'s new entry for the qapi/qmp-schema.qapi file:
 
 ##
 # @hello-world

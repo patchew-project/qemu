@@ -5,7 +5,7 @@
 # = Net devices
 ##
 
-{ 'include': 'common.json' }
+{ 'include': 'common.qapi' }
 
 ##
 # @set_link:

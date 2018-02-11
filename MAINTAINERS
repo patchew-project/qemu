@@ -1342,8 +1342,8 @@ M: Markus Armbruster <armbru@redhat.com>
 S: Supported
 F: blockdev.c
 F: block/qapi.c
-F: qapi/block*.json
-F: qapi/transaction.json
+F: qapi/block*.qapi
+F: qapi/transaction.qapi
 T: git git://repo.or.cz/qemu/armbru.git block-next
 
 Dirty Bitmaps
@@ -1366,7 +1366,7 @@ M: Marc-André Lureau <marcandre.lureau@redhat.com>
 S: Maintained
 F: chardev/
 F: include/chardev/
-F: qapi/char.json
+F: qapi/char.qapi
 
 Character Devices (Braille)
 M: Samuel Thibault <samuel.thibault@ens-lyon.org>
@@ -1444,14 +1444,14 @@ F: include/ui/spice-display.h
 F: ui/spice-*.c
 F: audio/spiceaudio.c
 F: hw/display/qxl*
-F: qapi/ui.json
+F: qapi/ui.qapi
 
 Graphics
 M: Gerd Hoffmann <kraxel@redhat.com>
 S: Odd Fixes
 F: ui/
 F: include/ui/
-F: qapi/ui.json
+F: qapi/ui.qapi
 
 Cocoa graphics
 M: Peter Maydell <peter.maydell@linaro.org>
@@ -1465,7 +1465,7 @@ F: cpus.c
 F: util/main-loop.c
 F: util/qemu-timer.c
 F: vl.c
-F: qapi/run-state.json
+F: qapi/run-state.qapi
 
 Human Monitor (HMP)
 M: Dr. David Alan Gilbert <dgilbert@redhat.com>
@@ -1482,7 +1482,7 @@ S: Maintained
 F: net/
 F: include/net/
 T: git git://github.com/jasowang/qemu.git net
-F: qapi/net.json
+F: qapi/net.qapi
 
 Netmap network backend
 M: Luigi Rizzo <rizzo@iet.unipi.it>
@@ -1526,7 +1526,7 @@ M: Markus Armbruster <armbru@redhat.com>
 M: Michael Roth <mdroth@linux.vnet.ibm.com>
 S: Supported
 F: qapi/
-X: qapi/*.json
+X: qapi/*.qapi
 F: include/qapi/
 X: include/qapi/qmp/
 F: include/qapi/qmp/dispatch.h
@@ -1543,7 +1543,7 @@ QAPI Schema
 M: Eric Blake <eblake@redhat.com>
 M: Markus Armbruster <armbru@redhat.com>
 S: Supported
-F: qapi/*.json
+F: qapi/*.qapi
 T: git git://repo.or.cz/qemu/armbru.git qapi-next
 
 QObject
@@ -1564,7 +1564,7 @@ QEMU Guest Agent
 M: Michael Roth <mdroth@linux.vnet.ibm.com>
 S: Maintained
 F: qga/
-F: qapi/qga-schema.json
+F: qapi/qga-schema.qapi
 F: qemu-ga.texi
 F: scripts/qemu-guest-agent/
 F: tests/test-qga.c
@@ -1631,7 +1631,7 @@ F: stubs/tpm.c
 F: hw/tpm/*
 F: include/hw/acpi/tpm.h
 F: include/sysemu/tpm*
-F: qapi/tpm.json
+F: qapi/tpm.qapi
 F: backends/tpm.c
 T: git git://github.com/stefanberger/qemu-tpm.git tpm-next
 
@@ -1649,7 +1649,7 @@ F: scripts/vmstate-static-checker.py
 F: tests/vmstate-static-checker-data/
 F: tests/migration-test.c
 F: docs/devel/migration.txt
-F: qapi/migration.json
+F: qapi/migration.qapi
 
 Seccomp
 M: Eduardo Otubo <otubo@redhat.com>
@@ -1693,7 +1693,7 @@ M: Paolo Bonzini <pbonzini@redhat.com>
 S: Maintained
 F: include/qemu/sockets.h
 F: util/qemu-sockets.c
-F: qapi/sockets.json
+F: qapi/sockets.qapi
 
 Throttling infrastructure
 M: Alberto Garcia <berto@igalia.com>

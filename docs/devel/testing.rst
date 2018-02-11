@@ -132,7 +132,7 @@ output.
 The input/output data is managed under the ``tests/qapi-schema`` directory.
 Each test case includes four files that have a common base name:
 
-  * ``${casename}.json`` - the file contains the JSON input for feeding the
+  * ``${casename}.qapi`` - the file contains the JSON input for feeding the
     parser
   * ``${casename}.out`` - the file contains the expected stdout from the parser
   * ``${casename}.err`` - the file contains the expected stderr from the parser
@@ -147,7 +147,7 @@ parser (either fixing a bug or extending/modifying the syntax). To do this:
 
 2. Add the new test in ``tests/Makefile.include``. For example:
 
-  ``qapi-schema += foo.json``
+  ``qapi-schema += foo.qapi``
 
 check-block
 -----------

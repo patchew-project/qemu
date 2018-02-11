@@ -1,1 +1,1 @@
-tests/qapi-schema/alternate-conflict-bool-string.json:2: Alternate 'Alt' member 'two' can't be distinguished from member 'one'
+tests/qapi-schema/alternate-conflict-bool-string.qapi:2: Alternate 'Alt' member 'two' can't be distinguished from member 'one'

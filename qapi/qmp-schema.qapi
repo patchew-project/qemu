@@ -76,22 +76,22 @@
 # included sub-schemas inserted at the first include directive
 # (subsequent include directives have no effect).  To get a sane and
 # stable order, it's best to include each sub-schema just once, or
-# include it first in qapi/qmp-schema.json.
+# include it first in qapi/qmp-schema.qapi.
 
-{ 'include': 'common.json' }
-{ 'include': 'sockets.json' }
-{ 'include': 'run-state.json' }
-{ 'include': 'crypto.json' }
-{ 'include': 'block.json' }
-{ 'include': 'char.json' }
-{ 'include': 'net.json' }
-{ 'include': 'rocker.json' }
-{ 'include': 'tpm.json' }
-{ 'include': 'ui.json' }
-{ 'include': 'migration.json' }
-{ 'include': 'transaction.json' }
-{ 'include': 'trace.json' }
-{ 'include': 'introspect.json' }
+{ 'include': 'common.qapi' }
+{ 'include': 'sockets.qapi' }
+{ 'include': 'run-state.qapi' }
+{ 'include': 'crypto.qapi' }
+{ 'include': 'block.qapi' }
+{ 'include': 'char.qapi' }
+{ 'include': 'net.qapi' }
+{ 'include': 'rocker.qapi' }
+{ 'include': 'tpm.qapi' }
+{ 'include': 'ui.qapi' }
+{ 'include': 'migration.qapi' }
+{ 'include': 'transaction.qapi' }
+{ 'include': 'trace.qapi' }
+{ 'include': 'introspect.qapi' }
 
 ##
 # = Miscellanea

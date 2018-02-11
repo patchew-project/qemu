@@ -4,9 +4,9 @@
 # == Block core (VM unrelated)
 ##
 
-{ 'include': 'common.json' }
-{ 'include': 'crypto.json' }
-{ 'include': 'sockets.json' }
+{ 'include': 'common.qapi' }
+{ 'include': 'crypto.qapi' }
+{ 'include': 'sockets.qapi' }
 
 ##
 # @SnapshotInfo:

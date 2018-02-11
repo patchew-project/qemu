@@ -293,7 +293,7 @@ Usage: { 'include': STRING }
 
 The QAPI schema definitions can be modularized using the 'include' directive:
 
- { 'include': 'path/to/file.json' }
+ { 'include': 'path/to/file.qapi' }
 
 The directive is evaluated recursively, and include paths are relative to the
 file using the directive. Multiple includes of the same file are
@@ -912,7 +912,7 @@ list of that type as a parameter, and returns a single element of that
 type.  The user is responsible for writing the implementation of
 qmp_my_command(); everything else is produced by the generator.
 
-    $ cat example-schema.json
+    $ cat example-schema.qapi
     { 'struct': 'UserDefOne',
       'data': { 'integer': 'int', '*string': 'str' } }
 
@@ -923,7 +923,7 @@ qmp_my_command(); everything else is produced by the generator.
     { 'event': 'MY_EVENT' }
 
 For a more thorough look at generated code, the testsuite includes
-tests/qapi-schema/qapi-schema-tests.json that covers more examples of
+tests/qapi-schema/qapi-schema-tests.qapi that covers more examples of
 what the generator will accept, and compiles the resulting C code as
 part of 'make check-unit'.
 
@@ -944,7 +944,7 @@ created code.
 Example:
 
     $ python scripts/qapi-types.py --output-dir="qapi-generated" \
-    --prefix="example-" example-schema.json
+    --prefix="example-" example-schema.qapi
     $ cat qapi-generated/example-qapi-types.h
 [Uninteresting stuff omitted...]
 
@@ -1029,7 +1029,7 @@ $(prefix)qapi-visit.h: declarations for previously mentioned visitor
 Example:
 
     $ python scripts/qapi-visit.py --output-dir="qapi-generated"
-    --prefix="example-" example-schema.json
+    --prefix="example-" example-schema.qapi
     $ cat qapi-generated/example-qapi-visit.h
 [Uninteresting stuff omitted...]
 
@@ -1160,7 +1160,7 @@ $(prefix)qmp-commands.h: Function prototypes for the QMP commands
 Example:
 
     $ python scripts/qapi-commands.py --output-dir="qapi-generated"
-    --prefix="example-" example-schema.json
+    --prefix="example-" example-schema.qapi
     $ cat qapi-generated/example-qmp-commands.h
 [Uninteresting stuff omitted...]
 
@@ -1255,7 +1255,7 @@ $(prefix)qapi-event.c - Implementation of functions to send an event
 Example:
 
     $ python scripts/qapi-event.py --output-dir="qapi-generated"
-    --prefix="example-" example-schema.json
+    --prefix="example-" example-schema.qapi
     $ cat qapi-generated/example-qapi-event.h
 [Uninteresting stuff omitted...]
 
@@ -1318,7 +1318,7 @@ $(prefix)qmp-introspect.h - Declares the above string.
 Example:
 
     $ python scripts/qapi-introspect.py --output-dir="qapi-generated"
-    --prefix="example-" example-schema.json
+    --prefix="example-" example-schema.qapi
     $ cat qapi-generated/example-qmp-introspect.h
 [Uninteresting stuff omitted...]
 

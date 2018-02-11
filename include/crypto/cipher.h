@@ -26,7 +26,7 @@
 typedef struct QCryptoCipher QCryptoCipher;
 
 /* See also "QCryptoCipherAlgorithm" and "QCryptoCipherMode"
- * enums defined in qapi/crypto.json */
+ * enums defined in qapi/crypto.qapi */
 
 /**
  * QCryptoCipher:

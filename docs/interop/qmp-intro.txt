@@ -78,7 +78,7 @@ Escape character is '^]'.
     }
 }
 
-Please, refer to the qapi/qmp-schema.json file for a complete command
+Please, refer to the qapi/qmp-schema.qapi file for a complete command
 reference.
 
 QMP wiki page

@@ -23,7 +23,7 @@
 
 #include "qapi-types.h"
 
-/* See also "QCryptoHashAlgorithm" defined in qapi/crypto.json */
+/* See also "QCryptoHashAlgorithm" defined in qapi/crypto.qapi */
 
 /**
  * qcrypto_hash_supports:

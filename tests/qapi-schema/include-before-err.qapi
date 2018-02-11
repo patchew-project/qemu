@@ -1,0 +1,2 @@
+{ 'include': 'include-simple-sub.qapi' }
+{ 'command' 'missing-colon' }

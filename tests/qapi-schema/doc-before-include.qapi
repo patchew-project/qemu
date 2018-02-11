@@ -3,5 +3,5 @@
 ##
 # @foo:
 ##
-{ 'include': 'empty.json' }
+{ 'include': 'empty.qapi' }
 { 'struct': 'foo', 'data': {} }

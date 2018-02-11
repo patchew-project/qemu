@@ -103,7 +103,7 @@ target-obj-y += trace/
 # guest agent
 
 # FIXME: a few definitions from qapi-types.o/qapi-visit.o are needed
-# by libqemuutil.a.  These should be moved to a separate .json schema.
+# by libqemuutil.a.  These should be moved to a separate .qapi schema.
 qga-obj-y = qga/
 qga-vss-dll-obj-y = qga/
 

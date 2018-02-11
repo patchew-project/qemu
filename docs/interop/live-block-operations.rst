@@ -20,7 +20,7 @@ primitives, and some (non-exhaustive list of) examples to illustrate
 their use.
 
 .. note::
-    The file ``qapi/block-core.json`` in the QEMU source tree has the
+    The file ``qapi/block-core.qapi`` in the QEMU source tree has the
     canonical QEMU API (QAPI) schema documentation for the QMP
     primitives discussed here.
 
@@ -54,7 +54,7 @@ files in a disk image backing chain:
 (1) Directional: 'base' and 'top'.  Given the simple disk image chain
     above, image [A] can be referred to as 'base', and image [B] as
     'top'.  (This terminology can be seen in in QAPI schema file,
-    block-core.json.)
+    block-core.qapi.)
 
 (2) Relational: 'backing file' and 'overlay'.  Again, taking the same
     simple disk image chain from the above, disk image [A] is referred
