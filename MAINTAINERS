@@ -1543,7 +1543,6 @@ QAPI Schema
 M: Eric Blake <eblake@redhat.com>
 M: Markus Armbruster <armbru@redhat.com>
 S: Supported
-F: qapi-schema.json
 F: qapi/*.json
 T: git git://repo.or.cz/qemu/armbru.git qapi-next
 
@@ -1565,6 +1564,7 @@ QEMU Guest Agent
 M: Michael Roth <mdroth@linux.vnet.ibm.com>
 S: Maintained
 F: qga/
+F: qapi/qga-schema.json
 F: qemu-ga.texi
 F: scripts/qemu-guest-agent/
 F: tests/test-qga.c
