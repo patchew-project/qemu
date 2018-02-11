@@ -842,6 +842,8 @@ int arm_cpu_write_elf32_note(WriteCoreDumpFunction f, CPUState *cs,
 #ifdef TARGET_AARCH64
 int aarch64_cpu_gdb_read_register(CPUState *cpu, uint8_t *buf, int reg);
 int aarch64_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
+unsigned aarch64_get_sve_vlen(CPUARMState *env);
+unsigned aarch64_set_sve_vlen(CPUARMState *env, unsigned vlen);
 #endif
 
 target_ulong do_arm_semihosting(CPUARMState *env);

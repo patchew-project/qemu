@@ -363,3 +363,64 @@ static void aarch64_cpu_register_types(void)
 }
 
 type_init(aarch64_cpu_register_types)
+
+/* Return the current cumulative SVE VLEN.  */
+unsigned aarch64_get_sve_vlen(CPUARMState *env)
+{
+    return ((env->vfp.zcr_el[1] & 0xf) + 1) * 16;
+}
+
+/* Set the cumulative ZCR.EL to VLEN, or the nearest supported value.
+   Return the new value.  */
+unsigned aarch64_set_sve_vlen(CPUARMState *env, unsigned vl)
+{
+    unsigned vq = vl / 16;
+    unsigned old_vq = (env->vfp.zcr_el[1] & 0xf) + 1;
+
+    if (vq < 1) {
+        vq = 1;
+    } else if (vq > ARM_MAX_VQ) {
+        vq = ARM_MAX_VQ;
+    }
+    env->vfp.zcr_el[1] = vq - 1;
+
+    /* The manual sez that when SVE is enabled and VL is widened the
+     * implementation is allowed to zero the previously inaccessible
+     * portion of the registers.  The corollary to that is that when
+     * SVE is enabled and VL is narrowed we are also allowed to zero
+     * the now inaccessible portion of the registers.
+     *
+     * The intent of this is that no predicate bit beyond VL is ever set.
+     * Which means that some operations on predicate registers themselves
+     * may operate on full uint64_t or even unrolled across the maximum
+     * uint64_t[4].  Performing 4 bits of host arithmetic unconditionally
+     * may well be cheaper than conditionals to restrict to the operation
+     * to the relevant portion of a uint16_t[16].
+     *
+     * ??? Need to move this somewhere else, so that it applies to
+     * changes to the real system registers and EL state changes.
+     */
+    if (vq < old_vq) {
+        unsigned i, j;
+        uint64_t pmask;
+
+        /* Zap the high bits of the zregs.  */
+        for (i = 0; i < 32; i++) {
+            memset(&env->vfp.zregs[i].d[2 * vq], 0, 16 * (ARM_MAX_VQ - vq));
+        }
+
+        /* Zap the high bits of the pregs and ffr.  */
+        pmask = 0;
+        if (vq & 3) {
+            pmask = ~(-1ULL << (16 * (vq & 3)));
+        }
+        for (j = vq / 4; j < ARM_MAX_VQ / 4; j++) {
+            for (i = 0; i < 17; ++i) {
+                env->vfp.pregs[i].p[j] &= pmask;
+            }
+            pmask = 0;
+        }
+    }
+
+    return vq * 16;
+}

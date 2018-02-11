@@ -10659,6 +10659,26 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             break;
         }
 #endif
+#ifdef TARGET_AARCH64
+        case 50: /* PR_SVE_SET_VL */
+            /* We cannot support either PR_SVE_SET_VL_ONEXEC
+               or PR_SVE_VL_INHERIT.  Therefore, anything above
+               ARM_MAX_VQ results in EINVAL.  */
+            if (!arm_feature(cpu_env, ARM_FEATURE_SVE)
+                || arg2 > ARM_MAX_VQ * 16 || arg2 & 15) {
+                ret = -TARGET_EINVAL;
+            } else {
+                ret = aarch64_set_sve_vlen(cpu_env, arg2);
+            }
+            break;
+        case 51: /* PR_SVE_GET_VL */
+            if (arm_feature(cpu_env, ARM_FEATURE_SVE)) {
+                ret = aarch64_get_sve_vlen(cpu_env);
+            } else {
+                ret = -TARGET_EINVAL;
+            }
+            break;
+#endif /* AARCH64 */
         case PR_GET_SECCOMP:
         case PR_SET_SECCOMP:
             /* Disable seccomp to prevent the target disabling syscalls we
