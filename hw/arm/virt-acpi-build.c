@@ -42,6 +42,7 @@
 #include "hw/acpi/aml-build.h"
 #include "hw/pci/pcie_host.h"
 #include "hw/pci/pci.h"
+#include "hw/virtio/virtio-iommu.h"
 #include "hw/arm/virt.h"
 #include "sysemu/numa.h"
 #include "kvm_arm.h"
@@ -393,18 +394,26 @@ build_rsdp(GArray *rsdp_table, BIOSLinker *linker, unsigned xsdt_tbl_offset)
 }
 
 static void
-build_iort(GArray *table_data, BIOSLinker *linker)
+build_iort(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
 {
-    int iort_start = table_data->len;
+    int nb_nodes, iort_start = table_data->len;
     AcpiIortIdMapping *idmap;
     AcpiIortItsGroup *its;
     AcpiIortTable *iort;
-    size_t node_size, iort_length;
+    AcpiIortPVIommu *iommu;
+    size_t node_size, iort_length, iommu_offset = 0;
     AcpiIortRC *rc;
 
     iort = acpi_data_push(table_data, sizeof(*iort));
 
+    if (vms->iommu_info.type) {
+        nb_nodes = 3; /* RC, ITS, IOMMU */
+    } else {
+        nb_nodes = 2; /* RC, ITS */
+    }
+
     iort_length = sizeof(*iort);
+    iort->node_count = cpu_to_le32(nb_nodes);
     iort->node_count = cpu_to_le32(2); /* RC and ITS nodes */
     iort->node_offset = cpu_to_le32(sizeof(*iort));
 
@@ -417,6 +426,31 @@ build_iort(GArray *table_data, BIOSLinker *linker)
     its->length = cpu_to_le16(node_size);
     its->its_count = cpu_to_le32(1);
     its->identifiers[0] = 0; /* MADT translation_id */
+
+    if (vms->iommu_info.type == VIRT_IOMMU_VIRTIO) {
+
+        /* Para-virtualized IOMMU node */
+        iommu_offset = cpu_to_le32(iort->node_offset + node_size);
+        node_size = sizeof(*iommu) + sizeof(*idmap);
+        iort_length += node_size;
+        iommu = acpi_data_push(table_data, node_size);
+
+        iommu->type = ACPI_IORT_NODE_PARAVIRT;
+        iommu->length = cpu_to_le16(node_size);
+        iommu->base_address = cpu_to_le64(vms->iommu_info.reg.base);
+        iommu->span = cpu_to_le64(vms->iommu_info.reg.size);
+        iommu->model = ACPI_IORT_NODE_PV_VIRTIO_IOMMU;
+        iommu->flags = ACPI_IORT_NODE_PV_CACHE_COHERENT;
+        iommu->gsiv = cpu_to_le64(vms->iommu_info.irq_base);
+
+        /* Identity RID mapping covering the whole input RID range */
+        idmap = &iommu->id_mapping_array[0];
+        idmap->input_base = 0;
+        idmap->id_count = cpu_to_le32(0xFFFF);
+        idmap->output_base = 0;
+        /* output IORT node is the ITS group node (the first node) */
+        idmap->output_reference = cpu_to_le32(iort->node_offset);
+    }
 
     /* Root Complex Node */
     node_size = sizeof(*rc) + sizeof(*idmap);
@@ -438,10 +472,16 @@ build_iort(GArray *table_data, BIOSLinker *linker)
     idmap->input_base = 0;
     idmap->id_count = cpu_to_le32(0xFFFF);
     idmap->output_base = 0;
-    /* output IORT node is the ITS group node (the first node) */
-    idmap->output_reference = cpu_to_le32(iort->node_offset);
 
-    iort->length = cpu_to_le32(iort_length);
+    if (vms->iommu_info.type) {
+        /* output IORT node is the smmuv3 node */
+        idmap->output_reference = cpu_to_le32(iommu_offset);
+    } else {
+        /* output IORT node is the ITS group node (the first node) */
+        idmap->output_reference = cpu_to_le32(iort->node_offset);
+    }
+
+   iort->length = cpu_to_le32(iort_length);
 
     build_header(linker, table_data, (void *)(table_data->data + iort_start),
                  "IORT", table_data->len - iort_start, 0, NULL, NULL);
@@ -786,7 +826,7 @@ void virt_acpi_build(VirtMachineState *vms, AcpiBuildTables *tables)
 
     if (its_class_name() && !vmc->no_its) {
         acpi_add_table(table_offsets, tables_blob);
-        build_iort(tables_blob, tables->linker);
+        build_iort(tables_blob, tables->linker, vms);
     }
 
     /* XSDT is pointed to by RSDP */
