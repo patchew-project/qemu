@@ -941,7 +941,7 @@ static void create_pcie_irq_map(const VirtMachineState *vms,
                            0x7           /* PCI irq */);
 }
 
-static void create_pcie(const VirtMachineState *vms, qemu_irq *pic)
+static void create_pcie(VirtMachineState *vms, qemu_irq *pic)
 {
     hwaddr base_mmio = vms->memmap[VIRT_PCIE_MMIO].base;
     hwaddr size_mmio = vms->memmap[VIRT_PCIE_MMIO].size;
@@ -1004,6 +1004,7 @@ static void create_pcie(const VirtMachineState *vms, qemu_irq *pic)
 
     pci = PCI_HOST_BRIDGE(dev);
     if (pci->bus) {
+        vms->pci_bus = pci->bus;
         for (i = 0; i < nb_nics; i++) {
             NICInfo *nd = &nd_table[i];
 
@@ -1523,6 +1524,13 @@ static const CPUArchIdList *virt_possible_cpu_arch_ids(MachineState *ms)
     return ms->possible_cpus;
 }
 
+static PCIBus *virt_get_primary_pci_bus(const MachineState *ms)
+{
+    VirtMachineState *vms = VIRT_MACHINE(ms);
+
+    return vms->pci_bus;
+}
+
 static void virt_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -1544,6 +1552,7 @@ static void virt_machine_class_init(ObjectClass *oc, void *data)
     mc->cpu_index_to_instance_props = virt_cpu_index_to_props;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-a15");
     mc->get_default_cpu_node_id = virt_get_default_cpu_node_id;
+    mc->get_primary_pci_bus = virt_get_primary_pci_bus;
 }
 
 static const TypeInfo virt_machine_info = {
