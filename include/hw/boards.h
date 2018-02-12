@@ -156,6 +156,8 @@ typedef struct {
  *    should instead use "unimplemented-device" for all memory ranges where
  *    the guest will attempt to probe for a device that QEMU doesn't
  *    implement and a stub device is required.
+ * @get_primary_pci_bus: return the primary PCI bus or NULL if there are
+ *    several root buses
  */
 struct MachineClass {
     /*< private >*/
@@ -212,6 +214,7 @@ struct MachineClass {
                                                          unsigned cpu_index);
     const CPUArchIdList *(*possible_cpu_arch_ids)(MachineState *machine);
     int64_t (*get_default_cpu_node_id)(const MachineState *ms, int idx);
+    PCIBus *(*get_primary_pci_bus)(const MachineState *ms);
 };
 
 /**
