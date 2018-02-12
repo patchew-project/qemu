@@ -537,15 +537,26 @@
   'data': [ 'uninitialized', 'stopped', 'check-stop', 'operating', 'load' ] }
 
 ##
-# @CpuInfoS390:
+# @CpuInfoS390Fast:
 #
-# Additional information about a virtual S390 CPU
+# Additional information about a virtual S390 CPU which can be
+# obtained without a performance penalty for a running VM
 #
 # @cpu-state: the virtual CPU's state
 #
 # Since: 2.12
 ##
-{ 'struct': 'CpuInfoS390', 'data': { 'cpu-state': 'CpuS390State' } }
+{ 'struct': 'CpuInfoS390Fast', 'data': { 'cpu-state': 'CpuS390State' } }
+
+##
+# @CpuInfoS390:
+#
+# Additional information about a virtual S390 CPU, potentially expensive
+# to obtain
+#
+# Since: 2.12
+##
+{ 'struct': 'CpuInfoS390', 'base': 'CpuInfoS390Fast', 'data': { } }
 
 ##
 # @query-cpus:
@@ -604,12 +615,24 @@
 # @props: properties describing to which node/socket/core/thread
 #         virtual CPU belongs to, provided if supported by board
 #
+# @arch: architecture of the cpu, which determines which additional fields
+#        will be listed
+#
 # Since: 2.12
 #
 ##
-{ 'struct': 'CpuInfoFast',
-  'data': {'cpu-index': 'int', 'qom-path': 'str',
-           'thread-id': 'int', '*props': 'CpuInstanceProperties' } }
+{ 'union': 'CpuInfoFast',
+  'base': {'cpu-index': 'int', 'qom-path': 'str',
+           'thread-id': 'int', '*props': 'CpuInstanceProperties',
+           'arch': 'CpuInfoArch' },
+  'discriminator': 'arch',
+  'data': { 'x86': 'CpuInfoOther',
+            'sparc': 'CpuInfoOther',
+            'ppc': 'CpuInfoOther',
+            'mips': 'CpuInfoOther',
+            'tricore': 'CpuInfoOther',
+            's390': 'CpuInfoS390Fast',
+            'other': 'CpuInfoOther' } }
 
 ##
 # @query-cpus-fast:
