@@ -87,6 +87,7 @@ typedef struct RTCState {
     uint16_t irq_reinject_on_ack_count;
     uint32_t irq_coalesced;
     uint32_t period;
+    QemuMutex rtc_lock;
     QEMUTimer *coalesced_timer;
     Notifier clock_reset_notifier;
     LostTickPolicy lost_tick_policy;
@@ -127,6 +128,36 @@ static void rtc_coalesced_timer_update(RTCState *s)
     }
 }
 
+static void rtc_raise_irq(RTCState *s)
+{
+    bool unlocked = !qemu_mutex_iothread_locked();
+
+    if (unlocked) {
+        qemu_mutex_lock_iothread();
+    }
+
+    qemu_irq_raise(s->irq);
+
+    if (unlocked) {
+        qemu_mutex_unlock_iothread();
+    }
+}
+
+static void rtc_lower_irq(RTCState *s)
+{
+    bool unlocked = !qemu_mutex_iothread_locked();
+
+    if (unlocked) {
+        qemu_mutex_lock_iothread();
+    }
+
+    qemu_irq_lower(s->irq);
+
+    if (unlocked) {
+        qemu_mutex_unlock_iothread();
+    }
+}
+
 static QLIST_HEAD(, RTCState) rtc_devices =
     QLIST_HEAD_INITIALIZER(rtc_devices);
 
@@ -143,7 +174,7 @@ void qmp_rtc_reset_reinjection(Error **errp)
 static bool rtc_policy_slew_deliver_irq(RTCState *s)
 {
     apic_reset_irq_delivered();
-    qemu_irq_raise(s->irq);
+    rtc_raise_irq(s);
     return apic_get_irq_delivered();
 }
 
@@ -279,8 +310,9 @@ static void rtc_periodic_timer(void *opaque)
                 DPRINTF_C("cmos: coalesced irqs increased to %d\n",
                           s->irq_coalesced);
             }
-        } else
-            qemu_irq_raise(s->irq);
+        } else {
+            rtc_raise_irq(s);
+        }
     }
 }
 
@@ -461,7 +493,7 @@ static void rtc_update_timer(void *opaque)
     s->cmos_data[RTC_REG_C] |= irqs;
     if ((new_irqs & s->cmos_data[RTC_REG_B]) != 0) {
         s->cmos_data[RTC_REG_C] |= REG_C_IRQF;
-        qemu_irq_raise(s->irq);
+        rtc_raise_irq(s);
     }
     check_update_timer(s);
 }
@@ -473,6 +505,7 @@ static void cmos_ioport_write(void *opaque, hwaddr addr,
     uint32_t old_period;
     bool update_periodic_timer;
 
+    qemu_mutex_lock(&s->rtc_lock);
     if ((addr & 1) == 0) {
         s->cmos_index = data & 0x7f;
     } else {
@@ -562,10 +595,10 @@ static void cmos_ioport_write(void *opaque, hwaddr addr,
              * becomes enabled, raise an interrupt immediately.  */
             if (data & s->cmos_data[RTC_REG_C] & REG_C_MASK) {
                 s->cmos_data[RTC_REG_C] |= REG_C_IRQF;
-                qemu_irq_raise(s->irq);
+                rtc_raise_irq(s);
             } else {
                 s->cmos_data[RTC_REG_C] &= ~REG_C_IRQF;
-                qemu_irq_lower(s->irq);
+                rtc_lower_irq(s);
             }
             s->cmos_data[RTC_REG_B] = data;
 
@@ -585,6 +618,7 @@ static void cmos_ioport_write(void *opaque, hwaddr addr,
             break;
         }
     }
+    qemu_mutex_unlock(&s->rtc_lock);
 }
 
 static inline int rtc_to_bcd(RTCState *s, int a)
@@ -712,6 +746,7 @@ static uint64_t cmos_ioport_read(void *opaque, hwaddr addr,
     if ((addr & 1) == 0) {
         return 0xff;
     } else {
+        qemu_mutex_lock(&s->rtc_lock);
         switch(s->cmos_index) {
 	case RTC_IBM_PS2_CENTURY_BYTE:
             s->cmos_index = RTC_CENTURY;
@@ -739,7 +774,7 @@ static uint64_t cmos_ioport_read(void *opaque, hwaddr addr,
             break;
         case RTC_REG_C:
             ret = s->cmos_data[s->cmos_index];
-            qemu_irq_lower(s->irq);
+            rtc_lower_irq(s);
             s->cmos_data[RTC_REG_C] = 0x00;
             if (ret & (REG_C_UF | REG_C_AF)) {
                 check_update_timer(s);
@@ -764,6 +799,7 @@ static uint64_t cmos_ioport_read(void *opaque, hwaddr addr,
         }
         CMOS_DPRINTF("cmos: read index=0x%02x val=0x%02x\n",
                      s->cmos_index, ret);
+        qemu_mutex_unlock(&s->rtc_lock);
         return ret;
     }
 }
@@ -911,7 +947,7 @@ static void rtc_reset(void *opaque)
     s->cmos_data[RTC_REG_C] &= ~(REG_C_UF | REG_C_IRQF | REG_C_PF | REG_C_AF);
     check_update_timer(s);
 
-    qemu_irq_lower(s->irq);
+    rtc_lower_irq(s);
 
     if (s->lost_tick_policy == LOST_TICK_POLICY_SLEW) {
         s->irq_coalesced = 0;
@@ -962,6 +998,8 @@ static void rtc_realizefn(DeviceState *dev, Error **errp)
 
     rtc_set_date_from_host(isadev);
 
+    qemu_mutex_init(&s->rtc_lock);
+
     switch (s->lost_tick_policy) {
 #ifdef TARGET_I386
     case LOST_TICK_POLICY_SLEW:
@@ -988,6 +1026,7 @@ static void rtc_realizefn(DeviceState *dev, Error **errp)
     qemu_register_suspend_notifier(&s->suspend_notifier);
 
     memory_region_init_io(&s->io, OBJECT(s), &cmos_ops, s, "rtc", 2);
+    memory_region_clear_global_locking(&s->io);
     isa_register_ioport(isadev, &s->io, base);
 
     qdev_set_legacy_instance_id(dev, base, 3);
