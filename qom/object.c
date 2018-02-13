@@ -499,6 +499,10 @@ Object *object_new(const char *typename)
 {
     TypeImpl *ti = type_get_by_name(typename);
 
+    if (!ti) {
+        g_error("Object type not found: %s\n", typename);
+    }
+
     return object_new_with_type(ti);
 }
 
