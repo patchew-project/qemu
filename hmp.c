@@ -410,6 +410,20 @@ void hmp_info_cpus(Monitor *mon, const QDict *qdict)
     qapi_free_CpuInfoList(cpu_list);
 }
 
+void hmp_info_cpus_fast(Monitor *mon, const QDict *qdict)
+{
+    CpuInfoFastList *head, *cpu;
+
+    head = qmp_query_cpus_fast(NULL);
+
+    for (cpu = head; cpu; cpu = cpu->next) {
+        monitor_printf(mon, "  CPU #%" PRId64 ":", cpu->value->cpu_index);
+        monitor_printf(mon, " thread-id=%" PRId64 "\n", cpu->value->thread_id);
+    }
+
+    qapi_free_CpuInfoFastList(head);
+}
+
 static void print_block_info(Monitor *mon, BlockInfo *info,
                              BlockDeviceInfo *inserted, bool verbose)
 {
