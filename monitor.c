@@ -3741,7 +3741,7 @@ static void monitor_find_completion_by_table(Monitor *mon,
             }
         }
         str = args[nb_args - 1];
-        while (*ptype == '-' && ptype[1] != '\0') {
+        while (*ptype == '-' && ptype[2] != '\0') {
             ptype = next_arg_type(ptype);
         }
         switch(*ptype) {
