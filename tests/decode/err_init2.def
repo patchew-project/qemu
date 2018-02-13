@@ -1,0 +1,2 @@
+&args	a b
+insn	00000000 00000000 a:8 b:8	&args a=1
