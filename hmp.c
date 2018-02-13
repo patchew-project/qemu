@@ -418,6 +418,16 @@ void hmp_info_cpus_fast(Monitor *mon, const QDict *qdict)
 
     for (cpu = head; cpu; cpu = cpu->next) {
         monitor_printf(mon, "  CPU #%" PRId64 ":", cpu->value->cpu_index);
+
+        switch (cpu->value->arch) {
+        case CPU_INFO_ARCH_S390:
+            monitor_printf(mon, " state=%s",
+                           CpuS390State_str(cpu->value->u.s390.cpu_state));
+            break;
+        default:
+            break;
+        }
+
         monitor_printf(mon, " thread-id=%" PRId64 "\n", cpu->value->thread_id);
     }
 
