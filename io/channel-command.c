@@ -177,11 +177,11 @@ static int qio_channel_command_abort(QIOChannelCommand *ioc,
             return -1;
         }
     } else if (ret == 0) {
-        if (step == 0) {
+        if (step == 4) {
             kill(ioc->pid, SIGTERM);
-        } else if (step == 1) {
+        } else if (step == 8) {
             kill(ioc->pid, SIGKILL);
-        } else {
+        } else if (step >= 9) {
             error_setg(errp,
                        "Process %llu refused to die",
                        (unsigned long long)ioc->pid);
