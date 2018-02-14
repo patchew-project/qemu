@@ -1423,12 +1423,12 @@ void qemu_flush_coalesced_mmio_buffer(void)
 
 void qemu_mutex_lock_ramlist(void)
 {
-    qemu_mutex_lock(&ram_list.mutex);
+    g_mutex_lock(&ram_list.mutex);
 }
 
 void qemu_mutex_unlock_ramlist(void)
 {
-    qemu_mutex_unlock(&ram_list.mutex);
+    g_mutex_unlock(&ram_list.mutex);
 }
 
 void ram_block_dump(Monitor *mon)
@@ -3335,7 +3335,6 @@ void cpu_register_map_client(QEMUBH *bh)
 
 void cpu_exec_init_all(void)
 {
-    qemu_mutex_init(&ram_list.mutex);
     /* The data structures we set up here depend on knowing the page size,
      * so no more changes can be made after this point.
      * In an ideal world, nothing we did before we had finished the
