@@ -368,7 +368,7 @@ qemu-version.h: FORCE
 		(cd $(SRC_PATH); \
 		printf '#define QEMU_PKGVERSION '; \
 		if test -n "$(PKGVERSION)"; then \
-			printf '"$(PKGVERSION)"\n'; \
+			printf '" ($(PKGVERSION))"\n'; \
 		else \
 			if test -d .git; then \
 				printf '" ('; \
