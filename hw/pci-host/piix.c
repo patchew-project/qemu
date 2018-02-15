@@ -284,7 +284,7 @@ static void i440fx_pcihost_get_pci_hole64_end(Object *obj, Visitor *v,
 
     pci_bus_get_w64_range(h->bus, &w64);
     value = range_is_empty(&w64) ? 0 : range_upb(&w64) + 1;
-    hole64_end = ROUND_UP(hole64_start + s->pci_hole64_size, 1ULL << 30);
+    hole64_end = ROUND_UP(hole64_start + s->pci_hole64_size, G_BYTE);
     if (s->pci_hole64_fix && value < hole64_end) {
         value = hole64_end;
     }
@@ -430,7 +430,7 @@ PCIBus *i440fx_init(const char *host_type, const char *pci_type,
 
     *piix3_devfn = piix3->dev.devfn;
 
-    ram_size = ram_size / 8 / 1024 / 1024;
+    ram_size /= 8 * M_BYTE;
     if (ram_size > 255) {
         ram_size = 255;
     }

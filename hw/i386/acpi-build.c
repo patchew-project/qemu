@@ -2320,8 +2320,8 @@ build_tpm2(GArray *table_data, BIOSLinker *linker, GArray *tcpalog)
                  (void *)tpm2_ptr, "TPM2", sizeof(*tpm2_ptr), 4, NULL, NULL);
 }
 
-#define HOLE_640K_START  (640 * 1024)
-#define HOLE_640K_END   (1024 * 1024)
+#define HOLE_640K_START  (640 * K_BYTE)
+#define HOLE_640K_END   (1024 * K_BYTE)
 
 static void
 build_srat(GArray *table_data, BIOSLinker *linker, MachineState *machine)

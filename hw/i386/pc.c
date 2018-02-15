@@ -452,8 +452,8 @@ void pc_cmos_init(PCMachineState *pcms,
     rtc_set_memory(s, 0x15, val);
     rtc_set_memory(s, 0x16, val >> 8);
     /* extended memory (next 64MiB) */
-    if (pcms->below_4g_mem_size > 1024 * 1024) {
-        val = (pcms->below_4g_mem_size - 1024 * 1024) / 1024;
+    if (pcms->below_4g_mem_size > 1 * M_BYTE) {
+        val = (pcms->below_4g_mem_size - 1 * M_BYTE) / 1024;
     } else {
         val = 0;
     }
@@ -464,8 +464,8 @@ void pc_cmos_init(PCMachineState *pcms,
     rtc_set_memory(s, 0x30, val);
     rtc_set_memory(s, 0x31, val >> 8);
     /* memory between 16MiB and 4GiB */
-    if (pcms->below_4g_mem_size > 16 * 1024 * 1024) {
-        val = (pcms->below_4g_mem_size - 16 * 1024 * 1024) / 65536;
+    if (pcms->below_4g_mem_size > 16 * M_BYTE) {
+        val = (pcms->below_4g_mem_size - 16 * M_BYTE) / 65536;
     } else {
         val = 0;
     }
@@ -1390,11 +1390,11 @@ void pc_memory_init(PCMachineState *pcms,
         }
 
         pcms->hotplug_memory.base =
-            ROUND_UP(0x100000000ULL + pcms->above_4g_mem_size, 1ULL << 30);
+            ROUND_UP(0x100000000ULL + pcms->above_4g_mem_size, G_BYTE);
 
         if (pcmc->enforce_aligned_dimm) {
             /* size hotplug region assuming 1G page max alignment per slot */
-            hotplug_mem_size += (1ULL << 30) * machine->ram_slots;
+            hotplug_mem_size += machine->ram_slots * G_BYTE;
         }
 
         if ((pcms->hotplug_memory.base + hotplug_mem_size) <
@@ -1436,7 +1436,7 @@ void pc_memory_init(PCMachineState *pcms,
         if (!pcmc->broken_reserved_end) {
             res_mem_end += memory_region_size(&pcms->hotplug_memory.mr);
         }
-        *val = cpu_to_le64(ROUND_UP(res_mem_end, 0x1ULL << 30));
+        *val = cpu_to_le64(ROUND_UP(res_mem_end, G_BYTE));
         fw_cfg_add_file(fw_cfg, "etc/reserved-memory-end", val, sizeof(*val));
     }
 
@@ -1472,7 +1472,7 @@ uint64_t pc_pci_hole64_start(void)
         hole64_start = 0x100000000ULL + pcms->above_4g_mem_size;
     }
 
-    return ROUND_UP(hole64_start, 1ULL << 30);
+    return ROUND_UP(hole64_start, G_BYTE);
 }
 
 qemu_irq pc_allocate_cpu_irq(void)
@@ -2114,7 +2114,7 @@ static void pc_machine_set_max_ram_below_4g(Object *obj, Visitor *v,
         return;
     }
 
-    if (value < (1ULL << 20)) {
+    if (value < 1 * M_BYTE) {
         warn_report("Only %" PRIu64 " bytes of RAM below the 4GiB boundary,"
                     "BIOS may not work with less than 1MiB", value);
     }

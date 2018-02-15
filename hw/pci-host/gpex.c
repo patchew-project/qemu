@@ -79,7 +79,7 @@ static void gpex_host_realize(DeviceState *dev, Error **errp)
 
     pcie_host_mmcfg_init(pex, PCIE_MMCFG_SIZE_MAX);
     memory_region_init(&s->io_mmio, OBJECT(s), "gpex_mmio", UINT64_MAX);
-    memory_region_init(&s->io_ioport, OBJECT(s), "gpex_ioport", 64 * 1024);
+    memory_region_init(&s->io_ioport, OBJECT(s), "gpex_ioport", 64 * K_BYTE);
 
     sysbus_init_mmio(sbd, &pex->mmio);
     sysbus_init_mmio(sbd, &s->io_mmio);

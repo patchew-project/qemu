@@ -22,7 +22,7 @@ I2CBus *ich9_smb_init(PCIBus *bus, int devfn, uint32_t smb_io_base);
 
 void ich9_generate_smi(void);
 
-#define ICH9_CC_SIZE (16 * 1024) /* 16KB. Chipset configuration registers */
+#define ICH9_CC_SIZE (16 * K_BYTE) /* Chipset configuration registers */
 
 #define TYPE_ICH9_LPC_DEVICE "ICH9-LPC"
 #define ICH9_LPC_DEVICE(obj) \

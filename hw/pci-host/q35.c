@@ -144,7 +144,7 @@ static void q35_host_get_pci_hole64_end(Object *obj, Visitor *v,
 
     pci_bus_get_w64_range(h->bus, &w64);
     value = range_is_empty(&w64) ? 0 : range_upb(&w64) + 1;
-    hole64_end = ROUND_UP(hole64_start + s->mch.pci_hole64_size, 1ULL << 30);
+    hole64_end = ROUND_UP(hole64_start + s->mch.pci_hole64_size, G_BYTE);
     if (s->pci_hole64_fix && value < hole64_end) {
         value = hole64_end;
     }
@@ -310,15 +310,15 @@ static void mch_update_pciexbar(MCHPCIState *mch)
     addr_mask = MCH_HOST_BRIDGE_PCIEXBAR_ADMSK;
     switch (pciexbar & MCH_HOST_BRIDGE_PCIEXBAR_LENGTH_MASK) {
     case MCH_HOST_BRIDGE_PCIEXBAR_LENGTH_256M:
-        length = 256 * 1024 * 1024;
+        length = 256 * M_BYTE;
         break;
     case MCH_HOST_BRIDGE_PCIEXBAR_LENGTH_128M:
-        length = 128 * 1024 * 1024;
+        length = 128 * M_BYTE;
         addr_mask |= MCH_HOST_BRIDGE_PCIEXBAR_128ADMSK |
             MCH_HOST_BRIDGE_PCIEXBAR_64ADMSK;
         break;
     case MCH_HOST_BRIDGE_PCIEXBAR_LENGTH_64M:
-        length = 64 * 1024 * 1024;
+        length = 64 * M_BYTE;
         addr_mask |= MCH_HOST_BRIDGE_PCIEXBAR_64ADMSK;
         break;
     case MCH_HOST_BRIDGE_PCIEXBAR_LENGTH_RVD:
@@ -396,16 +396,16 @@ static void mch_update_smram(MCHPCIState *mch)
         switch (pd->config[MCH_HOST_BRIDGE_ESMRAMC] &
                 MCH_HOST_BRIDGE_ESMRAMC_TSEG_SZ_MASK) {
         case MCH_HOST_BRIDGE_ESMRAMC_TSEG_SZ_1MB:
-            tseg_size = 1024 * 1024;
+            tseg_size = 1 * M_BYTE;
             break;
         case MCH_HOST_BRIDGE_ESMRAMC_TSEG_SZ_2MB:
-            tseg_size = 1024 * 1024 * 2;
+            tseg_size = 2 * M_BYTE;
             break;
         case MCH_HOST_BRIDGE_ESMRAMC_TSEG_SZ_8MB:
-            tseg_size = 1024 * 1024 * 8;
+            tseg_size = 8 * M_BYTE;
             break;
         default:
-            tseg_size = 1024 * 1024 * (uint32_t)mch->ext_tseg_mbytes;
+            tseg_size = (uint32_t)mch->ext_tseg_mbytes * M_BYTE;
             break;
         }
     } else {
