@@ -61,4 +61,9 @@ void nbd_client_detach_aio_context(BlockDriverState *bs);
 void nbd_client_attach_aio_context(BlockDriverState *bs,
                                    AioContext *new_context);
 
+int64_t coroutine_fn nbd_client_co_get_block_status(BlockDriverState *bs,
+                                                    int64_t sector_num,
+                                                    int nb_sectors, int *pnum,
+                                                    BlockDriverState **file);
+
 #endif /* NBD_CLIENT_H */
