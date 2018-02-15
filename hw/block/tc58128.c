@@ -26,7 +26,7 @@ typedef struct {
 
 static tc58128_dev tc58128_devs[2];
 
-#define FLASH_SIZE (16*1024*1024)
+#define FLASH_SIZE (16 * M_BYTE)
 
 static void init_dev(tc58128_dev * dev, const char *filename)
 {
