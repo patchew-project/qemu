@@ -82,6 +82,15 @@ struct NBDExport {
 
 static QTAILQ_HEAD(, NBDExport) exports = QTAILQ_HEAD_INITIALIZER(exports);
 
+/* NBDExportMetaContexts represents list of selected by
+ * NBD_OPT_SET_META_CONTEXT contexts to be exported. */
+typedef struct NBDExportMetaContexts {
+    char export_name[NBD_MAX_NAME_SIZE + 1];
+    bool valid; /* means that negotiation of the option finished without
+                   errors */
+    bool base_allocation; /* export base:allocation context (block status) */
+} NBDExportMetaContexts;
+
 struct NBDClient {
     int refcount;
     void (*close_fn)(NBDClient *client, bool negotiated);
@@ -102,6 +111,7 @@ struct NBDClient {
     bool closing;
 
     bool structured_reply;
+    NBDExportMetaContexts export_meta;
 
     uint32_t opt; /* Current option being negotiated */
     uint32_t optlen; /* remaining length of data in ioc for the option being
@@ -636,6 +646,201 @@ static QIOChannel *nbd_negotiate_handle_starttls(NBDClient *client,
     return QIO_CHANNEL(tioc);
 }
 
+/* nbd_alloc_read_size_string
+ *
+ * Read string in format
+ *   uint32_t len
+ *   len bytes string (not 0-terminated)
+ * String is allocated and pointer returned as @buf
+ *
+ * Return -errno on I/O error, 0 if option was completely handled by
+ * sending a reply about inconsistent lengths, or 1 on success. */
+static int nbd_alloc_read_size_string(NBDClient *client, char **buf,
+                                      Error **errp)
+{
+    int ret;
+    uint32_t len;
+
+    ret = nbd_opt_read(client, &len, sizeof(len), errp);
+    if (ret <= 0) {
+        return ret;
+    }
+    cpu_to_be32s(&len);
+
+    *buf = g_try_malloc(len + 1);
+    if (*buf == NULL) {
+        error_setg(errp, "No memory");
+        return -ENOMEM;
+    }
+    (*buf)[len] = '\0';
+
+    ret = nbd_opt_read(client, *buf, len, errp);
+    if (ret <= 0) {
+        g_free(*buf);
+        *buf = NULL;
+    }
+
+    return ret;
+}
+
+/* nbd_read_size_string
+ *
+ * Read string in format
+ *   uint32_t len
+ *   len bytes string (not 0-terminated)
+ *
+ * @buf should be enough to store @max_len+1
+ *
+ * Return -errno on I/O error, 0 if option was completely handled by
+ * sending a reply about inconsistent lengths, or 1 on success. */
+static int nbd_read_size_string(NBDClient *client, char *buf,
+                                uint32_t max_len, Error **errp)
+{
+    int ret;
+    uint32_t len;
+
+    ret = nbd_opt_read(client, &len, sizeof(len), errp);
+    if (ret <= 0) {
+        return ret;
+    }
+    cpu_to_be32s(&len);
+
+    if (len > max_len) {
+        return nbd_opt_invalid(client, errp, "Invalid string length: %u", len);
+    }
+
+    ret = nbd_opt_read(client, buf, len, errp);
+    if (ret <= 0) {
+        return ret;
+    }
+    buf[len] = '\0';
+
+    return 1;
+}
+
+static int nbd_negotiate_send_meta_context(NBDClient *client,
+                                           const char *context,
+                                           uint32_t context_id,
+                                           Error **errp)
+{
+    NBDOptionReplyMetaContext opt;
+    struct iovec iov[] = {
+        {.iov_base = &opt, .iov_len = sizeof(opt)},
+        {.iov_base = (void *)context, .iov_len = strlen(context)}
+    };
+
+    set_be_option_rep(&opt.h, client->opt, NBD_REP_META_CONTEXT,
+                      sizeof(opt) - sizeof(opt.h) + iov[1].iov_len);
+    stl_be_p(&opt.context_id, context_id);
+
+    return qio_channel_writev_all(client->ioc, iov, 2, errp) < 0 ? -EIO : 0;
+}
+
+static void nbd_meta_base_query(NBDExportMetaContexts *meta, const char *query)
+{
+    if (query[0] == '\0' || strcmp(query, "allocation") == 0) {
+        /* Note: empty query should select all contexts within base
+         * namespace. */
+        meta->base_allocation = true;
+    }
+}
+
+/* nbd_negotiate_meta_query
+ * Return -errno on I/O error, 0 if option was completely handled by
+ * sending a reply about inconsistent lengths, or 1 on success. */
+static int nbd_negotiate_meta_query(NBDClient *client,
+                                    NBDExportMetaContexts *meta, Error **errp)
+{
+    int ret;
+    char *query, *colon, *namespace, *subquery;
+
+    ret = nbd_alloc_read_size_string(client, &query, errp);
+    if (ret <= 0) {
+        return ret;
+    }
+
+    colon = strchr(query, ':');
+    if (colon == NULL) {
+        ret = nbd_opt_invalid(client, errp, "no colon in query");
+        goto out;
+    }
+    *colon = '\0';
+    namespace = query;
+    subquery = colon + 1;
+
+    if (strcmp(namespace, "base") == 0) {
+        nbd_meta_base_query(meta, subquery);
+    }
+
+out:
+    g_free(query);
+    return ret;
+}
+
+/* nbd_negotiate_meta_queries
+ * Handle NBD_OPT_LIST_META_CONTEXT and NBD_OPT_SET_META_CONTEXT
+ *
+ * Return -errno on I/O error, 0 if option was completely handled by
+ * sending a reply about inconsistent lengths, or 1 on success. */
+static int nbd_negotiate_meta_queries(NBDClient *client,
+                                      NBDExportMetaContexts *meta, Error **errp)
+{
+    int ret;
+    NBDExport *exp;
+    NBDExportMetaContexts local_meta;
+    uint32_t nb_queries;
+    int i;
+
+    assert(client->structured_reply);
+
+    if (meta == NULL) {
+        meta = &local_meta;
+    }
+
+    memset(meta, 0, sizeof(*meta));
+
+    ret = nbd_read_size_string(client, meta->export_name,
+                               NBD_MAX_NAME_SIZE, errp);
+    if (ret <= 0) {
+        return ret;
+    }
+
+    exp = nbd_export_find(meta->export_name);
+    if (exp == NULL) {
+        return nbd_opt_invalid(client, errp,
+                               "export '%s' not present", meta->export_name);
+    }
+
+    ret = nbd_opt_read(client, &nb_queries, sizeof(nb_queries), errp);
+    if (ret <= 0) {
+        return ret;
+    }
+    cpu_to_be32s(&nb_queries);
+
+    for (i = 0; i < nb_queries; ++i) {
+        ret = nbd_negotiate_meta_query(client, meta, errp);
+        if (ret <= 0) {
+            return ret;
+        }
+    }
+
+    if (meta->base_allocation) {
+        ret = nbd_negotiate_send_meta_context(client, "base:allocation",
+                                              NBD_META_ID_BASE_ALLOCATION,
+                                              errp);
+        if (ret < 0) {
+            return ret;
+        }
+    }
+
+    ret = nbd_negotiate_send_rep(client, NBD_REP_ACK, errp);
+    if (ret == 0) {
+        meta->valid = true;
+    }
+
+    return ret;
+}
+
 /* nbd_negotiate_options
  * Process all NBD_OPT_* client option commands, during fixed newstyle
  * negotiation.
@@ -823,6 +1028,22 @@ static int nbd_negotiate_options(NBDClient *client, uint16_t myflags,
                     ret = nbd_negotiate_send_rep(client, NBD_REP_ACK, errp);
                     client->structured_reply = true;
                     myflags |= NBD_FLAG_SEND_DF;
+                }
+                break;
+
+            case NBD_OPT_LIST_META_CONTEXT:
+            case NBD_OPT_SET_META_CONTEXT:
+                if (!client->structured_reply) {
+                    ret = nbd_opt_invalid(
+                            client, errp,
+                            "request option '%s' when structured reply "
+                            "is not negotiated", nbd_opt_lookup(option));
+                } else if (option == NBD_OPT_LIST_META_CONTEXT) {
+                    ret = nbd_negotiate_meta_queries(client, NULL, errp);
+                } else {
+                    ret = nbd_negotiate_meta_queries(client,
+                                                     &client->export_meta,
+                                                     errp);
                 }
                 break;
 
@@ -1446,6 +1667,78 @@ static int coroutine_fn nbd_co_send_structured_error(NBDClient *client,
     return nbd_co_send_iov(client, iov, 1 + !!iov[1].iov_len, errp);
 }
 
+static int blockstatus_to_extent_be(BlockDriverState *bs, uint64_t offset,
+                                    uint64_t bytes, NBDExtent *extent)
+{
+    uint64_t tail_bytes = bytes;
+
+    while (tail_bytes) {
+        uint32_t flags;
+        int64_t num;
+        int ret = bdrv_block_status_above(bs, NULL, offset, tail_bytes, &num,
+                                          NULL, NULL);
+        if (ret < 0) {
+            return ret;
+        }
+
+        flags = (ret & BDRV_BLOCK_ALLOCATED ? 0 : NBD_STATE_HOLE) |
+                (ret & BDRV_BLOCK_ZERO      ? NBD_STATE_ZERO : 0);
+
+        if (tail_bytes == bytes) {
+            extent->flags = flags;
+        }
+
+        if (flags != extent->flags) {
+            break;
+        }
+
+        offset += num;
+        tail_bytes -= num;
+    }
+
+    cpu_to_be32s(&extent->flags);
+    extent->length = cpu_to_be32(bytes - tail_bytes);
+
+    return 0;
+}
+
+/* nbd_co_send_extents
+ * @extents should be in big-endian */
+static int nbd_co_send_extents(NBDClient *client, uint64_t handle,
+                               NBDExtent *extents, unsigned nb_extents,
+                               uint32_t context_id, Error **errp)
+{
+    NBDStructuredMeta chunk;
+
+    struct iovec iov[] = {
+        {.iov_base = &chunk, .iov_len = sizeof(chunk)},
+        {.iov_base = extents, .iov_len = nb_extents * sizeof(extents[0])}
+    };
+
+    set_be_chunk(&chunk.h, NBD_REPLY_FLAG_DONE, NBD_REPLY_TYPE_BLOCK_STATUS,
+                 handle, sizeof(chunk) - sizeof(chunk.h) + iov[1].iov_len);
+    stl_be_p(&chunk.context_id, context_id);
+
+    return nbd_co_send_iov(client, iov, 2, errp);
+}
+
+static int nbd_co_send_block_status(NBDClient *client, uint64_t handle,
+                                    BlockDriverState *bs, uint64_t offset,
+                                    uint64_t length, uint32_t context_id,
+                                    Error **errp)
+{
+    int ret;
+    NBDExtent extent;
+
+    ret = blockstatus_to_extent_be(bs, offset, length, &extent);
+    if (ret < 0) {
+        return nbd_co_send_structured_error(
+                client, handle, -ret, "can't get block status", errp);
+    }
+
+    return nbd_co_send_extents(client, handle, &extent, 1, context_id, errp);
+}
+
 /* nbd_co_receive_request
  * Collect a client request. Return 0 if request looks valid, -EIO to drop
  * connection right away, and any other negative value to report an error to
@@ -1523,6 +1816,8 @@ static int nbd_co_receive_request(NBDRequestData *req, NBDRequest *request,
         valid_flags |= NBD_CMD_FLAG_DF;
     } else if (request->type == NBD_CMD_WRITE_ZEROES) {
         valid_flags |= NBD_CMD_FLAG_NO_HOLE;
+    } else if (request->type == NBD_CMD_BLOCK_STATUS) {
+        valid_flags |= NBD_CMD_FLAG_REQ_ONE;
     }
     if (request->flags & ~valid_flags) {
         error_setg(errp, "unsupported flags for command %s (got 0x%x)",
@@ -1650,6 +1945,19 @@ static coroutine_fn void nbd_trip(void *opaque)
         }
 
         break;
+    case NBD_CMD_BLOCK_STATUS:
+        if (client->export_meta.base_allocation) {
+            ret = nbd_co_send_block_status(req->client, request.handle,
+                                           blk_bs(exp->blk), request.from,
+                                           request.len,
+                                           NBD_META_ID_BASE_ALLOCATION,
+                                           &local_err);
+        } else {
+            ret = -EINVAL;
+            error_setg(&local_err, "CMD_BLOCK_STATUS not negotiated");
+        }
+
+        break;
     default:
         error_setg(&local_err, "invalid request type (%" PRIu32 ") received",
                    request.type);
@@ -1680,7 +1988,7 @@ reply:
             ret = nbd_co_send_structured_done(req->client, request.handle,
                                               &local_err);
         }
-    } else {
+    } else if (request.type != NBD_CMD_BLOCK_STATUS) {
         ret = nbd_co_send_simple_reply(req->client, request.handle,
                                        ret < 0 ? -ret : 0,
                                        req->data, reply_data_len, &local_err);
