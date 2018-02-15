@@ -53,6 +53,15 @@ typedef union BootMapPointer {
     ExtEckdBlockPtr xeckd;
 } __attribute__ ((packed)) BootMapPointer;
 
+#define MAX_TABLE_ENTRIES  30
+
+/* aka Program Table */
+typedef struct BootMapTable {
+    uint8_t magic[4];
+    uint8_t reserved[12];
+    BootMapPointer entry[];
+} __attribute__ ((packed)) BootMapTable;
+
 typedef struct ComponentEntry {
     ScsiBlockPtr data;
     uint8_t pad[7];
@@ -69,8 +78,9 @@ typedef struct ComponentHeader {
 typedef struct ScsiMbr {
     uint8_t magic[4];
     uint32_t version_id;
-    uint8_t reserved[8];
-    ScsiBlockPtr blockptr[];
+    uint8_t reserved1[8];
+    ScsiBlockPtr pt;   /* block pointer to program table */
+    uint8_t reserved2[120];
 } __attribute__ ((packed)) ScsiMbr;
 
 #define ZIPL_MAGIC              "zIPL"
