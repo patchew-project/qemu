@@ -98,7 +98,7 @@ static void imx7_gpr_init(Object *obj)
     IMX7GPRState *s = IMX7_GPR(obj);
 
     memory_region_init_io(&s->mmio, obj, &imx7_gpr_ops, s,
-                          TYPE_IMX7_GPR, 64 * 1024);
+                          TYPE_IMX7_GPR, 64 * K_BYTE);
     sysbus_init_mmio(sd, &s->mmio);
 }
 

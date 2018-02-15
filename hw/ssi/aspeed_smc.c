@@ -149,35 +149,35 @@
  * Segment Address Registers.
  */
 static const AspeedSegments aspeed_segments_legacy[] = {
-    { 0x10000000, 32 * 1024 * 1024 },
+    { 0x10000000, 32 * M_BYTE },
 };
 
 static const AspeedSegments aspeed_segments_fmc[] = {
-    { 0x20000000, 64 * 1024 * 1024 }, /* start address is readonly */
-    { 0x24000000, 32 * 1024 * 1024 },
-    { 0x26000000, 32 * 1024 * 1024 },
-    { 0x28000000, 32 * 1024 * 1024 },
-    { 0x2A000000, 32 * 1024 * 1024 }
+    { 0x20000000,  64 * M_BYTE }, /* start address is readonly */
+    { 0x24000000,  32 * M_BYTE },
+    { 0x26000000,  32 * M_BYTE },
+    { 0x28000000,  32 * M_BYTE },
+    { 0x2A000000,  32 * M_BYTE }
 };
 
 static const AspeedSegments aspeed_segments_spi[] = {
-    { 0x30000000, 64 * 1024 * 1024 },
+    { 0x30000000,  64 * M_BYTE },
 };
 
 static const AspeedSegments aspeed_segments_ast2500_fmc[] = {
-    { 0x20000000, 128 * 1024 * 1024 }, /* start address is readonly */
-    { 0x28000000,  32 * 1024 * 1024 },
-    { 0x2A000000,  32 * 1024 * 1024 },
+    { 0x20000000, 128 * M_BYTE }, /* start address is readonly */
+    { 0x28000000,  32 * M_BYTE },
+    { 0x2A000000,  32 * M_BYTE },
 };
 
 static const AspeedSegments aspeed_segments_ast2500_spi1[] = {
-    { 0x30000000, 32 * 1024 * 1024 }, /* start address is readonly */
-    { 0x32000000, 96 * 1024 * 1024 }, /* end address is readonly */
+    { 0x30000000,  32 * M_BYTE }, /* start address is readonly */
+    { 0x32000000,  96 * M_BYTE }, /* end address is readonly */
 };
 
 static const AspeedSegments aspeed_segments_ast2500_spi2[] = {
-    { 0x38000000, 32 * 1024 * 1024 }, /* start address is readonly */
-    { 0x3A000000, 96 * 1024 * 1024 }, /* end address is readonly */
+    { 0x38000000,  32 * M_BYTE }, /* start address is readonly */
+    { 0x3A000000,  96 * M_BYTE }, /* end address is readonly */
 };
 
 static const AspeedSMCController controllers[] = {

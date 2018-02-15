@@ -1015,7 +1015,7 @@ static void arm_load_kernel_notify(Notifier *notifier, void *data)
      * the initrd at 128MB.
      */
     info->initrd_start = info->loader_start +
-        MIN(info->ram_size / 2, 128 * 1024 * 1024);
+        MIN(info->ram_size / 2, 128 * M_BYTE);
 
     /* Assume that raw images are linux kernels, and ELF images are not.  */
     kernel_size = arm_load_elf(info, &elf_entry, &elf_low_addr,
@@ -1102,13 +1102,13 @@ static void arm_load_kernel_notify(Notifier *notifier, void *data)
                  *
                  * Let's play safe and prealign it to 2MB to give us some space.
                  */
-                align = 2 * 1024 * 1024;
+                align = 2 * M_BYTE;
             } else {
                 /*
                  * Some 32bit kernels will trash anything in the 4K page the
                  * initrd ends in, so make sure the DTB isn't caught up in that.
                  */
-                align = 4096;
+                align = 4 * K_BYTE;
             }
 
             /* Place the DTB after the initrd in memory with alignment. */

@@ -40,8 +40,8 @@
 #define NUM_QSPI_FLASHES 2
 #define NUM_QSPI_BUSSES 2
 
-#define FLASH_SIZE (64 * 1024 * 1024)
-#define FLASH_SECTOR_SIZE (128 * 1024)
+#define FLASH_SIZE (64 * M_BYTE)
+#define FLASH_SECTOR_SIZE (128 * K_BYTE)
 
 #define IRQ_OFFSET 32 /* pic interrupts start from index 32 */
 

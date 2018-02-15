@@ -1284,8 +1284,8 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
     MemoryRegion *flash = g_new(MemoryRegion, 1);
     MemoryRegion *system_memory = get_system_memory();
 
-    flash_size = (((board->dc0 & 0xffff) + 1) << 1) * 1024;
-    sram_size = ((board->dc0 >> 18) + 1) * 1024;
+    flash_size = (((board->dc0 & 0xffff) + 1) << 1) * K_BYTE;
+    sram_size = ((board->dc0 >> 18) + 1) * K_BYTE;
 
     /* Flash programming is done via the SCU, so pretend it is ROM.  */
     memory_region_init_ram(flash, NULL, "stellaris.flash", flash_size,

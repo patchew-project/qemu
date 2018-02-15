@@ -609,7 +609,7 @@ static void integratorcp_init(MachineState *machine)
     memory_region_add_subregion(address_space_mem, 0x80000000, ram_alias);
 
     dev = qdev_create(NULL, TYPE_INTEGRATOR_CM);
-    qdev_prop_set_uint32(dev, "memsz", ram_size >> 20);
+    qdev_prop_set_uint32(dev, "memsz", ram_size / M_BYTE);
     qdev_init_nofail(dev);
     sysbus_mmio_map((SysBusDevice *)dev, 0, 0x10000000);
 

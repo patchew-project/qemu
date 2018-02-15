@@ -45,8 +45,8 @@
 #include "hw/cpu/a15mpcore.h"
 
 #define VEXPRESS_BOARD_ID 0x8e0
-#define VEXPRESS_FLASH_SIZE (64 * 1024 * 1024)
-#define VEXPRESS_FLASH_SECT_SIZE (256 * 1024)
+#define VEXPRESS_FLASH_SIZE (64 * M_BYTE)
+#define VEXPRESS_FLASH_SECT_SIZE (256 * K_BYTE)
 
 /* Number of virtio transports to create (0..8; limited by
  * number of available IRQ lines).
@@ -355,7 +355,7 @@ static void a15_daughterboard_init(const VexpressMachineState *vms,
          * warning if we are on a host where ram_addr_t is 32 bits.
          */
         uint64_t rsz = ram_size;
-        if (rsz > (30ULL * 1024 * 1024 * 1024)) {
+        if (rsz > 30 * G_BYTE) {
             error_report("vexpress-a15: cannot model more than 30GB RAM");
             exit(1);
         }

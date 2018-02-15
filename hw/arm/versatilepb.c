@@ -26,8 +26,8 @@
 #include "hw/char/pl011.h"
 
 #define VERSATILE_FLASH_ADDR 0x34000000
-#define VERSATILE_FLASH_SIZE (64 * 1024 * 1024)
-#define VERSATILE_FLASH_SECT_SIZE (256 * 1024)
+#define VERSATILE_FLASH_SIZE (64 * M_BYTE)
+#define VERSATILE_FLASH_SECT_SIZE (256 * K_BYTE)
 
 /* Primary interrupt controller.  */
 

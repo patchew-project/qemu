@@ -850,11 +850,11 @@ struct omap_gpmc_s *omap_gpmc_init(struct omap_mpu_state_s *mpu,
                               &omap_nand_ops,
                               &s->cs_file[cs],
                               "omap-nand",
-                              256 * 1024 * 1024);
+                              256 * M_BYTE);
     }
 
     memory_region_init_io(&s->prefetch.iomem, NULL, &omap_prefetch_ops, s,
-                          "omap-gpmc-prefetch", 256 * 1024 * 1024);
+                          "omap-gpmc-prefetch", 256 * M_BYTE);
     return s;
 }
 

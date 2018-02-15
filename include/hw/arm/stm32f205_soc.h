@@ -43,9 +43,9 @@
 #define STM_NUM_SPIS 3
 
 #define FLASH_BASE_ADDRESS 0x08000000
-#define FLASH_SIZE (1024 * 1024)
+#define FLASH_SIZE (1 * M_BYTE)
 #define SRAM_BASE_ADDRESS 0x20000000
-#define SRAM_SIZE (128 * 1024)
+#define SRAM_SIZE (128 * K_BYTE)
 
 typedef struct STM32F205State {
     /*< private >*/

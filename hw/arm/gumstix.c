@@ -47,7 +47,7 @@
 #include "sysemu/qtest.h"
 #include "cpu.h"
 
-static const int sector_len = 128 * 1024;
+static const int sector_len = 128 * K_BYTE;
 
 static void connex_init(MachineState *machine)
 {

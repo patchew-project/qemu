@@ -62,8 +62,8 @@
 #define MP_SRAM_BASE            0xC0000000
 #define MP_SRAM_SIZE            0x00020000
 
-#define MP_RAM_DEFAULT_SIZE     32*1024*1024
-#define MP_FLASH_SIZE_MAX       32*1024*1024
+#define MP_RAM_DEFAULT_SIZE     (32 * M_BYTE)
+#define MP_FLASH_SIZE_MAX       (32 * M_BYTE)
 
 #define MP_TIMER1_IRQ           4
 #define MP_TIMER2_IRQ           5
@@ -1625,8 +1625,8 @@ static void musicpal_init(MachineState *machine)
         BlockBackend *blk = blk_by_legacy_dinfo(dinfo);
 
         flash_size = blk_getlength(blk);
-        if (flash_size != 8*1024*1024 && flash_size != 16*1024*1024 &&
-            flash_size != 32*1024*1024) {
+        if (flash_size != 8 * M_BYTE && flash_size != 16 * M_BYTE &&
+            flash_size != 32 * M_BYTE) {
             error_report("Invalid flash image size");
             exit(1);
         }

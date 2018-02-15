@@ -115,7 +115,7 @@ static void mainstone_common_init(MemoryRegion *address_space_mem,
                                   MachineState *machine,
                                   enum mainstone_model_e model, int arm_id)
 {
-    uint32_t sector_len = 256 * 1024;
+    uint32_t sector_len = 256 * K_BYTE;
     hwaddr mainstone_flash_base[] = { MST_FLASH_0, MST_FLASH_1 };
     PXA2xxState *mpu;
     DeviceState *mst_irq;

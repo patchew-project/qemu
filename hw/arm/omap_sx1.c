@@ -88,10 +88,10 @@ static const MemoryRegionOps static_ops = {
 };
 
 #define sdram_size	0x02000000
-#define sector_size	(128 * 1024)
-#define flash0_size	(16 * 1024 * 1024)
-#define flash1_size	( 8 * 1024 * 1024)
-#define flash2_size	(32 * 1024 * 1024)
+#define sector_size (128 * K_BYTE)
+#define flash0_size (16 * M_BYTE)
+#define flash1_size (8 * M_BYTE)
+#define flash2_size (32 * M_BYTE)
 #define total_ram_v1	(sdram_size + flash0_size + flash1_size + OMAP15XX_SRAM_SIZE)
 #define total_ram_v2	(sdram_size + flash2_size + OMAP15XX_SRAM_SIZE)
 

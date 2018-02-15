@@ -126,8 +126,8 @@ static void digic_load_rom(DigicBoardState *s, hwaddr addr,
 static void digic4_add_k8p3215uqb_rom(DigicBoardState *s, hwaddr addr,
                                       const char *def_filename)
 {
-#define FLASH_K8P3215UQB_SIZE (4 * 1024 * 1024)
-#define FLASH_K8P3215UQB_SECTOR_SIZE (64 * 1024)
+#define FLASH_K8P3215UQB_SIZE (4 * M_BYTE)
+#define FLASH_K8P3215UQB_SECTOR_SIZE (64 * K_BYTE)
 
     pflash_cfi02_register(addr, NULL, "pflash", FLASH_K8P3215UQB_SIZE,
                           NULL, FLASH_K8P3215UQB_SECTOR_SIZE,
@@ -141,7 +141,7 @@ static void digic4_add_k8p3215uqb_rom(DigicBoardState *s, hwaddr addr,
 }
 
 static DigicBoard digic4_board_canon_a1100 = {
-    .ram_size = 64 * 1024 * 1024,
+    .ram_size = 64 * M_BYTE,
     .add_rom1 = digic4_add_k8p3215uqb_rom,
     .rom1_def_filename = "canon-a1100-rom1.bin",
 };
