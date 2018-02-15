@@ -7018,6 +7018,7 @@ if [ "$dtc_internal" = "yes" ]; then
   echo "config-host.h: subdir-dtc" >> $config_host_mak
 fi
 if [ "$capstone" = "git" -o "$capstone" = "internal" ]; then
+  echo "CONFIG_LIBCAPSTONE_INTERNAL=y" >> $config_host_mak
   echo "config-host.h: subdir-capstone" >> $config_host_mak
 fi
 if test -n "$LIBCAPSTONE"; then

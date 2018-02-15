@@ -3,9 +3,13 @@
 
 #ifdef CONFIG_CAPSTONE
 
+#ifdef CONFIG_LIBCAPSTONE_INTERNAL
 #include <capstone.h>
-
 #else
+#include <capstone/capstone.h>
+#endif /* CONFIG_LIBCAPSTONE_INTERNAL */
+
+#else /* CONFIG_CAPSTONE */
 
 /* Just enough to allow backends to init without ifdefs.  */
 
