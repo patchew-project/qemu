@@ -118,10 +118,9 @@ static void ppc_heathrow_init(MachineState *machine)
     }
 
     /* allocate RAM */
-    if (ram_size > (2047 << 20)) {
-        fprintf(stderr,
-                "qemu: Too much memory for this machine: %d MB, maximum 2047 MB\n",
-                ((unsigned int)ram_size / (1 << 20)));
+    if (ram_size > 2047 * M_BYTE) {
+        error_report("Too much memory for this machine: %llu MB, "
+                     "maximum 2047 MB", ram_size / M_BYTE);
         exit(1);
     }
 

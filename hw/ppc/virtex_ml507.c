@@ -47,7 +47,7 @@
 #include "sysemu/block-backend.h"
 
 #define EPAPR_MAGIC    (0x45504150)
-#define FLASH_SIZE     (16 * 1024 * 1024)
+#define FLASH_SIZE     (16 * M_BYTE)
 
 #define INTC_BASEADDR       0x81800000
 #define UART16550_BASEADDR  0x83e01003
@@ -237,7 +237,7 @@ static void virtex_init(MachineState *machine)
     dinfo = drive_get(IF_PFLASH, 0, 0);
     pflash_cfi01_register(PFLASH_BASEADDR, NULL, "virtex.flash", FLASH_SIZE,
                           dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
-                          (64 * 1024), FLASH_SIZE >> 16,
+                          64 * K_BYTE, FLASH_SIZE >> 16,
                           1, 0x89, 0x18, 0x0000, 0x0, 1);
 
     cpu_irq = (qemu_irq *) &env->irq_inputs[PPC40x_INPUT_INT];

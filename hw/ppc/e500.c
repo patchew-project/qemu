@@ -45,7 +45,7 @@
 #define BINARY_DEVICE_TREE_FILE    "mpc8544ds.dtb"
 #define DTC_LOAD_PAD               0x1800000
 #define DTC_PAD_MASK               0xFFFFF
-#define DTB_MAX_SIZE               (8 * 1024 * 1024)
+#define DTB_MAX_SIZE               (8 * M_BYTE)
 #define INITRD_LOAD_PAD            0x2000000
 #define INITRD_PAD_MASK            0xFFFFFF
 
@@ -597,7 +597,7 @@ static int ppce500_prep_device_tree(MachineState *machine,
 /* Create -kernel TLB entries for BookE.  */
 hwaddr booke206_page_size_to_tlb(uint64_t size)
 {
-    return 63 - clz64(size >> 10);
+    return 63 - clz64(size / K_BYTE);
 }
 
 static int booke206_initial_map_tsize(CPUPPCState *env)
@@ -913,9 +913,9 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
     /* Register spinning region */
     sysbus_create_simple("e500-spin", params->spin_base, NULL);
 
-    if (cur_base < (32 * 1024 * 1024)) {
+    if (cur_base < 32 * M_BYTE) {
         /* u-boot occupies memory up to 32MB, so load blobs above */
-        cur_base = (32 * 1024 * 1024);
+        cur_base = 32 * M_BYTE;
     }
 
     if (params->has_mpc8xxx_gpio) {

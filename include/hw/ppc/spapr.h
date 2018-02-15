@@ -746,7 +746,7 @@ int spapr_rng_populate_dt(void *fdt);
 #define SPAPR_MAX_RAM_SLOTS     32
 
 /* 1GB alignment for hotplug memory region */
-#define SPAPR_HOTPLUG_MEM_ALIGN (1ULL << 30)
+#define SPAPR_HOTPLUG_MEM_ALIGN (1 * G_BYTE)
 
 /*
  * Number of 32 bit words in each LMB list entry in ibm,dynamic-memory
