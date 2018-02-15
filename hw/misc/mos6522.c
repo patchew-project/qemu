@@ -29,7 +29,6 @@
 #include "hw/misc/mos6522.h"
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
-#include "qemu/cutils.h"
 #include "qemu/log.h"
 #include "trace.h"
 

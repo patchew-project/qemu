@@ -14,6 +14,7 @@
 #include "migration/qemu-file-types.h"
 #include "qemu/module.h"
 #include "sysemu/reset.h"
+#include "qemu/cunits.h"
 
 void QEMU_NORETURN hw_error(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
 

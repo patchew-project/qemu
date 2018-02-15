@@ -54,7 +54,6 @@
 #include "exec/memory.h"
 #include "exec/address-spaces.h"
 #include "hw/boards.h"
-#include "qemu/cutils.h"
 
 #include <zlib.h>
 

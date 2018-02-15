@@ -22,7 +22,6 @@
 #include "exec/memory.h"
 #include "hw/loader.h"
 #include "hw/loader-fit.h"
-#include "qemu/cutils.h"
 #include "qemu/error-report.h"
 #include "sysemu/device_tree.h"
 #include "sysemu/sysemu.h"

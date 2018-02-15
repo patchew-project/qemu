@@ -22,7 +22,6 @@
 #include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
 #include "qapi/visitor.h"
-#include "qemu/cutils.h"
 
 //#define DEBUG_MSD
 

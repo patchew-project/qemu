@@ -42,7 +42,6 @@
 
 #include <libfdt.h>
 #include "hw/ppc/spapr_drc.h"
-#include "qemu/cutils.h"
 #include "trace.h"
 #include "hw/ppc/fdt.h"
 

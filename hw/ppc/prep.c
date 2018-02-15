@@ -50,7 +50,6 @@
 #include "exec/address-spaces.h"
 #include "trace.h"
 #include "elf.h"
-#include "qemu/cutils.h"
 #include "kvm_ppc.h"
 
 /* SMP is not enabled, for now */
