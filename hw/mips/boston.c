@@ -436,7 +436,7 @@ static void boston_mach_init(MachineState *machine)
     bool is_64b;
 
     if ((machine->ram_size % G_BYTE) ||
-        (machine->ram_size > (2 * G_BYTE))) {
+        (machine->ram_size > 2 * G_BYTE)) {
         error_report("Memory size must be 1GB or 2GB");
         exit(1);
     }

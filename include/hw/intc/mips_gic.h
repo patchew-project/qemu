@@ -19,7 +19,7 @@
 
 /* The MIPS default location */
 #define GIC_BASE_ADDR           0x1bdc0000ULL
-#define GIC_ADDRSPACE_SZ        (128 * 1024)
+#define GIC_ADDRSPACE_SZ        (128 * K_BYTE)
 
 /* Constants */
 #define GIC_POL_POS     1
