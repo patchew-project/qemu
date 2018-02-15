@@ -14,6 +14,11 @@
 static uint8_t flags;
 static uint64_t timeout;
 
+int menu_get_zipl_boot_index(const void *stage2, int offset)
+{
+    return 0; /* implemented next patch */
+}
+
 void menu_set_parms(uint8_t boot_menu_flag, uint32_t boot_menu_timeout)
 {
     flags = boot_menu_flag;

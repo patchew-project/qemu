@@ -17,6 +17,7 @@
 #define BOOT_MENU_FLAG_CMD_OPTS  0x80
 #define BOOT_MENU_FLAG_ZIPL_OPTS 0x40
 
+int menu_get_zipl_boot_index(const void *stage2, int offset);
 void menu_set_parms(uint8_t boot_menu_flags, uint32_t boot_menu_timeout);
 bool menu_check_flags(uint8_t check_flags);
 
