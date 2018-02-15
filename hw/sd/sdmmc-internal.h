@@ -12,4 +12,7 @@
 
 #define SDMMC_CMD_MAX 64
 
+const char *sd_cmd_name(uint8_t cmd);
+const char *sd_acmd_name(uint8_t cmd);
+
 #endif
