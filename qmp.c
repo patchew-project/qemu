@@ -164,6 +164,11 @@ void qmp_cont(Error **errp)
     BlockBackend *blk;
     Error *local_err = NULL;
 
+    if (runstate_check(RUN_STATE_PRECONFIG)) {
+        qemu_exit_preconfig_request();
+        return;
+    }
+
     /* if there is a dump in background, we should wait until the dump
      * finished */
     if (dump_in_progress()) {
