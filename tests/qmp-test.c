@@ -323,6 +323,7 @@ static void test_qmp_preconfig(void)
     /* preconfig state */
     /* enabled commands, no error expected  */
     g_assert(!is_err(qtest_qmp(qs, "{ 'execute': 'query-commands' }")));
+    g_assert(!is_err(qtest_qmp(qs, "{ 'execute': 'query-hotpluggable-cpus'}")));
 
     /* forbidden commands, expected error */
     g_assert(is_err(qtest_qmp(qs, "{ 'execute': 'query-cpus' }")));

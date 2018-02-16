@@ -3167,7 +3167,11 @@
 #    ]}
 #
 ##
-{ 'command': 'query-hotpluggable-cpus', 'returns': ['HotpluggableCPU'] }
+{ 'command': 'query-hotpluggable-cpus', 'returns': ['HotpluggableCPU'],
+  'runstates': [ 'debug', 'inmigrate', 'internal-error', 'io-error', 'paused',
+                 'postmigrate', 'prelaunch', 'finish-migrate', 'restore-vm',
+                 'running', 'save-vm', 'shutdown', 'suspended', 'watchdog',
+                 'guest-panicked', 'colo', 'preconfig' ] }
 
 ##
 # @GuidInfo:
