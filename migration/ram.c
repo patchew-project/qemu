@@ -51,6 +51,7 @@
 #include "qemu/rcu_queue.h"
 #include "migration/colo.h"
 #include "migration/block.h"
+#include "qemu/pmem.h"
 
 /***********************************************************/
 /* ram save/restore */
@@ -2479,11 +2480,16 @@ static inline void *host_from_ram_block_offset(RAMBlock *block,
  * @host: host address for the zero page
  * @ch: what the page is filled from.  We only support zero
  * @size: size of the zero page
+ * @is_pmem: whether @host is in the persistent memory
  */
-void ram_handle_compressed(void *host, uint8_t ch, uint64_t size)
+void ram_handle_compressed(void *host, uint8_t ch, uint64_t size, bool is_pmem)
 {
     if (ch != 0 || !is_zero_range(host, size)) {
-        memset(host, ch, size);
+        if (!is_pmem) {
+            memset(host, ch, size);
+        } else {
+            pmem_memset_nodrain(host, ch, size);
+        }
     }
 }
 
@@ -2839,6 +2845,7 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
     bool postcopy_running = postcopy_is_running();
     /* ADVISE is earlier, it shows the source has the postcopy capability on */
     bool postcopy_advised = postcopy_is_advised();
+    bool need_pmem_drain = false;
 
     seq_iter++;
 
@@ -2864,6 +2871,8 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
         ram_addr_t addr, total_ram_bytes;
         void *host = NULL;
         uint8_t ch;
+        RAMBlock *block = NULL;
+        bool is_pmem = false;
 
         addr = qemu_get_be64(f);
         flags = addr & ~TARGET_PAGE_MASK;
@@ -2880,7 +2889,7 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
 
         if (flags & (RAM_SAVE_FLAG_ZERO | RAM_SAVE_FLAG_PAGE |
                      RAM_SAVE_FLAG_COMPRESS_PAGE | RAM_SAVE_FLAG_XBZRLE)) {
-            RAMBlock *block = ram_block_from_stream(f, flags);
+            block = ram_block_from_stream(f, flags);
 
             host = host_from_ram_block_offset(block, addr);
             if (!host) {
@@ -2890,6 +2899,9 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
             }
             ramblock_recv_bitmap_set(block, host);
             trace_ram_load_loop(block->idstr, (uint64_t)addr, flags, host);
+
+            is_pmem = ramblock_is_pmem(block);
+            need_pmem_drain = need_pmem_drain || is_pmem;
         }
 
         switch (flags & ~RAM_SAVE_FLAG_CONTINUE) {
@@ -2943,7 +2955,7 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
 
         case RAM_SAVE_FLAG_ZERO:
             ch = qemu_get_byte(f);
-            ram_handle_compressed(host, ch, TARGET_PAGE_SIZE);
+            ram_handle_compressed(host, ch, TARGET_PAGE_SIZE, is_pmem);
             break;
 
         case RAM_SAVE_FLAG_PAGE:
@@ -2986,6 +2998,11 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
     }
 
     wait_for_decompress_done();
+
+    if (need_pmem_drain) {
+        pmem_drain();
+    }
+
     rcu_read_unlock();
     trace_ram_load_complete(ret, seq_iter);
     return ret;

@@ -17,3 +17,12 @@ void *pmem_memcpy_persist(void *pmemdest, const void *src, size_t len)
 {
     return memcpy(pmemdest, src, len);
 }
+
+void *pmem_memset_nodrain(void *pmemdest, int c, size_t len)
+{
+    return memset(pmemdest, c, len);
+}
+
+void pmem_drain(void)
+{
+}

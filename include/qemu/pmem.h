@@ -17,6 +17,8 @@
 #else  /* !CONFIG_LIBPMEM */
 
 void *pmem_memcpy_persist(void *pmemdest, const void *src, size_t len);
+void *pmem_memset_nodrain(void *pmemdest, int c, size_t len);
+void pmem_drain(void);
 
 #endif /* CONFIG_LIBPMEM */
 

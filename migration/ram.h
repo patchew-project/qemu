@@ -57,7 +57,7 @@ int ram_postcopy_send_discard_bitmap(MigrationState *ms);
 int ram_discard_range(const char *block_name, uint64_t start, size_t length);
 int ram_postcopy_incoming_init(MigrationIncomingState *mis);
 
-void ram_handle_compressed(void *host, uint8_t ch, uint64_t size);
+void ram_handle_compressed(void *host, uint8_t ch, uint64_t size, bool is_pmem);
 
 int ramblock_recv_bitmap_test(RAMBlock *rb, void *host_addr);
 void ramblock_recv_bitmap_set(RAMBlock *rb, void *host_addr);
