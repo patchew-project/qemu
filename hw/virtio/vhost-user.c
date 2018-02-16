@@ -39,6 +39,7 @@ enum VhostUserProtocolFeature {
     VHOST_USER_PROTOCOL_F_NET_MTU = 4,
     VHOST_USER_PROTOCOL_F_SLAVE_REQ = 5,
     VHOST_USER_PROTOCOL_F_CROSS_ENDIAN = 6,
+    VHOST_USER_PROTOCOL_F_VIRTIO_STATUS = 7,
 
     VHOST_USER_PROTOCOL_F_MAX
 };
@@ -72,6 +73,7 @@ typedef enum VhostUserRequest {
     VHOST_USER_SET_VRING_ENDIAN = 23,
     VHOST_USER_GET_CONFIG = 24,
     VHOST_USER_SET_CONFIG = 25,
+    VHOST_USER_SET_VIRTIO_STATUS = 26,
     VHOST_USER_MAX
 } VhostUserRequest;
 
@@ -1054,6 +1056,38 @@ static int vhost_user_set_config(struct vhost_dev *dev, const uint8_t *data,
     return 0;
 }
 
+static int vhost_user_set_virtio_status(struct vhost_dev *dev, uint8_t status)
+{
+    bool reply_supported = virtio_has_feature(dev->protocol_features,
+                                              VHOST_USER_PROTOCOL_F_REPLY_ACK);
+
+    VhostUserMsg msg = {
+        .hdr.request = VHOST_USER_SET_VIRTIO_STATUS,
+        .hdr.flags = VHOST_USER_VERSION,
+        .hdr.size = sizeof(msg.payload.u64),
+        .payload.u64 = status,
+    };
+
+    if (!virtio_has_feature(dev->protocol_features,
+                            VHOST_USER_PROTOCOL_F_VIRTIO_STATUS)) {
+        return 0;
+    }
+
+    if (reply_supported) {
+        msg.hdr.flags |= VHOST_USER_NEED_REPLY_MASK;
+    }
+
+    if (vhost_user_write(dev, &msg, NULL, 0) < 0) {
+        return -1;
+    }
+
+    if (reply_supported) {
+        return process_message_reply(dev, &msg);
+    }
+
+    return 0;
+}
+
 const VhostOps user_ops = {
         .backend_type = VHOST_BACKEND_TYPE_USER,
         .vhost_backend_init = vhost_user_init,
@@ -1082,4 +1116,5 @@ const VhostOps user_ops = {
         .vhost_send_device_iotlb_msg = vhost_user_send_device_iotlb_msg,
         .vhost_get_config = vhost_user_get_config,
         .vhost_set_config = vhost_user_set_config,
+        .vhost_set_virtio_status = vhost_user_set_virtio_status,
 };

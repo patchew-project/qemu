@@ -368,6 +368,7 @@ Protocol features
 #define VHOST_USER_PROTOCOL_F_MTU            4
 #define VHOST_USER_PROTOCOL_F_SLAVE_REQ      5
 #define VHOST_USER_PROTOCOL_F_CROSS_ENDIAN   6
+#define VHOST_USER_PROTOCOL_F_VIRTIO_STATUS  7
 
 Master message types
 --------------------
@@ -662,6 +663,19 @@ Master message types
       on the destination host. The vhost-user slave must check the flags
       field, and slaves MUST NOT accept SET_CONFIG for read-only
       configuration space fields unless the live migration bit is set.
+
+* VHOST_USER_SET_VIRTIO_STATUS
+
+      Id: 26
+      Equivalent ioctl: N/A
+      Master payload: u64
+      Slave payload: N/A
+
+      Sent by the vhost-user master to notify of virtio device status change.
+      The payload is a u64 representing the virtio device status as defined in
+      the virtio specification.
+      The request should be sent only when VHOST_USER_PROTOCOL_F_VIRTIO_STATUS
+      protocol feature has been negotiated.
 
 Slave message types
 -------------------
