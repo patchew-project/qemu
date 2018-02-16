@@ -12060,7 +12060,8 @@ static int arm_tr_init_disas_context(DisasContextBase *dcbase,
     return max_insns;
 }
 
-static void arm_tr_tb_start(DisasContextBase *dcbase, CPUState *cpu)
+static int arm_tr_tb_start(DisasContextBase *dcbase, CPUState *cpu,
+                           int max_insns)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
 
@@ -12102,6 +12103,7 @@ static void arm_tr_tb_start(DisasContextBase *dcbase, CPUState *cpu)
         store_cpu_field(tmp, condexec_bits);
     }
     tcg_clear_temp_count();
+    return max_insns;
 }
 
 static void arm_tr_insn_start(DisasContextBase *dcbase, CPUState *cpu)

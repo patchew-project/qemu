@@ -64,7 +64,7 @@ void translator_loop(const TranslatorOps *ops, DisasContextBase *db,
 
     /* Start translating.  */
     gen_tb_start(db->tb);
-    ops->tb_start(db, cpu);
+    max_insns = ops->tb_start(db, cpu, max_insns);
     tcg_debug_assert(db->is_jmp == DISAS_NEXT);  /* no early exit */
 
     while (true) {

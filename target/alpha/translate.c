@@ -2963,8 +2963,9 @@ static int alpha_tr_init_disas_context(DisasContextBase *dcbase,
     return MIN(max_insns, bound);
 }
 
-static void alpha_tr_tb_start(DisasContextBase *db, CPUState *cpu)
+static int alpha_tr_tb_start(DisasContextBase *db, CPUState *cpu, int max_insns)
 {
+    return max_insns;
 }
 
 static void alpha_tr_insn_start(DisasContextBase *dcbase, CPUState *cpu)

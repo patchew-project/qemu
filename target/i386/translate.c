@@ -8472,8 +8472,9 @@ static int i386_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cpu,
     return max_insns;
 }
 
-static void i386_tr_tb_start(DisasContextBase *db, CPUState *cpu)
+static int i386_tr_tb_start(DisasContextBase *db, CPUState *cpu, int max_insns)
 {
+    return max_insns;
 }
 
 static void i386_tr_insn_start(DisasContextBase *dcbase, CPUState *cpu)

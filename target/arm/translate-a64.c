@@ -12080,9 +12080,11 @@ static int aarch64_tr_init_disas_context(DisasContextBase *dcbase,
     return max_insns;
 }
 
-static void aarch64_tr_tb_start(DisasContextBase *db, CPUState *cpu)
+static int aarch64_tr_tb_start(DisasContextBase *db, CPUState *cpu,
+                               int max_insns)
 {
     tcg_clear_temp_count();
+    return max_insns;
 }
 
 static void aarch64_tr_insn_start(DisasContextBase *dcbase, CPUState *cpu)

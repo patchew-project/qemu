@@ -81,6 +81,7 @@ typedef struct DisasContextBase {
  * @tb_start:
  *      Emit any code required before the start of the main loop,
  *      after the generic gen_tb_start().
+ *      Return max_insns, modified if necessary.
  *
  * @insn_start:
  *      Emit the tcg_gen_insn_start opcode.
@@ -108,7 +109,7 @@ typedef struct DisasContextBase {
 typedef struct TranslatorOps {
     int (*init_disas_context)(DisasContextBase *db, CPUState *cpu,
                               int max_insns);
-    void (*tb_start)(DisasContextBase *db, CPUState *cpu);
+    int (*tb_start)(DisasContextBase *db, CPUState *cpu, int max_insns);
     void (*insn_start)(DisasContextBase *db, CPUState *cpu);
     bool (*breakpoint_check)(DisasContextBase *db, CPUState *cpu,
                              const CPUBreakpoint *bp);

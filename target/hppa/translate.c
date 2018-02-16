@@ -4726,7 +4726,8 @@ static int hppa_tr_init_disas_context(DisasContextBase *dcbase,
     return bound;
 }
 
-static void hppa_tr_tb_start(DisasContextBase *dcbase, CPUState *cs)
+static int hppa_tr_tb_start(DisasContextBase *dcbase, CPUState *cs,
+                            int max_insns)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
 
@@ -4738,6 +4739,7 @@ static void hppa_tr_tb_start(DisasContextBase *dcbase, CPUState *cs)
         ctx->psw_n_nonzero = true;
     }
     ctx->null_lab = NULL;
+    return max_insns;
 }
 
 static void hppa_tr_insn_start(DisasContextBase *dcbase, CPUState *cs)
