@@ -21,6 +21,7 @@
 #include "hw/sysbus.h"
 #include "monitor/monitor.h"
 #include "exec/address-spaces.h"
+#include "qapi/error.h"
 
 static void sysbus_dev_print(Monitor *mon, DeviceState *dev, int indent);
 static char *sysbus_get_fw_dev_path(DeviceState *dev);
@@ -370,6 +371,19 @@ BusState *sysbus_get_default(void)
         main_system_bus_create();
     }
     return main_system_bus;
+}
+
+void sysbus_init_child(Object *parent, const char *childname,
+                       void *child, size_t childsize,
+                       const char *childtype)
+{
+    object_initialize(child, childsize, childtype);
+    /* error_abort is fine here because this can only fail for
+     * programming-error reasons: child already parented, or
+     * parent already has a child with the given name.
+     */
+    object_property_add_child(parent, childname, OBJECT(child), &error_abort);
+    qdev_set_parent_bus(DEVICE(child), sysbus_get_default());
 }
 
 static void sysbus_register_types(void)

@@ -118,4 +118,16 @@ static inline DeviceState *sysbus_try_create_simple(const char *name,
     return sysbus_try_create_varargs(name, addr, irq, NULL);
 }
 
+/**
+ * sysbus_init_child: in-place initialize and parent a SysBus device
+ * @parent: object to parent the device to
+ * @childname: name to use as the child property name
+ * @child: child object
+ * @childsize: size of the storage for the object
+ * @childtype: type name of the child
+ */
+void sysbus_init_child(Object *parent, const char *childname,
+                       void *child, size_t childsize,
+                       const char *childtype);
+
 #endif /* HW_SYSBUS_H */
