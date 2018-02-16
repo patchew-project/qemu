@@ -160,4 +160,14 @@ bool kvm_arm_supports_user_irq(void)
 {
     return false;
 }
+
+bool kvm_vcpu_id_is_valid(int vcpu_id)
+{
+    return true;
+}
+
+unsigned long kvm_arch_vcpu_id(CPUState *cpu)
+{
+    return cpu->cpu_index;
+}
 #endif
