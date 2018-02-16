@@ -81,9 +81,11 @@ extern IplParameterBlock iplb __attribute__((__aligned__(PAGE_SIZE)));
  * The entire structure must not be larger than 28 bytes.
  */
 struct QemuIplParameters {
-    uint8_t  reserved1[4];
+    uint8_t  boot_menu_flags;
+    uint8_t  reserved1[3];
+    uint32_t boot_menu_timeout;
     uint64_t netboot_start_addr;
-    uint8_t  reserved2[16];
+    uint8_t  reserved2[12];
 } __attribute__ ((packed));
 typedef struct QemuIplParameters QemuIplParameters;
 

@@ -60,6 +60,9 @@ typedef struct IplBlockQemuScsi IplBlockQemuScsi;
 
 #define QIPL_ADDRESS  0xcc
 
+#define BOOT_MENU_FLAG_CMD_OPTS  0x80
+#define BOOT_MENU_FLAG_ZIPL_OPTS 0x40
+
 /*
  * The QEMU IPL Parameters will be stored 32-bit word aligned.
  * Placement of data fields in this area must account for
@@ -67,9 +70,11 @@ typedef struct IplBlockQemuScsi IplBlockQemuScsi;
  * The entire structure must not be larger than 28 bytes.
  */
 struct QemuIplParameters {
-    uint8_t  reserved1[4];
+    uint8_t  boot_menu_flags;
+    uint8_t  reserved1[3];
+    uint32_t boot_menu_timeout;
     uint64_t netboot_start_addr;
-    uint8_t  reserved2[16];
+    uint8_t  reserved2[12];
 } QEMU_PACKED;
 typedef struct QemuIplParameters QemuIplParameters;
 
