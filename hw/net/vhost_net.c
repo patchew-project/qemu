@@ -450,6 +450,11 @@ int vhost_net_set_mtu(struct vhost_net *net, uint16_t mtu)
     return vhost_ops->vhost_net_set_mtu(&net->dev, mtu);
 }
 
+int vhost_net_set_virtio_status(struct vhost_net *net, uint8_t status)
+{
+    return vhost_dev_set_virtio_status(&net->dev, status);
+}
+
 #else
 uint64_t vhost_net_get_max_queues(VHostNetState *net)
 {
@@ -518,6 +523,11 @@ int vhost_set_vring_enable(NetClientState *nc, int enable)
 }
 
 int vhost_net_set_mtu(struct vhost_net *net, uint16_t mtu)
+{
+    return 0;
+}
+
+int vhost_net_set_virtio_status(struct vhost_net *net, uint8_t status)
 {
     return 0;
 }

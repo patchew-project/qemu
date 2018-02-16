@@ -136,7 +136,7 @@ static void virtio_net_vhost_status(VirtIONet *n, uint8_t status)
 
     if ((virtio_net_started(n, status) && !nc->peer->link_down) ==
         !!n->vhost_started) {
-        return;
+        goto out;
     }
     if (!n->vhost_started) {
         int r, i;
@@ -175,11 +175,16 @@ static void virtio_net_vhost_status(VirtIONet *n, uint8_t status)
             error_report("unable to start vhost net: %d: "
                          "falling back on userspace virtio", -r);
             n->vhost_started = 0;
+
+            return;
         }
     } else {
         vhost_net_stop(vdev, n->nic->ncs, queues);
         n->vhost_started = 0;
     }
+
+out:
+    vhost_net_set_virtio_status(get_vhost_net(nc->peer), status);
 }
 
 static int virtio_net_set_vnet_endian_one(VirtIODevice *vdev,
