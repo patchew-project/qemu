@@ -31,3 +31,7 @@ void *pmem_memcpy_nodrain(void *pmemdest, const void *src, size_t len)
 {
     return memcpy(pmemdest, src, len);
 }
+
+void pmem_flush(const void *addr, size_t len)
+{
+}

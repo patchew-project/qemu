@@ -276,6 +276,7 @@ struct DecompressParam {
     void *des;
     uint8_t *compbuf;
     int len;
+    bool is_pmem;
 };
 typedef struct DecompressParam DecompressParam;
 
@@ -2498,7 +2499,7 @@ static void *do_data_decompress(void *opaque)
     DecompressParam *param = opaque;
     unsigned long pagesize;
     uint8_t *des;
-    int len;
+    int len, rc;
 
     qemu_mutex_lock(&param->mutex);
     while (!param->quit) {
@@ -2514,8 +2515,11 @@ static void *do_data_decompress(void *opaque)
              * not a problem because the dirty page will be retransferred
              * and uncompress() won't break the data in other pages.
              */
-            uncompress((Bytef *)des, &pagesize,
-                       (const Bytef *)param->compbuf, len);
+            rc = uncompress((Bytef *)des, &pagesize,
+                            (const Bytef *)param->compbuf, len);
+            if (rc == Z_OK && param->is_pmem) {
+                pmem_flush(des, len);
+            }
 
             qemu_mutex_lock(&decomp_done_lock);
             param->done = true;
@@ -2601,7 +2605,8 @@ static void compress_threads_load_cleanup(void)
 }
 
 static void decompress_data_with_multi_threads(QEMUFile *f,
-                                               void *host, int len)
+                                               void *host, int len,
+                                               bool is_pmem)
 {
     int idx, thread_count;
 
@@ -2615,6 +2620,7 @@ static void decompress_data_with_multi_threads(QEMUFile *f,
                 qemu_get_buffer(f, decomp_param[idx].compbuf, len);
                 decomp_param[idx].des = host;
                 decomp_param[idx].len = len;
+                decomp_param[idx].is_pmem = is_pmem;
                 qemu_cond_signal(&decomp_param[idx].cond);
                 qemu_mutex_unlock(&decomp_param[idx].mutex);
                 break;
@@ -2969,7 +2975,7 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
                 ret = -EINVAL;
                 break;
             }
-            decompress_data_with_multi_threads(f, host, len);
+            decompress_data_with_multi_threads(f, host, len, is_pmem);
             break;
 
         case RAM_SAVE_FLAG_XBZRLE:
