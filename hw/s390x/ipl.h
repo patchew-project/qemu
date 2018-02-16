@@ -16,8 +16,7 @@
 #include "cpu.h"
 
 struct IplBlockCcw {
-    uint64_t netboot_start_addr;
-    uint8_t  reserved0[77];
+    uint8_t  reserved0[85];
     uint8_t  ssid;
     uint16_t devno;
     uint8_t  vm_flags;
@@ -59,6 +58,21 @@ typedef struct IplBlockQemuScsi IplBlockQemuScsi;
 
 #define DIAG308_FLAGS_LP_VALID 0x80
 
+#define QIPL_ADDRESS  0xcc
+
+/*
+ * The QEMU IPL Parameters will be stored 32-bit word aligned.
+ * Placement of data fields in this area must account for
+ * their alignment needs.
+ * The entire structure must not be larger than 28 bytes.
+ */
+struct QemuIplParameters {
+    uint8_t  reserved1[4];
+    uint64_t netboot_start_addr;
+    uint8_t  reserved2[16];
+} QEMU_PACKED;
+typedef struct QemuIplParameters QemuIplParameters;
+
 union IplParameterBlock {
     struct {
         uint32_t len;
@@ -74,6 +88,7 @@ union IplParameterBlock {
             IplBlockFcp fcp;
             IplBlockQemuScsi scsi;
         };
+        QemuIplParameters qipl;
     } QEMU_PACKED;
     struct {
         uint8_t  reserved1[110];
