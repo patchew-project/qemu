@@ -8968,7 +8968,7 @@ void cpu_ppc_set_papr(PowerPCCPU *cpu, PPCVirtualHypervisor *vhyp)
          * KVM but not under TCG. Update the default LPCR to keep new
          * CPUs in sync when radix is enabled.
          */
-        if (ppc64_radix_guest(cpu)) {
+        if (ppc64_v3_radix(cpu)) {
             lpcr->default_value |= LPCR_UPRT | LPCR_GTSE;
         } else {
             lpcr->default_value &= ~(LPCR_UPRT | LPCR_GTSE);

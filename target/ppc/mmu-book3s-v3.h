@@ -29,7 +29,8 @@
 #define PTCR_PATS               0x000000000000001FULL /* Partition Table Size */
 
 /* Partition Table Entry Fields */
-#define PATBE1_GR 0x8000000000000000
+#define PATBE0_HR               PPC_BIT(0)            /* 1:Host Radix 0:HPT   */
+#define PATBE1_GR               PPC_BIT(0)            /* 1:Guest Radix 0:HPT  */
 
 /* Process Table Entry */
 struct prtb_entry {
@@ -43,13 +44,7 @@ static inline bool ppc64_use_proc_tbl(PowerPCCPU *cpu)
     return !!(cpu->env.spr[SPR_LPCR] & LPCR_UPRT);
 }
 
-static inline bool ppc64_radix_guest(PowerPCCPU *cpu)
-{
-    PPCVirtualHypervisorClass *vhc =
-        PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
-
-    return !!(vhc->get_patbe(cpu->vhyp) & PATBE1_GR);
-}
+bool ppc64_v3_radix(PowerPCCPU *cpu);
 
 int ppc64_v3_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr, int rwx,
                               int mmu_idx);
