@@ -450,6 +450,7 @@ jemalloc="no"
 replication="yes"
 vxhs=""
 libxml2=""
+libpmem=""
 
 supported_cpu="no"
 supported_os="no"
@@ -1359,6 +1360,10 @@ for opt do
   ;;
   --disable-git-update) git_update=no
   ;;
+  --enable-libpmem) libpmem=yes
+  ;;
+  --disable-libpmem) libpmem=no
+  ;;
   *)
       echo "ERROR: unknown option $opt"
       echo "Try '$0 --help' for more information"
@@ -1611,6 +1616,7 @@ disabled with --disable-FEATURE, default is enabled if available:
   crypto-afalg    Linux AF_ALG crypto backend driver
   vhost-user      vhost-user support
   capstone        capstone disassembler support
+  libpmem         libpmem support
 
 NOTE: The object files are built at the place where configure is launched
 EOF
@@ -5347,6 +5353,30 @@ EOF
 fi
 
 ##########################################
+# check for libpmem
+
+if test "$libpmem" != "no"; then
+  cat > $TMPC <<EOF
+#include <libpmem.h>
+int main(void)
+{
+  pmem_is_pmem(0, 0);
+  return 0;
+}
+EOF
+  libpmem_libs="-lpmem"
+  if compile_prog "" "$libpmem_libs" ; then
+    libs_softmmu="$libpmem_libs $libs_softmmu"
+    libpmem="yes"
+  else
+    if test "$libpmem" = "yes" ; then
+      feature_not_found "libpmem" "Install nvml or pmdk"
+    fi
+    libpmem="no"
+  fi
+fi
+
+##########################################
 # End of CC checks
 # After here, no more $cc or $ld runs
 
@@ -5816,6 +5846,7 @@ echo "avx2 optimization $avx2_opt"
 echo "replication support $replication"
 echo "VxHS block device $vxhs"
 echo "capstone          $capstone"
+echo "libpmem support   $libpmem"
 
 if test "$sdl_too_old" = "yes"; then
 echo "-> Your SDL version is too old - please upgrade to have SDL support"
@@ -6539,6 +6570,10 @@ fi
 if test "$vxhs" = "yes" ; then
   echo "CONFIG_VXHS=y" >> $config_host_mak
   echo "VXHS_LIBS=$vxhs_libs" >> $config_host_mak
+fi
+
+if test "$libpmem" = "yes" ; then
+  echo "CONFIG_LIBPMEM=y" >> $config_host_mak
 fi
 
 if test "$tcg_interpreter" = "yes"; then
