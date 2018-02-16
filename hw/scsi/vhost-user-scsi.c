@@ -58,6 +58,8 @@ static void vhost_user_scsi_set_status(VirtIODevice *vdev, uint8_t status)
     } else {
         vhost_scsi_common_stop(vsc);
     }
+
+    vhost_dev_set_virtio_status(&vsc->dev, status);
 }
 
 static void vhost_dummy_handle_output(VirtIODevice *vdev, VirtQueue *vq)
