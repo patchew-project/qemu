@@ -2391,7 +2391,7 @@ static void ram_save_pending(QEMUFile *f, void *opaque, uint64_t max_size,
     }
 }
 
-static int load_xbzrle(QEMUFile *f, ram_addr_t addr, void *host)
+static int load_xbzrle(QEMUFile *f, ram_addr_t addr, void *host, bool is_pmem)
 {
     unsigned int xh_len;
     int xh_flags;
@@ -2417,7 +2417,7 @@ static int load_xbzrle(QEMUFile *f, ram_addr_t addr, void *host)
 
     /* decode RLE */
     if (xbzrle_decode_buffer(loaded_data, xh_len, host,
-                             TARGET_PAGE_SIZE) == -1) {
+                             TARGET_PAGE_SIZE, is_pmem) == -1) {
         error_report("Failed to load XBZRLE page - decode error!");
         return -1;
     }
@@ -2979,7 +2979,7 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
             break;
 
         case RAM_SAVE_FLAG_XBZRLE:
-            if (load_xbzrle(f, addr, host) < 0) {
+            if (load_xbzrle(f, addr, host, is_pmem) < 0) {
                 error_report("Failed to decompress XBZRLE page at "
                              RAM_ADDR_FMT, addr);
                 ret = -EINVAL;
