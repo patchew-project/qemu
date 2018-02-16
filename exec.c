@@ -99,6 +99,9 @@ static MemoryRegion io_mem_unassigned;
  */
 #define RAM_RESIZEABLE (1 << 2)
 
+/* RAM is backed by the persistent memory. */
+#define RAM_PMEM       (1 << 3)
+
 #endif
 
 #ifdef TARGET_PAGE_BITS_VARY
@@ -2007,6 +2010,7 @@ RAMBlock *qemu_ram_alloc_from_fd(ram_addr_t size, MemoryRegion *mr,
     Error *local_err = NULL;
     int64_t file_size;
     bool share = flags & QEMU_RAM_SHARE;
+    bool is_pmem = flags & QEMU_RAM_PMEM;
 
     if (xen_enabled()) {
         error_setg(errp, "-mem-path not supported with Xen");
@@ -2043,7 +2047,8 @@ RAMBlock *qemu_ram_alloc_from_fd(ram_addr_t size, MemoryRegion *mr,
     new_block->mr = mr;
     new_block->used_length = size;
     new_block->max_length = size;
-    new_block->flags = share ? RAM_SHARED : 0;
+    new_block->flags = (share ? RAM_SHARED : 0) |
+                       (is_pmem ? RAM_PMEM : 0);
     new_block->host = file_ram_alloc(new_block, size, fd, !file_size, errp);
     if (!new_block->host) {
         g_free(new_block);
@@ -3847,3 +3852,12 @@ void mtree_print_dispatch(fprintf_function mon, void *f,
 }
 
 #endif
+
+bool ramblock_is_pmem(RAMBlock *rb)
+{
+#if !defined(CONFIG_USER_ONLY)
+    return rb->flags & RAM_PMEM;
+#else
+    return false;
+#endif
+}
