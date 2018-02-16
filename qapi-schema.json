@@ -219,7 +219,11 @@
 # Note: This example has been shortened as the real response is too long.
 #
 ##
-{ 'command': 'query-commands', 'returns': ['CommandInfo'] }
+{ 'command': 'query-commands', 'returns': ['CommandInfo'],
+  'runstates': [ 'debug', 'inmigrate', 'internal-error', 'io-error', 'paused',
+                 'postmigrate', 'prelaunch', 'finish-migrate', 'restore-vm',
+                 'running', 'save-vm', 'shutdown', 'suspended', 'watchdog',
+                 'guest-panicked', 'colo', 'preconfig' ] }
 
 ##
 # @LostTickPolicy:
@@ -1146,7 +1150,11 @@
 # <- { "return": {} }
 #
 ##
-{ 'command': 'cont' }
+{ 'command': 'cont',
+  'runstates': [ 'debug', 'inmigrate', 'internal-error', 'io-error', 'paused',
+                 'postmigrate', 'prelaunch', 'finish-migrate', 'restore-vm',
+                 'running', 'save-vm', 'shutdown', 'suspended', 'watchdog',
+                 'guest-panicked', 'colo', 'preconfig' ] }
 
 ##
 # @system_wakeup:

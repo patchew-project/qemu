@@ -15,6 +15,7 @@
 #define QAPI_QMP_DISPATCH_H
 
 #include "qemu/queue.h"
+#include "qapi-types.h"
 
 typedef void (QmpCommandFunc)(QDict *, QObject **, Error **);
 
@@ -31,12 +32,14 @@ typedef struct QmpCommand
     QmpCommandOptions options;
     QTAILQ_ENTRY(QmpCommand) node;
     bool enabled;
+    const RunState *valid_runstates;
 } QmpCommand;
 
 typedef QTAILQ_HEAD(QmpCommandList, QmpCommand) QmpCommandList;
 
 void qmp_register_command(QmpCommandList *cmds, const char *name,
-                          QmpCommandFunc *fn, QmpCommandOptions options);
+                          QmpCommandFunc *fn, QmpCommandOptions options,
+                          const RunState valid_runstates[]);
 void qmp_unregister_command(QmpCommandList *cmds, const char *name);
 QmpCommand *qmp_find_command(QmpCommandList *cmds, const char *name);
 QObject *qmp_dispatch(QmpCommandList *cmds, QObject *request);

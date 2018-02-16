@@ -192,17 +192,45 @@ out:
     return ret
 
 
-def gen_register_command(name, success_response):
+def gen_register_command(name, success_response, runstates):
     options = 'QCO_NO_OPTIONS'
     if not success_response:
         options = 'QCO_NO_SUCCESS_RESP'
 
-    ret = mcgen('''
-    qmp_register_command(cmds, "%(name)s",
-                         qmp_marshal_%(c_name)s, %(opts)s);
-''',
-                name=name, c_name=c_name(name),
-                opts=options)
+    if runstates is None:
+        ret = mcgen('''
+        qmp_register_command(cmds, "%(name)s",
+                             qmp_marshal_%(c_name)s, %(opts)s,
+                             NULL);
+        ''',
+                     name=name, c_name=c_name(name),
+                     opts=options)
+    else:
+        ret = mcgen('''
+        static const RunState qmp_valid_states_%(c_name)s[] = {
+'''
+                   , c_name=c_name(name))
+
+        for value in runstates:
+            ret += mcgen('''
+                    %(c_enum)s,
+'''
+                         , c_enum=c_enum_const('RunState', value))
+
+        ret += mcgen('''
+                    %(c_enum)s,
+                };
+'''
+                     , c_enum=c_enum_const('RunState', "_MAX"))
+
+        ret += mcgen('''
+                qmp_register_command(cmds, "%(name)s",
+                                     qmp_marshal_%(c_name)s, %(opts)s,
+                                     qmp_valid_states_%(c_name)s);
+        ''',
+                     name=name, c_name=c_name(name),
+                     opts=options)
+
     return ret
 
 
@@ -241,7 +269,7 @@ class QAPISchemaGenCommandVisitor(QAPISchemaVisitor):
         self._visited_ret_types = None
 
     def visit_command(self, name, info, arg_type, ret_type,
-                      gen, success_response, boxed):
+                      gen, success_response, boxed, runstates):
         if not gen:
             return
         self.decl += gen_command_decl(name, arg_type, boxed, ret_type)
@@ -250,7 +278,7 @@ class QAPISchemaGenCommandVisitor(QAPISchemaVisitor):
             self.defn += gen_marshal_output(ret_type)
         self.decl += gen_marshal_decl(name)
         self.defn += gen_marshal(name, arg_type, boxed, ret_type)
-        self._regy += gen_register_command(name, success_response)
+        self._regy += gen_register_command(name, success_response, runstates)
 
 
 (input_file, output_dir, do_c, do_h, prefix, opts) = parse_command_line()

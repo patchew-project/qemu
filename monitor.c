@@ -224,6 +224,25 @@ static mon_cmd_t mon_cmds[];
 static mon_cmd_t info_cmds[];
 
 QmpCommandList qmp_commands, qmp_cap_negotiation_commands;
+const RunState cap_negotiation_valid_runstates[] = {
+    RUN_STATE_DEBUG,
+    RUN_STATE_INMIGRATE,
+    RUN_STATE_INTERNAL_ERROR,
+    RUN_STATE_IO_ERROR,
+    RUN_STATE_PAUSED,
+    RUN_STATE_POSTMIGRATE,
+    RUN_STATE_PRELAUNCH,
+    RUN_STATE_FINISH_MIGRATE,
+    RUN_STATE_RESTORE_VM,
+    RUN_STATE_RUNNING,
+    RUN_STATE_SAVE_VM,
+    RUN_STATE_SHUTDOWN,
+    RUN_STATE_SUSPENDED,
+    RUN_STATE_WATCHDOG,
+    RUN_STATE_GUEST_PANICKED,
+    RUN_STATE_COLO,
+    RUN_STATE_PRECONFIG,
+};
 
 Monitor *cur_mon;
 
@@ -1016,17 +1035,18 @@ void monitor_init_qmp_commands(void)
 
     qmp_register_command(&qmp_commands, "query-qmp-schema",
                          qmp_query_qmp_schema,
-                         QCO_NO_OPTIONS);
+                         QCO_NO_OPTIONS, NULL);
     qmp_register_command(&qmp_commands, "device_add", qmp_device_add,
-                         QCO_NO_OPTIONS);
+                         QCO_NO_OPTIONS, NULL);
     qmp_register_command(&qmp_commands, "netdev_add", qmp_netdev_add,
-                         QCO_NO_OPTIONS);
+                         QCO_NO_OPTIONS, NULL);
 
     qmp_unregister_commands_hack();
 
     QTAILQ_INIT(&qmp_cap_negotiation_commands);
     qmp_register_command(&qmp_cap_negotiation_commands, "qmp_capabilities",
-                         qmp_marshal_qmp_capabilities, QCO_NO_OPTIONS);
+                         qmp_marshal_qmp_capabilities, QCO_NO_OPTIONS,
+                         cap_negotiation_valid_runstates);
 }
 
 void qmp_qmp_capabilities(Error **errp)

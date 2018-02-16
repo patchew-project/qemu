@@ -17,6 +17,7 @@
 #include "qapi/qmp/json-parser.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qjson.h"
+#include "sysemu/sysemu.h"
 
 static QDict *qmp_dispatch_check_obj(const QObject *request, Error **errp)
 {
@@ -65,6 +66,40 @@ static QDict *qmp_dispatch_check_obj(const QObject *request, Error **errp)
     return dict;
 }
 
+static bool is_cmd_permited(const QmpCommand *cmd, Error **errp)
+{
+    int i;
+    char *list = NULL;
+
+    /* Old commands that don't have explicit runstate in schema
+     * are permited to run except of at PRECONFIG stage
+     */
+    if (!cmd->valid_runstates) {
+        if (runstate_check(RUN_STATE_PRECONFIG)) {
+            const char *state = RunState_str(RUN_STATE_PRECONFIG);
+            error_setg(errp, "The command '%s' isn't valid in '%s'",
+                       cmd->name, state);
+            return false;
+        }
+        return true;
+    }
+
+    for (i = 0; cmd->valid_runstates[i] != RUN_STATE__MAX; i++) {
+        if (runstate_check(cmd->valid_runstates[i])) {
+            return true;
+        }
+    }
+
+    for (i = 0; cmd->valid_runstates[i] != RUN_STATE__MAX; i++) {
+        const char *state = RunState_str(cmd->valid_runstates[i]);
+        list = g_strjoin(", ", state, list, NULL);
+    }
+    error_setg(errp, "The command '%s' is valid only in '%s'", cmd->name, list);
+    g_free(list);
+
+    return false;
+}
+
 static QObject *do_qmp_dispatch(QmpCommandList *cmds, QObject *request,
                                 Error **errp)
 {
@@ -89,6 +124,10 @@ static QObject *do_qmp_dispatch(QmpCommandList *cmds, QObject *request,
     if (!cmd->enabled) {
         error_setg(errp, "The command %s has been disabled for this instance",
                    command);
+        return NULL;
+    }
+
+    if (!is_cmd_permited(cmd, errp)) {
         return NULL;
     }
 

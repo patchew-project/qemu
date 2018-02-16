@@ -18,9 +18,9 @@ object Variant1
     member var1: str optional=False
 object Variant2
 command cmd q_obj_cmd-arg -> Object
-   gen=True success_response=True boxed=False
+   gen=True success_response=True boxed=False, runstates=None
 command cmd-boxed Object -> None
-   gen=True success_response=True boxed=True
+   gen=True success_response=True boxed=True, runstates=None
 object q_empty
 object q_obj_Variant1-wrapper
     member data: Variant1 optional=False
