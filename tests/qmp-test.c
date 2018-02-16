@@ -324,6 +324,8 @@ static void test_qmp_preconfig(void)
     /* enabled commands, no error expected  */
     g_assert(!is_err(qtest_qmp(qs, "{ 'execute': 'query-commands' }")));
     g_assert(!is_err(qtest_qmp(qs, "{ 'execute': 'query-hotpluggable-cpus'}")));
+    g_assert(!is_err(qtest_qmp(qs, "{ 'execute': 'set-numa-node',"
+        " 'arguments': { 'type': 'node', 'nodeid': 0 } }")));
 
     /* forbidden commands, expected error */
     g_assert(is_err(qtest_qmp(qs, "{ 'execute': 'query-cpus' }")));
@@ -346,6 +348,10 @@ static void test_qmp_preconfig(void)
 
     /* enabled commands, no error expected  */
     g_assert(!is_err(qtest_qmp(qs, "{ 'execute': 'query-cpus' }")));
+
+    /* forbidden commands, expected error */
+    g_assert(is_err(qtest_qmp(qs, "{ 'execute': 'set-numa-node',"
+        " 'arguments': { 'type': 'node', 'nodeid': 1 } }")));
 
     qtest_quit(qs);
 }
