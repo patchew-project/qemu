@@ -1388,6 +1388,17 @@ void vhost_dev_set_config_notifier(struct vhost_dev *hdev,
     hdev->config_ops = ops;
 }
 
+int vhost_dev_set_virtio_status(struct vhost_dev *hdev, uint8_t status)
+{
+    const VhostOps *vhost_ops = hdev->vhost_ops;
+
+    if (vhost_ops && vhost_ops->vhost_set_virtio_status) {
+        return vhost_ops->vhost_set_virtio_status(hdev, status);
+    }
+
+    return 0;
+}
+
 /* Host notifiers must be enabled at this point. */
 int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
 {

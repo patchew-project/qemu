@@ -94,6 +94,8 @@ typedef int (*vhost_set_config_op)(struct vhost_dev *dev, const uint8_t *data,
                                    uint32_t flags);
 typedef int (*vhost_get_config_op)(struct vhost_dev *dev, uint8_t *config,
                                    uint32_t config_len);
+typedef int (*vhost_set_virtio_status_op)(struct vhost_dev *dev,
+                                          uint8_t status);
 
 typedef struct VhostOps {
     VhostBackendType backend_type;
@@ -130,6 +132,7 @@ typedef struct VhostOps {
     vhost_send_device_iotlb_msg_op vhost_send_device_iotlb_msg;
     vhost_get_config_op vhost_get_config;
     vhost_set_config_op vhost_set_config;
+    vhost_set_virtio_status_op vhost_set_virtio_status;
 } VhostOps;
 
 extern const VhostOps user_ops;
