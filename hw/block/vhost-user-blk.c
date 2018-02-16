@@ -189,6 +189,7 @@ static void vhost_user_blk_set_status(VirtIODevice *vdev, uint8_t status)
         vhost_user_blk_stop(vdev);
     }
 
+    vhost_dev_set_virtio_status(&s->dev, status);
 }
 
 static uint64_t vhost_user_blk_get_features(VirtIODevice *vdev,
