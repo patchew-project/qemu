@@ -979,12 +979,15 @@ void tcg_gen_gvec_2s(uint32_t dofs, uint32_t aofs, uint32_t oprsz,
 
     type = 0;
     if (g->fniv) {
-        if (TCG_TARGET_HAS_v256 && check_size_impl(oprsz, 32)) {
+        if (TCG_TARGET_HAS_v256 && check_size_impl(oprsz, 32)
+            && tcg_can_emit_vec_op(g->opc, TCG_TYPE_V256, g->vece)) {
             type = TCG_TYPE_V256;
-        } else if (TCG_TARGET_HAS_v128 && check_size_impl(oprsz, 16)) {
+        } else if (TCG_TARGET_HAS_v128 && check_size_impl(oprsz, 16)
+                   && tcg_can_emit_vec_op(g->opc, TCG_TYPE_V128, g->vece)) {
             type = TCG_TYPE_V128;
         } else if (TCG_TARGET_HAS_v64 && !g->prefer_i64
-               && check_size_impl(oprsz, 8)) {
+                   && check_size_impl(oprsz, 8)
+                   && tcg_can_emit_vec_op(g->opc, TCG_TYPE_V64, g->vece)) {
             type = TCG_TYPE_V64;
         }
     }
