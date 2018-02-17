@@ -290,6 +290,18 @@ typedef struct DisasContext {
     bool psw_n_nonzero;
 } DisasContext;
 
+/* Note that ssm/rsm instructions number PSW_W and PSW_E differently.  */
+static int expand_sm_imm(int val)
+{
+    if (val & PSW_SM_E) {
+        val = (val & ~PSW_SM_E) | PSW_E;
+    }
+    if (val & PSW_SM_W) {
+        val = (val & ~PSW_SM_W) | PSW_W;
+    }
+    return val;
+}
+
 /* Include the auto-generated decoder.  */
 #include "decode.inc.c"
 
@@ -2007,7 +2019,7 @@ static void trans_break(DisasContext *ctx, arg_break *a, uint32_t insn)
     nullify_end(ctx);
 }
 
-static void trans_sync(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
+static void trans_sync(DisasContext *ctx, arg_sync *a, uint32_t insn)
 {
     /* No point in nullifying the memory barrier.  */
     tcg_gen_mb(TCG_BAR_SC | TCG_MO_ALL);
@@ -2187,20 +2199,18 @@ static void trans_mtsarcm(DisasContext *ctx, arg_mtsarcm *a, uint32_t insn)
     cond_free(&ctx->null_cond);
 }
 
-static void trans_ldsid(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
+static void trans_ldsid(DisasContext *ctx, arg_ldsid *a, uint32_t insn)
 {
-    unsigned rt = extract32(insn, 0, 5);
+    unsigned rt = a->t;
     TCGv_reg dest = dest_gpr(ctx, rt);
 
 #ifdef CONFIG_USER_ONLY
     /* We don't implement space registers in user mode. */
     tcg_gen_movi_reg(dest, 0);
 #else
-    unsigned rb = extract32(insn, 21, 5);
-    unsigned sp = extract32(insn, 14, 2);
     TCGv_i64 t0 = tcg_temp_new_i64();
 
-    tcg_gen_mov_i64(t0, space_select(ctx, sp, load_gpr(ctx, rb)));
+    tcg_gen_mov_i64(t0, space_select(ctx, a->sp, load_gpr(ctx, a->b)));
     tcg_gen_shri_i64(t0, t0, 32);
     tcg_gen_trunc_i64_reg(dest, t0);
 
@@ -2211,28 +2221,14 @@ static void trans_ldsid(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
     cond_free(&ctx->null_cond);
 }
 
+static void trans_rsm(DisasContext *ctx, arg_rsm *a, uint32_t insn)
+{
+    CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
 #ifndef CONFIG_USER_ONLY
-/* Note that ssm/rsm instructions number PSW_W and PSW_E differently.  */
-static target_ureg extract_sm_imm(uint32_t insn)
-{
-    target_ureg val = extract32(insn, 16, 10);
-
-    if (val & PSW_SM_E) {
-        val = (val & ~PSW_SM_E) | PSW_E;
-    }
-    if (val & PSW_SM_W) {
-        val = (val & ~PSW_SM_W) | PSW_W;
-    }
-    return val;
-}
-
-static void trans_rsm(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
-{
-    unsigned rt = extract32(insn, 0, 5);
-    target_ureg sm = extract_sm_imm(insn);
+    unsigned rt = a->t;
+    target_ureg sm = a->i;
     TCGv_reg tmp;
 
-    CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
     nullify_over(ctx);
 
     tmp = get_temp(ctx);
@@ -2244,15 +2240,17 @@ static void trans_rsm(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
     /* Exit the TB to recognize new interrupts, e.g. PSW_M.  */
     ctx->base.is_jmp = DISAS_IAQ_N_STALE_EXIT;
     nullify_end(ctx);
+#endif
 }
 
-static void trans_ssm(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
+static void trans_ssm(DisasContext *ctx, arg_ssm *a, uint32_t insn)
 {
-    unsigned rt = extract32(insn, 0, 5);
-    target_ureg sm = extract_sm_imm(insn);
+    CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
+#ifndef CONFIG_USER_ONLY
+    unsigned rt = a->t;
+    target_ureg sm = a->i;
     TCGv_reg tmp;
 
-    CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
     nullify_over(ctx);
 
     tmp = get_temp(ctx);
@@ -2264,8 +2262,8 @@ static void trans_ssm(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
     /* Exit the TB to recognize new interrupts, e.g. PSW_I.  */
     ctx->base.is_jmp = DISAS_IAQ_N_STALE_EXIT;
     nullify_end(ctx);
+#endif
 }
-#endif /* !CONFIG_USER_ONLY */
 
 static void trans_mtsm(DisasContext *ctx, arg_mtsm *a, uint32_t insn)
 {
@@ -2284,15 +2282,13 @@ static void trans_mtsm(DisasContext *ctx, arg_mtsm *a, uint32_t insn)
 #endif
 }
 
-#ifndef CONFIG_USER_ONLY
-static void trans_rfi(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
+static void do_rfi(DisasContext *ctx, bool rfi_r)
 {
-    unsigned comp = extract32(insn, 5, 4);
-
     CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
+#ifndef CONFIG_USER_ONLY
     nullify_over(ctx);
 
-    if (comp == 5) {
+    if (rfi_r) {
         gen_helper_rfi_r(cpu_env);
     } else {
         gen_helper_rfi(cpu_env);
@@ -2306,8 +2302,20 @@ static void trans_rfi(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
     ctx->base.is_jmp = DISAS_NORETURN;
 
     nullify_end(ctx);
+#endif
 }
 
+static void trans_rfi(DisasContext *ctx, arg_rfi *a, uint32_t insn)
+{
+    do_rfi(ctx, false);
+}
+
+static void trans_rfi_r(DisasContext *ctx, arg_rfi_r *a, uint32_t insn)
+{
+    do_rfi(ctx, true);
+}
+
+#ifndef CONFIG_USER_ONLY
 static void gen_hlt(DisasContext *ctx, int reset)
 {
     CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
@@ -2321,17 +2329,6 @@ static void gen_hlt(DisasContext *ctx, int reset)
     nullify_end(ctx);
 }
 #endif /* !CONFIG_USER_ONLY */
-
-static const DisasInsn table_system[] = {
-    { 0x00000400u, 0xffffffffu, trans_sync },  /* sync */
-    { 0x00100400u, 0xffffffffu, trans_sync },  /* syncdma */
-    { 0x000010a0u, 0xfc1f3fe0u, trans_ldsid },
-#ifndef CONFIG_USER_ONLY
-    { 0x00000e60u, 0xfc00ffe0u, trans_rsm },
-    { 0x00000d60u, 0xfc00ffe0u, trans_ssm },
-    { 0x00000c00u, 0xfffffe1fu, trans_rfi },
-#endif
-};
 
 static void trans_base_idx_mod(DisasContext *ctx, uint32_t insn,
                                const DisasInsn *di)
@@ -4512,9 +4509,6 @@ static void translate_one(DisasContext *ctx, uint32_t insn)
 
     opc = extract32(insn, 26, 6);
     switch (opc) {
-    case 0x00: /* system op */
-        translate_table(ctx, insn, table_system);
-        return;
     case 0x01:
         translate_table(ctx, insn, table_mem_mgmt);
         return;
