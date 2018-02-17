@@ -2634,20 +2634,70 @@ static void trans_log(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
     nullify_end(ctx);
 }
 
-/* OR r,0,t -> COPY (according to gas) */
-static void trans_copy(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
+static void trans_or(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
 {
+    unsigned r2 = extract32(insn, 21, 5);
     unsigned r1 = extract32(insn, 16, 5);
+    unsigned cf = extract32(insn, 12, 4);
     unsigned rt = extract32(insn,  0, 5);
+    TCGv_reg tcg_r1, tcg_r2;
 
-    if (r1 == 0) {
-        TCGv_reg dest = dest_gpr(ctx, rt);
-        tcg_gen_movi_reg(dest, 0);
-        save_gpr(ctx, rt, dest);
-    } else {
-        save_gpr(ctx, rt, cpu_gr[r1]);
+    if (cf == 0) {
+        if (rt == 0) { /* NOP */
+            cond_free(&ctx->null_cond);
+            return;
+        }
+        if (r2 == 0) { /* COPY */
+            if (r1 == 0) {
+                TCGv_reg dest = dest_gpr(ctx, rt);
+                tcg_gen_movi_reg(dest, 0);
+                save_gpr(ctx, rt, dest);
+            } else {
+                save_gpr(ctx, rt, cpu_gr[r1]);
+            }
+            cond_free(&ctx->null_cond);
+            return;
+        }
+#ifndef CONFIG_USER_ONLY
+        /* These are QEMU extensions and are nops in the real architecture:
+         *
+         * or %r10,%r10,%r10 -- idle loop; wait for interrupt
+         * or %r31,%r31,%r31 -- death loop; offline cpu
+         *                      currently implemented as idle.
+         */
+        if ((rt == 10 || rt == 31) && r1 == rt && r2 == rt) { /* PAUSE */
+            TCGv_i32 tmp;
+
+            /* No need to check for supervisor, as userland can only pause
+               until the next timer interrupt.  */
+            nullify_over(ctx);
+
+            /* Advance the instruction queue.  */
+            copy_iaoq_entry(cpu_iaoq_f, ctx->iaoq_b, cpu_iaoq_b);
+            copy_iaoq_entry(cpu_iaoq_b, ctx->iaoq_n, ctx->iaoq_n_var);
+            nullify_set(ctx, 0);
+
+            /* Tell the qemu main loop to halt until this cpu has work.  */
+            tmp = tcg_const_i32(1);
+            tcg_gen_st_i32(tmp, cpu_env, -offsetof(HPPACPU, env) +
+                                         offsetof(CPUState, halted));
+            tcg_temp_free_i32(tmp);
+            gen_excp_1(EXCP_HALTED);
+            ctx->base.is_jmp = DISAS_NORETURN;
+
+            nullify_end(ctx);
+            return;
+        }
+#endif
     }
-    cond_free(&ctx->null_cond);
+
+    if (cf) {
+        nullify_over(ctx);
+    }
+    tcg_r1 = load_gpr(ctx, r1);
+    tcg_r2 = load_gpr(ctx, r2);
+    do_log(ctx, rt, tcg_r1, tcg_r2, cf, tcg_gen_or_reg);
+    nullify_end(ctx);
 }
 
 static void trans_cmpclr(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
@@ -2792,48 +2842,10 @@ static void trans_ds(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
     nullify_end(ctx);
 }
 
-#ifndef CONFIG_USER_ONLY
-/* These are QEMU extensions and are nops in the real architecture:
- *
- * or %r10,%r10,%r10 -- idle loop; wait for interrupt
- * or %r31,%r31,%r31 -- death loop; offline cpu
- *                      currently implemented as idle.
- */
-static void trans_pause(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
-{
-    TCGv_i32 tmp;
-
-    /* No need to check for supervisor, as userland can only pause
-       until the next timer interrupt.  */
-    nullify_over(ctx);
-
-    /* Advance the instruction queue.  */
-    copy_iaoq_entry(cpu_iaoq_f, ctx->iaoq_b, cpu_iaoq_b);
-    copy_iaoq_entry(cpu_iaoq_b, ctx->iaoq_n, ctx->iaoq_n_var);
-    nullify_set(ctx, 0);
-
-    /* Tell the qemu main loop to halt until this cpu has work.  */
-    tmp = tcg_const_i32(1);
-    tcg_gen_st_i32(tmp, cpu_env, -offsetof(HPPACPU, env) +
-                                 offsetof(CPUState, halted));
-    tcg_temp_free_i32(tmp);
-    gen_excp_1(EXCP_HALTED);
-    ctx->base.is_jmp = DISAS_NORETURN;
-
-    nullify_end(ctx);
-}
-#endif
-
 static const DisasInsn table_arith_log[] = {
-    { 0x08000240u, 0xfc00ffffu, trans_nop },  /* or x,y,0 */
-    { 0x08000240u, 0xffe0ffe0u, trans_copy }, /* or x,0,t */
-#ifndef CONFIG_USER_ONLY
-    { 0x094a024au, 0xffffffffu, trans_pause }, /* or r10,r10,r10 */
-    { 0x0bff025fu, 0xffffffffu, trans_pause }, /* or r31,r31,r31 */
-#endif
+    { 0x08000240u, 0xfc000fe0u, trans_or },
     { 0x08000000u, 0xfc000fe0u, trans_log, .f.ttt = tcg_gen_andc_reg },
     { 0x08000200u, 0xfc000fe0u, trans_log, .f.ttt = tcg_gen_and_reg },
-    { 0x08000240u, 0xfc000fe0u, trans_log, .f.ttt = tcg_gen_or_reg },
     { 0x08000280u, 0xfc000fe0u, trans_log, .f.ttt = tcg_gen_xor_reg },
     { 0x08000880u, 0xfc000fe0u, trans_cmpclr },
     { 0x08000380u, 0xfc000fe0u, trans_uxor },
