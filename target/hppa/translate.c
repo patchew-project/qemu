@@ -4234,35 +4234,52 @@ static inline int fmpyadd_s_reg(unsigned r)
     return (r & 16) * 2 + 16 + (r & 15);
 }
 
-static void trans_fmpyadd(DisasContext *ctx, uint32_t insn, bool is_sub)
+static void do_fmpyadd_s(DisasContext *ctx, arg_mpyadd *a, bool is_sub)
 {
-    unsigned tm = extract32(insn, 0, 5);
-    unsigned f = extract32(insn, 5, 1);
-    unsigned ra = extract32(insn, 6, 5);
-    unsigned ta = extract32(insn, 11, 5);
-    unsigned rm2 = extract32(insn, 16, 5);
-    unsigned rm1 = extract32(insn, 21, 5);
+    int tm = fmpyadd_s_reg(a->tm);
+    int ra = fmpyadd_s_reg(a->ra);
+    int ta = fmpyadd_s_reg(a->ta);
+    int rm2 = fmpyadd_s_reg(a->rm2);
+    int rm1 = fmpyadd_s_reg(a->rm1);
 
     nullify_over(ctx);
 
-    /* Independent multiply & add/sub, with undefined behaviour
-       if outputs overlap inputs.  */
-    if (f == 0) {
-        tm = fmpyadd_s_reg(tm);
-        ra = fmpyadd_s_reg(ra);
-        ta = fmpyadd_s_reg(ta);
-        rm2 = fmpyadd_s_reg(rm2);
-        rm1 = fmpyadd_s_reg(rm1);
-        do_fop_weww(ctx, tm, rm1, rm2, gen_helper_fmpy_s);
-        do_fop_weww(ctx, ta, ta, ra,
-                    is_sub ? gen_helper_fsub_s : gen_helper_fadd_s);
-    } else {
-        do_fop_dedd(ctx, tm, rm1, rm2, gen_helper_fmpy_d);
-        do_fop_dedd(ctx, ta, ta, ra,
-                    is_sub ? gen_helper_fsub_d : gen_helper_fadd_d);
-    }
+    do_fop_weww(ctx, tm, rm1, rm2, gen_helper_fmpy_s);
+    do_fop_weww(ctx, ta, ta, ra,
+                is_sub ? gen_helper_fsub_s : gen_helper_fadd_s);
 
     nullify_end(ctx);
+}
+
+static void trans_fmpyadd_f(DisasContext *ctx, arg_mpyadd *a, uint32_t insn)
+{
+    do_fmpyadd_s(ctx, a, false);
+}
+
+static void trans_fmpysub_f(DisasContext *ctx, arg_mpyadd *a, uint32_t insn)
+{
+    do_fmpyadd_s(ctx, a, true);
+}
+
+static void do_fmpyadd_d(DisasContext *ctx, arg_mpyadd *a, bool is_sub)
+{
+    nullify_over(ctx);
+
+    do_fop_dedd(ctx, a->tm, a->rm1, a->rm2, gen_helper_fmpy_d);
+    do_fop_dedd(ctx, a->ta, a->ta, a->ra,
+                is_sub ? gen_helper_fsub_d : gen_helper_fadd_d);
+
+    nullify_end(ctx);
+}
+
+static void trans_fmpyadd_d(DisasContext *ctx, arg_mpyadd *a, uint32_t insn)
+{
+    do_fmpyadd_d(ctx, a, false);
+}
+
+static void trans_fmpysub_d(DisasContext *ctx, arg_mpyadd *a, uint32_t insn)
+{
+    do_fmpyadd_d(ctx, a, true);
 }
 
 static void trans_fmpyfadd_s(DisasContext *ctx, uint32_t insn,
@@ -4355,9 +4372,6 @@ static void translate_one(DisasContext *ctx, uint32_t insn)
 
     opc = extract32(insn, 26, 6);
     switch (opc) {
-    case 0x06:
-        trans_fmpyadd(ctx, insn, false);
-        return;
     case 0x08:
         trans_ldil(ctx, insn);
         return;
@@ -4434,9 +4448,6 @@ static void translate_one(DisasContext *ctx, uint32_t insn)
         return;
     case 0x25:
         trans_subi(ctx, insn);
-        return;
-    case 0x26:
-        trans_fmpyadd(ctx, insn, true);
         return;
     case 0x27:
         trans_cmpb(ctx, insn, true, false, true);
