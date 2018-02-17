@@ -2129,7 +2129,12 @@ static void vtd_mem_write(void *opaque, hwaddr addr,
 
     /* Fault Event Address Register, 32-bit */
     case DMAR_FEADDR_REG:
-        assert(size == 4);
+        /*
+         * While the register is 32-bit only, some guests (Xen...) write to it
+         * with 64-bit. Ignore the upper part, that's likely what the hardware
+         * does as well (plus the upper part is not used by our model anyway).
+         */
+        assert(size >= 4);
         vtd_set_long(s, addr, val);
         break;
 
