@@ -31,6 +31,7 @@
 #include "hw/mips/cps.h"
 #include "hw/mips/cpudevs.h"
 #include "hw/pci-host/xilinx-pcie.h"
+#include "net/net.h"
 #include "qapi/error.h"
 #include "qemu/cutils.h"
 #include "qemu/error-report.h"
@@ -430,7 +431,7 @@ static void boston_mach_init(MachineState *machine)
     MemoryRegion *flash, *ddr, *ddr_low_alias, *lcd, *platreg;
     MemoryRegion *sys_mem = get_system_memory();
     XilinxPCIEHost *pcie2;
-    PCIDevice *ahci;
+    PCIDevice *ahci, *eth;
     DriveInfo *hd[6];
     Chardev *chr;
     int fw_size, fit_err;
@@ -528,6 +529,11 @@ static void boston_mach_init(MachineState *machine)
     g_assert(ARRAY_SIZE(hd) == ahci_get_num_ports(ahci));
     ide_drive_get(hd, ahci_get_num_ports(ahci));
     ahci_ide_create_devs(ahci, hd);
+
+    eth = pci_create(&PCI_BRIDGE(&pcie2->root)->sec_bus,
+                     PCI_DEVFN(0, 1), "pch_gbe");
+    qdev_set_nic_properties(&eth->qdev, &nd_table[0]);
+    qdev_init_nofail(&eth->qdev);
 
     if (machine->firmware) {
         fw_size = load_image_targphys(machine->firmware,
