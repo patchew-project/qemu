@@ -1223,6 +1223,20 @@ static void do_add(DisasContext *ctx, unsigned rt, TCGv_reg in1,
     ctx->null_cond = cond;
 }
 
+static void do_add_reg(DisasContext *ctx, arg_rrr_cf_sh *a,
+                       bool is_l, bool is_tsv, bool is_tc, bool is_c)
+{
+    TCGv_reg tcg_r1, tcg_r2;
+
+    if (a->cf) {
+        nullify_over(ctx);
+    }
+    tcg_r1 = load_gpr(ctx, a->r1);
+    tcg_r2 = load_gpr(ctx, a->r2);
+    do_add(ctx, a->t, tcg_r1, tcg_r2, a->sh, is_l, is_tsv, is_tc, is_c, a->cf);
+    nullify_end(ctx);
+}
+
 static void do_sub(DisasContext *ctx, unsigned rt, TCGv_reg in1,
                    TCGv_reg in2, bool is_tsv, bool is_b,
                    bool is_tc, unsigned cf)
@@ -1289,6 +1303,20 @@ static void do_sub(DisasContext *ctx, unsigned rt, TCGv_reg in1,
     ctx->null_cond = cond;
 }
 
+static void do_sub_reg(DisasContext *ctx, arg_rrr_cf *a,
+                       bool is_tsv, bool is_b, bool is_tc)
+{
+    TCGv_reg tcg_r1, tcg_r2;
+
+    if (a->cf) {
+        nullify_over(ctx);
+    }
+    tcg_r1 = load_gpr(ctx, a->r1);
+    tcg_r2 = load_gpr(ctx, a->r2);
+    do_sub(ctx, a->t, tcg_r1, tcg_r2, is_tsv, is_b, is_tc, a->cf);
+    nullify_end(ctx);
+}
+
 static void do_cmpclr(DisasContext *ctx, unsigned rt, TCGv_reg in1,
                       TCGv_reg in2, unsigned cf)
 {
@@ -1332,6 +1360,20 @@ static void do_log(DisasContext *ctx, unsigned rt, TCGv_reg in1,
     if (cf) {
         ctx->null_cond = do_log_cond(cf, dest);
     }
+}
+
+static void do_log_reg(DisasContext *ctx, arg_rrr_cf *a,
+                       void (*fn)(TCGv_reg, TCGv_reg, TCGv_reg))
+{
+    TCGv_reg tcg_r1, tcg_r2;
+
+    if (a->cf) {
+        nullify_over(ctx);
+    }
+    tcg_r1 = load_gpr(ctx, a->r1);
+    tcg_r2 = load_gpr(ctx, a->r2);
+    do_log(ctx, a->t, tcg_r1, tcg_r2, a->cf, fn);
+    nullify_end(ctx);
 }
 
 static void do_unit(DisasContext *ctx, unsigned rt, TCGv_reg in1,
@@ -2475,129 +2517,85 @@ static void trans_lci(DisasContext *ctx, arg_lci *a, uint32_t insn)
     cond_free(&ctx->null_cond);
 }
 
-static void trans_add(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
+static void trans_add(DisasContext *ctx, arg_rrr_cf_sh *a, uint32_t insn)
 {
-    unsigned r2 = extract32(insn, 21, 5);
-    unsigned r1 = extract32(insn, 16, 5);
-    unsigned cf = extract32(insn, 12, 4);
-    unsigned ext = extract32(insn, 8, 4);
-    unsigned shift = extract32(insn, 6, 2);
-    unsigned rt = extract32(insn,  0, 5);
-    TCGv_reg tcg_r1, tcg_r2;
-    bool is_c = false;
-    bool is_l = false;
-    bool is_tc = false;
-    bool is_tsv = false;
-
-    switch (ext) {
-    case 0x6: /* ADD, SHLADD */
-        break;
-    case 0xa: /* ADD,L, SHLADD,L */
-        is_l = true;
-        break;
-    case 0xe: /* ADD,TSV, SHLADD,TSV (1) */
-        is_tsv = true;
-        break;
-    case 0x7: /* ADD,C */
-        is_c = true;
-        break;
-    case 0xf: /* ADD,C,TSV */
-        is_c = is_tsv = true;
-        break;
-    default:
-        gen_illegal(ctx);
-        return;
-    }
-
-    if (cf) {
-        nullify_over(ctx);
-    }
-    tcg_r1 = load_gpr(ctx, r1);
-    tcg_r2 = load_gpr(ctx, r2);
-    do_add(ctx, rt, tcg_r1, tcg_r2, shift, is_l, is_tsv, is_tc, is_c, cf);
-    nullify_end(ctx);
+    do_add_reg(ctx, a, false, false, false, false);
 }
 
-static void trans_sub(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
+static void trans_add_l(DisasContext *ctx, arg_rrr_cf_sh *a, uint32_t insn)
 {
-    unsigned r2 = extract32(insn, 21, 5);
-    unsigned r1 = extract32(insn, 16, 5);
-    unsigned cf = extract32(insn, 12, 4);
-    unsigned ext = extract32(insn, 6, 6);
-    unsigned rt = extract32(insn,  0, 5);
-    TCGv_reg tcg_r1, tcg_r2;
-    bool is_b = false;
-    bool is_tc = false;
-    bool is_tsv = false;
-
-    switch (ext) {
-    case 0x10: /* SUB */
-        break;
-    case 0x30: /* SUB,TSV */
-        is_tsv = true;
-        break;
-    case 0x14: /* SUB,B */
-        is_b = true;
-        break;
-    case 0x34: /* SUB,B,TSV */
-        is_b = is_tsv = true;
-        break;
-    case 0x13: /* SUB,TC */
-        is_tc = true;
-        break;
-    case 0x33: /* SUB,TSV,TC */
-        is_tc = is_tsv = true;
-        break;
-    default:
-        return gen_illegal(ctx);
-    }
-
-    if (cf) {
-        nullify_over(ctx);
-    }
-    tcg_r1 = load_gpr(ctx, r1);
-    tcg_r2 = load_gpr(ctx, r2);
-    do_sub(ctx, rt, tcg_r1, tcg_r2, is_tsv, is_b, is_tc, cf);
-    nullify_end(ctx);
+    do_add_reg(ctx, a, true, false, false, false);
 }
 
-static void trans_log(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
+static void trans_add_tsv(DisasContext *ctx, arg_rrr_cf_sh *a, uint32_t insn)
 {
-    unsigned r2 = extract32(insn, 21, 5);
-    unsigned r1 = extract32(insn, 16, 5);
-    unsigned cf = extract32(insn, 12, 4);
-    unsigned rt = extract32(insn,  0, 5);
-    TCGv_reg tcg_r1, tcg_r2;
-
-    if (cf) {
-        nullify_over(ctx);
-    }
-    tcg_r1 = load_gpr(ctx, r1);
-    tcg_r2 = load_gpr(ctx, r2);
-    do_log(ctx, rt, tcg_r1, tcg_r2, cf, di->f.ttt);
-    nullify_end(ctx);
+    do_add_reg(ctx, a, false, true, false, false);
 }
 
-static void trans_or(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
+static void trans_add_c(DisasContext *ctx, arg_rrr_cf_sh *a, uint32_t insn)
 {
-    unsigned r2 = extract32(insn, 21, 5);
-    unsigned r1 = extract32(insn, 16, 5);
-    unsigned cf = extract32(insn, 12, 4);
-    unsigned rt = extract32(insn,  0, 5);
-    TCGv_reg tcg_r1, tcg_r2;
+    do_add_reg(ctx, a, false, false, false, true);
+}
 
-    if (cf == 0) {
-        if (rt == 0) { /* NOP */
+static void trans_add_c_tsv(DisasContext *ctx, arg_rrr_cf_sh *a, uint32_t insn)
+{
+    do_add_reg(ctx, a, false, true, false, true);
+}
+
+static void trans_sub(DisasContext *ctx, arg_rrr_cf *a, uint32_t insn)
+{
+    do_sub_reg(ctx, a, false, false, false);
+}
+
+static void trans_sub_tsv(DisasContext *ctx, arg_rrr_cf *a, uint32_t insn)
+{
+    do_sub_reg(ctx, a, true, false, false);
+}
+
+static void trans_sub_tc(DisasContext *ctx, arg_rrr_cf *a, uint32_t insn)
+{
+    do_sub_reg(ctx, a, false, false, true);
+}
+
+static void trans_sub_tsv_tc(DisasContext *ctx, arg_rrr_cf *a, uint32_t insn)
+{
+    do_sub_reg(ctx, a, true, false, true);
+}
+
+static void trans_sub_b(DisasContext *ctx, arg_rrr_cf *a, uint32_t insn)
+{
+    do_sub_reg(ctx, a, false, true, false);
+}
+
+static void trans_sub_b_tsv(DisasContext *ctx, arg_rrr_cf *a, uint32_t insn)
+{
+    do_sub_reg(ctx, a, true, true, false);
+}
+
+static void trans_andcm(DisasContext *ctx, arg_rrr_cf *a, uint32_t insn)
+{
+    do_log_reg(ctx, a, tcg_gen_andc_reg);
+}
+
+static void trans_and(DisasContext *ctx, arg_rrr_cf *a, uint32_t insn)
+{
+    do_log_reg(ctx, a, tcg_gen_and_reg);
+}
+
+static void trans_or(DisasContext *ctx, arg_rrr_cf *a, uint32_t insn)
+{
+    if (a->cf == 0) {
+        if (a->t == 0) { /* NOP */
             cond_free(&ctx->null_cond);
             return;
         }
-        if (r2 == 0) { /* COPY */
-            if (r1 == 0) {
-                TCGv_reg dest = dest_gpr(ctx, rt);
+        if (a->r2 == 0) { /* COPY */
+            if (a->r1 == 0) {
+                TCGv_reg dest = dest_gpr(ctx, a->t);
                 tcg_gen_movi_reg(dest, 0);
-                save_gpr(ctx, rt, dest);
+                save_gpr(ctx, a->t, dest);
             } else {
-                save_gpr(ctx, rt, cpu_gr[r1]);
+                save_gpr(ctx, a->t, cpu_gr[a->r1]);
             }
             cond_free(&ctx->null_cond);
             return;
@@ -2609,7 +2607,8 @@ static void trans_or(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
          * or %r31,%r31,%r31 -- death loop; offline cpu
          *                      currently implemented as idle.
          */
-        if ((rt == 10 || rt == 31) && r1 == rt && r2 == rt) { /* PAUSE */
+        if ((a->t == 10 || a->t == 31)
+            && a->r1 == a->t && a->r2 == a->t) { /* PAUSE */
             TCGv_i32 tmp;
 
             /* No need to check for supervisor, as userland can only pause
@@ -2634,76 +2633,67 @@ static void trans_or(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
         }
 #endif
     }
-
-    if (cf) {
-        nullify_over(ctx);
-    }
-    tcg_r1 = load_gpr(ctx, r1);
-    tcg_r2 = load_gpr(ctx, r2);
-    do_log(ctx, rt, tcg_r1, tcg_r2, cf, tcg_gen_or_reg);
-    nullify_end(ctx);
+    do_log_reg(ctx, a, tcg_gen_or_reg);
 }
 
-static void trans_cmpclr(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
+static void trans_xor(DisasContext *ctx, arg_rrr_cf *a, uint32_t insn)
 {
-    unsigned r2 = extract32(insn, 21, 5);
-    unsigned r1 = extract32(insn, 16, 5);
-    unsigned cf = extract32(insn, 12, 4);
-    unsigned rt = extract32(insn,  0, 5);
+    do_log_reg(ctx, a, tcg_gen_xor_reg);
+}
+
+static void trans_cmpclr(DisasContext *ctx, arg_rrr_cf *a, uint32_t insn)
+{
     TCGv_reg tcg_r1, tcg_r2;
 
-    if (cf) {
+    if (a->cf) {
         nullify_over(ctx);
     }
-    tcg_r1 = load_gpr(ctx, r1);
-    tcg_r2 = load_gpr(ctx, r2);
-    do_cmpclr(ctx, rt, tcg_r1, tcg_r2, cf);
+    tcg_r1 = load_gpr(ctx, a->r1);
+    tcg_r2 = load_gpr(ctx, a->r2);
+    do_cmpclr(ctx, a->t, tcg_r1, tcg_r2, a->cf);
     nullify_end(ctx);
 }
 
-static void trans_uxor(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
+static void trans_uxor(DisasContext *ctx, arg_rrr_cf *a, uint32_t insn)
 {
-    unsigned r2 = extract32(insn, 21, 5);
-    unsigned r1 = extract32(insn, 16, 5);
-    unsigned cf = extract32(insn, 12, 4);
-    unsigned rt = extract32(insn,  0, 5);
     TCGv_reg tcg_r1, tcg_r2;
 
-    if (cf) {
+    if (a->cf) {
         nullify_over(ctx);
     }
-    tcg_r1 = load_gpr(ctx, r1);
-    tcg_r2 = load_gpr(ctx, r2);
-    do_unit(ctx, rt, tcg_r1, tcg_r2, cf, false, tcg_gen_xor_reg);
+    tcg_r1 = load_gpr(ctx, a->r1);
+    tcg_r2 = load_gpr(ctx, a->r2);
+    do_unit(ctx, a->t, tcg_r1, tcg_r2, a->cf, false, tcg_gen_xor_reg);
     nullify_end(ctx);
 }
 
-static void trans_uaddcm(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
+static void do_uaddcm(DisasContext *ctx, arg_rrr_cf *a, bool is_tc)
 {
-    unsigned r2 = extract32(insn, 21, 5);
-    unsigned r1 = extract32(insn, 16, 5);
-    unsigned cf = extract32(insn, 12, 4);
-    unsigned is_tc = extract32(insn, 6, 1);
-    unsigned rt = extract32(insn,  0, 5);
     TCGv_reg tcg_r1, tcg_r2, tmp;
 
-    if (cf) {
+    if (a->cf) {
         nullify_over(ctx);
     }
-    tcg_r1 = load_gpr(ctx, r1);
-    tcg_r2 = load_gpr(ctx, r2);
+    tcg_r1 = load_gpr(ctx, a->r1);
+    tcg_r2 = load_gpr(ctx, a->r2);
     tmp = get_temp(ctx);
     tcg_gen_not_reg(tmp, tcg_r2);
-    do_unit(ctx, rt, tcg_r1, tmp, cf, is_tc, tcg_gen_add_reg);
+    do_unit(ctx, a->t, tcg_r1, tmp, a->cf, is_tc, tcg_gen_add_reg);
     nullify_end(ctx);
 }
 
-static void trans_dcor(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
+static void trans_uaddcm(DisasContext *ctx, arg_rrr_cf *a, uint32_t insn)
 {
-    unsigned r2 = extract32(insn, 21, 5);
-    unsigned cf = extract32(insn, 12, 4);
-    unsigned is_i = extract32(insn, 6, 1);
-    unsigned rt = extract32(insn,  0, 5);
+    do_uaddcm(ctx, a, false);
+}
+
+static void trans_uaddcm_tc(DisasContext *ctx, arg_rrr_cf *a, uint32_t insn)
+{
+    do_uaddcm(ctx, a, true);
+}
+
+static void do_dcor(DisasContext *ctx, arg_rrr_cf *a, bool is_i)
+{
     TCGv_reg tmp;
 
     nullify_over(ctx);
@@ -2715,24 +2705,30 @@ static void trans_dcor(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
     }
     tcg_gen_andi_reg(tmp, tmp, 0x11111111);
     tcg_gen_muli_reg(tmp, tmp, 6);
-    do_unit(ctx, rt, tmp, load_gpr(ctx, r2), cf, false,
+    do_unit(ctx, a->t, tmp, load_gpr(ctx, a->r2), a->cf, false,
             is_i ? tcg_gen_add_reg : tcg_gen_sub_reg);
 
     nullify_end(ctx);
 }
 
-static void trans_ds(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
+static void trans_dcor(DisasContext *ctx, arg_rrr_cf *a, uint32_t insn)
 {
-    unsigned r2 = extract32(insn, 21, 5);
-    unsigned r1 = extract32(insn, 16, 5);
-    unsigned cf = extract32(insn, 12, 4);
-    unsigned rt = extract32(insn,  0, 5);
+    do_dcor(ctx, a, false);
+}
+
+static void trans_dcor_i(DisasContext *ctx, arg_rrr_cf *a, uint32_t insn)
+{
+    do_dcor(ctx, a, true);
+}
+
+static void trans_ds(DisasContext *ctx, arg_rrr_cf *a, uint32_t insn)
+{
     TCGv_reg dest, add1, add2, addc, zero, in1, in2;
 
     nullify_over(ctx);
 
-    in1 = load_gpr(ctx, r1);
-    in2 = load_gpr(ctx, r2);
+    in1 = load_gpr(ctx, a->r1);
+    in2 = load_gpr(ctx, a->r2);
 
     add1 = tcg_temp_new();
     add2 = tcg_temp_new();
@@ -2759,7 +2755,7 @@ static void trans_ds(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
     tcg_temp_free(zero);
 
     /* Write back the result register.  */
-    save_gpr(ctx, rt, dest);
+    save_gpr(ctx, a->t, dest);
 
     /* Write back PSW[CB].  */
     tcg_gen_xor_reg(cpu_psw_cb, add1, add2);
@@ -2770,13 +2766,13 @@ static void trans_ds(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
     tcg_gen_xor_reg(cpu_psw_v, cpu_psw_v, in2);
 
     /* Install the new nullification.  */
-    if (cf) {
+    if (a->cf) {
         TCGv_reg sv = NULL;
-        if (cf >> 1 == 6) {
+        if (a->cf >> 1 == 6) {
             /* ??? The lshift is supposed to contribute to overflow.  */
             sv = do_add_sv(ctx, dest, add1, add2);
         }
-        ctx->null_cond = do_cond(cf, dest, cpu_psw_cb_msb, sv);
+        ctx->null_cond = do_cond(a->cf, dest, cpu_psw_cb_msb, sv);
     }
 
     tcg_temp_free(add1);
@@ -2785,22 +2781,6 @@ static void trans_ds(DisasContext *ctx, uint32_t insn, const DisasInsn *di)
 
     nullify_end(ctx);
 }
-
-static const DisasInsn table_arith_log[] = {
-    { 0x08000240u, 0xfc000fe0u, trans_or },
-    { 0x08000000u, 0xfc000fe0u, trans_log, .f.ttt = tcg_gen_andc_reg },
-    { 0x08000200u, 0xfc000fe0u, trans_log, .f.ttt = tcg_gen_and_reg },
-    { 0x08000280u, 0xfc000fe0u, trans_log, .f.ttt = tcg_gen_xor_reg },
-    { 0x08000880u, 0xfc000fe0u, trans_cmpclr },
-    { 0x08000380u, 0xfc000fe0u, trans_uxor },
-    { 0x08000980u, 0xfc000fa0u, trans_uaddcm },
-    { 0x08000b80u, 0xfc1f0fa0u, trans_dcor },
-    { 0x08000440u, 0xfc000fe0u, trans_ds },
-    { 0x08000700u, 0xfc0007e0u, trans_add }, /* add */
-    { 0x08000400u, 0xfc0006e0u, trans_sub }, /* sub; sub,b; sub,tsv */
-    { 0x080004c0u, 0xfc0007e0u, trans_sub }, /* sub,tc; sub,tsv,tc */
-    { 0x08000200u, 0xfc000320u, trans_add }, /* shladd */
-};
 
 static void trans_addi(DisasContext *ctx, uint32_t insn)
 {
@@ -4465,9 +4445,6 @@ static void translate_one(DisasContext *ctx, uint32_t insn)
 
     opc = extract32(insn, 26, 6);
     switch (opc) {
-    case 0x02:
-        translate_table(ctx, insn, table_arith_log);
-        return;
     case 0x03:
         translate_table(ctx, insn, table_index_mem);
         return;
