@@ -878,7 +878,7 @@ void tcg_gen_gvec_2(uint32_t dofs, uint32_t aofs,
        store operation.  This is true for aarch64 and x86_64 hosts.  */
 
     if (TCG_TARGET_HAS_v256 && g->fniv && check_size_impl(oprsz, 32)
-        && (!g->opc || tcg_can_emit_vec_op(g->opc, TCG_TYPE_V256, g->vece))) {
+        && tcg_can_emit_vec_op(g->opc, TCG_TYPE_V256, g->vece)) {
         uint32_t some = QEMU_ALIGN_DOWN(oprsz, 32);
         expand_2_vec(g->vece, dofs, aofs, some, 32, TCG_TYPE_V256, g->fniv);
         if (some == oprsz) {
@@ -891,12 +891,11 @@ void tcg_gen_gvec_2(uint32_t dofs, uint32_t aofs,
     }
 
     if (TCG_TARGET_HAS_v128 && g->fniv && check_size_impl(oprsz, 16)
-        && (!g->opc || tcg_can_emit_vec_op(g->opc, TCG_TYPE_V128, g->vece))) {
+        && tcg_can_emit_vec_op(g->opc, TCG_TYPE_V128, g->vece)) {
         expand_2_vec(g->vece, dofs, aofs, oprsz, 16, TCG_TYPE_V128, g->fniv);
     } else if (TCG_TARGET_HAS_v64 && !g->prefer_i64
                && g->fniv && check_size_impl(oprsz, 8)
-               && (!g->opc
-                   || tcg_can_emit_vec_op(g->opc, TCG_TYPE_V64, g->vece))) {
+               && tcg_can_emit_vec_op(g->opc, TCG_TYPE_V64, g->vece)) {
         expand_2_vec(g->vece, dofs, aofs, oprsz, 8, TCG_TYPE_V64, g->fniv);
     } else if (g->fni8 && check_size_impl(oprsz, 8)) {
         expand_2_i64(dofs, aofs, oprsz, g->fni8);
@@ -926,7 +925,7 @@ void tcg_gen_gvec_2i(uint32_t dofs, uint32_t aofs, uint32_t oprsz,
        that e.g. oprsz == 80 would be expanded with 2x32 + 1x16.  */
 
     if (TCG_TARGET_HAS_v256 && g->fniv && check_size_impl(oprsz, 32)
-        && (!g->opc || tcg_can_emit_vec_op(g->opc, TCG_TYPE_V256, g->vece))) {
+        && tcg_can_emit_vec_op(g->opc, TCG_TYPE_V256, g->vece)) {
         uint32_t some = QEMU_ALIGN_DOWN(oprsz, 32);
         expand_2i_vec(g->vece, dofs, aofs, some, 32, TCG_TYPE_V256,
                       c, g->load_dest, g->fniv);
@@ -940,13 +939,12 @@ void tcg_gen_gvec_2i(uint32_t dofs, uint32_t aofs, uint32_t oprsz,
     }
 
     if (TCG_TARGET_HAS_v128 && g->fniv && check_size_impl(oprsz, 16)
-        && (!g->opc || tcg_can_emit_vec_op(g->opc, TCG_TYPE_V128, g->vece))) {
+        && tcg_can_emit_vec_op(g->opc, TCG_TYPE_V128, g->vece)) {
         expand_2i_vec(g->vece, dofs, aofs, oprsz, 16, TCG_TYPE_V128,
                       c, g->load_dest, g->fniv);
     } else if (TCG_TARGET_HAS_v64 && !g->prefer_i64
                && g->fniv && check_size_impl(oprsz, 8)
-               && (!g->opc
-                   || tcg_can_emit_vec_op(g->opc, TCG_TYPE_V64, g->vece))) {
+               && tcg_can_emit_vec_op(g->opc, TCG_TYPE_V64, g->vece)) {
         expand_2i_vec(g->vece, dofs, aofs, oprsz, 8, TCG_TYPE_V64,
                       c, g->load_dest, g->fniv);
     } else if (g->fni8 && check_size_impl(oprsz, 8)) {
@@ -1063,7 +1061,7 @@ void tcg_gen_gvec_3(uint32_t dofs, uint32_t aofs, uint32_t bofs,
        that e.g. oprsz == 80 would be expanded with 2x32 + 1x16.  */
 
     if (TCG_TARGET_HAS_v256 && g->fniv && check_size_impl(oprsz, 32)
-        && (!g->opc || tcg_can_emit_vec_op(g->opc, TCG_TYPE_V256, g->vece))) {
+        && tcg_can_emit_vec_op(g->opc, TCG_TYPE_V256, g->vece)) {
         uint32_t some = QEMU_ALIGN_DOWN(oprsz, 32);
         expand_3_vec(g->vece, dofs, aofs, bofs, some, 32, TCG_TYPE_V256,
                      g->load_dest, g->fniv);
@@ -1078,13 +1076,12 @@ void tcg_gen_gvec_3(uint32_t dofs, uint32_t aofs, uint32_t bofs,
     }
 
     if (TCG_TARGET_HAS_v128 && g->fniv && check_size_impl(oprsz, 16)
-        && (!g->opc || tcg_can_emit_vec_op(g->opc, TCG_TYPE_V128, g->vece))) {
+        && tcg_can_emit_vec_op(g->opc, TCG_TYPE_V128, g->vece)) {
         expand_3_vec(g->vece, dofs, aofs, bofs, oprsz, 16, TCG_TYPE_V128,
                      g->load_dest, g->fniv);
     } else if (TCG_TARGET_HAS_v64 && !g->prefer_i64
                && g->fniv && check_size_impl(oprsz, 8)
-               && (!g->opc
-                   || tcg_can_emit_vec_op(g->opc, TCG_TYPE_V64, g->vece))) {
+               && tcg_can_emit_vec_op(g->opc, TCG_TYPE_V64, g->vece)) {
         expand_3_vec(g->vece, dofs, aofs, bofs, oprsz, 8, TCG_TYPE_V64,
                      g->load_dest, g->fniv);
     } else if (g->fni8 && check_size_impl(oprsz, 8)) {
@@ -1114,7 +1111,7 @@ void tcg_gen_gvec_4(uint32_t dofs, uint32_t aofs, uint32_t bofs, uint32_t cofs,
        that e.g. oprsz == 80 would be expanded with 2x32 + 1x16.  */
 
     if (TCG_TARGET_HAS_v256 && g->fniv && check_size_impl(oprsz, 32)
-        && (!g->opc || tcg_can_emit_vec_op(g->opc, TCG_TYPE_V256, g->vece))) {
+        && tcg_can_emit_vec_op(g->opc, TCG_TYPE_V256, g->vece)) {
         uint32_t some = QEMU_ALIGN_DOWN(oprsz, 32);
         expand_4_vec(g->vece, dofs, aofs, bofs, cofs, some,
                      32, TCG_TYPE_V256, g->fniv);
@@ -1130,13 +1127,12 @@ void tcg_gen_gvec_4(uint32_t dofs, uint32_t aofs, uint32_t bofs, uint32_t cofs,
     }
 
     if (TCG_TARGET_HAS_v128 && g->fniv && check_size_impl(oprsz, 16)
-        && (!g->opc || tcg_can_emit_vec_op(g->opc, TCG_TYPE_V128, g->vece))) {
+        && tcg_can_emit_vec_op(g->opc, TCG_TYPE_V128, g->vece)) {
         expand_4_vec(g->vece, dofs, aofs, bofs, cofs, oprsz,
                      16, TCG_TYPE_V128, g->fniv);
     } else if (TCG_TARGET_HAS_v64 && !g->prefer_i64
                && g->fniv && check_size_impl(oprsz, 8)
-                && (!g->opc
-                    || tcg_can_emit_vec_op(g->opc, TCG_TYPE_V64, g->vece))) {
+               && tcg_can_emit_vec_op(g->opc, TCG_TYPE_V64, g->vece)) {
         expand_4_vec(g->vece, dofs, aofs, bofs, cofs, oprsz,
                      8, TCG_TYPE_V64, g->fniv);
     } else if (g->fni8 && check_size_impl(oprsz, 8)) {
