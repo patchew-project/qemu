@@ -33,12 +33,23 @@
 #include "hw/nvram/fw_cfg.h"
 #include "hw/mem/nvdimm.h"
 
+static gint nvdimm_addr_sort(gconstpointer a, gconstpointer b)
+{
+    uint64_t addr0 = object_property_get_uint(OBJECT(NVDIMM(a)),
+                                              PC_DIMM_ADDR_PROP, NULL);
+    uint64_t addr1 = object_property_get_uint(OBJECT(NVDIMM(b)),
+                                              PC_DIMM_ADDR_PROP, NULL);
+
+    return addr0 < addr1 ? -1 :
+           addr0 > addr1 ?  1 : 0;
+}
+
 static int nvdimm_device_list(Object *obj, void *opaque)
 {
     GSList **list = opaque;
 
     if (object_dynamic_cast(obj, TYPE_NVDIMM)) {
-        *list = g_slist_append(*list, DEVICE(obj));
+        *list = g_slist_insert_sorted(*list, DEVICE(obj), nvdimm_addr_sort);
     }
 
     object_child_foreach(obj, nvdimm_device_list, opaque);
@@ -52,7 +63,7 @@ static int nvdimm_device_list(Object *obj, void *opaque)
  * Note: it is the caller's responsibility to free the list to avoid
  * memory leak.
  */
-static GSList *nvdimm_get_device_list(void)
+GSList *nvdimm_get_device_list(void)
 {
     GSList *list = NULL;
 

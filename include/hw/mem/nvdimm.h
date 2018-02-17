@@ -144,4 +144,15 @@ void nvdimm_build_acpi(GArray *table_offsets, GArray *table_data,
                        uint32_t ram_slots);
 void nvdimm_plug(AcpiNVDIMMState *state);
 void nvdimm_acpi_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev);
+
+/*
+ * Inquire NVDIMM devices and link them into the list which is
+ * returned to the caller and sorted in the ascending order of the
+ * base address of NVDIMM devices.
+ *
+ * Note: it is the caller's responsibility to free the list to avoid
+ * memory leak.
+ */
+GSList *nvdimm_get_device_list(void);
+
 #endif
