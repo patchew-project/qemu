@@ -37,7 +37,8 @@
  * @irq: irq type
  * @gerror_mask: mask of gerrors to toggle (relevant if @irq is GERROR)
  */
-void smmuv3_trigger_irq(SMMUv3State *s, SMMUIrq irq, uint32_t gerror_mask)
+static void smmuv3_trigger_irq(SMMUv3State *s, SMMUIrq irq,
+                               uint32_t gerror_mask)
 {
 
     bool pulse = false;
@@ -75,7 +76,7 @@ void smmuv3_trigger_irq(SMMUv3State *s, SMMUIrq irq, uint32_t gerror_mask)
     }
 }
 
-void smmuv3_write_gerrorn(SMMUv3State *s, uint32_t new_gerrorn)
+static void smmuv3_write_gerrorn(SMMUv3State *s, uint32_t new_gerrorn)
 {
     uint32_t pending = s->gerror ^ s->gerrorn;
     uint32_t toggled = s->gerrorn ^ new_gerrorn;
@@ -199,7 +200,7 @@ static void smmuv3_init_regs(SMMUv3State *s)
     s->sid_split = 0;
 }
 
-int smmuv3_cmdq_consume(SMMUv3State *s)
+static int smmuv3_cmdq_consume(SMMUv3State *s)
 {
     SMMUCmdError cmd_error = SMMU_CERROR_NONE;
     SMMUQueue *q = &s->cmdq;
@@ -298,7 +299,109 @@ int smmuv3_cmdq_consume(SMMUv3State *s)
 static void smmu_write_mmio(void *opaque, hwaddr addr,
                             uint64_t val, unsigned size)
 {
-    /* not yet implemented */
+    SMMUState *sys = opaque;
+    SMMUv3State *s = ARM_SMMUV3(sys);
+
+    /* CONSTRAINED UNPREDICTABLE choice to have page0/1 be exact aliases */
+    addr &= ~0x10000;
+
+    if (size != 4 && size != 8) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "SMMUv3 MMIO write: bad size %u\n", size);
+    }
+
+    trace_smmuv3_write_mmio(addr, val, size);
+
+    switch (addr) {
+    case A_CR0:
+        s->cr[0] = val;
+        s->cr0ack = val;
+        /* in case the command queue has been enabled */
+        smmuv3_cmdq_consume(s);
+        return;
+    case A_CR1:
+        s->cr[1] = val;
+        return;
+    case A_CR2:
+        s->cr[2] = val;
+        return;
+    case A_IRQ_CTRL:
+        s->irq_ctrl = val;
+        return;
+    case A_GERRORN:
+        smmuv3_write_gerrorn(s, val);
+        /*
+         * By acknowledging the CMDQ_ERR, SW may notify cmds can
+         * be processed again
+         */
+        smmuv3_cmdq_consume(s);
+        return;
+    case A_GERROR_IRQ_CFG0: /* 64b */
+        smmu_write64(&s->gerror_irq_cfg0, 0, size, val);
+        return;
+    case A_GERROR_IRQ_CFG0 + 4:
+        smmu_write64(&s->gerror_irq_cfg0, 4, size, val);
+        return;
+    case A_GERROR_IRQ_CFG1:
+        s->gerror_irq_cfg1 = val;
+        return;
+    case A_GERROR_IRQ_CFG2:
+        s->gerror_irq_cfg2 = val;
+        return;
+    case A_STRTAB_BASE: /* 64b */
+        smmu_write64(&s->strtab_base, 0, size, val);
+        return;
+    case A_STRTAB_BASE + 4:
+        smmu_write64(&s->strtab_base, 4, size, val);
+        return;
+    case A_STRTAB_BASE_CFG:
+        s->strtab_base_cfg = val;
+        if (FIELD_EX32(val, STRTAB_BASE_CFG, FMT) == 1) {
+            s->sid_split = FIELD_EX32(val, STRTAB_BASE_CFG, SPLIT);
+            s->features |= SMMU_FEATURE_2LVL_STE;
+        }
+        return;
+    case A_CMDQ_BASE: /* 64b */
+        smmu_write64(&s->cmdq.base, 0, size, val);
+        return;
+    case A_CMDQ_BASE + 4: /* 64b */
+        smmu_write64(&s->cmdq.base, 4, size, val);
+        return;
+    case A_CMDQ_PROD:
+        s->cmdq.prod = val;
+        smmuv3_cmdq_consume(s);
+        return;
+    case A_CMDQ_CONS:
+        s->cmdq.cons = val;
+        return;
+    case A_EVENTQ_BASE: /* 64b */
+        smmu_write64(&s->eventq.base, 0, size, val);
+        return;
+    case A_EVENTQ_BASE + 4:
+        smmu_write64(&s->eventq.base, 4, size, val);
+        return;
+    case A_EVENTQ_PROD:
+        s->eventq.prod = val;
+        return;
+    case A_EVENTQ_CONS:
+        s->eventq.cons = val;
+        return;
+    case A_EVENTQ_IRQ_CFG0: /* 64b */
+        s->eventq.prod = val;
+        smmu_write64(&s->eventq_irq_cfg0, 0, size, val);
+        return;
+    case A_EVENTQ_IRQ_CFG0 + 4:
+        smmu_write64(&s->eventq_irq_cfg0, 4, size, val);
+        return;
+    case A_EVENTQ_IRQ_CFG1:
+        s->eventq_irq_cfg1 = val;
+        return;
+    case A_EVENTQ_IRQ_CFG2:
+        s->eventq_irq_cfg2 = val;
+        return;
+    default:
+        error_report("%s unhandled access at 0x%"PRIx64, __func__, addr);
+    }
 }
 
 static uint64_t smmu_read_mmio(void *opaque, hwaddr addr, unsigned size)
