@@ -3992,13 +3992,6 @@ static void trans_fmpyfadd_d(DisasContext *ctx, arg_fmpyfadd_d *a,
     nullify_end(ctx);
 }
 
-static void translate_one(DisasContext *ctx, uint32_t insn)
-{
-    if (!decode(ctx, insn)) {
-        gen_illegal(ctx);
-    }
-}
-
 static int hppa_tr_init_disas_context(DisasContextBase *dcbase,
                                       CPUState *cs, int max_insns)
 {
@@ -4107,7 +4100,9 @@ static void hppa_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
             ret = DISAS_NEXT;
         } else {
             ctx->insn = insn;
-            translate_one(ctx, insn);
+            if (!decode(ctx, insn)) {
+                gen_illegal(ctx);
+            }
             ret = ctx->base.is_jmp;
             assert(ctx->null_lab == NULL);
         }
