@@ -152,4 +152,14 @@ static inline uint64_t smmu_read64(uint64_t r, unsigned offset,
     return extract64(r, offset << 3, 32);
 }
 
+/* Interrupts */
+
+#define smmuv3_eventq_irq_enabled(s)                   \
+    (FIELD_EX32(s->irq_ctrl, IRQ_CTRL, EVENTQ_IRQEN))
+#define smmuv3_gerror_irq_enabled(s)                  \
+    (FIELD_EX32(s->irq_ctrl, IRQ_CTRL, GERROR_IRQEN))
+
+void smmuv3_trigger_irq(SMMUv3State *s, SMMUIrq irq, uint32_t gerror_mask);
+void smmuv3_write_gerrorn(SMMUv3State *s, uint32_t gerrorn);
+
 #endif
