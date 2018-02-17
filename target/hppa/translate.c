@@ -315,6 +315,13 @@ static int ma_to_m(int val)
     return val & 2 ? (val & 1 ? -1 : 1) : 0;
 }
 
+/* Used for branch targets.  */
+static int expand_shl2(int val)
+{
+    return val << 2;
+}
+
+
 /* Include the auto-generated decoder.  */
 #include "decode.inc.c"
 
@@ -874,14 +881,6 @@ static inline unsigned assemble_sr3(uint32_t insn)
     unsigned s2 = extract32(insn, 13, 1);
     unsigned s0 = extract32(insn, 14, 2);
     return s2 * 4 + s0;
-}
-
-static target_sreg assemble_12(uint32_t insn)
-{
-    target_ureg x = -(target_ureg)(insn & 1);
-    x = (x <<  1) | extract32(insn, 2, 1);
-    x = (x << 10) | extract32(insn, 3, 10);
-    return x;
 }
 
 static target_sreg assemble_16(uint32_t insn)
@@ -3156,24 +3155,12 @@ static void trans_copr_dw(DisasContext *ctx, uint32_t insn)
     }
 }
 
-static void trans_cmpb(DisasContext *ctx, uint32_t insn,
-                       bool is_true, bool is_imm, bool is_dw)
+static void do_cmpb(DisasContext *ctx, unsigned r, TCGv_reg in1,
+                    unsigned c, unsigned f, unsigned n, int disp)
 {
-    target_sreg disp = assemble_12(insn) * 4;
-    unsigned n = extract32(insn, 1, 1);
-    unsigned c = extract32(insn, 13, 3);
-    unsigned r = extract32(insn, 21, 5);
-    unsigned cf = c * 2 + !is_true;
-    TCGv_reg dest, in1, in2, sv;
+    TCGv_reg dest, in2, sv;
     DisasCond cond;
 
-    nullify_over(ctx);
-
-    if (is_imm) {
-        in1 = load_const(ctx, low_sextract(insn, 16, 5));
-    } else {
-        in1 = load_gpr(ctx, extract32(insn, 16, 5));
-    }
     in2 = load_gpr(ctx, r);
     dest = get_temp(ctx);
 
@@ -3184,28 +3171,28 @@ static void trans_cmpb(DisasContext *ctx, uint32_t insn,
         sv = do_sub_sv(ctx, dest, in1, in2);
     }
 
-    cond = do_sub_cond(cf, dest, in1, in2, sv);
+    cond = do_sub_cond(c * 2 + f, dest, in1, in2, sv);
     do_cbranch(ctx, disp, n, &cond);
 }
 
-static void trans_addb(DisasContext *ctx, uint32_t insn,
-                       bool is_true, bool is_imm)
+static void trans_cmpb(DisasContext *ctx, arg_cmpb *a, uint32_t insn)
 {
-    target_sreg disp = assemble_12(insn) * 4;
-    unsigned n = extract32(insn, 1, 1);
-    unsigned c = extract32(insn, 13, 3);
-    unsigned r = extract32(insn, 21, 5);
-    unsigned cf = c * 2 + !is_true;
-    TCGv_reg dest, in1, in2, sv, cb_msb;
+    nullify_over(ctx);
+    do_cmpb(ctx, a->r2, load_gpr(ctx, a->r1), a->c, a->f, a->n, a->disp);
+}
+
+static void trans_cmpbi(DisasContext *ctx, arg_cmpbi *a, uint32_t insn)
+{
+    nullify_over(ctx);
+    do_cmpb(ctx, a->r, load_const(ctx, a->i), a->c, a->f, a->n, a->disp);
+}
+
+static void do_addb(DisasContext *ctx, unsigned r, TCGv_reg in1,
+                    unsigned c, unsigned f, unsigned n, int disp)
+{
+    TCGv_reg dest, in2, sv, cb_msb;
     DisasCond cond;
 
-    nullify_over(ctx);
-
-    if (is_imm) {
-        in1 = load_const(ctx, low_sextract(insn, 16, 5));
-    } else {
-        in1 = load_gpr(ctx, extract32(insn, 16, 5));
-    }
     in2 = load_gpr(ctx, r);
     dest = dest_gpr(ctx, r);
     sv = NULL;
@@ -3226,59 +3213,84 @@ static void trans_addb(DisasContext *ctx, uint32_t insn,
         break;
     }
 
-    cond = do_cond(cf, dest, cb_msb, sv);
+    cond = do_cond(c * 2 + f, dest, cb_msb, sv);
     do_cbranch(ctx, disp, n, &cond);
 }
 
-static void trans_bb(DisasContext *ctx, uint32_t insn)
+static void trans_addb(DisasContext *ctx, arg_addb *a, uint32_t insn)
 {
-    target_sreg disp = assemble_12(insn) * 4;
-    unsigned n = extract32(insn, 1, 1);
-    unsigned c = extract32(insn, 15, 1);
-    unsigned r = extract32(insn, 16, 5);
-    unsigned p = extract32(insn, 21, 5);
-    unsigned i = extract32(insn, 26, 1);
+    nullify_over(ctx);
+    do_addb(ctx, a->r2, load_gpr(ctx, a->r1), a->c, a->f, a->n, a->disp);
+}
+
+static void trans_addbi(DisasContext *ctx, arg_addbi *a, uint32_t insn)
+{
+    nullify_over(ctx);
+    do_addb(ctx, a->r, load_const(ctx, a->i), a->c, a->f, a->n, a->disp);
+}
+
+static void trans_bb_sar(DisasContext *ctx, arg_bb_sar *a, uint32_t insn)
+{
     TCGv_reg tmp, tcg_r;
     DisasCond cond;
 
     nullify_over(ctx);
 
     tmp = tcg_temp_new();
-    tcg_r = load_gpr(ctx, r);
-    if (i) {
-        tcg_gen_shli_reg(tmp, tcg_r, p);
-    } else {
-        tcg_gen_shl_reg(tmp, tcg_r, cpu_sar);
-    }
+    tcg_r = load_gpr(ctx, a->r);
+    tcg_gen_shl_reg(tmp, tcg_r, cpu_sar);
 
-    cond = cond_make_0(c ? TCG_COND_GE : TCG_COND_LT, tmp);
+    cond = cond_make_0(a->c ? TCG_COND_GE : TCG_COND_LT, tmp);
     tcg_temp_free(tmp);
-    do_cbranch(ctx, disp, n, &cond);
+    do_cbranch(ctx, a->disp, a->n, &cond);
 }
 
-static void trans_movb(DisasContext *ctx, uint32_t insn, bool is_imm)
+static void trans_bb_imm(DisasContext *ctx, arg_bb_imm *a, uint32_t insn)
 {
-    target_sreg disp = assemble_12(insn) * 4;
-    unsigned n = extract32(insn, 1, 1);
-    unsigned c = extract32(insn, 13, 3);
-    unsigned t = extract32(insn, 16, 5);
-    unsigned r = extract32(insn, 21, 5);
+    TCGv_reg tmp, tcg_r;
+    DisasCond cond;
+
+    nullify_over(ctx);
+
+    tmp = tcg_temp_new();
+    tcg_r = load_gpr(ctx, a->r);
+    tcg_gen_shli_reg(tmp, tcg_r, a->p);
+
+    cond = cond_make_0(a->c ? TCG_COND_GE : TCG_COND_LT, tmp);
+    tcg_temp_free(tmp);
+    do_cbranch(ctx, a->disp, a->n, &cond);
+}
+
+static void trans_movb(DisasContext *ctx, arg_movb *a, uint32_t insn)
+{
     TCGv_reg dest;
     DisasCond cond;
 
     nullify_over(ctx);
 
-    dest = dest_gpr(ctx, r);
-    if (is_imm) {
-        tcg_gen_movi_reg(dest, low_sextract(t, 0, 5));
-    } else if (t == 0) {
+    dest = dest_gpr(ctx, a->r2);
+    if (a->r1 == 0) {
         tcg_gen_movi_reg(dest, 0);
     } else {
-        tcg_gen_mov_reg(dest, cpu_gr[t]);
+        tcg_gen_mov_reg(dest, cpu_gr[a->r1]);
     }
 
-    cond = do_sed_cond(c, dest);
-    do_cbranch(ctx, disp, n, &cond);
+    cond = do_sed_cond(a->c, dest);
+    do_cbranch(ctx, a->disp, a->n, &cond);
+}
+
+static void trans_movbi(DisasContext *ctx, arg_movbi *a, uint32_t insn)
+{
+    TCGv_reg dest;
+    DisasCond cond;
+
+    nullify_over(ctx);
+
+    dest = dest_gpr(ctx, a->r);
+    tcg_gen_movi_reg(dest, a->i);
+
+    cond = do_sed_cond(a->c, dest);
+    do_cbranch(ctx, a->disp, a->n, &cond);
 }
 
 static void trans_shrpw_sar(DisasContext *ctx, uint32_t insn,
@@ -4431,38 +4443,11 @@ static void translate_one(DisasContext *ctx, uint32_t insn)
         trans_store_w(ctx, insn);
         return;
 
-    case 0x20:
-        trans_cmpb(ctx, insn, true, false, false);
-        return;
-    case 0x21:
-        trans_cmpb(ctx, insn, true, true, false);
-        return;
-    case 0x22:
-        trans_cmpb(ctx, insn, false, false, false);
-        return;
-    case 0x23:
-        trans_cmpb(ctx, insn, false, true, false);
-        return;
     case 0x24:
         trans_cmpiclr(ctx, insn);
         return;
     case 0x25:
         trans_subi(ctx, insn);
-        return;
-    case 0x27:
-        trans_cmpb(ctx, insn, true, false, true);
-        return;
-    case 0x28:
-        trans_addb(ctx, insn, true, false);
-        return;
-    case 0x29:
-        trans_addb(ctx, insn, true, true);
-        return;
-    case 0x2A:
-        trans_addb(ctx, insn, false, false);
-        return;
-    case 0x2B:
-        trans_addb(ctx, insn, false, true);
         return;
     case 0x2C:
     case 0x2D:
@@ -4471,20 +4456,7 @@ static void translate_one(DisasContext *ctx, uint32_t insn)
     case 0x2E:
         translate_table(ctx, insn, table_fp_fused);
         return;
-    case 0x2F:
-        trans_cmpb(ctx, insn, false, false, true);
-        return;
 
-    case 0x30:
-    case 0x31:
-        trans_bb(ctx, insn);
-        return;
-    case 0x32:
-        trans_movb(ctx, insn, false);
-        return;
-    case 0x33:
-        trans_movb(ctx, insn, true);
-        return;
     case 0x34:
         translate_table(ctx, insn, table_sh_ex);
         return;
