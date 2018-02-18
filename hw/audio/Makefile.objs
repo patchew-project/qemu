@@ -3,6 +3,7 @@ common-obj-$(CONFIG_SB16) += sb16.o
 common-obj-$(CONFIG_ES1370) += es1370.o
 common-obj-$(CONFIG_AC97) += ac97.o
 common-obj-$(CONFIG_ADLIB) += fmopl.o adlib.o
+common-obj-$(CONFIG_OPL2LPT) += opl2lpt.o
 common-obj-$(CONFIG_GUS) += gus.o gusemu_hal.o gusemu_mixer.o
 common-obj-$(CONFIG_CS4231A) += cs4231a.o
 common-obj-$(CONFIG_HDA) += intel-hda.o hda-codec.o

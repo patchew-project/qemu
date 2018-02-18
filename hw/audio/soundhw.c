@@ -41,7 +41,7 @@ struct soundhw {
     } init;
 };
 
-static struct soundhw soundhw[9];
+static struct soundhw soundhw[10];
 static int soundhw_count;
 
 void isa_register_soundhw(const char *name, const char *descr,
