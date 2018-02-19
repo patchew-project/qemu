@@ -362,7 +362,14 @@ struct kernel_statfs {
 	int f_ffree;
         kernel_fsid_t f_fsid;
 	int f_namelen;
+#ifdef HAVE_STATFS_FLAGS
+	int f_frsize;
+	int f_flags;
+	int f_spare[4];
+#else
 	int f_spare[6];
+#endif
+
 };
 
 struct target_dirent {
@@ -2223,7 +2230,12 @@ struct target_statfs {
 	/* Linux specials */
 	target_fsid_t		f_fsid;
 	int32_t			f_namelen;
+#ifdef HAVE_STATFS_FLAGS
+	int32_t			f_flags;
+	int32_t			f_spare[5];
+#else
 	int32_t			f_spare[6];
+#endif
 };
 #else
 struct target_statfs {
@@ -2239,7 +2251,12 @@ struct target_statfs {
 	/* Linux specials */
 	target_fsid_t		f_fsid;
 	abi_long		f_namelen;
+#ifdef HAVE_STATFS_FLAGS
+	abi_long		f_flags;
+	abi_long		f_spare[5];
+#else
 	abi_long		f_spare[6];
+#endif
 };
 #endif
 
@@ -2255,7 +2272,12 @@ struct target_statfs64 {
 	uint64_t	f_bavail;
 	target_fsid_t	f_fsid;
 	uint32_t	f_namelen;
+#ifdef HAVE_STATFS_FLAGS
+	uint32_t	f_flags;
+	uint32_t	f_spare[5];
+#else
 	uint32_t	f_spare[6];
+#endif
 };
 #elif (defined(TARGET_PPC64) || defined(TARGET_X86_64) || \
        defined(TARGET_SPARC64) || defined(TARGET_AARCH64)) && \
@@ -2271,7 +2293,12 @@ struct target_statfs {
 	target_fsid_t f_fsid;
 	abi_long f_namelen;
 	abi_long f_frsize;
+#ifdef HAVE_STATFS_FLAGS
+	abi_long f_flags;
+	abi_long f_spare[4];
+#else
 	abi_long f_spare[5];
+#endif
 };
 
 struct target_statfs64 {
@@ -2285,7 +2312,12 @@ struct target_statfs64 {
 	target_fsid_t f_fsid;
 	abi_long f_namelen;
 	abi_long f_frsize;
+#ifdef HAVE_STATFS_FLAGS
+	abi_long f_flags;
+	abi_long f_spare[4];
+#else
 	abi_long f_spare[5];
+#endif
 };
 #elif defined(TARGET_S390X)
 struct target_statfs {
@@ -2299,7 +2331,13 @@ struct target_statfs {
     kernel_fsid_t f_fsid;
     int32_t  f_namelen;
     int32_t  f_frsize;
+#ifdef HAVE_STATFS_FLAGS
+    int32_t  f_flags;
+    int32_t  f_spare[4];
+#else
     int32_t  f_spare[5];
+#endif
+
 };
 
 struct target_statfs64 {
@@ -2313,7 +2351,12 @@ struct target_statfs64 {
     kernel_fsid_t f_fsid;
     int32_t  f_namelen;
     int32_t  f_frsize;
+#ifdef HAVE_STATFS_FLAGS
+    int32_t  f_flags;
+    int32_t  f_spare[4];
+#else
     int32_t  f_spare[5];
+#endif
 };
 #else
 struct target_statfs {
@@ -2327,7 +2370,12 @@ struct target_statfs {
 	target_fsid_t f_fsid;
 	uint32_t f_namelen;
 	uint32_t f_frsize;
+#ifdef HAVE_STATFS_FLAGS
+	uint32_t f_flags;
+	uint32_t f_spare[4];
+#else
 	uint32_t f_spare[5];
+#endif
 };
 
 struct target_statfs64 {
@@ -2341,7 +2389,12 @@ struct target_statfs64 {
 	target_fsid_t f_fsid;
         uint32_t f_namelen;
 	uint32_t f_frsize;
+#ifdef HAVE_STATFS_FLAGS
+	uint32_t f_flags;
+	uint32_t f_spare[4];
+#else
 	uint32_t f_spare[5];
+#endif
 };
 #endif
 

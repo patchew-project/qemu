@@ -5305,6 +5305,22 @@ if compile_prog "" "" ; then
 fi
 
 ##########################################
+# Check for newer fields of struct statfs on Linux
+
+if test "$linux_user" = "yes"; then
+  cat > $TMPC <<EOF
+#include <sys/vfs.h>
+
+int main(void) {
+  struct statfs fs;
+  fs.f_flags = 0;
+}
+EOF
+  if compile_object ; then
+      have_statfs_flags=yes
+  fi
+fi
+##########################################
 # checks for sanitizers
 
 # we could use a simple skeleton for flags checks, but this also
@@ -6517,6 +6533,10 @@ fi
 
 if test "$have_utmpx" = "yes" ; then
   echo "HAVE_UTMPX=y" >> $config_host_mak
+fi
+
+if test "$have_statfs_flags" = "yes" ; then
+  echo "HAVE_STATFS_FLAGS=y" >> $config_host_mak
 fi
 
 if test "$ivshmem" = "yes" ; then
