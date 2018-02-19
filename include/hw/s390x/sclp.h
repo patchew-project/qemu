@@ -215,23 +215,6 @@ typedef struct SCLPDeviceClass {
     void (*service_interrupt)(SCLPDevice *sclp, uint32_t sccb);
 } SCLPDeviceClass;
 
-typedef struct sclpMemoryHotplugDev sclpMemoryHotplugDev;
-
-#define TYPE_SCLP_MEMORY_HOTPLUG_DEV "sclp-memory-hotplug-dev"
-#define SCLP_MEMORY_HOTPLUG_DEV(obj) \
-  OBJECT_CHECK(sclpMemoryHotplugDev, (obj), TYPE_SCLP_MEMORY_HOTPLUG_DEV)
-
-struct sclpMemoryHotplugDev {
-    SysBusDevice parent;
-    ram_addr_t standby_mem_size;
-    ram_addr_t padded_ram_size;
-    ram_addr_t pad_size;
-    ram_addr_t standby_subregion_size;
-    ram_addr_t rzm;
-    int increment_size;
-    char *standby_state_map;
-};
-
 static inline int sccb_data_len(SCCB *sccb)
 {
     return be16_to_cpu(sccb->h.length) - sizeof(sccb->h);
@@ -239,8 +222,6 @@ static inline int sccb_data_len(SCCB *sccb)
 
 
 void s390_sclp_init(void);
-sclpMemoryHotplugDev *init_sclp_memory_hotplug_dev(void);
-sclpMemoryHotplugDev *get_sclp_memory_hotplug_dev(void);
 void sclp_service_interrupt(uint32_t sccb);
 void raise_irq_cpu_hotplug(void);
 int sclp_service_call(CPUS390XState *env, uint64_t sccb, uint32_t code);
