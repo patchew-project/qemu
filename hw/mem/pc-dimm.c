@@ -261,7 +261,7 @@ static gint pc_dimm_addr_sort(gconstpointer a, gconstpointer b)
     return 0;
 }
 
-static int pc_dimm_built_list(Object *obj, void *opaque)
+int pc_dimm_built_list(Object *obj, void *opaque)
 {
     GSList **list = opaque;
 
