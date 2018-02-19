@@ -2388,11 +2388,13 @@
 # Information describing the QEMU target.
 #
 # @arch: the target architecture (eg "x86_64", "i386", etc)
+# @wakeup-suspend-support: true if the target supports wake up from
+#                          suspend (since 2.12)
 #
 # Since: 1.2.0
 ##
 { 'struct': 'TargetInfo',
-  'data': { 'arch': 'str' } }
+  'data': { 'arch': 'str', 'wakeup-suspend-support': 'bool' } }
 
 ##
 # @query-target:

@@ -1822,9 +1822,30 @@ void qemu_system_wakeup_enable(WakeupReason reason, bool enabled)
     }
 }
 
+/* The existence of a wake-up notifier is being checked in the function
+ * qemu_wakeup_notifier_is_empty and it's used in the logic of the
+ * wakeup-suspend-support flag of QMP 'query-target' command. The idea
+ * of this flag is to indicate whether the guest supports wake-up from
+ * suspend (via system_wakeup QMP/HMP call for example), warning the user
+ * that the guest can't handle both wake-up from suspend and the suspend
+ * itself via QGA guest-suspend-ram and guest-suspend-hybrid (if it
+ * can't wake up, it can't be suspended safely).
+ *
+ * An assumption is made by the wakeup-suspend-support flag that only the
+ * guests that can go to RUN_STATE_SUSPENDED and wake up properly would
+ * be interested in this wakeup_notifier. Adding a wakeup_notifier for
+ * any other reason will break the logic of the wakeup-suspend-support
+ * flag and can lead to user/management confusion about the suspend/wake-up
+ * support of the guest.
+ */
 void qemu_register_wakeup_notifier(Notifier *notifier)
 {
     notifier_list_add(&wakeup_notifiers, notifier);
+}
+
+bool qemu_wakeup_notifier_is_empty(void)
+{
+    return QLIST_EMPTY(&wakeup_notifiers.notifiers);
 }
 
 void qemu_system_killed(int signal, pid_t pid)
