@@ -14,6 +14,7 @@
 #include "qemu-common.h"
 #include "hw/i2c/i2c.h"
 #include "qemu/bcd.h"
+#include "sysemu/qtest.h"
 
 /* Size of NVRAM including both the user-accessible area and the
  * secondary register area.
@@ -132,6 +133,14 @@ static int ds1338_send(I2CSlave *i2c, uint8_t data)
     DS1338State *s = DS1338(i2c);
 
     if (s->addr_byte) {
+        if (data == 0xff && qtest_enabled()) {
+            /* magic, out of bounds, address to allow test code
+             * to reset offset
+             */
+            s->offset = 0;
+            s->wday_offset = 0;
+            return 0;
+        }
         s->ptr = data & (NVRAM_SIZE - 1);
         s->addr_byte = false;
         return 0;
