@@ -147,6 +147,7 @@ struct sPAPRMachineState {
     sPAPROptionVector *ov5;         /* QEMU-supported option vectors */
     sPAPROptionVector *ov5_cas;     /* negotiated (via CAS) option vectors */
     uint32_t max_compat_pvr;
+    bool use_ibm_dynamic_memory_v2;
 
     /* Migration state */
     int htab_save_index;
