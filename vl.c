@@ -3078,6 +3078,7 @@ int main(int argc, char **argv, char **envp)
     qemu_add_opts(&qemu_chardev_opts);
     qemu_add_opts(&qemu_device_opts);
     qemu_add_opts(&qemu_netdev_opts);
+    qemu_add_opts(&qemu_n_opts);
     qemu_add_opts(&qemu_net_opts);
     qemu_add_opts(&qemu_rtc_opts);
     qemu_add_opts(&qemu_global_opts);
@@ -3295,6 +3296,12 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_netdev:
                 default_net = 0;
                 if (net_client_parse(qemu_find_opts("netdev"), optarg) == -1) {
+                    exit(1);
+                }
+                break;
+            case QEMU_OPTION_n:
+                default_net = 0;
+                if (net_client_parse(qemu_find_opts("n"), optarg) == -1) {
                     exit(1);
                 }
                 break;
