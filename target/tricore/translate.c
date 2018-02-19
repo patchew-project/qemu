@@ -3389,9 +3389,17 @@ static void gen_compute_branch(DisasContext *ctx, uint32_t opc, int r1,
         gen_branch_cond(ctx, TCG_COND_EQ, cpu_gpr_d[r1], cpu_gpr_d[15],
                         offset);
         break;
+    case OPC1_16_SBR_JEQ2:
+        gen_branch_cond(ctx, TCG_COND_EQ, cpu_gpr_d[r1], cpu_gpr_d[15],
+                        offset + 16);
+        break;
     case OPC1_16_SBR_JNE:
         gen_branch_cond(ctx, TCG_COND_NE, cpu_gpr_d[r1], cpu_gpr_d[15],
                         offset);
+        break;
+    case OPC1_16_SBR_JNE2:
+        gen_branch_cond(ctx, TCG_COND_NE, cpu_gpr_d[r1], cpu_gpr_d[15],
+                        offset + 16);
         break;
     case OPC1_16_SBR_JNZ:
         gen_branch_condi(ctx, TCG_COND_NE, cpu_gpr_d[r1], 0, offset);
@@ -4089,6 +4097,10 @@ static void decode_16Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
         gen_offset_ld(ctx, cpu_gpr_d[r1], cpu_gpr_a[15], const16 * 4, MO_LESL);
         break;
 /* SB-format */
+    case OPC1_16_SB_JNE:
+        address = MASK_OP_SBC_DISP4(ctx->opcode);
+        gen_compute_branch(ctx, op1, 0, 0, 0, address);
+        break;
     case OPC1_16_SB_CALL:
     case OPC1_16_SB_J:
     case OPC1_16_SB_JNZ:
@@ -4122,6 +4134,7 @@ static void decode_16Bit_opc(CPUTriCoreState *env, DisasContext *ctx)
         break;
 /* SBR-format */
     case OPC1_16_SBR_JEQ:
+    case OPC1_16_SBR_JEQ2:
     case OPC1_16_SBR_JGEZ:
     case OPC1_16_SBR_JGTZ:
     case OPC1_16_SBR_JLEZ:
@@ -6252,6 +6265,15 @@ static void decode_rr_accumulator(CPUTriCoreState *env, DisasContext *ctx)
             tcg_gen_mov_tl(cpu_gpr_d[r3 + 1], temp);
 
             tcg_temp_free(temp);
+        } else {
+            generate_trap(ctx, TRAPC_INSN_ERR, TIN2_IOPC);
+        }
+        break;
+    case OPC2_32_RR_MOVS_64:
+        if (tricore_feature(env, TRICORE_FEATURE_16)) {
+            CHECK_REG_PAIR(r3);
+            tcg_gen_mov_tl(cpu_gpr_d[r3], cpu_gpr_d[r2]);
+            tcg_gen_sari_tl(cpu_gpr_d[r3 + 1], cpu_gpr_d[r2], 31);
         } else {
             generate_trap(ctx, TRAPC_INSN_ERR, TIN2_IOPC);
         }
