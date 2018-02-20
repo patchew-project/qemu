@@ -30,7 +30,7 @@ struct SCLPEventFacility {
     SysBusDevice parent_obj;
     SCLPEventsBus sbus;
     /* guest' receive mask */
-    unsigned int receive_mask;
+    sccb_mask_t receive_mask;
     /*
      * when false, we keep the same broken, backwards compatible behaviour as
      * before; when true, we implement the architecture correctly. Needed for
@@ -60,9 +60,9 @@ static bool event_pending(SCLPEventFacility *ef)
     return false;
 }
 
-static unsigned int get_host_send_mask(SCLPEventFacility *ef)
+static sccb_mask_t get_host_send_mask(SCLPEventFacility *ef)
 {
-    unsigned int mask;
+    sccb_mask_t mask;
     BusChild *kid;
     SCLPEventClass *child;
 
@@ -76,9 +76,9 @@ static unsigned int get_host_send_mask(SCLPEventFacility *ef)
     return mask;
 }
 
-static unsigned int get_host_receive_mask(SCLPEventFacility *ef)
+static sccb_mask_t get_host_receive_mask(SCLPEventFacility *ef)
 {
-    unsigned int mask;
+    sccb_mask_t mask;
     BusChild *kid;
     SCLPEventClass *child;
 
@@ -188,7 +188,7 @@ out:
 }
 
 static uint16_t handle_sccb_read_events(SCLPEventFacility *ef, SCCB *sccb,
-                                        unsigned int mask)
+                                        sccb_mask_t mask)
 {
     uint16_t rc;
     int slen;
@@ -241,8 +241,8 @@ static void copy_mask(uint8_t *dst, uint8_t *src, uint16_t dst_len,
 
 static void read_event_data(SCLPEventFacility *ef, SCCB *sccb)
 {
-    unsigned int sclp_active_selection_mask;
-    unsigned int sclp_cp_receive_mask;
+    sccb_mask_t sclp_active_selection_mask = 0;
+    sccb_mask_t sclp_cp_receive_mask;
 
     ReadEventData *red = (ReadEventData *) sccb;
 
@@ -284,7 +284,7 @@ static void write_event_mask(SCLPEventFacility *ef, SCCB *sccb)
 {
     WriteEventMask *we_mask = (WriteEventMask *) sccb;
     uint16_t mask_length = be16_to_cpu(we_mask->mask_length);
-    uint32_t tmp_mask;
+    sccb_mask_t tmp_mask = 0;
 
     if (!mask_length || (mask_length > SCLP_EVENT_MASK_LEN_MAX) ||
         ((mask_length != 4) && !ef->allow_all_mask_sizes)) {
