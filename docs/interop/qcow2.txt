@@ -427,9 +427,17 @@ Standard Cluster Descriptor:
 Compressed Clusters Descriptor (x = 62 - (cluster_bits - 8)):
 
     Bit  0 -  x:    Host cluster offset. This is usually _not_ aligned to a
-                    cluster boundary!
+                    cluster or sector boundary!
 
-       x+1 - 61:    Compressed size of the images in sectors of 512 bytes
+       x+1 - 61:    Number of 512-byte sectors used for the compressed data,
+                    minus one (that is, a value of n here means n+1 sectors).
+
+                    The actual compressed data is located at the end of this
+                    region, from the offset indicated in the previous field
+                    until the end of the last sector.
+
+                    The initial bytes of this region are therefore unused if
+                    the offset is not aligned to a sector boundary.
 
 If a cluster is unallocated, read requests shall read the data from the backing
 file (except if bit 0 in the Standard Cluster Descriptor is set). If there is
