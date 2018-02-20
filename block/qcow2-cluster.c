@@ -1603,15 +1603,9 @@ int qcow2_decompress_cluster(BlockDriverState *bs, uint64_t cluster_offset)
          * are freed in .bdrv_close().
          */
         if (!s->cluster_data) {
-            /* one more sector for decompressed data alignment */
-            s->cluster_data = qemu_try_blockalign(bs->file->bs,
-                    QCOW_MAX_CRYPT_CLUSTERS * s->cluster_size + 512);
-            if (!s->cluster_data) {
-                return -ENOMEM;
-            }
-        }
-        if (!s->cluster_cache) {
-            s->cluster_cache = g_malloc(s->cluster_size);
+            assert(!s->cluster_cache);
+            s->cluster_data = g_try_malloc(s->cluster_size);
+            s->cluster_cache = g_try_malloc(s->cluster_size);
         }
 
         BLKDBG_EVENT(bs->file, BLKDBG_READ_COMPRESSED);
