@@ -87,6 +87,7 @@ void zipl_load(void);
 /* menu.c */
 void menu_set_parms(uint8_t boot_menu_flag, uint32_t boot_menu_timeout);
 bool menu_is_enabled(void);
+int menu_get_zipl_boot_index(const char *menu_data);
 
 static inline void fill_hex(char *out, unsigned char val)
 {
