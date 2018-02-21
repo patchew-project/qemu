@@ -30,22 +30,9 @@
 #include "ui/sdl2.h"
 #include "sysemu/sysemu.h"
 
-static uint8_t modifiers_state[SDL_NUM_SCANCODES];
-
 void sdl2_reset_keys(struct sdl2_console *scon)
 {
-    QemuConsole *con = scon ? scon->dcl.con : NULL;
-    int i;
-
-    for (i = 0 ;
-         i < SDL_NUM_SCANCODES && i < qemu_input_map_usb_to_qcode_len ;
-         i++) {
-        if (modifiers_state[i]) {
-            int qcode = qemu_input_map_usb_to_qcode[i];
-            qemu_input_event_send_key_qcode(con, qcode, false);
-            modifiers_state[i] = 0;
-        }
-    }
+    kbd_state_lift_all_keys(scon->kbd);
 }
 
 void sdl2_process_key(struct sdl2_console *scon,
@@ -77,31 +64,5 @@ void sdl2_process_key(struct sdl2_console *scon,
         return;
     }
 
-    switch (ev->keysym.scancode) {
-#if 0
-    case SDL_SCANCODE_NUMLOCKCLEAR:
-    case SDL_SCANCODE_CAPSLOCK:
-        /* SDL does not send the key up event, so we generate it */
-        qemu_input_event_send_key_qcode(con, qcode, true);
-        qemu_input_event_send_key_qcode(con, qcode, false);
-        return;
-#endif
-    case SDL_SCANCODE_LCTRL:
-    case SDL_SCANCODE_LSHIFT:
-    case SDL_SCANCODE_LALT:
-    case SDL_SCANCODE_LGUI:
-    case SDL_SCANCODE_RCTRL:
-    case SDL_SCANCODE_RSHIFT:
-    case SDL_SCANCODE_RALT:
-    case SDL_SCANCODE_RGUI:
-        if (ev->type == SDL_KEYUP) {
-            modifiers_state[ev->keysym.scancode] = 0;
-        } else {
-            modifiers_state[ev->keysym.scancode] = 1;
-        }
-        /* fall though */
-    default:
-        qemu_input_event_send_key_qcode(con, qcode,
-                                        ev->type == SDL_KEYDOWN);
-    }
+    kbd_state_key_event(scon->kbd, qcode, ev->type == SDL_KEYDOWN);
 }

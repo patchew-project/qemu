@@ -40,7 +40,6 @@ static int gui_grab; /* if true, all keyboard/mouse events are grabbed */
 static int gui_saved_grab;
 static int gui_fullscreen;
 static int gui_key_modifier_pressed;
-static int gui_keysym;
 static int gui_grab_code = KMOD_LALT | KMOD_LCTRL;
 static SDL_Cursor *sdl_cursor_normal;
 static SDL_Cursor *sdl_cursor_hidden;
@@ -331,6 +330,7 @@ static void handle_keydown(SDL_Event *ev)
 {
     int win;
     struct sdl2_console *scon = get_scon_from_window(ev->key.windowID);
+    int gui_keysym = 0;
 
     gui_key_modifier_pressed = get_mod_state();
 
@@ -413,23 +413,10 @@ static void handle_keydown(SDL_Event *ev)
 
 static void handle_keyup(SDL_Event *ev)
 {
-    int mod_state;
     struct sdl2_console *scon = get_scon_from_window(ev->key.windowID);
 
     scon->ignore_hotkeys = false;
-
-    if (!alt_grab) {
-        mod_state = (ev->key.keysym.mod & gui_grab_code);
-    } else {
-        mod_state = (ev->key.keysym.mod & (gui_grab_code | KMOD_LSHIFT));
-    }
-    if (!mod_state && gui_key_modifier_pressed) {
-        gui_key_modifier_pressed = 0;
-        gui_keysym = 0;
-    }
-    if (!gui_keysym) {
-        sdl2_process_key(scon, &ev->key);
-    }
+    sdl2_process_key(scon, &ev->key);
 }
 
 static void handle_textinput(SDL_Event *ev)
@@ -829,6 +816,7 @@ void sdl_display_init(DisplayState *ds, DisplayOptions *o)
         sdl2_console[i].dcl.ops = &dcl_2d_ops;
 #endif
         sdl2_console[i].dcl.con = con;
+        sdl2_console[i].kbd = kbd_state_init(con);
         register_displaychangelistener(&sdl2_console[i].dcl);
 
 #if defined(SDL_VIDEO_DRIVER_WINDOWS) || defined(SDL_VIDEO_DRIVER_X11)
