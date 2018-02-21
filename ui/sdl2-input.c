@@ -39,22 +39,18 @@ void sdl2_process_key(struct sdl2_console *scon,
                       SDL_KeyboardEvent *ev)
 {
     int qcode;
-    QemuConsole *con = scon ? scon->dcl.con : NULL;
+    QemuConsole *con = scon->dcl.con;
 
     if (ev->keysym.scancode >= qemu_input_map_usb_to_qcode_len) {
         return;
     }
-
     qcode = qemu_input_map_usb_to_qcode[ev->keysym.scancode];
 
     if (!qemu_console_is_graphic(con)) {
         if (ev->type == SDL_KEYDOWN) {
-            switch (ev->keysym.scancode) {
-            case SDL_SCANCODE_RETURN:
+            switch (qcode) {
+            case Q_KEY_CODE_RET:
                 kbd_put_keysym_console(con, '\n');
-                break;
-            case SDL_SCANCODE_BACKSPACE:
-                kbd_put_keysym_console(con, QEMU_KEY_BACKSPACE);
                 break;
             default:
                 kbd_put_qcode_console(con, qcode);
