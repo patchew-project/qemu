@@ -6,20 +6,20 @@
 #include "ui/input.h"
 #include "ui/kbd-state.h"
 
-typedef struct KbdHotkey KbdHotkey;
+typedef struct KbdHotkeyEntry KbdHotkeyEntry;
 
-struct KbdHotkey {
+struct KbdHotkeyEntry {
     uint32_t id;
     QKeyCode qcode;
     DECLARE_BITMAP(mods, KBD_MOD__MAX);
-    QTAILQ_ENTRY(KbdHotkey) next;
+    QTAILQ_ENTRY(KbdHotkeyEntry) next;
 };
 
 struct KbdState {
     QemuConsole *con;
     DECLARE_BITMAP(keys, Q_KEY_CODE__MAX);
     DECLARE_BITMAP(mods, KBD_MOD__MAX);
-    QTAILQ_HEAD(,KbdHotkey) hotkeys;
+    QTAILQ_HEAD(, KbdHotkeyEntry) hotkeys;
 };
 
 static void kbd_state_modifier_update(KbdState *kbd,
@@ -116,4 +116,37 @@ KbdState *kbd_state_init(QemuConsole *con)
     QTAILQ_INIT(&kbd->hotkeys);
 
     return kbd;
+}
+
+void kbd_state_hotkey_register(KbdState *kbd, KbdHotkey id, QKeyCode qcode,
+                               KbdModifier mod1, KbdModifier mod2,
+                               KbdModifier mod3)
+{
+    KbdHotkeyEntry *hotkey = g_new0(KbdHotkeyEntry, 1);
+
+    hotkey->id    = id;
+    hotkey->qcode = qcode;
+    if (mod1 != KBD_MOD_NONE) {
+        set_bit(mod1, hotkey->mods);
+    }
+    if (mod2 != KBD_MOD_NONE) {
+        set_bit(mod2, hotkey->mods);
+    }
+    if (mod3 != KBD_MOD_NONE) {
+        set_bit(mod3, hotkey->mods);
+    }
+    QTAILQ_INSERT_TAIL(&kbd->hotkeys, hotkey, next);
+}
+
+KbdHotkey kbd_state_hotkey_get(KbdState *kbd, QKeyCode qcode)
+{
+    KbdHotkeyEntry *hotkey;
+
+    QTAILQ_FOREACH(hotkey, &kbd->hotkeys, next) {
+        if (qcode == hotkey->qcode &&
+            bitmap_equal(kbd->mods, hotkey->mods, KBD_MOD__MAX)) {
+            return hotkey->id;
+        }
+    }
+    return KBD_HOTKEY_NONE;
 }
