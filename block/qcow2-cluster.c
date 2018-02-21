@@ -1598,20 +1598,29 @@ int qcow2_decompress_cluster(BlockDriverState *bs, uint64_t cluster_offset)
         sector_offset = coffset & 511;
         csize = nb_csectors * 512 - sector_offset;
 
-        /* Allocate buffers on first decompress operation, most images are
-         * uncompressed and the memory overhead can be avoided.  The buffers
-         * are freed in .bdrv_close().
+        /* Allocate buffers on the first decompress operation; most
+         * images are uncompressed and the memory overhead can be
+         * avoided.  The buffers are freed in .bdrv_close().  qemu
+         * never writes an inflated cluster, and gzip itself never
+         * inflates a problematic cluster by more than 0.015%, but the
+         * qcow2 format allows up to 2 full clusters beyond the sector
+         * containing offset, and gzip ignores trailing slop, so it's
+         * easier to just allocate that much up front than to reject
+         * third-party images with overlarge csize.
          */
+        assert(!!s->cluster_data == !!s->cluster_cache);
+        assert(csize < 2 * s->cluster_size + 512);
         if (!s->cluster_data) {
-            /* one more sector for decompressed data alignment */
-            s->cluster_data = qemu_try_blockalign(bs->file->bs,
-                    QCOW_MAX_CRYPT_CLUSTERS * s->cluster_size + 512);
+            s->cluster_data = g_try_malloc(2 * s->cluster_size + 512);
             if (!s->cluster_data) {
                 return -ENOMEM;
             }
-        }
-        if (!s->cluster_cache) {
-            s->cluster_cache = g_malloc(s->cluster_size);
+            s->cluster_cache = g_try_malloc(s->cluster_size);
+            if (!s->cluster_cache) {
+                g_free(s->cluster_data);
+                s->cluster_data = NULL;
+                return -ENOMEM;
+            }
         }
 
         BLKDBG_EVENT(bs->file, BLKDBG_READ_COMPRESSED);
