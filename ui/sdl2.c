@@ -759,7 +759,7 @@ static const DisplayChangeListenerOps dcl_gl_ops = {
 };
 #endif
 
-void sdl_display_early_init(DisplayOptions *o)
+static void sdl2_display_early_init(DisplayOptions *o)
 {
     assert(o->type == DISPLAY_TYPE_SDL);
     if (o->has_gl && o->gl) {
@@ -769,7 +769,7 @@ void sdl_display_early_init(DisplayOptions *o)
     }
 }
 
-void sdl_display_init(DisplayState *ds, DisplayOptions *o)
+static void sdl2_display_init(DisplayState *ds, DisplayOptions *o)
 {
     int flags;
     uint8_t data = 0;
@@ -869,3 +869,16 @@ void sdl_display_init(DisplayState *ds, DisplayOptions *o)
 
     atexit(sdl_cleanup);
 }
+
+static QemuDisplay qemu_display_sdl2 = {
+    .type       = DISPLAY_TYPE_SDL,
+    .early_init = sdl2_display_early_init,
+    .init       = sdl2_display_init,
+};
+
+static void register_sdl1(void)
+{
+    qemu_display_register(&qemu_display_sdl2);
+}
+
+type_init(register_sdl1);
