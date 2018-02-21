@@ -1212,10 +1212,15 @@ static void virtio_gpu_device_realize(DeviceState *qdev, Error **errp)
     g->req_state[0].height = g->conf.yres;
 
     if (virtio_gpu_virgl_enabled(g->conf)) {
+        uint32_t capset2_max_ver, capset2_max_size;
         /* use larger control queue in 3d mode */
         g->ctrl_vq   = virtio_add_queue(vdev, 256, virtio_gpu_handle_ctrl_cb);
         g->cursor_vq = virtio_add_queue(vdev, 16, virtio_gpu_handle_cursor_cb);
-        g->virtio_config.num_capsets = 1;
+
+        virgl_renderer_get_cap_set(VIRTIO_GPU_CAPSET_VIRGL2,
+                                   &capset2_max_ver,
+                                   &capset2_max_size);
+        g->virtio_config.num_capsets = capset2_max_ver > 0 ? 2 : 1;
     } else {
         g->ctrl_vq   = virtio_add_queue(vdev, 64, virtio_gpu_handle_ctrl_cb);
         g->cursor_vq = virtio_add_queue(vdev, 16, virtio_gpu_handle_cursor_cb);
