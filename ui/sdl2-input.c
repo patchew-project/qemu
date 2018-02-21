@@ -61,7 +61,6 @@ void sdl2_process_key(struct sdl2_console *scon,
                 break;
             }
         }
-        return;
     }
 
     kbd_state_key_event(scon->kbd, qcode, ev->type == SDL_KEYDOWN);
