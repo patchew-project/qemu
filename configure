@@ -5307,13 +5307,13 @@ fi
 ##########################################
 # checks for sanitizers
 
-# we could use a simple skeleton for flags checks, but this also
-# detect the static linking issue of ubsan, see also:
+# Use this program to detect the static linking issue of ubsan; see
 # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=84285
 cat > $TMPC << EOF
-#include <stdint.h>
-int main(void) {
-  return INT32_MIN / -1;
+int main(int argc, char **argv) {
+  int k = 0x7fffffff;
+  k += argc;
+  return 0;
 }
 EOF
 
@@ -5323,11 +5323,15 @@ have_asan_iface_h=no
 have_asan_iface_fiber=no
 
 if test "$sanitizers" = "yes" ; then
+  if compile_prog "$CPU_CFLAGS -Werror -fsanitize=undefined" ""; then
+    have_ubsan=yes
+  fi
+
+  # Use the skeleton for all other sanitizer checks
+  write_c_skeleton
+
   if compile_prog "$CPU_CFLAGS -Werror -fsanitize=address" ""; then
       have_asan=yes
-  fi
-  if compile_prog "$CPU_CFLAGS -Werror -fsanitize=undefined" ""; then
-      have_ubsan=yes
   fi
 
   if check_include "sanitizer/asan_interface.h" ; then
