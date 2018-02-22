@@ -130,6 +130,28 @@ $QEMU_IO -c "read -P 0    1024k 1022k" "$TEST_IMG" 2>&1 | _filter_qemu_io | _fil
 
 
 echo
+echo "=== Corrupted size field in compressed cluster descriptor ==="
+echo
+# Create an empty image, fill it with data and compress it
+# The L2 entry of the first compressed cluster is located at 0x800000
+# The original value is 0x4008000000a00000 (5 sectors for compressed data)
+_make_test_img 4M
+$QEMU_IO -c "write -P 0x11 0 4M" "$TEST_IMG" 2>&1 | _filter_qemu_io | _filter_testdir
+$QEMU_IMG convert -c -O qcow2 -o cluster_size=2M "$TEST_IMG" "$TEST_IMG".1
+
+# Reduce size of compressed data to 4 sectors: this corrupts the image
+poke_file "$TEST_IMG".1 $((0x800000)) "\x40\x06"
+$QEMU_IO -c "read  -P 0x11 0 4M" "$TEST_IMG".1 2>&1 | _filter_qemu_io | _filter_testdir
+
+# Increase size of compressed data to the maximum (8192 sectors)
+# This makes QEMU read more data (8192 sectors instead of 5), but the
+# decompression algorithm stops once we have enough to restore the
+# uncompressed cluster, so the rest of the data is ignored
+poke_file "$TEST_IMG".1 $((0x800000)) "\x7f\xfe"
+$QEMU_IO -c "read  -P 0x11 0 4M" "$TEST_IMG".1 2>&1 | _filter_qemu_io | _filter_testdir
+
+
+echo
 echo "=== Full allocation with -S 0 ==="
 echo
 
