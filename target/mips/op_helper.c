@@ -17,7 +17,6 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "qemu/osdep.h"
-#include "qemu/main-loop.h"
 #include "cpu.h"
 #include "internal.h"
 #include "qemu/host-utils.h"
@@ -809,11 +808,7 @@ target_ulong helper_mftc0_tcschefback(CPUMIPSState *env)
 
 target_ulong helper_mfc0_count(CPUMIPSState *env)
 {
-    int32_t count;
-    qemu_mutex_lock_iothread();
-    count = (int32_t) cpu_mips_get_count(env);
-    qemu_mutex_unlock_iothread();
-    return count;
+    return (int32_t)cpu_mips_get_count(env);
 }
 
 target_ulong helper_mftc0_entryhi(CPUMIPSState *env)
@@ -1388,9 +1383,7 @@ void helper_mtc0_hwrena(CPUMIPSState *env, target_ulong arg1)
 
 void helper_mtc0_count(CPUMIPSState *env, target_ulong arg1)
 {
-    qemu_mutex_lock_iothread();
     cpu_mips_store_count(env, arg1);
-    qemu_mutex_unlock_iothread();
 }
 
 void helper_mtc0_entryhi(CPUMIPSState *env, target_ulong arg1)
@@ -1439,9 +1432,7 @@ void helper_mttc0_entryhi(CPUMIPSState *env, target_ulong arg1)
 
 void helper_mtc0_compare(CPUMIPSState *env, target_ulong arg1)
 {
-    qemu_mutex_lock_iothread();
     cpu_mips_store_compare(env, arg1);
-    qemu_mutex_unlock_iothread();
 }
 
 void helper_mtc0_status(CPUMIPSState *env, target_ulong arg1)
@@ -1495,9 +1486,7 @@ void helper_mtc0_srsctl(CPUMIPSState *env, target_ulong arg1)
 
 void helper_mtc0_cause(CPUMIPSState *env, target_ulong arg1)
 {
-    qemu_mutex_lock_iothread();
     cpu_mips_store_cause(env, arg1);
-    qemu_mutex_unlock_iothread();
 }
 
 void helper_mttc0_cause(CPUMIPSState *env, target_ulong arg1)
@@ -2339,16 +2328,12 @@ target_ulong helper_rdhwr_synci_step(CPUMIPSState *env)
 
 target_ulong helper_rdhwr_cc(CPUMIPSState *env)
 {
-    int32_t count;
     check_hwrena(env, 2, GETPC());
 #ifdef CONFIG_USER_ONLY
-    count = env->CP0_Count;
+    return env->CP0_Count;
 #else
-    qemu_mutex_lock_iothread();
-    count = (int32_t)cpu_mips_get_count(env);
-    qemu_mutex_unlock_iothread();
+    return (int32_t)cpu_mips_get_count(env);
 #endif
-    return count;
 }
 
 target_ulong helper_rdhwr_ccres(CPUMIPSState *env)
