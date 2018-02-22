@@ -223,7 +223,7 @@ static void xilinx_spips_update_cs(XilinxSPIPS *s, int field)
 {
     int i;
 
-    for (i = 0; i < s->num_cs; i++) {
+    for (i = 0; i < s->num_cs * s->num_busses; i++) {
         bool old_state = s->cs_lines_state[i];
         bool new_state = field & (1 << i);
 
@@ -234,7 +234,7 @@ static void xilinx_spips_update_cs(XilinxSPIPS *s, int field)
         }
         qemu_set_irq(s->cs_lines[i], !new_state);
     }
-    if (!(field & ((1 << s->num_cs) - 1))) {
+    if (!(field & ((1 << (s->num_cs * s->num_busses)) - 1))) {
         s->snoop_state = SNOOP_CHECKING;
         s->cmd_dummies = 0;
         s->link_state = 1;
@@ -248,7 +248,41 @@ static void xlnx_zynqmp_qspips_update_cs_lines(XlnxZynqMPQSPIPS *s)
 {
     if (s->regs[R_GQSPI_GF_SNAPSHOT]) {
         int field = ARRAY_FIELD_EX32(s->regs, GQSPI_GF_SNAPSHOT, CHIP_SELECT);
-        xilinx_spips_update_cs(XILINX_SPIPS(s), field);
+        bool both_buses_enabled;
+        uint8_t buses;
+        int cs = 0;
+
+        buses = ARRAY_FIELD_EX32(s->regs, GQSPI_GF_SNAPSHOT, DATA_BUS_SELECT);
+        both_buses_enabled = (buses & 0x3) == 0x3;
+
+        if (both_buses_enabled) {
+            /* Bus 0 lower cs */
+            if (field & 1) {
+                cs |= 1;
+            }
+            /* Bus 1 upper cs */
+            if (field & (1 << 1)) {
+                cs |= 1 << 3;
+            }
+        } else {
+            /* Bus 0 lower cs */
+            if (buses & 1 && field & 1) {
+                cs |= 1;
+            }
+            /* Bus 0 upper cs */
+            if (buses & 1 && field & (1 << 1)) {
+                cs |= 1 << 1;
+            }
+            /* Bus 1 lower cs */
+            if (buses & (1 << 1) && field & 1) {
+                cs |= 1 << 2;
+            }
+            /* Bus 1 upper cs */
+            if (buses & (1 << 1) && field & (1 << 1)) {
+                cs |= 1 << 3;
+            }
+        }
+        xilinx_spips_update_cs(XILINX_SPIPS(s), cs);
     }
 }
 
@@ -260,7 +294,7 @@ static void xilinx_spips_update_cs_lines(XilinxSPIPS *s)
     if (num_effective_busses(s) == 2) {
         /* Single bit chip-select for qspi */
         field &= 0x1;
-        field |= field << 1;
+        field |= field << 3;
     /* Dual stack U-Page */
     } else if (s->regs[R_LQSPI_CFG] & LQSPI_CFG_TWO_MEM &&
                s->regs[R_LQSPI_STS] & LQSPI_CFG_U_PAGE) {
