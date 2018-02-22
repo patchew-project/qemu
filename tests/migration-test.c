@@ -21,10 +21,10 @@
 #include "sysemu/sysemu.h"
 #include "hw/nvram/chrp_nvram.h"
 
-#define MIN_NVRAM_SIZE 8192 /* from spapr_nvram.c */
+#include "migration/migration-test.h"
 
-const unsigned start_address = 1024 * 1024;
-const unsigned end_address = 100 * 1024 * 1024;
+const unsigned start_address = TEST_MEM_START;
+const unsigned end_address = TEST_MEM_END;
 bool got_stop;
 
 #if defined(__linux__)
@@ -278,7 +278,8 @@ static void check_guests_ram(QTestState *who)
     qtest_memread(who, start_address, &first_byte, 1);
     last_byte = first_byte;
 
-    for (address = start_address + 4096; address < end_address; address += 4096)
+    for (address = start_address + TEST_MEM_PAGE_SIZE; address < end_address;
+         address += TEST_MEM_PAGE_SIZE)
     {
         uint8_t b;
         qtest_memread(who, address, &b, 1);
