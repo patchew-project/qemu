@@ -467,6 +467,19 @@ static void block_job_cancel_async(BlockJob *job)
     job->cancelled = true;
 }
 
+static void block_job_txn_apply(BlockJobTxn *txn, void fn(BlockJob *))
+{
+    AioContext *ctx;
+    BlockJob *job, *next;
+
+    QLIST_FOREACH_SAFE(job, &txn->jobs, txn_list, next) {
+        ctx = blk_get_aio_context(job->blk);
+        aio_context_acquire(ctx);
+        fn(job);
+        aio_context_release(ctx);
+    }
+}
+
 static void block_job_do_dismiss(BlockJob *job)
 {
     assert(job);
@@ -552,9 +565,8 @@ static void block_job_completed_txn_abort(BlockJob *job)
 
 static void block_job_completed_txn_success(BlockJob *job)
 {
-    AioContext *ctx;
     BlockJobTxn *txn = job->txn;
-    BlockJob *other_job, *next;
+    BlockJob *other_job;
     /*
      * Successful completion, see if there are other running jobs in this
      * txn.
@@ -565,13 +577,7 @@ static void block_job_completed_txn_success(BlockJob *job)
         }
     }
     /* We are the last completed job, commit the transaction. */
-    QLIST_FOREACH_SAFE(other_job, &txn->jobs, txn_list, next) {
-        ctx = blk_get_aio_context(other_job->blk);
-        aio_context_acquire(ctx);
-        assert(other_job->ret == 0);
-        block_job_completed_single(other_job);
-        aio_context_release(ctx);
-    }
+    block_job_txn_apply(txn, block_job_completed_single);
 }
 
 /* Assumes the block_job_mutex is held */
