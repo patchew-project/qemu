@@ -80,10 +80,16 @@ static void parse_numa_node(MachineState *ms, NumaNodeOptions *node,
         return;
     }
 
+#ifdef TARGET_S390X
+    /* s390x provides cpu_index_to_instance_props but has no NUMA */
+    error_report("NUMA is not supported by this machine-type");
+    exit(1);
+#else
     if (!mc->cpu_index_to_instance_props) {
         error_report("NUMA is not supported by this machine-type");
         exit(1);
     }
+#endif
     for (cpus = node->cpus; cpus; cpus = cpus->next) {
         CpuInstanceProperties props;
         if (cpus->value >= max_cpus) {
