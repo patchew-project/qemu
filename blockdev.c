@@ -3260,7 +3260,7 @@ static BlockJob *do_drive_backup(DriveBackup *backup, BlockJobTxn *txn,
     AioContext *aio_context;
     QDict *options = NULL;
     Error *local_err = NULL;
-    int flags;
+    int flags, job_flags = BLOCK_JOB_DEFAULT;
     int64_t size;
     bool set_backing_hd = false;
 
@@ -3278,6 +3278,9 @@ static BlockJob *do_drive_backup(DriveBackup *backup, BlockJobTxn *txn,
     }
     if (!backup->has_job_id) {
         backup->job_id = NULL;
+    }
+    if (!backup->has_manual) {
+        backup->manual = false;
     }
     if (!backup->has_compress) {
         backup->compress = false;
@@ -3370,11 +3373,14 @@ static BlockJob *do_drive_backup(DriveBackup *backup, BlockJobTxn *txn,
             goto out;
         }
     }
+    if (backup->manual) {
+        job_flags |= BLOCK_JOB_MANUAL;
+    }
 
     job = backup_job_create(backup->job_id, bs, target_bs, backup->speed,
                             backup->sync, bmap, backup->compress,
                             backup->on_source_error, backup->on_target_error,
-                            BLOCK_JOB_DEFAULT, NULL, NULL, txn, &local_err);
+                            job_flags, NULL, NULL, txn, &local_err);
     bdrv_unref(target_bs);
     if (local_err != NULL) {
         error_propagate(errp, local_err);
@@ -3409,6 +3415,7 @@ BlockJob *do_blockdev_backup(BlockdevBackup *backup, BlockJobTxn *txn,
     Error *local_err = NULL;
     AioContext *aio_context;
     BlockJob *job = NULL;
+    int job_flags = BLOCK_JOB_DEFAULT;
 
     if (!backup->has_speed) {
         backup->speed = 0;
@@ -3421,6 +3428,9 @@ BlockJob *do_blockdev_backup(BlockdevBackup *backup, BlockJobTxn *txn,
     }
     if (!backup->has_job_id) {
         backup->job_id = NULL;
+    }
+    if (!backup->has_manual) {
+        backup->manual = false;
     }
     if (!backup->has_compress) {
         backup->compress = false;
@@ -3450,10 +3460,13 @@ BlockJob *do_blockdev_backup(BlockdevBackup *backup, BlockJobTxn *txn,
             goto out;
         }
     }
+    if (backup->manual) {
+        job_flags |= BLOCK_JOB_MANUAL;
+    }
     job = backup_job_create(backup->job_id, bs, target_bs, backup->speed,
                             backup->sync, NULL, backup->compress,
                             backup->on_source_error, backup->on_target_error,
-                            BLOCK_JOB_DEFAULT, NULL, NULL, txn, &local_err);
+                            job_flags, NULL, NULL, txn, &local_err);
     if (local_err != NULL) {
         error_propagate(errp, local_err);
     }

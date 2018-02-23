@@ -1177,6 +1177,16 @@
 # @job-id: identifier for the newly-created block job. If
 #          omitted, the device name will be used. (Since 2.7)
 #
+# @manual: True to use an expanded, more explicit job control flow.
+#          Jobs may transition from a running state to a pending state,
+#          where they must be instructed to complete manually via
+#          block-job-finalize.
+#          Jobs belonging to a transaction must either all or all not use this
+#          setting. Once a transaction reaches a pending state, issuing the
+#          finalize command to any one job in the transaction is sufficient
+#          to finalize the entire transaction.
+#          (Since 2.12)
+#
 # @device: the device name or node-name of a root node which should be copied.
 #
 # @target: the target of the new image. If the file exists, or if it
@@ -1217,9 +1227,10 @@
 # Since: 1.6
 ##
 { 'struct': 'DriveBackup',
-  'data': { '*job-id': 'str', 'device': 'str', 'target': 'str',
-            '*format': 'str', 'sync': 'MirrorSyncMode', '*mode': 'NewImageMode',
-            '*speed': 'int', '*bitmap': 'str', '*compress': 'bool',
+  'data': { '*job-id': 'str', '*manual': 'bool', 'device': 'str',
+            'target': 'str', '*format': 'str', 'sync': 'MirrorSyncMode',
+            '*mode': 'NewImageMode', '*speed': 'int',
+            '*bitmap': 'str', '*compress': 'bool',
             '*on-source-error': 'BlockdevOnError',
             '*on-target-error': 'BlockdevOnError' } }
 
@@ -1228,6 +1239,16 @@
 #
 # @job-id: identifier for the newly-created block job. If
 #          omitted, the device name will be used. (Since 2.7)
+#
+# @manual: True to use an expanded, more explicit job control flow.
+#          Jobs may transition from a running state to a pending state,
+#          where they must be instructed to complete manually via
+#          block-job-finalize.
+#          Jobs belonging to a transaction must either all or all not use this
+#          setting. Once a transaction reaches a pending state, issuing the
+#          finalize command to any one job in the transaction is sufficient
+#          to finalize the entire transaction.
+#          (Since 2.12)
 #
 # @device: the device name or node-name of a root node which should be copied.
 #
@@ -1258,9 +1279,8 @@
 # Since: 2.3
 ##
 { 'struct': 'BlockdevBackup',
-  'data': { '*job-id': 'str', 'device': 'str', 'target': 'str',
-            'sync': 'MirrorSyncMode',
-            '*speed': 'int',
+  'data': { '*job-id': 'str', '*manual': 'bool', 'device': 'str',
+            'target': 'str', 'sync': 'MirrorSyncMode', '*speed': 'int',
             '*compress': 'bool',
             '*on-source-error': 'BlockdevOnError',
             '*on-target-error': 'BlockdevOnError' } }
