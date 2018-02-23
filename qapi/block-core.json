@@ -998,6 +998,10 @@
 # @standby: The job is ready, but paused. This is nearly identical to @paused.
 #           The job may return to @ready or otherwise be canceled.
 #
+# @waiting: The job is waiting for other jobs in the transaction to converge
+#           to the waiting state. This status will likely not be visible for
+#           the last job in a transaction.
+#
 # @aborting: The job is in the process of being aborted, and will finish with
 #            an error. The job will afterwards report that it is @concluded.
 #            This status may not be visible to the management process.
@@ -1012,7 +1016,7 @@
 ##
 { 'enum': 'BlockJobStatus',
   'data': ['undefined', 'created', 'running', 'paused', 'ready', 'standby',
-           'aborting', 'concluded', 'null' ] }
+           'waiting', 'aborting', 'concluded', 'null' ] }
 
 ##
 # @BlockJobInfo:
@@ -3933,6 +3937,29 @@
             'len'   : 'int',
             'offset': 'int',
             'speed' : 'int' } }
+
+##
+# @BLOCK_JOB_WAITING:
+#
+# Emitted when a block job that is part of a transction has stopped work and is
+# waiting for other jobs in the transaction to reach the same state.
+#
+# @type: job type
+#
+# @id: The job identifier.
+#
+# Since: 2.12
+#
+# Example:
+#
+# <- { "event": "BLOCK_JOB_WAITING",
+#      "data": { "id": "drive0", "type": "mirror" },
+#      "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
+#
+##
+{ 'event': 'BLOCK_JOB_WAITING',
+  'data': { 'type'  : 'BlockJobType',
+            'id'    : 'str' } }
 
 ##
 # @PreallocMode:
