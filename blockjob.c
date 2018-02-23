@@ -384,13 +384,22 @@ void block_job_start(BlockJob *job)
     bdrv_coroutine_enter(blk_bs(job->blk), job->co);
 }
 
+static void block_job_update_rc(BlockJob *job)
+{
+    if (!job->ret && block_job_is_cancelled(job)) {
+        job->ret = -ECANCELED;
+    }
+    if (job->ret) {
+        block_job_state_transition(job, BLOCK_JOB_STATUS_ABORTING);
+    }
+}
+
 static void block_job_completed_single(BlockJob *job)
 {
     assert(job->completed);
 
-    if (job->ret || block_job_is_cancelled(job)) {
-        block_job_state_transition(job, BLOCK_JOB_STATUS_ABORTING);
-    }
+    /* Ensure abort is called for late-transactional failures */
+    block_job_update_rc(job);
 
     if (!job->ret) {
         if (job->driver->commit) {
@@ -898,7 +907,9 @@ void block_job_completed(BlockJob *job, int ret)
     assert(blk_bs(job->blk)->job == job);
     job->completed = true;
     job->ret = ret;
-    if (ret < 0 || block_job_is_cancelled(job)) {
+    block_job_update_rc(job);
+    trace_block_job_completed(job, ret, job->ret);
+    if (job->ret) {
         block_job_completed_txn_abort(job);
     } else {
         block_job_completed_txn_success(job);
