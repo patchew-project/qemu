@@ -1321,8 +1321,12 @@ out:
 
     /* Update number of transferred bytes, destroy sglist */
     dma_buf_commit(s, size);
+}
 
-    s->end_transfer_func(s);
+static void ahci_end_transfer(IDEDMA *dma)
+{
+    AHCIDevice *ad = DO_UPCAST(AHCIDevice, dma, dma);
+    IDEState *s = &ad->port.ifs[0];
 
     if (!(s->status & DRQ_STAT)) {
         /* done with PIO send/receive */
@@ -1444,6 +1448,7 @@ static const IDEDMAOps ahci_dma_ops = {
     .restart = ahci_restart,
     .restart_dma = ahci_restart_dma,
     .start_transfer = ahci_start_transfer,
+    .end_transfer = ahci_end_transfer,
     .prepare_buf = ahci_dma_prepare_buf,
     .commit_buf = ahci_commit_buf,
     .rw_buf = ahci_dma_rw_buf,
