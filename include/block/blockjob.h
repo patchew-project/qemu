@@ -141,14 +141,24 @@ typedef struct BlockJob {
      */
     QEMUTimer sleep_timer;
 
+    /**
+     * Set to true when the management API has requested manual job
+     * management semantics.
+     */
+    bool manual;
+
     /** Non-NULL if this job is part of a transaction */
     BlockJobTxn *txn;
     QLIST_ENTRY(BlockJob) txn_list;
 } BlockJob;
 
 typedef enum BlockJobCreateFlags {
+    /* Default behavior */
     BLOCK_JOB_DEFAULT = 0x00,
+    /* BlockJob is not QMP-created and should not send QMP events */
     BLOCK_JOB_INTERNAL = 0x01,
+    /* BlockJob requests manual job management steps. */
+    BLOCK_JOB_MANUAL = 0x02,
 } BlockJobCreateFlags;
 
 /**
