@@ -79,7 +79,8 @@
 ##
 { 'struct': 'TransactionProperties',
   'data': {
-       '*completion-mode': 'ActionCompletionMode'
+       '*completion-mode': 'ActionCompletionMode',
+       '*manual-mgmt': 'bool'
   }
 }
 

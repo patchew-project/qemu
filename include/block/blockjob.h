@@ -371,8 +371,11 @@ void block_job_iostatus_reset(BlockJob *job);
  * All jobs in the transaction either complete successfully or fail/cancel as a
  * group.  Jobs wait for each other before completing.  Cancelling one job
  * cancels all jobs in the transaction.
+ *
+ * @manual_mgmt: whether or not jobs that belong to this transaction will be
+ *               forced to use 2.12+ job management semantics
  */
-BlockJobTxn *block_job_txn_new(void);
+BlockJobTxn *block_job_txn_new(bool manual_mgmt);
 
 /**
  * block_job_ref:

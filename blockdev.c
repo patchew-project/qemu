@@ -2225,6 +2225,11 @@ static TransactionProperties *get_transaction_properties(
         props->completion_mode = ACTION_COMPLETION_MODE_INDIVIDUAL;
     }
 
+    if (!props->has_manual_mgmt) {
+        props->has_manual_mgmt = true;
+        props->manual_mgmt = false;
+    }
+
     return props;
 }
 
@@ -2250,7 +2255,7 @@ void qmp_transaction(TransactionActionList *dev_list,
      */
     props = get_transaction_properties(props);
     if (props->completion_mode != ACTION_COMPLETION_MODE_INDIVIDUAL) {
-        block_job_txn = block_job_txn_new();
+        block_job_txn = block_job_txn_new(props->manual_mgmt);
     }
 
     /* drain all i/o before any operations */

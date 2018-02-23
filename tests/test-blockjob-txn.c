@@ -119,7 +119,7 @@ static void test_single_job(int expected)
     BlockJobTxn *txn;
     int result = -EINPROGRESS;
 
-    txn = block_job_txn_new();
+    txn = block_job_txn_new(false);
     job = test_block_job_start(1, true, expected, &result, txn);
     block_job_start(job);
 
@@ -158,7 +158,7 @@ static void test_pair_jobs(int expected1, int expected2)
     int result1 = -EINPROGRESS;
     int result2 = -EINPROGRESS;
 
-    txn = block_job_txn_new();
+    txn = block_job_txn_new(false);
     job1 = test_block_job_start(1, true, expected1, &result1, txn);
     job2 = test_block_job_start(2, true, expected2, &result2, txn);
     block_job_start(job1);
@@ -220,7 +220,7 @@ static void test_pair_jobs_fail_cancel_race(void)
     int result1 = -EINPROGRESS;
     int result2 = -EINPROGRESS;
 
-    txn = block_job_txn_new();
+    txn = block_job_txn_new(false);
     job1 = test_block_job_start(1, true, -ECANCELED, &result1, txn);
     job2 = test_block_job_start(2, false, 0, &result2, txn);
     block_job_start(job1);

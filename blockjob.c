@@ -136,6 +136,9 @@ struct BlockJobTxn {
 
     /* Reference count */
     int refcnt;
+
+    /* Participating jobs must use manual completion */
+    bool manual;
 };
 
 static QLIST_HEAD(, BlockJob) block_jobs = QLIST_HEAD_INITIALIZER(block_jobs);
@@ -176,11 +179,12 @@ BlockJob *block_job_get(const char *id)
     return NULL;
 }
 
-BlockJobTxn *block_job_txn_new(void)
+BlockJobTxn *block_job_txn_new(bool manual_mgmt)
 {
     BlockJobTxn *txn = g_new0(BlockJobTxn, 1);
     QLIST_INIT(&txn->jobs);
     txn->refcnt = 1;
+    txn->manual = manual_mgmt;
     return txn;
 }
 
@@ -944,7 +948,7 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
     job->paused        = true;
     job->pause_count   = 1;
     job->refcnt        = 1;
-    job->manual        = (flags & BLOCK_JOB_MANUAL);
+    job->manual        = (flags & BLOCK_JOB_MANUAL) || (txn && txn->manual);
     job->status        = BLOCK_JOB_STATUS_CREATED;
     block_job_state_transition(job, BLOCK_JOB_STATUS_CREATED);
     aio_timer_init(qemu_get_aio_context(), &job->sleep_timer,
@@ -978,7 +982,7 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
     /* Single jobs are modeled as single-job transactions for sake of
      * consolidating the job management logic */
     if (!txn) {
-        txn = block_job_txn_new();
+        txn = block_job_txn_new(false);
         block_job_txn_add_job(txn, job);
         block_job_txn_unref(txn);
     } else {
