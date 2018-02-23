@@ -553,10 +553,9 @@ static void ide_cmd_done(IDEState *s)
     }
 }
 
-static void ide_transfer_halt(IDEState *s,
-                              void(*end_transfer_func)(IDEState *))
+static void ide_transfer_halt(IDEState *s)
 {
-    s->end_transfer_func = end_transfer_func;
+    s->end_transfer_func = ide_transfer_stop;
     s->data_ptr = s->io_buffer;
     s->data_end = s->io_buffer;
     s->status &= ~DRQ_STAT;
@@ -564,7 +563,7 @@ static void ide_transfer_halt(IDEState *s,
 
 void ide_transfer_stop(IDEState *s)
 {
-    ide_transfer_halt(s, ide_transfer_stop);
+    ide_transfer_halt(s);
     if (s->bus->dma->ops->end_transfer) {
         s->bus->dma->ops->end_transfer(s->bus->dma);
     }
@@ -573,7 +572,7 @@ void ide_transfer_stop(IDEState *s)
 
 static void ide_transfer_cancel(IDEState *s)
 {
-    ide_transfer_halt(s, ide_transfer_cancel);
+    ide_transfer_halt(s);
 }
 
 int64_t ide_get_sector(IDEState *s)
