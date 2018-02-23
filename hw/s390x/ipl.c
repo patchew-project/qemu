@@ -246,6 +246,7 @@ static void s390_ipl_set_boot_menu(S390IPLState *ipl)
             *flags |= QIPL_FLAG_BM_OPTS_ZIPL;
             return;
         }
+    case S390_IPL_TYPE_QEMU_SCSI:
         break;
     default:
         error_report("boot menu is not supported for this device type.");
