@@ -21,10 +21,10 @@
 #include "sysemu/sysemu.h"
 #include "hw/nvram/chrp_nvram.h"
 
-#define MIN_NVRAM_SIZE 8192 /* from spapr_nvram.c */
+#include "migration/migration-test.h"
 
-const unsigned start_address = 1024 * 1024;
-const unsigned end_address = 100 * 1024 * 1024;
+const unsigned start_address = TEST_MEM_START;
+const unsigned end_address = TEST_MEM_END;
 bool got_stop;
 
 #if defined(__linux__)
@@ -77,8 +77,8 @@ static bool ufd_version_check(void)
 
 static const char *tmpfs;
 
-/* A simple PC boot sector that modifies memory (1-100MB) quickly
- * outputting a 'B' every so often if it's still running.
+/* The boot file modifies memory area in [start_address, end_address)
+ * repeatedly. It outputs a 'B' at a fixed rate while it's still running.
  */
 #include "tests/migration/x86-a-b-bootblock.h"
 
@@ -104,9 +104,8 @@ static void init_bootfile_ppc(const char *bootpath)
     memcpy(header->name, "common", 6);
     chrp_nvram_finish_partition(header, MIN_NVRAM_SIZE);
 
-    /* FW_MAX_SIZE is 4MB, but slof.bin is only 900KB,
-     * so let's modify memory between 1MB and 100MB
-     * to do like PC bootsector
+    /* FW_MAX_SIZE is 4MB, but slof.bin is only 900KB. So it is OK to modify
+     * memory between start_address and end_address like PC bootsector does.
      */
 
     sprintf(buf + 16,
@@ -263,11 +262,11 @@ static void wait_for_migration_pass(QTestState *who)
 static void check_guests_ram(QTestState *who)
 {
     /* Our ASM test will have been incrementing one byte from each page from
-     * 1MB to <100MB in order.
-     * This gives us a constraint that any page's byte should be equal or less
-     * than the previous pages byte (mod 256); and they should all be equal
-     * except for one transition at the point where we meet the incrementer.
-     * (We're running this with the guest stopped).
+     * start_address to <end_address in order. This gives us a constraint
+     * that any page's byte should be equal or less than the previous pages
+     * byte (mod 256); and they should all be equal except for one transition
+     * at the point where we meet the incrementer. (We're running this with
+     * the guest stopped).
      */
     unsigned address;
     uint8_t first_byte;
@@ -278,7 +277,8 @@ static void check_guests_ram(QTestState *who)
     qtest_memread(who, start_address, &first_byte, 1);
     last_byte = first_byte;
 
-    for (address = start_address + 4096; address < end_address; address += 4096)
+    for (address = start_address + TEST_MEM_PAGE_SIZE; address < end_address;
+         address += TEST_MEM_PAGE_SIZE)
     {
         uint8_t b;
         qtest_memread(who, address, &b, 1);
