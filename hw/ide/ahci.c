@@ -1326,12 +1326,9 @@ out:
 static void ahci_end_transfer(IDEDMA *dma)
 {
     AHCIDevice *ad = DO_UPCAST(AHCIDevice, dma, dma);
-    IDEState *s = &ad->port.ifs[0];
 
-    if (!(s->status & DRQ_STAT)) {
-        /* done with PIO send/receive */
-        ahci_write_fis_pio(ad, le32_to_cpu(ad->cur_cmd->status));
-    }
+    /* done with PIO send/receive */
+    ahci_write_fis_pio(ad, le32_to_cpu(ad->cur_cmd->status));
 }
 
 static void ahci_start_dma(IDEDMA *dma, IDEState *s,
