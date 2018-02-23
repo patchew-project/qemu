@@ -63,6 +63,7 @@ bool BlockJobVerbTable[BLOCK_JOB_VERB__MAX][BLOCK_JOB_STATUS__MAX] = {
     [BLOCK_JOB_VERB_RESUME]               = {0, 1, 1, 1, 1, 1, 0, 0, 0},
     [BLOCK_JOB_VERB_SET_SPEED]            = {0, 1, 1, 1, 1, 1, 0, 0, 0},
     [BLOCK_JOB_VERB_COMPLETE]             = {0, 0, 0, 0, 1, 0, 0, 0, 0},
+    [BLOCK_JOB_VERB_DISMISS]              = {0, 0, 0, 0, 0, 0, 0, 1, 0},
 };
 
 static void block_job_state_transition(BlockJob *job, BlockJobStatus s1)
@@ -424,7 +425,6 @@ static void block_job_completed_single(BlockJob *job)
     QLIST_REMOVE(job, txn_list);
     block_job_txn_unref(job->txn);
     block_job_event_concluded(job);
-    block_job_state_transition(job, BLOCK_JOB_STATUS_NULL);
     block_job_unref(job);
 }
 
@@ -439,6 +439,13 @@ static void block_job_cancel_async(BlockJob *job)
         job->pause_count--;
     }
     job->cancelled = true;
+}
+
+static void block_job_do_dismiss(BlockJob *job)
+{
+    assert(job);
+    block_job_state_transition(job, BLOCK_JOB_STATUS_NULL);
+    block_job_unref(job);
 }
 
 static int block_job_finish_sync(BlockJob *job,
@@ -590,6 +597,19 @@ void block_job_complete(BlockJob *job, Error **errp)
     job->driver->complete(job, errp);
 }
 
+void block_job_dismiss(BlockJob **jobptr, Error **errp)
+{
+    BlockJob *job = *jobptr;
+    /* similarly to _complete, this is QMP-interface only. */
+    assert(job->id);
+    if (block_job_apply_verb(job, BLOCK_JOB_VERB_DISMISS, errp)) {
+        return;
+    }
+
+    block_job_do_dismiss(job);
+    *jobptr = NULL;
+}
+
 void block_job_user_pause(BlockJob *job, Error **errp)
 {
     if (block_job_apply_verb(job, BLOCK_JOB_VERB_PAUSE, errp)) {
@@ -626,7 +646,7 @@ void block_job_user_resume(BlockJob *job, Error **errp)
 void block_job_cancel(BlockJob *job)
 {
     if (job->status == BLOCK_JOB_STATUS_CONCLUDED) {
-        return;
+        block_job_do_dismiss(job);
     } else if (block_job_started(job)) {
         block_job_cancel_async(job);
         block_job_enter(job);
@@ -737,6 +757,10 @@ static void block_job_event_completed(BlockJob *job, const char *msg)
 static void block_job_event_concluded(BlockJob *job)
 {
     block_job_state_transition(job, BLOCK_JOB_STATUS_CONCLUDED);
+    /* for pre-2.12 style jobs, automatically destroy */
+    if (!job->manual) {
+        block_job_do_dismiss(job);
+    }
 }
 
 /*
@@ -841,6 +865,9 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
         block_job_txn_add_job(txn, job);
     }
 
+    /* For the expanded job control STM, grab an extra
+     * reference for finalize() to put down */
+    block_job_ref(job);
     return job;
 }
 
@@ -859,6 +886,9 @@ void block_job_pause_all(void)
 
 void block_job_early_fail(BlockJob *job)
 {
+    /* One for creation, one for finalize() */
+    assert(job->status == BLOCK_JOB_STATUS_CREATED);
+    block_job_unref(job);
     block_job_unref(job);
 }
 
