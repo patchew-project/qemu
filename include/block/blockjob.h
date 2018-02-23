@@ -143,9 +143,12 @@ typedef struct BlockJob {
 
     /**
      * Set to true when the management API has requested manual job
-     * management semantics.
+     * management semantics. See @BlockJobStatus for details.
      */
     bool manual;
+
+    /** Current state; See @BlockJobStatus for details. */
+    BlockJobStatus status;
 
     /** Non-NULL if this job is part of a transaction */
     BlockJobTxn *txn;
@@ -157,7 +160,7 @@ typedef enum BlockJobCreateFlags {
     BLOCK_JOB_DEFAULT = 0x00,
     /* BlockJob is not QMP-created and should not send QMP events */
     BLOCK_JOB_INTERNAL = 0x01,
-    /* BlockJob requests manual job management steps. */
+    /* BlockJob requests manual job management steps. See @BlockJobStatus. */
     BLOCK_JOB_MANUAL = 0x02,
 } BlockJobCreateFlags;
 
