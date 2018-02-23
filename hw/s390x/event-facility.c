@@ -30,7 +30,7 @@ struct SCLPEventFacility {
     SysBusDevice parent_obj;
     SCLPEventsBus sbus;
     /* guest's receive mask */
-    sccb_mask_t receive_mask;
+    uint32_t receive_mask_pieces[2];
     /*
      * when false, we keep the same broken, backwards compatible behaviour as
      * before, allowing only masks of size exactly 4; when true, we implement
@@ -41,6 +41,18 @@ struct SCLPEventFacility {
     /* length of the receive mask */
     uint16_t mask_length;
 };
+
+static inline sccb_mask_t make_receive_mask(SCLPEventFacility *ef)
+{
+    return ((sccb_mask_t)ef->receive_mask_pieces[0]) << 32 |
+                         ef->receive_mask_pieces[1];
+}
+
+static inline void store_receive_mask(SCLPEventFacility *ef, sccb_mask_t val)
+{
+    ef->receive_mask_pieces[1] = val;
+    ef->receive_mask_pieces[0] = val >> 32;
+}
 
 /* return true if any child has event pending set */
 static bool event_pending(SCLPEventFacility *ef)
@@ -54,7 +66,7 @@ static bool event_pending(SCLPEventFacility *ef)
         event = DO_UPCAST(SCLPEvent, qdev, qdev);
         event_class = SCLP_EVENT_GET_CLASS(event);
         if (event->event_pending &&
-            event_class->get_send_mask() & ef->receive_mask) {
+            event_class->get_send_mask() & make_receive_mask(ef)) {
             return true;
         }
     }
@@ -252,7 +264,7 @@ static void read_event_data(SCLPEventFacility *ef, SCCB *sccb)
         goto out;
     }
 
-    sclp_cp_receive_mask = ef->receive_mask;
+    sclp_cp_receive_mask = make_receive_mask(ef);
 
     /* get active selection mask */
     switch (sccb->h.function_code) {
@@ -262,7 +274,7 @@ static void read_event_data(SCLPEventFacility *ef, SCCB *sccb)
     case SCLP_SELECTIVE_READ:
         copy_mask((uint8_t *)&sclp_active_selection_mask, (uint8_t *)&red->mask,
                   sizeof(sclp_active_selection_mask), ef->mask_length);
-        sclp_active_selection_mask = be32_to_cpu(sclp_active_selection_mask);
+        sclp_active_selection_mask = be64_to_cpu(sclp_active_selection_mask);
         if (!sclp_cp_receive_mask ||
             (sclp_active_selection_mask & ~sclp_cp_receive_mask)) {
             sccb->h.response_code =
@@ -294,21 +306,22 @@ static void write_event_mask(SCLPEventFacility *ef, SCCB *sccb)
     }
 
     /*
-     * Note: We currently only support masks up to 4 byte length;
-     *       the remainder is filled up with zeroes. Linux uses
-     *       a 4 byte mask length.
+     * Note: We currently only support masks up to 8 byte length;
+     *       the remainder is filled up with zeroes. Older Linux
+     *       kernels use a 4 byte mask length, newer ones can use both
+     *       8 or 4 depending on what is available on the host.
      */
 
     /* keep track of the guest's capability masks */
     copy_mask((uint8_t *)&tmp_mask, WEM_CP_RECEIVE_MASK(we_mask, mask_length),
               sizeof(tmp_mask), mask_length);
-    ef->receive_mask = be32_to_cpu(tmp_mask);
+    store_receive_mask(ef, be64_to_cpu(tmp_mask));
 
     /* return the SCLP's capability masks to the guest */
-    tmp_mask = cpu_to_be32(get_host_receive_mask(ef));
+    tmp_mask = cpu_to_be64(get_host_receive_mask(ef));
     copy_mask(WEM_RECEIVE_MASK(we_mask, mask_length), (uint8_t *)&tmp_mask,
               mask_length, sizeof(tmp_mask));
-    tmp_mask = cpu_to_be32(get_host_send_mask(ef));
+    tmp_mask = cpu_to_be64(get_host_send_mask(ef));
     copy_mask(WEM_SEND_MASK(we_mask, mask_length), (uint8_t *)&tmp_mask,
               mask_length, sizeof(tmp_mask));
 
@@ -369,12 +382,30 @@ static void command_handler(SCLPEventFacility *ef, SCCB *sccb, uint64_t code)
     }
 }
 
+static bool vmstate_event_facility_mask64_needed(void *opaque)
+{
+    SCLPEventFacility *ef = opaque;
+
+    return ef->receive_mask_pieces[1] != 0;
+}
+
 static bool vmstate_event_facility_mask_length_needed(void *opaque)
 {
     SCLPEventFacility *ef = opaque;
 
     return ef->allow_all_mask_sizes;
 }
+
+static const VMStateDescription vmstate_event_facility_mask64 = {
+    .name = "vmstate-event-facility/mask64",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .needed = vmstate_event_facility_mask64_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(receive_mask_pieces[1], SCLPEventFacility),
+        VMSTATE_END_OF_LIST()
+     }
+};
 
 static const VMStateDescription vmstate_event_facility_mask_length = {
     .name = "vmstate-event-facility/mask_length",
@@ -392,10 +423,11 @@ static const VMStateDescription vmstate_event_facility = {
     .version_id = 0,
     .minimum_version_id = 0,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT32(receive_mask, SCLPEventFacility),
+        VMSTATE_UINT32(receive_mask_pieces[0], SCLPEventFacility),
         VMSTATE_END_OF_LIST()
      },
     .subsections = (const VMStateDescription * []) {
+        &vmstate_event_facility_mask64,
         &vmstate_event_facility_mask_length,
         NULL
      }
@@ -447,7 +479,7 @@ static void reset_event_facility(DeviceState *dev)
 {
     SCLPEventFacility *sdev = EVENT_FACILITY(dev);
 
-    sdev->receive_mask = 0;
+    store_receive_mask(sdev, 0);
 }
 
 static void init_event_facility_class(ObjectClass *klass, void *data)
