@@ -844,7 +844,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
                     break;
                 }
                 c->function = i;
-                c->flags = KVM_CPUID_FLAG_SIGNIFCANT_INDEX;
+                c->flags = KVM_CPUID_FLAG_SIGNIFICANT_INDEX;
                 c->index = j;
                 cpu_x86_cpuid(env, i, j, &c->eax, &c->ebx, &c->ecx, &c->edx);
 
