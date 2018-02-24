@@ -2600,7 +2600,9 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
 
     /* See cautionary note on accessing @options above */
     backing = qdict_get_try_str(options, "backing");
-    if (backing && *backing == '\0') {
+    if (qobject_to(qdict_get(options, "backing"), QNull) != NULL ||
+        (backing && *backing == '\0'))
+    {
         flags |= BDRV_O_NO_BACKING;
         qdict_del(options, "backing");
     }
