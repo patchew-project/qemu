@@ -3101,7 +3101,7 @@ arch_query_cpu_model_expansion(CpuModelExpansionType type,
 
     xc = x86_cpu_from_model(model->name,
                             model->has_props ?
-                                qobject_to_qdict(model->props) :
+                                qobject_to(model->props, QDict) :
                                 NULL, &err);
     if (err) {
         goto out;

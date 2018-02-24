@@ -528,7 +528,7 @@ static void config_parse_qdict_section(QDict *options, QemuOptsList *opts,
         }
 
         QLIST_FOREACH_ENTRY(list, list_entry) {
-            QDict *section = qobject_to_qdict(qlist_entry_obj(list_entry));
+            QDict *section = qobject_to(qlist_entry_obj(list_entry), QDict);
             char *opt_name;
 
             if (!section) {

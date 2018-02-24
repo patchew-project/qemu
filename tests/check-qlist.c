@@ -56,7 +56,7 @@ static void qobject_to_qlist_test(void)
 
     qlist = qlist_new();
 
-    g_assert(qobject_to_qlist(QOBJECT(qlist)) == qlist);
+    g_assert(qobject_to(QOBJECT(qlist), QList) == qlist);
 
     QDECREF(qlist);
 }
@@ -71,7 +71,7 @@ static void iter_func(QObject *obj, void *opaque)
 
     g_assert(opaque == NULL);
 
-    qi = qobject_to_qnum(obj);
+    qi = qobject_to(obj, QNum);
     g_assert(qi != NULL);
 
     g_assert(qnum_get_try_int(qi, &val));

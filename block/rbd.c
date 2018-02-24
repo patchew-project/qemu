@@ -256,14 +256,14 @@ static int qemu_rbd_set_keypairs(rados_t cluster, const char *keypairs_json,
     if (!keypairs_json) {
         return ret;
     }
-    keypairs = qobject_to_qlist(qobject_from_json(keypairs_json,
-                                                  &error_abort));
+    keypairs = qobject_to(qobject_from_json(keypairs_json, &error_abort),
+                          QList);
     remaining = qlist_size(keypairs) / 2;
     assert(remaining);
 
     while (remaining--) {
-        name = qobject_to_qstring(qlist_pop(keypairs));
-        value = qobject_to_qstring(qlist_pop(keypairs));
+        name = qobject_to(qlist_pop(keypairs), QString);
+        value = qobject_to(qlist_pop(keypairs), QString);
         assert(name && value);
         key = qstring_get_str(name);
 
