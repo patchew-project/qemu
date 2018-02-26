@@ -101,7 +101,7 @@ class BaseVM(object):
                    "-o", "StrictHostKeyChecking=no",
                    "-o", "UserKnownHostsFile=" + os.devnull,
                    "-o", "ConnectTimeout=1",
-                   "-p", self.ssh_port, "-i", self._ssh_key_file]
+                   "-p", str(self.ssh_port), "-i", self._ssh_key_file]
         if interactive:
             ssh_cmd += ['-t']
         assert not isinstance(cmd, str)
@@ -166,13 +166,13 @@ class BaseVM(object):
             raise
         atexit.register(self.shutdown)
         self._guest = guest
-        usernet_info = guest.qmp("human-monitor-command",
-                                 command_line="info usernet")
+        usernet_info = guest.qmp("query-usernet")
         self.ssh_port = None
-        for l in usernet_info["return"].splitlines():
-            fields = l.split()
-            if "TCP[HOST_FORWARD]" in fields and "22" in fields:
-                self.ssh_port = l.split()[3]
+        for i in usernet_info["return"]:
+            if i.get("id") != "vnet":
+                continue
+            self.ssh_port = i["connections"][0]["src_port"]
+            break
         if not self.ssh_port:
             raise Exception("Cannot find ssh port from 'info usernet':\n%s" % \
                             usernet_info)
