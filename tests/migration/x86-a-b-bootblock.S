@@ -12,6 +12,7 @@
 #
 # Author: dgilbert@redhat.com
 
+#include "migration-test.h"
 
 .code16
 .org 0x7c00
@@ -45,11 +46,11 @@ start:             # at 0x7c00 ?
         mov $0, %bl
 mainloop:
         # Start from 1MB
-        mov $(1024*1024),%eax
+        mov $TEST_MEM_START,%eax
 innerloop:
         incb (%eax)
-        add $4096,%eax
-        cmp $(100*1024*1024),%eax
+        add $TEST_MEM_PAGE_SIZE,%eax
+        cmp $TEST_MEM_END,%eax
         jl innerloop
 
         inc %bl

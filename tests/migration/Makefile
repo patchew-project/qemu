@@ -25,8 +25,8 @@ include $(SRC_PATH)/rules.mak
 
 x86_64_cross_prefix := $(call find-cross-prefix,x86_64)
 
-x86-a-b-bootblock.h: x86-a-b-bootblock.s
-	$(x86_64_cross_prefix)as --32 -march=i486 $< -o x86.o
+x86-a-b-bootblock.h: x86-a-b-bootblock.S
+	$(x86_64_cross_prefix)gcc -m32 -march=i486 -c $< -o x86.o
 	$(x86_64_cross_prefix)objcopy -O binary x86.o x86.boot
 	dd if=x86.boot of=x86.bootsect bs=256 count=2 skip=124
 	echo "$$__note" > $@
