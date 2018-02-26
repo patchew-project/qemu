@@ -2353,7 +2353,8 @@ sub process {
 		}
 
 # check for missing bracing round if etc
-		if ($line =~ /(^.*)\bif\b/ && $line !~ /\#\s*if/) {
+		if ($line =~ /(^.*)\b(for|while|if)\b/ &&
+			$line !~ /\#\s*(for|while|if)/) {
 			my ($level, $endln, @chunks) =
 				ctx_statement_full($linenr, $realcnt, 1);
                         if ($dbg_adv_apw) {
