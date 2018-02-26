@@ -1522,7 +1522,6 @@ out4:
 
 enum ImgConvertBlockStatus {
     BLK_DATA,
-    BLK_ZERO,
     BLK_BACKING_FILE,
 };
 
@@ -1581,30 +1580,20 @@ static int convert_iteration_sectors(ImgConvertState *s, int64_t sector_num)
         int64_t count = n * BDRV_SECTOR_SIZE;
 
         if (s->target_has_backing) {
-
-            ret = bdrv_block_status(blk_bs(s->src[src_cur]),
+            ret = bdrv_is_allocated(blk_bs(s->src[src_cur]),
                                     (sector_num - src_cur_offset) *
                                     BDRV_SECTOR_SIZE,
-                                    count, &count, NULL, NULL);
-        } else {
-            ret = bdrv_block_status_above(blk_bs(s->src[src_cur]), NULL,
-                                          (sector_num - src_cur_offset) *
-                                          BDRV_SECTOR_SIZE,
-                                          count, &count, NULL, NULL);
-        }
-        if (ret < 0) {
-            return ret;
-        }
-        n = DIV_ROUND_UP(count, BDRV_SECTOR_SIZE);
+                                    count, &count);
+            if (ret < 0) {
+                return ret;
+            }
 
-        if (ret & BDRV_BLOCK_ZERO) {
-            s->status = BLK_ZERO;
-        } else if (ret & BDRV_BLOCK_DATA) {
+            s->status = ret ? BLK_DATA : BLK_BACKING_FILE;
+        } else {
             s->status = BLK_DATA;
-        } else {
-            s->status = s->target_has_backing ? BLK_BACKING_FILE : BLK_DATA;
         }
 
+        n = DIV_ROUND_UP(count, BDRV_SECTOR_SIZE);
         s->sector_next_status = sector_num + n;
     }
 
@@ -1713,9 +1702,8 @@ static int coroutine_fn convert_co_write(ImgConvertState *s, int64_t sector_num,
                 }
                 break;
             }
-            /* fall-through */
 
-        case BLK_ZERO:
+            /* Zero the target */
             if (s->has_zero_init) {
                 assert(!s->target_has_backing);
                 break;
@@ -1774,15 +1762,12 @@ static void coroutine_fn convert_co_do_copy(void *opaque)
         /* save current sector and allocation status to local variables */
         sector_num = s->sector_num;
         status = s->status;
-        if (!s->min_sparse && s->status == BLK_ZERO) {
-            n = MIN(n, s->buf_sectors);
-        }
         /* increment global sector counter so that other coroutines can
          * already continue reading beyond this request */
         s->sector_num += n;
         qemu_co_mutex_unlock(&s->lock);
 
-        if (status == BLK_DATA || (!s->min_sparse && status == BLK_ZERO)) {
+        if (status == BLK_DATA) {
             s->allocated_done += n;
             qemu_progress_print(100.0 * s->allocated_done /
                                         s->allocated_sectors, 0);
@@ -1795,9 +1780,6 @@ static void coroutine_fn convert_co_do_copy(void *opaque)
                              ": %s", sector_num, strerror(-ret));
                 s->ret = ret;
             }
-        } else if (!s->min_sparse && status == BLK_ZERO) {
-            status = BLK_DATA;
-            memset(buf, 0x00, n * BDRV_SECTOR_SIZE);
         }
 
         if (s->wr_in_order) {
@@ -1879,8 +1861,7 @@ static int convert_do_copy(ImgConvertState *s)
         if (n < 0) {
             return n;
         }
-        if (s->status == BLK_DATA || (!s->min_sparse && s->status == BLK_ZERO))
-        {
+        if (s->status == BLK_DATA) {
             s->allocated_sectors += n;
         }
         sector_num += n;
