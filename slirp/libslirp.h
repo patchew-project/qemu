@@ -37,6 +37,7 @@ int slirp_add_exec(Slirp *slirp, int do_pty, const void *args,
                    struct in_addr *guest_addr, int guest_port);
 
 void slirp_connection_info(Slirp *slirp, Monitor *mon);
+void usernet_get_info(Slirp *slirp, UsernetInfo *info);
 
 void slirp_socket_recv(Slirp *slirp, struct in_addr guest_addr,
                        int guest_port, const uint8_t *buf, int size);
