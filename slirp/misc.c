@@ -205,39 +205,28 @@ fork_exec(struct socket *so, const char *ex, int do_pty)
 }
 #endif
 
-void slirp_connection_info(Slirp *slirp, Monitor *mon)
+void usernet_get_info(Slirp *slirp, UsernetInfo *info)
 {
-    const char * const tcpstates[] = {
-        [TCPS_CLOSED]       = "CLOSED",
-        [TCPS_LISTEN]       = "LISTEN",
-        [TCPS_SYN_SENT]     = "SYN_SENT",
-        [TCPS_SYN_RECEIVED] = "SYN_RCVD",
-        [TCPS_ESTABLISHED]  = "ESTABLISHED",
-        [TCPS_CLOSE_WAIT]   = "CLOSE_WAIT",
-        [TCPS_FIN_WAIT_1]   = "FIN_WAIT_1",
-        [TCPS_CLOSING]      = "CLOSING",
-        [TCPS_LAST_ACK]     = "LAST_ACK",
-        [TCPS_FIN_WAIT_2]   = "FIN_WAIT_2",
-        [TCPS_TIME_WAIT]    = "TIME_WAIT",
-    };
     struct in_addr dst_addr;
     struct sockaddr_in src;
     socklen_t src_len;
     uint16_t dst_port;
     struct socket *so;
-    const char *state;
-    char buf[20];
-
-    monitor_printf(mon, "  Protocol[State]    FD  Source Address  Port   "
-                        "Dest. Address  Port RecvQ SendQ\n");
+    UsernetConnectionList **p_next = &info->connections;
 
     for (so = slirp->tcb.so_next; so != &slirp->tcb; so = so->so_next) {
+        UsernetConnection *conn = g_new0(UsernetConnection, 1);
+        UsernetTCPConnection *tcp = &conn->u.tcp;
+        UsernetConnectionList *list = g_new0(UsernetConnectionList, 1);
+
+        list->value = conn;
         if (so->so_state & SS_HOSTFWD) {
-            state = "HOST_FORWARD";
+            tcp->hostfwd = true;
+            tcp->state = so->so_tcpcb->t_state;
         } else if (so->so_tcpcb) {
-            state = tcpstates[so->so_tcpcb->t_state];
+            tcp->state = so->so_tcpcb->t_state;
         } else {
-            state = "NONE";
+            tcp->state = TCPS_NONE;
         }
         if (so->so_state & (SS_HOSTFWD | SS_INCOMING)) {
             src_len = sizeof(src);
@@ -250,46 +239,123 @@ void slirp_connection_info(Slirp *slirp, Monitor *mon)
             dst_addr = so->so_faddr;
             dst_port = so->so_fport;
         }
-        snprintf(buf, sizeof(buf), "  TCP[%s]", state);
-        monitor_printf(mon, "%-19s %3d %15s %5d ", buf, so->s,
-                       src.sin_addr.s_addr ? inet_ntoa(src.sin_addr) : "*",
-                       ntohs(src.sin_port));
-        monitor_printf(mon, "%15s %5d %5d %5d\n",
-                       inet_ntoa(dst_addr), ntohs(dst_port),
-                       so->so_rcv.sb_cc, so->so_snd.sb_cc);
+        tcp->fd = so->s;
+        tcp->src_addr =
+            g_strdup(src.sin_addr.s_addr ? inet_ntoa(src.sin_addr) : "*");
+        tcp->src_port = ntohs(src.sin_port);
+        tcp->dest_addr = g_strdup(inet_ntoa(dst_addr));
+        tcp->dest_port = ntohs(dst_port);
+        tcp->recv_buffered = so->so_rcv.sb_cc;
+        tcp->send_buffered = so->so_snd.sb_cc;
+        *p_next = list;
+        p_next = &list->next;
     }
-
     for (so = slirp->udb.so_next; so != &slirp->udb; so = so->so_next) {
+        UsernetConnection *conn = g_new0(UsernetConnection, 1);
+        UsernetUDPConnection *udp = &conn->u.udp;
+        UsernetConnectionList *list = g_new0(UsernetConnectionList, 1);
+
+        list->value = conn;
         if (so->so_state & SS_HOSTFWD) {
-            snprintf(buf, sizeof(buf), "  UDP[HOST_FORWARD]");
+            udp->hostfwd = true;
             src_len = sizeof(src);
             getsockname(so->s, (struct sockaddr *)&src, &src_len);
             dst_addr = so->so_laddr;
             dst_port = so->so_lport;
         } else {
-            snprintf(buf, sizeof(buf), "  UDP[%d sec]",
-                         (so->so_expire - curtime) / 1000);
+            udp->expire_time_ms = so->so_expire - curtime;
             src.sin_addr = so->so_laddr;
             src.sin_port = so->so_lport;
             dst_addr = so->so_faddr;
             dst_port = so->so_fport;
         }
-        monitor_printf(mon, "%-19s %3d %15s %5d ", buf, so->s,
-                       src.sin_addr.s_addr ? inet_ntoa(src.sin_addr) : "*",
-                       ntohs(src.sin_port));
-        monitor_printf(mon, "%15s %5d %5d %5d\n",
-                       inet_ntoa(dst_addr), ntohs(dst_port),
-                       so->so_rcv.sb_cc, so->so_snd.sb_cc);
+        udp->fd = so->s;
+        udp->src_addr =
+            g_strdup(src.sin_addr.s_addr ? inet_ntoa(src.sin_addr) : "*");
+        udp->src_port = ntohs(src.sin_port);
+        udp->dest_addr = g_strdup(inet_ntoa(dst_addr));
+        udp->dest_port = ntohs(dst_port);
+        udp->recv_buffered = so->so_rcv.sb_cc;
+        udp->send_buffered = so->so_snd.sb_cc;
+        *p_next = list;
+        p_next = &list->next;
     }
 
     for (so = slirp->icmp.so_next; so != &slirp->icmp; so = so->so_next) {
-        snprintf(buf, sizeof(buf), "  ICMP[%d sec]",
-                     (so->so_expire - curtime) / 1000);
+        UsernetConnection *conn = g_new0(UsernetConnection, 1);
+        UsernetICMPConnection *icmp = &conn->u.icmp;
+        UsernetConnectionList *list = g_new0(UsernetConnectionList, 1);
+
+        icmp->expire_time_ms = so->so_expire - curtime;
         src.sin_addr = so->so_laddr;
         dst_addr = so->so_faddr;
-        monitor_printf(mon, "%-19s %3d %15s  -    ", buf, so->s,
-                       src.sin_addr.s_addr ? inet_ntoa(src.sin_addr) : "*");
-        monitor_printf(mon, "%15s  -    %5d %5d\n", inet_ntoa(dst_addr),
-                       so->so_rcv.sb_cc, so->so_snd.sb_cc);
+        icmp->fd = so->s;
+        icmp->src_addr =
+            g_strdup(src.sin_addr.s_addr ? inet_ntoa(src.sin_addr) : "*");
+        icmp->dest_addr = g_strdup(inet_ntoa(dst_addr));
+        icmp->recv_buffered = so->so_rcv.sb_cc;
+        icmp->send_buffered = so->so_snd.sb_cc;
+        *p_next = list;
+        p_next = &list->next;
+    }
+}
+
+
+void slirp_connection_info(Slirp *slirp, Monitor *mon)
+{
+    const char *state;
+    char buf[20];
+    UsernetInfo info = { };
+    UsernetConnectionList *cl;
+
+    monitor_printf(mon, "  Protocol[State]    FD  Source Address  Port   "
+                        "Dest. Address  Port RecvQ SendQ\n");
+
+    usernet_get_info(slirp, &info);
+    for (cl = info.connections; cl && cl->value; cl = cl->next) {
+        UsernetConnection *conn = cl->value;
+
+        if (conn->type == USERNET_TYPE_TCP) {
+            UsernetTCPConnection *tcp = &conn->u.tcp;
+
+            if (tcp->hostfwd) {
+                state = "HOST_FORWARD";
+            } else {
+                state = TCPS_str(tcp->state);
+            }
+            snprintf(buf, sizeof(buf), "  TCP[%s]", state);
+            monitor_printf(mon, "%-19s %3" PRId64 " %15s %5" PRId64 " ",
+                           buf, tcp->fd,
+                           tcp->src_addr, tcp->src_port);
+            monitor_printf(mon, "%15s %5" PRId64 " %5" PRId64 " %5" PRId64 "\n",
+                           tcp->dest_addr, tcp->dest_port,
+                           tcp->recv_buffered, tcp->send_buffered);
+        } else if (conn->type == USERNET_TYPE_UDP) {
+            UsernetUDPConnection *udp = &conn->u.udp;
+
+            if (udp->hostfwd) {
+                snprintf(buf, sizeof(buf), "  UDP[HOST_FORWARD]");
+            } else {
+                snprintf(buf, sizeof(buf), "  UDP[%" PRId64 " sec]",
+                         udp->expire_time_ms / 1000);
+            }
+            monitor_printf(mon, "%-19s %3" PRId64 " %15s %5" PRId64 " ",
+                           buf, udp->fd,
+                           udp->src_addr, udp->src_port);
+            monitor_printf(mon, "%15s %5" PRId64 " %5" PRId64 " %5" PRId64 "\n",
+                           udp->dest_addr, udp->dest_port,
+                           udp->recv_buffered, udp->send_buffered);
+        } else {
+            UsernetICMPConnection *icmp = &conn->u.icmp;
+
+            assert(conn->type == USERNET_TYPE_ICMP);
+            snprintf(buf, sizeof(buf), "  ICMP[%" PRId64 " sec]",
+                     icmp->expire_time_ms / 1000);
+            monitor_printf(mon, "%-19s %3" PRId64 " %15s  -    ", buf, icmp->fd,
+                           icmp->src_addr);
+            monitor_printf(mon, "%15s  -    %5" PRId64 " %5" PRId64 "\n",
+                           icmp->dest_addr,
+                           icmp->recv_buffered, icmp->send_buffered);
+        }
     }
 }

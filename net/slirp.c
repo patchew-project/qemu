@@ -36,6 +36,7 @@
 #include "monitor/monitor.h"
 #include "qemu/error-report.h"
 #include "qemu/sockets.h"
+#include "slirp/slirp.h"
 #include "slirp/libslirp.h"
 #include "slirp/ip6.h"
 #include "chardev/char-fe.h"
@@ -43,6 +44,7 @@
 #include "qemu/cutils.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qdict.h"
+#include "qmp-commands.h"
 
 static int get_str_sep(char *buf, int buf_size, const char **pp, int sep)
 {
@@ -862,6 +864,30 @@ static int slirp_guestfwd(SlirpState *s, const char *config_str,
  fail_syntax:
     error_setg(errp, "Invalid guest forwarding rule '%s'", config_str);
     return -1;
+}
+
+UsernetInfoList *qmp_query_usernet(Error **errp)
+{
+    SlirpState *s;
+    UsernetInfoList *list = NULL;
+    UsernetInfoList **p = &list;
+
+    QTAILQ_FOREACH(s, &slirp_stacks, entry) {
+        int vlan;
+        UsernetInfoList *il = g_new0(UsernetInfoList, 1);
+        UsernetInfo *info = il->value = g_new0(UsernetInfo, 1);
+
+        info->id = g_strdup(s->nc.name);
+        if (!net_hub_id_for_client(&s->nc, &vlan)) {
+            info->vlan = vlan;
+        } else {
+            info->vlan = -1;
+        }
+        usernet_get_info(s->slirp, info);
+        *p = il;
+        p = &il->next;
+    }
+    return list;
 }
 
 void hmp_info_usernet(Monitor *mon, const QDict *qdict)

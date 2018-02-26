@@ -706,3 +706,204 @@
 ##
 { 'event': 'NIC_RX_FILTER_CHANGED',
   'data': { '*name': 'str', 'path': 'str' } }
+
+##
+# @TCPS:
+#
+# TCP States of a SLIRP connection.
+#
+# - States where connections are not established: none, closed, listen, syn_sent,
+#   syn_received
+#
+# - States where user has closed: fin_wait_1, closing, last_ack, fin_wait_2,
+#   time_wait
+#
+# - States await ACK of FIN: fin_wait_1, closing, last_ack
+#
+# 'none' state is used only when host forwarding
+#
+# Since 2.12
+#
+##
+{ 'enum': 'TCPS',
+  'data':
+   ['closed',
+    'listen',
+    'syn_sent',
+    'syn_received',
+    'established',
+    'close_wait',
+    'fin_wait_1',
+    'closing',
+    'last_ack',
+    'fin_wait_2',
+    'time_wait',
+    'none'
+   ] }
+
+##
+# @UsernetTCPConnection:
+#
+# SLIRP TCP information.
+#
+# @state: tcp connection state
+#
+# @hostfwd: whether this connection has host port forwarding
+#
+# @fd: the file descriptor of the connection
+#
+# @src_addr: source address of host port forwarding
+#
+# @src_port: source port of host port forwarding
+#
+# @dest_addr: destination address of host port forwarding
+#
+# @dest_port: destination port of host port forwarding
+#
+# @recv_buffered: number of bytes queued in the receive buffer
+#
+# @send_buffered: number of bytes queued in the send buffer
+#
+# Since: 2.12
+##
+{ 'struct': 'UsernetTCPConnection',
+  'data': {
+    'state': 'TCPS',
+    'hostfwd': 'bool',
+    'fd': 'int',
+    'src_addr': 'str',
+    'src_port': 'int',
+    'dest_addr': 'str',
+    'dest_port': 'int',
+    'recv_buffered': 'int',
+    'send_buffered': 'int'
+  } }
+
+##
+# @UsernetUDPConnection:
+#
+# SLIRP UDP information.
+#
+# @hostfwd: whether this connection has host port forwarding
+#
+# @expire_time_ms: time in microseconds after which this connection will expire
+#
+# @fd: the file descriptor of the connection
+#
+# @src_addr: source address of host port forwarding
+#
+# @src_port: source port of host port forwarding
+#
+# @dest_addr: destination address of host port forwarding
+#
+# @dest_port: destination port of host port forwarding
+#
+# @recv_buffered: number of bytes queued in the receive buffer
+#
+# @send_buffered: number of bytes queued in the send buffer
+#
+# Since: 2.12
+##
+{ 'struct': 'UsernetUDPConnection',
+  'data': {
+    'hostfwd': 'bool',
+    'expire_time_ms': 'int',
+    'fd': 'int',
+    'src_addr': 'str',
+    'src_port': 'int',
+    'dest_addr': 'str',
+    'dest_port': 'int',
+    'recv_buffered': 'int',
+    'send_buffered': 'int'
+    } }
+
+##
+# @UsernetICMPConnection:
+#
+# SLIRP ICMP information.
+#
+# @expire_time_ms: time in microseconds after which this connection will expire
+#
+# @fd: the file descriptor of the connection
+#
+# @src_addr: source address of host port forwarding
+#
+# @dest_addr: destination address of host port forwarding
+#
+# @recv_buffered: number of bytes queued in the receive buffer
+#
+# @send_buffered: number of bytes queued in the send buffer
+#
+# Since: 2.12
+##
+{ 'struct': 'UsernetICMPConnection',
+  'data': {
+    'expire_time_ms': 'int',
+    'fd': 'int',
+    'src_addr': 'str',
+    'dest_addr': 'str',
+    'recv_buffered': 'int',
+    'send_buffered': 'int'
+    } }
+
+##
+# @UsernetType:
+#
+# Available netdev drivers.
+#
+# Since: 2.7
+##
+{ 'enum': 'UsernetType',
+  'data': [ 'tcp', 'udp', 'icmp' ] }
+
+##
+# @UsernetConnection:
+#
+# SLIRP usernet connection information.
+#
+# Since: 2.12
+##
+{ 'union': 'UsernetConnection',
+  'discriminator': 'type',
+  'base': { 'type': 'UsernetType' },
+  'data': {
+    'tcp':     'UsernetTCPConnection',
+    'udp':     'UsernetUDPConnection',
+    'icmp':    'UsernetICMPConnection'
+    } }
+
+##
+# @UsernetInfo:
+#
+# SLIRP usernet information.
+#
+# Since: 2.12
+##
+{ 'struct': 'UsernetInfo',
+  'data': {
+    'id':              'str',
+    'vlan':            'int',
+    'connections':     ['UsernetConnection']
+} }
+
+##
+# @query-usernet:
+#
+# Return SLIRP network information.
+#
+# Since: 2.11
+#
+# Example:
+#
+# -> { "execute": "query-usernet", "arguments": { } }
+# <- { "return": [
+#         {
+#             "promiscuous": true,
+#             "name": "vnet0",
+#         }
+#       ]
+#    }
+#
+##
+{ 'command': 'query-usernet',
+  'returns': ['UsernetInfo'] }
