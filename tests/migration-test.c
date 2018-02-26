@@ -11,6 +11,7 @@
  */
 
 #include "qemu/osdep.h"
+#include <sys/utsname.h>
 
 #include "libqtest.h"
 #include "qapi/qmp/qdict.h"
@@ -23,8 +24,8 @@
 
 #include "migration/migration-test.h"
 
-const unsigned start_address = TEST_MEM_START;
-const unsigned end_address = TEST_MEM_END;
+unsigned start_address = TEST_MEM_START;
+unsigned end_address = TEST_MEM_END;
 bool got_stop;
 
 #if defined(__linux__)
@@ -81,12 +82,13 @@ static const char *tmpfs;
  * repeatedly. It outputs a 'B' at a fixed rate while it's still running.
  */
 #include "tests/migration/x86-a-b-bootblock.h"
+#include "tests/migration/aarch64-a-b-kernel.h"
 
-static void init_bootfile_x86(const char *bootpath)
+static void init_bootfile(const char *bootpath, void *content)
 {
     FILE *bootfile = fopen(bootpath, "wb");
 
-    g_assert_cmpint(fwrite(x86_bootsect, 512, 1, bootfile), ==, 1);
+    g_assert_cmpint(fwrite(content, 512, 1, bootfile), ==, 1);
     fclose(bootfile);
 }
 
@@ -392,7 +394,7 @@ static void test_migrate_start(QTestState **from, QTestState **to,
     got_stop = false;
 
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
-        init_bootfile_x86(bootpath);
+        init_bootfile(bootpath, x86_bootsect);
         cmd_src = g_strdup_printf("-machine accel=%s -m 150M"
                                   " -name source,debug-threads=on"
                                   " -serial file:%s/src_serial"
@@ -421,6 +423,38 @@ static void test_migrate_start(QTestState **from, QTestState **to,
                                   " -serial file:%s/dest_serial"
                                   " -incoming %s",
                                   accel, tmpfs, uri);
+    } else if (strcmp(arch, "aarch64") == 0) {
+        const char *cpu;
+        const char *gic_ver;
+        struct utsname utsname;
+
+        /* kvm and tcg need different cpu and gic-version configs */
+        if (access("/dev/kvm", F_OK) == 0 && uname(&utsname) == 0 &&
+            strcmp(utsname.machine, "aarch64") == 0) {
+            accel = "kvm";
+            cpu = "host";
+            gic_ver = "host";
+        } else {
+            accel = "tcg";
+            cpu = "cortex-a57";
+            gic_ver = "2";
+        }
+
+        init_bootfile(bootpath, aarch64_kernel);
+        cmd_src = g_strdup_printf("-machine virt,accel=%s,gic-version=%s "
+                                  "-name vmsource,debug-threads=on -cpu %s "
+                                  "-m 150M -serial file:%s/src_serial "
+                                  "-kernel %s ",
+                                  accel, gic_ver, cpu, tmpfs, bootpath);
+        cmd_dst = g_strdup_printf("-machine virt,accel=%s,gic-version=%s "
+                                  "-name vmdest,debug-threads=on -cpu %s "
+                                  "-m 150M -serial file:%s/dest_serial "
+                                  "-kernel %s "
+                                  "-incoming %s ",
+                                  accel, gic_ver, cpu, tmpfs, bootpath, uri);
+
+        start_address = ARM_TEST_MEM_START;
+        end_address = ARM_TEST_MEM_END;
     } else {
         g_assert_not_reached();
     }
@@ -505,7 +539,7 @@ static void test_deprecated(void)
 {
     QTestState *from;
 
-    from = qtest_start("");
+    from = qtest_start("-machine none");
 
     deprecated_set_downtime(from, 0.12345);
     deprecated_set_speed(from, "12345");

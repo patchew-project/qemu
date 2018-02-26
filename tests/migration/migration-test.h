@@ -15,4 +15,13 @@
 /* PPC */
 #define MIN_NVRAM_SIZE 8192 /* from spapr_nvram.c */
 
+/* AArch64 */
+#define ARM_MACH_VIRT_UART  0x09000000
+/* AArch64 kernel load address is 0x40080000. It should be safe to start the
+ * test memory at 0x40000000 + TEST_MEM_START, which literally creates a 512KB
+ * space to host the kernel binary.
+ */
+#define ARM_TEST_MEM_START  (0x40000000 + TEST_MEM_START)
+#define ARM_TEST_MEM_END    (0x40000000 + TEST_MEM_END)
+
 #endif /* _TEST_MIGRATION_H_ */

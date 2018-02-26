@@ -16,7 +16,7 @@ override define __note
  */
 endef
 
-all: x86-a-b-bootblock.h
+all: x86-a-b-bootblock.h aarch64-a-b-kernel.h
 # Dummy command so that make thinks it has done something
 	@true
 
@@ -24,6 +24,7 @@ SRC_PATH=../..
 include $(SRC_PATH)/rules.mak
 
 x86_64_cross_prefix := $(call find-cross-prefix,x86_64)
+aarch64_cross_prefix := $(call find-cross-prefix,aarch64)
 
 x86-a-b-bootblock.h: x86-a-b-bootblock.S
 	$(x86_64_cross_prefix)gcc -m32 -march=i486 -c $< -o x86.o
@@ -32,5 +33,12 @@ x86-a-b-bootblock.h: x86-a-b-bootblock.S
 	echo "$$__note" > $@
 	xxd -i x86.bootsect | sed -e 's/.*int.*//' >> $@
 
+aarch64-a-b-kernel.h: aarch64-a-b-kernel.S
+	$(aarch64_cross_prefix)gcc -o aarch64.elf -nostdlib \
+		-Wl,--build-id=none $<
+	$(aarch64_cross_prefix)objcopy -O binary aarch64.elf aarch64.kernel
+	echo "$$__note" > $@
+	xxd -i aarch64.kernel | sed -e 's/.*int.*//' >> $@
+
 clean:
-	rm -f *.bootsect *.boot *.o
+	rm -f *.bootsect *.boot *.o *.elf *.kernel
