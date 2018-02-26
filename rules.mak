@@ -62,6 +62,21 @@ expand-objs = $(strip $(sort $(filter %.o,$1)) \
                   $(foreach o,$(filter %.mo,$1),$($o-objs)) \
                   $(filter-out %.o %.mo,$1))
 
+# Cross compilation auto detection. Use find-cross-prefix to detect the
+# target archtecture's prefix, and then append it to the build tool or pass
+# it to CROSS_COMPILE directly. Here is one example:
+#      x86_64_cross_prefix := $(call find-cross-prefix,x86_64)
+#      $(x86_64_cross_prefix)gcc -c test.c -o test.o
+#      make -C testdir CROSS_COMPILE=$(x86_64_cross_prefix)
+cross-search-path := $(subst :, ,$(PATH))
+cross-host-system := $(shell uname -s | tr "A-Z" "a-z")
+
+find-cross-ld = $(firstword $(wildcard $(patsubst \
+                    %,%/$(1)-*$(cross-host-system)*-ld,$(cross-search-path))))
+find-cross-gcc = $(firstword $(wildcard \
+                    $(patsubst %ld,%gcc,$(call find-cross-ld,$(1)))))
+find-cross-prefix = $(subst gcc,,$(notdir $(call find-cross-gcc,$(1))))
+
 %.o: %.c
 	$(call quiet-command,$(CC) $(QEMU_LOCAL_INCLUDES) $(QEMU_INCLUDES) \
 	       $(QEMU_CFLAGS) $(QEMU_DGFLAGS) $(CFLAGS) $($@-cflags) \
