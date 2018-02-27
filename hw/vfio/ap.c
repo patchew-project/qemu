@@ -19,6 +19,7 @@
 #include "hw/s390x/ap-device.h"
 #include "qemu/error-report.h"
 #include "qemu/queue.h"
+#include "cpu.h"
 
 #define VFIO_AP_DEVICE_TYPE      "vfio-ap"
 #define AP_SYSFSDEV_PROP_NAME    "sysfsdev"
@@ -86,6 +87,14 @@ static void vfio_ap_realize(DeviceState *dev, Error **errp)
     char *mdevid;
     Error *local_err = NULL;
     int ret;
+
+    if (!s390_has_feat(S390_FEAT_AP)) {
+        error_setg(&local_err, "Invalid device configuration: ");
+        error_append_hint(&local_err,
+                          "Verify AP facilities are enabled for the guest"
+                          "(ap=on)\n");
+        goto out_err;
+    }
 
     vfio_group = vfio_ap_get_group(vapdev, &local_err);
     if (!vfio_group) {

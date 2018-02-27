@@ -770,6 +770,8 @@ static void check_consistency(const S390CPUModel *model)
         { S390_FEAT_PRNO_TRNG_QRTCR, S390_FEAT_MSA_EXT_5 },
         { S390_FEAT_PRNO_TRNG, S390_FEAT_MSA_EXT_5 },
         { S390_FEAT_SIE_KSS, S390_FEAT_SIE_F2 },
+        { S390_FEAT_AP_QUERY_CONFIG_INFO, S390_FEAT_AP },
+        { S390_FEAT_AP_FACILITIES_TEST, S390_FEAT_AP },
     };
     int i;
 
@@ -899,6 +901,16 @@ void s390_realize_cpu_model(CPUState *cs, Error **errp)
     cpu->model->cpu_id = max_model->cpu_id;
     cpu->model->cpu_id_format = max_model->cpu_id_format;
     cpu->model->cpu_ver = max_model->cpu_ver;
+
+    /*
+     * If the AP facilities are not installed on the guest, then it makes
+     * no sense to enable the QCI or APFT facilities because they are only
+     * needed by AP facilities.
+     */
+    if (!test_bit(S390_FEAT_AP, cpu->model->features)) {
+        clear_bit(S390_FEAT_AP_QUERY_CONFIG_INFO, cpu->model->features);
+        clear_bit(S390_FEAT_AP_FACILITIES_TEST, cpu->model->features);
+    }
 
     check_consistency(cpu->model);
     check_compatibility(max_model, cpu->model, errp);

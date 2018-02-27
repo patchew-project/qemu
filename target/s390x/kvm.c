@@ -2105,6 +2105,7 @@ static int kvm_to_feat[][2] = {
     { KVM_S390_VM_CPU_FEAT_PFMFI, S390_FEAT_SIE_PFMFI},
     { KVM_S390_VM_CPU_FEAT_SIGPIF, S390_FEAT_SIE_SIGPIF},
     { KVM_S390_VM_CPU_FEAT_KSS, S390_FEAT_SIE_KSS},
+    { KVM_S390_VM_CPU_FEAT_AP, S390_FEAT_AP},
 };
 
 static int query_cpu_feat(S390FeatBitmap features)
@@ -2213,6 +2214,11 @@ void kvm_s390_get_host_cpu_model(S390CPUModel *model, Error **errp)
     if (rc) {
         error_setg(errp, "KVM: Error querying CPU features: %d", rc);
         return;
+    }
+    /* AP facilities support is required to enable QCI and APFT support */
+    if (!test_bit(S390_FEAT_AP, model->features)) {
+        clear_bit(S390_FEAT_AP_QUERY_CONFIG_INFO, model->features);
+        clear_bit(S390_FEAT_AP_FACILITIES_TEST, model->features);
     }
     /* get supported cpu subfunctions indicated via query / test bit */
     rc = query_cpu_subfunc(model->features);
