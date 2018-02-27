@@ -63,6 +63,12 @@ typedef struct BlockJob {
     bool cancelled;
 
     /**
+     * Set to true if the job should abort immediately without waiting
+     * for data to be in sync.
+     */
+    bool force;
+
+    /**
      * Counter for pause request. If non-zero, the block job is either paused,
      * or if busy == true will pause itself as soon as possible.
      */
@@ -218,10 +224,11 @@ void block_job_start(BlockJob *job);
 /**
  * block_job_cancel:
  * @job: The job to be canceled.
+ * @force: Quit a job without waiting for data to be in sync.
  *
  * Asynchronously cancel the specified job.
  */
-void block_job_cancel(BlockJob *job);
+void block_job_cancel(BlockJob *job, bool force);
 
 /**
  * block_job_complete:
