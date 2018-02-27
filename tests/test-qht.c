@@ -27,11 +27,14 @@ static void insert(int a, int b)
 
     for (i = a; i < b; i++) {
         uint32_t hash;
+        void *existing;
 
         arr[i] = i;
         hash = i;
 
-        qht_insert(&ht, &arr[i], hash);
+        g_assert_true(!qht_insert(&ht, &arr[i], hash));
+        existing = qht_insert(&ht, &arr[i], hash);
+        g_assert_true(existing == &arr[i]);
     }
 }
 

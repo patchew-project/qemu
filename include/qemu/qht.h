@@ -77,10 +77,11 @@ void qht_destroy(struct qht *ht);
  * In case of successful operation, smp_wmb() is implied before the pointer is
  * inserted into the hash table.
  *
- * Returns true on success.
- * Returns false if the @p-@hash pair already exists in the hash table.
+ * On success, returns NULL.
+ * On failure, returns the pointer from an entry that is equivalent (i.e.
+ * ht->cmp matches and the hash is the same) to @p-@h.
  */
-bool qht_insert(struct qht *ht, void *p, uint32_t hash);
+void *qht_insert(struct qht *ht, void *p, uint32_t hash);
 
 /**
  * qht_lookup_custom - Look up a pointer using a custom comparison function.
