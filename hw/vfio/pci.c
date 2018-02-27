@@ -3015,6 +3015,13 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
         }
     }
 
+    if (vdev->display) {
+        ret = vfio_display_probe(vdev, errp);
+        if (ret) {
+            goto out_teardown;
+        }
+    }
+
     vfio_register_err_notifier(vdev);
     vfio_register_req_notifier(vdev);
     vfio_setup_resetfn_quirk(vdev);
@@ -3120,6 +3127,13 @@ static void vfio_instance_init(Object *obj)
     pci_dev->cap_present |= QEMU_PCI_CAP_EXPRESS;
 }
 
+static void vfio_display_instance_init(Object *obj)
+{
+    VFIOPCIDevice *vdev = DO_UPCAST(VFIOPCIDevice, pdev, PCI_DEVICE(obj));
+
+    vdev->display = true;
+}
+
 static Property vfio_pci_dev_properties[] = {
     DEFINE_PROP_PCI_HOST_DEVADDR("host", VFIOPCIDevice, host),
     DEFINE_PROP_STRING("sysfsdev", VFIOPCIDevice, vbasedev.sysfsdev),
@@ -3178,6 +3192,13 @@ static void vfio_pci_dev_class_init(ObjectClass *klass, void *data)
     pdc->config_write = vfio_pci_write_config;
 }
 
+static void vfio_pci_display_dev_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->hotpluggable = false;
+}
+
 static const TypeInfo vfio_pci_dev_info = {
     .name = "vfio-pci",
     .parent = TYPE_PCI_DEVICE,
@@ -3192,9 +3213,18 @@ static const TypeInfo vfio_pci_dev_info = {
     },
 };
 
+static const TypeInfo vfio_pci_display_dev_info = {
+    .name = "vfio-pci-display",
+    .parent = "vfio-pci",
+    .instance_size = sizeof(VFIOPCIDevice),
+    .class_init = vfio_pci_display_dev_class_init,
+    .instance_init = vfio_display_instance_init,
+};
+
 static void register_vfio_pci_dev_type(void)
 {
     type_register_static(&vfio_pci_dev_info);
+    type_register_static(&vfio_pci_display_dev_info);
 }
 
 type_init(register_vfio_pci_dev_type)
