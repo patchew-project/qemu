@@ -605,6 +605,24 @@ void page_collection_unlock(struct page_collection *set)
 { }
 #else /* !CONFIG_USER_ONLY */
 
+#ifdef CONFIG_DEBUG_TCG
+static __thread bool page_collection_locked;
+
+void assert_page_collection_locked(bool val)
+{
+    tcg_debug_assert(page_collection_locked == val);
+}
+
+static inline void set_page_collection_locked(bool val)
+{
+    page_collection_locked = val;
+}
+#else
+static inline void set_page_collection_locked(bool val)
+{
+}
+#endif /* !CONFIG_DEBUG_TCG */
+
 static inline void page_lock(PageDesc *pd)
 {
     qemu_spin_lock(&pd->lock);
@@ -677,6 +695,7 @@ static void do_page_entry_lock(struct page_entry *pe)
     page_lock(pe->pd);
     g_assert(!pe->locked);
     pe->locked = true;
+    set_page_collection_locked(true);
 }
 
 static gboolean page_entry_lock(gpointer key, gpointer value, gpointer data)
@@ -769,6 +788,7 @@ page_collection_lock(tb_page_addr_t start, tb_page_addr_t end)
     set->tree = g_tree_new_full(tb_page_addr_cmp, NULL, NULL,
                                 page_entry_destroy);
     set->max = NULL;
+    assert_page_collection_locked(false);
 
  retry:
     g_tree_foreach(set->tree, page_entry_lock, NULL);
@@ -787,6 +807,7 @@ page_collection_lock(tb_page_addr_t start, tb_page_addr_t end)
                  page_trylock_add(set, tb->page_addr[1]))) {
                 /* drop all locks, and reacquire in order */
                 g_tree_foreach(set->tree, page_entry_unlock, NULL);
+                set_page_collection_locked(false);
                 goto retry;
             }
         }
@@ -799,6 +820,7 @@ void page_collection_unlock(struct page_collection *set)
     /* entries are unlocked and freed via page_entry_destroy */
     g_tree_destroy(set->tree);
     g_free(set);
+    set_page_collection_locked(false);
 }
 
 #endif /* !CONFIG_USER_ONLY */
