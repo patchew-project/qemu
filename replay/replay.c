@@ -81,7 +81,7 @@ int replay_get_instructions(void)
 void replay_account_executed_instructions(void)
 {
     if (replay_mode == REPLAY_MODE_PLAY) {
-        replay_mutex_lock();
+        g_assert(replay_mutex_locked());
         if (replay_state.instructions_count > 0) {
             int count = (int)(replay_get_current_step()
                               - replay_state.current_step);
@@ -100,24 +100,22 @@ void replay_account_executed_instructions(void)
                 qemu_notify_event();
             }
         }
-        replay_mutex_unlock();
     }
 }
 
 bool replay_exception(void)
 {
+
     if (replay_mode == REPLAY_MODE_RECORD) {
+        g_assert(replay_mutex_locked());
         replay_save_instructions();
-        replay_mutex_lock();
         replay_put_event(EVENT_EXCEPTION);
-        replay_mutex_unlock();
         return true;
     } else if (replay_mode == REPLAY_MODE_PLAY) {
+        g_assert(replay_mutex_locked());
         bool res = replay_has_exception();
         if (res) {
-            replay_mutex_lock();
             replay_finish_event();
-            replay_mutex_unlock();
         }
         return res;
     }
@@ -129,10 +127,9 @@ bool replay_has_exception(void)
 {
     bool res = false;
     if (replay_mode == REPLAY_MODE_PLAY) {
+        g_assert(replay_mutex_locked());
         replay_account_executed_instructions();
-        replay_mutex_lock();
         res = replay_next_event_is(EVENT_EXCEPTION);
-        replay_mutex_unlock();
     }
 
     return res;
@@ -141,17 +138,15 @@ bool replay_has_exception(void)
 bool replay_interrupt(void)
 {
     if (replay_mode == REPLAY_MODE_RECORD) {
+        g_assert(replay_mutex_locked());
         replay_save_instructions();
-        replay_mutex_lock();
         replay_put_event(EVENT_INTERRUPT);
-        replay_mutex_unlock();
         return true;
     } else if (replay_mode == REPLAY_MODE_PLAY) {
+        g_assert(replay_mutex_locked());
         bool res = replay_has_interrupt();
         if (res) {
-            replay_mutex_lock();
             replay_finish_event();
-            replay_mutex_unlock();
         }
         return res;
     }
@@ -163,10 +158,9 @@ bool replay_has_interrupt(void)
 {
     bool res = false;
     if (replay_mode == REPLAY_MODE_PLAY) {
+        g_assert(replay_mutex_locked());
         replay_account_executed_instructions();
-        replay_mutex_lock();
         res = replay_next_event_is(EVENT_INTERRUPT);
-        replay_mutex_unlock();
     }
     return res;
 }
@@ -174,9 +168,8 @@ bool replay_has_interrupt(void)
 void replay_shutdown_request(ShutdownCause cause)
 {
     if (replay_mode == REPLAY_MODE_RECORD) {
-        replay_mutex_lock();
+        g_assert(replay_mutex_locked());
         replay_put_event(EVENT_SHUTDOWN + cause);
-        replay_mutex_unlock();
     }
 }
 
@@ -190,9 +183,9 @@ bool replay_checkpoint(ReplayCheckpoint checkpoint)
         return true;
     }
 
-    replay_mutex_lock();
 
     if (replay_mode == REPLAY_MODE_PLAY) {
+        g_assert(replay_mutex_locked());
         if (replay_next_event_is(EVENT_CHECKPOINT + checkpoint)) {
             replay_finish_event();
         } else if (replay_state.data_kind != EVENT_ASYNC) {
@@ -205,13 +198,18 @@ bool replay_checkpoint(ReplayCheckpoint checkpoint)
            checkpoint were processed */
         res = replay_state.data_kind != EVENT_ASYNC;
     } else if (replay_mode == REPLAY_MODE_RECORD) {
+        g_assert(replay_mutex_locked());
         replay_put_event(EVENT_CHECKPOINT + checkpoint);
         replay_save_events(checkpoint);
         res = true;
     }
 out:
-    replay_mutex_unlock();
     return res;
+}
+
+void replay_init_locks(void)
+{
+    replay_mutex_init();
 }
 
 static void replay_enable(const char *fname, int mode)
@@ -232,8 +230,6 @@ static void replay_enable(const char *fname, int mode)
     }
 
     atexit(replay_finish);
-
-    replay_mutex_init();
 
     replay_file = fopen(fname, fmode);
     if (replay_file == NULL) {
@@ -274,6 +270,8 @@ void replay_configure(QemuOpts *opts)
     Location loc;
 
     if (!opts) {
+        /* we no longer need this lock */
+        replay_mutex_destroy();
         return;
     }
 

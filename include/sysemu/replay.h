@@ -61,6 +61,8 @@ void replay_mutex_unlock(void);
 
 /* Replay process control functions */
 
+/*! Enables and take replay locks (even if we don't use it) */
+void replay_init_locks(void);
 /*! Enables recording or saving event log with specified parameters */
 void replay_configure(struct QemuOpts *opts);
 /*! Initializes timers used for snapshotting and enables events recording */
