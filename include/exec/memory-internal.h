@@ -40,6 +40,8 @@ void mtree_print_dispatch(fprintf_function mon, void *f,
                           struct AddressSpaceDispatch *d,
                           MemoryRegion *root);
 
+struct page_collection;
+
 /* Opaque struct for passing info from memory_notdirty_write_prepare()
  * to memory_notdirty_write_complete(). Callers should treat all fields
  * as private, with the exception of @active.
@@ -51,10 +53,10 @@ void mtree_print_dispatch(fprintf_function mon, void *f,
  */
 typedef struct {
     CPUState *cpu;
+    struct page_collection *pages;
     ram_addr_t ram_addr;
     vaddr mem_vaddr;
     unsigned size;
-    bool locked;
     bool active;
 } NotDirtyInfo;
 
@@ -82,7 +84,7 @@ typedef struct {
  *
  * This must only be called if we are using TCG; it will assert otherwise.
  *
- * We may take a lock in the prepare call, so callers must ensure that
+ * We may take locks in the prepare call, so callers must ensure that
  * they don't exit (via longjump or otherwise) without calling complete.
  *
  * This call must only be made inside an RCU critical section.
