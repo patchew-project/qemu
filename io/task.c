@@ -24,6 +24,13 @@
 #include "qemu/thread.h"
 #include "trace.h"
 
+struct QIOTaskThreadData {
+    QIOTaskWorker worker;
+    gpointer opaque;
+    GDestroyNotify destroy;
+};
+typedef struct QIOTaskThreadData QIOTaskThreadData;
+
 struct QIOTask {
     Object *source;
     QIOTaskFunc func;
@@ -37,6 +44,7 @@ struct QIOTask {
     /* Threaded QIO task specific fields */
     GSource *idle_source;  /* The idle task to run complete routine */
     GMainContext *context; /* The context that idle task will run with */
+    QIOTaskThreadData thread_data;
 };
 
 
@@ -86,26 +94,25 @@ static void qio_task_free(QIOTask *task)
 }
 
 
-struct QIOTaskThreadData {
-    QIOTask *task;
-    QIOTaskWorker worker;
-    gpointer opaque;
-    GDestroyNotify destroy;
-};
-
-
 static gboolean qio_task_thread_result(gpointer opaque)
 {
-    struct QIOTaskThreadData *data = opaque;
+    QIOTask *task = opaque;
+    QIOTaskThreadData *data = &task->thread_data;
 
-    trace_qio_task_thread_result(data->task);
-    qio_task_complete(data->task);
+    /*
+     * Take one more refcount since qio_task_complete() may otherwise
+     * release the last refcount and free, then "data" may be invalid.
+     */
+    qio_task_ref(task);
+
+    trace_qio_task_thread_result(task);
+    qio_task_complete(task);
 
     if (data->destroy) {
         data->destroy(data->opaque);
     }
 
-    g_free(data);
+    qio_task_unref(task);
 
     return FALSE;
 }
@@ -113,19 +120,19 @@ static gboolean qio_task_thread_result(gpointer opaque)
 
 static gpointer qio_task_thread_worker(gpointer opaque)
 {
-    struct QIOTaskThreadData *data = opaque;
-    QIOTask *task = data->task;
+    QIOTask *task = opaque;
+    QIOTaskThreadData *data = &task->thread_data;
     GSource *idle;
 
-    trace_qio_task_thread_run(data->task);
-    data->worker(data->task, data->opaque);
+    trace_qio_task_thread_run(task);
+    data->worker(task, data->opaque);
 
     /* We're running in the background thread, and must only
      * ever report the task results in the main event loop
      * thread. So we schedule an idle callback to report
      * the worker results
      */
-    trace_qio_task_thread_exit(data->task);
+    trace_qio_task_thread_exit(task);
 
     idle = g_idle_source_new();
     g_source_set_callback(idle, qio_task_thread_result, data, NULL);
@@ -142,15 +149,14 @@ void qio_task_run_in_thread(QIOTask *task,
                             GDestroyNotify destroy,
                             GMainContext *context)
 {
-    struct QIOTaskThreadData *data = g_new0(struct QIOTaskThreadData, 1);
     QemuThread thread;
+    QIOTaskThreadData *data = &task->thread_data;
 
     if (context) {
         g_main_context_ref(context);
         task->context = context;
     }
 
-    data->task = task;
     data->worker = worker;
     data->opaque = opaque;
     data->destroy = destroy;
@@ -159,7 +165,7 @@ void qio_task_run_in_thread(QIOTask *task,
     qemu_thread_create(&thread,
                        "io-task-worker",
                        qio_task_thread_worker,
-                       data,
+                       task,
                        QEMU_THREAD_DETACHED);
 }
 
