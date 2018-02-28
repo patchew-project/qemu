@@ -100,4 +100,14 @@ void pc_dimm_memory_plug(DeviceState *dev, MemoryHotplugState *hpms,
                          MemoryRegion *mr, uint64_t align, Error **errp);
 void pc_dimm_memory_unplug(DeviceState *dev, MemoryHotplugState *hpms,
                            MemoryRegion *mr);
+
+/*
+ * Return a list of DeviceState of pc-dimm and nvdimm devices. The
+ * list is sorted in the ascendant order of the base address of
+ * devices.
+ *
+ * Note: callers are responsible to free the list.
+ */
+GSList *pc_dimm_get_device_list(void);
+
 #endif

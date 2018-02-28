@@ -276,6 +276,14 @@ static int pc_dimm_built_list(Object *obj, void *opaque)
     return 0;
 }
 
+GSList *pc_dimm_get_device_list(void)
+{
+    GSList *list = NULL;
+
+    object_child_foreach(qdev_get_machine(), pc_dimm_built_list, &list);
+    return list;
+}
+
 uint64_t pc_dimm_get_free_addr(uint64_t address_space_start,
                                uint64_t address_space_size,
                                uint64_t *hint, uint64_t align, uint64_t size,

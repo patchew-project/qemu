@@ -2323,6 +2323,49 @@ build_tpm2(GArray *table_data, BIOSLinker *linker, GArray *tcpalog)
 #define HOLE_640K_START  (640 * 1024)
 #define HOLE_640K_END   (1024 * 1024)
 
+static void build_srat_hotpluggable_memory(GArray *table_data, uint64_t base,
+                                           uint64_t len, int default_node)
+{
+    GSList *dimms = pc_dimm_get_device_list();
+    GSList *ent = dimms;
+    PCDIMMDevice *dev;
+    Object *obj;
+    uint64_t end = base + len, addr, size;
+    int node;
+    AcpiSratMemoryAffinity *numamem;
+
+    while (base < end) {
+        numamem = acpi_data_push(table_data, sizeof *numamem);
+
+        if (!ent) {
+            build_srat_memory(numamem, base, end - base, default_node,
+                              MEM_AFFINITY_HOTPLUGGABLE | MEM_AFFINITY_ENABLED);
+            break;
+        }
+
+        dev = PC_DIMM(ent->data);
+        obj = OBJECT(dev);
+        addr = object_property_get_uint(obj, PC_DIMM_ADDR_PROP, NULL);
+        size = object_property_get_uint(obj, PC_DIMM_SIZE_PROP, NULL);
+        node = object_property_get_uint(obj, PC_DIMM_NODE_PROP, NULL);
+
+        if (base < addr) {
+            build_srat_memory(numamem, base, addr - base, default_node,
+                              MEM_AFFINITY_HOTPLUGGABLE | MEM_AFFINITY_ENABLED);
+            numamem = acpi_data_push(table_data, sizeof *numamem);
+        }
+        build_srat_memory(numamem, addr, size, node,
+                          MEM_AFFINITY_HOTPLUGGABLE | MEM_AFFINITY_ENABLED |
+                          (object_dynamic_cast(obj, TYPE_NVDIMM) ?
+                           MEM_AFFINITY_NON_VOLATILE : 0));
+
+        base = addr + size;
+        ent = g_slist_next(ent);
+    }
+
+    g_slist_free(dimms);
+}
+
 static void
 build_srat(GArray *table_data, BIOSLinker *linker, MachineState *machine)
 {
@@ -2434,10 +2477,9 @@ build_srat(GArray *table_data, BIOSLinker *linker, MachineState *machine)
      * providing _PXM method if necessary.
      */
     if (hotplugabble_address_space_size) {
-        numamem = acpi_data_push(table_data, sizeof *numamem);
-        build_srat_memory(numamem, pcms->hotplug_memory.base,
-                          hotplugabble_address_space_size, pcms->numa_nodes - 1,
-                          MEM_AFFINITY_HOTPLUGGABLE | MEM_AFFINITY_ENABLED);
+        build_srat_hotpluggable_memory(table_data, pcms->hotplug_memory.base,
+                                       hotplugabble_address_space_size,
+                                       pcms->numa_nodes - 1);
     }
 
     build_header(linker, table_data,
