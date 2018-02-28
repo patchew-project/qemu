@@ -1,5 +1,5 @@
 /*
- * QEMU model of Xilinx I/O Module GPO
+ * QEMU model of Xilinx I/O Module GPO and GPI
  *
  * Copyright (c) 2013 Xilinx Inc
  * Written by Edgar E. Iglesias <edgar.iglesias@xilinx.com>
@@ -34,11 +34,16 @@
 #endif
 
 REG32(GPO0, 0x00)
+REG32(GPI0, 0x20)
 
 static void xlnx_iomod_gpio_gpo0_prew(RegisterInfo *reg, uint64_t value)
 {
     XlnxPMUIOGPIO *s = XLNX_ZYNQMP_IOMOD_GPIO(reg->opaque);
     unsigned int i;
+
+    if (s->input) {
+        return;
+    }
 
     for (i = 0; i < s->size; i++) {
         bool flag = !!(value & (1 << i));
@@ -51,10 +56,50 @@ static uint64_t xlnx_iomod_gpio_gpo0_postr(RegisterInfo *reg, uint64_t value)
     return 0;
 }
 
+static void xlnx_iomod_gpio_irq_handler(void *opaque, int irq, int level)
+{
+    XlnxPMUIOGPIO *s = XLNX_ZYNQMP_IOMOD_GPIO(opaque);
+    uint32_t old = s->regs[R_GPI0];
+
+    if (!s->input) {
+        return;
+    }
+
+    /* If enable is set for @irq pin, update @irq pin in GPI and
+     * trigger interrupt if transition is 0 -> 1.
+     */
+    if (s->ien & (1 << irq)) {
+        s->regs[R_GPI0] &= ~(1 << irq);
+        s->regs[R_GPI0] |= level << irq;
+        /* On input pin transition 0->1 trigger interrupt. */
+        if ((old != s->regs[R_GPI0]) && level) {
+            qemu_irq_pulse(s->parent_irq);
+        }
+    }
+}
+
+/* Called when someone writes into LOCAL GPIx_ENABLE */
+static void xlnx_iomod_gpio_ien_handler(void *opaque, int n, int level)
+{
+    XlnxPMUIOGPIO *s = XLNX_ZYNQMP_IOMOD_GPIO(opaque);
+
+    if (!s->input) {
+        return;
+    }
+
+    s->ien = level;
+
+    /* Clear all GPIs that got disabled */
+    s->regs[R_GPI0] &= s->ien;
+}
+
 static const RegisterAccessInfo xlnx_iomod_gpio_regs_info[] = {
     {   .name = "GPO0",  .addr = A_GPO0,
         .post_write = xlnx_iomod_gpio_gpo0_prew,
         .post_read = xlnx_iomod_gpio_gpo0_postr,
+    },{ .name = "GPI0",  .addr = A_GPI0,
+        .rsvd = 0x300030,
+        .ro = 0xffcfffcf,
     }
 };
 
@@ -68,6 +113,9 @@ static void xlnx_iomod_gpio_reset(DeviceState *dev)
     }
 
     xlnx_iomod_gpio_gpo0_prew(&s->regs_info[R_GPO0], s->init);
+
+    /* Disable all interrupts initially. */
+    s->ien = 0;
 }
 
 static const MemoryRegionOps xlnx_iomod_gpio_ops = {
@@ -86,6 +134,9 @@ static void xlnx_iomod_gpio_realize(DeviceState *dev, Error **errp)
 
     assert(s->size <= 32);
     qdev_init_gpio_out(dev, s->outputs, s->size);
+
+    qdev_init_gpio_in_named(dev, xlnx_iomod_gpio_irq_handler, "GPI", 32);
+    qdev_init_gpio_in_named(dev, xlnx_iomod_gpio_ien_handler, "IEN", 32);
 }
 
 static void xlnx_iomod_gpio_init(Object *obj)
@@ -107,6 +158,7 @@ static void xlnx_iomod_gpio_init(Object *obj)
                                 0x0,
                                 &reg_array->mem);
     sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_irq(sbd, &s->parent_irq);
 }
 
 static const VMStateDescription vmstate_xlnx_iomod_gpio = {
@@ -119,6 +171,7 @@ static const VMStateDescription vmstate_xlnx_iomod_gpio = {
 };
 
 static Property xlnx_iomod_gpio_properties[] = {
+    DEFINE_PROP_BOOL("input", XlnxPMUIOGPIO, input, false),
     DEFINE_PROP_UINT32("size", XlnxPMUIOGPIO, size, 0),
     DEFINE_PROP_UINT32("gpo-init", XlnxPMUIOGPIO, init, 0),
     DEFINE_PROP_END_OF_LIST(),

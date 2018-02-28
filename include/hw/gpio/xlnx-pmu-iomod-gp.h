@@ -33,17 +33,22 @@
 #define XLNX_ZYNQMP_IOMOD_GPIO(obj) \
      OBJECT_CHECK(XlnxPMUIOGPIO, (obj), TYPE_XLNX_ZYNQMP_IOMOD_GPIO)
 
-#define XLNX_ZYNQMP_IOMOD_GPIO_R_MAX (0x00 + 1)
+#define XLNX_ZYNQMP_IOMOD_GPIO_R_MAX (0x20 + 1)
 
 typedef struct XlnxPMUIOGPIO {
     SysBusDevice parent_obj;
     MemoryRegion iomem;
 
+    bool input;
     uint32_t size;
 
     /* GPO */
     uint32_t init;
     qemu_irq outputs[32];
+
+    /* GPI */
+    uint32_t ien;
+    qemu_irq parent_irq;
 
     uint32_t regs[XLNX_ZYNQMP_IOMOD_GPIO_R_MAX];
     RegisterInfo regs_info[XLNX_ZYNQMP_IOMOD_GPIO_R_MAX];
