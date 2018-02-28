@@ -107,6 +107,18 @@ int qio_net_listener_open_sync(QIONetListener *listener,
                                Error **errp);
 
 /**
+ * qio_net_listener_set_context:
+ * @listener: the net listener object
+ * @context: the context that we'd like to bind the sources to
+ *
+ * This helper does not do anything but moves existing net listener
+ * sources from the old one to the new one.  It can be seen as a
+ * no-operation if there is no listening source at all.
+ */
+void qio_net_listener_set_context(QIONetListener *listener,
+                                  GMainContext *context);
+
+/**
  * qio_net_listener_add:
  * @listener: the network listener object
  * @sioc: the socket I/O channel

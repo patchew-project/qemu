@@ -145,6 +145,13 @@ static void qio_net_listener_sources_update(QIONetListener *listener,
     }
 }
 
+void qio_net_listener_set_context(QIONetListener *listener,
+                                  GMainContext *context)
+{
+    qio_net_listener_sources_clear(listener);
+    qio_net_listener_sources_update(listener, context);
+}
+
 void qio_net_listener_add(QIONetListener *listener,
                           QIOChannelSocket *sioc)
 {
