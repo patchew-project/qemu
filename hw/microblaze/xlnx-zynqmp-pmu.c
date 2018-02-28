@@ -26,6 +26,7 @@
 
 #include "hw/intc/xlnx-zynqmp-ipi.h"
 #include "hw/intc/xlnx-pmu-iomod-intc.h"
+#include "hw/timer/xlnx-pmu-iomod-pit.h"
 
 /* Define the PMU device */
 
@@ -40,12 +41,20 @@
 #define XLNX_ZYNQMP_PMU_INTC_ADDR   0xFFD40000
 
 #define XLNX_ZYNQMP_PMU_NUM_IPIS    4
+#define XLNX_ZYNQMP_PMU_NUM_PITS    4
 
 static const uint64_t ipi_addr[XLNX_ZYNQMP_PMU_NUM_IPIS] = {
     0xFF340000, 0xFF350000, 0xFF360000, 0xFF370000,
 };
 static const uint64_t ipi_irq[XLNX_ZYNQMP_PMU_NUM_IPIS] = {
     19, 20, 21, 22,
+};
+
+static const uint64_t pit_addr[XLNX_ZYNQMP_PMU_NUM_PITS] = {
+    0xFFD40040, 0xFFD40050, 0xFFD40060, 0xFFD40070,
+};
+static const uint64_t pit_irq[XLNX_ZYNQMP_PMU_NUM_PITS] = {
+    3, 4, 5, 6,
 };
 
 typedef struct XlnxZynqMPPMUSoCState {
@@ -147,7 +156,9 @@ static void xlnx_zynqmp_pmu_init(MachineState *machine)
     MemoryRegion *pmu_rom = g_new(MemoryRegion, 1);
     MemoryRegion *pmu_ram = g_new(MemoryRegion, 1);
     XlnxZynqMPIPI *ipi[XLNX_ZYNQMP_PMU_NUM_IPIS];
+    XlnxPMUPIT *pit[XLNX_ZYNQMP_PMU_NUM_PITS];
     qemu_irq irq[32];
+    qemu_irq tmp_irq;
     int i;
 
     /* Create the ROM */
@@ -185,6 +196,30 @@ static void xlnx_zynqmp_pmu_init(MachineState *machine)
         sysbus_mmio_map(SYS_BUS_DEVICE(ipi[i]), 0, ipi_addr[i]);
         sysbus_connect_irq(SYS_BUS_DEVICE(ipi[i]), 0, irq[ipi_irq[i]]);
     }
+
+    /* Create and connect the IOMOD PIT devices */
+    for (i = 0; i < XLNX_ZYNQMP_PMU_NUM_PITS; i++) {
+        pit[i] = g_new0(XlnxPMUPIT, 1);
+        object_initialize(pit[i], sizeof(XlnxPMUPIT), TYPE_XLNX_ZYNQMP_IOMODULE_PIT);
+        qdev_set_parent_bus(DEVICE(pit[i]), sysbus_get_default());
+    }
+
+    for (i = 0; i < XLNX_ZYNQMP_PMU_NUM_PITS; i++) {
+        object_property_set_bool(OBJECT(pit[i]), true, "realized",
+                                 &error_abort);
+        sysbus_mmio_map(SYS_BUS_DEVICE(pit[i]), 0, pit_addr[i]);
+        sysbus_connect_irq(SYS_BUS_DEVICE(pit[i]), 0, irq[pit_irq[i]]);
+    }
+
+    /* PIT1 hits into PIT0 */
+    tmp_irq = qdev_get_gpio_in_named(DEVICE(pit[0]), "ps_hit_in", 0);
+    qdev_connect_gpio_out_named(DEVICE(pit[1]), "ps_hit_out", 0, tmp_irq);
+
+    /* PIT3 hits into PIT2 */
+    tmp_irq = qdev_get_gpio_in_named(DEVICE(pit[2]), "ps_hit_in", 0);
+    qdev_connect_gpio_out_named(DEVICE(pit[3]), "ps_hit_out", 0, tmp_irq);
+
+    /* TODO: PIT0 and PIT2 "ps_config" GPIO goes to The GPO1 device. */
 
     /* Load the kernel */
     microblaze_load_kernel(&pmu->cpu, XLNX_ZYNQMP_PMU_RAM_ADDR,
