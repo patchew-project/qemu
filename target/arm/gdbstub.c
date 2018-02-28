@@ -183,12 +183,31 @@ static int arm_gdb_get_sysreg(CPUARMState *env, uint8_t *buf, int reg)
     return 0;
 }
 
+static int arm_gdb_set_sysreg(CPUARMState *env, uint8_t *buf, int reg)
+{
+    ARMCPU *cpu = arm_env_get_cpu(env);
+    const ARMCPRegInfo *ri;
+    uint32_t key;
+    uint32_t tmp;
+
+    tmp = ldl_p(buf);
+    key = cpu->dyn_xml.cpregs_keys[reg];
+    ri = get_arm_cp_reginfo(arm_env_get_cpu(env)->cp_regs, key);
+    if (ri) {
+        if (!(ri->type & ARM_CP_CONST)) {
+            write_raw_cp_reg(env, ri, tmp);
+            return cpreg_field_is_64bit(ri) ? 8 : 4;
+        }
+    }
+    return 0;
+}
+
 void arm_register_gdb_regs_for_features(CPUState *cs)
 {
     int n;
 
     n = arm_gen_dynamic_xml(cs);
-    gdb_register_coprocessor(cs, arm_gdb_get_sysreg, NULL,
+    gdb_register_coprocessor(cs, arm_gdb_get_sysreg, arm_gdb_set_sysreg,
                              n, "system-registers.xml", 0);
 
 }
