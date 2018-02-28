@@ -101,7 +101,7 @@ static void test_encode_decode_1_byte(void)
                        PAGE_SIZE);
     g_assert(dlen == (uleb128_encode_small(&buf[0], 4095) + 2));
 
-    rc = xbzrle_decode_buffer(compressed, dlen, buffer, PAGE_SIZE);
+    rc = xbzrle_decode_buffer(compressed, dlen, buffer, PAGE_SIZE, false);
     g_assert(rc == PAGE_SIZE);
     g_assert(memcmp(test, buffer, PAGE_SIZE) == 0);
 
@@ -156,7 +156,7 @@ static void encode_decode_range(void)
     dlen = xbzrle_encode_buffer(test, buffer, PAGE_SIZE, compressed,
                                 PAGE_SIZE);
 
-    rc = xbzrle_decode_buffer(compressed, dlen, test, PAGE_SIZE);
+    rc = xbzrle_decode_buffer(compressed, dlen, test, PAGE_SIZE, false);
     g_assert(rc < PAGE_SIZE);
     g_assert(memcmp(test, buffer, PAGE_SIZE) == 0);
 

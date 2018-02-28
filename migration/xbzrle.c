@@ -12,6 +12,7 @@
  */
 #include "qemu/osdep.h"
 #include "qemu/cutils.h"
+#include "qemu/pmem.h"
 #include "xbzrle.h"
 
 /*
@@ -126,11 +127,14 @@ int xbzrle_encode_buffer(uint8_t *old_buf, uint8_t *new_buf, int slen,
     return d;
 }
 
-int xbzrle_decode_buffer(uint8_t *src, int slen, uint8_t *dst, int dlen)
+int xbzrle_decode_buffer(uint8_t *src, int slen, uint8_t *dst, int dlen,
+                         bool is_pmem)
 {
     int i = 0, d = 0;
     int ret;
     uint32_t count = 0;
+    void *(*memcpy_func)(void *d, const void *s, size_t n) =
+        is_pmem ? pmem_memcpy_nodrain : memcpy;
 
     while (i < slen) {
 
@@ -167,7 +171,7 @@ int xbzrle_decode_buffer(uint8_t *src, int slen, uint8_t *dst, int dlen)
             return -1;
         }
 
-        memcpy(dst + d, src + i, count);
+        memcpy_func(dst + d, src + i, count);
         d += count;
         i += count;
     }
