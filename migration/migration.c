@@ -1385,11 +1385,12 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
             return;
         }
         migrate_set_block_enabled(true, &local_err);
+        s->must_remove_block_options = true;
         if (local_err) {
             error_propagate(errp, local_err);
+            block_cleanup_parameters(s);
             return;
         }
-        s->must_remove_block_options = true;
     }
 
     if (has_inc && inc) {
@@ -1411,11 +1412,10 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
     } else if (strstart(uri, "fd:", &p)) {
         fd_start_outgoing_migration(s, p, &local_err);
     } else {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "uri",
+        error_setg(&local_err, QERR_INVALID_PARAMETER_VALUE, "uri",
                    "a valid migration protocol");
         migrate_set_state(&s->state, MIGRATION_STATUS_SETUP,
                           MIGRATION_STATUS_FAILED);
-        return;
     }
 
     if (local_err) {
