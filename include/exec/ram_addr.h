@@ -70,6 +70,8 @@ static inline unsigned long int ramblock_recv_bitmap_offset(void *host_addr,
     return host_addr_offset >> TARGET_PAGE_BITS;
 }
 
+bool ramblock_is_pmem(RAMBlock *rb);
+
 long qemu_getrampagesize(void);
 unsigned long last_ram_page(void);
 
@@ -84,6 +86,7 @@ unsigned long last_ram_page(void);
  *  @flags: specify the properties of the ram block, which can be one
  *          or bit-or of following values
  *          - QEMU_RAM_SHARE: mmap the back file or device with MAP_SHARED
+ *          - QEMU_RAM_PMEM: the backend @mem_path or @fd is persistent memory
  *          Other bits are ignored.
  *  @mem_path or @fd: specify the back file or device
  *  @errp: pointer to Error*, to store an error if it happens

@@ -509,6 +509,7 @@ void memory_region_init_resizeable_ram(MemoryRegion *mr,
 #ifdef __linux__
 
 #define QEMU_RAM_SHARE      (1UL << 0)
+#define QEMU_RAM_PMEM       (1UL << 1)
 
 /**
  * memory_region_init_ram_from_file:  Initialize RAM memory region with a
@@ -524,6 +525,7 @@ void memory_region_init_resizeable_ram(MemoryRegion *mr,
  * @flags: specify properties of this memory region, which can be one or bit-or
  *         of following values:
  *         - QEMU_RAM_SHARE: memory must be mmaped with the MAP_SHARED flag
+ *         - QEMU_RAM_PMEM: the backend @path is persistent memory
  *         Other bits are ignored.
  * @path: the path in which to allocate the RAM.
  * @errp: pointer to Error*, to store an error if it happens.

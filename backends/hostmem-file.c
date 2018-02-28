@@ -34,6 +34,7 @@ struct HostMemoryBackendFile {
     bool discard_data;
     char *mem_path;
     uint64_t align;
+    bool is_pmem;
 };
 
 static void
@@ -59,7 +60,8 @@ file_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
         memory_region_init_ram_from_file(&backend->mr, OBJECT(backend),
                                  path,
                                  backend->size, fb->align,
-                                 backend->share ? QEMU_RAM_SHARE : 0,
+                                 (backend->share ? QEMU_RAM_SHARE : 0) |
+                                 (fb->is_pmem ? QEMU_RAM_PMEM : 0),
                                  fb->mem_path, errp);
         g_free(path);
     }
@@ -131,6 +133,25 @@ static void file_memory_backend_set_align(Object *o, Visitor *v,
     error_propagate(errp, local_err);
 }
 
+static bool file_memory_backend_get_pmem(Object *o, Error **errp)
+{
+    return MEMORY_BACKEND_FILE(o)->is_pmem;
+}
+
+static void file_memory_backend_set_pmem(Object *o, bool value, Error **errp)
+{
+    HostMemoryBackend *backend = MEMORY_BACKEND(o);
+    HostMemoryBackendFile *fb = MEMORY_BACKEND_FILE(o);
+
+    if (host_memory_backend_mr_inited(backend)) {
+        error_setg(errp, "cannot change property 'pmem' of %s '%s'",
+                   object_get_typename(o), backend->id);
+        return;
+    }
+
+    fb->is_pmem = value;
+}
+
 static void file_backend_unparent(Object *obj)
 {
     HostMemoryBackend *backend = MEMORY_BACKEND(obj);
@@ -162,6 +183,9 @@ file_backend_class_init(ObjectClass *oc, void *data)
         file_memory_backend_get_align,
         file_memory_backend_set_align,
         NULL, NULL, &error_abort);
+    object_class_property_add_bool(oc, "pmem",
+        file_memory_backend_get_pmem, file_memory_backend_set_pmem,
+        &error_abort);
 }
 
 static void file_backend_instance_finalize(Object *o)

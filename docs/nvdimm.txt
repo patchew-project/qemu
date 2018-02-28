@@ -153,3 +153,17 @@ guest NVDIMM region mapping structure.  This unarmed flag indicates
 guest software that this vNVDIMM device contains a region that cannot
 accept persistent writes. In result, for example, the guest Linux
 NVDIMM driver, marks such vNVDIMM device as read-only.
+
+If the vNVDIMM backend is on the host persistent memory that can be
+accessed in SNIA NVM Programming Model [1] (e.g., Intel NVDIMM), it's
+suggested to set the 'pmem' option of memory-backend-file to 'on'. When
+'pmem=on' and QEMU is built with libpmem [2] support (configured with
+--enable-libpmem), QEMU will take necessary operations to guarantee
+the persistence of its own writes to the vNVDIMM backend (e.g., in
+vNVDIMM label emulation and live migration).
+
+References
+----------
+
+[1] SNIA NVM Programming Model: https://www.snia.org/sites/default/files/technical_work/final/NVMProgrammingModel_v1.2.pdf
+[2] PMDK: http://pmem.io/pmdk/
