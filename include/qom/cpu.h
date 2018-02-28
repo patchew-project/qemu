@@ -131,6 +131,11 @@ struct TranslationBlock;
  *           before the insn which triggers a watchpoint rather than after it.
  * @gdb_arch_name: Optional callback that returns the architecture name known
  * to GDB. The caller must free the returned string with g_free.
+ * @gdb_has_dynamic_xml: Indicates if GDB supports generating a dynamic XML
+ *                   description for the sysregs of this CPU.
+ * @register_gdb_regs_for_features: Callback for letting GDB create a dynamic
+ *       XML description for the sysregs and register those sysregs afterwards.
+ * @gdb_get_dynamic_xml: Callback for letting GDB get the dynamic XML.
  * @cpu_exec_enter: Callback for cpu_exec preparation.
  * @cpu_exec_exit: Callback for cpu_exec cleanup.
  * @cpu_exec_interrupt: Callback for processing interrupts in cpu_exec.
@@ -197,7 +202,9 @@ typedef struct CPUClass {
     const struct VMStateDescription *vmsd;
     const char *gdb_core_xml_file;
     gchar * (*gdb_arch_name)(CPUState *cpu);
-
+    bool gdb_has_dynamic_xml;
+    void (*register_gdb_regs_for_features)(CPUState *cpu);
+    char *(*gdb_get_dynamic_xml)(CPUState *cpu);
     void (*cpu_exec_enter)(CPUState *cpu);
     void (*cpu_exec_exit)(CPUState *cpu);
     bool (*cpu_exec_interrupt)(CPUState *cpu, int interrupt_request);

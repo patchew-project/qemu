@@ -665,6 +665,9 @@ static const char *get_feature_xml(const char *p, const char **newp,
             pstrcat(target_xml, sizeof(target_xml), "<xi:include href=\"");
             pstrcat(target_xml, sizeof(target_xml), cc->gdb_core_xml_file);
             pstrcat(target_xml, sizeof(target_xml), "\"/>");
+            if (cc->gdb_has_dynamic_xml) {
+                cc->register_gdb_regs_for_features(cpu);
+            }
             for (r = cpu->gdb_regs; r; r = r->next) {
                 pstrcat(target_xml, sizeof(target_xml), "<xi:include href=\"");
                 pstrcat(target_xml, sizeof(target_xml), r->xml);
@@ -673,6 +676,10 @@ static const char *get_feature_xml(const char *p, const char **newp,
             pstrcat(target_xml, sizeof(target_xml), "</target>");
         }
         return target_xml;
+    }
+    if (strncmp(p, "system-registers.xml", len) == 0) {
+        CPUState *cpu = first_cpu;
+        return cc->gdb_get_dynamic_xml(cpu);
     }
     for (i = 0; ; i++) {
         name = xml_builtin[i][0];
