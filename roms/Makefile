@@ -21,23 +21,6 @@ pxe-rom-virtio   efi-rom-virtio   : DID := 1000
 pxe-rom-vmxnet3  efi-rom-vmxnet3  : VID := 15ad
 pxe-rom-vmxnet3  efi-rom-vmxnet3  : DID := 07b0
 
-#
-# cross compiler auto detection
-#
-path := $(subst :, ,$(PATH))
-system := $(shell uname -s | tr "A-Z" "a-z")
-
-# first find cross binutils in path
-find-cross-ld = $(firstword $(wildcard $(patsubst %,%/$(1)-*$(system)*-ld,$(path))))
-# then check we have cross gcc too
-find-cross-gcc = $(firstword $(wildcard $(patsubst %ld,%gcc,$(call find-cross-ld,$(1)))))
-# finally strip off path + toolname so we get the prefix
-find-cross-prefix = $(subst gcc,,$(notdir $(call find-cross-gcc,$(1))))
-
-powerpc64_cross_prefix := $(call find-cross-prefix,powerpc64)
-powerpc_cross_prefix := $(call find-cross-prefix,powerpc)
-x86_64_cross_prefix := $(call find-cross-prefix,x86_64)
-
 # tag our seabios builds
 SEABIOS_EXTRAVERSION="-prebuilt.qemu-project.org"
 
@@ -65,6 +48,13 @@ default:
 	@echo "  slof           -- update slof.bin"
 	@echo "  skiboot        -- update skiboot.lid"
 	@echo "  u-boot.e500    -- update u-boot.e500"
+
+SRC_PATH=..
+include $(SRC_PATH)/rules.mak
+
+powerpc64_cross_prefix := $(call find-cross-prefix,powerpc64)
+powerpc_cross_prefix := $(call find-cross-prefix,powerpc)
+x86_64_cross_prefix := $(call find-cross-prefix,x86_64)
 
 bios: build-seabios-config-seabios-128k build-seabios-config-seabios-256k
 	cp seabios/builds/seabios-128k/bios.bin ../pc-bios/bios.bin
