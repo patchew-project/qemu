@@ -299,6 +299,22 @@ void qio_channel_set_aio_fd_handler(QIOChannel *ioc,
     klass->io_set_aio_fd_handler(ioc, ctx, io_read, io_write, opaque);
 }
 
+GSource *qio_channel_add_watch_full(QIOChannel *ioc,
+                                    GIOCondition condition,
+                                    QIOChannelFunc func,
+                                    gpointer user_data,
+                                    GDestroyNotify notify,
+                                    GMainContext *context)
+{
+    GSource *source;
+
+    source = qio_channel_create_watch(ioc, condition);
+    g_source_set_callback(source, (GSourceFunc)func, user_data, notify);
+    g_source_attach(source, context);
+
+    return source;
+}
+
 guint qio_channel_add_watch(QIOChannel *ioc,
                             GIOCondition condition,
                             QIOChannelFunc func,
@@ -308,11 +324,9 @@ guint qio_channel_add_watch(QIOChannel *ioc,
     GSource *source;
     guint id;
 
-    source = qio_channel_create_watch(ioc, condition);
-
-    g_source_set_callback(source, (GSourceFunc)func, user_data, notify);
-
-    id = g_source_attach(source, NULL);
+    source = qio_channel_add_watch_full(ioc, condition, func,
+                                        user_data, notify, NULL);
+    id = g_source_get_id(source);
     g_source_unref(source);
 
     return id;

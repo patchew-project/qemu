@@ -620,6 +620,36 @@ GSource *qio_channel_create_watch(QIOChannel *ioc,
                                   GIOCondition condition);
 
 /**
+ * qio_channel_add_watch_full:
+ * @ioc: the channel object
+ * @condition: the I/O condition to monitor
+ * @func: callback to invoke when the source becomes ready
+ * @user_data: opaque data to pass to @func
+ * @notify: callback to free @user_data
+ * @context: gcontext to bind the source to
+ *
+ * Create a new source that is used to watch
+ * for the I/O condition @condition. The callback @func
+ * will be registered against the source, to be invoked
+ * when the source becomes ready. The optional @user_data
+ * will be passed to @func when it is invoked. The @notify
+ * callback will be used to free @user_data when the
+ * watch is deleted.  The source will be bound to @context if
+ * provided, or main context if it is NULL.
+ *
+ * Note: if a valid source is returned, we need to explicitly unref
+ * the source to destroy it.
+ *
+ * Returns: the source pointer
+ */
+GSource *qio_channel_add_watch_full(QIOChannel *ioc,
+                                    GIOCondition condition,
+                                    QIOChannelFunc func,
+                                    gpointer user_data,
+                                    GDestroyNotify notify,
+                                    GMainContext *context);
+
+/**
  * qio_channel_add_watch:
  * @ioc: the channel object
  * @condition: the I/O condition to monitor
@@ -627,13 +657,8 @@ GSource *qio_channel_create_watch(QIOChannel *ioc,
  * @user_data: opaque data to pass to @func
  * @notify: callback to free @user_data
  *
- * Create a new main loop source that is used to watch
- * for the I/O condition @condition. The callback @func
- * will be registered against the source, to be invoked
- * when the source becomes ready. The optional @user_data
- * will be passed to @func when it is invoked. The @notify
- * callback will be used to free @user_data when the
- * watch is deleted
+ * Wrapper of qio_channel_add_watch_full(), but it'll only bind the
+ * source object to default main context.
  *
  * The returned source ID can be used with g_source_remove()
  * to remove and free the source when no longer required.
