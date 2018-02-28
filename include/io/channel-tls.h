@@ -48,6 +48,9 @@ struct QIOChannelTLS {
     QIOChannel parent;
     QIOChannel *master;
     QCryptoTLSSession *session;
+    GMainContext *context;
+    GSource *tls_source;
+    QIOTask *task;
 };
 
 /**
@@ -111,17 +114,34 @@ qio_channel_tls_new_client(QIOChannel *master,
                            Error **errp);
 
 /**
- * qio_channel_tls_handshake:
+ * qio_channel_tls_handshake_full:
  * @ioc: the TLS channel object
  * @func: the callback to invoke when completed
  * @opaque: opaque data to pass to @func
  * @destroy: optional callback to free @opaque
+ * @context: the context that will run the handshake task
  *
  * Perform the TLS session handshake. This method
  * will return immediately and the handshake will
  * continue in the background, provided the main
  * loop is running. When the handshake is complete,
  * or fails, the @func callback will be invoked.
+ */
+void qio_channel_tls_handshake_full(QIOChannelTLS *ioc,
+                                    QIOTaskFunc func,
+                                    gpointer opaque,
+                                    GDestroyNotify destroy,
+                                    GMainContext *context);
+
+/**
+ * qio_channel_tls_handshake:
+ * @ioc: the TLS channel object
+ * @func: the callback to invoke when completed
+ * @opaque: opaque data to pass to @func
+ * @destroy: optional callback to free @opaque
+ *
+ * Wrapper of qio_channel_tls_handshake_full(), only that we are
+ * running the handshake always on default main context.
  */
 void qio_channel_tls_handshake(QIOChannelTLS *ioc,
                                QIOTaskFunc func,

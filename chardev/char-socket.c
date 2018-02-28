@@ -72,6 +72,9 @@ typedef struct {
 
 static gboolean socket_reconnect_timeout(gpointer opaque);
 static void tcp_chr_telnet_init(Chardev *chr);
+static void tcp_chr_tls_handshake_setup(Chardev *chr,
+                                        QIOChannelTLS *tioc,
+                                        GMainContext *context);
 
 static void tcp_chr_reconn_timer_cancel(SocketChardev *s)
 {
@@ -570,6 +573,7 @@ static void tcp_chr_telnet_destroy(SocketChardev *s)
 static void tcp_chr_update_read_handler(Chardev *chr)
 {
     SocketChardev *s = SOCKET_CHARDEV(chr);
+    QIOChannelTLS *tioc;
 
     if (s->listener) {
         /*
@@ -587,6 +591,17 @@ static void tcp_chr_update_read_handler(Chardev *chr)
 
     if (s->thread_task) {
         qio_task_context_set(s->thread_task, chr->gcontext);
+    }
+
+    tioc = (QIOChannelTLS *)object_dynamic_cast(OBJECT(s->ioc),
+                                                TYPE_QIO_CHANNEL_TLS);
+    if (tioc) {
+        /*
+         * TLS session enabled; reconfigure things up.  Note that, if
+         * there is existing handshake task, it'll be cleaned up first
+         * in QIO code.
+         */
+        tcp_chr_tls_handshake_setup(chr, tioc, chr->gcontext);
     }
 
     if (!s->connected) {
@@ -704,6 +719,16 @@ static void tcp_chr_tls_handshake(QIOTask *task,
     }
 }
 
+static void tcp_chr_tls_handshake_setup(Chardev *chr,
+                                        QIOChannelTLS *tioc,
+                                        GMainContext *context)
+{
+    qio_channel_tls_handshake_full(tioc,
+                                   tcp_chr_tls_handshake,
+                                   chr,
+                                   NULL,
+                                   context);
+}
 
 static void tcp_chr_tls_init(Chardev *chr)
 {
@@ -736,10 +761,7 @@ static void tcp_chr_tls_init(Chardev *chr)
     object_unref(OBJECT(s->ioc));
     s->ioc = QIO_CHANNEL(tioc);
 
-    qio_channel_tls_handshake(tioc,
-                              tcp_chr_tls_handshake,
-                              chr,
-                              NULL);
+    tcp_chr_tls_handshake_setup(chr, tioc, NULL);
 }
 
 
