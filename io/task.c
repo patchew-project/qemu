@@ -32,6 +32,10 @@ struct QIOTask {
     Error *err;
     gpointer result;
     GDestroyNotify destroyResult;
+
+    /* Threaded QIO task specific fields */
+    GSource *idle_source;  /* The idle task to run complete routine */
+    GMainContext *context; /* The context that idle task will run with */
 };
 
 
@@ -49,6 +53,7 @@ QIOTask *qio_task_new(Object *source,
     task->func = func;
     task->opaque = opaque;
     task->destroy = destroy;
+    task->idle_source = NULL;
 
     trace_qio_task_new(task, source, func, opaque);
 
@@ -65,6 +70,12 @@ static void qio_task_free(QIOTask *task)
     }
     if (task->err) {
         error_free(task->err);
+    }
+    if (task->idle_source) {
+        g_source_unref(task->idle_source);
+    }
+    if (task->context) {
+        g_main_context_unref(task->context);
     }
     object_unref(task->source);
 
@@ -100,6 +111,8 @@ static gboolean qio_task_thread_result(gpointer opaque)
 static gpointer qio_task_thread_worker(gpointer opaque)
 {
     struct QIOTaskThreadData *data = opaque;
+    QIOTask *task = data->task;
+    GSource *idle;
 
     trace_qio_task_thread_run(data->task);
     data->worker(data->task, data->opaque);
@@ -110,7 +123,12 @@ static gpointer qio_task_thread_worker(gpointer opaque)
      * the worker results
      */
     trace_qio_task_thread_exit(data->task);
-    g_idle_add(qio_task_thread_result, data);
+
+    idle = g_idle_source_new();
+    g_source_set_callback(idle, qio_task_thread_result, data, NULL);
+    g_source_attach(idle, task->context);
+    task->idle_source = idle;
+
     return NULL;
 }
 
@@ -118,10 +136,16 @@ static gpointer qio_task_thread_worker(gpointer opaque)
 void qio_task_run_in_thread(QIOTask *task,
                             QIOTaskWorker worker,
                             gpointer opaque,
-                            GDestroyNotify destroy)
+                            GDestroyNotify destroy,
+                            GMainContext *context)
 {
     struct QIOTaskThreadData *data = g_new0(struct QIOTaskThreadData, 1);
     QemuThread thread;
+
+    if (context) {
+        g_main_context_ref(context);
+        task->context = context;
+    }
 
     data->task = task;
     data->worker = worker;
