@@ -2221,6 +2221,9 @@ static int balloon_parse(const char *arg)
 {
     QemuOpts *opts;
 
+    warn_report("This option is deprecated. "
+                "Use '--device virtio-balloon' to enable the balloon device.");
+
     if (strcmp(arg, "none") == 0) {
         return 0;
     }
