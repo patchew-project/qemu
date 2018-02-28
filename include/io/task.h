@@ -322,4 +322,7 @@ gpointer qio_task_get_result_pointer(QIOTask *task);
  */
 Object *qio_task_get_source(QIOTask *task);
 
+void qio_task_ref(QIOTask *task);
+void qio_task_unref(QIOTask *task);
+
 #endif /* QIO_TASK_H */

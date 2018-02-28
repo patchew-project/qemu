@@ -32,6 +32,7 @@ struct QIOTask {
     Error *err;
     gpointer result;
     GDestroyNotify destroyResult;
+    uint32_t refcount;
 
     /* Threaded QIO task specific fields */
     GSource *idle_source;  /* The idle task to run complete routine */
@@ -56,6 +57,8 @@ QIOTask *qio_task_new(Object *source,
     task->idle_source = NULL;
 
     trace_qio_task_new(task, source, func, opaque);
+
+    qio_task_ref(task);
 
     return task;
 }
@@ -165,7 +168,7 @@ void qio_task_complete(QIOTask *task)
 {
     task->func(task, task->opaque);
     trace_qio_task_complete(task);
-    qio_task_free(task);
+    qio_task_unref(task);
 }
 
 
@@ -207,4 +210,22 @@ gpointer qio_task_get_result_pointer(QIOTask *task)
 Object *qio_task_get_source(QIOTask *task)
 {
     return task->source;
+}
+
+void qio_task_ref(QIOTask *task)
+{
+    if (!task) {
+        return;
+    }
+    atomic_inc(&task->refcount);
+}
+
+void qio_task_unref(QIOTask *task)
+{
+    if (!task) {
+        return;
+    }
+    if (atomic_fetch_dec(&task->refcount) == 1) {
+        qio_task_free(task);
+    }
 }
