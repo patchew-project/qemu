@@ -2907,6 +2907,16 @@ void hmp_info_vm_generation_id(Monitor *mon, const QDict *qdict)
     qapi_free_GuidInfo(info);
 }
 
+void hmp_set_vm_generation_id(Monitor *mon, const QDict *qdict)
+{
+    Error *errp = NULL;
+    const char *guid = qdict_get_str(qdict, "guid");
+
+    qmp_set_vm_generation_id(guid, &errp);
+    if (errp)
+        hmp_handle_error(mon, &errp);
+}
+
 void hmp_info_memory_size_summary(Monitor *mon, const QDict *qdict)
 {
     Error *err = NULL;
