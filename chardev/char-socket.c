@@ -64,6 +64,7 @@ typedef struct {
     GSource *reconnect_timer;
     int64_t reconnect_time;
     bool connect_err_reported;
+    QIOTask *thread_task;
 } SocketChardev;
 
 #define SOCKET_CHARDEV(obj)                                     \
@@ -879,14 +880,32 @@ static void qemu_chr_socket_connected(QIOTask *task, void *opaque)
     tcp_chr_new_client(chr, sioc);
 
 cleanup:
+    assert(s->thread_task == task);
+    qio_task_unref(task);
+    s->thread_task = NULL;
     object_unref(OBJECT(sioc));
+}
+
+static void tcp_chr_socket_connect_async(SocketChardev *s)
+{
+    QIOChannelSocket *sioc = qio_channel_socket_new();
+    Chardev *chr = CHARDEV(s);
+    QIOTask *task;
+
+    assert(s->thread_task == NULL);
+
+    tcp_chr_set_client_ioc_name(chr, sioc);
+    task = qio_channel_socket_connect_async(sioc, s->addr,
+                                            qemu_chr_socket_connected,
+                                            chr, NULL);
+    qio_task_ref(task);
+    s->thread_task = task;
 }
 
 static gboolean socket_reconnect_timeout(gpointer opaque)
 {
     Chardev *chr = CHARDEV(opaque);
     SocketChardev *s = SOCKET_CHARDEV(opaque);
-    QIOChannelSocket *sioc;
 
     g_source_unref(s->reconnect_timer);
     s->reconnect_timer = NULL;
@@ -895,11 +914,7 @@ static gboolean socket_reconnect_timeout(gpointer opaque)
         return false;
     }
 
-    sioc = qio_channel_socket_new();
-    tcp_chr_set_client_ioc_name(chr, sioc);
-    qio_channel_socket_connect_async(sioc, s->addr,
-                                     qemu_chr_socket_connected,
-                                     chr, NULL);
+    tcp_chr_socket_connect_async(s);
 
     return false;
 }
@@ -979,11 +994,7 @@ static void qmp_chardev_open_socket(Chardev *chr,
     }
 
     if (s->reconnect_time) {
-        sioc = qio_channel_socket_new();
-        tcp_chr_set_client_ioc_name(chr, sioc);
-        qio_channel_socket_connect_async(sioc, s->addr,
-                                         qemu_chr_socket_connected,
-                                         chr, NULL);
+        tcp_chr_socket_connect_async(s);
     } else {
         if (s->is_listen) {
             char *name;

@@ -108,12 +108,16 @@ int qio_channel_socket_connect_sync(QIOChannelSocket *ioc,
  * will be invoked on completion or failure. The @addr
  * parameter will be copied, so may be freed as soon
  * as this function returns without waiting for completion.
+ *
+ * Returns the IOTask created.  NOTE: if the caller is going to use
+ * the returned QIOTask, the caller is responsible to reference the
+ * task and unref it when it's not needed any more.
  */
-void qio_channel_socket_connect_async(QIOChannelSocket *ioc,
-                                      SocketAddress *addr,
-                                      QIOTaskFunc callback,
-                                      gpointer opaque,
-                                      GDestroyNotify destroy);
+QIOTask *qio_channel_socket_connect_async(QIOChannelSocket *ioc,
+                                          SocketAddress *addr,
+                                          QIOTaskFunc callback,
+                                          gpointer opaque,
+                                          GDestroyNotify destroy);
 
 
 /**
