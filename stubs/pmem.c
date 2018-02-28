@@ -26,3 +26,8 @@ void *pmem_memset_nodrain(void *pmemdest, int c, size_t len)
 void pmem_drain(void)
 {
 }
+
+void *pmem_memcpy_nodrain(void *pmemdest, const void *src, size_t len)
+{
+    return memcpy(pmemdest, src, len);
+}
