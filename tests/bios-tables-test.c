@@ -654,17 +654,22 @@ static void test_smbios_structs(test_data *data)
     }
 }
 
-static void test_acpi_one(const char *params, test_data *data)
+static void test_acpi_one(const char *extra_machine_opts,
+                          const char *params, test_data *data)
 {
     char *args;
 
     /* Disable kernel irqchip to be able to override apic irq0. */
-    args = g_strdup_printf("-machine %s,accel=%s,kernel-irqchip=off "
+    args = g_strdup_printf("-machine %s,accel=%s,kernel-irqchip=off",
+                           data->machine, "kvm:tcg");
+    if (extra_machine_opts) {
+        args = g_strdup_printf("%s,%s", args, extra_machine_opts);
+    }
+    args = g_strdup_printf("%s "
                            "-net none -display none %s "
                            "-drive id=hd0,if=none,file=%s,format=raw "
                            "-device ide-hd,drive=hd0 ",
-                           data->machine, "kvm:tcg",
-                           params ? params : "", disk);
+                           args, params ? params : "", disk);
 
     qtest_start(args);
 
@@ -711,7 +716,7 @@ static void test_acpi_piix4_tcg(void)
     data.machine = MACHINE_PC;
     data.required_struct_types = base_required_struct_types;
     data.required_struct_types_len = ARRAY_SIZE(base_required_struct_types);
-    test_acpi_one(NULL, &data);
+    test_acpi_one(NULL, NULL, &data);
     free_test_data(&data);
 }
 
@@ -724,7 +729,7 @@ static void test_acpi_piix4_tcg_bridge(void)
     data.variant = ".bridge";
     data.required_struct_types = base_required_struct_types;
     data.required_struct_types_len = ARRAY_SIZE(base_required_struct_types);
-    test_acpi_one("-device pci-bridge,chassis_nr=1", &data);
+    test_acpi_one(NULL, "-device pci-bridge,chassis_nr=1", &data);
     free_test_data(&data);
 }
 
@@ -736,7 +741,7 @@ static void test_acpi_q35_tcg(void)
     data.machine = MACHINE_Q35;
     data.required_struct_types = base_required_struct_types;
     data.required_struct_types_len = ARRAY_SIZE(base_required_struct_types);
-    test_acpi_one(NULL, &data);
+    test_acpi_one(NULL, NULL, &data);
     free_test_data(&data);
 }
 
@@ -749,7 +754,7 @@ static void test_acpi_q35_tcg_bridge(void)
     data.variant = ".bridge";
     data.required_struct_types = base_required_struct_types;
     data.required_struct_types_len = ARRAY_SIZE(base_required_struct_types);
-    test_acpi_one("-device pci-bridge,chassis_nr=1",
+    test_acpi_one(NULL, "-device pci-bridge,chassis_nr=1",
                   &data);
     free_test_data(&data);
 }
@@ -761,7 +766,8 @@ static void test_acpi_piix4_tcg_cphp(void)
     memset(&data, 0, sizeof(data));
     data.machine = MACHINE_PC;
     data.variant = ".cphp";
-    test_acpi_one("-smp 2,cores=3,sockets=2,maxcpus=6"
+    test_acpi_one(NULL,
+                  "-smp 2,cores=3,sockets=2,maxcpus=6"
                   " -numa node -numa node"
                   " -numa dist,src=0,dst=1,val=21",
                   &data);
@@ -775,7 +781,8 @@ static void test_acpi_q35_tcg_cphp(void)
     memset(&data, 0, sizeof(data));
     data.machine = MACHINE_Q35;
     data.variant = ".cphp";
-    test_acpi_one(" -smp 2,cores=3,sockets=2,maxcpus=6"
+    test_acpi_one(NULL,
+                  " -smp 2,cores=3,sockets=2,maxcpus=6"
                   " -numa node -numa node"
                   " -numa dist,src=0,dst=1,val=21",
                   &data);
@@ -795,7 +802,8 @@ static void test_acpi_q35_tcg_ipmi(void)
     data.variant = ".ipmibt";
     data.required_struct_types = ipmi_required_struct_types;
     data.required_struct_types_len = ARRAY_SIZE(ipmi_required_struct_types);
-    test_acpi_one("-device ipmi-bmc-sim,id=bmc0"
+    test_acpi_one(NULL,
+                  "-device ipmi-bmc-sim,id=bmc0"
                   " -device isa-ipmi-bt,bmc=bmc0",
                   &data);
     free_test_data(&data);
@@ -813,7 +821,8 @@ static void test_acpi_piix4_tcg_ipmi(void)
     data.variant = ".ipmikcs";
     data.required_struct_types = ipmi_required_struct_types;
     data.required_struct_types_len = ARRAY_SIZE(ipmi_required_struct_types);
-    test_acpi_one("-device ipmi-bmc-sim,id=bmc0"
+    test_acpi_one(NULL,
+                  "-device ipmi-bmc-sim,id=bmc0"
                   " -device isa-ipmi-kcs,irq=0,bmc=bmc0",
                   &data);
     free_test_data(&data);
@@ -826,7 +835,8 @@ static void test_acpi_q35_tcg_memhp(void)
     memset(&data, 0, sizeof(data));
     data.machine = MACHINE_Q35;
     data.variant = ".memhp";
-    test_acpi_one(" -m 128,slots=3,maxmem=1G"
+    test_acpi_one(NULL,
+                  " -m 128,slots=3,maxmem=1G"
                   " -numa node -numa node"
                   " -numa dist,src=0,dst=1,val=21",
                   &data);
@@ -840,7 +850,8 @@ static void test_acpi_piix4_tcg_memhp(void)
     memset(&data, 0, sizeof(data));
     data.machine = MACHINE_PC;
     data.variant = ".memhp";
-    test_acpi_one(" -m 128,slots=3,maxmem=1G"
+    test_acpi_one(NULL,
+                  " -m 128,slots=3,maxmem=1G"
                   " -numa node -numa node"
                   " -numa dist,src=0,dst=1,val=21",
                   &data);
@@ -854,7 +865,8 @@ static void test_acpi_q35_tcg_numamem(void)
     memset(&data, 0, sizeof(data));
     data.machine = MACHINE_Q35;
     data.variant = ".numamem";
-    test_acpi_one(" -numa node -numa node,mem=128", &data);
+    test_acpi_one(NULL,
+                  " -numa node -numa node,mem=128", &data);
     free_test_data(&data);
 }
 
@@ -865,7 +877,8 @@ static void test_acpi_piix4_tcg_numamem(void)
     memset(&data, 0, sizeof(data));
     data.machine = MACHINE_PC;
     data.variant = ".numamem";
-    test_acpi_one(" -numa node -numa node,mem=128", &data);
+    test_acpi_one(NULL,
+                  " -numa node -numa node,mem=128", &data);
     free_test_data(&data);
 }
 
