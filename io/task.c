@@ -42,6 +42,9 @@ struct QIOTask {
     uint32_t refcount;
 
     /* Threaded QIO task specific fields */
+    bool has_thread;
+    QemuThread thread;
+    QemuMutex mutex;       /* Protects threaded QIO task fields */
     GSource *idle_source;  /* The idle task to run complete routine */
     GMainContext *context; /* The context that idle task will run with */
     QIOTaskThreadData thread_data;
@@ -56,6 +59,8 @@ QIOTask *qio_task_new(Object *source,
     QIOTask *task;
 
     task = g_new0(QIOTask, 1);
+
+    qemu_mutex_init(&task->mutex);
 
     task->source = source;
     object_ref(source);
@@ -88,7 +93,16 @@ static void qio_task_free(QIOTask *task)
     if (task->context) {
         g_main_context_unref(task->context);
     }
+    /*
+     * Make sure the thread quitted before we destroy the mutex,
+     * otherwise the thread might still be using it.
+     */
+    if (task->has_thread) {
+        qemu_thread_join(&task->thread);
+    }
+
     object_unref(task->source);
+    qemu_mutex_destroy(&task->mutex);
 
     g_free(task);
 }
@@ -117,12 +131,28 @@ static gboolean qio_task_thread_result(gpointer opaque)
     return FALSE;
 }
 
+/* Must be with QIOTask.mutex held. */
+static void qio_task_thread_create_complete_job(QIOTask *task)
+{
+    GSource *idle;
+
+    /* Remove the old if there is */
+    if (task->idle_source) {
+        g_source_destroy(task->idle_source);
+        g_source_unref(task->idle_source);
+    }
+
+    idle = g_idle_source_new();
+    g_source_set_callback(idle, qio_task_thread_result, task, NULL);
+    g_source_attach(idle, task->context);
+
+    task->idle_source = idle;
+}
 
 static gpointer qio_task_thread_worker(gpointer opaque)
 {
     QIOTask *task = opaque;
     QIOTaskThreadData *data = &task->thread_data;
-    GSource *idle;
 
     trace_qio_task_thread_run(task);
     data->worker(task, data->opaque);
@@ -134,10 +164,9 @@ static gpointer qio_task_thread_worker(gpointer opaque)
      */
     trace_qio_task_thread_exit(task);
 
-    idle = g_idle_source_new();
-    g_source_set_callback(idle, qio_task_thread_result, data, NULL);
-    g_source_attach(idle, task->context);
-    task->idle_source = idle;
+    qemu_mutex_lock(&task->mutex);
+    qio_task_thread_create_complete_job(task);
+    qemu_mutex_unlock(&task->mutex);
 
     return NULL;
 }
@@ -149,24 +178,21 @@ void qio_task_run_in_thread(QIOTask *task,
                             GDestroyNotify destroy,
                             GMainContext *context)
 {
-    QemuThread thread;
     QIOTaskThreadData *data = &task->thread_data;
 
-    if (context) {
-        g_main_context_ref(context);
-        task->context = context;
-    }
+    qio_task_context_set(task, context);
 
     data->worker = worker;
     data->opaque = opaque;
     data->destroy = destroy;
 
     trace_qio_task_thread_start(task, worker, opaque);
-    qemu_thread_create(&thread,
+    qemu_thread_create(&task->thread,
                        "io-task-worker",
                        qio_task_thread_worker,
                        task,
-                       QEMU_THREAD_DETACHED);
+                       QEMU_THREAD_JOINABLE);
+    task->has_thread = true;
 }
 
 
@@ -234,4 +260,24 @@ void qio_task_unref(QIOTask *task)
     if (atomic_fetch_dec(&task->refcount) == 1) {
         qio_task_free(task);
     }
+}
+
+void qio_task_context_set(QIOTask *task, GMainContext *context)
+{
+    qemu_mutex_lock(&task->mutex);
+    if (task->context) {
+        g_main_context_unref(task->context);
+    }
+    if (context) {
+        g_main_context_ref(task->context);
+        task->context = context;
+    }
+    if (task->idle_source) {
+        /*
+         * We have had an idle job on the old context. Firstly delete
+         * the old one, then create a new one on the new context.
+         */
+        qio_task_thread_create_complete_job(task);
+    }
+    qemu_mutex_unlock(&task->mutex);
 }

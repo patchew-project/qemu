@@ -585,6 +585,10 @@ static void tcp_chr_update_read_handler(Chardev *chr)
         tcp_chr_telnet_init(CHARDEV(s));
     }
 
+    if (s->thread_task) {
+        qio_task_context_set(s->thread_task, chr->gcontext);
+    }
+
     if (!s->connected) {
         return;
     }

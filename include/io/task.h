@@ -324,5 +324,6 @@ Object *qio_task_get_source(QIOTask *task);
 
 void qio_task_ref(QIOTask *task);
 void qio_task_unref(QIOTask *task);
+void qio_task_context_set(QIOTask *task, GMainContext *context);
 
 #endif /* QIO_TASK_H */
