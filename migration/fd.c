@@ -55,6 +55,7 @@ void fd_start_incoming_migration(const char *infd, Error **errp)
 {
     QIOChannel *ioc;
     int fd;
+    GSource *source;
 
     fd = strtol(infd, NULL, 0);
     trace_migration_fd_incoming(fd);
@@ -66,9 +67,9 @@ void fd_start_incoming_migration(const char *infd, Error **errp)
     }
 
     qio_channel_set_name(QIO_CHANNEL(ioc), "migration-fd-incoming");
-    qio_channel_add_watch(ioc,
-                          G_IO_IN,
-                          fd_accept_incoming_migration,
-                          NULL,
-                          NULL);
+    source = qio_channel_add_watch_full(ioc, G_IO_IN,
+                                        fd_accept_incoming_migration,
+                                        NULL, NULL,
+                                        g_main_context_get_thread_default());
+    g_source_unref(source);
 }

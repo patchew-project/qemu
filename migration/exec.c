@@ -55,6 +55,7 @@ void exec_start_incoming_migration(const char *command, Error **errp)
 {
     QIOChannel *ioc;
     const char *argv[] = { "/bin/sh", "-c", command, NULL };
+    GSource *source;
 
     trace_migration_exec_incoming(command);
     ioc = QIO_CHANNEL(qio_channel_command_new_spawn(argv,
@@ -65,9 +66,9 @@ void exec_start_incoming_migration(const char *command, Error **errp)
     }
 
     qio_channel_set_name(ioc, "migration-exec-incoming");
-    qio_channel_add_watch(ioc,
-                          G_IO_IN,
-                          exec_accept_incoming_migration,
-                          NULL,
-                          NULL);
+    source = qio_channel_add_watch_full(ioc, G_IO_IN,
+                                        exec_accept_incoming_migration,
+                                        NULL, NULL,
+                                        g_main_context_get_thread_default());
+    g_source_unref(source);
 }

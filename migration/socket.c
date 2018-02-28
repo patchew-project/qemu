@@ -164,6 +164,7 @@ static void socket_start_incoming_migration(SocketAddress *saddr,
                                             Error **errp)
 {
     QIOChannelSocket *listen_ioc = qio_channel_socket_new();
+    GSource *source;
 
     qio_channel_set_name(QIO_CHANNEL(listen_ioc),
                          "migration-socket-listener");
@@ -173,11 +174,12 @@ static void socket_start_incoming_migration(SocketAddress *saddr,
         return;
     }
 
-    qio_channel_add_watch(QIO_CHANNEL(listen_ioc),
-                          G_IO_IN,
-                          socket_accept_incoming_migration,
-                          listen_ioc,
-                          (GDestroyNotify)object_unref);
+    source = qio_channel_add_watch_full(QIO_CHANNEL(listen_ioc), G_IO_IN,
+                                        socket_accept_incoming_migration,
+                                        listen_ioc,
+                                        (GDestroyNotify)object_unref,
+                                        g_main_context_get_thread_default());
+    g_source_unref(source);
 }
 
 void tcp_start_incoming_migration(const char *host_port, Error **errp)
