@@ -2185,6 +2185,8 @@ static void vfio_pci_post_reset(VFIOPCIDevice *vdev)
                          vdev->vbasedev.name, nr);
         }
     }
+
+    vfio_quirk_reset(vdev);
 }
 
 static bool vfio_pci_host_match(PCIHostDeviceAddress *addr, const char *name)
