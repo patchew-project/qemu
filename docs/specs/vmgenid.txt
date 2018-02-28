@@ -240,6 +240,7 @@ The property may be queried via QMP/HMP:
   (QEMU) query-vm-generation-id
   {"return": {"guid": "324e6eaf-d1d1-4bf6-bf41-b9bb6c91fb87"}}
 
-Setting of this parameter is intentionally left out from the QMP/HMP
-interfaces.  There are no known use cases for changing the GUID once QEMU is
-running, and adding this capability would greatly increase the complexity.
+Also, the property may be set via QMP/HMP:
+
+  (QEMU) set-vm-generation-id guid=ee6726ce-73b4-4a8b-863c-708f26515847
+  {"return": {}}

@@ -3182,6 +3182,17 @@
 { 'command': 'query-vm-generation-id', 'returns': 'GuidInfo' }
 
 ##
+# @set-vm-generation-id:
+#
+# Set Virtual Machine Generation ID
+#
+# @guid: new GUID to set as Virtual Machine Generation ID
+#
+# Since 2.12
+##
+{ 'command': 'set-vm-generation-id', 'data': { 'guid': 'str' } }
+
+##
 # @watchdog-set-action:
 #
 # Set watchdog action
