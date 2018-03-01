@@ -469,7 +469,7 @@ static int e500_pcihost_initfn(SysBusDevice *dev)
     memory_region_init(&s->bm, OBJECT(s), "bm-e500", UINT64_MAX);
     memory_region_add_subregion(&s->bm, 0x0, &s->busmem);
     address_space_init(&s->bm_as, &s->bm, "pci-bm");
-    pci_setup_iommu(b, e500_pcihost_set_iommu, s);
+    pci_setup_iommu(b, e500_pcihost_set_iommu, NULL, s);
 
     pci_create_simple(b, 0, "e500-host-bridge");
 

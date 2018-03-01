@@ -2567,9 +2567,30 @@ AddressSpace *pci_device_iommu_address_space(PCIDevice *dev)
     return &address_space_memory;
 }
 
-void pci_setup_iommu(PCIBus *bus, PCIIOMMUFunc fn, void *opaque)
+void pci_device_notify_iommu(PCIDevice *dev, PCIDevNotifyType type)
 {
-    bus->iommu_fn = fn;
+    PCIBus *bus = PCI_BUS(pci_get_bus(dev));
+    PCIBus *iommu_bus = bus;
+
+    while (iommu_bus && !iommu_bus->iommu_fn && iommu_bus->parent_dev) {
+        iommu_bus = PCI_BUS(pci_get_bus(iommu_bus->parent_dev));
+    }
+    if (iommu_bus && iommu_bus->notify_fn) {
+        iommu_bus->notify_fn(bus,
+                             iommu_bus->iommu_opaque,
+                             dev->devfn,
+                             type);
+    }
+    return;
+}
+
+void pci_setup_iommu(PCIBus *bus,
+                     PCIIOMMUFunc iommu_fn,
+                     PCIIOMMUNotifyFunc notify_fn,
+                     void *opaque)
+{
+    bus->iommu_fn = iommu_fn;
+    bus->notify_fn = notify_fn;
     bus->iommu_opaque = opaque;
 }
 

@@ -705,7 +705,7 @@ static int s390_pcihost_init(SysBusDevice *dev)
                               s390_pci_set_irq, s390_pci_map_irq, NULL,
                               get_system_memory(), get_system_io(), 0, 64,
                               TYPE_PCI_BUS);
-    pci_setup_iommu(b, s390_pci_dma_iommu, s);
+    pci_setup_iommu(b, s390_pci_dma_iommu, NULL, s);
 
     bus = BUS(b);
     qbus_set_hotplug_handler(bus, DEVICE(dev), NULL);
@@ -817,7 +817,7 @@ static void s390_pcihost_hot_plug(HotplugHandler *hotplug_dev,
         PCIDevice *pdev = PCI_DEVICE(dev);
 
         pci_bridge_map_irq(pb, dev->id, s390_pci_map_irq);
-        pci_setup_iommu(&pb->sec_bus, s390_pci_dma_iommu, s);
+        pci_setup_iommu(&pb->sec_bus, s390_pci_dma_iommu, NULL, s);
 
         bus = BUS(&pb->sec_bus);
         qbus_set_hotplug_handler(bus, DEVICE(s), errp);
