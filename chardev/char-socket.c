@@ -72,6 +72,8 @@ typedef struct {
 static gboolean socket_reconnect_timeout(gpointer opaque);
 static void tcp_chr_telnet_init(Chardev *chr);
 
+static bool tcp_chr_machine_done;
+
 static void tcp_chr_reconn_timer_cancel(SocketChardev *s)
 {
     if (s->reconnect_timer) {
@@ -719,6 +721,11 @@ static void tcp_chr_tls_init(Chardev *chr)
     Error *err = NULL;
     gchar *name;
 
+    if (!tcp_chr_machine_done) {
+        /* This will be postponed to machine_done notifier */
+        return;
+    }
+
     if (s->is_listen) {
         tioc = qio_channel_tls_new_server(
             s->ioc, s->tls_creds,
@@ -1131,8 +1138,15 @@ static int tcp_chr_machine_done_hook(Chardev *chr)
 {
     SocketChardev *s = SOCKET_CHARDEV(chr);
 
+    /* Set it multiple times won't hurt */
+    tcp_chr_machine_done = true;
+
     if (s->reconnect_time) {
         tcp_chr_connect_async(chr);
+    }
+
+    if (s->tls_creds) {
+        tcp_chr_tls_init(chr);
     }
 
     return 0;
