@@ -68,6 +68,7 @@ typedef union VTD_IR_MSIAddress VTD_IR_MSIAddress;
 typedef struct VTDIrq VTDIrq;
 typedef struct VTD_MSIMessage VTD_MSIMessage;
 typedef struct IntelIOMMUMRNotifierNode IntelIOMMUMRNotifierNode;
+typedef struct IntelIOMMUAssignedDeviceNode IntelIOMMUAssignedDeviceNode;
 
 /* Context-Entry */
 struct VTDContextEntry {
@@ -258,6 +259,11 @@ struct IntelIOMMUMRNotifierNode {
     QLIST_ENTRY(IntelIOMMUMRNotifierNode) next;
 };
 
+struct IntelIOMMUAssignedDeviceNode {
+    VTDAddressSpace *vtd_as;
+    QLIST_ENTRY(IntelIOMMUAssignedDeviceNode) next;
+};
+
 /* The iommu (DMAR) device state struct */
 struct IntelIOMMUState {
     X86IOMMUState x86_iommu;
@@ -296,6 +302,8 @@ struct IntelIOMMUState {
     VTDBus *vtd_as_by_bus_num[VTD_PCI_BUS_MAX]; /* VTDBus objects indexed by bus number */
     /* list of registered notifiers */
     QLIST_HEAD(, IntelIOMMUMRNotifierNode) notifiers_list;
+    /* list of assigned devices */
+    QLIST_HEAD(, IntelIOMMUAssignedDeviceNode) assigned_device_list;
 
     /* interrupt remapping */
     bool intr_enabled;              /* Whether guest enabled IR */
@@ -310,6 +318,7 @@ struct IntelIOMMUState {
 /* Find the VTD Address space associated with the given bus pointer,
  * create a new one if none exists
  */
-VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus, int devfn);
+VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus,
+                                 int devfn, bool allocate);
 
 #endif

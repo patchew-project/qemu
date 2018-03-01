@@ -2685,7 +2685,10 @@ static const MemoryRegionOps vtd_mem_ir_ops = {
     },
 };
 
-VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus, int devfn)
+VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s,
+                                 PCIBus *bus,
+                                 int devfn,
+                                 bool allocate)
 {
     uintptr_t key = (uintptr_t)bus;
     VTDBus *vtd_bus = g_hash_table_lookup(s->vtd_as_by_busptr, &key);
@@ -2704,7 +2707,7 @@ VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus, int devfn)
 
     vtd_dev_as = vtd_bus->dev_as[devfn];
 
-    if (!vtd_dev_as) {
+    if (!vtd_dev_as && allocate) {
         snprintf(name, sizeof(name), "intel_iommu_devfn_%d", devfn);
         vtd_bus->dev_as[devfn] = vtd_dev_as = g_malloc0(sizeof(VTDAddressSpace));
 
@@ -3001,7 +3004,7 @@ static AddressSpace *vtd_host_dma_iommu(PCIBus *bus, void *opaque, int devfn)
 
     assert(0 <= devfn && devfn < PCI_DEVFN_MAX);
 
-    vtd_as = vtd_find_add_as(s, bus, devfn);
+    vtd_as = vtd_find_add_as(s, bus, devfn, true);
     return &vtd_as->as;
 }
 
@@ -3012,16 +3015,34 @@ static int vtd_device_notify(PCIBus *bus,
 {
     IntelIOMMUState *s = opaque;
     VTDAddressSpace *vtd_as;
+    IntelIOMMUAssignedDeviceNode *node = NULL;
+    IntelIOMMUAssignedDeviceNode *next_node = NULL;
 
     assert(0 <= devfn && devfn < PCI_DEVFN_MAX);
 
-    vtd_as = vtd_find_add_as(s, bus, devfn);
+    vtd_as = vtd_find_add_as(s, bus, devfn, false);
 
     if (vtd_as == NULL) {
         return -1;
     }
 
-    /* TODO: record assigned device in IOMMU Emulator */
+    if (type == PCI_NTY_DEV_ADD) {
+        node = g_malloc0(sizeof(*node));
+        node->vtd_as = vtd_as;
+        QLIST_INSERT_HEAD(&s->assigned_device_list, node, next);
+        return 0;
+    }
+
+    QLIST_FOREACH_SAFE(node, &s->assigned_device_list, next, next_node) {
+        if (node->vtd_as == vtd_as) {
+            if (type == PCI_NTY_DEV_DEL) {
+                QLIST_REMOVE(node, next);
+                g_free(node);
+            }
+            break;
+        }
+    }
+
     return 0;
 }
 
