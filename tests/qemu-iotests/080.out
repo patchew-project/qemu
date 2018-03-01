@@ -68,6 +68,7 @@ qemu-img: Error while amending options: Invalid argument
 Failed to flush the refcount block cache: Invalid argument
 write failed: Invalid argument
 qemu-img: Could not apply snapshot 'test': Failed to load snapshot: Invalid argument
+qemu-img: Could not delete snapshot 'test': Snapshot L1 table offset invalid
 
 == Invalid snapshot L1 table size ==
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
@@ -78,4 +79,5 @@ qemu-img: Error while amending options: File too large
 Failed to flush the refcount block cache: File too large
 write failed: File too large
 qemu-img: Could not apply snapshot 'test': Failed to load snapshot: File too large
+qemu-img: Could not delete snapshot 'test': Snapshot L1 table too large
 *** done
