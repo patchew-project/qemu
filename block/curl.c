@@ -83,6 +83,7 @@ static CURLMcode __curl_multi_socket_action(CURLM *multi_handle,
 #define CURL_BLOCK_OPT_TIMEOUT "timeout"
 #define CURL_BLOCK_OPT_COOKIE    "cookie"
 #define CURL_BLOCK_OPT_COOKIE_SECRET "cookie-secret"
+#define CURL_BLOCK_OPT_HEADER_PATTERN "header."
 #define CURL_BLOCK_OPT_USERNAME "username"
 #define CURL_BLOCK_OPT_PASSWORD_SECRET "password-secret"
 #define CURL_BLOCK_OPT_PROXY_USERNAME "proxy-username"
@@ -134,6 +135,7 @@ typedef struct BDRVCURLState {
     bool sslverify;
     uint64_t timeout;
     char *cookie;
+    struct curl_slist *headers;
     bool accept_range;
     AioContext *aio_context;
     QemuMutex mutex;
@@ -486,6 +488,9 @@ static int curl_init_state(BDRVCURLState *s, CURLState *state)
         if (s->cookie) {
             curl_easy_setopt(state->curl, CURLOPT_COOKIE, s->cookie);
         }
+        if (s->headers) {
+            curl_easy_setopt(state->curl, CURLOPT_HTTPHEADER, s->headers);
+        }
         curl_easy_setopt(state->curl, CURLOPT_TIMEOUT, (long)s->timeout);
         curl_easy_setopt(state->curl, CURLOPT_WRITEFUNCTION,
                          (void *)curl_read_cb);
@@ -680,7 +685,7 @@ static int curl_open(BlockDriverState *bs, QDict *options, int flags,
     double d;
     const char *secretid;
     const char *protocol_delimiter;
-    int ret;
+    int i, nr, ret;
 
 
     if (flags & BDRV_O_RDWR) {
@@ -738,6 +743,18 @@ static int curl_open(BlockDriverState *bs, QDict *options, int flags,
         }
     } else {
         s->cookie = g_strdup(cookie);
+    }
+
+    s->headers = NULL;
+    nr = qdict_array_entries(options, CURL_BLOCK_OPT_HEADER_PATTERN);
+    for (i = 0; i < nr; ++i) {
+        char key[32];
+        const char *header;
+
+        snprintf(key, sizeof key, CURL_BLOCK_OPT_HEADER_PATTERN "%d", i);
+        header = qdict_get_str(options, key);
+        s->headers = curl_slist_append(s->headers, header);
+        qdict_del(options, key);
     }
 
     file = qemu_opt_get(opts, CURL_BLOCK_OPT_URL);
@@ -847,6 +864,7 @@ out:
     state->curl = NULL;
 out_noclean:
     qemu_mutex_destroy(&s->mutex);
+    curl_slist_free_all(s->headers);
     g_free(s->cookie);
     g_free(s->url);
     g_free(s->username);
@@ -945,6 +963,7 @@ static void curl_close(BlockDriverState *bs)
     curl_detach_aio_context(bs);
     qemu_mutex_destroy(&s->mutex);
 
+    curl_slist_free_all(s->headers);
     g_free(s->cookie);
     g_free(s->url);
     g_free(s->username);

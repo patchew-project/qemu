@@ -3047,12 +3047,15 @@
 # @cookie-secret: ID of a QCryptoSecret object providing the cookie data in a
 #                 secure way. See @cookie for the format. (since 2.10)
 #
+# @header:      List of HTTP request headers, see CURLOPT_HTTPHEADER(3).
+#
 # Since: 2.9
 ##
 { 'struct': 'BlockdevOptionsCurlHttp',
   'base': 'BlockdevOptionsCurlBase',
   'data': { '*cookie': 'str',
-            '*cookie-secret': 'str'} }
+            '*cookie-secret': 'str',
+            '*header': [ 'str' ] } }
 
 ##
 # @BlockdevOptionsCurlHttps:
@@ -3070,13 +3073,16 @@
 # @cookie-secret: ID of a QCryptoSecret object providing the cookie data in a
 #                 secure way. See @cookie for the format. (since 2.10)
 #
+# @header:      List of HTTP request headers, see CURLOPT_HTTPHEADER(3).
+#
 # Since: 2.9
 ##
 { 'struct': 'BlockdevOptionsCurlHttps',
   'base': 'BlockdevOptionsCurlBase',
   'data': { '*cookie': 'str',
             '*sslverify': 'bool',
-            '*cookie-secret': 'str'} }
+            '*cookie-secret': 'str',
+            '*header': [ 'str' ] } }
 
 ##
 # @BlockdevOptionsCurlFtp:
