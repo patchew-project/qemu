@@ -265,8 +265,8 @@ static void grlib_apbuart_reset(DeviceState *d)
 
     /* Transmitter FIFO and shift registers are always empty in QEMU */
     uart->status =  UART_TRANSMIT_FIFO_EMPTY | UART_TRANSMIT_SHIFT_EMPTY;
-    /* Everything is off */
-    uart->control = 0;
+    /* Enable Tx and Rx as the bootloader would do */
+    uart->control = UART_RECEIVE_ENABLE | UART_TRANSMIT_ENABLE;
     /* Flush receive FIFO */
     uart->len = 0;
     uart->current = 0;
