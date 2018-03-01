@@ -59,6 +59,7 @@ typedef struct {
     bool is_listen;
     bool is_telnet;
     bool is_tn3270;
+    GSource *telnet_source;
 
     GSource *reconnect_timer;
     int64_t reconnect_time;
@@ -69,6 +70,7 @@ typedef struct {
     OBJECT_CHECK(SocketChardev, (obj), TYPE_CHARDEV_SOCKET)
 
 static gboolean socket_reconnect_timeout(gpointer opaque);
+static void tcp_chr_telnet_init(Chardev *chr);
 
 static void tcp_chr_reconn_timer_cancel(SocketChardev *s)
 {
@@ -567,6 +569,15 @@ static void tcp_chr_connect(void *opaque)
     qemu_chr_be_event(chr, CHR_EVENT_OPENED);
 }
 
+static void tcp_chr_telnet_destroy(SocketChardev *s)
+{
+    if (s->telnet_source) {
+        g_source_destroy(s->telnet_source);
+        g_source_unref(s->telnet_source);
+        s->telnet_source = NULL;
+    }
+}
+
 static void tcp_chr_update_read_handler(Chardev *chr)
 {
     SocketChardev *s = SOCKET_CHARDEV(chr);
@@ -578,6 +589,11 @@ static void tcp_chr_update_read_handler(Chardev *chr)
          * listener if there is.
          */
         tcp_chr_net_listener_setup(s, true);
+    }
+
+    if (s->telnet_source) {
+        tcp_chr_telnet_destroy(s);
+        tcp_chr_telnet_init(CHARDEV(s));
     }
 
     if (!s->connected) {
@@ -604,6 +620,7 @@ static gboolean tcp_chr_telnet_init_io(QIOChannel *ioc,
                                        gpointer user_data)
 {
     TCPChardevTelnetInit *init = user_data;
+    SocketChardev *s = SOCKET_CHARDEV(init->chr);
     ssize_t ret;
 
     ret = qio_channel_write(ioc, init->buf, init->buflen, NULL);
@@ -628,6 +645,8 @@ static gboolean tcp_chr_telnet_init_io(QIOChannel *ioc,
 
 end:
     g_free(init);
+    g_source_unref(s->telnet_source);
+    s->telnet_source = NULL;
     return G_SOURCE_REMOVE;
 }
 
@@ -667,10 +686,10 @@ static void tcp_chr_telnet_init(Chardev *chr)
 
 #undef IACSET
 
-    qio_channel_add_watch(
-        s->ioc, G_IO_OUT,
-        tcp_chr_telnet_init_io,
-        init, NULL);
+    s->telnet_source = qio_channel_add_watch_source(s->ioc, G_IO_OUT,
+                                                    tcp_chr_telnet_init_io,
+                                                    init, NULL,
+                                                    chr->gcontext);
 }
 
 
@@ -843,6 +862,7 @@ static void char_socket_finalize(Object *obj)
     tcp_chr_free_connection(chr);
     tcp_chr_reconn_timer_cancel(s);
     qapi_free_SocketAddress(s->addr);
+    tcp_chr_telnet_destroy(s);
     if (s->listener) {
         tcp_chr_net_listener_setup(s, false);
         object_unref(OBJECT(s->listener));
