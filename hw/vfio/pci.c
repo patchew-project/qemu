@@ -2775,6 +2775,26 @@ static void vfio_unregister_req_notifier(VFIOPCIDevice *vdev)
     vdev->req_enabled = false;
 }
 
+static VFIOContainer *vfio_get_container_from_busdev(PCIBus *bus,
+                                                     int32_t devfn)
+{
+    VFIOGroup *group;
+    VFIOPCIDevice *vdev_iter;
+    VFIODevice *vbasedev_iter;
+    PCIDevice *pdev_iter;
+
+    QLIST_FOREACH(group, &vfio_group_list, next) {
+        QLIST_FOREACH(vbasedev_iter, &group->device_list, next) {
+            vdev_iter = container_of(vbasedev_iter, VFIOPCIDevice, vbasedev);
+            pdev_iter = &vdev_iter->pdev;
+            if (pci_get_bus(pdev_iter) == bus && pdev_iter->devfn == devfn) {
+                return group->container;
+            }
+        }
+    }
+    return NULL;
+}
+
 static void vfio_pci_device_sva_bind_pasid_table(PCIBus *bus,
                  int32_t devfn, uint64_t pasidt_addr, uint32_t size)
 {
@@ -2783,11 +2803,42 @@ static void vfio_pci_device_sva_bind_pasid_table(PCIBus *bus,
     So far, Intel VT-d and AMD IOMMU requires it. */
 }
 
+static void vfio_iommu_sva_tlb_invalidate_notify(IOMMUSVANotifier *n,
+                                                 IOMMUSVAEventData *event_data)
+{
+/*  Sample code, would be detailed in coming virt-SVA patchset.
+    VFIOGuestIOMMUSVAContext *gsva_ctx;
+    IOMMUSVAContext *sva_ctx;
+    VFIOContainer *container;
+
+    gsva_ctx = container_of(n, VFIOGuestIOMMUSVAContext, n);
+    container = gsva_ctx->container;
+
+    TODO: forward to host through VFIO IOCTL
+*/
+}
+
 static void vfio_pci_device_sva_register_notifier(PCIBus *bus,
                           int32_t devfn, IOMMUSVAContext *sva_ctx)
 {
-    /* Register notifier for TLB invalidation propagation
-       */
+    VFIOContainer *container = vfio_get_container_from_busdev(bus, devfn);
+
+    if (container != NULL) {
+        VFIOGuestIOMMUSVAContext *gsva_ctx;
+        gsva_ctx = g_malloc0(sizeof(*gsva_ctx));
+        gsva_ctx->sva_ctx = sva_ctx;
+        gsva_ctx->container = container;
+        QLIST_INSERT_HEAD(&container->gsva_ctx_list,
+                          gsva_ctx,
+                          gsva_ctx_next);
+       /* Register vfio_iommu_sva_tlb_invalidate_notify with event flag
+           IOMMU_SVA_EVENT_TLB_INV */
+        iommu_sva_notifier_register(sva_ctx,
+                                    &gsva_ctx->n,
+                                    vfio_iommu_sva_tlb_invalidate_notify,
+                                    IOMMU_SVA_EVENT_TLB_INV);
+        return;
+    }
 }
 
 static void vfio_pci_device_sva_unregister_notifier(PCIBus *bus,
