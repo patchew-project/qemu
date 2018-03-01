@@ -100,7 +100,7 @@ static int get_physical_address(CPUSPARCState *env, hwaddr *physical,
 
     is_user = mmu_idx == MMU_USER_IDX;
 
-    if (mmu_idx == MMU_PHYS_IDX) {
+    if ((mmu_idx == MMU_PHYS_IDX) || ((env->mmuregs[0] & MMU_E) == 0)) {
         *page_size = TARGET_PAGE_SIZE;
         /* Boot mode: instruction fetches are taken from PROM */
         if (rw == 2 && (env->mmuregs[0] & env->def.mmu_bm)) {
