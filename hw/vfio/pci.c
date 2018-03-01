@@ -2775,6 +2775,34 @@ static void vfio_unregister_req_notifier(VFIOPCIDevice *vdev)
     vdev->req_enabled = false;
 }
 
+static void vfio_pci_device_sva_bind_pasid_table(PCIBus *bus,
+                 int32_t devfn, uint64_t pasidt_addr, uint32_t size)
+{
+ /* Propagate the guest pasid table pointer to host IOMMU, and
+    enable nested translation accordingly. Depends on HW design.
+    So far, Intel VT-d and AMD IOMMU requires it. */
+}
+
+static void vfio_pci_device_sva_register_notifier(PCIBus *bus,
+                          int32_t devfn, IOMMUSVAContext *sva_ctx)
+{
+    /* Register notifier for TLB invalidation propagation
+       */
+}
+
+static void vfio_pci_device_sva_unregister_notifier(PCIBus *bus,
+                          int32_t devfn, IOMMUSVAContext *sva_ctx)
+{
+    /* Unregister notifier for TLB invalidation propagation
+       */
+}
+
+static PCISVAOps vfio_pci_sva_ops = {
+    .sva_bind_pasid_table = vfio_pci_device_sva_bind_pasid_table,
+    .sva_register_notifier = vfio_pci_device_sva_register_notifier,
+    .sva_unregister_notifier = vfio_pci_device_sva_unregister_notifier,
+};
+
 static void vfio_realize(PCIDevice *pdev, Error **errp)
 {
     VFIOPCIDevice *vdev = DO_UPCAST(VFIOPCIDevice, pdev, pdev);
@@ -3018,6 +3046,8 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
     vfio_register_err_notifier(vdev);
     vfio_register_req_notifier(vdev);
     vfio_setup_resetfn_quirk(vdev);
+
+    pci_setup_sva_ops(pdev, &vfio_pci_sva_ops);
 
     return;
 
