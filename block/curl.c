@@ -84,6 +84,7 @@ static CURLMcode __curl_multi_socket_action(CURLM *multi_handle,
 #define CURL_BLOCK_OPT_COOKIE    "cookie"
 #define CURL_BLOCK_OPT_COOKIE_SECRET "cookie-secret"
 #define CURL_BLOCK_OPT_HEADER_PATTERN "header."
+#define CURL_BLOCK_OPT_CAINFO   "cainfo"
 #define CURL_BLOCK_OPT_USERNAME "username"
 #define CURL_BLOCK_OPT_PASSWORD_SECRET "password-secret"
 #define CURL_BLOCK_OPT_PROXY_USERNAME "proxy-username"
@@ -136,6 +137,7 @@ typedef struct BDRVCURLState {
     uint64_t timeout;
     char *cookie;
     struct curl_slist *headers;
+    char *cainfo;
     bool accept_range;
     AioContext *aio_context;
     QemuMutex mutex;
@@ -491,6 +493,9 @@ static int curl_init_state(BDRVCURLState *s, CURLState *state)
         if (s->headers) {
             curl_easy_setopt(state->curl, CURLOPT_HTTPHEADER, s->headers);
         }
+        if (s->cainfo) {
+            curl_easy_setopt(state->curl, CURLOPT_CAINFO, s->cainfo);
+        }
         curl_easy_setopt(state->curl, CURLOPT_TIMEOUT, (long)s->timeout);
         curl_easy_setopt(state->curl, CURLOPT_WRITEFUNCTION,
                          (void *)curl_read_cb);
@@ -648,6 +653,11 @@ static QemuOptsList runtime_opts = {
             .help = "ID of secret used as cookie passed with each request"
         },
         {
+            .name = CURL_BLOCK_OPT_CAINFO,
+            .type = QEMU_OPT_STRING,
+            .help = "Pass the Certificate Authority bundle"
+        },
+        {
             .name = CURL_BLOCK_OPT_USERNAME,
             .type = QEMU_OPT_STRING,
             .help = "Username for HTTP auth"
@@ -757,6 +767,8 @@ static int curl_open(BlockDriverState *bs, QDict *options, int flags,
         qdict_del(options, key);
     }
 
+    s->cainfo = qemu_opt_get(opts, CURL_BLOCK_OPT_CAINFO);
+
     file = qemu_opt_get(opts, CURL_BLOCK_OPT_URL);
     if (file == NULL) {
         error_setg(errp, "curl block driver requires an 'url' option");
@@ -864,6 +876,7 @@ out:
     state->curl = NULL;
 out_noclean:
     qemu_mutex_destroy(&s->mutex);
+    g_free(s->cainfo);
     curl_slist_free_all(s->headers);
     g_free(s->cookie);
     g_free(s->url);
@@ -963,6 +976,7 @@ static void curl_close(BlockDriverState *bs)
     curl_detach_aio_context(bs);
     qemu_mutex_destroy(&s->mutex);
 
+    g_free(s->cainfo);
     curl_slist_free_all(s->headers);
     g_free(s->cookie);
     g_free(s->url);

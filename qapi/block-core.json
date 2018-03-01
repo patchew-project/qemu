@@ -3073,6 +3073,8 @@
 # @cookie-secret: ID of a QCryptoSecret object providing the cookie data in a
 #                 secure way. See @cookie for the format. (since 2.10)
 #
+# @cainfo:      Certificate Authority bundle.
+#
 # @header:      List of HTTP request headers, see CURLOPT_HTTPHEADER(3).
 #
 # Since: 2.9
@@ -3082,6 +3084,7 @@
   'data': { '*cookie': 'str',
             '*sslverify': 'bool',
             '*cookie-secret': 'str',
+            '*cainfo': 'str',
             '*header': [ 'str' ] } }
 
 ##
