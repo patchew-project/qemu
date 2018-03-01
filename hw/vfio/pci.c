@@ -2807,7 +2807,7 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
         return;
     }
 
-    vdev->vbasedev.name = g_strdup(basename(vdev->vbasedev.sysfsdev));
+    vdev->vbasedev.name = g_path_get_basename(vdev->vbasedev.sysfsdev);
     vdev->vbasedev.ops = &vfio_pci_ops;
     vdev->vbasedev.type = VFIO_DEVICE_TYPE_PCI;
     vdev->vbasedev.dev = &vdev->pdev.qdev;
@@ -2824,11 +2824,13 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
 
     group_path[len] = 0;
 
-    group_name = basename(group_path);
+    group_name = g_path_get_basename(group_path);
     if (sscanf(group_name, "%d", &groupid) != 1) {
         error_setg_errno(errp, errno, "failed to read %s", group_path);
+        g_free(group_name);
         goto error;
     }
+    g_free(group_name);
 
     trace_vfio_realize(vdev->vbasedev.name, groupid);
 

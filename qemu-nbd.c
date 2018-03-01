@@ -893,8 +893,11 @@ int main(int argc, char **argv)
     }
 
     if (device != NULL && sockpath == NULL) {
+        char *base_filename = g_path_get_basename(device);
+
         sockpath = g_malloc(128);
-        snprintf(sockpath, 128, SOCKET_PATH, basename(device));
+        snprintf(sockpath, 128, SOCKET_PATH, base_filename);
+        g_free(base_filename);
     }
 
     server = qio_net_listener_new();

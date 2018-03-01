@@ -561,7 +561,7 @@ static int vfio_base_device_init(VFIODevice *vbasedev, Error **errp)
     /* @sysfsdev takes precedence over @host */
     if (vbasedev->sysfsdev) {
         g_free(vbasedev->name);
-        vbasedev->name = g_strdup(basename(vbasedev->sysfsdev));
+        vbasedev->name = g_path_get_basename(vbasedev->sysfsdev);
     } else {
         if (!vbasedev->name || strchr(vbasedev->name, '/')) {
             error_setg(errp, "wrong host device name");
@@ -590,11 +590,13 @@ static int vfio_base_device_init(VFIODevice *vbasedev, Error **errp)
 
     group_path[len] = 0;
 
-    group_name = basename(group_path);
+    group_name = g_path_get_basename(group_path);
     if (sscanf(group_name, "%d", &groupid) != 1) {
         error_setg_errno(errp, errno, "failed to read %s", group_path);
+        g_free(group_name);
         return -errno;
     }
+    g_free(group_name);
 
     trace_vfio_platform_base_device_init(vbasedev->name, groupid);
 

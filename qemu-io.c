@@ -308,6 +308,11 @@ static char *get_prompt(void)
     return prompt;
 }
 
+static void free_progname(void)
+{
+    g_free(progname);
+}
+
 static void GCC_FMT_ATTR(2, 3) readline_printf_func(void *opaque,
                                                     const char *fmt, ...)
 {
@@ -504,7 +509,8 @@ int main(int argc, char **argv)
 #endif
 
     module_call_init(MODULE_INIT_TRACE);
-    progname = basename(argv[0]);
+    progname = g_path_get_basename(argv[0]);
+    atexit(free_progname);
     qemu_init_exec_dir(argv[0]);
 
     qcrypto_init(&error_fatal);

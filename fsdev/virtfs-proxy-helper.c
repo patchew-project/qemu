@@ -787,6 +787,8 @@ error:
 
 static void usage(char *prog)
 {
+    char *base_filename = g_path_get_basename(prog);
+
     fprintf(stderr, "usage: %s\n"
             " -p|--path <path> 9p path to export\n"
             " {-f|--fd <socket-descriptor>} socket file descriptor to be used\n"
@@ -795,7 +797,9 @@ static void usage(char *prog)
             " access to this socket\n"
             " \tNote: -s & -f can not be used together\n"
             " [-n|--nodaemon] Run as a normal program\n",
-            basename(prog));
+            base_filename);
+
+    g_free(base_filename);
 }
 
 static int process_reply(int sock, int type,

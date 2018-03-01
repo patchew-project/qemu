@@ -300,7 +300,7 @@ static void vfio_put_device(VFIOCCWDevice *vcdev)
 
 static VFIOGroup *vfio_ccw_get_group(S390CCWDevice *cdev, Error **errp)
 {
-    char *tmp, group_path[PATH_MAX];
+    char *tmp, *group_name, group_path[PATH_MAX];
     ssize_t len;
     int groupid;
 
@@ -317,10 +317,13 @@ static VFIOGroup *vfio_ccw_get_group(S390CCWDevice *cdev, Error **errp)
 
     group_path[len] = 0;
 
-    if (sscanf(basename(group_path), "%d", &groupid) != 1) {
+    group_name = g_path_get_basename(group_path);
+    if (sscanf(group_name, "%d", &groupid) != 1) {
         error_setg(errp, "vfio: failed to read %s", group_path);
+        g_free(group_name);
         return NULL;
     }
+    g_free(group_name);
 
     return vfio_get_group(groupid, &address_space_memory, errp);
 }
