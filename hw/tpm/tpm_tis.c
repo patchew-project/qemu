@@ -902,9 +902,61 @@ static void tpm_tis_reset(DeviceState *dev)
     tpm_backend_startup_tpm(s->be_driver, s->be_buffer_size);
 }
 
+/* persistent state handling */
+
+static int tpm_tis_pre_save(void *opaque)
+{
+    TPMState *s = opaque;
+    uint8_t locty = s->active_locty;
+
+    DPRINTF("tpm_tis: suspend: locty = %d : rw_offset = %u\n",
+            locty, s->rw_offset);
+#ifdef DEBUG_TIS
+    tpm_tis_dump_state(opaque, 0);
+#endif
+
+    /*
+     * Synchronize with backend completion.
+     */
+    tpm_backend_finish_sync(s->be_driver);
+
+    return 0;
+}
+
+static const VMStateDescription vmstate_locty = {
+    .name = "loc",
+    .version_id = 1,
+    .minimum_version_id = 0,
+    .minimum_version_id_old = 0,
+    .fields      = (VMStateField[]) {
+        VMSTATE_UINT32(state, TPMLocality),
+        VMSTATE_UINT32(inte, TPMLocality),
+        VMSTATE_UINT32(ints, TPMLocality),
+        VMSTATE_UINT8(access, TPMLocality),
+        VMSTATE_UINT32(sts, TPMLocality),
+        VMSTATE_UINT32(iface_id, TPMLocality),
+        VMSTATE_END_OF_LIST(),
+    }
+};
+
 static const VMStateDescription vmstate_tpm_tis = {
     .name = "tpm",
-    .unmigratable = 1,
+    .version_id = 1,
+    .minimum_version_id = 0,
+    .minimum_version_id_old = 0,
+    .pre_save  = tpm_tis_pre_save,
+    .fields = (VMStateField[]) {
+        VMSTATE_BUFFER(buffer, TPMState),
+        VMSTATE_UINT16(rw_offset, TPMState),
+        VMSTATE_UINT8(active_locty, TPMState),
+        VMSTATE_UINT8(aborting_locty, TPMState),
+        VMSTATE_UINT8(next_locty, TPMState),
+
+        VMSTATE_STRUCT_ARRAY(loc, TPMState, TPM_TIS_NUM_LOCALITIES, 1,
+                             vmstate_locty, TPMLocality),
+
+        VMSTATE_END_OF_LIST()
+    }
 };
 
 static Property tpm_tis_properties[] = {
