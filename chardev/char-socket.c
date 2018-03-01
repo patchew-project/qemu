@@ -410,6 +410,19 @@ static void update_disconnected_filename(SocketChardev *s)
                                          s->is_listen, s->is_telnet);
 }
 
+/* Set enable=true to start net listeners, false to stop them. */
+static void tcp_chr_net_listener_setup(SocketChardev *s, bool enable)
+{
+    Chardev *chr = CHARDEV(s);
+
+    /* Net listeners' context will follow the Chardev's. */
+    qio_net_listener_set_client_func_full(s->listener,
+                                          enable ? tcp_chr_accept : NULL,
+                                          enable ? chr : NULL,
+                                          NULL,
+                                          chr->gcontext);
+}
+
 /* NB may be called even if tcp_chr_connect has not been
  * reached, due to TLS or telnet initialization failure,
  * so can *not* assume s->connected == true
@@ -422,8 +435,7 @@ static void tcp_chr_disconnect(Chardev *chr)
     tcp_chr_free_connection(chr);
 
     if (s->listener) {
-        qio_net_listener_set_client_func(s->listener, tcp_chr_accept,
-                                         chr, NULL);
+        tcp_chr_net_listener_setup(s, true);
     }
     update_disconnected_filename(s);
     if (emit_close) {
@@ -558,6 +570,15 @@ static void tcp_chr_connect(void *opaque)
 static void tcp_chr_update_read_handler(Chardev *chr)
 {
     SocketChardev *s = SOCKET_CHARDEV(chr);
+
+    if (s->listener) {
+        /*
+         * It's possible that chardev context is changed in
+         * qemu_chr_be_update_read_handlers().  Reset it for QIO net
+         * listener if there is.
+         */
+        tcp_chr_net_listener_setup(s, true);
+    }
 
     if (!s->connected) {
         return;
@@ -742,7 +763,7 @@ static int tcp_chr_new_client(Chardev *chr, QIOChannelSocket *sioc)
         qio_channel_set_delay(s->ioc, false);
     }
     if (s->listener) {
-        qio_net_listener_set_client_func(s->listener, NULL, NULL, NULL);
+        tcp_chr_net_listener_setup(s, false);
     }
 
     if (s->tls_creds) {
@@ -823,7 +844,7 @@ static void char_socket_finalize(Object *obj)
     tcp_chr_reconn_timer_cancel(s);
     qapi_free_SocketAddress(s->addr);
     if (s->listener) {
-        qio_net_listener_set_client_func(s->listener, NULL, NULL, NULL);
+        tcp_chr_net_listener_setup(s, false);
         object_unref(OBJECT(s->listener));
     }
     if (s->tls_creds) {
@@ -979,8 +1000,7 @@ static void qmp_chardev_open_socket(Chardev *chr,
                 return;
             }
             if (!s->ioc) {
-                qio_net_listener_set_client_func(s->listener, tcp_chr_accept,
-                                                 chr, NULL);
+                tcp_chr_net_listener_setup(s, true);
             }
         } else if (qemu_chr_wait_connected(chr, errp) < 0) {
             goto error;
