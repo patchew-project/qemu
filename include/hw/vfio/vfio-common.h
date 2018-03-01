@@ -29,6 +29,7 @@
 #ifdef CONFIG_LINUX
 #include <linux/vfio.h>
 #endif
+#include "hw/core/pasid.h"
 
 #define ERR_PREFIX "vfio error: %s: "
 #define WARN_PREFIX "vfio warning: %s: "
@@ -88,6 +89,7 @@ typedef struct VFIOContainer {
      * future
      */
     QLIST_HEAD(, VFIOGuestIOMMUMR) giommu_mr_list;
+    QLIST_HEAD(, VFIOGuestIOMMUSVAContext) gsva_ctx_list;
     QLIST_HEAD(, VFIOHostDMAWindow) hostwin_list;
     QLIST_HEAD(, VFIOGroup) group_list;
     QLIST_ENTRY(VFIOContainer) next;
@@ -100,6 +102,13 @@ typedef struct VFIOGuestIOMMUMR {
     IOMMUMRNotifier n;
     QLIST_ENTRY(VFIOGuestIOMMUMR) giommu_next;
 } VFIOGuestIOMMUMR;
+
+typedef struct VFIOGuestIOMMUSVAContext {
+    VFIOContainer *container;
+    IOMMUSVAContext *sva_ctx;
+    IOMMUSVANotifier n;
+    QLIST_ENTRY(VFIOGuestIOMMUSVAContext) gsva_ctx_next;
+} VFIOGuestIOMMUSVAContext;
 
 typedef struct VFIOHostDMAWindow {
     hwaddr min_iova;
