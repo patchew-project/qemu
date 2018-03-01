@@ -173,7 +173,8 @@ void qio_channel_socket_connect_async(QIOChannelSocket *ioc,
                                       SocketAddress *addr,
                                       QIOTaskFunc callback,
                                       gpointer opaque,
-                                      GDestroyNotify destroy)
+                                      GDestroyNotify destroy,
+                                      GMainContext *context)
 {
     QIOTask *task = qio_task_new(
         OBJECT(ioc), callback, opaque, destroy);
@@ -188,7 +189,7 @@ void qio_channel_socket_connect_async(QIOChannelSocket *ioc,
                            qio_channel_socket_connect_worker,
                            addrCopy,
                            (GDestroyNotify)qapi_free_SocketAddress,
-                           NULL);
+                           context);
 }
 
 
