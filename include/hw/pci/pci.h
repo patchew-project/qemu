@@ -10,6 +10,8 @@
 
 #include "hw/pci/pcie.h"
 
+#include "hw/core/pasid.h"
+
 extern bool pci_available;
 
 /* PCI bus */
@@ -262,6 +264,16 @@ struct PCIReqIDCache {
 };
 typedef struct PCIReqIDCache PCIReqIDCache;
 
+typedef struct PCISVAOps PCISVAOps;
+struct PCISVAOps {
+    void (*sva_bind_pasid_table)(PCIBus *bus, int32_t devfn,
+             uint64_t pasidt_addr, uint32_t size);
+    void (*sva_register_notifier)(PCIBus *bus, int32_t devfn,
+                                  IOMMUSVAContext *sva_ctx);
+    void (*sva_unregister_notifier)(PCIBus *bus, int32_t devfn,
+                                    IOMMUSVAContext *sva_ctx);
+};
+
 struct PCIDevice {
     DeviceState qdev;
 
@@ -351,6 +363,7 @@ struct PCIDevice {
     MSIVectorUseNotifier msix_vector_use_notifier;
     MSIVectorReleaseNotifier msix_vector_release_notifier;
     MSIVectorPollNotifier msix_vector_poll_notifier;
+    PCISVAOps *sva_ops;
 };
 
 void pci_register_bar(PCIDevice *pci_dev, int region_num,
@@ -476,6 +489,14 @@ typedef AddressSpace *(*PCIIOMMUFunc)(PCIBus *, void *, int);
 
 AddressSpace *pci_device_iommu_address_space(PCIDevice *dev);
 void pci_setup_iommu(PCIBus *bus, PCIIOMMUFunc fn, void *opaque);
+
+void pci_setup_sva_ops(PCIDevice *dev, PCISVAOps *ops);
+void pci_device_sva_bind_pasid_table(PCIBus *bus, int32_t devfn,
+                     uint64_t pasidt_addr, uint32_t size);
+void pci_device_sva_register_notifier(PCIBus *bus, int32_t devfn,
+                                      IOMMUSVAContext *sva_ctx);
+void pci_device_sva_unregister_notifier(PCIBus *bus, int32_t devfn,
+                                       IOMMUSVAContext *sva_ctx);
 
 static inline void
 pci_set_byte(uint8_t *config, uint8_t val)
