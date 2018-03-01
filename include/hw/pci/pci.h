@@ -485,10 +485,20 @@ void pci_bus_get_w64_range(PCIBus *bus, Range *range);
 
 void pci_device_deassert_intx(PCIDevice *dev);
 
+enum PCIDevNotifyType {
+    PCI_NTY_DEV_ADD = 0,
+    PCI_NTY_DEV_DEL,
+};
+typedef enum PCIDevNotifyType PCIDevNotifyType;
 typedef AddressSpace *(*PCIIOMMUFunc)(PCIBus *, void *, int);
+typedef int (*PCIIOMMUNotifyFunc)(PCIBus *, void *, int, PCIDevNotifyType);
 
 AddressSpace *pci_device_iommu_address_space(PCIDevice *dev);
-void pci_setup_iommu(PCIBus *bus, PCIIOMMUFunc fn, void *opaque);
+void pci_device_notify_iommu(PCIDevice *dev, PCIDevNotifyType type);
+void pci_setup_iommu(PCIBus *bus,
+                     PCIIOMMUFunc iommu_fn,
+                     PCIIOMMUNotifyFunc notify_fn,
+                     void *opaque);
 
 void pci_setup_sva_ops(PCIDevice *dev, PCISVAOps *ops);
 void pci_device_sva_bind_pasid_table(PCIBus *bus, int32_t devfn,

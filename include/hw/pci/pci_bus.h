@@ -21,6 +21,7 @@ typedef struct PCIBusClass {
 struct PCIBus {
     BusState qbus;
     PCIIOMMUFunc iommu_fn;
+    PCIIOMMUNotifyFunc notify_fn;
     void *iommu_opaque;
     uint8_t devfn_min;
     uint32_t slot_reserved_mask;

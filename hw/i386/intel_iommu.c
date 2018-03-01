@@ -3005,6 +3005,26 @@ static AddressSpace *vtd_host_dma_iommu(PCIBus *bus, void *opaque, int devfn)
     return &vtd_as->as;
 }
 
+static int vtd_device_notify(PCIBus *bus,
+                             void *opaque,
+                             int devfn,
+                             PCIDevNotifyType type)
+{
+    IntelIOMMUState *s = opaque;
+    VTDAddressSpace *vtd_as;
+
+    assert(0 <= devfn && devfn < PCI_DEVFN_MAX);
+
+    vtd_as = vtd_find_add_as(s, bus, devfn);
+
+    if (vtd_as == NULL) {
+        return -1;
+    }
+
+    /* TODO: record assigned device in IOMMU Emulator */
+    return 0;
+}
+
 static bool vtd_decide_config(IntelIOMMUState *s, Error **errp)
 {
     X86IOMMUState *x86_iommu = X86_IOMMU_DEVICE(s);
@@ -3075,7 +3095,7 @@ static void vtd_realize(DeviceState *dev, Error **errp)
                                               g_free, g_free);
     vtd_init(s);
     sysbus_mmio_map(SYS_BUS_DEVICE(s), 0, Q35_HOST_BRIDGE_IOMMU_ADDR);
-    pci_setup_iommu(bus, vtd_host_dma_iommu, dev);
+    pci_setup_iommu(bus, vtd_host_dma_iommu, vtd_device_notify, dev);
     /* Pseudo address space under root PCI bus. */
     pcms->ioapic_as = vtd_host_dma_iommu(bus, s, Q35_PSEUDO_DEVFN_IOAPIC);
 }
