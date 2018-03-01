@@ -1801,6 +1801,118 @@ static bool vtd_process_iotlb_desc(IntelIOMMUState *s, VTDInvDesc *inv_desc)
     return true;
 }
 
+static VTDPASIDAddressSpace *vtd_get_pasid_as(IntelIOMMUState *s,
+                                              uint32_t pasid)
+{
+    VTDPASIDAddressSpace *vtd_pasid_as = NULL;
+    IntelPASIDNode *node;
+    char name[128];
+
+    QLIST_FOREACH(node, &(s->pasid_as_list), next) {
+        vtd_pasid_as = node->pasid_as;
+        if (pasid == vtd_pasid_as->sva_ctx.pasid) {
+            return vtd_pasid_as;
+        }
+    }
+
+    vtd_pasid_as = g_malloc0(sizeof(*vtd_pasid_as));
+    vtd_pasid_as->iommu_state = s;
+    snprintf(name, sizeof(name), "intel_iommu_pasid_%d", pasid);
+    address_space_init(&vtd_pasid_as->as, NULL, "pasid");
+    QLIST_INIT(&vtd_pasid_as->device_list);
+
+    node = g_malloc0(sizeof(*node));
+    node->pasid_as = vtd_pasid_as;
+    QLIST_INSERT_HEAD(&s->pasid_as_list, node, next);
+
+    return vtd_pasid_as;
+}
+
+static void vtd_bind_device_to_pasid_as(VTDPASIDAddressSpace *vtd_pasid_as,
+                                        PCIBus *bus, uint8_t devfn)
+{
+    VTDDeviceNode *node = NULL;
+
+    QLIST_FOREACH(node, &(vtd_pasid_as->device_list), next) {
+        if (node->bus == bus && node->devfn == devfn) {
+            return;
+        }
+    }
+
+    node = g_malloc0(sizeof(*node));
+    node->bus = bus;
+    node->devfn = devfn;
+    QLIST_INSERT_HEAD(&(vtd_pasid_as->device_list), node, next);
+
+    pci_device_sva_register_notifier(bus, devfn, &vtd_pasid_as->sva_ctx);
+
+    return;
+}
+
+static bool vtd_process_pc_desc(IntelIOMMUState *s, VTDInvDesc *inv_desc)
+{
+
+    IntelIOMMUAssignedDeviceNode *node = NULL;
+    int ret = 0;
+
+    uint16_t domain_id;
+    uint32_t pasid;
+    VTDPASIDAddressSpace *vtd_pasid_as;
+
+    if ((inv_desc->lo & VTD_INV_DESC_PASIDC_RSVD_LO) ||
+        (inv_desc->hi & VTD_INV_DESC_PASIDC_RSVD_HI)) {
+        return false;
+    }
+
+    domain_id = VTD_INV_DESC_PASIDC_DID(inv_desc->lo);
+
+    switch (inv_desc->lo & VTD_INV_DESC_PASIDC_G) {
+    case VTD_INV_DESC_PASIDC_ALL_ALL:
+        /* TODO: invalidate all pasid related cache */
+        break;
+
+    case VTD_INV_DESC_PASIDC_PASID_SI:
+        pasid = VTD_INV_DESC_PASIDC_PASID(inv_desc->lo);
+        vtd_pasid_as = vtd_get_pasid_as(s, pasid);
+        QLIST_FOREACH(node, &(s->assigned_device_list), next) {
+            VTDAddressSpace *vtd_as = node->vtd_as;
+            VTDContextEntry ce;
+            uint16_t did;
+            uint8_t bus = pci_bus_num(vtd_as->bus);
+            ret = vtd_dev_to_context_entry(s, bus,
+                                   vtd_as->devfn, &ce);
+            if (ret != 0) {
+                continue;
+            }
+
+            did = VTD_CONTEXT_ENTRY_DID(ce.hi);
+            /*
+             * If did field equals to the domain_id field of inv_descriptor,
+             * then the device is affect by this invalidate request, need to
+             * bind or unbind the device to the pasid tagged address space.
+             * a) If it is bind, need to add the device to the device list,
+             *    add register tlb flush notifier for it
+             * b) If it is unbind, need to remove the device from the device
+             *    list, and unregister the tlb flush notifier
+             * TODO: add unbind logic accordingly, depends on the parsing of
+             *       guest pasid table entry pasrsing, here has no parsing to
+             *       pasid table entry.
+             *
+             */
+            if (did == domain_id) {
+                vtd_bind_device_to_pasid_as(vtd_pasid_as,
+                                  vtd_as->bus, vtd_as->devfn);
+            }
+        }
+        break;
+
+    default:
+        return false;
+    }
+
+    return true;
+}
+
 static bool vtd_process_inv_iec_desc(IntelIOMMUState *s,
                                      VTDInvDesc *inv_desc)
 {
@@ -1907,6 +2019,13 @@ static bool vtd_process_inv_desc(IntelIOMMUState *s)
     case VTD_INV_DESC_WAIT:
         trace_vtd_inv_desc("wait", inv_desc.hi, inv_desc.lo);
         if (!vtd_process_wait_desc(s, &inv_desc)) {
+            return false;
+        }
+        break;
+
+    case VTD_INV_DESC_PC:
+        trace_vtd_inv_desc("pc", inv_desc.hi, inv_desc.lo);
+        if (!vtd_process_pc_desc(s, &inv_desc)) {
             return false;
         }
         break;
