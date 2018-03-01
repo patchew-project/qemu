@@ -42,7 +42,7 @@ struct vhost_iommu {
     struct vhost_dev *hdev;
     MemoryRegion *mr;
     hwaddr iommu_offset;
-    IOMMUNotifier n;
+    IOMMUMRNotifier n;
     QLIST_ENTRY(vhost_iommu) iommu_next;
 };
 
@@ -80,7 +80,7 @@ struct vhost_dev {
     struct vhost_log *log;
     QLIST_ENTRY(vhost_dev) entry;
     QLIST_HEAD(, vhost_iommu) iommu_list;
-    IOMMUNotifier n;
+    IOMMUMRNotifier n;
     const VhostDevConfigOps *config_ops;
 };
 

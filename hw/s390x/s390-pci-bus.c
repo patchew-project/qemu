@@ -541,7 +541,7 @@ err:
 }
 
 static void s390_pci_iommu_replay(IOMMUMemoryRegion *iommu,
-                                  IOMMUNotifier *notifier)
+                                  IOMMUMRNotifier *notifier)
 {
     /* It's impossible to plug a pci device on s390x that already has iommu
      * mappings which need to be replayed, that is due to the "one iommu per
