@@ -129,6 +129,23 @@ void qio_channel_tls_handshake(QIOChannelTLS *ioc,
                                GDestroyNotify destroy);
 
 /**
+ * qio_channel_tls_handshake_full:
+ * @ioc: the TLS channel object
+ * @func: the callback to invoke when completed
+ * @opaque: opaque data to pass to @func
+ * @destroy: optional callback to free @opaque
+ * @context: the context that TLS handshake will run with
+ *
+ * Similar to qio_channel_tls_handshake(), but allows the task to be
+ * run on a specific context.
+ */
+void qio_channel_tls_handshake_full(QIOChannelTLS *ioc,
+                                    QIOTaskFunc func,
+                                    gpointer opaque,
+                                    GDestroyNotify destroy,
+                                    GMainContext *context);
+
+/**
  * qio_channel_tls_get_session:
  * @ioc: the TLS channel object
  *
