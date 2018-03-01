@@ -61,6 +61,7 @@ typedef struct VTDContextEntry VTDContextEntry;
 typedef struct VTDContextCacheEntry VTDContextCacheEntry;
 typedef struct IntelIOMMUState IntelIOMMUState;
 typedef struct VTDAddressSpace VTDAddressSpace;
+typedef struct VTDPASIDAddressSpace VTDPASIDAddressSpace;
 typedef struct VTDIOTLBEntry VTDIOTLBEntry;
 typedef struct VTDBus VTDBus;
 typedef union VTD_IR_TableEntry VTD_IR_TableEntry;
@@ -69,6 +70,8 @@ typedef struct VTDIrq VTDIrq;
 typedef struct VTD_MSIMessage VTD_MSIMessage;
 typedef struct IntelIOMMUMRNotifierNode IntelIOMMUMRNotifierNode;
 typedef struct IntelIOMMUAssignedDeviceNode IntelIOMMUAssignedDeviceNode;
+typedef struct IntelPASIDNode IntelPASIDNode;
+typedef struct VTDDeviceNode VTDDeviceNode;
 
 /* Context-Entry */
 struct VTDContextEntry {
@@ -82,6 +85,20 @@ struct VTDContextCacheEntry {
      */
     uint32_t context_cache_gen;
     struct VTDContextEntry context_entry;
+};
+
+struct VTDDeviceNode {
+    PCIBus *bus;
+    uint8_t devfn;
+    QLIST_ENTRY(VTDDeviceNode) next;
+};
+
+struct VTDPASIDAddressSpace {
+    AddressSpace as;
+    IOMMUSVAContext sva_ctx;
+    IntelIOMMUState *iommu_state;
+    /* list of devices binded to a pasid tagged address space */
+    QLIST_HEAD(, VTDDeviceNode) device_list;
 };
 
 struct VTDAddressSpace {
@@ -264,6 +281,11 @@ struct IntelIOMMUAssignedDeviceNode {
     QLIST_ENTRY(IntelIOMMUAssignedDeviceNode) next;
 };
 
+struct IntelPASIDNode {
+    VTDPASIDAddressSpace *pasid_as;
+    QLIST_ENTRY(IntelPASIDNode) next;
+};
+
 /* The iommu (DMAR) device state struct */
 struct IntelIOMMUState {
     X86IOMMUState x86_iommu;
@@ -304,6 +326,8 @@ struct IntelIOMMUState {
     QLIST_HEAD(, IntelIOMMUMRNotifierNode) notifiers_list;
     /* list of assigned devices */
     QLIST_HEAD(, IntelIOMMUAssignedDeviceNode) assigned_device_list;
+    /* list of pasid tagged address space */
+    QLIST_HEAD(, IntelPASIDNode) pasid_as_list;
 
     /* interrupt remapping */
     bool intr_enabled;              /* Whether guest enabled IR */
