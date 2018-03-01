@@ -37,6 +37,10 @@
 #include "kvm_i386.h"
 #include "trace.h"
 
+static bool vtd_device_is_assigned(IntelIOMMUState *s,
+                                   PCIBus *bus,
+                                   uint16_t devfn);
+
 static void vtd_define_quad(IntelIOMMUState *s, hwaddr addr, uint64_t val,
                             uint64_t wmask, uint64_t w1cmask)
 {
@@ -1255,6 +1259,20 @@ static void vtd_context_global_invalidate(IntelIOMMUState *s)
     vtd_iommu_replay_all(s);
 }
 
+static uint64_t vtd_get_pasid_table_from_context(VTDContextEntry *ce)
+{
+    uint64_t pasidt_addr = ce->hi;
+    /* TODO: TBD */
+    return pasidt_addr;
+}
+
+static uint32_t vtd_get_pasidt_size_from_context(VTDContextEntry *ce)
+{
+    uint32_t pasidt_size = ce->hi;
+    /* TODO: TBD */
+    return pasidt_size;
+}
+
 /* Do a context-cache device-selective invalidation.
  * @func_mask: FM field after shifting
  */
@@ -1291,6 +1309,11 @@ static void vtd_context_device_invalidate(IntelIOMMUState *s,
     if (vtd_bus) {
         devfn = VTD_SID_TO_DEVFN(source_id);
         for (devfn_it = 0; devfn_it < PCI_DEVFN_MAX; ++devfn_it) {
+            VTDContextEntry ce;
+            int ret = 0;
+            uint64_t pasidt_addr;
+            uint32_t size;
+
             vtd_as = vtd_bus->dev_as[devfn_it];
             if (vtd_as && ((devfn_it & mask) == (devfn & mask))) {
                 trace_vtd_inv_desc_cc_device(bus_n, VTD_PCI_SLOT(devfn_it),
@@ -1311,6 +1334,26 @@ static void vtd_context_device_invalidate(IntelIOMMUState *s,
                  * happened.
                  */
                 memory_region_iommu_replay_all(&vtd_as->iommu);
+
+                /*
+                 * If device is SVA capable assigned device, needs
+                 * to bind guest pasid table to host
+                 *
+                 */
+                if (!vtd_device_is_assigned(s, vtd_as->bus, devfn_it)) {
+                    continue;
+                }
+
+                ret = vtd_dev_to_context_entry(s, bus_n,
+                                               vtd_as->devfn, &ce);
+                if (ret) {
+                    continue;
+                }
+
+                pasidt_addr = vtd_get_pasid_table_from_context(&ce);
+                size = vtd_get_pasidt_size_from_context(&ce);
+                pci_device_sva_bind_pasid_table(vtd_as->bus, devfn_it,
+                                                pasidt_addr, size);
             }
         }
     }
@@ -3044,6 +3087,32 @@ static int vtd_device_notify(PCIBus *bus,
     }
 
     return 0;
+}
+
+static bool vtd_device_is_assigned(IntelIOMMUState *s,
+                                   PCIBus *bus,
+                                   uint16_t devfn)
+{
+    VTDAddressSpace *vtd_as;
+    IntelIOMMUAssignedDeviceNode *node = NULL;
+    IntelIOMMUAssignedDeviceNode *next_node = NULL;
+
+    vtd_as = vtd_find_add_as(s, bus, devfn, false);
+
+    if (vtd_as == NULL) {
+        /*
+         * If vtd_as is NULL, return false for safe
+         */
+        return false;
+    }
+
+    QLIST_FOREACH_SAFE(node, &s->assigned_device_list, next, next_node) {
+        if (node->vtd_as == vtd_as) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 static bool vtd_decide_config(IntelIOMMUState *s, Error **errp)
