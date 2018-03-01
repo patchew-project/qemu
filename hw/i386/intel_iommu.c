@@ -1230,7 +1230,7 @@ static void vtd_interrupt_remap_table_setup(IntelIOMMUState *s)
 
 static void vtd_iommu_replay_all(IntelIOMMUState *s)
 {
-    IntelIOMMUNotifierNode *node;
+    IntelIOMMUMRNotifierNode *node;
 
     QLIST_FOREACH(node, &s->notifiers_list, next) {
         memory_region_iommu_replay_all(&node->vtd_as->iommu);
@@ -1304,7 +1304,7 @@ static void vtd_context_device_invalidate(IntelIOMMUState *s,
                 /*
                  * So a device is moving out of (or moving into) a
                  * domain, a replay() suites here to notify all the
-                 * IOMMU_NOTIFIER_MAP registers about this change.
+                 * IOMMU_MR_EVENT_MAP registers about this change.
                  * This won't bring bad even if we have no such
                  * notifier registered - the IOMMU notification
                  * framework will skip MAP notifications if that
@@ -1354,7 +1354,7 @@ static void vtd_iotlb_global_invalidate(IntelIOMMUState *s)
 
 static void vtd_iotlb_domain_invalidate(IntelIOMMUState *s, uint16_t domain_id)
 {
-    IntelIOMMUNotifierNode *node;
+    IntelIOMMUMRNotifierNode *node;
     VTDContextEntry ce;
     VTDAddressSpace *vtd_as;
 
@@ -1384,7 +1384,7 @@ static void vtd_iotlb_page_invalidate_notify(IntelIOMMUState *s,
                                            uint16_t domain_id, hwaddr addr,
                                            uint8_t am)
 {
-    IntelIOMMUNotifierNode *node;
+    IntelIOMMUMRNotifierNode *node;
     VTDContextEntry ce;
     int ret;
 
@@ -2314,21 +2314,21 @@ static IOMMUTLBEntry vtd_iommu_translate(IOMMUMemoryRegion *iommu, hwaddr addr,
 }
 
 static void vtd_iommu_notify_flag_changed(IOMMUMemoryRegion *iommu,
-                                          IOMMUNotifierFlag old,
-                                          IOMMUNotifierFlag new)
+                                          IOMMUMREventFlag old,
+                                          IOMMUMREventFlag new)
 {
     VTDAddressSpace *vtd_as = container_of(iommu, VTDAddressSpace, iommu);
     IntelIOMMUState *s = vtd_as->iommu_state;
-    IntelIOMMUNotifierNode *node = NULL;
-    IntelIOMMUNotifierNode *next_node = NULL;
+    IntelIOMMUMRNotifierNode *node = NULL;
+    IntelIOMMUMRNotifierNode *next_node = NULL;
 
-    if (!s->caching_mode && new & IOMMU_NOTIFIER_MAP) {
+    if (!s->caching_mode && new & IOMMU_MR_EVENT_MAP) {
         error_report("We need to set caching-mode=1 for intel-iommu to enable "
                      "device assignment with IOMMU protection.");
         exit(1);
     }
 
-    if (old == IOMMU_NOTIFIER_NONE) {
+    if (old == IOMMU_MR_EVENT_NONE) {
         node = g_malloc0(sizeof(*node));
         node->vtd_as = vtd_as;
         QLIST_INSERT_HEAD(&s->notifiers_list, node, next);
@@ -2338,7 +2338,7 @@ static void vtd_iommu_notify_flag_changed(IOMMUMemoryRegion *iommu,
     /* update notifier node with new flags */
     QLIST_FOREACH_SAFE(node, &s->notifiers_list, next, next_node) {
         if (node->vtd_as == vtd_as) {
-            if (new == IOMMU_NOTIFIER_NONE) {
+            if (new == IOMMU_MR_EVENT_NONE) {
                 QLIST_REMOVE(node, next);
                 g_free(node);
             }
@@ -2757,7 +2757,7 @@ VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus, int devfn)
 }
 
 /* Unmap the whole range in the notifier's scope. */
-static void vtd_address_space_unmap(VTDAddressSpace *as, IOMMUNotifier *n)
+static void vtd_address_space_unmap(VTDAddressSpace *as, IOMMUMRNotifier *n)
 {
     IOMMUTLBEntry entry;
     hwaddr size;
@@ -2813,13 +2813,13 @@ static void vtd_address_space_unmap(VTDAddressSpace *as, IOMMUNotifier *n)
 
 static void vtd_address_space_unmap_all(IntelIOMMUState *s)
 {
-    IntelIOMMUNotifierNode *node;
+    IntelIOMMUMRNotifierNode *node;
     VTDAddressSpace *vtd_as;
-    IOMMUNotifier *n;
+    IOMMUMRNotifier *n;
 
     QLIST_FOREACH(node, &s->notifiers_list, next) {
         vtd_as = node->vtd_as;
-        IOMMU_NOTIFIER_FOREACH(n, &vtd_as->iommu) {
+        IOMMU_MR_NOTIFIER_FOREACH(n, &vtd_as->iommu) {
             vtd_address_space_unmap(vtd_as, n);
         }
     }
@@ -2827,11 +2827,11 @@ static void vtd_address_space_unmap_all(IntelIOMMUState *s)
 
 static int vtd_replay_hook(IOMMUTLBEntry *entry, void *private)
 {
-    memory_region_notify_one((IOMMUNotifier *)private, entry);
+    memory_region_notify_one((IOMMUMRNotifier *)private, entry);
     return 0;
 }
 
-static void vtd_iommu_replay(IOMMUMemoryRegion *iommu_mr, IOMMUNotifier *n)
+static void vtd_iommu_replay(IOMMUMemoryRegion *iommu_mr, IOMMUMRNotifier *n)
 {
     VTDAddressSpace *vtd_as = container_of(iommu_mr, VTDAddressSpace, iommu);
     IntelIOMMUState *s = vtd_as->iommu_state;

@@ -1075,12 +1075,12 @@ static const MemoryRegionOps mmio_mem_ops = {
 };
 
 static void amdvi_iommu_notify_flag_changed(IOMMUMemoryRegion *iommu,
-                                            IOMMUNotifierFlag old,
-                                            IOMMUNotifierFlag new)
+                                            IOMMUMREventFlag old,
+                                            IOMMUMREventFlag new)
 {
     AMDVIAddressSpace *as = container_of(iommu, AMDVIAddressSpace, iommu);
 
-    if (new & IOMMU_NOTIFIER_MAP) {
+    if (new & IOMMU_MR_EVENT_MAP) {
         error_report("device %02x.%02x.%x requires iommu notifier which is not "
                      "currently supported", as->bus_num, PCI_SLOT(as->devfn),
                      PCI_FUNC(as->devfn));

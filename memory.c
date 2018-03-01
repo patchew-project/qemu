@@ -1702,7 +1702,7 @@ void memory_region_init_iommu(void *_iommu_mr,
     iommu_mr = IOMMU_MEMORY_REGION(mr);
     mr->terminates = true;  /* then re-forwards */
     QLIST_INIT(&iommu_mr->iommu_notify);
-    iommu_mr->iommu_notify_flags = IOMMU_NOTIFIER_NONE;
+    iommu_mr->iommu_notify_flags = IOMMU_MR_EVENT_NONE;
 }
 
 static void memory_region_finalize(Object *obj)
@@ -1799,12 +1799,12 @@ bool memory_region_is_logging(MemoryRegion *mr, uint8_t client)
 
 static void memory_region_update_iommu_notify_flags(IOMMUMemoryRegion *iommu_mr)
 {
-    IOMMUNotifierFlag flags = IOMMU_NOTIFIER_NONE;
-    IOMMUNotifier *iommu_notifier;
+    IOMMUMREventFlag flags = IOMMU_MR_EVENT_NONE;
+    IOMMUMRNotifier *iommu_mr_notifier;
     IOMMUMemoryRegionClass *imrc = IOMMU_MEMORY_REGION_GET_CLASS(iommu_mr);
 
-    IOMMU_NOTIFIER_FOREACH(iommu_notifier, iommu_mr) {
-        flags |= iommu_notifier->notifier_flags;
+    IOMMU_MR_NOTIFIER_FOREACH(iommu_mr_notifier, iommu_mr) {
+        flags |= iommu_mr_notifier->notifier_flags;
     }
 
     if (flags != iommu_mr->iommu_notify_flags && imrc->notify_flag_changed) {
@@ -1817,7 +1817,7 @@ static void memory_region_update_iommu_notify_flags(IOMMUMemoryRegion *iommu_mr)
 }
 
 void memory_region_register_iommu_notifier(MemoryRegion *mr,
-                                           IOMMUNotifier *n)
+                                           IOMMUMRNotifier *n)
 {
     IOMMUMemoryRegion *iommu_mr;
 
@@ -1828,7 +1828,7 @@ void memory_region_register_iommu_notifier(MemoryRegion *mr,
 
     /* We need to register for at least one bitfield */
     iommu_mr = IOMMU_MEMORY_REGION(mr);
-    assert(n->notifier_flags != IOMMU_NOTIFIER_NONE);
+    assert(n->notifier_flags != IOMMU_MR_EVENT_NONE);
     assert(n->start <= n->end);
     QLIST_INSERT_HEAD(&iommu_mr->iommu_notify, n, node);
     memory_region_update_iommu_notify_flags(iommu_mr);
@@ -1844,7 +1844,8 @@ uint64_t memory_region_iommu_get_min_page_size(IOMMUMemoryRegion *iommu_mr)
     return TARGET_PAGE_SIZE;
 }
 
-void memory_region_iommu_replay(IOMMUMemoryRegion *iommu_mr, IOMMUNotifier *n)
+void memory_region_iommu_replay(IOMMUMemoryRegion *iommu_mr,
+                                IOMMUMRNotifier *n)
 {
     MemoryRegion *mr = MEMORY_REGION(iommu_mr);
     IOMMUMemoryRegionClass *imrc = IOMMU_MEMORY_REGION_GET_CLASS(iommu_mr);
@@ -1875,15 +1876,15 @@ void memory_region_iommu_replay(IOMMUMemoryRegion *iommu_mr, IOMMUNotifier *n)
 
 void memory_region_iommu_replay_all(IOMMUMemoryRegion *iommu_mr)
 {
-    IOMMUNotifier *notifier;
+    IOMMUMRNotifier *notifier;
 
-    IOMMU_NOTIFIER_FOREACH(notifier, iommu_mr) {
+    IOMMU_MR_NOTIFIER_FOREACH(notifier, iommu_mr) {
         memory_region_iommu_replay(iommu_mr, notifier);
     }
 }
 
 void memory_region_unregister_iommu_notifier(MemoryRegion *mr,
-                                             IOMMUNotifier *n)
+                                             IOMMUMRNotifier *n)
 {
     IOMMUMemoryRegion *iommu_mr;
 
@@ -1896,10 +1897,10 @@ void memory_region_unregister_iommu_notifier(MemoryRegion *mr,
     memory_region_update_iommu_notify_flags(iommu_mr);
 }
 
-void memory_region_notify_one(IOMMUNotifier *notifier,
+void memory_region_notify_one(IOMMUMRNotifier *notifier,
                               IOMMUTLBEntry *entry)
 {
-    IOMMUNotifierFlag request_flags;
+    IOMMUMREventFlag request_flags;
 
     /*
      * Skip the notification if the notification does not overlap
@@ -1911,9 +1912,9 @@ void memory_region_notify_one(IOMMUNotifier *notifier,
     }
 
     if (entry->perm & IOMMU_RW) {
-        request_flags = IOMMU_NOTIFIER_MAP;
+        request_flags = IOMMU_MR_EVENT_MAP;
     } else {
-        request_flags = IOMMU_NOTIFIER_UNMAP;
+        request_flags = IOMMU_MR_EVENT_UNMAP;
     }
 
     if (notifier->notifier_flags & request_flags) {
@@ -1924,12 +1925,12 @@ void memory_region_notify_one(IOMMUNotifier *notifier,
 void memory_region_notify_iommu(IOMMUMemoryRegion *iommu_mr,
                                 IOMMUTLBEntry entry)
 {
-    IOMMUNotifier *iommu_notifier;
+    IOMMUMRNotifier *iommu_mr_notifier;
 
     assert(memory_region_is_iommu(MEMORY_REGION(iommu_mr)));
 
-    IOMMU_NOTIFIER_FOREACH(iommu_notifier, iommu_mr) {
-        memory_region_notify_one(iommu_notifier, &entry);
+    IOMMU_MR_NOTIFIER_FOREACH(iommu_mr_notifier, iommu_mr) {
+        memory_region_notify_one(iommu_mr_notifier, &entry);
     }
 }
 
