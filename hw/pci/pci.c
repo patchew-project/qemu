@@ -2573,6 +2573,66 @@ void pci_setup_iommu(PCIBus *bus, PCIIOMMUFunc fn, void *opaque)
     bus->iommu_opaque = opaque;
 }
 
+void pci_setup_sva_ops(PCIDevice *dev, PCISVAOps *ops)
+{
+    if (dev) {
+        dev->sva_ops = ops;
+    }
+    return;
+}
+
+void pci_device_sva_bind_pasid_table(PCIBus *bus,
+                     int32_t devfn, uint64_t addr, uint32_t size)
+{
+    PCIDevice *dev;
+
+    if (!bus) {
+        return;
+    }
+
+    dev = bus->devices[devfn];
+    if (dev && dev->sva_ops) {
+        dev->sva_ops->sva_bind_pasid_table(bus, devfn, addr, size);
+    }
+    return;
+}
+
+void pci_device_sva_register_notifier(PCIBus *bus, int32_t devfn,
+                                      IOMMUSVAContext *sva_ctx)
+{
+    PCIDevice *dev;
+
+    if (!bus) {
+        return;
+    }
+
+    dev = bus->devices[devfn];
+    if (dev && dev->sva_ops) {
+        dev->sva_ops->sva_register_notifier(bus,
+                                            devfn,
+                                            sva_ctx);
+    }
+    return;
+}
+
+void pci_device_sva_unregister_notifier(PCIBus *bus, int32_t devfn,
+                                        IOMMUSVAContext *sva_ctx)
+{
+    PCIDevice *dev;
+
+    if (!bus) {
+        return;
+    }
+
+    dev = bus->devices[devfn];
+    if (dev && dev->sva_ops) {
+        dev->sva_ops->sva_unregister_notifier(bus,
+                                              devfn,
+                                              sva_ctx);
+    }
+    return;
+}
+
 static void pci_dev_get_w64(PCIBus *b, PCIDevice *dev, void *opaque)
 {
     Range *range = opaque;
