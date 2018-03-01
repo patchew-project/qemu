@@ -477,6 +477,12 @@ int qcow2_snapshot_goto(BlockDriverState *bs, const char *snapshot_id)
     }
     sn = &s->snapshots[snapshot_index];
 
+    ret = qcow2_validate_table(bs, sn->l1_table_offset, sn->l1_size,
+                               sizeof(uint64_t), QCOW_MAX_L1_SIZE, "", NULL);
+    if (ret < 0) {
+        goto fail;
+    }
+
     if (sn->disk_size != bs->total_sectors * BDRV_SECTOR_SIZE) {
         error_report("qcow2: Loading snapshots with different disk "
             "size is not implemented");
