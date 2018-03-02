@@ -422,14 +422,86 @@ static void ipmi_isa_realize(DeviceState *dev, Error **errp)
     isa_register_ioport(isadev, &iik->kcs.io, iik->kcs.io_base);
 }
 
-const VMStateDescription vmstate_ISAIPMIKCSDevice = {
+static int ipmi_kcs_vmstate_post_load(void *opaque, int version)
+{
+    IPMIKCS *ik = opaque;
+
+    /* Make sure all the values are sane. */
+    if (ik->outpos >= MAX_IPMI_MSG_SIZE || ik->outlen >= MAX_IPMI_MSG_SIZE ||
+        ik->outpos >= ik->outlen) {
+        ik->outpos = 0;
+        ik->outlen = 0;
+    }
+
+    if (ik->inlen >= MAX_IPMI_MSG_SIZE) {
+        ik->inlen = 0;
+    }
+
+    return 0;
+}
+
+static const VMStateDescription vmstate_IPMIKCS = {
+    .name = TYPE_IPMI_INTERFACE_PREFIX "kcs",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .post_load = ipmi_kcs_vmstate_post_load,
+    .fields      = (VMStateField[]) {
+        VMSTATE_BOOL(obf_irq_set, IPMIKCS),
+        VMSTATE_BOOL(atn_irq_set, IPMIKCS),
+        VMSTATE_BOOL(irqs_enabled, IPMIKCS),
+        VMSTATE_UINT32(outpos, IPMIKCS),
+        VMSTATE_UINT32(outlen, IPMIKCS),
+        VMSTATE_UINT8_ARRAY(outmsg, IPMIKCS, MAX_IPMI_MSG_SIZE),
+        VMSTATE_UINT32(inlen, IPMIKCS),
+        VMSTATE_UINT8_ARRAY(inmsg, IPMIKCS, MAX_IPMI_MSG_SIZE),
+        VMSTATE_BOOL(write_end, IPMIKCS),
+        VMSTATE_UINT8(status_reg, IPMIKCS),
+        VMSTATE_UINT8(data_out_reg, IPMIKCS),
+        VMSTATE_INT16(data_in_reg, IPMIKCS),
+        VMSTATE_INT16(cmd_reg, IPMIKCS),
+        VMSTATE_UINT8(waiting_rsp, IPMIKCS),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_ISAIPMIKCSDevice = {
+    .name = TYPE_IPMI_INTERFACE_PREFIX "isa-kcs",
+    .version_id = 2,
+    .minimum_version_id = 2,
+    .fields      = (VMStateField[]) {
+        VMSTATE_STRUCT(kcs, ISAIPMIKCSDevice, 1, vmstate_IPMIKCS, IPMIKCS),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+/*
+ * Old version of the vmstate transfer that has a number of issues.
+ * We changed the vm state description name, so we need a separate
+ * structure and need to register it separately.
+ */
+static int ipmi_kcs_v1_vmstate_post_load(void *opaque, int version)
+{
+    ISAIPMIKCSDevice *iik = opaque;
+
+    return ipmi_kcs_vmstate_post_load(&iik->kcs, version);
+}
+
+static bool ipmi_kcs_v1_vmstate_needed(void *opaque)
+{
+    /* Never transmit this, it is just for receiving old versions. */
+    return false;
+}
+
+const VMStateDescription vmstate_v1_ISAIPMIKCSDevice = {
     .name = TYPE_IPMI_INTERFACE,
     .version_id = 1,
     .minimum_version_id = 1,
+    .post_load = ipmi_kcs_v1_vmstate_post_load,
+    .needed = ipmi_kcs_v1_vmstate_needed,
     .fields      = (VMStateField[]) {
         VMSTATE_BOOL(kcs.obf_irq_set, ISAIPMIKCSDevice),
         VMSTATE_BOOL(kcs.atn_irq_set, ISAIPMIKCSDevice),
-        VMSTATE_BOOL(kcs.use_irq, ISAIPMIKCSDevice),
+        VMSTATE_UNUSED(1), /* Was use_irq */
         VMSTATE_BOOL(kcs.irqs_enabled, ISAIPMIKCSDevice),
         VMSTATE_UINT32(kcs.outpos, ISAIPMIKCSDevice),
         VMSTATE_UINT8_ARRAY(kcs.outmsg, ISAIPMIKCSDevice, MAX_IPMI_MSG_SIZE),
@@ -451,6 +523,7 @@ static void isa_ipmi_kcs_init(Object *obj)
     ipmi_bmc_find_and_link(obj, (Object **) &iik->kcs.bmc);
 
     vmstate_register(NULL, 0, &vmstate_ISAIPMIKCSDevice, iik);
+    vmstate_register(NULL, 0, &vmstate_v1_ISAIPMIKCSDevice, iik);
 }
 
 static void *isa_ipmi_kcs_get_backend_data(IPMIInterface *ii)
