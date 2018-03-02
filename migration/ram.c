@@ -51,6 +51,7 @@
 #include "qemu/rcu_queue.h"
 #include "migration/colo.h"
 #include "migration/block.h"
+#include "sysemu/balloon.h"
 
 /***********************************************************/
 /* ram save/restore */
@@ -208,6 +209,8 @@ struct RAMState {
     uint32_t last_version;
     /* We are in the first round */
     bool ram_bulk_stage;
+    /* The free pages optimization feature is supported */
+    bool free_page_support;
     /* How many times we have dirty too many pages */
     int dirty_rate_high_cnt;
     /* these variables are used for bitmap sync */
@@ -775,7 +778,7 @@ unsigned long migration_bitmap_find_dirty(RAMState *rs, RAMBlock *rb,
     unsigned long *bitmap = rb->bmap;
     unsigned long next;
 
-    if (rs->ram_bulk_stage && start > 0) {
+    if (rs->ram_bulk_stage && start > 0 && !rs->free_page_support) {
         next = start + 1;
     } else {
         next = find_next_bit(bitmap, size, start);
@@ -1225,6 +1228,10 @@ static bool find_dirty_block(RAMState *rs, PageSearchStatus *pss, bool *again)
             /* Flag that we've looped */
             pss->complete_round = true;
             rs->ram_bulk_stage = false;
+            if (rs->free_page_support) {
+                balloon_free_page_stop();
+                rs->free_page_support = false;
+            }
             if (migrate_use_xbzrle()) {
                 /* If xbzrle is on, stop using the data compression at this
                  * point. In theory, xbzrle can do better than compression.
@@ -1656,6 +1663,8 @@ static void ram_state_reset(RAMState *rs)
     rs->last_page = 0;
     rs->last_version = ram_list.version;
     rs->ram_bulk_stage = true;
+    rs->free_page_support = balloon_free_page_support() &
+                            !migration_in_postcopy();
 }
 
 #define MAX_WAIT 50 /* ms, half buffered_file limit */
@@ -2235,6 +2244,11 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
             return -1;
         }
     }
+
+    if ((*rsp)->free_page_support) {
+        balloon_free_page_start();
+    }
+
     (*rsp)->f = f;
 
     rcu_read_lock();
@@ -2329,6 +2343,9 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
 
     ret = qemu_file_get_error(f);
     if (ret < 0) {
+        if (rs->ram_bulk_stage && rs->free_page_support) {
+                balloon_free_page_stop();
+        }
         return ret;
     }
 
