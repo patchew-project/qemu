@@ -16,16 +16,12 @@
 
 #include "qemu/osdep.h"
 #include "net/clients.h"
+#include "net/eth.h"
 
 #include "rocker.h"
 #include "rocker_hw.h"
 #include "rocker_fp.h"
 #include "rocker_world.h"
-
-enum duplex {
-    DUPLEX_HALF = 0,
-    DUPLEX_FULL
-};
 
 struct fp_port {
     Rocker *r;
