@@ -19,12 +19,19 @@ static const char *blacklist_x86[] = {
     "xenfv", "xenpv", NULL
 };
 
+static const char *blacklist_ppc[] = {
+    "sam460ex", NULL
+};
+
 static const struct {
     const char *arch;
     const char **machine;
 } blacklists[] = {
     { "i386", blacklist_x86 },
     { "x86_64", blacklist_x86 },
+    { "ppc", blacklist_ppc },
+    { "ppcemb", blacklist_ppc },
+    { "ppc64", blacklist_ppc },
 };
 
 static bool is_blacklisted(const char *arch, const char *mach)
