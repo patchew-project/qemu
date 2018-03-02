@@ -417,4 +417,11 @@ bool
 eth_parse_ipv6_hdr(const struct iovec *pkt, int pkt_frags,
                    size_t ip6hdr_off, eth_ip6_hdr_info *info);
 
+/* ethtool defines - from linux/ethtool.h */
+#define SPEED_UNKNOWN           -1
+
+#define DUPLEX_HALF             0x00
+#define DUPLEX_FULL             0x01
+#define DUPLEX_UNKNOWN          0xff
+
 #endif
