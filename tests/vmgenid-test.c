@@ -128,6 +128,24 @@ static void read_guid_from_monitor(QemuUUID *guid)
     QDECREF(rsp);
 }
 
+static void set_guid_via_monitor(QemuUUID *guid)
+{
+    QDict *rsp, *rsp_ret;
+    char command[256];
+    char *guid_str;
+
+    guid_str = qemu_uuid_unparse_strdup(guid);
+    sprintf(command, "{ 'execute': 'set-vm-generation-id', 'arguments': \
+                      { 'guid': '%s' } }",
+            guid_str);
+    free(guid_str);
+    rsp = qmp(command);
+    if (qdict_haskey(rsp, "return")) {
+        rsp_ret = qdict_get_qdict(rsp, "return");
+        g_assert(qdict_size(rsp_ret) == 0);
+    }
+}
+
 static char disk[] = "tests/vmgenid-test-disk-XXXXXX";
 
 #define GUID_CMD(guid)                          \
@@ -180,6 +198,17 @@ static void vmgenid_query_monitor_test(void)
     qtest_quit(global_qtest);
 }
 
+static void vmgenid_set_monitor_test(void)
+{
+    QemuUUID expected, measured;
+
+    global_qtest = qtest_startf(GUID_CMD(VGID_GUID));
+    qemu_uuid_generate(&expected);
+    set_guid_via_monitor(&expected);
+    read_guid_from_monitor(&measured);
+    g_assert(memcmp(measured.data, expected.data, sizeof(measured.data)) == 0);
+}
+
 int main(int argc, char **argv)
 {
     int ret;
@@ -197,6 +226,8 @@ int main(int argc, char **argv)
                    vmgenid_set_guid_auto_test);
     qtest_add_func("/vmgenid/vmgenid/query-monitor",
                    vmgenid_query_monitor_test);
+    qtest_add_func("/vmgenid/vmgenid/set-guid-qmp",
+                   vmgenid_set_monitor_test);
     ret = g_test_run();
     boot_sector_cleanup(disk);
 

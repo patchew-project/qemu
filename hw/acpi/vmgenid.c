@@ -130,6 +130,16 @@ void vmgenid_add_fw_cfg(VmGenIdState *vms, FWCfgState *s, GArray *guid)
                              ARRAY_SIZE(vms->vmgenid_addr_le), false);
 }
 
+void qmp_set_vm_generation_id(const char *guid, Error **errp)
+{
+    Object *obj = find_vmgenid_dev();
+
+    if (!obj) {
+        return;
+    }
+    object_property_set_str(obj, guid, VMGENID_GUID, errp);
+}
+
 static void vmgenid_update_guest(VmGenIdState *vms)
 {
     Object *obj = object_resolve_path_type("", TYPE_ACPI_DEVICE_IF, NULL);
