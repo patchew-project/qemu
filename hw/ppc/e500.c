@@ -1005,6 +1005,10 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
         }
     }
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
+    if (!filename) {
+        error_report("Could not find firmware '%s'", bios_name);
+        exit(1);
+    }
 
     bios_size = load_elf(filename, NULL, NULL, &bios_entry, &loadaddr, NULL,
                          1, PPC_ELF_MACHINE, 0, 0);
