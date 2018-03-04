@@ -246,9 +246,8 @@ static void console_reset(DeviceState *dev)
    scon->notify = false;
 }
 
-static int console_exit(SCLPEvent *event)
+static void console_exit(SCLPEvent *event)
 {
-    return 0;
 }
 
 static Property console_properties[] = {
