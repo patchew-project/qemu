@@ -20,6 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/mem/pc-dimm.h"
+#include "hw/mem/nvdimm.h"
 #include "qapi/error.h"
 #include "qemu/config-file.h"
 #include "qapi/visitor.h"
@@ -249,9 +250,18 @@ MemoryDeviceInfoList *qmp_pc_dimm_device_list(void)
         Object *obj = OBJECT(dimm);
         MemoryDeviceInfoList *elem = g_new0(MemoryDeviceInfoList, 1);
         MemoryDeviceInfo *info = g_new0(MemoryDeviceInfo, 1);
-        PCDIMMDeviceInfo *di = g_new0(PCDIMMDeviceInfo, 1);
+        PCDIMMDeviceInfo *di;
+        NVDIMMDeviceInfo *ndi;
+        bool is_nvdimm = object_dynamic_cast(obj, TYPE_NVDIMM);
         DeviceClass *dc = DEVICE_GET_CLASS(obj);
         DeviceState *dev = DEVICE(obj);
+
+        if (!is_nvdimm) {
+            di = g_new0(PCDIMMDeviceInfo, 1);
+        } else {
+            ndi = g_new0(NVDIMMDeviceInfo, 1);
+            di = qapi_NVDIMMDeviceInfo_base(ndi);
+        }
 
         if (dev->id) {
             di->has_id = true;
@@ -265,7 +275,13 @@ MemoryDeviceInfoList *qmp_pc_dimm_device_list(void)
         di->size = object_property_get_uint(obj, PC_DIMM_SIZE_PROP, NULL);
         di->memdev = object_get_canonical_path(OBJECT(dimm->hostmem));
 
-        info->u.dimm.data = di;
+        if (!is_nvdimm) {
+            info->u.dimm.data = di;
+            info->type = MEMORY_DEVICE_INFO_KIND_DIMM;
+        } else {
+            info->u.nvdimm.data = ndi;
+            info->type = MEMORY_DEVICE_INFO_KIND_NVDIMM;
+        }
         elem->value = info;
         elem->next = NULL;
         if (prev) {

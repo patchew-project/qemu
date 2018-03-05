@@ -2921,13 +2921,29 @@
 }
 
 ##
+# @NVDIMMDeviceInfo:
+#
+# NVDIMMDevice state information
+#
+# Since: 2.12
+##
+{ 'struct': 'NVDIMMDeviceInfo',
+  'base': 'PCDIMMDeviceInfo',
+  'data': {}
+}
+
+##
 # @MemoryDeviceInfo:
 #
 # Union containing information about a memory device
 #
 # Since: 2.1
 ##
-{ 'union': 'MemoryDeviceInfo', 'data': {'dimm': 'PCDIMMDeviceInfo'} }
+{ 'union': 'MemoryDeviceInfo',
+  'data': { 'dimm': 'PCDIMMDeviceInfo',
+            'nvdimm': 'NVDIMMDeviceInfo'
+          }
+}
 
 ##
 # @query-memory-devices:
