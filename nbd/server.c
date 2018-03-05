@@ -21,6 +21,7 @@
 #include "qapi/error.h"
 #include "trace.h"
 #include "nbd-internal.h"
+#include "qemu/error-report.h"
 
 static int system_errno_to_nbd_errno(int err)
 {
@@ -1341,6 +1342,30 @@ static int coroutine_fn nbd_co_send_structured_read(NBDClient *client,
     return nbd_co_send_iov(client, iov, 2, errp);
 }
 
+static int coroutine_fn nbd_co_send_structured_error(NBDClient *client,
+                                                     uint64_t handle,
+                                                     uint32_t error,
+                                                     const char *msg,
+                                                     Error **errp)
+{
+    NBDStructuredError chunk;
+    int nbd_err = system_errno_to_nbd_errno(error);
+    struct iovec iov[] = {
+        {.iov_base = &chunk, .iov_len = sizeof(chunk)},
+        {.iov_base = (char *)msg, .iov_len = msg ? strlen(msg) : 0},
+    };
+
+    assert(nbd_err);
+    trace_nbd_co_send_structured_error(handle, nbd_err,
+                                       nbd_err_lookup(nbd_err), msg ? msg : "");
+    set_be_chunk(&chunk.h, NBD_REPLY_FLAG_DONE, NBD_REPLY_TYPE_ERROR, handle,
+                 sizeof(chunk) - sizeof(chunk.h) + iov[1].iov_len);
+    stl_be_p(&chunk.error, nbd_err);
+    stw_be_p(&chunk.message_length, iov[1].iov_len);
+
+    return nbd_co_send_iov(client, iov, 1 + !!iov[1].iov_len, errp);
+}
+
 static int coroutine_fn nbd_co_send_sparse_read(NBDClient *client,
                                                 uint64_t handle,
                                                 uint64_t offset,
@@ -1361,8 +1386,15 @@ static int coroutine_fn nbd_co_send_sparse_read(NBDClient *client,
         bool final;
 
         if (status < 0) {
-            error_setg_errno(errp, -status, "unable to check for holes");
-            return status;
+            char *msg = g_strdup_printf("unable to check for holes: %s",
+                                              strerror(-status));
+
+            error_report("%s", msg);
+
+            ret = nbd_co_send_structured_error(client, handle, -status, msg,
+                                               errp);
+            g_free(msg);
+            return ret;
         }
         assert(pnum && pnum <= size - progress);
         final = progress + pnum == size;
@@ -1398,30 +1430,6 @@ static int coroutine_fn nbd_co_send_sparse_read(NBDClient *client,
         progress += pnum;
     }
     return ret;
-}
-
-static int coroutine_fn nbd_co_send_structured_error(NBDClient *client,
-                                                     uint64_t handle,
-                                                     uint32_t error,
-                                                     const char *msg,
-                                                     Error **errp)
-{
-    NBDStructuredError chunk;
-    int nbd_err = system_errno_to_nbd_errno(error);
-    struct iovec iov[] = {
-        {.iov_base = &chunk, .iov_len = sizeof(chunk)},
-        {.iov_base = (char *)msg, .iov_len = msg ? strlen(msg) : 0},
-    };
-
-    assert(nbd_err);
-    trace_nbd_co_send_structured_error(handle, nbd_err,
-                                       nbd_err_lookup(nbd_err), msg ? msg : "");
-    set_be_chunk(&chunk.h, NBD_REPLY_FLAG_DONE, NBD_REPLY_TYPE_ERROR, handle,
-                 sizeof(chunk) - sizeof(chunk.h) + iov[1].iov_len);
-    stl_be_p(&chunk.error, nbd_err);
-    stw_be_p(&chunk.message_length, iov[1].iov_len);
-
-    return nbd_co_send_iov(client, iov, 1 + !!iov[1].iov_len, errp);
 }
 
 /* nbd_co_receive_request
@@ -1567,7 +1575,7 @@ static coroutine_fn void nbd_trip(void *opaque)
                                           request.from, req->data, request.len,
                                           &local_err);
             if (ret < 0) {
-                goto reply;
+                goto replied;
             }
             goto done;
         }
@@ -1664,6 +1672,8 @@ reply:
                                        req->data, reply_data_len, &local_err);
     }
     g_free(msg);
+
+replied:
     if (ret < 0) {
         error_prepend(&local_err, "Failed to send reply: ");
         goto disconnect;
