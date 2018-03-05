@@ -253,9 +253,9 @@ ETEXI
 
     {
         .name       = "screendump",
-        .args_type  = "filename:F",
-        .params     = "filename",
-        .help       = "save screen into PPM image 'filename'",
+        .args_type  = "filename:F,id:s?",
+        .params     = "filename [id]",
+        .help       = "save screen from device 'id' into PPM image 'filename'",
         .cmd        = hmp_screendump,
     },
 

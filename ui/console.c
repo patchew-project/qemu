@@ -344,10 +344,24 @@ write_err:
     goto out;
 }
 
-void qmp_screendump(const char *filename, Error **errp)
+void qmp_screendump(const char *filename, bool has_id, const char *id,
+                    Error **errp)
 {
     QemuConsole *con = qemu_console_lookup_by_index(0);
     DisplaySurface *surface;
+    DeviceState *dev;
+
+    if (has_id) {
+        dev = qdev_find_recursive(sysbus_get_default(), id);
+        if (!dev) {
+            error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                      "Device '%s' not found", id);
+            return;
+        }
+        con = qemu_console_lookup_by_device(dev, 0);
+    } else {
+        con = qemu_console_lookup_by_index(0);
+    }
 
     if (con == NULL) {
         error_setg(errp, "There is no QemuConsole I can screendump from.");

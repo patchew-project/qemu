@@ -77,6 +77,8 @@
 #
 # @filename: the path of a new PPM file to store the image
 #
+# @id: ID of the display device that should be used (since 2.12)
+#
 # Returns: Nothing on success
 #
 # Since: 0.14.0
@@ -88,7 +90,7 @@
 # <- { "return": {} }
 #
 ##
-{ 'command': 'screendump', 'data': {'filename': 'str'} }
+{ 'command': 'screendump', 'data': {'filename': 'str', '*id': 'str'} }
 
 ##
 # == Spice
