@@ -42,6 +42,7 @@
 typedef struct UNINState {
     PCIHostState parent_obj;
 
+    void *pic_irqs;
     MemoryRegion pci_mmio;
     MemoryRegion pci_hole;
 } UNINState;
