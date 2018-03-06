@@ -1829,7 +1829,7 @@ PCIDevice *pci_nic_init_nofail(NICInfo *nd, PCIBus *rootbus,
     int devfn;
     int i;
 
-    if (!strcmp(nd->model, "virtio")) {
+    if (nd->model && !strcmp(nd->model, "virtio")) {
         g_free(nd->model);
         nd->model = g_strdup("virtio-net-pci");
     }
