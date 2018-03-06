@@ -750,7 +750,7 @@ static void tcp_chr_tls_init(Chardev *chr)
                               tcp_chr_tls_handshake,
                               chr,
                               NULL,
-                              NULL);
+                              chr->gcontext);
 }
 
 
