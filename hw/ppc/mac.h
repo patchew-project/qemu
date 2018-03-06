@@ -89,11 +89,9 @@ PCIBus *pci_grackle_init(uint32_t base, qemu_irq *pic,
 
 /* UniNorth PCI */
 UNINState *pci_pmac_init(qemu_irq *pic,
-                         MemoryRegion *address_space_mem,
-                         MemoryRegion *address_space_io);
+                         MemoryRegion *address_space_mem);
 UNINState *pci_pmac_u3_init(qemu_irq *pic,
-                            MemoryRegion *address_space_mem,
-                            MemoryRegion *address_space_io);
+                            MemoryRegion *address_space_mem);
 
 /* Mac NVRAM */
 #define TYPE_MACIO_NVRAM "macio-nvram"
