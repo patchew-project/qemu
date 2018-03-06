@@ -92,7 +92,6 @@ static void ppc_heathrow_init(MachineState *machine)
     int linux_boot, i;
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     MemoryRegion *bios = g_new(MemoryRegion, 1);
-    MemoryRegion *isa = g_new(MemoryRegion, 1);
     uint32_t kernel_base, initrd_base, cmdline_base = 0;
     int32_t kernel_size, initrd_size;
     PCIBus *pci_bus;
@@ -226,11 +225,6 @@ static void ppc_heathrow_init(MachineState *machine)
         }
     }
 
-    /* Register 2 MB of ISA IO space */
-    memory_region_init_alias(isa, NULL, "isa_mmio",
-                             get_system_io(), 0, 0x00200000);
-    memory_region_add_subregion(sysmem, 0xfe000000, isa);
-
     /* XXX: we register only 1 output pin for heathrow PIC */
     pic_dev = qdev_create(NULL, TYPE_HEATHROW);
     qdev_init_nofail(pic_dev);
@@ -277,6 +271,9 @@ static void ppc_heathrow_init(MachineState *machine)
     /* PCI hole */
     memory_region_add_subregion(get_system_memory(), 0x80000000ULL,
                                 sysbus_mmio_get_region(s, 2));
+    /* Register 2 MB of ISA IO space */
+    memory_region_add_subregion(get_system_memory(), 0xfe000000,
+                                sysbus_mmio_get_region(s, 3));
 
     pci_bus = PCI_HOST_BRIDGE(dev)->bus;
 
