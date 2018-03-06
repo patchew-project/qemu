@@ -385,9 +385,8 @@ void bdrv_drain_all(void);
          * other I/O threads' AioContexts (see for example \
          * block_job_defer_to_main_loop for how to do it). \
          */                                                \
-        assert(!bs_->wakeup);                              \
-        /* Set bs->wakeup before evaluating cond.  */      \
-        atomic_mb_set(&bs_->wakeup, true);                 \
+        /* Increment bs->wakeup before evaluating cond. */ \
+        atomic_inc(&bs_->wakeup);                          \
         while (busy_) {                                    \
             if ((cond)) {                                  \
                 waited_ = busy_ = true;                    \
@@ -399,7 +398,7 @@ void bdrv_drain_all(void);
                 waited_ |= busy_;                          \
             }                                              \
         }                                                  \
-        atomic_set(&bs_->wakeup, false);                   \
+        atomic_dec(&bs_->wakeup);                          \
     }                                                      \
     waited_; })
 

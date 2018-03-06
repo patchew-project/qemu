@@ -712,7 +712,7 @@ struct BlockDriverState {
     /* Internal to BDRV_POLL_WHILE and bdrv_wakeup.  Accessed with atomic
      * ops.
      */
-    bool wakeup;
+    unsigned wakeup;
 
     /* counter for nested bdrv_io_plug.
      * Accessed with atomic ops.
