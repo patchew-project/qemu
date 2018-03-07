@@ -139,9 +139,8 @@ static gboolean socket_accept_incoming_migration(QIOChannel *ioc,
     sioc = qio_channel_socket_accept(QIO_CHANNEL_SOCKET(ioc),
                                      &err);
     if (!sioc) {
-        error_report("could not accept migration connection (%s)",
-                     error_get_pretty(err));
-        goto out;
+        migrate_set_error(migrate_get_current(), err);
+        return G_SOURCE_REMOVE;
     }
 
     trace_migration_socket_incoming_accepted();
@@ -150,7 +149,6 @@ static gboolean socket_accept_incoming_migration(QIOChannel *ioc,
     migration_channel_process_incoming(QIO_CHANNEL(sioc));
     object_unref(OBJECT(sioc));
 
-out:
     if (migration_has_all_channels()) {
         /* Close listening socket as its no longer needed */
         qio_channel_close(ioc, NULL);
