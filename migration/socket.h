@@ -23,6 +23,9 @@
 int socket_recv_channel_ref(QIOChannel *recv);
 int socket_recv_channel_unref(QIOChannel *recv);
 
+void socket_send_channel_create(void (*f)(QIOTask *, gpointer), void *data);
+int socket_send_channel_destroy(QIOChannel *send);
+
 void tcp_start_incoming_migration(const char *host_port, Error **errp);
 
 void tcp_start_outgoing_migration(MigrationState *s, const char *host_port,
