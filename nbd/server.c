@@ -1623,6 +1623,9 @@ static coroutine_fn void nbd_trip(void *opaque)
     case NBD_CMD_TRIM:
         ret = blk_co_pdiscard(exp->blk, request.from + exp->dev_offset,
                               request.len);
+        if (ret == 0 && request.flags & NBD_CMD_FLAG_FUA) {
+            ret = blk_co_flush(exp->blk);
+        }
         if (ret < 0) {
             error_setg_errno(&local_err, -ret, "discard failed");
         }
