@@ -268,6 +268,16 @@ int migrate_send_rp_req_pages(MigrationIncomingState *mis, const char *rbname,
     return migrate_send_rp_message(mis, msg_type, msglen, bufc);
 }
 
+void migrate_set_port(const uint16_t port, Error **errp)
+{
+    MigrateSetParameters p = {
+        .has_x_tcp_port = true,
+        .x_tcp_port = port,
+    };
+
+    qmp_migrate_set_parameters(&p, errp);
+}
+
 void qemu_start_incoming_migration(const char *uri, Error **errp)
 {
     const char *p;
