@@ -19,12 +19,14 @@
 #include "sev_i386.h"
 #include "sysemu/sysemu.h"
 #include "trace.h"
+#include "migration/blocker.h"
 
 #define DEFAULT_GUEST_POLICY    0x1 /* disable debug */
 #define DEFAULT_SEV_DEVICE      "/dev/sev"
 
 static SEVState *sev_state;
 static MemoryRegionRAMReadWriteOps  sev_ops;
+static Error *sev_mig_blocker;
 
 static const char *const sev_fw_errlist[] = {
     "",
@@ -578,6 +580,7 @@ static void
 sev_launch_finish(SEVState *s)
 {
     int ret, error;
+    Error *local_err = NULL;
 
     trace_kvm_sev_launch_finish();
     ret = sev_ioctl(sev_state->sev_fd, KVM_SEV_LAUNCH_FINISH, 0, &error);
@@ -588,6 +591,16 @@ sev_launch_finish(SEVState *s)
     }
 
     sev_set_guest_state(SEV_STATE_RUNNING);
+
+    /* add migration blocker */
+    error_setg(&sev_mig_blocker,
+               "SEV: Migration is not implemented");
+    ret = migrate_add_blocker(sev_mig_blocker, &local_err);
+    if (local_err) {
+        error_report_err(local_err);
+        error_free(sev_mig_blocker);
+        exit(1);
+    }
 }
 
 static void
