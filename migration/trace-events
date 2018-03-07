@@ -79,6 +79,10 @@ ram_save_page(const char *rbname, uint64_t offset, void *host) "%s: offset: 0x%"
 ram_save_queue_pages(const char *rbname, size_t start, size_t len) "%s: start: 0x%zx len: 0x%zx"
 multifd_send_sync_main(void) ""
 multifd_recv_sync_main(void) ""
+multifd_send_thread_start(int id) "%d"
+multifd_send_thread_end(int id) "%d"
+multifd_recv_thread_start(int id) "%d"
+multifd_recv_thread_end(int id) "%d"
 
 # migration/migration.c
 await_return_path_close_on_source_close(void) ""
