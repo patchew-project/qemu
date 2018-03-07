@@ -55,6 +55,8 @@ typedef struct PPC440PCIXState {
     PCIDevice *dev;
     struct PLBOutMap pom[PPC440_PCIX_NR_POMS];
     struct PLBInMap pim[PPC440_PCIX_NR_PIMS];
+    uint32_t brdgopt1;
+    uint32_t brdgopt2;
     uint32_t sts;
     qemu_irq irq[PCI_NUM_PINS];
     AddressSpace bm_as;
@@ -95,6 +97,8 @@ typedef struct PPC440PCIXState {
 #define PCIX0_PIM0SAH       0xf8
 #define PCIX0_PIM2SAH       0xfc
 
+#define PCIX0_BRDGOPT1      0x40
+#define PCIX0_BRDGOPT2      0x44
 #define PCIX0_STS           0xe0
 
 #define PCI_ALL_SIZE        (PPC440_REG_BASE + PPC440_REG_SIZE)
@@ -270,6 +274,12 @@ static void ppc440_pcix_reg_write4(void *opaque, hwaddr addr,
         ppc440_pcix_update_pim(s, 2);
         break;
 
+    case PCIX0_BRDGOPT1:
+        s->brdgopt1 = val;
+        break;
+    case PCIX0_BRDGOPT2:
+        s->brdgopt2 = val;
+        break;
     case PCIX0_STS:
         s->sts = val;
         break;
@@ -365,6 +375,12 @@ static uint64_t ppc440_pcix_reg_read4(void *opaque, hwaddr addr,
         val = s->pim[2].la >> 32;
         break;
 
+    case PCIX0_BRDGOPT1:
+        val = s->brdgopt1;
+        break;
+    case PCIX0_BRDGOPT2:
+        val = s->brdgopt2;
+        break;
     case PCIX0_STS:
         val = s->sts;
         break;
@@ -408,6 +424,8 @@ static void ppc440_pcix_reset(DeviceState *dev)
     for (i = 0; i < PPC440_PCIX_NR_PIMS; i++) {
         s->pim[i].sa = 0xffffffff00000000ULL;
     }
+    s->brdgopt1 = 0;
+    s->brdgopt2 = 0;
     s->sts = 0;
 }
 
