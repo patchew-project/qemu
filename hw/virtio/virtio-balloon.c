@@ -31,6 +31,7 @@
 
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio-access.h"
+#include "migration/misc.h"
 
 #define BALLOON_PAGE_SIZE  (1 << VIRTIO_BALLOON_PFN_SHIFT)
 
@@ -308,6 +309,111 @@ out:
     }
 }
 
+static void *virtio_balloon_poll_free_page_hints(void *opaque)
+{
+    VirtQueueElement *elem;
+    VirtIOBalloon *dev = opaque;
+    VirtQueue *vq = dev->free_page_vq;
+    uint32_t id;
+    size_t size;
+
+    /*
+     * Poll the vq till the status changed to STOP. This happens when
+     * the guest finishes reporting hints or the migration thread actively
+     * stops the reporting.
+     */
+    while (dev->free_page_report_status < FREE_PAGE_REPORT_S_STOP) {
+        elem = virtqueue_pop(vq, sizeof(VirtQueueElement));
+        if (!elem) {
+            continue;
+        }
+
+        if (elem->out_num) {
+            size = iov_to_buf(elem->out_sg, elem->out_num, 0, &id, sizeof(id));
+            virtqueue_push(vq, elem, size);
+            g_free(elem);
+            if (unlikely(size != sizeof(id))) {
+                warn_report("%s: received an incorrect cmd id", __func__);
+                break;
+            }
+            if (id == dev->free_page_report_cmd_id) {
+                dev->free_page_report_status = FREE_PAGE_REPORT_S_START;
+            } else if (dev->free_page_report_status ==
+                       FREE_PAGE_REPORT_S_START) {
+                /*
+                 * Stop the optimization only when it has started. This avoids
+                 * obsolete stop sign for the previous command.
+                 */
+                dev->free_page_report_status = FREE_PAGE_REPORT_S_STOP;
+                break;
+            }
+        }
+
+        if (elem->in_num) {
+            if (dev->free_page_report_status == FREE_PAGE_REPORT_S_START &&
+                !dev->poison_val) {
+                qemu_guest_free_page_hint(elem->in_sg[0].iov_base,
+                                          elem->in_sg[0].iov_len);
+            }
+            virtqueue_push(vq, elem, 0);
+            g_free(elem);
+        }
+    }
+    return NULL;
+}
+
+static bool virtio_balloon_free_page_support(void *opaque)
+{
+    VirtIOBalloon *s = opaque;
+    VirtIODevice *vdev = VIRTIO_DEVICE(s);
+
+    return virtio_vdev_has_feature(vdev, VIRTIO_BALLOON_F_FREE_PAGE_HINT);
+}
+
+static void virtio_balloon_free_page_start(void *opaque)
+{
+    VirtIOBalloon *s = opaque;
+    VirtIODevice *vdev = VIRTIO_DEVICE(s);
+
+    if (unlikely(s->free_page_report_cmd_id == UINT_MAX)) {
+        s->free_page_report_cmd_id =
+                       VIRTIO_BALLOON_FREE_PAGE_REPORT_CMD_ID_MIN;
+    } else {
+        s->free_page_report_cmd_id++;
+    }
+
+    s->free_page_report_status = FREE_PAGE_REPORT_S_REQUESTED;
+    virtio_notify_config(vdev);
+    qemu_thread_create(&s->free_page_thread, "free_page_optimization_thread",
+                       virtio_balloon_poll_free_page_hints, s,
+                       QEMU_THREAD_JOINABLE);
+}
+
+static void virtio_balloon_free_page_stop(void *opaque)
+{
+    VirtIOBalloon *s = opaque;
+    VirtIODevice *vdev = VIRTIO_DEVICE(s);
+
+    switch (s->free_page_report_status) {
+    case FREE_PAGE_REPORT_S_REQUESTED:
+    case FREE_PAGE_REPORT_S_START:
+        /*
+         * The guest hasn't done the reporting, so host sends a notification
+         * to the guest to actively stop the reporting before joining the
+         * optimization thread.
+         */
+        s->free_page_report_status = FREE_PAGE_REPORT_S_STOP;
+        virtio_notify_config(vdev);
+    case FREE_PAGE_REPORT_S_STOP:
+        /* The guest has stopped the reporting. Join the optimization thread */
+        qemu_thread_join(&s->free_page_thread);
+        s->free_page_report_status = FREE_PAGE_REPORT_S_EXIT;
+    case FREE_PAGE_REPORT_S_EXIT:
+        /* The optimization thread has gone. No actions needded so far. */
+        break;
+    }
+}
+
 static void virtio_balloon_get_config(VirtIODevice *vdev, uint8_t *config_data)
 {
     VirtIOBalloon *dev = VIRTIO_BALLOON(vdev);
@@ -315,6 +421,15 @@ static void virtio_balloon_get_config(VirtIODevice *vdev, uint8_t *config_data)
 
     config.num_pages = cpu_to_le32(dev->num_pages);
     config.actual = cpu_to_le32(dev->actual);
+    config.poison_val = cpu_to_le32(dev->poison_val);
+
+    if (dev->free_page_report_status >= FREE_PAGE_REPORT_S_STOP) {
+        config.free_page_report_cmd_id =
+                       cpu_to_le32(VIRTIO_BALLOON_FREE_PAGE_REPORT_STOP_ID);
+    } else {
+        config.free_page_report_cmd_id =
+                       cpu_to_le32(dev->free_page_report_cmd_id);
+    }
 
     trace_virtio_balloon_get_config(config.num_pages, config.actual);
     memcpy(config_data, &config, sizeof(struct virtio_balloon_config));
@@ -368,6 +483,7 @@ static void virtio_balloon_set_config(VirtIODevice *vdev,
                         ((ram_addr_t) dev->actual << VIRTIO_BALLOON_PFN_SHIFT),
                         &error_abort);
     }
+    dev->poison_val = le32_to_cpu(config.poison_val);
     trace_virtio_balloon_set_config(dev->actual, oldactual);
 }
 
@@ -377,6 +493,11 @@ static uint64_t virtio_balloon_get_features(VirtIODevice *vdev, uint64_t f,
     VirtIOBalloon *dev = VIRTIO_BALLOON(vdev);
     f |= dev->host_features;
     virtio_add_feature(&f, VIRTIO_BALLOON_F_STATS_VQ);
+
+    if (dev->host_features & 1ULL << VIRTIO_BALLOON_F_FREE_PAGE_HINT) {
+        virtio_add_feature(&f, VIRTIO_BALLOON_F_PAGE_POISON);
+    }
+
     return f;
 }
 
@@ -413,6 +534,18 @@ static int virtio_balloon_post_load_device(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateDescription vmstate_virtio_balloon_free_page_report = {
+    .name = "virtio-balloon-device/free-page-report",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = virtio_balloon_free_page_support,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(free_page_report_cmd_id, VirtIOBalloon),
+        VMSTATE_UINT32(poison_val, VirtIOBalloon),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_virtio_balloon_device = {
     .name = "virtio-balloon-device",
     .version_id = 1,
@@ -423,30 +556,30 @@ static const VMStateDescription vmstate_virtio_balloon_device = {
         VMSTATE_UINT32(actual, VirtIOBalloon),
         VMSTATE_END_OF_LIST()
     },
+    .subsections = (const VMStateDescription * []) {
+        &vmstate_virtio_balloon_free_page_report,
+        NULL
+    }
 };
 
 static void virtio_balloon_device_realize(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtIOBalloon *s = VIRTIO_BALLOON(dev);
-    int ret;
 
     virtio_init(vdev, "virtio-balloon", VIRTIO_ID_BALLOON,
                 sizeof(struct virtio_balloon_config));
 
-    ret = qemu_add_balloon_handler(virtio_balloon_to_target,
-                                   virtio_balloon_stat, s);
-
-    if (ret < 0) {
-        error_setg(errp, "Only one balloon device is supported");
-        virtio_cleanup(vdev);
-        return;
-    }
-
     s->ivq = virtio_add_queue(vdev, 128, virtio_balloon_handle_output);
     s->dvq = virtio_add_queue(vdev, 128, virtio_balloon_handle_output);
     s->svq = virtio_add_queue(vdev, 128, virtio_balloon_receive_stats);
-
+    if (virtio_has_feature(s->host_features,
+                           VIRTIO_BALLOON_F_FREE_PAGE_HINT)) {
+        s->free_page_vq = virtio_add_queue(vdev, VIRTQUEUE_MAX_SIZE, NULL);
+        s->free_page_report_status = FREE_PAGE_REPORT_S_EXIT;
+        s->free_page_report_cmd_id =
+                           VIRTIO_BALLOON_FREE_PAGE_REPORT_CMD_ID_MIN - 1;
+    }
     reset_stats(s);
 }
 
@@ -475,11 +608,27 @@ static void virtio_balloon_set_status(VirtIODevice *vdev, uint8_t status)
 {
     VirtIOBalloon *s = VIRTIO_BALLOON(vdev);
 
-    if (!s->stats_vq_elem && vdev->vm_running &&
-        (status & VIRTIO_CONFIG_S_DRIVER_OK) && virtqueue_rewind(s->svq, 1)) {
-        /* poll stats queue for the element we have discarded when the VM
-         * was stopped */
-        virtio_balloon_receive_stats(vdev, s->svq);
+    if (status & VIRTIO_CONFIG_S_DRIVER_OK) {
+        if (!s->stats_vq_elem && vdev->vm_running &&
+            virtqueue_rewind(s->svq, 1)) {
+            /*
+             * Poll stats queue for the element we have discarded when the VM
+             * was stopped.
+             */
+            virtio_balloon_receive_stats(vdev, s->svq);
+        }
+
+        if (virtio_balloon_free_page_support(s)) {
+            qemu_add_balloon_handler(virtio_balloon_to_target,
+                                     virtio_balloon_stat,
+                                     virtio_balloon_free_page_support,
+                                     virtio_balloon_free_page_start,
+                                     virtio_balloon_free_page_stop,
+                                     s);
+        } else {
+            qemu_add_balloon_handler(virtio_balloon_to_target,
+                                     virtio_balloon_stat, NULL, NULL, NULL, s);
+        }
     }
 }
 
@@ -509,6 +658,8 @@ static const VMStateDescription vmstate_virtio_balloon = {
 static Property virtio_balloon_properties[] = {
     DEFINE_PROP_BIT("deflate-on-oom", VirtIOBalloon, host_features,
                     VIRTIO_BALLOON_F_DEFLATE_ON_OOM, false),
+    DEFINE_PROP_BIT("free-page-hint", VirtIOBalloon, host_features,
+                    VIRTIO_BALLOON_F_FREE_PAGE_HINT, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
