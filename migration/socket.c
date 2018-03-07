@@ -27,6 +27,17 @@
 #include "io/channel-socket.h"
 #include "trace.h"
 
+int socket_recv_channel_ref(QIOChannel *recv)
+{
+    object_ref(OBJECT(recv));
+    return 0;
+}
+
+int socket_recv_channel_unref(QIOChannel *recv)
+{
+    object_unref(OBJECT(recv));
+    return 0;
+}
 
 static SocketAddress *tcp_build_address(const char *host_port, Error **errp)
 {
