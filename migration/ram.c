@@ -51,6 +51,8 @@
 #include "qemu/rcu_queue.h"
 #include "migration/colo.h"
 #include "migration/block.h"
+#include "sysemu/balloon.h"
+#include "sysemu/sysemu.h"
 
 /***********************************************************/
 /* ram save/restore */
@@ -208,6 +210,8 @@ struct RAMState {
     uint32_t last_version;
     /* We are in the first round */
     bool ram_bulk_stage;
+    /* The free pages optimization feature is supported */
+    bool free_page_support;
     /* How many times we have dirty too many pages */
     int dirty_rate_high_cnt;
     /* these variables are used for bitmap sync */
@@ -775,7 +779,7 @@ unsigned long migration_bitmap_find_dirty(RAMState *rs, RAMBlock *rb,
     unsigned long *bitmap = rb->bmap;
     unsigned long next;
 
-    if (rs->ram_bulk_stage && start > 0) {
+    if (rs->ram_bulk_stage && start > 0 && !rs->free_page_support) {
         next = start + 1;
     } else {
         next = find_next_bit(bitmap, size, start);
@@ -832,6 +836,10 @@ static void migration_bitmap_sync(RAMState *rs)
     RAMBlock *block;
     int64_t end_time;
     uint64_t bytes_xfer_now;
+
+    if (rs->free_page_support) {
+        balloon_free_page_stop();
+    }
 
     ram_counters.dirty_sync_count++;
 
@@ -898,6 +906,10 @@ static void migration_bitmap_sync(RAMState *rs)
     }
     if (migrate_use_events()) {
         qapi_event_send_migration_pass(ram_counters.dirty_sync_count, NULL);
+    }
+
+    if (rs->free_page_support && runstate_is_running()) {
+        balloon_free_page_start();
     }
 }
 
@@ -1656,6 +1668,8 @@ static void ram_state_reset(RAMState *rs)
     rs->last_page = 0;
     rs->last_version = ram_list.version;
     rs->ram_bulk_stage = true;
+    rs->free_page_support = balloon_free_page_support() &
+                            !migration_in_postcopy();
 }
 
 #define MAX_WAIT 50 /* ms, half buffered_file limit */
@@ -2338,6 +2352,9 @@ out:
 
     ret = qemu_file_get_error(f);
     if (ret < 0) {
+        if (rs->free_page_support) {
+            balloon_free_page_stop();
+        }
         return ret;
     }
 
