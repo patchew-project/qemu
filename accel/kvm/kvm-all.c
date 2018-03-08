@@ -107,6 +107,8 @@ struct KVMState
 
     /* memory encryption */
     void *memcrypt_handle;
+    int (*memcrypt_encrypt_data)(void *handle, uint8_t *ptr, uint64_t len);
+    void (*memcrypt_debug_ops)(void *handle, MemoryRegion *mr);
 };
 
 KVMState *kvm_state;
@@ -140,6 +142,34 @@ int kvm_get_max_memslots(void)
     KVMState *s = KVM_STATE(current_machine->accelerator);
 
     return s->nr_slots;
+}
+
+bool kvm_memcrypt_enabled(void)
+{
+    if (kvm_state && kvm_state->memcrypt_handle) {
+        return true;
+    }
+
+    return false;
+}
+
+int kvm_memcrypt_encrypt_data(uint8_t *ptr, uint64_t len)
+{
+    if (kvm_state->memcrypt_handle &&
+        kvm_state->memcrypt_encrypt_data) {
+        return kvm_state->memcrypt_encrypt_data(kvm_state->memcrypt_handle,
+                                              ptr, len);
+    }
+
+    return 1;
+}
+
+void kvm_memcrypt_set_debug_ops(MemoryRegion *mr)
+{
+    if (kvm_state->memcrypt_handle &&
+        kvm_state->memcrypt_debug_ops) {
+        kvm_state->memcrypt_debug_ops(kvm_state->memcrypt_handle, mr);
+    }
 }
 
 static KVMSlot *kvm_get_free_slot(KVMMemoryListener *kml)
