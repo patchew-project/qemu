@@ -586,7 +586,7 @@ static int
 physical_read_memory(bfd_vma memaddr, bfd_byte *myaddr, int length,
                      struct disassemble_info *info)
 {
-    cpu_physical_memory_read(memaddr, myaddr, length);
+    cpu_physical_memory_read_debug(memaddr, myaddr, length);
     return 0;
 }
 
