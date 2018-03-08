@@ -19,6 +19,8 @@
 #include "migration/vmstate.h"
 #include "exec/exec-all.h"
 #include "fpu/softfloat.h"
+#include "sysemu/qtest.h"
+#include "qemu/error-report.h"
 
 static void uc32_cpu_set_pc(CPUState *cs, vaddr value)
 {
@@ -120,6 +122,15 @@ static void uc32_cpu_initfn(Object *obj)
 #endif
 
     tlb_flush(cs);
+
+    /* We can't do this in class_init because the qtest_enabled
+     * flag hasn't yet been initialized there. Luckily the Unicore32
+     * machines don't support SMP so the message will only appear once.
+     */
+    if (!qtest_enabled()) {
+        warn_report("qemu-system-unicore32 is deprecated "
+                    "and will be removed in a future QEMU release.");
+    }
 }
 
 static const VMStateDescription vmstate_uc32_cpu = {
