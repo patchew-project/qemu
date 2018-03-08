@@ -1548,16 +1548,16 @@ static coroutine_fn void nbd_trip(void *opaque)
         goto disconnect;
     }
 
-    if (ret < 0) {
-        goto reply;
-    }
-
     if (client->closing) {
         /*
          * The client may be closed when we are blocked in
          * nbd_co_receive_request()
          */
         goto done;
+    }
+
+    if (ret < 0) {
+        goto reply;
     }
 
     switch (request.type) {
