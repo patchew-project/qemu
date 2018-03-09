@@ -3665,6 +3665,25 @@
             'size':             'size' } }
 
 ##
+# @BlockdevCreateOptionsVdi:
+#
+# Driver specific image creation options for vdi.
+#
+# @file             Node to create the image format on
+# @size             Size of the virtual disk in bytes
+# @cluster-size     Cluster size in bytes (default: 1 MB)
+# @static           Whether to create a static (preallocated) image
+#                   (default: false)
+#
+# Since: 2.12
+##
+{ 'struct': 'BlockdevCreateOptionsVdi',
+  'data': { 'file':             'BlockdevRef',
+            'size':             'size',
+            '*cluster-size':    'size',
+            '*static':          'bool' } }
+
+##
 # @BlockdevCreateNotSupported:
 #
 # This is used for all drivers that don't support creating images.
@@ -3718,7 +3737,7 @@
       'sheepdog':       'BlockdevCreateOptionsSheepdog',
       'ssh':            'BlockdevCreateOptionsSsh',
       'throttle':       'BlockdevCreateNotSupported',
-      'vdi':            'BlockdevCreateNotSupported',
+      'vdi':            'BlockdevCreateOptionsVdi',
       'vhdx':           'BlockdevCreateNotSupported',
       'vmdk':           'BlockdevCreateNotSupported',
       'vpc':            'BlockdevCreateNotSupported',
