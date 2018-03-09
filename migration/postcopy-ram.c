@@ -485,6 +485,17 @@ static int ram_block_enable_notify(const char *block_name, void *host_addr,
     return 0;
 }
 
+static bool postcopy_pause_fault_thread(MigrationIncomingState *mis)
+{
+    trace_postcopy_pause_fault_thread();
+
+    qemu_sem_wait(&mis->postcopy_pause_sem_fault);
+
+    trace_postcopy_pause_fault_thread_continued();
+
+    return true;
+}
+
 /*
  * Handle faults detected by the USERFAULT markings
  */
@@ -535,6 +546,22 @@ static void *postcopy_ram_fault_thread(void *opaque)
             }
         }
 
+        if (!mis->to_src_file) {
+            /*
+             * Possibly someone tells us that the return path is
+             * broken already using the event. We should hold until
+             * the channel is rebuilt.
+             */
+            if (postcopy_pause_fault_thread(mis)) {
+                last_rb = NULL;
+                /* Continue to read the userfaultfd */
+            } else {
+                error_report("%s: paused but don't allow to continue",
+                             __func__);
+                break;
+            }
+        }
+
         ret = read(mis->userfault_fd, &msg, sizeof(msg));
         if (ret != sizeof(msg)) {
             if (errno == EAGAIN) {
@@ -574,18 +601,33 @@ static void *postcopy_ram_fault_thread(void *opaque)
                                                 qemu_ram_get_idstr(rb),
                                                 rb_offset);
 
+retry:
         /*
          * Send the request to the source - we want to request one
          * of our host page sizes (which is >= TPS)
          */
         if (rb != last_rb) {
             last_rb = rb;
-            migrate_send_rp_req_pages(mis, qemu_ram_get_idstr(rb),
-                                     rb_offset, qemu_ram_pagesize(rb));
+            ret = migrate_send_rp_req_pages(mis, qemu_ram_get_idstr(rb),
+                                            rb_offset, qemu_ram_pagesize(rb));
         } else {
             /* Save some space */
-            migrate_send_rp_req_pages(mis, NULL,
-                                     rb_offset, qemu_ram_pagesize(rb));
+            ret = migrate_send_rp_req_pages(mis, NULL,
+                                            rb_offset, qemu_ram_pagesize(rb));
+        }
+
+        if (ret) {
+            /* May be network failure, try to wait for recovery */
+            if (ret == -EIO && postcopy_pause_fault_thread(mis)) {
+                /* We got reconnected somehow, try to continue */
+                last_rb = NULL;
+                goto retry;
+            } else {
+                /* This is a unavoidable fault */
+                error_report("%s: migrate_send_rp_req_pages() get %d",
+                             __func__, ret);
+                break;
+            }
         }
     }
     trace_postcopy_ram_fault_thread_exit();
