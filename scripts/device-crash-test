@@ -372,33 +372,6 @@ class QemuBinaryInfo(object):
         finally:
             vm.shutdown()
 
-    def machineInfo(self, machine):
-        """Query for information on a specific machine-type
-
-        Results are cached internally, in case the same machine-
-        type is queried multiple times.
-        """
-        if machine in self._machine_info:
-            return self._machine_info[machine]
-
-        mi = {}
-        args = ['-S', '-machine', '%s' % (machine)]
-        dbg("querying machine info for binary=%s machine=%s", self.binary, machine)
-        vm = QEMUMachine(binary=self.binary, args=args)
-        try:
-            vm.launch()
-            mi['runnable'] = True
-        except KeyboardInterrupt:
-            raise
-        except:
-            dbg("exception trying to run binary=%s machine=%s", self.binary, machine, exc_info=sys.exc_info())
-            dbg("log: %r", vm.get_log())
-            mi['runnable'] = False
-
-        vm.shutdown()
-        self._machine_info[machine] = mi
-        return mi
-
     def defaultMachine(self):
         """Default machine-type for the QEMU binary
 
@@ -613,9 +586,7 @@ def main():
         total += 1
 
         expected_match = findExpectedResult(t)
-        if (args.quick and
-                (expected_match or
-                 not getBinaryInfo(args, t['binary']).machineInfo(t['machine'])['runnable'])):
+        if args.quick and expected_match:
             dbg("skipped: %s", formatTestCase(t))
             skipped += 1
             continue
