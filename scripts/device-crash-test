@@ -533,7 +533,7 @@ def main():
                         dest='loglevel', const=logging.INFO,
                         help='verbose output')
     parser.add_argument('-q', '--quiet',action='store_const',
-                        dest='loglevel', const=logging.WARN,
+                        dest='loglevel', const=logging.ERROR,
                         help='non-verbose output')
     parser.add_argument('-r', '--random', type=int, metavar='COUNT',
                         help='run a random sample of COUNT test cases',
