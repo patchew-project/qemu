@@ -41,6 +41,11 @@ Test a single QEMU binary:
 
     device-crash-test /path/to/qemu/binary
 
+Test all QEMU binaries found in the current directory, using only the default
+machine-type:
+
+    device-crash-test -t machine=DEFAULT
+
 """
 
 import sys
@@ -357,7 +362,7 @@ class QemuBinaryInfo(object):
             # there's no way to query DeviceClass::user_creatable using QMP,
             # so use 'info qdm':
             self.no_user_devs = set([d['name'] for d in infoQDM(vm, ) if d['no-user']])
-            self.machines = list(m['name'] for m in vm.command('query-machines'))
+            self.machines = vm.command('query-machines')
             self.user_devs = self.alldevs.difference(self.no_user_devs)
             self.kvm_available = vm.command('query-kvm')['enabled']
         finally:
@@ -389,6 +394,19 @@ class QemuBinaryInfo(object):
         vm.shutdown()
         self._machine_info[machine] = mi
         return mi
+
+    def defaultMachine(self):
+        """Default machine-type for the QEMU binary
+
+        If no default machine-type is returned by query-machines, return the
+        first machine-type in the list.
+        """
+        machines = self.machines
+        defmachine = [m['name'] for m in self.machines if m.get('is-default')]
+        if defmachine:
+            return defmachine[0]
+        else:
+            return self.machines[0]['name']
 
 
 BINARY_INFO = {}
@@ -455,7 +473,7 @@ def accelsToTest(args, testcase):
 
 
 def machinesToTest(args, testcase):
-    return getBinaryInfo(args, testcase['binary']).machines
+    return [m['name'] for m in getBinaryInfo(args, testcase['binary']).machines]
 
 
 def devicesToTest(args, testcase):
@@ -580,6 +598,13 @@ def main():
         return 1
 
     for t in casesToTest(args, tc):
+
+        # expand some test case variables to their actual values before
+        # using them:
+        # "-t machine=DEFAULT" can be used to use the default machine-type
+        if t['machine'] == 'DEFAULT':
+            t['machine'] = getBinaryInfo(args, t['binary']).defaultMachine()
+
         logger.info("running test case: %s", formatTestCase(t))
         total += 1
 
