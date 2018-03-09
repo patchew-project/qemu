@@ -373,6 +373,10 @@ Is another process using the image?
 QEMU_PROG: -drive if=none,file=TEST_DIR/t.qcow2: Failed to get "write" lock
 Is another process using the image?
 
+== Active commit to intermediate layer should work when base in use ==
+
+_qemu_img_wrapper commit -b TEST_DIR/t.qcow2.b TEST_DIR/t.qcow2.c
+
 == Closing an image should unlock it ==
 {"return": {}}
 Adding drive

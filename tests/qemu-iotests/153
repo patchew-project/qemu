@@ -178,6 +178,12 @@ ln -s ${TEST_IMG} "${TEST_IMG}.lnk" || echo "Failed to create link"
 _run_qemu_with_images "${TEST_IMG}.lnk" "${TEST_IMG}"
 
 echo
+echo "== Active commit to intermediate layer should work when base in use =="
+_launch_qemu -drive format=$IMGFMT,file="${TEST_IMG}.a",id=drive0 \
+             -device virtio-blk,drive=drive0
+_run_cmd $QEMU_IMG commit -b "${TEST_IMG}.b" "${TEST_IMG}.c"
+
+echo
 echo "== Closing an image should unlock it =="
 _launch_qemu
 
