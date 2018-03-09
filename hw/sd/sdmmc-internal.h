@@ -12,4 +12,24 @@
 
 #define SDMMC_CMD_MAX 64
 
+/**
+ * sd_cmd_name:
+ * @cmd: A SD "normal" command, upto SDMMC_CMD_MAX.
+ *
+ * Returns an human useful name describing the command.
+ *
+ * Returns: The command name of @cmd or "UNKNOWN_CMD".
+ */
+const char *sd_cmd_name(uint8_t cmd);
+
+/**
+ * sd_acmd_name:
+ * @cmd: A SD "Application-Specific" command, upto SDMMC_CMD_MAX.
+ *
+ * Returns an human useful name describing the application command.
+ *
+ * Returns: The application command name of @cmd or "UNKNOWN_ACMD".
+ */
+const char *sd_acmd_name(uint8_t cmd);
+
 #endif
