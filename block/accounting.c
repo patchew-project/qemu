@@ -94,6 +94,62 @@ void block_acct_start(BlockAcctStats *stats, BlockAcctCookie *cookie,
     cookie->type = type;
 }
 
+/* block_latency_histogram_compare_func:
+ * Compare @key with interval [@it[0], @it[1]).
+ * Return: -1 if @key < @it[0]
+ *          0 if @key in [@it[0], @it[1])
+ *         +1 if @key >= @it[1]
+ */
+static int block_latency_histogram_compare_func(const void *key, const void *it)
+{
+    uint64_t k = *(uint64_t *)key;
+    uint64_t a = ((uint64_t *)it)[0];
+    uint64_t b = ((uint64_t *)it)[1];
+
+    return k < a ? -1 : (k < b ? 0 : 1);
+}
+
+static void block_latency_histogram_account(BlockLatencyHistogram *hist,
+                                            int64_t latency_ns)
+{
+    uint64_t *pos;
+
+    if (hist->bins == NULL) {
+        /* histogram disabled */
+        return;
+    }
+
+
+    if (latency_ns < hist->boundaries[0]) {
+        hist->bins[0]++;
+        return;
+    }
+
+    if (latency_ns >= hist->boundaries[hist->nbins - 2]) {
+        hist->bins[hist->nbins - 1]++;
+        return;
+    }
+
+    pos = bsearch(&latency_ns, hist->boundaries, hist->nbins - 2,
+                  sizeof(hist->boundaries[0]),
+                  block_latency_histogram_compare_func);
+    assert(pos != NULL);
+
+    hist->bins[pos - hist->boundaries + 1]++;
+}
+
+void block_latency_histograms_clear(BlockAcctStats *stats)
+{
+    int i;
+
+    for (i = 0; i < BLOCK_MAX_IOTYPE; i++) {
+        BlockLatencyHistogram *hist = &stats->latency_histogram[i];
+        g_free(hist->bins);
+        g_free(hist->boundaries);
+        memset(hist, 0, sizeof(*hist));
+    }
+}
+
 static void block_account_one_io(BlockAcctStats *stats, BlockAcctCookie *cookie,
                                  bool failed)
 {
@@ -115,6 +171,9 @@ static void block_account_one_io(BlockAcctStats *stats, BlockAcctCookie *cookie,
         stats->nr_bytes[cookie->type] += cookie->bytes;
         stats->nr_ops[cookie->type]++;
     }
+
+    block_latency_histogram_account(&stats->latency_histogram[cookie->type],
+                                    latency_ns);
 
     if (!failed || stats->account_failed) {
         stats->total_time_ns[cookie->type] += latency_ns;
