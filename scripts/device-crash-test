@@ -484,7 +484,7 @@ def casesToTest(args, testcase):
     if args.random:
         cases = list(cases)
         cases = random.sample(cases, min(args.random, len(cases)))
-    if args.debug:
+    if logger.isEnabledFor(logging.DEBUG):
         cases = list(cases)
         dbg("%d test cases to test", len(cases))
     if args.shuffle:
@@ -511,11 +511,15 @@ def main():
     parser.add_argument('-t', metavar='KEY=VALUE', nargs='*',
                         help="Limit test cases to KEY=VALUE",
                         action='append', dest='testcases', default=[])
-    parser.add_argument('-d', '--debug', action='store_true',
+    parser.set_defaults(loglevel=logging.INFO)
+    parser.add_argument('-d', '--debug',action='store_const',
+                        dest='loglevel', const=logging.DEBUG,
                         help='debug output')
-    parser.add_argument('-v', '--verbose', action='store_true', default=True,
+    parser.add_argument('-v', '--verbose',action='store_const',
+                        dest='loglevel', const=logging.INFO,
                         help='verbose output')
-    parser.add_argument('-q', '--quiet', dest='verbose', action='store_false',
+    parser.add_argument('-q', '--quiet',action='store_const',
+                        dest='loglevel', const=logging.WARN,
                         help='non-verbose output')
     parser.add_argument('-r', '--random', type=int, metavar='COUNT',
                         help='run a random sample of COUNT test cases',
@@ -536,13 +540,7 @@ def main():
                         help='QEMU binary to run')
     args = parser.parse_args()
 
-    if args.debug:
-        lvl = logging.DEBUG
-    elif args.verbose:
-        lvl = logging.INFO
-    else:
-        lvl = logging.WARN
-    logging.basicConfig(stream=sys.stdout, level=lvl, format='%(levelname)s: %(message)s')
+    logging.basicConfig(stream=sys.stdout, level=args.loglevel, format='%(levelname)s: %(message)s')
 
     fatal_failures = []
     wl_stats = {}
@@ -599,7 +597,7 @@ def main():
     if skipped:
         logger.info("Skipped %d test cases", skipped)
 
-    if args.debug:
+    if logger.isEnabledFor(logging.DEBUG):
         stats = sorted([(len(wl_stats.get(i, [])), wl) for i, wl in enumerate(ERROR_WHITELIST)])
         for count, wl in stats:
             dbg("whitelist entry stats: %d: %r", count, wl)
