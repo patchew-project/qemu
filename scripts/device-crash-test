@@ -22,6 +22,25 @@
 """
 Run QEMU with all combinations of -machine and -device types,
 check for crashes and unexpected errors.
+
+Example usage:
+
+Test all QEMU binaries found in the current directory, with all
+machine-type/device combinations, but skip the combinations that are expected to
+fail:
+
+    device-crash-test
+
+Test all QEMU binaries found in the current directory, with all
+machine-type/device combinations, including the combinations that are expected
+to fail:
+
+    device-crash-test -F
+
+Test a single QEMU binary:
+
+    device-crash-test /path/to/qemu/binary
+
 """
 
 import sys
