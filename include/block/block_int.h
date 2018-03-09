@@ -126,6 +126,8 @@ struct BlockDriver {
 
     int (*bdrv_open)(BlockDriverState *bs, QDict *options, int flags,
                      Error **errp);
+
+    /* Protocol drivers should implement this instead of bdrv_open */
     int (*bdrv_file_open)(BlockDriverState *bs, QDict *options, int flags,
                           Error **errp);
     void (*bdrv_close)(BlockDriverState *bs);
@@ -251,6 +253,10 @@ struct BlockDriver {
      */
     int coroutine_fn (*bdrv_co_flush_to_os)(BlockDriverState *bs);
 
+    /*
+     * Drivers that set this field should also provide a
+     * bdrv_file_open implementation
+     */
     const char *protocol_name;
     int (*bdrv_truncate)(BlockDriverState *bs, int64_t offset,
                          PreallocMode prealloc, Error **errp);
