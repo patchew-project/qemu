@@ -869,7 +869,8 @@ static void bdrv_temp_snapshot_options(int *child_flags, QDict *child_options,
  * is expected, based on the given options and flags for the parent BDS
  */
 static void bdrv_inherited_options(int *child_flags, QDict *child_options,
-                                   int parent_flags, QDict *parent_options)
+                                   int parent_flags, QDict *parent_options,
+                                   int current_flags)
 {
     int flags = parent_flags;
 
@@ -913,10 +914,12 @@ const BdrvChildRole child_file = {
  * flags for the parent BDS
  */
 static void bdrv_inherited_fmt_options(int *child_flags, QDict *child_options,
-                                       int parent_flags, QDict *parent_options)
+                                       int parent_flags, QDict *parent_options,
+                                       int current_flags)
 {
     child_file.inherit_options(child_flags, child_options,
-                               parent_flags, parent_options);
+                               parent_flags, parent_options,
+                               current_flags);
 
     *child_flags &= ~(BDRV_O_PROTOCOL | BDRV_O_NO_IO);
 }
@@ -991,7 +994,8 @@ static void bdrv_backing_detach(BdrvChild *c)
  * given options and flags for the parent BDS
  */
 static void bdrv_backing_options(int *child_flags, QDict *child_options,
-                                 int parent_flags, QDict *parent_options)
+                                 int parent_flags, QDict *parent_options,
+                                 int current_flags)
 {
     int flags = parent_flags;
 
@@ -2548,7 +2552,8 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
     if (child_role) {
         bs->inherits_from = parent;
         child_role->inherit_options(&flags, options,
-                                    parent->open_flags, parent->options);
+                                    parent->open_flags, parent->options,
+                                    0);
     }
 
     ret = bdrv_fill_options(&options, filename, &flags, &local_err);
@@ -2576,7 +2581,7 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
                                    flags, options);
         /* Let bdrv_backing_options() override "read-only" */
         qdict_del(options, BDRV_OPT_READ_ONLY);
-        bdrv_backing_options(&flags, options, flags, options);
+        bdrv_backing_options(&flags, options, flags, options, 0);
     }
 
     bs->open_flags = flags;
@@ -2837,7 +2842,8 @@ static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
     /* Inherit from parent node */
     if (parent_options) {
         assert(!flags);
-        role->inherit_options(&flags, options, parent_flags, parent_options);
+        role->inherit_options(&flags, options, parent_flags, parent_options,
+                              0);
     }
 
     /* Old values are used for options that aren't set yet */

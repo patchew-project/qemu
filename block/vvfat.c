@@ -3126,7 +3126,8 @@ static BlockDriver vvfat_write_target = {
 };
 
 static void vvfat_qcow_options(int *child_flags, QDict *child_options,
-                               int parent_flags, QDict *parent_options)
+                               int parent_flags, QDict *parent_options,
+                               int current_flags)
 {
     qdict_set_default_str(child_options, BDRV_OPT_READ_ONLY, "off");
     *child_flags = BDRV_O_NO_FLUSH;

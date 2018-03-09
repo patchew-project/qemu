@@ -107,7 +107,8 @@ static QTAILQ_HEAD(, BlockBackend) monitor_block_backends =
     QTAILQ_HEAD_INITIALIZER(monitor_block_backends);
 
 static void blk_root_inherit_options(int *child_flags, QDict *child_options,
-                                     int parent_flags, QDict *parent_options)
+                                     int parent_flags, QDict *parent_options,
+                                     int current_flags)
 {
     /* We're not supposed to call this function for root nodes */
     abort();

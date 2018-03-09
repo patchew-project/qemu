@@ -535,7 +535,8 @@ struct BdrvChildRole {
     bool stay_at_node;
 
     void (*inherit_options)(int *child_flags, QDict *child_options,
-                            int parent_flags, QDict *parent_options);
+                            int parent_flags, QDict *parent_options,
+                            int current_flags);
 
     void (*change_media)(BdrvChild *child, bool load);
     void (*resize)(BdrvChild *child);
