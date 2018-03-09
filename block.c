@@ -997,7 +997,10 @@ static void bdrv_backing_options(int *child_flags, QDict *child_options,
                                  int parent_flags, QDict *parent_options,
                                  int current_flags)
 {
-    int flags = parent_flags;
+    /* write flag should be preserved if the backing file already has it. This
+     * is important during reopen, to keep "parallel block jobs" work. */
+    int write_flag = current_flags & BDRV_O_RDWR;
+    int flags = parent_flags | write_flag;
 
     /* The cache mode is inherited unmodified for backing files; except WCE,
      * which is only applied on the top level (BlockBackend) */
@@ -1005,9 +1008,13 @@ static void bdrv_backing_options(int *child_flags, QDict *child_options,
     qdict_copy_default(child_options, parent_options, BDRV_OPT_CACHE_NO_FLUSH);
     qdict_copy_default(child_options, parent_options, BDRV_OPT_FORCE_SHARE);
 
-    /* backing files always opened read-only */
-    qdict_set_default_str(child_options, BDRV_OPT_READ_ONLY, "on");
-    flags &= ~BDRV_O_COPY_ON_READ;
+
+    if (!write_flag) {
+        flags &= ~BDRV_O_COPY_ON_READ;
+        /* backing files always opened read-only */
+        qdict_set_default_str(child_options, BDRV_OPT_READ_ONLY, "on");
+        flags &= ~BDRV_O_RDWR;
+    }
 
     /* snapshot=on is handled on the top layer */
     flags &= ~(BDRV_O_SNAPSHOT | BDRV_O_TEMPORARY);
