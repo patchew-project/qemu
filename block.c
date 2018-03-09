@@ -2785,14 +2785,14 @@ static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
                                                  BlockDriverState *bs,
                                                  QDict *options,
                                                  int flags,
-                                                 const BdrvChildRole *role,
+                                                 BdrvChild *child,
                                                  QDict *parent_options,
                                                  int parent_flags)
 {
     assert(bs != NULL);
 
     BlockReopenQueueEntry *bs_entry;
-    BdrvChild *child;
+    BdrvChild *c;
     QDict *old_options, *explicit_options;
 
     /* Make sure that the caller remembered to use a drained section. This is
@@ -2847,10 +2847,11 @@ static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
     explicit_options = qdict_clone_shallow(options);
 
     /* Inherit from parent node */
+    assert(!!child == !!parent_options);
     if (parent_options) {
-        assert(!flags);
-        role->inherit_options(&flags, options, parent_flags, parent_options,
-                              0);
+        child->role->inherit_options(&flags, options,
+                                     parent_flags, parent_options,
+                                     child->bs->open_flags);
     }
 
     /* Old values are used for options that aren't set yet */
@@ -2881,23 +2882,23 @@ static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
     bs_entry->state.perm = UINT64_MAX;
     bs_entry->state.shared_perm = 0;
 
-    QLIST_FOREACH(child, &bs->children, next) {
+    QLIST_FOREACH(c, &bs->children, next) {
         QDict *new_child_options;
         char *child_key_dot;
 
         /* reopen can only change the options of block devices that were
          * implicitly created and inherited options. For other (referenced)
          * block devices, a syntax like "backing.foo" results in an error. */
-        if (child->bs->inherits_from != bs) {
+        if (c->bs->inherits_from != bs) {
             continue;
         }
 
-        child_key_dot = g_strdup_printf("%s.", child->name);
+        child_key_dot = g_strdup_printf("%s.", c->name);
         qdict_extract_subqdict(options, &new_child_options, child_key_dot);
         g_free(child_key_dot);
 
-        bdrv_reopen_queue_child(bs_queue, child->bs, new_child_options, 0,
-                                child->role, options, flags);
+        bdrv_reopen_queue_child(bs_queue, c->bs, new_child_options, 0,
+                                c, options, flags);
     }
 
     return bs_queue;
