@@ -124,6 +124,7 @@ struct SDState {
     bool enable;
     uint8_t dat_lines;
     bool cmd_line;
+    bool uhs_enabled;
 };
 
 static const char *sd_state_name(enum SDCardStates state)
@@ -563,6 +564,7 @@ static void sd_reset(DeviceState *dev)
     sd->expecting_acmd = false;
     sd->dat_lines = 0xf;
     sd->cmd_line = true;
+    sd->uhs_enabled = false;
     sd->multi_blk_cnt = 0;
 }
 
@@ -761,30 +763,132 @@ static uint32_t sd_wpbits(SDState *sd, uint64_t addr)
     return ret;
 }
 
+/* Function Group */
+enum {
+    SD_FG_MIN               = 1,
+    SD_FG_ACCESS_MODE       = 1,
+    SD_FG_COMMAND_SYSTEM    = 2,
+    SD_FG_DRIVER_STRENGTH   = 3,
+    SD_FG_CURRENT_LIMIT     = 4,
+    SD_FG_RSVD_5            = 5,
+    SD_FG_RSVD_6            = 6,
+    SD_FG_COUNT
+};
+
+/* Function name */
+#define SD_FN_COUNT 16
+
+static const char *sd_fn_grp_name[SD_FG_COUNT] = {
+    [SD_FG_ACCESS_MODE]     = "ACCESS_MODE",
+    [SD_FG_COMMAND_SYSTEM]  = "COMMAND_SYSTEM",
+    [SD_FG_DRIVER_STRENGTH] = "DRIVER_STRENGTH",
+    [SD_FG_CURRENT_LIMIT]   = "CURRENT_LIMIT",
+    [SD_FG_RSVD_5]          = "RSVD5",
+    [SD_FG_RSVD_6]          = "RSVD6",
+};
+
+typedef struct sd_fn_support {
+    const char *name;
+    bool uhs_only;
+    bool unimp;
+} sd_fn_support;
+
+static const sd_fn_support *sd_fn_support_defs[SD_FG_COUNT] = {
+    [SD_FG_ACCESS_MODE] = (sd_fn_support [SD_FN_COUNT]) {
+        [0] = { .name = "default/SDR12" },
+        [1] = { .name = "high-speed/SDR25" },
+        [2] = { .name = "SDR50",    .uhs_only = true },
+        [3] = { .name = "SDR104",   .uhs_only = true },
+        [4] = { .name = "DDR50",    .uhs_only = true },
+    },
+    [SD_FG_COMMAND_SYSTEM] = (sd_fn_support [SD_FN_COUNT]) {
+        [0] = { .name = "default" },
+        [1] = { .name = "For eC" },
+        [3] = { .name = "OTP",      .unimp = true },
+        [4] = { .name = "ASSD",     .unimp = true },
+    },
+    [SD_FG_DRIVER_STRENGTH] = (sd_fn_support [SD_FN_COUNT]) {
+        [0] = { .name = "default/Type B" },
+        [1] = { .name = "Type A",   .uhs_only = true },
+        [2] = { .name = "Type C",   .uhs_only = true },
+        [3] = { .name = "Type D",   .uhs_only = true },
+    },
+    [SD_FG_CURRENT_LIMIT] = (sd_fn_support [SD_FN_COUNT]) {
+        [0] = { .name = "default/200mA" },
+        [1] = { .name = "400mA",    .uhs_only = true },
+        [2] = { .name = "600mA",    .uhs_only = true },
+        [3] = { .name = "800mA",    .uhs_only = true },
+    },
+    [SD_FG_RSVD_5] = (sd_fn_support [SD_FN_COUNT]) {
+        [0] = { .name = "default" },
+    },
+    [SD_FG_RSVD_6] = (sd_fn_support [SD_FN_COUNT]) {
+        [0] = { .name = "default" },
+    },
+};
+
+#define SD_FN_NO_INFLUENCE          (1 << 15)
+
 static void sd_function_switch(SDState *sd, uint32_t arg)
 {
-    int i, mode, new_func;
-    mode = !!(arg & 0x80000000);
+    int fn_grp, new_func, i;
+    uint8_t *data_p;
+    bool mode = extract32(arg, 31, 1);  /* 0: check only, 1: do switch */
 
-    sd->data[0] = 0x00;		/* Maximum current consumption */
-    sd->data[1] = 0x01;
-    sd->data[2] = 0x80;		/* Supported group 6 functions */
-    sd->data[3] = 0x01;
-    sd->data[4] = 0x80;		/* Supported group 5 functions */
-    sd->data[5] = 0x01;
-    sd->data[6] = 0x80;		/* Supported group 4 functions */
-    sd->data[7] = 0x01;
-    sd->data[8] = 0x80;		/* Supported group 3 functions */
-    sd->data[9] = 0x01;
-    sd->data[10] = 0x80;	/* Supported group 2 functions */
-    sd->data[11] = 0x43;
-    sd->data[12] = 0x80;	/* Supported group 1 functions */
-    sd->data[13] = 0x03;
-    for (i = 0; i < 6; i ++) {
-        new_func = (arg >> (i * 4)) & 0x0f;
-        if (mode && new_func != 0x0f)
-            sd->function_group[i] = new_func;
-        sd->data[14 + (i >> 1)] = new_func << ((i * 4) & 4);
+    stw_be_p(sd->data + 0, 0x0001);     /* Maximum current consumption */
+
+    data_p = &sd->data[2];
+    for (fn_grp = SD_FG_COUNT - 1; fn_grp >= SD_FG_MIN; fn_grp--) {
+        uint16_t supported_fns = SD_FN_NO_INFLUENCE;
+        for (i = 0; i < SD_FN_COUNT; ++i) {
+            const sd_fn_support *def = &sd_fn_support_defs[fn_grp][i];
+
+            if (def->name && !def->unimp &&
+                    !(def->uhs_only && !sd->uhs_enabled)) {
+                supported_fns |= 1 << i;
+            }
+        }
+        stw_be_p(data_p, supported_fns);
+        data_p += 2;
+    }
+
+    assert(data_p == &sd->data[14]);
+    for (fn_grp = SD_FG_COUNT - 1; fn_grp >= SD_FG_MIN; fn_grp--) {
+        new_func = (arg >> ((fn_grp - 1) * 4)) & 0x0f;
+        if (new_func == 0xf) {
+            new_func = sd->function_group[fn_grp - 1];
+        } else {
+            const sd_fn_support *def = &sd_fn_support_defs[fn_grp][new_func];
+            if (mode) {
+                if (!def->name) {
+                    qemu_log_mask(LOG_GUEST_ERROR,
+                                  "Function %d not a valid for "
+                                  "function group %d\n",
+                                  new_func, fn_grp);
+                    new_func = 0xf;
+                } else if (def->unimp) {
+                    qemu_log_mask(LOG_UNIMP,
+                                  "Function %s (fn grp %d) not implemented\n",
+                                  def->name, fn_grp);
+                    new_func = 0xf;
+                } else if (def->uhs_only && !sd->uhs_enabled) {
+                    qemu_log_mask(LOG_GUEST_ERROR,
+                                  "Function %s (fn grp %d) only "
+                                  "valid in UHS mode\n",
+                                  def->name, fn_grp);
+                    new_func = 0xf;
+                } else {
+                    sd->function_group[fn_grp - 1] = new_func;
+                }
+            }
+            trace_sdcard_function_select(def->name, sd_fn_grp_name[fn_grp],
+                                         mode);
+        }
+        if (!(fn_grp & 0x1)) { /* evens go in high nibble */
+            *data_p = new_func << 4;
+        } else { /* odds go in low nibble */
+            *(data_p++) |= new_func;
+        }
     }
     memset(&sd->data[17], 0, 47);
     stw_be_p(sd->data + 65, sd_crc16(sd->data, 64));
