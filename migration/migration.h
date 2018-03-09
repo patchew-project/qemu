@@ -65,6 +65,7 @@ struct MigrationIncomingState {
     QemuSemaphore colo_incoming_sem;
 
     /* notify PAUSED postcopy incoming migrations to try to continue */
+    bool postcopy_recover_triggered;
     QemuSemaphore postcopy_pause_sem_dst;
     QemuSemaphore postcopy_pause_sem_fault;
 };
