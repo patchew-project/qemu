@@ -54,6 +54,7 @@
 #include "qemu/cutils.h"
 #include "io/channel-buffer.h"
 #include "io/channel-file.h"
+#include "migration/colo.h"
 
 #ifndef ETH_P_RARP
 #define ETH_P_RARP 0x8035
@@ -80,6 +81,9 @@ enum qemu_vm_cmd {
                                       were previously sent during
                                       precopy but are dirty. */
     MIG_CMD_PACKAGED,          /* Send a wrapped stream within this stream */
+
+    MIG_CMD_ENABLE_COLO, /* Enable COLO */
+
     MIG_CMD_MAX
 };
 
@@ -833,6 +837,12 @@ static void qemu_savevm_command_send(QEMUFile *f,
     qemu_put_be16(f, len);
     qemu_put_buffer(f, data, len);
     qemu_fflush(f);
+}
+
+void qemu_savevm_send_colo_enable(QEMUFile *f)
+{
+    trace_savevm_send_colo_enable();
+    qemu_savevm_command_send(f, MIG_CMD_ENABLE_COLO, 0, NULL);
 }
 
 void qemu_savevm_send_ping(QEMUFile *f, uint32_t value)
@@ -1769,6 +1779,12 @@ static int loadvm_handle_cmd_packaged(MigrationIncomingState *mis)
     return ret;
 }
 
+static int loadvm_process_enable_colo(MigrationIncomingState *mis)
+{
+    migration_incoming_enable_colo();
+    return 0;
+}
+
 /*
  * Process an incoming 'QEMU_VM_COMMAND'
  * 0           just a normal return
@@ -1842,6 +1858,9 @@ static int loadvm_process_command(QEMUFile *f)
 
     case MIG_CMD_POSTCOPY_RAM_DISCARD:
         return loadvm_postcopy_ram_handle_discard(mis, len);
+
+    case MIG_CMD_ENABLE_COLO:
+        return loadvm_process_enable_colo(mis);
     }
 
     return 0;
