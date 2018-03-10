@@ -237,6 +237,41 @@ void qmp_xen_colo_do_checkpoint(Error **errp)
 #endif
 }
 
+COLOStatus *qmp_query_colo_status(Error **errp)
+{
+    MigrationState *m;
+    MigrationIncomingState *mis;
+    COLOStatus *s = g_new0(COLOStatus, 1);
+
+    if (get_colo_mode() == COLO_MODE_PRIMARY) {
+        m = migrate_get_current();
+
+        if (m->state == MIGRATION_STATUS_COLO) {
+            s->colo_running = true;
+        } else {
+            s->colo_running = false;
+        }
+        s->mode = true;
+    } else {
+        mis = migration_incoming_get_current();
+
+        if (mis->state == MIGRATION_STATUS_COLO) {
+            s->colo_running = true;
+        } else {
+            s->colo_running = false;
+        }
+        s->mode = false;
+    }
+
+    if (failover_get_state() == FAILOVER_STATUS_NONE) {
+        s->reason = true;
+    } else {
+        s->reason = false;
+    }
+
+    return s;
+}
+
 static void colo_send_message(QEMUFile *f, COLOMessage msg,
                               Error **errp)
 {
