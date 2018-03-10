@@ -59,9 +59,9 @@ static int is_tcp_packet(Packet *pkt)
 }
 
 /* handle tcp packet from primary guest */
-static int handle_primary_tcp_pkt(NetFilterState *nf,
+static int handle_primary_tcp_pkt(RewriterState *rf,
                                   Connection *conn,
-                                  Packet *pkt)
+                                  Packet *pkt, ConnectionKey *key)
 {
     struct tcphdr *tcp_pkt;
 
@@ -99,15 +99,44 @@ static int handle_primary_tcp_pkt(NetFilterState *nf,
             net_checksum_calculate((uint8_t *)pkt->data + pkt->vnet_hdr_len,
                                    pkt->size - pkt->vnet_hdr_len);
         }
+        /*
+         * Case 1:
+         * The *server* side of this connect is VM, *client* tries to close
+         * the connection.
+         *
+         * We got 'ack=1' packets from client side, it acks 'fin=1, ack=1'
+         * packet from server side. From this point, we can ensure that there
+         * will be no packets in the connection, except that, some errors
+         * happen between the path of 'filter object' and vNIC, if this rare
+         * case really happen, we can still create a new connection,
+         * So it is safe to remove the connection from connection_track_table.
+         *
+         */
+        if ((conn->tcp_state == TCPS_LAST_ACK) &&
+            (ntohl(tcp_pkt->th_ack) == (conn->fin_ack_seq + 1))) {
+            g_hash_table_remove(rf->connection_track_table, key);
+        }
+    }
+    /*
+     * Case 2:
+     * The *server* side of this connect is VM, *server* tries to close
+     * the connection.
+     *
+     * We got 'fin=1, ack=1' packet from client side, we need to
+     * record the seq of 'fin=1, ack=1' packet.
+     */
+    if ((tcp_pkt->th_flags & (TH_ACK | TH_FIN)) == (TH_ACK | TH_FIN)) {
+        conn->fin_ack_seq = htonl(tcp_pkt->th_seq);
+        conn->tcp_state = TCPS_LAST_ACK;
     }
 
     return 0;
 }
 
 /* handle tcp packet from secondary guest */
-static int handle_secondary_tcp_pkt(NetFilterState *nf,
+static int handle_secondary_tcp_pkt(RewriterState *rf,
                                     Connection *conn,
-                                    Packet *pkt)
+                                    Packet *pkt, ConnectionKey *key)
 {
     struct tcphdr *tcp_pkt;
 
@@ -139,8 +168,34 @@ static int handle_secondary_tcp_pkt(NetFilterState *nf,
             net_checksum_calculate((uint8_t *)pkt->data + pkt->vnet_hdr_len,
                                    pkt->size - pkt->vnet_hdr_len);
         }
+        /*
+         * Case 2:
+         * The *server* side of this connect is VM, *server* tries to close
+         * the connection.
+         *
+         * We got 'ack=1' packets from server side, it acks 'fin=1, ack=1'
+         * packet from client side. Like Case 1, there should be no packets
+         * in the connection from now know, But the difference here is
+         * if the packet is lost, We will get the resent 'fin=1,ack=1' packet.
+         * TODO: Fix above case.
+         */
+        if ((conn->tcp_state == TCPS_LAST_ACK) &&
+            (ntohl(tcp_pkt->th_ack) == (conn->fin_ack_seq + 1))) {
+            g_hash_table_remove(rf->connection_track_table, key);
+        }
     }
-
+    /*
+     * Case 1:
+     * The *server* side of this connect is VM, *client* tries to close
+     * the connection.
+     *
+     * We got 'fin=1, ack=1' packet from server side, we need to
+     * record the seq of 'fin=1, ack=1' packet.
+     */
+    if ((tcp_pkt->th_flags & (TH_ACK | TH_FIN)) == (TH_ACK | TH_FIN)) {
+        conn->fin_ack_seq = ntohl(tcp_pkt->th_seq);
+        conn->tcp_state = TCPS_LAST_ACK;
+    }
     return 0;
 }
 
@@ -190,7 +245,7 @@ static ssize_t colo_rewriter_receive_iov(NetFilterState *nf,
 
         if (sender == nf->netdev) {
             /* NET_FILTER_DIRECTION_TX */
-            if (!handle_primary_tcp_pkt(nf, conn, pkt)) {
+            if (!handle_primary_tcp_pkt(s, conn, pkt, &key)) {
                 qemu_net_queue_send(s->incoming_queue, sender, 0,
                 (const uint8_t *)pkt->data, pkt->size, NULL);
                 packet_destroy(pkt, NULL);
@@ -203,7 +258,7 @@ static ssize_t colo_rewriter_receive_iov(NetFilterState *nf,
             }
         } else {
             /* NET_FILTER_DIRECTION_RX */
-            if (!handle_secondary_tcp_pkt(nf, conn, pkt)) {
+            if (!handle_secondary_tcp_pkt(s, conn, pkt, &key)) {
                 qemu_net_queue_send(s->incoming_queue, sender, 0,
                 (const uint8_t *)pkt->data, pkt->size, NULL);
                 packet_destroy(pkt, NULL);
