@@ -66,22 +66,22 @@
 #define CPUID_2_L3_16MB_16WAY_64B 0x4d
 
 
-/* CPUID Leaf 4 constants: */
+/* Cache specific constants: */
 
 /* EAX: */
-#define CPUID_4_TYPE_DCACHE  1
-#define CPUID_4_TYPE_ICACHE  2
-#define CPUID_4_TYPE_UNIFIED 3
+#define TYPE_DCACHE  1
+#define TYPE_ICACHE  2
+#define TYPE_UNIFIED 3
 
-#define CPUID_4_LEVEL(l)          ((l) << 5)
+#define CACHE_LEVEL(l)          ((l) << 5)
 
-#define CPUID_4_SELF_INIT_LEVEL (1 << 8)
-#define CPUID_4_FULLY_ASSOC     (1 << 9)
+#define CACHE_SELF_INIT_LEVEL (1 << 8)
+#define CACHE_FULLY_ASSOC     (1 << 9)
 
 /* EDX: */
-#define CPUID_4_NO_INVD_SHARING (1 << 0)
-#define CPUID_4_INCLUSIVE       (1 << 1)
-#define CPUID_4_COMPLEX_IDX     (1 << 2)
+#define CACHE_NO_INVD_SHARING (1 << 0)
+#define CACHE_INCLUSIVE       (1 << 1)
+#define CACHE_COMPLEX_IDX     (1 << 2)
 
 #define ASSOC_FULL 0xFF
 
@@ -3312,29 +3312,29 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
             *eax = 0;
             switch (count) {
             case 0: /* L1 dcache info */
-                *eax |= CPUID_4_TYPE_DCACHE | \
-                        CPUID_4_LEVEL(1) | \
-                        CPUID_4_SELF_INIT_LEVEL;
+                *eax |= TYPE_DCACHE | \
+                        CACHE_LEVEL(1) | \
+                        CACHE_SELF_INIT_LEVEL;
                 *ebx = (L1D_LINE_SIZE - 1) | \
                        ((L1D_PARTITIONS - 1) << 12) | \
                        ((L1D_ASSOCIATIVITY - 1) << 22);
                 *ecx = L1D_SETS - 1;
-                *edx = CPUID_4_NO_INVD_SHARING;
+                *edx = CACHE_NO_INVD_SHARING;
                 break;
             case 1: /* L1 icache info */
-                *eax |= CPUID_4_TYPE_ICACHE | \
-                        CPUID_4_LEVEL(1) | \
-                        CPUID_4_SELF_INIT_LEVEL;
+                *eax |= TYPE_ICACHE | \
+                        CACHE_LEVEL(1) | \
+                        CACHE_SELF_INIT_LEVEL;
                 *ebx = (L1I_LINE_SIZE - 1) | \
                        ((L1I_PARTITIONS - 1) << 12) | \
                        ((L1I_ASSOCIATIVITY - 1) << 22);
                 *ecx = L1I_SETS - 1;
-                *edx = CPUID_4_NO_INVD_SHARING;
+                *edx = CACHE_NO_INVD_SHARING;
                 break;
             case 2: /* L2 cache info */
-                *eax |= CPUID_4_TYPE_UNIFIED | \
-                        CPUID_4_LEVEL(2) | \
-                        CPUID_4_SELF_INIT_LEVEL;
+                *eax |= TYPE_UNIFIED | \
+                        CACHE_LEVEL(2) | \
+                        CACHE_SELF_INIT_LEVEL;
                 if (cs->nr_threads > 1) {
                     *eax |= (cs->nr_threads - 1) << 14;
                 }
@@ -3342,7 +3342,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
                        ((L2_PARTITIONS - 1) << 12) | \
                        ((L2_ASSOCIATIVITY - 1) << 22);
                 *ecx = L2_SETS - 1;
-                *edx = CPUID_4_NO_INVD_SHARING;
+                *edx = CACHE_NO_INVD_SHARING;
                 break;
             case 3: /* L3 cache info */
                 if (!cpu->enable_l3_cache) {
@@ -3352,16 +3352,16 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
                     *edx = 0;
                     break;
                 }
-                *eax |= CPUID_4_TYPE_UNIFIED | \
-                        CPUID_4_LEVEL(3) | \
-                        CPUID_4_SELF_INIT_LEVEL;
+                *eax |= TYPE_UNIFIED | \
+                        CACHE_LEVEL(3) | \
+                        CACHE_SELF_INIT_LEVEL;
                 pkg_offset = apicid_pkg_offset(cs->nr_cores, cs->nr_threads);
                 *eax |= ((1 << pkg_offset) - 1) << 14;
                 *ebx = (L3_N_LINE_SIZE - 1) | \
                        ((L3_N_PARTITIONS - 1) << 12) | \
                        ((L3_N_ASSOCIATIVITY - 1) << 22);
                 *ecx = L3_N_SETS - 1;
-                *edx = CPUID_4_INCLUSIVE | CPUID_4_COMPLEX_IDX;
+                *edx = CACHE_INCLUSIVE | CACHE_COMPLEX_IDX;
                 break;
             default: /* end of info */
                 *eax = 0;
