@@ -53,9 +53,15 @@ typedef enum {
     BDRV_REQ_NO_SERIALISING     = 0x8,
     BDRV_REQ_FUA                = 0x10,
     BDRV_REQ_WRITE_COMPRESSED   = 0x20,
+    /* The BDRV_REQ_ALLOCATE flag is used to indicate that the driver has to
+     * efficiently allocate the space so it reads as zeroes, or return an error.
+     * Must be used together with BDRV_REQ_ZERO_WRITE.
+     * Contradictory to BDRV_REQ_MAY_UNMAP so the two must not be used together.
+     */
+    BDRV_REQ_ALLOCATE           = 0x40,
 
     /* Mask of valid flags */
-    BDRV_REQ_MASK               = 0x3f,
+    BDRV_REQ_MASK               = 0x7f,
 } BdrvRequestFlags;
 
 typedef struct BlockSizes {
