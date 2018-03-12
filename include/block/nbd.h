@@ -188,6 +188,8 @@ typedef struct NBDExtent {
 #define NBD_CMD_FLAG_REQ_ONE    (1 << 3) /* only one extent in BLOCK_STATUS
                                           * reply chunk */
 
+#define NBD_META_ID_BASE_ALLOCATION 0
+
 /* Supported request types */
 enum {
     NBD_CMD_READ = 0,
