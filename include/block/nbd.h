@@ -262,6 +262,7 @@ struct NBDExportInfo {
     /* In-out fields, set by client before nbd_receive_negotiate() and
      * updated by server results during nbd_receive_negotiate() */
     bool structured_reply;
+    bool base_allocation; /* base:allocation context for NBD_CMD_BLOCK_STATUS */
 
     /* Set by server results during nbd_receive_negotiate() */
     uint64_t size;
@@ -269,6 +270,8 @@ struct NBDExportInfo {
     uint32_t min_block;
     uint32_t opt_block;
     uint32_t max_block;
+
+    uint32_t meta_base_allocation_id;
 };
 typedef struct NBDExportInfo NBDExportInfo;
 
