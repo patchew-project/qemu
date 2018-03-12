@@ -3452,6 +3452,21 @@
             '*preallocation':   'PreallocMode' } }
 
 ##
+# @BlockdevCreateOptionsLUKS:
+#
+# Driver specific image creation options for LUKS.
+#
+# @file             Node to create the image format on
+# @size             Size of the virtual disk in bytes
+#
+# Since: 2.12
+##
+{ 'struct': 'BlockdevCreateOptionsLUKS',
+  'base': 'QCryptoBlockCreateOptionsLUKS',
+  'data': { 'file':             'BlockdevRef',
+            'size':             'size' } }
+
+##
 # @BlockdevCreateOptionsNfs:
 #
 # Driver specific image creation options for NFS.
@@ -3643,7 +3658,7 @@
       'http':           'BlockdevCreateNotSupported',
       'https':          'BlockdevCreateNotSupported',
       'iscsi':          'BlockdevCreateNotSupported',
-      'luks':           'BlockdevCreateNotSupported',
+      'luks':           'BlockdevCreateOptionsLUKS',
       'nbd':            'BlockdevCreateNotSupported',
       'nfs':            'BlockdevCreateOptionsNfs',
       'null-aio':       'BlockdevCreateNotSupported',
