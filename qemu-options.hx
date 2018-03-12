@@ -3302,6 +3302,19 @@ STEXI
 Run the emulation in single step mode.
 ETEXI
 
+DEF("preconfig", 0, QEMU_OPTION_preconfig, \
+    "-preconfig      pause QEMU before machine is initialized\n",
+    QEMU_ARCH_ALL)
+STEXI
+@item -preconfig
+@findex -preconfig
+Pause QEMU for interactive configuration before the machine is created,
+which allows querying and configuring properties that will affect
+machine initialization. Use the QMP command 'cont' to exit the preconfig
+state and move to the next state (ie. run guest if -S isn't used or
+pause the second time is -S is used).
+ETEXI
+
 DEF("S", 0, QEMU_OPTION_S, \
     "-S              freeze CPU at startup (use 'c' to start execution)\n",
     QEMU_ARCH_ALL)
