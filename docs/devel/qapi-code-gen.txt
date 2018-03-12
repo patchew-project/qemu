@@ -556,7 +556,8 @@ following example objects:
 
 Usage: { 'command': STRING, '*data': COMPLEX-TYPE-NAME-OR-DICT,
          '*returns': TYPE-NAME, '*boxed': true,
-         '*gen': false, '*success-response': false }
+         '*gen': false, '*success-response': false,
+         '*allowed-in-preconfig': true }
 
 Commands are defined by using a dictionary containing several members,
 where three members are most common.  The 'command' member is a
@@ -636,6 +637,13 @@ possible, the command expression should include the optional key
 'success-response' with boolean value false.  So far, only QGA makes
 use of this member.
 
+A command may use optional 'allowed-in-preconfig' key to permit
+its execution at early runtime configuration stage (preconfig runstate).
+If not specified then a command defaults to 'allowed-in-preconfig: false'.
+
+An example of declaring preconfig enabled command:
+ { 'command': 'qmp_capabilities',
+   'allowed-in-preconfig': true }
 
 === Events ===
 

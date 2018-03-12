@@ -24,7 +24,7 @@
 # Since: 0.13
 #
 ##
-{ 'command': 'qmp_capabilities' }
+{ 'command': 'qmp_capabilities', 'allowed-in-preconfig': true }
 
 ##
 # @VersionTriple:
@@ -127,7 +127,8 @@
 # Note: This example has been shortened as the real response is too long.
 #
 ##
-{ 'command': 'query-commands', 'returns': ['CommandInfo'] }
+{ 'command': 'query-commands', 'returns': ['CommandInfo'],
+  'allowed-in-preconfig': true }
 
 ##
 # @LostTickPolicy:
@@ -1180,7 +1181,7 @@
 # <- { "return": {} }
 #
 ##
-{ 'command': 'cont' }
+{ 'command': 'cont', 'allowed-in-preconfig': true }
 
 ##
 # @system_wakeup:
