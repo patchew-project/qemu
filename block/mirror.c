@@ -1100,6 +1100,15 @@ static BlockDriver bdrv_mirror_top = {
     .bdrv_child_perm            = bdrv_mirror_top_child_perm,
 };
 
+static void mirror_top_set_supported_flags(BlockDriverState *bs)
+{
+    bs->supported_write_flags = BDRV_REQ_FUA &
+        bs->backing->bs->supported_write_flags;
+    bs->supported_zero_flags =
+        (BDRV_REQ_FUA | BDRV_REQ_MAY_UNMAP) &
+        bs->backing->bs->supported_zero_flags;
+}
+
 static void mirror_start_job(const char *job_id, BlockDriverState *bs,
                              int creation_flags, BlockDriverState *target,
                              const char *replaces, int64_t speed,
@@ -1164,6 +1173,8 @@ static void mirror_start_job(const char *job_id, BlockDriverState *bs,
         error_propagate(errp, local_err);
         return;
     }
+
+    mirror_top_set_supported_flags(mirror_top_bs);
 
     /* Make sure that the source is not resized while the job is running */
     s = block_job_create(job_id, driver, mirror_top_bs,
