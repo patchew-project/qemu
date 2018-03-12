@@ -15,6 +15,7 @@
 #include <glib/gprintf.h>
 #include "hw/virtio/virtio.h"
 #include "qapi/error.h"
+#include "qemu/cutils.h"
 #include "qemu/error-report.h"
 #include "qemu/iov.h"
 #include "qemu/sockets.h"
@@ -2213,8 +2214,14 @@ static void coroutine_fn v9fs_create(void *opaque)
         }
         v9fs_path_copy(&fidp->path, &path);
     } else if (perm & P9_STAT_MODE_LINK) {
-        int32_t ofid = atoi(extension.data);
-        V9fsFidState *ofidp = get_fid(pdu, ofid);
+        int ofid;
+        V9fsFidState *ofidp;
+
+        if (qemu_strtoi(extension.data, NULL, 10, &ofid)) {
+            err = -EINVAL;
+            goto out;
+        }
+        ofidp = get_fid(pdu, (int32_t)ofid);
         if (ofidp == NULL) {
             err = -EINVAL;
             goto out;
