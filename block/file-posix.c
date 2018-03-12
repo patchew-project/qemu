@@ -560,7 +560,10 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
     }
     if (S_ISREG(st.st_mode)) {
         s->discard_zeroes = true;
+#ifdef CONFIG_FALLOCATE
         s->has_fallocate = true;
+        bs->supported_zero_flags |= BDRV_REQ_ALLOCATE;
+#endif
     }
     if (S_ISBLK(st.st_mode)) {
 #ifdef BLKDISCARDZEROES
@@ -595,10 +598,11 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
 #ifdef CONFIG_XFS
     if (platform_test_xfs_fd(s->fd)) {
         s->is_xfs = true;
+        bs->supported_zero_flags |= BDRV_REQ_ALLOCATE;
     }
 #endif
 
-    bs->supported_zero_flags = s->discard_zeroes ? BDRV_REQ_MAY_UNMAP : 0;
+    bs->supported_zero_flags |= s->discard_zeroes ? BDRV_REQ_MAY_UNMAP : 0;
     ret = 0;
 fail:
     if (filename && (bdrv_flags & BDRV_O_TEMPORARY)) {
@@ -1415,6 +1419,10 @@ static ssize_t handle_aiocb_write_zeroes(RawPosixAIOData *aiocb)
             return ret;
         }
         s->has_fallocate = false;
+    }
+
+    if (!s->has_fallocate) {
+        aiocb->bs->supported_zero_flags &= ~BDRV_REQ_ALLOCATE;
     }
 #endif
 
