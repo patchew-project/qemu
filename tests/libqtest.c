@@ -1096,3 +1096,10 @@ void qtest_qmp_device_del(const char *id)
     QDECREF(response1);
     QDECREF(response2);
 }
+
+bool qmp_rsp_is_err(QDict *rsp)
+{
+    QDict *error = qdict_get_qdict(rsp, "error");
+    QDECREF(rsp);
+    return !!error;
+}
