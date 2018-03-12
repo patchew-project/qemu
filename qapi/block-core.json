@@ -3678,7 +3678,7 @@
       'sheepdog':       'BlockdevCreateOptionsSheepdog',
       'ssh':            'BlockdevCreateOptionsSsh',
       'throttle':       'BlockdevCreateNotSupported',
-      'vdi':            'BlockdevCreateNotSupported',
+      'vdi':            'BlockdevCreateOptionsVdi',
       'vhdx':           'BlockdevCreateNotSupported',
       'vmdk':           'BlockdevCreateNotSupported',
       'vpc':            'BlockdevCreateNotSupported',
