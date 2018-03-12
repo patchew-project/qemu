@@ -90,6 +90,7 @@ static bool has_msr_hv_runtime;
 static bool has_msr_hv_synic;
 static bool has_msr_hv_stimer;
 static bool has_msr_hv_frequencies;
+static bool has_msr_hv_reenlightenment;
 static bool has_msr_xss;
 static bool has_msr_spec_ctrl;
 
@@ -649,6 +650,11 @@ static int hyperv_handle_properties(CPUState *cs)
             env->features[FEAT_HYPERV_EAX] |= HV_ACCESS_FREQUENCY_MSRS;
             env->features[FEAT_HYPERV_EDX] |= HV_FREQUENCY_MSRS_AVAILABLE;
         }
+
+        if (has_msr_hv_reenlightenment) {
+            env->features[FEAT_HYPERV_EAX] |=
+                HV_ACCESS_REENLIGHTENMENTS_CONTROL;
+        }
     }
     if (cpu->hyperv_crash && has_msr_hv_crash) {
         env->features[FEAT_HYPERV_EDX] |= HV_GUEST_CRASH_MSR_AVAILABLE;
@@ -1153,6 +1159,9 @@ static int kvm_get_supported_msrs(KVMState *s)
                     break;
                 case HV_X64_MSR_TSC_FREQUENCY:
                     has_msr_hv_frequencies = true;
+                    break;
+                case HV_X64_MSR_REENLIGHTENMENT_CONTROL:
+                    has_msr_hv_reenlightenment = true;
                     break;
                 case MSR_IA32_SPEC_CTRL:
                     has_msr_spec_ctrl = true;
@@ -1713,6 +1722,15 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
             if (cpu->hyperv_time) {
                 kvm_msr_entry_add(cpu, HV_X64_MSR_REFERENCE_TSC,
                                   env->msr_hv_tsc);
+
+                if (has_msr_hv_reenlightenment) {
+                    kvm_msr_entry_add(cpu, HV_X64_MSR_REENLIGHTENMENT_CONTROL,
+                                      env->msr_hv_reenlightenment_control);
+                    kvm_msr_entry_add(cpu, HV_X64_MSR_TSC_EMULATION_CONTROL,
+                                      env->msr_hv_tsc_emulation_control);
+                    kvm_msr_entry_add(cpu, HV_X64_MSR_TSC_EMULATION_STATUS,
+                                      env->msr_hv_tsc_emulation_status);
+                }
             }
         }
         if (cpu->hyperv_vapic) {
@@ -2053,6 +2071,12 @@ static int kvm_get_msrs(X86CPU *cpu)
     }
     if (cpu->hyperv_time) {
         kvm_msr_entry_add(cpu, HV_X64_MSR_REFERENCE_TSC, 0);
+
+        if (has_msr_hv_reenlightenment) {
+            kvm_msr_entry_add(cpu, HV_X64_MSR_REENLIGHTENMENT_CONTROL, 0);
+            kvm_msr_entry_add(cpu, HV_X64_MSR_TSC_EMULATION_CONTROL, 0);
+            kvm_msr_entry_add(cpu, HV_X64_MSR_TSC_EMULATION_STATUS, 0);
+        }
     }
     if (has_msr_hv_crash) {
         int j;
@@ -2293,6 +2317,15 @@ static int kvm_get_msrs(X86CPU *cpu)
         case HV_X64_MSR_STIMER3_COUNT:
             env->msr_hv_stimer_count[(index - HV_X64_MSR_STIMER0_COUNT)/2] =
                                 msrs[i].data;
+            break;
+        case HV_X64_MSR_REENLIGHTENMENT_CONTROL:
+            env->msr_hv_reenlightenment_control = msrs[i].data;
+            break;
+        case HV_X64_MSR_TSC_EMULATION_CONTROL:
+            env->msr_hv_tsc_emulation_control = msrs[i].data;
+            break;
+        case HV_X64_MSR_TSC_EMULATION_STATUS:
+            env->msr_hv_tsc_emulation_status = msrs[i].data;
             break;
         case MSR_MTRRdefType:
             env->mtrr_deftype = msrs[i].data;
