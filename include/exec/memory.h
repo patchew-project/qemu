@@ -1179,6 +1179,15 @@ bool memory_region_snapshot_get_dirty(MemoryRegion *mr,
                                       hwaddr addr, hwaddr size);
 
 /**
+ * memory_region_snapshot_get_dirty_bitmap: Get the dirty bitmap data of
+ * snapshot.
+ *
+ * @snap: the dirty bitmap snapshot
+ */
+unsigned long *memory_region_snapshot_get_dirty_bitmap
+     (DirtyBitmapSnapshot *snap);
+
+/**
  * memory_region_reset_dirty: Mark a range of pages as clean, for a specified
  *                            client.
  *
