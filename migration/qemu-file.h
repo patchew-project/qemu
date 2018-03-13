@@ -57,6 +57,14 @@ typedef ssize_t (QEMUFileWritevBufferFunc)(void *opaque, struct iovec *iov,
                                            int iovcnt, int64_t pos);
 
 /*
+ * This function add reference to the dependency data in snapshot specified by
+ * ref_name_str to this file's offset
+ */
+typedef ssize_t (QEMUFileSaveDependencyFunc)(void *opaque, const char *name,
+                                             int64_t depend_offset,
+                                             int64_t offset, int64_t size);
+
+/*
  * This function provides hooks around different
  * stages of RAM migration.
  * 'opaque' is the backend specific data in QEMUFile
@@ -104,6 +112,7 @@ typedef struct QEMUFileOps {
     QEMUFileWritevBufferFunc *writev_buffer;
     QEMURetPathFunc *get_return_path;
     QEMUFileShutdownFunc *shut_down;
+    QEMUFileSaveDependencyFunc *save_dependency;
 } QEMUFileOps;
 
 typedef struct QEMUFileHooks {
@@ -153,6 +162,11 @@ int qemu_file_shutdown(QEMUFile *f);
 QEMUFile *qemu_file_get_return_path(QEMUFile *f);
 void qemu_fflush(QEMUFile *f);
 void qemu_file_set_blocking(QEMUFile *f, bool block);
+bool qemu_file_set_ref_name(QEMUFile *f, const char *name);
+void qemu_file_set_support_dependency(QEMUFile *f, int32_t alignment);
+bool qemu_file_is_support_dependency(QEMUFile *f, int32_t *alignment);
+ssize_t qemu_file_save_dependency(QEMUFile *f, int64_t depend_offset,
+                                  int64_t size);
 
 size_t qemu_get_counted_string(QEMUFile *f, char buf[256]);
 

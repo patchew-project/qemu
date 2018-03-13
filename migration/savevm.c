@@ -196,6 +196,20 @@ static ssize_t block_writev_buffer(void *opaque, struct iovec *iov, int iovcnt,
     return qiov.size;
 }
 
+static ssize_t block_save_dependency(void *opaque, const char *id_name,
+                                     int64_t depend_offset,
+                                     int64_t offset, int64_t size)
+{
+    int ret = bdrv_snapshot_save_dependency(opaque, id_name,
+                                            depend_offset, offset,
+                                            size, NULL);
+    if (ret < 0) {
+        return ret;
+    }
+
+    return size;
+}
+
 static ssize_t block_get_buffer(void *opaque, uint8_t *buf, int64_t pos,
                                 size_t size)
 {
@@ -213,15 +227,28 @@ static const QEMUFileOps bdrv_read_ops = {
 };
 
 static const QEMUFileOps bdrv_write_ops = {
-    .writev_buffer  = block_writev_buffer,
-    .close          = bdrv_fclose
+    .writev_buffer   = block_writev_buffer,
+    .close           = bdrv_fclose,
+    .save_dependency = block_save_dependency
 };
 
 static QEMUFile *qemu_fopen_bdrv(BlockDriverState *bs, int is_writable)
 {
+    int ret = 0;
+    int32_t alignment = 0;
+    QEMUFile *f = NULL;
+
     if (is_writable) {
-        return qemu_fopen_ops(bs, &bdrv_write_ops);
+        f = qemu_fopen_ops(bs, &bdrv_write_ops);
+
+        ret = bdrv_snapshot_support_dependency(bs, &alignment);
+        if (ret > 0) {
+            qemu_file_set_support_dependency(f, alignment);
+        }
+
+        return f;
     }
+
     return qemu_fopen_ops(bs, &bdrv_read_ops);
 }
 

@@ -46,10 +46,13 @@ struct QEMUFile {
     int buf_index;
     int buf_size; /* 0 when writing */
     uint8_t buf[IO_BUF_SIZE];
+    char ref_name_str[128]; /* maybe snapshot id */
 
     DECLARE_BITMAP(may_free, MAX_IOV_SIZE);
     struct iovec iov[MAX_IOV_SIZE];
     unsigned int iovcnt;
+    bool support_dependency;
+    int32_t dependency_aligment;
 
     int last_error;
 };
@@ -744,4 +747,62 @@ void qemu_file_set_blocking(QEMUFile *f, bool block)
     if (f->ops->set_blocking) {
         f->ops->set_blocking(f->opaque, block);
     }
+}
+
+void qemu_file_set_support_dependency(QEMUFile *f, int32_t alignment)
+{
+    f->dependency_aligment = alignment;
+    f->support_dependency = true;
+}
+
+bool qemu_file_is_support_dependency(QEMUFile *f, int32_t *alignment)
+{
+    if (f->support_dependency && alignment) {
+        *alignment = f->dependency_aligment;
+    }
+
+    return f->support_dependency;
+}
+
+/* This function set the reference name for snapshot usage. Sometimes it needs
+ * to depend on other snapshot's data to avoid redundance.
+ */
+bool qemu_file_set_ref_name(QEMUFile *f, const char *name)
+{
+    if (strlen(name) + 1 > sizeof(f->ref_name_str)) {
+        return false;
+    }
+
+    memcpy(f->ref_name_str, name, strlen(name) + 1);
+    return true;
+}
+
+ssize_t qemu_file_save_dependency(QEMUFile *f, int64_t depend_offset,
+                                  int64_t size)
+{
+    ssize_t ret;
+
+    if (f->support_dependency == false) {
+        return -1;
+    }
+
+    assert(f->ops->save_dependency);
+
+    if (!QEMU_IS_ALIGNED(depend_offset, f->dependency_aligment)) {
+        return -1;
+    }
+
+    qemu_fflush(f);
+
+    if (!QEMU_IS_ALIGNED(f->pos, f->dependency_aligment)) {
+        return -1;
+    }
+
+    ret = f->ops->save_dependency(f->opaque, f->ref_name_str,
+                                  depend_offset, size, f->pos);
+    if (ret > 0) {
+        f->pos += size;
+    }
+
+    return ret;
 }
