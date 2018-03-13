@@ -754,3 +754,157 @@ int qcow2_snapshot_load_tmp(BlockDriverState *bs,
 
     return 0;
 }
+
+int qcow2_snapshot_save_dependency(BlockDriverState *bs,
+                                   const char *depend_snapshot_id,
+                                   int64_t depend_offset,
+                                   int64_t depend_size,
+                                   int64_t offset,
+                                   Error **errp)
+{
+    int snapshot_index;
+    BDRVQcow2State *s = bs->opaque;
+    QCowSnapshot *sn;
+    int ret;
+    int64_t i;
+    int64_t total_bytes = depend_size;
+    int64_t depend_offset1, offset1;
+    uint64_t *depend_l1_table = NULL;
+    uint64_t depend_l1_bytes;
+    uint64_t *depend_l2_table = NULL;
+    uint64_t depend_l2_offset;
+    uint64_t depend_entry;
+    QCowL2Meta l2meta;
+
+    assert(bs->read_only == false);
+
+    if (depend_snapshot_id == NULL) {
+        return 0;
+    }
+
+    if (!QEMU_IS_ALIGNED(depend_offset,  s->cluster_size)) {
+        error_setg(errp, "Specified snapshot offset is not multiple of %u",
+                s->cluster_size);
+        return -EINVAL;
+    }
+
+    if (!QEMU_IS_ALIGNED(offset,  s->cluster_size)) {
+        error_setg(errp, "Offset is not multiple of %u", s->cluster_size);
+        return -EINVAL;
+    }
+
+    if (!QEMU_IS_ALIGNED(depend_size,  s->cluster_size)) {
+        error_setg(errp, "depend_size is not multiple of %u", s->cluster_size);
+        return -EINVAL;
+    }
+
+    snapshot_index = find_snapshot_by_id_and_name(bs, NULL, depend_snapshot_id);
+    /* Search the snapshot */
+    if (snapshot_index < 0) {
+        error_setg(errp, "Can't find snapshot");
+        return -ENOENT;
+    }
+
+    sn = &s->snapshots[snapshot_index];
+    if (sn->disk_size != bs->total_sectors * BDRV_SECTOR_SIZE) {
+        error_report("qcow2: depend on the snapshots with different disk "
+                "size is not implemented");
+        return -ENOTSUP;
+    }
+
+    /* Only can save dependency of snapshot's vmstate data */
+    depend_offset1 = depend_offset + qcow2_vm_state_offset(s);
+    offset1 = offset + qcow2_vm_state_offset(s);
+
+    depend_l1_bytes = s->l1_size * sizeof(uint64_t);
+    depend_l1_table = g_try_malloc0(depend_l1_bytes);
+    if (depend_l1_table == NULL) {
+        return -ENOMEM;
+    }
+
+    ret = bdrv_pread(bs->file, sn->l1_table_offset, depend_l1_table,
+                     depend_l1_bytes);
+    if (ret < 0) {
+        g_free(depend_l1_table);
+        goto out;
+    }
+    for (i = 0; i < depend_l1_bytes / sizeof(uint64_t); i++) {
+        be64_to_cpus(&depend_l1_table[i]);
+    }
+
+    while (total_bytes) {
+        assert(total_bytes > 0);
+        /* Find the cluster of depend */
+        depend_l2_offset =
+            depend_l1_table[depend_offset1 >> (s->l2_bits + s->cluster_bits)];
+        depend_l2_offset &= L1E_OFFSET_MASK;
+        if (depend_l2_offset == 0) {
+            ret = -EINVAL;
+            goto out;
+        }
+
+        if (offset_into_cluster(s, depend_l2_offset)) {
+            qcow2_signal_corruption(bs, true, -1, -1, "L2 table offset %#"
+                                    PRIx64 " unaligned (L1 index: %#"
+                                    PRIx64 ")",
+                                    depend_l2_offset,
+                                    depend_offset1 >>
+                                        (s->l2_bits + s->cluster_bits));
+            return -EIO;
+        }
+
+        ret = qcow2_cache_get(bs, s->l2_table_cache, depend_l2_offset,
+                              (void **)(&depend_l2_table));
+        if (ret < 0) {
+            goto out;
+        }
+
+        depend_entry =
+            be64_to_cpu(
+                depend_l2_table[offset_to_l2_index(s, depend_offset1)]);
+        if (depend_entry == 0) {
+            ret = -EINVAL;
+            qcow2_cache_put(s->l2_table_cache, (void **)(&depend_l2_table));
+            goto out;
+        }
+
+        memset(&l2meta, 0, sizeof(l2meta));
+        l2meta.offset = offset1;
+        l2meta.alloc_offset = (depend_entry & L2E_OFFSET_MASK);
+        l2meta.nb_clusters = 1;
+        /* Add a ref to this cluster */
+        ret = qcow2_update_cluster_refcount(
+                  bs, l2meta.alloc_offset >> s->cluster_bits,
+                  1, false, QCOW2_DISCARD_SNAPSHOT);
+        if (ret < 0) {
+            qcow2_cache_put(s->l2_table_cache, (void **)(&depend_l2_table));
+            goto out;
+        }
+
+        ret = qcow2_alloc_cluster_link_l2(bs, &l2meta);
+        if (ret < 0) {
+            qcow2_cache_put(s->l2_table_cache, (void **)(&depend_l2_table));
+            goto out;
+        }
+
+        total_bytes -= s->cluster_size;
+        offset1 += s->cluster_size;
+        depend_offset1 += s->cluster_size;
+
+        qcow2_cache_put(s->l2_table_cache, (void **)(&depend_l2_table));
+    }
+
+out:
+    g_free(depend_l1_table);
+    return ret;
+}
+
+int qcow2_snapshot_support_dependency(BlockDriverState *bs, int32_t *alignment)
+{
+    BDRVQcow2State *s = bs->opaque;
+    if (alignment) {
+        *alignment = s->cluster_size;
+    }
+
+    return 1;
+}
