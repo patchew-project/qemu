@@ -1219,9 +1219,15 @@ static bool find_dirty_block(RAMState *rs, PageSearchStatus *pss, bool *again)
         /* Didn't find anything in this RAM Block */
         pss->page = 0;
         pss->block = QLIST_NEXT_RCU(pss->block, next);
+        while (ram_block_is_nvdimm_active(pss->block)) {
+            pss->block = QLIST_NEXT_RCU(pss->block, next);
+        }
         if (!pss->block) {
             /* Hit the end of the list */
             pss->block = QLIST_FIRST_RCU(&ram_list.blocks);
+            while (ram_block_is_nvdimm_active(pss->block)) {
+                pss->block = QLIST_NEXT_RCU(pss->block, next);
+            }
             /* Flag that we've looped */
             pss->complete_round = true;
             rs->ram_bulk_stage = false;
@@ -1541,6 +1547,9 @@ static int ram_find_and_save_block(RAMState *rs, bool last_stage)
 
     if (!pss.block) {
         pss.block = QLIST_FIRST_RCU(&ram_list.blocks);
+        while (ram_block_is_nvdimm_active(pss.block)) {
+            pss.block = QLIST_NEXT_RCU(pss.block, next);
+        }
     }
 
     do {
@@ -1583,6 +1592,10 @@ uint64_t ram_bytes_total(void)
 
     rcu_read_lock();
     RAMBLOCK_FOREACH(block) {
+        if (ram_block_is_nvdimm_active(block)) {
+            // If snapshot and the block is nvdimm, let nvdimm do the job
+            continue;
+        }
         total += block->used_length;
     }
     rcu_read_unlock();
@@ -2222,6 +2235,10 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
     qemu_put_be64(f, ram_bytes_total() | RAM_SAVE_FLAG_MEM_SIZE);
 
     RAMBLOCK_FOREACH(block) {
+        if (ram_block_is_nvdimm_active(block)) {
+            // If snapshot and the block is nvdimm, let nvdimm do the job
+            continue;
+        }
         qemu_put_byte(f, strlen(block->idstr));
         qemu_put_buffer(f, (uint8_t *)block->idstr, strlen(block->idstr));
         qemu_put_be64(f, block->used_length);
