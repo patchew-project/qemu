@@ -1921,11 +1921,12 @@ void memory_region_set_log(MemoryRegion *mr, bool log, unsigned client)
     uint8_t mask = 1 << client;
     uint8_t old_logging;
 
-    assert(client == DIRTY_MEMORY_VGA);
-    old_logging = mr->vga_logging_count;
-    mr->vga_logging_count += log ? 1 : -1;
-    if (!!old_logging == !!mr->vga_logging_count) {
-        return;
+    if (client == DIRTY_MEMORY_VGA) {
+        old_logging = mr->vga_logging_count;
+        mr->vga_logging_count += log ? 1 : -1;
+        if (!!old_logging == !!mr->vga_logging_count) {
+            return;
+        }
     }
 
     memory_region_transaction_begin();
