@@ -15,7 +15,10 @@
 #ifndef QEMU_MIGRATION_SNAPSHOT_H
 #define QEMU_MIGRATION_SNAPSHOT_H
 
+#include "block/snapshot.h"
+
 int save_snapshot(const char *name, Error **errp);
 int load_snapshot(const char *name, Error **errp);
+int get_current_snapshot_info(QEMUSnapshotInfo *sn);
 
 #endif
