@@ -2249,7 +2249,7 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
  * @f: QEMUFile where to send the data
  * @opaque: RAMState pointer
  */
-static int ram_save_iterate(QEMUFile *f, void *opaque)
+static int ram_save_iterate(QEMUFile *f, void *opaque, int section_id)
 {
     RAMState **temp = opaque;
     RAMState *rs = *temp;

@@ -1974,7 +1974,7 @@ static int htab_save_later_pass(QEMUFile *f, sPAPRMachineState *spapr,
 #define MAX_ITERATION_NS    5000000 /* 5 ms */
 #define MAX_KVM_BUF_SIZE    2048
 
-static int htab_save_iterate(QEMUFile *f, void *opaque)
+static int htab_save_iterate(QEMUFile *f, void *opaque, int section_id)
 {
     sPAPRMachineState *spapr = opaque;
     int fd;
