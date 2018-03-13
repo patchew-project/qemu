@@ -401,6 +401,51 @@ int bdrv_snapshot_load_tmp_by_id_or_name(BlockDriverState *bs,
     return ret;
 }
 
+int bdrv_snapshot_save_dependency(BlockDriverState *bs,
+                                  const char *depend_snapshot_id,
+                                  int64_t depend_offset,
+                                  int64_t depend_size,
+                                  int64_t offset,
+                                  Error **errp)
+{
+    BlockDriver *drv = bs->drv;
+
+    if (!drv) {
+        return -ENOMEDIUM;
+    }
+
+    if (drv->bdrv_snapshot_save_dependency) {
+        return drv->bdrv_snapshot_save_dependency(bs, depend_snapshot_id,
+                                                  depend_offset, depend_size,
+                                                  offset, errp);
+    }
+
+    if (bs->file) {
+        return bdrv_snapshot_save_dependency(bs->file->bs, depend_snapshot_id,
+                                             depend_offset, depend_size,
+                                             offset, errp);
+    }
+
+    return -ENOTSUP;
+}
+
+int bdrv_snapshot_support_dependency(BlockDriverState *bs, int32_t *alignment)
+{
+    BlockDriver *drv = bs->drv;
+    if (!drv || !bdrv_is_inserted(bs) || bdrv_is_read_only(bs)) {
+        return 0;
+    }
+
+    if (drv->bdrv_snapshot_support_dependency) {
+        return drv->bdrv_snapshot_support_dependency(bs, alignment);
+    }
+
+    if (bs->file != NULL) {
+        return bdrv_snapshot_support_dependency(bs->file->bs, alignment);
+    }
+
+    return -ENOTSUP;
+}
 
 /* Group operations. All block drivers are involved.
  * These functions will properly handle dataplane (take aio_context_acquire
