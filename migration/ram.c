@@ -278,6 +278,7 @@ struct DecompressParam {
     bool quit;
     QemuMutex mutex;
     QemuCond cond;
+    QEMUFile *file;
     void *des;
     uint8_t *compbuf;
     int len;
@@ -1056,11 +1057,13 @@ static int do_compress_ram_page(QEMUFile *f, z_stream *stream, RAMBlock *block,
 {
     RAMState *rs = ram_state;
     int bytes_sent, blen;
-    uint8_t *p = block->host + (offset & TARGET_PAGE_MASK);
+    uint8_t buf[TARGET_PAGE_SIZE], *p;
 
+    p = block->host + (offset & TARGET_PAGE_MASK);
     bytes_sent = save_page_header(rs, f, block, offset |
                                   RAM_SAVE_FLAG_COMPRESS_PAGE);
-    blen = qemu_put_compression_data(f, stream, p, TARGET_PAGE_SIZE);
+    memcpy(buf, p, TARGET_PAGE_SIZE);
+    blen = qemu_put_compression_data(f, stream, buf, TARGET_PAGE_SIZE);
     if (blen < 0) {
         bytes_sent = 0;
         qemu_file_set_error(migrate_get_current()->to_dst_file, blen);
@@ -2553,7 +2556,7 @@ static void *do_data_decompress(void *opaque)
     DecompressParam *param = opaque;
     unsigned long pagesize;
     uint8_t *des;
-    int len;
+    int len, ret;
 
     qemu_mutex_lock(&param->mutex);
     while (!param->quit) {
@@ -2569,8 +2572,12 @@ static void *do_data_decompress(void *opaque)
              * not a problem because the dirty page will be retransferred
              * and uncompress() won't break the data in other pages.
              */
-            qemu_uncompress(&param->stream, des, pagesize,
-                            param->compbuf, len);
+            ret = qemu_uncompress(&param->stream, des, pagesize,
+                                  param->compbuf, len);
+            if (ret < 0) {
+                error_report("decompress data failed");
+                qemu_file_set_error(param->file, ret);
+            }
 
             qemu_mutex_lock(&decomp_done_lock);
             param->done = true;
@@ -2587,12 +2594,12 @@ static void *do_data_decompress(void *opaque)
     return NULL;
 }
 
-static void wait_for_decompress_done(void)
+static int wait_for_decompress_done(QEMUFile *f)
 {
     int idx, thread_count;
 
     if (!migrate_use_compression()) {
-        return;
+        return 0;
     }
 
     thread_count = migrate_decompress_threads();
@@ -2603,6 +2610,7 @@ static void wait_for_decompress_done(void)
         }
     }
     qemu_mutex_unlock(&decomp_done_lock);
+    return qemu_file_get_error(f);
 }
 
 static void compress_threads_load_cleanup(void)
@@ -2641,7 +2649,7 @@ static void compress_threads_load_cleanup(void)
     decomp_param = NULL;
 }
 
-static int compress_threads_load_setup(void)
+static int compress_threads_load_setup(QEMUFile *f)
 {
     int i, thread_count;
 
@@ -2660,6 +2668,7 @@ static int compress_threads_load_setup(void)
         }
         decomp_param[i].stream.opaque = &decomp_param[i];
 
+        decomp_param[i].file = f;
         qemu_mutex_init(&decomp_param[i].mutex);
         qemu_cond_init(&decomp_param[i].cond);
         decomp_param[i].compbuf = g_malloc0(compressBound(TARGET_PAGE_SIZE));
@@ -2714,7 +2723,7 @@ static void decompress_data_with_multi_threads(QEMUFile *f,
  */
 static int ram_load_setup(QEMUFile *f, void *opaque)
 {
-    if (compress_threads_load_setup()) {
+    if (compress_threads_load_setup(f)) {
         return -1;
     }
 
@@ -3069,7 +3078,7 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
         }
     }
 
-    wait_for_decompress_done();
+    ret |= wait_for_decompress_done(f);
     rcu_read_unlock();
     trace_ram_load_complete(ret, seq_iter);
     return ret;
