@@ -1072,7 +1072,7 @@ int qemu_savevm_state_iterate(QEMUFile *f, bool postcopy)
 
         save_section_header(f, se, QEMU_VM_SECTION_PART);
 
-        ret = se->ops->save_live_iterate(f, se->opaque);
+        ret = se->ops->save_live_iterate(f, se->opaque, se->section_id);
         trace_savevm_section_end(se->idstr, se->section_id, ret);
         save_section_footer(f, se);
 

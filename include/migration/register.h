@@ -31,7 +31,7 @@ typedef struct SaveVMHandlers {
      * use data that is local to the migration thread or protected
      * by other locks.
      */
-    int (*save_live_iterate)(QEMUFile *f, void *opaque);
+    int (*save_live_iterate)(QEMUFile *f, void *opaque, int section_id);
 
     /* This runs outside the iothread lock!  */
     int (*save_setup)(QEMUFile *f, void *opaque);

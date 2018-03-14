@@ -246,7 +246,7 @@ static int cmma_save(QEMUFile *f, void *opaque, int final)
     return ret;
 }
 
-static int cmma_save_iterate(QEMUFile *f, void *opaque)
+static int cmma_save_iterate(QEMUFile *f, void *opaque, int section_id)
 {
     return cmma_save(f, opaque, 0);
 }

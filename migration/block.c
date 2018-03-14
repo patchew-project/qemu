@@ -754,7 +754,7 @@ static int block_save_setup(QEMUFile *f, void *opaque)
     return ret;
 }
 
-static int block_save_iterate(QEMUFile *f, void *opaque)
+static int block_save_iterate(QEMUFile *f, void *opaque, int section_id)
 {
     int ret;
     int64_t last_ftell = qemu_ftell(f);
