@@ -20,6 +20,10 @@
 
 void ram_mig_init(void);
 
+/* migration/nvdimm.c */
+void nvdimm_snapshot_init(void);
+bool ram_block_is_nvdimm_active(RAMBlock *block);
+
 /* migration/block.c */
 
 #ifdef CONFIG_LIVE_BLOCK_MIGRATION
