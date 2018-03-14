@@ -73,6 +73,13 @@ int bdrv_snapshot_load_tmp(BlockDriverState *bs,
 int bdrv_snapshot_load_tmp_by_id_or_name(BlockDriverState *bs,
                                          const char *id_or_name,
                                          Error **errp);
+int bdrv_snapshot_save_dependency(BlockDriverState *bs,
+                                  const char *depend_snapshot_id,
+                                  int64_t depend_offset,
+                                  int64_t depend_size,
+                                  int64_t offset,
+                                  Error **errp);
+int bdrv_snapshot_support_dependency(BlockDriverState *bs, int32_t *alignment);
 
 
 /* Group operations. All block drivers are involved.
