@@ -1235,6 +1235,13 @@ bool cpu_physical_memory_snapshot_get_dirty(DirtyBitmapSnapshot *snap,
     return false;
 }
 
+unsigned long *cpu_physical_memory_snapshot_get_dirty_bitmap
+     (DirtyBitmapSnapshot *snap)
+{
+    assert(snap);
+    return snap->dirty;
+}
+
 /* Called from RCU critical section */
 hwaddr memory_region_section_get_iotlb(CPUState *cpu,
                                        MemoryRegionSection *section,

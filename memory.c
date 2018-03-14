@@ -1991,6 +1991,13 @@ DirtyBitmapSnapshot *memory_region_snapshot_and_clear_dirty(MemoryRegion *mr,
                 memory_region_get_ram_addr(mr) + addr, size, client);
 }
 
+unsigned long *memory_region_snapshot_get_dirty_bitmap
+     (DirtyBitmapSnapshot *snap)
+{
+    assert(snap);
+    return cpu_physical_memory_snapshot_get_dirty_bitmap(snap);
+}
+
 bool memory_region_snapshot_get_dirty(MemoryRegion *mr, DirtyBitmapSnapshot *snap,
                                       hwaddr addr, hwaddr size)
 {
