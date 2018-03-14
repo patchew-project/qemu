@@ -2212,6 +2212,29 @@ int qemu_loadvm_state(QEMUFile *f)
     return ret;
 }
 
+static int in_snap_saving;
+static QEMUSnapshotInfo in_snap_saving_sn;
+
+int get_current_snapshot_info(QEMUSnapshotInfo *sn)
+{
+    if (in_snap_saving && sn) {
+        memcpy(sn, &in_snap_saving_sn, sizeof(QEMUSnapshotInfo));
+    }
+
+    return in_snap_saving;
+}
+
+static void set_current_snapshot_info(QEMUSnapshotInfo *sn)
+{
+    if (sn) {
+        memcpy(&in_snap_saving_sn, sn, sizeof(QEMUSnapshotInfo));
+        in_snap_saving = 1;
+    } else {
+        memset(&in_snap_saving_sn, 0, sizeof(QEMUSnapshotInfo));
+        in_snap_saving = 0;
+    }
+}
+
 int save_snapshot(const char *name, Error **errp)
 {
     BlockDriverState *bs, *bs1;
@@ -2282,6 +2305,8 @@ int save_snapshot(const char *name, Error **errp)
         strftime(sn->name, sizeof(sn->name), "vm-%Y%m%d%H%M%S", &tm);
     }
 
+    set_current_snapshot_info(sn);
+
     /* save the VM state */
     f = qemu_fopen_bdrv(bs, 1);
     if (!f) {
@@ -2313,6 +2338,8 @@ int save_snapshot(const char *name, Error **errp)
     ret = 0;
 
  the_end:
+    set_current_snapshot_info(NULL);
+
     if (aio_context) {
         aio_context_release(aio_context);
     }
