@@ -278,6 +278,15 @@ struct BlockDriver {
                                   const char *snapshot_id,
                                   const char *name,
                                   Error **errp);
+    int (*bdrv_snapshot_save_dependency)(BlockDriverState *bs,
+                                         const char *depend_snapshot_id,
+                                         int64_t depend_offset,
+                                         int64_t depend_size,
+                                         int64_t offset,
+                                         Error **errp);
+    int (*bdrv_snapshot_support_dependency)(BlockDriverState *bs,
+                                            int32_t *alignment);
+
     int (*bdrv_get_info)(BlockDriverState *bs, BlockDriverInfo *bdi);
     ImageInfoSpecific *(*bdrv_get_specific_info)(BlockDriverState *bs);
 
