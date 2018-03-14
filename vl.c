@@ -4502,6 +4502,7 @@ int main(int argc, char **argv, char **envp)
 
     blk_mig_init();
     ram_mig_init();
+    nvdimm_snapshot_init();
 
     /* If the currently selected machine wishes to override the units-per-bus
      * property of its default HBA interface type, do so now. */
