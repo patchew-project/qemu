@@ -642,6 +642,13 @@ int qcow2_snapshot_load_tmp(BlockDriverState *bs,
 
 void qcow2_free_snapshots(BlockDriverState *bs);
 int qcow2_read_snapshots(BlockDriverState *bs);
+int qcow2_snapshot_save_dependency(BlockDriverState *bs,
+                                  const char *depend_snapshot_id,
+                                  int64_t depend_offset,
+                                  int64_t depend_size,
+                                  int64_t offset,
+                                  Error **errp);
+int qcow2_snapshot_support_dependency(BlockDriverState *bs, int32_t *alignment);
 
 /* qcow2-cache.c functions */
 Qcow2Cache *qcow2_cache_create(BlockDriverState *bs, int num_tables,
