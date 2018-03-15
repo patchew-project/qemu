@@ -54,6 +54,11 @@ static inline bool ppc64_radix_guest(PowerPCCPU *cpu)
 int ppc64_v3_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr, int rwx,
                               int mmu_idx);
 
+static inline hwaddr ppc64_v3_get_patbe0(PowerPCCPU *cpu)
+{
+    return ldq_phys(CPU(cpu)->as, cpu->env.spr[SPR_PTCR] & PTCR_PATB);
+}
+
 #endif /* TARGET_PPC64 */
 
 #endif /* CONFIG_USER_ONLY */

@@ -94,7 +94,7 @@ static target_ulong h_enter(PowerPCCPU *cpu, sPAPRMachineState *spapr,
         return H_PARAMETER;
     }
 
-    raddr = (ptel & HPTE64_R_RPN) & ~((1ULL << apshift) - 1);
+    raddr = (ptel & ppc_hash64_hpte_r_rpn(cpu)) & ~((1ULL << apshift) - 1);
 
     if (is_ram_address(spapr, raddr)) {
         /* Regular RAM - should have WIMG=0010 */
@@ -586,7 +586,8 @@ static int rehash_hpte(PowerPCCPU *cpu,
 
     base_pg_shift = ppc_hash64_hpte_page_shift_noslb(cpu, pte0, pte1);
     assert(base_pg_shift); /* H_ENTER shouldn't allow a bad encoding */
-    avpn = HPTE64_V_AVPN_VAL(pte0) & ~(((1ULL << base_pg_shift) - 1) >> 23);
+    avpn = ppc_hash64_hpte_v_avpn_val(cpu, pte0) &
+        ~(((1ULL << base_pg_shift) - 1) >> 23);
 
     if (pte0 & HPTE64_V_SECONDARY) {
         pteg = ~pteg;
