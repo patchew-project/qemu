@@ -1285,6 +1285,13 @@ static hwaddr spapr_hpt_mask(PPCVirtualHypervisor *vhyp)
     return HTAB_SIZE(spapr) / HASH_PTEG_SIZE_64 - 1;
 }
 
+static hwaddr spapr_hpt_base(PPCVirtualHypervisor *vhyp)
+{
+    sPAPRMachineState *spapr = SPAPR_MACHINE(vhyp);
+
+    return (hwaddr) spapr->htab;
+}
+
 static target_ulong spapr_encode_hpt_for_kvm_pr(PPCVirtualHypervisor *vhyp)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(vhyp);
@@ -3911,6 +3918,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     smc->phb_placement = spapr_phb_placement;
     vhc->hypercall = emulate_spapr_hypercall;
     vhc->hpt_mask = spapr_hpt_mask;
+    vhc->hpt_base = spapr_hpt_base;
     vhc->map_hptes = spapr_map_hptes;
     vhc->unmap_hptes = spapr_unmap_hptes;
     vhc->store_hpte = spapr_store_hpte;

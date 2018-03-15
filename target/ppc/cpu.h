@@ -1258,6 +1258,7 @@ struct PPCVirtualHypervisorClass {
     InterfaceClass parent;
     void (*hypercall)(PPCVirtualHypervisor *vhyp, PowerPCCPU *cpu);
     hwaddr (*hpt_mask)(PPCVirtualHypervisor *vhyp);
+    hwaddr (*hpt_base)(PPCVirtualHypervisor *vhyp);
     const ppc_hash_pte64_t *(*map_hptes)(PPCVirtualHypervisor *vhyp,
                                          hwaddr ptex, int n);
     void (*unmap_hptes)(PPCVirtualHypervisor *vhyp,

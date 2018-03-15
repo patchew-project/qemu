@@ -100,6 +100,11 @@ void ppc_hash64_update_rmls(CPUPPCState *env);
 
 static inline hwaddr ppc_hash64_hpt_base(PowerPCCPU *cpu)
 {
+    if (cpu->vhyp) {
+        PPCVirtualHypervisorClass *vhc =
+            PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
+        return vhc->hpt_base(cpu->vhyp);
+    }
     return cpu->env.spr[SPR_SDR1] & SDR_64_HTABORG;
 }
 
