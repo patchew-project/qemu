@@ -19,16 +19,35 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
+#include "qemu/error-report.h"
 #include "mmu-hash64.h"
 #include "mmu-book3s-v3.h"
 #include "mmu-radix64.h"
 
+bool ppc64_v3_radix(PowerPCCPU *cpu)
+{
+    CPUPPCState *env = &cpu->env;
+
+    /* sPAPR machine */
+    if (cpu->vhyp) {
+        return ppc64_radix_guest(cpu);
+    }
+
+    /* PowerNV machine - only HV mode is supported */
+    if (msr_hv) {
+        return ppc64_v3_get_patbe0(cpu) & PATBE0_HR;
+    } else {
+        error_report("PowerNV guest support Unimplemented");
+        exit(1);
+    }
+}
+
 int ppc64_v3_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr, int rwx,
                               int mmu_idx)
 {
-    if (ppc64_radix_guest(cpu)) { /* Guest uses radix */
+    if (ppc64_v3_radix(cpu)) {
         return ppc_radix64_handle_mmu_fault(cpu, eaddr, rwx, mmu_idx);
-    } else { /* Guest uses hash */
+    } else {
         return ppc_hash64_handle_mmu_fault(cpu, eaddr, rwx, mmu_idx);
     }
 }
