@@ -6155,7 +6155,7 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb)
 
         dc->insn_pc = dc->pc;
 	disas_m68k_insn(env, dc);
-    } while (!dc->is_jmp && !tcg_op_buf_full() &&
+    } while (!dc->is_jmp && !tcg_op_buf_full() && !tcg_temp_full(64) &&
              !cs->singlestep_enabled &&
              !singlestep &&
              (pc_offset) < (TARGET_PAGE_SIZE - 32) &&

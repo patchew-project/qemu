@@ -836,6 +836,12 @@ static inline bool tcg_op_buf_full(void)
 {
     return false;
 }
+/* Test if we overflow the temp variable array */
+
+static inline bool tcg_temp_full(int marging)
+{
+    return tcg_ctx->nb_temps > TCG_MAX_TEMPS - marging;
+}
 
 /* pool based memory allocation */
 
