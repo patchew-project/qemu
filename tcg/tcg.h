@@ -890,6 +890,9 @@ void tcg_temp_free_i32(TCGv_i32 arg);
 void tcg_temp_free_i64(TCGv_i64 arg);
 void tcg_temp_free_vec(TCGv_vec arg);
 
+void tcg_temp_try_free_i32(TCGv_i32 arg);
+void tcg_temp_try_free_i64(TCGv_i64 arg);
+
 static inline TCGv_i32 tcg_global_mem_new_i32(TCGv_ptr reg, intptr_t offset,
                                               const char *name)
 {

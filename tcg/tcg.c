@@ -1072,10 +1072,14 @@ TCGv_vec tcg_temp_new_vec_matching(TCGv_vec match)
     return temp_tcgv_vec(t);
 }
 
-static void tcg_temp_free_internal(TCGTemp *ts)
+static void tcg_temp_free_internal(TCGTemp *ts, bool try)
 {
     TCGContext *s = tcg_ctx;
     int k, idx;
+
+    if (try && ts->temp_allocated == 0) {
+        return;
+    }
 
 #if defined(CONFIG_DEBUG_TCG)
     s->temps_in_use--;
@@ -1095,17 +1099,27 @@ static void tcg_temp_free_internal(TCGTemp *ts)
 
 void tcg_temp_free_i32(TCGv_i32 arg)
 {
-    tcg_temp_free_internal(tcgv_i32_temp(arg));
+    tcg_temp_free_internal(tcgv_i32_temp(arg), false);
 }
 
 void tcg_temp_free_i64(TCGv_i64 arg)
 {
-    tcg_temp_free_internal(tcgv_i64_temp(arg));
+    tcg_temp_free_internal(tcgv_i64_temp(arg), false);
+}
+
+void tcg_temp_try_free_i32(TCGv_i32 arg)
+{
+    tcg_temp_free_internal(tcgv_i32_temp(arg), true);
+}
+
+void tcg_temp_try_free_i64(TCGv_i64 arg)
+{
+    tcg_temp_free_internal(tcgv_i64_temp(arg), true);
 }
 
 void tcg_temp_free_vec(TCGv_vec arg)
 {
-    tcg_temp_free_internal(tcgv_vec_temp(arg));
+    tcg_temp_free_internal(tcgv_vec_temp(arg), false);
 }
 
 TCGv_i32 tcg_const_i32(int32_t val)
@@ -1572,8 +1586,8 @@ void tcg_gen_callN(void *func, TCGTemp *ret, int nargs, TCGTemp **args)
     for (i = real_args = 0; i < orig_nargs; ++i) {
         int is_64bit = orig_sizemask & (1 << (i+1)*2);
         if (is_64bit) {
-            tcg_temp_free_internal(args[real_args++]);
-            tcg_temp_free_internal(args[real_args++]);
+            tcg_temp_free_internal(args[real_args++], false);
+            tcg_temp_free_internal(args[real_args++], false);
         } else {
             real_args++;
         }
@@ -1590,7 +1604,7 @@ void tcg_gen_callN(void *func, TCGTemp *ret, int nargs, TCGTemp **args)
     for (i = 0; i < nargs; ++i) {
         int is_64bit = sizemask & (1 << (i+1)*2);
         if (!is_64bit) {
-            tcg_temp_free_internal(args[i]);
+            tcg_temp_free_internal(args[i], false);
         }
     }
 #endif /* TCG_TARGET_EXTEND_ARGS */
