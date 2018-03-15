@@ -321,8 +321,9 @@ check-qtest-microblaze-y = tests/boot-serial-test$(EXESUF)
 check-qtest-mips-y = tests/endianness-test$(EXESUF)
 
 check-qtest-mips64-y = tests/endianness-test$(EXESUF)
+check-qtest-mips64-y += tests/cdrom-test$(EXESUF)
 
-check-qtest-mips64el-y = tests/endianness-test$(EXESUF)
+check-qtest-mips64el-y = $(check-qtest-mips64-y)
 
 check-qtest-moxie-y = tests/boot-serial-test$(EXESUF)
 
@@ -356,6 +357,7 @@ check-qtest-ppc64-y += tests/display-vga-test$(EXESUF)
 check-qtest-ppc64-y += tests/numa-test$(EXESUF)
 check-qtest-ppc64-$(CONFIG_IVSHMEM) += tests/ivshmem-test$(EXESUF)
 check-qtest-ppc64-y += tests/cpu-plug-test$(EXESUF)
+check-qtest-ppc64-y += tests/cdrom-test$(EXESUF)
 
 check-qtest-sh4-y = tests/endianness-test$(EXESUF)
 
@@ -365,10 +367,12 @@ check-qtest-sparc-y = tests/prom-env-test$(EXESUF)
 check-qtest-sparc-y += tests/m48t59-test$(EXESUF)
 gcov-files-sparc-y = hw/timer/m48t59.c
 check-qtest-sparc-y += tests/boot-serial-test$(EXESUF)
+check-qtest-sparc-y += tests/cdrom-test$(EXESUF)
 
 check-qtest-sparc64-y = tests/endianness-test$(EXESUF)
 check-qtest-sparc64-y += tests/prom-env-test$(EXESUF)
 check-qtest-sparc64-y += tests/boot-serial-test$(EXESUF)
+check-qtest-sparc64-y += tests/cdrom-test$(EXESUF)
 
 check-qtest-arm-y = tests/tmp105-test$(EXESUF)
 check-qtest-arm-y += tests/ds1338-test$(EXESUF)
@@ -384,6 +388,7 @@ check-qtest-arm-y += tests/sdhci-test$(EXESUF)
 check-qtest-aarch64-y = tests/numa-test$(EXESUF)
 check-qtest-aarch64-y += tests/sdhci-test$(EXESUF)
 check-qtest-aarch64-y += tests/boot-serial-test$(EXESUF)
+check-qtest-aarch64-y += tests/cdrom-test$(EXESUF)
 
 check-qtest-microblazeel-y = $(check-qtest-microblaze-y)
 
