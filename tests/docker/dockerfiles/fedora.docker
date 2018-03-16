@@ -1,18 +1,61 @@
 FROM fedora:27
 ENV PACKAGES \
     ccache gettext git tar PyYAML sparse flex bison python3 bzip2 hostname \
-    glib2-devel pixman-devel zlib-devel SDL-devel libfdt-devel \
-    gcc gcc-c++ llvm clang make perl which bc findutils libaio-devel \
-    nettle-devel libasan libubsan \
-    mingw32-pixman mingw32-glib2 mingw32-gmp mingw32-SDL2 mingw32-pkg-config \
-    mingw32-gtk3 mingw32-gnutls mingw32-nettle mingw32-libtasn1 \
-    mingw32-libjpeg-turbo mingw32-libpng mingw32-curl mingw32-libssh2 \
-    mingw32-bzip2 \
-    mingw64-pixman mingw64-glib2 mingw64-gmp mingw64-SDL2 mingw64-pkg-config \
-    mingw64-gtk3 mingw64-gnutls mingw64-nettle mingw64-libtasn1 \
-    mingw64-libjpeg-turbo mingw64-libpng mingw64-curl mingw64-libssh2 \
-    mingw64-bzip2
-ENV QEMU_CONFIGURE_OPTS --python=/usr/bin/python3
+    gcc gcc-c++ llvm clang make perl which bc findutils libasan libubsan \
+    alsa-lib-devel \
+    bluez-libs-devel \
+    brlapi-devel \
+    bzip2-devel mingw32-bzip2 mingw64-bzip2 \
+    cyrus-sasl-devel \
+    device-mapper-multipath-devel \
+    glib2-devel mingw32-glib2 mingw64-glib2 \
+    glusterfs-api-devel \
+    gnutls-devel mingw32-gnutls mingw64-gnutls \
+    gtk3-devel mingw32-gtk3 mingw64-gtk3 \
+    libaio-devel \
+    libattr-devel \
+    libcacard-devel \
+    libcap-devel \
+    libcap-ng-devel \
+    libcurl-devel mingw32-curl mingw64-curl \
+    libepoxy-devel \
+    libfdt-devel \
+    mingw32-gmp mingw64-gmp \
+    libiscsi-devel \
+    libjpeg-devel mingw32-libjpeg-turbo mingw64-libjpeg-turbo \
+    libnfs-devel \
+    libpng-devel mingw32-libpng mingw64-libpng \
+    librbd-devel \
+    librdmacm-devel \
+    libseccomp-devel \
+    libtasn1-devel mingw32-libtasn1 mingw64-libtasn1 \
+    libssh2-devel mingw32-libssh2 mingw64-libssh2 \
+    libusbx-devel \
+    libuuid-devel \
+    libxml2-devel \
+    lzo-devel \
+    mesa-libgbm-devel \
+    ncurses-devel \
+    nettle-devel mingw32-nettle mingw64-nettle \
+    nss-devel \
+    numactl-devel \
+    perl-podlators \
+    pkg-config mingw32-pkg-config mingw64-pkg-config \
+    pulseaudio-libs-devel \
+    pixman-devel mingw32-pixman mingw64-pixman \
+    SDL2-devel mingw32-SDL2 mingw64-SDL2 \
+    snappy-devel \
+    spice-server-devel \
+    systemd-devel \
+    systemtap-sdt-devel \
+    texinfo \
+    usbredir-devel \
+    virglrenderer-devel \
+    vte291-devel \
+    xen-devel \
+    zlib-devel
+
+ENV QEMU_CONFIGURE_OPTS --python=/usr/bin/python3 --enable-trace-backends=dtrace,log,simple
 
 RUN dnf install -y $PACKAGES
 RUN rpm -q $PACKAGES | sort > /packages.txt
