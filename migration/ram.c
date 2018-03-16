@@ -505,6 +505,8 @@ static void *multifd_send_thread(void *opaque)
 {
     MultiFDSendParams *p = opaque;
 
+    trace_multifd_send_thread_start(p->id);
+
     while (true) {
         qemu_sem_wait(&p->sem);
         qemu_mutex_lock(&p->mutex);
@@ -521,6 +523,7 @@ static void *multifd_send_thread(void *opaque)
         }
         qemu_mutex_unlock(&p->mutex);
     }
+    trace_multifd_send_thread_end(p->id);
 
     return NULL;
 }
@@ -668,6 +671,8 @@ static void *multifd_recv_thread(void *opaque)
 {
     MultiFDRecvParams *p = opaque;
 
+    trace_multifd_recv_thread_start(p->id);
+
     while (true) {
         qemu_sem_wait(&p->sem);
         qemu_mutex_lock(&p->mutex);
@@ -685,6 +690,7 @@ static void *multifd_recv_thread(void *opaque)
         qemu_mutex_unlock(&p->mutex);
     }
 
+    trace_multifd_recv_thread_end(p->id);
     return NULL;
 }
 
