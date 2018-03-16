@@ -1174,6 +1174,9 @@ typedef struct CPUX86State {
     uint64_t msr_hv_synic_sint[HV_SINT_COUNT];
     uint64_t msr_hv_stimer_config[HV_STIMER_COUNT];
     uint64_t msr_hv_stimer_count[HV_STIMER_COUNT];
+    uint64_t msr_hv_reenlightenment_control;
+    uint64_t msr_hv_tsc_emulation_control;
+    uint64_t msr_hv_tsc_emulation_status;
 
     uint64_t msr_rtit_ctrl;
     uint64_t msr_rtit_status;
