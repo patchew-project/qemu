@@ -889,6 +889,10 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
         unset_feature(env, ARM_FEATURE_PMU);
         cpu->id_aa64dfr0 &= ~0xf00;
     } else {
+        uint64_t pmceid = get_pmceid(&cpu->env);
+        cpu->pmceid0 = pmceid & 0xffffffff;
+        cpu->pmceid1 = (pmceid >> 32) & 0xffffffff;
+
         arm_register_pre_el_change_hook(cpu, &pmu_pre_el_change, 0);
         arm_register_el_change_hook(cpu, &pmu_post_el_change, 0);
     }
