@@ -458,6 +458,11 @@ typedef struct CPUARMState {
          * was reset. Otherwise it stores the counter value
          */
         uint64_t c15_ccnt;
+        /* ccnt_cached_cycles is used to hold the last cycle count when
+         * c15_ccnt holds the guest-visible count instead of the delta during
+         * PMU operations which require this.
+         */
+        uint64_t ccnt_cached_cycles;
         uint64_t pmccfiltr_el0; /* Performance Monitor Filter Register */
         uint64_t vpidr_el2; /* Virtualization Processor ID Register */
         uint64_t vmpidr_el2; /* Virtualization Multiprocessor ID Register */
@@ -896,15 +901,35 @@ int cpu_arm_signal_handler(int host_signum, void *pinfo,
                            void *puc);
 
 /**
- * pmccntr_sync
+ * pmccntr_op_start/finish
  * @env: CPUARMState
  *
- * Synchronises the counter in the PMCCNTR. This must always be called twice,
- * once before any action that might affect the timer and again afterwards.
- * The function is used to swap the state of the register if required.
- * This only happens when not in user mode (!CONFIG_USER_ONLY)
+ * Convert the counter in the PMCCNTR between its delta form (the typical mode
+ * when it's enabled) and the guest-visible value. These two calls must always
+ * surround any action which might affect the counter, and the return value
+ * from pmccntr_op_start must be supplied as the second argument to
+ * pmccntr_op_finish.
  */
-void pmccntr_sync(CPUARMState *env);
+uint64_t pmccntr_op_start(CPUARMState *env);
+void pmccntr_op_finish(CPUARMState *env, uint64_t prev_cycles);
+
+/**
+ * pmu_op_start/finish
+ * @env: CPUARMState
+ *
+ * Convert all PMU counters between their delta form (the typical mode when
+ * they are enabled) and the guest-visible values. These two calls must
+ * surround any action which might affect the counters, and the return value
+ * from pmu_op_start must be supplied as the second argument to pmu_op_finish.
+ */
+uint64_t pmu_op_start(CPUARMState *env);
+void pmu_op_finish(CPUARMState *env, uint64_t prev_cycles);
+
+/**
+ * Functions to register as EL change hooks for PMU mode filtering
+ */
+void pmu_pre_el_change(ARMCPU *cpu, void *ignored);
+void pmu_post_el_change(ARMCPU *cpu, void *ignored);
 
 /* SCTLR bit meanings. Several bits have been reused in newer
  * versions of the architecture; in that case we define constants

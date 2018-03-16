@@ -908,6 +908,15 @@ static const ARMCPRegInfo v6_cp_reginfo[] = {
 #define PMCRC   0x4
 #define PMCRE   0x1
 
+#define PMXEVTYPER_P          0x80000000
+#define PMXEVTYPER_U          0x40000000
+#define PMXEVTYPER_NSK        0x20000000
+#define PMXEVTYPER_NSU        0x10000000
+#define PMXEVTYPER_NSH        0x08000000
+#define PMXEVTYPER_M          0x04000000
+#define PMXEVTYPER_MT         0x02000000
+#define PMXEVTYPER_EVTCOUNT   0x000003ff
+
 #define PMU_NUM_COUNTERS(env) ((env->cp15.c9_pmcr & PMCRN_MASK) >> PMCRN_SHIFT)
 /* Bits allowed to be set/cleared for PMCNTEN* and PMINTEN* */
 #define PMU_COUNTER_MASK(env) ((1 << 31) | ((1 << PMU_NUM_COUNTERS(env)) - 1))
@@ -998,7 +1007,7 @@ static CPAccessResult pmreg_access_ccntr(CPUARMState *env,
 
 static inline bool arm_ccnt_enabled(CPUARMState *env)
 {
-    /* This does not support checking PMCCFILTR_EL0 register */
+    /* Does not check PMCCFILTR_EL0, which is handled by pmu_counter_filtered */
 
     if (!(env->cp15.c9_pmcr & PMCRE) || !(env->cp15.c9_pmcnten & (1 << 31))) {
         return false;
@@ -1006,6 +1015,44 @@ static inline bool arm_ccnt_enabled(CPUARMState *env)
 
     return true;
 }
+
+/* Returns true if the counter corresponding to the passed-in pmevtyper or
+ * pmccfiltr value is filtered using the current state */
+static inline bool pmu_counter_filtered(CPUARMState *env, uint64_t pmxevtyper)
+{
+    bool secure = arm_is_secure(env);
+    int el = arm_current_el(env);
+
+    bool P   = pmxevtyper & PMXEVTYPER_P;
+    bool U   = pmxevtyper & PMXEVTYPER_U;
+    bool NSK = pmxevtyper & PMXEVTYPER_NSK;
+    bool NSU = pmxevtyper & PMXEVTYPER_NSU;
+    bool NSH = pmxevtyper & PMXEVTYPER_NSH;
+    bool M   = pmxevtyper & PMXEVTYPER_M;
+
+    if (el == 1 && P) {
+        return true;
+    } else if (el == 0 && U) {
+        return true;
+    }
+
+    if (arm_feature(env, ARM_FEATURE_EL3)) {
+        if (el == 1 && !secure && NSK != P) {
+            return true;
+        } else if (el == 0 && !secure && NSU != U) {
+            return true;
+        } else if (el == 3 && secure && M != P) {
+            return true;
+        }
+    }
+
+    if (arm_feature(env, ARM_FEATURE_EL2) && el == 2 && !secure && !NSH) {
+        return true;
+    }
+
+    return false;
+}
+
 /*
  * Ensure c15_ccnt is the guest-visible count so that operations such as
  * enabling/disabling the counter or filtering, modifying the count itself,
@@ -1023,7 +1070,8 @@ uint64_t pmccntr_op_start(CPUARMState *env)
                           ARM_CPU_FREQ, NANOSECONDS_PER_SECOND);
 #endif
 
-    if (arm_ccnt_enabled(env)) {
+    if (arm_ccnt_enabled(env) &&
+          !pmu_counter_filtered(env, env->cp15.pmccfiltr_el0)) {
 
         uint64_t eff_cycles = cycles;
         if (env->cp15.c9_pmcr & PMCRD) {
@@ -1043,7 +1091,8 @@ uint64_t pmccntr_op_start(CPUARMState *env)
  */
 void pmccntr_op_finish(CPUARMState *env, uint64_t prev_cycles)
 {
-    if (arm_ccnt_enabled(env)) {
+    if (arm_ccnt_enabled(env) &&
+          !pmu_counter_filtered(env, env->cp15.pmccfiltr_el0)) {
 
         if (env->cp15.c9_pmcr & PMCRD) {
             /* Increment once every 64 processor clock cycles */
@@ -1054,10 +1103,30 @@ void pmccntr_op_finish(CPUARMState *env, uint64_t prev_cycles)
     }
 }
 
+uint64_t pmu_op_start(CPUARMState *env)
+{
+    return pmccntr_op_start(env);
+}
+
+void pmu_op_finish(CPUARMState *env, uint64_t prev_cycles)
+{
+    pmccntr_op_finish(env, prev_cycles);
+}
+
+void pmu_pre_el_change(ARMCPU *cpu, void *ignored)
+{
+    cpu->env.cp15.ccnt_cached_cycles = pmu_op_start(&cpu->env);
+}
+
+void pmu_post_el_change(ARMCPU *cpu, void *ignored)
+{
+    pmu_op_finish(&cpu->env, cpu->env.cp15.ccnt_cached_cycles);
+}
+
 static void pmcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                        uint64_t value)
 {
-    uint64_t saved_cycles = pmccntr_op_start(env);
+    uint64_t saved_cycles = pmu_op_start(env);
 
     if (value & PMCRC) {
         /* The counter has been reset */
@@ -1068,7 +1137,7 @@ static void pmcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
     env->cp15.c9_pmcr &= ~0x39;
     env->cp15.c9_pmcr |= (value & 0x39);
 
-    pmccntr_op_finish(env, saved_cycles);
+    pmu_op_finish(env, saved_cycles);
 }
 
 static uint64_t pmccntr_read(CPUARMState *env, const ARMCPRegInfo *ri)
@@ -1114,6 +1183,14 @@ uint64_t pmccntr_op_start(CPUARMState *env)
 }
 
 void pmccntr_op_finish(CPUARMState *env, uint64_t prev_cycles)
+{
+}
+
+uint64_t pmu_op_start(CPUARMState *env)
+{
+}
+
+void pmu_op_finish(CPUARMState *env, uint64_t prev_cycles)
 {
 }
 
