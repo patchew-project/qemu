@@ -2055,7 +2055,15 @@ static void load_elf_image(const char *image_name, int image_fd,
            image is pre-linked, LOADDR will be non-zero.  Since we do
            not supply MAP_FIXED here we'll use that address if and
            only if it remains available.  */
-        load_addr = target_mmap(loaddr, hiaddr - loaddr, PROT_NONE,
+        abi_ulong total_size = hiaddr - loaddr;
+        if (pinterp_name != NULL) {
+            /* This is the main executable.
+             * Hack to reserve some extra space for brk.
+             */
+            abi_ulong extra_size = 16 * 1024 * 1024;
+            load_addr = mmap_find_vma(loaddr, total_size + extra_size);
+        }
+        load_addr = target_mmap(load_addr, total_size, PROT_NONE,
                                 MAP_PRIVATE | MAP_ANON | MAP_NORESERVE,
                                 -1, 0);
         if (load_addr == -1) {
