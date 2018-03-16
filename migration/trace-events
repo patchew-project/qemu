@@ -80,6 +80,9 @@ ram_save_queue_pages(const char *rbname, size_t start, size_t len) "%s: start: 0
 multifd_send_sync_main(void) ""
 multifd_send_sync_signal(uint8_t id, bool quit, bool running) "channel %d quit %d running %d"
 multifd_send_sync_wait(uint8_t id, bool quit, bool running) "channel %d quit %d running %d"
+multifd_recv_sync_main(void) ""
+multifd_recv_sync_signal(uint8_t id, bool quit, bool running) "channel %d quit %d running %d"
+multifd_recv_sync_wait(uint8_t id, bool quit, bool running) "channel %d quit %d running %d"
 
 # migration/migration.c
 await_return_path_close_on_source_close(void) ""
