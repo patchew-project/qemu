@@ -32,6 +32,7 @@
 #include "qapi/error.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qstring.h"
+#include "qemu/cutils.h"
 #include "trace.h"
 
 /* ------------------------------------------------------------- */
@@ -1010,7 +1011,10 @@ static int blk_init(struct XenDevice *xendev)
         blkdev->devtype = xenstore_read_be_str(&blkdev->xendev, "device-type");
     }
     directiosafe = xenstore_read_be_str(&blkdev->xendev, "direct-io-safe");
-    blkdev->directiosafe = (directiosafe && atoi(directiosafe));
+
+    if (directiosafe && qemu_strtoi(directiosafe, NULL, 10, &blkdev->directiosafe)) {
+        goto out_error;
+    }
 
     /* do we have all we need? */
     if (blkdev->params == NULL ||
