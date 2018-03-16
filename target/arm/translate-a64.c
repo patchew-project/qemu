@@ -1930,7 +1930,9 @@ static void disas_uncond_b_reg(DisasContext *s, uint32_t insn)
             unallocated_encoding(s);
             return;
         }
+        gen_io_start();
         gen_helper_exception_return(cpu_env);
+        gen_io_end();
         /* Must exit loop to check un-masked IRQs */
         s->base.is_jmp = DISAS_EXIT;
         return;
