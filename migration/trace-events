@@ -86,8 +86,9 @@ multifd_recv_sync_wait(uint8_t id, bool quit, bool running) "channel %d quit %d 
 multifd_send_thread_start(uint8_t id) "%d"
 multifd_send_thread_end(uint8_t id, uint32_t packets) "channel %d packets %d"
 multifd_recv_thread_start(uint8_t id) "%d"
-multifd_recv_thread_end(uint8_t id) "%d"
+multifd_recv_thread_end(uint8_t id, uint32_t packets) "channel %d packets %d"
 multifd_send(uint8_t id, int seq, int num) "channel %d sequence %d num pages %d"
+multifd_recv(uint8_t id, int seq, int num) "channel %d sequence %d num pages %d"
 
 # migration/migration.c
 await_return_path_close_on_source_close(void) ""
