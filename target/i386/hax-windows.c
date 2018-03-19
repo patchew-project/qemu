@@ -347,11 +347,6 @@ int hax_host_setup_vcpu_channel(struct hax_vcpu_state *vcpu)
         return -1;
     }
 
-    if (!valid_hax_tunnel_size(info.size)) {
-        fprintf(stderr, "Invalid hax tunnel size %x\n", info.size);
-        ret = -EINVAL;
-        return ret;
-    }
     vcpu->tunnel = (struct hax_tunnel *) (intptr_t) (info.va);
     vcpu->iobuf = (unsigned char *) (intptr_t) (info.io_va);
     return 0;

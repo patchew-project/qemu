@@ -62,11 +62,6 @@ int hax_enabled(void)
     return hax_allowed;
 }
 
-int valid_hax_tunnel_size(uint16_t size)
-{
-    return size >= sizeof(struct hax_tunnel);
-}
-
 hax_fd hax_vcpu_get_fd(CPUArchState *env)
 {
     struct hax_vcpu_state *vcpu = ENV_GET_CPU(env)->hax_vcpu;
@@ -104,6 +99,7 @@ static int hax_get_capability(struct hax_state *hax)
     }
 
     hax->supports_64bit_ramblock = !!(cap->winfo & HAX_CAP_64BIT_RAMBLOCK);
+    hax->supports_tunnel_page = !!(cap->winfo & HAX_CAP_TUNNEL_PAGE);
 
     if (cap->wstatus & HAX_CAP_MEMQUOTA) {
         if (cap->mem_quota < hax->mem_quota) {
@@ -520,6 +516,21 @@ static int hax_vcpu_hax_exec(CPUArchState *env)
         cpu_exec_end(cpu);
         qemu_mutex_lock_iothread();
 
+        /*
+         * Every time HAXM exits to QEMU, sync IA32_APIC_BASE MSR from HAXM and
+         * pass it to the emulated APIC.
+         */
+        if (hax_global.supports_tunnel_page) {
+            /*
+             * ht->apic_base is not available in HAXM kernel module if HAXM does
+             * not support HAX_CAP_SUPPORT_TUNNEL_PAGE.
+             * TODO: HAX_CAP_SUPPORT_TUNNEL_PAGE is used for backward
+             * compatibility with HAXM kernel module. Remove this check when we
+             * drop support for HAXM versions that lack this feature.
+             */
+            cpu_set_apic_base(x86_cpu->apic_state, ht->apic_base);
+        }
+
         /* Simply continue the vcpu_run if system call interrupted */
         if (hax_ret == -EINTR || hax_ret == -EAGAIN) {
             DPRINTF("io window interrupted\n");
@@ -933,6 +944,9 @@ static int hax_set_msrs(CPUArchState *env)
     hax_msr_entry_set(&msrs[n++], MSR_FMASK, env->fmask);
     hax_msr_entry_set(&msrs[n++], MSR_KERNELGSBASE, env->kernelgsbase);
 #endif
+    hax_msr_entry_set(&msrs[n++], MSR_IA32_APICBASE, \
+                      cpu_get_apic_base(x86_env_get_cpu(env)->apic_state));
+
     md.nr_msr = n;
     md.done = 0;
 

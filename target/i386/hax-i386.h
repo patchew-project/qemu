@@ -38,6 +38,7 @@ struct hax_state {
     struct hax_vm *vm;
     uint64_t mem_quota;
     bool supports_64bit_ramblock;
+    bool supports_tunnel_page;
 };
 
 #define HAX_MAX_VCPU 0x10
@@ -53,7 +54,6 @@ struct hax_vm {
 #ifdef NEED_CPU_H
 /* Functions exported to host specific mode */
 hax_fd hax_vcpu_get_fd(CPUArchState *env);
-int valid_hax_tunnel_size(uint16_t size);
 
 /* Host specific functions */
 int hax_mod_version(struct hax_state *hax, struct hax_module_version *version);
