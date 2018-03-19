@@ -1038,6 +1038,11 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
     int ret, fd;
     VFIOAddressSpace *space;
 
+    if (as == NULL) {
+        vfio_kvm_device_add_group(group);
+        return 0;
+    }
+
     space = vfio_get_address_space(as);
 
     QLIST_FOREACH(container, &space->containers, next) {
@@ -1237,6 +1242,10 @@ static void vfio_disconnect_container(VFIOGroup *group)
 {
     VFIOContainer *container = group->container;
 
+    if (container == NULL) {
+        return;
+    }
+
     QLIST_REMOVE(group, container_next);
     group->container = NULL;
 
@@ -1275,6 +1284,86 @@ static void vfio_disconnect_container(VFIOGroup *group)
     }
 }
 
+static int vfio_groupfd_to_groupid(int groupfd)
+{
+    char linkname[PATH_MAX];
+    char pathname[PATH_MAX];
+    char *filename;
+    int groupid, len;
+
+    snprintf(linkname, sizeof(linkname), "/proc/self/fd/%d", groupfd);
+
+    len = readlink(linkname, pathname, sizeof(pathname));
+    if (len <= 0 || len >= sizeof(pathname)) {
+        return -1;
+    }
+    pathname[len] = '\0';
+
+    filename = g_path_get_basename(pathname);
+    groupid = atoi(filename);
+    g_free(filename);
+
+    return groupid;
+}
+
+/*
+ * The @as param could be NULL. In this case, groupfd is shared by
+ * another process which will setup the DMA mapping for this group,
+ * and this group won't have container and address space in QEMU.
+ */
+VFIOGroup *vfio_get_group_from_fd(int groupfd, AddressSpace *as, Error **errp)
+{
+    VFIOGroup *group;
+    int groupid;
+
+    groupid = vfio_groupfd_to_groupid(groupfd);
+    if (groupid < 0) {
+        return NULL;
+    }
+
+    QLIST_FOREACH(group, &vfio_group_list, next) {
+        if (group->groupid == groupid) {
+            /* Found it.  Now is it already in the right context? */
+            if ((group->container == NULL && as == NULL) ||
+                (group->container && group->container->space->as == as)) {
+                    group->refcnt++;
+                    return group;
+            }
+            error_setg(errp, "group %d used in multiple address spaces",
+                       group->groupid);
+            return NULL;
+        }
+    }
+
+    group = g_malloc0(sizeof(*group));
+
+    group->fd = groupfd;
+    group->groupid = groupid;
+    group->refcnt = 1;
+
+    QLIST_INIT(&group->device_list);
+
+    if (vfio_connect_container(group, as, errp)) {
+        error_prepend(errp, "failed to setup container for group %d: ",
+                      groupid);
+        goto free_group_exit;
+    }
+
+    if (QLIST_EMPTY(&vfio_group_list)) {
+        qemu_register_reset(vfio_reset_handler, NULL);
+    }
+
+    QLIST_INSERT_HEAD(&vfio_group_list, group, next);
+
+    return group;
+
+free_group_exit:
+    g_free(group);
+
+    return NULL;
+}
+
+/* The @as param cannot be NULL. */
 VFIOGroup *vfio_get_group(int groupid, AddressSpace *as, Error **errp)
 {
     VFIOGroup *group;
@@ -1284,7 +1373,8 @@ VFIOGroup *vfio_get_group(int groupid, AddressSpace *as, Error **errp)
     QLIST_FOREACH(group, &vfio_group_list, next) {
         if (group->groupid == groupid) {
             /* Found it.  Now is it already in the right context? */
-            if (group->container->space->as == as) {
+            if (group->container && group->container->space->as == as) {
+                group->refcnt++;
                 return group;
             } else {
                 error_setg(errp, "group %d used in multiple address spaces",
@@ -1317,6 +1407,7 @@ VFIOGroup *vfio_get_group(int groupid, AddressSpace *as, Error **errp)
     }
 
     group->groupid = groupid;
+    group->refcnt = 1;
     QLIST_INIT(&group->device_list);
 
     if (vfio_connect_container(group, as, errp)) {
@@ -1345,6 +1436,10 @@ free_group_exit:
 void vfio_put_group(VFIOGroup *group)
 {
     if (!group || !QLIST_EMPTY(&group->device_list)) {
+        return;
+    }
+
+    if (--group->refcnt > 0) {
         return;
     }
 
