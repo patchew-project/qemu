@@ -360,16 +360,16 @@ static void riscv_cpu_class_init(ObjectClass *c, void *data)
 char *riscv_isa_string(RISCVCPU *cpu)
 {
     int i;
-    size_t maxlen = 5 + ctz32(cpu->env.misa);
-    char *isa_string = g_new0(char, maxlen);
-    snprintf(isa_string, maxlen, "rv%d", TARGET_LONG_BITS);
+    const size_t maxlen = sizeof("rv128") + sizeof(riscv_exts) + 1;
+    char *isa_str = g_new(char, maxlen);
+    char *p = isa_str + snprintf(isa_str, maxlen, "rv%d", TARGET_LONG_BITS);
     for (i = 0; i < sizeof(riscv_exts); i++) {
         if (cpu->env.misa & RV(riscv_exts[i])) {
-            isa_string[strlen(isa_string)] = riscv_exts[i] - 'A' + 'a';
-
+            *p++ = tolower(riscv_exts[i]);
         }
     }
-    return isa_string;
+    *p = '\0';
+    return isa_str;
 }
 
 typedef struct RISCVCPUListState {
