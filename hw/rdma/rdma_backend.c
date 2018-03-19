@@ -656,7 +656,8 @@ void rdma_backend_destroy_qp(RdmaBackendQP *qp)
 #define CHK_ATTR(req, dev, member, fmt) ({ \
     pr_dbg("%s="fmt","fmt"\n", #member, dev.member, req->member); \
     if (req->member > dev.member) { \
-        warn_report("%s = 0x%lx is higher than host device capability 0x%lx", \
+        warn_report("%s = 0x%" PRIx64 " is higher than host device " \
+                    "capability 0x%" PRIx64, \
                     #member, (uint64_t)req->member, (uint64_t)dev.member); \
         req->member = dev.member; \
     } \
