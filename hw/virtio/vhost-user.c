@@ -42,6 +42,7 @@ enum VhostUserProtocolFeature {
     VHOST_USER_PROTOCOL_F_SLAVE_REQ = 5,
     VHOST_USER_PROTOCOL_F_CROSS_ENDIAN = 6,
     VHOST_USER_PROTOCOL_F_CRYPTO_SESSION = 7,
+    VHOST_USER_PROTOCOL_F_VFIO = 8,
 
     VHOST_USER_PROTOCOL_F_MAX
 };
@@ -84,6 +85,8 @@ typedef enum VhostUserSlaveRequest {
     VHOST_USER_SLAVE_NONE = 0,
     VHOST_USER_SLAVE_IOTLB_MSG = 1,
     VHOST_USER_SLAVE_CONFIG_CHANGE_MSG = 2,
+    VHOST_USER_SLAVE_VRING_VFIO_GROUP_MSG = 3,
+    VHOST_USER_SLAVE_VRING_NOTIFY_AREA_MSG = 4,
     VHOST_USER_SLAVE_MAX
 }  VhostUserSlaveRequest;
 
@@ -128,6 +131,12 @@ static VhostUserConfig c __attribute__ ((unused));
                                    + sizeof(c.size) \
                                    + sizeof(c.flags))
 
+typedef struct VhostUserVringArea {
+    uint64_t u64;
+    uint64_t size;
+    uint64_t offset;
+} VhostUserVringArea;
+
 typedef struct {
     VhostUserRequest request;
 
@@ -149,6 +158,7 @@ typedef union {
         struct vhost_iotlb_msg iotlb;
         VhostUserConfig config;
         VhostUserCryptoSession session;
+        VhostUserVringArea area;
 } VhostUserPayload;
 
 typedef struct VhostUserMsg {
@@ -459,9 +469,37 @@ static int vhost_user_set_vring_num(struct vhost_dev *dev,
     return vhost_set_vring(dev, VHOST_USER_SET_VRING_NUM, ring);
 }
 
+static void vhost_user_notify_region_remap(struct vhost_dev *dev, int queue_idx)
+{
+    struct vhost_user *u = dev->opaque;
+    VhostUserVFIOState *vfio = &u->shared->vfio;
+    VhostUserNotifyCtx *notify = &vfio->notify[queue_idx];
+    VirtIODevice *vdev = dev->vdev;
+
+    if (notify->addr && !notify->mapped) {
+        virtio_device_notify_region_map(vdev, queue_idx, &notify->mr);
+        notify->mapped = true;
+    }
+}
+
+static void vhost_user_notify_region_unmap(struct vhost_dev *dev, int queue_idx)
+{
+    struct vhost_user *u = dev->opaque;
+    VhostUserVFIOState *vfio = &u->shared->vfio;
+    VhostUserNotifyCtx *notify = &vfio->notify[queue_idx];
+    VirtIODevice *vdev = dev->vdev;
+
+    if (notify->addr && notify->mapped) {
+        virtio_device_notify_region_unmap(vdev, &notify->mr);
+        notify->mapped = false;
+    }
+}
+
 static int vhost_user_set_vring_base(struct vhost_dev *dev,
                                      struct vhost_vring_state *ring)
 {
+    vhost_user_notify_region_remap(dev, ring->index);
+
     return vhost_set_vring(dev, VHOST_USER_SET_VRING_BASE, ring);
 }
 
@@ -494,6 +532,8 @@ static int vhost_user_get_vring_base(struct vhost_dev *dev,
         .payload.state = *ring,
         .hdr.size = sizeof(msg.payload.state),
     };
+
+    vhost_user_notify_region_unmap(dev, ring->index);
 
     if (vhost_user_write(dev, &msg, NULL, 0) < 0) {
         return -1;
@@ -668,6 +708,133 @@ static int vhost_user_slave_handle_config_change(struct vhost_dev *dev)
     return ret;
 }
 
+static int vhost_user_handle_vring_vfio_group(struct vhost_dev *dev,
+                                              uint64_t u64,
+                                              int groupfd)
+{
+    struct vhost_user *u = dev->opaque;
+    VhostUserVFIOState *vfio = &u->shared->vfio;
+    int queue_idx = u64 & VHOST_USER_VRING_IDX_MASK;
+    VirtIODevice *vdev = dev->vdev;
+    VFIOGroup *group;
+    int ret = 0;
+
+    qemu_mutex_lock(&vfio->lock);
+
+    if (!virtio_has_feature(dev->protocol_features,
+                            VHOST_USER_PROTOCOL_F_VFIO) ||
+        vdev == NULL || queue_idx >= virtio_get_num_queues(vdev)) {
+        ret = -1;
+        goto out;
+    }
+
+    if (vfio->group[queue_idx]) {
+        vfio_put_group(vfio->group[queue_idx]);
+        vfio->group[queue_idx] = NULL;
+    }
+
+    if (u64 & VHOST_USER_VRING_NOFD_MASK) {
+        goto out;
+    }
+
+    group = vfio_get_group_from_fd(groupfd, NULL, NULL);
+    if (group == NULL) {
+        ret = -1;
+        goto out;
+    }
+
+    if (group->fd != groupfd) {
+        close(groupfd);
+    }
+
+    vfio->group[queue_idx] = group;
+
+out:
+    kvm_irqchip_commit_routes(kvm_state);
+    qemu_mutex_unlock(&vfio->lock);
+
+    if (ret != 0 && groupfd != -1) {
+        close(groupfd);
+    }
+
+    return ret;
+}
+
+#define NOTIFY_PAGE_SIZE 0x1000
+
+static int vhost_user_handle_vring_notify_area(struct vhost_dev *dev,
+                                               VhostUserVringArea *area,
+                                               int fd)
+{
+    struct vhost_user *u = dev->opaque;
+    VhostUserVFIOState *vfio = &u->shared->vfio;
+    int queue_idx = area->u64 & VHOST_USER_VRING_IDX_MASK;
+    VirtIODevice *vdev = dev->vdev;
+    VhostUserNotifyCtx *notify;
+    void *addr = NULL;
+    int ret = 0;
+    char *name;
+
+    qemu_mutex_lock(&vfio->lock);
+
+    if (!virtio_has_feature(dev->protocol_features,
+                            VHOST_USER_PROTOCOL_F_VFIO) ||
+        vdev == NULL || queue_idx >= virtio_get_num_queues(vdev) ||
+        !virtio_device_page_per_vq_enabled(vdev)) {
+        ret = -1;
+        goto out;
+    }
+
+    notify = &vfio->notify[queue_idx];
+
+    if (notify->addr) {
+        virtio_device_notify_region_unmap(vdev, &notify->mr);
+        munmap(notify->addr, NOTIFY_PAGE_SIZE);
+        object_unparent(OBJECT(&notify->mr));
+        notify->addr = NULL;
+    }
+
+    if (area->u64 & VHOST_USER_VRING_NOFD_MASK) {
+        goto out;
+    }
+
+    if (area->size < NOTIFY_PAGE_SIZE) {
+        ret = -1;
+        goto out;
+    }
+
+    addr = mmap(NULL, NOTIFY_PAGE_SIZE, PROT_READ | PROT_WRITE,
+                MAP_SHARED, fd, area->offset);
+    if (addr == MAP_FAILED) {
+        error_report("Can't map notify region.");
+        ret = -1;
+        goto out;
+    }
+
+    name = g_strdup_printf("vhost-user/vfio@%p mmaps[%d]", vfio, queue_idx);
+    memory_region_init_ram_device_ptr(&notify->mr, OBJECT(vdev), name,
+                                      NOTIFY_PAGE_SIZE, addr);
+    g_free(name);
+
+    if (virtio_device_notify_region_map(vdev, queue_idx, &notify->mr)) {
+        ret = -1;
+        goto out;
+    }
+
+    notify->addr = addr;
+    notify->mapped = true;
+
+out:
+    if (ret < 0 && addr != NULL) {
+        munmap(addr, NOTIFY_PAGE_SIZE);
+    }
+    if (fd != -1) {
+        close(fd);
+    }
+    qemu_mutex_unlock(&vfio->lock);
+    return ret;
+}
+
 static void slave_read(void *opaque)
 {
     struct vhost_dev *dev = opaque;
@@ -733,6 +900,12 @@ static void slave_read(void *opaque)
         break;
     case VHOST_USER_SLAVE_CONFIG_CHANGE_MSG :
         ret = vhost_user_slave_handle_config_change(dev);
+        break;
+    case VHOST_USER_SLAVE_VRING_VFIO_GROUP_MSG:
+        ret = vhost_user_handle_vring_vfio_group(dev, payload.u64, fd);
+        break;
+    case VHOST_USER_SLAVE_VRING_NOTIFY_AREA_MSG:
+        ret = vhost_user_handle_vring_notify_area(dev, &payload.area, fd);
         break;
     default:
         error_report("Received unexpected msg type.");
@@ -844,6 +1017,10 @@ static int vhost_user_init(struct vhost_dev *dev, void *opaque)
     u->slave_fd = -1;
     dev->opaque = u;
 
+    if (dev->vq_index == 0) {
+        qemu_mutex_init(&u->shared->vfio.lock);
+    }
+
     err = vhost_user_get_features(dev, &features);
     if (err < 0) {
         return err;
@@ -904,6 +1081,7 @@ static int vhost_user_init(struct vhost_dev *dev, void *opaque)
 static int vhost_user_cleanup(struct vhost_dev *dev)
 {
     struct vhost_user *u;
+    int i;
 
     assert(dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_USER);
 
@@ -913,6 +1091,26 @@ static int vhost_user_cleanup(struct vhost_dev *dev)
         close(u->slave_fd);
         u->slave_fd = -1;
     }
+
+    if (dev->vq_index == 0) {
+        VhostUserVFIOState *vfio = &u->shared->vfio;
+
+        for (i = 0; i < VIRTIO_QUEUE_MAX; i++) {
+            if (vfio->notify[i].addr) {
+                munmap(vfio->notify[i].addr, NOTIFY_PAGE_SIZE);
+                object_unparent(OBJECT(&vfio->notify[i].mr));
+                vfio->notify[i].addr = NULL;
+            }
+
+            if (vfio->group[i]) {
+                vfio_put_group(vfio->group[i]);
+                vfio->group[i] = NULL;
+            }
+        }
+
+        qemu_mutex_destroy(&u->shared->vfio.lock);
+    }
+
     g_free(u);
     dev->opaque = 0;
 

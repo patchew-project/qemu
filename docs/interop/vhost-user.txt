@@ -132,6 +132,15 @@ Depending on the request type, payload can be:
    Payload: Size bytes array holding the contents of the virtio
        device's configuration space
 
+ * Vring area description
+   -----------------------
+   | u64 | size | offset |
+   -----------------------
+
+   u64: a 64-bit unsigned integer
+   Size: a 64-bit size
+   Offset: a 64-bit offset
+
 In QEMU the vhost-user message is implemented with the following struct:
 
 typedef struct VhostUserMsg {
@@ -146,6 +155,7 @@ typedef struct VhostUserMsg {
         VhostUserLog log;
         struct vhost_iotlb_msg iotlb;
         VhostUserConfig config;
+        VhostUserVringArea area;
     };
 } QEMU_PACKED VhostUserMsg;
 
@@ -358,6 +368,17 @@ The fd is provided via VHOST_USER_SET_SLAVE_REQ_FD ancillary data.
 A slave may then send VHOST_USER_SLAVE_* messages to the master
 using this fd communication channel.
 
+VFIO based accelerators
+-----------------------
+
+The VFIO based accelerators feature is a protocol extension. It is supported
+when the protocol feature VHOST_USER_PROTOCOL_F_VFIO (bit 7) is set.
+
+The vhost-user backend will set the accelerator context via slave channel,
+and QEMU just needs to handle those messages passively. The accelerator
+context will be set for each queue independently. So the page-per-vq property
+should also be enabled.
+
 Protocol features
 -----------------
 
@@ -369,6 +390,7 @@ Protocol features
 #define VHOST_USER_PROTOCOL_F_SLAVE_REQ      5
 #define VHOST_USER_PROTOCOL_F_CROSS_ENDIAN   6
 #define VHOST_USER_PROTOCOL_F_CRYPTO_SESSION 7
+#define VHOST_USER_PROTOCOL_F_VFIO           8
 
 Master message types
 --------------------
@@ -721,6 +743,41 @@ Slave message types
      negotiated, and slave set the VHOST_USER_NEED_REPLY flag, master must
      respond with zero when operation is successfully completed, or non-zero
      otherwise.
+
+ * VHOST_USER_SLAVE_VRING_VFIO_GROUP_MSG
+
+      Id: 3
+      Equivalent ioctl: N/A
+      Slave payload: u64
+      Master payload: N/A
+
+      Sets the VFIO group file descriptor which is passed as ancillary data
+      for a specified queue (queue index is carried in the u64 payload).
+      Slave sends this request to tell QEMU to add or delete a VFIO group.
+      QEMU will delete the current group if any for the specified queue when
+      the message is sent without a file descriptor. A VFIO group will be
+      actually deleted when its reference count reaches zero.
+      This request should be sent only when VHOST_USER_PROTOCOL_F_VFIO protocol
+      feature has been successfully negotiated.
+
+ * VHOST_USER_SLAVE_VRING_NOTIFY_AREA_MSG
+
+      Id: 4
+      Equivalent ioctl: N/A
+      Slave payload: vring area description
+      Master payload: N/A
+
+      Sets the notify area for a specified queue (queue index is carried
+      in the u64 field of the vring area description). A file descriptor is
+      passed as ancillary data (typically it's a VFIO device fd). QEMU can
+      mmap the file descriptor based on the information carried in the vring
+      area description.
+      Slave sends this request to tell QEMU to add or delete a MemoryRegion
+      for a specified queue's notify MMIO region. QEMU will delete the current
+      MemoryRegion if any for the specified queue when the message is sent
+      without a file descriptor.
+      This request should be sent only when VHOST_USER_PROTOCOL_F_VFIO protocol
+      feature and VIRTIO_F_VERSION_1 feature have been successfully negotiated.
 
 VHOST_USER_PROTOCOL_F_REPLY_ACK:
 -------------------------------
