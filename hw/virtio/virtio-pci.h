@@ -213,6 +213,11 @@ static inline void virtio_pci_disable_modern(VirtIOPCIProxy *proxy)
     proxy->disable_modern = true;
 }
 
+bool virtio_pci_page_per_vq_enabled(VirtIODevice *vdev);
+int virtio_pci_notify_region_map(VirtIODevice *vdev, int queue_idx,
+                                 MemoryRegion *mr);
+void virtio_pci_notify_region_unmap(VirtIODevice *vdev, MemoryRegion *mr);
+
 /*
  * virtio-scsi-pci: This extends VirtioPCIProxy.
  */

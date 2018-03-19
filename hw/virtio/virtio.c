@@ -22,6 +22,7 @@
 #include "qemu/atomic.h"
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio-access.h"
+#include "hw/virtio/virtio-pci.h"
 #include "sysemu/dma.h"
 
 /*
@@ -2679,6 +2680,44 @@ void virtio_device_release_ioeventfd(VirtIODevice *vdev)
     VirtioBusState *vbus = VIRTIO_BUS(qbus);
 
     virtio_bus_release_ioeventfd(vbus);
+}
+
+bool virtio_device_parent_is_pci_device(VirtIODevice *vdev)
+{
+    BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
+    const char *typename = object_get_typename(OBJECT(qbus->parent));
+
+    return strstr(typename, "pci") != NULL;
+}
+
+bool virtio_device_page_per_vq_enabled(VirtIODevice *vdev)
+{
+#ifdef CONFIG_VIRTIO_PCI
+    if (virtio_device_parent_is_pci_device(vdev)) {
+        return virtio_pci_page_per_vq_enabled(vdev);
+    }
+#endif
+    return false;
+}
+
+int virtio_device_notify_region_map(VirtIODevice *vdev, int queue_idx,
+                                    MemoryRegion *mr)
+{
+#ifdef CONFIG_VIRTIO_PCI
+    if (virtio_device_parent_is_pci_device(vdev)) {
+        return virtio_pci_notify_region_map(vdev, queue_idx, mr);
+    }
+#endif
+    return -1;
+}
+
+void virtio_device_notify_region_unmap(VirtIODevice *vdev, MemoryRegion *mr)
+{
+#ifdef CONFIG_VIRTIO_PCI
+    if (virtio_device_parent_is_pci_device(vdev)) {
+        virtio_pci_notify_region_unmap(vdev, mr);
+    }
+#endif
 }
 
 static void virtio_device_class_init(ObjectClass *klass, void *data)

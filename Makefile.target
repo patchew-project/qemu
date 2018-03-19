@@ -39,6 +39,9 @@ STPFILES=
 config-target.h: config-target.h-timestamp
 config-target.h-timestamp: config-target.mak
 
+config-devices.h: config-devices.h-timestamp
+config-devices.h-timestamp: config-devices.mak
+
 ifdef CONFIG_TRACE_SYSTEMTAP
 stap: $(QEMU_PROG).stp-installed $(QEMU_PROG).stp $(QEMU_PROG)-simpletrace.stp
 
@@ -224,4 +227,5 @@ ifdef CONFIG_TRACE_SYSTEMTAP
 endif
 
 GENERATED_FILES += config-target.h
+GENERATED_FILES += config-devices.h
 Makefile: $(GENERATED_FILES)

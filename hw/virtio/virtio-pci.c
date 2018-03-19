@@ -1534,6 +1534,54 @@ static void virtio_pci_modern_io_region_unmap(VirtIOPCIProxy *proxy,
                                 &region->mr);
 }
 
+static VirtIOPCIProxy *virtio_device_to_virtio_pci_proxy(VirtIODevice *vdev)
+{
+    VirtIOPCIProxy *proxy = NULL;
+
+    if (vdev->device_id == VIRTIO_ID_NET) {
+        VirtIONetPCI *d = container_of(vdev, VirtIONetPCI, vdev.parent_obj);
+        proxy = &d->parent_obj;
+    }
+
+    return proxy;
+}
+
+bool virtio_pci_page_per_vq_enabled(VirtIODevice *vdev)
+{
+    VirtIOPCIProxy *proxy = virtio_device_to_virtio_pci_proxy(vdev);
+
+    if (proxy == NULL) {
+        return false;
+    }
+
+    return !!(proxy->flags & VIRTIO_PCI_FLAG_PAGE_PER_VQ);
+}
+
+int virtio_pci_notify_region_map(VirtIODevice *vdev, int queue_idx,
+                                 MemoryRegion *mr)
+{
+    VirtIOPCIProxy *proxy = virtio_device_to_virtio_pci_proxy(vdev);
+    int offset;
+
+    if (proxy == NULL || !virtio_pci_modern(proxy)) {
+        return -1;
+    }
+
+    offset = virtio_pci_queue_mem_mult(proxy) * queue_idx;
+    memory_region_add_subregion(&proxy->notify.mr, offset, mr);
+
+    return 0;
+}
+
+void virtio_pci_notify_region_unmap(VirtIODevice *vdev, MemoryRegion *mr)
+{
+    VirtIOPCIProxy *proxy = virtio_device_to_virtio_pci_proxy(vdev);
+
+    if (proxy != NULL) {
+        memory_region_del_subregion(&proxy->notify.mr, mr);
+    }
+}
+
 static void virtio_pci_pre_plugged(DeviceState *d, Error **errp)
 {
     VirtIOPCIProxy *proxy = VIRTIO_PCI(d);

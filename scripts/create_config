@@ -58,6 +58,9 @@ case $line in
     name=${line%=*}
     echo "#define $name 1"
     ;;
+ CONFIG_*='$(CONFIG_'*')') # configuration
+    continue
+    ;;
  CONFIG_*=*) # configuration
     name=${line%=*}
     value=${line#*=}

@@ -285,6 +285,11 @@ void virtio_device_stop_ioeventfd(VirtIODevice *vdev);
 int virtio_device_grab_ioeventfd(VirtIODevice *vdev);
 void virtio_device_release_ioeventfd(VirtIODevice *vdev);
 bool virtio_device_ioeventfd_enabled(VirtIODevice *vdev);
+bool virtio_device_parent_is_pci_device(VirtIODevice *vdev);
+bool virtio_device_page_per_vq_enabled(VirtIODevice *vdev);
+int virtio_device_notify_region_map(VirtIODevice *vdev, int queue_idx,
+                                    MemoryRegion *mr);
+void virtio_device_notify_region_unmap(VirtIODevice *vdev, MemoryRegion *mr);
 EventNotifier *virtio_queue_get_host_notifier(VirtQueue *vq);
 void virtio_queue_host_notifier_read(EventNotifier *n);
 void virtio_queue_aio_set_host_notifier_handler(VirtQueue *vq, AioContext *ctx,
