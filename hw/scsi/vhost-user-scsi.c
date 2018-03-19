@@ -72,7 +72,7 @@ static void vhost_user_scsi_realize(DeviceState *dev, Error **errp)
     Error *err = NULL;
     int ret;
 
-    if (!vs->conf.chardev.chr) {
+    if (!vs->conf.vhost_user.chr.chr) {
         error_setg(errp, "vhost-user-scsi: missing chardev");
         return;
     }
@@ -90,7 +90,7 @@ static void vhost_user_scsi_realize(DeviceState *dev, Error **errp)
     vsc->dev.vq_index = 0;
     vsc->dev.backend_features = 0;
 
-    ret = vhost_dev_init(&vsc->dev, (void *)&vs->conf.chardev,
+    ret = vhost_dev_init(&vsc->dev, (void *)&vs->conf.vhost_user,
                          VHOST_BACKEND_TYPE_USER, 0);
     if (ret < 0) {
         error_setg(errp, "vhost-user-scsi: vhost initialization failed: %s",
@@ -131,7 +131,7 @@ static uint64_t vhost_user_scsi_get_features(VirtIODevice *vdev,
 }
 
 static Property vhost_user_scsi_properties[] = {
-    DEFINE_PROP_CHR("chardev", VirtIOSCSICommon, conf.chardev),
+    DEFINE_PROP_CHR("chardev", VirtIOSCSICommon, conf.vhost_user.chr),
     DEFINE_PROP_UINT32("boot_tpgt", VirtIOSCSICommon, conf.boot_tpgt, 0),
     DEFINE_PROP_UINT32("num_queues", VirtIOSCSICommon, conf.num_queues, 1),
     DEFINE_PROP_UINT32("virtqueue_size", VirtIOSCSICommon, conf.virtqueue_size,
