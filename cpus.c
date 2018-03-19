@@ -1006,8 +1006,9 @@ static int do_vm_stop(RunState state, bool send_stop)
             qapi_event_send_stop(&error_abort);
         }
     }
-
-    bdrv_drain_all();
+    if (send_stop) {
+        bdrv_drain_all();
+    }
     replay_disable_events();
     ret = bdrv_flush_all();
 
