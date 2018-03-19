@@ -1040,6 +1040,10 @@ SerialState *serial_mm_init(MemoryRegion *address_space,
 {
     SerialState *s;
 
+    if (!chr) {
+        chr = qemu_chardev_new(NULL, TYPE_CHARDEV_NULL, NULL, &error_abort);
+    }
+
     s = g_malloc0(sizeof(SerialState));
 
     s->it_shift = it_shift;
