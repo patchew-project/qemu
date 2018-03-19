@@ -41,6 +41,7 @@ enum VhostUserProtocolFeature {
     VHOST_USER_PROTOCOL_F_SLAVE_REQ = 5,
     VHOST_USER_PROTOCOL_F_CROSS_ENDIAN = 6,
     VHOST_USER_PROTOCOL_F_CRYPTO_SESSION = 7,
+    VHOST_USER_PROTOCOL_F_RESET_DEVICE = 8,
 
     VHOST_USER_PROTOCOL_F_MAX
 };
@@ -76,6 +77,7 @@ typedef enum VhostUserRequest {
     VHOST_USER_SET_CONFIG = 25,
     VHOST_USER_CREATE_CRYPTO_SESSION = 26,
     VHOST_USER_CLOSE_CRYPTO_SESSION = 27,
+    VHOST_USER_RESET_DEVICE = 28,
     VHOST_USER_MAX
 } VhostUserRequest;
 
@@ -641,9 +643,13 @@ static int vhost_user_set_owner(struct vhost_dev *dev)
 static int vhost_user_reset_device(struct vhost_dev *dev)
 {
     VhostUserMsg msg = {
-        .hdr.request = VHOST_USER_RESET_OWNER,
         .hdr.flags = VHOST_USER_VERSION,
     };
+
+    msg.hdr.request = virtio_has_feature(dev->protocol_features,
+                                         VHOST_USER_PROTOCOL_F_RESET_DEVICE)
+        ? VHOST_USER_RESET_DEVICE
+        : VHOST_USER_RESET_OWNER;
 
     if (vhost_user_write(dev, &msg, NULL, 0) < 0) {
         return -1;
