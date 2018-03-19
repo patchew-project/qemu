@@ -232,9 +232,10 @@ static void kvm_dist_getbmp(GICv3State *s, uint32_t offset, uint32_t *bmp)
 static void kvm_dist_putbmp(GICv3State *s, uint32_t offset,
                             uint32_t clroffset, uint32_t *bmp)
 {
-    uint32_t reg;
+    uint32_t reg, clroffset_index;
     int irq;
 
+    clroffset_index = clroffset;
     for_each_dist_irq_reg(irq, s->num_irq, 1) {
         /* If this bitmap is a set/clear register pair, first write to the
          * clear-reg to clear all bits before using the set-reg to write
@@ -242,7 +243,8 @@ static void kvm_dist_putbmp(GICv3State *s, uint32_t offset,
          */
         if (clroffset != 0) {
             reg = 0;
-            kvm_gicd_access(s, clroffset, &reg, true);
+            kvm_gicd_access(s, clroffset_index, &reg, true);
+            clroffset_index += 4;
         }
         reg = *gic_bmp_ptr32(bmp, irq);
         kvm_gicd_access(s, offset, &reg, true);
