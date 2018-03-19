@@ -105,6 +105,8 @@ static void test_one_device(const char *type)
     QDict *resp;
     char *help, *qom_tree;
 
+    g_debug("Testing device '%s'", type);
+
     resp = qmp("{'execute': 'device-list-properties',"
                " 'arguments': {'typename': %s}}",
                type);
@@ -206,13 +208,13 @@ static void test_device_intro_abstract(void)
     qtest_end();
 }
 
-static void test_device_intro_concrete(void)
+static void test_device_intro_concrete(gconstpointer args)
 {
     QList *types;
     QListEntry *entry;
     const char *type;
 
-    qtest_start(common_args);
+    qtest_start((const char *)args);
     types = device_type_list(false);
 
     QLIST_FOREACH_ENTRY(types, entry) {
@@ -224,6 +226,7 @@ static void test_device_intro_concrete(void)
 
     QDECREF(types);
     qtest_end();
+    g_free((void *)args);
 }
 
 static void test_abstract_interfaces(void)
@@ -260,6 +263,26 @@ static void test_abstract_interfaces(void)
     qtest_end();
 }
 
+static void add_machine_test_case(const char *mname)
+{
+    char *path, *args;
+
+    /* Ignore blacklisted machines */
+    if (g_str_equal("xenfv", mname) || g_str_equal("xenpv", mname)) {
+        return;
+    }
+
+    path = g_strdup_printf("device/introspect/concrete-defaults-%s", mname);
+    args = g_strdup_printf("-machine %s", mname);
+    qtest_add_data_func(path, args, test_device_intro_concrete);
+    g_free(path);
+
+    path = g_strdup_printf("device/introspect/concrete-nodefaults-%s", mname);
+    args = g_strdup_printf("-nodefaults -machine %s", mname);
+    qtest_add_data_func(path, args, test_device_intro_concrete);
+    g_free(path);
+}
+
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
@@ -268,8 +291,12 @@ int main(int argc, char **argv)
     qtest_add_func("device/introspect/list-fields", test_qom_list_fields);
     qtest_add_func("device/introspect/none", test_device_intro_none);
     qtest_add_func("device/introspect/abstract", test_device_intro_abstract);
-    qtest_add_func("device/introspect/concrete", test_device_intro_concrete);
     qtest_add_func("device/introspect/abstract-interfaces", test_abstract_interfaces);
+    qtest_add_data_func("device/introspect/concrete", g_strdup(common_args),
+                        test_device_intro_concrete);
+    if (g_test_slow()) {
+        qtest_cb_for_every_machine(add_machine_test_case);
+    }
 
     return g_test_run();
 }
