@@ -301,7 +301,7 @@ int qemu_create_pidfile(const char *filename)
     int len;
     int fd;
 
-    fd = qemu_open(filename, O_RDWR | O_CREAT, 0600);
+    fd = qemu_open(filename, O_RDWR | O_CREAT | O_TRUNC, 0600);
     if (fd == -1) {
         return -1;
     }
