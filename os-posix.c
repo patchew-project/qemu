@@ -309,6 +309,12 @@ int qemu_create_pidfile(const char *filename)
         close(fd);
         return -1;
     }
+
+    if (ftruncate(fd, 0)) {
+        close(fd);
+        return -1;
+    }
+
     len = snprintf(buffer, sizeof(buffer), FMT_pid "\n", getpid());
     if (write(fd, buffer, len) != len) {
         close(fd);
