@@ -977,6 +977,13 @@ int postcopy_request_shared_page(struct PostCopyFD *pcfd, RAMBlock *rb,
     return -1;
 }
 
+int postcopy_request_shared_page(struct PostCopyFD *pcfd, RAMBlock *rb,
+                                 uint64_t client_addr, uint64_t rb_offset)
+{
+    assert(0);
+    return -1;
+}
+
 int postcopy_ram_enable_notify(MigrationIncomingState *mis)
 {
     assert(0);
