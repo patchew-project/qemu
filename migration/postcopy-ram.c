@@ -86,7 +86,7 @@ int postcopy_notify(enum PostcopyNotifyReason reason, Error **errp)
 #include <asm/types.h> /* for __u64 */
 #endif
 
-#if defined(__linux__) && defined(__NR_userfaultfd) && defined(CONFIG_EVENTFD)
+#if defined(__linux__) && defined(CONFIG_EVENTFD)
 #include <sys/eventfd.h>
 #include <linux/userfaultfd.h>
 
@@ -97,7 +97,6 @@ int postcopy_notify(enum PostcopyNotifyReason reason, Error **errp)
  *
  * Returns: true on success
  *
- * __NR_userfaultfd - should be checked before
  *  @features: out parameter will contain uffdio_api.features provided by kernel
  *              in case of success
  */
@@ -107,7 +106,6 @@ static bool receive_ufd_features(uint64_t *features)
     int ufd;
     bool ret = true;
 
-    /* if we are here __NR_userfaultfd should exists */
     ufd = syscall(__NR_userfaultfd, O_CLOEXEC);
     if (ufd == -1) {
         error_report("%s: syscall __NR_userfaultfd failed: %s", __func__,
