@@ -52,16 +52,6 @@ endif
 
 .git-submodule-status: git-submodule-update config-host.mak
 
-# Check that we're not trying to do an out-of-tree build from
-# a tree that's been used for an in-tree build.
-ifneq ($(realpath $(SRC_PATH)),$(realpath .))
-ifneq ($(wildcard $(SRC_PATH)/config-host.mak),)
-$(error This is an out of tree build but your source tree ($(SRC_PATH)) \
-seems to have been used for an in-tree build. You can fix this by running \
-"$(MAKE) distclean && rm -rf *-linux-user *-softmmu" in your source tree)
-endif
-endif
-
 CONFIG_SOFTMMU := $(if $(filter %-softmmu,$(TARGET_DIRS)),y)
 CONFIG_USER_ONLY := $(if $(filter %-user,$(TARGET_DIRS)),y)
 CONFIG_XEN := $(CONFIG_XEN_BACKEND)
@@ -1027,6 +1017,25 @@ ifdef SIGNCODE
 	$(SIGNCODE) $(INSTALLER)
 endif # SIGNCODE
 endif # CONFIG_WIN
+
+define nl
+
+
+endef
+
+CHECK_FILES = config-host.mak $(filter-out .git-submodule-status, $(GENERATED_FILES))
+UNEXPECTED_FILES = $(wildcard $(CHECK_FILES:%=$(SRC_PATH)/%))
+
+# Check that we're not trying to do an out-of-tree build from
+# a tree that's been used for an in-tree build.
+ifneq ($(realpath $(SRC_PATH)),$(realpath .))
+ifneq ($(UNEXPECTED_FILES),)
+$(error Stale files in source tree:${nl}${nl} $(UNEXPECTED_FILES:%=  %${nl}) ${nl}\
+This is an out of tree build but your source tree ($(SRC_PATH)) \
+seems to have been used for an in-tree build. You can fix this by running \
+"$(MAKE) distclean && rm -rf *-linux-user *-softmmu" in your source tree)
+endif
+endif
 
 # Add a dependency on the generated files, so that they are always
 # rebuilt before other object files
