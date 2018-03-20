@@ -83,11 +83,6 @@ for arch in $ARCHLIST; do
         continue
     fi
 
-    # Blacklist architectures which have KVM headers but are actually dead
-    if [ "$arch" = "ia64" -o "$arch" = "mips" ]; then
-        continue
-    fi
-
     if [ "$arch" = x86 ]; then
         arch_var=SRCARCH
     else
@@ -98,9 +93,17 @@ for arch in $ARCHLIST; do
 
     rm -rf "$output/linux-headers/asm-$arch"
     mkdir -p "$output/linux-headers/asm-$arch"
-    for header in kvm.h kvm_para.h unistd.h; do
+    for header in unistd.h bitsperlong.h; do
         cp "$tmpdir/include/asm/$header" "$output/linux-headers/asm-$arch"
     done
+
+    # Blacklist architectures which have KVM headers but are actually dead
+    if [ "$arch" != "ia64" -a "$arch" != "mips" ]; then
+        for header in kvm.h kvm_para.h; do
+            cp "$tmpdir/include/asm/$header" "$output/linux-headers/asm-$arch"
+        done
+    fi
+
     if [ $arch = powerpc ]; then
         cp "$tmpdir/include/asm/epapr_hcalls.h" "$output/linux-headers/asm-powerpc/"
     fi
@@ -135,7 +138,7 @@ for header in kvm.h kvm_para.h vfio.h vfio_ccw.h vhost.h \
 done
 rm -rf "$output/linux-headers/asm-generic"
 mkdir -p "$output/linux-headers/asm-generic"
-for header in kvm_para.h; do
+for header in kvm_para.h bitsperlong.h unistd.h; do
     cp "$tmpdir/include/asm-generic/$header" "$output/linux-headers/asm-generic"
 done
 if [ -L "$linux/source" ]; then
