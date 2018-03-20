@@ -838,7 +838,12 @@ nvdimm_dsm_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
      * this by copying DSM memory to QEMU local memory.
      */
     in = g_new(NvdimmDsmIn, 1);
-    cpu_physical_memory_read(dsm_mem_addr, in, sizeof(*in));
+    if (address_space_read(&address_space_memory, dsm_mem_addr,
+                          MEMTXATTRS_UNSPECIFIED, in,
+                          sizeof(*in)) != MEMTX_OK) {
+                            nvdimm_debug("Failed to read DSM memory");
+                            goto exit;
+                          }
 
     le32_to_cpus(&in->revision);
     le32_to_cpus(&in->function);
