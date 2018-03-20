@@ -13,6 +13,7 @@
 #include "hw/hw.h"
 #include "hw/i2c/i2c.h"
 #include "sysemu/block-backend.h"
+#include "qemu/error-report.h"
 
 /* #define DEBUG_AT24C */
 
@@ -21,9 +22,6 @@
 #else
 #define DPRINTK(FMT, ...) do {} while (0)
 #endif
-
-#define ERR(FMT, ...) fprintf(stderr, TYPE_AT24C_EE " : " FMT, \
-                            ## __VA_ARGS__)
 
 #define TYPE_AT24C_EE "at24c-eeprom"
 #define AT24C_EE(obj) OBJECT_CHECK(EEPROMState, (obj), TYPE_AT24C_EE)
@@ -63,8 +61,7 @@ int at24c_eeprom_event(I2CSlave *s, enum i2c_event event)
         if (ee->blk && ee->changed) {
             int len = blk_pwrite(ee->blk, 0, ee->mem, ee->rsize, 0);
             if (len != ee->rsize) {
-                ERR(TYPE_AT24C_EE
-                        " : failed to write backing file\n");
+                error_report("failed to write backing file");
             }
             DPRINTK("Wrote to backing file\n");
         }
@@ -125,7 +122,7 @@ int at24c_eeprom_init(I2CSlave *i2c)
     EEPROMState *ee = AT24C_EE(i2c);
 
     if (!ee->rsize) {
-        ERR("rom-size not allowed to be 0\n");
+        error_report("rom-size not allowed to be 0");
         exit(1);
     }
 
@@ -135,7 +132,7 @@ int at24c_eeprom_init(I2CSlave *i2c)
         int64_t len = blk_getlength(ee->blk);
 
         if (len != ee->rsize) {
-            ERR(TYPE_AT24C_EE " : Backing file size %lu != %u\n",
+            error_report("Backing file size %lu != %u",
                     (unsigned long)len, (unsigned)ee->rsize);
             exit(1);
         }
@@ -143,8 +140,7 @@ int at24c_eeprom_init(I2CSlave *i2c)
         if (blk_set_perm(ee->blk, BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE,
                          BLK_PERM_ALL, &error_fatal) < 0)
         {
-            ERR(TYPE_AT24C_EE
-                    " : Backing file incorrect permission\n");
+            error_report("Backing file incorrect permission");
             exit(1);
         }
     }
@@ -166,8 +162,7 @@ void at24c_eeprom_reset(DeviceState *state)
         int len = blk_pread(ee->blk, 0, ee->mem, ee->rsize);
 
         if (len != ee->rsize) {
-            ERR(TYPE_AT24C_EE
-                    " : Failed initial sync with backing file\n");
+            error_report("Failed initial sync with backing file");
         }
         DPRINTK("Reset read backing file\n");
     }
