@@ -83,6 +83,7 @@ static void test_qmp_protocol(void)
     const QListEntry *entry;
     QString *qstr;
     int i;
+    char buf[128];
 
     qts = qtest_init_without_qmp_handshake(common_args);
 
@@ -150,7 +151,10 @@ static void test_qmp_protocol(void)
      * best-effort test.
      */
     for (i = 0; i < 16; i++) {
-        qtest_async_qmp(qts, "{ 'execute': 'query-version' }");
+        snprintf(buf, sizeof(buf) - 1, "{ 'execute': 'query-version', "
+                 "'id': %d }", i);
+        buf[sizeof(buf) - 1] = '\0';
+        qtest_async_qmp(qts, buf);
     }
     /* Verify the replies to make sure no command is dropped. */
     for (i = 0; i < 16; i++) {
@@ -158,6 +162,8 @@ static void test_qmp_protocol(void)
         /* It should never be dropped.  Each of them should be a reply. */
         g_assert(qdict_haskey(resp, "return"));
         g_assert(!qdict_haskey(resp, "event"));
+        g_assert(qdict_haskey(resp, "id"));
+        g_assert(qdict_get_int(resp, "id") == i);
         QDECREF(resp);
     }
 
