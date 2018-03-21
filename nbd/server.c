@@ -733,6 +733,44 @@ static int nbd_negotiate_send_meta_context(NBDClient *client,
     return qio_channel_writev_all(client->ioc, iov, 2, errp) < 0 ? -EIO : 0;
 }
 
+/* Read len bytes and check matching to the pattern.
+ * @match is set to true on empty query for _LIST_ and for query matching the
+ * @pattern. @match is never set to false.
+ *
+ * Return -errno on I/O error, 0 if option was completely handled by
+ * sending a reply about inconsistent lengths, or 1 on success. */
+static int nbd_meta_single_query(NBDClient *client, const char *pattern,
+                                 uint32_t len, bool *match, Error **errp)
+{
+    int ret;
+    char *query;
+
+    if (len == 0) {
+        if (client->opt == NBD_OPT_LIST_META_CONTEXT) {
+            *match = true;
+        }
+        return 1;
+    }
+
+    if (len != strlen(pattern)) {
+        return nbd_opt_skip(client, len, errp);
+    }
+
+    query = g_malloc(len);
+    ret = nbd_opt_read(client, query, len, errp);
+    if (ret <= 0) {
+        g_free(query);
+        return ret;
+    }
+
+    if (strncmp(query, pattern, len) == 0) {
+        *match = true;
+    }
+    g_free(query);
+
+    return 1;
+}
+
 /* nbd_meta_base_query
  *
  * Handle query to 'base' namespace. For now, only base:allocation context is
@@ -744,31 +782,8 @@ static int nbd_negotiate_send_meta_context(NBDClient *client,
 static int nbd_meta_base_query(NBDClient *client, NBDExportMetaContexts *meta,
                                uint32_t len, Error **errp)
 {
-    int ret;
-    char query[sizeof("allocation") - 1];
-    size_t alen = strlen("allocation");
-
-    if (len == 0) {
-        if (client->opt == NBD_OPT_LIST_META_CONTEXT) {
-            meta->base_allocation = true;
-        }
-        return 1;
-    }
-
-    if (len != alen) {
-        return nbd_opt_skip(client, len, errp);
-    }
-
-    ret = nbd_opt_read(client, query, len, errp);
-    if (ret <= 0) {
-        return ret;
-    }
-
-    if (strncmp(query, "allocation", alen) == 0) {
-        meta->base_allocation = true;
-    }
-
-    return 1;
+    return nbd_meta_single_query(client, "allocation", len,
+                                 &meta->base_allocation, errp);
 }
 
 struct {
