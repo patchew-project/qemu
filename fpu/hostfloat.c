@@ -290,3 +290,39 @@ GEN_FPU_FMA(float64_muladd, float64, double, fma, fabs, DBL_MIN)
 GEN_FPU_SQRT(float32_sqrt, float32, float, sqrtf)
 GEN_FPU_SQRT(float64_sqrt, float64, double, sqrt)
 #undef GEN_FPU_SQRT
+
+#define GEN_FPU_COMPARE(name, soft_t, host_t)                           \
+    static inline __attribute__((always_inline)) int                    \
+    fpu_ ## name(soft_t a, soft_t b, bool is_quiet, float_status *s)    \
+    {                                                                   \
+        soft_t ## _input_flush2(&a, &b, s);                             \
+        if (unlikely(soft_t ## _is_any_nan(a) ||                        \
+                     soft_t ## _is_any_nan(b))) {                       \
+            return soft_ ## name(a, b, is_quiet, s);                    \
+        } else {                                                        \
+            host_t ha = soft_t ## _to_ ## host_t(a);                    \
+            host_t hb = soft_t ## _to_ ## host_t(b);                    \
+                                                                        \
+            if (isgreater(ha, hb)) {                                    \
+                return float_relation_greater;                          \
+            }                                                           \
+            if (isless(ha, hb)) {                                       \
+                return float_relation_less;                             \
+            }                                                           \
+            return float_relation_equal;                                \
+        }                                                               \
+    }                                                                   \
+                                                                        \
+    int name(soft_t a, soft_t b, float_status *s)                       \
+    {                                                                   \
+        return fpu_ ## name(a, b, false, s);                            \
+    }                                                                   \
+                                                                        \
+    int name ## _quiet(soft_t a, soft_t b, float_status *s)             \
+    {                                                                   \
+        return fpu_ ## name(a, b, true, s);                             \
+    }
+
+GEN_FPU_COMPARE(float32_compare, float32, float)
+GEN_FPU_COMPARE(float64_compare, float64, double)
+#undef GEN_FPU_COMPARE

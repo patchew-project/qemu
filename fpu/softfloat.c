@@ -1848,27 +1848,33 @@ static int compare_floats(FloatParts a, FloatParts b, bool is_quiet,
     }
 }
 
-#define COMPARE(sz)                                                     \
-int float ## sz ## _compare(float ## sz a, float ## sz b,               \
-                            float_status *s)                            \
+#define COMPARE(storage_class, sz)                                      \
+storage_class int                                                       \
+soft_float ## sz ## _compare(float ## sz a, float ## sz b,              \
+                                     bool is_quiet, float_status *s)    \
 {                                                                       \
     FloatParts pa = float ## sz ## _unpack_canonical(a, s);             \
     FloatParts pb = float ## sz ## _unpack_canonical(b, s);             \
-    return compare_floats(pa, pb, false, s);                            \
-}                                                                       \
-int float ## sz ## _compare_quiet(float ## sz a, float ## sz b,         \
-                                  float_status *s)                      \
-{                                                                       \
-    FloatParts pa = float ## sz ## _unpack_canonical(a, s);             \
-    FloatParts pb = float ## sz ## _unpack_canonical(b, s);             \
-    return compare_floats(pa, pb, true, s);                             \
+    return compare_floats(pa, pb, is_quiet, s);                         \
 }
 
-COMPARE(16)
-COMPARE(32)
-COMPARE(64)
+COMPARE(static, 16)
+COMPARE(, 32)
+COMPARE(, 64)
 
 #undef COMPARE
+
+int __attribute__((flatten))
+float16_compare(float16 a, float16 b, float_status *s)
+{
+    return soft_float16_compare(a, b, false, s);
+}
+
+int __attribute__((flatten))
+float16_compare_quiet(float16 a, float16 b, float_status *s)
+{
+    return soft_float16_compare(a, b, true, s);
+}
 
 /* Multiply A by 2 raised to the power N.  */
 static FloatParts scalbn_decomposed(FloatParts a, int n, float_status *s)
