@@ -771,12 +771,18 @@ static int nbd_meta_base_query(NBDClient *client, NBDExportMetaContexts *meta,
     return 1;
 }
 
+struct {
+    const char *ns;
+    int (*func)(NBDClient *, NBDExportMetaContexts *, uint32_t, Error **);
+} meta_namespace_handlers[] = {
+    /* namespaces should go in non-decreasing order by name length */
+    {.ns = "base:", .func = nbd_meta_base_query},
+};
+
 /* nbd_negotiate_meta_query
  *
  * Parse namespace name and call corresponding function to parse body of the
  * query.
- *
- * The only supported namespace now is 'base'.
  *
  * The function aims not wasting time and memory to read long unknown namespace
  * names.
@@ -787,9 +793,12 @@ static int nbd_negotiate_meta_query(NBDClient *client,
                                     NBDExportMetaContexts *meta, Error **errp)
 {
     int ret;
-    char query[sizeof("base:") - 1];
-    size_t baselen = strlen("base:");
+    int i;
     uint32_t len;
+    int bytes_done = 0;
+    char *query;
+    int nb_ns = sizeof(meta_namespace_handlers) /
+                sizeof(meta_namespace_handlers[0]);
 
     ret = nbd_opt_read(client, &len, sizeof(len), errp);
     if (ret <= 0) {
@@ -797,22 +806,39 @@ static int nbd_negotiate_meta_query(NBDClient *client,
     }
     cpu_to_be32s(&len);
 
-    /* The only supported namespace for now is 'base'. So query should start
-     * with 'base:'. Otherwise, we can ignore it and skip the remainder. */
-    if (len < baselen) {
-        return nbd_opt_skip(client, len, errp);
+    query = g_malloc(strlen(meta_namespace_handlers[nb_ns - 1].ns));
+
+    for (i = 0; i < nb_ns; i++) {
+        const char *ns = meta_namespace_handlers[i].ns;
+        int ns_len = strlen(ns);
+        int diff_len = strlen(ns) - bytes_done;
+
+        assert(diff_len >= 0);
+
+        if (diff_len > 0) {
+            if (len < diff_len) {
+                ret = nbd_opt_skip(client, len, errp);
+                goto out;
+            }
+
+            len -= diff_len;
+            ret = nbd_opt_read(client, query + bytes_done, diff_len, errp);
+            if (ret <= 0) {
+                goto out;
+            }
+        }
+
+        if (!strncmp(query, ns, ns_len)) {
+            ret = meta_namespace_handlers[i].func(client, meta, len, errp);
+            goto out;
+        }
     }
 
-    len -= baselen;
-    ret = nbd_opt_read(client, query, baselen, errp);
-    if (ret <= 0) {
-        return ret;
-    }
-    if (strncmp(query, "base:", baselen) != 0) {
-        return nbd_opt_skip(client, len, errp);
-    }
+    ret = nbd_opt_skip(client, len, errp);
 
-    return nbd_meta_base_query(client, meta, len, errp);
+out:
+    g_free(query);
+    return ret;
 }
 
 /* nbd_negotiate_meta_queries
