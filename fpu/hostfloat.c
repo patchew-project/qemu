@@ -270,3 +270,23 @@ GEN_FPU_DIV(float64_div, float64, double, fabs, DBL_MIN)
 GEN_FPU_FMA(float32_muladd, float32, float, fmaf, fabsf, FLT_MIN)
 GEN_FPU_FMA(float64_muladd, float64, double, fma, fabs, DBL_MIN)
 #undef GEN_FPU_FMA
+
+#define GEN_FPU_SQRT(name, soft_t, host_t, host_sqrt_func)              \
+    soft_t name(soft_t a, float_status *s)                              \
+    {                                                                   \
+        soft_t ## _input_flush1(&a, s);                                 \
+        if (likely((soft_t ## _is_normal(a) || soft_t ## _is_zero(a)) && \
+                   !soft_t ## _is_neg(a) &&                             \
+                   s->float_exception_flags & float_flag_inexact &&     \
+                   s->float_rounding_mode == float_round_nearest_even)) { \
+            host_t ha = soft_t ## _to_ ## host_t(a);                    \
+            host_t hr = host_sqrt_func(ha);                             \
+                                                                        \
+            return host_t ## _to_ ## soft_t(hr);                        \
+        }                                                               \
+        return soft_ ## soft_t ## _sqrt(a, s);                          \
+    }
+
+GEN_FPU_SQRT(float32_sqrt, float32, float, sqrtf)
+GEN_FPU_SQRT(float64_sqrt, float64, double, sqrt)
+#undef GEN_FPU_SQRT
