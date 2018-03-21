@@ -343,14 +343,14 @@ static void monitor_flush_locked(Monitor *mon)
         rc = qemu_chr_fe_write(&mon->chr, (const uint8_t *) buf, len);
         if ((rc < 0 && errno != EAGAIN) || (rc == len)) {
             /* all flushed or error */
-            QDECREF(mon->outbuf);
+            qobject_unref(mon->outbuf);
             mon->outbuf = qstring_new();
             return;
         }
         if (rc > 0) {
             /* partial write */
             QString *tmp = qstring_from_str(buf + rc);
-            QDECREF(mon->outbuf);
+            qobject_unref(mon->outbuf);
             mon->outbuf = tmp;
         }
         if (mon->out_watch == 0) {
@@ -434,7 +434,7 @@ static void monitor_json_emitter_raw(Monitor *mon,
     qstring_append_chr(json, '\n');
     monitor_puts(mon, qstring_get_str(json));
 
-    QDECREF(json);
+    qobject_unref(json);
 }
 
 static void monitor_json_emitter(Monitor *mon, QObject *data)
@@ -446,7 +446,7 @@ static void monitor_json_emitter(Monitor *mon, QObject *data)
          * caller won't free the data (which will be finally freed in
          * responder thread).
          */
-        qobject_incref(data);
+        qobject_ref(data);
         qemu_mutex_lock(&mon->qmp.qmp_queue_lock);
         g_queue_push_tail(mon->qmp.qmp_responses, (void *)data);
         qemu_mutex_unlock(&mon->qmp.qmp_queue_lock);
@@ -498,7 +498,7 @@ static void monitor_qmp_bh_responder(void *opaque)
             break;
         }
         monitor_json_emitter_raw(response.mon, response.data);
-        qobject_decref(response.data);
+        qobject_unref(response.data);
     }
 }
 
@@ -565,9 +565,9 @@ monitor_qapi_event_queue(QAPIEvent event, QDict *qdict, Error **errp)
              * last send.  Store event for sending when timer fires,
              * replacing a prior stored event if any.
              */
-            QDECREF(evstate->qdict);
+            qobject_unref(evstate->qdict);
             evstate->qdict = qdict;
-            QINCREF(evstate->qdict);
+            qobject_ref(evstate->qdict);
         } else {
             /*
              * Last send was (at least) evconf->rate ns ago.
@@ -582,7 +582,7 @@ monitor_qapi_event_queue(QAPIEvent event, QDict *qdict, Error **errp)
             evstate = g_new(MonitorQAPIEventState, 1);
             evstate->event = event;
             evstate->data = data;
-            QINCREF(evstate->data);
+            qobject_ref(evstate->data);
             evstate->qdict = NULL;
             evstate->timer = timer_new_ns(event_clock_type,
                                           monitor_qapi_event_handler,
@@ -612,12 +612,12 @@ static void monitor_qapi_event_handler(void *opaque)
         int64_t now = qemu_clock_get_ns(event_clock_type);
 
         monitor_qapi_event_emit(evstate->event, evstate->qdict);
-        QDECREF(evstate->qdict);
+        qobject_unref(evstate->qdict);
         evstate->qdict = NULL;
         timer_mod_ns(evstate->timer, now + evconf->rate);
     } else {
         g_hash_table_remove(monitor_qapi_event_state, evstate);
-        QDECREF(evstate->data);
+        qobject_unref(evstate->data);
         timer_free(evstate->timer);
         g_free(evstate);
     }
@@ -699,7 +699,7 @@ static void monitor_data_destroy(Monitor *mon)
         json_message_parser_destroy(&mon->qmp.parser);
     }
     readline_free(mon->rs);
-    QDECREF(mon->outbuf);
+    qobject_unref(mon->outbuf);
     qemu_mutex_destroy(&mon->out_lock);
     qemu_mutex_destroy(&mon->qmp.qmp_queue_lock);
     g_queue_free(mon->qmp.qmp_requests);
@@ -3306,7 +3306,7 @@ static QDict *monitor_parse_arguments(Monitor *mon,
     return qdict;
 
 fail:
-    QDECREF(qdict);
+    qobject_unref(qdict);
     g_free(key);
     return NULL;
 }
@@ -3331,7 +3331,7 @@ static void handle_hmp_command(Monitor *mon, const char *cmdline)
     }
 
     cmd->cmd(mon, qdict);
-    QDECREF(qdict);
+    qobject_unref(qdict);
 }
 
 static void cmd_completion(Monitor *mon, const char *name, const char *list)
@@ -3993,15 +3993,15 @@ static void monitor_qmp_respond(Monitor *mon, QObject *rsp,
     if (rsp) {
         if (id) {
             /* This is for the qdict below. */
-            qobject_incref(id);
+            qobject_ref(id);
             qdict_put_obj(qobject_to(QDict, rsp), "id", id);
         }
 
         monitor_json_emitter(mon, rsp);
     }
 
-    qobject_decref(id);
-    qobject_decref(rsp);
+    qobject_unref(id);
+    qobject_unref(rsp);
 }
 
 struct QMPRequest {
@@ -4041,7 +4041,7 @@ static void monitor_qmp_dispatch_one(QMPRequest *req_obj)
     if (trace_event_get_state_backends(TRACE_HANDLE_QMP_COMMAND)) {
         QString *req_json = qobject_to_json(req);
         trace_handle_qmp_command(mon, qstring_get_str(req_json));
-        QDECREF(req_json);
+        qobject_unref(req_json);
     }
 
     old_mon = cur_mon;
@@ -4071,7 +4071,7 @@ static void monitor_qmp_dispatch_one(QMPRequest *req_obj)
         monitor_resume(mon);
     }
 
-    qobject_decref(req);
+    qobject_unref(req);
 }
 
 /*
@@ -4163,7 +4163,7 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
         goto err;
     }
 
-    qobject_incref(id);
+    qobject_ref(id);
     qdict_del(qdict, "id");
 
     req_obj = g_new0(QMPRequest, 1);
@@ -4199,8 +4199,8 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
             qapi_event_send_command_dropped(id,
                                             COMMAND_DROP_REASON_QUEUE_FULL,
                                             &error_abort);
-            qobject_decref(id);
-            qobject_decref(req);
+            qobject_unref(id);
+            qobject_unref(req);
             g_free(req_obj);
             return;
         }
@@ -4220,7 +4220,7 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
 
 err:
     monitor_qmp_respond(mon, NULL, err, NULL);
-    qobject_decref(req);
+    qobject_unref(req);
 }
 
 static void monitor_qmp_read(void *opaque, const uint8_t *buf, int size)
@@ -4339,7 +4339,7 @@ static void monitor_qmp_event(void *opaque, int event)
         monitor_qmp_caps_reset(mon);
         data = get_qmp_greeting(mon);
         monitor_json_emitter(mon, data);
-        qobject_decref(data);
+        qobject_unref(data);
         mon_refcount++;
         break;
     case CHR_EVENT_CLOSED:

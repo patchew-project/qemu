@@ -102,8 +102,8 @@ static void test_dispatch_cmd(void)
     assert(resp != NULL);
     assert(!qdict_haskey(qobject_to(QDict, resp), "error"));
 
-    qobject_decref(resp);
-    QDECREF(req);
+    qobject_unref(resp);
+    qobject_unref(req);
 }
 
 /* test commands that return an error due to invalid parameters */
@@ -119,8 +119,8 @@ static void test_dispatch_cmd_failure(void)
     assert(resp != NULL);
     assert(qdict_haskey(qobject_to(QDict, resp), "error"));
 
-    qobject_decref(resp);
-    QDECREF(req);
+    qobject_unref(resp);
+    qobject_unref(req);
 
     /* check that with extra arguments it throws an error */
     req = qdict_new();
@@ -133,8 +133,8 @@ static void test_dispatch_cmd_failure(void)
     assert(resp != NULL);
     assert(qdict_haskey(qobject_to(QDict, resp), "error"));
 
-    qobject_decref(resp);
-    QDECREF(req);
+    qobject_unref(resp);
+    qobject_unref(req);
 }
 
 static QObject *test_qmp_dispatch(QDict *req)
@@ -149,8 +149,8 @@ static QObject *test_qmp_dispatch(QDict *req)
     assert(resp && !qdict_haskey(resp, "error"));
     ret = qdict_get(resp, "return");
     assert(ret);
-    qobject_incref(ret);
-    qobject_decref(resp_obj);
+    qobject_ref(ret);
+    qobject_unref(resp_obj);
     return ret;
 }
 
@@ -191,7 +191,7 @@ static void test_dispatch_cmd_io(void)
     assert(qdict_get_int(ret_dict_dict2_userdef, "integer") == 422);
     assert(!strcmp(qdict_get_str(ret_dict_dict2_userdef, "string"), "hello2"));
     assert(!strcmp(qdict_get_str(ret_dict_dict2, "string"), "blah4"));
-    QDECREF(ret);
+    qobject_unref(ret);
 
     qdict_put_int(args3, "a", 66);
     qdict_put(req, "arguments", args3);
@@ -200,9 +200,9 @@ static void test_dispatch_cmd_io(void)
     ret3 = qobject_to(QNum, test_qmp_dispatch(req));
     g_assert(qnum_get_try_int(ret3, &val));
     g_assert_cmpint(val, ==, 66);
-    QDECREF(ret3);
+    qobject_unref(ret3);
 
-    QDECREF(req);
+    qobject_unref(req);
 }
 
 /* test generated dealloc functions for generated types */
@@ -253,7 +253,7 @@ static void test_dealloc_partial(void)
         v = qobject_input_visitor_new(QOBJECT(ud2_dict));
         visit_type_UserDefTwo(v, NULL, &ud2, &err);
         visit_free(v);
-        QDECREF(ud2_dict);
+        qobject_unref(ud2_dict);
     }
 
     /* verify that visit_type_XXX() cleans up properly on error */

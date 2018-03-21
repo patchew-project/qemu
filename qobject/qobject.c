@@ -42,7 +42,6 @@ void qobject_destroy(QObject *obj)
     qdestroy[obj->type](obj);
 }
 
-
 static bool (*qis_equal[QTYPE__MAX])(const QObject *, const QObject *) = {
     [QTYPE_NONE] = NULL,               /* No such object exists */
     [QTYPE_QNULL] = qnull_is_equal,
