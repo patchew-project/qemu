@@ -39,6 +39,7 @@
 #include "qapi/visitor.h"
 #include "qom/qom-qobject.h"
 #include "sysemu/arch_init.h"
+#include "qapi/target-qapi-commands.h"
 
 #if defined(CONFIG_KVM)
 #include <linux/kvm_para.h>
@@ -3125,7 +3126,7 @@ out:
 }
 
 CpuModelExpansionInfo *
-arch_query_cpu_model_expansion(CpuModelExpansionType type,
+qmp_query_cpu_model_expansion(CpuModelExpansionType type,
                                                       CpuModelInfo *model,
                                                       Error **errp)
 {
