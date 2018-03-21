@@ -12,6 +12,7 @@ module doc-good.json
 enum Enum
     member one
     member two
+    if ['defined(IFCOND)']
 object Base
     member base1: Enum optional=False
 object Variant1
