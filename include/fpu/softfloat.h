@@ -95,6 +95,7 @@ enum {
 };
 
 #include "fpu/softfloat-types.h"
+#include "fpu/hostfloat.h"
 
 static inline void set_float_detect_tininess(int val, float_status *status)
 {

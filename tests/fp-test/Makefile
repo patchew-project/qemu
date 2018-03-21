@@ -28,7 +28,7 @@ ibm:
 $(WHITELIST_FILES):
 	wget -nv -O $@ http://www.cs.columbia.edu/~cota/qemu/fpbench-$@
 
-fp-test$(EXESUF): fp-test.o softfloat.o
+fp-test$(EXESUF): fp-test.o softfloat.o hostfloat.o
 
 clean:
 	rm -f *.o *.d $(OBJS)
