@@ -39,8 +39,40 @@ struct QObject {
     size_t refcnt;
 };
 
-/* Get the 'base' part of an object */
-#define QOBJECT(obj) (&(obj)->base)
+/* This function gives an error if an invalid pointer type is passed
+ * to QOBJECT.  For optimized builds, we can rely on dead-code
+ * elimination from the compiler, and give the errors already at link
+ * time.
+ */
+#if defined(__OPTIMIZE__) && !defined(__SANITIZE_ADDRESS__)
+const void * qobject_unknown_type(const void *);
+#else
+static inline const void *
+qobject_unknown_type(const void *unused)
+{
+    abort();
+    return NULL;
+}
+#endif
+
+/* A typecast, checking for the type of arguments */
+/* QObject is at offset 0, for all QObject-derived types */
+#define QOBJECT(x) QEMU_GENERIC(x,              \
+    (QNull *, (QObject *) x),                   \
+    (const QNull *, (const QObject *) x),       \
+    (QNum *, (QObject *) x),                    \
+    (const QNum *, (const QObject *) x),        \
+    (QString *, (QObject *) x),                 \
+    (const QString *, (const QObject *) x),     \
+    (QDict *, (QObject *) x),                   \
+    (const QDict *, (const QObject *) x),       \
+    (QList *, (QObject *) x),                   \
+    (const QList *, (const QObject *) x),       \
+    (QBool *, (QObject *) x),                   \
+    (const QBool *, (const QObject *) x),       \
+    (QObject *, x),                             \
+    (const QObject *, x),                       \
+    qobject_unknown_type(x))
 
 /* High-level interface for qobject_incref() */
 #define QINCREF(obj)      \
