@@ -206,3 +206,67 @@ GEN_FPU_MUL(float64_mul, float64, double, fabs, DBL_MIN)
 GEN_FPU_DIV(float32_div, float32, float, fabsf, FLT_MIN)
 GEN_FPU_DIV(float64_div, float64, double, fabs, DBL_MIN)
 #undef GEN_FPU_DIV
+
+/*
+ * When (a || b) == 0, there's no need to check for overflow, since we
+ * know the addend is normal || zero and the product is zero.
+ */
+#define GEN_FPU_FMA(name, soft_t, host_t, host_fma_f, host_abs_f, min_normal) \
+    soft_t name(soft_t a, soft_t b, soft_t c, int flags, float_status *s) \
+    {                                                                   \
+        soft_t ## _input_flush3(&a, &b, &c, s);                         \
+        if (likely((soft_t ## _is_normal(a) || soft_t ## _is_zero(a)) && \
+                   (soft_t ## _is_normal(b) || soft_t ## _is_zero(b)) && \
+                   (soft_t ## _is_normal(c) || soft_t ## _is_zero(c)) && \
+                   !(flags & float_muladd_halve_result) &&              \
+                   s->float_exception_flags & float_flag_inexact &&     \
+                   s->float_rounding_mode == float_round_nearest_even)) { \
+            if (soft_t ## _is_zero(a) || soft_t ## _is_zero(b)) {       \
+                soft_t p, r;                                            \
+                host_t hp, hc, hr;                                      \
+                bool prod_sign;                                         \
+                                                                        \
+                prod_sign = soft_t ## _is_neg(a) ^ soft_t ## _is_neg(b); \
+                prod_sign ^= !!(flags & float_muladd_negate_product);   \
+                p = soft_t ## _set_sign(soft_t ## _zero, prod_sign);    \
+                                                                        \
+                if (flags & float_muladd_negate_c) {                    \
+                    c = soft_t ## _chs(c);                              \
+                }                                                       \
+                                                                        \
+                hp = soft_t ## _to_ ## host_t(p);                       \
+                hc = soft_t ## _to_ ## host_t(c);                       \
+                hr = hp + hc;                                           \
+                r = host_t ## _to_ ## soft_t(hr);                       \
+                return flags & float_muladd_negate_result ?             \
+                    soft_t ## _chs(r) : r;                              \
+            } else {                                                    \
+                host_t ha, hb, hc, hr;                                  \
+                soft_t r;                                               \
+                soft_t sa = flags & float_muladd_negate_product ?       \
+                    soft_t ## _chs(a) : a;                              \
+                soft_t sc = flags & float_muladd_negate_c ?             \
+                    soft_t ## _chs(c) : c;                              \
+                                                                        \
+                ha = soft_t ## _to_ ## host_t(sa);                      \
+                hb = soft_t ## _to_ ## host_t(b);                       \
+                hc = soft_t ## _to_ ## host_t(sc);                      \
+                hr = host_fma_f(ha, hb, hc);                            \
+                r = host_t ## _to_ ## soft_t(hr);                       \
+                                                                        \
+                if (unlikely(soft_t ## _is_infinity(r))) {              \
+                    s->float_exception_flags |= float_flag_overflow;    \
+                } else if (unlikely(host_abs_f(hr) <= min_normal)) {    \
+                    goto soft;                                          \
+                }                                                       \
+                return flags & float_muladd_negate_result ?             \
+                    soft_t ## _chs(r) : r;                              \
+            }                                                           \
+        }                                                               \
+    soft:                                                               \
+        return soft_ ## soft_t ## _muladd(a, b, c, flags, s);           \
+    }
+
+GEN_FPU_FMA(float32_muladd, float32, float, fmaf, fabsf, FLT_MIN)
+GEN_FPU_FMA(float64_muladd, float64, double, fma, fabs, DBL_MIN)
+#undef GEN_FPU_FMA
