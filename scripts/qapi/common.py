@@ -12,6 +12,7 @@
 # See the COPYING file in the top-level directory.
 
 from __future__ import print_function
+from contextlib import contextmanager
 import errno
 import os
 import re
@@ -1964,6 +1965,40 @@ def guardend(name):
                  name=guardname(name))
 
 
+def gen_if(ifcond):
+    ret = ''
+    for ifc in ifcond:
+        ret += mcgen('''
+#if %(cond)s
+''', cond=ifc)
+    return ret
+
+
+def gen_endif(ifcond):
+    ret = ''
+    for ifc in reversed(ifcond):
+        ret += mcgen('''
+#endif /* %(cond)s */
+''', cond=ifc)
+    return ret
+
+
+def wrap_ifcond(ifcond, before, after):
+    if ifcond is None or before == after:
+        return after
+
+    assert after.startswith(before)
+    out = before
+    added = after[len(before):]
+    if added[0] == '\n':
+        out += '\n'
+        added = added[1:]
+    out += gen_if(ifcond)
+    out += added
+    out += gen_endif(ifcond)
+    return out
+
+
 def gen_enum_lookup(name, values, prefix=None):
     ret = mcgen('''
 
@@ -2054,12 +2089,30 @@ class QAPIGen(object):
     def __init__(self):
         self._preamble = ''
         self._body = ''
+        self._ifcond = None
 
     def preamble_add(self, text):
         self._preamble += text
 
     def add(self, text):
         self._body += text
+
+    def start_if(self, ifcond):
+        self._ifcond = ifcond
+        self._start_if_body = self._body
+        self._start_if_preamble = self._preamble
+
+    def _wrap_ifcond(self):
+        pass
+
+    def end_if(self):
+        self._wrap_ifcond()
+        self._ifcond = None
+
+    def get_content(self, fname=None):
+        assert self._ifcond is None
+        return (self._top(fname) + self._preamble + self._body
+                + self._bottom(fname))
 
     def _top(self, fname):
         return ''
@@ -2078,8 +2131,7 @@ class QAPIGen(object):
                     raise
         fd = os.open(pathname, os.O_RDWR | os.O_CREAT, 0o666)
         f = os.fdopen(fd, 'r+')
-        text = (self._top(fname) + self._preamble + self._body
-                + self._bottom(fname))
+        text = self.get_content(fname)
         oldtext = f.read(len(text) + 1)
         if text != oldtext:
             f.seek(0)
@@ -2088,10 +2140,32 @@ class QAPIGen(object):
         f.close()
 
 
-class QAPIGenC(QAPIGen):
+@contextmanager
+def ifcontext(ifcond, *args):
+    saved = []
+    for arg in args:
+        arg.start_if(ifcond)
+    yield
+    for arg in args:
+        arg.end_if()
+
+
+class QAPIGenCSnippet(QAPIGen):
+
+    def __init__(self):
+        QAPIGen.__init__(self)
+
+    def _wrap_ifcond(self):
+        self._body = wrap_ifcond(self._ifcond,
+                                 self._start_if_body, self._body)
+        self._preamble = wrap_ifcond(self._ifcond,
+                                     self._start_if_preamble, self._preamble)
+
+
+class QAPIGenC(QAPIGenCSnippet):
 
     def __init__(self, blurb, pydoc):
-        QAPIGen.__init__(self)
+        QAPIGenCSnippet.__init__(self)
         self._blurb = blurb
         self._copyright = '\n * '.join(re.findall(r'^Copyright .*', pydoc,
                                                   re.MULTILINE))
