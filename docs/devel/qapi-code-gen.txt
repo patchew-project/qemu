@@ -728,6 +728,44 @@ Example: Red Hat, Inc. controls redhat.com, and may therefore add a
 downstream command __com.redhat_drive-mirror.
 
 
+=== Configuring the schema ===
+
+Top-level QAPI expressions and various type expressions listed below
+can take an 'if' key.  The value must be a string or a list of
+string.  The corresponding generated code will then guard the inclusion
+of that member in the larger struct or function with #if IFCOND
+(or several #if lines for a list), where IFCOND is the value of the
+'if' key.
+
+'struct', 'enum', 'union', 'alternate', 'command' and 'event'
+top-level QAPI expressions can take an 'if' keyword like:
+
+{ 'struct': 'IfStruct', 'data': { 'foo': 'int' },
+  'if': 'defined(IFCOND)' }
+
+Where a member can normally be defined with a single string value as its
+type, it is also possible to supply a dictionary with both 'type' and
+'if' keys.
+
+{ 'struct': 'IfStruct', 'data':
+  { 'foo': 'int',
+    'bar': { 'type': 'int', 'if': 'defined(IFCOND)'} } }
+
+An enum value can be replaced by a dictionary with a 'name' and a 'if'
+key:
+
+{ 'enum': 'IfEnum', 'data':
+  [ 'foo',
+    { 'name' : 'bar', 'if': 'defined(IFCOND)' } ] }
+
+Please note that you are responsible to ensure that the C code will
+compile with an arbitrary combination of conditions, since the
+generators are unable to check it at this point.
+
+The presence of 'if' keys in the schema is reflected through to the
+introspection output depending on the build configuration.
+
+
 == Client JSON Protocol introspection ==
 
 Clients of a Client JSON Protocol commonly need to figure out what
