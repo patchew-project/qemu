@@ -879,6 +879,24 @@ def check_struct(expr, info):
                allow_metas=['struct'])
 
 
+def check_known_keys(info, source, keys, required, optional):
+
+    def pprint(elems):
+        return ', '.join("'" + e + "'" for e in sorted(elems))
+
+    missing = set(required) - set(keys)
+    if missing:
+        raise QAPISemError(info, "%s must have %s key%s"
+                           % (source, pprint(missing),
+                              's' if len(missing) > 1 else ''))
+    allowed = set(required + optional)
+    unknown = set(keys) - allowed
+    if unknown:
+        raise QAPISemError(info, "%s has unknown key%s %s (allowed: %s)"
+                           % (source, 's' if len(unknown) > 1 else '',
+                              pprint(unknown), pprint(allowed)))
+
+
 def check_keys(expr_elem, meta, required, optional=[]):
     expr = expr_elem['expr']
     info = expr_elem['info']
@@ -886,10 +904,9 @@ def check_keys(expr_elem, meta, required, optional=[]):
     if not isinstance(name, str):
         raise QAPISemError(info, "'%s' key must have a string value" % meta)
     required = required + [meta]
+    source = "%s '%s'" % (meta, name)
+    check_known_keys(info, source, expr, required, optional)
     for (key, value) in expr.items():
-        if key not in required and key not in optional:
-            raise QAPISemError(info, "Unknown key '%s' in %s '%s'"
-                               % (key, meta, name))
         if (key == 'gen' or key == 'success-response') and value is not False:
             raise QAPISemError(info,
                                "'%s' of %s '%s' should only use false value"
@@ -900,10 +917,6 @@ def check_keys(expr_elem, meta, required, optional=[]):
                                % (key, meta, name))
         if key == 'if':
             check_if(expr, info)
-    for key in required:
-        if key not in expr:
-            raise QAPISemError(info, "Key '%s' is missing from %s '%s'"
-                               % (key, meta, name))
 
 
 def check_exprs(exprs):
