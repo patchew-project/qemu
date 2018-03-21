@@ -1,0 +1,6 @@
+object q_empty
+enum QType ['none', 'qnull', 'qnum', 'qstring', 'qdict', 'qlist', 'qbool']
+    prefix QTYPE
+module oob-test.json
+command an-oob-command None -> None
+   gen=True success_response=True boxed=False oob=True
