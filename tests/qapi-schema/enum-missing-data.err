@@ -1,1 +1,1 @@
-tests/qapi-schema/enum-missing-data.json:2: enum 'MyEnum' must have 'data' key
+tests/qapi-schema/enum-missing-data.json:2: Enum 'MyEnum' requires an array for 'data'

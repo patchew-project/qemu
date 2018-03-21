@@ -1,0 +1,1 @@
+tests/qapi-schema/enum-dict-member-unknown.json:2: Dictionary member of enum 'MyEnum' has unknown key 'bad-key' (allowed: 'name')
