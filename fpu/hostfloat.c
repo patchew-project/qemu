@@ -178,3 +178,31 @@ GEN_FPU_ADDSUB(float64_add, float64_sub, float64, double, fabs, DBL_MIN)
 GEN_FPU_MUL(float32_mul, float32, float, fabsf, FLT_MIN)
 GEN_FPU_MUL(float64_mul, float64, double, fabs, DBL_MIN)
 #undef GEN_FPU_MUL
+
+#define GEN_FPU_DIV(name, soft_t, host_t, host_abs_func, min_normal)    \
+    soft_t name(soft_t a, soft_t b, float_status *s)                    \
+    {                                                                   \
+        soft_t ## _input_flush2(&a, &b, s);                             \
+        if (likely(soft_t ## _is_normal(a) &&                           \
+                   soft_t ## _is_normal(b) &&                           \
+                   s->float_exception_flags & float_flag_inexact &&     \
+                   s->float_rounding_mode == float_round_nearest_even)) { \
+            host_t ha = soft_t ## _to_ ## host_t(a);                    \
+            host_t hb = soft_t ## _to_ ## host_t(b);                    \
+            host_t hr = ha / hb;                                        \
+            soft_t r = host_t ## _to_ ## soft_t(hr);                    \
+                                                                        \
+            if (unlikely(soft_t ## _is_infinity(r))) {                  \
+                s->float_exception_flags |= float_flag_overflow;        \
+            } else if (unlikely(host_abs_func(hr) <= min_normal)) {     \
+                goto soft;                                              \
+            }                                                           \
+            return r;                                                   \
+        }                                                               \
+     soft:                                                              \
+        return soft_ ## soft_t ## _div(a, b, s);                        \
+    }
+
+GEN_FPU_DIV(float32_div, float32, float, fabsf, FLT_MIN)
+GEN_FPU_DIV(float64_div, float64, double, fabs, DBL_MIN)
+#undef GEN_FPU_DIV
