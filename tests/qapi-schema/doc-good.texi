@@ -83,6 +83,8 @@ Examples:
 @b{Values:}
 @table @asis
 @item @code{one}
+@b{If:} @code{defined(IFENUM)}
+
 The @emph{one} @{and only@}
 @item @code{two}
 Not documented
