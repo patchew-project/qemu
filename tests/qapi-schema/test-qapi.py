@@ -64,6 +64,7 @@ class QAPISchemaTestVisitor(QAPISchemaVisitor):
                 m.name,
                 ': %s optional=%s' % (m.type.name, m.optional)
                 if isinstance(m, QAPISchemaObjectTypeMember) else ''))
+            QAPISchemaTestVisitor._print_if(m.ifcond, 8)
 
     @staticmethod
     def _print_variants(variants):
