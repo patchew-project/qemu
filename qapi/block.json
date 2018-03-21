@@ -269,6 +269,33 @@
   'data': {'name': 'str', '*mode': 'NbdServerRemoveMode'} }
 
 ##
+# @nbd-server-add-bitmap:
+#
+# Export dirty bitmap through selected export. Bitmaps are searched for in
+# device attached to the export and in all its backings. Exported bitmap
+# is locked until NBD export is removed.
+#
+# @name: Export name.
+#
+# @bitmap: Bitmap name to search.
+#
+# @bitmap-export-name: How the bitmap will be seen by nbd clients
+#                      (default @bitmap)
+#
+#
+# Returns: error on one of the following conditions:
+#           - the server is not running
+#           - export is not found
+#           - bitmap is not found
+#           - bitmap is disabled
+#           - bitmap is locked
+#
+# Since: 2.13
+##
+  { 'command': 'nbd-server-add-bitmap',
+    'data': {'name': 'str', 'bitmap': 'str', '*bitmap-export-name': 'str'} }
+
+##
 # @nbd-server-stop:
 #
 # Stop QEMU's embedded NBD server, and unregister all devices previously
