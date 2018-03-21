@@ -1198,7 +1198,7 @@ class QAPISchemaEnumType(QAPISchemaType):
 
     def visit(self, visitor):
         visitor.visit_enum_type(self.name, self.info, self.ifcond,
-                                self.member_names(), self.prefix)
+                                self.members, self.prefix)
 
 
 class QAPISchemaArrayType(QAPISchemaType):
@@ -2007,11 +2007,11 @@ const QEnumLookup %(c_name)s_lookup = {
 ''',
                 c_name=c_name(name))
     for m in members:
-        index = c_enum_const(name, m, prefix)
+        index = c_enum_const(name, m.name, prefix)
         ret += mcgen('''
-        [%(index)s] = "%(value)s",
+        [%(index)s] = "%(name)s",
 ''',
-                     index=index, value=m)
+                     index=index, name=m.name)
 
     ret += mcgen('''
     },
@@ -2024,7 +2024,7 @@ const QEnumLookup %(c_name)s_lookup = {
 
 def gen_enum(name, members, prefix=None):
     # append automatically generated _MAX value
-    enum_members = members + ['_MAX']
+    enum_members = members + [QAPISchemaMember('_MAX')]
 
     ret = mcgen('''
 
@@ -2036,7 +2036,7 @@ typedef enum %(c_name)s {
         ret += mcgen('''
     %(c_enum)s,
 ''',
-                     c_enum=c_enum_const(name, m, prefix))
+                     c_enum=c_enum_const(name, m.name, prefix))
 
     ret += mcgen('''
 } %(c_name)s;
