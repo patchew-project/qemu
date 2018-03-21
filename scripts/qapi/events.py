@@ -188,7 +188,7 @@ class QAPISchemaGenEventVisitor(QAPISchemaModularCVisitor):
         with ifcontext(ifcond, self._genh, self._genc):
             self._genh.add(gen_event_send_decl(name, arg_type, boxed))
             self._genc.add(gen_event_send(name, arg_type, boxed, self._enum_name))
-        self._event_names.append(QAPISchemaMember(name))
+        self._event_names.append(QAPISchemaMember(name, ifcond))
 
 
 def gen_events(schema, output_dir, prefix):
