@@ -55,7 +55,6 @@ util-obj-y += qapi/qapi-events-tpm.o
 util-obj-y += qapi/qapi-events-trace.o
 util-obj-y += qapi/qapi-events-transaction.o
 util-obj-y += qapi/qapi-events-ui.o
-util-obj-y += qapi/qapi-introspect.o
 
 chardev-obj-y = chardev/
 
@@ -150,7 +149,6 @@ common-obj-y += qapi/qapi-commands-tpm.o
 common-obj-y += qapi/qapi-commands-trace.o
 common-obj-y += qapi/qapi-commands-transaction.o
 common-obj-y += qapi/qapi-commands-ui.o
-common-obj-y += qapi/qapi-introspect.o
 common-obj-y += qmp.o hmp.o
 endif
 

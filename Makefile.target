@@ -150,6 +150,8 @@ endif
 
 GENERATED_FILES += hmp-commands.h hmp-commands-info.h
 
+obj-y += qapi/qapi-introspect.o
+
 endif # CONFIG_SOFTMMU
 
 # Workaround for http://gcc.gnu.org/PR55489, see configure.
