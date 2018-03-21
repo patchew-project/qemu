@@ -129,12 +129,17 @@
  */
 
 /* First, find out the number of generic cases.  */
-#define QEMU_GENERIC(x, ...) \
-    QEMU_GENERIC_(typeof(x), __VA_ARGS__, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
+#define QEMU_GENERIC(x, ...)                                \
+    QEMU_GENERIC_(typeof(x), __VA_ARGS__,                   \
+                  20, 19, 18, 17, 16, 15, 14, 13, 12, 11,   \
+                  10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
 
 /* There will be extra arguments, but they are not used.  */
-#define QEMU_GENERIC_(x, a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, count, ...) \
-    QEMU_GENERIC##count(x, a0, a1, a2, a3, a4, a5, a6, a7, a8, a9)
+#define QEMU_GENERIC_(x, a0, a1, a2, a3, a4, a5, a6, a7, a8, a9,        \
+                      a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, \
+                      count, ...)                                       \
+    QEMU_GENERIC##count(x, a0, a1, a2, a3, a4, a5, a6, a7, a8, a9,      \
+                        a10, a11, a12, a13, a14, a15, a16, a17, a18, a19)
 
 /* Two more helper macros, this time to extract items from a parenthesized
  * list.
@@ -159,5 +164,15 @@
 #define QEMU_GENERIC8(x, a0, ...) QEMU_GENERIC_IF(x, a0, QEMU_GENERIC7(x, __VA_ARGS__))
 #define QEMU_GENERIC9(x, a0, ...) QEMU_GENERIC_IF(x, a0, QEMU_GENERIC8(x, __VA_ARGS__))
 #define QEMU_GENERIC10(x, a0, ...) QEMU_GENERIC_IF(x, a0, QEMU_GENERIC9(x, __VA_ARGS__))
+#define QEMU_GENERIC11(x, a0, ...) QEMU_GENERIC_IF(x, a0, QEMU_GENERIC10(x, __VA_ARGS__))
+#define QEMU_GENERIC12(x, a0, ...) QEMU_GENERIC_IF(x, a0, QEMU_GENERIC11(x, __VA_ARGS__))
+#define QEMU_GENERIC13(x, a0, ...) QEMU_GENERIC_IF(x, a0, QEMU_GENERIC12(x, __VA_ARGS__))
+#define QEMU_GENERIC14(x, a0, ...) QEMU_GENERIC_IF(x, a0, QEMU_GENERIC13(x, __VA_ARGS__))
+#define QEMU_GENERIC15(x, a0, ...) QEMU_GENERIC_IF(x, a0, QEMU_GENERIC14(x, __VA_ARGS__))
+#define QEMU_GENERIC16(x, a0, ...) QEMU_GENERIC_IF(x, a0, QEMU_GENERIC15(x, __VA_ARGS__))
+#define QEMU_GENERIC17(x, a0, ...) QEMU_GENERIC_IF(x, a0, QEMU_GENERIC16(x, __VA_ARGS__))
+#define QEMU_GENERIC18(x, a0, ...) QEMU_GENERIC_IF(x, a0, QEMU_GENERIC17(x, __VA_ARGS__))
+#define QEMU_GENERIC19(x, a0, ...) QEMU_GENERIC_IF(x, a0, QEMU_GENERIC18(x, __VA_ARGS__))
+#define QEMU_GENERIC20(x, a0, ...) QEMU_GENERIC_IF(x, a0, QEMU_GENERIC19(x, __VA_ARGS__))
 
 #endif /* COMPILER_H */
