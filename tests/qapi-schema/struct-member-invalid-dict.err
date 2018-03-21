@@ -1,0 +1,1 @@
+tests/qapi-schema/struct-member-invalid-dict.json:2: Member '*a' of 'data' for struct 'foo' must have 'type' key
