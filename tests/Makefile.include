@@ -436,6 +436,10 @@ qapi-schema += args-unknown.json
 qapi-schema += bad-base.json
 qapi-schema += bad-data.json
 qapi-schema += bad-ident.json
+qapi-schema += bad-if.json
+qapi-schema += bad-if-empty.json
+qapi-schema += bad-if-empty-list.json
+qapi-schema += bad-if-list.json
 qapi-schema += bad-type-bool.json
 qapi-schema += bad-type-dict.json
 qapi-schema += bad-type-int.json
@@ -933,6 +937,8 @@ $(patsubst %, check-%, $(check-qapi-schema-y)): check-%.json: $(SRC_PATH)/%.json
 		"TEST","$*.out")
 	@# Sanitize error messages (make them independent of build directory)
 	@perl -p -e 's|\Q$(SRC_PATH)\E/||g' $*.test.err | diff -u $(SRC_PATH)/$*.err -
+	@if test "$(QAPI_REGENERATE)" == 1 ; then cp $*.test.out $(SRC_PATH)/$*.out ; fi
+	@if test "$(QAPI_REGENERATE)" == 1 ; then cp $*.test.err $(SRC_PATH)/$*.err ; fi
 	@diff -u $(SRC_PATH)/$*.out $*.test.out
 	@diff -u $(SRC_PATH)/$*.exit $*.test.exit
 
