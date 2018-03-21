@@ -20,6 +20,7 @@
 #include "qapi/qmp/qjson.h"
 
 static QMPEventFuncEmit qmp_emit;
+static QMPEventFuncEmit target_qmp_emit;
 
 void qmp_event_set_func_emit(QMPEventFuncEmit emit)
 {
@@ -29,6 +30,16 @@ void qmp_event_set_func_emit(QMPEventFuncEmit emit)
 QMPEventFuncEmit qmp_event_get_func_emit(void)
 {
     return qmp_emit;
+}
+
+void target_qmp_event_set_func_emit(QMPEventFuncEmit emit)
+{
+    target_qmp_emit = emit;
+}
+
+QMPEventFuncEmit target_qmp_event_get_func_emit(void)
+{
+    return target_qmp_emit;
 }
 
 static void timestamp_put(QDict *qdict)
