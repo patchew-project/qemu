@@ -237,7 +237,7 @@ class QAPISchemaGenCommandVisitor(QAPISchemaModularCVisitor):
         QAPISchemaModularCVisitor.__init__(
             self, prefix, 'qapi-commands',
             ' * Schema-defined QAPI/QMP commands', __doc__)
-        self._regy = ''
+        self._regy = QAPIGenCSnippet()
         self._visited_ret_types = {}
 
     def _begin_module(self, name):
@@ -273,19 +273,20 @@ class QAPISchemaGenCommandVisitor(QAPISchemaModularCVisitor):
 void %(c_prefix)sqmp_init_marshal(QmpCommandList *cmds);
 ''',
                        c_prefix=c_name(self._prefix, protect=False)))
-        genc.add(gen_registry(self._regy, self._prefix))
+        genc.add(gen_registry(self._regy.get_content(), self._prefix))
 
     def visit_command(self, name, info, ifcond, arg_type, ret_type,
                       gen, success_response, boxed, allow_oob):
         if not gen:
             return
-        self._genh.add(gen_command_decl(name, arg_type, boxed, ret_type))
-        if ret_type and ret_type not in self._visited_ret_types[self._genc]:
-            self._visited_ret_types[self._genc].add(ret_type)
-            self._genc.add(gen_marshal_output(ret_type))
-        self._genh.add(gen_marshal_decl(name))
-        self._genc.add(gen_marshal(name, arg_type, boxed, ret_type))
-        self._regy += gen_register_command(name, success_response, allow_oob)
+        with ifcontext(ifcond, self._genh, self._genc, self._regy):
+            self._genh.add(gen_command_decl(name, arg_type, boxed, ret_type))
+            if ret_type and ret_type not in self._visited_ret_types[self._genc]:
+                self._visited_ret_types[self._genc].add(ret_type)
+                self._genc.add(gen_marshal_output(ret_type))
+            self._genh.add(gen_marshal_decl(name))
+            self._genc.add(gen_marshal(name, arg_type, boxed, ret_type))
+            self._regy.add(gen_register_command(name, success_response, allow_oob))
 
 
 def gen_commands(schema, output_dir, prefix):

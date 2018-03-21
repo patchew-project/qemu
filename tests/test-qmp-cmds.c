@@ -12,11 +12,11 @@
 
 static QmpCommandList qmp_commands;
 
-/* #if defined(TEST_IF_STRUCT) && defined(TEST_IF_CMD) */
+#if defined(TEST_IF_STRUCT) && defined(TEST_IF_CMD)
 void qmp_TestIfCmd(TestIfStruct *foo, Error **errp)
 {
 }
-/* #endif */
+#endif
 
 void qmp_user_def_cmd(Error **errp)
 {
