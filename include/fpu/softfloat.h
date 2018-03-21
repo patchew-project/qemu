@@ -334,7 +334,7 @@ int64_t float32_to_int64(float32, float_status *status);
 uint64_t float32_to_uint64(float32, float_status *status);
 uint64_t float32_to_uint64_round_to_zero(float32, float_status *status);
 int64_t float32_to_int64_round_to_zero(float32, float_status *status);
-float64 float32_to_float64(float32, float_status *status);
+float64 soft_float32_to_float64(float32, float_status *status);
 floatx80 float32_to_floatx80(float32, float_status *status);
 float128 float32_to_float128(float32, float_status *status);
 

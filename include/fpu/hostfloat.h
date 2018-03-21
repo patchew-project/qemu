@@ -29,4 +29,6 @@ float64 float64_sqrt(float64 a, float_status *status);
 int float64_compare(float64 a, float64 b, float_status *s);
 int float64_compare_quiet(float64 a, float64 b, float_status *s);
 
+float64 float32_to_float64(float32, float_status *status);
+
 #endif /* HOSTFLOAT_H */

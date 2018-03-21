@@ -3153,7 +3153,7 @@ float128 uint64_to_float128(uint64_t a, float_status *status)
 | Arithmetic.
 *----------------------------------------------------------------------------*/
 
-float64 float32_to_float64(float32 a, float_status *status)
+float64 soft_float32_to_float64(float32 a, float_status *status)
 {
     flag aSign;
     int aExp;

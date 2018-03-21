@@ -326,3 +326,17 @@ GEN_FPU_SQRT(float64_sqrt, float64, double, sqrt)
 GEN_FPU_COMPARE(float32_compare, float32, float)
 GEN_FPU_COMPARE(float64_compare, float64, double)
 #undef GEN_FPU_COMPARE
+
+float64 float32_to_float64(float32 a, float_status *status)
+{
+    if (likely(float32_is_normal(a))) {
+        float f = *(float *)&a;
+        double r = f;
+
+        return *(float64 *)&r;
+    } else if (float32_is_zero(a)) {
+        return float64_set_sign(float64_zero, float32_is_neg(a));
+    } else {
+        return soft_float32_to_float64(a, status);
+    }
+}
