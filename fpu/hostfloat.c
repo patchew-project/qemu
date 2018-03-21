@@ -94,3 +94,53 @@ GEN_TYPE_CONV(double_to_float64, float64, double)
 GEN_INPUT_FLUSH(float32)
 GEN_INPUT_FLUSH(float64)
 #undef GEN_INPUT_FLUSH
+
+#define GEN_FPU_ADDSUB(add_name, sub_name, soft_t, host_t,              \
+                       host_abs_func, min_normal)                       \
+    static inline __attribute__((always_inline)) soft_t                 \
+    fpu_ ## soft_t ## _addsub(soft_t a, soft_t b, bool subtract,        \
+                              float_status *s)                          \
+    {                                                                   \
+        soft_t ## _input_flush2(&a, &b, s);                             \
+        if (likely((soft_t ## _is_normal(a) || soft_t ## _is_zero(a)) && \
+                   (soft_t ## _is_normal(b) || soft_t ## _is_zero(b)) && \
+                   s->float_exception_flags & float_flag_inexact &&     \
+                   s->float_rounding_mode == float_round_nearest_even)) { \
+            host_t ha = soft_t ## _to_ ## host_t(a);                    \
+            host_t hb = soft_t ## _to_ ## host_t(b);                    \
+            host_t hr;                                                  \
+            soft_t r;                                                   \
+                                                                        \
+            if (subtract) {                                             \
+                hb = -hb;                                               \
+            }                                                           \
+            hr = ha + hb;                                               \
+            r = host_t ## _to_ ## soft_t(hr);                           \
+            if (unlikely(soft_t ## _is_infinity(r))) {                  \
+                s->float_exception_flags |= float_flag_overflow;        \
+            } else if (unlikely(host_abs_func(hr) <= min_normal)) {     \
+                goto soft;                                              \
+            }                                                           \
+            return r;                                                   \
+        }                                                               \
+    soft:                                                               \
+        if (subtract) {                                                 \
+            return soft_ ## soft_t ## _sub(a, b, s);                    \
+        } else {                                                        \
+            return soft_ ## soft_t ## _add(a, b, s);                    \
+        }                                                               \
+    }                                                                   \
+                                                                        \
+    soft_t add_name(soft_t a, soft_t b, float_status *status)           \
+    {                                                                   \
+        return fpu_ ## soft_t ## _addsub(a, b, false, status);          \
+    }                                                                   \
+                                                                        \
+    soft_t sub_name(soft_t a, soft_t b, float_status *status)           \
+    {                                                                   \
+        return fpu_ ## soft_t ## _addsub(a, b, true, status);           \
+    }                                                                   \
+
+GEN_FPU_ADDSUB(float32_add, float32_sub, float32, float, fabsf, FLT_MIN)
+GEN_FPU_ADDSUB(float64_add, float64_sub, float64, double, fabs, DBL_MIN)
+#undef GEN_FPU_ADDSUB

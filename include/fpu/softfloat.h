@@ -342,8 +342,8 @@ float128 float32_to_float128(float32, float_status *status);
 | Software IEC/IEEE single-precision operations.
 *----------------------------------------------------------------------------*/
 float32 float32_round_to_int(float32, float_status *status);
-float32 float32_add(float32, float32, float_status *status);
-float32 float32_sub(float32, float32, float_status *status);
+float32 soft_float32_add(float32, float32, float_status *status);
+float32 soft_float32_sub(float32, float32, float_status *status);
 float32 float32_mul(float32, float32, float_status *status);
 float32 float32_div(float32, float32, float_status *status);
 float32 float32_rem(float32, float32, float_status *status);
@@ -482,8 +482,8 @@ float128 float64_to_float128(float64, float_status *status);
 *----------------------------------------------------------------------------*/
 float64 float64_round_to_int(float64, float_status *status);
 float64 float64_trunc_to_int(float64, float_status *status);
-float64 float64_add(float64, float64, float_status *status);
-float64 float64_sub(float64, float64, float_status *status);
+float64 soft_float64_add(float64, float64, float_status *status);
+float64 soft_float64_sub(float64, float64, float_status *status);
 float64 float64_mul(float64, float64, float_status *status);
 float64 float64_div(float64, float64, float_status *status);
 float64 float64_rem(float64, float64, float_status *status);
