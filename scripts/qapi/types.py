@@ -61,8 +61,10 @@ def gen_variants_objects(variants):
         for v in variants.variants:
             if isinstance(v.type, QAPISchemaObjectType):
                 ret += gen_variants_objects(v.type.variants)
+                ret += gen_if(v.type.ifcond)
                 ret += gen_object(v.type.name, v.type.base,
                                   v.type.local_members, v.type.variants)
+                ret += gen_endif(v.type.ifcond)
     return ret
 
 
@@ -206,41 +208,49 @@ class QAPISchemaGenTypeVisitor(QAPISchemaModularCVisitor):
         # gen_object() is recursive, ensure it doesn't visit the empty type
         objects_seen.add(schema.the_empty_object_type.name)
 
-    def _gen_type_cleanup(self, name):
-        self._genh.add(gen_type_cleanup_decl(name))
-        self._genc.add(gen_type_cleanup(name))
+    def _gen_type_cleanup(self, name, ifcond):
+        with ifcontext(ifcond, self._genh, self._genc):
+            self._genh.add(gen_type_cleanup_decl(name))
+            self._genc.add(gen_type_cleanup(name))
 
     def visit_enum_type(self, name, info, ifcond, values, prefix):
-        self._genh.preamble_add(gen_enum(name, values, prefix))
-        self._genc.add(gen_enum_lookup(name, values, prefix))
+        with ifcontext(ifcond, self._genh, self._genc):
+            self._genh.preamble_add(gen_enum(name, values, prefix))
+            self._genc.add(gen_enum_lookup(name, values, prefix))
 
     def visit_array_type(self, name, info, ifcond, element_type):
-        self._genh.preamble_add(gen_fwd_object_or_array(name))
-        self._genh.add(gen_array(name, element_type))
-        self._gen_type_cleanup(name)
+        with ifcontext(ifcond, self._genh):
+            self._genh.preamble_add(gen_fwd_object_or_array(name))
+            self._genh.add(gen_array(name, element_type))
+        self._gen_type_cleanup(name, ifcond)
 
     def _gen_object(self, name, info, ifcond, base, members, variants):
-        self._genh.add(gen_object(name, base, members, variants))
-        if base and not base.is_implicit():
-            self._genh.add(gen_upcast(name, base))
-        # TODO Worth changing the visitor signature, so we could
-        # directly use rather than repeat type.is_implicit()?
+        with ifcontext(ifcond, self._genh):
+            self._genh.add(gen_object(name, base, members, variants))
+            if base and not base.is_implicit():
+                self._genh.add(gen_upcast(name, base))
+            # TODO Worth changing the visitor signature, so we could
+            # directly use rather than repeat type.is_implicit()?
         if not name.startswith('q_'):
             # implicit types won't be directly allocated/freed
-            self._gen_type_cleanup(name)
+            self._gen_type_cleanup(name, ifcond)
+
+    def _gen_fwd_object_or_array(self, name, ifcond):
+        with ifcontext(ifcond, self._genh):
+            self._genh.preamble_add(gen_fwd_object_or_array(name))
 
     def visit_object_type(self, name, info, ifcond, base, members, variants):
         # Nothing to do for the special empty builtin
         if name == 'q_empty':
             return
-        self._genh.preamble_add(gen_fwd_object_or_array(name))
+        self._gen_fwd_object_or_array(name, ifcond)
         self._genh.add(gen_variants_objects(variants))
-        self._gen_object(name, info, None, base, members, variants)
+        self._gen_object(name, info, ifcond, base, members, variants)
 
     def visit_alternate_type(self, name, info, ifcond, variants):
-        self._genh.preamble_add(gen_fwd_object_or_array(name))
+        self._gen_fwd_object_or_array(name, ifcond)
         self._genh.add(gen_variants_objects(variants))
-        self._gen_object(name, info, None, None,
+        self._gen_object(name, info, ifcond, None,
                          [variants.tag_member], variants)
 
 
