@@ -253,17 +253,15 @@ int do_sigprocmask(int how, const sigset_t *set, sigset_t *oldset)
     return 0;
 }
 
-#if !defined(TARGET_OPENRISC) && !defined(TARGET_NIOS2)
 /* Just set the guest's signal mask to the specified value; the
  * caller is assumed to have called block_signals() already.
  */
-static void set_sigmask(const sigset_t *set)
+static __attribute__((unused)) void set_sigmask(const sigset_t *set)
 {
     TaskState *ts = (TaskState *)thread_cpu->opaque;
 
     ts->signal_mask = *set;
 }
-#endif
 
 /* siginfo conversion */
 
@@ -533,8 +531,7 @@ static void force_sig(int sig)
  * up the signal frame. oldsig is the signal we were trying to handle
  * at the point of failure.
  */
-#if !defined(TARGET_RISCV)
-static void force_sigsegv(int oldsig)
+static __attribute__((unused)) void force_sigsegv(int oldsig)
 {
     if (oldsig == SIGSEGV) {
         /* Make sure we don't try to deliver the signal again; this will
@@ -544,8 +541,6 @@ static void force_sigsegv(int oldsig)
     }
     force_sig(TARGET_SIGSEGV);
 }
-
-#endif
 
 /* abort execution with signal */
 static void QEMU_NORETURN dump_core_and_abort(int target_sig)
