@@ -651,7 +651,8 @@ static int hyperv_handle_properties(CPUState *cs)
         env->features[FEAT_HYPERV_EAX] |= HV_TIME_REF_COUNT_AVAILABLE;
         env->features[FEAT_HYPERV_EAX] |= HV_REFERENCE_TSC_AVAILABLE;
 
-        if (has_msr_hv_frequencies && tsc_is_stable_and_known(env)) {
+        if (has_msr_hv_frequencies && env->tsc_khz &&
+            (tsc_is_stable_and_known(env) || cpu->hyperv_reenlightenment)) {
             env->features[FEAT_HYPERV_EAX] |= HV_ACCESS_FREQUENCY_MSRS;
             env->features[FEAT_HYPERV_EDX] |= HV_FREQUENCY_MSRS_AVAILABLE;
         }
