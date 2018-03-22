@@ -608,7 +608,7 @@ static void read_quorum_children_entry(void *opaque)
 static int read_quorum_children(QuorumAIOCB *acb)
 {
     BDRVQuorumState *s = acb->bs->opaque;
-    int i, ret;
+    int i;
 
     acb->children_read = s->num_children;
     for (i = 0; i < s->num_children; i++) {
@@ -643,9 +643,7 @@ static int read_quorum_children(QuorumAIOCB *acb)
         qemu_coroutine_yield();
     }
 
-    ret = acb->vote_ret;
-
-    return ret;
+    return acb->vote_ret;
 }
 
 static int read_fifo_child(QuorumAIOCB *acb)
