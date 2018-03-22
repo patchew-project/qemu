@@ -404,7 +404,7 @@ Testing: -drive if=floppy
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) info block
 floppy0: [not inserted]
-    Attached to:      /machine/unattached/device[17]
+    Attached to:      /machine/unattached/device[13]
     Removable device: not locked, tray closed
 (qemu) quit
 
@@ -412,7 +412,7 @@ Testing: -drive if=floppy,driver=null-co
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) info block
 floppy0 (NODE_NAME): null-co:// (null-co)
-    Attached to:      /machine/unattached/device[17]
+    Attached to:      /machine/unattached/device[13]
     Removable device: not locked, tray closed
     Cache mode:       writeback
 (qemu) quit
