@@ -47,6 +47,9 @@
 #define VMDK4_FLAG_MARKER (1 << 17)
 #define VMDK4_GD_AT_END 0xffffffffffffffffULL
 
+/* 2TB */
+#define VMDK_EXTENT_SIZE_LIMIT (2199023255552)
+
 #define VMDK_GTE_ZEROED 0x1
 
 /* VMDK internal error codes */
@@ -1645,6 +1648,9 @@ static int vmdk_pwritev(BlockDriverState *bs, uint64_t offset,
                 return ret;
             }
             if (m_data.valid) {
+                if (cluster_offset > VMDK_EXTENT_SIZE_LIMIT) {
+                    return -ENOTSUP;
+                }
                 /* update L2 tables */
                 if (vmdk_L2update(extent, &m_data,
                                   cluster_offset >> BDRV_SECTOR_BITS)
