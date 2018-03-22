@@ -117,6 +117,7 @@ static abi_ulong get_sigframe(struct target_sigaction *ka,
     return ((sp - frame_size) & -8UL);
 }
 
+#define TARGET_ARCH_HAS_SETUP_FRAME
 static void setup_frame(int sig, struct target_sigaction *ka,
                         target_sigset_t *set, CPUMBState *env)
 {

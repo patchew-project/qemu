@@ -289,6 +289,7 @@ get_sigframe(struct target_sigaction *ka, CPUX86State *env, size_t frame_size)
 
 #ifndef TARGET_X86_64
 /* compare linux/arch/i386/kernel/signal.c:setup_frame() */
+#define TARGET_ARCH_HAS_SETUP_FRAME
 static void setup_frame(int sig, struct target_sigaction *ka,
                         target_sigset_t *set, CPUX86State *env)
 {

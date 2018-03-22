@@ -143,6 +143,7 @@ static void restore_sigcontext(CPUSH4State *regs, struct target_sigcontext *sc)
     regs->flags &= ~(DELAY_SLOT_MASK | GUSA_MASK);
 }
 
+#define TARGET_ARCH_HAS_SETUP_FRAME
 static void setup_frame(int sig, struct target_sigaction *ka,
                         target_sigset_t *set, CPUSH4State *regs)
 {

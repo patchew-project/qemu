@@ -334,6 +334,7 @@ sigsegv:
     force_sigsegv(usig);
 }
 
+#define TARGET_ARCH_HAS_SETUP_FRAME
 static void setup_frame(int usig, struct target_sigaction *ka,
                         target_sigset_t *set, CPUARMState *regs)
 {

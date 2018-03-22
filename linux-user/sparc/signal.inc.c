@@ -153,6 +153,7 @@ setup_sigcontext(struct target_sigcontext *sc, /*struct _fpstate *fpstate,*/
 #endif
 #define NF_ALIGNEDSZ  (((sizeof(struct target_signal_frame) + 7) & (~7)))
 
+#define TARGET_ARCH_HAS_SETUP_FRAME
 static void setup_frame(int sig, struct target_sigaction *ka,
                         target_sigset_t *set, CPUSPARCState *env)
 {

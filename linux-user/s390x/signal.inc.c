@@ -108,6 +108,7 @@ static void save_sigregs(CPUS390XState *env, target_sigregs *sregs)
     }
 }
 
+#define TARGET_ARCH_HAS_SETUP_FRAME
 static void setup_frame(int sig, struct target_sigaction *ka,
                         target_sigset_t *set, CPUS390XState *env)
 {

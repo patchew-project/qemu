@@ -185,6 +185,7 @@ static void mips_set_hflags_isa_mode_from_pc(CPUMIPSState *env)
 
 # if defined(TARGET_ABI_MIPSO32)
 /* compare linux/arch/mips/kernel/signal.c:setup_frame() */
+#define TARGET_ARCH_HAS_SETUP_FRAME
 static void setup_frame(int sig, struct target_sigaction * ka,
                         target_sigset_t *set, CPUMIPSState *regs)
 {

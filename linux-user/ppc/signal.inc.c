@@ -411,6 +411,7 @@ static void restore_user_regs(CPUPPCState *env,
 }
 
 #if !defined(TARGET_PPC64)
+#define TARGET_ARCH_HAS_SETUP_FRAME
 static void setup_frame(int sig, struct target_sigaction *ka,
                         target_sigset_t *set, CPUPPCState *env)
 {

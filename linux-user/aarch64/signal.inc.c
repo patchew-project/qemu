@@ -510,6 +510,7 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
     target_setup_frame(sig, ka, info, set, env);
 }
 
+#define TARGET_ARCH_HAS_SETUP_FRAME
 static void setup_frame(int sig, struct target_sigaction *ka,
                         target_sigset_t *set, CPUARMState *env)
 {
