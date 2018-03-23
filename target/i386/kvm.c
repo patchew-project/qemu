@@ -658,17 +658,34 @@ static int hyperv_handle_properties(CPUState *cs)
         env->features[FEAT_HYPERV_EAX] |= HV_ACCESS_FREQUENCY_MSRS;
         env->features[FEAT_HYPERV_EDX] |= HV_FREQUENCY_MSRS_AVAILABLE;
     }
-    if (cpu->hyperv_crash && has_msr_hv_crash) {
+    if (cpu->hyperv_crash) {
+        if (!has_msr_hv_crash) {
+            fprintf(stderr,
+                    "Hyper-V crash MSRs are not supported by kernel\n");
+            return -ENOSYS;
+        }
         env->features[FEAT_HYPERV_EDX] |= HV_GUEST_CRASH_MSR_AVAILABLE;
     }
     env->features[FEAT_HYPERV_EDX] |= HV_CPU_DYNAMIC_PARTITIONING_AVAILABLE;
-    if (cpu->hyperv_reset && has_msr_hv_reset) {
+    if (cpu->hyperv_reset) {
+       if (!has_msr_hv_reset) {
+            fprintf(stderr, "Hyper-V reset MSR is not supported by kernel\n");
+            return -ENOSYS;
+        }
         env->features[FEAT_HYPERV_EAX] |= HV_RESET_AVAILABLE;
     }
-    if (cpu->hyperv_vpindex && has_msr_hv_vpindex) {
+    if (cpu->hyperv_vpindex) {
+        if (!has_msr_hv_vpindex) {
+            fprintf(stderr, "Hyper-V VP_INDEX is not supported by kernel\n");
+            return -ENOSYS;
+        }
         env->features[FEAT_HYPERV_EAX] |= HV_VP_INDEX_AVAILABLE;
     }
-    if (cpu->hyperv_runtime && has_msr_hv_runtime) {
+    if (cpu->hyperv_runtime) {
+        if (!has_msr_hv_runtime) {
+            fprintf(stderr, "Hyper-V VP_INDEX is not supported by kernel\n");
+            return -ENOSYS;
+        }
         env->features[FEAT_HYPERV_EAX] |= HV_VP_RUNTIME_AVAILABLE;
     }
     if (cpu->hyperv_synic) {
