@@ -3997,6 +3997,18 @@ static void monitor_qmp_respond(Monitor *mon, QObject *rsp,
             qdict_put_obj(qobject_to(QDict, rsp), "id", id);
         }
 
+        if (mon->qmp.commands == &qmp_cap_negotiation_commands) {
+            qdict = qdict_get_qdict(qobject_to(QDict, rsp), "error");
+            if (qdict
+                && !g_strcmp0(qdict_get_try_str(qdict, "class"),
+                          QapiErrorClass_str(ERROR_CLASS_COMMAND_NOT_FOUND))) {
+                /* Provide a more useful error message */
+                qdict_del(qdict, "desc");
+                qdict_put_str(qdict, "desc", "Expecting capabilities"
+                              " negotiation with 'qmp_capabilities'");
+            }
+        }
+
         monitor_json_emitter(mon, rsp);
     }
 
@@ -4028,7 +4040,6 @@ static void monitor_qmp_dispatch_one(QMPRequest *req_obj)
 {
     Monitor *mon, *old_mon;
     QObject *req, *rsp = NULL, *id;
-    QDict *qdict = NULL;
     bool need_resume;
 
     req = req_obj->req;
@@ -4050,18 +4061,6 @@ static void monitor_qmp_dispatch_one(QMPRequest *req_obj)
     rsp = qmp_dispatch(mon->qmp.commands, req);
 
     cur_mon = old_mon;
-
-    if (mon->qmp.commands == &qmp_cap_negotiation_commands) {
-        qdict = qdict_get_qdict(qobject_to(QDict, rsp), "error");
-        if (qdict
-            && !g_strcmp0(qdict_get_try_str(qdict, "class"),
-                    QapiErrorClass_str(ERROR_CLASS_COMMAND_NOT_FOUND))) {
-            /* Provide a more useful error message */
-            qdict_del(qdict, "desc");
-            qdict_put_str(qdict, "desc", "Expecting capabilities negotiation"
-                          " with 'qmp_capabilities'");
-        }
-    }
 
     /* Respond if necessary */
     monitor_qmp_respond(mon, rsp, NULL, id);
