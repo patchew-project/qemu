@@ -99,6 +99,11 @@ typedef struct BlockJob {
     bool ready;
 
     /**
+     * Set to true when the job is yielded.
+     */
+    bool yielded;
+
+    /**
      * Set to true when the job has deferred work to the main loop.
      */
     bool deferred_to_main_loop;

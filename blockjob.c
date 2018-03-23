@@ -206,11 +206,16 @@ void block_job_txn_add_job(BlockJobTxn *txn, BlockJob *job)
 
 static void block_job_pause(BlockJob *job)
 {
-    job->pause_count++;
+    if (!job->yielded) {
+        job->pause_count++;
+    }
 }
 
 static void block_job_resume(BlockJob *job)
 {
+    if (job->yielded) {
+        return;
+    }
     assert(job->pause_count > 0);
     job->pause_count--;
     if (job->pause_count) {
@@ -371,6 +376,7 @@ static void block_job_sleep_timer_cb(void *opaque)
     BlockJob *job = opaque;
 
     block_job_enter(job);
+    job->yielded = false;
 }
 
 void block_job_start(BlockJob *job)
@@ -935,6 +941,7 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
     job->cb            = cb;
     job->opaque        = opaque;
     job->busy          = false;
+    job->yielded       = false;
     job->paused        = true;
     job->pause_count   = 1;
     job->refcnt        = 1;
@@ -1034,6 +1041,7 @@ static void block_job_do_yield(BlockJob *job, uint64_t ns)
         timer_mod(&job->sleep_timer, ns);
     }
     job->busy = false;
+    job->yielded = true;
     block_job_unlock();
     qemu_coroutine_yield();
 
