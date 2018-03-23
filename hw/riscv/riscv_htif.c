@@ -245,9 +245,14 @@ HTIFState *htif_mm_init(MemoryRegion *address_space, MemoryRegion *main_mem,
     s->pending_read = 0;
     s->allow_tohost = 0;
     s->fromhost_inprogress = 0;
+
+    if (!chr) {
+        chr = qemu_chardev_new(NULL, TYPE_CHARDEV_NULL, NULL, &error_abort);
+    }
     qemu_chr_fe_init(&s->chr, chr, &error_abort);
     qemu_chr_fe_set_handlers(&s->chr, htif_can_recv, htif_recv, htif_event,
         htif_be_change, s, NULL, true);
+
     if (base) {
         memory_region_init_io(&s->mmio, NULL, &htif_mm_ops, s,
                             TYPE_HTIF_UART, size);

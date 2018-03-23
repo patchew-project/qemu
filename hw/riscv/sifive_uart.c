@@ -166,9 +166,14 @@ SiFiveUARTState *sifive_uart_create(MemoryRegion *address_space, hwaddr base,
 {
     SiFiveUARTState *s = g_malloc0(sizeof(SiFiveUARTState));
     s->irq = irq;
+
+    if (!chr) {
+        chr = qemu_chardev_new(NULL, TYPE_CHARDEV_NULL, NULL, &error_abort);
+    }
     qemu_chr_fe_init(&s->chr, chr, &error_abort);
     qemu_chr_fe_set_handlers(&s->chr, uart_can_rx, uart_rx, uart_event,
         uart_be_change, s, NULL, true);
+
     memory_region_init_io(&s->mmio, NULL, &uart_ops, s,
                           TYPE_SIFIVE_UART, SIFIVE_UART_MAX);
     memory_region_add_subregion(address_space, base, &s->mmio);
