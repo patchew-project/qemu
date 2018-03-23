@@ -28,6 +28,7 @@ static inline abi_ulong get_sp_from_cpustate(CPUMIPSState *state)
 
 # if defined(TARGET_ABI_MIPSO32)
 /* compare linux/arch/mips/kernel/signal.c:setup_frame() */
+#define TARGET_ARCH_HAS_SETUP_FRAME
 void setup_frame(int sig, struct target_sigaction * ka,
                  target_sigset_t *set, CPUMIPSState *regs);
 #endif

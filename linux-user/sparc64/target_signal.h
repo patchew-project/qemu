@@ -33,6 +33,7 @@ static inline abi_ulong get_sp_from_cpustate(CPUSPARCState *state)
     return state->regwptr[UREG_FP];
 }
 
+#define TARGET_ARCH_HAS_SETUP_FRAME
 void setup_frame(int sig, struct target_sigaction *ka,
                  target_sigset_t *set, CPUSPARCState *env);
 void setup_rt_frame(int sig, struct target_sigaction *ka,

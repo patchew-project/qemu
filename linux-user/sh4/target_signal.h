@@ -26,6 +26,7 @@ static inline abi_ulong get_sp_from_cpustate(CPUSH4State *state)
     return state->gregs[15];
 }
 
+#define TARGET_ARCH_HAS_SETUP_FRAME
 void setup_frame(int sig, struct target_sigaction *ka,
                  target_sigset_t *set, CPUSH4State *regs);
 void setup_rt_frame(int sig, struct target_sigaction *ka,

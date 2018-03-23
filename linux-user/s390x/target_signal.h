@@ -23,6 +23,7 @@ static inline abi_ulong get_sp_from_cpustate(CPUS390XState *state)
    return state->regs[15];
 }
 
+#define TARGET_ARCH_HAS_SETUP_FRAME
 void setup_frame(int sig, struct target_sigaction *ka,
                  target_sigset_t *set, CPUS390XState *env);
 void setup_rt_frame(int sig, struct target_sigaction *ka,

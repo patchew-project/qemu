@@ -55,6 +55,7 @@ static inline abi_ulong get_sp_from_cpustate(CPUAlphaState *state)
 #define TARGET_GEN_SUBRNG6     -24
 #define TARGET_GEN_SUBRNG7     -25
 
+#define TARGET_ARCH_HAS_SETUP_FRAME
 void setup_frame(int sig, struct target_sigaction *ka,
                  target_sigset_t *set, CPUAlphaState *env);
 void setup_rt_frame(int sig, struct target_sigaction *ka,
