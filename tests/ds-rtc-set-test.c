@@ -29,12 +29,36 @@ static uint8_t test_time_24_12am[8] = {
     0x17,
 };
 
+static uint8_t test_time_12_12am[8] = {
+    0, /* address */
+    /* Wed, 22 Nov 2017 00:30:53 +0000 */
+    0x53,
+    0x30,
+    0x52, /* 12 AM in 12 hour mode */
+    0x03, /* monday is our day 1 */
+    0x22,
+    0x11 | 0x80,
+    0x17,
+};
+
 static uint8_t test_time_24_6am[8] = {
     0, /* address */
     /* Wed, 22 Nov 2017 06:30:53 +0000 */
     0x53,
     0x30,
     0x06, /* 6 AM in 24 hour mode */
+    0x03, /* monday is our day 1 */
+    0x22,
+    0x11 | 0x80,
+    0x17,
+};
+
+static uint8_t test_time_12_6am[8] = {
+    0, /* address */
+    /* Wed, 22 Nov 2017 06:30:53 +0000 */
+    0x53,
+    0x30,
+    0x46, /* 6 AM in 12 hour mode */
     0x03, /* monday is our day 1 */
     0x22,
     0x11 | 0x80,
@@ -53,12 +77,36 @@ static uint8_t test_time_24_12pm[8] = {
     0x17,
 };
 
+static uint8_t test_time_12_12pm[8] = {
+    0, /* address */
+    /* Wed, 22 Nov 2017 12:30:53 +0000 */
+    0x53,
+    0x30,
+    0x72, /* 12 PM in 24 hour mode */
+    0x03, /* monday is our day 1 */
+    0x22,
+    0x11 | 0x80,
+    0x17,
+};
+
 static uint8_t test_time_24_6pm[8] = {
     0, /* address */
     /* Wed, 22 Nov 2017 18:30:53 +0000 */
     0x53,
     0x30,
     0x18, /* 6 PM in 24 hour mode */
+    0x03, /* monday is our day 1 */
+    0x22,
+    0x11 | 0x80,
+    0x17,
+};
+
+static uint8_t test_time_12_6pm[8] = {
+    0, /* address */
+    /* Wed, 22 Nov 2017 18:30:53 +0000 */
+    0x53,
+    0x30,
+    0x66, /* 6 PM in 12 hour mode */
     0x03, /* monday is our day 1 */
     0x22,
     0x11 | 0x80,
@@ -108,6 +156,10 @@ int main(int argc, char *argv[])
     qtest_add_data_func("/ds-rtc-i2c/set24_6am", test_time_24_6am, test_rtc_set);
     qtest_add_data_func("/ds-rtc-i2c/set24_12pm", test_time_24_12pm, test_rtc_set);
     qtest_add_data_func("/ds-rtc-i2c/set24_6pm", test_time_24_6pm, test_rtc_set);
+    qtest_add_data_func("/ds-rtc-i2c/set12_12am", test_time_12_12am, test_rtc_set);
+    qtest_add_data_func("/ds-rtc-i2c/set12_6am", test_time_12_6am, test_rtc_set);
+    qtest_add_data_func("/ds-rtc-i2c/set12_12pm", test_time_12_12pm, test_rtc_set);
+    qtest_add_data_func("/ds-rtc-i2c/set12_6pm", test_time_12_6pm, test_rtc_set);
 
     ret = g_test_run();
 
