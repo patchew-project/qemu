@@ -70,6 +70,7 @@ typedef struct DSRTCState {
 typedef struct DSRTCClass {
     I2CSlaveClass parent_obj;
 
+    bool has_century;
     /* actual address space size must be <= NVRAM_SIZE */
     unsigned addr_size;
     unsigned ctrl_offset;
@@ -91,7 +92,7 @@ static const VMStateDescription vmstate_dsrtc = {
     }
 };
 
-static void capture_current_time(DSRTCState *s)
+static void capture_current_time(DSRTCState *s, DSRTCClass *k)
 {
     /* Capture the current time into the secondary registers
      * which will be actually read by the data transfer operation.
@@ -123,25 +124,28 @@ static void capture_current_time(DSRTCState *s)
     }
     s->nvram[R_DATE] = to_bcd(now.tm_mday);
     s->nvram[R_MONTH] = to_bcd(now.tm_mon + 1);
-    s->nvram[R_YEAR] = to_bcd(now.tm_year - 100);
+    s->nvram[R_YEAR] = to_bcd(now.tm_year % 100u);
+
+    ARRAY_FIELD_DP32(s->nvram, MONTH, CENTURY,
+                     k->has_century && now.tm_year >= 100)
 }
 
-static void inc_regptr(DSRTCState *s)
+static void inc_regptr(DSRTCState *s, DSRTCClass *k)
 {
-    DSRTCClass *k = DSRTC_GET_CLASS(s);
     /* The register pointer wraps around after k->addr_size-1; wraparound
      * causes the current time/date to be retransferred into
      * the secondary registers.
      */
     s->ptr = (s->ptr + 1) % k->addr_size;
     if (!s->ptr) {
-        capture_current_time(s);
+        capture_current_time(s, k);
     }
 }
 
 static int dsrtc_event(I2CSlave *i2c, enum i2c_event event)
 {
     DSRTCState *s = DSRTC(i2c);
+    DSRTCClass *k = DSRTC_GET_CLASS(s);
 
     switch (event) {
     case I2C_START_RECV:
@@ -150,7 +154,7 @@ static int dsrtc_event(I2CSlave *i2c, enum i2c_event event)
          * START_SEND, because the guest can't get at that data
          * without going through a START_RECV which would overwrite it.
          */
-        capture_current_time(s);
+        capture_current_time(s, k);
         break;
     case I2C_START_SEND:
         s->addr_byte = true;
@@ -165,10 +169,11 @@ static int dsrtc_event(I2CSlave *i2c, enum i2c_event event)
 static int dsrtc_recv(I2CSlave *i2c)
 {
     DSRTCState *s = DSRTC(i2c);
+    DSRTCClass *k = DSRTC_GET_CLASS(s);
     uint8_t res;
 
     res  = s->nvram[s->ptr];
-    inc_regptr(s);
+    inc_regptr(s, k);
     return res;
 }
 
@@ -230,7 +235,7 @@ static int dsrtc_send(I2CSlave *i2c, uint8_t data)
     if (s->ptr <= R_YEAR) {
         dsrtc_update(s);
     }
-    inc_regptr(s);
+    inc_regptr(s, k);
     return 0;
 }
 
@@ -278,6 +283,7 @@ static void ds1338_class_init(ObjectClass *klass, void *data)
 {
     DSRTCClass *k = DSRTC_CLASS(klass);
 
+    k->has_century = false;
     k->addr_size = 0x40;
     k->ctrl_offset = R_DS1338_CTRL;
     k->ctrl_write = ds1338_control_write;
