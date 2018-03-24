@@ -159,6 +159,42 @@ static int ds1338_recv(I2CSlave *i2c)
     return res;
 }
 
+/* call after guest writes to current time registers
+ * to re-compute our offset from host time.
+ */
+static void ds1338_update(DS1338State *s)
+{
+
+    struct tm now;
+    memset(&now, 0, sizeof(now));
+
+    /* TODO: Implement CH (stop) bit?  */
+    now.tm_sec = from_bcd(s->nvram[R_SEC] & 0x7f);
+    now.tm_min = from_bcd(s->nvram[R_MIN] & 0x7f);
+    if (ARRAY_FIELD_EX32(s->nvram, HOUR, SET12)) {
+        /* 12 hour (1-12) */
+        /* read and wrap 1-12 -> 0-11 */
+        now.tm_hour = from_bcd(ARRAY_FIELD_EX32(s->nvram, HOUR, HOUR12)) % 12u;
+        if (ARRAY_FIELD_EX32(s->nvram, HOUR, AMPM)) {
+            now.tm_hour += 12;
+        }
+
+    } else {
+        now.tm_hour = from_bcd(ARRAY_FIELD_EX32(s->nvram, HOUR, HOUR24));
+    }
+    {
+        /* The day field is supposed to contain a value in
+               the range 1-7. Otherwise behavior is undefined.
+             */
+        int user_wday = (s->nvram[R_WDAY] & 7) - 1;
+        s->wday_offset = (user_wday - now.tm_wday + 7) % 7;
+    }
+    now.tm_mday = from_bcd(s->nvram[R_DATE] & 0x3f);
+    now.tm_mon = from_bcd(s->nvram[R_MONTH] & 0x1f) - 1;
+    now.tm_year = from_bcd(s->nvram[R_YEAR]) + 100;
+    s->offset = qemu_timedate_diff(&now);
+}
+
 static int ds1338_send(I2CSlave *i2c, uint8_t data)
 {
     DS1338State *s = DS1338(i2c);
@@ -168,52 +204,7 @@ static int ds1338_send(I2CSlave *i2c, uint8_t data)
         s->addr_byte = false;
         return 0;
     }
-    if (s->ptr < 7) {
-        /* Time register. */
-        struct tm now;
-        qemu_get_timedate(&now, s->offset);
-        switch(s->ptr) {
-        case R_SEC:
-            /* TODO: Implement CH (stop) bit.  */
-            now.tm_sec = from_bcd(data & 0x7f);
-            break;
-        case R_MIN:
-            now.tm_min = from_bcd(data & 0x7f);
-            break;
-        case R_HOUR:
-            if (FIELD_EX32(data, HOUR, SET12)) {
-                /* 12 hour (1-12) */
-                /* read and wrap 1-12 -> 0-11 */
-                now.tm_hour = from_bcd(FIELD_EX32(data, HOUR, HOUR12)) % 12u;
-                if (FIELD_EX32(data, HOUR, AMPM)) {
-                    now.tm_hour += 12;
-                }
-
-            } else {
-                now.tm_hour = from_bcd(FIELD_EX32(data, HOUR, HOUR24));
-            }
-            break;
-        case R_WDAY:
-            {
-                /* The day field is supposed to contain a value in
-                   the range 1-7. Otherwise behavior is undefined.
-                 */
-                int user_wday = (data & 7) - 1;
-                s->wday_offset = (user_wday - now.tm_wday + 7) % 7;
-            }
-            break;
-        case R_DATE:
-            now.tm_mday = from_bcd(data & 0x3f);
-            break;
-        case R_MONTH:
-            now.tm_mon = from_bcd(data & 0x1f) - 1;
-            break;
-        case R_YEAR:
-            now.tm_year = from_bcd(data) + 100;
-            break;
-        }
-        s->offset = qemu_timedate_diff(&now);
-    } else if (s->ptr == R_CTRL) {
+    if (s->ptr == R_CTRL) {
         /* Control register. */
 
         /* Ensure bits 2, 3 and 6 will read back as zero. */
@@ -225,6 +216,9 @@ static int ds1338_send(I2CSlave *i2c, uint8_t data)
 
     }
     s->nvram[s->ptr] = data;
+    if (s->ptr <= R_YEAR) {
+        ds1338_update(s);
+    }
     inc_regptr(s);
     return 0;
 }
