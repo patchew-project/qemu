@@ -88,23 +88,23 @@ static void capture_current_time(DS1338State *s)
      * which will be actually read by the data transfer operation.
      */
     struct tm now;
+    bool mode12 = ARRAY_FIELD_EX32(s->nvram, HOUR, SET12);
     qemu_get_timedate(&now, s->offset);
+
     s->nvram[R_SEC] = to_bcd(now.tm_sec);
     s->nvram[R_MIN] = to_bcd(now.tm_min);
-    if (ARRAY_FIELD_EX32(s->nvram, HOUR, SET12)) {
-        int tmp = now.tm_hour;
-        if (tmp % 12 == 0) {
-            tmp += 12;
-        }
-        s->nvram[R_HOUR] = 0;
+    s->nvram[R_HOUR] = 0;
+    if (mode12) {
+        /* map 0-23 to 1-12 am/pm */
         ARRAY_FIELD_DP32(s->nvram, HOUR, SET12, 1);
-        if (tmp <= 12) {
-            ARRAY_FIELD_DP32(s->nvram, HOUR, AMPM, 0);
-            ARRAY_FIELD_DP32(s->nvram, HOUR, HOUR12, to_bcd(tmp));
-        } else {
-            ARRAY_FIELD_DP32(s->nvram, HOUR, AMPM, 1);
-            ARRAY_FIELD_DP32(s->nvram, HOUR, HOUR12, to_bcd(tmp - 12));
+        ARRAY_FIELD_DP32(s->nvram, HOUR, AMPM, now.tm_hour >= 12u);
+        now.tm_hour %= 12u; /* wrap 0-23 to 0-11 */
+        if (now.tm_hour == 0u) {
+            /* midnight/noon stored as 12 */
+            now.tm_hour = 12u;
         }
+        ARRAY_FIELD_DP32(s->nvram, HOUR, HOUR12, to_bcd(now.tm_hour));
+
     } else {
         ARRAY_FIELD_DP32(s->nvram, HOUR, HOUR24, to_bcd(now.tm_hour));
     }
@@ -182,14 +182,13 @@ static int ds1338_send(I2CSlave *i2c, uint8_t data)
             break;
         case R_HOUR:
             if (FIELD_EX32(data, HOUR, SET12)) {
-                int tmp = from_bcd(FIELD_EX32(data, HOUR, HOUR12));
+                /* 12 hour (1-12) */
+                /* read and wrap 1-12 -> 0-11 */
+                now.tm_hour = from_bcd(FIELD_EX32(data, HOUR, HOUR12)) % 12u;
                 if (FIELD_EX32(data, HOUR, AMPM)) {
-                    tmp += 12;
+                    now.tm_hour += 12;
                 }
-                if (tmp % 12 == 0) {
-                    tmp -= 12;
-                }
-                now.tm_hour = tmp;
+
             } else {
                 now.tm_hour = from_bcd(FIELD_EX32(data, HOUR, HOUR24));
             }
