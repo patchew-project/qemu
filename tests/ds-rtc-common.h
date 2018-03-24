@@ -20,7 +20,7 @@ static uint8_t addr;
 static bool use_century;
 
 /* input buffer must have at least 7 elements */
-static inline time_t rtc_parse(const uint8_t *buf)
+static inline time_t rtc_parse(const uint8_t *buf, unsigned *wday)
 {
     struct tm parts;
 
@@ -48,10 +48,14 @@ static inline time_t rtc_parse(const uint8_t *buf)
         parts.tm_year += 100u;
     }
 
+    if (wday) {
+        *wday = parts.tm_wday;
+    }
+
     return mktimegm(&parts);
 }
 
-static time_t rtc_gettime(void)
+static time_t rtc_gettime(unsigned *wday)
 {
     uint8_t buf[7];
 
@@ -61,7 +65,7 @@ static time_t rtc_gettime(void)
     /* read back current time registers */
     i2c_recv(i2c, addr, buf, 7);
 
-    return rtc_parse(buf);
+    return rtc_parse(buf, wday);
 }
 
 #endif /* DSRTCCOMMON_H */

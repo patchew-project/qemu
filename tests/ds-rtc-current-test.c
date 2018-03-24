@@ -20,17 +20,24 @@
 static
 void test_rtc_current(void)
 {
+    struct tm tm_actual;
     time_t expected, actual;
     /* relax test to limit false positives when host may be overloaded.
      * Allow larger delta when running "-m quick"
      */
     time_t max_delta = g_test_slow() ? 1 : 30;
 
+    unsigned wday_expect;
+
     actual = time(NULL);
     /* new second may start here */
-    expected = rtc_gettime();
+    expected = rtc_gettime(&wday_expect);
+
+    gmtime_r(&actual, &tm_actual);
+
     g_assert_cmpuint(expected, <=, actual + max_delta);
     g_assert_cmpuint(expected, >=, actual);
+    g_assert_cmpuint(wday_expect, ==, tm_actual.tm_wday);
 }
 
 int main(int argc, char *argv[])
