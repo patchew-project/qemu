@@ -1,8 +1,9 @@
 /*
- * MAXIM DSRTC I2C RTC+NVRAM
+ * MAXIM/Dallas DS1338 and DS1375 I2C RTC+NVRAM
  *
+ * Copyright (c) 2018 Michael Davidsaver
  * Copyright (c) 2009 CodeSourcery.
- * Written by Paul Brook
+ * Written by Paul Brook, Michael Davidsaver
  *
  * This code is licensed under the GNU GPL v2.
  *
@@ -41,6 +42,7 @@
 #define R_YEAR  (0x6)
 
 #define R_DS1338_CTRL (0x7)
+#define R_DS1375_CTRL (0xe)
 
 /* use 12 hour mode when set */
 FIELD(HOUR, SET12, 6, 1)
@@ -296,10 +298,34 @@ static const TypeInfo ds1338_info = {
     .class_init    = ds1338_class_init,
 };
 
+static void ds1375_control_write(DSRTCState *s, uint8_t data)
+{
+    /* just store it, we don't model any features */
+    s->nvram[R_DS1375_CTRL] = data;
+}
+
+static void ds1375_class_init(ObjectClass *klass, void *data)
+{
+    DSRTCClass *k = DSRTC_CLASS(klass);
+
+    k->has_century = true;
+    k->addr_size = 0x20;
+    k->ctrl_offset = R_DS1375_CTRL;
+    k->ctrl_write = ds1375_control_write;
+}
+
+static const TypeInfo ds1375_info = {
+    .name          = "ds1375",
+    .parent        = TYPE_DSRTC,
+    .class_size    = sizeof(DSRTCClass),
+    .class_init    = ds1375_class_init,
+};
+
 static void dsrtc_register_types(void)
 {
     type_register_static(&dsrtc_info);
     type_register_static(&ds1338_info);
+    type_register_static(&ds1375_info);
 }
 
 type_init(dsrtc_register_types)
