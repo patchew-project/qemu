@@ -224,10 +224,8 @@ static int ds1338_send(I2CSlave *i2c, uint8_t data)
            value unchanged. */
         data = (data & ~CTRL_OSF) | (data & s->nvram[s->ptr] & CTRL_OSF);
 
-        s->nvram[s->ptr] = data;
-    } else {
-        s->nvram[s->ptr] = data;
     }
+    s->nvram[s->ptr] = data;
     inc_regptr(s);
     return 0;
 }
