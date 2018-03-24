@@ -108,7 +108,10 @@ static void capture_current_time(DS1338State *s)
     } else {
         ARRAY_FIELD_DP32(s->nvram, HOUR, HOUR24, to_bcd(now.tm_hour));
     }
-    s->nvram[R_WDAY] = (now.tm_wday + s->wday_offset) % 7 + 1;
+    s->nvram[R_WDAY] = (now.tm_wday + s->wday_offset) % 7;
+    if (s->nvram[R_WDAY] == 0) {
+        s->nvram[R_WDAY] = 7;
+    }
     s->nvram[R_DATE] = to_bcd(now.tm_mday);
     s->nvram[R_MONTH] = to_bcd(now.tm_mon + 1);
     s->nvram[R_YEAR] = to_bcd(now.tm_year - 100);
@@ -182,17 +185,22 @@ static void ds1338_update(DS1338State *s)
     } else {
         now.tm_hour = from_bcd(ARRAY_FIELD_EX32(s->nvram, HOUR, HOUR24));
     }
-    {
-        /* The day field is supposed to contain a value in
-               the range 1-7. Otherwise behavior is undefined.
-             */
-        int user_wday = (s->nvram[R_WDAY] & 7) - 1;
-        s->wday_offset = (user_wday - now.tm_wday + 7) % 7;
-    }
+    now.tm_wday = from_bcd(s->nvram[R_WDAY]) - 1u;
     now.tm_mday = from_bcd(s->nvram[R_DATE] & 0x3f);
     now.tm_mon = from_bcd(s->nvram[R_MONTH] & 0x1f) - 1;
     now.tm_year = from_bcd(s->nvram[R_YEAR]) + 100;
     s->offset = qemu_timedate_diff(&now);
+
+    {
+        /* Round trip to get real wday_offset based on time delta and
+         * ref. timezone.
+         * Race if midnight (in ref. timezone) happens here.
+         */
+        int user_wday = now.tm_wday;
+        qemu_get_timedate(&now, s->offset);
+
+        s->wday_offset = (user_wday - now.tm_wday) % 7 + 1;
+    }
 }
 
 static int ds1338_send(I2CSlave *i2c, uint8_t data)
