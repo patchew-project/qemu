@@ -63,6 +63,20 @@ QTestState *qtest_init(const char *extra_args);
 QTestState *qtest_init_without_qmp_handshake(const char *extra_args);
 
 /**
+ * qtest_init_with_qmp_format:
+ * @extra_args: other arguments to pass to QEMU.
+ * @qmp_format: format of QMP parameters, should contain one "%s"
+ *              field so that the socket path will be filled later.
+ *
+ * Note that this function will work just like
+ * qtest_init_without_qmp_handshake(), so no QMP handshake will be done.
+ *
+ * Returns: #QTestState instance.
+ */
+QTestState *qtest_init_with_qmp_format(const char *extra_args,
+                                       const char *qmp_format);
+
+/**
  * qtest_quit:
  * @s: #QTestState instance to operate on.
  *

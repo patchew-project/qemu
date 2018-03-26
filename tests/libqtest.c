@@ -166,19 +166,22 @@ static const char *qtest_qemu_binary(void)
     return qemu_bin;
 }
 
-QTestState *qtest_init_without_qmp_handshake(const char *extra_args)
+QTestState *qtest_init_with_qmp_format(const char *extra_args,
+                                       const char *qmp_format)
 {
     QTestState *s;
     int sock, qmpsock, i;
     gchar *socket_path;
     gchar *qmp_socket_path;
     gchar *command;
+    gchar *qmp_params;
     const char *qemu_binary = qtest_qemu_binary();
 
     s = g_new(QTestState, 1);
 
     socket_path = g_strdup_printf("/tmp/qtest-%d.sock", getpid());
     qmp_socket_path = g_strdup_printf("/tmp/qtest-%d.qmp", getpid());
+    qmp_params = g_strdup_printf(qmp_format, qmp_socket_path);
 
     /* It's possible that if an earlier test run crashed it might
      * have left a stale unix socket lying around. Delete any
@@ -199,12 +202,12 @@ QTestState *qtest_init_without_qmp_handshake(const char *extra_args)
         command = g_strdup_printf("exec %s "
                                   "-qtest unix:%s,nowait "
                                   "-qtest-log %s "
-                                  "-qmp unix:%s,nowait "
+                                  "%s "
                                   "-machine accel=qtest "
                                   "-display none "
                                   "%s", qemu_binary, socket_path,
                                   getenv("QTEST_LOG") ? "/dev/fd/2" : "/dev/null",
-                                  qmp_socket_path,
+                                  qmp_params,
                                   extra_args ?: "");
         execlp("/bin/sh", "sh", "-c", command, NULL);
         exit(1);
@@ -235,6 +238,11 @@ QTestState *qtest_init_without_qmp_handshake(const char *extra_args)
     s->big_endian = qtest_query_target_endianness(s);
 
     return s;
+}
+
+QTestState *qtest_init_without_qmp_handshake(const char *extra_args)
+{
+    return qtest_init_with_qmp_format(extra_args, "-qmp unix:%s,nowait");
 }
 
 QTestState *qtest_init(const char *extra_args)
