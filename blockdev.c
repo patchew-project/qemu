@@ -2050,7 +2050,6 @@ typedef struct BlockDirtyBitmapState {
     BlkActionState common;
     BdrvDirtyBitmap *bitmap;
     BlockDriverState *bs;
-    HBitmap *backup;
     bool prepared;
 } BlockDirtyBitmapState;
 
@@ -2129,18 +2128,6 @@ static void block_dirty_bitmap_clear_prepare(BlkActionState *common,
         error_setg(errp, "Cannot clear a readonly bitmap");
         return;
     }
-
-    bdrv_clear_dirty_bitmap(state->bitmap, &state->backup);
-}
-
-static void block_dirty_bitmap_clear_abort(BlkActionState *common)
-{
-    BlockDirtyBitmapState *state = DO_UPCAST(BlockDirtyBitmapState,
-                                             common, common);
-
-    if (state->backup) {
-        bdrv_undo_clear_dirty_bitmap(state->bitmap, state->backup);
-    }
 }
 
 static void block_dirty_bitmap_clear_commit(BlkActionState *common)
@@ -2148,7 +2135,7 @@ static void block_dirty_bitmap_clear_commit(BlkActionState *common)
     BlockDirtyBitmapState *state = DO_UPCAST(BlockDirtyBitmapState,
                                              common, common);
 
-    hbitmap_free(state->backup);
+    bdrv_clear_dirty_bitmap(state->bitmap, NULL);
 }
 
 static void abort_prepare(BlkActionState *common, Error **errp)
@@ -2210,7 +2197,6 @@ static const BlkActionOps actions[] = {
         .instance_size = sizeof(BlockDirtyBitmapState),
         .prepare = block_dirty_bitmap_clear_prepare,
         .commit = block_dirty_bitmap_clear_commit,
-        .abort = block_dirty_bitmap_clear_abort,
     }
 };
 
