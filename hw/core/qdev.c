@@ -345,6 +345,22 @@ void qdev_init_nofail(DeviceState *dev)
     object_unref(OBJECT(dev));
 }
 
+void qdev_cleanup_nofail(DeviceState *dev)
+{
+    Error *err = NULL;
+
+    assert(dev->realized);
+
+    object_ref(OBJECT(dev));
+    object_property_set_bool(OBJECT(dev), false, "realized", &err);
+    if (err) {
+        error_reportf_err(err, "Clean up of device %s failed: ",
+                          object_get_typename(OBJECT(dev)));
+        exit(1);
+    }
+    object_unref(OBJECT(dev));
+}
+
 void qdev_machine_creation_done(void)
 {
     /*
