@@ -104,12 +104,16 @@ void isa_connect_gpio_out(ISADevice *isadev, int gpioirq, int isairq)
     qdev_connect_gpio_out(DEVICE(isadev), gpioirq, irq);
 }
 
-void isa_bus_dma(ISABus *bus, IsaDma *dma8, IsaDma *dma16)
+int isa_bus_dma(ISABus *bus, IsaDma *dma8, IsaDma *dma16, Error **errp)
 {
     assert(bus && dma8 && dma16);
-    assert(!bus->dma[0] && !bus->dma[1]);
+    if (bus->dma[0] || bus->dma[1]) {
+        error_setg(errp, "DMA already initialized on ISA bus");
+        return -EBUSY;
+    }
     bus->dma[0] = dma8;
     bus->dma[1] = dma16;
+    return 0;
 }
 
 IsaDma *isa_get_dma(ISABus *bus, int nchan)

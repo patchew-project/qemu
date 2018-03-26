@@ -622,26 +622,31 @@ static void i8257_register_types(void)
 
 type_init(i8257_register_types)
 
-void i8257_dma_init(ISABus *bus, bool high_page_enable)
+void i8257_dma_init(ISABus *bus, bool high_page_enable, Error **errp)
 {
     ISADevice *isa1, *isa2;
-    DeviceState *d;
+    DeviceState *d1, *d2;
 
     isa1 = isa_create(bus, TYPE_I8257);
-    d = DEVICE(isa1);
-    qdev_prop_set_int32(d, "base", 0x00);
-    qdev_prop_set_int32(d, "page-base", 0x80);
-    qdev_prop_set_int32(d, "pageh-base", high_page_enable ? 0x480 : -1);
-    qdev_prop_set_int32(d, "dshift", 0);
-    qdev_init_nofail(d);
+    d1 = DEVICE(isa1);
+    qdev_prop_set_int32(d1, "base", 0x00);
+    qdev_prop_set_int32(d1, "page-base", 0x80);
+    qdev_prop_set_int32(d1, "pageh-base", high_page_enable ? 0x480 : -1);
+    qdev_prop_set_int32(d1, "dshift", 0);
+    qdev_init_nofail(d1);
 
     isa2 = isa_create(bus, TYPE_I8257);
-    d = DEVICE(isa2);
-    qdev_prop_set_int32(d, "base", 0xc0);
-    qdev_prop_set_int32(d, "page-base", 0x88);
-    qdev_prop_set_int32(d, "pageh-base", high_page_enable ? 0x488 : -1);
-    qdev_prop_set_int32(d, "dshift", 1);
-    qdev_init_nofail(d);
+    d2 = DEVICE(isa2);
+    qdev_prop_set_int32(d2, "base", 0xc0);
+    qdev_prop_set_int32(d2, "page-base", 0x88);
+    qdev_prop_set_int32(d2, "pageh-base", high_page_enable ? 0x488 : -1);
+    qdev_prop_set_int32(d2, "dshift", 1);
+    qdev_init_nofail(d2);
 
-    isa_bus_dma(bus, ISADMA(isa1), ISADMA(isa2));
+    if (isa_bus_dma(bus, ISADMA(isa1), ISADMA(isa2), errp) < 0) {
+        object_property_set_bool(OBJECT(d1), false, "realized", errp);
+        object_unparent(OBJECT(d1));
+        object_property_set_bool(OBJECT(d2), false, "realized", errp);
+        object_unparent(OBJECT(d2));
+    }
 }

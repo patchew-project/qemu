@@ -1624,7 +1624,7 @@ void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
         pcspk_init(isa_bus, pit);
     }
 
-    i8257_dma_init(isa_bus, 0);
+    i8257_dma_init(isa_bus, 0, &error_fatal);
 
     /* Super I/O */
     pc_superio_init(isa_bus, create_fdctrl, no_vmport);
