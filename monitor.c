@@ -58,8 +58,6 @@
 #include "qapi/qmp/qnum.h"
 #include "qapi/qmp/qstring.h"
 #include "qapi/qmp/qjson.h"
-#include "qapi/qmp/json-streamer.h"
-#include "qapi/qmp/json-parser.h"
 #include "qapi/qmp/qlist.h"
 #include "qom/object_interfaces.h"
 #include "trace-root.h"
@@ -625,7 +623,6 @@ static void monitor_data_destroy(Monitor *mon)
     qemu_chr_fe_deinit(&mon->chr, false);
     if (monitor_is_qmp(mon)) {
         qmp_session_destroy(&mon->qmp.session);
-        json_message_parser_destroy(&mon->qmp.parser);
     }
     readline_free(mon->rs);
     QDECREF(mon->outbuf);
@@ -4011,32 +4008,20 @@ static void monitor_qmp_bh_dispatcher(void *data)
 
 #define  QMP_REQ_QUEUE_LEN_MAX  (8)
 
-static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
+static void qmp_dispatch_cb(QmpSession *session, QDict *req)
 {
-    QObject *req, *id = NULL;
-    QDict *qdict = NULL;
-    MonitorQMP *mon_qmp = container_of(parser, MonitorQMP, parser);
-    Monitor *mon = container_of(mon_qmp, Monitor, qmp);
+    QDict *rsp;
+    QObject *id;
+    Monitor *mon = container_of(session, Monitor, qmp.session);
     Error *err = NULL;
     QMPRequest *req_obj;
 
-    req = json_parser_parse_err(tokens, NULL, &err);
-    if (err) {
-        goto err;
-    }
-
-    /* Check against the request in general layout */
-    qdict = qmp_dispatch_check_obj(req, &err);
-    if (!qdict) {
-        goto err;
-    }
-
     /* Check against OOB specific */
-    if (!qmp_cmd_oob_check(mon, qdict, &err)) {
+    if (!qmp_cmd_oob_check(mon, req, &err)) {
         goto err;
     }
 
-    id = qdict_get(qdict, "id");
+    id = qdict_get(req, "id");
 
     /* When OOB is enabled, the "id" field is mandatory. */
     if (qmp_oob_enabled(mon) && !id) {
@@ -4045,12 +4030,13 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
         goto err;
     }
 
+    QINCREF(req);
     req_obj = g_new0(QMPRequest, 1);
     req_obj->mon = mon;
     req_obj->id = id;
-    req_obj->req = qdict;
+    req_obj->req = req;
 
-    if (qmp_is_oob(qdict)) {
+    if (qmp_is_oob(req)) {
         /* Out-Of-Band (OOB) requests are executed directly in parser. */
         trace_monitor_qmp_cmd_out_of_band(qobject_get_try_str(req_obj->id)
                                           ?: "");
@@ -4076,7 +4062,7 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
             qapi_event_send_command_dropped(id,
                                             COMMAND_DROP_REASON_QUEUE_FULL,
                                             &error_abort);
-            qobject_decref(req);
+            QDECREF(req);
             g_free(req_obj);
             return;
         }
@@ -4095,19 +4081,18 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
     return;
 
 err:
-    qdict = qdict_new();
-    qdict_put_obj(qdict, "error", qmp_build_error_object(err));
+    rsp = qdict_new();
+    qdict_put_obj(rsp, "error", qmp_build_error_object(err));
     error_free(err);
-    monitor_json_emitter(mon, QOBJECT(qdict));
-    QDECREF(qdict);
-    qobject_decref(req);
+    monitor_json_emitter(mon, QOBJECT(rsp));
+    QDECREF(rsp);
 }
 
 static void monitor_qmp_read(void *opaque, const uint8_t *buf, int size)
 {
     Monitor *mon = opaque;
 
-    json_message_parser_feed(&mon->qmp.parser, (const char *) buf, size);
+    qmp_session_feed(&mon->qmp.session, (const char *) buf, size);
 }
 
 static void monitor_read(void *opaque, const uint8_t *buf, int size)
@@ -4217,7 +4202,7 @@ static void monitor_qmp_event(void *opaque, int event)
     case CHR_EVENT_OPENED:
         qmp_session_init(&mon->qmp.session,
                          &qmp_cap_negotiation_commands,
-                         NULL, /* XXX: not in use yet, but in following patch */
+                         qmp_dispatch_cb,
                          dispatch_return_cb);
         monitor_qmp_caps_reset(mon);
         data = get_qmp_greeting(mon);
@@ -4227,8 +4212,6 @@ static void monitor_qmp_event(void *opaque, int event)
         break;
     case CHR_EVENT_CLOSED:
         qmp_session_destroy(&mon->qmp.session);
-        json_message_parser_destroy(&mon->qmp.parser);
-        json_message_parser_init(&mon->qmp.parser, handle_qmp_command);
         mon_refcount--;
         monitor_fdsets_cleanup();
         break;
@@ -4429,7 +4412,6 @@ void monitor_init(Chardev *chr, int flags)
 
     if (monitor_is_qmp(mon)) {
         qemu_chr_fe_set_echo(&mon->chr, true);
-        json_message_parser_init(&mon->qmp.parser, handle_qmp_command);
         if (mon->use_io_thr) {
             /*
              * Make sure the old iowatch is gone.  It's possible when
