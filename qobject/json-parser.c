@@ -591,7 +591,12 @@ QObject *json_parser_parse_err(GQueue *tokens, va_list *ap, Error **errp)
 
     result = parse_value(ctxt, ap);
 
-    error_propagate(errp, ctxt->err);
+    if (!result && !ctxt->err) {
+        /* TODO: improve error reporting */
+        error_setg(errp, "Failed to parse JSON");
+    } else {
+        error_propagate(errp, ctxt->err);
+    }
 
     parser_context_free(ctxt);
 
