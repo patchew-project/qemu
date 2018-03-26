@@ -49,7 +49,10 @@ void qmp_return(QmpReturn *qret, QObject *rsp)
 
 void qmp_return_error(QmpReturn *qret, Error *err)
 {
-    qdict_put_obj(qret->rsp, "error", qmp_build_error_object(err));
+    qdict_put_obj(qret->rsp, "error",
+                  qobject_from_jsonf("{ 'class': %s, 'desc': %s }",
+                                     QapiErrorClass_str(error_get_class(err)),
+                                     error_get_pretty(err)));
     error_free(err);
     qret->session->return_cb(qret->session, qret->rsp);
     qmp_return_free(qret);
@@ -151,13 +154,6 @@ static QObject *do_qmp_dispatch(QmpCommandList *cmds, QDict *dict,
     QDECREF(args);
 
     return ret;
-}
-
-QObject *qmp_build_error_object(Error *err)
-{
-    return qobject_from_jsonf("{ 'class': %s, 'desc': %s }",
-                              QapiErrorClass_str(error_get_class(err)),
-                              error_get_pretty(err));
 }
 
 /*
