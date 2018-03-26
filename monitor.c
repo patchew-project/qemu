@@ -3950,12 +3950,6 @@ struct QMPRequest {
     QObject *id;
     /* Request object to be handled */
     QObject *req;
-    /*
-     * Whether we need to resume the monitor afterward.  This flag is
-     * used to emulate the old QMP server behavior that the current
-     * command must be completed before execution of the next one.
-     */
-    bool need_resume;
 };
 typedef struct QMPRequest QMPRequest;
 
@@ -3963,7 +3957,7 @@ typedef struct QMPRequest QMPRequest;
  * Dispatch one single QMP request. The function will free the req_obj
  * and objects inside it before return.
  */
-static void monitor_qmp_dispatch_one(QMPRequest *req_obj)
+static void monitor_qmp_dispatch_one(QMPRequest *req_obj, bool oob_cmd)
 {
     Monitor *mon, *old_mon;
     QObject *req, *rsp = NULL, *id;
@@ -3972,7 +3966,7 @@ static void monitor_qmp_dispatch_one(QMPRequest *req_obj)
     req = req_obj->req;
     mon = req_obj->mon;
     id = req_obj->id;
-    need_resume = req_obj->need_resume;
+    need_resume = !oob_cmd && !qmp_oob_enabled(mon);
 
     g_free(req_obj);
 
@@ -4043,7 +4037,7 @@ static void monitor_qmp_bh_dispatcher(void *data)
 
     if (req_obj) {
         trace_monitor_qmp_cmd_in_band(qobject_get_try_str(req_obj->id) ?: "");
-        monitor_qmp_dispatch_one(req_obj);
+        monitor_qmp_dispatch_one(req_obj, false);
         /* Reschedule instead of looping so the main loop stays responsive */
         qemu_bh_schedule(mon_global.qmp_dispatcher_bh);
     }
@@ -4096,13 +4090,12 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
     req_obj->mon = mon;
     req_obj->id = id;
     req_obj->req = req;
-    req_obj->need_resume = false;
 
     if (qmp_is_oob(qdict)) {
         /* Out-Of-Band (OOB) requests are executed directly in parser. */
         trace_monitor_qmp_cmd_out_of_band(qobject_get_try_str(req_obj->id)
                                           ?: "");
-        monitor_qmp_dispatch_one(req_obj);
+        monitor_qmp_dispatch_one(req_obj, true);
         return;
     }
 
@@ -4117,7 +4110,6 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
      */
     if (!qmp_oob_enabled(mon)) {
         monitor_suspend(mon);
-        req_obj->need_resume = true;
     } else {
         /* Drop the request if queue is full. */
         if (mon->qmp.qmp_requests->length >= QMP_REQ_QUEUE_LEN_MAX) {
