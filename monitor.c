@@ -3900,23 +3900,6 @@ static int monitor_can_read(void *opaque)
     return !atomic_mb_read(&mon->suspend_cnt);
 }
 
-/* take the ownership of rsp */
-static void monitor_qmp_respond(Monitor *mon, QDict *rsp)
-{
-    if (mon->qmp.session.cmds == &qmp_cap_negotiation_commands) {
-        QDict *qdict = qdict_get_qdict(rsp, "error");
-        if (qdict
-            && !g_strcmp0(qdict_get_try_str(qdict, "class"),
-                          QapiErrorClass_str(ERROR_CLASS_COMMAND_NOT_FOUND))) {
-            /* Provide a more useful error message */
-            qdict_put_str(qdict, "desc", "Expecting capabilities"
-                          " negotiation with 'qmp_capabilities'");
-        }
-    }
-    monitor_json_emitter(mon, QOBJECT(rsp));
-    QDECREF(rsp);
-}
-
 struct QMPRequest {
     /* Owner of the request */
     Monitor *mon;
@@ -3927,6 +3910,24 @@ struct QMPRequest {
 };
 typedef struct QMPRequest QMPRequest;
 
+static void dispatch_return_cb(QmpSession *session, QDict *rsp)
+{
+    Monitor *mon = container_of(session, Monitor, qmp.session);
+
+    if (mon->qmp.session.cmds == &qmp_cap_negotiation_commands) {
+        QDict *qdict = qdict = qdict_get_qdict(rsp, "error");
+        if (qdict
+            && !g_strcmp0(qdict_get_try_str(qdict, "class"),
+                    QapiErrorClass_str(ERROR_CLASS_COMMAND_NOT_FOUND))) {
+            /* Provide a more useful error message */
+            qdict_put_str(qdict, "desc", "Expecting capabilities negotiation"
+                          " with 'qmp_capabilities'");
+        }
+    }
+
+    monitor_json_emitter(mon, QOBJECT(rsp));
+}
+
 /*
  * Dispatch one single QMP request. The function will free the req_obj
  * and objects inside it before return.
@@ -3934,7 +3935,7 @@ typedef struct QMPRequest QMPRequest;
 static void monitor_qmp_dispatch_one(QMPRequest *req_obj)
 {
     Monitor *mon, *old_mon;
-    QDict *req, *rsp = NULL;
+    QDict *req;
 
     req = req_obj->req;
     mon = req_obj->mon;
@@ -3950,16 +3951,9 @@ static void monitor_qmp_dispatch_one(QMPRequest *req_obj)
     old_mon = cur_mon;
     cur_mon = mon;
 
-    rsp = qmp_dispatch(&mon->qmp.session, req);
+    qmp_dispatch(&mon->qmp.session, req);
 
     cur_mon = old_mon;
-
-    /* Respond if necessary */
-    if (rsp) {
-        monitor_qmp_respond(mon, rsp);
-    }
-
-
     QDECREF(req);
 }
 
@@ -4107,7 +4101,8 @@ err:
     qdict = qdict_new();
     qdict_put_obj(qdict, "error", qmp_build_error_object(err));
     error_free(err);
-    monitor_qmp_respond(mon, qdict);
+    monitor_json_emitter(mon, QOBJECT(qdict));
+    QDECREF(qdict);
     qobject_decref(req);
 }
 
@@ -4223,7 +4218,8 @@ static void monitor_qmp_event(void *opaque, int event)
 
     switch (event) {
     case CHR_EVENT_OPENED:
-        qmp_session_init(&mon->qmp.session, &qmp_cap_negotiation_commands);
+        qmp_session_init(&mon->qmp.session,
+                         &qmp_cap_negotiation_commands, dispatch_return_cb);
         monitor_qmp_caps_reset(mon);
         data = get_qmp_greeting(mon);
         monitor_json_emitter(mon, data);

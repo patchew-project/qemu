@@ -146,17 +146,27 @@ bool qmp_is_oob(const QDict *dict)
     return qbool_get_bool(bool_obj);
 }
 
-void qmp_session_init(QmpSession *session, QmpCommandList *cmds)
+void qmp_session_init(QmpSession *session,
+                      QmpCommandList *cmds, QmpDispatchReturn *return_cb)
 {
+    assert(return_cb);
+    assert(!session->return_cb);
+
     session->cmds = cmds;
+    session->return_cb = return_cb;
 }
 
 void qmp_session_destroy(QmpSession *session)
 {
+    if (!session->return_cb) {
+        return;
+    }
+
     session->cmds = NULL;
+    session->return_cb = NULL;
 }
 
-QDict *qmp_dispatch(QmpSession *session, QDict *req)
+void qmp_dispatch(QmpSession *session, QDict *req)
 {
     Error *err = NULL;
     QObject *ret;
@@ -177,8 +187,9 @@ QDict *qmp_dispatch(QmpSession *session, QDict *req)
         qdict_put_obj(rsp, "return", ret);
     } else {
         QDECREF(rsp);
-        return NULL;
+        return;
     }
 
-    return rsp;
+    session->return_cb(session, rsp);
+    QDECREF(rsp);
 }

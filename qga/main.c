@@ -580,14 +580,22 @@ static int send_response(GAState *s, QObject *payload)
     return 0;
 }
 
+static void dispatch_return_cb(QmpSession *session, QDict *rsp)
+{
+    GAState *s = container_of(session, GAState, session);
+    int ret = send_response(s, QOBJECT(rsp));
+    if (ret < 0) {
+        g_warning("error sending response: %s", strerror(-ret));
+    }
+}
+
 /* handle requests/control events coming in over the channel */
 static void process_event(JSONMessageParser *parser, GQueue *tokens)
 {
     GAState *s = container_of(parser, GAState, parser);
     QObject *obj;
-    QDict *req, *rsp = NULL;
+    QDict *req;
     Error *err = NULL;
-    int ret;
 
     g_assert(s && parser);
 
@@ -604,19 +612,14 @@ static void process_event(JSONMessageParser *parser, GQueue *tokens)
     }
 
     g_debug("processing command");
-    rsp = qmp_dispatch(&s->session, req);
+    qmp_dispatch(&s->session, req);
 
 end:
     if (err) {
-        rsp = qdict_new();
+        QDict *rsp = qdict_new();
         qdict_put_obj(rsp, "error", qmp_build_error_object(err));
         error_free(err);
-    }
-    if (rsp) {
-        ret = send_response(s, QOBJECT(rsp));
-        if (ret < 0) {
-            g_warning("error sending error response: %s", strerror(-ret));
-        }
+        dispatch_return_cb(&s->session, rsp);
         QDECREF(rsp);
     }
     qobject_decref(obj);
@@ -1305,7 +1308,7 @@ static int run_agent(GAState *s, GAConfig *config, int socket_activation)
     ga_command_state_init(s, s->command_state);
     ga_command_state_init_all(s->command_state);
     json_message_parser_init(&s->parser, process_event);
-    qmp_session_init(&s->session, &ga_commands);
+    qmp_session_init(&s->session, &ga_commands, dispatch_return_cb);
 #ifndef _WIN32
     if (!register_signal_handlers()) {
         g_critical("failed to register signal handlers");

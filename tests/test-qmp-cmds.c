@@ -93,23 +93,29 @@ __org_qemu_x_Union1 *qmp___org_qemu_x_command(__org_qemu_x_EnumList *a,
     return ret;
 }
 
+static void dispatch_cmd_return(QmpSession *session, QDict *resp)
+{
+    assert(resp != NULL);
+    assert(!qdict_haskey(resp, "error"));
+}
 
 /* test commands with no input and no return value */
 static void test_dispatch_cmd(void)
 {
     QmpSession session = { 0, };
-    QDict *resp, *req = qdict_new();
+    QDict *req = qdict_new();
 
-    qmp_session_init(&session, &qmp_commands);
+    qmp_session_init(&session, &qmp_commands, dispatch_cmd_return);
     qdict_put_str(req, "execute", "user_def_cmd");
-
-    resp = qmp_dispatch(&session, req);
-    assert(resp != NULL);
-    assert(!qdict_haskey(resp, "error"));
-
-    QDECREF(resp);
+    qmp_dispatch(&session, req);
     QDECREF(req);
     qmp_session_destroy(&session);
+}
+
+static void dispatch_cmd_failure_return(QmpSession *session, QDict *resp)
+{
+    assert(resp != NULL);
+    assert(qdict_haskey(resp, "error"));
 }
 
 /* test commands that return an error due to invalid parameters */
@@ -117,61 +123,53 @@ static void test_dispatch_cmd_failure(void)
 {
     QmpSession session = { 0, };
     QDict *req = qdict_new();
-    QDict *resp, *args = qdict_new();
+    QDict *args = qdict_new();
 
-    qmp_session_init(&session, &qmp_commands);
+    qmp_session_init(&session, &qmp_commands, dispatch_cmd_failure_return);
     qdict_put_str(req, "execute", "user_def_cmd2");
-
-    resp = qmp_dispatch(&session, req);
-    assert(resp != NULL);
-    assert(qdict_haskey(resp, "error"));
-
-    QDECREF(resp);
+    qmp_dispatch(&session, req);
     QDECREF(req);
 
     /* check that with extra arguments it throws an error */
     req = qdict_new();
     qdict_put_int(args, "a", 66);
     qdict_put(req, "arguments", args);
-
     qdict_put_str(req, "execute", "user_def_cmd");
-
-    resp = qmp_dispatch(&session, req);
-    assert(resp != NULL);
-    assert(qdict_haskey(resp, "error"));
-
-    QDECREF(resp);
+    qmp_dispatch(&session, req);
     QDECREF(req);
     qmp_session_destroy(&session);
 }
+
+static QObject *dispatch_ret;
 
 static void test_dispatch_cmd_success_response(void)
 {
     QmpSession session = { 0, };
-    QDict *resp, *req = qdict_new();
+    QDict *req = qdict_new();
 
-    qmp_session_init(&session, &qmp_commands);
+    qmp_session_init(&session, &qmp_commands, (QmpDispatchReturn *)abort);
     qdict_put_str(req, "execute", "cmd-success-response");
-    resp = qmp_dispatch(&session, req);
-    assert(resp == NULL);
+    qmp_dispatch(&session, req);
     QDECREF(req);
     qmp_session_destroy(&session);
 }
 
+static void dispatch_return(QmpSession *session, QDict *resp)
+{
+    assert(resp && !qdict_haskey(resp, "error"));
+    dispatch_ret = qdict_get(resp, "return");
+    qobject_incref(dispatch_ret);
+}
 
 static QObject *test_qmp_dispatch(QDict *req)
 {
     QmpSession session = { 0, };
-    QDict *resp;
     QObject *ret;
 
-    qmp_session_init(&session, &qmp_commands);
-    resp = qmp_dispatch(&session, req);
-    assert(resp && !qdict_haskey(resp, "error"));
-    ret = qdict_get(resp, "return");
-    assert(ret);
-    qobject_incref(ret);
-    QDECREF(resp);
+    qmp_session_init(&session, &qmp_commands, dispatch_return);
+    qmp_dispatch(&session, req);
+    ret = dispatch_ret;
+    dispatch_ret = NULL;
     qmp_session_destroy(&session);
     return ret;
 }
@@ -290,21 +288,21 @@ static void test_dealloc_partial(void)
     qapi_free_UserDefTwo(ud2);
 }
 
+static void dispatch_return_id42(QmpSession *session, QDict *resp)
+{
+    assert(!qdict_haskey(resp, "error"));
+    assert(!strcmp(qdict_get_str(resp, "id"), "ID42"));
+}
+
 static void test_dispatch_cmd_id(void)
 {
     QmpSession session = { 0, };
-    QDict *resp, *req = qdict_new();
+    QDict *req = qdict_new();
 
-    qmp_session_init(&session, &qmp_commands);
+    qmp_session_init(&session, &qmp_commands, dispatch_return_id42);
     qdict_put_str(req, "execute", "user_def_cmd");
     qdict_put_str(req, "id", "ID42");
-
-    resp = qmp_dispatch(&session, req);
-    assert(resp != NULL);
-    assert(!qdict_haskey(resp, "error"));
-    assert(!strcmp(qdict_get_str(resp, "id"), "ID42"));
-
-    QDECREF(resp);
+    qmp_dispatch(&session, req);
     QDECREF(req);
     qmp_session_destroy(&session);
 }
