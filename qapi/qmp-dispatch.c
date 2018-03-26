@@ -114,47 +114,50 @@ QDict *qmp_dispatch_check_obj(const QObject *request, Error **errp)
     return dict;
 }
 
-static QObject *do_qmp_dispatch(QmpCommandList *cmds, QDict *dict,
-                                Error **errp)
+void qmp_dispatch(QmpSession *session, QDict *req)
 {
-    Error *local_err = NULL;
     const char *command;
-    QDict *args;
+    QDict *args = NULL;
     QmpCommand *cmd;
-    QObject *ret = NULL;
+    Error *err = NULL;
 
-    command = qdict_get_str(dict, "execute");
-    cmd = qmp_find_command(cmds, command);
+    command = qdict_get_str(req, "execute");
+    cmd = qmp_find_command(session->cmds, command);
     if (cmd == NULL) {
-        error_set(errp, ERROR_CLASS_COMMAND_NOT_FOUND,
+        error_set(&err, ERROR_CLASS_COMMAND_NOT_FOUND,
                   "The command %s has not been found", command);
-        return NULL;
+        goto end;
     }
     if (!cmd->enabled) {
-        error_setg(errp, "The command %s has been disabled for this instance",
+        error_setg(&err, "The command %s has been disabled for this instance",
                    command);
-        return NULL;
+        goto end;
     }
 
-    if (!qdict_haskey(dict, "arguments")) {
+    if (!qdict_haskey(req, "arguments")) {
         args = qdict_new();
     } else {
-        args = qdict_get_qdict(dict, "arguments");
+        args = qdict_get_qdict(req, "arguments");
         QINCREF(args);
     }
 
-    cmd->fn(args, &ret, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-    } else if (cmd->options & QCO_NO_SUCCESS_RESP) {
-        g_assert(!ret);
-    } else if (!ret) {
-        ret = QOBJECT(qdict_new());
+    {
+        QObject *ret = NULL;
+        cmd->fn(args, &ret, &err);
+        if (err || cmd->options & QCO_NO_SUCCESS_RESP) {
+            assert(!ret);
+            goto end;
+        } else if (!ret) {
+            ret = QOBJECT(qdict_new());
+        }
+        qmp_return(qmp_return_new(session, req), ret);
     }
 
+end:
+    if (err) {
+        qmp_return_error(qmp_return_new(session, req), err);
+    }
     QDECREF(args);
-
-    return ret;
 }
 
 /*
@@ -229,19 +232,4 @@ void qmp_session_destroy(QmpSession *session)
     session->dispatch_cb = NULL;
     session->return_cb = NULL;
     json_message_parser_destroy(&session->parser);
-}
-
-void qmp_dispatch(QmpSession *session, QDict *req)
-{
-    QmpReturn *qret = qmp_return_new(session, req);
-    Error *err = NULL;
-    QObject *ret;
-
-    ret = do_qmp_dispatch(session->cmds, req, &err);
-    if (err) {
-        assert(!ret);
-        qmp_return_error(qret, err);
-    } else if (ret) {
-        qmp_return(qret, ret);
-    }
 }
