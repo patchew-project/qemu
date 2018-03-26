@@ -15,6 +15,7 @@
 #define QAPI_QMP_DISPATCH_H
 
 #include "qemu/queue.h"
+#include "qemu/thread.h"
 #include "qapi/qmp/json-streamer.h"
 
 typedef struct QmpReturn QmpReturn;
@@ -48,11 +49,14 @@ struct QmpSession {
     QmpDispatch *dispatch_cb;
     QmpDispatchReturn *return_cb;
     QmpCommandList *cmds;
+    QemuMutex pending_lock;
+    QTAILQ_HEAD(, QmpReturn) pending;
 };
 
 struct QmpReturn {
     QmpSession *session;
     QDict *rsp;
+    QTAILQ_ENTRY(QmpReturn) entry;
 };
 
 /*
