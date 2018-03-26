@@ -4010,7 +4010,6 @@ static void monitor_qmp_bh_dispatcher(void *data)
 
 static void qmp_dispatch_cb(QmpSession *session, QDict *req)
 {
-    QDict *rsp;
     QObject *id;
     Monitor *mon = container_of(session, Monitor, qmp.session);
     Error *err = NULL;
@@ -4081,11 +4080,7 @@ static void qmp_dispatch_cb(QmpSession *session, QDict *req)
     return;
 
 err:
-    rsp = qdict_new();
-    qdict_put_obj(rsp, "error", qmp_build_error_object(err));
-    error_free(err);
-    monitor_json_emitter(mon, QOBJECT(rsp));
-    QDECREF(rsp);
+    qmp_return_error(qmp_return_new(session, req), err);
 }
 
 static void monitor_qmp_read(void *opaque, const uint8_t *buf, int size)

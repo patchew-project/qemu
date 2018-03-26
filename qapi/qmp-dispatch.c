@@ -19,6 +19,42 @@
 #include "qapi/qmp/qjson.h"
 #include "qapi/qmp/qbool.h"
 
+QmpReturn *qmp_return_new(QmpSession *session, const QDict *req)
+{
+    QmpReturn *qret = g_new0(QmpReturn, 1);
+    QObject *id = req ? qdict_get(req, "id") : NULL;
+
+    qret->session = session;
+    qret->rsp = qdict_new();
+    if (id) {
+        qobject_incref(id);
+        qdict_put_obj(qret->rsp, "id", id);
+    }
+
+    return qret;
+}
+
+void qmp_return_free(QmpReturn *qret)
+{
+    QDECREF(qret->rsp);
+    g_free(qret);
+}
+
+void qmp_return(QmpReturn *qret, QObject *rsp)
+{
+    qdict_put_obj(qret->rsp, "return", rsp ?: QOBJECT(qdict_new()));
+    qret->session->return_cb(qret->session, qret->rsp);
+    qmp_return_free(qret);
+}
+
+void qmp_return_error(QmpReturn *qret, Error *err)
+{
+    qdict_put_obj(qret->rsp, "error", qmp_build_error_object(err));
+    error_free(err);
+    qret->session->return_cb(qret->session, qret->rsp);
+    qmp_return_free(qret);
+}
+
 QDict *qmp_dispatch_check_obj(const QObject *request, Error **errp)
 {
     const QDictEntry *ent;
@@ -150,7 +186,7 @@ static void qmp_json_parser_emit(JSONMessageParser *parser, GQueue *tokens)
 {
     QmpSession *session = container_of(parser, QmpSession, parser);
     QObject *obj;
-    QDict *req;
+    QDict *req = NULL;
     Error *err = NULL;
 
     obj = json_parser_parse_err(tokens, NULL, &err);
@@ -167,11 +203,7 @@ static void qmp_json_parser_emit(JSONMessageParser *parser, GQueue *tokens)
 
 end:
     if (err) {
-        QDict *rsp = qdict_new();
-        qdict_put_obj(rsp, "error", qmp_build_error_object(err));
-        error_free(err);
-        session->return_cb(session, rsp);
-        QDECREF(rsp);
+        qmp_return_error(qmp_return_new(session, req), err);
     }
     qobject_decref(obj);
 }
@@ -204,28 +236,15 @@ void qmp_session_destroy(QmpSession *session)
 
 void qmp_dispatch(QmpSession *session, QDict *req)
 {
+    QmpReturn *qret = qmp_return_new(session, req);
     Error *err = NULL;
     QObject *ret;
-    QDict *rsp;
-    QObject *id = qdict_get(req, "id");
 
     ret = do_qmp_dispatch(session->cmds, req, &err);
-
-    rsp = qdict_new();
-    if (id) {
-        qobject_incref(id);
-        qdict_put_obj(rsp, "id", id);
-    }
     if (err) {
-        qdict_put_obj(rsp, "error", qmp_build_error_object(err));
-        error_free(err);
+        assert(!ret);
+        qmp_return_error(qret, err);
     } else if (ret) {
-        qdict_put_obj(rsp, "return", ret);
-    } else {
-        QDECREF(rsp);
-        return;
+        qmp_return(qret, ret);
     }
-
-    session->return_cb(session, rsp);
-    QDECREF(rsp);
 }

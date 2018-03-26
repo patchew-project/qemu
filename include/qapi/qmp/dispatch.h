@@ -17,6 +17,8 @@
 #include "qemu/queue.h"
 #include "qapi/qmp/json-streamer.h"
 
+typedef struct QmpReturn QmpReturn;
+
 typedef void (QmpCommandFunc)(QDict *, QObject **, Error **);
 
 typedef enum QmpCommandOptions
@@ -47,6 +49,37 @@ struct QmpSession {
     QmpDispatchReturn *return_cb;
     QmpCommandList *cmds;
 };
+
+struct QmpReturn {
+    QmpSession *session;
+    QDict *rsp;
+};
+
+/*
+ * @qmp_return_new:
+ *
+ * Allocates and initializes a QmpReturn.
+ */
+QmpReturn *qmp_return_new(QmpSession *session, const QDict *req);
+
+/*
+ * @qmp_return_free:
+ *
+ * Free a QmpReturn. This shouldn't be needed if you actually return
+ * with qmp_return{_error}.
+ */
+void qmp_return_free(QmpReturn *qret);
+
+/*
+ * @qmp_return{_error}:
+ *
+ * Construct the command reply, and call the
+ * return_cb() associated with the session.
+ *
+ * Finally, free the QmpReturn.
+ */
+void qmp_return(QmpReturn *qret, QObject *rsp);
+void qmp_return_error(QmpReturn *qret, Error *err);
 
 void qmp_register_command(QmpCommandList *cmds, const char *name,
                           QmpCommandFunc *fn, QmpCommandOptions options);
