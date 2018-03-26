@@ -2114,18 +2114,26 @@ static void block_dirty_bitmap_clear_prepare(BlkActionState *common,
     if (!state->bitmap) {
         return;
     }
+    assert(state->bs != NULL);
 
     if (bdrv_dirty_bitmap_frozen(state->bitmap)) {
-        error_setg(errp, "Cannot modify a frozen bitmap");
+        error_setg(errp,
+                   "Bitmap '%s' is currently frozen and cannot be modified",
+                   action->name);
         return;
     } else if (bdrv_dirty_bitmap_qmp_locked(state->bitmap)) {
-        error_setg(errp, "Cannot modify a locked bitmap");
+        error_setg(errp,
+                   "Bitmap '%s' is currently locked and cannot be modified",
+                   action->name);
         return;
     } else if (!bdrv_dirty_bitmap_enabled(state->bitmap)) {
-        error_setg(errp, "Cannot clear a disabled bitmap");
+        error_setg(errp,
+                   "Bitmap '%s' is currently disabled and cannot be cleared",
+                   action->name);
         return;
     } else if (bdrv_dirty_bitmap_readonly(state->bitmap)) {
-        error_setg(errp, "Cannot clear a readonly bitmap");
+        error_setg(errp, "Bitmap '%s' is readonly and cannot be cleared",
+                   action->name);
         return;
     }
 }
@@ -2878,35 +2886,16 @@ void qmp_block_dirty_bitmap_remove(const char *node, const char *name,
 void qmp_block_dirty_bitmap_clear(const char *node, const char *name,
                                   Error **errp)
 {
-    BdrvDirtyBitmap *bitmap;
-    BlockDriverState *bs;
+    BlockDirtyBitmap data = {
+        .node = (char *)node,
+        .name = (char *)name
+    };
+    TransactionAction action = {
+        .type = TRANSACTION_ACTION_KIND_BLOCK_DIRTY_BITMAP_CLEAR,
+        .u.block_dirty_bitmap_clear.data = &data,
+    };
 
-    bitmap = block_dirty_bitmap_lookup(node, name, &bs, errp);
-    if (!bitmap || !bs) {
-        return;
-    }
-
-    if (bdrv_dirty_bitmap_frozen(bitmap)) {
-        error_setg(errp,
-                   "Bitmap '%s' is currently frozen and cannot be modified",
-                   name);
-        return;
-    } else if (bdrv_dirty_bitmap_qmp_locked(bitmap)) {
-        error_setg(errp,
-                   "Bitmap '%s' is currently locked and cannot be modified",
-                   name);
-        return;
-    } else if (!bdrv_dirty_bitmap_enabled(bitmap)) {
-        error_setg(errp,
-                   "Bitmap '%s' is currently disabled and cannot be cleared",
-                   name);
-        return;
-    } else if (bdrv_dirty_bitmap_readonly(bitmap)) {
-        error_setg(errp, "Bitmap '%s' is readonly and cannot be cleared", name);
-        return;
-    }
-
-    bdrv_clear_dirty_bitmap(bitmap);
+    blockdev_do_action(&action, errp);
 }
 
 BlockDirtyBitmapSha256 *qmp_x_debug_block_dirty_bitmap_sha256(const char *node,
