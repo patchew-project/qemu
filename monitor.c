@@ -127,13 +127,17 @@ typedef struct mon_cmd_t {
     const char *args_type;
     const char *params;
     const char *help;
-    void (*cmd)(Monitor *mon, const QDict *qdict);
+    union {
+        void (*cmd)(Monitor *mon, const QDict *qdict);
+        void (*async_cmd)(Monitor *mon, const QDict *qdict, QmpReturn *qret);
+    };
     /* @sub_table is a list of 2nd level of commands. If it does not exist,
      * cmd should be used. If it exists, sub_table[?].cmd should be
      * used, and cmd of 1st level plays the role of help function.
      */
     struct mon_cmd_t *sub_table;
     void (*command_completion)(ReadLineState *rs, int nb_args, const char *str);
+    bool async;
 } mon_cmd_t;
 
 /* file descriptors passed via SCM_RIGHTS */
@@ -203,6 +207,7 @@ struct Monitor {
     int suspend_cnt;            /* Needs to be accessed atomically */
     bool skip_flush;
     bool use_io_thr;
+    QmpReturn *for_qmp_command;
 
     QemuMutex out_lock;
     QString *outbuf;
@@ -607,7 +612,7 @@ static void monitor_qapi_event_init(void)
     qmp_event_set_func_emit(monitor_qapi_event_queue);
 }
 
-static void handle_hmp_command(Monitor *mon, const char *cmdline);
+static bool handle_hmp_command(Monitor *mon, const char *cmdline);
 
 static void monitor_data_init(Monitor *mon, bool skip_flush,
                               bool use_io_thr)
@@ -637,16 +642,68 @@ static void monitor_data_destroy(Monitor *mon)
     g_queue_free(mon->qmp.qmp_requests);
 }
 
+static void free_temporary_hmp(void *opaque)
+{
+    Monitor *hmp = opaque;
+
+    qmp_session_destroy(&hmp->qmp.session);
+    monitor_data_destroy(hmp);
+    g_free(hmp);
+}
+
+static AioContext *monitor_get_aio_context(void)
+{
+    return iothread_get_aio_context(mon_global.mon_iothread);
+}
+
+static void qmp_human_monitor_command_finish(Monitor *hmp, QmpReturn *qret)
+{
+    char *output;
+
+    if (qstring_get_length(hmp->outbuf) > 0) {
+        output = g_strdup(qstring_get_str(hmp->outbuf));
+    } else {
+        output = g_strdup("");
+    }
+
+    qmp_human_monitor_command_return(qret, output);
+
+    if (hmp->for_qmp_command) {
+        aio_bh_schedule_oneshot(monitor_get_aio_context(),
+                                free_temporary_hmp, hmp);
+    }
+}
+
+static void hmp_dispatch_return_cb(QmpSession *session, QDict *rsp)
+{
+    Monitor *hmp = container_of(session, Monitor, qmp.session);
+    QDict *err = qdict_get_qdict(rsp, "error");
+    Monitor *old_mon = cur_mon;
+
+    cur_mon = hmp;
+    if (err) {
+        error_report("%s", qdict_get_str(err, "desc"));
+    } /* XXX: else, report depending on command */
+
+    if (hmp->for_qmp_command) {
+        qmp_human_monitor_command_finish(hmp, hmp->for_qmp_command);
+    } else {
+        monitor_resume(hmp);
+    }
+    cur_mon = old_mon;
+}
+
 void qmp_human_monitor_command(const char *command_line, bool has_cpu_index,
                                int64_t cpu_index, QmpReturn *qret)
 {
-    char *output = NULL;
-    Monitor *old_mon, hmp;
+    Monitor *old_mon, *hmp = g_new0(Monitor, 1);
 
-    monitor_data_init(&hmp, true, false);
+    monitor_data_init(hmp, true, false);
+    qmp_session_init(&hmp->qmp.session, NULL, NULL, hmp_dispatch_return_cb);
+    hmp->for_qmp_command = qret;
 
     old_mon = cur_mon;
-    cur_mon = &hmp;
+    cur_mon = hmp;
 
     if (has_cpu_index) {
         int ret = monitor_set_cpu(cpu_index);
@@ -659,20 +716,11 @@ void qmp_human_monitor_command(const char *command_line, bool has_cpu_index,
         }
     }
 
-    handle_hmp_command(&hmp, command_line);
-
-    qemu_mutex_lock(&hmp.out_lock);
-    if (qstring_get_length(hmp.outbuf) > 0) {
-        output = g_strdup(qstring_get_str(hmp.outbuf));
-    } else {
-        output = g_strdup("");
+    if (!handle_hmp_command(hmp, command_line)) {
+        qmp_human_monitor_command_finish(hmp, qret);
     }
-    qemu_mutex_unlock(&hmp.out_lock);
-
-    qmp_human_monitor_command_return(qret, output);
 
 out:
-    monitor_data_destroy(&hmp);
     cur_mon = old_mon;
 }
 
@@ -3244,7 +3292,7 @@ fail:
     return NULL;
 }
 
-static void handle_hmp_command(Monitor *mon, const char *cmdline)
+static bool handle_hmp_command(Monitor *mon, const char *cmdline)
 {
     QDict *qdict;
     const mon_cmd_t *cmd;
@@ -3253,18 +3301,25 @@ static void handle_hmp_command(Monitor *mon, const char *cmdline)
 
     cmd = monitor_parse_command(mon, cmdline, &cmdline, mon->cmd_table);
     if (!cmd) {
-        return;
+        return false;
     }
 
     qdict = monitor_parse_arguments(mon, &cmdline, cmd);
     if (!qdict) {
         monitor_printf(mon, "Try \"help %s\" for more information\n",
                        cmd->name);
-        return;
+        return false;
     }
-
-    cmd->cmd(mon, qdict);
+    if (cmd->async) {
+        QmpReturn *qret = qmp_return_new(&mon->qmp.session, NULL);
+        monitor_suspend(mon);
+        cmd->async_cmd(mon, qdict, qret);
+    } else {
+        cmd->cmd(mon, qdict);
+    }
     QDECREF(qdict);
+
+    return cmd->async;
 }
 
 static void cmd_completion(Monitor *mon, const char *name, const char *list)
@@ -4296,11 +4351,6 @@ static GMainContext *monitor_get_io_context(void)
     return iothread_get_g_main_context(mon_global.mon_iothread);
 }
 
-static AioContext *monitor_get_aio_context(void)
-{
-    return iothread_get_aio_context(mon_global.mon_iothread);
-}
-
 static void monitor_iothread_init(void)
 {
     mon_global.mon_iothread = iothread_create("mon_iothread",
@@ -4439,6 +4489,8 @@ void monitor_init(Chardev *chr, int flags)
                                      NULL, mon, NULL, true);
         }
     } else {
+        qmp_session_init(&mon->qmp.session,
+                         NULL, NULL, hmp_dispatch_return_cb);
         qemu_chr_fe_set_handlers(&mon->chr, monitor_can_read, monitor_read,
                                  monitor_event, NULL, mon, NULL, true);
     }
