@@ -170,6 +170,8 @@ static VhostUserMsg m __attribute__ ((unused));
 /* The version of the protocol we support */
 #define VHOST_USER_VERSION    (0x1)
 
+static int vhost_user_used_memslots;
+
 struct vhost_user {
     struct vhost_dev *dev;
     CharBackend *chr;
@@ -1289,9 +1291,9 @@ static int vhost_user_get_vq_index(struct vhost_dev *dev, int idx)
     return idx;
 }
 
-static int vhost_user_memslots_limit(struct vhost_dev *dev)
+static bool vhost_user_has_free_memslots(struct vhost_dev *dev)
 {
-    return VHOST_MEMORY_MAX_NREGIONS;
+    return vhost_user_used_memslots < VHOST_MEMORY_MAX_NREGIONS;
 }
 
 static bool vhost_user_requires_shm_log(struct vhost_dev *dev)
@@ -1559,11 +1561,32 @@ vhost_user_crypto_close_session(struct vhost_dev *dev, uint64_t session_id)
     return 0;
 }
 
+static void vhost_user_set_used_memslots(struct vhost_dev *dev)
+{
+    int i, fd;
+    int fd_num = 0;
+
+    for (i = 0; i < dev->mem->nregions; ++i) {
+        struct vhost_memory_region *reg = dev->mem->regions + i;
+        ram_addr_t offset;
+        MemoryRegion *mr;
+
+        assert((uintptr_t)reg->userspace_addr == reg->userspace_addr);
+        mr = memory_region_from_host((void *)(uintptr_t)reg->userspace_addr,
+                                     &offset);
+        fd = memory_region_get_fd(mr);
+        if (fd > 0) {
+            fd_num++;
+        }
+    }
+    vhost_user_used_memslots = fd_num;
+}
+
 const VhostOps user_ops = {
         .backend_type = VHOST_BACKEND_TYPE_USER,
         .vhost_backend_init = vhost_user_init,
         .vhost_backend_cleanup = vhost_user_cleanup,
-        .vhost_backend_memslots_limit = vhost_user_memslots_limit,
+        .vhost_backend_has_free_memslots = vhost_user_has_free_memslots,
         .vhost_set_log_base = vhost_user_set_log_base,
         .vhost_set_mem_table = vhost_user_set_mem_table,
         .vhost_set_vring_addr = vhost_user_set_vring_addr,
@@ -1589,4 +1612,5 @@ const VhostOps user_ops = {
         .vhost_set_config = vhost_user_set_config,
         .vhost_crypto_create_session = vhost_user_crypto_create_session,
         .vhost_crypto_close_session = vhost_user_crypto_close_session,
+        .vhost_set_used_memslots = vhost_user_set_used_memslots,
 };
