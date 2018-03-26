@@ -224,7 +224,50 @@ static void test_qmp_oob(void)
         }
         QDECREF(resp);
     }
+    qtest_end();
+}
 
+static void test_object_add_without_props(void)
+{
+    QDict *ret, *error;
+    const gchar *klass, *desc;
+
+    qtest_start("-machine none");
+
+    ret = qmp("{'execute': 'object-add',"
+              " 'arguments': { 'qom-type': 'memory-backend-ram', 'id': 'ram1' } }");
+    g_assert_nonnull(ret);
+
+    error = qdict_get_qdict(ret, "error");
+    klass = qdict_get_try_str(error, "class");
+    desc = qdict_get_try_str(error, "desc");
+
+    g_assert_cmpstr(klass, ==, "GenericError");
+    g_assert_cmpstr(desc, ==, "can't create backend with size 0");
+
+    QDECREF(ret);
+    qtest_end();
+}
+
+static void test_qom_set_without_value(void)
+{
+    QDict *ret, *error;
+    const gchar *klass, *desc;
+
+    qtest_start("-machine none");
+
+    ret = qmp("{'execute': 'qom-set',"
+              " 'arguments': { 'path': '/machine', 'property': 'rtc-time' } }");
+    g_assert_nonnull(ret);
+
+    error = qdict_get_qdict(ret, "error");
+    klass = qdict_get_try_str(error, "class");
+    desc = qdict_get_try_str(error, "desc");
+
+    g_assert_cmpstr(klass, ==, "GenericError");
+    g_assert_cmpstr(desc, ==, "Parameter 'value' is missing");
+
+    QDECREF(ret);
     qtest_end();
 }
 
@@ -411,13 +454,19 @@ int main(int argc, char *argv[])
 
     g_test_init(&argc, &argv, NULL);
 
+    qtest_add_func("qmp/object-add-without-props",
+                   test_object_add_without_props);
+    qtest_add_func("qmp/qom-set-without-value",
+                   test_qom_set_without_value);
     qtest_add_func("qmp/protocol", test_qmp_protocol);
     qtest_add_func("qmp/oob", test_qmp_oob);
+
     qmp_schema_init(&schema);
     add_query_tests(&schema);
 
     ret = g_test_run();
 
     qmp_schema_cleanup(&schema);
+
     return ret;
 }
