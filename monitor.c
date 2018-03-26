@@ -3899,46 +3899,27 @@ static int monitor_can_read(void *opaque)
     return !atomic_mb_read(&mon->suspend_cnt);
 }
 
-/*
- * 1. This function takes ownership of rsp, err, and id.
- * 2. rsp, err, and id may be NULL.
- * 3. If err != NULL then rsp must be NULL.
- */
-static void monitor_qmp_respond(Monitor *mon, QObject *rsp,
-                                Error *err, QObject *id)
+/* take the ownership of rsp & id */
+static void monitor_qmp_respond(Monitor *mon, QObject *rsp, QObject *id)
 {
-    QDict *qdict = NULL;
-
-    if (err) {
-        assert(!rsp);
-        qdict = qdict_new();
-        qdict_put_obj(qdict, "error", qmp_build_error_object(err));
-        error_free(err);
-        rsp = QOBJECT(qdict);
+    if (!rsp) {
+        return;
     }
 
-    if (rsp) {
-        if (id) {
-            /* This is for the qdict below. */
-            qobject_incref(id);
-            qdict_put_obj(qobject_to(QDict, rsp), "id", id);
-        }
-
-        if (mon->qmp.commands == &qmp_cap_negotiation_commands) {
-            qdict = qdict_get_qdict(qobject_to(QDict, rsp), "error");
-            if (qdict
-                && !g_strcmp0(qdict_get_try_str(qdict, "class"),
+    if (id) {
+        qdict_put_obj(qobject_to(QDict, rsp), "id", id);
+    }
+    if (mon->qmp.commands == &qmp_cap_negotiation_commands) {
+        QDict *qdict = qdict_get_qdict(qobject_to(QDict, rsp), "error");
+        if (qdict
+            && !g_strcmp0(qdict_get_try_str(qdict, "class"),
                           QapiErrorClass_str(ERROR_CLASS_COMMAND_NOT_FOUND))) {
-                /* Provide a more useful error message */
-                qdict_put_str(qdict, "desc", "Expecting capabilities"
-                              " negotiation with 'qmp_capabilities'");
-            }
+            /* Provide a more useful error message */
+            qdict_put_str(qdict, "desc", "Expecting capabilities"
+                          " negotiation with 'qmp_capabilities'");
         }
-
-        monitor_json_emitter(mon, rsp);
     }
-
-    qobject_decref(id);
+    monitor_json_emitter(mon, rsp);
     qobject_decref(rsp);
 }
 
@@ -3981,7 +3962,7 @@ static void monitor_qmp_dispatch_one(QMPRequest *req_obj)
     cur_mon = old_mon;
 
     /* Respond if necessary */
-    monitor_qmp_respond(mon, rsp, NULL, id);
+    monitor_qmp_respond(mon, rsp, id);
 
     qobject_decref(req);
 }
@@ -4131,7 +4112,10 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
     return;
 
 err:
-    monitor_qmp_respond(mon, NULL, err, NULL);
+    qdict = qdict_new();
+    qdict_put_obj(qdict, "error", qmp_build_error_object(err));
+    error_free(err);
+    monitor_qmp_respond(mon, QOBJECT(qdict), id);
     qobject_decref(req);
 }
 
