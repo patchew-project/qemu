@@ -97,16 +97,15 @@ __org_qemu_x_Union1 *qmp___org_qemu_x_command(__org_qemu_x_EnumList *a,
 /* test commands with no input and no return value */
 static void test_dispatch_cmd(void)
 {
-    QDict *req = qdict_new();
-    QObject *resp;
+    QDict *resp, *req = qdict_new();
 
     qdict_put_str(req, "execute", "user_def_cmd");
 
-    resp = qmp_dispatch(&qmp_commands, QOBJECT(req));
+    resp = qmp_dispatch(&qmp_commands, req);
     assert(resp != NULL);
-    assert(!qdict_haskey(qobject_to(QDict, resp), "error"));
+    assert(!qdict_haskey(resp, "error"));
 
-    qobject_decref(resp);
+    QDECREF(resp);
     QDECREF(req);
 }
 
@@ -114,16 +113,15 @@ static void test_dispatch_cmd(void)
 static void test_dispatch_cmd_failure(void)
 {
     QDict *req = qdict_new();
-    QDict *args = qdict_new();
-    QObject *resp;
+    QDict *resp, *args = qdict_new();
 
     qdict_put_str(req, "execute", "user_def_cmd2");
 
-    resp = qmp_dispatch(&qmp_commands, QOBJECT(req));
+    resp = qmp_dispatch(&qmp_commands, req);
     assert(resp != NULL);
-    assert(qdict_haskey(qobject_to(QDict, resp), "error"));
+    assert(qdict_haskey(resp, "error"));
 
-    qobject_decref(resp);
+    QDECREF(resp);
     QDECREF(req);
 
     /* check that with extra arguments it throws an error */
@@ -133,39 +131,35 @@ static void test_dispatch_cmd_failure(void)
 
     qdict_put_str(req, "execute", "user_def_cmd");
 
-    resp = qmp_dispatch(&qmp_commands, QOBJECT(req));
+    resp = qmp_dispatch(&qmp_commands, req);
     assert(resp != NULL);
-    assert(qdict_haskey(qobject_to(QDict, resp), "error"));
+    assert(qdict_haskey(resp, "error"));
 
-    qobject_decref(resp);
+    QDECREF(resp);
     QDECREF(req);
 }
 
 static void test_dispatch_cmd_success_response(void)
 {
-    QDict *req = qdict_new();
-    QObject *resp;
+    QDict *resp, *req = qdict_new();
 
     qdict_put_str(req, "execute", "cmd-success-response");
-    resp = qmp_dispatch(&qmp_commands, QOBJECT(req));
+    resp = qmp_dispatch(&qmp_commands, req);
     assert(resp == NULL);
     QDECREF(req);
 }
 
 static QObject *test_qmp_dispatch(QDict *req)
 {
-    QObject *resp_obj;
     QDict *resp;
     QObject *ret;
 
-    resp_obj = qmp_dispatch(&qmp_commands, QOBJECT(req));
-    assert(resp_obj);
-    resp = qobject_to(QDict, resp_obj);
+    resp = qmp_dispatch(&qmp_commands, req);
     assert(resp && !qdict_haskey(resp, "error"));
     ret = qdict_get(resp, "return");
     assert(ret);
     qobject_incref(ret);
-    qobject_decref(resp_obj);
+    QDECREF(resp);
     return ret;
 }
 

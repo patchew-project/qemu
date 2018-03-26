@@ -74,19 +74,14 @@ QDict *qmp_dispatch_check_obj(const QObject *request, Error **errp)
     return dict;
 }
 
-static QObject *do_qmp_dispatch(QmpCommandList *cmds, QObject *request,
+static QObject *do_qmp_dispatch(QmpCommandList *cmds, QDict *dict,
                                 Error **errp)
 {
     Error *local_err = NULL;
     const char *command;
-    QDict *args, *dict;
+    QDict *args;
     QmpCommand *cmd;
     QObject *ret = NULL;
-
-    dict = qmp_dispatch_check_obj(request, errp);
-    if (!dict) {
-        return NULL;
-    }
 
     command = qdict_get_str(dict, "execute");
     cmd = qmp_find_command(cmds, command);
@@ -151,13 +146,13 @@ bool qmp_is_oob(QDict *dict)
     return qbool_get_bool(bool_obj);
 }
 
-QObject *qmp_dispatch(QmpCommandList *cmds, QObject *request)
+QDict *qmp_dispatch(QmpCommandList *cmds, QDict *req)
 {
     Error *err = NULL;
     QObject *ret;
     QDict *rsp;
 
-    ret = do_qmp_dispatch(cmds, request, &err);
+    ret = do_qmp_dispatch(cmds, req, &err);
 
     rsp = qdict_new();
     if (err) {
@@ -170,5 +165,5 @@ QObject *qmp_dispatch(QmpCommandList *cmds, QObject *request)
         return NULL;
     }
 
-    return QOBJECT(rsp);
+    return rsp;
 }

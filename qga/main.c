@@ -583,7 +583,8 @@ static int send_response(GAState *s, QObject *payload)
 static void process_event(JSONMessageParser *parser, GQueue *tokens)
 {
     GAState *s = container_of(parser, GAState, parser);
-    QObject *req, *rsp = NULL;
+    QObject *obj;
+    QDict *req, *rsp = NULL;
     Error *err = NULL;
     int ret;
 
@@ -591,12 +592,12 @@ static void process_event(JSONMessageParser *parser, GQueue *tokens)
 
     g_debug("process_event: called");
 
-    req = json_parser_parse_err(tokens, NULL, &err);
+    obj = json_parser_parse_err(tokens, NULL, &err);
     if (err) {
         goto end;
     }
 
-    qmp_dispatch_check_obj(req, &err);
+    req = qmp_dispatch_check_obj(obj, &err);
     if (err) {
         goto end;
     }
@@ -606,19 +607,18 @@ static void process_event(JSONMessageParser *parser, GQueue *tokens)
 
 end:
     if (err) {
-        QDict *qdict = qdict_new();
-        qdict_put_obj(qdict, "error", qmp_build_error_object(err));
+        rsp = qdict_new();
+        qdict_put_obj(rsp, "error", qmp_build_error_object(err));
         error_free(err);
-        rsp = QOBJECT(qdict);
     }
     if (rsp) {
-        ret = send_response(s, rsp);
+        ret = send_response(s, QOBJECT(rsp));
         if (ret < 0) {
             g_warning("error sending error response: %s", strerror(-ret));
         }
-        qobject_decref(rsp);
+        QDECREF(rsp);
     }
-    qobject_decref(req);
+    qobject_decref(obj);
 }
 
 /* false return signals GAChannel to close the current client connection */

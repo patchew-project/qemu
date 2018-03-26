@@ -3900,17 +3900,17 @@ static int monitor_can_read(void *opaque)
 }
 
 /* take the ownership of rsp & id */
-static void monitor_qmp_respond(Monitor *mon, QObject *rsp, QObject *id)
+static void monitor_qmp_respond(Monitor *mon, QDict *rsp, QObject *id)
 {
     if (!rsp) {
         return;
     }
 
     if (id) {
-        qdict_put_obj(qobject_to(QDict, rsp), "id", id);
+        qdict_put_obj(rsp, "id", id);
     }
     if (mon->qmp.commands == &qmp_cap_negotiation_commands) {
-        QDict *qdict = qdict_get_qdict(qobject_to(QDict, rsp), "error");
+        QDict *qdict = qdict_get_qdict(rsp, "error");
         if (qdict
             && !g_strcmp0(qdict_get_try_str(qdict, "class"),
                           QapiErrorClass_str(ERROR_CLASS_COMMAND_NOT_FOUND))) {
@@ -3919,8 +3919,8 @@ static void monitor_qmp_respond(Monitor *mon, QObject *rsp, QObject *id)
                           " negotiation with 'qmp_capabilities'");
         }
     }
-    monitor_json_emitter(mon, rsp);
-    qobject_decref(rsp);
+    monitor_json_emitter(mon, QOBJECT(rsp));
+    QDECREF(rsp);
 }
 
 struct QMPRequest {
@@ -3929,7 +3929,7 @@ struct QMPRequest {
     /* "id" field of the request */
     QObject *id;
     /* Request object to be handled */
-    QObject *req;
+    QDict *req;
 };
 typedef struct QMPRequest QMPRequest;
 
@@ -3940,7 +3940,8 @@ typedef struct QMPRequest QMPRequest;
 static void monitor_qmp_dispatch_one(QMPRequest *req_obj)
 {
     Monitor *mon, *old_mon;
-    QObject *req, *rsp = NULL, *id;
+    QDict *req, *rsp = NULL;
+    QObject *id;
 
     req = req_obj->req;
     mon = req_obj->mon;
@@ -3949,7 +3950,7 @@ static void monitor_qmp_dispatch_one(QMPRequest *req_obj)
     g_free(req_obj);
 
     if (trace_event_get_state_backends(TRACE_HANDLE_QMP_COMMAND)) {
-        QString *req_json = qobject_to_json(req);
+        QString *req_json = qobject_to_json(QOBJECT(req));
         trace_handle_qmp_command(mon, qstring_get_str(req_json));
         QDECREF(req_json);
     }
@@ -3964,7 +3965,8 @@ static void monitor_qmp_dispatch_one(QMPRequest *req_obj)
     /* Respond if necessary */
     monitor_qmp_respond(mon, rsp, id);
 
-    qobject_decref(req);
+
+    QDECREF(req);
 }
 
 /*
@@ -4064,7 +4066,7 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
     req_obj = g_new0(QMPRequest, 1);
     req_obj->mon = mon;
     req_obj->id = id;
-    req_obj->req = req;
+    req_obj->req = qdict;
 
     if (qmp_is_oob(qdict)) {
         /* Out-Of-Band (OOB) requests are executed directly in parser. */
@@ -4115,7 +4117,7 @@ err:
     qdict = qdict_new();
     qdict_put_obj(qdict, "error", qmp_build_error_object(err));
     error_free(err);
-    monitor_qmp_respond(mon, QOBJECT(qdict), id);
+    monitor_qmp_respond(mon, qdict, id);
     qobject_decref(req);
 }
 
