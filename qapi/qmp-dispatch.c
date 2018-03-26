@@ -146,12 +146,43 @@ bool qmp_is_oob(const QDict *dict)
     return qbool_get_bool(bool_obj);
 }
 
+static void qmp_json_parser_emit(JSONMessageParser *parser, GQueue *tokens)
+{
+    QmpSession *session = container_of(parser, QmpSession, parser);
+    QObject *obj;
+    QDict *req;
+    Error *err = NULL;
+
+    obj = json_parser_parse_err(tokens, NULL, &err);
+    if (err) {
+        goto end;
+    }
+
+    req = qmp_dispatch_check_obj(obj, &err);
+    if (err) {
+        goto end;
+    }
+
+    qmp_dispatch(session, req);
+
+end:
+    if (err) {
+        QDict *rsp = qdict_new();
+        qdict_put_obj(rsp, "error", qmp_build_error_object(err));
+        error_free(err);
+        session->return_cb(session, rsp);
+        QDECREF(rsp);
+    }
+    qobject_decref(obj);
+}
+
 void qmp_session_init(QmpSession *session,
                       QmpCommandList *cmds, QmpDispatchReturn *return_cb)
 {
     assert(return_cb);
     assert(!session->return_cb);
 
+    json_message_parser_init(&session->parser, qmp_json_parser_emit);
     session->cmds = cmds;
     session->return_cb = return_cb;
 }
@@ -164,6 +195,7 @@ void qmp_session_destroy(QmpSession *session)
 
     session->cmds = NULL;
     session->return_cb = NULL;
+    json_message_parser_destroy(&session->parser);
 }
 
 void qmp_dispatch(QmpSession *session, QDict *req)

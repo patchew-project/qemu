@@ -72,7 +72,6 @@ typedef struct GAPersistentState {
 
 struct GAState {
     QmpSession session;
-    JSONMessageParser parser;
     GMainLoop *main_loop;
     GAChannel *channel;
     bool virtio; /* fastpath to check for virtio to deal with poll() quirks */
@@ -589,42 +588,6 @@ static void dispatch_return_cb(QmpSession *session, QDict *rsp)
     }
 }
 
-/* handle requests/control events coming in over the channel */
-static void process_event(JSONMessageParser *parser, GQueue *tokens)
-{
-    GAState *s = container_of(parser, GAState, parser);
-    QObject *obj;
-    QDict *req;
-    Error *err = NULL;
-
-    g_assert(s && parser);
-
-    g_debug("process_event: called");
-
-    obj = json_parser_parse_err(tokens, NULL, &err);
-    if (err) {
-        goto end;
-    }
-
-    req = qmp_dispatch_check_obj(obj, &err);
-    if (err) {
-        goto end;
-    }
-
-    g_debug("processing command");
-    qmp_dispatch(&s->session, req);
-
-end:
-    if (err) {
-        QDict *rsp = qdict_new();
-        qdict_put_obj(rsp, "error", qmp_build_error_object(err));
-        error_free(err);
-        dispatch_return_cb(&s->session, rsp);
-        QDECREF(rsp);
-    }
-    qobject_decref(obj);
-}
-
 /* false return signals GAChannel to close the current client connection */
 static gboolean channel_event_cb(GIOCondition condition, gpointer data)
 {
@@ -639,7 +602,7 @@ static gboolean channel_event_cb(GIOCondition condition, gpointer data)
     case G_IO_STATUS_NORMAL:
         buf[count] = 0;
         g_debug("read data, count: %d, data: %s", (int)count, buf);
-        json_message_parser_feed(&s->parser, (char *)buf, (int)count);
+        qmp_session_feed(&s->session, buf, count);
         break;
     case G_IO_STATUS_EOF:
         g_debug("received EOF");
@@ -1307,7 +1270,6 @@ static int run_agent(GAState *s, GAConfig *config, int socket_activation)
     s->command_state = ga_command_state_new();
     ga_command_state_init(s, s->command_state);
     ga_command_state_init_all(s->command_state);
-    json_message_parser_init(&s->parser, process_event);
     qmp_session_init(&s->session, &ga_commands, dispatch_return_cb);
 #ifndef _WIN32
     if (!register_signal_handlers()) {
@@ -1431,7 +1393,6 @@ end:
         qmp_session_destroy(&s->session);
         ga_command_state_cleanup_all(s->command_state);
         ga_command_state_free(s->command_state);
-        json_message_parser_destroy(&s->parser);
     }
     if (s->channel) {
         ga_channel_free(s->channel);

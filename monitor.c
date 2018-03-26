@@ -3934,11 +3934,8 @@ static void dispatch_return_cb(QmpSession *session, QDict *rsp)
  */
 static void monitor_qmp_dispatch_one(QMPRequest *req_obj)
 {
-    Monitor *mon, *old_mon;
-    QDict *req;
-
-    req = req_obj->req;
-    mon = req_obj->mon;
+    Monitor *old_mon, *mon = req_obj->mon;
+    QDict *req = req_obj->req;
 
     g_free(req_obj);
 
