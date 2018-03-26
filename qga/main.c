@@ -71,6 +71,7 @@ typedef struct GAPersistentState {
 } GAPersistentState;
 
 struct GAState {
+    QmpSession session;
     JSONMessageParser parser;
     GMainLoop *main_loop;
     GAChannel *channel;
@@ -603,7 +604,7 @@ static void process_event(JSONMessageParser *parser, GQueue *tokens)
     }
 
     g_debug("processing command");
-    rsp = qmp_dispatch(&ga_commands, req);
+    rsp = qmp_dispatch(&s->session, req);
 
 end:
     if (err) {
@@ -1304,7 +1305,7 @@ static int run_agent(GAState *s, GAConfig *config, int socket_activation)
     ga_command_state_init(s, s->command_state);
     ga_command_state_init_all(s->command_state);
     json_message_parser_init(&s->parser, process_event);
-
+    qmp_session_init(&s->session, &ga_commands);
 #ifndef _WIN32
     if (!register_signal_handlers()) {
         g_critical("failed to register signal handlers");
@@ -1424,6 +1425,7 @@ int main(int argc, char **argv)
 
 end:
     if (s->command_state) {
+        qmp_session_destroy(&s->session);
         ga_command_state_cleanup_all(s->command_state);
         ga_command_state_free(s->command_state);
         json_message_parser_destroy(&s->parser);

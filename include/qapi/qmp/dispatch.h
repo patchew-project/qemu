@@ -36,11 +36,19 @@ typedef struct QmpCommand
 
 typedef QTAILQ_HEAD(QmpCommandList, QmpCommand) QmpCommandList;
 
+typedef struct QmpSession QmpSession;
+
+struct QmpSession {
+    QmpCommandList *cmds;
+};
+
 void qmp_register_command(QmpCommandList *cmds, const char *name,
                           QmpCommandFunc *fn, QmpCommandOptions options);
 void qmp_unregister_command(QmpCommandList *cmds, const char *name);
 QmpCommand *qmp_find_command(QmpCommandList *cmds, const char *name);
-QDict *qmp_dispatch(QmpCommandList *cmds, QDict *request);
+void qmp_session_init(QmpSession *session, QmpCommandList *cmds);
+void qmp_session_destroy(QmpSession *session);
+QDict *qmp_dispatch(QmpSession *session, QDict *request);
 void qmp_disable_command(QmpCommandList *cmds, const char *name);
 void qmp_enable_command(QmpCommandList *cmds, const char *name);
 

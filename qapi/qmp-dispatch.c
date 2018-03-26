@@ -146,14 +146,24 @@ bool qmp_is_oob(const QDict *dict)
     return qbool_get_bool(bool_obj);
 }
 
-QDict *qmp_dispatch(QmpCommandList *cmds, QDict *req)
+void qmp_session_init(QmpSession *session, QmpCommandList *cmds)
+{
+    session->cmds = cmds;
+}
+
+void qmp_session_destroy(QmpSession *session)
+{
+    session->cmds = NULL;
+}
+
+QDict *qmp_dispatch(QmpSession *session, QDict *req)
 {
     Error *err = NULL;
     QObject *ret;
     QDict *rsp;
     QObject *id = qdict_get(req, "id");
 
-    ret = do_qmp_dispatch(cmds, req, &err);
+    ret = do_qmp_dispatch(session->cmds, req, &err);
 
     rsp = qdict_new();
     if (id) {

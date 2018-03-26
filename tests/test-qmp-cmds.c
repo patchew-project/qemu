@@ -97,27 +97,32 @@ __org_qemu_x_Union1 *qmp___org_qemu_x_command(__org_qemu_x_EnumList *a,
 /* test commands with no input and no return value */
 static void test_dispatch_cmd(void)
 {
+    QmpSession session = { 0, };
     QDict *resp, *req = qdict_new();
 
+    qmp_session_init(&session, &qmp_commands);
     qdict_put_str(req, "execute", "user_def_cmd");
 
-    resp = qmp_dispatch(&qmp_commands, req);
+    resp = qmp_dispatch(&session, req);
     assert(resp != NULL);
     assert(!qdict_haskey(resp, "error"));
 
     QDECREF(resp);
     QDECREF(req);
+    qmp_session_destroy(&session);
 }
 
 /* test commands that return an error due to invalid parameters */
 static void test_dispatch_cmd_failure(void)
 {
+    QmpSession session = { 0, };
     QDict *req = qdict_new();
     QDict *resp, *args = qdict_new();
 
+    qmp_session_init(&session, &qmp_commands);
     qdict_put_str(req, "execute", "user_def_cmd2");
 
-    resp = qmp_dispatch(&qmp_commands, req);
+    resp = qmp_dispatch(&session, req);
     assert(resp != NULL);
     assert(qdict_haskey(resp, "error"));
 
@@ -131,35 +136,43 @@ static void test_dispatch_cmd_failure(void)
 
     qdict_put_str(req, "execute", "user_def_cmd");
 
-    resp = qmp_dispatch(&qmp_commands, req);
+    resp = qmp_dispatch(&session, req);
     assert(resp != NULL);
     assert(qdict_haskey(resp, "error"));
 
     QDECREF(resp);
     QDECREF(req);
+    qmp_session_destroy(&session);
 }
 
 static void test_dispatch_cmd_success_response(void)
 {
+    QmpSession session = { 0, };
     QDict *resp, *req = qdict_new();
 
+    qmp_session_init(&session, &qmp_commands);
     qdict_put_str(req, "execute", "cmd-success-response");
-    resp = qmp_dispatch(&qmp_commands, req);
+    resp = qmp_dispatch(&session, req);
     assert(resp == NULL);
     QDECREF(req);
+    qmp_session_destroy(&session);
 }
+
 
 static QObject *test_qmp_dispatch(QDict *req)
 {
+    QmpSession session = { 0, };
     QDict *resp;
     QObject *ret;
 
-    resp = qmp_dispatch(&qmp_commands, req);
+    qmp_session_init(&session, &qmp_commands);
+    resp = qmp_dispatch(&session, req);
     assert(resp && !qdict_haskey(resp, "error"));
     ret = qdict_get(resp, "return");
     assert(ret);
     qobject_incref(ret);
     QDECREF(resp);
+    qmp_session_destroy(&session);
     return ret;
 }
 
@@ -279,18 +292,21 @@ static void test_dealloc_partial(void)
 
 static void test_dispatch_cmd_id(void)
 {
+    QmpSession session = { 0, };
     QDict *resp, *req = qdict_new();
 
+    qmp_session_init(&session, &qmp_commands);
     qdict_put_str(req, "execute", "user_def_cmd");
     qdict_put_str(req, "id", "ID42");
 
-    resp = qmp_dispatch(&qmp_commands, req);
+    resp = qmp_dispatch(&session, req);
     assert(resp != NULL);
     assert(!qdict_haskey(resp, "error"));
     assert(!strcmp(qdict_get_str(resp, "id"), "ID42"));
 
     QDECREF(resp);
     QDECREF(req);
+    qmp_session_destroy(&session);
 }
 
 
