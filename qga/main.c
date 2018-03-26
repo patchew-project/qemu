@@ -579,67 +579,46 @@ static int send_response(GAState *s, QObject *payload)
     return 0;
 }
 
-static void process_command(GAState *s, QDict *req)
-{
-    QObject *rsp = NULL;
-    int ret;
-
-    g_assert(req);
-    g_debug("processing command");
-    rsp = qmp_dispatch(&ga_commands, QOBJECT(req));
-    if (rsp) {
-        ret = send_response(s, rsp);
-        if (ret < 0) {
-            g_warning("error sending response: %s", strerror(-ret));
-        }
-        qobject_decref(rsp);
-    }
-}
-
 /* handle requests/control events coming in over the channel */
 static void process_event(JSONMessageParser *parser, GQueue *tokens)
 {
     GAState *s = container_of(parser, GAState, parser);
-    QDict *qdict;
+    QObject *req, *rsp = NULL;
     Error *err = NULL;
     int ret;
 
     g_assert(s && parser);
 
     g_debug("process_event: called");
-    qdict = qobject_to(QDict, json_parser_parse_err(tokens, NULL, &err));
-    if (err || !qdict) {
-        QDECREF(qdict);
-        qdict = qdict_new();
-        if (!err) {
-            g_warning("failed to parse event: unknown error");
-            error_setg(&err, QERR_JSON_PARSING);
-        } else {
-            g_warning("failed to parse event: %s", error_get_pretty(err));
-        }
-        qdict_put_obj(qdict, "error", qmp_build_error_object(err));
-        error_free(err);
+
+    req = json_parser_parse_err(tokens, NULL, &err);
+    if (err) {
+        goto end;
     }
 
-    /* handle host->guest commands */
-    if (qdict_haskey(qdict, "execute")) {
-        process_command(s, qdict);
-    } else {
-        if (!qdict_haskey(qdict, "error")) {
-            QDECREF(qdict);
-            qdict = qdict_new();
-            g_warning("unrecognized payload format");
-            error_setg(&err, QERR_UNSUPPORTED);
-            qdict_put_obj(qdict, "error", qmp_build_error_object(err));
-            error_free(err);
-        }
-        ret = send_response(s, QOBJECT(qdict));
+    qmp_dispatch_check_obj(req, &err);
+    if (err) {
+        goto end;
+    }
+
+    g_debug("processing command");
+    rsp = qmp_dispatch(&ga_commands, req);
+
+end:
+    if (err) {
+        QDict *qdict = qdict_new();
+        qdict_put_obj(qdict, "error", qmp_build_error_object(err));
+        error_free(err);
+        rsp = QOBJECT(qdict);
+    }
+    if (rsp) {
+        ret = send_response(s, rsp);
         if (ret < 0) {
             g_warning("error sending error response: %s", strerror(-ret));
         }
+        qobject_decref(rsp);
     }
-
-    QDECREF(qdict);
+    qobject_decref(req);
 }
 
 /* false return signals GAChannel to close the current client connection */
