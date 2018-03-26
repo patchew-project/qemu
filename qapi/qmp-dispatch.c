@@ -129,7 +129,7 @@ QObject *qmp_build_error_object(Error *err)
  * peeking at whether we have: { "control": { "run-oob": true } }. By
  * default commands are run in-band.
  */
-bool qmp_is_oob(QDict *dict)
+bool qmp_is_oob(const QDict *dict)
 {
     QBool *bool_obj;
 
