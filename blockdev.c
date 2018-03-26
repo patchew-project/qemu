@@ -2135,7 +2135,7 @@ static void block_dirty_bitmap_clear_commit(BlkActionState *common)
     BlockDirtyBitmapState *state = DO_UPCAST(BlockDirtyBitmapState,
                                              common, common);
 
-    bdrv_clear_dirty_bitmap(state->bitmap, NULL);
+    bdrv_clear_dirty_bitmap(state->bitmap);
 }
 
 static void abort_prepare(BlkActionState *common, Error **errp)
@@ -2906,7 +2906,7 @@ void qmp_block_dirty_bitmap_clear(const char *node, const char *name,
         return;
     }
 
-    bdrv_clear_dirty_bitmap(bitmap, NULL);
+    bdrv_clear_dirty_bitmap(bitmap);
 }
 
 BlockDirtyBitmapSha256 *qmp_x_debug_block_dirty_bitmap_sha256(const char *node,
