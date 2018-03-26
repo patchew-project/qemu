@@ -470,18 +470,14 @@ class QMPTestCase(unittest.TestCase):
 
     def wait_until_completed(self, drive='drive0', check_offset=True):
         '''Wait for a block job to finish, returning the event'''
-        completed = False
-        while not completed:
-            for event in self.vm.get_qmp_events(wait=True):
-                if event['event'] == 'BLOCK_JOB_COMPLETED':
-                    self.assert_qmp(event, 'data/device', drive)
-                    self.assert_qmp_absent(event, 'data/error')
-                    if check_offset:
-                        self.assert_qmp(event, 'data/offset', event['data']['len'])
-                    completed = True
-
-        self.assert_no_active_block_jobs()
-        return event
+        for event in self.vm.get_qmp_events(wait=True):
+            if event['event'] == 'BLOCK_JOB_COMPLETED':
+                self.assert_qmp(event, 'data/device', drive)
+                self.assert_qmp_absent(event, 'data/error')
+                if check_offset:
+                    self.assert_qmp(event, 'data/offset', event['data']['len'])
+                self.assert_no_active_block_jobs()
+                return event
 
     def wait_ready(self, drive='drive0'):
         '''Wait until a block job BLOCK_JOB_READY event'''
