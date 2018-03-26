@@ -163,7 +163,7 @@ static void qmp_json_parser_emit(JSONMessageParser *parser, GQueue *tokens)
         goto end;
     }
 
-    qmp_dispatch(session, req);
+    session->dispatch_cb(session, req);
 
 end:
     if (err) {
@@ -177,13 +177,16 @@ end:
 }
 
 void qmp_session_init(QmpSession *session,
-                      QmpCommandList *cmds, QmpDispatchReturn *return_cb)
+                      QmpCommandList *cmds,
+                      QmpDispatch *dispatch_cb,
+                      QmpDispatchReturn *return_cb)
 {
     assert(return_cb);
     assert(!session->return_cb);
 
     json_message_parser_init(&session->parser, qmp_json_parser_emit);
     session->cmds = cmds;
+    session->dispatch_cb = dispatch_cb;
     session->return_cb = return_cb;
 }
 
@@ -194,6 +197,7 @@ void qmp_session_destroy(QmpSession *session)
     }
 
     session->cmds = NULL;
+    session->dispatch_cb = NULL;
     session->return_cb = NULL;
     json_message_parser_destroy(&session->parser);
 }

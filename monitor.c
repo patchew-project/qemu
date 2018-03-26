@@ -4216,7 +4216,9 @@ static void monitor_qmp_event(void *opaque, int event)
     switch (event) {
     case CHR_EVENT_OPENED:
         qmp_session_init(&mon->qmp.session,
-                         &qmp_cap_negotiation_commands, dispatch_return_cb);
+                         &qmp_cap_negotiation_commands,
+                         NULL, /* XXX: not in use yet, but in following patch */
+                         dispatch_return_cb);
         monitor_qmp_caps_reset(mon);
         data = get_qmp_greeting(mon);
         monitor_json_emitter(mon, data);

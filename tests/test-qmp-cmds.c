@@ -105,7 +105,7 @@ static void test_dispatch_cmd(void)
     QmpSession session = { 0, };
     QDict *req = qdict_new();
 
-    qmp_session_init(&session, &qmp_commands, dispatch_cmd_return);
+    qmp_session_init(&session, &qmp_commands, qmp_dispatch, dispatch_cmd_return);
     qdict_put_str(req, "execute", "user_def_cmd");
     qmp_dispatch(&session, req);
     QDECREF(req);
@@ -125,7 +125,8 @@ static void test_dispatch_cmd_failure(void)
     QDict *req = qdict_new();
     QDict *args = qdict_new();
 
-    qmp_session_init(&session, &qmp_commands, dispatch_cmd_failure_return);
+    qmp_session_init(&session, &qmp_commands, qmp_dispatch,
+                     dispatch_cmd_failure_return);
     qdict_put_str(req, "execute", "user_def_cmd2");
     qmp_dispatch(&session, req);
     QDECREF(req);
@@ -147,7 +148,8 @@ static void test_dispatch_cmd_success_response(void)
     QmpSession session = { 0, };
     QDict *req = qdict_new();
 
-    qmp_session_init(&session, &qmp_commands, (QmpDispatchReturn *)abort);
+    qmp_session_init(&session, &qmp_commands, qmp_dispatch,
+                     (QmpDispatchReturn *)abort);
     qdict_put_str(req, "execute", "cmd-success-response");
     qmp_dispatch(&session, req);
     QDECREF(req);
@@ -166,7 +168,7 @@ static QObject *test_qmp_dispatch(QDict *req)
     QmpSession session = { 0, };
     QObject *ret;
 
-    qmp_session_init(&session, &qmp_commands, dispatch_return);
+    qmp_session_init(&session, &qmp_commands, qmp_dispatch, dispatch_return);
     qmp_dispatch(&session, req);
     ret = dispatch_ret;
     dispatch_ret = NULL;
@@ -299,7 +301,7 @@ static void test_dispatch_cmd_id(void)
     QmpSession session = { 0, };
     QDict *req = qdict_new();
 
-    qmp_session_init(&session, &qmp_commands, dispatch_return_id42);
+    qmp_session_init(&session, &qmp_commands, qmp_dispatch, dispatch_return_id42);
     qdict_put_str(req, "execute", "user_def_cmd");
     qdict_put_str(req, "id", "ID42");
     qmp_dispatch(&session, req);
