@@ -277,6 +277,22 @@ static void test_dealloc_partial(void)
     qapi_free_UserDefTwo(ud2);
 }
 
+static void test_dispatch_cmd_id(void)
+{
+    QDict *resp, *req = qdict_new();
+
+    qdict_put_str(req, "execute", "user_def_cmd");
+    qdict_put_str(req, "id", "ID42");
+
+    resp = qmp_dispatch(&qmp_commands, req);
+    assert(resp != NULL);
+    assert(!qdict_haskey(resp, "error"));
+    assert(!strcmp(qdict_get_str(resp, "id"), "ID42"));
+
+    QDECREF(resp);
+    QDECREF(req);
+}
+
 
 int main(int argc, char **argv)
 {
@@ -287,6 +303,7 @@ int main(int argc, char **argv)
     g_test_add_func("/qmp/dispatch_cmd_io", test_dispatch_cmd_io);
     g_test_add_func("/qmp/dispatch_cmd_success_response",
                     test_dispatch_cmd_success_response);
+    g_test_add_func("/qmp/dispatch_cmd_id", test_dispatch_cmd_id);
     g_test_add_func("/qmp/dealloc_types", test_dealloc_types);
     g_test_add_func("/qmp/dealloc_partial", test_dealloc_partial);
 

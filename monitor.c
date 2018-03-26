@@ -3899,16 +3899,9 @@ static int monitor_can_read(void *opaque)
     return !atomic_mb_read(&mon->suspend_cnt);
 }
 
-/* take the ownership of rsp & id */
-static void monitor_qmp_respond(Monitor *mon, QDict *rsp, QObject *id)
+/* take the ownership of rsp */
+static void monitor_qmp_respond(Monitor *mon, QDict *rsp)
 {
-    if (!rsp) {
-        return;
-    }
-
-    if (id) {
-        qdict_put_obj(rsp, "id", id);
-    }
     if (mon->qmp.commands == &qmp_cap_negotiation_commands) {
         QDict *qdict = qdict_get_qdict(rsp, "error");
         if (qdict
@@ -3941,11 +3934,9 @@ static void monitor_qmp_dispatch_one(QMPRequest *req_obj)
 {
     Monitor *mon, *old_mon;
     QDict *req, *rsp = NULL;
-    QObject *id;
 
     req = req_obj->req;
     mon = req_obj->mon;
-    id = req_obj->id;
 
     g_free(req_obj);
 
@@ -3963,7 +3954,9 @@ static void monitor_qmp_dispatch_one(QMPRequest *req_obj)
     cur_mon = old_mon;
 
     /* Respond if necessary */
-    monitor_qmp_respond(mon, rsp, id);
+    if (rsp) {
+        monitor_qmp_respond(mon, rsp);
+    }
 
 
     QDECREF(req);
@@ -4060,9 +4053,6 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
         goto err;
     }
 
-    qobject_incref(id);
-    qdict_del(qdict, "id");
-
     req_obj = g_new0(QMPRequest, 1);
     req_obj->mon = mon;
     req_obj->id = id;
@@ -4094,7 +4084,6 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
             qapi_event_send_command_dropped(id,
                                             COMMAND_DROP_REASON_QUEUE_FULL,
                                             &error_abort);
-            qobject_decref(id);
             qobject_decref(req);
             g_free(req_obj);
             return;
@@ -4117,7 +4106,7 @@ err:
     qdict = qdict_new();
     qdict_put_obj(qdict, "error", qmp_build_error_object(err));
     error_free(err);
-    monitor_qmp_respond(mon, qdict, id);
+    monitor_qmp_respond(mon, qdict);
     qobject_decref(req);
 }
 

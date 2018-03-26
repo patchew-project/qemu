@@ -151,10 +151,15 @@ QDict *qmp_dispatch(QmpCommandList *cmds, QDict *req)
     Error *err = NULL;
     QObject *ret;
     QDict *rsp;
+    QObject *id = qdict_get(req, "id");
 
     ret = do_qmp_dispatch(cmds, req, &err);
 
     rsp = qdict_new();
+    if (id) {
+        qobject_incref(id);
+        qdict_put_obj(rsp, "id", id);
+    }
     if (err) {
         qdict_put_obj(rsp, "error", qmp_build_error_object(err));
         error_free(err);
