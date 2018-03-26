@@ -258,7 +258,8 @@ ETEXI
         .params     = "filename [device [head]]",
         .help       = "save screen from head 'head' of display device 'device' "
                       "into PPM image 'filename'",
-        .cmd        = hmp_screendump,
+        .async_cmd  = hmp_screendump_async,
+        .async      = true,
     },
 
 STEXI
