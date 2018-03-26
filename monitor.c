@@ -3957,16 +3957,14 @@ typedef struct QMPRequest QMPRequest;
  * Dispatch one single QMP request. The function will free the req_obj
  * and objects inside it before return.
  */
-static void monitor_qmp_dispatch_one(QMPRequest *req_obj, bool oob_cmd)
+static void monitor_qmp_dispatch_one(QMPRequest *req_obj)
 {
     Monitor *mon, *old_mon;
     QObject *req, *rsp = NULL, *id;
-    bool need_resume;
 
     req = req_obj->req;
     mon = req_obj->mon;
     id = req_obj->id;
-    need_resume = !oob_cmd && !qmp_oob_enabled(mon);
 
     g_free(req_obj);
 
@@ -3985,11 +3983,6 @@ static void monitor_qmp_dispatch_one(QMPRequest *req_obj, bool oob_cmd)
 
     /* Respond if necessary */
     monitor_qmp_respond(mon, rsp, NULL, id);
-
-    /* This pairs with the monitor_suspend() in handle_qmp_command(). */
-    if (need_resume) {
-        monitor_resume(mon);
-    }
 
     qobject_decref(req);
 }
@@ -4036,8 +4029,14 @@ static void monitor_qmp_bh_dispatcher(void *data)
     QMPRequest *req_obj = monitor_qmp_requests_pop_one();
 
     if (req_obj) {
+        Monitor *mon = req_obj->mon;
+        bool need_resume = !qmp_oob_enabled(mon);
         trace_monitor_qmp_cmd_in_band(qobject_get_try_str(req_obj->id) ?: "");
-        monitor_qmp_dispatch_one(req_obj, false);
+        monitor_qmp_dispatch_one(req_obj);
+        /* This pairs with the monitor_suspend() in handle_qmp_command(). */
+        if (need_resume) {
+            monitor_resume(mon);
+        }
         /* Reschedule instead of looping so the main loop stays responsive */
         qemu_bh_schedule(mon_global.qmp_dispatcher_bh);
     }
@@ -4095,7 +4094,7 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
         /* Out-Of-Band (OOB) requests are executed directly in parser. */
         trace_monitor_qmp_cmd_out_of_band(qobject_get_try_str(req_obj->id)
                                           ?: "");
-        monitor_qmp_dispatch_one(req_obj, true);
+        monitor_qmp_dispatch_one(req_obj);
         return;
     }
 
