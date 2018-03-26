@@ -3930,7 +3930,6 @@ static void monitor_qmp_respond(Monitor *mon, QObject *rsp,
                 && !g_strcmp0(qdict_get_try_str(qdict, "class"),
                           QapiErrorClass_str(ERROR_CLASS_COMMAND_NOT_FOUND))) {
                 /* Provide a more useful error message */
-                qdict_del(qdict, "desc");
                 qdict_put_str(qdict, "desc", "Expecting capabilities"
                               " negotiation with 'qmp_capabilities'");
             }
