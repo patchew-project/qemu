@@ -195,7 +195,9 @@ void qmp_dispatch(QmpSession *session, QDict *req)
         QINCREF(args);
     }
 
-    {
+    if (cmd->options & QCO_ASYNC) {
+        cmd->async_fn(args, qmp_return_new(session, req));
+    } else {
         QObject *ret = NULL;
         cmd->fn(args, &ret, &err);
         if (err || cmd->options & QCO_NO_SUCCESS_RESP) {
