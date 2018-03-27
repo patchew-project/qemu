@@ -170,4 +170,9 @@ bool kvm_arm_supports_user_irq(void)
 {
     return false;
 }
+
+int kvm_max_vcpus(KVMState *s)
+{
+    return -ENOSYS;
+}
 #endif
