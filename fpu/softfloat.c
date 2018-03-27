@@ -1440,7 +1440,8 @@ float16 float16_div(float16 a, float16 b, float_status *status)
     return float16_round_pack_canonical(pr, status);
 }
 
-float32 float32_div(float32 a, float32 b, float_status *status)
+static float32 __attribute__((flatten, noinline))
+soft_float32_div(float32 a, float32 b, float_status *status)
 {
     FloatParts pa = float32_unpack_canonical(a, status);
     FloatParts pb = float32_unpack_canonical(b, status);
@@ -1449,7 +1450,8 @@ float32 float32_div(float32 a, float32 b, float_status *status)
     return float32_round_pack_canonical(pr, status);
 }
 
-float64 float64_div(float64 a, float64 b, float_status *status)
+static float64 __attribute__((flatten, noinline))
+soft_float64_div(float64 a, float64 b, float_status *status)
 {
     FloatParts pa = float64_unpack_canonical(a, status);
     FloatParts pb = float64_unpack_canonical(b, status);
@@ -1457,6 +1459,64 @@ float64 float64_div(float64 a, float64 b, float_status *status)
 
     return float64_round_pack_canonical(pr, status);
 }
+
+#define GEN_FPU_DIV(name, soft_t, host_t, host_abs_func, min_normal)    \
+    soft_t name(soft_t a, soft_t b, float_status *s)                    \
+    {                                                                   \
+        soft_t ## _input_flush2(&a, &b, s);                             \
+        if (likely((soft_t ## _is_normal(a) || soft_t ## _is_zero(a)) && \
+                   soft_t ## _is_normal(b) &&                           \
+                   s->float_exception_flags & float_flag_inexact &&     \
+                   s->float_rounding_mode == float_round_nearest_even)) { \
+            host_t ha = soft_t ## _to_ ## host_t(a);                    \
+            host_t hb = soft_t ## _to_ ## host_t(b);                    \
+            host_t hr = ha / hb;                                        \
+            soft_t r = host_t ## _to_ ## soft_t(hr);                    \
+                                                                        \
+            if (unlikely(soft_t ## _is_infinity(r))) {                  \
+                s->float_exception_flags |= float_flag_overflow;        \
+            } else if (unlikely(host_abs_func(hr) <= min_normal) &&     \
+                       !soft_t ## _is_zero(a)) {                        \
+                goto soft;                                              \
+            }                                                           \
+            return r;                                                   \
+        }                                                               \
+    soft:                                                               \
+        return soft_ ## soft_t ## _div(a, b, s);                        \
+    }
+
+GEN_FPU_DIV(float32_div, float32, float, fabsf, FLT_MIN)
+#undef GEN_FPU_DIV
+
+#define GEN_FPU_DIV(name, soft_t, host_t, host_abs_func, min_normal)    \
+    soft_t name(soft_t a, soft_t b, float_status *s)                    \
+    {                                                                   \
+        host_t ha, hb;                                                  \
+                                                                        \
+        soft_t ## _input_flush2(&a, &b, s);                             \
+        ha = soft_t ## _to_ ## host_t(a);                               \
+        hb = soft_t ## _to_ ## host_t(b);                               \
+        if (likely((fpclassify(ha) == FP_NORMAL ||                      \
+                    fpclassify(ha) == FP_ZERO) &&                       \
+                   fpclassify(hb) == FP_NORMAL &&                       \
+                   s->float_exception_flags & float_flag_inexact &&     \
+                   s->float_rounding_mode == float_round_nearest_even)) { \
+            host_t hr = ha / hb;                                        \
+                                                                        \
+            if (unlikely(isinf(hr))) {                                  \
+                s->float_exception_flags |= float_flag_overflow;        \
+            } else if (unlikely(host_abs_func(hr) <= min_normal) &&     \
+                       !soft_t ## _is_zero(a)) {                        \
+                goto soft;                                              \
+            }                                                           \
+            return host_t ## _to_ ## soft_t(hr);                        \
+        }                                                               \
+    soft:                                                               \
+        return soft_ ## soft_t ## _div(a, b, s);                        \
+    }
+
+GEN_FPU_DIV(float64_div, float64, double, fabs, DBL_MIN)
+#undef GEN_FPU_DIV
 
 /*
  * Rounds the floating-point value `a' to an integer, and returns the
