@@ -165,7 +165,7 @@ int ppc_store_slb(PowerPCCPU *cpu, target_ulong slot,
     }
 
     for (i = 0; i < PPC_PAGE_SIZES_MAX_SZ; i++) {
-        const struct ppc_one_seg_page_size *sps1 = &env->sps.sps[i];
+        const struct ppc_one_seg_page_size *sps1 = &cpu->hash64_opts->sps[i];
 
         if (!sps1->page_shift) {
             break;
@@ -552,7 +552,7 @@ static hwaddr ppc_hash64_htab_lookup(PowerPCCPU *cpu,
     /* If ISL is set in LPCR we need to clamp the page size to 4K */
     if (env->spr[SPR_LPCR] & LPCR_ISL) {
         /* We assume that when using TCG, 4k is first entry of SPS */
-        sps = &env->sps.sps[0];
+        sps = &cpu->hash64_opts->sps[0];
         assert(sps->page_shift == 12);
     }
 
@@ -605,7 +605,6 @@ static hwaddr ppc_hash64_htab_lookup(PowerPCCPU *cpu,
 unsigned ppc_hash64_hpte_page_shift_noslb(PowerPCCPU *cpu,
                                           uint64_t pte0, uint64_t pte1)
 {
-    CPUPPCState *env = &cpu->env;
     int i;
 
     if (!(pte0 & HPTE64_V_LARGE)) {
@@ -617,7 +616,7 @@ unsigned ppc_hash64_hpte_page_shift_noslb(PowerPCCPU *cpu,
      * this gives an unambiguous result.
      */
     for (i = 0; i < PPC_PAGE_SIZES_MAX_SZ; i++) {
-        const struct ppc_one_seg_page_size *sps = &env->sps.sps[i];
+        const struct ppc_one_seg_page_size *sps = &cpu->hash64_opts->sps[i];
         unsigned shift;
 
         if (!sps->page_shift) {
@@ -1005,7 +1004,7 @@ void ppc_hash64_update_vrma(PowerPCCPU *cpu)
     esid = SLB_ESID_V;
 
     for (i = 0; i < PPC_PAGE_SIZES_MAX_SZ; i++) {
-        const struct ppc_one_seg_page_size *sps1 = &env->sps.sps[i];
+        const struct ppc_one_seg_page_size *sps1 = &cpu->hash64_opts->sps[i];
 
         if (!sps1->page_shift) {
             break;
@@ -1101,11 +1100,12 @@ void ppc_hash64_init(PowerPCCPU *cpu)
     CPUPPCState *env = &cpu->env;
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
 
-    if (pcc->sps) {
-        env->sps = *pcc->sps;
+    if (pcc->hash64_opts) {
+        cpu->hash64_opts = g_memdup(pcc->hash64_opts,
+                                    sizeof(*cpu->hash64_opts));
     } else if (env->mmu_model & POWERPC_MMU_64) {
         /* Use default sets of page sizes. We don't support MPSS */
-        static const struct ppc_segment_page_sizes defsps = {
+        static const PPCHash64Options defopts = {
             .sps = {
                 { .page_shift = 12, /* 4K */
                   .slb_enc = 0,
@@ -1117,10 +1117,39 @@ void ppc_hash64_init(PowerPCCPU *cpu)
                 },
             },
         };
-        env->sps = defsps;
+        cpu->hash64_opts = g_memdup(&defopts, sizeof(*cpu->hash64_opts));
     }
 }
 
 void ppc_hash64_finalize(PowerPCCPU *cpu)
 {
+    g_free(cpu->hash64_opts);
 }
+
+const PPCHash64Options ppc_hash64_opts_POWER7 = {
+    .sps = {
+        {
+            .page_shift = 12, /* 4K */
+            .slb_enc = 0,
+            .enc = { { .page_shift = 12, .pte_enc = 0 },
+                     { .page_shift = 16, .pte_enc = 0x7 },
+                     { .page_shift = 24, .pte_enc = 0x38 }, },
+        },
+        {
+            .page_shift = 16, /* 64K */
+            .slb_enc = SLB_VSID_64K,
+            .enc = { { .page_shift = 16, .pte_enc = 0x1 },
+                     { .page_shift = 24, .pte_enc = 0x8 }, },
+        },
+        {
+            .page_shift = 24, /* 16M */
+            .slb_enc = SLB_VSID_16M,
+            .enc = { { .page_shift = 24, .pte_enc = 0 }, },
+        },
+        {
+            .page_shift = 34, /* 16G */
+            .slb_enc = SLB_VSID_16G,
+            .enc = { { .page_shift = 34, .pte_enc = 0x3 }, },
+        },
+    }
+};
