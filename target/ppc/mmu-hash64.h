@@ -155,6 +155,7 @@ struct PPCHash64Options {
     struct ppc_one_seg_page_size sps[PPC_PAGE_SIZES_MAX_SZ];
 };
 
+extern const PPCHash64Options ppc_hash64_opts_basic;
 extern const PPCHash64Options ppc_hash64_opts_POWER7;
 
 #endif /* CONFIG_USER_ONLY */
