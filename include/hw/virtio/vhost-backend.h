@@ -36,7 +36,9 @@ struct vhost_iotlb_msg;
 
 typedef int (*vhost_backend_init)(struct vhost_dev *dev, void *opaque);
 typedef int (*vhost_backend_cleanup)(struct vhost_dev *dev);
-typedef int (*vhost_backend_memslots_limit)(struct vhost_dev *dev);
+typedef void (*vhost_set_used_memslots_op)(struct vhost_dev *dev);
+typedef bool (*vhost_backend_has_free_memslots)(struct vhost_dev *dev);
+typedef bool (*vhost_out_of_memslots)(struct vhost_dev *dev);
 
 typedef int (*vhost_net_set_backend_op)(struct vhost_dev *dev,
                                 struct vhost_vring_file *file);
@@ -105,7 +107,9 @@ typedef struct VhostOps {
     VhostBackendType backend_type;
     vhost_backend_init vhost_backend_init;
     vhost_backend_cleanup vhost_backend_cleanup;
-    vhost_backend_memslots_limit vhost_backend_memslots_limit;
+    vhost_set_used_memslots_op vhost_set_used_memslots;
+    vhost_backend_has_free_memslots vhost_backend_has_free_memslots;
+    vhost_out_of_memslots vhost_out_of_memslots;
     vhost_net_set_backend_op vhost_net_set_backend;
     vhost_net_set_mtu_op vhost_net_set_mtu;
     vhost_scsi_set_endpoint_op vhost_scsi_set_endpoint;
