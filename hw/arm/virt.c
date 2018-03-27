@@ -149,8 +149,10 @@ static const MemMapEntry a15memmap[] = {
     [VIRT_PCIE_PIO] =           { 0x3eff0000, 0x00010000 },
     [VIRT_PCIE_ECAM] =          { 0x3f000000, 0x01000000 },
     [VIRT_MEM] =                { 0x40000000, RAMLIMIT_BYTES },
+    /* Allows 512 - 123 additional vcpus (each 2x64kB) */
+    [VIRT_GIC_REDIST2] =        { 0x4000000000ULL, 0x30A0000LL },
     /* Second PCIe window, 512GB wide at the 512GB boundary */
-    [VIRT_PCIE_MMIO_HIGH] =   { 0x8000000000ULL, 0x8000000000ULL },
+    [VIRT_PCIE_MMIO_HIGH] =     { 0x8000000000ULL, 0x8000000000ULL },
 };
 
 static const int a15irqmap[] = {
@@ -553,6 +555,11 @@ static void create_gic(VirtMachineState *vms, qemu_irq *pic)
         agcc->register_redist_region((GICv3State *)gicdev,
                                  vms->memmap[VIRT_GIC_REDIST].base,
                                  vms->memmap[VIRT_GIC_REDIST].size >> 17);
+        if (vms->smp_cpus > 123) {
+            agcc->register_redist_region((GICv3State *)gicdev,
+                     vms->memmap[VIRT_GIC_REDIST2].base,
+                                 vms->memmap[VIRT_GIC_REDIST2].size >> 17);
+        }
     } else {
         sysbus_mmio_map(gicbusdev, 1, vms->memmap[VIRT_GIC_CPU].base);
     }
@@ -1284,6 +1291,14 @@ static void machvirt_init(MachineState *machine)
      */
     if (vms->gic_version == 3) {
         virt_max_cpus = vms->memmap[VIRT_GIC_REDIST].size / 0x20000;
+        if (kvm_max_vcpus(kvm_state) > 255) {
+            /*
+             * VGICv3 KVM device capability to set multiple redistributor
+             * was introduced at the same time KVM_MAX_VCPUS was bumped
+             * from 255 to 512
+             */
+            virt_max_cpus += vms->memmap[VIRT_GIC_REDIST2].size / 0x20000;
+        }
     } else {
         virt_max_cpus = GIC_NCPU;
     }
