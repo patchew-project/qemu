@@ -154,6 +154,7 @@ struct ppc_one_seg_page_size {
 struct PPCHash64Options {
 #define PPC_HASH64_1TSEG        0x00001
 #define PPC_HASH64_AMR          0x00002
+#define PPC_HASH64_CI_LARGEPAGE 0x00004
     unsigned flags;
     struct ppc_one_seg_page_size sps[PPC_PAGE_SIZES_MAX_SZ];
 };
