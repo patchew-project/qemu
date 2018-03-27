@@ -12,6 +12,7 @@ check-qobject
 check-qstring
 check-qom-interface
 check-qom-proplist
+fp-bench
 qht-bench
 rcutorture
 test-aio
