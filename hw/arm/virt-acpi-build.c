@@ -43,6 +43,7 @@
 #include "hw/pci/pcie_host.h"
 #include "hw/pci/pci.h"
 #include "hw/arm/virt.h"
+#include "hw/intc/arm_gicv3.h"
 #include "sysemu/numa.h"
 #include "kvm_arm.h"
 
@@ -618,14 +619,22 @@ build_madt(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     }
 
     if (vms->gic_version == 3) {
-        AcpiMadtGenericTranslator *gic_its;
-        AcpiMadtGenericRedistributor *gicr = acpi_data_push(table_data,
-                                                         sizeof *gicr);
+        GICv3State *s = (GICv3State *)vms->gic;
+        int r;
 
-        gicr->type = ACPI_APIC_GENERIC_REDISTRIBUTOR;
-        gicr->length = sizeof(*gicr);
-        gicr->base_address = cpu_to_le64(memmap[VIRT_GIC_REDIST].base);
-        gicr->range_length = cpu_to_le32(memmap[VIRT_GIC_REDIST].size);
+        AcpiMadtGenericTranslator *gic_its;
+
+        for (r = 0; r <  s->nb_redist_regions; r++) {
+            AcpiMadtGenericRedistributor *gicr = acpi_data_push(table_data,
+                                                                sizeof *gicr);
+
+            gicr->type = ACPI_APIC_GENERIC_REDISTRIBUTOR;
+            gicr->length = sizeof(*gicr);
+            gicr->base_address = cpu_to_le64(s->redist_region[r].base);
+            /* count redistributors of 2 x 64kB pages */
+            gicr->range_length =
+                cpu_to_le64((uint64_t)s->redist_region[r].count << 17);
+        }
 
         if (its_class_name() && !vmc->no_its) {
             gic_its = acpi_data_push(table_data, sizeof *gic_its);
