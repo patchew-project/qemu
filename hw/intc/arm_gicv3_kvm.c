@@ -755,9 +755,6 @@ static void kvm_arm_gicv3_realize(DeviceState *dev, Error **errp)
 
     kvm_arm_register_device(&s->iomem_dist, -1, KVM_DEV_ARM_VGIC_GRP_ADDR,
                             KVM_VGIC_V3_ADDR_TYPE_DIST, s->dev_fd);
-    kvm_arm_register_device(&s->redist_region[0].mr, -1,
-                            KVM_DEV_ARM_VGIC_GRP_ADDR,
-                            KVM_VGIC_V3_ADDR_TYPE_REDIST, s->dev_fd);
 
     if (kvm_has_gsi_routing()) {
         /* set up irq routing */
@@ -788,6 +785,40 @@ static void kvm_arm_gicv3_realize(DeviceState *dev, Error **errp)
     }
 }
 
+static int kvm_arm_gicv3_register_redist_region(GICv3State *s, hwaddr base,
+                                                uint32_t count)
+{
+    SysBusDevice *sbd = SYS_BUS_DEVICE(s);
+    int n = s->nb_redist_regions;
+    char *name;
+
+    if (!s->dev_fd) {
+        return -ENODEV;
+    }
+
+    if (n > 0) {
+        return -EINVAL;
+    }
+
+    name = g_strdup_printf("gicv3_redist_region[%d]", n);
+
+    s->redist_region[n].base = base;
+    s->redist_region[n].count = count;
+    memory_region_init_io(&s->redist_region[n].mr, OBJECT(s),
+                          NULL, s, name, count * 0x20000);
+    sysbus_init_mmio(sbd, &s->redist_region[n].mr);
+
+    kvm_arm_register_device(&s->redist_region[n].mr, -1,
+                            KVM_DEV_ARM_VGIC_GRP_ADDR,
+                            KVM_VGIC_V3_ADDR_TYPE_REDIST, s->dev_fd);
+
+    sysbus_mmio_map(sbd, n + 1, base); /* first region is DIST */
+
+    s->nb_redist_regions++;
+    g_free(name);
+    return 0;
+}
+
 static void kvm_arm_gicv3_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -796,6 +827,7 @@ static void kvm_arm_gicv3_class_init(ObjectClass *klass, void *data)
 
     agcc->pre_save = kvm_arm_gicv3_get;
     agcc->post_load = kvm_arm_gicv3_put;
+    agcc->register_redist_region = kvm_arm_gicv3_register_redist_region;
     device_class_set_parent_realize(dc, kvm_arm_gicv3_realize,
                                     &kgc->parent_realize);
     device_class_set_parent_reset(dc, kvm_arm_gicv3_reset, &kgc->parent_reset);

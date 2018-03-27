@@ -199,12 +199,8 @@ void gicv3_init_irqs_and_mmio(GICv3State *s, qemu_irq_handler handler,
 
     memory_region_init_io(&s->iomem_dist, OBJECT(s), ops, s,
                           "gicv3_dist", 0x10000);
-    memory_region_init_io(&s->redist_region[0].mr, OBJECT(s),
-                          ops ? &ops[1] : NULL, s,
-                          "gicv3_redist", 0x20000 * s->num_cpu);
 
     sysbus_init_mmio(sbd, &s->iomem_dist);
-    sysbus_init_mmio(sbd, &s->redist_region[0].mr);
 }
 
 static void arm_gicv3_common_realize(DeviceState *dev, Error **errp)
@@ -382,6 +378,12 @@ static void arm_gic_common_linux_init(ARMLinuxBootIf *obj,
          */
         s->irq_reset_nonsecure = true;
     }
+}
+
+static inline
+bool arm_gicv3_common_support_multiple_redist_regions(GICv3State *s)
+{
+    return s->support_multiple_redist_regions;
 }
 
 static Property arm_gicv3_common_properties[] = {

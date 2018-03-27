@@ -220,6 +220,7 @@ struct GICv3State {
     MemoryRegion iomem_dist; /* Distributor */
     GICv3RDISTRegion redist_region[GICV3_MAX_RDIST_REGIONS];
     uint32_t nb_redist_regions;
+    bool support_multiple_redist_regions;
 
     uint32_t num_cpu;
     uint32_t num_irq;
@@ -297,8 +298,8 @@ typedef struct ARMGICv3CommonClass {
 
     void (*pre_save)(GICv3State *s);
     void (*post_load)(GICv3State *s);
-    /* register an RDIST region at @base, containing @pfns 64kB pages */
-    int (*register_redist_region)(GICv3State *s, hwaddr base, uint32_t pfns);
+    /* register an RDIST region at @base, containing @count redistributors */
+    int (*register_redist_region)(GICv3State *s, hwaddr base, uint32_t count);
 } ARMGICv3CommonClass;
 
 void gicv3_init_irqs_and_mmio(GICv3State *s, qemu_irq_handler handler,

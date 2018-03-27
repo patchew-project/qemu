@@ -526,7 +526,11 @@ static void create_gic(VirtMachineState *vms, qemu_irq *pic)
     gicbusdev = SYS_BUS_DEVICE(gicdev);
     sysbus_mmio_map(gicbusdev, 0, vms->memmap[VIRT_GIC_DIST].base);
     if (type == 3) {
-        sysbus_mmio_map(gicbusdev, 1, vms->memmap[VIRT_GIC_REDIST].base);
+        ARMGICv3CommonClass *agcc = ARM_GICV3_COMMON_GET_CLASS(gicdev);
+
+        agcc->register_redist_region((GICv3State *)gicdev,
+                                 vms->memmap[VIRT_GIC_REDIST].base,
+                                 vms->memmap[VIRT_GIC_REDIST].size >> 17);
     } else {
         sysbus_mmio_map(gicbusdev, 1, vms->memmap[VIRT_GIC_CPU].base);
     }

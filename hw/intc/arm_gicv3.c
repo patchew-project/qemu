@@ -378,6 +378,26 @@ static void arm_gic_realize(DeviceState *dev, Error **errp)
     gicv3_init_cpuif(s);
 }
 
+static int arm_gicv3_register_redist_region(GICv3State *s, hwaddr base,
+                                            uint32_t count)
+{
+    SysBusDevice *sbd = SYS_BUS_DEVICE(s);
+
+    if (s->nb_redist_regions > 0) {
+        return -EINVAL;
+    }
+
+    s->redist_region[s->nb_redist_regions].base = base;
+    s->redist_region[s->nb_redist_regions].count = count;
+    memory_region_init_io(&s->redist_region[s->nb_redist_regions].mr, OBJECT(s),
+                          gic_ops, s, "gicv3_redist", 0x20000 * count);
+    sysbus_init_mmio(sbd, &s->redist_region[s->nb_redist_regions].mr);
+    sysbus_mmio_map(sbd, 1, base);
+    s->nb_redist_regions++;
+
+    return 0;
+}
+
 static void arm_gicv3_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -385,6 +405,7 @@ static void arm_gicv3_class_init(ObjectClass *klass, void *data)
     ARMGICv3Class *agc = ARM_GICV3_CLASS(klass);
 
     agcc->post_load = arm_gicv3_post_load;
+    agcc->register_redist_region = arm_gicv3_register_redist_region;
     device_class_set_parent_realize(dc, arm_gic_realize, &agc->parent_realize);
 }
 
