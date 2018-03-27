@@ -35,6 +35,7 @@
 #include "qemu/notify.h"
 #include "hw/boards.h"
 #include "hw/arm/arm.h"
+#include "hw/intc/arm_gic_common.h"
 
 #define NUM_GICV2M_SPIS       64
 #define NUM_VIRTIO_TRANSPORTS 32
@@ -92,6 +93,7 @@ typedef struct {
     MachineState parent;
     Notifier machine_done;
     FWCfgState *fw_cfg;
+    GICState *gic;
     bool secure;
     bool highmem;
     bool its;

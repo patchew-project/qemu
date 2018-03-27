@@ -401,13 +401,34 @@ static void fdt_add_gic_node(VirtMachineState *vms)
     qemu_fdt_setprop_cell(vms->fdt, "/intc", "#size-cells", 0x2);
     qemu_fdt_setprop(vms->fdt, "/intc", "ranges", NULL, 0);
     if (vms->gic_version == 3) {
+        GICv3State *s = (GICv3State *)vms->gic;
+        uint64_t num_reg_values;
+        uint64_t *regs;
+        int r;
+
         qemu_fdt_setprop_string(vms->fdt, "/intc", "compatible",
                                 "arm,gic-v3");
-        qemu_fdt_setprop_sized_cells(vms->fdt, "/intc", "reg",
-                                     2, vms->memmap[VIRT_GIC_DIST].base,
-                                     2, vms->memmap[VIRT_GIC_DIST].size,
-                                     2, vms->memmap[VIRT_GIC_REDIST].base,
-                                     2, vms->memmap[VIRT_GIC_REDIST].size);
+
+        num_reg_values =  4 * (s->nb_redist_regions + 1);
+        regs = g_new0(uint64_t, num_reg_values);
+        qemu_fdt_setprop_cell(vms->fdt, "/intc", "#redistributor-regions",
+                              s->nb_redist_regions);
+        regs[0] = 2;
+        regs[1] = vms->memmap[VIRT_GIC_DIST].base;
+        regs[2] = 2;
+        regs[3] = vms->memmap[VIRT_GIC_DIST].size;
+
+        for (r = 1; r <= s->nb_redist_regions; r++) {
+            regs[4 * r] = 2;
+            regs[4 * r  + 1] = s->redist_region[r - 1].base;
+            regs[4 * r  + 2] = 2;
+            /* count redistributors of 2 x 64kB pages */
+            regs[4 * r  + 3] = (uint64_t)s->redist_region[r - 1].count << 17;
+        }
+        qemu_fdt_setprop_sized_cells_from_array(vms->fdt, "/intc", "reg",
+                                                num_reg_values / 2, regs);
+        g_free(regs);
+
         if (vms->virt) {
             qemu_fdt_setprop_cells(vms->fdt, "/intc", "interrupts",
                                    GIC_FDT_IRQ_TYPE_PPI, ARCH_GICV3_MAINT_IRQ,
@@ -513,6 +534,7 @@ static void create_gic(VirtMachineState *vms, qemu_irq *pic)
     gictype = (type == 3) ? gicv3_class_name() : gic_class_name();
 
     gicdev = qdev_create(NULL, gictype);
+    vms->gic = (GICState *)gicdev;
     qdev_prop_set_uint32(gicdev, "revision", type);
     qdev_prop_set_uint32(gicdev, "num-cpu", smp_cpus);
     /* Note that the num-irq property counts both internal and external
