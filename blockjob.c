@@ -232,6 +232,7 @@ void block_job_unref(BlockJob *job)
 {
     if (--job->refcnt == 0) {
         assert(job->status == BLOCK_JOB_STATUS_NULL);
+        assert(!job->txn);
         BlockDriverState *bs = blk_bs(job->blk);
         QLIST_REMOVE(job, job_list);
         bs->job = NULL;
@@ -483,6 +484,7 @@ static int block_job_finalize_single(BlockJob *job)
 
     QLIST_REMOVE(job, txn_list);
     block_job_txn_unref(job->txn);
+    job->txn = NULL;
     block_job_conclude(job);
     return 0;
 }
@@ -998,6 +1000,9 @@ void block_job_pause_all(void)
 void block_job_early_fail(BlockJob *job)
 {
     assert(job->status == BLOCK_JOB_STATUS_CREATED);
+    QLIST_REMOVE(job, txn_list);
+    block_job_txn_unref(job->txn);
+    job->txn = NULL;
     block_job_decommission(job);
 }
 
