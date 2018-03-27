@@ -4360,6 +4360,7 @@ static void monitor_qmp_event(void *opaque, int event)
 
     switch (event) {
     case CHR_EVENT_OPENED:
+        monitor_qmp_cleanup_queues(mon);
         mon->qmp.commands = &qmp_cap_negotiation_commands;
         monitor_qmp_caps_reset(mon);
         data = get_qmp_greeting(mon);
