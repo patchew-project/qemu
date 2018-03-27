@@ -557,7 +557,7 @@ static void spapr_populate_cpu_dt(CPUState *cs, void *fdt, int offset,
         _FDT((fdt_setprop(fdt, offset, "ibm,purr", NULL, 0)));
     }
 
-    if (env->mmu_model & POWERPC_MMU_1TSEG) {
+    if (cpu->hash64_opts->flags & PPC_HASH64_1TSEG) {
         _FDT((fdt_setprop(fdt, offset, "ibm,processor-segment-sizes",
                           segs, sizeof(segs))));
     }
