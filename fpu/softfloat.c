@@ -2436,19 +2436,41 @@ float16 __attribute__((flatten)) float16_sqrt(float16 a, float_status *status)
     return float16_round_pack_canonical(pr, status);
 }
 
-float32 __attribute__((flatten)) float32_sqrt(float32 a, float_status *status)
+static float32 __attribute__((flatten, noinline))
+soft_float32_sqrt(float32 a, float_status *status)
 {
     FloatParts pa = float32_unpack_canonical(a, status);
     FloatParts pr = sqrt_float(pa, status, &float32_params);
     return float32_round_pack_canonical(pr, status);
 }
 
-float64 __attribute__((flatten)) float64_sqrt(float64 a, float_status *status)
+static float64 __attribute__((flatten, noinline))
+soft_float64_sqrt(float64 a, float_status *status)
 {
     FloatParts pa = float64_unpack_canonical(a, status);
     FloatParts pr = sqrt_float(pa, status, &float64_params);
     return float64_round_pack_canonical(pr, status);
 }
+
+#define GEN_FPU_SQRT(name, soft_t, host_t, host_sqrt_func)              \
+    soft_t name(soft_t a, float_status *s)                              \
+    {                                                                   \
+        soft_t ## _input_flush1(&a, s);                                 \
+        if (likely((soft_t ## _is_normal(a) || soft_t ## _is_zero(a)) && \
+                   !soft_t ## _is_neg(a) &&                             \
+                   s->float_exception_flags & float_flag_inexact &&     \
+                   s->float_rounding_mode == float_round_nearest_even)) { \
+            host_t ha = soft_t ## _to_ ## host_t(a);                    \
+            host_t hr = host_sqrt_func(ha);                             \
+                                                                        \
+            return host_t ## _to_ ## soft_t(hr);                        \
+        }                                                               \
+        return soft_ ## soft_t ## _sqrt(a, s);                          \
+    }
+
+GEN_FPU_SQRT(float32_sqrt, float32, float, sqrtf)
+GEN_FPU_SQRT(float64_sqrt, float64, double, sqrt)
+#undef GEN_FPU_SQRT
 
 
 /*----------------------------------------------------------------------------
