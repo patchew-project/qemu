@@ -137,11 +137,19 @@ typedef struct GICv3CPUState GICv3CPUState;
 #define GICV3_S 0
 #define GICV3_NS 1
 
+#define GICV3_MAX_RDIST_REGIONS 8
+
 typedef struct {
     int irq;
     uint8_t prio;
     int grp;
 } PendingIrq;
+
+typedef struct GICv3RDISTRegion {
+    hwaddr base;
+    uint32_t count; /* number or redistributors */
+    MemoryRegion mr;
+} GICv3RDISTRegion ;
 
 struct GICv3CPUState {
     GICv3State *gic;
@@ -210,7 +218,8 @@ struct GICv3State {
     /*< public >*/
 
     MemoryRegion iomem_dist; /* Distributor */
-    MemoryRegion iomem_redist; /* Redistributors */
+    GICv3RDISTRegion redist_region[GICV3_MAX_RDIST_REGIONS];
+    uint32_t nb_redist_regions;
 
     uint32_t num_cpu;
     uint32_t num_irq;
@@ -288,6 +297,8 @@ typedef struct ARMGICv3CommonClass {
 
     void (*pre_save)(GICv3State *s);
     void (*post_load)(GICv3State *s);
+    /* register an RDIST region at @base, containing @pfns 64kB pages */
+    int (*register_redist_region)(GICv3State *s, hwaddr base, uint32_t pfns);
 } ARMGICv3CommonClass;
 
 void gicv3_init_irqs_and_mmio(GICv3State *s, qemu_irq_handler handler,
