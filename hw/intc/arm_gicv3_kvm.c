@@ -789,14 +789,21 @@ static int kvm_arm_gicv3_register_redist_region(GICv3State *s, hwaddr base,
                                                 uint32_t count)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(s);
+    bool multiple_redist_region_allowed;
     int n = s->nb_redist_regions;
+    Error **local_err = NULL;
     char *name;
+    int ret;
 
     if (!s->dev_fd) {
         return -ENODEV;
     }
 
-    if (n > 0) {
+    multiple_redist_region_allowed =
+        kvm_device_check_attr(s->dev_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
+                              KVM_VGIC_V3_ADDR_TYPE_REDIST_REGION);
+
+    if (n > 0 && !multiple_redist_region_allowed) {
         return -EINVAL;
     }
 
@@ -808,15 +815,28 @@ static int kvm_arm_gicv3_register_redist_region(GICv3State *s, hwaddr base,
                           NULL, s, name, count * 0x20000);
     sysbus_init_mmio(sbd, &s->redist_region[n].mr);
 
-    kvm_arm_register_device(&s->redist_region[n].mr, -1,
-                            KVM_DEV_ARM_VGIC_GRP_ADDR,
-                            KVM_VGIC_V3_ADDR_TYPE_REDIST, s->dev_fd);
+    if (!multiple_redist_region_allowed) {
+        /* use the legacy API */
+        kvm_arm_register_device(&s->redist_region[n].mr, -1,
+                                KVM_DEV_ARM_VGIC_GRP_ADDR,
+                                KVM_VGIC_V3_ADDR_TYPE_REDIST, s->dev_fd);
+    } else {
+        uint64_t val = base | n;
 
+        val = deposit64(val, 52, 12, count);
+        ret = kvm_device_access(s->dev_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
+                                KVM_VGIC_V3_ADDR_TYPE_REDIST_REGION,
+                                &val, true, local_err);
+        if (ret) {
+            goto out;
+        }
+    }
     sysbus_mmio_map(sbd, n + 1, base); /* first region is DIST */
 
     s->nb_redist_regions++;
+out:
     g_free(name);
-    return 0;
+    return ret;
 }
 
 static void kvm_arm_gicv3_class_init(ObjectClass *klass, void *data)
