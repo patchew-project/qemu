@@ -72,11 +72,20 @@ void helper_raise_exception(CPURISCVState *env, uint32_t exception)
     do_raise_exception_err(env, exception, 0);
 }
 
-static void validate_mstatus_fs(CPURISCVState *env, uintptr_t ra)
+static void validate_mstatus_fs(CPURISCVState *env, uintptr_t ra, bool write)
 {
 #ifndef CONFIG_USER_ONLY
-    if (!(env->mstatus & MSTATUS_FS)) {
+    switch (get_field(env->mstatus, MSTATUS_FS)) {
+    case 0: /* disabled */
         do_raise_exception_err(env, RISCV_EXCP_ILLEGAL_INST, ra);
+        g_assert_not_reached();
+    case 1: /* initial */
+    case 2: /* clean */
+        if (write) {
+            /* Mark fp status as dirty.  */
+            env->mstatus = MSTATUS_FS;
+        }
+        break;
     }
 #endif
 }
@@ -96,15 +105,15 @@ void csr_write_helper(CPURISCVState *env, target_ulong val_to_write,
 
     switch (csrno) {
     case CSR_FFLAGS:
-        validate_mstatus_fs(env, GETPC());
+        validate_mstatus_fs(env, GETPC(), true);
         cpu_riscv_set_fflags(env, val_to_write & (FSR_AEXC >> FSR_AEXC_SHIFT));
         break;
     case CSR_FRM:
-        validate_mstatus_fs(env, GETPC());
+        validate_mstatus_fs(env, GETPC(), true);
         env->frm = val_to_write & (FSR_RD >> FSR_RD_SHIFT);
         break;
     case CSR_FCSR:
-        validate_mstatus_fs(env, GETPC());
+        validate_mstatus_fs(env, GETPC(), true);
         env->frm = (val_to_write & FSR_RD) >> FSR_RD_SHIFT;
         cpu_riscv_set_fflags(env, (val_to_write & FSR_AEXC) >> FSR_AEXC_SHIFT);
         break;
@@ -379,13 +388,13 @@ target_ulong csr_read_helper(CPURISCVState *env, target_ulong csrno)
 
     switch (csrno) {
     case CSR_FFLAGS:
-        validate_mstatus_fs(env, GETPC());
+        validate_mstatus_fs(env, GETPC(), false);
         return cpu_riscv_get_fflags(env);
     case CSR_FRM:
-        validate_mstatus_fs(env, GETPC());
+        validate_mstatus_fs(env, GETPC(), false);
         return env->frm;
     case CSR_FCSR:
-        validate_mstatus_fs(env, GETPC());
+        validate_mstatus_fs(env, GETPC(), false);
         return (cpu_riscv_get_fflags(env) << FSR_AEXC_SHIFT)
                 | (env->frm << FSR_RD_SHIFT);
     /* rdtime/rdtimeh is trapped and emulated by bbl in system mode */
