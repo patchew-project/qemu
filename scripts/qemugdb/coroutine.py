@@ -15,8 +15,31 @@
 
 import gdb
 import re
+import tempfile
+import subprocess
+import os
+import coredump
 
 VOID_PTR = gdb.lookup_type('void').pointer()
+
+def bt_regs_static(regs):
+    files = gdb.execute('info files', False, True).split('\n')
+    executable = re.match('^Symbols from "(.*)".$', files[0]).group(1)
+    dump = re.search("`(.*)'", files[2]).group(1)
+
+    with tempfile.NamedTemporaryFile(dir='/tmp', delete=False) as f:
+        temp = f.name
+
+    coredump.clone_coredump(dump, temp, regs)
+
+    cmd = ['gdb', '-batch', '-ex', "python print '----split----'",
+           '-ex', 'bt', executable, temp]
+    out = subprocess.check_output(cmd)
+    out = out.split('----split----')[1]
+
+    os.remove(temp)
+
+    print out
 
 def get_fs_base():
     '''Fetch %fs base value using arch_prctl(ARCH_GET_FS).  This is
@@ -122,8 +145,7 @@ class CoroutineCommand(gdb.Command):
         try:
             bt_regs(regs)
         except gdb.error:
-            print "Coroutine backtrace can't be obtained without " \
-                  "a process to debug."
+            bt_regs_static(regs)
 
 class CoroutineSPFunction(gdb.Function):
     def __init__(self):
