@@ -14,6 +14,7 @@
 # GNU GPL, version 2 or (at your option) any later version.
 
 import gdb
+import re
 
 VOID_PTR = gdb.lookup_type('void').pointer()
 
@@ -28,7 +29,17 @@ def get_fs_base():
     return fs_base
 
 def pthread_self():
-    '''Fetch pthread_self() from the glibc start_thread function.'''
+    # Try read pthread_self from gdb command 'info threads'.
+    # Will fail for old gdb.
+    try:
+        threads = gdb.execute('info threads', False, True)
+        m = re.search('^\* 1    Thread (0x[0-9a-f]+)', threads, re.MULTILINE)
+        return int(m.group(1), 16)
+    except TypeError:
+        # gdb doesn't support third parameter for execute
+        pass
+
+    # Try fetch pthread_self() from the glibc start_thread function.
     f = gdb.newest_frame()
     while f.name() != 'start_thread':
         f = f.older()
