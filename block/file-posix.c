@@ -159,8 +159,9 @@ typedef struct BDRVRawState {
     bool discard_zeroes:1;
     bool use_linux_aio:1;
     bool page_cache_inconsistent:1;
-    bool has_fallocate;
-    bool needs_alignment;
+    bool has_fallocate:1;
+    bool has_fallocate_zero_range:1;
+    bool needs_alignment:1;
 
     PRManager *pr_mgr;
 } BDRVRawState;
@@ -549,6 +550,7 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
 
     s->has_discard = true;
     s->has_write_zeroes = true;
+    s->has_fallocate_zero_range = true;
     if ((bs->open_flags & BDRV_O_NOCACHE) != 0) {
         s->needs_alignment = true;
     }
@@ -1365,10 +1367,6 @@ static ssize_t handle_aiocb_write_zeroes(RawPosixAIOData *aiocb)
     int64_t len;
 #endif
 
-    if (aiocb->aio_type & QEMU_AIO_BLKDEV) {
-        return handle_aiocb_write_zeroes_block(aiocb);
-    }
-
 #ifdef CONFIG_XFS
     if (s->is_xfs) {
         return xfs_write_zeroes(s, aiocb->aio_offset, aiocb->aio_nbytes);
@@ -1376,15 +1374,24 @@ static ssize_t handle_aiocb_write_zeroes(RawPosixAIOData *aiocb)
 #endif
 
 #ifdef CONFIG_FALLOCATE_ZERO_RANGE
-    if (s->has_write_zeroes) {
+    /* since linux 4.9, block device supports fallocate. kernel issues
+     * block device zereout request and invalidates page cache. So
+     * ioctl(fd, FALLOC_FL_ZERO_RANGE...) is safer than ioctl(fd,
+     * BLKZEROOUT...). try to call do_fallocate, if failing, fallback.
+     */
+    if (s->has_fallocate_zero_range) {
         int ret = do_fallocate(s->fd, FALLOC_FL_ZERO_RANGE,
                                aiocb->aio_offset, aiocb->aio_nbytes);
-        if (ret == 0 || ret != -ENOTSUP) {
+        if (ret == 0) {
             return ret;
-        }
-        s->has_write_zeroes = false;
+        } else if (ret == -ENOTSUP)
+            s->has_fallocate_zero_range = false;
     }
 #endif
+
+    if (aiocb->aio_type & QEMU_AIO_BLKDEV) {
+        return handle_aiocb_write_zeroes_block(aiocb);
+    }
 
 #ifdef CONFIG_FALLOCATE_PUNCH_HOLE
     if (s->has_discard && s->has_fallocate) {
