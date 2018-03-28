@@ -80,9 +80,8 @@ def get_jmpbuf_regs(jmpbuf):
         'r15': jmpbuf[JB_R15],
         'rip': glibc_ptr_demangle(jmpbuf[JB_PC], pointer_guard) }
 
-def bt_jmpbuf(jmpbuf):
-    '''Backtrace a jmpbuf'''
-    regs = get_jmpbuf_regs(jmpbuf)
+def bt_regs(regs):
+    '''Backtrace with specified regs'''
     old = dict()
 
     for i in regs:
@@ -113,7 +112,18 @@ class CoroutineCommand(gdb.Command):
             gdb.write('usage: qemu coroutine <coroutine-pointer>\n')
             return
 
-        bt_jmpbuf(coroutine_to_jmpbuf(gdb.parse_and_eval(argv[0])))
+        jmpbuf = coroutine_to_jmpbuf(gdb.parse_and_eval(argv[0]))
+        regs = get_jmpbuf_regs(jmpbuf)
+        for k, v in regs.iteritems():
+            gdb.write('%s: 0x%x\n' %(k,v))
+
+        gdb.write('\n')
+
+        try:
+            bt_regs(regs)
+        except gdb.error:
+            print "Coroutine backtrace can't be obtained without " \
+                  "a process to debug."
 
 class CoroutineSPFunction(gdb.Function):
     def __init__(self):
