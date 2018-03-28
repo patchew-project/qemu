@@ -45,7 +45,7 @@ typedef enum {
  * convert under the hood.
  */
 struct QNum {
-    QObject base;
+    struct QObjectCommon base;
     QNumKind kind;
     union {
         int64_t i64;
