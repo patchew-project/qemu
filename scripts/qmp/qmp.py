@@ -108,7 +108,7 @@ class QEMUMonitorProtocol(object):
         try:
             self.__json_read()
         except socket.error as err:
-            if err[0] == errno.EAGAIN:
+            if err.args[0] == errno.EAGAIN:
                 # No data available
                 pass
         self.__sock.setblocking(1)
@@ -168,9 +168,9 @@ class QEMUMonitorProtocol(object):
         try:
             self.__sock.sendall(json.dumps(qmp_cmd).encode('utf-8'))
         except socket.error as err:
-            if err[0] == errno.EPIPE:
+            if err.args[0] == errno.EPIPE:
                 return
-            raise socket.error(err)
+            raise
         resp = self.__json_read()
         self.logger.debug("<<< %s", resp)
         return resp
