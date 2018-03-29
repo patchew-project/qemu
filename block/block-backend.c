@@ -2217,3 +2217,11 @@ void blk_unregister_buf(BlockBackend *blk, void *host)
 {
     bdrv_unregister_buf(blk_bs(blk), host);
 }
+
+int coroutine_fn blk_co_copy_range(BlockBackend *blk_in, int64_t off_in,
+                                   BlockBackend *blk_out, int64_t off_out,
+                                   int bytes)
+{
+    return bdrv_co_copy_range(blk_in->root, off_in, blk_out->root, off_out,
+                              bytes);
+}
