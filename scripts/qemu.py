@@ -54,7 +54,7 @@ class QEMUMachine(object):
     '''
 
     def __init__(self, binary, args=None, wrapper=None, name=None,
-                 test_dir="/var/tmp", monitor_address=None,
+                 test_dir="/var/tmp", monitor_address=None, qmp=True,
                  socket_scm_helper=None):
         '''
         Initialize a QEMUMachine
@@ -65,6 +65,7 @@ class QEMUMachine(object):
         @param name: prefix for socket and log file names (default: qemu-PID)
         @param test_dir: where to create socket and log file
         @param monitor_address: address for QMP monitor
+        @param qmp: if False, disable QMP monitor
         @param socket_scm_helper: helper program, required for send_fd_scm()"
         @note: Qemu process is not started until launch() is used.
         '''
@@ -90,6 +91,7 @@ class QEMUMachine(object):
         self._test_dir = test_dir
         self._temp_dir = None
         self._launched = False
+        self._qmp_enabled = qmp
 
         # just in case logging wasn't configured by the main script:
         logging.basicConfig()
@@ -168,13 +170,18 @@ class QEMUMachine(object):
                 self._iolog = iolog.read()
 
     def _vm_monitor(self):
-        if self._monitor_address is not None:
+        if not self._qmp_enabled:
+            return None
+        elif self._monitor_address is not None:
             return self._monitor_address
         else:
             return os.path.join(self._temp_dir, self._name + "-monitor.sock")
 
     def _monitor_args(self):
         addr = self._vm_monitor()
+        if addr is None:
+            return []
+
         if isinstance(addr, tuple):
             moncdev = "socket,id=mon,host=%s,port=%s" % (addr[0], addr[1])
         else:
@@ -193,10 +200,14 @@ class QEMUMachine(object):
         self._qemu_log_path = os.path.join(self._temp_dir, self._name + ".log")
         self._qemu_log_file = open(self._qemu_log_path, 'wb')
 
-        self._qmp = qmp.qmp.QEMUMonitorProtocol(self._vm_monitor(), server=True)
+        self._qmp = \
+            qmp.qmp.QEMUMonitorProtocol(self._vm_monitor(), server=True) \
+            if self._qmp_enabled \
+            else None
 
     def _post_launch(self):
-        self._qmp.accept()
+        if self._qmp:
+            self._qmp.accept()
 
     def _post_shutdown(self):
         if self._qmp is not None:
