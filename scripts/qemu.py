@@ -311,6 +311,9 @@ class QEMUMachine(object):
 
         return self._qmp.cmd(cmd, args=qmp_args)
 
+    def qmp_obj(self, *args, **kwargs):
+        return self._qmp.cmd_obj(*args, **kwargs)
+
     def command(self, cmd, conv_keys=True, **args):
         '''
         Invoke a QMP command.
