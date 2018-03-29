@@ -73,6 +73,8 @@ class QEMUMonitorProtocol(object):
             raise QMPConnectError
         # Greeting seems ok, negotiate capabilities
         resp = self.cmd('qmp_capabilities')
+        if resp is None:
+            raise QMPConnectError("QMP connection unexpectedly closed")
         if "return" in resp:
             return greeting
         raise QMPCapabilitiesError
@@ -182,6 +184,8 @@ class QEMUMonitorProtocol(object):
         @param name: command name (string)
         @param args: command arguments (dict)
         @param cmd_id: command id (dict, list, string or int)
+        @return QMP response as a Python dict or None if the connection has
+                been closed
         """
         qmp_cmd = {'execute': name}
         if args:
@@ -195,6 +199,8 @@ class QEMUMonitorProtocol(object):
         Build and send a QMP command to the monitor, report errors if any
         """
         ret = self.cmd(cmd, kwds)
+        if ret is None:
+            raise QMPConnectError("QMP connection unexpectedly closed")
         if "error" in ret:
             raise Exception(ret['error']['desc'])
         return ret['return']
