@@ -244,7 +244,9 @@ class QEMUMonitorProtocol(object):
 
     def close(self):
         self.__sock.close()
-        self.__sockfile.close()
+        if self.__sockfile is not None:
+            self.__sockfile.close()
+            self.__sockfile = None
 
     def settimeout(self, timeout):
         self.__sock.settimeout(timeout)
