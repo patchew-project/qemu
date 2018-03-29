@@ -1,0 +1,23 @@
+# This test specification is equivalent to "device/introspect/concrete" in
+# tests/device-introspect-test.c
+command-line: '$QEMU -S -machine $MACHINE,accel=$ACCEL'
+monitor-commands:
+- qmp:
+  - execute: 'device-list-properties'
+    arguments:
+      typename: '$DEVICE'
+- hmp: 'device_add $DEVICE,help'
+- hmp: 'info qom-tree'
+defaults:
+  MACHINE: 'none'
+  ACCEL: 'kvm:tcg'
+expected-failures:
+  - MACHINE: 'xenpv'
+  - MACHINE: 'xenfv'
+
+#TODO: the test runner could support something like:
+# extra-cases:
+#   # like "device/introspect/none":
+#   - DEVICE: 'nonexistent'
+#   # like "device/introspect/abstract":
+#   - DEVICE: 'device'

@@ -1,0 +1,17 @@
+# This test specification will try device_add with all device types
+command-line: '$QEMU -S -machine $MACHINE,accel=$ACCEL'
+monitor-commands:
+- qmp:
+  - execute: 'device_add'
+    arguments:
+      driver: '$DEVICE'
+      id: 'test-device-for-$DEVICE'
+  - execute: 'device_del'
+    arguments:
+      id: 'test-device-for-$DEVICE'
+defaults:
+  MACHINE: 'none'
+  ACCEL: 'kvm:tcg'
+expected-failures:
+  - MACHINE: 'xenpv'
+  - MACHINE: 'xenfv'

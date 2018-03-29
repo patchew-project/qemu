@@ -1,0 +1,7 @@
+# this is a very simple test case generator that will run QEMU
+# using all combinations of -machine and -device.
+# This replaces scripts/device-crash-test.
+# TODO: use a $MACHINE_OPT variable to make -machine optional
+command-line: '$QEMU -S -machine $MACHINE,accel=$ACCEL -device $DEVICE'
+
+#TODO: represent the whitelist from device-crash-test script somehow

@@ -1,0 +1,3 @@
+# Just check if -device ...,help works:
+command-line: '$QEMU -device $DEVICE,help'
+qmp: false

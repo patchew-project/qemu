@@ -1,0 +1,3 @@
+# just run $QEMU -help and ensure it won't crash
+command-line: '$QEMU -help'
+qmp: false

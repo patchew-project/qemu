@@ -1,0 +1,5 @@
+# Simply check if QEMU will run without errors using a CPU model:
+command-line: '$QEMU -S -cpu $CPU'
+expected-failures:
+    # "host" doesn't always work
+    - CPU: 'host'

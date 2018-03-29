@@ -1,0 +1,10 @@
+# this test specification is equivalent to the
+# "device/introspect/list" test case in device-introspect-test.c
+command-line: '$QEMU -nodefaults -machine none'
+monitor-commands:
+- qmp:
+  - execute: qom-list-types
+    arguments:
+      implements: 'device'
+      abstract: true
+- hmp: 'device_add help'
