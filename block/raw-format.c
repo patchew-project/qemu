@@ -263,6 +263,14 @@ static int coroutine_fn raw_co_block_status(BlockDriverState *bs,
     return BDRV_BLOCK_RAW | BDRV_BLOCK_OFFSET_VALID;
 }
 
+static int coroutine_fn raw_co_map_range(BlockDriverState *bs, int64_t offset,
+                                         int64_t bytes, int64_t *pnum, int64_t *map,
+                                         BlockDriverState **file,
+                                         int flags)
+{
+    return raw_co_block_status(bs, true, offset, bytes, pnum, map, file);
+}
+
 static int coroutine_fn raw_co_pwrite_zeroes(BlockDriverState *bs,
                                              int64_t offset, int bytes,
                                              BdrvRequestFlags flags)
@@ -498,6 +506,7 @@ BlockDriver bdrv_raw = {
     .bdrv_co_pwrite_zeroes = &raw_co_pwrite_zeroes,
     .bdrv_co_pdiscard     = &raw_co_pdiscard,
     .bdrv_co_block_status = &raw_co_block_status,
+    .bdrv_co_map_range    = &raw_co_map_range,
     .bdrv_truncate        = &raw_truncate,
     .bdrv_getlength       = &raw_getlength,
     .has_variable_length  = true,
