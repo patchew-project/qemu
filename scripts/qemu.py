@@ -173,15 +173,20 @@ class QEMUMachine(object):
         else:
             return os.path.join(self._temp_dir, self._name + "-monitor.sock")
 
-    def _base_args(self):
+    def _monitor_args(self):
         addr = self._vm_monitor()
         if isinstance(addr, tuple):
             moncdev = "socket,id=mon,host=%s,port=%s" % (addr[0], addr[1])
         else:
             moncdev = 'socket,id=mon,path=%s' % (addr)
         return ['-chardev', moncdev,
-                '-mon', 'chardev=mon,mode=control',
-                '-display', 'none', '-vga', 'none']
+                '-mon', 'chardev=mon,mode=control']
+
+    def _display_args(self):
+        return ['-display', 'none', '-vga', 'none']
+
+    def _base_args(self):
+        return self._monitor_args() + self._display_args()
 
     def _pre_launch(self):
         self._temp_dir = tempfile.mkdtemp(dir=self._test_dir)
