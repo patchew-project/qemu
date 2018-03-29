@@ -76,7 +76,6 @@ class QEMUMachine(object):
             name = "qemu-%d" % os.getpid()
         self._name = name
         self._monitor_address = monitor_address
-        self._vm_monitor = None
         self._qemu_log_path = None
         self._qemu_log_file = None
         self._popen = None
@@ -168,29 +167,28 @@ class QEMUMachine(object):
             with open(self._qemu_log_path, "r") as iolog:
                 self._iolog = iolog.read()
 
-    def _base_args(self):
-        if isinstance(self._monitor_address, tuple):
-            moncdev = "socket,id=mon,host=%s,port=%s" % (
-                self._monitor_address[0],
-                self._monitor_address[1])
+    def _vm_monitor(self):
+        if self._monitor_address is not None:
+            return self._monitor_address
         else:
-            moncdev = 'socket,id=mon,path=%s' % self._vm_monitor
+            return os.path.join(self._temp_dir, self._name + "-monitor.sock")
+
+    def _base_args(self):
+        addr = self._vm_monitor()
+        if isinstance(addr, tuple):
+            moncdev = "socket,id=mon,host=%s,port=%s" % (addr[0], addr[1])
+        else:
+            moncdev = 'socket,id=mon,path=%s' % (addr)
         return ['-chardev', moncdev,
                 '-mon', 'chardev=mon,mode=control',
                 '-display', 'none', '-vga', 'none']
 
     def _pre_launch(self):
         self._temp_dir = tempfile.mkdtemp(dir=self._test_dir)
-        if self._monitor_address is not None:
-            self._vm_monitor = self._monitor_address
-        else:
-            self._vm_monitor = os.path.join(self._temp_dir,
-                                            self._name + "-monitor.sock")
         self._qemu_log_path = os.path.join(self._temp_dir, self._name + ".log")
         self._qemu_log_file = open(self._qemu_log_path, 'wb')
 
-        self._qmp = qmp.qmp.QEMUMonitorProtocol(self._vm_monitor,
-                                                server=True)
+        self._qmp = qmp.qmp.QEMUMonitorProtocol(self._vm_monitor(), server=True)
 
     def _post_launch(self):
         self._qmp.accept()
