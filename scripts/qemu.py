@@ -258,12 +258,10 @@ class QEMUMachine(object):
         if self.is_running():
             try:
                 self._qmp.cmd('quit')
-                self._qmp.close()
             except:
                 self._popen.kill()
-            self._popen.wait()
 
-        self._post_shutdown()
+        self.wait()
 
         exitcode = self.exitcode()
         if exitcode is not None and exitcode < 0:
