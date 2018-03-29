@@ -225,6 +225,8 @@ class QEMUMachine(object):
             shutil.rmtree(self._temp_dir)
             self._temp_dir = None
 
+        self._launched = False
+
     def launch(self):
         """
         Launch the VM and make sure we cleanup and expose the
@@ -285,8 +287,6 @@ class QEMUMachine(object):
             else:
                 command = ''
             LOG.warn(msg, exitcode, command)
-
-        self._launched = False
 
     def qmp(self, cmd, conv_keys=True, **args):
         '''Invoke a QMP command and return the response dict'''
