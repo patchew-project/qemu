@@ -475,6 +475,27 @@ struct BlockDriver {
      */
     void (*bdrv_register_buf)(BlockDriverState *bs, void *host, size_t size);
     void (*bdrv_unregister_buf)(BlockDriverState *bs, void *host);
+
+    /**
+     * Get or create offset mappings for a virtual range.
+     *
+     * @offset: the offset of the beginning of the range.
+     * @bytes: the maximum bytes of the range to map.
+     * @pnum: at return, this will point to the number of bytes in the returned
+     * mapping status
+     * @map: at return, this will point to the offset which the range maps to
+     * @file: at return, this will point to the file where the data is mapped.
+     * If it is set to bs, it means the mapping is terminal and the result can
+     * be used for read/write and copy_range; if it is NULL, it means the range
+     * doesn't map to a file, or no I/O to any file is necessary; otherwise, it
+     * means the query should be passed down to an underlying format/protocol.
+     * @flags: flags for the request. BDRV_REQ_ALLOCATE means the range
+     * should be allocated if necessary.
+     */
+    int (*bdrv_co_map_range)(BlockDriverState *bs, int64_t offset,
+                             int64_t bytes, int64_t *pnum, int64_t *map,
+                             BlockDriverState **file,
+                             int flags);
     QLIST_ENTRY(BlockDriver) list;
 };
 

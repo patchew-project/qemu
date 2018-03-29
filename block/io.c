@@ -2826,3 +2826,47 @@ void bdrv_unregister_buf(BlockDriverState *bs, void *host)
         bdrv_unregister_buf(child->bs, host);
     }
 }
+
+int coroutine_fn bdrv_co_map_range(BdrvChild *child, int64_t offset,
+                                   int64_t bytes, int64_t *pnum, int64_t *map,
+                                   BlockDriverState **file,
+                                   int flags)
+{
+    BlockDriverState *bs = child->bs;
+
+    if (bs->encrypted) {
+        return -ENOTSUP;
+    }
+    while (bs && bs->drv && bs->drv->bdrv_co_map_range) {
+        int64_t cur_pnum, cur_map;
+        BlockDriverState *cur_file = NULL;
+        int r = bs->drv->bdrv_co_map_range(bs, offset, bytes,
+                                           &cur_pnum, &cur_map, &cur_file,
+                                           flags);
+        if (r < 0) {
+            return r;
+        }
+        offset = cur_map;
+        bytes = cur_pnum;
+        if (pnum) {
+            *pnum = cur_pnum;
+        }
+        if (map) {
+            *map = cur_map;
+        }
+        if (!(r & BDRV_BLOCK_OFFSET_VALID)) {
+            return -ENOTSUP;
+        }
+        if (file) {
+            *file = cur_file;
+        }
+        if (!cur_file) {
+            return -ENOTSUP;
+        }
+        if (cur_file == bs) {
+            return r;
+        }
+        bs = cur_file;
+    }
+    return -ENOTSUP;
+}
