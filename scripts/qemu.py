@@ -251,7 +251,7 @@ class QEMUMachine(object):
             self._launch()
             self._launched = True
         except:
-            self.shutdown()
+            self.shutdown(force=True)
 
             LOG.debug('Error launching VM')
             if self._qemu_full_args:
