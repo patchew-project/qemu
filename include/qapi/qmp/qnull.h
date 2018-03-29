@@ -16,7 +16,7 @@
 #include "qapi/qmp/qobject.h"
 
 struct QNull {
-    QObject base;
+    struct QObjectCommon base;
 };
 
 extern QNull qnull_;
