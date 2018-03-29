@@ -279,13 +279,24 @@ class QEMUMachine(object):
             self._popen.wait()
         self._post_shutdown()
 
-    def shutdown(self):
-        '''Terminate the VM and clean up'''
-        if self.is_running():
+    def shutdown(self, force=None):
+        '''Terminate the VM and clean up
+
+        @param force: If True, terminate QEMU process, if False always try
+                      clean shutdown, if None terminate QEMU process if
+                      clean shutdown fails.
+        '''
+        if not force and self.is_running():
             try:
                 self._qmp.cmd('quit')
             except:
-                self._popen.kill()
+                if force is None:
+                    force = True
+                else:
+                    raise
+
+        if force and self.is_running():
+            self._popen.kill()
 
         self.wait()
 
