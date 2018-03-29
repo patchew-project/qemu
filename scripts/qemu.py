@@ -236,6 +236,9 @@ class QEMUMachine(object):
 
         self._launched = False
 
+    def is_launched(self):
+        return self._launched
+
     def launch(self):
         """
         Launch the VM and make sure we cleanup and expose the
