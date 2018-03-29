@@ -275,7 +275,8 @@ class QEMUMachine(object):
 
     def wait(self):
         '''Wait for the VM to power off'''
-        self._popen.wait()
+        if self.is_running():
+            self._popen.wait()
         self._post_shutdown()
 
     def shutdown(self):
