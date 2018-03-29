@@ -1656,6 +1656,17 @@ static int coroutine_fn raw_co_pwritev(BlockDriverState *bs, uint64_t offset,
     return raw_co_prw(bs, offset, bytes, qiov, QEMU_AIO_WRITE);
 }
 
+static int raw_co_map_range(BlockDriverState *bs, int64_t offset,
+                         int64_t bytes, int64_t *pnum, int64_t *map,
+                         BlockDriverState **file,
+                         int flags)
+{
+    *file = bs;
+    *pnum = bytes;
+    *map = offset;
+    return BDRV_BLOCK_DATA | BDRV_BLOCK_OFFSET_VALID;
+}
+
 static int raw_co_copy_range(BlockDriverState *bs, int64_t off_in,
                              BlockDriverState *out, int64_t off_out,
                              int bytes)
@@ -2389,6 +2400,7 @@ BlockDriver bdrv_file = {
     .bdrv_co_preadv         = raw_co_preadv,
     .bdrv_co_pwritev        = raw_co_pwritev,
     .bdrv_co_copy_range     = raw_co_copy_range,
+    .bdrv_co_map_range      = raw_co_map_range,
     .bdrv_aio_flush = raw_aio_flush,
     .bdrv_aio_pdiscard = raw_aio_pdiscard,
     .bdrv_refresh_limits = raw_refresh_limits,
@@ -2867,6 +2879,7 @@ static BlockDriver bdrv_host_device = {
     .bdrv_co_preadv         = raw_co_preadv,
     .bdrv_co_pwritev        = raw_co_pwritev,
     .bdrv_co_copy_range     = raw_co_copy_range,
+    .bdrv_co_map_range      = raw_co_map_range,
     .bdrv_aio_flush	= raw_aio_flush,
     .bdrv_aio_pdiscard   = hdev_aio_pdiscard,
     .bdrv_refresh_limits = raw_refresh_limits,
@@ -2990,6 +3003,7 @@ static BlockDriver bdrv_host_cdrom = {
     .bdrv_co_preadv         = raw_co_preadv,
     .bdrv_co_pwritev        = raw_co_pwritev,
     .bdrv_co_copy_range     = raw_co_copy_range,
+    .bdrv_co_map_range      = raw_co_map_range,
     .bdrv_aio_flush	= raw_aio_flush,
     .bdrv_refresh_limits = raw_refresh_limits,
     .bdrv_io_plug = raw_aio_plug,
@@ -3121,6 +3135,7 @@ static BlockDriver bdrv_host_cdrom = {
     .bdrv_co_preadv         = raw_co_preadv,
     .bdrv_co_pwritev        = raw_co_pwritev,
     .bdrv_co_copy_range     = raw_co_copy_range,
+    .bdrv_co_map_range      = raw_co_map_range,
     .bdrv_aio_flush	= raw_aio_flush,
     .bdrv_refresh_limits = raw_refresh_limits,
     .bdrv_io_plug = raw_aio_plug,
