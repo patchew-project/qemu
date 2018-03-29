@@ -496,6 +496,20 @@ struct BlockDriver {
                              int64_t bytes, int64_t *pnum, int64_t *map,
                              BlockDriverState **file,
                              int flags);
+    /**
+     * Do offloaded copying of data range. Must be implemented together with
+     * bdrv_co_map_range.
+     *
+     * @bs: where to copy data from
+     * @off_in: the offset to copy data from in @bs
+     * @out: where to write data to. This is guaranteed to be the same
+     *       BlockDriver as @bs
+     * @off_out: the offset to copy data to in @out
+     * @bytes: the number of bytes to copy
+     */
+    int (*bdrv_co_copy_range)(BlockDriverState *bs, int64_t off_in,
+                              BlockDriverState *out, int64_t off_out,
+                              int bytes);
     QLIST_ENTRY(BlockDriver) list;
 };
 

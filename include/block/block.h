@@ -610,4 +610,8 @@ int bdrv_co_map_range(BdrvChild *child, int64_t offset,
                       int64_t bytes, int64_t *pnum, int64_t *map,
                       BlockDriverState **file,
                       int flags);
+int bdrv_co_copy_range(BdrvChild *child_in, int64_t off_in,
+                       BdrvChild *child_out, int64_t off_out,
+                       int bytes);
+
 #endif
