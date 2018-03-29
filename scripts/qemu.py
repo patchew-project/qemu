@@ -225,6 +225,15 @@ class QEMUMachine(object):
             shutil.rmtree(self._temp_dir)
             self._temp_dir = None
 
+        exitcode = self.exitcode()
+        if exitcode is not None and exitcode < 0:
+            msg = 'qemu received signal %i: %s'
+            if self._qemu_full_args:
+                command = ' '.join(self._qemu_full_args)
+            else:
+                command = ''
+            LOG.warn(msg, exitcode, command)
+
         self._launched = False
 
     def launch(self):
@@ -278,15 +287,6 @@ class QEMUMachine(object):
                 self._popen.kill()
 
         self.wait()
-
-        exitcode = self.exitcode()
-        if exitcode is not None and exitcode < 0:
-            msg = 'qemu received signal %i: %s'
-            if self._qemu_full_args:
-                command = ' '.join(self._qemu_full_args)
-            else:
-                command = ''
-            LOG.warn(msg, exitcode, command)
 
     def qmp(self, cmd, conv_keys=True, **args):
         '''Invoke a QMP command and return the response dict'''
