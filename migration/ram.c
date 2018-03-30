@@ -51,6 +51,7 @@
 #include "qemu/rcu_queue.h"
 #include "migration/colo.h"
 #include "migration/block.h"
+#include "sysemu/balloon.h"
 
 /***********************************************************/
 /* ram save/restore */
@@ -213,6 +214,8 @@ struct RAMState {
     uint32_t last_version;
     /* We are in the first round */
     bool ram_bulk_stage;
+    /* The free pages optimization feature is supported */
+    bool free_page_support;
     /* How many times we have dirty too many pages */
     int dirty_rate_high_cnt;
     /* these variables are used for bitmap sync */
@@ -841,6 +844,10 @@ static void migration_bitmap_sync(RAMState *rs)
     int64_t end_time;
     uint64_t bytes_xfer_now;
 
+    if (rs->free_page_support) {
+        balloon_free_page_stop();
+    }
+
     ram_counters.dirty_sync_count++;
 
     if (!rs->time_last_bitmap_sync) {
@@ -906,6 +913,10 @@ static void migration_bitmap_sync(RAMState *rs)
     }
     if (migrate_use_events()) {
         qapi_event_send_migration_pass(ram_counters.dirty_sync_count, NULL);
+    }
+
+    if (rs->free_page_support) {
+        balloon_free_page_start();
     }
 }
 
@@ -1663,7 +1674,17 @@ static void ram_state_reset(RAMState *rs)
     rs->last_sent_block = NULL;
     rs->last_page = 0;
     rs->last_version = ram_list.version;
-    rs->ram_bulk_stage = true;
+    rs->free_page_support = balloon_free_page_support() && !migrate_postcopy();
+    if (rs->free_page_support) {
+        /*
+         * When the free page optimization is used, not all the pages are
+         * treated as dirty pages (via migration_bitmap_find_dirty), which need
+         * to be sent. So disable ram_bulk_stage in this case.
+         */
+        rs->ram_bulk_stage = false;
+    } else {
+        rs->ram_bulk_stage = true;
+    }
 }
 
 #define MAX_WAIT 50 /* ms, half buffered_file limit */
@@ -2369,6 +2390,9 @@ out:
 
     ret = qemu_file_get_error(f);
     if (ret < 0) {
+        if (rs->free_page_support) {
+            balloon_free_page_stop();
+        }
         return ret;
     }
 
