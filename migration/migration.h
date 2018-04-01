@@ -206,6 +206,7 @@ MigrationState *migrate_get_current(void);
 
 bool migrate_postcopy(void);
 
+bool migrate_bypass_shared_memory(void);
 bool migrate_release_ram(void);
 bool migrate_postcopy_ram(void);
 bool migrate_zero_blocks(void);

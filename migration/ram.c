@@ -780,6 +780,10 @@ unsigned long migration_bitmap_find_dirty(RAMState *rs, RAMBlock *rb,
     unsigned long *bitmap = rb->bmap;
     unsigned long next;
 
+    /* when this ramblock is requested bypassing */
+    if (!bitmap)
+        return size;
+
     if (rs->ram_bulk_stage && start > 0) {
         next = start + 1;
     } else {
@@ -850,7 +854,9 @@ static void migration_bitmap_sync(RAMState *rs)
     qemu_mutex_lock(&rs->bitmap_mutex);
     rcu_read_lock();
     RAMBLOCK_FOREACH(block) {
-        migration_bitmap_sync_range(rs, block, 0, block->used_length);
+        if (!migrate_bypass_shared_memory() || !qemu_ram_is_shared(block)) {
+            migration_bitmap_sync_range(rs, block, 0, block->used_length);
+        }
     }
     rcu_read_unlock();
     qemu_mutex_unlock(&rs->bitmap_mutex);
@@ -2132,18 +2138,12 @@ static int ram_state_init(RAMState **rsp)
     qemu_mutex_init(&(*rsp)->src_page_req_mutex);
     QSIMPLEQ_INIT(&(*rsp)->src_page_requests);
 
-    /*
-     * Count the total number of pages used by ram blocks not including any
-     * gaps due to alignment or unplugs.
-     */
-    (*rsp)->migration_dirty_pages = ram_bytes_total() >> TARGET_PAGE_BITS;
-
     ram_state_reset(*rsp);
 
     return 0;
 }
 
-static void ram_list_init_bitmaps(void)
+static void ram_list_init_bitmaps(RAMState *rs)
 {
     RAMBlock *block;
     unsigned long pages;
@@ -2151,9 +2151,17 @@ static void ram_list_init_bitmaps(void)
     /* Skip setting bitmap if there is no RAM */
     if (ram_bytes_total()) {
         QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
+            if (migrate_bypass_shared_memory() && qemu_ram_is_shared(block)) {
+                continue;
+            }
             pages = block->max_length >> TARGET_PAGE_BITS;
             block->bmap = bitmap_new(pages);
             bitmap_set(block->bmap, 0, pages);
+            /*
+             * Count the total number of pages used by ram blocks not
+             * including any gaps due to alignment or unplugs.
+             */
+            rs->migration_dirty_pages += pages;
             if (migrate_postcopy_ram()) {
                 block->unsentmap = bitmap_new(pages);
                 bitmap_set(block->unsentmap, 0, pages);
@@ -2169,7 +2177,7 @@ static void ram_init_bitmaps(RAMState *rs)
     qemu_mutex_lock_ramlist();
     rcu_read_lock();
 
-    ram_list_init_bitmaps();
+    ram_list_init_bitmaps(rs);
     memory_global_dirty_log_start();
     migration_bitmap_sync(rs);
 
