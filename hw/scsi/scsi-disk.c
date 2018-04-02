@@ -2651,9 +2651,25 @@ typedef struct SCSIBlockReq {
     /* Selected bytes of the original CDB, copied into our own CDB.  */
     uint8_t cmd, cdb1, group_number;
 
+    BlockCompletionFunc *cb;
+    void *cb_opaque;
+
     /* CDB passed to SG_IO.  */
     uint8_t cdb[16];
 } SCSIBlockReq;
+
+static void scsi_block_sgio_cb(void *opaque, int ret)
+{
+    SCSIBlockReq *req = opaque;
+
+    if (!ret &&
+        (req->io_header.status ||
+         req->io_header.host_status ||
+         req->io_header.driver_status)) {
+        ret = -EIO;
+    }
+    req->cb(req->cb_opaque, ret);
+}
 
 static BlockAIOCB *scsi_block_do_sgio(SCSIBlockReq *req,
                                       int64_t offset, QEMUIOVector *iov,
@@ -2734,7 +2750,9 @@ static BlockAIOCB *scsi_block_do_sgio(SCSIBlockReq *req,
     io_header->usr_ptr = r;
     io_header->flags |= SG_FLAG_DIRECT_IO;
 
-    aiocb = blk_aio_ioctl(s->qdev.conf.blk, SG_IO, io_header, cb, opaque);
+    req->cb_opaque = opaque;
+    aiocb = blk_aio_ioctl(s->qdev.conf.blk, SG_IO, io_header,
+                          scsi_block_sgio_cb, req);
     assert(aiocb != NULL);
     return aiocb;
 }
