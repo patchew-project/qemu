@@ -130,6 +130,12 @@
 
 #define SVM_CR0_SELECTIVE_MASK (1 << 3 | 1) /* TS and MP */
 
+#define SVM_NPT_ENABLED     (1 << 0)
+
+#define SVM_NPT_PAE         (1 << 0)
+#define SVM_NPT_LMA         (1 << 1)
+#define SVM_NPT_NXE         (1 << 2)
+
 struct QEMU_PACKED vmcb_control_area {
 	uint16_t intercept_cr_read;
 	uint16_t intercept_cr_write;
