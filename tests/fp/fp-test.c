@@ -53,6 +53,9 @@ enum op {
     OP_SUB,
     OP_MUL,
     OP_MULADD,
+    OP_MULADD_NEG_ADDEND,
+    OP_MULADD_NEG_PRODUCT,
+    OP_MULADD_NEG_RESULT,
     OP_DIV,
     OP_SQRT,
     OP_MINNUM,
@@ -69,6 +72,9 @@ static const struct op_desc ops[] = {
     [OP_SUB] =       { "-", 2 },
     [OP_MUL] =       { "*", 2 },
     [OP_MULADD] =    { "*+", 3 },
+    [OP_MULADD_NEG_ADDEND] =  { "*+nc", 3 },
+    [OP_MULADD_NEG_PRODUCT] = { "*+np", 3 },
+    [OP_MULADD_NEG_RESULT] =  { "*+nr", 3 },
     [OP_DIV] =       { "/", 2 },
     [OP_SQRT] =      { "V", 1 },
     [OP_MINNUM] =    { "<C", 2 },
@@ -463,6 +469,15 @@ static enum error soft_tester(struct test_op *t)
         case OP_MULADD:
             res = float32_muladd(a, b, c, 0, s);
             break;
+        case OP_MULADD_NEG_ADDEND:
+            res = float32_muladd(a, b, c, float_muladd_negate_c, s);
+            break;
+        case OP_MULADD_NEG_PRODUCT:
+            res = float32_muladd(a, b, c, float_muladd_negate_product, s);
+            break;
+        case OP_MULADD_NEG_RESULT:
+            res = float32_muladd(a, b, c, float_muladd_negate_result, s);
+            break;
         case OP_DIV:
             res = float32_div(a, b, s);
             break;
@@ -521,6 +536,15 @@ static enum error soft_tester(struct test_op *t)
             break;
         case OP_MULADD:
             res64 = float64_muladd(a, b, c, 0, s);
+            break;
+        case OP_MULADD_NEG_ADDEND:
+            res64 = float64_muladd(a, b, c, float_muladd_negate_c, s);
+            break;
+        case OP_MULADD_NEG_PRODUCT:
+            res64 = float64_muladd(a, b, c, float_muladd_negate_product, s);
+            break;
+        case OP_MULADD_NEG_RESULT:
+            res64 = float64_muladd(a, b, c, float_muladd_negate_result, s);
             break;
         case OP_DIV:
             res64 = float64_div(a, b, s);
