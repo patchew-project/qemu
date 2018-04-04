@@ -77,13 +77,11 @@ def bt_jmpbuf(jmpbuf):
     for i in regs:
         old[i] = gdb.parse_and_eval('(uint64_t)$%s' % i)
 
-    for i in regs:
-        gdb.execute('set $%s = %s' % (i, regs[i]))
+    gdb.execute('select-frame %s %s' % (regs['rsp'], regs['rip']))
 
     gdb.execute('bt')
 
-    for i in regs:
-        gdb.execute('set $%s = %s' % (i, old[i]))
+    gdb.execute('select-frame %s %s' % (old['rsp'], old['rip']))
 
 def coroutine_to_jmpbuf(co):
     coroutine_pointer = co.cast(gdb.lookup_type('CoroutineUContext').pointer())
