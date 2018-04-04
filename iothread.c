@@ -117,16 +117,26 @@ static void iothread_instance_finalize(Object *obj)
     IOThread *iothread = IOTHREAD(obj);
 
     iothread_stop(iothread);
+    /*
+     * With glib version 2.28.8-9 (current default version on centos6)
+     * we might encounter problem of qmp-test OOB hang if we unref the
+     * AIO context later than the GMainContext below.  Let's free the
+     * AIO context earlier to bypass that possible glib bug.
+     *
+     * It is verified that glib version 2.50.3-3 (or even earlier)
+     * won't trigger that bug again, but since we are still supporting
+     * glib 2.28.8-9, we need this workaround.
+     */
+    if (iothread->ctx) {
+        aio_context_unref(iothread->ctx);
+        iothread->ctx = NULL;
+    }
     if (iothread->worker_context) {
         g_main_context_unref(iothread->worker_context);
         iothread->worker_context = NULL;
     }
     qemu_cond_destroy(&iothread->init_done_cond);
     qemu_mutex_destroy(&iothread->init_done_lock);
-    if (!iothread->ctx) {
-        return;
-    }
-    aio_context_unref(iothread->ctx);
 }
 
 static void iothread_complete(UserCreatable *obj, Error **errp)
