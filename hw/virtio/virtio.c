@@ -39,6 +39,14 @@ typedef struct VRingDesc
     uint16_t next;
 } VRingDesc;
 
+typedef struct VRingDescPacked
+{
+    uint64_t addr;
+    uint32_t len;
+    uint16_t id;
+    uint16_t flags;
+} VRingDescPacked;
+
 typedef struct VRingAvail
 {
     uint16_t flags;
@@ -61,9 +69,18 @@ typedef struct VRingUsed
 
 typedef struct VRingMemoryRegionCaches {
     struct rcu_head rcu;
-    MemoryRegionCache desc;
-    MemoryRegionCache avail;
-    MemoryRegionCache used;
+    union {
+        struct {
+            MemoryRegionCache desc;
+            MemoryRegionCache avail;
+            MemoryRegionCache used;
+        };
+        struct {
+            MemoryRegionCache desc_packed;
+            MemoryRegionCache driver;
+            MemoryRegionCache device;
+        };
+    };
 } VRingMemoryRegionCaches;
 
 typedef struct VRing
@@ -77,10 +94,31 @@ typedef struct VRing
     VRingMemoryRegionCaches *caches;
 } VRing;
 
+typedef struct VRingPackedDescEvent {
+    uint16_t desc_event_off:15,
+             desc_event_wrap:1;
+    uint16_t desc_event_flags:2;
+} VRingPackedDescEvent ;
+
+typedef struct VRingPacked
+{
+    unsigned int num;
+    unsigned int num_default;
+    unsigned int align;
+    hwaddr desc;
+    hwaddr driver;
+    hwaddr device;
+    VRingMemoryRegionCaches *caches;
+} VRingPacked;
+
 struct VirtQueue
 {
-    VRing vring;
+    union {
+        struct VRing vring;
+        struct VRingPacked packed;
+    };
 
+    uint8_t wrap_counter:1;
     /* Next head to pop */
     uint16_t last_avail_idx;
 
@@ -1220,6 +1258,7 @@ void virtio_reset(void *opaque)
         vdev->vq[i].vring.num = vdev->vq[i].vring.num_default;
         vdev->vq[i].inuse = 0;
         virtio_virtqueue_reset_region_cache(&vdev->vq[i]);
+        vdev->vq[i].wrap_counter = 1;
     }
 }
 

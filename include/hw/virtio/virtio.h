@@ -46,6 +46,14 @@ typedef struct VirtQueueElement
     unsigned int index;
     unsigned int out_num;
     unsigned int in_num;
+
+    /* Number of descriptors used by packed ring */
+    uint16_t count;
+    uint8_t wrap_counter:1;
+    /* FIXME: Length of every used buffer for a descriptor,
+       move to dynamical allocating due to out/in sgs numbers */
+    uint32_t len[VIRTQUEUE_MAX_SIZE];
+
     hwaddr *in_addr;
     hwaddr *out_addr;
     struct iovec *in_sg;
@@ -262,7 +270,9 @@ typedef struct VirtIORNGConf VirtIORNGConf;
     DEFINE_PROP_BIT64("any_layout", _state, _field, \
                       VIRTIO_F_ANY_LAYOUT, true), \
     DEFINE_PROP_BIT64("iommu_platform", _state, _field, \
-                      VIRTIO_F_IOMMU_PLATFORM, false)
+                      VIRTIO_F_IOMMU_PLATFORM, false), \
+    DEFINE_PROP_BIT64("ring_packed", _state, _field, \
+                      VIRTIO_F_RING_PACKED, true)
 
 hwaddr virtio_queue_get_desc_addr(VirtIODevice *vdev, int n);
 hwaddr virtio_queue_get_avail_addr(VirtIODevice *vdev, int n);
