@@ -155,13 +155,15 @@ static void virtio_free_region_cache(VRingMemoryRegionCaches *caches)
         return;
     }
 
+    /* FIX ME: pass in 1.1 device here, reuse 1.0 fields at current */
+
     address_space_cache_destroy(&caches->desc);
     address_space_cache_destroy(&caches->avail);
     address_space_cache_destroy(&caches->used);
     g_free(caches);
 }
 
-static void virtio_init_region_cache(VirtIODevice *vdev, int n)
+static void virtio_init_region_cache_split(VirtIODevice *vdev, int n)
 {
     VirtQueue *vq = &vdev->vq[n];
     VRingMemoryRegionCaches *old = vq->vring.caches;
@@ -215,6 +217,65 @@ err_desc:
     g_free(new);
 }
 
+static void virtio_init_region_cache_packed(VirtIODevice *vdev, int n)
+{
+    VirtQueue *vq = &vdev->vq[n];
+    VRingMemoryRegionCaches *old = vq->vring.caches;
+    VRingMemoryRegionCaches *new;
+    hwaddr addr, size;
+    int64_t len;
+
+    addr = vq->packed.desc;
+    if (!addr) {
+        return;
+    }
+    new = g_new0(VRingMemoryRegionCaches, 1);
+    size = virtio_queue_get_desc_size(vdev, n);
+    len = address_space_cache_init(&new->desc_packed, vdev->dma_as,
+                                   addr, size, false);
+    if (len < size) {
+        virtio_error(vdev, "Cannot map desc");
+        goto err_desc;
+    }
+
+    size = sizeof(struct VRingPackedDescEvent);
+    len = address_space_cache_init(&new->driver, vdev->dma_as,
+                                   vq->packed.driver, size, true);
+    if (len < size) {
+        virtio_error(vdev, "Cannot map driver area");
+        goto err_driver;
+    }
+
+    len = address_space_cache_init(&new->device, vdev->dma_as,
+                                   vq->packed.device, size, true);
+    if (len < size) {
+        virtio_error(vdev, "Cannot map device area");
+        goto err_device;
+    }
+
+    atomic_rcu_set(&vq->packed.caches, new);
+    if (old) {
+        call_rcu(old, virtio_free_region_cache, rcu);
+    }
+    return;
+
+err_device:
+    address_space_cache_destroy(&new->driver);
+err_driver:
+    address_space_cache_destroy(&new->desc);
+err_desc:
+    g_free(new);
+}
+
+static void virtio_init_region_cache(VirtIODevice *vdev, int n)
+{
+    if (virtio_vdev_has_feature(vdev, VIRTIO_F_RING_PACKED)) {
+        virtio_init_region_cache_packed(vdev, n);
+    } else {
+        virtio_init_region_cache_split(vdev, n);
+    }
+}
+
 /* virt queue functions */
 void virtio_queue_update_rings(VirtIODevice *vdev, int n)
 {
@@ -245,10 +306,18 @@ static void vring_desc_read(VirtIODevice *vdev, VRingDesc *desc,
 
 static VRingMemoryRegionCaches *vring_get_region_caches(struct VirtQueue *vq)
 {
-    VRingMemoryRegionCaches *caches = atomic_rcu_read(&vq->vring.caches);
+    VRingMemoryRegionCaches *caches;
+
+    if (virtio_vdev_has_feature(vq->vdev, VIRTIO_F_RING_PACKED)) {
+        caches = atomic_rcu_read(&vq->packed.caches);
+    } else {
+        caches = atomic_rcu_read(&vq->vring.caches);
+    }
+
     assert(caches != NULL);
     return caches;
 }
+
 /* Called within rcu_read_lock().  */
 static inline uint16_t vring_avail_flags(VirtQueue *vq)
 {
@@ -2331,7 +2400,11 @@ hwaddr virtio_queue_get_used_addr(VirtIODevice *vdev, int n)
 
 hwaddr virtio_queue_get_desc_size(VirtIODevice *vdev, int n)
 {
-    return sizeof(VRingDesc) * vdev->vq[n].vring.num;
+    if (virtio_vdev_has_feature(vdev, VIRTIO_F_RING_PACKED)) {
+        return sizeof(VRingDescPacked) * vdev->vq[n].packed.num;
+    } else {
+        return sizeof(VRingDesc) * vdev->vq[n].vring.num;
+    }
 }
 
 hwaddr virtio_queue_get_avail_size(VirtIODevice *vdev, int n)
