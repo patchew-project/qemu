@@ -1365,7 +1365,7 @@ void qmp_set_link(const char *name, bool up, Error **errp)
          * If the peer is a HUBPORT or a backend, we do not change the
          * link status.
          *
-         * This behavior is compatible with qemu vlans where there could be
+         * This behavior is compatible with qemu hubs where there could be
          * multiple clients that can still communicate with each other in
          * disconnected mode. For now maintain this compatibility.
          */

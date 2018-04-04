@@ -345,10 +345,10 @@ void net_hub_check_clients(void)
             }
         }
         if (has_host_dev && !has_nic) {
-            warn_report("vlan %d with no nics", hub->id);
+            warn_report("hub %d with no nics", hub->id);
         }
         if (has_nic && !has_host_dev) {
-            warn_report("vlan %d is not connected to host network", hub->id);
+            warn_report("hub %d is not connected to host network", hub->id);
         }
     }
 }

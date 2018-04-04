@@ -2003,7 +2003,7 @@ DEF("netdev", HAS_ARG, QEMU_OPTION_netdev,
     "                configure a vhost-user network, backed by a chardev 'dev'\n"
 #endif
     "-netdev hubport,id=str,hubid=n[,netdev=nd]\n"
-    "                configure a hub port on QEMU VLAN 'n'\n", QEMU_ARCH_ALL)
+    "                configure a hub port on the hub with ID 'n'\n", QEMU_ARCH_ALL)
 DEF("nic", HAS_ARG, QEMU_OPTION_nic,
     "--nic [tap|bridge|"
 #ifdef CONFIG_SLIRP
@@ -2030,8 +2030,8 @@ DEF("nic", HAS_ARG, QEMU_OPTION_nic,
 DEF("net", HAS_ARG, QEMU_OPTION_net,
     "-net nic[,vlan=n][,netdev=nd][,macaddr=mac][,model=type][,name=str][,addr=str][,vectors=v]\n"
     "                configure or create an on-board (or machine default) NIC and\n"
-    "                connect it either to VLAN 'n' or the netdev 'nd' (for pluggable\n"
-    "                NICs please use '-device devtype,netdev=nd' instead)\n"
+    "                connect it either to hub (a.k.a. vlan) 'n' or the netdev 'nd' (for\n"
+    "                pluggable NICs please use '-device devtype,netdev=nd' instead)\n"
     "-net ["
 #ifdef CONFIG_SLIRP
     "user|"

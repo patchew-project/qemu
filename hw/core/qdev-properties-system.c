@@ -321,9 +321,9 @@ const PropertyInfo qdev_prop_netdev = {
     .set   = set_netdev,
 };
 
-/* --- vlan --- */
+/* --- hub --- */
 
-static int print_vlan(DeviceState *dev, Property *prop, char *dest, size_t len)
+static int print_hub(DeviceState *dev, Property *prop, char *dest, size_t len)
 {
     NetClientState **ptr = qdev_get_prop_ptr(dev, prop);
 
@@ -337,7 +337,7 @@ static int print_vlan(DeviceState *dev, Property *prop, char *dest, size_t len)
     return snprintf(dest, len, "<null>");
 }
 
-static void get_vlan(Object *obj, Visitor *v, const char *name, void *opaque,
+static void get_hub(Object *obj, Visitor *v, const char *name, void *opaque,
                      Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
@@ -355,7 +355,7 @@ static void get_vlan(Object *obj, Visitor *v, const char *name, void *opaque,
     visit_type_int32(v, name, &id, errp);
 }
 
-static void set_vlan(Object *obj, Visitor *v, const char *name, void *opaque,
+static void set_hub(Object *obj, Visitor *v, const char *name, void *opaque,
                      Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
@@ -394,12 +394,12 @@ static void set_vlan(Object *obj, Visitor *v, const char *name, void *opaque,
     *ptr = hubport;
 }
 
-const PropertyInfo qdev_prop_vlan = {
+const PropertyInfo qdev_prop_hub = {
     .name  = "int32",
-    .description = "Integer VLAN id to connect to",
-    .print = print_vlan,
-    .get   = get_vlan,
-    .set   = set_vlan,
+    .description = "Integer hub id to connect to",
+    .print = print_hub,
+    .get   = get_hub,
+    .set   = set_hub,
 };
 
 void qdev_prop_set_drive(DeviceState *dev, const char *name,
