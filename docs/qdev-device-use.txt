@@ -277,8 +277,8 @@ devices and ne2k_isa are.
 
 Some PCI devices aren't available with -net nic, e.g. i82558a.
 
-To connect to a VLAN instead of an ordinary host part, replace
-netdev=NET-ID by vlan=VLAN.
+To connect to a hub instead of an ordinary host part, replace
+netdev=NET-ID by vlan=HUB-ID.
 
 === Graphics Devices ===
 
