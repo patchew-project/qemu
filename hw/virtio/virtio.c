@@ -26,6 +26,7 @@
 
 #define AVAIL_DESC_PACKED(b) ((b) << 7)
 #define USED_DESC_PACKED(b)  ((b) << 15)
+#define VIRTQ_F_DESC_USED(w)  (AVAIL_DESC_PACKED(w) | USED_DESC_PACKED(w))
 
 /*
  * The alignment to use between consumer and producer parts of vring.
@@ -636,18 +637,10 @@ bool virtqueue_rewind(VirtQueue *vq, unsigned int num)
 }
 
 /* Called within rcu_read_lock().  */
-void virtqueue_fill(VirtQueue *vq, const VirtQueueElement *elem,
+static void virtqueue_fill_split(VirtQueue *vq, const VirtQueueElement *elem,
                     unsigned int len, unsigned int idx)
 {
     VRingUsedElem uelem;
-
-    trace_virtqueue_fill(vq, elem, len, idx);
-
-    virtqueue_unmap_sg(vq, elem, len);
-
-    if (unlikely(vq->vdev->broken)) {
-        return;
-    }
 
     if (unlikely(!vq->vring.used)) {
         return;
@@ -660,15 +653,65 @@ void virtqueue_fill(VirtQueue *vq, const VirtQueueElement *elem,
     vring_used_write(vq, &uelem, idx);
 }
 
-/* Called within rcu_read_lock().  */
-void virtqueue_flush(VirtQueue *vq, unsigned int count)
+static void virtqueue_fill_packed(VirtQueue *vq, const VirtQueueElement *elem)
 {
-    uint16_t old, new;
+    uint16_t i, w, head;
+    VRingMemoryRegionCaches *caches;
+    VRingDescPacked desc = {
+        .addr = 0,
+        .flags = 0,
+    };
 
-    if (unlikely(vq->vdev->broken)) {
-        vq->inuse -= count;
+    if (unlikely(!vq->packed.desc)) {
         return;
     }
+
+    w = elem->wrap_counter;
+    caches = vring_get_region_caches(vq);
+    for (i = 0; i < elem->count; i++) {
+        head = (elem->index + i) % vq->packed.num;
+        /* Don't toggle the first one since it is the originally one */
+        if ((i > 0) && (!head)) {
+            w ^= 1;
+        }
+
+        desc.id = elem->index;
+        desc.flags = VIRTQ_F_DESC_USED(w);
+        desc.len = elem->len[i];
+        virtio_tswap16s(vq->vdev, &desc.id);
+        virtio_tswap32s(vq->vdev, &desc.len);
+        virtio_tswap16s(vq->vdev, &desc.flags);
+        address_space_write_cached(&caches->desc,
+                                   sizeof(VRingDescPacked) * head, &desc,
+                                   sizeof(VRingDescPacked));
+        address_space_cache_invalidate(&caches->desc,
+                                       sizeof(VRingDescPacked) * head,
+                                       sizeof(VRingDescPacked));
+    }
+}
+
+void virtqueue_fill(VirtQueue *vq, const VirtQueueElement *elem,
+                    unsigned int len, unsigned int idx)
+{
+    trace_virtqueue_fill(vq, elem, len, idx);
+
+    virtqueue_unmap_sg(vq, elem, len);
+
+    if (unlikely(vq->vdev->broken)) {
+        return;
+    }
+
+    if (virtio_vdev_has_feature(vq->vdev, VIRTIO_F_RING_PACKED)) {
+        virtqueue_fill_packed(vq, elem);
+    } else {
+        virtqueue_fill_split(vq, elem, len, idx);
+    }
+}
+
+/* Called within rcu_read_lock().  */
+static void virtqueue_flush_split(VirtQueue *vq, unsigned int count)
+{
+    uint16_t old, new;
 
     if (unlikely(!vq->vring.used)) {
         return;
@@ -685,12 +728,45 @@ void virtqueue_flush(VirtQueue *vq, unsigned int count)
         vq->signalled_used_valid = false;
 }
 
+static void virtqueue_flush_packed(VirtQueue *vq, unsigned int count)
+{
+    if (unlikely(!vq->packed.desc)) {
+        return;
+    }
+
+    vq->inuse -= count;
+
+    /* FIXME: is this correct? */
+    if (vq->inuse) {
+        return;
+    }
+}
+
+void virtqueue_flush(VirtQueue *vq, unsigned int count)
+{
+    if (unlikely(vq->vdev->broken)) {
+        vq->inuse -= count;
+        return;
+    }
+
+    if (virtio_vdev_has_feature(vq->vdev, VIRTIO_F_RING_PACKED)) {
+        virtqueue_flush_packed(vq, count);
+    } else {
+        virtqueue_flush_split(vq, count);
+    }
+}
+
 void virtqueue_push(VirtQueue *vq, const VirtQueueElement *elem,
                     unsigned int len)
 {
     rcu_read_lock();
     virtqueue_fill(vq, elem, len, 0);
-    virtqueue_flush(vq, 1);
+    if (virtio_vdev_has_feature(vq->vdev, VIRTIO_F_RING_PACKED)) {
+        /* FIXME: How to deal with the length field for chained desc */
+        virtqueue_flush(vq, elem->count);
+    } else {
+        virtqueue_flush(vq, 1);
+    }
     rcu_read_unlock();
 }
 
