@@ -836,9 +836,9 @@ static int virtqueue_read_next_desc(VirtIODevice *vdev, VRingDesc *desc,
     return VIRTQUEUE_READ_DESC_MORE;
 }
 
-void virtqueue_get_avail_bytes(VirtQueue *vq, unsigned int *in_bytes,
-                               unsigned int *out_bytes,
-                               unsigned max_in_bytes, unsigned max_out_bytes)
+static void virtqueue_get_avail_bytes_split(VirtQueue *vq,
+                            unsigned int *in_bytes, unsigned int *out_bytes,
+                            unsigned max_in_bytes, unsigned max_out_bytes)
 {
     VirtIODevice *vdev = vq->vdev;
     unsigned int max, idx;
@@ -959,6 +959,142 @@ done:
 err:
     in_total = out_total = 0;
     goto done;
+}
+
+static void virtqueue_get_avail_bytes_packed(VirtQueue *vq,
+                            unsigned int *in_bytes, unsigned int *out_bytes,
+                            unsigned max_in_bytes, unsigned max_out_bytes)
+{
+    VirtIODevice *vdev = vq->vdev;
+    unsigned int max, idx;
+    unsigned int total_bufs, in_total, out_total;
+    MemoryRegionCache *desc_cache;
+    VRingMemoryRegionCaches *caches;
+    MemoryRegionCache indirect_desc_cache = MEMORY_REGION_CACHE_INVALID;
+    int64_t len = 0;
+    VRingDescPacked desc;
+
+    if (unlikely(!vq->packed.desc)) {
+        if (in_bytes) {
+            *in_bytes = 0;
+        }
+        if (out_bytes) {
+            *out_bytes = 0;
+        }
+        return;
+    }
+
+    rcu_read_lock();
+    idx = vq->last_avail_idx;
+    total_bufs = in_total = out_total = 0;
+
+    max = vq->packed.num;
+    caches = vring_get_region_caches(vq);
+    if (caches->desc.len < max * sizeof(VRingDescPacked)) {
+        virtio_error(vdev, "Cannot map descriptor ring");
+        goto err;
+    }
+
+    desc_cache = &caches->desc;
+    vring_desc_read_packed(vdev, &desc, desc_cache, idx);
+    while (is_desc_avail(&desc)) {
+        unsigned int num_bufs;
+        unsigned int i;
+
+        num_bufs = total_bufs;
+
+        if (desc.flags & VRING_DESC_F_INDIRECT) {
+            if (desc.len % sizeof(VRingDescPacked)) {
+                virtio_error(vdev, "Invalid size for indirect buffer table");
+                goto err;
+            }
+
+            /* If we've got too many, that implies a descriptor loop. */
+            if (num_bufs >= max) {
+                virtio_error(vdev, "Looped descriptor");
+                goto err;
+            }
+
+            /* loop over the indirect descriptor table */
+            len = address_space_cache_init(&indirect_desc_cache,
+                                           vdev->dma_as,
+                                           desc.addr, desc.len, false);
+            desc_cache = &indirect_desc_cache;
+            if (len < desc.len) {
+                virtio_error(vdev, "Cannot map indirect buffer");
+                goto err;
+            }
+
+            max = desc.len / sizeof(VRingDescPacked);
+            num_bufs = i = 0;
+            vring_desc_read_packed(vdev, &desc, desc_cache, i);
+        }
+
+        do {
+            /* If we've got too many, that implies a descriptor loop. */
+            if (++num_bufs > max) {
+                virtio_error(vdev, "Looped descriptor");
+                goto err;
+            }
+
+            if (desc.flags & VRING_DESC_F_WRITE) {
+                in_total += desc.len;
+            } else {
+                out_total += desc.len;
+            }
+            if (in_total >= max_in_bytes && out_total >= max_out_bytes) {
+                goto done;
+            }
+
+            if (desc_cache == &indirect_desc_cache) {
+                vring_desc_read_packed(vdev, &desc, desc_cache,
+                                       ++i % vq->packed.num);
+            } else {
+                vring_desc_read_packed(vdev, &desc, desc_cache,
+                                       ++idx % vq->packed.num);
+            }
+        } while (desc.flags & VRING_DESC_F_NEXT);
+
+        if (desc_cache == &indirect_desc_cache) {
+            address_space_cache_destroy(&indirect_desc_cache);
+            total_bufs++;
+            /* We missed one step on for indirect desc */
+            idx++;
+        } else {
+            total_bufs = num_bufs;
+        }
+
+        desc_cache = &caches->desc;
+        vring_desc_read_packed(vdev, &desc, desc_cache, idx % vq->packed.num);
+    }
+
+done:
+    address_space_cache_destroy(&indirect_desc_cache);
+    if (in_bytes) {
+        *in_bytes = in_total;
+    }
+    if (out_bytes) {
+        *out_bytes = out_total;
+    }
+    rcu_read_unlock();
+    return;
+
+err:
+    in_total = out_total = 0;
+    goto done;
+}
+
+void virtqueue_get_avail_bytes(VirtQueue *vq, unsigned int *in_bytes,
+                               unsigned int *out_bytes,
+                               unsigned max_in_bytes, unsigned max_out_bytes)
+{
+    if (virtio_vdev_has_feature(vq->vdev, VIRTIO_F_RING_PACKED)) {
+        virtqueue_get_avail_bytes_packed(vq, in_bytes, out_bytes,
+                                         max_in_bytes, max_out_bytes);
+    } else {
+        virtqueue_get_avail_bytes_split(vq, in_bytes, out_bytes,
+                                        max_in_bytes, max_out_bytes);
+    }
 }
 
 int virtqueue_avail_bytes(VirtQueue *vq, unsigned int in_bytes,
