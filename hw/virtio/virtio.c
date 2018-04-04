@@ -561,6 +561,20 @@ static void virtqueue_unmap_sg(VirtQueue *vq, const VirtQueueElement *elem,
                          elem->out_sg[i].iov_len);
 }
 
+static void virtqueue_detach_element_split(VirtQueue *vq,
+                            const VirtQueueElement *elem, unsigned int len)
+{
+    vq->inuse--;
+    virtqueue_unmap_sg(vq, elem, len);
+}
+
+static void virtqueue_detach_element_packed(VirtQueue *vq,
+                            const VirtQueueElement *elem, unsigned int len)
+{
+    vq->inuse -= elem->count;
+    virtqueue_unmap_sg(vq, elem, len);
+}
+
 /* virtqueue_detach_element:
  * @vq: The #VirtQueue
  * @elem: The #VirtQueueElement
@@ -573,8 +587,11 @@ static void virtqueue_unmap_sg(VirtQueue *vq, const VirtQueueElement *elem,
 void virtqueue_detach_element(VirtQueue *vq, const VirtQueueElement *elem,
                               unsigned int len)
 {
-    vq->inuse--;
-    virtqueue_unmap_sg(vq, elem, len);
+    if (virtio_vdev_has_feature(vq->vdev, VIRTIO_F_RING_PACKED)) {
+        virtqueue_detach_element_packed(vq, elem, len);
+    } else {
+        virtqueue_detach_element_split(vq, elem, len);
+    }
 }
 
 /* virtqueue_unpop:
