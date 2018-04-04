@@ -12,7 +12,7 @@ QEMU_CFLAGS += -DHW_POISON_H
 
 IBMFP := ibm-fptests.zip
 
-OBJS := fp-test$(EXESUF)
+OBJS := fp-test$(EXESUF) fp-bench$(EXESUF)
 
 WHITELIST_FILES := whitelist.txt whitelist-tininess-after.txt
 
@@ -29,6 +29,8 @@ $(WHITELIST_FILES):
 	wget -nv -O $@ http://www.cs.columbia.edu/~cota/qemu/fpbench-$@
 
 fp-test$(EXESUF): fp-test.o softfloat.o
+
+fp-bench$(EXESUF): fp-bench.o softfloat.o
 
 clean:
 	rm -f *.o *.d $(OBJS)
