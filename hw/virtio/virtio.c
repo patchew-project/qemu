@@ -24,6 +24,9 @@
 #include "hw/virtio/virtio-access.h"
 #include "sysemu/dma.h"
 
+#define AVAIL_DESC_PACKED(b) ((b) << 7)
+#define USED_DESC_PACKED(b)  ((b) << 15)
+
 /*
  * The alignment to use between consumer and producer parts of vring.
  * x86 pagesize again. This is the default, used by transports like PCI
@@ -446,10 +449,27 @@ int virtio_queue_ready(VirtQueue *vq)
     return vq->vring.avail != 0;
 }
 
+static void vring_desc_read_packed(VirtIODevice *vdev, VRingDescPacked *desc,
+                            MemoryRegionCache *cache, int i)
+{
+    address_space_read_cached(cache, i * sizeof(VRingDescPacked),
+                              desc, sizeof(VRingDescPacked));
+    virtio_tswap64s(vdev, &desc->addr);
+    virtio_tswap32s(vdev, &desc->len);
+    virtio_tswap16s(vdev, &desc->id);
+    virtio_tswap16s(vdev, &desc->flags);
+}
+
+static inline bool is_desc_avail(struct VRingDescPacked* desc)
+{
+    return (!!(desc->flags & AVAIL_DESC_PACKED(1)) !=
+            !!(desc->flags & USED_DESC_PACKED(1)));
+}
+
 /* Fetch avail_idx from VQ memory only when we really need to know if
  * guest has added some buffers.
  * Called within rcu_read_lock().  */
-static int virtio_queue_empty_rcu(VirtQueue *vq)
+static int virtio_queue_empty_split_rcu(VirtQueue *vq)
 {
     if (unlikely(!vq->vring.avail)) {
         return 1;
@@ -462,7 +482,7 @@ static int virtio_queue_empty_rcu(VirtQueue *vq)
     return vring_avail_idx(vq) == vq->last_avail_idx;
 }
 
-int virtio_queue_empty(VirtQueue *vq)
+static int virtio_queue_empty_split(VirtQueue *vq)
 {
     bool empty;
 
@@ -478,6 +498,42 @@ int virtio_queue_empty(VirtQueue *vq)
     empty = vring_avail_idx(vq) == vq->last_avail_idx;
     rcu_read_unlock();
     return empty;
+}
+
+static int virtio_queue_empty_packed_rcu(VirtQueue *vq)
+{
+    struct VRingDescPacked desc;
+    VRingMemoryRegionCaches *cache;
+
+    if (unlikely(!vq->packed.desc)) {
+        return 1;
+    }
+
+    cache = vring_get_region_caches(vq);
+    vring_desc_read_packed(vq->vdev, &desc, &cache->desc_packed, vq->last_avail_idx);
+
+    /* Make sure we see the updated flag */
+    smp_mb();
+    return !is_desc_avail(&desc);
+}
+
+static int virtio_queue_empty_packed(VirtQueue *vq)
+{
+    bool empty;
+
+    rcu_read_lock();
+    empty = virtio_queue_empty_packed_rcu(vq);
+    rcu_read_unlock();
+    return empty;
+}
+
+int virtio_queue_empty(VirtQueue *vq)
+{
+    if (virtio_vdev_has_feature(vq->vdev, VIRTIO_F_RING_PACKED)) {
+        return virtio_queue_empty_packed(vq);
+    } else {
+        return virtio_queue_empty_split(vq);
+    }
 }
 
 static void virtqueue_unmap_sg(VirtQueue *vq, const VirtQueueElement *elem,
@@ -951,7 +1007,7 @@ void *virtqueue_pop(VirtQueue *vq, size_t sz)
         return NULL;
     }
     rcu_read_lock();
-    if (virtio_queue_empty_rcu(vq)) {
+    if (virtio_queue_empty_split_rcu(vq)) {
         goto done;
     }
     /* Needed after virtio_queue_empty(), see comment in
