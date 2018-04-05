@@ -18,6 +18,7 @@
 #include "qapi/visitor.h"
 #include "qemu/config-file.h"
 #include "qom/object_interfaces.h"
+#include "qemu/mmap-alloc.h"
 
 #ifdef CONFIG_NUMA
 #include <numaif.h>
@@ -260,6 +261,16 @@ void host_memory_backend_set_mapped(HostMemoryBackend *backend, bool mapped)
 bool host_memory_backend_is_mapped(HostMemoryBackend *backend)
 {
     return backend->is_mapped;
+}
+
+size_t host_memory_backend_pagesize(HostMemoryBackend *memdev)
+{
+    Object *obj = OBJECT(memdev);
+    char *path = object_property_get_str(obj, "mem-path", NULL);
+    size_t pagesize = qemu_mempath_getpagesize(path);
+
+    g_free(path);
+    return pagesize;
 }
 
 static void
