@@ -909,6 +909,14 @@ static void spapr_dt_rtas(sPAPRMachineState *spapr, void *fdt)
         0, cpu_to_be32(SPAPR_MEMORY_BLOCK_SIZE),
         cpu_to_be32(max_cpus / smp_threads),
     };
+    uint32_t maxdomains[] = {
+        cpu_to_be32(5),
+        cpu_to_be32(0),
+        cpu_to_be32(0),
+        cpu_to_be32(0),
+        cpu_to_be32(nb_numa_nodes - 1),
+        cpu_to_be32(max_cpus - 1),
+    };
 
     _FDT(rtas = fdt_add_subnode(fdt, 0, "rtas"));
 
@@ -944,6 +952,9 @@ static void spapr_dt_rtas(sPAPRMachineState *spapr, void *fdt)
 
     _FDT(fdt_setprop(fdt, rtas, "ibm,associativity-reference-points",
                      refpoints, sizeof(refpoints)));
+
+    _FDT(fdt_setprop(fdt, rtas, "ibm,max-associativity-domains",
+                     maxdomains, sizeof(maxdomains)));
 
     _FDT(fdt_setprop_cell(fdt, rtas, "rtas-error-log-max",
                           RTAS_ERROR_LOG_MAX));
