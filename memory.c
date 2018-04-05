@@ -1519,6 +1519,15 @@ void memory_region_init_ram_shared_nomigrate(MemoryRegion *mr,
                                              bool share,
                                              Error **errp)
 {
+    if (size < TARGET_PAGE_SIZE) {
+        /* Region less than PAGE_SIZE are handled as subpages, which are
+         * surely not what the caller expects.
+         * Limit the minimum ram region size to avoid annoying debugging.
+         */
+        error_setg(errp, "Invalid RAM size: %ld (minimum required: %d)",
+                   size, TARGET_PAGE_SIZE);
+        return;
+    }
     memory_region_init(mr, owner, name, size);
     mr->ram = true;
     mr->terminates = true;
