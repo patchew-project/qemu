@@ -1,0 +1,2 @@
+# Check against allowed-in-preconfig illegal value
+{ 'command': 'allowed-in-preconfig-test', 'allowed-in-preconfig': 'some-string' }
