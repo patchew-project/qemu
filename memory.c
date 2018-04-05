@@ -1258,7 +1258,7 @@ static void memory_region_initfn(Object *obj)
                         memory_region_get_addr,
                         NULL, /* memory_region_set_addr */
                         NULL, NULL, &error_abort);
-    object_property_add(OBJECT(mr), "priority", "uint32",
+    object_property_add(OBJECT(mr), "priority", "int32",
                         memory_region_get_priority,
                         NULL, /* memory_region_set_priority */
                         NULL, NULL, &error_abort);
