@@ -42,6 +42,10 @@ _supported_fmt qcow2
 _supported_proto file
 _supported_os Linux
 
+# Repairing the compressed image requires qemu-img check to store a
+# refcount up to 3, which requires at least two refcount bits.
+_unsupported_imgopts 'refcount_bits=1[^0-9]'
+
 
 TEST_IMG="$TEST_IMG".base _make_test_img 64M
 $QEMU_IO -c "write -P 0x11 0 64M" "$TEST_IMG".base 2>&1 | _filter_qemu_io | _filter_testdir
