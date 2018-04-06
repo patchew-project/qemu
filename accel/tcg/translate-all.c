@@ -666,6 +666,18 @@ do_assert_page_locked(const PageDesc *pd, const char *file, int line)
 
 #define assert_page_locked(pd) do_assert_page_locked(pd, __FILE__, __LINE__)
 
+static __thread bool page_collection_locked;
+
+void assert_page_collection_locked(bool val)
+{
+    tcg_debug_assert(page_collection_locked == val);
+}
+
+static inline void set_page_collection_locked(bool val)
+{
+    page_collection_locked = val;
+}
+
 #else /* !CONFIG_DEBUG_TCG */
 
 #define assert_page_locked(pd)
@@ -675,6 +687,10 @@ static inline void page_lock__debug(const PageDesc *pd)
 }
 
 static inline void page_unlock__debug(const PageDesc *pd)
+{
+}
+
+static inline void set_page_collection_locked(bool val)
 {
 }
 
@@ -754,6 +770,7 @@ static void do_page_entry_lock(struct page_entry *pe)
     page_lock(pe->pd);
     g_assert(!pe->locked);
     pe->locked = true;
+    set_page_collection_locked(true);
 }
 
 static gboolean page_entry_lock(gpointer key, gpointer value, gpointer data)
@@ -846,6 +863,7 @@ page_collection_lock(tb_page_addr_t start, tb_page_addr_t end)
     set->tree = g_tree_new_full(tb_page_addr_cmp, NULL, NULL,
                                 page_entry_destroy);
     set->max = NULL;
+    assert_page_collection_locked(false);
 
  retry:
     g_tree_foreach(set->tree, page_entry_lock, NULL);
@@ -864,6 +882,7 @@ page_collection_lock(tb_page_addr_t start, tb_page_addr_t end)
                  page_trylock_add(set, tb->page_addr[1]))) {
                 /* drop all locks, and reacquire in order */
                 g_tree_foreach(set->tree, page_entry_unlock, NULL);
+                set_page_collection_locked(false);
                 goto retry;
             }
         }
@@ -876,6 +895,7 @@ void page_collection_unlock(struct page_collection *set)
     /* entries are unlocked and freed via page_entry_destroy */
     g_tree_destroy(set->tree);
     g_free(set);
+    set_page_collection_locked(false);
 }
 
 #endif /* !CONFIG_USER_ONLY */
