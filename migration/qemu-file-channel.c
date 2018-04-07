@@ -156,7 +156,6 @@ static const QEMUFileOps channel_input_ops = {
     .close = channel_close,
     .shut_down = channel_shutdown,
     .set_blocking = channel_set_blocking,
-    .get_return_path = channel_get_input_return_path,
 };
 
 
@@ -165,18 +164,23 @@ static const QEMUFileOps channel_output_ops = {
     .close = channel_close,
     .shut_down = channel_shutdown,
     .set_blocking = channel_set_blocking,
-    .get_return_path = channel_get_output_return_path,
 };
 
 
 QEMUFile *qemu_fopen_channel_input(QIOChannel *ioc)
 {
+    QEMUFile *f;
     object_ref(OBJECT(ioc));
-    return qemu_fopen_ops(ioc, &channel_input_ops);
+    f = qemu_fopen_ops(ioc, &channel_input_ops);
+    qemu_file_set_return_path(f, channel_get_input_return_path);
+    return f;
 }
 
 QEMUFile *qemu_fopen_channel_output(QIOChannel *ioc)
 {
+    QEMUFile *f;
     object_ref(OBJECT(ioc));
-    return qemu_fopen_ops(ioc, &channel_output_ops);
+    f = qemu_fopen_ops(ioc, &channel_output_ops);
+    qemu_file_set_return_path(f, channel_get_output_return_path);
+    return f;
 }

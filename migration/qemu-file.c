@@ -36,6 +36,7 @@
 struct QEMUFile {
     const QEMUFileOps *ops;
     const QEMUFileHooks *hooks;
+    QEMURetPathFunc *get_return_path;
     void *opaque;
 
     int64_t bytes_xfer;
@@ -72,10 +73,15 @@ int qemu_file_shutdown(QEMUFile *f)
  */
 QEMUFile *qemu_file_get_return_path(QEMUFile *f)
 {
-    if (!f->ops->get_return_path) {
+    if (!f->get_return_path) {
         return NULL;
     }
-    return f->ops->get_return_path(f->opaque);
+    return f->get_return_path(f->opaque);
+}
+
+void qemu_file_set_return_path(QEMUFile *f, QEMURetPathFunc *get_return_path)
+{
+    f->get_return_path = get_return_path;
 }
 
 bool qemu_file_mode_is_not_valid(const char *mode)
