@@ -34,6 +34,7 @@
 #include "qapi/qapi-commands-block-core.h"
 #include "qapi/qapi-commands-misc.h"
 #include "qapi/qapi-commands-ui.h"
+#include "qapi/qapi-commands-firmware.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qerror.h"
 #include "qapi/qobject-input-visitor.h"
@@ -780,4 +781,8 @@ void qmp_x_oob_test(bool lock, Error **errp)
     } else {
         qemu_sem_post(&x_oob_test_sem);
     }
+}
+
+void qmp_x_check_firmware(SystemFirmware *sysfw, Error **errp)
+{
 }

@@ -97,6 +97,7 @@ GENERATED_FILES += qapi/qapi-types-block.h qapi/qapi-types-block.c
 GENERATED_FILES += qapi/qapi-types-char.h qapi/qapi-types-char.c
 GENERATED_FILES += qapi/qapi-types-common.h qapi/qapi-types-common.c
 GENERATED_FILES += qapi/qapi-types-crypto.h qapi/qapi-types-crypto.c
+GENERATED_FILES += qapi/qapi-types-firmware.h qapi/qapi-types-firmware.c
 GENERATED_FILES += qapi/qapi-types-introspect.h qapi/qapi-types-introspect.c
 GENERATED_FILES += qapi/qapi-types-migration.h qapi/qapi-types-migration.c
 GENERATED_FILES += qapi/qapi-types-misc.h qapi/qapi-types-misc.c
@@ -115,6 +116,7 @@ GENERATED_FILES += qapi/qapi-visit-block.h qapi/qapi-visit-block.c
 GENERATED_FILES += qapi/qapi-visit-char.h qapi/qapi-visit-char.c
 GENERATED_FILES += qapi/qapi-visit-common.h qapi/qapi-visit-common.c
 GENERATED_FILES += qapi/qapi-visit-crypto.h qapi/qapi-visit-crypto.c
+GENERATED_FILES += qapi/qapi-visit-firmware.h qapi/qapi-visit-firmware.c
 GENERATED_FILES += qapi/qapi-visit-introspect.h qapi/qapi-visit-introspect.c
 GENERATED_FILES += qapi/qapi-visit-migration.h qapi/qapi-visit-migration.c
 GENERATED_FILES += qapi/qapi-visit-misc.h qapi/qapi-visit-misc.c
@@ -132,6 +134,7 @@ GENERATED_FILES += qapi/qapi-commands-block.h qapi/qapi-commands-block.c
 GENERATED_FILES += qapi/qapi-commands-char.h qapi/qapi-commands-char.c
 GENERATED_FILES += qapi/qapi-commands-common.h qapi/qapi-commands-common.c
 GENERATED_FILES += qapi/qapi-commands-crypto.h qapi/qapi-commands-crypto.c
+GENERATED_FILES += qapi/qapi-commands-firmware.h qapi/qapi-commands-firmware.c
 GENERATED_FILES += qapi/qapi-commands-introspect.h qapi/qapi-commands-introspect.c
 GENERATED_FILES += qapi/qapi-commands-migration.h qapi/qapi-commands-migration.c
 GENERATED_FILES += qapi/qapi-commands-misc.h qapi/qapi-commands-misc.c
@@ -149,6 +152,7 @@ GENERATED_FILES += qapi/qapi-events-block.h qapi/qapi-events-block.c
 GENERATED_FILES += qapi/qapi-events-char.h qapi/qapi-events-char.c
 GENERATED_FILES += qapi/qapi-events-common.h qapi/qapi-events-common.c
 GENERATED_FILES += qapi/qapi-events-crypto.h qapi/qapi-events-crypto.c
+GENERATED_FILES += qapi/qapi-events-firmware.h qapi/qapi-events-firmware.c
 GENERATED_FILES += qapi/qapi-events-introspect.h qapi/qapi-events-introspect.c
 GENERATED_FILES += qapi/qapi-events-migration.h qapi/qapi-events-migration.c
 GENERATED_FILES += qapi/qapi-events-misc.h qapi/qapi-events-misc.c
@@ -581,6 +585,7 @@ qapi-modules = $(SRC_PATH)/qapi/qapi-schema.json $(SRC_PATH)/qapi/common.json \
                $(SRC_PATH)/qapi/block.json $(SRC_PATH)/qapi/block-core.json \
                $(SRC_PATH)/qapi/char.json \
                $(SRC_PATH)/qapi/crypto.json \
+               $(SRC_PATH)/qapi/firmware.json \
                $(SRC_PATH)/qapi/introspect.json \
                $(SRC_PATH)/qapi/migration.json \
                $(SRC_PATH)/qapi/misc.json \
@@ -600,6 +605,7 @@ qapi/qapi-types-block.c qapi/qapi-types-block.h \
 qapi/qapi-types-char.c qapi/qapi-types-char.h \
 qapi/qapi-types-common.c qapi/qapi-types-common.h \
 qapi/qapi-types-crypto.c qapi/qapi-types-crypto.h \
+qapi/qapi-types-firmware.c qapi/qapi-types-firmware.h \
 qapi/qapi-types-introspect.c qapi/qapi-types-introspect.h \
 qapi/qapi-types-migration.c qapi/qapi-types-migration.h \
 qapi/qapi-types-misc.c qapi/qapi-types-misc.h \
@@ -618,6 +624,7 @@ qapi/qapi-visit-block.c qapi/qapi-visit-block.h \
 qapi/qapi-visit-char.c qapi/qapi-visit-char.h \
 qapi/qapi-visit-common.c qapi/qapi-visit-common.h \
 qapi/qapi-visit-crypto.c qapi/qapi-visit-crypto.h \
+qapi/qapi-visit-firmware.c qapi/qapi-visit-firmware.h \
 qapi/qapi-visit-introspect.c qapi/qapi-visit-introspect.h \
 qapi/qapi-visit-migration.c qapi/qapi-visit-migration.h \
 qapi/qapi-visit-misc.c qapi/qapi-visit-misc.h \
@@ -635,6 +642,7 @@ qapi/qapi-commands-block.c qapi/qapi-commands-block.h \
 qapi/qapi-commands-char.c qapi/qapi-commands-char.h \
 qapi/qapi-commands-common.c qapi/qapi-commands-common.h \
 qapi/qapi-commands-crypto.c qapi/qapi-commands-crypto.h \
+qapi/qapi-commands-firmware.c qapi/qapi-commands-firmware.h \
 qapi/qapi-commands-introspect.c qapi/qapi-commands-introspect.h \
 qapi/qapi-commands-migration.c qapi/qapi-commands-migration.h \
 qapi/qapi-commands-misc.c qapi/qapi-commands-misc.h \
@@ -652,6 +660,7 @@ qapi/qapi-events-block.c qapi/qapi-events-block.h \
 qapi/qapi-events-char.c qapi/qapi-events-char.h \
 qapi/qapi-events-common.c qapi/qapi-events-common.h \
 qapi/qapi-events-crypto.c qapi/qapi-events-crypto.h \
+qapi/qapi-events-firmware.c qapi/qapi-events-firmware.h \
 qapi/qapi-events-introspect.c qapi/qapi-events-introspect.h \
 qapi/qapi-events-migration.c qapi/qapi-events-migration.h \
 qapi/qapi-events-misc.c qapi/qapi-events-misc.h \
