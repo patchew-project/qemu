@@ -3638,6 +3638,40 @@ err:
     return ret;
 }
 
+static QEMUFile *qio_channel_rdma_get_return_path(void *opaque, int input)
+{
+    QIOChannel *ioc = opaque;
+    QIOChannelRDMA *rioc = QIO_CHANNEL_RDMA(ioc);
+    RDMAContext *rdma = rioc->rdma;
+
+    QIOChannelRDMA *rioc_return_path;
+    RDMAContext *rdma_return_path = rdma->return_path;
+
+    if (!rdma_return_path) {
+        return NULL;
+    }
+
+    rioc_return_path = QIO_CHANNEL_RDMA(object_new(TYPE_QIO_CHANNEL_RDMA));
+    rioc_return_path->rdma = rdma_return_path;
+    if (input) {
+        rioc_return_path->file = qemu_fopen_channel_output(
+                                 QIO_CHANNEL(rioc_return_path));
+    } else {
+        rioc_return_path->file = qemu_fopen_channel_input(
+                                 QIO_CHANNEL(rioc_return_path));
+    }
+    return rioc_return_path->file;
+}
+
+static QEMUFile *qio_channel_rdma_get_output_return_path(void *opaque)
+{
+   return qio_channel_rdma_get_return_path(opaque, 0);
+}
+
+static QEMUFile *qio_channel_rdma_get_input_return_path(void *opaque)
+{
+   return qio_channel_rdma_get_return_path(opaque, 1);
+}
 static const QEMUFileHooks rdma_read_hooks = {
     .hook_ram_load = rdma_load_hook,
 };
@@ -3700,9 +3734,13 @@ static QEMUFile *qemu_fopen_rdma(RDMAContext *rdma, const char *mode)
     if (mode[0] == 'w') {
         rioc->file = qemu_fopen_channel_output(QIO_CHANNEL(rioc));
         qemu_file_set_hooks(rioc->file, &rdma_write_hooks);
+        qemu_file_set_return_path(rioc->file,
+                                  qio_channel_rdma_get_output_return_path);
     } else {
         rioc->file = qemu_fopen_channel_input(QIO_CHANNEL(rioc));
         qemu_file_set_hooks(rioc->file, &rdma_read_hooks);
+        qemu_file_set_return_path(rioc->file,
+                                  qio_channel_rdma_get_input_return_path);
     }
 
     return rioc->file;
