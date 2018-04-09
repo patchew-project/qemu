@@ -1778,17 +1778,26 @@ static bool all_vcpus_paused(void)
     return true;
 }
 
+/* wait for the initial vm_start() call */
+static int vcpus_paused = 1;
+
 void pause_all_vcpus(void)
 {
     CPUState *cpu;
 
-    qemu_clock_enable(QEMU_CLOCK_VIRTUAL, false);
-    CPU_FOREACH(cpu) {
-        if (qemu_cpu_is_self(cpu)) {
-            qemu_cpu_stop(cpu, true);
-        } else {
-            cpu->stop = true;
-            qemu_cpu_kick(cpu);
+    assert(qemu_mutex_iothread_locked());
+    assert(vcpus_paused >= 0);
+
+    vcpus_paused++;
+    if (vcpus_paused == 1) {
+        qemu_clock_enable(QEMU_CLOCK_VIRTUAL, false);
+        CPU_FOREACH(cpu) {
+            if (qemu_cpu_is_self(cpu)) {
+                qemu_cpu_stop(cpu, true);
+            } else {
+                cpu->stop = true;
+                qemu_cpu_kick(cpu);
+            }
         }
     }
 
@@ -1819,6 +1828,14 @@ void cpu_resume(CPUState *cpu)
 void resume_all_vcpus(void)
 {
     CPUState *cpu;
+
+    assert(vcpus_paused >= 0);
+    assert(qemu_mutex_iothread_locked());
+
+    vcpus_paused--;
+    if (vcpus_paused > 0) {
+        return;
+    }
 
     qemu_clock_enable(QEMU_CLOCK_VIRTUAL, true);
     CPU_FOREACH(cpu) {
