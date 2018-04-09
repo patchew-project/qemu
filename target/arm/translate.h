@@ -120,7 +120,15 @@ static inline void disas_set_insn_syndrome(DisasContext *s, uint32_t syn)
 
     /* We check and clear insn_start_idx to catch multiple updates.  */
     assert(s->insn_start != NULL);
+#if TARGET_LONG_BITS <= TCG_TARGET_REG_BITS
     tcg_set_insn_param(s->insn_start, 2, syn);
+#else
+    /* tcg_gen_insn_start has split every target_ulong argument to
+     * op_insn_start into two 32-bit arguments, so we want the low
+     * half of the 3rd argument, which is at index 4.
+     */
+    tcg_set_insn_param(s->insn_start, 4, syn);
+#endif
     s->insn_start = NULL;
 }
 
