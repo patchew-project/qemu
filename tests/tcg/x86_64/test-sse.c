@@ -1,4 +1,4 @@
-/* See if various MMX/SSE SSSE3 instructions give expected results */
+/* See if various MMX/SSE SSSE3/4 instructions give expected results */
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
@@ -41,8 +41,7 @@ int main(int argc, char *argv[]) {
 	asm volatile ("movdqa  %%xmm0, (%0)" : : "r" (hello));
 	printf("%5.5s\n", hello);
 
-#if 1 /* SSE4 */
-	/* popcnt r64, r/m64 */
+	/* SSE4 popcnt r64, r/m64 */
 	asm volatile ("movq    $0x8421000010009c63, %%rax" : : : "rax");
 	asm volatile ("popcnt  %%ax, %%dx" : : : "dx");
 	asm volatile ("popcnt  %%eax, %%ecx" : : : "ecx");
@@ -51,7 +50,6 @@ int main(int argc, char *argv[]) {
 	asm volatile ("movl    %%ecx, %0" : "=m" (c));
 	asm volatile ("movw    %%dx, %0" : "=m" (d));
 	printf("%i = %i\n%i = %i = %i\n", 13, (int) a, 9, c, d + 1);
-#endif
 
 	return 0;
 }
