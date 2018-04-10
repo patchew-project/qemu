@@ -1,0 +1,6 @@
+# -*- Mode: makefile -*-
+#
+# ARM specific tweaks
+
+hello-arm: CFLAGS+=-marm -ffreestanding
+hello-arm: LDFLAGS+=-nostdlib
