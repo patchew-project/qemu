@@ -158,7 +158,7 @@ static void boot_menu_prompt(bool retry)
     }
 }
 
-static int get_boot_index(int entries)
+static int get_boot_index(bool *valid_entries)
 {
     int boot_index;
     bool retry = false;
@@ -168,7 +168,8 @@ static int get_boot_index(int entries)
         boot_menu_prompt(retry);
         boot_index = get_index();
         retry = true;
-    } while (boot_index < 0 || boot_index >= entries);
+    } while (boot_index < 0 || boot_index >= MAX_BOOT_ENTRIES ||
+             !valid_entries[boot_index]);
 
     sclp_print("\nBooting entry #");
     sclp_print(uitoa(boot_index, tmp, sizeof(tmp)));
@@ -176,21 +177,28 @@ static int get_boot_index(int entries)
     return boot_index;
 }
 
-static void zipl_println(const char *data, size_t len)
+static void zipl_println(const char *data, size_t len, bool *valid_entries)
 {
     char buf[len + 2];
+    int entry;
 
     ebcdic_to_ascii(data, buf, len);
     buf[len] = '\n';
     buf[len + 1] = '\0';
 
     sclp_print(buf);
+
+    entry = buf[0] == ' ' ? atoui(buf + 1) : atoui(buf);
+    valid_entries[entry] = true;
+
+    if (entry == 0)
+        sclp_print("\n");
 }
 
 int menu_get_zipl_boot_index(const char *menu_data)
 {
     size_t len;
-    int entries;
+    bool valid_entries[MAX_BOOT_ENTRIES] = {false};
     uint16_t zipl_flag = *(uint16_t *)(menu_data - ZIPL_FLAG_OFFSET);
     uint16_t zipl_timeout = *(uint16_t *)(menu_data - ZIPL_TIMEOUT_OFFSET);
 
@@ -202,19 +210,19 @@ int menu_get_zipl_boot_index(const char *menu_data)
         timeout = zipl_timeout * 1000;
     }
 
-    /* Print and count all menu items, including the banner */
-    for (entries = 0; *menu_data; entries++) {
-        len = strlen(menu_data);
-        zipl_println(menu_data, len);
-        menu_data += len + 1;
+    /* Print banner */
+    sclp_print("s390-ccw zIPL Boot Menu\n\n");
+    menu_data += strlen(menu_data) + 1;
 
-        if (entries < 2) {
-            sclp_print("\n");
-        }
+    /* Print entries */
+    while (*menu_data) {
+        len = strlen(menu_data);
+        zipl_println(menu_data, len, valid_entries);
+        menu_data += len + 1;
     }
 
     sclp_print("\n");
-    return get_boot_index(entries - 1); /* subtract 1 to exclude banner */
+    return get_boot_index(valid_entries);
 }
 
 
