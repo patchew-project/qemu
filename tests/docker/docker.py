@@ -397,6 +397,8 @@ class CcCommand(SubCommand):
     def args(self, parser):
         parser.add_argument("--image", "-i", required=True,
                             help="The docker image in which to run cc")
+        parser.add_argument("--cc",
+                            help="The compiler executable to call")
         parser.add_argument("--source-path", "-s", nargs="*", dest="paths",
                             help="""Extra paths to (ro) mount into container for
                             reading sources""")
@@ -407,9 +409,19 @@ class CcCommand(SubCommand):
         cwd = os.getcwd()
         cmd = ["--rm", "-w", cwd,
                "-v", "%s:%s:rw" % (cwd, cwd)]
-        for p in args.paths:
-           cmd += ["-v", "%s:%s:ro,z" % (p, p)]
-        cmd += [args.image, "cc"]
+
+        if args.paths:
+            for p in args.paths:
+                cmd += ["-v", "%s:%s:ro,z" % (p, p)]
+
+        cmd += [args.image]
+
+        # The compile command we are running
+        if args.cc:
+            cmd += [args.cc]
+        else:
+            cmd += ["cc"]
+
         cmd += argv
         return Docker().command("run", cmd, True)
 
