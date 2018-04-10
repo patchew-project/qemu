@@ -1,0 +1,10 @@
+# i386 cross compile notes
+
+# If we are using a cross compiler config-target.mak may have also
+# defined some CFLAGs to use.
+
+ifeq ($(CC), $(CROSS_CC_GUEST))
+ifdef CROSS_CC_GUEST_CFLAGS
+CFLAGS+=$(CROSS_CC_GUEST_CFLAGS)
+endif
+endif
