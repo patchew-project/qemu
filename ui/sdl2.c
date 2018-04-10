@@ -815,6 +815,7 @@ static void sdl2_display_init(DisplayState *ds, DisplayOptions *o)
         sdl2_console[i].idx = i;
 #ifdef CONFIG_OPENGL
         sdl2_console[i].opengl = display_opengl;
+        sdl2_console[i].gl_mode = o->gl;
         sdl2_console[i].dcl.ops = display_opengl ? &dcl_gl_ops : &dcl_2d_ops;
 #else
         sdl2_console[i].opengl = 0;

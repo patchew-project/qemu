@@ -22,6 +22,7 @@ struct sdl2_console {
     int x, y, w, h;
     int hidden;
     int opengl;
+    DisplayGLMode gl_mode;
     int updates;
     int idle_counter;
     int ignore_hotkeys;
