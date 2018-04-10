@@ -39,6 +39,7 @@ typedef struct QemuThreadData QemuThreadData;
 struct QemuThread {
     QemuThreadData *data;
     unsigned tid;
+    Monitor *current_monitor;
 };
 
 /* Only valid for joinable threads.  */

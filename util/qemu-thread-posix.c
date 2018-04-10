@@ -14,6 +14,7 @@
 #include "qemu/thread.h"
 #include "qemu/atomic.h"
 #include "qemu/notify.h"
+#include "monitor/monitor.h"
 #include "trace.h"
 
 static bool name_threads;
@@ -486,6 +487,7 @@ typedef struct {
     void *(*start_routine)(void *);
     void *arg;
     char *name;
+    Monitor *current_monitor;
 } QemuThreadArgs;
 
 static void *qemu_thread_start(void *args)
@@ -493,6 +495,9 @@ static void *qemu_thread_start(void *args)
     QemuThreadArgs *qemu_thread_args = args;
     void *(*start_routine)(void *) = qemu_thread_args->start_routine;
     void *arg = qemu_thread_args->arg;
+
+    /* Inherit the cur_mon pointer from father thread */
+    cur_mon = qemu_thread_args->current_monitor;
 
     /* Attempt to set the threads name; note that this is for debug, so
      * we're not going to fail if we can't set it.
@@ -533,6 +538,7 @@ void qemu_thread_create(QemuThread *thread, const char *name,
     qemu_thread_args->name = g_strdup(name);
     qemu_thread_args->start_routine = start_routine;
     qemu_thread_args->arg = arg;
+    qemu_thread_args->current_monitor = cur_mon;
 
     err = pthread_create(&thread->thread, &attr,
                          qemu_thread_start, qemu_thread_args);

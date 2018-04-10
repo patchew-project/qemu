@@ -19,6 +19,7 @@
 #include "qemu-common.h"
 #include "qemu/thread.h"
 #include "qemu/notify.h"
+#include "monitor/monitor.h"
 #include "trace.h"
 #include <process.h>
 
@@ -298,6 +299,7 @@ struct QemuThreadData {
     void             *arg;
     short             mode;
     NotifierList      exit;
+    Monitor          *current_monitor;
 
     /* Only used for joinable threads. */
     bool              exited;
@@ -338,6 +340,9 @@ static unsigned __stdcall win32_start_routine(void *arg)
     QemuThreadData *data = (QemuThreadData *) arg;
     void *(*start_routine)(void *) = data->start_routine;
     void *thread_arg = data->arg;
+
+    /* Inherit the cur_mon pointer from father thread */
+    cur_mon = data->current_monitor;
 
     qemu_thread_data = data;
     qemu_thread_exit(start_routine(thread_arg));
@@ -401,6 +406,7 @@ void qemu_thread_create(QemuThread *thread, const char *name,
     data->arg = arg;
     data->mode = mode;
     data->exited = false;
+    data->current_monitor = cur_mon;
     notifier_list_init(&data->exit);
 
     if (data->mode != QEMU_THREAD_DETACHED) {

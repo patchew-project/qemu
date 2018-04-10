@@ -266,7 +266,7 @@ static mon_cmd_t info_cmds[];
 
 QmpCommandList qmp_commands, qmp_cap_negotiation_commands;
 
-Monitor *cur_mon;
+__thread Monitor *cur_mon;
 
 static QEMUClockType event_clock_type = QEMU_CLOCK_REALTIME;
 
