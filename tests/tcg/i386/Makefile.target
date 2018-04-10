@@ -8,3 +8,22 @@ ifdef CROSS_CC_GUEST_CFLAGS
 CFLAGS+=$(CROSS_CC_GUEST_CFLAGS)
 endif
 endif
+
+#
+# test-386 includes a couple of additional objects that need to be linked together
+#
+
+TEST_I386_DEPS=test-i386-code16.o test-i386-vm86.o
+
+# override the default compile and link in one go rule
+test-i386.o: test-i386.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# and provide a rule to compile .S files
+%.o: %.S
+	$(CC) $(CFLAGS) -c $< -o $@
+
+test-i386: LDFLAGS+=-lm -lc
+test-i386: test-i386.o $(TEST_I386_DEPS)
+	$(LD) -melf_i386 $(LDFLAGS) $< $(TEST_I386_DEPS) -o $@
+
