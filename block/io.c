@@ -69,6 +69,20 @@ void bdrv_parent_drained_end(BlockDriverState *bs, BdrvChild *ignore)
     }
 }
 
+static bool bdrv_parent_drained_poll(BlockDriverState *bs)
+{
+    BdrvChild *c, *next;
+    bool busy = false;
+
+    QLIST_FOREACH_SAFE(c, &bs->parents, next_parent, next) {
+        if (c->role->drained_poll) {
+            busy |= c->role->drained_poll(c);
+        }
+    }
+
+    return busy;
+}
+
 static void bdrv_merge_limits(BlockLimits *dst, const BlockLimits *src)
 {
     dst->opt_transfer = MAX(dst->opt_transfer, src->opt_transfer);
@@ -182,11 +196,18 @@ static void bdrv_drain_invoke(BlockDriverState *bs, bool begin)
 }
 
 /* Returns true if BDRV_POLL_WHILE() should go into a blocking aio_poll() */
-static bool bdrv_drain_poll(BlockDriverState *bs)
+bool bdrv_drain_poll(BlockDriverState *bs, bool top_level)
 {
     /* Execute pending BHs first and check everything else only after the BHs
      * have executed. */
-    while (aio_poll(bs->aio_context, false));
+    if (top_level) {
+        while (aio_poll(bs->aio_context, false));
+    }
+
+    if (bdrv_parent_drained_poll(bs)) {
+        return true;
+    }
+
     return atomic_read(&bs->in_flight);
 }
 
@@ -196,7 +217,7 @@ static bool bdrv_drain_recurse(BlockDriverState *bs)
     bool waited;
 
     /* Wait for drained requests to finish */
-    waited = BDRV_POLL_WHILE(bs, bdrv_drain_poll(bs));
+    waited = BDRV_POLL_WHILE(bs, bdrv_drain_poll(bs, true));
 
     QLIST_FOREACH_SAFE(child, &bs->children, next, tmp) {
         BlockDriverState *bs = child->bs;

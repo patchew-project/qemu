@@ -559,6 +559,13 @@ void bdrv_parent_drained_begin(BlockDriverState *bs, BdrvChild *ignore);
 void bdrv_parent_drained_end(BlockDriverState *bs, BdrvChild *ignore);
 
 /**
+ * bdrv_drain_poll:
+ *
+ * Poll for pending requests in @bs. This is part of bdrv_drained_begin.
+ */
+bool bdrv_drain_poll(BlockDriverState *bs, bool top_level);
+
+/**
  * bdrv_drained_begin:
  *
  * Begin a quiesced section for exclusive access to the BDS, by disabling

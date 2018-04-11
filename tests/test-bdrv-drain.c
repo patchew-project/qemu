@@ -686,7 +686,11 @@ static void coroutine_fn test_job_start(void *opaque)
 
     block_job_event_ready(&s->common);
     while (!s->should_complete) {
-        block_job_sleep_ns(&s->common, 100000);
+        /* Avoid block_job_sleep_ns() because it marks the job as !busy. We
+         * want to emulate some actual activity (probably some I/O) here so
+         * that drain has to wait for this acitivity to stop. */
+        qemu_co_sleep_ns(QEMU_CLOCK_REALTIME, 100000);
+        block_job_pause_point(&s->common);
     }
 
     block_job_defer_to_main_loop(&s->common, test_job_completed, NULL);
@@ -728,7 +732,7 @@ static void test_blockjob_common(enum drain_type drain_type)
 
     g_assert_cmpint(job->pause_count, ==, 0);
     g_assert_false(job->paused);
-    g_assert_false(job->busy); /* We're in block_job_sleep_ns() */
+    g_assert_true(job->busy); /* We're in qemu_co_sleep_ns() */
 
     do_drain_begin(drain_type, src);
 
@@ -738,15 +742,14 @@ static void test_blockjob_common(enum drain_type drain_type)
     } else {
         g_assert_cmpint(job->pause_count, ==, 1);
     }
-    /* XXX We don't wait until the job is actually paused. Is this okay? */
-    /* g_assert_true(job->paused); */
+    g_assert_true(job->paused);
     g_assert_false(job->busy); /* The job is paused */
 
     do_drain_end(drain_type, src);
 
     g_assert_cmpint(job->pause_count, ==, 0);
     g_assert_false(job->paused);
-    g_assert_false(job->busy); /* We're in block_job_sleep_ns() */
+    g_assert_true(job->busy); /* We're in qemu_co_sleep_ns() */
 
     do_drain_begin(drain_type, target);
 
@@ -756,15 +759,14 @@ static void test_blockjob_common(enum drain_type drain_type)
     } else {
         g_assert_cmpint(job->pause_count, ==, 1);
     }
-    /* XXX We don't wait until the job is actually paused. Is this okay? */
-    /* g_assert_true(job->paused); */
+    g_assert_true(job->paused);
     g_assert_false(job->busy); /* The job is paused */
 
     do_drain_end(drain_type, target);
 
     g_assert_cmpint(job->pause_count, ==, 0);
     g_assert_false(job->paused);
-    g_assert_false(job->busy); /* We're in block_job_sleep_ns() */
+    g_assert_true(job->busy); /* We're in qemu_co_sleep_ns() */
 
     ret = block_job_complete_sync(job, &error_abort);
     g_assert_cmpint(ret, ==, 0);

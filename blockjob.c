@@ -306,6 +306,26 @@ static void child_job_drained_begin(BdrvChild *c)
     block_job_pause(job);
 }
 
+static bool child_job_drained_poll(BdrvChild *c)
+{
+    BlockJob *job = c->opaque;
+
+    /* An inactive or completed job doesn't have any pending requests. Jobs
+     * with !job->busy are either already paused or have a pause point after
+     * being reentered, so no job driver code will run before they pause. */
+    if (!job->busy || job->completed || job->deferred_to_main_loop) {
+        return false;
+    }
+
+    /* Otherwise, assume that it isn't fully stopped yet, but allow the job to
+     * override this assumption. */
+    if (job->driver->drained_poll) {
+        return job->driver->drained_poll(job);
+    } else {
+        return true;
+    }
+}
+
 static void child_job_drained_end(BdrvChild *c)
 {
     BlockJob *job = c->opaque;
@@ -315,6 +335,7 @@ static void child_job_drained_end(BdrvChild *c)
 static const BdrvChildRole child_job = {
     .get_parent_desc    = child_job_get_parent_desc,
     .drained_begin      = child_job_drained_begin,
+    .drained_poll       = child_job_drained_poll,
     .drained_end        = child_job_drained_end,
     .stay_at_node       = true,
 };

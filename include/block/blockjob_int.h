@@ -106,6 +106,14 @@ struct BlockJobDriver {
     void coroutine_fn (*resume)(BlockJob *job);
 
     /*
+     * Returns whether the job has pending requests for the child or will
+     * submit new requests before the next pause point. This callback is polled
+     * in the context of draining a job node after requesting that the job be
+     * paused, until all activity on the child has stopped.
+     */
+    bool (*drained_poll)(BlockJob *job);
+
+    /*
      * If the callback is not NULL, it will be invoked before the job is
      * resumed in a new AioContext.  This is the place to move any resources
      * besides job->blk to the new AioContext.
