@@ -380,6 +380,7 @@ Protocol features
 #define VHOST_USER_PROTOCOL_F_CRYPTO_SESSION 7
 #define VHOST_USER_PROTOCOL_F_PAGEFAULT      8
 #define VHOST_USER_PROTOCOL_F_CONFIG         9
+#define VHOST_USER_PROTOCOL_F_NEED_ALL_IOTLB 10
 
 Master message types
 --------------------
@@ -797,3 +798,11 @@ resilient for selective requests.
 For the message types that already solicit a reply from the client, the
 presence of VHOST_USER_PROTOCOL_F_REPLY_ACK or need_reply bit being set brings
 no behavioural change. (See the 'Communication' section for details.)
+
+VHOST_USER_PROTOCOL_F_NEED_ALL_IOTLB
+------------------------------------
+By default, vhost-user backend needs to query the IOTLBs from QEMU after
+meeting unknown IOVAs. With this protocol feature negotiated, QEMU will
+provide all the IOTLBs to vhost backend without waiting for the queries
+from backend. This is helpful when using a hardware accelerator which is
+not able to handle unknown IOVAs at the vhost-user backend.

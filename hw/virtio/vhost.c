@@ -48,6 +48,9 @@ static unsigned int used_memslots;
 static QLIST_HEAD(, vhost_dev) vhost_devices =
     QLIST_HEAD_INITIALIZER(vhost_devices);
 
+static int vhost_memory_region_lookup(struct vhost_dev *hdev, uint64_t gpa,
+                                      uint64_t *uaddr, uint64_t *len);
+
 bool vhost_has_free_slot(void)
 {
     unsigned int slots_limit = ~0U;
@@ -634,11 +637,38 @@ static void vhost_region_addnop(MemoryListener *listener,
     vhost_region_add_section(dev, section);
 }
 
-static void vhost_iommu_unmap_notify(IOMMUNotifier *n, IOMMUTLBEntry *iotlb)
+static void vhost_iommu_map_notify(IOMMUNotifier *n, IOMMUTLBEntry *iotlb)
 {
     struct vhost_iommu *iommu = container_of(n, struct vhost_iommu, n);
     struct vhost_dev *hdev = iommu->hdev;
     hwaddr iova = iotlb->iova + iommu->iommu_offset;
+
+    if ((iotlb->perm & IOMMU_RW) != IOMMU_NONE) {
+        uint64_t uaddr, len;
+
+        rcu_read_lock();
+
+        if (iotlb->target_as != NULL) {
+            if (vhost_memory_region_lookup(hdev, iotlb->translated_addr,
+                        &uaddr, &len)) {
+                error_report("Fail to lookup the translated address "
+                        "%"PRIx64, iotlb->translated_addr);
+                goto out;
+            }
+
+            len = MIN(iotlb->addr_mask + 1, len);
+            iova = iova & ~iotlb->addr_mask;
+
+            if (vhost_backend_update_device_iotlb(hdev, iova, uaddr,
+                                                  len, iotlb->perm)) {
+                error_report("Fail to update device iotlb");
+                goto out;
+            }
+        }
+out:
+        rcu_read_unlock();
+        return;
+    }
 
     if (vhost_backend_invalidate_device_iotlb(hdev, iova,
                                               iotlb->addr_mask + 1)) {
@@ -652,6 +682,7 @@ static void vhost_iommu_region_add(MemoryListener *listener,
     struct vhost_dev *dev = container_of(listener, struct vhost_dev,
                                          iommu_listener);
     struct vhost_iommu *iommu;
+    IOMMUNotifierFlag flags;
     Int128 end;
 
     if (!memory_region_is_iommu(section->mr)) {
@@ -662,8 +693,15 @@ static void vhost_iommu_region_add(MemoryListener *listener,
     end = int128_add(int128_make64(section->offset_within_region),
                      section->size);
     end = int128_sub(end, int128_one());
-    iommu_notifier_init(&iommu->n, vhost_iommu_unmap_notify,
-                        IOMMU_NOTIFIER_UNMAP,
+
+    if (dev->vhost_ops->vhost_backend_need_all_device_iotlb(dev)) {
+        flags = IOMMU_NOTIFIER_ALL;
+    } else {
+        flags = IOMMU_NOTIFIER_UNMAP;
+    }
+
+    iommu_notifier_init(&iommu->n, vhost_iommu_map_notify,
+                        flags,
                         section->offset_within_region,
                         int128_get64(end));
     iommu->mr = section->mr;
@@ -673,6 +711,9 @@ static void vhost_iommu_region_add(MemoryListener *listener,
     memory_region_register_iommu_notifier(section->mr, &iommu->n);
     QLIST_INSERT_HEAD(&dev->iommu_list, iommu, iommu_next);
     /* TODO: can replay help performance here? */
+    if (flags == IOMMU_NOTIFIER_ALL) {
+        memory_region_iommu_replay(IOMMU_MEMORY_REGION(iommu->mr), &iommu->n);
+    }
 }
 
 static void vhost_iommu_region_del(MemoryListener *listener,
