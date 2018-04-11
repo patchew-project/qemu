@@ -38,6 +38,8 @@
 /* Maximum bounce buffer for copy-on-read and write zeroes, in bytes */
 #define MAX_BOUNCE_BUFFER (32768 << BDRV_SECTOR_BITS)
 
+static AioWait drain_all_aio_wait;
+
 static int coroutine_fn bdrv_co_do_pwrite_zeroes(BlockDriverState *bs,
     int64_t offset, int bytes, BdrvRequestFlags flags);
 
@@ -445,6 +447,29 @@ static void bdrv_drain_assert_idle(BlockDriverState *bs)
     }
 }
 
+unsigned int bdrv_drain_all_count = 0;
+
+static bool bdrv_drain_all_poll(void)
+{
+    BlockDriverState *bs = NULL;
+    bool result = false;
+
+    /* Execute pending BHs first (may modify the graph) and check everything
+     * else only after the BHs have executed. */
+    while (aio_poll(qemu_get_aio_context(), false));
+
+    /* bdrv_drain_poll() with top_level = false can't make changes to the
+     * graph, so iterating bdrv_next_all_states() is safe. */
+    while ((bs = bdrv_next_all_states(bs))) {
+        AioContext *aio_context = bdrv_get_aio_context(bs);
+        aio_context_acquire(aio_context);
+        result |= bdrv_drain_poll(bs, false, false);
+        aio_context_release(aio_context);
+    }
+
+    return result;
+}
+
 /*
  * Wait for pending requests to complete across all BlockDriverStates
  *
@@ -459,45 +484,51 @@ static void bdrv_drain_assert_idle(BlockDriverState *bs)
  */
 void bdrv_drain_all_begin(void)
 {
-    BlockDriverState *bs;
-    BdrvNextIterator it;
+    BlockDriverState *bs = NULL;
 
     if (qemu_in_coroutine()) {
         bdrv_co_yield_to_drain(NULL, true, false, NULL, true);
         return;
     }
 
-    /* BDRV_POLL_WHILE() for a node can only be called from its own I/O thread
-     * or the main loop AioContext. We potentially use BDRV_POLL_WHILE() on
-     * nodes in several different AioContexts, so make sure we're in the main
-     * context. */
+    /* AIO_WAIT_WHILE() with a NULL context can only be called from the main
+     * loop AioContext, so make sure we're in the main context. */
     assert(qemu_get_current_aio_context() == qemu_get_aio_context());
+    assert(bdrv_drain_all_count < INT_MAX);
+    bdrv_drain_all_count++;
 
-    for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
+    /* Quiesce all nodes, without polling in-flight requests yet. The graph
+     * cannot change during this loop. */
+    while ((bs = bdrv_next_all_states(bs))) {
         AioContext *aio_context = bdrv_get_aio_context(bs);
 
         aio_context_acquire(aio_context);
-        bdrv_do_drained_begin(bs, true, NULL, true);
+        bdrv_do_drained_begin(bs, false, NULL, false);
         aio_context_release(aio_context);
     }
 
-    for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
+    /* Now poll the in-flight requests */
+    AIO_WAIT_WHILE(&drain_all_aio_wait, NULL, bdrv_drain_all_poll());
+
+    while ((bs = bdrv_next_all_states(bs))) {
         bdrv_drain_assert_idle(bs);
     }
 }
 
 void bdrv_drain_all_end(void)
 {
-    BlockDriverState *bs;
-    BdrvNextIterator it;
+    BlockDriverState *bs = NULL;
 
-    for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
+    while ((bs = bdrv_next_all_states(bs))) {
         AioContext *aio_context = bdrv_get_aio_context(bs);
 
         aio_context_acquire(aio_context);
-        bdrv_do_drained_end(bs, true, NULL);
+        bdrv_do_drained_end(bs, false, NULL);
         aio_context_release(aio_context);
     }
+
+    assert(bdrv_drain_all_count > 0);
+    bdrv_drain_all_count--;
 }
 
 void bdrv_drain_all(void)
@@ -620,6 +651,7 @@ void bdrv_inc_in_flight(BlockDriverState *bs)
 void bdrv_wakeup(BlockDriverState *bs)
 {
     aio_wait_kick(bdrv_get_aio_wait(bs));
+    aio_wait_kick(&drain_all_aio_wait);
 }
 
 void bdrv_dec_in_flight(BlockDriverState *bs)

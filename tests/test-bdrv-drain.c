@@ -174,7 +174,8 @@ static void do_drain_end(enum drain_type drain_type, BlockDriverState *bs)
     }
 }
 
-static void test_drv_cb_common(enum drain_type drain_type, bool recursive)
+static void test_drv_cb_common(enum drain_type drain_type, int top_drain_count,
+                               int backing_drain_count)
 {
     BlockBackend *blk;
     BlockDriverState *bs, *backing;
@@ -205,8 +206,8 @@ static void test_drv_cb_common(enum drain_type drain_type, bool recursive)
 
     do_drain_begin(drain_type, bs);
 
-    g_assert_cmpint(s->drain_count, ==, 1);
-    g_assert_cmpint(backing_s->drain_count, ==, !!recursive);
+    g_assert_cmpint(s->drain_count, ==, top_drain_count);
+    g_assert_cmpint(backing_s->drain_count, ==, backing_drain_count);
 
     do_drain_end(drain_type, bs);
 
@@ -225,8 +226,8 @@ static void test_drv_cb_common(enum drain_type drain_type, bool recursive)
     do_drain_begin(drain_type, bs);
 
     g_assert_cmpint(aio_ret, ==, 0);
-    g_assert_cmpint(s->drain_count, ==, 1);
-    g_assert_cmpint(backing_s->drain_count, ==, !!recursive);
+    g_assert_cmpint(s->drain_count, ==, top_drain_count);
+    g_assert_cmpint(backing_s->drain_count, ==, backing_drain_count);
 
     do_drain_end(drain_type, bs);
 
@@ -240,17 +241,17 @@ static void test_drv_cb_common(enum drain_type drain_type, bool recursive)
 
 static void test_drv_cb_drain_all(void)
 {
-    test_drv_cb_common(BDRV_DRAIN_ALL, true);
+    test_drv_cb_common(BDRV_DRAIN_ALL, 2, 1);
 }
 
 static void test_drv_cb_drain(void)
 {
-    test_drv_cb_common(BDRV_DRAIN, false);
+    test_drv_cb_common(BDRV_DRAIN, 1, 0);
 }
 
 static void test_drv_cb_drain_subtree(void)
 {
-    test_drv_cb_common(BDRV_SUBTREE_DRAIN, true);
+    test_drv_cb_common(BDRV_SUBTREE_DRAIN, 1, 1);
 }
 
 static void test_drv_cb_co_drain_all(void)
@@ -268,7 +269,9 @@ static void test_drv_cb_co_drain_subtree(void)
     call_in_coroutine(test_drv_cb_drain_subtree);
 }
 
-static void test_quiesce_common(enum drain_type drain_type, bool recursive)
+static void test_quiesce_common(enum drain_type drain_type,
+                                int top_quiesce_count,
+                                int backing_quiesce_count)
 {
     BlockBackend *blk;
     BlockDriverState *bs, *backing;
@@ -286,8 +289,8 @@ static void test_quiesce_common(enum drain_type drain_type, bool recursive)
 
     do_drain_begin(drain_type, bs);
 
-    g_assert_cmpint(bs->quiesce_counter, ==, 1);
-    g_assert_cmpint(backing->quiesce_counter, ==, !!recursive);
+    g_assert_cmpint(bs->quiesce_counter, ==, top_quiesce_count);
+    g_assert_cmpint(backing->quiesce_counter, ==, backing_quiesce_count);
 
     do_drain_end(drain_type, bs);
 
@@ -301,17 +304,17 @@ static void test_quiesce_common(enum drain_type drain_type, bool recursive)
 
 static void test_quiesce_drain_all(void)
 {
-    test_quiesce_common(BDRV_DRAIN_ALL, true);
+    test_quiesce_common(BDRV_DRAIN_ALL, 2, 1);
 }
 
 static void test_quiesce_drain(void)
 {
-    test_quiesce_common(BDRV_DRAIN, false);
+    test_quiesce_common(BDRV_DRAIN, 1, 0);
 }
 
 static void test_quiesce_drain_subtree(void)
 {
-    test_quiesce_common(BDRV_SUBTREE_DRAIN, true);
+    test_quiesce_common(BDRV_SUBTREE_DRAIN, 1, 1);
 }
 
 static void test_quiesce_co_drain_all(void)
@@ -348,6 +351,8 @@ static void test_nested(void)
 
     for (outer = 0; outer < DRAIN_TYPE_MAX; outer++) {
         for (inner = 0; inner < DRAIN_TYPE_MAX; inner++) {
+            int top_quiesce = 2 + (outer == BDRV_DRAIN_ALL) +
+                                  (inner == BDRV_DRAIN_ALL);
             int backing_quiesce = (outer != BDRV_DRAIN) +
                                   (inner != BDRV_DRAIN);
 
@@ -359,9 +364,9 @@ static void test_nested(void)
             do_drain_begin(outer, bs);
             do_drain_begin(inner, bs);
 
-            g_assert_cmpint(bs->quiesce_counter, ==, 2);
+            g_assert_cmpint(bs->quiesce_counter, ==, top_quiesce);
             g_assert_cmpint(backing->quiesce_counter, ==, backing_quiesce);
-            g_assert_cmpint(s->drain_count, ==, 2);
+            g_assert_cmpint(s->drain_count, ==, top_quiesce);
             g_assert_cmpint(backing_s->drain_count, ==, backing_quiesce);
 
             do_drain_end(inner, bs);
