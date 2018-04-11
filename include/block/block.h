@@ -563,7 +563,7 @@ void bdrv_parent_drained_end(BlockDriverState *bs, BdrvChild *ignore);
  *
  * Poll for pending requests in @bs. This is part of bdrv_drained_begin.
  */
-bool bdrv_drain_poll(BlockDriverState *bs, bool top_level);
+bool bdrv_drain_poll(BlockDriverState *bs, bool top_level, bool recursive);
 
 /**
  * bdrv_drained_begin:
