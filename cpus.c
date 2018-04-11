@@ -2110,6 +2110,11 @@ CpuInfoList *qmp_query_cpus(Error **errp)
 
     CPU_FOREACH(cpu) {
         CpuInfoList *info;
+
+        if (cpu->unplug) {
+            continue;
+        }
+
 #if defined(TARGET_I386)
         X86CPU *x86_cpu = X86_CPU(cpu);
         CPUX86State *env = &x86_cpu->env;
