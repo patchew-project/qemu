@@ -36,8 +36,7 @@
 #define ARM64_TEXT_OFFSET_OFFSET    8
 #define ARM64_MAGIC_OFFSET          56
 
-static AddressSpace *arm_boot_address_space(ARMCPU *cpu,
-                                            const struct arm_boot_info *info)
+AddressSpace *arm_boot_address_space(ARMCPU *cpu, bool secure_boot)
 {
     /* Return the address space to use for bootloader reads and writes.
      * We prefer the secure address space if the CPU has it and we're
@@ -46,7 +45,7 @@ static AddressSpace *arm_boot_address_space(ARMCPU *cpu,
     int asidx;
     CPUState *cs = CPU(cpu);
 
-    if (arm_feature(&cpu->env, ARM_FEATURE_EL3) && info->secure_boot) {
+    if (arm_feature(&cpu->env, ARM_FEATURE_EL3) && secure_boot) {
         asidx = ARMASIdx_S;
     } else {
         asidx = ARMASIdx_NS;
@@ -193,7 +192,7 @@ static void default_write_secondary(ARMCPU *cpu,
                                     const struct arm_boot_info *info)
 {
     uint32_t fixupcontext[FIXUP_MAX];
-    AddressSpace *as = arm_boot_address_space(cpu, info);
+    AddressSpace *as = arm_boot_address_space(cpu, info->secure_boot);
 
     fixupcontext[FIXUP_GIC_CPU_IF] = info->gic_cpu_if_addr;
     fixupcontext[FIXUP_BOOTREG] = info->smp_bootreg_addr;
@@ -211,7 +210,7 @@ void arm_write_secure_board_setup_dummy_smc(ARMCPU *cpu,
                                             const struct arm_boot_info *info,
                                             hwaddr mvbar_addr)
 {
-    AddressSpace *as = arm_boot_address_space(cpu, info);
+    AddressSpace *as = arm_boot_address_space(cpu, info->secure_boot);
     int n;
     uint32_t mvbar_blob[] = {
         /* mvbar_addr: secure monitor vectors
@@ -262,7 +261,7 @@ void arm_write_secure_board_setup_dummy_smc(ARMCPU *cpu,
 static void default_reset_secondary(ARMCPU *cpu,
                                     const struct arm_boot_info *info)
 {
-    AddressSpace *as = arm_boot_address_space(cpu, info);
+    AddressSpace *as = arm_boot_address_space(cpu, info->secure_boot);
     CPUState *cs = CPU(cpu);
 
     address_space_stl_notdirty(as, info->smp_bootreg_addr,
@@ -753,7 +752,8 @@ static void do_cpu_reset(void *opaque)
             }
 
             if (cs == first_cpu) {
-                AddressSpace *as = arm_boot_address_space(cpu, info);
+                AddressSpace *as =
+                    arm_boot_address_space(cpu, info->secure_boot);
 
                 cpu_set_pc(cs, info->loader_start);
 
@@ -950,7 +950,7 @@ static void arm_load_kernel_notify(Notifier *notifier, void *data)
     ARMCPU *cpu = n->cpu;
     struct arm_boot_info *info =
         container_of(n, struct arm_boot_info, load_kernel_notifier);
-    AddressSpace *as = arm_boot_address_space(cpu, info);
+    AddressSpace *as = arm_boot_address_space(cpu, info->secure_boot);
 
     /* The board code is not supposed to set secure_board_setup unless
      * running its code in secure mode is actually possible, and KVM

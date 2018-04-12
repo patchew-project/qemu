@@ -143,6 +143,8 @@ struct arm_boot_info {
  */
 void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info);
 
+AddressSpace *arm_boot_address_space(ARMCPU *cpu, bool secure_boot);
+
 /* Write a secure board setup routine with a dummy handler for SMCs */
 void arm_write_secure_board_setup_dummy_smc(ARMCPU *cpu,
                                             const struct arm_boot_info *info,
