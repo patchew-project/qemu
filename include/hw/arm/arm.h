@@ -39,15 +39,6 @@ DeviceState *armv7m_init(MemoryRegion *system_memory, int mem_size, int num_irq,
  */
 void armv7m_load_kernel(ARMCPU *cpu, const char *kernel_filename, int mem_size);
 
-/*
- * struct used as a parameter of the arm_load_kernel machine init
- * done notifier
- */
-typedef struct {
-    Notifier notifier; /* actual notifier */
-    ARMCPU *cpu; /* handle to the first cpu object */
-} ArmLoadKernelNotifier;
-
 /* arm_boot.c */
 struct arm_boot_info {
     uint64_t ram_size;
@@ -56,6 +47,9 @@ struct arm_boot_info {
     const char *initrd_filename;
     const char *dtb_filename;
     hwaddr loader_start;
+    hwaddr dtb_start;
+    hwaddr dtb_limit;
+    bool skip_dtb_autoload;
     /* multicore boards that use the default secondary core boot functions
      * need to put the address of the secondary boot code, the boot reg,
      * and the GIC address in the next 3 values, respectively. boards that
@@ -95,7 +89,6 @@ struct arm_boot_info {
      */
     void (*modify_dtb)(const struct arm_boot_info *info, void *fdt);
     /* machine init done notifier executing arm_load_dtb */
-    ArmLoadKernelNotifier load_kernel_notifier;
     /* Used internally by arm_boot.c */
     int is_linux;
     hwaddr initrd_start;
@@ -144,6 +137,30 @@ struct arm_boot_info {
 void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info);
 
 AddressSpace *arm_boot_address_space(ARMCPU *cpu, bool secure_boot);
+
+/**
+ * arm_load_dtb() - load a device tree binary image into memory
+ * @addr:       the address to load the image at
+ * @binfo:      struct describing the boot environment
+ * @addr_limit: upper limit of the available memory area at @addr
+ * @as:         address space to load image to
+ *
+ * Load a device tree supplied by the machine or by the user  with the
+ * '-dtb' command line option, and put it at offset @addr in target
+ * memory.
+ *
+ * If @addr_limit contains a meaningful value (i.e., it is strictly greater
+ * than @addr), the device tree is only loaded if its size does not exceed
+ * the limit.
+ *
+ * Returns: the size of the device tree image on success,
+ *          0 if the image size exceeds the limit,
+ *          -1 on errors.
+ *
+ * Note: Must not be called unless have_dtb(binfo) is true.
+ */
+int arm_load_dtb(hwaddr addr, const struct arm_boot_info *binfo,
+                 hwaddr addr_limit, AddressSpace *as);
 
 /* Write a secure board setup routine with a dummy handler for SMCs */
 void arm_write_secure_board_setup_dummy_smc(ARMCPU *cpu,
