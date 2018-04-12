@@ -1344,6 +1344,7 @@ static int64_t round_to_int_and_pack(FloatParts in, int rmode,
     case float_class_qnan:
     case float_class_dnan:
     case float_class_msnan:
+        s->float_exception_flags = orig_flags | float_flag_invalid;
         return max;
     case float_class_inf:
         return p.sign ? min : max;
