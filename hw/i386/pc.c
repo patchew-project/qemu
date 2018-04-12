@@ -2337,6 +2337,17 @@ static void x86_nmi(NMIState *n, int cpu_index, Error **errp)
     }
 }
 
+static MemoryHotplugState *pc_machine_get_memory_hotplug_state(MachineState *ms)
+{
+    PCMachineState *pcms = PC_MACHINE(ms);
+
+    if (!pcms->hotplug_memory.base) {
+        /* hotplug not supported */
+        return NULL;
+    }
+    return &pcms->hotplug_memory;
+}
+
 static void pc_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -2376,6 +2387,7 @@ static void pc_machine_class_init(ObjectClass *oc, void *data)
     hc->unplug = pc_machine_device_unplug_cb;
     nc->nmi_monitor_handler = x86_nmi;
     mc->default_cpu_type = TARGET_DEFAULT_CPU_TYPE;
+    mc->get_memory_hotplug_state = pc_machine_get_memory_hotplug_state;
 
     object_class_property_add(oc, PC_MACHINE_MEMHP_REGION_SIZE, "int",
         pc_machine_get_hotplug_memory_region_size, NULL,

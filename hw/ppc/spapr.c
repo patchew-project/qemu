@@ -3868,6 +3868,17 @@ PowerPCCPU *spapr_find_cpu(int vcpu_id)
     return NULL;
 }
 
+static MemoryHotplugState *spapr_get_memory_hotplug_state(MachineState *ms)
+{
+    sPAPRMachineState *spapr = SPAPR_MACHINE(machine);
+
+    if (!spapr->hotplug_memory.base) {
+        /* hotplug not supported */
+        return NULL;
+    }
+    return &spapr->hotplug_memory;
+}
+
 static void spapr_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -3927,6 +3938,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
      * in which LMBs are represented and hot-added
      */
     mc->numa_mem_align_shift = 28;
+    mc->get_memory_hotplug_state = spapr_get_memory_hotplug_state;
 
     smc->default_caps.caps[SPAPR_CAP_HTM] = SPAPR_CAP_OFF;
     smc->default_caps.caps[SPAPR_CAP_VSX] = SPAPR_CAP_ON;
