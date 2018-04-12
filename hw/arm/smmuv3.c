@@ -551,6 +551,8 @@ static SMMUTransCfg *smmuv3_get_config(SMMUDevice *sdev, SMMUEventInfo *event)
                                        sdev->devfn);
         cfg = g_new0(SMMUTransCfg, 1);
         g_hash_table_insert(bc->configs, sdev, cfg);
+        cfg->iotlb_miss = 0;
+        cfg->iotlb_hit = 0;
 
         if (smmuv3_decode_config(&sdev->iommu, cfg, event)) {
             g_hash_table_remove(bc->configs, sdev);
@@ -575,8 +577,12 @@ static IOMMUTLBEntry smmuv3_translate(IOMMUMemoryRegion *mr, hwaddr addr,
     SMMUDevice *sdev = container_of(mr, SMMUDevice, iommu);
     SMMUv3State *s = sdev->smmu;
     uint32_t sid = smmu_get_sid(sdev);
+    SMMUState *bs = ARM_SMMU(s);
     SMMUEventInfo event = {.type = SMMU_EVT_OK, .sid = sid};
+    uint64_t key_val, page_mask, aligned_addr;
+    IOMMUTLBEntry *cached_entry = NULL;
     SMMUPTWEventInfo ptw_info = {};
+    SMMUTransTableInfo *tt;
     SMMUTransCfg *cfg = NULL;
     IOMMUTLBEntry entry = {
         .target_as = &address_space_memory,
@@ -585,6 +591,7 @@ static IOMMUTLBEntry smmuv3_translate(IOMMUMemoryRegion *mr, hwaddr addr,
         .addr_mask = ~(hwaddr)0,
         .perm = IOMMU_NONE,
     };
+    uint64_t *key;
     int ret = 0;
 
     if (!smmu_enabled(s)) {
@@ -607,7 +614,56 @@ static IOMMUTLBEntry smmuv3_translate(IOMMUMemoryRegion *mr, hwaddr addr,
         goto out;
     }
 
-    ret = smmu_ptw(cfg, addr, flag, &entry, &ptw_info);
+    tt = select_tt(cfg, addr);
+    if (!tt) {
+        if (event.record_trans_faults) {
+            event.type = SMMU_EVT_F_TRANSLATION;
+            event.u.f_translation.addr = addr;
+            event.u.f_translation.rnw = flag & 0x1;
+        }
+        ret = -EINVAL;
+        goto out;
+    }
+
+    page_mask = (1ULL << (tt->granule_sz)) - 1;
+    aligned_addr = addr & ~page_mask;
+
+    key_val = SMMU_IOTLB_KEY(cfg->asid, aligned_addr);
+
+    cached_entry = g_hash_table_lookup(bs->iotlb, &key_val);
+    if (cached_entry) {
+        cfg->iotlb_hit += 1;
+        trace_smmu_iotlb_cache_hit(cfg->asid, aligned_addr,
+                                   cfg->iotlb_hit, cfg->iotlb_miss,
+                                   100 * cfg->iotlb_hit /
+                                   (cfg->iotlb_hit + cfg->iotlb_miss));
+        if ((flag & IOMMU_WO) && !(cached_entry->perm & IOMMU_WO)) {
+            ret = -EFAULT;
+            if (event.record_trans_faults) {
+                event.type = SMMU_EVT_F_PERMISSION;
+                event.u.f_permission.addr = addr;
+                event.u.f_permission.rnw = flag & 0x1;
+            }
+        }
+        goto out;
+    }
+
+    cfg->iotlb_miss += 1;
+    trace_smmu_iotlb_cache_miss(cfg->asid, addr & ~page_mask,
+                                cfg->iotlb_hit, cfg->iotlb_miss,
+                                100 * cfg->iotlb_hit /
+                                (cfg->iotlb_hit + cfg->iotlb_miss));
+
+    if (g_hash_table_size(bs->iotlb) >= SMMU_IOTLB_MAX_SIZE) {
+        smmu_iotlb_inv_all(bs);
+    }
+
+    cached_entry = g_new0(IOMMUTLBEntry, 1);
+    key = g_new0(uint64_t, 1);
+    *key = key_val;
+    g_hash_table_insert(bs->iotlb, key, cached_entry);
+
+    ret = smmu_ptw(cfg, aligned_addr, flag, cached_entry, &ptw_info);
     if (ret) {
         switch (ptw_info.type) {
         case SMMU_PTW_ERR_WALK_EABT:
@@ -656,8 +712,14 @@ out:
                       mr->parent_obj.name, addr, ret);
         entry.perm = IOMMU_NONE;
         smmuv3_record_event(s, &event);
+        if (cached_entry) {
+            smmu_iotlb_inv_iova(bs, cfg->asid, aligned_addr);
+        }
     } else if (!cfg->aborted) {
         entry.perm = flag;
+        entry.translated_addr = cached_entry->translated_addr +
+                                    (addr & page_mask);
+        entry.addr_mask = cached_entry->addr_mask;
         trace_smmuv3_translate(mr->parent_obj.name, sid, addr,
                                entry.translated_addr, entry.perm);
     }
@@ -781,10 +843,46 @@ static int smmuv3_cmdq_consume(SMMUv3State *s)
             smmuv3_put_config(sdev);
             break;
         }
-        case SMMU_CMD_TLBI_NH_ALL:
         case SMMU_CMD_TLBI_NH_ASID:
-        case SMMU_CMD_TLBI_NH_VA:
+        {
+            uint16_t asid = CMD_ASID(&cmd);
+
+            trace_smmuv3_cmdq_tlbi_nh_asid(asid);
+            /* TODO: be more precise and invalidate for @asid */
+            smmu_iotlb_inv_asid(bs, asid);
+            break;
+        }
+        case SMMU_CMD_TLBI_NH_ALL:
+        case SMMU_CMD_TLBI_NSNH_ALL:
+            trace_smmuv3_cmdq_tlbi_nh();
+            smmu_iotlb_inv_all(bs);
+            break;
         case SMMU_CMD_TLBI_NH_VAA:
+        {
+            dma_addr_t addr = CMD_ADDR(&cmd);
+            uint16_t vmid = CMD_VMID(&cmd);
+
+            trace_smmuv3_cmdq_tlbi_nh_vaa(vmid, addr);
+            smmu_iotlb_inv_all(bs);
+            break;
+        }
+        case SMMU_CMD_TLBI_NH_VA:
+        {
+            uint16_t asid = CMD_ASID(&cmd);
+            uint16_t vmid = CMD_VMID(&cmd);
+            dma_addr_t addr = CMD_ADDR(&cmd);
+            bool leaf = CMD_LEAF(&cmd);
+
+            trace_smmuv3_cmdq_tlbi_nh_va(vmid, asid, addr, leaf);
+            /**
+             * we don't know the size of the granule so
+             * let's invalidate both 4K entry and 64kB entry.
+             * The spec allow to invalidate more than necessary.
+             */
+            smmu_iotlb_inv_iova(bs, asid, addr & ~0xFFF);
+            smmu_iotlb_inv_iova(bs, asid, addr & ~0xFFFF);
+            break;
+        }
         case SMMU_CMD_TLBI_EL3_ALL:
         case SMMU_CMD_TLBI_EL3_VA:
         case SMMU_CMD_TLBI_EL2_ALL:
@@ -793,7 +891,6 @@ static int smmuv3_cmdq_consume(SMMUv3State *s)
         case SMMU_CMD_TLBI_EL2_VAA:
         case SMMU_CMD_TLBI_S12_VMALL:
         case SMMU_CMD_TLBI_S2_IPA:
-        case SMMU_CMD_TLBI_NSNH_ALL:
         case SMMU_CMD_ATC_INV:
         case SMMU_CMD_PRI_RESP:
         case SMMU_CMD_RESUME:
