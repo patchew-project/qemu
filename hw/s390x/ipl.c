@@ -26,6 +26,7 @@
 #include "qemu/config-file.h"
 #include "qemu/cutils.h"
 #include "qemu/option.h"
+#include "exec/exec-all.h"
 
 #define KERN_IMAGE_START                0x010000UL
 #define KERN_PARM_AREA                  0x010480UL
@@ -484,11 +485,22 @@ IplParameterBlock *s390_ipl_get_iplb(void)
     return &ipl->iplb;
 }
 
-void s390_reipl_request(void)
+void s390_ipl_reset_request(CPUState *cs, enum s390_reset reset_type)
 {
     S390IPLState *ipl = get_ipl_device();
 
-    ipl->reipl_requested = true;
+    if (reset_type == S390_RESET_EXTERNAL || reset_type == S390_RESET_REIPL) {
+        /* let's always use CPU 0 */
+        ipl->reset_cpu = NULL;
+    } else {
+        ipl->reset_cpu = cs;
+    }
+    ipl->reset_type = reset_type;
+
+    if (reset_type != S390_RESET_REIPL) {
+        goto no_reipl;
+    }
+
     if (ipl->iplb_valid &&
         !ipl->netboot &&
         ipl->iplb.pbt == S390_IPL_TYPE_CCW &&
@@ -505,7 +517,32 @@ void s390_reipl_request(void)
             ipl->iplb_valid = s390_gen_initial_iplb(ipl);
         }
     }
+no_reipl:
     qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
+    /* as this is triggered by a CPU, make sure to exit the loop */
+    if (tcg_enabled()) {
+        cpu_loop_exit(cs);
+    }
+}
+
+void s390_ipl_get_reset_request(CPUState **cs, enum s390_reset *reset_type)
+{
+    S390IPLState *ipl = get_ipl_device();
+
+    *cs = ipl->reset_cpu;
+    if (!ipl->reset_cpu) {
+        /* use CPU 0 as default */
+        *cs = qemu_get_cpu(0);
+    }
+    *reset_type = ipl->reset_type;
+}
+
+void s390_ipl_clear_reset_request(void)
+{
+    S390IPLState *ipl = get_ipl_device();
+
+    ipl->reset_type = S390_RESET_EXTERNAL;
+    ipl->reset_cpu = NULL;
 }
 
 static void s390_ipl_prepare_qipl(S390CPU *cpu)
@@ -552,11 +589,10 @@ static void s390_ipl_reset(DeviceState *dev)
 {
     S390IPLState *ipl = S390_IPL(dev);
 
-    if (!ipl->reipl_requested) {
+    if (ipl->reset_type != S390_RESET_REIPL) {
         ipl->iplb_valid = false;
         memset(&ipl->iplb, 0, sizeof(IplParameterBlock));
     }
-    ipl->reipl_requested = false;
 }
 
 static void s390_ipl_class_init(ObjectClass *klass, void *data)
