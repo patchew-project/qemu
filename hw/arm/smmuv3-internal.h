@@ -129,28 +129,6 @@ typedef struct Evt  {
     uint32_t word[8];
 } Evt;
 
-/**
- * smmu_read64 - 64-bit register read utility function supporting
- * aligned 32-bit word access to both 32-bit halves and aligned 64-bit
- * access.
- *
- * @r: register address
- * @offset: byte offset if 32-bit access
- * @size: read byte size
- */
-static inline uint64_t smmu_read64(uint64_t r, unsigned offset,
-                                   unsigned size)
-{
-    if (size == 8) {
-        return r;
-    }
-
-    /* 32 bit access */
-    assert(!offset || offset == 4);
-
-    return extract64(r, offset << 3, 32);
-}
-
 static inline uint32_t smmuv3_idreg(int regoffset)
 {
     /*
@@ -163,5 +141,19 @@ static inline uint32_t smmuv3_idreg(int regoffset)
     };
     return smmuv3_ids[regoffset / 4];
 }
+
+static inline bool smmuv3_eventq_irq_enabled(SMMUv3State *s)
+{
+    return FIELD_EX32(s->irq_ctrl, IRQ_CTRL, EVENTQ_IRQEN);
+}
+
+static inline bool smmuv3_gerror_irq_enabled(SMMUv3State *s)
+{
+    return FIELD_EX32(s->irq_ctrl, IRQ_CTRL, GERROR_IRQEN);
+}
+
+/* public until callers get introduced */
+void smmuv3_trigger_irq(SMMUv3State *s, SMMUIrq irq, uint32_t gerror_mask);
+void smmuv3_write_gerrorn(SMMUv3State *s, uint32_t gerrorn);
 
 #endif
