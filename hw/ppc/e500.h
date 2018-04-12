@@ -2,6 +2,7 @@
 #define PPCE500_H
 
 #include "hw/boards.h"
+#include "hw/sysbus.h"
 
 typedef struct PPCE500Params {
     int pci_first_slot;
@@ -25,6 +26,8 @@ typedef struct PPCE500Params {
 } PPCE500Params;
 
 void ppce500_init(MachineState *machine, PPCE500Params *params);
+
+void ppce500_plug_dynamic_sysbus_device(SysBusDevice *sbdev);
 
 hwaddr booke206_page_size_to_tlb(uint64_t size);
 

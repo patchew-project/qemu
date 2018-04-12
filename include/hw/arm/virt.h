@@ -86,11 +86,14 @@ typedef struct {
     bool no_pmu;
     bool claim_edge_triggered_timers;
     bool smbios_old_sys_ver;
+    HotplugHandler *(*get_hotplug_handler)(MachineState *machine,
+                                           DeviceState *dev);
 } VirtMachineClass;
 
 typedef struct {
     MachineState parent;
     Notifier machine_done;
+    DeviceState *platform_bus_dev;
     FWCfgState *fw_cfg;
     bool secure;
     bool highmem;

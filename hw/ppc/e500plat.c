@@ -60,8 +60,49 @@ static void e500plat_init(MachineState *machine)
     ppce500_init(machine, &params);
 }
 
-static void e500plat_machine_init(MachineClass *mc)
+typedef struct {
+    MachineClass parent;
+    HotplugHandler *(*get_hotplug_handler)(MachineState *machine,
+                                           DeviceState *dev);
+} E500PlatMachineClass;
+
+#define TYPE_E500PLAT_MACHINE  MACHINE_TYPE_NAME("ppce500")
+#define E500PLAT_MACHINE_GET_CLASS(obj) \
+    OBJECT_GET_CLASS(E500PlatMachineClass, obj, TYPE_E500PLAT_MACHINE)
+#define E500PLAT_MACHINE_CLASS(klass) \
+    OBJECT_CLASS_CHECK(E500PlatMachineClass, klass, TYPE_E500PLAT_MACHINE)
+
+static void e500plat_machine_device_plug_cb(HotplugHandler *hotplug_dev,
+                                            DeviceState *dev, Error **errp)
 {
+    if (object_dynamic_cast(OBJECT(dev), TYPE_SYS_BUS_DEVICE)) {
+        ppce500_plug_dynamic_sysbus_device(SYS_BUS_DEVICE(dev));
+    }
+}
+
+static
+HotplugHandler *e500plat_machine_get_hotpug_handler(MachineState *machine,
+                                                    DeviceState *dev)
+{
+    E500PlatMachineClass *emc = E500PLAT_MACHINE_GET_CLASS(machine);
+    if (object_dynamic_cast(OBJECT(dev), TYPE_SYS_BUS_DEVICE)) {
+        return HOTPLUG_HANDLER(machine);
+    }
+
+    return emc->get_hotplug_handler ?
+        emc->get_hotplug_handler(machine, dev) : NULL;
+}
+
+static void e500plat_machine_class_init(ObjectClass *oc, void *data)
+{
+    E500PlatMachineClass *emc = E500PLAT_MACHINE_CLASS(oc);
+    HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    emc->get_hotplug_handler = mc->get_hotplug_handler;
+    mc->get_hotplug_handler = e500plat_machine_get_hotpug_handler;
+    hc->plug = e500plat_machine_device_plug_cb;
+
     mc->desc = "generic paravirt e500 platform";
     mc->init = e500plat_init;
     mc->max_cpus = 32;
@@ -69,4 +110,19 @@ static void e500plat_machine_init(MachineClass *mc)
     mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("e500v2_v30");
 }
 
-DEFINE_MACHINE("ppce500", e500plat_machine_init)
+static const TypeInfo e500plat_info = {
+    .name          = TYPE_E500PLAT_MACHINE,
+    .parent        = TYPE_MACHINE,
+    .class_size    = sizeof(E500PlatMachineClass),
+    .class_init    = e500plat_machine_class_init,
+    .interfaces    = (InterfaceInfo[]) {
+         { TYPE_HOTPLUG_HANDLER },
+         { }
+    }
+};
+
+static void e500plat_register_types(void)
+{
+    type_register_static(&e500plat_info);
+}
+type_init(e500plat_register_types)

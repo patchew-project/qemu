@@ -64,6 +64,8 @@
 #define MPC8XXX_GPIO_OFFSET        0x000FF000ULL
 #define MPC8XXX_GPIO_IRQ           47
 
+static SysBusDevice *pbus_dev;
+
 struct boot_info
 {
     uint32_t dt_base;
@@ -248,21 +250,26 @@ static void platform_bus_create_devtree(PPCE500Params *params, void *fdt,
     dev = qdev_find_recursive(sysbus_get_default(), TYPE_PLATFORM_BUS_DEVICE);
     pbus = PLATFORM_BUS_DEVICE(dev);
 
-    /* We can only create dt nodes for dynamic devices when they're ready */
-    if (pbus->done_gathering) {
-        PlatformDevtreeData data = {
-            .fdt = fdt,
-            .mpic = mpic,
-            .irq_start = irq_start,
-            .node = node,
-            .pbus = pbus,
-        };
+    /* Create dt nodes for dynamic devices */
+    PlatformDevtreeData data = {
+        .fdt = fdt,
+        .mpic = mpic,
+        .irq_start = irq_start,
+        .node = node,
+        .pbus = pbus,
+    };
 
-        /* Loop through all dynamic sysbus devices and create nodes for them */
-        foreach_dynamic_sysbus_device(sysbus_device_create_devtree, &data);
-    }
+    /* Loop through all dynamic sysbus devices and create nodes for them */
+    foreach_dynamic_sysbus_device(sysbus_device_create_devtree, &data);
 
     g_free(node);
+}
+
+void ppce500_plug_dynamic_sysbus_device(SysBusDevice *sbdev)
+{
+    if (pbus_dev) {
+        platform_bus_link_device(PLATFORM_BUS_DEVICE(pbus_dev), sbdev);
+    }
 }
 
 static int ppce500_load_device_tree(MachineState *machine,
@@ -945,16 +952,16 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
         qdev_prop_set_uint32(dev, "num_irqs", params->platform_bus_num_irqs);
         qdev_prop_set_uint32(dev, "mmio_size", params->platform_bus_size);
         qdev_init_nofail(dev);
-        s = SYS_BUS_DEVICE(dev);
+        pbus_dev = SYS_BUS_DEVICE(dev);
 
         for (i = 0; i < params->platform_bus_num_irqs; i++) {
             int irqn = params->platform_bus_first_irq + i;
-            sysbus_connect_irq(s, i, qdev_get_gpio_in(mpicdev, irqn));
+            sysbus_connect_irq(pbus_dev, i, qdev_get_gpio_in(mpicdev, irqn));
         }
 
         memory_region_add_subregion(address_space_mem,
                                     params->platform_bus_base,
-                                    sysbus_mmio_get_region(s, 0));
+                                    sysbus_mmio_get_region(pbus_dev, 0));
     }
 
     /*
