@@ -115,6 +115,7 @@ struct NBDClient {
 
     bool structured_reply;
     NBDExportMetaContexts export_meta;
+    bool allow_list;
 
     uint32_t opt; /* Current option being negotiated */
     uint32_t optlen; /* remaining length of data in ioc for the option being
@@ -1032,6 +1033,10 @@ static int nbd_negotiate_options(NBDClient *client, uint16_t myflags,
             case NBD_OPT_LIST:
                 if (length) {
                     ret = nbd_reject_length(client, false, errp);
+                } else if (!client->allow_list) {
+                    ret = nbd_negotiate_send_rep_err(client,
+                                                     NBD_REP_ERR_POLICY, errp,
+                                                     "Listing exports is forbidden");
                 } else {
                     ret = nbd_negotiate_handle_list(client, errp);
                 }
@@ -2141,6 +2146,7 @@ void nbd_client_new(NBDExport *exp,
                     QIOChannelSocket *sioc,
                     QCryptoTLSCreds *tlscreds,
                     const char *tlsaclname,
+                    bool allow_list,
                     void (*close_fn)(NBDClient *, bool))
 {
     NBDClient *client;
@@ -2158,6 +2164,7 @@ void nbd_client_new(NBDExport *exp,
     object_ref(OBJECT(client->sioc));
     client->ioc = QIO_CHANNEL(sioc);
     object_ref(OBJECT(client->ioc));
+    client->allow_list = allow_list;
     client->close_fn = close_fn;
 
     co = qemu_coroutine_create(nbd_co_client_start, client);

@@ -52,6 +52,7 @@
 #define QEMU_NBD_OPT_TLSCREDS      261
 #define QEMU_NBD_OPT_IMAGE_OPTS    262
 #define QEMU_NBD_OPT_FORK          263
+#define QEMU_NBD_OPT_NOLIST        264
 
 #define MBR_SIZE 512
 
@@ -66,6 +67,7 @@ static int shared = 1;
 static int nb_fds;
 static QIONetListener *server;
 static QCryptoTLSCreds *tlscreds;
+static bool allow_list = true;
 
 static void usage(const char *name)
 {
@@ -86,6 +88,7 @@ static void usage(const char *name)
 "  -v, --verbose             display extra debugging information\n"
 "  -x, --export-name=NAME    expose export by name\n"
 "  -D, --description=TEXT    with -x, also export a human-readable description\n"
+"      --nolist              do not list export\n"
 "\n"
 "Exposing part of the image:\n"
 "  -o, --offset=OFFSET       offset into the image\n"
@@ -355,7 +358,7 @@ static void nbd_accept(QIONetListener *listener, QIOChannelSocket *cioc,
     nb_fds++;
     nbd_update_server_watch();
     nbd_client_new(newproto ? NULL : exp, cioc,
-                   tlscreds, NULL, nbd_client_closed);
+                   tlscreds, NULL, allow_list, nbd_client_closed);
 }
 
 static void nbd_update_server_watch(void)
@@ -523,6 +526,7 @@ int main(int argc, char **argv)
         { "object", required_argument, NULL, QEMU_NBD_OPT_OBJECT },
         { "export-name", required_argument, NULL, 'x' },
         { "description", required_argument, NULL, 'D' },
+        { "nolist", no_argument, NULL, QEMU_NBD_OPT_NOLIST },
         { "tls-creds", required_argument, NULL, QEMU_NBD_OPT_TLSCREDS },
         { "image-opts", no_argument, NULL, QEMU_NBD_OPT_IMAGE_OPTS },
         { "trace", required_argument, NULL, 'T' },
@@ -716,6 +720,9 @@ int main(int argc, char **argv)
             break;
         case 'D':
             export_description = optarg;
+            break;
+        case QEMU_NBD_OPT_NOLIST:
+            allow_list = false;
             break;
         case 'v':
             verbose = 1;

@@ -37,7 +37,7 @@ static void nbd_accept(QIONetListener *listener, QIOChannelSocket *cioc,
 {
     qio_channel_set_name(QIO_CHANNEL(cioc), "nbd-server");
     nbd_client_new(NULL, cioc,
-                   nbd_server->tlscreds, NULL,
+                   nbd_server->tlscreds, NULL, true,
                    nbd_blockdev_client_closed);
 }
 

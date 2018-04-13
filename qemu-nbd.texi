@@ -85,6 +85,8 @@ the new style NBD protocol negotiation
 @item -D, --description=@var{description}
 Set the NBD volume export description, as a human-readable
 string. Requires the use of @option{-x}
+@item --nolist
+Do not allow the client to fetch a list of exports from this server.
 @item --tls-creds=ID
 Enable mandatory TLS encryption for the server by setting the ID
 of the TLS credentials object previously created with the --object
