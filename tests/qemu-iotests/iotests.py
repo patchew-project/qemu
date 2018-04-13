@@ -64,6 +64,24 @@ luks_default_secret_object = 'secret,id=keysec0,data=' + \
                              os.environ['IMGKEYSECRET']
 luks_default_key_secret_opt = 'key-secret=keysec0'
 
+class CommandFailed(Exception):
+
+    def __init__(self, cmd, rc, out, err):
+        self.cmd = cmd
+        self.rc = rc
+        self.out = out
+        self.err = err
+
+    def __str__(self):
+        return ("Command {self.cmd} failed: rc={self.rc}, out={self.out!r}, "
+                "err={self.err!r}").format(self=self)
+
+def run(*args):
+    p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    out, err = p.communicate()
+    if p.returncode != 0:
+        raise CommandFailed(args, p.returncode, out, err)
+    return out
 
 def qemu_img(*args):
     '''Run qemu-img and return the exit code'''
