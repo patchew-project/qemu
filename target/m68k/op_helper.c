@@ -301,8 +301,11 @@ static inline void do_stack_frame(CPUM68KState *env, uint32_t *sp,
         cpu_stl_kernel(env, *sp, addr);
         break;
     }
-    *sp -= 2;
-    cpu_stw_kernel(env, *sp, (format << 12) + (cs->exception_index << 2));
+    if (m68k_feature(env, M68K_FEATURE_QUAD_MULDIV)) {
+        /*  all except 68000 */
+        *sp -= 2;
+        cpu_stw_kernel(env, *sp, (format << 12) + (cs->exception_index << 2));
+    }
     *sp -= 4;
     cpu_stl_kernel(env, *sp, retaddr);
     *sp -= 2;
