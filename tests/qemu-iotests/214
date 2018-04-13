@@ -1,0 +1,46 @@
+#!/usr/bin/env python
+#
+# Test qemu-nbd compatibility with other tools.
+#
+# Copyright (C) 2018 Nir Soffer <nirsof@gmail.com>
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import iotests
+
+iotests.verify_image_format(supported_fmts=['raw'])
+
+iotests.log('Check that listing exports is allowed by default')
+disk, nbd_sock = iotests.file_path('disk1', 'nbd-sock1')
+iotests.qemu_img_create('-f', iotests.imgfmt, disk, '1m')
+iotests.qemu_nbd('-k', nbd_sock, '-f', iotests.imgfmt, '-x', 'export', disk)
+out = iotests.run('nbd-client', '-l', '--unix', nbd_sock)
+
+assert 'export' in out.splitlines(), 'Export not in %r' % out
+
+iotests.log('Check that listing exports is forbidden with --nolist')
+disk, nbd_sock = iotests.file_path('disk2', 'nbd-sock2')
+iotests.qemu_img_create('-f', iotests.imgfmt, disk, '1m')
+iotests.qemu_nbd('-k', nbd_sock, '-f', iotests.imgfmt, '-x', 'secret',
+                 '--nolist', disk)
+
+# nbd-client fails when listing is not allowed, but lets not depend on 3rd
+# party tool behavior here.
+try:
+    out = iotests.run('nbd-client', '-l', '--unix', nbd_sock)
+    assert 'secret' not in out, 'Export in %r' % out
+except iotests.CommandFailed as e:
+    # This text comes from qemu-nbd.
+    assert 'Listing exports is forbidden' in e.err, 'Unexpected error: %s' % e

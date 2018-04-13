@@ -1,0 +1,2 @@
+Check that listing exports is allowed by default
+Check that listing exports is forbidden with --nolist
