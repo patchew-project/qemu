@@ -12,7 +12,8 @@
 #ifndef S390_CCW_LIBC_H
 #define S390_CCW_LIBC_H
 
-typedef long               size_t;
+typedef unsigned long      size_t;
+typedef signed long        ssize_t;
 typedef int                bool;
 typedef unsigned char      uint8_t;
 typedef unsigned short     uint16_t;
