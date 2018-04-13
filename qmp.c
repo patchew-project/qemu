@@ -237,6 +237,32 @@ ObjectPropertyInfoList *qmp_qom_list(const char *path, Error **errp)
 
         entry->value->name = g_strdup(prop->name);
         entry->value->type = g_strdup(prop->type);
+        if (prop->description) {
+            entry->value->description = g_strdup(prop->description);
+        }
+        if ((g_ascii_strncasecmp(entry->value->type, "string", 6) == 0) ||
+            (g_ascii_strncasecmp(entry->value->type, "str", 3) == 0)) {
+            Error **errp = NULL;
+            entry->value->value = g_strdup_printf("\"%s\"",
+                object_property_get_str(obj, entry->value->name, errp));
+        }
+        if (g_ascii_strncasecmp(entry->value->type, "int", 3) == 0) {
+            Error **errp = NULL;
+            entry->value->value = g_strdup_printf("%ld",
+                object_property_get_int(obj, entry->value->name, errp));
+        }
+        if (g_ascii_strncasecmp(entry->value->type, "uint", 4) == 0) {
+            Error **errp = NULL;
+            entry->value->value = g_strdup_printf("%lu",
+                object_property_get_uint(obj, entry->value->name, errp));
+        }
+        if (g_ascii_strncasecmp(entry->value->type, "bool", 4) == 0) {
+            Error **errp = NULL;
+            entry->value->value = g_strdup_printf("%s",
+               (object_property_get_bool(obj, entry->value->name, errp) == true)
+                ? "true" : "false");
+        }
+
     }
 
     return props;
