@@ -373,6 +373,8 @@ int s390_ipl_set_loadparm(uint8_t *loadparm)
             loadparm[i] = ascii2ebcdic[(uint8_t) lp[i]];
         }
 
+        memset(loadparm + i, 0x40, 8 - i); /* fill with EBCDIC spaces */
+
         g_free(lp);
         return 0;
     }
