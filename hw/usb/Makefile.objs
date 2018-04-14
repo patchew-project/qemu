@@ -58,3 +58,5 @@ common-obj-$(CONFIG_XEN) += xen-usb.o
 xen-usb.o-cflags := $(LIBUSB_CFLAGS)
 xen-usb.o-libs := $(LIBUSB_LIBS)
 endif
+
+obj-$(call lnot,$(CONFIG_USB)) += qmp-nousb.o

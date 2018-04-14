@@ -270,6 +270,46 @@
 { 'command': 'query-kvm', 'returns': 'KvmInfo' }
 
 ##
+# @query-usbhost:
+#
+# Returns information about USB devices available on the host
+#
+# Returns: a [UsbDeviceInfo]. Returns an error if compiled without
+# CONFIG_USB.
+#
+# Since: TODO (maintainer insert version number if mainlined)
+#
+# Example:
+#
+# -> {"execute": "query-usbhost" }
+# {
+#     "return": [
+#         {
+#             "b_device_class": 239,
+#             "id_product": 793,
+#             "id_vendor": 3468,
+#             "speed": 3,
+#             "str_manufacturer": "Schiit Audio",
+#             "str_product": "Schiit Modi Uber"
+#             "bus_num": 5,
+#             "dev_addr": 21
+#         },
+#         {
+#             "b_device_class": 0,
+#             "id_product": 6944,
+#             "id_vendor": 6940,
+#             "speed": 2,
+#             "str_manufacturer": "Corsair",
+#             "str_product": "Corsair STRAFE RGB Gaming Keyboard"
+#             "bus_num": 5,
+#             "dev_addr": 35
+#         }
+#     ]
+# }
+##
+{ 'command': 'query-usbhost', 'returns': ['UsbDeviceInfo'] }
+
+##
 # @UuidInfo:
 #
 # Guest UUID information (Universally Unique Identifier).
@@ -874,6 +914,28 @@
            'class_info': 'PciDeviceClass', 'id': 'PciDeviceId',
            '*irq': 'int', 'qdev_id': 'str', '*pci_bridge': 'PciBridgeInfo',
            'regions': ['PciMemoryRegion']} }
+
+##
+# @UsbDeviceInfo:
+#
+# @speed: the speed
+#
+# @id_vendor: idVendor field from device descriptor
+#
+# @id_product: idProduct field from device descriptor
+#
+# @str_product: string descriptor referenced by iProduct index, if any
+#
+# @str_manufacturer: string descriptor referenced by iManufacturer index, if any
+#
+# @dev_addr: address on bus that device is connected to
+#
+# @bus_num: bus number device is connected to
+##
+{ 'struct': 'UsbDeviceInfo',
+  'data':
+  {'speed': 'int', 'id_vendor': 'int', 'id_product' : 'int', 'str_product': 'str',
+   'b_device_class': 'int', 'str_manufacturer' : 'str', 'dev_addr' : 'int', 'bus_num' : 'int'} }
 
 ##
 # @PciInfo:
