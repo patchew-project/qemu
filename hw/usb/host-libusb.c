@@ -40,6 +40,7 @@
 #include <libusb.h>
 
 #include "qapi/error.h"
+#include "qapi/qapi-commands-misc.h"
 #include "qemu-common.h"
 #include "monitor/monitor.h"
 #include "qemu/error-report.h"
@@ -1741,6 +1742,69 @@ bool usb_host_dev_is_scsi_storage(USBDevice *ud)
     libusb_free_config_descriptor(conf);
 
     return is_scsi_storage;
+}
+
+UsbDeviceInfoList *qmp_query_usbhost(Error **errp)
+{
+    UsbDeviceInfoList *usb_list = NULL;
+    UsbDeviceInfoList *info;
+    libusb_device **devs = NULL;
+    struct libusb_device_descriptor ddesc;
+    char port[16];
+    int i, n;
+
+    if (usb_host_init() != 0) {
+        return NULL;
+    }
+    n = libusb_get_device_list(ctx, &devs);
+
+    for (i = 0; i < n; i++) {
+        if (libusb_get_device_descriptor(devs[i], &ddesc) != 0) {
+            continue;
+        }
+        if (ddesc.bDeviceClass == LIBUSB_CLASS_HUB) {
+            continue;
+        }
+        usb_host_get_port(devs[i], port, sizeof(port));
+        info = g_new0(UsbDeviceInfoList, 1);
+        info->value = g_new0(UsbDeviceInfo, 1);
+        info->value->id_vendor = ddesc.idVendor;
+        info->value->bus_num = libusb_get_bus_number(devs[i]);
+        info->value->dev_addr = libusb_get_device_address(devs[i]);
+        info->value->id_product = ddesc.idProduct;
+        info->value->b_device_class = ddesc.bDeviceClass;
+        info->value->speed = libusb_get_device_speed(devs[i]);
+        info->next = usb_list;
+        usb_list = info;
+
+        if (ddesc.iProduct) {
+            libusb_device_handle *handle;
+            if (libusb_open(devs[i], &handle) == 0) {
+                unsigned char name[64] = "";
+                libusb_get_string_descriptor_ascii(handle,
+                                                   ddesc.iProduct,
+                                                   name, sizeof(name));
+                libusb_close(handle);
+                info->value->str_product = g_strdup((gchar *)name);
+            }
+        } else
+            info->value->str_product = NULL;
+
+        if (ddesc.iManufacturer) {
+            libusb_device_handle *handle;
+            if (libusb_open(devs[i], &handle) == 0) {
+                unsigned char name[64] = "";
+                libusb_get_string_descriptor_ascii(handle,
+                                                   ddesc.iManufacturer,
+                                                   name, sizeof(name));
+                libusb_close(handle);
+                info->value->str_manufacturer = g_strdup((gchar *)name);
+            }
+        } else
+        info->value->str_manufacturer = NULL;
+    }
+    libusb_free_device_list(devs, 1);
+    return usb_list;
 }
 
 void hmp_info_usbhost(Monitor *mon, const QDict *qdict)

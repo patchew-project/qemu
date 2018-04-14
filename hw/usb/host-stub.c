@@ -35,6 +35,9 @@
 #include "ui/console.h"
 #include "hw/usb.h"
 #include "monitor/monitor.h"
+#include "qapi/error.h"
+#include "qapi/qapi-commands-misc.h"
+#include "qapi/qmp/qerror.h"
 
 void hmp_info_usbhost(Monitor *mon, const QDict *qdict)
 {
@@ -45,3 +48,9 @@ bool usb_host_dev_is_scsi_storage(USBDevice *ud)
 {
     return false;
 }
+
+UsbDeviceInfoList *qmp_query_usbhost(Error **errp)
+{
+    error_setg(errp, QERR_FEATURE_DISABLED, "usb");
+    return NULL;
+};
