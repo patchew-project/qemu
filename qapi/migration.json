@@ -357,13 +357,17 @@
 # @dirty-bitmaps: If enabled, QEMU will migrate named dirty bitmaps.
 #                 (since 2.12)
 #
+# @late-block-activate: If enabled, the destination will not activate block
+#           devices (and thus take locks) immediately at the end of migration.
+#           (since 2.13)
+#
 # Since: 1.2
 ##
 { 'enum': 'MigrationCapability',
   'data': ['xbzrle', 'rdma-pin-all', 'auto-converge', 'zero-blocks',
            'compress', 'events', 'postcopy-ram', 'x-colo', 'release-ram',
            'block', 'return-path', 'pause-before-switchover', 'x-multifd',
-           'dirty-bitmaps' ] }
+           'dirty-bitmaps', 'late-block-activate' ] }
 
 ##
 # @MigrationCapabilityStatus:
