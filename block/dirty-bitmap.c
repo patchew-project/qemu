@@ -591,19 +591,15 @@ void bdrv_reset_dirty_bitmap(BdrvDirtyBitmap *bitmap,
     bdrv_dirty_bitmap_unlock(bitmap);
 }
 
-void bdrv_clear_dirty_bitmap(BdrvDirtyBitmap *bitmap, HBitmap **out)
+void bdrv_clear_dirty_bitmap(BdrvDirtyBitmap *bitmap)
 {
     assert(bdrv_dirty_bitmap_enabled(bitmap));
     assert(!bdrv_dirty_bitmap_readonly(bitmap));
+
     bdrv_dirty_bitmap_lock(bitmap);
-    if (!out) {
-        hbitmap_reset_all(bitmap->bitmap);
-    } else {
-        HBitmap *backup = bitmap->bitmap;
-        bitmap->bitmap = hbitmap_alloc(bitmap->size,
-                                       hbitmap_granularity(backup));
-        *out = backup;
-    }
+
+    hbitmap_reset_all(bitmap->bitmap);
+
     bdrv_dirty_bitmap_unlock(bitmap);
 }
 
