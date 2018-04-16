@@ -31,6 +31,7 @@ struct progress_state {
     float min_skip;
     void (*print)(void);
     void (*end)(void);
+    FILE *output;
 };
 
 static struct progress_state state;
@@ -43,17 +44,18 @@ static volatile sig_atomic_t print_pending;
  */
 static void progress_simple_print(void)
 {
-    printf("    (%3.2f/100%%)\r", state.current);
-    fflush(stdout);
+    fprintf(state.output, "    (%3.2f/100%%)\r", state.current);
+    fflush(state.output);
 }
 
 static void progress_simple_end(void)
 {
-    printf("\n");
+    fprintf(state.output, "\n");
 }
 
 static void progress_simple_init(void)
 {
+    state.output = stdout;
     state.print = progress_simple_print;
     state.end = progress_simple_end;
 }
@@ -126,6 +128,20 @@ void qemu_progress_init(int enabled, float min_skip)
 void qemu_progress_end(void)
 {
     state.end();
+}
+
+/*
+ * Redirect progress into another file stream.
+ * @output is the new file stream.
+ */
+int qemu_progress_set_output(FILE *output)
+{
+    if (!output) {
+        return -EINVAL;
+    }
+
+    state.output = output;
+    return 0;
 }
 
 /*

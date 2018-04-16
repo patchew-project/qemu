@@ -128,6 +128,7 @@ ssize_t qemu_co_send_recv(int sockfd, void *buf, size_t bytes, bool do_send);
 void qemu_progress_init(int enabled, float min_skip);
 void qemu_progress_end(void);
 void qemu_progress_print(float delta, int max);
+int qemu_progress_set_output(FILE *output);
 const char *qemu_get_vm_name(void);
 
 #define QEMU_FILE_TYPE_BIOS   0
