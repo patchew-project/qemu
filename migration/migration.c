@@ -736,6 +736,19 @@ static bool migrate_caps_check(bool *cap_list,
             return false;
         }
 
+        if (cap_list[MIGRATION_CAPABILITY_BYPASS_SHARED_MEMORY]) {
+            /* Bypass and postcopy are quite conflicting ways
+             * to get memory in the destination.  And there
+             * is not code to discriminate the differences and
+             * handle the conflicts currently.  It should be possible
+             * to fix, but it is generally useless when both ways
+             * are used together.
+             */
+            error_setg(errp, "Bypass is not currently compatible "
+                       "with postcopy");
+            return false;
+        }
+
         /* This check is reasonably expensive, so only when it's being
          * set the first time, also it's only the destination that needs
          * special support.
@@ -1507,6 +1520,15 @@ bool migrate_release_ram(void)
     s = migrate_get_current();
 
     return s->enabled_capabilities[MIGRATION_CAPABILITY_RELEASE_RAM];
+}
+
+bool migrate_bypass_shared_memory(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->enabled_capabilities[MIGRATION_CAPABILITY_BYPASS_SHARED_MEMORY];
 }
 
 bool migrate_postcopy_ram(void)
