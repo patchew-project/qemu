@@ -1029,6 +1029,21 @@ int kvm_arch_init_vcpu(CPUState *cs)
         }
     }
 
+    if (env->features[FEAT_KVM_HINTS] & KVM_HINTS_DEDICATED) {
+        int disable_exits = kvm_check_extension(cs->kvm_state, KVM_CAP_X86_DISABLE_EXITS);
+
+        if (disable_exits) {
+            disable_exits &= (KVM_X86_DISABLE_EXITS_MWAIT |
+                              KVM_X86_DISABLE_EXITS_HLT |
+                              KVM_X86_DISABLE_EXITS_PAUSE);
+            if (env->user_features[KVM] & KVM_PV_UNHALT)
+                disable_exits &= ~KVM_X86_DISABLE_EXITS_HLT;
+        }
+        if (kvm_vm_enable_cap(cs->kvm_state, KVM_CAP_X86_DISABLE_EXITS, 0, disable_exits)) {
+            error_report("kvm: DISABLE EXITS not supported");
+        }
+    }
+
     qemu_add_vm_change_state_handler(cpu_update_state, env);
 
     c = cpuid_find_entry(&cpuid_data.cpuid, 1, 0);
