@@ -477,6 +477,23 @@ void ahci_port_check_d2h_sanity(AHCIQState *ahci, uint8_t port, uint8_t slot)
     g_free(d2h);
 }
 
+void ahci_port_check_pio_sanity_atapi(AHCIQState *ahci, uint8_t port,
+                                      uint8_t slot)
+{
+    PIOSetupFIS *pio = g_malloc0(0x20);
+
+    /* We cannot check the Status or E_Status registers, because
+     * the status may have again changed between the PIO Setup FIS
+     * and the conclusion of the command with the D2H Register FIS. */
+    qtest_memread(ahci->parent->qts, ahci->port[port].fb + 0x20, pio, 0x20);
+    g_assert_cmphex(pio->fis_type, ==, 0x5f);
+
+    g_assert(le16_to_cpu(pio->tx_count) == 12 ||
+             le16_to_cpu(pio->tx_count) == 16);
+
+    g_free(pio);
+}
+
 void ahci_port_check_pio_sanity(AHCIQState *ahci, uint8_t port,
                                 uint8_t slot, size_t buffsize)
 {
@@ -831,9 +848,9 @@ void ahci_command_enable_atapi_dma(AHCICommand *cmd)
     RegH2DFIS *fis = &(cmd->fis);
     g_assert(cmd->props->atapi);
     fis->feature_low |= 0x01;
-    cmd->interrupts &= ~AHCI_PX_IS_PSS;
+    /* PIO is still used to transfer the ATAPI command */
+    g_assert(cmd->props->pio);
     cmd->props->dma = true;
-    cmd->props->pio = false;
     /* BUG: We expect the DMA Setup interrupt for DMA commands */
     /* cmd->interrupts |= AHCI_PX_IS_DSS; */
 }
@@ -845,7 +862,7 @@ AHCICommand *ahci_command_create(uint8_t command_name)
 
     g_assert(props);
     cmd = g_new0(AHCICommand, 1);
-    g_assert(!(props->dma && props->pio));
+    g_assert(!(props->dma && props->pio) || props->atapi);
     g_assert(!(props->lba28 && props->lba48));
     g_assert(!(props->read && props->write));
     g_assert(!props->size || props->data);
@@ -1216,7 +1233,12 @@ void ahci_command_verify(AHCIQState *ahci, AHCICommand *cmd)
         ahci_port_check_d2h_sanity(ahci, port, slot);
     }
     if (cmd->props->pio) {
-        ahci_port_check_pio_sanity(ahci, port, slot, cmd->xbytes);
+        /* For ATAPI, we might have only used PIO for the command.  */
+        if (cmd->props->atapi && (!cmd->xbytes || cmd->props->dma)) {
+            ahci_port_check_pio_sanity_atapi(ahci, port, slot);
+        } else {
+            ahci_port_check_pio_sanity(ahci, port, slot, cmd->xbytes);
+        }
     }
 }
 

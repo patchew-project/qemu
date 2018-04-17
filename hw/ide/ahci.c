@@ -1291,11 +1291,12 @@ static void ahci_start_transfer(IDEDMA *dma)
     int is_write = opts & AHCI_CMD_WRITE;
     int is_atapi = opts & AHCI_CMD_ATAPI;
     int has_sglist = 0;
+    uint16_t fis_len;
 
     if (is_atapi && !ad->done_atapi_packet) {
         /* already prepopulated iobuffer */
         ad->done_atapi_packet = true;
-        size = 0;
+        fis_len = size;
         goto out;
     }
 
@@ -1315,19 +1316,15 @@ static void ahci_start_transfer(IDEDMA *dma)
         }
     }
 
+    /* Update number of transferred bytes, destroy sglist */
+    dma_buf_commit(s, size);
+    fis_len = le32_to_cpu(ad->cur_cmd->status);
 out:
     /* declare that we processed everything */
     s->data_ptr = s->data_end;
-
-    /* Update number of transferred bytes, destroy sglist */
-    dma_buf_commit(s, size);
+    ahci_write_fis_pio(ad, fis_len);
 
     s->end_transfer_func(s);
-
-    if (!(s->status & DRQ_STAT)) {
-        /* done with PIO send/receive */
-        ahci_write_fis_pio(ad, le32_to_cpu(ad->cur_cmd->status));
-    }
 }
 
 static void ahci_start_dma(IDEDMA *dma, IDEState *s,

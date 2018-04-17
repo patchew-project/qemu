@@ -598,6 +598,8 @@ void ahci_port_check_nonbusy(AHCIQState *ahci, uint8_t port, uint8_t slot);
 void ahci_port_check_d2h_sanity(AHCIQState *ahci, uint8_t port, uint8_t slot);
 void ahci_port_check_pio_sanity(AHCIQState *ahci, uint8_t port,
                                 uint8_t slot, size_t buffsize);
+void ahci_port_check_pio_sanity_atapi(AHCIQState *ahci, uint8_t port,
+                                      uint8_t slot);
 void ahci_port_check_cmd_sanity(AHCIQState *ahci, AHCICommand *cmd);
 
 /* Misc */
