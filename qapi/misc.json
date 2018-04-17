@@ -1645,10 +1645,12 @@
 #
 # @kdump-snappy: kdump-compressed format with snappy-compressed
 #
+# @win-dmp: Windows full crashdump format (can be used instead of ELF converting)
+#
 # Since: 2.0
 ##
 { 'enum': 'DumpGuestMemoryFormat',
-  'data': [ 'elf', 'kdump-zlib', 'kdump-lzo', 'kdump-snappy' ] }
+  'data': [ 'elf', 'kdump-zlib', 'kdump-lzo', 'kdump-snappy', 'win-dmp' ] }
 
 ##
 # @dump-guest-memory:
