@@ -34,13 +34,20 @@
 
 #include "qapi/qapi-builtin-types.h"
 
-struct QObject {
+/* Not for use outside include/qapi/qmp/ */
+struct QObjectBase_ {
     QType type;
     size_t refcnt;
 };
 
-/* Get the 'base' part of an object */
-#define QOBJECT(obj) (&(obj)->base)
+struct QObject {
+    struct QObjectBase_ base;
+};
+
+#define QOBJECT(x) ({                                       \
+    typeof(x) __x = (x);                                    \
+    __x ? container_of(&(__x)->base, QObject, base) : NULL; \
+})
 
 /* High-level interface for qobject_incref() */
 #define QINCREF(obj)      \
@@ -68,8 +75,8 @@ QEMU_BUILD_BUG_MSG(QTYPE__MAX != 7,
 static inline void qobject_init(QObject *obj, QType type)
 {
     assert(QTYPE_NONE < type && type < QTYPE__MAX);
-    obj->refcnt = 1;
-    obj->type = type;
+    obj->base.refcnt = 1;
+    obj->base.type = type;
 }
 
 /**
@@ -77,8 +84,9 @@ static inline void qobject_init(QObject *obj, QType type)
  */
 static inline void qobject_incref(QObject *obj)
 {
-    if (obj)
-        obj->refcnt++;
+    if (obj) {
+        obj->base.refcnt++;
+    }
 }
 
 /**
@@ -101,8 +109,8 @@ void qobject_destroy(QObject *obj);
  */
 static inline void qobject_decref(QObject *obj)
 {
-    assert(!obj || obj->refcnt);
-    if (obj && --obj->refcnt == 0) {
+    assert(!obj || obj->base.refcnt);
+    if (obj && --obj->base.refcnt == 0) {
         qobject_destroy(obj);
     }
 }
@@ -112,8 +120,8 @@ static inline void qobject_decref(QObject *obj)
  */
 static inline QType qobject_type(const QObject *obj)
 {
-    assert(QTYPE_NONE < obj->type && obj->type < QTYPE__MAX);
-    return obj->type;
+    assert(QTYPE_NONE < obj->base.type && obj->base.type < QTYPE__MAX);
+    return obj->base.type;
 }
 
 /**
