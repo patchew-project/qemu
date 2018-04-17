@@ -1280,8 +1280,8 @@ out:
     return 0;
 }
 
-/* DMA dev <-> ram */
-static void ahci_start_transfer(IDEDMA *dma)
+/* Transfer PIO data between RAM and device */
+static void ahci_pio_transfer(IDEDMA *dma)
 {
     AHCIDevice *ad = DO_UPCAST(AHCIDevice, dma, dma);
     IDEState *s = &ad->port.ifs[0];
@@ -1304,9 +1304,9 @@ static void ahci_start_transfer(IDEDMA *dma)
         has_sglist = 1;
     }
 
-    trace_ahci_start_transfer(ad->hba, ad->port_no, is_write ? "writ" : "read",
-                              size, is_atapi ? "atapi" : "ata",
-                              has_sglist ? "" : "o");
+    trace_ahci_pio_transfer(ad->hba, ad->port_no, is_write ? "writ" : "read",
+                            size, is_atapi ? "atapi" : "ata",
+                            has_sglist ? "" : "o");
 
     if (has_sglist && size) {
         if (is_write) {
@@ -1319,12 +1319,11 @@ static void ahci_start_transfer(IDEDMA *dma)
     /* Update number of transferred bytes, destroy sglist */
     dma_buf_commit(s, size);
     fis_len = le32_to_cpu(ad->cur_cmd->status);
+
 out:
     /* declare that we processed everything */
     s->data_ptr = s->data_end;
     ahci_write_fis_pio(ad, fis_len);
-
-    s->end_transfer_func(s);
 }
 
 static void ahci_start_dma(IDEDMA *dma, IDEState *s,
@@ -1440,7 +1439,7 @@ static const IDEDMAOps ahci_dma_ops = {
     .start_dma = ahci_start_dma,
     .restart = ahci_restart,
     .restart_dma = ahci_restart_dma,
-    .start_transfer = ahci_start_transfer,
+    .pio_transfer = ahci_pio_transfer,
     .prepare_buf = ahci_dma_prepare_buf,
     .commit_buf = ahci_commit_buf,
     .rw_buf = ahci_dma_rw_buf,
