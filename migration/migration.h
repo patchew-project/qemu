@@ -128,6 +128,7 @@ struct MigrationState
     int64_t downtime_start;
     int64_t downtime;
     int64_t expected_downtime;
+    int64_t ram_bytes_remaining;
     bool enabled_capabilities[MIGRATION_CAPABILITY__MAX];
     int64_t setup_time;
     /*
