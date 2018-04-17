@@ -627,10 +627,17 @@ static void xilinx_spips_flush_txfifo(XilinxSPIPS *s)
                 tx_rx[i] = tx;
             }
         } else {
-            /* Extract a dummy byte and generate dummy cycles according to the
-             * link state */
             tx = fifo8_pop(&s->tx_fifo);
-            dummy_cycles = 8 / s->link_state;
+            if (s->cmd_dummies > 0) {
+                /* Extract a dummy byte and generate dummy cycles according to
+                 * the link state */
+                 dummy_cycles = (s->cmd_dummies ? 1 : 0) * 8 / s->link_state;
+                 s->cmd_dummies--;
+            } else {
+                for (i = 0; i < num_effective_busses(s); ++i) {
+                    tx_rx[i] = tx;
+                }
+            }
         }
 
         for (i = 0; i < num_effective_busses(s); ++i) {
