@@ -306,16 +306,20 @@ void monitor_read_command(Monitor *mon, int show_prompt)
     if (!mon->rs)
         return;
 
+    qemu_mutex_lock(&mon->mon_lock);
     readline_start(mon->rs, "(qemu) ", 0, monitor_command_cb, NULL);
     if (show_prompt)
         readline_show_prompt(mon->rs);
+    qemu_mutex_unlock(&mon->mon_lock);
 }
 
 int monitor_read_password(Monitor *mon, ReadLineFunc *readline_func,
                           void *opaque)
 {
     if (mon->rs) {
+        qemu_mutex_lock(&mon->mon_lock);
         readline_start(mon->rs, "Password: ", 1, readline_func, opaque);
+        qemu_mutex_unlock(&mon->mon_lock);
         /* prompt is printed on return from the command handler */
         return 0;
     } else {
@@ -1308,8 +1312,7 @@ void qmp_qmp_capabilities(bool has_enable, QMPCapabilityList *enable,
     cur_mon->qmp.commands = &qmp_commands;
 }
 
-/* set the current CPU defined by the user */
-int monitor_set_cpu(int cpu_index)
+static int monitor_set_cpu_locked(Monitor *mon, int cpu_index)
 {
     CPUState *cpu;
 
@@ -1317,15 +1320,28 @@ int monitor_set_cpu(int cpu_index)
     if (cpu == NULL) {
         return -1;
     }
-    g_free(cur_mon->mon_cpu_path);
-    cur_mon->mon_cpu_path = object_get_canonical_path(OBJECT(cpu));
+    g_free(mon->mon_cpu_path);
+    mon->mon_cpu_path = object_get_canonical_path(OBJECT(cpu));
     return 0;
+}
+
+/* set the current CPU defined by the user */
+int monitor_set_cpu(int cpu_index)
+{
+    int ret;
+
+    qemu_mutex_lock(&cur_mon->mon_lock);
+    ret = monitor_set_cpu_locked(cur_mon, cpu_index);
+    qemu_mutex_unlock(&cur_mon->mon_lock);
+
+    return ret;
 }
 
 static CPUState *mon_get_cpu_sync(bool synchronize)
 {
     CPUState *cpu;
 
+    qemu_mutex_lock(&cur_mon->mon_lock);
     if (cur_mon->mon_cpu_path) {
         cpu = (CPUState *) object_resolve_path_type(cur_mon->mon_cpu_path,
                                                     TYPE_CPU, NULL);
@@ -1336,11 +1352,14 @@ static CPUState *mon_get_cpu_sync(bool synchronize)
     }
     if (!cur_mon->mon_cpu_path) {
         if (!first_cpu) {
+            qemu_mutex_unlock(&cur_mon->mon_lock);
             return NULL;
         }
-        monitor_set_cpu(first_cpu->cpu_index);
+        monitor_set_cpu_locked(cur_mon, first_cpu->cpu_index);
         cpu = first_cpu;
     }
+    qemu_mutex_unlock(&cur_mon->mon_lock);
+
     if (synchronize) {
         cpu_synchronize_state(cpu);
     }
@@ -2239,6 +2258,7 @@ int monitor_get_fd(Monitor *mon, const char *fdname, Error **errp)
 {
     mon_fd_t *monfd;
 
+    qemu_mutex_lock(&mon->mon_lock);
     QLIST_FOREACH(monfd, &mon->fds, next) {
         int fd;
 
@@ -2252,9 +2272,10 @@ int monitor_get_fd(Monitor *mon, const char *fdname, Error **errp)
         QLIST_REMOVE(monfd, next);
         g_free(monfd->name);
         g_free(monfd);
-
+        qemu_mutex_unlock(&mon->mon_lock);
         return fd;
     }
+    qemu_mutex_unlock(&mon->mon_lock);
 
     error_setg(errp, "File descriptor named '%s' has not been found", fdname);
     return -1;
