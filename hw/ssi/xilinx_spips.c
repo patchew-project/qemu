@@ -616,7 +616,8 @@ static void xilinx_spips_flush_txfifo(XilinxSPIPS *s)
         if (fifo8_is_empty(&s->tx_fifo)) {
             xilinx_spips_update_ixr(s);
             return;
-        } else if (s->snoop_state == SNOOP_STRIPING) {
+        } else if (s->snoop_state == SNOOP_STRIPING ||
+                   s->snoop_state == SNOOP_NONE) {
             for (i = 0; i < num_effective_busses(s); ++i) {
                 tx_rx[i] = fifo8_pop(&s->tx_fifo);
             }
@@ -626,11 +627,12 @@ static void xilinx_spips_flush_txfifo(XilinxSPIPS *s)
             for (i = 0; i < num_effective_busses(s); ++i) {
                 tx_rx[i] = tx;
             }
-        } else {
+        } else if (s->cmd_dummies > 0) {
             /* Extract a dummy byte and generate dummy cycles according to the
              * link state */
             tx = fifo8_pop(&s->tx_fifo);
             dummy_cycles = 8 / s->link_state;
+            s->cmd_dummies--;
         }
 
         for (i = 0; i < num_effective_busses(s); ++i) {
