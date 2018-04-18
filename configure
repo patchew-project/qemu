@@ -3366,7 +3366,7 @@ fi
 if test "$mingw32" = yes; then
     glib_req_ver=2.30
 else
-    glib_req_ver=2.22
+    glib_req_ver=2.24
 fi
 glib_modules=gthread-2.0
 if test "$modules" = yes; then
