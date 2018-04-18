@@ -273,6 +273,7 @@ static void net_uninit(filename_ip_t *fn_ip)
     if (ip_version == 4) {
         dhcp_send_release(fn_ip->fd);
     }
+    virtio_net_uninit();
 }
 
 void panic(const char *string)

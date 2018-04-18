@@ -67,6 +67,14 @@ int virtio_net_init(void *mac_addr)
     return 0;
 }
 
+void virtio_net_uninit(void)
+{
+    VDev *vdev = virtio_get_device();
+
+    virtio_status_set(vdev, VIRTIO_CONFIG_S_FAILED);
+    virtio_reset_dev(vdev);
+}
+
 int send(int fd, const void *buf, int len, int flags)
 {
     VirtioNetHdr tx_hdr;

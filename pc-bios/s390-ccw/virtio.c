@@ -248,10 +248,21 @@ int virtio_run(VDev *vdev, int vqid, VirtioCmd *cmd)
     return 0;
 }
 
+void virtio_status_set(VDev *vdev, uint8_t status)
+{
+    IPL_assert(
+        run_ccw(vdev, CCW_CMD_WRITE_STATUS, &status, sizeof(status)) == 0,
+        "Could not write status to host");
+}
+
+void virtio_reset_dev(VDev *vdev)
+{
+    run_ccw(vdev, CCW_CMD_VDEV_RESET, NULL, 0);
+}
+
 void virtio_setup_ccw(VDev *vdev)
 {
     int i, rc, cfg_size = 0;
-    unsigned char status = VIRTIO_CONFIG_S_DRIVER_OK;
     struct VirtioFeatureDesc {
         uint32_t features;
         uint8_t index;
@@ -263,7 +274,7 @@ void virtio_setup_ccw(VDev *vdev)
     vdev->config.blk.blk_size = 0; /* mark "illegal" - setup started... */
     vdev->guessed_disk_nature = VIRTIO_GDN_NONE;
 
-    run_ccw(vdev, CCW_CMD_VDEV_RESET, NULL, 0);
+    virtio_reset_dev(vdev);
 
     switch (vdev->senseid.cu_model) {
     case VIRTIO_ID_NET:
@@ -320,9 +331,7 @@ void virtio_setup_ccw(VDev *vdev)
         IPL_assert(run_ccw(vdev, CCW_CMD_SET_VQ, &info, sizeof(info)) == 0,
                    "Cannot set VQ info");
     }
-    IPL_assert(
-        run_ccw(vdev, CCW_CMD_WRITE_STATUS, &status, sizeof(status)) == 0,
-        "Could not write status to host");
+    virtio_status_set(vdev, VIRTIO_CONFIG_S_DRIVER_OK);
 }
 
 bool virtio_is_supported(SubChannelId schid)
