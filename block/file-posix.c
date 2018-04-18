@@ -100,6 +100,7 @@
 #ifdef CONFIG_XFS
 #include <xfs/xfs.h>
 #endif
+#include <sys/syscall.h>
 
 //#define DEBUG_BLOCK
 
@@ -185,6 +186,8 @@ typedef struct RawPosixAIOData {
 #define aio_ioctl_cmd   aio_nbytes /* for QEMU_AIO_IOCTL */
     off_t aio_offset;
     int aio_type;
+    int fd2;
+    off_t offset2;
 } RawPosixAIOData;
 
 #if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
@@ -1421,6 +1424,48 @@ static ssize_t handle_aiocb_write_zeroes(RawPosixAIOData *aiocb)
     return -ENOTSUP;
 }
 
+#ifdef __NR_copy_file_range
+#define HAS_COPY_FILE_RANGE
+#endif
+
+#ifdef HAS_COPY_FILE_RANGE
+static off_t copy_file_range(int in_fd, off_t *in_off, int out_fd,
+                             off_t *out_off, size_t len, unsigned int flags)
+{
+    return syscall(__NR_copy_file_range, in_fd, in_off, out_fd,
+                   out_off, len, flags);
+}
+#endif
+
+static ssize_t handle_aiocb_copy_range(RawPosixAIOData *aiocb)
+{
+#ifndef HAS_COPY_FILE_RANGE
+    return -ENOTSUP;
+#else
+    uint64_t bytes = aiocb->aio_nbytes;
+    off_t in_off = aiocb->aio_offset;
+    off_t out_off = aiocb->offset2;
+
+    while (bytes) {
+        ssize_t ret = copy_file_range(aiocb->aio_fildes, &in_off,
+                                      aiocb->fd2, &out_off,
+                                      bytes, 0);
+        if (ret == -EINTR) {
+            continue;
+        }
+        if (ret < 0) {
+            return -errno;
+        }
+        if (!ret) {
+            /* No progress (e.g. when beyond EOF), fall back to buffer I/O. */
+            return -ENOTSUP;
+        }
+        bytes -= ret;
+    }
+    return 0;
+#endif
+}
+
 static ssize_t handle_aiocb_discard(RawPosixAIOData *aiocb)
 {
     int ret = -EOPNOTSUPP;
@@ -1501,6 +1546,9 @@ static int aio_worker(void *arg)
     case QEMU_AIO_WRITE_ZEROES:
         ret = handle_aiocb_write_zeroes(aiocb);
         break;
+    case QEMU_AIO_COPY_RANGE:
+        ret = handle_aiocb_copy_range(aiocb);
+        break;
     default:
         fprintf(stderr, "invalid aio request (0x%x)\n", aiocb->aio_type);
         ret = -EINVAL;
@@ -1511,9 +1559,10 @@ static int aio_worker(void *arg)
     return ret;
 }
 
-static int paio_submit_co(BlockDriverState *bs, int fd,
-                          int64_t offset, QEMUIOVector *qiov,
-                          int bytes, int type)
+static int paio_submit_co_full(BlockDriverState *bs, int fd,
+                               int64_t offset, int fd2, int64_t offset2,
+                               QEMUIOVector *qiov,
+                               int bytes, int type)
 {
     RawPosixAIOData *acb = g_new(RawPosixAIOData, 1);
     ThreadPool *pool;
@@ -1521,6 +1570,8 @@ static int paio_submit_co(BlockDriverState *bs, int fd,
     acb->bs = bs;
     acb->aio_type = type;
     acb->aio_fildes = fd;
+    acb->fd2 = fd2;
+    acb->offset2 = offset2;
 
     acb->aio_nbytes = bytes;
     acb->aio_offset = offset;
@@ -1534,6 +1585,13 @@ static int paio_submit_co(BlockDriverState *bs, int fd,
     trace_paio_submit_co(offset, bytes, type);
     pool = aio_get_thread_pool(bdrv_get_aio_context(bs));
     return thread_pool_submit_co(pool, aio_worker, acb);
+}
+
+static inline int paio_submit_co(BlockDriverState *bs, int fd,
+                                 int64_t offset, QEMUIOVector *qiov,
+                                 int bytes, int type)
+{
+    return paio_submit_co_full(bs, fd, offset, -1, 0, qiov, bytes, type);
 }
 
 static BlockAIOCB *paio_submit(BlockDriverState *bs, int fd,
@@ -2312,6 +2370,35 @@ static void raw_abort_perm_update(BlockDriverState *bs)
     raw_handle_perm_lock(bs, RAW_PL_ABORT, 0, 0, NULL);
 }
 
+static int coroutine_fn raw_co_copy_range_from(BlockDriverState *bs,
+                                  BdrvChild *src, uint64_t src_offset,
+                                  BdrvChild *dst, uint64_t dst_offset,
+                                  uint64_t bytes, BdrvRequestFlags flags)
+{
+    return bdrv_co_copy_range_to(src, src_offset, dst, dst_offset, bytes, flags);
+}
+
+static int coroutine_fn raw_co_copy_range_to(BlockDriverState *bs,
+                                             BdrvChild *src, uint64_t src_offset,
+                                             BdrvChild *dst, uint64_t dst_offset,
+                                             uint64_t bytes, BdrvRequestFlags flags)
+{
+    BDRVRawState *s = bs->opaque;
+    BDRVRawState *src_s;
+
+    assert(dst->bs == bs);
+    if (src->bs->drv->bdrv_co_copy_range_to != raw_co_copy_range_to) {
+        return -ENOTSUP;
+    }
+
+    src_s = src->opaque;
+    if (fd_open(bs) < 0 || fd_open(bs) < 0) {
+        return -EIO;
+    }
+    return paio_submit_co_full(bs, src_s->fd, src_offset, s->fd, dst_offset,
+                               NULL, bytes, QEMU_AIO_COPY_RANGE);
+}
+
 BlockDriver bdrv_file = {
     .format_name = "file",
     .protocol_name = "file",
@@ -2334,6 +2421,8 @@ BlockDriver bdrv_file = {
     .bdrv_co_pwritev        = raw_co_pwritev,
     .bdrv_aio_flush = raw_aio_flush,
     .bdrv_aio_pdiscard = raw_aio_pdiscard,
+    .bdrv_co_copy_range_from = raw_co_copy_range_from,
+    .bdrv_co_copy_range_to  = raw_co_copy_range_to,
     .bdrv_refresh_limits = raw_refresh_limits,
     .bdrv_io_plug = raw_aio_plug,
     .bdrv_io_unplug = raw_aio_unplug,
@@ -2811,6 +2900,10 @@ static BlockDriver bdrv_host_device = {
     .bdrv_co_pwritev        = raw_co_pwritev,
     .bdrv_aio_flush	= raw_aio_flush,
     .bdrv_aio_pdiscard   = hdev_aio_pdiscard,
+    .bdrv_co_copy_range_from = raw_co_copy_range_from,
+    .bdrv_co_copy_range_to  = raw_co_copy_range_to,
+    .bdrv_co_copy_range_from = raw_co_copy_range_from,
+    .bdrv_co_copy_range_to  = raw_co_copy_range_to,
     .bdrv_refresh_limits = raw_refresh_limits,
     .bdrv_io_plug = raw_aio_plug,
     .bdrv_io_unplug = raw_aio_unplug,
