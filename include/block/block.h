@@ -604,4 +604,8 @@ bool bdrv_can_store_new_dirty_bitmap(BlockDriverState *bs, const char *name,
  */
 void bdrv_register_buf(BlockDriverState *bs, void *host, size_t size);
 void bdrv_unregister_buf(BlockDriverState *bs, void *host);
+
+int bdrv_co_copy_range(BdrvChild *bs, uint64_t offset,
+                       BdrvChild *src, uint64_t src_offset,
+                       uint64_t bytes, BdrvRequestFlags flags);
 #endif
