@@ -127,11 +127,13 @@ efi-rom-%: build-pxe-roms build-efi-roms
 
 build-pxe-roms:
 	$(MAKE) -C ipxe/src CONFIG=qemu \
+		CC=$(CC) HOST_CC=$(HOST_CC) \
 		CROSS_COMPILE=$(x86_64_cross_prefix) \
 		$(patsubst %,bin/%.rom,$(pxerom_targets))
 
 build-efi-roms: build-pxe-roms
 	$(MAKE) -C ipxe/src CONFIG=qemu \
+		CC=$(CC) HOST_CC=$(HOST_CC) \
 		CROSS_COMPILE=$(x86_64_cross_prefix) \
 		$(patsubst %,bin-i386-efi/%.efidrv,$(pxerom_targets)) \
 		$(patsubst %,bin-x86_64-efi/%.efidrv,$(pxerom_targets))
