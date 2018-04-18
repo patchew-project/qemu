@@ -24,8 +24,9 @@ CTYPE_OBJS = isdigit.o isxdigit.o toupper.o
 %.o : $(SLOF_DIR)/lib/libc/ctype/%.c
 	$(call quiet-command,$(CC) $(LIBC_CFLAGS) -c -o $@ $<,"CC","$(TARGET_DIR)$@")
 
-STRING_OBJS = strcat.o strchr.o strcmp.o strcpy.o strlen.o strncmp.o strncpy.o \
-	      strstr.o memset.o memcpy.o memmove.o memcmp.o
+STRING_OBJS = strcasecmp.o strcat.o strchr.o strcmp.o strcpy.o strlen.o \
+	      strncasecmp.o strncmp.o strncpy.o strstr.o \
+	      memset.o memcpy.o memmove.o memcmp.o
 %.o : $(SLOF_DIR)/lib/libc/string/%.c
 	$(call quiet-command,$(CC) $(LIBC_CFLAGS) -c -o $@ $<,"CC","$(TARGET_DIR)$@")
 
