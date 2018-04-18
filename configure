@@ -451,6 +451,7 @@ jemalloc="no"
 replication="yes"
 vxhs=""
 libxml2=""
+debug_mutex="no"
 
 supported_cpu="no"
 supported_os="no"
@@ -1374,6 +1375,10 @@ for opt do
   ;;
   --disable-git-update) git_update=no
   ;;
+  --enable-debug-mutex) debug_mutex=yes
+  ;;
+  --disble-debug-mutex) debug_mutex=yes
+  ;;
   *)
       echo "ERROR: unknown option $opt"
       echo "Try '$0 --help' for more information"
@@ -1631,6 +1636,7 @@ disabled with --disable-FEATURE, default is enabled if available:
   crypto-afalg    Linux AF_ALG crypto backend driver
   vhost-user      vhost-user support
   capstone        capstone disassembler support
+  debug-mutex     mutex debugging support
 
 NOTE: The object files are built at the place where configure is launched
 EOF
@@ -5874,6 +5880,7 @@ echo "avx2 optimization $avx2_opt"
 echo "replication support $replication"
 echo "VxHS block device $vxhs"
 echo "capstone          $capstone"
+echo "mutex debugging   $debug_mutex"
 
 if test "$sdl_too_old" = "yes"; then
 echo "-> Your SDL version is too old - please upgrade to have SDL support"
@@ -6601,6 +6608,9 @@ if test "$ivshmem" = "yes" ; then
 fi
 if test "$capstone" != "no" ; then
   echo "CONFIG_CAPSTONE=y" >> $config_host_mak
+fi
+if test "$debug_mutex" = "yes" ; then
+  echo "CONFIG_DEBUG_MUTEX=y" >> $config_host_mak
 fi
 
 # Hold two types of flag:

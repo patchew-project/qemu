@@ -68,6 +68,10 @@ void qemu_mutex_lock_impl(QemuMutex *mutex, const char *file, const int line)
     if (err)
         error_exit(err, __func__);
 
+#ifdef CONFIG_DEBUG_MUTEX
+    mutex->file = file;
+    mutex->line = line;
+#endif
     trace_qemu_mutex_locked(mutex, file, line);
 }
 
