@@ -404,8 +404,6 @@ void spapr_rtas_register(int token, const char *name, spapr_rtas_fn fn)
 
     token -= RTAS_TOKEN_BASE;
 
-    assert(!rtas_table[token].name);
-
     rtas_table[token].name = name;
     rtas_table[token].fn = fn;
 }

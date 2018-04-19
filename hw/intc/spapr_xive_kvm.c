@@ -614,3 +614,42 @@ void xive_kvm_init(sPAPRXive *xive, Error **errp)
     kvm_msi_via_irqfd_allowed = true;
     kvm_gsi_direct_mapping = true;
 }
+
+int xive_kvm_fini(sPAPRXive *xive, Error **errp)
+{
+    int rc;
+    XiveSource *xsrc = &xive->source;;
+    struct kvm_create_device xive_destroy_device = {
+        .fd = kernel_xive_fd,
+        .type = KVM_DEV_TYPE_XIVE,
+        .flags = 0,
+    };
+
+    if (kernel_xive_fd == -1) {
+        return 0;
+    }
+
+    if (!kvm_enabled() || !kvmppc_has_cap_xive()) {
+        error_setg(errp,
+                   "KVM and IRQ_XIVE capability must be present for KVM XIVE device");
+        return -1;
+    }
+
+    munmap(xsrc->esb_mmap, (1ull << xsrc->esb_shift) * xsrc->nr_irqs);
+    munmap(xive->tm_mmap_user, 1ull << TM_SHIFT);
+    munmap(xive->tm_mmap_os, 1ull << TM_SHIFT);
+
+    rc = kvm_vm_ioctl(kvm_state, KVM_DESTROY_DEVICE, &xive_destroy_device);
+    if (rc < 0) {
+        error_setg_errno(errp, -rc, "Error on KVM_DESTROY_DEVICE for XIVE");
+    }
+    close(xive->fd);
+    xive->fd = -1;
+
+    kernel_xive_fd = -1;
+    kvm_kernel_irqchip = false;
+    kvm_msi_via_irqfd_allowed = false;
+    kvm_gsi_direct_mapping = false;
+
+    return 0;
+}

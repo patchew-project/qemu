@@ -88,5 +88,6 @@ void spapr_dt_xive(sPAPRMachineState *spapr, int nr_servers, void *fdt,
     OBJECT_CHECK(XiveNVT, (obj), TYPE_XIVE_NVT_KVM)
 
 void xive_kvm_init(sPAPRXive *xive, Error **errp);
+int xive_kvm_fini(sPAPRXive *xive, Error **errp);
 
 #endif /* PPC_SPAPR_XIVE_H */
