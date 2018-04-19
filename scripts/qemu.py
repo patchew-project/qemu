@@ -189,6 +189,16 @@ class QEMUMachine(object):
                 if option in item:
                     return []
 
+        device = '{dev_type},chardev=console'
+        if '86' in self._arch:
+            device = device.format(dev_type='isa-serial')
+        elif 'ppc' in self._arch:
+            device = device.format(dev_type='spapr-vty')
+        elif 's390x' in self._arch:
+            device = device.format(dev_type='sclpconsole')
+        else:
+            return []
+
         chardev = 'socket,id=console,{address},server,nowait'
         if console_address is None:
             console_address = tempfile.mktemp()
@@ -202,16 +212,6 @@ class QEMUMachine(object):
             chardev = chardev.format(address='path=%s' % console_address)
 
         self._console_address = console_address
-
-        device = '{dev_type},chardev=console'
-        if '86' in self._arch:
-            device = device.format(dev_type='isa-serial')
-        elif 'ppc' in self._arch:
-            device = device.format(dev_type='spapr-vty')
-        elif 's390x' in self._arch:
-            device = device.format(dev_type='sclpconsole')
-        else:
-            return []
 
         return ['-chardev', chardev,
                 '-device', device]
