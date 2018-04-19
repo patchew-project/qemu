@@ -214,9 +214,22 @@ static bool xive_tm_is_readonly(uint8_t offset)
 static void xive_tm_write_special(XiveNVT *nvt, hwaddr offset,
                                         uint64_t value, unsigned size)
 {
-    /* TODO: support TM_SPC_SET_OS_PENDING */
+    switch (offset) {
+    case TM_SPC_SET_OS_PENDING:
+        if (size == 1) {
+            xive_nvt_ipb_update(nvt, value & 0xff);
+            xive_nvt_notify(nvt);
+        }
+        break;
+    case TM_SPC_ACK_OS_EL:  /* TODO */
+        qemu_log_mask(LOG_UNIMP, "XIVE: no command to acknowledge O/S "
+                      "Interrupt to even O/S reporting line\n");
+        break;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: invalid TIMA write @%"
+                      HWADDR_PRIx" size %d\n", offset, size);
+    }
 
-    /* TODO: support TM_SPC_ACK_OS_EL */
 }
 
 static void xive_tm_os_write(void *opaque, hwaddr offset,
