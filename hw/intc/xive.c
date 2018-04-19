@@ -88,6 +88,25 @@ static void xive_eq_push(XiveEQ *eq, uint32_t data)
  * XIVE Interrupt Presenter
  */
 
+Object *xive_nvt_create(Object *cpu, const char *type, Error **errp)
+{
+    Error *local_err = NULL;
+    Object *obj;
+
+    obj = object_new(type);
+    object_property_add_child(cpu, type, obj, &error_abort);
+    object_unref(obj);
+    object_property_add_const_link(obj, ICP_PROP_CPU, cpu, &error_abort);
+    object_property_set_bool(obj, true, "realized", &local_err);
+    if (local_err) {
+        object_unparent(obj);
+        error_propagate(errp, local_err);
+        obj = NULL;
+    }
+
+    return obj;
+}
+
 /* Convert a priority number to an Interrupt Pending Buffer (IPB)
  * register, which indicates a pending interrupt at the priority
  * corresponding to the bit number

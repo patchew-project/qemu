@@ -168,6 +168,7 @@ struct sPAPRMachineState {
     const char *icp_type;
     uint8_t xive_exploitation;
     sPAPRXive  *xive;
+    const char *nvt_type;
 
     bool cmd_line_caps[SPAPR_CAP_NUM];
     sPAPRCapabilities def, eff, mig;

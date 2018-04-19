@@ -256,3 +256,47 @@ static const TypeInfo spapr_cpu_core_type_infos[] = {
 };
 
 DEFINE_TYPES(spapr_cpu_core_type_infos)
+
+void spapr_cpu_core_reset_icp(Error **errp)
+{
+    CPUState *cs;
+
+    CPU_FOREACH(cs) {
+        PowerPCCPU *cpu = POWERPC_CPU(cs);
+        cpu->intc = NULL;
+    }
+}
+
+typedef struct ForeachFindICPArgs {
+    const char *icp_type;
+    Object *icp;
+} ForeachFindICPArgs;
+
+static int spapr_cpu_core_find_icp(Object *child, void *opaque)
+{
+    ForeachFindICPArgs *args = opaque;
+
+    if (object_dynamic_cast(child, args->icp_type)) {
+        args->icp = child;
+    }
+
+    return args->icp != NULL;
+}
+
+void spapr_cpu_core_set_icp(const char *icp_type, Error **errp)
+{
+    CPUState *cs;
+
+    CPU_FOREACH(cs) {
+        ForeachFindICPArgs args = { icp_type, NULL };
+        PowerPCCPU *cpu = POWERPC_CPU(cs);
+
+        object_child_foreach(OBJECT(cs), spapr_cpu_core_find_icp, &args);
+        if (!args.icp) {
+            error_setg(errp, "Couldn't find a '%s' icp", icp_type);
+            return;
+        }
+
+        cpu->intc = args.icp;
+    }
+}

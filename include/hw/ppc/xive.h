@@ -191,6 +191,7 @@ extern const MemoryRegionOps xive_tm_os_ops;
 
 void xive_nvt_pic_print_info(XiveNVT *nvt, Monitor *mon);
 XiveEQ *xive_nvt_eq_get(XiveNVT *nvt, uint8_t priority);
+Object *xive_nvt_create(Object *cpu, const char *type, Error **errp);
 
 void xive_eq_reset(XiveEQ *eq);
 void xive_eq_pic_print_info(XiveEQ *eq, Monitor *mon);

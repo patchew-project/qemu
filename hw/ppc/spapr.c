@@ -251,6 +251,7 @@ static void xive_system_init(MachineState *machine, int nr_irqs, Error **errp)
 
     spapr->xive = spapr_xive_create(spapr, TYPE_SPAPR_XIVE, nr_irqs, errp);
     if (spapr->xive) {
+        spapr->nvt_type = TYPE_XIVE_NVT;
         spapr_xive_hcall_init(spapr);
     }
 }
@@ -1522,13 +1523,32 @@ static int spapr_reset_drcs(Object *child, void *opaque)
 /* Setup XIVE exploitation or legacy mode as required by CAS */
 static void spapr_reset_interrupt(sPAPRMachineState *spapr, Error **errp)
 {
+    Error *local_err = NULL;
+    const char *intc_type;
+
     /* Reset XIVE if enabled */
     if (spapr->xive_exploitation) {
         spapr_xive_mmio_unmap(spapr->xive);
     }
 
+    /* Reset CPU ICPs */
+    spapr_cpu_core_reset_icp(&local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
     if (spapr_ovec_test(spapr->ov5_cas, OV5_XIVE_EXPLOIT)) {
         spapr_xive_mmio_map(spapr->xive);
+        intc_type = spapr->nvt_type;
+    } else {
+        intc_type = spapr->icp_type;
+    }
+
+    spapr_cpu_core_set_icp(intc_type, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
     }
 }
 
@@ -3961,6 +3981,26 @@ Object *spapr_icp_create(sPAPRMachineState *spapr, Object *cpu, Error **errp)
     if (local_err) {
         error_propagate(errp, local_err);
         return NULL;
+    }
+
+    if (spapr->xive_exploitation) {
+        Object *obj_xive;
+
+        /* Add a XIVE interrupt presenter. The machine will switch
+         * the CPU ICP depending on the interrupt model negotiated
+         * at CAS time.
+         */
+        obj_xive = xive_nvt_create(cpu, spapr->nvt_type, &local_err);
+        if (local_err) {
+            object_unparent(obj);
+            error_propagate(errp, local_err);
+            return NULL;
+        }
+
+        /* when hotplugged, the CPU should have the correct ICP */
+        if (spapr_ovec_test(spapr->ov5_cas, OV5_XIVE_EXPLOIT)) {
+            return obj_xive;
+        }
     }
 
     return obj;
