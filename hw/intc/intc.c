@@ -32,10 +32,36 @@ static const TypeInfo intctrl_info = {
     .class_size = sizeof(InterruptStatsProviderClass),
 };
 
+static const TypeInfo cpu_intc_info = {
+    .name = TYPE_CPU_INTC,
+    .parent = TYPE_INTERFACE,
+    .class_size = sizeof(CPUIntcClass),
+};
+
 static void intc_register_types(void)
 {
+    type_register_static(&cpu_intc_info);
     type_register_static(&intctrl_info);
 }
 
 type_init(intc_register_types)
 
+void cpu_intc_disconnect(CPUIntc *intc, Error **errp)
+{
+    CPUIntcClass *cic;
+
+    cic = CPU_INTC_GET_CLASS(intc);
+    if (cic->disconnect) {
+        cic->disconnect(intc, errp);
+    }
+}
+
+void cpu_intc_connect(CPUIntc *intc, Error **errp)
+{
+    CPUIntcClass *cic;
+
+    cic = CPU_INTC_GET_CLASS(intc);
+    if (cic->connect) {
+        cic->connect(intc, errp);
+    }
+}
