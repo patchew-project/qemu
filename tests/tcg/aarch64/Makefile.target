@@ -1,0 +1,5 @@
+# -*- Mode: makefile -*-
+#
+# AArch64 specific tweaks
+
+fcvt: LDFLAGS+=-lm
