@@ -1,0 +1,30 @@
+# -*- Mode: makefile -*-
+#
+# Multiarch Tests - included from tests/tcg/Makefile.target
+#
+# These tests are plain C and built without any architecture specific code.
+#
+
+MULTIARCH_SRC=$(SRC_PATH)/tests/tcg/multiarch
+
+# Set search path for all sources
+VPATH 		+= $(MULTIARCH_SRC)
+MULTIARCH_SRCS   =$(notdir $(wildcard $(MULTIARCH_SRC)/*.c))
+MULTIARCH_TESTS  =$(MULTIARCH_SRCS:.c=)
+
+# Update TESTS
+TESTS		+=$(MULTIARCH_TESTS)
+
+#
+# The following are any additional rules needed to build things
+#
+
+testthread: LDFLAGS=-lpthread
+
+# Specialist Runners
+run-test-mmap: test-mmap
+	-$(QEMU) ./test-mmap
+	-$(QEMU) -p 8192 ./test-mmap 8192
+	-$(QEMU) -p 16384 ./test-mmap 16384
+	-$(QEMU) -p 32768 ./test-mmap 32768
+
