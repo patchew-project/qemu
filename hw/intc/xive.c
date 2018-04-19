@@ -88,9 +88,63 @@ static void xive_eq_push(XiveEQ *eq, uint32_t data)
  * XIVE Interrupt Presenter
  */
 
+/* Convert a priority number to an Interrupt Pending Buffer (IPB)
+ * register, which indicates a pending interrupt at the priority
+ * corresponding to the bit number
+ */
+static uint8_t priority_to_ipb(uint8_t priority)
+{
+    return priority > XIVE_PRIORITY_MAX ?
+        0 : 1 << (XIVE_PRIORITY_MAX - priority);
+}
+
+/* Convert an Interrupt Pending Buffer (IPB) register to a Pending
+ * Interrupt Priority Register (PIPR), which contains the priority of
+ * the most favored pending notification.
+ */
+static uint8_t ipb_to_pipr(uint8_t ibp)
+{
+    return ibp ? clz32((uint32_t)ibp << 24) : 0xff;
+}
+
+/* Update the IPB (Interrupt Pending Buffer) with the priority
+ * of the new notification and inform the NVT, which will
+ * decide to raise the exception, or not, depending the CPPR.
+ */
+static void xive_nvt_ipb_update(XiveNVT *nvt, uint8_t priority)
+{
+    nvt->ring_os[TM_IPB] |= priority_to_ipb(priority);
+    nvt->ring_os[TM_PIPR] = ipb_to_pipr(nvt->ring_os[TM_IPB]);
+}
+
 static uint64_t xive_nvt_accept(XiveNVT *nvt)
 {
-    return 0;
+    uint8_t nsr = nvt->ring_os[TM_NSR];
+
+    qemu_irq_lower(nvt->output);
+
+    if (nvt->ring_os[TM_NSR] & TM_QW1_NSR_EO) {
+        uint8_t cppr = nvt->ring_os[TM_PIPR];
+
+        nvt->ring_os[TM_CPPR] = cppr;
+
+        /* Reset the pending buffer bit */
+        nvt->ring_os[TM_IPB] &= ~priority_to_ipb(cppr);
+        nvt->ring_os[TM_PIPR] = ipb_to_pipr(nvt->ring_os[TM_IPB]);
+
+        /* Drop Exception bit for OS */
+        nvt->ring_os[TM_NSR] &= ~TM_QW1_NSR_EO;
+    }
+
+    return (nsr << 8) | nvt->ring_os[TM_CPPR];
+}
+
+static void xive_nvt_notify(XiveNVT *nvt)
+{
+    if (nvt->ring_os[TM_PIPR] < nvt->ring_os[TM_CPPR]) {
+        nvt->ring_os[TM_NSR] |= TM_QW1_NSR_EO;
+        qemu_irq_raise(nvt->output);
+    }
 }
 
 static void xive_nvt_set_cppr(XiveNVT *nvt, uint8_t cppr)
@@ -100,6 +154,10 @@ static void xive_nvt_set_cppr(XiveNVT *nvt, uint8_t cppr)
     }
 
     nvt->ring_os[TM_CPPR] = cppr;
+
+    /* CPPR has changed, check if we need to redistribute a pending
+     * exception */
+    xive_nvt_notify(nvt);
 }
 
 /*
@@ -279,6 +337,12 @@ static void xive_nvt_reset(void *dev)
     int i;
 
     memset(nvt->regs, 0, sizeof(nvt->regs));
+    /*
+     * Initialize PIPR to 0xFF to avoid phantom interrupts when the
+     * CPPR is first set.
+     */
+    nvt->ring_os[TM_PIPR] = ipb_to_pipr(nvt->ring_os[TM_IPB]);
+
     for (i = 0; i < ARRAY_SIZE(nvt->eqt); i++) {
         xive_eq_reset(&nvt->eqt[i]);
     }
@@ -407,6 +471,8 @@ static void xive_fabric_route(XiveFabric *xf, int lisn)
     XiveEQ *eq;
     uint32_t eq_idx;
     uint8_t priority;
+    XiveNVT *nvt;
+    uint32_t nvt_idx;
 
     ive = xive_fabric_get_ive(xf, lisn);
     if (!ive || !(ive->w & IVE_VALID)) {
@@ -434,6 +500,13 @@ static void xive_fabric_route(XiveFabric *xf, int lisn)
         qemu_log_mask(LOG_UNIMP, "XIVE: !UCOND_NOTIFY not implemented\n");
     }
 
+    nvt_idx = GETFIELD(EQ_W6_NVT_INDEX, eq->w6);
+    nvt = xive_fabric_get_nvt(xf, nvt_idx);
+    if (!nvt) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: No NVT for idx %d\n", nvt_idx);
+        return;
+    }
+
     if (GETFIELD(EQ_W6_FORMAT_BIT, eq->w6) == 0) {
         priority = GETFIELD(EQ_W7_F0_PRIORITY, eq->w7);
 
@@ -441,9 +514,12 @@ static void xive_fabric_route(XiveFabric *xf, int lisn)
         if (priority == 0xff) {
             g_assert_not_reached();
         }
+        xive_nvt_ipb_update(nvt, priority);
     } else {
         qemu_log_mask(LOG_UNIMP, "XIVE: w7 format1 not implemented\n");
     }
+
+    xive_nvt_notify(nvt);
 }
 
 static const TypeInfo xive_fabric_info = {
