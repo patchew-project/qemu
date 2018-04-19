@@ -1,0 +1,7 @@
+QEMU Floating point regression tests
+------------------------------------
+
+b32b32cfi =0 -Inf -> 0xffffffff80000000 i
+b32b32cfi =0 +Inf -> 0xffffffff80000000 i
+b32b64cfi =0 -Inf -> 0x8000000000000000 i
+b32b64cfi =0 +Inf -> 0x8000000000000000 i
