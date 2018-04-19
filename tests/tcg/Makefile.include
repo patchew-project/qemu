@@ -8,19 +8,14 @@
 # guest compiler or calling one of our docker images to do it for us.
 #
 
-# The per ARCH makefile, if it exists holds extra information about
-# useful docker images or alternative compiler flags. Include it if it
-# exists
+# The per ARCH makefile, if it exists, holds extra information about
+# useful docker images or alternative compiler flags.
 
-ARCH_MAKEFILE=$(SRC_PATH)/tests/tcg/$(TARGET_NAME)/Makefile.include
-CHECK_INCLUDE=$(wildcard $(ARCH_MAKEFILE))
-
-ifeq ($(ARCH_MAKEFILE),$(CHECK_INCLUDE))
-include $(ARCH_MAKEFILE)
-endif
+-include $(SRC_PATH)/tests/tcg/$(TARGET_BASE_ARCH)/Makefile.include
+-include $(SRC_PATH)/tests/tcg/$(TARGET_NAME)/Makefile.include
 
 GUEST_BUILD=
-
+TCG_MAKE=$(SRC_PATH)/tests/tcg/Makefile
 # Support installed Cross Compilers
 
 ifdef CROSS_CC_GUEST
@@ -28,10 +23,10 @@ ifdef CROSS_CC_GUEST
 .PHONY: cross-build-guest-tests
 cross-build-guest-tests:
 	$(call quiet-command, \
-          (mkdir -p tests && cd tests && \
-	   make -f $(SRC_PATH)/tests/tcg/Makefile ARCH=$(TARGET_NAME) CC=$(CROSS_CC_GUEST)), \
-	  "CROSS-BUILD","$(TARGET_NAME) guest-tests with $(CROSS_CC_GUEST)")
-
+	   (mkdir -p tests && cd tests && \
+	    make -f $(TCG_MAKE) CC=$(CROSS_CC_GUEST) \
+				EXTRA_CFLAGS=$(CROSS_CC_GUEST_CFLAGS)), \
+	"CROSS-BUILD","$(TARGET_NAME) guest-tests with $(CROSS_CC_GUEST)")
 
 GUEST_BUILD=cross-build-guest-tests
 
@@ -54,9 +49,10 @@ DOCKER_PREREQ=docker-image-$(DOCKER_IMAGE)
 .PHONY: docker-build-guest-tests
 docker-build-guest-tests: $(DOCKER_PREREQ)
 	$(call quiet-command, \
-          (mkdir -p tests && cd tests && \
-	   make -f $(SRC_PATH)/tests/tcg/Makefile ARCH=$(TARGET_NAME) CC=$(DOCKER_COMPILE_CMD)), \
-	  "CROSS-BUILD","$(TARGET_NAME) guest-tests with docker qemu:$(DOCKER_IMAGE)")
+	  (mkdir -p tests && cd tests && \
+	   make -f $(TCG_MAKE) CC=$(DOCKER_COMPILE_CMD) \
+			       EXTRA_CFLAGS=$(DOCKER_CROSS_COMPILER_CFLAGS)), \
+	"CROSS-BUILD","$(TARGET_NAME) guest-tests with docker qemu:$(DOCKER_IMAGE)")
 
 GUEST_BUILD=docker-build-guest-tests
 
@@ -70,7 +66,8 @@ ifneq ($(GUEST_BUILD),)
 guest-tests: $(GUEST_BUILD)
 else
 guest-tests:
-	$(call quiet-command, /bin/true, "CROSS-BUILD", "$(TARGET_NAME) guest-tests SKIPPED")
+	$(call quiet-command, /bin/true, "CROSS-BUILD", \
+		"$(TARGET_NAME) guest-tests SKIPPED")
 endif
 
 # It doesn't mater if these don't exits
