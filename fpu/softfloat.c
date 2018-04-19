@@ -82,6 +82,7 @@ this code that are retained.
 /* softfloat (and in particular the code in softfloat-specialize.h) is
  * target-dependent and needs the TARGET_* macros.
  */
+#define QEMU_NO_GLIB
 #include "qemu/osdep.h"
 #include "qemu/bitops.h"
 #include "fpu/softfloat.h"
@@ -104,6 +105,9 @@ this code that are retained.
 | specific.
 *----------------------------------------------------------------------------*/
 #include "softfloat-specialize.h"
+
+/* glib headers are not included due to QEMU_NO_GLIB */
+#define g_assert_not_reached() assert(false)
 
 /*----------------------------------------------------------------------------
 | Returns the fraction bits of the half-precision floating-point value `a'.
