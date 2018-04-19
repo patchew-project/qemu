@@ -12,6 +12,8 @@
 
 #include "hw/sysbus.h"
 
+typedef struct XiveFabric XiveFabric;
+
 /*
  * XIVE Interrupt Source
  */
@@ -46,6 +48,8 @@ typedef struct XiveSource {
     hwaddr       esb_base;
     uint32_t     esb_shift;
     MemoryRegion esb_mmio;
+
+    XiveFabric   *xive;
 } XiveSource;
 
 /*
@@ -142,5 +146,26 @@ static inline void xive_source_irq_set(XiveSource *xsrc, uint32_t srcno,
     assert(srcno < xsrc->nr_irqs);
     xsrc->status[srcno] |= lsi ? XIVE_STATUS_LSI : 0;
 }
+
+/*
+ * XIVE Fabric
+ */
+
+typedef struct XiveFabric {
+    Object parent;
+} XiveFabric;
+
+#define TYPE_XIVE_FABRIC "xive-fabric"
+#define XIVE_FABRIC(obj)                                     \
+    OBJECT_CHECK(XiveFabric, (obj), TYPE_XIVE_FABRIC)
+#define XIVE_FABRIC_CLASS(klass)                                     \
+    OBJECT_CLASS_CHECK(XiveFabricClass, (klass), TYPE_XIVE_FABRIC)
+#define XIVE_FABRIC_GET_CLASS(obj)                                   \
+    OBJECT_GET_CLASS(XiveFabricClass, (obj), TYPE_XIVE_FABRIC)
+
+typedef struct XiveFabricClass {
+    InterfaceClass parent;
+    void (*notify)(XiveFabric *xf, uint32_t lisn);
+} XiveFabricClass;
 
 #endif /* PPC_XIVE_H */
