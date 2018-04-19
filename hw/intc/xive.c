@@ -487,6 +487,7 @@ static const VMStateDescription vmstate_xive_nvt = {
     .minimum_version_id = 1,
     .pre_save = vmstate_xive_nvt_pre_save,
     .post_load = vmstate_xive_nvt_post_load,
+    .priority = MIG_PRI_XIVE_NVT,
     .fields = (VMStateField[]) {
         VMSTATE_BUFFER(regs, XiveNVT),
         VMSTATE_STRUCT_ARRAY(eqt, XiveNVT, (XIVE_PRIORITY_MAX + 1), 1,

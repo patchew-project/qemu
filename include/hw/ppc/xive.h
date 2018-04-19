@@ -58,6 +58,9 @@ typedef struct XiveSource {
     MemoryRegion esb_mmio;
 
     XiveFabric   *xive;
+
+    /* KVM support */
+    void         *esb_mmap;
 } XiveSource;
 
 #define XIVE_SOURCE_CLASS(klass) \

@@ -30,6 +30,11 @@ typedef struct sPAPRXive {
     hwaddr       tm_base;
     MemoryRegion tm_mmio_user;
     MemoryRegion tm_mmio_os;
+
+    /* KVM support */
+    int          fd;
+    void         *tm_mmap_user;
+    void         *tm_mmap_os;
 } sPAPRXive;
 
 #define SPAPR_XIVE_CLASS(klass) \
@@ -65,5 +70,23 @@ typedef struct sPAPRMachineState sPAPRMachineState;
 void spapr_xive_hcall_init(sPAPRMachineState *spapr);
 void spapr_dt_xive(sPAPRMachineState *spapr, int nr_servers, void *fdt,
                    uint32_t phandle);
+
+/*
+ * XIVE KVM device
+ */
+
+#define TYPE_SPAPR_XIVE_KVM "spapr-xive-kvm"
+#define SPAPR_XIVE_KVM(obj) \
+    OBJECT_CHECK(sPAPRXive, (obj), TYPE_SPAPR_XIVE_KVM)
+
+#define TYPE_XIVE_SOURCE_KVM "xive-source-kvm"
+#define XIVE_SOURCE_KVM(obj) \
+    OBJECT_CHECK(XiveSource, (obj), TYPE_XIVE_SOURCE_KVM)
+
+#define TYPE_XIVE_NVT_KVM "xive-nvt-kvm"
+#define XIVE_NVT_KVM(obj) \
+    OBJECT_CHECK(XiveNVT, (obj), TYPE_XIVE_NVT_KVM)
+
+void xive_kvm_init(sPAPRXive *xive, Error **errp);
 
 #endif /* PPC_SPAPR_XIVE_H */

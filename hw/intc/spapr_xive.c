@@ -208,6 +208,7 @@ static const VMStateDescription vmstate_spapr_xive = {
     .minimum_version_id = 1,
     .pre_save = vmstate_spapr_xive_pre_save,
     .post_load = vmstate_spapr_xive_post_load,
+    .priority = MIG_PRI_XIVE_IVE,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32_EQUAL(nr_irqs, sPAPRXive, NULL),
         VMSTATE_STRUCT_VARRAY_POINTER_UINT32(ivt, sPAPRXive, nr_irqs,
