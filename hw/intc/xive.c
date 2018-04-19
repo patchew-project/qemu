@@ -104,6 +104,21 @@ static void xive_source_notify(XiveSource *xsrc, int srcno)
 
 }
 
+/*
+ * LSI interrupt sources use the P bit and a custom assertion flag
+ */
+static bool xive_source_lsi_trigger(XiveSource *xsrc, uint32_t srcno)
+{
+    uint8_t old_pq = xive_source_pq_get(xsrc, srcno);
+
+    if  (old_pq == XIVE_ESB_RESET &&
+         xsrc->status[srcno] & XIVE_STATUS_ASSERTED) {
+        xive_source_pq_set(xsrc, srcno, XIVE_ESB_PENDING);
+        return true;
+    }
+    return false;
+}
+
 /* In a two pages ESB MMIO setting, even page is the trigger page, odd
  * page is for management */
 static inline bool xive_source_is_trigger_page(hwaddr addr)
@@ -133,6 +148,13 @@ static uint64_t xive_source_esb_read(void *opaque, hwaddr addr, unsigned size)
          */
         ret = xive_source_pq_eoi(xsrc, srcno);
 
+        /* If the LSI source is still asserted, forward a new source
+         * event notification */
+        if (xive_source_irq_is_lsi(xsrc, srcno)) {
+            if (xive_source_lsi_trigger(xsrc, srcno)) {
+                xive_source_notify(xsrc, srcno);
+            }
+        }
         break;
 
     case XIVE_ESB_GET:
@@ -183,6 +205,14 @@ static void xive_source_esb_write(void *opaque, hwaddr addr,
          * notification
          */
         notify = xive_source_pq_eoi(xsrc, srcno);
+
+        /* LSI sources do not set the Q bit but they can still be
+         * asserted, in which case we should forward a new source
+         * event notification
+         */
+        if (xive_source_irq_is_lsi(xsrc, srcno)) {
+            notify = xive_source_lsi_trigger(xsrc, srcno);
+        }
         break;
 
     default:
@@ -216,8 +246,17 @@ static void xive_source_set_irq(void *opaque, int srcno, int val)
     XiveSource *xsrc = XIVE_SOURCE(opaque);
     bool notify = false;
 
-    if (val) {
-        notify = xive_source_pq_trigger(xsrc, srcno);
+    if (xive_source_irq_is_lsi(xsrc, srcno)) {
+        if (val) {
+            xsrc->status[srcno] |= XIVE_STATUS_ASSERTED;
+        } else {
+            xsrc->status[srcno] &= ~XIVE_STATUS_ASSERTED;
+        }
+        notify = xive_source_lsi_trigger(xsrc, srcno);
+    } else {
+        if (val) {
+            notify = xive_source_pq_trigger(xsrc, srcno);
+        }
     }
 
     /* Forward the source event notification for routing */
@@ -234,13 +273,13 @@ void xive_source_pic_print_info(XiveSource *xsrc, Monitor *mon)
                    xsrc->offset, xsrc->offset + xsrc->nr_irqs - 1);
     for (i = 0; i < xsrc->nr_irqs; i++) {
         uint8_t pq = xive_source_pq_get(xsrc, i);
-        uint32_t lisn = i  + xsrc->offset;
 
         if (pq == XIVE_ESB_OFF) {
             continue;
         }
 
-        monitor_printf(mon, "  %4x %c%c\n", lisn,
+        monitor_printf(mon, "  %4x %s %c%c\n", i + xsrc->offset,
+                       xive_source_irq_is_lsi(xsrc, i) ? "LSI" : "MSI",
                        pq & XIVE_ESB_VAL_P ? 'P' : '-',
                        pq & XIVE_ESB_VAL_Q ? 'Q' : '-');
     }
@@ -249,6 +288,12 @@ void xive_source_pic_print_info(XiveSource *xsrc, Monitor *mon)
 static void xive_source_reset(DeviceState *dev)
 {
     XiveSource *xsrc = XIVE_SOURCE(dev);
+    int i;
+
+    /* Keep the IRQ type */
+    for (i = 0; i < xsrc->nr_irqs; i++) {
+        xsrc->status[i] &= ~XIVE_STATUS_ASSERTED;
+    }
 
     /* SBEs are initialized to 0b01 which corresponds to "ints off" */
     memset(xsrc->sbe, 0x55, xsrc->sbe_size);
@@ -273,6 +318,7 @@ static void xive_source_realize(DeviceState *dev, Error **errp)
 
     xsrc->qirqs = qemu_allocate_irqs(xive_source_set_irq, xsrc,
                                      xsrc->nr_irqs);
+    xsrc->status = g_malloc0(xsrc->nr_irqs);
 
     /* Allocate the SBEs (State Bit Entry). 2 bits, so 4 entries per byte */
     xsrc->sbe_size = DIV_ROUND_UP(xsrc->nr_irqs, 4);

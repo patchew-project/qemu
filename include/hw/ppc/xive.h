@@ -33,6 +33,9 @@ typedef struct XiveSource {
     uint32_t     nr_irqs;
     uint32_t     offset;
     qemu_irq     *qirqs;
+#define XIVE_STATUS_LSI         0x1
+#define XIVE_STATUS_ASSERTED    0x2
+    uint8_t      *status;
 
     /* PQ bits */
     uint8_t      *sbe;
@@ -126,5 +129,18 @@ uint8_t xive_source_pq_get(XiveSource *xsrc, uint32_t srcno);
 uint8_t xive_source_pq_set(XiveSource *xsrc, uint32_t srcno, uint8_t pq);
 
 void xive_source_pic_print_info(XiveSource *xsrc, Monitor *mon);
+
+static inline bool xive_source_irq_is_lsi(XiveSource *xsrc, uint32_t srcno)
+{
+    assert(srcno < xsrc->nr_irqs);
+    return xsrc->status[srcno] & XIVE_STATUS_LSI;
+}
+
+static inline void xive_source_irq_set(XiveSource *xsrc, uint32_t srcno,
+                                       bool lsi)
+{
+    assert(srcno < xsrc->nr_irqs);
+    xsrc->status[srcno] |= lsi ? XIVE_STATUS_LSI : 0;
+}
 
 #endif /* PPC_XIVE_H */
