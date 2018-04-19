@@ -261,6 +261,13 @@ static void hda_audio_input_cb(void *opaque, int avail)
 
     int64_t to_transfer = audio_MIN(B_SIZE - (wpos - rpos), avail);
 
+    if (to_transfer == 0) {
+        /* reset timer adjust */
+        st->buft_start = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+        trace_hda_audio_underrun(st->node->name);
+        return;
+    }
+
     hda_timer_sync_adjust(st, -((wpos - rpos) + to_transfer - (B_SIZE >> 1)));
 
     while (to_transfer) {
@@ -324,6 +331,21 @@ static void hda_audio_output_cb(void *opaque, int avail)
     int64_t rpos = atomic_fetch_add(&st->rpos, 0);
 
     int64_t to_transfer = audio_MIN(wpos - rpos, avail);
+
+    if (to_transfer == 0) {
+        /* reset timer adjust */
+        st->buft_start = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+        trace_hda_audio_underrun(st->node->name);
+        return;
+    }
+    if (wpos - rpos == B_SIZE) {
+        /* drop buffer, reset timer adjust */
+        st->rpos = 0;
+        st->wpos = 0;
+        st->buft_start = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+        trace_hda_audio_overrun(st->node->name);
+        return;
+    }
 
     hda_timer_sync_adjust(st, (wpos - rpos) - to_transfer - (B_SIZE >> 1));
 
