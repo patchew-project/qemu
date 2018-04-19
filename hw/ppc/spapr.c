@@ -56,6 +56,7 @@
 #include "hw/ppc/spapr_vio.h"
 #include "hw/pci-host/spapr.h"
 #include "hw/ppc/xics.h"
+#include "hw/ppc/spapr_xive.h"
 #include "hw/pci/msi.h"
 
 #include "hw/pci/pci.h"
@@ -207,6 +208,48 @@ static void xics_system_init(MachineState *machine, int nr_irqs, Error **errp)
             return;
         }
     }
+}
+
+static sPAPRXive *spapr_xive_create(sPAPRMachineState *spapr,
+                                    const char *type_xive, int nr_irqs,
+                                    Error **errp)
+{
+    Error *local_err = NULL;
+    Object *obj;
+
+    obj = object_new(type_xive);
+    object_property_add_child(OBJECT(spapr), "xive", obj, &error_abort);
+    object_property_set_int(obj, nr_irqs, "nr-irqs",  &local_err);
+    if (local_err) {
+        goto error;
+    }
+    object_property_set_bool(obj, true, "realized", &local_err);
+    if (local_err) {
+        goto error;
+    }
+
+    qdev_set_parent_bus(DEVICE(obj), sysbus_get_default());
+    return SPAPR_XIVE(obj);
+error:
+    error_propagate(errp, local_err);
+    return NULL;
+}
+
+static void xive_system_init(MachineState *machine, int nr_irqs, Error **errp)
+{
+    sPAPRMachineState *spapr = SPAPR_MACHINE(machine);
+
+    /* We don't have KVM support yet, so check for irqchip=on */
+    if (kvm_enabled() && machine_kernel_irqchip_required(machine)) {
+        error_report("kernel_irqchip requested. no XIVE support");
+        exit(1);
+    }
+
+    if (spapr->xive) {
+        return;
+    }
+
+    spapr->xive = spapr_xive_create(spapr, TYPE_SPAPR_XIVE, nr_irqs, errp);
 }
 
 static int spapr_fixup_cpu_smt_dt(void *fdt, int offset, PowerPCCPU *cpu,
@@ -2473,6 +2516,12 @@ static void spapr_machine_init(MachineState *machine)
     /* Set up Interrupt Controller before we create the VCPUs */
     xics_system_init(machine, XICS_IRQS_SPAPR, &error_fatal);
 
+    if (spapr->xive_exploitation) {
+        /* XIVE uses the full range of IRQ numbers. */
+        xive_system_init(machine, XICS_IRQ_BASE + XICS_IRQS_SPAPR,
+                         &error_fatal);
+    }
+
     /* Set up containers for ibm,client-architecture-support negotiated options
      */
     spapr->ov5 = spapr_ovec_new();
@@ -2502,6 +2551,14 @@ static void spapr_machine_init(MachineState *machine)
 
     /* init CPUs */
     spapr_init_cpus(spapr);
+
+    /* Allocate the first IRQ numbers for the CPU IPIs, below
+     * XICS_IRQ_BASE, which is unused by XICS. */
+    if (spapr->xive_exploitation) {
+        for (i = 0; i < xics_max_server_number(spapr); ++i) {
+            spapr_xive_irq_enable(spapr->xive, i, false);
+        }
+    }
 
     if (kvm_enabled()) {
         /* Enable H_LOGICAL_CI_* so SLOF can talk to in-kernel devices */
@@ -3752,6 +3809,9 @@ static int ics_find_free_block(ICSState *ics, int num, int alignnum)
 static void spapr_irq_set_lsi(sPAPRMachineState *spapr, int irq, bool lsi)
 {
     ics_set_irq_type(spapr->ics, irq - spapr->ics->offset, lsi);
+    if (spapr->xive_exploitation) {
+        spapr_xive_irq_enable(spapr->xive, irq, lsi);
+    }
 }
 
 int spapr_irq_alloc(sPAPRMachineState *spapr, int irq_hint, bool lsi,
@@ -3841,6 +3901,9 @@ void spapr_irq_free(sPAPRMachineState *spapr, int irq, int num)
             }
             memset(&ics->irqs[i], 0, sizeof(ICSIRQState));
         }
+    }
+    if (spapr->xive_exploitation) {
+        spapr_xive_irq_disable(spapr->xive, irq);
     }
 }
 
