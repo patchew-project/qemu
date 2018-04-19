@@ -191,4 +191,6 @@ void pnv_bmc_powerdown(IPMIBmc *bmc);
     (0x0003ffe000000000ull + (uint64_t)PNV_CHIP_INDEX(chip) * \
      PNV_PSIHB_FSP_SIZE)
 
+Object *pnv_icp_create(PnvMachineState *spapr, Object *cpu, Error **errp);
+
 #endif /* _PPC_PNV_H */

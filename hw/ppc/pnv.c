@@ -1015,6 +1015,20 @@ static ICPState *pnv_icp_get(XICSFabric *xi, int pir)
     return cpu ? ICP(cpu->intc) : NULL;
 }
 
+Object *pnv_icp_create(PnvMachineState *pnv, Object *cpu, Error **errp)
+{
+    Error *local_err = NULL;
+    Object *obj;
+
+    obj = icp_create(cpu, TYPE_PNV_ICP, XICS_FABRIC(pnv), &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return NULL;
+    }
+
+    return obj;
+}
+
 static void pnv_pic_print_info(InterruptStatsProvider *obj,
                                Monitor *mon)
 {
