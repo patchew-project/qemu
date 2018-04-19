@@ -13,6 +13,7 @@
 #include "hw/xen/xen.h"
 #include "exec/memory.h"
 #include "qapi/qapi-commands-misc.h"
+#include "sysemu/sysemu.h"
 
 int xen_pci_slot_get_pirq(PCIDevice *pci_dev, int irq_num)
 {
