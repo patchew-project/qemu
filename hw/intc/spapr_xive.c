@@ -84,9 +84,8 @@ static void spapr_xive_init(Object *obj)
     object_property_add_child(obj, "source", OBJECT(&xive->source), NULL);
 }
 
-static void spapr_xive_realize(DeviceState *dev, Error **errp)
+void spapr_xive_common_realize(sPAPRXive *xive, int esb_shift, Error **errp)
 {
-    sPAPRXive *xive = SPAPR_XIVE(dev);
     XiveSource *xsrc = &xive->source;
     Error *local_err = NULL;
 
@@ -105,6 +104,8 @@ static void spapr_xive_realize(DeviceState *dev, Error **errp)
                             &error_fatal);
     object_property_set_int(OBJECT(xsrc), xive->nr_irqs, "nr-irqs",
                             &error_fatal);
+    object_property_set_int(OBJECT(xsrc), esb_shift, "shift",
+                            &error_fatal);
     object_property_add_const_link(OBJECT(xsrc), "xive", OBJECT(xive),
                                    &error_fatal);
     object_property_set_bool(OBJECT(xsrc), true, "realized", &local_err);
@@ -122,6 +123,18 @@ static void spapr_xive_realize(DeviceState *dev, Error **errp)
      * level views of the TIMA.
      */
     xive->tm_base = XIVE_TM_BASE;
+}
+
+static void spapr_xive_realize(DeviceState *dev, Error **errp)
+{
+    sPAPRXive *xive = SPAPR_XIVE(dev);
+    Error *local_err = NULL;
+
+    spapr_xive_common_realize(xive, XIVE_ESB_64K_2PAGE, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
 
     memory_region_init_io(&xive->tm_mmio_user, OBJECT(xive),
                           &xive_tm_user_ops, xive, "xive.tima.user",

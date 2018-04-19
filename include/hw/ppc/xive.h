@@ -175,6 +175,9 @@ static inline qemu_irq xive_source_qirq(XiveSource *xsrc, uint32_t srcno)
     return xsrc->qirqs[srcno];
 }
 
+void xive_source_common_realize(XiveSource *xsrc, qemu_irq_handler handler,
+                                Error **errp);
+
 /*
  * XIVE Interrupt Presenter
  */
