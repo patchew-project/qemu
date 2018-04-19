@@ -4729,6 +4729,7 @@ int main(int argc, char **argv, char **envp)
         vm_start();
     }
 
+    accel_setup_post(current_machine);
     os_setup_post();
 
     main_loop();
