@@ -480,6 +480,16 @@ struct kvm_ppc_cpu_char {
 #define  KVM_REG_PPC_ICP_PPRI_SHIFT	16	/* pending irq priority */
 #define  KVM_REG_PPC_ICP_PPRI_MASK	0xff
 
+#define KVM_REG_PPC_VP_STATE	(KVM_REG_PPC | KVM_REG_SIZE_U128 | 0x8d)
+#define KVM_REG_PPC_VP_EQ0	(KVM_REG_PPC | KVM_REG_SIZE_U256 | 0x8e)
+#define KVM_REG_PPC_VP_EQ1	(KVM_REG_PPC | KVM_REG_SIZE_U256 | 0x8f)
+#define KVM_REG_PPC_VP_EQ2	(KVM_REG_PPC | KVM_REG_SIZE_U256 | 0x90)
+#define KVM_REG_PPC_VP_EQ3	(KVM_REG_PPC | KVM_REG_SIZE_U256 | 0x91)
+#define KVM_REG_PPC_VP_EQ4	(KVM_REG_PPC | KVM_REG_SIZE_U256 | 0x92)
+#define KVM_REG_PPC_VP_EQ5	(KVM_REG_PPC | KVM_REG_SIZE_U256 | 0x93)
+#define KVM_REG_PPC_VP_EQ6	(KVM_REG_PPC | KVM_REG_SIZE_U256 | 0x94)
+#define KVM_REG_PPC_VP_EQ7	(KVM_REG_PPC | KVM_REG_SIZE_U256 | 0x95)
+
 /* Device control API: PPC-specific devices */
 #define KVM_DEV_MPIC_GRP_MISC		1
 #define   KVM_DEV_MPIC_BASE_ADDR	0	/* 64-bit */
@@ -672,5 +682,13 @@ struct kvm_ppc_cpu_char {
 #define  KVM_XICS_PENDING		(1ULL << 42)
 #define  KVM_XICS_PRESENTED		(1ULL << 43)
 #define  KVM_XICS_QUEUED		(1ULL << 44)
+
+/* POWER9 XIVE Interrupt Controller */
+#define KVM_DEV_XIVE_GRP_SOURCES	1	/* 64-bit source attributes */
+#define KVM_DEV_XIVE_GRP_CTRL		2
+#define   KVM_DEV_XIVE_GET_ESB_FD	1
+#define   KVM_DEV_XIVE_GET_TIMA_FD	2
+#define   KVM_DEV_XIVE_VC_BASE		3
+#define KVM_DEV_XIVE_GRP_IVE		3	/* 64-bit source attributes */
 
 #endif /* __LINUX_KVM_POWERPC_H */
