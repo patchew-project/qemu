@@ -2236,6 +2236,75 @@ static int coroutine_fn raw_co_block_status(BlockDriverState *bs,
     return ret | BDRV_BLOCK_OFFSET_VALID;
 }
 
+static bool is_mincore(void *addr, size_t length)
+{
+    size_t vec_len = DIV_ROUND_UP(length, sysconf(_SC_PAGESIZE));
+    unsigned char *vec;
+    size_t i;
+    int ret;
+    bool incore = false;
+
+    vec = g_malloc(vec_len);
+    ret = mincore(addr, length, vec);
+    if (ret < 0) {
+        incore = true;
+        goto out;
+    }
+
+    for (i = 0; i < vec_len; i++) {
+        if (vec[i] & 0x1) {
+            incore = true;
+            break;
+        }
+    }
+
+out:
+    g_free(vec);
+    return incore;
+}
+
+static void check_not_in_page_cache(BlockDriverState *bs, Error **errp)
+{
+    const size_t WINDOW_SIZE = 128 * 1024 * 1024;
+    BDRVRawState *s = bs->opaque;
+    void *window = NULL;
+    size_t length = 0;
+    off_t end;
+    off_t offset;
+
+    end = raw_getlength(bs);
+
+    for (offset = 0; offset < end; offset += WINDOW_SIZE) {
+        void *new_window;
+        size_t new_length = MIN(end - offset, WINDOW_SIZE);
+
+        if (new_length != length) {
+            munmap(window, length);
+            window = NULL;
+            length = 0;
+        }
+
+        new_window = mmap(window, new_length, PROT_NONE, MAP_PRIVATE,
+                          s->fd, offset);
+        if (new_window == MAP_FAILED) {
+            error_setg_errno(errp, errno, "mmap failed");
+            break;
+        }
+
+        window = new_window;
+        length = new_length;
+
+        if (is_mincore(window, length)) {
+            error_setg(errp, "page cache still in use!");
+            break;
+        }
+    }
+
+    if (window) {
+        munmap(window, length);
+    }
+}
+
 static void coroutine_fn raw_co_invalidate_cache(BlockDriverState *bs,
                                                  Error **errp)
 {
@@ -2270,6 +2339,8 @@ static void coroutine_fn raw_co_invalidate_cache(BlockDriverState *bs,
         return;
     }
 #endif /* __linux__ */
+
+    check_not_in_page_cache(bs, errp);
 }
 
 static coroutine_fn BlockAIOCB *raw_aio_pdiscard(BlockDriverState *bs,
