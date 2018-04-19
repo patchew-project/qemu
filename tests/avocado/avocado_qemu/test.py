@@ -297,8 +297,8 @@ class _VM(qemu.QEMUMachine):
         port = self.ports.find_free_port()
         newvm = _VM(self.qemu_dst_bin, self._arch, username=self.username,
                     password=self.password)
-        newvm.args = self.args
-        newvm.args.extend(['-incoming', 'tcp:0:%s' % port])
+        newvm._args = self._args
+        newvm._args.extend(['-incoming', 'tcp:0:%s' % port])
         newvm.username = self.username
         newvm.password = self.password
 
@@ -329,7 +329,7 @@ class _VM(qemu.QEMUMachine):
         :param extra: Extra parameters to the -drive option
         """
         file_option = 'file=%s' % path
-        for item in self.args:
+        for item in self._args:
             if file_option in item:
                 logging.error('Image %s already present', path)
                 return
@@ -340,7 +340,7 @@ class _VM(qemu.QEMUMachine):
         if snapshot:
             file_option += ',snapshot=on'
 
-        self.args.extend(['-drive', file_option])
+        self._args.extend(['-drive', file_option])
 
         if username is not None:
             self.username = username
@@ -387,7 +387,7 @@ class _VM(qemu.QEMUMachine):
         process.run("%s -output %s -volid cidata -joliet -rock %s %s" %
                     (geniso_bin, iso_path, metadata_path, userdata_path))
 
-        self.args.extend(['-cdrom', iso_path])
+        self._args.extend(['-cdrom', iso_path])
 
 class QemuTest(Test):
 
@@ -415,4 +415,4 @@ class QemuTest(Test):
         if machine_kvm_type is not None:
             machine += "kvm-type=%s," % machine_kvm_type
         if machine:
-            self.vm.args.extend(['-machine', machine])
+            self.vm._args.extend(['-machine', machine])
