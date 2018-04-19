@@ -20,6 +20,7 @@ typedef struct XiveFabric XiveFabric;
  */
 
 #define XIVE_VC_BASE   0x0006010000000000ull
+#define XIVE_TM_BASE   0x0006030203180000ull
 
 /*
  * XIVE Interrupt Source
@@ -155,6 +156,34 @@ static inline void xive_source_irq_set(XiveSource *xsrc, uint32_t srcno,
 }
 
 /*
+ * XIVE Interrupt Presenter
+ */
+
+#define TYPE_XIVE_NVT "xive-nvt"
+#define XIVE_NVT(obj) OBJECT_CHECK(XiveNVT, (obj), TYPE_XIVE_NVT)
+
+#define TM_RING_COUNT           4
+#define TM_RING_SIZE            0x10
+
+typedef struct XiveNVT {
+    DeviceState parent_obj;
+
+    CPUState  *cs;
+    qemu_irq  output;
+
+    /* Thread interrupt Management (TM) registers */
+    uint8_t   regs[TM_RING_COUNT * TM_RING_SIZE];
+
+    /* Shortcuts to rings */
+    uint8_t   *ring_os;
+} XiveNVT;
+
+extern const MemoryRegionOps xive_tm_user_ops;
+extern const MemoryRegionOps xive_tm_os_ops;
+
+void xive_nvt_pic_print_info(XiveNVT *nvt, Monitor *mon);
+
+/*
  * XIVE Fabric
  */
 
@@ -175,8 +204,10 @@ typedef struct XiveFabricClass {
     void (*notify)(XiveFabric *xf, uint32_t lisn);
 
     XiveIVE *(*get_ive)(XiveFabric *xf, uint32_t lisn);
+    XiveNVT *(*get_nvt)(XiveFabric *xf, uint32_t server);
 } XiveFabricClass;
 
 XiveIVE *xive_fabric_get_ive(XiveFabric *xf, uint32_t lisn);
+XiveNVT *xive_fabric_get_nvt(XiveFabric *xf, uint32_t server);
 
 #endif /* PPC_XIVE_H */

@@ -25,6 +25,11 @@ typedef struct sPAPRXive {
     /* Routing table */
     XiveIVE      *ivt;
     uint32_t     nr_irqs;
+
+    /* TIMA memory regions */
+    hwaddr       tm_base;
+    MemoryRegion tm_mmio_user;
+    MemoryRegion tm_mmio_os;
 } sPAPRXive;
 
 bool spapr_xive_irq_enable(sPAPRXive *xive, uint32_t lisn, bool lsi);

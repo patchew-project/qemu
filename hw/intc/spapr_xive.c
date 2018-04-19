@@ -13,6 +13,7 @@
 #include "target/ppc/cpu.h"
 #include "sysemu/cpus.h"
 #include "monitor/monitor.h"
+#include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_xive.h"
 #include "hw/ppc/xive.h"
 #include "hw/ppc/xive_regs.h"
@@ -95,6 +96,22 @@ static void spapr_xive_realize(DeviceState *dev, Error **errp)
 
     /* Allocate the Interrupt Virtualization Table */
     xive->ivt = g_new0(XiveIVE, xive->nr_irqs);
+
+    /* The Thread Interrupt Management Area has the same address for
+     * each chip. On sPAPR, we only need to expose the User and OS
+     * level views of the TIMA.
+     */
+    xive->tm_base = XIVE_TM_BASE;
+
+    memory_region_init_io(&xive->tm_mmio_user, OBJECT(xive),
+                          &xive_tm_user_ops, xive, "xive.tima.user",
+                          1ull << TM_SHIFT);
+    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &xive->tm_mmio_user);
+
+    memory_region_init_io(&xive->tm_mmio_os, OBJECT(xive),
+                          &xive_tm_os_ops, xive, "xive.tima.os",
+                          1ull << TM_SHIFT);
+    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &xive->tm_mmio_os);
 }
 
 static XiveIVE *spapr_xive_get_ive(XiveFabric *xf, uint32_t lisn)
@@ -102,6 +119,13 @@ static XiveIVE *spapr_xive_get_ive(XiveFabric *xf, uint32_t lisn)
     sPAPRXive *xive = SPAPR_XIVE(xf);
 
     return lisn < xive->nr_irqs ? &xive->ivt[lisn] : NULL;
+}
+
+static XiveNVT *spapr_xive_get_nvt(XiveFabric *xf, uint32_t server)
+{
+    PowerPCCPU *cpu = spapr_find_cpu(server);
+
+    return cpu ? XIVE_NVT(cpu->intc) : NULL;
 }
 
 static const VMStateDescription vmstate_spapr_xive_ive = {
@@ -143,6 +167,7 @@ static void spapr_xive_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_spapr_xive;
 
     xfc->get_ive = spapr_xive_get_ive;
+    xfc->get_nvt = spapr_xive_get_nvt;
 }
 
 static const TypeInfo spapr_xive_info = {
