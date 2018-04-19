@@ -15,6 +15,7 @@
 #include "sysemu/cpus.h"
 #include "sysemu/kvm.h"
 #include "monitor/monitor.h"
+#include "hw/intc/intc.h"
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_xive.h"
 #include "hw/ppc/xive.h"
@@ -45,6 +46,25 @@ static bool xive_nvt_kvm_cpu_is_enabled(CPUState *cs)
         }
     }
     return false;
+}
+
+static void xive_nvt_kvm_cpu_disable(CPUState *cs, Error **errp)
+{
+    KVMEnabledCPU *enabled_cpu;
+    unsigned long vcpu_id = kvm_arch_vcpu_id(cs);
+
+    QLIST_FOREACH(enabled_cpu, &kvm_enabled_cpus, node) {
+        if (enabled_cpu->vcpu_id == vcpu_id) {
+            break;
+        }
+    }
+
+    if (enabled_cpu->vcpu_id == vcpu_id) {
+        QLIST_REMOVE(enabled_cpu, node);
+        g_free(enabled_cpu);
+    } else {
+        error_setg(errp, "Can not find enabled CPU%ld", vcpu_id);
+    }
 }
 
 static void xive_nvt_kvm_cpu_enable(CPUState *cs)
@@ -183,8 +203,36 @@ static void xive_nvt_kvm_reset(XiveNVT *nvt)
     xive_nvt_kvm_set_state(nvt, 1);
 }
 
-static void xive_nvt_kvm_realize(XiveNVT *nvt, Error **errp)
+static void xive_nvt_kvm_disconnect(CPUIntc *intc, Error **errp)
 {
+    XiveNVT *nvt = XIVE_NVT_KVM(intc);
+    CPUState *cs = nvt->cs;
+    unsigned long vcpu_id = kvm_arch_vcpu_id(cs);
+    int ret;
+
+    if (kernel_xive_fd == -1) {
+        return;
+    }
+
+    /* Disable IRQ capability with a 'disable=1' as last argument.
+     *
+     * This is a bit hacky, we should introduce a KVM_DISABLE_CAP
+     * iotcl
+     */
+    ret = kvm_vcpu_enable_cap(cs, KVM_CAP_PPC_IRQ_XIVE, 0, kernel_xive_fd,
+                              vcpu_id, 1);
+    if (ret < 0) {
+        error_setg(errp, "Unable to disconnect CPU%ld from KVM XIVE device: %s",
+                   vcpu_id, strerror(errno));
+        return;
+    }
+
+    xive_nvt_kvm_cpu_disable(cs, errp);
+}
+
+static void xive_nvt_kvm_connect(CPUIntc *intc, Error **errp)
+{
+    XiveNVT *nvt = XIVE_NVT_KVM(intc);
     CPUState *cs = nvt->cs;
     unsigned long vcpu_id = kvm_arch_vcpu_id(cs);
     int ret;
@@ -209,14 +257,17 @@ static void xive_nvt_kvm_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     XiveNVTClass *xnc = XIVE_NVT_CLASS(klass);
+    CPUIntcClass *cic = CPU_INTC_CLASS(klass);
 
     dc->desc = "XIVE KVM Interrupt Presenter";
 
-    xnc->realize = xive_nvt_kvm_realize;
     xnc->synchronize_state = xive_nvt_kvm_synchronize_state;
     xnc->reset = xive_nvt_kvm_reset;
     xnc->pre_save = xive_nvt_kvm_get_state;
     xnc->post_load = xive_nvt_kvm_set_state;
+
+    cic->connect = xive_nvt_kvm_connect;
+    cic->disconnect = xive_nvt_kvm_disconnect;
 }
 
 static const TypeInfo xive_nvt_kvm_info = {

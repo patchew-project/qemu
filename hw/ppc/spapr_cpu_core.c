@@ -16,6 +16,7 @@
 #include "sysemu/cpus.h"
 #include "sysemu/kvm.h"
 #include "target/ppc/kvm_ppc.h"
+#include "hw/intc/intc.h"
 #include "hw/ppc/ppc.h"
 #include "target/ppc/mmu-hash64.h"
 #include "sysemu/numa.h"
@@ -105,6 +106,7 @@ static void spapr_cpu_core_unrealizefn(DeviceState *dev, Error **errp)
         PowerPCCPU *cpu = POWERPC_CPU(cs);
 
         spapr_cpu_destroy(cpu);
+        cpu_intc_disconnect(CPU_INTC(cpu->intc), NULL);
         object_unparent(cpu->intc);
         cpu_remove_sync(cs);
         object_unparent(obj);
@@ -134,6 +136,10 @@ static void spapr_cpu_core_realize_child(Object *child,
         goto error;
     }
 
+    cpu_intc_connect(CPU_INTC(cpu->intc), &local_err);
+    if (local_err) {
+        goto error;
+    }
     return;
 
 error:
@@ -263,6 +269,7 @@ void spapr_cpu_core_reset_icp(Error **errp)
 
     CPU_FOREACH(cs) {
         PowerPCCPU *cpu = POWERPC_CPU(cs);
+        cpu_intc_disconnect(CPU_INTC(cpu->intc), errp);
         cpu->intc = NULL;
     }
 }
@@ -298,5 +305,6 @@ void spapr_cpu_core_set_icp(const char *icp_type, Error **errp)
         }
 
         cpu->intc = args.icp;
+        cpu_intc_connect(CPU_INTC(cpu->intc), errp);
     }
 }

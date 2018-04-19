@@ -14,6 +14,7 @@
 #include "sysemu/cpus.h"
 #include "sysemu/dma.h"
 #include "monitor/monitor.h"
+#include "hw/intc/intc.h"
 #include "hw/ppc/xics.h" /* for ICP_PROP_CPU */
 #include "hw/ppc/xive.h"
 #include "hw/ppc/xive_regs.h"
@@ -513,6 +514,10 @@ static const TypeInfo xive_nvt_info = {
     .instance_init = xive_nvt_init,
     .class_init    = xive_nvt_class_init,
     .class_size    = sizeof(XiveNVTClass),
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_CPU_INTC },
+        { }
+    }
 };
 
 /*

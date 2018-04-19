@@ -381,6 +381,10 @@ static const TypeInfo icp_info = {
     .instance_size = sizeof(ICPState),
     .class_init = icp_class_init,
     .class_size = sizeof(ICPStateClass),
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_CPU_INTC },
+        { }
+    }
 };
 
 Object *icp_create(Object *cpu, const char *type, XICSFabric *xi, Error **errp)

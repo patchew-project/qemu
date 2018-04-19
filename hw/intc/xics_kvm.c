@@ -32,6 +32,7 @@
 #include "hw/hw.h"
 #include "trace.h"
 #include "sysemu/kvm.h"
+#include "hw/intc/intc.h"
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/xics.h"
 #include "kvm_ppc.h"
@@ -137,8 +138,48 @@ static void icp_kvm_reset(ICPState *icp)
     icp_set_kvm_state(icp, 1);
 }
 
-static void icp_kvm_realize(ICPState *icp, Error **errp)
+static void icp_kvm_disconnect(CPUIntc *intc, Error **errp)
 {
+    ICPState *icp = ICP(intc);
+    CPUState *cs = icp->cs;
+    KVMEnabledICP *enabled_icp;
+    unsigned long vcpu_id = kvm_arch_vcpu_id(cs);
+    int ret;
+
+    if (kernel_xics_fd == -1) {
+        return;
+    }
+
+    /* Disable IRQ capability with a 'disable=1' as last argument.
+     *
+     * This is a bit hacky, we should introduce a KVM_DISABLE_CAP
+     * iotcl
+     */
+    ret = kvm_vcpu_enable_cap(cs, KVM_CAP_IRQ_XICS, 0, kernel_xics_fd,
+                              vcpu_id, 1);
+    if (ret < 0) {
+        error_setg(errp, "Unable to disconnect CPU%ld to kernel XICS: %s",
+                   vcpu_id, strerror(errno));
+        return;
+    }
+
+    QLIST_FOREACH(enabled_icp, &kvm_enabled_icps, node) {
+        if (enabled_icp->vcpu_id == vcpu_id) {
+            break;
+        }
+    }
+
+    if (enabled_icp->vcpu_id == vcpu_id) {
+        QLIST_REMOVE(enabled_icp, node);
+        g_free(enabled_icp);
+    } else {
+        error_setg(errp, "Can not find enabled CPU%ld", vcpu_id);
+    }
+ }
+
+static void icp_kvm_connect(CPUIntc *intc, Error **errp)
+{
+    ICPState *icp = ICP(intc);
     CPUState *cs = icp->cs;
     KVMEnabledICP *enabled_icp;
     unsigned long vcpu_id = kvm_arch_vcpu_id(cs);
@@ -173,12 +214,15 @@ static void icp_kvm_realize(ICPState *icp, Error **errp)
 static void icp_kvm_class_init(ObjectClass *klass, void *data)
 {
     ICPStateClass *icpc = ICP_CLASS(klass);
+    CPUIntcClass *cic = CPU_INTC_CLASS(klass);
 
     icpc->pre_save = icp_get_kvm_state;
     icpc->post_load = icp_set_kvm_state;
-    icpc->realize = icp_kvm_realize;
     icpc->reset = icp_kvm_reset;
     icpc->synchronize_state = icp_synchronize_state;
+
+    cic->connect = icp_kvm_connect;
+    cic->disconnect = icp_kvm_disconnect;
 }
 
 static const TypeInfo icp_kvm_info = {
