@@ -155,6 +155,12 @@ static inline void xive_source_irq_set(XiveSource *xsrc, uint32_t srcno,
     xsrc->status[srcno] |= lsi ? XIVE_STATUS_LSI : 0;
 }
 
+static inline qemu_irq xive_source_qirq(XiveSource *xsrc, uint32_t srcno)
+{
+    assert(srcno < xsrc->nr_irqs);
+    return xsrc->qirqs[srcno];
+}
+
 /*
  * XIVE Interrupt Presenter
  */

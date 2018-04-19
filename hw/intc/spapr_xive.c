@@ -263,3 +263,16 @@ void spapr_xive_mmio_unmap(sPAPRXive *xive)
     sysbus_mmio_unmap(SYS_BUS_DEVICE(xive), 0);
     sysbus_mmio_unmap(SYS_BUS_DEVICE(xive), 1);
 }
+
+qemu_irq spapr_xive_qirq(sPAPRXive *xive, int lisn)
+{
+    XiveIVE *ive = spapr_xive_get_ive(XIVE_FABRIC(xive), lisn);
+    XiveSource *xsrc = &xive->source;
+
+    if (!ive || !(ive->w & IVE_VALID)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: invalid LISN %d\n", lisn);
+        return NULL;
+    }
+
+    return xive_source_qirq(xsrc, lisn - xsrc->offset);
+}

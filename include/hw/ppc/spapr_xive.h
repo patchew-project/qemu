@@ -37,6 +37,7 @@ bool spapr_xive_irq_disable(sPAPRXive *xive, uint32_t lisn);
 void spapr_xive_pic_print_info(sPAPRXive *xive, Monitor *mon);
 void spapr_xive_mmio_map(sPAPRXive *xive);
 void spapr_xive_mmio_unmap(sPAPRXive *xive);
+qemu_irq spapr_xive_qirq(sPAPRXive *xive, int lisn);
 
 /*
  * sPAPR encoding of EQ indexes

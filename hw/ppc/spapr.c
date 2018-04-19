@@ -3941,6 +3941,10 @@ qemu_irq spapr_qirq(sPAPRMachineState *spapr, int irq)
 {
     ICSState *ics = spapr->ics;
 
+    if (spapr_ovec_test(spapr->ov5_cas, OV5_XIVE_EXPLOIT)) {
+        return spapr_xive_qirq(spapr->xive, irq);
+    }
+
     if (ics_valid_irq(ics, irq)) {
         return ics->qirqs[irq - ics->offset];
     }
