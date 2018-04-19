@@ -61,7 +61,7 @@ typedef struct PnvChip {
     MemoryRegion icp_mmio;
 
     PnvLpcController lpc;
-    PnvPsi       psi;
+    PnvPsi       *psi;
     PnvOCC       occ;
 
     PnvXive      *xive;
@@ -205,6 +205,10 @@ void pnv_bmc_powerdown(IPMIBmc *bmc);
 #define PNV_XIVE_PC_BASE(chip)      (0x0006018000000000ull      \
     + (uint64_t)PNV_CHIP_INDEX(chip) * PNV_XIVE_PC_SIZE)
 
+#define PNV_PSIHB9_SIZE              0x0000000000100000ull
+#define PNV_PSIHB9_BASE(chip)       (0x0006030203000000ull       \
+    + (uint64_t)PNV_CHIP_INDEX(chip) * PNV_PSIHB_SIZE)
+
 #define PNV_XIVE_IC_SIZE             0x0000000000080000ull
 #define PNV_XIVE_IC_BASE(chip)      (0x0006030203100000ull \
      + (uint64_t)PNV_CHIP_INDEX(chip) * PNV_XIVE_IC_SIZE)
@@ -212,6 +216,14 @@ void pnv_bmc_powerdown(IPMIBmc *bmc);
 #define PNV_XIVE_TM_SIZE             0x0000000000040000ull
 #define PNV_XIVE_TM_BASE(chip)       0x0006030203180000ull
 
+#define PNV_PSIHB9_ESB_SIZE          0x0000000000010000ull
+#define PNV_PSIHB9_ESB_BASE(chip)   (0x00060302031c0000ull      \
+     + (uint64_t)PNV_CHIP_INDEX(chip) *  PNV_PSIHB9_ESB_SIZE)
+
 Object *pnv_icp_create(PnvMachineState *spapr, Object *cpu, Error **errp);
+
+/*
+ * POWER9 MMIO base addresses
+ */
 
 #endif /* _PPC_PNV_H */

@@ -21,10 +21,35 @@
 
 #include "hw/sysbus.h"
 #include "hw/ppc/xics.h"
+#include "hw/ppc/xive.h"
 
 #define TYPE_PNV_PSI "pnv-psi"
 #define PNV_PSI(obj) \
      OBJECT_CHECK(PnvPsi, (obj), TYPE_PNV_PSI)
+#define PNV_PSI_CLASS(klass) \
+     OBJECT_CLASS_CHECK(PnvPsiClass, (klass), TYPE_PNV_PSI)
+#define PNV_PSI_GET_CLASS(obj) \
+     OBJECT_GET_CLASS(PnvPsiClass, (obj), TYPE_PNV_PSI)
+
+typedef struct PnvPsi PnvPsi;
+typedef struct PnvChip PnvChip;
+typedef struct PnvPsiClass {
+    SysBusDeviceClass parent_class;
+
+    int chip_type;
+    uint32_t xscom_pcba;
+    uint32_t xscom_size;
+
+    void (*irq_set)(PnvPsi *psi, int, bool state);
+} PnvPsiClass;
+
+#define TYPE_PNV_PSI_POWER8 TYPE_PNV_PSI "-POWER8"
+#define PNV_PSI_POWER8(obj) \
+    OBJECT_CHECK(PnvPsi, (obj), TYPE_PNV_PSI_POWER8)
+
+#define TYPE_PNV_PSI_POWER9 TYPE_PNV_PSI "-POWER9"
+#define PNV_PSI_POWER9(obj) \
+    OBJECT_CHECK(PnvPsi, (obj), TYPE_PNV_PSI_POWER9)
 
 #define PSIHB_XSCOM_MAX         0x20
 
@@ -38,8 +63,11 @@ typedef struct PnvPsi {
     /* MemoryRegion fsp_mr; */
     uint64_t fsp_bar;
 
-    /* Interrupt generation */
+    /* P8 Interrupt generation */
     ICSState ics;
+
+    /* P9 Interrupt generation */
+    XiveSource source;
 
     /* Registers */
     uint64_t regs[PSIHB_XSCOM_MAX];
@@ -60,6 +88,24 @@ typedef enum PnvPsiIrq {
 
 #define PSI_NUM_INTERRUPTS 6
 
-extern void pnv_psi_irq_set(PnvPsi *psi, PnvPsiIrq irq, bool state);
+/* P9 PSI Interrupts */
+#define PSIHB9_IRQ_PSI          0
+#define PSIHB9_IRQ_OCC          1
+#define PSIHB9_IRQ_FSI          2
+#define PSIHB9_IRQ_LPCHC        3
+#define PSIHB9_IRQ_LOCAL_ERR    4
+#define PSIHB9_IRQ_GLOBAL_ERR   5
+#define PSIHB9_IRQ_TPM          6
+#define PSIHB9_IRQ_LPC_SIRQ0    7
+#define PSIHB9_IRQ_LPC_SIRQ1    8
+#define PSIHB9_IRQ_LPC_SIRQ2    9
+#define PSIHB9_IRQ_LPC_SIRQ3    10
+#define PSIHB9_IRQ_SBE_I2C      11
+#define PSIHB9_IRQ_DIO          12
+#define PSIHB9_IRQ_PSU          13
+#define PSIHB9_NUM_IRQS         14
+
+void pnv_psi_irq_set(PnvPsi *psi, int irq, bool state);
+void pnv_chip_psi_realize(PnvChip *chip, Error **errp);
 
 #endif /* _PPC_PNV_PSI_H */

@@ -69,6 +69,8 @@ typedef struct PnvXScomInterfaceClass {
 
 #define PNV_XSCOM_PSIHB_BASE      0x2010900
 #define PNV_XSCOM_PSIHB_SIZE      0x20
+#define PNV_XSCOM_P9_PSIHB_BASE   0x5012900
+#define PNV_XSCOM_P9_PSIHB_SIZE   0x100
 
 #define PNV_XSCOM_OCC_BASE        0x0066000
 #define PNV_XSCOM_OCC_SIZE        0x6000

@@ -806,19 +806,8 @@ static void pnv_chip_init(Object *obj)
     object_initialize(&chip->lpc, sizeof(chip->lpc), TYPE_PNV_LPC);
     object_property_add_child(obj, "lpc", OBJECT(&chip->lpc), NULL);
 
-    object_initialize(&chip->psi, sizeof(chip->psi), TYPE_PNV_PSI);
-    object_property_add_child(obj, "psi", OBJECT(&chip->psi), NULL);
-    object_property_add_const_link(OBJECT(&chip->psi), "xics",
-                                   OBJECT(qdev_get_machine()), &error_abort);
-
     object_initialize(&chip->occ, sizeof(chip->occ), TYPE_PNV_OCC);
     object_property_add_child(obj, "occ", OBJECT(&chip->occ), NULL);
-    object_property_add_const_link(OBJECT(&chip->occ), "psi",
-                                   OBJECT(&chip->psi), &error_abort);
-
-    /* The LPC controller needs PSI to generate interrupts */
-    object_property_add_const_link(OBJECT(&chip->lpc), "psi",
-                                   OBJECT(&chip->psi), &error_abort);
 }
 
 static void pnv_chip_icp_realize(PnvChip *chip, Error **errp)
@@ -921,7 +910,16 @@ static void pnv_chip_realize(DeviceState *dev, Error **errp)
         i++;
     }
 
+    /* Processor Service Interface (PSI) Host Bridge */
+    pnv_chip_psi_realize(chip, &error);
+    if (error) {
+        error_propagate(errp, error);
+        return;
+    }
+
     /* Create LPC controller */
+    object_property_add_const_link(OBJECT(&chip->lpc), "psi",
+                                   OBJECT(chip->psi), &error_abort);
     object_property_set_bool(OBJECT(&chip->lpc), true, "realized",
                              &error_fatal);
     pnv_xscom_add_subregion(chip, PNV_XSCOM_LPC_BASE, &chip->lpc.xscom_regs);
@@ -939,17 +937,9 @@ static void pnv_chip_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    /* Processor Service Interface (PSI) Host Bridge */
-    object_property_set_int(OBJECT(&chip->psi), PNV_PSIHB_BASE(chip),
-                            "bar", &error_fatal);
-    object_property_set_bool(OBJECT(&chip->psi), true, "realized", &error);
-    if (error) {
-        error_propagate(errp, error);
-        return;
-    }
-    pnv_xscom_add_subregion(chip, PNV_XSCOM_PSIHB_BASE, &chip->psi.xscom_regs);
-
     /* Create the simplified OCC model */
+    object_property_add_const_link(OBJECT(&chip->occ), "psi",
+                                   OBJECT(chip->psi), &error_abort);
     object_property_set_bool(OBJECT(&chip->occ), true, "realized", &error);
     if (error) {
         error_propagate(errp, error);
@@ -983,8 +973,8 @@ static ICSState *pnv_ics_get(XICSFabric *xi, int irq)
     int i;
 
     for (i = 0; i < pnv->num_chips; i++) {
-        if (ics_valid_irq(&pnv->chips[i]->psi.ics, irq)) {
-            return &pnv->chips[i]->psi.ics;
+        if (ics_valid_irq(&pnv->chips[i]->psi->ics, irq)) {
+            return &pnv->chips[i]->psi->ics;
         }
     }
     return NULL;
@@ -996,7 +986,7 @@ static void pnv_ics_resend(XICSFabric *xi)
     int i;
 
     for (i = 0; i < pnv->num_chips; i++) {
-        ics_resend(&pnv->chips[i]->psi.ics);
+        ics_resend(&pnv->chips[i]->psi->ics);
     }
 }
 
@@ -1040,9 +1030,10 @@ static void pnv_pic_print_info(InterruptStatsProvider *obj,
 
     for (i = 0; i < pnv->num_chips; i++) {
         if (!pnv_is_power9(pnv)) {
-            ics_pic_print_info(&pnv->chips[i]->psi.ics, mon);
+            ics_pic_print_info(&pnv->chips[i]->psi->ics, mon);
         } else {
             pnv_xive_pic_print_info(pnv->chips[0]->xive, mon);
+            xive_source_pic_print_info(&pnv->chips[0]->psi->source, mon);
         }
     }
 }
