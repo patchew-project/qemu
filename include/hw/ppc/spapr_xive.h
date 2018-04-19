@@ -35,6 +35,8 @@ typedef struct sPAPRXive {
 bool spapr_xive_irq_enable(sPAPRXive *xive, uint32_t lisn, bool lsi);
 bool spapr_xive_irq_disable(sPAPRXive *xive, uint32_t lisn);
 void spapr_xive_pic_print_info(sPAPRXive *xive, Monitor *mon);
+void spapr_xive_mmio_map(sPAPRXive *xive);
+void spapr_xive_mmio_unmap(sPAPRXive *xive);
 
 /*
  * sPAPR encoding of EQ indexes

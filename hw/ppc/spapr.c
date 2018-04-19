@@ -1519,6 +1519,19 @@ static int spapr_reset_drcs(Object *child, void *opaque)
     return 0;
 }
 
+/* Setup XIVE exploitation or legacy mode as required by CAS */
+static void spapr_reset_interrupt(sPAPRMachineState *spapr, Error **errp)
+{
+    /* Reset XIVE if enabled */
+    if (spapr->xive_exploitation) {
+        spapr_xive_mmio_unmap(spapr->xive);
+    }
+
+    if (spapr_ovec_test(spapr->ov5_cas, OV5_XIVE_EXPLOIT)) {
+        spapr_xive_mmio_map(spapr->xive);
+    }
+}
+
 static void spapr_machine_reset(void)
 {
     MachineState *machine = MACHINE(qdev_get_machine());
@@ -1554,6 +1567,8 @@ static void spapr_machine_reset(void)
 
         ppc_set_compat(first_ppc_cpu, spapr->max_compat_pvr, &error_fatal);
     }
+
+    spapr_reset_interrupt(spapr, &error_fatal);
 
     qemu_devices_reset();
 
@@ -1664,6 +1679,7 @@ static int spapr_post_load(void *opaque, int version_id)
 {
     sPAPRMachineState *spapr = (sPAPRMachineState *)opaque;
     int err = 0;
+    Error *local_err = NULL;
 
     err = spapr_caps_post_migration(spapr);
     if (err) {
@@ -1696,6 +1712,12 @@ static int spapr_post_load(void *opaque, int version_id)
             error_report("Process table config unsupported by the host");
             return -EINVAL;
         }
+    }
+
+    spapr_reset_interrupt(spapr, &local_err);
+    if (local_err) {
+        error_report_err(local_err);
+        return -EINVAL;
     }
 
     return err;

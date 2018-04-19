@@ -239,3 +239,27 @@ bool spapr_xive_irq_disable(sPAPRXive *xive, uint32_t lisn)
     xive_source_irq_set(xsrc, lisn - xsrc->offset, false);
     return true;
 }
+
+void spapr_xive_mmio_map(sPAPRXive *xive)
+{
+    XiveSource *xsrc = &xive->source;
+
+    /* ESBs */
+    sysbus_mmio_map(SYS_BUS_DEVICE(xsrc), 0, xsrc->esb_base);
+
+    /* Thread Management Interrupt Area: User and OS views */
+    sysbus_mmio_map(SYS_BUS_DEVICE(xive), 0, xive->tm_base);
+    sysbus_mmio_map(SYS_BUS_DEVICE(xive), 1, xive->tm_base + (1 << TM_SHIFT));
+}
+
+void spapr_xive_mmio_unmap(sPAPRXive *xive)
+{
+    XiveSource *xsrc = &xive->source;
+
+    /* ESBs */
+    sysbus_mmio_unmap(SYS_BUS_DEVICE(xsrc), 0);
+
+    /* Thread Management Interrupt Area: User and OS views */
+    sysbus_mmio_unmap(SYS_BUS_DEVICE(xive), 0);
+    sysbus_mmio_unmap(SYS_BUS_DEVICE(xive), 1);
+}
