@@ -2907,6 +2907,39 @@ static void spapr_set_vsmt(Object *obj, Visitor *v, const char *name,
     visit_type_uint32(v, name, (uint32_t *)opaque, errp);
 }
 
+static char *spapr_get_xive_exploitation(Object *obj, Error **errp)
+{
+    sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
+
+    switch (spapr->xive_exploitation) {
+    case 0x80:
+        return g_strdup("both");
+    case 0x40:
+        return g_strdup("on");
+    case 0x0:
+        return g_strdup("off");
+    }
+    g_assert_not_reached();
+}
+
+static void spapr_set_xive_exploitation(Object *obj, const char *value,
+                                        Error **errp)
+{
+    sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
+
+    /* TODO: Don't let older machines activate XIVE */
+
+    if (strcmp(value, "both") == 0) {
+        spapr->xive_exploitation = 0x80;
+    } else if (strcmp(value, "on") == 0) {
+        spapr->xive_exploitation = 0x40;
+    } else if (strcmp(value, "off") == 0) {
+        spapr->xive_exploitation = 0;
+    } else {
+        error_setg(errp, "Bad value for \"xive-exploitation\" property");
+    }
+}
+
 static void spapr_instance_init(Object *obj)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
@@ -2944,6 +2977,14 @@ static void spapr_instance_init(Object *obj)
                                     " the host's SMT mode", &error_abort);
     object_property_add_bool(obj, "vfio-no-msix-emulation",
                              spapr_get_msix_emulation, NULL, NULL);
+    spapr->xive_exploitation = false;
+    object_property_add_str(obj, "xive-exploitation",
+                            spapr_get_xive_exploitation,
+                            spapr_set_xive_exploitation,
+                            NULL);
+    object_property_set_description(obj, "xive-exploitation",
+                                    "XIVE exploitation mode POWER9",
+                                    NULL);
 }
 
 static void spapr_machine_finalizefn(Object *obj)
