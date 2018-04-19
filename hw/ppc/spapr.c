@@ -1916,6 +1916,7 @@ static const VMStateDescription vmstate_spapr = {
     .pre_load = spapr_pre_load,
     .post_load = spapr_post_load,
     .pre_save = spapr_pre_save,
+    .priority = MIG_PRI_MAX,
     .fields = (VMStateField[]) {
         /* used to be @next_irq */
         VMSTATE_UNUSED_BUFFER(version_before_3, 0, 4),
