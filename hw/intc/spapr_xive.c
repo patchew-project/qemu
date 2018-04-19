@@ -20,7 +20,12 @@
 
 void spapr_xive_pic_print_info(sPAPRXive *xive, Monitor *mon)
 {
+    sPAPRXiveClass *sxc = SPAPR_XIVE_GET_CLASS(xive);
     int i;
+
+    if (sxc->synchronize_state) {
+        sxc->synchronize_state(xive);
+    }
 
     xive_source_pic_print_info(&xive->source, mon);
 
@@ -150,6 +155,30 @@ static XiveEQ *spapr_xive_get_eq(XiveFabric *xf, uint32_t eq_idx)
     return xive_nvt_eq_get(nvt, SPAPR_XIVE_EQ_PRIO(eq_idx));
 }
 
+static int vmstate_spapr_xive_pre_save(void *opaque)
+{
+    sPAPRXive *xive = opaque;
+    sPAPRXiveClass *sxc = SPAPR_XIVE_GET_CLASS(xive);
+
+    if (sxc->pre_save) {
+        sxc->pre_save(xive);
+    }
+
+    return 0;
+}
+
+static int vmstate_spapr_xive_post_load(void *opaque, int version_id)
+{
+    sPAPRXive *xive = opaque;
+    sPAPRXiveClass *sxc = SPAPR_XIVE_GET_CLASS(xive);
+
+    if (sxc->post_load) {
+        sxc->post_load(xive, version_id);
+    }
+
+    return 0;
+}
+
 static const VMStateDescription vmstate_spapr_xive_ive = {
     .name = TYPE_SPAPR_XIVE "/ive",
     .version_id = 1,
@@ -164,6 +193,8 @@ static const VMStateDescription vmstate_spapr_xive = {
     .name = TYPE_SPAPR_XIVE,
     .version_id = 1,
     .minimum_version_id = 1,
+    .pre_save = vmstate_spapr_xive_pre_save,
+    .post_load = vmstate_spapr_xive_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32_EQUAL(nr_irqs, sPAPRXive, NULL),
         VMSTATE_STRUCT_VARRAY_POINTER_UINT32(ivt, sPAPRXive, nr_irqs,
@@ -199,6 +230,7 @@ static const TypeInfo spapr_xive_info = {
     .instance_init = spapr_xive_init,
     .instance_size = sizeof(sPAPRXive),
     .class_init = spapr_xive_class_init,
+    .class_size = sizeof(sPAPRXiveClass),
     .interfaces = (InterfaceInfo[]) {
             { TYPE_XIVE_FABRIC },
             { },

@@ -60,6 +60,20 @@ typedef struct XiveSource {
     XiveFabric   *xive;
 } XiveSource;
 
+#define XIVE_SOURCE_CLASS(klass) \
+     OBJECT_CLASS_CHECK(XiveSourceClass, (klass), TYPE_XIVE_SOURCE)
+#define XIVE_SOURCE_GET_CLASS(obj) \
+     OBJECT_GET_CLASS(XiveSourceClass, (obj), TYPE_XIVE_SOURCE)
+
+typedef struct XiveSourceClass {
+    SysBusDeviceClass parent_class;
+
+    void (*synchronize_state)(XiveSource *xsrc);
+    void (*reset)(XiveSource *xsrc);
+    void (*pre_save)(XiveSource *xsrc);
+    int (*post_load)(XiveSource *xsrc, int version_id);
+} XiveSourceClass;
+
 /*
  * ESB MMIO setting. Can be one page, for both source triggering and
  * source management, or two different pages. See below for magic
@@ -185,6 +199,22 @@ typedef struct XiveNVT {
 
     XiveEQ    eqt[XIVE_PRIORITY_MAX + 1];
 } XiveNVT;
+
+
+#define XIVE_NVT_CLASS(klass) \
+     OBJECT_CLASS_CHECK(XiveNVTClass, (klass), TYPE_XIVE_NVT)
+#define XIVE_NVT_GET_CLASS(obj) \
+     OBJECT_GET_CLASS(XiveNVTClass, (obj), TYPE_XIVE_NVT)
+
+typedef struct XiveNVTClass {
+    DeviceClass parent_class;
+
+    void (*realize)(XiveNVT *nvt, Error **errp);
+    void (*synchronize_state)(XiveNVT *nvt);
+    void (*reset)(XiveNVT *nvt);
+    void (*pre_save)(XiveNVT *nvt);
+    int (*post_load)(XiveNVT *nvt, int version_id);
+} XiveNVTClass;
 
 extern const MemoryRegionOps xive_tm_user_ops;
 extern const MemoryRegionOps xive_tm_os_ops;

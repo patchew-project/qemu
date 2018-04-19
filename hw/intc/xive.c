@@ -349,8 +349,13 @@ static char *xive_nvt_ring_print(uint8_t *ring)
 
 void xive_nvt_pic_print_info(XiveNVT *nvt, Monitor *mon)
 {
+    XiveNVTClass *xnc = XIVE_NVT_GET_CLASS(nvt);
     int cpu_index = nvt->cs ? nvt->cs->cpu_index : -1;
     char *s;
+
+    if (xnc->synchronize_state) {
+        xnc->synchronize_state(nvt);
+    }
 
     monitor_printf(mon, "CPU[%04x]: QW    NSR CPPR IPB LSMFB ACK# INC AGE PIPR"
                    " W2\n", cpu_index);
@@ -366,6 +371,7 @@ void xive_nvt_pic_print_info(XiveNVT *nvt, Monitor *mon)
 static void xive_nvt_reset(void *dev)
 {
     XiveNVT *nvt = XIVE_NVT(dev);
+    XiveNVTClass *xnc = XIVE_NVT_GET_CLASS(nvt);
     int i;
 
     memset(nvt->regs, 0, sizeof(nvt->regs));
@@ -378,11 +384,16 @@ static void xive_nvt_reset(void *dev)
     for (i = 0; i < ARRAY_SIZE(nvt->eqt); i++) {
         xive_eq_reset(&nvt->eqt[i]);
     }
+
+    if (xnc->reset) {
+        xnc->reset(nvt);
+    }
 }
 
 static void xive_nvt_realize(DeviceState *dev, Error **errp)
 {
     XiveNVT *nvt = XIVE_NVT(dev);
+    XiveNVTClass *xnc = XIVE_NVT_GET_CLASS(nvt);
     PowerPCCPU *cpu;
     CPUPPCState *env;
     Object *obj;
@@ -408,6 +419,10 @@ static void xive_nvt_realize(DeviceState *dev, Error **errp)
         error_setg(errp, "XIVE interrupt controller does not support "
                    "this CPU bus model");
         return;
+    }
+
+    if (xnc->realize) {
+        xnc->realize(nvt, errp);
     }
 
     qemu_register_reset(xive_nvt_reset, dev);
@@ -442,10 +457,36 @@ static const VMStateDescription vmstate_xive_nvt_eq = {
     },
 };
 
+static int vmstate_xive_nvt_pre_save(void *opaque)
+{
+    XiveNVT *nvt = opaque;
+    XiveNVTClass *xnc = XIVE_NVT_GET_CLASS(nvt);
+
+    if (xnc->pre_save) {
+        xnc->pre_save(nvt);
+    }
+
+    return 0;
+}
+
+static int vmstate_xive_nvt_post_load(void *opaque, int version_id)
+{
+    XiveNVT *nvt = opaque;
+    XiveNVTClass *xnc = XIVE_NVT_GET_CLASS(nvt);
+
+    if (xnc->post_load) {
+        xnc->post_load(nvt, version_id);
+    }
+
+    return 0;
+}
+
 static const VMStateDescription vmstate_xive_nvt = {
     .name = TYPE_XIVE_NVT,
     .version_id = 1,
     .minimum_version_id = 1,
+    .pre_save = vmstate_xive_nvt_pre_save,
+    .post_load = vmstate_xive_nvt_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_BUFFER(regs, XiveNVT),
         VMSTATE_STRUCT_ARRAY(eqt, XiveNVT, (XIVE_PRIORITY_MAX + 1), 1,
@@ -470,6 +511,7 @@ static const TypeInfo xive_nvt_info = {
     .instance_size = sizeof(XiveNVT),
     .instance_init = xive_nvt_init,
     .class_init    = xive_nvt_class_init,
+    .class_size    = sizeof(XiveNVTClass),
 };
 
 /*
@@ -819,7 +861,12 @@ static void xive_source_set_irq(void *opaque, int srcno, int val)
 
 void xive_source_pic_print_info(XiveSource *xsrc, Monitor *mon)
 {
+    XiveSourceClass *xsc = XIVE_SOURCE_GET_CLASS(xsrc);
     int i;
+
+    if (xsc->synchronize_state) {
+        xsc->synchronize_state(xsrc);
+    }
 
     monitor_printf(mon, "XIVE Source %6x ..%6x\n",
                    xsrc->offset, xsrc->offset + xsrc->nr_irqs - 1);
@@ -840,6 +887,7 @@ void xive_source_pic_print_info(XiveSource *xsrc, Monitor *mon)
 static void xive_source_reset(DeviceState *dev)
 {
     XiveSource *xsrc = XIVE_SOURCE(dev);
+    XiveSourceClass *xsc = XIVE_SOURCE_GET_CLASS(xsrc);
     int i;
 
     /* Keep the IRQ type */
@@ -849,6 +897,10 @@ static void xive_source_reset(DeviceState *dev)
 
     /* SBEs are initialized to 0b01 which corresponds to "ints off" */
     memset(xsrc->sbe, 0x55, xsrc->sbe_size);
+
+    if (xsc->reset) {
+        xsc->reset(xsrc);
+    }
 }
 
 static void xive_source_realize(DeviceState *dev, Error **errp)
@@ -895,10 +947,36 @@ static void xive_source_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &xsrc->esb_mmio);
 }
 
+static int vmstate_xive_source_pre_save(void *opaque)
+{
+    XiveSource *xsrc = opaque;
+    XiveSourceClass *xsc = XIVE_SOURCE_GET_CLASS(xsrc);
+
+    if (xsc->pre_save) {
+        xsc->pre_save(xsrc);
+    }
+
+    return 0;
+}
+
+static int vmstate_xive_source_post_load(void *opaque, int version_id)
+{
+    XiveSource *xsrc = opaque;
+    XiveSourceClass *xsc = XIVE_SOURCE_GET_CLASS(xsrc);
+
+    if (xsc->post_load) {
+        xsc->post_load(xsrc, version_id);
+    }
+
+    return 0;
+}
+
 static const VMStateDescription vmstate_xive_source = {
     .name = TYPE_XIVE_SOURCE,
     .version_id = 1,
     .minimum_version_id = 1,
+    .pre_save = vmstate_xive_source_pre_save,
+    .post_load = vmstate_xive_source_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32_EQUAL(nr_irqs, XiveSource, NULL),
         VMSTATE_VBUFFER_UINT32(sbe, XiveSource, 1, NULL, sbe_size),
@@ -934,6 +1012,7 @@ static const TypeInfo xive_source_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(XiveSource),
     .class_init    = xive_source_class_init,
+    .class_size    = sizeof(XiveSourceClass),
 };
 
 static void xive_register_types(void)
