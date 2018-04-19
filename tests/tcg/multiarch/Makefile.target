@@ -28,3 +28,21 @@ run-test-mmap: test-mmap
 	-$(QEMU) -p 16384 ./test-mmap 16384
 	-$(QEMU) -p 32768 ./test-mmap 32768
 
+#
+# Include the fp-test from the main test suite
+#
+
+VPATH+=$(SRC_PATH)/tests/fp
+VPATH+=$(SRC_PATH)/fpu
+TESTS+=fp-test
+
+FP_CFLAGS := $(CFLAGS) -Wall -O0 -g -fno-strict-aliasing
+FP_CFLAGS += $(QEMU_INCLUDES)
+FP_CFLAGS += -D_GNU_SOURCE -DHW_POISON_H
+
+fp-test.o softfloat.o: %.o: %.c
+	$(CC) $(FP_CFLAGS) -c $< -o $@
+
+fp-test: fp-test.o softfloat.o
+	$(CC) $^ -o $@ -lm -static
+
