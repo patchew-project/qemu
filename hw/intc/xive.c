@@ -20,6 +20,13 @@
  * XIVE Fabric
  */
 
+XiveIVE *xive_fabric_get_ive(XiveFabric *xf, uint32_t lisn)
+{
+    XiveFabricClass *xfc = XIVE_FABRIC_GET_CLASS(xf);
+
+    return xfc->get_ive(xf, lisn);
+}
+
 static void xive_fabric_route(XiveFabric *xf, int lisn)
 {
 

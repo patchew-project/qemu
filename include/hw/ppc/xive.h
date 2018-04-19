@@ -11,6 +11,7 @@
 #define PPC_XIVE_H
 
 #include "hw/sysbus.h"
+#include "hw/ppc/xive_regs.h"
 
 typedef struct XiveFabric XiveFabric;
 
@@ -166,6 +167,10 @@ typedef struct XiveFabric {
 typedef struct XiveFabricClass {
     InterfaceClass parent;
     void (*notify)(XiveFabric *xf, uint32_t lisn);
+
+    XiveIVE *(*get_ive)(XiveFabric *xf, uint32_t lisn);
 } XiveFabricClass;
+
+XiveIVE *xive_fabric_get_ive(XiveFabric *xf, uint32_t lisn);
 
 #endif /* PPC_XIVE_H */
