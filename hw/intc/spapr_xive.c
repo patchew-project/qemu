@@ -27,15 +27,30 @@ void spapr_xive_pic_print_info(sPAPRXive *xive, Monitor *mon)
     monitor_printf(mon, "IVE Table\n");
     for (i = 0; i < xive->nr_irqs; i++) {
         XiveIVE *ive = &xive->ivt[i];
+        uint32_t eq_idx;
 
         if (!(ive->w & IVE_VALID)) {
             continue;
         }
 
-        monitor_printf(mon, "  %4x %s %08x %08x\n", i,
-                       ive->w & IVE_MASKED ? "M" : " ",
-                       (int) GETFIELD(IVE_EQ_INDEX, ive->w),
-                       (int) GETFIELD(IVE_EQ_DATA, ive->w));
+        eq_idx = GETFIELD(IVE_EQ_INDEX, ive->w);
+
+        monitor_printf(mon, "  %6x %s eqidx:%03d ", i,
+                       ive->w & IVE_MASKED ? "M" : " ", eq_idx);
+
+        if (!(ive->w & IVE_MASKED)) {
+            XiveEQ *eq;
+
+            eq = xive_fabric_get_eq(XIVE_FABRIC(xive), eq_idx);
+            if (eq && (eq->w0 & EQ_W0_VALID)) {
+                xive_eq_pic_print_info(eq, mon);
+                monitor_printf(mon, " data:%08x",
+                               (int) GETFIELD(IVE_EQ_DATA, ive->w));
+            } else {
+                monitor_printf(mon, "no eq ?!");
+            }
+        }
+        monitor_printf(mon, "\n");
     }
 }
 
@@ -128,6 +143,13 @@ static XiveNVT *spapr_xive_get_nvt(XiveFabric *xf, uint32_t server)
     return cpu ? XIVE_NVT(cpu->intc) : NULL;
 }
 
+static XiveEQ *spapr_xive_get_eq(XiveFabric *xf, uint32_t eq_idx)
+{
+    XiveNVT *nvt = xive_fabric_get_nvt(xf, SPAPR_XIVE_EQ_SERVER(eq_idx));
+
+    return xive_nvt_eq_get(nvt, SPAPR_XIVE_EQ_PRIO(eq_idx));
+}
+
 static const VMStateDescription vmstate_spapr_xive_ive = {
     .name = TYPE_SPAPR_XIVE "/ive",
     .version_id = 1,
@@ -168,6 +190,7 @@ static void spapr_xive_class_init(ObjectClass *klass, void *data)
 
     xfc->get_ive = spapr_xive_get_ive;
     xfc->get_nvt = spapr_xive_get_nvt;
+    xfc->get_eq = spapr_xive_get_eq;
 }
 
 static const TypeInfo spapr_xive_info = {

@@ -19,6 +19,47 @@
 #include "hw/ppc/xive_regs.h"
 
 /*
+ * XiveEQ helpers
+ */
+
+XiveEQ *xive_nvt_eq_get(XiveNVT *nvt, uint8_t priority)
+{
+    if (!nvt || priority > XIVE_PRIORITY_MAX) {
+        return NULL;
+    }
+    return &nvt->eqt[priority];
+}
+
+void xive_eq_reset(XiveEQ *eq)
+{
+    memset(eq, 0, sizeof(*eq));
+
+    /* switch off the escalation and notification ESBs */
+    eq->w1 = EQ_W1_ESe_Q | EQ_W1_ESn_Q;
+}
+
+void xive_eq_pic_print_info(XiveEQ *eq, Monitor *mon)
+{
+    uint64_t qaddr_base = (((uint64_t)(eq->w2 & 0x0fffffff)) << 32) | eq->w3;
+    uint32_t qindex = GETFIELD(EQ_W1_PAGE_OFF, eq->w1);
+    uint32_t qgen = GETFIELD(EQ_W1_GENERATION, eq->w1);
+    uint32_t qsize = GETFIELD(EQ_W0_QSIZE, eq->w0);
+    uint32_t qentries = 1 << (qsize + 10);
+
+    uint32_t server = GETFIELD(EQ_W6_NVT_INDEX, eq->w6);
+    uint8_t priority = GETFIELD(EQ_W7_F0_PRIORITY, eq->w7);
+
+    monitor_printf(mon, "%c%c%c%c%c prio:%d server:%03d eq:@%08"PRIx64
+                   "% 6d/%5d ^%d",
+                   eq->w0 & EQ_W0_VALID ? 'v' : '-',
+                   eq->w0 & EQ_W0_ENQUEUE ? 'q' : '-',
+                   eq->w0 & EQ_W0_UCOND_NOTIFY ? 'n' : '-',
+                   eq->w0 & EQ_W0_BACKLOG ? 'b' : '-',
+                   eq->w0 & EQ_W0_ESCALATE_CTL ? 'e' : '-',
+                   priority, server, qaddr_base, qindex, qentries, qgen);
+}
+
+/*
  * XIVE Interrupt Presenter
  */
 
@@ -210,8 +251,12 @@ void xive_nvt_pic_print_info(XiveNVT *nvt, Monitor *mon)
 static void xive_nvt_reset(void *dev)
 {
     XiveNVT *nvt = XIVE_NVT(dev);
+    int i;
 
     memset(nvt->regs, 0, sizeof(nvt->regs));
+    for (i = 0; i < ARRAY_SIZE(nvt->eqt); i++) {
+        xive_eq_reset(&nvt->eqt[i]);
+    }
 }
 
 static void xive_nvt_realize(DeviceState *dev, Error **errp)
@@ -259,12 +304,31 @@ static void xive_nvt_init(Object *obj)
     nvt->ring_os = &nvt->regs[TM_QW1_OS];
 }
 
+static const VMStateDescription vmstate_xive_nvt_eq = {
+    .name = TYPE_XIVE_NVT "/eq",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField []) {
+        VMSTATE_UINT32(w0, XiveEQ),
+        VMSTATE_UINT32(w1, XiveEQ),
+        VMSTATE_UINT32(w2, XiveEQ),
+        VMSTATE_UINT32(w3, XiveEQ),
+        VMSTATE_UINT32(w4, XiveEQ),
+        VMSTATE_UINT32(w5, XiveEQ),
+        VMSTATE_UINT32(w6, XiveEQ),
+        VMSTATE_UINT32(w7, XiveEQ),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 static const VMStateDescription vmstate_xive_nvt = {
     .name = TYPE_XIVE_NVT,
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
         VMSTATE_BUFFER(regs, XiveNVT),
+        VMSTATE_STRUCT_ARRAY(eqt, XiveNVT, (XIVE_PRIORITY_MAX + 1), 1,
+                             vmstate_xive_nvt_eq, XiveEQ),
         VMSTATE_END_OF_LIST()
     },
 };
@@ -303,6 +367,13 @@ XiveNVT *xive_fabric_get_nvt(XiveFabric *xf, uint32_t server)
     XiveFabricClass *xfc = XIVE_FABRIC_GET_CLASS(xf);
 
     return xfc->get_nvt(xf, server);
+}
+
+XiveEQ *xive_fabric_get_eq(XiveFabric *xf, uint32_t eq_idx)
+{
+   XiveFabricClass *xfc = XIVE_FABRIC_GET_CLASS(xf);
+
+   return xfc->get_eq(xf, eq_idx);
 }
 
 static void xive_fabric_route(XiveFabric *xf, int lisn)

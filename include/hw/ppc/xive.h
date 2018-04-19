@@ -176,12 +176,18 @@ typedef struct XiveNVT {
 
     /* Shortcuts to rings */
     uint8_t   *ring_os;
+
+    XiveEQ    eqt[XIVE_PRIORITY_MAX + 1];
 } XiveNVT;
 
 extern const MemoryRegionOps xive_tm_user_ops;
 extern const MemoryRegionOps xive_tm_os_ops;
 
 void xive_nvt_pic_print_info(XiveNVT *nvt, Monitor *mon);
+XiveEQ *xive_nvt_eq_get(XiveNVT *nvt, uint8_t priority);
+
+void xive_eq_reset(XiveEQ *eq);
+void xive_eq_pic_print_info(XiveEQ *eq, Monitor *mon);
 
 /*
  * XIVE Fabric
@@ -205,9 +211,11 @@ typedef struct XiveFabricClass {
 
     XiveIVE *(*get_ive)(XiveFabric *xf, uint32_t lisn);
     XiveNVT *(*get_nvt)(XiveFabric *xf, uint32_t server);
+    XiveEQ  *(*get_eq)(XiveFabric *xf, uint32_t eq_idx);
 } XiveFabricClass;
 
 XiveIVE *xive_fabric_get_ive(XiveFabric *xf, uint32_t lisn);
 XiveNVT *xive_fabric_get_nvt(XiveFabric *xf, uint32_t server);
+XiveEQ  *xive_fabric_get_eq(XiveFabric *xf, uint32_t eq_idx);
 
 #endif /* PPC_XIVE_H */

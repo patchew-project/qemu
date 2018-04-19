@@ -36,4 +36,11 @@ bool spapr_xive_irq_enable(sPAPRXive *xive, uint32_t lisn, bool lsi);
 bool spapr_xive_irq_disable(sPAPRXive *xive, uint32_t lisn);
 void spapr_xive_pic_print_info(sPAPRXive *xive, Monitor *mon);
 
+/*
+ * sPAPR encoding of EQ indexes
+ */
+#define SPAPR_XIVE_EQ_INDEX(server, prio)  (((server) << 3) | ((prio) & 0x7))
+#define SPAPR_XIVE_EQ_SERVER(eq_idx) ((eq_idx) >> 3)
+#define SPAPR_XIVE_EQ_PRIO(eq_idx)   ((eq_idx) & 0x7)
+
 #endif /* PPC_SPAPR_XIVE_H */
