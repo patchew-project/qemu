@@ -250,6 +250,9 @@ static void xive_system_init(MachineState *machine, int nr_irqs, Error **errp)
     }
 
     spapr->xive = spapr_xive_create(spapr, TYPE_SPAPR_XIVE, nr_irqs, errp);
+    if (spapr->xive) {
+        spapr_xive_hcall_init(spapr);
+    }
 }
 
 static int spapr_fixup_cpu_smt_dt(void *fdt, int offset, PowerPCCPU *cpu,

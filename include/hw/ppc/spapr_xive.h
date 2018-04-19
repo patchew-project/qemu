@@ -43,4 +43,8 @@ void spapr_xive_pic_print_info(sPAPRXive *xive, Monitor *mon);
 #define SPAPR_XIVE_EQ_SERVER(eq_idx) ((eq_idx) >> 3)
 #define SPAPR_XIVE_EQ_PRIO(eq_idx)   ((eq_idx) & 0x7)
 
+typedef struct sPAPRMachineState sPAPRMachineState;
+
+void spapr_xive_hcall_init(sPAPRMachineState *spapr);
+
 #endif /* PPC_SPAPR_XIVE_H */
