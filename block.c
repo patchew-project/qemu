@@ -5110,8 +5110,9 @@ static bool append_open_options(QDict *d, BlockDriverState *bs)
     const char *p;
 
     for (entry = qdict_first(bs->options); entry;
-         entry = qdict_next(bs->options, entry))
-    {
+         entry = qdict_next(bs->options, entry)) {
+        QObject *val;
+
         /* Exclude options for children */
         QLIST_FOREACH(child, &bs->children, next) {
             if (strstart(qdict_entry_key(entry), child->name, &p)
@@ -5134,8 +5135,8 @@ static bool append_open_options(QDict *d, BlockDriverState *bs)
             continue;
         }
 
-        qdict_put_obj(d, qdict_entry_key(entry),
-                      qobject_ref(qdict_entry_value(entry)));
+        val = qdict_entry_value(entry);
+        qdict_put_obj(d, qdict_entry_key(entry), val ? qobject_ref(val) : NULL);
         found_any = true;
     }
 

@@ -4187,7 +4187,7 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
 
     req_obj = g_new0(QMPRequest, 1);
     req_obj->mon = mon;
-    req_obj->id = qobject_ref(id);
+    req_obj->id = id ? qobject_ref(id) : NULL;
     req_obj->req = req;
     req_obj->need_resume = false;
 
