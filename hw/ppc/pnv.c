@@ -300,7 +300,10 @@ static void pnv_dt_chip(PnvChip *chip, void *fdt)
         pnv_dt_core(chip, pnv_core, fdt);
 
         /* Interrupt Control Presenters (ICP). One per core. */
-        pnv_dt_icp(chip, fdt, pnv_core->pir, CPU_CORE(pnv_core)->nr_threads);
+        if (!pnv_chip_is_power9(chip)) {
+            pnv_dt_icp(chip, fdt, pnv_core->pir,
+                       CPU_CORE(pnv_core)->nr_threads);
+        }
     }
 
     if (chip->ram_size) {
@@ -923,9 +926,14 @@ static void pnv_chip_realize(DeviceState *dev, Error **errp)
                              &error_fatal);
     pnv_xscom_add_subregion(chip, PNV_XSCOM_LPC_BASE, &chip->lpc.xscom_regs);
 
-    /* Interrupt Management Area. This is the memory region holding
-     * all the Interrupt Control Presenter (ICP) registers */
-    pnv_chip_icp_realize(chip, &error);
+    if (!pnv_chip_is_power9(chip)) {
+        /* Interrupt Management Area. This is the memory region holding
+         * all the Interrupt Control Presenter (ICP) registers */
+        pnv_chip_icp_realize(chip, &error);
+    } else {
+        /* XIVE Interrupt Controller on P9 */
+        pnv_chip_xive_realize(chip, &error);
+    }
     if (error) {
         error_propagate(errp, error);
         return;
@@ -1004,10 +1012,10 @@ Object *pnv_icp_create(PnvMachineState *pnv, Object *cpu, Error **errp)
     Error *local_err = NULL;
     Object *obj;
 
-    obj = icp_create(cpu, TYPE_PNV_ICP, XICS_FABRIC(pnv), &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return NULL;
+    if (!pnv_is_power9(pnv)) {
+        obj = icp_create(cpu, TYPE_PNV_ICP, XICS_FABRIC(pnv), &local_err);
+    } else {
+        obj = xive_nvt_create(cpu, TYPE_XIVE_NVT, &local_err);
     }
 
     return obj;
@@ -1023,11 +1031,19 @@ static void pnv_pic_print_info(InterruptStatsProvider *obj,
     CPU_FOREACH(cs) {
         PowerPCCPU *cpu = POWERPC_CPU(cs);
 
-        icp_pic_print_info(ICP(cpu->intc), mon);
+        if (!pnv_is_power9(pnv)) {
+            icp_pic_print_info(ICP(cpu->intc), mon);
+        } else {
+            xive_nvt_pic_print_info(XIVE_NVT(cpu->intc), mon);
+        }
     }
 
     for (i = 0; i < pnv->num_chips; i++) {
-        ics_pic_print_info(&pnv->chips[i]->psi.ics, mon);
+        if (!pnv_is_power9(pnv)) {
+            ics_pic_print_info(&pnv->chips[i]->psi.ics, mon);
+        } else {
+            pnv_xive_pic_print_info(pnv->chips[0]->xive, mon);
+        }
     }
 }
 

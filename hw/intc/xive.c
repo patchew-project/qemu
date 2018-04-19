@@ -60,7 +60,7 @@ void xive_eq_pic_print_info(XiveEQ *eq, Monitor *mon)
                    priority, server, qaddr_base, qindex, qentries, qgen);
 }
 
-static void xive_eq_push(XiveEQ *eq, uint32_t data)
+void xive_eq_push(XiveEQ *eq, uint32_t data)
 {
     uint64_t qaddr_base = (((uint64_t)(eq->w2 & 0x0fffffff)) << 32) | eq->w3;
     uint32_t qsize = GETFIELD(EQ_W0_QSIZE, eq->w0);
@@ -135,6 +135,12 @@ static void xive_nvt_ipb_update(XiveNVT *nvt, uint8_t priority)
 {
     nvt->ring_os[TM_IPB] |= priority_to_ipb(priority);
     nvt->ring_os[TM_PIPR] = ipb_to_pipr(nvt->ring_os[TM_IPB]);
+}
+
+void xive_nvt_hv_ipb_update(XiveNVT *nvt, uint8_t priority)
+{
+    nvt->ring_hv[TM_IPB] |= priority_to_ipb(priority);
+    nvt->ring_hv[TM_PIPR] = ipb_to_pipr(nvt->ring_hv[TM_IPB]);
 }
 
 static uint64_t xive_nvt_accept(XiveNVT *nvt)
@@ -337,6 +343,150 @@ const MemoryRegionOps xive_tm_user_ops = {
     },
 };
 
+/*
+ * HV Thread Interrupt Management Area MMIO
+ */
+
+static uint64_t xive_nvt_hv_accept(XiveNVT *nvt)
+{
+    uint8_t nsr = nvt->ring_hv[TM_NSR];
+
+    qemu_irq_lower(nvt->output);
+
+    if (nvt->ring_hv[TM_NSR] & TM_QW3_NSR_HE) {
+        uint8_t cppr = nvt->ring_hv[TM_PIPR];
+
+        nvt->ring_hv[TM_CPPR] = cppr;
+
+        /* Reset the pending buffer bit */
+        nvt->ring_hv[TM_IPB] &= ~priority_to_ipb(cppr);
+        nvt->ring_hv[TM_PIPR] = ipb_to_pipr(nvt->ring_hv[TM_IPB]);
+
+        /* Drop Exception bit for HV */
+        nvt->ring_hv[TM_NSR] &= ~TM_QW3_NSR_HE;
+    }
+
+    return (nsr << 8) | nvt->ring_hv[TM_CPPR];
+}
+
+void xive_nvt_hv_notify(XiveNVT *nvt)
+{
+    if (nvt->ring_hv[TM_PIPR] < nvt->ring_hv[TM_CPPR]) {
+        nvt->ring_hv[TM_NSR] =
+            SETFIELD(TM_QW3_NSR_HE, nvt->ring_hv[TM_NSR], TM_QW3_NSR_HE_PHYS);
+        qemu_irq_raise(nvt->output);
+    }
+}
+
+static void xive_nvt_hv_set_cppr(XiveNVT *nvt, uint8_t cppr)
+{
+    if (cppr > XIVE_PRIORITY_MAX) {
+        cppr = 0xff;
+    }
+
+    nvt->ring_hv[TM_CPPR] = cppr;
+
+    /* CPPR has changed, check if we need to redistribute a pending
+     * exception */
+    xive_nvt_hv_notify(nvt);
+}
+
+static uint64_t xive_tm_hv_read_special(XiveNVT *nvt, hwaddr offset,
+                                           unsigned size)
+{
+    uint64_t ret = -1;
+
+    if (offset == TM_SPC_ACK_HV_REG && size == 2) {
+        return xive_nvt_hv_accept(nvt);
+    }
+
+    if (offset == TM_SPC_PULL_POOL_CTX) {
+        ret = nvt->regs[TM_QW2_HV_POOL + TM_WORD2] & TM_QW2W2_POOL_CAM;
+        nvt->regs[TM_QW2_HV_POOL + TM_WORD2] &= ~TM_QW2W2_POOL_CAM;
+        return ret;
+    }
+
+    qemu_log_mask(LOG_GUEST_ERROR, "XIVE: invalid TIMA read @%"
+                 HWADDR_PRIx" size %d\n", offset, size);
+    return ret;
+}
+
+static uint64_t xive_tm_hv_read(void *opaque, hwaddr offset,
+                                 unsigned size)
+{
+    PowerPCCPU **cpuptr = opaque;
+    PowerPCCPU *cpu = *cpuptr ? *cpuptr : POWERPC_CPU(current_cpu);
+    XiveNVT *nvt = XIVE_NVT(cpu->intc);
+    uint64_t ret = -1;
+    int i;
+
+    assert(nvt);
+
+    /* Do not take into account the View */
+    offset &= 0xFFF;
+
+    if (offset >= TM_SPC_ACK_EBB) {
+        return xive_tm_hv_read_special(nvt, offset, size);
+    }
+
+    ret = 0;
+    for (i = 0; i < size; i++) {
+        ret |= (uint64_t) nvt->regs[offset + i] << (8 * (size - i - 1));
+    }
+
+    return ret;
+}
+
+static void xive_tm_hv_write_special(XiveNVT *nvt, hwaddr offset,
+                                        uint64_t value, unsigned size)
+{
+    qemu_log_mask(LOG_GUEST_ERROR, "XIVE: invalid TIMA write @%"
+                      HWADDR_PRIx" size %d\n", offset, size);
+}
+
+static void xive_tm_hv_write(void *opaque, hwaddr offset,
+                              uint64_t value, unsigned size)
+{
+    PowerPCCPU **cpuptr = opaque;
+    PowerPCCPU *cpu = *cpuptr ? *cpuptr : POWERPC_CPU(current_cpu);
+    XiveNVT *nvt = XIVE_NVT(cpu->intc);
+    int i;
+
+    /* Do not take into account the View */
+    offset &= 0xFFF;
+
+    if (offset >= TM_SPC_ACK_EBB) {
+        xive_tm_hv_write_special(nvt, offset, value, size);
+        return;
+    }
+
+    switch (offset) {
+    case TM_QW3_HV_PHYS + TM_CPPR:
+        xive_nvt_hv_set_cppr(nvt, value & 0xff);
+        return;
+    default:
+        break;
+    }
+
+    for (i = 0; i < size; i++) {
+        nvt->regs[offset + i] = (value >> (8 * (size - i - 1))) & 0xff;
+    }
+}
+
+const MemoryRegionOps xive_tm_hv_ops = {
+    .read = xive_tm_hv_read,
+    .write = xive_tm_hv_write,
+    .endianness = DEVICE_BIG_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 8,
+    },
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 8,
+    },
+};
+
 static char *xive_nvt_ring_print(uint8_t *ring)
 {
     uint32_t w2 = be32_to_cpu(*((uint32_t *) &ring[TM_WORD2]));
@@ -361,6 +511,12 @@ void xive_nvt_pic_print_info(XiveNVT *nvt, Monitor *mon)
     monitor_printf(mon, "CPU[%04x]: QW    NSR CPPR IPB LSMFB ACK# INC AGE PIPR"
                    " W2\n", cpu_index);
 
+    s = xive_nvt_ring_print(&nvt->regs[TM_QW3_HV_PHYS]);
+    monitor_printf(mon, "CPU[%04x]: HV    %s\n", cpu_index, s);
+    g_free(s);
+    s = xive_nvt_ring_print(&nvt->regs[TM_QW2_HV_POOL]);
+    monitor_printf(mon, "CPU[%04x]: POOL  %s\n", cpu_index, s);
+    g_free(s);
     s = xive_nvt_ring_print(&nvt->regs[TM_QW1_OS]);
     monitor_printf(mon, "CPU[%04x]: OS    %s\n", cpu_index, s);
     g_free(s);
@@ -381,6 +537,7 @@ static void xive_nvt_reset(void *dev)
      * CPPR is first set.
      */
     nvt->ring_os[TM_PIPR] = ipb_to_pipr(nvt->ring_os[TM_IPB]);
+    nvt->ring_hv[TM_PIPR] = ipb_to_pipr(nvt->ring_hv[TM_IPB]);
 
     for (i = 0; i < ARRAY_SIZE(nvt->eqt); i++) {
         xive_eq_reset(&nvt->eqt[i]);
@@ -439,6 +596,7 @@ static void xive_nvt_init(Object *obj)
     XiveNVT *nvt = XIVE_NVT(obj);
 
     nvt->ring_os = &nvt->regs[TM_QW1_OS];
+    nvt->ring_hv = &nvt->regs[TM_QW3_HV_PHYS];
 }
 
 static const VMStateDescription vmstate_xive_nvt_eq = {
