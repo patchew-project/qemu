@@ -4015,10 +4015,18 @@ static void spapr_pic_print_info(InterruptStatsProvider *obj,
     CPU_FOREACH(cs) {
         PowerPCCPU *cpu = POWERPC_CPU(cs);
 
-        icp_pic_print_info(ICP(cpu->intc), mon);
+        if (spapr_ovec_test(spapr->ov5_cas, OV5_XIVE_EXPLOIT)) {
+            xive_nvt_pic_print_info(XIVE_NVT(cpu->intc), mon);
+        } else {
+            icp_pic_print_info(ICP(cpu->intc), mon);
+        }
     }
 
-    ics_pic_print_info(spapr->ics, mon);
+    if (spapr_ovec_test(spapr->ov5_cas, OV5_XIVE_EXPLOIT)) {
+        spapr_xive_pic_print_info(spapr->xive, mon);
+    } else {
+        ics_pic_print_info(spapr->ics, mon);
+    }
 }
 
 int spapr_get_vcpu_id(PowerPCCPU *cpu)
