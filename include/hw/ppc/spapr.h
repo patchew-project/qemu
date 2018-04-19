@@ -819,4 +819,6 @@ void spapr_caps_reset(sPAPRMachineState *spapr);
 void spapr_caps_add_properties(sPAPRMachineClass *smc, Error **errp);
 int spapr_caps_post_migration(sPAPRMachineState *spapr);
 
+Object *spapr_icp_create(sPAPRMachineState *spapr, Object *cpu, Error **errp);
+
 #endif /* HW_SPAPR_H */

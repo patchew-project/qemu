@@ -3952,6 +3952,20 @@ qemu_irq spapr_qirq(sPAPRMachineState *spapr, int irq)
     return NULL;
 }
 
+Object *spapr_icp_create(sPAPRMachineState *spapr, Object *cpu, Error **errp)
+{
+    Error *local_err = NULL;
+    Object *obj;
+
+    obj = icp_create(cpu, spapr->icp_type, XICS_FABRIC(spapr), &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return NULL;
+    }
+
+    return obj;
+}
+
 static void spapr_pic_print_info(InterruptStatsProvider *obj,
                                  Monitor *mon)
 {
