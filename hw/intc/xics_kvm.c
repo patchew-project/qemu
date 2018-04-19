@@ -62,6 +62,11 @@ static void icp_get_kvm_state(ICPState *icp)
     };
     int ret;
 
+    /* A change of the interrupt mode can disable XICS */
+    if (kernel_xics_fd == -1) {
+        return;
+    }
+
     /* ICP for this CPU thread is not in use, exiting */
     if (!icp->cs) {
         return;
@@ -102,6 +107,11 @@ static int icp_set_kvm_state(ICPState *icp, int version_id)
     };
     int ret;
 
+    /* Protect resets. A change of the interrupt mode can disable XICS */
+    if (kernel_xics_fd == -1) {
+        return 0;
+    }
+
     /* ICP for this CPU thread is not in use, exiting */
     if (!icp->cs) {
         return 0;
@@ -135,7 +145,7 @@ static void icp_kvm_realize(ICPState *icp, Error **errp)
     int ret;
 
     if (kernel_xics_fd == -1) {
-        abort();
+        return;
     }
 
     /*
@@ -191,6 +201,11 @@ static void ics_get_kvm_state(ICSState *ics)
         .addr = (uint64_t)(uintptr_t)&state,
     };
     int i;
+
+    /* A change of the interrupt mode can disable XICS */
+    if (kernel_xics_fd == -1) {
+        return;
+    }
 
     for (i = 0; i < ics->nr_irqs; i++) {
         ICSIRQState *irq = &ics->irqs[i];
@@ -261,6 +276,11 @@ static int ics_set_kvm_state(ICSState *ics, int version_id)
         .addr = (uint64_t)(uintptr_t)&state,
     };
     int i;
+
+    /* Protect resets. A change of the interrupt mode can disable XICS */
+    if (kernel_xics_fd == -1) {
+        return 0;
+    }
 
     for (i = 0; i < ics->nr_irqs; i++) {
         ICSIRQState *irq = &ics->irqs[i];

@@ -189,8 +189,7 @@ static void xics_system_init(MachineState *machine, int nr_irqs, Error **errp)
     sPAPRMachineState *spapr = SPAPR_MACHINE(machine);
 
     if (kvm_enabled()) {
-        if (machine_kernel_irqchip_allowed(machine) &&
-            !xics_kvm_init(spapr, errp)) {
+        if (machine_kernel_irqchip_allowed(machine)) {
             spapr->icp_type = TYPE_KVM_ICP;
             spapr->ics = spapr_ics_create(spapr, TYPE_ICS_KVM, nr_irqs, errp);
         }
@@ -239,10 +238,16 @@ static void xive_system_init(MachineState *machine, int nr_irqs, Error **errp)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(machine);
 
-    /* We don't have KVM support yet, so check for irqchip=on */
-    if (kvm_enabled() && machine_kernel_irqchip_required(machine)) {
-        error_report("kernel_irqchip requested. no XIVE support");
-        exit(1);
+    if (kvm_enabled()) {
+        if (machine_kernel_irqchip_allowed(machine)) {
+            spapr->nvt_type = TYPE_XIVE_NVT_KVM;
+            spapr->xive = spapr_xive_create(spapr, TYPE_SPAPR_XIVE_KVM,
+                                            nr_irqs, errp);
+        }
+        if (machine_kernel_irqchip_required(machine) && !spapr->xive) {
+            error_prepend(errp, "kernel_irqchip requested but unavailable: ");
+            return;
+        }
     }
 
     if (spapr->xive) {
@@ -1043,11 +1048,9 @@ static void spapr_dt_ov5_platform_support(sPAPRMachineState *spapr, void *fdt,
         } else {
             val[3] = 0x00; /* Hash */
         }
-        /* TODO: introduce a kvmppc_has_cap_xive() ? Works with
-         * irqchip=off for now
-         */
-        if (spapr->xive_exploitation) {
-            val[1] = 0x80; /* OV5_XIVE_BOTH */
+        /* TODO: when under KVM, only advertise XIVE but not both mode */
+        if (spapr->xive_exploitation && kvmppc_has_cap_xive()) {
+            val[1] = 0x40; /* OV5_XIVE_EXPLOIT */
         }
     } else {
         if (spapr->xive_exploitation) {
@@ -2580,6 +2583,15 @@ static void spapr_machine_init(MachineState *machine)
         /* XIVE uses the full range of IRQ numbers. */
         xive_system_init(machine, XICS_IRQ_BASE + XICS_IRQS_SPAPR,
                          &error_fatal);
+
+        /* TODO: initialize KVM for XIVE or for XICS but not for both */
+        if (kvm_enabled() && machine_kernel_irqchip_allowed(machine)) {
+            xive_kvm_init(spapr->xive, &error_fatal);
+        }
+    } else {
+        if (kvm_enabled() && machine_kernel_irqchip_allowed(machine)) {
+            xics_kvm_init(spapr, &error_fatal);
+        }
     }
 
     /* Set up containers for ibm,client-architecture-support negotiated options
