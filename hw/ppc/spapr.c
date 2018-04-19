@@ -1188,7 +1188,12 @@ static void *spapr_build_fdt(sPAPRMachineState *spapr,
     _FDT(fdt_setprop_cell(fdt, 0, "#size-cells", 2));
 
     /* /interrupt controller */
-    spapr_dt_xics(xics_max_server_number(spapr), fdt, PHANDLE_XICP);
+    if (!spapr_ovec_test(spapr->ov5_cas, OV5_XIVE_EXPLOIT)) {
+        spapr_dt_xics(xics_max_server_number(spapr), fdt, PHANDLE_XICP);
+    } else {
+        /* Populate device tree for XIVE */
+        spapr_dt_xive(spapr, xics_max_server_number(spapr), fdt, PHANDLE_XICP);
+    }
 
     ret = spapr_populate_memory(spapr, fdt);
     if (ret < 0) {

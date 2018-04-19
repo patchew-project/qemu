@@ -46,5 +46,7 @@ void spapr_xive_pic_print_info(sPAPRXive *xive, Monitor *mon);
 typedef struct sPAPRMachineState sPAPRMachineState;
 
 void spapr_xive_hcall_init(sPAPRMachineState *spapr);
+void spapr_dt_xive(sPAPRMachineState *spapr, int nr_servers, void *fdt,
+                   uint32_t phandle);
 
 #endif /* PPC_SPAPR_XIVE_H */
