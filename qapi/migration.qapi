@@ -5,7 +5,7 @@
 # = Migration
 ##
 
-{ 'include': 'common.json' }
+{ 'include': 'common.qapi' }
 
 ##
 # @MigrationStats:

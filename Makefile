@@ -571,27 +571,27 @@ qga/qapi-generated/qga-qapi-visit.c qga/qapi-generated/qga-qapi-visit.h \
 qga/qapi-generated/qga-qapi-commands.h qga/qapi-generated/qga-qapi-commands.c \
 qga/qapi-generated/qga-qapi-doc.texi: \
 qga/qapi-generated/qga-gen-timestamp ;
-qga/qapi-generated/qga-gen-timestamp: $(SRC_PATH)/qapi/qga-schema.json $(qapi-py)
+qga/qapi-generated/qga-gen-timestamp: $(SRC_PATH)/qapi/qga-schema.qapi $(qapi-py)
 	$(call quiet-command,$(PYTHON_UTF8) $(SRC_PATH)/scripts/qapi-gen.py \
 		-o qga/qapi-generated -p "qga-" $<, \
 		"GEN","$(@:%-timestamp=%)")
 	@>$@
 
-qmp-modules = $(SRC_PATH)/qapi/qmp-schema.json $(SRC_PATH)/qapi/common.json \
-               $(SRC_PATH)/qapi/block.json $(SRC_PATH)/qapi/block-core.json \
-               $(SRC_PATH)/qapi/char.json \
-               $(SRC_PATH)/qapi/crypto.json \
-               $(SRC_PATH)/qapi/introspect.json \
-               $(SRC_PATH)/qapi/migration.json \
-               $(SRC_PATH)/qapi/misc.json \
-               $(SRC_PATH)/qapi/net.json \
-               $(SRC_PATH)/qapi/rocker.json \
-               $(SRC_PATH)/qapi/run-state.json \
-               $(SRC_PATH)/qapi/sockets.json \
-               $(SRC_PATH)/qapi/tpm.json \
-               $(SRC_PATH)/qapi/trace.json \
-               $(SRC_PATH)/qapi/transaction.json \
-               $(SRC_PATH)/qapi/ui.json
+qmp-modules = $(SRC_PATH)/qapi/qmp-schema.qapi $(SRC_PATH)/qapi/common.qapi \
+               $(SRC_PATH)/qapi/block.qapi $(SRC_PATH)/qapi/block-core.qapi \
+               $(SRC_PATH)/qapi/char.qapi \
+               $(SRC_PATH)/qapi/crypto.qapi \
+               $(SRC_PATH)/qapi/introspect.qapi \
+               $(SRC_PATH)/qapi/migration.qapi \
+               $(SRC_PATH)/qapi/misc.qapi \
+               $(SRC_PATH)/qapi/net.qapi \
+               $(SRC_PATH)/qapi/rocker.qapi \
+               $(SRC_PATH)/qapi/run-state.qapi \
+               $(SRC_PATH)/qapi/sockets.qapi \
+               $(SRC_PATH)/qapi/tpm.qapi \
+               $(SRC_PATH)/qapi/trace.qapi \
+               $(SRC_PATH)/qapi/transaction.qapi \
+               $(SRC_PATH)/qapi/ui.qapi
 
 qapi/qapi-builtin-types.c qapi/qapi-builtin-types.h \
 qapi/qapi-types.c qapi/qapi-types.h \

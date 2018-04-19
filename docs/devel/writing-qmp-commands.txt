@@ -89,7 +89,7 @@ Our command will be called "hello-world". It takes no arguments, nor does it
 return any data.
 
 The first step is defining the command in the appropriate QAPI schema
-module.  We pick module qapi/misc.json, and add the following line at
+module.  We pick module qapi/misc.qapi, and add the following line at
 the bottom:
 
 { 'command': 'hello-world' }
@@ -239,7 +239,7 @@ There's only one step missing to make "hello-world"'s implementation complete,
 and that's its documentation in the schema file.
 
 There are many examples of such documentation in the schema file already, but
-here goes "hello-world"'s new entry for qapi/misc.json:
+here goes "hello-world"'s new entry for qapi/misc.qapi:
 
 ##
 # @hello-world

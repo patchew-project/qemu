@@ -27,7 +27,7 @@
 typedef struct QCryptoBlock QCryptoBlock;
 
 /* See also QCryptoBlockFormat, QCryptoBlockCreateOptions
- * and QCryptoBlockOpenOptions in qapi/crypto.json */
+ * and QCryptoBlockOpenOptions in qapi/crypto.qapi */
 
 typedef ssize_t (*QCryptoBlockReadFunc)(QCryptoBlock *block,
                                         size_t offset,

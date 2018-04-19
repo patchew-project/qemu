@@ -1,1 +1,1 @@
-tests/qapi-schema/doc-invalid-section.json:5:1: '@note:' not allowed in free-form documentation
+tests/qapi-schema/doc-invalid-section.qapi:5:1: '@note:' not allowed in free-form documentation

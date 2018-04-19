@@ -97,7 +97,7 @@
 
 typedef struct QCryptoIVGen QCryptoIVGen;
 
-/* See also QCryptoIVGenAlgorithm enum in qapi/crypto.json */
+/* See also QCryptoIVGenAlgorithm enum in qapi/crypto.qapi */
 
 
 /**

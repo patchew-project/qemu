@@ -1,1 +1,1 @@
-tests/qapi-schema/include-extra-junk.json:3: Invalid 'include' directive
+tests/qapi-schema/include-extra-junk.qapi:3: Invalid 'include' directive

@@ -1,1 +1,1 @@
-tests/qapi-schema/escape-too-short.json:3:14: \u escape needs 4 hex digits
+tests/qapi-schema/escape-too-short.qapi:3:14: \u escape needs 4 hex digits

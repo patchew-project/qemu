@@ -1,0 +1,3 @@
+{ 'include': 'comments.qapi' }
+{ 'include': 'include-repetition-sub.qapi' }
+{ 'include': 'comments.qapi' }

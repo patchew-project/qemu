@@ -1,6 +1,6 @@
 object q_empty
 enum QType ['none', 'qnull', 'qnum', 'qstring', 'qdict', 'qlist', 'qbool']
     prefix QTYPE
-module event-case.json
+module event-case.qapi
 event oops None
    boxed=False

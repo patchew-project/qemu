@@ -293,7 +293,7 @@ Usage: { 'include': STRING }
 
 The QAPI schema definitions can be modularized using the 'include' directive:
 
- { 'include': 'path/to/file.json' }
+ { 'include': 'path/to/file.qapi' }
 
 The directive is evaluated recursively, and include paths are relative to the
 file using the directive. Multiple includes of the same file are
@@ -961,7 +961,7 @@ list of that type as a parameter, and returns a single element of that
 type.  The user is responsible for writing the implementation of
 qmp_my_command(); everything else is produced by the generator.
 
-    $ cat example-schema.json
+    $ cat example-schema.qapi
     { 'struct': 'UserDefOne',
       'data': { 'integer': 'int', '*string': 'str' } }
 
@@ -977,7 +977,7 @@ We run qapi-gen.py like this:
     --prefix="example-" example-schema.json
 
 For a more thorough look at generated code, the testsuite includes
-tests/qapi-schema/qapi-schema-tests.json that covers more examples of
+tests/qapi-schema/qapi-schema-tests.qapi that covers more examples of
 what the generator will accept, and compiles the resulting C code as
 part of 'make check-unit'.
 

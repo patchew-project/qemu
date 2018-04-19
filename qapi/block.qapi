@@ -4,7 +4,7 @@
 # = Block devices
 ##
 
-{ 'include': 'block-core.json' }
+{ 'include': 'block-core.qapi' }
 
 ##
 # == Additional block stuff (VM related)

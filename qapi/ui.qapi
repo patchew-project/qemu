@@ -5,7 +5,7 @@
 # = Remote desktop
 ##
 
-{ 'include': 'sockets.json' }
+{ 'include': 'sockets.qapi' }
 
 ##
 # @set_password:
