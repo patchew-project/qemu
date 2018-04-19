@@ -201,7 +201,8 @@ class QEMUMachine(object):
 
         chardev = 'socket,id=console,{address},server,nowait'
         if console_address is None:
-            console_address = tempfile.mktemp()
+            console_address = os.path.join(self._temp_dir,
+                                           self._name + "-console.sock")
             chardev = chardev.format(address='path=%s' %
                                      console_address)
         elif isinstance(console_address, tuple):
