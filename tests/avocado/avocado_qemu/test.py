@@ -244,16 +244,13 @@ class _VM(qemu.QEMUMachine):
         super(_VM, self).__init__(qemu_bin, name=self.name, arch=arch)
         logging.getLogger('QMP').setLevel(logging.INFO)
 
-    def get_console(self, console_address=None, prompt=r"[\#\$] "):
+    def get_console(self, console_address=None, prompt=r"[\#\$] ", login=True):
         """
         :param address: Socket address, can be either a unix socket path
                         (string) or a tuple in the form (address, port)
                         for a TCP connection
         :param prompt: The regex to identify we reached the prompt.
         """
-
-        if not all((self.username, self.password)):
-            raise QEMULoginError('Username or password not set.')
 
         if not self.is_running():
             raise QEMULoginError('VM is not running.')
@@ -272,13 +269,17 @@ class _VM(qemu.QEMUMachine):
             nc_cmd += ' -U %s' % console_address
 
         console = aexpect.ShellSession(nc_cmd)
-        try:
-            logging.info('Console: Waiting login prompt...')
-            _handle_prompts(console, self.username, self.password, prompt)
-            logging.info('Console: Ready!')
-        except:
-            console.close()
-            raise
+        if login:
+            if not all((self.username, self.password)):
+                raise QEMULoginError('Username or password not set.')
+
+            try:
+                logging.info('Console: Waiting login prompt...')
+                _handle_prompts(console, self.username, self.password, prompt)
+            except:
+                console.close()
+                raise
+        logging.info('Console: Ready!')
 
         return console
 
