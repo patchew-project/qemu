@@ -1016,10 +1016,11 @@ static void spapr_dt_rtas(sPAPRMachineState *spapr, void *fdt)
     spapr_dt_rtas_tokens(fdt, rtas);
 }
 
-/* Prepare ibm,arch-vec-5-platform-support, which indicates the MMU features
- * that the guest may request and thus the valid values for bytes 24..26 of
- * option vector 5: */
-static void spapr_dt_ov5_platform_support(void *fdt, int chosen)
+/* Prepare ibm,arch-vec-5-platform-support, which indicates the MMU
+ * and the XIVE features that the guest may request and thus the valid
+ * values for bytes 23..26 of option vector 5: */
+static void spapr_dt_ov5_platform_support(sPAPRMachineState *spapr, void *fdt,
+                                          int chosen)
 {
     PowerPCCPU *first_ppc_cpu = POWERPC_CPU(first_cpu);
 
@@ -1042,7 +1043,16 @@ static void spapr_dt_ov5_platform_support(void *fdt, int chosen)
         } else {
             val[3] = 0x00; /* Hash */
         }
+        /* TODO: introduce a kvmppc_has_cap_xive() ? Works with
+         * irqchip=off for now
+         */
+        if (spapr->xive_exploitation) {
+            val[1] = 0x80; /* OV5_XIVE_BOTH */
+        }
     } else {
+        if (spapr->xive_exploitation) {
+            val[1] = 0x80; /* OV5_XIVE_BOTH */
+        }
         /* V3 MMU supports both hash and radix in tcg (with dynamic switching) */
         val[3] = 0xC0;
     }
@@ -1110,7 +1120,7 @@ static void spapr_dt_chosen(sPAPRMachineState *spapr, void *fdt)
         _FDT(fdt_setprop_string(fdt, chosen, "stdout-path", stdout_path));
     }
 
-    spapr_dt_ov5_platform_support(fdt, chosen);
+    spapr_dt_ov5_platform_support(spapr, fdt, chosen);
 
     g_free(stdout_path);
     g_free(bootlist);
@@ -2597,6 +2607,11 @@ static void spapr_machine_init(MachineState *machine)
     /* advertise support for HPT resizing */
     if (spapr->resize_hpt != SPAPR_RESIZE_HPT_DISABLED) {
         spapr_ovec_set(spapr->ov5, OV5_HPT_RESIZE);
+    }
+
+    /* advertise XIVE if not disabled by the user */
+    if (spapr->xive_exploitation) {
+        spapr_ovec_set(spapr->ov5, OV5_XIVE_EXPLOIT);
     }
 
     /* init CPUs */
