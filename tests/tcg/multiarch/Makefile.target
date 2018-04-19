@@ -31,6 +31,7 @@ run-test-mmap: test-mmap
 #
 # Include the fp-test from the main test suite
 #
+ifneq (,$(findstring 64,$(TARGET_NAME)))
 
 VPATH+=$(SRC_PATH)/tests/fp
 VPATH+=$(SRC_PATH)/fpu
@@ -46,3 +47,4 @@ fp-test.o softfloat.o: %.o: %.c
 fp-test: fp-test.o softfloat.o
 	$(CC) $^ -o $@ -lm -static
 
+endif
