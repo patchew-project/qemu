@@ -126,6 +126,7 @@ int main(int argc, char **argv)
 #include "sysemu/replay.h"
 #include "qapi/qapi-events-run-state.h"
 #include "qapi/qapi-visit-block-core.h"
+#include "qapi/qapi-visit-ui.h"
 #include "qapi/qapi-commands-block-core.h"
 #include "qapi/qapi-commands-misc.h"
 #include "qapi/qapi-commands-run-state.h"
@@ -2090,6 +2091,31 @@ static void select_vgahw(const char *p)
     }
 }
 
+static void parse_display_qapi(const char *optarg)
+{
+    Error *err = NULL;
+    DisplayOptions *opts;
+    Visitor *v;
+
+    v = qobject_input_visitor_new_str(optarg, "type", &err);
+    if (!v) {
+        error_report_err(err);
+        exit(1);
+    }
+
+    visit_type_DisplayOptions(v, NULL, &opts, &error_fatal);
+    visit_free(v);
+
+    /*
+     * We don't have any dynamically allocated stuff inside
+     * DisplayOptions, so we can simply copy the struct content and
+     * free opts without ending up with pointers pointing into
+     * nowhere.
+     */
+    dpy = *opts;
+    qapi_free_DisplayOptions(opts);
+}
+
 static void parse_display(const char *p)
 {
     const char *opts;
@@ -2201,8 +2227,7 @@ static void parse_display(const char *p)
     } else if (strstart(p, "none", &opts)) {
         dpy.type = DISPLAY_TYPE_NONE;
     } else {
-        error_report("unknown display type");
-        exit(1);
+        parse_display_qapi(p);
     }
 }
 
