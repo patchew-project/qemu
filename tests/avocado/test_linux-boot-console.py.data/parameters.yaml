@@ -1,3 +1,5 @@
 architecture: !mux
     alpha:
         arch: alpha
+    mips:
+        arch: mips

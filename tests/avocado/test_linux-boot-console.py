@@ -86,3 +86,95 @@ class TestAlphaClipperBoot2_6(test.QemuTest):
 
     def tearDown(self):
         os.remove(self.console_path)
+
+
+class TestMips4kcMaltaBoot2_6(test.QemuTest):
+    """
+    :avocado: enable
+    :avocado: tags=arch_mips
+    """
+    ARCH = "mips"
+
+    def kernel_url(self):
+        return 'http://people.debian.org/~aurel32/qemu/mips/vmlinux-2.6.32-5-4kc-malta'
+
+    def setUp(self):
+        self.console_path = tempfile.mkstemp()[1]
+        kernel_path = cachedfile(self.kernel_url())
+        self.vm._args.extend(['-machine', 'malta'])
+        self.vm._args.extend(['-m', '64'])
+        self.vm._args.extend(['-kernel', kernel_path])
+        self.vm._args.extend(['-append', '"console=ttyS0 printk.time=0"'])
+        self.vm._args.extend(['-chardev', 'socket,id=uart0,server,nowait,path=' + self.console_path])
+        self.vm._args.extend(['-serial', 'chardev:uart0'])
+        self.vm._args.extend(['-nographic'])
+
+    def test_boot_console(self):
+        """
+        :avocado: tags=uart,printk
+        """
+        if self.params.get('arch') != self.ARCH:
+            return
+
+        self.vm.launch(self.console_path)
+        console = self.vm.get_console(console_address=self.console_path, login=False)
+        # no filesystem provided on purpose, wait for the Kernel panic
+        bootlog = console.read_until_any_line_matches(["Kernel panic - not syncing: VFS: Unable to mount root fs"], timeout=6.0)[1]
+        console.close()
+        # check Super I/O
+        self.assertIn(u'ttyS0 at I/O 0x3f8 (irq = 4) is a 16550A', bootlog)
+        self.assertIn(u'ttyS1 at I/O 0x2f8 (irq = 3) is a 16550A', bootlog)
+        self.assertIn(u'i8042 KBD port at 0x60,0x64 irq 1', bootlog)
+        self.assertIn(u'i8042 AUX port at 0x60,0x64 irq 12', bootlog)
+        # check PCI (network interface)
+        self.assertIn(u'registered as PCnet/PCI II 79C970A', bootlog)
+        self.vm.shutdown()
+
+    def tearDown(self):
+        os.remove(self.console_path)
+
+# FIXME this is a copy of TestMips4kcMaltaBoot2_6 with a different the kernel url
+class TestMips4kcMaltaBoot3_2(test.QemuTest):
+    """
+    :avocado: enable
+    :avocado: tags=arch_mips
+    """
+    ARCH = "mips"
+
+    def kernel_url(self):
+        return 'http://people.debian.org/~aurel32/qemu/mips/vmlinux-3.2.0-4-4kc-malta'
+
+    def setUp(self):
+        self.console_path = tempfile.mkstemp()[1]
+        kernel_path = cachedfile(self.kernel_url())
+        self.vm._args.extend(['-machine', 'malta'])
+        self.vm._args.extend(['-m', '64'])
+        self.vm._args.extend(['-kernel', kernel_path])
+        self.vm._args.extend(['-append', '"console=ttyS0 printk.time=0"'])
+        self.vm._args.extend(['-chardev', 'socket,id=uart0,server,nowait,path=' + self.console_path])
+        self.vm._args.extend(['-serial', 'chardev:uart0'])
+        self.vm._args.extend(['-nographic'])
+
+    def test_boot_console(self):
+        """
+        :avocado: tags=uart,printk
+        """
+        if self.params.get('arch') != self.ARCH:
+            return
+
+        self.vm.launch(self.console_path)
+        console = self.vm.get_console(console_address=self.console_path, login=False)
+        # no filesystem provided on purpose, wait for the Kernel panic
+        bootlog = console.read_until_any_line_matches(["Kernel panic - not syncing: VFS: Unable to mount root fs"], timeout=6.0)[1]
+        console.close()
+        # check Super I/O
+        self.assertIn(u'ttyS0 at I/O 0x3f8 (irq = 4) is a 16550A', bootlog)
+        self.assertIn(u'ttyS1 at I/O 0x2f8 (irq = 3) is a 16550A', bootlog)
+        self.assertIn(u'i8042 KBD port at 0x60,0x64 irq 1', bootlog)
+        self.assertIn(u'i8042 AUX port at 0x60,0x64 irq 12', bootlog)
+        # check PCI (network interface)
+        self.assertIn(u'registered as PCnet/PCI II 79C970A', bootlog)
+        self.vm.shutdown()
+
+    def tearDown(self):
+        os.remove(self.console_path)
