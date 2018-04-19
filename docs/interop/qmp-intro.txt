@@ -72,14 +72,14 @@ Escape character is '^]'.
 { "execute": "query-status" }
 {
     "return": {
-        "status": "prelaunch", 
-        "singlestep": false, 
+        "status": "prelaunch",
+        "singlestep": false,
         "running": false
     }
 }
 
 Please refer to docs/interop/qemu-qmp-ref.* for a complete command
-reference, generated from qapi/qapi-schema.json.
+reference, generated from qapi/qmp-schema.json.
 
 QMP wiki page
 -------------

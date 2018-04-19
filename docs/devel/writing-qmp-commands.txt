@@ -13,7 +13,7 @@ start with docs/interop/qmp-intro.txt.
 == Overview ==
 
 Generally speaking, the following steps should be taken in order to write a
-new QMP command.
+new QMP command (similar steps for QGA).
 
 1. Define the command and any types it needs in the appropriate QAPI
    schema module.
