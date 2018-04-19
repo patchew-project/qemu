@@ -19,6 +19,9 @@
 typedef struct sPAPRXive {
     SysBusDevice parent;
 
+    /* Internal interrupt source for IPIs and virtual devices */
+    XiveSource   source;
+
     /* Routing table */
     XiveIVE      *ivt;
     uint32_t     nr_irqs;

@@ -16,6 +16,12 @@
 typedef struct XiveFabric XiveFabric;
 
 /*
+ * XIVE MMIO regions
+ */
+
+#define XIVE_VC_BASE   0x0006010000000000ull
+
+/*
  * XIVE Interrupt Source
  */
 

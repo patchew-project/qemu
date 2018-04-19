@@ -14,11 +14,14 @@
 #include "sysemu/cpus.h"
 #include "monitor/monitor.h"
 #include "hw/ppc/spapr_xive.h"
+#include "hw/ppc/xive.h"
 #include "hw/ppc/xive_regs.h"
 
 void spapr_xive_pic_print_info(sPAPRXive *xive, Monitor *mon)
 {
     int i;
+
+    xive_source_pic_print_info(&xive->source, mon);
 
     monitor_printf(mon, "IVE Table\n");
     for (i = 0; i < xive->nr_irqs; i++) {
@@ -40,6 +43,9 @@ static void spapr_xive_reset(DeviceState *dev)
     sPAPRXive *xive = SPAPR_XIVE(dev);
     int i;
 
+    /* Xive Source reset is done through SysBus, it should put all
+     * IRQs to OFF (!P|Q) */
+
     /* Mask all valid IVEs in the IRQ number space. */
     for (i = 0; i < xive->nr_irqs; i++) {
         XiveIVE *ive = &xive->ivt[i];
@@ -51,17 +57,41 @@ static void spapr_xive_reset(DeviceState *dev)
 
 static void spapr_xive_init(Object *obj)
 {
+    sPAPRXive *xive = SPAPR_XIVE(obj);
 
+    object_initialize(&xive->source, sizeof(xive->source), TYPE_XIVE_SOURCE);
+    object_property_add_child(obj, "source", OBJECT(&xive->source), NULL);
 }
 
 static void spapr_xive_realize(DeviceState *dev, Error **errp)
 {
     sPAPRXive *xive = SPAPR_XIVE(dev);
+    XiveSource *xsrc = &xive->source;
+    Error *local_err = NULL;
 
     if (!xive->nr_irqs) {
         error_setg(errp, "Number of interrupt needs to be greater 0");
         return;
     }
+
+    /* The XIVE interrupt controller has an internal source for IPIs
+     * and generic IPIs, the PSIHB has one and also the PHBs. For
+     * simplicity, we use a unique XIVE source object for *all*
+     * interrupts on sPAPR. The ESBs pages are mapped at the address
+     * of chip 0 of a real system.
+     */
+    object_property_set_int(OBJECT(xsrc), XIVE_VC_BASE, "bar",
+                            &error_fatal);
+    object_property_set_int(OBJECT(xsrc), xive->nr_irqs, "nr-irqs",
+                            &error_fatal);
+    object_property_add_const_link(OBJECT(xsrc), "xive", OBJECT(xive),
+                                   &error_fatal);
+    object_property_set_bool(OBJECT(xsrc), true, "realized", &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+    qdev_set_parent_bus(DEVICE(xsrc), sysbus_get_default());
 
     /* Allocate the Interrupt Virtualization Table */
     xive->ivt = g_new0(XiveIVE, xive->nr_irqs);
@@ -137,23 +167,27 @@ type_init(spapr_xive_register_types)
 bool spapr_xive_irq_enable(sPAPRXive *xive, uint32_t lisn, bool lsi)
 {
     XiveIVE *ive = spapr_xive_get_ive(XIVE_FABRIC(xive), lisn);
+    XiveSource *xsrc = &xive->source;
 
     if (!ive) {
         return false;
     }
 
     ive->w |= IVE_VALID;
+    xive_source_irq_set(xsrc, lisn - xsrc->offset, lsi);
     return true;
 }
 
 bool spapr_xive_irq_disable(sPAPRXive *xive, uint32_t lisn)
 {
     XiveIVE *ive = spapr_xive_get_ive(XIVE_FABRIC(xive), lisn);
+    XiveSource *xsrc = &xive->source;
 
     if (!ive) {
         return false;
     }
 
     ive->w &= ~IVE_VALID;
+    xive_source_irq_set(xsrc, lisn - xsrc->offset, false);
     return true;
 }
