@@ -1032,9 +1032,6 @@ static void *atomic_mmu_lookup(CPUArchState *env, target_ulong addr,
 
 #define MMUSUFFIX _mmu
 
-#define DATA_SIZE 1
-#include "softmmu_template.h"
-
 #define DATA_SIZE 2
 #include "softmmu_template.h"
 
@@ -1108,9 +1105,6 @@ static void *atomic_mmu_lookup(CPUArchState *env, target_ulong addr,
 #undef GETPC
 #define GETPC() ((uintptr_t)0)
 #define SOFTMMU_CODE_ACCESS
-
-#define DATA_SIZE 1
-#include "softmmu_template.h"
 
 #define DATA_SIZE 2
 #include "softmmu_template.h"
