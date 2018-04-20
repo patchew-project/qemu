@@ -328,7 +328,8 @@ class _VM(qemu.QEMUMachine):
                 logging.info("Migration successful")
                 return True
             elif 'failed' in res['return']:
-                raise QEMUMigrationError("Migration of %s failed" % self)
+                logging.error(res)
+                raise QEMUMigrationError("Migration of %s failed" % self.name)
             return False
 
         port = self.ports.find_free_port()
