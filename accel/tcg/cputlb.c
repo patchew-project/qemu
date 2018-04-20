@@ -20,6 +20,7 @@
 #include "qemu/osdep.h"
 #include "qemu/main-loop.h"
 #include "cpu.h"
+#include "cputlb.h"
 #include "exec/exec-all.h"
 #include "exec/memory.h"
 #include "exec/address-spaces.h"
@@ -760,9 +761,9 @@ static inline ram_addr_t qemu_ram_addr_from_host_nofail(void *ptr)
     return ram_addr;
 }
 
-static uint64_t io_readx(CPUArchState *env, CPUIOTLBEntry *iotlbentry,
-                         int mmu_idx,
-                         target_ulong addr, uintptr_t retaddr, int size)
+uint64_t io_readx(CPUArchState *env, CPUIOTLBEntry *iotlbentry,
+                  int mmu_idx,
+                  target_ulong addr, uintptr_t retaddr, int size)
 {
     CPUState *cpu = ENV_GET_CPU(env);
     hwaddr physaddr = iotlbentry->addr;
@@ -796,10 +797,10 @@ static uint64_t io_readx(CPUArchState *env, CPUIOTLBEntry *iotlbentry,
     return val;
 }
 
-static void io_writex(CPUArchState *env, CPUIOTLBEntry *iotlbentry,
-                      int mmu_idx,
-                      uint64_t val, target_ulong addr,
-                      uintptr_t retaddr, int size)
+void io_writex(CPUArchState *env, CPUIOTLBEntry *iotlbentry,
+               int mmu_idx,
+               uint64_t val, target_ulong addr,
+               uintptr_t retaddr, int size)
 {
     CPUState *cpu = ENV_GET_CPU(env);
     hwaddr physaddr = iotlbentry->addr;
@@ -831,8 +832,8 @@ static void io_writex(CPUArchState *env, CPUIOTLBEntry *iotlbentry,
 
 /* Return true if ADDR is present in the victim tlb, and has been copied
    back to the main tlb.  */
-static bool victim_tlb_hit(CPUArchState *env, size_t mmu_idx, size_t index,
-                           size_t elt_ofs, target_ulong page)
+bool victim_tlb_hit(CPUArchState *env, size_t mmu_idx, size_t index,
+                    size_t elt_ofs, target_ulong page)
 {
     size_t vidx;
     for (vidx = 0; vidx < CPU_VTLB_SIZE; ++vidx) {
