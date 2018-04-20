@@ -270,7 +270,7 @@ class _VM(qemu.QEMUMachine):
         self.password = password
         super(_VM, self).__init__(qemu_bin, name=self.name, arch=arch)
 
-    def get_console(self, console_address=None, prompt="[\#\$]"):
+    def get_console(self, console_address=None, prompt=r"[\#\$] "):
         """
         :param address: Socket address, can be either a unix socket path
                         (string) or a tuple in the form (address, port)
@@ -297,7 +297,7 @@ class _VM(qemu.QEMUMachine):
         console = aexpect.ShellSession(nc_cmd)
         try:
             logging.info('Console: Waiting login prompt...')
-            _handle_prompts(console, self.username, self.password, "[\#\$]")
+            _handle_prompts(console, self.username, self.password, prompt)
             logging.info('Console: Ready!')
         except:
             console.close()
