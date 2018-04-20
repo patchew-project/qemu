@@ -18,8 +18,10 @@ class TestNecUsbXhci(test.QemuTest):
     """
 
     def setUp(self):
+        self.vm_dst = None
         self.image = vmimage.get()
         self.vm.add_image(self.image.path, cloudinit=True, snapshot=False)
+        self.vm.args.extend(['-machine', 'accel=kvm'])
 
         usbdevice = os.path.join(self.workdir, 'usb.img')
         process.run('dd if=/dev/zero of=%s bs=1M count=10' % usbdevice)
@@ -56,4 +58,6 @@ class TestNecUsbXhci(test.QemuTest):
 
     def tearDown(self):
         self.vm.shutdown()
-        self.vm_dst.shutdown()
+        if self.vm_dst is not None:
+            self.vm_dst.shutdown()
+        os.remove(self.image.path)

@@ -24,6 +24,7 @@ class TestNumaHotplug(test.QemuTest):
         self.image = vmimage.get()
         self.vm.add_image(self.image.path, cloudinit=True, snapshot=False)
 
+        self.vm.args.extend(['-machine', 'accel=kvm'])
         self.vm.args.extend(["-m", "4G,slots=208,maxmem=80G"])
         self.vm.args.extend(["-numa", "node"] * 16)
         self.vm.launch()
