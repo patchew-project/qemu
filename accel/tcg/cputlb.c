@@ -1022,22 +1022,6 @@ static void *atomic_mmu_lookup(CPUArchState *env, target_ulong addr,
     cpu_loop_exit_atomic(ENV_GET_CPU(env), retaddr);
 }
 
-#ifdef TARGET_WORDS_BIGENDIAN
-# define TGT_BE(X)  (X)
-# define TGT_LE(X)  BSWAP(X)
-#else
-# define TGT_BE(X)  BSWAP(X)
-# define TGT_LE(X)  (X)
-#endif
-
-#define MMUSUFFIX _mmu
-
-#define DATA_SIZE 4
-#include "softmmu_template.h"
-
-#define DATA_SIZE 8
-#include "softmmu_template.h"
-
 /* First set of helpers allows passing in of OI and RETADDR.  This makes
    them callable from other helpers.  */
 
@@ -1094,17 +1078,3 @@ static void *atomic_mmu_lookup(CPUArchState *env, target_ulong addr,
 #define DATA_SIZE 8
 #include "atomic_template.h"
 #endif
-
-/* Code access functions.  */
-
-#undef MMUSUFFIX
-#define MMUSUFFIX _cmmu
-#undef GETPC
-#define GETPC() ((uintptr_t)0)
-#define SOFTMMU_CODE_ACCESS
-
-#define DATA_SIZE 4
-#include "softmmu_template.h"
-
-#define DATA_SIZE 8
-#include "softmmu_template.h"

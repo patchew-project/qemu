@@ -10,11 +10,41 @@
 #include "exec/exec-all.h"
 #include "tcg/tcg.h"
 
+#ifdef TARGET_WORDS_BIGENDIAN
+#define NEED_BE_BSWAP 0
+#define NEED_LE_BSWAP 1
+#else
+#define NEED_BE_BSWAP 1
+#define NEED_LE_BSWAP 0
+#endif
+
+/*
+ * Byte Swap Helper
+ *
+ * This should all dead code away depending on the build host and
+ * access type.
+ */
+
+static inline uint64_t handle_bswap(uint64_t val, int size, bool big_endian)
+{
+    if ((big_endian && NEED_BE_BSWAP) || (!big_endian && NEED_LE_BSWAP)) {
+        switch (size) {
+        case 1: return val;
+        case 2: return bswap16(val);
+        case 4: return bswap32(val);
+        case 8: return bswap64(val);
+        default:
+            g_assert_not_reached();
+        }
+    } else {
+        return val;
+    }
+}
+
 /* Macro to call the above, with local variables from the use context.  */
 #define VICTIM_TLB_HIT(TY, ADDR) \
   victim_tlb_hit(env, mmu_idx, index, offsetof(CPUTLBEntry, TY), \
                  (ADDR) & TARGET_PAGE_MASK)
-
 
 /*
  * Load Helpers
@@ -25,19 +55,6 @@
  * is disassembled. It shouldn't be called directly by guest code.
  */
 
-static inline uint8_t io_readb(CPUArchState *env, size_t mmu_idx, size_t index,
-                               target_ulong addr, uintptr_t retaddr)
-{
-    CPUIOTLBEntry *iotlbentry = &env->iotlb[mmu_idx][index];
-    return io_readx(env, iotlbentry, mmu_idx, addr, retaddr, 1);
-}
-
-static inline uint16_t io_readw(CPUArchState *env, size_t mmu_idx, size_t index,
-                                target_ulong addr, uintptr_t retaddr)
-{
-    CPUIOTLBEntry *iotlbentry = &env->iotlb[mmu_idx][index];
-    return io_readx(env, iotlbentry, mmu_idx, addr, retaddr, 2);
-}
 
 static tcg_target_ulong load_helper(CPUArchState *env, target_ulong addr,
                                     size_t size, bool big_endian,
@@ -88,35 +105,15 @@ static tcg_target_ulong load_helper(CPUArchState *env, target_ulong addr,
 
     /* Handle an IO access.  */
     if (unlikely(tlb_addr & ~TARGET_PAGE_MASK)) {
+        CPUIOTLBEntry *iotlbentry = &env->iotlb[mmu_idx][index];
+        uint64_t tmp;
+
         if ((addr & (size - 1)) != 0) {
             goto do_unaligned_access;
         }
 
-        /* ??? Note that the io helpers always read data in the target
-           byte ordering.  We should push the LE/BE request down into io.  */
-        switch (size) {
-        case 1:
-        {
-            uint8_t rv = io_readb(env, mmu_idx, index, addr, retaddr);
-            res = rv;
-            break;
-        }
-        case 2:
-        {
-            uint16_t rv = io_readw(env, mmu_idx, index, addr, retaddr);
-            if (big_endian) {
-                res = bswap16(rv);
-            } else {
-                res = rv;
-            }
-            break;
-        }
-        default:
-            g_assert_not_reached();
-            break;
-        }
-
-        return res;
+        tmp = io_readx(env, iotlbentry, mmu_idx, addr, retaddr, size);
+        return handle_bswap(tmp, size, big_endian);
     }
 
     /* Handle slow unaligned access (it spans two pages or IO).  */
@@ -154,6 +151,20 @@ static tcg_target_ulong load_helper(CPUArchState *env, target_ulong addr,
             res = lduw_be_p((uint8_t *)haddr);
         } else {
             res = lduw_le_p((uint8_t *)haddr);
+        }
+        break;
+    case 4:
+        if (big_endian) {
+            res = ldl_be_p((uint8_t *)haddr);
+        } else {
+            res = ldl_le_p((uint8_t *)haddr);
+        }
+        break;
+    case 8:
+        if (big_endian) {
+            res = ldq_be_p((uint8_t *)haddr);
+        } else {
+            res = ldq_le_p((uint8_t *)haddr);
         }
         break;
     default:
@@ -201,6 +212,42 @@ tcg_target_ulong __attribute__((flatten)) helper_be_lduw_mmu(CPUArchState *env,
     return load_helper(env, addr, 2, true, false, oi, retaddr);
 }
 
+tcg_target_ulong __attribute__((flatten)) helper_le_ldul_mmu(CPUArchState *env,
+                                                             target_ulong addr,
+                                                             TCGMemOpIdx oi,
+                                                             uintptr_t retaddr)
+{
+    return load_helper(env, addr, 4, false, false, oi, retaddr);
+}
+
+tcg_target_ulong __attribute__((flatten)) helper_be_ldul_mmu(CPUArchState *env,
+                                                             target_ulong addr,
+                                                             TCGMemOpIdx oi,
+                                                             uintptr_t retaddr)
+{
+    return load_helper(env, addr, 4, true, false, oi, retaddr);
+}
+
+tcg_target_ulong __attribute__((flatten)) helper_le_ldq_mmu(CPUArchState *env,
+                                                            target_ulong addr,
+                                                            TCGMemOpIdx oi,
+                                                            uintptr_t retaddr)
+{
+    return load_helper(env, addr, 8, false, false, oi, retaddr);
+}
+
+tcg_target_ulong __attribute__((flatten)) helper_be_ldq_mmu(CPUArchState *env,
+                                                             target_ulong addr,
+                                                             TCGMemOpIdx oi,
+                                                             uintptr_t retaddr)
+{
+    return load_helper(env, addr, 8, true, false, oi, retaddr);
+}
+
+/*
+ * Code Access
+ */
+
 uint8_t __attribute__((flatten)) helper_ret_ldb_cmmu (CPUArchState *env,
                                                       target_ulong addr,
                                                       TCGMemOpIdx oi,
@@ -223,6 +270,38 @@ uint16_t __attribute__((flatten)) helper_be_ldw_cmmu(CPUArchState *env,
                                                      uintptr_t retaddr)
 {
     return load_helper(env, addr, 2, true, true, oi, retaddr);
+}
+
+uint32_t __attribute__((flatten)) helper_le_ldl_cmmu(CPUArchState *env,
+                                                     target_ulong addr,
+                                                     TCGMemOpIdx oi,
+                                                     uintptr_t retaddr)
+{
+    return load_helper(env, addr, 4, false, true, oi, retaddr);
+}
+
+uint32_t __attribute__((flatten)) helper_be_ldl_cmmu(CPUArchState *env,
+                                                     target_ulong addr,
+                                                     TCGMemOpIdx oi,
+                                                     uintptr_t retaddr)
+{
+    return load_helper(env, addr, 4, true, true, oi, retaddr);
+}
+
+uint64_t __attribute__((flatten)) helper_le_ldq_cmmu(CPUArchState *env,
+                                                     target_ulong addr,
+                                                     TCGMemOpIdx oi,
+                                                     uintptr_t retaddr)
+{
+    return load_helper(env, addr, 8, false, true, oi, retaddr);
+}
+
+uint64_t __attribute__((flatten)) helper_be_ldq_cmmu(CPUArchState *env,
+                                                     target_ulong addr,
+                                                     TCGMemOpIdx oi,
+                                                     uintptr_t retaddr)
+{
+    return load_helper(env, addr, 8, true, true, oi, retaddr);
 }
 
 /* Provide signed versions of the load routines as well.  We can of course
@@ -248,26 +327,6 @@ tcg_target_ulong __attribute__((flatten)) helper_be_ldsw_mmu(CPUArchState *env,
 /*
  * Store Helpers
  */
-
-static inline void io_writeb(CPUArchState *env,
-                                          size_t mmu_idx, size_t index,
-                                          uint8_t val,
-                                          target_ulong addr,
-                                          uintptr_t retaddr)
-{
-    CPUIOTLBEntry *iotlbentry = &env->iotlb[mmu_idx][index];
-    return io_writex(env, iotlbentry, mmu_idx, val, addr, retaddr, 1);
-}
-
-static inline void io_writew(CPUArchState *env,
-                                          size_t mmu_idx, size_t index,
-                                          uint16_t val,
-                                          target_ulong addr,
-                                          uintptr_t retaddr)
-{
-    CPUIOTLBEntry *iotlbentry = &env->iotlb[mmu_idx][index];
-    return io_writex(env, iotlbentry, mmu_idx, val, addr, retaddr, 2);
-}
 
 static void store_helper(CPUArchState *env, target_ulong addr, uint64_t val,
                          size_t size, bool big_endian, TCGMemOpIdx oi,
@@ -296,34 +355,15 @@ static void store_helper(CPUArchState *env, target_ulong addr, uint64_t val,
 
     /* Handle an IO access.  */
     if (unlikely(tlb_addr & ~TARGET_PAGE_MASK)) {
+        CPUIOTLBEntry *iotlbentry = &env->iotlb[mmu_idx][index];
+
         if ((addr & (size - 1)) != 0) {
             goto do_unaligned_access;
         }
 
-        /* ??? Note that the io helpers always read data in the target
-           byte ordering.  We should push the LE/BE request down into io.  */
-        switch (size) {
-        case 1:
-        {
-            uint8_t wv = (val);
-            io_writeb(env, mmu_idx, index, wv, addr, retaddr);
-            break;
-        }
-        case 2:
-        {
-            uint16_t wv;
-            if (big_endian) {
-                wv = bswap16( (uint16_t) val);
-            } else {
-                wv = (val);
-            }
-            io_writew(env, mmu_idx, index, wv, addr, retaddr);
-            break;
-        }
-        default:
-            g_assert_not_reached();
-            break;
-        }
+        io_writex(env, iotlbentry, mmu_idx,
+                  handle_bswap(val, size, big_endian),
+                  addr, retaddr, size);
         return;
     }
 
@@ -376,6 +416,20 @@ static void store_helper(CPUArchState *env, target_ulong addr, uint64_t val,
             stw_le_p((uint8_t *)haddr, val);
         }
         break;
+    case 4:
+        if (big_endian) {
+            stl_be_p((uint8_t *)haddr, val);
+        } else {
+            stl_le_p((uint8_t *)haddr, val);
+        }
+        break;
+    case 8:
+        if (big_endian) {
+            stq_be_p((uint8_t *)haddr, val);
+        } else {
+            stq_le_p((uint8_t *)haddr, val);
+        }
+        break;
     default:
         g_assert_not_reached();
         break;
@@ -406,4 +460,38 @@ void __attribute__((flatten)) helper_be_stw_mmu(CPUArchState *env,
                                                 uintptr_t retaddr)
 {
     store_helper(env, addr, val, 2, true, oi, retaddr);
+}
+
+void __attribute__((flatten)) helper_le_stl_mmu(CPUArchState *env,
+                                                target_ulong addr, uint32_t val,
+                                                TCGMemOpIdx oi,
+                                                uintptr_t retaddr)
+{
+    store_helper(env, addr, val, 4, false, oi, retaddr);
+}
+
+
+void __attribute__((flatten)) helper_be_stl_mmu(CPUArchState *env,
+                                                target_ulong addr, uint32_t val,
+                                                TCGMemOpIdx oi,
+                                                uintptr_t retaddr)
+{
+    store_helper(env, addr, val, 4, true, oi, retaddr);
+}
+
+void __attribute__((flatten)) helper_le_stq_mmu(CPUArchState *env,
+                                                target_ulong addr, uint64_t val,
+                                                TCGMemOpIdx oi,
+                                                uintptr_t retaddr)
+{
+    store_helper(env, addr, val, 8, false, oi, retaddr);
+}
+
+
+void __attribute__((flatten)) helper_be_stq_mmu(CPUArchState *env,
+                                                target_ulong addr, uint64_t val,
+                                                TCGMemOpIdx oi,
+                                                uintptr_t retaddr)
+{
+    store_helper(env, addr, val, 8, true, oi, retaddr);
 }
