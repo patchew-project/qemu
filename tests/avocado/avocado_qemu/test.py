@@ -131,9 +131,9 @@ def _handle_prompts(session, username, password, prompt, timeout=10,
             match, text = session.read_until_last_line_matches(
                 [r"[Aa]re you sure", r"[Pp]assword:\s*",
                  # Prompt of rescue mode for Red Hat.
-                 r"\(or (press|type) Control-D to continue\):\s*$",
-                 r"[Gg]ive.*[Ll]ogin:\s*$",  # Prompt of rescue mode for SUSE.
-                 r"(?<![Ll]ast )[Ll]ogin:\s*$",  # Don't match "Last Login:"
+                 r"\(or (press|type) Control-D to continue\):\s*",
+                 r"[Gg]ive.*[Ll]ogin:\s*",  # Prompt of rescue mode for SUSE.
+                 r"(?<![Ll]ast )[Ll]ogin:\s*",  # Don't match "Last Login:"
                  r"[Cc]onnection.*closed", r"[Cc]onnection.*refused",
                  r"[Pp]lease wait", r"[Ww]arning", r"[Ee]nter.*username",
                  r"[Ee]nter.*password", r"[Cc]onnection timed out", prompt,
