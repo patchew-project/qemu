@@ -123,7 +123,8 @@ def _handle_prompts(session, username, password, prompt, timeout=10,
     password_prompt_count = 0
     login_prompt_count = 0
     last_chance = False
-
+    # Send enter to refresh output (in case session was attached after boot)
+    session.sendline()
     output = ""
     while True:
         try:
