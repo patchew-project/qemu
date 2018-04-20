@@ -245,6 +245,10 @@ tcg_target_ulong __attribute__((flatten)) helper_be_ldsw_mmu(CPUArchState *env,
     return (int16_t)helper_be_lduw_mmu(env, addr, oi, retaddr);
 }
 
+/*
+ * Store Helpers
+ */
+
 static inline void io_writeb(CPUArchState *env,
                                           size_t mmu_idx, size_t index,
                                           uint8_t val,
@@ -255,86 +259,6 @@ static inline void io_writeb(CPUArchState *env,
     return io_writex(env, iotlbentry, mmu_idx, val, addr, retaddr, 1);
 }
 
-void helper_ret_stb_mmu(CPUArchState *env, target_ulong addr, uint8_t val,
-                       TCGMemOpIdx oi, uintptr_t retaddr)
-{
-    unsigned mmu_idx = get_mmuidx(oi);
-    int index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
-    target_ulong tlb_addr = env->tlb_table[mmu_idx][index].addr_write;
-    unsigned a_bits = get_alignment_bits(get_memop(oi));
-    uintptr_t haddr;
-
-    if (addr & ((1 << a_bits) - 1)) {
-        cpu_unaligned_access(ENV_GET_CPU(env), addr, MMU_DATA_STORE,
-                             mmu_idx, retaddr);
-    }
-
-    /* If the TLB entry is for a different page, reload and try again.  */
-    if ((addr & TARGET_PAGE_MASK)
-        != (tlb_addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK))) {
-        if (!VICTIM_TLB_HIT(addr_write, addr)) {
-            tlb_fill(ENV_GET_CPU(env), addr, 1, MMU_DATA_STORE,
-                     mmu_idx, retaddr);
-        }
-        tlb_addr = env->tlb_table[mmu_idx][index].addr_write & ~TLB_INVALID_MASK;
-    }
-
-    /* Handle an IO access.  */
-    if (unlikely(tlb_addr & ~TARGET_PAGE_MASK)) {
-        if ((addr & (1 - 1)) != 0) {
-            goto do_unaligned_access;
-        }
-
-        /* ??? Note that the io helpers always read data in the target
-           byte ordering.  We should push the LE/BE request down into io.  */
-        val = (val);
-        io_writeb(env, mmu_idx, index, val, addr, retaddr);
-        return;
-    }
-
-    /* Handle slow unaligned access (it spans two pages or IO).  */
-    if (1 > 1
-        && unlikely((addr & ~TARGET_PAGE_MASK) + 1 - 1
-                     >= TARGET_PAGE_SIZE)) {
-        int i, index2;
-        target_ulong page2, tlb_addr2;
-    do_unaligned_access:
-        /* Ensure the second page is in the TLB.  Note that the first page
-           is already guaranteed to be filled, and that the second page
-           cannot evict the first.  */
-        page2 = (addr + 1) & TARGET_PAGE_MASK;
-        index2 = (page2 >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
-        tlb_addr2 = env->tlb_table[mmu_idx][index2].addr_write;
-        if (page2 != (tlb_addr2 & (TARGET_PAGE_MASK | TLB_INVALID_MASK))
-            && !VICTIM_TLB_HIT(addr_write, page2)) {
-            tlb_fill(ENV_GET_CPU(env), page2, 1, MMU_DATA_STORE,
-                     mmu_idx, retaddr);
-        }
-
-        /* XXX: not efficient, but simple.  */
-        /* This loop must go in the forward direction to avoid issues
-           with self-modifying code in Windows 64-bit.  */
-        for (i = 0; i < 1; ++i) {
-            /* Little-endian extract.  */
-            uint8_t val8 = val >> (i * 8);
-            helper_ret_stb_mmu(env, addr + i, val8,
-                                            oi, retaddr);
-        }
-        return;
-    }
-
-    haddr = addr + env->tlb_table[mmu_idx][index].addend;
-
-    stb_p((uint8_t *)haddr, val);
-
-
-
-}
-
-
-
-/* Provide signed versions of the load routines as well.  We can of course
-   avoid this for 64-bit data, or for 32-bit data on 32-bit host.  */
 static inline void io_writew(CPUArchState *env,
                                           size_t mmu_idx, size_t index,
                                           uint16_t val,
@@ -345,8 +269,9 @@ static inline void io_writew(CPUArchState *env,
     return io_writex(env, iotlbentry, mmu_idx, val, addr, retaddr, 2);
 }
 
-void helper_le_stw_mmu(CPUArchState *env, target_ulong addr, uint16_t val,
-                       TCGMemOpIdx oi, uintptr_t retaddr)
+static void store_helper(CPUArchState *env, target_ulong addr, uint64_t val,
+                         size_t size, bool big_endian, TCGMemOpIdx oi,
+                         uintptr_t retaddr)
 {
     unsigned mmu_idx = get_mmuidx(oi);
     int index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
@@ -363,7 +288,7 @@ void helper_le_stw_mmu(CPUArchState *env, target_ulong addr, uint16_t val,
     if ((addr & TARGET_PAGE_MASK)
         != (tlb_addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK))) {
         if (!VICTIM_TLB_HIT(addr_write, addr)) {
-            tlb_fill(ENV_GET_CPU(env), addr, 2, MMU_DATA_STORE,
+            tlb_fill(ENV_GET_CPU(env), addr, size, MMU_DATA_STORE,
                      mmu_idx, retaddr);
         }
         tlb_addr = env->tlb_table[mmu_idx][index].addr_write & ~TLB_INVALID_MASK;
@@ -371,20 +296,40 @@ void helper_le_stw_mmu(CPUArchState *env, target_ulong addr, uint16_t val,
 
     /* Handle an IO access.  */
     if (unlikely(tlb_addr & ~TARGET_PAGE_MASK)) {
-        if ((addr & (2 - 1)) != 0) {
+        if ((addr & (size - 1)) != 0) {
             goto do_unaligned_access;
         }
 
         /* ??? Note that the io helpers always read data in the target
            byte ordering.  We should push the LE/BE request down into io.  */
-        val = (val);
-        io_writew(env, mmu_idx, index, val, addr, retaddr);
+        switch (size) {
+        case 1:
+        {
+            uint8_t wv = (val);
+            io_writeb(env, mmu_idx, index, wv, addr, retaddr);
+            break;
+        }
+        case 2:
+        {
+            uint16_t wv;
+            if (big_endian) {
+                wv = bswap16( (uint16_t) val);
+            } else {
+                wv = (val);
+            }
+            io_writew(env, mmu_idx, index, wv, addr, retaddr);
+            break;
+        }
+        default:
+            g_assert_not_reached();
+            break;
+        }
         return;
     }
 
     /* Handle slow unaligned access (it spans two pages or IO).  */
-    if (2 > 1
-        && unlikely((addr & ~TARGET_PAGE_MASK) + 2 - 1
+    if (size > 1
+        && unlikely((addr & ~TARGET_PAGE_MASK) + size - 1
                      >= TARGET_PAGE_SIZE)) {
         int i, index2;
         target_ulong page2, tlb_addr2;
@@ -392,104 +337,73 @@ void helper_le_stw_mmu(CPUArchState *env, target_ulong addr, uint16_t val,
         /* Ensure the second page is in the TLB.  Note that the first page
            is already guaranteed to be filled, and that the second page
            cannot evict the first.  */
-        page2 = (addr + 2) & TARGET_PAGE_MASK;
+        page2 = (addr + size) & TARGET_PAGE_MASK;
         index2 = (page2 >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
         tlb_addr2 = env->tlb_table[mmu_idx][index2].addr_write;
         if (page2 != (tlb_addr2 & (TARGET_PAGE_MASK | TLB_INVALID_MASK))
             && !VICTIM_TLB_HIT(addr_write, page2)) {
-            tlb_fill(ENV_GET_CPU(env), page2, 2, MMU_DATA_STORE,
+            tlb_fill(ENV_GET_CPU(env), page2, size, MMU_DATA_STORE,
                      mmu_idx, retaddr);
         }
 
         /* XXX: not efficient, but simple.  */
         /* This loop must go in the forward direction to avoid issues
            with self-modifying code in Windows 64-bit.  */
-        for (i = 0; i < 2; ++i) {
-            /* Little-endian extract.  */
-            uint8_t val8 = val >> (i * 8);
-            helper_ret_stb_mmu(env, addr + i, val8,
-                                            oi, retaddr);
+        for (i = 0; i < size; ++i) {
+            uint8_t val8;
+            if (big_endian) {
+                /* Big-endian extract.  */
+                val8 = val >> (((size - 1) * 8) - (i * 8));
+            } else {
+                /* Little-endian extract.  */
+                val8 = val >> (i * 8);
+            }
+            store_helper(env, addr + i, val8, 1, big_endian, oi, retaddr);
         }
         return;
     }
 
     haddr = addr + env->tlb_table[mmu_idx][index].addend;
 
+    switch(size) {
+    case 1:
+        stb_p((uint8_t *)haddr, val);
+        break;
+    case 2:
+        if (big_endian) {
+            stw_be_p((uint8_t *)haddr, val);
+        } else {
+            stw_le_p((uint8_t *)haddr, val);
+        }
+        break;
+    default:
+        g_assert_not_reached();
+        break;
+    }
+}
 
-
-    stw_le_p((uint8_t *)haddr, val);
-
+void __attribute__((flatten)) helper_ret_stb_mmu(CPUArchState *env,
+                                                 target_ulong addr, uint8_t val,
+                                                 TCGMemOpIdx oi,
+                                                 uintptr_t retaddr)
+{
+    store_helper(env, addr, val, 1, false, oi, retaddr);
 }
 
 
-void helper_be_stw_mmu(CPUArchState *env, target_ulong addr, uint16_t val,
-                       TCGMemOpIdx oi, uintptr_t retaddr)
+void __attribute__((flatten)) helper_le_stw_mmu(CPUArchState *env,
+                                                target_ulong addr, uint16_t val,
+                                                TCGMemOpIdx oi,
+                                                uintptr_t retaddr)
 {
-    unsigned mmu_idx = get_mmuidx(oi);
-    int index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
-    target_ulong tlb_addr = env->tlb_table[mmu_idx][index].addr_write;
-    unsigned a_bits = get_alignment_bits(get_memop(oi));
-    uintptr_t haddr;
+    store_helper(env, addr, val, 2, false, oi, retaddr);
+}
 
-    if (addr & ((1 << a_bits) - 1)) {
-        cpu_unaligned_access(ENV_GET_CPU(env), addr, MMU_DATA_STORE,
-                             mmu_idx, retaddr);
-    }
 
-    /* If the TLB entry is for a different page, reload and try again.  */
-    if ((addr & TARGET_PAGE_MASK)
-        != (tlb_addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK))) {
-        if (!VICTIM_TLB_HIT(addr_write, addr)) {
-            tlb_fill(ENV_GET_CPU(env), addr, 2, MMU_DATA_STORE,
-                     mmu_idx, retaddr);
-        }
-        tlb_addr = env->tlb_table[mmu_idx][index].addr_write & ~TLB_INVALID_MASK;
-    }
-
-    /* Handle an IO access.  */
-    if (unlikely(tlb_addr & ~TARGET_PAGE_MASK)) {
-        if ((addr & (2 - 1)) != 0) {
-            goto do_unaligned_access;
-        }
-
-        /* ??? Note that the io helpers always read data in the target
-           byte ordering.  We should push the LE/BE request down into io.  */
-        val = bswap16(val);
-        io_writew(env, mmu_idx, index, val, addr, retaddr);
-        return;
-    }
-
-    /* Handle slow unaligned access (it spans two pages or IO).  */
-    if (2 > 1
-        && unlikely((addr & ~TARGET_PAGE_MASK) + 2 - 1
-                     >= TARGET_PAGE_SIZE)) {
-        int i, index2;
-        target_ulong page2, tlb_addr2;
-    do_unaligned_access:
-        /* Ensure the second page is in the TLB.  Note that the first page
-           is already guaranteed to be filled, and that the second page
-           cannot evict the first.  */
-        page2 = (addr + 2) & TARGET_PAGE_MASK;
-        index2 = (page2 >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
-        tlb_addr2 = env->tlb_table[mmu_idx][index2].addr_write;
-        if (page2 != (tlb_addr2 & (TARGET_PAGE_MASK | TLB_INVALID_MASK))
-            && !VICTIM_TLB_HIT(addr_write, page2)) {
-            tlb_fill(ENV_GET_CPU(env), page2, 2, MMU_DATA_STORE,
-                     mmu_idx, retaddr);
-        }
-
-        /* XXX: not efficient, but simple */
-        /* This loop must go in the forward direction to avoid issues
-           with self-modifying code.  */
-        for (i = 0; i < 2; ++i) {
-            /* Big-endian extract.  */
-            uint8_t val8 = val >> (((2 - 1) * 8) - (i * 8));
-            helper_ret_stb_mmu(env, addr + i, val8,
-                                            oi, retaddr);
-        }
-        return;
-    }
-
-    haddr = addr + env->tlb_table[mmu_idx][index].addend;
-    stw_be_p((uint8_t *)haddr, val);
+void __attribute__((flatten)) helper_be_stw_mmu(CPUArchState *env,
+                                                target_ulong addr, uint16_t val,
+                                                TCGMemOpIdx oi,
+                                                uintptr_t retaddr)
+{
+    store_helper(env, addr, val, 2, true, oi, retaddr);
 }
