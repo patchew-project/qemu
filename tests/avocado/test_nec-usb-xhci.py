@@ -19,7 +19,7 @@ class TestNecUsbXhci(test.QemuTest):
 
     def setUp(self):
         self.vm_dst = None
-        self.image = vmimage.get()
+        self.image = vmimage.get('Fedora')
         self.vm.add_image(self.image.path, cloudinit=True, snapshot=False)
         self.vm.args.extend(['-machine', 'accel=kvm'])
 
