@@ -74,6 +74,7 @@
 #include "hw/compat.h"
 #include "qemu/cutils.h"
 #include "hw/ppc/spapr_cpu_core.h"
+#include "hw/mem/memory-device.h"
 
 #include <libfdt.h>
 
@@ -722,7 +723,7 @@ static int spapr_populate_drconf_memory(sPAPRMachineState *spapr, void *fdt)
     }
 
     if (hotplug_lmb_start) {
-        dimms = qmp_pc_dimm_device_list();
+        dimms = qmp_memory_device_list();
     }
 
     /* ibm,dynamic-memory */
