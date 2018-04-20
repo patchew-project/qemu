@@ -328,7 +328,7 @@ class _VM(qemu.QEMUMachine):
                 logging.info("Migration successful")
                 return True
             elif 'failed' in res['return']:
-                raise QEMUMigrateError("Migration of %s failed" % self)
+                raise QEMUMigrationError("Migration of %s failed" % self)
             return False
 
         port = self.ports.find_free_port()
@@ -343,8 +343,8 @@ class _VM(qemu.QEMUMachine):
                                    text='Waiting for migration to complete')
 
         if mig_result is None:
-            raise QEMUMigrateError("Migration of %s did not complete after "
-                                   "%s s" % (self.name, timeout))
+            raise QEMUMigrationError("Migration of %s did not complete after "
+                                     "%s s" % (self.name, timeout))
 
         return newvm
 
