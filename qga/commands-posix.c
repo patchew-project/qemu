@@ -879,9 +879,24 @@ static void build_guest_fsinfo_for_real_device(char const *syspath,
         return;
     }
 
-    driver = get_pci_driver(syspath, (p + 12 + pcilen) - syspath, errp);
-    if (!driver) {
-        goto cleanup;
+    p += 12 + pcilen;
+    while (true) {
+        driver = get_pci_driver(syspath, p - syspath, errp);
+        if (!driver) {
+            goto cleanup;
+        }
+
+        if (g_str_equal(driver, "pcieport")) {
+            if (sscanf(p, "/%x:%x:%x.%x%n",
+                       pci, pci + 1, pci + 2, pci + 3, &pcilen) < 4) {
+                g_debug("only pci device is supported: sysfs path \"%s\"",
+                        syspath);
+                return;
+            }
+            p += pcilen;
+            continue;
+        }
+        break;
     }
 
     p = strstr(syspath, "/target");
