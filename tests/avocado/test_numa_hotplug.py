@@ -2,6 +2,7 @@ import re
 import time
 
 from avocado_qemu import test
+from avocado.utils import vmimage
 
 
 class TestNumaHotplug(test.QemuTest):
@@ -20,7 +21,9 @@ class TestNumaHotplug(test.QemuTest):
     """
 
     def setUp(self):
-        self.request_image()
+        self.image = vmimage.get()
+        self.vm.add_image(self.image.path, cloudinit=True, snapshot=False)
+
         self.vm.args.extend(["-m", "4G,slots=208,maxmem=80G"])
         self.vm.args.extend(["-numa", "node"] * 16)
         self.vm.launch()

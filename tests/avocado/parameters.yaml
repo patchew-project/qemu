@@ -10,15 +10,6 @@ qemu_bin: null
 # used in the source VM will be used for the destination VM.
 qemu_dst_bin: null
 
-# VMs are defined without image. If the 'image_path' is specified, it
-# will be used as the VM image. The '-snapshot' option will then be used
-# to avoid writing data to the image.
-image_path: null
-# Username used to get the console from the Guest OS.
-image_user: null
-# Password used to get the console from the Guest OS.
-image_pass: null
-
 # Use this option to define a machine type for the VM.
 machine_type: null
 # Use this option to define a machine acceleration for the VM.

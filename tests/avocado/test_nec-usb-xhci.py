@@ -4,6 +4,7 @@ import tempfile
 
 from avocado_qemu import test
 from avocado.utils import process
+from avocado.utils import vmimage
 
 class TestNecUsbXhci(test.QemuTest):
     """
@@ -17,8 +18,10 @@ class TestNecUsbXhci(test.QemuTest):
     """
 
     def setUp(self):
+        self.image = vmimage.get()
+        self.vm.add_image(self.image.path, cloudinit=True, snapshot=False)
+
         usbdevice = os.path.join(self.workdir, 'usb.img')
-        self.request_image()
         process.run('dd if=/dev/zero of=%s bs=1M count=10' % usbdevice)
         self.vm.args.extend(['-device', 'pci-bridge,id=bridge1,chassis_nr=1'])
         self.vm.args.extend(['-device', 'nec-usb-xhci,id=xhci1,bus=bridge1,addr=0x3'])
@@ -35,17 +38,18 @@ class TestNecUsbXhci(test.QemuTest):
 
         :avocado: tags=migration,RHBZ1436616
         """
+
         console = self.vm.get_console()
-        console.sendline('fdisk -l')
-        result = console.read_nonblocking()
+        console.sendline('sudo fdisk -l')
+        result = console.read_up_to_prompt()
         console.close()
         self.assertIn('Disk /dev/sdb: 10 MiB, 10485760 bytes, 20480 sectors',
                       result)
 
         self.vm_dst = self.vm.migrate()
         console = self.vm_dst.get_console()
-        console.sendline('fdisk -l')
-        result = console.read_nonblocking()
+        console.sendline('sudo fdisk -l')
+        result = console.read_up_to_prompt()
         console.close()
         self.assertIn('Disk /dev/sdb: 10 MiB, 10485760 bytes, 20480 sectors',
                       result)

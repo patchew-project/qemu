@@ -78,8 +78,8 @@ file using the Avocado parameters system:
   ``image_snapshot`` parameter.
 - ``image_user`` and ``image_pass``: When using a ``image_path``, if you
   want to get the console from the Guest OS you have to define the Guest
-  OS credentials. Example: ``image_user: root`` and
-  ``image_pass: p4ssw0rd``. By default it uses ``root`` and ``123456``.
+  OS credentials. Example: ``image_user: avocado`` and
+  ``image_pass: p4ssw0rd``. Both parameters have defaults to ``avocado``.
 - ``machine_type``: Use this option to define a machine type for the VM.
   Example: ``machine_type: pc``
 - ``machine_accel``: Use this option to define a machine acceleration

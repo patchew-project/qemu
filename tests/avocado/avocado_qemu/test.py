@@ -28,6 +28,7 @@ import logging
 import os
 import re
 import sys
+import tempfile
 import time
 import uuid
 
@@ -78,6 +79,12 @@ class QEMUConsoleError(Exception):
 class QEMUMigrationError(Exception):
     """
     If some error with the migration happens
+    """
+
+
+class QEMUCloudinitError(Exception):
+    """
+    If some error with the cloudinit happens
     """
 
 
@@ -219,8 +226,8 @@ def _handle_prompts(session, username, password, prompt, timeout=60,
 class _VM(qemu.QEMUMachine):
     '''A QEMU VM'''
 
-    def __init__(self, qemu_bin=None, arch=None, username=None, password=None,
-                 qemu_dst_bin=None):
+    def __init__(self, qemu_bin=None, arch=None, qemu_dst_bin=None,
+                 username=None, password=None):
         if arch is None:
             arch = os.uname()[4]
         self.arch = arch
@@ -245,8 +252,11 @@ class _VM(qemu.QEMUMachine):
         :param prompt: The regex to identify we reached the prompt.
         """
 
+        if not all((self.username, self.password)):
+            raise QEMULoginError('Username or password not set.')
+
         if not self.is_running():
-            raise QEMUConsoleError('VM is not running.')
+            raise QEMULoginError('VM is not running.')
 
         if console_address is None:
             if self._console_address is None:
@@ -285,9 +295,12 @@ class _VM(qemu.QEMUMachine):
             return False
 
         port = self.ports.find_free_port()
-        newvm = _VM(self.qemu_dst_bin, self._arch, self.username, self.password)
+        newvm = _VM(self.qemu_dst_bin, self._arch, username=self.username,
+                    password=self.password)
         newvm.args = self.args
         newvm.args.extend(['-incoming', 'tcp:0:%s' % port])
+        newvm.username = self.username
+        newvm.password = self.password
 
         newvm.launch(console_address)
         cmd = 'migrate -d tcp:0:%s' % port
@@ -301,6 +314,80 @@ class _VM(qemu.QEMUMachine):
 
         return newvm
 
+    def add_image(self, path, username=None, password=None, cloudinit=False,
+                  snapshot=True, extra=None):
+        """
+        Adds the '-drive' command line option and its parameters to
+        the Qemu VM
+
+        :param path: Image path (i.e. /var/lib/images/guestos.qcow2)
+        :param username: The username to log into the Guest OS with
+        :param password: The password to log into the Guest OS with
+        :param cloudinit: Whether the cloudinit cdrom will be attached to
+                          the image
+        :param snapshot: Whether the parameter snapshot=on will be used
+        :param extra: Extra parameters to the -drive option
+        """
+        file_option = 'file=%s' % path
+        for item in self.args:
+            if file_option in item:
+                logging.error('Image %s already present', path)
+                return
+
+        if extra is not None:
+            file_option += ',%s' % extra
+
+        if snapshot:
+            file_option += ',snapshot=on'
+
+        self.args.extend(['-drive', file_option])
+
+        if username is not None:
+            self.username = username
+
+        if password is not None:
+            self.password = password
+
+        if cloudinit:
+            self._cloudinit()
+
+    def _cloudinit(self):
+        """
+        Creates a CDROM Iso Image with the required cloudinit files
+        (meta-data and user-data) to make the initial Cloud Image
+        configuration, attaching the CDROM to the VM.
+        """
+        try:
+            geniso_bin = utils_path.find_command('genisoimage')
+        except:
+            raise QEMUCloudinitError('Command not found (genisoimage)')
+
+        data_dir = tempfile.mkdtemp()
+
+        metadata_path = os.path.join(data_dir, 'meta-data')
+        metadata_content = ("instance-id: %s\n"
+                            "local-hostname: %s\n" % (self.name, self.name))
+        with open(metadata_path, 'w') as metadata_file:
+            metadata_file.write(metadata_content)
+
+        userdata_path = os.path.join(data_dir, 'user-data')
+        userdata_content = ("#cloud-config\n"
+                            "password: %s\n"
+                            "ssh_pwauth: True\n"
+                            "chpasswd: { expire: False }\n"
+                            "system_info:\n"
+                            "    default_user:\n"
+                            "        name: %s\n" %
+                            (self.password, self.username))
+
+        with open(userdata_path, 'w') as userdata_file:
+            userdata_file.write(userdata_content)
+
+        iso_path = os.path.join(data_dir, 'cdrom.iso')
+        process.run("%s -output %s -volid cidata -joliet -rock %s %s" %
+                    (geniso_bin, iso_path, metadata_path, userdata_path))
+
+        self.args.extend(['-cdrom', iso_path])
 
 class QemuTest(Test):
 
@@ -311,9 +398,11 @@ class QemuTest(Test):
                                        job=job, runner_queue=runner_queue)
         self.vm = _VM(qemu_bin=self.params.get('qemu_bin'),
                       arch=self.params.get('arch'),
-                      username=self.params.get('image_user', default="root"),
-                      password=self.params.get('image_pass', default="123456"),
-                      qemu_dst_bin=self.params.get('qemu_dst_bin'))
+                      qemu_dst_bin=self.params.get('qemu_dst_bin'),
+                      username=self.params.get('image_user',
+                                               default='avocado'),
+                      password=self.params.get('image_pass',
+                                               default='avocado'))
 
         machine_type = self.params.get('machine_type')
         machine_accel = self.params.get('machine_accel')
@@ -327,36 +416,3 @@ class QemuTest(Test):
             machine += "kvm-type=%s," % machine_kvm_type
         if machine:
             self.vm.args.extend(['-machine', machine])
-
-    def request_image(self, path=None, snapshot=None, extra=None):
-        """
-        Add image to the `self.vm` using params or arguments.
-
-        Unless it's overridden by arguments it uses following test params
-        to specify the image:
-
-        * image_path - defines the path to the user-image. If not specified
-                       it uses "QEMU_ROOT/boot_image_$arch.qcow2"
-        * image_snapshot - whether to use "snapshot=on" (snapshot=off is not
-                           supplied)
-        * image_extra - free-form string to extend the "-drive" params
-
-        :param path: Override the path ("image_path" param is used otherwise)
-        :param snapshot: Override the usage of snapshot
-        :param extra: Extra arguments to be added to drive definition
-        """
-        if snapshot is None:
-            snapshot = self.params.get("image_snapshot", default=True)
-        if extra is None:
-            extra = self.params.get("image_extra", default="")
-        if path is None:
-            path = self.params.get("image_path")
-            if path is None:
-                arch = self.vm.arch
-                path = os.path.join(QEMU_ROOT, "boot_image_%s.qcow2" % arch)
-        if not os.path.exists(path):
-            self.error("Require a bootable image, which was not found. "
-                       "Please provide one in '%s'." % path)
-        if snapshot:
-            extra += ",snapshot=on"
-        self.vm.args.extend(['-drive', 'file=%s%s' % (path, extra)])
