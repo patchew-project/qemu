@@ -29,6 +29,7 @@
 #include "hw/pci/pci.h"
 #include "hw/audio/soundhw.h"
 #include "qapi/qapi-commands-misc.h"
+#include "qapi/error.h"
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
 #include "hw/acpi/acpi.h"
@@ -111,8 +112,23 @@ int xen_available(void)
 TargetInfo *qmp_query_target(Error **errp)
 {
     TargetInfo *info = g_malloc0(sizeof(*info));
+    Error *local_err = NULL;
 
-    info->arch = g_strdup(TARGET_NAME);
+    /*
+     * The fallback enum value is irrelevant here (TARGET_NAME is a
+     * macro and can never be NULL), so simply pass zero. Also, the
+     * lookup should never fail -- if it fails, then @SysEmuTarget needs
+     * extending. Catch that with an assertion, but also handle it
+     * gracefully, in case someone adventurous disables assertions.
+     */
+    info->arch = qapi_enum_parse(&SysEmuTarget_lookup, TARGET_NAME, 0,
+                                 &local_err);
+    g_assert(!local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        qapi_free_TargetInfo(info);
+        return NULL;
+    }
 
     return info;
 }
