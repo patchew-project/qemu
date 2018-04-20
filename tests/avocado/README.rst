@@ -1,12 +1,23 @@
-This directory is hosting functional tests written using Avocado Testing
-Framework. To install Avocado, follow the instructions from this link::
+========================================
+ QEMU tests using the Avocado Framework
+========================================
+
+This directory hosts functional tests written using Avocado Testing
+Framework.
+
+Installation
+============
+
+To install Avocado and the dependencies needed for these tests, run::
+
+    pip install --user avocado-framework avocado-framework-plugin-varianter-yaml-to-mux aexpect
+
+Alternatively, follow the instructions on this link::
 
     http://avocado-framework.readthedocs.io/en/latest/GetStartedGuide.html#installing-avocado
 
-Tests here are written keeping the minimum amount of dependencies. To
-run the tests, you need the Avocado core package (`python-avocado` on
-Fedora, `avocado-framework` on pip). Extra dependencies should be
-documented in this file.  The current minimum required version is 54.0.
+Overview
+========
 
 In this directory, an ``avocado_qemu`` package is provided, containing
 the ``test`` module, which inherits from ``avocado.Test`` and provides
@@ -77,10 +88,6 @@ file using the Avocado parameters system:
   ``accel`` is ``kvm`` and there are more than one KVM types available.
   Example: ``machine_kvm_type: PR``
 
-To use a parameters file, you have to install the yaml_to_mux plugin
-(`python2-avocado-plugins-varianter-yaml-to-mux` on Fedora,
-`avocado-framework-plugin-varianter-yaml-to-mux` on pip).
-
 Run the test with::
 
     $ avocado run test_my_test.py -m parameters.yaml
@@ -111,3 +118,15 @@ proper variants.
 See ``avocado run --help`` and ``man avocado`` for several other
 options, such as ``--filter-by-tags``, ``--show-job-log``,
 ``--failfast``, etc.
+
+Uninstallation
+==============
+
+If you've followed the installation instructions above, you can easily
+uninstall Avocado.  Start by listing the packages you have installed::
+
+    pip list --user
+
+And remove any package you want with::
+
+    pip uninstall <package_name>
