@@ -235,6 +235,7 @@ class _VM(qemu.QEMUMachine):
         self.username = username
         self.password = password
         super(_VM, self).__init__(qemu_bin, name=self.name, arch=arch)
+        logging.getLogger('QMP').setLevel(logging.INFO)
 
     def get_console(self, console_address=None, prompt=r"[\#\$] "):
         """
