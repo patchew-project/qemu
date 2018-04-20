@@ -39,8 +39,10 @@ from avocado.utils import network
 from avocado.utils import process
 from avocado.utils import path as utils_path
 from avocado.utils import wait
-sys.path.append(os.path.join(os.path.dirname(__file__),
-                             '..', '..', '..', 'scripts'))
+
+QEMU_ROOT = os.path.abspath(os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.dirname(__file__)))))
+sys.path.append(os.path.join(QEMU_ROOT, 'scripts'))
 import qemu
 
 
@@ -360,11 +362,6 @@ class QemuTest(Test):
                       password=self.params.get('image_pass', default="123456"),
                       qemu_dst_bin=self.params.get('qemu_dst_bin'))
 
-        self.vm.image = self.params.get('image_path')
-        if self.vm.image is not None:
-            self.vm.args.extend(['-drive', 'file=%s' % self.vm.image])
-            self.vm.args.append('-snapshot')
-
         machine_type = self.params.get('machine_type')
         machine_accel = self.params.get('machine_accel')
         machine_kvm_type = self.params.get('machine_kvm_type')
@@ -377,3 +374,36 @@ class QemuTest(Test):
             machine += "kvm-type=%s," % machine_kvm_type
         if machine:
             self.vm.args.extend(['-machine', machine])
+
+    def request_image(self, path=None, snapshot=None, extra=None):
+        """
+        Add image to the `self.vm` using params or arguments.
+
+        Unless it's overridden by arguments it uses following test params
+        to specify the image:
+
+        * image_path - defines the path to the user-image. If not specified
+                       it uses "QEMU_ROOT/boot_image_$arch.qcow2"
+        * image_snapshot - whether to use "snapshot=on" (snapshot=off is not
+                           supplied)
+        * image_extra - free-form string to extend the "-drive" params
+
+        :param path: Override the path ("image_path" param is used otherwise)
+        :param snapshot: Override the usage of snapshot
+        :param extra: Extra arguments to be added to drive definition
+        """
+        if snapshot is None:
+            snapshot = self.params.get("image_snapshot", default=True)
+        if extra is None:
+            extra = self.params.get("image_extra", default="")
+        if path is None:
+            path = self.params.get("image_path")
+            if path is None:
+                arch = self.vm.arch
+                path = os.path.join(QEMU_ROOT, "boot_image_%s.qcow2" % arch)
+        if not os.path.exists(path):
+            self.error("Require a bootable image, which was not found. "
+                       "Please provide one in '%s'." % path)
+        if snapshot:
+            extra += ",snapshot=on"
+        self.vm.args.extend(['-drive', 'file=%s%s' % (path, extra)])

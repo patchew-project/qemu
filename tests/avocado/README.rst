@@ -59,14 +59,16 @@ file using the Avocado parameters system:
 - ``arch``: Probe the Qemu binary from a given architecture. It has no
   effect if ``qemu_bin`` is specified. If not provided, the binary probe
   will use the system architecture. Example: ``arch: x86_64``
-- ``image_path``: VMs are defined without image. If the ``image_path``
-  is specified, it will be used as the VM image. The ``-snapshot``
-  option will then be used to avoid writing into the image. Example:
-  ``image_path: /var/lib/images/fedora-25.img``
+- ``image_path``: When a test requires (usually a bootable) image, this
+  parameter is used to define where the image is located. When undefined
+  it uses ``$QEMU_ROOT/bootable_image_$arch.qcow2``. The image is added
+  to the qemu command __only__ when the test requires an image. By
+  default ``,snapshot=on`` is used, but it can be altered by
+  ``image_snapshot`` parameter.
 - ``image_user`` and ``image_pass``: When using a ``image_path``, if you
   want to get the console from the Guest OS you have to define the Guest
   OS credentials. Example: ``image_user: root`` and
-  ``image_pass: p4ssw0rd``
+  ``image_pass: p4ssw0rd``. By default it uses ``root`` and ``123456``.
 - ``machine_type``: Use this option to define a machine type for the VM.
   Example: ``machine_type: pc``
 - ``machine_accel``: Use this option to define a machine acceleration
