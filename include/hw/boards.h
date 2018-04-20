@@ -106,6 +106,17 @@ typedef struct {
 } CPUArchIdList;
 
 /**
+ * MemoryHotplugState:
+ * @base: address in guest physical address space where hotplug memory
+ * address space begins.
+ * @mr: hotplug memory address space container
+ */
+typedef struct MemoryHotplugState {
+    hwaddr base;
+    MemoryRegion mr;
+} MemoryHotplugState;
+
+/**
  * MachineClass:
  * @max_cpus: maximum number of CPUs supported. Default: 1
  * @min_cpus: minimum number of CPUs supported. Default: 1
@@ -156,6 +167,10 @@ typedef struct {
  *    should instead use "unimplemented-device" for all memory ranges where
  *    the guest will attempt to probe for a device that QEMU doesn't
  *    implement and a stub device is required.
+ * @get_memory_hotplug_state:
+ *    If a machine support memory hotplug, the returned data ontains
+ *    information about the portion of guest physical address space
+ *    where memory devices can be mapped to (e.g. to hotplug a pc-dimm).
  */
 struct MachineClass {
     /*< private >*/
@@ -212,6 +227,7 @@ struct MachineClass {
                                                          unsigned cpu_index);
     const CPUArchIdList *(*possible_cpu_arch_ids)(MachineState *machine);
     int64_t (*get_default_cpu_node_id)(const MachineState *ms, int idx);
+    MemoryHotplugState *(*get_memory_hotplug_state)(MachineState *ms);
 };
 
 /**
