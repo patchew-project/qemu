@@ -293,18 +293,18 @@ class VM(qtest.QEMUQtestMachine):
         self._num_drives = 0
 
     def add_object(self, opts):
-        self._args.append('-object')
-        self._args.append(opts)
+        self.args.append('-object')
+        self.args.append(opts)
         return self
 
     def add_device(self, opts):
-        self._args.append('-device')
-        self._args.append(opts)
+        self.args.append('-device')
+        self.args.append(opts)
         return self
 
     def add_drive_raw(self, opts):
-        self._args.append('-drive')
-        self._args.append(opts)
+        self.args.append('-drive')
+        self.args.append(opts)
         return self
 
     def add_drive(self, path, opts='', interface='virtio', format=imgfmt):
@@ -322,27 +322,27 @@ class VM(qtest.QEMUQtestMachine):
 
         if format == 'luks' and 'key-secret' not in opts:
             # default luks support
-            if luks_default_secret_object not in self._args:
+            if luks_default_secret_object not in self.args:
                 self.add_object(luks_default_secret_object)
 
             options.append(luks_default_key_secret_opt)
 
-        self._args.append('-drive')
-        self._args.append(','.join(options))
+        self.args.append('-drive')
+        self.args.append(','.join(options))
         self._num_drives += 1
         return self
 
     def add_blockdev(self, opts):
-        self._args.append('-blockdev')
+        self.args.append('-blockdev')
         if isinstance(opts, str):
-            self._args.append(opts)
+            self.args.append(opts)
         else:
-            self._args.append(','.join(opts))
+            self.args.append(','.join(opts))
         return self
 
     def add_incoming(self, addr):
-        self._args.append('-incoming')
-        self._args.append(addr)
+        self.args.append('-incoming')
+        self.args.append(addr)
         return self
 
     def pause_drive(self, drive, event=None):

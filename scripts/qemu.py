@@ -81,7 +81,7 @@ class QEMUMachine(object):
         self._qemu_log_file = None
         self._popen = None
         self._binary = binary
-        self._args = list(args)     # Force copy args in case we modify them
+        self.args = list(args)     # Force copy args in case we modify them
         self._wrapper = wrapper
         self._events = []
         self._iolog = None
@@ -109,8 +109,8 @@ class QEMUMachine(object):
     # This can be used to add an unused monitor instance.
     def add_monitor_telnet(self, ip, port):
         args = 'tcp:%s:%d,server,nowait,telnet' % (ip, port)
-        self._args.append('-monitor')
-        self._args.append(args)
+        self.args.append('-monitor')
+        self.args.append(args)
 
     def add_fd(self, fd, fdset, opaque, opts=''):
         '''Pass a file descriptor to the VM'''
@@ -120,8 +120,8 @@ class QEMUMachine(object):
         if opts:
             options.append(opts)
 
-        self._args.append('-add-fd')
-        self._args.append(','.join(options))
+        self.args.append('-add-fd')
+        self.args.append(','.join(options))
         return self
 
     def send_fd_scm(self, fd_file_path):
@@ -184,7 +184,7 @@ class QEMUMachine(object):
                 '-display', 'none', '-vga', 'none']
 
     def _create_console(self, console_address):
-        for item in self._args:
+        for item in self.args:
             for option in ['isa-serial', 'spapr-vty', 'sclpconsole']:
                 if option in item:
                     return []
