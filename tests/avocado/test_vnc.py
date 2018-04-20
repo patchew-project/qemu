@@ -1,0 +1,58 @@
+from avocado import main
+from avocado_qemu import test
+
+
+class Vnc(test.QemuTest):
+    """
+    :avocado: enable
+    :avocado: tags=vnc,quick
+    """
+    def test_no_vnc(self):
+        self.vm.args = ['-nodefaults', '-S']
+        self.vm.launch()
+        self.assertFalse(self.vm.qmp('query-vnc')['return']['enabled'])
+
+    def test_no_vnc_change_password(self):
+        self.vm.args = ['-nodefaults', '-S']
+        self.vm.launch()
+        self.assertFalse(self.vm.qmp('query-vnc')['return']['enabled'])
+        set_password_response = self.vm.qmp('change',
+                                            device='vnc',
+                                            target='password',
+                                            arg='new_password')
+        self.assertIn('error', set_password_response)
+        self.assertEqual(set_password_response['error']['class'],
+                         'GenericError')
+        self.assertEqual(set_password_response['error']['desc'],
+                         'Could not set password')
+
+    def test_vnc_change_password_requires_a_password(self):
+        self.vm.args = ['-nodefaults', '-S', '-vnc', ':0']
+        self.vm.launch()
+        self.assertTrue(self.vm.qmp('query-vnc')['return']['enabled'])
+        set_password_response = self.vm.qmp('change',
+                                            device='vnc',
+                                            target='password',
+                                            arg='new_password')
+        self.assertIn('error', set_password_response)
+        self.assertEqual(set_password_response['error']['class'],
+                         'GenericError')
+        self.assertEqual(set_password_response['error']['desc'],
+                         'Could not set password')
+
+    def test_vnc_change_password(self):
+        self.vm.args = ['-nodefaults', '-S', '-vnc', ':0,password']
+        self.vm.launch()
+        self.assertTrue(self.vm.qmp('query-vnc')['return']['enabled'])
+        set_password_response = self.vm.qmp('change',
+                                            device='vnc',
+                                            target='password',
+                                            arg='new_password')
+        self.assertEqual(set_password_response['return'], {})
+
+    def tearDown(self):
+        self.vm.shutdown()
+
+
+if __name__ == '__main__':
+    main()
