@@ -26,6 +26,7 @@ extra features intended for Qemu testing.
 
 import logging
 import os
+import re
 import sys
 import time
 import uuid
@@ -120,6 +121,17 @@ def _handle_prompts(session, username, password, prompt, timeout=60,
     :return: If connect succeed return the output text to script for further
              debug.
     """
+    re_kernel_message = re.compile(r"^\[\s*\d+.\d+\] ")
+
+    def get_last_nonempty_line(cont):
+        """Return last non-empty non-kernel line"""
+        nonempty_lines = [_ for _ in cont.splitlines()
+                          if _.strip() and not re_kernel_message.match(_)]
+        if nonempty_lines:
+            return nonempty_lines[-1]
+        else:
+            return ""
+
     password_prompt_count = 0
     login_prompt_count = 0
     last_chance = False
@@ -128,7 +140,7 @@ def _handle_prompts(session, username, password, prompt, timeout=60,
     output = ""
     while True:
         try:
-            match, text = session.read_until_last_line_matches(
+            match, text = session.read_until_output_matches(
                 [r"[Aa]re you sure", r"[Pp]assword:\s*",
                  # Prompt of rescue mode for Red Hat.
                  r"\(or (press|type) Control-D to continue\):\s*",
@@ -137,7 +149,7 @@ def _handle_prompts(session, username, password, prompt, timeout=60,
                  r"[Cc]onnection.*closed", r"[Cc]onnection.*refused",
                  r"[Pp]lease wait", r"[Ww]arning", r"[Ee]nter.*username",
                  r"[Ee]nter.*password", r"[Cc]onnection timed out", prompt,
-                 r"Escape character is.*"],
+                 r"Escape character is.*"], get_last_nonempty_line,
                 timeout=timeout, internal_timeout=0.5)
             output += text
             if match == 0:  # "Are you sure you want to continue connecting"
