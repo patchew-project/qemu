@@ -49,42 +49,36 @@ class QEMULoginTimeoutError(Exception):
     """
     If timeout expires
     """
-    pass
 
 
 class QEMULoginAuthenticationError(Exception):
     """
     If authentication fails
     """
-    pass
 
 
 class QEMULoginProcessTerminatedError(Exception):
     """
     If the client terminates during login
     """
-    pass
 
 
 class QEMULoginError(Exception):
     """
     If some other error occurs
     """
-    pass
 
 
 class QEMUConsoleError(Exception):
     """
     If some error with the console access happens
     """
-    pass
 
 
 class QEMUMigrationError(Exception):
     """
     If some error with the migration happens
     """
-    pass
 
 
 def _get_qemu_bin(arch):
