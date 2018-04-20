@@ -6,7 +6,7 @@ Framework. To install Avocado, follow the instructions from this link::
 Tests here are written keeping the minimum amount of dependencies. To
 run the tests, you need the Avocado core package (`python-avocado` on
 Fedora, `avocado-framework` on pip). Extra dependencies should be
-documented in this file.
+documented in this file.  The current minimum required version is 54.0.
 
 In this directory, an ``avocado_qemu`` package is provided, containing
 the ``test`` module, which inherits from ``avocado.Test`` and provides

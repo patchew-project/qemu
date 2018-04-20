@@ -34,7 +34,6 @@ import uuid
 import aexpect
 
 from avocado import Test
-from avocado.utils.data_structures import Borg
 from avocado.utils import network
 from avocado.utils import process
 from avocado.utils import path as utils_path
@@ -223,48 +222,6 @@ def _handle_prompts(session, username, password, prompt, timeout=60,
     return output
 
 
-class _PortTracker(Borg):
-
-    """
-    Tracks ports used in the host machine.
-    """
-
-    def __init__(self):
-        Borg.__init__(self)
-        self.address = 'localhost'
-        self.start_port = 5000
-        if not hasattr(self, 'retained_ports'):
-            self._reset_retained_ports()
-
-    def __str__(self):
-        return 'Ports tracked: %r' % self.retained_ports
-
-    def _reset_retained_ports(self):
-        self.retained_ports = []
-
-    def register_port(self, port):
-        if ((port not in self.retained_ports) and
-                (network.is_port_free(port, self.address))):
-            self.retained_ports.append(port)
-        else:
-            raise ValueError('Port %d in use' % port)
-        return port
-
-    def find_free_port(self, start_port=None):
-        if start_port is None:
-            start_port = self.start_port
-        port = start_port
-        while ((port in self.retained_ports) or
-               (not network.is_port_free(port, self.address))):
-            port += 1
-        self.retained_ports.append(port)
-        return port
-
-    def release_port(self, port):
-        if port in self.retained:
-            self.retained.remove(port)
-
-
 class _VM(qemu.QEMUMachine):
     '''A QEMU VM'''
 
@@ -273,7 +230,7 @@ class _VM(qemu.QEMUMachine):
         if arch is None:
             arch = os.uname()[4]
         self.arch = arch
-        self.ports = _PortTracker()
+        self.ports = network.PortTracker()
         self.name = "qemu-%s" % str(uuid.uuid4())[:8]
         if qemu_bin is None:
             qemu_bin = _get_qemu_bin(arch)
