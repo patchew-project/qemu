@@ -258,6 +258,7 @@ class _VM(qemu.QEMUMachine):
                  qemu_dst_bin=None):
         if arch is None:
             arch = os.uname()[4]
+        self.arch = arch
         self.ports = _PortTracker()
         self.name = "qemu-%s" % str(uuid.uuid4())[:8]
         if qemu_bin is None:
