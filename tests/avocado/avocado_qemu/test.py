@@ -344,8 +344,8 @@ class QemuTest(Test):
                                        job=job, runner_queue=runner_queue)
         self.vm = _VM(qemu_bin=self.params.get('qemu_bin'),
                       arch=self.params.get('arch'),
-                      username=self.params.get('image_user'),
-                      password=self.params.get('image_pass'),
+                      username=self.params.get('image_user', default="root"),
+                      password=self.params.get('image_pass', default="123456"),
                       qemu_dst_bin=self.params.get('qemu_dst_bin'))
 
         self.vm.image = self.params.get('image_path')
