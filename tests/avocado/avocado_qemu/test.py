@@ -97,7 +97,7 @@ def _get_qemu_bin(arch):
     return qemu_binary
 
 
-def _handle_prompts(session, username, password, prompt, timeout=10,
+def _handle_prompts(session, username, password, prompt, timeout=60,
                     debug=False):
     """
     Connect to a remote host (guest) using SSH or Telnet or else.
