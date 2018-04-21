@@ -93,6 +93,8 @@ static int fit_image_addr(const void *itb, int img, const char *name,
                           hwaddr *addr)
 {
     const void *prop;
+    fdt32_t v32;
+    fdt64_t v64;
     int len;
 
     prop = fdt_getprop(itb, img, name, &len);
@@ -102,10 +104,12 @@ static int fit_image_addr(const void *itb, int img, const char *name,
 
     switch (len) {
     case 4:
-        *addr = fdt32_to_cpu(*(fdt32_t *)prop);
+        memcpy(&v32, prop, sizeof(v32));
+        *addr = fdt32_to_cpu(v32);
         return 0;
     case 8:
-        *addr = fdt64_to_cpu(*(fdt64_t *)prop);
+        memcpy(&v64, prop, sizeof(v64));
+        *addr = fdt64_to_cpu(v64);
         return 0;
     default:
         error_printf("invalid %s address length %d\n", name, len);
