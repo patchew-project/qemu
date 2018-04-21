@@ -110,7 +110,7 @@ static int glue(load_symbols, SZ)(struct elfhdr *ehdr, int fd, int must_swab,
     struct elf_shdr *symtab, *strtab, *shdr_table = NULL;
     struct elf_sym *syms = NULL;
     struct syminfo *s;
-    int nsyms, i;
+    int nsyms, i, ret = -1;
     char *str = NULL;
 
     shdr_table = load_at(fd, ehdr->e_shoff,
@@ -143,6 +143,7 @@ static int glue(load_symbols, SZ)(struct elfhdr *ehdr, int fd, int must_swab,
     if (!str) {
         goto fail;
     }
+    ret = 0;
 
     i = 0;
     while (i < nsyms) {
@@ -170,30 +171,34 @@ static int glue(load_symbols, SZ)(struct elfhdr *ehdr, int fd, int must_swab,
         }
         i++;
     }
-    syms = g_realloc(syms, nsyms * sizeof(*syms));
+    if (nsyms) {
+        syms = g_realloc(syms, nsyms * sizeof(*syms));
 
-    qsort(syms, nsyms, sizeof(*syms), glue(symcmp, SZ));
-    for (i = 0; i < nsyms - 1; i++) {
-        if (syms[i].st_size == 0) {
-            syms[i].st_size = syms[i + 1].st_value - syms[i].st_value;
+        qsort(syms, nsyms, sizeof(*syms), glue(symcmp, SZ));
+        for (i = 0; i < nsyms - 1; i++) {
+            if (syms[i].st_size == 0) {
+                syms[i].st_size = syms[i + 1].st_value - syms[i].st_value;
+            }
         }
+
+        /* Commit */
+        s = g_malloc0(sizeof(*s));
+        s->lookup_symbol = glue(lookup_symbol, SZ);
+        glue(s->disas_symtab.elf, SZ) = syms;
+        s->disas_num_syms = nsyms;
+        s->disas_strtab = str;
+        s->next = syminfos;
+        syminfos = s;
+
+        goto out;
     }
 
-    /* Commit */
-    s = g_malloc0(sizeof(*s));
-    s->lookup_symbol = glue(lookup_symbol, SZ);
-    glue(s->disas_symtab.elf, SZ) = syms;
-    s->disas_num_syms = nsyms;
-    s->disas_strtab = str;
-    s->next = syminfos;
-    syminfos = s;
-    g_free(shdr_table);
-    return 0;
  fail:
     g_free(syms);
     g_free(str);
+ out:
     g_free(shdr_table);
-    return -1;
+    return ret;
 }
 
 static int glue(elf_reloc, SZ)(struct elfhdr *ehdr, int fd, int must_swab,
