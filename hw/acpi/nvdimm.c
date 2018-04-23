@@ -1234,6 +1234,10 @@ static void nvdimm_build_ssdt(GArray *table_offsets, GArray *table_data,
     ssdt = init_aml_allocator();
     acpi_data_push(ssdt->buf, sizeof(AcpiTableHeader));
 
+    /* Storage for the memory address */
+    mem_addr_offset = table_data->len +
+        build_append_named_dword(ssdt->buf, NVDIMM_ACPI_MEM_ADDR);
+
     sb_scope = aml_scope("\\_SB");
 
     dev = aml_device("NVDR");
@@ -1266,8 +1270,6 @@ static void nvdimm_build_ssdt(GArray *table_offsets, GArray *table_data,
 
     /* copy AML table into ACPI tables blob and patch header there */
     g_array_append_vals(table_data, ssdt->buf->data, ssdt->buf->len);
-    mem_addr_offset = build_append_named_dword(table_data,
-                                               NVDIMM_ACPI_MEM_ADDR);
 
     bios_linker_loader_alloc(linker,
                              NVDIMM_DSM_MEM_FILE, dsm_dma_arrea,
