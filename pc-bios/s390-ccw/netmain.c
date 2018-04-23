@@ -453,6 +453,55 @@ static int net_try_pxelinux_cfgs(filename_ip_t *fn_ip)
     return -1;
 }
 
+/**
+ * Load via information from a .INS file (which can be found on CD-ROMs
+ * for example)
+ */
+static int handle_ins_cfg(filename_ip_t *fn_ip, char *cfg, int cfgsize)
+{
+    char *ptr;
+    int rc = -1, llen;
+    void *destaddr;
+    char *insbuf = cfg;
+
+    ptr = strchr(insbuf, '\n');
+    if (!ptr) {
+        puts("Does not seem to be a valid .INS file");
+        return -1;
+    }
+
+    *ptr = 0;
+    printf("\nParsing .INS file:\n %s\n", &insbuf[2]);
+
+    insbuf = ptr + 1;
+    while (*insbuf && insbuf < cfg + cfgsize) {
+        ptr = strchr(insbuf, '\n');
+        if (ptr) {
+            *ptr = 0;
+        }
+        llen = strlen(insbuf);
+        if (!llen) {
+            insbuf = ptr + 1;
+            continue;
+        }
+        ptr = strchr(insbuf, ' ');
+        if (!ptr) {
+            puts("Missing space separator in .INS file");
+            return -1;
+        }
+        *ptr = 0;
+        strncpy((char *)fn_ip->filename, insbuf, sizeof(fn_ip->filename));
+        destaddr = (char *)atol(ptr + 1);
+        rc = tftp_load(fn_ip, destaddr, (long)_start - (long)destaddr);
+        if (rc <= 0) {
+            break;
+        }
+        insbuf += llen + 1;
+    }
+
+    return rc;
+}
+
 static int net_try_direct_tftp_load(filename_ip_t *fn_ip)
 {
     int rc;
@@ -473,6 +522,8 @@ static int net_try_direct_tftp_load(filename_ip_t *fn_ip)
         if (!strncasecmp("default", cfgbuf, 7) || !strncmp("# ", cfgbuf, 2)) {
             /* Looks like it is a pxelinux.cfg */
             return handle_pxelinux_cfg(fn_ip, cfgbuf, rc);
+        } else if (!strncmp("* ", cfgbuf, 2)) {
+            return handle_ins_cfg(fn_ip, cfgbuf, rc);
         }
     }
 
