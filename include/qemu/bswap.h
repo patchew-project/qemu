@@ -330,9 +330,9 @@ static inline void stw_he_p(void *ptr, uint16_t v)
     memcpy(ptr, &v, sizeof(v));
 }
 
-static inline int ldl_he_p(const void *ptr)
+static inline uint32_t ldl_he_p(const void *ptr)
 {
-    int32_t r;
+    uint32_t r;
     memcpy(&r, ptr, sizeof(r));
     return r;
 }
