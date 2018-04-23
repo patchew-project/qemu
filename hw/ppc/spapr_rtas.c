@@ -33,6 +33,7 @@
 #include "sysemu/device_tree.h"
 #include "sysemu/cpus.h"
 #include "sysemu/kvm.h"
+#include "kvm_ppc.h"
 
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_vio.h"
@@ -184,6 +185,8 @@ static void rtas_start_cpu(PowerPCCPU *cpu_, sPAPRMachineState *spapr,
         spapr_cpu_set_endianness(cpu);
         spapr_cpu_update_tb_offset(cpu);
 
+        kvmppc_set_reg_ppc_online(cpu, 1);
+
         qemu_cpu_kick(cs);
 
         rtas_st(rets, 0, RTAS_OUT_SUCCESS);
@@ -204,6 +207,7 @@ static void rtas_stop_self(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
 
     cs->halted = 1;
+    kvmppc_set_reg_ppc_online(cpu, 0);
     qemu_cpu_kick(cs);
 
     /* Disable Power-saving mode Exit Cause exceptions for the CPU.
