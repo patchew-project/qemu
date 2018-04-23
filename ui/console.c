@@ -1595,6 +1595,22 @@ void dpy_gfx_replace_surface(QemuConsole *con,
     qemu_free_displaysurface(old_surface);
 }
 
+void dpy_gfx_switch_surface(QemuConsole *con,
+                             DisplaySurface *surface)
+{
+    DisplayState *s = con->ds;
+    DisplayChangeListener *dcl;
+
+    QLIST_FOREACH(dcl, &s->listeners, next) {
+        if (con != (dcl->con ? dcl->con : active_console)) {
+            continue;
+        }
+        if (dcl->ops->dpy_gfx_switch) {
+            dcl->ops->dpy_gfx_switch(dcl, surface);
+        }
+    }
+}
+
 bool dpy_gfx_check_format(QemuConsole *con,
                           pixman_format_code_t format)
 {
