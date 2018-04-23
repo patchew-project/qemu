@@ -94,6 +94,7 @@ static int fit_image_addr(const void *itb, int img, const char *name,
 {
     const void *prop;
     int len;
+    fdt64_t fdt64;
 
     prop = fdt_getprop(itb, img, name, &len);
     if (!prop) {
@@ -102,10 +103,18 @@ static int fit_image_addr(const void *itb, int img, const char *name,
 
     switch (len) {
     case 4:
+        /* Assuming the base of the fdt is aligned, then fdt_getprop()
+         * returns 32-bit aligned properties, so this load is guaranteed
+         * to be 32-bit aligned.
+         */
         *addr = fdt32_to_cpu(*(fdt32_t *)prop);
         return 0;
     case 8:
-        *addr = fdt64_to_cpu(*(fdt64_t *)prop);
+        /* Since the property is not guaranteed to be 64-bit aligned,
+         * use the stack to avoid an unaligned load.
+         */
+        memcpy(&fdt64, prop, sizeof(fdt64));
+        *addr = fdt64_to_cpu(fdt64);
         return 0;
     default:
         error_printf("invalid %s address length %d\n", name, len);
