@@ -788,7 +788,7 @@ static void glue(nand_blk_load_, PAGE_SIZE)(NANDFlashState *s,
                             OOB_SIZE);
             s->ioaddr = s->io + SECTOR_OFFSET(s->addr) + offset;
         } else {
-            if (blk_pread(s->blk, PAGE_START(addr), s->io,
+            if (blk_pread(s->blk, PAGE_START(addr) & ~0x1ff, s->io,
                           (PAGE_SECTORS + 2) << BDRV_SECTOR_BITS) < 0) {
                 printf("%s: read error in sector %" PRIu64 "\n",
                                 __func__, PAGE_START(addr) >> 9);
