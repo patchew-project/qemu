@@ -102,10 +102,10 @@ static int fit_image_addr(const void *itb, int img, const char *name,
 
     switch (len) {
     case 4:
-        *addr = fdt32_to_cpu(*(fdt32_t *)prop);
+        *addr = fdt32_to_cpu(ldl_he_p(prop));
         return 0;
     case 8:
-        *addr = fdt64_to_cpu(*(fdt64_t *)prop);
+        *addr = fdt64_to_cpu(ldq_he_p(prop));
         return 0;
     default:
         error_printf("invalid %s address length %d\n", name, len);
