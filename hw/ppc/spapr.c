@@ -681,9 +681,9 @@ static int spapr_populate_drconf_memory(sPAPRMachineState *spapr, void *fdt)
     int ret, i, offset;
     uint64_t lmb_size = SPAPR_MEMORY_BLOCK_SIZE;
     uint32_t prop_lmb_size[] = {0, cpu_to_be32(lmb_size)};
-    uint32_t hotplug_lmb_start = spapr->hotplug_memory.base / lmb_size;
-    uint32_t nr_lmbs = (spapr->hotplug_memory.base +
-                       memory_region_size(&spapr->hotplug_memory.mr)) /
+    uint32_t hotplug_lmb_start = machine->device_memory->base / lmb_size;
+    uint32_t nr_lmbs = (machine->device_memory->base +
+                       memory_region_size(&machine->device_memory->mr)) /
                        lmb_size;
     uint32_t *int_buf, *cur_index, buf_len;
     int nr_nodes = nb_numa_nodes ? nb_numa_nodes : 1;
@@ -903,8 +903,8 @@ static void spapr_dt_rtas(sPAPRMachineState *spapr, void *fdt)
     GString *hypertas = g_string_sized_new(256);
     GString *qemu_hypertas = g_string_sized_new(256);
     uint32_t refpoints[] = { cpu_to_be32(0x4), cpu_to_be32(0x4) };
-    uint64_t max_hotplug_addr = spapr->hotplug_memory.base +
-        memory_region_size(&spapr->hotplug_memory.mr);
+    uint64_t max_hotplug_addr = MACHINE(spapr)->device_memory->base +
+        memory_region_size(&MACHINE(spapr)->device_memory->mr);
     uint32_t lrdr_capacity[] = {
         cpu_to_be32(max_hotplug_addr >> 32),
         cpu_to_be32(max_hotplug_addr & 0xffffffff),
@@ -2174,7 +2174,7 @@ static void spapr_create_lmb_dr_connectors(sPAPRMachineState *spapr)
     for (i = 0; i < nr_lmbs; i++) {
         uint64_t addr;
 
-        addr = i * lmb_size + spapr->hotplug_memory.base;
+        addr = i * lmb_size + machine->device_memory->base;
         spapr_dr_connector_new(OBJECT(spapr), TYPE_SPAPR_DRC_LMB,
                                addr / lmb_size);
     }
@@ -2526,7 +2526,10 @@ static void spapr_machine_init(MachineState *machine)
         memory_region_add_subregion(sysmem, 0, rma_region);
     }
 
-    /* initialize hotplug memory address space */
+    /* always allocate the device memory information */
+    machine->device_memory = g_malloc(sizeof(*machine->device_memory));
+
+    /* initialize device memory address space */
     if (machine->ram_size < machine->maxram_size) {
         ram_addr_t hotplug_mem_size = machine->maxram_size - machine->ram_size;
         /*
@@ -2547,12 +2550,12 @@ static void spapr_machine_init(MachineState *machine)
             exit(1);
         }
 
-        spapr->hotplug_memory.base = ROUND_UP(machine->ram_size,
+        machine->device_memory->base = ROUND_UP(machine->ram_size,
                                               SPAPR_HOTPLUG_MEM_ALIGN);
-        memory_region_init(&spapr->hotplug_memory.mr, OBJECT(spapr),
+        memory_region_init(&machine->device_memory->mr, OBJECT(spapr),
                            "hotplug-memory", hotplug_mem_size);
-        memory_region_add_subregion(sysmem, spapr->hotplug_memory.base,
-                                    &spapr->hotplug_memory.mr);
+        memory_region_add_subregion(sysmem, machine->device_memory->base,
+                                    &machine->device_memory->mr);
     }
 
     if (smc->dr_lmb_enabled) {
@@ -3041,7 +3044,7 @@ static void spapr_memory_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     align = memory_region_get_alignment(mr);
     size = memory_region_size(mr);
 
-    pc_dimm_memory_plug(dev, &ms->hotplug_memory, mr, align, &local_err);
+    pc_dimm_memory_plug(dev, MACHINE(ms)->device_memory, mr, align, &local_err);
     if (local_err) {
         goto out;
     }
@@ -3062,7 +3065,7 @@ static void spapr_memory_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     return;
 
 out_unplug:
-    pc_dimm_memory_unplug(dev, &ms->hotplug_memory, mr);
+    pc_dimm_memory_unplug(dev, MACHINE(ms)->device_memory, mr);
 out:
     error_propagate(errp, local_err);
 }
@@ -3202,7 +3205,7 @@ void spapr_lmb_release(DeviceState *dev)
      * Now that all the LMBs have been removed by the guest, call the
      * pc-dimm unplug handler to cleanup up the pc-dimm device.
      */
-    pc_dimm_memory_unplug(dev, &spapr->hotplug_memory, mr);
+    pc_dimm_memory_unplug(dev, MACHINE(spapr)->device_memory, mr);
     object_unparent(OBJECT(dev));
     spapr_pending_dimm_unplugs_remove(spapr, ds);
 }
@@ -4159,8 +4162,8 @@ static void phb_placement_2_7(sPAPRMachineState *spapr, uint32_t index,
         /* Can't just use maxram_size, because there may be an
          * alignment gap between normal and hotpluggable memory
          * regions */
-        ram_top = spapr->hotplug_memory.base +
-            memory_region_size(&spapr->hotplug_memory.mr);
+        ram_top = MACHINE(spapr)->device_memory->base +
+            memory_region_size(&MACHINE(spapr)->device_memory->mr);
     }
 
     phb0_base = QEMU_ALIGN_UP(ram_top, phb0_alignment);
