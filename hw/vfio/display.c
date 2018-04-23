@@ -198,6 +198,26 @@ static void vfio_display_dmabuf_exit(VFIODisplay *dpy)
 }
 
 /* ---------------------------------------------------------------------- */
+void vfio_display_reset(VFIOPCIDevice *vdev)
+{
+    DisplaySurface *surface;
+
+    if (!vdev || !vdev->dpy || !vdev->dpy->con) {
+        return;
+    }
+
+    surface = qemu_console_surface(vdev->dpy->con);
+    if (!surface) {
+        return;
+    }
+
+    /* During reset, disable scanout mode and */
+    /* use QemuConsole DisplaySurface */
+    dpy_gl_scanout_disable(vdev->dpy->con);
+    dpy_gfx_switch_surface(vdev->dpy->con, surface);
+
+    vfio_display_dmabuf_exit(vdev->dpy);
+}
 
 static void vfio_display_region_update(void *opaque)
 {
