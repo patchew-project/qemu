@@ -1,0 +1,32 @@
+# -*- Mode: makefile -*-
+#
+# Alpha specific tweaks
+
+ALPHA_SRC=$(SRC_PATH)/tests/tcg/alpha
+VPATH+=$(ALPHA_SRC)
+
+ALPHA_TESTS=hello-alpha test-cond test-cmov test-ovf
+TESTS+=$(ALPHA_TESTS)
+
+# Our own minimal crt.o, bypassing gcc's version
+crt.o: CFLAGS+=-ffreestanding
+crt.o: crt.S
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Alternative build, linking against local crt.o
+ALPHA_BUILD=$(CC) -o $@ crt.o $< -nostdlib
+
+hello-alpha: hello-alpha.c crt.o
+	$(ALPHA_BUILD)
+
+test-cond: test-cond.c crt.o
+	$(ALPHA_BUILD)
+
+test-cmov.o: test-cond.c
+	$(CC) $(CFLAGS) -DTEST_CMOV -c $< -o $@
+
+test-cmov: test-cmov.o crt.o
+	$(ALPHA_BUILD)
+
+test-ovf: test-ovf.c crt.o
+	$(ALPHA_BUILD)
