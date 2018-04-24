@@ -4095,6 +4095,28 @@ int bdrv_has_zero_init(BlockDriverState *bs)
     return 0;
 }
 
+int bdrv_reconnect(BlockDriverState *bs, Error **errp)
+{
+    int ret;
+
+    if (bs->drv && bs->drv->bdrv_reconnect) {
+        return bs->drv->bdrv_reconnect(bs, errp);
+    }
+
+    if (bs->backing) {
+        ret = bdrv_reconnect(bs->backing->bs, errp);
+        if (ret < 0) {
+            return ret;
+        }
+    }
+
+    if (bs->file) {
+        return bdrv_reconnect(bs->file->bs, errp);
+    }
+
+    return 0;
+}
+
 bool bdrv_unallocated_blocks_are_zero(BlockDriverState *bs)
 {
     BlockDriverInfo bdi;

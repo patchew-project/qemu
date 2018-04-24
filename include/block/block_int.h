@@ -475,6 +475,9 @@ struct BlockDriver {
      */
     void (*bdrv_register_buf)(BlockDriverState *bs, void *host, size_t size);
     void (*bdrv_unregister_buf)(BlockDriverState *bs, void *host);
+
+    int (*bdrv_reconnect)(BlockDriverState *bs, Error **errp);
+
     QLIST_ENTRY(BlockDriver) list;
 };
 
