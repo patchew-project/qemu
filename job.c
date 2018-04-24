@@ -346,6 +346,57 @@ void job_start(Job *job)
     aio_co_enter(job->aio_context, job->co);
 }
 
+void job_pause(Job *job)
+{
+    job->pause_count++;
+}
+
+void job_resume(Job *job)
+{
+    assert(job->pause_count > 0);
+    job->pause_count--;
+    if (job->pause_count) {
+        return;
+    }
+    job_enter(job);
+}
+
+void job_user_pause(Job *job, Error **errp)
+{
+    if (job_apply_verb(job, JOB_VERB_PAUSE, errp)) {
+        return;
+    }
+    if (job->user_paused) {
+        error_setg(errp, "Job is already paused");
+        return;
+    }
+    job->user_paused = true;
+    job_pause(job);
+}
+
+bool job_user_paused(Job *job)
+{
+    return job->user_paused;
+}
+
+void job_user_resume(Job *job, Error **errp)
+{
+    assert(job);
+    if (!job->user_paused || job->pause_count <= 0) {
+        error_setg(errp, "Can't resume a job that was not paused");
+        return;
+    }
+    if (job_apply_verb(job, JOB_VERB_RESUME, errp)) {
+        return;
+    }
+    if (job->driver->user_resume) {
+        job->driver->user_resume(job);
+    }
+    job->user_paused = false;
+    job_resume(job);
+}
+
+
 typedef struct {
     Job *job;
     JobDeferToMainLoopFn *fn;
