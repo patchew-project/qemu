@@ -16,6 +16,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
+#define _GNU_SOURCE
 #include <stdarg.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -39,6 +40,7 @@
 #include <dirent.h>
 #include <setjmp.h>
 #include <sys/shm.h>
+#include <sched.h>
 
 #define TESTPATH "/tmp/linux-test.tmp"
 #define TESTPORT 7654
@@ -58,8 +60,8 @@ static void error1(const char *filename, int line, const char *fmt, ...)
 static int __chk_error(const char *filename, int line, int ret)
 {
     if (ret < 0) {
-        error1(filename, line, "%m (ret=%d, errno=%d)",
-               ret, errno);
+        error1(filename, line, "%m (ret=%d, errno=%d/%s)",
+               ret, errno, strerror(errno));
     }
     return ret;
 }
@@ -320,7 +322,6 @@ static void test_socket(void)
     chk_error(close(server_fd));
 }
 
-#if 0
 #define WCOUNT_MAX 512
 
 static void test_pipe(void)
@@ -355,7 +356,7 @@ static void test_pipe(void)
             }
             if (FD_ISSET(fds[1], &wfds)) {
                 ch = 'a';
-                chk_error(write(fds[0], &ch, 1));
+                chk_error(write(fds[1], &ch, 1));
                 wcount++;
             }
         }
@@ -387,6 +388,9 @@ static int thread2_func(void *arg)
     return 0;
 }
 
+/* For test_clone we must match the clone flags used by glibc, see
+ * CLONE_THREAD_FLAGS in the QEMU source code.
+ */
 void test_clone(void)
 {
     uint8_t *stack1, *stack2;
@@ -394,11 +398,15 @@ void test_clone(void)
 
     stack1 = malloc(STACK_SIZE);
     pid1 = chk_error(clone(thread1_func, stack1 + STACK_SIZE,
-                           CLONE_VM | CLONE_FS | CLONE_FILES | SIGCHLD, "hello1"));
+                           CLONE_VM | CLONE_FS | CLONE_FILES |
+                           CLONE_SIGHAND | CLONE_THREAD | CLONE_SYSVSEM,
+                            "hello1"));
 
     stack2 = malloc(STACK_SIZE);
     pid2 = chk_error(clone(thread2_func, stack2 + STACK_SIZE,
-                           CLONE_VM | CLONE_FS | CLONE_FILES | SIGCHLD, "hello2"));
+                           CLONE_VM | CLONE_FS | CLONE_FILES |
+                           CLONE_SIGHAND | CLONE_THREAD | CLONE_SYSVSEM,
+                           "hello2"));
 
     while (waitpid(pid1, &status1, 0) != pid1);
     free(stack1);
@@ -408,7 +416,6 @@ void test_clone(void)
         thread2_res != 6)
         error("clone");
 }
-#endif
 
 /***********************************/
 
@@ -449,12 +456,10 @@ static void test_signal(void)
     it.it_value.tv_usec = 10 * 1000;
     chk_error(setitimer(ITIMER_REAL, &it, NULL));
     chk_error(getitimer(ITIMER_REAL, &oit));
-    if (oit.it_value.tv_sec != it.it_value.tv_sec ||
-        oit.it_value.tv_usec != it.it_value.tv_usec)
-        error("itimer");
 
     while (alarm_count < 5) {
         usleep(10 * 1000);
+        getitimer(ITIMER_REAL, &oit);
     }
 
     it.it_interval.tv_sec = 0;
@@ -463,9 +468,6 @@ static void test_signal(void)
     it.it_value.tv_usec = 0;
     memset(&oit, 0xff, sizeof(oit));
     chk_error(setitimer(ITIMER_REAL, &it, &oit));
-    if (oit.it_value.tv_sec != 0 ||
-        oit.it_value.tv_usec != 10 * 1000)
-        error("setitimer");
 
     /* SIGSEGV test */
     act.sa_sigaction = sig_segv;
@@ -503,10 +505,11 @@ static void test_shm(void)
 int main(int argc, char **argv)
 {
     test_file();
+    test_pipe();
     test_fork();
     test_time();
     test_socket();
-    //    test_clone();
+    test_clone();
     test_signal();
     test_shm();
     return 0;
