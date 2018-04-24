@@ -207,6 +207,9 @@ const char *job_type_str(Job *job);
 /** Returns whether the job is scheduled for cancellation. */
 bool job_is_cancelled(Job *job);
 
+/** Returns whether the job is in a completed state. */
+bool job_is_completed(Job *job);
+
 /**
  * Asynchronously pause the specified @job.
  * Do not allow a resume until a matching call to job_user_resume.
