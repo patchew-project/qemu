@@ -89,6 +89,11 @@ struct BlockBackend {
      */
     unsigned int in_flight;
     AioWait wait;
+
+    bool reconnect_failed; /* TODO: worth tri-state variable? */
+    bool reconnecting;
+    unsigned int reconnect_max;
+    uint64_t reconnect_ns;
 };
 
 typedef struct BlockBackendAIOCB {
@@ -322,6 +327,8 @@ BlockBackend *blk_new(uint64_t perm, uint64_t shared_perm)
     blk->refcnt = 1;
     blk->perm = perm;
     blk->shared_perm = shared_perm;
+    blk->reconnect_max = 10; /* TODO configure */
+    blk->reconnect_ns = 5000000000; /* 5 seconds, TODO configure */
     blk_set_enable_write_cache(blk, true);
 
     block_acct_init(&blk->stats);
@@ -1079,6 +1086,7 @@ void blk_iostatus_disable(BlockBackend *blk)
 
 void blk_iostatus_reset(BlockBackend *blk)
 {
+    blk->reconnect_failed = false;
     if (blk_iostatus_is_enabled(blk)) {
         BlockDriverState *bs = blk_bs(blk);
         blk->iostatus = BLOCK_DEVICE_IO_STATUS_OK;
@@ -1635,6 +1643,9 @@ BlockErrorAction blk_get_error_action(BlockBackend *blk, bool is_read,
     BlockdevOnError on_err = blk_get_on_error(blk, is_read);
 
     switch (on_err) {
+    case BLOCKDEV_ON_ERROR_RECONNECT:
+        return blk->reconnect_failed ? BLOCK_ERROR_ACTION_STOP :
+                                       BLOCK_ERROR_ACTION_RECONNECT;
     case BLOCKDEV_ON_ERROR_ENOSPC:
         return (error == ENOSPC) ?
                BLOCK_ERROR_ACTION_STOP : BLOCK_ERROR_ACTION_REPORT;
@@ -1665,6 +1676,29 @@ static void send_qmp_error_event(BlockBackend *blk,
                                    &error_abort);
 }
 
+
+static void coroutine_fn blk_reconnect_co(void *opaque)
+{
+    BlockBackend *blk = opaque;
+    int i;
+
+    for (i = 0; i < blk->reconnect_max; i++) {
+        int ret;
+
+        qemu_co_sleep_ns(QEMU_CLOCK_REALTIME, blk->reconnect_ns);
+
+        ret = bdrv_reconnect(blk_bs(blk), NULL);
+        if (ret == 0) {
+            blk->reconnecting = false;
+            blk_iostatus_reset(blk);
+            return;
+        }
+    }
+
+    blk->reconnecting = false;
+    blk->reconnect_failed = true;
+}
+
 /* This is done by device models because, while the block layer knows
  * about the error, it does not know whether an operation comes from
  * the device or the block layer (from a job, for example).
@@ -1674,7 +1708,19 @@ void blk_error_action(BlockBackend *blk, BlockErrorAction action,
 {
     assert(error >= 0);
 
-    if (action == BLOCK_ERROR_ACTION_STOP) {
+    if (action == BLOCK_ERROR_ACTION_RECONNECT) {
+        Coroutine *co;
+        blk_iostatus_set_err(blk, error);
+
+        if (blk->reconnecting || blk->reconnect_failed) {
+            return;
+        }
+
+        blk->reconnecting = true;
+
+        co = qemu_coroutine_create(blk_reconnect_co, blk);
+        aio_co_enter(blk_get_aio_context(blk), co);
+    } else if (action == BLOCK_ERROR_ACTION_STOP) {
         /* First set the iostatus, so that "info block" returns an iostatus
          * that matches the events raised so far (an additional error iostatus
          * is fine, but not a lost one).
