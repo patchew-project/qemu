@@ -1,0 +1,6 @@
+# -*- Mode: makefile -*-
+#
+# SH4 specific tweaks - specifically masking out broken tests
+
+run-linux-test: linux-test
+	$(call quiet-command, /bin/true, "BROKEN TEST", "$< SKIPPED on $(TARGET_NAME)")

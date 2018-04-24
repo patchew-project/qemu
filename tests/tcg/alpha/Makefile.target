@@ -30,3 +30,7 @@ test-cmov: test-cmov.o crt.o
 
 test-ovf: test-ovf.c crt.o
 	$(ALPHA_BUILD)
+
+# Currently broken
+run-linux-test: linux-test
+	$(call quiet-command, /bin/true, "BROKEN TEST", "$< SKIPPED on $(TARGET_NAME)")

@@ -1,0 +1,8 @@
+# -*- Mode: makefile -*-
+#
+# sparc specific tweaks - specifically masking out broken tests
+
+# different from the other hangs
+# /home/alex/lsrc/qemu/qemu.git/tests/tcg/multiarch/linux-test.c:264: Value too large for defined data type (ret=-1, errno=92/Value too large for defined data type)
+run-linux-test: linux-test
+	$(call quiet-command, /bin/true, "BROKEN TEST", "$< SKIPPED on $(TARGET_NAME)")

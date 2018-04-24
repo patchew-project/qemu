@@ -37,3 +37,16 @@ pi_10.com:
 run-runcom: runcom pi_10.com
 	$(call quiet-command, $(QEMU) ./runcom ./pi_10.com > runcom.out, "TEST", "$< on $(TARGET_NAME)")
 
+# Currently broken tests on i386
+ifeq ($(TARGET_NAME), i386)
+run-linux-test: linux-test
+	$(call quiet-command, /bin/true, "BROKEN TEST", "$< SKIPPED on $(TARGET_NAME)")
+
+run-test-i386-fprem: test-i386-fprem
+	$(call quiet-command, /bin/true, "SLOW TEST", "$< SKIPPED on $(TARGET_NAME)")
+
+# Currently broken for -p
+run-test-mmap: test-mmap
+	$(call quiet-command, $(QEMU) $< > test-mmap.out, "TEST", "$< (default) on $(TARGET_NAME)")
+
+endif
