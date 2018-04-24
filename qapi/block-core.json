@@ -1050,9 +1050,9 @@
   'data': ['top', 'full', 'none', 'incremental'] }
 
 ##
-# @BlockJobType:
+# @JobType:
 #
-# Type of a block job.
+# Type of a background job.
 #
 # @commit: block commit job type, see "block-commit"
 #
@@ -1064,7 +1064,7 @@
 #
 # Since: 1.7
 ##
-{ 'enum': 'BlockJobType',
+{ 'enum': 'JobType',
   'data': ['commit', 'stream', 'mirror', 'backup'] }
 
 ##
@@ -4485,7 +4485,7 @@
 #
 ##
 { 'event': 'BLOCK_JOB_COMPLETED',
-  'data': { 'type'  : 'BlockJobType',
+  'data': { 'type'  : 'JobType',
             'device': 'str',
             'len'   : 'int',
             'offset': 'int',
@@ -4521,7 +4521,7 @@
 #
 ##
 { 'event': 'BLOCK_JOB_CANCELLED',
-  'data': { 'type'  : 'BlockJobType',
+  'data': { 'type'  : 'JobType',
             'device': 'str',
             'len'   : 'int',
             'offset': 'int',
@@ -4586,7 +4586,7 @@
 #
 ##
 { 'event': 'BLOCK_JOB_READY',
-  'data': { 'type'  : 'BlockJobType',
+  'data': { 'type'  : 'JobType',
             'device': 'str',
             'len'   : 'int',
             'offset': 'int',
@@ -4613,7 +4613,7 @@
 #
 ##
 { 'event': 'BLOCK_JOB_PENDING',
-  'data': { 'type'  : 'BlockJobType',
+  'data': { 'type'  : 'JobType',
             'id'    : 'str' } }
 
 ##
