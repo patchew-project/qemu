@@ -332,6 +332,13 @@ void coroutine_fn job_pause_point(Job *job);
 
 /**
  * @job: The job that calls the function.
+ *
+ * Yield the job coroutine.
+ */
+void job_yield(Job *job);
+
+/**
+ * @job: The job that calls the function.
  * @ns: How many nanoseconds to stop for.
  *
  * Put the job to sleep (assuming that it wasn't canceled) for @ns
@@ -485,7 +492,6 @@ int job_finish_sync(Job *job, void (*finish)(Job *, Error **errp), Error **errp)
 /* TODO To be removed from the public interface */
 void job_state_transition(Job *job, JobStatus s1);
 int job_apply_verb(Job *job, JobVerb bv, Error **errp);
-void coroutine_fn job_do_yield(Job *job, uint64_t ns);
 bool job_should_pause(Job *job);
 bool job_started(Job *job);
 void job_enter_cond(Job *job, bool(*fn)(Job *job));
