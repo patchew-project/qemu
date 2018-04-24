@@ -775,6 +775,74 @@ void job_completed_txn_success(Job *job)
     }
 }
 
+void job_completed(Job *job, int ret)
+{
+    assert(job && job->txn && !job_is_completed(job));
+    job->ret = ret;
+    job_update_rc(job);
+    trace_job_completed(job, ret, job->ret);
+    if (job->ret) {
+        job_completed_txn_abort(job);
+    } else {
+        job_completed_txn_success(job);
+    }
+}
+
+void job_cancel(Job *job, bool force)
+{
+    if (job->status == JOB_STATUS_CONCLUDED) {
+        job_do_dismiss(job);
+        return;
+    }
+    job_cancel_async(job, force);
+    if (!job_started(job)) {
+        job_completed(job, -ECANCELED);
+    } else if (job->deferred_to_main_loop) {
+        job_completed_txn_abort(job);
+    } else {
+        job_enter(job);
+    }
+}
+
+void job_user_cancel(Job *job, bool force, Error **errp)
+{
+    if (job_apply_verb(job, JOB_VERB_CANCEL, errp)) {
+        return;
+    }
+    job_cancel(job, force);
+}
+
+/* A wrapper around job_cancel() taking an Error ** parameter so it may be
+ * used with job_finish_sync() without the need for (rather nasty) function
+ * pointer casts there. */
+static void job_cancel_err(Job *job, Error **errp)
+{
+    job_cancel(job, false);
+}
+
+int job_cancel_sync(Job *job)
+{
+    return job_finish_sync(job, &job_cancel_err, NULL);
+}
+
+void job_cancel_sync_all(void)
+{
+    Job *job;
+    AioContext *aio_context;
+
+    while ((job = job_next(NULL))) {
+        aio_context = job->aio_context;
+        aio_context_acquire(aio_context);
+        job_cancel_sync(job);
+        aio_context_release(aio_context);
+    }
+}
+
+int job_complete_sync(Job *job, Error **errp)
+{
+    return job_finish_sync(job, job_complete, errp);
+}
+
 void job_complete(Job *job, Error **errp)
 {
     /* Should not be reachable via external interface for internal jobs */

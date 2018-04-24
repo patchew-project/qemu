@@ -392,8 +392,59 @@ Job *job_get(const char *id);
 /** The @job could not be started, free it. */
 void job_early_fail(Job *job);
 
+/**
+ * @job: The job being completed.
+ * @ret: The status code.
+ *
+ * Marks @job as completed. If @ret is non-zero, the job transaction it is part
+ * of is aborted. If @ret is zero, the job moves into the WAITING state. If it
+ * is the last job to complete in its transaction, all jobs in the transaction
+ * move from WAITING to PENDING.
+ */
+void job_completed(Job *job, int ret);
+
 /** Asynchronously complete the specified @job. */
-void job_complete(Job *job, Error **errp);;
+void job_complete(Job *job, Error **errp);
+
+/**
+ * Asynchronously cancel the specified @job. If @force is true, the job should
+ * be cancelled immediately without waiting for a consistent state.
+ */
+void job_cancel(Job *job, bool force);
+
+/**
+ * Cancels the specified job like job_cancel(), but may refuse to do so if the
+ * operation isn't meaningful in the current state of the job.
+ */
+void job_user_cancel(Job *job, bool force, Error **errp);
+
+/**
+ * Synchronously cancel the @job.  The completion callback is called
+ * before the function returns.  The job may actually complete
+ * instead of canceling itself; the circumstances under which this
+ * happens depend on the kind of job that is active.
+ *
+ * Returns the return value from the job if the job actually completed
+ * during the call, or -ECANCELED if it was canceled.
+ */
+int job_cancel_sync(Job *job);
+
+/** Synchronously cancels all jobs using job_cancel_sync(). */
+void job_cancel_sync_all(void);
+
+/**
+ * @job: The job to be completed.
+ * @errp: Error object which may be set by job_complete(); this is not
+ *        necessarily set on every error, the job return value has to be
+ *        checked as well.
+ *
+ * Synchronously complete the job.  The completion callback is called before the
+ * function returns, unless it is NULL (which is permissible when using this
+ * function).
+ *
+ * Returns the return value from the job.
+ */
+int job_complete_sync(Job *job, Error **errp);
 
 /**
  * For a @job that has finished its work and is pending awaiting explicit

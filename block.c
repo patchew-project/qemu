@@ -3362,7 +3362,7 @@ static void bdrv_close(BlockDriverState *bs)
 
 void bdrv_close_all(void)
 {
-    block_job_cancel_sync_all();
+    job_cancel_sync_all();
     nbd_export_close_all();
 
     /* Drop references from requests still in flight, such as canceled block
