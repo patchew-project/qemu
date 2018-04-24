@@ -161,12 +161,29 @@ void job_unref(Job *job);
 void job_start(Job *job);
 
 /**
+ * @job: The job to enter.
+ *
+ * Continue the specified job by entering the coroutine.
+ */
+void job_enter(Job *job);
+
+/**
  * @job: The job that is ready to pause.
  *
  * Pause now if job_pause() has been called. Jobs that perform lots of I/O
  * must call this between requests so that the job can be paused.
  */
 void coroutine_fn job_pause_point(Job *job);
+
+/**
+ * @job: The job that calls the function.
+ * @ns: How many nanoseconds to stop for.
+ *
+ * Put the job to sleep (assuming that it wasn't canceled) for @ns
+ * %QEMU_CLOCK_REALTIME nanoseconds.  Canceling the job will immediately
+ * interrupt the wait.
+ */
+void coroutine_fn job_sleep_ns(Job *job, int64_t ns);
 
 
 /** Returns the JobType of a given Job. */

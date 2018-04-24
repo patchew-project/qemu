@@ -595,7 +595,7 @@ static void mirror_throttle(MirrorBlockJob *s)
 
     if (now - s->last_pause_ns > SLICE_TIME) {
         s->last_pause_ns = now;
-        block_job_sleep_ns(&s->common, 0);
+        job_sleep_ns(&s->common.job, 0);
     } else {
         job_pause_point(&s->common.job);
     }
@@ -869,7 +869,7 @@ static void coroutine_fn mirror_run(void *opaque)
             break;
         } else if (!should_complete) {
             delay_ns = (s->in_flight == 0 && cnt == 0 ? SLICE_TIME : 0);
-            block_job_sleep_ns(&s->common, delay_ns);
+            job_sleep_ns(&s->common.job, delay_ns);
         }
         s->last_pause_ns = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
     }
