@@ -31,6 +31,9 @@
 #include "qemu/main-loop.h"
 #include "trace-root.h"
 
+/* TODO Remove again once the direct calls back to blockjob_* are gone */
+#include "block/blockjob_int.h"
+
 static QLIST_HEAD(, Job) jobs = QLIST_HEAD_INITIALIZER(jobs);
 
 /* Job State Transition Table */
@@ -183,7 +186,7 @@ static void job_sleep_timer_cb(void *opaque)
 }
 
 void *job_create(const char *job_id, const JobDriver *driver, AioContext *ctx,
-                 int flags, Error **errp)
+                 int flags, BlockCompletionFunc *cb, void *opaque, Error **errp)
 {
     Job *job;
 
@@ -215,6 +218,8 @@ void *job_create(const char *job_id, const JobDriver *driver, AioContext *ctx,
     job->pause_count   = 1;
     job->auto_finalize = !(flags & JOB_MANUAL_FINALIZE);
     job->auto_dismiss  = !(flags & JOB_MANUAL_DISMISS);
+    job->cb            = cb;
+    job->opaque        = opaque;
 
     notifier_list_init(&job->on_finalize_cancelled);
     notifier_list_init(&job->on_finalize_completed);
@@ -444,6 +449,100 @@ void job_user_resume(Job *job, Error **errp)
     }
     job->user_paused = false;
     job_resume(job);
+}
+
+void job_do_dismiss(Job *job)
+{
+    assert(job);
+    job->busy = false;
+    job->paused = false;
+    job->deferred_to_main_loop = true;
+
+    /* TODO Don't assume it's a BlockJob */
+    block_job_txn_del_job((BlockJob*) job);
+
+    job_state_transition(job, JOB_STATUS_NULL);
+    job_unref(job);
+}
+
+void job_early_fail(Job *job)
+{
+    assert(job->status == JOB_STATUS_CREATED);
+    job_do_dismiss(job);
+}
+
+static void job_conclude(Job *job)
+{
+    job_state_transition(job, JOB_STATUS_CONCLUDED);
+    if (job->auto_dismiss || !job_started(job)) {
+        job_do_dismiss(job);
+    }
+}
+
+void job_update_rc(Job *job)
+{
+    if (!job->ret && job_is_cancelled(job)) {
+        job->ret = -ECANCELED;
+    }
+    if (job->ret) {
+        job_state_transition(job, JOB_STATUS_ABORTING);
+    }
+}
+
+static void job_commit(Job *job)
+{
+    assert(!job->ret);
+    if (job->driver->commit) {
+        job->driver->commit(job);
+    }
+}
+
+static void job_abort(Job *job)
+{
+    assert(job->ret);
+    if (job->driver->abort) {
+        job->driver->abort(job);
+    }
+}
+
+static void job_clean(Job *job)
+{
+    if (job->driver->clean) {
+        job->driver->clean(job);
+    }
+}
+
+int job_finalize_single(Job *job)
+{
+    assert(job_is_completed(job));
+
+    /* Ensure abort is called for late-transactional failures */
+    job_update_rc(job);
+
+    if (!job->ret) {
+        job_commit(job);
+    } else {
+        job_abort(job);
+    }
+    job_clean(job);
+
+    if (job->cb) {
+        job->cb(job->opaque, job->ret);
+    }
+
+    /* Emit events only if we actually started */
+    if (job_started(job)) {
+        if (job_is_cancelled(job)) {
+            job_event_cancelled(job);
+        } else {
+            job_event_completed(job);
+        }
+    }
+
+    /* TODO Don't assume it's a BlockJob */
+    block_job_txn_del_job((BlockJob*) job);
+    job_conclude(job);
+    return 0;
 }
 
 
