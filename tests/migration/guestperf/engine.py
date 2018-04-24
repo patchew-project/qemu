@@ -112,7 +112,7 @@ class Engine(object):
         vcpus = src.command("query-cpus")
         src_threads = []
         for vcpu in vcpus:
-            src_threads.append(vcpu["thread_id"])
+            src_threads.append(vcpu["thread-id"])
 
         # XXX how to get dst timings on remote host ?
 

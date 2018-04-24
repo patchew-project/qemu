@@ -356,9 +356,31 @@
   'data': ['x86', 'sparc', 'ppc', 'mips', 'tricore', 's390', 'riscv', 'other' ] }
 
 ##
-# @CpuInfo:
+# @CpuInfoCommon:
 #
-# Information about a virtual CPU
+# Collects fields common to @CpuInfoBase and @CpuInfoFastBase; that is,
+# fields that are shared by @query-cpus and @query-cpus-fast, and not
+# specific to the target architecture.
+#
+# @qom-path: path to the CPU object in the QOM tree (since 2.4)
+#
+# @thread-id: ID of the underlying host thread
+#
+# @props: properties describing which node/socket/core/thread the
+#         virtual CPU belongs to, if supported by the board (since 2.10)
+#
+# Since: 2.13
+##
+{ 'struct' : 'CpuInfoCommon',
+  'data'   : { 'qom-path'  : 'str',
+               'thread-id' : 'int',
+               '*props'    : 'CpuInstanceProperties' } }
+
+##
+# @CpuInfoBase:
+#
+# Extends @CpuInfoCommon with fields that are specific to the @query-cpus
+# command, but not specific to the target architecture.
 #
 # @CPU: the index of the virtual CPU
 #
@@ -367,25 +389,32 @@
 # @halted: true if the virtual CPU is in the halt state.  Halt usually refers
 #          to a processor specific low power mode.
 #
-# @qom_path: path to the CPU object in the QOM tree (since 2.4)
-#
-# @thread_id: ID of the underlying host thread
-#
-# @props: properties describing to which node/socket/core/thread
-#         virtual CPU belongs to, provided if supported by board (since 2.10)
-#
 # @arch: architecture of the cpu, which determines which additional fields
 #        will be listed (since 2.6)
 #
-# Since: 0.14.0
+# Since: 2.13
 #
 # Notes: @halted is a transient state that changes frequently.  By the time the
 #        data is sent to the client, the guest may no longer be halted.
+#        Moreover, @arch cannot be moved up to @CpuInfoCommon because
+#        that would prevent its use as the discriminator in @CpuInfo.
+##
+{ 'struct' : 'CpuInfoBase',
+  'base'   : 'CpuInfoCommon',
+  'data'   : { 'CPU'     : 'int',
+               'current' : 'bool',
+               'halted'  : 'bool',
+               'arch'    : 'CpuInfoArch' } }
+
+##
+# @CpuInfo:
+#
+# Information about a virtual CPU
+#
+# Since: 0.14.0
 ##
 { 'union': 'CpuInfo',
-  'base': {'CPU': 'int', 'current': 'bool', 'halted': 'bool',
-           'qom_path': 'str', 'thread_id': 'int',
-           '*props': 'CpuInstanceProperties', 'arch': 'CpuInfoArch' },
+  'base': 'CpuInfoBase',
   'discriminator': 'arch',
   'data': { 'x86': 'CpuInfoX86',
             'sparc': 'CpuInfoSPARC',
@@ -520,19 +549,19 @@
 #             "CPU":0,
 #             "current":true,
 #             "halted":false,
-#             "qom_path":"/machine/unattached/device[0]",
+#             "qom-path":"/machine/unattached/device[0]",
 #             "arch":"x86",
 #             "pc":3227107138,
-#             "thread_id":3134
+#             "thread-id":3134
 #          },
 #          {
 #             "CPU":1,
 #             "current":false,
 #             "halted":true,
-#             "qom_path":"/machine/unattached/device[2]",
+#             "qom-path":"/machine/unattached/device[2]",
 #             "arch":"x86",
 #             "pc":7108165,
-#             "thread_id":3135
+#             "thread-id":3135
 #          }
 #       ]
 #    }
@@ -545,29 +574,36 @@
 { 'command': 'query-cpus', 'returns': ['CpuInfo'] }
 
 ##
-# @CpuInfoFast:
+# @CpuInfoFastBase:
 #
-# Information about a virtual CPU
+# Extends @CpuInfoCommon with fields that are specific to the
+# @query-cpus-fast command, but not specific to the target architecture.
 #
 # @cpu-index: index of the virtual CPU
 #
-# @qom-path: path to the CPU object in the QOM tree
-#
-# @thread-id: ID of the underlying host thread
-#
-# @props: properties describing to which node/socket/core/thread
-#         virtual CPU belongs to, provided if supported by board
-#
 # @arch: architecture of the cpu, which determines which additional fields
 #        will be listed
+#
+# Since: 2.13
+#
+# Notes: @arch cannot be moved up to @CpuInfoCommon because that would
+#        prevent its use as the discriminator in @CpuInfoFast.
+##
+{ 'struct' : 'CpuInfoFastBase',
+  'base'   : 'CpuInfoCommon',
+  'data'   : { 'cpu-index' : 'int',
+               'arch'      : 'CpuInfoArch' } }
+
+##
+# @CpuInfoFast:
+#
+# Information about a virtual CPU
 #
 # Since: 2.12
 #
 ##
 { 'union': 'CpuInfoFast',
-  'base': {'cpu-index': 'int', 'qom-path': 'str',
-           'thread-id': 'int', '*props': 'CpuInstanceProperties',
-           'arch': 'CpuInfoArch' },
+  'base': 'CpuInfoFastBase',
   'discriminator': 'arch',
   'data': { 'x86': 'CpuInfoOther',
             'sparc': 'CpuInfoOther',

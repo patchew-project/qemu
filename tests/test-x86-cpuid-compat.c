@@ -18,7 +18,7 @@ static char *get_cpu0_qom_path(void)
     ret = qdict_get_qlist(resp, "return");
 
     cpu0 = qobject_to(QDict, qlist_peek(ret));
-    path = g_strdup(qdict_get_str(cpu0, "qom_path"));
+    path = g_strdup(qdict_get_str(cpu0, "qom-path"));
     QDECREF(resp);
     return path;
 }
