@@ -8,7 +8,9 @@ ARM_SRC=$(SRC_PATH)/tests/tcg/arm
 # Set search path for all sources
 VPATH 		+= $(ARM_SRC)
 
-TESTS += hello-arm test-arm-iwmmxt
+ARM_TESTS=hello-arm test-arm-iwmmxt
+
+TESTS += $(ARM_TESTS)
 
 hello-arm: CFLAGS+=-marm -ffreestanding
 hello-arm: LDFLAGS+=-nostdlib
