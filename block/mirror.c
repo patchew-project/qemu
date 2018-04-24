@@ -622,7 +622,7 @@ static int coroutine_fn mirror_dirty_init(MirrorBlockJob *s)
 
             mirror_throttle(s);
 
-            if (block_job_is_cancelled(&s->common)) {
+            if (job_is_cancelled(&s->common.job)) {
                 s->initial_zeroing_ongoing = false;
                 return 0;
             }
@@ -650,7 +650,7 @@ static int coroutine_fn mirror_dirty_init(MirrorBlockJob *s)
 
         mirror_throttle(s);
 
-        if (block_job_is_cancelled(&s->common)) {
+        if (job_is_cancelled(&s->common.job)) {
             return 0;
         }
 
@@ -695,7 +695,7 @@ static void coroutine_fn mirror_run(void *opaque)
                                  checking for a NULL string */
     int ret = 0;
 
-    if (block_job_is_cancelled(&s->common)) {
+    if (job_is_cancelled(&s->common.job)) {
         goto immediate_exit;
     }
 
@@ -729,10 +729,10 @@ static void coroutine_fn mirror_run(void *opaque)
         /* Report BLOCK_JOB_READY and wait for complete. */
         block_job_event_ready(&s->common);
         s->synced = true;
-        while (!block_job_is_cancelled(&s->common) && !s->should_complete) {
+        while (!job_is_cancelled(&s->common.job) && !s->should_complete) {
             block_job_yield(&s->common);
         }
-        s->common.cancelled = false;
+        s->common.job.cancelled = false;
         goto immediate_exit;
     }
 
@@ -768,7 +768,7 @@ static void coroutine_fn mirror_run(void *opaque)
     s->last_pause_ns = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
     if (!s->is_none_mode) {
         ret = mirror_dirty_init(s);
-        if (ret < 0 || block_job_is_cancelled(&s->common)) {
+        if (ret < 0 || job_is_cancelled(&s->common.job)) {
             goto immediate_exit;
         }
     }
@@ -829,7 +829,7 @@ static void coroutine_fn mirror_run(void *opaque)
             }
 
             should_complete = s->should_complete ||
-                block_job_is_cancelled(&s->common);
+                job_is_cancelled(&s->common.job);
             cnt = bdrv_get_dirty_count(s->dirty_bitmap);
         }
 
@@ -857,14 +857,14 @@ static void coroutine_fn mirror_run(void *opaque)
              * completion.
              */
             assert(QLIST_EMPTY(&bs->tracked_requests));
-            s->common.cancelled = false;
+            s->common.job.cancelled = false;
             need_drain = false;
             break;
         }
 
         ret = 0;
         trace_mirror_before_sleep(s, cnt, s->synced, delay_ns);
-        if (block_job_is_cancelled(&s->common) && s->common.force) {
+        if (job_is_cancelled(&s->common.job) && s->common.force) {
             break;
         } else if (!should_complete) {
             delay_ns = (s->in_flight == 0 && cnt == 0 ? SLICE_TIME : 0);
@@ -880,7 +880,7 @@ immediate_exit:
          * the target is a copy of the source.
          */
         assert(ret < 0 || ((s->common.force || !s->synced) &&
-               block_job_is_cancelled(&s->common)));
+               job_is_cancelled(&s->common.job)));
         assert(need_drain);
         mirror_wait_for_all_io(s);
     }

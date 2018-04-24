@@ -366,7 +366,7 @@ static void block_job_conclude(BlockJob *job)
 
 static void block_job_update_rc(BlockJob *job)
 {
-    if (!job->ret && block_job_is_cancelled(job)) {
+    if (!job->ret && job_is_cancelled(&job->job)) {
         job->ret = -ECANCELED;
     }
     if (job->ret) {
@@ -425,7 +425,7 @@ static int block_job_finalize_single(BlockJob *job)
 
     /* Emit events only if we actually started */
     if (block_job_started(job)) {
-        if (block_job_is_cancelled(job)) {
+        if (job_is_cancelled(&job->job)) {
             block_job_event_cancelled(job);
         } else {
             const char *msg = NULL;
@@ -451,7 +451,7 @@ static void block_job_cancel_async(BlockJob *job, bool force)
         job->user_paused = false;
         job->pause_count--;
     }
-    job->cancelled = true;
+    job->job.cancelled = true;
     /* To prevent 'force == false' overriding a previous 'force == true' */
     job->force |= force;
 }
@@ -506,7 +506,8 @@ static int block_job_finish_sync(BlockJob *job,
     while (!job->completed) {
         aio_poll(qemu_get_aio_context(), true);
     }
-    ret = (job->cancelled && job->ret == 0) ? -ECANCELED : job->ret;
+    ret = (job_is_cancelled(&job->job) && job->ret == 0)
+          ? -ECANCELED : job->ret;
     job_unref(&job->job);
     return ret;
 }
@@ -544,7 +545,7 @@ static void block_job_completed_txn_abort(BlockJob *job)
         other_job = QLIST_FIRST(&txn->jobs);
         ctx = blk_get_aio_context(other_job->blk);
         if (!other_job->completed) {
-            assert(other_job->cancelled);
+            assert(job_is_cancelled(&other_job->job));
             block_job_finish_sync(other_job, NULL, NULL);
         }
         block_job_finalize_single(other_job);
@@ -644,7 +645,9 @@ void block_job_complete(BlockJob *job, Error **errp)
     if (job_apply_verb(&job->job, JOB_VERB_COMPLETE, errp)) {
         return;
     }
-    if (job->pause_count || job->cancelled || !job->driver->complete) {
+    if (job->pause_count || job_is_cancelled(&job->job) ||
+        !job->driver->complete)
+    {
         error_setg(errp, "The active block job '%s' cannot be completed",
                    job->job.id);
         return;
@@ -997,7 +1000,7 @@ void coroutine_fn block_job_pause_point(BlockJob *job)
     if (!block_job_should_pause(job)) {
         return;
     }
-    if (block_job_is_cancelled(job)) {
+    if (job_is_cancelled(&job->job)) {
         return;
     }
 
@@ -1005,7 +1008,7 @@ void coroutine_fn block_job_pause_point(BlockJob *job)
         job->driver->pause(job);
     }
 
-    if (block_job_should_pause(job) && !block_job_is_cancelled(job)) {
+    if (block_job_should_pause(job) && !job_is_cancelled(&job->job)) {
         JobStatus status = job->job.status;
         job_state_transition(&job->job, status == JOB_STATUS_READY
                                         ? JOB_STATUS_STANDBY
@@ -1057,17 +1060,12 @@ void block_job_enter(BlockJob *job)
     block_job_enter_cond(job, NULL);
 }
 
-bool block_job_is_cancelled(BlockJob *job)
-{
-    return job->cancelled;
-}
-
 void block_job_sleep_ns(BlockJob *job, int64_t ns)
 {
     assert(job->busy);
 
     /* Check cancellation *before* setting busy = false, too!  */
-    if (block_job_is_cancelled(job)) {
+    if (job_is_cancelled(&job->job)) {
         return;
     }
 
@@ -1083,7 +1081,7 @@ void block_job_yield(BlockJob *job)
     assert(job->busy);
 
     /* Check cancellation *before* setting busy = false, too!  */
-    if (block_job_is_cancelled(job)) {
+    if (job_is_cancelled(&job->job)) {
         return;
     }
 
