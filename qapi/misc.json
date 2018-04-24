@@ -369,12 +369,15 @@
 # @props: properties describing which node/socket/core/thread the
 #         virtual CPU belongs to, if supported by the board (since 2.10)
 #
+# @arch: base architecture of the cpu (since 2.6)
+#
 # Since: 2.13
 ##
 { 'struct' : 'CpuInfoCommon',
   'data'   : { 'qom-path'  : 'str',
                'thread-id' : 'int',
-               '*props'    : 'CpuInstanceProperties' } }
+               '*props'    : 'CpuInstanceProperties',
+               'arch'      : 'CpuInfoArch' } }
 
 ##
 # @CpuInfoBase:
@@ -389,14 +392,15 @@
 # @halted: true if the virtual CPU is in the halt state.  Halt usually refers
 #          to a processor specific low power mode.
 #
-# @arch: architecture of the cpu, which determines which additional fields
-#        will be listed (since 2.6)
+# @target: the QEMU system emulation target, which is more specific than
+#          @arch and determines which additional fields will be listed
+#
 #
 # Since: 2.13
 #
 # Notes: @halted is a transient state that changes frequently.  By the time the
 #        data is sent to the client, the guest may no longer be halted.
-#        Moreover, @arch cannot be moved up to @CpuInfoCommon because
+#        Moreover, @target cannot be moved up to @CpuInfoCommon because
 #        that would prevent its use as the discriminator in @CpuInfo.
 ##
 { 'struct' : 'CpuInfoBase',
@@ -404,7 +408,7 @@
   'data'   : { 'CPU'     : 'int',
                'current' : 'bool',
                'halted'  : 'bool',
-               'arch'    : 'CpuInfoArch' } }
+               'target'  : 'SysEmuTarget' } }
 
 ##
 # @CpuInfo:
@@ -413,17 +417,41 @@
 #
 # Since: 0.14.0
 ##
-{ 'union': 'CpuInfo',
-  'base': 'CpuInfoBase',
-  'discriminator': 'arch',
-  'data': { 'x86': 'CpuInfoX86',
-            'sparc': 'CpuInfoSPARC',
-            'ppc': 'CpuInfoPPC',
-            'mips': 'CpuInfoMIPS',
-            'tricore': 'CpuInfoTricore',
-            's390': 'CpuInfoS390',
-            'riscv': 'CpuInfoRISCV',
-            'other': 'CpuInfoOther' } }
+{ 'union'         : 'CpuInfo',
+  'base'          : 'CpuInfoBase',
+  'discriminator' : 'target',
+  'data'          : { 'i386'         : 'CpuInfoX86',
+                      'x86_64'       : 'CpuInfoX86',
+                      'sparc'        : 'CpuInfoSPARC',
+                      'sparc64'      : 'CpuInfoSPARC',
+                      'ppc'          : 'CpuInfoPPC',
+                      'ppcemb'       : 'CpuInfoPPC',
+                      'ppc64'        : 'CpuInfoPPC',
+                      'mips'         : 'CpuInfoMIPS',
+                      'mipsel'       : 'CpuInfoMIPS',
+                      'mips64'       : 'CpuInfoMIPS',
+                      'mips64el'     : 'CpuInfoMIPS',
+                      'tricore'      : 'CpuInfoTricore',
+                      's390x'        : 'CpuInfoS390',
+                      'riscv32'      : 'CpuInfoRISCV',
+                      'riscv64'      : 'CpuInfoRISCV',
+                      'aarch64'      : 'CpuInfoOther',
+                      'alpha'        : 'CpuInfoOther',
+                      'arm'          : 'CpuInfoOther',
+                      'cris'         : 'CpuInfoOther',
+                      'hppa'         : 'CpuInfoOther',
+                      'lm32'         : 'CpuInfoOther',
+                      'm68k'         : 'CpuInfoOther',
+                      'microblaze'   : 'CpuInfoOther',
+                      'microblazeel' : 'CpuInfoOther',
+                      'moxie'        : 'CpuInfoOther',
+                      'nios2'        : 'CpuInfoOther',
+                      'or1k'         : 'CpuInfoOther',
+                      'sh4'          : 'CpuInfoOther',
+                      'sh4eb'        : 'CpuInfoOther',
+                      'unicore32'    : 'CpuInfoOther',
+                      'xtensa'       : 'CpuInfoOther',
+                      'xtensaeb'     : 'CpuInfoOther' } }
 
 ##
 # @CpuInfoX86:
@@ -551,6 +579,7 @@
 #             "halted":false,
 #             "qom-path":"/machine/unattached/device[0]",
 #             "arch":"x86",
+#             "target":"x86_64",
 #             "pc":3227107138,
 #             "thread-id":3134
 #          },
@@ -560,6 +589,7 @@
 #             "halted":true,
 #             "qom-path":"/machine/unattached/device[2]",
 #             "arch":"x86",
+#             "target":"x86_64",
 #             "pc":7108165,
 #             "thread-id":3135
 #          }
@@ -581,18 +611,18 @@
 #
 # @cpu-index: index of the virtual CPU
 #
-# @arch: architecture of the cpu, which determines which additional fields
-#        will be listed
+# @target: the QEMU system emulation target, which is more specific than
+#          @arch and determines which additional fields will be listed
 #
 # Since: 2.13
 #
-# Notes: @arch cannot be moved up to @CpuInfoCommon because that would
+# Notes: @target cannot be moved up to @CpuInfoCommon because that would
 #        prevent its use as the discriminator in @CpuInfoFast.
 ##
 { 'struct' : 'CpuInfoFastBase',
   'base'   : 'CpuInfoCommon',
   'data'   : { 'cpu-index' : 'int',
-               'arch'      : 'CpuInfoArch' } }
+               'target'    : 'SysEmuTarget' } }
 
 ##
 # @CpuInfoFast:
@@ -602,17 +632,41 @@
 # Since: 2.12
 #
 ##
-{ 'union': 'CpuInfoFast',
-  'base': 'CpuInfoFastBase',
-  'discriminator': 'arch',
-  'data': { 'x86': 'CpuInfoOther',
-            'sparc': 'CpuInfoOther',
-            'ppc': 'CpuInfoOther',
-            'mips': 'CpuInfoOther',
-            'tricore': 'CpuInfoOther',
-            's390': 'CpuInfoS390',
-            'riscv': 'CpuInfoOther',
-            'other': 'CpuInfoOther' } }
+{ 'union'         : 'CpuInfoFast',
+  'base'          : 'CpuInfoFastBase',
+  'discriminator' : 'target',
+  'data'          : { 'i386'         : 'CpuInfoOther',
+                      'x86_64'       : 'CpuInfoOther',
+                      'sparc'        : 'CpuInfoOther',
+                      'sparc64'      : 'CpuInfoOther',
+                      'ppc'          : 'CpuInfoOther',
+                      'ppcemb'       : 'CpuInfoOther',
+                      'ppc64'        : 'CpuInfoOther',
+                      'mips'         : 'CpuInfoOther',
+                      'mipsel'       : 'CpuInfoOther',
+                      'mips64'       : 'CpuInfoOther',
+                      'mips64el'     : 'CpuInfoOther',
+                      'tricore'      : 'CpuInfoOther',
+                      's390x'        : 'CpuInfoS390',
+                      'riscv32'      : 'CpuInfoOther',
+                      'riscv64'      : 'CpuInfoOther',
+                      'aarch64'      : 'CpuInfoOther',
+                      'alpha'        : 'CpuInfoOther',
+                      'arm'          : 'CpuInfoOther',
+                      'cris'         : 'CpuInfoOther',
+                      'hppa'         : 'CpuInfoOther',
+                      'lm32'         : 'CpuInfoOther',
+                      'm68k'         : 'CpuInfoOther',
+                      'microblaze'   : 'CpuInfoOther',
+                      'microblazeel' : 'CpuInfoOther',
+                      'moxie'        : 'CpuInfoOther',
+                      'nios2'        : 'CpuInfoOther',
+                      'or1k'         : 'CpuInfoOther',
+                      'sh4'          : 'CpuInfoOther',
+                      'sh4eb'        : 'CpuInfoOther',
+                      'unicore32'    : 'CpuInfoOther',
+                      'xtensa'       : 'CpuInfoOther',
+                      'xtensaeb'     : 'CpuInfoOther' } }
 
 ##
 # @query-cpus-fast:
@@ -638,6 +692,7 @@
 #             },
 #             "qom-path": "/machine/unattached/device[0]",
 #             "arch":"x86",
+#             "target":"x86_64",
 #             "cpu-index": 0
 #         },
 #         {
@@ -649,6 +704,7 @@
 #             },
 #             "qom-path": "/machine/unattached/device[2]",
 #             "arch":"x86",
+#             "target":"x86_64",
 #             "cpu-index": 1
 #         }
 #     ]
