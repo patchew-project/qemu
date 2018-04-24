@@ -1068,9 +1068,9 @@
   'data': ['commit', 'stream', 'mirror', 'backup'] }
 
 ##
-# @BlockJobVerb:
+# @JobVerb:
 #
-# Represents command verbs that can be applied to a blockjob.
+# Represents command verbs that can be applied to a job.
 #
 # @cancel: see @block-job-cancel
 #
@@ -1088,14 +1088,14 @@
 #
 # Since: 2.12
 ##
-{ 'enum': 'BlockJobVerb',
+{ 'enum': 'JobVerb',
   'data': ['cancel', 'pause', 'resume', 'set-speed', 'complete', 'dismiss',
            'finalize' ] }
 
 ##
-# @BlockJobStatus:
+# @JobStatus:
 #
-# Indicates the present state of a given blockjob in its lifetime.
+# Indicates the present state of a given job in its lifetime.
 #
 # @undefined: Erroneous, default state. Should not ever be visible.
 #
@@ -1134,7 +1134,7 @@
 #
 # Since: 2.12
 ##
-{ 'enum': 'BlockJobStatus',
+{ 'enum': 'JobStatus',
   'data': ['undefined', 'created', 'running', 'paused', 'ready', 'standby',
            'waiting', 'pending', 'aborting', 'concluded', 'null' ] }
 
@@ -1178,7 +1178,7 @@
   'data': {'type': 'str', 'device': 'str', 'len': 'int',
            'offset': 'int', 'busy': 'bool', 'paused': 'bool', 'speed': 'int',
            'io-status': 'BlockDeviceIoStatus', 'ready': 'bool',
-           'status': 'BlockJobStatus',
+           'status': 'JobStatus',
            'auto-finalize': 'bool', 'auto-dismiss': 'bool' } }
 
 ##

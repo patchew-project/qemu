@@ -41,6 +41,9 @@ typedef struct Job {
     /** The type of this job. */
     const JobDriver *driver;
 
+    /** Current state; See @JobStatus for details. */
+    JobStatus status;
+
     /** Element of the list of jobs */
     QLIST_ENTRY(Job) job_list;
 } Job;
@@ -89,5 +92,9 @@ Job *job_next(Job *job);
  * Returns the requested job, or %NULL if it doesn't exist.
  */
 Job *job_get(const char *id);
+
+/* TODO To be removed from the public interface */
+void job_state_transition(Job *job, JobStatus s1);
+int job_apply_verb(Job *job, JobVerb bv, Error **errp);
 
 #endif
