@@ -909,7 +909,7 @@ static void mirror_complete(BlockJob *job, Error **errp)
 
     if (!s->synced) {
         error_setg(errp, "The active block job '%s' cannot be completed",
-                   job->id);
+                   job->job.id);
         return;
     }
 
@@ -982,7 +982,9 @@ static void mirror_drain(BlockJob *job)
 }
 
 static const BlockJobDriver mirror_job_driver = {
-    .instance_size          = sizeof(MirrorBlockJob),
+    .job_driver = {
+        .instance_size          = sizeof(MirrorBlockJob),
+    },
     .job_type               = BLOCK_JOB_TYPE_MIRROR,
     .start                  = mirror_run,
     .complete               = mirror_complete,
@@ -992,7 +994,9 @@ static const BlockJobDriver mirror_job_driver = {
 };
 
 static const BlockJobDriver commit_active_job_driver = {
-    .instance_size          = sizeof(MirrorBlockJob),
+    .job_driver = {
+        .instance_size          = sizeof(MirrorBlockJob),
+    },
     .job_type               = BLOCK_JOB_TYPE_COMMIT,
     .start                  = mirror_run,
     .complete               = mirror_complete,
