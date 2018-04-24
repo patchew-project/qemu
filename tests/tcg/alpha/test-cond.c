@@ -1,3 +1,4 @@
+void write(int, char*, int);
 
 #ifdef TEST_CMOV
 
