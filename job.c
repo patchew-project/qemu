@@ -582,6 +582,19 @@ void job_do_dismiss(Job *job)
     job_unref(job);
 }
 
+void job_dismiss(Job **jobptr, Error **errp)
+{
+    Job *job = *jobptr;
+    /* similarly to _complete, this is QMP-interface only. */
+    assert(job->id);
+    if (job_apply_verb(job, JOB_VERB_DISMISS, errp)) {
+        return;
+    }
+
+    job_do_dismiss(job);
+    *jobptr = NULL;
+}
+
 void job_early_fail(Job *job)
 {
     assert(job->status == JOB_STATUS_CREATED);

@@ -463,6 +463,12 @@ int job_complete_sync(Job *job, Error **errp);
  */
 void job_finalize(Job *job, Error **errp);
 
+/**
+ * Remove the concluded @job from the query list and resets the passed pointer
+ * to %NULL. Returns an error if the job is not actually concluded.
+ */
+void job_dismiss(Job **job, Error **errp);
+
 typedef void JobDeferToMainLoopFn(Job *job, void *opaque);
 
 /**
