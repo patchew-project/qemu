@@ -29,6 +29,7 @@
 #include "hw/pci/pci.h"
 #include "hw/audio/soundhw.h"
 #include "qapi/qapi-commands-misc.h"
+#include "qapi/error.h"
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
 #include "hw/acpi/acpi.h"
@@ -112,7 +113,14 @@ TargetInfo *qmp_query_target(Error **errp)
 {
     TargetInfo *info = g_malloc0(sizeof(*info));
 
-    info->arch = g_strdup(TARGET_NAME);
+    /*
+     * The fallback enum value is irrelevant here (TARGET_NAME is a
+     * macro and can never be NULL), so simply pass (-1). Also, the
+     * lookup should never fail -- if it fails, then @SysEmuTarget needs
+     * extending. Catch that with "error_abort".
+     */
+    info->arch = qapi_enum_parse(&SysEmuTarget_lookup, TARGET_NAME, -1,
+                                 &error_abort);
 
     return info;
 }
