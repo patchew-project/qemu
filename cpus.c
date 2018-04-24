@@ -2233,6 +2233,8 @@ CpuInfoFastList *qmp_query_cpus_fast(Error **errp)
         env = &s390_cpu->env;
         info->value->arch = CPU_INFO_ARCH_S390;
         info->value->u.s390.cpu_state = env->cpu_state;
+#elif defined(TARGET_RISCV)
+        info->value->arch = CPU_INFO_ARCH_RISCV;
 #else
         info->value->arch = CPU_INFO_ARCH_OTHER;
 #endif
