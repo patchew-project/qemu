@@ -266,6 +266,20 @@ our @typeList = (
 	qr{target_(?:u)?long},
 	qr{hwaddr},
 	qr{xml${Ident}},
+	# Glib definitions
+	qr{gchar},
+	qr{gshort},
+	qr{glong},
+	qr{gint},
+	qr{gboolean},
+	qr{guchar},
+	qr{gushort},
+	qr{gulong},
+	qr{guint},
+	qr{gfloat},
+	qr{gdouble},
+	qr{gpointer},
+	qr{gconstpointer},
 );
 
 # This can be modified by sub possible.  Since it can be empty, be careful
