@@ -614,7 +614,7 @@ static void populate_ram_info(MigrationInfo *info, MigrationState *s)
     }
 
     if (s->state != MIGRATION_STATUS_COMPLETED) {
-        info->ram->remaining = ram_bytes_remaining();
+        info->ram->remaining = s->ram_bytes_remaining;
         info->ram->dirty_pages_rate = ram_counters.dirty_pages_rate;
     }
 }
@@ -2227,6 +2227,7 @@ static void migration_update_counters(MigrationState *s,
     transferred = qemu_ftell(s->to_dst_file) - s->iteration_initial_bytes;
     time_spent = current_time - s->iteration_start_time;
     bandwidth = (double)transferred / time_spent;
+    s->ram_bytes_remaining = ram_bytes_remaining();
     s->threshold_size = bandwidth * s->parameters.downtime_limit;
 
     s->mbps = (((double) transferred * 8.0) /
@@ -2237,8 +2238,12 @@ static void migration_update_counters(MigrationState *s,
      * recalculate. 10000 is a small enough number for our purposes
      */
     if (ram_counters.dirty_pages_rate && transferred > 10000) {
-        s->expected_downtime = ram_counters.dirty_pages_rate *
-            qemu_target_page_size() / bandwidth;
+        /*
+         * It will initially be a gross over-estimate, but for for
+         * non-converging migrations it should approach a reasonable estimate
+         * later on
+         */
+        s->expected_downtime = s->ram_bytes_remaining / bandwidth;
     }
 
     qemu_file_reset_rate_limit(s->to_dst_file);
