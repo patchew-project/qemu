@@ -1,0 +1,44 @@
+/*
+ * Virtio pmem Device
+ *
+ * PV device to emulate nvdimm memory.
+ * Provides guest flushing interface based
+ * on VIRTIO.
+ */
+
+#ifndef QEMU_VIRTIO_PMEM_H
+#define QEMU_VIRTIO_PMEM_H
+
+#include "hw/virtio/virtio.h"
+#include "exec/memory.h"
+#include "sysemu/hostmem.h"
+#include "standard-headers/linux/virtio_ids.h"
+#include "hw/boards.h"
+#include "hw/i386/pc.h"
+
+#define VIRTIO_PMEM_PLUG 0
+
+#define TYPE_VIRTIO_PMEM "virtio-pmem"
+
+#define VIRTIO_PMEM(obj) \
+        OBJECT_CHECK(VirtIOPMEM, (obj), TYPE_VIRTIO_PMEM)
+
+/* VirtIOPMEM device structure */
+typedef struct VirtIOPMEM {
+
+    VirtIODevice parent_obj;
+    VirtQueue *rq_vq;
+    uint64_t start;
+    uint64_t size;
+
+    MemoryRegion mr;
+    HostMemoryBackend *memdev;
+} VirtIOPMEM;
+
+struct virtio_pmem_config {
+
+    uint64_t start;
+    uint64_t size;
+};
+
+#endif
