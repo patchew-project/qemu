@@ -768,12 +768,37 @@ typedef struct {
 static int vtd_page_walk_one(IOMMUTLBEntry *entry, int level,
                              vtd_page_walk_info *info)
 {
+    VTDAddressSpace *as = info->as;
     vtd_page_walk_hook hook_fn = info->hook_fn;
     void *private = info->private;
+    ITRange *mapped = it_tree_find(as->iova_tree, entry->iova,
+                                   entry->iova + entry->addr_mask);
 
     assert(hook_fn);
+
+    /* Update local IOVA mapped ranges */
+    if (entry->perm) {
+        if (mapped) {
+            /* Skip since we have already mapped this range */
+            trace_vtd_page_walk_one_skip_map(entry->iova, entry->addr_mask,
+                                             mapped->start, mapped->end);
+            return 0;
+        }
+        it_tree_insert(as->iova_tree, entry->iova,
+                       entry->iova + entry->addr_mask);
+    } else {
+        if (!mapped) {
+            /* Skip since we didn't map this range at all */
+            trace_vtd_page_walk_one_skip_unmap(entry->iova, entry->addr_mask);
+            return 0;
+        }
+        it_tree_remove(as->iova_tree, entry->iova,
+                       entry->iova + entry->addr_mask);
+    }
+
     trace_vtd_page_walk_one(level, entry->iova, entry->translated_addr,
                             entry->addr_mask, entry->perm);
+
     return hook_fn(entry, private);
 }
 
@@ -2798,6 +2823,7 @@ VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus, int devfn)
         vtd_dev_as->devfn = (uint8_t)devfn;
         vtd_dev_as->iommu_state = s;
         vtd_dev_as->context_cache_entry.context_cache_gen = 0;
+        vtd_dev_as->iova_tree = it_tree_new();
 
         /*
          * Memory region relationships looks like (Address range shows
@@ -2893,6 +2919,8 @@ static void vtd_address_space_unmap(VTDAddressSpace *as, IOMMUNotifier *n)
                              VTD_PCI_SLOT(as->devfn),
                              VTD_PCI_FUNC(as->devfn),
                              entry.iova, size);
+
+    it_tree_remove(as->iova_tree, entry.iova, entry.iova + entry.addr_mask);
 
     memory_region_notify_one(n, &entry);
 }
