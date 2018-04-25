@@ -50,7 +50,7 @@ static void machine_none_init(MachineState *mch)
 
 static void machine_none_machine_init(MachineClass *mc)
 {
-    mc->desc = "empty machine";
+    mc->desc = "empty machine (for probing/QMP)";
     mc->init = machine_none_init;
     mc->max_cpus = 1;
     mc->default_ram_size = 0;
