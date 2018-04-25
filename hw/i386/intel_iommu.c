@@ -128,6 +128,16 @@ static uint64_t vtd_set_clear_mask_quad(IntelIOMMUState *s, hwaddr addr,
     return new_val;
 }
 
+static inline void vtd_iommu_lock(IntelIOMMUState *s)
+{
+    qemu_mutex_lock(&s->iommu_lock);
+}
+
+static inline void vtd_iommu_unlock(IntelIOMMUState *s)
+{
+    qemu_mutex_unlock(&s->iommu_lock);
+}
+
 /* GHashTable functions */
 static gboolean vtd_uint64_equal(gconstpointer v1, gconstpointer v2)
 {
@@ -197,10 +207,17 @@ static void vtd_reset_context_cache(IntelIOMMUState *s)
     s->context_cache_gen = 1;
 }
 
-static void vtd_reset_iotlb(IntelIOMMUState *s)
+static void vtd_reset_iotlb_locked(IntelIOMMUState *s)
 {
     assert(s->iotlb);
     g_hash_table_remove_all(s->iotlb);
+}
+
+static void vtd_reset_iotlb(IntelIOMMUState *s)
+{
+    vtd_iommu_lock(s);
+    vtd_reset_iotlb_locked(s);
+    vtd_iommu_unlock(s);
 }
 
 static uint64_t vtd_get_iotlb_key(uint64_t gfn, uint16_t source_id,
@@ -222,6 +239,7 @@ static VTDIOTLBEntry *vtd_lookup_iotlb(IntelIOMMUState *s, uint16_t source_id,
     uint64_t key;
     int level;
 
+    vtd_iommu_lock(s);
     for (level = VTD_SL_PT_LEVEL; level < VTD_SL_PML4_LEVEL; level++) {
         key = vtd_get_iotlb_key(vtd_get_iotlb_gfn(addr, level),
                                 source_id, level);
@@ -232,6 +250,7 @@ static VTDIOTLBEntry *vtd_lookup_iotlb(IntelIOMMUState *s, uint16_t source_id,
     }
 
 out:
+    vtd_iommu_unlock(s);
     return entry;
 }
 
@@ -244,9 +263,11 @@ static void vtd_update_iotlb(IntelIOMMUState *s, uint16_t source_id,
     uint64_t gfn = vtd_get_iotlb_gfn(addr, level);
 
     trace_vtd_iotlb_page_update(source_id, addr, slpte, domain_id);
+
+    vtd_iommu_lock(s);
     if (g_hash_table_size(s->iotlb) >= VTD_IOTLB_MAX_SIZE) {
         trace_vtd_iotlb_reset("iotlb exceeds size limit");
-        vtd_reset_iotlb(s);
+        vtd_reset_iotlb_locked(s);
     }
 
     entry->gfn = gfn;
@@ -256,6 +277,7 @@ static void vtd_update_iotlb(IntelIOMMUState *s, uint16_t source_id,
     entry->mask = vtd_slpt_level_page_mask(level);
     *key = vtd_get_iotlb_key(gfn, source_id, level);
     g_hash_table_replace(s->iotlb, key, entry);
+    vtd_iommu_unlock(s);
 }
 
 /* Given the reg addr of both the message data and address, generate an
@@ -1377,8 +1399,10 @@ static void vtd_iotlb_domain_invalidate(IntelIOMMUState *s, uint16_t domain_id)
 
     trace_vtd_inv_desc_iotlb_domain(domain_id);
 
+    vtd_iommu_lock(s);
     g_hash_table_foreach_remove(s->iotlb, vtd_hash_remove_by_domain,
                                 &domain_id);
+    vtd_iommu_unlock(s);
 
     QLIST_FOREACH(vtd_as, &s->notifiers_list, next) {
         if (!vtd_dev_to_context_entry(s, pci_bus_num(vtd_as->bus),
@@ -1426,7 +1450,9 @@ static void vtd_iotlb_page_invalidate(IntelIOMMUState *s, uint16_t domain_id,
     info.domain_id = domain_id;
     info.addr = addr;
     info.mask = ~((1 << am) - 1);
+    vtd_iommu_lock(s);
     g_hash_table_foreach_remove(s->iotlb, vtd_hash_remove_by_page, &info);
+    vtd_iommu_unlock(s);
     vtd_iotlb_page_invalidate_notify(s, domain_id, addr, am);
 }
 
@@ -3072,6 +3098,7 @@ static void vtd_realize(DeviceState *dev, Error **errp)
     }
 
     QLIST_INIT(&s->notifiers_list);
+    qemu_mutex_init(&s->iommu_lock);
     memset(s->vtd_as_by_bus_num, 0, sizeof(s->vtd_as_by_bus_num));
     memory_region_init_io(&s->csrmem, OBJECT(s), &vtd_mem_ops, s,
                           "intel_iommu", DMAR_REG_SIZE);

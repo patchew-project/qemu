@@ -262,6 +262,14 @@ struct IntelIOMMUState {
     uint8_t w1cmask[DMAR_REG_SIZE]; /* RW1C(Write 1 to Clear) bytes */
     uint8_t womask[DMAR_REG_SIZE];  /* WO (write only - read returns 0) */
     uint32_t version;
+    /*
+     * Protects IOMMU states in general.  Normally we don't need to
+     * take this lock when we are with BQL held.  However we have code
+     * paths that may run even without BQL.  In those cases, we need
+     * to take the lock when we have access to IOMMU state
+     * informations, e.g., the IOTLB.
+     */
+    QemuMutex iommu_lock;
 
     bool caching_mode;          /* RO - is cap CM enabled? */
 
