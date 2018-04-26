@@ -139,14 +139,32 @@ struct MemoryRegionOps {
                                     unsigned size,
                                     MemTxAttrs attrs);
     /* Instruction execution pre-callback:
-     * @addr is the address of the access relative to the @mr.
-     * @size is the size of the area returned by the callback.
-     * @offset is the location of the pointer inside @mr.
+     * @opaque is the opaque pointer for the MemoryRegion.
+     * @alloc_token is a token to pass to memory_region_mmio_ptr_alloc()
+     * @offset contains the address of the access relative to the @mr.
      *
-     * Returns a pointer to a location which contains guest code.
+     * The request_mmio_exec callback must:
+     *  - adjust the offset downwards as desired and determine the size
+     *    of the region it wants to provide cached guest code for.
+     *    This must start on a guest page boundary and be a multiple
+     *    of a guest page in size.
+     *  - call memory_region_mmio_ptr_alloc(@alloc_token, size)
+     *  - fill in the contents of the RAM
+     * Ownership of @newmr remains with the caller; it will be
+     * automatically freed when no longer in use.
+     *
+     * If the callback cannot satisfy the request then it should
+     * return false. Otherwise it must
+     *  - update @offset to the offset of the memory within the MemoryRegion
+     *    this is a callback for (ie the possibly rounded down value)
+     *  - return true
+     * Note that if you return false then execution of the guest is going
+     * to go wrong, either by QEMU delivering a bus abort exception to the
+     * guest, or by simply exiting as unable to handle the situation, in
+     * the same way that it would if you did not provide a request_mmio_exec
+     * callback at all.
      */
-    void *(*request_ptr)(void *opaque, hwaddr addr, unsigned *size,
-                         unsigned *offset);
+    bool (*request_mmio_exec)(void *opaque, void *alloc_token, hwaddr *offset);
 
     enum device_endian endianness;
     /* Guest-visible constraints: */
@@ -1568,6 +1586,20 @@ bool memory_region_request_mmio_ptr(MemoryRegion *mr, hwaddr addr);
  */
 void memory_region_invalidate_mmio_ptr(MemoryRegion *mr, hwaddr offset,
                                        unsigned size);
+
+/**
+ * memory_region_mmio_ptr_alloc: allocate memory from request_mmio_exec callback
+ *
+ * This function should be called only from a MemoryRegion's request_mmio_exec
+ * callback function, in order to allocate the memory that should be filled
+ * with the cached contents to be executed.
+ * Note that once the request_mmio_exec callback calls this function it is
+ * committed to handling the request, and may not return false.
+ *
+ * @alloc_token: the argument passed into the request_mmio_exec callback
+ * @size: size in bytes to allocate
+ */
+void *memory_region_mmio_ptr_alloc(void *alloc_token, uint64_t size);
 
 /**
  * memory_region_dispatch_read: perform a read directly to the specified

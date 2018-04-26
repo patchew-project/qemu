@@ -2653,39 +2653,72 @@ void memory_listener_unregister(MemoryListener *listener)
 
 bool memory_region_request_mmio_ptr(MemoryRegion *mr, hwaddr addr)
 {
-    void *host;
-    unsigned size = 0;
-    unsigned offset = 0;
-    Object *new_interface;
+    MemoryRegion *newmr;
+    hwaddr offset;
 
-    if (!mr || !mr->ops->request_ptr) {
+    if (!mr || !mr->ops->request_mmio_exec) {
         return false;
     }
 
     /*
-     * Avoid an update if the request_ptr call
-     * memory_region_invalidate_mmio_ptr which seems to be likely when we use
-     * a cache.
+     * Avoid an update if the request_mmio_exec hook calls
+     * memory_region_invalidate_mmio_ptr, which it will do if the
+     * device can only handle one outstanding MMIO exec region at once.
      */
     memory_region_transaction_begin();
 
-    host = mr->ops->request_ptr(mr->opaque, addr - mr->addr, &size, &offset);
-
-    if (!host || !size) {
+    newmr = g_new0(MemoryRegion, 1);
+    offset = addr - mr->addr;
+    if (!mr->ops->request_mmio_exec(mr->opaque, newmr, &offset)) {
         memory_region_transaction_commit();
+        g_free(newmr);
         return false;
     }
 
-    new_interface = object_new("mmio_interface");
-    qdev_prop_set_uint64(DEVICE(new_interface), "start", offset);
-    qdev_prop_set_uint64(DEVICE(new_interface), "end", offset + size - 1);
-    qdev_prop_set_bit(DEVICE(new_interface), "ro", true);
-    qdev_prop_set_ptr(DEVICE(new_interface), "host_ptr", host);
-    qdev_prop_set_ptr(DEVICE(new_interface), "subregion", mr);
-    object_property_set_bool(OBJECT(new_interface), true, "realized", NULL);
+    /* These requirements are because currently TCG needs a page sized
+     * area to execute from.
+     */
+    assert((offset & ~TARGET_PAGE_MASK) == 0);
+    assert((memory_region_size(newmr) & ~TARGET_PAGE_MASK) == 0);
 
+
+    memory_region_add_subregion(mr, offset, newmr);
     memory_region_transaction_commit();
+
+    /* Arrange that we automatically free this MemoryRegion when
+     * its refcount goes to zero, which (once we've unrefed it here)
+     * will happen when it is removed from the subregion.
+     */
+    OBJECT(newmr)->free = g_free;
+    object_unref(OBJECT(newmr));
     return true;
+}
+
+void *memory_region_mmio_ptr_alloc(void *alloc_token, uint64_t size)
+{
+    /* Allocate and return memory for an mmio_ptr request. This
+     * is a function intended to be called from a memory region's
+     * request_mmio_exec function, and the opaque pointer is the
+     * newmr MemoryRegion allocated in memory_region_request_mmio_ptr().
+     */
+    MemoryRegion *newmr = alloc_token;
+    Error *err = NULL;
+
+    /* Note that in order for the refcounting to work correctly
+     * without having to manufacture a device purely to be the
+     * owner of the MemoryRegion, we must pass OBJECT(newmr) as
+     * the owner (so the MR is its own owner!) and NULL as the name
+     * (or the property created on the owner causes the refcount
+     * to go negative during finalization)...
+     */
+    memory_region_init_ram_nomigrate(newmr, OBJECT(newmr), NULL,
+                                     size, &err);
+    if (err) {
+        error_free(err);
+        return NULL;
+    }
+
+    return memory_region_get_ram_ptr(newmr);
 }
 
 typedef struct MMIOPtrInvalidate {
@@ -2714,15 +2747,8 @@ static void memory_region_do_invalidate_mmio_ptr(CPUState *cpu,
     cpu_physical_memory_test_and_clear_dirty(offset, size, 1);
 
     if (section.mr != mr) {
-        /* memory_region_find add a ref on section.mr */
+        memory_region_del_subregion(mr, section.mr);
         memory_region_unref(section.mr);
-        if (MMIO_INTERFACE(section.mr->owner)) {
-            /* We found the interface just drop it. */
-            object_property_set_bool(section.mr->owner, false, "realized",
-                                     NULL);
-            object_unref(section.mr->owner);
-            object_unparent(section.mr->owner);
-        }
     }
 
     qemu_mutex_unlock_iothread();

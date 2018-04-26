@@ -1202,21 +1202,29 @@ static void lqspi_load_cache(void *opaque, hwaddr addr)
     }
 }
 
-static void *lqspi_request_mmio_ptr(void *opaque, hwaddr addr, unsigned *size,
-                                    unsigned *offset)
+static bool lqspi_request_mmio_exec(void *opaque, void *alloc_token,
+                                    hwaddr *offset)
 {
     XilinxQSPIPS *q = opaque;
     hwaddr offset_within_the_region;
+    void *hostptr;
 
     if (!q->mmio_execution_enabled) {
-        return NULL;
+        return false;
     }
 
-    offset_within_the_region = addr & ~(LQSPI_CACHE_SIZE - 1);
+    /* This could perhaps be cleverer and avoid the memcpy by
+     * caching directly into the allocated area.
+     */
+    offset_within_the_region = *offset & ~(LQSPI_CACHE_SIZE - 1);
     lqspi_load_cache(opaque, offset_within_the_region);
-    *size = LQSPI_CACHE_SIZE;
+
+    hostptr = memory_region_mmio_ptr_alloc(alloc_token, LQSPI_CACHE_SIZE);
+
+    memcpy(hostptr, q->lqspi_buf, LQSPI_CACHE_SIZE);
+
     *offset = offset_within_the_region;
-    return q->lqspi_buf;
+    return true;
 }
 
 static uint64_t
@@ -1240,7 +1248,7 @@ lqspi_read(void *opaque, hwaddr addr, unsigned int size)
 
 static const MemoryRegionOps lqspi_ops = {
     .read = lqspi_read,
-    .request_ptr = lqspi_request_mmio_ptr,
+    .request_mmio_exec = lqspi_request_mmio_exec,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
         .min_access_size = 1,
