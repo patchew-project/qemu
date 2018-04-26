@@ -119,6 +119,17 @@ def qemu_io(*args):
         sys.stderr.write('qemu-io received signal %i: %s\n' % (-subp.returncode, ' '.join(args)))
     return output
 
+def qemu_pipe(*args):
+    '''Run qemu with an option to print something and exit (e.g. a help option),
+    and return its output'''
+    args = [qemu_prog] + qemu_opts + list(args)
+    subp = subprocess.Popen(args, stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT)
+    output = subp.communicate()[0]
+    if subp.returncode < 0:
+        sys.stderr.write('qemu received signal %i: %s\n' % (-subp.returncode, ' '.join(args)))
+    return output
+
 
 class QemuIoInteractive:
     def __init__(self, *args):
@@ -556,13 +567,26 @@ def verify_cache_mode(supported_cache_modes=[]):
     if supported_cache_modes and (cachemode not in supported_cache_modes):
         notrun('not suitable for this cache mode: %s' % cachemode)
 
+rw_formats = None
+
+def supports_format(format_name):
+    format_message = qemu_pipe('-drive', 'format=?')
+    global rw_formats
+    if rw_formats is None:
+        rw_formats = format_message.splitlines()[0].split(':')[1].split()
+    return format_name in rw_formats
+
+def require_formats(*formats):
+    for fmt in formats:
+        if not supports_format(fmt):
+            notrun('%s does not support format %s' % (qemu_prog, fmt))
+
 def supports_quorum():
-    return 'quorum' in qemu_img_pipe('--help')
+    return supports_format('quorum')
 
 def verify_quorum():
     '''Skip test suite if quorum support is not available'''
-    if not supports_quorum():
-        notrun('quorum support missing')
+    require_formats('quorum')
 
 def main(supported_fmts=[], supported_oses=['linux'], supported_cache_modes=[],
          unsupported_fmts=[]):

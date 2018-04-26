@@ -499,5 +499,24 @@ _require_command()
     [ -x "$c" ] || _notrun "$1 utility required, skipped this test"
 }
 
+# this test requires support for specific formats
+#
+_require_format()
+{
+    supported_formats=$($QEMU_PROG $QEMU_OPTIONS -drive format=\? 2>&1 | \
+        head -1 | cut -d : -f 2)
+    for f; do
+        found=false
+        for sf in $supported_formats; do
+            if [ "$f" = "$sf" ]; then
+                found=true
+                break
+            fi
+        done
+
+        $found || _notrun "$QEMU_PROG doesn't support format $f"
+    done
+}
+
 # make sure this script returns success
 true
