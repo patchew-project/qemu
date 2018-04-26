@@ -854,4 +854,5 @@ class TestSetSpeed(iotests.QMPTestCase):
         self.cancel_and_wait(resume=True)
 
 if __name__ == '__main__':
+    iotests.require_formats('blkdebug')
     iotests.main(supported_fmts=['qcow2', 'qed'])
