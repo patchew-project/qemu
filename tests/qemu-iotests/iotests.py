@@ -104,20 +104,20 @@ def qemu_img_pipe(*args):
     subp = subprocess.Popen(qemu_img_args + list(args),
                             stdout=subprocess.PIPE,
                             stderr=subprocess.STDOUT)
-    exitcode = subp.wait()
-    if exitcode < 0:
-        sys.stderr.write('qemu-img received signal %i: %s\n' % (-exitcode, ' '.join(qemu_img_args + list(args))))
-    return subp.communicate()[0]
+    output = subp.communicate()[0]
+    if subp.returncode < 0:
+        sys.stderr.write('qemu-img received signal %i: %s\n' % (-subp.returncode, ' '.join(qemu_img_args + list(args))))
+    return output
 
 def qemu_io(*args):
     '''Run qemu-io and return the stdout data'''
     args = qemu_io_args + list(args)
     subp = subprocess.Popen(args, stdout=subprocess.PIPE,
                             stderr=subprocess.STDOUT)
-    exitcode = subp.wait()
-    if exitcode < 0:
-        sys.stderr.write('qemu-io received signal %i: %s\n' % (-exitcode, ' '.join(args)))
-    return subp.communicate()[0]
+    output = subp.communicate()[0]
+    if subp.returncode < 0:
+        sys.stderr.write('qemu-io received signal %i: %s\n' % (-subp.returncode, ' '.join(args)))
+    return output
 
 
 class QemuIoInteractive:
