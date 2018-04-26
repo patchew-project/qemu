@@ -3941,8 +3941,13 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
                (L1_ITLB_2M_ASSOC <<  8) | (L1_ITLB_2M_ENTRIES);
         *ebx = (L1_DTLB_4K_ASSOC << 24) | (L1_DTLB_4K_ENTRIES << 16) | \
                (L1_ITLB_4K_ASSOC <<  8) | (L1_ITLB_4K_ENTRIES);
-        *ecx = encode_cache_cpuid80000005(&l1d_cache_amd);
-        *edx = encode_cache_cpuid80000005(&l1i_cache_amd);
+        if (env->cache_info.valid && !cpu->legacy_cache) {
+            *ecx = encode_cache_cpuid80000005(&env->cache_info.l1d_cache);
+            *edx = encode_cache_cpuid80000005(&env->cache_info.l1i_cache);
+        } else {
+            *ecx = encode_cache_cpuid80000005(&l1d_cache_amd);
+            *edx = encode_cache_cpuid80000005(&l1i_cache_amd);
+        }
         break;
     case 0x80000006:
         /* cache info (L2 cache) */
@@ -3958,9 +3963,16 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
                (L2_DTLB_4K_ENTRIES << 16) | \
                (AMD_ENC_ASSOC(L2_ITLB_4K_ASSOC) << 12) | \
                (L2_ITLB_4K_ENTRIES);
-        encode_cache_cpuid80000006(&l2_cache_amd,
-                                   cpu->enable_l3_cache ? &l3_cache : NULL,
-                                   ecx, edx);
+        if (env->cache_info.valid && !cpu->legacy_cache) {
+            encode_cache_cpuid80000006(&env->cache_info.l2_cache,
+                                       cpu->enable_l3_cache ?
+                                       &env->cache_info.l3_cache : NULL,
+                                       ecx, edx);
+        } else {
+            encode_cache_cpuid80000006(&l2_cache_amd,
+                                       cpu->enable_l3_cache ? &l3_cache : NULL,
+                                       ecx, edx);
+        }
         break;
     case 0x80000007:
         *eax = 0;
