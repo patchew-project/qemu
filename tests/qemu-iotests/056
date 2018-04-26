@@ -230,6 +230,9 @@ class BackupTest(iotests.QMPTestCase):
                                  auto_dismiss=False)
 
     def dismissal_failure(self, dismissal_opt):
+        if not iotests.supports_format('blkdebug'):
+            return
+
         res = self.vm.qmp('query-block-jobs')
         self.assert_qmp(res, 'return', [])
         # Give blkdebug something to chew on
