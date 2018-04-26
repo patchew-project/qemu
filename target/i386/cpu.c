@@ -1105,6 +1105,7 @@ struct X86CPUDefinition {
     int stepping;
     FeatureWordArray features;
     const char *model_id;
+    CPUCaches cache_info;
 };
 
 static X86CPUDefinition builtin_x86_defs[] = {
@@ -3241,6 +3242,9 @@ static void x86_cpu_load_def(X86CPU *cpu, X86CPUDefinition *def, Error **errp)
     for (w = 0; w < FEATURE_WORDS; w++) {
         env->features[w] = def->features[w];
     }
+
+    /* Load Cache information from the X86CPUDefinition */
+    memcpy(&env->cache_info, &def->cache_info, sizeof(CPUCaches));
 
     /* Special cases not set in the X86CPUDefinition structs: */
     /* TODO: in-kernel irqchip for hvf */
