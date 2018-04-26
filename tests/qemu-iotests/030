@@ -422,6 +422,9 @@ class TestQuorum(iotests.QMPTestCase):
     backing = []
 
     def setUp(self):
+        if not iotests.supports_quorum():
+            return
+
         opts = ['driver=quorum', 'vote-threshold=2']
 
         # Initialize file names and command-line options
@@ -444,6 +447,9 @@ class TestQuorum(iotests.QMPTestCase):
         self.vm.launch()
 
     def tearDown(self):
+        if not iotests.supports_quorum():
+            return
+
         self.vm.shutdown()
         for img in self.children:
             os.remove(img)
