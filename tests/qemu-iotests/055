@@ -490,11 +490,15 @@ class TestDriveCompression(iotests.QMPTestCase):
 
     def test_complete_compress_drive_backup(self):
         for format in TestDriveCompression.fmt_supports_compression:
+            if not iotests.supports_format(format['type']):
+                continue
             self.do_test_compress_complete('drive-backup', format, False,
                                            target=blockdev_target_img, mode='existing')
 
     def test_complete_compress_blockdev_backup(self):
         for format in TestDriveCompression.fmt_supports_compression:
+            if not iotests.supports_format(format['type']):
+                continue
             self.do_test_compress_complete('blockdev-backup', format, True,
                                            target='drive1')
 
@@ -514,11 +518,15 @@ class TestDriveCompression(iotests.QMPTestCase):
 
     def test_compress_cancel_drive_backup(self):
         for format in TestDriveCompression.fmt_supports_compression:
+            if not iotests.supports_format(format['type']):
+                continue
             self.do_test_compress_cancel('drive-backup', format, False,
                                          target=blockdev_target_img, mode='existing')
 
     def test_compress_cancel_blockdev_backup(self):
        for format in TestDriveCompression.fmt_supports_compression:
+            if not iotests.supports_format(format['type']):
+                continue
             self.do_test_compress_cancel('blockdev-backup', format, True,
                                          target='drive1')
 
@@ -554,11 +562,15 @@ class TestDriveCompression(iotests.QMPTestCase):
 
     def test_compress_pause_drive_backup(self):
         for format in TestDriveCompression.fmt_supports_compression:
+            if not iotests.supports_format(format['type']):
+                continue
             self.do_test_compress_pause('drive-backup', format, False,
                                         target=blockdev_target_img, mode='existing')
 
     def test_compress_pause_blockdev_backup(self):
         for format in TestDriveCompression.fmt_supports_compression:
+            if not iotests.supports_format(format['type']):
+                continue
             self.do_test_compress_pause('blockdev-backup', format, True,
                                         target='drive1')
 
