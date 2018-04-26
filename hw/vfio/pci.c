@@ -3098,10 +3098,17 @@ static void vfio_pci_reset(DeviceState *dev)
 {
     PCIDevice *pdev = DO_UPCAST(PCIDevice, qdev, dev);
     VFIOPCIDevice *vdev = DO_UPCAST(VFIOPCIDevice, pdev, pdev);
+    VFIODisplay *dpy = vdev->dpy;
 
     trace_vfio_pci_reset(vdev->vbasedev.name);
 
     vfio_pci_pre_reset(vdev);
+
+    /* vfio_display_reset is needed by dma-buf based vfio display */
+    if (vdev->display != ON_OFF_AUTO_OFF && dpy &&
+        dpy->dmabuf.primary) {
+        vfio_display_reset(vdev);
+    }
 
     if (vdev->resetfn && !vdev->resetfn(vdev)) {
         goto post_reset;
