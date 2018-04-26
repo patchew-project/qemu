@@ -575,4 +575,5 @@ class TestDriveCompression(iotests.QMPTestCase):
                                         target='drive1')
 
 if __name__ == '__main__':
+    iotests.require_formats('blkdebug')
     iotests.main(supported_fmts=['raw', 'qcow2'])
