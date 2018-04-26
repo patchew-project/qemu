@@ -45,6 +45,7 @@ _supported_proto file
 _supported_os Linux
 _unsupported_imgopts "subformat=monolithicFlat" "subformat=twoGbMaxExtentFlat" \
     "subformat=twoGbMaxExtentSparse"
+_require_format blkdebug blkverify
 
 function do_run_qemu()
 {
