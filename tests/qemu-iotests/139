@@ -326,6 +326,8 @@ class TestBlockdevDel(iotests.QMPTestCase):
         #self.delBlockDriverState('mirror0')
 
     def testBlkDebug(self):
+        if not iotests.supports_format('blkdebug'):
+            return
         self.addBlkDebug('debug0', 'node0')
         # 'node0' is used by the blkdebug node
         self.delBlockDriverState('node0', expect_error = True)
@@ -334,6 +336,8 @@ class TestBlockdevDel(iotests.QMPTestCase):
         self.checkBlockDriverState('node0', False)
 
     def testBlkVerify(self):
+        if not iotests.supports_format('blkverify'):
+            return
         self.addBlkVerify('verify0', 'node0', 'node1')
         # We cannot remove the children of a blkverify device
         self.delBlockDriverState('node0', expect_error = True)
