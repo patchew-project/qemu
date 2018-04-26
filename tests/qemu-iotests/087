@@ -34,6 +34,7 @@ status=1	# failure is the default!
 _supported_fmt qcow2
 _supported_proto file
 _supported_os Linux
+_require_format null-co
 
 function do_run_qemu()
 {
