@@ -372,4 +372,5 @@ class ThrottleTestRemovableMedia(iotests.QMPTestCase):
 
 
 if __name__ == '__main__':
+    iotests.require_formats("null-co", "null-aio")
     iotests.main(supported_fmts=["raw"])
