@@ -409,6 +409,8 @@ class TestIncrementalBackup(TestIncrementalBackupBase):
 
 
     def do_transaction_failure_test(self, race=False):
+        if not iotests.supports_format('blkdebug'):
+            return
         # Create a second drive, with pattern:
         drive1 = self.add_node('drive1')
         self.img_create(drive1['file'], drive1['fmt'])
@@ -588,6 +590,9 @@ class TestIncrementalBackupBlkdebug(TestIncrementalBackupBase):
         emulate additional writes, then create another incremental backup
         afterwards and verify that the backup created is correct.
         '''
+
+        if not iotests.supports_format('blkdebug'):
+            return
 
         drive0 = self.drives[0]
         result = self.vm.qmp('blockdev-add',
