@@ -327,6 +327,10 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
         .driver   = "q35-pcihost",\
         .property = "x-pci-hole64-fix",\
         .value    = "off",\
+    },{\
+        .driver   = TYPE_X86_CPU,\
+        .property = "legacy-cache",\
+        .value    = "on",\
     },
 
 #define PC_COMPAT_2_9 \
