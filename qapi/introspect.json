@@ -262,13 +262,16 @@
 # @allow-oob: whether the command allows out-of-band execution.
 #             (Since: 2.12)
 #
+# @allowed-in-preconfig: command can be executed in preconfig runstate,
+#                        default: 'false' (Since 2.13)
+#
 # TODO: @success-response (currently irrelevant, because it's QGA, not QMP)
 #
 # Since: 2.5
 ##
 { 'struct': 'SchemaInfoCommand',
   'data': { 'arg-type': 'str', 'ret-type': 'str',
-            'allow-oob': 'bool' } }
+            'allow-oob': 'bool', 'allowed-in-preconfig': 'bool' } }
 
 ##
 # @SchemaInfoEvent:
