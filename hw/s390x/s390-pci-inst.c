@@ -14,6 +14,7 @@
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "cpu.h"
+#include "internal.h"
 #include "s390-pci-inst.h"
 #include "s390-pci-bus.h"
 #include "exec/memory-internal.h"
@@ -295,7 +296,7 @@ int clp_service_call(S390CPU *cpu, uint8_t r2, uintptr_t ra)
         resgrp->fr = 1;
         stq_p(&resgrp->dasm, 0);
         stq_p(&resgrp->msia, ZPCI_MSI_ADDR);
-        stw_p(&resgrp->mui, 0);
+        stw_p(&resgrp->mui, DEFAULT_MUI);
         stw_p(&resgrp->i, 128);
         stw_p(&resgrp->maxstbl, 128);
         resgrp->version = 0;
@@ -460,6 +461,10 @@ int pcilg_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2, uintptr_t ra)
         return 0;
     }
 
+    if (pbdev->fmb_addr) {
+        pbdev->fmb.ld_ops++;
+    }
+
     env->regs[r1] = data;
     setcc(cpu, ZPCI_PCI_LS_OK);
     return 0;
@@ -565,6 +570,10 @@ int pcistg_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2, uintptr_t ra)
         setcc(cpu, ZPCI_PCI_LS_ERR);
         s390_set_status_code(env, r2, ZPCI_PCI_ST_INVAL_AS);
         return 0;
+    }
+
+    if (pbdev->fmb_addr) {
+        pbdev->fmb.st_ops++;
     }
 
     setcc(cpu, ZPCI_PCI_LS_OK);
@@ -689,6 +698,9 @@ err:
         s390_set_status_code(env, r1, ZPCI_PCI_ST_FUNC_IN_ERR);
         s390_pci_generate_error_event(error, pbdev->fh, pbdev->fid, start, 0);
     } else {
+        if (pbdev->fmb_addr) {
+            pbdev->fmb.rpcit_ops++;
+        }
         setcc(cpu, ZPCI_PCI_LS_OK);
     }
     return 0;
@@ -739,6 +751,8 @@ int pcistb_service_call(S390CPU *cpu, uint8_t r1, uint8_t r3, uint64_t gaddr,
     default:
         break;
     }
+
+    atomic_inc(&pbdev->fmb.stb_ops);
 
     if (pcias > ZPCI_IO_BAR_MAX) {
         DPRINTF("pcistb invalid space\n");
@@ -896,6 +910,42 @@ void pci_dereg_ioat(S390PCIIOMMU *iommu)
     iommu->g_iota = 0;
 }
 
+void s390_pci_fmb_free(S390PCIBusDevice *pbdev)
+{
+    if (!pbdev) {
+        return;
+    }
+
+    if (pbdev->fmb_timer) {
+        timer_del(pbdev->fmb_timer);
+        timer_free(pbdev->fmb_timer);
+        pbdev->fmb_timer = NULL;
+    }
+    pbdev->fmb_addr = 0;
+    memset(&pbdev->fmb, 0, sizeof(ZpciFmb));
+}
+
+static void fmb_update(void *opaque)
+{
+    S390PCIBusDevice *pbdev = opaque;
+    MemTxResult ret;
+
+    pbdev->fmb.sample++;
+    pbdev->fmb.last_update = time2tod(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL))
+                             & UPDATE_TIME_MASK;
+    ret = address_space_write(&address_space_memory, pbdev->fmb_addr,
+                              MEMTXATTRS_UNSPECIFIED, (uint8_t *)&pbdev->fmb,
+                              sizeof(ZpciFmb));
+    if (ret) {
+        s390_pci_generate_error_event(ERR_EVENT_FMBA, pbdev->fh, pbdev->fid,
+                                      pbdev->fmb_addr, 0);
+        s390_pci_fmb_free(pbdev);
+    } else {
+        timer_mod(pbdev->fmb_timer,
+                  qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + DEFAULT_MUI);
+    }
+}
+
 int mpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba, uint8_t ar,
                         uintptr_t ra)
 {
@@ -1027,6 +1077,14 @@ int mpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba, uint8_t ar,
         break;
     case ZPCI_MOD_FC_SET_MEASURE:
         pbdev->fmb_addr = ldq_p(&fib.fmb_addr);
+        if (!pbdev->fmb_addr) {
+            s390_pci_fmb_free(pbdev);
+        } else {
+            pbdev->fmb_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL,
+			                    fmb_update, pbdev);
+            timer_mod(pbdev->fmb_timer,
+                      qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + DEFAULT_MUI);
+        }
         break;
     default:
         s390_program_interrupt(&cpu->env, PGM_OPERAND, 6, ra);

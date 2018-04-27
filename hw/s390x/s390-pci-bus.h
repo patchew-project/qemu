@@ -286,6 +286,20 @@ typedef struct S390PCIIOMMUTable {
     S390PCIIOMMU *iommu[PCI_SLOT_MAX];
 } S390PCIIOMMUTable;
 
+/* Function Measurement Block */
+#define DEFAULT_MUI 4000
+#define UPDATE_TIME_MASK (~0x1ULL)
+typedef struct ZpciFmb {
+    uint32_t format  : 8;
+    uint32_t fmt_ind : 24;
+    uint32_t sample;
+    uint64_t last_update;
+    uint64_t ld_ops;
+    uint64_t st_ops;
+    uint64_t stb_ops;
+    uint64_t rpcit_ops;
+} QEMU_PACKED ZpciFmb;
+
 struct S390PCIBusDevice {
     DeviceState qdev;
     PCIDevice *pdev;
@@ -297,6 +311,8 @@ struct S390PCIBusDevice {
     uint32_t fid;
     bool fid_defined;
     uint64_t fmb_addr;
+    ZpciFmb fmb;
+    QEMUTimer *fmb_timer;
     uint8_t isc;
     uint16_t noi;
     uint16_t maxstbl;
