@@ -20,6 +20,10 @@ void qmp_an_oob_command(Error **errp)
 {
 }
 
+void qmp_allowed_in_preconfig_test(Error **errp)
+{
+}
+
 Empty2 *qmp_user_def_cmd0(Error **errp)
 {
     return g_new0(Empty2, 1);

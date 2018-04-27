@@ -168,6 +168,8 @@ command boxed-union UserDefNativeListUnion -> None
    gen=True success_response=True boxed=True oob=False preconfig=False
 command an-oob-command None -> None
    gen=True success_response=True boxed=False oob=True preconfig=False
+command allowed-in-preconfig-test None -> None
+   gen=True success_response=True boxed=False oob=False preconfig=True
 object UserDefOptions
     member i64: intList optional=True
     member u64: uint64List optional=True
