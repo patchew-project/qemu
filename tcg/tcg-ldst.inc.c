@@ -41,12 +41,16 @@ typedef struct TCGLabelQemuLdst {
 static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *l);
 static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l);
 
-static bool tcg_out_ldst_finalize(TCGContext *s)
+static bool tcg_out_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
 {
-    TCGLabelQemuLdst *lb;
+    bool ret;
 
-    /* qemu_ld/st slow paths */
-    for (lb = s->ldst_labels; lb != NULL; lb = lb->next) {
+    if (lb == NULL) {
+        return true;
+    }
+
+    ret = tcg_out_slow_path(s, lb->next);
+    if (ret) {
         if (lb->is_ld) {
             tcg_out_qemu_ld_slow_path(s, lb);
         } else {
@@ -57,11 +61,16 @@ static bool tcg_out_ldst_finalize(TCGContext *s)
            one operation beginning below the high water mark cannot overrun
            the buffer completely.  Thus we can test for overflow after
            generating code without having to check during generation.  */
-        if (unlikely((void *)s->code_ptr > s->code_gen_highwater)) {
-            return false;
-        }
+        ret = (void *)s->code_ptr <= s->code_gen_highwater;
     }
-    return true;
+
+    return ret;
+}
+
+static bool tcg_out_ldst_finalize(TCGContext *s)
+{
+    /* qemu_ld/st slow paths */
+    return tcg_out_slow_path(s, s->ldst_labels);
 }
 
 /*
