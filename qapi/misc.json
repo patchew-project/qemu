@@ -1209,6 +1209,28 @@
 { 'command': 'cont' }
 
 ##
+# @exit-preconfig:
+#
+# Exit from "preconfig" state
+#
+# Since 2.13
+#
+# Returns: nothing
+#
+# Notes: Command makes QEMU exit from preconfig state and proceeds with
+# VM initialization using configuration data provided on command line
+# and via QMP monitor at preconfig state. Command is available only at
+# preconfig state (i.e. if --preconfig command line option).
+#
+# Example:
+#
+# -> { "execute": "exit-preconfig" }
+# <- { "return": {} }
+#
+##
+{ 'command': 'exit-preconfig' }
+
+##
 # @system_wakeup:
 #
 # Wakeup guest from suspend.  Does nothing in case the guest isn't suspended.
