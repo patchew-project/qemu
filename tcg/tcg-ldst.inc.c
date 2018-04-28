@@ -46,7 +46,7 @@ static bool tcg_out_ldst_finalize(TCGContext *s)
     TCGLabelQemuLdst *lb;
 
     /* qemu_ld/st slow paths */
-    for (lb = s->ldst_labels; lb != NULL; lb = lb->next) {
+    for (lb = s->ldst_head; lb != NULL; lb = lb->next) {
         if (lb->is_ld) {
             tcg_out_qemu_ld_slow_path(s, lb);
         } else {
@@ -72,7 +72,12 @@ static inline TCGLabelQemuLdst *new_ldst_label(TCGContext *s)
 {
     TCGLabelQemuLdst *l = tcg_malloc(sizeof(*l));
 
-    l->next = s->ldst_labels;
-    s->ldst_labels = l;
+    l->next = NULL;
+    if (s->ldst_tail) {
+        s->ldst_tail->next = l;
+    } else {
+        s->ldst_head = l;
+    }
+    s->ldst_tail = l;
     return l;
 }

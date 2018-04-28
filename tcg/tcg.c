@@ -3324,7 +3324,8 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb)
     s->code_ptr = tb->tc.ptr;
 
 #ifdef TCG_TARGET_NEED_LDST_LABELS
-    s->ldst_labels = NULL;
+    s->ldst_head = NULL;
+    s->ldst_tail = NULL;
 #endif
 #ifdef TCG_TARGET_NEED_POOL_LABELS
     s->pool_labels = NULL;
