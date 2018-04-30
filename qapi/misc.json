@@ -1491,6 +1491,10 @@
 #
 # List properties associated with a device.
 #
+# Note: the handler creates a device object, enumerates properties and destroys
+# the object so it only lists properties defined in DeviceClass::props or
+# created by DeviceClass::init()/TypeInfo::instance_init().
+#
 # @typename: the type name of a device
 #
 # Returns: a list of ObjectPropertyInfo describing a devices properties
@@ -1505,6 +1509,11 @@
 # @qom-list-properties:
 #
 # List properties associated with a QOM object.
+#
+# Note: the handler creates an object, enumerates properties and destroys
+# the object so it only lists properties created in TypeInfo::instance_init().
+# Since the instance_init() callback of the device object adds
+# DeviceClass::props as object properties, they will be listed as well.
 #
 # @typename: the type name of an object
 #
