@@ -8843,12 +8843,12 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
         ctx.opcode = cpu_ldl_code(env, ctx.pc);
         decode_opc(env, &ctx, 0);
 
+        ctx.pc = ctx.next_pc;
         if (num_insns >= max_insns || tcg_op_buf_full()) {
             gen_save_pc(ctx.next_pc);
             tcg_gen_exit_tb(0);
             break;
         }
-        ctx.pc = ctx.next_pc;
     }
 
     gen_tb_end(tb, num_insns);
