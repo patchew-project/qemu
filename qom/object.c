@@ -1668,7 +1668,7 @@ gchar *object_get_canonical_path(Object *obj)
     Object *root = object_get_root();
     char *newpath, *path = NULL;
 
-    while (obj != root) {
+    while (obj && obj->parent && obj != root) {
         char *component = object_get_canonical_path_component(obj);
 
         if (path) {
