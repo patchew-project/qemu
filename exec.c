@@ -513,7 +513,7 @@ static MemoryRegionSection flatview_do_translate(FlatView *fv,
         imrc = memory_region_get_iommu_class_nocheck(iommu_mr);
 
         iotlb = imrc->translate(iommu_mr, addr, is_write ?
-                                IOMMU_WO : IOMMU_RO);
+                                IOMMU_WO : IOMMU_RO, attrs);
         addr = ((iotlb.translated_addr & ~iotlb.addr_mask)
                 | (addr & iotlb.addr_mask));
         page_mask &= iotlb.addr_mask;
