@@ -12,6 +12,7 @@ TESTCASES += test_abs.tst
 TESTCASES += test_bmerge.tst
 TESTCASES += test_clz.tst
 TESTCASES += test_dvstep.tst
+TESTCASES += test_fadd.tst
 
 all: build
 
