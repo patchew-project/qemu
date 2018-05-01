@@ -1,1 +1,2 @@
 obj-y += tricore_testboard.o
+obj-y += tricore_testdevice.o
