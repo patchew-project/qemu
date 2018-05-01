@@ -35,6 +35,7 @@ typedef struct VFIOIOEventFD {
     hwaddr region_addr;
     bool match_data;
     bool dynamic;
+    bool vfio;
 } VFIOIOEventFD;
 
 typedef struct VFIOQuirk {
@@ -164,6 +165,7 @@ typedef struct VFIOPCIDevice {
     bool no_kvm_msix;
     bool no_geforce_quirks;
     bool no_kvm_ioeventfd;
+    bool no_vfio_ioeventfd;
     VFIODisplay *dpy;
 } VFIOPCIDevice;
 

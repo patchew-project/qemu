@@ -16,6 +16,7 @@
 #include "qemu/range.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
+#include <sys/ioctl.h>
 #include "hw/nvram/fw_cfg.h"
 #include "pci.h"
 #include "trace.h"
@@ -287,13 +288,31 @@ static VFIOQuirk *vfio_quirk_alloc(int nr_mem)
     return quirk;
 }
 
-static void vfio_ioeventfd_exit(VFIOIOEventFD *ioeventfd)
+static void vfio_ioeventfd_exit(VFIOPCIDevice *vdev, VFIOIOEventFD *ioeventfd)
 {
     QLIST_REMOVE(ioeventfd, next);
+
     memory_region_del_eventfd(ioeventfd->mr, ioeventfd->addr, ioeventfd->size,
                               ioeventfd->match_data, ioeventfd->data,
                               &ioeventfd->e);
-    qemu_set_fd_handler(event_notifier_get_fd(&ioeventfd->e), NULL, NULL, NULL);
+
+    if (ioeventfd->vfio) {
+        struct vfio_device_ioeventfd vfio_ioeventfd;
+
+        vfio_ioeventfd.argsz = sizeof(vfio_ioeventfd);
+        vfio_ioeventfd.flags = ioeventfd->size;
+        vfio_ioeventfd.data = ioeventfd->data;
+        vfio_ioeventfd.offset = ioeventfd->region->fd_offset +
+                                ioeventfd->region_addr;
+        vfio_ioeventfd.fd = -1;
+
+        ioctl(vdev->vbasedev.fd, VFIO_DEVICE_IOEVENTFD, &vfio_ioeventfd);
+
+    } else {
+        qemu_set_fd_handler(event_notifier_get_fd(&ioeventfd->e),
+                            NULL, NULL, NULL);
+    }
+
     event_notifier_cleanup(&ioeventfd->e);
     trace_vfio_ioeventfd_exit(memory_region_name(ioeventfd->mr),
                               (uint64_t)ioeventfd->addr, ioeventfd->size,
@@ -307,7 +326,7 @@ static void vfio_drop_dynamic_eventfds(VFIOPCIDevice *vdev, VFIOQuirk *quirk)
 
     QLIST_FOREACH_SAFE(ioeventfd, &quirk->ioeventfds, next, tmp) {
         if (ioeventfd->dynamic) {
-            vfio_ioeventfd_exit(ioeventfd);
+            vfio_ioeventfd_exit(vdev, ioeventfd);
         }
     }
 }
@@ -361,13 +380,30 @@ static VFIOIOEventFD *vfio_ioeventfd_init(VFIOPCIDevice *vdev,
     ioeventfd->region = region;
     ioeventfd->region_addr = region_addr;
 
-    qemu_set_fd_handler(event_notifier_get_fd(&ioeventfd->e),
-                        vfio_ioeventfd_handler, NULL, ioeventfd);
+    if (!vdev->no_vfio_ioeventfd) {
+        struct vfio_device_ioeventfd vfio_ioeventfd;
+
+        vfio_ioeventfd.argsz = sizeof(vfio_ioeventfd);
+        vfio_ioeventfd.flags = ioeventfd->size;
+        vfio_ioeventfd.data = ioeventfd->data;
+        vfio_ioeventfd.offset = ioeventfd->region->fd_offset +
+                                ioeventfd->region_addr;
+        vfio_ioeventfd.fd = event_notifier_get_fd(&ioeventfd->e);
+
+        ioeventfd->vfio = !ioctl(vdev->vbasedev.fd,
+                                 VFIO_DEVICE_IOEVENTFD, &vfio_ioeventfd);
+    }
+
+    if (!ioeventfd->vfio) {
+        qemu_set_fd_handler(event_notifier_get_fd(&ioeventfd->e),
+                            vfio_ioeventfd_handler, NULL, ioeventfd);
+    }
+
     memory_region_add_eventfd(ioeventfd->mr, ioeventfd->addr,
                               ioeventfd->size, ioeventfd->match_data,
                               ioeventfd->data, &ioeventfd->e);
     trace_vfio_ioeventfd_init(memory_region_name(mr), (uint64_t)addr,
-                              size, data);
+                              size, data, ioeventfd->vfio);
 
     return ioeventfd;
 }
@@ -1835,7 +1871,7 @@ void vfio_bar_quirk_exit(VFIOPCIDevice *vdev, int nr)
 
     QLIST_FOREACH(quirk, &bar->quirks, next) {
         while (!QLIST_EMPTY(&quirk->ioeventfds)) {
-            vfio_ioeventfd_exit(QLIST_FIRST(&quirk->ioeventfds));
+            vfio_ioeventfd_exit(vdev, QLIST_FIRST(&quirk->ioeventfds));
         }
 
         for (i = 0; i < quirk->nr_mem; i++) {
