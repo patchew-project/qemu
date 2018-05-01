@@ -15,6 +15,7 @@ TESTCASES += test_dvstep.tst
 TESTCASES += test_fadd.tst
 TESTCASES += test_fmul.tst
 TESTCASES += test_ftoi.tst
+TESTCASES += test_madd.tst
 
 all: build
 
