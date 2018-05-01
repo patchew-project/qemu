@@ -24,9 +24,23 @@
 
 struct VFIOPCIDevice;
 
+typedef struct VFIOIOEventFD {
+    QLIST_ENTRY(VFIOIOEventFD) next;
+    MemoryRegion *mr;
+    hwaddr addr;
+    unsigned size;
+    uint64_t data;
+    EventNotifier e;
+    VFIORegion *region;
+    hwaddr region_addr;
+    bool match_data;
+    bool dynamic;
+} VFIOIOEventFD;
+
 typedef struct VFIOQuirk {
     QLIST_ENTRY(VFIOQuirk) next;
     void *data;
+    QLIST_HEAD(, VFIOIOEventFD) ioeventfds;
     int nr_mem;
     MemoryRegion *mem;
     void (*reset)(struct VFIOPCIDevice *vdev, struct VFIOQuirk *quirk);
@@ -149,6 +163,7 @@ typedef struct VFIOPCIDevice {
     bool no_kvm_msi;
     bool no_kvm_msix;
     bool no_geforce_quirks;
+    bool no_kvm_ioeventfd;
     VFIODisplay *dpy;
 } VFIOPCIDevice;
 
