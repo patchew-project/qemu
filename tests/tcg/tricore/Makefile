@@ -10,6 +10,7 @@ SIMFLAGS = -M tricore_testboard -nographic -kernel
 
 TESTCASES += test_abs.tst
 TESTCASES += test_bmerge.tst
+TESTCASES += test_clz.tst
 
 all: build
 
