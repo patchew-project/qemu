@@ -1909,6 +1909,7 @@ IOMMUTLBEntry address_space_get_iotlb_entry(AddressSpace *as, hwaddr addr,
  * #MemoryRegion.
  * @len: pointer to length
  * @is_write: indicates the transfer direction
+ * @attrs: memory attributes
  */
 MemoryRegion *flatview_translate(FlatView *fv,
                                  hwaddr addr, hwaddr *xlat,
@@ -1916,7 +1917,8 @@ MemoryRegion *flatview_translate(FlatView *fv,
 
 static inline MemoryRegion *address_space_translate(AddressSpace *as,
                                                     hwaddr addr, hwaddr *xlat,
-                                                    hwaddr *len, bool is_write)
+                                                    hwaddr *len, bool is_write,
+                                                    MemTxAttrs attrs)
 {
     return flatview_translate(address_space_to_flatview(as),
                               addr, xlat, len, is_write);
