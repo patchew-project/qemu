@@ -583,7 +583,8 @@ iotlb_fail:
 
 /* Called from RCU critical section */
 MemoryRegion *flatview_translate(FlatView *fv, hwaddr addr, hwaddr *xlat,
-                                 hwaddr *plen, bool is_write)
+                                 hwaddr *plen, bool is_write,
+                                 MemTxAttrs attrs)
 {
     MemoryRegion *mr;
     MemoryRegionSection section;
@@ -3117,7 +3118,7 @@ static MemTxResult flatview_write_continue(FlatView *fv, hwaddr addr,
         }
 
         l = len;
-        mr = flatview_translate(fv, addr, &addr1, &l, true);
+        mr = flatview_translate(fv, addr, &addr1, &l, true, attrs);
     }
 
     return result;
@@ -3133,7 +3134,7 @@ static MemTxResult flatview_write(FlatView *fv, hwaddr addr, MemTxAttrs attrs,
     MemTxResult result = MEMTX_OK;
 
     l = len;
-    mr = flatview_translate(fv, addr, &addr1, &l, true);
+    mr = flatview_translate(fv, addr, &addr1, &l, true, attrs);
     result = flatview_write_continue(fv, addr, attrs, buf, len,
                                      addr1, l, mr);
 
@@ -3204,7 +3205,7 @@ MemTxResult flatview_read_continue(FlatView *fv, hwaddr addr,
         }
 
         l = len;
-        mr = flatview_translate(fv, addr, &addr1, &l, false);
+        mr = flatview_translate(fv, addr, &addr1, &l, false, attrs);
     }
 
     return result;
@@ -3219,7 +3220,7 @@ static MemTxResult flatview_read(FlatView *fv, hwaddr addr,
     MemoryRegion *mr;
 
     l = len;
-    mr = flatview_translate(fv, addr, &addr1, &l, false);
+    mr = flatview_translate(fv, addr, &addr1, &l, false, attrs);
     return flatview_read_continue(fv, addr, attrs, buf, len,
                                   addr1, l, mr);
 }
@@ -3433,7 +3434,7 @@ static bool flatview_access_valid(FlatView *fv, hwaddr addr, int len,
 
     while (len > 0) {
         l = len;
-        mr = flatview_translate(fv, addr, &xlat, &l, is_write);
+        mr = flatview_translate(fv, addr, &xlat, &l, is_write, attrs);
         if (!memory_access_is_direct(mr, is_write)) {
             l = memory_access_size(mr, l, addr);
             /* When our callers all have attrs we'll pass them through here */
@@ -3482,7 +3483,7 @@ flatview_extend_translation(FlatView *fv, hwaddr addr,
 
         len = target_len;
         this_mr = flatview_translate(fv, addr, &xlat,
-                                                   &len, is_write);
+                                     &len, is_write, attrs);
         if (this_mr != mr || xlat != base + done) {
             return done;
         }
@@ -3515,7 +3516,7 @@ void *address_space_map(AddressSpace *as,
     l = len;
     rcu_read_lock();
     fv = address_space_to_flatview(as);
-    mr = flatview_translate(fv, addr, &xlat, &l, is_write);
+    mr = flatview_translate(fv, addr, &xlat, &l, is_write, attrs);
 
     if (!memory_access_is_direct(mr, is_write)) {
         if (atomic_xchg(&bounce.in_use, true)) {
