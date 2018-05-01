@@ -8,6 +8,8 @@ ASFLAGS =
 SIM = ../../../tricore-softmmu/qemu-system-tricore
 SIMFLAGS = -M tricore_testboard -nographic -kernel
 
+TESTCASES += test_abs.tst
+
 all: build
 
 %.pS: %.S
