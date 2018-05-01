@@ -13,6 +13,7 @@ TESTCASES += test_bmerge.tst
 TESTCASES += test_clz.tst
 TESTCASES += test_dvstep.tst
 TESTCASES += test_fadd.tst
+TESTCASES += test_fmul.tst
 
 all: build
 
