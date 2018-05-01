@@ -129,6 +129,10 @@ const char *nbd_info_lookup(uint16_t info)
         return "description";
     case NBD_INFO_BLOCK_SIZE:
         return "block size";
+    case NBD_INFO_TRIM_SIZE:
+        return "trim size";
+    case NBD_INFO_ZERO_SIZE:
+        return "zero size";
     default:
         return "<unknown>";
     }

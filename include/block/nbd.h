@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2016-2017 Red Hat, Inc.
+ *  Copyright (C) 2016-2018 Red Hat, Inc.
  *  Copyright (C) 2005  Anthony Liguori <anthony@codemonkey.ws>
  *
  *  Network Block Device
@@ -180,6 +180,8 @@ typedef struct NBDExtent {
 #define NBD_INFO_NAME           1
 #define NBD_INFO_DESCRIPTION    2
 #define NBD_INFO_BLOCK_SIZE     3
+#define NBD_INFO_TRIM_SIZE      4
+#define NBD_INFO_ZERO_SIZE      5
 
 /* Request flags, sent from client to server during transmission phase */
 #define NBD_CMD_FLAG_FUA        (1 << 0) /* 'force unit access' during write */
