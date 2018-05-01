@@ -478,8 +478,19 @@ static void nbd_refresh_limits(BlockDriverState *bs, Error **errp)
     uint32_t max = MIN_NON_ZERO(NBD_MAX_BUFFER_SIZE, s->info.max_block);
 
     bs->bl.request_alignment = min ? min : BDRV_SECTOR_SIZE;
-    bs->bl.max_pdiscard = max;
-    bs->bl.max_pwrite_zeroes = max;
+    if (s->info.max_trim) {
+        bs->bl.max_pdiscard = MIN(s->info.max_trim, BDRV_REQUEST_MAX_BYTES);
+    } else {
+        bs->bl.max_pdiscard = max;
+    }
+    bs->bl.pdiscard_alignment = s->info.min_trim;
+    if (s->info.max_zero) {
+        bs->bl.max_pwrite_zeroes = MIN(s->info.max_zero,
+                                       BDRV_REQUEST_MAX_BYTES);
+    } else {
+        bs->bl.max_pwrite_zeroes = max;
+    }
+    bs->bl.pwrite_zeroes_alignment = s->info.min_zero;
     bs->bl.max_transfer = max;
 
     if (s->info.opt_block &&

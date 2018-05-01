@@ -270,6 +270,10 @@ struct NBDExportInfo {
     uint32_t min_block;
     uint32_t opt_block;
     uint32_t max_block;
+    uint32_t min_trim;
+    uint32_t max_trim;
+    uint32_t min_zero;
+    uint32_t max_zero;
 
     uint32_t meta_base_allocation_id;
 };

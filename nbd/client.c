@@ -337,16 +337,18 @@ static int nbd_opt_go(QIOChannel *ioc, const char *wantname,
     info->flags = 0;
 
     trace_nbd_opt_go_start(wantname);
-    buf = g_malloc(4 + len + 2 + 2 * info->request_sizes + 1);
+    buf = g_malloc(4 + len + 2 + 3 * 2 * info->request_sizes + 1);
     stl_be_p(buf, len);
     memcpy(buf + 4, wantname, len);
-    /* At most one request, everything else up to server */
-    stw_be_p(buf + 4 + len, info->request_sizes);
+    /* Either 0 or 3 requests, everything else up to server */
+    stw_be_p(buf + 4 + len, 3 * info->request_sizes);
     if (info->request_sizes) {
         stw_be_p(buf + 4 + len + 2, NBD_INFO_BLOCK_SIZE);
+        stw_be_p(buf + 4 + len + 2 + 2, NBD_INFO_TRIM_SIZE);
+        stw_be_p(buf + 4 + len + 2 + 2 + 2, NBD_INFO_ZERO_SIZE);
     }
     error = nbd_send_option_request(ioc, NBD_OPT_GO,
-                                    4 + len + 2 + 2 * info->request_sizes,
+                                    4 + len + 2 + 3 * 2 * info->request_sizes,
                                     buf, errp);
     g_free(buf);
     if (error < 0) {
@@ -461,6 +463,72 @@ static int nbd_opt_go(QIOChannel *ioc, const char *wantname,
                                              info->max_block);
             break;
 
+        case NBD_INFO_TRIM_SIZE:
+            if (len != sizeof(info->min_trim) * 2) {
+                error_setg(errp, "remaining trim info len %" PRIu32
+                           " is unexpected size", len);
+                nbd_send_opt_abort(ioc);
+                return -1;
+            }
+            if (nbd_read(ioc, &info->min_trim, sizeof(info->min_trim),
+                         errp) < 0) {
+                error_prepend(errp, "failed to read info minimum trim size: ");
+                nbd_send_opt_abort(ioc);
+                return -1;
+            }
+            be32_to_cpus(&info->min_trim);
+            if (nbd_read(ioc, &info->max_trim, sizeof(info->max_trim),
+                         errp) < 0) {
+                error_prepend(errp,
+                              "failed to read info maximum trim size: ");
+                nbd_send_opt_abort(ioc);
+                return -1;
+            }
+            be32_to_cpus(&info->max_trim);
+            if (!info->min_trim || !info->max_trim ||
+                (info->max_trim != UINT32_MAX &&
+                 !QEMU_IS_ALIGNED(info->max_trim, info->min_trim))) {
+                error_setg(errp, "server trim sizes %" PRIu32 "/%" PRIu32
+                           " are not valid", info->min_trim, info->max_trim);
+                nbd_send_opt_abort(ioc);
+                return -1;
+            }
+            trace_nbd_opt_go_info_trim_size(info->min_trim, info->max_trim);
+            break;
+
+        case NBD_INFO_ZERO_SIZE:
+            if (len != sizeof(info->min_zero) * 2) {
+                error_setg(errp, "remaining zero info len %" PRIu32
+                           " is unexpected size", len);
+                nbd_send_opt_abort(ioc);
+                return -1;
+            }
+            if (nbd_read(ioc, &info->min_zero, sizeof(info->min_zero),
+                         errp) < 0) {
+                error_prepend(errp, "failed to read info minimum zero size: ");
+                nbd_send_opt_abort(ioc);
+                return -1;
+            }
+            be32_to_cpus(&info->min_zero);
+            if (nbd_read(ioc, &info->max_zero, sizeof(info->max_zero),
+                         errp) < 0) {
+                error_prepend(errp,
+                              "failed to read info maximum zero size: ");
+                nbd_send_opt_abort(ioc);
+                return -1;
+            }
+            be32_to_cpus(&info->max_zero);
+            if (!info->min_zero || !info->max_zero ||
+                (info->max_zero != UINT32_MAX &&
+                 !QEMU_IS_ALIGNED(info->max_zero, info->min_zero))) {
+                error_setg(errp, "server zero sizes %" PRIu32 "/%" PRIu32
+                           " are not valid", info->min_zero, info->max_zero);
+                nbd_send_opt_abort(ioc);
+                return -1;
+            }
+            trace_nbd_opt_go_info_zero_size(info->min_zero, info->max_zero);
+            break;
+
         default:
             trace_nbd_opt_go_info_unknown(type, nbd_info_lookup(type));
             if (nbd_drop(ioc, len, errp) < 0) {
@@ -476,6 +544,46 @@ static int nbd_opt_go(QIOChannel *ioc, const char *wantname,
     if (!info->flags) {
         error_setg(errp, "broken server omitted NBD_INFO_EXPORT");
         return -1;
+    }
+    if (info->min_trim) {
+        if (!info->min_block) {
+            error_setg(errp, "broken server sent INFO_TRIM_SIZE without"
+                       " INFO_BLOCK_SIZE");
+            return -1;
+        }
+        if (info->min_trim < info->opt_block) {
+            error_setg(errp, "broken server sent INFO_TRIM_SIZE with"
+                       " minimum trim %" PRIu32 " less than preferred block %"
+                       PRIu32, info->min_trim, info->opt_block);
+            return -1;
+        }
+        if (info->max_trim < info->max_block) {
+            error_setg(errp, "broken server sent INFO_TRIM_SIZE with"
+                       " maximum trim %" PRIu32 " less than maximum block %"
+                       PRIu32, info->max_trim, info->max_block);
+            return -1;
+        }
+        info->max_trim = QEMU_ALIGN_DOWN(info->max_trim, info->min_block);
+    }
+    if (info->min_zero) {
+        if (!info->min_block) {
+            error_setg(errp, "broken server sent INFO_ZERO_SIZE without"
+                       " INFO_BLOCK_SIZE");
+            return -1;
+        }
+        if (info->min_zero < info->opt_block) {
+            error_setg(errp, "broken server sent INFO_ZERO_SIZE with"
+                       " minimum zero %" PRIu32 " less than preferred block %"
+                       PRIu32, info->min_zero, info->opt_block);
+            return -1;
+        }
+        if (info->max_zero < info->max_block) {
+            error_setg(errp, "broken server sent INFO_ZERO_SIZE with"
+                       " maximum zero %" PRIu32 " less than maximum block %"
+                       PRIu32, info->max_zero, info->max_block);
+            return -1;
+        }
+        info->max_zero = QEMU_ALIGN_DOWN(info->max_zero, info->min_block);
     }
     trace_nbd_opt_go_success();
     return 1;
