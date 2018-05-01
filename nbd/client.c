@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2016-2017 Red Hat, Inc.
+ *  Copyright (C) 2016-2018 Red Hat, Inc.
  *  Copyright (C) 2005  Anthony Liguori <anthony@codemonkey.ws>
  *
  *  Network Block Device Client Side
@@ -365,17 +365,12 @@ static int nbd_opt_go(QIOChannel *ioc, const char *wantname,
 
         if (reply.type == NBD_REP_ACK) {
             /* Server is done sending info and moved into transmission
-               phase, but make sure it sent flags */
+               phase */
             if (len) {
                 error_setg(errp, "server sent invalid NBD_REP_ACK");
                 return -1;
             }
-            if (!info->flags) {
-                error_setg(errp, "broken server omitted NBD_INFO_EXPORT");
-                return -1;
-            }
-            trace_nbd_opt_go_success();
-            return 1;
+            break;
         }
         if (reply.type != NBD_REP_INFO) {
             error_setg(errp, "unexpected reply type %" PRIu32
@@ -476,6 +471,14 @@ static int nbd_opt_go(QIOChannel *ioc, const char *wantname,
             break;
         }
     }
+
+    /* Sanity check that server's responses make sense */
+    if (!info->flags) {
+        error_setg(errp, "broken server omitted NBD_INFO_EXPORT");
+        return -1;
+    }
+    trace_nbd_opt_go_success();
+    return 1;
 }
 
 /* Return -1 on failure, 0 if wantname is an available export. */
