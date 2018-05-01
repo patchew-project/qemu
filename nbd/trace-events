@@ -46,6 +46,8 @@ nbd_negotiate_send_info(int info, const char *name, uint32_t length) "Sending NB
 nbd_negotiate_handle_info_requests(int requests) "Client requested %d items of info"
 nbd_negotiate_handle_info_request(int request, const char *name) "Client requested info %d (%s)"
 nbd_negotiate_handle_info_block_size(uint32_t minimum, uint32_t preferred, uint32_t maximum) "advertising minimum 0x%" PRIx32 ", preferred 0x%" PRIx32 ", maximum 0x%" PRIx32
+nbd_negotiate_handle_info_trim_size(uint32_t minimum, uint32_t maximum) "advertising minimum 0x%" PRIx32 ", maximum 0x%" PRIx32
+nbd_negotiate_handle_info_zero_size(uint32_t minimum, uint32_t maximum) "advertising minimum 0x%" PRIx32 ", maximum 0x%" PRIx32
 nbd_negotiate_handle_starttls(void) "Setting up TLS"
 nbd_negotiate_handle_starttls_handshake(void) "Starting TLS handshake"
 nbd_negotiate_meta_context(const char *optname, const char *export, uint32_t queries) "Client requested %s for export %s, with %" PRIu32 " queries"

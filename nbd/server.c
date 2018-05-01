@@ -617,6 +617,36 @@ static int nbd_negotiate_handle_info(NBDClient *client, uint16_t myflags,
         return rc;
     }
 
+    /* Send NBD_INFO_TRIM_SIZE always. */
+    /* minimum - Hard-code to 4096 for now, matching preferred block.
+     * TODO: consult blk_bs(blk)->bl.pdiscard_alignment? */
+    sizes[0] = 4096;
+    /* maximum - < 2G (then block layer fragments to bl.max_pdiscard). */
+    sizes[1] = QEMU_ALIGN_DOWN(BDRV_REQUEST_MAX_BYTES, sizes[0]);
+    trace_nbd_negotiate_handle_info_trim_size(sizes[0], sizes[1]);
+    cpu_to_be32s(&sizes[0]);
+    cpu_to_be32s(&sizes[1]);
+    rc = nbd_negotiate_send_info(client, NBD_INFO_TRIM_SIZE,
+                                 2 * sizeof(sizes[0]), sizes, errp);
+    if (rc < 0) {
+        return rc;
+    }
+
+    /* Send NBD_INFO_ZERO_SIZE always. */
+    /* minimum - Hard-code to 4096 for now, matching preferred block.
+     * TODO: consult blk_bs(blk)->bl.pwrite_zeroes_alignment? */
+    sizes[0] = 4096;
+    /* maximum - < 2G (then block layer fragments to bl.max_pwrite_zeroes). */
+    sizes[1] = QEMU_ALIGN_DOWN(BDRV_REQUEST_MAX_BYTES, sizes[0]);
+    trace_nbd_negotiate_handle_info_zero_size(sizes[0], sizes[1]);
+    cpu_to_be32s(&sizes[0]);
+    cpu_to_be32s(&sizes[1]);
+    rc = nbd_negotiate_send_info(client, NBD_INFO_ZERO_SIZE,
+                                 2 * sizeof(sizes[0]), sizes, errp);
+    if (rc < 0) {
+        return rc;
+    }
+
     /* Send NBD_INFO_EXPORT always */
     trace_nbd_negotiate_new_style_size_flags(exp->size,
                                              exp->nbdflags | myflags);
