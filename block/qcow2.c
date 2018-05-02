@@ -4493,6 +4493,217 @@ static QemuOptsList qcow2_create_opts = {
     }
 };
 
+static int qcow2_get_l2_allocated_size(BlockDriverState *bs,
+                                     uint64_t l2_table_offset,
+                                     int64_t *p_highest_cluster_index,
+                                     int64_t nb_clusters)
+{
+    BDRVQcow2State *s = bs->opaque;
+    uint64_t *l2_table = NULL, l2_entry, cluster_offset;
+    int l2_size, ret, i, nb_csectors;
+
+    /* malloc L2 table */
+    l2_size = s->l2_size * sizeof(uint64_t);
+    if (l2_size > 0) {
+        l2_table = g_malloc(l2_size);
+        if (l2_table == NULL) {
+            ret = -ENOMEM;
+            goto out;
+        }
+        /* load l2 table from image file */
+        ret = bdrv_pread(bs->file, l2_table_offset, l2_table, l2_size);
+        if (ret < 0 || ret != l2_size) {
+            goto out;
+        }
+
+        ret = update_highest_cluster_index(s, l2_table_offset, l2_size,
+                p_highest_cluster_index, nb_clusters);
+        if (ret == 1) {
+            goto out;
+        }
+    }
+
+    for (i = 0; i < s->l2_size; i++) {
+        l2_entry = be64_to_cpu(l2_table[i]);
+        switch (qcow2_get_cluster_type(l2_entry)) {
+        case QCOW2_CLUSTER_COMPRESSED:
+            nb_csectors = ((l2_entry >> s->csize_shift) & s->csize_mask) + 1;
+            l2_entry &= s->cluster_offset_mask;
+            ret = update_highest_cluster_index(s, l2_entry & ~511,
+                                        nb_csectors * 512,
+                                        p_highest_cluster_index, nb_clusters);
+            if (ret == 1) {
+                goto out;
+            }
+            break;
+        case QCOW2_CLUSTER_ZERO_ALLOC:
+        case QCOW2_CLUSTER_NORMAL:
+            cluster_offset = l2_entry & L2E_OFFSET_MASK;
+
+            ret = update_highest_cluster_index(s, cluster_offset,
+                                        s->cluster_size,
+                                        p_highest_cluster_index, nb_clusters);
+            if (ret == 1) {
+                goto out;
+            }
+
+            break;
+        case QCOW2_CLUSTER_ZERO_PLAIN:
+        case QCOW2_CLUSTER_UNALLOCATED:
+            break;
+        default:
+            abort(); /* some error happen */
+        }
+    }
+    ret = 0;
+out:
+    g_free(l2_table);
+    return ret;
+}
+
+static int qcow2_get_l1_allocated_size(BlockDriverState *bs,
+                                     uint64_t l1_table_offset,
+                                     int l1_size,
+                                     int64_t *p_highest_cluster_index,
+                                     int64_t nb_clusters)
+{
+    BDRVQcow2State *s = bs->opaque;
+    uint64_t *l1_table = NULL, l2_offset;
+    int i, ret, l1_size2;
+
+    /* malloca l1 table memory */
+    l1_size2 = l1_size * sizeof(uint64_t);
+    if (l1_size2 > 0) {
+        l1_table = g_malloc(l1_size2);
+        if (!l1_table) {
+            ret = -ENOMEM;
+            goto out;
+        }
+        ret = bdrv_pread(bs->file, l1_table_offset, l1_table, l1_size2);
+        if (ret < 0 || ret != l1_size2) {
+            goto out;
+        }
+
+        ret = update_highest_cluster_index(s, l1_table_offset, l1_size2,
+                                        p_highest_cluster_index, nb_clusters);
+        if (ret == 1) /* has reached the end */
+            goto out;
+    }
+
+
+    for (i = 0; i < l1_size; i++) {
+        be64_to_cpus(&l1_table[i]);
+        l2_offset = l1_table[i];
+        if (l2_offset) {
+            l2_offset &= L1E_OFFSET_MASK;
+            ret = qcow2_get_l2_allocated_size(bs, l2_offset,
+                                p_highest_cluster_index,  nb_clusters);
+            if (ret <  0 || ret == 1) {
+                goto out;
+            }
+        }
+    }
+
+    ret = 0;
+out:
+    g_free(l1_table);
+    return ret;
+
+}
+
+/* Get block device allocated space for qcow2, aligned with cluster_size */
+static int64_t qcow2_get_block_allocated_size(BlockDriverState *bs)
+{
+    int64_t file_size, file_max_clusters;
+    uint64_t offset, allocated_size;
+    int64_t highest_cluster_index = 0;
+    int i, ret;
+    BDRVQcow2State *s = bs->opaque;
+    QCowSnapshot *sn;
+
+    file_size = bdrv_getlength(bs->file->bs);
+    file_max_clusters = size_to_clusters(s, file_size);
+
+    /* current image map */
+    ret = qcow2_get_l1_allocated_size(bs, s->l1_table_offset,
+                                          s->l1_size, &highest_cluster_index,
+                                          file_max_clusters);
+    if (ret < 0 || ret == 1) {
+        goto out;
+    }
+
+    /* snapshot */
+    for (i = 0; i < s->nb_snapshots; i++) {
+        sn = s->snapshots + i;
+        ret = qcow2_get_l1_allocated_size(bs, sn->l1_table_offset,
+                                            sn->l1_size, &highest_cluster_index,
+                                            file_max_clusters);
+        if (ret < 0 || ret == 1) {
+            goto out;
+        }
+    }
+    ret = update_highest_cluster_index(s, s->snapshots_offset,
+                  s->snapshots_size, &highest_cluster_index, file_max_clusters);
+    if (ret == 1) {
+        goto out;
+    }
+
+    /* refcount table */
+    ret = update_highest_cluster_index(s, s->refcount_table_offset,
+                                 s->refcount_table_size * sizeof(uint64_t),
+                                 &highest_cluster_index, file_max_clusters);
+    if (ret == 1) {
+        goto out;
+    }
+    for (i = 0; i < s->refcount_table_size; i++) {
+        offset = s->refcount_table[i];
+        ret = update_highest_cluster_index(s, offset, s->cluster_size,
+                                     &highest_cluster_index, file_max_clusters);
+        if (ret == 1) {
+            goto out;
+        }
+    }
+
+    /* encryption */
+    if (s->crypto_header.length) {
+        ret = update_highest_cluster_index(s, s->crypto_header.offset,
+                                    s->crypto_header.length,
+                                    &highest_cluster_index, file_max_clusters);
+        if (ret == 1) {
+            goto out;
+        }
+    }
+
+    /* bitmap */
+    ret = qcow2_get_bitmap_allocated_clusters(bs, &highest_cluster_index,
+                                        file_max_clusters);
+out:
+    if (ret < 0) {
+        allocated_size = 0; /* if any error happen, return zero */
+    } else {
+        allocated_size = MIN((highest_cluster_index + 1) * s->cluster_size,
+                              file_size);
+    }
+
+    return allocated_size;
+}
+
+static int64_t qcow2_get_allocated_file_size(BlockDriverState *bs)
+{
+    struct stat st;
+    if (stat(bs->filename, &st) < 0 || !S_ISBLK(st.st_mode)) {
+        goto get_file_size;
+    }
+
+    return qcow2_get_block_allocated_size(bs);
+
+get_file_size:
+    if (bs->file) {
+        return bdrv_get_allocated_file_size(bs->file->bs);
+    }
+    return -ENOTSUP;
+}
+
 BlockDriver bdrv_qcow2 = {
     .format_name        = "qcow2",
     .instance_size      = sizeof(BDRVQcow2State),
@@ -4516,6 +4727,7 @@ BlockDriver bdrv_qcow2 = {
     .bdrv_co_pwrite_zeroes  = qcow2_co_pwrite_zeroes,
     .bdrv_co_pdiscard       = qcow2_co_pdiscard,
     .bdrv_truncate          = qcow2_truncate,
+    .bdrv_get_allocated_file_size = qcow2_get_allocated_file_size,
     .bdrv_co_pwritev_compressed = qcow2_co_pwritev_compressed,
     .bdrv_make_empty        = qcow2_make_empty,
 

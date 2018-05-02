@@ -466,6 +466,45 @@ static inline int64_t size_to_l1(BDRVQcow2State *s, int64_t size)
     return (size + (1ULL << shift) - 1) >> shift;
 }
 
+static inline int64_t offset_to_cluster_index(BDRVQcow2State *s,
+                                              uint64_t offset)
+{
+    return offset >> s->cluster_bits;
+}
+
+/*
+ * Return value may be 0 or 1, 1 means the highest cluster
+ * index has reached the max device size, so There is no need
+ * to continue scanning. @*p_highest_cluster_index has the
+ * new highest cluster index
+ */
+static inline int update_highest_cluster_index(BDRVQcow2State *s,
+                                        int64_t offset,
+                                        int64_t size,
+                                        int64_t *p_highest_cluster_index,
+                                        int64_t nb_clusters)
+{
+    int64_t cluster_index;
+    cluster_index = offset_to_cluster_index(s, offset + size - 1);
+
+    /* If necessary update the new highest index.
+     * Cluster Index exceed the device will be ignored.
+     */
+    if (cluster_index > *p_highest_cluster_index
+                        && cluster_index < nb_clusters) {
+        *p_highest_cluster_index = cluster_index;
+    } else {
+        return 0;
+    }
+
+
+    if (*p_highest_cluster_index == (nb_clusters - 1)) {
+        return 1; /* have reached max */
+    } else {
+        return 0;
+    }
+}
+
 static inline int offset_to_l1_index(BDRVQcow2State *s, uint64_t offset)
 {
     return offset >> (s->l2_bits + s->cluster_bits);
@@ -668,6 +707,9 @@ void *qcow2_cache_is_table_offset(Qcow2Cache *c, uint64_t offset);
 void qcow2_cache_discard(Qcow2Cache *c, void *table);
 
 /* qcow2-bitmap.c functions */
+int qcow2_get_bitmap_allocated_clusters(BlockDriverState *bs,
+                                        int64_t *p_highest_cluster_index,
+                                        int64_t nb_clusters);
 int qcow2_check_bitmaps_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
                                   void **refcount_table,
                                   int64_t *refcount_table_size);

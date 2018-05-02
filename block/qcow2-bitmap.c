@@ -636,6 +636,75 @@ fail:
     return NULL;
 }
 
+/*
+ * Get the highest allocated cluster index of bitmap
+ */
+int qcow2_get_bitmap_allocated_clusters(BlockDriverState *bs,
+                                        int64_t *p_highest_cluster_index,
+                                        int64_t nb_clusters)
+{
+    int ret;
+    BDRVQcow2State *s = bs->opaque;
+    Qcow2BitmapList *bm_list = NULL;
+    Qcow2Bitmap *bm;
+
+    if (s->nb_bitmaps == 0) {
+        return 0;
+    }
+
+    ret = update_highest_cluster_index(s, s->bitmap_directory_offset,
+                                       s->bitmap_directory_size,
+                                       p_highest_cluster_index, nb_clusters);
+    if (ret == 1) {
+        goto out;
+    }
+
+    bm_list = bitmap_list_load(bs, s->bitmap_directory_offset,
+                               s->bitmap_directory_size, NULL);
+    if (bm_list == NULL) {
+        ret = -EINVAL;
+        goto out;
+    }
+
+    QSIMPLEQ_FOREACH(bm, bm_list, entry) {
+        uint64_t *bitmap_table = NULL;
+        int i;
+
+        ret = update_highest_cluster_index(s, bm->table.offset,
+                                        bm->table.size * sizeof(uint64_t),
+                                        p_highest_cluster_index, nb_clusters);
+        if (ret == 1) {
+            goto out;
+        }
+
+        ret = bitmap_table_load(bs, &bm->table, &bitmap_table);
+        if (ret < 0) {
+            goto out;
+        }
+
+        for (i = 0; i < bm->table.size; ++i) {
+            uint64_t entry = bitmap_table[i];
+            uint64_t offset = entry & BME_TABLE_ENTRY_OFFSET_MASK;
+
+            /* ignore entry legality */
+            if (offset == 0) {
+                continue;
+            }
+
+            ret = update_highest_cluster_index(s, offset, s->cluster_size,
+                                         p_highest_cluster_index, nb_clusters);
+            if (ret == 1) {
+                g_free(bitmap_table);
+                goto out;
+            }
+        }
+        g_free(bitmap_table);
+    }
+out:
+    bitmap_list_free(bm_list);
+    return ret;
+}
+
 int qcow2_check_bitmaps_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
                                   void **refcount_table,
                                   int64_t *refcount_table_size)
