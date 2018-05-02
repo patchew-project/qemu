@@ -105,6 +105,11 @@ static const AIOCBInfo block_backend_aiocb_info = {
 static void drive_info_del(DriveInfo *dinfo);
 static BlockBackend *bdrv_first_blk(BlockDriverState *bs);
 
+static BlockBackend *blk_do_new_open(const char *filename,
+                                     const char *reference, QDict *options,
+                                     int flags, bool string_opts,
+                                     Error **errp);
+
 /* All BlockBackends */
 static QTAILQ_HEAD(, BlockBackend) block_backends =
     QTAILQ_HEAD_INITIALIZER(block_backends);
@@ -349,6 +354,24 @@ BlockBackend *blk_new(uint64_t perm, uint64_t shared_perm)
 BlockBackend *blk_new_open(const char *filename, const char *reference,
                            QDict *options, int flags, Error **errp)
 {
+    return blk_do_new_open(filename, reference, options, flags, false, errp);
+}
+
+/*
+ * Like blk_new_open(), but accepts an @options QDict where some (or
+ * all) values are strings instead of their correct type.
+ */
+BlockBackend *blk_new_open_string_opts(const char *filename, QDict *options,
+                                       int flags, Error **errp)
+{
+    return blk_do_new_open(filename, NULL, options, flags, true, errp);
+}
+
+static BlockBackend *blk_do_new_open(const char *filename,
+                                     const char *reference, QDict *options,
+                                     int flags, bool string_opts,
+                                     Error **errp)
+{
     BlockBackend *blk;
     BlockDriverState *bs;
     uint64_t perm = 0;
@@ -372,7 +395,12 @@ BlockBackend *blk_new_open(const char *filename, const char *reference,
     }
 
     blk = blk_new(perm, BLK_PERM_ALL);
-    bs = bdrv_open(filename, reference, options, flags, errp);
+    if (string_opts) {
+        assert(!reference);
+        bs = bdrv_open_string_opts(filename, options, flags, errp);
+    } else {
+        bs = bdrv_open(filename, reference, options, flags, errp);
+    }
     if (!bs) {
         blk_unref(blk);
         return NULL;

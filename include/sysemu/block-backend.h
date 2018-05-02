@@ -79,6 +79,8 @@ typedef struct BlockBackendPublic {
 BlockBackend *blk_new(uint64_t perm, uint64_t shared_perm);
 BlockBackend *blk_new_open(const char *filename, const char *reference,
                            QDict *options, int flags, Error **errp);
+BlockBackend *blk_new_open_string_opts(const char *filename, QDict *options,
+                                       int flags, Error **errp);
 int blk_get_refcnt(BlockBackend *blk);
 void blk_ref(BlockBackend *blk);
 void blk_unref(BlockBackend *blk);
