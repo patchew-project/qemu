@@ -69,6 +69,7 @@ const char *qdict_get_try_str(const QDict *qdict, const char *key);
 
 void qdict_copy_default(QDict *dst, QDict *src, const char *key);
 void qdict_set_default_str(QDict *dst, const char *key, const char *val);
+void qdict_set_default_bool(QDict *dst, const char *key, bool val);
 
 QDict *qdict_clone_shallow(const QDict *src);
 void qdict_flatten(QDict *qdict);

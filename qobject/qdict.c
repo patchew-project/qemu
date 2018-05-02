@@ -498,6 +498,19 @@ void qdict_set_default_str(QDict *dst, const char *key, const char *val)
     qdict_put_str(dst, key, val);
 }
 
+/**
+ * qdict_set_default_bool(): If no entry mapped by 'key' exists in
+ * 'dst' yet, a new QBool initialized by 'val' is put there.
+ */
+void qdict_set_default_bool(QDict *dst, const char *key, bool val)
+{
+    if (qdict_haskey(dst, key)) {
+        return;
+    }
+
+    qdict_put_bool(dst, key, val);
+}
+
 static void qdict_flatten_qdict(QDict *qdict, QDict *target,
                                 const char *prefix);
 
