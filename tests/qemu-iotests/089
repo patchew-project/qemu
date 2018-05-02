@@ -145,6 +145,18 @@ $QEMU_IO -c "open -o driver=qcow2 json:{\"file.filename\":\"$TEST_IMG\"}" \
 $QEMU_IO -c "open -o driver=qcow2 json:{\"driver\":\"raw\",\"file.filename\":\"$TEST_IMG\"}" \
          -c "info" 2>&1 | _filter_img_info
 
+echo
+echo "=== Testing option typing ==="
+echo
+
+# json:{} accepts both strings and correctly typed values (even mixed,
+# although we probably do not want to support that...), but when
+# creating a json:{} filename, it should be correctly typed.
+# Therefore, both of these should make the "size" value an integer.
+
+TEST_IMG="json:{'driver': 'null-co', 'size':  42 }" _img_info | grep '^image'
+TEST_IMG="json:{'driver': 'null-co', 'size': '42'}" _img_info | grep '^image'
+
 
 # success, all done
 echo "*** done"
