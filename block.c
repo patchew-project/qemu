@@ -856,8 +856,8 @@ static void bdrv_temp_snapshot_options(int *child_flags, QDict *child_options,
     *child_flags = (parent_flags & ~BDRV_O_SNAPSHOT) | BDRV_O_TEMPORARY;
 
     /* For temporary files, unconditional cache=unsafe is fine */
-    qdict_set_default_str(child_options, BDRV_OPT_CACHE_DIRECT, "off");
-    qdict_set_default_str(child_options, BDRV_OPT_CACHE_NO_FLUSH, "on");
+    qdict_set_default_bool(child_options, BDRV_OPT_CACHE_DIRECT, false);
+    qdict_set_default_bool(child_options, BDRV_OPT_CACHE_NO_FLUSH, true);
 
     /* Copy the read-only option from the parent */
     qdict_copy_default(child_options, parent_options, BDRV_OPT_READ_ONLY);
@@ -1005,7 +1005,7 @@ static void bdrv_backing_options(int *child_flags, QDict *child_options,
     qdict_copy_default(child_options, parent_options, BDRV_OPT_FORCE_SHARE);
 
     /* backing files always opened read-only */
-    qdict_set_default_str(child_options, BDRV_OPT_READ_ONLY, "on");
+    qdict_set_default_bool(child_options, BDRV_OPT_READ_ONLY, true);
     flags &= ~BDRV_O_COPY_ON_READ;
 
     /* snapshot=on is handled on the top layer */
@@ -2440,9 +2440,9 @@ BlockDriverState *bdrv_open_blockdev_ref(BlockdevRef *ref, Error **errp)
         /* bdrv_open_inherit() defaults to the values in bdrv_flags (for
          * compatibility with other callers) rather than what we want as the
          * real defaults. Apply the defaults here instead. */
-        qdict_set_default_str(qdict, BDRV_OPT_CACHE_DIRECT, "off");
-        qdict_set_default_str(qdict, BDRV_OPT_CACHE_NO_FLUSH, "off");
-        qdict_set_default_str(qdict, BDRV_OPT_READ_ONLY, "off");
+        qdict_set_default_bool(qdict, BDRV_OPT_CACHE_DIRECT, false);
+        qdict_set_default_bool(qdict, BDRV_OPT_CACHE_NO_FLUSH, false);
+        qdict_set_default_bool(qdict, BDRV_OPT_READ_ONLY, false);
     }
 
     bs = bdrv_open_inherit(NULL, reference, qdict, 0, NULL, NULL, errp);

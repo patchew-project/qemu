@@ -645,17 +645,26 @@ err_no_opts:
     return NULL;
 }
 
-/* Takes the ownership of bs_opts */
-static BlockDriverState *bds_tree_init(QDict *bs_opts, Error **errp)
+/* Takes the ownership of bs_opts.
+ * If @string_opts is true, @bs_opts contains purely string values.
+ * Otherwise, all values are correctly typed. */
+static BlockDriverState *bds_tree_init(QDict *bs_opts, bool string_opts,
+                                       Error **errp)
 {
     int bdrv_flags = 0;
 
     /* bdrv_open() defaults to the values in bdrv_flags (for compatibility
      * with other callers) rather than what we want as the real defaults.
      * Apply the defaults here instead. */
-    qdict_set_default_str(bs_opts, BDRV_OPT_CACHE_DIRECT, "off");
-    qdict_set_default_str(bs_opts, BDRV_OPT_CACHE_NO_FLUSH, "off");
-    qdict_set_default_str(bs_opts, BDRV_OPT_READ_ONLY, "off");
+    if (string_opts) {
+        qdict_set_default_str(bs_opts, BDRV_OPT_CACHE_DIRECT, "off");
+        qdict_set_default_str(bs_opts, BDRV_OPT_CACHE_NO_FLUSH, "off");
+        qdict_set_default_str(bs_opts, BDRV_OPT_READ_ONLY, "off");
+    } else {
+        qdict_set_default_bool(bs_opts, BDRV_OPT_CACHE_DIRECT, false);
+        qdict_set_default_bool(bs_opts, BDRV_OPT_CACHE_NO_FLUSH, false);
+        qdict_set_default_bool(bs_opts, BDRV_OPT_READ_ONLY, false);
+    }
 
     if (runstate_check(RUN_STATE_INMIGRATE)) {
         bdrv_flags |= BDRV_O_INACTIVE;
@@ -4027,7 +4036,7 @@ void hmp_drive_add_node(Monitor *mon, const char *optstr)
         goto out;
     }
 
-    BlockDriverState *bs = bds_tree_init(qdict, &local_err);
+    BlockDriverState *bs = bds_tree_init(qdict, true, &local_err);
     if (!bs) {
         error_report_err(local_err);
         goto out;
@@ -4063,7 +4072,7 @@ void qmp_blockdev_add(BlockdevOptions *options, Error **errp)
         goto fail;
     }
 
-    bs = bds_tree_init(qdict, errp);
+    bs = bds_tree_init(qdict, false, errp);
     if (!bs) {
         goto fail;
     }
