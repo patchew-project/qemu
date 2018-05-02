@@ -49,4 +49,13 @@ struct target_shmid_ds {
     abi_ulong __unused5;
 };
 
+#if defined(TARGET_ABI32)
+struct target_oabi_flock64 {
+    abi_short l_type;
+    abi_short l_whence;
+    abi_llong l_start;
+    abi_llong l_len;
+    abi_int   l_pid;
+} QEMU_PACKED;
+#endif
 #endif
