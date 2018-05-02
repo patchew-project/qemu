@@ -944,7 +944,7 @@ int main(int argc, char **argv)
         }
         options = qemu_opts_to_qdict(opts, NULL);
         qemu_opts_reset(&file_opts);
-        blk = blk_new_open(NULL, NULL, options, flags, &local_err);
+        blk = blk_new_open_string_opts(NULL, options, flags, &local_err);
     } else {
         if (fmt) {
             options = qdict_new();

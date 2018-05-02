@@ -191,7 +191,7 @@ static BlockBackend *start_primary(void)
     qdict_set_default_str(qdict, BDRV_OPT_CACHE_DIRECT, "off");
     qdict_set_default_str(qdict, BDRV_OPT_CACHE_NO_FLUSH, "off");
 
-    blk = blk_new_open(NULL, NULL, qdict, BDRV_O_RDWR, &local_err);
+    blk = blk_new_open_string_opts(NULL, qdict, BDRV_O_RDWR, &local_err);
     g_assert(blk);
     g_assert(!local_err);
 
@@ -323,7 +323,7 @@ static BlockBackend *start_secondary(void)
     qdict_set_default_str(qdict, BDRV_OPT_CACHE_DIRECT, "off");
     qdict_set_default_str(qdict, BDRV_OPT_CACHE_NO_FLUSH, "off");
 
-    blk = blk_new_open(NULL, NULL, qdict, BDRV_O_RDWR, &local_err);
+    blk = blk_new_open_string_opts(NULL, qdict, BDRV_O_RDWR, &local_err);
     assert(blk);
     monitor_add_blk(blk, S_LOCAL_DISK_ID, &local_err);
     g_assert(!local_err);
@@ -350,7 +350,7 @@ static BlockBackend *start_secondary(void)
     qdict_set_default_str(qdict, BDRV_OPT_CACHE_DIRECT, "off");
     qdict_set_default_str(qdict, BDRV_OPT_CACHE_NO_FLUSH, "off");
 
-    blk = blk_new_open(NULL, NULL, qdict, BDRV_O_RDWR, &local_err);
+    blk = blk_new_open_string_opts(NULL, qdict, BDRV_O_RDWR, &local_err);
     assert(blk);
     monitor_add_blk(blk, S_ID, &local_err);
     g_assert(!local_err);

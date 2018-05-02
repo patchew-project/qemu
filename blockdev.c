@@ -595,7 +595,7 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
             bdrv_flags |= BDRV_O_INACTIVE;
         }
 
-        blk = blk_new_open(file, NULL, bs_opts, bdrv_flags, errp);
+        blk = blk_new_open_string_opts(file, bs_opts, bdrv_flags, errp);
         if (!blk) {
             goto err_no_bs_opts;
         }
@@ -670,7 +670,11 @@ static BlockDriverState *bds_tree_init(QDict *bs_opts, bool string_opts,
         bdrv_flags |= BDRV_O_INACTIVE;
     }
 
-    return bdrv_open(NULL, NULL, bs_opts, bdrv_flags, errp);
+    if (string_opts) {
+        return bdrv_open_string_opts(NULL, bs_opts, bdrv_flags, errp);
+    } else {
+        return bdrv_open(NULL, NULL, bs_opts, bdrv_flags, errp);
+    }
 }
 
 void blockdev_close_all_bdrv_states(void)

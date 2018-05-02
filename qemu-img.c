@@ -284,7 +284,7 @@ static BlockBackend *img_open_opts(const char *optstr,
         }
         qdict_put_str(options, BDRV_OPT_FORCE_SHARE, "on");
     }
-    blk = blk_new_open(NULL, NULL, options, flags, &local_err);
+    blk = blk_new_open_string_opts(NULL, options, flags, &local_err);
     if (!blk) {
         error_reportf_err(local_err, "Could not open '%s': ", optstr);
         return NULL;
@@ -294,6 +294,7 @@ static BlockBackend *img_open_opts(const char *optstr,
     return blk;
 }
 
+/* @options must be correctly typed */
 static BlockBackend *img_open_file(const char *filename,
                                    QDict *options,
                                    const char *fmt, int flags,
