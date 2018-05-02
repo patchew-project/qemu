@@ -207,6 +207,7 @@ struct Monitor {
     int suspend_cnt;            /* Needs to be accessed atomically */
     bool skip_flush;
     bool use_io_thr;
+    /* Only used in parser, so no lock needed. */
     ReadLineState *rs;
     MonitorQMP qmp;
     gchar *mon_cpu_path;
@@ -1316,7 +1317,7 @@ void qmp_qmp_capabilities(bool has_enable, QMPCapabilityList *enable,
     cur_mon->qmp.commands = &qmp_commands;
 }
 
-/* set the current CPU defined by the user */
+/* set the current CPU defined by the user.  BQL needed. */
 int monitor_set_cpu(int cpu_index)
 {
     CPUState *cpu;
@@ -1330,6 +1331,7 @@ int monitor_set_cpu(int cpu_index)
     return 0;
 }
 
+/* BQL neeeded. */
 static CPUState *mon_get_cpu_sync(bool synchronize)
 {
     CPUState *cpu;
