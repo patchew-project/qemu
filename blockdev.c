@@ -2654,7 +2654,7 @@ void qmp_blockdev_change_medium(bool has_device, const char *device,
 
     options = qdict_new();
     detect_zeroes = blk_get_detect_zeroes_from_root_state(blk);
-    qdict_put_str(options, "detect-zeroes", detect_zeroes ? "on" : "off");
+    qdict_put_bool(options, "detect-zeroes", detect_zeroes);
 
     if (has_format) {
         qdict_put_str(options, "driver", format);
