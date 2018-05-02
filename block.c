@@ -35,6 +35,7 @@
 #include "qapi/qmp/qjson.h"
 #include "qapi/qmp/qnull.h"
 #include "qapi/qmp/qstring.h"
+#include "qapi/qobject-input-visitor.h"
 #include "qapi/qobject-output-visitor.h"
 #include "qapi/qapi-visit-block-core.h"
 #include "sysemu/block-backend.h"
@@ -76,6 +77,8 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
                                            BlockDriverState *parent,
                                            const BdrvChildRole *child_role,
                                            Error **errp);
+
+static QDict *bdrv_type_blockdev_opts(QDict *options);
 
 /* If non-zero, use only whitelisted block drivers */
 static int use_bdrv_whitelist;
@@ -1465,9 +1468,7 @@ static QDict *parse_json_filename(const char *filename, Error **errp)
         return NULL;
     }
 
-    qdict_flatten(options);
-
-    return options;
+    return bdrv_type_blockdev_opts(options);
 }
 
 static void parse_json_protocol(QDict *options, const char **pfilename,
@@ -2799,6 +2800,83 @@ BlockDriverState *bdrv_open(const char *filename, const char *reference,
 {
     return bdrv_open_inherit(filename, reference, options, flags, NULL,
                              NULL, errp);
+}
+
+/*
+ * Take a blockdev @options QDict and convert its values to the
+ * correct type.  This function takes ownership of @options.
+ *
+ * On both success and failure, @options is flattened.  On success,
+ * its refcount is decreased and a new well typed flattened QDict is
+ * returned.  On failure, @options is returned.
+ *
+ * TODO: Currently, this function cannot cope with partially typed
+ * dicts.  If everything is typed correctly, the keyval visitor will
+ * complain and we will return the original @options -- which is
+ * correct.  If all values are strings, the visitor will convert them
+ * to the correct type (if possible).  But if both are mixed, the
+ * visitor will fail and the partially typed @options is returned.  In
+ * practice, this should only be an issue with json:{} filenames,
+ * though.
+ *
+ * TODO: If @options does not conform to the schema, that should be a
+ * real error.
+ *
+ * TODO: Ideally, bdrv_open() should take BlockdevOptions, and the BDS
+ * should only contain BlockdevOptions.  But this is not possible
+ * until this function really rejects anything it does not recognize
+ * (without breaking existing interfaces).
+ */
+static QDict *bdrv_type_blockdev_opts(QDict *options)
+{
+    Visitor *v;
+    BlockdevOptions *blockdev_options = NULL;
+    QObject *typed_opts, *crumpled_opts = NULL;
+    Error *local_err = NULL;
+
+    if (!options) {
+        return NULL;
+    }
+
+    qdict_flatten(options);
+    crumpled_opts = qdict_crumple(options, &local_err);
+    if (local_err) {
+        goto done;
+    }
+
+    v = qobject_input_visitor_new_keyval(crumpled_opts);
+    visit_type_BlockdevOptions(v, NULL, &blockdev_options, &local_err);
+    visit_free(v);
+    if (local_err) {
+        goto done;
+    }
+
+    v = qobject_output_visitor_new(&typed_opts);
+    visit_type_BlockdevOptions(v, NULL, &blockdev_options, &local_err);
+    if (!local_err) {
+        visit_complete(v, &typed_opts);
+    }
+    visit_free(v);
+    if (local_err) {
+        goto done;
+    }
+
+    QDECREF(options);
+    options = qobject_to(QDict, typed_opts);
+    qdict_flatten(options);
+
+done:
+    error_free(local_err);
+    qapi_free_BlockdevOptions(blockdev_options);
+    qobject_decref(crumpled_opts);
+    return options;
+}
+
+BlockDriverState *bdrv_open_string_opts(const char *filename, QDict *options,
+                                        int flags, Error **errp)
+{
+    return bdrv_open_inherit(filename, NULL, bdrv_type_blockdev_opts(options),
+                             flags, NULL, NULL, errp);
 }
 
 /*
