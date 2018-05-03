@@ -19,8 +19,8 @@
    02110-1301, USA.  */
 
 #include "qemu/osdep.h"
-#include "xtensa-isa.h"
-#include "xtensa-isa-internal.h"
+#include "../xtensa-isa.h"
+#include "../xtensa-isa-internal.h"
 
 
 /* Sysregs.  */
