@@ -42,9 +42,9 @@
 #include "migration/misc.h"
 #include "migration/global_state.h"
 #include "migration/register.h"
-#include "mmu-hash64.h"
-#include "mmu-book3s-v3.h"
-#include "cpu-models.h"
+#include "target/ppc/mmu-hash64.h"
+#include "target/ppc/mmu-book3s-v3.h"
+#include "target/ppc/cpu-models.h"
 #include "qom/cpu.h"
 
 #include "hw/boards.h"

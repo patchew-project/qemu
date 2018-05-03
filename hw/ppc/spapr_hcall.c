@@ -6,14 +6,14 @@
 #include "qemu/error-report.h"
 #include "cpu.h"
 #include "exec/exec-all.h"
-#include "helper_regs.h"
+#include "target/ppc/helper_regs.h"
 #include "hw/ppc/spapr.h"
 #include "mmu-hash64.h"
 #include "cpu-models.h"
 #include "trace.h"
 #include "kvm_ppc.h"
 #include "hw/ppc/spapr_ovec.h"
-#include "mmu-book3s-v3.h"
+#include "target/ppc/mmu-book3s-v3.h"
 
 struct LPCRSyncState {
     target_ulong value;

@@ -27,7 +27,7 @@
 #include "qapi/visitor.h"
 #include "sysemu/hw_accel.h"
 #include "target/ppc/cpu.h"
-#include "cpu-models.h"
+#include "target/ppc/cpu-models.h"
 #include "kvm_ppc.h"
 
 #include "hw/ppc/spapr.h"
