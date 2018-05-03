@@ -16,7 +16,8 @@
 
 #include "hw/sysbus.h"
 #include "hw/qdev.h"
-#include "target/s390x/cpu-qom.h"
+
+typedef struct CPUS390XState CPUS390XState;
 
 #define SCLP_CMD_CODE_MASK                      0xffff00ff
 
