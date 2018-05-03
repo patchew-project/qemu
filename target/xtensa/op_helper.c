@@ -38,7 +38,7 @@
 
 #ifdef CONFIG_USER_ONLY
 /* tb_invalidate_phys_range */
-#include "accel/tcg/translate-all.h"
+#include "translate-all.h"
 #endif
 
 #ifndef CONFIG_USER_ONLY
