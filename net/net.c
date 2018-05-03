@@ -1427,12 +1427,13 @@ void net_check_clients(void)
 
     net_hub_check_clients();
 
-    QTAILQ_FOREACH(nc, &net_clients, next) {
-        if (!nc->peer) {
-            warn_report("%s %s has no peer",
-                        nc->info->type == NET_CLIENT_DRIVER_NIC
-                        ? "nic" : "netdev",
-                        nc->name);
+    if (!qtest_enabled() || nd_table[0].used) {
+        QTAILQ_FOREACH(nc, &net_clients, next) {
+            if (!nc->peer) {
+                warn_report("%s %s has no peer",
+                            nc->info->type == NET_CLIENT_DRIVER_NIC
+                            ? "nic" : "netdev", nc->name);
+            }
         }
     }
 
