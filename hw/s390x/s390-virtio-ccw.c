@@ -33,7 +33,7 @@
 #include "hw/s390x/s390-virtio-ccw.h"
 #include "hw/s390x/css-bridge.h"
 #include "migration/register.h"
-#include "cpu_models.h"
+#include "target/s390x/cpu_models.h"
 #include "hw/nmi.h"
 
 S390CPU *s390_cpu_addr2state(uint16_t cpu_addr)
