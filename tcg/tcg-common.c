@@ -25,7 +25,7 @@
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "exec/cpu-common.h"
-#include "tcg/tcg.h"
+#include "tcg.h"
 
 #if defined(CONFIG_TCG_INTERPRETER)
 uintptr_t tci_tb_ptr;
