@@ -3676,7 +3676,7 @@ STEXI
 @findex -virtioconsole
 Set virtio console.
 
-This option is maintained for backward compatibility.
+This option is deprecated and only maintained for backward compatibility.
 
 Please use @code{-device virtconsole} for the new way of invocation.
 ETEXI
