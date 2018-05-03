@@ -12,7 +12,7 @@
 #include "qemu/error-report.h"
 #include "cpu.h"
 #include "tcg.h"
-#include "tcg/tcg-op.h"
+#include "tcg-op.h"
 #include "exec/exec-all.h"
 #include "exec/gen-icount.h"
 #include "exec/log.h"
