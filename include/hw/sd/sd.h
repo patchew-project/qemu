@@ -76,11 +76,22 @@ typedef enum {
     sd_adtc,	/* addressed with data transfer */
 } sd_cmd_type_t;
 
-typedef struct {
+/**
+ * SDFrame48: 48 bits commands or responses
+ *
+ * @cmd: request:  command
+ *       response: mirrored command
+ * @arg: request:  address information or parameter
+ *       response: status information, OCR register, RCA
+ * @crc: 7-bit CRC checksum
+ */
+typedef struct SDFrame48 {
     uint8_t cmd;
     uint32_t arg;
     uint8_t crc;
-} SDRequest;
+} SDFrame48;
+
+typedef struct SDFrame48 SDRequest;
 
 typedef struct SDState SDState;
 typedef struct SDBus SDBus;
