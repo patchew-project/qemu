@@ -19,6 +19,11 @@ static void sd_prepare_request48(SDFrame48 *frame, uint8_t cmd, uint32_t arg)
     sd_prepare_request(frame, cmd, arg, /* gen_crc */ true);
 }
 
+static void sd_prepare_response48(SDFrame48 *frame, uint8_t cmd, uint32_t arg)
+{
+    sd_prepare_frame48(frame, cmd, arg, /* is_resp */ true, /* gen_crc */ true);
+}
+
 static void test_sd_request_frame_crc7(void)
 {
     SDFrame48 frame;
@@ -44,11 +49,29 @@ static void test_sd_request_frame_crc7(void)
     g_assert_cmphex(frame.crc, ==, 0x4d >> 1);
 }
 
+static void test_sd_response_frame48_crc7(void)
+{
+    SDFrame48 frame;
+
+    /* response to CMD17 */
+    sd_prepare_response48(&frame, 17, 0x00000900);
+    g_assert_cmphex(frame.crc, ==, 0b0110011);
+
+    /* response to the APP_CMD */
+    sd_prepare_response48(&frame, 55, 0x00000120);
+    g_assert_cmphex(frame.crc, ==, 0x41);
+
+    /* response to CMD3 SEND_RELATIVE_ADDR (Relative Card Address is 0xb368) */
+    sd_prepare_response48(&frame, 3, 0xb3680500);
+    g_assert_cmphex(frame.crc, ==, 0x0c);
+}
+
 int main(int argc, char *argv[])
 {
     g_test_init(&argc, &argv, NULL);
 
     qtest_add_func("sd/req_crc7", test_sd_request_frame_crc7);
+    qtest_add_func("sd/resp48_crc7", test_sd_response_frame48_crc7);
 
     return g_test_run();
 }
