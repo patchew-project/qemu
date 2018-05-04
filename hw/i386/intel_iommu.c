@@ -747,9 +747,27 @@ static int vtd_iova_to_slpte(VTDContextEntry *ce, uint64_t iova, bool is_write,
 
 typedef int (*vtd_page_walk_hook)(IOMMUTLBEntry *entry, void *private);
 
+/**
+ * Constant information used during page walking
+ *
+ * @hook_fn: hook func to be called when detected page
+ * @private: private data to be passed into hook func
+ * @notify_unmap: whether we should notify invalid entries
+ * @aw: maximum address width
+ */
+typedef struct {
+    vtd_page_walk_hook hook_fn;
+    void *private;
+    bool notify_unmap;
+    uint8_t aw;
+} vtd_page_walk_info;
+
 static int vtd_page_walk_one(IOMMUTLBEntry *entry, int level,
-                             vtd_page_walk_hook hook_fn, void *private)
+                             vtd_page_walk_info *info)
 {
+    vtd_page_walk_hook hook_fn = info->hook_fn;
+    void *private = info->private;
+
     assert(hook_fn);
     trace_vtd_page_walk_one(level, entry->iova, entry->translated_addr,
                             entry->addr_mask, entry->perm);
@@ -762,17 +780,13 @@ static int vtd_page_walk_one(IOMMUTLBEntry *entry, int level,
  * @addr: base GPA addr to start the walk
  * @start: IOVA range start address
  * @end: IOVA range end address (start <= addr < end)
- * @hook_fn: hook func to be called when detected page
- * @private: private data to be passed into hook func
  * @read: whether parent level has read permission
  * @write: whether parent level has write permission
- * @notify_unmap: whether we should notify invalid entries
- * @aw: maximum address width
+ * @info: constant information for the page walk
  */
 static int vtd_page_walk_level(dma_addr_t addr, uint64_t start,
-                               uint64_t end, vtd_page_walk_hook hook_fn,
-                               void *private, uint32_t level, bool read,
-                               bool write, bool notify_unmap, uint8_t aw)
+                               uint64_t end, uint32_t level, bool read,
+                               bool write, vtd_page_walk_info *info)
 {
     bool read_cur, write_cur, entry_valid;
     uint32_t offset;
@@ -822,24 +836,24 @@ static int vtd_page_walk_level(dma_addr_t addr, uint64_t start,
 
         if (vtd_is_last_slpte(slpte, level)) {
             /* NOTE: this is only meaningful if entry_valid == true */
-            entry.translated_addr = vtd_get_slpte_addr(slpte, aw);
-            if (!entry_valid && !notify_unmap) {
+            entry.translated_addr = vtd_get_slpte_addr(slpte, info->aw);
+            if (!entry_valid && !info->notify_unmap) {
                 trace_vtd_page_walk_skip_perm(iova, iova_next);
                 goto next;
             }
-            ret = vtd_page_walk_one(&entry, level, hook_fn, private);
+            ret = vtd_page_walk_one(&entry, level, info);
             if (ret < 0) {
                 return ret;
             }
         } else {
             if (!entry_valid) {
-                if (notify_unmap) {
+                if (info->notify_unmap) {
                     /*
                      * The whole entry is invalid; unmap it all.
                      * Translated address is meaningless, zero it.
                      */
                     entry.translated_addr = 0x0;
-                    ret = vtd_page_walk_one(&entry, level, hook_fn, private);
+                    ret = vtd_page_walk_one(&entry, level, info);
                     if (ret < 0) {
                         return ret;
                     }
@@ -848,10 +862,9 @@ static int vtd_page_walk_level(dma_addr_t addr, uint64_t start,
                 }
                 goto next;
             }
-            ret = vtd_page_walk_level(vtd_get_slpte_addr(slpte, aw), iova,
-                                      MIN(iova_next, end), hook_fn, private,
-                                      level - 1, read_cur, write_cur,
-                                      notify_unmap, aw);
+            ret = vtd_page_walk_level(vtd_get_slpte_addr(slpte, info->aw),
+                                      iova, MIN(iova_next, end), level - 1,
+                                      read_cur, write_cur, info);
             if (ret < 0) {
                 return ret;
             }
@@ -880,6 +893,12 @@ static int vtd_page_walk(VTDContextEntry *ce, uint64_t start, uint64_t end,
 {
     dma_addr_t addr = vtd_ce_get_slpt_base(ce);
     uint32_t level = vtd_ce_get_level(ce);
+    vtd_page_walk_info info = {
+        .hook_fn = hook_fn,
+        .private = private,
+        .notify_unmap = notify_unmap,
+        .aw = aw,
+    };
 
     if (!vtd_iova_range_check(start, ce, aw)) {
         return -VTD_FR_ADDR_BEYOND_MGAW;
@@ -890,8 +909,7 @@ static int vtd_page_walk(VTDContextEntry *ce, uint64_t start, uint64_t end,
         end = vtd_iova_limit(ce, aw);
     }
 
-    return vtd_page_walk_level(addr, start, end, hook_fn, private,
-                               level, true, true, notify_unmap, aw);
+    return vtd_page_walk_level(addr, start, end, level, true, true, &info);
 }
 
 /* Map a device to its corresponding domain (context-entry) */
