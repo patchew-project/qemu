@@ -99,10 +99,9 @@ static void memcard_sd_command(MilkymistMemcardState *s)
 {
     SDRequest req;
 
-    req.cmd = s->command[0] & 0x3f;
-    req.arg = ldl_be_p(s->command + 1);
-    req.crc = s->command[5];
-
+    sd_prepare_request_with_crc(&req, s->command[0] & 0x3f,
+                                ldl_be_p(s->command + 1),
+                                s->command[5]);
     s->response[0] = req.cmd;
     s->response_len = sdbus_do_command(&s->sdbus, &req, s->response + 1);
     s->response_read_ptr = 0;

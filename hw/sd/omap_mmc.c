@@ -135,9 +135,7 @@ static void omap_mmc_command(struct omap_mmc_s *host, int cmd, int dir,
     mask = 0;
     rspstatus = 0;
 
-    request.cmd = cmd;
-    request.arg = host->arg;
-    request.crc = 0; /* FIXME */
+    sd_prepare_request(&request, cmd, host->arg, false /* FIXME */);
 
     rsplen = sd_do_command(host->card, &request, response);
 

@@ -336,8 +336,7 @@ static void sdhci_send_command(SDHCIState *s)
 
     s->errintsts = 0;
     s->acmd12errsts = 0;
-    request.cmd = s->cmdreg >> 8;
-    request.arg = s->argument;
+    sd_prepare_request(&request, s->cmdreg >> 8, s->argument, false);
 
     trace_sdhci_send_command(request.cmd, request.arg);
     rlen = sdbus_do_command(&s->sdbus, &request, response);
@@ -393,8 +392,7 @@ static void sdhci_end_transfer(SDHCIState *s)
         SDRequest request;
         uint8_t response[16];
 
-        request.cmd = 0x0C;
-        request.arg = 0;
+        sd_prepare_request(&request, 12, 0, false);
         trace_sdhci_end_transfer(request.cmd, request.arg);
         sdbus_do_command(&s->sdbus, &request, response);
         /* Auto CMD12 response goes to the upper Response register */

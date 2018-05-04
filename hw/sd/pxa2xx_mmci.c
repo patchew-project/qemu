@@ -224,9 +224,7 @@ static void pxa2xx_mmci_wakequeues(PXA2xxMMCIState *s)
     s->tx_len = 0;
     s->cmdreq = 0;
 
-    request.cmd = s->cmd;
-    request.arg = s->arg;
-    request.crc = 0;	/* FIXME */
+    sd_prepare_request(&request, s->cmd, s->arg, false /* FIXME */);
 
     rsplen = sdbus_do_command(&s->sdbus, &request, response);
     s->intreq |= INT_END_CMD;

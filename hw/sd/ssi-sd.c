@@ -95,9 +95,8 @@ static uint32_t ssi_sd_transfer(SSISlave *dev, uint32_t val)
         if (s->arglen == 4) {
             SDRequest request;
             uint8_t longresp[16];
-            /* FIXME: Check CRC.  */
-            request.cmd = s->cmd;
-            request.arg = ldl_be_p(s->cmdarg);
+            sd_prepare_request(&request, s->cmd,
+                               ldl_be_p(s->cmdarg), false /* FIXME */);
             DPRINTF("CMD%d arg 0x%08x\n", s->cmd, request.arg);
             s->arglen = sdbus_do_command(&s->sdbus, &request, longresp);
             if (s->arglen <= 0) {
