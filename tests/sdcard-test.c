@@ -47,6 +47,8 @@ static void test_sd_request_frame_crc7(void)
     /* CMD2 ALL_SEND_CID */
     sd_prepare_request48(&frame, 2, 0);
     g_assert_cmphex(frame.crc, ==, 0x4d >> 1);
+
+    g_assert_true(sd_verify_frame48_checksum(&frame, false));
 }
 
 static void test_sd_response_frame48_crc7(void)
@@ -64,6 +66,8 @@ static void test_sd_response_frame48_crc7(void)
     /* response to CMD3 SEND_RELATIVE_ADDR (Relative Card Address is 0xb368) */
     sd_prepare_response48(&frame, 3, 0xb3680500);
     g_assert_cmphex(frame.crc, ==, 0x0c);
+
+    g_assert_true(sd_verify_frame48_checksum(&frame, true));
 }
 
 static void test_sd_response_frame136_crc7(void)
@@ -87,6 +91,17 @@ static void test_sd_data_frame_crc16(void)
     g_assert_cmphex(frame.crc, ==, 0x7fa1);
 }
 
+static void test_sd_verify_cksum_frame48(void)
+{
+    SDFrame48 frame;
+
+    sd_prepare_request48(&frame, 42, 0x12345678);
+    g_assert_true(sd_verify_frame48_checksum(&frame, false));
+
+    sd_prepare_response48(&frame, 69, 0x98765432);
+    g_assert_true(sd_verify_frame48_checksum(&frame, true));
+}
+
 int main(int argc, char *argv[])
 {
     g_test_init(&argc, &argv, NULL);
@@ -95,6 +110,7 @@ int main(int argc, char *argv[])
     qtest_add_func("sd/resp48_crc7", test_sd_response_frame48_crc7);
     qtest_add_func("sd/resp136_crc7", test_sd_response_frame136_crc7);
     qtest_add_func("sd/data_crc16", test_sd_data_frame_crc16);
+    qtest_add_func("sd/verify_cksum_frame48", test_sd_verify_cksum_frame48);
 
     return g_test_run();
 }
