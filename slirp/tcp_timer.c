@@ -32,6 +32,7 @@
 
 #include "qemu/osdep.h"
 #include "slirp.h"
+#include "qapi/qapi-commands-net.h"
 
 static struct tcpcb *tcp_timers(register struct tcpcb *tp, int timer);
 
@@ -135,7 +136,7 @@ tcp_timers(register struct tcpcb *tp, int timer)
 	 * control block.  Otherwise, check again in a bit.
 	 */
 	case TCPT_2MSL:
-		if (tp->t_state != TCPS_TIME_WAIT &&
+		if (tp->t_state != USERNET_TCP_STATE_TIME_WAIT &&
 		    tp->t_idle <= TCP_MAXIDLE)
 			tp->t_timer[TCPT_2MSL] = TCPTV_KEEPINTVL;
 		else
@@ -259,10 +260,10 @@ tcp_timers(register struct tcpcb *tp, int timer)
 	 * or drop connection if idle for too long.
 	 */
 	case TCPT_KEEP:
-		if (tp->t_state < TCPS_ESTABLISHED)
+		if (tp->t_state < USERNET_TCP_STATE_ESTABLISHED)
 			goto dropit;
 
-		if ((SO_OPTIONS) && tp->t_state <= TCPS_CLOSE_WAIT) {
+		if ((SO_OPTIONS) && tp->t_state <= USERNET_TCP_STATE_CLOSE_WAIT) {
 		    	if (tp->t_idle >= TCPTV_KEEP_IDLE + TCP_MAXIDLE)
 				goto dropit;
 			/*

@@ -40,6 +40,7 @@
 
 #include "qemu/osdep.h"
 #include "slirp.h"
+#include "qapi/qapi-commands-net.h"
 
 /* patchable/settable parameters for tcp */
 /* Don't do rfc1323 performance enhancements */
@@ -282,7 +283,7 @@ tcp_newtcpcb(struct socket *so)
 
 	tp->snd_cwnd = TCP_MAXWIN << TCP_MAX_WINSHIFT;
 	tp->snd_ssthresh = TCP_MAXWIN << TCP_MAX_WINSHIFT;
-	tp->t_state = TCPS_CLOSED;
+	tp->t_state = USERNET_TCP_STATE_CLOSED;
 
 	so->so_tcpcb = tp;
 
@@ -301,7 +302,7 @@ struct tcpcb *tcp_drop(struct tcpcb *tp, int err)
 	DEBUG_ARG("errno = %d", errno);
 
 	if (TCPS_HAVERCVDSYN(tp->t_state)) {
-		tp->t_state = TCPS_CLOSED;
+		tp->t_state = USERNET_TCP_STATE_CLOSED;
 		(void) tcp_output(tp);
 	}
 	return (tcp_close(tp));
@@ -371,20 +372,20 @@ tcp_sockclosed(struct tcpcb *tp)
 
 	switch (tp->t_state) {
 
-	case TCPS_CLOSED:
-	case TCPS_LISTEN:
-	case TCPS_SYN_SENT:
-		tp->t_state = TCPS_CLOSED;
+	case USERNET_TCP_STATE_CLOSED:
+	case USERNET_TCP_STATE_LISTEN:
+	case USERNET_TCP_STATE_SYN_SENT:
+		tp->t_state = USERNET_TCP_STATE_CLOSED;
 		tp = tcp_close(tp);
 		break;
 
-	case TCPS_SYN_RECEIVED:
-	case TCPS_ESTABLISHED:
-		tp->t_state = TCPS_FIN_WAIT_1;
+	case USERNET_TCP_STATE_SYN_RECEIVED:
+	case USERNET_TCP_STATE_ESTABLISHED:
+		tp->t_state = USERNET_TCP_STATE_FIN_WAIT_1;
 		break;
 
-	case TCPS_CLOSE_WAIT:
-		tp->t_state = TCPS_LAST_ACK;
+	case USERNET_TCP_STATE_CLOSE_WAIT:
+		tp->t_state = USERNET_TCP_STATE_LAST_ACK;
 		break;
 	}
 	tcp_output(tp);
@@ -513,7 +514,7 @@ void tcp_connect(struct socket *inso)
 
     tcp_template(tp);
 
-    tp->t_state = TCPS_SYN_SENT;
+    tp->t_state = USERNET_TCP_STATE_SYN_SENT;
     tp->t_timer[TCPT_KEEP] = TCPTV_KEEP_INIT;
     tp->iss = slirp->tcp_iss;
     slirp->tcp_iss += TCP_ISSINCR/2;

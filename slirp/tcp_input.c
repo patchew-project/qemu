@@ -41,6 +41,7 @@
 #include "qemu/osdep.h"
 #include "slirp.h"
 #include "ip_icmp.h"
+#include "qapi/qapi-commands-net.h"
 
 #define	TCPREXMTTHRESH 3
 
@@ -64,7 +65,7 @@
 #define TCP_REASS(tp, ti, m, so, flags) {\
        if ((ti)->ti_seq == (tp)->rcv_nxt && \
            tcpfrag_list_empty(tp) && \
-           (tp)->t_state == TCPS_ESTABLISHED) {\
+           (tp)->t_state == USERNET_TCP_STATE_ESTABLISHED) {\
                if (ti->ti_flags & TH_PUSH) \
                        tp->t_flags |= TF_ACKNOW; \
                else \
@@ -84,7 +85,7 @@
 #define	TCP_REASS(tp, ti, m, so, flags) { \
 	if ((ti)->ti_seq == (tp)->rcv_nxt && \
         tcpfrag_list_empty(tp) && \
-	    (tp)->t_state == TCPS_ESTABLISHED) { \
+	    (tp)->t_state == USERNET_TCP_STATE_ESTABLISHED) { \
 		tp->t_flags |= TF_DELACK; \
 		(tp)->rcv_nxt += (ti)->ti_len; \
 		flags = (ti)->ti_flags & TH_FIN; \
@@ -189,7 +190,7 @@ present:
 	ti = tcpfrag_list_first(tp);
 	if (tcpfrag_list_end(ti, tp) || ti->ti_seq != tp->rcv_nxt)
 		return (0);
-	if (tp->t_state == TCPS_SYN_RECEIVED && ti->ti_len)
+	if (tp->t_state == USERNET_TCP_STATE_SYN_RECEIVED && ti->ti_len)
 		return (0);
 	do {
 		tp->rcv_nxt += ti->ti_len;
@@ -456,7 +457,7 @@ findso:
 	  }
 
 	  tp = sototcpcb(so);
-	  tp->t_state = TCPS_LISTEN;
+	  tp->t_state = USERNET_TCP_STATE_LISTEN;
 	}
 
         /*
@@ -472,7 +473,7 @@ findso:
 	/* XXX Should never fail */
         if (tp == NULL)
 		goto dropwithreset;
-	if (tp->t_state == TCPS_CLOSED)
+	if (tp->t_state == USERNET_TCP_STATE_CLOSED)
 		goto drop;
 
 	tiwin = ti->ti_win;
@@ -491,7 +492,7 @@ findso:
 	 * Process options if not in LISTEN state,
 	 * else do it below (after getting remote address).
 	 */
-	if (optp && tp->t_state != TCPS_LISTEN)
+	if (optp && tp->t_state != USERNET_TCP_STATE_LISTEN)
 		tcp_dooptions(tp, (u_char *)optp, optlen, ti);
 
 	/*
@@ -512,7 +513,7 @@ findso:
 	 * eg: the tiwin == tp->snd_wnd prevents many more
 	 * predictions.. with no *real* advantage..
 	 */
-	if (tp->t_state == TCPS_ESTABLISHED &&
+	if (tp->t_state == USERNET_TCP_STATE_ESTABLISHED &&
 	    (tiflags & (TH_SYN|TH_FIN|TH_RST|TH_URG|TH_ACK)) == TH_ACK &&
 	    ti->ti_seq == tp->rcv_nxt &&
 	    tiwin && tiwin == tp->snd_wnd &&
@@ -614,7 +615,7 @@ findso:
 	 * Enter SYN_RECEIVED state, and process any other fields of this
 	 * segment in this state.
 	 */
-	case TCPS_LISTEN: {
+	case USERNET_TCP_STATE_LISTEN: {
 
 	  if (tiflags & TH_RST)
 	    goto drop;
@@ -725,7 +726,7 @@ findso:
 	    so->so_m = m;
 	    so->so_ti = ti;
 	    tp->t_timer[TCPT_KEEP] = TCPTV_KEEP_INIT;
-	    tp->t_state = TCPS_SYN_RECEIVED;
+	    tp->t_state = USERNET_TCP_STATE_SYN_RECEIVED;
 	    /*
 	     * Initialize receive sequence numbers now so that we can send a
 	     * valid RST if the remote end rejects our connection.
@@ -759,10 +760,10 @@ findso:
 	  tcp_sendseqinit(tp);
 	  tcp_rcvseqinit(tp);
 	  tp->t_flags |= TF_ACKNOW;
-	  tp->t_state = TCPS_SYN_RECEIVED;
+	  tp->t_state = USERNET_TCP_STATE_SYN_RECEIVED;
 	  tp->t_timer[TCPT_KEEP] = TCPTV_KEEP_INIT;
 	  goto trimthenstep6;
-	} /* case TCPS_LISTEN */
+	} /* case USERNET_TCP_STATE_LISTEN */
 
 	/*
 	 * If the state is SYN_SENT:
@@ -776,7 +777,7 @@ findso:
 	 *	arrange for segment to be acked (eventually)
 	 *	continue processing rest of data/controls, beginning with URG
 	 */
-	case TCPS_SYN_SENT:
+	case USERNET_TCP_STATE_SYN_SENT:
 		if ((tiflags & TH_ACK) &&
 		    (SEQ_LEQ(ti->ti_ack, tp->iss) ||
 		     SEQ_GT(ti->ti_ack, tp->snd_max)))
@@ -803,7 +804,7 @@ findso:
 		tp->t_flags |= TF_ACKNOW;
 		if (tiflags & TH_ACK && SEQ_GT(tp->snd_una, tp->iss)) {
 			soisfconnected(so);
-			tp->t_state = TCPS_ESTABLISHED;
+			tp->t_state = USERNET_TCP_STATE_ESTABLISHED;
 
 			(void) tcp_reass(tp, (struct tcpiphdr *)0,
 				(struct mbuf *)0);
@@ -814,7 +815,7 @@ findso:
 			if (tp->t_rtt)
 				tcp_xmit_timer(tp, tp->t_rtt);
 		} else
-			tp->t_state = TCPS_SYN_RECEIVED;
+			tp->t_state = USERNET_TCP_STATE_SYN_RECEIVED;
 
 trimthenstep6:
 		/*
@@ -884,7 +885,7 @@ trimthenstep6:
 	 * user processes are gone, then RST the other end.
 	 */
 	if ((so->so_state & SS_NOFDREF) &&
-	    tp->t_state > TCPS_CLOSE_WAIT && ti->ti_len) {
+	    tp->t_state > USERNET_TCP_STATE_CLOSE_WAIT && ti->ti_len) {
 		tp = tcp_close(tp);
 		goto dropwithreset;
 	}
@@ -903,7 +904,7 @@ trimthenstep6:
 			 * are above the previous ones.
 			 */
 			if (tiflags & TH_SYN &&
-			    tp->t_state == TCPS_TIME_WAIT &&
+			    tp->t_state == USERNET_TCP_STATE_TIME_WAIT &&
 			    SEQ_GT(ti->ti_seq, tp->rcv_nxt)) {
 				iss = tp->rcv_nxt + TCP_ISSINCR;
 				tp = tcp_close(tp);
@@ -939,18 +940,18 @@ trimthenstep6:
 	 */
 	if (tiflags&TH_RST) switch (tp->t_state) {
 
-	case TCPS_SYN_RECEIVED:
-	case TCPS_ESTABLISHED:
-	case TCPS_FIN_WAIT_1:
-	case TCPS_FIN_WAIT_2:
-	case TCPS_CLOSE_WAIT:
-		tp->t_state = TCPS_CLOSED;
+	case USERNET_TCP_STATE_SYN_RECEIVED:
+	case USERNET_TCP_STATE_ESTABLISHED:
+	case USERNET_TCP_STATE_FIN_WAIT_1:
+	case USERNET_TCP_STATE_FIN_WAIT_2:
+	case USERNET_TCP_STATE_CLOSE_WAIT:
+		tp->t_state = USERNET_TCP_STATE_CLOSED;
                 tcp_close(tp);
 		goto drop;
 
-	case TCPS_CLOSING:
-	case TCPS_LAST_ACK:
-	case TCPS_TIME_WAIT:
+	case USERNET_TCP_STATE_CLOSING:
+	case USERNET_TCP_STATE_LAST_ACK:
+	case USERNET_TCP_STATE_TIME_WAIT:
                 tcp_close(tp);
 		goto drop;
 	}
@@ -978,12 +979,12 @@ trimthenstep6:
 	 * ESTABLISHED state and continue processing, otherwise
 	 * send an RST.  una<=ack<=max
 	 */
-	case TCPS_SYN_RECEIVED:
+	case USERNET_TCP_STATE_SYN_RECEIVED:
 
 		if (SEQ_GT(tp->snd_una, ti->ti_ack) ||
 		    SEQ_GT(ti->ti_ack, tp->snd_max))
 			goto dropwithreset;
-		tp->t_state = TCPS_ESTABLISHED;
+		tp->t_state = USERNET_TCP_STATE_ESTABLISHED;
 		/*
 		 * The sent SYN is ack'ed with our sequence number +1
 		 * The first data byte already in the buffer will get
@@ -1003,7 +1004,7 @@ trimthenstep6:
 		    so->so_state |= SS_NOFDREF; /* CTL_CMD */
 		  } else {
 		    needoutput = 1;
-		    tp->t_state = TCPS_FIN_WAIT_1;
+		    tp->t_state = USERNET_TCP_STATE_FIN_WAIT_1;
 		  }
 		} else {
 		  soisfconnected(so);
@@ -1023,13 +1024,13 @@ trimthenstep6:
 	 * data from the retransmission queue.  If this ACK reflects
 	 * more up to date window information we update our window information.
 	 */
-	case TCPS_ESTABLISHED:
-	case TCPS_FIN_WAIT_1:
-	case TCPS_FIN_WAIT_2:
-	case TCPS_CLOSE_WAIT:
-	case TCPS_CLOSING:
-	case TCPS_LAST_ACK:
-	case TCPS_TIME_WAIT:
+	case USERNET_TCP_STATE_ESTABLISHED:
+	case USERNET_TCP_STATE_FIN_WAIT_1:
+	case USERNET_TCP_STATE_FIN_WAIT_2:
+	case USERNET_TCP_STATE_CLOSE_WAIT:
+	case USERNET_TCP_STATE_CLOSING:
+	case USERNET_TCP_STATE_LAST_ACK:
+	case USERNET_TCP_STATE_TIME_WAIT:
 
 		if (SEQ_LEQ(ti->ti_ack, tp->snd_una)) {
 			if (ti->ti_len == 0 && tiwin == tp->snd_wnd) {
@@ -1160,7 +1161,7 @@ trimthenstep6:
 		 * for the ESTABLISHED state if our FIN is now acknowledged
 		 * then enter FIN_WAIT_2.
 		 */
-		case TCPS_FIN_WAIT_1:
+		case USERNET_TCP_STATE_FIN_WAIT_1:
 			if (ourfinisacked) {
 				/*
 				 * If we can't receive any more
@@ -1172,7 +1173,7 @@ trimthenstep6:
 				if (so->so_state & SS_FCANTRCVMORE) {
 					tp->t_timer[TCPT_2MSL] = TCP_MAXIDLE;
 				}
-				tp->t_state = TCPS_FIN_WAIT_2;
+				tp->t_state = USERNET_TCP_STATE_FIN_WAIT_2;
 			}
 			break;
 
@@ -1182,9 +1183,9 @@ trimthenstep6:
 		 * then enter the TIME-WAIT state, otherwise ignore
 		 * the segment.
 		 */
-		case TCPS_CLOSING:
+		case USERNET_TCP_STATE_CLOSING:
 			if (ourfinisacked) {
-				tp->t_state = TCPS_TIME_WAIT;
+				tp->t_state = USERNET_TCP_STATE_TIME_WAIT;
 				tcp_canceltimers(tp);
 				tp->t_timer[TCPT_2MSL] = 2 * TCPTV_MSL;
 			}
@@ -1196,7 +1197,7 @@ trimthenstep6:
 		 * If our FIN is now acknowledged, delete the TCB,
 		 * enter the closed state and return.
 		 */
-		case TCPS_LAST_ACK:
+		case USERNET_TCP_STATE_LAST_ACK:
 			if (ourfinisacked) {
                                 tcp_close(tp);
 				goto drop;
@@ -1208,7 +1209,7 @@ trimthenstep6:
 		 * is a retransmission of the remote FIN.  Acknowledge
 		 * it and restart the finack timer.
 		 */
-		case TCPS_TIME_WAIT:
+		case USERNET_TCP_STATE_TIME_WAIT:
 			tp->t_timer[TCPT_2MSL] = 2 * TCPTV_MSL;
 			goto dropafterack;
 		}
@@ -1316,7 +1317,7 @@ dodata:
                          * Shutdown the socket if there is no rx data in the
 			 * buffer.
 			 * soread() is called on completion of shutdown() and
-			 * will got to TCPS_LAST_ACK, and use tcp_output()
+			 * will got to USERNET_TCP_STATE_LAST_ACK, and use tcp_output()
 			 * to send the FIN.
 			 */
 			sofwdrain(so);
@@ -1330,20 +1331,20 @@ dodata:
 		 * In SYN_RECEIVED and ESTABLISHED STATES
 		 * enter the CLOSE_WAIT state.
 		 */
-		case TCPS_SYN_RECEIVED:
-		case TCPS_ESTABLISHED:
+		case USERNET_TCP_STATE_SYN_RECEIVED:
+		case USERNET_TCP_STATE_ESTABLISHED:
 		  if(so->so_emu == EMU_CTL)        /* no shutdown on socket */
-		    tp->t_state = TCPS_LAST_ACK;
+		    tp->t_state = USERNET_TCP_STATE_LAST_ACK;
 		  else
-		    tp->t_state = TCPS_CLOSE_WAIT;
+		    tp->t_state = USERNET_TCP_STATE_CLOSE_WAIT;
 		  break;
 
 	 	/*
 		 * If still in FIN_WAIT_1 STATE FIN has not been acked so
 		 * enter the CLOSING state.
 		 */
-		case TCPS_FIN_WAIT_1:
-			tp->t_state = TCPS_CLOSING;
+		case USERNET_TCP_STATE_FIN_WAIT_1:
+			tp->t_state = USERNET_TCP_STATE_CLOSING;
 			break;
 
 	 	/*
@@ -1351,8 +1352,8 @@ dodata:
 		 * starting the time-wait timer, turning off the other
 		 * standard timers.
 		 */
-		case TCPS_FIN_WAIT_2:
-			tp->t_state = TCPS_TIME_WAIT;
+		case USERNET_TCP_STATE_FIN_WAIT_2:
+			tp->t_state = USERNET_TCP_STATE_TIME_WAIT;
 			tcp_canceltimers(tp);
 			tp->t_timer[TCPT_2MSL] = 2 * TCPTV_MSL;
 			break;
@@ -1360,7 +1361,7 @@ dodata:
 		/*
 		 * In TIME_WAIT state restart the 2 MSL time_wait timer.
 		 */
-		case TCPS_TIME_WAIT:
+		case USERNET_TCP_STATE_TIME_WAIT:
 			tp->t_timer[TCPT_2MSL] = 2 * TCPTV_MSL;
 			break;
 		}

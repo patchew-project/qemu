@@ -11,6 +11,7 @@
 #include "monitor/monitor.h"
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
+#include "qapi/qapi-commands-net.h"
 
 #ifdef DEBUG
 int slirp_debug = DBG_CALL|DBG_MISC|DBG_ERROR;
@@ -208,17 +209,17 @@ fork_exec(struct socket *so, const char *ex, int do_pty)
 void slirp_connection_info(Slirp *slirp, Monitor *mon)
 {
     const char * const tcpstates[] = {
-        [TCPS_CLOSED]       = "CLOSED",
-        [TCPS_LISTEN]       = "LISTEN",
-        [TCPS_SYN_SENT]     = "SYN_SENT",
-        [TCPS_SYN_RECEIVED] = "SYN_RCVD",
-        [TCPS_ESTABLISHED]  = "ESTABLISHED",
-        [TCPS_CLOSE_WAIT]   = "CLOSE_WAIT",
-        [TCPS_FIN_WAIT_1]   = "FIN_WAIT_1",
-        [TCPS_CLOSING]      = "CLOSING",
-        [TCPS_LAST_ACK]     = "LAST_ACK",
-        [TCPS_FIN_WAIT_2]   = "FIN_WAIT_2",
-        [TCPS_TIME_WAIT]    = "TIME_WAIT",
+        [USERNET_TCP_STATE_CLOSED]       = "CLOSED",
+        [USERNET_TCP_STATE_LISTEN]       = "LISTEN",
+        [USERNET_TCP_STATE_SYN_SENT]     = "SYN_SENT",
+        [USERNET_TCP_STATE_SYN_RECEIVED] = "SYN_RCVD",
+        [USERNET_TCP_STATE_ESTABLISHED]  = "ESTABLISHED",
+        [USERNET_TCP_STATE_CLOSE_WAIT]   = "CLOSE_WAIT",
+        [USERNET_TCP_STATE_FIN_WAIT_1]   = "FIN_WAIT_1",
+        [USERNET_TCP_STATE_CLOSING]      = "CLOSING",
+        [USERNET_TCP_STATE_LAST_ACK]     = "LAST_ACK",
+        [USERNET_TCP_STATE_FIN_WAIT_2]   = "FIN_WAIT_2",
+        [USERNET_TCP_STATE_TIME_WAIT]    = "TIME_WAIT",
     };
     struct in_addr dst_addr;
     struct sockaddr_in src;
