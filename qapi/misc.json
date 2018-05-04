@@ -35,7 +35,8 @@
 #
 ##
 { 'command': 'qmp_capabilities',
-  'data': { '*enable': [ 'QMPCapability' ] } }
+  'data': { '*enable': [ 'QMPCapability' ] },
+  'allow-preconfig': true }
 
 ##
 # @QMPCapability:
@@ -153,7 +154,8 @@
 # Note: This example has been shortened as the real response is too long.
 #
 ##
-{ 'command': 'query-commands', 'returns': ['CommandInfo'] }
+{ 'command': 'query-commands', 'returns': ['CommandInfo'],
+  'allow-preconfig': true }
 
 ##
 # @LostTickPolicy:
@@ -2614,7 +2616,8 @@
 #
 ##
 {'command': 'query-command-line-options', 'data': { '*option': 'str' },
- 'returns': ['CommandLineOptionInfo'] }
+ 'returns': ['CommandLineOptionInfo'],
+ 'allow-preconfig': true }
 
 ##
 # @X86CPURegister32:
