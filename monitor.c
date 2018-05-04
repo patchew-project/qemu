@@ -2961,7 +2961,8 @@ static const mon_cmd_t *search_dispatch_table(const mon_cmd_t *disp_table,
 static const mon_cmd_t *monitor_parse_command(Monitor *mon,
                                               const char *cmdp_start,
                                               const char **cmdp,
-                                              mon_cmd_t *table)
+                                              mon_cmd_t *table,
+                                              char *fullname)
 {
     const char *p;
     const mon_cmd_t *cmd;
@@ -2984,10 +2985,14 @@ static const mon_cmd_t *monitor_parse_command(Monitor *mon,
         p++;
     }
 
+    strncat(fullname, cmdname, strlen(cmdname));
+
     *cmdp = p;
     /* search sub command */
     if (cmd->sub_table != NULL && *p != '\0') {
-        return monitor_parse_command(mon, cmdp_start, cmdp, cmd->sub_table);
+        strncat(fullname, " ", 1);
+        return monitor_parse_command(mon, cmdp_start, cmdp, cmd->sub_table,
+                                     fullname);
     }
 
     return cmd;
@@ -3368,10 +3373,12 @@ static void handle_hmp_command(Monitor *mon, const char *cmdline)
 {
     QDict *qdict;
     const mon_cmd_t *cmd;
+    char fullname[256];
 
     trace_handle_hmp_command(mon, cmdline);
 
-    cmd = monitor_parse_command(mon, cmdline, &cmdline, mon->cmd_table);
+    cmd = monitor_parse_command(mon, cmdline, &cmdline, mon->cmd_table,
+                                fullname);
     if (!cmd) {
         return;
     }
@@ -3379,7 +3386,7 @@ static void handle_hmp_command(Monitor *mon, const char *cmdline)
     qdict = monitor_parse_arguments(mon, &cmdline, cmd);
     if (!qdict) {
         monitor_printf(mon, "Try \"help %s\" for more information\n",
-                       cmd->name);
+                       fullname);
         return;
     }
 
