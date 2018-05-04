@@ -31,6 +31,7 @@
 
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
+#include "exec/gen-icount.h"
 
 #include "trace-tcg.h"
 #include "exec/log.h"
@@ -53,6 +54,9 @@ typedef struct DisasContext {
     bool singlestep_enabled;
 } DisasContext;
 
+/* Include the auto-generated decoder.  */
+#include "decode.inc.c"
+
 static TCGv cpu_sr;
 static TCGv cpu_R[32];
 static TCGv cpu_R0;
@@ -67,7 +71,6 @@ static TCGv cpu_lock_value;
 static TCGv_i32 fpcsr;
 static TCGv_i64 cpu_mac;        /* MACHI:MACLO */
 static TCGv_i32 cpu_dflag;
-#include "exec/gen-icount.h"
 
 void openrisc_translate_init(void)
 {
@@ -1243,45 +1246,40 @@ static void dec_compi(DisasContext *dc, uint32_t insn)
     }
 }
 
-static void dec_sys(DisasContext *dc, uint32_t insn)
+static bool trans_l_sys(DisasContext *dc, arg_l_sys *a, uint32_t insn)
 {
-    uint32_t op0;
-    uint32_t K16;
+    LOG_DIS("l.sys %d\n", a->k);
+    tcg_gen_movi_tl(cpu_pc, dc->pc);
+    gen_exception(dc, EXCP_SYSCALL);
+    dc->is_jmp = DISAS_UPDATE;
+    return true;
+}
 
-    op0 = extract32(insn, 16, 10);
-    K16 = extract32(insn, 0, 16);
+static bool trans_l_trap(DisasContext *dc, arg_l_trap *a, uint32_t insn)
+{
+    LOG_DIS("l.trap %d\n", a->k);
+    tcg_gen_movi_tl(cpu_pc, dc->pc);
+    gen_exception(dc, EXCP_TRAP);
+    return true;
+}
 
-    switch (op0) {
-    case 0x000:    /* l.sys */
-        LOG_DIS("l.sys %d\n", K16);
-        tcg_gen_movi_tl(cpu_pc, dc->pc);
-        gen_exception(dc, EXCP_SYSCALL);
-        dc->is_jmp = DISAS_UPDATE;
-        break;
+static bool trans_l_msync(DisasContext *dc, arg_l_msync *a, uint32_t insn)
+{
+    LOG_DIS("l.msync\n");
+    tcg_gen_mb(TCG_MO_ALL);
+    return true;
+}
 
-    case 0x100:    /* l.trap */
-        LOG_DIS("l.trap %d\n", K16);
-        tcg_gen_movi_tl(cpu_pc, dc->pc);
-        gen_exception(dc, EXCP_TRAP);
-        break;
+static bool trans_l_psync(DisasContext *dc, arg_l_psync *a, uint32_t insn)
+{
+    LOG_DIS("l.psync\n");
+    return true;
+}
 
-    case 0x300:    /* l.csync */
-        LOG_DIS("l.csync\n");
-        break;
-
-    case 0x200:    /* l.msync */
-        LOG_DIS("l.msync\n");
-        tcg_gen_mb(TCG_MO_ALL);
-        break;
-
-    case 0x270:    /* l.psync */
-        LOG_DIS("l.psync\n");
-        break;
-
-    default:
-        gen_illegal_exception(dc);
-        break;
-    }
+static bool trans_l_csync(DisasContext *dc, arg_l_csync *a, uint32_t insn)
+{
+    LOG_DIS("l.csync\n");
+    return true;
 }
 
 static void dec_float(DisasContext *dc, uint32_t insn)
@@ -1509,15 +1507,16 @@ static void disas_openrisc_insn(DisasContext *dc, OpenRISCCPU *cpu)
     uint32_t op0;
     uint32_t insn;
     insn = cpu_ldl_code(&cpu->env, dc->pc);
-    op0 = extract32(insn, 26, 6);
 
+    /* Transition to the auto-generated decoder.  */
+    if (decode(dc, insn)) {
+        return;
+    }
+
+    op0 = extract32(insn, 26, 6);
     switch (op0) {
     case 0x06:
         dec_M(dc, insn);
-        break;
-
-    case 0x08:
-        dec_sys(dc, insn);
         break;
 
     case 0x2e:
