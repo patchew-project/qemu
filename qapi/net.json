@@ -689,3 +689,37 @@
 ##
 { 'event': 'NIC_RX_FILTER_CHANGED',
   'data': { '*name': 'str', 'path': 'str' } }
+
+##
+# @UsernetTcpState:
+#
+# TCP States of a SLIRP connection.
+#
+# - States where connections are not established: none, closed, listen, syn-sent,
+#   syn-received
+#
+# - States where user has closed: fin-wait-1, closing, last-ack, fin-wait-2,
+#   time-wait
+#
+# - States awaiting ACK of FIN: fin-wait-1, closing, last-ack
+#
+# 'none' state is used only when host forwarding
+#
+# Since 2.13
+#
+##
+{ 'enum': 'UsernetTcpState',
+  'data':
+   ['closed',
+    'listen',
+    'syn-sent',
+    'syn-received',
+    'established',
+    'close-wait',
+    'fin-wait-1',
+    'closing',
+    'last-ack',
+    'fin-wait-2',
+    'time-wait',
+    'none'
+   ] }
