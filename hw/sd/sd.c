@@ -452,7 +452,7 @@ static void sd_set_sdstatus(SDState *sd)
 static bool sd_req_crc_validate(SDState *sd, SDRequest *req)
 {
     if (sd->validate_crc) {
-        return sd_verify_frame48_checksum(req);
+        return sd_verify_frame48_checksum(req, false);
     }
     return true;
 }

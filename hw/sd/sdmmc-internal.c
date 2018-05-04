@@ -109,45 +109,45 @@ uint16_t sd_crc16(const void *message, size_t width)
     return shift_reg;
 }
 
-static uint8_t sd_calc_frame48_crc7(uint8_t cmd, uint32_t arg)
+static uint8_t sd_calc_frame48_crc7(uint8_t cmd, uint32_t arg, bool is_response)
 {
     uint8_t buffer[5];
-    buffer[0] = 0x40 | cmd;
+    buffer[0] = (!is_response << 6) | cmd;
     stl_be_p(&buffer[1], arg);
     return sd_crc7(buffer, sizeof(buffer));
 }
 
-bool sd_verify_frame48_checksum(SDFrame48 *frame)
+bool sd_verify_frame48_checksum(SDFrame48 *frame, bool is_response)
 {
-    uint8_t crc = sd_calc_frame48_crc7(frame->cmd, frame->arg);
+    uint8_t crc = sd_calc_frame48_crc7(frame->cmd, frame->arg, is_response);
 
     return crc == frame->crc;
 }
 
-void sd_update_frame48_checksum(SDFrame48 *frame)
+void sd_update_frame48_checksum(SDFrame48 *frame, bool is_response)
 {
-    frame->crc = sd_calc_frame48_crc7(frame->cmd, frame->arg);
+    frame->crc = sd_calc_frame48_crc7(frame->cmd, frame->arg, is_response);
 }
 
 static void sd_prepare_frame48(SDFrame48 *frame, uint8_t cmd, uint32_t arg,
-                               bool gen_crc)
+                               bool is_response, bool gen_crc)
 {
     frame->cmd = cmd;
     frame->arg = arg;
     frame->crc = 0x00;
     if (gen_crc) {
-        sd_update_frame48_checksum(frame);
+        sd_update_frame48_checksum(frame, is_response);
     }
 }
 
 void sd_prepare_request(SDFrame48 *req, uint8_t cmd, uint32_t arg, bool gen_crc)
 {
-    sd_prepare_frame48(req, cmd, arg, gen_crc);
+    sd_prepare_frame48(req, cmd, arg, /* is_response */ false, gen_crc);
 }
 
 void sd_prepare_request_with_crc(SDRequest *req, uint8_t cmd, uint32_t arg,
                                  uint8_t crc)
 {
-    sd_prepare_frame48(req, cmd, arg, /* gen_crc */ false);
+    sd_prepare_request(req, cmd, arg, /* gen_crc */ false);
     req->crc = crc;
 }
