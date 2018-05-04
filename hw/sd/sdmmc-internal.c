@@ -117,6 +117,11 @@ static uint8_t sd_calc_frame48_crc7(uint8_t cmd, uint32_t arg, bool is_response)
     return sd_crc7(buffer, sizeof(buffer));
 }
 
+static uint8_t sd_calc_frame136_crc7(SDFrame136 *frame)
+{
+    return (sd_crc7(frame->content, sizeof(frame->content)) << 1) | 1;
+}
+
 bool sd_verify_frame48_checksum(SDFrame48 *frame, bool is_response)
 {
     uint8_t crc = sd_calc_frame48_crc7(frame->cmd, frame->arg, is_response);
@@ -124,9 +129,19 @@ bool sd_verify_frame48_checksum(SDFrame48 *frame, bool is_response)
     return crc == frame->crc;
 }
 
+bool sd_verify_frame136_checksum(SDFrame136 *frame)
+{
+    return sd_calc_frame136_crc7(frame) == frame->crc;
+}
+
 void sd_update_frame48_checksum(SDFrame48 *frame, bool is_response)
 {
     frame->crc = sd_calc_frame48_crc7(frame->cmd, frame->arg, is_response);
+}
+
+void sd_update_frame136_checksum(SDFrame136 *frame)
+{
+    frame->crc = (sd_crc7(frame->content, sizeof(frame->content)) << 1) | 1;
 }
 
 void sd_prepare_frame48(SDFrame48 *frame, uint8_t cmd, uint32_t arg,

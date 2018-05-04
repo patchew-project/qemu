@@ -91,6 +91,17 @@ typedef struct SDFrame48 {
     uint8_t crc;
 } SDFrame48;
 
+/**
+ * SDFrame136: 136 bits CID or CSD responses
+ *
+ * @content: CID or CSD register
+ * @crc:     7-bit CRC checksum
+ */
+typedef struct SDFrame136 {
+    uint8_t content[15];
+    uint8_t crc;
+} SDFrame136;
+
 typedef struct SDFrame48 SDRequest;
 
 typedef struct SDState SDState;
@@ -194,6 +205,14 @@ void sd_prepare_frame48(SDFrame48 *frame, uint8_t cmd, uint32_t arg,
 void sd_update_frame48_checksum(SDFrame48 *frame, bool is_response);
 
 /**
+ * sd_update_frame136_checksum:
+ * @frame: the #SDFrame136 to verify
+ *
+ * Update the 16-bit CRC checksum of a SD 136-bit frame.
+ */
+void sd_update_frame136_checksum(SDFrame136 *frame);
+
+/**
  * sd_verify_frame48_checksum:
  * @frame: the #SDFrame48 to verify
  * @is_response: whether the frame is a command request or response
@@ -203,6 +222,16 @@ void sd_update_frame48_checksum(SDFrame48 *frame, bool is_response);
  * Returns: A boolean indicating whether the frame 7-bit CRC is correct.
  */
 bool sd_verify_frame48_checksum(SDFrame48 *frame, bool is_response);
+
+/**
+ * sd_verify_frame136_checksum:
+ * @frame: the #SDFrame48 to verify
+ *
+ * Verify the 16-bit CRC checksum of a SD 136-bit frame.
+ *
+ * Returns: A boolean indicating whether the frame 16-bit CRC is correct.
+ */
+bool sd_verify_frame136_checksum(SDFrame136 *frame);
 
 /* Legacy functions to be used only by non-qdevified callers */
 SDState *sd_init(BlockBackend *bs, bool is_spi);
