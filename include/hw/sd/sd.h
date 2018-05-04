@@ -102,6 +102,17 @@ typedef struct SDFrame136 {
     uint8_t crc;
 } SDFrame136;
 
+/**
+ * SDFrameData: 512 bytes block transfers
+ *
+ * @content: block data
+ * @crc:     16-bit CRC checksum
+ */
+typedef struct SDFrameData {
+    uint8_t content[512];
+    uint16_t crc;
+} SDFrameData;
+
 typedef struct SDFrame48 SDRequest;
 
 typedef struct SDState SDState;
@@ -213,6 +224,14 @@ void sd_update_frame48_checksum(SDFrame48 *frame, bool is_response);
 void sd_update_frame136_checksum(SDFrame136 *frame);
 
 /**
+ * sd_update_framedata_checksum:
+ * @frame: the #SDFrameData to verify
+ *
+ * Update the 16-bit CRC checksum of a SD data frame (up to 512 bytes).
+ */
+void sd_update_framedata_checksum(SDFrameData *frame);
+
+/**
  * sd_verify_frame48_checksum:
  * @frame: the #SDFrame48 to verify
  * @is_response: whether the frame is a command request or response
@@ -232,6 +251,16 @@ bool sd_verify_frame48_checksum(SDFrame48 *frame, bool is_response);
  * Returns: A boolean indicating whether the frame 16-bit CRC is correct.
  */
 bool sd_verify_frame136_checksum(SDFrame136 *frame);
+
+/**
+ * sd_verify_framedata_checksum:
+ * @frame: the #SDFrameData to verify
+ *
+ * Verify the 16-bit CRC checksum of a SD data frame.
+ *
+ * Returns: A boolean indicating whether the frame 16-bit CRC is correct.
+ */
+bool sd_verify_framedata_checksum(SDFrameData *frame);
 
 /* Legacy functions to be used only by non-qdevified callers */
 SDState *sd_init(BlockBackend *bs, bool is_spi);

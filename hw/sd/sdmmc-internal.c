@@ -134,6 +134,11 @@ bool sd_verify_frame136_checksum(SDFrame136 *frame)
     return sd_calc_frame136_crc7(frame) == frame->crc;
 }
 
+bool sd_verify_framedata_checksum(SDFrameData *frame)
+{
+    return sd_crc16(frame->content, sizeof(frame->content)) == frame->crc;
+}
+
 void sd_update_frame48_checksum(SDFrame48 *frame, bool is_response)
 {
     frame->crc = sd_calc_frame48_crc7(frame->cmd, frame->arg, is_response);
@@ -142,6 +147,11 @@ void sd_update_frame48_checksum(SDFrame48 *frame, bool is_response)
 void sd_update_frame136_checksum(SDFrame136 *frame)
 {
     frame->crc = (sd_crc7(frame->content, sizeof(frame->content)) << 1) | 1;
+}
+
+void sd_update_framedata_checksum(SDFrameData *frame)
+{
+    frame->crc = sd_crc16(frame->content, sizeof(frame->content));
 }
 
 void sd_prepare_frame48(SDFrame48 *frame, uint8_t cmd, uint32_t arg,
