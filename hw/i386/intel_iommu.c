@@ -759,7 +759,6 @@ typedef struct {
     VTDAddressSpace *as;
     vtd_page_walk_hook hook_fn;
     void *private;
-    bool notify_unmap;
 } vtd_page_walk_info;
 
 static int vtd_page_walk_one(IOMMUTLBEntry *entry, int level,
@@ -900,45 +899,34 @@ static int vtd_page_walk_level(dma_addr_t addr, uint64_t start,
          */
         entry_valid = read_cur | write_cur;
 
-        entry.target_as = &address_space_memory;
-        entry.iova = iova & subpage_mask;
-        entry.perm = IOMMU_ACCESS_FLAG(read_cur, write_cur);
-        entry.addr_mask = ~subpage_mask;
-
-        if (vtd_is_last_slpte(slpte, level)) {
-            /* NOTE: this is only meaningful if entry_valid == true */
-            entry.translated_addr = vtd_get_slpte_addr(slpte, aw);
-            if (!entry_valid && !info->notify_unmap) {
-                trace_vtd_page_walk_skip_perm(iova, iova_next);
-                goto next;
-            }
-            ret = vtd_page_walk_one(&entry, level, info);
-            if (ret < 0) {
-                return ret;
-            }
-        } else {
-            if (!entry_valid) {
-                if (info->notify_unmap) {
-                    /*
-                     * The whole entry is invalid; unmap it all.
-                     * Translated address is meaningless, zero it.
-                     */
-                    entry.translated_addr = 0x0;
-                    ret = vtd_page_walk_one(&entry, level, info);
-                    if (ret < 0) {
-                        return ret;
-                    }
-                } else {
-                    trace_vtd_page_walk_skip_perm(iova, iova_next);
-                }
-                goto next;
-            }
+        if (!vtd_is_last_slpte(slpte, level) && entry_valid) {
+            /*
+             * This is a valid PDE (or even bigger than PDE).  We need
+             * to walk one further level.
+             */
             ret = vtd_page_walk_level(vtd_get_slpte_addr(slpte, aw),
                                       iova, MIN(iova_next, end), level - 1,
                                       read_cur, write_cur, info);
-            if (ret < 0) {
-                return ret;
-            }
+        } else {
+            /*
+             * This means we are either:
+             *
+             * (1) the real page entry (either 4K page, or huge page)
+             * (2) the whole range is invalid
+             *
+             * In either case, we send an IOTLB notification down.
+             */
+            entry.target_as = &address_space_memory;
+            entry.iova = iova & subpage_mask;
+            entry.perm = IOMMU_ACCESS_FLAG(read_cur, write_cur);
+            entry.addr_mask = ~subpage_mask;
+            /* NOTE: this is only meaningful if entry_valid == true */
+            entry.translated_addr = vtd_get_slpte_addr(slpte, aw);
+            ret = vtd_page_walk_one(&entry, level, info);
+        }
+
+        if (ret < 0) {
+            return ret;
         }
 
 next:
@@ -960,7 +948,7 @@ next:
  */
 static int vtd_page_walk(VTDContextEntry *ce, uint64_t start, uint64_t end,
                          vtd_page_walk_hook hook_fn, void *private,
-                         bool notify_unmap, VTDAddressSpace *as)
+                         VTDAddressSpace *as)
 {
     dma_addr_t addr = vtd_ce_get_slpt_base(ce);
     uint32_t level = vtd_ce_get_level(ce);
@@ -968,7 +956,6 @@ static int vtd_page_walk(VTDContextEntry *ce, uint64_t start, uint64_t end,
     vtd_page_walk_info info = {
         .hook_fn = hook_fn,
         .private = private,
-        .notify_unmap = notify_unmap,
         .as = as,
     };
 
@@ -1542,7 +1529,7 @@ static void vtd_iotlb_page_invalidate_notify(IntelIOMMUState *s,
                  */
                 vtd_page_walk(&ce, addr, addr + size,
                               vtd_page_invalidate_notify_hook,
-                              (void *)&vtd_as->iommu, true, vtd_as);
+                              (void *)&vtd_as->iommu, vtd_as);
             } else {
                 /*
                  * For UNMAP-only notifiers, we don't need to walk the
@@ -3013,8 +3000,7 @@ static void vtd_iommu_replay(IOMMUMemoryRegion *iommu_mr, IOMMUNotifier *n)
                                   ce.hi, ce.lo);
         if (vtd_as_notify_mappings(vtd_as)) {
             /* This is required only for MAP typed notifiers */
-            vtd_page_walk(&ce, 0, ~0ULL, vtd_replay_hook, (void *)n, true,
-                          vtd_as);
+            vtd_page_walk(&ce, 0, ~0ULL, vtd_replay_hook, (void *)n, vtd_as);
         } else {
             vtd_address_space_unmap(vtd_as, n);
         }
