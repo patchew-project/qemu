@@ -193,6 +193,7 @@ typedef struct PowerPCCPUClass {
 typedef struct PPCTimebase {
     uint64_t guest_timebase;
     int64_t time_of_the_day_ns;
+    bool saved;
 } PPCTimebase;
 
 extern const struct VMStateDescription vmstate_ppc_timebase;

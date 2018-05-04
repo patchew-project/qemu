@@ -865,6 +865,15 @@ static void timebase_save(PPCTimebase *tb)
     uint64_t ticks = cpu_get_host_ticks();
     PowerPCCPU *first_ppc_cpu = POWERPC_CPU(first_cpu);
 
+    /* since we generally save timebase just after the guest
+     * has stopped, avoid trying to save it again since we will
+     * end up advancing it by the amount of ticks that have
+     * elapsed in the host since the initial save
+     */
+    if (tb->saved) {
+        return;
+    }
+
     if (!first_ppc_cpu->env.tb_env) {
         error_report("No timebase object");
         return;
@@ -877,6 +886,7 @@ static void timebase_save(PPCTimebase *tb)
      * there is no need to update it from KVM here
      */
     tb->guest_timebase = ticks + first_ppc_cpu->env.tb_env->tb_offset;
+    tb->saved = true;
 }
 
 static void timebase_load(PPCTimebase *tb)
@@ -908,6 +918,8 @@ static void timebase_load(PPCTimebase *tb)
                         &pcpu->env.tb_env->tb_offset);
 #endif
     }
+
+    tb->saved = false;
 }
 
 void cpu_ppc_clock_vm_state_change(void *opaque, int running,
