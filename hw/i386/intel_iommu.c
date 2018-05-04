@@ -128,6 +128,16 @@ static uint64_t vtd_set_clear_mask_quad(IntelIOMMUState *s, hwaddr addr,
     return new_val;
 }
 
+static inline void vtd_iommu_lock(IntelIOMMUState *s)
+{
+    qemu_mutex_lock(&s->iommu_lock);
+}
+
+static inline void vtd_iommu_unlock(IntelIOMMUState *s)
+{
+    qemu_mutex_unlock(&s->iommu_lock);
+}
+
 /* GHashTable functions */
 static gboolean vtd_uint64_equal(gconstpointer v1, gconstpointer v2)
 {
@@ -172,7 +182,7 @@ static gboolean vtd_hash_remove_by_page(gpointer key, gpointer value,
 }
 
 /* Reset all the gen of VTDAddressSpace to zero and set the gen of
- * IntelIOMMUState to 1.
+ * IntelIOMMUState to 1.  Must be with IOMMU lock held.
  */
 static void vtd_reset_context_cache(IntelIOMMUState *s)
 {
@@ -197,10 +207,17 @@ static void vtd_reset_context_cache(IntelIOMMUState *s)
     s->context_cache_gen = 1;
 }
 
-static void vtd_reset_iotlb(IntelIOMMUState *s)
+static void vtd_reset_iotlb_locked(IntelIOMMUState *s)
 {
     assert(s->iotlb);
     g_hash_table_remove_all(s->iotlb);
+}
+
+static void vtd_reset_iotlb(IntelIOMMUState *s)
+{
+    vtd_iommu_lock(s);
+    vtd_reset_iotlb_locked(s);
+    vtd_iommu_unlock(s);
 }
 
 static uint64_t vtd_get_iotlb_key(uint64_t gfn, uint16_t source_id,
@@ -215,6 +232,7 @@ static uint64_t vtd_get_iotlb_gfn(hwaddr addr, uint32_t level)
     return (addr & vtd_slpt_level_page_mask(level)) >> VTD_PAGE_SHIFT_4K;
 }
 
+/* Must be with IOMMU lock held */
 static VTDIOTLBEntry *vtd_lookup_iotlb(IntelIOMMUState *s, uint16_t source_id,
                                        hwaddr addr)
 {
@@ -235,6 +253,7 @@ out:
     return entry;
 }
 
+/* Must be with IOMMU lock held */
 static void vtd_update_iotlb(IntelIOMMUState *s, uint16_t source_id,
                              uint16_t domain_id, hwaddr addr, uint64_t slpte,
                              uint8_t access_flags, uint32_t level)
@@ -246,7 +265,7 @@ static void vtd_update_iotlb(IntelIOMMUState *s, uint16_t source_id,
     trace_vtd_iotlb_page_update(source_id, addr, slpte, domain_id);
     if (g_hash_table_size(s->iotlb) >= VTD_IOTLB_MAX_SIZE) {
         trace_vtd_iotlb_reset("iotlb exceeds size limit");
-        vtd_reset_iotlb(s);
+        vtd_reset_iotlb_locked(s);
     }
 
     entry->gfn = gfn;
@@ -1106,7 +1125,7 @@ static bool vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
     IntelIOMMUState *s = vtd_as->iommu_state;
     VTDContextEntry ce;
     uint8_t bus_num = pci_bus_num(bus);
-    VTDContextCacheEntry *cc_entry = &vtd_as->context_cache_entry;
+    VTDContextCacheEntry *cc_entry;
     uint64_t slpte, page_mask;
     uint32_t level;
     uint16_t source_id = vtd_make_source_id(bus_num, devfn);
@@ -1122,6 +1141,10 @@ static bool vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
      * should never receive translation requests in this region.
      */
     assert(!vtd_is_interrupt_addr(addr));
+
+    vtd_iommu_lock(s);
+
+    cc_entry = &vtd_as->context_cache_entry;
 
     /* Try to fetch slpte form IOTLB */
     iotlb_entry = vtd_lookup_iotlb(s, source_id, addr);
@@ -1182,7 +1205,7 @@ static bool vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
          * IOMMU region can be swapped back.
          */
         vtd_pt_enable_fast_path(s, source_id);
-
+        vtd_iommu_unlock(s);
         return true;
     }
 
@@ -1203,6 +1226,7 @@ static bool vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
     vtd_update_iotlb(s, source_id, VTD_CONTEXT_ENTRY_DID(ce.hi), addr, slpte,
                      access_flags, level);
 out:
+    vtd_iommu_unlock(s);
     entry->iova = addr & page_mask;
     entry->translated_addr = vtd_get_slpte_addr(slpte, s->aw_bits) & page_mask;
     entry->addr_mask = ~page_mask;
@@ -1210,6 +1234,7 @@ out:
     return true;
 
 error:
+    vtd_iommu_unlock(s);
     entry->iova = 0;
     entry->translated_addr = 0;
     entry->addr_mask = 0;
@@ -1258,10 +1283,13 @@ static void vtd_iommu_replay_all(IntelIOMMUState *s)
 static void vtd_context_global_invalidate(IntelIOMMUState *s)
 {
     trace_vtd_inv_desc_cc_global();
+    /* Protects context cache */
+    vtd_iommu_lock(s);
     s->context_cache_gen++;
     if (s->context_cache_gen == VTD_CONTEXT_CACHE_GEN_MAX) {
         vtd_reset_context_cache(s);
     }
+    vtd_iommu_unlock(s);
     vtd_switch_address_space_all(s);
     /*
      * From VT-d spec 6.5.2.1, a global context entry invalidation
@@ -1377,8 +1405,10 @@ static void vtd_iotlb_domain_invalidate(IntelIOMMUState *s, uint16_t domain_id)
 
     trace_vtd_inv_desc_iotlb_domain(domain_id);
 
+    vtd_iommu_lock(s);
     g_hash_table_foreach_remove(s->iotlb, vtd_hash_remove_by_domain,
                                 &domain_id);
+    vtd_iommu_unlock(s);
 
     QLIST_FOREACH(vtd_as, &s->notifiers_list, next) {
         if (!vtd_dev_to_context_entry(s, pci_bus_num(vtd_as->bus),
@@ -1426,7 +1456,9 @@ static void vtd_iotlb_page_invalidate(IntelIOMMUState *s, uint16_t domain_id,
     info.domain_id = domain_id;
     info.addr = addr;
     info.mask = ~((1 << am) - 1);
+    vtd_iommu_lock(s);
     g_hash_table_foreach_remove(s->iotlb, vtd_hash_remove_by_page, &info);
+    vtd_iommu_unlock(s);
     vtd_iotlb_page_invalidate_notify(s, domain_id, addr, am);
 }
 
@@ -3072,6 +3104,7 @@ static void vtd_realize(DeviceState *dev, Error **errp)
     }
 
     QLIST_INIT(&s->notifiers_list);
+    qemu_mutex_init(&s->iommu_lock);
     memset(s->vtd_as_by_bus_num, 0, sizeof(s->vtd_as_by_bus_num));
     memory_region_init_io(&s->csrmem, OBJECT(s), &vtd_mem_ops, s,
                           "intel_iommu", DMAR_REG_SIZE);
