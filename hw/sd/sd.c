@@ -481,13 +481,18 @@ static void sd_set_sdstatus(SDState *sd)
     memset(sd->sd_status, 0, 64);
 }
 
-static int sd_req_crc_validate(SDRequest *req)
+static uint8_t sd_calc_frame48_crc7(uint8_t cmd, uint32_t arg)
 {
     uint8_t buffer[5];
-    buffer[0] = 0x40 | req->cmd;
-    stl_be_p(&buffer[1], req->arg);
+    buffer[0] = 0x40 | cmd;
+    stl_be_p(&buffer[1], arg);
+    return sd_crc7(buffer, sizeof(buffer));
+}
+
+static int sd_req_crc_validate(SDRequest *req)
+{
     return 0;
-    return sd_crc7(buffer, 5) != req->crc;	/* TODO */
+    return sd_calc_frame48_crc7(req->cmd, req->arg) != req->crc; /* TODO */
 }
 
 static void sd_response_r1_make(SDState *sd, uint8_t *response)
