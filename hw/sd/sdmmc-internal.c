@@ -90,23 +90,31 @@ uint8_t sd_crc7(const void *message, size_t width)
     return shift_reg;
 }
 
-uint16_t sd_crc16(const void *message, size_t width)
+/* 16 bit XMODEM CRC (polynomial 0x1021) */
+uint16_t sd_crc16(const void *data, size_t data_len)
 {
-    int i, bit;
-    uint16_t shift_reg = 0x0000;
-    const uint16_t *msg = (const uint16_t *)message;
-    width <<= 1;
+    const unsigned char *d = (const unsigned char *)data;
+    uint16_t crc = 0x0000;
+    unsigned char c;
+    unsigned int i;
+    bool bit;
 
-    for (i = 0; i < width; i++, msg++) {
-        for (bit = 15; bit >= 0; bit--) {
-            shift_reg <<= 1;
-            if ((shift_reg >> 15) ^ ((*msg >> bit) & 1)) {
-                shift_reg ^= 0x1011;
+    while (data_len--) {
+        c = *d++;
+        for (i = 0x80; i > 0; i >>= 1) {
+            bit = crc & 0x8000;
+            if (c & i) {
+                bit = !bit;
+            }
+            crc <<= 1;
+            if (bit) {
+                crc ^= 0x1021;
             }
         }
+        crc &= 0xffff;
     }
 
-    return shift_reg;
+    return crc;
 }
 
 static uint8_t sd_calc_frame48_crc7(uint8_t cmd, uint32_t arg, bool is_response)
