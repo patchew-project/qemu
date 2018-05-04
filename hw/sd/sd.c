@@ -449,55 +449,12 @@ static void sd_set_sdstatus(SDState *sd)
     memset(sd->sd_status, 0, 64);
 }
 
-static uint8_t sd_calc_frame48_crc7(uint8_t cmd, uint32_t arg)
-{
-    uint8_t buffer[5];
-    buffer[0] = 0x40 | cmd;
-    stl_be_p(&buffer[1], arg);
-    return sd_crc7(buffer, sizeof(buffer));
-}
-
-static bool sd_verify_frame48_checksum(SDFrame48 *frame)
-{
-    uint8_t crc = sd_calc_frame48_crc7(frame->cmd, frame->arg);
-
-    return crc == frame->crc;
-}
-
 static bool sd_req_crc_validate(SDState *sd, SDRequest *req)
 {
     if (sd->validate_crc) {
         return sd_verify_frame48_checksum(req);
     }
     return true;
-}
-
-static void sd_update_frame48_checksum(SDFrame48 *frame)
-{
-    frame->crc = sd_calc_frame48_crc7(frame->cmd, frame->arg);
-}
-
-static void sd_prepare_frame48(SDFrame48 *frame, uint8_t cmd, uint32_t arg,
-                               bool gen_crc)
-{
-    frame->cmd = cmd;
-    frame->arg = arg;
-    frame->crc = 0x00;
-    if (gen_crc) {
-        sd_update_frame48_checksum(frame);
-    }
-}
-
-void sd_prepare_request(SDFrame48 *req, uint8_t cmd, uint32_t arg, bool gen_crc)
-{
-    sd_prepare_frame48(req, cmd, arg, gen_crc);
-}
-
-void sd_prepare_request_with_crc(SDRequest *req, uint8_t cmd, uint32_t arg,
-                                 uint8_t crc)
-{
-    sd_prepare_frame48(req, cmd, arg, /* gen_crc */ false);
-    req->crc = crc;
 }
 
 static void sd_response_r1_make(SDState *sd, uint8_t *response)

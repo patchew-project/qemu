@@ -168,6 +168,24 @@ void sd_prepare_request(SDRequest *req, uint8_t cmd, uint32_t arg,
 void sd_prepare_request_with_crc(SDRequest *req, uint8_t cmd, uint32_t arg,
                                  uint8_t crc);
 
+/**
+ * sd_update_frame48_checksum:
+ * @frame: the #SDFrame48 to verify
+ *
+ * Update the 7-bit CRC checksum of a SD 48-bit frame.
+ */
+void sd_update_frame48_checksum(SDFrame48 *frame);
+
+/**
+ * sd_verify_frame48_checksum:
+ * @frame: the #SDFrame48 to verify
+ *
+ * Verify the 7-bit CRC checksum of a SD 48-bit frame.
+ *
+ * Returns: A boolean indicating whether the frame 7-bit CRC is correct.
+ */
+bool sd_verify_frame48_checksum(SDFrame48 *frame);
+
 /* Legacy functions to be used only by non-qdevified callers */
 SDState *sd_init(BlockBackend *bs, bool is_spi);
 int sd_do_command(SDState *sd, SDRequest *req,

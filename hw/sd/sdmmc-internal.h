@@ -10,6 +10,8 @@
 #ifndef SD_INTERNAL_H
 #define SD_INTERNAL_H
 
+#include "hw/sd/sd.h"
+
 #define SDMMC_CMD_MAX 64
 
 /**
