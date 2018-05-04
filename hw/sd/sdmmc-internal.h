@@ -36,4 +36,26 @@ const char *sd_cmd_name(uint8_t cmd);
  */
 const char *sd_acmd_name(uint8_t cmd);
 
+/**
+ * sd_crc7:
+ * @data: pointer to the data buffer
+ * @data_len: data length
+ *
+ * Calculate the 7-bit CRC of a SD frame.
+ *
+ * Returns: The frame CRC.
+ */
+uint8_t sd_crc7(const void *data, size_t data_len);
+
+/**
+ * sd_crc16:
+ * @data: pointer to the data buffer
+ * @data_len: data length
+ *
+ * Calculate the 16-bit CRC of a SD data frame.
+ *
+ * Returns: The frame CRC.
+ */
+uint16_t sd_crc16(const void *data, size_t data_len);
+
 #endif
