@@ -16,7 +16,56 @@
 #ifndef QEMU_GLIB_COMPAT_H
 #define QEMU_GLIB_COMPAT_H
 
+/* Ask for warnings for anything that was marked deprecated in
+ * the defined version, or before. It is a candidate for rewrite.
+ */
+#define GLIB_VERSION_MIN_REQUIRED GLIB_VERSION_2_42
+
+/* Ask for warnings if code tries to use function that did not
+ * exist in the defined version. These risk breaking builds
+ */
+#define GLIB_VERSION_MAX_ALLOWED GLIB_VERSION_2_42
+
 #include <glib.h>
+
+/*
+ * Note that because of the GLIB_VERSION_MAX_ALLOWED constant
+ * above, allowing use of functions from newer GLib via this
+ * compat header needs a little trickery to prevent warnings
+ * being emitted.
+ *
+ * Consider a function from newer glib-X.Y that we want to use
+ *
+ *    int g_foo(const char *wibble)
+ *
+ * We must define a static inline function with the same
+ * signature that does what we need, but with a "_qemu"
+ * suffix eg
+ *
+ * _Pragma("GCC diagnostic push")
+ * _Pragma("GCC diagnostic ignored \"-Wdeprecated-declarations\"")
+ * static inline void g_foo_qemu(const char *wibble)
+ * {
+ *     #if GLIB_CHECK_VERSION(X, Y, 0)
+ *        g_foo(wibble)
+ *     #else
+ *        g_something_equivalent_in_older_glib(wibble);
+ *     #endif
+ * }
+ * _Pragma("GCC diagnostic pop")
+ *
+ * The Pragma calls turn off -Wdeprecated-declarations,
+ * ensuring this wrapper function impl doesn't trigger the
+ * compiler warning about using too new glib APIs. Finally
+ * we can do
+ *
+ *   #define g_foo(a) g_foo_qemu(a)
+ *
+ * So now the code elsewhere in QEMU, which *does* have the
+ * -Wdeprecated-declarations warning active, can call
+ * g_foo(...) as normal, without generating warnings.
+ */
+
 
 #if defined(_WIN32) && !GLIB_CHECK_VERSION(2, 50, 0)
 /*
