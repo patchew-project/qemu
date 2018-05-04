@@ -765,12 +765,82 @@ typedef struct {
 static int vtd_page_walk_one(IOMMUTLBEntry *entry, int level,
                              vtd_page_walk_info *info)
 {
+    VTDAddressSpace *as = info->as;
     vtd_page_walk_hook hook_fn = info->hook_fn;
     void *private = info->private;
+    ITRange *mapped = it_tree_find(as->iova_tree, entry->iova,
+                                   entry->iova + entry->addr_mask);
 
     assert(hook_fn);
+
+    /* Update local IOVA mapped ranges */
+    if (entry->perm) {
+        if (mapped) {
+            /*
+             * Skip since we have already mapped this range.
+             *
+             * NOTE: here we didn't solve the modify-PTE problem. For
+             * example:
+             *
+             * (1) map iova1 to 4K page P1
+             * (2) send PSI on (iova1, iova1 + 4k)
+             * (3) modify iova1 to 4K page P2
+             * (4) send PSI on (iova1, iova1 + 4k)
+             *
+             * Logically QEMU as emulator should atomically modify the
+             * shadow page table PTE to follow what has been changed.
+             * However here actually we will never have a way to
+             * emulate this "atomic PTE modification" procedure.
+             * Because even we know that this PTE is changed we'll
+             * still need to unmap it first then remap it (please
+             * refer to VFIO_IOMMU_MAP_DMA and VFIO_IOMMU_UNMAP_DMA
+             * VFIO APIs as an example).  And there is no such API to
+             * atomically update an IOMMU PTE on the host.  Then we'll
+             * have a small window that we still have invalid page
+             * mapping (while ideally we shoudn't).
+             *
+             * With out current code, on step (4) we just ignored the
+             * PTE update and we'll skip the map update, which will
+             * leave stale mappings.
+             *
+             * Modifying PTEs won't happen on general OSs (e.g.,
+             * Linux) - it should be prohibited since the device may
+             * be using the page table during the modification then
+             * the behavior of modifying PTEs could be undefined.
+             * However it's still possible for other guests to do so.
+             *
+             * Let's mark this as TODO.  After all it should never
+             * happen on general OSs like Linux/Windows/... Meanwhile
+             * even if the guest is running a private and problematic
+             * OS, the stale page (P1) will definitely still be a
+             * valid page for current L1 QEMU, so the worst case is
+             * that L1 guest will be at risk on its own on that single
+             * device only.  It'll never harm the rest of L1 guest,
+             * the host memory or other guests on the host.
+             *
+             * Let's solve this once-and-for-all when we really
+             * needed, and when we are capable of (for now, we can't).
+             * Though I would suspect that won't happen soon.
+             */
+            trace_vtd_page_walk_one_skip_map(entry->iova, entry->addr_mask,
+                                             mapped->start, mapped->end);
+            return 0;
+        }
+        it_tree_insert(as->iova_tree, entry->iova,
+                       entry->iova + entry->addr_mask);
+    } else {
+        if (!mapped) {
+            /* Skip since we didn't map this range at all */
+            trace_vtd_page_walk_one_skip_unmap(entry->iova, entry->addr_mask);
+            return 0;
+        }
+        it_tree_remove(as->iova_tree, entry->iova,
+                       entry->iova + entry->addr_mask);
+    }
+
     trace_vtd_page_walk_one(level, entry->iova, entry->translated_addr,
                             entry->addr_mask, entry->perm);
+
     return hook_fn(entry, private);
 }
 
@@ -2804,6 +2874,7 @@ VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus, int devfn)
         vtd_dev_as->devfn = (uint8_t)devfn;
         vtd_dev_as->iommu_state = s;
         vtd_dev_as->context_cache_entry.context_cache_gen = 0;
+        vtd_dev_as->iova_tree = it_tree_new();
 
         /*
          * Memory region relationships looks like (Address range shows
@@ -2899,6 +2970,8 @@ static void vtd_address_space_unmap(VTDAddressSpace *as, IOMMUNotifier *n)
                              VTD_PCI_SLOT(as->devfn),
                              VTD_PCI_FUNC(as->devfn),
                              entry.iova, size);
+
+    it_tree_remove(as->iova_tree, entry.iova, entry.iova + entry.addr_mask);
 
     memory_region_notify_one(n, &entry);
 }
