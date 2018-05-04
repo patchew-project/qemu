@@ -78,6 +78,15 @@ static void test_sd_response_frame136_crc7(void)
     g_assert_cmphex(frame.crc, ==, 0xad);
 }
 
+static void test_sd_data_frame_crc16(void)
+{
+    SDFrameData frame;
+
+    memset(frame.content, 0xff, sizeof(frame.content));
+    sd_update_framedata_checksum(&frame);
+    g_assert_cmphex(frame.crc, ==, 0x7fa1);
+}
+
 int main(int argc, char *argv[])
 {
     g_test_init(&argc, &argv, NULL);
@@ -85,6 +94,7 @@ int main(int argc, char *argv[])
     qtest_add_func("sd/req_crc7", test_sd_request_frame_crc7);
     qtest_add_func("sd/resp48_crc7", test_sd_response_frame48_crc7);
     qtest_add_func("sd/resp136_crc7", test_sd_response_frame136_crc7);
+    qtest_add_func("sd/data_crc16", test_sd_data_frame_crc16);
 
     return g_test_run();
 }
