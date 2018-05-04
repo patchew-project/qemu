@@ -169,6 +169,22 @@ void sd_prepare_request_with_crc(SDRequest *req, uint8_t cmd, uint32_t arg,
                                  uint8_t crc);
 
 /**
+ * sd_prepare_response48: Initialize a SD response buffer
+ *
+ * If @gen_crc the frame checksum will be calculated
+ * and filled in the request buffer.
+ *
+ * @req: the #SDRequest to be filled
+ * @cmd: the SD command
+ * @arg: the SD command argument
+ * @is_response: whether the frame is a command request or response
+ * @gen_crc: generates the frame CRC7 if true, else fill with zeroes
+ */
+
+void sd_prepare_frame48(SDFrame48 *frame, uint8_t cmd, uint32_t arg,
+                        bool is_response, bool gen_crc);
+
+/**
  * sd_update_frame48_checksum:
  * @frame: the #SDFrame48 to verify
  * @is_response: whether the frame is a command request or response

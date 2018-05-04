@@ -129,8 +129,8 @@ void sd_update_frame48_checksum(SDFrame48 *frame, bool is_response)
     frame->crc = sd_calc_frame48_crc7(frame->cmd, frame->arg, is_response);
 }
 
-static void sd_prepare_frame48(SDFrame48 *frame, uint8_t cmd, uint32_t arg,
-                               bool is_response, bool gen_crc)
+void sd_prepare_frame48(SDFrame48 *frame, uint8_t cmd, uint32_t arg,
+                        bool is_response, bool gen_crc)
 {
     frame->cmd = cmd;
     frame->arg = arg;
