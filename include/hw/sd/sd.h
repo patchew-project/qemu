@@ -141,6 +141,33 @@ typedef struct {
     void (*set_readonly)(DeviceState *dev, bool readonly);
 } SDBusClass;
 
+/**
+ * sd_prepare_request:
+ * @req: the #SDRequest to be filled
+ * @cmd: the SD command
+ * @arg: the SD command argument
+ * @gen_crc: generates the frame CRC7 if true, else fill with zeroes
+ *
+ * Initialize a SD request buffer.
+ *
+ * If @gen_crc the frame checksum will be calculated
+ * and filled in the request buffer.
+ */
+void sd_prepare_request(SDRequest *req, uint8_t cmd, uint32_t arg,
+                        bool gen_crc);
+
+/**
+ * sd_prepare_request_with_crc:
+ * @req: the #SDRequest to be filled
+ * @cmd: the SD command
+ * @arg: the SD command argument
+ * @crc: the calculated request CRC7
+ *
+ * Initialize a SD request buffer.
+ */
+void sd_prepare_request_with_crc(SDRequest *req, uint8_t cmd, uint32_t arg,
+                                 uint8_t crc);
+
 /* Legacy functions to be used only by non-qdevified callers */
 SDState *sd_init(BlockBackend *bs, bool is_spi);
 int sd_do_command(SDState *sd, SDRequest *req,
