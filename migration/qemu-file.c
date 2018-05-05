@@ -52,6 +52,7 @@ struct QEMUFile {
     unsigned int iovcnt;
 
     int last_error;
+    QemuMutex lock;
 };
 
 /*
@@ -96,6 +97,7 @@ QEMUFile *qemu_fopen_ops(void *opaque, const QEMUFileOps *ops)
 
     f = g_new0(QEMUFile, 1);
 
+    qemu_mutex_init(&f->lock);
     f->opaque = opaque;
     f->ops = ops;
     return f;
@@ -328,7 +330,9 @@ int qemu_fclose(QEMUFile *f)
     ret = qemu_file_get_error(f);
 
     if (f->ops->close) {
+        qemu_mutex_lock(&f->lock);
         int ret2 = f->ops->close(f->opaque);
+        qemu_mutex_unlock(&f->lock);
         if (ret >= 0) {
             ret = ret2;
         }
@@ -339,6 +343,7 @@ int qemu_fclose(QEMUFile *f)
     if (f->last_error) {
         ret = f->last_error;
     }
+    qemu_mutex_destroy(&f->lock);
     g_free(f);
     trace_qemu_file_fclose();
     return ret;
