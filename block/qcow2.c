@@ -4493,6 +4493,59 @@ static QemuOptsList qcow2_create_opts = {
     }
 };
 
+/* Get allocated space of qcow2, aligned to cluster_size */
+static int64_t qcow2_get_allocated_size(BlockDriverState *bs)
+{
+    int64_t allocated_cluster_count = 0;
+    uint64_t refcount;
+    int64_t i, j, begin_index, end_index;
+
+    BDRVQcow2State *s = bs->opaque;
+
+    /* Traverse refcount table */
+    for (i = 0; i < s->refcount_table_size; i++) {
+        if (s->refcount_table[i] & REFT_OFFSET_MASK) {
+            begin_index = i * s->refcount_block_size;
+            end_index = begin_index + s->refcount_block_size;
+            for (j = begin_index; j < end_index; j++) {
+                if (qcow2_get_refcount(bs, j, &refcount) < 0) {
+                    continue;
+                }
+                if (refcount > 0) {
+                    allocated_cluster_count++;
+                }
+            }
+        }
+
+    }
+
+    return allocated_cluster_count * s->cluster_size;
+}
+
+static int64_t qcow2_get_allocated_file_size(BlockDriverState *bs)
+{
+    int64_t ret = 0;
+
+    /* Get through bs->file first */
+    if (bs->file) {
+        ret = bdrv_get_allocated_file_size(bs->file->bs);
+    }
+
+    /*
+     * If ret < 0, some error may happen to the underlying media, return the
+     * error directly.
+     * If ret == 0, means length get from bs->file is 0, which is impossible
+     * for a normal file because of the qcow2 header. In this case, the
+     * underlying media may be a block device or anything else that can't
+     * return a suitable size. So we get the allocated size of qcow2 instead.
+     */
+    if (!ret) {
+        ret = qcow2_get_allocated_size(bs);
+    }
+
+    return ret;
+}
+
 BlockDriver bdrv_qcow2 = {
     .format_name        = "qcow2",
     .instance_size      = sizeof(BDRVQcow2State),
@@ -4516,6 +4569,7 @@ BlockDriver bdrv_qcow2 = {
     .bdrv_co_pwrite_zeroes  = qcow2_co_pwrite_zeroes,
     .bdrv_co_pdiscard       = qcow2_co_pdiscard,
     .bdrv_truncate          = qcow2_truncate,
+    .bdrv_get_allocated_file_size = qcow2_get_allocated_file_size,
     .bdrv_co_pwritev_compressed = qcow2_co_pwritev_compressed,
     .bdrv_make_empty        = qcow2_make_empty,
 
