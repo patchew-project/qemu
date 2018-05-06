@@ -548,6 +548,10 @@ static const MemoryRegionOps unin_ops = {
     .read = unin_read,
     .write = unin_write,
     .endianness = DEVICE_BIG_ENDIAN,
+    .impl = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
 };
 
 static void unin_init(Object *obj)
