@@ -266,6 +266,7 @@ static QemuOptsList qemu_sandbox_opts = {
             .name = "enable",
             .type = QEMU_OPT_BOOL,
         },
+#ifdef CONFIG_SECCOMP
         {
             .name = "obsolete",
             .type = QEMU_OPT_STRING,
@@ -282,6 +283,7 @@ static QemuOptsList qemu_sandbox_opts = {
             .name = "resourcecontrol",
             .type = QEMU_OPT_STRING,
         },
+#endif
         { /* end of list */ }
     },
 };
