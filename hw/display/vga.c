@@ -2184,6 +2184,14 @@ void vga_common_init(VGACommonState *s, Object *obj, bool global_vmstate)
     }
     s->vbe_size_mask = s->vbe_size - 1;
 
+    if (global_vmstate) {
+        static int have_vga;
+        if (have_vga) {
+            error_report("only one vga device is supported");
+            exit(1);
+        }
+        have_vga = true;
+    }
     s->is_vbe_vmstate = 1;
     memory_region_init_ram_nomigrate(&s->vram, obj, "vga.vram", s->vram_size,
                            &error_fatal);
