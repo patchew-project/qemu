@@ -27,6 +27,7 @@
 static Property riscv_harts_props[] = {
     DEFINE_PROP_UINT32("num-harts", RISCVHartArrayState, num_harts, 1),
     DEFINE_PROP_STRING("cpu-type", RISCVHartArrayState, cpu_type),
+    DEFINE_PROP_UINT64("rstvec", RISCVHartArrayState, rstvec, DEFAULT_RSTVEC),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -50,6 +51,8 @@ static void riscv_harts_realize(DeviceState *dev, Error **errp)
         s->harts[n].env.mhartid = n;
         object_property_add_child(OBJECT(s), "harts[*]", OBJECT(&s->harts[n]),
                                   &error_abort);
+        object_property_set_uint(OBJECT(&s->harts[n]), s->rstvec,
+                                 "rstvec", &err);
         qemu_register_reset(riscv_harts_cpu_reset, &s->harts[n]);
         object_property_set_bool(OBJECT(&s->harts[n]), true,
                                  "realized", &err);
