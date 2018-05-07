@@ -51,10 +51,6 @@ static void nbd_teardown_connection(BlockDriverState *bs)
 {
     NBDClientSession *client = nbd_get_client_session(bs);
 
-    if (!client->ioc) { /* Already closed */
-        return;
-    }
-
     /* finish any pending coroutines */
     qio_channel_shutdown(client->ioc,
                          QIO_CHANNEL_SHUTDOWN_BOTH,
@@ -148,10 +144,6 @@ static int nbd_co_send_request(BlockDriverState *bs,
 
     if (s->quit) {
         rc = -EIO;
-        goto err;
-    }
-    if (!s->ioc) {
-        rc = -EPIPE;
         goto err;
     }
 
@@ -426,7 +418,7 @@ static coroutine_fn int nbd_co_do_receive_one_chunk(
     s->requests[i].receiving = true;
     qemu_coroutine_yield();
     s->requests[i].receiving = false;
-    if (!s->ioc || s->quit) {
+    if (s->quit) {
         error_setg(errp, "Connection closed");
         return -EIO;
     }
@@ -966,10 +958,6 @@ void nbd_client_close(BlockDriverState *bs)
 {
     NBDClientSession *client = nbd_get_client_session(bs);
     NBDRequest request = { .type = NBD_CMD_DISC };
-
-    if (client->ioc == NULL) {
-        return;
-    }
 
     nbd_send_request(client->ioc, &request);
 
