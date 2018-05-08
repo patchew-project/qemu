@@ -2044,7 +2044,7 @@ static coroutine_fn int qcow2_co_pwritev(BlockDriverState *bs, uint64_t offset,
         while (l2meta != NULL) {
             QCowL2Meta *next;
 
-            ret = qcow2_alloc_cluster_link_l2(bs, l2meta);
+            ret = qcow2_alloc_cluster_link_l2(bs, l2meta, 0);
             if (ret < 0) {
                 goto fail;
             }
@@ -2534,6 +2534,7 @@ static void coroutine_fn preallocate_co(void *opaque)
     uint64_t host_offset = 0;
     unsigned int cur_bytes;
     int ret;
+    struct stat st;
     QCowL2Meta *meta;
 
     qemu_co_mutex_lock(&s->lock);
@@ -2552,7 +2553,19 @@ static void coroutine_fn preallocate_co(void *opaque)
         while (meta) {
             QCowL2Meta *next = meta->next;
 
-            ret = qcow2_alloc_cluster_link_l2(bs, meta);
+            /* Check the underlying device type.
+             * If the underlying device is a block device, we add
+             * QCOW_OFLAG_ZERO for all preallocated l2 entry to ignore dirty
+             * data on block device.
+             * If the underlying device can't be used with stat(return < 0),
+             * treat it as a regular file.
+             */
+            if (stat(bs->filename, &st) < 0 || !S_ISBLK(st.st_mode)) {
+                ret = qcow2_alloc_cluster_link_l2(bs, meta, 0);
+            } else {
+                ret = qcow2_alloc_cluster_link_l2(bs, meta, QCOW_OFLAG_ZERO);
+            }
+
             if (ret < 0) {
                 qcow2_free_any_clusters(bs, meta->alloc_offset,
                                         meta->nb_clusters, QCOW2_DISCARD_NEVER);
@@ -3458,7 +3471,7 @@ static int qcow2_truncate(BlockDriverState *bs, int64_t offset,
             };
             qemu_co_queue_init(&allocation.dependent_requests);
 
-            ret = qcow2_alloc_cluster_link_l2(bs, &allocation);
+            ret = qcow2_alloc_cluster_link_l2(bs, &allocation, 0);
             if (ret < 0) {
                 error_setg_errno(errp, -ret, "Failed to update L2 tables");
                 qcow2_free_clusters(bs, host_offset,
