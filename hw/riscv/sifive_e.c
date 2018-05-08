@@ -46,7 +46,6 @@
 #include "hw/riscv/sifive_e.h"
 #include "chardev/char.h"
 #include "sysemu/arch_init.h"
-#include "exec/address-spaces.h"
 #include "elf.h"
 
 static const struct MemmapEntry {

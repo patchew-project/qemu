@@ -44,7 +44,6 @@
 #include "chardev/char.h"
 #include "sysemu/arch_init.h"
 #include "sysemu/device_tree.h"
-#include "exec/address-spaces.h"
 #include "elf.h"
 
 #include <libfdt.h>
