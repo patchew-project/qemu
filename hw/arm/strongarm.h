@@ -3,6 +3,7 @@
 
 #include "exec/memory.h"
 #include "target/arm/cpu-qom.h"
+#include "hw/ssi/ssi.h"
 
 #define SA_CS0          0x00000000
 #define SA_CS1          0x08000000

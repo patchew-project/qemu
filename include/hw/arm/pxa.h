@@ -13,6 +13,7 @@
 #include "exec/memory.h"
 #include "target/arm/cpu-qom.h"
 #include "hw/pcmcia.h"
+#include "hw/ssi/ssi.h"
 
 /* Interrupt numbers */
 # define PXA2XX_PIC_SSP3	0
