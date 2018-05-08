@@ -873,7 +873,8 @@ static void quorum_set_supported_flags(BlockDriverState *bs)
     int i;
 
     bs->supported_write_flags = BDRV_REQ_FUA;
-    bs->supported_zero_flags  = BDRV_REQ_FUA | BDRV_REQ_MAY_UNMAP;
+    bs->supported_zero_flags  =
+        BDRV_REQ_FUA | BDRV_REQ_MAY_UNMAP | BDRV_REQ_ALLOCATE;
 
     for (i = 0; i < s->num_children; i++) {
         bs->supported_write_flags &= s->children[i]->bs->supported_write_flags;
