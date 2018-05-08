@@ -104,7 +104,9 @@ static uint64_t bios_translate_addr(void *opaque, uint64_t srcaddr)
 static void s390_ipl_realize(DeviceState *dev, Error **errp)
 {
     S390IPLState *ipl = S390_IPL(dev);
-    uint64_t pentry = KERN_IMAGE_START;
+    uint64_t *iplpsw;
+    uint64_t pentry;
+    char *magic;
     int kernel_size;
     Error *err = NULL;
 
@@ -156,6 +158,17 @@ static void s390_ipl_realize(DeviceState *dev, Error **errp)
                                NULL, 1, EM_S390, 0, 0);
         if (kernel_size < 0) {
             kernel_size = load_image_targphys(ipl->kernel, 0, ram_size);
+            /* if this is Linux use KERN_IMAGE_START */
+            magic = rom_ptr(0x10008);
+            if (magic && !memcmp(magic, "S390EP", 6)) {
+                pentry = KERN_IMAGE_START;
+            } else {
+                /* if not Linux use the IPL PSW */
+                iplpsw = rom_ptr(0);
+                if (iplpsw) {
+                    pentry = *iplpsw & 0x7fffffffUL;
+                }
+            }
         }
         if (kernel_size < 0) {
             error_setg(&err, "could not load kernel '%s'", ipl->kernel);
