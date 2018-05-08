@@ -32,7 +32,7 @@ typedef struct QDictCmpData {
 } QDictCmpData;
 
 TestEventData *test_event_data;
-static CompatGMutex test_event_lock;
+static GMutex test_event_lock;
 
 /* Only compares bool, int, string */
 static

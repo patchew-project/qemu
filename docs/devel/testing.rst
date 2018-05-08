@@ -297,9 +297,9 @@ the container, with parameters defined by the make target):
 
 .. code::
 
-  make docker-test-build@min-glib
+  make docker-test-build@centos7
 
-This will create a container instance using the ``min-glib`` image (the image
+This will create a container instance using the ``centos7`` image (the image
 is downloaded and initialized automatically), in which the ``test-build`` job
 is executed.
 
