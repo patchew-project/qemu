@@ -130,6 +130,26 @@ typedef struct {
     void (*set_readonly)(DeviceState *dev, bool readonly);
 } SDBusClass;
 
+/**
+ * sd_frame48_calc_checksum:
+ * @content: pointer to the frame content
+ *
+ * Calculate the 7-bit CRC of a 48-bit SD frame.
+ *
+ * Returns: The frame CRC.
+ */
+uint8_t sd_frame48_calc_checksum(const void *content);
+
+/**
+ * sd_frame136_calc_checksum:
+ * @content: pointer to the frame content
+ *
+ * Calculate the 7-bit CRC of a 136-bit SD frame.
+ *
+ * Returns: The frame CRC.
+ */
+uint8_t sd_frame136_calc_checksum(const void *content);
+
 /* Legacy functions to be used only by non-qdevified callers */
 SDState *sd_init(BlockBackend *bs, bool is_spi);
 int sd_do_command(SDState *sd, SDRequest *req,
