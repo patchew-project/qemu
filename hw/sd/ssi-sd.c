@@ -95,11 +95,11 @@ static uint32_t ssi_sd_transfer(SSISlave *dev, uint32_t val)
         if (s->arglen == 4) {
             uint8_t request[6];
             uint8_t longresp[16];
-            /* FIXME: Check CRC.  */
 
             DPRINTF("CMD%d arg 0x%08x\n", s->cmd, ldl_be_p(s->cmdarg));
             sd_frame48_init(request, sizeof(request), s->cmd,
                             ldl_be_p(s->cmdarg), false);
+            request[5] = sd_frame48_calc_checksum(request);
 
             s->arglen = sdbus_do_command(&s->sdbus, request, longresp);
             if (s->arglen <= 0) {
@@ -257,6 +257,7 @@ static void ssi_sd_realize(SSISlave *d, Error **errp)
         qdev_prop_set_drive(carddev, "drive", blk_by_legacy_dinfo(dinfo), &err);
     }
     object_property_set_bool(OBJECT(carddev), true, "spi", &err);
+    object_property_set_bool(OBJECT(carddev), true, "validate-crc", &err);
     object_property_set_bool(OBJECT(carddev), true, "realized", &err);
     if (err) {
         error_setg(errp, "failed to init SD card: %s", error_get_pretty(err));
