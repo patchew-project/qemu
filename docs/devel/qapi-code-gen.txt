@@ -472,8 +472,8 @@ All branches of the union must be complex types, and the top-level
 members of the union dictionary on the wire will be combination of
 members from both the base type and the appropriate branch type (when
 merging two dictionaries, there must be no keys in common).  The
-'discriminator' member must be the name of a non-optional enum-typed
-member of the base struct.
+'discriminator' member must be the name of an enum-typed member of the
+base struct.
 
 The following example enhances the above simple union example by
 adding an optional common member 'read-only', renaming the
@@ -501,6 +501,23 @@ enum (although the order of the keys need not match the declaration of
 the enum).  In the resulting generated C data types, a flat union is
 represented as a struct with the base members included directly, and
 then a union of structures for each branch of the struct.
+
+If the discriminator points to an optional member of the base struct,
+its default value must be specified as a 'default-variant'.  In the
+following example, the above BlockDriver struct is changed so it
+defaults to the 'file' driver if that field is omitted on the wire:
+
+ { 'union': 'BlockdevOptions',
+   'base': { '*driver': 'BlockdevDriver', '*read-only': 'bool' },
+   'discriminator': 'driver',
+   'default-variant': 'file',
+   'data': { 'file': 'BlockdevOptionsFile',
+             'qcow2': 'BlockdevOptionsQcow2' } }
+
+Now the 'file' JSON object can be abbreviated to:
+
+ { "read-only": "true",
+   "filename": "/some/place/my-image" }
 
 A simple union can always be re-written as a flat union where the base
 class has a single member named 'type', and where each branch of the
