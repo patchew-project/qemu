@@ -54,7 +54,7 @@ wrote 64512/64512 bytes at offset 134217728
 required size: 589824
 fully allocated size: 1074135040
 
-converted image file size in bytes: 524288
+converted image file size in bytes: 523264
 
 == qcow2 input image with internal snapshot (human) ==
 
@@ -107,7 +107,7 @@ wrote 64512/64512 bytes at offset 134217728
 required size: 589824
 fully allocated size: 1074135040
 
-converted image file size in bytes: 524288
+converted image file size in bytes: 523264
 
 == raw input image and a backing file (human) ==
 
@@ -187,7 +187,7 @@ wrote 64512/64512 bytes at offset 134217728
     "fully-allocated": 1074135040
 }
 
-converted image file size in bytes: 524288
+converted image file size in bytes: 523264
 
 == qcow2 input image with internal snapshot (json) ==
 
@@ -254,7 +254,7 @@ wrote 64512/64512 bytes at offset 134217728
     "fully-allocated": 1074135040
 }
 
-converted image file size in bytes: 524288
+converted image file size in bytes: 523264
 
 == raw input image and a backing file (json) ==
 
