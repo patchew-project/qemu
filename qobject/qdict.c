@@ -1087,3 +1087,60 @@ bool qdict_rename_keys(QDict *qdict, const QDictRenames *renames, Error **errp)
     }
     return true;
 }
+
+/**
+ * Convert all values in a QDict so it can be consumed by the keyval
+ * input visitor.  QNull values are left as-is, all other values are
+ * converted to strings.
+ *
+ * @qdict must be flattened, i.e. it may not contain any nested QDicts
+ * or QLists.
+ */
+void qdict_stringify_for_keyval(QDict *qdict)
+{
+    const QDictEntry *e;
+
+    for (e = qdict_first(qdict); e; e = qdict_next(qdict, e)) {
+        QString *new_value = NULL;
+
+        switch (qobject_type(e->value)) {
+        case QTYPE_QNULL:
+            /* leave as-is */
+            break;
+
+        case QTYPE_QNUM: {
+            char *str = qnum_to_string(qobject_to(QNum, e->value));
+            new_value = qstring_from_str(str);
+            g_free(str);
+            break;
+        }
+
+        case QTYPE_QSTRING:
+            /* leave as-is */
+            break;
+
+        case QTYPE_QDICT:
+        case QTYPE_QLIST:
+            /* @qdict must be flattened */
+            abort();
+
+        case QTYPE_QBOOL:
+            if (qbool_get_bool(qobject_to(QBool, e->value))) {
+                new_value = qstring_from_str("on");
+            } else {
+                new_value = qstring_from_str("off");
+            }
+            break;
+
+        case QTYPE_NONE:
+        case QTYPE__MAX:
+            abort();
+        }
+
+        if (new_value) {
+            QDictEntry *mut_e = (QDictEntry *)e;
+            qobject_unref(mut_e->value);
+            mut_e->value = QOBJECT(new_value);
+        }
+    }
+}

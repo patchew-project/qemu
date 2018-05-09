@@ -32,4 +32,6 @@ typedef struct QDictRenames {
 } QDictRenames;
 bool qdict_rename_keys(QDict *qdict, const QDictRenames *renames, Error **errp);
 
+void qdict_stringify_for_keyval(QDict *qdict);
+
 #endif
