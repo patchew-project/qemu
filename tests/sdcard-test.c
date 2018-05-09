@@ -23,6 +23,17 @@ static void test_sd_response_frame136_crc7(void)
            sizeof(buf));
     buf[15] = sd_frame136_calc_checksum(buf);
     g_assert_cmphex(buf[15], ==, 0xad);
+
+    g_assert_true(sd_frame136_verify_checksum(buf));
+}
+
+static void test_sd_verify_cksum_frame136(void)
+{
+    uint8_t buf[16];
+
+    memset(buf, 69, sizeof(buf));
+    buf[15] = sd_frame136_calc_checksum(buf);
+    g_assert_true(sd_frame136_verify_checksum(buf));
 }
 
 int main(int argc, char *argv[])
@@ -30,6 +41,7 @@ int main(int argc, char *argv[])
     g_test_init(&argc, &argv, NULL);
 
     qtest_add_func("sd/prepare_resp136_crc7", test_sd_response_frame136_crc7);
+    qtest_add_func("sd/verify_cksum_frame136", test_sd_verify_cksum_frame136);
 
     return g_test_run();
 }

@@ -111,3 +111,9 @@ bool sd_frame48_verify_checksum(const void *content)
     return sd_frame48_calc_checksum(content)
            == ((const uint8_t *)content)[F48_CONTENT_LENGTH];
 }
+
+bool sd_frame136_verify_checksum(const void *content)
+{
+    return sd_frame136_calc_checksum(content)
+           == ((const uint8_t *)content)[F136_CONTENT_LENGTH];
+}
