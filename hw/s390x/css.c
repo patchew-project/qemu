@@ -1182,11 +1182,13 @@ static void sch_handle_start_func_virtual(SubchDev *sch)
 
 static IOInstEnding sch_handle_clear_func_passthrough(SubchDev *sch)
 {
+    trace_css_handle_clear_pt(sch->cssid, sch->ssid, sch->schid);
     return s390_ccw_cmd_request(sch);
 }
 
 static IOInstEnding sch_handle_halt_func_passthrough(SubchDev *sch)
 {
+    trace_css_handle_halt_pt(sch->cssid, sch->ssid, sch->schid);
     return s390_ccw_cmd_request(sch);
 }
 
@@ -1197,6 +1199,8 @@ static IOInstEnding sch_handle_start_func_passthrough(SubchDev *sch)
     SCSW *s = &sch->curr_status.scsw;
 
     ORB *orb = &sch->orb;
+
+    trace_css_handle_start_pt(sch->cssid, sch->ssid, sch->schid);
     if (!(s->ctrl & SCSW_ACTL_SUSP)) {
         assert(orb != NULL);
         p->intparm = orb->intparm;
@@ -1252,6 +1256,7 @@ IOInstEnding do_subchannel_work_passthrough(SubchDev *sch)
         } else {
             if (sch_handle_clear_func_passthrough(sch) == IOINST_OPNOTSUPP) {
                 no_halt_clear = true;
+                trace_css_no_haltclear_pt();
                 sch_handle_halt_func(sch);
             }
         }
@@ -1260,6 +1265,7 @@ IOInstEnding do_subchannel_work_passthrough(SubchDev *sch)
             sch_handle_halt_func(sch);
         } else {
             if (sch_handle_halt_func_passthrough(sch) == IOINST_OPNOTSUPP) {
+                trace_css_no_haltclear_pt();
                 no_halt_clear = true;
                 sch_handle_halt_func(sch);
             }

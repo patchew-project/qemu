@@ -9,6 +9,10 @@ css_assign_subch(const char *do_assign, uint8_t cssid, uint8_t ssid, uint16_t sc
 css_io_interrupt(int cssid, int ssid, int schid, uint32_t intparm, uint8_t isc, const char *conditional) "CSS: I/O interrupt on sch %x.%x.%04x (intparm 0x%08x, isc 0x%x) %s"
 css_adapter_interrupt(uint8_t isc) "CSS: adapter I/O interrupt (isc 0x%x)"
 css_do_sic(uint16_t mode, uint8_t isc) "CSS: set interruption mode 0x%x on isc 0x%x"
+css_handle_clear_pt(int cssid, int ssid, int schid) "CSS: handling clear function for pass-through subchannel %x.%x.%04x"
+css_handle_halt_pt(int cssid, int ssid, int schid) "CSS: handling halt function for pass-through subchannel %x.%x.%04x"
+css_handle_start_pt(int cssid, int ssid, int schid) "CSS: handling start function for pass-through subchannel %x.%x.%04x"
+css_no_haltclear_pt(void) "CSS: no kernel support for halt/clear function passthrough handling, falling back to emulation"
 
 # hw/s390x/virtio-ccw.c
 virtio_ccw_interpret_ccw(int cssid, int ssid, int schid, int cmd_code) "VIRTIO-CCW: %x.%x.%04x: interpret command 0x%x"
