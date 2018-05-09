@@ -19,6 +19,8 @@ typedef struct QEnumLookup {
 const char *qapi_enum_lookup(const QEnumLookup *lookup, int val);
 int qapi_enum_parse(const QEnumLookup *lookup, const char *buf,
                     int def, Error **errp);
+int qapi_enum_parse_full(const QEnumLookup *lookup, const char *buf,
+                         int def, bool ignore_case, Error **errp);
 
 int parse_qapi_name(const char *name, bool complete);
 

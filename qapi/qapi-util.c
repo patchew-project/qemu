@@ -21,8 +21,8 @@ const char *qapi_enum_lookup(const QEnumLookup *lookup, int val)
     return lookup->array[val];
 }
 
-int qapi_enum_parse(const QEnumLookup *lookup, const char *buf,
-                    int def, Error **errp)
+int qapi_enum_parse_full(const QEnumLookup *lookup, const char *buf,
+                         int def, bool ignore_case, Error **errp)
 {
     int i;
 
@@ -31,13 +31,25 @@ int qapi_enum_parse(const QEnumLookup *lookup, const char *buf,
     }
 
     for (i = 0; i < lookup->size; i++) {
-        if (!strcmp(buf, lookup->array[i])) {
-            return i;
+        if (ignore_case) {
+            if (!strcasecmp(buf, lookup->array[i])) {
+                return i;
+            }
+        } else {
+            if (!strcmp(buf, lookup->array[i])) {
+                return i;
+            }
         }
     }
 
     error_setg(errp, "invalid parameter value: %s", buf);
     return def;
+}
+
+int qapi_enum_parse(const QEnumLookup *lookup, const char *buf,
+                    int def, Error **errp)
+{
+    return qapi_enum_parse_full(lookup, buf, def, false, errp);
 }
 
 /*
