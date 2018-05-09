@@ -49,4 +49,13 @@ vm state offset: 512 MiB
 format name: IMGFMT
 cluster size: 64 KiB
 vm state offset: 512 MiB
+
+=== Testing option typing ===
+
+image: json:{"driver": "null-co", "size": 42}
+image: json:{"driver": "null-co", "size": 42}
+
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) info block
+drv0 (node0): json:{"driver": "raw", "file": {"image": {"driver": "null-co"}, "driver": "blkdebug", "align": 512}} (raw)
 *** done
