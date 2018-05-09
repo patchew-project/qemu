@@ -1,0 +1,15 @@
+object q_empty
+enum QType ['none', 'qnull', 'qnum', 'qstring', 'qdict', 'qlist', 'qbool']
+    prefix QTYPE
+module flat-union-optional-discriminator.json
+enum Enum ['one', 'two']
+object Base
+    member switch: Enum optional=True
+object Branch
+    member name: str optional=False
+object MyUnion
+    base Base
+    tag switch
+    default variant: one
+    case one: Branch
+    case two: Branch

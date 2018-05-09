@@ -1,3 +1,5 @@
+# default-variant must refer to an actual value of the discriminator's
+# enum
 { 'enum': 'Enum', 'data': [ 'one', 'two' ] }
 { 'struct': 'Base',
   'data': { '*switch': 'Enum' } }
@@ -5,6 +7,6 @@
 { 'union': 'MyUnion',
   'base': 'Base',
   'discriminator': 'switch',
-  'default-variant': 'one',
+  'default-variant': 'three',
   'data': { 'one': 'Branch',
             'two': 'Branch' } }

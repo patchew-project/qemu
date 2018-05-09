@@ -1,6 +1,7 @@
+# default-variant only makes sense with an optional discriminator
 { 'enum': 'Enum', 'data': [ 'one', 'two' ] }
 { 'struct': 'Base',
-  'data': { '*switch': 'Enum' } }
+  'data': { 'switch': 'Enum' } }
 { 'struct': 'Branch', 'data': { 'name': 'str' } }
 { 'union': 'MyUnion',
   'base': 'Base',
