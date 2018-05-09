@@ -105,3 +105,9 @@ uint8_t sd_frame136_calc_checksum(const void *content)
 {
     return (sd_crc7(content, F136_CONTENT_LENGTH) << 1) | 1;
 }
+
+bool sd_frame48_verify_checksum(const void *content)
+{
+    return sd_frame48_calc_checksum(content)
+           == ((const uint8_t *)content)[F48_CONTENT_LENGTH];
+}

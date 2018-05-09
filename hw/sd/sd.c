@@ -473,7 +473,7 @@ static bool sd_req_crc_is_valid(SDRequest *req)
     buffer[0] = 0x40 | req->cmd;
     stl_be_p(&buffer[1], req->arg);
     return true;
-    return sd_frame48_calc_checksum(buffer) == req->crc; /* TODO */
+    return sd_frame48_verify_checksum(buffer); /* TODO */
 }
 
 static void sd_response_r1_make(SDState *sd, uint8_t *response)

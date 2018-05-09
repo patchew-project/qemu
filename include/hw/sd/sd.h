@@ -150,6 +150,16 @@ uint8_t sd_frame48_calc_checksum(const void *content);
  */
 uint8_t sd_frame136_calc_checksum(const void *content);
 
+/**
+ * sd_frame48_verify_checksum:
+ * @content: pointer to the frame content
+ *
+ * Verify the 7-bit CRC checksum of a 48-bit SD frame.
+ *
+ * Returns: A boolean indicating whether the frame 7-bit CRC is correct.
+ */
+bool sd_frame48_verify_checksum(const void *content);
+
 /* Legacy functions to be used only by non-qdevified callers */
 SDState *sd_init(BlockBackend *bs, bool is_spi);
 int sd_do_command(SDState *sd, SDRequest *req,
