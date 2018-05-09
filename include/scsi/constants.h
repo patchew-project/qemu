@@ -311,4 +311,6 @@
 #define MMC_PROFILE_HDDVD_RW_DL         0x005A
 #define MMC_PROFILE_INVALID             0xFFFF
 
+#define IDENT_DESCR_TGT_DESCR 0xE4
+
 #endif
