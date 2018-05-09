@@ -9,7 +9,7 @@ QMP_VERSION
 {"return": {}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
 
-image: json:{"driver": "IMGFMT", "file": {"server.host": "127.0.0.1", "server.port": "22", "driver": "ssh", "path": "TEST_DIR/t.IMGFMT"}}
+image: json:{"driver": "IMGFMT", "file": {"driver": "ssh", "path": "TEST_DIR/t.IMGFMT", "server": { "port": "22", "host": "127.0.0.1" }}}
 file format: IMGFMT
 virtual size: 4.0M (4194304 bytes)
 
@@ -26,7 +26,7 @@ QMP_VERSION
 {"return": {}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
 
-image: json:{"driver": "IMGFMT", "file": {"server.host": "127.0.0.1", "server.port": "22", "driver": "ssh", "path": "TEST_DIR/t.IMGFMT"}}
+image: json:{"driver": "IMGFMT", "file": {"driver": "ssh", "path": "TEST_DIR/t.IMGFMT", "server": { "port": "22", "host": "127.0.0.1" }}}
 file format: IMGFMT
 virtual size: 8.0M (8388608 bytes)
 Testing:
@@ -36,7 +36,7 @@ QMP_VERSION
 {"return": {}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
 
-image: json:{"driver": "IMGFMT", "file": {"server.host": "127.0.0.1", "server.port": "22", "driver": "ssh", "path": "TEST_DIR/t.IMGFMT"}}
+image: json:{"driver": "IMGFMT", "file": {"driver": "ssh", "path": "TEST_DIR/t.IMGFMT", "server": { "port": "22", "host": "127.0.0.1" }}}
 file format: IMGFMT
 virtual size: 4.0M (4194304 bytes)
 Testing:
@@ -47,7 +47,7 @@ QMP_VERSION
 {"return": {}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
 
-image: json:{"driver": "IMGFMT", "file": {"server.host": "127.0.0.1", "server.port": "22", "driver": "ssh", "path": "TEST_DIR/t.IMGFMT"}}
+image: json:{"driver": "IMGFMT", "file": {"driver": "ssh", "path": "TEST_DIR/t.IMGFMT", "server": { "port": "22", "host": "127.0.0.1" }}}
 file format: IMGFMT
 virtual size: 8.0M (8388608 bytes)
 Testing:
@@ -58,7 +58,7 @@ QMP_VERSION
 {"return": {}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
 
-image: json:{"driver": "IMGFMT", "file": {"server.host": "127.0.0.1", "server.port": "22", "driver": "ssh", "path": "TEST_DIR/t.IMGFMT"}}
+image: json:{"driver": "IMGFMT", "file": {"driver": "ssh", "path": "TEST_DIR/t.IMGFMT", "server": { "port": "22", "host": "127.0.0.1" }}}
 file format: IMGFMT
 virtual size: 4.0M (4194304 bytes)
 
