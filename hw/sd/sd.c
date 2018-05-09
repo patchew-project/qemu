@@ -273,6 +273,21 @@ static uint16_t sd_crc16(const void *message, size_t width)
     return shift_reg;
 }
 
+enum {
+    F48_CONTENT_LENGTH  = 1 /* command */ + 4 /* argument */,
+    F136_CONTENT_LENGTH = 15,
+};
+
+static uint8_t sd_frame48_calc_checksum(const void *content)
+{
+    return sd_crc7(content, F48_CONTENT_LENGTH);
+}
+
+static uint8_t sd_frame136_calc_checksum(const void *content)
+{
+    return (sd_crc7(content, F136_CONTENT_LENGTH) << 1) | 1;
+}
+
 #define OCR_POWER_DELAY_NS      500000 /* 0.5ms */
 
 FIELD(OCR, VDD_VOLTAGE_WINDOW,          0, 24)
@@ -352,7 +367,7 @@ static void sd_set_cid(SDState *sd)
     sd->cid[13] = 0x00 |	/* Manufacture date (MDT) */
         ((MDT_YR - 2000) / 10);
     sd->cid[14] = ((MDT_YR % 10) << 4) | MDT_MON;
-    sd->cid[15] = (sd_crc7(sd->cid, 15) << 1) | 1;
+    sd->cid[15] = sd_frame136_calc_checksum(sd->cid);
 }
 
 #define HWBLOCK_SHIFT	9			/* 512 bytes */
@@ -416,7 +431,7 @@ static void sd_set_csd(SDState *sd, uint64_t size)
         sd->csd[13] = 0x40;
         sd->csd[14] = 0x00;
     }
-    sd->csd[15] = (sd_crc7(sd->csd, 15) << 1) | 1;
+    sd->csd[15] = sd_frame136_calc_checksum(sd->csd);
 }
 
 static void sd_set_rca(SDState *sd)
@@ -491,7 +506,7 @@ static int sd_req_crc_validate(SDRequest *req)
     buffer[0] = 0x40 | req->cmd;
     stl_be_p(&buffer[1], req->arg);
     return 0;
-    return sd_crc7(buffer, 5) != req->crc;	/* TODO */
+    return sd_frame48_calc_checksum(buffer) != req->crc; /* TODO */
 }
 
 static void sd_response_r1_make(SDState *sd, uint8_t *response)
