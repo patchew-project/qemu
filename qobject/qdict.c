@@ -537,7 +537,7 @@ static void qdict_flatten_qdict(QDict *qdict, QDict *target, const char *prefix)
     QObject *value;
     const QDictEntry *entry, *next;
     char *new_key;
-    bool delete;
+    bool copied_value;
 
     entry = qdict_first(qdict);
 
@@ -546,7 +546,7 @@ static void qdict_flatten_qdict(QDict *qdict, QDict *target, const char *prefix)
         next = qdict_next(qdict, entry);
         value = qdict_entry_value(entry);
         new_key = NULL;
-        delete = false;
+        copied_value = false;
 
         if (prefix) {
             new_key = g_strdup_printf("%s.%s", prefix, entry->key);
@@ -557,23 +557,32 @@ static void qdict_flatten_qdict(QDict *qdict, QDict *target, const char *prefix)
              * itself disappears. */
             qdict_flatten_qdict(qobject_to(QDict, value), target,
                                 new_key ? new_key : entry->key);
-            delete = true;
+            copied_value = true;
         } else if (qobject_type(value) == QTYPE_QLIST) {
             qdict_flatten_qlist(qobject_to(QList, value), target,
                                 new_key ? new_key : entry->key);
-            delete = true;
+            copied_value = true;
         } else if (prefix) {
             /* All other objects are moved to the target unchanged. */
             qdict_put_obj(target, new_key, qobject_ref(value));
-            delete = true;
+            copied_value = true;
         }
 
         g_free(new_key);
 
-        if (delete) {
+        if (copied_value && qdict == target) {
+            /* If we have copied a value, and if we are on the root
+             * level, we need to remove the old entry.  Otherwise, we
+             * do not, because by removing these entries on the root
+             * level, the reference counts of nested dicts and listed
+             * will be reduced automatically.  In fact, we probably do
+             * not want to modify nested dicts and lists with
+             * refcounts greater than 1 anyway. */
             qdict_del(qdict, entry->key);
 
-            /* Restart loop after modifying the iterated QDict */
+            /* Restart loop after modifying the iterated QDict.  We
+             * only need to do this if qdict == target, because
+             * otherwise copying the value did not affect qdict. */
             entry = qdict_first(qdict);
             continue;
         }
