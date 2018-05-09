@@ -2708,14 +2708,34 @@
             'mode':  'Qcow2OverlapCheckMode' } }
 
 ##
+# @BlockdevQcowEncryptionSecret:
+#
+# Allows specifying a key-secret without specifying the exact
+# encryption format, which is determined automatically from the image
+# header.
+#
+# @key-secret:      The ID of a QCryptoSecret object providing the
+#                   decryption key.  Mandatory except when probing
+#                   image for metadata only.
+#
+# Since: 2.13
+##
+{ 'struct': 'BlockdevQcowEncryptionSecret',
+  'data': { '*key-secret': 'str' } }
+
+##
 # @BlockdevQcowEncryptionFormat:
 #
 # @aes: AES-CBC with plain64 initialization vectors
 #
+# @from-image:      Determine the encryption format from the image
+#                   header.  This only allows the use of the
+#                   key-secret option.  (Since: 2.13)
+#
 # Since: 2.10
 ##
 { 'enum': 'BlockdevQcowEncryptionFormat',
-  'data': [ 'aes' ] }
+  'data': [ 'aes', 'from-image' ] }
 
 ##
 # @BlockdevQcowEncryption:
@@ -2723,9 +2743,11 @@
 # Since: 2.10
 ##
 { 'union': 'BlockdevQcowEncryption',
-  'base': { 'format': 'BlockdevQcowEncryptionFormat' },
+  'base': { '*format': 'BlockdevQcowEncryptionFormat' },
   'discriminator': 'format',
-  'data': { 'aes': 'QCryptoBlockOptionsQCow' } }
+  'default-variant': 'from-image',
+  'data': { 'aes': 'QCryptoBlockOptionsQCow',
+            'from-image': 'BlockdevQcowEncryptionSecret' } }
 
 ##
 # @BlockdevOptionsQcow:
