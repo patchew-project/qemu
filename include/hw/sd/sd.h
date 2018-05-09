@@ -76,12 +76,6 @@ typedef enum {
     sd_adtc,	/* addressed with data transfer */
 } sd_cmd_type_t;
 
-typedef struct {
-    uint8_t cmd;
-    uint32_t arg;
-    uint8_t crc;
-} SDRequest;
-
 typedef struct SDState SDState;
 typedef struct SDBus SDBus;
 
@@ -97,7 +91,7 @@ typedef struct {
     DeviceClass parent_class;
     /*< public >*/
 
-    int (*do_command)(SDState *sd, SDRequest *req, uint8_t *response);
+    int (*do_command)(SDState *sd, const uint8_t *request, uint8_t *response);
     void (*write_data)(SDState *sd, uint8_t value);
     uint8_t (*read_data)(SDState *sd);
     bool (*data_ready)(SDState *sd);
@@ -129,6 +123,18 @@ typedef struct {
     void (*set_inserted)(DeviceState *dev, bool inserted);
     void (*set_readonly)(DeviceState *dev, bool readonly);
 } SDBusClass;
+
+/**
+ * sd_frame48_init: Initialize a 48-bit SD frame
+ *
+ * @buf: the buffer to be filled
+ * @bufsize: the size of the @buffer
+ * @cmd: the SD command
+ * @arg: the SD command argument
+ * @is_response: whether the frame is a command request or response
+ */
+void sd_frame48_init(uint8_t *buf, size_t bufsize, uint8_t cmd, uint32_t arg,
+                     bool is_response);
 
 /**
  * sd_frame48_calc_checksum:
@@ -172,7 +178,7 @@ bool sd_frame136_verify_checksum(const void *content);
 
 /* Legacy functions to be used only by non-qdevified callers */
 SDState *sd_init(BlockBackend *bs, bool is_spi);
-int sd_do_command(SDState *sd, SDRequest *req,
+int sd_do_command(SDState *sd, const uint8_t *request,
                   uint8_t *response);
 void sd_write_data(SDState *sd, uint8_t value);
 uint8_t sd_read_data(SDState *sd);
@@ -193,7 +199,7 @@ void sd_enable(SDState *sd, bool enable);
 void sdbus_set_voltage(SDBus *sdbus, uint16_t millivolts);
 uint8_t sdbus_get_dat_lines(SDBus *sdbus);
 bool sdbus_get_cmd_line(SDBus *sdbus);
-int sdbus_do_command(SDBus *sd, SDRequest *req, uint8_t *response);
+int sdbus_do_command(SDBus *sd, const uint8_t *request, uint8_t *response);
 void sdbus_write_data(SDBus *sd, uint8_t value);
 uint8_t sdbus_read_data(SDBus *sd);
 bool sdbus_data_ready(SDBus *sd);

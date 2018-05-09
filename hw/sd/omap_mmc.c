@@ -113,7 +113,7 @@ static void omap_mmc_command(struct omap_mmc_s *host, int cmd, int dir,
 {
     uint32_t rspstatus, mask;
     int rsplen, timeout;
-    SDRequest request;
+    uint8_t request[6];
     uint8_t response[16];
 
     if (init && cmd == 0) {
@@ -135,11 +135,9 @@ static void omap_mmc_command(struct omap_mmc_s *host, int cmd, int dir,
     mask = 0;
     rspstatus = 0;
 
-    request.cmd = cmd;
-    request.arg = host->arg;
-    request.crc = 0; /* FIXME */
+    sd_frame48_init(request, sizeof(request), cmd, host->arg, false);
 
-    rsplen = sd_do_command(host->card, &request, response);
+    rsplen = sd_do_command(host->card, request, response);
 
     /* TODO: validate CRCs */
     switch (resptype) {

@@ -172,14 +172,14 @@ static uint32_t pl181_fifo_pop(PL181State *s)
 
 static void pl181_send_command(PL181State *s)
 {
-    SDRequest request;
+    uint8_t request[6];
     uint8_t response[16];
     int rlen;
 
-    request.cmd = s->cmd & PL181_CMD_INDEX;
-    request.arg = s->cmdarg;
-    DPRINTF("Command %d %08x\n", request.cmd, request.arg);
-    rlen = sd_do_command(s->card, &request, response);
+    sd_frame48_init(request, sizeof(request), s->cmd & PL181_CMD_INDEX,
+                    s->cmdarg, false);
+
+    rlen = sd_do_command(s->card, request, response);
     if (rlen < 0)
         goto error;
     if (s->cmd & PL181_CMD_RESPONSE) {

@@ -92,7 +92,9 @@ static uint8_t sd_crc7(const void *message, size_t width)
 }
 
 enum {
+    CRC7_LENGTH         = 1,
     F48_CONTENT_LENGTH  = 1 /* command */ + 4 /* argument */,
+    F48_SIZE_MAX        = F48_CONTENT_LENGTH + CRC7_LENGTH,
     F136_CONTENT_LENGTH = 15,
 };
 
@@ -116,4 +118,14 @@ bool sd_frame136_verify_checksum(const void *content)
 {
     return sd_frame136_calc_checksum(content)
            == ((const uint8_t *)content)[F136_CONTENT_LENGTH];
+}
+
+void sd_frame48_init(uint8_t *buf, size_t bufsize, uint8_t cmd, uint32_t arg,
+                     bool is_response)
+{
+    assert(bufsize >= F48_SIZE_MAX);
+    buf[0] = (!is_response << 6) | cmd;
+    stl_be_p(&buf[1], arg);
+    /* Zero-initialize the CRC byte to avoid leaking host memory to the guest */
+    buf[F48_CONTENT_LENGTH] = 0x00;
 }

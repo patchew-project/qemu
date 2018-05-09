@@ -216,7 +216,7 @@ static void pxa2xx_mmci_fifo_update(PXA2xxMMCIState *s)
 static void pxa2xx_mmci_wakequeues(PXA2xxMMCIState *s)
 {
     int rsplen, i;
-    SDRequest request;
+    uint8_t request[6];
     uint8_t response[16];
 
     s->active = 1;
@@ -224,11 +224,9 @@ static void pxa2xx_mmci_wakequeues(PXA2xxMMCIState *s)
     s->tx_len = 0;
     s->cmdreq = 0;
 
-    request.cmd = s->cmd;
-    request.arg = s->arg;
-    request.crc = 0;	/* FIXME */
+    sd_frame48_init(request, sizeof(request), s->cmd, s->arg, false);
 
-    rsplen = sdbus_do_command(&s->sdbus, &request, response);
+    rsplen = sdbus_do_command(&s->sdbus, request, response);
     s->intreq |= INT_END_CMD;
 
     memset(s->resp_fifo, 0, sizeof(s->resp_fifo));

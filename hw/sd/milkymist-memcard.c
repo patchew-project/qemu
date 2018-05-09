@@ -97,14 +97,8 @@ static void update_pending_bits(MilkymistMemcardState *s)
 
 static void memcard_sd_command(MilkymistMemcardState *s)
 {
-    SDRequest req;
-
-    req.cmd = s->command[0] & 0x3f;
-    req.arg = ldl_be_p(s->command + 1);
-    req.crc = s->command[5];
-
-    s->response[0] = req.cmd;
-    s->response_len = sdbus_do_command(&s->sdbus, &req, s->response + 1);
+    s->response[0] = s->command[0];
+    s->response_len = sdbus_do_command(&s->sdbus, s->command, s->response + 1);
     s->response_read_ptr = 0;
 
     if (s->response_len == 16) {
@@ -117,7 +111,7 @@ static void memcard_sd_command(MilkymistMemcardState *s)
         s->response_len += 2;
     }
 
-    if (req.cmd == 0) {
+    if ((s->command[0] & 0x3f) == 0) {
         /* next write is a dummy byte to clock the initialization of the sd
          * card */
         s->ignore_next_cmd = 1;

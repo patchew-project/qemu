@@ -106,14 +106,14 @@ static void bcm2835_sdhost_update_irq(BCM2835SDHostState *s)
 
 static void bcm2835_sdhost_send_command(BCM2835SDHostState *s)
 {
-    SDRequest request;
+    uint8_t req[6];
     uint8_t rsp[16];
     int rlen;
 
-    request.cmd = s->cmd & SDCMD_CMD_MASK;
-    request.arg = s->cmdarg;
+    sd_frame48_init(req, sizeof(req), s->cmd & SDCMD_CMD_MASK,
+                    s->cmdarg, false);
 
-    rlen = sdbus_do_command(&s->sdbus, &request, rsp);
+    rlen = sdbus_do_command(&s->sdbus, req, rsp);
     if (rlen < 0) {
         goto error;
     }

@@ -330,17 +330,18 @@ static void sdhci_data_transfer(void *opaque);
 
 static void sdhci_send_command(SDHCIState *s)
 {
-    SDRequest request;
+    uint8_t request[6];
     uint8_t response[16];
     int rlen;
 
     s->errintsts = 0;
     s->acmd12errsts = 0;
-    request.cmd = s->cmdreg >> 8;
-    request.arg = s->argument;
 
-    trace_sdhci_send_command(request.cmd, request.arg);
-    rlen = sdbus_do_command(&s->sdbus, &request, response);
+    trace_sdhci_send_command(s->cmdreg >> 8, s->argument);
+    sd_frame48_init(request, sizeof(request), s->cmdreg >> 8,
+                    s->argument, false);
+
+    rlen = sdbus_do_command(&s->sdbus, request, response);
 
     if (s->cmdreg & SDHC_CMD_RESPONSE) {
         if (rlen == 4) {
@@ -386,13 +387,12 @@ static void sdhci_end_transfer(SDHCIState *s)
 {
     /* Automatically send CMD12 to stop transfer if AutoCMD12 enabled */
     if ((s->trnmod & SDHC_TRNS_ACMD12) != 0) {
-        SDRequest request;
+        uint8_t request[6];
         uint8_t response[16];
 
-        request.cmd = 0x0C;
-        request.arg = 0;
-        trace_sdhci_end_transfer(request.cmd, request.arg);
-        sdbus_do_command(&s->sdbus, &request, response);
+        trace_sdhci_end_transfer(12, 0);
+        sd_frame48_init(request, sizeof(request), 12, 0, false);
+        sdbus_do_command(&s->sdbus, request, response);
         /* Auto CMD12 response goes to the upper Response register */
         s->rspreg[3] = ldl_be_p(response);
     }

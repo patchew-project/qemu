@@ -93,13 +93,15 @@ static uint32_t ssi_sd_transfer(SSISlave *dev, uint32_t val)
         return 0xff;
     case SSI_SD_CMDARG:
         if (s->arglen == 4) {
-            SDRequest request;
+            uint8_t request[6];
             uint8_t longresp[16];
             /* FIXME: Check CRC.  */
-            request.cmd = s->cmd;
-            request.arg = ldl_be_p(s->cmdarg);
-            DPRINTF("CMD%d arg 0x%08x\n", s->cmd, request.arg);
-            s->arglen = sdbus_do_command(&s->sdbus, &request, longresp);
+
+            DPRINTF("CMD%d arg 0x%08x\n", s->cmd, ldl_be_p(s->cmdarg));
+            sd_frame48_init(request, sizeof(request), s->cmd,
+                            ldl_be_p(s->cmdarg), false);
+
+            s->arglen = sdbus_do_command(&s->sdbus, request, longresp);
             if (s->arglen <= 0) {
                 s->arglen = 1;
                 s->response[0] = 4;

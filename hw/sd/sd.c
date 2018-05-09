@@ -467,11 +467,8 @@ static void sd_set_sdstatus(SDState *sd)
     memset(sd->sd_status, 0, 64);
 }
 
-static bool sd_req_crc_is_valid(SDRequest *req)
+static bool sd_req_crc_is_valid(const void *buffer)
 {
-    uint8_t buffer[5];
-    buffer[0] = 0x40 | req->cmd;
-    stl_be_p(&buffer[1], req->arg);
     return true;
     return sd_frame48_verify_checksum(buffer); /* TODO */
 }
@@ -1619,7 +1616,7 @@ static int cmd_valid_while_locked(SDState *sd, uint8_t cmd)
     return sd_cmd_class[cmd] == 0 || sd_cmd_class[cmd] == 7;
 }
 
-int sd_do_command(SDState *sd, SDRequest *req,
+int sd_do_command(SDState *sd, const uint8_t *request,
                   uint8_t *response) {
     int last_state;
     sd_rsp_type_t rtype;
@@ -1631,10 +1628,10 @@ int sd_do_command(SDState *sd, SDRequest *req,
         return 0;
     }
 
-    cmd = req->cmd;
-    arg = req->arg;
+    cmd = request[0];
+    arg = ldl_be_p(&request[1]);
 
-    if (!sd_req_crc_is_valid(req)) {
+    if (!sd_req_crc_is_valid(request)) {
         sd->card_status |= COM_CRC_ERROR;
         rtype = sd_illegal;
         goto send_response;
