@@ -40,9 +40,19 @@ def gen_visit_object_members(name, base, members, variants):
 void visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp)
 {
     Error *err = NULL;
-
 ''',
                 c_name=c_name(name))
+
+    if variants:
+        ret += mcgen('''
+    %(c_type)s %(c_name)s;
+''',
+                     c_type=variants.tag_member.type.c_name(),
+                     c_name=c_name(variants.tag_member.name))
+
+    ret += mcgen('''
+
+''')
 
     if base:
         ret += mcgen('''
@@ -75,8 +85,27 @@ void visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp)
 ''')
 
     if variants:
+        if variants.default_tag_value is None:
+            ret += mcgen('''
+    %(c_name)s = obj->%(c_name)s;
+''',
+                         c_name=c_name(variants.tag_member.name))
+        else:
+            ret += mcgen('''
+    if (obj->has_%(c_name)s) {
+        %(c_name)s = obj->%(c_name)s;
+    } else {
+        %(c_name)s = %(enum_const)s;
+    }
+''',
+                         c_name=c_name(variants.tag_member.name),
+                         enum_const=c_enum_const(
+                             variants.tag_member.type.name,
+                             variants.default_tag_value,
+                             variants.tag_member.type.prefix))
+
         ret += mcgen('''
-    switch (obj->%(c_name)s) {
+    switch (%(c_name)s) {
 ''',
                      c_name=c_name(variants.tag_member.name))
 
