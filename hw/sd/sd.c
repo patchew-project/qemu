@@ -242,12 +242,14 @@ static uint8_t sd_crc7(const void *message, size_t width)
     uint8_t shift_reg = 0x00;
     const uint8_t *msg = (const uint8_t *)message;
 
-    for (i = 0; i < width; i ++, msg ++)
-        for (bit = 7; bit >= 0; bit --) {
+    for (i = 0; i < width; i++, msg++) {
+        for (bit = 7; bit >= 0; bit--) {
             shift_reg <<= 1;
-            if ((shift_reg >> 7) ^ ((*msg >> bit) & 1))
+            if ((shift_reg >> 7) ^ ((*msg >> bit) & 1)) {
                 shift_reg ^= 0x89;
+            }
         }
+    }
 
     return shift_reg;
 }
@@ -259,12 +261,14 @@ static uint16_t sd_crc16(const void *message, size_t width)
     const uint16_t *msg = (const uint16_t *)message;
     width <<= 1;
 
-    for (i = 0; i < width; i ++, msg ++)
-        for (bit = 15; bit >= 0; bit --) {
+    for (i = 0; i < width; i++, msg++) {
+        for (bit = 15; bit >= 0; bit--) {
             shift_reg <<= 1;
-            if ((shift_reg >> 15) ^ ((*msg >> bit) & 1))
+            if ((shift_reg >> 15) ^ ((*msg >> bit) & 1)) {
                 shift_reg ^= 0x1011;
+            }
         }
+    }
 
     return shift_reg;
 }
