@@ -1413,7 +1413,9 @@ F: chardev/baum.c
 
 Command line option argument parsing
 M: Markus Armbruster <armbru@redhat.com>
+R: Thomas Huth <thuth@redhat.com>
 S: Supported
+F: qemu-options*
 F: include/qemu/option.h
 F: tests/test-keyval.c
 F: tests/test-qemu-opts.c
