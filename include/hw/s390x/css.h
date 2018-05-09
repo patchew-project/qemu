@@ -100,9 +100,11 @@ typedef struct CcwDataStream {
 } CcwDataStream;
 
 /*
- * IO instructions conclude according to this. Currently we have only
- * cc codes. Valid values are 0, 1, 2, 3 and the generic semantic for
+ * IO instructions conclude according to this. One class of values are
+ * cc codes: Valid values are 0, 1, 2, 3 and the generic semantic for
  * IO instructions is described briefly. For more details consult the PoP.
+ * Additionally, other endings may occur due to internal processing errors
+ * like lack of support for an operation.
  */
 typedef enum IOInstEnding {
     /* produced expected result */
@@ -112,7 +114,9 @@ typedef enum IOInstEnding {
     /* inst. ineffective because busy with previously initiated function */
     IOINST_CC_BUSY = 2,
     /* inst. ineffective because not operational */
-    IOINST_CC_NOT_OPERATIONAL = 3
+    IOINST_CC_NOT_OPERATIONAL = 3,
+    /* internal: operation not supported */
+    IOINST_OPNOTSUPP = 4
 } IOInstEnding;
 
 typedef struct SubchDev SubchDev;

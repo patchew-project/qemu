@@ -60,6 +60,7 @@ static IOInstEnding vfio_ccw_handle_request(SubchDev *sch)
 
     memset(region, 0, sizeof(*region));
 
+    /* orb is only valid for ssch, but does not hurt for other functions */
     memcpy(region->orb_area, &sch->orb, sizeof(ORB));
     memcpy(region->scsw_area, &sch->curr_status.scsw, sizeof(SCSW));
 
@@ -70,8 +71,12 @@ again:
         if (errno == EAGAIN) {
             goto again;
         }
-        error_report("vfio-ccw: wirte I/O region failed with errno=%d", errno);
-        ret = -errno;
+        /* handle not supported operations like halt/clear on older kernels */
+        if (ret != -EOPNOTSUPP) {
+            error_report("vfio-ccw: write I/O region failed with errno=%d",
+                         errno);
+            ret = -errno;
+        }
     } else {
         ret = region->ret_code;
     }
@@ -83,6 +88,8 @@ again:
     case -ENODEV:
     case -EACCES:
         return IOINST_CC_NOT_OPERATIONAL;
+    case -EOPNOTSUPP:
+        return IOINST_OPNOTSUPP;
     case -EFAULT:
     default:
         sch_gen_unit_exception(sch);

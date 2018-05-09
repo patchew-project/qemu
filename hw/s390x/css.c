@@ -1180,6 +1180,16 @@ static void sch_handle_start_func_virtual(SubchDev *sch)
 
 }
 
+static IOInstEnding sch_handle_clear_func_passthrough(SubchDev *sch)
+{
+    return s390_ccw_cmd_request(sch);
+}
+
+static IOInstEnding sch_handle_halt_func_passthrough(SubchDev *sch)
+{
+    return s390_ccw_cmd_request(sch);
+}
+
 static IOInstEnding sch_handle_start_func_passthrough(SubchDev *sch)
 {
 
@@ -1233,13 +1243,27 @@ IOInstEnding do_subchannel_work_virtual(SubchDev *sch)
 IOInstEnding do_subchannel_work_passthrough(SubchDev *sch)
 {
     SCSW *s = &sch->curr_status.scsw;
+    static bool no_halt_clear;
 
+    /* if the kernel does not support halt/clear, fall back to emulation */
     if (s->ctrl & SCSW_FCTL_CLEAR_FUNC) {
-        /* TODO: Clear handling */
-        sch_handle_clear_func(sch);
+        if (no_halt_clear) {
+            sch_handle_clear_func(sch);
+        } else {
+            if (sch_handle_clear_func_passthrough(sch) == IOINST_OPNOTSUPP) {
+                no_halt_clear = true;
+                sch_handle_halt_func(sch);
+            }
+        }
     } else if (s->ctrl & SCSW_FCTL_HALT_FUNC) {
-        /* TODO: Halt handling */
-        sch_handle_halt_func(sch);
+        if (no_halt_clear) {
+            sch_handle_halt_func(sch);
+        } else {
+            if (sch_handle_halt_func_passthrough(sch) == IOINST_OPNOTSUPP) {
+                no_halt_clear = true;
+                sch_handle_halt_func(sch);
+            }
+        }
     } else if (s->ctrl & SCSW_FCTL_START_FUNC) {
         return sch_handle_start_func_passthrough(sch);
     }
