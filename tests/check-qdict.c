@@ -973,6 +973,57 @@ static void qdict_stress_test(void)
     qobject_unref(qdict);
 }
 
+static void qdict_stringify_for_keyval_test(void)
+{
+    QDict *dict = qdict_new();
+
+    /*
+     * Test stringification of:
+     *
+     * {
+     *     "a": "null",
+     *     "b": 42,
+     *     "c": -23,
+     *     "d": false,
+     *     "e": null,
+     *     "f": "",
+     *     "g": 0.5,
+     *     "h": 0xffffffffffffffff,
+     *     "i": true,
+     *     "j": 0
+     *  }
+     *
+     *  Note that null is not transformed into a string and remains a
+     *  QNull.
+     */
+
+    qdict_put_str(dict, "a", "null");
+    qdict_put_int(dict, "b", 42);
+    qdict_put_int(dict, "c", -23);
+    qdict_put_bool(dict, "d", false);
+    qdict_put_null(dict, "e");
+    qdict_put_str(dict, "f", "");
+    qdict_put(dict, "g", qnum_from_double(0.5));
+    qdict_put(dict, "h", qnum_from_uint(0xffffffffffffffffull));
+    qdict_put_bool(dict, "i", true);
+    qdict_put_int(dict, "j", 0);
+
+    qdict_stringify_for_keyval(dict);
+
+    g_assert(!strcmp(qdict_get_str(dict, "a"), "null"));
+    g_assert(!strcmp(qdict_get_str(dict, "b"), "42"));
+    g_assert(!strcmp(qdict_get_str(dict, "c"), "-23"));
+    g_assert(!strcmp(qdict_get_str(dict, "d"), "off"));
+    g_assert(qobject_type(qdict_get(dict, "e")) == QTYPE_QNULL);
+    g_assert(!strcmp(qdict_get_str(dict, "f"), ""));
+    g_assert(!strcmp(qdict_get_str(dict, "g"), "0.5"));
+    g_assert(!strcmp(qdict_get_str(dict, "h"), "18446744073709551615"));
+    g_assert(!strcmp(qdict_get_str(dict, "i"), "on"));
+    g_assert(!strcmp(qdict_get_str(dict, "j"), "0"));
+
+    qobject_unref(dict);
+}
+
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
@@ -1009,6 +1060,9 @@ int main(int argc, char **argv)
                     qdict_crumple_test_bad_inputs);
 
     g_test_add_func("/public/rename_keys", qdict_rename_keys_test);
+
+    g_test_add_func("/public/stringify_for_keyval",
+                    qdict_stringify_for_keyval_test);
 
     /* The Big one */
     if (g_test_slow()) {
