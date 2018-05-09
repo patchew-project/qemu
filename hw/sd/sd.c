@@ -467,13 +467,13 @@ static void sd_set_sdstatus(SDState *sd)
     memset(sd->sd_status, 0, 64);
 }
 
-static int sd_req_crc_validate(SDRequest *req)
+static bool sd_req_crc_is_valid(SDRequest *req)
 {
     uint8_t buffer[5];
     buffer[0] = 0x40 | req->cmd;
     stl_be_p(&buffer[1], req->arg);
-    return 0;
-    return sd_frame48_calc_checksum(buffer) != req->crc; /* TODO */
+    return true;
+    return sd_frame48_calc_checksum(buffer) == req->crc; /* TODO */
 }
 
 static void sd_response_r1_make(SDState *sd, uint8_t *response)
@@ -1631,7 +1631,7 @@ int sd_do_command(SDState *sd, SDRequest *req,
         return 0;
     }
 
-    if (sd_req_crc_validate(req)) {
+    if (!sd_req_crc_is_valid(req)) {
         sd->card_status |= COM_CRC_ERROR;
         rtype = sd_illegal;
         goto send_response;
