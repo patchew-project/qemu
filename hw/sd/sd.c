@@ -90,12 +90,15 @@ struct SDState {
     uint32_t card_status;
     uint8_t sd_status[64];
 
-    /* Configurable properties */
+    /* Static properties */
+
     BlockBackend *blk;
     bool spi;
 
-    uint32_t mode;    /* current card mode, one of SDCardModes */
-    int32_t state;    /* current card state, one of SDCardStates */
+    /* Runtime changeables */
+
+    uint32_t mode;    /** current card mode, one of #SDCardModes */
+    int32_t state;    /** current card state, one of #SDCardStates */
     uint32_t vhs;
     bool wp_switch;
     unsigned long *wp_groups;
@@ -109,8 +112,9 @@ struct SDState {
     uint32_t pwd_len;
     uint8_t function_group[6];
     uint8_t current_cmd;
-    /* True if we will handle the next command as an ACMD. Note that this does
-     * *not* track the APP_CMD status bit!
+    /**
+     * #True if we will handle the next command as an ACMD.
+     * Note that this does *not* track the APP_CMD status bit!
      */
     bool expecting_acmd;
     uint32_t blk_written;
