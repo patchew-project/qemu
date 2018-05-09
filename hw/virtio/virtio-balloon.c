@@ -43,17 +43,8 @@ static void balloon_page(void *addr, int deflate)
     }
 }
 
-static const char *balloon_stat_names[] = {
-   [VIRTIO_BALLOON_S_SWAP_IN] = "stat-swap-in",
-   [VIRTIO_BALLOON_S_SWAP_OUT] = "stat-swap-out",
-   [VIRTIO_BALLOON_S_MAJFLT] = "stat-major-faults",
-   [VIRTIO_BALLOON_S_MINFLT] = "stat-minor-faults",
-   [VIRTIO_BALLOON_S_MEMFREE] = "stat-free-memory",
-   [VIRTIO_BALLOON_S_MEMTOT] = "stat-total-memory",
-   [VIRTIO_BALLOON_S_AVAIL] = "stat-available-memory",
-   [VIRTIO_BALLOON_S_CACHES] = "stat-disk-caches",
-   [VIRTIO_BALLOON_S_NR] = NULL
-};
+static const char *balloon_stat_names[VIRTIO_BALLOON_S_NR] = \
+	VIRTIO_BALLOON_S_NAMES_WITH_PREFIX("stat-");
 
 /*
  * reset_stats - Mark all items in the stats array as unset
