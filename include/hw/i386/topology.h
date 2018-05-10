@@ -145,4 +145,10 @@ static inline apic_id_t x86_apicid_from_cpu_idx(unsigned nr_cores,
     return apicid_from_topo_ids(nr_cores, nr_threads, &topo);
 }
 
+/* Definitions used on CPUID Leaf 0x8000001E */
+#define EXTENDED_APIC_ID(threads, socket_id, core_id, thread_id) \
+                        ((threads) ? \
+                         ((socket_id << 6) | (core_id << 1) | thread_id) : \
+                         ((socket_id << 6) | core_id))
+
 #endif /* HW_I386_TOPOLOGY_H */
