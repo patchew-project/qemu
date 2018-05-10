@@ -177,4 +177,19 @@ void arm_free_cc(DisasCompare *cmp);
 void arm_jump_cc(DisasCompare *cmp, TCGLabel *label);
 void arm_gen_test_cc(int cc, TCGLabel *label);
 
+/* Return state of Alternate Half-precision flag, caller frees result */
+static inline TCGv_i32 get_ahp_flag(void)
+{
+    TCGv_i32 fpscr = tcg_temp_new_i32();
+    TCGv_i32 ahp_mode = tcg_temp_new_i32();
+
+    tcg_gen_ld_i32(fpscr, cpu_env, offsetof(CPUARMState,
+                                            vfp.xregs[ARM_VFP_FPSCR]));
+    tcg_gen_extract_i32(ahp_mode, fpscr, 26, 1);
+
+    tcg_temp_free_i32(fpscr);
+
+    return ahp_mode;
+}
+
 #endif /* TARGET_ARM_TRANSLATE_H */

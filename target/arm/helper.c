@@ -11457,64 +11457,50 @@ uint32_t HELPER(set_neon_rmode)(uint32_t rmode, CPUARMState *env)
 }
 
 /* Half precision conversions.  */
-static float32 do_fcvt_f16_to_f32(uint32_t a, CPUARMState *env, float_status *s)
+static float32 do_fcvt_f16_to_f32(float16 a, float_status *s, bool ahp)
 {
-    int ieee = (env->vfp.xregs[ARM_VFP_FPSCR] & (1 << 26)) == 0;
-    float32 r = float16_to_float32(make_float16(a), ieee, s);
-    if (ieee) {
-        return float32_maybe_silence_nan(r, s);
-    }
-    return r;
+    return float16_to_float32(a, !ahp, s);
 }
 
-static uint32_t do_fcvt_f32_to_f16(float32 a, CPUARMState *env, float_status *s)
+static float16 do_fcvt_f32_to_f16(float32 a, float_status *s, bool ahp)
 {
-    int ieee = (env->vfp.xregs[ARM_VFP_FPSCR] & (1 << 26)) == 0;
-    float16 r = float32_to_float16(a, ieee, s);
-    if (ieee) {
-        r = float16_maybe_silence_nan(r, s);
-    }
-    return float16_val(r);
+    return float32_to_float16(a, !ahp, s);
 }
 
-float32 HELPER(neon_fcvt_f16_to_f32)(uint32_t a, CPUARMState *env)
+float32 HELPER(neon_fcvt_f16_to_f32)(float16 a, void *fpstp, uint32_t ahp_mode)
 {
-    return do_fcvt_f16_to_f32(a, env, &env->vfp.standard_fp_status);
+    float_status *fpst = fpstp;
+    return do_fcvt_f16_to_f32(a, fpst, ahp_mode);
 }
 
-uint32_t HELPER(neon_fcvt_f32_to_f16)(float32 a, CPUARMState *env)
+float16 HELPER(neon_fcvt_f32_to_f16)(float32 a, void *fpstp, uint32_t ahp_mode)
 {
-    return do_fcvt_f32_to_f16(a, env, &env->vfp.standard_fp_status);
+    float_status *fpst = fpstp;
+    return do_fcvt_f32_to_f16(a, fpst, ahp_mode);
 }
 
-float32 HELPER(vfp_fcvt_f16_to_f32)(uint32_t a, CPUARMState *env)
+float32 HELPER(vfp_fcvt_f16_to_f32)(float16 a, void *fpstp, uint32_t ahp_mode)
 {
-    return do_fcvt_f16_to_f32(a, env, &env->vfp.fp_status);
+    float_status *fpst = fpstp;
+    return do_fcvt_f16_to_f32(a, fpst, ahp_mode);
 }
 
-uint32_t HELPER(vfp_fcvt_f32_to_f16)(float32 a, CPUARMState *env)
+float16 HELPER(vfp_fcvt_f32_to_f16)(float32 a, void *fpstp, uint32_t ahp_mode)
 {
-    return do_fcvt_f32_to_f16(a, env, &env->vfp.fp_status);
+    float_status *fpst = fpstp;
+    return do_fcvt_f32_to_f16(a, fpst, ahp_mode);
 }
 
-float64 HELPER(vfp_fcvt_f16_to_f64)(uint32_t a, CPUARMState *env)
+float64 HELPER(vfp_fcvt_f16_to_f64)(float16 a, void *fpstp, uint32_t ahp_mode)
 {
-    int ieee = (env->vfp.xregs[ARM_VFP_FPSCR] & (1 << 26)) == 0;
-    float64 r = float16_to_float64(make_float16(a), ieee, &env->vfp.fp_status);
-    if (ieee) {
-        return float64_maybe_silence_nan(r, &env->vfp.fp_status);
-    }
-    return r;
+    float_status *fpst = fpstp;
+    return float16_to_float64(a, !ahp_mode, fpst);
 }
 
-uint32_t HELPER(vfp_fcvt_f64_to_f16)(float64 a, CPUARMState *env)
+float16 HELPER(vfp_fcvt_f64_to_f16)(float64 a, void *fpstp, uint32_t ahp_mode)
 {
-    int ieee = (env->vfp.xregs[ARM_VFP_FPSCR] & (1 << 26)) == 0;
-    float16 r = float64_to_float16(a, ieee, &env->vfp.fp_status);
-    if (ieee) {
-        r = float16_maybe_silence_nan(r, &env->vfp.fp_status);
-    }
-    return float16_val(r);
+    float_status *fpst = fpstp;
+    return float64_to_float16(a, !ahp_mode, fpst);
 }
 
 #define float32_two make_float32(0x40000000)
