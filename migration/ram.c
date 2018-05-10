@@ -187,6 +187,11 @@ void ramblock_recv_bitmap_set_range(RAMBlock *rb, void *host_addr,
                       nr);
 }
 
+/* Should be holding either ram_list.mutex, or the RCU lock. */
+#define RAMBLOCK_FOREACH_MIGRATABLE(block)             \
+    RAMBLOCK_FOREACH(block)                            \
+        if (!qemu_ram_is_migratable(block)) {} else
+
 /*
  * An outstanding page request, on the source, having been received
  * and queued
@@ -813,6 +818,10 @@ unsigned long migration_bitmap_find_dirty(RAMState *rs, RAMBlock *rb,
     unsigned long *bitmap = rb->bmap;
     unsigned long next;
 
+    if (!qemu_ram_is_migratable(rb)) {
+        return size;
+    }
+
     if (rs->ram_bulk_stage && start > 0) {
         next = start + 1;
     } else {
@@ -858,7 +867,7 @@ uint64_t ram_pagesize_summary(void)
     RAMBlock *block;
     uint64_t summary = 0;
 
-    RAMBLOCK_FOREACH(block) {
+    RAMBLOCK_FOREACH_MIGRATABLE(block) {
         summary |= block->page_size;
     }
 
@@ -882,7 +891,7 @@ static void migration_bitmap_sync(RAMState *rs)
 
     qemu_mutex_lock(&rs->bitmap_mutex);
     rcu_read_lock();
-    RAMBLOCK_FOREACH(block) {
+    RAMBLOCK_FOREACH_MIGRATABLE(block) {
         migration_bitmap_sync_range(rs, block, 0, block->used_length);
     }
     rcu_read_unlock();
@@ -1521,6 +1530,11 @@ static int ram_save_host_page(RAMState *rs, PageSearchStatus *pss,
     size_t pagesize_bits =
         qemu_ram_pagesize(pss->block) >> TARGET_PAGE_BITS;
 
+    if (!qemu_ram_is_migratable(pss->block)) {
+        error_report("block %s should not be migrated !", pss->block->idstr);
+        return 0;
+    }
+
     do {
         /* Check the pages is dirty and if it is send it */
         if (!migration_bitmap_clear_dirty(rs, pss->block, pss->page)) {
@@ -1619,7 +1633,7 @@ uint64_t ram_bytes_total(void)
     uint64_t total = 0;
 
     rcu_read_lock();
-    RAMBLOCK_FOREACH(block) {
+    RAMBLOCK_FOREACH_MIGRATABLE(block) {
         total += block->used_length;
     }
     rcu_read_unlock();
@@ -1674,7 +1688,7 @@ static void ram_save_cleanup(void *opaque)
      */
     memory_global_dirty_log_stop();
 
-    QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
+    RAMBLOCK_FOREACH_MIGRATABLE(block) {
         g_free(block->bmap);
         block->bmap = NULL;
         g_free(block->unsentmap);
@@ -1737,7 +1751,7 @@ void ram_postcopy_migrated_memory_release(MigrationState *ms)
 {
     struct RAMBlock *block;
 
-    RAMBLOCK_FOREACH(block) {
+    RAMBLOCK_FOREACH_MIGRATABLE(block) {
         unsigned long *bitmap = block->bmap;
         unsigned long range = block->used_length >> TARGET_PAGE_BITS;
         unsigned long run_start = find_next_zero_bit(bitmap, range, 0);
@@ -1815,7 +1829,7 @@ static int postcopy_each_ram_send_discard(MigrationState *ms)
     struct RAMBlock *block;
     int ret;
 
-    RAMBLOCK_FOREACH(block) {
+    RAMBLOCK_FOREACH_MIGRATABLE(block) {
         PostcopyDiscardState *pds =
             postcopy_discard_send_init(ms, block->idstr);
 
@@ -2023,7 +2037,7 @@ int ram_postcopy_send_discard_bitmap(MigrationState *ms)
     rs->last_sent_block = NULL;
     rs->last_page = 0;
 
-    QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
+    RAMBLOCK_FOREACH_MIGRATABLE(block) {
         unsigned long pages = block->used_length >> TARGET_PAGE_BITS;
         unsigned long *bitmap = block->bmap;
         unsigned long *unsentmap = block->unsentmap;
@@ -2182,7 +2196,7 @@ static void ram_list_init_bitmaps(void)
 
     /* Skip setting bitmap if there is no RAM */
     if (ram_bytes_total()) {
-        QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
+        RAMBLOCK_FOREACH_MIGRATABLE(block) {
             pages = block->max_length >> TARGET_PAGE_BITS;
             block->bmap = bitmap_new(pages);
             bitmap_set(block->bmap, 0, pages);
@@ -2263,7 +2277,7 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
 
     qemu_put_be64(f, ram_bytes_total() | RAM_SAVE_FLAG_MEM_SIZE);
 
-    RAMBLOCK_FOREACH(block) {
+    RAMBLOCK_FOREACH_MIGRATABLE(block) {
         qemu_put_byte(f, strlen(block->idstr));
         qemu_put_buffer(f, (uint8_t *)block->idstr, strlen(block->idstr));
         qemu_put_be64(f, block->used_length);
@@ -2504,6 +2518,11 @@ static inline RAMBlock *ram_block_from_stream(QEMUFile *f, int flags)
     block = qemu_ram_block_by_name(id);
     if (!block) {
         error_report("Can't find block %s", id);
+        return NULL;
+    }
+
+    if (!qemu_ram_is_migratable(block)) {
+        error_report("block %s should not be migrated !", id);
         return NULL;
     }
 
@@ -3011,7 +3030,11 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
                 length = qemu_get_be64(f);
 
                 block = qemu_ram_block_by_name(id);
-                if (block) {
+                if (block && !qemu_ram_is_migratable(block)) {
+                    error_report("block %s should not be migrated !", id);
+                    ret = -EINVAL;
+
+                } else if (block) {
                     if (length != block->used_length) {
                         Error *local_err = NULL;
 

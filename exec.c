@@ -104,6 +104,9 @@ static MemoryRegion io_mem_unassigned;
  * (Set during postcopy)
  */
 #define RAM_UF_ZEROPAGE (1 << 3)
+
+/* RAM can be migrated */
+#define RAM_MIGRATABLE (1 << 4)
 #endif
 
 #ifdef TARGET_PAGE_BITS_VARY
@@ -1795,6 +1798,21 @@ bool qemu_ram_is_uf_zeroable(RAMBlock *rb)
 void qemu_ram_set_uf_zeroable(RAMBlock *rb)
 {
     rb->flags |= RAM_UF_ZEROPAGE;
+}
+
+bool qemu_ram_is_migratable(RAMBlock *rb)
+{
+    return rb->flags & RAM_MIGRATABLE;
+}
+
+void qemu_ram_set_migratable(RAMBlock *rb)
+{
+    rb->flags |= RAM_MIGRATABLE;
+}
+
+void qemu_ram_unset_migratable(RAMBlock *rb)
+{
+    rb->flags &= ~RAM_MIGRATABLE;
 }
 
 /* Called with iothread lock held.  */
