@@ -3229,7 +3229,7 @@ static int qemu_rdma_registration_handle(QEMUFile *f, void *opaque)
             host_addr = block->local_host_addr +
                             (comp->offset - block->offset);
 
-            ram_handle_compressed(host_addr, comp->value, comp->length);
+            ram_handle_compressed(host_addr, comp->value, comp->length, false);
             break;
 
         case RDMA_CONTROL_REGISTER_FINISHED:
