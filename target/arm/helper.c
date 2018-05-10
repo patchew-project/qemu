@@ -11459,12 +11459,20 @@ uint32_t HELPER(set_neon_rmode)(uint32_t rmode, CPUARMState *env)
 /* Half precision conversions.  */
 static float32 do_fcvt_f16_to_f32(float16 a, float_status *s, bool ahp)
 {
-    return float16_to_float32(a, !ahp, s);
+    flag save_flush_to_zero = s->flush_to_zero;
+    set_flush_to_zero(false, s);
+    float32 r = float16_to_float32(a, !ahp, s);
+    set_flush_to_zero(save_flush_to_zero, s);
+    return r;
 }
 
 static float16 do_fcvt_f32_to_f16(float32 a, float_status *s, bool ahp)
 {
-    return float32_to_float16(a, !ahp, s);
+    flag save_flush_to_zero = s->flush_to_zero;
+    set_flush_to_zero(false, s);
+    float16 r = float32_to_float16(a, !ahp, s);
+    set_flush_to_zero(save_flush_to_zero, s);
+    return float16_val(r);
 }
 
 float32 HELPER(neon_fcvt_f16_to_f32)(float16 a, void *fpstp, uint32_t ahp_mode)
@@ -11494,13 +11502,21 @@ float16 HELPER(vfp_fcvt_f32_to_f16)(float32 a, void *fpstp, uint32_t ahp_mode)
 float64 HELPER(vfp_fcvt_f16_to_f64)(float16 a, void *fpstp, uint32_t ahp_mode)
 {
     float_status *fpst = fpstp;
-    return float16_to_float64(a, !ahp_mode, fpst);
+    flag save_flush_to_zero = fpst->flush_to_zero;
+    set_flush_to_zero(false, fpst);
+    float64 r = float16_to_float64(a, !ahp_mode, fpst);
+    set_flush_to_zero(save_flush_to_zero, fpst);
+    return r;
 }
 
 float16 HELPER(vfp_fcvt_f64_to_f16)(float64 a, void *fpstp, uint32_t ahp_mode)
 {
     float_status *fpst = fpstp;
-    return float64_to_float16(a, !ahp_mode, fpst);
+    flag save_flush_to_zero = fpst->flush_to_zero;
+    set_flush_to_zero(false, fpst);
+    float16 r = float64_to_float16(a, !ahp_mode, fpst);
+    set_flush_to_zero(save_flush_to_zero, fpst);
+    return float16_val(r);
 }
 
 #define float32_two make_float32(0x40000000)
