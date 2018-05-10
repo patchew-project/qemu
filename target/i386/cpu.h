@@ -1096,6 +1096,12 @@ typedef struct CPUCacheInfo {
 } CPUCacheInfo;
 
 
+typedef struct CPUCaches {
+        CPUCacheInfo l1d_cache;
+        CPUCacheInfo l1i_cache;
+        CPUCacheInfo l2_cache;
+        CPUCacheInfo l3_cache;
+} CPUCaches;
 
 typedef struct CPUX86State {
     /* standard registers */
@@ -1282,6 +1288,7 @@ typedef struct CPUX86State {
     /* Features that were explicitly enabled/disabled */
     FeatureWordArray user_features;
     uint32_t cpuid_model[12];
+    CPUCaches *cache_info;
 
     /* MTRRs */
     uint64_t mtrr_fixed[11];
