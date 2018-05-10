@@ -266,7 +266,7 @@ our @typeList = (
 	qr{target_(?:u)?long},
 	qr{hwaddr},
 	qr{xml${Ident}},
-	qr{xendevicemodel_handle},
+	qr{xen\w+_handle},
 );
 
 # This can be modified by sub possible.  Since it can be empty, be careful
