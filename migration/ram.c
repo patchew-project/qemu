@@ -286,6 +286,7 @@ struct DecompressParam {
     uint8_t *compbuf;
     int len;
     z_stream stream;
+    bool is_pmem;
 };
 typedef struct DecompressParam DecompressParam;
 
@@ -2591,6 +2592,9 @@ static void *do_data_decompress(void *opaque)
                 error_report("decompress data failed");
                 qemu_file_set_error(decomp_file, ret);
             }
+            if (param->is_pmem) {
+                pmem_flush(des, len);
+            }
 
             qemu_mutex_lock(&decomp_done_lock);
             param->done = true;
@@ -2702,7 +2706,8 @@ exit:
 }
 
 static void decompress_data_with_multi_threads(QEMUFile *f,
-                                               void *host, int len)
+                                               void *host, int len,
+                                               bool is_pmem)
 {
     int idx, thread_count;
 
@@ -2716,6 +2721,7 @@ static void decompress_data_with_multi_threads(QEMUFile *f,
                 qemu_get_buffer(f, decomp_param[idx].compbuf, len);
                 decomp_param[idx].des = host;
                 decomp_param[idx].len = len;
+                decomp_param[idx].is_pmem = is_pmem;
                 qemu_cond_signal(&decomp_param[idx].cond);
                 qemu_mutex_unlock(&decomp_param[idx].mutex);
                 break;
@@ -3073,7 +3079,7 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
                 ret = -EINVAL;
                 break;
             }
-            decompress_data_with_multi_threads(f, host, len);
+            decompress_data_with_multi_threads(f, host, len, is_pmem);
             break;
 
         case RAM_SAVE_FLAG_XBZRLE:
