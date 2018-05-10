@@ -307,6 +307,14 @@ static uint32_t encode_cache_cpuid80000005(CPUCacheInfo *cache)
                           a == ASSOC_FULL ? 0xF : \
                           0 /* invalid value */)
 
+/* Definitions used on CPUID Leaf 0x8000001D */
+/* Number of logical cores in a complex */
+#define CORES_IN_CMPLX  4
+/* Number of logical processors sharing cache */
+#define NUM_SHARING_CACHE(threads)   ((threads > 1) ? \
+                         (((CORES_IN_CMPLX - 1) * threads) + 1)  : \
+                         (CORES_IN_CMPLX - 1))
+
 /*
  * Encode cache info for CPUID[0x80000006].ECX and CPUID[0x80000006].EDX
  * @l3 can be NULL.
@@ -334,6 +342,41 @@ static void encode_cache_cpuid80000006(CPUCacheInfo *l2,
     } else {
         *edx = 0;
     }
+}
+
+/* Encode cache info for CPUID[8000001D] */
+static void encode_cache_cpuid8000001d(CPUCacheInfo *cache, int nr_threads,
+                                uint32_t *eax, uint32_t *ebx,
+                                uint32_t *ecx, uint32_t *edx)
+{
+    assert(cache->size == cache->line_size * cache->associativity *
+                          cache->partitions * cache->sets);
+
+    *eax = CACHE_TYPE(cache->type) | CACHE_LEVEL(cache->level) |
+               (cache->self_init ? CACHE_SELF_INIT_LEVEL : 0);
+
+    /* L3 is shared among multiple cores */
+    if (cache->level == 3) {
+        *eax |= (NUM_SHARING_CACHE(nr_threads) << 14);
+    } else {
+        *eax |= ((nr_threads - 1) << 14);
+    }
+
+    assert(cache->line_size > 0);
+    assert(cache->partitions > 0);
+    assert(cache->associativity > 0);
+    /* We don't implement fully-associative caches */
+    assert(cache->associativity < cache->sets);
+    *ebx = (cache->line_size - 1) |
+           ((cache->partitions - 1) << 12) |
+           ((cache->associativity - 1) << 22);
+
+    assert(cache->sets > 0);
+    *ecx = cache->sets - 1;
+
+    *edx = (cache->no_invd_sharing ? CACHE_NO_INVD_SHARING : 0) |
+           (cache->inclusive ? CACHE_INCLUSIVE : 0) |
+           (cache->complex_indexing ? CACHE_COMPLEX_IDX : 0);
 }
 
 /*
@@ -3991,6 +4034,42 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
             *ebx = 0;
             *ecx = 0;
             *edx = 0;
+        }
+        break;
+    case 0x8000001D:
+        *eax = 0;
+        CPUCacheInfo *l1d, *l1i, *l2, *l3;
+        if (env->cache_info && !cpu->legacy_cache) {
+            l1d = &env->cache_info->l1d_cache;
+            l1i = &env->cache_info->l1i_cache;
+            l2 = &env->cache_info->l2_cache;
+            l3 = &env->cache_info->l3_cache;
+        } else {
+            l1d = &legacy_l1d_cache_amd;
+            l1i = &legacy_l1i_cache_amd;
+            l2 = &legacy_l2_cache_amd;
+            l3 = &legacy_l3_cache;
+        }
+        switch (count) {
+        case 0: /* L1 dcache info */
+            encode_cache_cpuid8000001d(l1d, cs->nr_threads,
+                                       eax, ebx, ecx, edx);
+            break;
+        case 1: /* L1 icache info */
+            encode_cache_cpuid8000001d(l1i, cs->nr_threads,
+                                       eax, ebx, ecx, edx);
+            break;
+        case 2: /* L2 cache info */
+            encode_cache_cpuid8000001d(l2, cs->nr_threads,
+                                       eax, ebx, ecx, edx);
+            break;
+        case 3: /* L3 cache info */
+            encode_cache_cpuid8000001d(l3, cs->nr_threads,
+                                       eax, ebx, ecx, edx);
+            break;
+        default: /* end of info */
+            *eax = *ebx = *ecx = *edx = 0;
+            break;
         }
         break;
     case 0xC0000000:
