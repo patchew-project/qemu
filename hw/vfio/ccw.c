@@ -32,6 +32,8 @@ typedef struct VFIOCCWDevice {
     uint64_t io_region_offset;
     struct ccw_io_region *io_region;
     EventNotifier io_notifier;
+    /* force unlimited prefetch */
+    bool f_upfch;
 } VFIOCCWDevice;
 
 static void vfio_ccw_compute_needs_reset(VFIODevice *vdev)
@@ -52,7 +54,17 @@ static IOInstEnding vfio_ccw_handle_request(SubchDev *sch)
     S390CCWDevice *cdev = sch->driver_data;
     VFIOCCWDevice *vcdev = DO_UPCAST(VFIOCCWDevice, cdev, cdev);
     struct ccw_io_region *region = vcdev->io_region;
+    bool upfch = sch->orb.ctrl0 & ORB_CTRL0_MASK_PFCH;
     int ret;
+
+    if (!upfch && !vcdev->f_upfch) {
+        warn_report("vfio-ccw requires PFCH flag set");
+        sch_gen_unit_exception(sch);
+        css_inject_io_interrupt(sch);
+        return IOINST_CC_EXPECTED;
+    } else if (!upfch) {
+        sch->orb.ctrl0 |= ORB_CTRL0_MASK_PFCH;
+    }
 
     QEMU_BUILD_BUG_ON(sizeof(region->orb_area) != sizeof(ORB));
     QEMU_BUILD_BUG_ON(sizeof(region->scsw_area) != sizeof(SCSW));
@@ -429,6 +441,7 @@ static void vfio_ccw_unrealize(DeviceState *dev, Error **errp)
 
 static Property vfio_ccw_properties[] = {
     DEFINE_PROP_STRING("sysfsdev", VFIOCCWDevice, vdev.sysfsdev),
+    DEFINE_PROP_BOOL("f-upfch", VFIOCCWDevice, f_upfch, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
