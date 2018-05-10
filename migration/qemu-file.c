@@ -26,6 +26,7 @@
 #include "qemu-common.h"
 #include "qemu/error-report.h"
 #include "qemu/iov.h"
+#include "qemu/pmem.h"
 #include "migration.h"
 #include "qemu-file.h"
 #include "trace.h"
@@ -471,6 +472,31 @@ size_t qemu_peek_buffer(QEMUFile *f, uint8_t **buf, size_t size, size_t offset)
     return size;
 }
 
+size_t qemu_get_buffer_common(QEMUFile *f, uint8_t *buf, size_t size,
+                              bool is_pmem)
+{
+    size_t pending = size;
+    size_t done = 0;
+    void *(*memcpy_func)(void *d, const void *s, size_t n) =
+        is_pmem ? pmem_memcpy_nodrain : memcpy;
+
+    while (pending > 0) {
+        size_t res;
+        uint8_t *src;
+
+        res = qemu_peek_buffer(f, &src, MIN(pending, IO_BUF_SIZE), 0);
+        if (res == 0) {
+            return done;
+        }
+        memcpy_func(buf, src, res);
+        qemu_file_skip(f, res);
+        buf += res;
+        pending -= res;
+        done += res;
+    }
+    return done;
+}
+
 /*
  * Read 'size' bytes of data from the file into buf.
  * 'size' can be larger than the internal buffer.
@@ -481,24 +507,7 @@ size_t qemu_peek_buffer(QEMUFile *f, uint8_t **buf, size_t size, size_t offset)
  */
 size_t qemu_get_buffer(QEMUFile *f, uint8_t *buf, size_t size)
 {
-    size_t pending = size;
-    size_t done = 0;
-
-    while (pending > 0) {
-        size_t res;
-        uint8_t *src;
-
-        res = qemu_peek_buffer(f, &src, MIN(pending, IO_BUF_SIZE), 0);
-        if (res == 0) {
-            return done;
-        }
-        memcpy(buf, src, res);
-        qemu_file_skip(f, res);
-        buf += res;
-        pending -= res;
-        done += res;
-    }
-    return done;
+    return qemu_get_buffer_common(f, buf, size, false);
 }
 
 /*
