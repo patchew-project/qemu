@@ -265,6 +265,7 @@ void QEMU_NORETURN do_raise_exception_err(CPURISCVState *env,
                                           uint32_t exception, uintptr_t pc);
 
 target_ulong cpu_riscv_get_fflags(CPURISCVState *env);
+target_ulong cpu_riscv_get_fcsr(CPURISCVState *env);
 void cpu_riscv_set_fflags(CPURISCVState *env, target_ulong);
 
 #define TB_FLAGS_MMU_MASK  3

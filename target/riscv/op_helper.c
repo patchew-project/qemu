@@ -423,8 +423,7 @@ target_ulong csr_read_helper(CPURISCVState *env, target_ulong csrno)
         return env->frm;
     case CSR_FCSR:
         validate_mstatus_fs(env, GETPC());
-        return (cpu_riscv_get_fflags(env) << FSR_AEXC_SHIFT)
-                | (env->frm << FSR_RD_SHIFT);
+        return cpu_riscv_get_fcsr(env);
     /* rdtime/rdtimeh is trapped and emulated by bbl in system mode */
 #ifdef CONFIG_USER_ONLY
     case CSR_TIME:

@@ -37,6 +37,12 @@ target_ulong cpu_riscv_get_fflags(CPURISCVState *env)
     return hard;
 }
 
+target_ulong cpu_riscv_get_fcsr(CPURISCVState *env)
+{
+    return (cpu_riscv_get_fflags(env) << FSR_AEXC_SHIFT)
+         | (env->frm << FSR_RD_SHIFT);
+}
+
 void cpu_riscv_set_fflags(CPURISCVState *env, target_ulong hard)
 {
     int soft = 0;
