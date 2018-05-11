@@ -1066,12 +1066,17 @@ static void arm_load_kernel_notify(Notifier *notifier, void *data)
         kernel_size = load_uimage_as(info->kernel_filename, &entry, NULL,
                                      &is_linux, NULL, NULL, as);
     }
+    if (kernel_size < 0) {
+        /* 32-bit ARM Intel HEX file */
+        entry = 0;
+        kernel_size = load_targphys_hex_as(info->kernel_filename, &entry, as);
+    }
     if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64) && kernel_size < 0) {
         kernel_size = load_aarch64_image(info->kernel_filename,
                                          info->loader_start, &entry, as);
         is_linux = 1;
     } else if (kernel_size < 0) {
-        /* 32-bit ARM */
+        /* 32-bit ARM binary file */
         entry = info->loader_start + KERNEL_LOAD_ADDR;
         kernel_size = load_image_targphys_as(info->kernel_filename, entry,
                                              info->ram_size - KERNEL_LOAD_ADDR,
