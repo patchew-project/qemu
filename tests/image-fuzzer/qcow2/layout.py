@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 # Generator of fuzzed qcow2 images
 #
 # Copyright (C) 2014 Maria Kustova <maria.k@catit.be>
@@ -18,7 +19,7 @@
 
 import random
 import struct
-import fuzz
+from . import fuzz
 from math import ceil
 from os import urandom
 from itertools import chain
