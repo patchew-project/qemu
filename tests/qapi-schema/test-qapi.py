@@ -28,7 +28,7 @@ class QAPISchemaTestVisitor(QAPISchemaVisitor):
         if prefix:
             print('    prefix %s' % prefix)
 
-    def visit_object_type(self, name, info, base, members, variants):
+    def visit_object_type(self, name, info, base, members, variants, partial):
         print('object %s' % name)
         if base:
             print('    base %s' % base.name)

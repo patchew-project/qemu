@@ -215,7 +215,7 @@ class QAPISchemaGenTypeVisitor(QAPISchemaModularCVisitor):
         self._genh.add(gen_array(name, element_type))
         self._gen_type_cleanup(name)
 
-    def visit_object_type(self, name, info, base, members, variants):
+    def visit_object_type(self, name, info, base, members, variants, partial):
         # Nothing to do for the special empty builtin
         if name == 'q_empty':
             return

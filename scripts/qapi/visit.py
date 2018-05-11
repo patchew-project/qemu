@@ -34,7 +34,7 @@ void visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp);
                  c_name=c_name(name))
 
 
-def gen_visit_object_members(name, base, members, variants):
+def gen_visit_object_members(name, base, members, variants, partial):
     ret = mcgen('''
 
 void visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp)
@@ -93,9 +93,10 @@ void visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp)
 
         ret += mcgen('''
     default:
-        abort();
+        %(action)s
     }
-''')
+''',
+                     action="break;" if partial else "abort();")
 
     # 'goto out' produced for base, for each member, and if variants were
     # present
@@ -309,12 +310,13 @@ class QAPISchemaGenVisitVisitor(QAPISchemaModularCVisitor):
         self._genh.add(gen_visit_decl(name))
         self._genc.add(gen_visit_list(name, element_type))
 
-    def visit_object_type(self, name, info, base, members, variants):
+    def visit_object_type(self, name, info, base, members, variants, partial):
         # Nothing to do for the special empty builtin
         if name == 'q_empty':
             return
         self._genh.add(gen_visit_members_decl(name))
-        self._genc.add(gen_visit_object_members(name, base, members, variants))
+        self._genc.add(gen_visit_object_members(name, base, members, variants,
+                                                partial))
         # TODO Worth changing the visitor signature, so we could
         # directly use rather than repeat type.is_implicit()?
         if not name.startswith('q_'):

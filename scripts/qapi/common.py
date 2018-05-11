@@ -721,6 +721,7 @@ def check_union(expr, info):
     name = expr['union']
     base = expr.get('base')
     discriminator = expr.get('discriminator')
+    partial = expr.get('data-partial', False)
     members = expr['data']
 
     # Two types of unions, determined by discriminator.
@@ -783,7 +784,7 @@ def check_union(expr, info):
                                    % (key, enum_define['enum']))
 
     # If discriminator is user-defined, ensure all values are covered
-    if enum_define:
+    if enum_define and not partial:
         for value in enum_define['data']:
             if value not in members.keys():
                 raise QAPISemError(info, "Union '%s' data missing '%s' branch"
@@ -909,7 +910,7 @@ def check_exprs(exprs):
         elif 'union' in expr:
             meta = 'union'
             check_keys(expr_elem, 'union', ['data'],
-                       ['base', 'discriminator'])
+                       ['base', 'discriminator', 'data-partial'])
             union_types[expr[meta]] = expr
         elif 'alternate' in expr:
             meta = 'alternate'
@@ -1035,7 +1036,7 @@ class QAPISchemaVisitor(object):
     def visit_array_type(self, name, info, element_type):
         pass
 
-    def visit_object_type(self, name, info, base, members, variants):
+    def visit_object_type(self, name, info, base, members, variants, partial):
         pass
 
     def visit_object_type_flat(self, name, info, members, variants):
@@ -1192,7 +1193,8 @@ class QAPISchemaArrayType(QAPISchemaType):
 
 
 class QAPISchemaObjectType(QAPISchemaType):
-    def __init__(self, name, info, doc, base, local_members, variants):
+    def __init__(self, name, info, doc, base, local_members, variants,
+                 partial = False):
         # struct has local_members, optional base, and no variants
         # flat union has base, variants, and no local_members
         # simple union has local_members, variants, and no base
@@ -1209,6 +1211,7 @@ class QAPISchemaObjectType(QAPISchemaType):
         self.local_members = local_members
         self.variants = variants
         self.members = None
+        self.partial = partial
 
     def check(self, schema):
         if self.members is False:               # check for cycles
@@ -1269,7 +1272,8 @@ class QAPISchemaObjectType(QAPISchemaType):
 
     def visit(self, visitor):
         visitor.visit_object_type(self.name, self.info,
-                                  self.base, self.local_members, self.variants)
+                                  self.base, self.local_members, self.variants,
+                                  self.partial)
         visitor.visit_object_type_flat(self.name, self.info,
                                        self.members, self.variants)
 
@@ -1636,6 +1640,7 @@ class QAPISchema(object):
         name = expr['union']
         data = expr['data']
         base = expr.get('base')
+        partial = expr.get('data-partial', False)
         tag_name = expr.get('discriminator')
         tag_member = None
         if isinstance(base, dict):
@@ -1656,7 +1661,8 @@ class QAPISchema(object):
             QAPISchemaObjectType(name, info, doc, base, members,
                                  QAPISchemaObjectTypeVariants(tag_name,
                                                               tag_member,
-                                                              variants)))
+                                                              variants),
+                                 partial))
 
     def _def_alternate_type(self, expr, info, doc):
         name = expr['alternate']
