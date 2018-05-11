@@ -1844,8 +1844,17 @@ void qemu_system_killed(int signal, pid_t pid)
     /* Cannot call qemu_system_shutdown_request directly because
      * we are in a signal handler.
      */
-    shutdown_requested = SHUTDOWN_CAUSE_HOST_SIGNAL;
-    qemu_notify_event();
+    if (signal==SIGPWR)
+    {
+	
+	powerdown_requested = 1;
+    	qemu_notify_event();
+    }
+    else
+    {
+    	shutdown_requested = SHUTDOWN_CAUSE_HOST_SIGNAL;
+    	qemu_notify_event();
+    }
 }
 
 void qemu_system_shutdown_request(ShutdownCause reason)

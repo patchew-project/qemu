@@ -77,6 +77,7 @@ void os_setup_signal_handling(void)
     sigaction(SIGINT,  &act, NULL);
     sigaction(SIGHUP,  &act, NULL);
     sigaction(SIGTERM, &act, NULL);
+    sigaction(SIGPWR, &act, NULL);
 }
 
 /* Find a likely location for support files using the location of the binary.
