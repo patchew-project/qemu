@@ -2044,7 +2044,7 @@ static coroutine_fn int qcow2_co_pwritev(BlockDriverState *bs, uint64_t offset,
         while (l2meta != NULL) {
             QCowL2Meta *next;
 
-            ret = qcow2_alloc_cluster_link_l2(bs, l2meta);
+            ret = qcow2_alloc_cluster_link_l2(bs, l2meta, 0);
             if (ret < 0) {
                 goto fail;
             }
@@ -2552,7 +2552,7 @@ static void coroutine_fn preallocate_co(void *opaque)
         while (meta) {
             QCowL2Meta *next = meta->next;
 
-            ret = qcow2_alloc_cluster_link_l2(bs, meta);
+            ret = qcow2_alloc_cluster_link_l2(bs, meta, QCOW_OFLAG_ZERO);
             if (ret < 0) {
                 qcow2_free_any_clusters(bs, meta->alloc_offset,
                                         meta->nb_clusters, QCOW2_DISCARD_NEVER);
@@ -3458,7 +3458,7 @@ static int qcow2_truncate(BlockDriverState *bs, int64_t offset,
             };
             qemu_co_queue_init(&allocation.dependent_requests);
 
-            ret = qcow2_alloc_cluster_link_l2(bs, &allocation);
+            ret = qcow2_alloc_cluster_link_l2(bs, &allocation, 0);
             if (ret < 0) {
                 error_setg_errno(errp, -ret, "Failed to update L2 tables");
                 qcow2_free_clusters(bs, host_offset,
