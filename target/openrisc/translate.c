@@ -1373,14 +1373,6 @@ static bool trans_lf_sfle_s(DisasContext *dc, arg_ab *a, uint32_t insn)
     return true;
 }
 
-static void disas_openrisc_insn(DisasContext *dc, OpenRISCCPU *cpu)
-{
-    uint32_t insn = cpu_ldl_code(&cpu->env, dc->pc);
-    if (!decode(dc, insn)) {
-        gen_illegal_exception(dc);
-    }
-}
-
 void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
 {
     CPUOpenRISCState *env = cs->env_ptr;
@@ -1388,6 +1380,7 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
     struct DisasContext ctx, *dc = &ctx;
     uint32_t pc_start;
     uint32_t next_page_start;
+    uint32_t insn;
     int num_insns;
     int max_insns;
 
@@ -1449,7 +1442,11 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
         if (num_insns == max_insns && (tb_cflags(tb) & CF_LAST_IO)) {
             gen_io_start();
         }
-        disas_openrisc_insn(dc, cpu);
+
+        insn = cpu_ldl_code(&cpu->env, dc->pc);
+        if (!decode(dc, insn)) {
+            gen_illegal_exception(dc);
+        }
         dc->pc = dc->pc + 4;
 
         /* delay slot */
