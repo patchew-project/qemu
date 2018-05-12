@@ -2967,7 +2967,22 @@ static void dump_bitmap_mapping(BitmapMapping *bm, OutputFormat output_format,
     }
 }
 
-/* img_bitmap subcommands: dump */
+static int do_bitmap_clear(BlockDriverState *bs, BdrvDirtyBitmap *bitmap)
+{
+    bool enabled = bdrv_dirty_bitmap_enabled(bitmap);
+
+    if (!enabled) {
+        bdrv_enable_dirty_bitmap(bitmap);
+    }
+    bdrv_clear_dirty_bitmap(bitmap, NULL);
+    if (!enabled) {
+        bdrv_disable_dirty_bitmap(bitmap);
+    }
+
+    return 0;
+}
+
+/* img_bitmap subcommands: dump, clear */
 
 typedef struct BitmapOpts {
     CommonOpts base;
@@ -3017,6 +3032,30 @@ static int bitmap_cmd_dump(BlockDriverState *bs, BitmapOpts *opts)
     return 0;
 }
 
+static int bitmap_cmd_clear(BlockDriverState *bs, BitmapOpts *opts)
+{
+    BdrvDirtyBitmap *bitmap = NULL;
+
+    if (opts->name) {
+        bitmap = bdrv_find_dirty_bitmap(bs, opts->name);
+        if (!bitmap) {
+            error_report("No bitmap named '%s' found", opts->name);
+            return -1;
+        }
+        if (do_bitmap_clear(bs, bitmap)) {
+            return -1;
+        }
+    } else {
+        while ((bitmap = bdrv_dirty_bitmap_next(bs, bitmap))) {
+            if (do_bitmap_clear(bs, bitmap)) {
+                return -1;
+            }
+        }
+    }
+
+    return 0;
+}
+
 static int img_bitmap(int argc, char **argv)
 {
     const char *cmd;
@@ -3029,12 +3068,15 @@ static int img_bitmap(int argc, char **argv)
     int (* handler)(BlockDriverState *b, BitmapOpts *opts);
 
     if (argc < 2) {
-        error_report("Expected a bitmap subcommand: <dump>");
+        error_report("Expected a bitmap subcommand: <dump | clear>");
         return EXIT_FAILURE;
     }
     cmd = argv[1];
     if (strcmp(cmd, "dump") == 0) {
         handler = bitmap_cmd_dump;
+    } else if (strcmp(cmd, "clear") == 0) {
+        flags |= BDRV_O_RDWR;
+        handler = bitmap_cmd_clear;
     } else {
         error_report("Unrecognized bitmap subcommand '%s'", cmd);
         return EXIT_FAILURE;

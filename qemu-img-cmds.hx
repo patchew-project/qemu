@@ -23,9 +23,9 @@ STEXI
 ETEXI
 
 DEF("bitmap", img_bitmap,
-    "bitmap dump [--object objectdef] [--image-opts] [-f fmt] [--output=ofmt] [-U] filename [bitmap]")
+    "bitmap <dump|clear> [--object objectdef] [--image-opts] [-f fmt] [--output=ofmt] [-U] filename [bitmap]")
 STEXI
-@item bitmap dump [--object @var{objectdef}] [--image-opts] [-f @var{fmt}] [--output=@var{ofmt}] [-U] @var{filename} [@var{bitmap}]
+@item bitmap <dump|clear> [--object @var{objectdef}] [--image-opts] [-f @var{fmt}] [--output=@var{ofmt}] [-U] @var{filename} [@var{bitmap}]
 ETEXI
 
 DEF("check", img_check,
