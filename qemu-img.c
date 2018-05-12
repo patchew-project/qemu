@@ -69,8 +69,8 @@ enum {
 };
 
 typedef enum OutputFormat {
-    OFORMAT_JSON,
     OFORMAT_HUMAN,
+    OFORMAT_JSON,
 } OutputFormat;
 
 /* Default to cache=writeback as data integrity is not important for qemu-img */
@@ -2728,21 +2728,18 @@ static inline bool entry_mergeable(const MapEntry *curr, const MapEntry *next)
     return true;
 }
 
-static int img_map(int argc, char **argv)
+typedef struct CommonOpts {
+    OutputFormat output_format;
+    const char *filename;
+    const char *fmt;
+    bool force_share;
+    bool image_opts;
+} CommonOpts;
+
+static int parse_opts_common(CommonOpts *opts, int argc, char **argv)
 {
     int c;
-    OutputFormat output_format = OFORMAT_HUMAN;
-    BlockBackend *blk;
-    BlockDriverState *bs;
-    const char *filename, *fmt, *output;
-    int64_t length;
-    MapEntry curr = { .length = 0 }, next;
-    int ret = 0;
-    bool image_opts = false;
-    bool force_share = false;
 
-    fmt = NULL;
-    output = NULL;
     for (;;) {
         int option_index = 0;
         static const struct option long_options[] = {
@@ -2770,54 +2767,83 @@ static int img_map(int argc, char **argv)
             help();
             break;
         case 'f':
-            fmt = optarg;
+            opts->fmt = optarg;
             break;
         case 'U':
-            force_share = true;
+            opts->force_share = true;
             break;
         case OPTION_OUTPUT:
-            output = optarg;
+            if (optarg && !strcmp(optarg, "json")) {
+                opts->output_format = OFORMAT_JSON;
+            } else if (optarg && !strcmp(optarg, "human")) {
+                opts->output_format = OFORMAT_HUMAN;
+            } else {
+                error_report("--output must be used with human or json as argument.");
+                return -EINVAL;
+            }
             break;
         case OPTION_OBJECT: {
             QemuOpts *opts;
             opts = qemu_opts_parse_noisily(&qemu_object_opts,
                                            optarg, true);
             if (!opts) {
-                return 1;
+                return -EINVAL;
             }
         }   break;
         case OPTION_IMAGE_OPTS:
-            image_opts = true;
+            opts->image_opts = true;
             break;
         }
     }
-    if (optind != argc - 1) {
-        error_exit("Expecting one image file name");
-    }
-    filename = argv[optind];
-
-    if (output && !strcmp(output, "json")) {
-        output_format = OFORMAT_JSON;
-    } else if (output && !strcmp(output, "human")) {
-        output_format = OFORMAT_HUMAN;
-    } else if (output) {
-        error_report("--output must be used with human or json as argument.");
-        return 1;
-    }
-
     if (qemu_opts_foreach(&qemu_object_opts,
                           user_creatable_add_opts_foreach,
                           NULL, NULL)) {
-        return 1;
+        return -EINVAL;
     }
 
-    blk = img_open(image_opts, filename, fmt, 0, false, false, force_share);
+    return 0;
+}
+
+static void parse_positional(int argc, char *argv[],
+                             bool opt, const char **str, const char *name) {
+    if (!opt && optind >= argc) {
+        error_exit("Expecting '%s' positional parameter", name);
+    } else if (optind < argc) {
+        *str = argv[optind++];
+    }
+}
+
+static void parse_unexpected(int argc, char *argv[]) {
+    if (optind != argc) {
+        error_exit("Unexpected argument '%s'\n", argv[optind]);
+    }
+}
+
+static int img_map(int argc, char **argv)
+{
+    BlockBackend *blk;
+    BlockDriverState *bs;
+    int64_t length;
+    int ret = 0;
+    MapEntry curr = { .length = 0 }, next;
+    CommonOpts *opts;
+
+    opts = g_new0(CommonOpts, 1);
+    if (parse_opts_common(opts, argc, argv)) {
+        return EXIT_FAILURE;
+    }
+    parse_positional(argc, argv, 0, &opts->filename, "filename");
+    parse_unexpected(argc, argv);
+
+    blk = img_open(opts->image_opts, opts->filename, opts->fmt, 0,
+                   false, false, opts->force_share);
     if (!blk) {
-        return 1;
+        ret = -1;
+        goto out1;
     }
     bs = blk_bs(blk);
 
-    if (output_format == OFORMAT_HUMAN) {
+    if (opts->output_format == OFORMAT_HUMAN) {
         printf("%-16s%-16s%-16s%s\n", "Offset", "Length", "Mapped to", "File");
     }
 
@@ -2832,7 +2858,7 @@ static int img_map(int argc, char **argv)
 
         if (ret < 0) {
             error_report("Could not read file metadata: %s", strerror(-ret));
-            goto out;
+            goto out2;
         }
 
         if (entry_mergeable(&curr, &next)) {
@@ -2841,15 +2867,17 @@ static int img_map(int argc, char **argv)
         }
 
         if (curr.length > 0) {
-            dump_map_entry(output_format, &curr, &next);
+            dump_map_entry(opts->output_format, &curr, &next);
         }
         curr = next;
     }
 
-    dump_map_entry(output_format, &curr, NULL);
+    dump_map_entry(opts->output_format, &curr, NULL);
 
-out:
+out2:
     blk_unref(blk);
+out1:
+    g_free(opts);
     return ret < 0;
 }
 
