@@ -252,20 +252,21 @@ static void to_json(const QObject *obj, QString *str, int pretty, int indent)
     }
 }
 
-QString *qobject_to_json(const QObject *obj)
+QString *qobject_to_json_opt(const QObject *obj, int pretty, int indent)
 {
     QString *str = qstring_new();
 
-    to_json(obj, str, 0, 0);
+    to_json(obj, str, pretty, indent);
 
     return str;
 }
 
+QString *qobject_to_json(const QObject *obj)
+{
+    return qobject_to_json_opt(obj, 0, 0);
+}
+
 QString *qobject_to_json_pretty(const QObject *obj)
 {
-    QString *str = qstring_new();
-
-    to_json(obj, str, 1, 0);
-
-    return str;
+    return qobject_to_json_opt(obj, 1, 0);
 }
