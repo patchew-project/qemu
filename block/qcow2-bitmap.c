@@ -986,6 +986,7 @@ bool qcow2_load_dirty_bitmaps(BlockDriverState *bs, Error **errp)
             if (bitmap == NULL) {
                 goto fail;
             }
+            bm->dirty_bitmap = bitmap;
 
             if (!(bm->flags & BME_FLAG_AUTO)) {
                 bdrv_disable_dirty_bitmap(bitmap);
