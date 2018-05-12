@@ -34,6 +34,61 @@
             'vm-clock-sec': 'int', 'vm-clock-nsec': 'int' } }
 
 ##
+# @BitmapTypeEnum:
+#
+# An enumeration of possible serialized bitmap types.
+#
+# @dirty-tracking: This bitmap records information on dirty
+#                  segments within the file.
+#
+# @unknown: This bitmap is of an unknown or reserved type.
+#
+# Since: 2.13
+##
+{ 'enum': 'BitmapTypeEnum', 'data': [ 'dirty-tracking', 'unknown' ] }
+
+##
+# @BitmapFlagEnum:
+#
+# An enumeration of possible flags for serialized bitmaps.
+#
+# @in-use: This bitmap is considered to be in-use, and may now be inconsistent.
+#
+# @auto: This bitmap must reflect any and all changes to the file it describes.
+#        The type of this bitmap must be @DirtyTrackingBitmap.
+#
+# @extra-data-compatible: This bitmap has extra information associated with it.
+#
+# @unknown: This bitmap has unknown or reserved properties.
+#
+# Since: 2.13
+##
+{ 'enum': 'BitmapFlagEnum', 'data': [ 'in-use', 'auto',
+                                      'extra-data-compatible', 'unknown' ] }
+
+##
+# @BitmapInfo:
+#
+# @name: The name of the bitmap.
+#
+# @type: The type of bitmap.
+#
+# @granularity: Bitmap granularity, in bytes.
+#
+# @count: Overall bitmap dirtiness, in bytes.
+#
+# @flags: Bitmap flags, if any.
+#
+# Since: 2.13
+#
+##
+{ 'struct': 'BitmapInfo',
+  'data': { 'name': 'str', 'type': 'BitmapTypeEnum', 'granularity': 'int',
+            'count': 'int', '*flags': ['BitmapFlagEnum']
+  }
+}
+
+##
 # @ImageInfoSpecificQCow2EncryptionBase:
 #
 # @format: The encryption format
@@ -69,6 +124,8 @@
 # @encrypt: details about encryption parameters; only set if image
 #           is encrypted (since 2.10)
 #
+# @bitmaps: list of image bitmaps (since 2.13)
+#
 # Since: 1.7
 ##
 { 'struct': 'ImageInfoSpecificQCow2',
@@ -77,7 +134,8 @@
       '*lazy-refcounts': 'bool',
       '*corrupt': 'bool',
       'refcount-bits': 'int',
-      '*encrypt': 'ImageInfoSpecificQCow2Encryption'
+      '*encrypt': 'ImageInfoSpecificQCow2Encryption',
+      '*bitmaps': ['BitmapInfo']
   } }
 
 ##
