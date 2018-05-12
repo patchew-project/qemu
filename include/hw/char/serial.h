@@ -65,6 +65,8 @@ struct SerialState {
     /* Time when the last byte was successfully sent out of the tsr */
     uint64_t last_xmit_ts;
     Fifo8 recv_fifo;
+    /* Time to read the next byte from the thr */
+    QEMUTimer *xmit_timeout_timer;
     Fifo8 xmit_fifo;
     /* Interrupt trigger level for recv_fifo */
     uint8_t recv_fifo_itl;

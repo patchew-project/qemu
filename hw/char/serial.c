@@ -359,9 +359,8 @@ static void serial_ioport_write(void *opaque, hwaddr addr, uint64_t val,
             s->lsr &= ~UART_LSR_THRE;
             s->lsr &= ~UART_LSR_TEMT;
             serial_update_irq(s);
-            if (s->tsr_retry == 0) {
-                serial_xmit(s);
-            }
+            timer_mod(s->xmit_timeout_timer,
+                qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + s->char_transmit_time);
         }
         break;
     case 1:
@@ -586,6 +585,15 @@ static void serial_receive_break(SerialState *s)
     serial_update_irq(s);
 }
 
+/* There is data to be sent in xmit_fifo or the thr */
+static void xmit_timeout_int(void *opaque)
+{
+    SerialState *s = opaque;
+    if (s->tsr_retry == 0) {
+        serial_xmit(s);
+    }
+}
+
 /* There's data in recv_fifo and s->rbr has not been read for 4 char transmit times */
 static void fifo_timeout_int (void *opaque) {
     SerialState *s = opaque;
@@ -723,15 +731,20 @@ static bool serial_tsr_needed(void *opaque)
     SerialState *s = (SerialState *)opaque;
     return s->tsr_retry != 0;
 }
+static bool serial_tsr_thr_exists(void *opaque, int version_id)
+{
+    return version_id < 2;
+}
 
 static const VMStateDescription vmstate_serial_tsr = {
     .name = "serial/tsr",
-    .version_id = 1,
+    .version_id = 2,
     .minimum_version_id = 1,
     .needed = serial_tsr_needed,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(tsr_retry, SerialState),
-        VMSTATE_UINT8(thr, SerialState),
+        /* Moved to `xmit_timeout_timer` */
+        VMSTATE_UINT8_TEST(thr, SerialState, serial_tsr_thr_exists),
         VMSTATE_UINT8(tsr, SerialState),
         VMSTATE_END_OF_LIST()
     }
@@ -768,6 +781,24 @@ static const VMStateDescription vmstate_serial_xmit_fifo = {
     .needed = serial_xmit_fifo_needed,
     .fields = (VMStateField[]) {
         VMSTATE_STRUCT(xmit_fifo, SerialState, 1, vmstate_fifo8, Fifo8),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static bool serial_xmit_timeout_timer_needed(void *opaque)
+{
+    SerialState *s = (SerialState *)opaque;
+    return timer_pending(s->xmit_timeout_timer);
+}
+
+static const VMStateDescription vmstate_serial_xmit_timeout_timer = {
+    .name = "serial/xmit_timeout_timer",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = serial_xmit_timeout_timer_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT8(thr, SerialState),
+        VMSTATE_TIMER_PTR(xmit_timeout_timer, SerialState),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -849,6 +880,7 @@ const VMStateDescription vmstate_serial = {
         &vmstate_serial_tsr,
         &vmstate_serial_recv_fifo,
         &vmstate_serial_xmit_fifo,
+        &vmstate_serial_xmit_timeout_timer,
         &vmstate_serial_fifo_timeout_timer,
         &vmstate_serial_timeout_ipending,
         &vmstate_serial_poll,
@@ -880,6 +912,7 @@ static void serial_reset(void *opaque)
     s->poll_msl = 0;
 
     s->timeout_ipending = 0;
+    timer_del(s->xmit_timeout_timer);
     timer_del(s->fifo_timeout_timer);
     timer_del(s->modem_status_poll);
 
@@ -928,7 +961,10 @@ void serial_realize_core(SerialState *s, Error **errp)
 {
     s->modem_status_poll = timer_new_ns(QEMU_CLOCK_VIRTUAL, (QEMUTimerCB *) serial_update_msl, s);
 
-    s->fifo_timeout_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, (QEMUTimerCB *) fifo_timeout_int, s);
+    s->xmit_timeout_timer =
+        timer_new_ns(QEMU_CLOCK_VIRTUAL, (QEMUTimerCB *) xmit_timeout_int, s);
+    s->fifo_timeout_timer =
+        timer_new_ns(QEMU_CLOCK_VIRTUAL, (QEMUTimerCB *) fifo_timeout_int, s);
     qemu_register_reset(serial_reset, s);
 
     qemu_chr_fe_set_handlers(&s->chr, serial_can_receive1, serial_receive1,
@@ -944,6 +980,9 @@ void serial_exit_core(SerialState *s)
 
     timer_del(s->modem_status_poll);
     timer_free(s->modem_status_poll);
+
+    timer_del(s->xmit_timeout_timer);
+    timer_free(s->xmit_timeout_timer);
 
     timer_del(s->fifo_timeout_timer);
     timer_free(s->fifo_timeout_timer);
