@@ -943,13 +943,6 @@ fail:
 }
 
 /* for g_slist_foreach for GSList of BdrvDirtyBitmap* elements */
-static void release_dirty_bitmap_helper(gpointer bitmap,
-                                        gpointer bs)
-{
-    bdrv_release_dirty_bitmap(bs, bitmap);
-}
-
-/* for g_slist_foreach for GSList of BdrvDirtyBitmap* elements */
 static void set_readonly_helper(gpointer bitmap, gpointer value)
 {
     bdrv_dirty_bitmap_set_readonly(bitmap, (bool)value);
@@ -967,8 +960,8 @@ bool qcow2_load_dirty_bitmaps(BlockDriverState *bs, Error **errp)
     BDRVQcow2State *s = bs->opaque;
     Qcow2BitmapList *bm_list;
     Qcow2Bitmap *bm;
-    GSList *created_dirty_bitmaps = NULL;
     bool header_updated = false;
+    bool needs_update = false;
 
     if (s->nb_bitmaps == 0) {
         /* No bitmaps - nothing to do */
@@ -992,33 +985,32 @@ bool qcow2_load_dirty_bitmaps(BlockDriverState *bs, Error **errp)
                 bdrv_disable_dirty_bitmap(bitmap);
             }
             bdrv_dirty_bitmap_set_persistance(bitmap, true);
-            bm->flags |= BME_FLAG_IN_USE;
-            created_dirty_bitmaps =
-                    g_slist_append(created_dirty_bitmaps, bitmap);
-        }
-    }
-
-    if (created_dirty_bitmaps != NULL) {
-        if (can_write(bs)) {
-            /* in_use flags must be updated */
-            int ret = update_ext_header_and_dir_in_place(bs, bm_list);
-            if (ret < 0) {
-                error_setg_errno(errp, -ret, "Can't update bitmap directory");
-                goto fail;
+            if (can_write(bs)) {
+                bm->flags |= BME_FLAG_IN_USE;
+                needs_update = true;
+            } else {
+                bdrv_dirty_bitmap_set_readonly(bitmap, true);
             }
-            header_updated = true;
-        } else {
-            g_slist_foreach(created_dirty_bitmaps, set_readonly_helper,
-                            (gpointer)true);
         }
     }
 
-    g_slist_free(created_dirty_bitmaps);
+    /* in_use flags must be updated */
+    if (needs_update) {
+        int ret = update_ext_header_and_dir_in_place(bs, bm_list);
+        if (ret < 0) {
+            error_setg_errno(errp, -ret, "Can't update bitmap directory");
+            goto fail;
+        }
+        header_updated = true;
+    }
     return header_updated;
 
 fail:
-    g_slist_foreach(created_dirty_bitmaps, release_dirty_bitmap_helper, bs);
-    g_slist_free(created_dirty_bitmaps);
+    QSIMPLEQ_FOREACH(bm, bm_list, entry) {
+        if (bm->dirty_bitmap) {
+            bdrv_release_dirty_bitmap(bs, bm->dirty_bitmap);
+        }
+    }
     del_bitmap_list(bs);
 
     return false;
