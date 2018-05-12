@@ -83,6 +83,7 @@ typedef QSIMPLEQ_HEAD(Qcow2BitmapTableList, Qcow2BitmapTable)
 typedef struct Qcow2Bitmap {
     Qcow2BitmapTable table;
     uint32_t flags;
+    uint8_t type;
     uint8_t granularity_bits;
     char *name;
 
@@ -608,6 +609,7 @@ static Qcow2BitmapList *bitmap_list_load(BlockDriverState *bs, Error **errp)
         bm->table.offset = e->bitmap_table_offset;
         bm->table.size = e->bitmap_table_size;
         bm->flags = e->flags;
+        bm->type = e->type;
         bm->granularity_bits = e->granularity_bits;
         bm->name = dir_entry_copy_name(e);
         QSIMPLEQ_INSERT_TAIL(bm_list, bm, entry);
