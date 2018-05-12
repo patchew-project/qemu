@@ -125,10 +125,6 @@ static inline void set_default_nan_mode(flag val, float_status *status)
 {
     status->default_nan_mode = val;
 }
-static inline void set_snan_bit_is_one(flag val, float_status *status)
-{
-    status->snan_bit_is_one = val;
-}
 static inline int get_float_detect_tininess(float_status *status)
 {
     return status->float_detect_tininess;

@@ -173,6 +173,7 @@ typedef struct float_status {
     /* should denormalised inputs go to zero and set the input_denormal flag? */
     flag flush_inputs_to_zero;
     flag default_nan_mode;
+    /* not always used -- see SNAN_BIT_IS_ONE in softfloat-specialize.h */
     flag snan_bit_is_one;
 } float_status;
 

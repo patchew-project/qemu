@@ -755,8 +755,8 @@ target_ulong exception_resume_pc (CPUMIPSState *env);
 
 static inline void restore_snan_bit_mode(CPUMIPSState *env)
 {
-    set_snan_bit_is_one((env->active_fpu.fcr31 & (1 << FCR31_NAN2008)) == 0,
-                        &env->active_fpu.fp_status);
+    env->active_fpu.fp_status.snan_bit_is_one
+        = (env->active_fpu.fcr31 & (1 << FCR31_NAN2008)) == 0;
 }
 
 static inline void cpu_get_tb_cpu_state(CPUMIPSState *env, target_ulong *pc,
