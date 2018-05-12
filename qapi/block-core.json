@@ -299,6 +299,38 @@
            '*filename': 'str' } }
 
 ##
+# @BitmapEntry:
+#
+# Dirty Bitmap region information for a virtual block range
+#
+# @offset: the start byte of the dirty virtual range
+#
+# @length: the number of bytes of the dirty virtual range
+#
+# Since: 2.13
+#
+##
+{ 'struct': 'BitmapEntry',
+  'data': { 'offset': 'int', 'length': 'int' } }
+
+##
+# @BitmapMapping:
+#
+# List of described regions correlated to a named bitmap.
+#
+# @name: The name of the bitmap whose range is described here
+#
+# @entries: A list of zero or more @BitmapEntry elements representing
+#           the range(s) described by the bitmap.
+#
+# Since: 2.13
+#
+##
+{ 'struct': 'BitmapMapping',
+  'data': { 'name': 'str',
+            'entries': [ 'BitmapEntry' ] } }
+
+##
 # @BlockdevCacheInfo:
 #
 # Cache mode information for a block device
