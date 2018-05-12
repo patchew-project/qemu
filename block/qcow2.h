@@ -686,5 +686,6 @@ bool qcow2_can_store_new_dirty_bitmap(BlockDriverState *bs,
 void qcow2_remove_persistent_dirty_bitmap(BlockDriverState *bs,
                                           const char *name,
                                           Error **errp);
+BitmapInfoList *qcow2_get_bitmap_info(BlockDriverState *bs);
 
 #endif

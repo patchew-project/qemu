@@ -3960,6 +3960,7 @@ static ImageInfoSpecific *qcow2_get_specific_info(BlockDriverState *bs)
     BDRVQcow2State *s = bs->opaque;
     ImageInfoSpecific *spec_info;
     QCryptoBlockInfo *encrypt_info = NULL;
+    BitmapInfoList *bitmap_list = NULL;
 
     if (s->crypto != NULL) {
         encrypt_info = qcrypto_block_get_info(s->crypto, &error_abort);
@@ -4014,6 +4015,12 @@ static ImageInfoSpecific *qcow2_get_specific_info(BlockDriverState *bs)
 
         spec_info->u.qcow2.data->has_encrypt = true;
         spec_info->u.qcow2.data->encrypt = qencrypt;
+    }
+
+    bitmap_list = qcow2_get_bitmap_info(bs);
+    if (bitmap_list) {
+        spec_info->u.qcow2.data->has_bitmaps = true;
+        spec_info->u.qcow2.data->bitmaps = bitmap_list;
     }
 
     return spec_info;
