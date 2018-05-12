@@ -346,7 +346,7 @@ static BdrvDirtyBitmap *load_bitmap(BlockDriverState *bs,
     uint32_t granularity;
     BdrvDirtyBitmap *bitmap = NULL;
 
-    if (bm->flags & BME_FLAG_IN_USE) {
+    if (can_write(bs) && (bm->flags & BME_FLAG_IN_USE)) {
         error_setg(errp, "Bitmap '%s' is in use", bm->name);
         goto fail;
     }
@@ -974,23 +974,21 @@ bool qcow2_load_dirty_bitmaps(BlockDriverState *bs, Error **errp)
     }
 
     QSIMPLEQ_FOREACH(bm, bm_list, entry) {
-        if (!(bm->flags & BME_FLAG_IN_USE)) {
-            BdrvDirtyBitmap *bitmap = load_bitmap(bs, bm, errp);
-            if (bitmap == NULL) {
-                goto fail;
-            }
-            bm->dirty_bitmap = bitmap;
+        BdrvDirtyBitmap *bitmap = load_bitmap(bs, bm, errp);
+        if (bitmap == NULL) {
+            goto fail;
+        }
+        bm->dirty_bitmap = bitmap;
 
-            if (!(bm->flags & BME_FLAG_AUTO)) {
-                bdrv_disable_dirty_bitmap(bitmap);
-            }
-            bdrv_dirty_bitmap_set_persistance(bitmap, true);
-            if (can_write(bs)) {
-                bm->flags |= BME_FLAG_IN_USE;
-                needs_update = true;
-            } else {
-                bdrv_dirty_bitmap_set_readonly(bitmap, true);
-            }
+        if (!(bm->flags & BME_FLAG_AUTO)) {
+            bdrv_disable_dirty_bitmap(bitmap);
+        }
+        bdrv_dirty_bitmap_set_persistance(bitmap, true);
+        if (can_write(bs)) {
+            bm->flags |= BME_FLAG_IN_USE;
+            needs_update = true;
+        } else {
+            bdrv_dirty_bitmap_set_readonly(bitmap, true);
         }
     }
 
