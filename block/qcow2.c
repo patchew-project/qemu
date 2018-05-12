@@ -2135,6 +2135,8 @@ static void qcow2_close(BlockDriverState *bs)
 
     if (!(s->flags & BDRV_O_INACTIVE)) {
         qcow2_inactivate(bs);
+    } else {
+        qcow2_persistent_dirty_bitmaps_cache_destroy(bs);
     }
 
     cache_clean_timer_del(bs);
