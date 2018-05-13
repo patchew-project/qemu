@@ -517,6 +517,7 @@ objcopy="${OBJCOPY-${cross_prefix}objcopy}"
 ld="${LD-${cross_prefix}ld}"
 ranlib="${RANLIB-${cross_prefix}ranlib}"
 nm="${NM-${cross_prefix}nm}"
+strings="${STRINGS-${cross_prefix}strings}"
 strip="${STRIP-${cross_prefix}strip}"
 windres="${WINDRES-${cross_prefix}windres}"
 pkg_config_exe="${PKG_CONFIG-${cross_prefix}pkg-config}"
@@ -1958,9 +1959,9 @@ int main(int argc, char *argv[]) {
 EOF
 
 if compile_object ; then
-    if strings -a $TMPO | grep -q BiGeNdIaN ; then
+    if "$strings" -a $TMPO | grep -q BiGeNdIaN ; then
         bigendian="yes"
-    elif strings -a $TMPO | grep -q LiTtLeEnDiAn ; then
+    elif "$strings" -a $TMPO | grep -q LiTtLeEnDiAn ; then
         bigendian="no"
     else
         echo big/little test failed
