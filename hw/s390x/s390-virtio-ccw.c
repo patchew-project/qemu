@@ -394,21 +394,56 @@ static void s390_machine_reset(void)
     s390_cpu_set_state(S390_CPU_STATE_OPERATING, ipl_cpu);
 }
 
+static void s390_machine_device_pre_plug(HotplugHandler *hotplug_dev,
+                                         DeviceState *dev, Error **errp)
+{
+    Error *local_err = NULL;
+
+    /* final stage hotplug handler */
+    if (dev->parent_bus && dev->parent_bus->hotplug_handler) {
+        hotplug_handler_pre_plug(dev->parent_bus->hotplug_handler, dev,
+                                 &local_err);
+    }
+    error_propagate(errp, local_err);
+}
+
 static void s390_machine_device_plug(HotplugHandler *hotplug_dev,
                                      DeviceState *dev, Error **errp)
 {
+    Error *local_err = NULL;
+
+    /* final stage hotplug handler */
     if (object_dynamic_cast(OBJECT(dev), TYPE_CPU)) {
-        s390_cpu_plug(hotplug_dev, dev, errp);
+        s390_cpu_plug(hotplug_dev, dev, &local_err);
+    } else if (dev->parent_bus && dev->parent_bus->hotplug_handler) {
+        hotplug_handler_plug(dev->parent_bus->hotplug_handler, dev, &local_err);
     }
+    error_propagate(errp, local_err);
 }
 
 static void s390_machine_device_unplug_request(HotplugHandler *hotplug_dev,
                                                DeviceState *dev, Error **errp)
 {
+    /* final stage hotplug handler */
     if (object_dynamic_cast(OBJECT(dev), TYPE_CPU)) {
         error_setg(errp, "CPU hot unplug not supported on this machine");
-        return;
+    } else if (dev->parent_bus && dev->parent_bus->hotplug_handler) {
+        hotplug_handler_unplug_request(dev->parent_bus->hotplug_handler, dev,
+                                       errp);
     }
+}
+
+static void s390_machine_device_unplug(HotplugHandler *hotplug_dev,
+                                       DeviceState *dev, Error **errp)
+{
+    Error *local_err = NULL;
+
+    /* final stage hotplug handler */
+    if (dev->parent_bus && dev->parent_bus->hotplug_handler) {
+        hotplug_handler_unplug(dev->parent_bus->hotplug_handler, dev,
+                               &local_err);
+    }
+    error_propagate(errp, local_err);
 }
 
 static CpuInstanceProperties s390_cpu_index_to_props(MachineState *ms,
@@ -497,8 +532,10 @@ static void ccw_machine_class_init(ObjectClass *oc, void *data)
     mc->possible_cpu_arch_ids = s390_possible_cpu_arch_ids;
     /* it is overridden with 'host' cpu *in kvm_arch_init* */
     mc->default_cpu_type = S390_CPU_TYPE_NAME("qemu");
+    hc->pre_plug = s390_machine_device_pre_plug;
     hc->plug = s390_machine_device_plug;
     hc->unplug_request = s390_machine_device_unplug_request;
+    hc->unplug = s390_machine_device_unplug;
     nc->nmi_monitor_handler = s390_nmi;
 }
 
