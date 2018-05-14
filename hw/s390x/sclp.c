@@ -21,6 +21,8 @@
 #include "hw/s390x/event-facility.h"
 #include "hw/s390x/s390-pci-bus.h"
 #include "hw/s390x/ipl.h"
+#include "qemu/error-report.h"
+
 
 static inline SCLPDevice *get_sclp_device(void)
 {
@@ -318,9 +320,19 @@ static void sclp_memory_init(SCLPDevice *sclp)
      * down to align with the nearest increment boundary. */
     initial_mem = initial_mem >> increment_size << increment_size;
 
-    machine->ram_size = initial_mem;
-    /* let's propagate the changed ram size into the global variable. */
-    ram_size = initial_mem;
+    /* also shrink maxram_size in case we don't have maxmem configured */
+    if (initial_mem != machine->ram_size) {
+        if (machine->ram_size < machine->maxram_size) {
+            error_report("Ram size ('" RAM_ADDR_FMT "') had to be rounded "
+                         "down to ('" RAM_ADDR_FMT "'), maxmem not supported",
+                         machine->ram_size, initial_mem);
+            exit(1);
+        }
+        /* propagate the changed ram size into the different places */
+        machine->ram_size = initial_mem;
+        ram_size = initial_mem;
+        machine->maxram_size = initial_mem;
+    }
 }
 
 static void sclp_init(Object *obj)
