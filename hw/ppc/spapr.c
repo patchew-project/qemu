@@ -3571,27 +3571,48 @@ static void spapr_machine_device_plug(HotplugHandler *hotplug_dev,
 {
     MachineState *ms = MACHINE(hotplug_dev);
     sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(ms);
+    Error *local_err = NULL;
 
+    /* final stage hotplug handler */
     if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
         int node;
 
         if (!smc->dr_lmb_enabled) {
-            error_setg(errp, "Memory hotplug not supported for this machine");
-            return;
+            error_setg(&local_err,
+                       "Memory hotplug not supported for this machine");
+            goto out;
         }
-        node = object_property_get_uint(OBJECT(dev), PC_DIMM_NODE_PROP, errp);
-        if (*errp) {
-            return;
+        node = object_property_get_uint(OBJECT(dev), PC_DIMM_NODE_PROP,
+                                        &local_err);
+        if (local_err) {
+            goto out;
         }
         if (node < 0 || node >= MAX_NODES) {
-            error_setg(errp, "Invaild node %d", node);
-            return;
+            error_setg(&local_err, "Invaild node %d", node);
+            goto out;
         }
 
-        spapr_memory_plug(hotplug_dev, dev, node, errp);
+        spapr_memory_plug(hotplug_dev, dev, node, &local_err);
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_SPAPR_CPU_CORE)) {
-        spapr_core_plug(hotplug_dev, dev, errp);
+        spapr_core_plug(hotplug_dev, dev, &local_err);
+    } else if (dev->parent_bus && dev->parent_bus->hotplug_handler) {
+        hotplug_handler_plug(dev->parent_bus->hotplug_handler, dev, &local_err);
     }
+out:
+    error_propagate(errp, local_err);
+}
+
+static void spapr_machine_device_unplug(HotplugHandler *hotplug_dev,
+                                        DeviceState *dev, Error **errp)
+{
+    Error *local_err = NULL;
+
+    /* final stage hotplug handler */
+    if (dev->parent_bus && dev->parent_bus->hotplug_handler) {
+        hotplug_handler_unplug(dev->parent_bus->hotplug_handler, dev,
+                               &local_err);
+    }
+    error_propagate(errp, local_err);
 }
 
 static void spapr_machine_device_unplug_request(HotplugHandler *hotplug_dev,
@@ -3618,17 +3639,27 @@ static void spapr_machine_device_unplug_request(HotplugHandler *hotplug_dev,
             return;
         }
         spapr_core_unplug_request(hotplug_dev, dev, errp);
+    } else if (dev->parent_bus && dev->parent_bus->hotplug_handler) {
+        hotplug_handler_unplug_request(dev->parent_bus->hotplug_handler, dev,
+                                       errp);
     }
 }
 
 static void spapr_machine_device_pre_plug(HotplugHandler *hotplug_dev,
                                           DeviceState *dev, Error **errp)
 {
+    Error *local_err = NULL;
+
+    /* final stage hotplug handler */
     if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
-        spapr_memory_pre_plug(hotplug_dev, dev, errp);
+        spapr_memory_pre_plug(hotplug_dev, dev, &local_err);
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_SPAPR_CPU_CORE)) {
-        spapr_core_pre_plug(hotplug_dev, dev, errp);
+        spapr_core_pre_plug(hotplug_dev, dev, &local_err);
+    } else if (dev->parent_bus && dev->parent_bus->hotplug_handler) {
+        hotplug_handler_pre_plug(dev->parent_bus->hotplug_handler, dev,
+                                 &local_err);
     }
+    error_propagate(errp, local_err);
 }
 
 static HotplugHandler *spapr_get_hotplug_handler(MachineState *machine,
@@ -3988,6 +4019,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     mc->get_default_cpu_node_id = spapr_get_default_cpu_node_id;
     mc->possible_cpu_arch_ids = spapr_possible_cpu_arch_ids;
     hc->unplug_request = spapr_machine_device_unplug_request;
+    hc->unplug = spapr_machine_device_unplug;
 
     smc->dr_lmb_enabled = true;
     mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("power8_v2.0");
