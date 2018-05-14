@@ -69,9 +69,10 @@ static int memory_device_used_region_size(Object *obj, void *opaque)
     return 0;
 }
 
-uint64_t memory_device_get_free_addr(MachineState *ms, const uint64_t *hint,
-                                     uint64_t align, uint64_t size,
-                                     Error **errp)
+static uint64_t memory_device_get_free_addr(MachineState *ms,
+                                            const uint64_t *hint,
+                                            uint64_t align, uint64_t size,
+                                            Error **errp)
 {
     uint64_t address_space_start, address_space_end;
     uint64_t used_region_size = 0;
@@ -237,11 +238,38 @@ void memory_device_pre_plug(MachineState *ms, const MemoryDeviceState *md,
     }
 }
 
-void memory_device_plug_region(MachineState *ms, MemoryRegion *mr,
-                               uint64_t addr)
+void memory_device_plug(MachineState *ms, MemoryDeviceState *md,
+                        uint64_t *enforced_align, Error **errp)
 {
-    /* we expect a previous call to memory_device_get_free_addr() */
+    const MemoryDeviceClass *mdc = MEMORY_DEVICE_GET_CLASS(md);
+    const uint64_t size = mdc->get_region_size(md);
+    MemoryRegion *mr = mdc->get_memory_region(md);
+    uint64_t addr = mdc->get_addr(md);
+    uint64_t align;
+
+    /* we expect a previous call to memory_device_pre_plug */
     g_assert(ms->device_memory);
+    g_assert(mr && !memory_region_is_mapped(mr));
+
+    /* compat handling, some alignment has to be enforced for DIMMs */
+    if (enforced_align) {
+        align = *enforced_align;
+    } else {
+        align = memory_region_get_alignment(mr);
+    }
+
+    /* our device might have stronger alignment requirements */
+    if (mdc->get_align) {
+        align = MAX(align, mdc->get_align(md));
+    }
+
+    addr = memory_device_get_free_addr(ms, !addr ? NULL : &addr, align,
+                                       size, errp);
+    if (*errp) {
+        return;
+    }
+    trace_memory_device_assign_address(addr);
+    mdc->set_addr(md, addr);
 
     memory_region_add_subregion(&ms->device_memory->mr,
                                 addr - ms->device_memory->base, mr);
