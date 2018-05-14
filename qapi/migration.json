@@ -1220,3 +1220,36 @@
 # Since: 2.9
 ##
 { 'command': 'xen-colo-do-checkpoint' }
+
+##
+# @COLOStatus:
+#
+# The result format for 'query-colo-status'.
+#
+# @mode: which COLO mode the VM was in when it exited.
+#
+# @colo-running: true if COLO is running.
+#
+# @reason: describes the reason for the COLO exit.
+#
+# Since: 2.13
+##
+{ 'struct': 'COLOStatus',
+  'data': { 'mode': 'COLOMode', 'colo-running': 'bool', 'reason': 'COLOExitReason' } }
+
+##
+# @query-colo-status:
+#
+# Query COLO status while the vm is running.
+#
+# Returns: A @COLOStatus object showing the status.
+#
+# Example:
+#
+# -> { "execute": "query-colo-status" }
+# <- { "return": { "mode": "primary", "colo-running": true, "reason": "request" } }
+#
+# Since: 2.13
+##
+{ 'command': 'query-colo-status',
+  'returns': 'COLOStatus' }
