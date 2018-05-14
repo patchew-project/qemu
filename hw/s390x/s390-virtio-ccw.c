@@ -35,6 +35,7 @@
 #include "migration/register.h"
 #include "cpu_models.h"
 #include "hw/nmi.h"
+#include "hw/mem/memory-device.h"
 
 S390CPU *s390_cpu_addr2state(uint16_t cpu_addr)
 {
@@ -436,11 +437,28 @@ static void s390_machine_device_plug(HotplugHandler *hotplug_dev,
 {
     Error *local_err = NULL;
 
+    /* first stage hotplug handler */
+    if (object_dynamic_cast(OBJECT(dev), TYPE_MEMORY_DEVICE)) {
+        memory_device_plug(MACHINE(hotplug_dev), MEMORY_DEVICE(dev), NULL,
+                           &local_err);
+    }
+
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
     /* final stage hotplug handler */
     if (object_dynamic_cast(OBJECT(dev), TYPE_CPU)) {
         s390_cpu_plug(hotplug_dev, dev, &local_err);
     } else if (dev->parent_bus && dev->parent_bus->hotplug_handler) {
         hotplug_handler_plug(dev->parent_bus->hotplug_handler, dev, &local_err);
+    }
+
+    if (local_err) {
+        if (object_dynamic_cast(OBJECT(dev), TYPE_MEMORY_DEVICE)) {
+            memory_device_unplug(MACHINE(hotplug_dev), MEMORY_DEVICE(dev));
+        }
     }
     error_propagate(errp, local_err);
 }
@@ -468,6 +486,16 @@ static void s390_machine_device_unplug(HotplugHandler *hotplug_dev,
                                &local_err);
     }
     error_propagate(errp, local_err);
+
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    /* first stage hotplug handler */
+    if (object_dynamic_cast(OBJECT(dev), TYPE_MEMORY_DEVICE)) {
+        memory_device_unplug(MACHINE(hotplug_dev), MEMORY_DEVICE(dev));
+    }
 }
 
 static CpuInstanceProperties s390_cpu_index_to_props(MachineState *ms,
@@ -506,7 +534,8 @@ static const CPUArchIdList *s390_possible_cpu_arch_ids(MachineState *ms)
 static HotplugHandler *s390_get_hotplug_handler(MachineState *machine,
                                                 DeviceState *dev)
 {
-    if (object_dynamic_cast(OBJECT(dev), TYPE_CPU)) {
+    if (object_dynamic_cast(OBJECT(dev), TYPE_CPU) ||
+        object_dynamic_cast(OBJECT(dev), TYPE_MEMORY_DEVICE)) {
         return HOTPLUG_HANDLER(machine);
     }
     return NULL;
