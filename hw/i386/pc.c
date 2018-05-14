@@ -2010,6 +2010,16 @@ static void pc_machine_device_pre_plug_cb(HotplugHandler *hotplug_dev,
 {
     Error *local_err = NULL;
 
+    /* first stage hotplug handler */
+    if (object_dynamic_cast(OBJECT(dev), TYPE_MEMORY_DEVICE)) {
+        memory_device_pre_plug(MACHINE(hotplug_dev), MEMORY_DEVICE(dev),
+                               &local_err);
+    }
+
+    if (local_err) {
+        goto out;
+    }
+
     /* final stage hotplug handler */
     if (object_dynamic_cast(OBJECT(dev), TYPE_CPU)) {
         pc_cpu_pre_plug(hotplug_dev, dev, &local_err);
@@ -2017,6 +2027,7 @@ static void pc_machine_device_pre_plug_cb(HotplugHandler *hotplug_dev,
         hotplug_handler_pre_plug(dev->parent_bus->hotplug_handler, dev,
                                  &local_err);
     }
+out:
     error_propagate(errp, local_err);
 }
 
