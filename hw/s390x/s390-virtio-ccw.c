@@ -157,9 +157,11 @@ static void virtio_ccw_register_hcalls(void)
 #define KVM_MEM_MAX_NR_PAGES ((1ULL << 31) - 1)
 #define SEG_MSK (~0xfffffULL)
 #define KVM_SLOT_MAX_BYTES ((KVM_MEM_MAX_NR_PAGES * TARGET_PAGE_SIZE) & SEG_MSK)
-static void s390_memory_init(ram_addr_t mem_size)
+static void s390_memory_init(MachineState *machine)
 {
+    S390CcwMachineState *ms = S390_CCW_MACHINE(machine);
     MemoryRegion *sysmem = get_system_memory();
+    ram_addr_t mem_size = machine->ram_size;
     ram_addr_t chunk, offset = 0;
     unsigned int number = 0;
     gchar *name;
@@ -180,6 +182,28 @@ static void s390_memory_init(ram_addr_t mem_size)
         name = g_strdup_printf("s390.ram.%u", ++number);
     }
     g_free(name);
+
+    /* always allocate the device memory information */
+    machine->device_memory = g_malloc0(sizeof(*machine->device_memory));
+
+    /* initialize device memory address space */
+    if (machine->ram_size < machine->maxram_size) {
+        ram_addr_t device_mem_size = machine->maxram_size - machine->ram_size;
+
+        if (QEMU_ALIGN_UP(machine->maxram_size, TARGET_PAGE_SIZE) !=
+            machine->maxram_size) {
+            error_report("maximum memory size must be aligned to multiple of "
+                         "%d bytes", TARGET_PAGE_SIZE);
+            exit(EXIT_FAILURE);
+        }
+
+        machine->device_memory->base = machine->ram_size;
+        memory_region_init(&machine->device_memory->mr, OBJECT(ms),
+                           "device-memory", device_mem_size);
+        memory_region_add_subregion(sysmem, machine->device_memory->base,
+                                    &machine->device_memory->mr);
+
+    }
 
     /* Initialize storage key device */
     s390_skeys_init();
@@ -304,7 +328,7 @@ static void ccw_init(MachineState *machine)
     DeviceState *dev;
 
     s390_sclp_init();
-    s390_memory_init(machine->ram_size);
+    s390_memory_init(machine);
 
     /* init CPUs (incl. CPU model) early so s390_has_feature() works */
     s390_init_cpus(machine);
