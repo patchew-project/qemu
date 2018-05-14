@@ -58,6 +58,6 @@ uint64_t memory_device_get_free_addr(MachineState *ms, const uint64_t *hint,
                                      Error **errp);
 void memory_device_plug_region(MachineState *ms, MemoryRegion *mr,
                                uint64_t addr);
-void memory_device_unplug_region(MachineState *ms, MemoryRegion *mr);
+void memory_device_unplug(MachineState *ms, MemoryDeviceState *md);
 
 #endif

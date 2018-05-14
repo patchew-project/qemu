@@ -2044,6 +2044,12 @@ static void pc_machine_device_plug_cb(HotplugHandler *hotplug_dev,
     } else if (dev->parent_bus && dev->parent_bus->hotplug_handler) {
         hotplug_handler_plug(dev->parent_bus->hotplug_handler, dev, &local_err);
     }
+
+    if (local_err) {
+        if (object_dynamic_cast(OBJECT(dev), TYPE_MEMORY_DEVICE)) {
+            memory_device_unplug(MACHINE(hotplug_dev), MEMORY_DEVICE(dev));
+        }
+    }
     error_propagate(errp, local_err);
 }
 
@@ -2080,7 +2086,16 @@ static void pc_machine_device_unplug_cb(HotplugHandler *hotplug_dev,
         error_setg(&local_err, "acpi: device unplug for not supported device"
                    " type: %s", object_get_typename(OBJECT(dev)));
     }
-    error_propagate(errp, local_err);
+
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    /* first stage hotplug handler */
+    if (object_dynamic_cast(OBJECT(dev), TYPE_MEMORY_DEVICE)) {
+        memory_device_unplug(MACHINE(hotplug_dev), MEMORY_DEVICE(dev));
+    }
 }
 
 static HotplugHandler *pc_get_hotpug_handler(MachineState *machine,
