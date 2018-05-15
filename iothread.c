@@ -128,6 +128,7 @@ static void iothread_instance_finalize(Object *obj)
      * GSources first before destroying any GMainContext.
      */
     if (iothread->ctx) {
+        close(iothread->ctx->epollfd);
         aio_context_unref(iothread->ctx);
         iothread->ctx = NULL;
     }
