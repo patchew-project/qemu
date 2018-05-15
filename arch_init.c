@@ -115,6 +115,7 @@ TargetInfo *qmp_query_target(Error **errp)
 
     info->arch = qapi_enum_parse(&SysEmuTarget_lookup, TARGET_NAME, -1,
                                  &error_abort);
+    info->wakeup_suspend_support = !qemu_wakeup_notifier_is_empty();
 
     return info;
 }
