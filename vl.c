@@ -259,6 +259,7 @@ static QemuOptsList qemu_rtc_opts = {
     },
 };
 
+#ifdef CONFIG_SECCOMP
 static QemuOptsList qemu_sandbox_opts = {
     .name = "sandbox",
     .implied_opt_name = "enable",
@@ -287,6 +288,7 @@ static QemuOptsList qemu_sandbox_opts = {
         { /* end of list */ }
     },
 };
+#endif
 
 static QemuOptsList qemu_option_rom_opts = {
     .name = "option-rom",
@@ -1043,10 +1045,10 @@ static int bt_parse(const char *opt)
     return 1;
 }
 
+#ifdef CONFIG_SECCOMP
 static int parse_sandbox(void *opaque, QemuOpts *opts, Error **errp)
 {
     if (qemu_opt_get_bool(opts, "enable", false)) {
-#ifdef CONFIG_SECCOMP
         uint32_t seccomp_opts = QEMU_SECCOMP_SET_DEFAULT
                 | QEMU_SECCOMP_SET_OBSOLETE;
         const char *value = NULL;
@@ -1116,14 +1118,11 @@ static int parse_sandbox(void *opaque, QemuOpts *opts, Error **errp)
                          "in the kernel");
             return -1;
         }
-#else
-        error_report("seccomp support is disabled");
-        return -1;
-#endif
     }
 
     return 0;
 }
+#endif
 
 static int parse_name(void *opaque, QemuOpts *opts, Error **errp)
 {
@@ -3059,7 +3058,9 @@ int main(int argc, char **argv, char **envp)
     qemu_add_opts(&qemu_mem_opts);
     qemu_add_opts(&qemu_smp_opts);
     qemu_add_opts(&qemu_boot_opts);
+#ifdef CONFIG_SECCOMP
     qemu_add_opts(&qemu_sandbox_opts);
+#endif
     qemu_add_opts(&qemu_add_fd_opts);
     qemu_add_opts(&qemu_object_opts);
     qemu_add_opts(&qemu_tpmdev_opts);
@@ -4044,10 +4045,12 @@ int main(int argc, char **argv, char **envp)
         exit(1);
     }
 
+#ifdef CONFIG_SECCOMP
     if (qemu_opts_foreach(qemu_find_opts("sandbox"),
                           parse_sandbox, NULL, NULL)) {
         exit(1);
     }
+#endif
 
     if (qemu_opts_foreach(qemu_find_opts("name"),
                           parse_name, NULL, NULL)) {
