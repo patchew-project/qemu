@@ -43,6 +43,7 @@
 #include "hw/acpi/memory_hotplug.h"
 #include "sysemu/tpm.h"
 #include "hw/acpi/tpm.h"
+#include "hw/tpm/tpm_ppi.h"
 #include "hw/acpi/vmgenid.h"
 #include "sysemu/tpm_backend.h"
 #include "hw/timer/mc146818rtc_regs.h"
@@ -1790,6 +1791,292 @@ static Aml *build_q35_osc_method(void)
 }
 
 static void
+build_tpm_ppi(Aml *dev)
+{
+    Aml *method, *name, *field, *ifctx, *ifctx2, *ifctx3, *pak;
+    struct tpm_ppi *tpm_ppi = NULL;
+    int i;
+
+    /*
+     * TPP1 is for the flags that indicate which PPI operations
+     * are supported by the firmware. The firmware is expected to
+     * write these flags.
+     */
+    aml_append(dev,
+               aml_operation_region("TPP1", AML_SYSTEM_MEMORY,
+                                    aml_int(TPM_PPI_ADDR_BASE),
+                                    sizeof(tpm_ppi->func)));
+    field = aml_field("TPP1", AML_ANY_ACC, AML_NOLOCK, AML_PRESERVE);
+    for (i = 0; i < sizeof(tpm_ppi->func); i++) {
+        char *tmp = g_strdup_printf("FN%02X", i);
+        aml_append(field, aml_named_field(tmp, BITS_PER_BYTE));
+        g_free(tmp);
+    }
+    aml_append(dev, field);
+
+    /*
+     * TPP2 is for the registers that ACPI code used to pass
+     * the PPI code and parameter (PPRQ, PPRM) to the firmware.
+     */
+    aml_append(dev,
+               aml_operation_region("TPP2", AML_SYSTEM_MEMORY,
+                                    aml_int(TPM_PPI_ADDR_BASE +
+                                            offsetof(struct tpm_ppi, ppin)),
+                                    sizeof(struct tpm_ppi) -
+                                        sizeof(tpm_ppi->func)));
+    field = aml_field("TPP2", AML_ANY_ACC, AML_NOLOCK, AML_PRESERVE);
+    aml_append(field, aml_named_field("PPIN",
+               sizeof(uint8_t) * BITS_PER_BYTE));
+    aml_append(field, aml_named_field("PPIP",
+               sizeof(uint32_t) * BITS_PER_BYTE));
+    aml_append(field, aml_named_field("PPRP",
+               sizeof(uint32_t) * BITS_PER_BYTE));
+    aml_append(field, aml_named_field("PPRQ",
+               sizeof(uint32_t) * BITS_PER_BYTE));
+    aml_append(field, aml_named_field("PPRM",
+               sizeof(uint32_t) * BITS_PER_BYTE));
+    aml_append(field, aml_named_field("LPPR",
+               sizeof(uint32_t) * BITS_PER_BYTE));
+    aml_append(dev, field);
+
+    method = aml_method("TPFN", 1, AML_SERIALIZED);
+    {
+        for (i = 0; i < sizeof(tpm_ppi->func); i++) {
+            ifctx = aml_if(aml_equal(aml_int(i), aml_arg(0)));
+            {
+                aml_append(ifctx, aml_return(aml_name("FN%02X", i)));
+            }
+            aml_append(method, ifctx);
+        }
+        aml_append(method, aml_return(aml_int(0)));
+    }
+    aml_append(dev, method);
+
+    pak = aml_package(2);
+    aml_append(pak, aml_int(0));
+    aml_append(pak, aml_int(0));
+    name = aml_name_decl("TPM2", pak);
+    aml_append(dev, name);
+
+    pak = aml_package(3);
+    aml_append(pak, aml_int(0));
+    aml_append(pak, aml_int(0));
+    aml_append(pak, aml_int(0));
+    name = aml_name_decl("TPM3", pak);
+    aml_append(dev, name);
+
+    method = aml_method("_DSM", 4, AML_SERIALIZED);
+    {
+        uint8_t zerobyte[1] = { 0 };
+
+        ifctx = aml_if(
+            aml_equal(aml_arg(0),
+                      aml_touuid("3DDDFAA6-361B-4EB4-A424-8D10089D1653")));
+        {
+            aml_append(ifctx,
+                       aml_store(aml_to_integer(aml_arg(2)), aml_local(0)));
+
+            /* standard DSM query function */
+            ifctx2 = aml_if(aml_equal(aml_local(0), aml_int(0)));
+            {
+                uint8_t byte_list[2] = { 0xff, 0x01 };
+                aml_append(ifctx2, aml_return(aml_buffer(2, byte_list)));
+            }
+            aml_append(ifctx, ifctx2);
+
+            /* interface version: 1.3 */
+            ifctx2 = aml_if(aml_equal(aml_local(0), aml_int(1)));
+            {
+                aml_append(ifctx2, aml_return(aml_string("1.3")));
+            }
+            aml_append(ifctx, ifctx2);
+
+            /* submit TPM operation */
+            ifctx2 = aml_if(aml_equal(aml_local(0), aml_int(2)));
+            {
+                /* get opcode */
+                aml_append(ifctx2,
+                           aml_store(aml_derefof(aml_index(aml_arg(3),
+                                                           aml_int(0))),
+                                     aml_local(0)));
+                /* get opcode flags */
+                aml_append(ifctx2,
+                           aml_store(aml_call1("TPFN", aml_local(0)),
+                                     aml_local(1)));
+                ifctx3 = aml_if(
+                    aml_equal(
+                        aml_and(aml_local(1), aml_int(TPM_PPI_FUNC_MASK), NULL),
+                        aml_int(TPM_PPI_FUNC_NOT_IMPLEMENTED)));
+                {
+                    /* 1: not implemented */
+                    aml_append(ifctx3, aml_return(aml_int(1)));
+                }
+                aml_append(ifctx2, ifctx3);
+                aml_append(ifctx2, aml_store(aml_local(0), aml_name("PPRQ")));
+                aml_append(ifctx2, aml_store(aml_int(0), aml_name("PPRM")));
+                /* 0: success */
+                aml_append(ifctx2, aml_return(aml_int(0)));
+            }
+            aml_append(ifctx, ifctx2);
+
+            /* get pending TPM operation */
+            ifctx2 = aml_if(aml_equal(aml_local(0), aml_int(3)));
+            {
+                /* revision to integer */
+                aml_append(ifctx2,
+                           aml_store(
+                               aml_to_integer(aml_arg(1)),
+                               aml_local(1)));
+                ifctx3 = aml_if(aml_equal(aml_local(1), aml_int(1)));
+                {
+                    aml_append(ifctx3,
+                               aml_store(
+                                   aml_name("PPRQ"),
+                                   aml_index(aml_name("TPM2"), aml_int(1))));
+                    aml_append(ifctx3, aml_return(aml_name("TPM2")));
+                }
+                aml_append(ifctx2, ifctx3);
+
+                ifctx3 = aml_if(aml_equal(aml_local(1), aml_int(2)));
+                {
+                    aml_append(ifctx3,
+                               aml_store(
+                                   aml_name("PPRQ"),
+                                   aml_index(aml_name("TPM3"), aml_int(1))));
+                    aml_append(ifctx3,
+                               aml_store(
+                                   aml_name("PPRM"),
+                                   aml_index(aml_name("TPM3"), aml_int(2))));
+                    aml_append(ifctx3, aml_return(aml_name("TPM3")));
+                }
+                aml_append(ifctx2, ifctx3);
+            }
+            aml_append(ifctx, ifctx2);
+
+            /* get platform-specific action to transition to pre-OS env. */
+            ifctx2 = aml_if(aml_equal(aml_local(0), aml_int(4)));
+            {
+                /* reboot */
+                aml_append(ifctx2, aml_return(aml_int(2)));
+            }
+            aml_append(ifctx, ifctx2);
+
+            /* get TPM operation response */
+            ifctx2 = aml_if(aml_equal(aml_local(0), aml_int(5)));
+            {
+                aml_append(ifctx2,
+                           aml_store(
+                               aml_name("LPPR"),
+                               aml_index(aml_name("TPM3"), aml_int(1))));
+                aml_append(ifctx2,
+                           aml_store(
+                               aml_name("PPRP"),
+                               aml_index(aml_name("TPM3"), aml_int(2))));
+                aml_append(ifctx2, aml_return(aml_name("TPM3")));
+            }
+            aml_append(ifctx, ifctx2);
+
+            /* submit preferred user language */
+            ifctx2 = aml_if(aml_equal(aml_local(0), aml_int(6)));
+            {
+                /* 3 = not implemented */
+                aml_append(ifctx2, aml_return(aml_int(3)));
+            }
+            aml_append(ifctx, ifctx2);
+
+            /* submit TPM operation v2 */
+            ifctx2 = aml_if(aml_equal(aml_local(0), aml_int(7)));
+            {
+                /* get opcode */
+                aml_append(ifctx2,
+                           aml_store(aml_derefof(aml_index(aml_arg(3),
+                                                           aml_int(0))),
+                                     aml_local(0)));
+                /* get opcode flags */
+                aml_append(ifctx2,
+                           aml_store(aml_call1("TPFN", aml_local(0)),
+                                     aml_local(1)));
+                ifctx3 = aml_if(
+                    aml_equal(
+                        aml_and(aml_local(1), aml_int(TPM_PPI_FUNC_MASK), NULL),
+                        aml_int(TPM_PPI_FUNC_NOT_IMPLEMENTED)));
+                {
+                    /* 1: not implemented */
+                    aml_append(ifctx3, aml_return(aml_int(1)));
+                }
+                aml_append(ifctx2, ifctx3);
+
+                ifctx3 = aml_if(
+                    aml_equal(
+                        aml_and(aml_local(1), aml_int(TPM_PPI_FUNC_MASK), NULL),
+                        aml_int(TPM_PPI_FUNC_BLOCKED)));
+                {
+                    /* 3: blocked by firmware */
+                    aml_append(ifctx3, aml_return(aml_int(3)));
+                }
+                aml_append(ifctx2, ifctx3);
+
+                /* revision to integer */
+                aml_append(ifctx2,
+                           aml_store(
+                               aml_to_integer(aml_arg(1)),
+                               aml_local(1)));
+
+                ifctx3 = aml_if(aml_equal(aml_local(1), aml_int(1)));
+                {
+                    /* revision 1 */
+                    aml_append(ifctx3, aml_store(aml_local(0),
+                                                 aml_name("PPRQ")));
+                    aml_append(ifctx3, aml_store(aml_int(0),
+                                                 aml_name("PPRM")));
+                }
+                aml_append(ifctx2, ifctx3);
+
+                ifctx3 = aml_if(aml_equal(aml_local(1), aml_int(2)));
+                {
+                    /* revision 2 */
+                    aml_append(ifctx3,
+                               aml_store(aml_local(0), aml_name("PPRQ")));
+                    aml_append(ifctx3,
+                               aml_store(
+                                   aml_derefof(aml_index(aml_arg(3),
+                                                         aml_int(1))),
+                                   aml_name("PPRM")));
+                }
+                aml_append(ifctx2, ifctx3);
+                /* 0: success */
+                aml_append(ifctx2, aml_return(aml_int(0)));
+            }
+            aml_append(ifctx, ifctx2);
+
+            /* get user confirmation status for operation */
+            ifctx2 = aml_if(aml_equal(aml_local(0), aml_int(8)));
+            {
+                /* get opcode */
+                aml_append(ifctx2,
+                           aml_store(aml_derefof(aml_index(aml_arg(3),
+                                                           aml_int(0))),
+                                     aml_local(0)));
+                /* get opcode flags */
+                aml_append(ifctx2,
+                           aml_store(aml_call1("TPFN", aml_local(0)),
+                                     aml_local(1)));
+                /* return confirmation status code */
+                aml_append(ifctx2,
+                           aml_return(
+                               aml_and(aml_local(1),
+                                       aml_int(TPM_PPI_FUNC_MASK), NULL)));
+            }
+            aml_append(ifctx, ifctx2);
+
+            aml_append(ifctx, aml_return(aml_buffer(1, zerobyte)));
+        }
+        aml_append(method, ifctx);
+    }
+    aml_append(dev, method);
+}
+
+static void
 build_dsdt(GArray *table_data, BIOSLinker *linker,
            AcpiPmInfo *pm, AcpiMiscInfo *misc,
            Range *pci_hole, Range *pci_hole64, MachineState *machine)
@@ -2153,6 +2440,9 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
                  */
                 /* aml_append(crs, aml_irq_no_flags(TPM_TIS_IRQ)); */
                 aml_append(dev, aml_name_decl("_CRS", crs));
+
+                build_tpm_ppi(dev);
+
                 aml_append(scope, dev);
             }
 
@@ -2171,6 +2461,8 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
         method = aml_method("_STA", 0, AML_NOTSERIALIZED);
         aml_append(method, aml_return(aml_int(0x0f)));
         aml_append(dev, method);
+
+        build_tpm_ppi(dev);
 
         aml_append(sb_scope, dev);
     }
@@ -2918,7 +3210,7 @@ void acpi_setup(void)
         tpm_config = (FWCfgTPMConfig) {
             .tpmppi_address = cpu_to_le32(TPM_PPI_ADDR_BASE),
             .tpm_version = cpu_to_le32(tpm_get_version(tpm_find())),
-            .tpmppi_version = cpu_to_le32(TPM_PPI_VERSION_NONE)
+            .tpmppi_version = cpu_to_le32(TPM_PPI_VERSION_1_30)
         };
         fw_cfg_add_file(pcms->fw_cfg, "etc/tpm/config",
                         &tpm_config, sizeof tpm_config);
