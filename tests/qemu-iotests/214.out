@@ -1,0 +1,304 @@
+QA output created by 214
+
+=== Successful image creation (defaults) ===
+
+QMP_VERSION
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
+
+image: TEST_DIR/t.IMGFMT
+file format: IMGFMT
+virtual size: 5.0G (5368709120 bytes)
+Format specific information:
+    cid: XXXXXXXXXX
+    parent cid: XXXXXXXXXX
+    create type: monolithicSparse
+    extents:
+        [0]:
+            virtual size: 5368709120
+            filename: TEST_DIR/t.IMGFMT
+            cluster size: 65536
+            format:
+
+=== Successful image creation (explicit defaults) ===
+
+QMP_VERSION
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
+
+image: TEST_DIR/t.IMGFMT
+file format: IMGFMT
+virtual size: 64M (67108864 bytes)
+Format specific information:
+    cid: XXXXXXXXXX
+    parent cid: XXXXXXXXXX
+    create type: monolithicSparse
+    extents:
+        [0]:
+            virtual size: 67108864
+            filename: TEST_DIR/t.IMGFMT
+            cluster size: 65536
+            format:
+
+=== Successful image creation (with non-default options) ===
+
+QMP_VERSION
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
+
+image: TEST_DIR/t.IMGFMT
+file format: IMGFMT
+virtual size: 32M (33554432 bytes)
+Format specific information:
+    cid: XXXXXXXXXX
+    parent cid: XXXXXXXXXX
+    create type: monolithicSparse
+    extents:
+        [0]:
+            virtual size: 33554432
+            filename: TEST_DIR/t.IMGFMT
+            cluster size: 65536
+            format:
+
+=== Invalid BlockdevRef ===
+
+QMP_VERSION
+{"return": {}}
+{"error": {"class": "GenericError", "desc": "Cannot find device=this doesn't exist nor node_name=this doesn't exist"}}
+{"return": {}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
+
+
+=== Other subformats ===
+
+Formatting 'TEST_DIR/t.IMGFMT.1', fmt=IMGFMT size=0
+Formatting 'TEST_DIR/t.IMGFMT.2', fmt=IMGFMT size=0
+Formatting 'TEST_DIR/t.IMGFMT.3', fmt=IMGFMT size=0
+
+== Missing extent ==
+QMP_VERSION
+{"return": {}}
+{"error": {"class": "GenericError", "desc": "Extent [0] not specified"}}
+{"return": {}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
+
+
+== Correct extent ==
+QMP_VERSION
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
+
+
+== Extra extent ==
+QMP_VERSION
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
+
+
+== Split formats ==
+
+
+= twoGbMaxExtentFlat 512 =
+
+QMP_VERSION
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
+
+image: TEST_DIR/t.IMGFMT
+file format: IMGFMT
+virtual size: 512 (512 bytes)
+Format specific information:
+    cid: XXXXXXXXXX
+    parent cid: XXXXXXXXXX
+    create type: twoGbMaxExtentFlat
+    extents:
+        [0]:
+            virtual size: 512
+            filename: TEST_DIR/t.IMGFMT.1
+            format: FLAT
+
+= twoGbMaxExtentSparse 512 =
+
+QMP_VERSION
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
+
+image: TEST_DIR/t.IMGFMT
+file format: IMGFMT
+virtual size: 512 (512 bytes)
+Format specific information:
+    cid: XXXXXXXXXX
+    parent cid: XXXXXXXXXX
+    create type: twoGbMaxExtentSparse
+    extents:
+        [0]:
+            virtual size: 512
+            filename: TEST_DIR/t.IMGFMT.1
+            cluster size: 65536
+            format: SPARSE
+
+= twoGbMaxExtentFlat 1073741824 =
+
+QMP_VERSION
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
+
+image: TEST_DIR/t.IMGFMT
+file format: IMGFMT
+virtual size: 1.0G (1073741824 bytes)
+Format specific information:
+    cid: XXXXXXXXXX
+    parent cid: XXXXXXXXXX
+    create type: twoGbMaxExtentFlat
+    extents:
+        [0]:
+            virtual size: 1073741824
+            filename: TEST_DIR/t.IMGFMT.1
+            format: FLAT
+
+= twoGbMaxExtentSparse 1073741824 =
+
+QMP_VERSION
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
+
+image: TEST_DIR/t.IMGFMT
+file format: IMGFMT
+virtual size: 1.0G (1073741824 bytes)
+Format specific information:
+    cid: XXXXXXXXXX
+    parent cid: XXXXXXXXXX
+    create type: twoGbMaxExtentSparse
+    extents:
+        [0]:
+            virtual size: 1073741824
+            filename: TEST_DIR/t.IMGFMT.1
+            cluster size: 65536
+            format: SPARSE
+
+= twoGbMaxExtentFlat 2147483648 =
+
+QMP_VERSION
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
+
+image: TEST_DIR/t.IMGFMT
+file format: IMGFMT
+virtual size: 2.0G (2147483648 bytes)
+Format specific information:
+    cid: XXXXXXXXXX
+    parent cid: XXXXXXXXXX
+    create type: twoGbMaxExtentFlat
+    extents:
+        [0]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t.IMGFMT.1
+            format: FLAT
+
+= twoGbMaxExtentSparse 2147483648 =
+
+QMP_VERSION
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
+
+image: TEST_DIR/t.IMGFMT
+file format: IMGFMT
+virtual size: 2.0G (2147483648 bytes)
+Format specific information:
+    cid: XXXXXXXXXX
+    parent cid: XXXXXXXXXX
+    create type: twoGbMaxExtentSparse
+    extents:
+        [0]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t.IMGFMT.1
+            cluster size: 65536
+            format: SPARSE
+
+= twoGbMaxExtentFlat 5368709120 =
+
+QMP_VERSION
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
+
+image: TEST_DIR/t.IMGFMT
+file format: IMGFMT
+virtual size: 5.0G (5368709120 bytes)
+Format specific information:
+    cid: XXXXXXXXXX
+    parent cid: XXXXXXXXXX
+    create type: twoGbMaxExtentFlat
+    extents:
+        [0]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t.IMGFMT.1
+            format: FLAT
+        [1]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t.IMGFMT.2
+            format: FLAT
+        [2]:
+            virtual size: 1073741824
+            filename: TEST_DIR/t.IMGFMT.3
+            format: FLAT
+
+= twoGbMaxExtentSparse 5368709120 =
+
+QMP_VERSION
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
+
+image: TEST_DIR/t.IMGFMT
+file format: IMGFMT
+virtual size: 5.0G (5368709120 bytes)
+Format specific information:
+    cid: XXXXXXXXXX
+    parent cid: XXXXXXXXXX
+    create type: twoGbMaxExtentSparse
+    extents:
+        [0]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t.IMGFMT.1
+            cluster size: 65536
+            format: SPARSE
+        [1]:
+            virtual size: 2147483648
+            filename: TEST_DIR/t.IMGFMT.2
+            cluster size: 65536
+            format: SPARSE
+        [2]:
+            virtual size: 1073741824
+            filename: TEST_DIR/t.IMGFMT.3
+            cluster size: 65536
+            format: SPARSE
+*** done

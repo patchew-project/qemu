@@ -1,0 +1,268 @@
+#!/bin/bash
+#
+# Test vmdk and file image creation
+#
+# Copyright (C) 2018 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=famz@redhat.com
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+here=`pwd`
+status=1	# failure is the default!
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+
+_supported_fmt vmdk
+_supported_proto file
+_supported_os Linux
+
+function do_run_qemu()
+{
+    $QEMU -nographic -qmp stdio -serial none "$@"
+    echo
+}
+
+function run_qemu()
+{
+    do_run_qemu "$@" 2>&1 | _filter_testdir | _filter_qmp \
+                          | _filter_qemu | _filter_imgfmt \
+                          | _filter_actual_image_size
+}
+
+echo
+echo "=== Successful image creation (defaults) ==="
+echo
+
+size=$((5 * 1024 * 1024 * 1024))
+
+run_qemu <<EOF
+{ "execute": "qmp_capabilities" }
+{ "execute": "x-blockdev-create",
+  "arguments": {
+      "driver": "file",
+      "filename": "$TEST_IMG",
+      "size": 0
+  }
+}
+{ "execute": "blockdev-add",
+  "arguments": {
+      "driver": "file",
+      "node-name": "imgfile",
+      "filename": "$TEST_IMG"
+  }
+}
+{ "execute": "x-blockdev-create",
+  "arguments": {
+      "driver": "$IMGFMT",
+      "file": "imgfile",
+      "size": $size
+  }
+}
+{ "execute": "quit" }
+EOF
+
+_img_info --format-specific | _filter_img_info --format-specific
+
+echo
+echo "=== Successful image creation (explicit defaults) ==="
+echo
+
+# Choose a different size to show that we got a new image
+size=$((64 * 1024 * 1024))
+
+run_qemu <<EOF
+{ "execute": "qmp_capabilities" }
+{ "execute": "x-blockdev-create",
+  "arguments": {
+      "driver": "file",
+      "filename": "$TEST_IMG",
+      "size": 0
+  }
+}
+{ "execute": "x-blockdev-create",
+  "arguments": {
+      "driver": "$IMGFMT",
+      "file": {
+          "driver": "file",
+          "filename": "$TEST_IMG"
+      },
+      "size": $size,
+      "extents": [],
+      "subformat": "monolithicSparse",
+      "adapter-type": "ide",
+      "hwversion": "4",
+      "zeroed-grain": false
+  }
+}
+{ "execute": "quit" }
+EOF
+
+_img_info --format-specific | _filter_img_info --format-specific
+
+echo
+echo "=== Successful image creation (with non-default options) ==="
+echo
+
+# Choose a different size to show that we got a new image
+size=$((32 * 1024 * 1024))
+
+run_qemu <<EOF
+{ "execute": "qmp_capabilities" }
+{ "execute": "x-blockdev-create",
+  "arguments": {
+      "driver": "file",
+      "filename": "$TEST_IMG",
+      "size": 0
+  }
+}
+{ "execute": "x-blockdev-create",
+  "arguments": {
+      "driver": "$IMGFMT",
+      "file": {
+          "driver": "file",
+          "filename": "$TEST_IMG"
+      },
+      "size": $size,
+      "extents": [],
+      "subformat": "monolithicSparse",
+      "adapter-type": "buslogic",
+      "zeroed-grain": true
+  }
+}
+{ "execute": "quit" }
+EOF
+
+_img_info --format-specific | _filter_img_info --format-specific
+
+echo
+echo "=== Invalid BlockdevRef ==="
+echo
+
+run_qemu <<EOF
+{ "execute": "qmp_capabilities" }
+{ "execute": "x-blockdev-create",
+  "arguments": {
+      "driver": "$IMGFMT",
+      "file": "this doesn't exist",
+      "size": $size
+  }
+}
+{ "execute": "quit" }
+EOF
+
+echo
+echo "=== Other subformats ==="
+echo
+
+TEST_IMG="$TEST_IMG.1" _make_test_img 0
+TEST_IMG="$TEST_IMG.2" _make_test_img 0
+TEST_IMG="$TEST_IMG.3" _make_test_img 0
+
+echo
+echo "== Missing extent =="
+run_qemu \
+    -blockdev driver=file,filename="$TEST_IMG",node-name=node0 <<EOF
+{ "execute": "qmp_capabilities" }
+{ "execute": "x-blockdev-create",
+  "arguments": {
+      "driver": "$IMGFMT",
+      "file": "node0",
+      "size": $size,
+      "subformat": "monolithicFlat"
+  }
+}
+{ "execute": "quit" }
+EOF
+
+echo
+echo "== Correct extent =="
+run_qemu \
+    -blockdev driver=file,filename="$TEST_IMG",node-name=node0 \
+    -blockdev driver=file,filename="$TEST_IMG.1",node-name=ext1 <<EOF
+{ "execute": "qmp_capabilities" }
+{ "execute": "x-blockdev-create",
+  "arguments": {
+      "driver": "$IMGFMT",
+      "file": "node0",
+      "size": $size,
+      "subformat": "monolithicFlat",
+      "extents": ["ext1"]
+  }
+}
+{ "execute": "quit" }
+EOF
+
+echo
+echo "== Extra extent =="
+run_qemu \
+    -blockdev driver=file,filename="$TEST_IMG",node-name=node0 \
+    -blockdev driver=file,filename="$TEST_IMG.1",node-name=ext1 \
+    -blockdev driver=file,filename="$TEST_IMG.2",node-name=ext2 \
+    -blockdev driver=file,filename="$TEST_IMG.3",node-name=ext3 <<EOF
+{ "execute": "qmp_capabilities" }
+{ "execute": "x-blockdev-create",
+  "arguments": {
+      "driver": "$IMGFMT",
+      "file": "node0",
+      "size": 512,
+      "subformat": "monolithicFlat",
+      "extents": ["ext1", "ext2", "ext3"]
+  }
+}
+{ "execute": "quit" }
+EOF
+
+echo
+echo "== Split formats =="
+echo
+
+for size in 512 1073741824 2147483648 5368709120; do
+    for subfmt in twoGbMaxExtentFlat twoGbMaxExtentSparse; do
+        echo
+        echo "= $subfmt $size ="
+        echo
+        run_qemu \
+            -blockdev driver=file,filename="$TEST_IMG",node-name=node0 \
+            -blockdev driver=file,filename="$TEST_IMG.1",node-name=ext1 \
+            -blockdev driver=file,filename="$TEST_IMG.2",node-name=ext2 \
+            -blockdev driver=file,filename="$TEST_IMG.3",node-name=ext3 <<EOF
+{ "execute": "qmp_capabilities" }
+{ "execute": "x-blockdev-create",
+  "arguments": {
+      "driver": "$IMGFMT",
+      "file": "node0",
+      "size": $size,
+      "subformat": "$subfmt",
+      "extents": ["ext1", "ext2", "ext3"]
+  }
+}
+{ "execute": "quit" }
+EOF
+
+        _img_info --format-specific | _filter_img_info --format-specific
+    done
+done
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0
