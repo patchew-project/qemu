@@ -2072,6 +2072,15 @@ build_tpm_ppi(Aml *dev)
             aml_append(ifctx, aml_return(aml_buffer(1, zerobyte)));
         }
         aml_append(method, ifctx);
+
+       /* dummy MOR Memory Clear for the sake of WLK PPI test */
+        ifctx = aml_if(
+            aml_equal(aml_arg(0),
+                      aml_touuid("376054ED-CC13-4675-901C-4756D7F2D45D")));
+        {
+            aml_append(ifctx, aml_return(aml_int(0)));
+        }
+        aml_append(method, ifctx);
     }
     aml_append(dev, method);
 }
