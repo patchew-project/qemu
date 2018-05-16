@@ -756,6 +756,7 @@ void blk_remove_bs(BlockBackend *blk)
 {
     ThrottleGroupMember *tgm = &blk->public.throttle_group_member;
     BlockDriverState *bs;
+    BdrvChild *root;
 
     notifier_list_notify(&blk->remove_bs_notifiers, blk);
     if (tgm->throttle_state) {
@@ -768,8 +769,9 @@ void blk_remove_bs(BlockBackend *blk)
 
     blk_update_root_state(blk);
 
-    bdrv_root_unref_child(blk->root);
+    root = blk->root;
     blk->root = NULL;
+    bdrv_root_unref_child(root);
 }
 
 /*
