@@ -30,14 +30,7 @@
 #define TARGET_SO_LINGER       13
 #define TARGET_SO_BSDCOMPAT    14
 /* To add :#define TARGET_SO_REUSEPORT 15 */
-#if defined(TARGET_PPC)
-#define TARGET_SO_RCVLOWAT     16
-#define TARGET_SO_SNDLOWAT     17
-#define TARGET_SO_RCVTIMEO     18
-#define TARGET_SO_SNDTIMEO     19
-#define TARGET_SO_PASSCRED     20
-#define TARGET_SO_PEERCRED     21
-#else
+#ifndef TARGET_SO_PASSCRED /* powerpc only differs in these */
 #define TARGET_SO_PASSCRED     16
 #define TARGET_SO_PEERCRED     17
 #define TARGET_SO_RCVLOWAT     18
