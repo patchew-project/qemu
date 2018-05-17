@@ -465,6 +465,15 @@ static void pnv_psi_realize(DeviceState *dev, Error **errp)
     Object *obj;
     Error *err = NULL;
     unsigned int i;
+    PnvChip *chip;
+
+    obj = object_property_get_link(OBJECT(dev), "chip", &err);
+    if (!obj) {
+        error_setg(errp, "%s: required link 'chip' not found: %s",
+                   __func__, error_get_pretty(err));
+        return;
+    }
+    chip = PNV_CHIP(obj);
 
     obj = object_property_get_link(OBJECT(dev), "xics", &err);
     if (!obj) {
@@ -497,7 +506,7 @@ static void pnv_psi_realize(DeviceState *dev, Error **errp)
 
     /* Initialize MMIO region */
     memory_region_init_io(&psi->regs_mr, OBJECT(dev), &psi_mmio_ops, psi,
-                          "psihb", PNV_PSIHB_SIZE);
+                          "psihb", PNV_PSIHB_SIZE(chip));
 
     /* Default BAR for MMIO region */
     pnv_psi_set_bar(psi, psi->bar | PSIHB_BAR_EN);
