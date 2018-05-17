@@ -1065,6 +1065,11 @@ static int vtd_sync_shadow_page_table_range(VTDAddressSpace *vtd_as,
     return vtd_page_walk(&ce_cache, addr, addr + size, &info);
 }
 
+static int vtd_sync_shadow_page_table(VTDAddressSpace *vtd_as)
+{
+    return vtd_sync_shadow_page_table_range(vtd_as, NULL, 0, UINT64_MAX);
+}
+
 /*
  * Fetch translation type for specific device. Returns <0 if error
  * happens, otherwise return the shifted type to check against
@@ -1397,7 +1402,7 @@ static void vtd_iommu_replay_all(IntelIOMMUState *s)
     VTDAddressSpace *vtd_as;
 
     QLIST_FOREACH(vtd_as, &s->notifiers_list, next) {
-        memory_region_iommu_replay_all(&vtd_as->iommu);
+        vtd_sync_shadow_page_table(vtd_as);
     }
 }
 
@@ -1470,14 +1475,13 @@ static void vtd_context_device_invalidate(IntelIOMMUState *s,
                 vtd_switch_address_space(vtd_as);
                 /*
                  * So a device is moving out of (or moving into) a
-                 * domain, a replay() suites here to notify all the
-                 * IOMMU_NOTIFIER_MAP registers about this change.
+                 * domain, resync the shadow page table.
                  * This won't bring bad even if we have no such
                  * notifier registered - the IOMMU notification
                  * framework will skip MAP notifications if that
                  * happened.
                  */
-                memory_region_iommu_replay_all(&vtd_as->iommu);
+                vtd_sync_shadow_page_table(vtd_as);
             }
         }
     }
@@ -1535,7 +1539,7 @@ static void vtd_iotlb_domain_invalidate(IntelIOMMUState *s, uint16_t domain_id)
         if (!vtd_dev_to_context_entry(s, pci_bus_num(vtd_as->bus),
                                       vtd_as->devfn, &ce) &&
             domain_id == VTD_CONTEXT_ENTRY_DID(ce.hi)) {
-            memory_region_iommu_replay_all(&vtd_as->iommu);
+            vtd_sync_shadow_page_table(vtd_as);
         }
     }
 }
