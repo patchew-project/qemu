@@ -2006,19 +2006,32 @@ static void pc_cpu_pre_plug(HotplugHandler *hotplug_dev,
 static void pc_machine_device_pre_plug_cb(HotplugHandler *hotplug_dev,
                                           DeviceState *dev, Error **errp)
 {
+    Error *local_err = NULL;
+
+    /* final stage hotplug handler */
     if (object_dynamic_cast(OBJECT(dev), TYPE_CPU)) {
-        pc_cpu_pre_plug(hotplug_dev, dev, errp);
+        pc_cpu_pre_plug(hotplug_dev, dev, &local_err);
+    } else if (dev->parent_bus && dev->parent_bus->hotplug_handler) {
+        hotplug_handler_pre_plug(dev->parent_bus->hotplug_handler, dev,
+                                 &local_err);
     }
+    error_propagate(errp, local_err);
 }
 
 static void pc_machine_device_plug_cb(HotplugHandler *hotplug_dev,
                                       DeviceState *dev, Error **errp)
 {
+    Error *local_err = NULL;
+
+    /* final stage hotplug handler */
     if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
-        pc_dimm_plug(hotplug_dev, dev, errp);
+        pc_dimm_plug(hotplug_dev, dev, &local_err);
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_CPU)) {
-        pc_cpu_plug(hotplug_dev, dev, errp);
+        pc_cpu_plug(hotplug_dev, dev, &local_err);
+    } else if (dev->parent_bus && dev->parent_bus->hotplug_handler) {
+        hotplug_handler_plug(dev->parent_bus->hotplug_handler, dev, &local_err);
     }
+    error_propagate(errp, local_err);
 }
 
 static void pc_machine_device_unplug_request_cb(HotplugHandler *hotplug_dev,
@@ -2028,7 +2041,10 @@ static void pc_machine_device_unplug_request_cb(HotplugHandler *hotplug_dev,
         pc_dimm_unplug_request(hotplug_dev, dev, errp);
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_CPU)) {
         pc_cpu_unplug_request_cb(hotplug_dev, dev, errp);
-    } else {
+    } else if (dev->parent_bus && dev->parent_bus->hotplug_handler) {
+        hotplug_handler_unplug_request(dev->parent_bus->hotplug_handler, dev,
+                                       errp);
+    } else if (!dev->parent_bus) {
         error_setg(errp, "acpi: device unplug request for not supported device"
                    " type: %s", object_get_typename(OBJECT(dev)));
     }
@@ -2037,14 +2053,21 @@ static void pc_machine_device_unplug_request_cb(HotplugHandler *hotplug_dev,
 static void pc_machine_device_unplug_cb(HotplugHandler *hotplug_dev,
                                         DeviceState *dev, Error **errp)
 {
+    Error *local_err = NULL;
+
+    /* final stage hotplug handler */
     if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
-        pc_dimm_unplug(hotplug_dev, dev, errp);
+        pc_dimm_unplug(hotplug_dev, dev, &local_err);
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_CPU)) {
-        pc_cpu_unplug_cb(hotplug_dev, dev, errp);
-    } else {
-        error_setg(errp, "acpi: device unplug for not supported device"
+        pc_cpu_unplug_cb(hotplug_dev, dev, &local_err);
+    } else if (dev->parent_bus && dev->parent_bus->hotplug_handler) {
+        hotplug_handler_unplug(dev->parent_bus->hotplug_handler, dev,
+                               &local_err);
+    } else if (!dev->parent_bus) {
+        error_setg(&local_err, "acpi: device unplug for not supported device"
                    " type: %s", object_get_typename(OBJECT(dev)));
     }
+    error_propagate(errp, local_err);
 }
 
 static HotplugHandler *pc_get_hotpug_handler(MachineState *machine,
