@@ -1018,6 +1018,53 @@ static int vtd_dev_to_context_entry(IntelIOMMUState *s, uint8_t bus_num,
     return 0;
 }
 
+static int vtd_sync_shadow_page_hook(IOMMUTLBEntry *entry,
+                                     void *private)
+{
+    memory_region_notify_iommu((IOMMUMemoryRegion *)private, *entry);
+    return 0;
+}
+
+/* If context entry is NULL, we'll try to fetch it on our own. */
+static int vtd_sync_shadow_page_table_range(VTDAddressSpace *vtd_as,
+                                            VTDContextEntry *ce,
+                                            hwaddr addr, hwaddr size)
+{
+    IntelIOMMUState *s = vtd_as->iommu_state;
+    vtd_page_walk_info info = {
+        .hook_fn = vtd_sync_shadow_page_hook,
+        .private = (void *)&vtd_as->iommu,
+        .notify_unmap = true,
+        .aw = s->aw_bits,
+        .as = vtd_as,
+    };
+    VTDContextEntry ce_cache;
+    int ret;
+
+    if (ce) {
+        /* If the caller provided context entry, use it */
+        ce_cache = *ce;
+    } else {
+        /* If the caller didn't provide ce, try to fetch */
+        ret = vtd_dev_to_context_entry(s, pci_bus_num(vtd_as->bus),
+                                       vtd_as->devfn, &ce_cache);
+        if (ret) {
+            /*
+             * This should not really happen, but in case it happens,
+             * we just skip the sync for this time.  After all we even
+             * don't have the root table pointer!
+             */
+            trace_vtd_err("Detected invalid context entry when "
+                          "trying to sync shadow page table");
+            return 0;
+        }
+    }
+
+    info.domain_id = VTD_CONTEXT_ENTRY_DID(ce_cache.hi);
+
+    return vtd_page_walk(&ce_cache, addr, addr + size, &info);
+}
+
 /*
  * Fetch translation type for specific device. Returns <0 if error
  * happens, otherwise return the shifted type to check against
@@ -1493,13 +1540,6 @@ static void vtd_iotlb_domain_invalidate(IntelIOMMUState *s, uint16_t domain_id)
     }
 }
 
-static int vtd_page_invalidate_notify_hook(IOMMUTLBEntry *entry,
-                                           void *private)
-{
-    memory_region_notify_iommu((IOMMUMemoryRegion *)private, *entry);
-    return 0;
-}
-
 static void vtd_iotlb_page_invalidate_notify(IntelIOMMUState *s,
                                            uint16_t domain_id, hwaddr addr,
                                            uint8_t am)
@@ -1514,20 +1554,11 @@ static void vtd_iotlb_page_invalidate_notify(IntelIOMMUState *s,
                                        vtd_as->devfn, &ce);
         if (!ret && domain_id == VTD_CONTEXT_ENTRY_DID(ce.hi)) {
             if (vtd_as_notify_mappings(vtd_as)) {
-                vtd_page_walk_info info = {
-                    .hook_fn = vtd_page_invalidate_notify_hook,
-                    .private = (void *)&vtd_as->iommu,
-                    .notify_unmap = true,
-                    .aw = s->aw_bits,
-                    .as = vtd_as,
-                    .domain_id = domain_id,
-                };
-
                 /*
                  * For MAP-inclusive notifiers, we need to walk the
                  * page table to sync the shadow page table.
                  */
-                vtd_page_walk(&ce, addr, addr + size, &info);
+                vtd_sync_shadow_page_table_range(vtd_as, &ce, addr, size);
             } else {
                 /*
                  * For UNMAP-only notifiers, we don't need to walk the
