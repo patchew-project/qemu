@@ -755,6 +755,7 @@ typedef int (*vtd_page_walk_hook)(IOMMUTLBEntry *entry, void *private);
  * @notify_unmap: whether we should notify invalid entries
  * @as: VT-d address space of the device
  * @aw: maximum address width
+ * @domain: domain ID of the page walk
  */
 typedef struct {
     VTDAddressSpace *as;
@@ -762,17 +763,18 @@ typedef struct {
     void *private;
     bool notify_unmap;
     uint8_t aw;
+    uint16_t domain_id;
 } vtd_page_walk_info;
 
-static int vtd_page_walk_one(IOMMUTLBEntry *entry, int level,
-                             vtd_page_walk_info *info)
+static int vtd_page_walk_one(IOMMUTLBEntry *entry, vtd_page_walk_info *info)
 {
     vtd_page_walk_hook hook_fn = info->hook_fn;
     void *private = info->private;
 
     assert(hook_fn);
-    trace_vtd_page_walk_one(level, entry->iova, entry->translated_addr,
-                            entry->addr_mask, entry->perm);
+    trace_vtd_page_walk_one(info->domain_id, entry->iova,
+                            entry->translated_addr, entry->addr_mask,
+                            entry->perm);
     return hook_fn(entry, private);
 }
 
@@ -843,7 +845,7 @@ static int vtd_page_walk_level(dma_addr_t addr, uint64_t start,
                 trace_vtd_page_walk_skip_perm(iova, iova_next);
                 goto next;
             }
-            ret = vtd_page_walk_one(&entry, level, info);
+            ret = vtd_page_walk_one(&entry, info);
             if (ret < 0) {
                 return ret;
             }
@@ -855,7 +857,7 @@ static int vtd_page_walk_level(dma_addr_t addr, uint64_t start,
                      * Translated address is meaningless, zero it.
                      */
                     entry.translated_addr = 0x0;
-                    ret = vtd_page_walk_one(&entry, level, info);
+                    ret = vtd_page_walk_one(&entry, info);
                     if (ret < 0) {
                         return ret;
                     }
@@ -1463,6 +1465,7 @@ static void vtd_iotlb_page_invalidate_notify(IntelIOMMUState *s,
                     .notify_unmap = true,
                     .aw = s->aw_bits,
                     .as = vtd_as,
+                    .domain_id = domain_id,
                 };
 
                 /*
@@ -2945,6 +2948,7 @@ static void vtd_iommu_replay(IOMMUMemoryRegion *iommu_mr, IOMMUNotifier *n)
                 .notify_unmap = false,
                 .aw = s->aw_bits,
                 .as = vtd_as,
+                .domain_id = VTD_CONTEXT_ENTRY_DID(ce.hi),
             };
 
             vtd_page_walk(&ce, 0, ~0ULL, &info);
