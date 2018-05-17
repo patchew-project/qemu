@@ -3143,16 +3143,15 @@ static void spapr_memory_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     PCDIMMDevice *dimm = PC_DIMM(dev);
     PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(dimm);
     MemoryRegion *mr;
-    uint64_t align, size, addr;
+    uint64_t size, addr;
 
     mr = ddc->get_memory_region(dimm, &local_err);
     if (local_err) {
         goto out;
     }
-    align = memory_region_get_alignment(mr);
     size = memory_region_size(mr);
 
-    pc_dimm_memory_plug(dev, MACHINE(ms), align, &local_err);
+    pc_dimm_memory_plug(dev, MACHINE(ms), &local_err);
     if (local_err) {
         goto out;
     }
@@ -3593,6 +3592,16 @@ static void spapr_machine_device_plug(HotplugHandler *hotplug_dev,
     MachineState *ms = MACHINE(hotplug_dev);
     sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(ms);
     Error *local_err = NULL;
+
+    /* first stage hotplug handler */
+    if (object_dynamic_cast(OBJECT(dev), TYPE_MEMORY_DEVICE)) {
+        memory_device_plug(ms, MEMORY_DEVICE(dev), NULL, &local_err);
+    }
+
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
 
     /* final stage hotplug handler */
     if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {

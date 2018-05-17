@@ -78,7 +78,6 @@ typedef struct PCDIMMDeviceClass {
 
 int pc_dimm_get_free_slot(const int *hint, int max_slots, Error **errp);
 
-void pc_dimm_memory_plug(DeviceState *dev, MachineState *machine,
-                         uint64_t align, Error **errp);
+void pc_dimm_memory_plug(DeviceState *dev, MachineState *machine, Error **errp);
 void pc_dimm_memory_unplug(DeviceState *dev, MachineState *machine);
 #endif
