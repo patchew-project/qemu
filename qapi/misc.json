@@ -1247,7 +1247,8 @@
 #
 # If the guest has wake-up from suspend support enabled
 # (wakeup-suspend-support flag from query-target), wakeup guest from
-# suspend. Does nothing otherwise.
+# suspend if the guest is in SUSPENDED state. Returns an error
+# otherwise.
 #
 # Since:  1.1
 #
