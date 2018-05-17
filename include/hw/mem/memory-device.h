@@ -29,14 +29,24 @@ typedef struct MemoryDeviceState {
     Object parent_obj;
 } MemoryDeviceState;
 
+/*
+ * MemoryDeviceClass functions should only be called on realized
+ * MemoryDevice instances.
+ */
 typedef struct MemoryDeviceClass {
     InterfaceClass parent_class;
 
+    /* required functions that have to be implemented */
     uint64_t (*get_addr)(const MemoryDeviceState *md);
+    void (*set_addr)(MemoryDeviceState *md, uint64_t addr);
+    MemoryRegion *(*get_memory_region)(MemoryDeviceState *md);
     uint64_t (*get_plugged_size)(const MemoryDeviceState *md);
     uint64_t (*get_region_size)(const MemoryDeviceState *md);
     void (*fill_device_info)(const MemoryDeviceState *md,
                              MemoryDeviceInfo *info);
+
+    /* optional functions that can be implemented */
+    uint64_t (*get_align)(const MemoryDeviceState *md);
 } MemoryDeviceClass;
 
 MemoryDeviceInfoList *qmp_memory_device_list(void);
