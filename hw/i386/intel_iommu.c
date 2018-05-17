@@ -779,6 +779,11 @@ static int vtd_page_walk_one(IOMMUTLBEntry *entry, vtd_page_walk_info *info)
     };
     DMAMap *mapped = iova_tree_find(as->iova_tree, &target);
 
+    if (entry->perm == IOMMU_NONE && !info->notify_unmap) {
+        trace_vtd_page_walk_one_skip_unmap(entry->iova, entry->addr_mask);
+        return 0;
+    }
+
     assert(hook_fn);
 
     /* Update local IOVA mapped ranges */
@@ -894,45 +899,34 @@ static int vtd_page_walk_level(dma_addr_t addr, uint64_t start,
          */
         entry_valid = read_cur | write_cur;
 
-        entry.target_as = &address_space_memory;
-        entry.iova = iova & subpage_mask;
-        entry.perm = IOMMU_ACCESS_FLAG(read_cur, write_cur);
-        entry.addr_mask = ~subpage_mask;
-
-        if (vtd_is_last_slpte(slpte, level)) {
-            /* NOTE: this is only meaningful if entry_valid == true */
-            entry.translated_addr = vtd_get_slpte_addr(slpte, info->aw);
-            if (!entry_valid && !info->notify_unmap) {
-                trace_vtd_page_walk_skip_perm(iova, iova_next);
-                goto next;
-            }
-            ret = vtd_page_walk_one(&entry, info);
-            if (ret < 0) {
-                return ret;
-            }
-        } else {
-            if (!entry_valid) {
-                if (info->notify_unmap) {
-                    /*
-                     * The whole entry is invalid; unmap it all.
-                     * Translated address is meaningless, zero it.
-                     */
-                    entry.translated_addr = 0x0;
-                    ret = vtd_page_walk_one(&entry, info);
-                    if (ret < 0) {
-                        return ret;
-                    }
-                } else {
-                    trace_vtd_page_walk_skip_perm(iova, iova_next);
-                }
-                goto next;
-            }
+        if (!vtd_is_last_slpte(slpte, level) && entry_valid) {
+            /*
+             * This is a valid PDE (or even bigger than PDE).  We need
+             * to walk one further level.
+             */
             ret = vtd_page_walk_level(vtd_get_slpte_addr(slpte, info->aw),
                                       iova, MIN(iova_next, end), level - 1,
                                       read_cur, write_cur, info);
-            if (ret < 0) {
-                return ret;
-            }
+        } else {
+            /*
+             * This means we are either:
+             *
+             * (1) the real page entry (either 4K page, or huge page)
+             * (2) the whole range is invalid
+             *
+             * In either case, we send an IOTLB notification down.
+             */
+            entry.target_as = &address_space_memory;
+            entry.iova = iova & subpage_mask;
+            entry.perm = IOMMU_ACCESS_FLAG(read_cur, write_cur);
+            entry.addr_mask = ~subpage_mask;
+            /* NOTE: this is only meaningful if entry_valid == true */
+            entry.translated_addr = vtd_get_slpte_addr(slpte, info->aw);
+            ret = vtd_page_walk_one(&entry, info);
+        }
+
+        if (ret < 0) {
+            return ret;
         }
 
 next:
