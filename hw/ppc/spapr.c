@@ -3620,6 +3620,11 @@ static void spapr_machine_device_plug(HotplugHandler *hotplug_dev,
         hotplug_handler_plug(dev->parent_bus->hotplug_handler, dev, &local_err);
     }
 out:
+    if (local_err) {
+        if (object_dynamic_cast(OBJECT(dev), TYPE_MEMORY_DEVICE)) {
+            memory_device_unplug(MACHINE(hotplug_dev), MEMORY_DEVICE(dev));
+        }
+    }
     error_propagate(errp, local_err);
 }
 
@@ -3637,7 +3642,16 @@ static void spapr_machine_device_unplug(HotplugHandler *hotplug_dev,
         hotplug_handler_unplug(dev->parent_bus->hotplug_handler, dev,
                                &local_err);
     }
-    error_propagate(errp, local_err);
+
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    /* first stage hotplug handler */
+    if (object_dynamic_cast(OBJECT(dev), TYPE_MEMORY_DEVICE)) {
+        memory_device_unplug(MACHINE(hotplug_dev), MEMORY_DEVICE(dev));
+    }
 }
 
 static void spapr_machine_device_unplug_request(HotplugHandler *hotplug_dev,

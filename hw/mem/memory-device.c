@@ -17,6 +17,7 @@
 #include "qemu/range.h"
 #include "hw/virtio/vhost.h"
 #include "sysemu/kvm.h"
+#include "trace.h"
 
 static gint memory_device_addr_sort(gconstpointer a, gconstpointer b)
 {
@@ -246,12 +247,21 @@ void memory_device_plug_region(MachineState *ms, MemoryRegion *mr,
                                 addr - ms->device_memory->base, mr);
 }
 
-void memory_device_unplug_region(MachineState *ms, MemoryRegion *mr)
+void memory_device_unplug(MachineState *ms, MemoryDeviceState *md)
 {
-    /* we expect a previous call to memory_device_get_free_addr() */
+    const MemoryDeviceClass *mdc = MEMORY_DEVICE_GET_CLASS(md);
+    MemoryRegion *mr = mdc->get_memory_region(md);
+
+    /* we expect a previous call to memory_device_pre_plug */
     g_assert(ms->device_memory);
 
+    if (!memory_region_is_mapped(mr)) {
+        return;
+    }
+
     memory_region_del_subregion(&ms->device_memory->mr, mr);
+    trace_memory_device_unassign_address(mdc->get_addr(md));
+    mdc->set_addr(md, 0);
 }
 
 static const TypeInfo memory_device_info = {
