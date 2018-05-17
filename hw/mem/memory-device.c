@@ -68,20 +68,19 @@ static int memory_device_used_region_size(Object *obj, void *opaque)
     return 0;
 }
 
-static void memory_device_check_addable(MachineState *ms, uint64_t size,
-                                        Error **errp)
+uint64_t memory_device_get_free_addr(MachineState *ms, const uint64_t *hint,
+                                     uint64_t align, uint64_t size,
+                                     Error **errp)
 {
+    uint64_t address_space_start, address_space_end;
     uint64_t used_region_size = 0;
+    GSList *list = NULL, *item;
+    uint64_t new_addr = 0;
 
-    /* we will need a new memory slot for kvm and vhost */
-    if (kvm_enabled() && !kvm_has_free_slot(ms)) {
-        error_setg(errp, "hypervisor has no free memory slots left");
-        return;
-    }
-    if (!vhost_has_free_slot()) {
-        error_setg(errp, "a used vhost backend has no free memory slots left");
-        return;
-    }
+    address_space_start = ms->device_memory->base;
+    address_space_end = address_space_start +
+                        memory_region_size(&ms->device_memory->mr);
+    g_assert(address_space_end >= address_space_start);
 
     /* will we exceed the total amount of memory specified */
     memory_device_used_region_size(OBJECT(ms), &used_region_size);
@@ -89,37 +88,6 @@ static void memory_device_check_addable(MachineState *ms, uint64_t size,
         error_setg(errp, "not enough space, currently 0x%" PRIx64
                    " in use of total hot pluggable 0x" RAM_ADDR_FMT,
                    used_region_size, ms->maxram_size - ms->ram_size);
-        return;
-    }
-
-}
-
-uint64_t memory_device_get_free_addr(MachineState *ms, const uint64_t *hint,
-                                     uint64_t align, uint64_t size,
-                                     Error **errp)
-{
-    uint64_t address_space_start, address_space_end;
-    GSList *list = NULL, *item;
-    uint64_t new_addr = 0;
-
-    if (!ms->device_memory) {
-        error_setg(errp, "memory devices (e.g. for memory hotplug) are not "
-                         "supported by the machine");
-        return 0;
-    }
-
-    if (!memory_region_size(&ms->device_memory->mr)) {
-        error_setg(errp, "memory devices (e.g. for memory hotplug) are not "
-                         "enabled, please specify the maxmem option");
-        return 0;
-    }
-    address_space_start = ms->device_memory->base;
-    address_space_end = address_space_start +
-                        memory_region_size(&ms->device_memory->mr);
-    g_assert(address_space_end >= address_space_start);
-
-    memory_device_check_addable(ms, size, errp);
-    if (*errp) {
         return 0;
     }
 
@@ -240,6 +208,32 @@ uint64_t get_plugged_memory_size(void)
     memory_device_plugged_size(qdev_get_machine(), &size);
 
     return size;
+}
+
+void memory_device_pre_plug(MachineState *ms, const MemoryDeviceState *md,
+                            Error **errp)
+{
+    if (!ms->device_memory) {
+        error_setg(errp, "memory devices (e.g. for memory hotplug) are not "
+                         "supported by the machine");
+        return;
+    }
+
+    if (!memory_region_size(&ms->device_memory->mr)) {
+        error_setg(errp, "memory devices (e.g. for memory hotplug) are not "
+                         "enabled, please specify the maxmem option");
+        return;
+    }
+
+    /* we will need a new memory slot for kvm and vhost */
+    if (kvm_enabled() && !kvm_has_free_slot(ms)) {
+        error_setg(errp, "hypervisor has no free memory slots left");
+        return;
+    }
+    if (!vhost_has_free_slot()) {
+        error_setg(errp, "a used vhost backend has no free memory slots left");
+        return;
+    }
 }
 
 void memory_device_plug_region(MachineState *ms, MemoryRegion *mr,
