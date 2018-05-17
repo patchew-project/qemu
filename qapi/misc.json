@@ -1245,7 +1245,9 @@
 ##
 # @system_wakeup:
 #
-# Wakeup guest from suspend.  Does nothing in case the guest isn't suspended.
+# If the guest has wake-up from suspend support enabled
+# (wakeup-suspend-support flag from query-target), wakeup guest from
+# suspend. Does nothing otherwise.
 #
 # Since:  1.1
 #
@@ -2484,11 +2486,13 @@
 # Information describing the QEMU target.
 #
 # @arch: the target architecture
+# @wakeup-suspend-support: true if the target supports wake up from
+#                          suspend (since 2.13)
 #
 # Since: 1.2.0
 ##
 { 'struct': 'TargetInfo',
-  'data': { 'arch': 'SysEmuTarget' } }
+  'data': { 'arch': 'SysEmuTarget', 'wakeup-suspend-support': 'bool' } }
 
 ##
 # @query-target:
