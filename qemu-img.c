@@ -862,7 +862,7 @@ static void run_block_job(BlockJob *job, Error **errp)
     int ret = 0;
 
     aio_context_acquire(aio_context);
-    block_job_ref(job);
+    job_ref(&job->job);
     do {
         aio_poll(aio_context, true);
         qemu_progress_print(job->len ?
@@ -874,7 +874,7 @@ static void run_block_job(BlockJob *job, Error **errp)
     } else {
         ret = job->ret;
     }
-    block_job_unref(job);
+    job_unref(&job->job);
     aio_context_release(aio_context);
 
     /* publish completion progress only when success */
