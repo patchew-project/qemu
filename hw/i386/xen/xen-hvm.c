@@ -12,6 +12,7 @@
 
 #include "cpu.h"
 #include "hw/pci/pci.h"
+#include "hw/pci/pci_host.h"
 #include "hw/i386/pc.h"
 #include "hw/i386/apic-msidef.h"
 #include "hw/xen/xen_common.h"
@@ -86,6 +87,12 @@ typedef struct XenPhysmap {
     QLIST_ENTRY(XenPhysmap) list;
 } XenPhysmap;
 
+typedef struct XenPciDevice {
+    PCIDevice *pci_dev;
+    uint32_t sbdf;
+    QLIST_ENTRY(XenPciDevice) entry;
+} XenPciDevice;
+
 typedef struct XenIOState {
     ioservid_t ioservid;
     shared_iopage_t *shared_page;
@@ -105,6 +112,7 @@ typedef struct XenIOState {
     struct xs_handle *xenstore;
     MemoryListener memory_listener;
     MemoryListener io_listener;
+    QLIST_HEAD(, XenPciDevice) dev_list;
     DeviceListener device_listener;
     QLIST_HEAD(, XenPhysmap) physmap;
     hwaddr free_phys_offset;
@@ -569,6 +577,12 @@ static void xen_device_realize(DeviceListener *listener,
 
     if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
         PCIDevice *pci_dev = PCI_DEVICE(dev);
+        XenPciDevice *xendev = g_new(XenPciDevice, 1);
+
+        xendev->pci_dev = pci_dev;
+        xendev->sbdf = PCI_BUILD_BDF(pci_dev_bus_num(pci_dev),
+                                     pci_dev->devfn);
+        QLIST_INSERT_HEAD(&state->dev_list, xendev, entry);
 
         xen_map_pcidev(xen_domid, state->ioservid, pci_dev);
     }
@@ -581,8 +595,17 @@ static void xen_device_unrealize(DeviceListener *listener,
 
     if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
         PCIDevice *pci_dev = PCI_DEVICE(dev);
+        XenPciDevice *xendev, *next;
 
         xen_unmap_pcidev(xen_domid, state->ioservid, pci_dev);
+
+        QLIST_FOREACH_SAFE(xendev, &state->dev_list, entry, next) {
+            if (xendev->pci_dev == pci_dev) {
+                QLIST_REMOVE(xendev, entry);
+                g_free(xendev);
+                break;
+            }
+        }
     }
 }
 
@@ -903,6 +926,80 @@ static void cpu_ioreq_move(ioreq_t *req)
     }
 }
 
+static void rw_config_req_item(XenPciDevice *xendev, ioreq_t *req,
+                               uint32_t i, uint32_t *val)
+{
+    int32_t reg = req->addr;
+    uint32_t offset = req->size * i;
+
+    reg += (req->df ? -1 : 1) * offset;
+    if (reg < 0 || reg > PCI_CONFIG_SPACE_SIZE) {
+        if (req->dir == IOREQ_READ) {
+            *val = ~0u;
+        }
+        return;
+    }
+
+    if (req->dir == IOREQ_READ) {
+        *val = pci_host_config_read_common(xendev->pci_dev, reg,
+                                           PCI_CONFIG_SPACE_SIZE,
+                                           req->size);
+        trace_cpu_ioreq_config_read(req, xendev->sbdf, reg,
+                                    req->size, *val);
+    } else {
+        trace_cpu_ioreq_config_write(req, xendev->sbdf, reg, req->size,
+                                     *val);
+        pci_host_config_write_common(xendev->pci_dev, reg,
+                                     PCI_CONFIG_SPACE_SIZE, *val,
+                                     req->size);
+    }
+}
+
+static void cpu_ioreq_config(XenIOState *state, ioreq_t *req)
+{
+    uint32_t sbdf = req->addr >> 32;
+    XenPciDevice *xendev;
+
+    if (req->size > sizeof(uint32_t)) {
+        hw_error("PCI config access: bad size (%u)", req->size);
+    }
+
+    QLIST_FOREACH(xendev, &state->dev_list, entry) {
+        unsigned int i;
+        uint32_t tmp;
+
+        if (xendev->sbdf != sbdf) {
+            continue;
+        }
+
+        if (!req->data_is_ptr) {
+            if (req->dir == IOREQ_READ) {
+                for (i = 0; i < req->count; i++) {
+                    rw_config_req_item(xendev, req, i, &tmp);
+                    req->data = tmp;
+                }
+            } else if (req->dir == IOREQ_WRITE) {
+                for (i = 0; i < req->count; i++) {
+                    tmp = req->data;
+                    rw_config_req_item(xendev, req, i, &tmp);
+                }
+            }
+        } else {
+            if (req->dir == IOREQ_READ) {
+                for (i = 0; i < req->count; i++) {
+                    rw_config_req_item(xendev, req, i, &tmp);
+                    write_phys_req_item(req->data, req, i, &tmp);
+                }
+            } else if (req->dir == IOREQ_WRITE) {
+                for (i = 0; i < req->count; i++) {
+                    read_phys_req_item(req->data, req, i, &tmp);
+                    rw_config_req_item(xendev, req, i, &tmp);
+                }
+            }
+        }
+    }
+}
+
 static void regs_to_cpu(vmware_regs_t *vmport_regs, ioreq_t *req)
 {
     X86CPU *cpu;
@@ -975,27 +1072,9 @@ static void handle_ioreq(XenIOState *state, ioreq_t *req)
         case IOREQ_TYPE_INVALIDATE:
             xen_invalidate_map_cache();
             break;
-        case IOREQ_TYPE_PCI_CONFIG: {
-            uint32_t sbdf = req->addr >> 32;
-            uint32_t val;
-
-            /* Fake a write to port 0xCF8 so that
-             * the config space access will target the
-             * correct device model.
-             */
-            val = (1u << 31) |
-                  ((req->addr & 0x0f00) << 16) |
-                  ((sbdf & 0xffff) << 8) |
-                  (req->addr & 0xfc);
-            do_outp(0xcf8, 4, val);
-
-            /* Now issue the config space access via
-             * port 0xCFC
-             */
-            req->addr = 0xcfc | (req->addr & 0x03);
-            cpu_ioreq_pio(req);
+        case IOREQ_TYPE_PCI_CONFIG:
+            cpu_ioreq_config(state, req);
             break;
-        }
         default:
             hw_error("Invalid ioreq type 0x%x\n", req->type);
     }
@@ -1366,6 +1445,7 @@ void xen_hvm_init(PCMachineState *pcms, MemoryRegion **ram_memory)
     memory_listener_register(&state->io_listener, &address_space_io);
 
     state->device_listener = xen_device_listener;
+    QLIST_INIT(&state->dev_list);
     device_listener_register(&state->device_listener);
 
     /* Initialize backend core & drivers */
