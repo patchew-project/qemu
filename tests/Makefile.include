@@ -76,7 +76,7 @@ gcov-files-test-coroutine-y = coroutine-$(CONFIG_COROUTINE_BACKEND).c
 check-unit-y += tests/test-visitor-serialization$(EXESUF)
 check-unit-y += tests/test-iov$(EXESUF)
 gcov-files-test-iov-y = util/iov.c
-check-unit-y += tests/test-aio$(EXESUF)
+#check-unit-y += tests/test-aio$(EXESUF)
 gcov-files-test-aio-y = util/async.c util/qemu-timer.o
 gcov-files-test-aio-$(CONFIG_WIN32) += util/aio-win32.c
 gcov-files-test-aio-$(CONFIG_POSIX) += util/aio-posix.c
@@ -110,7 +110,7 @@ gcov-files-test-mul64-y = util/host-utils.c
 check-unit-y += tests/test-int128$(EXESUF)
 # all code tested by test-int128 is inside int128.h
 gcov-files-test-int128-y =
-check-unit-y += tests/rcutorture$(EXESUF)
+#check-unit-y += tests/rcutorture$(EXESUF)
 gcov-files-rcutorture-y = util/rcu.c
 check-unit-y += tests/test-rcu-list$(EXESUF)
 gcov-files-test-rcu-list-y = util/rcu.c
@@ -297,8 +297,8 @@ check-qtest-i386-$(CONFIG_VHOST_USER_NET_TEST_i386) += tests/vhost-user-test$(EX
 ifeq ($(CONFIG_VHOST_USER_NET_TEST_i386),)
 check-qtest-x86_64-$(CONFIG_VHOST_USER_NET_TEST_x86_64) += tests/vhost-user-test$(EXESUF)
 endif
-check-qtest-i386-$(CONFIG_TPM) += tests/tpm-crb-test$(EXESUF)
-check-qtest-i386-$(CONFIG_TPM) += tests/tpm-tis-test$(EXESUF)
+#check-qtest-i386-$(CONFIG_TPM) += tests/tpm-crb-test$(EXESUF)
+#check-qtest-i386-$(CONFIG_TPM) += tests/tpm-tis-test$(EXESUF)
 check-qtest-i386-$(CONFIG_SLIRP) += tests/test-netfilter$(EXESUF)
 check-qtest-i386-$(CONFIG_POSIX) += tests/test-filter-mirror$(EXESUF)
 check-qtest-i386-$(CONFIG_POSIX) += tests/test-filter-redirector$(EXESUF)
