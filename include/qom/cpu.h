@@ -426,6 +426,9 @@ struct CPUState {
     uint16_t pending_tlb_flush;
 
     int hvf_fd;
+
+    /* track IOMMUs whose translations we've cached in the TCG TLB */
+    GSList *iommu_notifiers;
 };
 
 QTAILQ_HEAD(CPUTailQ, CPUState);
