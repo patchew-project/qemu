@@ -1802,6 +1802,9 @@ void memory_region_register_iommu_notifier(MemoryRegion *mr,
     iommu_mr = IOMMU_MEMORY_REGION(mr);
     assert(n->notifier_flags != IOMMU_NOTIFIER_NONE);
     assert(n->start <= n->end);
+    assert(n->iommu_idx >= 0 &&
+           n->iommu_idx < memory_region_iommu_num_indexes(iommu_mr));
+
     QLIST_INSERT_HEAD(&iommu_mr->iommu_notify, n, node);
     memory_region_update_iommu_notify_flags(iommu_mr);
 }
@@ -1894,6 +1897,7 @@ void memory_region_notify_one(IOMMUNotifier *notifier,
 }
 
 void memory_region_notify_iommu(IOMMUMemoryRegion *iommu_mr,
+                                int iommu_idx,
                                 IOMMUTLBEntry entry)
 {
     IOMMUNotifier *iommu_notifier;
@@ -1901,7 +1905,9 @@ void memory_region_notify_iommu(IOMMUMemoryRegion *iommu_mr,
     assert(memory_region_is_iommu(MEMORY_REGION(iommu_mr)));
 
     IOMMU_NOTIFIER_FOREACH(iommu_notifier, iommu_mr) {
-        memory_region_notify_one(iommu_notifier, &entry);
+        if (iommu_notifier->iommu_idx == iommu_idx) {
+            memory_region_notify_one(iommu_notifier, &entry);
+        }
     }
 }
 
