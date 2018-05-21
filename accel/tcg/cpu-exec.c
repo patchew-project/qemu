@@ -274,6 +274,7 @@ void cpu_exec_step_atomic(CPUState *cpu)
         tcg_debug_assert(!have_mmap_lock());
 #endif
         tb_lock_reset();
+        assert_no_pages_locked();
     }
 
     if (in_exclusive_region) {
