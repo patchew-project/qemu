@@ -566,6 +566,10 @@ static int nvme_init(BlockDriverState *bs, const char *device, int namespace,
         return ret;
     }
 
+    /* Fields we've not touched should be zero-initialized by block layer
+     * already, but reset it anyway to make the error handling code easier to
+     * reason. */
+    s->regs = NULL;
     s->vfio = qemu_vfio_open_pci(device, errp);
     if (!s->vfio) {
         ret = -EINVAL;
