@@ -3098,6 +3098,60 @@
   'data': [ 'none', 'record', 'play' ] }
 
 ##
+# @savevm:
+#
+# Save a VM snapshot. Without a name new snapshot is created.
+#
+# @name: identifier of a snapshot to be saved
+#
+# Returns: Nothing on success
+#
+# Since: 2.12
+#
+# Example:
+#
+# -> { "execute": "savevm", "arguments": { "name": "snapshot1" } }
+# <- { "return": {} }
+##
+{ 'command': 'savevm', 'data': {'*name': 'str'} }
+
+##
+# @loadvm:
+#
+# Load a VM snapshot.
+#
+# @name: identifier of a snapshot to be loaded
+#
+# Returns: Nothing on success
+#
+# Since: 2.12
+#
+# Example:
+#
+# -> { "execute": "loadvm", "arguments": { "name": "snapshot1" } }
+# <- { "return": {} }
+##
+{ 'command': 'loadvm', 'data': {'name': 'str'} }
+
+##
+# @delvm:
+#
+# Delete a VM snapshot.
+#
+# @name: identifier of a snapshot to be deleted
+#
+# Returns: Nothing on success
+#
+# Since: 2.12
+#
+# Example:
+#
+# -> { "execute": "delvm", "arguments": { "name": "snapshot1" } }
+# <- { "return": {} }
+##
+{ 'command': 'delvm', 'data': {'name': 'str'} }
+
+##
 # @xen-load-devices-state:
 #
 # Load the state of all devices from file. The RAM and the block devices

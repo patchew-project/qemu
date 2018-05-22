@@ -2515,6 +2515,33 @@ int save_snapshot(const char *name, Error **errp)
     return ret;
 }
 
+void qmp_savevm(bool has_name, const char *name, Error **errp)
+{
+    save_snapshot(has_name ? name : NULL, errp);
+}
+
+void qmp_loadvm(const char *name, Error **errp)
+{
+    int saved_vm_running  = runstate_is_running();
+
+    vm_stop(RUN_STATE_RESTORE_VM);
+
+    if (load_snapshot(name, errp) == 0 && saved_vm_running) {
+        vm_start();
+    }
+}
+
+void qmp_delvm(const char *name, Error **errp)
+{
+    BlockDriverState *bs;
+
+    if (bdrv_all_delete_snapshot(name, &bs, errp) < 0) {
+        error_reportf_err(*errp,
+                          "Error while deleting snapshot on device '%s': ",
+                          bdrv_get_device_name(bs));
+    }
+}
+
 void qmp_xen_save_devices_state(const char *filename, bool has_live, bool live,
                                 Error **errp)
 {
