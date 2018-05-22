@@ -496,6 +496,20 @@ static void encode_topo_cpuid8000001e(CPUState *cs, X86CPU *cpu,
 }
 
 /*
+ * Check if we can support this topology
+ * Fail if number of cores are beyond the supported config
+ * or nr_threads is more than 2
+ */
+static int verify_topology(int nr_cores, int nr_threads)
+{
+    if ((nr_cores > (MAX_CORES_IN_NODE * MAX_NODES_EPYC)) ||
+        (nr_threads > 2)) {
+        return 0;
+    }
+    return 1;
+}
+
+/*
  * Definitions of the hardcoded cache entries we expose:
  * These are legacy cache values. If there is a need to change any
  * of these values please use builtin_x86_defs
@@ -2541,7 +2555,8 @@ static X86CPUDefinition builtin_x86_defs[] = {
         .features[FEAT_8000_0001_ECX] =
             CPUID_EXT3_OSVW | CPUID_EXT3_3DNOWPREFETCH |
             CPUID_EXT3_MISALIGNSSE | CPUID_EXT3_SSE4A | CPUID_EXT3_ABM |
-            CPUID_EXT3_CR8LEG | CPUID_EXT3_SVM | CPUID_EXT3_LAHF_LM,
+            CPUID_EXT3_CR8LEG | CPUID_EXT3_SVM | CPUID_EXT3_LAHF_LM |
+            CPUID_EXT3_TOPOEXT,
         .features[FEAT_7_0_EBX] =
             CPUID_7_0_EBX_FSGSBASE | CPUID_7_0_EBX_BMI1 | CPUID_7_0_EBX_AVX2 |
             CPUID_7_0_EBX_SMEP | CPUID_7_0_EBX_BMI2 | CPUID_7_0_EBX_RDSEED |
@@ -2586,7 +2601,8 @@ static X86CPUDefinition builtin_x86_defs[] = {
         .features[FEAT_8000_0001_ECX] =
             CPUID_EXT3_OSVW | CPUID_EXT3_3DNOWPREFETCH |
             CPUID_EXT3_MISALIGNSSE | CPUID_EXT3_SSE4A | CPUID_EXT3_ABM |
-            CPUID_EXT3_CR8LEG | CPUID_EXT3_SVM | CPUID_EXT3_LAHF_LM,
+            CPUID_EXT3_CR8LEG | CPUID_EXT3_SVM | CPUID_EXT3_LAHF_LM |
+            CPUID_EXT3_TOPOEXT,
         .features[FEAT_8000_0008_EBX] =
             CPUID_8000_0008_EBX_IBPB,
         .features[FEAT_7_0_EBX] =
@@ -4166,6 +4182,12 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         break;
     case 0x8000001D:
         *eax = 0;
+        /* Check if we can support this topology */
+        if (!verify_topology(cs->nr_cores, cs->nr_threads)) {
+            /* Disable topology extention */
+            env->features[FEAT_8000_0001_ECX] &= !CPUID_EXT3_TOPOEXT;
+            break;
+        }
         switch (count) {
         case 0: /* L1 dcache info */
             encode_cache_cpuid8000001d(env->cache_info_amd.l1d_cache, cs,
@@ -4190,6 +4212,12 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         break;
     case 0x8000001E:
         assert(cpu->core_id <= 255);
+        /* Check if we can support this topology */
+        if (!verify_topology(cs->nr_cores, cs->nr_threads)) {
+            /* Disable topology extention */
+            env->features[FEAT_8000_0001_ECX] &= !CPUID_EXT3_TOPOEXT;
+            break;
+        }
         encode_topo_cpuid8000001e(cs, cpu,
                                   eax, ebx, ecx, edx);
         break;
@@ -4652,6 +4680,11 @@ static void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
         /* SVM requires CPUID[0x8000000A] */
         if (env->features[FEAT_8000_0001_ECX] & CPUID_EXT3_SVM) {
             x86_cpu_adjust_level(cpu, &env->cpuid_min_xlevel, 0x8000000A);
+        }
+
+        /* TOPOEXT feature requires 0x8000001E */
+        if (env->features[FEAT_8000_0001_ECX] & CPUID_EXT3_TOPOEXT) {
+            x86_cpu_adjust_level(cpu, &env->cpuid_min_xlevel, 0x8000001E);
         }
 
         /* SEV requires CPUID[0x8000001F] */
