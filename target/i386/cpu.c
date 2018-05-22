@@ -336,6 +336,85 @@ static void encode_cache_cpuid80000006(CPUCacheInfo *l2,
     }
 }
 
+/* Definitions used for building CPUID Leaf 0x8000001D and 0x8000001E */
+/* Please refer AMD64 Architecture Programmer’s Manual Volume 3 */
+#define MAX_CCX 2
+#define MAX_CORES_IN_CCX 4
+#define MAX_NODES_EPYC 4
+#define MAX_CORES_IN_NODE 8
+
+/* Number of logical processors sharing L3 cache */
+#define NUM_SHARING_CACHE(threads, num_sharing)   ((threads > 1) ? \
+                         (((num_sharing - 1) * threads) + 1)  : \
+                         (num_sharing - 1))
+/*
+ * L3 Cache is shared between all the cores in a core complex.
+ * Maximum cores that can share L3 is 4.
+ */
+static int num_sharing_l3_cache(int nr_cores)
+{
+    int i, nodes = 1;
+
+    /* Check if we can fit all the cores in one CCX */
+    if (nr_cores <= MAX_CORES_IN_CCX) {
+        return nr_cores;
+    }
+    /*
+     * Figure out the number of nodes(or dies) required to build
+     * this config. Max cores in a node is 8
+     */
+    for (i = nodes; i <= MAX_NODES_EPYC; i++) {
+        if (nr_cores <= (i * MAX_CORES_IN_NODE)) {
+            nodes = i;
+            break;
+        }
+        /* We support nodes 1, 2, 4 */
+        if (i == 3) {
+            continue;
+        }
+    }
+    /* Spread the cores accros all the CCXs and return max cores in a ccx */
+    return (nr_cores / (nodes * MAX_CCX)) +
+            ((nr_cores % (nodes * MAX_CCX)) ? 1 : 0);
+}
+
+/* Encode cache info for CPUID[8000001D] */
+static void encode_cache_cpuid8000001d(CPUCacheInfo *cache, CPUState *cs,
+                                uint32_t *eax, uint32_t *ebx,
+                                uint32_t *ecx, uint32_t *edx)
+{
+    uint32_t num_share_l3;
+    assert(cache->size == cache->line_size * cache->associativity *
+                          cache->partitions * cache->sets);
+
+    *eax = CACHE_TYPE(cache->type) | CACHE_LEVEL(cache->level) |
+               (cache->self_init ? CACHE_SELF_INIT_LEVEL : 0);
+
+    /* L3 is shared among multiple cores */
+    if (cache->level == 3) {
+        num_share_l3 = num_sharing_l3_cache(cs->nr_cores);
+        *eax |= (NUM_SHARING_CACHE(cs->nr_threads, num_share_l3) << 14);
+    } else {
+        *eax |= ((cs->nr_threads - 1) << 14);
+    }
+
+    assert(cache->line_size > 0);
+    assert(cache->partitions > 0);
+    assert(cache->associativity > 0);
+    /* We don't implement fully-associative caches */
+    assert(cache->associativity < cache->sets);
+    *ebx = (cache->line_size - 1) |
+           ((cache->partitions - 1) << 12) |
+           ((cache->associativity - 1) << 22);
+
+    assert(cache->sets > 0);
+    *ecx = cache->sets - 1;
+
+    *edx = (cache->no_invd_sharing ? CACHE_NO_INVD_SHARING : 0) |
+           (cache->inclusive ? CACHE_INCLUSIVE : 0) |
+           (cache->complex_indexing ? CACHE_COMPLEX_IDX : 0);
+}
+
 /*
  * Definitions of the hardcoded cache entries we expose:
  * These are legacy cache values. If there is a need to change any
@@ -4003,6 +4082,30 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
             *ebx = 0;
             *ecx = 0;
             *edx = 0;
+        }
+        break;
+    case 0x8000001D:
+        *eax = 0;
+        switch (count) {
+        case 0: /* L1 dcache info */
+            encode_cache_cpuid8000001d(env->cache_info_amd.l1d_cache, cs,
+                                       eax, ebx, ecx, edx);
+            break;
+        case 1: /* L1 icache info */
+            encode_cache_cpuid8000001d(env->cache_info_amd.l1i_cache, cs,
+                                       eax, ebx, ecx, edx);
+            break;
+        case 2: /* L2 cache info */
+            encode_cache_cpuid8000001d(env->cache_info_amd.l2_cache, cs,
+                                       eax, ebx, ecx, edx);
+            break;
+        case 3: /* L3 cache info */
+            encode_cache_cpuid8000001d(env->cache_info_amd.l3_cache, cs,
+                                       eax, ebx, ecx, edx);
+            break;
+        default: /* end of info */
+            *eax = *ebx = *ecx = *edx = 0;
+            break;
         }
         break;
     case 0xC0000000:
