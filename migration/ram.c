@@ -568,6 +568,11 @@ typedef struct {
     uint32_t flags;
     /* global number of generated multifd packets */
     uint32_t seq;
+    /* thread local variables */
+    /* packets sent through this channel */
+    uint32_t num_packets;
+    /* pages sent through this channel */
+    uint32_t num_pages;
 }  MultiFDSendParams;
 
 typedef struct {
@@ -598,6 +603,11 @@ typedef struct {
     uint32_t flags;
     /* global number of generated multifd packets */
     uint32_t seq;
+    /* thread local variables */
+    /* packets sent through this channel */
+    uint32_t num_packets;
+    /* pages sent through this channel */
+    uint32_t num_pages;
 } MultiFDRecvParams;
 
 static int multifd_send_initial_packet(MultiFDSendParams *p, Error **errp)
@@ -854,9 +864,13 @@ static void *multifd_send_thread(void *opaque)
     MultiFDSendParams *p = opaque;
     Error *local_err = NULL;
 
+    trace_multifd_send_thread_start(p->id);
+
     if (multifd_send_initial_packet(p, &local_err) < 0) {
         goto out;
     }
+    /* initial packet */
+    p->num_packets = 1;
 
     while (true) {
         qemu_mutex_lock(&p->mutex);
@@ -877,6 +891,8 @@ out:
     qemu_mutex_lock(&p->mutex);
     p->running = false;
     qemu_mutex_unlock(&p->mutex);
+
+    trace_multifd_send_thread_end(p->id, p->num_packets, p->num_pages);
 
     return NULL;
 }
@@ -1005,6 +1021,8 @@ static void *multifd_recv_thread(void *opaque)
     Error *local_err = NULL;
     int ret;
 
+    trace_multifd_recv_thread_start(p->id);
+
     while (true) {
         qemu_mutex_lock(&p->mutex);
         if (false)  {
@@ -1026,6 +1044,8 @@ static void *multifd_recv_thread(void *opaque)
     qemu_mutex_lock(&p->mutex);
     p->running = false;
     qemu_mutex_unlock(&p->mutex);
+
+    trace_multifd_recv_thread_end(p->id, p->num_packets, p->num_pages);
 
     return NULL;
 }
@@ -1092,6 +1112,8 @@ void multifd_recv_new_channel(QIOChannel *ioc)
     }
     p->c = ioc;
     object_ref(OBJECT(ioc));
+    /* initial packet */
+    p->num_packets = 1;
 
     p->running = true;
     qemu_thread_create(&p->thread, p->name, multifd_recv_thread, p,
