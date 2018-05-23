@@ -734,9 +734,6 @@ static int multifd_recv_unfill_packet(MultiFDRecvParams *p, Error **errp)
     RAMBlock *block;
     int i;
 
-    /* ToDo: We can't use it until we haven't received a message */
-    return 0;
-
     be32_to_cpus(&packet->magic);
     if (packet->magic != MULTIFD_MAGIC) {
         error_setg(errp, "multifd: received packet "
@@ -970,6 +967,7 @@ static void *multifd_send_thread(void *opaque)
 {
     MultiFDSendParams *p = opaque;
     Error *local_err = NULL;
+    int ret;
 
     trace_multifd_send_thread_start(p->id);
 
@@ -997,7 +995,16 @@ static void *multifd_send_thread(void *opaque)
 
             trace_multifd_send(p->id, seq, used, flags);
 
-            /* ToDo: send packet here */
+            ret = qio_channel_write_all(p->c, (void *)p->packet,
+                                        p->packet_len, &local_err);
+            if (ret != 0) {
+                break;
+            }
+
+            ret = qio_channel_writev_all(p->c, p->pages->iov, used, &local_err);
+            if (ret != 0) {
+                break;
+            }
 
             qemu_mutex_lock(&p->mutex);
             p->pending_job--;
@@ -1209,7 +1216,14 @@ static void *multifd_recv_thread(void *opaque)
             uint32_t flags;
             qemu_mutex_unlock(&p->mutex);
 
-            /* ToDo: recv packet here */
+            ret = qio_channel_read_all_eof(p->c, (void *)p->packet,
+                                           p->packet_len, &local_err);
+            if (ret == 0) {   /* EOF */
+                break;
+            }
+            if (ret == -1) {   /* Error */
+                break;
+            }
 
             qemu_mutex_lock(&p->mutex);
             ret = multifd_recv_unfill_packet(p, &local_err);
@@ -1225,6 +1239,11 @@ static void *multifd_recv_thread(void *opaque)
             p->num_packets++;
             p->num_pages += used;
             qemu_mutex_unlock(&p->mutex);
+
+            ret = qio_channel_readv_all(p->c, p->pages->iov, used, &local_err);
+            if (ret != 0) {
+                break;
+            }
 
             if (flags & MULTIFD_FLAG_SYNC) {
                 qemu_sem_post(&multifd_recv_state->sem_sync);
