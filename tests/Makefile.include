@@ -870,7 +870,7 @@ tests/test-qga$(EXESUF): qemu-ga$(EXESUF)
 tests/test-qga$(EXESUF): tests/test-qga.o $(qtest-obj-y)
 
 SPEED = quick
-GTESTER_OPTIONS = -k $(if $(V),--verbose,-q)
+GTESTER_OPTIONS += -k $(if $(V),--verbose,-q)
 GCOV_OPTIONS = -n $(if $(V),-f,)
 
 # gtester tests, possibly with verbose output
