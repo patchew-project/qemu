@@ -109,9 +109,19 @@ static void kill_qemu(QTestState *s)
         kill(s->qemu_pid, SIGTERM);
         pid = waitpid(s->qemu_pid, &wstatus, 0);
 
-        if (pid == s->qemu_pid && WIFSIGNALED(wstatus)) {
+        /* waitpid returns child PID on success */
+        assert(pid == s->qemu_pid);
+
+        /* If exited on signal - check the reason: core dump is never OK */
+        if (WIFSIGNALED(wstatus)) {
             assert(!WCOREDUMP(wstatus));
         }
+        /* If exited normally - check exit status */
+        if (WIFEXITED(wstatus)) {
+            assert(!WEXITSTATUS(wstatus));
+        }
+        /* Valid ways to exit: right now only return from main or exit */
+        assert(WIFEXITED(wstatus));
     }
 }
 
