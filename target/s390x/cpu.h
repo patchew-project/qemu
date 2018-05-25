@@ -130,7 +130,6 @@ struct CPUS390XState {
     uint64_t cpuid;
 #endif
 
-    uint64_t tod_offset;
     QEMUTimer *tod_timer;
 
     QEMUTimer *cpu_timer;
@@ -764,6 +763,11 @@ void s390_program_interrupt(CPUS390XState *env, uint32_t code, int ilen,
                             uintptr_t ra);
 /* service interrupts are floating therefore we must not pass an cpustate */
 void s390_sclp_extint(uint32_t parm);
+
+
+/* misc_helper.c */
+void tcg_s390_tod_updated(CPUState *cs, run_on_cpu_data opaque);
+
 
 /* mmu_helper.c */
 int s390_cpu_virt_mem_rw(S390CPU *cpu, vaddr laddr, uint8_t ar, void *hostbuf,
