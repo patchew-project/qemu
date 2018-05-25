@@ -1420,7 +1420,7 @@ static target_ulong h_register_process_table(PowerPCCPU *cpu,
                   ((flags & FLAG_GTSE) ? LPCR_GTSE : 0),
                   LPCR_UPRT | LPCR_GTSE);
 
-    if (kvm_enabled()) {
+    if (kvm_enabled() && !spapr->htab) {
         return kvmppc_configure_v3_mmu(cpu, flags & FLAG_RADIX,
                                        flags & FLAG_GTSE, cproc);
     }
