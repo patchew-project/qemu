@@ -34,6 +34,13 @@ static int cpu_post_load(void *opaque, int version_id)
         return kvm_s390_vcpu_interrupt_post_load(cpu);
     }
 
+#ifdef CONFIG_TCG
+    if (tcg_enabled()) {
+        /* Rearm the CKC timer if necessary */
+        tcg_s390_tod_updated(CPU(cpu), RUN_ON_CPU_NULL);
+    }
+#endif
+
     return 0;
 }
 
