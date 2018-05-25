@@ -406,7 +406,7 @@ target_ulong csr_read_helper(CPURISCVState *env, target_ulong csrno)
         return 0;
     }
 #if defined(TARGET_RISCV32)
-    if (csrno >= CSR_MHPMCOUNTER3 && csrno <= CSR_MHPMCOUNTER31) {
+    if (csrno >= CSR_MHPMCOUNTER3H && csrno <= CSR_MHPMCOUNTER31H) {
         return 0;
     }
 #endif
