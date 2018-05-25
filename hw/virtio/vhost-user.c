@@ -11,6 +11,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "hw/virtio/vhost.h"
+#include "hw/virtio/vhost-user.h"
 #include "hw/virtio/vhost-backend.h"
 #include "hw/virtio/virtio-net.h"
 #include "chardev/char-fe.h"
@@ -173,7 +174,8 @@ static VhostUserMsg m __attribute__ ((unused));
 
 struct vhost_user {
     struct vhost_dev *dev;
-    CharBackend *chr;
+    /* Shared between vhost devs of the same virtio device */
+    VhostUserState *user;
     int slave_fd;
     NotifierWithReturn postcopy_notifier;
     struct PostCopyFD  postcopy_fd;
@@ -199,7 +201,7 @@ static bool ioeventfd_enabled(void)
 static int vhost_user_read(struct vhost_dev *dev, VhostUserMsg *msg)
 {
     struct vhost_user *u = dev->opaque;
-    CharBackend *chr = u->chr;
+    CharBackend *chr = u->user->chr;
     uint8_t *p = (uint8_t *) msg;
     int r, size = VHOST_USER_HDR_SIZE;
 
@@ -285,7 +287,7 @@ static int vhost_user_write(struct vhost_dev *dev, VhostUserMsg *msg,
                             int *fds, int fd_num)
 {
     struct vhost_user *u = dev->opaque;
-    CharBackend *chr = u->chr;
+    CharBackend *chr = u->user->chr;
     int ret, size = VHOST_USER_HDR_SIZE + msg->hdr.size;
 
     /*
@@ -1083,7 +1085,7 @@ static int vhost_user_postcopy_waker(struct PostCopyFD *pcfd, RAMBlock *rb,
 static int vhost_user_postcopy_advise(struct vhost_dev *dev, Error **errp)
 {
     struct vhost_user *u = dev->opaque;
-    CharBackend *chr = u->chr;
+    CharBackend *chr = u->user->chr;
     int ufd;
     VhostUserMsg msg = {
         .hdr.request = VHOST_USER_POSTCOPY_ADVISE,
@@ -1221,7 +1223,7 @@ static int vhost_user_postcopy_notifier(NotifierWithReturn *notifier,
     return 0;
 }
 
-static int vhost_user_init(struct vhost_dev *dev, void *opaque)
+static int vhost_user_backend_init(struct vhost_dev *dev, void *opaque)
 {
     uint64_t features, protocol_features;
     struct vhost_user *u;
@@ -1230,7 +1232,7 @@ static int vhost_user_init(struct vhost_dev *dev, void *opaque)
     assert(dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_USER);
 
     u = g_new0(struct vhost_user, 1);
-    u->chr = opaque;
+    u->user = opaque;
     u->slave_fd = -1;
     u->dev = dev;
     dev->opaque = u;
@@ -1306,7 +1308,7 @@ static int vhost_user_init(struct vhost_dev *dev, void *opaque)
     return 0;
 }
 
-static int vhost_user_cleanup(struct vhost_dev *dev)
+static int vhost_user_backend_cleanup(struct vhost_dev *dev)
 {
     struct vhost_user *u;
 
@@ -1630,10 +1632,21 @@ static bool vhost_user_mem_section_filter(struct vhost_dev *dev,
     return result;
 }
 
+VhostUserState *vhost_user_init(void)
+{
+    VhostUserState *user = g_new0(struct VhostUserState, 1);
+
+    return user;
+}
+
+void vhost_user_cleanup(VhostUserState *user)
+{
+}
+
 const VhostOps user_ops = {
         .backend_type = VHOST_BACKEND_TYPE_USER,
-        .vhost_backend_init = vhost_user_init,
-        .vhost_backend_cleanup = vhost_user_cleanup,
+        .vhost_backend_init = vhost_user_backend_init,
+        .vhost_backend_cleanup = vhost_user_backend_cleanup,
         .vhost_backend_memslots_limit = vhost_user_memslots_limit,
         .vhost_set_log_base = vhost_user_set_log_base,
         .vhost_set_mem_table = vhost_user_set_mem_table,
