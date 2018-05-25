@@ -206,6 +206,10 @@ def filter_qmp_event(event):
         event['timestamp']['microseconds'] = 'USECS'
     return event
 
+def filter_testfiles(msg):
+    prefix = os.path.join(test_dir, "%s-" % (os.getpid()))
+    return msg.replace(prefix, 'TEST_DIR/')
+
 def log(msg, filters=[]):
     for flt in filters:
         msg = flt(msg)
@@ -387,6 +391,13 @@ class VM(qtest.QEMUQtestMachine):
         result = []
         for ev in self.get_qmp_events(wait=wait):
             result.append(filter_qmp_event(ev))
+        return result
+
+    def qmp_log(self, cmd, **kwargs):
+        logmsg = "{'execute': '%s', 'arguments': %s}" % (cmd, kwargs)
+        log(filter_testfiles(logmsg))
+        result = self.qmp(cmd, **kwargs)
+        log(result)
         return result
 
 
