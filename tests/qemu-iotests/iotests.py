@@ -416,6 +416,21 @@ class VM(qtest.QEMUQtestMachine):
         log(result)
         return result
 
+    def run_job(self, job):
+        while True:
+            for ev in self.get_qmp_events_filtered(wait=True):
+                if ev['event'] == 'JOB_STATUS_CHANGE':
+                    if ev['data']['status'] == 'aborting':
+                        result = self.qmp('query-jobs')
+                        for j in result['return']:
+                            log('Job failed: %s' % (j.get('error', None)))
+                    elif ev['data']['status'] == 'concluded':
+                        self.qmp_log('job-dismiss', id=job)
+                    elif ev['data']['status'] == 'null':
+                        return
+                else:
+                    iotests.log(ev)
+
 
 index_re = re.compile(r'([^\[]+)\[([^\]]+)\]')
 
