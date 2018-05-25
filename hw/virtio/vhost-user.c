@@ -13,6 +13,7 @@
 #include "hw/virtio/vhost.h"
 #include "hw/virtio/vhost-user.h"
 #include "hw/virtio/vhost-backend.h"
+#include "hw/virtio/virtio.h"
 #include "hw/virtio/virtio-net.h"
 #include "chardev/char-fe.h"
 #include "sysemu/kvm.h"
@@ -48,6 +49,7 @@ enum VhostUserProtocolFeature {
     VHOST_USER_PROTOCOL_F_CRYPTO_SESSION = 7,
     VHOST_USER_PROTOCOL_F_PAGEFAULT = 8,
     VHOST_USER_PROTOCOL_F_CONFIG = 9,
+    VHOST_USER_PROTOCOL_F_HOST_NOTIFIER = 10,
     VHOST_USER_PROTOCOL_F_MAX
 };
 
@@ -92,6 +94,7 @@ typedef enum VhostUserSlaveRequest {
     VHOST_USER_SLAVE_NONE = 0,
     VHOST_USER_SLAVE_IOTLB_MSG = 1,
     VHOST_USER_SLAVE_CONFIG_CHANGE_MSG = 2,
+    VHOST_USER_SLAVE_VRING_HOST_NOTIFIER_MSG = 3,
     VHOST_USER_SLAVE_MAX
 }  VhostUserSlaveRequest;
 
@@ -136,6 +139,12 @@ static VhostUserConfig c __attribute__ ((unused));
                                    + sizeof(c.size) \
                                    + sizeof(c.flags))
 
+typedef struct VhostUserVringArea {
+    uint64_t u64;
+    uint64_t size;
+    uint64_t offset;
+} VhostUserVringArea;
+
 typedef struct {
     VhostUserRequest request;
 
@@ -157,6 +166,7 @@ typedef union {
         struct vhost_iotlb_msg iotlb;
         VhostUserConfig config;
         VhostUserCryptoSession session;
+        VhostUserVringArea area;
 } VhostUserPayload;
 
 typedef struct VhostUserMsg {
@@ -638,9 +648,37 @@ static int vhost_user_set_vring_num(struct vhost_dev *dev,
     return vhost_set_vring(dev, VHOST_USER_SET_VRING_NUM, ring);
 }
 
+static void vhost_user_host_notifier_restore(struct vhost_dev *dev,
+                                             int queue_idx)
+{
+    struct vhost_user *u = dev->opaque;
+    VhostUserHostNotifier *n = &u->user->notifier[queue_idx];
+    VirtIODevice *vdev = dev->vdev;
+
+    if (n->addr && !n->set) {
+        virtio_queue_set_host_notifier_mr(vdev, queue_idx, &n->mr, true);
+        n->set = true;
+    }
+}
+
+static void vhost_user_host_notifier_remove(struct vhost_dev *dev,
+                                            int queue_idx)
+{
+    struct vhost_user *u = dev->opaque;
+    VhostUserHostNotifier *n = &u->user->notifier[queue_idx];
+    VirtIODevice *vdev = dev->vdev;
+
+    if (n->addr && n->set) {
+        virtio_queue_set_host_notifier_mr(vdev, queue_idx, &n->mr, false);
+        n->set = false;
+    }
+}
+
 static int vhost_user_set_vring_base(struct vhost_dev *dev,
                                      struct vhost_vring_state *ring)
 {
+    vhost_user_host_notifier_restore(dev, ring->index);
+
     return vhost_set_vring(dev, VHOST_USER_SET_VRING_BASE, ring);
 }
 
@@ -673,6 +711,8 @@ static int vhost_user_get_vring_base(struct vhost_dev *dev,
         .payload.state = *ring,
         .hdr.size = sizeof(msg.payload.state),
     };
+
+    vhost_user_host_notifier_remove(dev, ring->index);
 
     if (vhost_user_write(dev, &msg, NULL, 0) < 0) {
         return -1;
@@ -847,6 +887,76 @@ static int vhost_user_slave_handle_config_change(struct vhost_dev *dev)
     return ret;
 }
 
+static int vhost_user_slave_handle_vring_host_notifier(struct vhost_dev *dev,
+                                                       VhostUserVringArea *area,
+                                                       int fd)
+{
+    int queue_idx = area->u64 & VHOST_USER_VRING_IDX_MASK;
+    size_t page_size = qemu_real_host_page_size;
+    struct vhost_user *u = dev->opaque;
+    VhostUserState *user = u->user;
+    VirtIODevice *vdev = dev->vdev;
+    VhostUserHostNotifier *n;
+    int ret = 0;
+    void *addr;
+    char *name;
+
+    if (!virtio_has_feature(dev->protocol_features,
+                            VHOST_USER_PROTOCOL_F_HOST_NOTIFIER) ||
+        vdev == NULL || queue_idx >= virtio_get_num_queues(vdev)) {
+        ret = -1;
+        goto out;
+    }
+
+    n = &user->notifier[queue_idx];
+
+    if (n->addr) {
+        virtio_queue_set_host_notifier_mr(vdev, queue_idx, &n->mr, false);
+        object_unparent(OBJECT(&n->mr));
+        munmap(n->addr, page_size);
+        n->addr = NULL;
+    }
+
+    if (area->u64 & VHOST_USER_VRING_NOFD_MASK) {
+        goto out;
+    }
+
+    /* Sanity check. */
+    if (area->size != page_size) {
+        ret = -1;
+        goto out;
+    }
+
+    addr = mmap(NULL, page_size, PROT_READ | PROT_WRITE, MAP_SHARED,
+                fd, area->offset);
+    if (addr == MAP_FAILED) {
+        ret = -1;
+        goto out;
+    }
+
+    name = g_strdup_printf("vhost-user/host-notifier@%p mmaps[%d]",
+                           user, queue_idx);
+    memory_region_init_ram_device_ptr(&n->mr, OBJECT(vdev), name,
+                                      page_size, addr);
+    g_free(name);
+
+    if (virtio_queue_set_host_notifier_mr(vdev, queue_idx, &n->mr, true)) {
+        munmap(addr, page_size);
+        ret = -1;
+        goto out;
+    }
+
+    n->addr = addr;
+    n->set = true;
+
+out:
+    /* Always close the fd. */
+    if (fd != -1) {
+        close(fd);
+    }
+    return ret;
+}
+
 static void slave_read(void *opaque)
 {
     struct vhost_dev *dev = opaque;
@@ -912,6 +1022,10 @@ static void slave_read(void *opaque)
         break;
     case VHOST_USER_SLAVE_CONFIG_CHANGE_MSG :
         ret = vhost_user_slave_handle_config_change(dev);
+        break;
+    case VHOST_USER_SLAVE_VRING_HOST_NOTIFIER_MSG:
+        ret = vhost_user_slave_handle_vring_host_notifier(dev, &payload.area,
+                                                          fd);
         break;
     default:
         error_report("Received unexpected msg type.");
@@ -1641,6 +1755,15 @@ VhostUserState *vhost_user_init(void)
 
 void vhost_user_cleanup(VhostUserState *user)
 {
+    int i;
+
+    for (i = 0; i < VIRTIO_QUEUE_MAX; i++) {
+        if (user->notifier[i].addr) {
+            object_unparent(OBJECT(&user->notifier[i].mr));
+            munmap(user->notifier[i].addr, qemu_real_host_page_size);
+            user->notifier[i].addr = NULL;
+        }
+    }
 }
 
 const VhostOps user_ops = {
