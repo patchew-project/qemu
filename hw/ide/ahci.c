@@ -284,8 +284,8 @@ static void ahci_port_write(AHCIState *s, int port, int offset, uint32_t val)
     AHCIPortRegs *pr = &s->dev[port].port_regs;
     enum AHCIPortReg regnum = offset / sizeof(uint32_t);
     assert(regnum < (AHCI_PORT_ADDR_OFFSET_LEN / sizeof(uint32_t)));
+    trace_ahci_port_write(s, port, AHCIPortReg_lookup[regnum], offset, val);
 
-    trace_ahci_port_write(s, port, offset, val);
     switch (regnum) {
     case AHCI_PORT_REG_LST_ADDR:
         pr->lst_addr = val;
@@ -355,6 +355,8 @@ static void ahci_port_write(AHCIState *s, int port, int offset, uint32_t val)
         check_cmd(s, port);
         break;
     default:
+        trace_ahci_port_write_unimpl(s, port, AHCIPortReg_lookup[regnum],
+                                     offset, val);
         break;
     }
 }
