@@ -1,6 +1,26 @@
 
-USB 2.0 Quick Start
-===================
+USB Quick Start
+===============
+
+xhci controller support
+-----------------------
+
+Qemu has xhci host adapter support.  The xhci hardware design is much
+more virtualization-friendly when compared to ehci and uhci, thus xhci
+emulation uses less resources (especially cpu).  So if your guest
+supports xhci (which should be the case for any operating system
+released in recent years) I recommend using it:
+
+    qemu -device qemu-xhci
+
+xhci supports USB 1.1, USB 2.0 and USB 3.0 devices, so this is the
+only controller you need.  With only a single usb controller (and
+therefore only a single usb bus) being present in the system there is
+no need to use the bus= parameter when adding usb devices.
+
+
+ehci controller support
+-----------------------
 
 The QEMU EHCI Adapter can be used with and without companion
 controllers.  See below for the companion controller mode.
@@ -47,27 +67,13 @@ specifies the first port the controller should attach to, which is
 needed as usually one ehci controller with six ports has three uhci
 companion controllers with two ports each.
 
-There is a config file in docs which will do all this for you, just
-try ...
+Result is a single usb bus which supports both USB 1.1 and USB 2.0
+devices.  There is a config file in docs which will do all this for
+you, just try ...
 
     qemu -readconfig docs/config/ich9-ehci-uhci.cfg
 
 ... then use "bus=ehci.0" to assign your usb devices to that bus.
-
-
-xhci controller support
------------------------
-
-There is also xhci host controller support available.  It got a lot
-less testing than ehci and there are a bunch of known limitations, so
-ehci may work better for you.  On the other hand the xhci hardware
-design is much more virtualization-friendly, thus xhci emulation uses
-less resources (especially cpu).  If you want to give xhci a try
-use this to add the host controller ...
-
-    qemu -device nec-usb-xhci,id=xhci
-
-... then use "bus=xhci.0" when assigning usb devices.
 
 
 More USB tips & tricks
