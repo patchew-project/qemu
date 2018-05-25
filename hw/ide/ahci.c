@@ -490,13 +490,18 @@ static void ahci_mem_write(void *opaque, hwaddr addr,
             /* FIXME report write? */
             break;
         default:
-            trace_ahci_mem_write_unknown(s, size, addr, val);
+            trace_ahci_mem_write_host_unimpl(s, size, AHCIHostReg_lookup[regnum],
+                                             addr);
         }
+        trace_ahci_mem_write_host(s, size, AHCIHostReg_lookup[regnum],
+                                     addr, val);
     } else if ((addr >= AHCI_PORT_REGS_START_ADDR) &&
                (addr < (AHCI_PORT_REGS_START_ADDR +
                         (s->ports * AHCI_PORT_ADDR_OFFSET_LEN)))) {
         ahci_port_write(s, (addr - AHCI_PORT_REGS_START_ADDR) >> 7,
                         addr & AHCI_PORT_ADDR_OFFSET_MASK, val);
+    } else {
+        trace_ahci_mem_write_unimpl(s, size, addr, val);
     }
 }
 
