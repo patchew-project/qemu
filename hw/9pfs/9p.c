@@ -1801,7 +1801,11 @@ static int coroutine_fn v9fs_do_readdir_with_stat(V9fsPDU *pdu,
         count += len;
         v9fs_stat_free(&v9stat);
         v9fs_path_free(&path);
+#ifdef CONFIG_DARWIN
+        saved_dir_pos = v9fs_co_telldir(pdu, fidp);
+#else
         saved_dir_pos = dent->d_off;
+#endif
     }
 
     v9fs_readdir_unlock(&fidp->fs.dir);
@@ -1952,9 +1956,19 @@ static int coroutine_fn v9fs_do_readdir(V9fsPDU *pdu, V9fsFidState *fidp,
         qid.type = 0;
         qid.version = 0;
 
+#ifdef CONFIG_DARWIN
+        // Darwin has d_seekoff, which appears to function
+        // analogously to d_off. However, it does not appear
+        // to be supported on all file systems, so use
+        // telldir for correctness.
+        off_t off = v9fs_co_telldir(pdu, fidp);
+#else
+        off_t off = dent->d_off;
+#endif
+
         /* 11 = 7 + 4 (7 = start offset, 4 = space for storing count) */
         len = pdu_marshal(pdu, 11 + count, "Qqbs",
-                          &qid, dent->d_off,
+                          &qid, off,
                           dent->d_type, &name);
 
         v9fs_readdir_unlock(&fidp->fs.dir);
@@ -1966,7 +1980,7 @@ static int coroutine_fn v9fs_do_readdir(V9fsPDU *pdu, V9fsFidState *fidp,
         }
         count += len;
         v9fs_string_free(&name);
-        saved_dir_pos = dent->d_off;
+        saved_dir_pos = off;
     }
 
     v9fs_readdir_unlock(&fidp->fs.dir);
