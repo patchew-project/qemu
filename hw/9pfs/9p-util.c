@@ -104,3 +104,41 @@ int fsetxattrat_nofollow(int dirfd, const char *filename, const char *name,
 #endif
     return ret;
 }
+
+#ifndef __has_builtin
+#define __has_builtin(x) 0
+#endif
+
+int utimensat_nofollow(int dirfd, const char *filename, const struct timespec times[2])
+{
+#ifdef CONFIG_DARWIN
+#if defined(__MAC_10_13) /* Check whether we have an SDK version that defines utimensat */
+#if __MAC_OS_X_VERSION_MIN_REQUIRED >= __MAC_10_13
+#define UTIMENSAT_AVAILABLE 1
+#elif __has_builtin(__builtin_available)
+#define UTIMENSAT_AVAILABLE __builtin_available(macos 10.13, *)
+#else
+#define UTIMENSAT_AVAILABLE 0
+#endif
+    if (UTIMENSAT_AVAILABLE)
+    {
+        return utimensat(dirfd, filename, times, AT_SYMLINK_NOFOLLOW);
+    }
+#endif
+    // utimensat not available. Use futimes.
+    int fd = openat_file(dirfd, filename, O_PATH_9P_UTIL | O_NOFOLLOW, 0);
+    if (fd == -1)
+        return -1;
+
+    struct timeval futimes_buf[2];
+    futimes_buf[0].tv_sec = times[0].tv_sec;
+    futimes_buf[0].tv_usec = times[0].tv_nsec * 1000;
+    futimes_buf[1].tv_sec = times[1].tv_sec;
+    futimes_buf[1].tv_usec = times[1].tv_nsec * 1000;
+    int ret = futimes(fd, futimes_buf);
+    close_preserve_errno(fd);
+    return ret;
+#else
+    return utimensat(dirfd, filename, times, AT_SYMLINK_NOFOLLOW);
+#endif
+}
