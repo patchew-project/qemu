@@ -1376,7 +1376,17 @@ static int local_unlinkat(FsContext *ctx, V9fsPath *dir,
         return -1;
     }
 
-    ret = local_unlinkat_common(ctx, dirfd, name, flags);
+    if ((flags & ~P9_DOTL_AT_REMOVEDIR) != 0) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    size_t rflags = 0;
+    if (flags & P9_DOTL_AT_REMOVEDIR) {
+        rflags |= AT_REMOVEDIR;
+    }
+
+    ret = local_unlinkat_common(ctx, dirfd, name, rflags);
     close_preserve_errno(dirfd);
     return ret;
 }
