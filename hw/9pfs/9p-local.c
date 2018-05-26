@@ -669,6 +669,13 @@ static int local_mknod(FsContext *fs_ctx, V9fsPath *dir_path,
         return -1;
     }
 
+#ifdef CONFIG_DARWIN
+    /* Darwin doesn't have mknodat and it's unlikely to work anyway,
+       so let's just mark it as unsupported */
+    err = -1;
+    errno = EOPNOTSUPP;
+    goto out;
+#else
     if (fs_ctx->export_flags & V9FS_SM_MAPPED ||
         fs_ctx->export_flags & V9FS_SM_MAPPED_FILE) {
         err = mknodat(dirfd, name, fs_ctx->fmode | S_IFREG, 0);
@@ -699,6 +706,8 @@ static int local_mknod(FsContext *fs_ctx, V9fsPath *dir_path,
 
 err_end:
     unlinkat_preserve_errno(dirfd, name, 0);
+#endif
+
 out:
     close_preserve_errno(dirfd);
     return err;
