@@ -16,7 +16,9 @@
 
 #include <dirent.h>
 #include <utime.h>
+#ifdef CONFIG_LINUX
 #include <sys/vfs.h>
+#endif
 #include "qemu-fsdev-throttle.h"
 
 #define SM_LOCAL_MODE_BITS    0600
