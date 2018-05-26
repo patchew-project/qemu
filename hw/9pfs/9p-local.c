@@ -1375,10 +1375,10 @@ static int local_unlinkat(FsContext *ctx, V9fsPath *dir,
     return ret;
 }
 
+#ifdef FS_IOC_GETVERSION
 static int local_ioc_getversion(FsContext *ctx, V9fsPath *path,
                                 mode_t st_mode, uint64_t *st_gen)
 {
-#ifdef FS_IOC_GETVERSION
     int err;
     V9fsFidOpenState fid_open;
 
@@ -1397,15 +1397,11 @@ static int local_ioc_getversion(FsContext *ctx, V9fsPath *path,
     err = ioctl(fid_open.fd, FS_IOC_GETVERSION, st_gen);
     local_close(ctx, &fid_open);
     return err;
-#else
-    errno = ENOTTY;
-    return -1;
-#endif
 }
+#endif
 
 static int local_init(FsContext *ctx, Error **errp)
 {
-    struct statfs stbuf;
     LocalData *data = g_malloc(sizeof(*data));
 
     data->mountfd = open(ctx->fs_root, O_DIRECTORY | O_RDONLY);
@@ -1415,20 +1411,23 @@ static int local_init(FsContext *ctx, Error **errp)
     }
 
 #ifdef FS_IOC_GETVERSION
-    /*
-     * use ioc_getversion only if the ioctl is definied
-     */
-    if (fstatfs(data->mountfd, &stbuf) < 0) {
-        close_preserve_errno(data->mountfd);
-        goto err;
-    }
-    switch (stbuf.f_type) {
-    case EXT2_SUPER_MAGIC:
-    case BTRFS_SUPER_MAGIC:
-    case REISERFS_SUPER_MAGIC:
-    case XFS_SUPER_MAGIC:
-        ctx->exops.get_st_gen = local_ioc_getversion;
-        break;
+    {
+        struct statfs stbuf;
+        /*
+        * use ioc_getversion only if the ioctl is definied
+        */
+        if (fstatfs(data->mountfd, &stbuf) < 0) {
+            close_preserve_errno(data->mountfd);
+            goto err;
+        }
+        switch (stbuf.f_type) {
+        case EXT2_SUPER_MAGIC:
+        case BTRFS_SUPER_MAGIC:
+        case REISERFS_SUPER_MAGIC:
+        case XFS_SUPER_MAGIC:
+            ctx->exops.get_st_gen = local_ioc_getversion;
+            break;
+        }
     }
 #endif
 
