@@ -115,20 +115,27 @@ static int dotl_to_open_flags(int flags)
     int oflags = flags & O_ACCMODE;
 
     DotlOpenflagMap dotl_oflag_map[] = {
-        { P9_DOTL_CREATE, O_CREAT },
-        { P9_DOTL_EXCL, O_EXCL },
-        { P9_DOTL_NOCTTY , O_NOCTTY },
-        { P9_DOTL_TRUNC, O_TRUNC },
-        { P9_DOTL_APPEND, O_APPEND },
-        { P9_DOTL_NONBLOCK, O_NONBLOCK } ,
-        { P9_DOTL_DSYNC, O_DSYNC },
-        { P9_DOTL_FASYNC, FASYNC },
-        { P9_DOTL_DIRECT, O_DIRECT },
-        { P9_DOTL_LARGEFILE, O_LARGEFILE },
-        { P9_DOTL_DIRECTORY, O_DIRECTORY },
-        { P9_DOTL_NOFOLLOW, O_NOFOLLOW },
-        { P9_DOTL_NOATIME, O_NOATIME },
-        { P9_DOTL_SYNC, O_SYNC },
+        {P9_DOTL_CREATE, O_CREAT},
+        {P9_DOTL_EXCL, O_EXCL},
+        {P9_DOTL_NOCTTY, O_NOCTTY},
+        {P9_DOTL_TRUNC, O_TRUNC},
+        {P9_DOTL_APPEND, O_APPEND},
+        {P9_DOTL_NONBLOCK, O_NONBLOCK},
+        {P9_DOTL_DSYNC, O_DSYNC},
+        {P9_DOTL_FASYNC, FASYNC},
+#ifndef CONFIG_DARWIN
+        {P9_DOTL_NOATIME, O_NOATIME},
+        /* On Darwin, we could map to F_NOCACHE, which is
+           similar, but doesn't quite have the same
+           semantics. However, we don't support O_DIRECT
+           even on linux at the moment, so we just ignore
+           it here. */
+        {P9_DOTL_DIRECT, O_DIRECT},
+#endif
+        {P9_DOTL_LARGEFILE, O_LARGEFILE},
+        {P9_DOTL_DIRECTORY, O_DIRECTORY},
+        {P9_DOTL_NOFOLLOW, O_NOFOLLOW},
+        {P9_DOTL_SYNC, O_SYNC},
     };
 
     for (i = 0; i < ARRAY_SIZE(dotl_oflag_map); i++) {
@@ -156,10 +163,12 @@ static int get_dotl_openflags(V9fsState *s, int oflags)
      */
     flags = dotl_to_open_flags(oflags);
     flags &= ~(O_NOCTTY | O_ASYNC | O_CREAT);
+#ifndef CONFIG_DARWIN
     /*
      * Ignore direct disk access hint until the server supports it.
      */
     flags &= ~O_DIRECT;
+#endif
     return flags;
 }
 
