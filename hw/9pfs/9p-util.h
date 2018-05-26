@@ -58,7 +58,13 @@ static inline int openat_file(int dirfd, const char *name, int flags,
 
 ssize_t fgetxattrat_nofollow(int dirfd, const char *path, const char *name,
                              void *value, size_t size);
+ssize_t fgetxattr_follow(int fd, const char *name,
+                         void *value, size_t size);
 int fsetxattrat_nofollow(int dirfd, const char *path, const char *name,
                          void *value, size_t size, int flags);
+ssize_t flistxattrat_nofollow(int dirfd, const char *filename,
+                              char *list, size_t size);
+ssize_t fremovexattrat_nofollow(int dirfd, const char *filename,
+                                const char *name);
 
 #endif
