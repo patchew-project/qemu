@@ -26,15 +26,17 @@
 #define IOMEM_SIZE      0x20000000
 
 #define FLASH_BASE      0x00000000
-#define FLASH_SIZE      (144 * 1024)
+#define FLASH_SIZE      (256 * 1024)
+
+#define FICR_BASE       0x10000000
+#define FICR_SIZE       0x100
 
 #define SRAM_BASE       0x20000000
-#define SRAM_SIZE       (6 * 1024)
+#define SRAM_SIZE       (16 * 1024)
 
 static void nrf51_soc_realize(DeviceState *dev_soc, Error **errp)
 {
     NRF51State *s = NRF51_SOC(dev_soc);
-    DeviceState *nvic;
     Error *err = NULL;
 
     /* IO space */
@@ -69,8 +71,8 @@ static void nrf51_soc_realize(DeviceState *dev_soc, Error **errp)
     memory_region_add_subregion(system_memory, SRAM_BASE, sram);
 
     /* TODO: implement a cortex m0 and update this */
-    nvic = armv7m_init(get_system_memory(), FLASH_SIZE, 96,
-            s->kernel_filename, ARM_CPU_TYPE_NAME("cortex-m3"));
+    s->nvic = armv7m_init(get_system_memory(), FLASH_SIZE, 96,
+               s->kernel_filename, ARM_CPU_TYPE_NAME("cortex-m3"));
 }
 
 static Property nrf51_soc_properties[] = {

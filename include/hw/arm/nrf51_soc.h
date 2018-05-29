@@ -23,6 +23,7 @@ typedef struct NRF51State {
 
     /*< public >*/
     char *kernel_filename;
+    DeviceState *nvic;
 
     MemoryRegion iomem;
 } NRF51State;
