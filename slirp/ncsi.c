@@ -35,6 +35,27 @@ static int ncsi_rsp_handler_gls(struct ncsi_rsp_pkt_hdr *rnh)
     return 0;
 }
 
+/* Get Parameter */
+static int ncsi_rsp_handler_gp(struct ncsi_rsp_pkt_hdr *rnh)
+{
+    struct ncsi_rsp_gp_pkt *rsp = (struct ncsi_rsp_gp_pkt *) rnh;
+
+    rsp->mac_cnt = 0x0;
+    rsp->mac_enable = 0x0;
+
+    /* TODO: provide the guest configured MAC */
+    rsp->mac[0] = 0xaa;
+    rsp->mac[1] = 0xbb;
+    rsp->mac[2] = 0xcc;
+    rsp->mac[3] = 0xdd;
+    rsp->mac[4] = 0xee;
+    rsp->mac[5] = 0xff;
+
+    /* more data follows */
+
+    return 0;
+}
+
 static const struct ncsi_rsp_handler {
         unsigned char   type;
         int             payload;
@@ -62,7 +83,7 @@ static const struct ncsi_rsp_handler {
         { NCSI_PKT_RSP_SNFC,    4, NULL },
         { NCSI_PKT_RSP_GVI,    40, NULL },
         { NCSI_PKT_RSP_GC,     32, ncsi_rsp_handler_gc },
-        { NCSI_PKT_RSP_GP,     -1, NULL },
+        { NCSI_PKT_RSP_GP,     40, ncsi_rsp_handler_gp },
         { NCSI_PKT_RSP_GCPS,  172, NULL },
         { NCSI_PKT_RSP_GNS,   172, NULL },
         { NCSI_PKT_RSP_GNPTS, 172, NULL },
