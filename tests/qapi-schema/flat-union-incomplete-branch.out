@@ -1,0 +1,14 @@
+object q_empty
+enum QType ['none', 'qnull', 'qnum', 'qstring', 'qdict', 'qlist', 'qbool']
+    prefix QTYPE
+module flat-union-incomplete-branch.json
+enum TestEnum ['value1', 'value2']
+object TestTypeA
+    member string: str optional=False
+object q_obj_TestUnion-base
+    member type: TestEnum optional=False
+object TestUnion
+    base q_obj_TestUnion-base
+    tag type
+    case value1: TestTypeA
+    case value2: q_empty
