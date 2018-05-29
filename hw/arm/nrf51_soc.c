@@ -21,6 +21,7 @@
 #include "cpu.h"
 
 #include "hw/arm/nrf51_soc.h"
+#include "hw/char/nrf51_uart.h"
 
 #define IOMEM_BASE      0x40000000
 #define IOMEM_SIZE      0x20000000
@@ -33,6 +34,9 @@
 
 #define SRAM_BASE       0x20000000
 #define SRAM_SIZE       (16 * 1024)
+
+#define UART_BASE       0x40002000
+#define UART_SIZE       0x1000
 
 static void nrf51_soc_realize(DeviceState *dev_soc, Error **errp)
 {
@@ -73,6 +77,9 @@ static void nrf51_soc_realize(DeviceState *dev_soc, Error **errp)
     /* TODO: implement a cortex m0 and update this */
     s->nvic = armv7m_init(get_system_memory(), FLASH_SIZE, 96,
                s->kernel_filename, ARM_CPU_TYPE_NAME("cortex-m3"));
+
+    s->uart = nrf51_uart_create(UART_BASE, qdev_get_gpio_in(s->nvic, 2),
+                                serial_hd(0));
 }
 
 static Property nrf51_soc_properties[] = {
