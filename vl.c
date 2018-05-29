@@ -1778,9 +1778,7 @@ void qemu_system_reset_request(ShutdownCause reason)
 {
     if (no_reboot) {
         shutdown_requested = reason;
-    } else {
-        reset_requested = reason;
-    }
+    reset_requested = reason;
     cpu_stop_current();
     qemu_notify_event();
 }
@@ -1885,7 +1883,9 @@ void qemu_system_debug_request(void)
 static bool main_loop_should_exit(void)
 {
     RunState r;
-    ShutdownCause request;
+    ShutdownCause shutdown_request;
+    ShutdownCause reset_request;
+    bool from_guest;
 
     if (qemu_debug_requested()) {
         vm_stop(RUN_STATE_DEBUG);
@@ -1893,21 +1893,27 @@ static bool main_loop_should_exit(void)
     if (qemu_suspend_requested()) {
         qemu_system_suspend();
     }
-    request = qemu_shutdown_requested();
-    if (request) {
+    shutdown_request = qemu_shutdown_requested();
+    if (shutdown_request) {
         qemu_kill_report();
-        qapi_event_send_shutdown(shutdown_caused_by_guest(request),
-                                 &error_abort);
+        reset_request = qemu_reset_requested();
+        if (reset_request) {
+            from_guest = shutdown_caused_by_guest(reset_request);
+            qapi_event_send_reset(from_guest, &error_abort);
+        } else {
+            from_guest = shutdown_caused_by_guest(shutdown_request);
+            qapi_event_send_shutdown(from_guest, &error_abort);
+        }
         if (no_shutdown) {
             vm_stop(RUN_STATE_SHUTDOWN);
         } else {
             return true;
         }
     }
-    request = qemu_reset_requested();
-    if (request) {
+    reset_request = qemu_reset_requested();
+    if (reset_request) {
         pause_all_vcpus();
-        qemu_system_reset(request);
+        qemu_system_reset(reset_request);
         resume_all_vcpus();
         if (!runstate_check(RUN_STATE_RUNNING) &&
                 !runstate_check(RUN_STATE_INMIGRATE)) {
