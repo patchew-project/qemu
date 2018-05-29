@@ -401,9 +401,10 @@ static int pick_geometry(FDrive *drv)
 
     /* No match of any kind found -- fd_format is misconfigured, abort. */
     if (match == -1) {
-        error_setg(&error_abort, "No candidate geometries present in table "
-                   " for floppy drive type '%s'",
-                   FloppyDriveType_str(drv->drive));
+        error_report("No candidate geometries present in table "
+                     " for floppy drive type '%s'",
+                     FloppyDriveType_str(drv->drive));
+        abort();
     }
 
     parse = &(fd_formats[match]);
