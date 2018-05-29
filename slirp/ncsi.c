@@ -8,8 +8,22 @@
  */
 #include "qemu/osdep.h"
 #include "slirp.h"
+#include "net/checksum.h"
 
 #include "ncsi-pkt.h"
+
+static uint32_t ncsi_calculate_checksum(unsigned char *data, int len)
+{
+    uint32_t checksum = 0;
+    int i;
+
+    for (i = 0; i < len; i += 2) {
+        checksum += (((uint32_t)data[i] << 8) | data[i + 1]);
+    }
+
+    checksum = (~checksum + 1);
+    return checksum;
+}
 
 /* Get Capabilities */
 static int ncsi_rsp_handler_gc(struct ncsi_rsp_pkt_hdr *rnh)
@@ -108,6 +122,9 @@ void ncsi_input(Slirp *slirp, const uint8_t *pkt, int pkt_len)
         (ncsi_reply + ETH_HLEN);
     const struct ncsi_rsp_handler *handler = NULL;
     int i;
+    int ncsi_rsp_len = sizeof(*nh);
+    uint32_t checksum;
+    uint32_t *pchecksum;
 
     memset(ncsi_reply, 0, sizeof(ncsi_reply));
 
@@ -137,15 +154,19 @@ void ncsi_input(Slirp *slirp, const uint8_t *pkt, int pkt_len)
             /* TODO: handle errors */
             handler->handler(rnh);
         }
+        ncsi_rsp_len += handler->payload;
     } else {
         rnh->common.length = 0;
         rnh->code          = htons(NCSI_PKT_RSP_C_UNAVAILABLE);
         rnh->reason        = htons(NCSI_PKT_RSP_R_UNKNOWN);
     }
 
-    /* TODO: add a checksum at the end of the frame but the specs
-     * allows it to be zero */
+    /* add a checksum at the end of the frame (the specs allows it to
+     * be zero */
+    checksum = ncsi_calculate_checksum((unsigned char *) rnh, ncsi_rsp_len);
+    pchecksum = (uint32_t *)((void *) rnh + ncsi_rsp_len);
+    *pchecksum = htonl(checksum);
+    ncsi_rsp_len += 4;
 
-    slirp_output(slirp->opaque, ncsi_reply, ETH_HLEN + sizeof(*nh) +
-                 (handler ? handler->payload : 0) + 4);
+    slirp_output(slirp->opaque, ncsi_reply, ETH_HLEN + ncsi_rsp_len);
 }
