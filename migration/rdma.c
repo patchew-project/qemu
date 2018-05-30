@@ -2979,12 +2979,12 @@ static void qio_channel_rdma_set_aio_fd_handler(QIOChannel *ioc,
     }
 }
 
-static int qio_channel_rdma_close(QIOChannel *ioc,
-                                  Error **errp)
+static void *qio_channel_rdma_close_thread(void *arg)
 {
-    QIOChannelRDMA *rioc = QIO_CHANNEL_RDMA(ioc);
+    QIOChannelRDMA *rioc = arg;
     RDMAContext *rdmain, *rdmaout;
-    trace_qemu_rdma_close();
+
+    rcu_register_thread();
 
     rdmain = rioc->rdmain;
     if (rdmain) {
@@ -3009,6 +3009,19 @@ static int qio_channel_rdma_close(QIOChannel *ioc,
     g_free(rdmain);
     g_free(rdmaout);
 
+    rcu_unregister_thread();
+    return NULL;
+}
+
+static int qio_channel_rdma_close(QIOChannel *ioc,
+                                  Error **errp)
+{
+    QemuThread t;
+    QIOChannelRDMA *rioc = QIO_CHANNEL_RDMA(ioc);
+    trace_qemu_rdma_close();
+
+    qemu_thread_create(&t, "rdma cleanup", qio_channel_rdma_close_thread,
+                           rioc, QEMU_THREAD_DETACHED);
     return 0;
 }
 
