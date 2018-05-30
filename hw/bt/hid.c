@@ -174,6 +174,9 @@ static void bt_hid_send_data(struct bt_l2cap_conn_params_s *ch, int type,
     uint8_t *pkt, hdr = (BT_DATA << 4) | type;
     int plen;
 
+    if (!ch)
+        return;
+
     do {
         plen = MIN(len, ch->remote_mtu - 1);
         pkt = ch->sdu_out(ch, plen + 1);
