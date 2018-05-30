@@ -48,6 +48,8 @@ typedef struct AspeedSMCController {
     uint32_t nregs;
 } AspeedSMCController;
 
+#define ASPEED_SMC_CACHE_SIZE    1024  /* 1K is the minimum */
+
 typedef struct AspeedSMCFlash {
     struct AspeedSMCState *controller;
 
@@ -56,6 +58,10 @@ typedef struct AspeedSMCFlash {
 
     MemoryRegion mmio;
     DeviceState *flash;
+
+    MemoryRegion mmio_rom;
+    uint8_t cache[ASPEED_SMC_CACHE_SIZE];
+    hwaddr cache_addr;
 } AspeedSMCFlash;
 
 #define TYPE_ASPEED_SMC "aspeed.smc"
@@ -79,6 +85,7 @@ typedef struct AspeedSMCState {
 
     MemoryRegion mmio;
     MemoryRegion mmio_flash;
+    bool mmio_exec;
 
     qemu_irq irq;
     int irqline;

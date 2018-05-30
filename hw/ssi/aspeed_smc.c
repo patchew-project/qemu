@@ -604,6 +604,96 @@ static const MemoryRegionOps aspeed_smc_flash_ops = {
     },
 };
 
+static bool aspeed_smc_flash_rom_is_cached(AspeedSMCFlash *fl, hwaddr addr)
+{
+    return (addr >= fl->cache_addr &&
+            addr <= fl->cache_addr + ASPEED_SMC_CACHE_SIZE - 4);
+}
+
+static void aspeed_smc_flash_rom_load_cache(AspeedSMCFlash *fl, hwaddr addr)
+{
+    AspeedSMCState *s = fl->controller;
+    hwaddr cache_addr = addr & ~(ASPEED_SMC_CACHE_SIZE - 1);
+    int i;
+
+    if (fl->cache_addr != ~0ULL) {
+        memory_region_invalidate_mmio_ptr(&fl->mmio_rom, fl->cache_addr,
+                                          ASPEED_SMC_CACHE_SIZE);
+    }
+
+    aspeed_smc_flash_select(fl);
+    aspeed_smc_flash_setup(fl, cache_addr);
+
+    for (i = 0; i < ASPEED_SMC_CACHE_SIZE; i++) {
+        fl->cache[i] = ssi_transfer(s->spi, 0x0);
+    }
+
+    aspeed_smc_flash_unselect(fl);
+
+    fl->cache_addr = cache_addr;
+}
+
+static void *aspeed_smc_flash_rom_request_ptr(void *opaque, hwaddr addr,
+                                              unsigned *size, unsigned *offset)
+{
+    AspeedSMCFlash *fl = opaque;
+
+    if (!aspeed_smc_flash_rom_is_cached(fl, addr)) {
+        aspeed_smc_flash_rom_load_cache(fl, addr);
+    }
+
+    *size = ASPEED_SMC_CACHE_SIZE;
+    *offset = fl->cache_addr;
+    return fl->cache;
+}
+
+static uint64_t aspeed_smc_flash_rom_read(void *opaque, hwaddr addr,
+                                          unsigned size)
+{
+    AspeedSMCFlash *fl = opaque;
+    AspeedSMCState *s = fl->controller;
+    uint64_t ret = 0;
+    int i;
+
+    /*
+     * Transfer or use the cache if possible. Reloading the cache
+     * while loading from the flash can break the TCG execution flow.
+     */
+    if (!aspeed_smc_flash_rom_is_cached(fl, addr)) {
+        aspeed_smc_flash_select(fl);
+        aspeed_smc_flash_setup(fl, addr);
+
+        for (i = 0; i < size; i++) {
+            ret |= (uint64_t) ssi_transfer(s->spi, 0x0) << (8 * i);
+        }
+
+        aspeed_smc_flash_unselect(fl);
+    } else {
+        for (i = 0; i < size; i++) {
+            ret |= (uint64_t) fl->cache[addr - fl->cache_addr + i] << (8 * i);
+        }
+    }
+    return ret;
+}
+
+static void aspeed_smc_flash_rom_write(void *opaque, hwaddr addr, uint64_t data,
+                                       unsigned size)
+{
+    qemu_log_mask(LOG_GUEST_ERROR, "%s: flash is not writable at 0x%"
+                  HWADDR_PRIx "\n", __func__, addr);
+}
+
+static const MemoryRegionOps aspeed_smc_flash_rom_ops = {
+    .read = aspeed_smc_flash_rom_read,
+    .write = aspeed_smc_flash_rom_write,
+    .request_ptr = aspeed_smc_flash_rom_request_ptr,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 4,
+    },
+};
+
 static void aspeed_smc_flash_update_cs(AspeedSMCFlash *fl)
 {
     const AspeedSMCState *s = fl->controller;
@@ -778,21 +868,51 @@ static void aspeed_smc_realize(DeviceState *dev, Error **errp)
                               fl, name, fl->size);
         memory_region_add_subregion(&s->mmio_flash, offset, &fl->mmio);
         offset += fl->size;
+
+        /*
+         * The system is generally booted from one of the flash
+         * modules behind the FMC controller. Initialize the 'ROM'
+         * region which supports MMIO execution and let the board
+         * decide how to use them.
+         */
+        if ((s->ctrl->segments == aspeed_segments_ast2500_fmc ||
+             s->ctrl->segments == aspeed_segments_fmc) && s->mmio_exec) {
+            snprintf(name, sizeof(name), "%s.%d-rom", s->ctrl->name, i);
+
+            memory_region_init_io(&fl->mmio_rom, OBJECT(s),
+                                  &aspeed_smc_flash_rom_ops,
+                                  fl, name, fl->size);
+            fl->cache_addr = ~0ULL;
+        }
     }
 }
 
+static const VMStateDescription vmstate_aspeed_smc_flash = {
+    .name = TYPE_ASPEED_SMC "/flash",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField []) {
+        VMSTATE_UINT8_ARRAY(cache, AspeedSMCFlash, ASPEED_SMC_CACHE_SIZE),
+        VMSTATE_UINT64(cache_addr, AspeedSMCFlash),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 static const VMStateDescription vmstate_aspeed_smc = {
-    .name = "aspeed.smc",
+    .name = TYPE_ASPEED_SMC,
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, AspeedSMCState, ASPEED_SMC_R_MAX),
+        VMSTATE_STRUCT_VARRAY_POINTER_UINT32(flashes, AspeedSMCState, num_cs,
+                                     vmstate_aspeed_smc_flash, AspeedSMCFlash),
         VMSTATE_END_OF_LIST()
     }
 };
 
 static Property aspeed_smc_properties[] = {
     DEFINE_PROP_UINT32("num-cs", AspeedSMCState, num_cs, 1),
+    DEFINE_PROP_BOOL("mmio-exec", AspeedSMCState, mmio_exec, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
