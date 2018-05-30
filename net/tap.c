@@ -803,7 +803,8 @@ int net_init_tap(const Netdev *netdev, const char *name,
     } else if (tap->has_fds) {
         char **fds;
         char **vhost_fds;
-        int nfds, nvhosts;
+        int nfds = 0, nvhosts = 0;
+        int ret = 0;
 
         if (tap->has_ifname || tap->has_script || tap->has_downscript ||
             tap->has_vnet_hdr || tap->has_helper || tap->has_queues ||
@@ -823,6 +824,7 @@ int net_init_tap(const Netdev *netdev, const char *name,
             if (nfds != nvhosts) {
                 error_setg(errp, "The number of fds passed does not match "
                            "the number of vhostfds passed");
+                ret = -1;
                 goto free_fail;
             }
         }
@@ -831,6 +833,7 @@ int net_init_tap(const Netdev *netdev, const char *name,
             fd = monitor_fd_param(cur_mon, fds[i], &err);
             if (fd == -1) {
                 error_propagate(errp, err);
+                ret = -1;
                 goto free_fail;
             }
 
@@ -841,6 +844,7 @@ int net_init_tap(const Netdev *netdev, const char *name,
             } else if (vnet_hdr != tap_probe_vnet_hdr(fd)) {
                 error_setg(errp,
                            "vnet_hdr not consistent across given tap fds");
+                ret = -1;
                 goto free_fail;
             }
 
@@ -850,21 +854,21 @@ int net_init_tap(const Netdev *netdev, const char *name,
                              vnet_hdr, fd, &err);
             if (err) {
                 error_propagate(errp, err);
+                ret = -1;
                 goto free_fail;
             }
         }
-        g_free(fds);
-        g_free(vhost_fds);
-        return 0;
 
 free_fail:
+        for (i = 0; i < nvhosts; i++) {
+            g_free(vhost_fds[i]);
+        }
         for (i = 0; i < nfds; i++) {
             g_free(fds[i]);
-            g_free(vhost_fds[i]);
         }
         g_free(fds);
         g_free(vhost_fds);
-        return -1;
+        return ret;
     } else if (tap->has_helper) {
         if (tap->has_ifname || tap->has_script || tap->has_downscript ||
             tap->has_vnet_hdr || tap->has_queues || tap->has_vhostfds) {
