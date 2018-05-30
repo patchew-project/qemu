@@ -1669,7 +1669,7 @@ gchar *object_get_canonical_path(Object *obj)
     Object *root = object_get_root();
     char *newpath, *path = NULL;
 
-    while (obj != root) {
+    while (obj && obj != root) {
         char *component = object_get_canonical_path_component(obj);
 
         if (path) {
@@ -1684,7 +1684,13 @@ gchar *object_get_canonical_path(Object *obj)
         obj = obj->parent;
     }
 
-    newpath = g_strdup_printf("/%s", path ? path : "");
+    if (obj && path) {
+        newpath = g_strdup_printf("/%s", path);
+    } else if (path) {
+        newpath = g_strdup(path);
+    } else {
+        newpath = NULL;
+    }
     g_free(path);
 
     return newpath;
