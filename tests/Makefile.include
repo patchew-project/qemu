@@ -76,7 +76,9 @@ gcov-files-test-coroutine-y = coroutine-$(CONFIG_COROUTINE_BACKEND).c
 check-unit-y += tests/test-visitor-serialization$(EXESUF)
 check-unit-y += tests/test-iov$(EXESUF)
 gcov-files-test-iov-y = util/iov.c
+# start: flakey
 check-unit-y += tests/test-aio$(EXESUF)
+# end: flakey
 gcov-files-test-aio-y = util/async.c util/qemu-timer.o
 gcov-files-test-aio-$(CONFIG_WIN32) += util/aio-win32.c
 gcov-files-test-aio-$(CONFIG_POSIX) += util/aio-posix.c
@@ -110,7 +112,9 @@ gcov-files-test-mul64-y = util/host-utils.c
 check-unit-y += tests/test-int128$(EXESUF)
 # all code tested by test-int128 is inside int128.h
 gcov-files-test-int128-y =
+# start: flakey
 check-unit-y += tests/rcutorture$(EXESUF)
+# end: flakey
 gcov-files-rcutorture-y = util/rcu.c
 check-unit-y += tests/test-rcu-list$(EXESUF)
 gcov-files-test-rcu-list-y = util/rcu.c
