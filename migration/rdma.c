@@ -1489,6 +1489,9 @@ static uint64_t qemu_rdma_poll(RDMAContext *rdma, uint64_t *wr_id_out,
  */
 static int qemu_rdma_wait_comp_channel(RDMAContext *rdma)
 {
+    struct rdma_cm_event *cm_event;
+    int ret = -1;
+
     /*
      * Coroutine doesn't start until migration_fd_process_incoming()
      * so don't yield unless we know we're running inside of a coroutine.
@@ -1504,23 +1507,33 @@ static int qemu_rdma_wait_comp_channel(RDMAContext *rdma)
          * But we need to be able to handle 'cancel' or an error
          * without hanging forever.
          */
-        while (!rdma->error_state  && !rdma->received_error) {
-            GPollFD pfds[1];
+        while (!rdma->error_state && !rdma->received_error) {
+            GPollFD pfds[2];
             pfds[0].fd = rdma->comp_channel->fd;
             pfds[0].events = G_IO_IN | G_IO_HUP | G_IO_ERR;
+            pfds[0].revents = 0;
+
+            pfds[1].fd = rdma->channel->fd;
+            pfds[1].events = G_IO_IN | G_IO_HUP | G_IO_ERR;
+            pfds[1].revents = 0;
+
             /* 0.1s timeout, should be fine for a 'cancel' */
-            switch (qemu_poll_ns(pfds, 1, 100 * 1000 * 1000)) {
-            case 1: /* fd active */
-                return 0;
+            qemu_poll_ns(pfds, 2, 100 * 1000 * 1000);
 
-            case 0: /* Timeout, go around again */
-                break;
+            if (pfds[1].revents) {
+                ret = rdma_get_cm_event(rdma->channel, &cm_event);
+                if (!ret) {
+                    rdma_ack_cm_event(cm_event);
+                }
+                error_report("receive cm event while wait comp channel,"
+                             "cm event is %d", cm_event->event);
 
-            default: /* Error of some type -
-                      * I don't trust errno from qemu_poll_ns
-                     */
-                error_report("%s: poll failed", __func__);
+                /* consider any rdma communication event as an error */
                 return -EPIPE;
+            }
+
+            if (pfds[0].revents) {
+                return 0;
             }
 
             if (migrate_get_current()->state == MIGRATION_STATUS_CANCELLING) {
