@@ -20,6 +20,7 @@
 #include "cpu.h"
 #include "exec/exec-all.h"
 #include "exec/helper-proto.h"
+#include "qemu/error-report.h"
 
 #include "helper_regs.h"
 
@@ -184,6 +185,15 @@ target_ulong helper_clcs(CPUPPCState *env, uint32_t arg)
 void ppc_store_msr(CPUPPCState *env, target_ulong value)
 {
     hreg_store_msr(env, value, 0);
+}
+
+void helper_store_pcr(CPUPPCState *env, target_ulong value)
+{
+    if (value != 0) {
+        error_report("Unimplemented PCR value 0x"TARGET_FMT_lx, value);
+        return;
+    }
+    env->spr[SPR_PCR] = value;
 }
 
 /* This code is lifted from MacOnLinux. It is called whenever
