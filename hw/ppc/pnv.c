@@ -712,6 +712,24 @@ static uint32_t pnv_chip_core_pir_p9(PnvChip *chip, uint32_t core_id)
  */
 #define POWER9_CORE_MASK   (0xffffffffffffffull)
 
+/*
+ * POWER8 MMIOs
+ */
+static const PnvPhysMapEntry pnv_chip_power8_phys_map[] = {
+    [PNV_MAP_XSCOM]     = { 0x0003fc0000000000ull, 0x0000000800000000ull },
+    [PNV_MAP_ICP]       = { 0x0003ffff80000000ull, 0x0000000000100000ull },
+    [PNV_MAP_PSIHB]     = { 0x0003fffe80000000ull, 0x0000000000100000ull },
+    [PNV_MAP_PSIHB_FSP] = { 0x0003ffe000000000ull, 0x0000000100000000ull },
+};
+
+static uint64_t pnv_chip_map_base_p8(const PnvChip *chip, PnvPhysMapType type)
+{
+    PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
+    const PnvPhysMapEntry *map = &pcc->phys_map[type];
+
+    return map->base + chip->chip_id * map->size;
+}
+
 static void pnv_chip_power8e_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -721,7 +739,8 @@ static void pnv_chip_power8e_class_init(ObjectClass *klass, void *data)
     k->chip_cfam_id = 0x221ef04980000000ull;  /* P8 Murano DD2.1 */
     k->cores_mask = POWER8E_CORE_MASK;
     k->core_pir = pnv_chip_core_pir_p8;
-    k->xscom_base = 0x003fc0000000000ull;
+    k->map_base = pnv_chip_map_base_p8;
+    k->phys_map = pnv_chip_power8_phys_map;
     dc->desc = "PowerNV Chip POWER8E";
 }
 
@@ -734,7 +753,8 @@ static void pnv_chip_power8_class_init(ObjectClass *klass, void *data)
     k->chip_cfam_id = 0x220ea04980000000ull; /* P8 Venice DD2.0 */
     k->cores_mask = POWER8_CORE_MASK;
     k->core_pir = pnv_chip_core_pir_p8;
-    k->xscom_base = 0x003fc0000000000ull;
+    k->map_base = pnv_chip_map_base_p8;
+    k->phys_map = pnv_chip_power8_phys_map;
     dc->desc = "PowerNV Chip POWER8";
 }
 
@@ -747,8 +767,25 @@ static void pnv_chip_power8nvl_class_init(ObjectClass *klass, void *data)
     k->chip_cfam_id = 0x120d304980000000ull;  /* P8 Naples DD1.0 */
     k->cores_mask = POWER8_CORE_MASK;
     k->core_pir = pnv_chip_core_pir_p8;
-    k->xscom_base = 0x003fc0000000000ull;
+    k->map_base = pnv_chip_map_base_p8;
+    k->phys_map = pnv_chip_power8_phys_map;
     dc->desc = "PowerNV Chip POWER8NVL";
+}
+
+/*
+ * POWER9 MMIOs
+ */
+static const PnvPhysMapEntry pnv_chip_power9_phys_map[] = {
+    [PNV_MAP_XSCOM]     = { 0x000603fc00000000ull, 0x0000000400000000ull },
+};
+
+/* Each chip has a 4TB range for its MMIOs */
+static uint64_t pnv_chip_map_base_p9(const PnvChip *chip, PnvPhysMapType type)
+{
+    PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
+    const PnvPhysMapEntry *map = &pcc->phys_map[type];
+
+    return map->base + ((uint64_t) chip->chip_id << 42);
 }
 
 static void pnv_chip_power9_class_init(ObjectClass *klass, void *data)
@@ -760,7 +797,8 @@ static void pnv_chip_power9_class_init(ObjectClass *klass, void *data)
     k->chip_cfam_id = 0x220d104900008000ull; /* P9 Nimbus DD2.0 */
     k->cores_mask = POWER9_CORE_MASK;
     k->core_pir = pnv_chip_core_pir_p9;
-    k->xscom_base = 0x00603fc00000000ull;
+    k->map_base = pnv_chip_map_base_p9;
+    k->phys_map = pnv_chip_power9_phys_map;
     dc->desc = "PowerNV Chip POWER9";
 }
 
@@ -797,15 +835,14 @@ static void pnv_chip_core_sanitize(PnvChip *chip, Error **errp)
 static void pnv_chip_init(Object *obj)
 {
     PnvChip *chip = PNV_CHIP(obj);
-    PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
-
-    chip->xscom_base = pcc->xscom_base;
 
     object_initialize(&chip->lpc, sizeof(chip->lpc), TYPE_PNV_LPC);
     object_property_add_child(obj, "lpc", OBJECT(&chip->lpc), NULL);
 
     object_initialize(&chip->psi, sizeof(chip->psi), TYPE_PNV_PSI);
     object_property_add_child(obj, "psi", OBJECT(&chip->psi), NULL);
+    object_property_add_const_link(OBJECT(&chip->psi), "chip", obj,
+                                   &error_abort);
     object_property_add_const_link(OBJECT(&chip->psi), "xics",
                                    OBJECT(qdev_get_machine()), &error_abort);
 
@@ -829,7 +866,7 @@ static void pnv_chip_icp_realize(PnvChip *chip, Error **errp)
     XICSFabric *xi = XICS_FABRIC(qdev_get_machine());
 
     name = g_strdup_printf("icp-%x", chip->chip_id);
-    memory_region_init(&chip->icp_mmio, OBJECT(chip), name, PNV_ICP_SIZE);
+    memory_region_init(&chip->icp_mmio, OBJECT(chip), name, PNV_ICP_SIZE(chip));
     sysbus_init_mmio(SYS_BUS_DEVICE(chip), &chip->icp_mmio);
     g_free(name);
 

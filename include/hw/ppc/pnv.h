@@ -53,7 +53,6 @@ typedef struct PnvChip {
     uint64_t     cores_mask;
     void         *cores;
 
-    hwaddr       xscom_base;
     MemoryRegion xscom_mmio;
     MemoryRegion xscom;
     AddressSpace xscom_as;
@@ -64,6 +63,18 @@ typedef struct PnvChip {
     PnvOCC       occ;
 } PnvChip;
 
+typedef enum PnvPhysMapType {
+    PNV_MAP_XSCOM,
+    PNV_MAP_ICP,
+    PNV_MAP_PSIHB,
+    PNV_MAP_PSIHB_FSP,
+} PnvPhysMapType;
+
+typedef struct PnvPhysMapEntry {
+    uint64_t        base;
+    uint64_t        size;
+} PnvPhysMapEntry;
+
 typedef struct PnvChipClass {
     /*< private >*/
     SysBusDeviceClass parent_class;
@@ -73,9 +84,10 @@ typedef struct PnvChipClass {
     uint64_t     chip_cfam_id;
     uint64_t     cores_mask;
 
-    hwaddr       xscom_base;
+    const PnvPhysMapEntry *phys_map;
 
     uint32_t (*core_pir)(PnvChip *chip, uint32_t core_id);
+    uint64_t (*map_base)(const PnvChip *chip, PnvPhysMapType type);
 } PnvChipClass;
 
 #define PNV_CHIP_TYPE_SUFFIX "-" TYPE_PNV_CHIP
@@ -159,9 +171,21 @@ void pnv_bmc_powerdown(IPMIBmc *bmc);
 /*
  * POWER8 MMIO base addresses
  */
-#define PNV_XSCOM_SIZE        0x800000000ull
-#define PNV_XSCOM_BASE(chip)                                            \
-    (chip->xscom_base + ((uint64_t)(chip)->chip_id) * PNV_XSCOM_SIZE)
+static inline uint64_t pnv_map_size(const PnvChip *chip, PnvPhysMapType type)
+{
+    PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
+    const PnvPhysMapEntry *map = &pcc->phys_map[type];
+
+    return map->size;
+}
+
+static inline uint64_t pnv_map_base(const PnvChip *chip, PnvPhysMapType type)
+{
+    return PNV_CHIP_GET_CLASS(chip)->map_base(chip, type);
+}
+
+#define PNV_XSCOM_SIZE(chip)         pnv_map_size(chip, PNV_MAP_XSCOM)
+#define PNV_XSCOM_BASE(chip)         pnv_map_base(chip, PNV_MAP_XSCOM)
 
 /*
  * XSCOM 0x20109CA defines the ICP BAR:
@@ -177,18 +201,13 @@ void pnv_bmc_powerdown(IPMIBmc *bmc);
  *      0xffffe02200000000 -> 0x0003ffff80800000
  *      0xffffe02600000000 -> 0x0003ffff80900000
  */
-#define PNV_ICP_SIZE         0x0000000000100000ull
-#define PNV_ICP_BASE(chip)                                              \
-    (0x0003ffff80000000ull + (uint64_t) PNV_CHIP_INDEX(chip) * PNV_ICP_SIZE)
+#define PNV_ICP_SIZE(chip)           pnv_map_size(chip, PNV_MAP_ICP)
+#define PNV_ICP_BASE(chip)           pnv_map_base(chip, PNV_MAP_ICP)
 
+#define PNV_PSIHB_SIZE(chip)         pnv_map_size(chip, PNV_MAP_PSIHB)
+#define PNV_PSIHB_BASE(chip)         pnv_map_base(chip, PNV_MAP_PSIHB)
 
-#define PNV_PSIHB_SIZE       0x0000000000100000ull
-#define PNV_PSIHB_BASE(chip) \
-    (0x0003fffe80000000ull + (uint64_t)PNV_CHIP_INDEX(chip) * PNV_PSIHB_SIZE)
-
-#define PNV_PSIHB_FSP_SIZE   0x0000000100000000ull
-#define PNV_PSIHB_FSP_BASE(chip) \
-    (0x0003ffe000000000ull + (uint64_t)PNV_CHIP_INDEX(chip) * \
-     PNV_PSIHB_FSP_SIZE)
+#define PNV_PSIHB_FSP_SIZE(chip)     pnv_map_size(chip, PNV_MAP_PSIHB_FSP)
+#define PNV_PSIHB_FSP_BASE(chip)     pnv_map_base(chip, PNV_MAP_PSIHB_FSP)
 
 #endif /* _PPC_PNV_H */
