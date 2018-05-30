@@ -58,6 +58,7 @@
 #include "qemu/main-loop.h"
 #include "exec/log.h"
 #include "sysemu/cpus.h"
+#include "instrument/instrument.h"
 
 /* #define DEBUG_TB_INVALIDATE */
 /* #define DEBUG_TB_FLUSH */
@@ -210,6 +211,7 @@ static TranslationBlock *tb_find_pc(uintptr_t tc_ptr);
 void cpu_gen_init(void)
 {
     tcg_context_init(&tcg_init_ctx);
+    qi_init();
 }
 
 /* Encode VAL as a signed leb128 sequence at P.
