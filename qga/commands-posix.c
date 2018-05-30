@@ -46,6 +46,7 @@ extern char **environ;
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <net/if.h>
+#include <sys/statvfs.h>
 
 #ifdef FIFREEZE
 #define CONFIG_FSFREEZE
@@ -1072,6 +1073,9 @@ static GuestFilesystemInfo *build_guest_fsinfo(struct FsMount *mount,
                                                Error **errp)
 {
     GuestFilesystemInfo *fs = g_malloc0(sizeof(*fs));
+    struct statvfs buf;
+    unsigned long u100, used, nonroot_total;
+    int usage;
     char *devpath = g_strdup_printf("/sys/dev/block/%u:%u",
                                     mount->devmajor, mount->devminor);
 
@@ -1079,7 +1083,20 @@ static GuestFilesystemInfo *build_guest_fsinfo(struct FsMount *mount,
     fs->type = g_strdup(mount->devtype);
     build_guest_fsinfo_for_device(devpath, fs, errp);
 
+    if (statvfs(fs->mountpoint, &buf)) {
+        error_setg_errno(errp, errno, "Failed to get statvfs");
+        return NULL;
+    }
+
+    used = buf.f_blocks - buf.f_bfree;
+    u100 = 100 * used;
+    nonroot_total = used + buf.f_bavail;
+    usage = u100 / nonroot_total + (u100 % nonroot_total != 0);
+
+    fs->usage = usage;
+
     g_free(devpath);
+
     return fs;
 }
 
