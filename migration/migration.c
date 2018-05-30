@@ -2008,6 +2008,7 @@ static void *source_return_path_thread(void *opaque)
     int res;
 
     trace_source_return_path_thread_entry();
+    rcu_register_thread();
 
 retry:
     while (!ms->rp_state.error && !qemu_file_get_error(rp) &&
@@ -2147,6 +2148,7 @@ out:
     trace_source_return_path_thread_end();
     ms->rp_state.from_dst_file = NULL;
     qemu_fclose(rp);
+    rcu_unregister_thread();
     return NULL;
 }
 
