@@ -1036,16 +1036,62 @@ const char *parse_cpu_model(const char *cpu_model)
     return cpu_type;
 }
 
+/*
+ * Invalidate all TBs which intersect with the target physical address range
+ * [start;end[. NOTE: start and end may refer to *different* physical pages.
+ * 'is_cpu_write_access' should be true if called from a real cpu write
+ * access: the virtual CPU will exit the current TB if code is modified inside
+ * this TB.
+ *
+ * Grabs tb_lock.
+ * Called with mmap_lock held for user-mode emulation.
+ */
+void tb_invalidate_phys_range(target_ulong start, target_ulong end)
+{
+    tb_lock();
+    while (start < end) {
+        tb_invalidate_phys_page_range(start, end, 0);
+        start &= TARGET_PAGE_MASK;
+        start += TARGET_PAGE_SIZE;
+    }
+    tb_unlock();
+}
+
 #if defined(CONFIG_USER_ONLY)
-static void breakpoint_invalidate(CPUState *cpu, target_ulong pc)
+void tb_invalidate_phys_addr(target_ulong addr)
 {
     mmap_lock();
     tb_lock();
-    tb_invalidate_phys_page_range(pc, pc + 1, 0);
+    tb_invalidate_phys_page_range(addr, addr + 1, 0);
     tb_unlock();
     mmap_unlock();
 }
+
+static void breakpoint_invalidate(CPUState *cpu, target_ulong pc)
+{
+    tb_invalidate_phys_addr(pc);
+}
 #else
+void tb_invalidate_phys_addr(AddressSpace *as, hwaddr addr, MemTxAttrs attrs)
+{
+    ram_addr_t ram_addr;
+    MemoryRegion *mr;
+    hwaddr l = 1;
+
+    rcu_read_lock();
+    mr = address_space_translate(as, addr, &addr, &l, false, attrs);
+    if (!(memory_region_is_ram(mr)
+          || memory_region_is_romd(mr))) {
+        rcu_read_unlock();
+        return;
+    }
+    ram_addr = memory_region_get_ram_addr(mr) + addr;
+    tb_lock();
+    tb_invalidate_phys_page_range(ram_addr, ram_addr + 1, 0);
+    tb_unlock();
+    rcu_read_unlock();
+}
+
 static void breakpoint_invalidate(CPUState *cpu, target_ulong pc)
 {
     MemTxAttrs attrs;
@@ -3183,9 +3229,7 @@ static void invalidate_and_set_dirty(MemoryRegion *mr, hwaddr addr,
     }
     if (dirty_log_mask & (1 << DIRTY_MEMORY_CODE)) {
         assert(tcg_enabled());
-        tb_lock();
         tb_invalidate_phys_range(addr, addr + length);
-        tb_unlock();
         dirty_log_mask &= ~(1 << DIRTY_MEMORY_CODE);
     }
     cpu_physical_memory_set_dirty_range(addr, length, dirty_log_mask);
