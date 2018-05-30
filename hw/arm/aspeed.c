@@ -144,6 +144,32 @@ static void write_boot_rom(DriveInfo *dinfo, hwaddr addr, size_t rom_size,
     g_free(storage);
 }
 
+static void install_boot_rom(AspeedBoardState *bmc, DriveInfo *drive,
+                             hwaddr addr)
+{
+    AspeedSMCState *fmc = &bmc->soc.fmc;
+    AspeedSMCFlash *fl = &fmc->flashes[0];
+    bool mmio_exec = object_property_get_bool(OBJECT(fmc), "mmio-exec",
+                                              &error_abort);
+    if (mmio_exec) {
+        memory_region_add_subregion(get_system_memory(), addr,
+                                    &fl->mmio_rom);
+    } else {
+        MemoryRegion *boot_rom = g_new(MemoryRegion, 1);
+
+        /*
+         * create a ROM region using the default mapping window size of
+         * the flash module. The window size is 64MB for the AST2400
+         * SoC and 128MB for the AST2500 SoC, which is twice as big as
+         * needed by the flash modules of the Aspeed machines.
+         */
+        memory_region_init_rom(boot_rom, OBJECT(bmc), "aspeed.boot_rom",
+                               fl->size, &error_abort);
+        memory_region_add_subregion(get_system_memory(), addr, boot_rom);
+        write_boot_rom(drive, addr, fl->size, &error_abort);
+    }
+}
+
 static void aspeed_board_init_flashes(AspeedSMCState *s, const char *flashtype,
                                       Error **errp)
 {
@@ -216,20 +242,7 @@ static void aspeed_board_init(MachineState *machine,
 
     /* Install first FMC flash content as a boot rom. */
     if (drive0) {
-        AspeedSMCFlash *fl = &bmc->soc.fmc.flashes[0];
-        MemoryRegion *boot_rom = g_new(MemoryRegion, 1);
-
-        /*
-         * create a ROM region using the default mapping window size of
-         * the flash module. The window size is 64MB for the AST2400
-         * SoC and 128MB for the AST2500 SoC, which is twice as big as
-         * needed by the flash modules of the Aspeed machines.
-         */
-        memory_region_init_rom(boot_rom, OBJECT(bmc), "aspeed.boot_rom",
-                               fl->size, &error_abort);
-        memory_region_add_subregion(get_system_memory(), FIRMWARE_ADDR,
-                                    boot_rom);
-        write_boot_rom(drive0, FIRMWARE_ADDR, fl->size, &error_abort);
+        install_boot_rom(bmc, drive0, FIRMWARE_ADDR);
     }
 
     aspeed_board_binfo.kernel_filename = machine->kernel_filename;
