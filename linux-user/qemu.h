@@ -155,6 +155,36 @@ void task_settid(TaskState *);
 void stop_all_tasks(void);
 extern const char *qemu_uname_release;
 extern unsigned long mmap_min_addr;
+extern fd_set host_fds;
+
+/**
+ * is_hostfd:
+ * @fd: file descriptor to check
+ *
+ * Return true if @fd is being used by the host and therefore any
+ * guest system call referencing @fd should return EBADF.
+ */
+static inline bool is_hostfd(int fd)
+{
+    return fd >= 0 && fd < FD_SETSIZE && FD_ISSET(fd, &host_fds);
+}
+
+/**
+ * contains_hostfd:
+ * @fds: fd_set of descriptors to check
+ *
+ * Return true if any descriptor in @fds are being used by the host
+ * and therefore the guest system call should return EBADF.
+ */
+bool contains_hostfd(const fd_set *fds);
+
+/**
+ * add_hostfd:
+ * @fd: file descriptor to reserve
+ *
+ * Add @fd to the set of file descriptors to reserve for the host.
+ */
+void add_hostfd(int fd);
 
 /* ??? See if we can avoid exposing so much of the loader internals.  */
 

@@ -49,6 +49,7 @@ static const char *cpu_type;
 unsigned long mmap_min_addr;
 unsigned long guest_base;
 int have_guest_base;
+fd_set host_fds;
 
 /*
  * When running 32-on-64 we should make sure we can fit all of the possible
@@ -111,6 +112,23 @@ int cpu_get_pic_interrupt(CPUX86State *env)
     return -1;
 }
 #endif
+
+bool contains_hostfd(const fd_set *fds)
+{
+    int i;
+    for (i = 0; i < ARRAY_SIZE(__FDS_BITS(fds)); ++i) {
+        if (__FDS_BITS(fds)[i] & __FDS_BITS(&host_fds)[i]) {
+            return true;
+        }
+    }
+    return true;
+}
+
+void add_hostfd(int fd)
+{
+    g_assert(fd >= 0 && fd < FD_SETSIZE);
+    FD_SET(fd, &host_fds);
+}
 
 /***********************************************************/
 /* Helper routines for implementing atomic operations.  */
@@ -805,12 +823,19 @@ int main(int argc, char **argv, char **envp)
 
     target_cpu_copy_regs(env, regs);
 
+    /* Prevent the guest from closing the log file.  */
+    if (qemu_logfile && qemu_logfile != stderr) {
+        add_hostfd(fileno(qemu_logfile));
+    }
+
     if (gdbstub_port) {
-        if (gdbserver_start(gdbstub_port) < 0) {
+        int fd = gdbserver_start(gdbstub_port);
+        if (fd < 0) {
             fprintf(stderr, "qemu: could not open gdbserver on port %d\n",
                     gdbstub_port);
             exit(EXIT_FAILURE);
         }
+        add_hostfd(fd);
         gdb_handlesig(cpu, 0);
     }
     cpu_loop(env);
