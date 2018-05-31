@@ -9,7 +9,6 @@ QMP_VERSION
 {"return": {}}
 {"return": {}}
 {"return": {}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
 
 image: TEST_DIR/t.IMGFMT
 file format: IMGFMT
@@ -23,7 +22,6 @@ QMP_VERSION
 {"return": {}}
 {"return": {}}
 {"return": {}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
 
 image: TEST_DIR/t.IMGFMT
 file format: IMGFMT
@@ -37,7 +35,6 @@ QMP_VERSION
 {"return": {}}
 {"return": {}}
 {"return": {}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
 
 image: TEST_DIR/t.IMGFMT
 file format: IMGFMT
@@ -50,7 +47,6 @@ QMP_VERSION
 {"return": {}}
 {"error": {"class": "GenericError", "desc": "Cannot find device=this doesn't exist nor node_name=this doesn't exist"}}
 {"return": {}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
 
 
 === Zero size ===
@@ -60,7 +56,6 @@ QMP_VERSION
 {"return": {}}
 {"return": {}}
 {"return": {}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
 
 image: TEST_DIR/t.IMGFMT
 file format: IMGFMT
@@ -73,7 +68,6 @@ QMP_VERSION
 {"return": {}}
 {"return": {}}
 {"return": {}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
 
 image: TEST_DIR/t.IMGFMT
 file format: IMGFMT
@@ -90,7 +84,6 @@ QMP_VERSION
 {"error": {"class": "GenericError", "desc": "Image size is too large for this cluster size"}}
 {"error": {"class": "GenericError", "desc": "Image size is too large for this cluster size"}}
 {"return": {}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
 
 
 === Invalid cluster size ===
@@ -106,6 +99,5 @@ QMP_VERSION
 {"error": {"class": "GenericError", "desc": "Image size is too large for this cluster size"}}
 {"error": {"class": "GenericError", "desc": "Image size is too large for this cluster size"}}
 {"return": {}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
 
 *** done

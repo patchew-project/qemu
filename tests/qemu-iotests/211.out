@@ -9,7 +9,6 @@ QMP_VERSION
 {"return": {}}
 {"return": {}}
 {"return": {}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
 
 image: TEST_DIR/t.IMGFMT
 file format: IMGFMT
@@ -24,7 +23,6 @@ QMP_VERSION
 {"return": {}}
 {"return": {}}
 {"return": {}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
 
 image: TEST_DIR/t.IMGFMT
 file format: IMGFMT
@@ -39,7 +37,6 @@ QMP_VERSION
 {"return": {}}
 {"return": {}}
 {"return": {}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
 
 image: TEST_DIR/t.IMGFMT
 file format: IMGFMT
@@ -54,7 +51,6 @@ QMP_VERSION
 {"return": {}}
 {"error": {"class": "GenericError", "desc": "Cannot find device=this doesn't exist nor node_name=this doesn't exist"}}
 {"return": {}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
 
 
 === Zero size ===
@@ -64,7 +60,6 @@ QMP_VERSION
 {"return": {}}
 {"return": {}}
 {"return": {}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
 
 image: TEST_DIR/t.IMGFMT
 file format: IMGFMT
@@ -77,7 +72,6 @@ QMP_VERSION
 {"return": {}}
 {"return": {}}
 {"return": {}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
 
 image: TEST_DIR/t.IMGFMT
 file format: IMGFMT
@@ -92,6 +86,5 @@ QMP_VERSION
 {"error": {"class": "GenericError", "desc": "Unsupported VDI image size (size is 0x8000000000000000, max supported is 0x1fffff8000000)"}}
 {"error": {"class": "GenericError", "desc": "Unsupported VDI image size (size is 0x1fffff8000001, max supported is 0x1fffff8000000)"}}
 {"return": {}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
 
 *** done

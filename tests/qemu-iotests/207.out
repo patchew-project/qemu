@@ -7,7 +7,6 @@ QMP_VERSION
 {"return": {}}
 {"return": {}}
 {"return": {}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
 
 image: json:{"driver": "IMGFMT", "file": {"server.host": "127.0.0.1", "server.port": "22", "driver": "ssh", "path": "TEST_DIR/t.IMGFMT"}}
 file format: IMGFMT
@@ -24,7 +23,6 @@ QMP_VERSION
 {"return": {}}
 {"return": {}}
 {"return": {}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
 
 image: json:{"driver": "IMGFMT", "file": {"server.host": "127.0.0.1", "server.port": "22", "driver": "ssh", "path": "TEST_DIR/t.IMGFMT"}}
 file format: IMGFMT
@@ -34,7 +32,6 @@ QMP_VERSION
 {"return": {}}
 {"return": {}}
 {"return": {}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
 
 image: json:{"driver": "IMGFMT", "file": {"server.host": "127.0.0.1", "server.port": "22", "driver": "ssh", "path": "TEST_DIR/t.IMGFMT"}}
 file format: IMGFMT
@@ -45,7 +42,6 @@ QMP_VERSION
 {"error": {"class": "GenericError", "desc": "remote host key does not match host_key_check 'wrong'"}}
 {"return": {}}
 {"return": {}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
 
 image: json:{"driver": "IMGFMT", "file": {"server.host": "127.0.0.1", "server.port": "22", "driver": "ssh", "path": "TEST_DIR/t.IMGFMT"}}
 file format: IMGFMT
@@ -56,7 +52,6 @@ QMP_VERSION
 {"error": {"class": "GenericError", "desc": "remote host key does not match host_key_check 'wrong'"}}
 {"return": {}}
 {"return": {}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
 
 image: json:{"driver": "IMGFMT", "file": {"server.host": "127.0.0.1", "server.port": "22", "driver": "ssh", "path": "TEST_DIR/t.IMGFMT"}}
 file format: IMGFMT
@@ -70,6 +65,5 @@ QMP_VERSION
 {"error": {"class": "GenericError", "desc": "failed to open remote file '/this/is/not/an/existing/path': Failed opening remote file (libssh2 error code: -31)"}}
 {"error": {"class": "GenericError", "desc": "failed to authenticate using publickey authentication and the identities held by your ssh-agent"}}
 {"return": {}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
 
 *** done

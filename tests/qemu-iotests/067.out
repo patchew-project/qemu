@@ -70,6 +70,7 @@ Testing: -drive file=TEST_DIR/t.IMGFMT,format=IMGFMT,if=none,id=disk -device vir
     }
 }
 
+
 === -drive/device_add and device_del ===
 
 Testing: -drive file=TEST_DIR/t.IMGFMT,format=IMGFMT,if=none,id=disk
@@ -140,6 +141,7 @@ Testing: -drive file=TEST_DIR/t.IMGFMT,format=IMGFMT,if=none,id=disk
     "return": {
     }
 }
+
 
 === drive_add/device_add and device_del ===
 
@@ -214,6 +216,7 @@ Testing:
     "return": {
     }
 }
+
 
 === blockdev_add/device_add and device_del ===
 
@@ -372,6 +375,7 @@ Testing:
     }
 }
 
+
 === Empty drive with -device and device_del ===
 
 Testing: -device virtio-scsi -device scsi-cd,id=cd0
@@ -410,4 +414,5 @@ Testing: -device virtio-scsi -device scsi-cd,id=cd0
     "return": {
     }
 }
+
 *** done

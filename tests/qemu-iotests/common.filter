@@ -88,7 +88,10 @@ _filter_qmp()
     sed -e 's#\("\(micro\)\?seconds": \)[0-9]\+#\1 TIMESTAMP#g' \
         -e 's#^{"QMP":.*}$#QMP_VERSION#' \
         -e '/^    "QMP": {\s*$/, /^    }\s*$/ c\' \
-        -e '    QMP_VERSION'
+        -e '    QMP_VERSION' | \
+    tr '\n' '\r' | \
+    sed -e 's/{\s*"timestamp":\s*{\s*"seconds":\s*TIMESTAMP,\s*"microseconds":\s*TIMESTAMP\s*},\s*"event":\s*"SHUTDOWN",\s*"data":\s*{\s*"guest":\s*false\s*}\s*}\s//' | \
+    tr '\r' '\n'
 }
 
 # readline makes HMP command strings so long that git complains

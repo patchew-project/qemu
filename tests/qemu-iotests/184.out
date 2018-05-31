@@ -87,16 +87,6 @@ Testing:
     "return": {
     }
 }
-{
-    "timestamp": {
-        "seconds":  TIMESTAMP,
-        "microseconds":  TIMESTAMP
-    },
-    "event": "SHUTDOWN",
-    "data": {
-        "guest": false
-    }
-}
 
 
 == property changes in ThrottleGroup ==
@@ -166,16 +156,6 @@ Testing:
     "return": {
     }
 }
-{
-    "timestamp": {
-        "seconds":  TIMESTAMP,
-        "microseconds":  TIMESTAMP
-    },
-    "event": "SHUTDOWN",
-    "data": {
-        "guest": false
-    }
-}
 
 
 == object creation/set errors  ==
@@ -207,16 +187,6 @@ Testing:
     "return": {
     }
 }
-{
-    "timestamp": {
-        "seconds":  TIMESTAMP,
-        "microseconds":  TIMESTAMP
-    },
-    "event": "SHUTDOWN",
-    "data": {
-        "guest": false
-    }
-}
 
 
 == don't specify group ==
@@ -240,16 +210,6 @@ Testing:
 }
 {
     "return": {
-    }
-}
-{
-    "timestamp": {
-        "seconds":  TIMESTAMP,
-        "microseconds":  TIMESTAMP
-    },
-    "event": "SHUTDOWN",
-    "data": {
-        "guest": false
     }
 }
 

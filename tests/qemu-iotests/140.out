@@ -11,5 +11,4 @@ read 65536/65536 bytes at offset 0
 can't open device nbd+unix:///drv?socket=TEST_DIR/nbd: Requested export not available
 server reported: export 'drv' not present
 {"return": {}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
 *** done

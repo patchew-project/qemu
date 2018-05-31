@@ -9,7 +9,6 @@ QMP_VERSION
 {"return": {}}
 {"return": {}}
 {"return": {}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
 
 image: TEST_DIR/t.IMGFMT
 file format: IMGFMT
@@ -29,7 +28,6 @@ QMP_VERSION
 {"return": {}}
 {"return": {}}
 {"return": {}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
 
 image: TEST_DIR/t.IMGFMT
 file format: IMGFMT
@@ -49,7 +47,6 @@ QMP_VERSION
 {"return": {}}
 {"return": {}}
 {"return": {}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
 
 image: TEST_DIR/t.IMGFMT
 file format: IMGFMT
@@ -69,7 +66,6 @@ QMP_VERSION
 {"return": {}}
 {"return": {}}
 {"return": {}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
 
 image: TEST_DIR/t.IMGFMT
 file format: IMGFMT
@@ -88,7 +84,6 @@ QMP_VERSION
 {"return": {}}
 {"return": {}}
 {"return": {}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
 
 image: TEST_DIR/t.IMGFMT
 file format: IMGFMT
@@ -142,7 +137,6 @@ QMP_VERSION
 {"return": {}}
 {"error": {"class": "GenericError", "desc": "Cannot find device=this doesn't exist nor node_name=this doesn't exist"}}
 {"return": {}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
 
 
 === Invalid sizes ===
@@ -155,7 +149,6 @@ QMP_VERSION
 {"error": {"class": "GenericError", "desc": "Could not resize image: Image size cannot be negative"}}
 {"error": {"class": "GenericError", "desc": "Could not resize image: Failed to grow the L1 table: File too large"}}
 {"return": {}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
 
 
 === Invalid version ===
@@ -167,7 +160,6 @@ QMP_VERSION
 {"error": {"class": "GenericError", "desc": "Lazy refcounts only supported with compatibility level 1.1 and above (use version=v3 or greater)"}}
 {"error": {"class": "GenericError", "desc": "Different refcount widths than 16 bits require compatibility level 1.1 or above (use version=v3 or greater)"}}
 {"return": {}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
 
 
 === Invalid backing file options ===
@@ -178,7 +170,6 @@ QMP_VERSION
 {"error": {"class": "GenericError", "desc": "Backing file and preallocation cannot be used at the same time"}}
 {"error": {"class": "GenericError", "desc": "Backing format cannot be used without backing file"}}
 {"return": {}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
 
 
 === Invalid cluster size ===
@@ -192,7 +183,6 @@ QMP_VERSION
 {"error": {"class": "GenericError", "desc": "Cluster size must be a power of two between 512 and 2048k"}}
 {"error": {"class": "GenericError", "desc": "Could not resize image: Failed to grow the L1 table: File too large"}}
 {"return": {}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
 
 
 === Invalid refcount width ===
@@ -204,6 +194,5 @@ QMP_VERSION
 {"error": {"class": "GenericError", "desc": "Refcount width must be a power of two and may not exceed 64 bits"}}
 {"error": {"class": "GenericError", "desc": "Refcount width must be a power of two and may not exceed 64 bits"}}
 {"return": {}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
 
 *** done
