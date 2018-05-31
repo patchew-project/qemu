@@ -168,6 +168,9 @@ int io_channel_send_full(QIOChannel *ioc,
 
             errno = EAGAIN;
             return -1;
+        } else if (ret == QIO_CHANNEL_ERR_BROKEN) {
+            errno = EPIPE;
+            return -1;
         } else if (ret < 0) {
             errno = EINVAL;
             return -1;
