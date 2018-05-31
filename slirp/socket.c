@@ -351,7 +351,7 @@ sosendoob(struct socket *so)
 
 	if (sb->sb_rptr < sb->sb_wptr) {
 		/* We can send it directly */
-		n = slirp_send(so, sb->sb_rptr, so->so_urgc, (MSG_OOB)); /* |MSG_DONTWAIT)); */
+		len = n = slirp_send(so, sb->sb_rptr, so->so_urgc, (MSG_OOB)); /* |MSG_DONTWAIT)); */
 	} else {
 		/*
 		 * Since there's no sendv or sendtov like writev,
