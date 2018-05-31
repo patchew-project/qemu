@@ -20,6 +20,7 @@
 #include "cpu.h"
 #include "exec/exec-all.h"
 #include "exec/helper-proto.h"
+#include "qemu/error-report.h"
 
 #include "helper_regs.h"
 
@@ -97,6 +98,15 @@ void helper_store_ptcr(CPUPPCState *env, target_ulong val)
         ppc_store_ptcr(env, val);
         tlb_flush(CPU(cpu));
     }
+}
+
+void helper_store_pcr(CPUPPCState *env, target_ulong value)
+{
+    if (value != 0) {
+        error_report("Invalid PCR value 0x"TARGET_FMT_lx, value);
+        return;
+    }
+    env->spr[SPR_PCR] = value;
 }
 #endif /* defined(TARGET_PPC64) */
 
