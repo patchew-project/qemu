@@ -680,6 +680,9 @@ OOB command handlers must satisfy the following conditions:
 - It does not invoke system calls that may block,
 - It does not access guest RAM that may block when userfaultfd is
   enabled for postcopy live migration.
+- It needs to protect possilbe shared states, since as long as a
+  command supports Out-Of-Band it means the handler can be run in
+  parallel with the same handler running in the other thread.
 
 If in doubt, do not implement OOB execution support.
 
