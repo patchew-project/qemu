@@ -9605,11 +9605,17 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             v5 = tswapal(v[4]);
             v6 = tswapal(v[5]);
             unlock_user(v, arg1, 0);
+            if (is_hostfd(v5)) {
+                goto ebadf;
+            }
             ret = get_errno(target_mmap(v1, v2, v3,
                                         target_to_host_bitmask(v4, mmap_flags_tbl),
                                         v5, v6));
         }
 #else
+        if (is_hostfd(arg5)) {
+            goto ebadf;
+        }
         ret = get_errno(target_mmap(arg1, arg2, arg3,
                                     target_to_host_bitmask(arg4, mmap_flags_tbl),
                                     arg5,
@@ -9622,6 +9628,9 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #ifndef MMAP_SHIFT
 #define MMAP_SHIFT 12
 #endif
+        if (is_hostfd(arg5)) {
+            goto ebadf;
+        }
         ret = get_errno(target_mmap(arg1, arg2, arg3,
                                     target_to_host_bitmask(arg4, mmap_flags_tbl),
                                     arg5,
