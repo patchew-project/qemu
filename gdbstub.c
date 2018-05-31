@@ -1890,15 +1890,16 @@ static int gdbserver_open(int port)
 int gdbserver_start(int port)
 {
     gdbserver_fd = gdbserver_open(port);
-    if (gdbserver_fd < 0)
+    if (gdbserver_fd < 0) {
         return -1;
+    }
     /* accept connections */
     if (!gdb_accept()) {
         close(gdbserver_fd);
         gdbserver_fd = -1;
         return -1;
     }
-    return 0;
+    return gdbserver_fd;
 }
 
 /* Disable gdb stub for child processes.  */
