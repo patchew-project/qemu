@@ -1506,6 +1506,11 @@ static abi_long do_select(int n,
     if (ret) {
         return ret;
     }
+    if (contains_hostfd(&rfds) ||
+        contains_hostfd(&wfds) ||
+        contains_hostfd(&efds)) {
+        return -TARGET_EBADF;
+    }
 
     if (target_tv_addr) {
         if (copy_from_user_timeval(&tv, target_tv_addr))
@@ -9391,6 +9396,11 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             ret = copy_from_user_fdset_ptr(&efds, &efds_ptr, efd_addr, n);
             if (ret) {
                 goto fail;
+            }
+            if (contains_hostfd(&rfds) ||
+                contains_hostfd(&wfds) ||
+                contains_hostfd(&efds)) {
+                goto ebadf;
             }
 
             /*
