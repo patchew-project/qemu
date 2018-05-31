@@ -471,7 +471,44 @@ void mmap_fork_start(void);
 void mmap_fork_end(int child);
 
 /* main.c */
+extern int interp_dirfd;
 extern unsigned long guest_stack_size;
+char *interp_prefix_path(const char *path);
+
+/* If PATH is absolute, attempt an operation first within interp_dirfd,
+ * using OPENAT_EXPR.  If that fails with ENOENT, or if PATH is not
+ * absolute, only use NORMAL_EXPR.
+ */
+#define TRY_INTERP_FD(RET, PATH, OPENAT_EXPR, NORMAL_EXPR)  \
+    do {                                                    \
+        if (interp_dirfd >= 0 && (PATH)[0] == '/') {        \
+            RET = OPENAT_EXPR;                              \
+            if (RET != -1 || errno != ENOENT) {             \
+                break;                                      \
+            }                                               \
+        }                                                   \
+        RET = NORMAL_EXPR;                                  \
+    } while (0)
+
+/* If PATH is absolute, attempt an operation first with interp_prefix
+ * prefixed.  If that fails with ENOENT, or if PATH is not absolute,
+ * only attempt with PATH.
+ */
+#define TRY_INTERP_PATH(RET, PATH, EXPR)                    \
+    do {                                                    \
+        char *new_##PATH = interp_prefix_path(PATH);        \
+        if (new_##PATH) {                                   \
+            __typeof(PATH) save_##PATH = PATH;              \
+            PATH = new_##PATH;                              \
+            RET = EXPR;                                     \
+            free(new_##PATH);                               \
+            PATH = save_##PATH;                             \
+            if (RET != -1 || errno != ENOENT) {             \
+                break;                                      \
+            }                                               \
+        }                                                   \
+        RET = EXPR;                                         \
+    } while (0)
 
 /* user access */
 

@@ -23,7 +23,6 @@
 
 #include "qapi/error.h"
 #include "qemu.h"
-#include "qemu/path.h"
 #include "qemu/config-file.h"
 #include "qemu/cutils.h"
 #include "qemu/help_option.h"
@@ -89,8 +88,26 @@ unsigned long reserved_va;
 
 static void usage(int exitcode);
 
+int interp_dirfd;
 static const char *interp_prefix = CONFIG_QEMU_INTERP_PREFIX;
 const char *qemu_uname_release;
+
+char *interp_prefix_path(const char *path)
+{
+    size_t i_len, p_len;
+    char *ret;
+
+    if (interp_prefix == NULL || path[0] != '/') {
+        return NULL;
+    }
+    i_len = strlen(interp_prefix);
+    p_len = strlen(path) + 1;
+    ret = g_malloc(i_len + p_len);
+
+    memcpy(ret, interp_prefix, i_len);
+    memcpy(ret + i_len, path, p_len);
+    return ret;
+}
 
 /* XXX: on x86 MAP_GROWSDOWN only works if ESP <= address + 32, so
    we allocate a bigger stack. Need a better solution, for example
@@ -671,7 +688,12 @@ int main(int argc, char **argv, char **envp)
     memset(&bprm, 0, sizeof (bprm));
 
     /* Scan interp_prefix dir for replacement files. */
-    init_paths(interp_prefix);
+    interp_dirfd = open(interp_prefix, O_CLOEXEC | O_DIRECTORY | O_PATH);
+    if (interp_dirfd >= 0) {
+        add_hostfd(interp_dirfd);
+    } else {
+        interp_prefix = NULL;
+    }
 
     init_qemu_uname_release();
 
