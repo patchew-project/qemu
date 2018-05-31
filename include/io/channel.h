@@ -38,6 +38,7 @@ typedef struct QIOChannel QIOChannel;
 typedef struct QIOChannelClass QIOChannelClass;
 
 #define QIO_CHANNEL_ERR_BLOCK -2
+#define QIO_CHANNEL_ERR_BROKEN -3
 
 typedef enum QIOChannelFeature QIOChannelFeature;
 

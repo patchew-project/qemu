@@ -124,6 +124,9 @@ static ssize_t qio_channel_file_writev(QIOChannel *ioc,
         if (errno == EAGAIN) {
             return QIO_CHANNEL_ERR_BLOCK;
         }
+        if (errno == EPIPE) {
+            return QIO_CHANNEL_ERR_BROKEN;
+        }
         if (errno == EINTR) {
             goto retry;
         }
