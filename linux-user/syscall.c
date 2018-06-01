@@ -7984,6 +7984,112 @@ IMPL(enosys)
     return do_unimplemented(num);
 }
 
+IMPL(brk)
+{
+    return do_brk(arg1);
+}
+
+IMPL(close)
+{
+    if (is_hostfd(arg1)) {
+        return -TARGET_EBADF;
+    }
+    fd_trans_unregister(arg1);
+    return get_errno(close(arg1));
+}
+
+IMPL(exit)
+{
+    CPUState *cpu = ENV_GET_CPU(cpu_env);
+
+    /* In old applications this may be used to implement _exit(2).
+       However in threaded applictions it is used for thread termination,
+       and _exit_group is used for application termination.
+       Do thread termination if we have more then one thread.  */
+    if (block_signals()) {
+        return -TARGET_ERESTARTSYS;
+    }
+
+    cpu_list_lock();
+
+    if (CPU_NEXT(first_cpu)) {
+        /* Remove the CPU from the list.  */
+        QTAILQ_REMOVE(&cpus, cpu, node);
+        cpu_list_unlock();
+
+        TaskState *ts = cpu->opaque;
+        if (ts->child_tidptr) {
+            put_user_u32(0, ts->child_tidptr);
+            sys_futex(g2h(ts->child_tidptr), FUTEX_WAKE, INT_MAX,
+                      NULL, NULL, 0);
+        }
+        thread_cpu = NULL;
+        object_unref(OBJECT(cpu));
+        g_free(ts);
+        rcu_unregister_thread();
+        pthread_exit(NULL);
+    } else {
+        cpu_list_unlock();
+
+#ifdef TARGET_GPROF
+        _mcleanup();
+#endif
+        gdb_exit(cpu_env, arg1);
+        _exit(arg1);
+    }
+    g_assert_not_reached();
+}
+
+IMPL(read)
+{
+    abi_long ret;
+    char *fn;
+
+    if (arg3 == 0) {
+        return 0;
+    }
+    if (is_hostfd(arg1)) {
+        return -TARGET_EBADF;
+    }
+    fn = lock_user(VERIFY_WRITE, arg2, arg3, 0);
+    if (!fn) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(safe_read(arg1, fn, arg3));
+    if (ret >= 0 && fd_trans_host_to_target_data(arg1)) {
+        ret = fd_trans_host_to_target_data(arg1)(fn, ret);
+    }
+    unlock_user(fn, arg2, ret);
+    return ret;
+}
+
+IMPL(write)
+{
+    abi_long ret;
+    char *fn;
+
+    if (is_hostfd(arg1)) {
+        return -TARGET_EBADF;
+    }
+    fn = lock_user(VERIFY_READ, arg2, arg3, 1);
+    if (!fn) {
+        return -TARGET_EFAULT;
+    }
+    if (fd_trans_target_to_host_data(arg1)) {
+        void *copy = g_malloc(arg3);
+        memcpy(copy, fn, arg3);
+        ret = fd_trans_target_to_host_data(arg1)(copy, arg3);
+        if (ret >= 0) {
+            ret = get_errno(safe_write(arg1, copy, ret));
+        }
+        g_free(copy);
+    } else {
+        ret = get_errno(safe_write(arg1, fn, arg3));
+    }
+    unlock_user(fn, arg2, ret);
+    return ret;
+}
+
 /* This is an internal helper for do_syscall so that it is easier
  * to have a single return point, so that actions, such as logging
  * of syscall results, can be performed.
@@ -7999,83 +8105,6 @@ IMPL(everything_else)
     char *fn;
 
     switch(num) {
-    case TARGET_NR_exit:
-        /* In old applications this may be used to implement _exit(2).
-           However in threaded applictions it is used for thread termination,
-           and _exit_group is used for application termination.
-           Do thread termination if we have more then one thread.  */
-
-        if (block_signals()) {
-            return -TARGET_ERESTARTSYS;
-        }
-
-        cpu_list_lock();
-
-        if (CPU_NEXT(first_cpu)) {
-            TaskState *ts;
-
-            /* Remove the CPU from the list.  */
-            QTAILQ_REMOVE(&cpus, cpu, node);
-
-            cpu_list_unlock();
-
-            ts = cpu->opaque;
-            if (ts->child_tidptr) {
-                put_user_u32(0, ts->child_tidptr);
-                sys_futex(g2h(ts->child_tidptr), FUTEX_WAKE, INT_MAX,
-                          NULL, NULL, 0);
-            }
-            thread_cpu = NULL;
-            object_unref(OBJECT(cpu));
-            g_free(ts);
-            rcu_unregister_thread();
-            pthread_exit(NULL);
-        }
-
-        cpu_list_unlock();
-#ifdef TARGET_GPROF
-        _mcleanup();
-#endif
-        gdb_exit(cpu_env, arg1);
-        _exit(arg1);
-        return 0; /* avoid warning */
-    case TARGET_NR_read:
-        if (arg3 == 0) {
-            return 0;
-        } else {
-            if (is_hostfd(arg1)) {
-                return -TARGET_EBADF;
-            }
-            if (!(p = lock_user(VERIFY_WRITE, arg2, arg3, 0)))
-                return -TARGET_EFAULT;
-            ret = get_errno(safe_read(arg1, p, arg3));
-            if (ret >= 0 &&
-                fd_trans_host_to_target_data(arg1)) {
-                ret = fd_trans_host_to_target_data(arg1)(p, ret);
-            }
-            unlock_user(p, arg2, ret);
-        }
-        return ret;
-    case TARGET_NR_write:
-        if (is_hostfd(arg1)) {
-            return -TARGET_EBADF;
-        }
-        if (!(p = lock_user(VERIFY_READ, arg2, arg3, 1)))
-            return -TARGET_EFAULT;
-        if (fd_trans_target_to_host_data(arg1)) {
-            void *copy = g_malloc(arg3);
-            memcpy(copy, p, arg3);
-            ret = fd_trans_target_to_host_data(arg1)(copy, arg3);
-            if (ret >= 0) {
-                ret = get_errno(safe_write(arg1, copy, ret));
-            }
-            g_free(copy);
-        } else {
-            ret = get_errno(safe_write(arg1, p, arg3));
-        }
-        unlock_user(p, arg2, 0);
-        return ret;
-
 #ifdef TARGET_NR_open
     case TARGET_NR_open:
         if (!(p = lock_user_string(arg1)))
@@ -8116,15 +8145,6 @@ IMPL(everything_else)
         fd_trans_unregister(ret);
         return ret;
 #endif
-    case TARGET_NR_close:
-        if (is_hostfd(arg1)) {
-            return -TARGET_EBADF;
-        }
-        fd_trans_unregister(arg1);
-        return get_errno(close(arg1));
-
-    case TARGET_NR_brk:
-        return do_brk(arg1);
 #ifdef TARGET_NR_fork
     case TARGET_NR_fork:
         return get_errno(do_fork(cpu_env, TARGET_SIGCHLD, 0, 0, 0, 0));
@@ -12894,7 +12914,11 @@ IMPL(everything_else)
 }
 
 static impl_fn * const syscall_table[] = {
-    impl_everything_else,
+    [TARGET_NR_brk] = impl_brk,
+    [TARGET_NR_close] = impl_close,
+    [TARGET_NR_exit] = impl_exit,
+    [TARGET_NR_read] = impl_read,
+    [TARGET_NR_write] = impl_write,
 };
 
 abi_long do_syscall(void *cpu_env, unsigned num, abi_long arg1,
