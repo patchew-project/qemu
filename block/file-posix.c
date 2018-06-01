@@ -699,11 +699,10 @@ static int raw_check_lock_bytes(BDRVRawState *s,
             if (ret) {
                 char *perm_name = bdrv_perm_names(p);
                 error_setg(errp,
-                           "Failed to get \"%s\" lock",
+                           "Failed to get \"%s\" lock. "
+                           "Is another process using the image?",
                            perm_name);
                 g_free(perm_name);
-                error_append_hint(errp,
-                                  "Is another process using the image?\n");
                 return ret;
             }
         }
@@ -716,11 +715,10 @@ static int raw_check_lock_bytes(BDRVRawState *s,
             if (ret) {
                 char *perm_name = bdrv_perm_names(p);
                 error_setg(errp,
-                           "Failed to get shared \"%s\" lock",
+                           "Failed to get shared \"%s\" lock. "
+                           "Is another process using the image?",
                            perm_name);
                 g_free(perm_name);
-                error_append_hint(errp,
-                                  "Is another process using the image?\n");
                 return ret;
             }
         }
