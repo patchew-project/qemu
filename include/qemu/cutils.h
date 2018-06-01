@@ -122,6 +122,7 @@ int qemu_strnlen(const char *s, int max_len);
  * Returns: the pointer originally in @input.
  */
 char *qemu_strsep(char **input, const char *delim);
+const char *qemu_strchrnul(const char *s, int c);
 time_t mktimegm(struct tm *tm);
 int qemu_fdatasync(int fd);
 int fcntl_setfl(int fd, int flag);
