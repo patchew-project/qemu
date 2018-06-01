@@ -841,11 +841,23 @@
            'bus': 'int', 'target': 'int', 'unit': 'int'} }
 
 ##
+# @GuestFsUsage:
+#
+# @used-bytes:  file system used bytes
+# @total-bytes: file system total bytes for nonroot user
+#
+# Since: 3.0
+##
+{ 'struct': 'GuestFsUsage',
+  'data': {'used-bytes': 'uint64', 'total-bytes': 'uint64'} }
+
+##
 # @GuestFilesystemInfo:
 #
 # @name: disk name
 # @mountpoint: mount point path
 # @type: file system type string
+# @usage: file system usage struct (since 3.0)
 # @disk: an array of disk hardware information that the volume lies on,
 #        which may be empty if the disk type is not supported
 #
@@ -853,7 +865,7 @@
 ##
 { 'struct': 'GuestFilesystemInfo',
   'data': {'name': 'str', 'mountpoint': 'str', 'type': 'str',
-           'disk': ['GuestDiskAddress']} }
+           '*usage': 'GuestFsUsage', 'disk': ['GuestDiskAddress']} }
 
 ##
 # @guest-get-fsinfo:
