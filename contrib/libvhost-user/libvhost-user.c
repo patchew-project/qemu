@@ -1220,6 +1220,8 @@ vu_process_message(VuDev *dev, VhostUserMsg *vmsg)
     case VHOST_USER_SET_CONFIG:
         return vu_set_config(dev, vmsg);
     case VHOST_USER_NONE:
+        /* if you need processing before exit, override iface->process_msg */
+        exit(0);
         break;
     case VHOST_USER_POSTCOPY_ADVISE:
         return vu_set_postcopy_advise(dev, vmsg);
