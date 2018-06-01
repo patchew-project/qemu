@@ -119,6 +119,11 @@ typedef struct IOMMUNotifier IOMMUNotifier;
  */
 #define RAM_UF_ZEROPAGE (1 << 3)
 
+/* QEMU_RAM_PMEM is available on this RAMBlock to specify that the
+ * memory is a persistent kind memory.
+ */
+#define RAM_PMEM (1 << 4)
+
 static inline void iommu_notifier_init(IOMMUNotifier *n, IOMMUNotify fn,
                                        IOMMUNotifierFlag flags,
                                        hwaddr start, hwaddr end)
@@ -611,6 +616,7 @@ void memory_region_init_resizeable_ram(MemoryRegion *mr,
  * @ram_flags: specify properties of this memory region, which can be one or
  *             bit-or of following values:
  *             - RAM_SHARED: memory must be mmaped with the MAP_SHARED flag
+ *             - RAM_PMEM: the backend @path is persistent memory
  *             Other bits are ignored.
  * @path: the path in which to allocate the RAM.
  * @errp: pointer to Error*, to store an error if it happens.
