@@ -7977,6 +7977,20 @@ IMPL(creat)
 }
 #endif
 
+IMPL(dup)
+{
+    abi_long ret;
+
+    if (is_hostfd(arg1)) {
+        return -TARGET_EBADF;
+    }
+    ret = get_errno(dup(arg1));
+    if (ret >= 0) {
+        fd_trans_dup(arg1, ret);
+    }
+    return ret;
+}
+
 IMPL(execve)
 {
     abi_ulong *guest_ptrs;
@@ -8248,6 +8262,40 @@ IMPL(lseek)
     }
     return get_errno(lseek(arg1, arg2, arg3));
 }
+
+#ifdef TARGET_NR_mkdir
+IMPL(mkdir)
+{
+    char *p = lock_user_string(arg1);
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(mkdir(p, arg2));
+    unlock_user(p, arg1, 0);
+    return ret;
+}
+#endif
+
+#ifdef TARGET_NR_mkdirat
+IMPL(mkdirat)
+{
+    char *p;
+    abi_long ret;
+
+    if (is_hostfd(arg1)) {
+        return -TARGET_EBADF;
+    }
+    p = lock_user_string(arg2);
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(mkdirat(arg1, p, arg3));
+    unlock_user(p, arg2, 0);
+    return ret;
+}
+#endif
 
 #ifdef TARGET_NR_mknod
 IMPL(mknod)
@@ -8558,6 +8606,21 @@ IMPL(renameat2)
 }
 #endif
 
+#ifdef TARGET_NR_rmdir
+IMPL(rmdir)
+{
+    char *p = lock_user_string(arg1);
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(rmdir(p));
+    unlock_user(p, arg1, 0);
+    return ret;
+}
+#endif
+
 #ifdef TARGET_NR_stime
 IMPL(stime)
 {
@@ -8768,42 +8831,6 @@ IMPL(everything_else)
     char *fn;
 
     switch(num) {
-#ifdef TARGET_NR_mkdir
-    case TARGET_NR_mkdir:
-        if (!(p = lock_user_string(arg1)))
-            return -TARGET_EFAULT;
-        ret = get_errno(mkdir(p, arg2));
-        unlock_user(p, arg1, 0);
-        return ret;
-#endif
-#if defined(TARGET_NR_mkdirat)
-    case TARGET_NR_mkdirat:
-        if (is_hostfd(arg1)) {
-            return -TARGET_EBADF;
-        }
-        if (!(p = lock_user_string(arg2)))
-            return -TARGET_EFAULT;
-        ret = get_errno(mkdirat(arg1, p, arg3));
-        unlock_user(p, arg2, 0);
-        return ret;
-#endif
-#ifdef TARGET_NR_rmdir
-    case TARGET_NR_rmdir:
-        if (!(p = lock_user_string(arg1)))
-            return -TARGET_EFAULT;
-        ret = get_errno(rmdir(p));
-        unlock_user(p, arg1, 0);
-        return ret;
-#endif
-    case TARGET_NR_dup:
-        if (is_hostfd(arg1)) {
-            return -TARGET_EBADF;
-        }
-        ret = get_errno(dup(arg1));
-        if (ret >= 0) {
-            fd_trans_dup(arg1, ret);
-        }
-        return ret;
 #ifdef TARGET_NR_pipe
     case TARGET_NR_pipe:
         return do_pipe(cpu_env, arg1, 0, 0);
@@ -12922,6 +12949,7 @@ static impl_fn * const syscall_table[] = {
 #ifdef TARGET_NR_creat
     [TARGET_NR_creat] = impl_creat,
 #endif
+    [TARGET_NR_dup] = impl_dup,
     [TARGET_NR_execve] = impl_execve,
     [TARGET_NR_exit] = impl_exit,
 #ifdef TARGET_NR_faccessat
@@ -12947,6 +12975,12 @@ static impl_fn * const syscall_table[] = {
     [TARGET_NR_linkat] = impl_linkat,
 #endif
     [TARGET_NR_lseek] = impl_lseek,
+#ifdef TARGET_NR_mkdir
+    [TARGET_NR_mkdir] = impl_mkdir,
+#endif
+#ifdef TARGET_NR_mkdirat
+    [TARGET_NR_mkdirat] = impl_mkdirat,
+#endif
 #ifdef TARGET_NR_mknod
     [TARGET_NR_mknod] = impl_mknod,
 #endif
@@ -12979,6 +13013,9 @@ static impl_fn * const syscall_table[] = {
 #endif
 #ifdef TARGET_NR_renameat2
     [TARGET_NR_renameat2] = impl_renameat2,
+#endif
+#ifdef TARGET_NR_rmdir
+    [TARGET_NR_rmdir] = impl_rmdir,
 #endif
 #ifdef TARGET_NR_stime
     [TARGET_NR_stime] = impl_stime,
