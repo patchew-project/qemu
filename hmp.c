@@ -2536,8 +2536,17 @@ void hmp_qom_list(Monitor *mon, const QDict *qdict)
         while (list != NULL) {
             ObjectPropertyInfo *value = list->value;
 
-            monitor_printf(mon, "%s (%s)\n",
-                           value->name, value->type);
+            monitor_printf(mon, "%s", value->name);
+            if (value->has_value) {
+                monitor_printf(mon, "=%s", value->value);
+            }
+            monitor_printf(mon, " (%s)", value->type);
+            if (value->has_description) {
+                monitor_printf(mon, "\r\t\t\t\t\t\t\t\t\t[Description: %s]",
+                               value->description);
+            }
+            monitor_printf(mon, "\n");
+
             list = list->next;
         }
         qapi_free_ObjectPropertyInfoList(start);

@@ -247,6 +247,13 @@ ObjectPropertyInfoList *qmp_qom_list(const char *path, Error **errp)
 
         entry->value->name = g_strdup(prop->name);
         entry->value->type = g_strdup(prop->type);
+        if (prop->description) {
+            entry->value->has_description = true;
+            entry->value->description = g_strdup(prop->description);
+        }
+        entry->value->has_value = true;
+        entry->value->value = g_strdup(object_property_print(obj,
+                                 entry->value->name, true, errp));
     }
 
     return props;

@@ -1359,13 +1359,11 @@ char *object_property_print(Object *obj, const char *name, bool human,
     v = string_output_visitor_new(human, &string);
     object_property_get(obj, v, name, &local_err);
     if (local_err) {
-        error_propagate(errp, local_err);
-        goto out;
+        string = g_strdup("<Error reading value>");
+    } else {
+        visit_complete(v, &string);
     }
 
-    visit_complete(v, &string);
-
-out:
     visit_free(v);
     return string;
 }
