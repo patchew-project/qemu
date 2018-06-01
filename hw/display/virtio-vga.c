@@ -201,6 +201,11 @@ static void virtio_vga_inst_initfn(Object *obj)
 
     virtio_instance_init_common(obj, &dev->vdev, sizeof(dev->vdev),
                                 TYPE_VIRTIO_GPU);
+
+    /* could eventually be included in qdev_alias_all_properties? */
+    object_property_add_alias(obj, "vhost-user",
+                              OBJECT(&dev->vdev), "vhost-user",
+                              &error_abort);
 }
 
 static TypeInfo virtio_vga_info = {

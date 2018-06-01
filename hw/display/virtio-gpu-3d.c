@@ -614,9 +614,13 @@ void virtio_gpu_gl_block(void *opaque, bool block)
         g->renderer_blocked--;
     }
     assert(g->renderer_blocked >= 0);
-
     if (g->renderer_blocked == 0) {
-        virtio_gpu_process_cmdq(g);
+        if (g->vhost && g->enable) {
+            uint32_t ok; /*unblock renderer */
+            qemu_chr_fe_write(&g->vhost_chr, (uint8_t *)&ok, sizeof(ok));
+        } else {
+            virtio_gpu_process_cmdq(g);
+        }
     }
 }
 

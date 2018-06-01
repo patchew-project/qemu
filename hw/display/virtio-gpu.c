@@ -22,6 +22,7 @@
 #include "migration/blocker.h"
 #include "qemu/log.h"
 #include "qapi/error.h"
+#include "qemu/error-report.h"
 
 #define VIRTIO_GPU_VM_VERSION 1
 
@@ -1184,11 +1185,16 @@ static void virtio_gpu_device_realize(DeviceState *qdev, Error **errp)
     }
 
     g->use_virgl_renderer = false;
+    if (g->vhost) {
+        /* default to backend virgl=on */
+        have_virgl = true;
+    } else {
 #if !defined(CONFIG_VIRGL) || defined(HOST_WORDS_BIGENDIAN)
-    have_virgl = false;
+        have_virgl = false;
 #else
-    have_virgl = display_opengl;
+        have_virgl = display_opengl;
 #endif
+    }
     if (!have_virgl) {
         g->conf.flags &= ~(1 << VIRTIO_GPU_FLAG_VIRGL_ENABLED);
     }
@@ -1226,6 +1232,10 @@ static void virtio_gpu_device_realize(DeviceState *qdev, Error **errp)
         g->cursor_vq = virtio_add_queue(vdev, 16, virtio_gpu_handle_cursor_cb);
     }
 
+    if (g->vhost && vhost_gpu_init(g, errp) < 0) {
+        return;
+    }
+
     g->ctrl_bh = qemu_bh_new(virtio_gpu_ctrl_bh, g);
     g->cursor_bh = qemu_bh_new(virtio_gpu_cursor_bh, g);
     QTAILQ_INIT(&g->reslist);
@@ -1253,8 +1263,27 @@ static void virtio_gpu_device_unrealize(DeviceState *qdev, Error **errp)
     }
 }
 
+static void virtio_gpu_host_user_is_busy(const Object *obj, const char *name,
+                                         Object *val, Error **errp)
+{
+    VirtIOGPU *g = VIRTIO_GPU(obj);
+
+    if (g->vhost) {
+        error_setg(errp, "can't use already busy vhost-user");
+    } else {
+        qdev_prop_allow_set_link_before_realize(obj, name, val, errp);
+    }
+}
+
 static void virtio_gpu_instance_init(Object *obj)
 {
+    VirtIOGPU *g = VIRTIO_GPU(obj);
+
+    object_property_add_link(obj, "vhost-user", TYPE_VHOST_USER_BACKEND,
+                             (Object **)&g->vhost,
+                             virtio_gpu_host_user_is_busy,
+                             OBJ_PROP_LINK_UNREF_ON_RELEASE,
+                             &error_abort);
 }
 
 static void virtio_gpu_reset(VirtIODevice *vdev)
@@ -1264,7 +1293,9 @@ static void virtio_gpu_reset(VirtIODevice *vdev)
     int i;
 
     g->enable = 0;
-
+    if (g->vhost) {
+        vhost_user_backend_stop(g->vhost);
+    }
     QTAILQ_FOREACH_SAFE(res, &g->reslist, next, tmp) {
         virtio_gpu_resource_destroy(g, res);
     }
@@ -1312,6 +1343,43 @@ static const VMStateDescription vmstate_virtio_gpu = {
     },
 };
 
+static void virtio_gpu_set_status(VirtIODevice *vdev, uint8_t val)
+{
+    VirtIOGPU *g = VIRTIO_GPU(vdev);
+
+    if (g->vhost) {
+        if (val & VIRTIO_CONFIG_S_DRIVER_OK && vdev->vm_running) {
+            vhost_user_backend_start(g->vhost);
+        } else {
+            /* TODO: forcefully gl unblock ? */
+            vhost_user_backend_stop(g->vhost);
+        }
+    }
+}
+
+static bool virtio_gpu_guest_notifier_pending(VirtIODevice *vdev, int idx)
+{
+    VirtIOGPU *g = VIRTIO_GPU(vdev);
+
+    if (!g->vhost) {
+        return false;
+    }
+
+    return vhost_virtqueue_pending(&g->vhost->dev, idx);
+}
+
+static void virtio_gpu_guest_notifier_mask(VirtIODevice *vdev, int idx,
+                                           bool mask)
+{
+    VirtIOGPU *g = VIRTIO_GPU(vdev);
+
+    if (!g->vhost) {
+        return;
+    }
+
+    vhost_virtqueue_mask(&g->vhost->dev, vdev, idx, mask);
+}
+
 static Property virtio_gpu_properties[] = {
     DEFINE_PROP_UINT32("max_outputs", VirtIOGPU, conf.max_outputs, 1),
     DEFINE_PROP_SIZE("max_hostmem", VirtIOGPU, conf.max_hostmem,
@@ -1338,6 +1406,9 @@ static void virtio_gpu_class_init(ObjectClass *klass, void *data)
     vdc->set_config = virtio_gpu_set_config;
     vdc->get_features = virtio_gpu_get_features;
     vdc->set_features = virtio_gpu_set_features;
+    vdc->set_status   = virtio_gpu_set_status;
+    vdc->guest_notifier_mask = virtio_gpu_guest_notifier_mask;
+    vdc->guest_notifier_pending = virtio_gpu_guest_notifier_pending;
 
     vdc->reset = virtio_gpu_reset;
 

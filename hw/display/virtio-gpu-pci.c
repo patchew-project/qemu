@@ -18,6 +18,7 @@
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio-pci.h"
 #include "hw/virtio/virtio-gpu.h"
+#include "qapi/error.h"
 
 static Property virtio_gpu_pci_properties[] = {
     DEFINE_VIRTIO_GPU_PCI_PROPERTIES(VirtIOPCIProxy),
@@ -67,6 +68,10 @@ static void virtio_gpu_initfn(Object *obj)
 
     virtio_instance_init_common(obj, &dev->vdev, sizeof(dev->vdev),
                                 TYPE_VIRTIO_GPU);
+
+    object_property_add_alias(obj, "vhost-user",
+                              OBJECT(&dev->vdev), "vhost-user",
+                              &error_abort);
 }
 
 static const TypeInfo virtio_gpu_pci_info = {
