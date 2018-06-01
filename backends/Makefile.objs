@@ -16,3 +16,7 @@ common-obj-$(call land,$(CONFIG_VHOST_USER),$(CONFIG_LINUX)) += \
 endif
 
 common-obj-$(CONFIG_LINUX) += hostmem-memfd.o
+
+ifdef CONFIG_LINUX
+common-obj-$(CONFIG_VIRTIO) += vhost-user.o
+endif
