@@ -846,6 +846,7 @@
 # @name: disk name
 # @mountpoint: mount point path
 # @type: file system type string
+# @usage: file system usage, fraction between 0 and 1 (since 3.0)
 # @disk: an array of disk hardware information that the volume lies on,
 #        which may be empty if the disk type is not supported
 #
@@ -853,7 +854,7 @@
 ##
 { 'struct': 'GuestFilesystemInfo',
   'data': {'name': 'str', 'mountpoint': 'str', 'type': 'str',
-           'disk': ['GuestDiskAddress']} }
+           '*usage': 'number', 'disk': ['GuestDiskAddress']} }
 
 ##
 # @guest-get-fsinfo:
