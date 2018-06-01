@@ -8106,6 +8106,21 @@ IMPL(fork)
 }
 #endif
 
+#ifdef TARGET_NR_getpid
+IMPL(getpid)
+{
+    return get_errno(getpid());
+}
+#endif
+
+#if defined(TARGET_NR_getxpid) && defined(TARGET_ALPHA)
+IMPL(getxpid)
+{
+    ((CPUAlphaState *)cpu_env)->ir[IR_A4] = getppid();
+    return get_errno(getpid());
+}
+#endif
+
 #ifdef TARGET_NR_link
 IMPL(link)
 {
@@ -8142,6 +8157,14 @@ IMPL(linkat)
     return ret;
 }
 #endif
+
+IMPL(lseek)
+{
+    if (is_hostfd(arg1)) {
+        return -TARGET_EBADF;
+    }
+    return get_errno(lseek(arg1, arg2, arg3));
+}
 
 #ifdef TARGET_NR_mknod
 IMPL(mknod)
@@ -8460,21 +8483,6 @@ IMPL(everything_else)
     char *fn;
 
     switch(num) {
-    case TARGET_NR_lseek:
-        if (is_hostfd(arg1)) {
-            return -TARGET_EBADF;
-        }
-        return get_errno(lseek(arg1, arg2, arg3));
-#if defined(TARGET_NR_getxpid) && defined(TARGET_ALPHA)
-    /* Alpha specific */
-    case TARGET_NR_getxpid:
-        ((CPUAlphaState *)cpu_env)->ir[IR_A4] = getppid();
-        return get_errno(getpid());
-#endif
-#ifdef TARGET_NR_getpid
-    case TARGET_NR_getpid:
-        return get_errno(getpid());
-#endif
     case TARGET_NR_mount:
         {
             /* need to look at the data field */
@@ -12869,12 +12877,19 @@ static impl_fn * const syscall_table[] = {
 #ifdef TARGET_NR_fork
     [TARGET_NR_fork] = impl_fork,
 #endif
+#ifdef TARGET_NR_getpid
+    [TARGET_NR_getpid] = impl_getpid,
+#endif
+#if defined(TARGET_NR_getxpid) && defined(TARGET_ALPHA)
+    [TARGET_NR_getxpid] = impl_getxpid,
+#endif
 #ifdef TARGET_NR_link
     [TARGET_NR_link] = impl_link,
 #endif
 #if defined(TARGET_NR_linkat)
     [TARGET_NR_linkat] = impl_linkat,
 #endif
+    [TARGET_NR_lseek] = impl_lseek,
 #ifdef TARGET_NR_mknod
     [TARGET_NR_mknod] = impl_mknod,
 #endif
