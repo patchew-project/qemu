@@ -7912,6 +7912,24 @@ IMPL(access)
 }
 #endif
 
+IMPL(acct)
+{
+    if (arg1 == 0) {
+        return get_errno(acct(NULL));
+    } else {
+        char *fn = lock_user_string(arg1);
+        abi_long ret;
+
+        if (!fn) {
+            return -TARGET_EFAULT;
+        }
+        TRY_INTERP_PATH(ret, fn, acct(fn));
+        ret = get_errno(ret);
+        unlock_user(fn, arg1, 0);
+        return ret;
+    }
+}
+
 #ifdef TARGET_NR_alarm
 IMPL(alarm)
 {
@@ -8529,6 +8547,21 @@ IMPL(pause)
 }
 #endif
 
+#ifdef TARGET_NR_pipe
+IMPL(pipe)
+{
+    return do_pipe(cpu_env, arg1, 0, 0);
+}
+#endif
+
+#ifdef TARGET_NR_pipe2
+IMPL(pipe2)
+{
+    return do_pipe(cpu_env, arg1,
+                   target_to_host_bitmask(arg2, fcntl_flags_tbl), 1);
+}
+#endif
+
 IMPL(read)
 {
     abi_long ret;
@@ -8657,6 +8690,27 @@ IMPL(time)
 }
 #endif
 
+IMPL(times)
+{
+    struct tms tms;
+    abi_long ret = get_errno(times(&tms));
+    if (arg1) {
+        struct target_tms *tmsp
+            = lock_user(VERIFY_WRITE, arg1, sizeof(struct target_tms), 0);
+        if (!tmsp) {
+            return -TARGET_EFAULT;
+        }
+        tmsp->tms_utime = tswapal(host_to_target_clock_t(tms.tms_utime));
+        tmsp->tms_stime = tswapal(host_to_target_clock_t(tms.tms_stime));
+        tmsp->tms_cutime = tswapal(host_to_target_clock_t(tms.tms_cutime));
+        tmsp->tms_cstime = tswapal(host_to_target_clock_t(tms.tms_cstime));
+    }
+    if (!is_error(ret)) {
+        ret = host_to_target_clock_t(ret);
+    }
+    return ret;
+}
+
 #ifdef TARGET_NR_umount
 IMPL(umount)
 {
@@ -8667,6 +8721,21 @@ IMPL(umount)
         return -TARGET_EFAULT;
     }
     ret = get_errno(umount(p));
+    unlock_user(p, arg1, 0);
+    return ret;
+}
+#endif
+
+#ifdef TARGET_NR_umount2
+IMPL(umount2)
+{
+    char *p = lock_user_string(arg1);
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(umount2(p, arg2));
     unlock_user(p, arg1, 0);
     return ret;
 }
@@ -8831,53 +8900,6 @@ IMPL(everything_else)
     char *fn;
 
     switch(num) {
-#ifdef TARGET_NR_pipe
-    case TARGET_NR_pipe:
-        return do_pipe(cpu_env, arg1, 0, 0);
-#endif
-#ifdef TARGET_NR_pipe2
-    case TARGET_NR_pipe2:
-        return do_pipe(cpu_env, arg1,
-                       target_to_host_bitmask(arg2, fcntl_flags_tbl), 1);
-#endif
-    case TARGET_NR_times:
-        {
-            struct target_tms *tmsp;
-            struct tms tms;
-            ret = get_errno(times(&tms));
-            if (arg1) {
-                tmsp = lock_user(VERIFY_WRITE, arg1, sizeof(struct target_tms), 0);
-                if (!tmsp)
-                    return -TARGET_EFAULT;
-                tmsp->tms_utime = tswapal(host_to_target_clock_t(tms.tms_utime));
-                tmsp->tms_stime = tswapal(host_to_target_clock_t(tms.tms_stime));
-                tmsp->tms_cutime = tswapal(host_to_target_clock_t(tms.tms_cutime));
-                tmsp->tms_cstime = tswapal(host_to_target_clock_t(tms.tms_cstime));
-            }
-            if (!is_error(ret))
-                ret = host_to_target_clock_t(ret);
-        }
-        return ret;
-    case TARGET_NR_acct:
-        if (arg1 == 0) {
-            ret = get_errno(acct(NULL));
-        } else {
-            if (!(fn = lock_user_string(arg1))) {
-                return -TARGET_EFAULT;
-            }
-            TRY_INTERP_PATH(ret, fn, acct(fn));
-            ret = get_errno(ret);
-            unlock_user(fn, arg1, 0);
-        }
-        return ret;
-#ifdef TARGET_NR_umount2
-    case TARGET_NR_umount2:
-        if (!(p = lock_user_string(arg1)))
-            return -TARGET_EFAULT;
-        ret = get_errno(umount2(p, arg2));
-        unlock_user(p, arg1, 0);
-        return ret;
-#endif
     case TARGET_NR_ioctl:
         return do_ioctl(arg1, arg2, arg3);
 #ifdef TARGET_NR_fcntl
@@ -12937,6 +12959,7 @@ static impl_fn * const syscall_table[] = {
 #ifdef TARGET_NR_access
     [TARGET_NR_access] = impl_access,
 #endif
+    [TARGET_NR_acct] = impl_acct,
 #ifdef TARGET_NR_alarm
     [TARGET_NR_alarm] = impl_alarm,
 #endif
@@ -13004,6 +13027,12 @@ static impl_fn * const syscall_table[] = {
 #ifdef TARGET_NR_pause
     [TARGET_NR_pause] = impl_pause,
 #endif
+#ifdef TARGET_NR_pipe
+    [TARGET_NR_pipe] = impl_pipe,
+#endif
+#ifdef TARGET_NR_pipe2
+    [TARGET_NR_pipe2] = impl_pipe2,
+#endif
     [TARGET_NR_read] = impl_read,
 #ifdef TARGET_NR_rename
     [TARGET_NR_rename] = impl_rename,
@@ -13027,8 +13056,12 @@ static impl_fn * const syscall_table[] = {
 #ifdef TARGET_NR_time
     [TARGET_NR_time] = impl_time,
 #endif
+    [TARGET_NR_times] = impl_times,
 #ifdef TARGET_NR_umount
     [TARGET_NR_umount] = impl_umount,
+#endif
+#ifdef TARGET_NR_umount2
+    [TARGET_NR_umount2] = impl_umount2,
 #endif
 #ifdef TARGET_NR_unlink
     [TARGET_NR_unlink] = impl_unlink,
