@@ -8145,6 +8145,44 @@ IMPL(exit)
     g_assert_not_reached();
 }
 
+#ifdef TARGET_NR_open
+IMPL(open)
+{
+    char *fn = lock_user_string(arg1);
+    abi_long ret;
+
+    if (!fn) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(do_openat(cpu_env, AT_FDCWD, fn,
+                              target_to_host_bitmask(arg2, fcntl_flags_tbl),
+                              arg3));
+    fd_trans_unregister(ret);
+    unlock_user(fn, arg1, 0);
+    return ret;
+}
+#endif
+
+IMPL(openat)
+{
+    char *fn;
+    abi_long ret;
+
+    if (is_hostfd(arg1)) {
+        return -TARGET_EBADF;
+    }
+    fn = lock_user_string(arg2);
+    if (!fn) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(do_openat(cpu_env, arg1, fn,
+                              target_to_host_bitmask(arg3, fcntl_flags_tbl),
+                              arg4));
+    fd_trans_unregister(ret);
+    unlock_user(fn, arg2, 0);
+    return ret;
+}
+
 IMPL(read)
 {
     abi_long ret;
@@ -8210,29 +8248,6 @@ IMPL(everything_else)
     char *fn;
 
     switch(num) {
-#ifdef TARGET_NR_open
-    case TARGET_NR_open:
-        if (!(p = lock_user_string(arg1)))
-            return -TARGET_EFAULT;
-        ret = get_errno(do_openat(cpu_env, AT_FDCWD, p,
-                                  target_to_host_bitmask(arg2, fcntl_flags_tbl),
-                                  arg3));
-        fd_trans_unregister(ret);
-        unlock_user(p, arg1, 0);
-        return ret;
-#endif
-    case TARGET_NR_openat:
-        if (is_hostfd(arg1)) {
-            return -TARGET_EBADF;
-        }
-        if (!(p = lock_user_string(arg2)))
-            return -TARGET_EFAULT;
-        ret = get_errno(do_openat(cpu_env, arg1, p,
-                                  target_to_host_bitmask(arg3, fcntl_flags_tbl),
-                                  arg4));
-        fd_trans_unregister(ret);
-        unlock_user(p, arg2, 0);
-        return ret;
 #if defined(TARGET_NR_name_to_handle_at) && defined(CONFIG_OPEN_BY_HANDLE)
     case TARGET_NR_name_to_handle_at:
         if (is_hostfd(arg1)) {
@@ -12926,6 +12941,10 @@ static impl_fn * const syscall_table[] = {
     [TARGET_NR_close] = impl_close,
     [TARGET_NR_execve] = impl_execve,
     [TARGET_NR_exit] = impl_exit,
+#ifdef TARGET_NR_open
+    [TARGET_NR_open] = impl_open,
+#endif
+    [TARGET_NR_openat] = impl_openat,
     [TARGET_NR_read] = impl_read,
     [TARGET_NR_write] = impl_write,
 };
