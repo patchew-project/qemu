@@ -8276,6 +8276,40 @@ IMPL(read)
     return ret;
 }
 
+#ifdef TARGET_NR_unlink
+IMPL(unlink)
+{
+    char *p = lock_user_string(arg1);
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(unlink(p));
+    unlock_user(p, arg1, 0);
+    return ret;
+}
+#endif
+
+#ifdef TARGET_NR_unlinkat
+IMPL(unlinkat)
+{
+    char *p;
+    abi_long ret;
+
+    if (is_hostfd(arg1)) {
+        return -TARGET_EBADF;
+    }
+    p = lock_user_string(arg2);
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(unlinkat(arg1, p, arg3));
+    unlock_user(p, arg2, 0);
+    return ret;
+}
+#endif
+
 #ifdef TARGET_NR_waitid
 IMPL(waitid)
 {
@@ -8352,25 +8386,6 @@ IMPL(everything_else)
     char *fn;
 
     switch(num) {
-#ifdef TARGET_NR_unlink
-    case TARGET_NR_unlink:
-        if (!(p = lock_user_string(arg1)))
-            return -TARGET_EFAULT;
-        ret = get_errno(unlink(p));
-        unlock_user(p, arg1, 0);
-        return ret;
-#endif
-#if defined(TARGET_NR_unlinkat)
-    case TARGET_NR_unlinkat:
-        if (is_hostfd(arg1)) {
-            return -TARGET_EBADF;
-        }
-        if (!(p = lock_user_string(arg2)))
-            return -TARGET_EFAULT;
-        ret = get_errno(unlinkat(arg1, p, arg3));
-        unlock_user(p, arg2, 0);
-        return ret;
-#endif
     case TARGET_NR_chdir:
         if (!(p = lock_user_string(arg1)))
             return -TARGET_EFAULT;
@@ -12978,6 +12993,12 @@ static impl_fn * const syscall_table[] = {
     [TARGET_NR_open_by_handle_at] = impl_open_by_handle_at,
 #endif
     [TARGET_NR_read] = impl_read,
+#ifdef TARGET_NR_unlink
+    [TARGET_NR_unlink] = impl_unlink,
+#endif
+#if TARGET_NR_unlinkat
+    [TARGET_NR_unlinkat] = impl_unlinkat,
+#endif
 #ifdef TARGET_NR_waitid
     [TARGET_NR_waitid] = impl_waitid,
 #endif
