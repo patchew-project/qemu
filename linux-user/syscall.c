@@ -8504,6 +8504,60 @@ IMPL(read)
     return ret;
 }
 
+#ifdef TARGET_NR_rename
+IMPL(rename)
+{
+    char *p1 = lock_user_string(arg1);
+    char *p2 = lock_user_string(arg2);
+    abi_long ret = -TARGET_EFAULT;
+
+    if (p1 && p2) {
+        ret = get_errno(rename(p1, p2));
+    }
+    unlock_user(p2, arg2, 0);
+    unlock_user(p1, arg1, 0);
+    return ret;
+}
+#endif
+
+#if defined(TARGET_NR_renameat)
+IMPL(renameat)
+{
+    if (is_hostfd(arg1)) {
+        return -TARGET_EBADF;
+    }
+
+    char *p1 = lock_user_string(arg2);
+    char *p2 = lock_user_string(arg4);
+    abi_long ret = -TARGET_EFAULT;
+    if (p1 && p2) {
+        ret = get_errno(renameat(arg1, p1, arg3, p2));
+    }
+    unlock_user(p2, arg4, 0);
+    unlock_user(p1, arg2, 0);
+    return ret;
+}
+#endif
+
+#ifdef TARGET_NR_renameat2
+IMPL(renameat2)
+{
+    if (is_hostfd(arg1)) {
+        return -TARGET_EBADF;
+    }
+
+    char *p1 = lock_user_string(arg2);
+    char *p2 = lock_user_string(arg4);
+    abi_long ret = -TARGET_EFAULT;
+    if (p1 && p2) {
+        ret = get_errno(sys_renameat2(arg1, p1, arg3, p2, arg5));
+    }
+    unlock_user(p2, arg4, 0);
+    unlock_user(p1, arg2, 0);
+    return ret;
+}
+#endif
+
 #ifdef TARGET_NR_stime
 IMPL(stime)
 {
@@ -8714,56 +8768,6 @@ IMPL(everything_else)
     char *fn;
 
     switch(num) {
-#ifdef TARGET_NR_rename
-    case TARGET_NR_rename:
-        {
-            void *p2;
-            p = lock_user_string(arg1);
-            p2 = lock_user_string(arg2);
-            if (!p || !p2)
-                ret = -TARGET_EFAULT;
-            else
-                ret = get_errno(rename(p, p2));
-            unlock_user(p2, arg2, 0);
-            unlock_user(p, arg1, 0);
-        }
-        return ret;
-#endif
-#if defined(TARGET_NR_renameat)
-    case TARGET_NR_renameat:
-        if (is_hostfd(arg1)) {
-            return -TARGET_EBADF;
-        } else {
-            void *p2;
-            p  = lock_user_string(arg2);
-            p2 = lock_user_string(arg4);
-            if (!p || !p2)
-                ret = -TARGET_EFAULT;
-            else
-                ret = get_errno(renameat(arg1, p, arg3, p2));
-            unlock_user(p2, arg4, 0);
-            unlock_user(p, arg2, 0);
-        }
-        return ret;
-#endif
-#if defined(TARGET_NR_renameat2)
-    case TARGET_NR_renameat2:
-        if (is_hostfd(arg1)) {
-            return -TARGET_EBADF;
-        } else {
-            void *p2;
-            p  = lock_user_string(arg2);
-            p2 = lock_user_string(arg4);
-            if (!p || !p2) {
-                ret = -TARGET_EFAULT;
-            } else {
-                ret = get_errno(sys_renameat2(arg1, p, arg3, p2, arg5));
-            }
-            unlock_user(p2, arg4, 0);
-            unlock_user(p, arg2, 0);
-        }
-        return ret;
-#endif
 #ifdef TARGET_NR_mkdir
     case TARGET_NR_mkdir:
         if (!(p = lock_user_string(arg1)))
@@ -12967,6 +12971,15 @@ static impl_fn * const syscall_table[] = {
     [TARGET_NR_pause] = impl_pause,
 #endif
     [TARGET_NR_read] = impl_read,
+#ifdef TARGET_NR_rename
+    [TARGET_NR_rename] = impl_rename,
+#endif
+#ifdef TARGET_NR_renameat
+    [TARGET_NR_renameat] = impl_renameat,
+#endif
+#ifdef TARGET_NR_renameat2
+    [TARGET_NR_renameat2] = impl_renameat2,
+#endif
 #ifdef TARGET_NR_stime
     [TARGET_NR_stime] = impl_stime,
 #endif
