@@ -20,6 +20,7 @@
 # Check using the job-* QMP commands with block jobs
 
 import iotests
+import time
 
 iotests.verify_image_format(supported_fmts=['qcow2'])
 
@@ -46,6 +47,8 @@ def test_pause_resume(vm):
 
             iotests.log(vm.qmp(resume_cmd, **{resume_arg: 'job0'}))
             iotests.log(iotests.filter_qmp_event(vm.event_wait('JOB_STATUS_CHANGE')))
+            # Let the job proceed before querying its progress
+            time.sleep(0.1)
             iotests.log(vm.qmp('query-jobs'))
 
 def test_job_lifecycle(vm, job, job_args, has_ready=False):
@@ -58,12 +61,13 @@ def test_job_lifecycle(vm, job, job_args, has_ready=False):
     iotests.log(vm.qmp(job, job_id='job0', **job_args))
 
     # Depending on the storage, the first request may or may not have completed
-    # yet, so filter out the progress. Later query-job calls don't need the
-    # filtering because the progress is made deterministic by the block job
-    # speed
+    # yet (and the total progress may not have been fully determined yet), so
+    # filter out the progress. Later query-job calls don't need the filtering
+    # because the progress is made deterministic by the block job speed
     result = vm.qmp('query-jobs')
     for j in result['return']:
         del j['current-progress']
+        del j['total-progress']
     iotests.log(result)
 
     # undefined -> created -> running
