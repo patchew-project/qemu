@@ -5537,6 +5537,7 @@ if test "$want_tools" = "yes" ; then
   fi
   if [ "$ivshmem" = "yes" ]; then
     tools="ivshmem-client\$(EXESUF) ivshmem-server\$(EXESUF) $tools"
+    tools="vhost-user-input\$(EXESUF) $tools"
   fi
 fi
 if test "$softmmu" = yes ; then
