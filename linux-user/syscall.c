@@ -7894,6 +7894,24 @@ IMPL(enosys)
     return do_unimplemented(num);
 }
 
+#ifdef TARGET_NR_access
+IMPL(access)
+{
+    char *fn = lock_user_string(arg1);
+    abi_long ret;
+
+    if (!fn) {
+        return -TARGET_EFAULT;
+    }
+    TRY_INTERP_FD(ret, fn,
+                  faccessat(interp_dirfd, fn + 1, arg2, 0),
+                  access(fn, arg2));
+    ret = get_errno(ret);
+    unlock_user(fn, arg1, 0);
+    return ret;
+}
+#endif
+
 #ifdef TARGET_NR_alarm
 IMPL(alarm)
 {
@@ -8106,10 +8124,63 @@ IMPL(exit)
     g_assert_not_reached();
 }
 
+#ifdef TARGET_NR_faccessat
+IMPL(faccessat)
+{
+    char *fn;
+    abi_long ret;
+
+    if (is_hostfd(arg1)) {
+        return -TARGET_EBADF;
+    }
+    fn = lock_user_string(arg2);
+    if (!fn) {
+        return -TARGET_EFAULT;
+    }
+    TRY_INTERP_FD(ret, fn,
+                  faccessat(interp_dirfd, fn + 1, arg3, 0),
+                  faccessat(arg1, fn, arg3, 0));
+    ret = get_errno(ret);
+    unlock_user(fn, arg2, 0);
+    return ret;
+}
+#endif
+
 #ifdef TARGET_NR_fork
 IMPL(fork)
 {
     return get_errno(do_fork(cpu_env, TARGET_SIGCHLD, 0, 0, 0, 0));
+}
+#endif
+
+#ifdef TARGET_NR_futimesat
+IMPL(futimesat)
+{
+    struct timeval tv[2], *tvp = NULL;
+    char *fn;
+    abi_long ret;
+
+    if (is_hostfd(arg1)) {
+        return -TARGET_EBADF;
+    }
+    if (arg3) {
+        if (copy_from_user_timeval(&tv[0], arg3) ||
+            copy_from_user_timeval(&tv[1],
+                                   arg3 + sizeof(struct target_timeval))) {
+            return -TARGET_EFAULT;
+        }
+        tvp = tv;
+    }
+    fn = lock_user_string(arg2);
+    if (!fn) {
+        return -TARGET_EFAULT;
+    }
+    TRY_INTERP_FD(ret, fn,
+                  futimesat(interp_dirfd, fn + 1, tvp),
+                  futimesat(arg1, fn, tvp));
+    ret = get_errno(ret);
+    unlock_user(fn, arg2, 0);
+    return ret;
 }
 #endif
 
@@ -8127,6 +8198,11 @@ IMPL(getxpid)
     return get_errno(getpid());
 }
 #endif
+
+IMPL(kill)
+{
+    return get_errno(safe_kill(arg1, target_to_host_signal(arg2)));
+}
 
 #ifdef TARGET_NR_link
 IMPL(link)
@@ -8309,6 +8385,13 @@ IMPL(name_to_handle_at)
 }
 #endif
 
+#ifdef TARGET_NR_nice
+IMPL(nice)
+{
+    return get_errno(nice(arg1));
+}
+#endif
+
 #ifdef TARGET_NR_open
 IMPL(open)
 {
@@ -8429,6 +8512,19 @@ IMPL(stime)
         return -TARGET_EFAULT;
     }
     return get_errno(stime(&host_time));
+}
+#endif
+
+IMPL(sync)
+{
+    sync();
+    return 0;
+}
+
+#if defined(TARGET_NR_syncfs) && defined(CONFIG_SYNCFS)
+IMPL(syncfs)
+{
+    return get_errno(syncfs(arg1));
 }
 #endif
 
@@ -8618,72 +8714,6 @@ IMPL(everything_else)
     char *fn;
 
     switch(num) {
-#if defined(TARGET_NR_futimesat)
-    case TARGET_NR_futimesat:
-        if (is_hostfd(arg1)) {
-            return -TARGET_EBADF;
-        } else {
-            struct timeval *tvp, tv[2];
-            if (arg3) {
-                if (copy_from_user_timeval(&tv[0], arg3)
-                    || copy_from_user_timeval(&tv[1],
-                                              arg3 + sizeof(struct target_timeval)))
-                    return -TARGET_EFAULT;
-                tvp = tv;
-            } else {
-                tvp = NULL;
-            }
-            if (!(fn = lock_user_string(arg2))) {
-                return -TARGET_EFAULT;
-            }
-            TRY_INTERP_FD(ret, fn,
-                          futimesat(interp_dirfd, fn + 1, tvp),
-                          futimesat(arg1, fn, tvp));
-            ret = get_errno(ret);
-            unlock_user(fn, arg2, 0);
-        }
-        return ret;
-#endif
-#ifdef TARGET_NR_access
-    case TARGET_NR_access:
-        if (!(fn = lock_user_string(arg1))) {
-            return -TARGET_EFAULT;
-        }
-        TRY_INTERP_FD(ret, fn,
-                      faccessat(interp_dirfd, fn + 1, arg2, 0),
-                      access(fn, arg2));
-        ret = get_errno(ret);
-        unlock_user(fn, arg1, 0);
-        return ret;
-#endif
-#if defined(TARGET_NR_faccessat) && defined(__NR_faccessat)
-    case TARGET_NR_faccessat:
-        if (is_hostfd(arg1)) {
-            return -TARGET_EBADF;
-        }
-        if (!(fn = lock_user_string(arg2))) {
-            return -TARGET_EFAULT;
-        }
-        TRY_INTERP_FD(ret, fn,
-                      faccessat(interp_dirfd, fn + 1, arg3, 0),
-                      faccessat(arg1, fn, arg3, 0));
-        ret = get_errno(ret);
-        unlock_user(fn, arg2, 0);
-        return ret;
-#endif
-#ifdef TARGET_NR_nice /* not on alpha */
-    case TARGET_NR_nice:
-        return get_errno(nice(arg1));
-#endif
-    case TARGET_NR_sync:
-        sync();
-        return 0;
-#if defined(TARGET_NR_syncfs) && defined(CONFIG_SYNCFS)
-    case TARGET_NR_syncfs:
-        return get_errno(syncfs(arg1));
-#endif
-    case TARGET_NR_kill:
-        return get_errno(safe_kill(arg1, target_to_host_signal(arg2)));
 #ifdef TARGET_NR_rename
     case TARGET_NR_rename:
         {
@@ -12873,6 +12903,9 @@ IMPL(everything_else)
 }
 
 static impl_fn * const syscall_table[] = {
+#ifdef TARGET_NR_access
+    [TARGET_NR_access] = impl_access,
+#endif
 #ifdef TARGET_NR_alarm
     [TARGET_NR_alarm] = impl_alarm,
 #endif
@@ -12887,8 +12920,14 @@ static impl_fn * const syscall_table[] = {
 #endif
     [TARGET_NR_execve] = impl_execve,
     [TARGET_NR_exit] = impl_exit,
+#ifdef TARGET_NR_faccessat
+    [TARGET_NR_faccessat] = impl_faccessat,
+#endif
 #ifdef TARGET_NR_fork
     [TARGET_NR_fork] = impl_fork,
+#endif
+#ifdef TARGET_NR_futimesat
+    [TARGET_NR_futimesat] = impl_futimesat,
 #endif
 #ifdef TARGET_NR_getpid
     [TARGET_NR_getpid] = impl_getpid,
@@ -12896,6 +12935,7 @@ static impl_fn * const syscall_table[] = {
 #if defined(TARGET_NR_getxpid) && defined(TARGET_ALPHA)
     [TARGET_NR_getxpid] = impl_getxpid,
 #endif
+    [TARGET_NR_kill] = impl_kill,
 #ifdef TARGET_NR_link
     [TARGET_NR_link] = impl_link,
 #endif
@@ -12913,6 +12953,9 @@ static impl_fn * const syscall_table[] = {
 #if defined(TARGET_NR_name_to_handle_at) && defined(CONFIG_OPEN_BY_HANDLE)
     [TARGET_NR_name_to_handle_at] = impl_name_to_handle_at,
 #endif
+#ifdef TARGET_NR_nice
+    [TARGET_NR_nice] = impl_nice,
+#endif
 #ifdef TARGET_NR_open
     [TARGET_NR_open] = impl_open,
 #endif
@@ -12926,6 +12969,10 @@ static impl_fn * const syscall_table[] = {
     [TARGET_NR_read] = impl_read,
 #ifdef TARGET_NR_stime
     [TARGET_NR_stime] = impl_stime,
+#endif
+    [TARGET_NR_sync] = impl_sync,
+#if defined(TARGET_NR_syncfs) && defined(CONFIG_SYNCFS)
+    [TARGET_NR_syncfs] = impl_syncfs,
 #endif
 #ifdef TARGET_NR_time
     [TARGET_NR_time] = impl_time,
