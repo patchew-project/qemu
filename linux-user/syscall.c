@@ -7962,10 +7962,26 @@ static int host_to_target_cpu_mask(const unsigned long *host_mask,
     return 0;
 }
 
+typedef abi_long impl_fn(void *cpu_env, unsigned num, abi_long arg1,
+                         abi_long arg2, abi_long arg3, abi_long arg4,
+                         abi_long arg5, abi_long arg6, abi_long arg7,
+                         abi_long arg8);
+
 static abi_long do_unimplemented(unsigned num)
 {
     gemu_log("qemu: Unsupported syscall: %u\n", num);
     return -TARGET_ENOSYS;
+}
+
+#define IMPL(NAME) \
+static abi_long impl_##NAME(void *cpu_env, unsigned num, abi_long arg1,   \
+                            abi_long arg2, abi_long arg3, abi_long arg4,  \
+                            abi_long arg5, abi_long arg6, abi_long arg7,  \
+                            abi_long arg8)
+
+IMPL(enosys)
+{
+    return do_unimplemented(num);
 }
 
 /* This is an internal helper for do_syscall so that it is easier
@@ -7973,10 +7989,7 @@ static abi_long do_unimplemented(unsigned num)
  * of syscall results, can be performed.
  * All errnos that do_syscall() returns must be -TARGET_<errcode>.
  */
-static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
-                            abi_long arg2, abi_long arg3, abi_long arg4,
-                            abi_long arg5, abi_long arg6, abi_long arg7,
-                            abi_long arg8)
+IMPL(everything_else)
 {
     CPUState *cpu = ENV_GET_CPU(cpu_env);
     abi_long ret;
@@ -12880,6 +12893,10 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     return ret;
 }
 
+static impl_fn * const syscall_table[] = {
+    impl_everything_else,
+};
+
 abi_long do_syscall(void *cpu_env, unsigned num, abi_long arg1,
                     abi_long arg2, abi_long arg3, abi_long arg4,
                     abi_long arg5, abi_long arg6, abi_long arg7,
@@ -12908,14 +12925,23 @@ abi_long do_syscall(void *cpu_env, unsigned num, abi_long arg1,
     trace_guest_user_syscall(cpu, num, arg1, arg2, arg3, arg4,
                              arg5, arg6, arg7, arg8);
 
+    /* ??? After impl_everything_else is fully split, initialize with NULL.  */
+    impl_fn *fn = impl_everything_else;
+    if (num < ARRAY_SIZE(syscall_table)) {
+        fn = syscall_table[num];
+    }
+    if (fn == NULL) {
+        fn = impl_enosys;
+    }
+
     if (unlikely(do_strace)) {
         print_syscall(num, arg1, arg2, arg3, arg4, arg5, arg6);
-        ret = do_syscall1(cpu_env, num, arg1, arg2, arg3, arg4,
-                          arg5, arg6, arg7, arg8);
+        ret = fn(cpu_env, num, arg1, arg2, arg3, arg4,
+                 arg5, arg6, arg7, arg8);
         print_syscall_ret(num, ret);
     } else {
-        ret = do_syscall1(cpu_env, num, arg1, arg2, arg3, arg4,
-                          arg5, arg6, arg7, arg8);
+        ret = fn(cpu_env, num, arg1, arg2, arg3, arg4,
+                 arg5, arg6, arg7, arg8);
     }
 
 #ifdef DEBUG
