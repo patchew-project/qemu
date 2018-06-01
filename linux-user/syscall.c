@@ -8182,10 +8182,24 @@ IMPL(futimesat)
 }
 #endif
 
+#ifdef TARGET_NR_getpgrp
+IMPL(getpgrp)
+{
+    return get_errno(getpgrp());
+}
+#endif
+
 #ifdef TARGET_NR_getpid
 IMPL(getpid)
 {
     return get_errno(getpid());
+}
+#endif
+
+#ifdef TARGET_NR_getppid
+IMPL(getppid)
+{
+    return get_errno(getppid());
 }
 #endif
 
@@ -8721,6 +8735,11 @@ IMPL(setpgid)
     return get_errno(setpgid(arg1, arg2));
 }
 
+IMPL(setsid)
+{
+    return get_errno(setsid());
+}
+
 #ifdef TARGET_NR_stime
 IMPL(stime)
 {
@@ -8972,16 +8991,6 @@ IMPL(everything_else)
     char *fn;
 
     switch(num) {
-#ifdef TARGET_NR_getppid /* not on alpha */
-    case TARGET_NR_getppid:
-        return get_errno(getppid());
-#endif
-#ifdef TARGET_NR_getpgrp
-    case TARGET_NR_getpgrp:
-        return get_errno(getpgrp());
-#endif
-    case TARGET_NR_setsid:
-        return get_errno(setsid());
 #ifdef TARGET_NR_sigaction
     case TARGET_NR_sigaction:
         {
@@ -13020,8 +13029,14 @@ static impl_fn * const syscall_table[] = {
 #ifdef TARGET_NR_futimesat
     [TARGET_NR_futimesat] = impl_futimesat,
 #endif
+#ifdef TARGET_NR_getpgrp
+    [TARGET_NR_getpgrp] = impl_getpgrp,
+#endif
 #ifdef TARGET_NR_getpid
     [TARGET_NR_getpid] = impl_getpid,
+#endif
+#ifdef TARGET_NR_getppid
+    [TARGET_NR_getppid] = impl_getppid,
 #endif
 #if defined(TARGET_NR_getxpid) && defined(TARGET_ALPHA)
     [TARGET_NR_getxpid] = impl_getxpid,
@@ -13084,6 +13099,7 @@ static impl_fn * const syscall_table[] = {
     [TARGET_NR_rmdir] = impl_rmdir,
 #endif
     [TARGET_NR_setpgid] = impl_setpgid,
+    [TARGET_NR_setsid] = impl_setsid,
 #ifdef TARGET_NR_stime
     [TARGET_NR_stime] = impl_stime,
 #endif
