@@ -16,12 +16,17 @@
 static void microbit_init(MachineState *machine)
 {
     DeviceState *dev;
+    NRF51State * soc;
 
     dev = qdev_create(NULL, TYPE_NRF51_SOC);
     if (machine->kernel_filename) {
         qdev_prop_set_string(dev, "kernel-filename", machine->kernel_filename);
     }
     object_property_set_bool(OBJECT(dev), true, "realized", &error_fatal);
+
+    soc = NRF51_SOC(dev);
+    object_property_add_alias(OBJECT(machine), "button-a", OBJECT(soc->nvic), "unnamed-gpio-in[17]", &error_fatal);
+    object_property_add_alias(OBJECT(machine), "button-b", OBJECT(soc->nvic), "unnamed-gpio-in[26]", &error_fatal);
 }
 
 static void microbit_machine_init(MachineClass *mc)

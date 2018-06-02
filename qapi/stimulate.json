@@ -1,0 +1,24 @@
+# -*- Mode: Python -*-
+
+##
+# @ButtonPress:
+#
+# @identifier:  Name of the button.
+# @pushed_down: State of the button.
+#
+##
+{ 'struct': 'ButtonPress',
+  'data': {
+    'identifier': 'str',
+    'pushed_down': 'bool'
+     } }
+    
+##
+# @buttons-set-state:
+#
+# @buttons: List of updated button states.
+#
+# Returns: nothing in case of success
+##
+{ 'command': 'buttons-set-state',
+  'data': { 'buttons': ['ButtonPress'] } }
