@@ -4470,8 +4470,13 @@ int main(int argc, char **argv, char **envp)
     }
     parse_numa_opts(current_machine);
 
-    /* do monitor/qmp handling at preconfig state if requested */
-    main_loop();
+    if (preconfig_exit_requested) {
+        runstate_set(RUN_STATE_PRELAUNCH);
+        preconfig_exit_requested = false;
+    } else {
+        /* do monitor/qmp handling at preconfig state if requested */
+        main_loop();
+    }
 
     /* from here on runstate is RUN_STATE_PRELAUNCH */
     machine_run_board_init(current_machine);
