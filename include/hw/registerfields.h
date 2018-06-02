@@ -45,7 +45,7 @@
 #define ARRAY_FIELD_EX32(regs, reg, field)                                \
     FIELD_EX32((regs)[R_ ## reg], reg, field)
 
-/* Deposit a register field.
+/* Deposit a register field (in place).
  * Assigning values larger then the target field will result in
  * compilation warnings.
  */
@@ -54,20 +54,20 @@
         unsigned int v:R_ ## reg ## _ ## field ## _LENGTH;                \
     } v = { .v = val };                                                   \
     uint32_t d;                                                           \
-    d = deposit32((storage), R_ ## reg ## _ ## field ## _SHIFT,           \
-                  R_ ## reg ## _ ## field ## _LENGTH, v.v);               \
-    d; })
+    d = deposit32(*(storage), R_ ## reg ## _ ## field ## _SHIFT,          \
+                  R_ ## reg ## _ ## field ## _LENGTH, v.v);                \
+    *(storage) = d; })
 #define FIELD_DP64(storage, reg, field, val) ({                           \
     struct {                                                              \
         unsigned int v:R_ ## reg ## _ ## field ## _LENGTH;                \
     } v = { .v = val };                                                   \
     uint64_t d;                                                           \
-    d = deposit64((storage), R_ ## reg ## _ ## field ## _SHIFT,           \
+    d = deposit64(*(storage), R_ ## reg ## _ ## field ## _SHIFT,          \
                   R_ ## reg ## _ ## field ## _LENGTH, v.v);               \
-    d; })
+    *(storage) = d; })
 
 /* Deposit a field to array of registers.  */
 #define ARRAY_FIELD_DP32(regs, reg, field, val)                           \
-    (regs)[R_ ## reg] = FIELD_DP32((regs)[R_ ## reg], reg, field, val);
+    FIELD_DP32(&(regs)[R_ ## reg], reg, field, val);
 
 #endif

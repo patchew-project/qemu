@@ -238,25 +238,25 @@ static void smmuv3_init_regs(SMMUv3State *s)
      * IDR0: stage1 only, AArch64 only, coherent access, 16b ASID,
      *       multi-level stream table
      */
-    s->idr[0] = FIELD_DP32(s->idr[0], IDR0, S1P, 1); /* stage 1 supported */
-    s->idr[0] = FIELD_DP32(s->idr[0], IDR0, TTF, 2); /* AArch64 PTW only */
-    s->idr[0] = FIELD_DP32(s->idr[0], IDR0, COHACC, 1); /* IO coherent */
-    s->idr[0] = FIELD_DP32(s->idr[0], IDR0, ASID16, 1); /* 16-bit ASID */
-    s->idr[0] = FIELD_DP32(s->idr[0], IDR0, TTENDIAN, 2); /* little endian */
-    s->idr[0] = FIELD_DP32(s->idr[0], IDR0, STALL_MODEL, 1); /* No stall */
+    FIELD_DP32(&s->idr[0], IDR0, S1P, 1); /* stage 1 supported */
+    FIELD_DP32(&s->idr[0], IDR0, TTF, 2); /* AArch64 PTW only */
+    FIELD_DP32(&s->idr[0], IDR0, COHACC, 1); /* IO coherent */
+    FIELD_DP32(&s->idr[0], IDR0, ASID16, 1); /* 16-bit ASID */
+    FIELD_DP32(&s->idr[0], IDR0, TTENDIAN, 2); /* little endian */
+    FIELD_DP32(&s->idr[0], IDR0, STALL_MODEL, 1); /* No stall */
     /* terminated transaction will always be aborted/error returned */
-    s->idr[0] = FIELD_DP32(s->idr[0], IDR0, TERM_MODEL, 1);
+    FIELD_DP32(&s->idr[0], IDR0, TERM_MODEL, 1);
     /* 2-level stream table supported */
-    s->idr[0] = FIELD_DP32(s->idr[0], IDR0, STLEVEL, 1);
+    FIELD_DP32(&s->idr[0], IDR0, STLEVEL, 1);
 
-    s->idr[1] = FIELD_DP32(s->idr[1], IDR1, SIDSIZE, SMMU_IDR1_SIDSIZE);
-    s->idr[1] = FIELD_DP32(s->idr[1], IDR1, EVENTQS, SMMU_EVENTQS);
-    s->idr[1] = FIELD_DP32(s->idr[1], IDR1, CMDQS,   SMMU_CMDQS);
+    FIELD_DP32(&s->idr[1], IDR1, SIDSIZE, SMMU_IDR1_SIDSIZE);
+    FIELD_DP32(&s->idr[1], IDR1, EVENTQS, SMMU_EVENTQS);
+    FIELD_DP32(&s->idr[1], IDR1, CMDQS,   SMMU_CMDQS);
 
    /* 4K and 64K granule support */
-    s->idr[5] = FIELD_DP32(s->idr[5], IDR5, GRAN4K, 1);
-    s->idr[5] = FIELD_DP32(s->idr[5], IDR5, GRAN64K, 1);
-    s->idr[5] = FIELD_DP32(s->idr[5], IDR5, OAS, SMMU_IDR5_OAS); /* 44 bits */
+    FIELD_DP32(&s->idr[5], IDR5, GRAN4K, 1);
+    FIELD_DP32(&s->idr[5], IDR5, GRAN64K, 1);
+    FIELD_DP32(&s->idr[5], IDR5, OAS, SMMU_IDR5_OAS); /* 44 bits */
 
     s->cmdq.base = deposit64(s->cmdq.base, 0, 5, SMMU_CMDQS);
     s->cmdq.prod = 0;

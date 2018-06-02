@@ -426,10 +426,8 @@ static void zdma_write_dst(XlnxZDMA *s, uint8_t *buf, uint32_t len)
         }
 
         /* Write back to buffered descriptor.  */
-        s->dsc_dst.words[2] = FIELD_DP32(s->dsc_dst.words[2],
-                                         ZDMA_CH_DST_DSCR_WORD2,
-                                         SIZE,
-                                         dst_size);
+        FIELD_DP32(&s->dsc_dst.words[2],
+                   ZDMA_CH_DST_DSCR_WORD2, SIZE, dst_size);
     }
 }
 
