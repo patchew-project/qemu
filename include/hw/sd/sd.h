@@ -56,6 +56,7 @@
 
 enum SDPhySpecificationVersion {
     SD_PHY_SPECv1_10_VERS     = 1,
+    SD_PHY_SPECv2_00_VERS     = 2,
 };
 
 typedef enum {

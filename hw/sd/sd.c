@@ -311,8 +311,12 @@ static void sd_ocr_powerup(void *opaque)
 
 static void sd_set_scr(SDState *sd)
 {
-    sd->scr[0] = (0 << 4)       /* SCR structure version 1.0 */
-                 | 1;           /* Spec Version 1.10 */
+    sd->scr[0] = 0 << 4;        /* SCR structure version 1.0 */
+    if (sd->spec_version == SD_PHY_SPECv1_10_VERS) {
+        sd->scr[0] |= 1;        /* Spec Version 1.10 */
+    } else {
+        sd->scr[0] |= 2;        /* Spec Version 2.00 */
+    }
     sd->scr[1] = (2 << 4)       /* SDSC Card (Security Version 1.01) */
                  | 0b0101;      /* 1-bit or 4-bit width bus modes */
     sd->scr[2] = 0x00;          /* Extended Security is not supported. */
@@ -2060,7 +2064,8 @@ static void sd_realize(DeviceState *dev, Error **errp)
     sd->proto_name = sd->spi ? "SPI" : "SD";
 
     switch (sd->spec_version) {
-    case SD_PHY_SPECv1_10_VERS:
+    case SD_PHY_SPECv1_10_VERS
+     ... SD_PHY_SPECv2_00_VERS:
         break;
     default:
         error_setg(errp, "Invalid SD card Spec version: %u", sd->spec_version);
@@ -2084,7 +2089,7 @@ static void sd_realize(DeviceState *dev, Error **errp)
 
 static Property sd_properties[] = {
     DEFINE_PROP_UINT8("spec_version", SDState,
-                      spec_version, SD_PHY_SPECv1_10_VERS),
+                      spec_version, SD_PHY_SPECv2_00_VERS),
     DEFINE_PROP_DRIVE("drive", SDState, blk),
     /* We do not model the chip select pin, so allow the board to select
      * whether card should be in SSI or MMC/SD mode.  It is also up to the
