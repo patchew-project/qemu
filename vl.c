@@ -2921,6 +2921,7 @@ int main(int argc, char **argv, char **envp)
     Error *err = NULL;
     bool list_data_dirs = false;
     char *dir, **dirs;
+    bool os_setup_post_done = false;
     typedef struct BlockdevOptions_queue {
         BlockdevOptions *bdo;
         Location loc;
@@ -4476,6 +4477,8 @@ int main(int argc, char **argv, char **envp)
 
     /* do monitor/qmp handling at preconfig state if requested */
     if (runstate_check(RUN_STATE_PRECONFIG)) {
+        os_setup_post();
+        os_setup_post_done = true;
         main_loop();
     }
 
@@ -4606,7 +4609,9 @@ int main(int argc, char **argv, char **envp)
     }
 
     accel_setup_post(current_machine);
-    os_setup_post();
+    if (!os_setup_post_done) {
+        os_setup_post();
+    }
 
     main_loop();
 
