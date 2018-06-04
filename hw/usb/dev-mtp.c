@@ -1281,12 +1281,17 @@ static void usb_mtp_command(MTPState *s, MTPControl *c)
     MTPData *data_in = NULL;
     MTPObject *o = NULL;
     uint32_t nres = 0, res0 = 0;
+    int i;
 
     /* sanity checks */
     if (c->code >= CMD_CLOSE_SESSION && s->session == 0) {
         usb_mtp_queue_result(s, RES_SESSION_NOT_OPEN,
                              c->trans, 0, 0, 0, 0);
         return;
+    }
+
+    for (i = c->argc; i < ARRAY_SIZE(c->argv); i++) {
+        c->argv[i] = 0;
     }
 
     /* process commands */
