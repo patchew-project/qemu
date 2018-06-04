@@ -360,13 +360,8 @@ void slirp_cleanup(Slirp *slirp)
 static void slirp_update_timeout(uint32_t *timeout)
 {
     Slirp *slirp;
-    uint32_t t;
 
-    if (*timeout <= TIMEOUT_FAST) {
-        return;
-    }
-
-    t = MIN(1000, *timeout);
+    assert(*timeout > TIMEOUT_FAST);
 
     /* If we have tcp timeout with slirp, then we will fill @timeout with
      * more precise value.
@@ -377,10 +372,9 @@ static void slirp_update_timeout(uint32_t *timeout)
             return;
         }
         if (slirp->do_slowtimo) {
-            t = MIN(TIMEOUT_SLOW, t);
+            *timeout = MIN(TIMEOUT_SLOW, *timeout);
         }
     }
-    *timeout = t;
 }
 
 void slirp_pollfds_fill(GArray *pollfds, uint32_t *timeout)

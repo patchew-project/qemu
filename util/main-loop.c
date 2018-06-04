@@ -497,25 +497,16 @@ static int os_host_main_loop_wait(int64_t timeout)
 void main_loop_wait(int nonblocking)
 {
     int ret;
-    uint32_t timeout = UINT32_MAX;
     int64_t timeout_ns;
+    uint32_t timeout = nonblocking ? 0 : 1000 /* milliseconds */;
 
-    if (nonblocking) {
-        timeout = 0;
-    }
 
     /* poll any events */
     g_array_set_size(gpollfds, 0); /* reset for new iteration */
     /* XXX: separate device handlers from system ones */
     slirp_pollfds_fill(gpollfds, &timeout);
 
-    if (timeout == UINT32_MAX) {
-        timeout_ns = -1;
-    } else {
-        timeout_ns = (uint64_t)timeout * (int64_t)(SCALE_MS);
-    }
-
-    timeout_ns = qemu_soonest_timeout(timeout_ns,
+    timeout_ns = qemu_soonest_timeout((uint64_t)timeout * (int64_t)(SCALE_MS),
                                       timerlistgroup_deadline_ns(
                                           &main_loop_tlg));
 
