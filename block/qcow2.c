@@ -4392,7 +4392,9 @@ void qcow2_signal_corruption(BlockDriverState *bs, bool fatal, int64_t offset,
     char *message;
     va_list ap;
 
-    fatal = fatal && !bs->read_only;
+    if ((bs->open_flags & (BDRV_O_RDWR | BDRV_O_INACTIVE)) != BDRV_O_RDWR) {
+        fatal = false;
+    }
 
     if (s->signaled_corruption &&
         (!fatal || (s->incompatible_features & QCOW2_INCOMPAT_CORRUPT)))
