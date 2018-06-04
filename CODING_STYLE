@@ -124,6 +124,19 @@ We use traditional C-style /* */ comments and avoid // comments.
 Rationale: The // form is valid in C99, so this is purely a matter of
 consistency of style. The checkpatch script will warn you about this.
 
+Multiline comments blocks should have a row of stars on the left
+and the terminating */ on its own line:
+    /* like
+     * this
+     */
+Putting the initial /* on its own line is accepted, but not required.
+(Some of the existing comments in the codebase use the GNU Coding
+Standards form which does not have stars on the left; avoid this
+when writing new comments.)
+
+Rationale: Consistency, and ease of visually picking out a multiline
+comment from the surrounding code.
+
 8. trace-events style
 
 8.1 0x prefix
