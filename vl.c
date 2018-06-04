@@ -561,7 +561,7 @@ static int default_driver_check(void *opaque, QemuOpts *opts, Error **errp)
 /***********************************************************/
 /* QEMU state */
 
-static RunState current_run_state = RUN_STATE_PRECONFIG;
+static RunState current_run_state = RUN_STATE_PRELAUNCH;
 
 /* We use RUN_STATE__MAX but any invalid value will do */
 static RunState vmstop_requested = RUN_STATE__MAX;
@@ -3572,6 +3572,7 @@ int main(int argc, char **argv, char **envp)
                 }
                 break;
             case QEMU_OPTION_preconfig:
+                current_run_state = RUN_STATE_PRECONFIG;
                 preconfig_exit_requested = false;
                 break;
             case QEMU_OPTION_enable_kvm:
