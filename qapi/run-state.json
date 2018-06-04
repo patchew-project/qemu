@@ -10,6 +10,10 @@
 #
 # An enumeration of VM run states.
 #
+# @none: QEMU is in early startup. This state should never be visible
+# when querying state from the monitor, as QEMU will have already
+# transitioned to another state. (Since 3.0)
+#
 # @debug: QEMU is running on a debugger
 #
 # @finish-migrate: guest is paused to finish the migration process
@@ -54,7 +58,7 @@
 #             (Since 3.0)
 ##
 { 'enum': 'RunState',
-  'data': [ 'debug', 'inmigrate', 'internal-error', 'io-error', 'paused',
+  'data': [ 'none', 'debug', 'inmigrate', 'internal-error', 'io-error', 'paused',
             'postmigrate', 'prelaunch', 'finish-migrate', 'restore-vm',
             'running', 'save-vm', 'shutdown', 'suspended', 'watchdog',
             'guest-panicked', 'colo', 'preconfig' ] }

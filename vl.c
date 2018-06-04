@@ -561,7 +561,7 @@ static int default_driver_check(void *opaque, QemuOpts *opts, Error **errp)
 /***********************************************************/
 /* QEMU state */
 
-static RunState current_run_state = RUN_STATE_PRECONFIG;
+static RunState current_run_state = RUN_STATE_NONE;
 
 /* We use RUN_STATE__MAX but any invalid value will do */
 static RunState vmstop_requested = RUN_STATE__MAX;
@@ -574,12 +574,11 @@ typedef struct {
 
 static const RunStateTransition runstate_transitions_def[] = {
     /*     from      ->     to      */
+    { RUN_STATE_NONE, RUN_STATE_PRELAUNCH },
+    { RUN_STATE_NONE, RUN_STATE_PRECONFIG },
+    { RUN_STATE_NONE, RUN_STATE_INMIGRATE },
+
     { RUN_STATE_PRECONFIG, RUN_STATE_PRELAUNCH },
-      /* Early switch to inmigrate state to allow  -incoming CLI option work
-       * as it used to. TODO: delay actual switching to inmigrate state to
-       * the point after machine is built and remove this hack.
-       */
-    { RUN_STATE_PRECONFIG, RUN_STATE_INMIGRATE },
 
     { RUN_STATE_DEBUG, RUN_STATE_RUNNING },
     { RUN_STATE_DEBUG, RUN_STATE_FINISH_MIGRATE },
@@ -618,7 +617,6 @@ static const RunStateTransition runstate_transitions_def[] = {
 
     { RUN_STATE_PRELAUNCH, RUN_STATE_RUNNING },
     { RUN_STATE_PRELAUNCH, RUN_STATE_FINISH_MIGRATE },
-    { RUN_STATE_PRELAUNCH, RUN_STATE_INMIGRATE },
 
     { RUN_STATE_FINISH_MIGRATE, RUN_STATE_RUNNING },
     { RUN_STATE_FINISH_MIGRATE, RUN_STATE_PAUSED },
@@ -1522,7 +1520,7 @@ static pid_t shutdown_pid;
 static int powerdown_requested;
 static int debug_requested;
 static int suspend_requested;
-static bool preconfig_exit_requested = true;
+static bool preconfig_exit_requested;
 static WakeupReason wakeup_reason;
 static NotifierList powerdown_notifiers =
     NOTIFIER_LIST_INITIALIZER(powerdown_notifiers);
@@ -3572,7 +3570,12 @@ int main(int argc, char **argv, char **envp)
                 }
                 break;
             case QEMU_OPTION_preconfig:
-                preconfig_exit_requested = false;
+                if (!runstate_check(RUN_STATE_NONE)) {
+                    error_report("'--preconfig' and '--incoming' options are "
+                                 "mutually exclusive");
+                    exit(EXIT_FAILURE);
+                }
+                runstate_set(RUN_STATE_PRECONFIG);
                 break;
             case QEMU_OPTION_enable_kvm:
                 olist = qemu_find_opts("machine");
@@ -3768,9 +3771,12 @@ int main(int argc, char **argv, char **envp)
                 }
                 break;
             case QEMU_OPTION_incoming:
-                if (!incoming) {
-                    runstate_set(RUN_STATE_INMIGRATE);
+                if (!runstate_check(RUN_STATE_NONE)) {
+                    error_report("'--preconfig' and '--incoming' options are "
+                                 "mutually exclusive");
+                    exit(EXIT_FAILURE);
                 }
+                runstate_set(RUN_STATE_INMIGRATE);
                 incoming = optarg;
                 break;
             case QEMU_OPTION_only_migratable:
@@ -3943,13 +3949,11 @@ int main(int argc, char **argv, char **envp)
      */
     loc_set_none();
 
-    replay_configure(icount_opts);
-
-    if (incoming && !preconfig_exit_requested) {
-        error_report("'preconfig' and 'incoming' options are "
-                     "mutually exclusive");
-        exit(EXIT_FAILURE);
+    if (runstate_check(RUN_STATE_NONE)) {
+        runstate_set(RUN_STATE_PRELAUNCH);
     }
+
+    replay_configure(icount_opts);
 
     machine_class = select_machine();
 
@@ -4471,7 +4475,9 @@ int main(int argc, char **argv, char **envp)
     parse_numa_opts(current_machine);
 
     /* do monitor/qmp handling at preconfig state if requested */
-    main_loop();
+    if (runstate_check(RUN_STATE_PRECONFIG)) {
+        main_loop();
+    }
 
     /* from here on runstate is RUN_STATE_PRELAUNCH */
     machine_run_board_init(current_machine);
