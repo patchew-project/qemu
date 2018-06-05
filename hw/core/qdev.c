@@ -661,7 +661,7 @@ static void qdev_property_add_legacy(DeviceState *dev, Property *prop,
     }
 
     name = g_strdup_printf("legacy-%s", prop->name);
-    object_property_add(OBJECT(dev), name, "str",
+    object_property_add(OBJECT(dev), name, "string",
                         prop->info->print ? qdev_get_legacy_property : prop->info->get,
                         NULL,
                         NULL,
@@ -685,6 +685,7 @@ void qdev_property_add_static(DeviceState *dev, Property *prop,
 {
     Error *local_err = NULL;
     Object *obj = OBJECT(dev);
+    const char *proptype;
 
     if (prop->info->create) {
         prop->info->create(obj, prop, &local_err);
@@ -697,7 +698,11 @@ void qdev_property_add_static(DeviceState *dev, Property *prop,
         if (!prop->info->get && !prop->info->set) {
             return;
         }
-        object_property_add(obj, prop->name, prop->info->name,
+        proptype = prop->info->name;
+        if (0 == strncmp(proptype, "str", 3)) {
+            proptype = "string";
+        }
+        object_property_add(obj, prop->name, proptype,
                             prop->info->get, prop->info->set,
                             prop->info->release,
                             prop, &local_err);
