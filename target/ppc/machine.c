@@ -677,6 +677,67 @@ static const VMStateDescription vmstate_compat = {
     }
 };
 
+static bool slb_shadow_needed(void *opaque)
+{
+    PowerPCCPU *cpu = opaque;
+
+    return cpu->env.slb_shadow_addr != 0;
+}
+
+static const VMStateDescription vmstate_slb_shadow = {
+    .name = "cpu/vpa/slb_shadow",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = slb_shadow_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64(env.slb_shadow_addr, PowerPCCPU),
+        VMSTATE_UINT64(env.slb_shadow_size, PowerPCCPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static bool dtl_needed(void *opaque)
+{
+    PowerPCCPU *cpu = opaque;
+
+    return cpu->env.dtl_addr != 0;
+}
+
+static const VMStateDescription vmstate_dtl = {
+    .name = "cpu/vpa/dtl",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = dtl_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64(env.dtl_addr, PowerPCCPU),
+        VMSTATE_UINT64(env.dtl_size, PowerPCCPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static bool vpa_needed(void *opaque)
+{
+    PowerPCCPU *cpu = opaque;
+
+    return !cpu->pre_3_0_migration && cpu->env.vpa_addr != 0;
+}
+
+static const VMStateDescription vmstate_vpa = {
+    .name = "cpu/vpa",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = vpa_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64(env.vpa_addr, PowerPCCPU),
+        VMSTATE_END_OF_LIST()
+    },
+    .subsections = (const VMStateDescription * []) {
+        &vmstate_slb_shadow,
+        &vmstate_dtl,
+        NULL
+    }
+};
+
 const VMStateDescription vmstate_ppc_cpu = {
     .name = "cpu",
     .version_id = 5,
@@ -731,6 +792,7 @@ const VMStateDescription vmstate_ppc_cpu = {
         &vmstate_tlbemb,
         &vmstate_tlbmas,
         &vmstate_compat,
+        &vmstate_vpa,
         NULL
     }
 };
