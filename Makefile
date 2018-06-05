@@ -351,7 +351,9 @@ $(call set-vpath, $(SRC_PATH))
 
 LIBS+=-lz $(LIBS_TOOLS)
 
+ifeq ($(CONFIG_SOFTMMU),y)
 HELPERS-$(CONFIG_LINUX) = qemu-bridge-helper$(EXESUF)
+endif
 
 ifdef BUILD_DOCS
 DOCS=qemu-doc.html qemu-doc.txt qemu.1 qemu-img.1 qemu-nbd.8 qemu-ga.8

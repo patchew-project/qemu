@@ -923,7 +923,9 @@ check-report.html: check-report.xml
 
 # Other tests
 
+ifeq ($(CONFIG_SOFTMMU),y)
 QEMU_IOTESTS_HELPERS-$(CONFIG_LINUX) = tests/qemu-iotests/socket_scm_helper$(EXESUF)
+endif
 
 .PHONY: check-tests/qemu-iotests-quick.sh
 check-tests/qemu-iotests-quick.sh: tests/qemu-iotests-quick.sh qemu-img$(EXESUF) qemu-io$(EXESUF) $(QEMU_IOTESTS_HELPERS-y)
