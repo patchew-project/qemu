@@ -22,6 +22,7 @@
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
+#include "qapi/visitor.h"
 #include "hw/hw.h"
 #include "qemu/log.h"
 #include "sysemu/sysemu.h"
@@ -41,8 +42,24 @@
 
 #include <libfdt.h>
 
+static void spapr_vio_getset_irq(Object *obj, Visitor *v, const char *name,
+                              void *opaque, Error **errp)
+{
+    Property *prop = opaque;
+    uint32_t *ptr = qdev_get_prop_ptr(DEVICE(obj), prop);
+
+    warn_report(TYPE_VIO_SPAPR_DEVICE " '%s' property is deprecated", name);
+    visit_type_uint32(v, name, ptr, errp);
+}
+
+static const PropertyInfo spapr_vio_irq_propinfo = {
+    .name = "irq",
+    .get = spapr_vio_getset_irq,
+    .set = spapr_vio_getset_irq,
+};
+
 static Property spapr_vio_props[] = {
-    DEFINE_PROP_UINT32("irq", VIOsPAPRDevice, irq, 0), \
+    DEFINE_PROP("irq", VIOsPAPRDevice, irq, spapr_vio_irq_propinfo, uint32_t),
     DEFINE_PROP_END_OF_LIST(),
 };
 
