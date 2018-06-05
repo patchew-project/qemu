@@ -683,6 +683,7 @@ static void *multifd_send_thread(void *opaque)
     MultiFDSendParams *p = opaque;
     Error *local_err = NULL;
 
+    rcu_register_thread();
     if (multifd_send_initial_packet(p, &local_err) < 0) {
         goto out;
     }
@@ -706,6 +707,7 @@ out:
     p->running = false;
     qemu_mutex_unlock(&p->mutex);
 
+    rcu_unregister_thread();
     return NULL;
 }
 
@@ -819,6 +821,7 @@ static void *multifd_recv_thread(void *opaque)
 {
     MultiFDRecvParams *p = opaque;
 
+    rcu_register_thread();
     while (true) {
         qemu_mutex_lock(&p->mutex);
         if (p->quit) {
@@ -833,6 +836,7 @@ static void *multifd_recv_thread(void *opaque)
     p->running = false;
     qemu_mutex_unlock(&p->mutex);
 
+    rcu_unregister_thread();
     return NULL;
 }
 
