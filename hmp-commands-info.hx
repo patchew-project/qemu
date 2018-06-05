@@ -19,6 +19,7 @@ ETEXI
         .params     = "",
         .help       = "show the version of QEMU",
         .cmd        = hmp_info_version,
+        .flags      = "p",
     },
 
 STEXI
@@ -33,6 +34,7 @@ ETEXI
         .params     = "",
         .help       = "show the network state",
         .cmd        = hmp_info_network,
+        .flags      = "p",
     },
 
 STEXI
@@ -47,6 +49,7 @@ ETEXI
         .params     = "",
         .help       = "show the character devices",
         .cmd        = hmp_info_chardev,
+        .flags      = "p",
     },
 
 STEXI
@@ -62,6 +65,7 @@ ETEXI
         .help       = "show info of one block device or all block devices "
                       "(-n: show named nodes; -v: show details)",
         .cmd        = hmp_info_block,
+        .flags      = "p",
     },
 
 STEXI
@@ -151,6 +155,7 @@ ETEXI
         .params     = "",
         .help       = "show infos for each CPU",
         .cmd        = hmp_info_cpus,
+        .flags      = "p",
     },
 
 STEXI
@@ -165,6 +170,7 @@ ETEXI
         .params     = "",
         .help       = "show the command line history",
         .cmd        = hmp_info_history,
+        .flags      = "p",
     },
 
 STEXI
@@ -255,6 +261,7 @@ ETEXI
         .help       = "show memory tree (-f: dump flat view for address spaces;"
                       "-d: dump dispatch tree, valid with -f only)",
         .cmd        = hmp_info_mtree,
+        .flags      = "p",
     },
 
 STEXI
@@ -399,6 +406,7 @@ ETEXI
         .params     = "",
         .help       = "show the current VM status (running|paused)",
         .cmd        = hmp_info_status,
+        .flags      = "p",
     },
 
 STEXI
@@ -829,6 +837,7 @@ ETEXI
         .params     = "",
         .help       = "Show information about hotpluggable CPUs",
         .cmd        = hmp_hotpluggable_cpus,
+        .flags      = "p",
     },
 
 STEXI
