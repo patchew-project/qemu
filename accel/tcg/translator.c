@@ -17,6 +17,7 @@
 #include "exec/gen-icount.h"
 #include "exec/log.h"
 #include "exec/translator.h"
+#include "qemu/instrument.h"
 
 /* Pairs with tcg_clear_temp_count.
    To be called by #TranslatorOps.{translate_insn,tb_stop} if
@@ -87,6 +88,10 @@ void translator_loop(const TranslatorOps *ops, DisasContextBase *db,
             if (db->is_jmp > DISAS_TOO_MANY) {
                 break;
             }
+        }
+
+        if (plugins_need_before_insn(db->pc_next, cpu)) {
+            plugins_instrument_before_insn(db->pc_next, cpu);
         }
 
         /* Disassemble one instruction.  The translate_insn hook should
