@@ -3950,6 +3950,16 @@ Dump json-encoded vmstate information for current machine type to file
 in @var{file}
 ETEXI
 
+#ifdef CONFIG_PLUGINS
+DEF("plugin", HAS_ARG, QEMU_OPTION_plugin, \
+           "-plugin file=<file>[,args=<args>] load <dso> plugin with <args>\n", QEMU_ARCH_ALL)
+STEXI
+@item -plugin file=@var{file}[,args=@var{args}]
+@findex -plugin
+Load @var{file} plugin passing @var{args} arguments.
+ETEXI
+#endif
+
 STEXI
 @end table
 ETEXI
