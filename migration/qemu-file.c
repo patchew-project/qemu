@@ -323,12 +323,14 @@ void qemu_update_position(QEMUFile *f, size_t size)
  */
 int qemu_fclose(QEMUFile *f)
 {
-    int ret;
+    int ret, ret2;
     qemu_fflush(f);
     ret = qemu_file_get_error(f);
 
     if (f->ops->close) {
-        int ret2 = f->ops->close(f->opaque);
+        qemu_mutex_lock(&migrate_get_current()->qemu_file_close_lock);
+        ret2 = f->ops->close(f->opaque);
+        qemu_mutex_unlock(&migrate_get_current()->qemu_file_close_lock);
         if (ret >= 0) {
             ret = ret2;
         }

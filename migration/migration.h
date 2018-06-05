@@ -121,6 +121,13 @@ struct MigrationState
      */
     QemuMutex qemu_file_lock;
 
+    /*
+     * The to_src_file and from_dst_file point to one QIOChannelRDMA,
+     * And qemu_fclose maybe invoked by different threads. use this lock
+     * to avoid concurrent invoke channel_close by different threads.
+     */
+    QemuMutex qemu_file_close_lock;
+
     /* bytes already send at the beggining of current interation */
     uint64_t iteration_initial_bytes;
     /* time at the start of current iteration */

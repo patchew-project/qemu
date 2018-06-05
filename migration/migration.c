@@ -3075,6 +3075,7 @@ static void migration_instance_finalize(Object *obj)
 
     qemu_mutex_destroy(&ms->error_mutex);
     qemu_mutex_destroy(&ms->qemu_file_lock);
+    qemu_mutex_destroy(&ms->qemu_file_close_lock);
     g_free(params->tls_hostname);
     g_free(params->tls_creds);
     qemu_sem_destroy(&ms->pause_sem);
@@ -3115,6 +3116,7 @@ static void migration_instance_init(Object *obj)
     qemu_sem_init(&ms->postcopy_pause_rp_sem, 0);
     qemu_sem_init(&ms->rp_state.rp_sem, 0);
     qemu_mutex_init(&ms->qemu_file_lock);
+    qemu_mutex_init(&ms->qemu_file_close_lock);
 }
 
 /*
