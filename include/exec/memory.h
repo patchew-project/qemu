@@ -82,18 +82,56 @@ struct IOMMUTLBEntry {
 };
 
 /*
- * Bitmap for different IOMMUNotifier capabilities. Each notifier can
- * register with one or multiple IOMMU Notifier capability bit(s).
+ * Bitmap for different IOMMUNotifier capabilities.  Please refer to
+ * comments for each notifier capability to know its usage. Note that,
+ * a notifier registered with (UNMAP | USER_SET) does not mean that
+ * it'll notify both MAP notifies and USER_SET notifies, instead it
+ * means it'll only be notified for the events that are UNMAP
+ * meanwhile with USER attribute set.
  */
 typedef enum {
     IOMMU_NOTIFIER_NONE = 0,
-    /* Notify cache invalidations */
+    /*
+     * When set, will notify deleted entries (cache invalidations).
+     * When unset, will not notify deleted entries.
+     */
     IOMMU_NOTIFIER_UNMAP = 0x1,
-    /* Notify entry changes (newly created entries) */
+    /*
+     * When set, will notify newly created entries.  When unset, will
+     * not notify newly created entries.
+     */
     IOMMU_NOTIFIER_MAP = 0x2,
+    /*
+     * When set, will notify when the USER bit is set in
+     * IOMMUTLBEntry.attrs.  When unset, will not notify when the USER
+     * bit is set.
+     */
+    IOMMU_NOTIFIER_USER_SET = 0x4,
+    /*
+     * When set, will notify when the USER bit is cleared in
+     * IOMMUTLBEntry.attrs.  When unset, will not notify when the USER
+     * bit is cleared.
+     */
+    IOMMU_NOTIFIER_USER_UNSET = 0x8,
 } IOMMUNotifierFlag;
 
-#define IOMMU_NOTIFIER_ALL (IOMMU_NOTIFIER_MAP | IOMMU_NOTIFIER_UNMAP)
+/* Use this when the notifier does not care about USER bit */
+#define IOMMU_NOTIFIER_USER_ALL \
+    (IOMMU_NOTIFIER_USER_SET | IOMMU_NOTIFIER_USER_UNSET)
+
+/* Use this when the notifier does not care about any attribute */
+#define IOMMU_NOTIFIER_ATTRS_ALL \
+    (IOMMU_NOTIFIER_USER_ALL)
+
+/* Use this to notify all UNMAP notifications */
+#define IOMMU_NOTIFIER_UNMAP_ALL \
+    (IOMMU_NOTIFIER_UNMAP | IOMMU_NOTIFIER_ATTRS_ALL)
+
+/* Use this to notify all notifications */
+#define IOMMU_NOTIFIER_ALL (                    \
+        IOMMU_NOTIFIER_MAP |                    \
+        IOMMU_NOTIFIER_UNMAP |                  \
+        IOMMU_NOTIFIER_ATTRS_ALL)
 
 struct IOMMUNotifier;
 typedef void (*IOMMUNotify)(struct IOMMUNotifier *notifier,

@@ -1880,6 +1880,16 @@ void memory_region_notify_one(IOMMUNotifier *notifier,
         return;
     }
 
+    if (!(notifier->notifier_flags & IOMMU_NOTIFIER_USER_SET) &&
+        entry->attrs.user) {
+        return;
+    }
+
+    if (!(notifier->notifier_flags & IOMMU_NOTIFIER_USER_UNSET) &&
+        !entry->attrs.user) {
+        return;
+    }
+
     if (entry->perm & IOMMU_RW) {
         request_flags = IOMMU_NOTIFIER_MAP;
     } else {
