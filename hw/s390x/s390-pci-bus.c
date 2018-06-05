@@ -483,8 +483,10 @@ uint16_t s390_guest_io_table_walk(uint64_t g_iota, hwaddr addr,
     return error;
 }
 
-static IOMMUTLBEntry s390_translate_iommu(IOMMUMemoryRegion *mr, hwaddr addr,
-                                          IOMMUAccessFlags flag)
+static IOMMUTLBEntry s390_translate_iommu(IOMMUMemoryRegion *mr,
+                                          hwaddr addr,
+                                          IOMMUAccessFlags flag,
+                                          MemTxAttrs attrs)
 {
     S390PCIIOMMU *iommu = container_of(mr, S390PCIIOMMU, iommu_mr);
     S390IOTLBEntry *entry;

@@ -490,8 +490,10 @@ static const MemoryRegionOps jazzio_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static IOMMUTLBEntry rc4030_dma_translate(IOMMUMemoryRegion *iommu, hwaddr addr,
-                                          IOMMUAccessFlags flag)
+static IOMMUTLBEntry rc4030_dma_translate(IOMMUMemoryRegion *iommu,
+                                          hwaddr addr,
+                                          IOMMUAccessFlags flag,
+                                          MemTxAttrs attrs)
 {
     rc4030State *s = container_of(iommu, rc4030State, dma_mr);
     IOMMUTLBEntry ret = {

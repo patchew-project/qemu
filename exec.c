@@ -502,7 +502,7 @@ static MemoryRegionSection address_space_translate_iommu(IOMMUMemoryRegion *iomm
         hwaddr addr = *xlat;
         IOMMUMemoryRegionClass *imrc = memory_region_get_iommu_class_nocheck(iommu_mr);
         IOMMUTLBEntry iotlb = imrc->translate(iommu_mr, addr, is_write ?
-                                              IOMMU_WO : IOMMU_RO);
+                                              IOMMU_WO : IOMMU_RO, attrs);
 
         if (!(iotlb.perm & (1 << is_write))) {
             goto unassigned;
