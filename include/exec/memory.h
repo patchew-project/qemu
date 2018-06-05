@@ -72,6 +72,13 @@ struct IOMMUTLBEntry {
     hwaddr           translated_addr;
     hwaddr           addr_mask;  /* 0xfff = 4k translation */
     IOMMUAccessFlags perm;
+    /*
+     * Attributes that were bound to the DMA translation.  Note that
+     * this field is meaningless when the IOMMUTLBENtry is generated
+     * by a translate() call.  It can be used as a hint when we want
+     * to send IOMMU notifications with specific permission flags.
+     */
+    MemTxAttrs       attrs;
 };
 
 /*
