@@ -1,16 +1,42 @@
 
-USB 2.0 Quick Start
-===================
+USB Quick Start
+===============
 
-The QEMU EHCI Adapter can be used with and without companion
-controllers.  See below for the companion controller mode.
+xhci controller support
+-----------------------
 
-When not running in companion controller mode there are two completely
-separate USB busses: One USB 1.1 bus driven by the UHCI controller and
-one USB 2.0 bus driven by the EHCI controller.  Devices must be
-attached to the correct controller manually.
+Qemu has xhci host adapter support.  The xhci hardware design is much
+more virtualization-friendly when compared to ehci and uhci, thus xhci
+emulation uses less resources (especially cpu).  So if your guest
+supports xhci (which should be the case for any operating system
+released around 2010 or later) I recommend using it:
 
-The '-usb' switch will make qemu create the UHCI controller as part of
+    qemu -device qemu-xhci
+
+xhci supports USB 1.1, USB 2.0 and USB 3.0 devices, so this is the
+only controller you need.  With only a single usb controller (and
+therefore only a single usb bus) being present in the system there is
+no need to use the bus= parameter when adding usb devices.
+
+
+ehci controller support
+-----------------------
+
+The QEMU EHCI Adapter supports USB 2.0 devices.  It can be used either
+standalone or with companion controllers (UHCI, OHCI) for USB 1.1
+devices.  The companion controller setup is more convinient to use
+because it provides a single usb bus supporting both USB 2.0 and USB
+1.1 devices.  See next section for details.
+
+When running EHCI in standalone mode you can add UHCI or OHCI
+controllers for USB 1.1 devices too.  Each controller creates its own
+bus though, so there are two completely separate USB busses: One USB
+1.1 bus driven by the UHCI controller and one USB 2.0 bus driven by
+the EHCI controller.  Devices must be attached to the correct
+controller manually.
+
+The easiest way to add a UHCI controller to a 'pc' machine is the
+'-usb' switch, qemu will create the UHCI controller as function of
 the PIIX3 chipset.  The USB 1.1 bus will carry the name "usb-bus.0".
 
 You can use the standard -device switch to add a EHCI controller to
@@ -37,37 +63,23 @@ device to the EHCI adapter.
 Companion controller support
 ----------------------------
 
-Companion controller support has been added recently.  The operational
-model described above with two completely separate busses still works
-fine.  Additionally the UHCI and OHCI controllers got the ability to
-attach to a usb bus created by EHCI as companion controllers.  This is
-done by specifying the masterbus and firstport properties.  masterbus
-specifies the bus name the controller should attach to.  firstport
-specifies the first port the controller should attach to, which is
-needed as usually one ehci controller with six ports has three uhci
-companion controllers with two ports each.
+The UHCI and OHCI controllers can attach to a usb bus created by EHCI
+as companion controllers.  This is done by specifying the masterbus
+and firstport properties.  masterbus specifies the bus name the
+controller should attach to.  firstport specifies the first port the
+controller should attach to, which is needed as usually one ehci
+controller with six ports has three uhci companion controllers with
+two ports each.
 
-There is a config file in docs which will do all this for you, just
-try ...
+There is a config file in docs which will do all this for
+you, just try ...
 
     qemu -readconfig docs/config/ich9-ehci-uhci.cfg
 
 ... then use "bus=ehci.0" to assign your usb devices to that bus.
 
-
-xhci controller support
------------------------
-
-There is also xhci host controller support available.  It got a lot
-less testing than ehci and there are a bunch of known limitations, so
-ehci may work better for you.  On the other hand the xhci hardware
-design is much more virtualization-friendly, thus xhci emulation uses
-less resources (especially cpu).  If you want to give xhci a try
-use this to add the host controller ...
-
-    qemu -device nec-usb-xhci,id=xhci
-
-... then use "bus=xhci.0" when assigning usb devices.
+Using the '-usb' switch for 'q35' machines will create a simliar
+usb controller configuration.
 
 
 More USB tips & tricks
