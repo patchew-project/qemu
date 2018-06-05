@@ -309,7 +309,13 @@ void os_daemonize(void)
 
 void os_setup_post(void)
 {
+    static bool os_setup_post_done = false;
     int fd = 0;
+
+    if (os_setup_post_done) {
+        return;
+    }
+    os_setup_post_done = true;
 
     if (daemonize) {
         if (chdir("/")) {

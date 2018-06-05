@@ -1845,6 +1845,7 @@ static void main_loop(void)
 #ifdef CONFIG_PROFILER
         ti = profile_getclock();
 #endif
+        os_setup_post();
         main_loop_wait(false);
 #ifdef CONFIG_PROFILER
         dev_time += profile_getclock() - ti;
@@ -4600,7 +4601,6 @@ int main(int argc, char **argv, char **envp)
     }
 
     accel_setup_post(current_machine);
-    os_setup_post();
 
     main_loop();
 
