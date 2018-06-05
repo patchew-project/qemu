@@ -58,6 +58,21 @@ Quit the emulator.
 ETEXI
 
     {
+        .name       = "exit_preconfig",
+        .args_type  = "",
+        .params     = "",
+        .help       = "exit the preconfig state",
+        .cmd        = hmp_exit_preconfig,
+        .flags      = "p",
+    },
+
+STEXI
+@item exit_preconfig
+@findex exit_preconfig
+Exit the preconfig state
+ETEXI
+
+    {
         .name       = "block_resize",
         .args_type  = "device:B,size:o",
         .params     = "device size",
