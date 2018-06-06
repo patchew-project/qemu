@@ -403,6 +403,14 @@ STEXI
 Preallocate memory when using -mem-path.
 ETEXI
 
+DEF("mem-file-shared", 0, QEMU_OPTION_mem_file_shared,
+"-mem-file-shared (use with -mem-path) initializes RAM backing file (specified in -mem-path) as a shared mapping\n", QEMU_ARCH_ALL)
+STEXI
+@item -mem-file-shared
+@findex -mem-file-shared
+Map backing RAM file as shared to allow write through.
+ETEXI
+
 DEF("k", HAS_ARG, QEMU_OPTION_k,
     "-k language     use keyboard layout (for example 'fr' for French)\n",
     QEMU_ARCH_ALL)
@@ -4407,7 +4415,6 @@ e.g to launch a SEV guest
 @end table
 
 ETEXI
-
 
 HXCOMM This is the last statement. Insert new options before this line!
 STEXI
