@@ -20,8 +20,13 @@
 #include <sys/vfs.h>
 #endif
 
+#ifdef _WIN32
+#define WIN_FILE_PAGE_SIZE 65536
+#endif
+
 size_t qemu_fd_getpagesize(int fd)
 {
+#ifndef _WIN32
 #ifdef CONFIG_LINUX
     struct statfs fs;
     int ret;
@@ -42,10 +47,14 @@ size_t qemu_fd_getpagesize(int fd)
 #endif
 
     return getpagesize();
+#else
+    return WIN_FILE_PAGE_SIZE;
+#endif
 }
 
 size_t qemu_mempath_getpagesize(const char *mem_path)
 {
+#ifndef _WIN32
 #ifdef CONFIG_LINUX
     struct statfs fs;
     int ret;
@@ -73,10 +82,14 @@ size_t qemu_mempath_getpagesize(const char *mem_path)
 #endif
 
     return getpagesize();
+#else
+    return WIN_FILE_PAGE_SIZE;
+#endif
 }
 
 void *qemu_ram_mmap(int fd, size_t size, size_t align, bool shared)
 {
+#ifndef _WIN32
     /*
      * Note: this always allocates at least one extra page of virtual address
      * space, even if size is already aligned.
@@ -133,12 +146,39 @@ void *qemu_ram_mmap(int fd, size_t size, size_t align, bool shared)
     }
 
     return ptr1;
+#else
+    size_t total = size + align;
+
+    /* On Windows, we first create a file mapping and then call MapViewOfFile.
+     * Private mapping is done as FILE_MAP_COPY to take advantage of
+     * copy-on-write.
+     */
+    HANDLE fileMapping =
+        CreateFileMapping(
+            (HANDLE)_get_osfhandle(fd),
+            NULL, /* security attribs */
+            PAGE_READWRITE,
+            0,
+            (uint32_t)(size + align),
+            NULL);
+
+    void *ptr =
+        MapViewOfFile(
+            fileMapping,
+            shared ? FILE_MAP_ALL_ACCESS : FILE_MAP_COPY,
+            0, 0, 0);
+    return ptr;
+#endif
 }
 
 void qemu_ram_munmap(void *ptr, size_t size)
 {
     if (ptr) {
         /* Unmap both the RAM block and the guard page */
+#ifndef _WIN32
         munmap(ptr, size + getpagesize());
+#else
+        UnmapViewOfFile(ptr);
+#endif
     }
 }
