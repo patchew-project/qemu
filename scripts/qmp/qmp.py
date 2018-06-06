@@ -78,11 +78,16 @@ class QEMUMonitorProtocol(object):
         raise QMPCapabilitiesError
 
     def __json_read(self, only_event=False):
+        data = ""
         while True:
-            data = self.__sockfile.readline()
-            if not data:
+            tmp = self.__sockfile.readline()
+            if not tmp:
                 return
-            resp = json.loads(data)
+            data += tmp
+            try:
+                resp = json.loads(data)
+            except ValueError:
+                continue
             if 'event' in resp:
                 self.logger.debug("<<< %s", resp)
                 self.__events.append(resp)
