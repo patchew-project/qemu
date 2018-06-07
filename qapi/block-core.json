@@ -3118,6 +3118,9 @@
 #
 # @auth-client-required: Acceptable authentication modes (since 3.0).
 #
+# @key-secret:         ID of a QCryptoSecret object providing a key
+#                      for cephx authentication (since 3.0)
+#
 # @server:             Monitor host address and port.  This maps
 #                      to the "mon_host" Ceph option.
 #
@@ -3130,6 +3133,7 @@
             '*snapshot': 'str',
             '*user': 'str',
             '*auth-client-required': ['RbdAuthMode'],
+            '*key-secret': 'str',
             '*server': ['InetSocketAddressBase'] } }
 
 ##
