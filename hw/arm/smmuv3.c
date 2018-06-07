@@ -560,6 +560,12 @@ static IOMMUTLBEntry smmuv3_translate(IOMMUMemoryRegion *mr, hwaddr addr,
     }
 
     ret = smmuv3_decode_config(mr, &cfg, &event);
+
+    if (cfg.bypassed) {
+        ret = 0;
+        goto out;
+    }
+
     if (ret) {
         goto out;
     }
