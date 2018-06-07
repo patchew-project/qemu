@@ -44,6 +44,8 @@ typedef struct NBDClientSession {
     bool receiving;
     int connect_status;
     Error *connect_err;
+    int connect_attempts;
+    bool wait_in_flight;
 
     NBDClientRequest requests[MAX_NBD_REQUESTS];
     NBDReply reply;
