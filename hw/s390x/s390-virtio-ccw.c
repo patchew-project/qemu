@@ -434,18 +434,23 @@ static void s390_machine_reset(void)
 static void s390_machine_device_plug(HotplugHandler *hotplug_dev,
                                      DeviceState *dev, Error **errp)
 {
+    Error *local_err = NULL;
+
     if (object_dynamic_cast(OBJECT(dev), TYPE_CPU)) {
-        s390_cpu_plug(hotplug_dev, dev, errp);
+        s390_cpu_plug(hotplug_dev, dev, &local_err);
     }
+    error_propagate(errp, local_err);
 }
 
 static void s390_machine_device_unplug_request(HotplugHandler *hotplug_dev,
                                                DeviceState *dev, Error **errp)
 {
+    Error *local_err = NULL;
+
     if (object_dynamic_cast(OBJECT(dev), TYPE_CPU)) {
-        error_setg(errp, "CPU hot unplug not supported on this machine");
-        return;
+        error_setg(&local_err, "CPU hot unplug not supported on this machine");
     }
+    error_propagate(errp, local_err);
 }
 
 static CpuInstanceProperties s390_cpu_index_to_props(MachineState *ms,
