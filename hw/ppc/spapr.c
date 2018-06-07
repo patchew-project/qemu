@@ -3576,11 +3576,14 @@ out:
 static void spapr_machine_device_plug(HotplugHandler *hotplug_dev,
                                       DeviceState *dev, Error **errp)
 {
+    Error *local_err = NULL;
+
     if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
-        spapr_memory_plug(hotplug_dev, dev, errp);
+        spapr_memory_plug(hotplug_dev, dev, &local_err);
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_SPAPR_CPU_CORE)) {
-        spapr_core_plug(hotplug_dev, dev, errp);
+        spapr_core_plug(hotplug_dev, dev, &local_err);
     }
+    error_propagate(errp, local_err);
 }
 
 static void spapr_machine_device_unplug_request(HotplugHandler *hotplug_dev,
@@ -3588,10 +3591,11 @@ static void spapr_machine_device_unplug_request(HotplugHandler *hotplug_dev,
 {
     sPAPRMachineState *sms = SPAPR_MACHINE(OBJECT(hotplug_dev));
     MachineClass *mc = MACHINE_GET_CLASS(sms);
+    Error *local_err = NULL;
 
     if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
         if (spapr_ovec_test(sms->ov5_cas, OV5_HP_EVT)) {
-            spapr_memory_unplug_request(hotplug_dev, dev, errp);
+            spapr_memory_unplug_request(hotplug_dev, dev, &local_err);
         } else {
             /* NOTE: this means there is a window after guest reset, prior to
              * CAS negotiation, where unplug requests will fail due to the
@@ -3599,25 +3603,32 @@ static void spapr_machine_device_unplug_request(HotplugHandler *hotplug_dev,
              * the case with PCI unplug, where the events will be queued and
              * eventually handled by the guest after boot
              */
-            error_setg(errp, "Memory hot unplug not supported for this guest");
+            error_setg(&local_err,
+                       "Memory hot unplug not supported for this guest");
         }
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_SPAPR_CPU_CORE)) {
         if (!mc->has_hotpluggable_cpus) {
-            error_setg(errp, "CPU hot unplug not supported on this machine");
-            return;
+            error_setg(&local_err,
+                       "CPU hot unplug not supported on this machine");
+            goto out;
         }
-        spapr_core_unplug_request(hotplug_dev, dev, errp);
+        spapr_core_unplug_request(hotplug_dev, dev, &local_err);
     }
+out:
+    error_propagate(errp, local_err);
 }
 
 static void spapr_machine_device_pre_plug(HotplugHandler *hotplug_dev,
                                           DeviceState *dev, Error **errp)
 {
+    Error *local_err = NULL;
+
     if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
-        spapr_memory_pre_plug(hotplug_dev, dev, errp);
+        spapr_memory_pre_plug(hotplug_dev, dev, &local_err);
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_SPAPR_CPU_CORE)) {
-        spapr_core_pre_plug(hotplug_dev, dev, errp);
+        spapr_core_pre_plug(hotplug_dev, dev, &local_err);
     }
+    error_propagate(errp, local_err);
 }
 
 static HotplugHandler *spapr_get_hotplug_handler(MachineState *machine,
