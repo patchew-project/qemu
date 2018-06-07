@@ -364,6 +364,20 @@ static QemuOptsList nbd_runtime_opts = {
             .type = QEMU_OPT_STRING,
             .help = "ID of the TLS credentials to use",
         },
+        {
+            .name = "reconnect-attempts",
+            .type = QEMU_OPT_NUMBER,
+            .help = "Number of connection attempts on disconnect. "
+                    "Must be >= 0. Default is 0. On nbd disk open, there would "
+                    "be maximum of @reconnect-attempts + 1 total tries to "
+                    "connect",
+        },
+        {
+            .name = "reconnect-timeout",
+            .type = QEMU_OPT_NUMBER,
+            .help = "Timeout between reconnect attempts in nanoseconds. "
+                    "Default is 1000000000 (one second)",
+        },
         { /* end of list */ }
     },
 };
@@ -376,6 +390,8 @@ static int nbd_open(BlockDriverState *bs, QDict *options, int flags,
     Error *local_err = NULL;
     QCryptoTLSCreds *tlscreds = NULL;
     const char *hostname = NULL;
+    uint64_t reconnect_attempts;
+    uint64_t reconnect_timeout;
     int ret = -EINVAL;
 
     opts = qemu_opts_create(&nbd_runtime_opts, NULL, 0, &error_abort);
@@ -413,8 +429,12 @@ static int nbd_open(BlockDriverState *bs, QDict *options, int flags,
         hostname = s->saddr->u.inet.host;
     }
 
+    reconnect_attempts = qemu_opt_get_number(opts, "reconnect-attempts", 0);
+    reconnect_timeout = qemu_opt_get_number(opts, "reconnect-timeout",
+                                            1000000000L);
     /* NBD handshake */
-    ret = nbd_client_init(bs, s->saddr, s->export, tlscreds, hostname, errp);
+    ret = nbd_client_init(bs, s->saddr, s->export, tlscreds, hostname,
+                          reconnect_attempts, reconnect_timeout, errp);
 
  error:
     if (tlscreds) {

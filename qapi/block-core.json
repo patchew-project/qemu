@@ -3356,12 +3356,22 @@
 #
 # @tls-creds:   TLS credentials ID
 #
+# @reconnect-attempts: number of connection attempts on disconnect.
+#                      Must be >= 0. Default is 0. On nbd disk open, there would
+#                      be maximum of @reconnect-attempts + 1 total tries to
+#                      connect
+#
+# @reconnect-timeout: timeout between reconnect attempts in nanoseconds. Default
+#                     is 1000000000 (one second)
+#
 # Since: 2.9
 ##
 { 'struct': 'BlockdevOptionsNbd',
   'data': { 'server': 'SocketAddress',
             '*export': 'str',
-            '*tls-creds': 'str' } }
+            '*tls-creds': 'str',
+            '*reconnect-attempts': 'uint64',
+            '*reconnect-timeout': 'uint64' } }
 
 ##
 # @BlockdevOptionsRaw:
