@@ -168,6 +168,25 @@ static void blk_log_writes_refresh_limits(BlockDriverState *bs, Error **errp)
     }
 }
 
+static void blk_log_writes_apply_blkconf(BlockDriverState *bs, BlockConf *conf)
+{
+    assert(bs && conf && conf->blk);
+
+    bs->bl.request_alignment = conf->logical_block_size;
+    if (conf->discard_granularity != (uint32_t)-1) {
+        bs->bl.pdiscard_alignment = conf->discard_granularity;
+    }
+
+    if (bs->bl.pdiscard_alignment &&
+            bs->bl.pdiscard_alignment < bs->bl.request_alignment) {
+        bs->bl.pdiscard_alignment = bs->bl.request_alignment;
+    }
+    if (bs->bl.pwrite_zeroes_alignment &&
+            bs->bl.pwrite_zeroes_alignment < bs->bl.request_alignment) {
+        bs->bl.pwrite_zeroes_alignment = bs->bl.request_alignment;
+    }
+}
+
 static int coroutine_fn
 blk_log_writes_co_preadv(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
                          QEMUIOVector *qiov, int flags)
@@ -364,6 +383,7 @@ static BlockDriver bdrv_blk_log_writes = {
     .bdrv_refresh_filename  = blk_log_writes_refresh_filename,
     .bdrv_child_perm        = blk_log_writes_child_perm,
     .bdrv_refresh_limits    = blk_log_writes_refresh_limits,
+    .bdrv_apply_blkconf     = blk_log_writes_apply_blkconf,
 
     .bdrv_co_preadv         = blk_log_writes_co_preadv,
     .bdrv_co_pwritev        = blk_log_writes_co_pwritev,
