@@ -252,6 +252,8 @@ static void ssi_sd_realize(SSISlave *d, Error **errp)
     /* FIXME use a qdev drive property instead of drive_get_next() */
     dinfo = drive_get_next(IF_SD);
     carddev = qdev_create(&s->sdbus.qbus, TYPE_SD_CARD);
+    object_property_set_uint(OBJECT(carddev),
+                             SD_PHY_SPECv1_10_VERS, "spec_version", &err);
     if (dinfo) {
         qdev_prop_set_drive(carddev, "drive", blk_by_legacy_dinfo(dinfo), &err);
     }
