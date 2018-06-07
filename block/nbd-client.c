@@ -999,12 +999,12 @@ static QIOChannelSocket *nbd_establish_connection(SocketAddress *saddr,
     return sioc;
 }
 
-int nbd_client_init(BlockDriverState *bs,
-                    SocketAddress *saddr,
-                    const char *export,
-                    QCryptoTLSCreds *tlscreds,
-                    const char *hostname,
-                    Error **errp)
+static int nbd_client_connect(BlockDriverState *bs,
+                              SocketAddress *saddr,
+                              const char *export,
+                              QCryptoTLSCreds *tlscreds,
+                              const char *hostname,
+                              Error **errp)
 {
     NBDClientSession *client = nbd_get_client_session(bs);
     int ret;
@@ -1048,8 +1048,6 @@ int nbd_client_init(BlockDriverState *bs,
         bs->supported_zero_flags |= BDRV_REQ_MAY_UNMAP;
     }
 
-    qemu_co_mutex_init(&client->send_mutex);
-    qemu_co_queue_init(&client->free_sema);
     client->sioc = sioc;
 
     if (!client->ioc) {
@@ -1065,4 +1063,19 @@ int nbd_client_init(BlockDriverState *bs,
 
     logout("Established connection with NBD server\n");
     return 0;
+}
+
+int nbd_client_init(BlockDriverState *bs,
+                    SocketAddress *saddr,
+                    const char *export,
+                    QCryptoTLSCreds *tlscreds,
+                    const char *hostname,
+                    Error **errp)
+{
+    NBDClientSession *client = nbd_get_client_session(bs);
+
+    qemu_co_mutex_init(&client->send_mutex);
+    qemu_co_queue_init(&client->free_sema);
+
+    return nbd_client_connect(bs, saddr, export, tlscreds, hostname, errp);
 }
