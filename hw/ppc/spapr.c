@@ -3136,14 +3136,22 @@ static void spapr_add_lmbs(DeviceState *dev, uint64_t addr_start, uint64_t size,
 }
 
 static void spapr_memory_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
-                              uint32_t node, Error **errp)
+                              Error **errp)
 {
     Error *local_err = NULL;
     sPAPRMachineState *ms = SPAPR_MACHINE(hotplug_dev);
+    sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(ms);
     PCDIMMDevice *dimm = PC_DIMM(dev);
     PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(dimm);
     MemoryRegion *mr;
     uint64_t align, size, addr;
+    uint32_t node;
+
+    if (!smc->dr_lmb_enabled) {
+        error_setg(&local_err, "Memory hotplug not supported for this machine");
+        goto out;
+    }
+    node = object_property_get_uint(OBJECT(dev), PC_DIMM_NODE_PROP, NULL);
 
     mr = ddc->get_memory_region(dimm, &local_err);
     if (local_err) {
@@ -3568,19 +3576,8 @@ out:
 static void spapr_machine_device_plug(HotplugHandler *hotplug_dev,
                                       DeviceState *dev, Error **errp)
 {
-    MachineState *ms = MACHINE(hotplug_dev);
-    sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(ms);
-
     if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
-        int node;
-
-        if (!smc->dr_lmb_enabled) {
-            error_setg(errp, "Memory hotplug not supported for this machine");
-            return;
-        }
-        node = object_property_get_uint(OBJECT(dev), PC_DIMM_NODE_PROP, NULL);
-
-        spapr_memory_plug(hotplug_dev, dev, node, errp);
+        spapr_memory_plug(hotplug_dev, dev, errp);
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_SPAPR_CPU_CORE)) {
         spapr_core_plug(hotplug_dev, dev, errp);
     }
