@@ -1096,24 +1096,33 @@ static int64_t find_nonzero(const uint8_t *buf, int64_t n)
  *
  * 'pnum' is set to the number of sectors (including and immediately following
  * the first one) that are known to be in the same allocated/unallocated state.
+ * The function will try to align 'pnum' to 8 sectors (4k) to avoid unnecassary
+ * RMW cycles on modern hardware.
  */
 static int is_allocated_sectors(const uint8_t *buf, int n, int *pnum)
 {
     bool is_zero;
-    int i;
+    int i, alignment = 1;
 
     if (n <= 0) {
         *pnum = 0;
         return 0;
     }
-    is_zero = buffer_is_zero(buf, 512);
-    for(i = 1; i < n; i++) {
-        buf += 512;
-        if (is_zero != buffer_is_zero(buf, 512)) {
+
+    if (!(n & 7)) {
+        /* the buffer size is dividable by 4k */
+        alignment = 8;
+        n /= 8;
+    }
+
+    is_zero = buffer_is_zero(buf, BDRV_SECTOR_SIZE * alignment);
+    for (i = 1; i < n; i++) {
+        buf += BDRV_SECTOR_SIZE * alignment;
+        if (is_zero != buffer_is_zero(buf, BDRV_SECTOR_SIZE * alignment)) {
             break;
         }
     }
-    *pnum = i;
+    *pnum = i * alignment;
     return !is_zero;
 }
 
