@@ -2006,45 +2006,57 @@ static void pc_cpu_pre_plug(HotplugHandler *hotplug_dev,
 static void pc_machine_device_pre_plug_cb(HotplugHandler *hotplug_dev,
                                           DeviceState *dev, Error **errp)
 {
+    Error *local_err = NULL;
+
     if (object_dynamic_cast(OBJECT(dev), TYPE_CPU)) {
-        pc_cpu_pre_plug(hotplug_dev, dev, errp);
+        pc_cpu_pre_plug(hotplug_dev, dev, &local_err);
     }
+    error_propagate(errp, local_err);
 }
 
 static void pc_machine_device_plug_cb(HotplugHandler *hotplug_dev,
                                       DeviceState *dev, Error **errp)
 {
+    Error *local_err = NULL;
+
     if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
-        pc_dimm_plug(hotplug_dev, dev, errp);
+        pc_dimm_plug(hotplug_dev, dev, &local_err);
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_CPU)) {
-        pc_cpu_plug(hotplug_dev, dev, errp);
+        pc_cpu_plug(hotplug_dev, dev, &local_err);
     }
+    error_propagate(errp, local_err);
 }
 
 static void pc_machine_device_unplug_request_cb(HotplugHandler *hotplug_dev,
                                                 DeviceState *dev, Error **errp)
 {
+    Error *local_err = NULL;
+
     if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
-        pc_dimm_unplug_request(hotplug_dev, dev, errp);
+        pc_dimm_unplug_request(hotplug_dev, dev, &local_err);
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_CPU)) {
-        pc_cpu_unplug_request_cb(hotplug_dev, dev, errp);
+        pc_cpu_unplug_request_cb(hotplug_dev, dev, &local_err);
     } else {
-        error_setg(errp, "acpi: device unplug request for not supported device"
-                   " type: %s", object_get_typename(OBJECT(dev)));
+        error_setg(&local_err, "acpi: device unplug request for not supported"
+                   " device type: %s", object_get_typename(OBJECT(dev)));
     }
+    error_propagate(errp, local_err);
 }
 
 static void pc_machine_device_unplug_cb(HotplugHandler *hotplug_dev,
                                         DeviceState *dev, Error **errp)
 {
+    Error *local_err = NULL;
+
     if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
-        pc_dimm_unplug(hotplug_dev, dev, errp);
+        pc_dimm_unplug(hotplug_dev, dev, &local_err);
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_CPU)) {
-        pc_cpu_unplug_cb(hotplug_dev, dev, errp);
+        pc_cpu_unplug_cb(hotplug_dev, dev, &local_err);
     } else {
-        error_setg(errp, "acpi: device unplug for not supported device"
+        error_setg(&local_err, "acpi: device unplug for not supported device"
                    " type: %s", object_get_typename(OBJECT(dev)));
     }
+    error_propagate(errp, local_err);
 }
 
 static HotplugHandler *pc_get_hotpug_handler(MachineState *machine,
