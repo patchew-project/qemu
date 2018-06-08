@@ -50,8 +50,6 @@ do { printf("scsi-disk: " fmt , ## __VA_ARGS__); } while (0)
 #define SCSI_MAX_MODE_LEN           256
 
 #define DEFAULT_DISCARD_GRANULARITY 4096
-#define DEFAULT_MAX_UNMAP_SIZE      (1 << 30)   /* 1 GB */
-#define DEFAULT_MAX_IO_SIZE         INT_MAX     /* 2 GB - 1 block */
 
 #define TYPE_SCSI_DISK_BASE         "scsi-disk-base"
 

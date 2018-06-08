@@ -76,6 +76,103 @@ static void scsi_free_request(SCSIRequest *req)
     g_free(r->buf);
 }
 
+/*
+ * Takes a buffer and fill it with contents of a SCSI Inquiry VPD
+ * Block Limits response, based on the attributes of the SCSIDevice
+ * and other default values, returning the size written in the
+ * buffer.
+ *
+ * This function is a modified version of 'scsi_disk_emulate_inquiry'
+ * from scsi-disk.c.
+ */
+static int scsi_emulate_vpd_bl_page(SCSIDevice *s, uint8_t *outbuf)
+{
+    int buflen = 0;
+    int start;
+
+    outbuf[buflen++] = TYPE_DISK & 0x1f;
+    outbuf[buflen++] = 0xb0;
+    outbuf[buflen++] = 0x00;
+    outbuf[buflen++] = 0x00;
+    start = buflen;
+
+    unsigned int unmap_sectors = s->conf.discard_granularity / s->blocksize;
+    unsigned int min_io_size = s->conf.min_io_size / s->blocksize;
+    unsigned int opt_io_size = s->conf.opt_io_size / s->blocksize;
+    unsigned int max_unmap_sectors = DEFAULT_MAX_UNMAP_SIZE / s->blocksize;
+    unsigned int max_io_sectors =  DEFAULT_MAX_IO_SIZE / s->blocksize;
+
+    int max_transfer_blk = blk_get_max_transfer(s->conf.blk);
+    int max_io_sectors_blk = max_transfer_blk / s->blocksize;
+
+    max_io_sectors =  MIN_NON_ZERO(max_io_sectors_blk, max_io_sectors);
+
+    /* min_io_size and opt_io_size can't be greater than max_io_sectors */
+    if (min_io_size) {
+        min_io_size = MIN(min_io_size, max_io_sectors);
+    }
+    if (opt_io_size) {
+        opt_io_size = MIN(opt_io_size, max_io_sectors);
+    }
+
+    /* required VPD size with unmap support */
+    buflen = 0x40;
+    memset(outbuf + 4, 0, buflen - 4);
+
+    outbuf[4] = 0x1; /* wsnz */
+
+    /* optimal transfer length granularity */
+    outbuf[6] = (min_io_size >> 8) & 0xff;
+    outbuf[7] = min_io_size & 0xff;
+
+    /* maximum transfer length */
+    outbuf[8] = (max_io_sectors >> 24) & 0xff;
+    outbuf[9] = (max_io_sectors >> 16) & 0xff;
+    outbuf[10] = (max_io_sectors >> 8) & 0xff;
+    outbuf[11] = max_io_sectors & 0xff;
+
+    /* optimal transfer length */
+    outbuf[12] = (opt_io_size >> 24) & 0xff;
+    outbuf[13] = (opt_io_size >> 16) & 0xff;
+    outbuf[14] = (opt_io_size >> 8) & 0xff;
+    outbuf[15] = opt_io_size & 0xff;
+
+    /* max unmap LBA count, default is 1GB */
+    outbuf[20] = (max_unmap_sectors >> 24) & 0xff;
+    outbuf[21] = (max_unmap_sectors >> 16) & 0xff;
+    outbuf[22] = (max_unmap_sectors >> 8) & 0xff;
+    outbuf[23] = max_unmap_sectors & 0xff;
+
+    /* max unmap descriptors, 255 fit in 4 kb with an 8-byte header.  */
+    outbuf[24] = 0;
+    outbuf[25] = 0;
+    outbuf[26] = 0;
+    outbuf[27] = 255;
+
+    /* optimal unmap granularity */
+    outbuf[28] = (unmap_sectors >> 24) & 0xff;
+    outbuf[29] = (unmap_sectors >> 16) & 0xff;
+    outbuf[30] = (unmap_sectors >> 8) & 0xff;
+    outbuf[31] = unmap_sectors & 0xff;
+
+    /* max write same size */
+    outbuf[36] = 0;
+    outbuf[37] = 0;
+    outbuf[38] = 0;
+    outbuf[39] = 0;
+
+    outbuf[40] = (max_io_sectors >> 24) & 0xff;
+    outbuf[41] = (max_io_sectors >> 16) & 0xff;
+    outbuf[42] = (max_io_sectors >> 8) & 0xff;
+    outbuf[43] = max_io_sectors & 0xff;
+
+    /* done with EVPD */
+    assert(buflen - start <= 255);
+    outbuf[start - 1] = buflen - start;
+
+    return buflen;
+}
+
 /* Helper function for command completion.  */
 static void scsi_command_complete_noio(SCSIGenericReq *r, int ret)
 {
@@ -146,6 +243,7 @@ static void scsi_read_complete(void * opaque, int ret)
 {
     SCSIGenericReq *r = (SCSIGenericReq *)opaque;
     SCSIDevice *s = r->req.dev;
+    SCSISense sense;
     int len;
 
     assert(r->req.aiocb != NULL);
@@ -218,14 +316,33 @@ static void scsi_read_complete(void * opaque, int ret)
             }
         }
         if (s->type == TYPE_DISK && r->req.cmd.buf[2] == 0xb0) {
-            uint32_t max_transfer =
-                blk_get_max_transfer(s->conf.blk) / s->blocksize;
+            /*
+             * Take a look to see if this VPD Block Limits request will
+             * result in a sense error in scsi_command_complete_noio.
+             * In this case, emulate a valid VPD response.
+             *
+             * After that, given that now there are valid contents in the
+             * buffer, clean up the io_header to avoid firing up the
+             * sense error.
+             */
+            if (sg_io_sense_from_errno(-ret, &r->io_header, &sense)) {
+                r->buflen = scsi_emulate_vpd_bl_page(s, r->buf);
+                r->io_header.sb_len_wr = 0;
 
-            assert(max_transfer);
-            stl_be_p(&r->buf[8], max_transfer);
-            /* Also take care of the opt xfer len. */
-            stl_be_p(&r->buf[12],
-                     MIN_NON_ZERO(max_transfer, ldl_be_p(&r->buf[12])));
+                /* Clean sg_io_sense */
+                r->io_header.driver_status = 0;
+                r->io_header.status = 0;
+
+            }  else {
+                uint32_t max_transfer =
+                    blk_get_max_transfer(s->conf.blk) / s->blocksize;
+
+                assert(max_transfer);
+                stl_be_p(&r->buf[8], max_transfer);
+                /* Also take care of the opt xfer len. */
+                stl_be_p(&r->buf[12],
+                         MIN_NON_ZERO(max_transfer, ldl_be_p(&r->buf[12])));
+            }
         }
     }
     scsi_req_data(&r->req, len);

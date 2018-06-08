@@ -18,6 +18,9 @@ typedef struct SCSIReqOps SCSIReqOps;
 #define SCSI_SENSE_BUF_SIZE_OLD 96
 #define SCSI_SENSE_BUF_SIZE 252
 
+#define DEFAULT_MAX_UNMAP_SIZE      (1 << 30)   /* 1 GB */
+#define DEFAULT_MAX_IO_SIZE         INT_MAX     /* 2 GB - 1 block */
+
 struct SCSIRequest {
     SCSIBus           *bus;
     SCSIDevice        *dev;
