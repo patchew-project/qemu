@@ -244,7 +244,8 @@ static void scsi_read_complete(void * opaque, int ret)
     SCSIGenericReq *r = (SCSIGenericReq *)opaque;
     SCSIDevice *s = r->req.dev;
     SCSISense sense;
-    int len;
+    uint8_t page, page_len;
+    int len, i;
 
     assert(r->req.aiocb != NULL);
     r->req.aiocb = NULL;
@@ -315,33 +316,56 @@ static void scsi_read_complete(void * opaque, int ret)
                 s->scsi_version = r->buf[2];
             }
         }
-        if (s->type == TYPE_DISK && r->req.cmd.buf[2] == 0xb0) {
-            /*
-             * Take a look to see if this VPD Block Limits request will
-             * result in a sense error in scsi_command_complete_noio.
-             * In this case, emulate a valid VPD response.
-             *
-             * After that, given that now there are valid contents in the
-             * buffer, clean up the io_header to avoid firing up the
-             * sense error.
-             */
-            if (sg_io_sense_from_errno(-ret, &r->io_header, &sense)) {
-                r->buflen = scsi_emulate_vpd_bl_page(s, r->buf);
-                r->io_header.sb_len_wr = 0;
+        if (s->type == TYPE_DISK && (r->req.cmd.buf[1] & 0x01)) {
+            page = r->req.cmd.buf[2];
+            if (page == 0xb0) {
+                /*
+                 * Take a look to see if this VPD Block Limits request will
+                 * result in a sense error in scsi_command_complete_noio.
+                 * In this case, emulate a valid VPD response.
+                 *
+                 * After that, given that now there are valid contents in
+                 * the buffer, clean up the io_header to avoid firing up
+                 * the sense error.
+                 */
+                if (sg_io_sense_from_errno(-ret, &r->io_header, &sense)) {
+                    r->buflen = scsi_emulate_vpd_bl_page(s, r->buf);
+                    r->io_header.sb_len_wr = 0;
 
-                /* Clean sg_io_sense */
-                r->io_header.driver_status = 0;
-                r->io_header.status = 0;
+                    /* Clean sg_io_sense */
+                    r->io_header.driver_status = 0;
+                    r->io_header.status = 0;
 
-            }  else {
-                uint32_t max_transfer =
-                    blk_get_max_transfer(s->conf.blk) / s->blocksize;
+                }  else {
+                    uint32_t max_transfer =
+                        blk_get_max_transfer(s->conf.blk) / s->blocksize;
 
-                assert(max_transfer);
-                stl_be_p(&r->buf[8], max_transfer);
-                /* Also take care of the opt xfer len. */
-                stl_be_p(&r->buf[12],
-                         MIN_NON_ZERO(max_transfer, ldl_be_p(&r->buf[12])));
+                    assert(max_transfer);
+                    stl_be_p(&r->buf[8], max_transfer);
+                    /* Also take care of the opt xfer len. */
+                    stl_be_p(&r->buf[12],
+                             MIN_NON_ZERO(max_transfer, ldl_be_p(&r->buf[12])));
+                }
+            } else if (page == 0x00) {
+                /*
+                 * Now we're capable of supplying the VPD Block Limits
+                 * response if the hardware can't. Inspect if the INQUIRY
+                 * response contains support for the VPD Block Limits page.
+                 * Add it if it doesn't.
+                 *
+                 * This way, the guest kernel will be aware of the support
+                 * and will use it to proper setup the SCSI device.
+                 */
+                page_len = r->buf[3];
+                for (i = 4; i < page_len + 4; i++) {
+                    if (r->buf[i] == 0xb0) {
+                        break;
+                    }
+                }
+                if (i == page_len + 4) {
+                    r->buf[i] = 0xb0;
+                    r->buf[3] = ++page_len;
+                }
             }
         }
     }
