@@ -71,6 +71,8 @@ typedef struct MirrorBlockJob {
     int target_cluster_size;
     int max_iov;
     bool initial_zeroing_ongoing;
+
+    bool use_copy_range;
 } MirrorBlockJob;
 
 typedef struct MirrorOp {
@@ -293,6 +295,69 @@ static uint64_t mirror_do_read(MirrorBlockJob *s, int64_t offset,
     return ret;
 }
 
+static void mirror_copy_range_complete(void *opaque, int ret)
+{
+    MirrorOp *op = opaque;
+    MirrorBlockJob *s = op->s;
+
+    aio_context_acquire(blk_get_aio_context(s->common.blk));
+    trace_mirror_copy_range_complete(s, ret, op->offset, op->bytes);
+    if (!ret) {
+        mirror_iteration_done(op, ret);
+    } else {
+        uint64_t bytes;
+
+        s->use_copy_range = false;
+        s->in_flight--;
+        s->bytes_in_flight -= op->bytes;
+        bytes = mirror_do_read(s, op->offset, op->bytes);
+        /* No alignment adjusting in mirror_do_read since we've already done
+         * that in mirror_do_copy(). */
+        assert(bytes == op->bytes);
+        g_free(op);
+    }
+    aio_context_release(blk_get_aio_context(s->common.blk));
+}
+
+static uint64_t mirror_do_copy(MirrorBlockJob *s, int64_t offset,
+                               uint64_t bytes)
+{
+    uint64_t ret;
+    MirrorOp *op;
+
+    if (!s->use_copy_range || offset < BLOCK_PROBE_BUF_SIZE) {
+        return mirror_do_read(s, offset, bytes);
+    }
+
+    assert(bytes);
+    assert(bytes < BDRV_REQUEST_MAX_BYTES);
+    ret = bytes;
+
+    if (s->cow_bitmap) {
+        ret += mirror_cow_align(s, &offset, &bytes);
+    }
+    /* The offset is granularity-aligned because:
+     * 1) Caller passes in aligned values;
+     * 2) mirror_cow_align is used only when target cluster is larger. */
+    assert(QEMU_IS_ALIGNED(offset, s->granularity));
+    /* The range is sector-aligned, since bdrv_getlength() rounds up. */
+    assert(QEMU_IS_ALIGNED(bytes, BDRV_SECTOR_SIZE));
+
+    op = g_new0(MirrorOp, 1);
+    op->s = s;
+    op->offset = offset;
+    op->bytes = bytes;
+
+    /* Copy the dirty cluster.  */
+    s->in_flight++;
+    s->bytes_in_flight += bytes;
+    trace_mirror_one_iteration(s, offset, bytes);
+
+    blk_aio_copy_range(s->common.blk, offset, s->target, offset,
+                       bytes, 0, mirror_copy_range_complete, op);
+    return ret;
+}
+
 static void mirror_do_zero_or_discard(MirrorBlockJob *s,
                                       int64_t offset,
                                       uint64_t bytes,
@@ -429,7 +494,7 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
         io_bytes = mirror_clip_bytes(s, offset, io_bytes);
         switch (mirror_method) {
         case MIRROR_METHOD_COPY:
-            io_bytes = io_bytes_acct = mirror_do_read(s, offset, io_bytes);
+            io_bytes = io_bytes_acct = mirror_do_copy(s, offset, io_bytes);
             break;
         case MIRROR_METHOD_ZERO:
         case MIRROR_METHOD_DISCARD:
@@ -1090,6 +1155,8 @@ static BlockDriver bdrv_mirror_top = {
     .bdrv_co_pdiscard           = bdrv_mirror_top_pdiscard,
     .bdrv_co_flush              = bdrv_mirror_top_flush,
     .bdrv_co_block_status       = bdrv_co_block_status_from_backing,
+    .bdrv_co_copy_range_from    = bdrv_co_copy_range_from_backing,
+    .bdrv_co_copy_range_to      = bdrv_co_copy_range_to_backing,
     .bdrv_refresh_filename      = bdrv_mirror_top_refresh_filename,
     .bdrv_close                 = bdrv_mirror_top_close,
     .bdrv_child_perm            = bdrv_mirror_top_child_perm,
@@ -1176,6 +1243,8 @@ static void mirror_start_job(const char *job_id, BlockDriverState *bs,
 
     s->source = bs;
     s->mirror_top_bs = mirror_top_bs;
+
+    s->use_copy_range = true;
 
     /* No resize for the target either; while the mirror is still running, a
      * consistent read isn't necessarily possible. We could possibly allow

@@ -34,6 +34,7 @@ mirror_one_iteration(void *s, int64_t offset, uint64_t bytes) "s %p offset %" PR
 mirror_iteration_done(void *s, int64_t offset, uint64_t bytes, int ret) "s %p offset %" PRId64 " bytes %" PRIu64 " ret %d"
 mirror_yield(void *s, int64_t cnt, int buf_free_count, int in_flight) "s %p dirty count %"PRId64" free buffers %d in_flight %d"
 mirror_yield_in_flight(void *s, int64_t offset, int in_flight) "s %p offset %" PRId64 " in_flight %d"
+mirror_copy_range_complete(void *s, int ret, int64_t offset, uint64_t bytes) "s %p ret %d offset %" PRId64 " bytes %" PRIu64
 
 # block/backup.c
 backup_do_cow_enter(void *job, int64_t start, int64_t offset, uint64_t bytes) "job %p start %" PRId64 " offset %" PRId64 " bytes %" PRIu64
