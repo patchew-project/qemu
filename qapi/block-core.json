@@ -2425,16 +2425,17 @@
 # @throttle: Since 2.11
 # @nvme: Since 2.12
 # @copy-on-read: Since 3.0
+# @blklogwrites: Since 3.0
 #
 # Since: 2.9
 ##
 { 'enum': 'BlockdevDriver',
-  'data': [ 'blkdebug', 'blkverify', 'bochs', 'cloop', 'copy-on-read',
-            'dmg', 'file', 'ftp', 'ftps', 'gluster', 'host_cdrom',
-            'host_device', 'http', 'https', 'iscsi', 'luks', 'nbd', 'nfs',
-            'null-aio', 'null-co', 'nvme', 'parallels', 'qcow', 'qcow2', 'qed',
-            'quorum', 'raw', 'rbd', 'replication', 'sheepdog', 'ssh',
-            'throttle', 'vdi', 'vhdx', 'vmdk', 'vpc', 'vvfat', 'vxhs' ] }
+  'data': [ 'blkdebug', 'blklogwrites', 'blkverify', 'bochs', 'cloop',
+            'copy-on-read', 'dmg', 'file', 'ftp', 'ftps', 'gluster',
+            'host_cdrom', 'host_device', 'http', 'https', 'iscsi', 'luks',
+            'nbd', 'nfs', 'null-aio', 'null-co', 'nvme', 'parallels', 'qcow',
+            'qcow2', 'qed', 'quorum', 'raw', 'rbd', 'replication', 'sheepdog',
+            'ssh', 'throttle', 'vdi', 'vhdx', 'vmdk', 'vpc', 'vvfat', 'vxhs' ] }
 
 ##
 # @BlockdevOptionsFile:
@@ -2949,6 +2950,21 @@
             '*set-state': ['BlkdebugSetStateOptions'] } }
 
 ##
+# @BlockdevOptionsBlklogwrites:
+#
+# Driver specific block device options for blklogwrites.
+#
+# @raw:     block device
+#
+# @log:     block device used to log writes on @raw
+#
+# Since: 3.0
+##
+{ 'struct': 'BlockdevOptionsBlklogwrites',
+  'data': { 'raw': 'BlockdevRef',
+            'log': 'BlockdevRef' } }
+
+##
 # @BlockdevOptionsBlkverify:
 #
 # Driver specific block device options for blkverify.
@@ -3443,6 +3459,7 @@
   'discriminator': 'driver',
   'data': {
       'blkdebug':   'BlockdevOptionsBlkdebug',
+      'blklogwrites': 'BlockdevOptionsBlklogwrites',
       'blkverify':  'BlockdevOptionsBlkverify',
       'bochs':      'BlockdevOptionsGenericFormat',
       'cloop':      'BlockdevOptionsGenericFormat',
@@ -3971,6 +3988,7 @@
   'discriminator': 'driver',
   'data': {
       'blkdebug':       'BlockdevCreateNotSupported',
+      'blklogwrites':   'BlockdevCreateNotSupported',
       'blkverify':      'BlockdevCreateNotSupported',
       'bochs':          'BlockdevCreateNotSupported',
       'cloop':          'BlockdevCreateNotSupported',
