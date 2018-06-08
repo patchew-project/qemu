@@ -63,8 +63,12 @@ docker-image-debian-win64-cross: docker-image-debian8-mxe
 
 # Debian SID images - we are tracking a rolling distro so we want to
 # force a re-build of the base image if we ever need to build one of
-# its children.
+# its children. However when doing check-tcg we ensure everything is
+# built at top-level make so we can dispense with NOCACHE here to
+# avoid excessive re-builds.
+ifneq ($(SUBMAKE_NOCACHE_HACK),y)
 docker-image-debian-sid: NOCACHE=1
+endif
 
 docker-image-debian-alpha-cross: docker-image-debian-sid
 docker-image-debian-hppa-cross: docker-image-debian-sid
