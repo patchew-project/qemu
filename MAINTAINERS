@@ -1768,6 +1768,12 @@ F: include/qemu/sockets.h
 F: util/qemu-sockets.c
 F: qapi/sockets.json
 
+Inotify
+M: Daniel P. Berrange <berrange@redhat.com>
+S: Odd fixes
+F: util/inotify.c
+F: include/qemu/inotify.h
+
 Throttling infrastructure
 M: Alberto Garcia <berto@igalia.com>
 S: Supported
