@@ -2598,6 +2598,54 @@ static int get_device_type(SCSIDiskState *s)
     return 0;
 }
 
+static void scsi_block_set_vpd_bl_emulation(SCSIDevice *s)
+{
+    uint8_t cmd[6];
+    uint8_t buf[250];
+    uint8_t sensebuf[8];
+    uint8_t page_len;
+    sg_io_hdr_t io_header;
+    int ret, i;
+
+    memset(cmd, 0, sizeof(cmd));
+    memset(buf, 0, sizeof(buf));
+    cmd[0] = INQUIRY;
+    cmd[1] = 1;
+    cmd[2] = 0x00;
+    cmd[4] = sizeof(buf);
+
+    memset(&io_header, 0, sizeof(io_header));
+    io_header.interface_id = 'S';
+    io_header.dxfer_direction = SG_DXFER_FROM_DEV;
+    io_header.dxfer_len = sizeof(buf);
+    io_header.dxferp = buf;
+    io_header.cmdp = cmd;
+    io_header.cmd_len = sizeof(cmd);
+    io_header.mx_sb_len = sizeof(sensebuf);
+    io_header.sbp = sensebuf;
+    io_header.timeout = 6000; /* XXX */
+
+    ret = blk_ioctl(s->conf.blk, SG_IO, &io_header);
+    if (ret < 0 || io_header.driver_status || io_header.host_status) {
+        /*
+         * Do not assume anything if we can't retrieve the
+         * INQUIRY response to assert the VPD Block Limits
+         * support.
+         */
+        s->needs_vpd_bl_emulation = false;
+        return;
+    }
+
+    page_len = buf[3];
+    for (i = 4; i < page_len + 4; i++) {
+        if (buf[i] == 0xb0) {
+            s->needs_vpd_bl_emulation = false;
+            return;
+        }
+    }
+    s->needs_vpd_bl_emulation = true;
+}
+
 static void scsi_block_realize(SCSIDevice *dev, Error **errp)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, dev);
@@ -2647,6 +2695,7 @@ static void scsi_block_realize(SCSIDevice *dev, Error **errp)
 
     scsi_realize(&s->qdev, errp);
     scsi_generic_read_device_identification(&s->qdev);
+    scsi_block_set_vpd_bl_emulation(dev);
 }
 
 typedef struct SCSIBlockReq {

@@ -90,6 +90,7 @@ struct SCSIDevice
     uint64_t port_wwn;
     int scsi_version;
     int default_scsi_version;
+    bool needs_vpd_bl_emulation;
 };
 
 extern const VMStateDescription vmstate_scsi_device;

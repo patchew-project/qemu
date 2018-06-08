@@ -243,9 +243,8 @@ static void scsi_read_complete(void * opaque, int ret)
 {
     SCSIGenericReq *r = (SCSIGenericReq *)opaque;
     SCSIDevice *s = r->req.dev;
-    SCSISense sense;
     uint8_t page, page_len;
-    int len, i;
+    int len;
 
     assert(r->req.aiocb != NULL);
     r->req.aiocb = NULL;
@@ -328,11 +327,17 @@ static void scsi_read_complete(void * opaque, int ret)
                  * the buffer, clean up the io_header to avoid firing up
                  * the sense error.
                  */
-                if (sg_io_sense_from_errno(-ret, &r->io_header, &sense)) {
+                if (s->needs_vpd_bl_emulation) {
+
                     r->buflen = scsi_emulate_vpd_bl_page(s, r->buf);
                     r->io_header.sb_len_wr = 0;
 
-                    /* Clean sg_io_sense */
+                    /*
+                     * We have valid contents in the reply buffer but the
+                     * io_header will report a sense error coming from
+                     * the hardware in scsi_command_complete_noio. Clean it
+                     * up the io_header to avoid reporting it.
+                     */
                     r->io_header.driver_status = 0;
                     r->io_header.status = 0;
 
@@ -346,26 +351,19 @@ static void scsi_read_complete(void * opaque, int ret)
                     stl_be_p(&r->buf[12],
                              MIN_NON_ZERO(max_transfer, ldl_be_p(&r->buf[12])));
                 }
-            } else if (page == 0x00) {
+            } else if (page == 0x00 && s->needs_vpd_bl_emulation) {
                 /*
                  * Now we're capable of supplying the VPD Block Limits
-                 * response if the hardware can't. Inspect if the INQUIRY
-                 * response contains support for the VPD Block Limits page.
-                 * Add it if it doesn't.
+                 * response if the hardware can't. Add it in the INQUIRY
+                 * Supported VPD pages response in case we are using the
+                 * emulation for this device.
                  *
                  * This way, the guest kernel will be aware of the support
                  * and will use it to proper setup the SCSI device.
                  */
                 page_len = r->buf[3];
-                for (i = 4; i < page_len + 4; i++) {
-                    if (r->buf[i] == 0xb0) {
-                        break;
-                    }
-                }
-                if (i == page_len + 4) {
-                    r->buf[i] = 0xb0;
-                    r->buf[3] = ++page_len;
-                }
+                r->buf[page_len + 4] = 0xb0;
+                r->buf[3] = ++page_len;
             }
         }
     }
