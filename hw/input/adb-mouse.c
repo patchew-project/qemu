@@ -73,6 +73,10 @@ static int adb_mouse_poll(ADBDevice *d, uint8_t *obuf)
         return 0;
     }
 
+    if (obuf == NULL) {
+        return 2;
+    }
+
     dx = s->dx;
     if (dx < -63) {
         dx = -63;

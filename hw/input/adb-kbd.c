@@ -195,6 +195,10 @@ static int adb_kbd_poll(ADBDevice *d, uint8_t *obuf)
     int keycode;
     int olen;
 
+    if (obuf == NULL) {
+        return s->count;
+    }
+
     olen = 0;
     if (s->count == 0) {
         return 0;
