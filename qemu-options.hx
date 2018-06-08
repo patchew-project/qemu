@@ -3325,16 +3325,21 @@ Do not start CPU at startup (you must type 'c' in the monitor).
 ETEXI
 
 DEF("realtime", HAS_ARG, QEMU_OPTION_realtime,
-    "-realtime [mlock=on|off]\n"
+    "-realtime [mlock=on|off][cpu-halt=on|off[\n"
     "                run qemu with realtime features\n"
-    "                mlock=on|off controls mlock support (default: on)\n",
+    "                mlock=on|off controls mlock support (default: on)\n"
+    "                cpu-pm=on|off controls cpu power management (default: off)\n",
     QEMU_ARCH_ALL)
 STEXI
 @item -realtime mlock=on|off
+@item -realtime cpu-pm=on|off
 @findex -realtime
 Run qemu with realtime features.
 mlocking qemu and guest memory can be enabled via @option{mlock=on}
 (enabled by default).
+guest ability to manage power state of host cpus (increasing latency for other
+processes on the same host cpu, but decreasing latency for guest)
+can be enabled via @option{cpu-pm=on} (disabled by default).
 ETEXI
 
 DEF("gdb", HAS_ARG, QEMU_OPTION_gdb, \
