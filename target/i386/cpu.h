@@ -32,6 +32,7 @@
 #endif
 
 #include "exec/cpu-defs.h"
+typedef struct vm_change_state_entry VMChangeStateEntry;
 
 /* The x86 has a strong memory model with some store-after-load re-ordering */
 #define TCG_GUEST_DEFAULT_MO      (TCG_MO_ALL & ~TCG_MO_ST_LD)
@@ -1330,6 +1331,7 @@ typedef struct CPUX86State {
     uint64_t xss;
 
     TPRAccess tpr_access_type;
+    VMChangeStateEntry *vmstate;
 } CPUX86State;
 
 struct kvm_msrs;
