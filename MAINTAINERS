@@ -2147,6 +2147,7 @@ W: http://patchew.org/QEMU/
 Guest Test Compilation Support
 M: Alex Bennée <alex.bennee@linaro.org>
 F: tests/tcg/Makefile
+F: tests/tcg/Makefile.include
 L: qemu-devel@nongnu.org
 
 Documentation
