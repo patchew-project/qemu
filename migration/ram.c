@@ -56,6 +56,9 @@
 #include "qemu/uuid.h"
 #include "savevm.h"
 
+static NotifierList ram_save_state_notifiers =
+    NOTIFIER_LIST_INITIALIZER(ram_save_state_notifiers);
+
 /***********************************************************/
 /* ram save/restore */
 
@@ -272,48 +275,17 @@ struct RAMSrcPageRequest {
     QSIMPLEQ_ENTRY(RAMSrcPageRequest) next_req;
 };
 
-/* State of RAM for migration */
-struct RAMState {
-    /* QEMUFile used for this migration */
-    QEMUFile *f;
-    /* Last block that we have visited searching for dirty pages */
-    RAMBlock *last_seen_block;
-    /* Last block from where we have sent data */
-    RAMBlock *last_sent_block;
-    /* Last dirty target page we have sent */
-    ram_addr_t last_page;
-    /* last ram version we have seen */
-    uint32_t last_version;
-    /* We are in the first round */
-    bool ram_bulk_stage;
-    /* How many times we have dirty too many pages */
-    int dirty_rate_high_cnt;
-    /* these variables are used for bitmap sync */
-    /* last time we did a full bitmap_sync */
-    int64_t time_last_bitmap_sync;
-    /* bytes transferred at start_time */
-    uint64_t bytes_xfer_prev;
-    /* number of dirty pages since start_time */
-    uint64_t num_dirty_pages_period;
-    /* xbzrle misses since the beginning of the period */
-    uint64_t xbzrle_cache_miss_prev;
-    /* number of iterations at the beginning of period */
-    uint64_t iterations_prev;
-    /* Iterations since start */
-    uint64_t iterations;
-    /* number of dirty bits in the bitmap */
-    uint64_t migration_dirty_pages;
-    /* protects modification of the bitmap */
-    QemuMutex bitmap_mutex;
-    /* The RAMBlock used in the last src_page_requests */
-    RAMBlock *last_req_rb;
-    /* Queue of outstanding page requests from the destination */
-    QemuMutex src_page_req_mutex;
-    QSIMPLEQ_HEAD(src_page_requests, RAMSrcPageRequest) src_page_requests;
-};
-typedef struct RAMState RAMState;
-
 static RAMState *ram_state;
+
+void add_ram_save_state_change_notifier(Notifier *notify)
+{
+    notifier_list_add(&ram_save_state_notifiers, notify);
+}
+
+static void notify_ram_save_state_change_notifier(void)
+{
+    notifier_list_notify(&ram_save_state_notifiers, ram_state);
+}
 
 uint64_t ram_bytes_remaining(void)
 {
@@ -1148,6 +1120,9 @@ static void migration_bitmap_sync(RAMState *rs)
     int64_t end_time;
     uint64_t bytes_xfer_now;
 
+    rs->ram_save_state = RAM_SAVE_BEFORE_SYNC_BITMAP;
+    notify_ram_save_state_change_notifier();
+
     ram_counters.dirty_sync_count++;
 
     if (!rs->time_last_bitmap_sync) {
@@ -1214,6 +1189,9 @@ static void migration_bitmap_sync(RAMState *rs)
     if (migrate_use_events()) {
         qapi_event_send_migration_pass(ram_counters.dirty_sync_count, NULL);
     }
+
+    rs->ram_save_state = RAM_SAVE_AFTER_SYNC_BITMAP;
+    notify_ram_save_state_change_notifier();
 }
 
 /**
@@ -1975,6 +1953,8 @@ static void ram_state_reset(RAMState *rs)
     rs->last_page = 0;
     rs->last_version = ram_list.version;
     rs->ram_bulk_stage = true;
+    rs->ram_save_state = RAM_SAVE_RESET;
+    notify_ram_save_state_change_notifier();
 }
 
 #define MAX_WAIT 50 /* ms, half buffered_file limit */
@@ -2723,6 +2703,8 @@ out:
 
     ret = qemu_file_get_error(f);
     if (ret < 0) {
+        rs->ram_save_state = RAM_SAVE_ERR;
+        notify_ram_save_state_change_notifier();
         return ret;
     }
 
