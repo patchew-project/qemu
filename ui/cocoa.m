@@ -350,9 +350,20 @@ QemuCocoaView *cocoaView;
     return YES;
 }
 
-- (BOOL) screenContainsPoint:(NSPoint) p
+/* Returns YES if the host mouse cursor is in the QEMU window, NO otherwise */
+- (BOOL) mouseInWindow
 {
-    return (p.x > -1 && p.x < screen.width && p.y > -1 && p.y < screen.height);
+    NSPoint p = [NSEvent mouseLocation];
+    BOOL return_value = NO;
+    float x, y, width, height;
+    x = [normalWindow frame].origin.x;
+    y = [normalWindow frame].origin.y;
+    width = [[normalWindow contentView] frame].size.width;
+    height = [[normalWindow contentView] frame].size.height;
+    if (p.x >= x && p.y >= y && p.x <= (x + width) && p.y <= (y + height)) {
+        return_value = YES;
+    }
+    return return_value;
 }
 
 - (void) hideCursor
@@ -637,7 +648,6 @@ QemuCocoaView *cocoaView;
     int buttons = 0;
     int keycode = 0;
     bool mouse_event = false;
-    NSPoint p = [event locationInWindow];
 
     switch ([event type]) {
         case NSEventTypeFlagsChanged:
@@ -738,17 +748,22 @@ QemuCocoaView *cocoaView;
             break;
         case NSEventTypeMouseMoved:
             if (isAbsoluteEnabled) {
-                if (![self screenContainsPoint:p] || ![[self window] isKeyWindow]) {
+                if ([self mouseInWindow]) {
+                    mouse_event = true;
+                }
+
+                if (![self mouseInWindow] || ![[self window] isKeyWindow]) {
                     if (isMouseGrabbed) {
                         [self ungrabMouse];
                     }
                 } else {
-                    if (!isMouseGrabbed) {
+                    if (!isMouseGrabbed && [self mouseInWindow]) {
                         [self grabMouse];
                     }
                 }
+            } else {
+                mouse_event = true;
             }
-            mouse_event = true;
             break;
         case NSEventTypeLeftMouseDown:
             if ([event modifierFlags] & NSEventModifierFlagCommand) {
@@ -784,7 +799,7 @@ QemuCocoaView *cocoaView;
             break;
         case NSEventTypeLeftMouseUp:
             mouse_event = true;
-            if (!isMouseGrabbed && [self screenContainsPoint:p]) {
+            if (!isMouseGrabbed && [self mouseInWindow]) {
                 if([[self window] isKeyWindow]) {
                     [self grabMouse];
                 }
@@ -844,7 +859,8 @@ QemuCocoaView *cocoaView;
                  * The check on screenContainsPoint is to avoid sending out of range values for
                  * clicks in the titlebar.
                  */
-                if ([self screenContainsPoint:p]) {
+                if ([self mouseInWindow]) {
+                    NSPoint p = [event locationInWindow];
                     qemu_input_queue_abs(dcl->con, INPUT_AXIS_X, p.x, 0, screen.width);
                     qemu_input_queue_abs(dcl->con, INPUT_AXIS_Y, screen.height - p.y, 0, screen.height);
                 }
