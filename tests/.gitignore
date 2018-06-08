@@ -17,6 +17,7 @@ rcutorture
 test-aio
 test-aio-multithread
 test-arm-mptimer
+test-authz-simple
 test-base64
 test-bdrv-drain
 test-bitops

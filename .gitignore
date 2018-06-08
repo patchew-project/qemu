@@ -46,6 +46,7 @@
 /qapi/qapi-commands-trace.[ch]
 /qapi/qapi-commands-transaction.[ch]
 /qapi/qapi-commands-ui.[ch]
+/qapi/qapi-commands-authz.[ch]
 /qapi/qapi-commands.[ch]
 /qapi/qapi-events-block-core.[ch]
 /qapi/qapi-events-block.[ch]
@@ -63,6 +64,7 @@
 /qapi/qapi-events-trace.[ch]
 /qapi/qapi-events-transaction.[ch]
 /qapi/qapi-events-ui.[ch]
+/qapi/qapi-events-authz.[ch]
 /qapi/qapi-events.[ch]
 /qapi/qapi-introspect.[ch]
 /qapi/qapi-types-block-core.[ch]
@@ -81,6 +83,7 @@
 /qapi/qapi-types-trace.[ch]
 /qapi/qapi-types-transaction.[ch]
 /qapi/qapi-types-ui.[ch]
+/qapi/qapi-types-authz.[ch]
 /qapi/qapi-types.[ch]
 /qapi/qapi-visit-block-core.[ch]
 /qapi/qapi-visit-block.[ch]
@@ -98,6 +101,7 @@
 /qapi/qapi-visit-trace.[ch]
 /qapi/qapi-visit-transaction.[ch]
 /qapi/qapi-visit-ui.[ch]
+/qapi/qapi-visit-authz.[ch]
 /qapi/qapi-visit.[ch]
 /qapi/qapi-doc.texi
 /qemu-doc.html
