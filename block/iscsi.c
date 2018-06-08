@@ -2420,6 +2420,12 @@ out_unlock:
     return r;
 }
 
+static bool iscsi_can_copy_range(BlockDriverState *bs, BdrvChild *dst)
+{
+    return dst->bs && dst->bs->drv &&
+           dst->bs->drv->bdrv_can_copy_range == iscsi_can_copy_range;
+}
+
 static QemuOptsList iscsi_create_opts = {
     .name = "iscsi-create-opts",
     .head = QTAILQ_HEAD_INITIALIZER(iscsi_create_opts.head),
@@ -2456,6 +2462,7 @@ static BlockDriver bdrv_iscsi = {
     .bdrv_co_pdiscard      = iscsi_co_pdiscard,
     .bdrv_co_copy_range_from = iscsi_co_copy_range_from,
     .bdrv_co_copy_range_to  = iscsi_co_copy_range_to,
+    .bdrv_can_copy_range   = iscsi_can_copy_range,
     .bdrv_co_pwrite_zeroes = iscsi_co_pwrite_zeroes,
     .bdrv_co_readv         = iscsi_co_readv,
     .bdrv_co_writev        = iscsi_co_writev,
@@ -2493,6 +2500,7 @@ static BlockDriver bdrv_iser = {
     .bdrv_co_pdiscard      = iscsi_co_pdiscard,
     .bdrv_co_copy_range_from = iscsi_co_copy_range_from,
     .bdrv_co_copy_range_to  = iscsi_co_copy_range_to,
+    .bdrv_can_copy_range   = iscsi_can_copy_range,
     .bdrv_co_pwrite_zeroes = iscsi_co_pwrite_zeroes,
     .bdrv_co_readv         = iscsi_co_readv,
     .bdrv_co_writev        = iscsi_co_writev,

@@ -2913,6 +2913,9 @@ int coroutine_fn bdrv_co_copy_range(BdrvChild *src, uint64_t src_offset,
     BlockDriverState *dst_bs = dst->bs;
     int ret;
 
+    if (!bdrv_can_copy_range(src, dst)) {
+        return -ENOTSUP;
+    }
     bdrv_inc_in_flight(src_bs);
     bdrv_inc_in_flight(dst_bs);
     tracked_request_begin(&src_req, src_bs, src_offset,

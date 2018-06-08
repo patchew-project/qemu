@@ -5320,3 +5320,15 @@ bool bdrv_can_store_new_dirty_bitmap(BlockDriverState *bs, const char *name,
 
     return drv->bdrv_can_store_new_dirty_bitmap(bs, name, granularity, errp);
 }
+
+bool bdrv_can_copy_range(BdrvChild *src, BdrvChild *dst)
+{
+    BlockDriverState *bs;
+
+    if (!src || !src->bs) {
+        return false;
+    }
+    bs = src->bs;
+    return bs && bs->drv && bs->drv->bdrv_can_copy_range &&
+           bs->drv->bdrv_can_copy_range(bs, dst);
+}

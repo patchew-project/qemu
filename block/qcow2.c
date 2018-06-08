@@ -3440,6 +3440,16 @@ fail:
     return ret;
 }
 
+static bool qcow2_can_copy_range(BlockDriverState *bs, BdrvChild *dst)
+{
+    bool r = bdrv_can_copy_range(bs->file, dst);
+
+    if (bs->backing) {
+        r = r && bdrv_can_copy_range(bs->backing, dst);
+    }
+    return r;
+}
+
 static int qcow2_truncate(BlockDriverState *bs, int64_t offset,
                           PreallocMode prealloc, Error **errp)
 {
@@ -4690,6 +4700,7 @@ BlockDriver bdrv_qcow2 = {
     .bdrv_co_pdiscard       = qcow2_co_pdiscard,
     .bdrv_co_copy_range_from = qcow2_co_copy_range_from,
     .bdrv_co_copy_range_to  = qcow2_co_copy_range_to,
+    .bdrv_can_copy_range    = qcow2_can_copy_range,
     .bdrv_truncate          = qcow2_truncate,
     .bdrv_co_pwritev_compressed = qcow2_co_pwritev_compressed,
     .bdrv_make_empty        = qcow2_make_empty,

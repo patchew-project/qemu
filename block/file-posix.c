@@ -2539,6 +2539,13 @@ static int coroutine_fn raw_co_copy_range_to(BlockDriverState *bs,
                                NULL, bytes, QEMU_AIO_COPY_RANGE);
 }
 
+static bool raw_can_copy_range(BlockDriverState *bs,
+                               BdrvChild *dst)
+{
+    return dst->bs && dst->bs->drv &&
+           dst->bs->drv->bdrv_can_copy_range == raw_can_copy_range;
+}
+
 BlockDriver bdrv_file = {
     .format_name = "file",
     .protocol_name = "file",
@@ -2564,6 +2571,7 @@ BlockDriver bdrv_file = {
     .bdrv_aio_pdiscard = raw_aio_pdiscard,
     .bdrv_co_copy_range_from = raw_co_copy_range_from,
     .bdrv_co_copy_range_to  = raw_co_copy_range_to,
+    .bdrv_can_copy_range = raw_can_copy_range,
     .bdrv_refresh_limits = raw_refresh_limits,
     .bdrv_io_plug = raw_aio_plug,
     .bdrv_io_unplug = raw_aio_unplug,
@@ -3044,6 +3052,7 @@ static BlockDriver bdrv_host_device = {
     .bdrv_aio_pdiscard   = hdev_aio_pdiscard,
     .bdrv_co_copy_range_from = raw_co_copy_range_from,
     .bdrv_co_copy_range_to  = raw_co_copy_range_to,
+    .bdrv_can_copy_range = raw_can_copy_range,
     .bdrv_refresh_limits = raw_refresh_limits,
     .bdrv_io_plug = raw_aio_plug,
     .bdrv_io_unplug = raw_aio_unplug,

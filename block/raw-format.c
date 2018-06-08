@@ -527,6 +527,11 @@ static int coroutine_fn raw_co_copy_range_to(BlockDriverState *bs,
                                  flags);
 }
 
+static bool raw_can_copy_range(BlockDriverState *bs, BdrvChild *dst)
+{
+    return bdrv_can_copy_range(bs->file, dst);
+}
+
 BlockDriver bdrv_raw = {
     .format_name          = "raw",
     .instance_size        = sizeof(BDRVRawState),
@@ -545,6 +550,7 @@ BlockDriver bdrv_raw = {
     .bdrv_co_block_status = &raw_co_block_status,
     .bdrv_co_copy_range_from = &raw_co_copy_range_from,
     .bdrv_co_copy_range_to  = &raw_co_copy_range_to,
+    .bdrv_can_copy_range  = &raw_can_copy_range,
     .bdrv_truncate        = &raw_truncate,
     .bdrv_getlength       = &raw_getlength,
     .has_variable_length  = true,
