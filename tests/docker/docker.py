@@ -399,11 +399,11 @@ class ProbeCommand(SubCommand):
         try:
             docker = Docker()
             if docker._command[0] == "docker":
-                print "yes"
+                print("yes")
             elif docker._command[0] == "sudo":
-                print "sudo"
+                print("sudo")
         except Exception:
-            print "no"
+            print("no")
 
         return
 
