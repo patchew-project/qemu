@@ -1900,6 +1900,30 @@ int coroutine_fn bdrv_co_block_status_from_backing(BlockDriverState *bs,
     return BDRV_BLOCK_RAW | BDRV_BLOCK_OFFSET_VALID;
 }
 
+int coroutine_fn bdrv_co_copy_range_from_backing(BlockDriverState *bs,
+                                                 BdrvChild *src, uint64_t src_offset,
+                                                 BdrvChild *dst, uint64_t dst_offset,
+                                                 uint64_t bytes, BdrvRequestFlags flags)
+{
+    if (!src->bs) {
+        return -ENOMEDIUM;
+    }
+    return bdrv_co_copy_range_from(src->bs->backing, src_offset, dst,
+                                   dst_offset, bytes, flags);
+}
+
+int coroutine_fn bdrv_co_copy_range_to_backing(BlockDriverState *bs,
+                                               BdrvChild *src, uint64_t src_offset,
+                                               BdrvChild *dst, uint64_t dst_offset,
+                                               uint64_t bytes, BdrvRequestFlags flags)
+{
+    if (!dst->bs) {
+        return -ENOMEDIUM;
+    }
+    return bdrv_co_copy_range_to(src, src_offset, dst->bs->backing,
+                                 dst_offset, bytes, flags);
+}
+
 /*
  * Returns the allocation status of the specified sectors.
  * Drivers not implementing the functionality are assumed to not support

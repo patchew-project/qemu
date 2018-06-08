@@ -1118,6 +1118,28 @@ int coroutine_fn bdrv_co_block_status_from_backing(BlockDriverState *bs,
                                                    int64_t *pnum,
                                                    int64_t *map,
                                                    BlockDriverState **file);
+
+/*
+ * Default implementation for drivers to pass bdrv_co_copy_range_from() to
+ * their backing file.
+ */
+int coroutine_fn bdrv_co_copy_range_from_backing(BlockDriverState *bs,
+                                                 BdrvChild *src, uint64_t src_offset,
+                                                 BdrvChild *dst, uint64_t dst_offset,
+                                                 uint64_t bytes,
+                                                 BdrvRequestFlags flags);
+
+
+/*
+ * Default implementation for drivers to pass bdrv_co_copy_range_to() to their
+ * backing file.
+ */
+int coroutine_fn bdrv_co_copy_range_to_backing(BlockDriverState *bs,
+                                               BdrvChild *src, uint64_t src_offset,
+                                               BdrvChild *dst, uint64_t dst_offset,
+                                               uint64_t bytes,
+                                               BdrvRequestFlags flags);
+
 const char *bdrv_get_parent_name(const BlockDriverState *bs);
 void blk_dev_change_media_cb(BlockBackend *blk, bool load, Error **errp);
 bool blk_dev_has_removable_media(BlockBackend *blk);
