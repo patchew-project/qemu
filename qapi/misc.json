@@ -117,7 +117,8 @@
 #    }
 #
 ##
-{ 'command': 'query-version', 'returns': 'VersionInfo' }
+{ 'command': 'query-version', 'returns': 'VersionInfo',
+  'allow-preconfig': true }
 
 ##
 # @CommandInfo:
@@ -241,7 +242,7 @@
 # <- { "return": { "name": "qemu-name" } }
 #
 ##
-{ 'command': 'query-name', 'returns': 'NameInfo' }
+{ 'command': 'query-name', 'returns': 'NameInfo', 'allow-preconfig': true }
 
 ##
 # @KvmInfo:
@@ -301,7 +302,7 @@
 # <- { "return": { "UUID": "550e8400-e29b-41d4-a716-446655440000" } }
 #
 ##
-{ 'command': 'query-uuid', 'returns': 'UuidInfo' }
+{ 'command': 'query-uuid', 'returns': 'UuidInfo', 'allow-preconfig': true }
 
 ##
 # @EventInfo:
@@ -710,7 +711,8 @@
 #    }
 #
 ##
-{ 'command': 'query-iothreads', 'returns': ['IOThreadInfo'] }
+{ 'command': 'query-iothreads', 'returns': ['IOThreadInfo'],
+  'allow-preconfig': true }
 
 ##
 # @BalloonInfo:
@@ -2902,7 +2904,7 @@
 #    }
 #
 ##
-{ 'command': 'query-memdev', 'returns': ['Memdev'] }
+{ 'command': 'query-memdev', 'returns': ['Memdev'], 'allow-preconfig': true }
 
 ##
 # @PCDIMMDeviceInfo:
