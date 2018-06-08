@@ -2144,6 +2144,11 @@ W: https://travis-ci.org/qemu/qemu
 W: https://app.shippable.com/github/qemu/qemu
 W: http://patchew.org/QEMU/
 
+Guest Test Compilation Support
+M: Alex Bennée <alex.bennee@linaro.org>
+F: tests/tcg/Makefile
+L: qemu-devel@nongnu.org
+
 Documentation
 -------------
 Build system architecture
