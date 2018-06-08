@@ -147,6 +147,10 @@ BlockAIOCB *blk_aio_flush(BlockBackend *blk,
                           BlockCompletionFunc *cb, void *opaque);
 BlockAIOCB *blk_aio_pdiscard(BlockBackend *blk, int64_t offset, int bytes,
                              BlockCompletionFunc *cb, void *opaque);
+BlockAIOCB *blk_aio_copy_range(BlockBackend *src, int64_t src_offset,
+                               BlockBackend *dst, int64_t dst_offset,
+                               uint64_t bytes, BdrvRequestFlags flags,
+                               BlockCompletionFunc *cb, void *opaque);
 void blk_aio_cancel(BlockAIOCB *acb);
 void blk_aio_cancel_async(BlockAIOCB *acb);
 int blk_co_ioctl(BlockBackend *blk, unsigned long int req, void *buf);

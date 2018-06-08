@@ -1213,6 +1213,14 @@ typedef struct BlkRwCo {
             unsigned long int req;
             void *buf;
         } ioctl;
+
+        struct {
+            BlockBackend *dst_blk;
+            int64_t src_off;
+            int64_t dst_off;
+            int bytes;
+            BdrvRequestFlags flags;
+        } copy_range;
     };
 
 } BlkRwCo;
@@ -1503,6 +1511,34 @@ BlockAIOCB *blk_aio_pwritev(BlockBackend *blk, int64_t offset,
         .prwv.qiov = qiov,
     };
     return blk_aio_prwv(blk, &rwco, blk_aio_write_entry, cb, opaque);
+}
+
+static void blk_aio_copy_range_entry(void *opaque)
+{
+    BlkAioEmAIOCB *acb = opaque;
+    BlkRwCo *rwco = &acb->rwco;
+
+    rwco->ret = blk_co_copy_range(rwco->blk, rwco->copy_range.src_off,
+                                  rwco->copy_range.dst_blk,
+                                  rwco->copy_range.dst_off,
+                                  rwco->copy_range.bytes,
+                                  rwco->copy_range.flags);
+    blk_aio_complete(acb);
+}
+
+BlockAIOCB *blk_aio_copy_range(BlockBackend *src, int64_t src_offset,
+                               BlockBackend *dst, int64_t dst_offset,
+                               uint64_t bytes, BdrvRequestFlags flags,
+                               BlockCompletionFunc *cb, void *opaque)
+{
+    BlkRwCo rwco = (BlkRwCo) {
+        .copy_range.src_off = src_offset,
+        .copy_range.dst_blk = dst,
+        .copy_range.dst_off = dst_offset,
+        .copy_range.bytes = bytes,
+        .copy_range.flags = flags,
+    };
+    return blk_aio_prwv(src, &rwco, blk_aio_copy_range_entry, cb, opaque);
 }
 
 static void blk_aio_flush_entry(void *opaque)
