@@ -25,6 +25,17 @@
 #include "hw/input/adb.h"
 #include "adb-internal.h"
 
+#define ADB_POLL_FREQ 50
+
+/* Apple Macintosh Family Hardware Refenece
+ * Table 19-10 ADB transaction states
+ */
+
+#define STATE_NEW       0
+#define STATE_EVEN      1
+#define STATE_ODD       2
+#define STATE_IDLE      3
+
 /* error codes */
 #define ADB_RET_NOTPRESENT (-2)
 
@@ -57,7 +68,6 @@ int adb_request(ADBBusState *s, uint8_t *obuf, const uint8_t *buf, int len)
     return ADB_RET_NOTPRESENT;
 }
 
-/* XXX: move that to cuda ? */
 int adb_poll(ADBBusState *s, uint8_t *obuf, uint16_t poll_mask)
 {
     ADBDevice *d;
@@ -82,6 +92,93 @@ int adb_poll(ADBBusState *s, uint8_t *obuf, uint16_t poll_mask)
         s->poll_index++;
     }
     return olen;
+}
+
+int adb_send(ADBBusState *adb, int state, uint8_t data)
+{
+    switch (state) {
+    case STATE_NEW:
+        adb->data_out[0] = data;
+        adb->data_out_index = 1;
+        break;
+    case STATE_EVEN:
+        if ((adb->data_out_index & 1) == 0) {
+            return 0;
+        }
+        adb->data_out[adb->data_out_index++] = data;
+        break;
+    case STATE_ODD:
+        if (adb->data_out_index & 1) {
+            return 0;
+        }
+        adb->data_out[adb->data_out_index++] = data;
+        break;
+    case STATE_IDLE:
+        return 0;
+    }
+    qemu_irq_raise(adb->data_ready);
+    return 1;
+}
+
+int adb_receive(ADBBusState *adb, int state, uint8_t *data)
+{
+    switch (state) {
+    case STATE_NEW:
+        return 0;
+    case STATE_EVEN:
+        if (adb->data_in_size <= 0) {
+            qemu_irq_raise(adb->data_ready);
+            return 0;
+        }
+        if (adb->data_in_index >= adb->data_in_size) {
+            *data = 0;
+            qemu_irq_raise(adb->data_ready);
+            return 1;
+        }
+        if ((adb->data_in_index & 1) == 0) {
+            return 0;
+        }
+        *data = adb->data_in[adb->data_in_index++];
+        break;
+    case STATE_ODD:
+        if (adb->data_in_size <= 0) {
+            qemu_irq_raise(adb->data_ready);
+            return 0;
+        }
+        if (adb->data_in_index >= adb->data_in_size) {
+            *data = 0;
+            qemu_irq_raise(adb->data_ready);
+            return 1;
+        }
+        if (adb->data_in_index & 1) {
+            return 0;
+        }
+        *data = adb->data_in[adb->data_in_index++];
+        break;
+    case STATE_IDLE:
+        if (adb->data_out_index == 0) {
+            return 0;
+        }
+        adb->data_in_size = adb_request(adb, adb->data_in,
+                                        adb->data_out, adb->data_out_index);
+        adb->data_out_index = 0;
+        if (adb->data_in_size < 0) {
+            *data = 0xff;
+            qemu_irq_raise(adb->data_ready);
+            return -1;
+        }
+        if (adb->data_in_size == 0) {
+            return 0;
+        }
+        *data = adb->data_in[0];
+        adb->data_in_index = 1;
+        break;
+    }
+    qemu_irq_raise(adb->data_ready);
+    if (*data == 0xff || *data == 0) {
+        return 0;
+    }
+    return 1;
 }
 
 static const TypeInfo adb_bus_type_info = {
