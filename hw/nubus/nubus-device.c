@@ -238,22 +238,9 @@ static void nubus_device_init(Object *obj)
 {
 }
 
-static int nubus_qdev_init(DeviceState *qdev)
-{
-    NubusDevice *dev = NUBUS_DEVICE(qdev);
-    NubusDeviceClass *klass = NUBUS_DEVICE_GET_CLASS(dev);
-
-    if (klass->init) {
-        return klass->init(dev);
-    }
-
-    return 0;
-}
-
 static void nubus_device_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
-    k->init = nubus_qdev_init;
     k->bus_type = TYPE_NUBUS_BUS;
 }
 

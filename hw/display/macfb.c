@@ -240,31 +240,28 @@ typedef struct {
     MacfbState macfb;
 } MacfbNubusState;
 
-static int macfb_sysbus_init(SysBusDevice *dev)
+static void macfb_sysbus_realize(DeviceState *dev, Error **errp)
 {
     MacfbState *s =  &MACFB(dev)->macfb;
 
-    macfb_init(DEVICE(dev), s);
-    sysbus_init_mmio(dev, &s->mem_ctrl);
-    sysbus_init_mmio(dev, &s->mem_vram);
-
-    return 0;
+    macfb_init(dev, s);
+    sysbus_init_mmio(SYS_BUS_DEVICE(s), &s->mem_ctrl);
+    sysbus_init_mmio(SYS_BUS_DEVICE(s), &s->mem_vram);
 }
 
 const uint8_t macfb_rom[] = {
     255, 0, 0, 0,
 };
 
-static int macfb_nubus_init(NubusDevice *dev)
+static void macfb_nubus_realize(DeviceState *dev, Error **errp)
 {
-    MacfbState *s = &DO_UPCAST(MacfbNubusState, busdev, dev)->macfb;
+    NubusDevice *nubus = NUBUS_DEVICE(dev);
+    MacfbState *s = &DO_UPCAST(MacfbNubusState, busdev, nubus)->macfb;
 
-    macfb_init(DEVICE(dev), s);
-    nubus_add_slot_mmio(dev, DAFB_BASE, &s->mem_ctrl);
-    nubus_add_slot_mmio(dev, VIDEO_BASE, &s->mem_vram);
-    nubus_register_rom(dev, macfb_rom, sizeof(macfb_rom), 1, 9, 0xf);
-
-    return 0;
+    macfb_init(dev, s);
+    nubus_add_slot_mmio(nubus, DAFB_BASE, &s->mem_ctrl);
+    nubus_add_slot_mmio(nubus, VIDEO_BASE, &s->mem_vram);
+    nubus_register_rom(nubus, macfb_rom, sizeof(macfb_rom), 1, 9, 0xf);
 }
 
 static void macfb_sysbus_reset(DeviceState *d)
@@ -296,9 +293,8 @@ static Property macfb_nubus_properties[] = {
 static void macfb_sysbus_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = macfb_sysbus_init;
+    dc->realize = macfb_sysbus_realize;
     dc->desc = "SysBus Macintosh framebuffer";
     dc->reset = macfb_sysbus_reset;
     dc->vmsd = &vmstate_macfb;
@@ -308,9 +304,8 @@ static void macfb_sysbus_class_init(ObjectClass *klass, void *data)
 static void macfb_nubus_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    NubusDeviceClass *k = NUBUS_DEVICE_CLASS(klass);
 
-    k->init = macfb_nubus_init;
+    dc->realize = macfb_nubus_realize;
     dc->desc = "Nubus Macintosh framebuffer";
     dc->reset = macfb_nubus_reset;
     dc->vmsd = &vmstate_macfb;
