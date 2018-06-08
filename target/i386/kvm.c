@@ -1041,7 +1041,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
         }
     }
 
-    qemu_add_vm_change_state_handler(cpu_update_state, env);
+    env->vmstate = qemu_add_vm_change_state_handler(cpu_update_state, env);
 
     c = cpuid_find_entry(&cpuid_data.cpuid, 1, 0);
     if (c) {
@@ -1113,6 +1113,23 @@ int kvm_arch_init_vcpu(CPUState *cs)
  fail:
     migrate_del_blocker(invtsc_mig_blocker);
     return r;
+}
+
+void kvm_arch_destroy_vcpu(CPUState *cs)
+{
+    X86CPU *cpu = X86_CPU(cs);
+    CPUX86State *env = &cpu->env;
+
+    if (has_xsave && env->kvm_xsave_buf) {
+        qemu_vfree(env->kvm_xsave_buf);
+        env->kvm_xsave_buf = NULL;
+    }
+    g_free(cpu->kvm_msr_buf);
+    cpu->kvm_msr_buf = NULL;
+    if (env->vmstate) {
+        qemu_del_vm_change_state_handler(env->vmstate);
+        env->vmstate = NULL;
+    }
 }
 
 void kvm_arch_reset_vcpu(X86CPU *cpu)

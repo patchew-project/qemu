@@ -172,6 +172,10 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     return 0;
 }
 
+void kvm_arch_destroy_vcpu(CPUState *cs)
+{
+}
+
 unsigned long kvm_arch_vcpu_id(CPUState *cpu)
 {
     return cpu->cpu_index;

@@ -305,6 +305,7 @@ int kvm_destroy_vcpu(CPUState *cpu)
     vcpu->vcpu_id = kvm_arch_vcpu_id(cpu);
     vcpu->kvm_fd = cpu->kvm_fd;
     QLIST_INSERT_HEAD(&kvm_state->kvm_parked_vcpus, vcpu, node);
+    kvm_arch_destroy_vcpu(cpu);
 err:
     return ret;
 }

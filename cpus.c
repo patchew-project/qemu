@@ -1842,6 +1842,12 @@ void cpu_remove_sync(CPUState *cpu)
     qemu_mutex_unlock_iothread();
     qemu_thread_join(cpu->thread);
     qemu_mutex_lock_iothread();
+    g_free(cpu->thread);
+    cpu->thread = NULL;
+    g_free(cpu->halt_cond);
+    cpu->halt_cond = NULL;
+    g_free(cpu->cpu_ases);
+    cpu->cpu_ases = NULL;
 }
 
 /* For temporary buffers for forming a name */
