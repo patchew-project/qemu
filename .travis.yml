@@ -152,3 +152,9 @@ matrix:
         - TEST_CMD=""
       before_script:
         - ./configure ${CONFIG} --extra-cflags="-g3 -O0 -fsanitize=thread -fuse-ld=gold" || cat config.log
+    - env:
+        - CONFIG="--disable-system --disable-docs"
+        - TEST_CMD="make check-tcg"
+      sudo: required
+      dist: trusty
+      compiler: gcc
