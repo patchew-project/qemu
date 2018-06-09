@@ -572,24 +572,32 @@ int arm_load_dtb(hwaddr addr, const struct arm_boot_info *binfo,
             g_free(nodename);
         }
     } else {
+        char *nodename = g_strdup("/memory");
         Error *err = NULL;
 
-        rc = fdt_path_offset(fdt, "/memory");
+        /* If there is an existing /memory node (user provided dtb), we add the
+         * new bank into it, otherwise we create a /memory@addr node
+         */
+        rc = fdt_path_offset(fdt, nodename);
         if (rc < 0) {
-            qemu_fdt_add_subnode(fdt, "/memory");
+            g_free(nodename);
+            nodename = g_strdup_printf("/memory@%" PRIx64, binfo->loader_start);
+
+            qemu_fdt_add_subnode(fdt, nodename);
         }
 
-        if (!qemu_fdt_getprop(fdt, "/memory", "device_type", NULL, &err)) {
-            qemu_fdt_setprop_string(fdt, "/memory", "device_type", "memory");
+        if (!qemu_fdt_getprop(fdt, nodename, "device_type", NULL, &err)) {
+            qemu_fdt_setprop_string(fdt, nodename, "device_type", "memory");
         }
 
-        rc = qemu_fdt_setprop_sized_cells(fdt, "/memory", "reg",
+        rc = qemu_fdt_setprop_sized_cells(fdt, nodename, "reg",
                                           acells, binfo->loader_start,
                                           scells, binfo->ram_size);
         if (rc < 0) {
-            fprintf(stderr, "couldn't set /memory/reg\n");
+            fprintf(stderr, "couldn't set %s reg\n", nodename);
             goto fail;
         }
+        g_free(nodename);
     }
 
     rc = fdt_path_offset(fdt, "/chosen");
