@@ -55,7 +55,8 @@ endif
 # Check that we're not trying to do an out-of-tree build from
 # a tree that's been used for an in-tree build.
 ifneq ($(realpath $(SRC_PATH)),$(realpath .))
-ifneq ($(wildcard $(SRC_PATH)/config-host.mak),)
+scratch_files = config-host.mak qemu-version.h qemu-options.def
+ifneq ($(wildcard $(addprefix $(SRC_PATH)/,$(scratch_files))),)
 $(error This is an out of tree build but your source tree ($(SRC_PATH)) \
 seems to have been used for an in-tree build. You can fix this by running \
 "$(MAKE) distclean && rm -rf *-linux-user *-softmmu" in your source tree)
