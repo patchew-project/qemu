@@ -41,10 +41,16 @@ static int nbd_client_connect(BlockDriverState *bs,
                               const char *hostname,
                               Error **errp);
 
-/* @ret would be used for reconnect in future */
 static void nbd_channel_error(NBDClientSession *s, int ret)
 {
-    s->state = NBD_CLIENT_QUIT;
+    if (ret == -EIO) {
+        if (s->state == NBD_CLIENT_CONNECTED) {
+            s->state = NBD_CLIENT_CONNECTING_WAIT;
+            s->connect_attempts = 0;
+        }
+    } else {
+        s->state = NBD_CLIENT_QUIT;
+    }
 }
 
 static void nbd_recv_coroutines_wake_all(NBDClientSession *s)
@@ -90,6 +96,19 @@ typedef struct NBDConnection {
     uint64_t reconnect_timeout;
 } NBDConnection;
 
+static bool nbd_client_connecting(NBDClientSession *client)
+{
+    return client->state == NBD_CLIENT_CONNECTING_WAIT ||
+           client->state == NBD_CLIENT_CONNECTING_NOWAIT ||
+           client->state == NBD_CLIENT_CONNECTING_INIT;
+}
+
+static bool nbd_client_connecting_wait(NBDClientSession *client)
+{
+    return client->state == NBD_CLIENT_CONNECTING_WAIT ||
+           client->state == NBD_CLIENT_CONNECTING_INIT;
+}
+
 static coroutine_fn void nbd_connection_entry(void *opaque)
 {
     NBDConnection *con = opaque;
@@ -98,26 +117,55 @@ static coroutine_fn void nbd_connection_entry(void *opaque)
     int ret = 0;
     Error *local_err = NULL;
 
-    if (con->reconnect_attempts != 0) {
-        error_setg(&s->connect_err, "Reconnect is not supported yet");
-        s->connect_status = -EINVAL;
-        nbd_channel_error(s, s->connect_status);
-        return;
-    }
-
-    s->connect_status = nbd_client_connect(con->bs, con->saddr,
-                                           con->export, con->tlscreds,
-                                           con->hostname, &s->connect_err);
-    if (s->connect_status < 0) {
-        nbd_channel_error(s, s->connect_status);
-        return;
-    }
-
-    /* successfully connected */
-    s->state = NBD_CLIENT_CONNECTED;
-
     while (s->state != NBD_CLIENT_QUIT) {
         assert(s->reply.handle == 0);
+
+        if (nbd_client_connecting(s)) {
+            if (s->connect_attempts == con->reconnect_attempts) {
+                s->state = NBD_CLIENT_CONNECTING_NOWAIT;
+                qemu_co_queue_restart_all(&s->free_sema);
+            }
+
+            qemu_co_mutex_lock(&s->send_mutex);
+
+            while (s->in_flight > 0) {
+                qemu_co_mutex_unlock(&s->send_mutex);
+                nbd_recv_coroutines_wake_all(s);
+                s->wait_in_flight = true;
+                qemu_coroutine_yield();
+                s->wait_in_flight = false;
+                qemu_co_mutex_lock(&s->send_mutex);
+            }
+
+            qemu_co_mutex_unlock(&s->send_mutex);
+
+            /* Now we are sure, that nobody accessing the channel now and nobody
+             * will try to access the channel, until we set state to CONNECTED
+             */
+
+            s->connect_status = nbd_client_connect(con->bs, con->saddr,
+                                                   con->export, con->tlscreds,
+                                                   con->hostname, &local_err);
+            s->connect_attempts++;
+            error_free(s->connect_err);
+            s->connect_err = NULL;
+            error_propagate(&s->connect_err, local_err);
+            local_err = NULL;
+            if (s->connect_status == -EINVAL) {
+                /* Protocol error or something like this */
+                nbd_channel_error(s, s->connect_status);
+                continue;
+            }
+            if (s->connect_status < 0) {
+                qemu_co_sleep_ns(QEMU_CLOCK_REALTIME, con->reconnect_timeout);
+                continue;
+            }
+
+            /* successfully connected */
+            s->state = NBD_CLIENT_CONNECTED;
+            qemu_co_queue_restart_all(&s->free_sema);
+        }
+
         s->receiving = true;
         ret = nbd_receive_reply(s->ioc, &s->reply, &local_err);
         s->receiving = false;
@@ -158,6 +206,7 @@ static coroutine_fn void nbd_connection_entry(void *opaque)
         qemu_coroutine_yield();
     }
 
+    qemu_co_queue_restart_all(&s->free_sema);
     nbd_recv_coroutines_wake_all(s);
     s->connection_co = NULL;
 }
@@ -170,7 +219,7 @@ static int nbd_co_send_request(BlockDriverState *bs,
     int rc, i = -1;
 
     qemu_co_mutex_lock(&s->send_mutex);
-    while (s->in_flight == MAX_NBD_REQUESTS) {
+    while (s->in_flight == MAX_NBD_REQUESTS || nbd_client_connecting_wait(s)) {
         qemu_co_queue_wait(&s->free_sema, &s->send_mutex);
     }
 
@@ -221,7 +270,11 @@ err:
             s->requests[i].coroutine = NULL;
             s->in_flight--;
         }
-        qemu_co_queue_next(&s->free_sema);
+        if (s->in_flight == 0 && s->wait_in_flight) {
+            aio_co_wake(s->connection_co);
+        } else {
+            qemu_co_queue_next(&s->free_sema);
+        }
     }
     qemu_co_mutex_unlock(&s->send_mutex);
     return rc;
@@ -671,7 +724,11 @@ break_loop:
 
     qemu_co_mutex_lock(&s->send_mutex);
     s->in_flight--;
-    qemu_co_queue_next(&s->free_sema);
+    if (s->in_flight == 0 && s->wait_in_flight) {
+        aio_co_wake(s->connection_co);
+    } else {
+        qemu_co_queue_next(&s->free_sema);
+    }
     qemu_co_mutex_unlock(&s->send_mutex);
 
     return false;
@@ -820,16 +877,21 @@ static int nbd_co_request(BlockDriverState *bs, NBDRequest *request,
     } else {
         assert(request->type != NBD_CMD_WRITE);
     }
-    ret = nbd_co_send_request(bs, request, write_qiov);
-    if (ret < 0) {
-        return ret;
-    }
 
-    ret = nbd_co_receive_return_code(client, request->handle,
-                                     &request_ret, &local_err);
-    if (local_err) {
-        error_report_err(local_err);
-    }
+    do {
+        ret = nbd_co_send_request(bs, request, write_qiov);
+        if (ret < 0) {
+            continue;
+        }
+
+        ret = nbd_co_receive_return_code(client, request->handle,
+                                         &request_ret, &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+            local_err = NULL;
+        }
+    } while (ret < 0 && nbd_client_connecting_wait(client));
+
     return ret ? ret : request_ret;
 }
 
@@ -851,16 +913,21 @@ int nbd_client_co_preadv(BlockDriverState *bs, uint64_t offset,
     if (!bytes) {
         return 0;
     }
-    ret = nbd_co_send_request(bs, &request, NULL);
-    if (ret < 0) {
-        return ret;
-    }
 
-    ret = nbd_co_receive_cmdread_reply(client, request.handle, offset, qiov,
-                                       &request_ret, &local_err);
-    if (local_err) {
-        error_report_err(local_err);
-    }
+    do {
+        ret = nbd_co_send_request(bs, &request, NULL);
+        if (ret < 0) {
+            continue;
+        }
+
+        ret = nbd_co_receive_cmdread_reply(client, request.handle, offset, qiov,
+                                           &request_ret, &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+            local_err = NULL;
+        }
+    } while (ret < 0 && nbd_client_connecting_wait(client));
+
     return ret ? ret : request_ret;
 }
 
@@ -974,16 +1041,21 @@ int coroutine_fn nbd_client_co_block_status(BlockDriverState *bs,
         return BDRV_BLOCK_DATA;
     }
 
-    ret = nbd_co_send_request(bs, &request, NULL);
-    if (ret < 0) {
-        return ret;
-    }
+    do {
+        ret = nbd_co_send_request(bs, &request, NULL);
+        if (ret < 0) {
+            continue;
+        }
 
-    ret = nbd_co_receive_blockstatus_reply(client, request.handle, bytes,
-                                           &extent, &request_ret, &local_err);
-    if (local_err) {
-        error_report_err(local_err);
-    }
+        ret = nbd_co_receive_blockstatus_reply(client, request.handle, bytes,
+                                               &extent, &request_ret,
+                                               &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+            local_err = NULL;
+        }
+    } while (ret < 0 && nbd_client_connecting_wait(client));
+
     if (ret < 0 || request_ret < 0) {
         return ret ? ret : request_ret;
     }
