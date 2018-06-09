@@ -1423,8 +1423,14 @@ static int handle_record_type(HexParser *parser)
         break;
 
     case START_SEG_ADDR_RECORD:
-        /* TODO: START_SEG_ADDR_RECORD is x86-specific */
-        return -1;
+        if (line->byte_count != 4 && line->address != 0) {
+            return -1;
+        }
+
+        /* x86 16-bit CS:IP segmented addressing */
+        *(parser->start_addr) = (((line->data[0] << 8) | line->data[1]) << 4) |
+                                (line->data[2] << 8) | line->data[3];
+        break;
 
     case START_LINEAR_ADDR_RECORD:
         if (line->byte_count != 4 && line->address != 0) {
