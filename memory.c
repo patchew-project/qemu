@@ -2712,7 +2712,7 @@ static void memory_region_do_invalidate_mmio_ptr(CPUState *cpu,
     /* Reset dirty so this doesn't happen later. */
     cpu_physical_memory_test_and_clear_dirty(offset, size, 1);
 
-    if (section.mr != mr) {
+    if (section.mr && (section.mr != mr)) {
         /* memory_region_find add a ref on section.mr */
         memory_region_unref(section.mr);
         if (MMIO_INTERFACE(section.mr->owner)) {
