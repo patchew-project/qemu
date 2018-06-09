@@ -41,6 +41,9 @@ typedef struct NBDClientSession {
     Coroutine *connection_co;
     int in_flight;
     NBDClientState state;
+    bool receiving;
+    int connect_status;
+    Error *connect_err;
 
     NBDClientRequest requests[MAX_NBD_REQUESTS];
     NBDReply reply;

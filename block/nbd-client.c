@@ -34,6 +34,13 @@
 #define HANDLE_TO_INDEX(bs, handle) ((handle) ^ (uint64_t)(intptr_t)(bs))
 #define INDEX_TO_HANDLE(bs, index)  ((index)  ^ (uint64_t)(intptr_t)(bs))
 
+static int nbd_client_connect(BlockDriverState *bs,
+                              SocketAddress *saddr,
+                              const char *export,
+                              QCryptoTLSCreds *tlscreds,
+                              const char *hostname,
+                              Error **errp);
+
 /* @ret would be used for reconnect in future */
 static void nbd_channel_error(NBDClientSession *s, int ret)
 {
@@ -63,6 +70,7 @@ static void nbd_teardown_connection(BlockDriverState *bs)
     qio_channel_shutdown(client->ioc,
                          QIO_CHANNEL_SHUTDOWN_BOTH,
                          NULL);
+    client->state = NBD_CLIENT_QUIT;
     BDRV_POLL_WHILE(bs, client->connection_co);
 
     nbd_client_detach_aio_context(bs);
@@ -72,16 +80,38 @@ static void nbd_teardown_connection(BlockDriverState *bs)
     client->ioc = NULL;
 }
 
+typedef struct NBDConnection {
+    BlockDriverState *bs;
+    SocketAddress *saddr;
+    const char *export;
+    QCryptoTLSCreds *tlscreds;
+    const char *hostname;
+} NBDConnection;
+
 static coroutine_fn void nbd_connection_entry(void *opaque)
 {
-    NBDClientSession *s = opaque;
+    NBDConnection *con = opaque;
+    NBDClientSession *s = nbd_get_client_session(con->bs);
     uint64_t i;
     int ret = 0;
     Error *local_err = NULL;
 
+    s->connect_status = nbd_client_connect(con->bs, con->saddr,
+                                           con->export, con->tlscreds,
+                                           con->hostname, &s->connect_err);
+    if (s->connect_status < 0) {
+        nbd_channel_error(s, s->connect_status);
+        return;
+    }
+
+    /* successfully connected */
+    s->state = NBD_CLIENT_CONNECTED;
+
     while (s->state != NBD_CLIENT_QUIT) {
         assert(s->reply.handle == 0);
+        s->receiving = true;
         ret = nbd_receive_reply(s->ioc, &s->reply, &local_err);
+        s->receiving = false;
         if (local_err) {
             error_report_err(local_err);
         }
@@ -966,7 +996,9 @@ void nbd_client_attach_aio_context(BlockDriverState *bs,
 {
     NBDClientSession *client = nbd_get_client_session(bs);
     qio_channel_attach_aio_context(QIO_CHANNEL(client->ioc), new_context);
-    aio_co_schedule(new_context, client->connection_co);
+    if (client->receiving) {
+        aio_co_schedule(new_context, client->connection_co);
+    }
 }
 
 void nbd_client_close(BlockDriverState *bs)
@@ -1063,7 +1095,6 @@ static int nbd_client_connect(BlockDriverState *bs,
     /* Now that we're connected, set the socket to be non-blocking and
      * kick the reply mechanism.  */
     qio_channel_set_blocking(QIO_CHANNEL(sioc), false, NULL);
-    client->connection_co = qemu_coroutine_create(nbd_connection_entry, client);
     nbd_client_attach_aio_context(bs, bdrv_get_aio_context(bs));
 
     logout("Established connection with NBD server\n");
@@ -1078,9 +1109,28 @@ int nbd_client_init(BlockDriverState *bs,
                     Error **errp)
 {
     NBDClientSession *client = nbd_get_client_session(bs);
+    NBDConnection *con = g_new(NBDConnection, 1);
+
+    con->bs = bs;
+    con->saddr = saddr;
+    con->export = export;
+    con->tlscreds = tlscreds;
+    con->hostname = hostname;
 
     qemu_co_mutex_init(&client->send_mutex);
     qemu_co_queue_init(&client->free_sema);
+    client->state = NBD_CLIENT_CONNECTING_INIT;
 
-    return nbd_client_connect(bs, saddr, export, tlscreds, hostname, errp);
+    client->connection_co = qemu_coroutine_create(nbd_connection_entry, con);
+    aio_co_schedule(bdrv_get_aio_context(bs), client->connection_co);
+    BDRV_POLL_WHILE(bs, client->state == NBD_CLIENT_CONNECTING_INIT);
+
+    if (client->state != NBD_CLIENT_CONNECTED) {
+        assert(client->connect_status < 0 && client->connect_err);
+        error_propagate(errp, client->connect_err);
+        client->connect_err = NULL;
+        return client->connect_status;
+    }
+
+    return 0;
 }
