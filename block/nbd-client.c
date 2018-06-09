@@ -86,6 +86,8 @@ typedef struct NBDConnection {
     const char *export;
     QCryptoTLSCreds *tlscreds;
     const char *hostname;
+    uint64_t reconnect_attempts;
+    uint64_t reconnect_timeout;
 } NBDConnection;
 
 static coroutine_fn void nbd_connection_entry(void *opaque)
@@ -95,6 +97,13 @@ static coroutine_fn void nbd_connection_entry(void *opaque)
     uint64_t i;
     int ret = 0;
     Error *local_err = NULL;
+
+    if (con->reconnect_attempts != 0) {
+        error_setg(&s->connect_err, "Reconnect is not supported yet");
+        s->connect_status = -EINVAL;
+        nbd_channel_error(s, s->connect_status);
+        return;
+    }
 
     s->connect_status = nbd_client_connect(con->bs, con->saddr,
                                            con->export, con->tlscreds,
@@ -1106,6 +1115,8 @@ int nbd_client_init(BlockDriverState *bs,
                     const char *export,
                     QCryptoTLSCreds *tlscreds,
                     const char *hostname,
+                    uint64_t reconnect_attempts,
+                    uint64_t reconnect_timeout,
                     Error **errp)
 {
     NBDClientSession *client = nbd_get_client_session(bs);
@@ -1116,6 +1127,8 @@ int nbd_client_init(BlockDriverState *bs,
     con->export = export;
     con->tlscreds = tlscreds;
     con->hostname = hostname;
+    con->reconnect_attempts = reconnect_attempts;
+    con->reconnect_timeout = reconnect_timeout;
 
     qemu_co_mutex_init(&client->send_mutex);
     qemu_co_queue_init(&client->free_sema);

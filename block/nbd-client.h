@@ -56,6 +56,8 @@ int nbd_client_init(BlockDriverState *bs,
                     const char *export_name,
                     QCryptoTLSCreds *tlscreds,
                     const char *hostname,
+                    uint64_t reconnect_attempts,
+                    uint64_t reconnect_timeout,
                     Error **errp);
 void nbd_client_close(BlockDriverState *bs);
 
