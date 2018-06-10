@@ -7680,6 +7680,17 @@ IMPL(alarm)
 }
 #endif
 
+#ifdef TARGET_NR_arch_prctl
+IMPL(arch_prctl)
+{
+# if defined(TARGET_I386) && !defined(TARGET_ABI32)
+    return do_arch_prctl(cpu_env, arg1, arg2);
+# else
+#  error unreachable
+# endif
+}
+#endif
+
 #ifdef TARGET_NR_bind
 IMPL(bind)
 {
@@ -11118,14 +11129,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     void *p;
 
     switch(num) {
-#ifdef TARGET_NR_arch_prctl
-    case TARGET_NR_arch_prctl:
-#if defined(TARGET_I386) && !defined(TARGET_ABI32)
-        return do_arch_prctl(cpu_env, arg1, arg2);
-#else
-#error unreachable
-#endif
-#endif
 #ifdef TARGET_NR_pread64
     case TARGET_NR_pread64:
         if (regpairs_aligned(cpu_env, num)) {
@@ -12960,6 +12963,9 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(adjtimex);
 #ifdef TARGET_NR_alarm
         SYSCALL(alarm);
+#endif
+#ifdef TARGET_NR_arch_prctl
+        SYSCALL(arch_prctl);
 #endif
 #ifdef TARGET_NR_bind
         SYSCALL(bind);
