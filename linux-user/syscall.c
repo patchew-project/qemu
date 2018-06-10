@@ -7144,21 +7144,6 @@ static inline abi_long target_to_host_sigevent(struct sigevent *host_sevp,
     return 0;
 }
 
-#if defined(TARGET_NR_mlockall)
-static inline int target_to_host_mlockall_arg(int arg)
-{
-    int result = 0;
-
-    if (arg & TARGET_MLOCKALL_MCL_CURRENT) {
-        result |= MCL_CURRENT;
-    }
-    if (arg & TARGET_MLOCKALL_MCL_FUTURE) {
-        result |= MCL_FUTURE;
-    }
-    return result;
-}
-#endif
-
 static inline abi_long host_to_target_stat64(void *cpu_env,
                                              abi_ulong target_addr,
                                              struct stat *host_st)
@@ -8392,6 +8377,23 @@ IMPL(mknodat)
     return ret;
 }
 
+IMPL(mlock)
+{
+    return get_errno(mlock(g2h(arg1), arg2));
+}
+
+IMPL(mlockall)
+{
+    int host_flags = 0;
+    if (arg1 & TARGET_MLOCKALL_MCL_CURRENT) {
+        host_flags |= MCL_CURRENT;
+    }
+    if (arg1 & TARGET_MLOCKALL_MCL_FUTURE) {
+        host_flags |= MCL_FUTURE;
+    }
+    return get_errno(mlockall(host_flags));
+}
+
 #ifdef TARGET_NR_mmap
 IMPL(mmap)
 {
@@ -8495,6 +8497,16 @@ IMPL(mremap)
 IMPL(msync)
 {
     return get_errno(msync(g2h(arg1), arg2, arg3));
+}
+
+IMPL(munlock)
+{
+    return get_errno(munlock(g2h(arg1), arg2));
+}
+
+IMPL(munlockall)
+{
+    return get_errno(munlockall());
 }
 
 IMPL(munmap)
@@ -9734,22 +9746,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     void *p;
 
     switch(num) {
-#ifdef TARGET_NR_mlock
-    case TARGET_NR_mlock:
-        return get_errno(mlock(g2h(arg1), arg2));
-#endif
-#ifdef TARGET_NR_munlock
-    case TARGET_NR_munlock:
-        return get_errno(munlock(g2h(arg1), arg2));
-#endif
-#ifdef TARGET_NR_mlockall
-    case TARGET_NR_mlockall:
-        return get_errno(mlockall(target_to_host_mlockall_arg(arg1)));
-#endif
-#ifdef TARGET_NR_munlockall
-    case TARGET_NR_munlockall:
-        return get_errno(munlockall());
-#endif
     case TARGET_NR_truncate:
         if (!(p = lock_user_string(arg1)))
             return -TARGET_EFAULT;
@@ -12762,6 +12758,8 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(mknod);
 #endif
         SYSCALL(mknodat);
+        SYSCALL(mlock);
+        SYSCALL(mlockall);
 #ifdef TARGET_NR_mmap
         SYSCALL(mmap);
 #endif
@@ -12772,6 +12770,8 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(mprotect);
         SYSCALL(mremap);
         SYSCALL(msync);
+        SYSCALL(munlock);
+        SYSCALL(munlockall);
         SYSCALL(munmap);
 #ifdef CONFIG_OPEN_BY_HANDLE
         SYSCALL(name_to_handle_at);
