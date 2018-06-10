@@ -8697,6 +8697,32 @@ IMPL(rt_sigaction)
     return ret;
 }
 
+IMPL(rt_sigpending)
+{
+    sigset_t set;
+    abi_long ret;
+
+    /* Yes, this check is >, not != like most. We follow the kernel's
+     * logic and it does it like this because it implements
+     * NR_sigpending through the same code path, and in that case
+     * the old_sigset_t is smaller in size.
+     */
+    if (arg2 > sizeof(target_sigset_t)) {
+        return -TARGET_EINVAL;
+    }
+    ret = get_errno(sigpending(&set));
+    if (!is_error(ret)) {
+        target_sigset_t *p;
+        p = lock_user(VERIFY_WRITE, arg1, sizeof(target_sigset_t), 0);
+        if (!p) {
+            return -TARGET_EFAULT;
+        }
+        host_to_target_sigset(p, &set);
+        unlock_user(p, arg1, sizeof(target_sigset_t));
+    }
+    return ret;
+}
+
 IMPL(rt_sigprocmask)
 {
     int how = 0;
@@ -8738,6 +8764,29 @@ IMPL(rt_sigprocmask)
         }
         host_to_target_sigset(p, &oldset);
         unlock_user(p, arg3, sizeof(target_sigset_t));
+    }
+    return ret;
+}
+
+IMPL(rt_sigsuspend)
+{
+    CPUState *cpu = ENV_GET_CPU(cpu_env);
+    TaskState *ts = cpu->opaque;
+    target_sigset_t *p;
+    abi_long ret;
+
+    if (arg2 != sizeof(target_sigset_t)) {
+        return -TARGET_EINVAL;
+    }
+    p = lock_user(VERIFY_READ, arg1, sizeof(target_sigset_t), 1);
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    target_to_host_sigset(&ts->sigsuspend_mask, p);
+    unlock_user(p, arg1, 0);
+    ret = get_errno(safe_rt_sigsuspend(&ts->sigsuspend_mask, SIGSET_T_SIZE));
+    if (ret != -TARGET_ERESTARTSYS) {
+        ts->in_sigsuspend = 1;
     }
     return ret;
 }
@@ -8852,6 +8901,24 @@ IMPL(sigaction)
 }
 #endif
 
+#ifdef TARGET_NR_sigpending
+IMPL(sigpending)
+{
+    sigset_t set;
+    abi_long ret = get_errno(sigpending(&set));
+    if (!is_error(ret)) {
+        abi_ulong *p;
+        p = lock_user(VERIFY_WRITE, arg1, sizeof(target_sigset_t), 0);
+        if (!p) {
+            return -TARGET_EFAULT;
+        }
+        host_to_target_old_sigset(p, &set);
+        unlock_user(p, arg1, sizeof(target_sigset_t));
+    }
+    return ret;
+}
+#endif
+
 #ifdef TARGET_NR_sigprocmask
 IMPL(sigprocmask)
 {
@@ -8920,6 +8987,32 @@ IMPL(sigprocmask)
         unlock_user(p, arg3, sizeof(target_sigset_t));
     }
 # endif
+    return ret;
+}
+#endif
+
+#ifdef TARGET_NR_sigsuspend
+IMPL(sigsuspend)
+{
+    CPUState *cpu = ENV_GET_CPU(cpu_env);
+    TaskState *ts = cpu->opaque;
+    abi_long ret;
+
+# ifdef TARGET_ALPHA
+    abi_ulong mask = arg1;
+    target_to_host_old_sigset(&ts->sigsuspend_mask, &mask);
+# else
+    abi_ulong *p = lock_user(VERIFY_READ, arg1, sizeof(target_sigset_t), 1);
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    target_to_host_old_sigset(&ts->sigsuspend_mask, p);
+    unlock_user(p, arg1, 0);
+# endif
+    ret = get_errno(safe_rt_sigsuspend(&ts->sigsuspend_mask, SIGSET_T_SIZE));
+    if (ret != -TARGET_ERESTARTSYS) {
+        ts->in_sigsuspend = 1;
+    }
     return ret;
 }
 #endif
@@ -9182,81 +9275,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     void *p;
 
     switch(num) {
-#ifdef TARGET_NR_sigpending
-    case TARGET_NR_sigpending:
-        {
-            sigset_t set;
-            ret = get_errno(sigpending(&set));
-            if (!is_error(ret)) {
-                if (!(p = lock_user(VERIFY_WRITE, arg1, sizeof(target_sigset_t), 0)))
-                    return -TARGET_EFAULT;
-                host_to_target_old_sigset(p, &set);
-                unlock_user(p, arg1, sizeof(target_sigset_t));
-            }
-        }
-        return ret;
-#endif
-    case TARGET_NR_rt_sigpending:
-        {
-            sigset_t set;
-
-            /* Yes, this check is >, not != like most. We follow the kernel's
-             * logic and it does it like this because it implements
-             * NR_sigpending through the same code path, and in that case
-             * the old_sigset_t is smaller in size.
-             */
-            if (arg2 > sizeof(target_sigset_t)) {
-                return -TARGET_EINVAL;
-            }
-
-            ret = get_errno(sigpending(&set));
-            if (!is_error(ret)) {
-                if (!(p = lock_user(VERIFY_WRITE, arg1, sizeof(target_sigset_t), 0)))
-                    return -TARGET_EFAULT;
-                host_to_target_sigset(p, &set);
-                unlock_user(p, arg1, sizeof(target_sigset_t));
-            }
-        }
-        return ret;
-#ifdef TARGET_NR_sigsuspend
-    case TARGET_NR_sigsuspend:
-        {
-            TaskState *ts = cpu->opaque;
-#if defined(TARGET_ALPHA)
-            abi_ulong mask = arg1;
-            target_to_host_old_sigset(&ts->sigsuspend_mask, &mask);
-#else
-            if (!(p = lock_user(VERIFY_READ, arg1, sizeof(target_sigset_t), 1)))
-                return -TARGET_EFAULT;
-            target_to_host_old_sigset(&ts->sigsuspend_mask, p);
-            unlock_user(p, arg1, 0);
-#endif
-            ret = get_errno(safe_rt_sigsuspend(&ts->sigsuspend_mask,
-                                               SIGSET_T_SIZE));
-            if (ret != -TARGET_ERESTARTSYS) {
-                ts->in_sigsuspend = 1;
-            }
-        }
-        return ret;
-#endif
-    case TARGET_NR_rt_sigsuspend:
-        {
-            TaskState *ts = cpu->opaque;
-
-            if (arg2 != sizeof(target_sigset_t)) {
-                return -TARGET_EINVAL;
-            }
-            if (!(p = lock_user(VERIFY_READ, arg1, sizeof(target_sigset_t), 1)))
-                return -TARGET_EFAULT;
-            target_to_host_sigset(&ts->sigsuspend_mask, p);
-            unlock_user(p, arg1, 0);
-            ret = get_errno(safe_rt_sigsuspend(&ts->sigsuspend_mask,
-                                               SIGSET_T_SIZE));
-            if (ret != -TARGET_ERESTARTSYS) {
-                ts->in_sigsuspend = 1;
-            }
-        }
-        return ret;
     case TARGET_NR_rt_sigtimedwait:
         {
             sigset_t set;
@@ -12755,7 +12773,9 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(rmdir);
 #endif
         SYSCALL(rt_sigaction);
+        SYSCALL(rt_sigpending);
         SYSCALL(rt_sigprocmask);
+        SYSCALL(rt_sigsuspend);
 #ifdef TARGET_NR_sgetmask
         SYSCALL(sgetmask);
 #endif
@@ -12764,8 +12784,14 @@ static impl_fn *syscall_table(unsigned num)
 #ifdef TARGET_NR_sigaction
         SYSCALL(sigaction);
 #endif
+#ifdef TARGET_NR_sigpending
+        SYSCALL(sigpending);
+#endif
 #ifdef TARGET_NR_sigprocmask
         SYSCALL(sigprocmask);
+#endif
+#ifdef TARGET_NR_sigsuspend
+        SYSCALL(sigsuspend);
 #endif
 #ifdef TARGET_NR_ssetmask
         SYSCALL(ssetmask);
