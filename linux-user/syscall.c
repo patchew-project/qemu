@@ -7855,6 +7855,62 @@ IMPL(clock_adjtime)
 }
 #endif
 
+IMPL(clock_getres)
+{
+    struct timespec ts;
+    abi_long ret;
+
+    ret = get_errno(clock_getres(arg1, &ts));
+    if (!is_error(ret)) {
+        ret = host_to_target_timespec(arg2, &ts);
+    }
+    return ret;
+}
+
+IMPL(clock_gettime)
+{
+    struct timespec ts;
+    abi_long ret;
+
+    ret = get_errno(clock_gettime(arg1, &ts));
+    if (!is_error(ret)) {
+        ret = host_to_target_timespec(arg2, &ts);
+    }
+    return ret;
+}
+
+IMPL(clock_nanosleep)
+{
+    struct timespec ts;
+    abi_long ret;
+
+    target_to_host_timespec(&ts, arg3);
+    ret = get_errno(safe_clock_nanosleep(arg1, arg2, &ts, arg4 ? &ts : NULL));
+    if (arg4) {
+        host_to_target_timespec(arg4, &ts);
+    }
+#if defined(TARGET_PPC)
+    /* clock_nanosleep is odd in that it returns positive errno values.
+     * On PPC, CR0 bit 3 should be set in such a situation. */
+    if (ret && ret != -TARGET_ERESTARTSYS) {
+        ((CPUPPCState *)cpu_env)->crf[0] |= 1;
+    }
+#endif
+    return ret;
+}
+
+IMPL(clock_settime)
+{
+    struct timespec ts;
+    abi_long ret;
+
+    ret = target_to_host_timespec(&ts, arg2);
+    if (!is_error(ret)) {
+        ret = get_errno(clock_settime(arg1, &ts));
+    }
+    return ret;
+}
+
 IMPL(clone)
 {
     /* Linux manages to have three different orderings for its
@@ -12504,61 +12560,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     void *p;
 
     switch(num) {
-#ifdef TARGET_NR_clock_settime
-    case TARGET_NR_clock_settime:
-    {
-        struct timespec ts;
-
-        ret = target_to_host_timespec(&ts, arg2);
-        if (!is_error(ret)) {
-            ret = get_errno(clock_settime(arg1, &ts));
-        }
-        return ret;
-    }
-#endif
-#ifdef TARGET_NR_clock_gettime
-    case TARGET_NR_clock_gettime:
-    {
-        struct timespec ts;
-        ret = get_errno(clock_gettime(arg1, &ts));
-        if (!is_error(ret)) {
-            ret = host_to_target_timespec(arg2, &ts);
-        }
-        return ret;
-    }
-#endif
-#ifdef TARGET_NR_clock_getres
-    case TARGET_NR_clock_getres:
-    {
-        struct timespec ts;
-        ret = get_errno(clock_getres(arg1, &ts));
-        if (!is_error(ret)) {
-            host_to_target_timespec(arg2, &ts);
-        }
-        return ret;
-    }
-#endif
-#ifdef TARGET_NR_clock_nanosleep
-    case TARGET_NR_clock_nanosleep:
-    {
-        struct timespec ts;
-        target_to_host_timespec(&ts, arg3);
-        ret = get_errno(safe_clock_nanosleep(arg1, arg2,
-                                             &ts, arg4 ? &ts : NULL));
-        if (arg4)
-            host_to_target_timespec(arg4, &ts);
-
-#if defined(TARGET_PPC)
-        /* clock_nanosleep is odd in that it returns positive errno values.
-         * On PPC, CR0 bit 3 should be set in such a situation. */
-        if (ret && ret != -TARGET_ERESTARTSYS) {
-            ((CPUPPCState *)cpu_env)->crf[0] |= 1;
-        }
-#endif
-        return ret;
-    }
-#endif
-
 #if defined(TARGET_NR_set_tid_address) && defined(__NR_set_tid_address)
     case TARGET_NR_set_tid_address:
         return get_errno(set_tid_address((int *)g2h(arg1)));
@@ -13292,6 +13293,10 @@ static impl_fn *syscall_table(unsigned num)
 #ifdef CONFIG_CLOCK_ADJTIME
         SYSCALL(clock_adjtime);
 #endif
+        SYSCALL(clock_getres);
+        SYSCALL(clock_gettime);
+        SYSCALL(clock_nanosleep);
+        SYSCALL(clock_settime);
         SYSCALL(clone);
         SYSCALL(close);
         SYSCALL(chdir);
