@@ -8161,6 +8161,19 @@ IMPL(getcpu)
     return ret;
 }
 
+IMPL(getcwd)
+{
+    char *p = lock_user(VERIFY_WRITE, arg1, arg2, 0);
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(sys_getcwd1(p, arg2));
+    unlock_user(p, arg1, ret);
+    return ret;
+}
+
 #ifdef TARGET_NR_getdents
 IMPL(getdents)
 {
@@ -9359,6 +9372,23 @@ IMPL(prctl)
     }
 }
 
+IMPL(pread64)
+{
+    void *p = lock_user(VERIFY_WRITE, arg2, arg3, 0);
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    if (regpairs_aligned(cpu_env, TARGET_NR_pread64)) {
+        arg4 = arg5;
+        arg5 = arg6;
+    }
+    ret = get_errno(pread64(arg1, p, arg3, target_offset64(arg4, arg5)));
+    unlock_user(p, arg2, ret);
+    return ret;
+}
+
 IMPL(preadv)
 {
     struct iovec *vec;
@@ -9475,6 +9505,23 @@ IMPL(pselect6)
             return -TARGET_EFAULT;
         }
     }
+    return ret;
+}
+
+IMPL(pwrite64)
+{
+    void *p = lock_user(VERIFY_READ, arg2, arg3, 1);
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    if (regpairs_aligned(cpu_env, TARGET_NR_pwrite64)) {
+        arg4 = arg5;
+        arg5 = arg6;
+    }
+    ret = get_errno(pwrite64(arg1, p, arg3, target_offset64(arg4, arg5)));
+    unlock_user(p, arg2, 0);
     return ret;
 }
 
@@ -10359,6 +10406,11 @@ IMPL(sigaction)
 }
 #endif
 
+IMPL(sigaltstack)
+{
+    return do_sigaltstack(arg1, arg2, get_sp_from_cpustate(cpu_env));
+}
+
 #ifdef TARGET_NR_sigpending
 IMPL(sigpending)
 {
@@ -11129,34 +11181,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     void *p;
 
     switch(num) {
-#ifdef TARGET_NR_pread64
-    case TARGET_NR_pread64:
-        if (regpairs_aligned(cpu_env, num)) {
-            arg4 = arg5;
-            arg5 = arg6;
-        }
-        if (!(p = lock_user(VERIFY_WRITE, arg2, arg3, 0)))
-            return -TARGET_EFAULT;
-        ret = get_errno(pread64(arg1, p, arg3, target_offset64(arg4, arg5)));
-        unlock_user(p, arg2, ret);
-        return ret;
-    case TARGET_NR_pwrite64:
-        if (regpairs_aligned(cpu_env, num)) {
-            arg4 = arg5;
-            arg5 = arg6;
-        }
-        if (!(p = lock_user(VERIFY_READ, arg2, arg3, 1)))
-            return -TARGET_EFAULT;
-        ret = get_errno(pwrite64(arg1, p, arg3, target_offset64(arg4, arg5)));
-        unlock_user(p, arg2, 0);
-        return ret;
-#endif
-    case TARGET_NR_getcwd:
-        if (!(p = lock_user(VERIFY_WRITE, arg1, arg2, 0)))
-            return -TARGET_EFAULT;
-        ret = get_errno(sys_getcwd1(p, arg2));
-        unlock_user(p, arg1, ret);
-        return ret;
     case TARGET_NR_capget:
     case TARGET_NR_capset:
     {
@@ -11227,10 +11251,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
         }
         return ret;
     }
-    case TARGET_NR_sigaltstack:
-        return do_sigaltstack(arg1, arg2,
-                              get_sp_from_cpustate((CPUArchState *)cpu_env));
-
 #ifdef CONFIG_SENDFILE
     case TARGET_NR_sendfile:
     {
@@ -13022,6 +13042,7 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(futimesat);
 #endif
         SYSCALL(getcpu);
+        SYSCALL(getcwd);
 #ifdef TARGET_NR_getdents
         SYSCALL(getdents);
 #endif
@@ -13144,8 +13165,10 @@ static impl_fn *syscall_table(unsigned num)
 #endif
         SYSCALL(ppoll);
         SYSCALL(prctl);
+        SYSCALL(pread64);
         SYSCALL(preadv);
         SYSCALL(pselect6);
+        SYSCALL(pwrite64);
         SYSCALL(pwritev);
         SYSCALL(read);
 #ifdef TARGET_NR_readlink
@@ -13254,6 +13277,7 @@ static impl_fn *syscall_table(unsigned num)
 #ifdef TARGET_NR_sigaction
         SYSCALL(sigaction);
 #endif
+        SYSCALL(sigaltstack);
 #ifdef TARGET_NR_sigpending
         SYSCALL(sigpending);
 #endif
