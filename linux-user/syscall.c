@@ -11820,6 +11820,13 @@ IMPL(setitimer)
     return ret;
 }
 
+#ifdef CONFIG_SETNS
+IMPL(setns)
+{
+    return get_errno(setns(arg1, arg2));
+}
+#endif
+
 IMPL(setpgid)
 {
     return get_errno(setpgid(arg1, arg2));
@@ -12984,6 +12991,13 @@ IMPL(unlinkat)
     return ret;
 }
 
+#ifdef CONFIG_SETNS
+IMPL(unshare)
+{
+    return get_errno(unshare(arg1));
+}
+#endif
+
 #ifdef TARGET_NR_utime
 IMPL(utime)
 {
@@ -13200,23 +13214,11 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
                             abi_long arg5, abi_long arg6, abi_long arg7,
                             abi_long arg8)
 {
-    CPUState *cpu __attribute__((unused)) = ENV_GET_CPU(cpu_env);
-    abi_long ret;
-
     switch(num) {
-#if defined(TARGET_NR_setns) && defined(CONFIG_SETNS)
-    case TARGET_NR_setns:
-        return get_errno(setns(arg1, arg2));
-#endif
-#if defined(TARGET_NR_unshare) && defined(CONFIG_SETNS)
-    case TARGET_NR_unshare:
-        return get_errno(unshare(arg1));
-#endif
     default:
         gemu_log("qemu: Unsupported syscall: %d\n", num);
         return -TARGET_ENOSYS;
     }
-    return ret;
 }
 
 /* The default action for a syscall not listed in syscall_table is to
@@ -13770,6 +13772,9 @@ static impl_fn *syscall_table(unsigned num)
 #endif
         SYSCALL(sethostname);
         SYSCALL(setitimer);
+#ifdef CONFIG_SETNS
+        SYSCALL(setns);
+#endif
         SYSCALL(setpgid);
         SYSCALL(setpriority);
         SYSCALL(setregid);
@@ -13916,6 +13921,9 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(unlink);
 #endif
         SYSCALL(unlinkat);
+#ifdef CONFIG_SETNS
+        SYSCALL(unshare);
+#endif
 #ifdef TARGET_NR_utime
         SYSCALL(utime);
 #endif
