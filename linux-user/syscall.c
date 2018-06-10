@@ -7946,6 +7946,15 @@ IMPL(creat)
 }
 #endif
 
+IMPL(dup)
+{
+    abi_long ret = get_errno(dup(arg1));
+    if (ret >= 0) {
+        fd_trans_dup(arg1, ret);
+    }
+    return ret;
+}
+
 IMPL(execve)
 {
     abi_ulong *guest_ptrs;
@@ -8189,6 +8198,34 @@ IMPL(linkat)
 IMPL(lseek)
 {
     return get_errno(lseek(arg1, arg2, arg3));
+}
+
+#ifdef TARGET_NR_mkdir
+IMPL(mkdir)
+{
+    char *p = lock_user_string(arg1);
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(mkdir(p, arg2));
+    unlock_user(p, arg1, 0);
+    return ret;
+}
+#endif
+
+IMPL(mkdirat)
+{
+    char *p = lock_user_string(arg2);
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(mkdirat(arg1, p, arg3));
+    unlock_user(p, arg2, 0);
+    return ret;
 }
 
 #ifdef TARGET_NR_mknod
@@ -8464,6 +8501,21 @@ IMPL(renameat2)
     return ret;
 }
 
+#ifdef TARGET_NR_rmdir
+IMPL(rmdir)
+{
+    char *p = lock_user_string(arg1);
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(rmdir(p));
+    unlock_user(p, arg1, 0);
+    return ret;
+}
+#endif
+
 #ifdef TARGET_NR_stime
 IMPL(stime)
 {
@@ -8665,36 +8717,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     void *p;
 
     switch(num) {
-#ifdef TARGET_NR_mkdir
-    case TARGET_NR_mkdir:
-        if (!(p = lock_user_string(arg1)))
-            return -TARGET_EFAULT;
-        ret = get_errno(mkdir(p, arg2));
-        unlock_user(p, arg1, 0);
-        return ret;
-#endif
-#if defined(TARGET_NR_mkdirat)
-    case TARGET_NR_mkdirat:
-        if (!(p = lock_user_string(arg2)))
-            return -TARGET_EFAULT;
-        ret = get_errno(mkdirat(arg1, p, arg3));
-        unlock_user(p, arg2, 0);
-        return ret;
-#endif
-#ifdef TARGET_NR_rmdir
-    case TARGET_NR_rmdir:
-        if (!(p = lock_user_string(arg1)))
-            return -TARGET_EFAULT;
-        ret = get_errno(rmdir(p));
-        unlock_user(p, arg1, 0);
-        return ret;
-#endif
-    case TARGET_NR_dup:
-        ret = get_errno(dup(arg1));
-        if (ret >= 0) {
-            fd_trans_dup(arg1, ret);
-        }
-        return ret;
 #ifdef TARGET_NR_pipe
     case TARGET_NR_pipe:
         return do_pipe(cpu_env, arg1, 0, 0);
@@ -12581,6 +12603,7 @@ static impl_fn *syscall_table(unsigned num)
 #ifdef TARGET_NR_creat
         SYSCALL(creat);
 #endif
+        SYSCALL(dup);
         SYSCALL(execve);
         SYSCALL(exit);
         SYSCALL(faccessat);
@@ -12602,6 +12625,10 @@ static impl_fn *syscall_table(unsigned num)
 #endif
         SYSCALL(linkat);
         SYSCALL(lseek);
+#ifdef TARGET_NR_mkdir
+        SYSCALL(mkdir);
+#endif
+        SYSCALL(mkdirat);
 #ifdef TARGET_NR_mknod
         SYSCALL(mknod);
 #endif
@@ -12631,6 +12658,9 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(renameat);
 #endif
         SYSCALL(renameat2);
+#ifdef TARGET_NR_rmdir
+        SYSCALL(rmdir);
+#endif
 #ifdef TARGET_NR_stime
         SYSCALL(stime);
 #endif
