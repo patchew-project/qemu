@@ -7703,6 +7703,90 @@ IMPL(brk)
     return do_brk(arg1);
 }
 
+IMPL(capget)
+{
+    struct target_user_cap_header *target_header;
+    struct __user_cap_header_struct header;
+    struct __user_cap_data_struct data[2];
+    int data_items;
+    abi_long ret;
+
+    if (!lock_user_struct(VERIFY_WRITE, target_header, arg1, 1)) {
+        return -TARGET_EFAULT;
+    }
+    header.version = tswap32(target_header->version);
+    header.pid = tswap32(target_header->pid);
+
+    /* Version 2 and up takes pointer to two user_data structs */
+    data_items = (header.version == _LINUX_CAPABILITY_VERSION ? 1 : 2);
+
+    ret = get_errno(capget(&header, arg2 ? data : NULL));
+
+    /* The kernel always updates version for both capget and capset */
+    target_header->version = tswap32(header.version);
+    unlock_user_struct(target_header, arg1, 1);
+
+    if (arg2) {
+        struct target_user_cap_data *target_data;
+        int target_datalen = sizeof(*target_data) * data_items;
+        int i;
+
+        target_data = lock_user(VERIFY_WRITE, arg2, target_datalen, 0);
+        if (!target_data) {
+            return -TARGET_EFAULT;
+        }
+        for (i = 0; i < data_items; i++) {
+            target_data[i].effective = tswap32(data[i].effective);
+            target_data[i].permitted = tswap32(data[i].permitted);
+            target_data[i].inheritable = tswap32(data[i].inheritable);
+        }
+        unlock_user(target_data, arg2, target_datalen);
+    }
+    return ret;
+}
+
+IMPL(capset)
+{
+    struct target_user_cap_header *target_header;
+    struct __user_cap_header_struct header;
+    struct __user_cap_data_struct data[2];
+    abi_long ret;
+
+    if (!lock_user_struct(VERIFY_WRITE, target_header, arg1, 1)) {
+        return -TARGET_EFAULT;
+    }
+    header.version = tswap32(target_header->version);
+    header.pid = tswap32(target_header->pid);
+
+    if (arg2) {
+        /* Version 2 and up takes pointer to two user_data structs */
+        int data_items = (header.version == _LINUX_CAPABILITY_VERSION ? 1 : 2);
+        struct target_user_cap_data *target_data;
+        int target_datalen = sizeof(*target_data) * data_items;
+        int i;
+
+        target_data = lock_user(VERIFY_READ, arg2, target_datalen, 1);
+        if (!target_data) {
+            unlock_user_struct(target_header, arg1, 0);
+            return -TARGET_EFAULT;
+        }
+
+        for (i = 0; i < data_items; i++) {
+            data[i].effective = tswap32(target_data[i].effective);
+            data[i].permitted = tswap32(target_data[i].permitted);
+            data[i].inheritable = tswap32(target_data[i].inheritable);
+        }
+        unlock_user(target_data, arg2, 0);
+    }
+
+    ret = get_errno(capset(&header, arg2 ? data : NULL));
+
+    /* The kernel always updates version for both capget and capset */
+    target_header->version = tswap32(header.version);
+    unlock_user_struct(target_header, arg1, 1);
+    return ret;
+}
+
 IMPL(chdir)
 {
     char *p = lock_user_string(arg1);
@@ -11181,76 +11265,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     void *p;
 
     switch(num) {
-    case TARGET_NR_capget:
-    case TARGET_NR_capset:
-    {
-        struct target_user_cap_header *target_header;
-        struct target_user_cap_data *target_data = NULL;
-        struct __user_cap_header_struct header;
-        struct __user_cap_data_struct data[2];
-        struct __user_cap_data_struct *dataptr = NULL;
-        int i, target_datalen;
-        int data_items = 1;
-
-        if (!lock_user_struct(VERIFY_WRITE, target_header, arg1, 1)) {
-            return -TARGET_EFAULT;
-        }
-        header.version = tswap32(target_header->version);
-        header.pid = tswap32(target_header->pid);
-
-        if (header.version != _LINUX_CAPABILITY_VERSION) {
-            /* Version 2 and up takes pointer to two user_data structs */
-            data_items = 2;
-        }
-
-        target_datalen = sizeof(*target_data) * data_items;
-
-        if (arg2) {
-            if (num == TARGET_NR_capget) {
-                target_data = lock_user(VERIFY_WRITE, arg2, target_datalen, 0);
-            } else {
-                target_data = lock_user(VERIFY_READ, arg2, target_datalen, 1);
-            }
-            if (!target_data) {
-                unlock_user_struct(target_header, arg1, 0);
-                return -TARGET_EFAULT;
-            }
-
-            if (num == TARGET_NR_capset) {
-                for (i = 0; i < data_items; i++) {
-                    data[i].effective = tswap32(target_data[i].effective);
-                    data[i].permitted = tswap32(target_data[i].permitted);
-                    data[i].inheritable = tswap32(target_data[i].inheritable);
-                }
-            }
-
-            dataptr = data;
-        }
-
-        if (num == TARGET_NR_capget) {
-            ret = get_errno(capget(&header, dataptr));
-        } else {
-            ret = get_errno(capset(&header, dataptr));
-        }
-
-        /* The kernel always updates version for both capget and capset */
-        target_header->version = tswap32(header.version);
-        unlock_user_struct(target_header, arg1, 1);
-
-        if (arg2) {
-            if (num == TARGET_NR_capget) {
-                for (i = 0; i < data_items; i++) {
-                    target_data[i].effective = tswap32(data[i].effective);
-                    target_data[i].permitted = tswap32(data[i].permitted);
-                    target_data[i].inheritable = tswap32(data[i].inheritable);
-                }
-                unlock_user(target_data, arg2, target_datalen);
-            } else {
-                unlock_user(target_data, arg2, 0);
-            }
-        }
-        return ret;
-    }
 #ifdef CONFIG_SENDFILE
     case TARGET_NR_sendfile:
     {
@@ -12991,6 +13005,8 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(bind);
 #endif
         SYSCALL(brk);
+        SYSCALL(capget);
+        SYSCALL(capset);
 #ifdef CONFIG_CLOCK_ADJTIME
         SYSCALL(clock_adjtime);
 #endif
