@@ -168,7 +168,8 @@ static void s390_ipl_realize(DeviceState *dev, Error **errp)
          * we can not rely on the ELF entry point - it was 0x800 (the SALIPL
          * loader) and it won't work. For this case we force it to 0x10000, too.
          */
-        if (pentry == KERN_IMAGE_START || pentry == 0x800) {
+        if ((pentry == KERN_IMAGE_START || pentry == 0x800) &&
+            kernel_size > KERN_PARM_AREA + strlen(ipl->cmdline)) {
             ipl->start_addr = KERN_IMAGE_START;
             /* Overwrite parameters in the kernel image, which are "rom" */
             strcpy(rom_ptr(KERN_PARM_AREA), ipl->cmdline);
