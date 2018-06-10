@@ -8471,6 +8471,37 @@ IMPL(mount)
     return ret;
 }
 
+IMPL(mprotect)
+{
+    /* Special hack to detect libc making the stack executable.  */
+    if (arg3 & PROT_GROWSDOWN) {
+        CPUState *cpu = ENV_GET_CPU(cpu_env);
+        TaskState *ts = cpu->opaque;
+
+        if (arg1 >= ts->info->stack_limit && arg1 <= ts->info->start_stack) {
+            arg3 &= ~PROT_GROWSDOWN;
+            arg2 = arg2 + arg1 - ts->info->stack_limit;
+            arg1 = ts->info->stack_limit;
+        }
+    }
+    return get_errno(target_mprotect(arg1, arg2, arg3));
+}
+
+IMPL(mremap)
+{
+    return get_errno(target_mremap(arg1, arg2, arg3, arg4, arg5));
+}
+
+IMPL(msync)
+{
+    return get_errno(msync(g2h(arg1), arg2, arg3));
+}
+
+IMPL(munmap)
+{
+    return get_errno(target_munmap(arg1, arg2));
+}
+
 #ifdef CONFIG_OPEN_BY_HANDLE
 IMPL(name_to_handle_at)
 {
@@ -9696,37 +9727,13 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
                             abi_long arg5, abi_long arg6, abi_long arg7,
                             abi_long arg8)
 {
-    CPUState *cpu = ENV_GET_CPU(cpu_env);
+    CPUState *cpu __attribute__((unused)) = ENV_GET_CPU(cpu_env);
     abi_long ret;
     struct stat st;
     struct statfs stfs;
     void *p;
 
     switch(num) {
-    case TARGET_NR_munmap:
-        return get_errno(target_munmap(arg1, arg2));
-    case TARGET_NR_mprotect:
-        {
-            TaskState *ts = cpu->opaque;
-            /* Special hack to detect libc making the stack executable.  */
-            if ((arg3 & PROT_GROWSDOWN)
-                && arg1 >= ts->info->stack_limit
-                && arg1 <= ts->info->start_stack) {
-                arg3 &= ~PROT_GROWSDOWN;
-                arg2 = arg2 + arg1 - ts->info->stack_limit;
-                arg1 = ts->info->stack_limit;
-            }
-        }
-        return get_errno(target_mprotect(arg1, arg2, arg3));
-#ifdef TARGET_NR_mremap
-    case TARGET_NR_mremap:
-        return get_errno(target_mremap(arg1, arg2, arg3, arg4, arg5));
-#endif
-        /* ??? msync/mlock/munlock are broken for softmmu.  */
-#ifdef TARGET_NR_msync
-    case TARGET_NR_msync:
-        return get_errno(msync(g2h(arg1), arg2, arg3));
-#endif
 #ifdef TARGET_NR_mlock
     case TARGET_NR_mlock:
         return get_errno(mlock(g2h(arg1), arg2));
@@ -12762,6 +12769,10 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(mmap2);
 #endif
         SYSCALL(mount);
+        SYSCALL(mprotect);
+        SYSCALL(mremap);
+        SYSCALL(msync);
+        SYSCALL(munmap);
 #ifdef CONFIG_OPEN_BY_HANDLE
         SYSCALL(name_to_handle_at);
 #endif
