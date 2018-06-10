@@ -249,6 +249,14 @@ static type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4,type5 arg5,	\
 #define TARGET_NR__llseek TARGET_NR_llseek
 #endif
 
+/* These definitions produce an ENOSYS from the host kernel.
+ * Performing a bogus syscall is lazier than boilerplating
+ * the replacement functions here in C.
+ */
+#ifndef __NR_getrandom
+#define __NR_getrandom  -1
+#endif
+
 #ifdef __NR_gettid
 _syscall0(int, gettid)
 #else
@@ -315,9 +323,7 @@ _syscall2(int, ioprio_get, int, which, int, who)
 #if defined(TARGET_NR_ioprio_set) && defined(__NR_ioprio_set)
 _syscall3(int, ioprio_set, int, which, int, who, int, ioprio)
 #endif
-#if defined(TARGET_NR_getrandom) && defined(__NR_getrandom)
 _syscall3(int, getrandom, void *, buf, size_t, buflen, unsigned int, flags)
-#endif
 
 #if defined(TARGET_NR_kcmp) && defined(__NR_kcmp)
 _syscall5(int, kcmp, pid_t, pid1, pid_t, pid2, int, type,
@@ -8202,6 +8208,19 @@ IMPL(getpriority)
 #endif
 }
 
+IMPL(getrandom)
+{
+    char *p = lock_user(VERIFY_WRITE, arg1, arg2, 0);
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(getrandom(p, arg2, arg3));
+    unlock_user(p, arg1, ret);
+    return ret;
+}
+
 IMPL(getrlimit)
 {
     int resource = target_to_host_resource(arg1);
@@ -9284,6 +9303,13 @@ IMPL(sgetmask)
 }
 #endif
 
+#ifdef TARGET_NR_shutdown
+IMPL(shutdown)
+{
+    return get_errno(shutdown(arg1, arg2));
+}
+#endif
+
 #if defined(TARGET_NR_select) && !defined(TARGET_WANT_NI_OLD_SELECT)
 IMPL(select)
 {
@@ -9360,6 +9386,13 @@ IMPL(setrlimit)
     unlock_user_struct(target_rlim, arg2, 0);
     return get_errno(setrlimit(resource, &rlim));
 }
+
+#ifdef TARGET_NR_setsockopt
+IMPL(setsockopt)
+{
+    return do_setsockopt(arg1, arg2, arg3, arg4, (socklen_t) arg5);
+}
+#endif
 
 IMPL(settimeofday)
 {
@@ -9592,6 +9625,13 @@ IMPL(sigsuspend)
 }
 #endif
 
+#ifdef TARGET_NR_socket
+IMPL(socket)
+{
+    return do_socket(arg1, arg2, arg3);
+}
+#endif
+
 #ifdef TARGET_NR_socketcall
 IMPL(socketcall)
 {
@@ -9683,6 +9723,13 @@ IMPL(socketcall)
         gemu_log("Unsupported socketcall: %d\n", num);
         return -TARGET_EINVAL;
     }
+}
+#endif
+
+#ifdef TARGET_NR_socketpair
+IMPL(socketpair)
+{
+    return do_socketpair(arg1, arg2, arg3, arg4);
 }
 #endif
 
@@ -10035,32 +10082,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     void *p;
 
     switch(num) {
-#ifdef TARGET_NR_shutdown
-    case TARGET_NR_shutdown:
-        return get_errno(shutdown(arg1, arg2));
-#endif
-#if defined(TARGET_NR_getrandom) && defined(__NR_getrandom)
-    case TARGET_NR_getrandom:
-        p = lock_user(VERIFY_WRITE, arg1, arg2, 0);
-        if (!p) {
-            return -TARGET_EFAULT;
-        }
-        ret = get_errno(getrandom(p, arg2, arg3));
-        unlock_user(p, arg1, ret);
-        return ret;
-#endif
-#ifdef TARGET_NR_socket
-    case TARGET_NR_socket:
-        return do_socket(arg1, arg2, arg3);
-#endif
-#ifdef TARGET_NR_socketpair
-    case TARGET_NR_socketpair:
-        return do_socketpair(arg1, arg2, arg3, arg4);
-#endif
-#ifdef TARGET_NR_setsockopt
-    case TARGET_NR_setsockopt:
-        return do_setsockopt(arg1, arg2, arg3, arg4, (socklen_t) arg5);
-#endif
 #if defined(TARGET_NR_syslog)
     case TARGET_NR_syslog:
         {
@@ -12878,6 +12899,7 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(getppid);
 #endif
         SYSCALL(getpriority);
+        SYSCALL(getrandom);
         SYSCALL(getrlimit);
         SYSCALL(getrusage);
 #ifdef TARGET_NR_getsockname
@@ -12986,6 +13008,9 @@ static impl_fn *syscall_table(unsigned num)
 #ifdef TARGET_NR_sgetmask
         SYSCALL(sgetmask);
 #endif
+#ifdef TARGET_NR_shutdown
+        SYSCALL(shutdown);
+#endif
 #ifdef TARGET_NR_select
 # ifdef TARGET_WANT_NI_OLD_SELECT
         SYSCALL_WITH(select, enosys);
@@ -13009,6 +13034,9 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(setpgid);
         SYSCALL(setpriority);
         SYSCALL(setrlimit);
+#ifdef TARGET_NR_setsockopt
+        SYSCALL(setsockopt);
+#endif
         SYSCALL(settimeofday);
         SYSCALL(setsid);
 #ifdef TARGET_NR_sigaction
@@ -13026,8 +13054,14 @@ static impl_fn *syscall_table(unsigned num)
 #ifdef TARGET_NR_sigsuspend
         SYSCALL(sigsuspend);
 #endif
+#ifdef TARGET_NR_socket
+        SYSCALL(socket);
+#endif
 #ifdef TARGET_NR_socketcall
         SYSCALL(socketcall);
+#endif
+#ifdef TARGET_NR_socketpair
+        SYSCALL(socketpair);
 #endif
 #ifdef TARGET_NR_ssetmask
         SYSCALL(ssetmask);
