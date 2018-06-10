@@ -7802,6 +7802,21 @@ IMPL(chown)
 }
 #endif
 
+#ifdef TARGET_NR_chown32
+IMPL(chown32)
+{
+    char *p = lock_user_string(arg1);
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(chown(p, arg2, arg3));
+    unlock_user(p, arg1, 0);
+    return ret;
+}
+#endif
+
 IMPL(chroot)
 {
     char *p = lock_user_string(arg1);
@@ -10815,15 +10830,36 @@ IMPL(setfsgid)
     return get_errno(setfsgid(arg1));
 }
 
+#ifdef TARGET_NR_setfsgid32
+IMPL(setfsgid32)
+{
+    return get_errno(setfsgid(arg1));
+}
+#endif
+
 IMPL(setfsuid)
 {
     return get_errno(setfsuid(arg1));
 }
 
+#ifdef TARGET_NR_setfsuid32
+IMPL(setfsuid32)
+{
+    return get_errno(setfsuid(arg1));
+}
+#endif
+
 IMPL(setgid)
 {
     return get_errno(sys_setgid(low2highgid(arg1)));
 }
+
+#ifdef TARGET_NR_setgid32
+IMPL(setgid32)
+{
+    return get_errno(sys_setgid(arg1));
+}
+#endif
 
 IMPL(setgroups)
 {
@@ -11016,6 +11052,13 @@ IMPL(setuid)
 {
     return get_errno(sys_setuid(low2highuid(arg1)));
 }
+
+#ifdef TARGET_NR_setuid32
+IMPL(setuid32)
+{
+    return get_errno(sys_setuid(arg1));
+}
+#endif
 
 #ifdef TARGET_NR_sigaction
 IMPL(sigaction)
@@ -11943,30 +11986,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     void *p;
 
     switch(num) {
-#ifdef TARGET_NR_chown32
-    case TARGET_NR_chown32:
-        if (!(p = lock_user_string(arg1)))
-            return -TARGET_EFAULT;
-        ret = get_errno(chown(p, arg2, arg3));
-        unlock_user(p, arg1, 0);
-        return ret;
-#endif
-#ifdef TARGET_NR_setuid32
-    case TARGET_NR_setuid32:
-        return get_errno(sys_setuid(arg1));
-#endif
-#ifdef TARGET_NR_setgid32
-    case TARGET_NR_setgid32:
-        return get_errno(sys_setgid(arg1));
-#endif
-#ifdef TARGET_NR_setfsuid32
-    case TARGET_NR_setfsuid32:
-        return get_errno(setfsuid(arg1));
-#endif
-#ifdef TARGET_NR_setfsgid32
-    case TARGET_NR_setfsgid32:
-        return get_errno(setfsgid(arg1));
-#endif
 #ifdef TARGET_NR_mincore
     case TARGET_NR_mincore:
         {
@@ -13140,6 +13159,9 @@ static impl_fn *syscall_table(unsigned num)
 #ifdef TARGET_NR_chown
         SYSCALL(chown);
 #endif
+#ifdef TARGET_NR_chown32
+        SYSCALL(chown32);
+#endif
         SYSCALL(chroot);
 #ifdef TARGET_NR_connect
         SYSCALL(connect);
@@ -13492,8 +13514,17 @@ static impl_fn *syscall_table(unsigned num)
 #endif
         SYSCALL(setdomainname);
         SYSCALL(setfsgid);
+#ifdef TARGET_NR_setfsgid32
+        SYSCALL(setfsgid32);
+#endif
         SYSCALL(setfsuid);
+#ifdef TARGET_NR_setfsuid32
+        SYSCALL(setfsuid32);
+#endif
         SYSCALL(setgid);
+#ifdef TARGET_NR_setgid32
+        SYSCALL(setgid32);
+#endif
         SYSCALL(setgroups);
 #ifdef TARGET_NR_setgroups32
         SYSCALL(setgroups32);
@@ -13529,6 +13560,9 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(settimeofday);
         SYSCALL(setsid);
         SYSCALL(setuid);
+#ifdef TARGET_NR_setuid32
+        SYSCALL(setuid32);
+#endif
 #ifdef TARGET_NR_sigaction
         SYSCALL(sigaction);
 #endif
