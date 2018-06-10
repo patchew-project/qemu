@@ -9903,6 +9903,19 @@ IMPL(stime)
 }
 #endif
 
+IMPL(swapoff)
+{
+    char *p = lock_user_string(arg1);
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(swapoff(p));
+    unlock_user(p, arg1, 0);
+    return ret;
+}
+
 IMPL(swapon)
 {
     char *p = lock_user_string(arg1);
@@ -9958,6 +9971,36 @@ IMPL(syncfs)
     return get_errno(syncfs(arg1));
 }
 #endif
+
+IMPL(sysinfo)
+{
+    struct sysinfo value;
+    abi_long ret = get_errno(sysinfo(&value));
+
+    if (!is_error(ret) && arg1) {
+        struct target_sysinfo *target_value;
+
+        if (!lock_user_struct(VERIFY_WRITE, target_value, arg1, 0)) {
+            return -TARGET_EFAULT;
+        }
+        __put_user(value.uptime, &target_value->uptime);
+        __put_user(value.loads[0], &target_value->loads[0]);
+        __put_user(value.loads[1], &target_value->loads[1]);
+        __put_user(value.loads[2], &target_value->loads[2]);
+        __put_user(value.totalram, &target_value->totalram);
+        __put_user(value.freeram, &target_value->freeram);
+        __put_user(value.sharedram, &target_value->sharedram);
+        __put_user(value.bufferram, &target_value->bufferram);
+        __put_user(value.totalswap, &target_value->totalswap);
+        __put_user(value.freeswap, &target_value->freeswap);
+        __put_user(value.procs, &target_value->procs);
+        __put_user(value.totalhigh, &target_value->totalhigh);
+        __put_user(value.freehigh, &target_value->freehigh);
+        __put_user(value.mem_unit, &target_value->mem_unit);
+        unlock_user_struct(target_value, arg1, 1);
+    }
+    return ret;
+}
 
 IMPL(syslog)
 {
@@ -10156,6 +10199,35 @@ IMPL(utimes)
 }
 #endif
 
+IMPL(vhangup)
+{
+    return get_errno(vhangup());
+}
+
+IMPL(wait4)
+{
+    int status;
+    struct rusage rusage;
+    abi_long ret;
+
+    ret = get_errno(safe_wait4(arg1, &status, arg3, &rusage));
+    if (!is_error(ret)) {
+        if (ret && arg2) {
+            status = host_to_target_waitstatus(status);
+            if (put_user_s32(status, arg2)) {
+                return -TARGET_EFAULT;
+            }
+        }
+        if (arg4) {
+            abi_long err = host_to_target_rusage(arg4, &rusage);
+            if (err) {
+                return err;
+            }
+        }
+    }
+    return ret;
+}
+
 IMPL(waitid)
 {
     siginfo_t info;
@@ -10228,70 +10300,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     void *p;
 
     switch(num) {
-    case TARGET_NR_vhangup:
-        return get_errno(vhangup());
-    case TARGET_NR_wait4:
-        {
-            int status;
-            abi_long status_ptr = arg2;
-            struct rusage rusage, *rusage_ptr;
-            abi_ulong target_rusage = arg4;
-            abi_long rusage_err;
-            if (target_rusage)
-                rusage_ptr = &rusage;
-            else
-                rusage_ptr = NULL;
-            ret = get_errno(safe_wait4(arg1, &status, arg3, rusage_ptr));
-            if (!is_error(ret)) {
-                if (status_ptr && ret) {
-                    status = host_to_target_waitstatus(status);
-                    if (put_user_s32(status, status_ptr))
-                        return -TARGET_EFAULT;
-                }
-                if (target_rusage) {
-                    rusage_err = host_to_target_rusage(target_rusage, &rusage);
-                    if (rusage_err) {
-                        ret = rusage_err;
-                    }
-                }
-            }
-        }
-        return ret;
-#ifdef TARGET_NR_swapoff
-    case TARGET_NR_swapoff:
-        if (!(p = lock_user_string(arg1)))
-            return -TARGET_EFAULT;
-        ret = get_errno(swapoff(p));
-        unlock_user(p, arg1, 0);
-        return ret;
-#endif
-    case TARGET_NR_sysinfo:
-        {
-            struct target_sysinfo *target_value;
-            struct sysinfo value;
-            ret = get_errno(sysinfo(&value));
-            if (!is_error(ret) && arg1)
-            {
-                if (!lock_user_struct(VERIFY_WRITE, target_value, arg1, 0))
-                    return -TARGET_EFAULT;
-                __put_user(value.uptime, &target_value->uptime);
-                __put_user(value.loads[0], &target_value->loads[0]);
-                __put_user(value.loads[1], &target_value->loads[1]);
-                __put_user(value.loads[2], &target_value->loads[2]);
-                __put_user(value.totalram, &target_value->totalram);
-                __put_user(value.freeram, &target_value->freeram);
-                __put_user(value.sharedram, &target_value->sharedram);
-                __put_user(value.bufferram, &target_value->bufferram);
-                __put_user(value.totalswap, &target_value->totalswap);
-                __put_user(value.freeswap, &target_value->freeswap);
-                __put_user(value.procs, &target_value->procs);
-                __put_user(value.totalhigh, &target_value->totalhigh);
-                __put_user(value.freehigh, &target_value->freehigh);
-                __put_user(value.mem_unit, &target_value->mem_unit);
-                unlock_user_struct(target_value, arg1, 1);
-            }
-        }
-        return ret;
 #ifdef TARGET_NR_ipc
     case TARGET_NR_ipc:
         return do_ipc(cpu_env, arg1, arg2, arg3, arg4, arg5, arg6);
@@ -13100,6 +13108,7 @@ static impl_fn *syscall_table(unsigned num)
 #ifdef TARGET_NR_stime
         SYSCALL(stime);
 #endif
+        SYSCALL(swapoff);
         SYSCALL(swapon);
 #ifdef TARGET_NR_symlink
         SYSCALL(symlink);
@@ -13109,6 +13118,7 @@ static impl_fn *syscall_table(unsigned num)
 #ifdef CONFIG_SYNCFS
         SYSCALL(syncfs);
 #endif
+        SYSCALL(sysinfo);
         SYSCALL(syslog);
 #ifdef TARGET_NR_time
         SYSCALL(time);
@@ -13130,6 +13140,8 @@ static impl_fn *syscall_table(unsigned num)
 #ifdef TARGET_NR_utimes
         SYSCALL(utimes);
 #endif
+        SYSCALL(vhangup);
+        SYSCALL(wait4);
         SYSCALL(waitid);
 #ifdef TARGET_NR_waitpid
         SYSCALL(waitpid);
