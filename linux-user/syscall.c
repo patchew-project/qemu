@@ -7882,6 +7882,22 @@ IMPL(close)
     return get_errno(close(arg1));
 }
 
+#ifdef TARGET_NR_creat
+IMPL(creat)
+{
+    char *p = lock_user_string(arg1);
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(creat(p, arg2));
+    fd_trans_unregister(ret);
+    unlock_user(p, arg1, 0);
+    return ret;
+}
+#endif
+
 IMPL(execve)
 {
     abi_ulong *guest_ptrs;
@@ -8029,6 +8045,13 @@ IMPL(exit)
     g_assert_not_reached();
 }
 
+#ifdef TARGET_NR_fork
+IMPL(fork)
+{
+    return get_errno(do_fork(cpu_env, TARGET_SIGCHLD, 0, 0, 0, 0));
+}
+#endif
+
 #ifdef CONFIG_OPEN_BY_HANDLE
 IMPL(name_to_handle_at)
 {
@@ -8174,6 +8197,38 @@ IMPL(read)
     return ret;
 }
 
+IMPL(waitid)
+{
+    siginfo_t info;
+    abi_long ret;
+
+    info.si_pid = 0;
+    ret = get_errno(safe_waitid(arg1, arg2, &info, arg4, NULL));
+    if (!is_error(ret) && arg3 && info.si_pid != 0) {
+        target_siginfo_t *p
+            = lock_user(VERIFY_WRITE, arg3, sizeof(target_siginfo_t), 0);
+        if (!p) {
+            return -TARGET_EFAULT;
+        }
+        host_to_target_siginfo(p, &info);
+        unlock_user(p, arg3, sizeof(target_siginfo_t));
+    }
+    return ret;
+}
+
+#ifdef TARGET_NR_waitpid
+IMPL(waitpid)
+{
+    int status;
+    abi_long ret = get_errno(safe_wait4(arg1, &status, arg3, 0));
+    if (!is_error(ret) && arg2 && ret &&
+        put_user_s32(host_to_target_waitstatus(status), arg2)) {
+        return -TARGET_EFAULT;
+    }
+    return ret;
+}
+#endif
+
 IMPL(write)
 {
     abi_long ret;
@@ -8215,45 +8270,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     void *p;
 
     switch(num) {
-#ifdef TARGET_NR_fork
-    case TARGET_NR_fork:
-        return get_errno(do_fork(cpu_env, TARGET_SIGCHLD, 0, 0, 0, 0));
-#endif
-#ifdef TARGET_NR_waitpid
-    case TARGET_NR_waitpid:
-        {
-            int status;
-            ret = get_errno(safe_wait4(arg1, &status, arg3, 0));
-            if (!is_error(ret) && arg2 && ret
-                && put_user_s32(host_to_target_waitstatus(status), arg2))
-                return -TARGET_EFAULT;
-        }
-        return ret;
-#endif
-#ifdef TARGET_NR_waitid
-    case TARGET_NR_waitid:
-        {
-            siginfo_t info;
-            info.si_pid = 0;
-            ret = get_errno(safe_waitid(arg1, arg2, &info, arg4, NULL));
-            if (!is_error(ret) && arg3 && info.si_pid != 0) {
-                if (!(p = lock_user(VERIFY_WRITE, arg3, sizeof(target_siginfo_t), 0)))
-                    return -TARGET_EFAULT;
-                host_to_target_siginfo(p, &info);
-                unlock_user(p, arg3, sizeof(target_siginfo_t));
-            }
-        }
-        return ret;
-#endif
-#ifdef TARGET_NR_creat /* not on alpha */
-    case TARGET_NR_creat:
-        if (!(p = lock_user_string(arg1)))
-            return -TARGET_EFAULT;
-        ret = get_errno(creat(p, arg2));
-        fd_trans_unregister(ret);
-        unlock_user(p, arg1, 0);
-        return ret;
-#endif
 #ifdef TARGET_NR_link
     case TARGET_NR_link:
         {
@@ -12482,8 +12498,14 @@ static impl_fn *syscall_table(unsigned num)
          */
         SYSCALL(brk);
         SYSCALL(close);
+#ifdef TARGET_NR_creat
+        SYSCALL(creat);
+#endif
         SYSCALL(execve);
         SYSCALL(exit);
+#ifdef TARGET_NR_fork
+        SYSCALL(fork);
+#endif
 #ifdef CONFIG_OPEN_BY_HANDLE
         SYSCALL(name_to_handle_at);
 #endif
@@ -12495,6 +12517,10 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(open_by_handle_at);
 #endif
         SYSCALL(read);
+        SYSCALL(waitid);
+#ifdef TARGET_NR_waitpid
+        SYSCALL(waitpid);
+#endif
         SYSCALL(write);
     }
 
