@@ -7884,18 +7884,20 @@ IMPL(clock_nanosleep)
     struct timespec ts;
     abi_long ret;
 
-    target_to_host_timespec(&ts, arg3);
-    ret = get_errno(safe_clock_nanosleep(arg1, arg2, &ts, arg4 ? &ts : NULL));
-    if (arg4) {
-        host_to_target_timespec(arg4, &ts);
+    /* Note that while the user-level api for clock_nanosleep
+     * returns a positive errno values, the kernel-level api
+     * continues to return negative errno values.  Also note
+     * that safe_clock_nanosleep mirrors the kernel api.
+     */
+    ret = target_to_host_timespec(&ts, arg3);
+    if (ret == 0) {
+        ret = safe_clock_nanosleep(arg1, arg2, &ts, arg4 ? &ts : NULL);
+        if (ret) {
+            ret = -host_to_target_errno(-ret);
+        } else if (arg4) {
+            ret = host_to_target_timespec(arg4, &ts);
+        }
     }
-#if defined(TARGET_PPC)
-    /* clock_nanosleep is odd in that it returns positive errno values.
-     * On PPC, CR0 bit 3 should be set in such a situation. */
-    if (ret && ret != -TARGET_ERESTARTSYS) {
-        ((CPUPPCState *)cpu_env)->crf[0] |= 1;
-    }
-#endif
     return ret;
 }
 
