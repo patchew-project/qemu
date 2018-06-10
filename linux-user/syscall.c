@@ -8950,6 +8950,11 @@ IMPL(getsockopt)
 }
 #endif
 
+IMPL(gettid)
+{
+    return get_errno(gettid());
+}
+
 IMPL(gettimeofday)
 {
     struct timeval tv;
@@ -10335,6 +10340,20 @@ static abi_long do_readlinkat(abi_long dirfd, abi_long target_path,
     unlock_user(host_buf, target_buf, ret);
     unlock_user(host_path, target_path, 0);
     return ret;
+}
+
+IMPL(readahead)
+{
+#if TARGET_ABI_BITS == 32
+    if (regpairs_aligned(cpu_env, num)) {
+        arg2 = arg3;
+        arg3 = arg4;
+        arg4 = arg5;
+    }
+    return get_errno(readahead(arg1, target_offset64(arg2, arg3) , arg4));
+#else
+    return get_errno(readahead(arg1, arg2, arg3));
+#endif
 }
 
 #ifdef TARGET_NR_readlink
@@ -12184,22 +12203,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     void *p;
 
     switch(num) {
-    case TARGET_NR_gettid:
-        return get_errno(gettid());
-#ifdef TARGET_NR_readahead
-    case TARGET_NR_readahead:
-#if TARGET_ABI_BITS == 32
-        if (regpairs_aligned(cpu_env, num)) {
-            arg2 = arg3;
-            arg3 = arg4;
-            arg4 = arg5;
-        }
-        ret = get_errno(readahead(arg1, target_offset64(arg2, arg3) , arg4));
-#else
-        ret = get_errno(readahead(arg1, arg2, arg3));
-#endif
-        return ret;
-#endif
 #ifdef CONFIG_ATTR
 #ifdef TARGET_NR_setxattr
     case TARGET_NR_listxattr:
@@ -13343,6 +13346,7 @@ static impl_fn *syscall_table(unsigned num)
 #ifdef TARGET_NR_getsockopt
         SYSCALL(getsockopt);
 #endif
+        SYSCALL(gettid);
         SYSCALL(gettimeofday);
 #ifdef TARGET_NR_getuid
         SYSCALL(getuid);
@@ -13475,6 +13479,7 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(pwrite64);
         SYSCALL(pwritev);
         SYSCALL(read);
+        SYSCALL(readahead);
 #ifdef TARGET_NR_readlink
         SYSCALL(readlink);
 #endif
