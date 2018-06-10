@@ -8712,6 +8712,45 @@ IMPL(read)
     return ret;
 }
 
+static abi_long do_readlinkat(abi_long dirfd, abi_long target_path,
+                              abi_long target_buf, abi_long bufsize)
+{
+    char *host_path, *host_buf;
+    abi_long ret;
+
+    host_path = lock_user_string(target_path);
+    host_buf = lock_user(VERIFY_WRITE, target_buf, bufsize, 0);
+    if (!host_path || !host_buf) {
+        ret = -TARGET_EFAULT;
+    } else if (is_proc_myself(host_path, "exe")) {
+        char real[PATH_MAX], *temp;
+        temp = realpath(exec_path, real);
+        if (temp == NULL) {
+            ret = get_errno(-1);
+        } else {
+            ret = MIN(strlen(real), bufsize);
+            memcpy(host_buf, real, ret);
+        }
+    } else {
+        ret = get_errno(readlinkat(dirfd, path(host_path), host_buf, bufsize));
+    }
+    unlock_user(host_buf, target_buf, ret);
+    unlock_user(host_path, target_path, 0);
+    return ret;
+}
+
+#ifdef TARGET_NR_readlink
+IMPL(readlink)
+{
+    return do_readlinkat(AT_FDCWD, arg1, arg2, arg3);
+}
+#endif
+
+IMPL(readlinkat)
+{
+    return do_readlinkat(arg1, arg2, arg3, arg4);
+}
+
 #ifdef TARGET_NR_rename
 IMPL(rename)
 {
@@ -9591,59 +9630,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     void *p;
 
     switch(num) {
-#ifdef TARGET_NR_readlink
-    case TARGET_NR_readlink:
-        {
-            void *p2;
-            p = lock_user_string(arg1);
-            p2 = lock_user(VERIFY_WRITE, arg2, arg3, 0);
-            if (!p || !p2) {
-                ret = -TARGET_EFAULT;
-            } else if (!arg3) {
-                /* Short circuit this for the magic exe check. */
-                ret = -TARGET_EINVAL;
-            } else if (is_proc_myself((const char *)p, "exe")) {
-                char real[PATH_MAX], *temp;
-                temp = realpath(exec_path, real);
-                /* Return value is # of bytes that we wrote to the buffer. */
-                if (temp == NULL) {
-                    ret = get_errno(-1);
-                } else {
-                    /* Don't worry about sign mismatch as earlier mapping
-                     * logic would have thrown a bad address error. */
-                    ret = MIN(strlen(real), arg3);
-                    /* We cannot NUL terminate the string. */
-                    memcpy(p2, real, ret);
-                }
-            } else {
-                ret = get_errno(readlink(path(p), p2, arg3));
-            }
-            unlock_user(p2, arg2, ret);
-            unlock_user(p, arg1, 0);
-        }
-        return ret;
-#endif
-#if defined(TARGET_NR_readlinkat)
-    case TARGET_NR_readlinkat:
-        {
-            void *p2;
-            p  = lock_user_string(arg2);
-            p2 = lock_user(VERIFY_WRITE, arg3, arg4, 0);
-            if (!p || !p2) {
-                ret = -TARGET_EFAULT;
-            } else if (is_proc_myself((const char *)p, "exe")) {
-                char real[PATH_MAX], *temp;
-                temp = realpath(exec_path, real);
-                ret = temp == NULL ? get_errno(-1) : strlen(real) ;
-                snprintf((char *)p2, arg4, "%s", real);
-            } else {
-                ret = get_errno(readlinkat(arg1, path(p), p2, arg4));
-            }
-            unlock_user(p2, arg3, ret);
-            unlock_user(p, arg2, 0);
-        }
-        return ret;
-#endif
 #ifdef TARGET_NR_swapon
     case TARGET_NR_swapon:
         if (!(p = lock_user_string(arg1)))
@@ -12783,6 +12769,10 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(pipe2);
         SYSCALL(pselect6);
         SYSCALL(read);
+#ifdef TARGET_NR_readlink
+        SYSCALL(readlink);
+#endif
+        SYSCALL(readlinkat);
 #ifdef TARGET_NR_rename
         SYSCALL(rename);
 #endif
