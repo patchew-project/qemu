@@ -7871,6 +7871,21 @@ static abi_long impl_##NAME(void *cpu_env, unsigned num, abi_long arg1,   \
                             abi_long arg5, abi_long arg6, abi_long arg7,  \
                             abi_long arg8)
 
+#ifdef TARGET_NR_access
+IMPL(access)
+{
+    char *p = lock_user_string(arg1);
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(access(path(p), arg2));
+    unlock_user(p, arg1, 0);
+    return ret;
+}
+#endif
+
 #ifdef TARGET_NR_alarm
 IMPL(alarm)
 {
@@ -8080,10 +8095,46 @@ IMPL(exit)
     g_assert_not_reached();
 }
 
+IMPL(faccessat)
+{
+    char *p = lock_user_string(arg2);
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(faccessat(arg1, p, arg3, arg4));
+    unlock_user(p, arg2, 0);
+    return ret;
+}
+
 #ifdef TARGET_NR_fork
 IMPL(fork)
 {
     return get_errno(do_fork(cpu_env, TARGET_SIGCHLD, 0, 0, 0, 0));
+}
+#endif
+
+#ifdef TARGET_NR_futimesat
+IMPL(futimesat)
+{
+    struct timeval tv[2];
+    char *p;
+    abi_long ret;
+
+    if (arg3 &&
+        (copy_from_user_timeval(&tv[0], arg3) ||
+         copy_from_user_timeval(&tv[1],
+                                arg3 + sizeof(struct target_timeval)))) {
+        return -TARGET_EFAULT;
+    }
+    p = lock_user_string(arg2);
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(futimesat(arg1, path(p), arg3 ? tv : NULL));
+    unlock_user(p, arg2, 0);
+    return ret;
 }
 #endif
 
@@ -8101,6 +8152,11 @@ IMPL(getxpid)
     return get_errno(getpid());
 }
 #endif
+
+IMPL(kill)
+{
+    return get_errno(safe_kill(arg1, target_to_host_signal(arg2)));
+}
 
 #ifdef TARGET_NR_link
 IMPL(link)
@@ -8256,6 +8312,13 @@ IMPL(name_to_handle_at)
 }
 #endif
 
+#ifdef TARGET_NR_nice
+IMPL(nice)
+{
+    return get_errno(nice(arg1));
+}
+#endif
+
 #ifdef TARGET_NR_open
 IMPL(open)
 {
@@ -8365,6 +8428,19 @@ IMPL(stime)
         return -TARGET_EFAULT;
     }
     return get_errno(stime(&host_time));
+}
+#endif
+
+IMPL(sync)
+{
+    sync();
+    return 0;
+}
+
+#ifdef CONFIG_SYNCFS
+IMPL(syncfs)
+{
+    return get_errno(syncfs(arg1));
 }
 #endif
 
@@ -8545,58 +8621,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     void *p;
 
     switch(num) {
-#if defined(TARGET_NR_futimesat)
-    case TARGET_NR_futimesat:
-        {
-            struct timeval *tvp, tv[2];
-            if (arg3) {
-                if (copy_from_user_timeval(&tv[0], arg3)
-                    || copy_from_user_timeval(&tv[1],
-                                              arg3 + sizeof(struct target_timeval)))
-                    return -TARGET_EFAULT;
-                tvp = tv;
-            } else {
-                tvp = NULL;
-            }
-            if (!(p = lock_user_string(arg2))) {
-                return -TARGET_EFAULT;
-            }
-            ret = get_errno(futimesat(arg1, path(p), tvp));
-            unlock_user(p, arg2, 0);
-        }
-        return ret;
-#endif
-#ifdef TARGET_NR_access
-    case TARGET_NR_access:
-        if (!(p = lock_user_string(arg1))) {
-            return -TARGET_EFAULT;
-        }
-        ret = get_errno(access(path(p), arg2));
-        unlock_user(p, arg1, 0);
-        return ret;
-#endif
-#if defined(TARGET_NR_faccessat) && defined(__NR_faccessat)
-    case TARGET_NR_faccessat:
-        if (!(p = lock_user_string(arg2))) {
-            return -TARGET_EFAULT;
-        }
-        ret = get_errno(faccessat(arg1, p, arg3, 0));
-        unlock_user(p, arg2, 0);
-        return ret;
-#endif
-#ifdef TARGET_NR_nice /* not on alpha */
-    case TARGET_NR_nice:
-        return get_errno(nice(arg1));
-#endif
-    case TARGET_NR_sync:
-        sync();
-        return 0;
-#if defined(TARGET_NR_syncfs) && defined(CONFIG_SYNCFS)
-    case TARGET_NR_syncfs:
-        return get_errno(syncfs(arg1));
-#endif
-    case TARGET_NR_kill:
-        return get_errno(safe_kill(arg1, target_to_host_signal(arg2)));
 #ifdef TARGET_NR_rename
     case TARGET_NR_rename:
         {
@@ -12544,6 +12568,9 @@ static impl_fn *syscall_table(unsigned num)
         /*
          * Other syscalls listed in collation order, with '_' ignored.
          */
+#ifdef TARGET_NR_access
+        SYSCALL(access);
+#endif
 #ifdef TARGET_NR_alarm
         SYSCALL(alarm);
 #endif
@@ -12558,8 +12585,12 @@ static impl_fn *syscall_table(unsigned num)
 #endif
         SYSCALL(execve);
         SYSCALL(exit);
+        SYSCALL(faccessat);
 #ifdef TARGET_NR_fork
         SYSCALL(fork);
+#endif
+#ifdef TARGET_NR_futimesat
+        SYSCALL(futimesat);
 #endif
 #ifdef TARGET_NR_getpid
         SYSCALL(getpid);
@@ -12567,6 +12598,7 @@ static impl_fn *syscall_table(unsigned num)
 #if defined(TARGET_NR_getxpid) && defined(TARGET_ALPHA)
         SYSCALL(getxpid);
 #endif
+        SYSCALL(kill);
 #ifdef TARGET_NR_link
         SYSCALL(link);
 #endif
@@ -12579,6 +12611,9 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(mount);
 #ifdef CONFIG_OPEN_BY_HANDLE
         SYSCALL(name_to_handle_at);
+#endif
+#ifdef TARGET_NR_nice
+        SYSCALL(nice);
 #endif
 #ifdef TARGET_NR_open
         SYSCALL(open);
@@ -12593,6 +12628,10 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(read);
 #ifdef TARGET_NR_stime
         SYSCALL(stime);
+#endif
+        SYSCALL(sync);
+#ifdef CONFIG_SYNCFS
+        SYSCALL(syncfs);
 #endif
 #ifdef TARGET_NR_time
         SYSCALL(time);
