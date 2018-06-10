@@ -627,7 +627,6 @@ static int sys_renameat2(int oldfd, const char *old,
 }
 #endif
 
-#if defined(TARGET_NR_prlimit64)
 #ifndef __NR_prlimit64
 # define __NR_prlimit64 -1
 #endif
@@ -640,8 +639,6 @@ struct host_rlimit64 {
 _syscall4(int, sys_prlimit64, pid_t, pid, int, resource,
           const struct host_rlimit64 *, new_limit,
           struct host_rlimit64 *, old_limit)
-#endif
-
 
 #if defined(TARGET_NR_timer_create)
 /* Maxiumum of 32 active POSIX timers allowed at any one time. */
@@ -10713,6 +10710,38 @@ IMPL(preadv)
     return ret;
 }
 
+IMPL(prlimit64)
+{
+    /* args: pid, resource number, ptr to new rlimit, ptr to old rlimit */
+    struct host_rlimit64 rnew, rold;
+    int resource = target_to_host_resource(arg2);
+    abi_long ret;
+
+    if (arg3) {
+        struct target_rlimit64 *target_rnew;
+        if (!lock_user_struct(VERIFY_READ, target_rnew, arg3, 1)) {
+            return -TARGET_EFAULT;
+        }
+        rnew.rlim_cur = tswap64(target_rnew->rlim_cur);
+        rnew.rlim_max = tswap64(target_rnew->rlim_max);
+        unlock_user_struct(target_rnew, arg3, 0);
+    }
+
+    ret = get_errno(sys_prlimit64(arg1, resource, arg3 ? &rnew : NULL,
+                                  arg4 ? &rold : NULL));
+
+    if (!is_error(ret) && arg4) {
+        struct target_rlimit64 *target_rold;
+        if (!lock_user_struct(VERIFY_WRITE, target_rold, arg4, 1)) {
+            return -TARGET_EFAULT;
+        }
+        target_rold->rlim_cur = tswap64(rold.rlim_cur);
+        target_rold->rlim_max = tswap64(rold.rlim_max);
+        unlock_user_struct(target_rold, arg4, 1);
+    }
+    return ret;
+}
+
 IMPL(pselect6)
 {
     abi_long rfd_addr, wfd_addr, efd_addr, n, ts_addr;
@@ -12973,35 +13002,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     abi_long ret;
 
     switch(num) {
-#ifdef TARGET_NR_prlimit64
-    case TARGET_NR_prlimit64:
-    {
-        /* args: pid, resource number, ptr to new rlimit, ptr to old rlimit */
-        struct target_rlimit64 *target_rnew, *target_rold;
-        struct host_rlimit64 rnew, rold, *rnewp = 0;
-        int resource = target_to_host_resource(arg2);
-        if (arg3) {
-            if (!lock_user_struct(VERIFY_READ, target_rnew, arg3, 1)) {
-                return -TARGET_EFAULT;
-            }
-            rnew.rlim_cur = tswap64(target_rnew->rlim_cur);
-            rnew.rlim_max = tswap64(target_rnew->rlim_max);
-            unlock_user_struct(target_rnew, arg3, 0);
-            rnewp = &rnew;
-        }
-
-        ret = get_errno(sys_prlimit64(arg1, resource, rnewp, arg4 ? &rold : 0));
-        if (!is_error(ret) && arg4) {
-            if (!lock_user_struct(VERIFY_WRITE, target_rold, arg4, 1)) {
-                return -TARGET_EFAULT;
-            }
-            target_rold->rlim_cur = tswap64(rold.rlim_cur);
-            target_rold->rlim_max = tswap64(rold.rlim_max);
-            unlock_user_struct(target_rold, arg4, 1);
-        }
-        return ret;
-    }
-#endif
 #ifdef TARGET_NR_gethostname
     case TARGET_NR_gethostname:
     {
@@ -13650,6 +13650,7 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(prctl);
         SYSCALL(pread64);
         SYSCALL(preadv);
+        SYSCALL(prlimit64);
         SYSCALL(pselect6);
         SYSCALL(pwrite64);
         SYSCALL(pwritev);
