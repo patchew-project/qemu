@@ -8704,11 +8704,34 @@ IMPL(getuid)
 }
 #endif
 
+#ifdef TARGET_NR_getuid32
+IMPL(getuid32)
+{
+    return get_errno(getuid());
+}
+#endif
+
+#if defined(TARGET_NR_getxgid) && defined(TARGET_ALPHA)
+IMPL(getxgid)
+{
+    ((CPUAlphaState *)cpu_env)->ir[IR_A4] = getegid();
+    return get_errno(getgid());
+}
+#endif
+
 #if defined(TARGET_NR_getxpid) && defined(TARGET_ALPHA)
 IMPL(getxpid)
 {
     ((CPUAlphaState *)cpu_env)->ir[IR_A4] = getppid();
     return get_errno(getpid());
+}
+#endif
+
+#if defined(TARGET_NR_getxuid) && defined(TARGET_ALPHA)
+IMPL(getxuid)
+{
+    ((CPUAlphaState *)cpu_env)->ir[IR_A4] = geteuid();
+    return get_errno(getuid());
 }
 #endif
 
@@ -8899,6 +8922,21 @@ IMPL(lchown)
         return -TARGET_EFAULT;
     }
     ret = get_errno(lchown(p, low2highuid(arg2), low2highgid(arg3)));
+    unlock_user(p, arg1, 0);
+    return ret;
+}
+#endif
+
+#ifdef TARGET_NR_lchown32
+IMPL(lchown32)
+{
+    char *p = lock_user_string(arg1);
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(lchown(p, arg2, arg3));
     unlock_user(p, arg1, 0);
     return ret;
 }
@@ -11614,39 +11652,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     void *p;
 
     switch(num) {
-#ifdef TARGET_NR_lchown32
-    case TARGET_NR_lchown32:
-        if (!(p = lock_user_string(arg1)))
-            return -TARGET_EFAULT;
-        ret = get_errno(lchown(p, arg2, arg3));
-        unlock_user(p, arg1, 0);
-        return ret;
-#endif
-#ifdef TARGET_NR_getuid32
-    case TARGET_NR_getuid32:
-        return get_errno(getuid());
-#endif
-
-#if defined(TARGET_NR_getxuid) && defined(TARGET_ALPHA)
-   /* Alpha specific */
-    case TARGET_NR_getxuid:
-         {
-            uid_t euid;
-            euid=geteuid();
-            ((CPUAlphaState *)cpu_env)->ir[IR_A4]=euid;
-         }
-        return get_errno(getuid());
-#endif
-#if defined(TARGET_NR_getxgid) && defined(TARGET_ALPHA)
-   /* Alpha specific */
-    case TARGET_NR_getxgid:
-         {
-            uid_t egid;
-            egid=getegid();
-            ((CPUAlphaState *)cpu_env)->ir[IR_A4]=egid;
-         }
-        return get_errno(getgid());
-#endif
 #if defined(TARGET_NR_osf_getsysinfo) && defined(TARGET_ALPHA)
     /* Alpha specific */
     case TARGET_NR_osf_getsysinfo:
@@ -13213,8 +13218,17 @@ static impl_fn *syscall_table(unsigned num)
 #ifdef TARGET_NR_getuid
         SYSCALL(getuid);
 #endif
+#ifdef TARGET_NR_getuid32
+        SYSCALL(getuid32);
+#endif
+#if defined(TARGET_NR_getxgid) && defined(TARGET_ALPHA)
+        SYSCALL(getxgid);
+#endif
 #if defined(TARGET_NR_getxpid) && defined(TARGET_ALPHA)
         SYSCALL(getxpid);
+#endif
+#if defined(TARGET_NR_getxuid) && defined(TARGET_ALPHA)
+        SYSCALL(getxuid);
 #endif
         SYSCALL(ioctl);
 #ifdef TARGET_NR_ipc
@@ -13223,6 +13237,9 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(kill);
 #ifdef TARGET_NR_lchown
         SYSCALL(lchown);
+#endif
+#ifdef TARGET_NR_lchown32
+        SYSCALL(lchown32);
 #endif
 #ifdef TARGET_NR_link
         SYSCALL(link);
