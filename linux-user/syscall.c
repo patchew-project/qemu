@@ -8636,6 +8636,34 @@ IMPL(mremap)
     return get_errno(target_mremap(arg1, arg2, arg3, arg4, arg5));
 }
 
+#ifdef TARGET_NR_msgctl
+IMPL(msgctl)
+{
+    return do_msgctl(arg1, arg2, arg3);
+}
+#endif
+
+#ifdef TARGET_NR_msgget
+IMPL(msgget)
+{
+    return get_errno(msgget(arg1, arg2));
+}
+#endif
+
+#ifdef TARGET_NR_msgrcv
+IMPL(msgrcv)
+{
+    return do_msgrcv(arg1, arg2, arg3, arg4, arg5);
+}
+#endif
+
+#ifdef TARGET_NR_msgsnd
+IMPL(msgsnd)
+{
+    return do_msgsnd(arg1, arg2, arg3, arg4);
+}
+#endif
+
 IMPL(msync)
 {
     return get_errno(msync(g2h(arg1), arg2, arg3));
@@ -9340,6 +9368,34 @@ IMPL(sgetmask)
 }
 #endif
 
+#ifdef TARGET_NR_shmat
+IMPL(shmat)
+{
+    return do_shmat(cpu_env, arg1, arg2, arg3);
+}
+#endif
+
+#ifdef TARGET_NR_shmctl
+IMPL(shmctl)
+{
+    return do_shmctl(arg1, arg2, arg3);
+}
+#endif
+
+#ifdef TARGET_NR_shmdt
+IMPL(shmdt)
+{
+    return do_shmdt(arg1);
+}
+#endif
+
+#ifdef TARGET_NR_shmget
+IMPL(shmget)
+{
+    return get_errno(shmget(arg1, arg2, arg3));
+}
+#endif
+
 #ifdef TARGET_NR_shutdown
 IMPL(shutdown)
 {
@@ -9355,6 +9411,27 @@ IMPL(select)
 # else
     return do_select(arg1, arg2, arg3, arg4, arg5);
 # endif
+}
+#endif
+
+#ifdef TARGET_NR_semctl
+IMPL(semctl)
+{
+    return do_semctl(arg1, arg2, arg3, arg4);
+}
+#endif
+
+#ifdef TARGET_NR_semget
+IMPL(semget)
+{
+    return get_errno(semget(arg1, arg2, arg3));
+}
+#endif
+
+#ifdef TARGET_NR_semop
+IMPL(semop)
+{
+    return do_semop(arg1, arg2, arg3);
 }
 #endif
 
@@ -10272,50 +10349,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     void *p;
 
     switch(num) {
-#ifdef TARGET_NR_semget
-    case TARGET_NR_semget:
-        return get_errno(semget(arg1, arg2, arg3));
-#endif
-#ifdef TARGET_NR_semop
-    case TARGET_NR_semop:
-        return do_semop(arg1, arg2, arg3);
-#endif
-#ifdef TARGET_NR_semctl
-    case TARGET_NR_semctl:
-        return do_semctl(arg1, arg2, arg3, arg4);
-#endif
-#ifdef TARGET_NR_msgctl
-    case TARGET_NR_msgctl:
-        return do_msgctl(arg1, arg2, arg3);
-#endif
-#ifdef TARGET_NR_msgget
-    case TARGET_NR_msgget:
-        return get_errno(msgget(arg1, arg2));
-#endif
-#ifdef TARGET_NR_msgrcv
-    case TARGET_NR_msgrcv:
-        return do_msgrcv(arg1, arg2, arg3, arg4, arg5);
-#endif
-#ifdef TARGET_NR_msgsnd
-    case TARGET_NR_msgsnd:
-        return do_msgsnd(arg1, arg2, arg3, arg4);
-#endif
-#ifdef TARGET_NR_shmget
-    case TARGET_NR_shmget:
-        return get_errno(shmget(arg1, arg2, arg3));
-#endif
-#ifdef TARGET_NR_shmctl
-    case TARGET_NR_shmctl:
-        return do_shmctl(arg1, arg2, arg3);
-#endif
-#ifdef TARGET_NR_shmat
-    case TARGET_NR_shmat:
-        return do_shmat(cpu_env, arg1, arg2, arg3);
-#endif
-#ifdef TARGET_NR_shmdt
-    case TARGET_NR_shmdt:
-        return do_shmdt(arg1);
-#endif
     case TARGET_NR_fsync:
         return get_errno(fsync(arg1));
     case TARGET_NR_clone:
@@ -12943,6 +12976,18 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(mount);
         SYSCALL(mprotect);
         SYSCALL(mremap);
+#ifdef TARGET_NR_msgctl
+        SYSCALL(msgctl);
+#endif
+#ifdef TARGET_NR_msgget
+        SYSCALL(msgget);
+#endif
+#ifdef TARGET_NR_msgrcv
+        SYSCALL(msgrcv);
+#endif
+#ifdef TARGET_NR_msgsnd
+        SYSCALL(msgsnd);
+#endif
         SYSCALL(msync);
         SYSCALL(munlock);
         SYSCALL(munlockall);
@@ -13010,6 +13055,18 @@ static impl_fn *syscall_table(unsigned num)
 #ifdef TARGET_NR_sgetmask
         SYSCALL(sgetmask);
 #endif
+#ifdef TARGET_NR_shmat
+        SYSCALL(shmat);
+#endif
+#ifdef TARGET_NR_shmctl
+        SYSCALL(shmctl);
+#endif
+#ifdef TARGET_NR_shmdt
+        SYSCALL(shmdt);
+#endif
+#ifdef TARGET_NR_shmget
+        SYSCALL(shmget);
+#endif
 #ifdef TARGET_NR_shutdown
         SYSCALL(shutdown);
 #endif
@@ -13019,6 +13076,15 @@ static impl_fn *syscall_table(unsigned num)
 # else
         SYSCALL(select);
 # endif
+#endif
+#ifdef TARGET_NR_semctl
+        SYSCALL(semctl);
+#endif
+#ifdef TARGET_NR_semget
+        SYSCALL(semget);
+#endif
+#ifdef TARGET_NR_semop
+        SYSCALL(semop);
 #endif
 #ifdef TARGET_NR_send
         SYSCALL(send);
