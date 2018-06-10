@@ -7876,6 +7876,34 @@ IMPL(brk)
     return do_brk(arg1);
 }
 
+IMPL(chdir)
+{
+    char *p = lock_user_string(arg1);
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(chdir(p));
+    unlock_user(p, arg1, 0);
+    return ret;
+}
+
+#ifdef TARGET_NR_chmod
+IMPL(chmod)
+{
+    char *p = lock_user_string(arg1);
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(chmod(p, arg2));
+    unlock_user(p, arg1, 0);
+    return ret;
+}
+#endif
+
 IMPL(close)
 {
     fd_trans_unregister(arg1);
@@ -8082,6 +8110,34 @@ IMPL(linkat)
     return ret;
 }
 
+#ifdef TARGET_NR_mknod
+IMPL(mknod)
+{
+    char *p = lock_user_string(arg1);
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(mknod(p, arg2, arg3));
+    unlock_user(p, arg1, 0);
+    return ret;
+}
+#endif
+
+IMPL(mknodat)
+{
+    char *p = lock_user_string(arg2);
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(mknodat(arg1, p, arg3, arg4));
+    unlock_user(p, arg2, 0);
+    return ret;
+}
+
 #ifdef CONFIG_OPEN_BY_HANDLE
 IMPL(name_to_handle_at)
 {
@@ -8227,6 +8283,18 @@ IMPL(read)
     return ret;
 }
 
+#ifdef TARGET_NR_time
+IMPL(time)
+{
+    time_t host_time;
+    abi_long ret = get_errno(time(&host_time));
+    if (!is_error(ret) && arg1 && put_user_sal(host_time, arg1)) {
+        return -TARGET_EFAULT;
+    }
+    return ret;
+}
+#endif
+
 #ifdef TARGET_NR_unlink
 IMPL(unlink)
 {
@@ -8328,48 +8396,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     void *p;
 
     switch(num) {
-    case TARGET_NR_chdir:
-        if (!(p = lock_user_string(arg1)))
-            return -TARGET_EFAULT;
-        ret = get_errno(chdir(p));
-        unlock_user(p, arg1, 0);
-        return ret;
-#ifdef TARGET_NR_time
-    case TARGET_NR_time:
-        {
-            time_t host_time;
-            ret = get_errno(time(&host_time));
-            if (!is_error(ret)
-                && arg1
-                && put_user_sal(host_time, arg1))
-                return -TARGET_EFAULT;
-        }
-        return ret;
-#endif
-#ifdef TARGET_NR_mknod
-    case TARGET_NR_mknod:
-        if (!(p = lock_user_string(arg1)))
-            return -TARGET_EFAULT;
-        ret = get_errno(mknod(p, arg2, arg3));
-        unlock_user(p, arg1, 0);
-        return ret;
-#endif
-#if defined(TARGET_NR_mknodat)
-    case TARGET_NR_mknodat:
-        if (!(p = lock_user_string(arg2)))
-            return -TARGET_EFAULT;
-        ret = get_errno(mknodat(arg1, p, arg3, arg4));
-        unlock_user(p, arg2, 0);
-        return ret;
-#endif
-#ifdef TARGET_NR_chmod
-    case TARGET_NR_chmod:
-        if (!(p = lock_user_string(arg1)))
-            return -TARGET_EFAULT;
-        ret = get_errno(chmod(p, arg2));
-        unlock_user(p, arg1, 0);
-        return ret;
-#endif
     case TARGET_NR_lseek:
         return get_errno(lseek(arg1, arg2, arg3));
 #if defined(TARGET_NR_getxpid) && defined(TARGET_ALPHA)
@@ -12508,6 +12534,10 @@ static impl_fn *syscall_table(unsigned num)
          */
         SYSCALL(brk);
         SYSCALL(close);
+        SYSCALL(chdir);
+#ifdef TARGET_NR_chmod
+        SYSCALL(chmod);
+#endif
 #ifdef TARGET_NR_creat
         SYSCALL(creat);
 #endif
@@ -12520,6 +12550,10 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(link);
 #endif
         SYSCALL(linkat);
+#ifdef TARGET_NR_mknod
+        SYSCALL(mknod);
+#endif
+        SYSCALL(mknodat);
 #ifdef CONFIG_OPEN_BY_HANDLE
         SYSCALL(name_to_handle_at);
 #endif
@@ -12531,6 +12565,9 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(open_by_handle_at);
 #endif
         SYSCALL(read);
+#ifdef TARGET_NR_time
+        SYSCALL(time);
+#endif
 #ifdef TARGET_NR_unlink
         SYSCALL(unlink);
 #endif
