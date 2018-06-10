@@ -6718,34 +6718,6 @@ static inline uint64_t target_offset64(uint64_t word0, uint64_t word1)
 }
 #endif /* TARGET_ABI_BITS != 32 */
 
-#ifdef TARGET_NR_truncate64
-static inline abi_long target_truncate64(void *cpu_env, const char *arg1,
-                                         abi_long arg2,
-                                         abi_long arg3,
-                                         abi_long arg4)
-{
-    if (regpairs_aligned(cpu_env, TARGET_NR_truncate64)) {
-        arg2 = arg3;
-        arg3 = arg4;
-    }
-    return get_errno(truncate64(arg1, target_offset64(arg2, arg3)));
-}
-#endif
-
-#ifdef TARGET_NR_ftruncate64
-static inline abi_long target_ftruncate64(void *cpu_env, abi_long arg1,
-                                          abi_long arg2,
-                                          abi_long arg3,
-                                          abi_long arg4)
-{
-    if (regpairs_aligned(cpu_env, TARGET_NR_ftruncate64)) {
-        arg2 = arg3;
-        arg3 = arg4;
-    }
-    return get_errno(ftruncate64(arg1, target_offset64(arg2, arg3)));
-}
-#endif
-
 static inline abi_long target_to_host_timespec(struct timespec *host_ts,
                                                abi_ulong target_addr)
 {
@@ -8203,6 +8175,17 @@ IMPL(ftruncate)
 {
     return get_errno(ftruncate(arg1, arg2));
 }
+
+#ifdef TARGET_NR_ftruncate64
+IMPL(ftruncate64)
+{
+    if (regpairs_aligned(cpu_env, TARGET_NR_ftruncate64)) {
+        arg2 = arg3;
+        arg3 = arg4;
+    }
+    return get_errno(ftruncate64(arg1, target_offset64(arg2, arg3)));
+}
+#endif
 
 #ifdef TARGET_NR_futimesat
 IMPL(futimesat)
@@ -11048,6 +11031,45 @@ IMPL(truncate)
     return ret;
 }
 
+#ifdef TARGET_NR_truncate64
+IMPL(truncate64)
+{
+    char *p = lock_user_string(arg1);
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    if (regpairs_aligned(cpu_env, TARGET_NR_truncate64)) {
+        arg2 = arg3;
+        arg3 = arg4;
+    }
+    ret = get_errno(truncate64(p, target_offset64(arg2, arg3)));
+    unlock_user(p, arg1, 0);
+    return ret;
+}
+#endif
+
+#ifdef TARGET_NR_ugetrlimit
+IMPL(ugetrlimit)
+{
+    struct rlimit rlim;
+    int resource = target_to_host_resource(arg1);
+    abi_long ret = get_errno(getrlimit(resource, &rlim));
+
+    if (!is_error(ret)) {
+        struct target_rlimit *target_rlim;
+        if (!lock_user_struct(VERIFY_WRITE, target_rlim, arg2, 0)) {
+            return -TARGET_EFAULT;
+        }
+        target_rlim->rlim_cur = host_to_target_rlim(rlim.rlim_cur);
+        target_rlim->rlim_max = host_to_target_rlim(rlim.rlim_max);
+        unlock_user_struct(target_rlim, arg2, 1);
+    }
+    return ret;
+}
+#endif
+
 IMPL(umask)
 {
     return get_errno(umask(arg1));
@@ -11183,6 +11205,14 @@ IMPL(utimes)
 }
 #endif
 
+#ifdef TARGET_NR_vfork
+IMPL(vfork)
+{
+    return get_errno(do_fork(cpu_env, CLONE_VFORK | CLONE_VM | TARGET_SIGCHLD,
+                             0, 0, 0, 0));
+}
+#endif
+
 IMPL(vhangup)
 {
     return get_errno(vhangup());
@@ -11307,41 +11337,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     void *p;
 
     switch(num) {
-#ifdef TARGET_NR_vfork
-    case TARGET_NR_vfork:
-        return get_errno(do_fork(cpu_env,
-                         CLONE_VFORK | CLONE_VM | TARGET_SIGCHLD,
-                         0, 0, 0, 0));
-#endif
-#ifdef TARGET_NR_ugetrlimit
-    case TARGET_NR_ugetrlimit:
-    {
-	struct rlimit rlim;
-	int resource = target_to_host_resource(arg1);
-	ret = get_errno(getrlimit(resource, &rlim));
-	if (!is_error(ret)) {
-	    struct target_rlimit *target_rlim;
-            if (!lock_user_struct(VERIFY_WRITE, target_rlim, arg2, 0))
-                return -TARGET_EFAULT;
-	    target_rlim->rlim_cur = host_to_target_rlim(rlim.rlim_cur);
-	    target_rlim->rlim_max = host_to_target_rlim(rlim.rlim_max);
-            unlock_user_struct(target_rlim, arg2, 1);
-	}
-        return ret;
-    }
-#endif
-#ifdef TARGET_NR_truncate64
-    case TARGET_NR_truncate64:
-        if (!(p = lock_user_string(arg1)))
-            return -TARGET_EFAULT;
-	ret = target_truncate64(cpu_env, p, arg2, arg3, arg4);
-        unlock_user(p, arg1, 0);
-        return ret;
-#endif
-#ifdef TARGET_NR_ftruncate64
-    case TARGET_NR_ftruncate64:
-        return target_ftruncate64(cpu_env, arg1, arg2, arg3, arg4);
-#endif
 #ifdef TARGET_NR_stat64
     case TARGET_NR_stat64:
         if (!(p = lock_user_string(arg1))) {
@@ -13052,6 +13047,9 @@ static impl_fn *syscall_table(unsigned num)
 #endif
         SYSCALL(fsync);
         SYSCALL(ftruncate);
+#ifdef TARGET_NR_ftruncate64
+        SYSCALL(ftruncate64);
+#endif
 #ifdef TARGET_NR_futimesat
         SYSCALL(futimesat);
 #endif
@@ -13352,6 +13350,12 @@ static impl_fn *syscall_table(unsigned num)
 #endif
         SYSCALL(times);
         SYSCALL(truncate);
+#ifdef TARGET_NR_truncate64
+        SYSCALL(truncate64);
+#endif
+#ifdef TARGET_NR_ugetrlimit
+        SYSCALL(ugetrlimit);
+#endif
         SYSCALL(umask);
 #ifdef TARGET_NR_umount
         SYSCALL(umount);
@@ -13367,6 +13371,9 @@ static impl_fn *syscall_table(unsigned num)
 #endif
 #ifdef TARGET_NR_utimes
         SYSCALL(utimes);
+#endif
+#ifdef TARGET_NR_vfork
+        SYSCALL(vfork);
 #endif
         SYSCALL(vhangup);
 #if defined(TARGET_I386) && !defined(TARGET_X86_64)
