@@ -8131,10 +8131,24 @@ IMPL(futimesat)
 }
 #endif
 
+#ifdef TARGET_NR_getpgrp
+IMPL(getpgrp)
+{
+    return get_errno(getpgrp());
+}
+#endif
+
 #ifdef TARGET_NR_getpid
 IMPL(getpid)
 {
     return get_errno(getpid());
+}
+#endif
+
+#ifdef TARGET_NR_getppid
+IMPL(getppid)
+{
+    return get_errno(getppid());
 }
 #endif
 
@@ -8613,6 +8627,11 @@ IMPL(setpgid)
     return get_errno(setpgid(arg1, arg2));
 }
 
+IMPL(setsid)
+{
+    return get_errno(setsid());
+}
+
 #ifdef TARGET_NR_stime
 IMPL(stime)
 {
@@ -8854,16 +8873,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     void *p;
 
     switch(num) {
-#ifdef TARGET_NR_getppid /* not on alpha */
-    case TARGET_NR_getppid:
-        return get_errno(getppid());
-#endif
-#ifdef TARGET_NR_getpgrp
-    case TARGET_NR_getpgrp:
-        return get_errno(getpgrp());
-#endif
-    case TARGET_NR_setsid:
-        return get_errno(setsid());
 #ifdef TARGET_NR_sigaction
     case TARGET_NR_sigaction:
         {
@@ -12673,8 +12682,14 @@ static impl_fn *syscall_table(unsigned num)
 #ifdef TARGET_NR_futimesat
         SYSCALL(futimesat);
 #endif
+#ifdef TARGET_NR_getpgrp
+        SYSCALL(getpgrp);
+#endif
 #ifdef TARGET_NR_getpid
         SYSCALL(getpid);
+#endif
+#ifdef TARGET_NR_getppid
+        SYSCALL(getppid);
 #endif
 #if defined(TARGET_NR_getxpid) && defined(TARGET_ALPHA)
         SYSCALL(getxpid);
@@ -12727,6 +12742,7 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(rmdir);
 #endif
         SYSCALL(setpgid);
+        SYSCALL(setsid);
 #ifdef TARGET_NR_stime
         SYSCALL(stime);
 #endif
