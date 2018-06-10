@@ -10533,6 +10533,21 @@ IMPL(setdomainname)
     return ret;
 }
 
+IMPL(setfsgid)
+{
+    return get_errno(setfsgid(arg1));
+}
+
+IMPL(setfsuid)
+{
+    return get_errno(setfsuid(arg1));
+}
+
+IMPL(setgid)
+{
+    return get_errno(sys_setgid(low2highgid(arg1)));
+}
+
 IMPL(setgroups)
 {
     int gidsetsize = arg1;
@@ -10666,6 +10681,11 @@ IMPL(settimeofday)
 IMPL(setsid)
 {
     return get_errno(setsid());
+}
+
+IMPL(setuid)
+{
+    return get_errno(sys_setuid(low2highuid(arg1)));
 }
 
 #ifdef TARGET_NR_sigaction
@@ -11594,15 +11614,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     void *p;
 
     switch(num) {
-    case TARGET_NR_setuid:
-        return get_errno(sys_setuid(low2highuid(arg1)));
-    case TARGET_NR_setgid:
-        return get_errno(sys_setgid(low2highgid(arg1)));
-    case TARGET_NR_setfsuid:
-        return get_errno(setfsuid(arg1));
-    case TARGET_NR_setfsgid:
-        return get_errno(setfsgid(arg1));
-
 #ifdef TARGET_NR_lchown32
     case TARGET_NR_lchown32:
         if (!(p = lock_user_string(arg1)))
@@ -13406,6 +13417,9 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(sendto);
 #endif
         SYSCALL(setdomainname);
+        SYSCALL(setfsgid);
+        SYSCALL(setfsuid);
+        SYSCALL(setgid);
         SYSCALL(setgroups);
         SYSCALL(sethostname);
         SYSCALL(setitimer);
@@ -13425,6 +13439,7 @@ static impl_fn *syscall_table(unsigned num)
 #endif
         SYSCALL(settimeofday);
         SYSCALL(setsid);
+        SYSCALL(setuid);
 #ifdef TARGET_NR_sigaction
         SYSCALL(sigaction);
 #endif
