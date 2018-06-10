@@ -8674,6 +8674,22 @@ IMPL(getresgid)
 }
 #endif
 
+#ifdef TARGET_NR_getresgid32
+IMPL(getresgid32)
+{
+    gid_t rgid, egid, sgid;
+    abi_long ret = get_errno(getresgid(&rgid, &egid, &sgid));
+
+    if (!is_error(ret) &&
+        (put_user_u32(rgid, arg1) ||
+         put_user_u32(egid, arg2) ||
+         put_user_u32(sgid, arg3))) {
+        return -TARGET_EFAULT;
+    }
+    return ret;
+}
+#endif
+
 #ifdef TARGET_NR_getresuid
 IMPL(getresuid)
 {
@@ -8690,6 +8706,21 @@ IMPL(getresuid)
 }
 #endif
 
+#ifdef TARGET_NR_getresuid32
+IMPL(getresuid32)
+{
+    uid_t ruid, euid, suid;
+    abi_long ret = get_errno(getresuid(&ruid, &euid, &suid));
+
+    if (!is_error(ret) &&
+        (put_user_u32(ruid, arg1) ||
+         put_user_u32(euid, arg2) ||
+         put_user_u32(suid, arg3))) {
+        return -TARGET_EFAULT;
+    }
+    return ret;
+}
+#endif
 IMPL(getrlimit)
 {
     int resource = target_to_host_resource(arg1);
@@ -10906,11 +10937,25 @@ IMPL(setresgid)
 }
 #endif
 
+#ifdef TARGET_NR_setresgid32
+IMPL(setresgid32)
+{
+    return get_errno(sys_setresgid(arg1, arg2, arg3));
+}
+#endif
+
 #ifdef TARGET_NR_setresuid
 IMPL(setresuid)
 {
     return get_errno(sys_setresuid(low2highuid(arg1), low2highuid(arg2),
                                    low2highuid(arg3)));
+}
+#endif
+
+#ifdef TARGET_NR_setresuid32
+IMPL(setresuid32)
+{
+    return get_errno(sys_setresuid(arg1, arg2, arg3));
 }
 #endif
 
@@ -11898,42 +11943,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     void *p;
 
     switch(num) {
-#ifdef TARGET_NR_setresuid32
-    case TARGET_NR_setresuid32:
-        return get_errno(sys_setresuid(arg1, arg2, arg3));
-#endif
-#ifdef TARGET_NR_getresuid32
-    case TARGET_NR_getresuid32:
-        {
-            uid_t ruid, euid, suid;
-            ret = get_errno(getresuid(&ruid, &euid, &suid));
-            if (!is_error(ret)) {
-                if (put_user_u32(ruid, arg1)
-                    || put_user_u32(euid, arg2)
-                    || put_user_u32(suid, arg3))
-                    return -TARGET_EFAULT;
-            }
-        }
-        return ret;
-#endif
-#ifdef TARGET_NR_setresgid32
-    case TARGET_NR_setresgid32:
-        return get_errno(sys_setresgid(arg1, arg2, arg3));
-#endif
-#ifdef TARGET_NR_getresgid32
-    case TARGET_NR_getresgid32:
-        {
-            gid_t rgid, egid, sgid;
-            ret = get_errno(getresgid(&rgid, &egid, &sgid));
-            if (!is_error(ret)) {
-                if (put_user_u32(rgid, arg1)
-                    || put_user_u32(egid, arg2)
-                    || put_user_u32(sgid, arg3))
-                    return -TARGET_EFAULT;
-            }
-        }
-        return ret;
-#endif
 #ifdef TARGET_NR_chown32
     case TARGET_NR_chown32:
         if (!(p = lock_user_string(arg1)))
@@ -13235,8 +13244,14 @@ static impl_fn *syscall_table(unsigned num)
 #ifdef TARGET_NR_getresgid
         SYSCALL(getresgid);
 #endif
+#ifdef TARGET_NR_getresgid32
+        SYSCALL(getresgid32);
+#endif
 #ifdef TARGET_NR_getresuid
         SYSCALL(getresuid);
+#endif
+#ifdef TARGET_NR_getresuid32
+        SYSCALL(getresuid32);
 #endif
         SYSCALL(getrlimit);
         SYSCALL(getrusage);
@@ -13491,11 +13506,17 @@ static impl_fn *syscall_table(unsigned num)
 #ifdef TARGET_NR_setresgid
         SYSCALL(setresgid);
 #endif
+#ifdef TARGET_NR_setresgid32
+        SYSCALL(setresgid32);
+#endif
 #ifdef TARGET_NR_setregid32
         SYSCALL(setregid32);
 #endif
 #ifdef TARGET_NR_setresuid
         SYSCALL(setresuid);
+#endif
+#ifdef TARGET_NR_setresuid32
+        SYSCALL(setresuid32);
 #endif
         SYSCALL(setreuid);
 #ifdef TARGET_NR_setreuid32
