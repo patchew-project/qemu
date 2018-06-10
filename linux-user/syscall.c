@@ -7871,6 +7871,13 @@ static abi_long impl_##NAME(void *cpu_env, unsigned num, abi_long arg1,   \
                             abi_long arg5, abi_long arg6, abi_long arg7,  \
                             abi_long arg8)
 
+#ifdef TARGET_NR_alarm
+IMPL(alarm)
+{
+    return alarm(arg1);
+}
+#endif
+
 IMPL(brk)
 {
     return do_brk(arg1);
@@ -8319,6 +8326,17 @@ IMPL(open_by_handle_at)
 }
 #endif
 
+#ifdef TARGET_NR_pause
+IMPL(pause)
+{
+    if (!block_signals()) {
+        CPUState *cpu = ENV_GET_CPU(cpu_env);
+        sigsuspend(&((TaskState *)cpu->opaque)->signal_mask);
+    }
+    return -TARGET_EINTR;
+}
+#endif
+
 IMPL(read)
 {
     abi_long ret;
@@ -8338,6 +8356,17 @@ IMPL(read)
     unlock_user(p, arg2, ret);
     return ret;
 }
+
+#ifdef TARGET_NR_stime
+IMPL(stime)
+{
+    time_t host_time;
+    if (get_user_sal(host_time, arg1)) {
+        return -TARGET_EFAULT;
+    }
+    return get_errno(stime(&host_time));
+}
+#endif
 
 #ifdef TARGET_NR_time
 IMPL(time)
@@ -8393,6 +8422,55 @@ IMPL(unlinkat)
     unlock_user(p, arg2, 0);
     return ret;
 }
+
+#ifdef TARGET_NR_utime
+IMPL(utime)
+{
+    struct utimbuf tbuf;
+    char *p;
+    abi_long ret;
+
+    if (arg2) {
+        struct target_utimbuf *target_tbuf;
+        if (!lock_user_struct(VERIFY_READ, target_tbuf, arg2, 1)) {
+            return -TARGET_EFAULT;
+        }
+        tbuf.actime = tswapal(target_tbuf->actime);
+        tbuf.modtime = tswapal(target_tbuf->modtime);
+        unlock_user_struct(target_tbuf, arg2, 0);
+    }
+    p = lock_user_string(arg1);
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(utime(p, arg2 ? &tbuf : NULL));
+    unlock_user(p, arg1, 0);
+    return ret;
+}
+#endif
+
+#ifdef TARGET_NR_utimes
+IMPL(utimes)
+{
+    struct timeval tv[2];
+    char *p;
+    abi_long ret;
+
+    if (arg2 &&
+        (copy_from_user_timeval(&tv[0], arg2) ||
+         copy_from_user_timeval(&tv[1],
+                                arg2 + sizeof(struct target_timeval)))) {
+        return -TARGET_EFAULT;
+    }
+    p = lock_user_string(arg1);
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(utimes(p, arg2 ? tv : NULL));
+    unlock_user(p, arg1, 0);
+    return ret;
+}
+#endif
 
 IMPL(waitid)
 {
@@ -8467,68 +8545,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     void *p;
 
     switch(num) {
-#ifdef TARGET_NR_stime /* not on alpha */
-    case TARGET_NR_stime:
-        {
-            time_t host_time;
-            if (get_user_sal(host_time, arg1))
-                return -TARGET_EFAULT;
-            return get_errno(stime(&host_time));
-        }
-#endif
-#ifdef TARGET_NR_alarm /* not on alpha */
-    case TARGET_NR_alarm:
-        return alarm(arg1);
-#endif
-#ifdef TARGET_NR_pause /* not on alpha */
-    case TARGET_NR_pause:
-        if (!block_signals()) {
-            sigsuspend(&((TaskState *)cpu->opaque)->signal_mask);
-        }
-        return -TARGET_EINTR;
-#endif
-#ifdef TARGET_NR_utime
-    case TARGET_NR_utime:
-        {
-            struct utimbuf tbuf, *host_tbuf;
-            struct target_utimbuf *target_tbuf;
-            if (arg2) {
-                if (!lock_user_struct(VERIFY_READ, target_tbuf, arg2, 1))
-                    return -TARGET_EFAULT;
-                tbuf.actime = tswapal(target_tbuf->actime);
-                tbuf.modtime = tswapal(target_tbuf->modtime);
-                unlock_user_struct(target_tbuf, arg2, 0);
-                host_tbuf = &tbuf;
-            } else {
-                host_tbuf = NULL;
-            }
-            if (!(p = lock_user_string(arg1)))
-                return -TARGET_EFAULT;
-            ret = get_errno(utime(p, host_tbuf));
-            unlock_user(p, arg1, 0);
-        }
-        return ret;
-#endif
-#ifdef TARGET_NR_utimes
-    case TARGET_NR_utimes:
-        {
-            struct timeval *tvp, tv[2];
-            if (arg2) {
-                if (copy_from_user_timeval(&tv[0], arg2)
-                    || copy_from_user_timeval(&tv[1],
-                                              arg2 + sizeof(struct target_timeval)))
-                    return -TARGET_EFAULT;
-                tvp = tv;
-            } else {
-                tvp = NULL;
-            }
-            if (!(p = lock_user_string(arg1)))
-                return -TARGET_EFAULT;
-            ret = get_errno(utimes(p, tvp));
-            unlock_user(p, arg1, 0);
-        }
-        return ret;
-#endif
 #if defined(TARGET_NR_futimesat)
     case TARGET_NR_futimesat:
         {
@@ -12528,6 +12544,9 @@ static impl_fn *syscall_table(unsigned num)
         /*
          * Other syscalls listed in collation order, with '_' ignored.
          */
+#ifdef TARGET_NR_alarm
+        SYSCALL(alarm);
+#endif
         SYSCALL(brk);
         SYSCALL(close);
         SYSCALL(chdir);
@@ -12568,7 +12587,13 @@ static impl_fn *syscall_table(unsigned num)
 #ifdef CONFIG_OPEN_BY_HANDLE
         SYSCALL(open_by_handle_at);
 #endif
+#ifdef TARGET_NR_pause
+        SYSCALL(pause);
+#endif
         SYSCALL(read);
+#ifdef TARGET_NR_stime
+        SYSCALL(stime);
+#endif
 #ifdef TARGET_NR_time
         SYSCALL(time);
 #endif
@@ -12579,6 +12604,12 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(unlink);
 #endif
         SYSCALL(unlinkat);
+#ifdef TARGET_NR_utime
+        SYSCALL(utime);
+#endif
+#ifdef TARGET_NR_utimes
+        SYSCALL(utimes);
+#endif
         SYSCALL(waitid);
 #ifdef TARGET_NR_waitpid
         SYSCALL(waitpid);
