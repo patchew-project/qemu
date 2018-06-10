@@ -628,7 +628,6 @@ static int sys_utimensat(int dirfd, const char *pathname,
 #endif
 #endif /* TARGET_NR_utimensat */
 
-#ifdef TARGET_NR_renameat2
 #if defined(__NR_renameat2)
 #define __NR_sys_renameat2 __NR_renameat2
 _syscall5(int, sys_renameat2, int, oldfd, const char *, old, int, newfd,
@@ -644,7 +643,6 @@ static int sys_renameat2(int oldfd, const char *old,
     return -1;
 }
 #endif
-#endif /* TARGET_NR_renameat2 */
 
 #ifdef CONFIG_INOTIFY
 #include <sys/inotify.h>
@@ -8420,6 +8418,52 @@ IMPL(read)
     return ret;
 }
 
+#ifdef TARGET_NR_rename
+IMPL(rename)
+{
+    char *p1 = lock_user_string(arg1);
+    char *p2 = lock_user_string(arg2);
+    abi_long ret = -TARGET_EFAULT;
+
+    if (p1 && p2) {
+        ret = get_errno(rename(p1, p2));
+    }
+    unlock_user(p2, arg2, 0);
+    unlock_user(p1, arg1, 0);
+    return ret;
+}
+#endif
+
+#ifdef TARGET_NR_renameat
+IMPL(renameat)
+{
+    char *p1 = lock_user_string(arg2);
+    char *p2 = lock_user_string(arg4);
+    abi_long ret = -TARGET_EFAULT;
+
+    if (p1 && p2) {
+        ret = get_errno(renameat(arg1, p1, arg3, p2));
+    }
+    unlock_user(p2, arg4, 0);
+    unlock_user(p1, arg2, 0);
+    return ret;
+}
+#endif
+
+IMPL(renameat2)
+{
+    char *p1 = lock_user_string(arg2);
+    char *p2 = lock_user_string(arg4);
+    abi_long ret = -TARGET_EFAULT;
+
+    if (p1 && p2) {
+        ret = get_errno(sys_renameat2(arg1, p1, arg3, p2, arg5));
+    }
+    unlock_user(p2, arg4, 0);
+    unlock_user(p1, arg2, 0);
+    return ret;
+}
+
 #ifdef TARGET_NR_stime
 IMPL(stime)
 {
@@ -8621,52 +8665,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     void *p;
 
     switch(num) {
-#ifdef TARGET_NR_rename
-    case TARGET_NR_rename:
-        {
-            void *p2;
-            p = lock_user_string(arg1);
-            p2 = lock_user_string(arg2);
-            if (!p || !p2)
-                ret = -TARGET_EFAULT;
-            else
-                ret = get_errno(rename(p, p2));
-            unlock_user(p2, arg2, 0);
-            unlock_user(p, arg1, 0);
-        }
-        return ret;
-#endif
-#if defined(TARGET_NR_renameat)
-    case TARGET_NR_renameat:
-        {
-            void *p2;
-            p  = lock_user_string(arg2);
-            p2 = lock_user_string(arg4);
-            if (!p || !p2)
-                ret = -TARGET_EFAULT;
-            else
-                ret = get_errno(renameat(arg1, p, arg3, p2));
-            unlock_user(p2, arg4, 0);
-            unlock_user(p, arg2, 0);
-        }
-        return ret;
-#endif
-#if defined(TARGET_NR_renameat2)
-    case TARGET_NR_renameat2:
-        {
-            void *p2;
-            p  = lock_user_string(arg2);
-            p2 = lock_user_string(arg4);
-            if (!p || !p2) {
-                ret = -TARGET_EFAULT;
-            } else {
-                ret = get_errno(sys_renameat2(arg1, p, arg3, p2, arg5));
-            }
-            unlock_user(p2, arg4, 0);
-            unlock_user(p, arg2, 0);
-        }
-        return ret;
-#endif
 #ifdef TARGET_NR_mkdir
     case TARGET_NR_mkdir:
         if (!(p = lock_user_string(arg1)))
@@ -12626,6 +12624,13 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(pause);
 #endif
         SYSCALL(read);
+#ifdef TARGET_NR_rename
+        SYSCALL(rename);
+#endif
+#ifdef TARGET_NR_renameat
+        SYSCALL(renameat);
+#endif
+        SYSCALL(renameat2);
 #ifdef TARGET_NR_stime
         SYSCALL(stime);
 #endif
