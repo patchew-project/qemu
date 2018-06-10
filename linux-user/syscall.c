@@ -7787,6 +7787,21 @@ IMPL(chmod)
 }
 #endif
 
+#ifdef TARGET_NR_chown
+IMPL(chown)
+{
+    char *p = lock_user_string(arg1);
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(chown(p, low2highuid(arg2), low2highgid(arg3)));
+    unlock_user(p, arg1, 0);
+    return ret;
+}
+#endif
+
 IMPL(chroot)
 {
     char *p = lock_user_string(arg1);
@@ -8587,6 +8602,38 @@ IMPL(getrandom)
     unlock_user(p, arg1, ret);
     return ret;
 }
+
+#ifdef TARGET_NR_getresgid
+IMPL(getresgid)
+{
+    gid_t rgid, egid, sgid;
+    abi_long ret = get_errno(getresgid(&rgid, &egid, &sgid));
+
+    if (!is_error(ret) &&
+        (put_user_id(high2lowgid(rgid), arg1) ||
+         put_user_id(high2lowgid(egid), arg2) ||
+         put_user_id(high2lowgid(sgid), arg3))) {
+        return -TARGET_EFAULT;
+    }
+    return ret;
+}
+#endif
+
+#ifdef TARGET_NR_getresuid
+IMPL(getresuid)
+{
+    uid_t ruid, euid, suid;
+    abi_long ret = get_errno(getresuid(&ruid, &euid, &suid));
+
+    if (!is_error(ret) &&
+        (put_user_id(high2lowuid(ruid), arg1) ||
+         put_user_id(high2lowuid(euid), arg2) ||
+         put_user_id(high2lowuid(suid), arg3))) {
+        return -TARGET_EFAULT;
+    }
+    return ret;
+}
+#endif
 
 IMPL(getrlimit)
 {
@@ -11547,42 +11594,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     void *p;
 
     switch(num) {
-#ifdef TARGET_NR_getresuid
-    case TARGET_NR_getresuid:
-        {
-            uid_t ruid, euid, suid;
-            ret = get_errno(getresuid(&ruid, &euid, &suid));
-            if (!is_error(ret)) {
-                if (put_user_id(high2lowuid(ruid), arg1)
-                    || put_user_id(high2lowuid(euid), arg2)
-                    || put_user_id(high2lowuid(suid), arg3))
-                    return -TARGET_EFAULT;
-            }
-        }
-        return ret;
-#endif
-#ifdef TARGET_NR_getresgid
-    case TARGET_NR_getresgid:
-        {
-            gid_t rgid, egid, sgid;
-            ret = get_errno(getresgid(&rgid, &egid, &sgid));
-            if (!is_error(ret)) {
-                if (put_user_id(high2lowgid(rgid), arg1)
-                    || put_user_id(high2lowgid(egid), arg2)
-                    || put_user_id(high2lowgid(sgid), arg3))
-                    return -TARGET_EFAULT;
-            }
-        }
-        return ret;
-#endif
-#ifdef TARGET_NR_chown
-    case TARGET_NR_chown:
-        if (!(p = lock_user_string(arg1)))
-            return -TARGET_EFAULT;
-        ret = get_errno(chown(p, low2highuid(arg2), low2highgid(arg3)));
-        unlock_user(p, arg1, 0);
-        return ret;
-#endif
     case TARGET_NR_setuid:
         return get_errno(sys_setuid(low2highuid(arg1)));
     case TARGET_NR_setgid:
@@ -13080,10 +13091,13 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(clone);
         SYSCALL(close);
         SYSCALL(chdir);
-        SYSCALL(chroot);
 #ifdef TARGET_NR_chmod
         SYSCALL(chmod);
 #endif
+#ifdef TARGET_NR_chown
+        SYSCALL(chown);
+#endif
+        SYSCALL(chroot);
 #ifdef TARGET_NR_connect
         SYSCALL(connect);
 #endif
@@ -13169,6 +13183,12 @@ static impl_fn *syscall_table(unsigned num)
 #endif
         SYSCALL(getpriority);
         SYSCALL(getrandom);
+#ifdef TARGET_NR_getresgid
+        SYSCALL(getresgid);
+#endif
+#ifdef TARGET_NR_getresuid
+        SYSCALL(getresuid);
+#endif
         SYSCALL(getrlimit);
         SYSCALL(getrusage);
         SYSCALL(getsid);
