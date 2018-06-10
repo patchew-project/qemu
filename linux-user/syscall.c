@@ -74,6 +74,9 @@
 #ifdef CONFIG_SENDFILE
 #include <sys/sendfile.h>
 #endif
+#ifdef CONFIG_INOTIFY
+#include <sys/inotify.h>
+#endif
 
 #define termios host_termios
 #define winsize host_winsize
@@ -235,9 +238,6 @@ static type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4,type5 arg5,	\
 #define __NR_sys_rt_sigqueueinfo __NR_rt_sigqueueinfo
 #define __NR_sys_rt_tgsigqueueinfo __NR_rt_tgsigqueueinfo
 #define __NR_sys_syslog __NR_syslog
-#define __NR_sys_inotify_init __NR_inotify_init
-#define __NR_sys_inotify_add_watch __NR_inotify_add_watch
-#define __NR_sys_inotify_rm_watch __NR_inotify_rm_watch
 
 /* These definitions produce an ENOSYS from the host kernel.
  * Performing a bogus syscall is lazier than boilerplating
@@ -625,43 +625,6 @@ static int sys_renameat2(int oldfd, const char *old,
     return -1;
 }
 #endif
-
-#ifdef CONFIG_INOTIFY
-#include <sys/inotify.h>
-
-#if defined(TARGET_NR_inotify_init) && defined(__NR_inotify_init)
-static int sys_inotify_init(void)
-{
-  return (inotify_init());
-}
-#endif
-#if defined(TARGET_NR_inotify_add_watch) && defined(__NR_inotify_add_watch)
-static int sys_inotify_add_watch(int fd,const char *pathname, int32_t mask)
-{
-  return (inotify_add_watch(fd, pathname, mask));
-}
-#endif
-#if defined(TARGET_NR_inotify_rm_watch) && defined(__NR_inotify_rm_watch)
-static int sys_inotify_rm_watch(int fd, int32_t wd)
-{
-  return (inotify_rm_watch(fd, wd));
-}
-#endif
-#ifdef CONFIG_INOTIFY1
-#if defined(TARGET_NR_inotify_init1) && defined(__NR_inotify_init1)
-static int sys_inotify_init1(int flags)
-{
-  return (inotify_init1(flags));
-}
-#endif
-#endif
-#else
-/* Userspace can usually survive runtime without inotify */
-#undef TARGET_NR_inotify_init
-#undef TARGET_NR_inotify_init1
-#undef TARGET_NR_inotify_add_watch
-#undef TARGET_NR_inotify_rm_watch
-#endif /* CONFIG_INOTIFY  */
 
 #if defined(TARGET_NR_prlimit64)
 #ifndef __NR_prlimit64
@@ -7421,9 +7384,7 @@ static TargetFdTrans target_eventfd_trans = {
     .target_to_host_data = swap_data_eventfd,
 };
 
-#if (defined(TARGET_NR_inotify_init) && defined(__NR_inotify_init)) || \
-    (defined(CONFIG_INOTIFY1) && defined(TARGET_NR_inotify_init1) && \
-     defined(__NR_inotify_init1))
+#ifdef CONFIG_INOTIFY
 static abi_long host_to_target_data_inotify(void *buf, size_t len)
 {
     struct inotify_event *ev;
@@ -9176,6 +9137,59 @@ IMPL(getxuid)
     return get_errno(getuid());
 }
 #endif
+
+#ifdef CONFIG_INOTIFY
+IMPL(inotify_add_watch)
+{
+    char *p;
+    abi_long ret;
+
+    p = lock_user_string(arg2);
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(inotify_add_watch(arg1, path(p), arg3));
+    unlock_user(p, arg2, 0);
+    return ret;
+}
+
+# ifdef TARGET_NR_inotify_init
+IMPL(inotify_init)
+{
+    abi_long ret = get_errno(inotify_init());
+    if (!is_error(ret)) {
+        fd_trans_register(ret, &target_inotify_trans);
+    }
+    return ret;
+}
+# endif
+
+IMPL(inotify_init1)
+{
+    int flags = target_to_host_bitmask(arg1, fcntl_flags_tbl);
+    abi_long ret;
+
+# ifdef CONFIG_INOTIFY1
+    ret = inotify_init1(flags);
+# else
+    if (arg1 == 0) {
+        ret = inotify_init();
+    } else {
+        return -TARGET_ENOSYS;
+    }
+# endif
+    ret = get_errno(ret);
+    if (!is_error(ret)) {
+        fd_trans_register(ret, &target_inotify_trans);
+    }
+    return ret;
+}
+
+IMPL(inotify_rm_watch)
+{
+    return get_errno(inotify_rm_watch(arg1, arg2));
+}
+#endif /* CONFIG_INOTIFY */
 
 /* ??? Implement proper locking for ioctls.  */
 IMPL(ioctl)
@@ -12598,37 +12612,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     void *p;
 
     switch(num) {
-#if defined(TARGET_NR_inotify_init) && defined(__NR_inotify_init)
-    case TARGET_NR_inotify_init:
-        ret = get_errno(sys_inotify_init());
-        if (ret >= 0) {
-            fd_trans_register(ret, &target_inotify_trans);
-        }
-        return ret;
-#endif
-#ifdef CONFIG_INOTIFY1
-#if defined(TARGET_NR_inotify_init1) && defined(__NR_inotify_init1)
-    case TARGET_NR_inotify_init1:
-        ret = get_errno(sys_inotify_init1(target_to_host_bitmask(arg1,
-                                          fcntl_flags_tbl)));
-        if (ret >= 0) {
-            fd_trans_register(ret, &target_inotify_trans);
-        }
-        return ret;
-#endif
-#endif
-#if defined(TARGET_NR_inotify_add_watch) && defined(__NR_inotify_add_watch)
-    case TARGET_NR_inotify_add_watch:
-        p = lock_user_string(arg2);
-        ret = get_errno(sys_inotify_add_watch(arg1, path(p), arg3));
-        unlock_user(p, arg2, 0);
-        return ret;
-#endif
-#if defined(TARGET_NR_inotify_rm_watch) && defined(__NR_inotify_rm_watch)
-    case TARGET_NR_inotify_rm_watch:
-        return get_errno(sys_inotify_rm_watch(arg1, arg2));
-#endif
-
 #if defined(TARGET_NR_mq_open) && defined(__NR_mq_open)
     case TARGET_NR_mq_open:
         {
@@ -13481,6 +13464,14 @@ static impl_fn *syscall_table(unsigned num)
 #endif
 #if defined(TARGET_NR_getxuid) && defined(TARGET_ALPHA)
         SYSCALL(getxuid);
+#endif
+#ifdef CONFIG_INOTIFY
+        SYSCALL(inotify_add_watch);
+# ifdef TARGET_NR_inotify_init
+        SYSCALL(inotify_init);
+# endif
+        SYSCALL(inotify_init1);
+        SYSCALL(inotify_rm_watch);
 #endif
         SYSCALL(ioctl);
 #ifdef TARGET_NR_ipc
