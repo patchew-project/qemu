@@ -8103,6 +8103,25 @@ IMPL(fchmodat)
     return ret;
 }
 
+IMPL(fchown)
+{
+    return get_errno(fchown(arg1, low2highuid(arg2), low2highgid(arg3)));
+}
+
+IMPL(fchownat)
+{
+    char *p = lock_user_string(arg2);
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(fchownat(arg1, p, low2highuid(arg3),
+                             low2highgid(arg4), arg5));
+    unlock_user(p, arg2, 0);
+    return ret;
+}
+
 #ifdef TARGET_NR_fcntl
 IMPL(fcntl)
 {
@@ -10540,6 +10559,22 @@ IMPL(setregid)
     return get_errno(setregid(low2highgid(arg1), low2highgid(arg2)));
 }
 
+#ifdef TARGET_NR_setresgid
+IMPL(setresgid)
+{
+    return get_errno(sys_setresgid(low2highgid(arg1), low2highgid(arg2),
+                                   low2highgid(arg3)));
+}
+#endif
+
+#ifdef TARGET_NR_setresuid
+IMPL(setresuid)
+{
+    return get_errno(sys_setresuid(low2highuid(arg1), low2highuid(arg2),
+                                   low2highuid(arg3)));
+}
+#endif
+
 IMPL(setreuid)
 {
     return get_errno(setreuid(low2highuid(arg1), low2highuid(arg2)));
@@ -11512,23 +11547,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     void *p;
 
     switch(num) {
-    case TARGET_NR_fchown:
-        return get_errno(fchown(arg1, low2highuid(arg2), low2highgid(arg3)));
-#if defined(TARGET_NR_fchownat)
-    case TARGET_NR_fchownat:
-        if (!(p = lock_user_string(arg2))) 
-            return -TARGET_EFAULT;
-        ret = get_errno(fchownat(arg1, p, low2highuid(arg3),
-                                 low2highgid(arg4), arg5));
-        unlock_user(p, arg2, 0);
-        return ret;
-#endif
-#ifdef TARGET_NR_setresuid
-    case TARGET_NR_setresuid:
-        return get_errno(sys_setresuid(low2highuid(arg1),
-                                       low2highuid(arg2),
-                                       low2highuid(arg3)));
-#endif
 #ifdef TARGET_NR_getresuid
     case TARGET_NR_getresuid:
         {
@@ -11542,12 +11560,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
             }
         }
         return ret;
-#endif
-#ifdef TARGET_NR_getresgid
-    case TARGET_NR_setresgid:
-        return get_errno(sys_setresgid(low2highgid(arg1),
-                                       low2highgid(arg2),
-                                       low2highgid(arg3)));
 #endif
 #ifdef TARGET_NR_getresgid
     case TARGET_NR_getresgid:
@@ -13094,6 +13106,8 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(fchdir);
         SYSCALL(fchmod);
         SYSCALL(fchmodat);
+        SYSCALL(fchown);
+        SYSCALL(fchownat);
 #ifdef TARGET_NR_fcntl
         SYSCALL(fcntl);
 #endif
@@ -13378,6 +13392,12 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(setpgid);
         SYSCALL(setpriority);
         SYSCALL(setregid);
+#ifdef TARGET_NR_setresgid
+        SYSCALL(setresgid);
+#endif
+#ifdef TARGET_NR_setresuid
+        SYSCALL(setresuid);
+#endif
         SYSCALL(setreuid);
         SYSCALL(setrlimit);
 #ifdef TARGET_NR_setsockopt
