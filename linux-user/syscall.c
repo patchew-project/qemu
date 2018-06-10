@@ -7730,6 +7730,18 @@ static abi_long impl_##NAME(void *cpu_env, unsigned num, abi_long arg1,   \
                             abi_long arg5, abi_long arg6, abi_long arg7,  \
                             abi_long arg8)
 
+#ifdef TARGET_NR_accept
+IMPL(accept)
+{
+    return do_accept4(arg1, arg2, arg3, 0);
+}
+#endif
+
+IMPL(accept4)
+{
+    return do_accept4(arg1, arg2, arg3, arg4);
+}
+
 #ifdef TARGET_NR_access
 IMPL(access)
 {
@@ -7766,6 +7778,13 @@ IMPL(acct)
 IMPL(alarm)
 {
     return alarm(arg1);
+}
+#endif
+
+#ifdef TARGET_NR_bind
+IMPL(bind)
+{
+    return do_bind(arg1, arg2, arg3);
 }
 #endif
 
@@ -7820,6 +7839,13 @@ IMPL(close)
     fd_trans_unregister(arg1);
     return get_errno(close(arg1));
 }
+
+#ifdef TARGET_NR_connect
+IMPL(connect)
+{
+    return do_connect(arg1, arg2, arg3);
+}
+#endif
 
 #ifdef TARGET_NR_creat
 IMPL(creat)
@@ -9925,22 +9951,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     void *p;
 
     switch(num) {
-#ifdef TARGET_NR_accept
-    case TARGET_NR_accept:
-        return do_accept4(arg1, arg2, arg3, 0);
-#endif
-#ifdef TARGET_NR_accept4
-    case TARGET_NR_accept4:
-        return do_accept4(arg1, arg2, arg3, arg4);
-#endif
-#ifdef TARGET_NR_bind
-    case TARGET_NR_bind:
-        return do_bind(arg1, arg2, arg3);
-#endif
-#ifdef TARGET_NR_connect
-    case TARGET_NR_connect:
-        return do_connect(arg1, arg2, arg3);
-#endif
 #ifdef TARGET_NR_getpeername
     case TARGET_NR_getpeername:
         return do_getpeername(arg1, arg2, arg3);
@@ -12769,9 +12779,16 @@ static impl_fn *syscall_table(unsigned num)
 #ifdef TARGET_NR_access
         SYSCALL(access);
 #endif
+#ifdef TARGET_NR_accept
+        SYSCALL(accept);
+#endif
+        SYSCALL(accept4);
         SYSCALL(acct);
 #ifdef TARGET_NR_alarm
         SYSCALL(alarm);
+#endif
+#ifdef TARGET_NR_bind
+        SYSCALL(bind);
 #endif
         SYSCALL(brk);
         SYSCALL(close);
@@ -12779,6 +12796,9 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(chroot);
 #ifdef TARGET_NR_chmod
         SYSCALL(chmod);
+#endif
+#ifdef TARGET_NR_connect
+        SYSCALL(connect);
 #endif
 #ifdef TARGET_NR_creat
         SYSCALL(creat);
