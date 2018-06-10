@@ -7560,6 +7560,29 @@ IMPL(atomic_barrier)
 }
 #endif
 
+#ifdef TARGET_NR_atomic_cmpxchg_32
+IMPL(atomic_cmpxchg_32)
+{
+    /* This is m68k specific.  */
+    uint32_t newval = arg1;
+    uint32_t oldval = arg2;
+    abi_ulong target_addr = arg6;
+    uint32_t *host_addr;
+
+    if (!access_ok(VERIFY_WRITE, target_addr, 4)) {
+        target_siginfo_t info;
+        info.si_signo = SIGSEGV;
+        info.si_errno = 0;
+        info.si_code = TARGET_SEGV_MAPERR;
+        info._sifields._sigfault._addr = target_addr;
+        queue_signal(cpu_env, info.si_signo, QEMU_SI_FAULT, &info);
+        return 0xdeadbeef;
+    }
+    host_addr = g2h(target_addr);
+    return atomic_cmpxchg(host_addr, oldval, newval);
+}
+#endif
+
 #ifdef TARGET_NR_bind
 IMPL(bind)
 {
@@ -13025,27 +13048,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     abi_long ret;
 
     switch(num) {
-#ifdef TARGET_NR_atomic_cmpxchg_32
-    case TARGET_NR_atomic_cmpxchg_32:
-    {
-        /* should use start_exclusive from main.c */
-        abi_ulong mem_value;
-        if (get_user_u32(mem_value, arg6)) {
-            target_siginfo_t info;
-            info.si_signo = SIGSEGV;
-            info.si_errno = 0;
-            info.si_code = TARGET_SEGV_MAPERR;
-            info._sifields._sigfault._addr = arg6;
-            queue_signal((CPUArchState *)cpu_env, info.si_signo,
-                         QEMU_SI_FAULT, &info);
-            ret = 0xdeadbeef;
-
-        }
-        if (mem_value == arg2)
-            put_user_u32(arg1, arg6);
-        return mem_value;
-    }
-#endif
 #ifdef TARGET_NR_timer_create
     case TARGET_NR_timer_create:
     {
@@ -13299,6 +13301,9 @@ static impl_fn *syscall_table(unsigned num)
 #endif
 #ifdef TARGET_NR_atomic_barrier
         SYSCALL(atomic_barrier);
+#endif
+#ifdef TARGET_NR_atomic_cmpxchg_32
+        SYSCALL(atomic_cmpxchg_32);
 #endif
         SYSCALL(brk);
 #ifdef TARGET_NR_cacheflush
