@@ -6975,8 +6975,6 @@ static abi_long host_to_target_statfs64(abi_ulong target_addr,
 }
 #endif
 
-#if defined(TARGET_NR_signalfd) || defined(TARGET_NR_signalfd4)
-
 /* signalfd siginfo conversion */
 
 static void
@@ -7045,21 +7043,17 @@ static abi_long do_signalfd4(int fd, abi_long mask, int flags)
     if (!lock_user_struct(VERIFY_READ, target_mask, mask, 1)) {
         return -TARGET_EFAULT;
     }
-
     target_to_host_sigset(&host_mask, target_mask);
+    unlock_user_struct(target_mask, mask, 0);
 
     host_flags = target_to_host_bitmask(flags, fcntl_flags_tbl);
 
     ret = get_errno(signalfd(fd, &host_mask, host_flags));
-    if (ret >= 0) {
+    if (!is_error(ret)) {
         fd_trans_register(ret, &target_signalfd_trans);
     }
-
-    unlock_user_struct(target_mask, mask, 0);
-
     return ret;
 }
-#endif
 
 /* Map host to target signal numbers for the wait family of syscalls.
    Assume all other status bits are the same.  */
@@ -11884,6 +11878,18 @@ IMPL(sigaltstack)
     return do_sigaltstack(arg1, arg2, get_sp_from_cpustate(cpu_env));
 }
 
+#ifdef TARGET_NR_signalfd
+IMPL(signalfd)
+{
+    return do_signalfd4(arg1, arg2, 0);
+}
+#endif
+
+IMPL(signalfd4)
+{
+    return do_signalfd4(arg1, arg2, arg4);
+}
+
 #ifdef TARGET_NR_sigpending
 IMPL(sigpending)
 {
@@ -12850,14 +12856,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     abi_long ret;
 
     switch(num) {
-#if defined(TARGET_NR_signalfd4)
-    case TARGET_NR_signalfd4:
-        return do_signalfd4(arg1, arg2, arg4);
-#endif
-#if defined(TARGET_NR_signalfd)
-    case TARGET_NR_signalfd:
-        return do_signalfd4(arg1, arg2, 0);
-#endif
 #if defined(CONFIG_EPOLL)
 #if defined(TARGET_NR_epoll_create)
     case TARGET_NR_epoll_create:
@@ -13808,6 +13806,10 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(sigaction);
 #endif
         SYSCALL(sigaltstack);
+#ifdef TARGET_NR_signalfd
+        SYSCALL(signalfd);
+#endif
+        SYSCALL(signalfd4);
 #ifdef TARGET_NR_sigpending
         SYSCALL(sigpending);
 #endif
