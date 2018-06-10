@@ -8954,6 +8954,13 @@ IMPL(recvfrom)
 }
 #endif
 
+#ifdef TARGET_NR_recvmmsg
+IMPL(recvmmsg)
+{
+    return do_sendrecvmmsg(arg1, arg2, arg3, arg4, 0);
+}
+#endif
+
 #ifdef TARGET_NR_recvmsg
 IMPL(recvmsg)
 {
@@ -9285,6 +9292,34 @@ IMPL(select)
 # else
     return do_select(arg1, arg2, arg3, arg4, arg5);
 # endif
+}
+#endif
+
+#ifdef TARGET_NR_send
+IMPL(send)
+{
+    return do_sendto(arg1, arg2, arg3, arg4, 0, 0);
+}
+#endif
+
+#ifdef TARGET_NR_sendmsg
+IMPL(sendmsg)
+{
+    return do_sendrecvmsg(arg1, arg2, arg3, 1);
+}
+#endif
+
+#ifdef TARGET_NR_sendmmsg
+IMPL(sendmmsg)
+{
+    return do_sendrecvmmsg(arg1, arg2, arg3, arg4, 1);
+}
+#endif
+
+#ifdef TARGET_NR_sendto
+IMPL(sendto)
+{
+    return do_sendto(arg1, arg2, arg3, arg4, arg5, arg6);
 }
 #endif
 
@@ -10000,24 +10035,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     void *p;
 
     switch(num) {
-#ifdef TARGET_NR_send
-    case TARGET_NR_send:
-        return do_sendto(arg1, arg2, arg3, arg4, 0, 0);
-#endif
-#ifdef TARGET_NR_sendmsg
-    case TARGET_NR_sendmsg:
-        return do_sendrecvmsg(arg1, arg2, arg3, 1);
-#endif
-#ifdef TARGET_NR_sendmmsg
-    case TARGET_NR_sendmmsg:
-        return do_sendrecvmmsg(arg1, arg2, arg3, arg4, 1);
-    case TARGET_NR_recvmmsg:
-        return do_sendrecvmmsg(arg1, arg2, arg3, arg4, 0);
-#endif
-#ifdef TARGET_NR_sendto
-    case TARGET_NR_sendto:
-        return do_sendto(arg1, arg2, arg3, arg4, arg5, arg6);
-#endif
 #ifdef TARGET_NR_shutdown
     case TARGET_NR_shutdown:
         return get_errno(shutdown(arg1, arg2));
@@ -12942,6 +12959,9 @@ static impl_fn *syscall_table(unsigned num)
 #ifdef TARGET_NR_recvfrom
         SYSCALL(recvfrom);
 #endif
+#ifdef TARGET_NR_recvmmsg
+        SYSCALL(recvmmsg);
+#endif
 #ifdef TARGET_NR_recvmsg
         SYSCALL(recvmsg);
 #endif
@@ -12972,6 +12992,18 @@ static impl_fn *syscall_table(unsigned num)
 # else
         SYSCALL(select);
 # endif
+#endif
+#ifdef TARGET_NR_send
+        SYSCALL(send);
+#endif
+#ifdef TARGET_NR_sendmmsg
+        SYSCALL(sendmmsg);
+#endif
+#ifdef TARGET_NR_sendmsg
+        SYSCALL(sendmsg);
+#endif
+#ifdef TARGET_NR_sendto
+        SYSCALL(sendto);
 #endif
         SYSCALL(sethostname);
         SYSCALL(setpgid);
