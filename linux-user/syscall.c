@@ -250,6 +250,15 @@ static type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4,type5 arg5,	\
 #ifndef __NR_gettid
 #define __NR_gettid  -1
 #endif
+#ifndef __NR_ioprio_get
+#define __NR_ioprio_get  -1
+#endif
+#ifndef __NR_ioprio_set
+#define __NR_ioprio_set  -1
+#endif
+#ifndef __NR_kcmp
+#define __NR_kcmp  -1
+#endif
 #ifndef __NR_set_tid_address
 #define __NR_set_tid_address  -1
 #endif
@@ -296,18 +305,11 @@ _syscall2(int, capget, struct __user_cap_header_struct *, header,
           struct __user_cap_data_struct *, data);
 _syscall2(int, capset, struct __user_cap_header_struct *, header,
           struct __user_cap_data_struct *, data);
-#if defined(TARGET_NR_ioprio_get) && defined(__NR_ioprio_get)
 _syscall2(int, ioprio_get, int, which, int, who)
-#endif
-#if defined(TARGET_NR_ioprio_set) && defined(__NR_ioprio_set)
 _syscall3(int, ioprio_set, int, which, int, who, int, ioprio)
-#endif
 _syscall3(int, getrandom, void *, buf, size_t, buflen, unsigned int, flags)
-
-#if defined(TARGET_NR_kcmp) && defined(__NR_kcmp)
 _syscall5(int, kcmp, pid_t, pid1, pid_t, pid2, int, type,
           unsigned long, idx1, unsigned long, idx2)
-#endif
 
 static bitmask_transtbl fcntl_flags_tbl[] = {
   { TARGET_O_ACCMODE,   TARGET_O_WRONLY,    O_ACCMODE,   O_WRONLY,    },
@@ -9474,6 +9476,16 @@ IMPL(ioctl)
     return ret;
 }
 
+IMPL(ioprio_get)
+{
+    return get_errno(ioprio_get(arg1, arg2));
+}
+
+IMPL(ioprio_set)
+{
+    return get_errno(ioprio_set(arg1, arg2, arg3));
+}
+
 #ifdef TARGET_NR_ipc
 IMPL(ipc)
 {
@@ -9552,6 +9564,11 @@ IMPL(ipc)
     }
 }
 #endif
+
+IMPL(kcmp)
+{
+    return get_errno(kcmp(arg1, arg2, arg3, arg4, arg5));
+}
 
 IMPL(kill)
 {
@@ -13187,16 +13204,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     abi_long ret;
 
     switch(num) {
-#if defined(TARGET_NR_ioprio_get) && defined(__NR_ioprio_get)
-    case TARGET_NR_ioprio_get:
-        return get_errno(ioprio_get(arg1, arg2));
-#endif
-
-#if defined(TARGET_NR_ioprio_set) && defined(__NR_ioprio_set)
-    case TARGET_NR_ioprio_set:
-        return get_errno(ioprio_set(arg1, arg2, arg3));
-#endif
-
 #if defined(TARGET_NR_setns) && defined(CONFIG_SETNS)
     case TARGET_NR_setns:
         return get_errno(setns(arg1, arg2));
@@ -13205,11 +13212,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     case TARGET_NR_unshare:
         return get_errno(unshare(arg1));
 #endif
-#if defined(TARGET_NR_kcmp) && defined(__NR_kcmp)
-    case TARGET_NR_kcmp:
-        return get_errno(kcmp(arg1, arg2, arg3, arg4, arg5));
-#endif
-
     default:
         gemu_log("qemu: Unsupported syscall: %d\n", num);
         return -TARGET_ENOSYS;
@@ -13510,9 +13512,12 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(inotify_rm_watch);
 #endif
         SYSCALL(ioctl);
+        SYSCALL(ioprio_get);
+        SYSCALL(ioprio_set);
 #ifdef TARGET_NR_ipc
         SYSCALL(ipc);
 #endif
+        SYSCALL(kcmp);
         SYSCALL(kill);
 #ifdef TARGET_NR_lchown
         SYSCALL(lchown);
