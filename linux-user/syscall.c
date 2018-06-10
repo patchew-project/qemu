@@ -5755,7 +5755,6 @@ static bitmask_transtbl mmap_flags_tbl[] = {
 };
 
 #if defined(TARGET_I386)
-
 /* NOTE: there is really one LDT for all the threads */
 static uint8_t *ldt_table;
 
@@ -5868,29 +5867,6 @@ install:
     lp[0] = tswap32(entry_1);
     lp[1] = tswap32(entry_2);
     return 0;
-}
-
-/* specific and weird i386 syscalls */
-static abi_long do_modify_ldt(CPUX86State *env, int func, abi_ulong ptr,
-                              unsigned long bytecount)
-{
-    abi_long ret;
-
-    switch (func) {
-    case 0:
-        ret = read_ldt(ptr, bytecount);
-        break;
-    case 1:
-        ret = write_ldt(env, ptr, bytecount, 1);
-        break;
-    case 0x11:
-        ret = write_ldt(env, ptr, bytecount, 0);
-        break;
-    default:
-        ret = -TARGET_ENOSYS;
-        break;
-    }
-    return ret;
 }
 
 #if defined(TARGET_I386) && defined(TARGET_ABI32)
@@ -8614,6 +8590,28 @@ IMPL(mmap2)
 }
 #endif
 
+#ifdef TARGET_I386
+/* ??? Other TARGET_NR_modify_ldt should be deleted.  */
+IMPL(modify_ldt)
+{
+    CPUX86State *env = cpu_env;
+    int func = arg1;
+    abi_ulong ptr = arg2;
+    abi_ulong bytecount = arg3;
+
+    switch (func) {
+    case 0:
+        return read_ldt(ptr, bytecount);
+    case 1:
+        return write_ldt(env, ptr, bytecount, 1);
+    case 0x11:
+        return write_ldt(env, ptr, bytecount, 0);
+    default:
+        return -TARGET_ENOSYS;
+    }
+}
+#endif
+
 IMPL(mount)
 {
     char *p1 = NULL, *p2, *p3 = NULL;
@@ -9498,6 +9496,19 @@ IMPL(sendto)
 }
 #endif
 
+IMPL(setdomainname)
+{
+    char *p = lock_user_string(arg1);
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(setdomainname(p, arg2));
+    unlock_user(p, arg1, 0);
+    return ret;
+}
+
 IMPL(sethostname)
 {
     char *p = lock_user_string(arg1);
@@ -10206,6 +10217,31 @@ IMPL(umount2)
     return ret;
 }
 
+IMPL(uname)
+{
+    struct new_utsname *buf;
+    abi_long ret;
+
+    if (!lock_user_struct(VERIFY_WRITE, buf, arg1, 0)) {
+        return -TARGET_EFAULT;
+    }
+    /* No need to transcode because we use the linux syscall.  */
+    ret = get_errno(sys_uname(buf));
+    if (!is_error(ret)) {
+        /* Overwrite the native machine name with whatever is being
+           emulated. */
+        g_strlcpy(buf->machine, cpu_to_uname_machine(cpu_env),
+                  sizeof(buf->machine));
+        /* Allow the user to override the reported release.  */
+        if (qemu_uname_release && *qemu_uname_release) {
+            g_strlcpy(buf->release, qemu_uname_release,
+                      sizeof(buf->release));
+        }
+    }
+    unlock_user_struct(buf, arg1, 1);
+    return ret;
+}
+
 #ifdef TARGET_NR_unlink
 IMPL(unlink)
 {
@@ -10384,41 +10420,9 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     void *p;
 
     switch(num) {
-    case TARGET_NR_setdomainname:
-        if (!(p = lock_user_string(arg1)))
-            return -TARGET_EFAULT;
-        ret = get_errno(setdomainname(p, arg2));
-        unlock_user(p, arg1, 0);
-        return ret;
-    case TARGET_NR_uname:
-        /* no need to transcode because we use the linux syscall */
-        {
-            struct new_utsname * buf;
-
-            if (!lock_user_struct(VERIFY_WRITE, buf, arg1, 0))
-                return -TARGET_EFAULT;
-            ret = get_errno(sys_uname(buf));
-            if (!is_error(ret)) {
-                /* Overwrite the native machine name with whatever is being
-                   emulated. */
-                g_strlcpy(buf->machine, cpu_to_uname_machine(cpu_env),
-                          sizeof(buf->machine));
-                /* Allow the user to override the reported release.  */
-                if (qemu_uname_release && *qemu_uname_release) {
-                    g_strlcpy(buf->release, qemu_uname_release,
-                              sizeof(buf->release));
-                }
-            }
-            unlock_user_struct(buf, arg1, 1);
-        }
-        return ret;
-#ifdef TARGET_I386
-    case TARGET_NR_modify_ldt:
-        return do_modify_ldt(cpu_env, arg1, arg2, arg3);
-#if !defined(TARGET_X86_64)
+#if defined(TARGET_I386) && !defined(TARGET_X86_64)
     case TARGET_NR_vm86:
         return do_vm86(cpu_env, arg1, arg2);
-#endif
 #endif
     case TARGET_NR_adjtimex:
         {
@@ -12987,6 +12991,9 @@ static impl_fn *syscall_table(unsigned num)
 #ifdef TARGET_NR_mmap2
         SYSCALL(mmap2);
 #endif
+#ifdef TARGET_I386
+        SYSCALL(modify_ldt);
+#endif
         SYSCALL(mount);
         SYSCALL(mprotect);
         SYSCALL(mremap);
@@ -13112,6 +13119,7 @@ static impl_fn *syscall_table(unsigned num)
 #ifdef TARGET_NR_sendto
         SYSCALL(sendto);
 #endif
+        SYSCALL(setdomainname);
         SYSCALL(sethostname);
         SYSCALL(setitimer);
         SYSCALL(setpgid);
@@ -13181,6 +13189,7 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(umount);
 #endif
         SYSCALL(umount2);
+        SYSCALL(uname);
 #ifdef TARGET_NR_unlink
         SYSCALL(unlink);
 #endif
