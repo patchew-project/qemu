@@ -8482,6 +8482,13 @@ IMPL(getegid)
 }
 #endif
 
+#ifdef TARGET_NR_getegid32
+IMPL(getegid32)
+{
+    return get_errno(getegid());
+}
+#endif
+
 #ifdef TARGET_NR_geteuid
 IMPL(geteuid)
 {
@@ -8489,10 +8496,24 @@ IMPL(geteuid)
 }
 #endif
 
+#ifdef TARGET_NR_geteuid32
+IMPL(geteuid32)
+{
+    return get_errno(geteuid());
+}
+#endif
+
 #ifdef TARGET_NR_getgid
 IMPL(getgid)
 {
     return get_errno(high2lowgid(getgid()));
+}
+#endif
+
+#ifdef TARGET_NR_getgid32
+IMPL(getgid32)
+{
+    return get_errno(getgid());
 }
 #endif
 
@@ -10812,6 +10833,13 @@ IMPL(setregid)
     return get_errno(setregid(low2highgid(arg1), low2highgid(arg2)));
 }
 
+#ifdef TARGET_NR_setregid32
+IMPL(setregid32)
+{
+    return get_errno(setregid(arg1, arg2));
+}
+#endif
+
 #ifdef TARGET_NR_setresgid
 IMPL(setresgid)
 {
@@ -10832,6 +10860,13 @@ IMPL(setreuid)
 {
     return get_errno(setreuid(low2highuid(arg1), low2highuid(arg2)));
 }
+
+#ifdef TARGET_NR_setreuid32
+IMPL(setreuid32)
+{
+    return get_errno(setreuid(arg1, arg2));
+}
+#endif
 
 IMPL(setrlimit)
 {
@@ -11805,26 +11840,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     void *p;
 
     switch(num) {
-#ifdef TARGET_NR_getgid32
-    case TARGET_NR_getgid32:
-        return get_errno(getgid());
-#endif
-#ifdef TARGET_NR_geteuid32
-    case TARGET_NR_geteuid32:
-        return get_errno(geteuid());
-#endif
-#ifdef TARGET_NR_getegid32
-    case TARGET_NR_getegid32:
-        return get_errno(getegid());
-#endif
-#ifdef TARGET_NR_setreuid32
-    case TARGET_NR_setreuid32:
-        return get_errno(setreuid(arg1, arg2));
-#endif
-#ifdef TARGET_NR_setregid32
-    case TARGET_NR_setregid32:
-        return get_errno(setregid(arg1, arg2));
-#endif
 #ifdef TARGET_NR_getgroups32
     case TARGET_NR_getgroups32:
         {
@@ -13168,11 +13183,20 @@ static impl_fn *syscall_table(unsigned num)
 #ifdef TARGET_NR_getegid
         SYSCALL(getegid);
 #endif
+#ifdef TARGET_NR_getegid32
+        SYSCALL(getegid32);
+#endif
 #ifdef TARGET_NR_geteuid
         SYSCALL(geteuid);
 #endif
+#ifdef TARGET_NR_geteuid32
+        SYSCALL(geteuid32);
+#endif
 #ifdef TARGET_NR_getgid
         SYSCALL(getgid);
+#endif
+#ifdef TARGET_NR_getgid32
+        SYSCALL(getgid32);
 #endif
         SYSCALL(getgroups);
         SYSCALL(getitimer);
@@ -13447,10 +13471,16 @@ static impl_fn *syscall_table(unsigned num)
 #ifdef TARGET_NR_setresgid
         SYSCALL(setresgid);
 #endif
+#ifdef TARGET_NR_setregid32
+        SYSCALL(setregid32);
+#endif
 #ifdef TARGET_NR_setresuid
         SYSCALL(setresuid);
 #endif
         SYSCALL(setreuid);
+#ifdef TARGET_NR_setreuid32
+        SYSCALL(setreuid32);
+#endif
         SYSCALL(setrlimit);
 #ifdef TARGET_NR_setsockopt
         SYSCALL(setsockopt);
