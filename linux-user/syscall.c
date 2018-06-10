@@ -7903,6 +7903,37 @@ IMPL(dup3)
     return ret;
 }
 
+#ifdef CONFIG_EVENTFD
+# ifdef TARGET_NR_eventfd
+IMPL(eventfd)
+{
+    abi_long ret = get_errno(eventfd(arg1, 0));
+    if (ret >= 0) {
+        fd_trans_register(ret, &target_eventfd_trans);
+    }
+    return ret;
+}
+# endif
+
+IMPL(eventfd2)
+{
+    int host_flags = arg2 & (~(TARGET_O_NONBLOCK | TARGET_O_CLOEXEC));
+    abi_long ret;
+
+    if (arg2 & TARGET_O_NONBLOCK) {
+        host_flags |= O_NONBLOCK;
+    }
+    if (arg2 & TARGET_O_CLOEXEC) {
+        host_flags |= O_CLOEXEC;
+    }
+    ret = get_errno(eventfd(arg1, host_flags));
+    if (ret >= 0) {
+        fd_trans_register(ret, &target_eventfd_trans);
+    }
+    return ret;
+}
+#endif /* CONFIG_EVENTFD */
+
 IMPL(execve)
 {
     abi_ulong *guest_ptrs;
@@ -12767,33 +12798,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     abi_long ret;
 
     switch(num) {
-#ifdef CONFIG_EVENTFD
-#if defined(TARGET_NR_eventfd)
-    case TARGET_NR_eventfd:
-        ret = get_errno(eventfd(arg1, 0));
-        if (ret >= 0) {
-            fd_trans_register(ret, &target_eventfd_trans);
-        }
-        return ret;
-#endif
-#if defined(TARGET_NR_eventfd2)
-    case TARGET_NR_eventfd2:
-    {
-        int host_flags = arg2 & (~(TARGET_O_NONBLOCK | TARGET_O_CLOEXEC));
-        if (arg2 & TARGET_O_NONBLOCK) {
-            host_flags |= O_NONBLOCK;
-        }
-        if (arg2 & TARGET_O_CLOEXEC) {
-            host_flags |= O_CLOEXEC;
-        }
-        ret = get_errno(eventfd(arg1, host_flags));
-        if (ret >= 0) {
-            fd_trans_register(ret, &target_eventfd_trans);
-        }
-        return ret;
-    }
-#endif
-#endif /* CONFIG_EVENTFD  */
 #if defined(CONFIG_FALLOCATE) && defined(TARGET_NR_fallocate)
     case TARGET_NR_fallocate:
 #if TARGET_ABI_BITS == 32
@@ -13314,6 +13318,12 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(dup2);
 #endif
         SYSCALL(dup3);
+#ifdef CONFIG_EVENTFD
+# ifdef TARGET_NR_eventfd
+        SYSCALL(eventfd);
+# endif
+        SYSCALL(eventfd2);
+#endif
         SYSCALL(execve);
         SYSCALL(exit);
 #ifdef __NR_exit_group
