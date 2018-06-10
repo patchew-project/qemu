@@ -10230,11 +10230,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     switch(num) {
     case TARGET_NR_vhangup:
         return get_errno(vhangup());
-#ifdef TARGET_NR_syscall
-    case TARGET_NR_syscall:
-        return do_syscall(cpu_env, arg1 & 0xffff, arg2, arg3, arg4, arg5,
-                          arg6, arg7, arg8, 0);
-#endif
     case TARGET_NR_wait4:
         {
             int status;
@@ -13169,6 +13164,32 @@ abi_long do_syscall(void *cpu_env, unsigned num, abi_long arg1,
         if (flag) {
             return -TARGET_ERESTARTSYS;
         }
+    }
+#endif
+#ifdef TARGET_NR_syscall
+    /* For the benefit of strace, unwrap NR_syscall now.  */
+    if (num == TARGET_NR_syscall) {
+        num = arg1 & 0xffff;
+        if (num == TARGET_NR_syscall) {
+            /* Do not allow recursion.  */
+            ret = -TARGET_ENOSYS;
+            trace_guest_user_syscall(cpu, num, arg1, arg2, arg3, arg4,
+                                     arg5, arg6, arg7, arg8);
+            if (unlikely(do_strace)) {
+                print_syscall(num, arg1, arg2, arg3, arg4, arg5, arg6);
+                print_syscall_ret(num, ret);
+            }
+            trace_guest_user_syscall_ret(cpu, num, ret);
+            return ret;
+        }
+        arg1 = arg2;
+        arg2 = arg3;
+        arg3 = arg4;
+        arg4 = arg5;
+        arg5 = arg6;
+        arg6 = arg7;
+        arg7 = arg8;
+        arg8 = 0;
     }
 #endif
 
