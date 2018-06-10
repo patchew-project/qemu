@@ -7753,6 +7753,25 @@ IMPL(chroot)
     return ret;
 }
 
+IMPL(clone)
+{
+    /* Linux manages to have three different orderings for its
+     * arguments to clone(); the BACKWARDS and BACKWARDS2 defines
+     * match the kernel's CONFIG_CLONE_* settings.
+     * Microblaze is further special in that it uses a sixth
+     * implicit argument to clone for the TLS pointer.
+     */
+#if defined(TARGET_MICROBLAZE)
+    return get_errno(do_fork(cpu_env, arg1, arg2, arg4, arg6, arg5));
+#elif defined(TARGET_CLONE_BACKWARDS)
+    return get_errno(do_fork(cpu_env, arg1, arg2, arg3, arg4, arg5));
+#elif defined(TARGET_CLONE_BACKWARDS2)
+    return get_errno(do_fork(cpu_env, arg2, arg1, arg3, arg5, arg4));
+#else
+    return get_errno(do_fork(cpu_env, arg1, arg2, arg3, arg5, arg4));
+#endif
+}
+
 IMPL(close)
 {
     fd_trans_unregister(arg1);
@@ -7973,6 +7992,17 @@ IMPL(exit)
     g_assert_not_reached();
 }
 
+#ifdef __NR_exit_group
+IMPL(exit_group)
+{
+# ifdef TARGET_GPROF
+    _mcleanup();
+# endif
+    gdb_exit(cpu_env, arg1);
+    return get_errno(exit_group(arg1));
+}
+#endif
+
 IMPL(faccessat)
 {
     char *p = lock_user_string(arg2);
@@ -8055,6 +8085,11 @@ IMPL(fstatfs64)
     return ret;
 }
 #endif
+
+IMPL(fsync)
+{
+    return get_errno(fsync(arg1));
+}
 
 IMPL(ftruncate)
 {
@@ -10349,34 +10384,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     void *p;
 
     switch(num) {
-    case TARGET_NR_fsync:
-        return get_errno(fsync(arg1));
-    case TARGET_NR_clone:
-        /* Linux manages to have three different orderings for its
-         * arguments to clone(); the BACKWARDS and BACKWARDS2 defines
-         * match the kernel's CONFIG_CLONE_* settings.
-         * Microblaze is further special in that it uses a sixth
-         * implicit argument to clone for the TLS pointer.
-         */
-#if defined(TARGET_MICROBLAZE)
-        ret = get_errno(do_fork(cpu_env, arg1, arg2, arg4, arg6, arg5));
-#elif defined(TARGET_CLONE_BACKWARDS)
-        ret = get_errno(do_fork(cpu_env, arg1, arg2, arg3, arg4, arg5));
-#elif defined(TARGET_CLONE_BACKWARDS2)
-        ret = get_errno(do_fork(cpu_env, arg2, arg1, arg3, arg5, arg4));
-#else
-        ret = get_errno(do_fork(cpu_env, arg1, arg2, arg3, arg5, arg4));
-#endif
-        return ret;
-#ifdef __NR_exit_group
-        /* new thread calls */
-    case TARGET_NR_exit_group:
-#ifdef TARGET_GPROF
-        _mcleanup();
-#endif
-        gdb_exit(cpu_env, arg1);
-        return get_errno(exit_group(arg1));
-#endif
     case TARGET_NR_setdomainname:
         if (!(p = lock_user_string(arg1)))
             return -TARGET_EFAULT;
@@ -12877,6 +12884,7 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(bind);
 #endif
         SYSCALL(brk);
+        SYSCALL(clone);
         SYSCALL(close);
         SYSCALL(chdir);
         SYSCALL(chroot);
@@ -12896,6 +12904,11 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(dup3);
         SYSCALL(execve);
         SYSCALL(exit);
+#ifdef __NR_exit_group
+        SYSCALL(exit_group);
+#else
+        SYSCALL_WITH(exit_group, enosys);
+#endif
         SYSCALL(faccessat);
         SYSCALL(fchmod);
         SYSCALL(fchmodat);
@@ -12910,6 +12923,7 @@ static impl_fn *syscall_table(unsigned num)
 #ifdef TARGET_NR_fstatfs64
         SYSCALL(fstatfs64);
 #endif
+        SYSCALL(fsync);
         SYSCALL(ftruncate);
 #ifdef TARGET_NR_futimesat
         SYSCALL(futimesat);
