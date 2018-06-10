@@ -8153,6 +8153,13 @@ IMPL(futimesat)
 }
 #endif
 
+#ifdef TARGET_NR_getpeername
+IMPL(getpeername)
+{
+    return do_getpeername(arg1, arg2, arg3);
+}
+#endif
+
 #ifdef TARGET_NR_getpgrp
 IMPL(getpgrp)
 {
@@ -8225,6 +8232,20 @@ IMPL(getrusage)
     }
     return ret;
 }
+
+#ifdef TARGET_NR_getsockname
+IMPL(getsockname)
+{
+    return do_getsockname(arg1, arg2, arg3);
+}
+#endif
+
+#ifdef TARGET_NR_getsockopt
+IMPL(getsockopt)
+{
+    return do_getsockopt(arg1, arg2, arg3, arg4, arg5);
+}
+#endif
 
 IMPL(gettimeofday)
 {
@@ -8373,6 +8394,13 @@ IMPL(linkat)
     unlock_user(p2, arg4, 0);
     return ret;
 }
+
+#ifdef TARGET_NR_listen
+IMPL(listen)
+{
+    return get_errno(listen(arg1, arg2));
+}
+#endif
 
 IMPL(lseek)
 {
@@ -8911,6 +8939,27 @@ IMPL(reboot)
     }
     return ret;
 }
+
+#ifdef TARGET_NR_recv
+IMPL(recv)
+{
+    return do_recvfrom(arg1, arg2, arg3, arg4, 0, 0);
+}
+#endif
+
+#ifdef TARGET_NR_recvfrom
+IMPL(recvfrom)
+{
+    return do_recvfrom(arg1, arg2, arg3, arg4, arg5, arg6);
+}
+#endif
+
+#ifdef TARGET_NR_recvmsg
+IMPL(recvmsg)
+{
+    return do_sendrecvmsg(arg1, arg2, arg3, 0);
+}
+#endif
 
 #ifdef TARGET_NR_rename
 IMPL(rename)
@@ -9951,34 +10000,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     void *p;
 
     switch(num) {
-#ifdef TARGET_NR_getpeername
-    case TARGET_NR_getpeername:
-        return do_getpeername(arg1, arg2, arg3);
-#endif
-#ifdef TARGET_NR_getsockname
-    case TARGET_NR_getsockname:
-        return do_getsockname(arg1, arg2, arg3);
-#endif
-#ifdef TARGET_NR_getsockopt
-    case TARGET_NR_getsockopt:
-        return do_getsockopt(arg1, arg2, arg3, arg4, arg5);
-#endif
-#ifdef TARGET_NR_listen
-    case TARGET_NR_listen:
-        return get_errno(listen(arg1, arg2));
-#endif
-#ifdef TARGET_NR_recv
-    case TARGET_NR_recv:
-        return do_recvfrom(arg1, arg2, arg3, arg4, 0, 0);
-#endif
-#ifdef TARGET_NR_recvfrom
-    case TARGET_NR_recvfrom:
-        return do_recvfrom(arg1, arg2, arg3, arg4, arg5, arg6);
-#endif
-#ifdef TARGET_NR_recvmsg
-    case TARGET_NR_recvmsg:
-        return do_sendrecvmsg(arg1, arg2, arg3, 0);
-#endif
 #ifdef TARGET_NR_send
     case TARGET_NR_send:
         return do_sendto(arg1, arg2, arg3, arg4, 0, 0);
@@ -12827,6 +12848,9 @@ static impl_fn *syscall_table(unsigned num)
 #ifdef TARGET_NR_futimesat
         SYSCALL(futimesat);
 #endif
+#ifdef TARGET_NR_getpeername
+        SYSCALL(getpeername);
+#endif
 #ifdef TARGET_NR_getpgrp
         SYSCALL(getpgrp);
 #endif
@@ -12839,6 +12863,12 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(getpriority);
         SYSCALL(getrlimit);
         SYSCALL(getrusage);
+#ifdef TARGET_NR_getsockname
+        SYSCALL(getsockname);
+#endif
+#ifdef TARGET_NR_getsockopt
+        SYSCALL(getsockopt);
+#endif
         SYSCALL(gettimeofday);
 #if defined(TARGET_NR_getxpid) && defined(TARGET_ALPHA)
         SYSCALL(getxpid);
@@ -12849,6 +12879,9 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(link);
 #endif
         SYSCALL(linkat);
+#ifdef TARGET_NR_listen
+        SYSCALL(listen);
+#endif
         SYSCALL(lseek);
 #ifdef TARGET_NR_mkdir
         SYSCALL(mkdir);
@@ -12903,6 +12936,15 @@ static impl_fn *syscall_table(unsigned num)
 #endif
         SYSCALL(readlinkat);
         SYSCALL(reboot);
+#ifdef TARGET_NR_recv
+        SYSCALL(recv);
+#endif
+#ifdef TARGET_NR_recvfrom
+        SYSCALL(recvfrom);
+#endif
+#ifdef TARGET_NR_recvmsg
+        SYSCALL(recvmsg);
+#endif
 #ifdef TARGET_NR_rename
         SYSCALL(rename);
 #endif
