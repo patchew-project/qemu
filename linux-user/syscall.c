@@ -12075,6 +12075,39 @@ IMPL(socketpair)
 }
 #endif
 
+#ifdef CONFIG_SPLICE
+IMPL(splice)
+{
+    loff_t loff_in, loff_out;
+    loff_t *ploff_in = NULL, *ploff_out = NULL;
+    abi_long ret;
+
+    if (arg2) {
+        if (get_user_u64(loff_in, arg2)) {
+            return -TARGET_EFAULT;
+        }
+        ploff_in = &loff_in;
+    }
+    if (arg4) {
+        if (get_user_u64(loff_out, arg4)) {
+            return -TARGET_EFAULT;
+        }
+        ploff_out = &loff_out;
+    }
+    ret = get_errno(splice(arg1, ploff_in, arg3, ploff_out, arg5, arg6));
+    if (arg2) {
+        if (put_user_u64(loff_in, arg2)) {
+            return -TARGET_EFAULT;
+        }
+    }
+    if (arg4) {
+        if (put_user_u64(loff_out, arg4)) {
+            return -TARGET_EFAULT;
+        }
+    }
+    return ret;
+}
+#endif
 #ifdef TARGET_NR_ssetmask
 IMPL(ssetmask)
 {
@@ -12323,6 +12356,13 @@ IMPL(syslog)
         return -TARGET_EINVAL;
     }
 }
+
+#ifdef CONFIG_SPLICE
+IMPL(tee)
+{
+    return get_errno(tee(arg1, arg2, arg3, arg4));
+}
+#endif
 
 IMPL(tgkill)
 {
@@ -12603,6 +12643,21 @@ IMPL(vm86)
 }
 #endif
 
+#ifdef CONFIG_SPLICE
+IMPL(vmsplice)
+{
+    struct iovec *vec = lock_iovec(VERIFY_READ, arg2, arg3, 1);
+    abi_long ret;
+
+    if (vec == NULL) {
+        return -host_to_target_errno(errno);
+    }
+    ret = get_errno(vmsplice(arg1, vec, arg3, arg4));
+    unlock_iovec(vec, arg2, arg3, 0);
+    return ret;
+}
+#endif
+
 IMPL(wait4)
 {
     int status;
@@ -12712,59 +12767,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     abi_long ret;
 
     switch(num) {
-#ifdef CONFIG_SPLICE
-#ifdef TARGET_NR_tee
-    case TARGET_NR_tee:
-        {
-            ret = get_errno(tee(arg1,arg2,arg3,arg4));
-        }
-        return ret;
-#endif
-#ifdef TARGET_NR_splice
-    case TARGET_NR_splice:
-        {
-            loff_t loff_in, loff_out;
-            loff_t *ploff_in = NULL, *ploff_out = NULL;
-            if (arg2) {
-                if (get_user_u64(loff_in, arg2)) {
-                    return -TARGET_EFAULT;
-                }
-                ploff_in = &loff_in;
-            }
-            if (arg4) {
-                if (get_user_u64(loff_out, arg4)) {
-                    return -TARGET_EFAULT;
-                }
-                ploff_out = &loff_out;
-            }
-            ret = get_errno(splice(arg1, ploff_in, arg3, ploff_out, arg5, arg6));
-            if (arg2) {
-                if (put_user_u64(loff_in, arg2)) {
-                    return -TARGET_EFAULT;
-                }
-            }
-            if (arg4) {
-                if (put_user_u64(loff_out, arg4)) {
-                    return -TARGET_EFAULT;
-                }
-            }
-        }
-        return ret;
-#endif
-#ifdef TARGET_NR_vmsplice
-	case TARGET_NR_vmsplice:
-        {
-            struct iovec *vec = lock_iovec(VERIFY_READ, arg2, arg3, 1);
-            if (vec != NULL) {
-                ret = get_errno(vmsplice(arg1, vec, arg3, arg4));
-                unlock_iovec(vec, arg2, arg3, 0);
-            } else {
-                ret = -host_to_target_errno(errno);
-            }
-        }
-        return ret;
-#endif
-#endif /* CONFIG_SPLICE */
 #ifdef CONFIG_EVENTFD
 #if defined(TARGET_NR_eventfd)
     case TARGET_NR_eventfd:
@@ -13800,6 +13802,9 @@ static impl_fn *syscall_table(unsigned num)
 #ifdef TARGET_NR_socketpair
         SYSCALL(socketpair);
 #endif
+#ifdef CONFIG_SPLICE
+        SYSCALL(splice);
+#endif
 #ifdef TARGET_NR_ssetmask
         SYSCALL(ssetmask);
 #endif
@@ -13831,6 +13836,9 @@ static impl_fn *syscall_table(unsigned num)
 #endif
         SYSCALL(sysinfo);
         SYSCALL(syslog);
+#ifdef CONFIG_SPLICE
+        SYSCALL(tee);
+#endif
         SYSCALL(tgkill);
 #ifdef TARGET_NR_time
         SYSCALL(time);
@@ -13867,6 +13875,9 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(vhangup);
 #if defined(TARGET_I386) && !defined(TARGET_X86_64)
         SYSCALL(vm86);
+#endif
+#ifdef CONFIG_SPLICE
+        SYSCALL(vmsplice);
 #endif
         SYSCALL(wait4);
         SYSCALL(waitid);
