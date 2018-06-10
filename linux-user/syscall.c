@@ -13204,23 +13204,6 @@ IMPL(writev)
     return ret;
 }
 
-/* This is an internal helper for do_syscall so that it is easier
- * to have a single return point, so that actions, such as logging
- * of syscall results, can be performed.
- * All errnos that do_syscall() returns must be -TARGET_<errcode>.
- */
-static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
-                            abi_long arg2, abi_long arg3, abi_long arg4,
-                            abi_long arg5, abi_long arg6, abi_long arg7,
-                            abi_long arg8)
-{
-    switch(num) {
-    default:
-        gemu_log("qemu: Unsupported syscall: %d\n", num);
-        return -TARGET_ENOSYS;
-    }
-}
-
 /* The default action for a syscall not listed in syscall_table is to
  * log the missing syscall.  If a syscall is intentionally emulated as
  * not present, then list it with impl_enosys as the implementation,
@@ -13953,8 +13936,8 @@ static impl_fn *syscall_table(unsigned num)
 #undef SYSCALL
 #undef SYSCALL_WITH
 
-    /* After do_syscall1 is fully split, this will be impl_enosys.  */
-    return do_syscall1;
+    gemu_log("qemu: Unsupported syscall: %u\n", num);
+    return impl_enosys;
 }
 
 abi_long do_syscall(void *cpu_env, unsigned num, abi_long arg1,
