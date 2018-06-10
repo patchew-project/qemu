@@ -235,7 +235,6 @@ static type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4,type5 arg5,	\
 #define __NR_sys_rt_sigqueueinfo __NR_rt_sigqueueinfo
 #define __NR_sys_rt_tgsigqueueinfo __NR_rt_tgsigqueueinfo
 #define __NR_sys_syslog __NR_syslog
-#define __NR_sys_futex __NR_futex
 #define __NR_sys_inotify_init __NR_inotify_init
 #define __NR_sys_inotify_add_watch __NR_inotify_add_watch
 #define __NR_sys_inotify_rm_watch __NR_inotify_rm_watch
@@ -282,10 +281,6 @@ _syscall3(int,sys_syslog,int,type,char*,bufp,int,len)
 _syscall1(int,exit_group,int,error_code)
 #endif
 _syscall1(int,set_tid_address,int *,tidptr)
-#if defined(TARGET_NR_futex) && defined(__NR_futex)
-_syscall6(int,sys_futex,int *,uaddr,int,op,int,val,
-          const struct timespec *,timeout,int *,uaddr2,int,val3)
-#endif
 #define __NR_sys_sched_getaffinity __NR_sched_getaffinity
 _syscall3(int, sys_sched_getaffinity, pid_t, pid, unsigned int, len,
           unsigned long *, user_mask_ptr);
@@ -8079,8 +8074,8 @@ IMPL(exit)
         TaskState *ts = cpu->opaque;
         if (ts->child_tidptr) {
             put_user_u32(0, ts->child_tidptr);
-            sys_futex(g2h(ts->child_tidptr), FUTEX_WAKE, INT_MAX,
-                      NULL, NULL, 0);
+            safe_futex(g2h(ts->child_tidptr), FUTEX_WAKE, INT_MAX,
+                       NULL, NULL, 0);
         }
         thread_cpu = NULL;
         object_unref(OBJECT(cpu));
