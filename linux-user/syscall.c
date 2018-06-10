@@ -8328,6 +8328,46 @@ IMPL(fdatasync)
     return get_errno(fdatasync(arg1));
 }
 
+#ifdef CONFIG_ATTR
+IMPL(fgetxattr)
+{
+    void *n, *v = 0;
+    abi_long ret;
+
+    if (arg3) {
+        v = lock_user(VERIFY_WRITE, arg3, arg4, 0);
+        if (!v) {
+            return -TARGET_EFAULT;
+        }
+    }
+    n = lock_user_string(arg2);
+    if (n) {
+        ret = get_errno(fgetxattr(arg1, n, v, arg4));
+    } else {
+        ret = -TARGET_EFAULT;
+    }
+    unlock_user(n, arg2, 0);
+    unlock_user(v, arg3, arg4);
+    return ret;
+}
+
+IMPL(flistxattr)
+{
+    void *b = 0;
+    abi_long ret;
+
+    if (arg2) {
+        b = lock_user(VERIFY_WRITE, arg2, arg3, 0);
+        if (!b) {
+            return -TARGET_EFAULT;
+        }
+    }
+    ret = get_errno(flistxattr(arg1, b, arg3));
+    unlock_user(b, arg2, arg3);
+    return ret;
+}
+#endif
+
 IMPL(flock)
 {
     /* The flock constant seems to be the same for every Linux platform. */
@@ -8338,6 +8378,45 @@ IMPL(flock)
 IMPL(fork)
 {
     return get_errno(do_fork(cpu_env, TARGET_SIGCHLD, 0, 0, 0, 0));
+}
+#endif
+
+#ifdef CONFIG_ATTR
+IMPL(fremovexattr)
+{
+    void *n;
+    abi_long ret;
+
+    n = lock_user_string(arg2);
+    if (n) {
+        ret = get_errno(fremovexattr(arg1, n));
+    } else {
+        ret = -TARGET_EFAULT;
+    }
+    unlock_user(n, arg2, 0);
+    return ret;
+}
+
+IMPL(fsetxattr)
+{
+    void *n, *v = 0;
+    abi_long ret;
+
+    if (arg3) {
+        v = lock_user(VERIFY_READ, arg3, arg4, 1);
+        if (!v) {
+            return -TARGET_EFAULT;
+        }
+    }
+    n = lock_user_string(arg2);
+    if (n) {
+        ret = get_errno(fsetxattr(arg1, n, v, arg4, arg5));
+    } else {
+        ret = -TARGET_EFAULT;
+    }
+    unlock_user(n, arg2, 0);
+    unlock_user(v, arg3, 0);
+    return ret;
 }
 #endif
 
@@ -8981,6 +9060,32 @@ IMPL(getuid32)
 }
 #endif
 
+#ifdef CONFIG_ATTR
+IMPL(getxattr)
+{
+    void *p, *n, *v = 0;
+    abi_long ret;
+
+    if (arg3) {
+        v = lock_user(VERIFY_WRITE, arg3, arg4, 0);
+        if (!v) {
+            return -TARGET_EFAULT;
+        }
+    }
+    p = lock_user_string(arg1);
+    n = lock_user_string(arg2);
+    if (p && n) {
+        ret = get_errno(getxattr(p, n, v, arg4));
+    } else {
+        ret = -TARGET_EFAULT;
+    }
+    unlock_user(p, arg1, 0);
+    unlock_user(n, arg2, 0);
+    unlock_user(v, arg3, arg4);
+    return ret;
+}
+#endif
+
 #if defined(TARGET_NR_getxgid) && defined(TARGET_ALPHA)
 IMPL(getxgid)
 {
@@ -9212,6 +9317,32 @@ IMPL(lchown32)
 }
 #endif
 
+#ifdef CONFIG_ATTR
+IMPL(lgetxattr)
+{
+    void *p, *n, *v = 0;
+    abi_long ret;
+
+    if (arg3) {
+        v = lock_user(VERIFY_WRITE, arg3, arg4, 0);
+        if (!v) {
+            return -TARGET_EFAULT;
+        }
+    }
+    p = lock_user_string(arg1);
+    n = lock_user_string(arg2);
+    if (p && n) {
+        ret = get_errno(lgetxattr(p, n, v, arg4));
+    } else {
+        ret = -TARGET_EFAULT;
+    }
+    unlock_user(p, arg1, 0);
+    unlock_user(n, arg2, 0);
+    unlock_user(v, arg3, arg4);
+    return ret;
+}
+#endif
+
 #ifdef TARGET_NR_link
 IMPL(link)
 {
@@ -9249,6 +9380,50 @@ IMPL(listen)
 }
 #endif
 
+#ifdef CONFIG_ATTR
+IMPL(listxattr)
+{
+    void *p = lock_user_string(arg1);
+    void *b = 0;
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    if (arg2) {
+        b = lock_user(VERIFY_WRITE, arg2, arg3, 0);
+        if (!b) {
+            return -TARGET_EFAULT;
+        }
+    }
+    ret = get_errno(listxattr(p, b, arg3));
+    unlock_user(p, arg1, 0);
+    unlock_user(b, arg2, arg3);
+    return ret;
+}
+
+IMPL(llistxattr)
+{
+    void *p = lock_user_string(arg1);
+    void *b = 0;
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    if (arg2) {
+        b = lock_user(VERIFY_WRITE, arg2, arg3, 0);
+        if (!b) {
+            return -TARGET_EFAULT;
+        }
+    }
+    ret = get_errno(llistxattr(p, b, arg3));
+    unlock_user(p, arg1, 0);
+    unlock_user(b, arg2, arg3);
+    return ret;
+}
+#endif
+
 /* Older kernel ports have _llseek() instead of llseek() */
 #if defined(TARGET_NR__llseek) && !defined(TARGET_NR_llseek)
 #define TARGET_NR_llseek TARGET_NR__llseek
@@ -9270,10 +9445,53 @@ IMPL(llseek)
 }
 #endif
 
+#ifdef CONFIG_ATTR
+IMPL(lremovexattr)
+{
+    char *p = lock_user_string(arg1);
+    char *n = lock_user_string(arg2);
+    abi_long ret = -TARGET_EFAULT;
+
+    if (p && n) {
+        ret = get_errno(lremovexattr(p, n));
+    }
+    unlock_user(p, arg1, 0);
+    unlock_user(n, arg2, 0);
+    return ret;
+}
+#endif
+
 IMPL(lseek)
 {
     return get_errno(lseek(arg1, arg2, arg3));
 }
+
+#ifdef CONFIG_ATTR
+IMPL(lsetxattr)
+{
+    char *p, *n;
+    void *v = 0;
+    abi_long ret;
+
+    if (arg3) {
+        v = lock_user(VERIFY_READ, arg3, arg4, 1);
+        if (!v) {
+            return -TARGET_EFAULT;
+        }
+    }
+    p = lock_user_string(arg1);
+    n = lock_user_string(arg2);
+    if (p && n) {
+        ret = get_errno(lsetxattr(p, n, v, arg4, arg5));
+    } else {
+        ret = -TARGET_EFAULT;
+    }
+    unlock_user(p, arg1, 0);
+    unlock_user(n, arg2, 0);
+    unlock_user(v, arg3, 0);
+    return ret;
+}
+#endif
 
 #ifdef TARGET_NR_lstat
 IMPL(lstat)
@@ -10428,6 +10646,22 @@ IMPL(recvmsg)
 }
 #endif
 
+#ifdef CONFIG_ATTR
+IMPL(removexattr)
+{
+    char *p = lock_user_string(arg1);
+    char *n = lock_user_string(arg2);
+    abi_long ret = -TARGET_EFAULT;
+
+    if (p && n) {
+        ret = get_errno(removexattr(p, n));
+    }
+    unlock_user(p, arg1, 0);
+    unlock_user(n, arg2, 0);
+    return ret;
+}
+#endif
+
 #ifdef TARGET_NR_rename
 IMPL(rename)
 {
@@ -11274,6 +11508,33 @@ IMPL(setuid)
 IMPL(setuid32)
 {
     return get_errno(sys_setuid(arg1));
+}
+#endif
+
+#ifdef CONFIG_ATTR
+IMPL(setxattr)
+{
+    char *p, *n;
+    void *v = 0;
+    abi_long ret;
+
+    if (arg3) {
+        v = lock_user(VERIFY_READ, arg3, arg4, 1);
+        if (!v) {
+            return -TARGET_EFAULT;
+        }
+    }
+    p = lock_user_string(arg1);
+    n = lock_user_string(arg2);
+    if (p && n) {
+        ret = get_errno(setxattr(p, n, v, arg4, arg5));
+    } else {
+        ret = -TARGET_EFAULT;
+    }
+    unlock_user(p, arg1, 0);
+    unlock_user(n, arg2, 0);
+    unlock_user(v, arg3, 0);
+    return ret;
 }
 #endif
 
@@ -12203,168 +12464,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     void *p;
 
     switch(num) {
-#ifdef CONFIG_ATTR
-#ifdef TARGET_NR_setxattr
-    case TARGET_NR_listxattr:
-    case TARGET_NR_llistxattr:
-    {
-        void *p, *b = 0;
-        if (arg2) {
-            b = lock_user(VERIFY_WRITE, arg2, arg3, 0);
-            if (!b) {
-                return -TARGET_EFAULT;
-            }
-        }
-        p = lock_user_string(arg1);
-        if (p) {
-            if (num == TARGET_NR_listxattr) {
-                ret = get_errno(listxattr(p, b, arg3));
-            } else {
-                ret = get_errno(llistxattr(p, b, arg3));
-            }
-        } else {
-            ret = -TARGET_EFAULT;
-        }
-        unlock_user(p, arg1, 0);
-        unlock_user(b, arg2, arg3);
-        return ret;
-    }
-    case TARGET_NR_flistxattr:
-    {
-        void *b = 0;
-        if (arg2) {
-            b = lock_user(VERIFY_WRITE, arg2, arg3, 0);
-            if (!b) {
-                return -TARGET_EFAULT;
-            }
-        }
-        ret = get_errno(flistxattr(arg1, b, arg3));
-        unlock_user(b, arg2, arg3);
-        return ret;
-    }
-    case TARGET_NR_setxattr:
-    case TARGET_NR_lsetxattr:
-        {
-            void *p, *n, *v = 0;
-            if (arg3) {
-                v = lock_user(VERIFY_READ, arg3, arg4, 1);
-                if (!v) {
-                    return -TARGET_EFAULT;
-                }
-            }
-            p = lock_user_string(arg1);
-            n = lock_user_string(arg2);
-            if (p && n) {
-                if (num == TARGET_NR_setxattr) {
-                    ret = get_errno(setxattr(p, n, v, arg4, arg5));
-                } else {
-                    ret = get_errno(lsetxattr(p, n, v, arg4, arg5));
-                }
-            } else {
-                ret = -TARGET_EFAULT;
-            }
-            unlock_user(p, arg1, 0);
-            unlock_user(n, arg2, 0);
-            unlock_user(v, arg3, 0);
-        }
-        return ret;
-    case TARGET_NR_fsetxattr:
-        {
-            void *n, *v = 0;
-            if (arg3) {
-                v = lock_user(VERIFY_READ, arg3, arg4, 1);
-                if (!v) {
-                    return -TARGET_EFAULT;
-                }
-            }
-            n = lock_user_string(arg2);
-            if (n) {
-                ret = get_errno(fsetxattr(arg1, n, v, arg4, arg5));
-            } else {
-                ret = -TARGET_EFAULT;
-            }
-            unlock_user(n, arg2, 0);
-            unlock_user(v, arg3, 0);
-        }
-        return ret;
-    case TARGET_NR_getxattr:
-    case TARGET_NR_lgetxattr:
-        {
-            void *p, *n, *v = 0;
-            if (arg3) {
-                v = lock_user(VERIFY_WRITE, arg3, arg4, 0);
-                if (!v) {
-                    return -TARGET_EFAULT;
-                }
-            }
-            p = lock_user_string(arg1);
-            n = lock_user_string(arg2);
-            if (p && n) {
-                if (num == TARGET_NR_getxattr) {
-                    ret = get_errno(getxattr(p, n, v, arg4));
-                } else {
-                    ret = get_errno(lgetxattr(p, n, v, arg4));
-                }
-            } else {
-                ret = -TARGET_EFAULT;
-            }
-            unlock_user(p, arg1, 0);
-            unlock_user(n, arg2, 0);
-            unlock_user(v, arg3, arg4);
-        }
-        return ret;
-    case TARGET_NR_fgetxattr:
-        {
-            void *n, *v = 0;
-            if (arg3) {
-                v = lock_user(VERIFY_WRITE, arg3, arg4, 0);
-                if (!v) {
-                    return -TARGET_EFAULT;
-                }
-            }
-            n = lock_user_string(arg2);
-            if (n) {
-                ret = get_errno(fgetxattr(arg1, n, v, arg4));
-            } else {
-                ret = -TARGET_EFAULT;
-            }
-            unlock_user(n, arg2, 0);
-            unlock_user(v, arg3, arg4);
-        }
-        return ret;
-    case TARGET_NR_removexattr:
-    case TARGET_NR_lremovexattr:
-        {
-            void *p, *n;
-            p = lock_user_string(arg1);
-            n = lock_user_string(arg2);
-            if (p && n) {
-                if (num == TARGET_NR_removexattr) {
-                    ret = get_errno(removexattr(p, n));
-                } else {
-                    ret = get_errno(lremovexattr(p, n));
-                }
-            } else {
-                ret = -TARGET_EFAULT;
-            }
-            unlock_user(p, arg1, 0);
-            unlock_user(n, arg2, 0);
-        }
-        return ret;
-    case TARGET_NR_fremovexattr:
-        {
-            void *n;
-            n = lock_user_string(arg2);
-            if (n) {
-                ret = get_errno(fremovexattr(arg1, n));
-            } else {
-                ret = -TARGET_EFAULT;
-            }
-            unlock_user(n, arg2, 0);
-        }
-        return ret;
-#endif
-#endif /* CONFIG_ATTR */
 #ifdef TARGET_NR_set_thread_area
     case TARGET_NR_set_thread_area:
 #if defined(TARGET_MIPS)
@@ -13253,9 +13352,17 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(fcntl64);
 #endif
         SYSCALL(fdatasync);
+#ifdef CONFIG_ATTR
+        SYSCALL(fgetxattr);
+        SYSCALL(flistxattr);
+#endif
         SYSCALL(flock);
 #ifdef TARGET_NR_fork
         SYSCALL(fork);
+#endif
+#ifdef CONFIG_ATTR
+        SYSCALL(fremovexattr);
+        SYSCALL(fsetxattr);
 #endif
         SYSCALL(fstat);
 #ifdef TARGET_NR_fstat64
@@ -13354,6 +13461,9 @@ static impl_fn *syscall_table(unsigned num)
 #ifdef TARGET_NR_getuid32
         SYSCALL(getuid32);
 #endif
+#ifdef CONFIG_ATTR
+        SYSCALL(getxattr);
+#endif
 #if defined(TARGET_NR_getxgid) && defined(TARGET_ALPHA)
         SYSCALL(getxgid);
 #endif
@@ -13374,17 +13484,30 @@ static impl_fn *syscall_table(unsigned num)
 #ifdef TARGET_NR_lchown32
         SYSCALL(lchown32);
 #endif
+#ifdef CONFIG_ATTR
+        SYSCALL(lgetxattr);
+#endif
 #ifdef TARGET_NR_link
         SYSCALL(link);
 #endif
         SYSCALL(linkat);
+#ifdef CONFIG_ATTR
+        SYSCALL(listxattr);
+        SYSCALL(llistxattr);
+#endif
 #ifdef TARGET_NR_listen
         SYSCALL(listen);
 #endif
 #ifdef TARGET_NR_llseek
         SYSCALL(llseek);
 #endif
+#ifdef CONFIG_ATTR
+        SYSCALL(lremovexattr);
+#endif
         SYSCALL(lseek);
+#ifdef CONFIG_ATTR
+        SYSCALL(lsetxattr);
+#endif
 #ifdef TARGET_NR_lstat
         SYSCALL(lstat);
 #endif
@@ -13497,6 +13620,9 @@ static impl_fn *syscall_table(unsigned num)
 #endif
 #ifdef TARGET_NR_recvmsg
         SYSCALL(recvmsg);
+#endif
+#ifdef CONFIG_ATTR
+        SYSCALL(removexattr);
 #endif
 #ifdef TARGET_NR_rename
         SYSCALL(rename);
@@ -13628,6 +13754,9 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(setuid);
 #ifdef TARGET_NR_setuid32
         SYSCALL(setuid32);
+#endif
+#ifdef CONFIG_ATTR
+        SYSCALL(setxattr);
 #endif
 #ifdef TARGET_NR_sigaction
         SYSCALL(sigaction);
