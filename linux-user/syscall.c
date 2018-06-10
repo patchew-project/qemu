@@ -9029,6 +9029,21 @@ IMPL(getsockopt)
 }
 #endif
 
+#ifdef TARGET_NR_get_thread_area
+IMPL(get_thread_area)
+{
+# if defined(TARGET_I386) && defined(TARGET_ABI32)
+    return do_get_thread_area(cpu_env, arg1);
+# elif defined(TARGET_M68K)
+    CPUState *cpu = ENV_GET_CPU(cpu_env);
+    TaskState *ts = cpu->opaque;
+    return ts->tp_value;
+# else
+    return -TARGET_ENOSYS;
+# endif
+}
+#endif
+
 IMPL(gettid)
 {
     return get_errno(gettid());
@@ -11480,6 +11495,31 @@ IMPL(setsockopt)
 }
 #endif
 
+#ifdef TARGET_NR_set_thread_area
+IMPL(set_thread_area)
+{
+# if defined(TARGET_MIPS)
+    ((CPUMIPSState *) cpu_env)->active_tc.CP0_UserLocal = arg1;
+    return 0;
+# elif defined(TARGET_CRIS)
+    if (arg1 & 0xff) {
+        return -TARGET_EINVAL;
+    }
+    ((CPUCRISState *) cpu_env)->pregs[PR_PID] = arg1;
+    return 0;
+# elif defined(TARGET_I386) && defined(TARGET_ABI32)
+    return do_set_thread_area(cpu_env, arg1);
+# elif defined(TARGET_M68K)
+    CPUState *cpu = ENV_GET_CPU(cpu_env);
+    TaskState *ts = cpu->opaque;
+    ts->tp_value = arg1;
+    return 0;
+# else
+    return -TARGET_ENOSYS;
+# endif
+}
+#endif
+
 IMPL(settimeofday)
 {
     struct timeval tv;
@@ -12464,49 +12504,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     void *p;
 
     switch(num) {
-#ifdef TARGET_NR_set_thread_area
-    case TARGET_NR_set_thread_area:
-#if defined(TARGET_MIPS)
-      ((CPUMIPSState *) cpu_env)->active_tc.CP0_UserLocal = arg1;
-      return 0;
-#elif defined(TARGET_CRIS)
-      if (arg1 & 0xff)
-          ret = -TARGET_EINVAL;
-      else {
-          ((CPUCRISState *) cpu_env)->pregs[PR_PID] = arg1;
-          ret = 0;
-      }
-      return ret;
-#elif defined(TARGET_I386) && defined(TARGET_ABI32)
-      return do_set_thread_area(cpu_env, arg1);
-#elif defined(TARGET_M68K)
-      {
-          TaskState *ts = cpu->opaque;
-          ts->tp_value = arg1;
-          return 0;
-      }
-#else
-      return -TARGET_ENOSYS;
-#endif
-#endif
-#ifdef TARGET_NR_get_thread_area
-    case TARGET_NR_get_thread_area:
-#if defined(TARGET_I386) && defined(TARGET_ABI32)
-        return do_get_thread_area(cpu_env, arg1);
-#elif defined(TARGET_M68K)
-        {
-            TaskState *ts = cpu->opaque;
-            return ts->tp_value;
-        }
-#else
-        return -TARGET_ENOSYS;
-#endif
-#endif
-#ifdef TARGET_NR_getdomainname
-    case TARGET_NR_getdomainname:
-        return -TARGET_ENOSYS;
-#endif
-
 #ifdef TARGET_NR_clock_settime
     case TARGET_NR_clock_settime:
     {
@@ -13391,6 +13388,9 @@ static impl_fn *syscall_table(unsigned num)
 #if defined(TARGET_NR_getdents64) && defined(__NR_getdents64)
         SYSCALL(getdents64);
 #endif
+#ifdef TARGET_NR_getdomainname
+        SYSCALL_WITH(getdomainname, enosys);
+#endif
 #ifdef TARGET_NR_getegid
         SYSCALL(getegid);
 #endif
@@ -13452,6 +13452,9 @@ static impl_fn *syscall_table(unsigned num)
 #endif
 #ifdef TARGET_NR_getsockopt
         SYSCALL(getsockopt);
+#endif
+#ifdef TARGET_NR_get_thread_area
+        SYSCALL(get_thread_area);
 #endif
         SYSCALL(gettid);
         SYSCALL(gettimeofday);
@@ -13748,6 +13751,9 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(setrlimit);
 #ifdef TARGET_NR_setsockopt
         SYSCALL(setsockopt);
+#endif
+#ifdef TARGET_NR_set_thread_area
+        SYSCALL(set_thread_area);
 #endif
         SYSCALL(settimeofday);
         SYSCALL(setsid);
