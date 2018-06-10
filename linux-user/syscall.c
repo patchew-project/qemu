@@ -8768,6 +8768,20 @@ IMPL(rt_sigprocmask)
     return ret;
 }
 
+IMPL(rt_sigqueueinfo)
+{
+    siginfo_t uinfo;
+    target_siginfo_t *p;
+
+    p = lock_user(VERIFY_READ, arg3, sizeof(target_siginfo_t), 1);
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    target_to_host_siginfo(&uinfo, p);
+    unlock_user(p, arg3, 0);
+    return get_errno(sys_rt_sigqueueinfo(arg1, arg2, &uinfo));
+}
+
 IMPL(rt_sigsuspend)
 {
     CPUState *cpu = ENV_GET_CPU(cpu_env);
@@ -8789,6 +8803,56 @@ IMPL(rt_sigsuspend)
         ts->in_sigsuspend = 1;
     }
     return ret;
+}
+
+IMPL(rt_sigtimedwait)
+{
+    sigset_t set;
+    struct timespec uts, *puts = NULL;
+    void *p;
+    siginfo_t uinfo;
+    abi_long ret;
+
+    if (arg4 != sizeof(target_sigset_t)) {
+        return -TARGET_EINVAL;
+    }
+    p = lock_user(VERIFY_READ, arg1, sizeof(target_sigset_t), 1);
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    target_to_host_sigset(&set, p);
+    unlock_user(p, arg1, 0);
+    if (arg3) {
+        puts = &uts;
+        target_to_host_timespec(puts, arg3);
+    }
+    ret = get_errno(safe_rt_sigtimedwait(&set, &uinfo, puts, SIGSET_T_SIZE));
+    if (!is_error(ret)) {
+        if (arg2) {
+            p = lock_user(VERIFY_WRITE, arg2, sizeof(target_siginfo_t), 0);
+            if (!p) {
+                return -TARGET_EFAULT;
+            }
+            host_to_target_siginfo(p, &uinfo);
+            unlock_user(p, arg2, sizeof(target_siginfo_t));
+        }
+        ret = host_to_target_signal(ret);
+    }
+    return ret;
+}
+
+IMPL(rt_tgsigqueueinfo)
+{
+    siginfo_t uinfo;
+    target_siginfo_t *p;
+
+    p = lock_user(VERIFY_READ, arg4, sizeof(target_siginfo_t), 1);
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    target_to_host_siginfo(&uinfo, p);
+    unlock_user(p, arg4, 0);
+    return get_errno(sys_rt_tgsigqueueinfo(arg1, arg2, arg3, &uinfo));
 }
 
 #ifdef TARGET_NR_sgetmask
@@ -9275,68 +9339,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     void *p;
 
     switch(num) {
-    case TARGET_NR_rt_sigtimedwait:
-        {
-            sigset_t set;
-            struct timespec uts, *puts;
-            siginfo_t uinfo;
-
-            if (arg4 != sizeof(target_sigset_t)) {
-                return -TARGET_EINVAL;
-            }
-
-            if (!(p = lock_user(VERIFY_READ, arg1, sizeof(target_sigset_t), 1)))
-                return -TARGET_EFAULT;
-            target_to_host_sigset(&set, p);
-            unlock_user(p, arg1, 0);
-            if (arg3) {
-                puts = &uts;
-                target_to_host_timespec(puts, arg3);
-            } else {
-                puts = NULL;
-            }
-            ret = get_errno(safe_rt_sigtimedwait(&set, &uinfo, puts,
-                                                 SIGSET_T_SIZE));
-            if (!is_error(ret)) {
-                if (arg2) {
-                    p = lock_user(VERIFY_WRITE, arg2, sizeof(target_siginfo_t),
-                                  0);
-                    if (!p) {
-                        return -TARGET_EFAULT;
-                    }
-                    host_to_target_siginfo(p, &uinfo);
-                    unlock_user(p, arg2, sizeof(target_siginfo_t));
-                }
-                ret = host_to_target_signal(ret);
-            }
-        }
-        return ret;
-    case TARGET_NR_rt_sigqueueinfo:
-        {
-            siginfo_t uinfo;
-
-            p = lock_user(VERIFY_READ, arg3, sizeof(target_siginfo_t), 1);
-            if (!p) {
-                return -TARGET_EFAULT;
-            }
-            target_to_host_siginfo(&uinfo, p);
-            unlock_user(p, arg3, 0);
-            ret = get_errno(sys_rt_sigqueueinfo(arg1, arg2, &uinfo));
-        }
-        return ret;
-    case TARGET_NR_rt_tgsigqueueinfo:
-        {
-            siginfo_t uinfo;
-
-            p = lock_user(VERIFY_READ, arg4, sizeof(target_siginfo_t), 1);
-            if (!p) {
-                return -TARGET_EFAULT;
-            }
-            target_to_host_siginfo(&uinfo, p);
-            unlock_user(p, arg4, 0);
-            ret = get_errno(sys_rt_tgsigqueueinfo(arg1, arg2, arg3, &uinfo));
-        }
-        return ret;
 #ifdef TARGET_NR_sigreturn
     case TARGET_NR_sigreturn:
         if (block_signals()) {
@@ -12775,7 +12777,10 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(rt_sigaction);
         SYSCALL(rt_sigpending);
         SYSCALL(rt_sigprocmask);
+        SYSCALL(rt_sigqueueinfo);
         SYSCALL(rt_sigsuspend);
+        SYSCALL(rt_sigtimedwait);
+        SYSCALL(rt_tgsigqueueinfo);
 #ifdef TARGET_NR_sgetmask
         SYSCALL(sgetmask);
 #endif
