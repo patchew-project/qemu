@@ -9144,6 +9144,31 @@ IMPL(lstat64)
 }
 #endif
 
+IMPL(mincore)
+{
+    void *a, *p;
+    size_t veclen;
+    abi_long ret;
+
+    /* Note that this is not the same as VERIFY_WRITE or VERIFY_READ.
+     * Moreover, we want to test the exact pages of guest memory.
+     */
+    if (page_check_range(arg1, arg2, PAGE_VALID)) {
+        return -TARGET_ENOMEM;
+    }
+    a = g2h(arg1);
+
+    veclen = DIV_ROUND_UP(arg2, TARGET_PAGE_SIZE);
+    p = lock_user(VERIFY_WRITE, arg3, veclen, 0);
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+
+    ret = get_errno(mincore(a, arg2, p));
+    unlock_user(p, arg3, veclen);
+    return ret;
+}
+
 #ifdef TARGET_NR_mkdir
 IMPL(mkdir)
 {
@@ -11986,24 +12011,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     void *p;
 
     switch(num) {
-#ifdef TARGET_NR_mincore
-    case TARGET_NR_mincore:
-        {
-            void *a = lock_user(VERIFY_READ, arg1, arg2, 0);
-            if (!a) {
-                return -TARGET_ENOMEM;
-            }
-            p = lock_user_string(arg3);
-            if (!p) {
-                ret = -TARGET_EFAULT;
-            } else {
-                ret = get_errno(mincore(a, arg2, p));
-                unlock_user(p, arg3, ret);
-            }
-            unlock_user(a, arg1, 0);
-        }
-        return ret;
-#endif
 #ifdef TARGET_NR_arm_fadvise64_64
     case TARGET_NR_arm_fadvise64_64:
         /* arm_fadvise64_64 looks like fadvise64_64 but
@@ -13328,6 +13335,7 @@ static impl_fn *syscall_table(unsigned num)
 #ifdef TARGET_NR_lstat64
         SYSCALL(lstat64);
 #endif
+        SYSCALL(mincore);
 #ifdef TARGET_NR_mkdir
         SYSCALL(mkdir);
 #endif
