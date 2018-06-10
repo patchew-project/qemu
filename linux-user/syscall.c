@@ -10284,6 +10284,48 @@ IMPL(send)
 }
 #endif
 
+#ifdef CONFIG_SENDFILE
+IMPL(sendfile)
+{
+    abi_long ret;
+    off_t off;
+
+    if (!arg3) {
+        return get_errno(sendfile(arg1, arg2, NULL, arg4));
+    }
+
+    if (get_user_sal(off, arg3)) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(sendfile(arg1, arg2, &off, arg4));
+    if (!is_error(ret) && arg3 && put_user_sal(off, arg3)) {
+        return -TARGET_EFAULT;
+    }
+    return ret;
+}
+
+# ifdef TARGET_NR_sendfile64
+IMPL(sendfile64)
+{
+    abi_long ret;
+    off_t off;
+
+    if (!arg3) {
+        return get_errno(sendfile(arg1, arg2, NULL, arg4));
+    }
+
+    if (get_user_s64(off, arg3)) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(sendfile(arg1, arg2, &off, arg4));
+    if (!is_error(ret) && arg3 && put_user_s64(off, arg3)) {
+        return -TARGET_EFAULT;
+    }
+    return ret;
+}
+# endif
+#endif /* CONFIG_SENDFILE */
+
 #ifdef TARGET_NR_sendmsg
 IMPL(sendmsg)
 {
@@ -11265,50 +11307,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     void *p;
 
     switch(num) {
-#ifdef CONFIG_SENDFILE
-    case TARGET_NR_sendfile:
-    {
-        off_t *offp = NULL;
-        off_t off;
-        if (arg3) {
-            ret = get_user_sal(off, arg3);
-            if (is_error(ret)) {
-                return ret;
-            }
-            offp = &off;
-        }
-        ret = get_errno(sendfile(arg1, arg2, offp, arg4));
-        if (!is_error(ret) && arg3) {
-            abi_long ret2 = put_user_sal(off, arg3);
-            if (is_error(ret2)) {
-                ret = ret2;
-            }
-        }
-        return ret;
-    }
-#ifdef TARGET_NR_sendfile64
-    case TARGET_NR_sendfile64:
-    {
-        off_t *offp = NULL;
-        off_t off;
-        if (arg3) {
-            ret = get_user_s64(off, arg3);
-            if (is_error(ret)) {
-                return ret;
-            }
-            offp = &off;
-        }
-        ret = get_errno(sendfile(arg1, arg2, offp, arg4));
-        if (!is_error(ret) && arg3) {
-            abi_long ret2 = put_user_s64(off, arg3);
-            if (is_error(ret2)) {
-                ret = ret2;
-            }
-        }
-        return ret;
-    }
-#endif
-#endif
 #ifdef TARGET_NR_vfork
     case TARGET_NR_vfork:
         return get_errno(do_fork(cpu_env,
@@ -13269,6 +13267,12 @@ static impl_fn *syscall_table(unsigned num)
 #endif
 #ifdef TARGET_NR_send
         SYSCALL(send);
+#endif
+#ifdef CONFIG_SENDFILE
+        SYSCALL(sendfile);
+# ifdef TARGET_NR_sendfile64
+        SYSCALL(sendfile64);
+# endif
 #endif
 #ifdef TARGET_NR_sendmmsg
         SYSCALL(sendmmsg);
