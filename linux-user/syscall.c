@@ -8227,6 +8227,34 @@ IMPL(read)
     return ret;
 }
 
+#ifdef TARGET_NR_unlink
+IMPL(unlink)
+{
+    char *p = lock_user_string(arg1);
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(unlink(p));
+    unlock_user(p, arg1, 0);
+    return ret;
+}
+#endif
+
+IMPL(unlinkat)
+{
+    char *p = lock_user_string(arg2);
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(unlinkat(arg1, p, arg3));
+    unlock_user(p, arg2, 0);
+    return ret;
+}
+
 IMPL(waitid)
 {
     siginfo_t info;
@@ -8300,22 +8328,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     void *p;
 
     switch(num) {
-#ifdef TARGET_NR_unlink
-    case TARGET_NR_unlink:
-        if (!(p = lock_user_string(arg1)))
-            return -TARGET_EFAULT;
-        ret = get_errno(unlink(p));
-        unlock_user(p, arg1, 0);
-        return ret;
-#endif
-#if defined(TARGET_NR_unlinkat)
-    case TARGET_NR_unlinkat:
-        if (!(p = lock_user_string(arg2)))
-            return -TARGET_EFAULT;
-        ret = get_errno(unlinkat(arg1, p, arg3));
-        unlock_user(p, arg2, 0);
-        return ret;
-#endif
     case TARGET_NR_chdir:
         if (!(p = lock_user_string(arg1)))
             return -TARGET_EFAULT;
@@ -12519,6 +12531,10 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(open_by_handle_at);
 #endif
         SYSCALL(read);
+#ifdef TARGET_NR_unlink
+        SYSCALL(unlink);
+#endif
+        SYSCALL(unlinkat);
         SYSCALL(waitid);
 #ifdef TARGET_NR_waitpid
         SYSCALL(waitpid);
