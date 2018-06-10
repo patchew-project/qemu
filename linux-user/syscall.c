@@ -8116,6 +8116,40 @@ IMPL(exit)
     g_assert_not_reached();
 }
 
+#ifdef TARGET_NR_open
+IMPL(open)
+{
+    char *p = lock_user_string(arg1);
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(do_openat(cpu_env, AT_FDCWD, p,
+                              target_to_host_bitmask(arg2, fcntl_flags_tbl),
+                              arg3));
+    unlock_user(p, arg1, 0);
+    fd_trans_unregister(ret);
+    return ret;
+}
+#endif
+
+IMPL(openat)
+{
+    char *p = lock_user_string(arg2);
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(do_openat(cpu_env, arg1, p,
+                              target_to_host_bitmask(arg3, fcntl_flags_tbl),
+                              arg4));
+    unlock_user(p, arg2, 0);
+    fd_trans_unregister(ret);
+    return ret;
+}
+
 IMPL(read)
 {
     abi_long ret;
@@ -8177,26 +8211,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     void *p;
 
     switch(num) {
-#ifdef TARGET_NR_open
-    case TARGET_NR_open:
-        if (!(p = lock_user_string(arg1)))
-            return -TARGET_EFAULT;
-        ret = get_errno(do_openat(cpu_env, AT_FDCWD, p,
-                                  target_to_host_bitmask(arg2, fcntl_flags_tbl),
-                                  arg3));
-        fd_trans_unregister(ret);
-        unlock_user(p, arg1, 0);
-        return ret;
-#endif
-    case TARGET_NR_openat:
-        if (!(p = lock_user_string(arg2)))
-            return -TARGET_EFAULT;
-        ret = get_errno(do_openat(cpu_env, arg1, p,
-                                  target_to_host_bitmask(arg3, fcntl_flags_tbl),
-                                  arg4));
-        fd_trans_unregister(ret);
-        unlock_user(p, arg2, 0);
-        return ret;
 #if defined(TARGET_NR_name_to_handle_at) && defined(CONFIG_OPEN_BY_HANDLE)
     case TARGET_NR_name_to_handle_at:
         ret = do_name_to_handle_at(arg1, arg2, arg3, arg4, arg5);
@@ -12477,6 +12491,10 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(close);
         SYSCALL(execve);
         SYSCALL(exit);
+#ifdef TARGET_NR_open
+        SYSCALL(open);
+#endif
+        SYSCALL(openat);
         SYSCALL(read);
         SYSCALL(write);
     }
