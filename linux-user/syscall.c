@@ -8043,6 +8043,11 @@ IMPL(fcntl)
 }
 #endif
 
+IMPL(fdatasync)
+{
+    return get_errno(fdatasync(arg1));
+}
+
 IMPL(flock)
 {
     /* The flock constant seems to be the same for every Linux platform. */
@@ -8401,6 +8406,11 @@ IMPL(getrusage)
         return -TARGET_EFAULT;
     }
     return ret;
+}
+
+IMPL(getsid)
+{
+    return get_errno(getsid(arg1));
 }
 
 #ifdef TARGET_NR_getsockname
@@ -10465,6 +10475,14 @@ IMPL(syncfs)
 }
 #endif
 
+#ifdef TARGET_NR__sysctl
+IMPL(_sysctl)
+{
+    /* We don't implement this, but ENOTDIR is always a safe return value. */
+    return -TARGET_ENOTDIR;
+}
+#endif
+
 IMPL(sysinfo)
 {
     struct sysinfo value;
@@ -10841,18 +10859,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     void *p;
 
     switch(num) {
-    case TARGET_NR_getsid:
-        return get_errno(getsid(arg1));
-#if defined(TARGET_NR_fdatasync) /* Not on alpha (osf_datasync ?) */
-    case TARGET_NR_fdatasync:
-        return get_errno(fdatasync(arg1));
-#endif
-#ifdef TARGET_NR__sysctl
-    case TARGET_NR__sysctl:
-        /* We don't implement this, but ENOTDIR is always a safe
-           return value. */
-        return -TARGET_ENOTDIR;
-#endif
     case TARGET_NR_sched_getaffinity:
         {
             unsigned int mask_size;
@@ -12958,6 +12964,7 @@ static impl_fn *syscall_table(unsigned num)
 #ifdef TARGET_NR_fcntl
         SYSCALL(fcntl);
 #endif
+        SYSCALL(fdatasync);
         SYSCALL(flock);
 #ifdef TARGET_NR_fork
         SYSCALL(fork);
@@ -12996,6 +13003,7 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(getrandom);
         SYSCALL(getrlimit);
         SYSCALL(getrusage);
+        SYSCALL(getsid);
 #ifdef TARGET_NR_getsockname
         SYSCALL(getsockname);
 #endif
@@ -13234,6 +13242,9 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(sync);
 #ifdef CONFIG_SYNCFS
         SYSCALL(syncfs);
+#endif
+#ifdef TARGET_NR__sysctl
+        SYSCALL(_sysctl);
 #endif
         SYSCALL(sysinfo);
         SYSCALL(syslog);
