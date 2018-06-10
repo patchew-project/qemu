@@ -12789,6 +12789,41 @@ IMPL(timer_settime)
     return ret;
 }
 
+#ifdef CONFIG_TIMERFD
+IMPL(timerfd_create)
+{
+    int host_flags = target_to_host_bitmask(arg2, fcntl_flags_tbl);
+    return get_errno(timerfd_create(arg1, host_flags));
+}
+
+IMPL(timerfd_gettime)
+{
+    struct itimerspec its_curr;
+    abi_long ret;
+
+    ret = get_errno(timerfd_gettime(arg1, &its_curr));
+    if (!ret && host_to_target_itimerspec(arg2, &its_curr)) {
+        return -TARGET_EFAULT;
+    }
+    return ret;
+}
+
+IMPL(timerfd_settime)
+{
+    struct itimerspec its_new, its_old;
+    abi_long ret;
+
+    if (target_to_host_itimerspec(&its_new, arg3)) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(timerfd_settime(arg1, arg2, &its_new, &its_old));
+    if (!ret && arg4 && host_to_target_itimerspec(arg4, &its_old)) {
+        return -TARGET_EFAULT;
+    }
+    return ret;
+}
+#endif /* CONFIG_TIMERFD */
+
 IMPL(tkill)
 {
     return get_errno(safe_tkill((int)arg1, target_to_host_signal(arg2)));
@@ -13152,49 +13187,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     abi_long ret;
 
     switch(num) {
-#if defined(TARGET_NR_timerfd_create) && defined(CONFIG_TIMERFD)
-    case TARGET_NR_timerfd_create:
-        return get_errno(timerfd_create(arg1,
-                          target_to_host_bitmask(arg2, fcntl_flags_tbl)));
-#endif
-
-#if defined(TARGET_NR_timerfd_gettime) && defined(CONFIG_TIMERFD)
-    case TARGET_NR_timerfd_gettime:
-        {
-            struct itimerspec its_curr;
-
-            ret = get_errno(timerfd_gettime(arg1, &its_curr));
-
-            if (arg2 && host_to_target_itimerspec(arg2, &its_curr)) {
-                return -TARGET_EFAULT;
-            }
-        }
-        return ret;
-#endif
-
-#if defined(TARGET_NR_timerfd_settime) && defined(CONFIG_TIMERFD)
-    case TARGET_NR_timerfd_settime:
-        {
-            struct itimerspec its_new, its_old, *p_new;
-
-            if (arg3) {
-                if (target_to_host_itimerspec(&its_new, arg3)) {
-                    return -TARGET_EFAULT;
-                }
-                p_new = &its_new;
-            } else {
-                p_new = NULL;
-            }
-
-            ret = get_errno(timerfd_settime(arg1, arg2, p_new, &its_old));
-
-            if (arg4 && host_to_target_itimerspec(arg4, &its_old)) {
-                return -TARGET_EFAULT;
-            }
-        }
-        return ret;
-#endif
-
 #if defined(TARGET_NR_ioprio_get) && defined(__NR_ioprio_get)
     case TARGET_NR_ioprio_get:
         return get_errno(ioprio_get(arg1, arg2));
@@ -13896,6 +13888,11 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(timer_getoverrun);
         SYSCALL(timer_gettime);
         SYSCALL(timer_settime);
+#ifdef CONFIG_TIMERFD
+        SYSCALL(timerfd_create);
+        SYSCALL(timerfd_gettime);
+        SYSCALL(timerfd_settime);
+#endif
         SYSCALL(tkill);
         SYSCALL(truncate);
 #ifdef TARGET_NR_truncate64
