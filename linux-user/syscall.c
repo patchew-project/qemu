@@ -250,6 +250,9 @@ static type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4,type5 arg5,	\
 #ifndef __NR_gettid
 #define __NR_gettid  -1
 #endif
+#ifndef __NR_set_tid_address
+#define __NR_set_tid_address  -1
+#endif
 
 _syscall0(int, gettid)
 
@@ -278,9 +281,7 @@ _syscall3(int,sys_syslog,int,type,char*,bufp,int,len)
 #ifdef __NR_exit_group
 _syscall1(int,exit_group,int,error_code)
 #endif
-#if defined(TARGET_NR_set_tid_address) && defined(__NR_set_tid_address)
 _syscall1(int,set_tid_address,int *,tidptr)
-#endif
 #if defined(TARGET_NR_futex) && defined(__NR_futex)
 _syscall6(int,sys_futex,int *,uaddr,int,op,int,val,
           const struct timespec *,timeout,int *,uaddr2,int,val3)
@@ -11578,6 +11579,11 @@ IMPL(set_thread_area)
 }
 #endif
 
+IMPL(set_tid_address)
+{
+    return get_errno(set_tid_address((int *)g2h(arg1)));
+}
+
 IMPL(settimeofday)
 {
     struct timeval tv;
@@ -12210,6 +12216,12 @@ IMPL(syslog)
     }
 }
 
+IMPL(tgkill)
+{
+    return get_errno(safe_tgkill((int)arg1, (int)arg2,
+                                 target_to_host_signal(arg3)));
+}
+
 #ifdef TARGET_NR_time
 IMPL(time)
 {
@@ -12242,6 +12254,11 @@ IMPL(times)
         tmsp->tms_cstime = tswapal(host_to_target_clock_t(tms.tms_cstime));
     }
     return host_to_target_clock_t(ret);
+}
+
+IMPL(tkill)
+{
+    return get_errno(safe_tkill((int)arg1, target_to_host_signal(arg2)));
 }
 
 IMPL(truncate)
@@ -12562,19 +12579,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     void *p;
 
     switch(num) {
-#if defined(TARGET_NR_set_tid_address) && defined(__NR_set_tid_address)
-    case TARGET_NR_set_tid_address:
-        return get_errno(set_tid_address((int *)g2h(arg1)));
-#endif
-
-    case TARGET_NR_tkill:
-        return get_errno(safe_tkill((int)arg1, target_to_host_signal(arg2)));
-
-    case TARGET_NR_tgkill:
-        return get_errno(safe_tgkill((int)arg1, (int)arg2,
-                         target_to_host_signal(arg3)));
-
-
 #if defined(TARGET_NR_utimensat)
     case TARGET_NR_utimensat:
         {
@@ -13762,6 +13766,7 @@ static impl_fn *syscall_table(unsigned num)
 #ifdef TARGET_NR_set_thread_area
         SYSCALL(set_thread_area);
 #endif
+        SYSCALL(set_tid_address);
         SYSCALL(settimeofday);
         SYSCALL(setsid);
         SYSCALL(setuid);
@@ -13827,10 +13832,12 @@ static impl_fn *syscall_table(unsigned num)
 #endif
         SYSCALL(sysinfo);
         SYSCALL(syslog);
+        SYSCALL(tgkill);
 #ifdef TARGET_NR_time
         SYSCALL(time);
 #endif
         SYSCALL(times);
+        SYSCALL(tkill);
         SYSCALL(truncate);
 #ifdef TARGET_NR_truncate64
         SYSCALL(truncate64);
