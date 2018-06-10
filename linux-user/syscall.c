@@ -8080,6 +8080,21 @@ IMPL(fork)
 }
 #endif
 
+#ifdef TARGET_NR_getpid
+IMPL(getpid)
+{
+    return get_errno(getpid());
+}
+#endif
+
+#if defined(TARGET_NR_getxpid) && defined(TARGET_ALPHA)
+IMPL(getxpid)
+{
+    ((CPUAlphaState *)cpu_env)->ir[IR_A4] = getppid();
+    return get_errno(getpid());
+}
+#endif
+
 #ifdef TARGET_NR_link
 IMPL(link)
 {
@@ -8108,6 +8123,11 @@ IMPL(linkat)
     unlock_user(p1, arg2, 0);
     unlock_user(p2, arg4, 0);
     return ret;
+}
+
+IMPL(lseek)
+{
+    return get_errno(lseek(arg1, arg2, arg3));
 }
 
 #ifdef TARGET_NR_mknod
@@ -8396,18 +8416,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     void *p;
 
     switch(num) {
-    case TARGET_NR_lseek:
-        return get_errno(lseek(arg1, arg2, arg3));
-#if defined(TARGET_NR_getxpid) && defined(TARGET_ALPHA)
-    /* Alpha specific */
-    case TARGET_NR_getxpid:
-        ((CPUAlphaState *)cpu_env)->ir[IR_A4] = getppid();
-        return get_errno(getpid());
-#endif
-#ifdef TARGET_NR_getpid
-    case TARGET_NR_getpid:
-        return get_errno(getpid());
-#endif
     case TARGET_NR_mount:
         {
             /* need to look at the data field */
@@ -12546,10 +12554,17 @@ static impl_fn *syscall_table(unsigned num)
 #ifdef TARGET_NR_fork
         SYSCALL(fork);
 #endif
+#ifdef TARGET_NR_getpid
+        SYSCALL(getpid);
+#endif
+#if defined(TARGET_NR_getxpid) && defined(TARGET_ALPHA)
+        SYSCALL(getxpid);
+#endif
 #ifdef TARGET_NR_link
         SYSCALL(link);
 #endif
         SYSCALL(linkat);
+        SYSCALL(lseek);
 #ifdef TARGET_NR_mknod
         SYSCALL(mknod);
 #endif
