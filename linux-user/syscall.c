@@ -7669,6 +7669,23 @@ IMPL(acct)
     }
 }
 
+IMPL(adjtimex)
+{
+    struct timex host_buf;
+    abi_long ret;
+
+    if (target_to_host_timex(&host_buf, arg1) != 0) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(adjtimex(&host_buf));
+    if (!is_error(ret)) {
+        if (host_to_target_timex(arg1, &host_buf) != 0) {
+            return -TARGET_EFAULT;
+        }
+    }
+    return ret;
+}
+
 #ifdef TARGET_NR_alarm
 IMPL(alarm)
 {
@@ -7728,6 +7745,23 @@ IMPL(chroot)
     unlock_user(p, arg1, 0);
     return ret;
 }
+
+#ifdef CONFIG_CLOCK_ADJTIME
+IMPL(clock_adjtime)
+{
+    struct timex htx;
+    abi_long ret;
+
+    if (target_to_host_timex(&htx, arg2)) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(clock_adjtime(arg1, &htx));
+    if (!is_error(ret) && host_to_target_timex(arg2, &htx)) {
+        return -TARGET_EFAULT;
+    }
+    return ret;
+}
+#endif
 
 IMPL(clone)
 {
@@ -10324,6 +10358,14 @@ IMPL(vhangup)
     return get_errno(vhangup());
 }
 
+#if defined(TARGET_I386) && !defined(TARGET_X86_64)
+/* ??? Other TARGET_NR_vm86 should be deleted.  */
+IMPL(vm86)
+{
+    return do_vm86(cpu_env, arg1, arg2);
+}
+#endif
+
 IMPL(wait4)
 {
     int status;
@@ -10420,42 +10462,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     void *p;
 
     switch(num) {
-#if defined(TARGET_I386) && !defined(TARGET_X86_64)
-    case TARGET_NR_vm86:
-        return do_vm86(cpu_env, arg1, arg2);
-#endif
-    case TARGET_NR_adjtimex:
-        {
-            struct timex host_buf;
-
-            if (target_to_host_timex(&host_buf, arg1) != 0) {
-                return -TARGET_EFAULT;
-            }
-            ret = get_errno(adjtimex(&host_buf));
-            if (!is_error(ret)) {
-                if (host_to_target_timex(arg1, &host_buf) != 0) {
-                    return -TARGET_EFAULT;
-                }
-            }
-        }
-        return ret;
-#if defined(TARGET_NR_clock_adjtime) && defined(CONFIG_CLOCK_ADJTIME)
-    case TARGET_NR_clock_adjtime:
-        {
-            struct timex htx, *phtx = &htx;
-
-            if (target_to_host_timex(phtx, arg2) != 0) {
-                return -TARGET_EFAULT;
-            }
-            ret = get_errno(clock_adjtime(arg1, phtx));
-            if (!is_error(ret) && phtx) {
-                if (host_to_target_timex(arg2, phtx) != 0) {
-                    return -TARGET_EFAULT;
-                }
-            }
-        }
-        return ret;
-#endif
     case TARGET_NR_getpgid:
         return get_errno(getpgid(arg1));
     case TARGET_NR_fchdir:
@@ -12881,6 +12887,7 @@ static impl_fn *syscall_table(unsigned num)
 #endif
         SYSCALL(accept4);
         SYSCALL(acct);
+        SYSCALL(adjtimex);
 #ifdef TARGET_NR_alarm
         SYSCALL(alarm);
 #endif
@@ -12888,6 +12895,9 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(bind);
 #endif
         SYSCALL(brk);
+#ifdef CONFIG_CLOCK_ADJTIME
+        SYSCALL(clock_adjtime);
+#endif
         SYSCALL(clone);
         SYSCALL(close);
         SYSCALL(chdir);
@@ -13201,6 +13211,9 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(utimes);
 #endif
         SYSCALL(vhangup);
+#if defined(TARGET_I386) && !defined(TARGET_X86_64)
+        SYSCALL(vm86);
+#endif
         SYSCALL(wait4);
         SYSCALL(waitid);
 #ifdef TARGET_NR_waitpid
