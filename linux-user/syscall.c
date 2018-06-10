@@ -7855,6 +7855,19 @@ IMPL(chmod)
 }
 #endif
 
+IMPL(chroot)
+{
+    char *p = lock_user_string(arg1);
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(chroot(p));
+    unlock_user(p, arg1, 0);
+    return ret;
+}
+
 IMPL(close)
 {
     fd_trans_unregister(arg1);
@@ -7882,6 +7895,41 @@ IMPL(dup)
     abi_long ret = get_errno(dup(arg1));
     if (ret >= 0) {
         fd_trans_dup(arg1, ret);
+    }
+    return ret;
+}
+
+#ifdef TARGET_NR_dup2
+IMPL(dup2)
+{
+    abi_long ret = get_errno(dup2(arg1, arg2));
+    if (ret >= 0) {
+        fd_trans_dup(arg1, arg2);
+    }
+    return ret;
+}
+#endif
+
+IMPL(dup3)
+{
+    int host_flags = target_to_host_bitmask(arg3, fcntl_flags_tbl);
+    abi_long ret;
+
+    if ((arg3 & ~TARGET_O_CLOEXEC) != 0) {
+        return -EINVAL;
+    }
+#ifdef CONFIG_DUP3
+    ret = dup3(arg1, arg2, host_flags);
+#else
+    if (host_flags == 0) {
+        ret = dup2(arg1, arg2);
+    } else {
+        return -TARGET_ENOSYS;
+    }
+#endif
+    ret = get_errno(ret);
+    if (ret >= 0) {
+        fd_trans_dup(arg1, arg2);
     }
     return ret;
 }
@@ -8045,6 +8093,13 @@ IMPL(faccessat)
     unlock_user(p, arg2, 0);
     return ret;
 }
+
+#ifdef TARGET_NR_fcntl
+IMPL(fcntl)
+{
+    return do_fcntl(arg1, arg2, arg3);
+}
+#endif
 
 #ifdef TARGET_NR_fork
 IMPL(fork)
@@ -8553,6 +8608,11 @@ IMPL(rmdir)
 }
 #endif
 
+IMPL(setpgid)
+{
+    return get_errno(setpgid(arg1, arg2));
+}
+
 #ifdef TARGET_NR_stime
 IMPL(stime)
 {
@@ -8609,6 +8669,11 @@ IMPL(times)
         tmsp->tms_cstime = tswapal(host_to_target_clock_t(tms.tms_cstime));
     }
     return host_to_target_clock_t(ret);
+}
+
+IMPL(umask)
+{
+    return get_errno(umask(arg1));
 }
 
 #ifdef TARGET_NR_umount
@@ -8789,44 +8854,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     void *p;
 
     switch(num) {
-#ifdef TARGET_NR_fcntl
-    case TARGET_NR_fcntl:
-        return do_fcntl(arg1, arg2, arg3);
-#endif
-    case TARGET_NR_setpgid:
-        return get_errno(setpgid(arg1, arg2));
-    case TARGET_NR_umask:
-        return get_errno(umask(arg1));
-    case TARGET_NR_chroot:
-        if (!(p = lock_user_string(arg1)))
-            return -TARGET_EFAULT;
-        ret = get_errno(chroot(p));
-        unlock_user(p, arg1, 0);
-        return ret;
-#ifdef TARGET_NR_dup2
-    case TARGET_NR_dup2:
-        ret = get_errno(dup2(arg1, arg2));
-        if (ret >= 0) {
-            fd_trans_dup(arg1, arg2);
-        }
-        return ret;
-#endif
-#if defined(CONFIG_DUP3) && defined(TARGET_NR_dup3)
-    case TARGET_NR_dup3:
-    {
-        int host_flags;
-
-        if ((arg3 & ~TARGET_O_CLOEXEC) != 0) {
-            return -EINVAL;
-        }
-        host_flags = target_to_host_bitmask(arg3, fcntl_flags_tbl);
-        ret = get_errno(dup3(arg1, arg2, host_flags));
-        if (ret >= 0) {
-            fd_trans_dup(arg1, arg2);
-        }
-        return ret;
-    }
-#endif
 #ifdef TARGET_NR_getppid /* not on alpha */
     case TARGET_NR_getppid:
         return get_errno(getppid());
@@ -12622,6 +12649,7 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(brk);
         SYSCALL(close);
         SYSCALL(chdir);
+        SYSCALL(chroot);
 #ifdef TARGET_NR_chmod
         SYSCALL(chmod);
 #endif
@@ -12629,9 +12657,16 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(creat);
 #endif
         SYSCALL(dup);
+#ifdef TARGET_NR_dup2
+        SYSCALL(dup2);
+#endif
+        SYSCALL(dup3);
         SYSCALL(execve);
         SYSCALL(exit);
         SYSCALL(faccessat);
+#ifdef TARGET_NR_fcntl
+        SYSCALL(fcntl);
+#endif
 #ifdef TARGET_NR_fork
         SYSCALL(fork);
 #endif
@@ -12691,6 +12726,7 @@ static impl_fn *syscall_table(unsigned num)
 #ifdef TARGET_NR_rmdir
         SYSCALL(rmdir);
 #endif
+        SYSCALL(setpgid);
 #ifdef TARGET_NR_stime
         SYSCALL(stime);
 #endif
@@ -12702,6 +12738,7 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(time);
 #endif
         SYSCALL(times);
+        SYSCALL(umask);
 #ifdef TARGET_NR_umount
         SYSCALL(umount);
 #endif
