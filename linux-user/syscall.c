@@ -7552,6 +7552,14 @@ IMPL(arch_prctl)
 }
 #endif
 
+#ifdef TARGET_NR_atomic_barrier
+IMPL(atomic_barrier)
+{
+    /* Like the kernel implementation and the qemu arm barrier, no-op this.  */
+    return 0;
+}
+#endif
+
 #ifdef TARGET_NR_bind
 IMPL(bind)
 {
@@ -8983,6 +8991,21 @@ IMPL(getgroups32)
         }
         unlock_user(target_gl, arg2, gidsetsize * 4);
     }
+    return ret;
+}
+#endif
+
+#ifdef TARGET_NR_gethostname
+IMPL(gethostname)
+{
+    char *name = lock_user(VERIFY_WRITE, arg1, arg2, 0);
+    abi_long ret;
+
+    if (!name) {
+        ret = -TARGET_EFAULT;
+    }
+    ret = get_errno(gethostname(name, arg2));
+    unlock_user(name, arg1, arg2);
     return ret;
 }
 #endif
@@ -13002,19 +13025,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     abi_long ret;
 
     switch(num) {
-#ifdef TARGET_NR_gethostname
-    case TARGET_NR_gethostname:
-    {
-        char *name = lock_user(VERIFY_WRITE, arg1, arg2, 0);
-        if (name) {
-            ret = get_errno(gethostname(name, arg2));
-            unlock_user(name, arg1, arg2);
-        } else {
-            ret = -TARGET_EFAULT;
-        }
-        return ret;
-    }
-#endif
 #ifdef TARGET_NR_atomic_cmpxchg_32
     case TARGET_NR_atomic_cmpxchg_32:
     {
@@ -13036,13 +13046,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
         return mem_value;
     }
 #endif
-#ifdef TARGET_NR_atomic_barrier
-    case TARGET_NR_atomic_barrier:
-        /* Like the kernel implementation and the
-           qemu arm barrier, no-op this? */
-        return 0;
-#endif
-
 #ifdef TARGET_NR_timer_create
     case TARGET_NR_timer_create:
     {
@@ -13294,6 +13297,9 @@ static impl_fn *syscall_table(unsigned num)
 #ifdef TARGET_NR_bind
         SYSCALL(bind);
 #endif
+#ifdef TARGET_NR_atomic_barrier
+        SYSCALL(atomic_barrier);
+#endif
         SYSCALL(brk);
 #ifdef TARGET_NR_cacheflush
         SYSCALL(cacheflush);
@@ -13448,6 +13454,9 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(getgroups);
 #ifdef TARGET_NR_getgroups32
         SYSCALL(getgroups32);
+#endif
+#ifdef TARGET_NR_gethostname
+        SYSCALL(gethostname);
 #endif
         SYSCALL(getitimer);
 #ifdef TARGET_NR_getpagesize
