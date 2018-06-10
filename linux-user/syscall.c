@@ -7675,6 +7675,14 @@ IMPL(brk)
     return do_brk(arg1);
 }
 
+#ifdef TARGET_NR_cacheflush
+IMPL(cacheflush)
+{
+    /* Self-modifying code is handled automatically, so nothing needed.  */
+    return 0;
+}
+#endif
+
 IMPL(capget)
 {
     struct target_user_cap_header *target_header;
@@ -8269,6 +8277,52 @@ IMPL(fcntl)
 }
 #endif
 
+#if TARGET_ABI_BITS == 32
+IMPL(fcntl64)
+{
+    int cmd;
+    struct flock64 fl;
+    from_flock64_fn *copyfrom = copy_from_user_flock64;
+    to_flock64_fn *copyto = copy_to_user_flock64;
+    abi_long ret;
+
+#ifdef TARGET_ARM
+    if (!((CPUARMState *)cpu_env)->eabi) {
+        copyfrom = copy_from_user_oabi_flock64;
+        copyto = copy_to_user_oabi_flock64;
+    }
+#endif
+    cmd = target_to_host_fcntl_cmd(arg2);
+    if (cmd == -TARGET_EINVAL) {
+        return -TARGET_EINVAL;
+    }
+
+    switch (arg2) {
+    case TARGET_F_GETLK64:
+        ret = copyfrom(&fl, arg3);
+        if (ret) {
+            return ret;
+        }
+        ret = get_errno(fcntl(arg1, cmd, &fl));
+        if (ret == 0) {
+            ret = copyto(arg3, &fl);
+        }
+        return ret;
+
+    case TARGET_F_SETLK64:
+    case TARGET_F_SETLKW64:
+        ret = copyfrom(&fl, arg3);
+        if (ret) {
+            return ret;
+        }
+        return get_errno(safe_fcntl(arg1, cmd, &fl));
+
+    default:
+        return do_fcntl(arg1, arg2, arg3);
+    }
+}
+#endif
+
 IMPL(fdatasync)
 {
     return get_errno(fdatasync(arg1));
@@ -8708,6 +8762,13 @@ IMPL(getitimer)
     }
     return ret;
 }
+
+#ifdef TARGET_NR_getpagesize
+IMPL(getpagesize)
+{
+    return TARGET_PAGE_SIZE;
+}
+#endif
 
 #ifdef TARGET_NR_getpeername
 IMPL(getpeername)
@@ -9246,6 +9307,15 @@ IMPL(lstat64)
     return ret;
 }
 #endif
+
+IMPL(madvise)
+{
+    /* A straight passthrough may not be safe because qemu sometimes
+       turns private file-backed mappings into anonymous mappings.
+       This will break MADV_DONTNEED.
+       This is a hint, so ignoring and returning success is ok.  */
+    return 0;
+}
 
 IMPL(mincore)
 {
@@ -12114,70 +12184,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     void *p;
 
     switch(num) {
-#ifdef TARGET_NR_madvise
-    case TARGET_NR_madvise:
-        /* A straight passthrough may not be safe because qemu sometimes
-           turns private file-backed mappings into anonymous mappings.
-           This will break MADV_DONTNEED.
-           This is a hint, so ignoring and returning success is ok.  */
-        return 0;
-#endif
-#if TARGET_ABI_BITS == 32
-    case TARGET_NR_fcntl64:
-    {
-	int cmd;
-	struct flock64 fl;
-        from_flock64_fn *copyfrom = copy_from_user_flock64;
-        to_flock64_fn *copyto = copy_to_user_flock64;
-
-#ifdef TARGET_ARM
-        if (!((CPUARMState *)cpu_env)->eabi) {
-            copyfrom = copy_from_user_oabi_flock64;
-            copyto = copy_to_user_oabi_flock64;
-        }
-#endif
-
-	cmd = target_to_host_fcntl_cmd(arg2);
-        if (cmd == -TARGET_EINVAL) {
-            return cmd;
-        }
-
-        switch(arg2) {
-        case TARGET_F_GETLK64:
-            ret = copyfrom(&fl, arg3);
-            if (ret) {
-                break;
-            }
-            ret = get_errno(fcntl(arg1, cmd, &fl));
-            if (ret == 0) {
-                ret = copyto(arg3, &fl);
-            }
-	    break;
-
-        case TARGET_F_SETLK64:
-        case TARGET_F_SETLKW64:
-            ret = copyfrom(&fl, arg3);
-            if (ret) {
-                break;
-            }
-            ret = get_errno(safe_fcntl(arg1, cmd, &fl));
-	    break;
-        default:
-            ret = do_fcntl(arg1, arg2, arg3);
-            break;
-        }
-        return ret;
-    }
-#endif
-#ifdef TARGET_NR_cacheflush
-    case TARGET_NR_cacheflush:
-        /* self-modifying code is handled automatically, so nothing needed */
-        return 0;
-#endif
-#ifdef TARGET_NR_getpagesize
-    case TARGET_NR_getpagesize:
-        return TARGET_PAGE_SIZE;
-#endif
     case TARGET_NR_gettid:
         return get_errno(gettid());
 #ifdef TARGET_NR_readahead
@@ -13179,6 +13185,9 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(bind);
 #endif
         SYSCALL(brk);
+#ifdef TARGET_NR_cacheflush
+        SYSCALL(cacheflush);
+#endif
         SYSCALL(capget);
         SYSCALL(capset);
 #ifdef CONFIG_CLOCK_ADJTIME
@@ -13237,6 +13246,9 @@ static impl_fn *syscall_table(unsigned num)
 #ifdef TARGET_NR_fcntl
         SYSCALL(fcntl);
 #endif
+#if TARGET_ABI_BITS == 32
+        SYSCALL(fcntl64);
+#endif
         SYSCALL(fdatasync);
         SYSCALL(flock);
 #ifdef TARGET_NR_fork
@@ -13292,6 +13304,9 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(getgroups32);
 #endif
         SYSCALL(getitimer);
+#ifdef TARGET_NR_getpagesize
+        SYSCALL(getpagesize);
+#endif
 #ifdef TARGET_NR_getpeername
         SYSCALL(getpeername);
 #endif
@@ -13372,6 +13387,7 @@ static impl_fn *syscall_table(unsigned num)
 #ifdef TARGET_NR_lstat64
         SYSCALL(lstat64);
 #endif
+        SYSCALL(madvise);
         SYSCALL(mincore);
 #ifdef TARGET_NR_mkdir
         SYSCALL(mkdir);
