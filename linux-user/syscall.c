@@ -8140,6 +8140,42 @@ IMPL(fstat)
     return ret;
 }
 
+#ifdef TARGET_NR_fstat64
+IMPL(fstat64)
+{
+    struct stat st;
+    abi_long ret;
+
+    ret = get_errno(fstat(arg1, &st));
+    if (!is_error(ret) && host_to_target_stat64(cpu_env, arg2, &st)) {
+        return -TARGET_EFAULT;
+    }
+    return ret;
+}
+#endif
+
+/* Some targets name this syscall newfstatat, with the same arguments.  */
+/* ??? Our nios2/syscall_nr.h defines both names; the kernel does not.
+ * Preserve previous behavior and map both syscalls to this function.
+ */
+IMPL(fstatat64)
+{
+    char *p;
+    abi_long ret;
+    struct stat st;
+
+    p = lock_user_string(arg2);
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(fstatat(arg1, path(p), &st, arg4));
+    unlock_user(p, arg2, 0);
+    if (!is_error(ret) && host_to_target_stat64(cpu_env, arg3, &st)) {
+        return -TARGET_EFAULT;
+    }
+    return ret;
+}
+
 IMPL(fstatfs)
 {
     struct statfs stfs;
@@ -8809,6 +8845,25 @@ IMPL(lstat)
     ret = get_errno(lstat(path(p), &st));
     unlock_user(p, arg1, 0);
     if (!is_error(ret) && host_to_target_stat(arg2, &st)) {
+        return -TARGET_EFAULT;
+    }
+    return ret;
+}
+#endif
+
+#ifdef TARGET_NR_lstat64
+IMPL(lstat64)
+{
+    char *p = lock_user_string(arg1);
+    struct stat st;
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(lstat(path(p), &st));
+    unlock_user(p, arg1, 0);
+    if (!is_error(ret) && host_to_target_stat64(cpu_env, arg2, &st)) {
         return -TARGET_EFAULT;
     }
     return ret;
@@ -10790,6 +10845,25 @@ IMPL(stat)
 }
 #endif
 
+#ifdef TARGET_NR_stat64
+IMPL(stat64)
+{
+    char *p = lock_user_string(arg1);
+    struct stat st;
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(stat(path(p), &st));
+    unlock_user(p, arg1, 0);
+    if (!is_error(ret) && host_to_target_stat64(cpu_env, arg2, &st)) {
+        return -TARGET_EFAULT;
+    }
+    return ret;
+}
+#endif
+
 IMPL(statfs)
 {
     char *p = lock_user_string(arg1);
@@ -11333,55 +11407,9 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
 {
     CPUState *cpu __attribute__((unused)) = ENV_GET_CPU(cpu_env);
     abi_long ret;
-    struct stat st;
     void *p;
 
     switch(num) {
-#ifdef TARGET_NR_stat64
-    case TARGET_NR_stat64:
-        if (!(p = lock_user_string(arg1))) {
-            return -TARGET_EFAULT;
-        }
-        ret = get_errno(stat(path(p), &st));
-        unlock_user(p, arg1, 0);
-        if (!is_error(ret))
-            ret = host_to_target_stat64(cpu_env, arg2, &st);
-        return ret;
-#endif
-#ifdef TARGET_NR_lstat64
-    case TARGET_NR_lstat64:
-        if (!(p = lock_user_string(arg1))) {
-            return -TARGET_EFAULT;
-        }
-        ret = get_errno(lstat(path(p), &st));
-        unlock_user(p, arg1, 0);
-        if (!is_error(ret))
-            ret = host_to_target_stat64(cpu_env, arg2, &st);
-        return ret;
-#endif
-#ifdef TARGET_NR_fstat64
-    case TARGET_NR_fstat64:
-        ret = get_errno(fstat(arg1, &st));
-        if (!is_error(ret))
-            ret = host_to_target_stat64(cpu_env, arg2, &st);
-        return ret;
-#endif
-#if (defined(TARGET_NR_fstatat64) || defined(TARGET_NR_newfstatat))
-#ifdef TARGET_NR_fstatat64
-    case TARGET_NR_fstatat64:
-#endif
-#ifdef TARGET_NR_newfstatat
-    case TARGET_NR_newfstatat:
-#endif
-        if (!(p = lock_user_string(arg2))) {
-            return -TARGET_EFAULT;
-        }
-        ret = get_errno(fstatat(arg1, path(p), &st, arg4));
-        unlock_user(p, arg2, 0);
-        if (!is_error(ret))
-            ret = host_to_target_stat64(cpu_env, arg3, &st);
-        return ret;
-#endif
 #ifdef TARGET_NR_lchown
     case TARGET_NR_lchown:
         if (!(p = lock_user_string(arg1)))
@@ -13041,6 +13069,12 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(fork);
 #endif
         SYSCALL(fstat);
+#ifdef TARGET_NR_fstat64
+        SYSCALL(fstat64);
+#endif
+#ifdef TARGET_NR_fstatat64
+        SYSCALL(fstatat64);
+#endif
         SYSCALL(fstatfs);
 #ifdef TARGET_NR_fstatfs64
         SYSCALL(fstatfs64);
@@ -13109,6 +13143,9 @@ static impl_fn *syscall_table(unsigned num)
 #ifdef TARGET_NR_lstat
         SYSCALL(lstat);
 #endif
+#ifdef TARGET_NR_lstat64
+        SYSCALL(lstat64);
+#endif
 #ifdef TARGET_NR_mkdir
         SYSCALL(mkdir);
 #endif
@@ -13151,6 +13188,9 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(name_to_handle_at);
 #endif
         SYSCALL(nanosleep);
+#ifdef TARGET_NR_newfstatat
+        SYSCALL_WITH(newfstatat, fstatat64);
+#endif
 #ifdef TARGET_NR__newselect
         SYSCALL(_newselect);
 #endif
@@ -13322,6 +13362,9 @@ static impl_fn *syscall_table(unsigned num)
 #endif
 #ifdef TARGET_NR_stat
         SYSCALL(stat);
+#endif
+#ifdef TARGET_NR_stat64
+        SYSCALL(stat64);
 #endif
         SYSCALL(statfs);
 #ifdef TARGET_NR_statfs64
