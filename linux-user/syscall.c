@@ -8441,6 +8441,27 @@ IMPL(getdents64)
 }
 #endif /* TARGET_NR_getdents64 */
 
+#ifdef TARGET_NR_getegid
+IMPL(getegid)
+{
+    return get_errno(high2lowgid(getegid()));
+}
+#endif
+
+#ifdef TARGET_NR_geteuid
+IMPL(geteuid)
+{
+    return get_errno(high2lowuid(geteuid()));
+}
+#endif
+
+#ifdef TARGET_NR_getgid
+IMPL(getgid)
+{
+    return get_errno(high2lowgid(getgid()));
+}
+#endif
+
 IMPL(getitimer)
 {
     struct itimerval value;
@@ -8583,6 +8604,13 @@ IMPL(gettimeofday)
     }
     return ret;
 }
+
+#ifdef TARGET_NR_getuid
+IMPL(getuid)
+{
+    return get_errno(high2lowuid(getuid()));
+}
+#endif
 
 #if defined(TARGET_NR_getxpid) && defined(TARGET_ALPHA)
 IMPL(getxpid)
@@ -8768,6 +8796,21 @@ IMPL(kill)
 {
     return get_errno(safe_kill(arg1, target_to_host_signal(arg2)));
 }
+
+#ifdef TARGET_NR_lchown
+IMPL(lchown)
+{
+    char *p = lock_user_string(arg1);
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(lchown(p, low2highuid(arg2), low2highgid(arg3)));
+    unlock_user(p, arg1, 0);
+    return ret;
+}
+#endif
 
 #ifdef TARGET_NR_link
 IMPL(link)
@@ -11410,30 +11453,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     void *p;
 
     switch(num) {
-#ifdef TARGET_NR_lchown
-    case TARGET_NR_lchown:
-        if (!(p = lock_user_string(arg1)))
-            return -TARGET_EFAULT;
-        ret = get_errno(lchown(p, low2highuid(arg2), low2highgid(arg3)));
-        unlock_user(p, arg1, 0);
-        return ret;
-#endif
-#ifdef TARGET_NR_getuid
-    case TARGET_NR_getuid:
-        return get_errno(high2lowuid(getuid()));
-#endif
-#ifdef TARGET_NR_getgid
-    case TARGET_NR_getgid:
-        return get_errno(high2lowgid(getgid()));
-#endif
-#ifdef TARGET_NR_geteuid
-    case TARGET_NR_geteuid:
-        return get_errno(high2lowuid(geteuid()));
-#endif
-#ifdef TARGET_NR_getegid
-    case TARGET_NR_getegid:
-        return get_errno(high2lowgid(getegid()));
-#endif
     case TARGET_NR_setreuid:
         return get_errno(setreuid(low2highuid(arg1), low2highuid(arg2)));
     case TARGET_NR_setregid:
@@ -13095,6 +13114,15 @@ static impl_fn *syscall_table(unsigned num)
 #if defined(TARGET_NR_getdents64) && defined(__NR_getdents64)
         SYSCALL(getdents64);
 #endif
+#ifdef TARGET_NR_getegid
+        SYSCALL(getegid);
+#endif
+#ifdef TARGET_NR_geteuid
+        SYSCALL(geteuid);
+#endif
+#ifdef TARGET_NR_getgid
+        SYSCALL(getgid);
+#endif
         SYSCALL(getitimer);
 #ifdef TARGET_NR_getpeername
         SYSCALL(getpeername);
@@ -13121,6 +13149,9 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(getsockopt);
 #endif
         SYSCALL(gettimeofday);
+#ifdef TARGET_NR_getuid
+        SYSCALL(getuid);
+#endif
 #if defined(TARGET_NR_getxpid) && defined(TARGET_ALPHA)
         SYSCALL(getxpid);
 #endif
@@ -13129,6 +13160,9 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(ipc);
 #endif
         SYSCALL(kill);
+#ifdef TARGET_NR_lchown
+        SYSCALL(lchown);
+#endif
 #ifdef TARGET_NR_link
         SYSCALL(link);
 #endif
