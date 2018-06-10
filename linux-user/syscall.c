@@ -9331,6 +9331,36 @@ IMPL(stime)
 }
 #endif
 
+#ifdef TARGET_NR_symlink
+IMPL(symlink)
+{
+    char *p1 = lock_user_string(arg1);
+    char *p2 = lock_user_string(arg2);
+    abi_long ret = -TARGET_EFAULT;
+
+    if (p1 && p2) {
+        ret = get_errno(symlink(p1, p2));
+    }
+    unlock_user(p2, arg2, 0);
+    unlock_user(p1, arg1, 0);
+    return ret;
+}
+#endif
+
+IMPL(symlinkat)
+{
+    char *p1 = lock_user_string(arg1);
+    char *p2 = lock_user_string(arg3);
+    abi_long ret = -TARGET_EFAULT;
+
+    if (p1 && p2) {
+        ret = get_errno(symlinkat(p1, arg2, p2));
+    }
+    unlock_user(p2, arg3, 0);
+    unlock_user(p1, arg1, 0);
+    return ret;
+}
+
 IMPL(sync)
 {
     sync();
@@ -9561,36 +9591,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     void *p;
 
     switch(num) {
-#ifdef TARGET_NR_symlink
-    case TARGET_NR_symlink:
-        {
-            void *p2;
-            p = lock_user_string(arg1);
-            p2 = lock_user_string(arg2);
-            if (!p || !p2)
-                ret = -TARGET_EFAULT;
-            else
-                ret = get_errno(symlink(p, p2));
-            unlock_user(p2, arg2, 0);
-            unlock_user(p, arg1, 0);
-        }
-        return ret;
-#endif
-#if defined(TARGET_NR_symlinkat)
-    case TARGET_NR_symlinkat:
-        {
-            void *p2;
-            p  = lock_user_string(arg1);
-            p2 = lock_user_string(arg3);
-            if (!p || !p2)
-                ret = -TARGET_EFAULT;
-            else
-                ret = get_errno(symlinkat(p, arg2, p2));
-            unlock_user(p2, arg3, 0);
-            unlock_user(p, arg1, 0);
-        }
-        return ret;
-#endif
 #ifdef TARGET_NR_readlink
     case TARGET_NR_readlink:
         {
@@ -12837,6 +12837,10 @@ static impl_fn *syscall_table(unsigned num)
 #ifdef TARGET_NR_stime
         SYSCALL(stime);
 #endif
+#ifdef TARGET_NR_symlink
+        SYSCALL(symlink);
+#endif
+        SYSCALL(symlinkat);
         SYSCALL(sync);
 #ifdef CONFIG_SYNCFS
         SYSCALL(syncfs);
