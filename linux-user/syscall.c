@@ -8782,6 +8782,14 @@ IMPL(rt_sigqueueinfo)
     return get_errno(sys_rt_sigqueueinfo(arg1, arg2, &uinfo));
 }
 
+IMPL(rt_sigreturn)
+{
+    if (block_signals()) {
+        return -TARGET_ERESTARTSYS;
+    }
+    return do_rt_sigreturn(cpu_env);
+}
+
 IMPL(rt_sigsuspend)
 {
     CPUState *cpu = ENV_GET_CPU(cpu_env);
@@ -8869,9 +8877,37 @@ IMPL(sgetmask)
 }
 #endif
 
+IMPL(sethostname)
+{
+    char *p = lock_user_string(arg1);
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(sethostname(p, arg2));
+    unlock_user(p, arg1, 0);
+    return ret;
+}
+
 IMPL(setpgid)
 {
     return get_errno(setpgid(arg1, arg2));
+}
+
+IMPL(setrlimit)
+{
+    int resource = target_to_host_resource(arg1);
+    struct target_rlimit *target_rlim;
+    struct rlimit rlim;
+
+    if (!lock_user_struct(VERIFY_READ, target_rlim, arg2, 1)) {
+        return -TARGET_EFAULT;
+    }
+    rlim.rlim_cur = target_to_host_rlim(target_rlim->rlim_cur);
+    rlim.rlim_max = target_to_host_rlim(target_rlim->rlim_max);
+    unlock_user_struct(target_rlim, arg2, 0);
+    return get_errno(setrlimit(resource, &rlim));
 }
 
 IMPL(setsid)
@@ -9052,6 +9088,16 @@ IMPL(sigprocmask)
     }
 # endif
     return ret;
+}
+#endif
+
+#ifdef TARGET_NR_sigreturn
+IMPL(sigreturn)
+{
+    if (block_signals()) {
+        return -TARGET_ERESTARTSYS;
+    }
+    return do_sigreturn(cpu_env);
 }
 #endif
 
@@ -9339,39 +9385,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     void *p;
 
     switch(num) {
-#ifdef TARGET_NR_sigreturn
-    case TARGET_NR_sigreturn:
-        if (block_signals()) {
-            ret = -TARGET_ERESTARTSYS;
-        } else {
-            ret = do_sigreturn(cpu_env);
-        }
-        return ret;
-#endif
-    case TARGET_NR_rt_sigreturn:
-        if (block_signals()) {
-            return -TARGET_ERESTARTSYS;
-        } else {
-            return do_rt_sigreturn(cpu_env);
-        }
-    case TARGET_NR_sethostname:
-        if (!(p = lock_user_string(arg1)))
-            return -TARGET_EFAULT;
-        ret = get_errno(sethostname(p, arg2));
-        unlock_user(p, arg1, 0);
-        return ret;
-    case TARGET_NR_setrlimit:
-        {
-            int resource = target_to_host_resource(arg1);
-            struct target_rlimit *target_rlim;
-            struct rlimit rlim;
-            if (!lock_user_struct(VERIFY_READ, target_rlim, arg2, 1))
-                return -TARGET_EFAULT;
-            rlim.rlim_cur = target_to_host_rlim(target_rlim->rlim_cur);
-            rlim.rlim_max = target_to_host_rlim(target_rlim->rlim_max);
-            unlock_user_struct(target_rlim, arg2, 0);
-            return get_errno(setrlimit(resource, &rlim));
-        }
     case TARGET_NR_getrlimit:
         {
             int resource = target_to_host_resource(arg1);
@@ -12778,13 +12791,16 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(rt_sigpending);
         SYSCALL(rt_sigprocmask);
         SYSCALL(rt_sigqueueinfo);
+        SYSCALL(rt_sigreturn);
         SYSCALL(rt_sigsuspend);
         SYSCALL(rt_sigtimedwait);
         SYSCALL(rt_tgsigqueueinfo);
 #ifdef TARGET_NR_sgetmask
         SYSCALL(sgetmask);
 #endif
+        SYSCALL(sethostname);
         SYSCALL(setpgid);
+        SYSCALL(setrlimit);
         SYSCALL(setsid);
 #ifdef TARGET_NR_sigaction
         SYSCALL(sigaction);
@@ -12794,6 +12810,9 @@ static impl_fn *syscall_table(unsigned num)
 #endif
 #ifdef TARGET_NR_sigprocmask
         SYSCALL(sigprocmask);
+#endif
+#ifdef TARGET_NR_sigreturn
+        SYSCALL(sigreturn);
 #endif
 #ifdef TARGET_NR_sigsuspend
         SYSCALL(sigsuspend);
