@@ -8158,6 +8158,42 @@ IMPL(mknodat)
     return ret;
 }
 
+IMPL(mount)
+{
+    char *p1 = NULL, *p2, *p3 = NULL;
+    abi_long ret = -TARGET_EFAULT;
+
+    if (arg1) {
+        p1 = lock_user_string(arg1);
+        if (!p1) {
+            return ret;
+        }
+    }
+    p2 = lock_user_string(arg2);
+    if (!p2) {
+        goto exit2;
+    }
+    if (arg3) {
+        p3 = lock_user_string(arg3);
+        if (!p3) {
+            goto exit3;
+        }
+    }
+
+    /* FIXME - arg5 should be locked, but it isn't clear how to do that
+     * since it's not guaranteed to be a NULL-terminated string.
+     */
+    ret = mount(p1, p2, p3, (unsigned long)arg4, arg5 ? g2h(arg5) : NULL);
+    ret = get_errno(ret);
+
+    unlock_user(p3, arg3, 0);
+ exit3:
+    unlock_user(p2, arg2, 0);
+ exit2:
+    unlock_user(p1, arg1, 0);
+    return ret;
+}
+
 #ifdef CONFIG_OPEN_BY_HANDLE
 IMPL(name_to_handle_at)
 {
@@ -8315,6 +8351,21 @@ IMPL(time)
 }
 #endif
 
+#ifdef TARGET_NR_umount
+IMPL(umount)
+{
+    char *p = lock_user_string(arg1);
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(umount(p));
+    unlock_user(p, arg1, 0);
+    return ret;
+}
+#endif
+
 #ifdef TARGET_NR_unlink
 IMPL(unlink)
 {
@@ -8416,69 +8467,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     void *p;
 
     switch(num) {
-    case TARGET_NR_mount:
-        {
-            /* need to look at the data field */
-            void *p2, *p3;
-
-            if (arg1) {
-                p = lock_user_string(arg1);
-                if (!p) {
-                    return -TARGET_EFAULT;
-                }
-            } else {
-                p = NULL;
-            }
-
-            p2 = lock_user_string(arg2);
-            if (!p2) {
-                if (arg1) {
-                    unlock_user(p, arg1, 0);
-                }
-                return -TARGET_EFAULT;
-            }
-
-            if (arg3) {
-                p3 = lock_user_string(arg3);
-                if (!p3) {
-                    if (arg1) {
-                        unlock_user(p, arg1, 0);
-                    }
-                    unlock_user(p2, arg2, 0);
-                    return -TARGET_EFAULT;
-                }
-            } else {
-                p3 = NULL;
-            }
-
-            /* FIXME - arg5 should be locked, but it isn't clear how to
-             * do that since it's not guaranteed to be a NULL-terminated
-             * string.
-             */
-            if (!arg5) {
-                ret = mount(p, p2, p3, (unsigned long)arg4, NULL);
-            } else {
-                ret = mount(p, p2, p3, (unsigned long)arg4, g2h(arg5));
-            }
-            ret = get_errno(ret);
-
-            if (arg1) {
-                unlock_user(p, arg1, 0);
-            }
-            unlock_user(p2, arg2, 0);
-            if (arg3) {
-                unlock_user(p3, arg3, 0);
-            }
-        }
-        return ret;
-#ifdef TARGET_NR_umount
-    case TARGET_NR_umount:
-        if (!(p = lock_user_string(arg1)))
-            return -TARGET_EFAULT;
-        ret = get_errno(umount(p));
-        unlock_user(p, arg1, 0);
-        return ret;
-#endif
 #ifdef TARGET_NR_stime /* not on alpha */
     case TARGET_NR_stime:
         {
@@ -12569,6 +12557,7 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(mknod);
 #endif
         SYSCALL(mknodat);
+        SYSCALL(mount);
 #ifdef CONFIG_OPEN_BY_HANDLE
         SYSCALL(name_to_handle_at);
 #endif
@@ -12582,6 +12571,9 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(read);
 #ifdef TARGET_NR_time
         SYSCALL(time);
+#endif
+#ifdef TARGET_NR_umount
+        SYSCALL(umount);
 #endif
 #ifdef TARGET_NR_unlink
         SYSCALL(unlink);
