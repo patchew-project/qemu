@@ -8043,6 +8043,12 @@ IMPL(fcntl)
 }
 #endif
 
+IMPL(flock)
+{
+    /* The flock constant seems to be the same for every Linux platform. */
+    return get_errno(safe_flock(arg1, arg2));
+}
+
 #ifdef TARGET_NR_fork
 IMPL(fork)
 {
@@ -9221,6 +9227,24 @@ IMPL(ppoll)
     return ret;
 }
 
+IMPL(preadv)
+{
+    struct iovec *vec;
+    abi_long ret;
+
+    vec = lock_iovec(VERIFY_WRITE, arg2, arg3, 0);
+    if (vec != NULL) {
+        unsigned long low, high;
+
+        target_to_host_low_high(arg4, arg5, &low, &high);
+        ret = get_errno(safe_preadv(arg1, vec, arg3, low, high));
+        unlock_iovec(vec, arg2, arg3, 1);
+    } else {
+        ret = -host_to_target_errno(errno);
+    }
+    return ret;
+}
+
 IMPL(pselect6)
 {
     abi_long rfd_addr, wfd_addr, efd_addr, n, ts_addr;
@@ -9322,6 +9346,24 @@ IMPL(pselect6)
     return ret;
 }
 
+IMPL(pwritev)
+{
+    struct iovec *vec;
+    abi_long ret;
+
+    vec = lock_iovec(VERIFY_READ, arg2, arg3, 1);
+    if (vec != NULL) {
+        unsigned long low, high;
+
+        target_to_host_low_high(arg4, arg5, &low, &high);
+        ret = get_errno(safe_pwritev(arg1, vec, arg3, low, high));
+        unlock_iovec(vec, arg2, arg3, 0);
+    } else {
+        ret = -host_to_target_errno(errno);
+    }
+    return ret;
+}
+
 IMPL(read)
 {
     abi_long ret;
@@ -9379,6 +9421,21 @@ IMPL(readlink)
 IMPL(readlinkat)
 {
     return do_readlinkat(arg1, arg2, arg3, arg4);
+}
+
+IMPL(readv)
+{
+    struct iovec *vec;
+    abi_long ret;
+
+    vec = lock_iovec(VERIFY_WRITE, arg2, arg3, 0);
+    if (vec != NULL) {
+        ret = get_errno(safe_readv(arg1, vec, arg3));
+        unlock_iovec(vec, arg2, arg3, 1);
+    } else {
+        ret = -host_to_target_errno(errno);
+    }
+    return ret;
 }
 
 IMPL(reboot)
@@ -10753,6 +10810,21 @@ IMPL(write)
     return ret;
 }
 
+IMPL(writev)
+{
+    struct iovec *vec;
+    abi_long ret;
+
+    vec = lock_iovec(VERIFY_READ, arg2, arg3, 1);
+    if (vec != NULL) {
+        ret = get_errno(safe_writev(arg1, vec, arg3));
+        unlock_iovec(vec, arg2, arg3, 0);
+    } else {
+        ret = -host_to_target_errno(errno);
+    }
+    return ret;
+}
+
 /* This is an internal helper for do_syscall so that it is easier
  * to have a single return point, so that actions, such as logging
  * of syscall results, can be performed.
@@ -10769,64 +10841,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     void *p;
 
     switch(num) {
-    case TARGET_NR_flock:
-        /* NOTE: the flock constant seems to be the same for every
-           Linux platform */
-        return get_errno(safe_flock(arg1, arg2));
-    case TARGET_NR_readv:
-        {
-            struct iovec *vec = lock_iovec(VERIFY_WRITE, arg2, arg3, 0);
-            if (vec != NULL) {
-                ret = get_errno(safe_readv(arg1, vec, arg3));
-                unlock_iovec(vec, arg2, arg3, 1);
-            } else {
-                ret = -host_to_target_errno(errno);
-            }
-        }
-        return ret;
-    case TARGET_NR_writev:
-        {
-            struct iovec *vec = lock_iovec(VERIFY_READ, arg2, arg3, 1);
-            if (vec != NULL) {
-                ret = get_errno(safe_writev(arg1, vec, arg3));
-                unlock_iovec(vec, arg2, arg3, 0);
-            } else {
-                ret = -host_to_target_errno(errno);
-            }
-        }
-        return ret;
-#if defined(TARGET_NR_preadv)
-    case TARGET_NR_preadv:
-        {
-            struct iovec *vec = lock_iovec(VERIFY_WRITE, arg2, arg3, 0);
-            if (vec != NULL) {
-                unsigned long low, high;
-
-                target_to_host_low_high(arg4, arg5, &low, &high);
-                ret = get_errno(safe_preadv(arg1, vec, arg3, low, high));
-                unlock_iovec(vec, arg2, arg3, 1);
-            } else {
-                ret = -host_to_target_errno(errno);
-           }
-        }
-        return ret;
-#endif
-#if defined(TARGET_NR_pwritev)
-    case TARGET_NR_pwritev:
-        {
-            struct iovec *vec = lock_iovec(VERIFY_READ, arg2, arg3, 1);
-            if (vec != NULL) {
-                unsigned long low, high;
-
-                target_to_host_low_high(arg4, arg5, &low, &high);
-                ret = get_errno(safe_pwritev(arg1, vec, arg3, low, high));
-                unlock_iovec(vec, arg2, arg3, 0);
-            } else {
-                ret = -host_to_target_errno(errno);
-           }
-        }
-        return ret;
-#endif
     case TARGET_NR_getsid:
         return get_errno(getsid(arg1));
 #if defined(TARGET_NR_fdatasync) /* Not on alpha (osf_datasync ?) */
@@ -12944,6 +12958,7 @@ static impl_fn *syscall_table(unsigned num)
 #ifdef TARGET_NR_fcntl
         SYSCALL(fcntl);
 #endif
+        SYSCALL(flock);
 #ifdef TARGET_NR_fork
         SYSCALL(fork);
 #endif
@@ -13076,12 +13091,15 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(poll);
 #endif
         SYSCALL(ppoll);
+        SYSCALL(preadv);
         SYSCALL(pselect6);
+        SYSCALL(pwritev);
         SYSCALL(read);
 #ifdef TARGET_NR_readlink
         SYSCALL(readlink);
 #endif
         SYSCALL(readlinkat);
+        SYSCALL(readv);
         SYSCALL(reboot);
 #ifdef TARGET_NR_recv
         SYSCALL(recv);
@@ -13250,6 +13268,7 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(waitpid);
 #endif
         SYSCALL(write);
+        SYSCALL(writev);
     }
 
 #undef SYSCALL
