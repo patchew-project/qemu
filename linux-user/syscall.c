@@ -9795,6 +9795,154 @@ IMPL(rt_tgsigqueueinfo)
     return get_errno(sys_rt_tgsigqueueinfo(arg1, arg2, arg3, &uinfo));
 }
 
+IMPL(sched_getaffinity)
+{
+    unsigned int mask_size;
+    unsigned long *mask;
+    abi_long ret;
+
+    /*
+     * sched_getaffinity needs multiples of ulong, so need to take
+     * care of mismatches between target ulong and host ulong sizes.
+     */
+    if (arg2 & (sizeof(abi_ulong) - 1)) {
+        return -TARGET_EINVAL;
+    }
+    mask_size = QEMU_ALIGN_UP(arg2, sizeof(unsigned long));
+    mask = alloca(mask_size);
+    memset(mask, 0, mask_size);
+
+    ret = get_errno(sys_sched_getaffinity(arg1, mask_size, mask));
+    if (!is_error(ret)) {
+        if (ret > arg2) {
+            /* More data returned than the caller's buffer will fit.
+             * This only happens if sizeof(abi_long) < sizeof(long)
+             * and the caller passed us a buffer holding an odd number
+             * of abi_longs. If the host kernel is actually using the
+             * extra 4 bytes then fail EINVAL; otherwise we can just
+             * ignore them and only copy the interesting part.
+             */
+            int numcpus = sysconf(_SC_NPROCESSORS_CONF);
+            if (numcpus > arg2 * 8) {
+                return -TARGET_EINVAL;
+            }
+            ret = arg2;
+        }
+        if (host_to_target_cpu_mask(mask, mask_size, arg3, ret)) {
+            return -TARGET_EFAULT;
+        }
+    }
+    return ret;
+}
+
+IMPL(sched_getparam)
+{
+    struct sched_param *target_schp;
+    struct sched_param schp;
+    abi_long ret;
+
+    if (arg2 == 0) {
+        return -TARGET_EINVAL;
+    }
+    ret = get_errno(sched_getparam(arg1, &schp));
+    if (!is_error(ret)) {
+        if (!lock_user_struct(VERIFY_WRITE, target_schp, arg2, 0)) {
+            return -TARGET_EFAULT;
+        }
+        target_schp->sched_priority = tswap32(schp.sched_priority);
+        unlock_user_struct(target_schp, arg2, 1);
+    }
+    return ret;
+}
+
+IMPL(sched_get_priority_max)
+{
+    return get_errno(sched_get_priority_max(arg1));
+}
+
+IMPL(sched_get_priority_min)
+{
+    return get_errno(sched_get_priority_min(arg1));
+}
+
+IMPL(sched_getscheduler)
+{
+    return get_errno(sched_getscheduler(arg1));
+}
+
+IMPL(sched_rr_get_interval)
+{
+    struct timespec ts;
+    abi_long ret;
+
+    ret = get_errno(sched_rr_get_interval(arg1, &ts));
+    if (!is_error(ret)) {
+        ret = host_to_target_timespec(arg2, &ts);
+    }
+    return ret;
+}
+
+IMPL(sched_setaffinity)
+{
+    unsigned int mask_size;
+    unsigned long *mask;
+    abi_long ret;
+
+    /*
+     * sched_setaffinity needs multiples of ulong, so need to take
+     * care of mismatches between target ulong and host ulong sizes.
+     */
+    if (arg2 & (sizeof(abi_ulong) - 1)) {
+        return -TARGET_EINVAL;
+    }
+    mask_size = QEMU_ALIGN_UP(arg2, sizeof(unsigned long));
+    mask = alloca(mask_size);
+
+    ret = target_to_host_cpu_mask(mask, mask_size, arg3, arg2);
+    if (ret) {
+        return ret;
+    }
+
+    return get_errno(sys_sched_setaffinity(arg1, mask_size, mask));
+}
+
+IMPL(sched_setparam)
+{
+    struct sched_param *target_schp;
+    struct sched_param schp;
+
+    if (arg2 == 0) {
+        return -TARGET_EINVAL;
+    }
+    if (!lock_user_struct(VERIFY_READ, target_schp, arg2, 1)) {
+        return -TARGET_EFAULT;
+    }
+    schp.sched_priority = tswap32(target_schp->sched_priority);
+    unlock_user_struct(target_schp, arg2, 0);
+    return get_errno(sched_setparam(arg1, &schp));
+}
+
+IMPL(sched_setscheduler)
+{
+    struct sched_param *target_schp;
+    struct sched_param schp;
+
+    if (arg3 == 0) {
+        return -TARGET_EINVAL;
+    }
+    if (!lock_user_struct(VERIFY_READ, target_schp, arg3, 1)) {
+        return -TARGET_EFAULT;
+    }
+    schp.sched_priority = tswap32(target_schp->sched_priority);
+    unlock_user_struct(target_schp, arg3, 0);
+    return get_errno(sched_setscheduler(arg1, arg2, &schp));
+}
+
+IMPL(sched_yield)
+{
+    return get_errno(sched_yield());
+}
+
 #ifdef TARGET_NR_sgetmask
 IMPL(sgetmask)
 {
@@ -10859,68 +11007,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     void *p;
 
     switch(num) {
-    case TARGET_NR_sched_getaffinity:
-        {
-            unsigned int mask_size;
-            unsigned long *mask;
-
-            /*
-             * sched_getaffinity needs multiples of ulong, so need to take
-             * care of mismatches between target ulong and host ulong sizes.
-             */
-            if (arg2 & (sizeof(abi_ulong) - 1)) {
-                return -TARGET_EINVAL;
-            }
-            mask_size = (arg2 + (sizeof(*mask) - 1)) & ~(sizeof(*mask) - 1);
-
-            mask = alloca(mask_size);
-            memset(mask, 0, mask_size);
-            ret = get_errno(sys_sched_getaffinity(arg1, mask_size, mask));
-
-            if (!is_error(ret)) {
-                if (ret > arg2) {
-                    /* More data returned than the caller's buffer will fit.
-                     * This only happens if sizeof(abi_long) < sizeof(long)
-                     * and the caller passed us a buffer holding an odd number
-                     * of abi_longs. If the host kernel is actually using the
-                     * extra 4 bytes then fail EINVAL; otherwise we can just
-                     * ignore them and only copy the interesting part.
-                     */
-                    int numcpus = sysconf(_SC_NPROCESSORS_CONF);
-                    if (numcpus > arg2 * 8) {
-                        return -TARGET_EINVAL;
-                    }
-                    ret = arg2;
-                }
-
-                if (host_to_target_cpu_mask(mask, mask_size, arg3, ret)) {
-                    return -TARGET_EFAULT;
-                }
-            }
-        }
-        return ret;
-    case TARGET_NR_sched_setaffinity:
-        {
-            unsigned int mask_size;
-            unsigned long *mask;
-
-            /*
-             * sched_setaffinity needs multiples of ulong, so need to take
-             * care of mismatches between target ulong and host ulong sizes.
-             */
-            if (arg2 & (sizeof(abi_ulong) - 1)) {
-                return -TARGET_EINVAL;
-            }
-            mask_size = (arg2 + (sizeof(*mask) - 1)) & ~(sizeof(*mask) - 1);
-            mask = alloca(mask_size);
-
-            ret = target_to_host_cpu_mask(mask, mask_size, arg3, arg2);
-            if (ret) {
-                return ret;
-            }
-
-            return get_errno(sys_sched_setaffinity(arg1, mask_size, mask));
-        }
     case TARGET_NR_getcpu:
         {
             unsigned cpu, node;
@@ -10935,67 +11021,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
             }
             if (arg2 && put_user_u32(node, arg2)) {
                 return -TARGET_EFAULT;
-            }
-        }
-        return ret;
-    case TARGET_NR_sched_setparam:
-        {
-            struct sched_param *target_schp;
-            struct sched_param schp;
-
-            if (arg2 == 0) {
-                return -TARGET_EINVAL;
-            }
-            if (!lock_user_struct(VERIFY_READ, target_schp, arg2, 1))
-                return -TARGET_EFAULT;
-            schp.sched_priority = tswap32(target_schp->sched_priority);
-            unlock_user_struct(target_schp, arg2, 0);
-            return get_errno(sched_setparam(arg1, &schp));
-        }
-    case TARGET_NR_sched_getparam:
-        {
-            struct sched_param *target_schp;
-            struct sched_param schp;
-
-            if (arg2 == 0) {
-                return -TARGET_EINVAL;
-            }
-            ret = get_errno(sched_getparam(arg1, &schp));
-            if (!is_error(ret)) {
-                if (!lock_user_struct(VERIFY_WRITE, target_schp, arg2, 0))
-                    return -TARGET_EFAULT;
-                target_schp->sched_priority = tswap32(schp.sched_priority);
-                unlock_user_struct(target_schp, arg2, 1);
-            }
-        }
-        return ret;
-    case TARGET_NR_sched_setscheduler:
-        {
-            struct sched_param *target_schp;
-            struct sched_param schp;
-            if (arg3 == 0) {
-                return -TARGET_EINVAL;
-            }
-            if (!lock_user_struct(VERIFY_READ, target_schp, arg3, 1))
-                return -TARGET_EFAULT;
-            schp.sched_priority = tswap32(target_schp->sched_priority);
-            unlock_user_struct(target_schp, arg3, 0);
-            return get_errno(sched_setscheduler(arg1, arg2, &schp));
-        }
-    case TARGET_NR_sched_getscheduler:
-        return get_errno(sched_getscheduler(arg1));
-    case TARGET_NR_sched_yield:
-        return get_errno(sched_yield());
-    case TARGET_NR_sched_get_priority_max:
-        return get_errno(sched_get_priority_max(arg1));
-    case TARGET_NR_sched_get_priority_min:
-        return get_errno(sched_get_priority_min(arg1));
-    case TARGET_NR_sched_rr_get_interval:
-        {
-            struct timespec ts;
-            ret = get_errno(sched_rr_get_interval(arg1, &ts));
-            if (!is_error(ret)) {
-                ret = host_to_target_timespec(arg2, &ts);
             }
         }
         return ret;
@@ -13139,6 +13164,16 @@ static impl_fn *syscall_table(unsigned num)
         SYSCALL(rt_sigsuspend);
         SYSCALL(rt_sigtimedwait);
         SYSCALL(rt_tgsigqueueinfo);
+        SYSCALL(sched_getaffinity);
+        SYSCALL(sched_getparam);
+        SYSCALL(sched_get_priority_max);
+        SYSCALL(sched_get_priority_min);
+        SYSCALL(sched_getscheduler);
+        SYSCALL(sched_rr_get_interval);
+        SYSCALL(sched_setaffinity);
+        SYSCALL(sched_setparam);
+        SYSCALL(sched_setscheduler);
+        SYSCALL(sched_yield);
 #ifdef TARGET_NR_sgetmask
         SYSCALL(sgetmask);
 #endif
