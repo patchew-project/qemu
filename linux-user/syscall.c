@@ -8241,6 +8241,27 @@ IMPL(getppid)
 }
 #endif
 
+IMPL(getpriority)
+{
+    abi_long ret;
+
+    /* Note that negative values are valid for getpriority, so we must
+       differentiate based on errno settings.  */
+    errno = 0;
+    ret = getpriority(arg1, arg2);
+    if (ret == -1 && errno != 0) {
+        return -host_to_target_errno(errno);
+    }
+#ifdef TARGET_ALPHA
+    /* Return value is the unbiased priority.  Signal no error.  */
+    ((CPUAlphaState *)cpu_env)->ir[IR_V0] = 0;
+    return ret;
+#else
+    /* Return value is a biased priority to avoid negative numbers.  */
+    return 20 - ret;
+#endif
+}
+
 IMPL(getrlimit)
 {
     int resource = target_to_host_resource(arg1);
@@ -9303,6 +9324,11 @@ IMPL(setpgid)
     return get_errno(setpgid(arg1, arg2));
 }
 
+IMPL(setpriority)
+{
+    return get_errno(setpriority(arg1, arg2, arg3));
+}
+
 IMPL(setrlimit)
 {
     int resource = target_to_host_resource(arg1);
@@ -9898,24 +9924,6 @@ static abi_long do_syscall1(void *cpu_env, unsigned num, abi_long arg1,
     void *p;
 
     switch(num) {
-    case TARGET_NR_getpriority:
-        /* Note that negative values are valid for getpriority, so we must
-           differentiate based on errno settings.  */
-        errno = 0;
-        ret = getpriority(arg1, arg2);
-        if (ret == -1 && errno != 0) {
-            return -host_to_target_errno(errno);
-        }
-#ifdef TARGET_ALPHA
-        /* Return value is the unbiased priority.  Signal no error.  */
-        ((CPUAlphaState *)cpu_env)->ir[IR_V0] = 0;
-#else
-        /* Return value is a biased priority to avoid negative numbers.  */
-        ret = 20 - ret;
-#endif
-        return ret;
-    case TARGET_NR_setpriority:
-        return get_errno(setpriority(arg1, arg2, arg3));
 #ifdef TARGET_NR_socketcall
     case TARGET_NR_socketcall:
         return do_socketcall(arg1, arg2);
@@ -12811,6 +12819,7 @@ static impl_fn *syscall_table(unsigned num)
 #ifdef TARGET_NR_getppid
         SYSCALL(getppid);
 #endif
+        SYSCALL(getpriority);
         SYSCALL(getrlimit);
         SYSCALL(getrusage);
         SYSCALL(gettimeofday);
@@ -12907,6 +12916,7 @@ static impl_fn *syscall_table(unsigned num)
 #endif
         SYSCALL(sethostname);
         SYSCALL(setpgid);
+        SYSCALL(setpriority);
         SYSCALL(setrlimit);
         SYSCALL(settimeofday);
         SYSCALL(setsid);
