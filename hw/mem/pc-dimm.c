@@ -157,7 +157,6 @@ static void pc_dimm_get_size(Object *obj, Visitor *v, const char *name,
                              void *opaque, Error **errp)
 {
     uint64_t value;
-    MemoryRegion *mr;
     PCDIMMDevice *dimm = PC_DIMM(obj);
     PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(obj);
 
@@ -167,11 +166,7 @@ static void pc_dimm_get_size(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    mr = ddc->get_memory_region(dimm);
-    if (!mr) {
-        return;
-    }
-    value = memory_region_size(mr);
+    value = memory_region_size(ddc->get_memory_region(dimm));
 
     visit_type_uint64(v, name, &value, errp);
 }
@@ -241,14 +236,8 @@ static uint64_t pc_dimm_md_get_region_size(const MemoryDeviceState *md)
     /* dropping const here is fine as we don't touch the memory region */
     PCDIMMDevice *dimm = PC_DIMM(md);
     const PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(md);
-    MemoryRegion *mr;
 
-    mr = ddc->get_memory_region(dimm);
-    if (!mr) {
-        return 0;
-    }
-
-    return memory_region_size(mr);
+    return memory_region_size(ddc->get_memory_region(dimm));
 }
 
 static void pc_dimm_md_fill_device_info(const MemoryDeviceState *md,
