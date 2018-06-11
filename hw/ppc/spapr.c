@@ -3202,6 +3202,7 @@ static void spapr_memory_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
         goto out;
     }
 
+    pc_dimm_memory_pre_plug(dev, MACHINE(hotplug_dev), errp);
 out:
     g_free(mem_dev);
 }

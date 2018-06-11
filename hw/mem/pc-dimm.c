@@ -27,6 +27,11 @@
 #include "sysemu/numa.h"
 #include "trace.h"
 
+void pc_dimm_memory_pre_plug(DeviceState *dev, MachineState *machine,
+                             Error **errp)
+{
+}
+
 void pc_dimm_memory_plug(DeviceState *dev, MachineState *machine,
                          uint64_t align, Error **errp)
 {
