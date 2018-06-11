@@ -96,7 +96,7 @@ static void nvdimm_init(Object *obj)
                              nvdimm_get_unarmed, nvdimm_set_unarmed, NULL);
 }
 
-static MemoryRegion *nvdimm_get_memory_region(PCDIMMDevice *dimm, Error **errp)
+static MemoryRegion *nvdimm_get_memory_region(PCDIMMDevice *dimm)
 {
     NVDIMMDevice *nvdimm = NVDIMM(dimm);
 

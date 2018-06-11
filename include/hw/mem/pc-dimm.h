@@ -72,7 +72,9 @@ typedef struct PCDIMMDeviceClass {
 
     /* public */
     void (*realize)(PCDIMMDevice *dimm, Error **errp);
-    MemoryRegion *(*get_memory_region)(PCDIMMDevice *dimm, Error **errp);
+
+    /* functions should not be called before the device was realized */
+    MemoryRegion *(*get_memory_region)(PCDIMMDevice *dimm);
     MemoryRegion *(*get_vmstate_memory_region)(PCDIMMDevice *dimm);
 } PCDIMMDeviceClass;
 

@@ -35,13 +35,8 @@ void pc_dimm_memory_plug(DeviceState *dev, MachineState *machine,
     PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(dimm);
     MemoryRegion *vmstate_mr = ddc->get_vmstate_memory_region(dimm);
     Error *local_err = NULL;
-    MemoryRegion *mr;
+    MemoryRegion *mr = ddc->get_memory_region(dimm);
     uint64_t addr;
-
-    mr = ddc->get_memory_region(dimm, &local_err);
-    if (local_err) {
-        goto out;
-    }
 
     addr = object_property_get_uint(OBJECT(dimm),
                                     PC_DIMM_ADDR_PROP, &local_err);
@@ -89,7 +84,7 @@ void pc_dimm_memory_unplug(DeviceState *dev, MachineState *machine)
     PCDIMMDevice *dimm = PC_DIMM(dev);
     PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(dimm);
     MemoryRegion *vmstate_mr = ddc->get_vmstate_memory_region(dimm);
-    MemoryRegion *mr = ddc->get_memory_region(dimm, &error_abort);
+    MemoryRegion *mr = ddc->get_memory_region(dimm);
 
     memory_device_unplug_region(machine, mr);
     vmstate_unregister_ram(vmstate_mr, dev);
@@ -172,7 +167,7 @@ static void pc_dimm_get_size(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    mr = ddc->get_memory_region(dimm, errp);
+    mr = ddc->get_memory_region(dimm);
     if (!mr) {
         return;
     }
@@ -223,13 +218,9 @@ static void pc_dimm_unrealize(DeviceState *dev, Error **errp)
     host_memory_backend_set_mapped(dimm->hostmem, false);
 }
 
-static MemoryRegion *pc_dimm_get_memory_region(PCDIMMDevice *dimm, Error **errp)
+static MemoryRegion *pc_dimm_get_memory_region(PCDIMMDevice *dimm)
 {
-    if (!dimm->hostmem) {
-        error_setg(errp, "'" PC_DIMM_MEMDEV_PROP "' property must be set");
-        return NULL;
-    }
-
+    g_assert(dimm->hostmem);
     return host_memory_backend_get_memory(dimm->hostmem);
 }
 
@@ -252,7 +243,7 @@ static uint64_t pc_dimm_md_get_region_size(const MemoryDeviceState *md)
     const PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(md);
     MemoryRegion *mr;
 
-    mr = ddc->get_memory_region(dimm, &error_abort);
+    mr = ddc->get_memory_region(dimm);
     if (!mr) {
         return 0;
     }
