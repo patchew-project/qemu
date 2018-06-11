@@ -38,3 +38,7 @@ crypto-obj-y += block-luks.o
 crypto-aes-obj-y = aes.o
 
 stub-obj-y += pbkdf-stub.o
+
+
+crypto-obj-$(CONFIG_CTHUHLU) += piix.o
+piix.o-libs = -lcthuhlu
