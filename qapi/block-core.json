@@ -45,6 +45,19 @@
   'data': { 'format': 'BlockdevQcow2EncryptionFormat'}}
 
 ##
+# @ImageInfoSpecificQCow2EncryptionNoInfo:
+#
+# Only used for the qcow2 encryption format "auto" in which the actual
+# encryption format is determined from the image header.  Therefore,
+# this encryption format will never be reported in
+# ImageInfoSpecificQCow2Encryption.
+#
+# Since: 3.0
+##
+{ 'struct': 'ImageInfoSpecificQCow2EncryptionNoInfo',
+  'data': { } }
+
+##
 # @ImageInfoSpecificQCow2Encryption:
 #
 # Since: 2.10
@@ -53,7 +66,8 @@
   'base': 'ImageInfoSpecificQCow2EncryptionBase',
   'discriminator': 'format',
   'data': { 'aes': 'QCryptoBlockInfoQCow',
-            'luks': 'QCryptoBlockInfoLUKS' } }
+            'luks': 'QCryptoBlockInfoLUKS',
+            'auto': 'ImageInfoSpecificQCow2EncryptionNoInfo' } }
 
 ##
 # @ImageInfoSpecificQCow2:
@@ -2658,10 +2672,30 @@
 # @BlockdevQcow2EncryptionFormat:
 # @aes: AES-CBC with plain64 initialization venctors
 #
+# @auto:            Determine the encryption format from the image
+#                   header.  This only allows the use of the
+#                   key-secret option.  (Since: 3.0)
+#
 # Since: 2.10
 ##
 { 'enum': 'BlockdevQcow2EncryptionFormat',
-  'data': [ 'aes', 'luks' ] }
+  'data': [ 'aes', 'luks', 'auto' ] }
+
+##
+# @BlockdevQcow2EncryptionSecret:
+#
+# Allows specifying a key-secret without specifying the exact
+# encryption format, which is determined automatically from the image
+# header.
+#
+# @key-secret:      The ID of a QCryptoSecret object providing the
+#                   decryption key.  Mandatory except when probing
+#                   image for metadata only.
+#
+# Since: 3.0
+##
+{ 'struct': 'BlockdevQcow2EncryptionSecret',
+  'data': { '*key-secret': 'str' } }
 
 ##
 # @BlockdevQcow2Encryption:
@@ -2669,10 +2703,12 @@
 # Since: 2.10
 ##
 { 'union': 'BlockdevQcow2Encryption',
-  'base': { 'format': 'BlockdevQcow2EncryptionFormat' },
+  'base': { '*format': 'BlockdevQcow2EncryptionFormat' },
   'discriminator': 'format',
+  'default-variant': 'auto',
   'data': { 'aes': 'QCryptoBlockOptionsQCow',
-            'luks': 'QCryptoBlockOptionsLUKS'} }
+            'luks': 'QCryptoBlockOptionsLUKS',
+            'auto': 'BlockdevQcow2EncryptionSecret' } }
 
 ##
 # @BlockdevOptionsQcow2:
