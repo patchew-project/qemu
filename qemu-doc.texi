@@ -2965,6 +2965,11 @@ support page sizes < 4096 any longer.
 
 @section System emulator machines
 
+@subsection pc-0.10 and pc-0.11 (since 3.0)
+
+These machine types are very old and likely can not be used for life-migration
+from old QEMU versions anymore. A newer machine type should be used instead.
+
 @section Block device options
 
 @subsection "backing": "" (since 2.12.0)
