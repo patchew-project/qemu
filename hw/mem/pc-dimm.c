@@ -219,11 +219,6 @@ static MemoryRegion *pc_dimm_get_memory_region(PCDIMMDevice *dimm)
     return host_memory_backend_get_memory(dimm->hostmem);
 }
 
-static MemoryRegion *pc_dimm_get_vmstate_memory_region(PCDIMMDevice *dimm)
-{
-    return host_memory_backend_get_memory(dimm->hostmem);
-}
-
 static uint64_t pc_dimm_md_get_addr(const MemoryDeviceState *md)
 {
     const PCDIMMDevice *dimm = PC_DIMM(md);
@@ -282,7 +277,7 @@ static void pc_dimm_class_init(ObjectClass *oc, void *data)
     dc->desc = "DIMM memory module";
 
     ddc->get_memory_region = pc_dimm_get_memory_region;
-    ddc->get_vmstate_memory_region = pc_dimm_get_vmstate_memory_region;
+    ddc->get_vmstate_memory_region = pc_dimm_get_memory_region;
 
     mdc->get_addr = pc_dimm_md_get_addr;
     /* for a dimm plugged_size == region_size */
