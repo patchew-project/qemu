@@ -166,6 +166,12 @@ static void pc_dimm_get_size(Object *obj, Visitor *v, const char *name,
     PCDIMMDevice *dimm = PC_DIMM(obj);
     PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(obj);
 
+    if (!DEVICE(obj)->realized) {
+        error_setg(errp, "Property \"%s\" not accessible before realized",
+                   name);
+        return;
+    }
+
     mr = ddc->get_memory_region(dimm, errp);
     if (!mr) {
         return;
