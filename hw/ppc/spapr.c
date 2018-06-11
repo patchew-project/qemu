@@ -3153,6 +3153,12 @@ static void spapr_memory_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     align = memory_region_get_alignment(mr);
     size = memory_region_size(mr);
 
+    if (size % SPAPR_MEMORY_BLOCK_SIZE) {
+        error_setg(&local_err, "Hotplugged memory size must be a multiple of "
+                   "%lld MB", SPAPR_MEMORY_BLOCK_SIZE / M_BYTE);
+        goto out;
+    }
+
     pc_dimm_memory_plug(dev, MACHINE(ms), align, &local_err);
     if (local_err) {
         goto out;
@@ -3186,25 +3192,10 @@ static void spapr_memory_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
 {
     const sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(hotplug_dev);
     PCDIMMDevice *dimm = PC_DIMM(dev);
-    PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(dimm);
-    MemoryRegion *mr;
-    uint64_t size;
     char *mem_dev;
 
     if (!smc->dr_lmb_enabled) {
         error_setg(errp, "Memory hotplug not supported for this machine");
-        return;
-    }
-
-    mr = ddc->get_memory_region(dimm, errp);
-    if (!mr) {
-        return;
-    }
-    size = memory_region_size(mr);
-
-    if (size % SPAPR_MEMORY_BLOCK_SIZE) {
-        error_setg(errp, "Hotplugged memory size must be a multiple of "
-                      "%lld MB", SPAPR_MEMORY_BLOCK_SIZE / M_BYTE);
         return;
     }
 
