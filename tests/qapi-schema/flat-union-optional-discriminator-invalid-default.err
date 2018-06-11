@@ -1,0 +1,1 @@
+tests/qapi-schema/flat-union-optional-discriminator-invalid-default.json:7: Default variant 'three' of flat union 'MyUnion' is not part of 'Enum'

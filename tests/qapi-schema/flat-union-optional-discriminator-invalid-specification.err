@@ -1,0 +1,1 @@
+tests/qapi-schema/flat-union-optional-discriminator-invalid-specification.json:7: Discriminator of flat union 'MyUnion' does not allow optional name '*switch'

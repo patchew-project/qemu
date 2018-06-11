@@ -1,10 +1,12 @@
-# we require the discriminator to be non-optional
+# default-variant must refer to an actual value of the discriminator's
+# enum
 { 'enum': 'Enum', 'data': [ 'one', 'two' ] }
 { 'struct': 'Base',
   'data': { '*switch': 'Enum' } }
 { 'struct': 'Branch', 'data': { 'name': 'str' } }
 { 'union': 'MyUnion',
   'base': 'Base',
-  'discriminator': '*switch',
+  'discriminator': 'switch',
+  'default-variant': 'three',
   'data': { 'one': 'Branch',
             'two': 'Branch' } }

@@ -1,0 +1,11 @@
+# Using an optional discriminator requires specifying a default
+# variant
+{ 'enum': 'Enum', 'data': [ 'one', 'two' ] }
+{ 'struct': 'Base',
+  'data': { '*switch': 'Enum' } }
+{ 'struct': 'Branch', 'data': { 'name': 'str' } }
+{ 'union': 'MyUnion',
+  'base': 'Base',
+  'discriminator': 'switch',
+  'data': { 'one': 'Branch',
+            'two': 'Branch' } }

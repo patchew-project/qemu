@@ -1,0 +1,1 @@
+tests/qapi-schema/flat-union-superfluous-default-variant.json:6: Must not specify a default variant for non-optional discriminator 'switch'
