@@ -1666,6 +1666,11 @@ static int coroutine_fn raw_co_prw(BlockDriverState *bs, uint64_t offset,
 #ifdef CONFIG_LINUX_AIO
         } else if (s->use_linux_aio) {
             LinuxAioState *aio = aio_get_linux_aio(bdrv_get_aio_context(bs));
+            if (!aio) {
+                s->use_linux_aio = false;
+                error_report("Failed to get linux aio");
+                return -EIO;
+            }
             assert(qiov->size == bytes);
             return laio_co_submit(bs, aio, s->fd, offset, qiov, type);
 #endif
@@ -1696,7 +1701,12 @@ static void raw_aio_plug(BlockDriverState *bs)
     BDRVRawState *s = bs->opaque;
     if (s->use_linux_aio) {
         LinuxAioState *aio = aio_get_linux_aio(bdrv_get_aio_context(bs));
-        laio_io_plug(bs, aio);
+        if (aio) {
+            laio_io_plug(bs, aio);
+        } else {
+            s->use_linux_aio = false;
+            error_report("Failed to get linux aio");
+        }
     }
 #endif
 }
@@ -1707,7 +1717,12 @@ static void raw_aio_unplug(BlockDriverState *bs)
     BDRVRawState *s = bs->opaque;
     if (s->use_linux_aio) {
         LinuxAioState *aio = aio_get_linux_aio(bdrv_get_aio_context(bs));
-        laio_io_unplug(bs, aio);
+        if (aio) {
+            laio_io_unplug(bs, aio);
+        } else {
+            s->use_linux_aio = false;
+            error_report("Failed to get linux aio");
+        }
     }
 #endif
 }
