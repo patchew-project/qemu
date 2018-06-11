@@ -1093,9 +1093,12 @@ static int net_client_init(QemuOpts *opts, bool is_netdev, Error **errp)
     int ret = -1;
     Visitor *v = opts_visitor_new(opts);
 
-    if (is_netdev && is_help_option(qemu_opt_get(opts, "type"))) {
-        show_netdevs();
-        exit(0);
+    if (is_netdev) {
+        const char *type = qemu_opt_get(opts, "type");
+        if (type && is_help_option(type)) {
+            show_netdevs();
+            exit(0);
+        }
     } else {
         /* Parse convenience option format ip6-net=fec0::0[/64] */
         const char *ip6_net = qemu_opt_get(opts, "ipv6-net");
