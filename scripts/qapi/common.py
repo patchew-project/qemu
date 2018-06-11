@@ -721,6 +721,7 @@ def check_union(expr, info):
     name = expr['union']
     base = expr.get('base')
     discriminator = expr.get('discriminator')
+    default_variant = expr.get('default-variant')
     members = expr['data']
 
     # Two types of unions, determined by discriminator.
@@ -745,16 +746,37 @@ def check_union(expr, info):
         base_members = find_base_members(base)
         assert base_members is not None
 
-        # The value of member 'discriminator' must name a non-optional
-        # member of the base struct.
+        # The value of member 'discriminator' must name a member of
+        # the base struct.
         check_name(info, "Discriminator of flat union '%s'" % name,
                    discriminator)
-        discriminator_type = base_members.get(discriminator)
-        if not discriminator_type:
-            raise QAPISemError(info,
-                               "Discriminator '%s' is not a member of base "
-                               "struct '%s'"
-                               % (discriminator, base))
+        if default_variant is None:
+            discriminator_type = base_members.get(discriminator)
+            if not discriminator_type:
+                if base_members.get('*' + discriminator) is None:
+                    raise QAPISemError(info,
+                                       "Discriminator '%s' is not a member of "
+                                       "base struct '%s'"
+                                       % (discriminator, base))
+                else:
+                    raise QAPISemError(info,
+                                       "Default variant must be specified for "
+                                       "optional discriminator '%s'"
+                                       % discriminator)
+        else:
+            discriminator_type = base_members.get('*' + discriminator)
+            if not discriminator_type:
+                if base_members.get(discriminator) is None:
+                    raise QAPISemError(info,
+                                       "Discriminator '%s' is not a member of "
+                                       "base struct '%s'"
+                                       % (discriminator, base))
+                else:
+                    raise QAPISemError(info,
+                                       "Must not specify a default variant for "
+                                       "non-optional discriminator '%s'"
+                                       % discriminator)
+
         enum_define = enum_types.get(discriminator_type)
         allow_metas = ['struct']
         # Do not allow string discriminator
@@ -762,6 +784,15 @@ def check_union(expr, info):
             raise QAPISemError(info,
                                "Discriminator '%s' must be of enumeration "
                                "type" % discriminator)
+
+        if default_variant is not None:
+            # Must be a value of the enumeration
+            if default_variant not in enum_define['data']:
+                raise QAPISemError(info,
+                                   "Default variant '%s' of flat union '%s' is "
+                                   "not part of '%s'"
+                                   % (default_variant, name,
+                                      discriminator_type))
 
     # Check every branch; don't allow an empty union
     if len(members) == 0:
@@ -910,7 +941,7 @@ def check_exprs(exprs):
         elif 'union' in expr:
             meta = 'union'
             check_keys(expr_elem, 'union', ['data'],
-                       ['base', 'discriminator'])
+                       ['base', 'discriminator', 'default-variant'])
             union_types[expr[meta]] = expr
         elif 'alternate' in expr:
             meta = 'alternate'
@@ -1336,12 +1367,14 @@ class QAPISchemaObjectTypeMember(QAPISchemaMember):
 
 
 class QAPISchemaObjectTypeVariants(object):
-    def __init__(self, tag_name, tag_member, variants):
+    def __init__(self, tag_name, tag_member, default_tag_value, variants):
         # Flat unions pass tag_name but not tag_member.
         # Simple unions and alternates pass tag_member but not tag_name.
         # After check(), tag_member is always set, and tag_name remains
         # a reliable witness of being used by a flat union.
         assert bool(tag_member) != bool(tag_name)
+        # default_tag_value is only passed for flat unions.
+        assert bool(tag_name) or not bool(default_tag_value)
         assert (isinstance(tag_name, str) or
                 isinstance(tag_member, QAPISchemaObjectTypeMember))
         assert len(variants) > 0
@@ -1349,6 +1382,7 @@ class QAPISchemaObjectTypeVariants(object):
             assert isinstance(v, QAPISchemaObjectTypeVariant)
         self._tag_name = tag_name
         self.tag_member = tag_member
+        self.default_tag_value = default_tag_value
         self.variants = variants
 
     def set_owner(self, name):
@@ -1640,6 +1674,7 @@ class QAPISchema(object):
         data = expr['data']
         base = expr.get('base')
         tag_name = expr.get('discriminator')
+        default_tag_value = expr.get('default-variant')
         tag_member = None
         if isinstance(base, dict):
             base = (self._make_implicit_object_type(
@@ -1659,6 +1694,7 @@ class QAPISchema(object):
             QAPISchemaObjectType(name, info, doc, base, members,
                                  QAPISchemaObjectTypeVariants(tag_name,
                                                               tag_member,
+                                                              default_tag_value,
                                                               variants)))
 
     def _def_alternate_type(self, expr, info, doc):
@@ -1671,6 +1707,7 @@ class QAPISchema(object):
             QAPISchemaAlternateType(name, info, doc,
                                     QAPISchemaObjectTypeVariants(None,
                                                                  tag_member,
+                                                                 None,
                                                                  variants)))
 
     def _def_command(self, expr, info, doc):

@@ -142,9 +142,12 @@ const QLitObject %(c_name)s = %(c_string)s;
             ret['default'] = None
         return ret
 
-    def _gen_variants(self, tag_name, variants):
-        return {'tag': tag_name,
-                'variants': [self._gen_variant(v) for v in variants]}
+    def _gen_variants(self, tag_name, default_variant, variants):
+        ret = {'tag': tag_name,
+               'variants': [self._gen_variant(v) for v in variants]}
+        if default_variant:
+            ret['default-variant'] = default_variant
+        return ret
 
     def _gen_variant(self, variant):
         return {'case': variant.name, 'type': self._use_type(variant.type)}
@@ -163,6 +166,7 @@ const QLitObject %(c_name)s = %(c_string)s;
         obj = {'members': [self._gen_member(m) for m in members]}
         if variants:
             obj.update(self._gen_variants(variants.tag_member.name,
+                                          variants.default_tag_value,
                                           variants.variants))
         self._gen_qlit(name, 'object', obj)
 

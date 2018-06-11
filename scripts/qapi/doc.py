@@ -160,8 +160,12 @@ def texi_members(doc, what, base, variants, member_func):
         items += '@item The members of @code{%s}\n' % base.doc_type()
     if variants:
         for v in variants.variants:
-            when = ' when @code{%s} is @t{"%s"}' % (
-                variants.tag_member.name, v.name)
+            if v.name == variants.default_tag_value:
+                when = ' when @code{%s} is @t{"%s"} or not given' % (
+                    variants.tag_member.name, v.name)
+            else:
+                when = ' when @code{%s} is @t{"%s"}' % (
+                    variants.tag_member.name, v.name)
             if v.type.is_implicit():
                 assert not v.type.base and not v.type.variants
                 for m in v.type.local_members:

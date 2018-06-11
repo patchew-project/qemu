@@ -168,6 +168,13 @@
 # @tag: the name of the member serving as type tag.
 #       An element of @members with this name must exist.
 #
+# @default-variant: if the @tag element of @members is optional, this
+#                   is the default value for choosing a variant.  Its
+#                   value will be a valid value for @tag.
+#                   Present exactly when @tag is present and the
+#                   associated element of @members is optional.
+#                   (Since: 3.0)
+#
 # @variants: variant members, i.e. additional members that
 #            depend on the type tag's value.  Present exactly when
 #            @tag is present.  The variants are in no particular order,
@@ -181,6 +188,7 @@
 { 'struct': 'SchemaInfoObject',
   'data': { 'members': [ 'SchemaInfoObjectMember' ],
             '*tag': 'str',
+            '*default-variant': 'str',
             '*variants': [ 'SchemaInfoObjectVariant' ] } }
 
 ##

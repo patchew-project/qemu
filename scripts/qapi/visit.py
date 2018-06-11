@@ -75,6 +75,19 @@ void visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp)
 ''')
 
     if variants:
+        if variants.default_tag_value is not None:
+            ret += mcgen('''
+    if (!obj->has_%(c_name)s) {
+        obj->has_%(c_name)s = true;
+        obj->%(c_name)s = %(enum_const)s;
+    }
+''',
+                         c_name=c_name(variants.tag_member.name),
+                         enum_const=c_enum_const(
+                             variants.tag_member.type.name,
+                             variants.default_tag_value,
+                             variants.tag_member.type.prefix))
+
         ret += mcgen('''
     switch (obj->%(c_name)s) {
 ''',
