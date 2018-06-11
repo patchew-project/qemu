@@ -3687,7 +3687,8 @@ static void rdma_accept_incoming_migration(void *opaque)
     }
 
     rdma->migration_started_on_destination = 1;
-    migration_fd_process_incoming(f);
+    migration_incoming_setup(f);
+    migration_incoming_process();
 }
 
 void rdma_start_incoming_migration(const char *host_port, Error **errp)
