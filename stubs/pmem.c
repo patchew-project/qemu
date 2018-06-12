@@ -17,3 +17,7 @@ void *pmem_memcpy_persist(void *pmemdest, const void *src, size_t len)
 {
     return memcpy(pmemdest, src, len);
 }
+
+void pmem_persist(const void *addr, size_t len)
+{
+}

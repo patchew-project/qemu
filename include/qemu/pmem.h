@@ -17,6 +17,7 @@
 #else  /* !CONFIG_LIBPMEM */
 
 void *pmem_memcpy_persist(void *pmemdest, const void *src, size_t len);
+void pmem_persist(const void *addr, size_t len);
 
 #endif /* CONFIG_LIBPMEM */
 
