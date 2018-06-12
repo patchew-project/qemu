@@ -53,6 +53,7 @@ typedef enum {
     /* These print as sets of flags.  */
     ARG_ATDIRFD,
     ARG_ATFLAG,
+    ARG_CLONEFLAG,
     ARG_MMAPFLAG,
     ARG_MMAPPROT,
     ARG_MODEFLAG,
@@ -221,6 +222,61 @@ static inline uint64_t target_offset64(abi_ulong word0, abi_ulong word1)
 #endif
 }
 
+#ifdef USE_UID16
+static inline int high2lowuid(int uid)
+{
+    return uid > 65535 ? 65534 : uid;
+}
+
+static inline int high2lowgid(int gid)
+{
+    return gid > 65535 ? 65534 : gid;
+}
+
+static inline int low2highuid(int uid)
+{
+    return (int16_t)uid == -1 ? -1 : uid;
+}
+
+static inline int low2highgid(int gid)
+{
+    return (int16_t)gid == -1 ? -1 : gid;
+}
+static inline int tswapid(int id)
+{
+    return tswap16(id);
+}
+
+#define put_user_id(x, gaddr) put_user_u16(x, gaddr)
+#else /* !USE_UID16 */
+static inline int high2lowuid(int uid)
+{
+    return uid;
+}
+
+static inline int high2lowgid(int gid)
+{
+    return gid;
+}
+
+static inline int low2highuid(int uid)
+{
+    return uid;
+}
+
+static inline int low2highgid(int gid)
+{
+    return gid;
+}
+
+static inline int tswapid(int id)
+{
+    return tswap32(id);
+}
+
+#define put_user_id(x, gaddr) put_user_u32(x, gaddr)
+#endif /* USE_UID16 */
+
 /* Temporary declarations from syscall_foo.c back to main syscall.c.
  * These indicate incomplete conversion.
  */
@@ -276,6 +332,58 @@ static type safe_##name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, \
 { \
     return safe_syscall(__NR_##name, arg1, arg2, arg3, arg4, arg5, arg6); \
 }
+
+/* Declarators for non-interruptable system calls.  */
+
+#undef _syscall0
+#undef _syscall1
+#undef _syscall2
+#undef _syscall3
+#undef _syscall4
+#undef _syscall5
+#undef _syscall6
+
+#define _syscall0(type, name)                   \
+    static type name(void)                      \
+    {                                           \
+        return syscall(__NR_##name);            \
+    }
+
+#define _syscall1(T0, name, T1, A1)             \
+    static T0 name(T1 A1)                       \
+    {                                           \
+        return syscall(__NR_##name, A1);        \
+    }
+
+#define _syscall2(T0, name, T1, A1, T2, A2)     \
+    static T0 name(T1 A1, T2 A2)                \
+    {                                           \
+        return syscall(__NR_##name, A1, A2);    \
+    }
+
+#define _syscall3(T0, name, T1, A1, T2, A2, T3, A3)     \
+    static T0 name(T1 A1, T2 A2, T3 A3)                 \
+    {                                                   \
+        return syscall(__NR_##name, A1, A2, A3);        \
+    }
+
+#define _syscall4(T0, name, T1, A1, T2, A2, T3, A3, T4, A4)     \
+    static T0 name(T1 A1, T2 A2, T3 A3, T4 A4)                  \
+    {                                                           \
+        return syscall(__NR_##name, A1, A2, A3, A4);            \
+    }
+
+#define _syscall5(T0, name, T1, A1, T2, A2, T3, A3, T4, A4, T5, A5)     \
+    static T0 name(T1 A1, T2 A2, T3 A3, T4 A4, T5 A5)                   \
+    {                                                                   \
+        return syscall(__NR_##name, A1, A2, A3, A4, A5);                \
+    }
+
+#define _syscall6(T0, name, T1, A1, T2, A2, T3, A3, T4, A4, T5, A5, T6, A6) \
+    static T0 name(T1 A1, T2 A2, T3 A3, T4 A4, T5 A5, T6 A6)            \
+    {                                                                   \
+        return syscall(__NR_##name, A1, A2, A3, A4, A5, A6);            \
+    }
 
 /* Include declarations of syscall definitions.  */
 #include "syscall_list.h"

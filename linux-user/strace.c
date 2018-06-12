@@ -836,7 +836,7 @@ static struct flags const mmap_flags[] = {
     FLAG_END,
 };
 
-UNUSED static struct flags clone_flags[] = {
+static struct flags const clone_flags[] = {
     FLAG_GENERIC(CLONE_VM),
     FLAG_GENERIC(CLONE_FS),
     FLAG_GENERIC(CLONE_FILES),
@@ -1214,37 +1214,6 @@ print_clock_adjtime(const struct syscallname *name,
     print_syscall_prologue(name);
     print_clockid(arg0, 0);
     print_pointer(arg1, 1);
-    print_syscall_epilogue(name);
-}
-#endif
-
-#ifdef TARGET_NR_clone
-static void do_print_clone(unsigned int flags, abi_ulong newsp,
-                           abi_ulong parent_tidptr, target_ulong newtls,
-                           abi_ulong child_tidptr)
-{
-    print_flags(clone_flags, flags, 0);
-    print_raw_param("child_stack=0x" TARGET_ABI_FMT_lx, newsp, 0);
-    print_raw_param("parent_tidptr=0x" TARGET_ABI_FMT_lx, parent_tidptr, 0);
-    print_raw_param("tls=0x" TARGET_ABI_FMT_lx, newtls, 0);
-    print_raw_param("child_tidptr=0x" TARGET_ABI_FMT_lx, child_tidptr, 1);
-}
-
-static void
-print_clone(const struct syscallname *name,
-    abi_long arg1, abi_long arg2, abi_long arg3,
-    abi_long arg4, abi_long arg5, abi_long arg6)
-{
-    print_syscall_prologue(name);
-#if defined(TARGET_MICROBLAZE)
-    do_print_clone(arg1, arg2, arg4, arg6, arg5);
-#elif defined(TARGET_CLONE_BACKWARDS)
-    do_print_clone(arg1, arg2, arg3, arg4, arg5);
-#elif defined(TARGET_CLONE_BACKWARDS2)
-    do_print_clone(arg2, arg1, arg3, arg5, arg4);
-#else
-    do_print_clone(arg1, arg2, arg3, arg5, arg4);
-#endif
     print_syscall_epilogue(name);
 }
 #endif
@@ -2567,6 +2536,9 @@ static void print_syscall_def1(const SyscallDef *def, int64_t args[6])
             break;
         case ARG_ATFLAG:
             len = add_flags(b, rest, at_file_flags, arg, false);
+            break;
+        case ARG_CLONEFLAG:
+            len = add_flags(b, rest, clone_flags, arg, false);
             break;
         case ARG_MMAPFLAG:
             len = add_flags(b, rest, mmap_flags, arg, false);
