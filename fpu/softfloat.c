@@ -2671,27 +2671,73 @@ static int compare_floats(FloatParts a, FloatParts b, bool is_quiet,
     }
 }
 
-#define COMPARE(sz)                                                     \
-int float ## sz ## _compare(float ## sz a, float ## sz b,               \
-                            float_status *s)                            \
+#define COMPARE(name, attr, sz)                                         \
+static int attr                                                         \
+name(float ## sz a, float ## sz b, bool is_quiet, float_status *s)      \
 {                                                                       \
     FloatParts pa = float ## sz ## _unpack_canonical(a, s);             \
     FloatParts pb = float ## sz ## _unpack_canonical(b, s);             \
-    return compare_floats(pa, pb, false, s);                            \
-}                                                                       \
-int float ## sz ## _compare_quiet(float ## sz a, float ## sz b,         \
-                                  float_status *s)                      \
-{                                                                       \
-    FloatParts pa = float ## sz ## _unpack_canonical(a, s);             \
-    FloatParts pb = float ## sz ## _unpack_canonical(b, s);             \
-    return compare_floats(pa, pb, true, s);                             \
+    return compare_floats(pa, pb, is_quiet, s);                         \
 }
 
-COMPARE(16)
-COMPARE(32)
-COMPARE(64)
+COMPARE(soft_float16_compare, , 16)
+COMPARE(soft_float32_compare, QEMU_SOFTFLOAT_ATTR, 32)
+COMPARE(soft_float64_compare, QEMU_SOFTFLOAT_ATTR, 64)
 
 #undef COMPARE
+
+int __attribute__((flatten))
+float16_compare(float16 a, float16 b, float_status *s)
+{
+    return soft_float16_compare(a, b, false, s);
+}
+
+int __attribute__((flatten))
+float16_compare_quiet(float16 a, float16 b, float_status *s)
+{
+    return soft_float16_compare(a, b, true, s);
+}
+
+#define GEN_FPU_COMPARE(name, quiet_name, soft_t, host_t)               \
+    static int                                                          \
+    fpu_ ## name(soft_t a, soft_t b, bool is_quiet, float_status *s)    \
+    {                                                                   \
+        host_t ha, hb;                                                  \
+                                                                        \
+        if (QEMU_NO_HARDFLOAT) {                                        \
+            return soft_ ## name(a, b, is_quiet, s);                    \
+        }                                                               \
+        soft_t ## _input_flush2(&a, &b, s);                             \
+        ha = soft_t ## _to_ ## host_t(a);                               \
+        hb = soft_t ## _to_ ## host_t(b);                               \
+        if (unlikely(soft_t ## _is_any_nan(a) ||                        \
+                     soft_t ## _is_any_nan(b))) {                       \
+            return soft_ ## name(a, b, is_quiet, s);                    \
+        }                                                               \
+        if (isgreater(ha, hb)) {                                        \
+            return float_relation_greater;                              \
+        }                                                               \
+        if (isless(ha, hb)) {                                           \
+            return float_relation_less;                                 \
+        }                                                               \
+        return float_relation_equal;                                    \
+    }                                                                   \
+                                                                        \
+    int __attribute__((flatten))                                        \
+    name(soft_t a, soft_t b, float_status *s)                           \
+    {                                                                   \
+        return fpu_ ## name(a, b, false, s);                            \
+    }                                                                   \
+                                                                        \
+    int __attribute__((flatten))                                        \
+    quiet_name(soft_t a, soft_t b, float_status *s)                     \
+    {                                                                   \
+        return fpu_ ## name(a, b, true, s);                             \
+    }
+
+GEN_FPU_COMPARE(float32_compare, float32_compare_quiet, float32, float)
+GEN_FPU_COMPARE(float64_compare, float64_compare_quiet, float64, double)
+#undef GEN_FPU_COMPARE
 
 /* Multiply A by 2 raised to the power N.  */
 static FloatParts scalbn_decomposed(FloatParts a, int n, float_status *s)
