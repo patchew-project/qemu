@@ -41,7 +41,19 @@ unconditional_syscalls = [
 
 # These syscalls are only supported by some target or abis.
 conditional_syscalls = [
+    "ipc",
+    "msgctl",
+    "msgget",
+    "msgrcv",
+    "msgsnd",
     "open",
+    "semctl",
+    "semget",
+    "semop",
+    "shmat",
+    "shmctl",
+    "shmdt",
+    "shmget",
 ]
 
 
