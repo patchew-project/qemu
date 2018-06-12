@@ -125,6 +125,57 @@ static inline int is_error(abi_ulong ret)
     return ret >= -4096;
 }
 
+typedef abi_long (*TargetFdDataFunc)(void *, size_t);
+typedef abi_long (*TargetFdAddrFunc)(void *, abi_ulong, socklen_t);
+typedef struct TargetFdTrans {
+    TargetFdDataFunc host_to_target_data;
+    TargetFdDataFunc target_to_host_data;
+    TargetFdAddrFunc target_to_host_addr;
+} TargetFdTrans;
+
+extern TargetFdTrans **target_fd_trans;
+extern unsigned int target_fd_max;
+
+static inline TargetFdDataFunc fd_trans_target_to_host_data(int fd)
+{
+    if (fd >= 0 && fd < target_fd_max && target_fd_trans[fd]) {
+        return target_fd_trans[fd]->target_to_host_data;
+    }
+    return NULL;
+}
+
+static inline TargetFdDataFunc fd_trans_host_to_target_data(int fd)
+{
+    if (fd >= 0 && fd < target_fd_max && target_fd_trans[fd]) {
+        return target_fd_trans[fd]->host_to_target_data;
+    }
+    return NULL;
+}
+
+static inline TargetFdAddrFunc fd_trans_target_to_host_addr(int fd)
+{
+    if (fd >= 0 && fd < target_fd_max && target_fd_trans[fd]) {
+        return target_fd_trans[fd]->target_to_host_addr;
+    }
+    return NULL;
+}
+
+void fd_trans_register(int fd, TargetFdTrans *trans);
+
+static inline void fd_trans_unregister(int fd)
+{
+    if (fd >= 0 && fd < target_fd_max) {
+        target_fd_trans[fd] = NULL;
+    }
+}
+
+/* Temporary declarations from syscall_foo.c back to main syscall.c.
+ * These indicate incomplete conversion.
+ */
+
+int is_proc_myself(const char *filename, const char *entry);
+extern bitmask_transtbl const fcntl_flags_tbl[];
+
 /* Declarators for interruptable system calls.  */
 
 #define safe_syscall0(type, name) \

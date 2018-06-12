@@ -1,4 +1,4 @@
-obj-y = main.o syscall.o strace.o mmap.o signal.o \
+obj-y = main.o syscall.o syscall_file.o strace.o mmap.o signal.o \
 	elfload.o linuxload.o uaccess.o uname.o \
 	safe-syscall.o $(TARGET_ABI_DIR)/signal.o \
         $(TARGET_ABI_DIR)/cpu_loop.o
@@ -16,4 +16,5 @@ $(SYSCALL_LIST): $(GEN_SYSCALL_LIST)
 	  $(PYTHON) $(GEN_SYSCALL_LIST) $@, "GEN", $(TARGET_DIR)$@)
 
 linux-user/syscall.o \
+linux-user/syscall_file.o \
 linux-user/strace.o: $(SYSCALL_LIST)

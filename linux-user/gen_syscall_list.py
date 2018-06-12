@@ -25,10 +25,15 @@ import sys
 # These syscalls are supported by all targets.
 # Avoiding ifdefs for these can diagnose typos in $cpu/syscall_nr.h
 unconditional_syscalls = [
+    "close",
+    "openat",
+    "read",
+    "write",
 ]
 
 # These syscalls are only supported by some target or abis.
 conditional_syscalls = [
+    "open",
 ]
 
 

@@ -2213,41 +2213,6 @@ print_mq_open(const struct syscallname *name,
 }
 #endif
 
-#ifdef TARGET_NR_open
-static void
-print_open(const struct syscallname *name,
-    abi_long arg0, abi_long arg1, abi_long arg2,
-    abi_long arg3, abi_long arg4, abi_long arg5)
-{
-    int is_creat = (arg1 & TARGET_O_CREAT);
-
-    print_syscall_prologue(name);
-    print_string(arg0, 0);
-    print_open_flags(arg1, (is_creat == 0));
-    if (is_creat)
-        print_file_mode(arg2, 1);
-    print_syscall_epilogue(name);
-}
-#endif
-
-#ifdef TARGET_NR_openat
-static void
-print_openat(const struct syscallname *name,
-    abi_long arg0, abi_long arg1, abi_long arg2,
-    abi_long arg3, abi_long arg4, abi_long arg5)
-{
-    int is_creat = (arg2 & TARGET_O_CREAT);
-
-    print_syscall_prologue(name);
-    print_at_dirfd(arg0, 0);
-    print_string(arg1, 0);
-    print_open_flags(arg2, (is_creat == 0));
-    if (is_creat)
-        print_file_mode(arg3, 1);
-    print_syscall_epilogue(name);
-}
-#endif
-
 #ifdef TARGET_NR_mq_unlink
 static void
 print_mq_unlink(const struct syscallname *name,
