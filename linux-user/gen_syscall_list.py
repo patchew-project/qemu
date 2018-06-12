@@ -26,7 +26,9 @@ import sys
 # Avoiding ifdefs for these can diagnose typos in $cpu/syscall_nr.h
 unconditional_syscalls = [
     "close",
+    "name_to_handle_at",
     "openat",
+    "open_by_handle_at",
     "pread64",
     "preadv",
     "pwrite64",
