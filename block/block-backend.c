@@ -23,6 +23,7 @@
 #include "qemu/option.h"
 #include "trace.h"
 #include "migration/misc.h"
+#include "hw/xen/xen.h"
 
 /* Number of coroutines to reserve per attached device model */
 #define COROUTINE_POOL_RESERVATION 64
@@ -895,7 +896,9 @@ char *blk_get_attached_dev_id(BlockBackend *blk)
 {
     DeviceState *dev;
 
-    assert(!blk->legacy_dev);
+    if (blk->legacy_dev) {
+        return xen_blk_get_attached_dev_id(blk->dev);
+    }
     dev = blk->dev;
 
     if (!dev) {
