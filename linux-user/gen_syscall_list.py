@@ -27,7 +27,9 @@ import sys
 unconditional_syscalls = [
     "close",
     "openat",
+    "pread64",
     "preadv",
+    "pwrite64",
     "pwritev",
     "read",
     "readv",

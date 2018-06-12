@@ -174,6 +174,50 @@ struct iovec *lock_iovec(int type, abi_ulong target_addr,
 void unlock_iovec(struct iovec *vec, abi_ulong target_addr,
                   abi_ulong count, int copy);
 
+/* Returns true if syscall NUM expects 64bit types aligned even
+ * on pairs of registers.
+ */
+static inline bool regpairs_aligned(void *cpu_env, int num)
+{
+#ifdef TARGET_ARM
+    return ((CPUARMState *)cpu_env)->eabi;
+#elif defined(TARGET_MIPS) && TARGET_ABI_BITS == 32
+    return true;
+#elif defined(TARGET_PPC) && !defined(TARGET_PPC64)
+    /* SysV AVI for PPC32 expects 64bit parameters to be passed on
+     * odd/even pairs of registers which translates to the same as
+     * we start with r3 as arg1
+     */
+    return true;
+#elif defined(TARGET_SH4)
+    /* SH4 doesn't align register pairs, except for p{read,write}64 */
+    switch (num) {
+    case TARGET_NR_pread64:
+    case TARGET_NR_pwrite64:
+        return true;
+    default:
+        return false;
+    }
+#elif defined(TARGET_XTENSA)
+    return true;
+#else
+    return false;
+#endif
+}
+
+static inline uint64_t target_offset64(abi_ulong word0, abi_ulong word1)
+{
+#if TARGET_ABI_BITS == 32
+# ifdef TARGET_WORDS_BIGENDIAN
+    return ((uint64_t)word0 << 32) | word1;
+# else
+    return ((uint64_t)word1 << 32) | word0;
+# endif
+#else
+    return word0;
+#endif
+}
+
 /* Temporary declarations from syscall_foo.c back to main syscall.c.
  * These indicate incomplete conversion.
  */

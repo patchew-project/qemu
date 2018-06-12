@@ -378,15 +378,70 @@ SYSCALL_IMPL(openat)
 }
 SYSCALL_DEF(openat, ARG_ATDIRFD, ARG_STR, ARG_OPENFLAG, ARG_MODEFLAG);
 
+/* Both pread64 and pwrite64 merge args into a 64-bit offset,
+ * but the input registers and ordering are target specific.
+ */
+#if TARGET_ABI_BITS == 32
+SYSCALL_ARGS(pread64_pwrite64)
+{
+    /* We have already assigned out[0-2].  */
+    int off = regpairs_aligned(cpu_env, TARGET_NR_pread64);
+    out[3] = target_offset64(in[3 + off], in[4 + off]);
+    return def;
+}
+#else
+#define args_pread64_pwrite64 NULL
+#endif
+
+SYSCALL_IMPL(pread64)
+{
+    void *p = lock_user(VERIFY_WRITE, arg2, arg3, 0);
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(pread64(arg1, p, arg3, arg4));
+    unlock_user(p, arg2, ret);
+    return ret;
+}
+
+const SyscallDef def_pread64 = {
+    .name = "pread64",
+    .args = args_pread64_pwrite64,
+    .impl = impl_pread64,
+    .arg_type = { ARG_DEC, ARG_PTR, ARG_DEC, ARG_DEC64 }
+};
+
+SYSCALL_IMPL(pwrite64)
+{
+    void *p = lock_user(VERIFY_READ, arg2, arg3, 0);
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(pwrite64(arg1, p, arg3, arg4));
+    unlock_user(p, arg2, 0);
+    return ret;
+}
+
+const SyscallDef def_pwrite64 = {
+    .name = "pwrite64",
+    .args = args_pread64_pwrite64,
+    .impl = impl_pwrite64,
+    .arg_type = { ARG_DEC, ARG_PTR, ARG_DEC, ARG_DEC64 }
+};
+
 /* Both preadv and pwritev merge args 4/5 into a 64-bit offset.
  * Moreover, the parts are *always* in little-endian order.
  */
 #if TARGET_ABI_BITS == 32
 SYSCALL_ARGS(preadv_pwritev)
 {
-    /* We have already assigned out[0-3].  */
-    abi_ulong lo = in[4], hi = in[5];
-    out[4] = ((hi << (TARGET_ABI_BITS - 1)) << 1) | lo;
+    /* We have already assigned out[0-2].  */
+    abi_ulong lo = in[3], hi = in[4];
+    out[3] = ((hi << (TARGET_ABI_BITS - 1)) << 1) | lo;
     return def;
 }
 #else
