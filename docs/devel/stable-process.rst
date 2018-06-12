@@ -56,6 +56,21 @@ There are various ways to get a patch into stable:
   appropriate other people (like the patch author or the relevant maintainer)
   on copy.
 
+Generally patches for a stable release/branch must first be included in the
+master QEMU branch, and from there the stable branch's maintainer will
+cherry-pick/backport the patch. However, occasionally there is a need to
+apply a stable-specific patch, such as a fix from master that isn't easily
+cherry-picked and has been reworked/backported specifically for a stable
+branch, or a fix that's only necessary in the context of a particular stable
+release. In such cases, the patch can be submitted to qemu-devel@nongnu.org
+using Cc: qemu-stable@nongnu.org just like a normal stable patch, but tagged
+with a "for-stable" or a "for-<stable-version>" in the subject line to
+indicate that's it's specifically for a stable branch and not master. For
+instance:
+
+  [PATCH for-2.11.2] spapr: make pseries-2.11 the default machine type
+
+
 Stable release process
 ----------------------
 
