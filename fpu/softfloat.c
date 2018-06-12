@@ -2812,14 +2812,16 @@ float16 __attribute__((flatten)) float16_sqrt(float16 a, float_status *status)
     return float16_round_pack_canonical(pr, status);
 }
 
-float32 __attribute__((flatten)) float32_sqrt(float32 a, float_status *status)
+static float32 QEMU_SOFTFLOAT_ATTR
+soft_float32_sqrt(float32 a, float_status *status)
 {
     FloatParts pa = float32_unpack_canonical(a, status);
     FloatParts pr = sqrt_float(pa, status, &float32_params);
     return float32_round_pack_canonical(pr, status);
 }
 
-float64 __attribute__((flatten)) float64_sqrt(float64 a, float_status *status)
+static float64 QEMU_SOFTFLOAT_ATTR
+soft_float64_sqrt(float64 a, float_status *status)
 {
     FloatParts pa = float64_unpack_canonical(a, status);
     FloatParts pr = sqrt_float(pa, status, &float64_params);
@@ -2897,6 +2899,73 @@ float64 float64_silence_nan(float64 a, float_status *status)
     p = parts_silence_nan(p, status);
     p.frac >>= float64_params.frac_shift;
     return float64_pack_raw(p);
+}
+
+#define GEN_SQRT_SF(name, soft_t, host_t, host_sqrt_func)               \
+    static soft_t name(soft_t a, float_status *s)                       \
+    {                                                                   \
+        if (QEMU_NO_HARDFLOAT) {                                        \
+            goto soft;                                                  \
+        }                                                               \
+        soft_t ## _input_flush1(&a, s);                                 \
+        if (likely(soft_t ## _is_zero_or_normal(a) &&                   \
+                   !soft_t ## _is_neg(a) &&                             \
+                   can_use_fpu(s))) {                                   \
+            host_t ha = soft_t ## _to_ ## host_t(a);                    \
+            host_t hr = host_sqrt_func(ha);                             \
+                                                                        \
+            return host_t ## _to_ ## soft_t(hr);                        \
+        }                                                               \
+    soft:                                                               \
+        return soft_ ## soft_t ## _sqrt(a, s);                          \
+    }
+
+#define GEN_SQRT_FP(name, soft_t, host_t, host_sqrt_func)               \
+    static soft_t name(soft_t a, float_status *s)                       \
+    {                                                                   \
+        host_t ha;                                                      \
+                                                                        \
+        if (QEMU_NO_HARDFLOAT) {                                        \
+            goto soft;                                                  \
+        }                                                               \
+        soft_t ## _input_flush1(&a, s);                                 \
+        ha = soft_t ## _to_ ## host_t(a);                               \
+        if (likely((fpclassify(ha) == FP_NORMAL ||                      \
+                    fpclassify(ha) == FP_ZERO) &&                       \
+                   !signbit(ha) &&                                      \
+                   can_use_fpu(s))) {                                   \
+            host_t hr = host_sqrt_func(ha);                             \
+                                                                        \
+            return host_t ## _to_ ## soft_t(hr);                        \
+        }                                                               \
+    soft:                                                               \
+        return soft_ ## soft_t ## _sqrt(a, s);                          \
+    }
+
+GEN_SQRT_SF(f32_sqrt, float32, float, sqrtf)
+GEN_SQRT_SF(f64_sqrt, float64, double, sqrt)
+#undef GEN_SQRT_SF
+
+GEN_SQRT_FP(float_sqrt, float32, float, sqrtf)
+GEN_SQRT_FP(double_sqrt, float64, double, sqrt)
+#undef GEN_SQRT_FP
+
+float32 __attribute__((flatten)) float32_sqrt(float32 a, float_status *s)
+{
+    if (QEMU_HARDFLOAT_1F32_USE_FP) {
+        return float_sqrt(a, s);
+    } else {
+        return f32_sqrt(a, s);
+    }
+}
+
+float64 __attribute__((flatten)) float64_sqrt(float64 a, float_status *s)
+{
+    if (QEMU_HARDFLOAT_1F64_USE_FP) {
+        return double_sqrt(a, s);
+    } else {
+        return f64_sqrt(a, s);
+    }
 }
 
 /*----------------------------------------------------------------------------
