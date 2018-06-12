@@ -1829,6 +1829,7 @@ ETEXI
         .params     = "path",
         .help       = "list QOM properties",
         .cmd        = hmp_qom_list,
+        .flags      = "p",
     },
 
 STEXI
@@ -1842,6 +1843,7 @@ ETEXI
         .params     = "path property value",
         .help       = "set QOM property",
         .cmd        = hmp_qom_set,
+        .flags      = "p",
     },
 
 STEXI
@@ -1856,6 +1858,7 @@ ETEXI
         .help       = "show various information about the system state",
         .cmd        = hmp_info_help,
         .sub_table  = info_cmds,
+        .flags      = "p",
     },
 
 STEXI
