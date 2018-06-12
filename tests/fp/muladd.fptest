@@ -1,0 +1,51 @@
+# nc == negate addend
+b32*+nc =0 -Inf -Inf +Inf -> Q i
+b32*+nc =0 -1.7FFFFFP127 -Inf +Inf -> Q i
+b32*+nc =0 -1.6C9AE7P113 -Inf +Inf -> Q i
+b32*+nc =0 -1.000000P-126 -Inf +Inf -> Q i
+b32*+nc =0 -0.7FFFFFP-126 -Inf +Inf -> Q i
+b32*+nc =0 -0.1B977AP-126 -Inf +Inf -> Q i
+b32*+nc =0 -0.000001P-126 -Inf +Inf -> Q i
+b32*+nc =0 -1.000000P0 -Inf +Inf -> Q i
+b32*+nc =0 -Zero -Inf +Inf -> Q i
+b32*+nc =0 +Zero -Inf +Inf -> Q i
+b32*+nc =0 -Zero -1.000000P-126 +1.7FFFFFP127 -> -1.7FFFFFP127
+b32*+nc =0 +Zero -1.000000P-126 +1.7FFFFFP127 -> -1.7FFFFFP127
+b32*+nc =0 -1.000000P-126 -1.7FFFFFP127 -1.4B9156P109 -> +1.4B9156P109 x
+b32*+nc =0 -0.7FFFFFP-126 -1.7FFFFFP127 -1.51BA59P-113 -> +1.7FFFFDP1 x
+b32*+nc =0 -0.3D6B57P-126 -1.7FFFFFP127 -1.265398P-67 -> +1.75AD5BP0 x
+b32*+nc =0 -0.000001P-126 -1.7FFFFFP127 -1.677330P-113 -> +1.7FFFFFP-22 x
+
+# np == negate product
+b32*+np =0 +Inf -Inf -Inf -> Q i
+b32*+np =0 +1.7FFFFFP127 -Inf -Inf -> Q i
+b32*+np =0 +1.6C9AE7P113 -Inf -Inf -> Q i
+b32*+np =0 +1.000000P-126 -Inf -Inf -> Q i
+b32*+np =0 +0.7FFFFFP-126 -Inf -Inf -> Q i
+b32*+np =0 +0.1B977AP-126 -Inf -Inf -> Q i
+b32*+np =0 +0.000001P-126 -Inf -Inf -> Q i
+b32*+np =0 +1.000000P0 -Inf -Inf -> Q i
+b32*+np =0 +Zero -Inf -Inf -> Q i
+b32*+np =0 +Zero -Inf -Inf -> Q i
+b32*+np =0 -Zero -1.000000P-126 -1.7FFFFFP127 -> -1.7FFFFFP127
+b32*+np =0 +Zero -1.000000P-126 -1.7FFFFFP127 -> -1.7FFFFFP127
+b32*+np =0 -1.3A6A89P-18 +1.24E7AEP9 -0.7FFFFFP-126 -> +1.7029E9P-9 x
+
+# nr == negate result
+b32*+nr =0 -Inf -Inf -Inf -> Q i
+b32*+nr =0 -1.7FFFFFP127 -Inf -Inf -> Q i
+b32*+nr =0 -1.6C9AE7P113 -Inf -Inf -> Q i
+b32*+nr =0 -1.000000P-126 -Inf -Inf -> Q i
+b32*+nr =0 -0.7FFFFFP-126 -Inf -Inf -> Q i
+b32*+nr =0 -0.1B977AP-126 -Inf -Inf -> Q i
+b32*+nr =0 -0.000001P-126 -Inf -Inf -> Q i
+b32*+nr =0 -1.000000P0 -Inf -Inf -> Q i
+b32*+nr =0 -Zero -Inf -Inf -> Q i
+b32*+nr =0 -Zero -Inf -Inf -> Q i
+b32*+nr =0 +Zero -1.000000P-126 -1.7FFFFFP127 -> +1.7FFFFFP127
+b32*+nr =0 -Zero -1.000000P-126 -1.7FFFFFP127 -> +1.7FFFFFP127
+b32*+nr =0 -1.000000P-126 -1.7FFFFFP127 -1.4B9156P109 -> +1.4B9156P109 x
+b32*+nr =0 -0.7FFFFFP-126 -1.7FFFFFP127 -1.51BA59P-113 -> -1.7FFFFDP1 x
+b32*+nr =0 -0.3D6B57P-126 -1.7FFFFFP127 -1.265398P-67 -> -1.75AD5BP0 x
+b32*+nr =0 -0.000001P-126 -1.7FFFFFP127 -1.677330P-113 -> -1.7FFFFFP-22 x
+b32*+nr =0 +1.72E53AP-33 -1.7FFFFFP127 -1.5AA684P-2 -> +1.72E539P95 x
