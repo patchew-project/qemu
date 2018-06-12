@@ -1013,6 +1013,15 @@ char *xen_blk_get_attached_dev_id(void *dev)
     return g_strdup_printf("xen-qdisk-%i", blkdev->xendev.dev);
 }
 
+void xen_blk_resize_cb(void *dev)
+{
+    struct XenBlkDev *blkdev = dev;
+    blkdev->file_size = blk_getlength(blkdev->blk);
+    xenstore_write_be_int64(&blkdev->xendev, "sectors",
+                            blkdev->file_size / blkdev->file_blk);
+    xen_be_set_state(&blkdev->xendev, blkdev->xendev.be_state);
+}
+
 struct XenDevOps xen_blkdev_ops = {
     .flags      = DEVOPS_FLAG_NEED_GNTDEV,
     .size       = sizeof(struct XenBlkDev),

@@ -17,3 +17,7 @@ char *xen_blk_get_attached_dev_id(void *dev)
 {
     return g_strdup("");
 }
+
+void xen_blk_resize_cb(void *dev)
+{
+}

@@ -50,4 +50,6 @@ void xen_register_framebuffer(struct MemoryRegion *mr);
 
 char *xen_blk_get_attached_dev_id(void *dev);
 
+void xen_blk_resize_cb(void *dev);
+
 #endif /* QEMU_HW_XEN_H */
