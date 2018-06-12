@@ -2077,6 +2077,9 @@ RAMBlock *qemu_ram_alloc_from_fd(ram_addr_t size, MemoryRegion *mr,
     Error *local_err = NULL;
     int64_t file_size;
 
+    /* Just support these ram flags by now. */
+    assert(ram_flags == 0 || (ram_flags & (RAM_SHARED | RAM_PMEM)));
+
     if (xen_enabled()) {
         error_setg(errp, "-mem-path not supported with Xen");
         return NULL;
@@ -4007,6 +4010,11 @@ err:
     return ret;
 }
 
+bool ramblock_is_pmem(RAMBlock *rb)
+{
+    return rb->flags & RAM_PMEM;
+}
+
 #endif
 
 void page_size_init(void)
@@ -4105,3 +4113,4 @@ void mtree_print_dispatch(fprintf_function mon, void *f,
 }
 
 #endif
+
