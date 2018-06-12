@@ -3800,7 +3800,9 @@ address_space_write_cached_slow(MemoryRegionCache *cache, hwaddr addr,
 #define SUFFIX                   _cached_slow
 #define TRANSLATE(...)           address_space_translate_cached(cache, __VA_ARGS__)
 #define IS_DIRECT(mr, is_write)  memory_access_is_direct(mr, is_write)
-#define MAP_RAM(mr, ofs)         (cache->ptr + (ofs - cache->xlat))
+#define MAP_RAM(mr, ofs)         (cache->ptr ? \
+                                 (cache->ptr + (ofs - cache->xlat)) :  \
+                                 qemu_map_ram_ptr((mr)->ram_block, ofs))
 #define INVALIDATE(mr, ofs, len) invalidate_and_set_dirty(mr, ofs, len)
 #define RCU_READ_LOCK()          ((void)0)
 #define RCU_READ_UNLOCK()        ((void)0)
