@@ -1568,8 +1568,9 @@ float16 __attribute__((flatten)) float16_muladd(float16 a, float16 b, float16 c,
     return float16_round_pack_canonical(pr, status);
 }
 
-float32 __attribute__((flatten)) float32_muladd(float32 a, float32 b, float32 c,
-                                                int flags, float_status *status)
+static float32 QEMU_SOFTFLOAT_ATTR
+soft_float32_muladd(float32 a, float32 b, float32 c, int flags,
+                    float_status *status)
 {
     FloatParts pa = float32_unpack_canonical(a, status);
     FloatParts pb = float32_unpack_canonical(b, status);
@@ -1579,8 +1580,9 @@ float32 __attribute__((flatten)) float32_muladd(float32 a, float32 b, float32 c,
     return float32_round_pack_canonical(pr, status);
 }
 
-float64 __attribute__((flatten)) float64_muladd(float64 a, float64 b, float64 c,
-                                                int flags, float_status *status)
+static float64 QEMU_SOFTFLOAT_ATTR
+soft_float64_muladd(float64 a, float64 b, float64 c, int flags,
+                    float_status *status)
 {
     FloatParts pa = float64_unpack_canonical(a, status);
     FloatParts pb = float64_unpack_canonical(b, status);
@@ -1588,6 +1590,165 @@ float64 __attribute__((flatten)) float64_muladd(float64 a, float64 b, float64 c,
     FloatParts pr = muladd_floats(pa, pb, pc, flags, status);
 
     return float64_round_pack_canonical(pr, status);
+}
+
+/*
+ * FMA generator for softfloat-based condition checks.
+ *
+ * When (a || b) == 0, there's no need to check for under/over flow,
+ * since we know the addend is (normal || 0) and the product is 0.
+ */
+#define GEN_FMA_SF(name, soft_t, host_t, host_fma_f, host_abs_f, min_normal) \
+    static soft_t                                                       \
+    name(soft_t a, soft_t b, soft_t c, int flags, float_status *s)      \
+    {                                                                   \
+        if (QEMU_NO_HARDFLOAT) {                                        \
+            goto soft;                                                  \
+        }                                                               \
+        soft_t ## _input_flush3(&a, &b, &c, s);                         \
+        if (likely(soft_t ## _is_zero_or_normal(a) &&                   \
+                   soft_t ## _is_zero_or_normal(b) &&                   \
+                   soft_t ## _is_zero_or_normal(c) &&                   \
+                   !(flags & float_muladd_halve_result) &&              \
+                   can_use_fpu(s))) {                                   \
+            if (soft_t ## _is_zero(a) || soft_t ## _is_zero(b)) {       \
+                soft_t p, r;                                            \
+                host_t hp, hc, hr;                                      \
+                bool prod_sign;                                         \
+                                                                        \
+                prod_sign = soft_t ## _is_neg(a) ^ soft_t ## _is_neg(b); \
+                prod_sign ^= !!(flags & float_muladd_negate_product);   \
+                p = soft_t ## _set_sign(soft_t ## _zero, prod_sign);    \
+                                                                        \
+                if (flags & float_muladd_negate_c) {                    \
+                    c = soft_t ## _chs(c);                              \
+                }                                                       \
+                                                                        \
+                hp = soft_t ## _to_ ## host_t(p);                       \
+                hc = soft_t ## _to_ ## host_t(c);                       \
+                hr = hp + hc;                                           \
+                r = host_t ## _to_ ## soft_t(hr);                       \
+                return flags & float_muladd_negate_result ?             \
+                    soft_t ## _chs(r) : r;                              \
+            } else {                                                    \
+                host_t ha, hb, hc, hr;                                  \
+                soft_t r;                                               \
+                soft_t sa = flags & float_muladd_negate_product ?       \
+                    soft_t ## _chs(a) : a;                              \
+                soft_t sc = flags & float_muladd_negate_c ?             \
+                    soft_t ## _chs(c) : c;                              \
+                                                                        \
+                ha = soft_t ## _to_ ## host_t(sa);                      \
+                hb = soft_t ## _to_ ## host_t(b);                       \
+                hc = soft_t ## _to_ ## host_t(sc);                      \
+                hr = host_fma_f(ha, hb, hc);                            \
+                r = host_t ## _to_ ## soft_t(hr);                       \
+                                                                        \
+                if (unlikely(isinf(hr))) {                              \
+                    s->float_exception_flags |= float_flag_overflow;    \
+                } else if (unlikely(host_abs_f(hr) <= min_normal)) {    \
+                    goto soft;                                          \
+                }                                                       \
+                return flags & float_muladd_negate_result ?             \
+                    soft_t ## _chs(r) : r;                              \
+            }                                                           \
+        }                                                               \
+    soft:                                                               \
+        return soft_ ## soft_t ## _muladd(a, b, c, flags, s);           \
+    }
+
+/* FMA generator for native floating point condition checks */
+#define GEN_FMA_FP(name, soft_t, host_t, host_fma_f, host_abs_f, min_normal) \
+    static soft_t \
+    name(soft_t a, soft_t b, soft_t c, int flags, float_status *s)      \
+    {                                                                   \
+        host_t ha, hb, hc;                                              \
+                                                                        \
+        if (QEMU_NO_HARDFLOAT) {                                        \
+            goto soft;                                                  \
+        }                                                               \
+        soft_t ## _input_flush3(&a, &b, &c, s);                         \
+        ha = soft_t ## _to_ ## host_t(a);                               \
+        hb = soft_t ## _to_ ## host_t(b);                               \
+        hc = soft_t ## _to_ ## host_t(c);                               \
+        if (likely((fpclassify(ha) == FP_NORMAL ||                      \
+                    fpclassify(ha) == FP_ZERO) &&                       \
+                   (fpclassify(hb) == FP_NORMAL ||                      \
+                    fpclassify(hb) == FP_ZERO) &&                       \
+                   (fpclassify(hc) == FP_NORMAL ||                      \
+                    fpclassify(hc) == FP_ZERO) &&                       \
+                   !(flags & float_muladd_halve_result) &&              \
+                   can_use_fpu(s))) {                                   \
+            if (soft_t ## _is_zero(a) || soft_t ## _is_zero(b)) {       \
+                soft_t p, r;                                            \
+                host_t hp, hc, hr;                                      \
+                bool prod_sign;                                         \
+                                                                        \
+                prod_sign = soft_t ## _is_neg(a) ^ soft_t ## _is_neg(b); \
+                prod_sign ^= !!(flags & float_muladd_negate_product);   \
+                p = soft_t ## _set_sign(soft_t ## _zero, prod_sign);    \
+                                                                        \
+                if (flags & float_muladd_negate_c) {                    \
+                    c = soft_t ## _chs(c);                              \
+                }                                                       \
+                                                                        \
+                hp = soft_t ## _to_ ## host_t(p);                       \
+                hc = soft_t ## _to_ ## host_t(c);                       \
+                hr = hp + hc;                                           \
+                r = host_t ## _to_ ## soft_t(hr);                       \
+                return flags & float_muladd_negate_result ?             \
+                    soft_t ## _chs(r) : r;                              \
+            } else {                                                    \
+                host_t hr;                                              \
+                                                                        \
+                if (flags & float_muladd_negate_product) {              \
+                    ha = -ha;                                           \
+                }                                                       \
+                if (flags & float_muladd_negate_c) {                    \
+                    hc = -hc;                                           \
+                }                                                       \
+                hr = host_fma_f(ha, hb, hc);                            \
+                if (unlikely(isinf(hr))) {                              \
+                    s->float_exception_flags |= float_flag_overflow;    \
+                } else if (unlikely(host_abs_f(hr) <= min_normal)) {    \
+                    goto soft;                                          \
+                }                                                       \
+                if (flags & float_muladd_negate_result) {               \
+                    hr = -hr;                                           \
+                }                                                       \
+                return host_t ## _to_ ## soft_t(hr);                    \
+            }                                                           \
+        }                                                               \
+    soft:                                                               \
+        return soft_ ## soft_t ## _muladd(a, b, c, flags, s);           \
+    }
+
+GEN_FMA_SF(f32_muladd, float32, float, fmaf, fabsf, FLT_MIN)
+GEN_FMA_SF(f64_muladd, float64, double, fma, fabs, DBL_MIN)
+#undef GEN_FMA_SF
+
+GEN_FMA_FP(float_muladd, float32, float, fmaf, fabsf, FLT_MIN)
+GEN_FMA_FP(double_muladd, float64, double, fma, fabs, DBL_MIN)
+#undef GEN_FMA_FP
+
+float32 __attribute__((flatten))
+float32_muladd(float32 a, float32 b, float32 c, int flags, float_status *s)
+{
+    if (QEMU_HARDFLOAT_3F32_USE_FP) {
+        return float_muladd(a, b, c, flags, s);
+    } else {
+        return f32_muladd(a, b, c, flags, s);
+    }
+}
+
+float64 __attribute__((flatten))
+float64_muladd(float64 a, float64 b, float64 c, int flags, float_status *s)
+{
+    if (QEMU_HARDFLOAT_3F64_USE_FP) {
+        return double_muladd(a, b, c, flags, s);
+    } else {
+        return f64_muladd(a, b, c, flags, s);
+    }
 }
 
 /*
