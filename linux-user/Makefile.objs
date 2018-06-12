@@ -7,3 +7,13 @@ obj-$(TARGET_HAS_BFLT) += flatload.o
 obj-$(TARGET_I386) += vm86.o
 obj-$(TARGET_ARM) += arm/nwfpe/
 obj-$(TARGET_M68K) += m68k-sim.o
+
+GEN_SYSCALL_LIST = $(SRC_PATH)/linux-user/gen_syscall_list.py
+SYSCALL_LIST = linux-user/syscall_list.h linux-user/syscall_list.inc.c
+
+$(SYSCALL_LIST): $(GEN_SYSCALL_LIST)
+	$(call quiet-command,\
+	  $(PYTHON) $(GEN_SYSCALL_LIST) $@, "GEN", $(TARGET_DIR)$@)
+
+linux-user/syscall.o \
+linux-user/strace.o: $(SYSCALL_LIST)

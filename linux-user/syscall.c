@@ -111,6 +111,7 @@
 #include "uname.h"
 
 #include "qemu.h"
+#include "syscall.h"
 
 #ifndef CLONE_IO
 #define CLONE_IO                0x80000000      /* Clone io context */
@@ -879,7 +880,7 @@ static uint16_t host_to_target_errno_table[ERRNO_TABLE_SIZE] = {
 #endif
 };
 
-static inline int host_to_target_errno(int err)
+int host_to_target_errno(int err)
 {
     if (err >= 0 && err < ERRNO_TABLE_SIZE &&
         host_to_target_errno_table[err]) {
@@ -897,19 +898,6 @@ static inline int target_to_host_errno(int err)
     return err;
 }
 
-static inline abi_long get_errno(abi_long ret)
-{
-    if (ret == -1)
-        return -host_to_target_errno(errno);
-    else
-        return ret;
-}
-
-static inline int is_error(abi_long ret)
-{
-    return (abi_ulong)ret >= (abi_ulong)(-4096);
-}
-
 const char *target_strerror(int err)
 {
     if (err == TARGET_ERESTARTSYS) {
@@ -923,53 +911,6 @@ const char *target_strerror(int err)
         return NULL;
     }
     return strerror(target_to_host_errno(err));
-}
-
-#define safe_syscall0(type, name) \
-static type safe_##name(void) \
-{ \
-    return safe_syscall(__NR_##name); \
-}
-
-#define safe_syscall1(type, name, type1, arg1) \
-static type safe_##name(type1 arg1) \
-{ \
-    return safe_syscall(__NR_##name, arg1); \
-}
-
-#define safe_syscall2(type, name, type1, arg1, type2, arg2) \
-static type safe_##name(type1 arg1, type2 arg2) \
-{ \
-    return safe_syscall(__NR_##name, arg1, arg2); \
-}
-
-#define safe_syscall3(type, name, type1, arg1, type2, arg2, type3, arg3) \
-static type safe_##name(type1 arg1, type2 arg2, type3 arg3) \
-{ \
-    return safe_syscall(__NR_##name, arg1, arg2, arg3); \
-}
-
-#define safe_syscall4(type, name, type1, arg1, type2, arg2, type3, arg3, \
-    type4, arg4) \
-static type safe_##name(type1 arg1, type2 arg2, type3 arg3, type4 arg4) \
-{ \
-    return safe_syscall(__NR_##name, arg1, arg2, arg3, arg4); \
-}
-
-#define safe_syscall5(type, name, type1, arg1, type2, arg2, type3, arg3, \
-    type4, arg4, type5, arg5) \
-static type safe_##name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, \
-    type5 arg5) \
-{ \
-    return safe_syscall(__NR_##name, arg1, arg2, arg3, arg4, arg5); \
-}
-
-#define safe_syscall6(type, name, type1, arg1, type2, arg2, type3, arg3, \
-    type4, arg4, type5, arg5, type6, arg6) \
-static type safe_##name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, \
-    type5 arg5, type6 arg6) \
-{ \
-    return safe_syscall(__NR_##name, arg1, arg2, arg3, arg4, arg5, arg6); \
 }
 
 safe_syscall3(ssize_t, read, int, fd, void *, buff, size_t, count)
@@ -12412,12 +12353,18 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
     return ret;
 }
 
+/* Include the generated syscall lookup function.  */
+#include "syscall_list.inc.c"
+
 abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                     abi_long arg2, abi_long arg3, abi_long arg4,
                     abi_long arg5, abi_long arg6, abi_long arg7,
                     abi_long arg8)
 {
     CPUState *cpu = ENV_GET_CPU(cpu_env);
+    const SyscallDef *def, *orig_def;
+    abi_long raw_args[8] = { arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8 };
+    int64_t  out_args[6] = { arg1, arg2, arg3, arg4, arg5, arg6 };
     abi_long ret;
 
 #ifdef DEBUG_ERESTARTSYS
@@ -12437,16 +12384,44 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     trace_guest_user_syscall(cpu, num, arg1, arg2, arg3, arg4,
                              arg5, arg6, arg7, arg8);
 
-    if (unlikely(do_strace)) {
-        print_syscall(num, arg1, arg2, arg3, arg4, arg5, arg6);
-        ret = do_syscall1(cpu_env, num, arg1, arg2, arg3, arg4,
-                          arg5, arg6, arg7, arg8);
-        print_syscall_ret(num, ret);
-    } else {
-        ret = do_syscall1(cpu_env, num, arg1, arg2, arg3, arg4,
-                          arg5, arg6, arg7, arg8);
+    orig_def = def = syscall_table(num);
+    if (def == NULL) {
+        /* Unconverted.  */
+        if (unlikely(do_strace)) {
+            print_syscall(num, arg1, arg2, arg3, arg4, arg5, arg6);
+            ret = do_syscall1(cpu_env, num, arg1, arg2, arg3, arg4,
+                              arg5, arg6, arg7, arg8);
+            print_syscall_ret(num, ret);
+        } else {
+            ret = do_syscall1(cpu_env, num, arg1, arg2, arg3, arg4,
+                              arg5, arg6, arg7, arg8);
+        }
+        goto fini;
     }
 
+    if (def->args) {
+        def = def->args(def, out_args, raw_args);
+        if (unlikely(def == NULL)) {
+            ret = -host_to_target_errno(errno);
+            if (unlikely(do_strace)) {
+                print_syscall_def(orig_def, out_args);
+                print_syscall_def_ret(orig_def, ret);
+            }
+            goto fini;
+        }
+    }
+
+    if (unlikely(do_strace)) {
+        print_syscall_def(def, out_args);
+        ret = def->impl(cpu_env, out_args[0], out_args[1], out_args[2],
+                        out_args[3], out_args[4], out_args[5]);
+        print_syscall_def_ret(def, ret);
+    } else {
+        ret = def->impl(cpu_env, out_args[0], out_args[1], out_args[2],
+                        out_args[3], out_args[4], out_args[5]);
+    }
+
+ fini:
     trace_guest_user_syscall_ret(cpu, num, ret);
     return ret;
 }

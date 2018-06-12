@@ -10,6 +10,7 @@
 #include <linux/if_packet.h>
 #include <sched.h>
 #include "qemu.h"
+#include "syscall.h"
 
 int do_strace=0;
 
@@ -796,7 +797,7 @@ UNUSED static struct flags unlinkat_flags[] = {
     FLAG_END,
 };
 
-UNUSED static struct flags mode_flags[] = {
+static struct flags const mode_flags[] = {
     FLAG_GENERIC(S_IFSOCK),
     FLAG_GENERIC(S_IFLNK),
     FLAG_GENERIC(S_IFREG),
@@ -807,14 +808,14 @@ UNUSED static struct flags mode_flags[] = {
     FLAG_END,
 };
 
-UNUSED static struct flags open_access_flags[] = {
+static struct flags const open_access_flags[] = {
     FLAG_TARGET(O_RDONLY),
     FLAG_TARGET(O_WRONLY),
     FLAG_TARGET(O_RDWR),
     FLAG_END,
 };
 
-UNUSED static struct flags open_flags[] = {
+static struct flags const open_flags[] = {
     FLAG_TARGET(O_APPEND),
     FLAG_TARGET(O_CREAT),
     FLAG_TARGET(O_DIRECTORY),
@@ -989,84 +990,86 @@ get_comma(int last)
     return ((last) ? "" : ",");
 }
 
+static int add_flags(char *buf, int size, const struct flags *f,
+                     int flags, bool octal)
+{
+    const char *sep = "";
+    int off = 0;
+
+    if (flags == 0 && f->f_value == 0) {
+        return snprintf(buf, size, "%s", f->f_string);
+    }
+
+    for (; f->f_string != NULL; f++) {
+        if (f->f_value != 0 && (flags & f->f_value) == f->f_value) {
+            off += snprintf(buf + off, size - off, "%s%s", sep, f->f_string);
+            flags &= ~f->f_value;
+            sep = "|";
+        }
+    }
+
+    /* Print rest of the flags as numeric.  */
+    if (flags) {
+        if (octal) {
+            off += snprintf(buf + off, size - off, "%s%#o", sep, flags);
+        } else {
+            off += snprintf(buf + off, size - off, "%s%#x", sep, flags);
+        }
+    }
+    return off;
+}
+
 static void
 print_flags(const struct flags *f, abi_long flags, int last)
 {
-    const char *sep = "";
-    int n;
+    char buf[256];
+    add_flags(buf, sizeof(buf), f, flags, false);
+    gemu_log("%s%s", buf, get_comma(last));
+}
 
-    if ((flags == 0) && (f->f_value == 0)) {
-        gemu_log("%s%s", f->f_string, get_comma(last));
-        return;
-    }
-    for (n = 0; f->f_string != NULL; f++) {
-        if ((f->f_value != 0) && ((flags & f->f_value) == f->f_value)) {
-            gemu_log("%s%s", sep, f->f_string);
-            flags &= ~f->f_value;
-            sep = "|";
-            n++;
-        }
-    }
-
-    if (n > 0) {
-        /* print rest of the flags as numeric */
-        if (flags != 0) {
-            gemu_log("%s%#x%s", sep, (unsigned int)flags, get_comma(last));
-        } else {
-            gemu_log("%s", get_comma(last));
-        }
+static int add_atdirfd(char *buf, int size, int fd)
+{
+    if (fd == AT_FDCWD) {
+        return snprintf(buf, size, "AT_FDCWD");
     } else {
-        /* no string version of flags found, print them in hex then */
-        gemu_log("%#x%s", (unsigned int)flags, get_comma(last));
+        return snprintf(buf, size, "%d", fd);
     }
 }
 
 static void
 print_at_dirfd(abi_long dirfd, int last)
 {
-#ifdef AT_FDCWD
-    if (dirfd == AT_FDCWD) {
-        gemu_log("AT_FDCWD%s", get_comma(last));
-        return;
-    }
-#endif
-    gemu_log("%d%s", (int)dirfd, get_comma(last));
+    char buf[16];
+    add_atdirfd(buf, sizeof(buf), dirfd);
+    gemu_log("%s%s", buf, get_comma(last));
 }
 
 static void
 print_file_mode(abi_long mode, int last)
 {
-    const char *sep = "";
-    const struct flags *m;
+    char buf[256];
+    add_flags(buf, sizeof(buf), mode_flags, mode, true);
+    gemu_log("%s%s", buf, get_comma(last));
+}
 
-    for (m = &mode_flags[0]; m->f_string != NULL; m++) {
-        if ((m->f_value & mode) == m->f_value) {
-            gemu_log("%s%s", m->f_string, sep);
-            sep = "|";
-            mode &= ~m->f_value;
-            break;
-        }
+static int add_open_flags(char *buf, int size, int flags)
+{
+    int off = add_flags(buf, size, open_access_flags,
+                        flags & TARGET_O_ACCMODE, false);
+    flags &= ~TARGET_O_ACCMODE;
+    if (flags == 0 || off + 2 >= size) {
+        return off;
     }
-
-    mode &= ~S_IFMT;
-    /* print rest of the mode as octal */
-    if (mode != 0)
-        gemu_log("%s%#o", sep, (unsigned int)mode);
-
-    gemu_log("%s", get_comma(last));
+    buf[off++] = '|';
+    return off + add_flags(buf + off, size - off, open_flags, flags, true);
 }
 
 static void
 print_open_flags(abi_long flags, int last)
 {
-    print_flags(open_access_flags, flags & TARGET_O_ACCMODE, 1);
-    flags &= ~TARGET_O_ACCMODE;
-    if (flags == 0) {
-        gemu_log("%s", get_comma(last));
-        return;
-    }
-    gemu_log("|");
-    print_flags(open_flags, flags, last);
+    char buf[256];
+    add_open_flags(buf, sizeof(buf), flags);
+    gemu_log("%s%s", buf, get_comma(last));
 }
 
 static void
@@ -1083,48 +1086,86 @@ print_syscall_epilogue(const struct syscallname *sc)
     gemu_log(")");
 }
 
-static void
-print_string(abi_long addr, int last)
+static int add_pointer(char *buf, int size, abi_ulong addr)
 {
-    char *s;
-
-    if ((s = lock_user_string(addr)) != NULL) {
-        gemu_log("\"%s\"%s", s, get_comma(last));
-        unlock_user(s, addr, 0);
+    if (addr) {
+        return snprintf(buf, size, "0x" TARGET_ABI_FMT_lx, addr);
     } else {
-        /* can't get string out of it, so print it as pointer */
-        print_pointer(addr, last);
+        return snprintf(buf, size, "NULL");
     }
 }
 
+static int add_string(char *buf, int size, abi_ulong addr)
+{
+    char *s = lock_user_string(addr);
+    if (s) {
+        /* TODO: Escape special characters within the string.  */
+        /* TODO: Limit the string length for logging.  */
+        int len = snprintf(buf, size, "\"%s\"", s);
+        unlock_user(s, addr, 0);
+        return len;
+    }
+    return add_pointer(buf, size, addr);
+}
+
+static void
+print_string(abi_long addr, int last)
+{
+    char buf[256];
+    add_string(buf, sizeof(buf), addr);
+    gemu_log("%s%s", buf, get_comma(last));
+}
+
 #define MAX_PRINT_BUF 40
+
+static int add_buffer(char *buf, int size, abi_long addr, abi_ulong len)
+{
+    unsigned char *p;
+    int off = 0;
+    abi_ulong i;
+
+    p = lock_user(VERIFY_READ, addr, MIN(len, MAX_PRINT_BUF), 1);
+    if (!p) {
+        return add_pointer(buf, size, addr);
+    }
+
+    buf[0] = '"';
+    off = 1;
+
+    for (i = 0; i < MAX_PRINT_BUF; ++i) {
+        int len;
+
+        if (isprint(p[i])) {
+            buf[off] = p[i];
+            len = 1;
+        } else {
+            len = snprintf(buf + off, size - off, "\\%o", p[i]);
+        }
+        off += len;
+        if (off + 2 >= size) {
+            goto overflow;
+        }
+    }
+    unlock_user(p, addr, 0);
+
+    if (i == len && off + 2 < size) {
+        buf[off] = '"';
+        buf[off + 1] = 0;
+        return off + 1;
+    }
+
+ overflow:
+    off = MIN(off, size - 5);
+    strcpy(buf + off, "...\"");
+    return off + 4;
+}
+
 static void
 print_buf(abi_long addr, abi_long len, int last)
 {
-    uint8_t *s;
-    int i;
-
-    s = lock_user(VERIFY_READ, addr, len, 1);
-    if (s) {
-        gemu_log("\"");
-        for (i = 0; i < MAX_PRINT_BUF && i < len; i++) {
-            if (isprint(s[i])) {
-                gemu_log("%c", s[i]);
-            } else {
-                gemu_log("\\%o", s[i]);
-            }
-        }
-        gemu_log("\"");
-        if (i != len) {
-            gemu_log("...");
-        }
-        if (!last) {
-            gemu_log(",");
-        }
-        unlock_user(s, addr, 0);
-    } else {
-        print_pointer(addr, last);
-    }
+    char buf[256];
+    add_buffer(buf, sizeof(buf), addr, len);
+    gemu_log("%s%s", buf, get_comma(last));
 }
 
 /*
@@ -1143,10 +1184,9 @@ print_raw_param(const char *fmt, abi_long param, int last)
 static void
 print_pointer(abi_long p, int last)
 {
-    if (p == 0)
-        gemu_log("NULL%s", get_comma(last));
-    else
-        gemu_log("0x" TARGET_ABI_FMT_lx "%s", p, get_comma(last));
+    char buf[24];
+    add_pointer(buf, sizeof(buf), p);
+    gemu_log("%s%s", buf, get_comma(last));
 }
 
 /*
@@ -2623,30 +2663,166 @@ print_syscall(int num,
     gemu_log("Unknown syscall %d\n", num);
 }
 
+static void print_syscall_def1(const SyscallDef *def, int64_t args[6])
+{
+    char buf[1024], *b = buf;
+    int i, rest = sizeof(buf);
+
+    /* Render the argument list into BUF.  This allows us to log the
+     * entire syscall in one write statement at the end.
+     * While this is still not quite as good as separate files, a-la
+     * strace -ff, it can minimize confusion with a multithreaded guest.
+     */
+    buf[0] = 0;
+    for (i = 0; i < 6; ++i) {
+        SyscallArgType type = def->arg_type[i];
+        int64_t arg = args[i];
+        int len;
+
+        if (type == ARG_NONE) {
+            break;
+        }
+
+        /* Validate remaining space.  */
+        if (rest < 4) {
+            goto overflow;
+        }
+
+        /* Add separator.  */
+        if (i > 0) {
+            b[0] = ',';
+            b[1] = ' ';
+            b += 2;
+            rest -= 2;
+        }
+
+        switch (type) {
+#if TARGET_ABI_BITS == 32
+        /* ??? We don't have TARGET_ABI_FMT_* macros for exactly
+         * what we want here.  For this case it probably makes
+         * most sense to just special case.
+         */
+        case ARG_DEC:
+            len = snprintf(b, rest, "%d", (int32_t)arg);
+            break;
+        case ARG_HEX:
+            len = snprintf(b, rest, "%#x", (uint32_t)arg);
+            break;
+        case ARG_OCT:
+            len = snprintf(b, rest, "%#o", (uint32_t)arg);
+            break;
+        case ARG_DEC64:
+            len = snprintf(b, rest, "%" PRId64, arg);
+            break;
+#else
+        case ARG_DEC:
+            len = snprintf(b, rest, "%" PRId64, arg);
+            break;
+        case ARG_OCT:
+            len = snprintf(b, rest, "%" PRIo64, arg);
+            break;
+        case ARG_HEX:
+            len = snprintf(b, rest, "%" PRIx64, arg);
+            break;
+#endif
+        case ARG_ATDIRFD:
+            len = add_atdirfd(b, rest, arg);
+            break;
+        case ARG_MODEFLAG:
+            len = add_flags(b, rest, mode_flags, arg, true);
+            break;
+        case ARG_OPENFLAG:
+            len = add_open_flags(b, rest, arg);
+            break;
+        case ARG_PTR:
+            len = add_pointer(b, rest, arg);
+            break;
+        case ARG_STR:
+            len = add_string(b, rest, arg);
+            break;
+        case ARG_BUF:
+            len = add_buffer(b, rest, arg, MAX_PRINT_BUF);
+            break;
+        default:
+            g_assert_not_reached();
+        }
+
+        b += len;
+        rest -= len;
+        if (rest == 0) {
+            goto overflow;
+        }
+    }
+    goto done;
+
+ overflow:
+    strcpy(buf + sizeof(buf) - 4, "...");
+ done:
+    gemu_log("%d %s(%s)", getpid(), def->name, buf);
+}
+
+void print_syscall_def(const SyscallDef *def, int64_t args[6])
+{
+    SyscallPrintFn *print = def->print;
+    if (!print) {
+        print = print_syscall_def1;
+    }
+    print(def, args);
+}
+
+static void print_syscall_def_ret1(const SyscallDef *def, abi_long ret)
+{
+    if (is_error(ret)) {
+        const char *errstr = target_strerror(-ret);
+        if (errstr) {
+            gemu_log(" = -1 errno=" TARGET_ABI_FMT_ld " (%s)\n",
+                     -ret, errstr);
+        } else {
+            gemu_log(" = -1 errno=" TARGET_ABI_FMT_ld "\n", -ret);
+        }
+    } else {
+        gemu_log(" = " TARGET_ABI_FMT_ld "\n", ret);
+    }
+}
 
 void
 print_syscall_ret(int num, abi_long ret)
 {
     int i;
-    const char *errstr = NULL;
 
     for(i=0;i<nsyscalls;i++)
         if( scnames[i].nr == num ) {
             if( scnames[i].result != NULL ) {
                 scnames[i].result(&scnames[i],ret);
             } else {
-                if (ret < 0) {
-                    errstr = target_strerror(-ret);
-                }
-                if (errstr) {
-                    gemu_log(" = -1 errno=" TARGET_ABI_FMT_ld " (%s)\n",
-                             -ret, errstr);
-                } else {
-                    gemu_log(" = " TARGET_ABI_FMT_ld "\n", ret);
-                }
+                print_syscall_def_ret1(NULL, ret);
             }
             break;
         }
+}
+
+void print_syscall_ptr_ret(const SyscallDef *def, abi_long ret)
+{
+    if (is_error(ret)) {
+        const char *errstr = target_strerror(-ret);
+        if (errstr) {
+            gemu_log(" = -1 errno=" TARGET_ABI_FMT_ld " (%s)\n",
+                     -ret, errstr);
+        } else {
+            gemu_log(" = -1 errno=" TARGET_ABI_FMT_ld "\n", -ret);
+        }
+    } else {
+        gemu_log(" = 0x" TARGET_ABI_FMT_lx "\n", ret);
+    }
+}
+
+void print_syscall_def_ret(const SyscallDef *def, abi_long ret)
+{
+    SyscallPrintRetFn *print = def->print_ret;
+    if (!print) {
+        print = print_syscall_def_ret1;
+    }
+    print(def, ret);
 }
 
 void print_taken_signal(int target_signum, const target_siginfo_t *tinfo)
