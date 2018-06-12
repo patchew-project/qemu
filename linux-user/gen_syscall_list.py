@@ -27,8 +27,12 @@ import sys
 unconditional_syscalls = [
     "close",
     "openat",
+    "preadv",
+    "pwritev",
     "read",
+    "readv",
     "write",
+    "writev",
 ]
 
 # These syscalls are only supported by some target or abis.

@@ -169,6 +169,11 @@ static inline void fd_trans_unregister(int fd)
     }
 }
 
+struct iovec *lock_iovec(int type, abi_ulong target_addr,
+                         abi_ulong count, int copy);
+void unlock_iovec(struct iovec *vec, abi_ulong target_addr,
+                  abi_ulong count, int copy);
+
 /* Temporary declarations from syscall_foo.c back to main syscall.c.
  * These indicate incomplete conversion.
  */
