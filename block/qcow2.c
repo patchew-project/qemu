@@ -1499,7 +1499,7 @@ static int coroutine_fn qcow2_do_open(BlockDriverState *bs, QDict *options,
         {
             qcow2_reopen_bitmaps_rw_hint(bs, &header_updated, &local_err);
         }
-    } else {
+    } else if (s->nb_bitmaps > 0) {
         header_updated = qcow2_load_dirty_bitmaps(bs, &local_err);
         s->dirty_bitmaps_loaded = true;
     }
@@ -2178,6 +2178,7 @@ static void coroutine_fn qcow2_co_invalidate_cache(BlockDriverState *bs,
     QDict *options;
     Error *local_err = NULL;
     int ret;
+    bool dirty_bitmaps_loaded = s->dirty_bitmaps_loaded;
 
     /*
      * Backing files are read-only which makes all of their metadata immutable,
@@ -2190,6 +2191,7 @@ static void coroutine_fn qcow2_co_invalidate_cache(BlockDriverState *bs,
     qcow2_close(bs);
 
     memset(s, 0, sizeof(BDRVQcow2State));
+    s->dirty_bitmaps_loaded = dirty_bitmaps_loaded;
     options = qdict_clone_shallow(bs->options);
 
     flags &= ~BDRV_O_INACTIVE;
