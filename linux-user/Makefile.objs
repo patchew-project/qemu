@@ -1,4 +1,4 @@
-obj-y = main.o syscall.o syscall_file.o syscall_ipc.o \
+obj-y = main.o syscall.o syscall_file.o syscall_ipc.o syscall_mem.o \
 	strace.o mmap.o signal.o \
 	elfload.o linuxload.o uaccess.o uname.o \
 	safe-syscall.o $(TARGET_ABI_DIR)/signal.o \
@@ -18,5 +18,6 @@ $(SYSCALL_LIST): $(GEN_SYSCALL_LIST)
 
 linux-user/syscall.o \
 linux-user/syscall_file.o \
+linux-user/syscall_mem.o \
 linux-user/syscall_ipc.o \
 linux-user/strace.o: $(SYSCALL_LIST)

@@ -554,21 +554,6 @@
 #ifdef TARGET_NR_mknodat
 { TARGET_NR_mknodat, "mknodat" , NULL, print_mknodat, NULL },
 #endif
-#ifdef TARGET_NR_mlock
-{ TARGET_NR_mlock, "mlock" , NULL, NULL, NULL },
-#endif
-#ifdef TARGET_NR_mlock2
-{ TARGET_NR_mlock2, "mlock2" , NULL, NULL, NULL },
-#endif
-#ifdef TARGET_NR_mlockall
-{ TARGET_NR_mlockall, "mlockall" , NULL, NULL, NULL },
-#endif
-#ifdef TARGET_NR_mmap
-{ TARGET_NR_mmap, "mmap" , NULL, print_mmap, print_syscall_ret_addr },
-#endif
-#ifdef TARGET_NR_mmap2
-{ TARGET_NR_mmap2, "mmap2" , NULL, print_mmap2, print_syscall_ret_addr },
-#endif
 #ifdef TARGET_NR_modify_ldt
 { TARGET_NR_modify_ldt, "modify_ldt" , NULL, NULL, NULL },
 #endif
@@ -577,9 +562,6 @@
 #endif
 #ifdef TARGET_NR_move_pages
 { TARGET_NR_move_pages, "move_pages" , NULL, NULL, NULL },
-#endif
-#ifdef TARGET_NR_mprotect
-{ TARGET_NR_mprotect, "mprotect" , NULL, print_mprotect, NULL },
 #endif
 #ifdef TARGET_NR_mpx
 { TARGET_NR_mpx, "mpx" , NULL, NULL, NULL },
@@ -602,23 +584,8 @@
 #ifdef TARGET_NR_mq_unlink
 { TARGET_NR_mq_unlink, "mq_unlink" , NULL, print_mq_unlink, NULL },
 #endif
-#ifdef TARGET_NR_mremap
-{ TARGET_NR_mremap, "mremap" , NULL, NULL, NULL },
-#endif
-#ifdef TARGET_NR_msync
-{ TARGET_NR_msync, "msync" , NULL, NULL, NULL },
-#endif
 #ifdef TARGET_NR_multiplexer
 { TARGET_NR_multiplexer, "multiplexer" , NULL, NULL, NULL },
-#endif
-#ifdef TARGET_NR_munlock
-{ TARGET_NR_munlock, "munlock" , NULL, NULL, NULL },
-#endif
-#ifdef TARGET_NR_munlockall
-{ TARGET_NR_munlockall, "munlockall" , NULL, NULL, NULL },
-#endif
-#ifdef TARGET_NR_munmap
-{ TARGET_NR_munmap, "munmap" , NULL, print_munmap, NULL },
 #endif
 #ifdef TARGET_NR_nanosleep
 { TARGET_NR_nanosleep, "nanosleep" , NULL, NULL, NULL },

@@ -26,6 +26,14 @@ import sys
 # Avoiding ifdefs for these can diagnose typos in $cpu/syscall_nr.h
 unconditional_syscalls = [
     "close",
+    "mlock",
+    "mlockall",
+    "mprotect",
+    "mremap",
+    "msync",
+    "munlock",
+    "munlockall",
+    "munmap",
     "name_to_handle_at",
     "openat",
     "open_by_handle_at",
@@ -42,6 +50,8 @@ unconditional_syscalls = [
 # These syscalls are only supported by some target or abis.
 conditional_syscalls = [
     "ipc",
+    "mmap",
+    "mmap2",
     "msgctl",
     "msgget",
     "msgrcv",

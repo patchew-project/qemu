@@ -53,6 +53,8 @@ typedef enum {
     /* These print as sets of flags.  */
     ARG_ATDIRFD,
     ARG_ATFLAG,
+    ARG_MMAPFLAG,
+    ARG_MMAPPROT,
     ARG_MODEFLAG,
     ARG_OPENFLAG,
 

@@ -801,7 +801,7 @@ UNUSED static struct flags umount2_flags[] = {
     FLAG_END,
 };
 
-UNUSED static struct flags mmap_prot_flags[] = {
+static struct flags const mmap_prot_flags[] = {
     FLAG_GENERIC(PROT_NONE),
     FLAG_GENERIC(PROT_EXEC),
     FLAG_GENERIC(PROT_READ),
@@ -812,7 +812,7 @@ UNUSED static struct flags mmap_prot_flags[] = {
     FLAG_END,
 };
 
-UNUSED static struct flags mmap_flags[] = {
+static struct flags const mmap_flags[] = {
     FLAG_TARGET(MAP_SHARED),
     FLAG_TARGET(MAP_PRIVATE),
     FLAG_TARGET(MAP_ANONYMOUS),
@@ -2364,51 +2364,6 @@ print_utimensat(const struct syscallname *name,
 }
 #endif
 
-#if defined(TARGET_NR_mmap) || defined(TARGET_NR_mmap2)
-static void
-print_mmap(const struct syscallname *name,
-    abi_long arg0, abi_long arg1, abi_long arg2,
-    abi_long arg3, abi_long arg4, abi_long arg5)
-{
-    print_syscall_prologue(name);
-    print_pointer(arg0, 0);
-    print_raw_param("%d", arg1, 0);
-    print_flags(mmap_prot_flags, arg2, 0);
-    print_flags(mmap_flags, arg3, 0);
-    print_raw_param("%d", arg4, 0);
-    print_raw_param("%#x", arg5, 1);
-    print_syscall_epilogue(name);
-}
-#define print_mmap2     print_mmap
-#endif
-
-#ifdef TARGET_NR_mprotect
-static void
-print_mprotect(const struct syscallname *name,
-    abi_long arg0, abi_long arg1, abi_long arg2,
-    abi_long arg3, abi_long arg4, abi_long arg5)
-{
-    print_syscall_prologue(name);
-    print_pointer(arg0, 0);
-    print_raw_param("%d", arg1, 0);
-    print_flags(mmap_prot_flags, arg2, 1);
-    print_syscall_epilogue(name);
-}
-#endif
-
-#ifdef TARGET_NR_munmap
-static void
-print_munmap(const struct syscallname *name,
-    abi_long arg0, abi_long arg1, abi_long arg2,
-    abi_long arg3, abi_long arg4, abi_long arg5)
-{
-    print_syscall_prologue(name);
-    print_pointer(arg0, 0);
-    print_raw_param("%d", arg1, 1);
-    print_syscall_epilogue(name);
-}
-#endif
-
 #ifdef TARGET_NR_futex
 static void print_futex_op(abi_long tflag, int last)
 {
@@ -2612,6 +2567,12 @@ static void print_syscall_def1(const SyscallDef *def, int64_t args[6])
             break;
         case ARG_ATFLAG:
             len = add_flags(b, rest, at_file_flags, arg, false);
+            break;
+        case ARG_MMAPFLAG:
+            len = add_flags(b, rest, mmap_flags, arg, false);
+            break;
+        case ARG_MMAPPROT:
+            len = add_flags(b, rest, mmap_prot_flags, arg, false);
             break;
         case ARG_MODEFLAG:
             len = add_flags(b, rest, mode_flags, arg, true);
