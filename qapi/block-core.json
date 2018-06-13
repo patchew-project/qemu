@@ -4702,6 +4702,26 @@
   'data': { 'node-name': 'str', 'write-threshold': 'uint64' } }
 
 ##
+# @block-set-copy-on-read:
+#
+# Enables and disables the copy-on-read property of a block device.
+#
+# @device: device or graph node name on which copy-on-read must be set.
+#
+# Since: 2.12
+#
+# Example:
+#
+# -> { "execute": "block-set-copy-on-read",
+#      "arguments": { "device": "scsi0-0-0-0",
+#                     "enable": true } }
+# <- { "return": {} }
+#
+##
+{ 'command': 'block-set-copy-on-read',
+  'data': { 'device': 'str', 'enable': 'bool' } }
+
+##
 # @x-blockdev-change:
 #
 # Dynamically reconfigure the block driver state graph. It can be used

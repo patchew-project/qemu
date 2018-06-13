@@ -4276,6 +4276,44 @@ out:
     aio_context_release(aio_context);
 }
 
+void qmp_block_set_copy_on_read(const char *device, bool enable, Error **errp)
+{
+    Error *local_err = NULL;
+    AioContext *aio_context;
+    BlockDriverState *bs = bdrv_lookup_bs(device, device, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    aio_context = bdrv_get_aio_context(bs);
+    aio_context_acquire(aio_context);
+
+    if (enable) {
+        if (bs->open_flags & BDRV_O_COPY_ON_READ) {
+            error_setg(errp, "Can't enable copy-on-read for the device. "
+                             "Copy-on-read is already enabled.");
+        } else {
+            if (bdrv_enable_copy_on_read(bs)) {
+                bs->open_flags |= BDRV_O_COPY_ON_READ;
+            } else {
+                error_setg(errp, "Can't enable copy-on-read. "
+                                 "The device is read-only.");
+            }
+        }
+    } else {
+        if (bs->open_flags & BDRV_O_COPY_ON_READ) {
+            bs->open_flags &= ~BDRV_O_COPY_ON_READ;
+            bdrv_disable_copy_on_read(bs);
+        } else {
+            error_setg(errp, "Can't disable copy-on-read for the device. "
+                             "Copy-on-read is already disabled.");
+        }
+    }
+
+    aio_context_release(aio_context);
+}
+
 static BdrvChild *bdrv_find_child(BlockDriverState *parent_bs,
                                   const char *child_name)
 {
