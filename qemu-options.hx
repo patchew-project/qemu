@@ -3414,25 +3414,11 @@ STEXI
 Set the filename for the BIOS.
 ETEXI
 
-DEF("enable-kvm", 0, QEMU_OPTION_enable_kvm, \
-    "-enable-kvm     enable KVM full virtualization support\n", QEMU_ARCH_ALL)
-STEXI
-@item -enable-kvm
-@findex -enable-kvm
-Enable KVM full virtualization support. This option is only available
-if KVM support is enabled when compiling.
-ETEXI
+HXCOMM -accel kvm should be used instead, thus this is not documented anymore
+DEF("enable-kvm", 0, QEMU_OPTION_enable_kvm, "", QEMU_ARCH_ALL)
 
-DEF("enable-hax", 0, QEMU_OPTION_enable_hax, \
-    "-enable-hax     enable HAX virtualization support\n", QEMU_ARCH_I386)
-STEXI
-@item -enable-hax
-@findex -enable-hax
-Enable HAX (Hardware-based Acceleration eXecution) support. This option
-is only available if HAX support is enabled when compiling. HAX is only
-applicable to MAC and Windows platform, and thus does not conflict with
-KVM.
-ETEXI
+HXCOMM -accel hax should be used instead, thus this is not documented anymore
+DEF("enable-hax", 0, QEMU_OPTION_enable_hax, "", QEMU_ARCH_I386)
 
 DEF("xen-domid", HAS_ARG, QEMU_OPTION_xen_domid,
     "-xen-domid id   specify xen guest domain id\n", QEMU_ARCH_ALL)
