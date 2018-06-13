@@ -613,7 +613,7 @@ static void test_acpi_one(const char *params, test_data *data)
     char *args;
 
     /* Disable kernel irqchip to be able to override apic irq0. */
-    args = g_strdup_printf("-machine %s,accel=%s,kernel-irqchip=off "
+    args = g_strdup_printf("-machine %s,kernel-irqchip=off -accel %s "
                            "-net none -display none %s "
                            "-drive id=hd0,if=none,file=%s,format=raw "
                            "-device ide-hd,drive=hd0 ",

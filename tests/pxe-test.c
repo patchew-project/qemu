@@ -64,7 +64,7 @@ static void test_pxe_one(const testdef_t *test, bool ipv6)
     char *args;
 
     args = g_strdup_printf(
-        "-machine %s,accel=kvm:tcg -nodefaults -boot order=n "
+        "-machine %s -accel kvm:tcg -nodefaults -boot order=n "
         "-netdev user,id=" NETNAME ",tftp=./,bootfile=%s,ipv4=%s,ipv6=%s "
         "-device %s,bootindex=1,netdev=" NETNAME,
         test->machine, disk, ipv6 ? "off" : "on", ipv6 ? "on" : "off",

@@ -49,7 +49,7 @@ static void test_machine(const void *machine)
     /* The pseries firmware boots much faster without the default devices */
     extra_args = strcmp(machine, "pseries") == 0 ? "-nodefaults" : "";
 
-    global_qtest = qtest_startf("-M %s,accel=tcg %s "
+    global_qtest = qtest_startf("-M %s -accel tcg %s "
                                 "-prom-env 'use-nvramrc?=true' "
                                 "-prom-env 'nvramrc=%x %x l!' ",
                                 (const char *)machine, extra_args,

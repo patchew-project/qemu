@@ -129,7 +129,7 @@ export CACHEMODE="writeback"
 export QEMU_IO_OPTIONS=""
 export QEMU_IO_OPTIONS_NO_FMT=""
 export CACHEMODE_IS_DEFAULT=true
-export QEMU_OPTIONS="-nodefaults -machine accel=qtest"
+export QEMU_OPTIONS="-nodefaults -accel qtest"
 export VALGRIND_QEMU=
 export IMGKEYSECRET=
 export IMGOPTSSYNTAX=false
