@@ -35,6 +35,65 @@
             'vm-clock-sec': 'int', 'vm-clock-nsec': 'int' } }
 
 ##
+# @BitmapTypeEnum:
+#
+# An enumeration of possible serialized bitmap types.
+#
+# @dirty-tracking: This bitmap records information on dirty
+#                  segments within the file.
+#
+# @unknown: This bitmap is an unknown/reserved type.
+#
+# Since: 3.0
+##
+{ 'enum': 'BitmapTypeEnum', 'data': [ 'dirty-tracking', 'unknown' ] }
+
+##
+# @BitmapFlagEnum:
+#
+# An enumeration of possible flags for serialized bitmaps.
+#
+# @in-use: This bitmap is considered to be in-use, and may now be inconsistent.
+#
+# @auto: This bitmap must reflect any and all changes to the file it describes.
+#
+# @extra-data-compatible: The extra data associated with this bitmap can be
+#                         safely ignored if it is opaque to the reader. If
+#                         this flag is absent while extra data is present and
+#                         opaque to the reader, the bitmap must not be used.
+#
+# @reserved: This bitmap has reserved flags set.
+#
+# Since: 3.0
+##
+{ 'enum': 'BitmapFlagEnum', 'data': [ 'in-use', 'auto',
+                                      'extra-data-compatible', 'reserved' ] }
+
+##
+# @BitmapInfo:
+#
+# @name: The name of the bitmap.
+#
+# @type: The type of bitmap.
+#
+# @granularity: Bitmap granularity, in bytes.
+#
+# @count: Overall bitmap dirtiness, in bytes.
+#
+# @extra-data: True if this bitmap has extra data attached.
+#
+# @flags: Bitmap flags, if any.
+#
+# Since: 3.0
+#
+##
+{ 'struct': 'BitmapInfo',
+  'data': { 'name': 'str', 'type': 'BitmapTypeEnum', 'granularity': 'int',
+            'count': 'int', 'extra-data': 'bool', '*flags': ['BitmapFlagEnum']
+  }
+}
+
+##
 # @ImageInfoSpecificQCow2EncryptionBase:
 #
 # @format: The encryption format
@@ -70,6 +129,8 @@
 # @encrypt: details about encryption parameters; only set if image
 #           is encrypted (since 2.10)
 #
+# @bitmaps: list of image bitmaps (since 3.0)
+#
 # Since: 1.7
 ##
 { 'struct': 'ImageInfoSpecificQCow2',
@@ -78,7 +139,8 @@
       '*lazy-refcounts': 'bool',
       '*corrupt': 'bool',
       'refcount-bits': 'int',
-      '*encrypt': 'ImageInfoSpecificQCow2Encryption'
+      '*encrypt': 'ImageInfoSpecificQCow2Encryption',
+      '*bitmaps': ['BitmapInfo']
   } }
 
 ##
