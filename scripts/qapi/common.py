@@ -779,13 +779,6 @@ def check_union(expr, info):
                                    "enum '%s'"
                                    % (key, enum_define['enum']))
 
-    # If discriminator is user-defined, ensure all values are covered
-    if enum_define:
-        for value in enum_define['data']:
-            if value not in members.keys():
-                raise QAPISemError(info, "Union '%s' data missing '%s' branch"
-                                   % (name, value))
-
 
 def check_alternate(expr, info):
     name = expr['alternate']
@@ -1644,6 +1637,10 @@ class QAPISchema(object):
         if tag_name:
             variants = [self._make_variant(key, value)
                         for (key, value) in data.items()]
+            # branches that are not explicitly covered get an empty type
+            variants += [self._make_variant(key, 'q_empty')
+                         for key in discriminator_find_enum_define(expr)['data']
+                         if key not in data.keys()]
             members = []
         else:
             variants = [self._make_simple_variant(key, value, info)
