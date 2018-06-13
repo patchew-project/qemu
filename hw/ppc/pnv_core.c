@@ -173,6 +173,9 @@ static void pnv_core_realize(DeviceState *dev, Error **errp)
 
         snprintf(name, sizeof(name), "thread[%d]", i);
         object_property_add_child(OBJECT(pc), name, obj, &local_err);
+        if (local_err) {
+            goto err;
+        }
         object_property_add_alias(obj, "core-pir", OBJECT(pc),
                                   "pir", &local_err);
         if (local_err) {
