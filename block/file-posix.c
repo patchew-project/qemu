@@ -163,6 +163,11 @@ typedef struct BDRVRawState {
     bool has_fallocate;
     bool needs_alignment;
     bool check_cache_dropped;
+    struct {
+        int64_t discard_nb_ok;
+        int64_t discard_nb_failed;
+        int64_t discard_bytes_ok;
+    } stats;
 
     PRManager *pr_mgr;
 } BDRVRawState;
@@ -1533,6 +1538,16 @@ static ssize_t handle_aiocb_discard(RawPosixAIOData *aiocb)
     return ret;
 }
 
+static void raw_account_discard(BDRVRawState *s, uint64_t nbytes, int ret)
+{
+    if (ret) {
+        s->stats.discard_nb_failed++;
+    } else {
+        s->stats.discard_nb_ok++;
+        s->stats.discard_bytes_ok += nbytes;
+    }
+}
+
 static int aio_worker(void *arg)
 {
     RawPosixAIOData *aiocb = arg;
@@ -1569,6 +1584,7 @@ static int aio_worker(void *arg)
         break;
     case QEMU_AIO_DISCARD:
         ret = handle_aiocb_discard(aiocb);
+        raw_account_discard(aiocb->bs->opaque, aiocb->aio_nbytes, ret);
         break;
     case QEMU_AIO_WRITE_ZEROES:
         ret = handle_aiocb_write_zeroes(aiocb);
@@ -2965,8 +2981,9 @@ static coroutine_fn BlockAIOCB *hdev_aio_pdiscard(BlockDriverState *bs,
     BlockCompletionFunc *cb, void *opaque)
 {
     BDRVRawState *s = bs->opaque;
-
-    if (fd_open(bs) < 0) {
+    int ret = fd_open(bs);
+    if (ret < 0) {
+        raw_account_discard(s, bytes, ret);
         return NULL;
     }
     return paio_submit(bs, s->fd, offset, NULL, bytes,
