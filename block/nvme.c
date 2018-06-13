@@ -666,6 +666,8 @@ fail_queue:
     nvme_free_queue_pair(bs, s->queues[0]);
 fail:
     g_free(s->queues);
+    s->queues = NULL;
+    s->nr_queues = 0;
     if (s->regs) {
         qemu_vfio_pci_unmap_bar(s->vfio, 0, (void *)s->regs, 0, NVME_BAR_SIZE);
     }
