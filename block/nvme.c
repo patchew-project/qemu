@@ -21,6 +21,7 @@
 #include "qemu/option.h"
 #include "qemu/vfio-helpers.h"
 #include "block/block_int.h"
+#include "sysemu/block-backend.h"
 #include "trace.h"
 
 #include "block/nvme.h"
@@ -1154,6 +1155,73 @@ static void nvme_unregister_buf(BlockDriverState *bs, void *host)
     qemu_vfio_dma_unmap(s->vfio, host);
 }
 
+static QemuOptsList nvme_create_opts = {
+    .name = "nvme-create-opts",
+    .head = QTAILQ_HEAD_INITIALIZER(nvme_create_opts.head),
+    .desc = {
+        {
+            .name = BLOCK_OPT_SIZE,
+            .type = QEMU_OPT_SIZE,
+            .help = "Virtual disk size"
+        },
+        { /* end of list */ }
+    }
+};
+
+static int coroutine_fn nvme_co_create_opts(const char *filename, QemuOpts *opts,
+                                            Error **errp)
+{
+    int ret = 0;
+    BlockDriverState *bs = NULL;
+    int64_t size;
+
+    if (strncmp(filename, "nvme://", strlen("nvme://"))) {
+        error_setg(errp, "Invalid filename (must start with \"nvme://\")");
+        ret = -EINVAL;
+        goto out;
+    }
+
+    bs = bdrv_open(filename, NULL, NULL, BDRV_O_RDWR | BDRV_O_PROTOCOL, errp);
+    if (!bs) {
+        ret = -EINVAL;
+        goto out;
+    }
+
+    size = qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0);
+
+    if (size < 0 || bdrv_getlength(bs) < size) {
+        error_setg(errp, "Invalid image size");
+        ret = -EINVAL;
+    }
+
+out:
+    bdrv_unref(bs);
+    /* Hold breath for a little while before letting image format creation run.
+     * The problem is when testing with Intel P3700, the controller doesn't
+     * like the immediate open after close, as a result, nvme_init() will fail.
+     * This works around that.
+     **/
+    g_usleep(2000000);
+    return ret;
+}
+
+static int nvme_truncate(BlockDriverState *bs, int64_t offset,
+                         PreallocMode prealloc, Error **errp)
+{
+    if (prealloc != PREALLOC_MODE_OFF) {
+        error_setg(errp, "Preallocation mode '%s' unsupported",
+                   PreallocMode_str(prealloc));
+        return -ENOTSUP;
+    }
+
+    if (offset > nvme_getlength(bs)) {
+        error_setg(errp, "Cannot grow device files");
+        return -EINVAL;
+    }
+
+    return 0;
+}
+
 static BlockDriver bdrv_nvme = {
     .format_name              = "nvme",
     .protocol_name            = "nvme",
@@ -1180,6 +1248,10 @@ static BlockDriver bdrv_nvme = {
 
     .bdrv_register_buf        = nvme_register_buf,
     .bdrv_unregister_buf      = nvme_unregister_buf,
+
+    .create_opts              = &nvme_create_opts,
+    .bdrv_co_create_opts      = nvme_co_create_opts,
+    .bdrv_truncate            = nvme_truncate,
 };
 
 static void bdrv_nvme_init(void)
