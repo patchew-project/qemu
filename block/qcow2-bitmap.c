@@ -1046,23 +1046,22 @@ int qcow2_reopen_bitmaps_rw_hint(BlockDriverState *bs, bool *header_updated,
     }
 
     QSIMPLEQ_FOREACH(bm, bm_list, entry) {
-        if (!(bm->flags & BME_FLAG_IN_USE)) {
-            BdrvDirtyBitmap *bitmap = bdrv_find_dirty_bitmap(bs, bm->name);
-            if (bitmap == NULL) {
-                continue;
-            }
-
-            if (!bdrv_dirty_bitmap_readonly(bitmap)) {
-                error_setg(errp, "Bitmap %s is not readonly but not marked"
-                                 "'IN_USE' in the image. Something went wrong,"
-                                 "all the bitmaps may be corrupted", bm->name);
-                ret = -EINVAL;
-                goto out;
-            }
-
-            bm->flags |= BME_FLAG_IN_USE;
-            ro_dirty_bitmaps = g_slist_append(ro_dirty_bitmaps, bitmap);
+        if (bm->flags & BME_FLAG_IN_USE) {
+            error_setg(errp, "Bitmap '%s' is in use; can't reopen RW",
+                       bm->name);
+            ret = -EINVAL;
+            goto out;
+        } else if (!bdrv_dirty_bitmap_readonly(bm->dirty_bitmap)) {
+            error_setg(errp, "Bitmap %s is neither readonly nor 'IN_USE' in "
+                       "the image. Something went wrong, all the bitmaps may "
+                       "be corrupted. Please report this to the developers at "
+                       " qemu-devel@nongnu.org", bm->name);
+            ret = -EINVAL;
+            goto out;
         }
+
+        bm->flags |= BME_FLAG_IN_USE;
+        ro_dirty_bitmaps = g_slist_append(ro_dirty_bitmaps, bm->dirty_bitmap);
     }
 
     if (ro_dirty_bitmaps != NULL) {
