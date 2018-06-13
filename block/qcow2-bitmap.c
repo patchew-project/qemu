@@ -86,6 +86,7 @@ typedef struct Qcow2Bitmap {
     uint8_t type;
     uint8_t granularity_bits;
     char *name;
+    uint32_t extra_data_size;
 
     BdrvDirtyBitmap *dirty_bitmap;
 
@@ -609,6 +610,7 @@ static Qcow2BitmapList *bitmap_list_load(BlockDriverState *bs, Error **errp)
         bm->table.size = e->bitmap_table_size;
         bm->flags = e->flags;
         bm->type = e->type;
+        bm->extra_data_size = e->extra_data_size;
         bm->granularity_bits = e->granularity_bits;
         bm->name = dir_entry_copy_name(e);
         QSIMPLEQ_INSERT_TAIL(bm_list, bm, entry);
@@ -782,7 +784,7 @@ static int bitmap_list_store(BlockDriverState *bs, Qcow2BitmapList *bm_list,
         e->type = bm->type;
         e->granularity_bits = bm->granularity_bits;
         e->name_size = strlen(bm->name);
-        e->extra_data_size = 0;
+        e->extra_data_size = bm->extra_data_size;
         memcpy(e + 1, bm->name, e->name_size);
 
         if (check_dir_entry(bs, e) < 0) {
