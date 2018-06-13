@@ -83,6 +83,7 @@ typedef QSIMPLEQ_HEAD(Qcow2BitmapTableList, Qcow2BitmapTable)
 typedef struct Qcow2Bitmap {
     Qcow2BitmapTable table;
     uint32_t flags;
+    uint8_t type;
     uint8_t granularity_bits;
     char *name;
 
@@ -607,6 +608,7 @@ static Qcow2BitmapList *bitmap_list_load(BlockDriverState *bs, Error **errp)
         bm->table.offset = e->bitmap_table_offset;
         bm->table.size = e->bitmap_table_size;
         bm->flags = e->flags;
+        bm->type = e->type;
         bm->granularity_bits = e->granularity_bits;
         bm->name = dir_entry_copy_name(e);
         QSIMPLEQ_INSERT_TAIL(bm_list, bm, entry);
@@ -777,7 +779,7 @@ static int bitmap_list_store(BlockDriverState *bs, Qcow2BitmapList *bm_list,
         e->bitmap_table_offset = bm->table.offset;
         e->bitmap_table_size = bm->table.size;
         e->flags = bm->flags;
-        e->type = BT_DIRTY_TRACKING_BITMAP;
+        e->type = bm->type;
         e->granularity_bits = bm->granularity_bits;
         e->name_size = strlen(bm->name);
         e->extra_data_size = 0;
@@ -1393,6 +1395,7 @@ void qcow2_store_persistent_dirty_bitmaps(BlockDriverState *bs, Error **errp)
         }
         bm->flags = bdrv_dirty_bitmap_enabled(bitmap) ? BME_FLAG_AUTO : 0;
         bm->granularity_bits = ctz32(bdrv_dirty_bitmap_granularity(bitmap));
+        bm->type = BT_DIRTY_TRACKING_BITMAP;
         bm->dirty_bitmap = bitmap;
     }
 
