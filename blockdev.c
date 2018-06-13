@@ -3695,6 +3695,7 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
                                    bool has_unmap, bool unmap,
                                    bool has_filter_node_name,
                                    const char *filter_node_name,
+                                   bool has_copy_mode, MirrorCopyMode copy_mode,
                                    Error **errp)
 {
 
@@ -3718,6 +3719,9 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
     }
     if (!has_filter_node_name) {
         filter_node_name = NULL;
+    }
+    if (!has_copy_mode) {
+        copy_mode = MIRROR_COPY_MODE_BACKGROUND;
     }
 
     if (granularity != 0 && (granularity < 512 || granularity > 1048576 * 64)) {
@@ -3749,7 +3753,7 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
                  has_replaces ? replaces : NULL,
                  speed, granularity, buf_size, sync, backing_mode,
                  on_source_error, on_target_error, unmap, filter_node_name,
-                 errp);
+                 copy_mode, errp);
 }
 
 void qmp_drive_mirror(DriveMirror *arg, Error **errp)
@@ -3895,6 +3899,7 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
                            arg->has_on_target_error, arg->on_target_error,
                            arg->has_unmap, arg->unmap,
                            false, NULL,
+                           arg->has_copy_mode, arg->copy_mode,
                            &local_err);
     bdrv_unref(target_bs);
     error_propagate(errp, local_err);
@@ -3915,6 +3920,7 @@ void qmp_blockdev_mirror(bool has_job_id, const char *job_id,
                          BlockdevOnError on_target_error,
                          bool has_filter_node_name,
                          const char *filter_node_name,
+                         bool has_copy_mode, MirrorCopyMode copy_mode,
                          Error **errp)
 {
     BlockDriverState *bs;
@@ -3947,6 +3953,7 @@ void qmp_blockdev_mirror(bool has_job_id, const char *job_id,
                            has_on_target_error, on_target_error,
                            true, true,
                            has_filter_node_name, filter_node_name,
+                           has_copy_mode, copy_mode,
                            &local_err);
     error_propagate(errp, local_err);
 
