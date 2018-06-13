@@ -1745,8 +1745,8 @@ static int spapr_post_load(void *opaque, int version_id)
     if (!object_dynamic_cast(OBJECT(spapr->ics), TYPE_ICS_KVM)) {
         CPUState *cs;
         CPU_FOREACH(cs) {
-            PowerPCCPU *cpu = POWERPC_CPU(cs);
-            icp_resend(ICP(cpu->intc));
+            sPAPRCPUState *spapr_cpu = spapr_cpu_state(POWERPC_CPU(cs));
+            icp_resend(spapr_cpu->icp);
         }
     }
 
@@ -3783,7 +3783,7 @@ static ICPState *spapr_icp_get(XICSFabric *xi, int vcpu_id)
 {
     PowerPCCPU *cpu = spapr_find_cpu(vcpu_id);
 
-    return cpu ? ICP(cpu->intc) : NULL;
+    return cpu ? spapr_cpu_state(cpu)->icp : NULL;
 }
 
 #define ICS_IRQ_FREE(ics, srcno)   \
@@ -3925,7 +3925,7 @@ static void spapr_pic_print_info(InterruptStatsProvider *obj,
     CPU_FOREACH(cs) {
         PowerPCCPU *cpu = POWERPC_CPU(cs);
 
-        icp_pic_print_info(ICP(cpu->intc), mon);
+        icp_pic_print_info(spapr_cpu_state(cpu)->icp, mon);
     }
 
     ics_pic_print_info(spapr->ics, mon);

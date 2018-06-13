@@ -104,8 +104,12 @@ const char *spapr_get_cpu_core_type(const char *cpu_type)
 
 static void spapr_unrealize_vcpu(PowerPCCPU *cpu)
 {
+    sPAPRCPUState *spapr_cpu = spapr_cpu_state(cpu);
+
     qemu_unregister_reset(spapr_cpu_reset, cpu);
-    object_unparent(cpu->intc);
+    object_unparent(OBJECT(spapr_cpu->icp));
+    cpu->machine_data = NULL;
+    g_free(spapr_cpu);
     cpu_remove_sync(CPU(cpu));
     object_unparent(OBJECT(cpu));
 }
@@ -127,11 +131,14 @@ static void spapr_realize_vcpu(PowerPCCPU *cpu, sPAPRMachineState *spapr,
 {
     CPUPPCState *env = &cpu->env;
     Error *local_err = NULL;
+    sPAPRCPUState *spapr_cpu;
 
     object_property_set_bool(OBJECT(cpu), true, "realized", &local_err);
     if (local_err) {
         goto error;
     }
+
+    spapr_cpu = cpu->machine_data = g_new0(sPAPRCPUState, 1);
 
     /* Set time-base frequency to 512 MHz */
     cpu_ppc_tb_init(env, SPAPR_TIMEBASE_FREQ);
@@ -142,8 +149,8 @@ static void spapr_realize_vcpu(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     qemu_register_reset(spapr_cpu_reset, cpu);
     spapr_cpu_reset(cpu);
 
-    cpu->intc = icp_create(OBJECT(cpu), spapr->icp_type, XICS_FABRIC(spapr),
-                           &local_err);
+    spapr_cpu->icp = icp_create(OBJECT(cpu), spapr->icp_type,
+                                XICS_FABRIC(spapr), &local_err);
     if (local_err) {
         goto error;
     }

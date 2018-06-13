@@ -41,4 +41,14 @@ typedef struct sPAPRCPUCoreClass {
 const char *spapr_get_cpu_core_type(const char *cpu_type);
 void spapr_cpu_set_entry_state(PowerPCCPU *cpu, target_ulong nip, target_ulong r3);
 
+typedef struct ICPState ICPState;
+typedef struct sPAPRCPUState {
+    ICPState *icp;
+} sPAPRCPUState;
+
+static inline sPAPRCPUState *spapr_cpu_state(PowerPCCPU *cpu)
+{
+    return (sPAPRCPUState *)cpu->machine_data;
+}
+
 #endif
