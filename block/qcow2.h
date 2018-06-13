@@ -295,6 +295,7 @@ typedef struct BDRVQcow2State {
     uint64_t bitmap_directory_size;
     uint64_t bitmap_directory_offset;
     bool dirty_bitmaps_loaded;
+    void *bitmap_list;
 
     int flags;
     int qcow_version;
@@ -671,6 +672,7 @@ bool qcow2_load_dirty_bitmaps(BlockDriverState *bs, Error **errp);
 int qcow2_reopen_bitmaps_rw_hint(BlockDriverState *bs, bool *header_updated,
                                  Error **errp);
 int qcow2_reopen_bitmaps_rw(BlockDriverState *bs, Error **errp);
+void qcow2_persistent_dirty_bitmaps_cache_destroy(BlockDriverState *bs);
 void qcow2_store_persistent_dirty_bitmaps(BlockDriverState *bs, Error **errp);
 int qcow2_reopen_bitmaps_ro(BlockDriverState *bs, Error **errp);
 bool qcow2_can_store_new_dirty_bitmap(BlockDriverState *bs,

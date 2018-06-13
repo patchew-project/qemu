@@ -636,6 +636,34 @@ fail:
     return NULL;
 }
 
+static Qcow2BitmapList *get_bitmap_list(BlockDriverState *bs, Error **errp)
+{
+    BDRVQcow2State *s = bs->opaque;
+    Qcow2BitmapList *bm_list;
+
+    if (s->bitmap_list) {
+        return (Qcow2BitmapList *)s->bitmap_list;
+    }
+
+    if (s->nb_bitmaps) {
+        bm_list = bitmap_list_load(bs, errp);
+    } else {
+        bm_list = bitmap_list_new();
+    }
+    s->bitmap_list = bm_list;
+    return bm_list;
+}
+
+static void del_bitmap_list(BlockDriverState *bs)
+{
+    BDRVQcow2State *s = bs->opaque;
+
+    if (s->bitmap_list) {
+        bitmap_list_free(s->bitmap_list);
+        s->bitmap_list = NULL;
+    }
+}
+
 int qcow2_check_bitmaps_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
                                   void **refcount_table,
                                   int64_t *refcount_table_size)
@@ -656,7 +684,7 @@ int qcow2_check_bitmaps_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
         return ret;
     }
 
-    bm_list = bitmap_list_load(bs, NULL);
+    bm_list = get_bitmap_list(bs, NULL);
     if (bm_list == NULL) {
         res->corruptions++;
         return -EINVAL;
@@ -706,8 +734,6 @@ int qcow2_check_bitmaps_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
     }
 
 out:
-    bitmap_list_free(bm_list);
-
     return ret;
 }
 
@@ -944,7 +970,7 @@ bool qcow2_load_dirty_bitmaps(BlockDriverState *bs, Error **errp)
         return false;
     }
 
-    bm_list = bitmap_list_load(bs, errp);
+    bm_list = get_bitmap_list(bs, errp);
     if (bm_list == NULL) {
         return false;
     }
@@ -978,8 +1004,6 @@ bool qcow2_load_dirty_bitmaps(BlockDriverState *bs, Error **errp)
         }
     }
 
-    bitmap_list_free(bm_list);
-
     return needs_update;
 
 fail:
@@ -988,8 +1012,7 @@ fail:
             bdrv_release_dirty_bitmap(bs, bm->dirty_bitmap);
         }
     }
-    bitmap_list_free(bm_list);
-
+    del_bitmap_list(bs);
     return false;
 }
 
@@ -1016,7 +1039,7 @@ int qcow2_reopen_bitmaps_rw_hint(BlockDriverState *bs, bool *header_updated,
         return -EINVAL;
     }
 
-    bm_list = bitmap_list_load(bs, errp);
+    bm_list = get_bitmap_list(bs, errp);
     if (bm_list == NULL) {
         return -EINVAL;
     }
@@ -1056,7 +1079,6 @@ int qcow2_reopen_bitmaps_rw_hint(BlockDriverState *bs, bool *header_updated,
 
 out:
     g_slist_free(ro_dirty_bitmaps);
-    bitmap_list_free(bm_list);
 
     return ret;
 }
@@ -1265,7 +1287,7 @@ void qcow2_remove_persistent_dirty_bitmap(BlockDriverState *bs,
         return;
     }
 
-    bm_list = bitmap_list_load(bs, errp);
+    bm_list = get_bitmap_list(bs, errp);
     if (bm_list == NULL) {
         return;
     }
@@ -1287,7 +1309,11 @@ void qcow2_remove_persistent_dirty_bitmap(BlockDriverState *bs,
 
 fail:
     bitmap_free(bm);
-    bitmap_list_free(bm_list);
+}
+
+void qcow2_persistent_dirty_bitmaps_cache_destroy(BlockDriverState *bs)
+{
+    del_bitmap_list(bs);
 }
 
 void qcow2_store_persistent_dirty_bitmaps(BlockDriverState *bs, Error **errp)
@@ -1304,23 +1330,19 @@ void qcow2_store_persistent_dirty_bitmaps(BlockDriverState *bs, Error **errp)
 
     if (!bdrv_has_changed_persistent_bitmaps(bs)) {
         /* nothing to do */
-        return;
+        goto out;
     }
 
     if (!can_write(bs)) {
         error_setg(errp, "No write access");
-        return;
+        goto out;
     }
 
     QSIMPLEQ_INIT(&drop_tables);
 
-    if (s->nb_bitmaps == 0) {
-        bm_list = bitmap_list_new();
-    } else {
-        bm_list = bitmap_list_load(bs, errp);
-        if (bm_list == NULL) {
-            return;
-        }
+    bm_list = get_bitmap_list(bs, errp);
+    if (bm_list == NULL) {
+        goto out;
     }
 
     /* check constraints and names */
@@ -1400,8 +1422,7 @@ void qcow2_store_persistent_dirty_bitmaps(BlockDriverState *bs, Error **errp)
         g_free(tb);
     }
 
-    bitmap_list_free(bm_list);
-    return;
+    goto out;
 
 fail:
     QSIMPLEQ_FOREACH(bm, bm_list, entry) {
@@ -1416,7 +1437,9 @@ fail:
         g_free(tb);
     }
 
-    bitmap_list_free(bm_list);
+ out:
+    del_bitmap_list(bs);
+    return;
 }
 
 int qcow2_reopen_bitmaps_ro(BlockDriverState *bs, Error **errp)
@@ -1481,13 +1504,12 @@ bool qcow2_can_store_new_dirty_bitmap(BlockDriverState *bs,
         goto fail;
     }
 
-    bm_list = bitmap_list_load(bs, errp);
+    bm_list = get_bitmap_list(bs, errp);
     if (bm_list == NULL) {
         goto fail;
     }
 
     found = find_bitmap_by_name(bm_list, name);
-    bitmap_list_free(bm_list);
     if (found) {
         error_setg(errp, "Bitmap with the same name is already stored");
         goto fail;
