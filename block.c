@@ -1370,9 +1370,7 @@ static int bdrv_open_common(BlockDriverState *bs, BlockBackend *file,
     assert(atomic_read(&bs->copy_on_read) == 0);
 
     if (bs->open_flags & BDRV_O_COPY_ON_READ) {
-        if (!bs->read_only) {
-            bdrv_enable_copy_on_read(bs);
-        } else {
+        if (!bdrv_enable_copy_on_read(bs)) {
             error_setg(errp, "Can't use copy-on-read on read-only device");
             ret = -EINVAL;
             goto fail_opts;

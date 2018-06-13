@@ -131,9 +131,15 @@ void bdrv_refresh_limits(BlockDriverState *bs, Error **errp)
  * use the feature without worrying about clobbering its previous state.
  * Copy-on-read stays enabled until all users have called to disable it.
  */
-void bdrv_enable_copy_on_read(BlockDriverState *bs)
+bool bdrv_enable_copy_on_read(BlockDriverState *bs)
 {
-    atomic_inc(&bs->copy_on_read);
+    if (bs->read_only) {
+        return false;
+    } else {
+        atomic_inc(&bs->copy_on_read);
+    }
+
+    return true;
 }
 
 void bdrv_disable_copy_on_read(BlockDriverState *bs)

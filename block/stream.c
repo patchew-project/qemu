@@ -130,8 +130,9 @@ static void coroutine_fn stream_run(void *opaque)
      * backing chain since the copy-on-read operation does not take base into
      * account.
      */
-    if (!base) {
-        bdrv_enable_copy_on_read(bs);
+    if (!base && !bdrv_enable_copy_on_read(bs)) {
+        ret = -EPERM;
+        goto out;
     }
 
     for ( ; offset < len; offset += n) {
