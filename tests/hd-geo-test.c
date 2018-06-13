@@ -347,22 +347,6 @@ static void test_ide_drive_user(const char *dev, bool trans)
 }
 
 /*
- * Test case: IDE device (if=ide) with explicit CHS
- */
-static void test_ide_drive_user_chs(void)
-{
-    test_ide_drive_user(NULL, false);
-}
-
-/*
- * Test case: IDE device (if=ide) with explicit CHS and translation
- */
-static void test_ide_drive_user_chst(void)
-{
-    test_ide_drive_user(NULL, true);
-}
-
-/*
  * Test case: IDE device (if=none) with explicit CHS
  */
 static void test_ide_device_user_chs(void)
@@ -422,8 +406,6 @@ int main(int argc, char **argv)
     qtest_add_func("hd-geo/ide/drive/mbr/blank", test_ide_drive_mbr_blank);
     qtest_add_func("hd-geo/ide/drive/mbr/lba", test_ide_drive_mbr_lba);
     qtest_add_func("hd-geo/ide/drive/mbr/chs", test_ide_drive_mbr_chs);
-    qtest_add_func("hd-geo/ide/drive/user/chs", test_ide_drive_user_chs);
-    qtest_add_func("hd-geo/ide/drive/user/chst", test_ide_drive_user_chst);
     qtest_add_func("hd-geo/ide/drive/cd_0", test_ide_drive_cd_0);
     qtest_add_func("hd-geo/ide/device/mbr/blank", test_ide_device_mbr_blank);
     qtest_add_func("hd-geo/ide/device/mbr/lba", test_ide_device_mbr_lba);
