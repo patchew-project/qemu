@@ -4236,6 +4236,63 @@ fail:
     visit_free(v);
 }
 
+void qmp_x_blockdev_reopen(BlockdevOptions *options, Error **errp)
+{
+    BlockDriverState *bs;
+    QObject *obj;
+    Visitor *v = qobject_output_visitor_new(&obj);
+    Error *local_err = NULL;
+    int flags;
+    BlockReopenQueue *queue;
+    QDict *qdict;
+
+    /* Check for the selected node name */
+    if (!options->has_node_name) {
+        error_setg(errp, "Node name not specified");
+        goto fail;
+    }
+
+    bs = bdrv_find_node(options->node_name);
+    if (!bs) {
+        error_setg(errp, "Cannot find node named '%s'", options->node_name);
+        goto fail;
+    }
+
+    /* Put all options in a QDict and flatten it */
+    visit_type_BlockdevOptions(v, NULL, &options, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        goto fail;
+    }
+
+    visit_complete(v, &obj);
+    qdict = qobject_to(QDict, obj);
+
+    qdict_flatten(qdict);
+
+    /* Set some default values */
+    qdict_put_bool(qdict, BDRV_OPT_CACHE_DIRECT,
+                   qdict_get_try_bool(qdict, BDRV_OPT_CACHE_DIRECT, false));
+    qdict_put_bool(qdict, BDRV_OPT_CACHE_NO_FLUSH,
+                   qdict_get_try_bool(qdict, BDRV_OPT_CACHE_NO_FLUSH, false));
+    qdict_put_bool(qdict, BDRV_OPT_READ_ONLY,
+                   qdict_get_try_bool(qdict, BDRV_OPT_READ_ONLY, false));
+
+    flags = 0;
+    if (!qdict_get_bool(qdict, BDRV_OPT_READ_ONLY)) {
+        flags |= (BDRV_O_RDWR | BDRV_O_ALLOW_RDWR);
+    }
+
+    /* Perform the reopen operation */
+    bdrv_subtree_drained_begin(bs);
+    queue = bdrv_reopen_queue(NULL, bs, qdict, flags, false);
+    bdrv_reopen_multiple(bdrv_get_aio_context(bs), queue, errp);
+    bdrv_subtree_drained_end(bs);
+
+fail:
+    visit_free(v);
+}
+
 void qmp_blockdev_del(const char *node_name, Error **errp)
 {
     AioContext *aio_context;
