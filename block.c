@@ -2823,6 +2823,43 @@ BlockDriverState *bdrv_open(const char *filename, const char *reference,
 }
 
 /*
+ * For every option in @list, check that if it is present in
+ * @state->bs->explicit_options then it is also present in
+ * @state->options. Options present in @mutable_opts are skipped.
+ *
+ * @mutable_opts is either NULL or a NULL-terminated array of option
+ * names.
+ *
+ * Return 0 on success, -EINVAL otherwise.
+ */
+static int bdrv_reset_options_allowed(BDRVReopenState *state,
+                                      QemuOptsList *list,
+                                      const char *const mutable_opts[],
+                                      Error **errp)
+{
+    QemuOptDesc *desc;
+    for (desc = list->desc; desc && desc->name; desc++) {
+        unsigned i;
+        bool skip_option = false;
+        for (i = 0; mutable_opts && mutable_opts[i] != 0; i++) {
+            if (!strcmp(desc->name, mutable_opts[i])) {
+                skip_option = true;
+                break;
+            }
+        }
+
+        if (!skip_option && !qdict_haskey(state->options, desc->name) &&
+            qdict_haskey(state->bs->explicit_options, desc->name)) {
+            error_setg(errp, "Option '%s' can't be reset to its default value",
+                       desc->name);
+            return -EINVAL;
+        }
+    }
+
+    return 0;
+}
+
+/*
  * Returns true if @child can be reached recursively from @bs
  */
 static bool bdrv_recurse_has_child(BlockDriverState *bs,
@@ -3254,6 +3291,18 @@ int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
     }
 
     if (drv->bdrv_reopen_prepare) {
+        /* If a driver-specified option is missing, it means that we
+         * should reset it to its default value. Not all options can
+         * be modified, so we need to check that first */
+        if (drv->runtime_opts) {
+            ret = bdrv_reset_options_allowed(reopen_state, drv->runtime_opts,
+                                             drv->mutable_opts, &local_err);
+            if (ret) {
+                error_propagate(errp, local_err);
+                goto error;
+            }
+        }
+
         ret = drv->bdrv_reopen_prepare(reopen_state, queue, &local_err);
         if (ret) {
             if (local_err != NULL) {
