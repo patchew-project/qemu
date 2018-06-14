@@ -58,6 +58,7 @@ static void clipper_init(MachineState *machine)
     AlphaCPU *cpus[4];
     PCIBus *pci_bus;
     ISABus *isa_bus;
+    DeviceState *superio;
     qemu_irq rtc_irq;
     long size, i;
     char *palcode_filename;
@@ -95,7 +96,10 @@ static void clipper_init(MachineState *machine)
     isa_create_simple(isa_bus, "i82374");
 
     /* Super I/O */
-    isa_create_simple(isa_bus, TYPE_SMC37C669_SUPERIO);
+    superio = DEVICE(isa_create(isa_bus, TYPE_SMC37C669_SUPERIO));
+    /* Real PALcode configures the Super I/O and disable the parallel port */
+    qdev_prop_set_bit(superio, "parallel", false);
+    qdev_init_nofail(superio);
 
     /* IDE disk setup.  */
     {
