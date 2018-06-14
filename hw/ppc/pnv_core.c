@@ -121,11 +121,12 @@ static const MemoryRegionOps pnv_core_xscom_ops = {
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
-static void pnv_core_realize_child(Object *child, XICSFabric *xi, Error **errp)
+static void pnv_core_realize_child(Object *child, PnvChip *chip, Error **errp)
 {
     Error *local_err = NULL;
     CPUState *cs = CPU(child);
     PowerPCCPU *cpu = POWERPC_CPU(cs);
+    PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
 
     object_property_set_bool(child, true, "realized", &local_err);
     if (local_err) {
@@ -133,7 +134,7 @@ static void pnv_core_realize_child(Object *child, XICSFabric *xi, Error **errp)
         return;
     }
 
-    cpu->intc = icp_create(child, TYPE_PNV_ICP, xi, &local_err);
+    cpu->intc = pcc->intc_create(chip, child, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -156,13 +157,12 @@ static void pnv_core_realize(DeviceState *dev, Error **errp)
     void *obj;
     int i, j;
     char name[32];
-    Object *xi;
+    Object *chip;
 
-    xi = object_property_get_link(OBJECT(dev), "xics", &local_err);
-    if (!xi) {
-        error_setg(errp, "%s: required link 'xics' not found: %s",
-                   __func__, error_get_pretty(local_err));
-        return;
+    chip = object_property_get_link(OBJECT(dev), "chip", &local_err);
+    if (!chip) {
+        error_propagate(errp, local_err);
+        error_prepend(errp, "required link 'chip' not found: ");
     }
 
     pc->threads = g_malloc0(size * cc->nr_threads);
@@ -184,7 +184,7 @@ static void pnv_core_realize(DeviceState *dev, Error **errp)
     for (j = 0; j < cc->nr_threads; j++) {
         obj = pc->threads + j * size;
 
-        pnv_core_realize_child(obj, XICS_FABRIC(xi), &local_err);
+        pnv_core_realize_child(obj, PNV_CHIP(chip), &local_err);
         if (local_err) {
             goto err;
         }
