@@ -148,102 +148,26 @@ static QemuOptsList block_crypto_create_opts_luks = {
 
 
 QCryptoBlockOpenOptions *
-block_crypto_open_opts_init(QCryptoBlockFormat format,
-                            QDict *opts,
-                            Error **errp)
+block_crypto_open_opts_init(QDict *opts, Error **errp)
 {
     Visitor *v;
-    QCryptoBlockOpenOptions *ret = NULL;
-    Error *local_err = NULL;
-
-    ret = g_new0(QCryptoBlockOpenOptions, 1);
-    ret->format = format;
+    QCryptoBlockOpenOptions *ret;
 
     v = qobject_input_visitor_new_keyval(QOBJECT(opts));
-
-    visit_start_struct(v, NULL, NULL, 0, &local_err);
-    if (local_err) {
-        goto out;
-    }
-
-    switch (format) {
-    case Q_CRYPTO_BLOCK_FORMAT_LUKS:
-        visit_type_QCryptoBlockOptionsLUKS_members(
-            v, &ret->u.luks, &local_err);
-        break;
-
-    case Q_CRYPTO_BLOCK_FORMAT_QCOW:
-        visit_type_QCryptoBlockOptionsQCow_members(
-            v, &ret->u.qcow, &local_err);
-        break;
-
-    default:
-        error_setg(&local_err, "Unsupported block format %d", format);
-        break;
-    }
-    if (!local_err) {
-        visit_check_struct(v, &local_err);
-    }
-
-    visit_end_struct(v, NULL);
-
- out:
-    if (local_err) {
-        error_propagate(errp, local_err);
-        qapi_free_QCryptoBlockOpenOptions(ret);
-        ret = NULL;
-    }
+    visit_type_QCryptoBlockOpenOptions(v, NULL, &ret, errp);
     visit_free(v);
     return ret;
 }
 
 
 QCryptoBlockCreateOptions *
-block_crypto_create_opts_init(QCryptoBlockFormat format,
-                              QDict *opts,
-                              Error **errp)
+block_crypto_create_opts_init(QDict *opts, Error **errp)
 {
     Visitor *v;
-    QCryptoBlockCreateOptions *ret = NULL;
-    Error *local_err = NULL;
-
-    ret = g_new0(QCryptoBlockCreateOptions, 1);
-    ret->format = format;
+    QCryptoBlockCreateOptions *ret;
 
     v = qobject_input_visitor_new_keyval(QOBJECT(opts));
-
-    visit_start_struct(v, NULL, NULL, 0, &local_err);
-    if (local_err) {
-        goto out;
-    }
-
-    switch (format) {
-    case Q_CRYPTO_BLOCK_FORMAT_LUKS:
-        visit_type_QCryptoBlockCreateOptionsLUKS_members(
-            v, &ret->u.luks, &local_err);
-        break;
-
-    case Q_CRYPTO_BLOCK_FORMAT_QCOW:
-        visit_type_QCryptoBlockOptionsQCow_members(
-            v, &ret->u.qcow, &local_err);
-        break;
-
-    default:
-        error_setg(&local_err, "Unsupported block format %d", format);
-        break;
-    }
-    if (!local_err) {
-        visit_check_struct(v, &local_err);
-    }
-
-    visit_end_struct(v, NULL);
-
- out:
-    if (local_err) {
-        error_propagate(errp, local_err);
-        qapi_free_QCryptoBlockCreateOptions(ret);
-        ret = NULL;
-    }
+    visit_type_QCryptoBlockCreateOptions(v, NULL, &ret, errp);
     visit_free(v);
     return ret;
 }
@@ -281,8 +205,9 @@ static int block_crypto_open_generic(QCryptoBlockFormat format,
     }
 
     cryptoopts = qemu_opts_to_qdict(opts, NULL);
+    qdict_put_str(cryptoopts, "format", QCryptoBlockFormat_str(format));
 
-    open_opts = block_crypto_open_opts_init(format, cryptoopts, errp);
+    open_opts = block_crypto_open_opts_init(cryptoopts, errp);
     if (!open_opts) {
         goto cleanup;
     }
@@ -605,8 +530,8 @@ static int coroutine_fn block_crypto_co_create_opts_luks(const char *filename,
                                              &block_crypto_create_opts_luks,
                                              true);
 
-    create_opts = block_crypto_create_opts_init(Q_CRYPTO_BLOCK_FORMAT_LUKS,
-                                                cryptoopts, errp);
+    qdict_put_str(cryptoopts, "format", "luks");
+    create_opts = block_crypto_create_opts_init(cryptoopts, errp);
     if (!create_opts) {
         ret = -EINVAL;
         goto fail;
