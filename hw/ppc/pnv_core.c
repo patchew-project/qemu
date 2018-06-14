@@ -105,6 +105,7 @@ static void pnv_realize_vcpu(PowerPCCPU *cpu, XICSFabric *xi, Error **errp)
     int core_pir;
     int thread_index = 0; /* TODO: TCG supports only one thread */
     ppc_spr_t *pir = &env->spr_cb[SPR_PIR];
+    PnvCPUState *pnv_cpu;
     Error *local_err = NULL;
 
     object_property_set_bool(OBJECT(cpu), true, "realized", &local_err);
@@ -113,7 +114,9 @@ static void pnv_realize_vcpu(PowerPCCPU *cpu, XICSFabric *xi, Error **errp)
         return;
     }
 
-    cpu->intc = icp_create(OBJECT(cpu), TYPE_PNV_ICP, xi, &local_err);
+    cpu->machine_data = pnv_cpu = g_new0(PnvCPUState, 1);
+
+    pnv_cpu->icp = icp_create(OBJECT(cpu), TYPE_PNV_ICP, xi, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -188,8 +191,12 @@ err:
 
 static void pnv_unrealize_vcpu(PowerPCCPU *cpu)
 {
+    PnvCPUState *pnv_cpu = pnv_cpu_state(cpu);
+
     qemu_unregister_reset(pnv_cpu_reset, cpu);
-    object_unparent(cpu->intc);
+    object_unparent(OBJECT(pnv_cpu->icp));
+    cpu->machine_data = NULL;
+    g_free(pnv_cpu);
     cpu_remove_sync(CPU(cpu));
     object_unparent(OBJECT(cpu));
 }
