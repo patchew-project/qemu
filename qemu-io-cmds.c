@@ -2050,7 +2050,7 @@ static int reopen_f(BlockBackend *blk, int argc, char **argv)
     qemu_opts_reset(&reopen_opts);
 
     bdrv_subtree_drained_begin(bs);
-    brq = bdrv_reopen_queue(NULL, bs, opts, flags);
+    brq = bdrv_reopen_queue(NULL, bs, opts, flags, true);
     bdrv_reopen_multiple(bdrv_get_aio_context(bs), brq, &local_err);
     bdrv_subtree_drained_end(bs);
 

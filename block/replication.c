@@ -401,12 +401,12 @@ static void reopen_backing_file(BlockDriverState *bs, bool writable,
 
     if (orig_hidden_flags != new_hidden_flags) {
         reopen_queue = bdrv_reopen_queue(reopen_queue, s->hidden_disk->bs, NULL,
-                                         new_hidden_flags);
+                                         new_hidden_flags, true);
     }
 
     if (!(orig_secondary_flags & BDRV_O_RDWR)) {
         reopen_queue = bdrv_reopen_queue(reopen_queue, s->secondary_disk->bs,
-                                         NULL, new_secondary_flags);
+                                         NULL, new_secondary_flags, true);
     }
 
     if (reopen_queue) {

@@ -2850,7 +2850,8 @@ static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
                                                  int flags,
                                                  const BdrvChildRole *role,
                                                  QDict *parent_options,
-                                                 int parent_flags)
+                                                 int parent_flags,
+                                                 bool keep_old_opts)
 {
     assert(bs != NULL);
 
@@ -2899,13 +2900,13 @@ static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
     }
 
     /* Old explicitly set values (don't overwrite by inherited value) */
-    if (bs_entry) {
-        old_options = qdict_clone_shallow(bs_entry->state.explicit_options);
-    } else {
-        old_options = qdict_clone_shallow(bs->explicit_options);
+    if (bs_entry || keep_old_opts) {
+        old_options = qdict_clone_shallow(bs_entry ?
+                                          bs_entry->state.explicit_options :
+                                          bs->explicit_options);
+        bdrv_join_options(bs, options, old_options);
+        qobject_unref(old_options);
     }
-    bdrv_join_options(bs, options, old_options);
-    qobject_unref(old_options);
 
     explicit_options = qdict_clone_shallow(options);
 
@@ -2923,10 +2924,12 @@ static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
         qobject_unref(options_copy);
     }
 
-    /* Old values are used for options that aren't set yet */
-    old_options = qdict_clone_shallow(bs->options);
-    bdrv_join_options(bs, options, old_options);
-    qobject_unref(old_options);
+    if (keep_old_opts) {
+        /* Old values are used for options that aren't set yet */
+        old_options = qdict_clone_shallow(bs->options);
+        bdrv_join_options(bs, options, old_options);
+        qobject_unref(old_options);
+    }
 
     /* bdrv_open_inherit() sets and clears some additional flags internally */
     flags &= ~BDRV_O_PROTOCOL;
@@ -2967,7 +2970,7 @@ static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
         g_free(child_key_dot);
 
         bdrv_reopen_queue_child(bs_queue, child->bs, new_child_options, 0,
-                                child->role, options, flags);
+                                child->role, options, flags, keep_old_opts);
     }
 
     return bs_queue;
@@ -2975,10 +2978,11 @@ static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
 
 BlockReopenQueue *bdrv_reopen_queue(BlockReopenQueue *bs_queue,
                                     BlockDriverState *bs,
-                                    QDict *options, int flags)
+                                    QDict *options, int flags,
+                                    bool keep_old_opts)
 {
     return bdrv_reopen_queue_child(bs_queue, bs, options, flags,
-                                   NULL, NULL, 0);
+                                   NULL, NULL, 0, keep_old_opts);
 }
 
 /*
@@ -3049,7 +3053,7 @@ int bdrv_reopen(BlockDriverState *bs, int bdrv_flags, Error **errp)
 
     bdrv_subtree_drained_begin(bs);
 
-    queue = bdrv_reopen_queue(NULL, bs, NULL, bdrv_flags);
+    queue = bdrv_reopen_queue(NULL, bs, NULL, bdrv_flags, true);
     ret = bdrv_reopen_multiple(bdrv_get_aio_context(bs), queue, &local_err);
     if (local_err != NULL) {
         error_propagate(errp, local_err);
