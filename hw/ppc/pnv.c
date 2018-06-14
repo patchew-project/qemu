@@ -267,14 +267,7 @@ static void pnv_dt_icp(PnvChip *chip, void *fdt, uint32_t pir,
 
 static int pnv_chip_lpc_offset(PnvChip *chip, void *fdt)
 {
-    char *name;
-    int offset;
-
-    name = g_strdup_printf("/xscom@%" PRIx64 "/isa@%x",
-                           (uint64_t) PNV_XSCOM_BASE(chip), PNV_XSCOM_LPC_BASE);
-    offset = fdt_path_offset(fdt, name);
-    g_free(name);
-    return offset;
+    return fdt_path_offset(fdt, chip->lpc.isa_bus_name);
 }
 
 static void pnv_dt_chip(PnvChip *chip, void *fdt)

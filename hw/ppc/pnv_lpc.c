@@ -481,6 +481,10 @@ static void pnv_lpc_realize(DeviceState *dev, Error **errp)
     pnv_xscom_region_init(&lpc->xscom_regs, OBJECT(dev),
                           &pnv_lpc_xscom_ops, lpc, "xscom-lpc",
                           PNV_XSCOM_LPC_SIZE);
+
+    lpc->isa_bus_name = g_strdup_printf("/xscom@%" PRIx64 "/isa@%x",
+                                        (uint64_t) PNV_XSCOM_BASE(chip),
+                                        PNV_XSCOM_LPC_BASE);
 }
 
 static void pnv_lpc_class_init(ObjectClass *klass, void *data)

@@ -70,6 +70,7 @@ typedef struct PnvLpcController {
     PnvPsi *psi;
 
     bool   primary;
+    char   *isa_bus_name;
 } PnvLpcController;
 
 ISABus *pnv_lpc_isa_create(PnvLpcController *lpc, int chip_type);
