@@ -1665,6 +1665,12 @@ static int coroutine_fn raw_co_prw(BlockDriverState *bs, uint64_t offset,
             type |= QEMU_AIO_MISALIGNED;
 #ifdef CONFIG_LINUX_AIO
         } else if (s->use_linux_aio) {
+            int rc;
+            rc = aio_linux_aio_setup(bdrv_get_aio_context(bs));
+            if (rc != 0) {
+                s->use_linux_aio = 0;
+                return rc;
+            }
             LinuxAioState *aio = aio_get_linux_aio(bdrv_get_aio_context(bs));
             assert(qiov->size == bytes);
             return laio_co_submit(bs, aio, s->fd, offset, qiov, type);
@@ -1690,12 +1696,28 @@ static int coroutine_fn raw_co_pwritev(BlockDriverState *bs, uint64_t offset,
     return raw_co_prw(bs, offset, bytes, qiov, QEMU_AIO_WRITE);
 }
 
+static int raw_aio_plug_setup(BlockDriverState *bs)
+{
+    int rc = 0;
+#ifdef CONFIG_LINUX_AIO
+    BDRVRawState *s = bs->opaque;
+    if (s->use_linux_aio) {
+        rc = aio_linux_aio_setup(bdrv_get_aio_context(bs));
+        if (rc != 0) {
+            s->use_linux_aio = 0;
+        }
+    }
+#endif
+    return rc;
+}
+
 static void raw_aio_plug(BlockDriverState *bs)
 {
 #ifdef CONFIG_LINUX_AIO
     BDRVRawState *s = bs->opaque;
     if (s->use_linux_aio) {
         LinuxAioState *aio = aio_get_linux_aio(bdrv_get_aio_context(bs));
+        assert(aio != NULL);
         laio_io_plug(bs, aio);
     }
 #endif
@@ -1707,6 +1729,7 @@ static void raw_aio_unplug(BlockDriverState *bs)
     BDRVRawState *s = bs->opaque;
     if (s->use_linux_aio) {
         LinuxAioState *aio = aio_get_linux_aio(bdrv_get_aio_context(bs));
+        assert(aio != NULL);
         laio_io_unplug(bs, aio);
     }
 #endif
@@ -2599,6 +2622,7 @@ BlockDriver bdrv_file = {
     .bdrv_co_copy_range_from = raw_co_copy_range_from,
     .bdrv_co_copy_range_to  = raw_co_copy_range_to,
     .bdrv_refresh_limits = raw_refresh_limits,
+    .bdrv_io_plug_setup = raw_aio_plug_setup,
     .bdrv_io_plug = raw_aio_plug,
     .bdrv_io_unplug = raw_aio_unplug,
 
@@ -3079,6 +3103,7 @@ static BlockDriver bdrv_host_device = {
     .bdrv_co_copy_range_from = raw_co_copy_range_from,
     .bdrv_co_copy_range_to  = raw_co_copy_range_to,
     .bdrv_refresh_limits = raw_refresh_limits,
+    .bdrv_io_plug_setup = raw_aio_plug_setup,
     .bdrv_io_plug = raw_aio_plug,
     .bdrv_io_unplug = raw_aio_unplug,
 
@@ -3201,6 +3226,7 @@ static BlockDriver bdrv_host_cdrom = {
     .bdrv_co_pwritev        = raw_co_pwritev,
     .bdrv_aio_flush	= raw_aio_flush,
     .bdrv_refresh_limits = raw_refresh_limits,
+    .bdrv_io_plug_setup = raw_aio_plug_setup,
     .bdrv_io_plug = raw_aio_plug,
     .bdrv_io_unplug = raw_aio_unplug,
 
@@ -3331,6 +3357,7 @@ static BlockDriver bdrv_host_cdrom = {
     .bdrv_co_pwritev        = raw_co_pwritev,
     .bdrv_aio_flush	= raw_aio_flush,
     .bdrv_refresh_limits = raw_refresh_limits,
+    .bdrv_io_plug_setup = raw_aio_plug_setup,
     .bdrv_io_plug = raw_aio_plug,
     .bdrv_io_unplug = raw_aio_unplug,
 

@@ -2779,6 +2779,33 @@ void bdrv_add_before_write_notifier(BlockDriverState *bs,
     notifier_with_return_list_add(&bs->before_write_notifiers, notifier);
 }
 
+int bdrv_io_plug_setup(BlockDriverState *bs)
+{
+    int rc;
+    BdrvChild *child;
+
+    QLIST_FOREACH(child, &bs->children, next) {
+        // XXX: do we need to undo the successful setups if we fail midway?
+        rc = bdrv_io_plug_setup(child->bs);
+        if (rc != 0) {
+            return rc;
+        }
+    }
+
+    if (atomic_fetch_inc(&bs->io_plugged) == 0) {
+        BlockDriver *drv = bs->drv;
+        if (drv && drv->bdrv_io_plug_setup) {
+            rc = drv->bdrv_io_plug_setup(bs);
+            // XXX: do we need to undo the successful setups if we fail midway?
+            if (rc != 0) {
+                return rc;
+            }
+        }
+    }
+
+    return 0;
+}
+
 void bdrv_io_plug(BlockDriverState *bs)
 {
     BdrvChild *child;

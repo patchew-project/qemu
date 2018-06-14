@@ -548,6 +548,7 @@ void bdrv_set_aio_context(BlockDriverState *bs, AioContext *new_context);
 int bdrv_probe_blocksizes(BlockDriverState *bs, BlockSizes *bsz);
 int bdrv_probe_geometry(BlockDriverState *bs, HDGeometry *geo);
 
+int bdrv_io_plug_setup(BlockDriverState *bs);
 void bdrv_io_plug(BlockDriverState *bs);
 void bdrv_io_unplug(BlockDriverState *bs);
 

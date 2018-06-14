@@ -197,6 +197,7 @@ void blk_remove_aio_context_notifier(BlockBackend *blk,
                                      void *opaque);
 void blk_add_remove_bs_notifier(BlockBackend *blk, Notifier *notify);
 void blk_add_insert_bs_notifier(BlockBackend *blk, Notifier *notify);
+int blk_io_plug_setup(BlockBackend *blk);
 void blk_io_plug(BlockBackend *blk);
 void blk_io_unplug(BlockBackend *blk);
 BlockAcctStats *blk_get_stats(BlockBackend *blk);

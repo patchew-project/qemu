@@ -569,6 +569,10 @@ static int virtio_scsi_handle_cmd_req_prepare(VirtIOSCSI *s, VirtIOSCSIReq *req)
         return -ENOBUFS;
     }
     scsi_req_ref(req->sreq);
+    rc = blk_io_plug_setup(d->conf.blk);
+    if (rc != 0) {
+        return rc;
+    }
     blk_io_plug(d->conf.blk);
     return 0;
 }

@@ -388,6 +388,7 @@ struct BlockDriver {
                                     AioContext *new_context);
 
     /* io queue for linux-aio */
+    int (*bdrv_io_plug_setup)(BlockDriverState *bs);
     void (*bdrv_io_plug)(BlockDriverState *bs);
     void (*bdrv_io_unplug)(BlockDriverState *bs);
 

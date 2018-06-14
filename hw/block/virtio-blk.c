@@ -598,6 +598,9 @@ bool virtio_blk_handle_vq(VirtIOBlock *s, VirtQueue *vq)
     bool progress = false;
 
     aio_context_acquire(blk_get_aio_context(s->blk));
+    if (blk_io_plug_setup(s->blk) != 0) {
+        goto error;
+    }
     blk_io_plug(s->blk);
 
     do {
@@ -620,6 +623,7 @@ bool virtio_blk_handle_vq(VirtIOBlock *s, VirtQueue *vq)
     }
 
     blk_io_unplug(s->blk);
+error:
     aio_context_release(blk_get_aio_context(s->blk));
     return progress;
 }

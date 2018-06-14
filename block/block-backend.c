@@ -1946,6 +1946,16 @@ void blk_add_insert_bs_notifier(BlockBackend *blk, Notifier *notify)
     notifier_list_add(&blk->insert_bs_notifiers, notify);
 }
 
+int blk_io_plug_setup(BlockBackend *blk)
+{
+    BlockDriverState *bs = blk_bs(blk);
+
+    if (bs) {
+        return bdrv_io_plug_setup(bs);
+    }
+    return 0;
+}
+
 void blk_io_plug(BlockBackend *blk)
 {
     BlockDriverState *bs = blk_bs(blk);
