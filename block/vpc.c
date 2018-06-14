@@ -1234,6 +1234,7 @@ static BlockDriver bdrv_vpc = {
     .bdrv_get_info          = vpc_get_info,
 
     .create_opts            = &vpc_create_opts,
+    .runtime_opts           = &vpc_runtime_opts,
     .bdrv_has_zero_init     = vpc_has_zero_init,
 };
 

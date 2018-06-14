@@ -1188,6 +1188,7 @@ static QemuOptsList qcow_create_opts = {
 static BlockDriver bdrv_qcow = {
     .format_name	= "qcow",
     .instance_size	= sizeof(BDRVQcowState),
+    .runtime_opts       = &qcow_runtime_opts,
     .bdrv_probe		= qcow_probe,
     .bdrv_open		= qcow_open,
     .bdrv_close		= qcow_close,

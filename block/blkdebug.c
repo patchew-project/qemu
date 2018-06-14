@@ -893,6 +893,7 @@ static BlockDriver bdrv_blkdebug = {
     .protocol_name          = "blkdebug",
     .instance_size          = sizeof(BDRVBlkdebugState),
     .is_filter              = true,
+    .runtime_opts           = &runtime_opts,
 
     .bdrv_parse_filename    = blkdebug_parse_filename,
     .bdrv_file_open         = blkdebug_open,

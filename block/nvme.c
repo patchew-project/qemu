@@ -1158,6 +1158,7 @@ static BlockDriver bdrv_nvme = {
     .format_name              = "nvme",
     .protocol_name            = "nvme",
     .instance_size            = sizeof(BDRVNVMeState),
+    .runtime_opts             = &runtime_opts,
 
     .bdrv_parse_filename      = nvme_parse_filename,
     .bdrv_file_open           = nvme_file_open,

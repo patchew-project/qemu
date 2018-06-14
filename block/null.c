@@ -260,6 +260,7 @@ static BlockDriver bdrv_null_co = {
     .format_name            = "null-co",
     .protocol_name          = "null-co",
     .instance_size          = sizeof(BDRVNullState),
+    .runtime_opts           = &runtime_opts,
 
     .bdrv_file_open         = null_file_open,
     .bdrv_parse_filename    = null_co_parse_filename,
@@ -280,6 +281,7 @@ static BlockDriver bdrv_null_aio = {
     .format_name            = "null-aio",
     .protocol_name          = "null-aio",
     .instance_size          = sizeof(BDRVNullState),
+    .runtime_opts           = &runtime_opts,
 
     .bdrv_file_open         = null_file_open,
     .bdrv_parse_filename    = null_aio_parse_filename,

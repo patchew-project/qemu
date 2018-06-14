@@ -3301,6 +3301,7 @@ static BlockDriver bdrv_sheepdog_tcp = {
     .bdrv_attach_aio_context      = sd_attach_aio_context,
 
     .create_opts                  = &sd_create_opts,
+    .runtime_opts                 = &runtime_opts,
 };
 
 static BlockDriver bdrv_sheepdog_unix = {
@@ -3338,6 +3339,7 @@ static BlockDriver bdrv_sheepdog_unix = {
     .bdrv_attach_aio_context      = sd_attach_aio_context,
 
     .create_opts                  = &sd_create_opts,
+    .runtime_opts                 = &runtime_opts,
 };
 
 static void bdrv_sheepdog_init(void)

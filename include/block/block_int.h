@@ -342,6 +342,10 @@ struct BlockDriver {
 
     /* List of options for creating images, terminated by name == NULL */
     QemuOptsList *create_opts;
+    /* Runtime options for a block device, terminated by name == NULL */
+    QemuOptsList *runtime_opts;
+    /* Names of the runtime options that can be modified, NULL-terminated */
+    const char *const *mutable_opts;
 
     /*
      * Returns 0 for completed check, -errno for internal errors.

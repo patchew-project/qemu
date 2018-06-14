@@ -1160,6 +1160,7 @@ static QemuOptsList qemu_rbd_create_opts = {
 static BlockDriver bdrv_rbd = {
     .format_name            = "rbd",
     .instance_size          = sizeof(BDRVRBDState),
+    .runtime_opts           = &runtime_opts,
     .bdrv_parse_filename    = qemu_rbd_parse_filename,
     .bdrv_refresh_limits    = qemu_rbd_refresh_limits,
     .bdrv_file_open         = qemu_rbd_open,
