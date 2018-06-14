@@ -57,12 +57,37 @@ typedef struct PnvChip {
     MemoryRegion xscom_mmio;
     MemoryRegion xscom;
     AddressSpace xscom_as;
+
+    /* Base class controllers */
+    PnvLpcController *lpc;
+    PnvPsi       *psi;
+    PnvOCC       *occ;
+} PnvChip;
+
+#define TYPE_PNV8_CHIP "pnv8-chip"
+#define PNV8_CHIP(obj) OBJECT_CHECK(Pnv8Chip, (obj), TYPE_PNV8_CHIP)
+
+typedef struct Pnv8Chip {
+    /*< private >*/
+    PnvChip      parent_obj;
+
+    /*< public >*/
     MemoryRegion icp_mmio;
 
     PnvLpcController lpc;
     PnvPsi       psi;
     PnvOCC       occ;
-} PnvChip;
+} Pnv8Chip;
+
+#define TYPE_PNV9_CHIP "pnv9-chip"
+#define PNV9_CHIP(obj) OBJECT_CHECK(Pnv9Chip, (obj), TYPE_PNV9_CHIP)
+
+typedef struct Pnv9Chip {
+    /*< private >*/
+    PnvChip      parent_obj;
+
+    /*< public >*/
+} Pnv9Chip;
 
 typedef struct PnvChipClass {
     /*< private >*/
@@ -75,6 +100,7 @@ typedef struct PnvChipClass {
 
     hwaddr       xscom_base;
 
+    void (*realize)(PnvChip *chip, Error **errp);
     uint32_t (*core_pir)(PnvChip *chip, uint32_t core_id);
     Object *(*intc_create)(PnvChip *chip, Object *child, Error **errp);
 } PnvChipClass;

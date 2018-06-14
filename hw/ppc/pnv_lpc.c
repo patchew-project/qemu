@@ -435,7 +435,7 @@ static void pnv_lpc_realize(DeviceState *dev, Error **errp)
         return;
     }
     chip = PNV_CHIP(obj);
-    lpc->psi = &chip->psi;
+    lpc->psi = chip->psi;
     lpc->primary = chip->chip_id == 0;
 
     /* Reg inits */
