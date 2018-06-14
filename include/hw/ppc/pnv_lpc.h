@@ -72,7 +72,6 @@ typedef struct PnvLpcController {
     bool   primary;
 } PnvLpcController;
 
-qemu_irq *pnv_lpc_isa_irq_create(PnvLpcController *lpc, int chip_type,
-                                 int nirqs);
+ISABus *pnv_lpc_isa_create(PnvLpcController *lpc, int chip_type);
 
 #endif /* _PPC_PNV_LPC_H */

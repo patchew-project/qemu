@@ -521,22 +521,9 @@ static void pnv_reset(void)
 
 static ISABus *pnv_isa_create(PnvChip *chip)
 {
-    PnvLpcController *lpc = &chip->lpc;
-    ISABus *isa_bus;
-    qemu_irq *irqs;
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
 
-    /* let isa_bus_new() create its own bridge on SysBus otherwise
-     * devices speficied on the command line won't find the bus and
-     * will fail to create.
-     */
-    isa_bus = isa_bus_new(NULL, &lpc->isa_mem, &lpc->isa_io,
-                          &error_fatal);
-
-    irqs = pnv_lpc_isa_irq_create(lpc, pcc->chip_type, ISA_NUM_IRQS);
-
-    isa_bus_irqs(isa_bus, irqs);
-    return isa_bus;
+    return pnv_lpc_isa_create(&chip->lpc, pcc->chip_type);
 }
 
 static void pnv_init(MachineState *machine)
