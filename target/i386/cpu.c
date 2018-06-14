@@ -4679,7 +4679,7 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
     X86CPUClass *xcc = X86_CPU_GET_CLASS(dev);
     CPUX86State *env = &cpu->env;
     Error *local_err = NULL;
-    static bool ht_warned;
+    static bool ht_warned, topo_warned;
 
     if (xcc->host_cpuid_required && !accel_uses_host_cpuid()) {
         char *name = x86_cpu_class_get_model_name(xcc);
@@ -4691,6 +4691,21 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
     if (cpu->apic_id == UNASSIGNED_APIC_ID) {
         error_setg(errp, "apic-id property was not initialized properly");
         return;
+    }
+
+    /* Disable TOPOEXT if topology cannot be supported */
+    if (env->features[FEAT_8000_0001_ECX] & CPUID_EXT3_TOPOEXT) {
+        if (!topology_supports_topoext(MAX_CORES_IN_NODE * MAX_NODES_PER_SOCKET,
+                                      2)) {
+            env->features[FEAT_8000_0001_ECX] &= !CPUID_EXT3_TOPOEXT;
+            if (!topo_warned) {
+                error_report("TOPOEXT feature cannot be supported with more"
+                             " than %d cores or more than 2 threads per socket."
+                             " Disabling the feature.",
+                             (MAX_CORES_IN_NODE * MAX_NODES_PER_SOCKET));
+                topo_warned = true;
+            }
+        }
     }
 
     x86_cpu_expand_features(cpu, &local_err);
