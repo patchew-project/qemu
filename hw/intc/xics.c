@@ -383,7 +383,8 @@ static const TypeInfo icp_info = {
     .class_size = sizeof(ICPStateClass),
 };
 
-Object *icp_create(Object *cpu, const char *type, XICSFabric *xi, Error **errp)
+ICPState *icp_create(Object *cpu, const char *type, XICSFabric *xi,
+                     Error **errp)
 {
     Error *local_err = NULL;
     Object *obj;
@@ -401,7 +402,7 @@ Object *icp_create(Object *cpu, const char *type, XICSFabric *xi, Error **errp)
         obj = NULL;
     }
 
-    return obj;
+    return ICP(obj);
 }
 
 /*
