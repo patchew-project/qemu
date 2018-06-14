@@ -1004,6 +1004,15 @@ void end_exclusive(void);
  */
 void qemu_init_vcpu(CPUState *cpu);
 
+/**
+ * topology_supports_topoext:
+ * @max_cores: Max cores topoext feature can support
+ * @max_threads: Max threads topoext feature can support
+ *
+ * Return true if topology can be supported else return false
+ */
+int topology_supports_topoext(int max_cores, int max_threads);
+
 #define SSTEP_ENABLE  0x1  /* Enable simulated HW single stepping */
 #define SSTEP_NOIRQ   0x2  /* Do not use IRQ while single stepping */
 #define SSTEP_NOTIMER 0x4  /* Do not Timers while single stepping */

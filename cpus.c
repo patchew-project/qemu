@@ -1979,6 +1979,19 @@ static void qemu_dummy_start_vcpu(CPUState *cpu)
                        QEMU_THREAD_JOINABLE);
 }
 
+/*
+ * Check if we can support topoext feature with this topology
+ * Fail if number of cores are beyond the supported cores
+ * or number of threads are more than supported threads
+ */
+int topology_supports_topoext(int max_cores, int max_threads)
+{
+    if ((smp_cores > max_cores) || (smp_threads > max_threads)) {
+        return false;
+    }
+    return true;
+}
+
 void qemu_init_vcpu(CPUState *cpu)
 {
     cpu->nr_cores = smp_cores;

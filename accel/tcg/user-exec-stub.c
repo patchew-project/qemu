@@ -11,6 +11,11 @@ void qemu_init_vcpu(CPUState *cpu)
 {
 }
 
+int topology_supports_topoext(int max_cores, int max_threads)
+{
+    return true;
+}
+
 /* User mode emulation does not support record/replay yet.  */
 
 bool replay_exception(void)
