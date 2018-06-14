@@ -68,6 +68,8 @@ typedef struct PnvLpcController {
 
     /* PSI to generate interrupts */
     PnvPsi *psi;
+
+    bool   primary;
 } PnvLpcController;
 
 qemu_irq *pnv_lpc_isa_irq_create(PnvLpcController *lpc, int chip_type,

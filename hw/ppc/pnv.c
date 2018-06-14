@@ -285,16 +285,6 @@ static void pnv_dt_chip(PnvChip *chip, void *fdt)
 
     pnv_dt_xscom(chip, fdt, 0);
 
-    /* The default LPC bus of a multichip system is on chip 0. It's
-     * recognized by the firmware (skiboot) using a "primary"
-     * property.
-     */
-    if (chip->chip_id == 0x0) {
-        int lpc_offset = pnv_chip_lpc_offset(chip, fdt);
-
-        _FDT((fdt_setprop(fdt, lpc_offset, "primary", NULL, 0)));
-    }
-
     for (i = 0; i < chip->nr_cores; i++) {
         PnvCore *pnv_core = PNV_CORE(chip->cores + i * typesize);
 
@@ -814,9 +804,12 @@ static void pnv_chip_init(Object *obj)
     object_property_add_const_link(OBJECT(&chip->occ), "psi",
                                    OBJECT(&chip->psi), &error_abort);
 
-    /* The LPC controller needs PSI to generate interrupts */
-    object_property_add_const_link(OBJECT(&chip->lpc), "psi",
-                                   OBJECT(&chip->psi), &error_abort);
+    /*
+     * The LPC controller needs a few things from the chip : to know
+     * if it's primary and PSI to generate interrupts
+     */
+    object_property_add_const_link(OBJECT(&chip->lpc), "chip",
+                                   OBJECT(chip), &error_abort);
 }
 
 static void pnv_chip_icp_realize(PnvChip *chip, Error **errp)

@@ -113,6 +113,14 @@ static int pnv_lpc_dt_xscom(PnvXScomInterface *dev, void *fdt, int xscom_offset)
     _FDT((fdt_setprop_cell(fdt, offset, "#address-cells", 2)));
     _FDT((fdt_setprop_cell(fdt, offset, "#size-cells", 1)));
     _FDT((fdt_setprop(fdt, offset, "compatible", compat, sizeof(compat))));
+
+    /*
+     * The default LPC bus of a multichip system is on chip 0. It's
+     * recognized by the firmware (skiboot) using a "primary" property.
+     */
+    if (PNV_LPC(dev)->primary) {
+        _FDT((fdt_setprop(fdt, offset, "primary", NULL, 0)));
+    }
     return 0;
 }
 
@@ -416,6 +424,18 @@ static void pnv_lpc_realize(DeviceState *dev, Error **errp)
     PnvLpcController *lpc = PNV_LPC(dev);
     Object *obj;
     Error *error = NULL;
+    PnvChip *chip;
+
+    /* get PSI object from chip */
+    obj = object_property_get_link(OBJECT(dev), "chip", &error);
+    if (!obj) {
+        error_propagate(errp, error);
+        error_prepend(errp, "required link 'chip' not found: ");
+        return;
+    }
+    chip = PNV_CHIP(obj);
+    lpc->psi = &chip->psi;
+    lpc->primary = chip->chip_id == 0;
 
     /* Reg inits */
     lpc->lpc_hc_fw_rd_acc_size = LPC_HC_FW_RD_4B;
@@ -460,15 +480,6 @@ static void pnv_lpc_realize(DeviceState *dev, Error **errp)
     pnv_xscom_region_init(&lpc->xscom_regs, OBJECT(dev),
                           &pnv_lpc_xscom_ops, lpc, "xscom-lpc",
                           PNV_XSCOM_LPC_SIZE);
-
-    /* get PSI object from chip */
-    obj = object_property_get_link(OBJECT(dev), "psi", &error);
-    if (!obj) {
-        error_setg(errp, "%s: required link 'psi' not found: %s",
-                   __func__, error_get_pretty(error));
-        return;
-    }
-    lpc->psi = PNV_PSI(obj);
 }
 
 static void pnv_lpc_class_init(ObjectClass *klass, void *data)
