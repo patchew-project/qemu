@@ -57,7 +57,7 @@ void gd_egl_init(VirtualConsole *vc)
         return;
     }
 
-    vc->gfx.ectx = qemu_egl_init_ctx();
+    vc->gfx.ectx = qemu_egl_init_ctx(false);
     vc->gfx.esurface = qemu_egl_init_surface_x11(vc->gfx.ectx, x11_window);
 
     assert(vc->gfx.esurface);

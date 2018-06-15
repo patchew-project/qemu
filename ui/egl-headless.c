@@ -175,7 +175,7 @@ static void egl_headless_init(DisplayState *ds, DisplayOptions *opts)
     egl_dpy *edpy;
     int idx;
 
-    if (egl_rendernode_init(NULL) < 0) {
+    if (egl_rendernode_init(NULL, opts->gl == DISPLAYGL_MODE_ES) < 0) {
         error_report("egl: render node init failed");
         exit(1);
     }
