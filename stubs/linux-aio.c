@@ -21,7 +21,7 @@ void laio_attach_aio_context(LinuxAioState *s, AioContext *new_context)
     abort();
 }
 
-LinuxAioState *laio_init(void)
+int laio_init(LinuxAioState **linux_aio)
 {
     abort();
 }

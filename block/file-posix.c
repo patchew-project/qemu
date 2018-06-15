@@ -1665,6 +1665,14 @@ static int coroutine_fn raw_co_prw(BlockDriverState *bs, uint64_t offset,
             type |= QEMU_AIO_MISALIGNED;
 #ifdef CONFIG_LINUX_AIO
         } else if (s->use_linux_aio) {
+            int rc;
+            rc = aio_setup_linux_aio(bdrv_get_aio_context(bs));
+            if (rc != 0) {
+                error_report("Unable to use native AIO, falling back to "
+                             "thread pool.");
+                s->use_linux_aio = 0;
+                return rc;
+            }
             LinuxAioState *aio = aio_get_linux_aio(bdrv_get_aio_context(bs));
             assert(qiov->size == bytes);
             return laio_co_submit(bs, aio, s->fd, offset, qiov, type);
@@ -1695,6 +1703,14 @@ static void raw_aio_plug(BlockDriverState *bs)
 #ifdef CONFIG_LINUX_AIO
     BDRVRawState *s = bs->opaque;
     if (s->use_linux_aio) {
+        int rc;
+        rc = aio_setup_linux_aio(bdrv_get_aio_context(bs));
+        if (rc != 0) {
+            error_report("Unable to use native AIO, falling back to "
+                         "thread pool.");
+            s->use_linux_aio = 0;
+            return;
+        }
         LinuxAioState *aio = aio_get_linux_aio(bdrv_get_aio_context(bs));
         laio_io_plug(bs, aio);
     }
@@ -1706,6 +1722,14 @@ static void raw_aio_unplug(BlockDriverState *bs)
 #ifdef CONFIG_LINUX_AIO
     BDRVRawState *s = bs->opaque;
     if (s->use_linux_aio) {
+        int rc;
+        rc = aio_setup_linux_aio(bdrv_get_aio_context(bs));
+        if (rc != 0) {
+            error_report("Unable to use native AIO, falling back to "
+                         "thread pool.");
+            s->use_linux_aio = 0;
+            return;
+        }
         LinuxAioState *aio = aio_get_linux_aio(bdrv_get_aio_context(bs));
         laio_io_unplug(bs, aio);
     }
