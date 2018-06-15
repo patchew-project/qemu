@@ -938,6 +938,14 @@ BUILD_TCG_TARGET_RULES=$(patsubst %,build-tcg-tests-%, $(LINUX_USER_TARGETS))
 CLEAN_TCG_TARGET_RULES=$(patsubst %,clean-tcg-tests-%, $(LINUX_USER_TARGETS))
 RUN_TCG_TARGET_RULES=$(patsubst %,run-tcg-tests-%, $(LINUX_USER_TARGETS))
 
+# Probe for the Docker Builds needed for each build
+DOCKER_BUILD_TARGETS:=
+$(foreach PROBE_TARGET,$(TARGET_LIST), 				\
+	$(eval -include $(SRC_PATH)/tests/tcg/Makefile.probe) 	\
+	$(if $(DOCKER_PREREQ), 					\
+		$(eval DOCKER_BUILD_TARGETS+=$(DOCKER_PREREQ))  \
+		$(eval build-tcg-tests-$(PROBE_TARGET): $(DOCKER_PREREQ))))
+
 build-tcg-tests-%:
 	$(call quiet-command,$(MAKE) $(SUBDIR_MAKEFLAGS) -C $* V="$(V)" TARGET_DIR="$*/" guest-tests,)
 
@@ -946,6 +954,9 @@ run-tcg-tests-%: build-tcg-tests-%
 
 clean-tcg-tests-%:
 	$(call quiet-command,$(MAKE) $(SUBDIR_MAKEFLAGS) -C $* V="$(V)" TARGET_DIR="$*/" clean-guest-tests,)
+
+.PHONY: build-tcg-prereqs
+build-tcg-prereqs: $(DOCKER_BUILD_TARGETS)
 
 .PHONY: build-tcg
 build-tcg: $(BUILD_TCG_TARGET_RULES)
