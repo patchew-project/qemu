@@ -436,6 +436,9 @@ static void spapr_vio_busdev_reset(DeviceState *qdev)
     }
 }
 
+/* TODO : poor VIO device indexing ... */
+static uint32_t vio_index;
+
 static void spapr_vio_busdev_realize(DeviceState *qdev, Error **errp)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
@@ -476,10 +479,14 @@ static void spapr_vio_busdev_realize(DeviceState *qdev, Error **errp)
     }
 
     if (!dev->irq) {
-        dev->irq = spapr_irq_findone(spapr, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
-            return;
+        if (spapr->xics_legacy) {
+            dev->irq = spapr_irq_findone(spapr, &local_err);
+            if (local_err) {
+                error_propagate(errp, local_err);
+                return;
+            }
+        } else {
+            dev->irq = SPAPR_IRQ_VIO + vio_index++;
         }
     }
 

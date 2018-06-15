@@ -709,7 +709,11 @@ void spapr_events_init(sPAPRMachineState *spapr)
 {
     int epow_irq;
 
-    epow_irq = spapr_irq_findone(spapr, &error_fatal);
+    if (spapr->xics_legacy) {
+        epow_irq = spapr_irq_findone(spapr, &error_fatal);
+    } else {
+        epow_irq = SPAPR_IRQ_EPOW;
+    }
 
     spapr_irq_claim(spapr, epow_irq, 1, false, &error_fatal);
 
@@ -731,7 +735,11 @@ void spapr_events_init(sPAPRMachineState *spapr)
     if (spapr->use_hotplug_event_source) {
         int hp_irq;
 
-        hp_irq = spapr_irq_findone(spapr, &error_fatal);
+        if (spapr->xics_legacy) {
+            hp_irq = spapr_irq_findone(spapr, &error_fatal);
+        } else {
+            hp_irq = SPAPR_IRQ_HOTPLUG;
+        }
 
         spapr_irq_claim(spapr, hp_irq, 1, false, &error_fatal);
 

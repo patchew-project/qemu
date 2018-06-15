@@ -333,6 +333,9 @@ static void rtas_ibm_change_msi(PowerPCCPU *cpu, sPAPRMachineState *spapr,
             return;
         }
 
+        if (!spapr->xics_legacy) {
+            spapr_irq_msi_free(spapr, msi->first_irq, msi->num);
+        }
         spapr_irq_free(spapr, msi->first_irq, msi->num);
         if (msi_present(pdev)) {
             spapr_msi_setmsg(pdev, 0, false, 0, 0);
@@ -371,7 +374,13 @@ static void rtas_ibm_change_msi(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     }
 
     /* Allocate MSIs */
-    irq = spapr_irq_find(spapr, req_num, ret_intr_type == RTAS_TYPE_MSI, &err);
+    if (spapr->xics_legacy) {
+        irq = spapr_irq_find(spapr, req_num, ret_intr_type == RTAS_TYPE_MSI,
+                             &err);
+    } else {
+        irq = spapr_irq_msi_alloc(spapr, req_num,
+                                  ret_intr_type == RTAS_TYPE_MSI, &err);
+    }
     if (err) {
         error_reportf_err(err, "Can't allocate MSIs for device %x: ",
                           config_addr);
@@ -388,6 +397,9 @@ static void rtas_ibm_change_msi(PowerPCCPU *cpu, sPAPRMachineState *spapr,
 
     /* Release previous MSIs */
     if (msi) {
+        if (!spapr->xics_legacy) {
+            spapr_irq_msi_free(spapr, msi->first_irq, msi->num);
+        }
         spapr_irq_free(spapr, msi->first_irq, msi->num);
         g_hash_table_remove(phb->msi, &config_addr);
     }
@@ -1704,11 +1716,15 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
         uint32_t irq;
         Error *local_err = NULL;
 
-        irq = spapr_irq_findone(spapr, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
-            error_prepend(errp, "can't allocate LSIs: ");
-            return;
+        if (spapr->xics_legacy) {
+            irq = spapr_irq_findone(spapr, &local_err);
+            if (local_err) {
+                error_propagate(errp, local_err);
+                error_prepend(errp, "can't allocate LSIs: ");
+                return;
+            }
+        } else {
+            irq = SPAPR_IRQ_PCI_LSI + sphb->index * PCI_NUM_PINS + i;
         }
 
         spapr_irq_claim(spapr, irq, 1, true, &local_err);

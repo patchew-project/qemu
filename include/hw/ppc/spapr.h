@@ -7,6 +7,7 @@
 #include "hw/ppc/spapr_drc.h"
 #include "hw/mem/pc-dimm.h"
 #include "hw/ppc/spapr_ovec.h"
+#include "hw/ppc/spapr_irq.h"
 
 struct VIOsPAPRBus;
 struct sPAPRPHBState;
@@ -164,6 +165,9 @@ struct sPAPRMachineState {
     char *kvm_type;
 
     const char *icp_type;
+    bool xics_legacy;
+    int32_t irq_map_nr;
+    unsigned long *irq_map;
 
     bool cmd_line_caps[SPAPR_CAP_NUM];
     sPAPRCapabilities def, eff, mig;
