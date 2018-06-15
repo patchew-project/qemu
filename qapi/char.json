@@ -242,6 +242,7 @@
 # @addr: socket address to listen on (server=true)
 #        or connect to (server=false)
 # @tls-creds: the ID of the TLS credentials object (since 2.6)
+# @tls-authz: the ID of the QAuthZ authorization object (since 2.13)
 # @server: create server socket (default: true)
 # @wait: wait for incoming connection on server
 #        sockets (default: false).
@@ -259,6 +260,7 @@
 ##
 { 'struct': 'ChardevSocket', 'data': { 'addr'       : 'SocketAddressLegacy',
                                      '*tls-creds'  : 'str',
+                                     '*tls-authz'  : 'str',
                                      '*server'    : 'bool',
                                      '*wait'      : 'bool',
                                      '*nodelay'   : 'bool',
