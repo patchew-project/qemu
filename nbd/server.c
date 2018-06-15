@@ -100,7 +100,7 @@ struct NBDClient {
 
     NBDExport *exp;
     QCryptoTLSCreds *tlscreds;
-    char *tlsaclname;
+    char *tlsauthz;
     QIOChannelSocket *sioc; /* The underlying data channel */
     QIOChannel *ioc; /* The current I/O channel which may differ (eg TLS) */
 
@@ -677,7 +677,7 @@ static QIOChannel *nbd_negotiate_handle_starttls(NBDClient *client,
 
     tioc = qio_channel_tls_new_server(ioc,
                                       client->tlscreds,
-                                      client->tlsaclname,
+                                      client->tlsauthz,
                                       errp);
     if (!tioc) {
         return NULL;
@@ -1250,7 +1250,7 @@ void nbd_client_put(NBDClient *client)
         if (client->tlscreds) {
             object_unref(OBJECT(client->tlscreds));
         }
-        g_free(client->tlsaclname);
+        g_free(client->tlsauthz);
         if (client->exp) {
             QTAILQ_REMOVE(&client->exp->clients, client, next);
             nbd_export_put(client->exp);
@@ -2140,7 +2140,7 @@ static coroutine_fn void nbd_co_client_start(void *opaque)
 void nbd_client_new(NBDExport *exp,
                     QIOChannelSocket *sioc,
                     QCryptoTLSCreds *tlscreds,
-                    const char *tlsaclname,
+                    const char *tlsauthz,
                     void (*close_fn)(NBDClient *, bool))
 {
     NBDClient *client;
@@ -2153,7 +2153,9 @@ void nbd_client_new(NBDExport *exp,
     if (tlscreds) {
         object_ref(OBJECT(client->tlscreds));
     }
-    client->tlsaclname = g_strdup(tlsaclname);
+    if (tlsauthz) {
+        client->tlsauthz = g_strdup(tlsauthz);
+    }
     client->sioc = sioc;
     object_ref(OBJECT(client->sioc));
     client->ioc = QIO_CHANNEL(sioc);
