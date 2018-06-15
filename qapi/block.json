@@ -197,6 +197,7 @@
 #
 # @addr: Address on which to listen.
 # @tls-creds: (optional) ID of the TLS credentials object. Since 2.6
+# @tls-authz: (optional) ID of the QAuthZ authorization object. Since 2.13
 #
 # Returns: error if the server is already running.
 #
@@ -204,7 +205,8 @@
 ##
 { 'command': 'nbd-server-start',
   'data': { 'addr': 'SocketAddressLegacy',
-            '*tls-creds': 'str'} }
+            '*tls-creds': 'str',
+            '*tls-authz': 'str'} }
 
 ##
 # @nbd-server-add:
