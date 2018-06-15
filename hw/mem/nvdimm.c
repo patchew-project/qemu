@@ -27,50 +27,6 @@
 #include "qapi/visitor.h"
 #include "hw/mem/nvdimm.h"
 
-static void nvdimm_get_label_size(Object *obj, Visitor *v, const char *name,
-                                  void *opaque, Error **errp)
-{
-    NVDIMMDevice *nvdimm = NVDIMM(obj);
-    uint64_t value = nvdimm->label_size;
-
-    visit_type_size(v, name, &value, errp);
-}
-
-static void nvdimm_set_label_size(Object *obj, Visitor *v, const char *name,
-                                  void *opaque, Error **errp)
-{
-    NVDIMMDevice *nvdimm = NVDIMM(obj);
-    Error *local_err = NULL;
-    uint64_t value;
-
-    if (memory_region_size(&nvdimm->nvdimm_mr)) {
-        error_setg(&local_err, "cannot change property value");
-        goto out;
-    }
-
-    visit_type_size(v, name, &value, &local_err);
-    if (local_err) {
-        goto out;
-    }
-    if (value < MIN_NAMESPACE_LABEL_SIZE) {
-        error_setg(&local_err, "Property '%s.%s' (0x%" PRIx64 ") is required"
-                   " at least 0x%lx", object_get_typename(obj),
-                   name, value, MIN_NAMESPACE_LABEL_SIZE);
-        goto out;
-    }
-
-    nvdimm->label_size = value;
-out:
-    error_propagate(errp, local_err);
-}
-
-static void nvdimm_init(Object *obj)
-{
-    object_property_add(obj, NVDIMM_LABEL_SIZE_PROP, "int",
-                        nvdimm_get_label_size, nvdimm_set_label_size, NULL,
-                        NULL, NULL);
-}
-
 static MemoryRegion *nvdimm_get_memory_region(PCDIMMDevice *dimm, Error **errp)
 {
     NVDIMMDevice *nvdimm = NVDIMM(dimm);
@@ -85,6 +41,13 @@ static void nvdimm_realize(PCDIMMDevice *dimm, Error **errp)
     uint64_t align, pmem_size, size = memory_region_size(mr);
 
     align = memory_region_get_alignment(mr);
+
+    if (nvdimm->label_size && nvdimm->label_size < MIN_NAMESPACE_LABEL_SIZE) {
+        error_setg(errp, "the label-size (0x%" PRIx64 ") has to be "
+                   "either 0 or at least 0x%lx",
+                   nvdimm->label_size, MIN_NAMESPACE_LABEL_SIZE);
+        return;
+    }
 
     pmem_size = size - nvdimm->label_size;
     nvdimm->label_data = memory_region_get_ram_ptr(mr) + pmem_size;
@@ -143,6 +106,7 @@ static void nvdimm_write_label_data(NVDIMMDevice *nvdimm, const void *buf,
 
 static Property nvdimm_properties[] = {
     DEFINE_PROP_BOOL(NVDIMM_UNARMED_PROP, NVDIMMDevice, unarmed, false),
+    DEFINE_PROP_UINT64(NVDIMM_LABEL_SIZE_PROP, NVDIMMDevice, label_size, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -166,7 +130,6 @@ static TypeInfo nvdimm_info = {
     .class_size    = sizeof(NVDIMMClass),
     .class_init    = nvdimm_class_init,
     .instance_size = sizeof(NVDIMMDevice),
-    .instance_init = nvdimm_init,
 };
 
 static void nvdimm_register_types(void)
