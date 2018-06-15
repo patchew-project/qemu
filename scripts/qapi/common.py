@@ -16,6 +16,7 @@ import errno
 import os
 import re
 import string
+import sys
 from collections import OrderedDict
 
 builtin_types = {
@@ -259,6 +260,8 @@ class QAPISchemaParser(object):
         previously_included.append(os.path.abspath(fp.name))
         self.incl_info = incl_info
         self.src = fp.read()
+        if sys.version_info[0] >= 3:
+            self.src = self.src.decode("UTF-8")
         if self.src == '' or self.src[-1] != '\n':
             self.src += '\n'
         self.cursor = 0
@@ -340,7 +343,7 @@ class QAPISchemaParser(object):
             return None
 
         try:
-            fobj = open(incl_fname, 'r')
+            fobj = open(incl_fname, 'rb')
         except IOError as e:
             raise QAPISemError(info, '%s: %s' % (e.strerror, incl_fname))
         return QAPISchemaParser(fobj, previously_included, info)
@@ -1492,7 +1495,7 @@ class QAPISchemaEvent(QAPISchemaEntity):
 class QAPISchema(object):
     def __init__(self, fname):
         self._fname = fname
-        parser = QAPISchemaParser(open(fname, 'r'))
+        parser = QAPISchemaParser(open(fname, 'rb'))
         exprs = check_exprs(parser.exprs)
         self.docs = parser.docs
         self._entity_list = []
@@ -2006,9 +2009,11 @@ class QAPIGen(object):
                 if e.errno != errno.EEXIST:
                     raise
         fd = os.open(pathname, os.O_RDWR | os.O_CREAT, 0o666)
-        f = os.fdopen(fd, 'r+')
+        f = os.fdopen(fd, 'r+b')
         text = (self._top(fname) + self._preamble + self._body
                 + self._bottom(fname))
+        if sys.version_info[0] >= 3:
+            text = text.encode("UTF-8")
         oldtext = f.read(len(text) + 1)
         if text != oldtext:
             f.seek(0)
