@@ -2089,12 +2089,27 @@ static QAuthZList *find_auth(Monitor *mon, const char *name)
     return QAUTHZ_LIST(obj);
 }
 
+static bool warn_acl;
+static void hmp_warn_acl(void)
+{
+    if (warn_acl) {
+        return;
+    }
+    error_report("The acl_show, acl_reset, acl_policy, acl_add, acl_remove "
+                 "commands are deprecated with no replacement. Authorization "
+                 "for VNC should be performed using the pluggable QAuthZ "
+                 "objects");
+    warn_acl = true;
+}
+
 static void hmp_acl_show(Monitor *mon, const QDict *qdict)
 {
     const char *aclname = qdict_get_str(qdict, "aclname");
     QAuthZList *auth = find_auth(mon, aclname);
     QAuthZListRuleList *rules;
     size_t i = 0;
+
+    hmp_warn_acl();
 
     if (!auth) {
         return;
@@ -2119,6 +2134,8 @@ static void hmp_acl_reset(Monitor *mon, const QDict *qdict)
     const char *aclname = qdict_get_str(qdict, "aclname");
     QAuthZList *auth = find_auth(mon, aclname);
 
+    hmp_warn_acl();
+
     if (!auth) {
         return;
     }
@@ -2136,6 +2153,8 @@ static void hmp_acl_policy(Monitor *mon, const QDict *qdict)
     QAuthZList *auth = find_auth(mon, aclname);
     int val;
     Error *err = NULL;
+
+    hmp_warn_acl();
 
     if (!auth) {
         return;
@@ -2171,6 +2190,8 @@ static void hmp_acl_add(Monitor *mon, const QDict *qdict)
     QAuthZListPolicy policy;
     QAuthZListFormat format;
     size_t i = 0;
+
+    hmp_warn_acl();
 
     if (!auth) {
         return;
@@ -2226,6 +2247,8 @@ static void hmp_acl_remove(Monitor *mon, const QDict *qdict)
     const char *match = qdict_get_str(qdict, "match");
     QAuthZList *auth = find_auth(mon, aclname);
     ssize_t i = 0;
+
+    hmp_warn_acl();
 
     if (!auth) {
         return;
