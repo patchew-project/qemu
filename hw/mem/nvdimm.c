@@ -27,20 +27,19 @@
 #include "qapi/visitor.h"
 #include "hw/mem/nvdimm.h"
 
-static MemoryRegion *nvdimm_get_memory_region(PCDIMMDevice *dimm, Error **errp)
+static void nvdimm_prepare_memory_region(NVDIMMDevice *nvdimm, Error **errp)
 {
-    NVDIMMDevice *nvdimm = NVDIMM(dimm);
+    PCDIMMDevice *dimm = PC_DIMM(nvdimm);
+    uint64_t align, pmem_size, size;
+    MemoryRegion *mr;
 
-    return &nvdimm->nvdimm_mr;
-}
+    if (!dimm->hostmem) {
+        error_setg(errp, "'" PC_DIMM_MEMDEV_PROP "' property must be set");
+        return;
+    }
 
-static void nvdimm_realize(PCDIMMDevice *dimm, Error **errp)
-{
-    MemoryRegion *mr = host_memory_backend_get_memory(dimm->hostmem);
-    NVDIMMDevice *nvdimm = NVDIMM(dimm);
-    uint64_t align, pmem_size, size = memory_region_size(mr);
-
-    align = memory_region_get_alignment(mr);
+    g_assert(!memory_region_size(&nvdimm->nvdimm_mr));
+    mr = host_memory_backend_get_memory(dimm->hostmem);
 
     if (nvdimm->label_size && nvdimm->label_size < MIN_NAMESPACE_LABEL_SIZE) {
         error_setg(errp, "the label-size (0x%" PRIx64 ") has to be "
@@ -48,6 +47,9 @@ static void nvdimm_realize(PCDIMMDevice *dimm, Error **errp)
                    nvdimm->label_size, MIN_NAMESPACE_LABEL_SIZE);
         return;
     }
+
+    align = memory_region_get_alignment(mr);
+    size = memory_region_size(mr);
 
     pmem_size = size - nvdimm->label_size;
     nvdimm->label_data = memory_region_get_ram_ptr(mr) + pmem_size;
@@ -68,6 +70,31 @@ static void nvdimm_realize(PCDIMMDevice *dimm, Error **errp)
     memory_region_init_alias(&nvdimm->nvdimm_mr, OBJECT(dimm),
                              "nvdimm-memory", mr, 0, pmem_size);
     nvdimm->nvdimm_mr.align = align;
+}
+
+static MemoryRegion *nvdimm_get_memory_region(PCDIMMDevice *dimm, Error **errp)
+{
+    NVDIMMDevice *nvdimm = NVDIMM(dimm);
+    Error *local_err = NULL;
+
+    if (!memory_region_size(&nvdimm->nvdimm_mr)) {
+        nvdimm_prepare_memory_region(nvdimm, &local_err);
+    }
+
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return NULL;
+    }
+    return &nvdimm->nvdimm_mr;
+}
+
+static void nvdimm_realize(PCDIMMDevice *dimm, Error **errp)
+{
+    NVDIMMDevice *nvdimm = NVDIMM(dimm);
+
+    if (!memory_region_size(&nvdimm->nvdimm_mr)) {
+        nvdimm_prepare_memory_region(nvdimm, errp);
+    }
 }
 
 /*
