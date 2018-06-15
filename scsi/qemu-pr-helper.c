@@ -768,6 +768,8 @@ static void coroutine_fn prh_co_entry(void *opaque)
         PRHelperResponse resp;
         int sz;
 
+        resp.result = CHECK_CONDITION;
+        resp.sz = 0;
         sz = prh_read_request(client, &req, &resp, &local_err);
         if (sz < 0) {
             break;
