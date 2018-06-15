@@ -52,9 +52,9 @@ static void nvdimm_set_label_size(Object *obj, Visitor *v, const char *name,
     if (local_err) {
         goto out;
     }
-    if (value < MIN_NAMESPACE_LABEL_SIZE) {
+    if (value && value < MIN_NAMESPACE_LABEL_SIZE) {
         error_setg(&local_err, "Property '%s.%s' (0x%" PRIx64 ") is required"
-                   " at least 0x%lx", object_get_typename(obj),
+                   " either 0 or at least 0x%lx", object_get_typename(obj),
                    name, value, MIN_NAMESPACE_LABEL_SIZE);
         goto out;
     }
