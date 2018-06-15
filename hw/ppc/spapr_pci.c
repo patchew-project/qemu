@@ -371,8 +371,14 @@ static void rtas_ibm_change_msi(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     }
 
     /* Allocate MSIs */
-    irq = spapr_irq_alloc_block(spapr, req_num, false,
-                           ret_intr_type == RTAS_TYPE_MSI, &err);
+    irq = spapr_irq_find(spapr, req_num, ret_intr_type == RTAS_TYPE_MSI, &err);
+    if (err) {
+        error_reportf_err(err, "Can't allocate MSIs for device %x: ",
+                          config_addr);
+        rtas_st(rets, 0, RTAS_OUT_HW_ERROR);
+        return;
+    }
+    spapr_irq_claim(spapr, irq, req_num, false, &err);
     if (err) {
         error_reportf_err(err, "Can't allocate MSIs for device %x: ",
                           config_addr);
@@ -1698,7 +1704,14 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
         uint32_t irq;
         Error *local_err = NULL;
 
-        irq = spapr_irq_alloc_block(spapr, 1, true, false, &local_err);
+        irq = spapr_irq_findone(spapr, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            error_prepend(errp, "can't allocate LSIs: ");
+            return;
+        }
+
+        spapr_irq_claim(spapr, irq, 1, true, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
             error_prepend(errp, "can't allocate LSIs: ");
