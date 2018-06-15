@@ -285,6 +285,7 @@ S: Maintained
 F: target/i386/
 F: hw/i386/
 F: disas/i386.c
+F: docs/cpu-models-x86.txt
 T: git git://github.com/ehabkost/qemu.git x86-next
 
 Xtensa
