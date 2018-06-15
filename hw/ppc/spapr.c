@@ -3840,84 +3840,6 @@ int spapr_irq_find(sPAPRMachineState *spapr, int num, bool align, Error **errp)
     return first + ics->offset;
 }
 
-/*
- * Allocate the IRQ number and set the IRQ type, LSI or MSI
- */
-static void spapr_irq_set_lsi(sPAPRMachineState *spapr, int irq, bool lsi)
-{
-    ics_set_irq_type(spapr->ics, irq - spapr->ics->offset, lsi);
-}
-
-int spapr_irq_alloc(sPAPRMachineState *spapr, int irq_hint, bool lsi,
-                    Error **errp)
-{
-    ICSState *ics = spapr->ics;
-    int irq;
-
-    assert(ics);
-
-    if (irq_hint) {
-        if (!ICS_IRQ_FREE(ics, irq_hint - ics->offset)) {
-            error_setg(errp, "can't allocate IRQ %d: already in use", irq_hint);
-            return -1;
-        }
-        irq = irq_hint;
-    } else {
-        irq = ics_find_free_block(ics, 1, 1);
-        if (irq < 0) {
-            error_setg(errp, "can't allocate IRQ: no IRQ left");
-            return -1;
-        }
-        irq += ics->offset;
-    }
-
-    spapr_irq_set_lsi(spapr, irq, lsi);
-    trace_spapr_irq_alloc(irq);
-
-    return irq;
-}
-
-/*
- * Allocate block of consecutive IRQs, and return the number of the first IRQ in
- * the block. If align==true, aligns the first IRQ number to num.
- */
-int spapr_irq_alloc_block(sPAPRMachineState *spapr, int num, bool lsi,
-                          bool align, Error **errp)
-{
-    ICSState *ics = spapr->ics;
-    int i, first = -1;
-
-    assert(ics);
-
-    /*
-     * MSIMesage::data is used for storing VIRQ so
-     * it has to be aligned to num to support multiple
-     * MSI vectors. MSI-X is not affected by this.
-     * The hint is used for the first IRQ, the rest should
-     * be allocated continuously.
-     */
-    if (align) {
-        assert((num == 1) || (num == 2) || (num == 4) ||
-               (num == 8) || (num == 16) || (num == 32));
-        first = ics_find_free_block(ics, num, num);
-    } else {
-        first = ics_find_free_block(ics, num, 1);
-    }
-    if (first < 0) {
-        error_setg(errp, "can't find a free %d-IRQ block", num);
-        return -1;
-    }
-
-    first += ics->offset;
-    for (i = first; i < first + num; ++i) {
-        spapr_irq_set_lsi(spapr, i, lsi);
-    }
-
-    trace_spapr_irq_alloc_block(first, num, lsi, align);
-
-    return first;
-}
-
 int spapr_irq_claim(sPAPRMachineState *spapr, int irq, int num, bool lsi,
                     Error **errp)
 {
@@ -3934,7 +3856,7 @@ int spapr_irq_claim(sPAPRMachineState *spapr, int irq, int num, bool lsi,
 
     for (i = srcno; i < srcno + num; ++i) {
         if (ICS_IRQ_FREE(ics, i)) {
-            spapr_irq_set_lsi(spapr, i + ics->offset, lsi);
+            ics_set_irq_type(ics, i, lsi);
         } else {
             error_setg(errp, "IRQ %d is not free", i + ics->offset);
             ret = -1;
