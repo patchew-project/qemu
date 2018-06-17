@@ -835,7 +835,7 @@ int ide_handle_rw_error(IDEState *s, int error, int op)
 static void ide_dma_cb(void *opaque, int ret)
 {
     IDEState *s = opaque;
-    int n;
+    int m, n;
     int64_t sector_num;
     uint64_t offset;
     bool stay_active = false;
@@ -858,6 +858,10 @@ static void ide_dma_cb(void *opaque, int ret)
     }
 
     n = s->io_buffer_size >> 9;
+    if (s->io_buffer_size & (~BDRV_SECTOR_MASK)) {
+        n++;
+    }
+
     if (n > s->nsector) {
         /* The PRDs were longer than needed for this request. Shorten them so
          * we don't get a negative remainder. The Active bit must remain set
@@ -868,7 +872,11 @@ static void ide_dma_cb(void *opaque, int ret)
 
     sector_num = ide_get_sector(s);
     if (n > 0) {
-        assert(n * 512 == s->sg.size);
+        m = s->sg.size >> 9;
+        if (s->sg.size & (~BDRV_SECTOR_MASK)) {
+            m++;
+        }
+        assert(n == m);
         dma_buf_commit(s, s->sg.size);
         sector_num += n;
         ide_set_sector(s, sector_num);
