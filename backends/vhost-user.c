@@ -154,26 +154,87 @@ vhost_user_backend_complete(UserCreatable *uc, Error **errp)
 {
     VhostUserBackend *b = VHOST_USER_BACKEND(uc);
     Chardev *chr;
+    char **argv = NULL;
 
-    if (!b->chr_name) {
-        error_setg(errp, "You must specificy 'chardev'.");
+    if (!!b->chr_name + !!b->cmd != 1) {
+        error_setg(errp, "You may specificy only one of 'chardev' or 'cmd'.");
         return;
     }
 
-    chr = qemu_chr_find(b->chr_name);
-    if (chr == NULL) {
-        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
-                  "Chardev '%s' not found", b->chr_name);
-        return;
-    }
+    if (b->chr_name) {
+        chr = qemu_chr_find(b->chr_name);
+        if (chr == NULL) {
+            error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                      "Chardev '%s' not found", b->chr_name);
+            return;
+        }
 
-    if (!qemu_chr_fe_init(&b->chr, chr, errp)) {
-        return;
+        if (!qemu_chr_fe_init(&b->chr, chr, errp)) {
+            return;
+        }
+    } else {
+        QIOChannelCommand *child;
+        GError *err;
+        int sv[2];
+
+        if (!g_shell_parse_argv(b->cmd, NULL, &argv, &err)) {
+            error_setg(errp, "Fail to parse command: %s", err->message);
+            g_error_free(err);
+            return;
+        }
+
+        if (socketpair(PF_UNIX, SOCK_STREAM, 0, sv) == -1) {
+            error_setg_errno(errp, errno, "socketpair() failed");
+            goto end;
+        }
+
+        chr = CHARDEV(object_new(TYPE_CHARDEV_SOCKET));
+        if (!chr || qemu_chr_add_client(chr, sv[0]) == -1) {
+            error_setg(errp, "Failed to make socket chardev");
+            object_unref(OBJECT(chr));
+            goto end;
+        }
+
+        if (!qemu_chr_fe_init(&b->chr, chr, errp)) {
+            goto end;
+        }
+
+        child = qio_channel_command_new_spawn_with_pre_exec(
+            (const char * const *)argv, O_RDONLY | O_WRONLY,
+            pre_exec_cb, sv, errp);
+        if (!child) {
+            goto end;
+        }
+        b->child = QIO_CHANNEL(child);
+
+        close(sv[1]);
     }
 
     b->completed = true;
     /* could vhost_dev_init() happen here, so early vhost-user message
      * can be exchanged */
+end:
+    g_strfreev(argv);
+}
+
+static char *get_cmd(Object *obj, Error **errp)
+{
+    VhostUserBackend *b = VHOST_USER_BACKEND(obj);
+
+    return g_strdup(b->cmd);
+}
+
+static void set_cmd(Object *obj, const char *str, Error **errp)
+{
+    VhostUserBackend *b = VHOST_USER_BACKEND(obj);
+
+    if (b->child) {
+        error_setg(errp, "cannot change property value");
+        return;
+    }
+
+    g_free(b->cmd);
+    b->cmd = g_strdup(str);
 }
 
 static void set_chardev(Object *obj, const char *value, Error **errp)
@@ -202,6 +263,7 @@ static char *get_chardev(Object *obj, Error **errp)
 
 static void vhost_user_backend_init(Object *obj)
 {
+    object_property_add_str(obj, "cmd", get_cmd, set_cmd, NULL);
     object_property_add_str(obj, "chardev", get_chardev, set_chardev, NULL);
 }
 
@@ -210,6 +272,7 @@ static void vhost_user_backend_finalize(Object *obj)
     VhostUserBackend *b = VHOST_USER_BACKEND(obj);
 
     g_free(b->dev.vqs);
+    g_free(b->cmd);
     g_free(b->chr_name);
 
     vhost_user_cleanup(&b->vhost_user);
