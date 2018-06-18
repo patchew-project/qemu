@@ -768,6 +768,14 @@ Master message types
 
       Ask vhost user input backend the list of virtio_input_config.
 
+ * VHOST_USER_GPU_SET_SOCKET
+      Id: TBD
+      Master payload: N/A
+
+      Sets the GPU protocol socket file descriptor, which is passed as
+      ancillary data. The GPU protocol is used to inform the master of
+      rendering state and updates. See vhost-user-gpu.txt for details.
+
 Slave message types
 -------------------
 
