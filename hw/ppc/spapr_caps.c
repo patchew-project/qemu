@@ -308,7 +308,7 @@ static void cap_safe_indirect_branch_apply(sPAPRMachineState *spapr,
 void spapr_check_pagesize(sPAPRMachineState *spapr, hwaddr pagesize,
                           Error **errp)
 {
-    hwaddr maxpagesize = (1ULL << spapr->eff.caps[SPAPR_CAP_HPT_MPS]);
+    hwaddr maxpagesize = (1ULL << spapr->eff.caps[SPAPR_CAP_HPT_MAXPAGESIZE]);
 
     if (!kvmppc_hpt_needs_host_contiguous_pages()) {
         return;
