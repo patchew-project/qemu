@@ -29,6 +29,7 @@ from tarfile import TarFile, TarInfo
 from StringIO import StringIO
 from shutil import copy, rmtree
 from pwd import getpwuid
+from datetime import datetime,timedelta
 
 
 FILTERED_ENV_NAMES = ['ftp_proxy', 'http_proxy', 'https_proxy']
@@ -184,6 +185,9 @@ class Docker(object):
             return self._output(["inspect", tag])
         except subprocess.CalledProcessError:
             return None
+
+    def get_image_creation_time(self, info):
+        return json.loads(info)[0]["Created"]
 
     def get_image_dockerfile_checksum(self, tag):
         resp = self.inspect_tag(tag)
@@ -456,11 +460,14 @@ class CheckCommand(SubCommand):
     def args(self, parser):
         parser.add_argument("tag",
                             help="Image Tag")
-        parser.add_argument("dockerfile",
-                            help="Dockerfile name")
+        parser.add_argument("dockerfile", default=None,
+                            help="Dockerfile name", nargs='?')
+        parser.add_argument("--checktype", choices=["checksum", "age"],
+                            default="checksum", help="check type")
+        parser.add_argument("--olderthan", default=60, type=int,
+                            help="number of minutes")
 
     def run(self, args, argv):
-        dockerfile = open(args.dockerfile, "rb").read()
         tag = args.tag
 
         dkr = Docker()
@@ -469,13 +476,32 @@ class CheckCommand(SubCommand):
             print("Image does not exist")
             return 1
 
-        if dkr.image_matches_dockerfile(tag, dockerfile):
-            if not args.quiet:
-                print("Image is up to date")
-            return 0
-        else:
-            print("Image needs updating")
-            return 1
+        if args.checktype == "checksum":
+            if not args.dockerfile:
+                print("Need a dockerfile for tag:%s" % (tag))
+                return 1
+
+            dockerfile = open(args.dockerfile, "rb").read()
+
+            if dkr.image_matches_dockerfile(tag, dockerfile):
+                if not args.quiet:
+                    print("Image is up to date")
+                return 0
+            else:
+                print("Image needs updating")
+                return 1
+        elif args.checktype == "age":
+            timestr = dkr.get_image_creation_time(info).split(".")[0]
+            created = datetime.strptime(timestr, "%Y-%m-%dT%H:%M:%S")
+            past = datetime.now() - timedelta(minutes=args.olderthan)
+            if created < past:
+                print ("Image created @ %s more than %d minutes old" %
+                       (timestr, args.olderthan))
+                return 1
+            else:
+                if not args.quiet:
+                    print ("Image less than %d minutes old" % (args.olderthan))
+                return 0
 
 
 def main():
