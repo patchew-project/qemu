@@ -602,6 +602,11 @@ The monitor understands integers expressions for every integer
 argument. You can use register names to get the value of specifics
 CPU registers by prefixing them with @emph{$}.
 
+@node cpu_models
+@section CPU models
+
+@include docs/qemu-cpu-models.texi
+
 @node disk_images
 @section Disk Images
 
