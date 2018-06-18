@@ -235,6 +235,7 @@ static struct {
     { .driver = "vmware-svga",          .flag = &default_vga       },
     { .driver = "qxl-vga",              .flag = &default_vga       },
     { .driver = "virtio-vga",           .flag = &default_vga       },
+    { .driver = "vhost-user-vga",       .flag = &default_vga       },
 };
 
 static QemuOptsList qemu_rtc_opts = {

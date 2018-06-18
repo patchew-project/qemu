@@ -56,6 +56,7 @@ typedef struct VirtIOInputHIDPCI VirtIOInputHIDPCI;
 typedef struct VirtIOInputHostPCI VirtIOInputHostPCI;
 typedef struct VHostUserInputPCI VHostUserInputPCI;
 typedef struct VirtIOGPUPCI VirtIOGPUPCI;
+typedef struct VhostUserGPUPCI VhostUserGPUPCI;
 typedef struct VHostVSockPCI VHostVSockPCI;
 typedef struct VirtIOCryptoPCI VirtIOCryptoPCI;
 
