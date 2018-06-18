@@ -72,6 +72,24 @@ qio_channel_command_new_pid(int writefd,
                             pid_t pid);
 
 /**
+ * qio_channel_command_new_spawn_with_pre_exec:
+ * @argv: the NULL terminated list of command arguments
+ * @flags: the I/O mode, one of O_RDONLY, O_WRONLY, O_RDWR
+ * @errp: pointer to a NULL-initialized error object
+ *
+ * Create a channel for performing I/O with the
+ * command to be spawned with arguments @argv.
+ *
+ * Returns: the command channel object, or NULL on error
+ */
+QIOChannelCommand *
+qio_channel_command_new_spawn_with_pre_exec(const char *const argv[],
+                                            int flags,
+                                            void (*pre_exec_cb)(void *),
+                                            void *data,
+                                            Error **errp);
+
+/**
  * qio_channel_command_new_spawn:
  * @argv: the NULL terminated list of command arguments
  * @flags: the I/O mode, one of O_RDONLY, O_WRONLY, O_RDWR

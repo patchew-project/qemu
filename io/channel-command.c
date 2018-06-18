@@ -46,9 +46,12 @@ qio_channel_command_new_pid(int writefd,
 
 #ifndef WIN32
 QIOChannelCommand *
-qio_channel_command_new_spawn(const char *const argv[],
-                              int flags,
-                              Error **errp)
+qio_channel_command_new_spawn_with_pre_exec(const char *const argv[],
+                                            int flags,
+                                            void (*pre_exec_cb)(void *),
+                                            void *data,
+                                            Error **errp)
+
 {
     pid_t pid = -1;
     int stdinfd[2] = { -1, -1 };
@@ -104,6 +107,10 @@ qio_channel_command_new_spawn(const char *const argv[],
             close(devnull);
         }
 
+        if (pre_exec_cb) {
+            pre_exec_cb(data);
+        }
+
         execv(argv[0], (char * const *)argv);
         _exit(1);
     }
@@ -139,18 +146,30 @@ qio_channel_command_new_spawn(const char *const argv[],
     }
     return NULL;
 }
-
 #else /* WIN32 */
 QIOChannelCommand *
-qio_channel_command_new_spawn(const char *const argv[],
-                              int flags,
-                              Error **errp)
+qio_channel_command_new_spawn_with_pre_exec(const char *const argv[],
+                                            int flags,
+                                            void (*pre_exec_cb)(void *),
+                                            void *data,
+                                            Error **errp)
 {
     error_setg_errno(errp, ENOSYS,
                      "Command spawn not supported on this platform");
     return NULL;
 }
 #endif /* WIN32 */
+
+
+QIOChannelCommand *
+qio_channel_command_new_spawn(const char *const argv[],
+                              int flags,
+                              Error **errp)
+{
+    return qio_channel_command_new_spawn_with_pre_exec(argv, flags,
+                                                       NULL, NULL, errp);
+}
+
 
 #ifndef WIN32
 static int qio_channel_command_abort(QIOChannelCommand *ioc,
