@@ -22,8 +22,9 @@ typedef struct VirtIOVGA {
 static void virtio_vga_invalidate_display(void *opaque)
 {
     VirtIOVGA *vvga = opaque;
+    VirtIOGPUBase *g = VIRTIO_GPU_BASE(&vvga->vdev);
 
-    if (vvga->vdev.enable) {
+    if (g->enable) {
         virtio_gpu_ops.invalidate(&vvga->vdev);
     } else {
         vvga->vga.hw_ops->invalidate(&vvga->vga);
@@ -33,8 +34,9 @@ static void virtio_vga_invalidate_display(void *opaque)
 static void virtio_vga_update_display(void *opaque)
 {
     VirtIOVGA *vvga = opaque;
+    VirtIOGPUBase *g = VIRTIO_GPU_BASE(&vvga->vdev);
 
-    if (vvga->vdev.enable) {
+    if (g->enable) {
         virtio_gpu_ops.gfx_update(&vvga->vdev);
     } else {
         vvga->vga.hw_ops->gfx_update(&vvga->vga);
@@ -44,8 +46,9 @@ static void virtio_vga_update_display(void *opaque)
 static void virtio_vga_text_update(void *opaque, console_ch_t *chardata)
 {
     VirtIOVGA *vvga = opaque;
+    VirtIOGPUBase *g = VIRTIO_GPU_BASE(&vvga->vdev);
 
-    if (vvga->vdev.enable) {
+    if (g->enable) {
         if (virtio_gpu_ops.text_update) {
             virtio_gpu_ops.text_update(&vvga->vdev, chardata);
         }
@@ -98,7 +101,7 @@ static const VMStateDescription vmstate_virtio_vga = {
 static void virtio_vga_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
 {
     VirtIOVGA *vvga = VIRTIO_VGA(vpci_dev);
-    VirtIOGPU *g = &vvga->vdev;
+    VirtIOGPUBase *g = VIRTIO_GPU_BASE(&vvga->vdev);
     VGACommonState *vga = &vvga->vga;
     Error *err = NULL;
     uint32_t offset;
@@ -168,7 +171,9 @@ static void virtio_vga_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
 static void virtio_vga_reset(DeviceState *dev)
 {
     VirtIOVGA *vvga = VIRTIO_VGA(dev);
-    vvga->vdev.enable = 0;
+    VirtIOGPUBase *g = VIRTIO_GPU_BASE(&vvga->vdev);
+
+    g->enable = 0;
 
     vga_dirty_log_start(&vvga->vga);
 }
