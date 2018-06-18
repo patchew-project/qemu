@@ -26,6 +26,7 @@
 #include "qapi/error.h"
 #include "qapi/visitor.h"
 #include "sysemu/hw_accel.h"
+#include "exec/ram_addr.h"
 #include "target/ppc/cpu.h"
 #include "target/ppc/mmu-hash64.h"
 #include "cpu-models.h"
@@ -304,6 +305,23 @@ static void cap_safe_indirect_branch_apply(sPAPRMachineState *spapr,
 
 #define VALUE_DESC_TRISTATE     " (broken, workaround, fixed)"
 
+void spapr_check_pagesize(sPAPRMachineState *spapr, hwaddr pagesize,
+                          Error **errp)
+{
+    hwaddr maxpagesize = (1ULL << spapr->eff.caps[SPAPR_CAP_HPT_MPS]);
+
+    if (!kvmppc_hpt_needs_host_contiguous_pages()) {
+        return;
+    }
+
+    if (maxpagesize > pagesize) {
+        error_setg(errp,
+                   "Can't support %"HWADDR_PRIu" kiB guest pages with %"
+                   HWADDR_PRIu" kiB host pages with this KVM implementation",
+                   maxpagesize >> 10, pagesize >> 10);
+    }
+}
+
 static void cap_hpt_maxpagesize_apply(sPAPRMachineState *spapr,
                                       uint8_t val, Error **errp)
 {
@@ -312,6 +330,8 @@ static void cap_hpt_maxpagesize_apply(sPAPRMachineState *spapr,
     } else if (val < 16) {
         warn_report("Many guests require at least 64kiB hpt-max-page-size");
     }
+
+    spapr_check_pagesize(spapr, qemu_getrampagesize(), errp);
 }
 
 sPAPRCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
