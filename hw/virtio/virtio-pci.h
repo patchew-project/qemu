@@ -386,17 +386,19 @@ struct VHostUserInputPCI {
     VHostUserInput vhi;
 };
 
-/*
- * virtio-gpu-pci: This extends VirtioPCIProxy.
- */
-#define TYPE_VIRTIO_GPU_PCI "virtio-gpu-pci"
-#define VIRTIO_GPU_PCI(obj) \
-        OBJECT_CHECK(VirtIOGPUPCI, (obj), TYPE_VIRTIO_GPU_PCI)
 
-struct VirtIOGPUPCI {
+/*
+ * virtio-gpu-pci-base: This extends VirtioPCIProxy.
+ */
+#define TYPE_VIRTIO_GPU_PCI_BASE "virtio-gpu-pci-base"
+#define VIRTIO_GPU_PCI_BASE(obj)                                 \
+    OBJECT_CHECK(VirtIOGPUPCIBase, (obj), TYPE_VIRTIO_GPU_PCI_BASE)
+
+typedef struct VirtIOGPUPCIBase {
     VirtIOPCIProxy parent_obj;
-    VirtIOGPU vdev;
-};
+
+    VirtIOGPUBase *vgpu;
+} VirtIOGPUPCIBase;
 
 #ifdef CONFIG_VHOST_VSOCK
 /*
