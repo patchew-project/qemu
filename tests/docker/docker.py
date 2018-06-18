@@ -49,7 +49,7 @@ def _guess_docker_command():
     commands = [["docker"], ["sudo", "-n", "docker"]]
     for cmd in commands:
         try:
-            if subprocess.call(cmd + ["images"],
+            if subprocess.call(cmd + ["ps"],
                                stdout=DEVNULL, stderr=DEVNULL) == 0:
                 return cmd
         except OSError:
