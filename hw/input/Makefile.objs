@@ -11,6 +11,7 @@ common-obj-$(CONFIG_VIRTIO_INPUT) += virtio-input.o
 common-obj-$(CONFIG_VIRTIO_INPUT) += virtio-input-hid.o
 ifeq ($(CONFIG_LINUX),y)
 common-obj-$(CONFIG_VIRTIO_INPUT) += virtio-input-host.o
+common-obj-$(call land,$(CONFIG_VHOST_USER),$(CONFIG_VIRTIO_INPUT)) += vhost-user-input.o
 endif
 
 obj-$(CONFIG_MILKYMIST) += milkymist-softusb.o

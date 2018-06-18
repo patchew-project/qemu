@@ -2645,6 +2645,25 @@ static const TypeInfo virtio_host_pci_info = {
 };
 #endif
 
+static void vhost_input_pci_initfn(Object *obj)
+{
+    VHostUserInputPCI *dev = VHOST_USER_INPUT_PCI(obj);
+
+    virtio_instance_init_common(obj, &dev->vhi, sizeof(dev->vhi),
+                                TYPE_VHOST_USER_INPUT);
+
+    object_property_add_alias(obj, "vhost-user",
+                              OBJECT(&dev->vhi), "vhost-user",
+                              &error_abort);
+}
+
+static const TypeInfo vhost_input_pci_info = {
+    .name          = TYPE_VHOST_USER_INPUT_PCI,
+    .parent        = TYPE_VIRTIO_INPUT_PCI,
+    .instance_size = sizeof(VHostUserInputPCI),
+    .instance_init = vhost_input_pci_initfn,
+};
+
 /* virtio-pci-bus */
 
 static void virtio_pci_bus_new(VirtioBusState *bus, size_t bus_size,
@@ -2701,6 +2720,7 @@ static void virtio_pci_register_types(void)
 #ifdef CONFIG_LINUX
     type_register_static(&virtio_host_pci_info);
 #endif
+    type_register_static(&vhost_input_pci_info);
     type_register_static(&virtio_pci_bus_info);
     type_register_static(&virtio_pci_info);
 #ifdef CONFIG_VIRTFS
