@@ -3815,6 +3815,20 @@ libs_softmmu="$libs_softmmu $fdt_libs"
 ##########################################
 # opengl probe (for sdl2, gtk, milkymist-tmu2)
 
+libdrm="no"
+if $pkg_config libdrm; then
+    libdrm_cflags="$($pkg_config --cflags libdrm)"
+    libdrm_libs="$($pkg_config --libs libdrm)"
+    libdrm="yes"
+fi
+
+libdrm_intel="no"
+if $pkg_config libdrm_intel; then
+    libdrm_intel_cflags="$($pkg_config --cflags libdrm_intel)"
+    libdrm_intel_libs="$($pkg_config --libs libdrm_intel)"
+    libdrm_intel="yes"
+fi
+
 if test "$opengl" != "no" ; then
   opengl_pkgs="epoxy libdrm gbm"
   if $pkg_config $opengl_pkgs; then
@@ -5555,6 +5569,9 @@ if test "$want_tools" = "yes" ; then
   if [ "$linux" = "yes" ] ; then
     tools="vhost-user-input\$(EXESUF) $tools"
   fi
+  if [ "$linux" = "yes" -a "$virglrenderer" = "yes" -a "$libdrm" = "yes" ] ; then
+    tools="vhost-user-gpu\$(EXESUF) $tools"
+  fi
 fi
 if test "$softmmu" = yes ; then
   if test "$linux" = yes; then
@@ -6421,6 +6438,18 @@ if test "$opengl" = "yes" ; then
   fi
 fi
 
+if test "$libdrm" = "yes" ; then
+    echo "CONFIG_LIBDRM=y" >> $config_host_mak
+    echo "LIBDRM_LIBS=$libdrm_libs" >> $config_host_mak
+    echo "LIBDRM_CFLAGS=$libdrm_cflags" >> $config_host_mak
+fi
+
+if test "$libdrm_intel" = "yes" ; then
+    echo "CONFIG_LIBDRM_INTEL=y" >> $config_host_mak
+    echo "LIBDRM_INTEL_LIBS=$libdrm_intel_libs" >> $config_host_mak
+    echo "LIBDRM_INTEL_CFLAGS=$libdrm_intel_cflags" >> $config_host_mak
+fi
+
 if test "$malloc_trim" = "yes" ; then
   echo "CONFIG_MALLOC_TRIM=y" >> $config_host_mak
 fi
@@ -7169,6 +7198,9 @@ echo "LDFLAGS+=$ldflags" >> $config_target_mak
 echo "QEMU_CFLAGS+=$cflags" >> $config_target_mak
 
 done # for target in $targets
+
+echo "PIXMAN_CFLAGS=$pixman_cflags" >> $config_host_mak
+echo "PIXMAN_LIBS=$pixman_libs" >> $config_host_mak
 
 if [ "$fdt" = "git" ]; then
   echo "config-host.h: subdir-dtc" >> $config_host_mak
