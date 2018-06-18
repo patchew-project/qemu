@@ -291,14 +291,14 @@ static int net_vhost_user_init(NetClientState *peer, const char *device,
 {
     Error *err = NULL;
     NetClientState *nc, *nc0 = NULL;
-    VhostUserState *user = NULL;
     NetVhostUserState *s = NULL;
+    VhostUserState *user;
     int i;
 
     assert(name);
     assert(queues > 0);
 
-    user = vhost_user_init();
+    user = g_new0(struct VhostUserState, 1);
     if (!user) {
         error_report("failed to init vhost_user");
         goto err;
@@ -312,11 +312,11 @@ static int net_vhost_user_init(NetClientState *peer, const char *device,
         if (!nc0) {
             nc0 = nc;
             s = DO_UPCAST(NetVhostUserState, nc, nc);
-            if (!qemu_chr_fe_init(&s->chr, chr, &err)) {
+            if (!qemu_chr_fe_init(&s->chr, chr, &err) ||
+                !vhost_user_init(user, &s->chr, &err)) {
                 error_report_err(err);
                 goto err;
             }
-            user->chr = &s->chr;
         }
         s = DO_UPCAST(NetVhostUserState, nc, nc);
         s->vhost_user = user;

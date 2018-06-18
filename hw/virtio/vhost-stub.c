@@ -7,7 +7,7 @@ bool vhost_has_free_slot(void)
     return true;
 }
 
-VhostUserState *vhost_user_init(void)
+bool vhost_user_init(VhostUserState *user, CharBackend *chr, Error **errp)
 {
     return NULL;
 }
