@@ -164,5 +164,6 @@ int vhost_backend_handle_iotlb_msg(struct vhost_dev *dev,
 int vhost_user_input_get_config(struct vhost_dev *dev,
                                 struct virtio_input_config **config);
 int vhost_user_gpu_set_socket(struct vhost_dev *dev, int fd);
+int vhost_user_gpu_get_num_capsets(struct vhost_dev *dev, uint32_t *num);
 
 #endif /* VHOST_BACKEND_H */
