@@ -12,6 +12,7 @@
 #define VHOST_BACKEND_H
 
 #include "exec/memory.h"
+#include "standard-headers/linux/virtio_input.h"
 
 typedef enum VhostBackendType {
     VHOST_BACKEND_TYPE_NONE = 0,
@@ -159,5 +160,8 @@ int vhost_backend_invalidate_device_iotlb(struct vhost_dev *dev,
 
 int vhost_backend_handle_iotlb_msg(struct vhost_dev *dev,
                                           struct vhost_iotlb_msg *imsg);
+
+int vhost_user_input_get_config(struct vhost_dev *dev,
+                                struct virtio_input_config **config);
 
 #endif /* VHOST_BACKEND_H */
