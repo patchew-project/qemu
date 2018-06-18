@@ -62,8 +62,8 @@ void openrisc_cpu_do_interrupt(CPUState *cs)
     env->sr &= ~SR_TEE;
     env->pmr &= ~PMR_DME;
     env->pmr &= ~PMR_SME;
-    env->tlb->cpu_openrisc_map_address_data = &cpu_openrisc_get_phys_nommu;
-    env->tlb->cpu_openrisc_map_address_code = &cpu_openrisc_get_phys_nommu;
+    env->tlb.cpu_openrisc_map_address_data = &cpu_openrisc_get_phys_nommu;
+    env->tlb.cpu_openrisc_map_address_code = &cpu_openrisc_get_phys_nommu;
     env->lock_addr = -1;
 
     if (cs->exception_index > 0 && cs->exception_index < EXCP_NR) {
