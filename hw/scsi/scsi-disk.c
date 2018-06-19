@@ -2412,6 +2412,7 @@ static void scsi_realize(SCSIDevice *dev, Error **errp)
         blk_set_dev_ops(s->qdev.conf.blk, &scsi_disk_block_ops, s);
     }
     blk_set_guest_block_size(s->qdev.conf.blk, s->qdev.blocksize);
+    blkconf_apply_to_blkdrv(&s->qdev.conf);
 
     blk_iostatus_enable(s->qdev.conf.blk);
 }
