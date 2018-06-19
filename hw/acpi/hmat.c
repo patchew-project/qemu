@@ -35,6 +35,8 @@
 #include "hw/acpi/bios-linker-loader.h"
 
 struct numa_hmat_lb_info *hmat_lb_info[HMAT_LB_LEVELS][HMAT_LB_TYPES] = {0};
+struct numa_hmat_cache_info
+       *hmat_cache_info[MAX_NODES][MAX_HMAT_CACHE_LEVEL + 1] = {0};
 
 static uint32_t initiator_pxm[MAX_NODES], target_pxm[MAX_NODES];
 static uint32_t num_initiator, num_target;
@@ -210,6 +212,57 @@ static void hmat_build_lb(GArray *table_data)
     }
 }
 
+static void hmat_build_cache(GArray *table_data)
+{
+    AcpiHmatCacheInfo *hmat_cache;
+    struct numa_hmat_cache_info *numa_hmat_cache;
+    int i, level;
+
+    for (i = 0; i < nb_numa_nodes; i++) {
+        for (level = 0; level <= MAX_HMAT_CACHE_LEVEL; level++) {
+            numa_hmat_cache = hmat_cache_info[i][level];
+            if (numa_hmat_cache) {
+                uint64_t start = table_data->len;
+
+                hmat_cache = acpi_data_push(table_data, sizeof(*hmat_cache));
+                hmat_cache->length = cpu_to_le32(sizeof(*hmat_cache));
+                hmat_cache->type = cpu_to_le16(ACPI_HMAT_CACHE_INFO);
+                hmat_cache->mem_proximity =
+                            cpu_to_le32(numa_hmat_cache->mem_proximity);
+                hmat_cache->cache_size  = cpu_to_le64(numa_hmat_cache->size);
+                hmat_cache->cache_attr  = HMAT_CACHE_TOTAL_LEVEL(
+                                          numa_hmat_cache->total_levels);
+                hmat_cache->cache_attr |= HMAT_CACHE_CURRENT_LEVEL(
+                                          numa_hmat_cache->level);
+                hmat_cache->cache_attr |= HMAT_CACHE_ASSOC(
+                                          numa_hmat_cache->associativity);
+                hmat_cache->cache_attr |= HMAT_CACHE_WRITE_POLICY(
+                                          numa_hmat_cache->write_policy);
+                hmat_cache->cache_attr |= HMAT_CACHE_LINE_SIZE(
+                                          numa_hmat_cache->line_size);
+                hmat_cache->cache_attr = cpu_to_le32(hmat_cache->cache_attr);
+
+                if (numa_hmat_cache->num_smbios_handles != 0) {
+                    uint16_t *smbios_handles;
+                    int size;
+
+                    size = hmat_cache->num_smbios_handles * sizeof(uint16_t);
+                    smbios_handles = acpi_data_push(table_data, size);
+
+                    hmat_cache = (AcpiHmatCacheInfo *)
+                                 (table_data->data + start);
+                    hmat_cache->length += size;
+
+                    /* TBD: set smbios handles */
+                    memset(smbios_handles, 0, size);
+                }
+                hmat_cache->num_smbios_handles =
+                            cpu_to_le16(numa_hmat_cache->num_smbios_handles);
+            }
+        }
+    }
+}
+
 static void hmat_build_hma(GArray *hma, PCMachineState *pcms)
 {
     /* Build HMAT Memory Subsystem Address Range. */
@@ -217,6 +270,9 @@ static void hmat_build_hma(GArray *hma, PCMachineState *pcms)
 
     /* Build HMAT System Locality Latency and Bandwidth Information. */
     hmat_build_lb(hma);
+
+    /* Build HMAT Memory Side Cache Information. */
+    hmat_build_cache(hma);
 }
 
 void hmat_build_acpi(GArray *table_data, BIOSLinker *linker,
