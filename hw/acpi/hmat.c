@@ -34,6 +34,11 @@
 #include "hw/nvram/fw_cfg.h"
 #include "hw/acpi/bios-linker-loader.h"
 
+struct numa_hmat_lb_info *hmat_lb_info[HMAT_LB_LEVELS][HMAT_LB_TYPES] = {0};
+
+static uint32_t initiator_pxm[MAX_NODES], target_pxm[MAX_NODES];
+static uint32_t num_initiator, num_target;
+
 /* Build Memory Subsystem Address Range Structure */
 static void hmat_build_spa_info(GArray *table_data,
                                 uint64_t base, uint64_t length, int node)
@@ -115,10 +120,103 @@ static void hmat_build_spa(GArray *table_data, PCMachineState *pcms)
     }
 }
 
+static void classify_proximity_domains(void)
+{
+    int node;
+
+    for (node = 0; node < nb_numa_nodes; node++) {
+        if (numa_info[node].is_initiator) {
+            initiator_pxm[num_initiator++] = node;
+        }
+        if (numa_info[node].is_target) {
+            target_pxm[num_target++] = node;
+        }
+    }
+}
+
+static void hmat_build_lb(GArray *table_data)
+{
+    AcpiHmatLBInfo *hmat_lb;
+    struct numa_hmat_lb_info *numa_hmat_lb;
+    int i, j, hrchy, type;
+
+    if (!num_initiator && !num_target) {
+        classify_proximity_domains();
+    }
+
+    for (hrchy = HMAT_LB_MEM_MEMORY;
+         hrchy <= HMAT_LB_MEM_CACHE_3RD_LEVEL; hrchy++) {
+        for (type = HMAT_LB_DATA_ACCESS_LATENCY;
+             type <= HMAT_LB_DATA_WRITE_BANDWIDTH; type++) {
+            numa_hmat_lb = hmat_lb_info[hrchy][type];
+
+            if (numa_hmat_lb) {
+                uint64_t start;
+                uint32_t *list_entry;
+                uint16_t *entry, *entry_start;
+                uint32_t size;
+                uint8_t m, n;
+
+                start = table_data->len;
+                hmat_lb = acpi_data_push(table_data, sizeof(*hmat_lb));
+
+                hmat_lb->type          = cpu_to_le16(ACPI_HMAT_LB_INFO);
+                hmat_lb->flags         = numa_hmat_lb->hierarchy;
+                hmat_lb->data_type     = numa_hmat_lb->data_type;
+                hmat_lb->num_initiator = cpu_to_le32(num_initiator);
+                hmat_lb->num_target    = cpu_to_le32(num_target);
+
+                if (type <= HMAT_LB_DATA_WRITE_LATENCY) {
+                    hmat_lb->base_unit = cpu_to_le32(numa_hmat_lb->base_lat);
+                } else {
+                    hmat_lb->base_unit = cpu_to_le32(numa_hmat_lb->base_bw);
+                }
+                if (!hmat_lb->base_unit) {
+                    hmat_lb->base_unit = cpu_to_le32(1);
+                }
+
+                /* the initiator proximity domain list */
+                for (i = 0; i < num_initiator; i++) {
+                    list_entry = acpi_data_push(table_data, sizeof(uint32_t));
+                    *list_entry = cpu_to_le32(initiator_pxm[i]);
+                }
+
+                /* the target proximity domain list */
+                for (i = 0; i < num_target; i++) {
+                    list_entry = acpi_data_push(table_data, sizeof(uint32_t));
+                    *list_entry = cpu_to_le32(target_pxm[i]);
+                }
+
+                /* latency or bandwidth entries */
+                size = sizeof(uint16_t) * num_initiator * num_target;
+                entry_start = acpi_data_push(table_data, size);
+
+                for (i = 0; i < num_initiator; i++) {
+                    m = initiator_pxm[i];
+                    for (j = 0; j < num_target; j++) {
+                        n = target_pxm[j];
+                        entry = entry_start + i * num_target + j;
+                        if (type <= HMAT_LB_DATA_WRITE_LATENCY) {
+                            *entry = cpu_to_le16(numa_hmat_lb->latency[m][n]);
+                        } else {
+                            *entry = cpu_to_le16(numa_hmat_lb->bandwidth[m][n]);
+                        }
+                    }
+                }
+                hmat_lb = (AcpiHmatLBInfo *)(table_data->data + start);
+                hmat_lb->length = cpu_to_le16(table_data->len - start);
+            }
+        }
+    }
+}
+
 static void hmat_build_hma(GArray *hma, PCMachineState *pcms)
 {
     /* Build HMAT Memory Subsystem Address Range. */
     hmat_build_spa(hma, pcms);
+
+    /* Build HMAT System Locality Latency and Bandwidth Information. */
+    hmat_build_lb(hma);
 }
 
 void hmat_build_acpi(GArray *table_data, BIOSLinker *linker,
