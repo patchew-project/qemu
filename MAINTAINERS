@@ -2132,6 +2132,13 @@ F: hw/rdma/*
 F: hw/rdma/vmw/*
 F: docs/pvrdma.txt
 
+
+BPF
+M: Sameeh Jubran <sameeh@daynix.com>
+S: Maintained
+F: bpf/*
+F: include/bpf*
+
 Build and test automation
 -------------------------
 Build and test automation

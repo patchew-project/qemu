@@ -1,0 +1,1 @@
+common-obj-y += bpf_syscall.o
