@@ -1714,8 +1714,30 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
             /* Mark cluster as used */
             csize = (((l2_entry >> s->csize_shift) & s->csize_mask) + 1) *
                     BDRV_SECTOR_SIZE;
+            if (csize > s->cluster_size) {
+                ret = fix_l2_entry_to_zero(
+                        bs, res, fix, l2_offset, i, active,
+                        "compressed cluster larger than cluster: size 0x%"
+                        PRIx64, csize);
+                if (ret < 0) {
+                    goto fail;
+                }
+                continue;
+            }
+
             coffset = l2_entry & s->cluster_offset_mask &
                       ~(BDRV_SECTOR_SIZE - 1);
+            if (coffset >= bdrv_getlength(bs->file->bs)) {
+                ret = fix_l2_entry_to_zero(
+                        bs, res, fix, l2_offset, i, active,
+                        "compressed cluster out of file: offset 0x%" PRIx64,
+                        coffset);
+                if (ret < 0) {
+                    goto fail;
+                }
+                continue;
+            }
+
             ret = qcow2_inc_refcounts_imrt(bs, res,
                                            refcount_table, refcount_table_size,
                                            coffset, csize);
@@ -1741,6 +1763,16 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
         case QCOW2_CLUSTER_NORMAL:
         {
             uint64_t offset = l2_entry & L2E_OFFSET_MASK;
+
+            if (offset >= bdrv_getlength(bs->file->bs)) {
+                ret = fix_l2_entry_to_zero(
+                        bs, res, fix, l2_offset, i, active,
+                        "cluster out of file: offset 0x%" PRIx64, offset);
+                if (ret < 0) {
+                    goto fail;
+                }
+                continue;
+            }
 
             if (flags & CHECK_FRAG_INFO) {
                 res->bfi.allocated_clusters++;
