@@ -1224,6 +1224,7 @@ static void nvme_realize(PCIDevice *pci_dev, Error **errp)
                                        false, errp)) {
         return;
     }
+    blkconf_apply_to_blkdrv(&n->conf);
 
     pci_conf = pci_dev->config;
     pci_conf[PCI_INTERRUPT_PIN] = 1;
