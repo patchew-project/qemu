@@ -482,6 +482,8 @@ static void fd_change_cb(void *opaque, bool load, Error **errp)
                                            errp)) {
             return;
         }
+
+        blkconf_apply_to_blkdrv(drive->conf);
     }
 
     drive->media_changed = 1;
@@ -593,6 +595,8 @@ static void floppy_drive_realize(DeviceState *qdev, Error **errp)
     drive->drive = dev->type;
     pick_drive_type(drive);
     dev->type = drive->drive;
+
+    blkconf_apply_to_blkdrv(&dev->conf);
 
     fd_revalidate(drive);
 }
