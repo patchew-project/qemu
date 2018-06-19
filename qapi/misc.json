@@ -2736,10 +2736,12 @@
 #
 # @cpu: property based CPU(s) to node mapping (Since: 2.10)
 #
+# @hmat-lb: memory latency and bandwidth information (Since: 2.13)
+#
 # Since: 2.1
 ##
 { 'enum': 'NumaOptionsType',
-  'data': [ 'node', 'dist', 'cpu' ] }
+  'data': [ 'node', 'dist', 'cpu', 'hmat-lb' ] }
 
 ##
 # @NumaOptions:
@@ -2754,7 +2756,8 @@
   'data': {
     'node': 'NumaNodeOptions',
     'dist': 'NumaDistOptions',
-    'cpu': 'NumaCpuOptions' }}
+    'cpu': 'NumaCpuOptions',
+    'hmat-lb': 'NumaHmatLBOptions' }}
 
 ##
 # @NumaNodeOptions:
@@ -2816,6 +2819,91 @@
 { 'struct': 'NumaCpuOptions',
    'base': 'CpuInstanceProperties',
    'data' : {} }
+
+##
+# @HmatLBMemoryHierarchy:
+#
+# The memory hierarchy in the System Locality Latency
+# and Bandwidth Information Structure of HMAT
+#
+# @memory: the structure represents the memory performance
+#
+# @last-level: last level memory of memory side cached memory
+#
+# @1st-level: first level memory of memory side cached memory
+#
+# @2nd-level: second level memory of memory side cached memory
+#
+# @3rd-level: third level memory of memory side cached memory
+#
+# Since: 2.13
+##
+{ 'enum': 'HmatLBMemoryHierarchy',
+  'data': [ 'memory', 'last-level', '1st-level',
+            '2nd-level', '3rd-level' ] }
+
+##
+# @HmatLBDataType:
+#
+# Data type in the System Locality Latency
+# and Bandwidth Information Structure of HMAT
+#
+# @access-latency: access latency
+#
+# @read-latency: read latency
+#
+# @write-latency: write latency
+#
+# @access-bandwidth: access bandwitch
+#
+# @read-bandwidth: read bandwidth
+#
+# @write-bandwidth: write bandwidth
+#
+# Since: 2.13
+##
+{ 'enum': 'HmatLBDataType',
+  'data': [ 'access-latency', 'read-latency', 'write-latency',
+            'access-bandwidth', 'read-bandwidth', 'write-bandwidth' ] }
+
+##
+# @NumaHmatLBOptions:
+#
+# Set the system locality latency and bandwidth information
+# between Initiator and Target proximity Domains.
+#
+# @initiator: the Initiator Proximity Domain.
+#
+# @target: the Target Proximity Domain.
+#
+# @hierarchy: the Memory Hierarchy. Indicates the performance
+#             of memory or side cache.
+#
+# @data-type: presents the type of data, access/read/write
+#             latency or hit latency.
+#
+# @base-lat: the base unit for latency in nanoseconds.
+#
+# @base-bw: the base unit for bandwidth in megabytes per second(MB/s).
+#
+# @latency: the value of latency based on Base Unit from @initiator
+#           to @target proximity domain.
+#
+# @bandwidth: the value of bandwidth based on Base Unit between
+#             @initiator and @target proximity domain.
+#
+# Since: 2.13
+##
+{ 'struct': 'NumaHmatLBOptions',
+  'data': {
+   'initiator': 'uint16',
+   'target': 'uint16',
+   'hierarchy': 'HmatLBMemoryHierarchy',
+   'data-type': 'HmatLBDataType',
+   '*base-lat': 'uint64',
+   '*base-bw': 'uint64',
+   '*latency': 'uint16',
+   '*bandwidth': 'uint16' }}
 
 ##
 # @HostMemPolicy:
