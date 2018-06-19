@@ -213,6 +213,8 @@ static void ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind, Error **errp)
         dev->serial = g_strdup(s->drive_serial_str);
     }
 
+    blkconf_apply_to_blkdrv(&dev->conf);
+
     add_boot_device_path(dev->conf.bootindex, &dev->qdev,
                          dev->unit ? "/disk@1" : "/disk@0");
 }
