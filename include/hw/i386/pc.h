@@ -17,6 +17,7 @@
 #include "hw/mem/pc-dimm.h"
 #include "hw/mem/nvdimm.h"
 #include "hw/acpi/acpi_dev_interface.h"
+#include "hw/acpi/hmat.h"
 
 #define HPET_INTCAP "hpet-intcap"
 
@@ -47,6 +48,7 @@ struct PCMachineState {
     OnOffAuto smm;
 
     AcpiNVDIMMState acpi_nvdimm_state;
+    AcpiHmaState acpi_hma_state;
 
     bool acpi_build_enabled;
     bool smbus;

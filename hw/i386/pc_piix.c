@@ -299,6 +299,9 @@ static void pc_init1(MachineState *machine,
         nvdimm_init_acpi_state(&pcms->acpi_nvdimm_state, system_io,
                                pcms->fw_cfg, OBJECT(pcms));
     }
+
+    hmat_init_acpi_state(&pcms->acpi_hma_state, system_io,
+                         pcms->fw_cfg, OBJECT(pcms));
 }
 
 /* Looking for a pc_compat_2_4() function? It doesn't exist.

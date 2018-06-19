@@ -279,6 +279,9 @@ static void pc_q35_init(MachineState *machine)
         nvdimm_init_acpi_state(&pcms->acpi_nvdimm_state, system_io,
                                pcms->fw_cfg, OBJECT(pcms));
     }
+
+    hmat_init_acpi_state(&pcms->acpi_hma_state, system_io,
+                         pcms->fw_cfg, OBJECT(pcms));
 }
 
 #define DEFINE_Q35_MACHINE(suffix, name, compatfn, optionfn) \
