@@ -1564,7 +1564,7 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
     BDRVQcow2State *s = bs->opaque;
     uint64_t *l2_table, l2_entry;
     uint64_t next_contiguous_offset = 0;
-    int i, l2_size, nb_csectors, ret;
+    int i, l2_size, ret;
 
     /* Read L2 table from disk */
     l2_size = s->l2_size * sizeof(uint64_t);
@@ -1583,6 +1583,9 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
 
         switch (qcow2_get_cluster_type(l2_entry)) {
         case QCOW2_CLUSTER_COMPRESSED:
+        {
+            int64_t csize, coffset;
+
             /* Compressed clusters don't have QCOW_OFLAG_COPIED */
             if (l2_entry & QCOW_OFLAG_COPIED) {
                 fprintf(stderr, "ERROR: coffset=0x%" PRIx64 ": "
@@ -1593,12 +1596,13 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
             }
 
             /* Mark cluster as used */
-            nb_csectors = ((l2_entry >> s->csize_shift) &
-                           s->csize_mask) + 1;
-            l2_entry &= s->cluster_offset_mask;
+            csize = (((l2_entry >> s->csize_shift) & s->csize_mask) + 1) *
+                    BDRV_SECTOR_SIZE;
+            coffset = l2_entry & s->cluster_offset_mask &
+                      ~(BDRV_SECTOR_SIZE - 1);
             ret = qcow2_inc_refcounts_imrt(bs, res,
                                            refcount_table, refcount_table_size,
-                                           l2_entry & ~511, nb_csectors * 512);
+                                           coffset, csize);
             if (ret < 0) {
                 goto fail;
             }
@@ -1615,6 +1619,7 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
                 res->bfi.fragmented_clusters++;
             }
             break;
+        }
 
         case QCOW2_CLUSTER_ZERO_ALLOC:
         case QCOW2_CLUSTER_NORMAL:
