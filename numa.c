@@ -100,6 +100,10 @@ static void parse_numa_node(MachineState *ms, NumaNodeOptions *node,
         machine_set_cpu_numa_node(ms, &props, &error_fatal);
     }
 
+    if (node->cpus) {
+        numa_info[nodenr].is_initiator = true;
+    }
+
     if (node->has_mem && node->has_memdev) {
         error_setg(errp, "cannot specify both mem= and memdev=");
         return;
@@ -116,6 +120,7 @@ static void parse_numa_node(MachineState *ms, NumaNodeOptions *node,
 
     if (node->has_mem) {
         numa_info[nodenr].node_mem = node->mem;
+        numa_info[nodenr].is_target = true;
     }
     if (node->has_memdev) {
         Object *o;
@@ -128,6 +133,7 @@ static void parse_numa_node(MachineState *ms, NumaNodeOptions *node,
         object_ref(o);
         numa_info[nodenr].node_mem = object_property_get_uint(o, "size", NULL);
         numa_info[nodenr].node_memdev = MEMORY_BACKEND(o);
+        numa_info[nodenr].is_target = true;
     }
     numa_info[nodenr].present = true;
     max_numa_nodeid = MAX(max_numa_nodeid, nodenr + 1);
