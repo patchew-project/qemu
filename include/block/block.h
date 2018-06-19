@@ -10,6 +10,7 @@
 #include "block/dirty-bitmap.h"
 #include "block/blockjob.h"
 #include "qemu/hbitmap.h"
+#include "hw/block/block.h"
 
 /* block.c */
 typedef struct BlockDriver BlockDriver;
@@ -679,4 +680,13 @@ void bdrv_unregister_buf(BlockDriverState *bs, void *host);
 int coroutine_fn bdrv_co_copy_range(BdrvChild *src, uint64_t src_offset,
                                     BdrvChild *dst, uint64_t dst_offset,
                                     uint64_t bytes, BdrvRequestFlags flags);
+
+/*
+ * bdrv_apply_blkconf:
+ *
+ * Recursively finds the highest-level block drivers among the files and
+ * backing files that accept a block configuration and applies the given block
+ * configuration to them.
+ */
+void bdrv_apply_blkconf(BlockDriverState *bs, BlockConf *conf);
 #endif

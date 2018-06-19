@@ -3020,3 +3020,25 @@ int coroutine_fn bdrv_co_copy_range(BdrvChild *src, uint64_t src_offset,
     bdrv_dec_in_flight(dst_bs);
     return ret;
 }
+
+void bdrv_apply_blkconf(BlockDriverState *bs, BlockConf *conf)
+{
+    BlockDriver *drv = bs->drv;
+
+    if (!drv) {
+        return;
+    }
+
+    if (drv->bdrv_apply_blkconf) {
+        drv->bdrv_apply_blkconf(bs, conf);
+        return;
+    }
+
+    if (bs->file && bs->file->bs) {
+        bdrv_apply_blkconf(bs->file->bs, conf);
+    }
+
+    if (bs->drv->supports_backing && backing_bs(bs)) {
+        bdrv_apply_blkconf(backing_bs(bs), conf);
+    }
+}

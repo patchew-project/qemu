@@ -25,7 +25,7 @@ void blkconf_blocksizes(BlockConf *conf)
     /* fill in detected values if they are not defined via qemu command line */
     if (!conf->physical_block_size) {
         if (!backend_ret) {
-           conf->physical_block_size = blocksizes.phys;
+            conf->physical_block_size = blocksizes.phys;
         } else {
             conf->physical_block_size = BDRV_SECTOR_SIZE;
         }
@@ -36,6 +36,16 @@ void blkconf_blocksizes(BlockConf *conf)
         } else {
             conf->logical_block_size = BDRV_SECTOR_SIZE;
         }
+    }
+}
+
+void blkconf_apply_to_blkdrv(BlockConf *conf)
+{
+    BlockBackend *blk = conf->blk;
+    BlockDriverState *bs = blk_bs(blk);
+
+    if (bs) {
+        bdrv_apply_blkconf(bs, conf);
     }
 }
 

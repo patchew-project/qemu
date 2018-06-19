@@ -465,6 +465,15 @@ struct BlockDriver {
     void (*bdrv_abort_perm_update)(BlockDriverState *bs);
 
     /**
+     * Called to inform the driver of the block configuration of the virtual
+     * block device.
+     *
+     * This function is called by a block device realization function if the
+     * device wants to inform the block driver of its block configuration.
+     */
+    void (*bdrv_apply_blkconf)(BlockDriverState *bs, BlockConf *conf);
+
+    /**
      * Returns in @nperm and @nshared the permissions that the driver for @bs
      * needs on its child @c, based on the cumulative permissions requested by
      * the parents in @parent_perm and @parent_shared.
