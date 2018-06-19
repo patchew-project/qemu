@@ -287,6 +287,7 @@ static void handleAnyDeviceErrors(Error * err)
     BOOL isFullscreen;
     BOOL isAbsoluteEnabled;
     BOOL isMouseDeassociated;
+    BOOL prevent_stuck_command_key;
 }
 - (void) switchSurface:(DisplaySurface *)surface;
 - (void) grabMouse;
@@ -330,7 +331,7 @@ QemuCocoaView *cocoaView;
         screen.bitsPerPixel = 32;
         screen.width = frameRect.size.width;
         screen.height = frameRect.size.height;
-
+        prevent_stuck_command_key = NO;
     }
     return self;
 }
@@ -552,6 +553,14 @@ QemuCocoaView *cocoaView;
 }
 
 - (void) toggleModifier: (int)keycode {
+
+    /* Prevents the command key from being sent to the guest */
+    if ((keycode == Q_KEY_CODE_META_L || keycode == Q_KEY_CODE_META_R) &&
+        prevent_stuck_command_key == YES) {
+        prevent_stuck_command_key = NO;
+        return;
+    }
+
     // Toggle the stored state.
     modifiers_state[keycode] = !modifiers_state[keycode];
     // Send a keyup or keydown depending on the state.
@@ -691,6 +700,13 @@ QemuCocoaView *cocoaView;
 
             // forward command key combos to the host UI unless the mouse is grabbed
             if (!isMouseGrabbed && ([event modifierFlags] & NSEventModifierFlagCommand)) {
+                /*
+                 * Prevent the command key from being stuck down in the guest
+                 * when using Command-F for full screen mode
+                 */
+                if (keycode == Q_KEY_CODE_F) {
+                    prevent_stuck_command_key = YES;
+                }
                 [NSApp sendEvent:event];
                 return;
             }
