@@ -2728,12 +2728,20 @@ static void migration_update_counters(MigrationState *s,
 {
     uint64_t transferred, time_spent;
     double bandwidth;
+    uint64_t now;
 
     if (current_time < s->iteration_start_time + BUFFER_DELAY) {
         return;
     }
 
-    transferred = qemu_ftell(s->to_dst_file) - s->iteration_initial_bytes;
+    if (migrate_use_multifd()) {
+        now = ram_counters.normal * qemu_target_page_size()
+            + multifd_packets_size()
+            + qemu_ftell(s->to_dst_file);
+    } else {
+        now = qemu_ftell(s->to_dst_file);
+    }
+    transferred = now - s->iteration_initial_bytes;
     time_spent = current_time - s->iteration_start_time;
     bandwidth = (double)transferred / time_spent;
     s->threshold_size = bandwidth * s->parameters.downtime_limit;
@@ -2752,7 +2760,7 @@ static void migration_update_counters(MigrationState *s,
     qemu_file_reset_rate_limit(s->to_dst_file);
 
     s->iteration_start_time = current_time;
-    s->iteration_initial_bytes = qemu_ftell(s->to_dst_file);
+    s->iteration_initial_bytes = now;
 
     trace_migrate_transferred(transferred, time_spent,
                               bandwidth, s->threshold_size);
