@@ -218,11 +218,12 @@ static void s390_cpu_realizefn(DeviceState *dev, Error **errp)
 #endif
     s390_cpu_gdb_init(cs);
     qemu_init_vcpu(cs);
-#if !defined(CONFIG_USER_ONLY)
-    run_on_cpu(cs, s390_do_cpu_full_reset, RUN_ON_CPU_NULL);
-#else
-    cpu_reset(cs);
-#endif
+
+    if (kvm_enabled()) {
+        run_on_cpu(cs, s390_do_cpu_full_reset, RUN_ON_CPU_NULL);
+    } else {
+        cpu_reset(cs);
+    }
 
     scc->parent_realize(dev, &err);
 out:
