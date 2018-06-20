@@ -952,6 +952,13 @@ int multifd_save_setup(void)
     return 0;
 }
 
+/* Size in bytes of the page headers */
+int multifd_packets_size(void)
+{
+    /* We are not yet sending any data through channels */
+    return 0;
+}
+
 struct {
     MultiFDRecvParams *params;
     /* number of created threads */
