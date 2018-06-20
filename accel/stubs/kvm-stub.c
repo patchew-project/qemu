@@ -161,6 +161,11 @@ bool kvm_has_free_slot(MachineState *ms)
     return false;
 }
 
+int kvm_get_max_vm_phys_shift(MachineState *ms)
+{
+    return 0;
+}
+
 void kvm_init_cpu_signals(CPUState *cpu)
 {
     abort();
