@@ -91,6 +91,10 @@ of the TLS credentials object previously created with the --object
 option.
 @item --fork
 Fork off the server process and exit the parent once the server is running.
+@item --tls-authz=ID
+Specify the ID of a qauthz object previously created with the
+--object option. This will be used to authorize connecting users
+against their x509 distinguished name.
 @item -v, --verbose
 Display extra debugging information
 @item -h, --help
