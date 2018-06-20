@@ -1734,7 +1734,8 @@ void helper_mtc0_config2(CPUMIPSState *env, target_ulong arg1)
 
 void helper_mtc0_config3(CPUMIPSState *env, target_ulong arg1)
 {
-    if (env->insn_flags & ASE_MICROMIPS) {
+    if ((env->insn_flags & ASE_MICROMIPS) &&
+        !(env->insn_flags & ISA_NANOMIPS32)) {
         env->CP0_Config3 = (env->CP0_Config3 & ~(1 << CP0C3_ISA_ON_EXC)) |
                            (arg1 & (1 << CP0C3_ISA_ON_EXC));
     }
