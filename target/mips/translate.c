@@ -16407,6 +16407,72 @@ static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
         }
         break;
     case NM_P48I:
+        insn = cpu_lduw_code(env, ctx->base.pc_next + 4);
+        switch ((ctx->opcode >> 16) & 0x1f) {
+        case NM_LI48:
+            if (rt != 0) {
+                tcg_gen_movi_tl(cpu_gpr[rt],
+                                extract32(ctx->opcode, 0, 16) | insn << 16);
+            }
+            break;
+        case NM_ADDIU48:
+            if (rt != 0) {
+                tcg_gen_addi_tl(cpu_gpr[rt], cpu_gpr[rt],
+                                extract32(ctx->opcode, 0, 16) | insn << 16);
+                tcg_gen_ext32s_tl(cpu_gpr[rt], cpu_gpr[rt]);
+            }
+            break;
+        case NM_ADDIUGP48:
+            if (rt != 0) {
+                tcg_gen_addi_tl(cpu_gpr[rt], cpu_gpr[28],
+                                extract32(ctx->opcode, 0, 16) | insn << 16);
+                tcg_gen_ext32s_tl(cpu_gpr[rt], cpu_gpr[rt]);
+            }
+            break;
+        case NM_ADDIUPC48:
+            if (rt != 0) {
+                int32_t offset = extract32(ctx->opcode, 0, 16) | insn << 16;
+                target_long addr = addr_add(ctx, ctx->base.pc_next + 6, offset);
+
+                tcg_gen_movi_tl(cpu_gpr[rt], addr);
+                tcg_gen_ext32s_tl(cpu_gpr[rt], cpu_gpr[rt]);
+            }
+            break;
+        case NM_LWPC48:
+            if (rt != 0) {
+                TCGv t0;
+                t0 = tcg_temp_new();
+
+                int32_t offset = extract32(ctx->opcode, 0, 16) | insn << 16;
+                target_long addr = addr_add(ctx, ctx->base.pc_next + 6, offset);
+
+                tcg_gen_movi_tl(t0, addr);
+                tcg_gen_qemu_ld_tl(cpu_gpr[rt], t0, ctx->mem_idx, MO_TESL);
+                tcg_temp_free(t0);
+            }
+            break;
+        case NM_SWPC48:
+        {
+            TCGv t0, t1;
+            t0 = tcg_temp_new();
+            t1 = tcg_temp_new();
+
+            int32_t offset = extract32(ctx->opcode, 0, 16) | insn << 16;
+            target_long addr = addr_add(ctx, ctx->base.pc_next + 6, offset);
+
+            tcg_gen_movi_tl(t0, addr);
+            gen_load_gpr(t1, rt);
+
+            tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEUL);
+
+            tcg_temp_free(t0);
+            tcg_temp_free(t1);
+        }
+            break;
+        default:
+            generate_exception_end(ctx, EXCP_RI);
+            break;
+        }
         return 6;
     case NM_P_U12:
         switch ((ctx->opcode >> 12) & 0x0f) {
