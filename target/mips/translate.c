@@ -2114,7 +2114,7 @@ OP_ST_ATOMIC(scd,st64,ld64,0x7);
 #undef OP_ST_ATOMIC
 
 static void gen_base_offset_addr (DisasContext *ctx, TCGv addr,
-                                  int base, int16_t offset)
+                                  int base, int offset)
 {
     if (base == 0) {
         tcg_gen_movi_tl(addr, offset);
@@ -2142,7 +2142,7 @@ static target_ulong pc_relative_pc (DisasContext *ctx)
 
 /* Load */
 static void gen_ld(DisasContext *ctx, uint32_t opc,
-                   int rt, int base, int16_t offset)
+                   int rt, int base, int offset)
 {
     TCGv t0, t1, t2;
     int mem_idx = ctx->mem_idx;
@@ -2377,7 +2377,7 @@ static void gen_llwp(DisasContext *ctx, uint32_t base, int16_t offset,
 
 /* Store */
 static void gen_st (DisasContext *ctx, uint32_t opc, int rt,
-                    int base, int16_t offset)
+                    int base, int offset)
 {
     TCGv t0 = tcg_temp_new();
     TCGv t1 = tcg_temp_new();
@@ -2602,7 +2602,7 @@ static void gen_cop1_ldst(DisasContext *ctx, uint32_t op, int rt,
 
 /* Arithmetic with immediate operand */
 static void gen_arith_imm(DisasContext *ctx, uint32_t opc,
-                          int rt, int rs, int16_t imm)
+                          int rt, int rs, int imm)
 {
     target_ulong uimm = (target_long)imm; /* Sign extend to 32/64 bits */
 
