@@ -114,7 +114,9 @@ struct PnvICPState {
 struct ICSStateClass {
     DeviceClass parent_class;
 
-    void (*realize)(ICSState *s, Error **errp);
+    DeviceRealize parent_realize;
+    DeviceReset parent_reset;
+
     void (*pre_save)(ICSState *s);
     int (*post_load)(ICSState *s, int version_id);
     void (*reject)(ICSState *s, uint32_t irq);

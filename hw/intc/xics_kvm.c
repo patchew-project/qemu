@@ -304,44 +304,47 @@ static void ics_kvm_set_irq(void *opaque, int srcno, int val)
     }
 }
 
-static void ics_kvm_reset(void *dev)
+static void ics_kvm_reset(DeviceState *dev)
 {
-    ICSState *ics = ICS_SIMPLE(dev);
-    int i;
-    uint8_t flags[ics->nr_irqs];
+    ICSStateClass *icsc = ICS_BASE_GET_CLASS(dev);
 
-    for (i = 0; i < ics->nr_irqs; i++) {
-        flags[i] = ics->irqs[i].flags;
-    }
+    icsc->parent_reset(dev);
 
-    memset(ics->irqs, 0, sizeof(ICSIRQState) * ics->nr_irqs);
-
-    for (i = 0; i < ics->nr_irqs; i++) {
-        ics->irqs[i].priority = 0xff;
-        ics->irqs[i].saved_priority = 0xff;
-        ics->irqs[i].flags = flags[i];
-    }
-
-    ics_set_kvm_state(ics, 1);
+    ics_set_kvm_state(ICS_KVM(dev), 1);
 }
 
-static void ics_kvm_realize(ICSState *ics, Error **errp)
+static void ics_kvm_reset_handler(void *dev)
 {
-    if (!ics->nr_irqs) {
-        error_setg(errp, "Number of interrupts needs to be greater 0");
+    ics_kvm_reset(dev);
+}
+
+static void ics_kvm_realize(DeviceState *dev, Error **errp)
+{
+    ICSState *ics = ICS_BASE(dev);
+    ICSStateClass *icsc = ICS_BASE_GET_CLASS(ics);
+    Error *local_err = NULL;
+
+    icsc->parent_realize(dev, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
         return;
     }
-    ics->irqs = g_malloc0(ics->nr_irqs * sizeof(ICSIRQState));
+
     ics->qirqs = qemu_allocate_irqs(ics_kvm_set_irq, ics, ics->nr_irqs);
 
-    qemu_register_reset(ics_kvm_reset, ics);
+    qemu_register_reset(ics_kvm_reset_handler, ics);
 }
 
 static void ics_kvm_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     ICSStateClass *icsc = ICS_BASE_CLASS(klass);
 
-    icsc->realize = ics_kvm_realize;
+    device_class_set_parent_realize(dc, ics_kvm_realize,
+                                    &icsc->parent_realize);
+    device_class_set_parent_reset(dc, ics_kvm_reset,
+                                  &icsc->parent_reset);
+
     icsc->pre_save = ics_get_kvm_state;
     icsc->post_load = ics_set_kvm_state;
     icsc->synchronize_state = ics_synchronize_state;
@@ -349,7 +352,7 @@ static void ics_kvm_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo ics_kvm_info = {
     .name = TYPE_ICS_KVM,
-    .parent = TYPE_ICS_SIMPLE,
+    .parent = TYPE_ICS_BASE,
     .instance_size = sizeof(ICSState),
     .class_init = ics_kvm_class_init,
 };
