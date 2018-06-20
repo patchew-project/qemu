@@ -836,6 +836,7 @@ static void ide_dma_cb(void *opaque, int ret)
 {
     IDEState *s = opaque;
     int n;
+    int32_t size_prepared;
     int64_t sector_num;
     uint64_t offset;
     bool stay_active = false;
@@ -886,7 +887,9 @@ static void ide_dma_cb(void *opaque, int ret)
     n = s->nsector;
     s->io_buffer_index = 0;
     s->io_buffer_size = n * 512;
-    if (s->bus->dma->ops->prepare_buf(s->bus->dma, s->io_buffer_size) < 512) {
+    size_prepared = s->bus->dma->ops->prepare_buf(s->bus->dma,
+                                                  s->io_buffer_size);
+    if (size_prepared <= 0 || size_prepared % 512) {
         /* The PRDs were too short. Reset the Active bit, but don't raise an
          * interrupt. */
         s->status = READY_STAT | SEEK_STAT;
