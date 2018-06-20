@@ -695,6 +695,12 @@ static inline void set_badinstr_registers(CPUMIPSState *env)
                 instr |= cpu_lduw_code(env, env->active_tc.PC + 2);
             }
             env->CP0_BadInstr = instr;
+
+            if ((env->insn_flags & ISA_NANOMIPS32) &&
+                ((instr & 0xFC000000) == 0x60000000)) {
+                instr = cpu_lduw_code(env, env->active_tc.PC + 4) << 16;
+                env->CP0_BadInstrX = instr;
+            }
         }
         if ((env->CP0_Config3 & (1 << CP0C3_BP)) &&
             (env->hflags & MIPS_HFLAG_BMASK)) {
