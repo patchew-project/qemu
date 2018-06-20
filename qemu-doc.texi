@@ -2933,6 +2933,14 @@ The ``query-cpus'' command is replaced by the ``query-cpus-fast'' command.
 The ``arch'' output member of the ``query-cpus-fast'' command is
 replaced by the ``target'' output member.
 
+@section Human Monitor Protocol (HMP) commands
+
+@subsection acl_show, acl_reset, acl_policy, acl_add, acl_remove (since 3.0.0)
+
+The ``acl_show'', ``acl_reset'', ``acl_policy'', ``acl_add'', and
+``acl_remove'' commands are deprecated with no replacement. Authorization
+for VNC should be performed using the pluggable QAuthZ objects.
+
 @section System emulator devices
 
 @subsection ivshmem (since 2.6.0)
