@@ -3107,9 +3107,7 @@ static int ram_load_cleanup(void *opaque)
  */
 int ram_postcopy_incoming_init(MigrationIncomingState *mis)
 {
-    unsigned long ram_pages = last_ram_page();
-
-    return postcopy_ram_incoming_init(mis, ram_pages);
+    return postcopy_ram_incoming_init(mis);
 }
 
 /**
