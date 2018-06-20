@@ -119,6 +119,8 @@ typedef struct {
     uint32_t iommu_phandle;
     int psci_conduit;
     char *kvm_type;
+    int32_t max_vm_phys_shift;
+    int32_t source_max_vm_phys_shift;
 } VirtMachineState;
 
 #define TYPE_VIRT_MACHINE   MACHINE_TYPE_NAME("virt")

@@ -1259,6 +1259,40 @@ static uint64_t virt_cpu_mp_affinity(VirtMachineState *vms, int idx)
     return arm_cpu_mp_affinity(idx, clustersz);
 }
 
+static int virt_post_load(void *opaque, int version_id)
+{
+    VirtMachineState *vms = (VirtMachineState *)opaque;
+
+    if (vms->max_vm_phys_shift < vms->source_max_vm_phys_shift) {
+        error_report("This host kernel only supports %d IPA bits whereas "
+                     "the guest requires %d GPA bits", vms->max_vm_phys_shift,
+                     vms->source_max_vm_phys_shift);
+        return -1;
+    }
+    return 0;
+}
+
+static int virt_pre_save(void *opaque)
+{
+    VirtMachineState *vms = (VirtMachineState *)opaque;
+
+    vms->source_max_vm_phys_shift = vms->max_vm_phys_shift;
+    return 0;
+}
+
+static const VMStateDescription vmstate_virt = {
+    .name = "virt",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .post_load = virt_post_load,
+    .pre_save = virt_pre_save,
+    .fields = (VMStateField[]) {
+        VMSTATE_INT32(source_max_vm_phys_shift, VirtMachineState),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
+
 static void machvirt_init(MachineState *machine)
 {
     VirtMachineState *vms = VIRT_MACHINE(machine);
@@ -1474,6 +1508,7 @@ static void machvirt_init(MachineState *machine)
 
     vms->machine_done.notify = virt_machine_done;
     qemu_add_machine_init_done_notifier(&vms->machine_done);
+    vmstate_register(NULL, 0, &vmstate_virt, vms);
 }
 
 static bool virt_get_secure(Object *obj, Error **errp)
@@ -1664,6 +1699,7 @@ static HotplugHandler *virt_machine_get_hotplug_handler(MachineState *machine,
 
 static int virt_kvm_type(MachineState *ms, const char *type_str)
 {
+    VirtMachineState *vms = VIRT_MACHINE(ms);
     int max_vm_phys_shift, ret = 0;
     uint64_t type;
 
@@ -1684,6 +1720,7 @@ static int virt_kvm_type(MachineState *ms, const char *type_str)
     }
     ret = max_vm_phys_shift;
 out:
+    vms->max_vm_phys_shift = (max_vm_phys_shift > 0) ? ret : 40;
     return ret;
 }
 
