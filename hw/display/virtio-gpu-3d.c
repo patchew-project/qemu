@@ -582,7 +582,7 @@ static void virtio_gpu_fence_poll(void *opaque)
     virgl_renderer_poll();
     virtio_gpu_process_cmdq(g);
     if (!QTAILQ_EMPTY(&g->cmdq) || !QTAILQ_EMPTY(&g->fenceq)) {
-        timer_mod(g->fence_poll, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 10);
+        timer_mod(g->fence_poll, qemu_clock_get_us(QEMU_CLOCK_VIRTUAL) + 20);
     }
 }
 
@@ -629,7 +629,7 @@ int virtio_gpu_virgl_init(VirtIOGPU *g)
         return ret;
     }
 
-    g->fence_poll = timer_new_ms(QEMU_CLOCK_VIRTUAL,
+    g->fence_poll = timer_new_us(QEMU_CLOCK_VIRTUAL,
                                  virtio_gpu_fence_poll, g);
 
     if (virtio_gpu_stats_enabled(g->conf)) {
