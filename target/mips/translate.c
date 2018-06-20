@@ -16232,6 +16232,27 @@ static int mmreg4z_nanomips(int r)
     return map[r & 0xf];
 }
 
+static void gen_pool16c_nanomips_insn(DisasContext *ctx)
+{
+    int rt = mmreg_nanomips(uMIPS_RD(ctx->opcode));
+    int rs = mmreg_nanomips(uMIPS_RS(ctx->opcode));
+
+    switch ((ctx->opcode >> 2) & 0x3) {
+    case NM_NOT16:
+        gen_logic(ctx, OPC_NOR, rt, rs, 0);
+        break;
+    case NM_AND16:
+        gen_logic(ctx, OPC_AND, rt, rt, rs);
+        break;
+    case NM_XOR16:
+        gen_logic(ctx, OPC_XOR, rt, rt, rs);
+        break;
+    case NM_OR16:
+        gen_logic(ctx, OPC_OR, rt, rt, rs);
+        break;
+    }
+}
+
 static int decode_nanomips_opc(CPUMIPSState *env, DisasContext *ctx)
 {
     uint32_t op;
@@ -16302,6 +16323,7 @@ static int decode_nanomips_opc(CPUMIPSState *env, DisasContext *ctx)
     case NM_P16C:
         switch (ctx->opcode & 1) {
         case NM_POOL16C_0:
+            gen_pool16c_nanomips_insn(ctx);
             break;
         case NM_LWXS16:
             gen_ldxs(ctx, rt, rs, rd);
