@@ -271,7 +271,9 @@ static inline hwaddr do_translate_address(CPUMIPSState *env,
 target_ulong helper_##name(CPUMIPSState *env, target_ulong arg, int mem_idx)  \
 {                                                                             \
     if (arg & almask) {                                                       \
-        env->CP0_BadVAddr = arg;                                              \
+        if (!(env->hflags & MIPS_HFLAG_DM)) {                                 \
+            env->CP0_BadVAddr = arg;                                          \
+        }                                                                     \
         do_raise_exception(env, EXCP_AdEL, GETPC());                          \
     }                                                                         \
     env->lladdr = do_translate_address(env, arg, 0, GETPC());                 \
@@ -288,7 +290,9 @@ void helper_llwp(CPUMIPSState *env, target_ulong addr, uint32_t reg1,
                  uint32_t reg2, uint32_t mem_idx)
 {
     if (addr & 0x7) {
-        env->CP0_BadVAddr = addr;
+        if (!(env->hflags & MIPS_HFLAG_DM)) {
+            env->CP0_BadVAddr = addr;
+        }
         do_raise_exception(env, EXCP_AdEL, GETPC());
     }
     env->lladdr = do_translate_address(env, addr, 0, GETPC());
@@ -304,7 +308,9 @@ target_ulong helper_##name(CPUMIPSState *env, target_ulong arg1,              \
     target_long tmp;                                                          \
                                                                               \
     if (arg2 & almask) {                                                      \
-        env->CP0_BadVAddr = arg2;                                             \
+        if (!(env->hflags & MIPS_HFLAG_DM)) {                                 \
+            env->CP0_BadVAddr = arg2;                                         \
+        }                                                                     \
         do_raise_exception(env, EXCP_AdES, GETPC());                          \
     }                                                                         \
     if (do_translate_address(env, arg2, 1, GETPC()) == env->lladdr) {         \
@@ -329,7 +335,9 @@ target_ulong helper_scwp(CPUMIPSState *env, target_ulong addr,
     uint32_t tmp2;
 
     if (addr & 0x7) {
-        env->CP0_BadVAddr = addr;
+        if (!(env->hflags & MIPS_HFLAG_DM)) {
+            env->CP0_BadVAddr = addr;
+        }
         do_raise_exception(env, EXCP_AdES, GETPC());
     }
     if (do_translate_address(env, addr, 1, GETPC()) == env->lladdr) {
@@ -2472,7 +2480,9 @@ void mips_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
     int error_code = 0;
     int excp;
 
-    env->CP0_BadVAddr = addr;
+    if (!(env->hflags & MIPS_HFLAG_DM)) {
+        env->CP0_BadVAddr = addr;
+    }
 
     if (access_type == MMU_DATA_STORE) {
         excp = EXCP_AdES;
