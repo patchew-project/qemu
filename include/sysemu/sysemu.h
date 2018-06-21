@@ -44,6 +44,9 @@ typedef enum ShutdownCause {
                                      turns that into a shutdown */
     SHUTDOWN_CAUSE_GUEST_PANIC,   /* Guest panicked, and command line turns
                                      that into a shutdown */
+    SHUTDOWN_CAUSE_GUEST_RESET_FORCE,/* Guest reset that should ignore
+                                        --no-reboot. This is useful for reset
+                                        like actions as s390 kexec/kdump */
     SHUTDOWN_CAUSE__MAX,
 } ShutdownCause;
 

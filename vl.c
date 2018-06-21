@@ -1674,7 +1674,7 @@ void qemu_system_guest_panicked(GuestPanicInformation *info)
 
 void qemu_system_reset_request(ShutdownCause reason)
 {
-    if (no_reboot) {
+    if (no_reboot && reason != SHUTDOWN_CAUSE_GUEST_RESET_FORCE) {
         shutdown_requested = reason;
     } else {
         reset_requested = reason;
