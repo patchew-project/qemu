@@ -2560,8 +2560,9 @@ static gint machine_class_cmp(gconstpointer a, gconstpointer b)
             if (mc->alias) {
                 printf("%-20s %s (alias of %s)\n", mc->alias, mc->desc, mc->name);
             }
-            printf("%-20s %s%s\n", mc->name, mc->desc,
-                   mc->is_default ? " (default)" : "");
+            printf("%-20s %s%s%s\n", mc->name, mc->desc,
+                   mc->is_default ? " (default)" : "",
+                   mc->deprecation_reason ? " (deprecated)" : "");
         }
     }
 
@@ -3953,6 +3954,10 @@ int main(int argc, char **argv, char **envp)
     }
 
     machine_class = select_machine();
+    if (machine_class->deprecation_reason) {
+        error_report("Machine type '%s' is deprecated: %s",
+                     machine_class->name, machine_class->deprecation_reason);
+    }
 
     set_memory_options(&ram_slots, &maxram_size, machine_class);
 
