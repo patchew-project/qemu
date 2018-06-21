@@ -261,6 +261,102 @@ void HELPER(gvec_udot_h)(void *vd, void *vn, void *vm, uint32_t desc)
     clear_tail(d, opr_sz, simd_maxsz(desc));
 }
 
+void HELPER(gvec_sdot_idx_b)(void *vd, void *vn, void *vm, uint32_t desc)
+{
+    intptr_t i, j, opr_sz = simd_oprsz(desc), opr_sz_4 = opr_sz / 4;
+    intptr_t index = simd_data(desc);
+    uint32_t *d = vd;
+    int8_t *n = vn, *m = vm;
+
+    for (i = 0; i < opr_sz_4; i = j) {
+        int8_t m0 = m[(i + index) * 4 + 0];
+        int8_t m1 = m[(i + index) * 4 + 1];
+        int8_t m2 = m[(i + index) * 4 + 2];
+        int8_t m3 = m[(i + index) * 4 + 3];
+
+        j = i;
+        do {
+            d[j] += n[j * 4 + 0] * m0
+                  + n[j * 4 + 1] * m1
+                  + n[j * 4 + 2] * m2
+                  + n[j * 4 + 3] * m3;
+        } while (++j < MIN(i + 4, opr_sz_4));
+    }
+    clear_tail(d, opr_sz, simd_maxsz(desc));
+}
+
+void HELPER(gvec_udot_idx_b)(void *vd, void *vn, void *vm, uint32_t desc)
+{
+    intptr_t i, j, opr_sz = simd_oprsz(desc), opr_sz_4 = opr_sz / 4;
+    intptr_t index = simd_data(desc);
+    uint32_t *d = vd;
+    uint8_t *n = vn, *m = vm;
+
+    for (i = 0; i < opr_sz_4; i = j) {
+        uint8_t m0 = m[(i + index) * 4 + 0];
+        uint8_t m1 = m[(i + index) * 4 + 1];
+        uint8_t m2 = m[(i + index) * 4 + 2];
+        uint8_t m3 = m[(i + index) * 4 + 3];
+
+        j = i;
+        do {
+            d[j] += n[j * 4 + 0] * m0
+                  + n[j * 4 + 1] * m1
+                  + n[j * 4 + 2] * m2
+                  + n[j * 4 + 3] * m3;
+        } while (++j < MIN(i + 4, opr_sz_4));
+    }
+    clear_tail(d, opr_sz, simd_maxsz(desc));
+}
+
+void HELPER(gvec_sdot_idx_h)(void *vd, void *vn, void *vm, uint32_t desc)
+{
+    intptr_t i, j, opr_sz = simd_oprsz(desc), opr_sz_8 = opr_sz / 8;
+    intptr_t index = simd_data(desc);
+    uint64_t *d = vd;
+    int16_t *n = vn, *m = vm;
+
+    for (i = 0; i < opr_sz_8; i = j) {
+        int64_t m0 = m[(i + index) * 4 + 0];
+        int64_t m1 = m[(i + index) * 4 + 1];
+        int64_t m2 = m[(i + index) * 4 + 2];
+        int64_t m3 = m[(i + index) * 4 + 3];
+
+        j = i;
+        do {
+            d[j] += n[j * 4 + 0] * m0
+                  + n[j * 4 + 1] * m1
+                  + n[j * 4 + 2] * m2
+                  + n[j * 4 + 3] * m3;
+        } while (++j < MIN(i + 2, opr_sz_8));
+    }
+    clear_tail(d, opr_sz, simd_maxsz(desc));
+}
+
+void HELPER(gvec_udot_idx_h)(void *vd, void *vn, void *vm, uint32_t desc)
+{
+    intptr_t i, j, opr_sz = simd_oprsz(desc), opr_sz_8 = opr_sz / 8;
+    intptr_t index = simd_data(desc);
+    uint64_t *d = vd;
+    uint16_t *n = vn, *m = vm;
+
+    for (i = 0; i < opr_sz_8; i = j) {
+        uint64_t m0 = m[(i + index) * 4 + 0];
+        uint64_t m1 = m[(i + index) * 4 + 1];
+        uint64_t m2 = m[(i + index) * 4 + 2];
+        uint64_t m3 = m[(i + index) * 4 + 3];
+
+        j = i;
+        do {
+            d[j] += n[j * 4 + 0] * m0
+                  + n[j * 4 + 1] * m1
+                  + n[j * 4 + 2] * m2
+                  + n[j * 4 + 3] * m3;
+        } while (++j < MIN(i + 2, opr_sz_8));
+    }
+    clear_tail(d, opr_sz, simd_maxsz(desc));
+}
+
 void HELPER(gvec_fcaddh)(void *vd, void *vn, void *vm,
                          void *vfpst, uint32_t desc)
 {
