@@ -3437,8 +3437,8 @@ fail:
     return ret;
 }
 
-static int qcow2_truncate(BlockDriverState *bs, int64_t offset,
-                          PreallocMode prealloc, Error **errp)
+static int coroutine_fn qcow2_co_truncate(BlockDriverState *bs, int64_t offset,
+                                          PreallocMode prealloc, Error **errp)
 {
     BDRVQcow2State *s = bs->opaque;
     uint64_t old_length;
@@ -3520,8 +3520,8 @@ static int qcow2_truncate(BlockDriverState *bs, int64_t offset,
         if ((last_cluster + 1) * s->cluster_size < old_file_size) {
             Error *local_err = NULL;
 
-            bdrv_truncate(bs->file, (last_cluster + 1) * s->cluster_size,
-                          PREALLOC_MODE_OFF, &local_err);
+            bdrv_co_truncate(bs->file, (last_cluster + 1) * s->cluster_size,
+                             PREALLOC_MODE_OFF, &local_err);
             if (local_err) {
                 warn_reportf_err(local_err,
                                  "Failed to truncate the tail of the image: ");
@@ -3605,7 +3605,7 @@ static int qcow2_truncate(BlockDriverState *bs, int64_t offset,
         /* Allocate the data area */
         new_file_size = allocation_start +
                         nb_new_data_clusters * s->cluster_size;
-        ret = bdrv_truncate(bs->file, new_file_size, prealloc, errp);
+        ret = bdrv_co_truncate(bs->file, new_file_size, prealloc, errp);
         if (ret < 0) {
             error_prepend(errp, "Failed to resize underlying file: ");
             qcow2_free_clusters(bs, allocation_start,
@@ -3692,7 +3692,7 @@ qcow2_co_pwritev_compressed(BlockDriverState *bs, uint64_t offset,
         if (cluster_offset < 0) {
             return cluster_offset;
         }
-        return bdrv_truncate(bs->file, cluster_offset, PREALLOC_MODE_OFF, NULL);
+        return bdrv_co_truncate(bs->file, cluster_offset, PREALLOC_MODE_OFF, NULL);
     }
 
     if (offset_into_cluster(s, offset)) {
@@ -4697,7 +4697,7 @@ BlockDriver bdrv_qcow2 = {
     .bdrv_co_pdiscard       = qcow2_co_pdiscard,
     .bdrv_co_copy_range_from = qcow2_co_copy_range_from,
     .bdrv_co_copy_range_to  = qcow2_co_copy_range_to,
-    .bdrv_truncate          = qcow2_truncate,
+    .bdrv_co_truncate       = qcow2_co_truncate,
     .bdrv_co_pwritev_compressed = qcow2_co_pwritev_compressed,
     .bdrv_make_empty        = qcow2_make_empty,
 

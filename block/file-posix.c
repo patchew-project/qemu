@@ -1856,8 +1856,8 @@ out:
     return result;
 }
 
-static int raw_truncate(BlockDriverState *bs, int64_t offset,
-                        PreallocMode prealloc, Error **errp)
+static int coroutine_fn raw_co_truncate(BlockDriverState *bs, int64_t offset,
+                                        PreallocMode prealloc, Error **errp)
 {
     BDRVRawState *s = bs->opaque;
     struct stat st;
@@ -2602,7 +2602,7 @@ BlockDriver bdrv_file = {
     .bdrv_io_plug = raw_aio_plug,
     .bdrv_io_unplug = raw_aio_unplug,
 
-    .bdrv_truncate = raw_truncate,
+    .bdrv_co_truncate = raw_co_truncate,
     .bdrv_getlength = raw_getlength,
     .bdrv_get_info = raw_get_info,
     .bdrv_get_allocated_file_size
@@ -3082,7 +3082,7 @@ static BlockDriver bdrv_host_device = {
     .bdrv_io_plug = raw_aio_plug,
     .bdrv_io_unplug = raw_aio_unplug,
 
-    .bdrv_truncate      = raw_truncate,
+    .bdrv_co_truncate       = raw_co_truncate,
     .bdrv_getlength	= raw_getlength,
     .bdrv_get_info = raw_get_info,
     .bdrv_get_allocated_file_size
@@ -3204,7 +3204,7 @@ static BlockDriver bdrv_host_cdrom = {
     .bdrv_io_plug = raw_aio_plug,
     .bdrv_io_unplug = raw_aio_unplug,
 
-    .bdrv_truncate      = raw_truncate,
+    .bdrv_co_truncate    = raw_co_truncate,
     .bdrv_getlength      = raw_getlength,
     .has_variable_length = true,
     .bdrv_get_allocated_file_size
@@ -3334,7 +3334,7 @@ static BlockDriver bdrv_host_cdrom = {
     .bdrv_io_plug = raw_aio_plug,
     .bdrv_io_unplug = raw_aio_unplug,
 
-    .bdrv_truncate      = raw_truncate,
+    .bdrv_co_truncate    = raw_co_truncate,
     .bdrv_getlength      = raw_getlength,
     .has_variable_length = true,
     .bdrv_get_allocated_file_size
