@@ -1730,6 +1730,21 @@ static BlockAIOCB *raw_aio_flush(BlockDriverState *bs,
     return paio_submit(bs, s->fd, 0, NULL, 0, cb, opaque, QEMU_AIO_FLUSH);
 }
 
+static void raw_aio_attach_aio_context(BlockDriverState *bs,
+                                       AioContext *new_context)
+{
+#ifdef CONFIG_LINUX_AIO
+    BDRVRawState *s = bs->opaque;
+    if (s->use_linux_aio) {
+        if (aio_setup_linux_aio(new_context) != 0) {
+            error_report("Unable to use native AIO, falling back to "
+                         "thread pool");
+            s->use_linux_aio = false;
+        }
+    }
+#endif
+}
+
 static void raw_close(BlockDriverState *bs)
 {
     BDRVRawState *s = bs->opaque;
@@ -2608,6 +2623,7 @@ BlockDriver bdrv_file = {
     .bdrv_refresh_limits = raw_refresh_limits,
     .bdrv_io_plug = raw_aio_plug,
     .bdrv_io_unplug = raw_aio_unplug,
+    .bdrv_attach_aio_context = raw_aio_attach_aio_context,
 
     .bdrv_truncate = raw_truncate,
     .bdrv_getlength = raw_getlength,
