@@ -2543,7 +2543,8 @@
             'host_device', 'http', 'https', 'iscsi', 'luks', 'nbd', 'nfs',
             'null-aio', 'null-co', 'nvme', 'parallels', 'qcow', 'qcow2', 'qed',
             'quorum', 'raw', 'rbd', 'replication', 'sheepdog', 'ssh',
-            'throttle', 'vdi', 'vhdx', 'vmdk', 'vpc', 'vvfat', 'vxhs' ] }
+            'throttle', 'vdi', 'vhdx', 'vmdk', 'vpc', 'vvfat', 'vxhs',
+            'fleecing-filter' ] }
 
 ##
 # @BlockdevOptionsFile:
@@ -3607,7 +3608,8 @@
       'vmdk':       'BlockdevOptionsGenericCOWFormat',
       'vpc':        'BlockdevOptionsGenericFormat',
       'vvfat':      'BlockdevOptionsVVFAT',
-      'vxhs':       'BlockdevOptionsVxHS'
+      'vxhs':       'BlockdevOptionsVxHS',
+      'fleecing-filter': 'BlockdevOptionsGenericFormat'
   } }
 
 ##
@@ -4135,7 +4137,8 @@
       'vmdk':           'BlockdevCreateNotSupported',
       'vpc':            'BlockdevCreateOptionsVpc',
       'vvfat':          'BlockdevCreateNotSupported',
-      'vxhs':           'BlockdevCreateNotSupported'
+      'vxhs':           'BlockdevCreateNotSupported',
+      'fleecing-filter': 'BlockdevCreateNotSupported'
   } }
 
 ##
