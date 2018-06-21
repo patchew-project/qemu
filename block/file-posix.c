@@ -545,11 +545,18 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
 
 #ifdef CONFIG_LINUX_AIO
      /* Currently Linux does AIO only for files opened with O_DIRECT */
-    if (s->use_linux_aio && !(s->open_flags & O_DIRECT)) {
-        error_setg(errp, "aio=native was specified, but it requires "
-                         "cache.direct=on, which was not specified.");
-        ret = -EINVAL;
-        goto fail;
+    if (s->use_linux_aio) {
+        if (!(s->open_flags & O_DIRECT)) {
+            error_setg(errp, "aio=native was specified, but it requires "
+                             "cache.direct=on, which was not specified.");
+            ret = -EINVAL;
+            goto fail;
+        }
+        ret = aio_setup_linux_aio(bdrv_get_aio_context(bs));
+        if (ret != 0) {
+            error_setg(errp, "Unable to setup native AIO context.");
+            goto fail;
+        }
     }
 #else
     if (s->use_linux_aio) {

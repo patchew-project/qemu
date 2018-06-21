@@ -323,12 +323,22 @@ ThreadPool *aio_get_thread_pool(AioContext *ctx)
 }
 
 #ifdef CONFIG_LINUX_AIO
+int aio_setup_linux_aio(AioContext *ctx)
+{
+    int rc;
+    rc = 0;
+    if (!ctx->linux_aio) {
+        rc = laio_init(&ctx->linux_aio);
+        if (rc == 0) {
+            laio_attach_aio_context(ctx->linux_aio, ctx);
+        }
+    }
+    return rc;
+}
+
 LinuxAioState *aio_get_linux_aio(AioContext *ctx)
 {
-    if (!ctx->linux_aio) {
-        ctx->linux_aio = laio_init();
-        laio_attach_aio_context(ctx->linux_aio, ctx);
-    }
+    assert(ctx->linux_aio);
     return ctx->linux_aio;
 }
 #endif

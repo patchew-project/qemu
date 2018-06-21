@@ -470,28 +470,33 @@ void laio_attach_aio_context(LinuxAioState *s, AioContext *new_context)
                            qemu_laio_poll_cb);
 }
 
-LinuxAioState *laio_init(void)
+int laio_init(LinuxAioState **linux_aio)
 {
+    int rc;
     LinuxAioState *s;
 
     s = g_malloc0(sizeof(*s));
-    if (event_notifier_init(&s->e, false) < 0) {
+    rc = event_notifier_init(&s->e, false);
+    if (rc < 0) {
         goto out_free_state;
     }
 
-    if (io_setup(MAX_EVENTS, &s->ctx) != 0) {
+    rc = io_setup(MAX_EVENTS, &s->ctx);
+    if (rc != 0) {
         goto out_close_efd;
     }
 
     ioq_init(&s->io_q);
 
-    return s;
+    *linux_aio = s;
+    return 0;
 
 out_close_efd:
     event_notifier_cleanup(&s->e);
 out_free_state:
     g_free(s);
-    return NULL;
+    *linux_aio = NULL;
+    return rc;
 }
 
 void laio_cleanup(LinuxAioState *s)
