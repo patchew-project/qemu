@@ -3,6 +3,16 @@
 
 #define HW_COMPAT_2_12 \
     {\
+        .driver   = "tpm-crb",\
+        .property = "ppi",\
+        .value    = "false",\
+    },\
+    {\
+        .driver   = "tpm-tis",\
+        .property = "ppi",\
+        .value    = "false",\
+    },\
+    {\
         .driver   = "migration",\
         .property = "decompress-error-check",\
         .value    = "off",\
