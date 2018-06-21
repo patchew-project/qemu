@@ -601,6 +601,119 @@ static QIOChannel *nbd_receive_starttls(QIOChannel *ioc,
     return QIO_CHANNEL(tioc);
 }
 
+/* nbd_negotiate_list_meta_context:
+ * Hack for testing meta context negotiation. Subdivide list on semicolons,
+ * then pass that many queries for info and trace the results.
+ * return 0 for successful negotiation
+ *        -1 with errp set for any other error
+ */
+static int nbd_negotiate_list_meta_context(QIOChannel *ioc,
+                                           const char *export,
+                                           const char *context,
+                                           Error **errp)
+{
+    int ret;
+    NBDOptionReply reply;
+    uint32_t received_id = 0;
+    char **list = g_strsplit(context, ";", -1);
+    char **iter;
+    uint32_t export_len = strlen(export);
+    uint32_t context_len;
+    uint32_t queries = g_strv_length(list);
+    uint32_t data_len = sizeof(export_len) + export_len +
+        sizeof(queries) + sizeof(context_len) * queries;
+    /* Slight overallocation of data is okay */
+    char *data = g_malloc(data_len + strlen(context));
+    char *p = data;
+
+    trace_nbd_opt_meta_request("list", context, export);
+    stl_be_p(p, export_len);
+    memcpy(p += sizeof(export_len), export, export_len);
+    stl_be_p(p += export_len, queries);
+    p += sizeof(queries);
+    for (iter = list; *iter; iter++) {
+        context_len = strlen(*iter);
+        stl_be_p(p, context_len);
+        memcpy(p += sizeof(context_len), *iter, context_len);
+        data_len += context_len;
+        p += context_len;
+    }
+
+    ret = nbd_send_option_request(ioc, NBD_OPT_LIST_META_CONTEXT, data_len,
+                                  data, errp);
+    g_free(data);
+    if (ret < 0) {
+        goto out;
+    }
+
+    if (nbd_receive_option_reply(ioc, NBD_OPT_LIST_META_CONTEXT, &reply,
+                                 errp) < 0)
+    {
+        ret = -1;
+        goto out;
+    }
+
+    ret = nbd_handle_reply_err(ioc, &reply, errp);
+    if (ret <= 0) {
+        goto out;
+    }
+
+    while (reply.type == NBD_REP_META_CONTEXT) {
+        char *name;
+
+        if (nbd_read(ioc, &received_id, sizeof(received_id), errp) < 0) {
+            ret = -1;
+            goto out;
+        }
+        be32_to_cpus(&received_id);
+
+        reply.length -= sizeof(received_id);
+        name = g_malloc(reply.length + 1);
+        if (nbd_read(ioc, name, reply.length, errp) < 0) {
+            g_free(name);
+            ret = -1;
+            goto out;
+        }
+        name[reply.length] = '\0';
+
+        trace_nbd_opt_meta_reply(name, received_id);
+        g_free(name);
+
+        /* read next part of reply */
+        if (nbd_receive_option_reply(ioc, NBD_OPT_LIST_META_CONTEXT, &reply,
+                                     errp) < 0)
+        {
+            ret = -1;
+            goto out;
+        }
+
+        ret = nbd_handle_reply_err(ioc, &reply, errp);
+        if (ret <= 0) {
+            goto out;
+        }
+    }
+
+    if (reply.type != NBD_REP_ACK) {
+        error_setg(errp, "Unexpected reply type %" PRIx32 " expected %x",
+                   reply.type, NBD_REP_ACK);
+        nbd_send_opt_abort(ioc);
+        ret = -1;
+        goto out;
+    }
+    if (reply.length) {
+        error_setg(errp, "Unexpected length to ACK response");
+        nbd_send_opt_abort(ioc);
+        ret = -1;
+        goto out;
+    }
+
+    ret = 0;
+
+ out:
+    g_strfreev(list);
+    return ret;
+}
+
 /* nbd_negotiate_simple_meta_context:
  * Set one meta context. Simple means that reply must contain zero (not
  * negotiated) or one (negotiated) contexts. More contexts would be considered
@@ -622,14 +735,14 @@ static int nbd_negotiate_simple_meta_context(QIOChannel *ioc,
     uint32_t received_id = 0;
     bool received = false;
     uint32_t export_len = strlen(export);
-    uint32_t context_len = strlen(context);
+    uint32_t context_len = strchrnul(context, ';') - context;
     uint32_t data_len = sizeof(export_len) + export_len +
                         sizeof(uint32_t) + /* number of queries */
                         sizeof(context_len) + context_len;
     char *data = g_malloc(data_len);
     char *p = data;
 
-    trace_nbd_opt_meta_request(context, export);
+    trace_nbd_opt_meta_request("set", context, export);
     stl_be_p(p, export_len);
     memcpy(p += sizeof(export_len), export, export_len);
     stl_be_p(p += export_len, 1);
@@ -677,7 +790,7 @@ static int nbd_negotiate_simple_meta_context(QIOChannel *ioc,
             return -1;
         }
         name[reply.length] = '\0';
-        if (strcmp(context, name)) {
+        if (strncmp(context, name, context_len)) {
             error_setg(errp, "Failed to negotiate meta context '%s', server "
                        "answered with different context '%s'", context,
                        name);
@@ -829,9 +942,18 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name,
                 info->structured_reply = result == 1;
             }
 
+            if (info->structured_reply && info->x_block_status &&
+                nbd_negotiate_list_meta_context(ioc, name,
+                                                info->x_block_status,
+                                                errp) < 0) {
+                goto fail;
+            }
             if (info->structured_reply && base_allocation) {
+                if (!info->x_block_status) {
+                    info->x_block_status = "base:allocation";
+                }
                 result = nbd_negotiate_simple_meta_context(
-                        ioc, name, "base:allocation",
+                        ioc, name, info->x_block_status,
                         &info->meta_base_allocation_id, errp);
                 if (result < 0) {
                     goto fail;

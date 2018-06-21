@@ -378,6 +378,11 @@ static QemuOptsList nbd_runtime_opts = {
             .type = QEMU_OPT_STRING,
             .help = "ID of the TLS credentials to use",
         },
+        {
+            .name = "x-block-status",
+            .type = QEMU_OPT_STRING,
+            .help = "debugging only: block status contexts to request",
+        },
         { /* end of list */ }
     },
 };
@@ -438,8 +443,8 @@ static int nbd_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     /* NBD handshake */
-    ret = nbd_client_init(bs, sioc, s->export,
-                          tlscreds, hostname, errp);
+    ret = nbd_client_init(bs, sioc, s->export, tlscreds, hostname,
+                          qemu_opt_get(opts, "x-block-status"), errp);
  error:
     if (sioc) {
         object_unref(OBJECT(sioc));

@@ -3484,12 +3484,22 @@
 #
 # @tls-creds:   TLS credentials ID
 #
+# @x-block-status: A string containing a semicolon-separated list of
+#                  block status context names to query and then
+#                  request (see NBD_OPT_LIST_META_CONTEXT in the NBD
+#                  protocol), only useful for debugging server
+#                  behavior. If omitted, no query is made, and the
+#                  request uses just "base:allocation". Since this
+#                  command is already a hack, it uses a flat string
+#                  instead of ['str']. (since 3.0)
+#
 # Since: 2.9
 ##
 { 'struct': 'BlockdevOptionsNbd',
   'data': { 'server': 'SocketAddress',
             '*export': 'str',
-            '*tls-creds': 'str' } }
+            '*tls-creds': 'str',
+            '*x-block-status': 'str' } }
 
 ##
 # @BlockdevOptionsRaw:
