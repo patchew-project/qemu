@@ -153,3 +153,11 @@ matrix:
         - TEST_CMD=""
       before_script:
         - ./configure ${CONFIG} --extra-cflags="-g3 -O0 -fsanitize=thread -fuse-ld=gold" || { cat config.log && exit 1; }
+    # Avocado tests
+    - env: CONFIG="--target-list=x86_64-softmmu,mips-softmmu --enable-trace-backends=nop --disable-tools --disable-docs"
+           TEST_CMD="avocado run tests/acceptance"
+      python:
+        - "3.6"
+      before_script:
+        - pip install --user avocado-framework
+        - ./configure ${CONFIG} || { cat config.log && exit 1; }
