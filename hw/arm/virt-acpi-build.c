@@ -43,6 +43,7 @@
 #include "hw/pci/pcie_host.h"
 #include "hw/pci/pci.h"
 #include "hw/arm/virt.h"
+#include "hw/mem/memory-device.h"
 #include "sysemu/numa.h"
 #include "kvm_arm.h"
 
@@ -532,6 +533,35 @@ build_spcr(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
                  "SPCR", table_data->len - spcr_start, 2, NULL, NULL);
 }
 
+static void build_srat_hotpluggable_memory(GArray *table_data, uint64_t base,
+                                          uint64_t len, int default_node)
+{
+    MemoryDeviceInfoList *info_list = qmp_memory_device_list();
+    AcpiSratMemoryAffinity *numamem;
+    MemoryDeviceInfoList *info;
+    MemoryDeviceInfo *mi;
+    PCDIMMDeviceInfo *di;
+    uint64_t end = base + len, cur, size;
+
+    for (cur = base, info = info_list; cur < end;
+         cur += size, info = info->next) {
+        bool is_nvdimm;
+
+        if (!info) {
+            break;
+        }
+        numamem = acpi_data_push(table_data, sizeof(*numamem));
+
+        mi = info->value;
+        is_nvdimm = (mi->type == MEMORY_DEVICE_INFO_KIND_NVDIMM);
+        di = !is_nvdimm ? mi->u.dimm.data : mi->u.nvdimm.data;
+
+        build_srat_memory(numamem, di->addr, di->size,
+                          0, MEM_AFFINITY_ENABLED);
+        size = di->size;
+    }
+}
+
 static void
 build_srat(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
 {
@@ -563,6 +593,10 @@ build_srat(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
                           MEM_AFFINITY_ENABLED);
         mem_base += numa_info[i].node_mem;
     }
+
+    build_srat_hotpluggable_memory(table_data,
+                                   vms->bootinfo.device_memory_start,
+                                   vms->bootinfo.device_memory_size , 0);
 
     build_header(linker, table_data, (void *)(table_data->data + srat_start),
                  "SRAT", table_data->len - srat_start, 3, NULL, NULL);
