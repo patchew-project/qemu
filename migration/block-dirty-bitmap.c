@@ -287,6 +287,10 @@ static int init_dirty_bitmap_migration(void)
         while (bs && bs->drv && bs->implicit) {
             bs = backing_bs(bs);
         }
+        if (!bs) {
+            g_assert_not_reached();
+            continue;
+        }
 
         for (bitmap = bdrv_dirty_bitmap_next(bs, NULL); bitmap;
              bitmap = bdrv_dirty_bitmap_next(bs, bitmap))
