@@ -3325,6 +3325,24 @@ mlocking qemu and guest memory can be enabled via @option{mlock=on}
 (enabled by default).
 ETEXI
 
+DEF("dedicated", HAS_ARG, QEMU_OPTION_dedicated,
+    "-dedicated [mem-lock=on|off][cpu-pm=on|off]\n"
+    "                run qemu with realtime features\n"
+    "                mem-lock=on|off controls memory lock support (default: off)\n"
+    "                cpu-pm=on|off controls cpu power management (default: off)\n",
+    QEMU_ARCH_ALL)
+STEXI
+@item -dedicated mem-lock=on|off
+@item -dedicated cpu-pm=on|off
+@findex -dedicated
+Run qemu using dedicated host resources.
+Locking qemu and guest memory can be enabled via @option{mem-lock=on}
+(disabled by default). This is equivalent to @option{realtime}.
+Guest ability to manage power state of host cpus (increasing latency for other
+processes on the same host cpu, but decreasing latency for guest)
+can be enabled via @option{cpu-pm=on} (disabled by default).
+ETEXI
+
 DEF("gdb", HAS_ARG, QEMU_OPTION_gdb, \
     "-gdb dev        wait for gdb connection on 'dev'\n", QEMU_ARCH_ALL)
 STEXI
