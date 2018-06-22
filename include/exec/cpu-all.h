@@ -345,4 +345,13 @@ int cpu_memory_rw_debug(CPUState *cpu, target_ulong addr,
 
 int cpu_exec(CPUState *cpu);
 
+/**
+ * hw_error:
+ * @fmt: printf-style format string
+ * @args: optional arguments for format string
+ *
+ * Report a CPU hardware error, dump the CPUs state, finally abort.
+ */
+void QEMU_NORETURN hw_error(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
+
 #endif /* CPU_ALL_H */

@@ -15,6 +15,4 @@
 #include "qemu/module.h"
 #include "sysemu/reset.h"
 
-void QEMU_NORETURN hw_error(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
-
 #endif
