@@ -1,0 +1,7 @@
+FROM fedora:latest
+ENV PACKAGES \
+    binutils-xtensa-linux-gnu \
+    gcc-xtensa-linux-gnu
+
+RUN dnf install -y $PACKAGES
+RUN rpm -q $PACKAGES | sort > /packages.txt
