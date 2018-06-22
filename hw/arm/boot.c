@@ -19,6 +19,7 @@
 #include "sysemu/numa.h"
 #include "hw/boards.h"
 #include "hw/loader.h"
+#include "hw/mem/memory-device.h"
 #include "elf.h"
 #include "sysemu/device_tree.h"
 #include "qemu/config-file.h"
@@ -516,6 +517,37 @@ static void fdt_add_psci_node(void *fdt)
     qemu_fdt_setprop_cell(fdt, "/psci", "migrate", migrate_fn);
 }
 
+static int fdt_add_hotpluggable_memory_nodes(void *fdt,
+                                             uint64_t base, uint64_t len,
+                                             uint32_t acells, uint32_t scells) {
+    MemoryDeviceInfoList *info_list = qmp_memory_device_list();
+    MemoryDeviceInfoList *info;
+    uint64_t end, cur, size;
+    MemoryDeviceInfo *mi;
+    PCDIMMDeviceInfo *di;
+    bool is_nvdimm;
+    int ret;
+
+    end = base + len;
+    for (cur = base, info = info_list; cur < end;
+         cur += size, info = info->next) {
+        if (!info) {
+            break;
+        }
+        mi = info->value;
+        is_nvdimm = (mi->type == MEMORY_DEVICE_INFO_KIND_NVDIMM);
+        di = !is_nvdimm ? mi->u.dimm.data : mi->u.nvdimm.data;
+
+        ret = fdt_add_memory_node(fdt, acells, di->addr,
+                                  scells, di->size, di->node);
+        if (ret < 0) {
+            return ret;
+        }
+        size = di->size;
+    }
+    return 0;
+}
+
 int arm_load_dtb(hwaddr addr, const struct arm_boot_info *binfo,
                  hwaddr addr_limit, AddressSpace *as)
 {
@@ -598,6 +630,14 @@ int arm_load_dtb(hwaddr addr, const struct arm_boot_info *binfo,
         if (rc < 0) {
             goto fail;
         }
+    }
+
+    rc = fdt_add_hotpluggable_memory_nodes(fdt, binfo->device_memory_start,
+                                           binfo->device_memory_size,
+                                           acells, scells);
+    if (rc < 0) {
+            fprintf(stderr, "couldn't add hotpluggable memory nodes\n");
+            goto fail;
     }
 
     rc = fdt_path_offset(fdt, "/chosen");
