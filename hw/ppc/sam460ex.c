@@ -308,6 +308,24 @@ static int sam460ex_load_device_tree(hwaddr addr,
     qemu_fdt_setprop_cell(fdt, "/cpus/cpu@0", "timebase-frequency",
                               tb_freq);
 
+    /* Remove cpm node (not emulated) */
+    qemu_fdt_nop_node(fdt, "/cpm");
+    /* set serial port clock and speed */
+    qemu_fdt_setprop_cell(fdt, "/plb/opb/serial@ef600300", "clock-frequency",
+                              50000000);
+    qemu_fdt_setprop_cell(fdt, "/plb/opb/serial@ef600300", "current-speed",
+                              38400);
+    /* disable second serial port */
+    qemu_fdt_setprop_string(fdt, "/plb/opb/serial@ef600400", "status",
+                              "disabled");
+    /* some more clocks */
+    qemu_fdt_setprop_cell(fdt, "/plb", "clock-frequency",
+                              50000000);
+    qemu_fdt_setprop_cell(fdt, "/plb/opb", "clock-frequency",
+                              50000000);
+    qemu_fdt_setprop_cell(fdt, "/plb/opb/ebc", "clock-frequency",
+                              50000000);
+
     rom_add_blob_fixed(BINARY_DEVICE_TREE_FILE, fdt, fdt_size, addr);
     g_free(fdt);
     ret = fdt_size;
