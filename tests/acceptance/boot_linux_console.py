@@ -69,9 +69,10 @@ class BootLinuxConsoleMips(Test):
         kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
 
         self.vm.set_machine('malta')
-        self.vm.set_console()
+        self.vm.set_console("") # FIXME this disable isa-serial to use -serial
         kernel_command_line = 'console=ttyS0 printk.time=0'
         self.vm.add_args('-m', "64",
+                         '-serial', "chardev:console", # FIXME ... here.
                          '-kernel', kernel_path,
                          '-append', kernel_command_line)
         self.vm.launch()
