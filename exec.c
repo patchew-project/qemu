@@ -2645,18 +2645,22 @@ void memory_notdirty_write_prepare(NotDirtyInfo *ndi,
     ndi->pages = NULL;
 
     assert(tcg_enabled());
+#ifdef CONFIG_TCG
     if (!cpu_physical_memory_get_dirty_flag(ram_addr, DIRTY_MEMORY_CODE)) {
         ndi->pages = page_collection_lock(ram_addr, ram_addr + size);
         tb_invalidate_phys_page_fast(ndi->pages, ram_addr, size);
     }
+#endif
 }
 
 /* Called within RCU critical section. */
 void memory_notdirty_write_complete(NotDirtyInfo *ndi)
 {
     if (ndi->pages) {
+#ifdef CONFIG_TCG
         page_collection_unlock(ndi->pages);
         ndi->pages = NULL;
+#endif
     }
 
     /* Set both VGA and migration bits for simplicity and to remove
