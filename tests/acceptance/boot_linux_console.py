@@ -13,7 +13,7 @@ import logging
 from avocado_qemu import Test
 
 
-class BootLinuxConsole(Test):
+class BootLinuxConsoleX86_64(Test):
     """
     Boots a x86_64 Linux kernel and checks that the console is operational
     and the kernel command line is properly passed from QEMU to the kernel
