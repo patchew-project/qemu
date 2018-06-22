@@ -715,7 +715,11 @@ static void build_fadt_rev5(GArray *table_data, BIOSLinker *linker,
 
     switch (vms->psci_conduit) {
     case QEMU_PSCI_CONDUIT_DISABLED:
-        fadt.arm_boot_arch = 0;
+        /* This case means QEMU's internal EL3 implementation is disabled,
+         * but when firmware is loaded, the guest can still use SMC as PSCI
+         * conduit to call external firmware PSCI services
+         */ 
+        fadt.arm_boot_arch = ACPI_FADT_ARM_PSCI_COMPLIANT;
         break;
     case QEMU_PSCI_CONDUIT_HVC:
         fadt.arm_boot_arch = ACPI_FADT_ARM_PSCI_COMPLIANT |
