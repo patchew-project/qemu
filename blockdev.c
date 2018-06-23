@@ -2837,31 +2837,35 @@ void qmp_block_dirty_bitmap_remove(const char *node, const char *name,
     Error *local_err = NULL;
 
     bitmap = block_dirty_bitmap_lookup(node, name, &bs, errp);
-    if (!bitmap || !bs) {
+    if (!bs) {
         return;
     }
 
-    if (bdrv_dirty_bitmap_frozen(bitmap)) {
-        error_setg(errp,
-                   "Bitmap '%s' is currently frozen and cannot be removed",
-                   name);
-        return;
-    } else if (bdrv_dirty_bitmap_qmp_locked(bitmap)) {
-        error_setg(errp,
-                   "Bitmap '%s' is currently locked and cannot be removed",
-                   name);
-        return;
-    }
-
-    if (bdrv_dirty_bitmap_get_persistance(bitmap)) {
-        bdrv_remove_persistent_dirty_bitmap(bs, name, &local_err);
-        if (local_err != NULL) {
-            error_propagate(errp, local_err);
+    if (bitmap){
+        if (bdrv_dirty_bitmap_frozen(bitmap)) {
+            error_setg(errp,
+                       "Bitmap '%s' is currently frozen and cannot be removed",
+                       name);
+            return;
+        } else if (bdrv_dirty_bitmap_qmp_locked(bitmap)) {
+            error_setg(errp,
+                       "Bitmap '%s' is currently locked and cannot be removed",
+                       name);
             return;
         }
     }
 
-    bdrv_release_dirty_bitmap(bs, bitmap);
+    bdrv_remove_persistent_dirty_bitmap(bs, name, &local_err);
+    if (local_err != NULL) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    if (bitmap){
+        bdrv_release_dirty_bitmap(bs, bitmap);
+    }
+
+    *errp = NULL;
 }
 
 /**
