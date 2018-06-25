@@ -27,6 +27,7 @@
 #include "hw/virtio/virtio-access.h"
 #include "migration/misc.h"
 #include "standard-headers/linux/ethtool.h"
+#include "standard-headers/linux/libbpf.h"
 
 #define VIRTIO_NET_VM_VERSION    11
 
@@ -1329,6 +1330,9 @@ static int32_t virtio_net_flush_tx(VirtIONetQueue *q)
     VirtQueueElement *elem;
     int32_t num_packets = 0;
     int queue_index = vq2q(virtio_get_queue_index(q->tx_vq));
+
+    struct bpf_object *obj = NULL;
+    bpf_object__load(obj);
     if (!(vdev->status & VIRTIO_CONFIG_S_DRIVER_OK)) {
         return num_packets;
     }

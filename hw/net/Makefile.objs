@@ -37,6 +37,10 @@ obj-$(CONFIG_PSERIES) += spapr_llan.o
 obj-$(CONFIG_XILINX_ETHLITE) += xilinx_ethlite.o
 
 obj-$(CONFIG_VIRTIO_NET) += virtio-net.o
+ifeq ($(CONFIG_BPF),y)
+	virtio-net.o-cflags := $(CFLAGS_BPF)
+	virtio-net.o-libs := $(LIBS_BPF)
+endif
 obj-y += vhost_net.o
 
 obj-$(CONFIG_ETSEC) += fsl_etsec/etsec.o fsl_etsec/registers.o \
