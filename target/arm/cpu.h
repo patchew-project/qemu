@@ -1927,6 +1927,13 @@ static inline bool cptype_valid(int cptype)
 #define PL0_R (0x02 | PL1_R)
 #define PL0_W (0x01 | PL1_W)
 
+/* for AArch64 HWCAP_CPUID to userspace */
+#ifdef CONFIG_USER_ONLY
+#define PL1U_R PL0_R
+#else
+#define PL1U_R PL1_R
+#endif
+
 #define PL3_RW (PL3_R | PL3_W)
 #define PL2_RW (PL2_R | PL2_W)
 #define PL1_RW (PL1_R | PL1_W)
