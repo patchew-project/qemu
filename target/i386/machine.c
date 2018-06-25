@@ -879,6 +879,44 @@ static const VMStateDescription vmstate_spec_ctrl = {
     }
 };
 
+static bool pred_cmd_needed(void *opaque)
+{
+    X86CPU *cpu = opaque;
+    CPUX86State *env = &cpu->env;
+
+    return env->pred_cmd != 0;
+}
+
+static const VMStateDescription vmstate_pred_cmd = {
+    .name = "cpu/pred_cmd",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = pred_cmd_needed,
+    .fields = (VMStateField[]){
+        VMSTATE_UINT64(env.arch_capabilities, X86CPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static bool arch_capabilities_needed(void *opaque)
+{
+    X86CPU *cpu = opaque;
+    CPUX86State *env = &cpu->env;
+
+    return env->arch_capabilities != 0;
+}
+
+static const VMStateDescription vmstate_arch_capabilities = {
+    .name = "cpu/arch_capabilities",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = arch_capabilities_needed,
+    .fields = (VMStateField[]){
+        VMSTATE_UINT64(env.arch_capabilities, X86CPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static bool intel_pt_enable_needed(void *opaque)
 {
     X86CPU *cpu = opaque;
@@ -1056,6 +1094,8 @@ VMStateDescription vmstate_x86_cpu = {
         &vmstate_pkru,
 #endif
         &vmstate_spec_ctrl,
+        &vmstate_pred_cmd,
+        &vmstate_arch_capabilities,
         &vmstate_mcg_ext_ctl,
         &vmstate_msr_intel_pt,
         &vmstate_msr_virt_ssbd,
