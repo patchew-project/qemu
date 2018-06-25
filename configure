@@ -347,6 +347,7 @@ libattr=""
 xfs=""
 tcg="yes"
 membarrier=""
+bpf="no"
 vhost_net="no"
 vhost_crypto="no"
 vhost_scsi="no"
@@ -1204,6 +1205,10 @@ for opt do
   ;;
   --enable-membarrier) membarrier="yes"
   ;;
+  --disable-bpf) bpf="no"
+  ;;
+  --enable-bpf) bpf="yes"
+  ;;
   --disable-blobs) blobs="no"
   ;;
   --with-pkgversion=*) pkgversion="$optarg"
@@ -1645,6 +1650,7 @@ disabled with --disable-FEATURE, default is enabled if available:
   brlapi          BrlAPI (Braile)
   curl            curl connectivity
   membarrier      membarrier system call (for Linux 4.14+ or Windows)
+  bpf             bpf system calls (for Linux 3.18+)
   fdt             fdt device tree
   bluez           bluez stack connectivity
   kvm             KVM acceleration support
@@ -5297,6 +5303,40 @@ else
 fi
 
 ##########################################
+# check for usable bpf system call
+if test "$bpf" = "yes"; then
+    have_bpf=no
+    if test "$linux" = "yes" ; then
+        cat > $TMPC << EOF
+    #include <sys/syscall.h>
+    #include "libbpf.h"
+    #include <unistd.h>
+    #include <stdlib.h>
+    #include <string.h>
+    int main(void) {
+        union bpf_attr * attr = NULL;
+        struct bpf_object * obj = NULL;
+        syscall(__NR_bpf, BPF_PROG_LOAD, attr, sizeof(attr));
+	bpf_object__load(obj);
+        exit(0);
+    }
+EOF
+        bpf_include="-Iinclude/standard-headers/linux/"
+        bpf_cflags=""
+        bpf_libs="-lelf -lbpf"
+        if compile_prog "$bpf_include" "$bpf_libs" ; then
+            have_bpf=yes
+        fi
+    fi
+    if test "$have_bpf" = "no"; then
+      feature_not_found "bpf" "libbpf/libelf libs are not available or else \
+the bpf system call is not available"
+    fi
+else
+    bpf=no
+fi
+
+##########################################
 # check if rtnetlink.h exists and is useful
 have_rtnetlink=no
 cat > $TMPC << EOF
@@ -5936,6 +5976,7 @@ echo "malloc trim support $malloc_trim"
 echo "RDMA support      $rdma"
 echo "fdt support       $fdt"
 echo "membarrier        $membarrier"
+echo "bpf               $bpf"
 echo "preadv support    $preadv"
 echo "fdatasync         $fdatasync"
 echo "madvise           $madvise"
@@ -6433,6 +6474,11 @@ if test "$fdt" != "no" ; then
 fi
 if test "$membarrier" = "yes" ; then
   echo "CONFIG_MEMBARRIER=y" >> $config_host_mak
+fi
+if test "$bpf" = "yes" ; then
+  echo "CONFIG_BPF=y" >> $config_host_mak
+  echo "LIBS_BPF=$bpf_libs" >> $config_host_mak
+  echo "CFLAGS_BPF=$bpf_cflags" >> $config_host_mak
 fi
 if test "$signalfd" = "yes" ; then
   echo "CONFIG_SIGNALFD=y" >> $config_host_mak

@@ -35,6 +35,8 @@ cp_portable() {
         grep '#include' "$f" | grep -v -e 'linux/virtio' \
                                      -e 'linux/types' \
                                      -e 'stdint' \
+                                     -e 'stdio' \
+                                     -e 'stdbool' \
                                      -e 'linux/if_ether' \
                                      -e 'input-event-codes' \
                                      -e 'sys/' \
@@ -44,6 +46,7 @@ cp_portable() {
                                      -e 'linux/kernel' \
                                      -e 'linux/sysinfo' \
                                      -e 'asm-generic/kvm_para' \
+                                     -e 'linux/bpf' \
                                      > /dev/null
     then
         echo "Unexpected #include in input file $f".
@@ -58,7 +61,7 @@ cp_portable() {
         -e 's/__le\([0-9][0-9]*\)/uint\1_t/g' \
         -e 's/__be\([0-9][0-9]*\)/uint\1_t/g' \
         -e 's/"\(input-event-codes\.h\)"/"standard-headers\/linux\/\1"/' \
-        -e 's/<linux\/\([^>]*\)>/"standard-headers\/linux\/\1"/' \
+        -e 's/<linux\/\([^>]*(?!bpf)\)>/"standard-headers\/linux\/\1"/' \
         -e 's/__bitwise//' \
         -e 's/__attribute__((packed))/QEMU_PACKED/' \
         -e 's/__inline__/inline/' \
@@ -126,7 +129,8 @@ done
 rm -rf "$output/linux-headers/linux"
 mkdir -p "$output/linux-headers/linux"
 for header in kvm.h vfio.h vfio_ccw.h vhost.h \
-              psci.h psp-sev.h userfaultfd.h; do
+              psci.h psp-sev.h userfaultfd.h  \
+              bpf.h; do
     cp "$tmpdir/include/linux/$header" "$output/linux-headers/linux"
 done
 
@@ -169,7 +173,8 @@ for i in "$tmpdir"/include/linux/*virtio*.h "$tmpdir/include/linux/input.h" \
          "$tmpdir/include/linux/input-event-codes.h" \
          "$tmpdir/include/linux/pci_regs.h" \
          "$tmpdir/include/linux/ethtool.h" "$tmpdir/include/linux/kernel.h" \
-         "$tmpdir/include/linux/sysinfo.h"; do
+         "$tmpdir/include/linux/sysinfo.h"  \
+         "$linux/tools/lib/bpf/libbpf.h"; do
     cp_portable "$i" "$output/include/standard-headers/linux"
 done
 mkdir -p "$output/include/standard-headers/drm"
