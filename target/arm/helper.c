@@ -5813,7 +5813,19 @@ void define_one_arm_cp_reg_with_opaque(ARMCPU *cpu,
     if (r->state != ARM_CP_STATE_AA32) {
         int mask = 0;
         switch (r->opc1) {
-        case 0: case 1: case 2:
+        case 0:
+#ifdef CONFIG_USER_ONLY
+            /* Some AArch64 CPU ID/feature are exported to userspace
+             * by the kernel (see HWCAP_CPUID) */
+            if (r->opc0 == 3 && r->crn == 0 &&
+                (r->crm == 0 ||
+                 (r->crm >= 4 && r->crm <= 7))) {
+                mask = PL0_R;
+                break;
+            }
+#endif
+            /* fall-through */
+        case 1: case 2:
             /* min_EL EL1 */
             mask = PL1_RW;
             break;
