@@ -252,7 +252,11 @@ int pnv_dt_xscom(PnvChip *chip, void *fdt, int root_offset)
     args.fdt = fdt;
     args.xscom_offset = xscom_offset;
 
-    object_child_foreach(OBJECT(chip), xscom_dt_child, &args);
+    /* Some PnvXScomInterface objects lie a bit deeper (PnvPBCQState)
+     * than the first layer, so we need to loop on the whole object
+     * hierarchy to catch them
+     */
+    object_child_foreach_recursive(OBJECT(chip), xscom_dt_child, &args);
     return 0;
 }
 

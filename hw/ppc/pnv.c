@@ -44,6 +44,10 @@
 #include "hw/isa/isa.h"
 #include "hw/char/serial.h"
 #include "hw/timer/mc146818rtc.h"
+#include "hw/pci/pci.h"
+#include "hw/pci/pci_bus.h"
+#include "hw/pci/pci_bridge.h"
+#include "hw/pci/msi.h"
 
 #include <libfdt.h>
 
@@ -724,7 +728,9 @@ static Object *pnv_chip_power9_intc_create(PnvChip *chip, Object *child,
 
 static void pnv_chip_power8_instance_init(Object *obj)
 {
+    PnvChip *chip = PNV_CHIP(obj);
     Pnv8Chip *chip8 = PNV8_CHIP(obj);
+    int i;
 
     object_initialize(&chip8->psi, sizeof(chip8->psi), TYPE_PNV_PSI);
     object_property_add_child(obj, "psi", OBJECT(&chip8->psi), NULL);
@@ -740,6 +746,16 @@ static void pnv_chip_power8_instance_init(Object *obj)
     object_property_add_child(obj, "occ", OBJECT(&chip8->occ), NULL);
     object_property_add_const_link(OBJECT(&chip8->occ), "psi",
                                    OBJECT(&chip8->psi), &error_abort);
+
+    /* Create Power system Host Bridges 3 (PHB3) */
+    for (i = 0; i < chip->num_phbs; i++) {
+        object_initialize(&chip8->phbs[i], sizeof(chip8->phbs[i]),
+                          TYPE_PNV_PHB3);
+        object_property_add_child(obj, "phb[*]", OBJECT(&chip8->phbs[i]), NULL);
+        object_property_add_const_link(OBJECT(&chip8->phbs[i]), "xics",
+                                       OBJECT(qdev_get_machine()),
+                                       &error_abort);
+    }
 }
 
 static void pnv_chip_icp_realize(Pnv8Chip *chip8, Error **errp)
@@ -774,12 +790,43 @@ static void pnv_chip_icp_realize(Pnv8Chip *chip8, Error **errp)
     }
 }
 
+static PCIBus *pnv_chip_phb3_pci_create(PnvPHB3 *phb, Error **errp)
+{
+    PnvPBCQState *pbcq = &phb->pbcq;
+    PCIHostState *pcih = PCI_HOST_BRIDGE(phb);
+    PCIDevice *brdev;
+    PCIDevice *pdev;
+    PCIBus *parent;
+    uint8_t chassis = pbcq->chip_id * 4 + pbcq->phb_id;
+    uint8_t chassis_nr = 128;
+
+    /* Add root complex */
+    pdev = pci_create(pcih->bus, 0, TYPE_PNV_PHB3_RC);
+    qdev_prop_set_uint8(DEVICE(pdev), "chassis", chassis);
+    qdev_prop_set_uint16(DEVICE(pdev), "slot", 1);
+    object_property_add_child(OBJECT(phb), "phb3-rc", OBJECT(pdev), NULL);
+    qdev_init_nofail(DEVICE(pdev));
+
+    /* Setup bus for that chip */
+    parent = pci_bridge_get_sec_bus(PCI_BRIDGE(pdev));
+
+    brdev = pci_create(parent, 0, "pci-bridge");
+    qdev_prop_set_uint8(DEVICE(brdev), PCI_BRIDGE_DEV_PROP_CHASSIS_NR,
+                        chassis_nr);
+    object_property_add_child(OBJECT(parent), "pci-bridge", OBJECT(brdev),
+                              NULL);
+    qdev_init_nofail(DEVICE(brdev));
+
+    return pci_bridge_get_sec_bus(PCI_BRIDGE(brdev));
+}
+
 static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
 {
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(dev);
     PnvChip *chip = PNV_CHIP(dev);
     Pnv8Chip *chip8 = PNV8_CHIP(dev);
     Error *local_err = NULL;
+    int i;
 
     pcc->parent_realize(dev, &local_err);
     if (local_err) {
@@ -817,6 +864,38 @@ static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
         return;
     }
     pnv_xscom_add_subregion(chip, PNV_XSCOM_OCC_BASE, &chip8->occ.xscom_regs);
+
+    /* MSIs are supported on this platform */
+    msi_nonbroken = true;
+
+    /* Create Power system Host Bridges 3 (PHB3) */
+    for (i = 0; i < chip->num_phbs; i++) {
+        Object *obj = OBJECT(&chip8->phbs[i]);
+        PnvPBCQState *pbcq = &chip8->phbs[i].pbcq;
+
+        object_property_set_int(obj, i, "phb-id", &error_fatal);
+        object_property_set_int(obj, chip->chip_id, "chip-id", &error_fatal);
+        object_property_set_bool(obj, true, "realized", &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
+        }
+        qdev_set_parent_bus(DEVICE(obj), sysbus_get_default());
+
+        pnv_xscom_add_subregion(chip, PNV_XSCOM_PBCQ_NEST_BASE + 0x400 * i,
+                                &pbcq->xscom_nest_regs);
+        pnv_xscom_add_subregion(chip, PNV_XSCOM_PBCQ_PCI_BASE + 0x400 * i,
+                                &pbcq->xscom_pci_regs);
+        pnv_xscom_add_subregion(chip, PNV_XSCOM_PBCQ_SPCI_BASE + 0x040 * i,
+                                &pbcq->xscom_spci_regs);
+
+        /* Setup the PCI busses */
+        pnv_chip_phb3_pci_create(&chip8->phbs[i], &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
+        }
+    }
 }
 
 static void pnv_chip_power8e_class_init(ObjectClass *klass, void *data)
@@ -1031,6 +1110,7 @@ static Property pnv_chip_properties[] = {
     DEFINE_PROP_UINT64("ram-size", PnvChip, ram_size, 0),
     DEFINE_PROP_UINT32("nr-cores", PnvChip, nr_cores, 1),
     DEFINE_PROP_UINT64("cores-mask", PnvChip, cores_mask, 0x0),
+    DEFINE_PROP_UINT32("num-phbs", PnvChip, num_phbs, 1),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1047,13 +1127,22 @@ static void pnv_chip_class_init(ObjectClass *klass, void *data)
 static ICSState *pnv_ics_get(XICSFabric *xi, int irq)
 {
     PnvMachineState *pnv = PNV_MACHINE(xi);
-    int i;
+    int i, j;
 
     for (i = 0; i < pnv->num_chips; i++) {
+        PnvChip *chip = pnv->chips[i];
         Pnv8Chip *chip8 = PNV8_CHIP(pnv->chips[i]);
 
         if (ics_valid_irq(&chip8->psi.ics, irq)) {
             return &chip8->psi.ics;
+        }
+        for (j = 0; j < chip->num_phbs; j++) {
+            if (ics_valid_irq(&chip8->phbs[j].lsis, irq)) {
+                return &chip8->phbs[j].lsis;
+            }
+            if (ics_valid_irq(ICS_BASE(&chip8->phbs[j].msis), irq)) {
+                return ICS_BASE(&chip8->phbs[j].msis);
+            }
         }
     }
     return NULL;
@@ -1062,11 +1151,16 @@ static ICSState *pnv_ics_get(XICSFabric *xi, int irq)
 static void pnv_ics_resend(XICSFabric *xi)
 {
     PnvMachineState *pnv = PNV_MACHINE(xi);
-    int i;
+    int i, j;
 
     for (i = 0; i < pnv->num_chips; i++) {
+        PnvChip *chip = pnv->chips[i];
         Pnv8Chip *chip8 = PNV8_CHIP(pnv->chips[i]);
         ics_resend(&chip8->psi.ics);
+        for (j = 0; j < chip->num_phbs; j++) {
+            ics_resend(&chip8->phbs[j].lsis);
+            ics_resend(ICS_BASE(&chip8->phbs[j].msis));
+        }
     }
 }
 
@@ -1097,7 +1191,7 @@ static void pnv_pic_print_info(InterruptStatsProvider *obj,
                                Monitor *mon)
 {
     PnvMachineState *pnv = PNV_MACHINE(obj);
-    int i;
+    int i, j;
     CPUState *cs;
 
     CPU_FOREACH(cs) {
@@ -1107,8 +1201,14 @@ static void pnv_pic_print_info(InterruptStatsProvider *obj,
     }
 
     for (i = 0; i < pnv->num_chips; i++) {
+        PnvChip *chip = pnv->chips[i];
         Pnv8Chip *chip8 = PNV8_CHIP(pnv->chips[i]);
         ics_pic_print_info(&chip8->psi.ics, mon);
+
+        for (j = 0; j < chip->num_phbs; j++) {
+            ics_pic_print_info(&chip8->phbs[j].lsis, mon);
+            ics_pic_print_info(ICS_BASE(&chip8->phbs[j].msis), mon);
+        }
     }
 }
 

@@ -25,6 +25,7 @@
 #include "hw/ppc/pnv_lpc.h"
 #include "hw/ppc/pnv_psi.h"
 #include "hw/ppc/pnv_occ.h"
+#include "hw/pci-host/pnv_phb3.h"
 
 #define TYPE_PNV_CHIP "pnv-chip"
 #define PNV_CHIP(obj) OBJECT_CHECK(PnvChip, (obj), TYPE_PNV_CHIP)
@@ -57,6 +58,8 @@ typedef struct PnvChip {
     MemoryRegion xscom_mmio;
     MemoryRegion xscom;
     AddressSpace xscom_as;
+
+    uint32_t     num_phbs;
 } PnvChip;
 
 #define TYPE_PNV8_CHIP "pnv8-chip"
@@ -72,6 +75,9 @@ typedef struct Pnv8Chip {
     PnvLpcController lpc;
     PnvPsi       psi;
     PnvOCC       occ;
+
+#define PNV_MAX_CHIP_PHB 4
+    PnvPHB3      phbs[PNV_MAX_CHIP_PHB];
 } Pnv8Chip;
 
 #define TYPE_PNV9_CHIP "pnv9-chip"
