@@ -25,6 +25,7 @@ import uuid
 import tempfile
 import re
 import signal
+import io
 from tarfile import TarFile, TarInfo
 from io import BytesIO
 from shutil import copy, rmtree
@@ -32,7 +33,7 @@ from pwd import getpwuid
 from datetime import datetime,timedelta
 
 try:
-    from typing import List, Union, Tuple
+    from typing import List, Union, Tuple, Text
 except ImportError:
     # needed only to make type annotations work
     pass
@@ -54,13 +55,13 @@ def _fsdecode(name):
         return name # type: ignore
 
 def _text_checksum(text):
-    # type: (bytes) -> str
+    # type: (Text) -> str
     """Calculate a digest string unique to the text content"""
-    return hashlib.sha1(text).hexdigest()
+    return hashlib.sha1(text.encode('utf-8')).hexdigest()
 
 def _file_checksum(filename):
     # type: (str) -> str
-    return _text_checksum(open(filename, 'rb').read())
+    return _text_checksum(io.open(filename, 'r', encoding='utf-8').read())
 
 def _guess_docker_command():
     # type: () -> List[str]
@@ -131,14 +132,14 @@ def _copy_binary_with_libs(src, dest_dir):
             _copy_with_mkdir(l , dest_dir, so_path)
 
 def _read_qemu_dockerfile(img_name):
-    # type: (str) -> str
+    # type: (Text) -> str
     df = os.path.join(os.path.dirname(__file__), "dockerfiles",
                       img_name + ".docker")
-    return open(df, "r").read()
+    return io.open(df, "r", encoding='utf-8').read()
 
 def _dockerfile_preprocess(df):
-    # type: (str) -> str
-    out = ""
+    # type: (Text) -> Text
+    out = u""
     for l in df.splitlines():
         if len(l.strip()) == 0 or l.startswith("#"):
             continue
@@ -151,7 +152,7 @@ def _dockerfile_preprocess(df):
             inlining = _read_qemu_dockerfile(l[len(from_pref):])
             out += _dockerfile_preprocess(inlining)
             continue
-        out += l + "\n"
+        out += l + u"\n"
     return out
 
 class Docker(object):
@@ -222,32 +223,37 @@ class Docker(object):
     def build_image(self,
                     tag,                 # type: str
                     docker_dir,          # type: str
-                    dockerfile,          # type: str
+                    dockerfile,          # type: Text
                     quiet=True,          # type: bool
                     user=False,          # type: bool
                     argv=[],             # type: List[str]
                     extra_files_cksum=[] # List[Tuple[str, bytes]]
                     ):
         # type(...) -> None
-        tmp_df = tempfile.NamedTemporaryFile(dir=docker_dir, suffix=".docker")
+        tmp_ndf = tempfile.NamedTemporaryFile(dir=docker_dir, suffix=".docker")
+        # on Python 2.7, NamedTemporaryFile doesn't support encoding parameter,
+        # so reopen it in text mode:
+        tmp_df = io.open(tmp_ndf.name, mode='w+t', encoding='utf-8')
         tmp_df.write(dockerfile)
 
         if user:
             uid = os.getuid()
             uname = getpwuid(uid).pw_name
-            tmp_df.write("\n")
-            tmp_df.write("RUN id %s 2>/dev/null || useradd -u %d -U %s" %
+            tmp_df.write(u"\n")
+            tmp_df.write(u"RUN id %s 2>/dev/null || useradd -u %d -U %s" %
                          (uname, uid, uname))
 
-        tmp_df.write("\n")
-        tmp_df.write("LABEL com.qemu.dockerfile-checksum=%s" %
-                     _text_checksum(_dockerfile_preprocess(dockerfile)))
+        dockerfile = _dockerfile_preprocess(dockerfile)
+
+        tmp_df.write(u"\n")
+        tmp_df.write(u"LABEL com.qemu.dockerfile-checksum=%s" %
+                     _text_checksum(dockerfile))
         for f, c in extra_files_cksum:
-            tmp_df.write("LABEL com.qemu.%s-checksum=%s" % (f, c))
+            tmp_df.write(u"LABEL com.qemu.%s-checksum=%s" % (f, c))
 
         tmp_df.flush()
 
-        self._do_check(["build", "-t", tag, "-f", tmp_df.name] + argv + \
+        self._do_check(["build", "-t", tag, "-f", tmp_ndf.name] + argv + \
                        [docker_dir],
                        quiet=quiet)
 
@@ -328,7 +334,7 @@ class BuildCommand(SubCommand):
 
     def run(self, args, argv):
         # type: (argparse.Namespace, List[str]) -> int
-        dockerfile = open(args.dockerfile, "rb").read()
+        dockerfile = io.open(args.dockerfile, "r", encoding='utf-8').read()
         tag = args.tag
 
         dkr = Docker()
@@ -521,7 +527,7 @@ class CheckCommand(SubCommand):
                 print("Need a dockerfile for tag:%s" % (tag))
                 return 1
 
-            dockerfile = open(args.dockerfile, "rb").read()
+            dockerfile = io.open(args.dockerfile, "r", encoding='utf-8').read()
 
             if dkr.image_matches_dockerfile(tag, dockerfile):
                 if not args.quiet:
