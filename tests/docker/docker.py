@@ -26,10 +26,7 @@ import tempfile
 import re
 import signal
 from tarfile import TarFile, TarInfo
-try:
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO
+from io import BytesIO
 from shutil import copy, rmtree
 from pwd import getpwuid
 from datetime import datetime,timedelta
@@ -374,13 +371,13 @@ class UpdateCommand(SubCommand):
                 tmp_tar.add(os.path.realpath(l), arcname=l)
 
         # Create a Docker buildfile
-        df = StringIO()
-        df.write("FROM %s\n" % args.tag)
-        df.write("ADD . /\n")
-        df.seek(0)
+        df = BytesIO()
+        df.write(b"FROM %s\n" % args.tag.encode())
+        df.write(b"ADD . /\n")
 
         df_tar = TarInfo(name="Dockerfile")
-        df_tar.size = len(df.buf)
+        df_tar.size = df.tell()
+        df.seek(0)
         tmp_tar.addfile(df_tar, fileobj=df)
 
         tmp_tar.close()
