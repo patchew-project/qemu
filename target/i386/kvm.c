@@ -93,6 +93,8 @@ static bool has_msr_hv_reenlightenment;
 static bool has_msr_xss;
 static bool has_msr_spec_ctrl;
 static bool has_msr_virt_ssbd;
+static bool has_msr_pred_cmd;
+static bool has_msr_arch_capabilities;
 static bool has_msr_smi_count;
 
 static uint32_t has_architectural_pmu_version;
@@ -1274,6 +1276,11 @@ static int kvm_get_supported_msrs(KVMState *s)
                     break;
                 case MSR_VIRT_SSBD:
                     has_msr_virt_ssbd = true;
+                case MSR_IA32_PRED_CMD:
+                    has_msr_pred_cmd = true;
+                    break;
+                case MSR_IA32_ARCH_CAPABILITIES:
+                    has_msr_arch_capabilities = true;
                     break;
                 }
             }
@@ -1789,7 +1796,13 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
     if (has_msr_virt_ssbd) {
         kvm_msr_entry_add(cpu, MSR_VIRT_SSBD, env->virt_ssbd);
     }
-
+    if (has_msr_pred_cmd) {
+        kvm_msr_entry_add(cpu, MSR_IA32_PRED_CMD, env->pred_cmd);
+    }
+    if (has_msr_arch_capabilities) {
+        kvm_msr_entry_add(cpu, MSR_IA32_ARCH_CAPABILITIES,
+            env->arch_capabilities);
+    }
 #ifdef TARGET_X86_64
     if (lm_capable_kernel) {
         kvm_msr_entry_add(cpu, MSR_CSTAR, env->cstar);
@@ -2172,6 +2185,13 @@ static int kvm_get_msrs(X86CPU *cpu)
     if (has_msr_virt_ssbd) {
         kvm_msr_entry_add(cpu, MSR_VIRT_SSBD, 0);
     }
+    if (has_msr_pred_cmd) {
+        kvm_msr_entry_add(cpu, MSR_IA32_PRED_CMD, 0);
+    }
+    if (has_msr_arch_capabilities) {
+        kvm_msr_entry_add(cpu, MSR_IA32_ARCH_CAPABILITIES, 0);
+    }
+
     if (!env->tsc_valid) {
         kvm_msr_entry_add(cpu, MSR_IA32_TSC, 0);
         env->tsc_valid = !runstate_is_running();
@@ -2553,6 +2573,11 @@ static int kvm_get_msrs(X86CPU *cpu)
             break;
         case MSR_VIRT_SSBD:
             env->virt_ssbd = msrs[i].data;
+        case MSR_IA32_PRED_CMD:
+            env->pred_cmd = msrs[i].data;
+            break;
+        case MSR_IA32_ARCH_CAPABILITIES:
+            env->arch_capabilities = msrs[i].data;
             break;
         case MSR_IA32_RTIT_CTL:
             env->msr_rtit_ctrl = msrs[i].data;
