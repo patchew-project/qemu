@@ -420,7 +420,7 @@ class ProbeCommand(SubCommand):
         except Exception:
             print("no")
 
-        return
+        return 0
 
 
 class CcCommand(SubCommand):
@@ -505,6 +505,7 @@ class CheckCommand(SubCommand):
                     print ("Image less than %d minutes old" % (args.olderthan))
                 return 0
 
+        return 0
 
 def main():
     parser = argparse.ArgumentParser(description="A Docker helper",
