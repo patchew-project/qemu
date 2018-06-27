@@ -59,6 +59,10 @@
 #include "qapi/visitor.h"
 #include "standard-headers/linux/input.h"
 #include "hw/arm/smmuv3.h"
+#include "hw/ide/internal.h"
+#include "hw/ide/ahci_internal.h"
+#include "hw/usb.h"
+#include "qemu/cutils.h"
 
 #define DEFINE_VIRT_MACHINE_LATEST(major, minor, latest) \
     static void virt_##major##_##minor##_class_init(ObjectClass *oc, \
@@ -93,6 +97,8 @@
 #define NUM_IRQS 256
 
 #define PLATFORM_BUS_NUM_IRQS 64
+
+#define SATA_NUM_PORTS 6
 
 /* RAM limit in GB. Since VIRT_MEM starts at the 1GB mark, this means
  * RAM can go up to the 256GB mark, leaving 256GB of the physical
@@ -165,6 +171,47 @@ static const int a15irqmap[] = {
     [VIRT_MMIO] = 16, /* ...to 16 + NUM_VIRTIO_TRANSPORTS - 1 */
     [VIRT_GIC_V2M] = 48, /* ...to 48 + NUM_GICV2M_SPIS - 1 */
     [VIRT_SMMU] = 74,    /* ...to 74 + NUM_SMMU_IRQS - 1 */
+    [VIRT_PLATFORM_BUS] = 112, /* ...to 112 + PLATFORM_BUS_NUM_IRQS -1 */
+};
+
+static const MemMapEntry sbsa_memmap[] = {
+    /* Space up to 0x8000000 is reserved for a boot ROM */
+    [VIRT_FLASH] =              {          0, 0x08000000 },
+    [VIRT_CPUPERIPHS] =         { 0x08000000, 0x00020000 },
+    /* GIC distributor and CPU interfaces sit inside the CPU peripheral space */
+    [VIRT_GIC_DIST] =           { 0x08000000, 0x00010000 },
+    [VIRT_GIC_CPU] =            { 0x08010000, 0x00010000 },
+    [VIRT_GIC_V2M] =            { 0x08020000, 0x00001000 },
+    /* The space in between here is reserved for GICv3 CPU/vCPU/HYP */
+    [VIRT_GIC_ITS] =            { 0x08080000, 0x00020000 },
+    /* This redistributor space allows up to 2*64kB*123 CPUs */
+    [VIRT_GIC_REDIST] =         { 0x080A0000, 0x00F60000 },
+    [VIRT_UART] =               { 0x09000000, 0x00001000 },
+    [VIRT_RTC] =                { 0x09010000, 0x00001000 },
+    [VIRT_FW_CFG] =             { 0x09020000, 0x00000018 },
+    [VIRT_GPIO] =               { 0x09030000, 0x00001000 },
+    [VIRT_SECURE_UART] =        { 0x09040000, 0x00001000 },
+    [VIRT_AHCI] =               { 0x09050000, 0x00010000 },
+    [VIRT_EHCI] =               { 0x09060000, 0x00010000 },
+    [VIRT_PLATFORM_BUS] =       { 0x0c000000, 0x02000000 },
+    [VIRT_SECURE_MEM] =         { 0x0e000000, 0x01000000 },
+    [VIRT_PCIE_MMIO] =          { 0x10000000, 0x7fff0000 },
+    [VIRT_PCIE_PIO] =           { 0x8fff0000, 0x00010000 },
+    [VIRT_PCIE_ECAM] =          { 0x90000000, 0x10000000 },
+    /* Second PCIe window, 508GB wide at the 4GB boundary */
+    [VIRT_PCIE_MMIO_HIGH] =     { 0x100000000ULL, 0x7F00000000ULL },
+    [VIRT_MEM] =                { 0x8000000000ULL, RAMLIMIT_BYTES },
+};
+
+static const int sbsa_irqmap[] = {
+    [VIRT_UART] = 1,
+    [VIRT_RTC] = 2,
+    [VIRT_PCIE] = 3, /* ... to 6 */
+    [VIRT_GPIO] = 7,
+    [VIRT_SECURE_UART] = 8,
+    [VIRT_AHCI] = 9,
+    [VIRT_EHCI] = 10,
+    [VIRT_GIC_V2M] = 48, /* ...to 48 + NUM_GICV2M_SPIS - 1 */
     [VIRT_PLATFORM_BUS] = 112, /* ...to 112 + PLATFORM_BUS_NUM_IRQS -1 */
 };
 
@@ -706,6 +753,72 @@ static void create_rtc(const VirtMachineState *vms, qemu_irq *pic)
     g_free(nodename);
 }
 
+static void create_ahci(const VirtMachineState *vms, qemu_irq *pic)
+{
+    char *nodename;
+    hwaddr base = vms->memmap[VIRT_AHCI].base;
+    hwaddr size = vms->memmap[VIRT_AHCI].size;
+    int irq = vms->irqmap[VIRT_AHCI];
+    const char compat[] = "qemu,mach-virt-ahci\0generic-ahci";
+    DeviceState *dev;
+    DriveInfo *hd[SATA_NUM_PORTS];
+    SysbusAHCIState *sysahci;
+    AHCIState *ahci;
+    int i;
+
+    dev = qdev_create(NULL, "sysbus-ahci");
+    qdev_prop_set_uint32(dev, "num-ports", SATA_NUM_PORTS);
+    qdev_init_nofail(dev);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, pic[irq]);
+
+    sysahci = SYSBUS_AHCI(dev);
+    ahci = &sysahci->ahci;
+    ide_drive_get(hd, ARRAY_SIZE(hd));
+    for (i = 0; i < ahci->ports; i++) {
+        if (hd[i] == NULL) {
+            continue;
+        }
+        ide_create_drive(&ahci->dev[i].port, 0, hd[i]);
+    }
+
+    nodename = g_strdup_printf("/sata@%" PRIx64, base);
+    qemu_fdt_add_subnode(vms->fdt, nodename);
+    qemu_fdt_setprop(vms->fdt, nodename, "compatible", compat, sizeof(compat));
+    qemu_fdt_setprop_sized_cells(vms->fdt, nodename, "reg",
+                                 2, base, 2, size);
+    qemu_fdt_setprop_cells(vms->fdt, nodename, "interrupts",
+                           GIC_FDT_IRQ_TYPE_SPI, irq,
+                           GIC_FDT_IRQ_FLAGS_LEVEL_HI);
+    g_free(nodename);
+}
+
+static void create_ehci(const VirtMachineState *vms, qemu_irq *pic)
+{
+    char *nodename;
+    hwaddr base = vms->memmap[VIRT_EHCI].base;
+    hwaddr size = vms->memmap[VIRT_EHCI].size;
+    int irq = vms->irqmap[VIRT_EHCI];
+    const char compat[] = "qemu,mach-virt-ehci\0generic-ehci";
+    USBBus *usb_bus;
+
+    sysbus_create_simple("exynos4210-ehci-usb", base, pic[irq]);
+
+    usb_bus = usb_bus_find(-1);
+    usb_create_simple(usb_bus, "usb-kbd");
+    usb_create_simple(usb_bus, "usb-mouse");
+
+    nodename = g_strdup_printf("/ehci@%" PRIx64, base);
+    qemu_fdt_add_subnode(vms->fdt, nodename);
+    qemu_fdt_setprop(vms->fdt, nodename, "compatible", compat, sizeof(compat));
+    qemu_fdt_setprop_sized_cells(vms->fdt, nodename, "reg",
+                                 2, base, 2, size);
+    qemu_fdt_setprop_cells(vms->fdt, nodename, "interrupts",
+                           GIC_FDT_IRQ_TYPE_SPI, irq,
+                           GIC_FDT_IRQ_FLAGS_LEVEL_HI);
+    g_free(nodename);
+}
+
 static DeviceState *gpio_key_dev;
 static void virt_powerdown_req(Notifier *n, void *opaque)
 {
@@ -1117,11 +1230,19 @@ static void create_pcie(VirtMachineState *vms, qemu_irq *pic)
             NICInfo *nd = &nd_table[i];
 
             if (!nd->model) {
-                nd->model = g_strdup("virtio");
+                if (vms->sbsa) {
+                    nd->model = g_strdup("e1000");
+                } else {
+                    nd->model = g_strdup("virtio");
+                }
             }
 
             pci_nic_init_nofail(nd, pci->bus, nd->model, NULL);
         }
+    }
+
+    if (vms->sbsa) {
+        pci_create_simple(pci->bus, -1, "VGA");
     }
 
     nodename = g_strdup_printf("/pcie@%" PRIx64, base);
@@ -1512,11 +1633,18 @@ static void machvirt_init(MachineState *machine)
 
     create_gpio(vms, pic);
 
+    if (vms->sbsa) {
+        create_ahci(vms, pic);
+        create_ehci(vms, pic);
+    }
+
     /* Create mmio transports, so the user can create virtio backends
      * (which will be automatically plugged in to the transports). If
      * no backend is created the transport will just sit harmlessly idle.
      */
-    create_virtio_devices(vms, pic);
+    if (!vms->sbsa) {
+        create_virtio_devices(vms, pic);
+    }
 
     vms->fw_cfg = create_fw_cfg(vms, &address_space_memory);
     rom_set_fw(vms->fw_cfg);
@@ -1828,6 +1956,7 @@ static void virt_3_0_instance_init(Object *obj)
 
     vms->memmap = a15memmap;
     vms->irqmap = a15irqmap;
+    vms->sbsa = false;
 }
 
 static void virt_machine_3_0_options(MachineClass *mc)
@@ -1960,3 +2089,66 @@ static void virt_machine_2_6_options(MachineClass *mc)
     vmc->no_pmu = true;
 }
 DEFINE_VIRT_MACHINE(2, 6)
+
+static void sbsa_instance_init(Object *obj)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+
+    vms->secure = true;
+    object_property_add_bool(obj, "secure", virt_get_secure,
+                             virt_set_secure, NULL);
+    object_property_set_description(obj, "secure",
+                                    "Set on/off to enable/disable the ARM "
+                                    "Security Extensions (TrustZone)",
+                                    NULL);
+
+    vms->virt = true;
+    object_property_add_bool(obj, "virtualization", virt_get_virt,
+                             virt_set_virt, NULL);
+    object_property_set_description(obj, "virtualization",
+                                    "Set on/off to enable/disable emulating a "
+                                    "guest CPU which implements the ARM "
+                                    "Virtualization Extensions",
+                                    NULL);
+
+    vms->highmem = true;
+
+    /* This can be changed to GICv3 when firmware is ready*/
+    vms->gic_version = 2;
+    object_property_add_str(obj, "gic-version", virt_get_gic_version,
+                        virt_set_gic_version, NULL);
+    object_property_set_description(obj, "gic-version",
+                                    "Set GIC version. "
+                                    "Valid values are 2, 3, host, max", NULL);
+    vms->its = true;
+
+    vms->memmap = sbsa_memmap;
+    vms->irqmap = sbsa_irqmap;
+    vms->sbsa = true;
+}
+
+static void sbsa_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->max_cpus = 246;
+    mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-a57");
+    mc->block_default_type = IF_IDE;
+    mc->default_ram_size = 1 * G_BYTE;
+    mc->default_cpus = 4;
+    mc->desc = "QEMU 'SBSA' ARM Virtual Machine";
+}
+
+static const TypeInfo sbsa_info = {
+    .name          = MACHINE_TYPE_NAME("sbsa"),
+    .parent        = TYPE_VIRT_MACHINE,
+    .instance_init = sbsa_instance_init,
+    .class_init    = sbsa_class_init,
+};
+
+static void sbsa_machine_init(void)
+{
+    type_register_static(&sbsa_info);
+}
+
+type_init(sbsa_machine_init);

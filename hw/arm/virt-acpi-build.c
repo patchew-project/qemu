@@ -84,6 +84,52 @@ static void acpi_dsdt_add_uart(Aml *scope, const MemMapEntry *uart_memmap,
     aml_append(scope, dev);
 }
 
+static void acpi_dsdt_add_ahci(Aml *scope, const MemMapEntry *ahci_memmap,
+                                           uint32_t ahci_irq)
+{
+    Aml *dev = aml_device("AHC0");
+    aml_append(dev, aml_name_decl("_HID", aml_string("LNRO001E")));
+    aml_append(dev, aml_name_decl("_UID", aml_int(0)));
+    aml_append(dev, aml_name_decl("_CCA", aml_int(1)));
+
+    Aml *crs = aml_resource_template();
+    aml_append(crs, aml_memory32_fixed(ahci_memmap->base,
+                                       ahci_memmap->size, AML_READ_WRITE));
+    aml_append(crs,
+               aml_interrupt(AML_CONSUMER, AML_LEVEL, AML_ACTIVE_HIGH,
+                             AML_EXCLUSIVE, &ahci_irq, 1));
+    aml_append(dev, aml_name_decl("_CRS", crs));
+
+    Aml *pkg = aml_package(3);
+    aml_append(pkg, aml_int(0x1));
+    aml_append(pkg, aml_int(0x6));
+    aml_append(pkg, aml_int(0x1));
+
+    /* append the SATA class id */
+    aml_append(dev, aml_name_decl("_CLS", pkg));
+
+    aml_append(scope, dev);
+}
+
+static void acpi_dsdt_add_ehci(Aml *scope, const MemMapEntry *ehci_memmap,
+                                           uint32_t ehci_irq)
+{
+    Aml *dev = aml_device("EHC0");
+    aml_append(dev, aml_name_decl("_HID", aml_string("PNP0D20")));
+    aml_append(dev, aml_name_decl("_UID", aml_int(0)));
+    aml_append(dev, aml_name_decl("_CCA", aml_int(1)));
+
+    Aml *crs = aml_resource_template();
+    aml_append(crs, aml_memory32_fixed(ehci_memmap->base,
+                                       ehci_memmap->size, AML_READ_WRITE));
+    aml_append(crs,
+               aml_interrupt(AML_CONSUMER, AML_LEVEL, AML_ACTIVE_HIGH,
+                             AML_EXCLUSIVE, &ehci_irq, 1));
+    aml_append(dev, aml_name_decl("_CRS", crs));
+
+    aml_append(scope, dev);
+}
+
 static void acpi_dsdt_add_fw_cfg(Aml *scope, const MemMapEntry *fw_cfg_memmap)
 {
     Aml *dev = aml_device("FWCF");
@@ -768,13 +814,22 @@ build_dsdt(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
                        (irqmap[VIRT_UART] + ARM_SPI_BASE));
     acpi_dsdt_add_flash(scope, &memmap[VIRT_FLASH]);
     acpi_dsdt_add_fw_cfg(scope, &memmap[VIRT_FW_CFG]);
-    acpi_dsdt_add_virtio(scope, &memmap[VIRT_MMIO],
-                    (irqmap[VIRT_MMIO] + ARM_SPI_BASE), NUM_VIRTIO_TRANSPORTS);
+    if (!vms->sbsa) {
+        acpi_dsdt_add_virtio(scope, &memmap[VIRT_MMIO],
+                   (irqmap[VIRT_MMIO] + ARM_SPI_BASE), NUM_VIRTIO_TRANSPORTS);
+    }
     acpi_dsdt_add_pci(scope, memmap, (irqmap[VIRT_PCIE] + ARM_SPI_BASE),
                       vms->highmem, vms->highmem_ecam);
     acpi_dsdt_add_gpio(scope, &memmap[VIRT_GPIO],
                        (irqmap[VIRT_GPIO] + ARM_SPI_BASE));
     acpi_dsdt_add_power_button(scope);
+
+    if (vms->sbsa) {
+        acpi_dsdt_add_ahci(scope, &memmap[VIRT_AHCI],
+                           (irqmap[VIRT_AHCI] + ARM_SPI_BASE));
+        acpi_dsdt_add_ehci(scope, &memmap[VIRT_EHCI],
+                           (irqmap[VIRT_EHCI] + ARM_SPI_BASE));
+    }
 
     aml_append(dsdt, scope);
 
