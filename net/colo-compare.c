@@ -996,6 +996,11 @@ static void colo_compare_complete(UserCreatable *uc, Error **errp)
         return;
     }
 
+    if (!is_colo_support_client_type()) {
+        error_setg(errp, "COLO-compare: Net client type is not supported");
+        return;
+    }
+
     net_socket_rs_init(&s->pri_rs, compare_pri_rs_finalize, s->vnet_hdr);
     net_socket_rs_init(&s->sec_rs, compare_sec_rs_finalize, s->vnet_hdr);
 
