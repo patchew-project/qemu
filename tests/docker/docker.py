@@ -43,6 +43,15 @@ FILTERED_ENV_NAMES = ['ftp_proxy', 'http_proxy', 'https_proxy']
 
 DEVNULL = open(os.devnull, 'wb')
 
+def _fsdecode(name):
+    # type: (bytes) -> str
+    """Decode filename to str, try to use os.fsdecode() if available"""
+    if hasattr(os, 'fsdecode'):
+        # Python 3
+        return os.fsdecode(name) # type: ignore
+    else:
+        # Python 2.7
+        return name # type: ignore
 
 def _text_checksum(text):
     # type: (bytes) -> str
@@ -92,15 +101,15 @@ def _get_so_libs(executable):
     ensure theright data is copied."""
 
     libs = []
-    ldd_re = re.compile(r"(/.*/)(\S*)")
+    ldd_re = re.compile(b"(/.*/)(\S*)")
     try:
         ldd_output = subprocess.check_output(["ldd", executable])
-        for line in ldd_output.split("\n"):
+        for line in ldd_output.split(b"\n"):
             search = ldd_re.search(line)
             if search and len(search.groups()) == 2:
                 so_path = search.groups()[0]
                 so_lib = search.groups()[1]
-                libs.append("%s/%s" % (so_path, so_lib))
+                libs.append(_fsdecode(b"%s/%s" % (so_path, so_lib)))
     except subprocess.CalledProcessError:
         print("%s had no associated libraries (static build?)" % (executable))
 
