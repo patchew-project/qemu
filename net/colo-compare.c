@@ -116,6 +116,12 @@ enum {
     SECONDARY_IN,
 };
 
+static void colo_compare_inconsistency_notify(void)
+{
+    notifier_list_notify(&colo_compare_notifiers,
+                migrate_get_current());
+}
+
 static int compare_chr_send(CompareState *s,
                             const uint8_t *buf,
                             uint32_t size,
@@ -560,12 +566,6 @@ static int colo_old_packet_check_one(Packet *pkt, int64_t *check_time)
     } else {
         return 1;
     }
-}
-
-static void colo_compare_inconsistency_notify(void)
-{
-    notifier_list_notify(&colo_compare_notifiers,
-                migrate_get_current());
 }
 
 void colo_compare_register_notifier(Notifier *notify)
