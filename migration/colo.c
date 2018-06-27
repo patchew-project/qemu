@@ -29,6 +29,7 @@
 #include "net/colo.h"
 #include "block/block.h"
 #include "qapi/qapi-events-migration.h"
+#include "qapi/qmp/qerror.h"
 
 static bool vmstate_loading;
 static Notifier packets_compare_notifier;
@@ -235,6 +236,44 @@ void qmp_xen_colo_do_checkpoint(Error **errp)
 #else
     abort();
 #endif
+}
+
+COLOStatus *qmp_query_colo_status(Error **errp)
+{
+    int state;
+    COLOStatus *s = g_new0(COLOStatus, 1);
+
+    s->mode = get_colo_mode();
+
+    switch (s->mode) {
+    case COLO_MODE_NONE:
+        error_setg(errp, "COLO is disabled");
+        state = MIGRATION_STATUS_NONE;
+        break;
+    case COLO_MODE_PRIMARY:
+        state = migrate_get_current()->state;
+        break;
+    case COLO_MODE_SECONDARY:
+        state = migration_incoming_get_current()->state;
+        break;
+    default:
+        abort();
+    }
+
+    s->active = state == MIGRATION_STATUS_COLO;
+
+    switch (failover_get_state()) {
+    case FAILOVER_STATUS_NONE:
+        s->reason = COLO_EXIT_REASON_NONE;
+        break;
+    case FAILOVER_STATUS_REQUIRE:
+        s->reason = COLO_EXIT_REASON_REQUEST;
+        break;
+    default:
+        s->reason = COLO_EXIT_REASON_ERROR;
+    }
+
+    return s;
 }
 
 static void colo_send_message(QEMUFile *f, COLOMessage msg,
