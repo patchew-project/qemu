@@ -56,6 +56,9 @@
   'data': { 'string0': 'str',
             'dict1': 'UserDefTwoDict' } }
 
+{ 'struct': 'UserDefThree',
+  'data': { 'string0': 'str' } }
+
 # dummy struct to force generation of array types not otherwise mentioned
 { 'struct': 'ForceArrays',
   'data': { 'unused1':['UserDefOne'], 'unused2':['UserDefTwo'],
@@ -209,7 +212,10 @@
   'if': 'defined(TEST_IF_ALT) && defined(TEST_IF_STRUCT)' }
 
 { 'command': 'TestIfCmd', 'data': { 'foo': 'TestIfStruct' },
+  'returns': 'UserDefThree',
   'if': ['defined(TEST_IF_CMD)', 'defined(TEST_IF_STRUCT)'] }
+
+{ 'command': 'TestCmdReturnDefThree', 'returns': 'UserDefThree' }
 
 { 'event': 'TestIfEvent', 'data': { 'foo': 'TestIfStruct' },
   'if': 'defined(TEST_IF_EVT) && defined(TEST_IF_STRUCT)' }
