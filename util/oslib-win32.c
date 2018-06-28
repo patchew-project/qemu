@@ -76,6 +76,10 @@ void *qemu_anon_ram_alloc(size_t size, uint64_t *align, bool shared)
        memory is page aligned. */
     ptr = VirtualAlloc(NULL, size, MEM_COMMIT, PAGE_READWRITE);
     trace_qemu_anon_ram_alloc(size, ptr);
+
+    if (ptr && align) {
+        *align = getpagesize();
+    }
     return ptr;
 }
 
