@@ -19,3 +19,4 @@ common-obj-$(CONFIG_PCI_GENERIC) += gpex.o
 common-obj-$(CONFIG_PCI_XILINX) += xilinx-pcie.o
 
 common-obj-$(CONFIG_PCI_DESIGNWARE) += designware.o
+obj-$(CONFIG_POWERNV) += pnv_phb3.o pnv_phb3_pbcq.o pnv_phb3_msi.o

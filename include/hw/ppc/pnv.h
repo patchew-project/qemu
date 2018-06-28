@@ -25,6 +25,7 @@
 #include "hw/ppc/pnv_lpc.h"
 #include "hw/ppc/pnv_psi.h"
 #include "hw/ppc/pnv_occ.h"
+#include "hw/pci-host/pnv_phb3.h"
 
 #define TYPE_PNV_CHIP "pnv-chip"
 #define PNV_CHIP(obj) OBJECT_CHECK(PnvChip, (obj), TYPE_PNV_CHIP)
@@ -72,6 +73,9 @@ typedef struct Pnv8Chip {
     PnvLpcController lpc;
     PnvPsi       psi;
     PnvOCC       occ;
+
+#define PNV8_CHIP_PHB3_MAX 4
+    PnvPHB3      phbs[PNV8_CHIP_PHB3_MAX];
 } Pnv8Chip;
 
 #define TYPE_PNV9_CHIP "pnv9-chip"
@@ -92,6 +96,7 @@ typedef struct PnvChipClass {
     PnvChipType  chip_type;
     uint64_t     chip_cfam_id;
     uint64_t     cores_mask;
+    uint32_t     num_phbs;
 
     hwaddr       xscom_base;
 
@@ -169,6 +174,23 @@ static inline bool pnv_chip_is_power9(const PnvChip *chip)
 static inline bool pnv_is_power9(PnvMachineState *pnv)
 {
     return pnv_chip_is_power9(pnv->chips[0]);
+}
+
+/*
+ * This is used by devices created on the command line to find a chip
+ * on which to attach to.
+ */
+static inline PnvChip *pnv_get_chip(PnvMachineState *pnv, uint chip_id)
+{
+    int i;
+
+    for (i = 0; i < pnv->num_chips; i++) {
+        PnvChip *chip = pnv->chips[i];
+        if (chip->chip_id == chip_id) {
+            return chip;
+        }
+    }
+    return NULL;
 }
 
 #define PNV_FDT_ADDR          0x01000000
