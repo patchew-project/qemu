@@ -246,6 +246,9 @@ def filter_img_info(output, filename):
         lines.append(line)
     return '\n'.join(lines)
 
+def filter_imgfmt(msg):
+    return msg.replace(imgfmt, 'IMGFMT')
+
 def log(msg, filters=[]):
     for flt in filters:
         msg = flt(msg)
