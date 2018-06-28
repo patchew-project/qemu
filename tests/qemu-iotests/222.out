@@ -1,0 +1,60 @@
+--- Setting up images ---
+
+Done
+
+--- Launching VM ---
+
+Done
+
+--- Setting up Fleecing Graph ---
+
+{u'return': {}}
+{u'return': {}}
+
+--- Setting up NBD Export ---
+
+{u'return': {}}
+{u'return': {}}
+
+--- Sanity Check ---
+
+read -P0x5d 0 64k
+read -P0xd5 1M 64k
+read -P0xdc 32M 64k
+read -P0xcd 0x3ff0000 64k
+
+--- Testing COW ---
+
+write -P0xab 0 64k
+{u'return': u''}
+write -P0xad 0x00f8000 64k
+{u'return': u''}
+write -P0x1d 0x2008000 64k
+{u'return': u''}
+write -P0xea 0x3fe0000 64k
+{u'return': u''}
+
+--- Verifying Data ---
+
+read -P0x5d 0 64k
+read -P0xd5 1M 64k
+read -P0xdc 32M 64k
+read -P0xcd 0x3ff0000 64k
+
+--- Cleanup ---
+
+{u'return': {}}
+{u'return': {}}
+{u'return': {}}
+
+--- Confirming writes ---
+
+read -P0xab 0 64k
+read -P0xad 0x00f8000 64k
+read -P0x1d 0x2008000 64k
+read -P0xea 0x3fe0000 64k
+read -P0xd5 0x108000 32K
+read -P0xdc 32M 32k
+read -P0xcd 0x3ff0000 64k
+
+Done
