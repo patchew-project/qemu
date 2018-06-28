@@ -146,6 +146,8 @@ struct PnvPHB3 {
     PnvPBCQState pbcq;
 
     QLIST_HEAD(, PnvPhb3DMASpace) dma_spaces;
+
+    PnvChip *chip;
 };
 
 #define TYPE_PNV_PHB3_RC "pnv-phb3-rc"

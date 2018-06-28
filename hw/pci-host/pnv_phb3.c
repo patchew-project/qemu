@@ -970,6 +970,16 @@ static void pnv_phb3_pci_create(PnvPHB3 *phb, Error **errp)
     qdev_init_nofail(DEVICE(brdev));
 }
 
+static void pnv_phb3_parent_fixup(Object *obj, Object *parent, Error **errp)
+{
+    if (obj->parent != parent) {
+        object_ref(obj);
+        object_unparent(obj);
+        object_property_add_child(parent, DEVICE(obj)->id, obj, errp);
+        object_unref(obj);
+    }
+}
+
 static void pnv_phb3_realize(DeviceState *dev, Error **errp)
 {
     PnvPHB3 *phb = PNV_PHB3(dev);
@@ -977,6 +987,17 @@ static void pnv_phb3_realize(DeviceState *dev, Error **errp)
     Object *xics = OBJECT(qdev_get_machine());
     Error *local_err = NULL;
     int i;
+
+    /*
+     * PHB3 devices created on the command line are not parented to
+     * the chip. Make sure they are because this is necessary to build
+     * correctly the device tree.
+     */
+    pnv_phb3_parent_fixup(OBJECT(phb), OBJECT(phb->chip), &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
 
     memory_region_init(&phb->pci_mmio, OBJECT(phb), "pci-mmio",
                        PCI_MMIO_TOTAL_SIZE);
@@ -1138,6 +1159,7 @@ static void pnv_phb3_set_chip_id(Object *obj, Visitor *v, const char *name,
         return;
     }
 
+    phb->chip = chip;
     phb->chip_id = chip_id;
 }
 
@@ -1148,7 +1170,7 @@ static const PropertyInfo pnv_phb3_chip_id_propinfo = {
 };
 
 static Property pnv_phb3_properties[] = {
-    DEFINE_PROP("phb-id", PnvPHB3, phb_id, pnv_phb3_phb_id_propinfo,
+    DEFINE_PROP("index", PnvPHB3, phb_id, pnv_phb3_phb_id_propinfo,
                 uint32_t),
     DEFINE_PROP("chip-id", PnvPHB3, chip_id, pnv_phb3_chip_id_propinfo,
                 uint32_t),
@@ -1164,6 +1186,7 @@ static void pnv_phb3_class_init(ObjectClass *klass, void *data)
     dc->realize = pnv_phb3_realize;
     dc->props = pnv_phb3_properties;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
+    dc->user_creatable = true;
 }
 
 static const TypeInfo pnv_phb3_type_info = {
