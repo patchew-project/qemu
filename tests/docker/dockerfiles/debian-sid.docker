@@ -22,11 +22,15 @@ RUN DEBIAN_FRONTEND=noninteractive apt install -yy eatmydata
 RUN DEBIAN_FRONTEND=noninteractive eatmydata \
     apt install -y --no-install-recommends \
         bison \
+        binutils-multiarch \
         build-essential \
         ca-certificates \
+        curl \
         flex \
+        gettext \
         git \
+        gnupg \
         pkg-config \
         psmisc \
-        python \
+        python-minimal \
         texinfo || { echo "Failed to build - see debian-sid.docker notes"; exit 1; }
