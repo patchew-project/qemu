@@ -3469,6 +3469,18 @@ static inline void gen_setlr(DisasContext *ctx, target_ulong nip)
     tcg_gen_movi_tl(cpu_lr, nip);
 }
 
+/* Helper for bringing the cpu to the sleep state so it will
+ * react only on "external" events */
+void helper_sleep(CPUPPCState *env)
+{
+    CPUState *cs = CPU(ppc_env_get_cpu(env));
+
+    cs->exception_index = EXCP_HALTED;
+    cs->exit_request = 1;
+    cs->halted = 1;
+    cpu_loop_exit(cs);
+}
+
 /* b ba bl bla */
 static void gen_b(DisasContext *ctx)
 {
@@ -3483,6 +3495,13 @@ static void gen_b(DisasContext *ctx)
     } else {
         target = li;
     }
+
+    if (target == ctx->base.pc_next - 4) {
+        /* Endless-loop, CPU can now react on "external" events only, so we
+         * simply go to sleep in order to save host processing resources */
+        gen_helper_sleep(cpu_env);
+    }
+
     if (LK(ctx->opcode)) {
         gen_setlr(ctx, ctx->base.pc_next);
     }
