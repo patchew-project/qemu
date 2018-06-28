@@ -68,6 +68,10 @@ class UbuntuX86VM(basevm.BaseVM):
         self.boot(img_tmp, extra_args = ["-cdrom", self._gen_cloud_init_iso()])
         self.wait_ssh()
         self.ssh_root_check("touch /etc/cloud/cloud-init.disabled")
+        for k, v in os.environ.iteritems():
+            kl = k.lower()
+            if kl in ['ftp_proxy', 'http_proxy', 'https_proxy']:
+                self.ssh_root_check("echo 'Acquire::{}::Proxy \"{}\";' >> /etc/apt/apt.conf.d/01proxy".format(kl[:-6].upper(), v))
         self.ssh_root_check("apt-get update")
         self.ssh_root_check("apt-get install -y cloud-initramfs-growroot")
         # Don't check the status in case the guest hang up too quickly
