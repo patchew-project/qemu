@@ -284,9 +284,11 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
 
     checksum = be32_to_cpu(footer->checksum);
     footer->checksum = 0;
-    if (vpc_checksum(s->footer_buf, HEADER_SIZE) != checksum)
+    if (vpc_checksum(s->footer_buf, HEADER_SIZE) != checksum) {
+        bdrv_refresh_filename(bs);
         fprintf(stderr, "block-vpc: The header checksum of '%s' is "
             "incorrect.\n", bs->filename);
+    }
 
     /* Write 'checksum' back to footer, or else will leave it with zero. */
     footer->checksum = cpu_to_be32(checksum);
