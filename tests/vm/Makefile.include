@@ -17,10 +17,13 @@ vm-test:
 
 vm-build-all: $(addprefix vm-build-, $(IMAGES))
 
+$(IMAGE_FILES): qemu-img$(EXESUF)
+
 tests/vm/%.img: $(SRC_PATH)/tests/vm/% \
 		$(SRC_PATH)/tests/vm/basevm.py \
 		$(SRC_PATH)/tests/vm/Makefile.include
 	$(call quiet-command, \
+		PATH=$(PATH):. \
 		$< \
 		$(if $(V)$(DEBUG), --debug) \
 		--image "$@" \
