@@ -18,6 +18,7 @@
 #include "qom/cpu.h"
 #include "exec/memattrs.h"
 #include "hw/irq.h"
+#include "sysemu/accel.h"
 
 #ifdef NEED_CPU_H
 # ifdef CONFIG_KVM
@@ -46,7 +47,7 @@ extern bool kvm_direct_msi_allowed;
 extern bool kvm_ioeventfd_any_length_allowed;
 extern bool kvm_msi_use_devid;
 
-#define kvm_enabled()           (kvm_allowed)
+#define kvm_enabled()           (assert_accelerator_initialized(kvm_allowed))
 /**
  * kvm_irqchip_in_kernel:
  *
