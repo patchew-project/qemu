@@ -248,11 +248,12 @@ static int kvm_booke206_tlb_init(PowerPCCPU *cpu)
 
 
 #if defined(TARGET_PPC64)
-static void kvm_get_fallback_smmu_info(PowerPCCPU *cpu,
-                                       struct kvm_ppc_smmu_info *info)
+static void kvm_get_fallback_smmu_info(struct kvm_ppc_smmu_info *info)
 {
-    CPUPPCState *env = &cpu->env;
-    CPUState *cs = CPU(cpu);
+    const PowerPCCPUClass *pcc;
+
+    assert(current_machine != NULL);
+    pcc = POWERPC_CPU_CLASS(object_class_by_name(current_machine->cpu_type));
 
     memset(info, 0, sizeof(*info));
 
@@ -278,7 +279,7 @@ static void kvm_get_fallback_smmu_info(PowerPCCPU *cpu,
      *   implements KVM_CAP_PPC_GET_SMMU_INFO and thus doesn't hit
      *   this fallback.
      */
-    if (kvmppc_is_pr(cs->kvm_state)) {
+    if (kvmppc_is_pr(kvm_state)) {
         /* No flags */
         info->flags = 0;
         info->slb_size = 64;
@@ -300,12 +301,12 @@ static void kvm_get_fallback_smmu_info(PowerPCCPU *cpu,
         /* HV KVM has backing store size restrictions */
         info->flags = KVM_PPC_PAGE_SIZES_REAL;
 
-        if (ppc_hash64_has(cpu, PPC_HASH64_1TSEG)) {
+        if (hash64_opts_has(pcc->hash64_opts, PPC_HASH64_1TSEG)) {
             info->flags |= KVM_PPC_1T_SEGMENTS;
         }
 
-        if (env->mmu_model == POWERPC_MMU_2_06 ||
-            env->mmu_model == POWERPC_MMU_2_07) {
+        if (pcc->mmu_model == POWERPC_MMU_2_06 ||
+            pcc->mmu_model == POWERPC_MMU_2_07) {
             info->slb_size = 32;
         } else {
             info->slb_size = 64;
@@ -319,8 +320,8 @@ static void kvm_get_fallback_smmu_info(PowerPCCPU *cpu,
         i++;
 
         /* 64K on MMU 2.06 and later */
-        if (env->mmu_model == POWERPC_MMU_2_06 ||
-            env->mmu_model == POWERPC_MMU_2_07) {
+        if (pcc->mmu_model == POWERPC_MMU_2_06 ||
+            pcc->mmu_model == POWERPC_MMU_2_07) {
             info->sps[i].page_shift = 16;
             info->sps[i].slb_enc = 0x110;
             info->sps[i].enc[0].page_shift = 16;
@@ -336,19 +337,18 @@ static void kvm_get_fallback_smmu_info(PowerPCCPU *cpu,
     }
 }
 
-static void kvm_get_smmu_info(PowerPCCPU *cpu, struct kvm_ppc_smmu_info *info)
+static void kvm_get_smmu_info(struct kvm_ppc_smmu_info *info)
 {
-    CPUState *cs = CPU(cpu);
     int ret;
 
-    if (kvm_check_extension(cs->kvm_state, KVM_CAP_PPC_GET_SMMU_INFO)) {
-        ret = kvm_vm_ioctl(cs->kvm_state, KVM_PPC_GET_SMMU_INFO, info);
+    if (kvm_check_extension(kvm_state, KVM_CAP_PPC_GET_SMMU_INFO)) {
+        ret = kvm_vm_ioctl(kvm_state, KVM_PPC_GET_SMMU_INFO, info);
         if (ret == 0) {
             return;
         }
     }
 
-    kvm_get_fallback_smmu_info(cpu, info);
+    kvm_get_fallback_smmu_info(info);
 }
 
 struct ppc_radix_page_info *kvm_get_radix_page_info(void)
@@ -408,14 +408,13 @@ target_ulong kvmppc_configure_v3_mmu(PowerPCCPU *cpu,
 
 bool kvmppc_hpt_needs_host_contiguous_pages(void)
 {
-    PowerPCCPU *cpu = POWERPC_CPU(first_cpu);
     static struct kvm_ppc_smmu_info smmu_info;
 
     if (!kvm_enabled()) {
         return false;
     }
 
-    kvm_get_smmu_info(cpu, &smmu_info);
+    kvm_get_smmu_info(&smmu_info);
     return !!(smmu_info.flags & KVM_PPC_PAGE_SIZES_REAL);
 }
 
@@ -429,7 +428,7 @@ void kvm_check_mmu(PowerPCCPU *cpu, Error **errp)
         return;
     }
 
-    kvm_get_smmu_info(cpu, &smmu_info);
+    kvm_get_smmu_info(&smmu_info);
 
     if (ppc_hash64_has(cpu, PPC_HASH64_1TSEG)
         && !(smmu_info.flags & KVM_PPC_1T_SEGMENTS)) {
@@ -2168,7 +2167,7 @@ uint64_t kvmppc_rma_size(uint64_t current_size, unsigned int hash_shift)
 
     /* Find the largest hardware supported page size that's less than
      * or equal to the (logical) backing page size of guest RAM */
-    kvm_get_smmu_info(POWERPC_CPU(first_cpu), &info);
+    kvm_get_smmu_info(&info);
     rampagesize = qemu_getrampagesize();
     best_page_shift = 0;
 

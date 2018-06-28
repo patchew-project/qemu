@@ -169,9 +169,15 @@ struct PPCHash64Options {
 extern const PPCHash64Options ppc_hash64_opts_basic;
 extern const PPCHash64Options ppc_hash64_opts_POWER7;
 
+static inline bool hash64_opts_has(const PPCHash64Options *opts,
+                                   unsigned feature)
+{
+    return !!(opts->flags & feature);
+}
+
 static inline bool ppc_hash64_has(PowerPCCPU *cpu, unsigned feature)
 {
-    return !!(cpu->hash64_opts->flags & feature);
+    return hash64_opts_has(cpu->hash64_opts, feature);
 }
 
 #endif /* CONFIG_USER_ONLY */
