@@ -5195,6 +5195,7 @@ void bdrv_refresh_filename(BlockDriverState *bs)
     BlockDriver *drv = bs->drv;
     BdrvChild *child;
     QDict *opts;
+    bool backing_overridden;
 
     if (!drv) {
         return;
@@ -5218,6 +5219,23 @@ void bdrv_refresh_filename(BlockDriverState *bs)
         bs->full_open_options = qobject_ref(child->bs->full_open_options);
 
         return;
+    }
+
+    if (bs->backing) {
+        backing_overridden = strcmp(bs->auto_backing_file,
+                                    bs->backing->bs->filename);
+    } else {
+        /* @bs has no backing BDS, so if bs->backing_file is
+         * non-empty, the backing file has been overridden */
+        backing_overridden = (bs->auto_backing_file[0] != '\0');
+    }
+
+    if (bs->open_flags & BDRV_O_NO_IO) {
+        /* Without I/O, the backing file does not change anything.
+         * Therefore, in such a case (primarily qemu-img), we can
+         * pretend the backing file has not been overridden even if
+         * it technically has been. */
+        backing_overridden = false;
     }
 
     if (drv->bdrv_refresh_filename) {
@@ -5245,6 +5263,7 @@ void bdrv_refresh_filename(BlockDriverState *bs)
 
         opts = qdict_new();
         has_open_options = append_open_options(opts, bs);
+        has_open_options |= backing_overridden;
 
         /* If no specific options have been given for this BDS, the filename of
          * the underlying file should suffice for this one as well */
@@ -5256,10 +5275,19 @@ void bdrv_refresh_filename(BlockDriverState *bs)
          * file BDS. The full options QDict of that file BDS should somehow
          * contain a representation of the filename, therefore the following
          * suffices without querying the (exact_)filename of this BDS. */
-        if (bs->file->bs->full_open_options) {
+        if (bs->file->bs->full_open_options &&
+            (!bs->backing || bs->backing->bs->full_open_options))
+        {
             qdict_put_str(opts, "driver", drv->format_name);
             qdict_put(opts, "file",
                       qobject_ref(bs->file->bs->full_open_options));
+
+            if (bs->backing) {
+                qdict_put(opts, "backing",
+                          qobject_ref(bs->backing->bs->full_open_options));
+            } else if (backing_overridden) {
+                qdict_put_null(opts, "backing");
+            }
 
             bs->full_open_options = opts;
         } else {
