@@ -26,9 +26,6 @@ def main(argv):
                         help="write output to directory OUTPUT_DIR")
     parser.add_argument('-p', '--prefix', action='store', default='',
                         help="prefix for symbols")
-    parser.add_argument('-u', '--unmask-non-abi-names', action='store_true',
-                        dest='unmask',
-                        help="expose non-ABI names in introspection")
     parser.add_argument('schema', action='store')
     args = parser.parse_args()
 
@@ -49,7 +46,7 @@ def main(argv):
     gen_visit(schema, args.output_dir, args.prefix, args.builtins)
     gen_commands(schema, args.output_dir, args.prefix)
     gen_events(schema, args.output_dir, args.prefix)
-    gen_introspect(schema, args.output_dir, args.prefix, args.unmask)
+    gen_introspect(schema, args.output_dir, args.prefix)
     gen_doc(schema, args.output_dir, args.prefix)
 
 

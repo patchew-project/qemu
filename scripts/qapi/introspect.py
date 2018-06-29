@@ -58,11 +58,10 @@ def to_c_string(string):
 
 class QAPISchemaGenIntrospectVisitor(QAPISchemaMonolithicCVisitor):
 
-    def __init__(self, prefix, unmask):
+    def __init__(self, prefix):
         QAPISchemaMonolithicCVisitor.__init__(
             self, prefix, 'qapi-introspect',
             ' * QAPI/QMP schema introspection', __doc__)
-        self._unmask = unmask
         self._schema = None
         self._qlits = []
         self._used_types = []
@@ -104,8 +103,6 @@ const QLitObject %(c_name)s = %(c_string)s;
         return not isinstance(entity, QAPISchemaType)
 
     def _name(self, name):
-        if self._unmask:
-            return name
         if name not in self._name_map:
             self._name_map[name] = '%d' % len(self._name_map)
         return self._name_map[name]
@@ -131,8 +128,7 @@ const QLitObject %(c_name)s = %(c_string)s;
 
     def _gen_qlit(self, name, mtype, obj):
         if mtype not in ('command', 'event', 'builtin', 'array'):
-            if not self._unmask:
-                obj['comment'] = name
+            obj['comment'] = name
             name = self._name(name)
         obj['name'] = name
         obj['meta-type'] = mtype
@@ -188,7 +184,7 @@ const QLitObject %(c_name)s = %(c_string)s;
         self._gen_qlit(name, 'event', {'arg-type': self._use_type(arg_type)})
 
 
-def gen_introspect(schema, output_dir, prefix, opt_unmask):
-    vis = QAPISchemaGenIntrospectVisitor(prefix, opt_unmask)
+def gen_introspect(schema, output_dir, prefix):
+    vis = QAPISchemaGenIntrospectVisitor(prefix)
     schema.visit(vis)
     vis.write(output_dir)
