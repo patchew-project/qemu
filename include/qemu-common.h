@@ -82,7 +82,8 @@ int qemu_openpty_raw(int *aslave, char *pty_name);
 extern bool tcg_allowed;
 void tcg_exec_init(unsigned long tb_size);
 #ifdef CONFIG_TCG
-#define tcg_enabled() (tcg_allowed)
+#include "sysemu/accel.h"
+#define tcg_enabled() (assert_accelerator_initialized(tcg_allowed))
 #else
 #define tcg_enabled() 0
 #endif

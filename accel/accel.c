@@ -51,6 +51,13 @@ static AccelClass *accel_find(const char *opt_name)
     return ac;
 }
 
+bool assert_accelerator_initialized(bool allowed)
+{
+    assert(current_machine != NULL);
+    assert(current_machine->accelerator != NULL);
+    return allowed;
+}
+
 static int accel_init_machine(AccelClass *acc, MachineState *ms)
 {
     ObjectClass *oc = OBJECT_CLASS(acc);

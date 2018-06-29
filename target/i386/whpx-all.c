@@ -1468,7 +1468,7 @@ static int whpx_accel_init(MachineState *ms)
 
 int whpx_enabled(void)
 {
-    return whpx_allowed;
+    return assert_accelerator_initialized(whpx_allowed);
 }
 
 static void whpx_accel_class_init(ObjectClass *oc, void *data)
