@@ -278,6 +278,7 @@ aio_ctx_finalize(GSource     *source)
 #endif
 
     assert(QSLIST_EMPTY(&ctx->scheduled_coroutines));
+    assert(QSLIST_EMPTY(&ctx->postponed_actions));
     qemu_bh_delete(ctx->co_schedule_bh);
 
     qemu_lockcnt_lock(&ctx->list_lock);
@@ -423,6 +424,7 @@ AioContext *aio_context_new(Error **errp)
 
     ctx->co_schedule_bh = aio_bh_new(ctx, co_schedule_bh_cb, ctx);
     QSLIST_INIT(&ctx->scheduled_coroutines);
+    QSLIST_INIT(&ctx->postponed_actions);
 
     aio_set_event_notifier(ctx, &ctx->notifier,
                            false,
@@ -514,4 +516,35 @@ void aio_context_acquire(AioContext *ctx)
 void aio_context_release(AioContext *ctx)
 {
     qemu_rec_mutex_unlock(&ctx->lock);
+}
+
+AioPostponedAction *aio_create_postponed_action(
+                        AioPostponedFunc func, void *func_param)
+{
+    AioPostponedAction *action = g_malloc(sizeof(AioPostponedAction));
+    action->func = func;
+    action->func_param = func_param;
+    return action;
+}
+
+static void aio_destroy_postponed_action(AioPostponedAction *action)
+{
+    g_free(action);
+}
+
+/* should be run under aio_context_aquire/release */
+void aio_postpone_action(AioContext *ctx, AioPostponedAction *action)
+{
+    QSLIST_INSERT_HEAD(&ctx->postponed_actions, action, next_action);
+}
+
+/* should be run under aio_context_aquire/release */
+void aio_run_postponed_actions(AioContext *ctx)
+{
+    while(!QSLIST_EMPTY(&ctx->postponed_actions)) {
+        AioPostponedAction *action = QSLIST_FIRST(&ctx->postponed_actions);
+        QSLIST_REMOVE_HEAD(&ctx->postponed_actions, next_action);
+        action->func(action->func_param);
+        aio_destroy_postponed_action(action);
+    }
 }

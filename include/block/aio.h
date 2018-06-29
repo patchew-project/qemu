@@ -46,10 +46,23 @@ typedef struct AioHandler AioHandler;
 typedef void QEMUBHFunc(void *opaque);
 typedef bool AioPollFn(void *opaque);
 typedef void IOHandler(void *opaque);
+typedef void AioPostponedFunc(void *opaque);
 
 struct Coroutine;
 struct ThreadPool;
 struct LinuxAioState;
+
+/**
+ * Struct for postponing the actions
+ */
+typedef struct AioPostponedAction {
+    /* A function to run on context enabling */
+    AioPostponedFunc *func;
+    /* Param to be passed to the function */
+    void *func_param;
+    /**/
+    QSLIST_ENTRY(AioPostponedAction) next_action;
+} AioPostponedAction;
 
 struct AioContext {
     GSource source;
@@ -110,6 +123,16 @@ struct AioContext {
     EventNotifier notifier;
 
     QSLIST_HEAD(, Coroutine) scheduled_coroutines;
+
+    /* list of postponed actions
+     * The actions (might be thought as requests) which have been postponed
+     * because of the drained section was entered at the moment of their
+     * appearing.
+     * All these actions have to be run wheen the context is enabled for
+     * external requests.
+     */
+    QSLIST_HEAD(, AioPostponedAction) postponed_actions;
+
     QEMUBH *co_schedule_bh;
 
     /* Thread pool for performing work and receiving completion callbacks.
@@ -439,6 +462,41 @@ static inline void aio_timer_init(AioContext *ctx,
 int64_t aio_compute_timeout(AioContext *ctx);
 
 /**
+ * aio_create_postponed_action:
+ * @ctx: the aio context
+ * @func: the function to postpone
+ * @param: the parameter to passed to the function
+ *
+ * Create a postponed action.
+ */
+AioPostponedAction *aio_create_postponed_action(
+                        AioPostponedFunc func, void *func_param);
+
+/**
+ * aio_postpone_action:
+ * @ctx: the aio context
+ * @action: the function and the parameter to passed to the function
+ *
+ * Queue an ation to the queue. The queue are processed and the actions
+ * are executed when the context becomes available to the external
+ * requests.
+ *
+ * Should be invoked under aio_context_acquire/release.
+ */
+void aio_postpone_action(AioContext *ctx, AioPostponedAction *action);
+
+/**
+ * aio_run_postponed_actions:
+ * @ctx: the aio context
+ *
+ * The function invokes all the actions queued to postponed action
+ * context queue.
+ *
+ * Should be invoked under aio_context_acquire/release.
+ */
+void aio_run_postponed_actions(AioContext *ctx);
+
+/**
  * aio_disable_external:
  * @ctx: the aio context
  *
@@ -446,7 +504,9 @@ int64_t aio_compute_timeout(AioContext *ctx);
  */
 static inline void aio_disable_external(AioContext *ctx)
 {
+    aio_context_acquire(ctx);
     atomic_inc(&ctx->external_disable_cnt);
+    aio_context_release(ctx);
 }
 
 /**
@@ -459,12 +519,15 @@ static inline void aio_enable_external(AioContext *ctx)
 {
     int old;
 
+    aio_context_acquire(ctx);
     old = atomic_fetch_dec(&ctx->external_disable_cnt);
     assert(old > 0);
     if (old == 1) {
+        aio_run_postponed_actions(ctx);
         /* Kick event loop so it re-arms file descriptors */
         aio_notify(ctx);
     }
+    aio_context_release(ctx);
 }
 
 /**
