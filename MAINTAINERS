@@ -1193,6 +1193,7 @@ F: hw/s390x/ap-device.c
 F: hw/s390x/ap-bridge.c
 F: include/hw/s390x/ap-device.h
 F: include/hw/s390x/ap-bridge.h
+F: hw/vfio/ap.c
 L: qemu-s390x@nongnu.org
 
 vhost
