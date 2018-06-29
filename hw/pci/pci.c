@@ -2411,12 +2411,14 @@ static char *pci_dev_fw_name(DeviceState *dev, char *buf, int len)
 
 static char *pcibus_get_fw_dev_path(DeviceState *dev)
 {
+    DeviceClass *dc = DEVICE_GET_CLASS(dev);
     PCIDevice *d = (PCIDevice *)dev;
     char path[50], name[33];
     int off;
 
     off = snprintf(path, sizeof(path), "%s@%x",
-                   pci_dev_fw_name(dev, name, sizeof name),
+                   dc->fw_name ? dc->fw_name :
+                       pci_dev_fw_name(dev, name, sizeof name),
                    PCI_SLOT(d->devfn));
     if (PCI_FUNC(d->devfn))
         snprintf(path + off, sizeof(path) + off, ",%x", PCI_FUNC(d->devfn));
