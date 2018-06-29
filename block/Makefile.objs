@@ -27,6 +27,7 @@ block-obj-y += write-threshold.o
 block-obj-y += backup.o
 block-obj-$(CONFIG_REPLICATION) += replication.o
 block-obj-y += throttle.o copy-on-read.o
+block-obj-y += fleecing-filter.o
 
 block-obj-y += crypto.o
 
