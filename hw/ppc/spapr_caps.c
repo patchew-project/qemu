@@ -552,10 +552,30 @@ SPAPR_CAP_MIG_STATE(cfpc, SPAPR_CAP_CFPC);
 SPAPR_CAP_MIG_STATE(sbbc, SPAPR_CAP_SBBC);
 SPAPR_CAP_MIG_STATE(ibs, SPAPR_CAP_IBS);
 
+static void fixup_default_cap_hpt_maxpagesize_pre_3_0(sPAPRMachineState *spapr)
+{
+    sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
+    uint8_t mps;
+
+    /* If it is already set, then this is a 3.0 or newer machine */
+    if (smc->default_caps.caps[SPAPR_CAP_HPT_MAXPAGESIZE]) {
+        return;
+    }
+
+    if (kvmppc_hpt_needs_host_contiguous_pages()) {
+        mps = ctz64(qemu_getrampagesize());
+    } else {
+        mps = 34; /* allow everything up to 16GiB, i.e. everything */
+    }
+    smc->default_caps.caps[SPAPR_CAP_HPT_MAXPAGESIZE] = mps;
+}
+
 void spapr_caps_init(sPAPRMachineState *spapr)
 {
     sPAPRCapabilities default_caps;
     int i;
+
+    fixup_default_cap_hpt_maxpagesize_pre_3_0(spapr);
 
     /* Compute the actual set of caps we should run with */
     default_caps = default_caps_with_cpu(spapr, MACHINE(spapr)->cpu_type);
