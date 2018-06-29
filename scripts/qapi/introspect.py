@@ -35,10 +35,14 @@ def to_qlit(obj, level=0, suppress_first_indent=False):
     elif isinstance(obj, dict):
         elts = []
         for key, value in sorted(obj.items()):
+            if key == 'comment':
+                continue
             elts.append(indent(level + 1) + '{ %s, %s }' %
                         (to_c_string(key), to_qlit(value, level + 1, True)))
         elts.append(indent(level + 1) + '{}')
         ret += 'QLIT_QDICT(((QLitDictEntry[]) {\n'
+        if obj.get('comment'):
+            ret += indent(level + 1) + '/* %s */\n' % obj['comment']
         ret += ',\n'.join(elts) + '\n'
         ret += indent(level) + '}))'
     elif isinstance(obj, bool):
@@ -78,7 +82,6 @@ class QAPISchemaGenIntrospectVisitor(QAPISchemaMonolithicCVisitor):
         for typ in self._used_types:
             typ.visit(self)
         # generate C
-        # TODO can generate awfully long lines
         name = c_name(self._prefix, protect=False) + 'qmp_schema_qlit'
         self._genh.add(mcgen('''
 #include "qapi/qmp/qlit.h"
@@ -118,8 +121,8 @@ const QLitObject %(c_name)s = %(c_string)s;
         if typ not in self._used_types:
             self._used_types.append(typ)
         # Clients should examine commands and events, not types.  Hide
-        # type names to reduce the temptation.  Also saves a few
-        # characters.
+        # type names as integers to reduce the temptation, but provide
+        # comments for debugging aid.
         if isinstance(typ, QAPISchemaBuiltinType):
             return typ.name
         if isinstance(typ, QAPISchemaArrayType):
@@ -128,6 +131,8 @@ const QLitObject %(c_name)s = %(c_string)s;
 
     def _gen_qlit(self, name, mtype, obj):
         if mtype not in ('command', 'event', 'builtin', 'array'):
+            if not self._unmask:
+                obj['comment'] = name
             name = self._name(name)
         obj['name'] = name
         obj['meta-type'] = mtype
