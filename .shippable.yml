@@ -25,6 +25,14 @@ env:
       TARGET_LIST=mips64el-softmmu,mips64el-linux-user
     - IMAGE=debian-ppc64el-cross
       TARGET_LIST=ppc64-softmmu,ppc64-linux-user,ppc64abi32-linux-user
+    include:
+      # Additional linux-user cross build
+      - pre_ci:
+          - ./configure --target-list=ppc-linux-user --static
+          - make -j$(($(getconf _NPROCESSORS_ONLN) + 1))
+          - make docker-image-powerpc-user-cross
+        env: IMAGE=debian-image-powerpc-user-cross
+             TARGET_LIST=ppc-softmmu
 build:
   pre_ci:
     - make docker-image-${IMAGE} V=1
