@@ -293,6 +293,8 @@ class BuildCommand(SubCommand):
         parser.add_argument("--add-current-user", "-u", dest="user",
                             action="store_true",
                             help="Add the current user to image's passwd")
+        parser.add_argument("--env", "-E", action='append', nargs=1,
+                            help="Set FOO=BAR in envronment")
         parser.add_argument("tag",
                             help="Image Tag")
         parser.add_argument("dockerfile",
@@ -301,6 +303,12 @@ class BuildCommand(SubCommand):
     def run(self, args, argv):
         dockerfile = open(args.dockerfile, "rb").read()
         tag = args.tag
+
+        # Process env setting
+        if args.env:
+            for e in args.env:
+                (env, val) = e[0].split("=")
+                os.environ[env] = val
 
         dkr = Docker()
         if "--no-cache" not in argv and \
