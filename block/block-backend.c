@@ -1322,6 +1322,7 @@ typedef struct BlkAioEmAIOCB {
     BlkRwCo rwco;
     int bytes;
     bool has_returned;
+    CoroutineEntry *co_entry;
 } BlkAioEmAIOCB;
 
 static const AIOCBInfo blk_aio_em_aiocb_info = {
@@ -1344,16 +1345,55 @@ static void blk_aio_complete_bh(void *opaque)
     blk_aio_complete(acb);
 }
 
+static void blk_aio_create_co(void *opaque)
+{
+    BlockDriverState *current_bs;
+    AioContext *ctx;
+    BlkAioEmAIOCB *acb = (BlkAioEmAIOCB *) opaque;
+    BlockBackend *blk = acb->rwco.blk;
+
+    /* The check makes sense if the action was postponed until the context
+     * is enabled for external requests: if a BlockDriverState of a BlockBackend
+     * was changed, for example on making a new snapshot, update BlockDriverState
+     * in ACB and try to run the coroutine in the changed BDS context
+     */
+    current_bs = blk_bs(blk);
+
+    if (current_bs != acb->common.bs) {
+        acb->common.bs = current_bs;
+    }
+
+    ctx = blk_get_aio_context(blk);
+    /* If a request comes from device (e.g. ide controller) when
+     * the context disabled, postpone the request until the context is
+     * enabled for external requests.
+     * Otherwise, create a couroutine and enter it right now
+     */
+    aio_context_acquire(ctx);
+    if (aio_external_disabled(ctx)) {
+        AioPostponedAction *action = aio_create_postponed_action(
+                                                blk_aio_create_co, acb);
+        aio_postpone_action(ctx, action);
+    } else {
+        Coroutine *co = qemu_coroutine_create(acb->co_entry, acb);
+        blk_inc_in_flight(blk);
+        bdrv_coroutine_enter(acb->common.bs, co);
+
+        acb->has_returned = true;
+        if (acb->rwco.ret != NOT_DONE) {
+            aio_bh_schedule_oneshot(ctx, blk_aio_complete_bh, acb);
+        }
+    }
+    aio_context_release(ctx);
+}
+
 static BlockAIOCB *blk_aio_prwv(BlockBackend *blk, int64_t offset, int bytes,
                                 void *iobuf, CoroutineEntry co_entry,
                                 BdrvRequestFlags flags,
                                 BlockCompletionFunc *cb, void *opaque)
 {
-    BlkAioEmAIOCB *acb;
-    Coroutine *co;
 
-    blk_inc_in_flight(blk);
-    acb = blk_aio_get(&blk_aio_em_aiocb_info, blk, cb, opaque);
+    BlkAioEmAIOCB *acb = blk_aio_get(&blk_aio_em_aiocb_info, blk, cb, opaque);
     acb->rwco = (BlkRwCo) {
         .blk    = blk,
         .offset = offset,
@@ -1363,15 +1403,9 @@ static BlockAIOCB *blk_aio_prwv(BlockBackend *blk, int64_t offset, int bytes,
     };
     acb->bytes = bytes;
     acb->has_returned = false;
+    acb->co_entry = co_entry;
 
-    co = qemu_coroutine_create(co_entry, acb);
-    bdrv_coroutine_enter(blk_bs(blk), co);
-
-    acb->has_returned = true;
-    if (acb->rwco.ret != NOT_DONE) {
-        aio_bh_schedule_oneshot(blk_get_aio_context(blk),
-                                blk_aio_complete_bh, acb);
-    }
+    blk_aio_create_co(acb);
 
     return &acb->common;
 }
