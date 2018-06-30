@@ -644,7 +644,8 @@ uint64_t helper_fmul(CPUPPCState *env, uint64_t arg1, uint64_t arg2)
 }
 
 /* fdiv - fdiv. */
-uint64_t helper_fdiv(CPUPPCState *env, uint64_t arg1, uint64_t arg2)
+uint64_t helper_fdiv(CPUPPCState *env, uint64_t arg1, uint64_t arg2, uint64_t
+                     old_value)
 {
     CPU_DoubleU farg1, farg2;
 
@@ -658,6 +659,22 @@ uint64_t helper_fdiv(CPUPPCState *env, uint64_t arg1, uint64_t arg2)
     } else if (unlikely(float64_is_zero(farg1.d) && float64_is_zero(farg2.d))) {
         /* Division of zero by zero */
         farg1.ll = float_invalid_op_excp(env, POWERPC_EXCP_FP_VXZDZ, 1);
+    } else if (arg2 == 0) {
+        /* Division by zero */
+        float_zero_divide_excp(env, GETPC());
+        if (fpscr_ze) { /* if zero divide exception is enabled */
+            /* Keep the value in the destination register the same */
+            farg1.ll = old_value;
+        } else {
+            /* Compute sign bit */
+            uint64_t sign = (farg1.ll ^ farg2.ll) >> 63;
+            if (sign) { /* Negative sign bit */
+                farg1.ll = 0xfff0000000000000; /* Negative Infinity */
+            } else { /* Positive sign bit */
+                farg1.ll = 0x7ff0000000000000; /* Positive Infinity */
+            }
+            helper_compute_fprf_float64(env, farg1.d);
+        }
     } else {
         if (unlikely(float64_is_signaling_nan(farg1.d, &env->fp_status) ||
                      float64_is_signaling_nan(farg2.d, &env->fp_status))) {
@@ -665,6 +682,8 @@ uint64_t helper_fdiv(CPUPPCState *env, uint64_t arg1, uint64_t arg2)
             float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1);
         }
         farg1.d = float64_div(farg1.d, farg2.d, &env->fp_status);
+        helper_compute_fprf_float64(env, farg1.d);
+        helper_float_check_status(env);
     }
 
     return farg1.ll;

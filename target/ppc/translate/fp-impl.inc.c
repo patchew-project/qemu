@@ -84,6 +84,33 @@ static void gen_f##name(DisasContext *ctx)                                    \
 _GEN_FLOAT_AB(name, name, 0x3F, op2, inval, 0, set_fprf, type);               \
 _GEN_FLOAT_AB(name##s, name, 0x3B, op2, inval, 1, set_fprf, type);
 
+
+#define _GEN_FLOAT_DIV(name, op, op1, op2, inval, isfloat, set_fprf, type)    \
+static void gen_f##name(DisasContext *ctx)                                    \
+{                                                                             \
+    if (unlikely(!ctx->fpu_enabled)) {                                        \
+        gen_exception(ctx, POWERPC_EXCP_FPU);                                 \
+        return;                                                               \
+    }                                                                         \
+    gen_reset_fpstatus();                                                     \
+    gen_helper_f##op(cpu_fpr[rD(ctx->opcode)], cpu_env,                       \
+                     cpu_fpr[rA(ctx->opcode)],                                \
+                     cpu_fpr[rB(ctx->opcode)],                                \
+                     cpu_fpr[rD(ctx->opcode)]);                               \
+    if (isfloat) {                                                            \
+        gen_helper_frsp(cpu_fpr[rD(ctx->opcode)], cpu_env,                    \
+                        cpu_fpr[rD(ctx->opcode)]);                            \
+    }                                                                         \
+    if (unlikely(Rc(ctx->opcode) != 0)) {                                     \
+        gen_set_cr1_from_fpscr(ctx);                                          \
+    }                                                                         \
+}
+
+#define GEN_FLOAT_DIV(name, op2, inval, set_fprf, type)                       \
+_GEN_FLOAT_DIV(name, name, 0x3F, op2, inval, 0, set_fprf, type);              \
+_GEN_FLOAT_DIV(name##s, name, 0x3B, op2, inval, 1, set_fprf, type);
+
+
 #define _GEN_FLOAT_AC(name, op, op1, op2, inval, isfloat, set_fprf, type)     \
 static void gen_f##name(DisasContext *ctx)                                    \
 {                                                                             \
@@ -149,7 +176,7 @@ static void gen_f##name(DisasContext *ctx)                                    \
 /* fadd - fadds */
 GEN_FLOAT_AB(add, 0x15, 0x000007C0, 1, PPC_FLOAT);
 /* fdiv - fdivs */
-GEN_FLOAT_AB(div, 0x12, 0x000007C0, 1, PPC_FLOAT);
+GEN_FLOAT_DIV(div, 0x12, 0x000007C0, 1, PPC_FLOAT);
 /* fmul - fmuls */
 GEN_FLOAT_AC(mul, 0x19, 0x0000F800, 1, PPC_FLOAT);
 
