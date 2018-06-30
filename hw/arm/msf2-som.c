@@ -91,8 +91,8 @@ static void emcraft_sf2_s2s010_init(MachineState *machine)
     cs_line = qdev_get_gpio_in_named(spi_flash, SSI_GPIO_CS, 0);
     sysbus_connect_irq(SYS_BUS_DEVICE(&soc->spi[0]), 1, cs_line);
 
-    armv7m_load_kernel(ARM_CPU(first_cpu), machine->kernel_filename,
-                       soc->envm_size);
+    arm_m_profile_load_kernel(ARM_CPU(first_cpu), machine->kernel_filename,
+                              soc->envm_size);
 }
 
 static void emcraft_sf2_machine_init(MachineClass *mc)

@@ -88,6 +88,7 @@ static void m2sxxx_soc_realize(DeviceState *dev_soc, Error **errp)
 {
     MSF2State *s = MSF2_SOC(dev_soc);
     DeviceState *dev, *armv7m;
+    ARMMProfileState *arm_m_profile;
     SysBusDevice *busdev;
     Error *err = NULL;
     int i;
@@ -116,6 +117,7 @@ static void m2sxxx_soc_realize(DeviceState *dev_soc, Error **errp)
     memory_region_add_subregion(system_memory, SRAM_BASE_ADDRESS, sram);
 
     armv7m = DEVICE(&s->armv7m);
+    arm_m_profile = ARM_M_PROFILE(armv7m);
     qdev_prop_set_uint32(armv7m, "num-irq", 81);
     qdev_prop_set_string(armv7m, "cpu-type", s->cpu_type);
     object_property_set_link(OBJECT(&s->armv7m), OBJECT(get_system_memory()),
@@ -132,7 +134,7 @@ static void m2sxxx_soc_realize(DeviceState *dev_soc, Error **errp)
         return;
     }
 
-    qdev_connect_gpio_out_named(DEVICE(&s->armv7m.nvic), "SYSRESETREQ", 0,
+    qdev_connect_gpio_out_named(DEVICE(&arm_m_profile->nvic), "SYSRESETREQ", 0,
                                 qemu_allocate_irq(&do_sys_reset, NULL, 0));
 
     system_clock_scale = NANOSECONDS_PER_SECOND / s->m3clk;

@@ -24,16 +24,17 @@ typedef enum {
 } arm_endianness;
 
 /**
- * armv7m_load_kernel:
+ * arm_m_profile_load_kernel:
  * @cpu: CPU
  * @kernel_filename: file to load
- * @mem_size: mem_size: maximum image size to load
+ * @mem_size: maximum image size to load
  *
- * Load the guest image for an ARMv7M system. This must be called by
- * any ARMv7M board. (This is necessary to ensure that the CPU resets
+ * Load the guest image for an ARM M Profile system. This must be called by
+ * any ARM M Profile board. (This is necessary to ensure that the CPU resets
  * correctly on system reset, as well as for kernel loading.)
  */
-void armv7m_load_kernel(ARMCPU *cpu, const char *kernel_filename, int mem_size);
+void arm_m_profile_load_kernel(ARMCPU *cpu, const char *kernel_filename,
+                               int mem_size);
 
 /* arm_boot.c */
 struct arm_boot_info {

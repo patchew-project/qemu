@@ -10,8 +10,7 @@
 #ifndef HW_ARM_ARMV7M_H
 #define HW_ARM_ARMV7M_H
 
-#include "hw/sysbus.h"
-#include "hw/intc/armv7m_nvic.h"
+#include "hw/arm/arm-m-profile.h"
 #include "target/arm/idau.h"
 
 #define TYPE_BITBAND "ARM,bitband-memory"
@@ -34,33 +33,16 @@ typedef struct {
 #define ARMV7M_NUM_BITBANDS 2
 
 /* ARMv7M container object.
- * + Unnamed GPIO input lines: external IRQ lines for the NVIC
- * + Named GPIO output SYSRESETREQ: signalled for guest AIRCR.SYSRESETREQ
- * + Property "cpu-type": CPU type to instantiate
- * + Property "num-irq": number of external IRQ lines
- * + Property "memory": MemoryRegion defining the physical address space
- *   that CPU accesses see. (The NVIC, bitbanding and other CPU-internal
- *   devices will be automatically layered on top of this view.)
  * + Property "idau": IDAU interface (forwarded to CPU object)
  * + Property "init-svtor": secure VTOR reset value (forwarded to CPU object)
  */
 typedef struct ARMv7MState {
     /*< private >*/
-    SysBusDevice parent_obj;
+    ARMMProfileState parent_obj;
     /*< public >*/
-    NVICState nvic;
     BitBandState bitband[ARMV7M_NUM_BITBANDS];
-    ARMCPU *cpu;
-
-    /* MemoryRegion we pass to the CPU, with our devices layered on
-     * top of the ones the board provides in board_memory.
-     */
-    MemoryRegion container;
 
     /* Properties */
-    char *cpu_type;
-    /* MemoryRegion the board provides to us (with its devices, RAM, etc) */
-    MemoryRegion *board_memory;
     Object *idau;
     uint32_t init_svtor;
 } ARMv7MState;
