@@ -153,7 +153,7 @@ void HELPER(mtspr)(CPUOpenRISCState *env,
         }
         break;
     case TO_SPR(9, 0):  /* PICMR */
-        env->picmr |= rb;
+        env->picmr = rb;
         break;
     case TO_SPR(9, 2):  /* PICSR */
         env->picsr &= ~rb;
