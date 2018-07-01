@@ -2018,7 +2018,9 @@ void qemu_ram_set_migratable(RAMBlock *rb)
 
 void qemu_ram_unset_migratable(RAMBlock *rb)
 {
-    rb->flags &= ~RAM_MIGRATABLE;
+    if (rb) {
+        rb->flags &= ~RAM_MIGRATABLE;
+    }
 }
 
 /* Called with iothread lock held.  */
