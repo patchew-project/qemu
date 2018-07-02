@@ -20,6 +20,9 @@ DOCKER_SCRIPT=$(SRC_PATH)/tests/docker/docker.py
 TESTS ?= %
 IMAGES ?= %
 
+# This is used to filter targets from some docker builds
+DOCKER_FILTER_TARGETS ?=
+
 CUR_TIME := $(shell date +%Y-%m-%d-%H.%M.%S.$$$$)
 DOCKER_SRC_COPY := $(BUILD_DIR)/docker-src.$(CUR_TIME)
 
@@ -108,6 +111,12 @@ $(foreach i,$(DOCKER_IMAGES) $(DOCKER_DEPRECATED_IMAGES), \
 	) \
 )
 
+# Special cases
+#  mingw/windows builds cannot build linux-user
+docker-%-win32-cross: DOCKER_FILTER_TARGETS = %-linux-user
+docker-%-win64-cross: DOCKER_FILTER_TARGETS = %-linux-user
+docker-test-mingw@%: DOCKER_FILTER_TARGETS = %-linux-user
+
 docker:
 	@echo 'Build QEMU and run tests inside Docker containers'
 	@echo
@@ -174,7 +183,7 @@ docker-run: docker-qemu-src
 			$(if $V,,--rm) 					\
 			$(if $(DEBUG),-ti,)				\
 			$(if $(NETWORK),$(if $(subst $(NETWORK),,1),--net=$(NETWORK)),--net=none) \
-			-e TARGET_LIST=$(subst $(SPACE),$(COMMA),$(TARGET_LIST))	\
+			-e TARGET_LIST=$(subst $(SPACE),$(COMMA),$(filter-out $(DOCKER_FILTER_TARGETS),$(TARGET_LIST)))	\
 			-e EXTRA_CONFIGURE_OPTS="$(EXTRA_CONFIGURE_OPTS)" \
 			-e V=$V -e J=$J -e DEBUG=$(DEBUG)		\
 			-e SHOW_ENV=$(SHOW_ENV) 			\
@@ -195,7 +204,8 @@ docker-run: docker-qemu-src
 docker-run-%: CMD = $(shell echo '$@' | sed -e 's/docker-run-\([^@]*\)@\(.*\)/\1/')
 docker-run-%: IMAGE = $(shell echo '$@' | sed -e 's/docker-run-\([^@]*\)@\(.*\)/\2/')
 docker-run-%:
-	@$(MAKE) docker-run TEST=$(CMD) IMAGE=qemu:$(IMAGE)
+	@$(MAKE) docker-run TEST=$(CMD) IMAGE=qemu:$(IMAGE) DOCKER_FILTER_TARGETS=$(DOCKER_FILTER_TARGETS)
+
 
 docker-clean:
 	$(call quiet-command, $(DOCKER_SCRIPT) clean)
