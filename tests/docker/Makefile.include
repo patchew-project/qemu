@@ -119,6 +119,31 @@ docker-image-travis: NOUSER=1
 # Specialist build images, sometimes very limited tools
 docker-image-tricore-cross: docker-image-debian9
 
+# Rules for building linux-user powered images
+#
+# These are slower than using native cross compiler setups but can
+# work around issues with poorly working multi-arch systems and broken
+# packages.
+
+ifeq ($(filter ppc-linux-user,$(TARGET_LIST))$(CONFIG_STATIC),ppc-linux-usery)
+# Jessie is the last supported release for powerpc, but multi-arch is
+# broken so we need a qemu-linux-user for this target
+docker-binfmt-image-debian-powerpc-user: DEB_ARCH = powerpc
+docker-binfmt-image-debian-powerpc-user: DEB_TYPE = jessie
+docker-binfmt-image-debian-powerpc-user: EXECUTABLE = ${BUILD_DIR}/ppc-linux-user/qemu-ppc
+DOCKER_USER_IMAGES += debian-powerpc-user
+else
+docker-binfmt-image-debian-powerpc-user:
+	$(call quiet-command, \
+		$(DOCKER_SCRIPT) check --quiet qemu:debian-powerpc-user \
+			$(DOCKER_FILES_DIR)/debian-bootstrap.docker, \
+		"CHECK", "debian-powerpc-user exists")
+endif
+
+# We build the QEMU compiler environment on top of the base image
+docker-image-debian-powerpc-user-cross: docker-binfmt-image-debian-powerpc-user
+
+
 # Expand all the pre-requistes for each docker image and test combination
 $(foreach i,$(filter-out $(DOCKER_INTERMEDIATE_IMAGES),$(DOCKER_IMAGES) $(DOCKER_DEPRECATED_IMAGES)), \
 	$(foreach t,$(DOCKER_TESTS) $(DOCKER_TOOLS), \
@@ -154,6 +179,10 @@ docker:
 	@echo
 	@echo 'Available container images:'
 	@echo '    $(DOCKER_IMAGES)'
+ifneq ($(DOCKER_USER_IMAGES),)
+	@echo 'Available linux-user images:'
+	@echo '    $(DOCKER_USER_IMAGES)'
+endif
 	@echo
 	@echo 'Available tests:'
 	@echo '    $(DOCKER_TESTS)'
