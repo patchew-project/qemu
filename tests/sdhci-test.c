@@ -209,7 +209,9 @@ static QSDHCI *machine_start(const struct sdhci_t *test)
 
 static void machine_stop(QSDHCI *s)
 {
-    qpci_free_pc(s->pci.bus);
+    if (s->pci.bus) {
+        qpci_free_pc(s->pci.bus);
+    }
     g_free(s->pci.dev);
     qtest_quit(global_qtest);
     g_free(s);
