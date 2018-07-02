@@ -1649,6 +1649,21 @@ static void virt_set_iommu(Object *obj, const char *value, Error **errp)
     }
 }
 
+static char *virt_get_kvm_type(Object *obj, Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+
+    return g_strdup(vms->kvm_type);
+}
+
+static void virt_set_kvm_type(Object *obj, const char *value, Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+
+    g_free(vms->kvm_type);
+    vms->kvm_type = g_strdup(value);
+}
+
 static CpuInstanceProperties
 virt_cpu_index_to_props(MachineState *ms, unsigned cpu_index)
 {
@@ -1710,6 +1725,31 @@ static HotplugHandler *virt_machine_get_hotplug_handler(MachineState *machine,
     return NULL;
 }
 
+static int virt_kvm_type(MachineState *ms, const char *type_str)
+{
+    int max_vm_phys_shift, ret = 0;
+    uint64_t type;
+
+    if (!type_str) {
+        max_vm_phys_shift = kvm_arm_get_max_vm_phys_shift(ms);
+        if (max_vm_phys_shift < 0) {
+            goto out;
+        }
+    } else {
+        type = g_ascii_strtoll(type_str, NULL, 0);
+        type &= 0xFF;
+        max_vm_phys_shift = (int)type;
+        if (max_vm_phys_shift < 40 || max_vm_phys_shift > 52) {
+            warn_report("valid kvm-type type values are within [40, 52]:"
+                        " option is ignored and VM is created with 40b IPA");
+            goto out;
+        }
+    }
+    ret = max_vm_phys_shift;
+out:
+    return ret;
+}
+
 static void virt_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -1733,6 +1773,7 @@ static void virt_machine_class_init(ObjectClass *oc, void *data)
     mc->cpu_index_to_instance_props = virt_cpu_index_to_props;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-a15");
     mc->get_default_cpu_node_id = virt_get_default_cpu_node_id;
+    mc->kvm_type = virt_kvm_type;
     assert(!mc->get_hotplug_handler);
     mc->get_hotplug_handler = virt_machine_get_hotplug_handler;
     hc->plug = virt_machine_device_plug_cb;
@@ -1825,6 +1866,9 @@ static void virt_3_0_instance_init(Object *obj)
                                     "Set the IOMMU type. "
                                     "Valid values are none and smmuv3",
                                     NULL);
+
+    object_property_add_str(obj, "kvm-type",
+                            virt_get_kvm_type, virt_set_kvm_type, NULL);
 
     vms->memmap = a15memmap;
     vms->irqmap = a15irqmap;
