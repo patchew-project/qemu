@@ -69,6 +69,7 @@ int qemu_chr_fe_read_all(CharBackend *be, uint8_t *buf, int len)
 
     while (offset < len) {
     retry:
+        errno = 0;
         res = CHARDEV_GET_CLASS(s)->chr_sync_read(s, buf + offset,
                                                   len - offset);
         if (res == -1 && errno == EAGAIN) {

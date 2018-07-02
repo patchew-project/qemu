@@ -85,6 +85,7 @@ static void qemu_chr_write_log(Chardev *s, const uint8_t *buf, size_t len)
 
     while (done < len) {
     retry:
+        errno = 0;
         ret = write(s->logfd, buf + done, len - done);
         if (ret == -1 && errno == EAGAIN) {
             g_usleep(100);
@@ -109,6 +110,7 @@ static int qemu_chr_write_buffer(Chardev *s,
     qemu_mutex_lock(&s->chr_write_lock);
     while (*offset < len) {
     retry:
+        errno = 0;
         res = cc->chr_write(s, buf + *offset, len - *offset);
         if (res < 0 && errno == EAGAIN && write_all) {
             g_usleep(100);
