@@ -706,6 +706,22 @@ static GuestFilesystemInfo *build_guest_fsinfo(char *guid, Error **errp)
     }
     fs->type = g_strdup(fs_name);
     fs->disk = build_guest_disk_info(guid, errp);
+
+    if (len > 0) {
+        if (GetDiskFreeSpaceEx(mnt_point, 0, (PULARGE_INTEGER)&fs->size,
+                (PULARGE_INTEGER)&fs->free) != 0) {
+            /* This is not fatal, just log this incident */
+            Error *local_err = NULL;
+            error_setg_win32(&local_err, GetLastError(),
+                "failed to get free space on volume \"%s\"", mnt_point);
+            slog("%s", error_get_pretty(local_err));
+            error_free(local_err);
+        } else {
+            fs->has_size = true;
+            fs->has_free = true;
+        }
+    }
+
 free:
     g_free(mnt_point);
     return fs;

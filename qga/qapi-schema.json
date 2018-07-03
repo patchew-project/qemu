@@ -848,12 +848,15 @@
 # @type: file system type string
 # @disk: an array of disk hardware information that the volume lies on,
 #        which may be empty if the disk type is not supported
+# @size: total number of bytes on the file system (Since 2.13)
+# @free: number of bytes available on the file system (Since 2.13)
 #
 # Since: 2.2
 ##
 { 'struct': 'GuestFilesystemInfo',
   'data': {'name': 'str', 'mountpoint': 'str', 'type': 'str',
-           'disk': ['GuestDiskAddress']} }
+           'disk': ['GuestDiskAddress'], '*size': 'uint64',
+           '*free': 'uint64'} }
 
 ##
 # @guest-get-fsinfo:

@@ -13,6 +13,7 @@
 
 #include "qemu/osdep.h"
 #include <sys/ioctl.h>
+#include <sys/statvfs.h>
 #include <sys/utsname.h>
 #include <sys/wait.h>
 #include <dirent.h>
@@ -1074,10 +1075,27 @@ static GuestFilesystemInfo *build_guest_fsinfo(struct FsMount *mount,
     GuestFilesystemInfo *fs = g_malloc0(sizeof(*fs));
     char *devpath = g_strdup_printf("/sys/dev/block/%u:%u",
                                     mount->devmajor, mount->devminor);
+    struct statvfs vfs_stats;
 
     fs->mountpoint = g_strdup(mount->dirname);
     fs->type = g_strdup(mount->devtype);
     build_guest_fsinfo_for_device(devpath, fs, errp);
+
+    g_debug(" get filesystem statistics for '%s'", mount->dirname);
+    if (statvfs(mount->dirname, &vfs_stats) != 0) {
+        /* This is not fatal, just log this incident */
+        Error *local_err = NULL;
+        error_setg_errno(&local_err, errno, "statfs(\"%s\")",
+            mount->dirname);
+        slog("failed to stat filesystem: %s",
+            error_get_pretty(local_err));
+        error_free(local_err);
+    } else {
+        fs->size = vfs_stats.f_frsize * vfs_stats.f_blocks;
+        fs->has_size = true;
+        fs->free = vfs_stats.f_frsize * vfs_stats.f_bfree;
+        fs->has_free = true;
+    }
 
     g_free(devpath);
     return fs;
