@@ -1946,6 +1946,13 @@ typedef struct BlockDirtyBitmapState {
     bool was_enabled;
 } BlockDirtyBitmapState;
 
+typedef struct BlockDirtyBitmapMergeState {
+    BlkActionState common;
+    BlockDriverState *bs;
+    BdrvDirtyBitmap *dst;
+    BdrvDirtyBitmap *src;
+} BlockDirtyBitmapMergeState;
+
 static void block_dirty_bitmap_add_prepare(BlkActionState *common,
                                            Error **errp)
 {
@@ -2112,6 +2119,45 @@ static void block_dirty_bitmap_disable_abort(BlkActionState *common)
     }
 }
 
+static void block_dirty_bitmap_merge_prepare(BlkActionState *common,
+                                             Error **errp)
+{
+    BlockDirtyBitmapMerge *action;
+    BlockDirtyBitmapMergeState *state = DO_UPCAST(BlockDirtyBitmapMergeState,
+                                                  common, common);
+
+    if (action_check_completion_mode(common, errp) < 0) {
+        return;
+    }
+
+    action = common->action->u.x_block_dirty_bitmap_merge.data;
+    state->dst = block_dirty_bitmap_lookup(action->node,
+                                           action->dst_name,
+                                           &state->bs,
+                                           errp);
+    if (!state->dst) {
+        return;
+    }
+
+    state->src = bdrv_find_dirty_bitmap(state->bs, action->src_name);
+    if (!state->src) {
+        return;
+    }
+
+    if (!bdrv_can_merge_dirty_bitmap(state->dst, state->src, errp)) {
+        return;
+    }
+}
+
+static void block_dirty_bitmap_merge_commit(BlkActionState *common)
+{
+    BlockDirtyBitmapMergeState *state = DO_UPCAST(BlockDirtyBitmapMergeState,
+                                                  common, common);
+
+    /* success is guaranteed by bdrv_can_merge_dirty_bitmap() */
+    bdrv_merge_dirty_bitmap(state->dst, state->src, &error_abort);
+}
+
 static void abort_prepare(BlkActionState *common, Error **errp)
 {
     error_setg(errp, "Transaction aborted using Abort action");
@@ -2182,7 +2228,12 @@ static const BlkActionOps actions[] = {
         .instance_size = sizeof(BlockDirtyBitmapState),
         .prepare = block_dirty_bitmap_disable_prepare,
         .abort = block_dirty_bitmap_disable_abort,
-     }
+    },
+    [TRANSACTION_ACTION_KIND_X_BLOCK_DIRTY_BITMAP_MERGE] = {
+        .instance_size = sizeof(BlockDirtyBitmapMergeState),
+        .prepare = block_dirty_bitmap_merge_prepare,
+        .commit = block_dirty_bitmap_merge_commit,
+    }
 };
 
 /**
