@@ -790,6 +790,30 @@ int64_t bdrv_dirty_bitmap_next_zero(BdrvDirtyBitmap *bitmap, uint64_t offset)
     return hbitmap_next_zero(bitmap->bitmap, offset);
 }
 
+bool bdrv_can_merge_dirty_bitmap(BdrvDirtyBitmap *dst,
+                                 const BdrvDirtyBitmap *src,
+                                 Error **errp)
+{
+    if (bdrv_dirty_bitmap_frozen(dst)) {
+        error_setg(errp, "Bitmap '%s' is frozen and cannot be modified",
+                   dst->name);
+        return false;
+    }
+
+    if (bdrv_dirty_bitmap_readonly(dst)) {
+        error_setg(errp, "Bitmap '%s' is readonly and cannot be modified",
+                   dst->name);
+        return false;
+    }
+
+    if (!hbitmap_can_merge(dst->bitmap, src->bitmap)) {
+        error_setg(errp, "Bitmaps are incompatible and can't be merged");
+        return false;
+    }
+
+    return true;
+}
+
 void bdrv_merge_dirty_bitmap(BdrvDirtyBitmap *dest, const BdrvDirtyBitmap *src,
                              Error **errp)
 {
@@ -798,11 +822,9 @@ void bdrv_merge_dirty_bitmap(BdrvDirtyBitmap *dest, const BdrvDirtyBitmap *src,
 
     qemu_mutex_lock(dest->mutex);
 
-    assert(bdrv_dirty_bitmap_enabled(dest));
-    assert(!bdrv_dirty_bitmap_readonly(dest));
-
-    if (!hbitmap_merge(dest->bitmap, src->bitmap)) {
-        error_setg(errp, "Bitmaps are incompatible and can't be merged");
+    if (bdrv_can_merge_dirty_bitmap(dest, src, errp)) {
+        bool ret = hbitmap_merge(dest->bitmap, src->bitmap);
+        assert(ret);
     }
 
     qemu_mutex_unlock(dest->mutex);

@@ -85,6 +85,14 @@ void hbitmap_truncate(HBitmap *hb, uint64_t size);
 bool hbitmap_merge(HBitmap *a, const HBitmap *b);
 
 /**
+ * hbitmap_can_merge:
+ *
+ * Returns same value as hbitmap_merge, but do not do actual merge.
+ *
+ */
+bool hbitmap_can_merge(HBitmap *a, const HBitmap *b);
+
+/**
  * hbitmap_empty:
  * @hb: HBitmap to operate on.
  *

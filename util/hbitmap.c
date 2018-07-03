@@ -723,6 +723,10 @@ void hbitmap_truncate(HBitmap *hb, uint64_t size)
     }
 }
 
+bool hbitmap_can_merge(HBitmap *a, const HBitmap *b)
+{
+    return (a->size == b->size) && (a->granularity == b->granularity);
+}
 
 /**
  * Given HBitmaps A and B, let A := A (BITOR) B.
@@ -736,7 +740,7 @@ bool hbitmap_merge(HBitmap *a, const HBitmap *b)
     int i;
     uint64_t j;
 
-    if ((a->size != b->size) || (a->granularity != b->granularity)) {
+    if (!hbitmap_can_merge(a, b)) {
         return false;
     }
 
