@@ -245,7 +245,12 @@ qemu_check_systemd() {
 }
 
 qemu_generate_register() {
-    echo ":qemu-$cpu:M::$magic:$mask:$qemu:$FLAGS"
+    flags=""
+    if [ "$CREDENTIAL" = "yes" ] ; then
+        flags="OC"
+    fi
+
+    echo ":qemu-$cpu:M::$magic:$mask:$qemu:$flags"
 }
 
 qemu_register_interpreter() {
@@ -264,10 +269,8 @@ package qemu-$cpu
 interpreter $qemu
 magic $magic
 mask $mask
+credential $CREDENTIAL
 EOF
-    if [ "$FLAGS" = "OC" ] ; then
-        echo "credentials yes" >> "$EXPORTDIR/qemu-$cpu"
-    fi
 }
 
 qemu_set_binfmts() {
@@ -304,7 +307,7 @@ SYSTEMDDIR="/etc/binfmt.d"
 DEBIANDIR="/usr/share/binfmts"
 
 QEMU_PATH=/usr/local/bin
-FLAGS=""
+CREDENTIAL=no
 
 options=$(getopt -o ds:Q:e:hc: -l debian,systemd:,qemu-path:,exportdir:,help,credential: -- "$@")
 eval set -- "$options"
@@ -352,11 +355,7 @@ while true ; do
         ;;
     -c|--credential)
         shift
-        if [ "$1" = "yes" ] ; then
-            FLAGS="OC"
-        else
-            FLAGS=""
-        fi
+        CREDENTIAL="$1"
         ;;
     *)
         break
