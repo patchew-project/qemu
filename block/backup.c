@@ -47,6 +47,8 @@ typedef struct BackupBlockJob {
     HBitmap *copy_bitmap;
     bool use_copy_range;
     int64_t copy_range_size;
+
+    bool fleecing;
 } BackupBlockJob;
 
 static const BlockJobDriver backup_job_driver;
@@ -102,6 +104,7 @@ static int coroutine_fn backup_cow_with_bounce_buffer(BackupBlockJob *job,
     QEMUIOVector qiov;
     BlockBackend *blk = job->common.blk;
     int nbytes;
+    int sflags = job->fleecing ? BDRV_REQ_SERIALISING : 0;
 
     hbitmap_reset(job->copy_bitmap, start / job->cluster_size, 1);
     nbytes = MIN(job->cluster_size, job->len - start);
@@ -124,11 +127,12 @@ static int coroutine_fn backup_cow_with_bounce_buffer(BackupBlockJob *job,
 
     if (qemu_iovec_is_zero(&qiov)) {
         ret = blk_co_pwrite_zeroes(job->target, start,
-                                   qiov.size, BDRV_REQ_MAY_UNMAP);
+                                   qiov.size, sflags | BDRV_REQ_MAY_UNMAP);
     } else {
         ret = blk_co_pwritev(job->target, start,
                              qiov.size, &qiov,
-                             job->compress ? BDRV_REQ_WRITE_COMPRESSED : 0);
+                             job->compress ? BDRV_REQ_WRITE_COMPRESSED :
+                                             sflags);
     }
     if (ret < 0) {
         trace_backup_do_cow_write_fail(job, start, ret);
@@ -614,6 +618,7 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
     BlockDriverInfo bdi;
     BackupBlockJob *job = NULL;
     int ret;
+    bool fleecing;
 
     assert(bs);
     assert(target);
@@ -668,6 +673,15 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
         return NULL;
     }
 
+    /* Detect image fleecing */
+    fleecing = sync_mode == MIRROR_SYNC_MODE_NONE && target->backing->bs == bs;
+    if (fleecing) {
+        if (compress) {
+            error_setg(errp, "Image fleecing doesn't support compressed mode.");
+            return NULL;
+        }
+    }
+
     len = bdrv_getlength(bs);
     if (len < 0) {
         error_setg_errno(errp, -len, "unable to get length for '%s'",
@@ -700,6 +714,7 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
     job->sync_bitmap = sync_mode == MIRROR_SYNC_MODE_INCREMENTAL ?
                        sync_bitmap : NULL;
     job->compress = compress;
+    job->fleecing = fleecing;
 
     /* If there is no backing file on the target, we cannot rely on COW if our
      * backup cluster size is smaller than the target cluster size. Even for
@@ -727,7 +742,7 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
     } else {
         job->cluster_size = MAX(BACKUP_CLUSTER_SIZE_DEFAULT, bdi.cluster_size);
     }
-    job->use_copy_range = true;
+    job->use_copy_range = !fleecing;
     job->copy_range_size = MIN_NON_ZERO(blk_get_max_transfer(job->common.blk),
                                         blk_get_max_transfer(job->target));
     job->copy_range_size = MAX(job->cluster_size,
