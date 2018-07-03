@@ -165,6 +165,7 @@ usage() {
     cat <<EOF
 Usage: qemu-binfmt-conf.sh [--qemu-path PATH][--debian][--systemd CPU]
                            [--help][--credential yes|no][--exportdir PATH]
+                           [--persistent yes|no]
 
        Configure binfmt_misc to use qemu interpreter
 
@@ -180,6 +181,9 @@ Usage: qemu-binfmt-conf.sh [--qemu-path PATH][--debian][--systemd CPU]
                      (default: $SYSTEMDDIR or $DEBIANDIR)
        --credential: if yes, credential and security tokens are
                      calculated according to the binary to interpret
+       --persistent: if yes, the interpreter is loaded when binfmt is
+                     configured and remains in memory. All future uses
+                     are cloned from the open file.
 
     To import templates with update-binfmts, use :
 
@@ -249,6 +253,9 @@ qemu_generate_register() {
     if [ "$CREDENTIAL" = "yes" ] ; then
         flags="OC"
     fi
+    if [ "$PERSISTENT" = "yes" ] ; then
+        flags="${flags}F"
+    fi
 
     echo ":qemu-$cpu:M::$magic:$mask:$qemu:$flags"
 }
@@ -308,8 +315,9 @@ DEBIANDIR="/usr/share/binfmts"
 
 QEMU_PATH=/usr/local/bin
 CREDENTIAL=no
+PERSISTENT=no
 
-options=$(getopt -o ds:Q:e:hc: -l debian,systemd:,qemu-path:,exportdir:,help,credential: -- "$@")
+options=$(getopt -o ds:Q:e:hc:p: -l debian,systemd:,qemu-path:,exportdir:,help,credential:,persistent: -- "$@")
 eval set -- "$options"
 
 while true ; do
@@ -356,6 +364,10 @@ while true ; do
     -c|--credential)
         shift
         CREDENTIAL="$1"
+        ;;
+    -p|--persistent)
+        shift
+        PERSISTENT="$1"
         ;;
     *)
         break
