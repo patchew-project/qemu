@@ -164,7 +164,7 @@ qemu_get_family() {
 usage() {
     cat <<EOF
 Usage: qemu-binfmt-conf.sh [--qemu-path PATH][--debian][--systemd CPU]
-                           [--help][--credential yes|no][--exportdir PATH]
+                           [--help][--clear][--credential yes|no][--exportdir PATH]
 
        Configure binfmt_misc to use qemu interpreter
 
@@ -180,6 +180,7 @@ Usage: qemu-binfmt-conf.sh [--qemu-path PATH][--debian][--systemd CPU]
                      (default: $SYSTEMDDIR or $DEBIANDIR)
        --credential: if yes, credential and security tokens are
                      calculated according to the binary to interpret
+       --clear:      clear existing qemu binfmt registrations
 
     To import templates with update-binfmts, use :
 
@@ -253,6 +254,13 @@ qemu_register_interpreter() {
     qemu_generate_register > /proc/sys/fs/binfmt_misc/register
 }
 
+qemu_clear_interpreter() {
+    if [ -e /proc/sys/fs/binfmt_misc/qemu-$cpu ]; then
+        echo "Removing qemu-$cpu as binfmt interpreter for $cpu"
+        echo -1 > /proc/sys/fs/binfmt_misc/qemu-$cpu
+    fi
+}
+
 qemu_generate_systemd() {
     echo "Setting $qemu as binfmt interpreter for $cpu for systemd-binfmt.service"
     qemu_generate_register > "$EXPORTDIR/qemu-$cpu.conf"
@@ -306,7 +314,7 @@ DEBIANDIR="/usr/share/binfmts"
 QEMU_PATH=/usr/local/bin
 FLAGS=""
 
-options=$(getopt -o ds:Q:e:hc: -l debian,systemd:,qemu-path:,exportdir:,help,credential: -- "$@")
+options=$(getopt -o ds:Q:e:hc: -l debian,systemd:,qemu-path:,exportdir:,help,clear,credential: -- "$@")
 eval set -- "$options"
 
 while true ; do
@@ -357,6 +365,10 @@ while true ; do
         else
             FLAGS=""
         fi
+        ;;
+    --clear)
+        shift
+        BINFMT_SET=qemu_clear_interpreter
         ;;
     *)
         break
