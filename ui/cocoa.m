@@ -803,7 +803,7 @@ QemuCocoaView *cocoaView;
              */
 
             /* Determine if this is a scroll up or scroll down event */
-            buttons = ([event scrollingDeltaY] > 0) ?
+            buttons = ([event deltaY] > 0) ?
                 INPUT_BUTTON_WHEEL_UP : INPUT_BUTTON_WHEEL_DOWN;
             qemu_input_queue_btn(dcl->con, buttons, true);
             qemu_input_event_sync();
