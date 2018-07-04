@@ -303,7 +303,6 @@ static void pc_q35_machine_options(MachineClass *m)
     m->desc = "Standard PC (Q35 + ICH9, 2009)";
     m->units_per_default_bus = 1;
     m->default_machine_opts = "firmware=bios-256k.bin";
-    m->default_display = "std";
     m->no_floppy = 1;
     machine_class_allow_dynamic_sysbus_dev(m, TYPE_AMD_IOMMU_DEVICE);
     machine_class_allow_dynamic_sysbus_dev(m, TYPE_INTEL_IOMMU_DEVICE);

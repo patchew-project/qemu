@@ -182,6 +182,7 @@ static void clipper_machine_init(MachineClass *mc)
     mc->max_cpus = 4;
     mc->is_default = 1;
     mc->default_cpu_type = ALPHA_CPU_TYPE_NAME("ev67");
+    mc->default_display = "cirrus";
 }
 
 DEFINE_MACHINE("clipper", clipper_machine_init)

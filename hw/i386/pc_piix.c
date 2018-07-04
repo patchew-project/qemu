@@ -424,7 +424,6 @@ static void pc_i440fx_machine_options(MachineClass *m)
     m->family = "pc_piix";
     m->desc = "Standard PC (i440FX + PIIX, 1996)";
     m->default_machine_opts = "firmware=bios-256k.bin";
-    m->default_display = "std";
     machine_class_allow_dynamic_sysbus_dev(m, TYPE_RAMFB_DEVICE);
 }
 
@@ -566,7 +565,7 @@ static void pc_i440fx_2_1_machine_options(MachineClass *m)
     PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
     pc_i440fx_2_2_machine_options(m);
     m->hw_version = "2.1.0";
-    m->default_display = NULL;
+    m->default_display = "cirrus";
     SET_MACHINE_COMPAT(m, PC_COMPAT_2_1);
     pcmc->smbios_uuid_encoded = false;
     pcmc->enforce_aligned_dimm = false;
