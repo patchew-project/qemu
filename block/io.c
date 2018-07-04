@@ -1572,6 +1572,8 @@ static int coroutine_fn bdrv_aligned_pwritev(BdrvChild *child,
     max_transfer = QEMU_ALIGN_DOWN(MIN_NON_ZERO(bs->bl.max_transfer, INT_MAX),
                                    align);
 
+    /* BDRV_REQ_NO_SERIALISING is only for read operation */
+    assert(!(flags & BDRV_REQ_NO_SERIALISING));
     waited = wait_serialising_requests(req);
     assert(!waited || !req->serialising);
     assert(req->overlap_offset <= offset);
@@ -2931,9 +2933,12 @@ static int coroutine_fn bdrv_co_copy_range_internal(BdrvChild *src,
                           bytes, BDRV_TRACKED_WRITE);
 
     if (!(flags & BDRV_REQ_NO_SERIALISING)) {
+        /* BDRV_REQ_NO_SERIALISING is only for read */
         wait_serialising_requests(&src_req);
-        wait_serialising_requests(&dst_req);
     }
+
+    wait_serialising_requests(&dst_req);
+
     if (recurse_src) {
         ret = src->bs->drv->bdrv_co_copy_range_from(src->bs,
                                                     src, src_offset,
