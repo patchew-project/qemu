@@ -2750,8 +2750,8 @@ void helper_msa_ftq_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
 
 #define FMAXMIN_A(F, G, X, _S, _T, BITS, STATUS)                    \
     do {                                                            \
-        uint## BITS ##_t S = _S, T = _T;                            \
-        uint## BITS ##_t as, at, xs, xt, xd;                        \
+        uint## BITS ## _t S = _S, T = _T;                           \
+        uint## BITS ## _t as, at, xs, xt, xd;                       \
         if (NUMBER_QNAN_PAIR(S, T, BITS, STATUS)) {                 \
             T = S;                                                  \
         }                                                           \
