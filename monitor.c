@@ -638,20 +638,35 @@ static MonitorQAPIEventConf monitor_qapi_event_conf[QAPI_EVENT__MAX] = {
     [QAPI_EVENT_VSERPORT_CHANGE]   = { 1000 * SCALE_MS },
 };
 
+static bool monitor_allows_events(Monitor *mon)
+{
+    return monitor_is_qmp(mon) &&
+        mon->qmp.commands != &qmp_cap_negotiation_commands;
+}
+
+static void monitor_queue_event(Monitor *mon, QDict *qdict)
+{
+    if (monitor_allows_events(mon)) {
+        qmp_queue_response(mon, qdict);
+    }
+}
+
 /*
- * Broadcast an event to all monitors.
+ * Broadcast an event to the monitor specified by @mon, or all
+ * monitors if @mon is NULL.
  * @qdict is the event object.  Its member "event" must match @event.
  * Caller must hold monitor_lock.
  */
-static void monitor_qapi_event_emit(QAPIEvent event, QDict *qdict)
+static void monitor_qapi_event_emit(Monitor *mon, QAPIEvent event,
+                                    QDict *qdict)
 {
-    Monitor *mon;
+    trace_monitor_protocol_event_emit(mon, event, qdict);
 
-    trace_monitor_protocol_event_emit(event, qdict);
-    QTAILQ_FOREACH(mon, &mon_list, entry) {
-        if (monitor_is_qmp(mon)
-            && mon->qmp.commands != &qmp_cap_negotiation_commands) {
-            qmp_queue_response(mon, qdict);
+    if (mon) {
+        monitor_queue_event(mon, qdict);
+    } else {
+        QTAILQ_FOREACH(mon, &mon_list, entry) {
+            monitor_queue_event(mon, qdict);
         }
     }
 }
@@ -676,7 +691,7 @@ monitor_qapi_event_queue(QAPIEvent event, QDict *qdict)
 
     if (!evconf->rate) {
         /* Unthrottled event */
-        monitor_qapi_event_emit(event, qdict);
+        monitor_qapi_event_emit(NULL, event, qdict);
     } else {
         QDict *data = qobject_to(QDict, qdict_get(qdict, "data"));
         MonitorQAPIEventState key = { .event = event, .data = data };
@@ -701,7 +716,7 @@ monitor_qapi_event_queue(QAPIEvent event, QDict *qdict)
              */
             int64_t now = qemu_clock_get_ns(monitor_get_event_clock());
 
-            monitor_qapi_event_emit(event, qdict);
+            monitor_qapi_event_emit(NULL, event, qdict);
 
             evstate = g_new(MonitorQAPIEventState, 1);
             evstate->event = event;
@@ -734,7 +749,7 @@ static void monitor_qapi_event_handler(void *opaque)
     if (evstate->qdict) {
         int64_t now = qemu_clock_get_ns(monitor_get_event_clock());
 
-        monitor_qapi_event_emit(evstate->event, evstate->qdict);
+        monitor_qapi_event_emit(NULL, evstate->event, evstate->qdict);
         qobject_unref(evstate->qdict);
         evstate->qdict = NULL;
         timer_mod_ns(evstate->timer, now + evconf->rate);
