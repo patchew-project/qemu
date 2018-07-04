@@ -2945,6 +2945,10 @@ static int coroutine_fn bdrv_co_copy_range_internal(BdrvChild *src,
                                                   dst, dst_offset,
                                                   bytes, flags);
     }
+    if (ret == 0) {
+        int64_t end_sector = DIV_ROUND_UP(dst_offset + bytes, BDRV_SECTOR_SIZE);
+        dst->bs->total_sectors = MAX(dst->bs->total_sectors, end_sector);
+    }
     tracked_request_end(&src_req);
     tracked_request_end(&dst_req);
     bdrv_dec_in_flight(src->bs);
