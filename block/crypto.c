@@ -545,33 +545,36 @@ static int coroutine_fn block_crypto_co_create_opts_luks(const char *filename,
     create_opts = block_crypto_create_opts_init(cryptoopts, errp);
     if (!create_opts) {
         ret = -EINVAL;
-        goto fail;
+        goto cleanup_cryptoopts;
     }
 
     /* Create protocol layer */
     ret = bdrv_create_file(filename, opts, errp);
     if (ret < 0) {
-        return ret;
+        goto cleanup_create_opts;
     }
 
     bs = bdrv_open(filename, NULL, NULL,
                    BDRV_O_RDWR | BDRV_O_RESIZE | BDRV_O_PROTOCOL, errp);
     if (!bs) {
         ret = -EINVAL;
-        goto fail;
+        goto cleanup_create_opts;
     }
 
     /* Create format layer */
     ret = block_crypto_co_create_generic(bs, size, create_opts, errp);
-    if (ret < 0) {
-        goto fail;
+    if (ret > 0) {
+        ret = 0;
     }
 
-    ret = 0;
-fail:
     bdrv_unref(bs);
+
+cleanup_create_opts:
     qapi_free_QCryptoBlockCreateOptions(create_opts);
+
+cleanup_cryptoopts:
     qobject_unref(cryptoopts);
+
     return ret;
 }
 
