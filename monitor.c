@@ -394,18 +394,15 @@ static void monitor_qmp_cleanup_queues(Monitor *mon)
     qemu_mutex_unlock(&mon->qmp.qmp_lock);
 }
 
-/* Try to resume the monitor if it was suspended due to any reason */
-static void monitor_qmp_try_resume(Monitor *mon)
+/* Callers must be with Monitor.qmp.qmp_lock held. */
+static void monitor_qmp_try_resume_locked(Monitor *mon)
 {
-    assert(monitor_is_qmp(mon));
-    qemu_mutex_lock(&mon->qmp.qmp_lock);
-
-    if (mon->qmp.qmp_requests->length >= QMP_REQ_QUEUE_LEN_MAX) {
+    if (mon->qmp.qmp_requests->length >= QMP_REQ_QUEUE_LEN_MAX ||
+        mon->qmp.qmp_responses->length >= QMP_REQ_QUEUE_LEN_MAX) {
         /*
          * This should not happen, but in case if it happens, we
          * should still keep the monitor in suspend state
          */
-        qemu_mutex_unlock(&mon->qmp.qmp_lock);
         return;
     }
 
@@ -413,7 +410,14 @@ static void monitor_qmp_try_resume(Monitor *mon)
         monitor_resume(mon);
         mon->qmp.need_resume = false;
     }
+}
 
+/* Try to resume the monitor if it was suspended due to any reason */
+static void monitor_qmp_try_resume(Monitor *mon)
+{
+    assert(monitor_is_qmp(mon));
+    qemu_mutex_lock(&mon->qmp.qmp_lock);
+    monitor_qmp_try_resume_locked(mon);
     qemu_mutex_unlock(&mon->qmp.qmp_lock);
 }
 
@@ -575,6 +579,8 @@ static QDict *monitor_qmp_response_pop_one(Monitor *mon)
 
     qemu_mutex_lock(&mon->qmp.qmp_lock);
     data = g_queue_pop_head(mon->qmp.qmp_responses);
+    /* In case if we were suspended due to response queue full */
+    monitor_qmp_try_resume_locked(mon);
     qemu_mutex_unlock(&mon->qmp.qmp_lock);
 
     return data;
@@ -4290,12 +4296,13 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
         monitor_qmp_suspend_locked(mon);
     } else {
         /*
-         * If the queue is reaching the length limitation, we queue
-         * this command, meanwhile we suspend the monitor to block new
-         * commands.  We'll resume ourselves until the queue has more
-         * space.
+         * If any of the req/resp queue is reaching the length
+         * limitation, we queue this command, meanwhile we suspend the
+         * monitor to block new commands.  We'll resume ourselves
+         * until both of the queues have more spaces.
          */
-        if (mon->qmp.qmp_requests->length >= QMP_REQ_QUEUE_LEN_MAX - 1) {
+        if (mon->qmp.qmp_requests->length >= QMP_REQ_QUEUE_LEN_MAX - 1 ||
+            mon->qmp.qmp_responses->length >= QMP_REQ_QUEUE_LEN_MAX - 1) {
             monitor_qmp_suspend_locked(mon);
         }
     }
