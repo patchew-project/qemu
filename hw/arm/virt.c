@@ -40,6 +40,7 @@
 #include "hw/devices.h"
 #include "net/net.h"
 #include "sysemu/device_tree.h"
+#include "sysemu/cpus.h"
 #include "sysemu/numa.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/kvm.h"
@@ -302,6 +303,7 @@ static void fdt_add_cpu_nodes(const VirtMachineState *vms)
     int cpu;
     int addr_cells = 1;
     const MachineState *ms = MACHINE(vms);
+    VirtMachineClass *vmc = VIRT_MACHINE_GET_CLASS(vms);
 
     /*
      * From Documentation/devicetree/bindings/arm/cpus.txt
@@ -358,7 +360,37 @@ static void fdt_add_cpu_nodes(const VirtMachineState *vms)
                 ms->possible_cpus->cpus[cs->cpu_index].props.node_id);
         }
 
+        qemu_fdt_setprop_cell(vms->fdt, nodename, "phandle",
+                              qemu_fdt_alloc_phandle(vms->fdt));
         g_free(nodename);
+    }
+
+    if (!vmc->ignore_cpu_topology) {
+        /* From Documentation/devicetree/bindings/arm/topology.txt
+         */
+        qemu_fdt_add_subnode(vms->fdt, "/cpus/cpu-map");
+
+        for (cpu = vms->smp_cpus - 1; cpu >= 0; cpu--) {
+            char *cpu_path = g_strdup_printf("/cpus/cpu@%d", cpu);
+            char *map_path;
+
+            if (smp_threads > 1) {
+                map_path = g_strdup_printf(
+                               "/cpus/cpu-map/%s%d/%s%d/%s%d",
+                               "cluster", cpu / (smp_cores * smp_threads),
+                               "core", (cpu / smp_threads) % smp_cores,
+                               "thread", cpu % smp_threads);
+            } else {
+                map_path = g_strdup_printf(
+                               "/cpus/cpu-map/%s%d/%s%d",
+                               "cluster", cpu / smp_cores,
+                               "core", cpu % smp_cores);
+            }
+            qemu_fdt_add_path(vms->fdt, map_path);
+            qemu_fdt_setprop_phandle(vms->fdt, map_path, "cpu", cpu_path);
+            g_free(map_path);
+            g_free(cpu_path);
+        }
     }
 }
 
@@ -1839,7 +1871,10 @@ static void virt_3_0_instance_init(Object *obj)
 
 static void virt_machine_3_0_options(MachineClass *mc)
 {
+    VirtMachineClass *vmc = VIRT_MACHINE_CLASS(OBJECT_CLASS(mc));
+
     virt_machine_3_1_options(mc);
+    vmc->ignore_cpu_topology = true;
 }
 DEFINE_VIRT_MACHINE(3, 0)
 
