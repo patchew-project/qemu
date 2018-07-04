@@ -14,7 +14,11 @@
 #ifndef QMP_EVENT_H
 #define QMP_EVENT_H
 
-typedef void (*QMPEventFuncEmit)(unsigned event, QDict *dict);
+/*
+ * Send an @event to the monitor specified in @mon.  If @mon is NULL,
+ * then send the event to all the available monitors.
+ */
+typedef void (*QMPEventFuncEmit)(Monitor *mon, unsigned event, QDict *dict);
 
 void qmp_event_set_func_emit(QMPEventFuncEmit emit);
 

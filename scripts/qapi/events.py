@@ -121,7 +121,7 @@ def gen_event_send(name, arg_type, boxed, event_enum_name):
 ''')
 
     ret += mcgen('''
-    emit(%(c_enum)s, qmp);
+    emit(NULL, %(c_enum)s, qmp);
 
 ''',
                  c_enum=c_enum_const(event_enum_name, name))

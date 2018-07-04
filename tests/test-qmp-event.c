@@ -95,7 +95,7 @@ static bool qdict_cmp_simple(QDict *a, QDict *b)
 
 /* This function is hooked as final emit function, which can verify the
    correctness. */
-static void event_test_emit(test_QAPIEvent event, QDict *d)
+static void event_test_emit(Monitor *mon, test_QAPIEvent event, QDict *d)
 {
     QDict *t;
     int64_t s, ms;

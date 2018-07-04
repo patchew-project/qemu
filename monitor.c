@@ -201,6 +201,7 @@ typedef struct {
  * instance.
  */
 typedef struct MonitorQAPIEventState {
+    Monitor *mon;       /* The monitor to emit the event; NULL to all */
     QAPIEvent event;    /* Throttling state for this event type and... */
     QDict *data;        /* ... data, see qapi_event_throttle_equal() */
     QEMUTimer *timer;   /* Timer for handling delayed events */
@@ -674,11 +675,11 @@ static void monitor_qapi_event_emit(Monitor *mon, QAPIEvent event,
 static void monitor_qapi_event_handler(void *opaque);
 
 /*
- * Queue a new event for emission to Monitor instances,
+ * Queue a new event for emission to one Monitor instance or all,
  * applying any rate limiting if required.
  */
 static void
-monitor_qapi_event_queue(QAPIEvent event, QDict *qdict)
+monitor_qapi_event_queue(Monitor *mon, QAPIEvent event, QDict *qdict)
 {
     MonitorQAPIEventConf *evconf;
     MonitorQAPIEventState *evstate;
@@ -694,7 +695,8 @@ monitor_qapi_event_queue(QAPIEvent event, QDict *qdict)
         monitor_qapi_event_emit(NULL, event, qdict);
     } else {
         QDict *data = qobject_to(QDict, qdict_get(qdict, "data"));
-        MonitorQAPIEventState key = { .event = event, .data = data };
+        MonitorQAPIEventState key = { .mon = mon, .event = event,
+                                      .data = data };
 
         evstate = g_hash_table_lookup(monitor_qapi_event_state, &key);
         assert(!evstate || timer_pending(evstate->timer));
@@ -716,9 +718,10 @@ monitor_qapi_event_queue(QAPIEvent event, QDict *qdict)
              */
             int64_t now = qemu_clock_get_ns(monitor_get_event_clock());
 
-            monitor_qapi_event_emit(NULL, event, qdict);
+            monitor_qapi_event_emit(mon, event, qdict);
 
             evstate = g_new(MonitorQAPIEventState, 1);
+            evstate->mon = mon;
             evstate->event = event;
             evstate->data = qobject_ref(data);
             evstate->qdict = NULL;
@@ -785,6 +788,22 @@ static gboolean qapi_event_throttle_equal(const void *a, const void *b)
     const MonitorQAPIEventState *evb = b;
 
     if (eva->event != evb->event) {
+        return FALSE;
+    }
+
+    /*
+     * We do event throttling per-monitor.  It's still possible that
+     * we have one event that are both throttled by one per-monitor
+     * MonitorQAPIEventState, and another global MonitorQAPIEventState
+     * for the same event, but it's not a big problem since one event
+     * should either be for per-monitor or for globally, so generally
+     * we should not have this happened.  Even if it happens, the
+     * worst case is that we'll double the throttle for that specific
+     * monitor to receive the events, so it might receive the events
+     * in 2*rate speed, that'll still keep it away from event
+     * flooding.  It'll only be the rate that will be inaccurate.
+     */
+    if (eva->mon != evb->mon) {
         return FALSE;
     }
 
