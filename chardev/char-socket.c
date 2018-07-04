@@ -990,8 +990,18 @@ static void qmp_chardev_open_socket(Chardev *chr,
     s->addr = addr = socket_address_flatten(sock->addr);
 
     qemu_chr_set_feature(chr, QEMU_CHAR_FEATURE_RECONNECTABLE);
-    /* TODO SOCKET_ADDRESS_FD where fd has AF_UNIX */
-    if (addr->type == SOCKET_ADDRESS_TYPE_UNIX) {
+    /*
+     * We can't tell at this point if the "fd" we're passed is
+     * a UNIX socket or not, so can't reliably set the
+     * FD_PASS feature. vhost-user, however, checks for this
+     * feature early before we've even created the I/O channel,
+     * so we can't wait until later to set the feature. Thus
+     * we optimistically set the FD_PASS feature. If the passed
+     * in "fd" is not a UNIX socket, there will be an error
+     * reported later anyway.
+     */
+    if (addr->type == SOCKET_ADDRESS_TYPE_UNIX ||
+        addr->type == SOCKET_ADDRESS_TYPE_FD) {
         qemu_chr_set_feature(chr, QEMU_CHAR_FEATURE_FD_PASS);
     }
 
