@@ -165,6 +165,8 @@ struct MonFdset {
     QLIST_ENTRY(MonFdset) next;
 };
 
+#define  QMP_REQ_QUEUE_LEN_MAX  (8)
+
 typedef struct {
     JSONMessageParser parser;
     /*
@@ -397,10 +399,21 @@ static void monitor_qmp_try_resume(Monitor *mon)
 {
     assert(monitor_is_qmp(mon));
     qemu_mutex_lock(&mon->qmp.qmp_lock);
+
+    if (mon->qmp.qmp_requests->length >= QMP_REQ_QUEUE_LEN_MAX) {
+        /*
+         * This should not happen, but in case if it happens, we
+         * should still keep the monitor in suspend state
+         */
+        qemu_mutex_unlock(&mon->qmp.qmp_lock);
+        return;
+    }
+
     if (mon->qmp.need_resume) {
         monitor_resume(mon);
         mon->qmp.need_resume = false;
     }
+
     qemu_mutex_unlock(&mon->qmp.qmp_lock);
 }
 
@@ -4214,7 +4227,14 @@ static void monitor_qmp_bh_dispatcher(void *data)
     qemu_bh_schedule(qmp_dispatcher_bh);
 }
 
-#define  QMP_REQ_QUEUE_LEN_MAX  (8)
+/* Called with Monitor.qmp.qmp_lock held. */
+static void monitor_qmp_suspend_locked(Monitor *mon)
+{
+    assert(monitor_is_qmp(mon));
+    assert(mon->qmp.need_resume == false);
+    monitor_suspend(mon);
+    mon->qmp.need_resume = true;
+}
 
 static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
 {
@@ -4267,22 +4287,16 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
      * OOB is not enabled, the server will never drop any command.
      */
     if (!qmp_oob_enabled(mon)) {
-        monitor_suspend(mon);
-        mon->qmp.need_resume = true;
+        monitor_qmp_suspend_locked(mon);
     } else {
-        /* Drop the request if queue is full. */
-        if (mon->qmp.qmp_requests->length >= QMP_REQ_QUEUE_LEN_MAX) {
-            qemu_mutex_unlock(&mon->qmp.qmp_lock);
-            /*
-             * FIXME @id's scope is just @mon, and broadcasting it is
-             * wrong.  If another monitor's client has a command with
-             * the same ID in flight, the event will incorrectly claim
-             * that command was dropped.
-             */
-            qapi_event_send_command_dropped(id,
-                                            COMMAND_DROP_REASON_QUEUE_FULL);
-            qmp_request_free(req_obj);
-            return;
+        /*
+         * If the queue is reaching the length limitation, we queue
+         * this command, meanwhile we suspend the monitor to block new
+         * commands.  We'll resume ourselves until the queue has more
+         * space.
+         */
+        if (mon->qmp.qmp_requests->length >= QMP_REQ_QUEUE_LEN_MAX - 1) {
+            monitor_qmp_suspend_locked(mon);
         }
     }
 
