@@ -7328,7 +7328,7 @@ echo "QEMU_CFLAGS+=$cflags" >> $config_target_mak
 
 done # for target in $targets
 
-if test -n "$enabled_cross_compilers"; then
+if test -n "$target_compiler" -a -n "$enabled_cross_compilers"; then
     echo
     echo "NOTE: cross-compilers enabled: $enabled_cross_compilers"
 fi
