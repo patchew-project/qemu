@@ -1699,6 +1699,16 @@ static int kvm_init(MachineState *ms)
 
     s->sync_mmu = !!kvm_vm_check_extension(kvm_state, KVM_CAP_SYNC_MMU);
 
+    if (ms->split_lock_ac &&
+        kvm_check_extension(s, KVM_CAP_X86_SPLIT_LOCK_AC)) {
+        ret = kvm_vm_enable_cap(s, KVM_CAP_X86_SPLIT_LOCK_AC, 0);
+        if (ret) {
+            fprintf(stderr, "Could not enable the feature that #AC exception"
+                    "will be generated for split lock accesses!\n");
+            goto err;
+        }
+    }
+
     return 0;
 
 err:

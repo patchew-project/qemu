@@ -44,6 +44,7 @@ DEF("machine", HAS_ARG, QEMU_OPTION_machine, \
     "                nvdimm=on|off controls NVDIMM support (default=off)\n"
     "                enforce-config-section=on|off enforce configuration section migration (default=off)\n"
     "                s390-squash-mcss=on|off (deprecated) controls support for squashing into default css (default=off)\n"
+    "                split-lock-ac=on|off controls support #AC exception for split locked accesses (default=off)\n"
     "                memory-encryption=@var{} memory encryption object to use (default=none)\n",
     QEMU_ARCH_ALL)
 STEXI
@@ -113,6 +114,8 @@ NOTE: this parameter is deprecated. Please use @option{-global}
 @option{migration.send-configuration}=@var{on|off} instead.
 @item memory-encryption=@var{}
 Memory encryption object to use. The default is none.
+@item split-lock-ac=on|off
+Enables or disables #AC exception for split locked accesses.
 @end table
 ETEXI
 

@@ -256,6 +256,7 @@ struct MachineState {
     bool suppress_vmdesc;
     bool enforce_config_section;
     bool enable_graphics;
+    bool split_lock_ac;
     char *memory_encryption;
     DeviceMemoryState *device_memory;
 
