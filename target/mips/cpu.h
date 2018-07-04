@@ -506,7 +506,7 @@ struct CPUMIPSState {
     uint64_t CP0_LLAddr_rw_bitmask;
     int CP0_LLAddr_shift;
     target_ulong CP0_WatchLo[8];
-    int32_t CP0_WatchHi[8];
+    uint64_t CP0_WatchHi[8];
 #define CP0WH_ASID 16
     target_ulong CP0_XContext;
     int32_t CP0_Framemask;
