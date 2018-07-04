@@ -15,18 +15,31 @@ See the COPYING file in the top-level directory.
 from qapi.common import *
 
 
-def build_event_send_proto(name, arg_type, boxed):
-    return 'void qapi_event_send_%(c_name)s(%(param)s)' % {
+def build_event_proto_name(name, op):
+    return 'qapi_event_%(op)s_%(c_name)s' % {
         'c_name': c_name(name.lower()),
-        'param': build_params(arg_type, boxed, "")}
+        'op': op}
+
+def build_event_proto_internal(name, arg_type, boxed):
+    return 'void %(protoname)s(%(param)s)' % {
+        'protoname': build_event_proto_name(name, "send_internal"),
+        'param': build_params(arg_type, boxed, "", prefix="Monitor *mon")}
 
 
 def gen_event_send_decl(name, arg_type, boxed):
     return mcgen('''
 
-%(proto)s;
+
+%(int_proto)s;
+#define %(send)s(mon, ...) \\
+    do { %(internal)s(mon, ## __VA_ARGS__); } while (0)
+#define %(bcast)s(...) \\
+    do { %(internal)s(NULL, ## __VA_ARGS__); } while (0)
 ''',
-                 proto=build_event_send_proto(name, arg_type, boxed))
+                 int_proto=build_event_proto_internal(name, arg_type, boxed),
+                 send=build_event_proto_name(name, "send"),
+                 bcast=build_event_proto_name(name, "bcast"),
+                 internal=build_event_proto_name(name, "send_internal"))
 
 
 # Declare and initialize an object 'qapi' using parameters from build_params()
@@ -72,7 +85,7 @@ def gen_event_send(name, arg_type, boxed, event_enum_name):
     QDict *qmp;
     QMPEventFuncEmit emit;
 ''',
-                proto=build_event_send_proto(name, arg_type, boxed))
+                proto=build_event_proto_internal(name, arg_type, boxed))
 
     if arg_type and not arg_type.is_empty():
         ret += mcgen('''
@@ -121,7 +134,7 @@ def gen_event_send(name, arg_type, boxed, event_enum_name):
 ''')
 
     ret += mcgen('''
-    emit(NULL, %(c_enum)s, qmp);
+    emit(mon, %(c_enum)s, qmp);
 
 ''',
                  c_enum=c_enum_const(event_enum_name, name))

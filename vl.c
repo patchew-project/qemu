@@ -1647,7 +1647,7 @@ void qemu_system_reset(ShutdownCause reason)
         qemu_devices_reset();
     }
     if (reason != SHUTDOWN_CAUSE_SUBSYSTEM_RESET) {
-        qapi_event_send_reset(shutdown_caused_by_guest(reason));
+        qapi_event_bcast_reset(shutdown_caused_by_guest(reason));
     }
     cpu_synchronize_all_post_reset();
 }
@@ -1659,11 +1659,11 @@ void qemu_system_guest_panicked(GuestPanicInformation *info)
     if (current_cpu) {
         current_cpu->crash_occurred = true;
     }
-    qapi_event_send_guest_panicked(GUEST_PANIC_ACTION_PAUSE,
+    qapi_event_bcast_guest_panicked(GUEST_PANIC_ACTION_PAUSE,
                                    !!info, info);
     vm_stop(RUN_STATE_GUEST_PANICKED);
     if (!no_shutdown) {
-        qapi_event_send_guest_panicked(GUEST_PANIC_ACTION_POWEROFF,
+        qapi_event_bcast_guest_panicked(GUEST_PANIC_ACTION_POWEROFF,
                                        !!info, info);
         qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_PANIC);
     }
@@ -1705,7 +1705,7 @@ static void qemu_system_suspend(void)
     pause_all_vcpus();
     notifier_list_notify(&suspend_notifiers, NULL);
     runstate_set(RUN_STATE_SUSPENDED);
-    qapi_event_send_suspend();
+    qapi_event_bcast_suspend();
 }
 
 void qemu_system_suspend_request(void)
@@ -1775,7 +1775,7 @@ void qemu_system_shutdown_request(ShutdownCause reason)
 
 static void qemu_system_powerdown(void)
 {
-    qapi_event_send_powerdown();
+    qapi_event_bcast_powerdown();
     notifier_list_notify(&powerdown_notifiers, NULL);
 }
 
@@ -1818,7 +1818,7 @@ static bool main_loop_should_exit(void)
     request = qemu_shutdown_requested();
     if (request) {
         qemu_kill_report();
-        qapi_event_send_shutdown(shutdown_caused_by_guest(request));
+        qapi_event_bcast_shutdown(shutdown_caused_by_guest(request));
         if (no_shutdown) {
             vm_stop(RUN_STATE_SHUTDOWN);
         } else {
@@ -1841,7 +1841,7 @@ static bool main_loop_should_exit(void)
         notifier_list_notify(&wakeup_notifiers, &wakeup_reason);
         wakeup_reason = QEMU_WAKEUP_REASON_NONE;
         resume_all_vcpus();
-        qapi_event_send_wakeup();
+        qapi_event_bcast_wakeup();
     }
     if (qemu_powerdown_requested()) {
         qemu_system_powerdown();

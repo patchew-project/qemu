@@ -198,7 +198,7 @@ static void quorum_report_bad(QuorumOpType type, uint64_t offset,
         msg = strerror(-ret);
     }
 
-    qapi_event_send_quorum_report_bad(type, !!msg, msg, node_name, start_sector,
+    qapi_event_bcast_quorum_report_bad(type, !!msg, msg, node_name, start_sector,
                                       end_sector - start_sector);
 }
 
@@ -209,7 +209,7 @@ static void quorum_report_failure(QuorumAIOCB *acb)
     int64_t end_sector = DIV_ROUND_UP(acb->offset + acb->bytes,
                                       BDRV_SECTOR_SIZE);
 
-    qapi_event_send_quorum_failure(reference, start_sector,
+    qapi_event_bcast_quorum_failure(reference, start_sector,
                                    end_sector - start_sector);
 }
 

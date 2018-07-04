@@ -4566,7 +4566,7 @@ void qcow2_signal_corruption(BlockDriverState *bs, bool fatal, int64_t offset,
     }
 
     node_name = bdrv_get_node_name(bs);
-    qapi_event_send_block_image_corrupted(bdrv_get_device_name(bs),
+    qapi_event_bcast_block_image_corrupted(bdrv_get_device_name(bs),
                                           *node_name != '\0', node_name,
                                           message, offset >= 0, offset,
                                           size >= 0, size,

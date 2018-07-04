@@ -60,7 +60,7 @@ static int coroutine_fn before_write_notify(NotifierWithReturn *notifier,
 
     amount = bdrv_write_threshold_exceeded(bs, req);
     if (amount > 0) {
-        qapi_event_send_block_write_threshold(
+        qapi_event_bcast_block_write_threshold(
             bs->node_name,
             amount,
             bs->write_threshold_offset);

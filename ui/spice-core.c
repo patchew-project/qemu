@@ -217,7 +217,7 @@ static void channel_event(int event, SpiceChannelEventInfo *info)
 
     switch (event) {
     case SPICE_CHANNEL_EVENT_CONNECTED:
-        qapi_event_send_spice_connected(qapi_SpiceServerInfo_base(server),
+        qapi_event_bcast_spice_connected(qapi_SpiceServerInfo_base(server),
                                         qapi_SpiceChannel_base(client));
         break;
     case SPICE_CHANNEL_EVENT_INITIALIZED:
@@ -227,11 +227,11 @@ static void channel_event(int event, SpiceChannelEventInfo *info)
         }
         add_channel_info(client, info);
         channel_list_add(info);
-        qapi_event_send_spice_initialized(server, client);
+        qapi_event_bcast_spice_initialized(server, client);
         break;
     case SPICE_CHANNEL_EVENT_DISCONNECTED:
         channel_list_del(info);
-        qapi_event_send_spice_disconnected(qapi_SpiceServerInfo_base(server),
+        qapi_event_bcast_spice_disconnected(qapi_SpiceServerInfo_base(server),
                                            qapi_SpiceChannel_base(client));
         break;
     default:
@@ -285,7 +285,7 @@ static void migrate_connect_complete_cb(SpiceMigrateInstance *sin)
 
 static void migrate_end_complete_cb(SpiceMigrateInstance *sin)
 {
-    qapi_event_send_spice_migrate_completed();
+    qapi_event_bcast_spice_migrate_completed();
     spice_migration_completed = true;
 }
 

@@ -44,7 +44,7 @@ static void pr_manager_send_status_changed_event(PRManagerHelper *pr_mgr)
     char *id = object_get_canonical_path_component(OBJECT(pr_mgr));
 
     if (id) {
-        qapi_event_send_pr_manager_status_changed(id, !!pr_mgr->ioc);
+        qapi_event_bcast_pr_manager_status_changed(id, !!pr_mgr->ioc);
     }
 }
 

@@ -980,7 +980,7 @@ void blk_dev_change_media_cb(BlockBackend *blk, bool load, Error **errp)
 
         if (tray_was_open != tray_is_open) {
             char *id = blk_get_attached_dev_id(blk);
-            qapi_event_send_device_tray_moved(blk_name(blk), id, tray_is_open);
+            qapi_event_bcast_device_tray_moved(blk_name(blk), id, tray_is_open);
             g_free(id);
         }
     }
@@ -1661,7 +1661,7 @@ static void send_qmp_error_event(BlockBackend *blk,
     BlockDriverState *bs = blk_bs(blk);
 
     optype = is_read ? IO_OPERATION_TYPE_READ : IO_OPERATION_TYPE_WRITE;
-    qapi_event_send_block_io_error(blk_name(blk), !!bs,
+    qapi_event_bcast_block_io_error(blk_name(blk), !!bs,
                                    bs ? bdrv_get_node_name(bs) : NULL, optype,
                                    action, blk_iostatus_is_enabled(blk),
                                    error == ENOSPC, strerror(error));
@@ -1779,7 +1779,7 @@ void blk_eject(BlockBackend *blk, bool eject_flag)
     /* Whether or not we ejected on the backend,
      * the frontend experienced a tray event. */
     id = blk_get_attached_dev_id(blk);
-    qapi_event_send_device_tray_moved(blk_name(blk), id,
+    qapi_event_bcast_device_tray_moved(blk_name(blk), id,
                                       eject_flag);
     g_free(id);
 }

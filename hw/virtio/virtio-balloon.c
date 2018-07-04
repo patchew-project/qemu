@@ -366,7 +366,7 @@ static void virtio_balloon_set_config(VirtIODevice *vdev,
     memcpy(&config, config_data, sizeof(struct virtio_balloon_config));
     dev->actual = le32_to_cpu(config.actual);
     if (dev->actual != oldactual) {
-        qapi_event_send_balloon_change(vm_ram_size -
+        qapi_event_bcast_balloon_change(vm_ram_size -
                         ((ram_addr_t) dev->actual << VIRTIO_BALLOON_PFN_SHIFT));
     }
     trace_virtio_balloon_set_config(dev->actual, oldactual);

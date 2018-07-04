@@ -311,7 +311,7 @@ static void block_job_event_cancelled(Notifier *n, void *opaque)
         return;
     }
 
-    qapi_event_send_block_job_cancelled(job_type(&job->job),
+    qapi_event_bcast_block_job_cancelled(job_type(&job->job),
                                         job->job.id,
                                         job->job.progress_total,
                                         job->job.progress_current,
@@ -331,7 +331,7 @@ static void block_job_event_completed(Notifier *n, void *opaque)
         msg = strerror(-job->job.ret);
     }
 
-    qapi_event_send_block_job_completed(job_type(&job->job),
+    qapi_event_bcast_block_job_completed(job_type(&job->job),
                                         job->job.id,
                                         job->job.progress_total,
                                         job->job.progress_current,
@@ -348,7 +348,7 @@ static void block_job_event_pending(Notifier *n, void *opaque)
         return;
     }
 
-    qapi_event_send_block_job_pending(job_type(&job->job),
+    qapi_event_bcast_block_job_pending(job_type(&job->job),
                                       job->job.id);
 }
 
@@ -360,7 +360,7 @@ static void block_job_event_ready(Notifier *n, void *opaque)
         return;
     }
 
-    qapi_event_send_block_job_ready(job_type(&job->job),
+    qapi_event_bcast_block_job_ready(job_type(&job->job),
                                     job->job.id,
                                     job->job.progress_total,
                                     job->job.progress_current,
@@ -488,7 +488,7 @@ BlockErrorAction block_job_error_action(BlockJob *job, BlockdevOnError on_err,
         abort();
     }
     if (!block_job_is_internal(job)) {
-        qapi_event_send_block_job_error(job->job.id,
+        qapi_event_bcast_block_job_error(job->job.id,
                                         is_read ? IO_OPERATION_TYPE_READ :
                                         IO_OPERATION_TYPE_WRITE,
                                         action);

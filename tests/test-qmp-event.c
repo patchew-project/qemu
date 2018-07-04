@@ -156,7 +156,7 @@ static void test_event_a(TestEventData *data,
     QDict *d;
     d = data->expect;
     qdict_put_str(d, "event", "EVENT_A");
-    qapi_event_send_event_a();
+    qapi_event_bcast_event_a();
 }
 
 static void test_event_b(TestEventData *data,
@@ -165,7 +165,7 @@ static void test_event_b(TestEventData *data,
     QDict *d;
     d = data->expect;
     qdict_put_str(d, "event", "EVENT_B");
-    qapi_event_send_event_b();
+    qapi_event_bcast_event_b();
 }
 
 static void test_event_c(TestEventData *data,
@@ -191,7 +191,7 @@ static void test_event_c(TestEventData *data,
     qdict_put_str(d, "event", "EVENT_C");
     qdict_put(d, "data", d_data);
 
-    qapi_event_send_event_c(true, 1, true, &b, "test2");
+    qapi_event_bcast_event_c(true, 1, true, &b, "test2");
 
     g_free(b.string);
 }
@@ -233,7 +233,7 @@ static void test_event_d(TestEventData *data,
     qdict_put_str(d, "event", "EVENT_D");
     qdict_put(d, "data", d_data);
 
-    qapi_event_send_event_d(&a, "test3", false, NULL, true, ENUM_ONE_VALUE3);
+    qapi_event_bcast_event_d(&a, "test3", false, NULL, true, ENUM_ONE_VALUE3);
 
     g_free(struct1.string);
     g_free(a.string);

@@ -1960,10 +1960,17 @@ extern const QEnumLookup %(c_name)s_lookup;
     return ret
 
 
-def build_params(arg_type, boxed, extra):
+def build_params(arg_type, boxed, extra, prefix=""):
     if not arg_type:
         assert not boxed
-        return extra if extra else "void"
+        if prefix and extra:
+            return "%s, %s" % (prefix, extra)
+        elif prefix:
+            return prefix
+        elif extra:
+            return extra
+        else:
+            return "void"
     ret = ''
     sep = ''
     if boxed:
@@ -1978,6 +1985,11 @@ def build_params(arg_type, boxed, extra):
                 ret += 'bool has_%s, ' % c_name(memb.name)
             ret += '%s %s' % (memb.type.c_param_type(),
                               c_name(memb.name))
+    if prefix:
+        if not ret:
+            ret = prefix
+        else:
+            ret = prefix + sep + ret
     if extra:
         ret += sep + extra
     return ret if ret else "void"
