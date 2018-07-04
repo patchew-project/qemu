@@ -1390,6 +1390,19 @@ static void machvirt_init(MachineState *machine)
         exit(1);
     }
 
+    if (!vmc->ignore_cpu_topology && smp_threads > 1) {
+        if (kvm_enabled() &&
+            strcmp(machine->cpu_type, ARM_CPU_TYPE_NAME("host")) == 0) {
+            error_report("mach-virt: KVM: user controlled MPIDR.MT not "
+                         "yet supported");
+        } else {
+            error_report("mach-virt: CPU type %s does not support SMT",
+                         machine->cpu_type);
+        }
+        error_report("mach-virt: smp_threads cannot be > 1");
+        exit(1);
+    }
+
     /* If we have an EL3 boot ROM then the assumption is that it will
      * implement PSCI itself, so disable QEMU's internal implementation
      * so it doesn't get in the way. Instead of starting secondary
