@@ -133,7 +133,7 @@ static void qcrypto_cipher_aes_xts_encrypt(const void *ctx,
 {
     const QCryptoCipherBuiltinAESContext *aesctx = ctx;
 
-    qcrypto_cipher_aes_ecb_encrypt((AES_KEY *)&aesctx->enc,
+    qcrypto_cipher_aes_ecb_encrypt(&aesctx->enc,
                                    src, dst, length);
 }
 
@@ -145,7 +145,7 @@ static void qcrypto_cipher_aes_xts_decrypt(const void *ctx,
 {
     const QCryptoCipherBuiltinAESContext *aesctx = ctx;
 
-    qcrypto_cipher_aes_ecb_decrypt((AES_KEY *)&aesctx->dec,
+    qcrypto_cipher_aes_ecb_decrypt(&aesctx->dec,
                                    src, dst, length);
 }
 
