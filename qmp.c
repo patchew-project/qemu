@@ -161,7 +161,7 @@ SpiceInfo *qmp_query_spice(Error **errp)
 };
 #endif
 
-void qmp_exit_preconfig(Error **errp)
+void qmp_x_exit_preconfig(Error **errp)
 {
     if (!runstate_check(RUN_STATE_PRECONFIG)) {
         error_setg(errp, "The command is permitted only in '%s' state",

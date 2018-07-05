@@ -1074,7 +1074,7 @@ void hmp_exit_preconfig(Monitor *mon, const QDict *qdict)
 {
     Error *err = NULL;
 
-    qmp_exit_preconfig(&err);
+    qmp_x_exit_preconfig(&err);
     hmp_handle_error(mon, &err);
 }
 
