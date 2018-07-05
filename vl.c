@@ -4475,8 +4475,6 @@ int main(int argc, char **argv, char **envp)
     if (default_vga) {
         if (machine_class->default_display) {
             vga_model = machine_class->default_display;
-        } else if (vga_interface_available(VGA_CIRRUS)) {
-            vga_model = "cirrus";
         } else if (vga_interface_available(VGA_STD)) {
             vga_model = "std";
         }
