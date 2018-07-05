@@ -25,9 +25,10 @@ extern bool xen_domid_restrict;
 
 extern bool xen_allowed;
 
+#include "sysemu/accel.h"
 static inline bool xen_enabled(void)
 {
-    return xen_allowed;
+    return assert_accelerator_initialized(xen_allowed);
 }
 
 int xen_pci_slot_get_pirq(PCIDevice *pci_dev, int irq_num);

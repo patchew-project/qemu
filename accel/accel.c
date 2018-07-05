@@ -68,6 +68,8 @@ static int accel_init_machine(AccelClass *acc, MachineState *ms)
     return ret;
 }
 
+AccelState *current_accelerator;
+
 void configure_accelerator(MachineState *ms)
 {
     const char *accel;
@@ -116,6 +118,8 @@ void configure_accelerator(MachineState *ms)
     if (init_failed) {
         error_report("Back to %s accelerator", acc->name);
     }
+
+    current_accelerator = ms->accelerator;
 }
 
 void accel_register_compat_props(AccelState *accel)

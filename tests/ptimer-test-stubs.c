@@ -33,6 +33,8 @@ int64_t ptimer_test_time_ns;
 /* Do not artificially limit period - see hw/core/ptimer.c.  */
 int use_icount = 1;
 bool qtest_allowed;
+/* assert_accelerator_initialized() requires a non-null value */
+AccelState *current_accelerator = (AccelState *) 0xdeadbeef;
 
 void timer_init_tl(QEMUTimer *ts,
                    QEMUTimerList *timer_list, int scale,

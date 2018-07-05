@@ -26,7 +26,8 @@ extern int hvf_disabled;
 #include "hw/hw.h"
 uint32_t hvf_get_supported_cpuid(uint32_t func, uint32_t idx,
                                  int reg);
-#define hvf_enabled() !hvf_disabled
+#include "sysemu/accel.h"
+#define hvf_enabled() assert_accelerator_initialized(!hvf_disabled)
 #else
 #define hvf_enabled() 0
 #define hvf_get_supported_cpuid(func, idx, reg) 0

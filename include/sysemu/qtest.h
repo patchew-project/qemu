@@ -18,9 +18,10 @@
 
 extern bool qtest_allowed;
 
+#include "sysemu/accel.h"
 static inline bool qtest_enabled(void)
 {
-    return qtest_allowed;
+    return assert_accelerator_initialized(qtest_allowed);
 }
 
 bool qtest_driver(void);

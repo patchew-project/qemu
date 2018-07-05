@@ -72,4 +72,12 @@ void accel_register_compat_props(AccelState *accel);
 /* Called just before os_setup_post (ie just before drop OS privs) */
 void accel_setup_post(MachineState *ms);
 
+extern AccelState *current_accelerator;
+
+static inline bool assert_accelerator_initialized(bool allowed)
+{
+    assert(current_accelerator != NULL);
+    return allowed;
+}
+
 #endif

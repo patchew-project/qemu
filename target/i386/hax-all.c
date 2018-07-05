@@ -57,7 +57,7 @@ static int hax_arch_get_registers(CPUArchState *env);
 
 int hax_enabled(void)
 {
-    return hax_allowed;
+    return assert_accelerator_initialized(hax_allowed);
 }
 
 int valid_hax_tunnel_size(uint16_t size)
