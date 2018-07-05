@@ -1105,8 +1105,11 @@ static int64_t find_nonzero(const uint8_t *buf, int64_t n)
  *
  * 'pnum' is set to the number of sectors (including and immediately following
  * the first one) that are known to be in the same allocated/unallocated state.
+ * The function will try to align 'pnum' to the number of sectors specified
+ * in 'alignment' to avoid unnecassary RMW cycles on modern hardware.
  */
-static int is_allocated_sectors(const uint8_t *buf, int n, int *pnum)
+static int is_allocated_sectors(const uint8_t *buf, int n, int *pnum,
+                                int64_t sector_num, int alignment)
 {
     bool is_zero;
     int i;
@@ -1115,14 +1118,26 @@ static int is_allocated_sectors(const uint8_t *buf, int n, int *pnum)
         *pnum = 0;
         return 0;
     }
-    is_zero = buffer_is_zero(buf, 512);
-    for(i = 1; i < n; i++) {
-        buf += 512;
-        if (is_zero != buffer_is_zero(buf, 512)) {
+
+    if (n % alignment) {
+        alignment = 1;
+    }
+
+    if (sector_num % alignment) {
+        n = ROUND_UP(sector_num, alignment) - sector_num;
+        alignment = 1;
+    }
+
+    n /= alignment;
+
+    is_zero = buffer_is_zero(buf, BDRV_SECTOR_SIZE * alignment);
+    for (i = 1; i < n; i++) {
+        buf += BDRV_SECTOR_SIZE * alignment;
+        if (is_zero != buffer_is_zero(buf, BDRV_SECTOR_SIZE * alignment)) {
             break;
         }
     }
-    *pnum = i;
+    *pnum = i * alignment;
     return !is_zero;
 }
 
@@ -1132,7 +1147,7 @@ static int is_allocated_sectors(const uint8_t *buf, int n, int *pnum)
  * breaking up write requests for only small sparse areas.
  */
 static int is_allocated_sectors_min(const uint8_t *buf, int n, int *pnum,
-    int min)
+    int min, int64_t sector_num, int alignment)
 {
     int ret;
     int num_checked, num_used;
@@ -1141,7 +1156,7 @@ static int is_allocated_sectors_min(const uint8_t *buf, int n, int *pnum,
         min = n;
     }
 
-    ret = is_allocated_sectors(buf, n, pnum);
+    ret = is_allocated_sectors(buf, n, pnum, sector_num, alignment);
     if (!ret) {
         return ret;
     }
@@ -1149,13 +1164,15 @@ static int is_allocated_sectors_min(const uint8_t *buf, int n, int *pnum,
     num_used = *pnum;
     buf += BDRV_SECTOR_SIZE * *pnum;
     n -= *pnum;
+    sector_num += *pnum;
     num_checked = num_used;
 
     while (n > 0) {
-        ret = is_allocated_sectors(buf, n, pnum);
+        ret = is_allocated_sectors(buf, n, pnum, sector_num, alignment);
 
         buf += BDRV_SECTOR_SIZE * *pnum;
         n -= *pnum;
+        sector_num += *pnum;
         num_checked += *pnum;
         if (ret) {
             num_used = num_checked;
@@ -1560,6 +1577,7 @@ typedef struct ImgConvertState {
     bool wr_in_order;
     bool copy_range;
     int min_sparse;
+    int alignment;
     size_t cluster_sectors;
     size_t buf_sectors;
     long num_coroutines;
@@ -1724,7 +1742,8 @@ static int coroutine_fn convert_co_write(ImgConvertState *s, int64_t sector_num,
              * zeroed. */
             if (!s->min_sparse ||
                 (!s->compressed &&
-                 is_allocated_sectors_min(buf, n, &n, s->min_sparse)) ||
+                 is_allocated_sectors_min(buf, n, &n, s->min_sparse,
+                                          sector_num, s->alignment)) ||
                 (s->compressed &&
                  !buffer_is_zero(buf, n * BDRV_SECTOR_SIZE)))
             {
@@ -2372,6 +2391,13 @@ static int img_convert(int argc, char **argv)
                             MAX(out_bs->bl.opt_transfer >> BDRV_SECTOR_BITS,
                                 out_bs->bl.pdiscard_alignment >>
                                 BDRV_SECTOR_BITS)));
+
+    /* try to align the write requests to the destination to avoid unnecessary
+     * RMW cycles. */
+    s.alignment = MAX(pow2floor(s.min_sparse),
+                      DIV_ROUND_UP(out_bs->bl.request_alignment,
+                                   BDRV_SECTOR_SIZE));
+    assert(is_power_of_2(s.alignment));
 
     if (skip_create) {
         int64_t output_sectors = blk_nb_sectors(s.target);
