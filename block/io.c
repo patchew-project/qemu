@@ -1556,13 +1556,22 @@ bdrv_co_write_req_prepare(BdrvChild *child, BdrvTrackedRequest *req, int flags)
     assert(!waited || !req->serialising);
     assert(req->overlap_offset <= req->offset);
     assert(req->offset + req->bytes <= req->overlap_offset + req->overlap_bytes);
-    if (flags & BDRV_REQ_WRITE_UNCHANGED) {
-        assert(child->perm & (BLK_PERM_WRITE_UNCHANGED | BLK_PERM_WRITE));
-    } else {
-        assert(child->perm & BLK_PERM_WRITE);
-    }
     assert(end_sector <= bs->total_sectors || child->perm & BLK_PERM_RESIZE);
-    return notifier_with_return_list_notify(&bs->before_write_notifiers, req);
+    switch (req->type) {
+    case BDRV_TRACKED_WRITE:
+    case BDRV_TRACKED_DISCARD:
+        if (flags & BDRV_REQ_WRITE_UNCHANGED) {
+            assert(child->perm & (BLK_PERM_WRITE_UNCHANGED | BLK_PERM_WRITE));
+        } else {
+            assert(child->perm & BLK_PERM_WRITE);
+        }
+        return notifier_with_return_list_notify(&bs->before_write_notifiers, req);
+    case BDRV_TRACKED_TRUNCATE:
+        assert(child->perm & BLK_PERM_RESIZE);
+        return 0;
+    default:
+        abort();
+    }
 }
 
 static inline void coroutine_fn
@@ -1575,9 +1584,10 @@ bdrv_co_write_req_finish(BdrvChild *child, BdrvTrackedRequest *req, int ret)
 
     stat64_max(&bs->wr_highest_offset, req->offset + req->bytes);
 
-    if (req->type != BDRV_TRACKED_DISCARD &&
-        ret == 0 &&
-        end_sector > bs->total_sectors) {
+    if (ret == 0 &&
+        (req->type == BDRV_TRACKED_TRUNCATE ||
+         (req->type != BDRV_TRACKED_DISCARD &&
+          end_sector > bs->total_sectors))) {
         bs->total_sectors = end_sector;
         bdrv_parent_cb_resize(bs);
         bdrv_dirty_bitmap_truncate(bs, end_sector << BDRV_SECTOR_BITS);
@@ -3045,7 +3055,6 @@ int coroutine_fn bdrv_co_truncate(BdrvChild *child, int64_t offset,
     int64_t old_size, new_bytes;
     int ret;
 
-    assert(child->perm & BLK_PERM_RESIZE);
 
     /* if bs->drv == NULL, bs is closed, so there's nothing to do here */
     if (!drv) {
@@ -3078,7 +3087,16 @@ int coroutine_fn bdrv_co_truncate(BdrvChild *child, int64_t offset,
      * concurrently or they might be overwritten by preallocation. */
     if (new_bytes) {
         mark_request_serialising(&req, 1);
-        wait_serialising_requests(&req);
+    }
+    if (bs->read_only) {
+        error_setg(errp, "Image is read-only");
+        ret = -EACCES;
+        goto out;
+    }
+    ret = bdrv_co_write_req_prepare(child, &req, 0);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret, "Failed to prepare request for truncation");
+        goto out;
     }
 
     if (!drv->bdrv_co_truncate) {
@@ -3090,13 +3108,6 @@ int coroutine_fn bdrv_co_truncate(BdrvChild *child, int64_t offset,
         ret = -ENOTSUP;
         goto out;
     }
-    if (bs->read_only) {
-        error_setg(errp, "Image is read-only");
-        ret = -EACCES;
-        goto out;
-    }
-
-    assert(!(bs->open_flags & BDRV_O_INACTIVE));
 
     ret = drv->bdrv_co_truncate(bs, offset, prealloc, errp);
     if (ret < 0) {
@@ -3108,9 +3119,10 @@ int coroutine_fn bdrv_co_truncate(BdrvChild *child, int64_t offset,
     } else {
         offset = bs->total_sectors * BDRV_SECTOR_SIZE;
     }
-    bdrv_dirty_bitmap_truncate(bs, offset);
-    bdrv_parent_cb_resize(bs);
-    atomic_inc(&bs->write_gen);
+    /* It's possible that truncation succeeded but refresh_total_sectors
+     * failed, but the latter doesn't affect how we should finish the request.
+     * Pass 0 as the last parameter so that dirty bitmaps etc. are handled. */
+    bdrv_co_write_req_finish(child, &req, 0);
 
 out:
     tracked_request_end(&req);
