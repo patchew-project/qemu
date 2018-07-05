@@ -355,7 +355,7 @@ Aml *aml_method(const char *name, int arg_count, AmlSerializeFlag sflag);
 Aml *aml_if(Aml *predicate);
 Aml *aml_else(void);
 Aml *aml_while(Aml *predicate);
-Aml *aml_package(uint8_t num_elements);
+Aml *aml_package(uint64_t num_elements);
 Aml *aml_buffer(int buffer_size, uint8_t *byte_list);
 Aml *aml_resource_template(void);
 Aml *aml_field(const char *name, AmlAccessType type, AmlLockRule lock,
@@ -368,7 +368,7 @@ Aml *aml_create_field(Aml *srcbuf, Aml *bit_index, Aml *num_bits,
                       const char *name);
 Aml *aml_create_dword_field(Aml *srcbuf, Aml *index, const char *name);
 Aml *aml_create_qword_field(Aml *srcbuf, Aml *index, const char *name);
-Aml *aml_varpackage(uint32_t num_elements);
+Aml *aml_varpackage(Aml *num_elements);
 Aml *aml_touuid(const char *uuid);
 Aml *aml_unicode(const char *str);
 Aml *aml_refof(Aml *arg);

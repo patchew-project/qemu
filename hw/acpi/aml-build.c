@@ -995,9 +995,19 @@ Aml *aml_buffer(int buffer_size, uint8_t *byte_list)
 }
 
 /* ACPI 1.0b: 16.2.5.4 Type 2 Opcodes Encoding: DefPackage */
-Aml *aml_package(uint8_t num_elements)
+/* Note: The ability to create variable-sized packages was first
+ * introduced in ACPI 2.0. ACPI 1.0 only allowed fixed-size packages
+ * with up to 255 elements. Windows guests up to win2k8 fail when
+ * VarPackageOp is used.
+ */
+Aml *aml_package(uint64_t num_elements)
 {
-    Aml *var = aml_bundle(0x12 /* PackageOp */, AML_PACKAGE);
+    Aml *var;
+
+    if (num_elements > 0xFF)
+        return aml_varpackage(aml_int(num_elements));
+
+    var = aml_bundle(0x12 /* PackageOp */, AML_PACKAGE);
     build_append_byte(var->buf, num_elements);
     return var;
 }
@@ -1115,10 +1125,10 @@ Aml *aml_local(int num)
 }
 
 /* ACPI 2.0a: 17.2.2 Data Objects Encoding: DefVarPackage */
-Aml *aml_varpackage(uint32_t num_elements)
+Aml *aml_varpackage(Aml *num_elements)
 {
     Aml *var = aml_bundle(0x13 /* VarPackageOp */, AML_PACKAGE);
-    build_append_int(var->buf, num_elements);
+    aml_append(var, num_elements);
     return var;
 }
 
