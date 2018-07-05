@@ -10,6 +10,7 @@
  *
  */
 
+#include <unistd.h>
 #include "qemu/osdep.h"
 
 #include "libqtest.h"
@@ -199,6 +200,17 @@ static void read_blocktime(QTestState *who)
     rsp = wait_command(who, "{ 'execute': 'query-migrate' }");
     rsp_return = qdict_get_qdict(rsp, "return");
     g_assert(qdict_haskey(rsp_return, "postcopy-blocktime"));
+    qobject_unref(rsp);
+}
+
+static void getfd(QTestState *who, const char *fdname, int fd)
+{
+    QDict *rsp;
+    gchar *cmd = g_strdup_printf("{ 'execute': 'getfd',"
+                                 "'arguments': { '%s': '%d'} }", fdname, fd);
+    rsp = wait_command(who, cmd);
+    g_assert(qdict_haskey(rsp, "return"));
+    g_free(cmd);
     qobject_unref(rsp);
 }
 
@@ -619,6 +631,50 @@ static void test_precopy_unix(void)
     g_free(uri);
 }
 
+static void test_multifd_fd(void)
+{
+    int fd[2];
+
+    /* create pipe */
+    if (pipe(fd) == -1)
+        g_test_message("Skipping test: Unable to create pipe");
+        return;
+
+    /* set uri in target with read fd */
+    char *uri = g_strdup_printf("fd:%d", fd[0]);
+    QTestState *from, *to;
+    test_migrate_start(&from, &to, uri, false);
+
+    /* Receive a write file descriptor for source using getfd */
+    getfd(from, "srcfd", fd[1]);
+
+    /* set multifd capability on source and target */
+    migrate_set_capability(from, "x-multifd", "true");
+    migrate_set_capability(to, "x-multifd", "true");
+
+    /* Wait for the first serial output from the source */
+    wait_for_serial("src_serial");
+
+    /* perform migration */
+    migrate(from, uri);
+
+    wait_for_migration_pass(from);
+
+    if (!got_stop) {
+        qtest_qmp_eventwait(from, "STOP");
+    }
+    qtest_qmp_eventwait(to, "RESUME");
+
+    wait_for_serial("dest_serial");
+    wait_for_migration_complete(from);
+    test_migrate_end(from, to, true);
+    g_free(uri);
+
+    /* close the fds */
+    close(fd[0]);
+    close(fd[1]);
+}
+
 static void test_multifd_unix(void)
 {
     char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
@@ -673,6 +729,7 @@ int main(int argc, char **argv)
     qtest_add_func("/migration/bad_dest", test_baddest);
     qtest_add_func("/migration/precopy/unix", test_precopy_unix);
     qtest_add_func("/migration/multifd/unix", test_multifd_unix);
+    qtest_add_func("/migration/multifd/fd", test_multifd_fd);
 
     ret = g_test_run();
 
