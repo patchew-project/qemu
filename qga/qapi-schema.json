@@ -567,9 +567,9 @@
 # For the best results it's strongly recommended to have the pm-utils
 # package installed in the guest.
 #
-# IMPORTANT: guest-suspend-ram requires QEMU to support the 'system_wakeup'
-# command.  Thus, it's *required* to query QEMU for the presence of the
-# 'system_wakeup' command before issuing guest-suspend-ram.
+# IMPORTANT: guest-suspend-ram requires working wakeup support in
+# QEMU. You *must* check QMP command query-current-machine returns
+# wakeup-suspend-support: true before issuing this command.
 #
 # This command does NOT return a response on success. There are two options
 # to check for success:
@@ -594,9 +594,9 @@
 #
 # This command requires the pm-utils package to be installed in the guest.
 #
-# IMPORTANT: guest-suspend-hybrid requires QEMU to support the 'system_wakeup'
-# command.  Thus, it's *required* to query QEMU for the presence of the
-# 'system_wakeup' command before issuing guest-suspend-hybrid.
+# IMPORTANT: guest-suspend-hybrid requires working wakeup support in
+# QEMU. You *must* check QMP command query-current-machine returns
+# wakeup-suspend-support: true before issuing this command.
 #
 # This command does NOT return a response on success. There are two options
 # to check for success:
