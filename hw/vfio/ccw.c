@@ -20,22 +20,11 @@
 #include "hw/sysbus.h"
 #include "hw/vfio/vfio.h"
 #include "hw/vfio/vfio-common.h"
+#include "hw/vfio/ccw.h"
 #include "hw/s390x/s390-ccw.h"
 #include "hw/s390x/ccw-device.h"
 #include "exec/address-spaces.h"
 #include "qemu/error-report.h"
-
-#define TYPE_VFIO_CCW "vfio-ccw"
-typedef struct VFIOCCWDevice {
-    S390CCWDevice cdev;
-    VFIODevice vdev;
-    uint64_t io_region_size;
-    uint64_t io_region_offset;
-    struct ccw_io_region *io_region;
-    EventNotifier io_notifier;
-    bool force_orb_pfch;
-    bool warned_orb_pfch;
-} VFIOCCWDevice;
 
 static inline void warn_once(bool *warned, const char *fmt, ...)
 {
