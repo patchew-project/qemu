@@ -127,13 +127,33 @@ struct tpi_info {
     __u32 reserved4  : 12;
 } __attribute__ ((packed, aligned(4)));
 
-/* channel command word (type 1) */
+/* channel command word (format 0) */
+typedef struct ccw0 {
+    __u8 cmd_code;
+    __u32 cda        : 24;
+    __u32 chainData  : 1;
+    __u32 chain      : 1;
+    __u32 sli        : 1;
+    __u32 skip       : 1;
+    __u32 pci        : 1;
+    __u32 ida        : 1;
+    __u32 suspend    : 1;
+    __u32 mida       : 1;
+    __u8 reserved;
+    __u16 count;
+} __attribute__ ((packed, aligned(8))) Ccw0;
+
+/* channel command word (format 1) */
 typedef struct ccw1 {
     __u8 cmd_code;
     __u8 flags;
     __u16 count;
     __u32 cda;
 } __attribute__ ((packed, aligned(8))) Ccw1;
+
+/* do_cio() CCW formats */
+#define CCW_FMT0                 0x00
+#define CCW_FMT1                 0x01
 
 #define CCW_FLAG_DC              0x80
 #define CCW_FLAG_CC              0x40
@@ -215,6 +235,9 @@ typedef struct irb {
 
 int enable_mss_facility(void);
 void enable_subchannel(SubChannelId schid);
+__u16 cu_type(SubChannelId schid);
+void await_io_int(uint16_t sch_no);
+int do_cio(SubChannelId schid, uint32_t ccw_addr, int fmt);
 
 /*
  * Some S390 specific IO instructions as inline
