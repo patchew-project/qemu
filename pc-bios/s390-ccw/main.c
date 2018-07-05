@@ -201,11 +201,16 @@ static void virtio_setup(void)
 
 int main(void)
 {
+    SenseData sd;
+
     sclp_setup();
     cio_setup();
     boot_setup();
     find_boot_device();
     enable_subchannel(blk_schid);
+
+    /* Clear any outstanding device error conditions */
+    basic_sense(blk_schid, &sd);
 
     switch (cu_type(blk_schid)) {
     case 0x3990:  /* Real DASD device */

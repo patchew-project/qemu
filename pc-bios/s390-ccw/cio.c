@@ -57,6 +57,19 @@ __u16 cu_type(SubChannelId schid)
     return senseData.cu_type;
 }
 
+void basic_sense(SubChannelId schid, SenseData *sd)
+{
+    Ccw1 senseCcw;
+
+    senseCcw.cmd_code = CCW_CMD_BASIC_SENSE;
+    senseCcw.cda = ptr2u32(sd);
+    senseCcw.count = sizeof(*sd);
+
+    if (do_cio(schid, ptr2u32(&senseCcw), CCW_FMT1)) {
+        panic("Failed to run Basic Sense CCW\n");
+    }
+}
+
 static bool irb_error(Irb *irb)
 {
     /* We have to ignore Incorrect Length (cstat == 0x40) indicators because

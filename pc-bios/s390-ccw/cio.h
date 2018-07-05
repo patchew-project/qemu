@@ -234,6 +234,18 @@ typedef struct senseid {
     struct ciw ciw[62];
 }  __attribute__ ((packed, aligned(4))) SenseId;
 
+/* basic sense response buffer layout */
+typedef struct senseData {
+    uint8_t status[3];
+    uint8_t res_count;
+    uint8_t phys_drive_id;
+    uint8_t low_cyl_addr;
+    uint8_t head_high_cyl_addr;
+    uint8_t fmt_msg;
+    uint8_t reserved[16];
+    uint8_t reserved2[8];
+}  __attribute__ ((packed, aligned(4))) SenseData;
+
 /* interruption response block */
 typedef struct irb {
     struct scsw scsw;
@@ -260,6 +272,7 @@ int enable_mss_facility(void);
 void enable_subchannel(SubChannelId schid);
 __u16 cu_type(SubChannelId schid);
 void await_io_int(uint16_t sch_no);
+void basic_sense(SubChannelId schid, SenseData *sd);
 int do_cio(SubChannelId schid, uint32_t ccw_addr, int fmt);
 
 /*
