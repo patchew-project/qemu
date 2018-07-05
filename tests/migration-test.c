@@ -619,6 +619,36 @@ static void test_precopy_unix(void)
     g_free(uri);
 }
 
+static void test_multifd_unix(void)
+{
+    char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
+    QTestState *from, *to;
+    test_migrate_start(&from, &to, uri, false);
+
+    /* set multifd capability on source and target */
+    migrate_set_capability(from, "x-multifd", "true");
+    migrate_set_capability(to, "x-multifd", "true");
+
+    /* Wait for the first serial output from the source */
+    wait_for_serial("src_serial");
+
+    /* perform migration */
+    migrate(from, uri);
+
+    wait_for_migration_pass(from);
+
+    if (!got_stop) {
+        qtest_qmp_eventwait(from, "STOP");
+    }
+
+    qtest_qmp_eventwait(to, "RESUME");
+
+    wait_for_serial("dest_serial");
+    wait_for_migration_complete(from);
+    test_migrate_end(from, to, true);
+    g_free(uri);
+}
+
 int main(int argc, char **argv)
 {
     char template[] = "/tmp/migration-test-XXXXXX";
@@ -642,6 +672,7 @@ int main(int argc, char **argv)
     qtest_add_func("/migration/deprecated", test_deprecated);
     qtest_add_func("/migration/bad_dest", test_baddest);
     qtest_add_func("/migration/precopy/unix", test_precopy_unix);
+    qtest_add_func("/migration/multifd/unix", test_multifd_unix);
 
     ret = g_test_run();
 
