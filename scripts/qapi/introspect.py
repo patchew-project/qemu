@@ -175,8 +175,7 @@ const QLitObject %(c_name)s = %(c_string)s;
         self._gen_qlit(name, 'command',
                        {'arg-type': self._use_type(arg_type),
                         'ret-type': self._use_type(ret_type),
-                        'allow-oob': allow_oob,
-                        'allow-preconfig': allow_preconfig})
+                        'allow-oob': allow_oob})
 
     def visit_event(self, name, info, arg_type, boxed):
         arg_type = arg_type or self._schema.the_empty_object_type
