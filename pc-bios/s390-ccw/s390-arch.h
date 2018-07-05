@@ -97,4 +97,17 @@ typedef struct LowCore {
 
 extern LowCore *lowcore;
 
+static inline void set_prefix(uint32_t address)
+{
+    asm volatile("spx %0" : : "m" (address) : "memory");
+}
+
+static inline uint32_t store_prefix(void)
+{
+    uint32_t address;
+
+    asm volatile("stpx %0" : "=m" (address));
+    return address;
+}
+
 #endif

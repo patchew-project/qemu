@@ -13,6 +13,7 @@
 #include "s390-ccw.h"
 #include "cio.h"
 #include "virtio.h"
+#include "dasd-ipl.h"
 
 char stack[PAGE_SIZE * 8] __attribute__((__aligned__(PAGE_SIZE)));
 static SubChannelId blk_schid = { .one = 1 };
@@ -207,6 +208,9 @@ int main(void)
     enable_subchannel(blk_schid);
 
     switch (cu_type(blk_schid)) {
+    case 0x3990:  /* Real DASD device */
+        dasd_ipl(blk_schid); /* no return */
+        break;
     case 0x3832:  /* Virtio device */
         virtio_setup();
         zipl_load(); /* no return */
