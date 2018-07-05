@@ -2004,6 +2004,30 @@
 { 'command': 'query-machines', 'returns': ['MachineInfo'] }
 
 ##
+# @CurrentMachineParams:
+#
+# Information describing the running machine parameters.
+#
+# @wakeup-suspend-support: true if the target supports wake up from
+#                          suspend
+#
+# Since: 3.0.0
+##
+{ 'struct': 'CurrentMachineParams',
+  'data': { 'wakeup-suspend-support': 'bool'} }
+
+##
+# @query-current-machine:
+#
+# Return a list of parameters of the running machine.
+#
+# Returns: CurrentMachineParams
+#
+# Since: 3.0.0
+##
+{ 'command': 'query-current-machine', 'returns': 'CurrentMachineParams' }
+
+##
 # @CpuDefinitionInfo:
 #
 # Virtual CPU definition.
