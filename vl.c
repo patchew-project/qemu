@@ -1770,7 +1770,7 @@ void qemu_register_wakeup_notifier(Notifier *notifier)
     notifier_list_add(&wakeup_notifiers, notifier);
 }
 
-static bool qemu_wakeup_suspend_support(void)
+bool qemu_wakeup_suspend_support(void)
 {
     return !QLIST_EMPTY(&wakeup_notifiers.notifiers) && acpi_enabled;
 }
