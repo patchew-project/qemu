@@ -2960,6 +2960,7 @@ int coroutine_fn bdrv_co_copy_range_from(BdrvChild *src, uint64_t src_offset,
                                          BdrvChild *dst, uint64_t dst_offset,
                                          uint64_t bytes, BdrvRequestFlags flags)
 {
+    trace_bdrv_co_copy_range_from(src, src_offset, dst, dst_offset, bytes, flags);
     return bdrv_co_copy_range_internal(src, src_offset, dst, dst_offset,
                                        bytes, flags, true);
 }
@@ -2972,6 +2973,7 @@ int coroutine_fn bdrv_co_copy_range_to(BdrvChild *src, uint64_t src_offset,
                                        BdrvChild *dst, uint64_t dst_offset,
                                        uint64_t bytes, BdrvRequestFlags flags)
 {
+    trace_bdrv_co_copy_range_to(src, src_offset, dst, dst_offset, bytes, flags);
     return bdrv_co_copy_range_internal(src, src_offset, dst, dst_offset,
                                        bytes, flags, false);
 }
