@@ -204,9 +204,16 @@ int main(void)
     cio_setup();
     boot_setup();
     find_boot_device();
+    enable_subchannel(blk_schid);
 
-    virtio_setup();
-    zipl_load(); /* no return */
+    switch (cu_type(blk_schid)) {
+    case 0x3832:  /* Virtio device */
+        virtio_setup();
+        zipl_load(); /* no return */
+        break;
+    default:
+        panic("Attempting to boot from unexpected device type\n");
+    }
 
     panic("Failed to load OS from hard disk\n");
     return 0; /* make compiler happy */
