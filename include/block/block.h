@@ -71,8 +71,21 @@ typedef enum {
      * content. */
     BDRV_REQ_WRITE_UNCHANGED    = 0x40,
 
+    /* BDRV_REQ_SERIALISING forces request serializing. Only for writes. Used
+     * to serialize writes to target in backup process, when source is in
+     * backing chain of target (image fleecing scheme is example) to avoid a
+     * possibility for a client, reading from target during backup to read
+     * updated data from source in case of unhappy race of client-read and
+     * backup-cow-write.
+     *
+     * Note, that BDRV_REQ_SERIALISING is _not_ opposite in meaning to
+     * BDRV_REQ_NO_SERIALISING. May be, better name for the latter is
+     * _DO_NOT_WAIT_FOR_SERIALISING, but it is too long.
+     */
+    BDRV_REQ_SERIALISING        = 0x80,
+
     /* Mask of valid flags */
-    BDRV_REQ_MASK               = 0x7f,
+    BDRV_REQ_MASK               = 0xff,
 } BdrvRequestFlags;
 
 typedef struct BlockSizes {
