@@ -2962,7 +2962,11 @@ static int coroutine_fn bdrv_co_copy_range_internal(BdrvChild *src,
 
     if (!(flags & BDRV_REQ_NO_SERIALISING)) {
         wait_serialising_requests(&src_req);
-        wait_serialising_requests(&dst_req);
+    }
+
+    ret = bdrv_co_write_req_prepare(dst, &dst_req, flags);
+    if (ret) {
+        goto out;
     }
     if (recurse_src) {
         ret = src->bs->drv->bdrv_co_copy_range_from(src->bs,
@@ -2975,6 +2979,8 @@ static int coroutine_fn bdrv_co_copy_range_internal(BdrvChild *src,
                                                   dst, dst_offset,
                                                   bytes, flags);
     }
+out:
+    bdrv_co_write_req_finish(dst, &dst_req, ret);
     tracked_request_end(&src_req);
     tracked_request_end(&dst_req);
     bdrv_dec_in_flight(src->bs);
