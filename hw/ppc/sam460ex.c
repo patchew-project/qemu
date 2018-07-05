@@ -324,7 +324,10 @@ static int sam460ex_load_device_tree(hwaddr addr,
     /* set serial port clocks */
     offset = fdt_node_offset_by_compatible(fdt, -1, "ns16550");
     while (offset >= 0) {
-        fdt_setprop_cell(fdt, offset, "clock-frequency", UART_FREQ);
+        /* Failure to set serial port clocks is not fatal, so just ignore
+         * errors when trying to do so.
+         */
+        (void)fdt_setprop_cell(fdt, offset, "clock-frequency", UART_FREQ);
         offset = fdt_node_offset_by_compatible(fdt, offset, "ns16550");
     }
 
