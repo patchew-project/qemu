@@ -1,0 +1,4 @@
+# exploded member form must have a 'type'
+{ 'union': 'UnionInvalidBranch',
+  'data': { 'integer': { 'if': 'foo'},
+            's8': 'int8' } }

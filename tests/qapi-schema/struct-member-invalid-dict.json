@@ -1,0 +1,3 @@
+# exploded member form must have a 'type'
+{ 'struct': 'foo',
+  'data': { '*a': { 'case': 'foo' } } }
