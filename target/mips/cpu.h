@@ -388,26 +388,27 @@ struct CPUMIPSState {
     target_ulong CP0_CMGCRBase;
     int32_t CP0_Config0;
 #define CP0C0_M    31
-#define CP0C0_K23  28
-#define CP0C0_KU   25
+#define CP0C0_K23  28    /* 30..28 */
+#define CP0C0_KU   25    /* 27..25 */
 #define CP0C0_MDU  20
 #define CP0C0_MM   18
 #define CP0C0_BM   16
+#define CP0C0_Impl 16    /* 24..16 */
 #define CP0C0_BE   15
-#define CP0C0_AT   13
-#define CP0C0_AR   10
-#define CP0C0_MT   7
+#define CP0C0_AT   13    /* 14..13 */
+#define CP0C0_AR   10    /* 12..10 */
+#define CP0C0_MT   7     /*  9..7  */
 #define CP0C0_VI   3
-#define CP0C0_K0   0
+#define CP0C0_K0   0     /*  2..0  */
     int32_t CP0_Config1;
 #define CP0C1_M    31
-#define CP0C1_MMU  25
-#define CP0C1_IS   22
-#define CP0C1_IL   19
-#define CP0C1_IA   16
-#define CP0C1_DS   13
-#define CP0C1_DL   10
-#define CP0C1_DA   7
+#define CP0C1_MMU  25    /* 30..25 */
+#define CP0C1_IS   22    /* 24..22 */
+#define CP0C1_IL   19    /* 21..19 */
+#define CP0C1_IA   16    /* 18..16 */
+#define CP0C1_DS   13    /* 15..13 */
+#define CP0C1_DL   10    /* 12..10 */
+#define CP0C1_DA   7     /*  9..7  */
 #define CP0C1_C2   6
 #define CP0C1_MD   5
 #define CP0C1_PC   4
@@ -468,7 +469,18 @@ struct CPUMIPSState {
 #define CP0C5_CV         29
 #define CP0C5_EVA        28
 #define CP0C5_MSAEn      27
+#define CP0C5_PMJ        23    /* 25..23 */
+#define CP0C5_WR2        22
+#define CP0C5_NMS        21
+#define CP0C5_ULS        20
+#define CP0C5_XPA        19
+#define CP0C5_CRCP       18
+#define CP0C5_MI         17
+#define CP0C5_GI         15    /* 16..15 */
+#define CP0C5_CA2        14
 #define CP0C5_XNP        13
+#define CP0C5_DEC        11
+#define CP0C5_L2C        10
 #define CP0C5_UFE        9
 #define CP0C5_FRE        8
 #define CP0C5_VP         7
