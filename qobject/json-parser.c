@@ -24,6 +24,7 @@
 #include "qapi/qmp/json-parser.h"
 #include "qapi/qmp/json-lexer.h"
 #include "qapi/qmp/json-streamer.h"
+#include "qapi/qmp/qerror.h"
 
 typedef struct JSONParserContext
 {
@@ -591,7 +592,12 @@ QObject *json_parser_parse_err(GQueue *tokens, va_list *ap, Error **errp)
 
     result = parse_value(ctxt, ap);
 
-    error_propagate(errp, ctxt->err);
+    if (!result && !ctxt->err) {
+        /* TODO: improve error reporting */
+        error_setg(errp, QERR_JSON_PARSING);
+    } else {
+        error_propagate(errp, ctxt->err);
+    }
 
     parser_context_free(ctxt);
 
