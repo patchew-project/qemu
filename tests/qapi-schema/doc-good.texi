@@ -120,6 +120,8 @@ Another paragraph (but no @code{var}: line)
 @b{Members:}
 @table @asis
 @item @code{var1: string}
+@b{If:} @code{defined(IFSTR)}
+
 Not documented
 @end table
 
