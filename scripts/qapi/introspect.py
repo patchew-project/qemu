@@ -148,6 +148,8 @@ const QLitObject %(c_name)s = %(c_string)s;
         ret = {'name': member.name, 'type': self._use_type(member.type)}
         if member.optional:
             ret['default'] = None
+        if member.ifcond:
+            ret = (ret, member.ifcond)
         return ret
 
     def _gen_variants(self, tag_name, variants):
@@ -155,14 +157,16 @@ const QLitObject %(c_name)s = %(c_string)s;
                 'variants': [self._gen_variant(v) for v in variants]}
 
     def _gen_variant(self, variant):
-        return {'case': variant.name, 'type': self._use_type(variant.type)}
+        return ({'case': variant.name, 'type': self._use_type(variant.type)},
+                variant.ifcond)
 
     def visit_builtin_type(self, name, info, json_type):
         self._gen_qlit(name, 'builtin', {'json-type': json_type}, [])
 
     def visit_enum_type(self, name, info, ifcond, members, prefix):
         self._gen_qlit(name, 'enum',
-                       {'values': [m.name for m in members]}, ifcond)
+                       {'values': [(m.name, m.ifcond) for m in members]},
+                       ifcond)
 
     def visit_array_type(self, name, info, ifcond, element_type):
         element = self._use_type(element_type)
@@ -178,8 +182,9 @@ const QLitObject %(c_name)s = %(c_string)s;
 
     def visit_alternate_type(self, name, info, ifcond, variants):
         self._gen_qlit(name, 'alternate',
-                       {'members': [{'type': self._use_type(m.type)}
-                                    for m in variants.variants]}, ifcond)
+                       {'members': [
+                           ({'type': self._use_type(m.type)}, m.ifcond)
+                           for m in variants.variants]}, ifcond)
 
     def visit_command(self, name, info, ifcond, arg_type, ret_type, gen,
                       success_response, boxed, allow_oob, allow_preconfig):
