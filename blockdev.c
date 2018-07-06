@@ -1940,6 +1940,7 @@ static void blockdev_backup_clean(BlkActionState *common)
 typedef struct BlockDirtyBitmapState {
     BlkActionState common;
     BdrvDirtyBitmap *bitmap;
+    BdrvDirtyBitmap *merge_source;
     BlockDriverState *bs;
     HBitmap *backup;
     bool prepared;
@@ -2112,6 +2113,35 @@ static void block_dirty_bitmap_disable_abort(BlkActionState *common)
     }
 }
 
+static void block_dirty_bitmap_merge_prepare(BlkActionState *common,
+                                             Error **errp)
+{
+    BlockDirtyBitmapMerge *action;
+    BlockDirtyBitmapState *state = DO_UPCAST(BlockDirtyBitmapState,
+                                             common, common);
+
+    if (action_check_completion_mode(common, errp) < 0) {
+        return;
+    }
+
+    action = common->action->u.x_block_dirty_bitmap_merge.data;
+    state->bitmap = block_dirty_bitmap_lookup(action->node,
+                                              action->dst_name,
+                                              &state->bs,
+                                              errp);
+    if (!state->bitmap) {
+        return;
+    }
+
+    state->merge_source = bdrv_find_dirty_bitmap(state->bs, action->src_name);
+    if (!state->merge_source) {
+        return;
+    }
+
+    bdrv_merge_dirty_bitmap(state->bitmap, state->merge_source, &state->backup,
+                            errp);
+}
+
 static void abort_prepare(BlkActionState *common, Error **errp)
 {
     error_setg(errp, "Transaction aborted using Abort action");
@@ -2182,7 +2212,13 @@ static const BlkActionOps actions[] = {
         .instance_size = sizeof(BlockDirtyBitmapState),
         .prepare = block_dirty_bitmap_disable_prepare,
         .abort = block_dirty_bitmap_disable_abort,
-     }
+    },
+    [TRANSACTION_ACTION_KIND_X_BLOCK_DIRTY_BITMAP_MERGE] = {
+        .instance_size = sizeof(BlockDirtyBitmapState),
+        .prepare = block_dirty_bitmap_merge_prepare,
+        .commit = block_dirty_bitmap_free_backup,
+        .abort = block_dirty_bitmap_restore,
+    }
 };
 
 /**
