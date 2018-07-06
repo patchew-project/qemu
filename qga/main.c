@@ -600,6 +600,7 @@ static void process_command(GAState *s, QDict *req)
 static void process_event(JSONMessageParser *parser, GQueue *tokens)
 {
     GAState *s = container_of(parser, GAState, parser);
+    QObject *obj;
     QDict *qdict;
     Error *err = NULL;
     int ret;
@@ -607,35 +608,34 @@ static void process_event(JSONMessageParser *parser, GQueue *tokens)
     g_assert(s && parser);
 
     g_debug("process_event: called");
-    qdict = qobject_to(QDict, json_parser_parse_err(tokens, NULL, &err));
-    if (err || !qdict) {
-        qobject_unref(qdict);
-        if (!err) {
-            g_warning("failed to parse event: unknown error");
-            error_setg(&err, QERR_JSON_PARSING);
-        } else {
-            g_warning("failed to parse event: %s", error_get_pretty(err));
-        }
-        qdict = qmp_error_response(err);
+    obj = json_parser_parse_err(tokens, NULL, &err);
+    if (err) {
+        goto err;
+    }
+    qdict = qobject_to(QDict, obj);
+    if (!qdict) {
+        error_setg(&err, QERR_JSON_PARSING);
+        goto err;
+    }
+    if (!qdict_haskey(qdict, "execute")) {
+        g_warning("unrecognized payload format");
+        error_setg(&err, QERR_UNSUPPORTED);
+        goto err;
     }
 
-    /* handle host->guest commands */
-    if (qdict_haskey(qdict, "execute")) {
-        process_command(s, qdict);
-    } else {
-        if (!qdict_haskey(qdict, "error")) {
-            qobject_unref(qdict);
-            g_warning("unrecognized payload format");
-            error_setg(&err, QERR_UNSUPPORTED);
-            qdict = qmp_error_response(err);
-        }
-        ret = send_response(s, qdict);
-        if (ret < 0) {
-            g_warning("error sending error response: %s", strerror(-ret));
-        }
-    }
+    process_command(s, qdict);
+    qobject_unref(obj);
+    return;
 
+err:
+    g_warning("failed to parse event: %s", error_get_pretty(err));
+    qdict = qmp_error_response(err);
+    ret = send_response(s, qdict);
+    if (ret < 0) {
+        g_warning("error sending error response: %s", strerror(-ret));
+    }
     qobject_unref(qdict);
+    qobject_unref(obj);
 }
 
 /* false return signals GAChannel to close the current client connection */
