@@ -2032,7 +2032,7 @@ static void block_dirty_bitmap_clear_abort(BlkActionState *common)
                                              common, common);
 
     if (state->backup) {
-        bdrv_undo_clear_dirty_bitmap(state->bitmap, state->backup);
+        bdrv_restore_dirty_bitmap(state->bitmap, state->backup);
     }
 }
 
@@ -2961,7 +2961,7 @@ void qmp_x_block_dirty_bitmap_merge(const char *node, const char *dst_name,
         return;
     }
 
-    bdrv_merge_dirty_bitmap(dst, src, errp);
+    bdrv_merge_dirty_bitmap(dst, src, NULL, errp);
 }
 
 BlockDirtyBitmapSha256 *qmp_x_debug_block_dirty_bitmap_sha256(const char *node,
