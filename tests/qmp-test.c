@@ -249,7 +249,39 @@ static void test_qmp_oob(void)
     recv_cmd_id(qts, "blocks-2");
     recv_cmd_id(qts, "err-2");
     cleanup_blocking_cmd();
+}
 
+static void test_object_add_without_props(void)
+{
+    QTestState *qts;
+    QDict *ret;
+
+    qts = qtest_init(common_args);
+
+    ret = qtest_qmp(qts, "{'execute': 'object-add',"
+          " 'arguments': { 'qom-type': 'memory-backend-ram', 'id': 'ram1' } }");
+    g_assert_nonnull(ret);
+
+    g_assert_cmpstr(get_error_class(ret), ==, "GenericError");
+
+    qobject_unref(ret);
+    qtest_quit(qts);
+}
+
+static void test_qom_set_without_value(void)
+{
+    QTestState *qts;
+    QDict *ret;
+
+    qts = qtest_init(common_args);
+
+    ret = qtest_qmp(qts, "{'execute': 'qom-set',"
+              " 'arguments': { 'path': '/machine', 'property': 'rtc-time' } }");
+    g_assert_nonnull(ret);
+
+    g_assert_cmpstr(get_error_class(ret), ==, "GenericError");
+
+    qobject_unref(ret);
     qtest_quit(qts);
 }
 
@@ -479,8 +511,13 @@ int main(int argc, char *argv[])
 
     g_test_init(&argc, &argv, NULL);
 
+    qtest_add_func("qmp/object-add-without-props",
+                   test_object_add_without_props);
+    qtest_add_func("qmp/qom-set-without-value",
+                   test_qom_set_without_value);
     qtest_add_func("qmp/protocol", test_qmp_protocol);
     qtest_add_func("qmp/oob", test_qmp_oob);
+
     qmp_schema_init(&schema);
     add_query_tests(&schema);
     qtest_add_func("qmp/preconfig", test_qmp_preconfig);
@@ -488,5 +525,6 @@ int main(int argc, char *argv[])
     ret = g_test_run();
 
     qmp_schema_cleanup(&schema);
+
     return ret;
 }
