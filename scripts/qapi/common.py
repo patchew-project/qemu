@@ -740,6 +740,10 @@ def check_event(expr, info):
                allow_metas=meta)
 
 
+def enum_get_names(expr):
+    return [e['name'] for e in expr['data']]
+
+
 def check_union(expr, info):
     name = expr['union']
     base = expr.get('base')
@@ -799,7 +803,7 @@ def check_union(expr, info):
         # If the discriminator names an enum type, then all members
         # of 'data' must also be members of the enum type.
         if enum_define:
-            if key not in enum_define['data']:
+            if key not in enum_get_names(enum_define):
                 raise QAPISemError(info,
                                    "Discriminator value '%s' is not found in "
                                    "enum '%s'"
@@ -831,10 +835,10 @@ def check_alternate(expr, info):
         if qtype == 'QTYPE_QSTRING':
             enum_expr = enum_types.get(value)
             if enum_expr:
-                for v in enum_expr['data']:
+                for v in enum_get_names(enum_expr):
                     if v in ['on', 'off']:
                         conflicting.add('QTYPE_QBOOL')
-                    if re.match(r'[-+0-9.]', v): # lazy, could be tightened
+                    if re.match(r'[-+0-9.]', v):  # lazy, could be tightened
                         conflicting.add('QTYPE_QNUM')
             else:
                 conflicting.add('QTYPE_QNUM')
@@ -847,19 +851,34 @@ def check_alternate(expr, info):
             types_seen[qt] = key
 
 
+def normalize_enum(expr, info):
+    name = expr['enum']
+    members = expr.get('data')
+
+    if not isinstance(members, list):
+        raise QAPISemError(info,
+                           "Enum '%s' requires an array for 'data'" % name)
+
+    # translate short member form to dict form
+    for i, member in enumerate(members):
+        if not isinstance(member, dict):
+            member = {'name': member}
+            members[i] = member
+
+
 def check_enum(expr, info):
     name = expr['enum']
     members = expr.get('data')
     prefix = expr.get('prefix')
 
-    if not isinstance(members, list):
-        raise QAPISemError(info,
-                           "Enum '%s' requires an array for 'data'" % name)
     if prefix is not None and not isinstance(prefix, str):
         raise QAPISemError(info,
                            "Enum '%s' requires a string for 'prefix'" % name)
+
     for member in members:
-        check_name(info, "Member of enum '%s'" % name, member,
+        source = "dictionary member of enum '%s'" % name
+        check_known_keys(info, source, member, ['name'], [])
+        check_name(info, "Member of enum '%s'" % name, member['name'],
                    enum_member=True)
 
 
@@ -920,6 +939,13 @@ def check_exprs(exprs):
     # Populate name table with names of built-in types
     for builtin in builtin_types.keys():
         all_names[builtin] = 'built-in'
+
+    # Normalize exprs
+    for expr_elem in exprs:
+        expr = expr_elem['expr']
+        info = expr_elem['info']
+        if 'enum' in expr:
+            normalize_enum(expr, info)
 
     # Learn the types and check for valid expression keys
     for expr_elem in exprs:
@@ -1640,7 +1666,14 @@ class QAPISchema(object):
                                             qtype_values, 'QTYPE'))
 
     def _make_enum_members(self, values):
-        return [QAPISchemaMember(v) for v in values]
+        enum = []
+        for v in values:
+            if isinstance(v, dict):
+                name = v['name']
+            else:
+                name = v
+            enum.append(QAPISchemaMember(name))
+        return enum
 
     def _make_implicit_enum_type(self, name, info, ifcond, values):
         # See also QAPISchemaObjectTypeMember._pretty_owner()
