@@ -20,7 +20,7 @@
 
 void tpm_emu_test_wait_cond(TestState *s)
 {
-    gint64 end_time = g_get_monotonic_time() + 5 * G_TIME_SPAN_SECOND;
+    gint64 end_time = g_get_monotonic_time() + 10 * G_TIME_SPAN_SECOND;
 
     g_mutex_lock(&s->data_mutex);
     if (!g_cond_wait_until(&s->data_cond, &s->data_mutex, end_time)) {
