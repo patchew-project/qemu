@@ -168,10 +168,9 @@ static void pc_init1(MachineState *machine,
     pc_guest_info_init(pcms);
 
     if (pcmc->smbios_defaults) {
-        MachineClass *mc = MACHINE_GET_CLASS(machine);
         /* These values are guest ABI, do not change */
         smbios_set_defaults("QEMU", "Standard PC (i440FX + PIIX, 1996)",
-                            mc->name, pcmc->smbios_legacy_mode,
+                            pcmc->smbios_version, pcmc->smbios_legacy_mode,
                             pcmc->smbios_uuid_encoded,
                             SMBIOS_ENTRY_POINT_21);
     }
@@ -440,9 +439,11 @@ DEFINE_I440FX_MACHINE(v3_0, "pc-i440fx-3.0", NULL,
 
 static void pc_i440fx_2_12_machine_options(MachineClass *m)
 {
+    PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
     pc_i440fx_3_0_machine_options(m);
     m->is_default = 0;
     m->alias = NULL;
+    pcmc->smbios_version = m->name;
     SET_MACHINE_COMPAT(m, PC_COMPAT_2_12);
 }
 

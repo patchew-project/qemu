@@ -134,6 +134,9 @@ struct PCMachineClass {
 
     /* use DMA capable linuxboot option rom */
     bool linuxboot_dma_enabled;
+
+    /* Version field for SMBIOS Type 1, Type 2, Type 3, and Type 4 structs */
+    const char *smbios_version;
 };
 
 #define TYPE_PC_MACHINE "generic-pc-machine"

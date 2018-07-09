@@ -146,7 +146,7 @@ static void pc_q35_init(MachineState *machine)
     if (pcmc->smbios_defaults) {
         /* These values are guest ABI, do not change */
         smbios_set_defaults("QEMU", "Standard PC (Q35 + ICH9, 2009)",
-                            mc->name, pcmc->smbios_legacy_mode,
+                            pcmc->smbios_version, pcmc->smbios_legacy_mode,
                             pcmc->smbios_uuid_encoded,
                             SMBIOS_ENTRY_POINT_21);
     }
@@ -336,6 +336,7 @@ static void pc_q35_2_11_machine_options(MachineClass *m)
 
     pc_q35_2_12_machine_options(m);
     pcmc->default_nic_model = "e1000";
+    pcmc->smbios_version = m->name;
     SET_MACHINE_COMPAT(m, PC_COMPAT_2_11);
 }
 
