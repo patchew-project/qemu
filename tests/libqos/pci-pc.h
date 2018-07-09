@@ -15,7 +15,15 @@
 
 #include "libqos/pci.h"
 #include "libqos/malloc.h"
+#include "qgraph.h"
 
+typedef struct QPCIBusPC {
+    QOSGraphObject obj;
+    QPCIBus bus;
+} QPCIBusPC;
+
+void qpci_device_init(QPCIDevice *dev, QPCIBus *bus, int devfn);
+void qpci_set_pc(QPCIBusPC *ret, QTestState *qts, QGuestAllocator *alloc);
 QPCIBus *qpci_init_pc(QTestState *qts, QGuestAllocator *alloc);
 void     qpci_free_pc(QPCIBus *bus);
 

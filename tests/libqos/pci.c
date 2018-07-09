@@ -15,6 +15,7 @@
 
 #include "hw/pci/pci_regs.h"
 #include "qemu/host-utils.h"
+#include "qgraph.h"
 
 void qpci_device_foreach(QPCIBus *bus, int vendor_id, int device_id,
                          void (*func)(QPCIDevice *dev, int devfn, void *data),
@@ -402,3 +403,10 @@ void qpci_plug_device_test(const char *driver, const char *id,
     qtest_qmp_device_add(driver, id, "'addr': '%d'%s%s", slot,
                          opts ? ", " : "", opts ? opts : "");
 }
+
+static void qpci(void)
+{
+    qos_node_create_interface("pci-bus");
+}
+
+libqos_init(qpci);

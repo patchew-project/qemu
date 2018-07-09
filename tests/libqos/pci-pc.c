@@ -18,14 +18,8 @@
 
 #include "qemu-common.h"
 
-
 #define ACPI_PCIHP_ADDR         0xae00
 #define PCI_EJ_BASE             0x0008
-
-typedef struct QPCIBusPC
-{
-    QPCIBus bus;
-} QPCIBusPC;
 
 static uint8_t qpci_pc_pio_readb(QPCIBus *bus, uint32_t addr)
 {
@@ -115,10 +109,33 @@ static void qpci_pc_config_writel(QPCIBus *bus, int devfn, uint8_t offset, uint3
     outl(0xcfc, value);
 }
 
-QPCIBus *qpci_init_pc(QTestState *qts, QGuestAllocator *alloc)
+static void *qpci_get_driver(void *obj, const char *interface)
 {
-    QPCIBusPC *ret = g_new0(QPCIBusPC, 1);
+    QPCIBusPC *qpci = obj;
+    if (!g_strcmp0(interface, "pci-bus")) {
+        return &qpci->bus;
+    }
+    printf("%s not present in pci-bus-pc", interface);
+    abort();
+}
 
+void qpci_device_init(QPCIDevice *dev, QPCIBus *bus, int devfn)
+{
+    if (!bus) {
+        return;
+    }
+    dev->bus = bus;
+    dev->devfn = devfn;
+
+    if (qpci_config_readw(dev, PCI_VENDOR_ID) == 0xFFFF) {
+        printf("PCI Device not found\n");
+        abort();
+    }
+    qpci_device_enable(dev);
+}
+
+void qpci_set_pc(QPCIBusPC *ret, QTestState *qts, QGuestAllocator *alloc)
+{
     assert(qts);
 
     ret->bus.pio_readb = qpci_pc_pio_readb;
@@ -147,11 +164,23 @@ QPCIBus *qpci_init_pc(QTestState *qts, QGuestAllocator *alloc)
     ret->bus.mmio_alloc_ptr = 0xE0000000;
     ret->bus.mmio_limit = 0x100000000ULL;
 
+    ret->obj.get_driver = qpci_get_driver;
+}
+
+QPCIBus *qpci_init_pc(QTestState *qts, QGuestAllocator *alloc)
+{
+    QPCIBusPC *ret = g_new0(QPCIBusPC, 1);
+    qpci_set_pc(ret, qts, alloc);
+
     return &ret->bus;
 }
 
 void qpci_free_pc(QPCIBus *bus)
 {
+    if (!bus) {
+        return;
+    }
+
     QPCIBusPC *s = container_of(bus, QPCIBusPC, bus);
 
     g_free(s);
@@ -176,3 +205,11 @@ void qpci_unplug_acpi_device_test(const char *id, uint8_t slot)
 
     qmp_eventwait("DEVICE_DELETED");
 }
+
+static void qpci_pc(void)
+{
+    qos_node_create_driver("pci-bus-pc", NULL);
+    qos_node_produces("pci-bus-pc", "pci-bus");
+}
+
+libqos_init(qpci_pc);
