@@ -771,7 +771,7 @@ libqos-virtio-obj-y = $(libqos-spapr-obj-y) $(libqos-pc-obj-y) tests/libqos/virt
 
 libqgraph-obj-y = tests/libqos/qgraph.o
 libqgraph-pc-obj-y = $(libqos-pc-obj-y) $(libqgraph-obj-y) tests/libqos/sdhci.o
-libqgraph-pc-obj-y += tests/libqos/raspi2-machine.o
+libqgraph-pc-obj-y += tests/libqos/raspi2-machine.o tests/libqos/x86_64_pc-machine.o
 
 check-unit-y += tests/test-qgraph$(EXESUF)
 tests/test-qgraph$(EXESUF): tests/test-qgraph.o $(libqgraph-obj-y)
