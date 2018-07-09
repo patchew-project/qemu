@@ -502,7 +502,14 @@ hwaddr memory_region_section_get_iotlb(CPUState *cpu,
                                        hwaddr paddr, hwaddr xlat,
                                        int prot,
                                        target_ulong *address);
-bool memory_region_is_unassigned(MemoryRegion *mr);
+/**
+ * memory_region_is_ram_backed:
+ * @mr: Memory region
+ *
+ * Return true if this memory region is backed by host RAM that we
+ * can directly execute guest code from.
+ */
+bool memory_region_is_ram_backed(MemoryRegion *mr);
 
 #endif
 

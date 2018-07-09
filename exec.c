@@ -402,10 +402,10 @@ static MemoryRegionSection *phys_page_find(AddressSpaceDispatch *d, hwaddr addr)
     }
 }
 
-bool memory_region_is_unassigned(MemoryRegion *mr)
+bool memory_region_is_ram_backed(MemoryRegion *mr)
 {
-    return mr != &io_mem_rom && mr != &io_mem_notdirty && !mr->rom_device
-        && mr != &io_mem_watch;
+    return !(mr != &io_mem_rom && mr != &io_mem_notdirty && !mr->rom_device
+             && mr != &io_mem_watch);
 }
 
 /* Called from RCU critical section */

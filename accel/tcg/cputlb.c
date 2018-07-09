@@ -1001,7 +1001,7 @@ tb_page_addr_t get_page_addr_code(CPUArchState *env, target_ulong addr)
     iotlbentry = &env->iotlb[mmu_idx][index];
     section = iotlb_to_section(cpu, iotlbentry->addr, iotlbentry->attrs);
     mr = section->mr;
-    if (memory_region_is_unassigned(mr)) {
+    if (!memory_region_is_ram_backed(mr)) {
         qemu_mutex_lock_iothread();
         if (memory_region_request_mmio_ptr(mr, addr)) {
             qemu_mutex_unlock_iothread();
