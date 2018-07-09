@@ -152,6 +152,7 @@ $(foreach i,$(filter-out $(DOCKER_PARTIAL_IMAGES),$(DOCKER_IMAGES) $(DOCKER_DEPR
 	) \
 	$(foreach t,$(DOCKER_TESTS), \
 		$(eval docker-test: docker-$t@$i) \
+		$(eval docker-$t: docker-$t@$i) \
 	) \
 )
 
@@ -162,6 +163,7 @@ docker:
 	@echo
 	@echo '    docker:              Print this help.'
 	@echo '    docker-test:         Run all image/test combinations.'
+	@echo '    docker-TEST:         Run TEST on all image combinations.'
 	@echo '    docker-clean:        Kill and remove residual docker testing containers.'
 	@echo '    docker-TEST@IMAGE:   Run "TEST" in container "IMAGE".'
 	@echo '                         Note: "TEST" is one of the listed test name,'
