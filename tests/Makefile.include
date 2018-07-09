@@ -776,6 +776,9 @@ libqgraph-pc-obj-y += tests/libqos/raspi2-machine.o tests/libqos/x86_64_pc-machi
 check-unit-y += tests/test-qgraph$(EXESUF)
 tests/test-qgraph$(EXESUF): tests/test-qgraph.o $(libqgraph-obj-y)
 
+check-qtest-pci-y += tests/qos-test$(EXESUF)
+tests/qos-test$(EXESUF): tests/qos-test.o $(libqgraph-pc-obj-y)
+
 tests/qmp-test$(EXESUF): tests/qmp-test.o
 tests/device-introspect-test$(EXESUF): tests/device-introspect-test.o
 tests/rtc-test$(EXESUF): tests/rtc-test.o
