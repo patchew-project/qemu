@@ -770,7 +770,8 @@ libqos-usb-obj-y = $(libqos-spapr-obj-y) $(libqos-pc-obj-y) tests/libqos/usb.o
 libqos-virtio-obj-y = $(libqos-spapr-obj-y) $(libqos-pc-obj-y) tests/libqos/virtio.o tests/libqos/virtio-pci.o tests/libqos/virtio-mmio.o tests/libqos/malloc-generic.o
 
 libqgraph-obj-y = tests/libqos/qgraph.o
-libqgraph-pc-obj-y = $(libqos-pc-obj-y) tests/libqos/sdhci.o
+libqgraph-pc-obj-y = $(libqos-pc-obj-y) $(libqgraph-obj-y) tests/libqos/sdhci.o
+libqgraph-pc-obj-y += tests/libqos/raspi2-machine.o
 
 check-unit-y += tests/test-qgraph$(EXESUF)
 tests/test-qgraph$(EXESUF): tests/test-qgraph.o $(libqgraph-obj-y)
