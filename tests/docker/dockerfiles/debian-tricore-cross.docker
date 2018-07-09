@@ -11,6 +11,9 @@ FROM debian:9
 
 MAINTAINER Philippe Mathieu-Daudé <f4bug@amsat.org>
 
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -yy git
+
 RUN git clone --single-branch \
         https://github.com/bkoppelmann/tricore-binutils.git \
         /usr/src/binutils && \
