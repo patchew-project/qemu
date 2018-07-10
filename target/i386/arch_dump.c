@@ -237,7 +237,7 @@ int x86_cpu_write_elf32_note(WriteCoreDumpFunction f, CPUState *cs,
  * please count up QEMUCPUSTATE_VERSION if you have changed definition of
  * QEMUCPUState, and modify the tools using this information accordingly.
  */
-#define QEMUCPUSTATE_VERSION (1)
+#define QEMUCPUSTATE_VERSION (2)
 
 struct QEMUCPUSegment {
     uint32_t selector;
@@ -258,6 +258,7 @@ struct QEMUCPUState {
     QEMUCPUSegment cs, ds, es, fs, gs, ss;
     QEMUCPUSegment ldt, tr, gdt, idt;
     uint64_t cr[5];
+    uint64_t kernel_gs_base;
 };
 
 typedef struct QEMUCPUState QEMUCPUState;
@@ -315,6 +316,8 @@ static void qemu_get_cpustate(QEMUCPUState *s, CPUX86State *env)
     s->cr[2] = env->cr[2];
     s->cr[3] = env->cr[3];
     s->cr[4] = env->cr[4];
+
+    s->kernel_gs_base = env->kernelgsbase;
 }
 
 static inline int cpu_write_qemu_note(WriteCoreDumpFunction f,
