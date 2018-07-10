@@ -37,6 +37,7 @@ typedef struct PCIBridgeWindows PCIBridgeWindows;
  * as subregions.
  */
 struct PCIBridgeWindows {
+    struct rcu_head rcu;
     MemoryRegion alias_pref_mem;
     MemoryRegion alias_mem;
     MemoryRegion alias_io;
