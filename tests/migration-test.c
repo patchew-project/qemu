@@ -567,12 +567,13 @@ static void test_deprecated(void)
 }
 
 static void migrate_postcopy_prepare(QTestState **from_ptr,
-                                     QTestState **to_ptr)
+                                     QTestState **to_ptr,
+                                     bool hide_error)
 {
     char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
     QTestState *from, *to;
 
-    test_migrate_start(&from, &to, uri, false);
+    test_migrate_start(&from, &to, uri, hide_error);
 
     migrate_set_capability(from, "postcopy-ram", "true");
     migrate_set_capability(to, "postcopy-ram", "true");
@@ -615,7 +616,7 @@ static void test_postcopy(void)
 {
     QTestState *from, *to;
 
-    migrate_postcopy_prepare(&from, &to);
+    migrate_postcopy_prepare(&from, &to, false);
     migrate_postcopy_start(from, to);
     migrate_postcopy_complete(from, to);
 }
@@ -625,7 +626,7 @@ static void test_postcopy_recovery(void)
     QTestState *from, *to;
     char *uri;
 
-    migrate_postcopy_prepare(&from, &to);
+    migrate_postcopy_prepare(&from, &to, true);
 
     /* Turn postcopy speed down, 4K/s is slow enough on any machines */
     migrate_set_parameter(from, "max-postcopy-bandwidth", "4096");
