@@ -309,15 +309,8 @@ void build_legacy_cpu_hotplug_aml(Aml *ctx, MachineState *machine,
     }
     aml_append(sb_scope, method);
 
-    /* build "Name(CPON, Package() { One, One, ..., Zero, Zero, ... })"
-     *
-     * Note: The ability to create variable-sized packages was first
-     * introduced in ACPI 2.0. ACPI 1.0 only allowed fixed-size packages
-     * ith up to 255 elements. Windows guests up to win2k8 fail when
-     * VarPackageOp is used.
-     */
-    pkg = pcms->apic_id_limit <= 255 ? aml_package(pcms->apic_id_limit) :
-                                       aml_varpackage(pcms->apic_id_limit);
+    /* build "Name(CPON, Package() { One, One, ..., Zero, Zero, ... })" */
+    pkg = aml_package(pcms->apic_id_limit);
 
     for (i = 0, apic_idx = 0; i < apic_ids->len; i++) {
         int apic_id = apic_ids->cpus[i].arch_id;
