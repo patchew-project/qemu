@@ -20,6 +20,11 @@
 
 #define HPET_INTCAP "hpet-intcap"
 
+typedef struct PCCstate {
+    uint32_t latency;
+    uint32_t hint;
+} PCCstate;
+
 /**
  * PCMachineState:
  * @acpi_dev: link to ACPI PM device that performs ACPI hotplug handling

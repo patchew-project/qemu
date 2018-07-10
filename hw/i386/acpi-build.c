@@ -64,6 +64,7 @@
 #include "hw/i386/intel_iommu.h"
 
 #include "hw/acpi/ipmi.h"
+#include "hw/acpi/cst.h"
 
 /* These are used to size the ACPI tables for -M pc-i440fx-1.7 and
  * -M pc-i440fx-2.0.  Even if the actual amount of AML generated grows
@@ -1840,7 +1841,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
         build_legacy_cpu_hotplug_aml(dsdt, machine, pm->cpu_hp_io_base);
     } else {
         CPUHotplugFeatures opts = {
-            .apci_1_compatible = true, .has_legacy_cphp = true
+            .apci_1_compatible = true, .has_legacy_cphp = true,
         };
         build_cpus_aml(dsdt, machine, opts, pm->cpu_hp_io_base,
                        "\\_SB.PCI0", "\\_GPE._E02");
@@ -2693,6 +2694,10 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
                            tables->vmgenid, tables->linker);
     }
 
+    /* TODO: get a free ioport. This one is PIIX specific. */
+    acpi_add_table(table_offsets, tables_blob);
+    cst_build_acpi(tables_blob, tables->linker, 0xaf20);
+
     if (misc.has_hpet) {
         acpi_add_table(table_offsets, tables_blob);
         build_hpet(tables_blob, tables->linker);
@@ -2890,6 +2895,9 @@ void acpi_setup(void)
     }
 
     build_state = g_malloc0(sizeof *build_state);
+
+    /* TODO: this is not the best place to do it */
+    cst_register(pcms->fw_cfg, 0xaf20);
 
     acpi_build_tables_init(&tables);
     acpi_build(&tables, MACHINE(pcms));

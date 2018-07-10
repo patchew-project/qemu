@@ -561,6 +561,11 @@ void build_cpus_aml(Aml *table, MachineState *machine, CPUHotplugFeatures opts,
                            aml_int(arch_ids->cpus[i].props.node_id)));
             }
 
+            if (1) {
+                method = aml_method("_CST", 0, AML_NOTSERIALIZED);
+                aml_append(method, aml_return(aml_call0("CCST")));
+                aml_append(dev, method);
+            }
             aml_append(cpus_dev, dev);
         }
     }
