@@ -233,6 +233,16 @@ static void pci_bridge_region_cleanup(PCIBridge *br, PCIBridgeWindows *w)
     g_free(w);
 }
 
+/*
+pci_bridge_region_cleanup need to done after flatview_destroy,
+because memory_region_unref need access memory regions in PCIBridgeWindows in flatview_destroy.
+here we delay pci_bridge_region_cleanup to be done in rcu queue work.
+*/
+static void pci_bridge_region_cleanup_schedule(PCIBridgeWindows *w)
+{
+  pci_bridge_region_cleanup(NULL, w);
+}
+
 void pci_bridge_update_mappings(PCIBridge *br)
 {
     PCIBridgeWindows *w = br->windows;
@@ -243,7 +253,7 @@ void pci_bridge_update_mappings(PCIBridge *br)
     pci_bridge_region_del(br, br->windows);
     br->windows = pci_bridge_region_init(br);
     memory_region_transaction_commit();
-    pci_bridge_region_cleanup(br, w);
+    call_rcu(w,  pci_bridge_region_cleanup_schedule, rcu);
 }
 
 /* default write_config function for PCI-to-PCI bridge */
