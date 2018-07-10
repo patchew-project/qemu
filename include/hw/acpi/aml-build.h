@@ -381,6 +381,8 @@ Aml *aml_derefof(Aml *arg);
 Aml *aml_sizeof(Aml *arg);
 Aml *aml_concatenate(Aml *source1, Aml *source2, Aml *target);
 Aml *aml_object_type(Aml *object);
+Aml *aml_load(const char *name, Aml *ddbhandle);
+Aml *aml_unload(Aml *ddbhandle);
 
 void build_append_int_noprefix(GArray *table, uint64_t value, int size);
 void

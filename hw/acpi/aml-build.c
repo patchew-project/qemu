@@ -1552,6 +1552,27 @@ Aml *aml_object_type(Aml *object)
     return var;
 }
 
+/* ACPI 2.0: 17.2.4.3 Type 1 Opcodes Encoding: DefLoad */
+Aml *aml_load(const char *name, Aml *ddbhandle)
+{
+    Aml *var = aml_alloc();
+    build_append_byte(var->buf, 0x5B); /* ExtOpPrefix */
+    build_append_byte(var->buf, 0x20); /* LoadOp */
+    aml_append(var, aml_name("%s", name));
+    aml_append(var, ddbhandle);
+    return var;
+}
+
+/* ACPI 2.0: 17.2.4.3 Type 1 Opcodes Encoding: DefUnload */
+Aml *aml_unload(Aml *ddbhandle)
+{
+    Aml *var = aml_alloc();
+    build_append_byte(var->buf, 0x5B); /* ExtOpPrefix */
+    build_append_byte(var->buf, 0x2A); /* UnloadOp */
+    aml_append(var, ddbhandle);
+    return var;
+}
+
 void
 build_header(BIOSLinker *linker, GArray *table_data,
              AcpiTableHeader *h, const char *sig, int len, uint8_t rev,
