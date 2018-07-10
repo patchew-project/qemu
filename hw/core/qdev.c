@@ -865,6 +865,13 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
         }
         if (dev->hotplugged) {
             device_reset(dev);
+
+            if (hotplug_ctrl) {
+                hotplug_handler_post_plug(hotplug_ctrl, dev, &local_err);
+                if (local_err != NULL) {
+                    goto child_realize_fail;
+                }
+            }
         }
         dev->pending_deleted_event = false;
     } else if (!value && dev->realized) {
