@@ -322,6 +322,8 @@ static void riscv_virt_board_init(MachineState *machine)
     MemoryRegion *system_memory = get_system_memory();
     MemoryRegion *main_mem = g_new(MemoryRegion, 1);
     MemoryRegion *mask_rom = g_new(MemoryRegion, 1);
+    PCIBus *pci_bus;
+    DeviceState *dev;
     char *plic_hart_config;
     size_t plic_hart_config_len;
     int i;
@@ -437,9 +439,12 @@ static void riscv_virt_board_init(MachineState *machine)
             qdev_get_gpio_in(DEVICE(s->plic), VIRTIO_IRQ + i));
     }
 
-    gpex_pcie_init(system_memory, 0, memmap[VIRT_PCIE].base,
+    dev = gpex_pcie_init(system_memory, 0, memmap[VIRT_PCIE].base,
                            memmap[VIRT_PCIE].size, 0x40000000, 0x20000000,
                            qdev_get_gpio_in(DEVICE(s->plic), PCIE_IRQ), true);
+    pci_bus = PCI_HOST_BRIDGE(dev)->bus;
+
+    pci_vga_init(pci_bus);
 
     serial_mm_init(system_memory, memmap[VIRT_UART0].base,
         0, qdev_get_gpio_in(DEVICE(s->plic), UART0_IRQ), 399193,
