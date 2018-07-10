@@ -33,7 +33,7 @@
 
 static uint64_t pnv_icp_read(void *opaque, hwaddr addr, unsigned width)
 {
-    ICPState *icp = ICP(opaque);
+    ICPState *icp = ICP_BASE(opaque);
     PnvICPState *picp = PNV_ICP(opaque);
     bool byte0 = (width == 1 && (addr & 0x3) == 0);
     uint64_t val = 0xffffffff;
@@ -96,7 +96,7 @@ bad_access:
 static void pnv_icp_write(void *opaque, hwaddr addr, uint64_t val,
                               unsigned width)
 {
-    ICPState *icp = ICP(opaque);
+    ICPState *icp = ICP_BASE(opaque);
     PnvICPState *picp = PNV_ICP(opaque);
     bool byte0 = (width == 1 && (addr & 0x3) == 0);
 
@@ -145,6 +145,18 @@ bad_access:
     }
 }
 
+static void pnv_icp_reset(DeviceState *dev)
+{
+    ICPStateClass *icpc = ICP_BASE_GET_CLASS(dev);
+
+    icpc->parent_reset(dev);
+}
+
+static void pnv_icp_reset_handler(void *dev)
+{
+    pnv_icp_reset(dev);
+}
+
 static const MemoryRegionOps pnv_icp_ops = {
     .read = pnv_icp_read,
     .write = pnv_icp_write,
@@ -161,9 +173,9 @@ static const MemoryRegionOps pnv_icp_ops = {
 
 static void pnv_icp_realize(DeviceState *dev, Error **errp)
 {
-    ICPState *icp = ICP(dev);
+    ICPState *icp = ICP_BASE(dev);
     PnvICPState *pnv_icp = PNV_ICP(icp);
-    ICPStateClass *icpc = ICP_GET_CLASS(icp);
+    ICPStateClass *icpc = ICP_BASE_GET_CLASS(icp);
     Error *local_err = NULL;
 
     icpc->parent_realize(dev, &local_err);
@@ -174,21 +186,24 @@ static void pnv_icp_realize(DeviceState *dev, Error **errp)
 
     memory_region_init_io(&pnv_icp->mmio, OBJECT(icp), &pnv_icp_ops,
                           icp, "icp-thread", 0x1000);
+    qemu_register_reset(pnv_icp_reset_handler, icp);
 }
 
 static void pnv_icp_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    ICPStateClass *icpc = ICP_CLASS(klass);
+    ICPStateClass *icpc = ICP_BASE_CLASS(klass);
 
     device_class_set_parent_realize(dc, pnv_icp_realize,
                                     &icpc->parent_realize);
+    device_class_set_parent_reset(dc, pnv_icp_reset,
+                                  &icpc->parent_reset);
     dc->desc = "PowerNV ICP";
 }
 
 static const TypeInfo pnv_icp_info = {
     .name          = TYPE_PNV_ICP,
-    .parent        = TYPE_ICP,
+    .parent        = TYPE_ICP_BASE,
     .instance_size = sizeof(PnvICPState),
     .class_init    = pnv_icp_class_init,
     .class_size    = sizeof(ICPStateClass),

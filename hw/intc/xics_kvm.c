@@ -116,17 +116,22 @@ static int icp_set_kvm_state(ICPState *icp, int version_id)
 
 static void icp_kvm_reset(DeviceState *dev)
 {
-    ICPStateClass *icpc = ICP_GET_CLASS(dev);
+    ICPStateClass *icpc = ICP_BASE_GET_CLASS(dev);
 
     icpc->parent_reset(dev);
 
-    icp_set_kvm_state(ICP(dev), 1);
+    icp_set_kvm_state(ICP_BASE(dev), 1);
+}
+
+static void icp_kvm_reset_handler(void *dev)
+{
+    icp_kvm_reset(dev);
 }
 
 static void icp_kvm_realize(DeviceState *dev, Error **errp)
 {
-    ICPState *icp = ICP(dev);
-    ICPStateClass *icpc = ICP_GET_CLASS(icp);
+    ICPState *icp = ICP_BASE(dev);
+    ICPStateClass *icpc = ICP_BASE_GET_CLASS(icp);
     Error *local_err = NULL;
     CPUState *cs;
     KVMEnabledICP *enabled_icp;
@@ -166,15 +171,25 @@ static void icp_kvm_realize(DeviceState *dev, Error **errp)
     enabled_icp = g_malloc(sizeof(*enabled_icp));
     enabled_icp->vcpu_id = vcpu_id;
     QLIST_INSERT_HEAD(&kvm_enabled_icps, enabled_icp, node);
+    qemu_register_reset(icp_kvm_reset_handler, icp);
+}
+
+static void icp_kvm_unrealize(DeviceState *dev, Error **errp)
+{
+    ICPState *icp = ICP_BASE(dev);
+
+    qemu_unregister_reset(icp_kvm_reset_handler, icp);
 }
 
 static void icp_kvm_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    ICPStateClass *icpc = ICP_CLASS(klass);
+    ICPStateClass *icpc = ICP_BASE_CLASS(klass);
 
     device_class_set_parent_realize(dc, icp_kvm_realize,
                                     &icpc->parent_realize);
+    device_class_set_parent_unrealize(dc, icp_kvm_unrealize,
+                                      &icpc->parent_unrealize);
     device_class_set_parent_reset(dc, icp_kvm_reset,
                                   &icpc->parent_reset);
 
@@ -185,7 +200,7 @@ static void icp_kvm_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo icp_kvm_info = {
     .name = TYPE_KVM_ICP,
-    .parent = TYPE_ICP,
+    .parent = TYPE_ICP_BASE,
     .instance_size = sizeof(ICPState),
     .class_init = icp_kvm_class_init,
     .class_size = sizeof(ICPStateClass),

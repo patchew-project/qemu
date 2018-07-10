@@ -48,6 +48,9 @@ typedef struct ICSState ICSState;
 typedef struct ICSIRQState ICSIRQState;
 typedef struct XICSFabric XICSFabric;
 
+#define TYPE_ICP_BASE "icp-base"
+#define ICP_BASE(obj) OBJECT_CHECK(ICPState, (obj), TYPE_ICP_BASE)
+
 #define TYPE_ICP "icp"
 #define ICP(obj) OBJECT_CHECK(ICPState, (obj), TYPE_ICP)
 
@@ -57,15 +60,16 @@ typedef struct XICSFabric XICSFabric;
 #define TYPE_PNV_ICP "pnv-icp"
 #define PNV_ICP(obj) OBJECT_CHECK(PnvICPState, (obj), TYPE_PNV_ICP)
 
-#define ICP_CLASS(klass) \
-     OBJECT_CLASS_CHECK(ICPStateClass, (klass), TYPE_ICP)
-#define ICP_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(ICPStateClass, (obj), TYPE_ICP)
+#define ICP_BASE_CLASS(klass) \
+     OBJECT_CLASS_CHECK(ICPStateClass, (klass), TYPE_ICP_BASE)
+#define ICP_BASE_GET_CLASS(obj) \
+     OBJECT_GET_CLASS(ICPStateClass, (obj), TYPE_ICP_BASE)
 
 struct ICPStateClass {
     DeviceClass parent_class;
 
     DeviceRealize parent_realize;
+    DeviceUnrealize parent_unrealize;
     DeviceReset parent_reset;
 
     void (*pre_save)(ICPState *icp);

@@ -40,7 +40,7 @@
 
 void icp_pic_print_info(ICPState *icp, Monitor *mon)
 {
-    ICPStateClass *icpc = ICP_GET_CLASS(icp);
+    ICPStateClass *icpc = ICP_BASE_GET_CLASS(icp);
     int cpu_index = icp->cs ? icp->cs->cpu_index : -1;
 
     if (!icp->output) {
@@ -255,7 +255,7 @@ static void icp_irq(ICSState *ics, int server, int nr, uint8_t priority)
 static int icp_dispatch_pre_save(void *opaque)
 {
     ICPState *icp = opaque;
-    ICPStateClass *info = ICP_GET_CLASS(icp);
+    ICPStateClass *info = ICP_BASE_GET_CLASS(icp);
 
     if (info->pre_save) {
         info->pre_save(icp);
@@ -267,7 +267,7 @@ static int icp_dispatch_pre_save(void *opaque)
 static int icp_dispatch_post_load(void *opaque, int version_id)
 {
     ICPState *icp = opaque;
-    ICPStateClass *info = ICP_GET_CLASS(icp);
+    ICPStateClass *info = ICP_BASE_GET_CLASS(icp);
 
     if (info->post_load) {
         return info->post_load(icp, version_id);
@@ -291,9 +291,9 @@ static const VMStateDescription vmstate_icp_server = {
     },
 };
 
-static void icp_reset(void *dev)
+static void icp_base_reset(DeviceState *dev)
 {
-    ICPState *icp = ICP(dev);
+    ICPState *icp = ICP_BASE(dev);
 
     icp->xirr = 0;
     icp->pending_priority = 0xff;
@@ -303,9 +303,9 @@ static void icp_reset(void *dev)
     qemu_set_irq(icp->output, 0);
 }
 
-static void icp_realize(DeviceState *dev, Error **errp)
+static void icp_base_realize(DeviceState *dev, Error **errp)
 {
-    ICPState *icp = ICP(dev);
+    ICPState *icp = ICP_BASE(dev);
     PowerPCCPU *cpu;
     CPUPPCState *env;
     Object *obj;
@@ -345,31 +345,91 @@ static void icp_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    qemu_register_reset(icp_reset, dev);
     vmstate_register(NULL, icp->cs->cpu_index, &vmstate_icp_server, icp);
 }
 
-static void icp_unrealize(DeviceState *dev, Error **errp)
+static void icp_base_unrealize(DeviceState *dev, Error **errp)
 {
-    ICPState *icp = ICP(dev);
+    ICPState *icp = ICP_BASE(dev);
 
     vmstate_unregister(NULL, &vmstate_icp_server, icp);
-    qemu_unregister_reset(icp_reset, dev);
 }
 
-static void icp_class_init(ObjectClass *klass, void *data)
+static void icp_base_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->realize = icp_realize;
-    dc->unrealize = icp_unrealize;
+    dc->realize = icp_base_realize;
+    dc->unrealize = icp_base_unrealize;
+    dc->reset = icp_base_reset;
 }
 
-static const TypeInfo icp_info = {
-    .name = TYPE_ICP,
+static const TypeInfo icp_base_info = {
+    .name = TYPE_ICP_BASE,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(ICPState),
-    .class_init = icp_class_init,
+    .class_init = icp_base_class_init,
+    .class_size = sizeof(ICPStateClass),
+    .abstract = true,
+};
+
+static void icp_simple_reset(DeviceState *dev)
+{
+    ICPStateClass *icpc = ICP_BASE_GET_CLASS(dev);
+
+    icpc->parent_reset(dev);
+}
+
+static void icp_simple_reset_handler(void *dev)
+{
+    icp_simple_reset(dev);
+}
+
+static void icp_simple_realize(DeviceState *dev, Error **errp)
+{
+    ICPStateClass *icpc = ICP_BASE_GET_CLASS(dev);
+    Error *local_err = NULL;
+
+    icpc->parent_realize(dev, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    qemu_register_reset(icp_simple_reset_handler, dev);
+}
+
+static void icp_simple_unrealize(DeviceState *dev, Error **errp)
+{
+    ICPStateClass *icpc = ICP_BASE_GET_CLASS(dev);
+    Error *local_err = NULL;
+
+    icpc->parent_unrealize(dev, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    qemu_unregister_reset(icp_simple_reset_handler, dev);
+}
+
+static void icp_simple_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    ICPStateClass *icpc = ICP_BASE_CLASS(klass);
+
+    device_class_set_parent_realize(dc, icp_simple_realize,
+                                    &icpc->parent_realize);
+    device_class_set_parent_unrealize(dc, icp_simple_unrealize,
+                                      &icpc->parent_unrealize);
+    device_class_set_parent_reset(dc, icp_simple_reset, &icpc->parent_reset);
+}
+
+static const TypeInfo icp_simple_info = {
+    .name = TYPE_ICP,
+    .parent = TYPE_ICP_BASE,
+    .instance_size = sizeof(ICPState),
+    .class_init = icp_simple_class_init,
     .class_size = sizeof(ICPStateClass),
 };
 
@@ -744,7 +804,8 @@ static void xics_register_types(void)
 {
     type_register_static(&ics_simple_info);
     type_register_static(&ics_base_info);
-    type_register_static(&icp_info);
+    type_register_static(&icp_simple_info);
+    type_register_static(&icp_base_info);
     type_register_static(&xics_fabric_info);
 }
 
