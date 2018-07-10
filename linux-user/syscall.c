@@ -3845,6 +3845,8 @@ static abi_long do_sendrecvmsg_locked(int fd, struct target_msghdr *msgp,
     msg.msg_control = alloca(msg.msg_controllen);
     msg.msg_flags = tswap32(msgp->msg_flags);
 
+    memset(msg.msg_control, 0, msg.msg_controllen);
+
     count = tswapal(msgp->msg_iovlen);
     target_vec = tswapal(msgp->msg_iov);
 
