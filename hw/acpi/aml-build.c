@@ -1574,12 +1574,9 @@ Aml *aml_unload(Aml *ddbhandle)
 }
 
 void
-build_header(BIOSLinker *linker, GArray *table_data,
-             AcpiTableHeader *h, const char *sig, int len, uint8_t rev,
-             const char *oem_id, const char *oem_table_id)
+acpi_init_header(AcpiTableHeader *h, const char *sig, int len, uint8_t rev,
+                 const char *oem_id, const char *oem_table_id)
 {
-    unsigned tbl_offset = (char *)h - table_data->data;
-    unsigned checksum_offset = (char *)&h->checksum - table_data->data;
     memcpy(&h->signature, sig, 4);
     h->length = cpu_to_le32(len);
     h->revision = rev;
@@ -1600,6 +1597,17 @@ build_header(BIOSLinker *linker, GArray *table_data,
     h->oem_revision = cpu_to_le32(1);
     memcpy(h->asl_compiler_id, ACPI_BUILD_APPNAME4, 4);
     h->asl_compiler_revision = cpu_to_le32(1);
+}
+
+void
+build_header(BIOSLinker *linker, GArray *table_data,
+             AcpiTableHeader *h, const char *sig, int len, uint8_t rev,
+             const char *oem_id, const char *oem_table_id)
+{
+    unsigned tbl_offset = (char *)h - table_data->data;
+    unsigned checksum_offset = (char *)&h->checksum - table_data->data;
+
+    acpi_init_header(h, sig, len, rev, oem_id, oem_table_id);
     /* Checksum to be filled in by Guest linker */
     bios_linker_loader_add_checksum(linker, ACPI_BUILD_TABLE_FILE,
         tbl_offset, len, checksum_offset);
