@@ -148,6 +148,8 @@ struct ACPIREGS {
     Notifier wakeup;
 };
 
+int acpi_checksum(const uint8_t *data, int len);
+
 /* PM_TMR */
 void acpi_pm_tmr_update(ACPIREGS *ar, bool enable);
 void acpi_pm_tmr_calc_overflow_time(ACPIREGS *ar);
