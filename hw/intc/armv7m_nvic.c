@@ -420,6 +420,10 @@ static void set_prio(NVICState *s, unsigned irq, bool secure, uint8_t prio)
     assert(irq > ARMV7M_EXCP_NMI); /* only use for configurable prios */
     assert(irq < s->num_irq);
 
+    if (!arm_feature(&s->cpu->env, ARM_FEATURE_V7)) {
+        prio &= 0xc0;
+    }
+
     if (secure) {
         assert(exc_is_banked(irq));
         s->sec_vectors[irq].prio = prio;
@@ -775,6 +779,9 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset, MemTxAttrs attrs)
 
     switch (offset) {
     case 4: /* Interrupt Control Type.  */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_V7)) {
+            goto bad_offset;
+        }
         return ((s->num_irq - NVIC_FIRST_IRQ) / 32) - 1;
     case 0xc: /* CPPWR */
         if (!arm_feature(&cpu->env, ARM_FEATURE_V8)) {
@@ -848,7 +855,10 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset, MemTxAttrs attrs)
     case 0xd08: /* Vector Table Offset.  */
         return cpu->env.v7m.vecbase[attrs.secure];
     case 0xd0c: /* Application Interrupt/Reset Control (AIRCR) */
-        val = 0xfa050000 | (s->prigroup[attrs.secure] << 8);
+        val = 0xfa050000;
+        if (arm_feature(&cpu->env, ARM_FEATURE_V7)) {
+            val |= (s->prigroup[attrs.secure] << 8);
+        }
         if (attrs.secure) {
             /* s->aircr stores PRIS, BFHFNMINS, SYSRESETREQS */
             val |= cpu->env.v7m.aircr;
@@ -1258,6 +1268,10 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value,
                 qemu_log_mask(LOG_GUEST_ERROR,
                               "Setting VECTRESET when not in DEBUG mode "
                               "is UNPREDICTABLE\n");
+            }
+            if (!arm_feature(&cpu->env, ARM_FEATURE_V7)) {
+                nvic_irq_update(s);
+                break;
             }
             s->prigroup[attrs.secure] = extract32(value,
                                                   R_V7M_AIRCR_PRIGROUP_SHIFT,
@@ -1748,6 +1762,11 @@ static MemTxResult nvic_sysreg_read(void *opaque, hwaddr addr,
         break;
     case 0x300 ... 0x33f: /* NVIC Active */
         val = 0;
+
+        if (!arm_feature(&s->cpu->env, ARM_FEATURE_V7)) {
+            break;
+        }
+
         startvec = 8 * (offset - 0x300) + NVIC_FIRST_IRQ; /* vector # */
 
         for (i = 0, end = size * 8; i < end && startvec + i < s->num_irq; i++) {
@@ -2099,13 +2118,15 @@ static Property props_nvic[] = {
 
 static void armv7m_nvic_reset(DeviceState *dev)
 {
-    int resetprio;
+    int resetprio, resetprigroup;
     NVICState *s = NVIC(dev);
 
     memset(s->vectors, 0, sizeof(s->vectors));
     memset(s->sec_vectors, 0, sizeof(s->sec_vectors));
-    s->prigroup[M_REG_NS] = 0;
-    s->prigroup[M_REG_S] = 0;
+
+    resetprigroup = arm_feature(&s->cpu->env, ARM_FEATURE_V7) ? 0 : 5;
+    s->prigroup[M_REG_NS] = resetprigroup;
+    s->prigroup[M_REG_S] = resetprigroup;
 
     s->vectors[ARMV7M_EXCP_NMI].enabled = 1;
     /* MEM, BUS, and USAGE are enabled through
