@@ -346,6 +346,11 @@ Aml *aml_qword_memory(AmlDecode dec, AmlMinFixed min_fixed,
                       uint64_t len);
 Aml *aml_dma(AmlDmaType typ, AmlDmaBusMaster bm, AmlTransferSize sz,
              uint8_t channel);
+Aml *aml_register(AmlAddressSpace as,
+                  uint8_t bit_width,
+                  uint8_t bit_offset,
+                  uint64_t address,
+                  uint8_t access_size);
 Aml *aml_sleep(uint64_t msec);
 
 /* Block AML object primitives */
