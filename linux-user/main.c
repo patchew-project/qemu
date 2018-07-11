@@ -689,6 +689,11 @@ int main(int argc, char **argv, char **envp)
     target_environ = envlist_to_environ(envlist, NULL);
     envlist_free(envlist);
 
+    /* reserved_va must be aligned with the host page size
+     * as it is used with mmap()
+     */
+    reserved_va &= qemu_host_page_mask;
+
     /*
      * Now that page sizes are configured in tcg_exec_init() we can do
      * proper page alignment for guest_base.
