@@ -250,6 +250,20 @@ static type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4,type5 arg5,	\
 #define TARGET_NR__llseek TARGET_NR_llseek
 #endif
 
+/* glibc headers has these defined to 12, 13 and 14 and is not supported
+ * by kernel. The glibc fcntl call actually adjusts them back to 5, 6 and 7
+ * before making the syscall(). Since we make the syscall directly,
+ * overwite/adjust to what is supported by the kernel.
+ */
+#if defined(__linux__) && defined(__powerpc64__)
+#undef F_GETLK64
+#define F_GETLK64      5       /* Get record locking info.  */
+#undef F_SETLK64
+#define F_SETLK64      6       /* Set record locking info (non-blocking).  */
+#undef F_SETLKW64
+#define F_SETLKW64     7       /* Set record locking info (blocking).  */
+#endif
+
 #ifdef __NR_gettid
 _syscall0(int, gettid)
 #else
