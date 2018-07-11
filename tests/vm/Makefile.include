@@ -2,7 +2,7 @@
 
 .PHONY: vm-build-all
 
-IMAGES := ubuntu.i386 freebsd netbsd openbsd
+IMAGES := ubuntu.i386 freebsd netbsd openbsd centos
 IMAGE_FILES := $(patsubst %, tests/vm/%.img, $(IMAGES))
 
 .PRECIOUS: $(IMAGE_FILES)
