@@ -74,6 +74,7 @@ int qbus_walk_children(BusState *bus,
     return 0;
 }
 
+/* If @parent is not NULL, ownership of @bus is transferred to @parent */
 static void qbus_realize(BusState *bus, DeviceState *parent, const char *name)
 {
     const char *typename = object_get_typename(OBJECT(bus));
@@ -102,6 +103,10 @@ static void qbus_realize(BusState *bus, DeviceState *parent, const char *name)
         QLIST_INSERT_HEAD(&bus->parent->child_bus, bus, sibling);
         bus->parent->num_child_bus++;
         object_property_add_child(OBJECT(bus->parent), bus->name, OBJECT(bus), NULL);
+        /*
+         * object_property_add_child() takes a new reference, drop the
+         * reference that was transferred to us.
+         */
         object_unref(OBJECT(bus));
     } else if (bus != sysbus_get_default()) {
         /* TODO: once all bus devices are qdevified,

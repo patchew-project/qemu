@@ -343,8 +343,32 @@ DeviceState *qdev_find_recursive(BusState *bus, const char *id);
 typedef int (qbus_walkerfn)(BusState *bus, void *opaque);
 typedef int (qdev_walkerfn)(DeviceState *dev, void *opaque);
 
+/**
+ * qbus_create_inplace:
+ * @bus: A pointer to the memory to be used for the bus object.
+ * @size: The maximum size available at @bus for the bus object.
+ * @typename: The name of the type of bus to instantiate.
+ * @parent: parent device
+ * @name: name for the new bus
+ *
+ * Creates bus in place.
+ *
+ * If @parent is not NULL the bus will be owned by @parent, otherwise
+ * the bus will be owned by the caller.
+ */
 void qbus_create_inplace(void *bus, size_t size, const char *typename,
                          DeviceState *parent, const char *name);
+/**
+ * qbus_create:
+ * @typename: The name of the type of bus to instantiate.
+ * @parent: parent device
+ * @name: name for the new bus
+ *
+ * Creates bus object.
+ *
+ * If @parent is not NULL the returned object will be owned by @parent,
+ * otherwise it will be owned by the caller.
+ */
 BusState *qbus_create(const char *typename, DeviceState *parent, const char *name);
 /* Returns > 0 if either devfn or busfn skip walk somewhere in cursion,
  *         < 0 if either devfn or busfn terminate walk somewhere in cursion,
