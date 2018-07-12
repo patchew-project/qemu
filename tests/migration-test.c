@@ -355,13 +355,12 @@ static void migrate_pause(QTestState *who)
 static void migrate_recover(QTestState *who, const char *uri)
 {
     QDict *rsp;
-    gchar *cmd = g_strdup_printf(
-        "{ 'execute': 'migrate-recover', "
-        "  'id': 'recover-cmd', "
-        "  'arguments': { 'uri': '%s' } }", uri);
 
-    rsp = wait_command(who, cmd);
-    g_free(cmd);
+    rsp = wait_command(who,
+                       "{ 'execute': 'migrate-recover', "
+                       "  'id': 'recover-cmd', "
+                       "  'arguments': { 'uri': %s } }",
+                       uri);
     qobject_unref(rsp);
 }
 
