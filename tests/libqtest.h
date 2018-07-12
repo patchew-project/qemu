@@ -967,7 +967,8 @@ void qtest_cb_for_every_machine(void (*cb)(const char *machine));
  * qtest_qmp_device_add:
  * @driver: Name of the device that should be added
  * @id: Identification string
- * @fmt: printf-like format string for further options to device_add
+ * @fmt...: Additional arguments for device_add; formatted through
+ * json-lexer.c (only understands '%((l|ll|I64)?d|[ipsf])').
  *
  * Generic hot-plugging test via the device_add QMP command.
  */
