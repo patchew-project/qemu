@@ -40,7 +40,9 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 . ./common.pattern
 
 # Generic format, but tests file-protocol specific error handling
+# LUKS does not use a simple filename; this test doesn't use the format anyway.
 _supported_fmt generic
+_unsupported_fmt luks
 _supported_proto file
 _supported_os Linux
 
