@@ -81,7 +81,8 @@ void qtest_quit(QTestState *s);
  *
  * Sends a QMP message to QEMU and consumes the response.
  */
-void qtest_qmp_discard_response(QTestState *s, const char *fmt, ...);
+void qtest_qmp_discard_response(QTestState *s, const char *fmt, ...)
+    GCC_FMT_ATTR(2, 3);
 
 /**
  * qtest_qmp:
@@ -91,7 +92,8 @@ void qtest_qmp_discard_response(QTestState *s, const char *fmt, ...);
  *
  * Sends a QMP message to QEMU and returns the response.
  */
-QDict *qtest_qmp(QTestState *s, const char *fmt, ...);
+QDict *qtest_qmp(QTestState *s, const char *fmt, ...)
+    GCC_FMT_ATTR(2, 3);
 
 /**
  * qtest_qmp_send:
@@ -101,7 +103,8 @@ QDict *qtest_qmp(QTestState *s, const char *fmt, ...);
  *
  * Sends a QMP message to QEMU and leaves the response in the stream.
  */
-void qtest_qmp_send(QTestState *s, const char *fmt, ...);
+void qtest_qmp_send(QTestState *s, const char *fmt, ...)
+    GCC_FMT_ATTR(2, 3);
 
 /**
  * qtest_qmpv_discard_response:
@@ -112,7 +115,8 @@ void qtest_qmp_send(QTestState *s, const char *fmt, ...);
  *
  * Sends a QMP message to QEMU and consumes the response.
  */
-void qtest_qmpv_discard_response(QTestState *s, const char *fmt, va_list ap);
+void qtest_qmpv_discard_response(QTestState *s, const char *fmt, va_list ap)
+    GCC_FMT_ATTR(2, 0);
 
 /**
  * qtest_qmpv:
@@ -123,7 +127,8 @@ void qtest_qmpv_discard_response(QTestState *s, const char *fmt, va_list ap);
  *
  * Sends a QMP message to QEMU and returns the response.
  */
-QDict *qtest_qmpv(QTestState *s, const char *fmt, va_list ap);
+QDict *qtest_qmpv(QTestState *s, const char *fmt, va_list ap)
+    GCC_FMT_ATTR(2, 0);
 
 /**
  * qtest_qmp_vsend:
@@ -134,7 +139,8 @@ QDict *qtest_qmpv(QTestState *s, const char *fmt, va_list ap);
  *
  * Sends a QMP message to QEMU and leaves the response in the stream.
  */
-void qtest_qmp_vsend(QTestState *s, const char *fmt, va_list ap);
+void qtest_qmp_vsend(QTestState *s, const char *fmt, va_list ap)
+    GCC_FMT_ATTR(2, 0);
 
 /**
  * qtest_receive:
@@ -590,7 +596,7 @@ static inline void qtest_end(void)
  *
  * Sends a QMP message to QEMU and returns the response.
  */
-QDict *qmp(const char *fmt, ...);
+QDict *qmp(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
 
 /**
  * qmp_send:
@@ -599,7 +605,7 @@ QDict *qmp(const char *fmt, ...);
  *
  * Sends a QMP message to QEMU and leaves the response in the stream.
  */
-void qmp_send(const char *fmt, ...);
+void qmp_send(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
 
 /**
  * qmp_discard_response:
@@ -608,7 +614,7 @@ void qmp_send(const char *fmt, ...);
  *
  * Sends a QMP message to QEMU and consumes the response.
  */
-void qmp_discard_response(const char *fmt, ...);
+void qmp_discard_response(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
 
 /**
  * qmp_receive:
@@ -967,10 +973,10 @@ static inline int64_t clock_set(int64_t val)
 }
 
 QDict *qmp_fd_receive(int fd);
-void qmp_fd_vsend(int fd, const char *fmt, va_list ap);
-void qmp_fd_send(int fd, const char *fmt, ...);
-QDict *qmp_fdv(int fd, const char *fmt, va_list ap);
-QDict *qmp_fd(int fd, const char *fmt, ...);
+void qmp_fd_vsend(int fd, const char *fmt, va_list ap) GCC_FMT_ATTR(2, 0);
+void qmp_fd_send(int fd, const char *fmt, ...) GCC_FMT_ATTR(2, 3);
+QDict *qmp_fdv(int fd, const char *fmt, va_list ap) GCC_FMT_ATTR(2, 0);
+QDict *qmp_fd(int fd, const char *fmt, ...) GCC_FMT_ATTR(2, 3);
 
 /**
  * qtest_cb_for_every_machine:
