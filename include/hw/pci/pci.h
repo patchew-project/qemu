@@ -396,15 +396,30 @@ typedef PCIINTxRoute (*pci_route_irq_fn)(void *opaque, int pin);
 
 bool pci_bus_is_express(PCIBus *bus);
 bool pci_bus_is_root(PCIBus *bus);
+
+/**
+ * pci_root_bus_new_inplace:
+ *
+* If @parent is not NULL the returned object will be owned by @parent,
+* otherwise it will be owned by the caller.
+*/
 void pci_root_bus_new_inplace(PCIBus *bus, size_t bus_size, DeviceState *parent,
                               const char *name,
                               MemoryRegion *address_space_mem,
                               MemoryRegion *address_space_io,
                               uint8_t devfn_min, const char *typename);
+
+/**
+ * pci_root_bus_new:
+ *
+* If @parent is not NULL the returned object will be owned by @parent,
+* otherwise it will be owned by the caller.
+*/
 PCIBus *pci_root_bus_new(DeviceState *parent, const char *name,
                          MemoryRegion *address_space_mem,
                          MemoryRegion *address_space_io,
                          uint8_t devfn_min, const char *typename);
+
 void pci_bus_irqs(PCIBus *bus, pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
                   void *irq_opaque, int nirq);
 int pci_bus_get_irq_level(PCIBus *bus, int irq_num);
