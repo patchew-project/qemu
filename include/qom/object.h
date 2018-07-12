@@ -749,6 +749,25 @@ int object_set_propv(Object *obj,
 void object_initialize(void *obj, size_t size, const char *typename);
 
 /**
+ * object_initialize_as_child:
+ * @parentobj: The parent object to add a property to
+ * @propname: The name of the property
+ * @childobj: A pointer to the memory to be used for the object.
+ * @size: The maximum size available at @obj for the object.
+ * @type: The name of the type of the object to instantiate.
+ * @errp: If an error occurs, a pointer to an area to store the area
+ *
+ * This function will initialize an object. The memory for the object should
+ * have already been allocated. The object will then be added as child property
+ * to a parent with object_property_add_child() function. The returned object
+ * has a reference count of 1, and will be finalized when the last reference is
+ * dropped.
+ */
+void object_initialize_as_child(Object *parentobj, const char *propname,
+                                void *childobj, size_t size, const char *type,
+                                Error **errp);
+
+/**
  * object_dynamic_cast:
  * @obj: The object to cast.
  * @typename: The @typename to cast to.

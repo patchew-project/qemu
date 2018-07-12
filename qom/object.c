@@ -392,6 +392,20 @@ void object_initialize(void *data, size_t size, const char *typename)
     object_initialize_with_type(data, size, type);
 }
 
+void object_initialize_as_child(Object *parentobj, const char *propname,
+                                void *childobj, size_t size, const char *type,
+                                Error **errp)
+{
+    object_initialize(childobj, size, type);
+    object_property_add_child(parentobj, propname, OBJECT(childobj), errp);
+    /*
+     * Since object_property_add_child added a reference to the child object,
+     * we can drop the initial reference from object_initialize now.
+     */
+    object_unref(OBJECT(childobj));
+}
+
+
 static inline bool object_property_is_child(ObjectProperty *prop)
 {
     return strstart(prop->type, "child<", NULL);
