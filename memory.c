@@ -2211,6 +2211,11 @@ void memory_region_clear_global_locking(MemoryRegion *mr)
     mr->global_locking = false;
 }
 
+bool memory_allow_coalesced_pio(void)
+{
+    return kvm_enabled() && kvm_coalesced_pio_enabled();
+}
+
 static bool userspace_eventfd_warning;
 
 void memory_region_add_eventfd(MemoryRegion *mr,
