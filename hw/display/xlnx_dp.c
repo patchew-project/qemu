@@ -1225,21 +1225,6 @@ static void xlnx_dp_init(Object *obj)
                              xlnx_dp_set_dpdma,
                              OBJ_PROP_LINK_STRONG,
                              &error_abort);
-
-    /*
-     * Initialize AUX Bus.
-     */
-    s->aux_bus = aux_init_bus(DEVICE(obj), "aux");
-
-    /*
-     * Initialize DPCD and EDID..
-     */
-    s->dpcd = DPCD(aux_create_slave(s->aux_bus, "dpcd", 0x00000));
-    s->edid = I2CDDC(qdev_create(BUS(aux_get_i2c_bus(s->aux_bus)), "i2c-ddc"));
-    i2c_set_slave_address(I2C_SLAVE(s->edid), 0x50);
-
-    fifo8_create(&s->rx_fifo, 16);
-    fifo8_create(&s->tx_fifo, 16);
 }
 
 static void xlnx_dp_realize(DeviceState *dev, Error **errp)
@@ -1247,6 +1232,16 @@ static void xlnx_dp_realize(DeviceState *dev, Error **errp)
     XlnxDPState *s = XLNX_DP(dev);
     DisplaySurface *surface;
     struct audsettings as;
+
+    s->aux_bus = aux_init_bus(dev, "aux");
+
+    /* Initialize DPCD and EDID */
+    s->dpcd = DPCD(aux_create_slave(s->aux_bus, "dpcd", 0x00000));
+    s->edid = I2CDDC(qdev_create(BUS(aux_get_i2c_bus(s->aux_bus)), "i2c-ddc"));
+    i2c_set_slave_address(I2C_SLAVE(s->edid), 0x50);
+
+    fifo8_create(&s->rx_fifo, 16);
+    fifo8_create(&s->tx_fifo, 16);
 
     s->console = graphic_console_init(dev, 0, &xlnx_dp_gfx_ops, s);
     surface = qemu_console_surface(s->console);
