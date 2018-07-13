@@ -220,6 +220,11 @@ static void arm_cpu_reset(CPUState *s)
             env->v7m.aircr = R_V7M_AIRCR_BFHFNMINS_MASK;
         }
 
+        if (!arm_feature(env, ARM_FEATURE_V7)) {
+            env->v7m.ccr[M_REG_NS] = 0x3f8;
+            env->v7m.ccr[M_REG_S] = 0x3f8;
+        }
+
         /* In v7M the reset value of this bit is IMPDEF, but ARM recommends
          * that it resets to 1, so QEMU always does that rather than making
          * it dependent on CPU model. In v8M it is RES1.
@@ -230,6 +235,11 @@ static void arm_cpu_reset(CPUState *s)
             /* in v8M the NONBASETHRDENA bit [0] is RES1 */
             env->v7m.ccr[M_REG_NS] |= R_V7M_CCR_NONBASETHRDENA_MASK;
             env->v7m.ccr[M_REG_S] |= R_V7M_CCR_NONBASETHRDENA_MASK;
+
+            if (!arm_feature(env, ARM_FEATURE_M_MAIN)) {
+                env->v7m.ccr[M_REG_NS] |= R_V7M_CCR_UNALIGN_TRP_MASK;
+                env->v7m.ccr[M_REG_S] |= R_V7M_CCR_UNALIGN_TRP_MASK;
+            }
         }
 
         /* Unlike A/R profile, M profile defines the reset LR value */
