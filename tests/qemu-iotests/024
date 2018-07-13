@@ -198,6 +198,76 @@ echo
 # $BASE_OLD and $BASE_NEW)
 $QEMU_IMG map "$OVERLAY" | _filter_qemu_img_map
 
+echo
+echo "=== Test rebase without input base ==="
+echo
+
+# Cluster allocations to be tested:
+#
+# Backing (new) 11 -- 11 -- 11 --
+# COW image     22 22 11 11 -- --
+#
+# Expected result:
+#
+# COW image     22 22 11 11 00 --
+#
+# (Cluster 2 might be "--" after the rebase, too, but rebase just
+#  compares the new backing file to the old one and disregards the
+#  overlay.  Therefore, it will never discard overlay clusters.)
+
+_make_test_img $((6 * CLUSTER_SIZE))
+TEST_IMG="$TEST_IMG_SAVE.base_new" _make_test_img $((6 * CLUSTER_SIZE))
+
+echo
+
+$QEMU_IO "$TEST_IMG" \
+    -c "write -P 0x22 $((0 * CLUSTER_SIZE)) $((2 * CLUSTER_SIZE))" \
+    -c "write -P 0x11 $((2 * CLUSTER_SIZE)) $((2 * CLUSTER_SIZE))" \
+    | _filter_qemu_io
+
+$QEMU_IO "$TEST_IMG.base_new" \
+    -c "write -P 0x11 $((0 * CLUSTER_SIZE)) $CLUSTER_SIZE" \
+    -c "write -P 0x11 $((2 * CLUSTER_SIZE)) $CLUSTER_SIZE" \
+    -c "write -P 0x11 $((4 * CLUSTER_SIZE)) $CLUSTER_SIZE" \
+    | _filter_qemu_io
+
+echo
+
+# This should be a no-op
+$QEMU_IMG rebase -b "" "$TEST_IMG"
+
+# Verify the data is correct
+$QEMU_IO "$TEST_IMG" \
+    -c "read -P 0x22 $((0 * CLUSTER_SIZE)) $((2 * CLUSTER_SIZE))" \
+    -c "read -P 0x11 $((2 * CLUSTER_SIZE)) $((2 * CLUSTER_SIZE))" \
+    -c "read -P 0x00 $((4 * CLUSTER_SIZE)) $((2 * CLUSTER_SIZE))" \
+    | _filter_qemu_io
+
+echo
+
+# Verify the allocation status (first four cluster should be allocated
+# in TEST_IMG, clusters 4 and 5 should be unallocated (marked as zero
+# clusters here because there is no backing file))
+$QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
+
+echo
+
+$QEMU_IMG rebase -b "$TEST_IMG.base_new" "$TEST_IMG"
+
+# Verify the data is correct
+$QEMU_IO "$TEST_IMG" \
+    -c "read -P 0x22 $((0 * CLUSTER_SIZE)) $((2 * CLUSTER_SIZE))" \
+    -c "read -P 0x11 $((2 * CLUSTER_SIZE)) $((2 * CLUSTER_SIZE))" \
+    -c "read -P 0x00 $((4 * CLUSTER_SIZE)) $((2 * CLUSTER_SIZE))" \
+    | _filter_qemu_io
+
+echo
+
+# Verify the allocation status (first four cluster should be allocated
+# in TEST_IMG, cluster 4 should be zero, and cluster 5 should be
+# unallocated (signified by '"depth": 1'))
+$QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
+
 
 # success, all done
 echo "*** done"
