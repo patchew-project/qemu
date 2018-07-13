@@ -73,7 +73,8 @@ docker-binfmt-image-debian-%: $(DOCKER_FILES_DIR)/debian-bootstrap.docker
 			$(if $(EXECUTABLE),--include-executable=$(EXECUTABLE)), \
 			"BUILD","binfmt debian-$* (debootstrapped)"),		\
 		$(call quiet-command,						\
-			$(DOCKER_SCRIPT) check --quiet qemu:debian-$* $<,	\
+			$(DOCKER_SCRIPT) check --quiet qemu:debian-$* $<	\
+			--hint "you will need to build $(EXECUTABLE)",		\
 			"CHECK", "debian-$* exists"))
 
 endif
