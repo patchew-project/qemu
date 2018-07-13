@@ -2908,6 +2908,29 @@
 }
 
 ##
+# @VirtioPMemDeviceInfo:
+#
+# VirtioPMem state information
+#
+# @id: device's ID
+#
+# @start: physical address, where device is mapped
+#
+# @size: size of memory that the device provides
+#
+# @memdev: memory backend linked with device
+#
+# Since: 2.13
+##
+{ 'struct': 'VirtioPMemDeviceInfo',
+  'data': { '*id': 'str',
+            'start': 'size',
+            'size': 'size',
+            'memdev': 'str'
+          }
+}
+
+##
 # @MemoryDeviceInfo:
 #
 # Union containing information about a memory device
@@ -2916,7 +2939,8 @@
 ##
 { 'union': 'MemoryDeviceInfo',
   'data': { 'dimm': 'PCDIMMDeviceInfo',
-            'nvdimm': 'PCDIMMDeviceInfo'
+            'nvdimm': 'PCDIMMDeviceInfo',
+	    'virtio-pmem': 'VirtioPMemDeviceInfo'
           }
 }
 
