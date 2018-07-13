@@ -40,6 +40,16 @@ build_qemu()
     make $MAKEFLAGS
 }
 
+check_qemu()
+{
+    if test -z "$@"; then
+        TEST="check"
+    else
+        TEST="$@"
+    fi
+    make $MAKEFLAGS $TEST
+}
+
 test_fail()
 {
     echo "$@"
