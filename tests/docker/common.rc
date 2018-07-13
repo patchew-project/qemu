@@ -47,7 +47,13 @@ check_qemu()
     else
         TEST="$@"
     fi
-    make $MAKEFLAGS $TEST
+
+    if type gtester > /dev/null 2>&1 && \
+           gtester --version > /dev/null 2>&1; then
+        make $MAKEFLAGS $TEST
+    else
+        echo "No working gtester, skipping make $TEST"
+    fi
 }
 
 test_fail()
