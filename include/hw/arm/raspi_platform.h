@@ -36,6 +36,7 @@
                                                       * Doorbells & Mailboxes */
 #define PM_OFFSET               0x100000 /* Power Management, Reset controller
                                           * and Watchdog registers */
+#define CPRMAN_OFFSET           0x101000
 #define PCM_CLOCK_OFFSET        0x101098
 #define RNG_OFFSET              0x104000
 #define GPIO_OFFSET             0x200000

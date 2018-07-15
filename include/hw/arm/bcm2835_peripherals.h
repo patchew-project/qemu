@@ -19,6 +19,7 @@
 #include "hw/intc/bcm2835_ic.h"
 #include "hw/misc/bcm2835_property.h"
 #include "hw/misc/bcm2835_rng.h"
+#include "hw/misc/bcm2835_cprman.h"
 #include "hw/misc/bcm2835_mbox.h"
 #include "hw/sd/sdhci.h"
 #include "hw/sd/bcm2835_sdhost.h"
@@ -44,6 +45,7 @@ typedef struct BCM2835PeripheralState {
     BCM2835ICState ic;
     BCM2835PropertyState property;
     BCM2835RngState rng;
+    BCM2835CprmanState cprman;
     BCM2835MboxState mboxes;
     SDHCIState sdhci;
     BCM2835SDHostState sdhost;
