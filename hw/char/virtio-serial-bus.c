@@ -781,6 +781,10 @@ static int fetch_active_ports_list(QEMUFile *f,
 
             port->elem =
                 qemu_get_virtqueue_element(vdev, f, sizeof(VirtQueueElement));
+            if (!port->elem) {
+                error_report("%s: Bad vq element", __func__);
+                return -EINVAL;
+            }
 
             /*
              *  Port was throttled on source machine.  Let's
