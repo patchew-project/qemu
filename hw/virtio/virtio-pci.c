@@ -2287,7 +2287,7 @@ static const TypeInfo vhost_vsock_pci_info = {
 #endif
 
 /* virtio-balloon-pci */
-
+#ifdef CONFIG_VIRTIO_BALLOON
 static Property virtio_balloon_pci_properties[] = {
     DEFINE_PROP_UINT32("class", VirtIOPCIProxy, class_code, 0),
     DEFINE_PROP_END_OF_LIST(),
@@ -2341,6 +2341,7 @@ static const TypeInfo virtio_balloon_pci_info = {
     .instance_init = virtio_balloon_pci_instance_init,
     .class_init    = virtio_balloon_pci_class_init,
 };
+#endif
 
 /* virtio-serial-pci */
 
@@ -2711,7 +2712,9 @@ static void virtio_pci_register_types(void)
     type_register_static(&vhost_user_blk_pci_info);
 #endif
     type_register_static(&virtio_scsi_pci_info);
+#ifdef CONFIG_VIRTIO_BALLOON
     type_register_static(&virtio_balloon_pci_info);
+#endif
     type_register_static(&virtio_serial_pci_info);
     type_register_static(&virtio_net_pci_info);
 #ifdef CONFIG_VHOST_SCSI
