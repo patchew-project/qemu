@@ -825,6 +825,7 @@ static void test_acpi_piix4_tcg_numamem(void)
     free_test_data(&data);
 }
 
+#ifdef CONFIG_NVDIM_ACPI
 static void test_acpi_tcg_dimm_pxm(const char *machine)
 {
     test_data data;
@@ -860,6 +861,7 @@ static void test_acpi_piix4_tcg_dimm_pxm(void)
 {
     test_acpi_tcg_dimm_pxm(MACHINE_PC);
 }
+#endif
 
 int main(int argc, char *argv[])
 {
@@ -887,8 +889,10 @@ int main(int argc, char *argv[])
         qtest_add_func("acpi/q35/memhp", test_acpi_q35_tcg_memhp);
         qtest_add_func("acpi/piix4/numamem", test_acpi_piix4_tcg_numamem);
         qtest_add_func("acpi/q35/numamem", test_acpi_q35_tcg_numamem);
+#ifdef CONFIG_NVDIM_ACPI
         qtest_add_func("acpi/piix4/dimmpxm", test_acpi_piix4_tcg_dimm_pxm);
         qtest_add_func("acpi/q35/dimmpxm", test_acpi_q35_tcg_dimm_pxm);
+#endif
     }
     ret = g_test_run();
     boot_sector_cleanup(disk);
