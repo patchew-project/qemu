@@ -183,12 +183,15 @@ class BaseVM(object):
 
     def wait_ssh(self, seconds=120):
         starttime = datetime.datetime.now()
+        endtime = starttime + datetime.timedelta(seconds=seconds)
         guest_up = False
-        while (datetime.datetime.now() - starttime).total_seconds() < seconds:
+        while datetime.datetime.now() < endtime:
             if self.ssh("exit 0") == 0:
                 guest_up = True
                 break
             time.sleep(1)
+            seconds = (endtime - datetime.datetime.now()).total_seconds()
+            logging.debug("%ds before timeout", seconds)
         if not guest_up:
             raise Exception("Timeout while waiting for guest ssh")
 
