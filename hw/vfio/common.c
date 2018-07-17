@@ -32,6 +32,7 @@
 #include "hw/hw.h"
 #include "qemu/error-report.h"
 #include "qemu/range.h"
+#include "sysemu/balloon.h"
 #include "sysemu/kvm.h"
 #include "trace.h"
 #include "qapi/error.h"
@@ -1218,6 +1219,9 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
 
     container->initialized = true;
 
+    /* vfio is currently incompatible with ballooning */
+    qemu_balloon_inhibit(true);
+
     return 0;
 listener_release_exit:
     QLIST_REMOVE(group, container_next);
@@ -1276,6 +1280,8 @@ static void vfio_disconnect_container(VFIOGroup *group)
         g_free(container);
 
         vfio_put_address_space(space);
+
+        qemu_balloon_inhibit(false);
     }
 }
 
