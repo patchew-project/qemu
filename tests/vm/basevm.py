@@ -70,7 +70,6 @@ class BaseVM(object):
             self._stdout = self._devnull
         self._args = [ \
             "-nodefaults", "-m", "2G",
-            "-cpu", "host",
             "-netdev", "user,id=vnet,hostfwd=:127.0.0.1:0-:22",
             "-device", "virtio-net-pci,netdev=vnet",
             "-vnc", "127.0.0.1:0,to=20",
@@ -79,8 +78,10 @@ class BaseVM(object):
             self._args += ["-smp", str(vcpus)]
         if kvm_available():
             self._args += ["-enable-kvm"]
+            self._args += ["-cpu", "host"]
         else:
             logging.info("KVM not available, not using -enable-kvm")
+            self._args += ["-cpu", "max"]
         self._data_args = []
 
     def _download_with_cache(self, url, sha256sum=None):
