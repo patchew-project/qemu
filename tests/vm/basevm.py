@@ -33,6 +33,11 @@ SSH_KEY = open(os.path.join(os.path.dirname(__file__),
 SSH_PUB_KEY = open(os.path.join(os.path.dirname(__file__),
                    "..", "keys", "id_rsa.pub")).read()
 
+
+def kvm_available():
+    return os.access("/dev/kvm", os.R_OK | os.W_OK)
+
+
 class BaseVM(object):
     GUEST_USER = "qemu"
     GUEST_PASS = "qemupass"
@@ -72,7 +77,7 @@ class BaseVM(object):
             "-serial", "file:%s" % os.path.join(self._tmpdir, "serial.out")]
         if vcpus:
             self._args += ["-smp", str(vcpus)]
-        if os.access("/dev/kvm", os.R_OK | os.W_OK):
+        if kvm_available():
             self._args += ["-enable-kvm"]
         else:
             logging.info("KVM not available, not using -enable-kvm")
