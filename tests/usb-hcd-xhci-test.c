@@ -35,6 +35,7 @@ static void test_usb_uas_hotplug(void)
     qtest_qmp_device_del("uas");
 }
 
+#ifdef CONFIG_USB_SMARTCARD
 static void test_usb_ccid_hotplug(void)
 {
     qtest_qmp_device_add("usb-ccid", "ccid", NULL);
@@ -43,6 +44,7 @@ static void test_usb_ccid_hotplug(void)
     qtest_qmp_device_add("usb-ccid", "ccid", NULL);
     qtest_qmp_device_del("ccid");
 }
+#endif
 
 int main(int argc, char **argv)
 {
@@ -53,8 +55,9 @@ int main(int argc, char **argv)
     qtest_add_func("/xhci/pci/init", test_xhci_init);
     qtest_add_func("/xhci/pci/hotplug", test_xhci_hotplug);
     qtest_add_func("/xhci/pci/hotplug/usb-uas", test_usb_uas_hotplug);
+#ifdef CONFIG_USB_SMARTCARD
     qtest_add_func("/xhci/pci/hotplug/usb-ccid", test_usb_ccid_hotplug);
-
+#endif
     qtest_start("-device nec-usb-xhci,id=xhci"
                 " -drive id=drive0,if=none,file=null-co://,format=raw");
     ret = g_test_run();
