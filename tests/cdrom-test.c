@@ -140,9 +140,11 @@ static void add_x86_tests(void)
     qtest_add_data_func("cdrom/boot/dc390",
                         "-device dc390 -device scsi-cd,drive=cd1 "
                         "-blockdev file,node-name=cd1,filename=", test_cdboot);
+#ifdef CONFIG_LSI_SCSI_PCI
     qtest_add_data_func("cdrom/boot/lsi53c895a",
                         "-device lsi53c895a -device scsi-cd,drive=cd1 "
                         "-blockdev file,node-name=cd1,filename=", test_cdboot);
+#endif
 #ifdef CONFIG_MEGASAS_SCSI_PCI
     qtest_add_data_func("cdrom/boot/megasas", "-M q35 "
                         "-device megasas -device scsi-cd,drive=cd1 "
