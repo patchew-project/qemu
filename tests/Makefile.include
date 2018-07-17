@@ -98,11 +98,9 @@ check-unit-y += tests/test-block-backend$(EXESUF)
 check-unit-y += tests/test-x86-cpuid$(EXESUF)
 # all code tested by test-x86-cpuid is inside topology.h
 gcov-files-test-x86-cpuid-y =
-ifeq ($(CONFIG_SOFTMMU),y)
-check-unit-y += tests/test-xbzrle$(EXESUF)
-gcov-files-test-xbzrle-y = migration/xbzrle.c
-check-unit-$(CONFIG_POSIX) += tests/test-vmstate$(EXESUF)
-endif
+check-unit-$(CONFIG_SOFTMMU) += tests/test-xbzrle$(EXESUF)
+gcov-files-test-xbzrle-$(CONFIG_SOFTMMU) = migration/xbzrle.c
+check-unit-$(call land, $(CONFIG_SOFTMMU), $(CONFIG_POSIX)) += tests/test-vmstate$(EXESUF)
 check-unit-y += tests/test-cutils$(EXESUF)
 gcov-files-test-cutils-y += util/cutils.c
 check-unit-y += tests/test-shift128$(EXESUF)
@@ -297,9 +295,7 @@ check-qtest-i386-y += tests/q35-test$(EXESUF)
 check-qtest-i386-y += tests/vmgenid-test$(EXESUF)
 gcov-files-i386-y += hw/pci-host/q35.c
 check-qtest-i386-$(CONFIG_VHOST_USER_NET_TEST_i386) += tests/vhost-user-test$(EXESUF)
-ifeq ($(CONFIG_VHOST_USER_NET_TEST_i386),)
-check-qtest-x86_64-$(CONFIG_VHOST_USER_NET_TEST_x86_64) += tests/vhost-user-test$(EXESUF)
-endif
+check-qtest-x86_64-$(call lor, $(CONFIG_VHOST_USER_NET_TEST_i386), $(CONFIG_VHOST_USER_NET_TEST_x86_64)) += tests/vhost-user-test$(EXESUF)
 check-qtest-i386-$(CONFIG_TPM) += tests/tpm-crb-swtpm-test$(EXESUF)
 check-qtest-i386-$(CONFIG_TPM) += tests/tpm-crb-test$(EXESUF)
 check-qtest-i386-$(CONFIG_TPM) += tests/tpm-tis-swtpm-test$(EXESUF)
