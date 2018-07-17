@@ -5,8 +5,8 @@ env:
   global:
     - LC_ALL=C
   matrix:
-    - IMAGE=debian-amd64
-      TARGET_LIST=x86_64-softmmu,x86_64-linux-user
+    - IMAGE=debian-host-cross
+      TARGET_LIST=aarch64-softmmu,x86_64-softmmu,x86_64-linux-user
     - IMAGE=debian-win32-cross
       TARGET_LIST=arm-softmmu,i386-softmmu,lm32-softmmu
     - IMAGE=debian-win64-cross

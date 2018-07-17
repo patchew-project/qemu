@@ -1,8 +1,11 @@
 #
-# Docker x86_64 target
+# Docker 'host' target (same architecture than the host)
 #
-# This docker target builds on the debian Stretch base image. Further
-# libraries which are not widely available are installed by hand.
+# This docker target builds on the debian Stretch base image.
+#
+# It is intented to build the host architecture, with as much
+# features as possible (libraries which are not widely available
+# are installed by hand).
 #
 FROM qemu:debian9
 MAINTAINER Philippe Mathieu-Daudé <f4bug@amsat.org>
