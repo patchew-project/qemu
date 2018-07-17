@@ -31,6 +31,7 @@ static void drive_del(void)
     g_free(resp);
 }
 
+#ifdef CONFIG_VIRTIO_SCSI
 static void device_del(void)
 {
     QDict *response;
@@ -43,6 +44,7 @@ static void device_del(void)
     g_assert(qdict_haskey(response, "return"));
     qobject_unref(response);
 }
+#endif
 
 static void test_drive_without_dev(void)
 {
@@ -91,6 +93,7 @@ static void test_after_failed_device_add(void)
     qtest_end();
 }
 
+#ifdef CONFIG_VIRTIO_SCSI
 static void test_drive_del_device_del(void)
 {
     char *args;
@@ -112,6 +115,7 @@ static void test_drive_del_device_del(void)
     qtest_end();
     g_free(args);
 }
+#endif
 
 int main(int argc, char **argv)
 {
@@ -127,8 +131,10 @@ int main(int argc, char **argv)
         !strcmp(arch, "s390x")) {
         qtest_add_func("/drive_del/after_failed_device_add",
                        test_after_failed_device_add);
+#ifdef CONFIG_VIRTIO_SCSI
         qtest_add_func("/blockdev/drive_del_device_del",
                        test_drive_del_device_del);
+#endif
     }
 
     return g_test_run();

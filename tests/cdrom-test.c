@@ -129,9 +129,11 @@ static void test_cdboot(gconstpointer data)
 static void add_x86_tests(void)
 {
     qtest_add_data_func("cdrom/boot/default", "-cdrom ", test_cdboot);
+#ifdef CONFIG_VIRTIO_SCSI
     qtest_add_data_func("cdrom/boot/virtio-scsi",
                         "-device virtio-scsi -device scsi-cd,drive=cdr "
                         "-blockdev file,node-name=cdr,filename=", test_cdboot);
+#endif
     qtest_add_data_func("cdrom/boot/isapc", "-M isapc "
                         "-drive if=ide,media=cdrom,file=", test_cdboot);
 #ifdef CONFIG_ESP_PCI
@@ -160,9 +162,11 @@ static void add_x86_tests(void)
 static void add_s390x_tests(void)
 {
     qtest_add_data_func("cdrom/boot/default", "-cdrom ", test_cdboot);
+#ifdef CONFIG_VIRTIO_SCSI
     qtest_add_data_func("cdrom/boot/virtio-scsi",
                         "-device virtio-scsi -device scsi-cd,drive=cdr "
                         "-blockdev file,node-name=cdr,filename=", test_cdboot);
+#endif
 }
 
 int main(int argc, char **argv)
