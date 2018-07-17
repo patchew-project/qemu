@@ -34,11 +34,13 @@ static void pci_multihead(void)
     qtest_end();
 }
 
+#ifdef CONFIG_VIRTIO_GPU
 static void pci_virtio_gpu(void)
 {
     qtest_start("-vga none -device virtio-gpu-pci");
     qtest_end();
 }
+#endif
 
 #ifdef CONFIG_VIRTIO_VGA
 static void pci_virtio_vga(void)
@@ -61,7 +63,9 @@ int main(int argc, char **argv)
     qtest_add_func("/display/pci/stdvga", pci_stdvga);
     qtest_add_func("/display/pci/secondary", pci_secondary);
     qtest_add_func("/display/pci/multihead", pci_multihead);
+#ifdef CONFIG_VIRTIO_GPU
     qtest_add_func("/display/pci/virtio-gpu", pci_virtio_gpu);
+#endif
 #ifdef CONFIG_VIRTIO_VGA
     qtest_add_func("/display/pci/virtio-vga", pci_virtio_vga);
 #endif
