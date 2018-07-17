@@ -736,6 +736,7 @@ static void test_acpi_q35_tcg_cphp(void)
     free_test_data(&data);
 }
 
+#ifdef CONFIG_IPMI
 static uint8_t ipmi_required_struct_types[] = {
     0, 1, 3, 4, 16, 17, 19, 32, 38, 127
 };
@@ -772,6 +773,7 @@ static void test_acpi_piix4_tcg_ipmi(void)
                   &data);
     free_test_data(&data);
 }
+#endif
 
 static void test_acpi_q35_tcg_memhp(void)
 {
@@ -875,8 +877,10 @@ int main(int argc, char *argv[])
         qtest_add_func("acpi/piix4/bridge", test_acpi_piix4_tcg_bridge);
         qtest_add_func("acpi/q35", test_acpi_q35_tcg);
         qtest_add_func("acpi/q35/bridge", test_acpi_q35_tcg_bridge);
+#ifdef CONFIG_IPMI
         qtest_add_func("acpi/piix4/ipmi", test_acpi_piix4_tcg_ipmi);
         qtest_add_func("acpi/q35/ipmi", test_acpi_q35_tcg_ipmi);
+#endif
         qtest_add_func("acpi/piix4/cpuhp", test_acpi_piix4_tcg_cphp);
         qtest_add_func("acpi/q35/cpuhp", test_acpi_q35_tcg_cphp);
         qtest_add_func("acpi/piix4/memhp", test_acpi_piix4_tcg_memhp);
