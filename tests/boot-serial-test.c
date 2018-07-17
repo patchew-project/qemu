@@ -87,11 +87,13 @@ static testdef_t tests[] = {
     { "ppc64", "pseries", "", "Open Firmware" },
     { "ppc64", "powernv", "-cpu POWER8", "OPAL" },
     { "ppc64", "sam460ex", "-device e1000", "8086  100e" },
+#ifdef CONFIG_SGA
     { "i386", "isapc", "-cpu qemu32 -device sga", "SGABIOS" },
     { "i386", "pc", "-device sga", "SGABIOS" },
     { "i386", "q35", "-device sga", "SGABIOS" },
     { "x86_64", "isapc", "-cpu qemu32 -device sga", "SGABIOS" },
     { "x86_64", "q35", "-device sga", "SGABIOS" },
+#endif
     { "sparc", "LX", "", "TMS390S10" },
     { "sparc", "SS-4", "", "MB86904" },
     { "sparc", "SS-600MP", "", "TMS390Z55" },
