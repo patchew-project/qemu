@@ -2472,7 +2472,7 @@ static const TypeInfo virtio_net_pci_info = {
 };
 
 /* virtio-rng-pci */
-
+#ifdef CONFIG_VIRTIO_RNG
 static void virtio_rng_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
 {
     VirtIORngPCI *vrng = VIRTIO_RNG_PCI(vpci_dev);
@@ -2521,7 +2521,7 @@ static const TypeInfo virtio_rng_pci_info = {
     .instance_init = virtio_rng_initfn,
     .class_init    = virtio_rng_pci_class_init,
 };
-
+#endif
 /* virtio-input-pci */
 
 static Property virtio_input_pci_properties[] = {
@@ -2693,7 +2693,9 @@ static const TypeInfo virtio_pci_bus_info = {
 
 static void virtio_pci_register_types(void)
 {
+#ifdef CONFIG_VIRTIO_RNG
     type_register_static(&virtio_rng_pci_info);
+#endif
     type_register_static(&virtio_input_pci_info);
     type_register_static(&virtio_input_hid_pci_info);
     type_register_static(&virtio_keyboard_pci_info);
