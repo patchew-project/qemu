@@ -46,12 +46,14 @@ static void test_uhci_hotplug(void)
     usb_test_hotplug("uhci", 2, test_port_2);
 }
 
+#ifdef CONFIG_USB_STORAGE_BOT
 static void test_usb_storage_hotplug(void)
 {
     qtest_qmp_device_add("usb-storage", "usbdev0", "'drive': 'drive0'");
 
     qtest_qmp_device_del("usbdev0");
 }
+#endif
 
 int main(int argc, char **argv)
 {
@@ -66,8 +68,9 @@ int main(int argc, char **argv)
     qtest_add_func("/uhci/pci/init", test_uhci_init);
     qtest_add_func("/uhci/pci/port1", test_port_1);
     qtest_add_func("/uhci/pci/hotplug", test_uhci_hotplug);
+#ifdef CONFIG_USB_STORAGE_BOT
     qtest_add_func("/uhci/pci/hotplug/usb-storage", test_usb_storage_hotplug);
-
+#endif
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
         qs = qtest_pc_boot(cmd);
     } else if (strcmp(arch, "ppc64") == 0) {
