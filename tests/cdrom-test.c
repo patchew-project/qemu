@@ -134,12 +134,14 @@ static void add_x86_tests(void)
                         "-blockdev file,node-name=cdr,filename=", test_cdboot);
     qtest_add_data_func("cdrom/boot/isapc", "-M isapc "
                         "-drive if=ide,media=cdrom,file=", test_cdboot);
+#ifdef CONFIG_ESP_PCI
     qtest_add_data_func("cdrom/boot/am53c974",
                         "-device am53c974 -device scsi-cd,drive=cd1 "
                         "-drive if=none,id=cd1,format=raw,file=", test_cdboot);
     qtest_add_data_func("cdrom/boot/dc390",
                         "-device dc390 -device scsi-cd,drive=cd1 "
                         "-blockdev file,node-name=cd1,filename=", test_cdboot);
+#endif
 #ifdef CONFIG_LSI_SCSI_PCI
     qtest_add_data_func("cdrom/boot/lsi53c895a",
                         "-device lsi53c895a -device scsi-cd,drive=cd1 "
