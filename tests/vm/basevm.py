@@ -182,6 +182,8 @@ class BaseVM(object):
                             usernet_info)
 
     def wait_ssh(self, seconds=120):
+        if not kvm_available():
+            seconds *= 4
         starttime = datetime.datetime.now()
         endtime = starttime + datetime.timedelta(seconds=seconds)
         guest_up = False
