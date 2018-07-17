@@ -2524,6 +2524,7 @@ static const TypeInfo virtio_rng_pci_info = {
 #endif
 /* virtio-input-pci */
 
+#ifdef CONFIG_VIRTIO_INPUT
 static Property virtio_input_pci_properties[] = {
     DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors, 2),
     DEFINE_PROP_END_OF_LIST(),
@@ -2645,6 +2646,7 @@ static const TypeInfo virtio_host_pci_info = {
     .instance_init = virtio_host_initfn,
 };
 #endif
+#endif
 
 /* virtio-pci-bus */
 
@@ -2696,6 +2698,7 @@ static void virtio_pci_register_types(void)
 #ifdef CONFIG_VIRTIO_RNG
     type_register_static(&virtio_rng_pci_info);
 #endif
+#ifdef CONFIG_VIRTIO_INPUT
     type_register_static(&virtio_input_pci_info);
     type_register_static(&virtio_input_hid_pci_info);
     type_register_static(&virtio_keyboard_pci_info);
@@ -2703,6 +2706,7 @@ static void virtio_pci_register_types(void)
     type_register_static(&virtio_tablet_pci_info);
 #ifdef CONFIG_LINUX
     type_register_static(&virtio_host_pci_info);
+#endif
 #endif
     type_register_static(&virtio_pci_bus_info);
     type_register_static(&virtio_pci_info);
