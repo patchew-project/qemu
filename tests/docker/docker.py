@@ -475,6 +475,7 @@ class CheckCommand(SubCommand):
                             default="checksum", help="check type")
         parser.add_argument("--olderthan", default=60, type=int,
                             help="number of minutes")
+        parser.add_argument("--hint", default="", help="hint to user")
 
     def run(self, args, argv):
         tag = args.tag
@@ -487,7 +488,7 @@ class CheckCommand(SubCommand):
 
         info = dkr.inspect_tag(tag)
         if info is None:
-            print("Image does not exist")
+            print("Image does not exist %s" % (args.hint))
             return 1
 
         if args.checktype == "checksum":
