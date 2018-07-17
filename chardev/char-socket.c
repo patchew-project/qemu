@@ -789,6 +789,9 @@ static int tcp_chr_new_client(Chardev *chr, QIOChannelSocket *sioc)
 
     qio_channel_set_blocking(s->ioc, false, NULL);
 
+    if (qio_channel_has_feature(s->ioc, QIO_CHANNEL_FEATURE_FD_PASS)) {
+        qemu_chr_set_feature(chr, QEMU_CHAR_FEATURE_FD_PASS);
+    }
     if (s->do_nodelay) {
         qio_channel_set_delay(s->ioc, false);
     }
@@ -996,11 +999,8 @@ static void qmp_chardev_open_socket(Chardev *chr,
         error_setg(errp, "'reconnect' option is incompatible with 'fd'");
         goto error;
     }
+
     qemu_chr_set_feature(chr, QEMU_CHAR_FEATURE_RECONNECTABLE);
-    /* TODO SOCKET_ADDRESS_FD where fd has AF_UNIX */
-    if (addr->type == SOCKET_ADDRESS_TYPE_UNIX) {
-        qemu_chr_set_feature(chr, QEMU_CHAR_FEATURE_FD_PASS);
-    }
 
     /* be isn't opened until we get a connection */
     *be_opened = false;
