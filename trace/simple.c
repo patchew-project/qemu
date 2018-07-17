@@ -39,9 +39,11 @@
 static GMutex trace_lock;
 static GCond trace_available_cond;
 static GCond trace_empty_cond;
+static GThread *trace_writeout_thread;
 
 static bool trace_available;
 static bool trace_writeout_enabled;
+static bool trace_writeout_running;
 
 enum {
     TRACE_BUF_LEN = 4096 * 64,
@@ -142,15 +144,34 @@ static void flush_trace_file(bool wait)
     g_mutex_unlock(&trace_lock);
 }
 
-static void wait_for_trace_records_available(void)
+/**
+ * Wait to be kicked by flush_trace_file()
+ *
+ * Returns: true if the writeout thread should continue
+ *          false if the writeout thread should terminate
+ */
+static bool wait_for_trace_records_available(void)
 {
+    bool running;
+
     g_mutex_lock(&trace_lock);
-    while (!(trace_available && trace_writeout_enabled)) {
+    for (;;) {
+        running = trace_writeout_running;
+        if (!running) {
+            break;
+        }
+
+        if (trace_available && trace_writeout_enabled) {
+            break;
+        }
+
         g_cond_signal(&trace_empty_cond);
         g_cond_wait(&trace_available_cond, &trace_lock);
     }
     trace_available = false;
     g_mutex_unlock(&trace_lock);
+
+    return running;
 }
 
 static gpointer writeout_thread(gpointer opaque)
@@ -165,9 +186,7 @@ static gpointer writeout_thread(gpointer opaque)
     size_t unused __attribute__ ((unused));
     uint64_t type = TRACE_RECORD_TYPE_EVENT;
 
-    for (;;) {
-        wait_for_trace_records_available();
-
+    while (wait_for_trace_records_available()) {
         if (g_atomic_int_get(&dropped_events)) {
             dropped.rec.event = DROPPED_EVENT_ID,
             dropped.rec.timestamp_ns = get_clock();
@@ -398,17 +417,60 @@ static GThread *trace_thread_create(GThreadFunc fn)
     return thread;
 }
 
+#ifndef _WIN32
+static void stop_writeout_thread(void)
+{
+    g_mutex_lock(&trace_lock);
+    trace_writeout_running = false;
+    g_cond_signal(&trace_available_cond);
+    g_mutex_unlock(&trace_lock);
+
+    g_thread_join(trace_writeout_thread);
+    trace_writeout_thread = NULL;
+
+    /* Hold trace_lock across fork!  Since threads aren't cloned by fork() the
+     * mutex would be held in the child process and cause a deadlock.
+     * Acquiring the mutex here prevents other threads from being in a
+     * trace_lock critical region when fork() occurs.
+     */
+    g_mutex_lock(&trace_lock);
+}
+
+static void restart_writeout_thread(void)
+{
+    trace_writeout_running = true;
+    trace_writeout_thread = trace_thread_create(writeout_thread);
+    if (!trace_writeout_thread) {
+        warn_report("unable to initialize simple trace backend");
+    }
+
+    /* This relies on undefined behavior in the fork() child (it's fine in the
+     * fork() parent).  g_mutex_unlock() on a mutex acquired by another thread
+     * is undefined (see glib documentation).
+     */
+    g_mutex_unlock(&trace_lock);
+}
+#endif /* !_WIN32 */
+
 bool st_init(void)
 {
-    GThread *thread;
-
     trace_pid = getpid();
+    trace_writeout_running = true;
 
-    thread = trace_thread_create(writeout_thread);
-    if (!thread) {
+    trace_writeout_thread = trace_thread_create(writeout_thread);
+    if (!trace_writeout_thread) {
         warn_report("unable to initialize simple trace backend");
         return false;
     }
+
+#ifndef _WIN32
+    /* Terminate writeout thread across fork and restart it in parent and
+     * child afterwards.
+     */
+    pthread_atfork(stop_writeout_thread,
+                   restart_writeout_thread,
+                   restart_writeout_thread);
+#endif
 
     atexit(st_flush_trace_buffer);
     return true;
