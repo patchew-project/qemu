@@ -15,11 +15,46 @@ RUN DEBIAN_FRONTEND=noninteractive eatmydata \
 
 RUN DEBIAN_FRONTEND=noninteractive eatmydata \
     apt-get install -y --no-install-recommends \
+        libaio-dev \
+        libasound2-dev \
+        libattr1-dev \
+        libbluetooth-dev \
+        libbrlapi-dev \
         libbz2-dev \
+        libcacard-dev \
+        libcap-dev \
+        libcap-ng-dev \
+        libcapstone-dev \
+        libcurl4-gnutls-dev \
+        libepoxy-dev \
+        libfdt-dev \
+        libibverbs-dev \
+        libiscsi-dev \
+        libjemalloc-dev \
+        libjpeg-dev \
+        liblttng-ust-dev \
         liblzo2-dev \
+        libncursesw5-dev \
+        libnfs-dev \
+        libnss3-dev \
+        libpixman-1-dev \
+        libpulse-dev \
+        librados-dev \
+        librbd-dev \
         librdmacm-dev \
+        libseccomp-dev \
         libsnappy-dev \
-        libvte-dev
+        libspice-protocol-dev \
+        libssh2-1-dev \
+        liburcu-dev \
+        libusb-1.0-0-dev \
+        libusbredirhost-dev \
+        libusbredirparser-dev \
+        libvdeplug-dev \
+        libvte-dev \
+        libxen-dev \
+        uuid-dev \
+        xfslibs-dev
 
 # virgl
 RUN DEBIAN_FRONTEND=noninteractive eatmydata \
