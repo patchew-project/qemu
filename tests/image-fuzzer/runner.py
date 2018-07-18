@@ -28,7 +28,7 @@ import shutil
 from itertools import count
 import time
 import getopt
-import StringIO
+from io import StringIO
 import resource
 
 try:
@@ -183,7 +183,7 @@ class TestEnv(object):
                                            MAX_BACKING_FILE_SIZE) * (1 << 20)
         cmd = self.qemu_img + ['create', '-f', backing_file_fmt,
                                backing_file_name, str(backing_file_size)]
-        temp_log = StringIO.StringIO()
+        temp_log = StringIO()
         retcode = run_app(temp_log, cmd)
         if retcode == 0:
             temp_log.close()
@@ -240,7 +240,7 @@ class TestEnv(object):
                            "Backing file: %s\n" \
                            % (self.seed, " ".join(current_cmd),
                               self.current_dir, backing_file_name)
-            temp_log = StringIO.StringIO()
+            temp_log = StringIO()
             try:
                 retcode = run_app(temp_log, current_cmd)
             except OSError as e:
