@@ -32,6 +32,7 @@
 #include "../migration/qemu-file-channel.h"
 #include "../migration/savevm.h"
 #include "qemu/coroutine.h"
+#include "qemu/error-report.h"
 #include "io/channel-file.h"
 
 static char temp_file[] = "/tmp/vmst.test.XXXXXX";
@@ -858,6 +859,8 @@ int main(int argc, char **argv)
     temp_fd = mkstemp(temp_file);
 
     module_call_init(MODULE_INIT_QOM);
+
+    setenv("QTEST_SILENT_ERRORS", "1", 1);
 
     g_test_init(&argc, &argv, NULL);
     g_test_add_func("/vmstate/simple/primitive", test_simple_primitive);
