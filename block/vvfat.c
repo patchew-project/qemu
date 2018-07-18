@@ -975,8 +975,7 @@ static int init_directories(BDRVVVFATState* s,
         if (mapping->mode & MODE_DIRECTORY) {
             mapping->begin = cluster;
             if(read_directory(s, i)) {
-                error_setg(errp, "Could not read directory %s",
-                           mapping->path);
+                error_setg(errp, "Could not read directory \"%s\"", s->path);
                 return -1;
             }
             mapping = array_get(&(s->mapping), i);
