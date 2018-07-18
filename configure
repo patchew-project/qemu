@@ -460,7 +460,6 @@ nettle=""
 nettle_kdf="no"
 gcrypt=""
 gcrypt_hmac="no"
-gcrypt_kdf="no"
 vte=""
 virglrenderer=""
 tpm="yes"
@@ -2712,7 +2711,7 @@ then
     fi
 fi
 
-has_libgcrypt_config() {
+has_libgcrypt() {
     if ! has "libgcrypt-config"
     then
 	return 1
@@ -2725,6 +2724,14 @@ has_libgcrypt_config() {
 	then
 	    return 1
 	fi
+    fi
+
+    maj=`libgcrypt-config --version | awk -F . '{print $1}'`
+    min=`libgcrypt-config --version | awk -F . '{print $2}'`
+
+    if test $maj != 1 || test $min -lt 5
+    then
+       return 1
     fi
 
     return 0
@@ -2765,7 +2772,7 @@ EOF
 fi
 
 if test "$gcrypt" != "no"; then
-    if has_libgcrypt_config; then
+    if has_libgcrypt; then
         gcrypt_cflags=$(libgcrypt-config --cflags)
         gcrypt_libs=$(libgcrypt-config --libs)
         # Debian has remove -lgpg-error from libgcrypt-config
@@ -2783,19 +2790,6 @@ if test "$gcrypt" != "no"; then
         cat > $TMPC << EOF
 #include <gcrypt.h>
 int main(void) {
-  gcry_kdf_derive(NULL, 0, GCRY_KDF_PBKDF2,
-                  GCRY_MD_SHA256,
-                  NULL, 0, 0, 0, NULL);
- return 0;
-}
-EOF
-        if compile_prog "$gcrypt_cflags" "$gcrypt_libs" ; then
-            gcrypt_kdf=yes
-        fi
-
-        cat > $TMPC << EOF
-#include <gcrypt.h>
-int main(void) {
   gcry_mac_hd_t handle;
   gcry_mac_open(&handle, GCRY_MAC_HMAC_MD5,
                 GCRY_MAC_FLAG_SECURE, NULL);
@@ -2807,7 +2801,7 @@ EOF
         fi
     else
         if test "$gcrypt" = "yes"; then
-            feature_not_found "gcrypt" "Install gcrypt devel"
+            feature_not_found "gcrypt" "Install gcrypt devel >= 1.5.0"
         else
             gcrypt="no"
         fi
@@ -5853,7 +5847,6 @@ echo "VTE support       $vte $(echo_version $vte $vteversion)"
 echo "TLS priority      $tls_priority"
 echo "GNUTLS support    $gnutls"
 echo "libgcrypt         $gcrypt"
-echo "libgcrypt kdf     $gcrypt_kdf"
 echo "nettle            $nettle $(echo_version $nettle $nettle_version)"
 echo "nettle kdf        $nettle_kdf"
 echo "libtasn1          $tasn1"
@@ -6303,9 +6296,6 @@ if test "$gcrypt" = "yes" ; then
   echo "CONFIG_GCRYPT=y" >> $config_host_mak
   if test "$gcrypt_hmac" = "yes" ; then
     echo "CONFIG_GCRYPT_HMAC=y" >> $config_host_mak
-  fi
-  if test "$gcrypt_kdf" = "yes" ; then
-    echo "CONFIG_GCRYPT_KDF=y" >> $config_host_mak
   fi
 fi
 if test "$nettle" = "yes" ; then
