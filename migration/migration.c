@@ -161,6 +161,12 @@ void migration_object_init(void)
 void migration_object_finalize(void)
 {
     object_unref(OBJECT(current_migration));
+
+    qemu_sem_destroy(&current_incoming->postcopy_pause_sem_fault);
+    qemu_sem_destroy(&current_incoming->postcopy_pause_sem_dst);
+    qemu_event_destroy(&current_incoming->main_thread_load_event);
+    qemu_mutex_destroy(&current_incoming->rp_mutex);
+    g_free(current_incoming);
 }
 
 /* For outgoing */
