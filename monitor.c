@@ -1034,9 +1034,12 @@ static void help_cmd_dump(Monitor *mon, const mon_cmd_t *cmds,
             } else {
                 help_cmd_dump_one(mon, cmd, args, arg_index);
             }
-            break;
+            return;
         }
     }
+
+    /* Entry not found */
+    monitor_printf(mon, "unknown command: '%s'\n", args[arg_index]);
 }
 
 static void help_cmd(Monitor *mon, const char *name)
