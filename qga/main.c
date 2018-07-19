@@ -614,7 +614,7 @@ static void process_event(JSONMessageParser *parser, GQueue *tokens)
     }
     req = qobject_to(QDict, obj);
     if (!req) {
-        error_setg(&err, QERR_JSON_PARSING);
+        error_setg(&err, "Input must be a JSON object");
         goto err;
     }
     if (!qdict_haskey(req, "execute")) {

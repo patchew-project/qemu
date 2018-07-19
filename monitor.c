@@ -4114,10 +4114,6 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
     QMPRequest *req_obj;
 
     req = json_parser_parse(tokens, NULL, &err);
-    if (!req && !err) {
-        /* json_parser_parse() sucks: can fail without setting @err */
-        error_setg(&err, QERR_JSON_PARSING);
-    }
 
     qdict = qobject_to(QDict, req);
     if (qdict) {
