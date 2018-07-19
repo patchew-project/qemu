@@ -1417,6 +1417,16 @@ static void limits_nesting(void)
     g_assert(obj == NULL);
 }
 
+static void multiple_objects(void)
+{
+    Error *err = NULL;
+    QObject *obj;
+
+    obj = qobject_from_json("{} {}", &err);
+    g_assert(obj == NULL);
+    error_free_or_abort(&err);
+}
+
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
@@ -1454,6 +1464,7 @@ int main(int argc, char **argv)
     g_test_add_func("/errors/invalid_dict_comma", invalid_dict_comma);
     g_test_add_func("/errors/unterminated/literal", unterminated_literal);
     g_test_add_func("/errors/limits/nesting", limits_nesting);
+    g_test_add_func("/errors/multiple_objects", multiple_objects);
 
     return g_test_run();
 }

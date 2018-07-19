@@ -22,6 +22,7 @@
 #include "qapi/qmp/qlist.h"
 #include "qapi/qmp/qnum.h"
 #include "qapi/qmp/qstring.h"
+#include "qapi/qmp/qerror.h"
 #include "qemu/unicode.h"
 
 typedef struct JSONParsingState
@@ -36,7 +37,20 @@ static void parse_json(JSONMessageParser *parser, GQueue *tokens)
 {
     JSONParsingState *s = container_of(parser, JSONParsingState, parser);
 
-    s->result = json_parser_parse(tokens, s->ap, &s->err);
+    if (s->result || s->err) {
+        if (s->result) {
+            qobject_unref(s->result);
+            s->result = NULL;
+            if (!s->err) {
+                error_setg(&s->err, QERR_JSON_PARSING);
+            }
+        }
+        if (tokens) {
+            g_queue_free_full(tokens, g_free);
+        }
+    } else {
+        s->result = json_parser_parse(tokens, s->ap, &s->err);
+    }
 }
 
 QObject *qobject_from_jsonv(const char *string, va_list *ap, Error **errp)
