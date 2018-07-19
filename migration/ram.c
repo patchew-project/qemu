@@ -300,6 +300,15 @@ struct RAMState {
     uint64_t num_dirty_pages_period;
     /* xbzrle misses since the beginning of the period */
     uint64_t xbzrle_cache_miss_prev;
+
+    /* compression statistics since the beginning of the period */
+    /* amount of count that no free thread to compress data */
+    uint64_t compress_thread_busy_prev;
+    /* amount bytes reduced by compression */
+    uint64_t compress_reduced_size_prev;
+    /* amount of compressed pages */
+    uint64_t compress_pages_prev;
+
     /* number of iterations at the beginning of period */
     uint64_t iterations_prev;
     /* Iterations since start */
@@ -336,6 +345,8 @@ struct PageSearchStatus {
     bool         complete_round;
 };
 typedef struct PageSearchStatus PageSearchStatus;
+
+CompressionStats compression_counters;
 
 struct CompressParam {
     bool done;
@@ -1597,6 +1608,24 @@ static void migration_update_rates(RAMState *rs, int64_t end_time)
             rs->xbzrle_cache_miss_prev) / iter_count;
         rs->xbzrle_cache_miss_prev = xbzrle_counters.cache_miss;
     }
+
+    if (migrate_use_compression()) {
+        uint64_t comp_pages;
+
+        compression_counters.busy_rate = (double)(compression_counters.busy -
+            rs->compress_thread_busy_prev) / iter_count;
+        rs->compress_thread_busy_prev = compression_counters.busy;
+
+        comp_pages = compression_counters.pages - rs->compress_pages_prev;
+        if (comp_pages) {
+            compression_counters.compression_rate =
+                (double)(compression_counters.reduced_size -
+                rs->compress_reduced_size_prev) /
+                (comp_pages * TARGET_PAGE_SIZE);
+            rs->compress_pages_prev = compression_counters.pages;
+            rs->compress_reduced_size_prev = compression_counters.reduced_size;
+        }
+    }
 }
 
 static void migration_bitmap_sync(RAMState *rs)
@@ -1872,6 +1901,9 @@ static void flush_compressed_data(RAMState *rs)
         qemu_mutex_lock(&comp_param[idx].mutex);
         if (!comp_param[idx].quit) {
             len = qemu_put_qemu_file(rs->f, comp_param[idx].file);
+            /* 8 means a header with RAM_SAVE_FLAG_CONTINUE. */
+            compression_counters.reduced_size += TARGET_PAGE_SIZE - len + 8;
+            compression_counters.pages++;
             ram_counters.transferred += len;
         }
         qemu_mutex_unlock(&comp_param[idx].mutex);
@@ -1903,6 +1935,10 @@ retry:
             qemu_cond_signal(&comp_param[idx].cond);
             qemu_mutex_unlock(&comp_param[idx].mutex);
             pages = 1;
+            /* 8 means a header with RAM_SAVE_FLAG_CONTINUE. */
+            compression_counters.reduced_size += TARGET_PAGE_SIZE -
+                                                 bytes_xmit + 8;
+            compression_counters.pages++;
             ram_counters.transferred += bytes_xmit;
             break;
         }
@@ -2233,6 +2269,7 @@ static int ram_save_target_page(RAMState *rs, PageSearchStatus *pss,
         if (res > 0) {
             return res;
         }
+        compression_counters.busy++;
     } else if (migrate_use_multifd()) {
         return ram_save_multifd_page(rs, block, offset);
     }
