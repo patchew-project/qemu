@@ -37,6 +37,9 @@ static void parse_json(JSONMessageParser *parser, GQueue *tokens)
 {
     JSONParsingState *s = container_of(parser, JSONParsingState, parser);
 
+    if (!tokens && !s->err) {
+        error_setg(&s->err, QERR_JSON_PARSING);
+    }
     if (s->result || s->err) {
         if (s->result) {
             qobject_unref(s->result);

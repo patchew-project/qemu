@@ -1315,7 +1315,7 @@ static void unterminated_string(void)
 {
     Error *err = NULL;
     QObject *obj = qobject_from_json("\"abc", &err);
-    g_assert(!err);             /* BUG */
+    error_free_or_abort(&err);
     g_assert(obj == NULL);
 }
 
@@ -1323,7 +1323,7 @@ static void unterminated_sq_string(void)
 {
     Error *err = NULL;
     QObject *obj = qobject_from_json("'abc", &err);
-    g_assert(!err);             /* BUG */
+    error_free_or_abort(&err);
     g_assert(obj == NULL);
 }
 
@@ -1331,7 +1331,7 @@ static void unterminated_escape(void)
 {
     Error *err = NULL;
     QObject *obj = qobject_from_json("\"abc\\\"", &err);
-    g_assert(!err);             /* BUG */
+    error_free_or_abort(&err);
     g_assert(obj == NULL);
 }
 
