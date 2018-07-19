@@ -315,6 +315,8 @@ struct RAMState {
     uint64_t iterations;
     /* number of dirty bits in the bitmap */
     uint64_t migration_dirty_pages;
+    /* last dirty_sync_count we have seen */
+    uint64_t dirty_sync_count;
     /* protects modification of the bitmap */
     QemuMutex bitmap_mutex;
     /* The RAMBlock used in the last src_page_requests */
@@ -2532,6 +2534,7 @@ static void ram_save_cleanup(void *opaque)
     }
 
     xbzrle_cleanup();
+    flush_compressed_data(*rsp);
     compress_threads_save_cleanup();
     ram_state_cleanup(rsp);
 }
@@ -3203,6 +3206,17 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
 
     ram_control_before_iterate(f, RAM_CONTROL_ROUND);
 
+    /*
+     * if memory migration starts over, we will meet a dirtied page which
+     * may still exists in compression threads's ring, so we should flush
+     * the compressed data to make sure the new page is not overwritten by
+     * the old one in the destination.
+     */
+    if (ram_counters.dirty_sync_count != rs->dirty_sync_count) {
+        rs->dirty_sync_count = ram_counters.dirty_sync_count;
+        flush_compressed_data(rs);
+    }
+
     t0 = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
     i = 0;
     while ((ret = qemu_file_rate_limit(f)) == 0 ||
@@ -3235,7 +3249,6 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
         }
         i++;
     }
-    flush_compressed_data(rs);
     rcu_read_unlock();
 
     /*
