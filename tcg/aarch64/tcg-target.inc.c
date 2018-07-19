@@ -718,6 +718,7 @@ static void tcg_out_insn_3614(TCGContext *s, AArch64Insn insn, bool q,
 static void tcg_out_insn_3616(TCGContext *s, AArch64Insn insn, bool q,
                               unsigned size, TCGReg rd, TCGReg rn, TCGReg rm)
 {
+    tcg_debug_assert(!(insn == I3616_MUL && size == 3));
     tcg_out32(s, insn | q << 30 | (size << 22) | (rm & 0x1f) << 16
               | (rn & 0x1f) << 5 | (rd & 0x1f));
 }
@@ -2219,7 +2220,6 @@ int tcg_can_emit_vec_op(TCGOpcode opc, TCGType type, unsigned vece)
     switch (opc) {
     case INDEX_op_add_vec:
     case INDEX_op_sub_vec:
-    case INDEX_op_mul_vec:
     case INDEX_op_and_vec:
     case INDEX_op_or_vec:
     case INDEX_op_xor_vec:
@@ -2232,6 +2232,8 @@ int tcg_can_emit_vec_op(TCGOpcode opc, TCGType type, unsigned vece)
     case INDEX_op_shri_vec:
     case INDEX_op_sari_vec:
         return 1;
+    case INDEX_op_mul_vec:
+        return vece < MO_64 ? 1 : 0;
 
     default:
         return 0;
