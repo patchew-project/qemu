@@ -257,12 +257,6 @@ struct QMPRequest {
      */
     QObject *req;
     Error *err;
-    /*
-     * Whether we need to resume the monitor afterward.  This flag is
-     * used to emulate the old QMP server behavior that the current
-     * command must be completed before execution of the next one.
-     */
-    bool need_resume;
 };
 typedef struct QMPRequest QMPRequest;
 
@@ -4079,11 +4073,14 @@ static void monitor_qmp_bh_dispatcher(void *data)
 {
     QMPRequest *req_obj = monitor_qmp_requests_pop_any();
     QDict *rsp;
+    bool need_resume;
 
     if (!req_obj) {
         return;
     }
 
+    /*  qmp_oob_enabled() might change after "qmp_capabilities" */
+    need_resume = !qmp_oob_enabled(req_obj->mon);
     if (req_obj->req) {
         trace_monitor_qmp_cmd_in_band(qobject_get_try_str(req_obj->id) ?: "");
         monitor_qmp_dispatch(req_obj->mon, req_obj->req, req_obj->id);
@@ -4095,7 +4092,7 @@ static void monitor_qmp_bh_dispatcher(void *data)
         qobject_unref(rsp);
     }
 
-    if (req_obj->need_resume) {
+    if (need_resume) {
         /* Pairs with the monitor_suspend() in handle_qmp_command() */
         monitor_resume(req_obj->mon);
     }
@@ -4147,7 +4144,6 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
     req_obj->id = id;
     req_obj->req = req;
     req_obj->err = err;
-    req_obj->need_resume = false;
 
     /* Protect qmp_requests and fetching its length. */
     qemu_mutex_lock(&mon->qmp.qmp_queue_lock);
@@ -4160,7 +4156,6 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
      */
     if (!qmp_oob_enabled(mon)) {
         monitor_suspend(mon);
-        req_obj->need_resume = true;
     } else {
         /* Drop the request if queue is full. */
         if (mon->qmp.qmp_requests->length >= QMP_REQ_QUEUE_LEN_MAX) {
