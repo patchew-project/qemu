@@ -59,6 +59,8 @@ static QDict *qmp_dispatch_check_obj(const QObject *request, bool allow_oob,
                            "QMP input member 'arguments' must be an object");
                 return NULL;
             }
+        } else if (!strcmp(arg_name, "id")) {
+            continue;
         } else {
             error_setg(errp, "QMP input member '%s' is unexpected",
                        arg_name);
@@ -166,10 +168,10 @@ QDict *qmp_dispatch(QmpCommandList *cmds, QObject *request,
                     bool allow_oob)
 {
     Error *err = NULL;
-    QObject *ret;
+    QDict *dict = qobject_to(QDict, request);
+    QObject *id = dict ? qdict_get(dict, "id") : NULL;
+    QObject *ret = do_qmp_dispatch(cmds, request, allow_oob, &err);
     QDict *rsp;
-
-    ret = do_qmp_dispatch(cmds, request, allow_oob, &err);
 
     if (err) {
         rsp = qmp_error_response(err);
@@ -179,6 +181,10 @@ QDict *qmp_dispatch(QmpCommandList *cmds, QObject *request,
     } else {
         /* Can only happen for commands with QCO_NO_SUCCESS_RESP */
         rsp = NULL;
+    }
+
+    if (rsp && id) {
+        qdict_put_obj(rsp, "id", qobject_ref(id));
     }
 
     return rsp;

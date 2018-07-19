@@ -249,8 +249,6 @@ QEMUBH *qmp_dispatcher_bh;
 struct QMPRequest {
     /* Owner of the request */
     Monitor *mon;
-    /* "id" field of the request */
-    QObject *id;
     /*
      * Request object to be handled or Error to be reported
      * (exactly one of them is non-null)
@@ -351,7 +349,6 @@ int monitor_read_password(Monitor *mon, ReadLineFunc *readline_func,
 
 static void qmp_request_free(QMPRequest *req)
 {
-    qobject_unref(req->id);
     qobject_unref(req->req);
     error_free(req->err);
     g_free(req);
@@ -3991,18 +3988,14 @@ static int monitor_can_read(void *opaque)
  * Null @rsp can only happen for commands with QCO_NO_SUCCESS_RESP.
  * Nothing is emitted then.
  */
-static void monitor_qmp_respond(Monitor *mon, QDict *rsp, QObject *id)
+static void monitor_qmp_respond(Monitor *mon, QDict *rsp)
 {
     if (rsp) {
-        if (id) {
-            qdict_put_obj(rsp, "id", qobject_ref(id));
-        }
-
         qmp_send_response(mon, rsp);
     }
 }
 
-static void monitor_qmp_dispatch(Monitor *mon, QObject *req, QObject *id)
+static void monitor_qmp_dispatch(Monitor *mon, QObject *req)
 {
     Monitor *old_mon;
     QDict *rsp;
@@ -4027,7 +4020,7 @@ static void monitor_qmp_dispatch(Monitor *mon, QObject *req, QObject *id)
         }
     }
 
-    monitor_qmp_respond(mon, rsp, id);
+    monitor_qmp_respond(mon, rsp);
     qobject_unref(rsp);
 }
 
@@ -4082,13 +4075,15 @@ static void monitor_qmp_bh_dispatcher(void *data)
     /*  qmp_oob_enabled() might change after "qmp_capabilities" */
     need_resume = !qmp_oob_enabled(req_obj->mon);
     if (req_obj->req) {
-        trace_monitor_qmp_cmd_in_band(qobject_get_try_str(req_obj->id) ?: "");
-        monitor_qmp_dispatch(req_obj->mon, req_obj->req, req_obj->id);
+        QDict *qdict = qobject_to(QDict, req_obj->req);
+        QObject *id = qdict ? qdict_get(qdict, "id") : NULL;
+        trace_monitor_qmp_cmd_in_band(qobject_get_try_str(id) ?: "");
+        monitor_qmp_dispatch(req_obj->mon, req_obj->req);
     } else {
         assert(req_obj->err);
         rsp = qmp_error_response(req_obj->err);
         req_obj->err = NULL;
-        monitor_qmp_respond(req_obj->mon, rsp, NULL);
+        monitor_qmp_respond(req_obj->mon, rsp);
         qobject_unref(rsp);
     }
 
@@ -4117,8 +4112,7 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
 
     qdict = qobject_to(QDict, req);
     if (qdict) {
-        id = qobject_ref(qdict_get(qdict, "id"));
-        qdict_del(qdict, "id");
+        id = qdict_get(qdict, "id");
     } /* else will fail qmp_dispatch() */
 
     if (req && trace_event_get_state_backends(TRACE_HANDLE_QMP_COMMAND)) {
@@ -4129,15 +4123,13 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
 
     if (qdict && qmp_is_oob(qdict)) {
         /* OOB commands are executed immediately */
-        trace_monitor_qmp_cmd_out_of_band(qobject_get_try_str(id)
-                                          ?: "");
-        monitor_qmp_dispatch(mon, req, id);
+        trace_monitor_qmp_cmd_out_of_band(qobject_get_try_str(id) ?: "");
+        monitor_qmp_dispatch(mon, req);
         return;
     }
 
     req_obj = g_new0(QMPRequest, 1);
     req_obj->mon = mon;
-    req_obj->id = id;
     req_obj->req = req;
     req_obj->err = err;
 
