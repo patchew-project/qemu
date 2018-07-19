@@ -126,7 +126,9 @@ int json_message_parser_feed(JSONMessageParser *parser,
 
 int json_message_parser_flush(JSONMessageParser *parser)
 {
-    return json_lexer_flush(&parser->lexer);
+    int ret = json_lexer_flush(&parser->lexer);
+
+    return ret ?: g_queue_get_length(parser->tokens);
 }
 
 void json_message_parser_destroy(JSONMessageParser *parser)

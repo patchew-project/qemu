@@ -64,7 +64,10 @@ QObject *qobject_from_jsonv(const char *string, va_list *ap, Error **errp)
 
     json_message_parser_init(&state.parser, parse_json);
     json_message_parser_feed(&state.parser, string, strlen(string));
-    json_message_parser_flush(&state.parser);
+    if (json_message_parser_flush(&state.parser) != 0 &&
+        !state.err) {
+        error_setg(&state.err, QERR_JSON_PARSING);
+    }
     json_message_parser_destroy(&state.parser);
 
     error_propagate(errp, state.err);
