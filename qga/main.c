@@ -608,7 +608,7 @@ static void process_event(JSONMessageParser *parser, GQueue *tokens)
     g_assert(s && parser);
 
     g_debug("process_event: called");
-    obj = json_parser_parse_err(tokens, NULL, &err);
+    obj = json_parser_parse(tokens, NULL, &err);
     if (err) {
         goto err;
     }

@@ -432,7 +432,7 @@ static void qmp_response(JSONMessageParser *parser, GQueue *tokens)
     QMPResponseParser *qmp = container_of(parser, QMPResponseParser, parser);
     QObject *obj;
 
-    obj = json_parser_parse(tokens, NULL);
+    obj = json_parser_parse(tokens, NULL, NULL);
     if (!obj) {
         fprintf(stderr, "QMP JSON response parsing failed\n");
         exit(1);
