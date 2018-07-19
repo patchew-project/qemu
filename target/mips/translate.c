@@ -5315,7 +5315,13 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
             gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_BadInstrP));
             rn = "BadInstrP";
             break;
-        default:
+        case 3:
+            CP0_CHECK(ctx->bi);
+            gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_BadInstrX));
+            tcg_gen_andi_tl(arg, arg, ~0xffff);
+            rn = "BadInstrX";
+            break;
+       default:
             goto cp0_unimplemented;
         }
         break;
@@ -6005,6 +6011,10 @@ static void gen_mtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
         case 2:
             /* ignored */
             rn = "BadInstrP";
+            break;
+        case 3:
+            /* ignored */
+            rn = "BadInstrX";
             break;
         default:
             goto cp0_unimplemented;
@@ -6711,6 +6721,12 @@ static void gen_dmfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
             gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_BadInstrP));
             rn = "BadInstrP";
             break;
+        case 3:
+            CP0_CHECK(ctx->bi);
+            gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_BadInstrX));
+            tcg_gen_andi_tl(arg, arg, ~0xffff);
+            rn = "BadInstrX";
+            break;
         default:
             goto cp0_unimplemented;
         }
@@ -7384,6 +7400,10 @@ static void gen_dmtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
         case 2:
             /* ignored */
             rn = "BadInstrP";
+            break;
+        case 3:
+            /* ignored */
+            rn = "BadInstrX";
             break;
         default:
             goto cp0_unimplemented;
