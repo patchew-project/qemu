@@ -288,6 +288,7 @@ static void pci_secondary_vga_exit(PCIDevice *dev)
     VGACommonState *s = &d->vga;
 
     graphic_console_close(s->con);
+    vmstate_unregister_ram(&s->vram, DEVICE(dev));
 }
 
 static void pci_secondary_vga_init(Object *obj)
