@@ -777,6 +777,13 @@ GuestFsfreezeStatus qmp_guest_fsfreeze_status(Error **errp)
  */
 int64_t qmp_guest_fsfreeze_freeze(Error **errp)
 {
+    return qmp_guest_fsfreeze_freeze_list(false, NULL, errp);
+}
+
+int64_t qmp_guest_fsfreeze_freeze_list(bool has_mountpoints,
+                                       strList *mountpoints,
+                                       Error **errp)
+{
     int i;
     Error *local_err = NULL;
 
@@ -790,7 +797,7 @@ int64_t qmp_guest_fsfreeze_freeze(Error **errp)
     /* cannot risk guest agent blocking itself on a write in this state */
     ga_set_frozen(ga_state);
 
-    qga_vss_fsfreeze(&i, true, &local_err);
+    qga_vss_fsfreeze(&i, true, mountpoints, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         goto error;
@@ -808,15 +815,6 @@ error:
     return 0;
 }
 
-int64_t qmp_guest_fsfreeze_freeze_list(bool has_mountpoints,
-                                       strList *mountpoints,
-                                       Error **errp)
-{
-    error_setg(errp, QERR_UNSUPPORTED);
-
-    return 0;
-}
-
 /*
  * Thaw local file systems using Volume Shadow-copy Service.
  */
@@ -829,7 +827,7 @@ int64_t qmp_guest_fsfreeze_thaw(Error **errp)
         return 0;
     }
 
-    qga_vss_fsfreeze(&i, false, errp);
+    qga_vss_fsfreeze(&i, false, NULL, errp);
 
     ga_unset_frozen(ga_state);
     return i;
@@ -1633,7 +1631,6 @@ GList *ga_command_blacklist_init(GList *blacklist)
         "guest-set-vcpus",
         "guest-get-memory-blocks", "guest-set-memory-blocks",
         "guest-get-memory-block-size",
-        "guest-fsfreeze-freeze-list",
         NULL};
     char **p = (char **)list_unsupported;
 
