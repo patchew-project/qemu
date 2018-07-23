@@ -1279,11 +1279,56 @@ static void vfio_disconnect_container(VFIOGroup *group)
     }
 }
 
-VFIOGroup *vfio_get_group(int groupid, AddressSpace *as, Error **errp)
+static VFIOGroup *vfio_init_group(int groupfd, int groupid, AddressSpace *as,
+                                  Error **errp)
 {
     VFIOGroup *group;
-    char path[32];
     struct vfio_group_status status = { .argsz = sizeof(status) };
+
+    group = g_malloc0(sizeof(*group));
+
+    group->fd = groupfd;
+    group->groupid = groupid;
+
+    if (ioctl(group->fd, VFIO_GROUP_GET_STATUS, &status)) {
+        error_setg_errno(errp, errno, "failed to get group %d status", groupid);
+        goto free_group_exit;
+    }
+
+    if (!(status.flags & VFIO_GROUP_FLAGS_VIABLE)) {
+        error_setg(errp, "group %d is not viable", groupid);
+        error_append_hint(errp,
+                          "Please ensure all devices within the iommu_group "
+                          "are bound to their vfio bus driver.\n");
+        goto free_group_exit;
+    }
+
+    QLIST_INIT(&group->device_list);
+
+    if (vfio_connect_container(group, as, errp)) {
+        error_prepend(errp, "failed to setup container for group %d: ",
+                      groupid);
+        goto free_group_exit;
+    }
+
+    if (QLIST_EMPTY(&vfio_group_list)) {
+        qemu_register_reset(vfio_reset_handler, NULL);
+    }
+
+    QLIST_INSERT_HEAD(&vfio_group_list, group, next);
+
+    return group;
+
+free_group_exit:
+    g_free(group);
+
+    return NULL;
+}
+
+static VFIOGroup *vfio_find_group(int groupid, AddressSpace *as,
+                                  Error **errp)
+{
+    VFIOGroup *group;
 
     QLIST_FOREACH(group, &vfio_group_list, next) {
         if (group->groupid == groupid) {
@@ -1298,52 +1343,34 @@ VFIOGroup *vfio_get_group(int groupid, AddressSpace *as, Error **errp)
         }
     }
 
-    group = g_malloc0(sizeof(*group));
+    return NULL;
+}
+
+VFIOGroup *vfio_get_group(int groupid, AddressSpace *as, Error **errp)
+{
+    VFIOGroup *group;
+    char path[32];
+    int groupfd;
+
+    group = vfio_find_group(groupid, as, errp);
+    if (group) {
+        return group;
+    }
 
     snprintf(path, sizeof(path), "/dev/vfio/%d", groupid);
-    group->fd = qemu_open(path, O_RDWR);
-    if (group->fd < 0) {
+    groupfd = qemu_open(path, O_RDWR);
+    if (groupfd < 0) {
         error_setg_errno(errp, errno, "failed to open %s", path);
-        goto free_group_exit;
+        return NULL;
     }
 
-    if (ioctl(group->fd, VFIO_GROUP_GET_STATUS, &status)) {
-        error_setg_errno(errp, errno, "failed to get group %d status", groupid);
-        goto close_fd_exit;
+    group = vfio_init_group(groupfd, groupid, as, errp);
+    if (!group) {
+        close(groupfd);
+        return NULL;
     }
-
-    if (!(status.flags & VFIO_GROUP_FLAGS_VIABLE)) {
-        error_setg(errp, "group %d is not viable", groupid);
-        error_append_hint(errp,
-                          "Please ensure all devices within the iommu_group "
-                          "are bound to their vfio bus driver.\n");
-        goto close_fd_exit;
-    }
-
-    group->groupid = groupid;
-    QLIST_INIT(&group->device_list);
-
-    if (vfio_connect_container(group, as, errp)) {
-        error_prepend(errp, "failed to setup container for group %d: ",
-                      groupid);
-        goto close_fd_exit;
-    }
-
-    if (QLIST_EMPTY(&vfio_group_list)) {
-        qemu_register_reset(vfio_reset_handler, NULL);
-    }
-
-    QLIST_INSERT_HEAD(&vfio_group_list, group, next);
 
     return group;
-
-close_fd_exit:
-    close(group->fd);
-
-free_group_exit:
-    g_free(group);
-
-    return NULL;
 }
 
 void vfio_put_group(VFIOGroup *group)
