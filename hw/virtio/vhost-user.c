@@ -52,6 +52,7 @@ enum VhostUserProtocolFeature {
     VHOST_USER_PROTOCOL_F_CONFIG = 9,
     VHOST_USER_PROTOCOL_F_SLAVE_SEND_FD = 10,
     VHOST_USER_PROTOCOL_F_HOST_NOTIFIER = 11,
+    VHOST_USER_PROTOCOL_F_VFIO_GROUP = 12,
     VHOST_USER_PROTOCOL_F_MAX
 };
 
@@ -97,6 +98,7 @@ typedef enum VhostUserSlaveRequest {
     VHOST_USER_SLAVE_IOTLB_MSG = 1,
     VHOST_USER_SLAVE_CONFIG_CHANGE_MSG = 2,
     VHOST_USER_SLAVE_VRING_HOST_NOTIFIER_MSG = 3,
+    VHOST_USER_SLAVE_VFIO_GROUP_MSG = 4,
     VHOST_USER_SLAVE_MAX
 }  VhostUserSlaveRequest;
 
@@ -949,6 +951,41 @@ static int vhost_user_slave_handle_vring_host_notifier(struct vhost_dev *dev,
     return 0;
 }
 
+static int vhost_user_slave_handle_vfio_group(struct vhost_dev *dev,
+                                              int *fd)
+{
+    struct vhost_user *u = dev->opaque;
+    VhostUserState *user = u->user;
+    VirtIODevice *vdev = dev->vdev;
+    int groupfd = fd[0];
+    VFIOGroup *group;
+
+    if (!virtio_has_feature(dev->protocol_features,
+                            VHOST_USER_PROTOCOL_F_VFIO_GROUP) ||
+        vdev == NULL) {
+        return -1;
+    }
+
+    if (user->vfio_group) {
+        vfio_put_group(user->vfio_group);
+        user->vfio_group = NULL;
+    }
+
+    group = vfio_get_group_from_fd(groupfd, vdev->dma_as, NULL);
+    if (group == NULL) {
+        return -1;
+    }
+
+    if (group->fd != groupfd) {
+        close(groupfd);
+    }
+
+    user->vfio_group = group;
+    fd[0] = -1;
+
+    return 0;
+}
+
 static void slave_read(void *opaque)
 {
     struct vhost_dev *dev = opaque;
@@ -1020,6 +1057,9 @@ static void slave_read(void *opaque)
     case VHOST_USER_SLAVE_VRING_HOST_NOTIFIER_MSG:
         ret = vhost_user_slave_handle_vring_host_notifier(dev, &payload.area,
                                                           fd[0]);
+        break;
+    case VHOST_USER_SLAVE_VFIO_GROUP_MSG:
+        ret = vhost_user_slave_handle_vfio_group(dev, fd);
         break;
     default:
         error_report("Received unexpected msg type.");

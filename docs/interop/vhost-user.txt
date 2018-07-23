@@ -397,6 +397,7 @@ Protocol features
 #define VHOST_USER_PROTOCOL_F_CONFIG         9
 #define VHOST_USER_PROTOCOL_F_SLAVE_SEND_FD  10
 #define VHOST_USER_PROTOCOL_F_HOST_NOTIFIER  11
+#define VHOST_USER_PROTOCOL_F_VFIO_GROUP     12
 
 Master message types
 --------------------
@@ -814,6 +815,21 @@ Slave message types
       sent with a file descriptor.
       This request should be sent only when VHOST_USER_PROTOCOL_F_HOST_NOTIFIER
       protocol feature has been successfully negotiated.
+
+ * VHOST_USER_SLAVE_VFIO_GROUP_MSG
+
+      Id: 4
+      Equivalent ioctl: N/A
+      Slave payload: N/A
+      Master payload: N/A
+
+      When VHOST_USER_PROTOCOL_F_VFIO_GROUP is negotiated, vhost-user slave
+      could send this request to share its VFIO group fd via ancillary data
+      to master. After receiving this request from slave, master will close
+      the existing VFIO group if any and do the DMA programming based on the
+      virtio device's DMA address space for the new group if the request is
+      sent with a file descriptor.
+
 
 VHOST_USER_PROTOCOL_F_REPLY_ACK:
 -------------------------------
