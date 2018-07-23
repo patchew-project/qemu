@@ -237,7 +237,7 @@ void acpi_pcihp_device_plug_cb(HotplugHandler *hotplug_dev, AcpiPciHpState *s,
     }
 
     s->acpi_pcihp_pci_status[bsel].up |= (1U << slot);
-    acpi_send_event(DEVICE(hotplug_dev), ACPI_PCI_HOTPLUG_STATUS);
+    acpi_send_event(ACPI_DEVICE_IF(hotplug_dev), ACPI_PCI_HOTPLUG_STATUS);
 }
 
 void acpi_pcihp_device_unplug_cb(HotplugHandler *hotplug_dev, AcpiPciHpState *s,
@@ -253,7 +253,7 @@ void acpi_pcihp_device_unplug_cb(HotplugHandler *hotplug_dev, AcpiPciHpState *s,
     }
 
     s->acpi_pcihp_pci_status[bsel].down |= (1U << slot);
-    acpi_send_event(DEVICE(hotplug_dev), ACPI_PCI_HOTPLUG_STATUS);
+    acpi_send_event(ACPI_DEVICE_IF(hotplug_dev), ACPI_PCI_HOTPLUG_STATUS);
 }
 
 static uint64_t pci_read(void *opaque, hwaddr addr, unsigned int size)

@@ -280,7 +280,7 @@ void acpi_memory_plug_cb(HotplugHandler *hotplug_dev, MemHotplugState *mem_st,
     mdev->is_enabled = true;
     if (dev->hotplugged) {
         mdev->is_inserting = true;
-        acpi_send_event(DEVICE(hotplug_dev), ACPI_MEMORY_HOTPLUG_STATUS);
+        acpi_send_event(ACPI_DEVICE_IF(hotplug_dev), ACPI_MEMORY_HOTPLUG_STATUS);
     }
 }
 
@@ -296,7 +296,7 @@ void acpi_memory_unplug_request_cb(HotplugHandler *hotplug_dev,
     }
 
     mdev->is_removing = true;
-    acpi_send_event(DEVICE(hotplug_dev), ACPI_MEMORY_HOTPLUG_STATUS);
+    acpi_send_event(ACPI_DEVICE_IF(hotplug_dev), ACPI_MEMORY_HOTPLUG_STATUS);
 }
 
 void acpi_memory_unplug_cb(MemHotplugState *mem_st,

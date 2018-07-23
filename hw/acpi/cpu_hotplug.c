@@ -79,7 +79,7 @@ void legacy_acpi_cpu_plug_cb(HotplugHandler *hotplug_dev,
     if (*errp != NULL) {
         return;
     }
-    acpi_send_event(DEVICE(hotplug_dev), ACPI_CPU_HOTPLUG_STATUS);
+    acpi_send_event(ACPI_DEVICE_IF(hotplug_dev), ACPI_CPU_HOTPLUG_STATUS);
 }
 
 void legacy_acpi_cpu_hotplug_init(MemoryRegion *parent, Object *owner,

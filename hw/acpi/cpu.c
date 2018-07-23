@@ -233,7 +233,7 @@ void acpi_cpu_plug_cb(HotplugHandler *hotplug_dev,
     cdev->cpu = CPU(dev);
     if (dev->hotplugged) {
         cdev->is_inserting = true;
-        acpi_send_event(DEVICE(hotplug_dev), ACPI_CPU_HOTPLUG_STATUS);
+        acpi_send_event(ACPI_DEVICE_IF(hotplug_dev), ACPI_CPU_HOTPLUG_STATUS);
     }
 }
 
@@ -249,7 +249,7 @@ void acpi_cpu_unplug_request_cb(HotplugHandler *hotplug_dev,
     }
 
     cdev->is_removing = true;
-    acpi_send_event(DEVICE(hotplug_dev), ACPI_CPU_HOTPLUG_STATUS);
+    acpi_send_event(ACPI_DEVICE_IF(hotplug_dev), ACPI_CPU_HOTPLUG_STATUS);
 }
 
 void acpi_cpu_unplug_cb(CPUHotplugState *cpu_st,

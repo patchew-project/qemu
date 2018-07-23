@@ -31,7 +31,7 @@ typedef struct AcpiDeviceIf {
     Object Parent;
 } AcpiDeviceIf;
 
-void acpi_send_event(DeviceState *dev, AcpiEventStatusBits event);
+void acpi_send_event(AcpiDeviceIf *dev, AcpiEventStatusBits event);
 
 /**
  * AcpiDeviceIfClass:
