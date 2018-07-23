@@ -110,7 +110,16 @@ static void kill_qemu(QTestState *s)
         pid = waitpid(s->qemu_pid, &wstatus, 0);
 
         if (pid == s->qemu_pid && WIFSIGNALED(wstatus)) {
-            assert(!WCOREDUMP(wstatus));
+            if (WCOREDUMP(wstatus)) {
+                int sig = WTERMSIG(wstatus);
+                const char *signame = strsignal(sig) ?: "unknown ???";
+
+                fprintf(stderr,
+                        "%s:%d: kill_qemu() tried to terminate QEMU "
+                        "process but it dumped core with signal %d (%s)\n",
+                        __FILE__, __LINE__, sig, signame);
+                abort();
+            }
         }
     }
 }
