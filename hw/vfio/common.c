@@ -1279,6 +1279,30 @@ static void vfio_disconnect_container(VFIOGroup *group)
     }
 }
 
+static int vfio_groupfd_to_groupid(int groupfd)
+{
+    char *tmp, group_path[PATH_MAX], *group_name;
+    int groupid, len;
+
+    tmp = g_strdup_printf("/proc/self/fd/%d", groupfd);
+    len = readlink(tmp, group_path, sizeof(group_path));
+    g_free(tmp);
+
+    if (len <= 0 || len >= sizeof(group_path)) {
+        return -1;
+    }
+
+    group_path[len] = '\0';
+
+    group_name = g_path_get_basename(group_path);
+    if (sscanf(group_name, "%d", &groupid) != 1) {
+        groupid = -1;
+    }
+    g_free(group_name);
+
+    return groupid;
+}
+
 static VFIOGroup *vfio_init_group(int groupfd, int groupid, AddressSpace *as,
                                   Error **errp)
 {
@@ -1371,6 +1395,26 @@ VFIOGroup *vfio_get_group(int groupid, AddressSpace *as, Error **errp)
     }
 
     return group;
+}
+
+VFIOGroup *vfio_get_group_from_fd(int groupfd, AddressSpace *as, Error **errp)
+{
+    VFIOGroup *group;
+    int groupid;
+
+    groupid = vfio_groupfd_to_groupid(groupfd);
+    if (groupid < 0) {
+        error_setg(errp, "failed to get group id from group fd %d",
+                   groupfd);
+        return NULL;
+    }
+
+    group = vfio_find_group(groupid, as, errp);
+    if (group) {
+        return group;
+    }
+
+    return vfio_init_group(groupfd, groupid, as, errp);
 }
 
 void vfio_put_group(VFIOGroup *group)
