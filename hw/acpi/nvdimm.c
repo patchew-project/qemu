@@ -918,10 +918,10 @@ static const MemoryRegionOps nvdimm_dsm_ops = {
     },
 };
 
-void nvdimm_acpi_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev)
+void nvdimm_acpi_plug_cb(AcpiDeviceIf *acpi_dev, DeviceState *dev)
 {
     if (dev->hotplugged) {
-        acpi_send_event(ACPI_DEVICE_IF(hotplug_dev), ACPI_NVDIMM_HOTPLUG_STATUS);
+        acpi_send_event(acpi_dev, ACPI_NVDIMM_HOTPLUG_STATUS);
     }
 }
 

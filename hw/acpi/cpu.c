@@ -220,7 +220,7 @@ static AcpiCpuStatus *get_cpu_status(CPUHotplugState *cpu_st, DeviceState *dev)
     return NULL;
 }
 
-void acpi_cpu_plug_cb(HotplugHandler *hotplug_dev,
+void acpi_cpu_plug_cb(AcpiDeviceIf *acpi_dev,
                       CPUHotplugState *cpu_st, DeviceState *dev, Error **errp)
 {
     AcpiCpuStatus *cdev;
@@ -233,11 +233,11 @@ void acpi_cpu_plug_cb(HotplugHandler *hotplug_dev,
     cdev->cpu = CPU(dev);
     if (dev->hotplugged) {
         cdev->is_inserting = true;
-        acpi_send_event(ACPI_DEVICE_IF(hotplug_dev), ACPI_CPU_HOTPLUG_STATUS);
+        acpi_send_event(acpi_dev, ACPI_CPU_HOTPLUG_STATUS);
     }
 }
 
-void acpi_cpu_unplug_request_cb(HotplugHandler *hotplug_dev,
+void acpi_cpu_unplug_request_cb(AcpiDeviceIf *acpi_dev,
                                 CPUHotplugState *cpu_st,
                                 DeviceState *dev, Error **errp)
 {
@@ -249,7 +249,7 @@ void acpi_cpu_unplug_request_cb(HotplugHandler *hotplug_dev,
     }
 
     cdev->is_removing = true;
-    acpi_send_event(ACPI_DEVICE_IF(hotplug_dev), ACPI_CPU_HOTPLUG_STATUS);
+    acpi_send_event(acpi_dev, ACPI_CPU_HOTPLUG_STATUS);
 }
 
 void acpi_cpu_unplug_cb(CPUHotplugState *cpu_st,
