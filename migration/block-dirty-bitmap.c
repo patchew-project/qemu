@@ -295,6 +295,12 @@ static int init_dirty_bitmap_migration(void)
                 continue;
             }
 
+            /* Skip persistant bitmaps, unless it's a block migration: */
+            if (bdrv_dirty_bitmap_get_persistance(bitmap) &&
+                !migrate_use_block()) {
+                continue;
+            }
+
             if (drive_name == NULL) {
                 error_report("Found bitmap '%s' in unnamed node %p. It can't "
                              "be migrated", bdrv_dirty_bitmap_name(bitmap), bs);
@@ -333,11 +339,6 @@ static int init_dirty_bitmap_migration(void)
             QSIMPLEQ_INSERT_TAIL(&dirty_bitmap_mig_state.dbms_list,
                                  dbms, entry);
         }
-    }
-
-    /* unset persistance here, to not roll back it */
-    QSIMPLEQ_FOREACH(dbms, &dirty_bitmap_mig_state.dbms_list, entry) {
-        bdrv_dirty_bitmap_set_persistance(dbms->bitmap, false);
     }
 
     if (QSIMPLEQ_EMPTY(&dirty_bitmap_mig_state.dbms_list)) {

@@ -1495,8 +1495,9 @@ static int coroutine_fn qcow2_do_open(BlockDriverState *bs, QDict *options,
         s->autoclear_features &= QCOW2_AUTOCLEAR_MASK;
     }
 
-    if (qcow2_load_dirty_bitmaps(bs, &local_err)) {
-        update_header = false;
+    if (!(bdrv_get_flags(bs) & BDRV_O_INACTIVE)) {
+        bool header_updated = qcow2_load_dirty_bitmaps(bs, &local_err);
+        update_header = update_header && !header_updated;
     }
     if (local_err != NULL) {
         error_propagate(errp, local_err);

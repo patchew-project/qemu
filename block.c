@@ -4497,10 +4497,6 @@ static int bdrv_inactivate_recurse(BlockDriverState *bs,
         }
     }
 
-    /* At this point persistent bitmaps should be already stored by the format
-     * driver */
-    bdrv_release_persistent_dirty_bitmaps(bs);
-
     return 0;
 }
 

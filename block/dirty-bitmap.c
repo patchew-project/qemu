@@ -384,26 +384,6 @@ void bdrv_release_named_dirty_bitmaps(BlockDriverState *bs)
 }
 
 /**
- * Release all persistent dirty bitmaps attached to a BDS (for use in
- * bdrv_inactivate_recurse()).
- * There must not be any frozen bitmaps attached.
- * This function does not remove persistent bitmaps from the storage.
- * Called with BQL taken.
- */
-void bdrv_release_persistent_dirty_bitmaps(BlockDriverState *bs)
-{
-    BdrvDirtyBitmap *bm, *next;
-
-    bdrv_dirty_bitmaps_lock(bs);
-    QLIST_FOREACH_SAFE(bm, &bs->dirty_bitmaps, list, next) {
-        if (bdrv_dirty_bitmap_get_persistance(bm)) {
-            bdrv_release_dirty_bitmap_locked(bm);
-        }
-    }
-    bdrv_dirty_bitmaps_unlock(bs);
-}
-
-/**
  * Remove persistent dirty bitmap from the storage if it exists.
  * Absence of bitmap is not an error, because we have the following scenario:
  * BdrvDirtyBitmap can have .persistent = true but not yet saved and have no
