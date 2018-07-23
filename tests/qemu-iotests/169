@@ -89,6 +89,9 @@ class TestDirtyBitmapMigration(iotests.QMPTestCase):
         mig_caps = [{'capability': 'events', 'state': True}]
         if migrate_bitmaps:
             mig_caps.append({'capability': 'dirty-bitmaps', 'state': True})
+        if not shared_storage:
+            mig_caps.append({'capability': 'block', 'state': True})
+
 
         result = self.vm_a.qmp('migrate-set-capabilities',
                                capabilities=mig_caps)
