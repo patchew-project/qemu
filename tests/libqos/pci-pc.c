@@ -152,6 +152,10 @@ QPCIBus *qpci_init_pc(QTestState *qts, QGuestAllocator *alloc)
 
 void qpci_free_pc(QPCIBus *bus)
 {
+    if (!bus) {
+        return;
+    }
+
     QPCIBusPC *s = container_of(bus, QPCIBusPC, bus);
 
     g_free(s);
