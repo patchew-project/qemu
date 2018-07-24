@@ -97,9 +97,9 @@ need:
    l2_cache_size = disk_size_GB * 131072
    refcount_cache_size = disk_size_GB * 32768
 
-QEMU has a default L2 cache of 1MB (1048576 bytes) and a refcount
-cache of 256KB (262144 bytes), so using the formulas we've just seen
-we have
+QEMU has a default L2 cache of 1MB (1048576 bytes) or 8 clusters (whichever
+is larger) and a refcount cache of 256KB (262144 bytes), so using the
+formulas we've just seen we have (assuming the L2 cache is 1MB):
 
    1048576 / 131072 = 8 GB of virtual disk covered by that cache
     262144 /  32768 = 8 GB
