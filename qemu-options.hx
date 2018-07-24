@@ -758,6 +758,10 @@ The maximum total size of the L2 table and refcount block caches in bytes
 The maximum size of the L2 table cache in bytes
 (default: 4/5 of the total cache size)
 
+@item l2-cache-full
+Make the L2 table cache large enough to cover the entire image
+(on/off; default: off)
+
 @item refcount-cache-size
 The maximum size of the refcount block cache in bytes
 (default: 1/5 of the total cache size)
