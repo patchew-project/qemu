@@ -696,6 +696,11 @@ static QemuOptsList qcow2_runtime_opts = {
             .help = "Maximum L2 table cache size",
         },
         {
+            .name = QCOW2_OPT_L2_CACHE_FULL,
+            .type = QEMU_OPT_BOOL,
+            .help = "Create full coverage of the image with the L2 cache",
+        },
+        {
             .name = QCOW2_OPT_L2_CACHE_ENTRY_SIZE,
             .type = QEMU_OPT_SIZE,
             .help = "Size of each entry in the L2 cache",
@@ -779,10 +784,12 @@ static void read_cache_sizes(BlockDriverState *bs, QemuOpts *opts,
     BDRVQcow2State *s = bs->opaque;
     uint64_t combined_cache_size;
     bool l2_cache_size_set, refcount_cache_size_set, combined_cache_size_set;
+    bool l2_cache_full_set;
     int min_refcount_cache = MIN_REFCOUNT_CACHE_SIZE * s->cluster_size;
 
     combined_cache_size_set = qemu_opt_get(opts, QCOW2_OPT_CACHE_SIZE);
     l2_cache_size_set = qemu_opt_get(opts, QCOW2_OPT_L2_CACHE_SIZE);
+    l2_cache_full_set = qemu_opt_get(opts, QCOW2_OPT_L2_CACHE_FULL);
     refcount_cache_size_set = qemu_opt_get(opts, QCOW2_OPT_REFCOUNT_CACHE_SIZE);
 
     combined_cache_size = qemu_opt_get_size(opts, QCOW2_OPT_CACHE_SIZE, 0);
@@ -793,15 +800,32 @@ static void read_cache_sizes(BlockDriverState *bs, QemuOpts *opts,
     *l2_cache_entry_size = qemu_opt_get_size(
         opts, QCOW2_OPT_L2_CACHE_ENTRY_SIZE, s->cluster_size);
 
+    uint64_t virtual_disk_size = bs->total_sectors * BDRV_SECTOR_SIZE;
+    uint64_t max_l2_cache = virtual_disk_size / (s->cluster_size / 8);
+
+    if (l2_cache_size_set && l2_cache_full_set) {
+        error_setg(errp, QCOW2_OPT_L2_CACHE_SIZE " and "
+                   QCOW2_OPT_L2_CACHE_FULL " may not be set at the same time");
+        return;
+    } else if (l2_cache_full_set) {
+        *l2_cache_size = max_l2_cache;
+    }
+
     if (combined_cache_size_set) {
         if (l2_cache_size_set && refcount_cache_size_set) {
             error_setg(errp, QCOW2_OPT_CACHE_SIZE ", " QCOW2_OPT_L2_CACHE_SIZE
                        " and " QCOW2_OPT_REFCOUNT_CACHE_SIZE " may not be set "
-                       "the same time");
+                       "at the same time");
             return;
         } else if (*l2_cache_size > combined_cache_size) {
-            error_setg(errp, QCOW2_OPT_L2_CACHE_SIZE " may not exceed "
-                       QCOW2_OPT_CACHE_SIZE);
+            if (l2_cache_full_set) {
+                error_setg(errp, QCOW2_OPT_CACHE_SIZE " must be greater than "
+                           "the full L2 cache if " QCOW2_OPT_L2_CACHE_FULL
+                           " is used");
+            } else {
+                error_setg(errp, QCOW2_OPT_L2_CACHE_SIZE " may not exceed "
+                           QCOW2_OPT_CACHE_SIZE);
+            }
             return;
         } else if (*refcount_cache_size > combined_cache_size) {
             error_setg(errp, QCOW2_OPT_REFCOUNT_CACHE_SIZE " may not exceed "
@@ -809,14 +833,11 @@ static void read_cache_sizes(BlockDriverState *bs, QemuOpts *opts,
             return;
         }
 
-        if (l2_cache_size_set) {
+        if (l2_cache_size_set || l2_cache_full_set) {
             *refcount_cache_size = combined_cache_size - *l2_cache_size;
         } else if (refcount_cache_size_set) {
             *l2_cache_size = combined_cache_size - *refcount_cache_size;
         } else {
-            uint64_t virtual_disk_size = bs->total_sectors * BDRV_SECTOR_SIZE;
-            uint64_t max_l2_cache = virtual_disk_size / (s->cluster_size / 8);
-
             /* Assign as much memory as possible to the L2 cache, and
              * use the remainder for the refcount cache */
             if (combined_cache_size >= max_l2_cache + min_refcount_cache) {
@@ -829,7 +850,7 @@ static void read_cache_sizes(BlockDriverState *bs, QemuOpts *opts,
             }
         }
     } else {
-        if (!l2_cache_size_set) {
+        if (!l2_cache_size_set && !l2_cache_full_set) {
             *l2_cache_size = MAX(DEFAULT_L2_CACHE_BYTE_SIZE,
                                  (uint64_t)DEFAULT_L2_CACHE_CLUSTERS
                                  * s->cluster_size);
