@@ -110,11 +110,12 @@ How to configure the cache sizes
 Cache sizes can be configured using the -drive option in the
 command-line, or the 'blockdev-add' QMP command.
 
-There are three options available, and all of them take bytes:
+There are four options available:
 
-"l2-cache-size":         maximum size of the L2 table cache
-"refcount-cache-size":   maximum size of the refcount block cache
-"cache-size":            maximum size of both caches combined
+"l2-cache-size":         maximum size of the L2 table cache (bytes, K, M)
+"refcount-cache-size":   maximum size of the refcount block cache (bytes, K, M)
+"cache-size":            maximum size of both caches combined (bytes, K, M)
+"l2-cache-full":         make the L2 cache cover the full image (boolean)
 
 There are a few things that need to be taken into account:
 
@@ -129,6 +130,12 @@ There are a few things that need to be taken into account:
  - If only "cache-size" is specified then QEMU will assign as much
    memory as possible to the L2 cache before increasing the refcount
    cache size.
+
+- If "l2-cache-full" is specified, QEMU will assign enough memory
+  to the L2 cache to cover the entire size of the image.
+
+- "l2-cache-size" and "l2-cache-full" can not be set simultaneously, as
+  setting "l2-cache-full" already implies a specific size for the L2 cache.
 
 - At most two of "l2-cache-size", "refcount-cache-size", and "cache-size"
   can be set simultaneously.
