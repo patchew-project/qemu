@@ -52,9 +52,15 @@ echo
 echo '=== Testing invalid option combinations ==='
 echo
 
+# l2-cache-size and l2-cache-full at the same time
+$QEMU_IO -c "open -o l2-cache-full,l2-cache-size=1M $TEST_IMG" 2>&1 |
+    _filter_testdir | _filter_imgfmt
 # all sizes set at the same time
 $QEMU_IO -c "open -o cache-size=1.25M,l2-cache-size=1M,refcount-cache-size=0.25M $TEST_IMG" \
     2>&1 | _filter_testdir | _filter_imgfmt
+# cache-size may not be smaller than the full L2 size if l2-cache-full is used
+$QEMU_IO -c "open -o l2-cache-full,cache-size=6K $TEST_IMG" 2>&1 |
+    _filter_testdir | _filter_imgfmt
 # l2-cache-size may not exceed cache-size
 $QEMU_IO -c "open -o cache-size=1M,l2-cache-size=2M $TEST_IMG" 2>&1 \
     | _filter_testdir | _filter_imgfmt
