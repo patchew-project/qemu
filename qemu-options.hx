@@ -754,13 +754,17 @@ image file)
 The maximum total size of the L2 table and refcount block caches in bytes
 
 @item l2-cache-size
-The maximum size of the L2 table cache.
+The maximum size of the L2 table cache. (Mutually exclusive with l2-cache-full)
 (default: if cache-size is not defined - 1048576 bytes or 8 clusters,
 whichever is larger; if cache-size is defined and is large enough to
 accommodate enough L2 cache to cover the entire virtual size of the image plus
 the minimal amount of refcount cache - enough to cover the entire image;
 if cache-size is defined and is not large enough - as much as possible while
 leaving space for the needed refcount cache)
+
+@item l2-cache-full
+Make the L2 table cache large enough to cover the entire image (mutually
+exclusive with l2-cache-size) (on/off; default: off)
 
 @item refcount-cache-size
 The maximum size of the refcount block cache in bytes
