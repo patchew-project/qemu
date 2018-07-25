@@ -415,6 +415,99 @@ static int add_amd_xgbe_fdt_node(SysBusDevice *sbdev, void *opaque)
     return 0;
 }
 
+static HostProperty generic_copied_properties[] = {
+    {"compatible", false},
+    {"#gpio-cells", true},
+    {"gpio-controller", true},
+    {"#interrupt-cells", true},
+    {"interrupt-controller", true},
+    {"interrupt-names", true},
+};
+
+/**
+ * add_generic_fdt_node
+ *
+ * Generates a generic DT node by copying properties from the host
+ */
+static int add_generic_fdt_node(SysBusDevice *sbdev, void *opaque)
+{
+    PlatformBusFDTData *data = opaque;
+    VFIOPlatformDevice *vdev = VFIO_PLATFORM_DEVICE(sbdev);
+    const char *parent_node = data->pbus_node_name;
+    void *guest_fdt = data->fdt, *host_fdt;
+    VFIODevice *vbasedev = &vdev->vbasedev;
+    char **node_path, *node_name, *dt_name;
+    PlatformBusDevice *pbus = data->pbus;
+    int i, irq_number;
+    uint32_t *reg_attr, *irq_attr;
+    uint64_t mmio_base;
+
+    host_fdt = load_device_tree_from_sysfs();
+
+    dt_name = sysfs_to_dt_name(vbasedev->name);
+    if (!dt_name) {
+        error_report("%s incorrect sysfs device name %s", __func__,
+                     vbasedev->name);
+        exit(1);
+    }
+    node_path = qemu_fdt_node_path(host_fdt, dt_name, vdev->compat,
+                                   &error_fatal);
+    if (!node_path || !node_path[0]) {
+        error_report("%s unable to retrieve node path for %s/%s", __func__,
+                     dt_name, vdev->compat);
+        exit(1);
+    }
+
+    if (node_path[1]) {
+        error_report("%s more than one node matching %s/%s!", __func__, dt_name,
+                     vdev->compat);
+        exit(1);
+    }
+
+    mmio_base = platform_bus_get_mmio_addr(pbus, sbdev, 0);
+    node_name = g_strdup_printf("%s/%s@%" PRIx64, parent_node,
+                               vbasedev->name, mmio_base);
+    qemu_fdt_add_subnode(guest_fdt, node_name);
+
+    /* Copy generic properties */
+    copy_properties_from_host(generic_copied_properties,
+                              ARRAY_SIZE(generic_copied_properties), host_fdt,
+                              guest_fdt, node_path[0], node_name);
+
+    /* Copy reg (remapped) */
+    reg_attr = g_new(uint32_t, vbasedev->num_regions * 2);
+    for (i = 0; i < vbasedev->num_regions; i++) {
+        mmio_base = platform_bus_get_mmio_addr(pbus, sbdev, i);
+        reg_attr[2 * i] = cpu_to_be32(mmio_base);
+        reg_attr[2 * i + 1] = cpu_to_be32(
+                                memory_region_size(vdev->regions[i]->mem));
+    }
+    qemu_fdt_setprop(guest_fdt, node_name, "reg", reg_attr,
+                     vbasedev->num_regions * 2 * sizeof(uint32_t));
+
+    /* Copy interrupts (remapped) */
+    if (vbasedev->num_irqs) {
+        irq_attr = g_new(uint32_t, vbasedev->num_irqs * 3);
+        for (i = 0; i < vbasedev->num_irqs; i++) {
+            irq_number = platform_bus_get_irqn(pbus, sbdev , i)
+                             + data->irq_start;
+            irq_attr[3 * i] = cpu_to_be32(GIC_FDT_IRQ_TYPE_SPI);
+            irq_attr[3 * i + 1] = cpu_to_be32(irq_number);
+            irq_attr[3 * i + 2] = cpu_to_be32(GIC_FDT_IRQ_FLAGS_LEVEL_HI);
+        }
+        qemu_fdt_setprop(guest_fdt, node_name, "interrupts",
+                         irq_attr, vbasedev->num_irqs * 3 * sizeof(uint32_t));
+        g_free(irq_attr);
+    }
+
+    g_free(reg_attr);
+    g_free(node_name);
+    g_strfreev(node_path);
+    g_free(dt_name);
+    g_free(host_fdt);
+    return 0;
+}
+
 /* DT compatible matching */
 static bool vfio_platform_match(SysBusDevice *sbdev,
                                 const BindingEntry *entry)
@@ -422,6 +515,11 @@ static bool vfio_platform_match(SysBusDevice *sbdev,
     VFIOPlatformDevice *vdev = VFIO_PLATFORM_DEVICE(sbdev);
     const char *compat;
     unsigned int n;
+
+    if (!entry->compat) {
+        /* Generic DT fallback */
+        return true;
+    }
 
     for (n = vdev->num_compat, compat = vdev->compat; n > 0;
          n--, compat += strlen(compat) + 1) {
@@ -459,6 +557,10 @@ static const BindingEntry bindings[] = {
     VFIO_PLATFORM_BINDING("amd,xgbe-seattle-v1a", add_amd_xgbe_fdt_node),
 #endif
     TYPE_BINDING(TYPE_RAMFB_DEVICE, no_fdt_node),
+#ifdef CONFIG_LINUX
+    /* Generic DT fallback must be last */
+    VFIO_PLATFORM_BINDING(NULL, add_generic_fdt_node),
+#endif
     TYPE_BINDING("", NULL), /* last element */
 };
 
