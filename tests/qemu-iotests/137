@@ -106,7 +106,9 @@ echo
 
 $QEMU_IO \
     -c "reopen -o lazy-refcounts=42" \
+    -c "reopen -o l2-cache-full,l2-cache-size=64k" \
     -c "reopen -o cache-size=1M,l2-cache-size=64k,refcount-cache-size=64k" \
+    -c "reopen -o l2-cache-full,cache-size=6K" \
     -c "reopen -o cache-size=1M,l2-cache-size=2M" \
     -c "reopen -o cache-size=1M,refcount-cache-size=2M" \
     -c "reopen -o l2-cache-size=256T" \
