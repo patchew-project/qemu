@@ -51,7 +51,7 @@
 #define IOTKIT_H
 
 #include "hw/sysbus.h"
-#include "hw/arm/armv7m.h"
+#include "hw/arm/arm-m-profile.h"
 #include "hw/misc/iotkit-secctl.h"
 #include "hw/misc/tz-ppc.h"
 #include "hw/misc/tz-mpc.h"
@@ -74,7 +74,7 @@ typedef struct IoTKit {
     SysBusDevice parent_obj;
 
     /*< public >*/
-    ARMv7MState armv7m;
+    ARMMProfileState armv7m;
     IoTKitSecCtl secctl;
     TZPPC apb_ppc0;
     TZPPC apb_ppc1;

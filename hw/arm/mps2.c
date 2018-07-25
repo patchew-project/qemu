@@ -26,7 +26,7 @@
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "hw/arm/arm.h"
-#include "hw/arm/armv7m.h"
+#include "hw/arm/arm-m-profile.h"
 #include "hw/or-irq.h"
 #include "hw/boards.h"
 #include "exec/address-spaces.h"
@@ -52,7 +52,7 @@ typedef struct {
 typedef struct {
     MachineState parent;
 
-    ARMv7MState armv7m;
+    ARMMProfileState armv7m;
     MemoryRegion psram;
     MemoryRegion ssram1;
     MemoryRegion ssram1_m;
@@ -172,7 +172,7 @@ static void mps2_common_init(MachineState *machine)
         g_assert_not_reached();
     }
 
-    object_initialize(&mms->armv7m, sizeof(mms->armv7m), TYPE_ARMV7M);
+    object_initialize(&mms->armv7m, sizeof(mms->armv7m), TYPE_ARM_M_PROFILE);
     armv7m = DEVICE(&mms->armv7m);
     qdev_set_parent_bus(armv7m, sysbus_get_default());
     switch (mmc->fpga_type) {

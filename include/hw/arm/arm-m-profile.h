@@ -1,14 +1,16 @@
 /*
- * ARMv7M CPU object
+ * ARM M Profile CPU class
  *
  * Copyright (c) 2017 Linaro Ltd
  * Written by Peter Maydell <peter.maydell@linaro.org>
  *
+ * Copyright (C) 2018 Red Hat, Inc.
+ *
  * This code is licensed under the GPL version 2 or later.
  */
 
-#ifndef HW_ARM_ARMV7M_H
-#define HW_ARM_ARMV7M_H
+#ifndef HW_ARM_ARM_M_PROFILE_H
+#define HW_ARM_ARM_M_PROFILE_H
 
 #include "hw/sysbus.h"
 #include "hw/intc/armv7m_nvic.h"
@@ -28,12 +30,17 @@ typedef struct {
     MemoryRegion *source_memory;
 } BitBandState;
 
-#define TYPE_ARMV7M "armv7m"
-#define ARMV7M(obj) OBJECT_CHECK(ARMv7MState, (obj), TYPE_ARMV7M)
-
 #define ARMV7M_NUM_BITBANDS 2
 
-/* ARMv7M container object.
+#define TYPE_ARM_M_PROFILE "arm-m-profile"
+#define ARM_M_PROFILE(obj) OBJECT_CHECK(ARMMProfileState, (obj), \
+                                        TYPE_ARM_M_PROFILE)
+#define ARM_M_PROFILE_CLASS(klass) \
+     OBJECT_CLASS_CHECK(ARMMProfileClass, (klass), TYPE_ARM_M_PROFILE)
+#define ARM_M_PROFILE_GET_CLASS(obj) \
+     OBJECT_GET_CLASS(ARMMProfileClass, (obj), TYPE_ARM_M_PROFILE)
+
+/* ARM M Profile container object.
  * + Unnamed GPIO input lines: external IRQ lines for the NVIC
  * + Named GPIO output SYSRESETREQ: signalled for guest AIRCR.SYSRESETREQ
  * + Property "cpu-type": CPU type to instantiate
@@ -44,7 +51,7 @@ typedef struct {
  * + Property "idau": IDAU interface (forwarded to CPU object)
  * + Property "init-svtor": secure VTOR reset value (forwarded to CPU object)
  */
-typedef struct ARMv7MState {
+typedef struct {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
@@ -63,6 +70,18 @@ typedef struct ARMv7MState {
     MemoryRegion *board_memory;
     Object *idau;
     uint32_t init_svtor;
-} ARMv7MState;
+} ARMMProfileState;
+
+typedef struct {
+    /*< private >*/
+    SysBusDeviceClass parent_class;
+
+    /*< public >*/
+    /**
+     * Initialize the CPU object, for example by setting properties, before it
+     * gets realized.  May be NULL.
+     */
+    void (*cpu_init)(ARMMProfileState *s, Error **errp);
+} ARMMProfileClass;
 
 #endif

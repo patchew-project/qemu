@@ -20,7 +20,7 @@
 #include "qemu/log.h"
 #include "exec/address-spaces.h"
 #include "sysemu/sysemu.h"
-#include "hw/arm/armv7m.h"
+#include "hw/arm/arm-m-profile.h"
 #include "hw/char/pl011.h"
 #include "hw/misc/unimp.h"
 #include "cpu.h"
@@ -1301,7 +1301,7 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
                            &error_fatal);
     memory_region_add_subregion(system_memory, 0x20000000, sram);
 
-    nvic = qdev_create(NULL, TYPE_ARMV7M);
+    nvic = qdev_create(NULL, TYPE_ARM_M_PROFILE);
     qdev_prop_set_uint32(nvic, "num-irq", NUM_IRQ_LINES);
     qdev_prop_set_string(nvic, "cpu-type", ms->cpu_type);
     object_property_set_link(OBJECT(nvic), OBJECT(get_system_memory()),

@@ -111,7 +111,7 @@ static void iotkit_init(Object *obj)
     memory_region_init(&s->container, obj, "iotkit-container", UINT64_MAX);
 
     sysbus_init_child_obj(obj, "armv7m", &s->armv7m, sizeof(s->armv7m),
-                          TYPE_ARMV7M);
+                          TYPE_ARM_M_PROFILE);
     qdev_prop_set_string(DEVICE(&s->armv7m), "cpu-type",
                          ARM_CPU_TYPE_NAME("cortex-m33"));
 

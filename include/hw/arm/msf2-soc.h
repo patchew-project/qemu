@@ -25,7 +25,7 @@
 #ifndef HW_ARM_MSF2_SOC_H
 #define HW_ARM_MSF2_SOC_H
 
-#include "hw/arm/armv7m.h"
+#include "hw/arm/arm-m-profile.h"
 #include "hw/timer/mss-timer.h"
 #include "hw/misc/msf2-sysreg.h"
 #include "hw/ssi/mss-spi.h"
@@ -48,7 +48,7 @@ typedef struct MSF2State {
     SysBusDevice parent_obj;
     /*< public >*/
 
-    ARMv7MState armv7m;
+    ARMMProfileState armv7m;
 
     char *cpu_type;
     char *part_name;

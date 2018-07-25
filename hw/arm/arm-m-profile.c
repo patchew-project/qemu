@@ -10,6 +10,8 @@
  */
 
 #include "qemu/osdep.h"
+#include "hw/arm/arm-m-profile.h"
+#include "qapi/error.h"
 #include "qemu-common.h"
 #include "cpu.h"
 #include "hw/sysbus.h"
@@ -19,6 +21,244 @@
 #include "sysemu/qtest.h"
 #include "qemu/error-report.h"
 #include "exec/address-spaces.h"
+
+/* Bitbanded IO.  Each word corresponds to a single bit.  */
+
+/* Get the byte address of the real memory for a bitband access.  */
+static inline hwaddr bitband_addr(BitBandState *s, hwaddr offset)
+{
+    return s->base | (offset & 0x1ffffff) >> 5;
+}
+
+static MemTxResult bitband_read(void *opaque, hwaddr offset,
+                                uint64_t *data, unsigned size, MemTxAttrs attrs)
+{
+    BitBandState *s = opaque;
+    uint8_t buf[4];
+    MemTxResult res;
+    int bitpos, bit;
+    hwaddr addr;
+
+    assert(size <= 4);
+
+    /* Find address in underlying memory and round down to multiple of size */
+    addr = bitband_addr(s, offset) & (-size);
+    res = address_space_read(&s->source_as, addr, attrs, buf, size);
+    if (res) {
+        return res;
+    }
+    /* Bit position in the N bytes read... */
+    bitpos = (offset >> 2) & ((size * 8) - 1);
+    /* ...converted to byte in buffer and bit in byte */
+    bit = (buf[bitpos >> 3] >> (bitpos & 7)) & 1;
+    *data = bit;
+    return MEMTX_OK;
+}
+
+static MemTxResult bitband_write(void *opaque, hwaddr offset, uint64_t value,
+                                 unsigned size, MemTxAttrs attrs)
+{
+    BitBandState *s = opaque;
+    uint8_t buf[4];
+    MemTxResult res;
+    int bitpos, bit;
+    hwaddr addr;
+
+    assert(size <= 4);
+
+    /* Find address in underlying memory and round down to multiple of size */
+    addr = bitband_addr(s, offset) & (-size);
+    res = address_space_read(&s->source_as, addr, attrs, buf, size);
+    if (res) {
+        return res;
+    }
+    /* Bit position in the N bytes read... */
+    bitpos = (offset >> 2) & ((size * 8) - 1);
+    /* ...converted to byte in buffer and bit in byte */
+    bit = 1 << (bitpos & 7);
+    if (value & 1) {
+        buf[bitpos >> 3] |= bit;
+    } else {
+        buf[bitpos >> 3] &= ~bit;
+    }
+    return address_space_write(&s->source_as, addr, attrs, buf, size);
+}
+
+static const MemoryRegionOps bitband_ops = {
+    .read_with_attrs = bitband_read,
+    .write_with_attrs = bitband_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .impl.min_access_size = 1,
+    .impl.max_access_size = 4,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 4,
+};
+
+static void bitband_init(Object *obj)
+{
+    BitBandState *s = BITBAND(obj);
+    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
+
+    memory_region_init_io(&s->iomem, obj, &bitband_ops, s,
+                          "bitband", 0x02000000);
+    sysbus_init_mmio(dev, &s->iomem);
+}
+
+static void bitband_realize(DeviceState *dev, Error **errp)
+{
+    BitBandState *s = BITBAND(dev);
+
+    if (!s->source_memory) {
+        error_setg(errp, "source-memory property not set");
+        return;
+    }
+
+    address_space_init(&s->source_as, s->source_memory, "bitband-source");
+}
+
+/* Board init.  */
+
+static const hwaddr bitband_input_addr[ARMV7M_NUM_BITBANDS] = {
+    0x20000000, 0x40000000
+};
+
+static const hwaddr bitband_output_addr[ARMV7M_NUM_BITBANDS] = {
+    0x22000000, 0x42000000
+};
+
+static void arm_m_profile_instance_init(Object *obj)
+{
+    ARMMProfileState *s = ARM_M_PROFILE(obj);
+    int i;
+
+    /* Can't init the cpu here, we don't yet know which model to use */
+
+    memory_region_init(&s->container, obj, "arm-m-profile-container", UINT64_MAX);
+
+    sysbus_init_child_obj(obj, "nvnic", &s->nvic, sizeof(s->nvic), TYPE_NVIC);
+    object_property_add_alias(obj, "num-irq",
+                              OBJECT(&s->nvic), "num-irq", &error_abort);
+
+    for (i = 0; i < ARRAY_SIZE(s->bitband); i++) {
+        sysbus_init_child_obj(obj, "bitband[*]", &s->bitband[i],
+                              sizeof(s->bitband[i]), TYPE_BITBAND);
+    }
+}
+
+static void arm_m_profile_realize(DeviceState *dev, Error **errp)
+{
+    ARMMProfileState *s = ARM_M_PROFILE(dev);
+    SysBusDevice *sbd;
+    Error *err = NULL;
+    int i;
+
+    if (!s->board_memory) {
+        error_setg(errp, "memory property was not set");
+        return;
+    }
+
+    memory_region_add_subregion_overlap(&s->container, 0, s->board_memory, -1);
+
+    s->cpu = ARM_CPU(object_new(s->cpu_type));
+
+    object_property_set_link(OBJECT(s->cpu), OBJECT(&s->container), "memory",
+                             &error_abort);
+    if (object_property_find(OBJECT(s->cpu), "idau", NULL)) {
+        object_property_set_link(OBJECT(s->cpu), s->idau, "idau", &err);
+        if (err != NULL) {
+            error_propagate(errp, err);
+            return;
+        }
+    }
+    if (object_property_find(OBJECT(s->cpu), "init-svtor", NULL)) {
+        object_property_set_uint(OBJECT(s->cpu), s->init_svtor,
+                                 "init-svtor", &err);
+        if (err != NULL) {
+            error_propagate(errp, err);
+            return;
+        }
+    }
+
+    /* Tell the CPU where the NVIC is; it will fail realize if it doesn't
+     * have one.
+     */
+    s->cpu->env.nvic = &s->nvic;
+
+    object_property_set_bool(OBJECT(s->cpu), true, "realized", &err);
+    if (err != NULL) {
+        error_propagate(errp, err);
+        return;
+    }
+
+    /* Note that we must realize the NVIC after the CPU */
+    object_property_set_bool(OBJECT(&s->nvic), true, "realized", &err);
+    if (err != NULL) {
+        error_propagate(errp, err);
+        return;
+    }
+
+    /* Alias the NVIC's input and output GPIOs as our own so the board
+     * code can wire them up. (We do this in realize because the
+     * NVIC doesn't create the input GPIO array until realize.)
+     */
+    qdev_pass_gpios(DEVICE(&s->nvic), dev, NULL);
+    qdev_pass_gpios(DEVICE(&s->nvic), dev, "SYSRESETREQ");
+
+    /* Wire the NVIC up to the CPU */
+    sbd = SYS_BUS_DEVICE(&s->nvic);
+    sysbus_connect_irq(sbd, 0,
+                       qdev_get_gpio_in(DEVICE(s->cpu), ARM_CPU_IRQ));
+
+    memory_region_add_subregion(&s->container, 0xe000e000,
+                                sysbus_mmio_get_region(sbd, 0));
+
+    for (i = 0; i < ARRAY_SIZE(s->bitband); i++) {
+        Object *obj = OBJECT(&s->bitband[i]);
+        SysBusDevice *sbd = SYS_BUS_DEVICE(&s->bitband[i]);
+
+        object_property_set_int(obj, bitband_input_addr[i], "base", &err);
+        if (err != NULL) {
+            error_propagate(errp, err);
+            return;
+        }
+        object_property_set_link(obj, OBJECT(s->board_memory),
+                                 "source-memory", &error_abort);
+        object_property_set_bool(obj, true, "realized", &err);
+        if (err != NULL) {
+            error_propagate(errp, err);
+            return;
+        }
+
+        memory_region_add_subregion(&s->container, bitband_output_addr[i],
+                                    sysbus_mmio_get_region(sbd, 0));
+    }
+}
+
+static Property arm_m_profile_properties[] = {
+    DEFINE_PROP_STRING("cpu-type", ARMMProfileState, cpu_type),
+    DEFINE_PROP_LINK("memory", ARMMProfileState, board_memory,
+                     TYPE_MEMORY_REGION, MemoryRegion *),
+    DEFINE_PROP_LINK("idau", ARMMProfileState, idau,
+                     TYPE_IDAU_INTERFACE, Object *),
+    DEFINE_PROP_UINT32("init-svtor", ARMMProfileState, init_svtor, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void arm_m_profile_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->realize = arm_m_profile_realize;
+    dc->props = arm_m_profile_properties;
+}
+
+static const TypeInfo arm_m_profile_info = {
+    .name = TYPE_ARM_M_PROFILE,
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(ARMMProfileState),
+    .instance_init = arm_m_profile_instance_init,
+    .class_init = arm_m_profile_class_init,
+};
 
 static void arm_m_profile_reset(void *opaque)
 {
@@ -79,3 +319,34 @@ void arm_m_profile_load_kernel(ARMCPU *cpu, const char *kernel_filename, int mem
      */
     qemu_register_reset(arm_m_profile_reset, cpu);
 }
+
+static Property bitband_properties[] = {
+    DEFINE_PROP_UINT32("base", BitBandState, base, 0),
+    DEFINE_PROP_LINK("source-memory", BitBandState, source_memory,
+                     TYPE_MEMORY_REGION, MemoryRegion *),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void bitband_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->realize = bitband_realize;
+    dc->props = bitband_properties;
+}
+
+static const TypeInfo bitband_info = {
+    .name          = TYPE_BITBAND,
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(BitBandState),
+    .instance_init = bitband_init,
+    .class_init    = bitband_class_init,
+};
+
+static void arm_m_profile_register_types(void)
+{
+    type_register_static(&bitband_info);
+    type_register_static(&arm_m_profile_info);
+}
+
+type_init(arm_m_profile_register_types)

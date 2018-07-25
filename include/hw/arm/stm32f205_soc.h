@@ -31,7 +31,7 @@
 #include "hw/adc/stm32f2xx_adc.h"
 #include "hw/or-irq.h"
 #include "hw/ssi/stm32f2xx_spi.h"
-#include "hw/arm/armv7m.h"
+#include "hw/arm/arm-m-profile.h"
 
 #define TYPE_STM32F205_SOC "stm32f205-soc"
 #define STM32F205_SOC(obj) \
@@ -54,7 +54,7 @@ typedef struct STM32F205State {
 
     char *cpu_type;
 
-    ARMv7MState armv7m;
+    ARMMProfileState armv7m;
 
     STM32F2XXSyscfgState syscfg;
     STM32F2XXUsartState usart[STM_NUM_USARTS];

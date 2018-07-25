@@ -69,7 +69,7 @@ static void m2sxxx_soc_initfn(Object *obj)
     int i;
 
     sysbus_init_child_obj(obj, "armv7m", &s->armv7m, sizeof(s->armv7m),
-                          TYPE_ARMV7M);
+                          TYPE_ARM_M_PROFILE);
 
     sysbus_init_child_obj(obj, "sysreg", &s->sysreg, sizeof(s->sysreg),
                           TYPE_MSF2_SYSREG);

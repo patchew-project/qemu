@@ -50,7 +50,7 @@ static void stm32f205_soc_initfn(Object *obj)
     int i;
 
     sysbus_init_child_obj(obj, "armv7m", &s->armv7m, sizeof(s->armv7m),
-                          TYPE_ARMV7M);
+                          TYPE_ARM_M_PROFILE);
 
     sysbus_init_child_obj(obj, "syscfg", &s->syscfg, sizeof(s->syscfg),
                           TYPE_STM32F2XX_SYSCFG);
