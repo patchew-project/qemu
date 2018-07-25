@@ -86,7 +86,8 @@
    so a cpu features bitfield is required */
 enum {
     RISCV_FEATURE_MMU,
-    RISCV_FEATURE_MTVAL_INST
+    RISCV_FEATURE_MTVAL_INST,
+    RISCV_FEATURE_STVAL_INST
 };
 
 #define USER_VERSION_2_02_0 0x00020200

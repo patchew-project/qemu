@@ -466,9 +466,18 @@ void riscv_cpu_do_interrupt(CPUState *cs)
                     ": badaddr 0x" TARGET_FMT_lx, env->mhartid, env->badaddr);
             }
             env->stval = env->badaddr;
+        } else if (cs->exception_index & RISCV_EXCP_ILLEGAL_INST) {
+            if (riscv_feature(env, RISCV_FEATURE_STVAL_INST)) {
+                /* The stval register can optionally also be used to
+                 * return the faulting instruction bits on an illegal
+                 * instruction exception.
+                 */
+                env->stval = env->bins;
+            } else {
+                env->stval = 0;
+            }
         } else {
-            /* otherwise we must clear sbadaddr/stval
-             * todo: support populating stval on illegal instructions */
+            /* Otherwise we must clear mbadaddr/stval */
             env->stval = 0;
         }
 
