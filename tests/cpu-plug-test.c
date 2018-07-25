@@ -21,6 +21,7 @@ struct PlugTestData {
     unsigned cores;
     unsigned threads;
     unsigned maxcpus;
+    const char *extra_args;
 };
 typedef struct PlugTestData PlugTestData;
 
@@ -106,9 +107,10 @@ static void test_plug_with_device_add_coreid(gconstpointer data)
     char *args;
     unsigned int c;
 
-    args = g_strdup_printf("-machine %s -cpu %s "
+    args = g_strdup_printf("-machine %s -cpu %s %s "
                            "-smp 1,sockets=%u,cores=%u,threads=%u,maxcpus=%u",
                            td->machine, td->cpu_model,
+                           td->extra_args ? td->extra_args : "",
                            td->sockets, td->cores, td->threads, td->maxcpus);
     qtest_start(args);
 
@@ -195,10 +197,20 @@ static void add_pseries_test_case(const char *mname)
         (g_str_has_prefix(mname, "pseries-2.") && atoi(&mname[10]) < 7)) {
         return;
     }
-    data = g_new(PlugTestData, 1);
+    data = g_new0(PlugTestData, 1);
     data->machine = g_strdup(mname);
     data->cpu_model = "power8_v2.0";
-    data->device_model = g_strdup("power8_v2.0-spapr-cpu-core");
+    if (!access("/sys/module/kvm_hv", F_OK) ||
+        !access("/sys/module/kvm_pr", F_OK)) {
+        data->cpu_model = "host";
+        data->extra_args =
+            "-machine accel=kvm "
+            "-machine cap-cfpc=broken,cap-sbbc=broken,cap-ibs=broken "
+            "-machine cap-htm=off "
+            "-machine cap-hpt-max-page-size=64k "
+            "-S";
+    }
+    data->device_model = g_strdup_printf("%s-spapr-cpu-core", data->cpu_model);
     data->sockets = 2;
     data->cores = 3;
     data->threads = 1;
@@ -221,7 +233,7 @@ static void add_s390x_test_case(const char *mname)
         return;
     }
 
-    data = g_new(PlugTestData, 1);
+    data = g_new0(PlugTestData, 1);
     data->machine = g_strdup(mname);
     data->cpu_model = "qemu";
     data->device_model = g_strdup("qemu-s390x-cpu");
