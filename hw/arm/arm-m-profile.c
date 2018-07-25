@@ -212,25 +212,27 @@ static void arm_m_profile_realize(DeviceState *dev, Error **errp)
     memory_region_add_subregion(&s->container, 0xe000e000,
                                 sysbus_mmio_get_region(sbd, 0));
 
-    for (i = 0; i < ARRAY_SIZE(s->bitband); i++) {
-        Object *obj = OBJECT(&s->bitband[i]);
-        SysBusDevice *sbd = SYS_BUS_DEVICE(&s->bitband[i]);
+    if (s->enable_bitband) {
+        for (i = 0; i < ARRAY_SIZE(s->bitband); i++) {
+            Object *obj = OBJECT(&s->bitband[i]);
+            SysBusDevice *sbd = SYS_BUS_DEVICE(&s->bitband[i]);
 
-        object_property_set_int(obj, bitband_input_addr[i], "base", &err);
-        if (err != NULL) {
-            error_propagate(errp, err);
-            return;
-        }
-        object_property_set_link(obj, OBJECT(s->board_memory),
-                                 "source-memory", &error_abort);
-        object_property_set_bool(obj, true, "realized", &err);
-        if (err != NULL) {
-            error_propagate(errp, err);
-            return;
-        }
+            object_property_set_int(obj, bitband_input_addr[i], "base", &err);
+            if (err != NULL) {
+                error_propagate(errp, err);
+                return;
+            }
+            object_property_set_link(obj, OBJECT(s->board_memory),
+                                     "source-memory", &error_abort);
+            object_property_set_bool(obj, true, "realized", &err);
+            if (err != NULL) {
+                error_propagate(errp, err);
+                return;
+            }
 
-        memory_region_add_subregion(&s->container, bitband_output_addr[i],
-                                    sysbus_mmio_get_region(sbd, 0));
+            memory_region_add_subregion(&s->container, bitband_output_addr[i],
+                                        sysbus_mmio_get_region(sbd, 0));
+        }
     }
 }
 
@@ -241,6 +243,8 @@ static Property arm_m_profile_properties[] = {
     DEFINE_PROP_LINK("idau", ARMMProfileState, idau,
                      TYPE_IDAU_INTERFACE, Object *),
     DEFINE_PROP_UINT32("init-svtor", ARMMProfileState, init_svtor, 0),
+    DEFINE_PROP_BOOL("enable-bitband", ARMMProfileState,
+                     enable_bitband, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
