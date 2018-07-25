@@ -102,6 +102,15 @@ static void gen_exception_debug(void)
 
 static void gen_exception_illegal(DisasContext *ctx)
 {
+#if defined(TARGET_RISCV64)
+    TCGv_i64 helper_tmp = tcg_const_i64(ctx->opcode);
+    tcg_gen_st_tl(helper_tmp, cpu_env, offsetof(CPURISCVState, bins));
+    tcg_temp_free_i64(helper_tmp);
+#else
+    TCGv_i32 helper_tmp = tcg_const_i32(ctx->opcode);
+    tcg_gen_st_tl(helper_tmp, cpu_env, offsetof(CPURISCVState, bins));
+    tcg_temp_free_i32(helper_tmp);
+#endif
     generate_exception(ctx, RISCV_EXCP_ILLEGAL_INST);
 }
 
@@ -1286,6 +1295,9 @@ static void gen_system(CPURISCVState *env, DisasContext *ctx, uint32_t opc,
     tcg_gen_movi_tl(cpu_pc, ctx->base.pc_next);
     tcg_gen_movi_tl(rs1_pass, rs1);
     tcg_gen_movi_tl(csr_store, csr); /* copy into temp reg to feed to helper */
+
+    /* Store the opcode code incase we need it for mtval/stval. */
+    env->bins = ctx->opcode;
 
 #ifndef CONFIG_USER_ONLY
     /* Extract funct7 value and check whether it matches SFENCE.VMA */

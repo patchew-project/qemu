@@ -85,7 +85,8 @@
    is currently no bit in misa to indicate whether an MMU exists or not
    so a cpu features bitfield is required */
 enum {
-    RISCV_FEATURE_MMU
+    RISCV_FEATURE_MMU,
+    RISCV_FEATURE_MTVAL_INST
 };
 
 #define USER_VERSION_2_02_0 0x00020200
@@ -113,6 +114,7 @@ struct CPURISCVState {
     target_ulong frm;
 
     target_ulong badaddr;
+    target_ulong bins;
 
     target_ulong user_ver;
     target_ulong priv_ver;
