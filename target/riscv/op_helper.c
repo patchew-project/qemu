@@ -310,8 +310,8 @@ void csr_write_helper(CPURISCVState *env, target_ulong val_to_write,
     case CSR_SCAUSE:
         env->scause = val_to_write;
         break;
-    case CSR_SBADADDR:
-        env->sbadaddr = val_to_write;
+    case CSR_STVAL:
+        env->stval = val_to_write;
         break;
     case CSR_MEPC:
         env->mepc = val_to_write;
@@ -338,8 +338,8 @@ void csr_write_helper(CPURISCVState *env, target_ulong val_to_write,
     case CSR_MCAUSE:
         env->mcause = val_to_write;
         break;
-    case CSR_MBADADDR:
-        env->mbadaddr = val_to_write;
+    case CSR_MTVAL:
+        env->mtval = val_to_write;
         break;
     case CSR_MISA:
         /* misa is WARL so unsupported writes are ignored */
@@ -515,8 +515,8 @@ target_ulong csr_read_helper(CPURISCVState *env, target_ulong csrno)
         return env->mie & env->mideleg;
     case CSR_SEPC:
         return env->sepc;
-    case CSR_SBADADDR:
-        return env->sbadaddr;
+    case CSR_STVAL:
+        return env->stval;
     case CSR_STVEC:
         return env->stvec;
     case CSR_SCOUNTEREN:
@@ -554,8 +554,8 @@ target_ulong csr_read_helper(CPURISCVState *env, target_ulong csrno)
         return env->mscratch;
     case CSR_MCAUSE:
         return env->mcause;
-    case CSR_MBADADDR:
-        return env->mbadaddr;
+    case CSR_MTVAL:
+        return env->mtval;
     case CSR_MISA:
         return env->misa;
     case CSR_MARCHID:

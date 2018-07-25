@@ -465,11 +465,11 @@ void riscv_cpu_do_interrupt(CPUState *cs)
                 qemu_log_mask(LOG_TRACE, "core " TARGET_FMT_ld
                     ": badaddr 0x" TARGET_FMT_lx, env->mhartid, env->badaddr);
             }
-            env->sbadaddr = env->badaddr;
+            env->stval = env->badaddr;
         } else {
             /* otherwise we must clear sbadaddr/stval
              * todo: support populating stval on illegal instructions */
-            env->sbadaddr = 0;
+            env->stval = 0;
         }
 
         target_ulong s = env->mstatus;
@@ -490,11 +490,11 @@ void riscv_cpu_do_interrupt(CPUState *cs)
                 qemu_log_mask(LOG_TRACE, "core " TARGET_FMT_ld
                     ": badaddr 0x" TARGET_FMT_lx, env->mhartid, env->badaddr);
             }
-            env->mbadaddr = env->badaddr;
+            env->mtval = env->badaddr;
         } else {
             /* otherwise we must clear mbadaddr/mtval
              * todo: support populating mtval on illegal instructions */
-            env->mbadaddr = 0;
+            env->mtval = 0;
         }
 
         target_ulong s = env->mstatus;
