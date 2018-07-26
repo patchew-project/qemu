@@ -3926,6 +3926,7 @@ static void spapr_machine_3_0_class_options(MachineClass *mc)
     sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
 
     smc->legacy_irq_allocation = true;
+    smc->irq = &spapr_irq_xics_legacy;
 }
 
 DEFINE_SPAPR_MACHINE(3_0, "3.0", true);
