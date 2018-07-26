@@ -451,6 +451,7 @@ glusterfs_xlator_opt="no"
 glusterfs_discard="no"
 glusterfs_fallocate="no"
 glusterfs_zerofill="no"
+glusterfs_legacy_ftruncate="no"
 gtk=""
 gtkabi=""
 gtk_gl="no"
@@ -3947,6 +3948,19 @@ if test "$glusterfs" != "no" ; then
       glusterfs_fallocate="yes"
       glusterfs_zerofill="yes"
     fi
+    cat > $TMPC << EOF
+#include <glusterfs/api/glfs.h>
+
+int
+main(void)
+{
+	/* new glfs_ftruncate() passes two additional args */
+	return glfs_ftruncate(NULL, 0 /*, NULL, NULL */);
+}
+EOF
+    if compile_prog "$glusterfs_cflags" "$glusterfs_libs" ; then
+      glusterfs_legacy_ftruncate="yes"
+    fi
   else
     if test "$glusterfs" = "yes" ; then
       feature_not_found "GlusterFS backend support" \
@@ -6642,6 +6656,10 @@ fi
 
 if test "$glusterfs_zerofill" = "yes" ; then
   echo "CONFIG_GLUSTERFS_ZEROFILL=y" >> $config_host_mak
+fi
+
+if test "$glusterfs_legacy_ftruncate" = "yes" ; then
+  echo "CONFIG_GLUSTERFS_LEGACY_FTRUNCATE=y" >> $config_host_mak
 fi
 
 if test "$libssh2" = "yes" ; then
