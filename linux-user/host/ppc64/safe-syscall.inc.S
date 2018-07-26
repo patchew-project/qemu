@@ -49,7 +49,7 @@ safe_syscall_base:
 	 *               and returns the result in r3
 	 * Shuffle everything around appropriately.
 	 */
-	mr	11, 3	/* signal_pending */
+	mr	14, 3	/* signal_pending */
 	mr	0, 4	/* syscall number */
 	mr	3, 5	/* syscall arguments */
 	mr	4, 6
@@ -67,7 +67,7 @@ safe_syscall_base:
 	 */
 safe_syscall_start:
 	/* if signal_pending is non-zero, don't do the call */
-	lwz	12, 0(11)
+	lwz	12, 0(14)
 	cmpwi	0, 12, 0
 	bne-	0f
 	sc
