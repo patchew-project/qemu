@@ -20,6 +20,10 @@
 #include "qemu/option.h"
 #include "qemu/cutils.h"
 
+#ifdef CONFIG_GLUSTERFS_LEGACY_FTRUNCATE
+# define glfs_ftruncate(fd, offset, _u1, _u2) glfs_ftruncate(fd, offset)
+#endif
+
 #define GLUSTER_OPT_FILENAME        "filename"
 #define GLUSTER_OPT_VOLUME          "volume"
 #define GLUSTER_OPT_PATH            "path"
@@ -997,6 +1001,7 @@ static int qemu_gluster_do_truncate(struct glfs_fd *fd, int64_t offset,
                                     PreallocMode prealloc, Error **errp)
 {
     int64_t current_length;
+    int ret;
 
     current_length = glfs_lseek(fd, 0, SEEK_END);
     if (current_length < 0) {
@@ -1024,7 +1029,8 @@ static int qemu_gluster_do_truncate(struct glfs_fd *fd, int64_t offset,
 #endif /* CONFIG_GLUSTERFS_FALLOCATE */
 #ifdef CONFIG_GLUSTERFS_ZEROFILL
     case PREALLOC_MODE_FULL:
-        if (glfs_ftruncate(fd, offset)) {
+        ret = glfs_ftruncate(fd, offset, NULL, NULL);
+        if (ret) {
             error_setg_errno(errp, errno, "Could not resize file");
             return -errno;
         }
@@ -1035,7 +1041,8 @@ static int qemu_gluster_do_truncate(struct glfs_fd *fd, int64_t offset,
         break;
 #endif /* CONFIG_GLUSTERFS_ZEROFILL */
     case PREALLOC_MODE_OFF:
-        if (glfs_ftruncate(fd, offset)) {
+        ret = glfs_ftruncate(fd, offset, NULL, NULL);
+        if (ret) {
             error_setg_errno(errp, errno, "Could not resize file");
             return -errno;
         }
