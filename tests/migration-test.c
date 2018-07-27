@@ -491,7 +491,7 @@ static void test_migrate_end(QTestState *from, QTestState *to, bool test_dest)
             usleep(1000 * 10);
         } while (dest_byte_a == dest_byte_b);
 
-        qtest_qmp_discard_response(to, "{ 'execute' : 'stop'}");
+        qobject_unref(qtest_qmp(to, "{ 'execute' : 'stop'}"));
 
         /* With it stopped, check nothing changes */
         qtest_memread(to, start_address, &dest_byte_c, 1);
