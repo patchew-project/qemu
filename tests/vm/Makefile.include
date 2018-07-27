@@ -14,6 +14,9 @@ vm-test:
 	@echo "  vm-build-freebsd                - Build QEMU in FreeBSD VM"
 	@echo "  vm-build-netbsd                 - Build QEMU in NetBSD VM"
 	@echo "  vm-build-openbsd                - Build QEMU in OpenBSD VM"
+	@echo ""
+	@echo "  vm-build-all                    - Build QEMU in all VMs"
+	@echo "  vm-clean-all                    - Clean up VM images"
 
 vm-build-all: $(addprefix vm-build-, $(IMAGES))
 
