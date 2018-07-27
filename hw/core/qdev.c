@@ -950,6 +950,8 @@ static void device_initfn(Object *obj)
 
     dev->instance_id_alias = -1;
     dev->realized = false;
+    dev->powered = true;
+    dev->clocked = true;
 
     object_property_add_bool(obj, "realized",
                              device_get_realized, device_set_realized, NULL);
@@ -1038,6 +1040,13 @@ static void device_unparent(Object *obj)
     }
 }
 
+static void device_power_update(DeviceState *dev)
+{
+    if (dev->powered) {
+        device_reset(dev);
+    }
+}
+
 static void device_class_init(ObjectClass *class, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(class);
@@ -1052,6 +1061,8 @@ static void device_class_init(ObjectClass *class, void *data)
      */
     dc->hotpluggable = true;
     dc->user_creatable = true;
+
+    dc->power_update = device_power_update;
 }
 
 void device_class_set_parent_reset(DeviceClass *dc,
@@ -1078,6 +1089,22 @@ void device_class_set_parent_unrealize(DeviceClass *dc,
     dc->unrealize = dev_unrealize;
 }
 
+void device_class_set_parent_power_update(DeviceClass *dc,
+                                       DeviceGatingUpdate dev_power_update,
+                                       DeviceGatingUpdate *parent_power_update)
+{
+    *parent_power_update = dc->power_update;
+    dc->power_update = dev_power_update;
+}
+
+void device_class_set_parent_clock_update(DeviceClass *dc,
+                                       DeviceGatingUpdate dev_clock_update,
+                                       DeviceGatingUpdate *parent_clock_update)
+{
+    *parent_clock_update = dc->clock_update;
+    dc->clock_update = dev_clock_update;
+}
+
 void device_reset(DeviceState *dev)
 {
     DeviceClass *klass = DEVICE_GET_CLASS(dev);
@@ -1086,6 +1113,31 @@ void device_reset(DeviceState *dev)
         klass->reset(dev);
     }
 }
+
+void device_set_power(DeviceState *dev, bool en)
+{
+    DeviceClass *klass = DEVICE_GET_CLASS(dev);
+
+    if (en != dev->powered) {
+        dev->powered = en;
+        if (klass->power_update) {
+            klass->power_update(dev);
+        }
+    }
+}
+
+void device_set_clock(DeviceState *dev, bool en)
+{
+    DeviceClass *klass = DEVICE_GET_CLASS(dev);
+
+    if (en != dev->clocked) {
+        dev->clocked = en;
+        if (klass->clock_update) {
+            klass->clock_update(dev);
+        }
+    }
+}
+
 
 Object *qdev_get_machine(void)
 {

@@ -34,6 +34,7 @@ typedef void (*DeviceUnrealize)(DeviceState *dev, Error **errp);
 typedef void (*DeviceReset)(DeviceState *dev);
 typedef void (*BusRealize)(BusState *bus, Error **errp);
 typedef void (*BusUnrealize)(BusState *bus, Error **errp);
+typedef void (*DeviceGatingUpdate)(DeviceState *dev);
 
 struct VMStateDescription;
 
@@ -109,6 +110,8 @@ typedef struct DeviceClass {
     DeviceReset reset;
     DeviceRealize realize;
     DeviceUnrealize unrealize;
+    DeviceGatingUpdate power_update;
+    DeviceGatingUpdate clock_update;
 
     /* device state */
     const struct VMStateDescription *vmsd;
@@ -151,6 +154,9 @@ struct DeviceState {
     int num_child_bus;
     int instance_id_alias;
     int alias_required_for_version;
+
+    bool powered;
+    bool clocked;
 };
 
 struct DeviceListener {
@@ -404,6 +410,12 @@ void device_class_set_parent_realize(DeviceClass *dc,
 void device_class_set_parent_unrealize(DeviceClass *dc,
                                        DeviceUnrealize dev_unrealize,
                                        DeviceUnrealize *parent_unrealize);
+void device_class_set_parent_power_update(DeviceClass *dc,
+                                          DeviceGatingUpdate dev_power_update,
+                                          DeviceGatingUpdate *parent_power_update);
+void device_class_set_parent_clock_update(DeviceClass *dc,
+                                          DeviceGatingUpdate dev_clock_update,
+                                          DeviceGatingUpdate *parent_clock_update);
 
 const struct VMStateDescription *qdev_get_vmsd(DeviceState *dev);
 
@@ -433,5 +445,23 @@ static inline bool qbus_is_hotpluggable(BusState *bus)
 
 void device_listener_register(DeviceListener *listener);
 void device_listener_unregister(DeviceListener *listener);
+
+/**
+ * device_set_power:
+ * Enable/Disable the power of a device
+ *
+ * @dev: device to update
+ * @en: true to enable, false to disable
+ */
+void device_set_power(DeviceState *dev, bool en);
+
+/**
+ * device_set_clock:
+ * Enable/Disable the clock of a device
+ *
+ * @dev: device to update
+ * @en: true to enable, false to disable
+ */
+void device_set_clock(DeviceState *dev, bool en);
 
 #endif
