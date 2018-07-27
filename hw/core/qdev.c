@@ -1138,6 +1138,57 @@ void device_set_clock(DeviceState *dev, bool en)
     }
 }
 
+static int qdev_set_power_one(DeviceState *dev, void *opaque)
+{
+    device_set_power(dev, *((bool *)opaque));
+    return 0;
+}
+
+void qdev_set_power_all(DeviceState *dev, bool en)
+{
+    qdev_walk_children(dev, NULL, NULL, qdev_set_power_one, NULL, &en);
+}
+
+void qdev_set_power_all_fn(void *opaque, bool en)
+{
+    qdev_set_power_all(DEVICE(opaque), en);
+}
+
+void qbus_set_power_all(BusState *bus, bool en)
+{
+    qbus_walk_children(bus, NULL, NULL, qdev_set_power_one, NULL, &en);
+}
+
+void qbus_set_power_all_fn(void *opaque, bool en)
+{
+    qbus_set_power_all(BUS(opaque), en);
+}
+
+static int qdev_set_clock_one(DeviceState *dev, void *opaque)
+{
+    device_set_clock(dev, *((bool *)opaque));
+    return 0;
+}
+
+void qdev_set_clock_all(DeviceState *dev, bool en)
+{
+    qdev_walk_children(dev, NULL, NULL, qdev_set_clock_one, NULL, &en);
+}
+
+void qdev_set_clock_all_fn(void *opaque, bool en)
+{
+    qdev_set_clock_all(DEVICE(opaque), en);
+}
+
+void qbus_set_clock_all(BusState *bus, bool en)
+{
+    qbus_walk_children(bus, NULL, NULL, qdev_set_clock_one, NULL, &en);
+}
+
+void qbus_set_clock_all_fn(void *opaque, bool en)
+{
+    qbus_set_clock_all(BUS(opaque), en);
+}
 
 Object *qdev_get_machine(void)
 {

@@ -464,4 +464,24 @@ void device_set_power(DeviceState *dev, bool en);
  */
 void device_set_clock(DeviceState *dev, bool en);
 
+/**
+ * qdev/qbus_set_power_all(_fn)
+ * Enable/Disable the power of a tree starting
+ * at given device or bus
+ */
+void qdev_set_power_all(DeviceState *dev, bool en);
+void qdev_set_power_all_fn(void *opaque, bool en);
+void qbus_set_power_all(BusState *bus, bool en);
+void qbus_set_power_all_fn(void *opaque, bool en);
+
+/**
+ * qdev/qbus_set_clock_all(_fn)
+ * Enable/Disable the clock of a tree starting
+ * at given device or bus
+ */
+void qdev_set_clock_all(DeviceState *dev, bool en);
+void qdev_set_clock_all_fn(void *opaque, bool en);
+void qbus_set_clock_all(BusState *bus, bool en);
+void qbus_set_clock_all_fn(void *opaque, bool en);
+
 #endif
