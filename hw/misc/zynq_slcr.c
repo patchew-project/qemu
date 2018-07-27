@@ -168,6 +168,14 @@ enum {
 #define DDRIOB_LENGTH 14
 };
 
+enum {
+    UART_CLK_CTRL_CLKACT0 = 0x0001,
+    UART_CLK_CTRL_CLKACT1 = 0x0002,
+
+    UART_RST_CTRL_UART0_REF_RST = 0x04,
+    UART_RST_CTRL_UART1_REF_RST = 0x08,
+};
+
 #define ZYNQ_SLCR_MMIO_SIZE     0x1000
 #define ZYNQ_SLCR_NUM_REGS      (ZYNQ_SLCR_MMIO_SIZE / 4)
 
@@ -180,6 +188,9 @@ typedef struct ZynqSLCRState {
     MemoryRegion iomem;
 
     uint32_t regs[ZYNQ_SLCR_NUM_REGS];
+
+    DeviceState *uart0;
+    DeviceState *uart1;
 } ZynqSLCRState;
 
 static void zynq_slcr_reset(DeviceState *d)
@@ -355,6 +366,35 @@ static uint64_t zynq_slcr_read(void *opaque, hwaddr offset,
     return ret;
 }
 
+/*
+ * zynq_slcr_update_clock:
+ * Update a device clock state given its:
+ * + clock enable bit
+ * + reset asserted bit
+ * Since reset cannot be enabled and disabled, the clock is disabled when
+ * reset is asserted
+ */
+static void zynq_slcr_update_clock(DeviceState *dev, bool clken, bool rsten)
+{
+    if (dev) {
+        device_set_clock(dev, clken && !rsten);
+    }
+}
+
+/*
+ * zynq_slcr_update_reset:
+ * Update a device reset state given its:
+ * + reset asserted bit
+ * Also trigger a clock update
+ */
+static void zynq_slcr_update_reset(DeviceState *dev, bool clken, bool rsten)
+{
+    if (dev && rsten) {
+        device_reset(dev);
+    }
+    zynq_slcr_update_clock(dev, clken, rsten);
+}
+
 static void zynq_slcr_write(void *opaque, hwaddr offset,
                           uint64_t val, unsigned size)
 {
@@ -408,6 +448,22 @@ static void zynq_slcr_write(void *opaque, hwaddr offset,
             qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
         }
         break;
+    case UART_CLK_CTRL:
+        zynq_slcr_update_clock(s->uart0,
+                s->regs[UART_CLK_CTRL] & UART_CLK_CTRL_CLKACT0,
+                s->regs[UART_RST_CTRL] & UART_RST_CTRL_UART0_REF_RST);
+        zynq_slcr_update_clock(s->uart1,
+                s->regs[UART_CLK_CTRL] & UART_CLK_CTRL_CLKACT1,
+                s->regs[UART_RST_CTRL] & UART_RST_CTRL_UART1_REF_RST);
+        break;
+    case UART_RST_CTRL:
+        zynq_slcr_update_reset(s->uart0,
+                s->regs[UART_CLK_CTRL] & UART_CLK_CTRL_CLKACT0,
+                s->regs[UART_RST_CTRL] & UART_RST_CTRL_UART0_REF_RST);
+        zynq_slcr_update_reset(s->uart1,
+                s->regs[UART_CLK_CTRL] & UART_CLK_CTRL_CLKACT1,
+                s->regs[UART_RST_CTRL] & UART_RST_CTRL_UART1_REF_RST);
+        break;
     }
 }
 
@@ -436,12 +492,19 @@ static const VMStateDescription vmstate_zynq_slcr = {
     }
 };
 
+static Property zynq_slcr_properties[] = {
+    DEFINE_PROP_LINK("uart0", ZynqSLCRState, uart0, TYPE_DEVICE, DeviceState *),
+    DEFINE_PROP_LINK("uart1", ZynqSLCRState, uart1, TYPE_DEVICE, DeviceState *),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void zynq_slcr_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->vmsd = &vmstate_zynq_slcr;
     dc->reset = zynq_slcr_reset;
+    dc->props = zynq_slcr_properties;
 }
 
 static const TypeInfo zynq_slcr_info = {
