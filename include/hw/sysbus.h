@@ -59,6 +59,9 @@ typedef struct SysBusDeviceClass {
      */
     char *(*explicit_ofw_unit_address)(const SysBusDevice *dev);
     void (*connect_irq_notifier)(SysBusDevice *dev, qemu_irq irq);
+
+    DeviceGatingUpdate parent_power_update;
+    DeviceGatingUpdate parent_clock_update;
 } SysBusDeviceClass;
 
 struct SysBusDevice {

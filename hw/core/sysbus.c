@@ -325,6 +325,39 @@ MemoryRegion *sysbus_address_space(SysBusDevice *dev)
     return get_system_memory();
 }
 
+/*
+ * Action take on power or clock update.
+ */
+static void sysbus_device_gating_update(DeviceState *dev)
+{
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    int i;
+
+    for (i = 0;; i++) {
+        MemoryRegion *mr = sysbus_mmio_get_region(sbd, i);
+        if (!mr) {
+            break;
+        }
+        memory_region_set_enabled(mr, dev->powered && dev->clocked);
+    }
+}
+
+/*
+ * Action take on power update.
+ *
+ * Call parent method before doing local action.
+ * So that we override any action taken in parent method (eg if reset
+ * is called due to leaving OFF state)
+ */
+static void sysbus_device_power_update(DeviceState *dev)
+{
+    SysBusDeviceClass *sbdk = SYS_BUS_DEVICE_GET_CLASS(dev);
+
+    sbdk->parent_power_update(dev);
+
+    sysbus_device_gating_update(dev);
+}
+
 static void sysbus_device_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
@@ -341,6 +374,12 @@ static void sysbus_device_class_init(ObjectClass *klass, void *data)
      * subclass needs to override it and set user_creatable=true.
      */
     k->user_creatable = false;
+
+    SysBusDeviceClass *sbdk = SYS_BUS_DEVICE_CLASS(klass);
+    device_class_set_parent_power_update(k,
+            sysbus_device_power_update, &sbdk->parent_power_update);
+    device_class_set_parent_clock_update(k,
+            sysbus_device_gating_update, &sbdk->parent_clock_update);
 }
 
 static const TypeInfo sysbus_device_type_info = {
