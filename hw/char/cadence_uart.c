@@ -335,7 +335,13 @@ static void uart_write_tx_fifo(CadenceUARTState *s, const uint8_t *buf,
 static void uart_receive(void *opaque, const uint8_t *buf, int size)
 {
     CadenceUARTState *s = opaque;
+    DeviceState *dev = DEVICE(s);
     uint32_t ch_mode = s->r[R_MR] & UART_MR_CHMODE;
+
+    /* ignore characters if unpowered or unclocked */
+    if (!dev->powered || !dev->clocked) {
+        return;
+    }
 
     if (ch_mode == NORMAL_MODE || ch_mode == ECHO_MODE) {
         uart_write_rx_fifo(opaque, buf, size);
@@ -348,7 +354,13 @@ static void uart_receive(void *opaque, const uint8_t *buf, int size)
 static void uart_event(void *opaque, int event)
 {
     CadenceUARTState *s = opaque;
+    DeviceState *dev = DEVICE(s);
     uint8_t buf = '\0';
+
+    /* ignore event if we're unpowered or unclocked */
+    if (!dev->powered || !dev->clocked) {
+        return;
+    }
 
     if (event == CHR_EVENT_BREAK) {
         uart_write_rx_fifo(opaque, &buf, 1);
@@ -516,10 +528,19 @@ static int cadence_uart_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static int cadence_uart_pre_load(void *opaque)
+{
+    DeviceState *s = opaque;
+    s->clocked = true;
+    s->powered = true;
+    return 0;
+}
+
 static const VMStateDescription vmstate_cadence_uart = {
     .name = "cadence_uart",
-    .version_id = 2,
+    .version_id = 3,
     .minimum_version_id = 2,
+    .pre_load = cadence_uart_pre_load,
     .post_load = cadence_uart_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(r, CadenceUARTState, CADENCE_UART_R_MAX),
@@ -531,6 +552,8 @@ static const VMStateDescription vmstate_cadence_uart = {
         VMSTATE_UINT32(tx_count, CadenceUARTState),
         VMSTATE_UINT32(rx_wpos, CadenceUARTState),
         VMSTATE_TIMER_PTR(fifo_trigger_handle, CadenceUARTState),
+        VMSTATE_BOOL_V(powered, DeviceState, 3),
+        VMSTATE_BOOL_V(clocked, DeviceState, 3),
         VMSTATE_END_OF_LIST()
     }
 };
