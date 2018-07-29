@@ -2808,10 +2808,10 @@
 # @overlap-check:         which overlap checks to perform for writes
 #                         to the image, defaults to 'cached' (since 2.2)
 #
-# @cache-size:            the maximum total size of the L2 table and
+# @cache-size:            the maximal total size of the L2 table and
 #                         refcount block caches in bytes (since 2.2)
 #
-# @l2-cache-size:         the maximum size of the L2 table cache in
+# @l2-cache-size:         the maximal size of the L2 table cache in
 #                         bytes (since 2.2)
 #
 # @l2-cache-entry-size:   the size of each entry in the L2 cache in
@@ -2819,7 +2819,7 @@
 #                         and the cluster size. The default value is
 #                         the cluster size (since 2.12)
 #
-# @refcount-cache-size:   the maximum size of the refcount block cache
+# @refcount-cache-size:   the maximal size of the refcount block cache
 #                         in bytes (since 2.2)
 #
 # @cache-clean-interval:  clean unused entries in the L2 and refcount
