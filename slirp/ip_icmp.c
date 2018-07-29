@@ -420,7 +420,21 @@ void icmp_receive(struct socket *so)
     icp = mtod(m, struct icmp *);
 
     id = icp->icmp_id;
-    len = qemu_recv(so->s, icp, m->m_len, 0);
+    len = qemu_recv(so->s, icp, M_ROOM(m), 0);
+#ifdef CONFIG_DARWIN
+    if (len > 0) {
+        /* Skip the IP header that OS X (unlike Linux) includes. */
+        struct ip *inner_ip = mtod(m, struct ip *);
+        int inner_hlen = inner_ip->ip_hl << 2;
+        if (inner_hlen > len) {
+            len = -1;
+            errno = -EINVAL;
+        } else {
+            len -= inner_hlen;
+            memmove(icp, (unsigned char *)icp + inner_hlen, len);
+        }
+    }
+#endif
     icp->icmp_id = id;
 
     m->m_data -= hlen;
