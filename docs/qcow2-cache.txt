@@ -97,12 +97,14 @@ need:
    l2_cache_size = disk_size_GB * 131072
    refcount_cache_size = disk_size_GB * 32768
 
-QEMU has a default L2 cache of 1MB (1048576 bytes) and a refcount
-cache of 256KB (262144 bytes), so using the formulas we've just seen
-we have
+QEMU will use a default L2 cache sufficient to cover the entire virtual
+size of an image, which with the default cluster size will result in 1MB
+of cache for every 8GB of virtual image size:
 
-   1048576 / 131072 = 8 GB of virtual disk covered by that cache
-    262144 /  32768 = 8 GB
+   65536 / 8 = 8192 = 8 GB / 1 MB
+
+A default refcount cache is 4 times the cluster size, which defaults to
+256KB (262144 bytes).
 
 
 How to configure the cache sizes
@@ -121,8 +123,8 @@ There are a few things that need to be taken into account:
  - Both caches must have a size that is a multiple of the cluster size
    (or the cache entry size: see "Using smaller cache sizes" below).
 
- - The default L2 cache size is 8 clusters or 1MB (whichever is more),
-   and the minimum is 2 clusters (or 2 cache entries, see below).
+ - The default L2 cache size is enough to cover the entire virtual size of
+   an image, and the minimum is 2 clusters (or 2 cache entries, see below).
 
  - The default (and minimum) refcount cache size is 4 clusters.
 
@@ -180,9 +182,8 @@ Some things to take into account:
    always uses the cluster size as the entry size.
 
  - If the L2 cache is big enough to hold all of the image's L2 tables
-   (as explained in the "Choosing the right cache sizes" section
-   earlier in this document) then none of this is necessary and you
-   can omit the "l2-cache-entry-size" parameter altogether.
+   (the default behavior) then none of this is necessary and you can
+   omit the "l2-cache-entry-size" parameter altogether.
 
 
 Reducing the memory usage
