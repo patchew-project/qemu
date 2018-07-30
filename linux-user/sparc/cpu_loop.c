@@ -169,6 +169,9 @@ void cpu_loop (CPUSPARCState *env)
         case 0x110:
         case 0x16d:
 #endif
+            if (env->gregs[1] == TARGET_NR_clone) {
+                flush_windows(env);
+            }
             ret = do_syscall (env, env->gregs[1],
                               env->regwptr[0], env->regwptr[1],
                               env->regwptr[2], env->regwptr[3],
