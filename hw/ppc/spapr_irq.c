@@ -196,7 +196,7 @@ static void spapr_irq_print_info_xics(sPAPRMachineState *spapr, Monitor *mon)
 }
 
 sPAPRIrq spapr_irq_xics = {
-    .nr_irqs     = XICS_IRQS_SPAPR,
+    .nr_irqs     = 0x1000,
 
     .init        = spapr_irq_init_xics,
     .claim       = spapr_irq_claim_xics,
@@ -284,3 +284,13 @@ int spapr_irq_find(sPAPRMachineState *spapr, int num, bool align, Error **errp)
 
     return first + ics->offset;
 }
+
+sPAPRIrq spapr_irq_xics_legacy = {
+    .nr_irqs     = XICS_IRQS_SPAPR,
+
+    .init        = spapr_irq_init_xics,
+    .claim       = spapr_irq_claim_xics,
+    .free        = spapr_irq_free_xics,
+    .qirq        = spapr_qirq_xics,
+    .print_info  = spapr_irq_print_info_xics,
+};
