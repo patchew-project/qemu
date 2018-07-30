@@ -23,11 +23,21 @@
 static inline void cpu_clone_regs(CPUSPARCState *env, CPUSPARCState *old_env,
                                   target_ulong newsp)
 {
+    /*
+     * After cpu_copy, env->regwptr is pointing into old_env.
+     * Update the new cpu to use its own register window.
+     */
+    env->regwptr = env->regbase + (env->cwp * 16);
+
+    /* Set a new stack, if requested.  */
     if (newsp) {
         env->regwptr[22] = newsp;
     }
-    /* syscall return for clone child: 0, and clear CF since
-     * this counts as a success return value.
+
+    /*
+     * Syscall return for clone child: %o0 = 0 and clear CF since
+     * this counts as a success return value.  %o1 = 1 to indicate
+     * this is the child.  Advance the PC past the syscall.
      */
     env->regwptr[0] = 0;
 #if defined(TARGET_SPARC64) && !defined(TARGET_ABI32)
@@ -35,6 +45,12 @@ static inline void cpu_clone_regs(CPUSPARCState *env, CPUSPARCState *old_env,
 #else
     env->psr &= ~PSR_CARRY;
 #endif
+    env->regwptr[1] = 1;
+    env->pc = env->npc;
+    env->npc = env->npc + 4;
+
+    /* Set the second return value for the parent: %o1 = 0.  */
+    old_env->regwptr[1] = 0;
 }
 
 static inline void cpu_set_tls(CPUSPARCState *env, target_ulong newtls)
