@@ -73,6 +73,15 @@ typedef struct PnvXScomInterfaceClass {
 #define PNV_XSCOM_OCC_BASE        0x0066000
 #define PNV_XSCOM_OCC_SIZE        0x6000
 
+#define PNV_XSCOM_PBCQ_NEST_BASE  0x2012000
+#define PNV_XSCOM_PBCQ_NEST_SIZE  0x46
+
+#define PNV_XSCOM_PBCQ_PCI_BASE   0x9012000
+#define PNV_XSCOM_PBCQ_PCI_SIZE   0x15
+
+#define PNV_XSCOM_PBCQ_SPCI_BASE  0x9013c00
+#define PNV_XSCOM_PBCQ_SPCI_SIZE  0x5
+
 extern void pnv_xscom_realize(PnvChip *chip, Error **errp);
 extern int pnv_dt_xscom(PnvChip *chip, void *fdt, int offset);
 
