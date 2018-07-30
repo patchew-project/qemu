@@ -633,7 +633,7 @@ static void monitor_qapi_event_handler(void *opaque);
  * applying any rate limiting if required.
  */
 static void
-monitor_qapi_event_queue(QAPIEvent event, QDict *qdict, Error **errp)
+monitor_qapi_event_queue_no_recurse(QAPIEvent event, QDict *qdict, Error **errp)
 {
     MonitorQAPIEventConf *evconf;
     MonitorQAPIEventState *evstate;
@@ -686,6 +686,55 @@ monitor_qapi_event_queue(QAPIEvent event, QDict *qdict, Error **errp)
     }
 
     qemu_mutex_unlock(&monitor_lock);
+}
+
+static void
+monitor_qapi_event_queue(QAPIEvent event, QDict *qdict, Error **errp)
+{
+    Error *local_err = NULL;
+    /*
+     * If the function recurse, monitor_lock will dead-lock.
+     * Instead, queue pending events in TLS.
+     * TODO: remove this, make it re-enter safe.
+     */
+    static __thread bool recurse;
+    typedef struct MonitorQapiEvent {
+        QAPIEvent event;
+        QDict *qdict;
+        QSIMPLEQ_ENTRY(MonitorQapiEvent) entry;
+    } MonitorQapiEvent;
+    MonitorQapiEvent *ev;
+    static __thread QSIMPLEQ_HEAD(, MonitorQapiEvent) event_queue;
+
+    if (!recurse) {
+        QSIMPLEQ_INIT(&event_queue);
+    }
+
+    ev = g_new(MonitorQapiEvent, 1);
+    ev->qdict = qobject_ref(qdict);
+    ev->event = event;
+    QSIMPLEQ_INSERT_TAIL(&event_queue, ev, entry);
+    if (recurse) {
+        return;
+    }
+
+    recurse = true;
+
+    while ((ev = QSIMPLEQ_FIRST(&event_queue)) != NULL) {
+        QSIMPLEQ_REMOVE_HEAD(&event_queue, entry);
+        if (!local_err) {
+            monitor_qapi_event_queue_no_recurse(ev->event, ev->qdict,
+                                                &local_err);
+        }
+        qobject_unref(ev->qdict);
+        g_free(ev);
+    }
+
+    recurse = false;
+
+    if (local_err) {
+        error_propagate(errp, local_err);
+    }
 }
 
 /*
