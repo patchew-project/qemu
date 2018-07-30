@@ -2430,6 +2430,13 @@ static void set_pc(CPUMIPSState *env, target_ulong error_pc)
     env->active_tc.PC = error_pc & ~(target_ulong)1;
     if (env->insn_flags & ISA_NANOMIPS32) {
         /* Don't clear MIPS_HFLAG_M16 */
+        if (error_pc & 1) {
+            if (!(env->hflags & MIPS_HFLAG_DM)) {
+                env->CP0_BadVAddr = error_pc;
+            }
+            env->active_tc.PC = error_pc;
+            do_raise_exception(env, EXCP_AdEL, 0);
+        }
         return;
     }
     if (error_pc & 1) {
@@ -2467,10 +2474,12 @@ void helper_eretnc(CPUMIPSState *env)
 void helper_deret(CPUMIPSState *env)
 {
     debug_pre_eret(env);
-    set_pc(env, env->CP0_DEPC);
 
     env->hflags &= ~MIPS_HFLAG_DM;
     compute_hflags(env);
+
+    set_pc(env, env->CP0_DEPC);
+
     debug_post_eret(env);
 }
 #endif /* !CONFIG_USER_ONLY */
