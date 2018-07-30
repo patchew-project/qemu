@@ -1733,6 +1733,18 @@ static inline void gen_op_addr_add (DisasContext *ctx, TCGv ret, TCGv arg0, TCGv
 #endif
 }
 
+static inline void gen_op_addr_addi(DisasContext *ctx, TCGv ret, TCGv base,
+                                    target_long ofs)
+{
+    tcg_gen_addi_tl(ret, base, ofs);
+
+#if defined(TARGET_MIPS64)
+    if (ctx->hflags & MIPS_HFLAG_AWRAP) {
+        tcg_gen_ext32s_i64(ret, ret);
+    }
+#endif
+}
+
 /* Addresses computation (translation time) */
 static target_long addr_add(DisasContext *ctx, target_long base,
                             target_long offset)
