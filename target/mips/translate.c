@@ -18742,6 +18742,18 @@ static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
                 case NM_BC1NEZC:
                     gen_compute_branch1_r6(ctx, OPC_BC1NEZ, rt, s, 0);
                     break;
+                case NM_BPOSGE32C:
+                    check_dsp(ctx);
+                    {
+                        int32_t imm = ctx->opcode;
+                        imm >>= 1;
+                        imm &= 0x1fff;
+                        imm |= (ctx->opcode & 1) << 13;
+
+                        gen_compute_branch(ctx, OPC_BPOSGE32, 4, -1, -2,
+                                           (int32_t)imm, 4);
+                    }
+                    break;
                 default:
                     generate_exception_end(ctx, EXCP_RI);
                     break;
