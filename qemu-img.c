@@ -4873,6 +4873,32 @@ out:
     return ret;
 }
 
+/* Guides the user on making an image file */
+static int interactive_mode()
+{
+    char format[100];
+    char size[100];
+    char name[1000];
+
+    printf("\nInteractive mode (Enter Control-C to cancel)\n");
+    printf("Please select a format (qcow, qcow2, raw, vdi, vhdx, vmdk, vpc): ");
+    scanf("%100s", format);
+    printf("Please enter a size (e.g. 100M, 10G): ");
+    scanf("%100s", size);
+    printf("Please enter a name: ");
+    scanf("%1000s", name);
+
+    const char *arguments[] = {"create", "-f", format, name, size};
+    int arg_count = 5;
+    int return_value;
+    return_value = img_create(arg_count, (char **)arguments);
+    if (return_value == 0) {
+        printf("Done creating image file\n");
+    }
+
+    return return_value;
+}
+
 static const img_cmd_t img_cmds[] = {
 #define DEF(option, callback, arg_string)        \
     { option, callback },
@@ -4912,8 +4938,9 @@ int main(int argc, char **argv)
 
     module_call_init(MODULE_INIT_QOM);
     bdrv_init();
-    if (argc < 2) {
-        error_exit("Not enough arguments");
+
+    if (argc == 1) { /* If no arguments passed to qemu-img */
+        return interactive_mode();
     }
 
     qemu_add_opts(&qemu_object_opts);
