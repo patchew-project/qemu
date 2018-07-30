@@ -1352,7 +1352,6 @@ static void test_flush_migrate(void)
     AHCIQState *src, *dst;
     AHCICommand *cmd;
     uint8_t px;
-    const char *s;
     char *uri = g_strdup_printf("unix:%s", mig_socket);
 
     prepare_blkdebug_script(debug_path, "flush_to_disk");
@@ -1388,8 +1387,7 @@ static void test_flush_migrate(void)
     ahci_migrate(src, dst, uri);
 
     /* Complete the command */
-    s = "{'execute':'cont' }";
-    qmp_send(s);
+    qmp_send("{'execute':'cont' }");
     qmp_eventwait("RESUME");
     ahci_command_wait(dst, cmd);
     ahci_command_verify(dst, cmd);
