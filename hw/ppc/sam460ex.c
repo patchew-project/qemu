@@ -515,9 +515,9 @@ static void sam460ex_init(MachineState *machine)
 
     /* PCI bus */
     ppc460ex_pcie_init(env);
-    /* FIXME: is this correct? */
+    /* All PCI ints are connected to the same UIC pin (cf. UBoot source) */
     dev = sysbus_create_varargs("ppc440-pcix-host", 0xc0ec00000,
-                                uic[1][0], uic[1][20], uic[1][21], uic[1][22],
+                                uic[1][0], uic[1][0], uic[1][0], uic[1][0],
                                 NULL);
     pci_bus = (PCIBus *)qdev_get_child_bus(dev, "pci.0");
     if (!pci_bus) {
