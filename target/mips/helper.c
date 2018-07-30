@@ -747,6 +747,14 @@ void mips_cpu_do_interrupt(CPUState *cs)
         (env->hflags & MIPS_HFLAG_DM)) {
         cs->exception_index = EXCP_DINT;
     }
+
+    if ((cs->exception_index == EXCP_DWATCH ||
+        cs->exception_index == EXCP_DFWATCH ||
+        cs->exception_index == EXCP_IWATCH) &&
+        (env->CP0_Config1 & (1 << CP0C1_WR))) {
+        cs->exception_index = EXCP_NONE;
+    }
+
     offset = 0x180;
     switch (cs->exception_index) {
     case EXCP_DSS:
@@ -797,7 +805,9 @@ void mips_cpu_do_interrupt(CPUState *cs)
         break;
     case EXCP_SRESET:
         env->CP0_Status |= (1 << CP0St_SR);
-        memset(env->CP0_WatchLo, 0, sizeof(env->CP0_WatchLo));
+        if (env->CP0_Config1 & (1 << CP0C1_WR)) {
+            memset(env->CP0_WatchLo, 0, sizeof(env->CP0_WatchLo));
+        }
         goto set_error_EPC;
     case EXCP_NMI:
         env->CP0_Status |= (1 << CP0St_NMI);
