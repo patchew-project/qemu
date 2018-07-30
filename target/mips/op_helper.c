@@ -380,6 +380,19 @@ HELPER_LD_ATOMIC(lld, ld, 0x7)
 #endif
 #undef HELPER_LD_ATOMIC
 
+void helper_llwp(CPUMIPSState *env, target_ulong addr, uint32_t reg1,
+                 uint32_t reg2, uint32_t mem_idx)
+{
+    if (addr & 0x7) {
+        env->CP0_BadVAddr = addr;
+        do_raise_exception(env, EXCP_AdEL, GETPC());
+    }
+    env->lladdr = do_translate_address(env, addr, 0, GETPC());
+    env->active_tc.gpr[reg1] = env->llval = do_lw(env, addr, mem_idx, GETPC());
+    env->active_tc.gpr[reg2] = env->llval_wp = do_lw(env, addr + 4, mem_idx,
+                                                     GETPC());
+}
+
 #define HELPER_ST_ATOMIC(name, ld_insn, st_insn, almask)                      \
 target_ulong helper_##name(CPUMIPSState *env, target_ulong arg1,              \
                            target_ulong arg2, int mem_idx)                    \
@@ -406,6 +419,28 @@ HELPER_ST_ATOMIC(sc, lw, sw, 0x3)
 HELPER_ST_ATOMIC(scd, ld, sd, 0x7)
 #endif
 #undef HELPER_ST_ATOMIC
+
+target_ulong helper_scwp(CPUMIPSState *env, target_ulong addr,
+                         uint64_t data, int mem_idx)
+{
+    uint32_t tmp;
+    uint32_t tmp2;
+
+    if (addr & 0x7) {
+        env->CP0_BadVAddr = addr;
+        do_raise_exception(env, EXCP_AdES, GETPC());
+    }
+    if (do_translate_address(env, addr, 1, GETPC()) == env->lladdr) {
+        tmp = do_lw(env, addr, mem_idx, GETPC());
+        tmp2 = do_lw(env, addr + 4, mem_idx, GETPC());
+        if (tmp == env->llval && tmp2 == env->llval_wp) {
+            do_sw(env, addr, (uint32_t) data, mem_idx, GETPC());
+            do_sw(env, addr + 4, (uint32_t) *(&data + 4), mem_idx, GETPC());
+            return 1;
+        }
+    }
+    return 0;
+}
 #endif
 
 #ifdef TARGET_WORDS_BIGENDIAN

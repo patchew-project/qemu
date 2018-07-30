@@ -14,6 +14,8 @@ DEF_HELPER_4(swr, void, env, tl, tl, int)
 #ifndef CONFIG_USER_ONLY
 DEF_HELPER_3(ll, tl, env, tl, int)
 DEF_HELPER_4(sc, tl, env, tl, tl, int)
+DEF_HELPER_5(llwp, void, env, tl, i32, i32, i32)
+DEF_HELPER_4(scwp, tl, env, tl, i64, int)
 #ifdef TARGET_MIPS64
 DEF_HELPER_3(lld, tl, env, tl, int)
 DEF_HELPER_4(scd, tl, env, tl, tl, int)
