@@ -26,6 +26,7 @@
 
 
 #include "libqtest.h"
+#include "qapi/qmp/qdict.h"
 #include "qemu-common.h"
 
 #define TEST_IMAGE_SIZE 1440 * 1024
@@ -298,9 +299,9 @@ static void test_media_insert(void)
 
     /* Insert media in drive. DSKCHK should not be reset until a step pulse
      * is sent. */
-    qmp_discard_response("{'execute':'blockdev-change-medium', 'arguments':{"
-                         " 'id':'floppy0', 'filename': %s, 'format': 'raw' }}",
-                         test_image);
+    qobject_unref(qmp("{'execute':'blockdev-change-medium', 'arguments':{"
+                      " 'id':'floppy0', 'filename': %s, 'format': 'raw' }}",
+                      test_image));
 
     dir = inb(FLOPPY_BASE + reg_dir);
     assert_bit_set(dir, DSKCHG);
@@ -329,8 +330,8 @@ static void test_media_change(void)
 
     /* Eject the floppy and check that DSKCHG is set. Reading it out doesn't
      * reset the bit. */
-    qmp_discard_response("{'execute':'eject', 'arguments':{"
-                         " 'id':'floppy0' }}");
+    qobject_unref(qmp("{'execute':'eject', 'arguments':{"
+                      " 'id':'floppy0' }}"));
 
     dir = inb(FLOPPY_BASE + reg_dir);
     assert_bit_set(dir, DSKCHG);

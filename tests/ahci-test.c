@@ -1596,8 +1596,8 @@ static void test_atapi_tray(void)
     rsp = qmp_receive();
     qobject_unref(rsp);
 
-    qmp_discard_response("{'execute': 'blockdev-remove-medium', "
-                         "'arguments': {'id': 'cd0'}}");
+    qobject_unref(qmp("{'execute': 'blockdev-remove-medium', "
+                      "'arguments': {'id': 'cd0'}}"));
 
     /* Test the tray without a medium */
     ahci_atapi_load(ahci, port);
@@ -1607,14 +1607,14 @@ static void test_atapi_tray(void)
     atapi_wait_tray(true);
 
     /* Re-insert media */
-    qmp_discard_response("{'execute': 'blockdev-add', "
-                          "'arguments': {'node-name': 'node0', "
-                                        "'driver': 'raw', "
-                                        "'file': { 'driver': 'file', "
-                                                  "'filename': %s }}}", iso);
-    qmp_discard_response("{'execute': 'blockdev-insert-medium',"
-                          "'arguments': { 'id': 'cd0', "
-                                         "'node-name': 'node0' }}");
+    qobject_unref(qmp("{'execute': 'blockdev-add', "
+                      "'arguments': {'node-name': 'node0', "
+                      "'driver': 'raw', "
+                      "'file': { 'driver': 'file', "
+                      "'filename': %s }}}", iso));
+    qobject_unref(qmp("{'execute': 'blockdev-insert-medium',"
+                      "'arguments': { 'id': 'cd0', "
+                      "'node-name': 'node0' }}"));
 
     /* Again, the event shows up first */
     qmp_send("{'execute': 'blockdev-close-tray',"

@@ -74,18 +74,6 @@ QTestState *qtest_init_without_qmp_handshake(bool use_oob,
 void qtest_quit(QTestState *s);
 
 /**
- * qtest_qmp_discard_response:
- * @s: #QTestState instance to operate on.
- * @fmt...: QMP message to send to qemu, formatted like
- * qobject_from_jsonf_nofail().
- * Only understands '%((l|ll|I64)?d|[ipsf])', see parse_escape().
- *
- * Sends a QMP message to QEMU and consumes the response.
- */
-void qtest_qmp_discard_response(QTestState *s, const char *fmt, ...)
-    GCC_FMT_ATTR(2, 3);
-
-/**
  * qtest_qmp:
  * @s: #QTestState instance to operate on.
  * @fmt...: QMP message to send to qemu, formatted like
@@ -108,19 +96,6 @@ QDict *qtest_qmp(QTestState *s, const char *fmt, ...)
  */
 void qtest_qmp_send(QTestState *s, const char *fmt, ...)
     GCC_FMT_ATTR(2, 3);
-
-/**
- * qtest_qmpv_discard_response:
- * @s: #QTestState instance to operate on.
- * @fmt: QMP message to send to QEMU, formatted like
- * qobject_from_jsonf_nofail().
- * Only understands '%((l|ll|I64)?d|[ipsf])', see parse_escape().
- * @ap: QMP message arguments
- *
- * Sends a QMP message to QEMU and consumes the response.
- */
-void qtest_qmpv_discard_response(QTestState *s, const char *fmt, va_list ap)
-    GCC_FMT_ATTR(2, 0);
 
 /**
  * qtest_qmpv:
@@ -614,16 +589,6 @@ QDict *qmp(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
  * Sends a QMP message to QEMU and leaves the response in the stream.
  */
 void qmp_send(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
-
-/**
- * qmp_discard_response:
- * @fmt...: QMP message to send to qemu, formatted like
- * qobject_from_jsonf_nofail().
- * Only understands '%((l|ll|I64)?d|[ipsf])', see parse_escape().
- *
- * Sends a QMP message to QEMU and consumes the response.
- */
-void qmp_discard_response(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
 
 /**
  * qmp_receive:

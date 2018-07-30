@@ -29,7 +29,7 @@
 #include "libqos/libqos.h"
 #include "libqos/pci-pc.h"
 #include "libqos/malloc-pc.h"
-
+#include "qapi/qmp/qdict.h"
 #include "qemu-common.h"
 #include "qemu/bswap.h"
 #include "hw/pci/pci_ids.h"
@@ -721,7 +721,7 @@ static void test_retry_flush(const char *machine)
     qmp_eventwait("STOP");
 
     /* Complete the command */
-    qmp_discard_response("{'execute':'cont' }");
+    qobject_unref(qmp("{'execute':'cont' }"));
 
     /* Check registers */
     data = qpci_io_readb(dev, ide_bar, reg_device);
