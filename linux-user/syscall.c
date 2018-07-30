@@ -6442,7 +6442,7 @@ static int do_fork(CPUArchState *env, unsigned int flags, abi_ulong newsp,
         /* we create a new CPU instance. */
         new_env = cpu_copy(env);
         /* Init regs that differ from the parent.  */
-        cpu_clone_regs(new_env, newsp);
+        cpu_clone_regs(new_env, env, newsp);
         new_cpu = ENV_GET_CPU(new_env);
         new_cpu->opaque = ts;
         ts->bprm = parent_ts->bprm;
