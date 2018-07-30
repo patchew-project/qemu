@@ -8825,7 +8825,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                 old_act->sa_flags = oact.sa_flags;
                 unlock_user_struct(old_act, arg3, 1);
             }
-#elif defined(TARGET_MIPS)
+#elif defined(TARGET_MIPS) && !defined(TARGET_NANOMIPS)
 	    struct target_sigaction act, oact, *pact, *old_act;
 
 	    if (arg2) {
