@@ -77,7 +77,7 @@ void qtest_quit(QTestState *s);
  * qtest_qmp_discard_response:
  * @s: #QTestState instance to operate on.
  * @fmt...: QMP message to send to qemu, formatted like
- * qobject_from_jsonf().
+ * qobject_from_jsonf_nofail().
  * Only understands '%((l|ll|I64)?d|[ipsf])', see parse_escape().
  *
  * Sends a QMP message to QEMU and consumes the response.
@@ -88,7 +88,7 @@ void qtest_qmp_discard_response(QTestState *s, const char *fmt, ...);
  * qtest_qmp:
  * @s: #QTestState instance to operate on.
  * @fmt...: QMP message to send to qemu, formatted like
- * qobject_from_jsonf().
+ * qobject_from_jsonf_nofail().
  * Only understands '%((l|ll|I64)?d|[ipsf])', see parse_escape().
  *
  * Sends a QMP message to QEMU and returns the response.
@@ -99,7 +99,7 @@ QDict *qtest_qmp(QTestState *s, const char *fmt, ...);
  * qtest_qmp_send:
  * @s: #QTestState instance to operate on.
  * @fmt...: QMP message to send to qemu, formatted like
- * qobject_from_jsonf().
+ * qobject_from_jsonf_nofail().
  * Only understands '%((l|ll|I64)?d|[ipsf])', see parse_escape().
  *
  * Sends a QMP message to QEMU and leaves the response in the stream.
@@ -110,7 +110,7 @@ void qtest_qmp_send(QTestState *s, const char *fmt, ...);
  * qtest_qmpv_discard_response:
  * @s: #QTestState instance to operate on.
  * @fmt: QMP message to send to QEMU, formatted like
- * qobject_from_jsonf().
+ * qobject_from_jsonf_nofail().
  * Only understands '%((l|ll|I64)?d|[ipsf])', see parse_escape().
  * @ap: QMP message arguments
  *
@@ -122,7 +122,7 @@ void qtest_qmpv_discard_response(QTestState *s, const char *fmt, va_list ap);
  * qtest_qmpv:
  * @s: #QTestState instance to operate on.
  * @fmt: QMP message to send to QEMU, formatted like
- * qobject_from_jsonf().
+ * qobject_from_jsonf_nofail().
  * Only understands '%((l|ll|I64)?d|[ipsf])', see parse_escape().
  * @ap: QMP message arguments
  *
@@ -134,7 +134,7 @@ QDict *qtest_qmpv(QTestState *s, const char *fmt, va_list ap);
  * qtest_qmp_vsend:
  * @s: #QTestState instance to operate on.
  * @fmt: QMP message to send to QEMU, formatted like
- * qobject_from_jsonf().
+ * qobject_from_jsonf_nofail().
  * Only understands '%((l|ll|I64)?d|[ipsf])', see parse_escape().
  * @ap: QMP message arguments
  *
@@ -575,7 +575,7 @@ static inline void qtest_end(void)
 /**
  * qmp:
  * @fmt...: QMP message to send to qemu, formatted like
- * qobject_from_jsonf().
+ * qobject_from_jsonf_nofail().
  * Only understands '%((l|ll|I64)?d|[ipsf])', see parse_escape().
  *
  * Sends a QMP message to QEMU and returns the response.
@@ -585,7 +585,7 @@ QDict *qmp(const char *fmt, ...);
 /**
  * qmp_send:
  * @fmt...: QMP message to send to qemu, formatted like
- * qobject_from_jsonf().
+ * qobject_from_jsonf_nofail().
  * Only understands '%((l|ll|I64)?d|[ipsf])', see parse_escape().
  *
  * Sends a QMP message to QEMU and leaves the response in the stream.
@@ -595,7 +595,7 @@ void qmp_send(const char *fmt, ...);
 /**
  * qmp_discard_response:
  * @fmt...: QMP message to send to qemu, formatted like
- * qobject_from_jsonf().
+ * qobject_from_jsonf_nofail().
  * Only understands '%((l|ll|I64)?d|[ipsf])', see parse_escape().
  *
  * Sends a QMP message to QEMU and consumes the response.
