@@ -105,12 +105,43 @@ static void kill_qemu(QTestState *s)
     if (s->qemu_pid != -1) {
         int wstatus = 0;
         pid_t pid;
+        bool die = false;
 
         kill(s->qemu_pid, SIGTERM);
-        pid = waitpid(s->qemu_pid, &wstatus, 0);
+        TFR(pid = waitpid(s->qemu_pid, &wstatus, 0));
 
-        if (pid == s->qemu_pid && WIFSIGNALED(wstatus)) {
-            assert(!WCOREDUMP(wstatus));
+        assert(pid == s->qemu_pid);
+        /*
+         * We expect qemu to exit with status 0; anything else is
+         * fishy and should be logged.  Abort except when death by
+         * signal is not accompanied by a coredump (as that's the only
+         * time it was likely that the user is trying to kill the
+         * testsuite early).
+         */
+        if (wstatus) {
+            die = true;
+            if (WIFEXITED(wstatus)) {
+                fprintf(stderr, "%s:%d: kill_qemu() tried to terminate QEMU "
+                        "process but encountered exit status %d\n",
+                        __FILE__, __LINE__, WEXITSTATUS(wstatus));
+            } else if (WIFSIGNALED(wstatus)) {
+                int sig = WTERMSIG(wstatus);
+                const char *signame = strsignal(sig) ?: "unknown ???";
+
+                if (!WCOREDUMP(wstatus)) {
+                    die = false;
+                    fprintf(stderr, "%s:%d: kill_qemu() ignoring QEMU death "
+                            "by signal %d (%s)\n",
+                            __FILE__, __LINE__, sig, signame);
+                } else {
+                    fprintf(stderr, "%s:%d: kill_qemu() detected QEMU death "
+                            "with core dump from signal %d (%s)\n",
+                            __FILE__, __LINE__, sig, signame);
+                }
+            }
+        }
+        if (die) {
+            abort();
         }
     }
 }
