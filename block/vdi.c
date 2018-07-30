@@ -70,9 +70,6 @@
 /* Enable debug messages. */
 //~ #define CONFIG_VDI_DEBUG
 
-/* Support write operations on VDI images. */
-#define CONFIG_VDI_WRITE
-
 /* Support non-standard block (cluster) size. This is untested.
  * Maybe it will be needed for very large images.
  */
@@ -1016,9 +1013,7 @@ static BlockDriver bdrv_vdi = {
     .bdrv_make_empty = vdi_make_empty,
 
     .bdrv_co_preadv     = vdi_co_preadv,
-#if defined(CONFIG_VDI_WRITE)
     .bdrv_co_pwritev    = vdi_co_pwritev,
-#endif
 
     .bdrv_get_info = vdi_get_info,
 
