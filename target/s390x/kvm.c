@@ -34,6 +34,7 @@
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/timer.h"
+#include "qemu/mmap-alloc.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/hw_accel.h"
 #include "hw/hw.h"
@@ -284,6 +285,20 @@ void kvm_s390_crypto_reset(void)
 int kvm_arch_init(MachineState *ms, KVMState *s)
 {
     MachineClass *mc = MACHINE_GET_CLASS(ms);
+
+    if (mem_path) {
+        if (qemu_mempath_getpagesize(mem_path) != (1 << 20)) {
+            error_report("Huge page backing with pages > 1M was specified, "
+                         "but KVM does not support this memory backing");
+            return -EINVAL;
+
+        }
+        if (kvm_vm_enable_cap(s, KVM_CAP_S390_HPAGE_1M, 0)) {
+            error_report("Huge page backing with 1M pages was specified, "
+                         "but KVM does not support this memory backing");
+            return -EINVAL;
+        }
+    }
 
     mc->default_cpu_type = S390_CPU_TYPE_NAME("host");
     cap_sync_regs = kvm_check_extension(s, KVM_CAP_SYNC_REGS);
