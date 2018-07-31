@@ -1,0 +1,7 @@
+blockdev-add: {u'return': {}}
+blockdev-backup: {u'return': {}}
+Kill NBD server
+Backup job is still in progress
+Start NBD server
+BLOCK_JOB_COMPLETED : {u'device': u'drive0', u'type': u'backup', u'speed': 0, u'len': 5242880, u'offset': 5242880}
+blockdev-del: {u'return': {}}
