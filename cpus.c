@@ -765,6 +765,11 @@ void cpu_throttle_set(int new_throttle_pct)
                                        CPU_THROTTLE_TIMESLICE_NS);
 }
 
+void set_cpu_max_throttle(int64_t max_pct)
+{
+    throttle_percentage_max = max_pct;
+}
+
 void cpu_throttle_stop(void)
 {
     atomic_set(&throttle_percentage, 0);

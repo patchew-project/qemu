@@ -816,6 +816,14 @@ CPUState *cpu_by_arch_id(int64_t id);
 void cpu_throttle_set(int new_throttle_pct);
 
 /**
+ * set_cpu_max_throttle:
+ * @max_pct: the max percent of sleep time. Valid range is 1 to 99.
+ *
+ * Set the max throttle percentage.
+ */
+void set_cpu_max_throttle(int64_t max_pct);
+
+/**
  * cpu_throttle_stop:
  *
  * Stops the vcpu throttling started by cpu_throttle_set.

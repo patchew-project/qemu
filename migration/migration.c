@@ -1774,6 +1774,16 @@ void qmp_migrate_set_speed(int64_t value, Error **errp)
     qmp_migrate_set_parameters(&p, errp);
 }
 
+void qmp_migrate_set_max_cpu_throttle(int64_t value, Error **errp)
+{
+    if (value > 99 || value < 1) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, " max cpu throttle",
+                        "not in 1 between 99");
+        return;
+    }
+    set_cpu_max_throttle(value);
+}
+
 void qmp_migrate_set_downtime(double value, Error **errp)
 {
     if (value < 0 || value > MAX_MIGRATE_DOWNTIME_SECONDS) {

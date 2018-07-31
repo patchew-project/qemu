@@ -997,6 +997,19 @@
 { 'command': 'migrate_set_speed', 'data': {'value': 'int'} }
 
 ##
+# @migrate_set_max_cpu_throttle:
+#
+# Set maximum cpu throttle for migration.
+#
+# @value: maximum cpu throttle.
+#
+# Returns: nothing on success
+#
+# Since: 2.12
+##
+{ 'command': 'migrate_set_max_cpu_throttle', 'data': {'value': 'int'} }
+
+##
 # @migrate-set-cache-size:
 #
 # Set cache size to be used by XBZRLE migration
