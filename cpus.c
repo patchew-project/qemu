@@ -83,6 +83,8 @@ static unsigned int throttle_percentage;
 #define CPU_THROTTLE_PCT_MAX 99
 #define CPU_THROTTLE_TIMESLICE_NS 10000000
 
+static unsigned int throttle_percentage_max = CPU_THROTTLE_PCT_MAX;
+
 bool cpu_is_stopped(CPUState *cpu)
 {
     return cpu->stopped || !runstate_is_running();
@@ -754,7 +756,7 @@ static void cpu_throttle_timer_tick(void *opaque)
 void cpu_throttle_set(int new_throttle_pct)
 {
     /* Ensure throttle percentage is within valid range */
-    new_throttle_pct = MIN(new_throttle_pct, CPU_THROTTLE_PCT_MAX);
+    new_throttle_pct = MIN(new_throttle_pct, throttle_percentage_max);
     new_throttle_pct = MAX(new_throttle_pct, CPU_THROTTLE_PCT_MIN);
 
     atomic_set(&throttle_percentage, new_throttle_pct);
