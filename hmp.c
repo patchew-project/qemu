@@ -1574,6 +1574,12 @@ void hmp_migrate_set_speed(Monitor *mon, const QDict *qdict)
     qmp_migrate_set_speed(value, NULL);
 }
 
+void hmp_migrate_set_max_cpu_throttle(Monitor *mon, const QDict *qdict)
+{
+    int64_t value = qdict_get_int(qdict, "value");
+    qmp_migrate_set_max_cpu_throttle(value, NULL);
+}
+
 void hmp_migrate_set_capability(Monitor *mon, const QDict *qdict)
 {
     const char *cap = qdict_get_str(qdict, "capability");

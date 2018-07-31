@@ -1042,6 +1042,20 @@ Set maximum speed to @var{value} (in bytes) for migrations.
 ETEXI
 
     {
+        .name       = "migrate_set_max_cpu_throttle",
+        .args_type  = "value:i",
+        .params     = "value",
+        .help       = "set maximum cpu throttle  for migrations.",
+        .cmd        = hmp_migrate_set_max_cpu_throttle,
+    },
+
+STEXI
+@item hmp_migrate_set_max_cpu_throttle @var{value}
+@findex migrate_set_max_cpu_throttle
+Set maximum cpu throttle to @var{value}  for migrations.
+ETEXI
+
+    {
         .name       = "migrate_set_downtime",
         .args_type  = "value:T",
         .params     = "value",
