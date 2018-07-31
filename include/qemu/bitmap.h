@@ -60,7 +60,10 @@
  */
 
 #define BITMAP_FIRST_WORD_MASK(start) (~0UL << ((start) & (BITS_PER_LONG - 1)))
-#define BITMAP_LAST_WORD_MASK(nbits) (~0UL >> (-(nbits) & (BITS_PER_LONG - 1)))
+#define BITMAP_LAST_WORD_MASK(nbits)                       \
+(                                                          \
+    nbits ? (~0UL >> (-(nbits) & (BITS_PER_LONG - 1))) : 0 \
+)
 
 #define DECLARE_BITMAP(name,bits)                  \
         unsigned long name[BITS_TO_LONGS(bits)]
