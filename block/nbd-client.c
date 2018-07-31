@@ -976,8 +976,31 @@ void nbd_client_close(BlockDriverState *bs)
     nbd_teardown_connection(bs);
 }
 
+static QIOChannelSocket *nbd_establish_connection(SocketAddress *saddr,
+                                                  Error **errp)
+{
+    QIOChannelSocket *sioc;
+    Error *local_err = NULL;
+
+    sioc = qio_channel_socket_new();
+    qio_channel_set_name(QIO_CHANNEL(sioc), "nbd-client");
+
+    qio_channel_socket_connect_sync(sioc,
+                                    saddr,
+                                    &local_err);
+    if (local_err) {
+        object_unref(OBJECT(sioc));
+        error_propagate(errp, local_err);
+        return NULL;
+    }
+
+    qio_channel_set_delay(QIO_CHANNEL(sioc), false);
+
+    return sioc;
+}
+
 int nbd_client_init(BlockDriverState *bs,
-                    QIOChannelSocket *sioc,
+                    SocketAddress *saddr,
                     const char *export,
                     QCryptoTLSCreds *tlscreds,
                     const char *hostname,
@@ -986,6 +1009,15 @@ int nbd_client_init(BlockDriverState *bs,
 {
     NBDClientSession *client = nbd_get_client_session(bs);
     int ret;
+
+    /* establish TCP connection, return error if it fails
+     * TODO: Configurable retry-until-timeout behaviour.
+     */
+    QIOChannelSocket *sioc = nbd_establish_connection(saddr, errp);
+
+    if (!sioc) {
+        return -ECONNREFUSED;
+    }
 
     /* NBD handshake */
     logout("session init %s\n", export);
@@ -1001,12 +1033,14 @@ int nbd_client_init(BlockDriverState *bs,
     g_free(client->info.x_dirty_bitmap);
     if (ret < 0) {
         logout("Failed to negotiate with the NBD server\n");
+        object_unref(OBJECT(sioc));
         return ret;
     }
     if (client->info.flags & NBD_FLAG_READ_ONLY &&
         !bdrv_is_read_only(bs)) {
         error_setg(errp,
                    "request for write access conflicts with read-only export");
+        object_unref(OBJECT(sioc));
         return -EACCES;
     }
     if (client->info.flags & NBD_FLAG_SEND_FUA) {
@@ -1020,7 +1054,6 @@ int nbd_client_init(BlockDriverState *bs,
     qemu_co_mutex_init(&client->send_mutex);
     qemu_co_queue_init(&client->free_sema);
     client->sioc = sioc;
-    object_ref(OBJECT(client->sioc));
 
     if (!client->ioc) {
         client->ioc = QIO_CHANNEL(sioc);
