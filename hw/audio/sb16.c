@@ -741,10 +741,8 @@ static void complete (SB16State *s)
             ldebug ("set time const %d\n", s->time_const);
             break;
 
-        case 0x42:              /* FT2 sets output freq with this, go figure */
-            qemu_log_mask(LOG_UNIMP, "cmd 0x42 might not do what it think it"
-                          " should\n");
         case 0x41:
+        case 0x42:              /* FT2 sets output freq with this, go figure */
             s->freq = dsp_get_hilo (s);
             ldebug ("set freq %d\n", s->freq);
             break;

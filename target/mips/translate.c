@@ -19874,6 +19874,8 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
         case OPC_MTHC1:
             check_cp1_enabled(ctx);
             check_insn(ctx, ISA_MIPS32R2);
+            gen_cp1(ctx, op1, rt, rd);
+            break;
         case OPC_MFC1:
         case OPC_CFC1:
         case OPC_MTC1:
