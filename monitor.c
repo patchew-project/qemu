@@ -4701,8 +4701,6 @@ void monitor_init(Chardev *chr, int flags)
 
 void monitor_cleanup(void)
 {
-    Monitor *mon, *next;
-
     /*
      * We need to explicitly stop the I/O thread (but not destroy it),
      * clean up the monitor resources, then destroy the I/O thread since
@@ -4718,14 +4716,24 @@ void monitor_cleanup(void)
     monitor_qmp_bh_responder(NULL);
 
     /* Flush output buffers and destroy monitors */
-    qemu_mutex_lock(&monitor_lock);
-    QTAILQ_FOREACH_SAFE(mon, &mon_list, entry, next) {
-        QTAILQ_REMOVE(&mon_list, mon, entry);
+    do {
+        Monitor *mon;
+
+        qemu_mutex_lock(&monitor_lock);
+        mon = QTAILQ_FIRST(&mon_list);
+        if (mon) {
+            QTAILQ_REMOVE(&mon_list, mon, entry);
+        }
+        qemu_mutex_unlock(&monitor_lock);
+
+        if (!mon) {
+            break;
+        }
+
         monitor_flush(mon);
         monitor_data_destroy(mon);
         g_free(mon);
-    }
-    qemu_mutex_unlock(&monitor_lock);
+    } while (true);
 
     /* QEMUBHs needs to be deleted before destroying the I/O thread */
     qemu_bh_delete(qmp_dispatcher_bh);
