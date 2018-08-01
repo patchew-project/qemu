@@ -221,7 +221,7 @@ struct BlockDriver {
                                                 BdrvRequestFlags read_flags,
                                                 BdrvRequestFlags write_flags);
 
-    /* Map [offset, offset + nbytes) range onto a child of bs to copy data to,
+    /* Map [offset, offset + nbytes) range onto a child of @bs to copy data to,
      * and invoke bdrv_co_copy_range_to(child, src, ...), or perform the copy
      * operation if @bs is the leaf and @src has the same BlockDriver.  Return
      * -ENOTSUP if @bs is the leaf but @src has a different BlockDriver.
