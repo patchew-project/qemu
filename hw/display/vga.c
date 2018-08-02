@@ -1555,7 +1555,8 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
         height != s->last_height ||
         s->last_depth != depth ||
         s->last_byteswap != byteswap ||
-        share_surface != is_buffer_shared(surface)) {
+        share_surface != is_buffer_shared(surface) ||
+        s->last_surface != surface) {
         /* display parameters changed -> need new display surface */
         s->last_scr_width = disp_width;
         s->last_scr_height = height;
@@ -1564,8 +1565,10 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
         s->last_line_offset = s->line_offset;
         s->last_depth = depth;
         s->last_byteswap = byteswap;
+        s->last_surface = surface;
         full_update = 1;
     }
+    fprintf(stderr, "%p vs %p   share_surface: %d   surface: %p\n", surface_data(surface), s->vram_ptr + (s->start_addr * 4), share_surface, surface);
     if (surface_data(surface) != s->vram_ptr + (s->start_addr * 4)
         && is_buffer_shared(surface)) {
         /* base address changed (page flip) -> shared display surfaces
