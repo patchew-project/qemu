@@ -226,6 +226,20 @@ static void pxb_pcie_host_initfn(Object *obj)
                          qdev_prop_allow_set_link_before_realize, 0, NULL);
 }
 
+static void pxb_pcie_host_realize(DeviceState *dev, Error **errp)
+{
+    PCIHostState *pci = PCI_HOST_BRIDGE(dev);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+
+    // FIX ME! Use specific port number for pxb-pcie host bridge, not scalable!
+    /* port layout is | pxb1_cmd | pxb1_data | pxb2_cmd | pxb2_data | ... | */
+    sysbus_add_io(sbd, PXB_PCIE_HOST_BRIDGE_CONFIG_ADDR_BASE, &pci->conf_mem);
+    sysbus_init_ioports(sbd, PXB_PCIE_HOST_BRIDGE_CONFIG_ADDR_BASE + g_list_length(pxb_dev_list) * 8, 4);
+
+    sysbus_add_io(sbd, PXB_PCIE_HOST_BRIDGE_CONFIG_DATA_BASE, &pci->data_mem);
+    sysbus_init_ioports(sbd, PXB_PCIE_HOST_BRIDGE_CONFIG_DATA_BASE + g_list_length(pxb_dev_list) * 8, 4);
+}
+
 static Property pxb_pcie_host_props[] = {
     DEFINE_PROP_UINT64(PCIE_HOST_MCFG_BASE, PXBPCIEHost, parent_obj.base_addr,
                         PCIE_BASE_ADDR_UNMAPPED),
@@ -254,6 +268,7 @@ static void pxb_pcie_host_class_init(ObjectClass *class, void *data)
 
     dc->fw_name = "pcie";
     dc->props = pxb_pcie_host_props;
+    dc->realize = pxb_pcie_host_realize;
     /* Reason: Internal part of the pxb/pxb-pcie device, not usable by itself */
     dc->user_creatable = false;
     sbc->explicit_ofw_unit_address = pxb_host_ofw_unit_address;
