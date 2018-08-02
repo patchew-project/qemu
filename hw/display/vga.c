@@ -1567,11 +1567,12 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
         full_update = 1;
     }
     if (surface_data(surface) != s->vram_ptr + (s->start_addr * 4)
-        && is_buffer_shared(surface)) {
+        /*&& is_buffer_shared(surface)*/) {
         /* base address changed (page flip) -> shared display surfaces
          * must be updated with the new base address */
         full_update = 1;
     }
+    full_update = 1;
 
     if (full_update) {
         if (share_surface) {
