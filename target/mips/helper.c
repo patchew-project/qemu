@@ -747,6 +747,7 @@ void mips_cpu_do_interrupt(CPUState *cs)
         (env->hflags & MIPS_HFLAG_DM)) {
         cs->exception_index = EXCP_DINT;
     }
+
     offset = 0x180;
     switch (cs->exception_index) {
     case EXCP_DSS:
