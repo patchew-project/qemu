@@ -46,6 +46,7 @@ typedef struct PXBBus {
 #define TYPE_PXB_PCIE_DEVICE "pxb-pcie"
 #define PXB_PCIE_DEV(obj) OBJECT_CHECK(PXBDev, (obj), TYPE_PXB_PCIE_DEVICE)
 
+#define PROP_PXB_BUS_NR "bus_nr"
 #define PROP_PXB_PCIE_MAX_BUS "max_bus"
 #define PROP_PXB_NUMA_NODE "numa_node"
 
@@ -62,8 +63,9 @@ typedef struct PXBDev {
     PXBPCIEHost *pxbhost;
 
     uint32_t domain_nr; /* PCI domain number, non-zero means separate domain */
+    uint8_t start_bus;  /* indicates the BBN of pxb-pcie-host bridge */
     uint8_t max_bus;    /* max bus number to use(including this one) */
-    uint8_t bus_nr;
+    uint8_t bus_nr;     /* bus number of pxb-pcie device on pcei.0 bus */
     uint16_t numa_node;
 } PXBDev;
 
@@ -137,8 +139,8 @@ static void pxb_pcie_foreach(gpointer data, gpointer user_data)
 
     if (pxb->domain_nr > 0) {
         /* only reserve what users ask for to reduce memory cost. Plus one
-         * as the interval [bus_nr, max_bus] has (max_bus-bus_nr+1) buses */
-        pxb_mcfg_hole_size += ((pxb->max_bus - pxb->bus_nr + 1ULL) * MiB);
+         * as the interval [start_bus, max_bus] has (max_bus-start_bus+1) buses */
+        pxb_mcfg_hole_size += ((pxb->max_bus - pxb->start_bus + 1ULL) * MiB);
     }
 }
 
@@ -333,11 +335,11 @@ static gint pxb_compare(gconstpointer a, gconstpointer b)
 {
     const PXBDev *pxb_a = a, *pxb_b = b;
 
-    /* check domain_nr, then bus_nr */
+    /* check domain_nr, then start_bus */
     return pxb_a->domain_nr < pxb_b->domain_nr ? -1 :
            pxb_a->domain_nr > pxb_b->domain_nr ?  1 :
-           pxb_a->bus_nr < pxb_b->bus_nr ? -1 :
-           pxb_a->bus_nr > pxb_b->bus_nr ?  1 :
+           pxb_a->start_bus < pxb_b->start_bus ? -1 :
+           pxb_a->start_bus > pxb_b->start_bus ?  1 :
            0;
 }
 
@@ -362,7 +364,7 @@ static void pxb_dev_realize_common(PCIDevice *dev, bool pcie, Error **errp)
     }
 
     if (pcie) {
-        g_assert (pxb->max_bus >= pxb->bus_nr);
+        g_assert (pxb->max_bus >= pxb->start_bus);
         ds = qdev_create(NULL, TYPE_PXB_PCIE_HOST);
         /* attach it under /machine, so that we can resolve a valid path in
          * object_property_set_link below */
@@ -377,9 +379,9 @@ static void pxb_dev_realize_common(PCIDevice *dev, bool pcie, Error **errp)
         /* will be overwritten by firmware, but kept for readability */
         qdev_prop_set_uint64(ds, PCIE_HOST_MCFG_BASE,
             pxb->domain_nr ? pxb_pcie_mcfg_base : MCH_HOST_BRIDGE_PCIEXBAR_DEFAULT);
-        /* +1 because [bus_nr, max_bus] has (max_bus-bus_nr+1) buses */
+        /* +1 because [start_bus, max_bus] has (max_bus-start_bus+1) buses */
         qdev_prop_set_uint64(ds, PCIE_HOST_MCFG_SIZE,
-            pxb->domain_nr ? (pxb->max_bus - pxb->bus_nr + 1ULL) * MiB : 0);
+            pxb->domain_nr ? (pxb->max_bus - pxb->start_bus + 1ULL) * MiB : 0);
         if (pxb->domain_nr)
             pxb_pcie_mcfg_base += ((pxb->max_bus + 1ULL) * MiB);
 
@@ -389,7 +391,7 @@ static void pxb_dev_realize_common(PCIDevice *dev, bool pcie, Error **errp)
         bus = pci_root_bus_new(ds, "pxb-internal", NULL, NULL, 0, TYPE_PXB_BUS);
         bds = qdev_create(BUS(bus), "pci-bridge");
         bds->id = dev_name;
-        qdev_prop_set_uint8(bds, PCI_BRIDGE_DEV_PROP_CHASSIS_NR, pxb->bus_nr);
+        qdev_prop_set_uint8(bds, PCI_BRIDGE_DEV_PROP_CHASSIS_NR, pxb->start_bus);
         qdev_prop_set_bit(bds, PCI_BRIDGE_DEV_PROP_SHPC, false);
     }
 
@@ -482,7 +484,8 @@ static Property pxb_pcie_dev_properties[] = {
     DEFINE_PROP_UINT8(PROP_PXB_BUS_NR, PXBDev, bus_nr, 0),
     DEFINE_PROP_UINT16(PROP_PXB_NUMA_NODE, PXBDev, numa_node, NUMA_NODE_UNASSIGNED),
     DEFINE_PROP_UINT32(PROP_PXB_PCIE_DOMAIN_NR, PXBDev, domain_nr, 0),
-    /* set a small default value, bus interval is [bus_nr, max_bus] */
+    DEFINE_PROP_UINT8(PROP_PXB_PCIE_START_BUS, PXBDev, start_bus, 0),
+    /* set a small default value, bus interval is [start_bus, max_bus] */
     DEFINE_PROP_UINT8(PROP_PXB_PCIE_MAX_BUS, PXBDev, max_bus, 16),
 
     DEFINE_PROP_END_OF_LIST(),
