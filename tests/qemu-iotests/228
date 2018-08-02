@@ -1,0 +1,96 @@
+#!/bin/bash
+#
+# Test qemu-nbd vs. unaligned images
+#
+# Copyright (C) 2018 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+seq="$(basename $0)"
+echo "QA output created by $seq"
+
+here="$PWD"
+status=1 # failure is the default!
+
+nbd_unix_socket=$TEST_DIR/test_qemu_nbd_socket
+rm -f "${TEST_DIR}/qemu-nbd.pid"
+
+_cleanup_nbd()
+{
+    local NBD_PID
+    if [ -f "${TEST_DIR}/qemu-nbd.pid" ]; then
+        read NBD_PID < "${TEST_DIR}/qemu-nbd.pid"
+        rm -f "${TEST_DIR}/qemu-nbd.pid"
+        if [ -n "$NBD_PID" ]; then
+            kill "$NBD_PID"
+        fi
+    fi
+    rm -f "$nbd_unix_socket"
+}
+
+_wait_for_nbd()
+{
+    for ((i = 0; i < 300; i++))
+    do
+        if [ -r "$nbd_unix_socket" ]; then
+            return
+        fi
+        sleep 0.1
+    done
+    echo "Failed in check of unix socket created by qemu-nbd"
+    exit 1
+}
+
+_cleanup()
+{
+    _cleanup_test_img
+    _cleanup_nbd
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+
+_supported_fmt raw
+_supported_proto nbd
+_supported_os Linux
+_require_command QEMU_NBD
+
+echo
+echo "=== Exporting unaligned raw image ==="
+echo
+
+# can't use _make_test_img, because qemu-img rounds image size up,
+# and because we want to use Unix socket rather than TCP port. Likewise,
+# we have to redirect TEST_IMG to our server.
+printf %01000d 0 > "$TEST_IMG_FILE"
+_cleanup_nbd
+$QEMU_NBD -f $IMGFMT -v -t -k "$nbd_unix_socket" -e 42 -x '' "$TEST_IMG_FILE" &
+_wait_for_nbd
+TEST_IMG="nbd:unix:$nbd_unix_socket"
+
+$QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
+$QEMU_IO -c map "$TEST_IMG"
+
+# Not tested yet: we also want to ensure that qemu as NBD client does
+# not access beyond the end of a server's advertised unaligned size.
+# However, since qemu as server always rounds up to a sector alignment,
+# we would have to use nbdkit to provoke the current client failures.
+
+# success, all done
+echo '*** done'
+rm -f $seq.full
+status=0
