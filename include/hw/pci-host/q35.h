@@ -69,6 +69,7 @@ typedef struct Q35PCIHost {
     /*< public >*/
 
     bool pci_hole64_fix;
+    uint32_t domain_nr;
     MCHPCIState mch;
 } Q35PCIHost;
 

@@ -196,7 +196,8 @@ static void pci_del_option_rom(PCIDevice *pdev);
 static uint16_t pci_default_sub_vendor_id = PCI_SUBVENDOR_ID_REDHAT_QUMRANET;
 static uint16_t pci_default_sub_device_id = PCI_SUBDEVICE_ID_QEMU;
 
-static QLIST_HEAD(, PCIHostState) pci_host_bridges;
+static QTAILQ_HEAD(, PCIHostState) pci_host_bridges =
+    QTAILQ_HEAD_INITIALIZER(pci_host_bridges);
 
 int pci_bar(PCIDevice *d, int reg)
 {
@@ -330,7 +331,7 @@ static void pci_host_bus_register(DeviceState *host)
 {
     PCIHostState *host_bridge = PCI_HOST_BRIDGE(host);
 
-    QLIST_INSERT_HEAD(&pci_host_bridges, host_bridge, next);
+    QTAILQ_INSERT_TAIL(&pci_host_bridges, host_bridge, next);
 }
 
 PCIBus *pci_device_root_bus(const PCIDevice *d)
@@ -1798,7 +1799,7 @@ PciInfoList *qmp_query_pci(Error **errp)
     PciInfoList *info, *head = NULL, *cur_item = NULL;
     PCIHostState *host_bridge;
 
-    QLIST_FOREACH(host_bridge, &pci_host_bridges, next) {
+    QTAILQ_FOREACH(host_bridge, &pci_host_bridges, next) {
         info = g_malloc0(sizeof(*info));
         info->value = qmp_query_pci_bus(host_bridge->bus,
                                         pci_bus_num(host_bridge->bus));
@@ -2493,7 +2494,7 @@ int pci_qdev_find_device(const char *id, PCIDevice **pdev)
     PCIHostState *host_bridge;
     int rc = -ENODEV;
 
-    QLIST_FOREACH(host_bridge, &pci_host_bridges, next) {
+    QTAILQ_FOREACH(host_bridge, &pci_host_bridges, next) {
         int tmp = pci_qdev_find_recursive(host_bridge->bus, id, pdev);
         if (!tmp) {
             rc = 0;

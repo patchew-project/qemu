@@ -55,6 +55,7 @@
 #include "hw/i386/ich9.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/pci-host/q35.h"
+#include "hw/pci-bridge/pci_expander_bridge.h"
 #include "hw/i386/x86-iommu.h"
 
 #include "hw/acpi/aml-build.h"
@@ -89,6 +90,9 @@
 typedef struct AcpiMcfgInfo {
     uint64_t mcfg_base;
     uint32_t mcfg_size;
+    uint32_t domain_nr;
+    uint8_t bus_nr; // start bus number
+    struct AcpiMcfgInfo *next;
 } AcpiMcfgInfo;
 
 typedef struct AcpiPmInfo {
@@ -2427,14 +2431,16 @@ build_mcfg_q35(GArray *table_data, BIOSLinker *linker, AcpiMcfgInfo *info)
 {
     AcpiTableMcfg *mcfg;
     const char *sig;
-    int len = sizeof(*mcfg) + 1 * sizeof(mcfg->allocation[0]);
+    int len, count = 0;
+    AcpiMcfgInfo *cfg = info;
+
+    while (cfg) {
+        ++count;
+        cfg = cfg->next;
+    }
+    len = sizeof(*mcfg) + count * sizeof(mcfg->allocation[0]);
 
     mcfg = acpi_data_push(table_data, len);
-    mcfg->allocation[0].address = cpu_to_le64(info->mcfg_base);
-    /* Only a single allocation so no need to play with segments */
-    mcfg->allocation[0].pci_segment = cpu_to_le16(0);
-    mcfg->allocation[0].start_bus_number = 0;
-    mcfg->allocation[0].end_bus_number = PCIE_MMCFG_BUS(info->mcfg_size - 1);
 
     /* MCFG is used for ECAM which can be enabled or disabled by guest.
      * To avoid table size changes (which create migration issues),
@@ -2448,6 +2454,16 @@ build_mcfg_q35(GArray *table_data, BIOSLinker *linker, AcpiMcfgInfo *info)
     } else {
         sig = "MCFG";
     }
+
+    while (info) {
+        mcfg[count].allocation[0].address = cpu_to_le64(info->mcfg_base);
+        mcfg[count].allocation[0].pci_segment = cpu_to_le16(info->domain_nr);
+        mcfg[count].allocation[0].start_bus_number = info->bus_nr;
+        mcfg[count++].allocation[0].end_bus_number = info->bus_nr + \
+                                    PCIE_MMCFG_BUS(info->mcfg_size - 1);
+        info = info->next;
+    }
+
     build_header(linker, table_data, (void *)mcfg, sig, len, 1, NULL, NULL);
 }
 
@@ -2602,26 +2618,83 @@ struct AcpiBuildState {
     MemoryRegion *linker_mr;
 } AcpiBuildState;
 
-static bool acpi_get_mcfg(AcpiMcfgInfo *mcfg)
+static inline void cleanup_mcfg(AcpiMcfgInfo *mcfg)
+{
+    AcpiMcfgInfo *tmp;
+    while (mcfg) {
+        tmp = mcfg->next;
+        g_free(mcfg);
+        mcfg = tmp;
+    }
+}
+
+static AcpiMcfgInfo *acpi_get_mcfg(void)
 {
     Object *pci_host;
     QObject *o;
+    uint32_t domain_nr;
+    AcpiMcfgInfo *head = NULL, *tail, *mcfg;
 
     pci_host = acpi_get_i386_pci_host();
     g_assert(pci_host);
 
-    o = object_property_get_qobject(pci_host, PCIE_HOST_MCFG_BASE, NULL);
-    if (!o) {
-        return false;
-    }
-    mcfg->mcfg_base = qnum_get_uint(qobject_to(QNum, o));
-    qobject_unref(o);
+    while (pci_host) {
+        /* pxb-pcie-hosts does not have domain_nr property, but a link
+         * to PXBDev. We first try to get pxbdev property, if NULL,
+         * then it is q35 host, otherwise it is pxb-pcie-host */
+        Object *obj = object_property_get_link(pci_host,
+                                           PROP_PXB_PCIE_DEV, NULL);
+        if (!obj) {
+            /* we are in q35 host */
+            obj = pci_host;
+        }
+        o = object_property_get_qobject(obj, PROP_PXB_PCIE_DOMAIN_NR, NULL);
+        assert(o);
+        domain_nr = qnum_get_uint(qobject_to(QNum, o));
+        qobject_unref(o);
 
-    o = object_property_get_qobject(pci_host, PCIE_HOST_MCFG_SIZE, NULL);
-    assert(o);
-    mcfg->mcfg_size = qnum_get_uint(qobject_to(QNum, o));
-    qobject_unref(o);
-    return true;
+        /* Skip bridges that reside in the same domain with q35 host.
+         * Q35 always stays in pci domain 0, and is the first element
+         * in the pci_host_bridges list */
+        if (head && domain_nr == 0) {
+            pci_host = OBJECT(QTAILQ_NEXT(PCI_HOST_BRIDGE(pci_host), next));
+            continue;
+        }
+
+        mcfg = g_new0(AcpiMcfgInfo, 1);
+        mcfg->next = NULL;
+        if (!head) {
+            tail = head = mcfg;
+        } else {
+            tail->next = mcfg;
+            tail = mcfg;
+        }
+        mcfg->domain_nr = domain_nr;
+
+        o = object_property_get_qobject(pci_host, PCIE_HOST_MCFG_BASE, NULL);
+        assert(o);
+        mcfg->mcfg_base = qnum_get_uint(qobject_to(QNum, o));
+        qobject_unref(o);
+
+        /* firmware will overwrite it */
+        o = object_property_get_qobject(pci_host, PCIE_HOST_MCFG_SIZE, NULL);
+        assert(o);
+        mcfg->mcfg_size = qnum_get_uint(qobject_to(QNum, o));
+        qobject_unref(o);
+
+        o = object_property_get_qobject(obj, PROP_PXB_BUS_NR, NULL);
+        if (!o) {
+            /* we are in q35 host again */
+            mcfg->bus_nr = 0;
+        } else {
+            mcfg->bus_nr = qnum_get_uint(qobject_to(QNum, o));
+            qobject_unref(o);
+        }
+
+        pci_host = OBJECT(QTAILQ_NEXT(PCI_HOST_BRIDGE(pci_host), next));
+    }
+
+    return head;
 }
 
 static
@@ -2633,7 +2706,7 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
     unsigned facs, dsdt, rsdt, fadt;
     AcpiPmInfo pm;
     AcpiMiscInfo misc;
-    AcpiMcfgInfo mcfg;
+    AcpiMcfgInfo *mcfg;
     Range pci_hole, pci_hole64;
     uint8_t *u;
     size_t aml_len = 0;
@@ -2714,10 +2787,12 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
             build_slit(tables_blob, tables->linker);
         }
     }
-    if (acpi_get_mcfg(&mcfg)) {
+    if ((mcfg = acpi_get_mcfg()) != NULL) {
         acpi_add_table(table_offsets, tables_blob);
-        build_mcfg_q35(tables_blob, tables->linker, &mcfg);
+        build_mcfg_q35(tables_blob, tables->linker, mcfg);
     }
+    cleanup_mcfg(mcfg);
+
     if (x86_iommu_get_default()) {
         IommuType IOMMUType = x86_iommu_get_type();
         if (IOMMUType == TYPE_AMD) {

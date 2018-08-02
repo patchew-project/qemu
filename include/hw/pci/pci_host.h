@@ -47,7 +47,7 @@ struct PCIHostState {
     uint32_t config_reg;
     PCIBus *bus;
 
-    QLIST_ENTRY(PCIHostState) next;
+    QTAILQ_ENTRY(PCIHostState) next;
 };
 
 typedef struct PCIHostBridgeClass {
