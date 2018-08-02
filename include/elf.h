@@ -62,6 +62,24 @@ typedef int64_t  Elf64_Sxword;
 #define EF_MIPS_NAN2008   0x00000400
 #define EF_MIPS_ARCH      0xf0000000
 
+/* nanoMIPS architecture bits, EF_NANOMIPS_ARCH */
+#define EF_NANOMIPS_ARCH_32R6 0x00000000  /* 32-bit nanoMIPS Release 6 ISA   */
+#define EF_NANOMIPS_ARCH_64R6 0x10000000  /* 62-bit nanoMIPS Release 6 ISA   */
+
+/* nanoMIPS ABI bits, EF_NANOMIPS_ABI */
+#define EF_NANOMIPS_ABI_P32   0x00001000  /* 32-bit nanoMIPS ABI             */
+#define EF_NANOMIPS_ABI_P64   0x00002000  /* 64-bit nanoMIPS ABI             */
+
+/* nanoMIPS processor specific flags, e_flags */
+#define EF_NANOMIPS_LINKRELAX 0x00000001  /* Link-time relaxation            */
+#define EF_NANOMIPS_PIC       0x00000002  /* Position independant code       */
+#define EF_NANOMIPS_32BITMODE 0x00000004  /* 32-bit object for 64-bit arch.  */
+#define EF_NANOMIPS_PID       0x00000008  /* Position independant data       */
+#define EF_NANOMIPS_PCREL     0x00000010  /* PC-relative mode                */
+#define EF_NANOMIPS_ABI       0x0000f000  /* nanoMIPS ABI                    */
+#define EF_NANOMIPS_MACH      0x00ff0000  /* Machine variant                 */
+#define EF_NANOMIPS_ARCH      0xf0000000  /* nanoMIPS architecture           */
+
 /* MIPS machine variant */
 #define EF_MIPS_MACH_NONE     0x00000000  /* A standard MIPS implementation  */
 #define EF_MIPS_MACH_3900     0x00810000  /* Toshiba R3900                   */
@@ -142,6 +160,8 @@ typedef int64_t  Elf64_Sxword;
 #define EM_UNICORE32    110     /* UniCore32 */
 
 #define EM_RISCV        243     /* RISC-V */
+
+#define EM_NANOMIPS     249     /* Wave Computing nanoMIPS */
 
 /*
  * This is an interim value that we will use until the committee comes
