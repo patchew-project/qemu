@@ -16526,6 +16526,7 @@ static int decode_nanomips_opc(CPUMIPSState *env, DisasContext *ctx)
     int rt = decode_gpr_gpr3(NANOMIPS_EXTRACT_RD(ctx->opcode));
     int rs = decode_gpr_gpr3(NANOMIPS_EXTRACT_RS(ctx->opcode));
     int rd = decode_gpr_gpr3(NANOMIPS_EXTRACT_RS1(ctx->opcode));
+    int offset;
     int imm;
 
     /* make sure instructions are on a halfword boundary */
@@ -16593,6 +16594,13 @@ static int decode_nanomips_opc(CPUMIPSState *env, DisasContext *ctx)
         }
         break;
     case NM_P16C:
+        switch (ctx->opcode & 1) {
+        case NM_POOL16C_0:
+            break;
+        case NM_LWXS16:
+            gen_ldxs(ctx, rt, rs, rd);
+            break;
+        }
         break;
     case NM_P16_A1:
         switch (extract32(ctx->opcode, 6, 1)) {
@@ -16664,24 +16672,97 @@ static int decode_nanomips_opc(CPUMIPSState *env, DisasContext *ctx)
     case NM_ANDI16:
         break;
     case NM_P16_LB:
+        switch (extract32(ctx->opcode, 2, 2)) {
+        case NM_LB16:
+            offset = extract32(ctx->opcode, 0, 2);
+            gen_ld(ctx, OPC_LB, rt, rs, offset);
+            break;
+        case NM_SB16:
+            offset = decode_gpr_gpr3_src_store(
+                         NANOMIPS_EXTRACT_RD(ctx->opcode));
+            gen_st(ctx, OPC_SB, rt, rs, offset);
+            break;
+        case NM_LBU16:
+            offset = extract32(ctx->opcode, 0, 2);
+            gen_ld(ctx, OPC_LBU, rt, rs, offset);
+            break;
+        default:
+            generate_exception_end(ctx, EXCP_RI);
+            break;
+        }
         break;
     case NM_P16_LH:
+        switch ((extract32(ctx->opcode, 3, 1) << 1) | (ctx->opcode & 1)) {
+        case NM_LH16:
+            offset = extract32(ctx->opcode, 1, 2) << 1;
+            gen_ld(ctx, OPC_LH, rt, rs, offset);
+            break;
+        case NM_SH16:
+            offset = decode_gpr_gpr3_src_store(
+                         NANOMIPS_EXTRACT_RD(ctx->opcode));
+            gen_st(ctx, OPC_SH, rt, rs, offset);
+            break;
+        case NM_LHU16:
+            offset = extract32(ctx->opcode, 1, 2) << 1;
+            gen_ld(ctx, OPC_LHU, rt, rs, offset);
+            break;
+        default:
+            generate_exception_end(ctx, EXCP_RI);
+            break;
+        }
         break;
     case NM_LW16:
+        offset = extract32(ctx->opcode, 0, 4) << 2;
+        gen_ld(ctx, OPC_LW, rt, rs, offset);
         break;
     case NM_LWSP16:
+        rt = NANOMIPS_EXTRACT_RD5(ctx->opcode);
+        offset = extract32(ctx->opcode, 0, 5) << 2;
+        gen_ld(ctx, OPC_LW, rt, 29, offset);
         break;
     case NM_LW4X4:
+        rt = (extract32(ctx->opcode, 9, 1) << 3) |
+             extract32(ctx->opcode, 5, 3);
+        rs = (extract32(ctx->opcode, 4, 1) << 3) |
+             extract32(ctx->opcode, 0, 3);
+        offset = (extract32(ctx->opcode, 3, 1) << 3) |
+                 (extract32(ctx->opcode, 8, 1) << 2);
+        rt = decode_gpr_gpr4(rt);
+        rs = decode_gpr_gpr4(rs);
+        gen_ld(ctx, OPC_LW, rt, rs, offset);
         break;
     case NM_SW4X4:
+        rt = (extract32(ctx->opcode, 9, 1) << 3) |
+             extract32(ctx->opcode, 5, 3);
+        rs = (extract32(ctx->opcode, 4, 1) << 3) |
+             extract32(ctx->opcode, 0, 3);
+        offset = (extract32(ctx->opcode, 3, 1) << 3) |
+                 (extract32(ctx->opcode, 8, 1) << 2);
+        rt = decode_gpr_gpr4_zero(rt);
+        rs = decode_gpr_gpr4(rs);
+        gen_st(ctx, OPC_SW, rt, rs, offset);
         break;
     case NM_LWGP16:
+        offset = extract32(ctx->opcode, 0, 7) << 2;
+        gen_ld(ctx, OPC_LW, rt, 28, offset);
         break;
     case NM_SWSP16:
+        rt = NANOMIPS_EXTRACT_RD5(ctx->opcode);
+        offset = extract32(ctx->opcode, 0, 5) << 2;
+        gen_st(ctx, OPC_SW, rt, 29, offset);
         break;
     case NM_SW16:
+        rt = decode_gpr_gpr3_src_store(
+                 NANOMIPS_EXTRACT_RD(ctx->opcode));
+        rs = decode_gpr_gpr3(NANOMIPS_EXTRACT_RS(ctx->opcode));
+        offset = extract32(ctx->opcode, 0, 4) << 2;
+        gen_st(ctx, OPC_SW, rt, rs, offset);
         break;
     case NM_SWGP16:
+        rt = decode_gpr_gpr3_src_store(
+                 NANOMIPS_EXTRACT_RD(ctx->opcode));
+        offset = extract32(ctx->opcode, 0, 7) << 2;
+        gen_st(ctx, OPC_SW, rt, 28, offset);
         break;
     case NM_BC16:
         gen_compute_branch(ctx, OPC_BEQ, 2, 0, 0,
