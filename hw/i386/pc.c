@@ -35,6 +35,7 @@
 #include "hw/ide.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_bus.h"
+#include "hw/pci-bridge/pci_expander_bridge.h"
 #include "hw/nvram/fw_cfg.h"
 #include "hw/timer/hpet.h"
 #include "hw/smbios/smbios.h"
@@ -1470,13 +1471,22 @@ uint64_t pc_pci_hole64_start(void)
     if (pcmc->has_reserved_memory && ms->device_memory->base) {
         hole64_start = ms->device_memory->base;
         if (!pcmc->broken_reserved_end) {
-            hole64_start += memory_region_size(&ms->device_memory->mr);
+            hole64_start += (memory_region_size(&ms->device_memory->mr) + \
+                             pxb_pcie_mcfg_hole());
         }
     } else {
-        hole64_start = 0x100000000ULL + pcms->above_4g_mem_size;
+        /* memory layout [RAM Hotplug][MCFG][..ROUND UP..][PCI HOLE] */
+        hole64_start = pc_pci_mcfg_start() + pxb_pcie_mcfg_hole();
     }
 
     return ROUND_UP(hole64_start, 1 * GiB);
+}
+
+uint64_t pc_pci_mcfg_start(void)
+{
+    PCMachineState *pcms = PC_MACHINE(qdev_get_machine());
+
+    return ROUND_UP(0x100000000ULL + pcms->above_4g_mem_size, 4 * KiB);
 }
 
 qemu_irq pc_allocate_cpu_irq(void)

@@ -12,15 +12,19 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "hw/i386/pc.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/pci/pci_host.h"
 #include "hw/pci/pcie_host.h"
 #include "hw/pci/pci_bridge.h"
+#include "hw/pci-host/q35.h"
+#include "hw/pci-bridge/pci_expander_bridge.h"
 #include "qemu/range.h"
 #include "qemu/error-report.h"
 #include "sysemu/numa.h"
 #include "qapi/visitor.h"
+#include "qemu/units.h"
 
 #define TYPE_PXB_BUS "pxb-bus"
 #define PXB_BUS(obj) OBJECT_CHECK(PXBBus, (obj), TYPE_PXB_BUS)
@@ -42,11 +46,7 @@ typedef struct PXBBus {
 #define TYPE_PXB_PCIE_DEVICE "pxb-pcie"
 #define PXB_PCIE_DEV(obj) OBJECT_CHECK(PXBDev, (obj), TYPE_PXB_PCIE_DEVICE)
 
-#define PROP_PXB_PCIE_DEV "pxbdev"
-
-#define PROP_PXB_PCIE_DOMAIN_NR "domain_nr"
 #define PROP_PXB_PCIE_MAX_BUS "max_bus"
-#define PROP_PXB_BUS_NR "bus_nr"
 #define PROP_PXB_NUMA_NODE "numa_node"
 
 typedef struct PXBDev {
@@ -122,6 +122,26 @@ static const TypeInfo pxb_pcie_bus_info = {
     .class_init    = pxb_bus_class_init,
 };
 
+static uint64_t pxb_mcfg_hole_size = 0;
+
+static void pxb_pcie_foreach(gpointer data, gpointer user_data)
+{
+    PXBDev *pxb = (PXBDev *)data;
+
+    if (pxb->domain_nr > 0) {
+        /* only reserve what users ask for to reduce memory cost. Plus one
+         * as the interval [bus_nr, max_bus] has (max_bus-bus_nr+1) buses */
+        pxb_mcfg_hole_size += ((pxb->max_bus - pxb->bus_nr + 1ULL) * MiB);
+    }
+}
+
+uint64_t pxb_pcie_mcfg_hole(void)
+{
+    /* foreach is necessary as some pxb still reside in domain 0 */
+    g_list_foreach(pxb_dev_list, pxb_pcie_foreach, NULL);
+    return pxb_mcfg_hole_size;
+}
+
 static const char *pxb_host_root_bus_path(PCIHostState *host_bridge,
                                           PCIBus *rootbus)
 {
@@ -151,14 +171,6 @@ static const char *pxb_pcie_host_root_bus_path(PCIHostState *host_bridge,
              object_property_get_uint(obj, PROP_PXB_PCIE_DOMAIN_NR, NULL),
              pxb_bus_num(rootbus));
     return bus->bus_path;
-}
-
-static void pxb_pcie_host_get_mmcfg_size(Object *obj, Visitor *v, const char *name,
-                                    void *opaque, Error **errp)
-{
-    PCIExpressHost *e = PCIE_HOST_BRIDGE(obj);
-
-    visit_type_uint64(v, name, &e->size, errp);
 }
 
 static char *pxb_host_ofw_unit_address(const SysBusDevice *dev)
@@ -202,10 +214,6 @@ static void pxb_pcie_host_initfn(Object *obj)
     memory_region_init_io(&phb->data_mem, obj, &pci_host_data_le_ops, phb,
                           "pci-conf-data", 4);
 
-    object_property_add(obj, PCIE_HOST_MCFG_SIZE, "uint64",
-                         pxb_pcie_host_get_mmcfg_size,
-                         NULL, NULL, NULL, NULL);
-
     object_property_add_link(obj, PROP_PXB_PCIE_DEV, TYPE_PXB_PCIE_DEVICE,
                          (Object **)&s->pxbdev,
                          qdev_prop_allow_set_link_before_realize, 0, NULL);
@@ -214,6 +222,7 @@ static void pxb_pcie_host_initfn(Object *obj)
 static Property pxb_pcie_host_props[] = {
     DEFINE_PROP_UINT64(PCIE_HOST_MCFG_BASE, PXBPCIEHost, parent_obj.base_addr,
                         PCIE_BASE_ADDR_UNMAPPED),
+    DEFINE_PROP_UINT64(PCIE_HOST_MCFG_SIZE, PXBPCIEHost, parent_obj.size, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -310,6 +319,8 @@ static gint pxb_compare(gconstpointer a, gconstpointer b)
            0;
 }
 
+static uint64_t pxb_pcie_mcfg_base;
+
 static void pxb_dev_realize_common(PCIDevice *dev, bool pcie, Error **errp)
 {
     PXBDev *pxb = convert_to_pxb(dev);
@@ -333,7 +344,16 @@ static void pxb_dev_realize_common(PCIDevice *dev, bool pcie, Error **errp)
         ds = qdev_create(NULL, TYPE_PXB_PCIE_HOST);
 
         object_property_set_link(OBJECT(ds), OBJECT(pxb),
-                                 PROP_PXB_PCIE_DEV, NULL);
+                                 PROP_PXB_PCIE_DEV, errp);
+
+        /* will be overwritten by firmware, but kept for readability */
+        qdev_prop_set_uint64(ds, PCIE_HOST_MCFG_BASE,
+            pxb->domain_nr ? pxb_pcie_mcfg_base : MCH_HOST_BRIDGE_PCIEXBAR_DEFAULT);
+        /* +1 because [bus_nr, max_bus] has (max_bus-bus_nr+1) buses */
+        qdev_prop_set_uint64(ds, PCIE_HOST_MCFG_SIZE,
+            pxb->domain_nr ? (pxb->max_bus - pxb->bus_nr + 1ULL) * MiB : 0);
+        if (pxb->domain_nr)
+            pxb_pcie_mcfg_base += ((pxb->max_bus + 1ULL) * MiB);
 
         bus = pci_root_bus_new(ds, dev_name, NULL, NULL, 0, TYPE_PXB_PCIE_BUS);
     } else {
@@ -444,6 +464,9 @@ static void pxb_pcie_dev_realize(PCIDevice *dev, Error **errp)
         error_setg(errp, "pxb-pcie devices cannot reside on a PCI bus");
         return;
     }
+
+    if (0 == pxb_pcie_mcfg_base)
+        pxb_pcie_mcfg_base = pc_pci_mcfg_start();
 
     pxb_dev_realize_common(dev, true, errp);
 }
