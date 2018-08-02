@@ -91,7 +91,7 @@ typedef struct AcpiMcfgInfo {
     uint64_t mcfg_base;
     uint32_t mcfg_size;
     uint32_t domain_nr;
-    uint8_t bus_nr; // start bus number
+    uint8_t start_bus; // start bus number
     struct AcpiMcfgInfo *next;
 } AcpiMcfgInfo;
 
@@ -2129,7 +2129,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
         QObject *o;
         PCIBus *bus = NULL;
         uint32_t domain_nr;
-        uint8_t bus_nr;
+        uint8_t start_bus;
         int index = 0;
 
         pci_host = acpi_get_i386_pci_host();
@@ -2145,12 +2145,12 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
             domain_nr = qnum_get_uint(qobject_to(QNum, o));
             qobject_unref(o);
 
-            o = object_property_get_qobject(pci_host, "bus_nr", NULL);
+            o = object_property_get_qobject(pci_host, "start_bus", NULL);
             if (!o) {
                 /* we are in q35 host */
-                bus_nr = 0;
+                start_bus = 0;
             } else {
-                bus_nr = qnum_get_uint(qobject_to(QNum, o));
+                start_bus = qnum_get_uint(qobject_to(QNum, o));
                 qobject_unref(o);
             }
 
@@ -2158,7 +2158,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
             if (bus) {
                 Aml *scope = aml_scope("PCI%d", index);
                 aml_append(scope, aml_name_decl("_SEG", aml_int(domain_nr)));
-                aml_append(scope, aml_name_decl("_BBN", aml_int(bus_nr)));
+                aml_append(scope, aml_name_decl("_BBN", aml_int(start_bus)));
                 /* Scan all PCI buses. Generate tables to support hotplug. */
                 build_append_pci_bus_devices(scope, bus, pm->pcihp_bridge_en);
 
@@ -2486,8 +2486,8 @@ build_mcfg_q35(GArray *table_data, BIOSLinker *linker, AcpiMcfgInfo *info)
     while (info) {
         mcfg[count].allocation[0].address = cpu_to_le64(info->mcfg_base);
         mcfg[count].allocation[0].pci_segment = cpu_to_le16(info->domain_nr);
-        mcfg[count].allocation[0].start_bus_number = info->bus_nr;
-        mcfg[count++].allocation[0].end_bus_number = info->bus_nr + \
+        mcfg[count].allocation[0].start_bus_number = info->start_bus;
+        mcfg[count++].allocation[0].end_bus_number = info->start_bus + \
                                     PCIE_MMCFG_BUS(info->mcfg_size - 1);
         info = info->next;
     }
@@ -2710,12 +2710,12 @@ static AcpiMcfgInfo *acpi_get_mcfg(void)
         mcfg->mcfg_size = qnum_get_uint(qobject_to(QNum, o));
         qobject_unref(o);
 
-        o = object_property_get_qobject(obj, PROP_PXB_BUS_NR, NULL);
+        o = object_property_get_qobject(obj, PROP_PXB_PCIE_START_BUS, NULL);
         if (!o) {
             /* we are in q35 host again */
-            mcfg->bus_nr = 0;
+            mcfg->start_bus = 0;
         } else {
-            mcfg->bus_nr = qnum_get_uint(qobject_to(QNum, o));
+            mcfg->start_bus = qnum_get_uint(qobject_to(QNum, o));
             qobject_unref(o);
         }
 
