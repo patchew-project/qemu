@@ -1239,6 +1239,7 @@ STEXI
 ETEXI
 
 DEF("display", HAS_ARG, QEMU_OPTION_display,
+    "-display app[,gl=on|off]\n"
     "-display sdl[,frame=on|off][,alt_grab=on|off][,ctrl_grab=on|off]\n"
     "            [,window_close=on|off][,gl=on|core|es|off]\n"
     "-display gtk[,grab_on_hover=on|off][,gl=on|off]|\n"
@@ -1286,6 +1287,10 @@ menus and other UI elements to configure and control the VM during
 runtime.
 @item vnc
 Start a VNC server on display <arg>
+@item app
+Start QEMU as a Spice server and launch the default Spice client
+application. The Spice server will redirect the serial consoles and
+QEMU monitors.
 @end table
 ETEXI
 
