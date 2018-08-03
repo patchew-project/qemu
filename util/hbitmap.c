@@ -53,6 +53,9 @@
  */
 
 struct HBitmap {
+    /* Size of the bitmap, as requested in hbitmap_alloc. */
+    uint64_t orig_size;
+
     /* Number of total bits in the bottom level.  */
     uint64_t size;
 
@@ -236,6 +239,40 @@ int64_t hbitmap_next_zero(const HBitmap *hb, uint64_t start, uint64_t bytes)
     }
 
     return res;
+}
+
+bool hbitmap_next_dirty_area(const HBitmap *hb, uint64_t *offset,
+                             uint64_t end, uint64_t *length)
+{
+    HBitmapIter hbi;
+    int64_t off1, off0;
+    uint32_t granularity = 1UL << hb->granularity;
+
+    if (end == 0) {
+        end = hb->orig_size;
+    }
+
+    hbitmap_iter_init(&hbi, hb, *offset << hb->granularity);
+    off1 = hbitmap_iter_next(&hbi, true);
+
+    if (off1 < 0 || off1 >= end) {
+        return false;
+    }
+
+    if (off1 + granularity >= end) {
+        *offset = off1;
+        *length = end - off1;
+        return true;
+    }
+
+    off0 = hbitmap_next_zero(hb, off1 + granularity, end);
+    if (off0 < 0) {
+        off0 = end;
+    }
+
+    *offset = off1;
+    *length = off0 - off1;
+    return true;
 }
 
 bool hbitmap_empty(const HBitmap *hb)
@@ -658,6 +695,8 @@ HBitmap *hbitmap_alloc(uint64_t size, int granularity)
 {
     HBitmap *hb = g_new0(struct HBitmap, 1);
     unsigned i;
+
+    hb->orig_size = size;
 
     assert(granularity >= 0 && granularity < 64);
     size = (size + (1ULL << granularity) - 1) >> granularity;
