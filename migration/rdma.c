@@ -2305,17 +2305,6 @@ static void qemu_rdma_cleanup(RDMAContext *rdma)
     int idx;
 
     if (rdma->cm_id && rdma->connected) {
-        if ((rdma->error_state ||
-             migrate_get_current()->state == MIGRATION_STATUS_CANCELLING) &&
-            !rdma->received_error) {
-            RDMAControlHeader head = { .len = 0,
-                                       .type = RDMA_CONTROL_ERROR,
-                                       .repeat = 1,
-                                     };
-            error_report("Early error. Sending error.");
-            qemu_rdma_post_send_control(rdma, NULL, &head);
-        }
-
         rdma_disconnect(rdma->cm_id);
         trace_qemu_rdma_cleanup_disconnect();
         rdma->connected = false;
