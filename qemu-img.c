@@ -199,6 +199,17 @@ static void QEMU_NORETURN help(void)
 
     printf("%s\nSupported formats:", help_msg);
     bdrv_iterate_format(format_print, NULL);
+
+    printf("\n\nExamples:\n\n"
+           "Create: qemu-img create -f qcow2 image.qcow2 10G\n\n"
+           "Info: qemu-img info image.qcow2\n\n"
+           "Resize: qemu-img resize image.qcow2 20G\n\n"
+           "Convert: qemu-img convert -f raw -O qcow2 image.img image.qcow2\n\n"
+           "Check: qemu-img check image.qcow2\n\n"
+           "Map: qemu-img map -f qcow2 --output=human image.qcow2\n\n"
+           "Rebase: qemu-img rebase -b new_backing_file.qcow2 image.qcow2"
+           );
+
     printf("\n\n" QEMU_HELP_BOTTOM "\n");
     exit(EXIT_SUCCESS);
 }
