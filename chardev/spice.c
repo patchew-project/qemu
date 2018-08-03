@@ -212,6 +212,12 @@ static int spice_chr_write(Chardev *chr, const uint8_t *buf, int len)
     int read_bytes;
 
     assert(s->datalen == 0);
+
+    if (!chr->be_open) {
+        trace_spice_chr_discard_write(len);
+        return len;
+    }
+
     s->datapos = buf;
     s->datalen = len;
     spice_server_char_device_wakeup(&s->sin);
