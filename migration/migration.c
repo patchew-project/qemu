@@ -3200,6 +3200,7 @@ static void migration_instance_finalize(Object *obj)
     qemu_sem_destroy(&ms->postcopy_pause_sem);
     qemu_sem_destroy(&ms->postcopy_pause_rp_sem);
     qemu_sem_destroy(&ms->rp_state.rp_sem);
+    qemu_mutex_destroy(&ms->qemu_file_close_lock);
     error_free(ms->error);
 }
 
@@ -3236,6 +3237,7 @@ static void migration_instance_init(Object *obj)
     qemu_sem_init(&ms->rp_state.rp_sem, 0);
     qemu_sem_init(&ms->rate_limit_sem, 0);
     qemu_mutex_init(&ms->qemu_file_lock);
+    qemu_mutex_init(&ms->qemu_file_close_lock);
 }
 
 /*
