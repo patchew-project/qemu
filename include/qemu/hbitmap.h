@@ -295,10 +295,13 @@ unsigned long hbitmap_iter_skip_words(HBitmapIter *hbi);
 /* hbitmap_next_zero:
  * @hb: The HBitmap to operate on
  * @start: The bit to start from.
+ * @bytes: Range length to search in. If @bytes is zero, search up to the bitmap
+ *         end.
  *
- * Find next not dirty bit.
+ * Find next not dirty bit within range [@start, @start + @bytes), or from
+ * @start to the bitmap end if @bytes is zero.
  */
-int64_t hbitmap_next_zero(const HBitmap *hb, uint64_t start);
+int64_t hbitmap_next_zero(const HBitmap *hb, uint64_t start, uint64_t bytes);
 
 /* hbitmap_create_meta:
  * Create a "meta" hbitmap to track dirtiness of the bits in this HBitmap.
