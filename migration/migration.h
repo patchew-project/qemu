@@ -231,6 +231,9 @@ struct MigrationState
      * do not trigger spurious decompression errors.
      */
     bool decompress_error_check;
+
+    /* Set this when rdma resource have released */
+    bool rdma_cleanup_thread_quit;
 };
 
 void migrate_set_state(int *state, int old_state, int new_state);

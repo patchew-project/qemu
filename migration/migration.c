@@ -1499,6 +1499,7 @@ void migrate_init(MigrationState *s)
     s->vm_was_running = false;
     s->iteration_initial_bytes = 0;
     s->threshold_size = 0;
+    s->rdma_cleanup_thread_quit = true;
 }
 
 static GSList *migration_blockers;
@@ -1657,6 +1658,10 @@ static bool migrate_prepare(MigrationState *s, bool blk, bool blk_inc,
         s->state == MIGRATION_STATUS_CANCELLING ||
         s->state == MIGRATION_STATUS_COLO) {
         error_setg(errp, QERR_MIGRATION_ACTIVE);
+        return false;
+    }
+
+    if (s->rdma_cleanup_thread_quit != true) {
         return false;
     }
 
@@ -3214,6 +3219,7 @@ static void migration_instance_init(Object *obj)
 
     ms->state = MIGRATION_STATUS_NONE;
     ms->mbps = -1;
+    ms->rdma_cleanup_thread_quit = true;
     qemu_sem_init(&ms->pause_sem, 0);
     qemu_mutex_init(&ms->error_mutex);
 
