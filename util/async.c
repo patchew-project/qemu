@@ -355,7 +355,11 @@ void aio_notify(AioContext *ctx)
 
 void aio_notify_accept(AioContext *ctx)
 {
-    if (atomic_xchg(&ctx->notified, false)) {
+    /* If ctx->notify_me >= 2, another aio_poll() is waiting which may need the
+     * ctx->notifier event to wake up, so don't already clear it just because "we" are
+     * done iterating. */
+    if (atomic_read(&ctx->notify_me) < 2
+        && atomic_xchg(&ctx->notified, false)) {
         event_notifier_test_and_clear(&ctx->notifier);
     }
 }
