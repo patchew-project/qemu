@@ -2442,8 +2442,8 @@ static DisasJumpType op_ipm(DisasContext *s, DisasOps *o)
     tcg_gen_andi_i64(o->out, o->out, ~0xff000000ull);
 
     t1 = tcg_temp_new_i64();
-    tcg_gen_shli_i64(t1, psw_mask, 20);
-    tcg_gen_shri_i64(t1, t1, 36);
+    tcg_gen_andi_i64(t1, psw_mask, 0x00000f0000000000);
+    tcg_gen_shri_i64(t1, t1, 16);
     tcg_gen_or_i64(o->out, o->out, t1);
 
     tcg_gen_extu_i32_i64(t1, cc_op);
