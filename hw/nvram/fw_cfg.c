@@ -861,7 +861,10 @@ static void fw_cfg_machine_reset(void *opaque)
     void *ptr;
     size_t len;
     FWCfgState *s = opaque;
-    char *bootindex = get_boot_devices_list(&len, false);
+    MachineClass *mc = MACHINE_GET_CLASS(qdev_get_machine());
+
+    char *bootindex = get_boot_devices_list(&len,
+                          mc->fwcfg_bootdevice_ignore_suffixes);
 
     ptr = fw_cfg_modify_file(s, "bootorder", (uint8_t *)bootindex, len);
     g_free(ptr);

@@ -525,6 +525,9 @@ static void machine_class_init(ObjectClass *oc, void *data)
     mc->default_ram_size = 128 * MiB;
     mc->rom_file_has_mr = true;
 
+    /* Default to using fwcfg bootdevice suffixes */
+    mc->fwcfg_bootdevice_ignore_suffixes = false;
+
     /* numa node memory size aligned on 8MB by default.
      * On Linux, each node's border has to be 8MB aligned
      */
