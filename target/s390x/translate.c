@@ -1463,6 +1463,38 @@ static DisasJumpType op_bas(DisasContext *s, DisasOps *o)
     }
 }
 
+static void save_link_info(TCGv_i64 out, uint64_t pc, uint64_t ilc)
+{
+    TCGv_i64 t;
+
+    tcg_gen_andi_i64(out, out, 0xffffffff00000000);
+    tcg_gen_ori_i64(out, out, (ilc << 30) | pc);
+    t = tcg_temp_new_i64();
+    tcg_gen_shri_i64(t, psw_mask, 16);
+    tcg_gen_andi_i64(t, t, 0x0f000000);
+    tcg_gen_or_i64(out, out, t);
+    tcg_gen_extu_i32_i64(t, cc_op);
+    tcg_gen_shli_i64(t, t, 28);
+    tcg_gen_or_i64(out, out, t);
+    tcg_temp_free_i64(t);
+}
+
+static DisasJumpType op_bal(DisasContext *s, DisasOps *o)
+{
+    if (s->base.tb->flags & FLAG_MASK_32) {
+        return op_bas(s, o);
+    }
+    gen_op_calc_cc(s);
+    save_link_info(o->out, s->pc_tmp, s->ilen / 2);
+    if (o->in2) {
+        tcg_gen_mov_i64(psw_addr, o->in2);
+        per_branch(s, false);
+        return DISAS_PC_UPDATED;
+    } else {
+        return DISAS_NEXT;
+    }
+}
+
 static DisasJumpType op_basi(DisasContext *s, DisasOps *o)
 {
     tcg_gen_movi_i64(o->out, pc_to_link_info(s, s->pc_tmp));
