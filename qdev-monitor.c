@@ -410,8 +410,8 @@ static inline bool qbus_is_full(BusState *bus)
  * If more than one exists, prefer one that can take another device.
  * Return the bus if found, else %NULL.
  */
-static BusState *qbus_find_recursive(BusState *bus, const char *name,
-                                     const char *bus_typename)
+BusState *qbus_find_recursive(BusState *bus, const char *name,
+                              const char *bus_typename)
 {
     BusChild *kid;
     BusState *pick, *child, *ret;
@@ -567,7 +567,6 @@ DeviceState *qdev_device_add(QemuOpts *opts, Error **errp)
         error_setg(errp, QERR_MISSING_PARAMETER, "driver");
         return NULL;
     }
-
     /* find driver */
     dc = qdev_get_device_class(&driver, errp);
     if (!dc) {
