@@ -46,6 +46,8 @@ struct Qcow2Cache {
     uint64_t                cache_clean_lru_counter;
 };
 
+static int qcow2_cache_entry_flush(BlockDriverState *bs, Qcow2Cache *c, int i);
+
 static inline void *qcow2_cache_get_table_addr(Qcow2Cache *c, int table)
 {
     return (uint8_t *) c->table_array + (size_t) table * c->table_size;
@@ -86,26 +88,33 @@ static void qcow2_cache_table_release(Qcow2Cache *c, int i, int num_tables)
 #endif
 }
 
-static inline bool can_clean_entry(Qcow2Cache *c, int i)
+static inline bool can_clean_entry(BlockDriverState *bs, Qcow2Cache *c, int i)
 {
     Qcow2CachedTable *t = &c->entries[i];
-    return t->ref == 0 && !t->dirty && t->offset != 0 &&
-        t->lru_counter <= c->cache_clean_lru_counter;
+    if (t->ref || !t->offset || t->lru_counter > c->cache_clean_lru_counter) {
+        return false;
+    }
+
+    if (qcow2_cache_entry_flush(bs, c, i) < 0) {
+        return false;
+    }
+
+    return true;
 }
 
-void qcow2_cache_clean_unused(Qcow2Cache *c)
+void qcow2_cache_clean_unused(BlockDriverState *bs, Qcow2Cache *c)
 {
     int i = 0;
     while (i < c->size) {
         int to_clean = 0;
 
         /* Skip the entries that we don't need to clean */
-        while (i < c->size && !can_clean_entry(c, i)) {
+        while (i < c->size && !can_clean_entry(bs, c, i)) {
             i++;
         }
 
         /* And count how many we can clean in a row */
-        while (i < c->size && can_clean_entry(c, i)) {
+        while (i < c->size && can_clean_entry(bs, c, i)) {
             c->entries[i].offset = 0;
             c->entries[i].lru_counter = 0;
             i++;
