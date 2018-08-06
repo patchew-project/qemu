@@ -403,14 +403,13 @@ build_iort(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     AcpiIortIdMapping *idmap;
     AcpiIortItsGroup *its;
     AcpiIortTable *iort;
-    AcpiIortSmmu3 *smmu;
-    size_t node_size, iort_node_offset, iort_length, smmu_offset = 0;
+    size_t node_size, iort_node_offset, iort_length, iommu_offset = 0;
     AcpiIortRC *rc;
 
     iort = acpi_data_push(table_data, sizeof(*iort));
 
-    if (vms->iommu == VIRT_IOMMU_SMMUV3) {
-        nb_nodes = 3; /* RC, ITS, SMMUv3 */
+    if (vms->iommu) {
+        nb_nodes = 3; /* RC, ITS, IOMMU */
     } else {
         nb_nodes = 2; /* RC, ITS */
     }
@@ -435,10 +434,11 @@ build_iort(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     its->identifiers[0] = 0; /* MADT translation_id */
 
     if (vms->iommu == VIRT_IOMMU_SMMUV3) {
+        AcpiIortSmmu3 *smmu;
         int irq =  vms->irqmap[VIRT_SMMU];
 
         /* SMMUv3 node */
-        smmu_offset = iort_node_offset + node_size;
+        iommu_offset = iort_node_offset + node_size;
         node_size = sizeof(*smmu) + sizeof(*idmap);
         iort_length += node_size;
         smmu = acpi_data_push(table_data, node_size);
@@ -455,6 +455,31 @@ build_iort(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
 
         /* Identity RID mapping covering the whole input RID range */
         idmap = &smmu->id_mapping_array[0];
+        idmap->input_base = 0;
+        idmap->id_count = cpu_to_le32(0xFFFF);
+        idmap->output_base = 0;
+        /* output IORT node is the ITS group node (the first node) */
+        idmap->output_reference = cpu_to_le32(iort_node_offset);
+    } else if (vms->iommu == VIRT_IOMMU_VIRTIO) {
+        AcpiIortPVIommu *iommu;
+        int irq = vms->irqmap[VIRT_VIRTIO_IOMMU];
+
+        /* Para-virtualized IOMMU node */
+        iommu_offset = iort_node_offset + node_size;
+        node_size = sizeof(*iommu) + sizeof(*idmap);
+        iort_length += node_size;
+        iommu = acpi_data_push(table_data, node_size);
+
+        iommu->type = ACPI_IORT_NODE_PARAVIRT;
+        iommu->length = cpu_to_le16(node_size);
+        iommu->base_address = cpu_to_le64(vms->memmap[VIRT_VIRTIO_IOMMU].base);
+        iommu->span = cpu_to_le64(vms->memmap[VIRT_VIRTIO_IOMMU].size);
+        iommu->model = ACPI_IORT_NODE_PV_VIRTIO_IOMMU;
+        iommu->flags = ACPI_IORT_NODE_PV_CACHE_COHERENT;
+        iommu->gsiv = cpu_to_le64(irq);
+
+        /* Identity RID mapping covering the whole input RID range */
+        idmap = &iommu->id_mapping_array[0];
         idmap->input_base = 0;
         idmap->id_count = cpu_to_le32(0xFFFF);
         idmap->output_base = 0;
@@ -483,9 +508,9 @@ build_iort(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     idmap->id_count = cpu_to_le32(0xFFFF);
     idmap->output_base = 0;
 
-    if (vms->iommu == VIRT_IOMMU_SMMUV3) {
+    if (vms->iommu) {
         /* output IORT node is the smmuv3 node */
-        idmap->output_reference = cpu_to_le32(smmu_offset);
+        idmap->output_reference = cpu_to_le32(iommu_offset);
     } else {
         /* output IORT node is the ITS group node (the first node) */
         idmap->output_reference = cpu_to_le32(iort_node_offset);
