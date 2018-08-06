@@ -389,6 +389,7 @@ static void process_incoming_migration_co(void *opaque)
     int ret;
 
     assert(mis->from_src_file);
+    mis->migration_incoming_co = qemu_coroutine_self();
     mis->largest_page_size = qemu_ram_pagesize_largest();
     postcopy_state_set(POSTCOPY_INCOMING_NONE);
     migrate_set_state(&mis->state, MIGRATION_STATUS_NONE,
@@ -418,7 +419,6 @@ static void process_incoming_migration_co(void *opaque)
 
     /* we get COLO info, and know if we are in COLO mode */
     if (!ret && migration_incoming_enable_colo()) {
-        mis->migration_incoming_co = qemu_coroutine_self();
         qemu_thread_create(&mis->colo_incoming_thread, "COLO incoming",
              colo_process_incoming_thread, mis, QEMU_THREAD_JOINABLE);
         mis->have_colo_incoming_thread = true;
@@ -442,6 +442,7 @@ static void process_incoming_migration_co(void *opaque)
     }
     mis->bh = qemu_bh_new(process_incoming_migration_bh, mis);
     qemu_bh_schedule(mis->bh);
+    mis->migration_incoming_co = NULL;
 }
 
 static void migration_incoming_setup(QEMUFile *f)
