@@ -2995,35 +2995,50 @@ static void qio_channel_rdma_set_aio_fd_handler(QIOChannel *ioc,
     }
 }
 
-static int qio_channel_rdma_close(QIOChannel *ioc,
-                                  Error **errp)
+static void *qio_channel_rdma_close_thread(void *arg)
 {
-    QIOChannelRDMA *rioc = QIO_CHANNEL_RDMA(ioc);
-    RDMAContext *rdmain, *rdmaout;
-    trace_qemu_rdma_close();
+    RDMAContext **rdma = arg;
+    RDMAContext *rdmain = rdma[0];
+    RDMAContext *rdmaout = rdma[1];
+    MigrationState *s = migrate_get_current();
 
-    rdmain = rioc->rdmain;
-    if (rdmain) {
-        atomic_rcu_set(&rioc->rdmain, NULL);
-    }
-
-    rdmaout = rioc->rdmaout;
-    if (rdmaout) {
-        atomic_rcu_set(&rioc->rdmaout, NULL);
-    }
+    rcu_register_thread();
 
     synchronize_rcu();
-
     if (rdmain) {
         qemu_rdma_cleanup(rdmain);
     }
-
     if (rdmaout) {
         qemu_rdma_cleanup(rdmaout);
     }
 
     g_free(rdmain);
     g_free(rdmaout);
+    g_free(rdma);
+
+    rcu_unregister_thread();
+    s->rdma_cleanup_thread_quit = true;
+    return NULL;
+}
+
+static int qio_channel_rdma_close(QIOChannel *ioc,
+                                  Error **errp)
+{
+    QemuThread t;
+    QIOChannelRDMA *rioc = QIO_CHANNEL_RDMA(ioc);
+    RDMAContext **rdma = g_new0(RDMAContext*, 2);
+    MigrationState *s = migrate_get_current();
+
+    trace_qemu_rdma_close();
+    if (rioc->rdmain || rioc->rdmaout) {
+        rdma[0] =  rioc->rdmain;
+        rdma[1] =  rioc->rdmaout;
+        atomic_rcu_set(&rioc->rdmain, NULL);
+        atomic_rcu_set(&rioc->rdmaout, NULL);
+        s->rdma_cleanup_thread_quit = false;
+        qemu_thread_create(&t, "rdma cleanup", qio_channel_rdma_close_thread,
+                           rdma, QEMU_THREAD_DETACHED);
+    }
 
     return 0;
 }
