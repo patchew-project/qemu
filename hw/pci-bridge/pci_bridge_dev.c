@@ -46,6 +46,12 @@ struct PCIBridgeDev {
     uint32_t flags;
 
     OnOffAuto msi;
+
+    /* additional resources to reserve on firmware init */
+    uint64_t io_reserve;
+    uint64_t mem_reserve;
+    uint64_t pref32_reserve;
+    uint64_t pref64_reserve;
 };
 typedef struct PCIBridgeDev PCIBridgeDev;
 
@@ -95,6 +101,13 @@ static void pci_bridge_dev_realize(PCIDevice *dev, Error **errp)
         error_free(local_err);
     }
 
+    err = pci_bridge_qemu_reserve_cap_init(dev, 0, 0,
+          bridge_dev->io_reserve, bridge_dev->mem_reserve,
+          bridge_dev->pref32_reserve, bridge_dev->pref64_reserve, errp);
+    if (err) {
+        goto cap_error;
+    }
+
     if (shpc_present(dev)) {
         /* TODO: spec recommends using 64 bit prefetcheable BAR.
          * Check whether that works well. */
@@ -103,6 +116,8 @@ static void pci_bridge_dev_realize(PCIDevice *dev, Error **errp)
     }
     return;
 
+cap_error:
+    msi_uninit(dev);
 msi_error:
     slotid_cap_cleanup(dev);
 slotid_error:
@@ -162,6 +177,11 @@ static Property pci_bridge_dev_properties[] = {
                             ON_OFF_AUTO_AUTO),
     DEFINE_PROP_BIT(PCI_BRIDGE_DEV_PROP_SHPC, PCIBridgeDev, flags,
                     PCI_BRIDGE_DEV_F_SHPC_REQ, true),
+    DEFINE_PROP_SIZE("io-reserve", PCIBridgeDev, io_reserve, -1),
+    DEFINE_PROP_SIZE("mem-reserve", PCIBridgeDev, mem_reserve, -1),
+    DEFINE_PROP_SIZE("pref32-reserve", PCIBridgeDev, pref32_reserve, -1),
+    DEFINE_PROP_SIZE("pref64-reserve", PCIBridgeDev, pref64_reserve, -1),
+
     DEFINE_PROP_END_OF_LIST(),
 };
 
