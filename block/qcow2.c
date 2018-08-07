@@ -1880,9 +1880,11 @@ static coroutine_fn int qcow2_co_preadv(BlockDriverState *bs, uint64_t offset,
             break;
 
         case QCOW2_CLUSTER_NORMAL:
+            qemu_co_mutex_unlock(&s->lock);
+
             if ((cluster_offset & 511) != 0) {
                 ret = -EIO;
-                goto fail;
+                goto fail_nolock;
             }
 
             if (bs->encrypted) {
@@ -1899,7 +1901,7 @@ static coroutine_fn int qcow2_co_preadv(BlockDriverState *bs, uint64_t offset,
                                             * s->cluster_size);
                     if (cluster_data == NULL) {
                         ret = -ENOMEM;
-                        goto fail;
+                        goto fail_nolock;
                     }
                 }
 
@@ -1909,13 +1911,11 @@ static coroutine_fn int qcow2_co_preadv(BlockDriverState *bs, uint64_t offset,
             }
 
             BLKDBG_EVENT(bs->file, BLKDBG_READ_AIO);
-            qemu_co_mutex_unlock(&s->lock);
             ret = bdrv_co_preadv(bs->file,
                                  cluster_offset + offset_in_cluster,
                                  cur_bytes, &hd_qiov, 0);
-            qemu_co_mutex_lock(&s->lock);
             if (ret < 0) {
-                goto fail;
+                goto fail_nolock;
             }
             if (bs->encrypted) {
                 assert(s->crypto);
@@ -1929,10 +1929,11 @@ static coroutine_fn int qcow2_co_preadv(BlockDriverState *bs, uint64_t offset,
                                           cur_bytes,
                                           NULL) < 0) {
                     ret = -EIO;
-                    goto fail;
+                    goto fail_nolock;
                 }
                 qemu_iovec_from_buf(qiov, bytes_done, cluster_data, cur_bytes);
             }
+            qemu_co_mutex_lock(&s->lock);
             break;
 
         default:
@@ -1950,6 +1951,7 @@ static coroutine_fn int qcow2_co_preadv(BlockDriverState *bs, uint64_t offset,
 fail:
     qemu_co_mutex_unlock(&s->lock);
 
+fail_nolock:
     qemu_iovec_destroy(&hd_qiov);
     qemu_vfree(cluster_data);
 
