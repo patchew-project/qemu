@@ -359,8 +359,7 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
         default:
             break;
         }
-        /* XXX: TODO */
-        cpu_abort(cs, "Debug exception is not implemented yet !\n");
+        /* DBSR already modified by caller */
         break;
     case POWERPC_EXCP_SPEU:      /* SPE/embedded floating-point unavailable  */
         env->spr[SPR_BOOKE_ESR] = ESR_SPV;
