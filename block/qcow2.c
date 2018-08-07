@@ -1874,6 +1874,7 @@ typedef struct Qcow2WorkerTask {
     uint64_t offset;
     uint64_t bytes;
     uint64_t bytes_done;
+    QCowL2Meta *l2meta;
 } Qcow2WorkerTask;
 
 typedef int (*Qcow2DoWorkFunc)(BlockDriverState *bs, QEMUIOVector *qiov,
@@ -1965,11 +1966,16 @@ static coroutine_fn void qcow2_rw_worker(void *opaque)
     }
 }
 
+/* qcow2_rws_add_task
+* l2meta - opaque pointer for do_work_func, so behavior depends on
+*          do_work_func, specified in qcow2_init_rws
+*/
 static coroutine_fn void qcow2_rws_add_task(Qcow2RWState *rws,
                                             uint64_t file_cluster_offset,
                                             uint64_t offset,
                                             uint64_t bytes,
-                                            uint64_t bytes_done)
+                                            uint64_t bytes_done,
+                                            QCowL2Meta *l2meta)
 {
     Qcow2Worker *w;
 
@@ -1980,7 +1986,8 @@ static coroutine_fn void qcow2_rws_add_task(Qcow2RWState *rws,
             .file_cluster_offset = file_cluster_offset,
             .offset = offset,
             .bytes = bytes,
-            .bytes_done = bytes_done
+            .bytes_done = bytes_done,
+            .l2meta = l2meta
         };
         rws->ret = rws->do_work_func(rws->bs, rws->qiov, &task);
         return;
@@ -2006,6 +2013,7 @@ static coroutine_fn void qcow2_rws_add_task(Qcow2RWState *rws,
     w->task.offset = offset;
     w->task.bytes = bytes;
     w->task.bytes_done = bytes_done;
+    w->task.l2meta = l2meta;
 
     qemu_coroutine_enter(w->co);
 }
@@ -2137,7 +2145,7 @@ static coroutine_fn int qcow2_co_preadv(BlockDriverState *bs, uint64_t offset,
             qemu_co_mutex_unlock(&s->lock);
 
             qcow2_rws_add_task(&rws, cluster_offset, offset, cur_bytes,
-                               bytes_done);
+                               bytes_done, NULL);
             if (rws.ret < 0) {
                 ret = rws.ret;
                 goto fail_nolock;
@@ -2289,6 +2297,19 @@ fail:
     return ret;
 }
 
+static coroutine_fn int qcow2_co_do_pwritev_task(BlockDriverState *bs,
+                                                 QEMUIOVector *qiov,
+                                                 Qcow2WorkerTask *task)
+{
+    return qcow2_co_do_pwritev(bs,
+                               task->file_cluster_offset,
+                               task->offset,
+                               task->bytes,
+                               qiov,
+                               task->bytes_done,
+                               task->l2meta);
+}
+
 static coroutine_fn int qcow2_co_pwritev(BlockDriverState *bs, uint64_t offset,
                                          uint64_t bytes, QEMUIOVector *qiov,
                                          int flags)
@@ -2299,8 +2320,11 @@ static coroutine_fn int qcow2_co_pwritev(BlockDriverState *bs, uint64_t offset,
     uint64_t bytes_done = 0;
     uint8_t *cluster_data = NULL;
     QCowL2Meta *l2meta = NULL;
+    Qcow2RWState rws = {0};
 
     trace_qcow2_writev_start_req(qemu_coroutine_self(), offset, bytes);
+
+    qcow2_init_rws(&rws, bs, qiov, bytes, qcow2_co_do_pwritev_task);
 
     qemu_iovec_init(&hd_qiov, qiov->niov);
 
@@ -2308,7 +2332,7 @@ static coroutine_fn int qcow2_co_pwritev(BlockDriverState *bs, uint64_t offset,
 
     qemu_co_mutex_lock(&s->lock);
 
-    while (bytes != 0) {
+    while (bytes != 0 && rws.ret == 0) {
         int offset_in_cluster = offset_into_cluster(s, offset);
         unsigned int cur_bytes = MIN(bytes, INT_MAX); /* number of sectors in
                                                          current iteration */
@@ -2340,11 +2364,11 @@ static coroutine_fn int qcow2_co_pwritev(BlockDriverState *bs, uint64_t offset,
 
         qemu_co_mutex_unlock(&s->lock);
 
-
-        ret = qcow2_co_do_pwritev(bs, cluster_offset, offset, cur_bytes,
-                                  qiov, bytes_done, l2meta);
-        l2meta = NULL; /* l2meta is consumed by qcow2_co_do_pwritev() */
-        if (ret < 0) {
+        qcow2_rws_add_task(&rws, cluster_offset, offset, cur_bytes, bytes_done,
+                           l2meta);
+        l2meta = NULL; /* l2meta is consumed */
+        if (rws.ret < 0) {
+            ret = rws.ret;
             goto fail_nometa;
         }
 
@@ -2361,6 +2385,11 @@ fail:
     qcow2_handle_l2meta(bs, &l2meta, false);
 
     qemu_co_mutex_unlock(&s->lock);
+
+    qcow2_finalize_rws(&rws);
+    if (ret == 0) {
+        ret = rws.ret;
+    }
 
 fail_nometa:
 
