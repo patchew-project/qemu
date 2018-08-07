@@ -47,6 +47,7 @@ extern char **environ;
 #include <sys/socket.h>
 #include <net/if.h>
 #include <sys/statvfs.h>
+#include <libudev.h>
 
 #ifdef FIFREEZE
 #define CONFIG_FSFREEZE
@@ -872,6 +873,8 @@ static void build_guest_fsinfo_for_real_device(char const *syspath,
     GuestDiskAddressList *list = NULL;
     bool has_ata = false, has_host = false, has_tgt = false;
     char *p, *q, *driver = NULL;
+    struct udev *udev = NULL;
+    struct udev_device *udevice = NULL;
 
     p = strstr(syspath, "/devices/pci");
     if (!p || sscanf(p + 12, "%*x:%*x/%x:%x:%x.%x%n",
@@ -935,6 +938,24 @@ static void build_guest_fsinfo_for_real_device(char const *syspath,
 
     list = g_malloc0(sizeof(*list));
     list->value = disk;
+
+    udev = udev_new();
+    udevice = udev_device_new_from_syspath(udev, syspath);
+    if (udev == NULL || udevice == NULL) {
+        g_debug("failed to query udev");
+    } else {
+        const char *devnode, *serial;
+        devnode = udev_device_get_devnode(udevice);
+        if (devnode != NULL) {
+            disk->dev = g_strdup(devnode);
+            disk->has_dev = true;
+        }
+        serial = udev_device_get_property_value(udevice, "ID_SERIAL");
+        if (serial != NULL && *serial != 0) {
+            disk->serial = g_strdup(serial);
+            disk->has_serial = true;
+        }
+    }
 
     if (strcmp(driver, "ata_piix") == 0) {
         /* a host per ide bus, target*:0:<unit>:0 */
@@ -1003,6 +1024,8 @@ cleanup:
         qapi_free_GuestDiskAddressList(list);
     }
     g_free(driver);
+    udev_unref(udev);
+    udev_device_unref(udevice);
 }
 
 static void build_guest_fsinfo_for_device(char const *devpath,
