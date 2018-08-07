@@ -2294,10 +2294,7 @@ static coroutine_fn int qcow2_co_pwritev(BlockDriverState *bs, uint64_t offset,
                                          int flags)
 {
     BDRVQcow2State *s = bs->opaque;
-    int offset_in_cluster;
     int ret;
-    unsigned int cur_bytes; /* number of sectors in current iteration */
-    uint64_t cluster_offset;
     QEMUIOVector hd_qiov;
     uint64_t bytes_done = 0;
     uint8_t *cluster_data = NULL;
@@ -2312,12 +2309,14 @@ static coroutine_fn int qcow2_co_pwritev(BlockDriverState *bs, uint64_t offset,
     qemu_co_mutex_lock(&s->lock);
 
     while (bytes != 0) {
+        int offset_in_cluster = offset_into_cluster(s, offset);
+        unsigned int cur_bytes = MIN(bytes, INT_MAX); /* number of sectors in
+                                                         current iteration */
+        uint64_t cluster_offset;
 
         l2meta = NULL;
 
         trace_qcow2_writev_start_part(qemu_coroutine_self());
-        offset_in_cluster = offset_into_cluster(s, offset);
-        cur_bytes = MIN(bytes, INT_MAX);
         if (bs->encrypted) {
             cur_bytes = MIN(cur_bytes,
                             QCOW_MAX_CRYPT_CLUSTERS * s->cluster_size
