@@ -874,6 +874,27 @@ Aml *aml_irq_no_flags(uint8_t irq)
     return var;
 }
 
+/*
+ * ACPI: 2.0: 16.2.4.16 ASL Macro for Generic Register Descriptor
+ *
+ * access_size comes from:
+ *     ACPI 3.0: 17.5.98 Register (Generic Register Resource Descriptor Macro)
+ */
+Aml *aml_register(AmlAddressSpace as,
+                  uint8_t bit_width,
+                  uint8_t bit_offset,
+                  uint64_t address,
+                  uint8_t access_size)
+{
+    Aml *var = aml_alloc();
+
+    build_append_byte(var->buf, 0x82);        /* Generic Register Descriptor */
+    build_append_byte(var->buf, 0x0C);        /* Length, bits[7:0] */
+    build_append_byte(var->buf, 0x0);         /* Length, bits[15:8] */
+    build_append_gas(var->buf, as, bit_width, bit_offset, access_size, address);
+    return var;
+}
+
 /* ACPI 1.0b: 16.2.5.4 Type 2 Opcodes Encoding: DefLNot */
 Aml *aml_lnot(Aml *arg)
 {
