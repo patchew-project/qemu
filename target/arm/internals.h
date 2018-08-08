@@ -796,4 +796,6 @@ static inline uint32_t arm_debug_exception_fsr(CPUARMState *env)
     }
 }
 
+size_t do_aarch64_fallback_disassembly(const uint8_t *insn, char *ptr, size_t n);
+
 #endif

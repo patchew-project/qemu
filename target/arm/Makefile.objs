@@ -20,3 +20,11 @@ target/arm/decode-sve.inc.c: $(SRC_PATH)/target/arm/sve.decode $(DECODETREE)
 
 target/arm/translate-sve.o: target/arm/decode-sve.inc.c
 obj-$(TARGET_AARCH64) += translate-sve.o sve_helper.o
+
+target/arm/disas-sve.inc.c: $(SRC_PATH)/target/arm/sve.decode $(DECODETREE)
+	$(call quiet-command,\
+	  $(PYTHON) $(DECODETREE) --disassemble -o $@ $<,\
+	  "GEN", $(TARGET_DIR)$@)
+
+target/arm/disassemble.o: target/arm/disas-sve.inc.c
+obj-$(TARGET_AARCH64) += disassemble.o
