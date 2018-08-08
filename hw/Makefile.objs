@@ -17,6 +17,7 @@ devices-dirs-$(CONFIG_IPACK) += ipack/
 devices-dirs-$(CONFIG_IPMI) += ipmi/
 devices-dirs-$(CONFIG_SOFTMMU) += isa/
 devices-dirs-$(CONFIG_SOFTMMU) += misc/
+devices-dirs-$(CONFIG_MCB) += mcb/
 devices-dirs-$(CONFIG_SOFTMMU) += net/
 devices-dirs-$(CONFIG_SOFTMMU) += rdma/
 devices-dirs-$(CONFIG_SOFTMMU) += nvram/
