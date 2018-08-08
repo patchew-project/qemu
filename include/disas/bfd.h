@@ -377,6 +377,12 @@ typedef struct disassemble_info {
   int cap_insn_unit;
   int cap_insn_split;
 
+  /* Fallback function to disassemble things capstone can't. */
+  size_t (*capstone_fallback_func)
+    (const uint8_t *insn, char *ptr, size_t n);
+
+  char *cap_fallback_str;
+
 } disassemble_info;
 
 
@@ -491,7 +497,10 @@ int generic_symbol_at_address(bfd_vma, struct disassemble_info *);
   (INFO).bytes_per_chunk = 0, \
   (INFO).display_endian = BFD_ENDIAN_UNKNOWN, \
   (INFO).disassembler_options = NULL, \
-  (INFO).insn_info_valid = 0
+  (INFO).insn_info_valid = 0, \
+  (INFO).capstone_fallback_func = NULL, \
+  (INFO).cap_fallback_str = NULL
+
 
 #ifndef ATTRIBUTE_UNUSED
 #define ATTRIBUTE_UNUSED __attribute__((unused))

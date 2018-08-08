@@ -178,6 +178,20 @@ static int print_insn_od_target(bfd_vma pc, disassemble_info *info)
    to share this across calls and across host vs target disassembly.  */
 static __thread cs_insn *cap_insn;
 
+
+/* Handle fall-back dissasembly. We don't print here but we do set
+ * cap_fallback_str for cap_dump_insn to used*/
+static size_t cap_disas_fallback(const uint8_t *code, size_t code_size,
+                                 size_t offset, void *user_data)
+{
+    disassemble_info *info = (disassemble_info *) user_data;
+    info->cap_fallback_str = g_malloc0(256);
+    size_t skip = info->capstone_fallback_func(code + offset,
+                                               info->cap_fallback_str, 256);
+    return skip;
+}
+
+
 /* Initialize the Capstone library.  */
 /* ??? It would be nice to cache this.  We would need one handle for the
    host and one for the target.  For most targets we can reset specific
@@ -204,6 +218,14 @@ static cs_err cap_disas_start(disassemble_info *info, csh *handle)
            is compiled without AT&T syntax); the user will just have
            to deal with the Intel syntax.  */
         cs_option(*handle, CS_OPT_SYNTAX, CS_OPT_SYNTAX_ATT);
+    }
+
+    if (info->capstone_fallback_func) {
+        cs_opt_skipdata skipdata = {
+            .callback = cap_disas_fallback,
+            .user_data = info,
+        };
+        cs_option(*handle, CS_OPT_SKIPDATA_SETUP, (size_t) &skipdata);
     }
 
     /* "Disassemble" unknown insns as ".byte W,X,Y,Z".  */
@@ -281,7 +303,13 @@ static void cap_dump_insn(disassemble_info *info, cs_insn *insn)
     }
 
     /* Print the actual instruction.  */
-    print(info->stream, "  %-8s %s\n", insn->mnemonic, insn->op_str);
+    if (info->cap_fallback_str) {
+        print(info->stream, "  %s\n", info->cap_fallback_str);
+        g_free(info->cap_fallback_str);
+        info->cap_fallback_str = NULL;
+    } else {
+        print(info->stream, "  %-8s %s\n", insn->mnemonic, insn->op_str);
+    }
 
     /* Dump any remaining part of the insn on subsequent lines.  */
     for (i = split; i < n; i += split) {

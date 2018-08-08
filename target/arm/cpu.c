@@ -519,6 +519,10 @@ static void arm_disas_set_info(CPUState *cpu, disassemble_info *info)
         info->cap_arch = CS_ARCH_ARM64;
         info->cap_insn_unit = 4;
         info->cap_insn_split = 4;
+
+#if defined(TARGET_AARCH64)
+        info->capstone_fallback_func = do_aarch64_fallback_disassembly;
+#endif
     } else {
         int cap_mode;
         if (env->thumb) {
