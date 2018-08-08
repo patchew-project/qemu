@@ -47,6 +47,12 @@ read access:
           in case of error or unsupported command reads is 0xFFFFFFFF
           current 'Command field' value:
               0: returns PXM value corresponding to device
+              3: sequential reads return a sequence of DWORDs
+                   {
+                     AddressSpaceKeyword, RegisterBitWidth, RegisterBitOffset,
+                     RegisterAddress Lo, RegisterAddress Hi, AccessSize,
+                     C State type, Latency, Power,
+                   }
 
 write access:
     offset:
@@ -75,7 +81,9 @@ write access:
             1: following writes to 'Command data' register set OST event
                register in QEMU
             2: following writes to 'Command data' register set OST status
-               register in QEMU
+            3: following reads from 'Command data' register return Cx
+               state (command execution resets unread field counter to the 1st
+               field).
             other values: reserved
     [0x6-0x7] reserved
     [0x8] Command data: (DWORD access)

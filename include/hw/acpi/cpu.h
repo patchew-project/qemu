@@ -17,6 +17,12 @@
 #include "hw/acpi/aml-build.h"
 #include "hw/hotplug.h"
 
+typedef struct AcpiCState {
+    uint32_t current_cst_field;
+    uint32_t latency;
+    uint32_t power;
+} AcpiCState;
+
 typedef struct AcpiCpuStatus {
     struct CPUState *cpu;
     uint64_t arch_id;
@@ -24,6 +30,7 @@ typedef struct AcpiCpuStatus {
     bool is_removing;
     uint32_t ost_event;
     uint32_t ost_status;
+    AcpiCState cst;
 } AcpiCpuStatus;
 
 typedef struct CPUHotplugState {
@@ -32,6 +39,7 @@ typedef struct CPUHotplugState {
     uint8_t command;
     uint32_t dev_count;
     AcpiCpuStatus *devs;
+    bool enable_cstate;
 } CPUHotplugState;
 
 void acpi_cpu_plug_cb(HotplugHandler *hotplug_dev,
@@ -50,6 +58,7 @@ void cpu_hotplug_hw_init(MemoryRegion *as, Object *owner,
 typedef struct CPUHotplugFeatures {
     bool apci_1_compatible;
     bool has_legacy_cphp;
+    bool cstate_enabled;
 } CPUHotplugFeatures;
 
 void build_cpus_aml(Aml *table, MachineState *machine, CPUHotplugFeatures opts,

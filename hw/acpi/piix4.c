@@ -677,6 +677,8 @@ static Property piix4_pm_properties[] = {
                      use_acpi_pci_hotplug, true),
     DEFINE_PROP_BOOL("memory-hotplug-support", PIIX4PMState,
                      acpi_memory_hotplug.is_enabled, true),
+    DEFINE_PROP_BOOL("cstate", PIIX4PMState,
+                     cpuhp_state.enable_cstate, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 

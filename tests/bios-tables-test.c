@@ -716,6 +716,7 @@ static void test_acpi_piix4_tcg_cphp(void)
     data.machine = MACHINE_PC;
     data.variant = ".cphp";
     test_acpi_one("-smp 2,cores=3,sockets=2,maxcpus=6"
+                  " -global PIIX4_PM.cstate=on"
                   " -numa node -numa node"
                   " -numa dist,src=0,dst=1,val=21",
                   &data);

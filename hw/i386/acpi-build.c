@@ -100,6 +100,7 @@ typedef struct AcpiPmInfo {
     uint16_t cpu_hp_io_base;
     uint16_t pcihp_io_base;
     uint16_t pcihp_io_len;
+    bool cstate_enabled;
 } AcpiPmInfo;
 
 typedef struct AcpiMiscInfo {
@@ -218,6 +219,7 @@ static void acpi_get_pm_info(AcpiPmInfo *pm)
     pm->pcihp_bridge_en =
         object_property_get_bool(obj, "acpi-pci-hotplug-with-bridge-support",
                                  NULL);
+    pm->cstate_enabled = object_property_get_bool(obj, "cstate", NULL);
 }
 
 static void acpi_get_misc_info(AcpiMiscInfo *info)
@@ -1840,7 +1842,8 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
         build_legacy_cpu_hotplug_aml(dsdt, machine, pm->cpu_hp_io_base);
     } else {
         CPUHotplugFeatures opts = {
-            .apci_1_compatible = true, .has_legacy_cphp = true
+            .apci_1_compatible = true, .has_legacy_cphp = true,
+            .cstate_enabled = pm->cstate_enabled
         };
         build_cpus_aml(dsdt, machine, opts, pm->cpu_hp_io_base,
                        "\\_SB.PCI0", "\\_GPE._E02");
