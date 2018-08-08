@@ -41,7 +41,10 @@ read access:
               It's valid only when bit 0 is set.
            2: Device remove event, used to distinguish device for which
               no device eject request to OSPM was issued.
-           3-7: reserved and should be ignored by OSPM
+           3: reserved and should be ignored by OSPM
+           4: Device CST event, used to distinguish device for which
+              device eject request to OSPM was issued
+           5-7: reserved and should be ignored by OSPM
     [0x5-0x7] reserved
     [0x8] Command data: (DWORD access)
           in case of error or unsupported command reads is 0xFFFFFFFF
@@ -70,14 +73,16 @@ write access:
                selected CPU device
             3: if set to 1 initiates device eject, set by OSPM when it
                triggers CPU device removal and calls _EJ0 method
+            4: if set to 1 clears CST update event, set by OSPM
+               after it has emitted CST update notification
             4-7: reserved, OSPM must clear them before writing to register
     [0x5] Command field: (1 byte access)
           value:
-            0: selects a CPU device with inserting/removing events and
+            0: selects a CPU device with inserting/removing/cst events and
                following reads from 'Command data' register return
                selected CPU (CPU selector value). If no CPU with events
                found, the current CPU selector doesn't change and
-               corresponding insert/remove event flags are not set.
+               corresponding insert/remove/cst event flags are not set.
             1: following writes to 'Command data' register set OST event
                register in QEMU
             2: following writes to 'Command data' register set OST status

@@ -28,6 +28,7 @@ typedef struct AcpiCpuStatus {
     uint64_t arch_id;
     bool is_inserting;
     bool is_removing;
+    bool is_cst_update;
     uint32_t ost_event;
     uint32_t ost_status;
     AcpiCState cst;

@@ -67,6 +67,7 @@ static uint64_t cpu_hotplug_rd(void *opaque, hwaddr addr, unsigned size)
         val |= cdev->cpu ? 1 : 0;
         val |= cdev->is_inserting ? 2 : 0;
         val |= cdev->is_removing  ? 4 : 0;
+        val |= cdev->is_cst_update ? 16 : 0;
         trace_cpuhp_acpi_read_flags(cpu_st->selector, val);
         break;
     case ACPI_CPU_CMD_DATA_OFFSET_RW:
@@ -162,6 +163,8 @@ static void cpu_hotplug_wr(void *opaque, hwaddr addr, uint64_t data,
             dev = DEVICE(cdev->cpu);
             hotplug_ctrl = qdev_get_hotplug_handler(dev);
             hotplug_handler_unplug(hotplug_ctrl, dev, NULL);
+        } else if (data & 16) { /* clear CST update event */
+            cdev->is_cst_update = false;
         }
         break;
     case ACPI_CPU_CMD_OFFSET_WR:
@@ -312,6 +315,7 @@ static const VMStateDescription vmstate_cstate_sts = {
         VMSTATE_UINT32(cst.current_cst_field, AcpiCpuStatus),
         VMSTATE_UINT32(cst.latency, AcpiCpuStatus),
         VMSTATE_UINT32(cst.power, AcpiCpuStatus),
+        VMSTATE_BOOL(is_cst_update, AcpiCpuStatus),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -383,6 +387,7 @@ const VMStateDescription vmstate_cpu_hotplug = {
 #define CPU_INSERT_EVENT  "CINS"
 #define CPU_REMOVE_EVENT  "CRMV"
 #define CPU_EJECT_EVENT   "CEJ0"
+#define CPU_CST_EVENT     "CSTU"
 
 void build_cpus_aml(Aml *table, MachineState *machine, CPUHotplugFeatures opts,
                     hwaddr io_base,
@@ -435,7 +440,13 @@ void build_cpus_aml(Aml *table, MachineState *machine, CPUHotplugFeatures opts,
         aml_append(field, aml_named_field(CPU_REMOVE_EVENT, 1));
         /* initiates device eject, write only */
         aml_append(field, aml_named_field(CPU_EJECT_EVENT, 1));
-        aml_append(field, aml_reserved_field(4));
+        if (opts.cstate_enabled) {
+            /* (read) 1 if has a CST event. (write) 1 to clear event */
+            aml_append(field, aml_named_field(CPU_CST_EVENT, 1));
+            aml_append(field, aml_reserved_field(3));
+        } else {
+            aml_append(field, aml_reserved_field(4));
+        }
         aml_append(field, aml_named_field(CPU_COMMAND, 8));
         aml_append(cpu_ctrl_dev, field);
 
@@ -470,6 +481,7 @@ void build_cpus_aml(Aml *table, MachineState *machine, CPUHotplugFeatures opts,
         Aml *ins_evt = aml_name("%s.%s", cphp_res_path, CPU_INSERT_EVENT);
         Aml *rm_evt = aml_name("%s.%s", cphp_res_path, CPU_REMOVE_EVENT);
         Aml *ej_evt = aml_name("%s.%s", cphp_res_path, CPU_EJECT_EVENT);
+        Aml *cst_evt = aml_name("%s.%s", cphp_res_path, CPU_CST_EVENT);
 
         aml_append(cpus_dev, aml_name_decl("_HID", aml_string("ACPI0010")));
         aml_append(cpus_dev, aml_name_decl("_CID", aml_eisaid("PNP0A05")));
@@ -524,6 +536,7 @@ void build_cpus_aml(Aml *table, MachineState *machine, CPUHotplugFeatures opts,
             Aml *has_event = aml_local(0);
             Aml *dev_chk = aml_int(1);
             Aml *eject_req = aml_int(3);
+            Aml *cst_upd = aml_int(0x81);
             Aml *next_cpu_cmd = aml_int(CPHP_GET_NEXT_CPU_WITH_EVENT_CMD);
 
             aml_append(method, aml_acquire(ctrl_lock, 0xFFFF));
@@ -553,6 +566,18 @@ void build_cpus_aml(Aml *table, MachineState *machine, CPUHotplugFeatures opts,
                  }
                  aml_append(else_ctx, ifctx);
                  aml_append(while_ctx, else_ctx);
+                 if (opts.cstate_enabled == true) {
+                    else_ctx = aml_else();
+                    ifctx = aml_if(aml_equal(cst_evt, one));
+                    {
+                        aml_append(ifctx,
+                            aml_call2(CPU_NOTIFY_METHOD, cpu_data, cst_upd));
+                        aml_append(ifctx, aml_store(one, cst_evt));
+                        aml_append(ifctx, aml_store(one, has_event));
+                    }
+                    aml_append(else_ctx, ifctx);
+                    aml_append(while_ctx, else_ctx);
+                 }
             }
             aml_append(method, while_ctx);
             aml_append(method, aml_release(ctrl_lock));
