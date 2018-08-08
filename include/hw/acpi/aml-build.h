@@ -371,6 +371,7 @@ Aml *aml_release(Aml *mutex);
 Aml *aml_alias(const char *source_object, const char *alias_object);
 Aml *aml_create_field(Aml *srcbuf, Aml *bit_index, Aml *num_bits,
                       const char *name);
+Aml *aml_create_byte_field(Aml *srcbuf, Aml *index, const char *name);
 Aml *aml_create_dword_field(Aml *srcbuf, Aml *index, const char *name);
 Aml *aml_create_qword_field(Aml *srcbuf, Aml *index, const char *name);
 Aml *aml_varpackage(uint32_t num_elements);

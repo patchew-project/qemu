@@ -1094,6 +1094,13 @@ Aml *aml_create_field(Aml *srcbuf, Aml *bit_index, Aml *num_bits,
     return var;
 }
 
+/* ACPI 1.0b: 16.2.5.2 Named Objects Encoding: DefCreateByteField */
+Aml *aml_create_byte_field(Aml *srcbuf, Aml *index, const char *name)
+{
+    return create_field_common(0x8C /* CreateByteFieldOp */,
+                               srcbuf, index, name);
+}
+
 /* ACPI 1.0b: 16.2.5.2 Named Objects Encoding: DefCreateDWordField */
 Aml *aml_create_dword_field(Aml *srcbuf, Aml *index, const char *name)
 {
