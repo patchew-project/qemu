@@ -861,7 +861,8 @@ static void fw_cfg_machine_reset(void *opaque)
     void *ptr;
     size_t len;
     FWCfgState *s = opaque;
-    char *bootindex = get_boot_devices_list(&len, false);
+    char *bootindex = get_boot_devices_list(&len,
+                                            s->bootdevice_ignore_suffixes);
 
     ptr = fw_cfg_modify_file(s, "bootorder", (uint8_t *)bootindex, len);
     g_free(ptr);
@@ -990,12 +991,18 @@ FWCfgState *fw_cfg_find(void)
     return FW_CFG(object_resolve_path_type("", TYPE_FW_CFG, NULL));
 }
 
+static Property fw_cfg_properties[] = {
+    DEFINE_PROP_BOOL("bootdevice-ignore-suffixes", FWCfgState,
+                     bootdevice_ignore_suffixes, false),
+    DEFINE_PROP_END_OF_LIST(),
+};
 
 static void fw_cfg_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->reset = fw_cfg_reset;
+    dc->props = fw_cfg_properties;
     dc->vmsd = &vmstate_fw_cfg;
 }
 

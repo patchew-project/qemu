@@ -58,6 +58,7 @@ struct FWCfgState {
     uint16_t cur_entry;
     uint32_t cur_offset;
     Notifier machine_ready;
+    bool bootdevice_ignore_suffixes;
 
     int fw_cfg_order_override;
 
