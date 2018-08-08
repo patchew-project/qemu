@@ -525,7 +525,7 @@ void bdrv_dirty_iter_free(BdrvDirtyBitmapIter *iter)
 
 int64_t bdrv_dirty_iter_next(BdrvDirtyBitmapIter *iter)
 {
-    return hbitmap_iter_next(&iter->hbi, true);
+    return hbitmap_iter_next(&iter->hbi);
 }
 
 /* Called within bdrv_dirty_bitmap_lock..unlock */
