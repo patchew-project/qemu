@@ -1958,6 +1958,9 @@ static inline bool arm_v7m_is_handler_mode(CPUARMState *env)
  */
 static inline int arm_current_el(CPUARMState *env)
 {
+#ifdef CONFIG_USER_ONLY
+    return 0;
+#else
     if (arm_feature(env, ARM_FEATURE_M)) {
         return arm_v7m_is_handler_mode(env) ||
             !(env->v7m.control[env->v7m.secure] & 1);
@@ -1984,6 +1987,7 @@ static inline int arm_current_el(CPUARMState *env)
 
         return 1;
     }
+#endif
 }
 
 typedef struct ARMCPRegInfo ARMCPRegInfo;
