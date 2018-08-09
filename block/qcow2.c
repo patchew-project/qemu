@@ -728,14 +728,23 @@ static const char *overlap_bool_option_names[QCOW2_OL_MAX_BITNR] = {
     [QCOW2_OL_BITMAP_DIRECTORY_BITNR] = QCOW2_OPT_OVERLAP_BITMAP_DIRECTORY,
 };
 
-static void cache_clean_timer_cb(void *opaque)
+static void coroutine_fn cache_co_clean_unused(void *opaque)
 {
     BlockDriverState *bs = opaque;
     BDRVQcow2State *s = bs->opaque;
-    qcow2_cache_clean_unused(s->l2_table_cache);
-    qcow2_cache_clean_unused(s->refcount_block_cache);
+
+    qemu_co_mutex_lock(&s->lock);
+    qcow2_cache_clean_unused(bs, s->l2_table_cache);
+    qcow2_cache_clean_unused(bs, s->refcount_block_cache);
+    qemu_co_mutex_unlock(&s->lock);
+
     timer_mod(s->cache_clean_timer, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) +
               (int64_t) s->cache_clean_interval * 1000);
+}
+
+static void cache_clean_timer_cb(void *opaque)
+{
+    qemu_coroutine_enter(qemu_coroutine_create(cache_co_clean_unused, opaque));
 }
 
 static void cache_clean_timer_init(BlockDriverState *bs, AioContext *context)
