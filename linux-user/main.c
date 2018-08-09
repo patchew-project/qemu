@@ -28,6 +28,7 @@
 #include "qemu/config-file.h"
 #include "qemu/cutils.h"
 #include "qemu/help_option.h"
+#include "qemu/range.h"
 #include "cpu.h"
 #include "exec/exec-all.h"
 #include "tcg.h"
@@ -50,6 +51,8 @@ static const char *cpu_type;
 unsigned long mmap_min_addr;
 unsigned long guest_base;
 int have_guest_base;
+
+static bool dfilter_progtext;
 
 /*
  * When running 32-on-64 we should make sure we can fit all of the possible
@@ -222,6 +225,11 @@ static void handle_arg_log(const char *arg)
 
 static void handle_arg_dfilter(const char *arg)
 {
+    if (strcmp(arg, "progtext") == 0) {
+        dfilter_progtext = true;
+        return;
+    }
+
     qemu_set_dfilter_ranges(arg, NULL);
 }
 
@@ -423,7 +431,7 @@ static const struct qemu_argument arg_table[] = {
      "item[,...]", "enable logging of specified items "
      "(use '-d help' for a list of items)"},
     {"dfilter",    "QEMU_DFILTER",     true,  handle_arg_dfilter,
-     "range[,...]","filter logging based on address range"},
+     "range|progtext[,...]", "filter logging based on address range"},
     {"D",          "QEMU_LOG_FILENAME", true, handle_arg_log_filename,
      "logfile",     "write logs to 'logfile' (default stderr)"},
     {"p",          "QEMU_PAGESIZE",    true,  handle_arg_pagesize,
@@ -794,6 +802,12 @@ int main(int argc, char **argv, char **envp)
         qemu_log("env_start   0x" TARGET_ABI_FMT_lx "\n",
                  info->arg_end + (abi_ulong)sizeof(abi_ulong));
         qemu_log("auxv_start  0x" TARGET_ABI_FMT_lx "\n", info->saved_auxv);
+    }
+
+    if (dfilter_progtext) {
+        Range r;
+        range_set_bounds(&r, info->start_code, info->end_code);
+        qemu_append_dfilter_range(r, NULL);
     }
 
     target_set_brk(info->brk);
