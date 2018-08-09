@@ -465,6 +465,16 @@ class VM(qtest.QEMUQtestMachine):
                 else:
                     iotests.log(ev)
 
+    def node_info(self, node_name, require_existence=True):
+        nodes = self.qmp('query-named-block-nodes')
+        for x in nodes['return']:
+            if x['node-name'] == node_name:
+                return x
+        if require_existence:
+            assert False
+        else:
+            return None
+
 
 index_re = re.compile(r'([^\[]+)\[([^\]]+)\]')
 
