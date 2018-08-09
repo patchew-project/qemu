@@ -254,6 +254,34 @@ static void aarch64_max_initfn(Object *obj)
         kvm_arm_set_cpu_features_from_host(cpu);
     } else {
         aarch64_a57_initfn(obj);
+
+        set_feature(&cpu->env, ARM_FEATURE_V8_SHA512);
+        cpu->id_aa64isar0 = deposit64(cpu->id_aa64isar0, 12, 4, 2);
+
+        set_feature(&cpu->env, ARM_FEATURE_V8_ATOMICS);
+        cpu->id_aa64isar0 = deposit64(cpu->id_aa64isar0, 20, 4, 2);
+
+        set_feature(&cpu->env, ARM_FEATURE_V8_RDM);
+        cpu->id_aa64isar0 = deposit64(cpu->id_aa64isar0, 28, 4, 1);
+        cpu->id_isar5 = deposit32(cpu->id_isar5, 24, 4, 1);
+
+        set_feature(&cpu->env, ARM_FEATURE_V8_SHA3);
+        cpu->id_aa64isar0 = deposit64(cpu->id_aa64isar0, 32, 4, 1);
+
+        set_feature(&cpu->env, ARM_FEATURE_V8_SM3);
+        cpu->id_aa64isar0 = deposit64(cpu->id_aa64isar0, 36, 4, 1);
+
+        set_feature(&cpu->env, ARM_FEATURE_V8_SM4);
+        cpu->id_aa64isar0 = deposit64(cpu->id_aa64isar0, 40, 4, 1);
+
+        set_feature(&cpu->env, ARM_FEATURE_V8_DOTPROD);
+        cpu->id_aa64isar0 = deposit64(cpu->id_aa64isar0, 44, 4, 1);
+        cpu->id_isar6 = deposit32(cpu->id_isar6, 4, 4, 1);
+
+        set_feature(&cpu->env, ARM_FEATURE_V8_FCMA);
+        cpu->id_aa64isar1 = deposit64(cpu->id_aa64isar1, 16, 4, 1);
+        cpu->id_isar5 = deposit32(cpu->id_isar5, 28, 4, 1);
+
 #ifdef CONFIG_USER_ONLY
         /* We don't set these in system emulation mode for the moment,
          * since we don't correctly set the ID registers to advertise them,
@@ -261,15 +289,7 @@ static void aarch64_max_initfn(Object *obj)
          * whereas the architecture requires them to be present in both if
          * present in either.
          */
-        set_feature(&cpu->env, ARM_FEATURE_V8_SHA512);
-        set_feature(&cpu->env, ARM_FEATURE_V8_SHA3);
-        set_feature(&cpu->env, ARM_FEATURE_V8_SM3);
-        set_feature(&cpu->env, ARM_FEATURE_V8_SM4);
-        set_feature(&cpu->env, ARM_FEATURE_V8_ATOMICS);
-        set_feature(&cpu->env, ARM_FEATURE_V8_RDM);
-        set_feature(&cpu->env, ARM_FEATURE_V8_DOTPROD);
         set_feature(&cpu->env, ARM_FEATURE_V8_FP16);
-        set_feature(&cpu->env, ARM_FEATURE_V8_FCMA);
         set_feature(&cpu->env, ARM_FEATURE_SVE);
         /* For usermode -cpu max we can use a larger and more efficient DCZ
          * blocksize since we don't have to follow what the hardware does.

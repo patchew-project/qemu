@@ -1802,19 +1802,29 @@ static void arm_max_initfn(Object *obj)
         kvm_arm_set_cpu_features_from_host(cpu);
     } else {
         cortex_a15_initfn(obj);
+
+        set_feature(&cpu->env, ARM_FEATURE_V8_AES);
+        cpu->id_isar5 = deposit32(cpu->id_isar5, 4, 4, 2);
+        set_feature(&cpu->env, ARM_FEATURE_V8_SHA1);
+        cpu->id_isar5 = deposit32(cpu->id_isar5, 8, 4, 1);
+        set_feature(&cpu->env, ARM_FEATURE_V8_SHA256);
+        cpu->id_isar5 = deposit32(cpu->id_isar5, 12, 4, 1);
+        set_feature(&cpu->env, ARM_FEATURE_CRC);
+        cpu->id_isar5 = deposit32(cpu->id_isar5, 16, 4, 1);
+        set_feature(&cpu->env, ARM_FEATURE_V8_RDM);
+        cpu->id_isar5 = deposit32(cpu->id_isar5, 24, 4, 1);
+        set_feature(&cpu->env, ARM_FEATURE_V8_FCMA);
+        cpu->id_isar5 = deposit32(cpu->id_isar5, 28, 4, 1);
+
+        set_feature(&cpu->env, ARM_FEATURE_V8_DOTPROD);
+        cpu->id_isar6 = deposit32(cpu->id_isar6, 4, 4, 1);
+
 #ifdef CONFIG_USER_ONLY
         /* We don't set these in system emulation mode for the moment,
          * since we don't correctly set the ID registers to advertise them,
          */
         set_feature(&cpu->env, ARM_FEATURE_V8);
-        set_feature(&cpu->env, ARM_FEATURE_V8_AES);
-        set_feature(&cpu->env, ARM_FEATURE_V8_SHA1);
-        set_feature(&cpu->env, ARM_FEATURE_V8_SHA256);
         set_feature(&cpu->env, ARM_FEATURE_V8_PMULL);
-        set_feature(&cpu->env, ARM_FEATURE_CRC);
-        set_feature(&cpu->env, ARM_FEATURE_V8_RDM);
-        set_feature(&cpu->env, ARM_FEATURE_V8_DOTPROD);
-        set_feature(&cpu->env, ARM_FEATURE_V8_FCMA);
 #endif
     }
 }
