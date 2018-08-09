@@ -58,7 +58,7 @@
 #include "hw/timer/cmsdk-apb-timer.h"
 #include "hw/timer/cmsdk-apb-dualtimer.h"
 #include "hw/watchdog/cmsdk-apb-watchdog.h"
-#include "hw/misc/unimp.h"
+#include "hw/misc/iotkit-sysctl.h"
 #include "hw/or-irq.h"
 #include "hw/core/split-irq.h"
 
@@ -96,6 +96,8 @@ typedef struct IoTKit {
     CMSDKAPBWatchdog s32kwatchdog;
     CMSDKAPBWatchdog nswatchdog;
     CMSDKAPBWatchdog swatchdog;
+
+    IoTKitSysCtl sysctl;
 
     MemoryRegion container;
     MemoryRegion alias1;
