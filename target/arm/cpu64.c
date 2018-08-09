@@ -282,15 +282,24 @@ static void aarch64_max_initfn(Object *obj)
         cpu->id_aa64isar1 = deposit64(cpu->id_aa64isar1, 16, 4, 1);
         cpu->id_isar5 = deposit32(cpu->id_isar5, 28, 4, 1);
 
-#ifdef CONFIG_USER_ONLY
-        /* We don't set these in system emulation mode for the moment,
-         * since we don't correctly set the ID registers to advertise them,
-         * and in some cases they're only available in AArch64 and not AArch32,
-         * whereas the architecture requires them to be present in both if
-         * present in either.
+        /* TODO: This is not yet implemented for AArch32, whereas the
+         * architecture requires a feature to be present in both if
+         * it is present in either.  However, it is required by SVE,
+         * so we don't want to leave it out of AArch64 state.
+         *
+         * Practically, the Linux kernel does not query the MVFR1 bit
+         * nor expose this as a HWCAP bit to AArch32 userland.  Thus
+         * userland, if it wanted to use fp16, would have to probe for
+         * support by executing an insn and checking for SIGILL.
+         * At which point it will get the correct answer: unsupported.
          */
         set_feature(&cpu->env, ARM_FEATURE_V8_FP16);
+        cpu->id_aa64pfr0 = deposit64(cpu->id_aa64pfr0, 20, 4, 1);
+
         set_feature(&cpu->env, ARM_FEATURE_SVE);
+        cpu->id_aa64pfr0 = deposit64(cpu->id_aa64pfr0, 32, 4, 1);
+
+#ifdef CONFIG_USER_ONLY
         /* For usermode -cpu max we can use a larger and more efficient DCZ
          * blocksize since we don't have to follow what the hardware does.
          */
