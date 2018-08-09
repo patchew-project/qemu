@@ -124,8 +124,11 @@ There are a few things that need to be taken into account:
  - Both caches must have a size that is a multiple of the cluster size
    (or the cache entry size: see "Using smaller cache sizes" below).
 
- - The default L2 cache size is 8 clusters or 1MB (whichever is more),
-   and the minimum is 2 clusters (or 2 cache entries, see below).
+ - The default L2 cache size will cover the entire virtual size of an
+   image, up to a certain maximum. This maximum is 1 MB by default
+   (enough for image sizes of up to 8 GB with the default cluster size)
+   and it can be reduced or enlarged using the "l2-cache-size" option.
+   The minimum is 2 clusters (or 2 cache entries, see below).
 
  - The default (and minimum) refcount cache size is 4 clusters.
 
@@ -183,9 +186,9 @@ Some things to take into account:
    always uses the cluster size as the entry size.
 
  - If the L2 cache is big enough to hold all of the image's L2 tables
-   (as explained in the "Choosing the right cache sizes" section
-   earlier in this document) then none of this is necessary and you
-   can omit the "l2-cache-entry-size" parameter altogether.
+   (the default behavior for images of up to 8 GB in size) then none
+   of this is necessary and you can omit the "l2-cache-entry-size"
+   parameter altogether.
 
 
 Reducing the memory usage
