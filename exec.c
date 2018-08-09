@@ -3318,7 +3318,8 @@ MemTxResult flatview_read_continue(FlatView *fv, hwaddr addr,
         } else {
             /* RAM case */
             ptr = qemu_ram_ptr_length(mr->ram_block, addr1, &l, false);
-            memcpy(buf, ptr, l);
+	    if (ptr)
+                memcpy(buf, ptr, l);
         }
 
         if (release_lock) {
