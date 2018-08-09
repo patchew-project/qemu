@@ -111,6 +111,9 @@ typedef struct {
 
     /* Total size of mapped qiov, accessed under dma_map_lock */
     int dma_map_count;
+
+    /* PCI address (required for nvme_refresh_filename()) */
+    char *device;
 } BDRVNVMeState;
 
 #define NVME_BLOCK_OPT_DEVICE "device"
@@ -558,6 +561,7 @@ static int nvme_init(BlockDriverState *bs, const char *device, int namespace,
 
     qemu_co_mutex_init(&s->dma_map_lock);
     qemu_co_queue_init(&s->dma_flush_queue);
+    s->device = g_strdup(device);
     s->nsid = namespace;
     s->aio_context = bdrv_get_aio_context(bs);
     ret = event_notifier_init(&s->irq_notifier, 0);
@@ -743,6 +747,8 @@ static void nvme_close(BlockDriverState *bs)
                            false, NULL, NULL);
     qemu_vfio_pci_unmap_bar(s->vfio, 0, (void *)s->regs, 0, NVME_BAR_SIZE);
     qemu_vfio_close(s->vfio);
+
+    g_free(s->device);
 }
 
 static int nvme_file_open(BlockDriverState *bs, QDict *options, int flags,
@@ -1073,21 +1079,10 @@ static int nvme_reopen_prepare(BDRVReopenState *reopen_state,
 
 static void nvme_refresh_filename(BlockDriverState *bs)
 {
-    const QDictEntry *e;
+    BDRVNVMeState *s = bs->opaque;
 
-    for (e = qdict_first(bs->full_open_options); e;
-         e = qdict_next(bs->full_open_options, e))
-    {
-        /* These options can be ignored */
-        if (strcmp(qdict_entry_key(e), "filename") &&
-            strcmp(qdict_entry_key(e), "driver"))
-        {
-            return;
-        }
-    }
-
-    snprintf(bs->exact_filename, sizeof(bs->exact_filename), "%s://",
-             bs->drv->format_name);
+    snprintf(bs->exact_filename, sizeof(bs->exact_filename), "nvme://%s/%i",
+             s->device, s->nsid);
 }
 
 static void nvme_refresh_limits(BlockDriverState *bs, Error **errp)
