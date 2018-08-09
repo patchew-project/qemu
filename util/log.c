@@ -233,6 +233,12 @@ out:
     g_strfreev(ranges);
 }
 
+void qemu_append_dfilter_range(Range r, Error **errp)
+{
+    maybe_allocate_dfilter(1);
+    g_array_append_val(debug_regions, r);
+}
+
 /* fflush() the log file */
 void qemu_log_flush(void)
 {
