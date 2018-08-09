@@ -254,16 +254,18 @@ typedef struct virtio_input_conf virtio_input_conf;
 typedef struct VirtIOSCSIConf VirtIOSCSIConf;
 typedef struct VirtIORNGConf VirtIORNGConf;
 
-#define DEFINE_VIRTIO_COMMON_FEATURES(_state, _field) \
+#define DEFINE_VIRTIO_COMMON_FEATURES(_state, _field)     \
     DEFINE_PROP_BIT64("indirect_desc", _state, _field,    \
                       VIRTIO_RING_F_INDIRECT_DESC, true), \
     DEFINE_PROP_BIT64("event_idx", _state, _field,        \
                       VIRTIO_RING_F_EVENT_IDX, true),     \
     DEFINE_PROP_BIT64("notify_on_empty", _state, _field,  \
-                      VIRTIO_F_NOTIFY_ON_EMPTY, true), \
-    DEFINE_PROP_BIT64("any_layout", _state, _field, \
-                      VIRTIO_F_ANY_LAYOUT, true), \
-    DEFINE_PROP_BIT64("iommu_platform", _state, _field, \
+                      VIRTIO_F_NOTIFY_ON_EMPTY, true),    \
+    DEFINE_PROP_BIT64("any_layout", _state, _field,       \
+                      VIRTIO_F_ANY_LAYOUT, true),         \
+    DEFINE_PROP_BIT64("in_order", _state, _field,         \
+                      VIRTIO_F_IN_ORDER, true),           \
+    DEFINE_PROP_BIT64("iommu_platform", _state, _field,   \
                       VIRTIO_F_IOMMU_PLATFORM, false)
 
 hwaddr virtio_queue_get_desc_addr(VirtIODevice *vdev, int n);
