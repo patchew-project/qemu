@@ -1,0 +1,18 @@
+
+--- filter_node_name: False ---
+
+{'execute': 'blockdev-add', 'arguments': {'backing': {'backing': {'backing': {'driver': 'null-co'}, 'node-name': 'base', 'driver': 'IMGFMT', 'file': {'driver': 'file', 'filename': 'TEST_DIR/PID-base.img'}}, 'node-name': 'mid', 'driver': 'IMGFMT', 'file': {'driver': 'file', 'filename': 'TEST_DIR/PID-mid.img'}}, 'driver': 'IMGFMT', 'file': {'driver': 'file', 'filename': 'TEST_DIR/PID-top.img'}, 'node_name': 'top'}}
+{u'return': {}}
+{'execute': 'block-commit', 'arguments': {'device': 'top', 'top': u'json:{"backing": {"backing": {"driver": "null-co"}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/PID-base.img"}}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/PID-mid.img"}}', 'base': u'json:{"backing": {"driver": "null-co"}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/PID-base.img"}}', 'speed': 1, 'job_id': 'commit'}}
+{u'return': {}}
+{'execute': 'job-pause', 'arguments': {'id': 'commit'}}
+{u'return': {}}
+
+--- filter_node_name: True ---
+
+{'execute': 'blockdev-add', 'arguments': {'backing': {'backing': {'backing': {'driver': 'null-co'}, 'node-name': 'base', 'driver': 'IMGFMT', 'file': {'driver': 'file', 'filename': 'TEST_DIR/PID-base.img'}}, 'node-name': 'mid', 'driver': 'IMGFMT', 'file': {'driver': 'file', 'filename': 'TEST_DIR/PID-mid.img'}}, 'driver': 'IMGFMT', 'file': {'driver': 'file', 'filename': 'TEST_DIR/PID-top.img'}, 'node_name': 'top'}}
+{u'return': {}}
+{'execute': 'block-commit', 'arguments': {'job_id': 'commit', 'top': u'json:{"backing": {"backing": {"driver": "null-co"}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/PID-base.img"}}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/PID-mid.img"}}', 'base': u'json:{"backing": {"driver": "null-co"}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/PID-base.img"}}', 'device': 'top', 'filter_node_name': 'filter_node', 'speed': 1}}
+{u'return': {}}
+{'execute': 'job-pause', 'arguments': {'id': 'commit'}}
+{u'return': {}}
