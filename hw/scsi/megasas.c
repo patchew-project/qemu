@@ -465,6 +465,7 @@ static void megasas_unmap_frame(MegasasState *s, MegasasCmd *cmd)
     cmd->pa = 0;
     cmd->pa_size = 0;
     clear_bit(cmd->index, s->frame_map);
+    qemu_sglist_destroy(&cmd->qsg);
 }
 
 /*
