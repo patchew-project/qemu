@@ -1737,6 +1737,7 @@ static void external_snapshot_prepare(BlkActionState *common,
                 error_setg_errno(errp, -size, "bdrv_getlength failed");
                 goto out;
             }
+            bdrv_refresh_filename(state->old_bs);
             bdrv_img_create(new_image_file, format,
                             state->old_bs->filename,
                             state->old_bs->drv->format_name,
@@ -3273,6 +3274,7 @@ void qmp_block_stream(bool has_job_id, const char *job_id, const char *device,
             goto out;
         }
         assert(bdrv_get_aio_context(base_bs) == aio_context);
+        bdrv_refresh_filename(base_bs);
         base_name = base_bs->filename;
     }
 
@@ -3361,6 +3363,10 @@ void qmp_block_commit(bool has_job_id, const char *job_id, const char *device,
     top_bs = bs;
 
     if (has_top && top) {
+        /* This strcmp() is just a shortcut, there is no need to
+         * refresh @bs's filename.  If it mismatches,
+         * bdrv_find_backing_image() will do the refresh and may still
+         * return @bs. */
         if (strcmp(bs->filename, top) != 0) {
             top_bs = bdrv_find_backing_image(bs, top);
         }
@@ -3508,6 +3514,7 @@ static BlockJob *do_drive_backup(DriveBackup *backup, JobTxn *txn,
     if (backup->mode != NEW_IMAGE_MODE_EXISTING) {
         assert(backup->format);
         if (source) {
+            bdrv_refresh_filename(source);
             bdrv_img_create(backup->target, backup->format, source->filename,
                             source->drv->format_name, NULL,
                             size, flags, false, &local_err);
@@ -3858,6 +3865,7 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
             break;
         case NEW_IMAGE_MODE_ABSOLUTE_PATHS:
             /* create new image with backing file */
+            bdrv_refresh_filename(source);
             bdrv_img_create(arg->target, format,
                             source->filename,
                             source->drv->format_name,
