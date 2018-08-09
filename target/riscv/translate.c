@@ -1872,7 +1872,7 @@ static void riscv_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
         if (ctx->base.singlestep_enabled) {
             gen_exception_debug();
         } else {
-            tcg_gen_exit_tb(NULL, 0);
+            tcg_gen_lookup_and_goto_ptr();
         }
         break;
     case DISAS_NORETURN:
