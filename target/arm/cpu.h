@@ -2709,8 +2709,6 @@ static inline bool arm_sctlr_b(CPUARMState *env)
 /* Return true if the processor is in big-endian mode. */
 static inline bool arm_cpu_data_is_big_endian(CPUARMState *env)
 {
-    int cur_el;
-
     /* In 32bit endianness is determined by looking at CPSR's E bit */
     if (!is_a64(env)) {
         return
@@ -2729,15 +2727,24 @@ static inline bool arm_cpu_data_is_big_endian(CPUARMState *env)
             arm_sctlr_b(env) ||
 #endif
                 ((env->uncached_cpsr & CPSR_E) ? 1 : 0);
+    } else {
+#ifdef CONFIG_USER_ONLY
+        /* AArch64 does not have a SETEND instruction; endianness
+         * for usermode is fixed at compile-time.
+         */
+# ifdef TARGET_WORDS_BIGENDIAN
+        return true;
+# else
+        return false;
+# endif
+#else
+        int cur_el = arm_current_el(env);
+        if (cur_el == 0) {
+            return (env->cp15.sctlr_el[1] & SCTLR_E0E) != 0;
+        }
+        return (env->cp15.sctlr_el[cur_el] & SCTLR_EE) != 0;
+#endif
     }
-
-    cur_el = arm_current_el(env);
-
-    if (cur_el == 0) {
-        return (env->cp15.sctlr_el[1] & SCTLR_E0E) != 0;
-    }
-
-    return (env->cp15.sctlr_el[cur_el] & SCTLR_EE) != 0;
 }
 
 #include "exec/cpu-all.h"
