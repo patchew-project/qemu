@@ -73,7 +73,7 @@
 /* Must be at least 4 to cover all cases of refcount table growth */
 #define MIN_REFCOUNT_CACHE_SIZE 4 /* clusters */
 
-#define DEFAULT_L2_CACHE_MAX_SIZE 1048576  /* bytes */
+#define DEFAULT_L2_CACHE_MAX_SIZE 0x2000000U /* bytes */
 
 #define DEFAULT_CLUSTER_SIZE 65536
 
