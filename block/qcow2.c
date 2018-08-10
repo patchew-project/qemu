@@ -829,16 +829,13 @@ static void read_cache_sizes(BlockDriverState *bs, QemuOpts *opts,
                 *l2_cache_size = combined_cache_size - *refcount_cache_size;
             }
         }
-    } else {
-        if (!l2_cache_size_set) {
-            *l2_cache_size = MAX(DEFAULT_L2_CACHE_SIZE,
-                                 (uint64_t)DEFAULT_L2_CACHE_CLUSTERS
-                                 * s->cluster_size);
-        }
-        if (!refcount_cache_size_set) {
-            *refcount_cache_size = min_refcount_cache;
-        }
+    } else if (!l2_cache_size_set) {
+        *l2_cache_size = MAX(DEFAULT_L2_CACHE_SIZE,
+                             (uint64_t)DEFAULT_L2_CACHE_CLUSTERS
+                             * s->cluster_size);
     }
+    /* If refcount-cache-size is not specified, it will be set to minimum
+     * in qcow2_update_options_prepare(). No need to set it here. */
 
     if (*l2_cache_entry_size < (1 << MIN_CLUSTER_BITS) ||
         *l2_cache_entry_size > s->cluster_size ||
