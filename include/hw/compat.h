@@ -1,7 +1,9 @@
 #ifndef HW_COMPAT_H
 #define HW_COMPAT_H
 
-#define HW_COMPAT_2_12 \
+#define HW_COMPAT_3_0
+
+#define HW_COMPAT_2_12                          \
     {\
         .driver   = "migration",\
         .property = "decompress-error-check",\
