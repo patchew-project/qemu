@@ -790,8 +790,9 @@ static void read_cache_sizes(BlockDriverState *bs, QemuOpts *opts,
     *refcount_cache_size = qemu_opt_get_size(opts,
                                              QCOW2_OPT_REFCOUNT_CACHE_SIZE, 0);
 
-    *l2_cache_entry_size = qemu_opt_get_size(
-        opts, QCOW2_OPT_L2_CACHE_ENTRY_SIZE, s->cluster_size);
+    *l2_cache_entry_size = qemu_opt_get_size(opts,
+                                             QCOW2_OPT_L2_CACHE_ENTRY_SIZE,
+                                             s->cluster_size);
 
     if (combined_cache_size_set) {
         if (l2_cache_size_set && refcount_cache_size_set) {
@@ -823,8 +824,8 @@ static void read_cache_sizes(BlockDriverState *bs, QemuOpts *opts,
                 *l2_cache_size = max_l2_cache;
                 *refcount_cache_size = combined_cache_size - *l2_cache_size;
             } else {
-                *refcount_cache_size =
-                    MIN(combined_cache_size, min_refcount_cache);
+                *refcount_cache_size = MIN(combined_cache_size,
+                                           min_refcount_cache);
                 *l2_cache_size = combined_cache_size - *refcount_cache_size;
             }
         }
