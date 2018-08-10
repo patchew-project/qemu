@@ -253,7 +253,6 @@ static void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
             tcg_gen_lookup_and_goto_ptr();
         }
     }
-    ctx->base.is_jmp = DISAS_NORETURN;
 }
 
 static void gen_jump(DisasContext * ctx)
@@ -324,7 +323,6 @@ static void gen_delayed_conditional_jump(DisasContext * ctx)
         gen_jump(ctx);
 
         gen_set_label(l1);
-        ctx->base.is_jmp = DISAS_NEXT;
         return;
     }
 
@@ -1877,6 +1875,7 @@ static void decode_opc(DisasContext * ctx)
         ctx->envflags &= ~GUSA_MASK;
 
         tcg_gen_movi_i32(cpu_flags, ctx->envflags);
+        ctx->base.is_jmp = DISAS_NORETURN;
         if (old_flags & DELAY_SLOT_CONDITIONAL) {
 	    gen_delayed_conditional_jump(ctx);
         } else {
