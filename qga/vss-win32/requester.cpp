@@ -234,7 +234,7 @@ out:
     }
 }
 
-void requester_freeze(int *num_vols, ErrorSet *errset)
+void requester_freeze(int *num_vols, void *mountpoints, ErrorSet *errset)
 {
     COMPointer<IVssAsync> pAsync;
     HANDLE volume;
@@ -245,7 +245,9 @@ void requester_freeze(int *num_vols, ErrorSet *errset)
     SECURITY_ATTRIBUTES sa;
     WCHAR short_volume_name[64], *display_name = short_volume_name;
     DWORD wait_status;
+    PWCHAR WStr = NULL;
     int num_fixed_drives = 0, i;
+    int num_mount_points = 0;
 
     if (vss_ctx.pVssbc) { /* already frozen */
         *num_vols = 0;
@@ -337,12 +339,42 @@ void requester_freeze(int *num_vols, ErrorSet *errset)
         goto out;
     }
 
-    volume = FindFirstVolumeW(short_volume_name, sizeof(short_volume_name));
-    if (volume == INVALID_HANDLE_VALUE) {
-        err_set(errset, hr, "failed to find first volume");
+    if (mountpoints) {
+        for (volList *list = (volList *)mountpoints; list; list = list->next) {
+            size_t len = strlen(list->value) + 1;
+            size_t converted = 0;
+            VSS_ID pid;
+
+            WStr = new wchar_t[len];
+            mbstowcs_s(&converted, WStr, len, list->value, _TRUNCATE);
+
+            hr = vss_ctx.pVssbc->AddToSnapshotSet(WStr,
+                                                  g_gProviderId, &pid);
+            if (FAILED(hr)) {
+                err_set(errset, hr, "failed to add %S to snapshot set", WStr);
+                goto out;
+            }
+            num_mount_points++;
+
+            delete WStr;
+        }
+    }
+
+    if (mountpoints && num_mount_points == 0) {
+        /* If there is no valid mount points, just exit. */
         goto out;
     }
-    for (;;) {
+
+
+    if (!mountpoints) {
+        volume = FindFirstVolumeW(short_volume_name, sizeof(short_volume_name));
+        if (volume == INVALID_HANDLE_VALUE) {
+            err_set(errset, hr, "failed to find first volume");
+            goto out;
+        }
+    }
+
+    while (!mountpoints) {
         if (GetDriveTypeW(short_volume_name) == DRIVE_FIXED) {
             VSS_ID pid;
             hr = vss_ctx.pVssbc->AddToSnapshotSet(short_volume_name,
@@ -355,7 +387,7 @@ void requester_freeze(int *num_vols, ErrorSet *errset)
                     display_name = volume_path_name;
                 }
                 err_set(errset, hr, "failed to add %S to snapshot set",
-                                 display_name);
+                        display_name);
                 FindVolumeClose(volume);
                 goto out;
             }
@@ -368,7 +400,7 @@ void requester_freeze(int *num_vols, ErrorSet *errset)
         }
     }
 
-    if (num_fixed_drives == 0) {
+    if (!mountpoints && num_fixed_drives == 0) {
         goto out; /* If there is no fixed drive, just exit. */
     }
 
@@ -435,13 +467,19 @@ void requester_freeze(int *num_vols, ErrorSet *errset)
         goto out;
     }
 
-    *num_vols = vss_ctx.cFrozenVols = num_fixed_drives;
+    if (mountpoints) {
+        *num_vols = vss_ctx.cFrozenVols = num_mount_points;
+    } else {
+        *num_vols = vss_ctx.cFrozenVols = num_fixed_drives;
+    }
+
     return;
 
 out:
     if (vss_ctx.pVssbc) {
         vss_ctx.pVssbc->AbortBackup();
     }
+    delete WStr;
 
 out1:
     requester_cleanup();
@@ -449,7 +487,7 @@ out1:
 }
 
 
-void requester_thaw(int *num_vols, ErrorSet *errset)
+void requester_thaw(int *num_vols, void *mountpints, ErrorSet *errset)
 {
     COMPointer<IVssAsync> pAsync;
 
