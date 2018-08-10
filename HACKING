@@ -189,6 +189,11 @@ In addition, QEMU assumes that the compiler does not use the latitude
 given in C99 and C11 to treat aspects of signed '<<' as undefined, as
 documented in the GNU Compiler Collection manual starting at version 4.0.
 
+Finally QEMU also uses some GNU extensions to the C language including
+making extensive use of the typeof keyword for type inference. While
+typeof() is a GCC extension it is fairly widely understood by other
+compilers.
+
 7. Error handling and reporting
 
 7.1 Reporting errors to the human user
