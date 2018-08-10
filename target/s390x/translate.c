@@ -2107,6 +2107,16 @@ static DisasJumpType op_csp(DisasContext *s, DisasOps *o)
 }
 #endif
 
+static DisasJumpType op_cvb(DisasContext *s, DisasOps *o)
+{
+    uint64_t n = ((s->fields->op == 0xE3) && (s->fields->op2 == 0x0E)) ?
+        /* CVBG */      2 :
+        /* CVB, CVBY */ 1;
+
+    gen_helper_cvb(o->out, cpu_env, o->in2, tcg_const_i32(n));
+    return DISAS_NEXT;
+}
+
 static DisasJumpType op_cvd(DisasContext *s, DisasOps *o)
 {
     TCGv_i64 t1 = tcg_temp_new_i64();
