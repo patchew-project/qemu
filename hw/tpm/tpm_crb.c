@@ -233,6 +233,7 @@ static void tpm_crb_reset(void *dev)
 {
     CRBState *s = CRB(dev);
 
+    tpm_ppi_reset(&s->ppi);
     tpm_backend_reset(s->tpmbe);
 
     memset(s->regs, 0, sizeof(s->regs));
