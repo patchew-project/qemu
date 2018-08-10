@@ -39,7 +39,7 @@ struct QemuSeccompSyscall {
 };
 
 const struct scmp_arg_cmp sched_setscheduler_arg[] = {
-    SCMP_A1(SCMP_CMP_NE, SCHED_IDLE)
+    {1, SCMP_CMP_NE, SCHED_IDLE}
 };
 
 static const struct QemuSeccompSyscall blacklist[] = {
