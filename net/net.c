@@ -1733,3 +1733,17 @@ int net_fill_rstate(SocketReadState *rs, const uint8_t *buf, int size)
     assert(size == 0);
     return 0;
 }
+
+/* Currently, COLO just support TAP */
+bool is_colo_support_client_type(void)
+{
+    NetClientState *nc;
+
+    QTAILQ_FOREACH(nc, &net_clients, next) {
+        if (nc->info->type != NET_CLIENT_DRIVER_TAP) {
+            return false;
+        }
+    }
+
+    return true;
+}
