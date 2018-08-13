@@ -736,7 +736,7 @@ The maximum total size of the L2 table and refcount block caches in bytes
 
 @item l2-cache-size
 The maximum size of the L2 table cache in bytes
-(default: if cache-size is not specified - 1M; otherwise, as large as possible
+(default: if cache-size is not specified - 32M; otherwise, as large as possible
 within the cache-size, while permitting the requested or the minimal refcount
 cache size)
 
