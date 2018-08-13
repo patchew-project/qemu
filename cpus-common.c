@@ -77,6 +77,8 @@ static void finish_safe_work(CPUState *cpu)
 
 void cpu_list_add(CPUState *cpu)
 {
+    CPUState *cs, *cs_next;
+
     qemu_mutex_lock(&qemu_cpu_list_lock);
     if (cpu->cpu_index == UNASSIGNED_CPU_INDEX) {
         cpu->cpu_index = cpu_get_free_index();
@@ -84,7 +86,18 @@ void cpu_list_add(CPUState *cpu)
     } else {
         assert(!cpu_index_auto_assigned);
     }
-    QTAILQ_INSERT_TAIL(&cpus, cpu, node);
+    /* poor man's tail insert */
+    CPU_FOREACH_SAFE(cs, cs_next) {
+        if (cs_next == NULL) {
+            break;
+        }
+    }
+    if (cs == NULL) {
+        QLIST_INSERT_HEAD_RCU(&cpus, cpu, node);
+    } else {
+        g_assert(cs_next == NULL);
+        QLIST_INSERT_AFTER_RCU(cs, cpu, node);
+    }
     cpu->in_cpu_list = true;
     qemu_mutex_unlock(&qemu_cpu_list_lock);
 
@@ -100,9 +113,7 @@ void cpu_list_remove(CPUState *cpu)
         return;
     }
 
-    assert(!(cpu_index_auto_assigned && cpu != QTAILQ_LAST(&cpus, CPUTailQ)));
-
-    QTAILQ_REMOVE(&cpus, cpu, node);
+    QLIST_REMOVE_RCU(cpu, node);
     cpu->cpu_index = UNASSIGNED_CPU_INDEX;
     qemu_mutex_unlock(&qemu_cpu_list_lock);
 }
