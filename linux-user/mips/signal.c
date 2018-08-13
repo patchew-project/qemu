@@ -101,6 +101,17 @@ static inline int install_sigtramp(unsigned int *tramp,   unsigned int syscall)
 {
     int err = 0;
 
+#if defined(TARGET_ABI_MIPSP32)
+    uint16_t *tramp16 = (uint16_t *)tramp;
+    /*
+     *         li      $2, __NR__foo_sigreturn
+     *         syscall 0
+     */
+     __put_user(0x6040 , tramp16 + 0);
+     __put_user(syscall, tramp16 + 1);
+     __put_user(0      , tramp16 + 2);
+     __put_user(0x1008 , tramp16 + 3);
+#else
     /*
      * Set up the return code ...
      *
@@ -110,7 +121,7 @@ static inline int install_sigtramp(unsigned int *tramp,   unsigned int syscall)
 
     __put_user(0x24020000 + syscall, tramp + 0);
     __put_user(0x0000000c          , tramp + 1);
-
+#endif
     return err;
 }
 
