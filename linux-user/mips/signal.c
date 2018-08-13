@@ -21,7 +21,15 @@
 #include "signal-common.h"
 #include "linux-user/trace.h"
 
-# if defined(TARGET_ABI_MIPSO32)
+#if defined(TARGET_ABI_MIPSP32)
+struct target_sigcontext {
+    uint64_t sc_regs[32];
+    uint64_t sc_pc;
+    uint32_t sc_used_math;
+    uint32_t sc_reserved;
+};
+#define TARGET_ALMASK  (~15)
+#elif defined(TARGET_ABI_MIPSO32)
 struct target_sigcontext {
     uint32_t   sc_regmask;     /* Unused */
     uint32_t   sc_status;
@@ -43,6 +51,7 @@ struct target_sigcontext {
     target_ulong   sc_hi3;
     target_ulong   sc_lo3;
 };
+#define TARGET_ALMASK  (~7)
 # else /* N32 || N64 */
 struct target_sigcontext {
     uint64_t sc_regs[32];
@@ -61,6 +70,7 @@ struct target_sigcontext {
     uint32_t sc_dsp;
     uint32_t sc_reserved;
 };
+#define TARGET_ALMASK  (~15)
 # endif /* O32 */
 
 struct sigframe {
@@ -100,6 +110,7 @@ static inline int install_sigtramp(unsigned int *tramp,   unsigned int syscall)
 
     __put_user(0x24020000 + syscall, tramp + 0);
     __put_user(0x0000000c          , tramp + 1);
+
     return err;
 }
 
@@ -116,6 +127,7 @@ static inline void setup_sigcontext(CPUMIPSState *regs,
         __put_user(regs->active_tc.gpr[i], &sc->sc_regs[i]);
     }
 
+#if !defined(TARGET_ABI_MIPSP32)
     __put_user(regs->active_tc.HI[0], &sc->sc_mdhi);
     __put_user(regs->active_tc.LO[0], &sc->sc_mdlo);
 
@@ -137,6 +149,7 @@ static inline void setup_sigcontext(CPUMIPSState *regs,
     for (i = 0; i < 32; ++i) {
         __put_user(regs->active_fpu.fpr[i].d, &sc->sc_fpregs[i]);
     }
+#endif
 }
 
 static inline void
@@ -146,12 +159,13 @@ restore_sigcontext(CPUMIPSState *regs, struct target_sigcontext *sc)
 
     __get_user(regs->CP0_EPC, &sc->sc_pc);
 
-    __get_user(regs->active_tc.HI[0], &sc->sc_mdhi);
-    __get_user(regs->active_tc.LO[0], &sc->sc_mdlo);
-
     for (i = 1; i < 32; ++i) {
         __get_user(regs->active_tc.gpr[i], &sc->sc_regs[i]);
     }
+
+#if !defined(TARGET_ABI_MIPSP32)
+    __get_user(regs->active_tc.HI[0], &sc->sc_mdhi);
+    __get_user(regs->active_tc.LO[0], &sc->sc_mdlo);
 
     __get_user(regs->active_tc.HI[1], &sc->sc_hi1);
     __get_user(regs->active_tc.HI[2], &sc->sc_hi2);
@@ -168,6 +182,7 @@ restore_sigcontext(CPUMIPSState *regs, struct target_sigcontext *sc)
     for (i = 0; i < 32; ++i) {
         __get_user(regs->active_fpu.fpr[i].d, &sc->sc_fpregs[i]);
     }
+#endif
 }
 
 /*
@@ -185,7 +200,7 @@ get_sigframe(struct target_sigaction *ka, CPUMIPSState *regs, size_t frame_size)
      */
     sp = target_sigsp(get_sp_from_cpustate(regs) - 32, ka);
 
-    return (sp - frame_size) & ~7;
+    return (sp - frame_size) & TARGET_ALMASK;
 }
 
 static void mips_set_hflags_isa_mode_from_pc(CPUMIPSState *env)
