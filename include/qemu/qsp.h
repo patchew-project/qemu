@@ -18,6 +18,8 @@
 void qsp_mutex_lock(QemuMutex *mutex, const char *file, unsigned line);
 int qsp_mutex_trylock(QemuMutex *mutex, const char *file, unsigned line);
 
+void qsp_bql_mutex_lock(QemuMutex *mutex, const char *file, unsigned line);
+
 void qsp_rec_mutex_lock(QemuRecMutex *mutex, const char *file, unsigned line);
 int qsp_rec_mutex_trylock(QemuRecMutex *mutex, const char *file, unsigned line);
 

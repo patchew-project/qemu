@@ -61,6 +61,7 @@
 
 enum qsp_type {
     QSP_MUTEX,
+    QSP_BQL_MUTEX,
     QSP_REC_MUTEX,
     QSP_CONDVAR,
 };
@@ -102,6 +103,7 @@ static bool qsp_initialized, qsp_initializing;
 
 static const char * const qsp_typenames[] = {
     [QSP_MUTEX]     = "mutex",
+    [QSP_BQL_MUTEX] = "BQL mutex",
     [QSP_REC_MUTEX] = "rec_mutex",
     [QSP_CONDVAR]   = "condvar",
 };
@@ -315,6 +317,8 @@ static struct qsp_entry *qsp_entry_get(const void *obj, const char *file,
 
 QSP_GEN_VOID(QemuMutex, QSP_MUTEX, qsp_mutex_lock, qemu_mutex_lock_impl)
 QSP_GEN_RET1(QemuMutex, QSP_MUTEX, qsp_mutex_trylock, qemu_mutex_trylock_impl)
+
+QSP_GEN_VOID(QemuMutex, QSP_BQL_MUTEX, qsp_bql_mutex_lock, qemu_mutex_lock_impl)
 
 QSP_GEN_VOID(QemuRecMutex, QSP_REC_MUTEX, qsp_rec_mutex_lock,
              qemu_rec_mutex_lock_impl)

@@ -1762,12 +1762,25 @@ bool qemu_mutex_iothread_locked(void)
     return iothread_locked;
 }
 
-void qemu_mutex_lock_iothread(void)
+/*
+ * The BQL is taken from so many places that it is worth tracking the
+ * callers directly, instead of funneling them all through a single function.
+ */
+#ifdef CONFIG_SYNC_PROFILER
+void do_qemu_mutex_lock_iothread(const char *file, int line)
+{
+    g_assert(!qemu_mutex_iothread_locked());
+    qsp_bql_mutex_lock(&qemu_global_mutex, file, line);
+    iothread_locked = true;
+}
+#else
+void do_qemu_mutex_lock_iothread(void)
 {
     g_assert(!qemu_mutex_iothread_locked());
     qemu_mutex_lock(&qemu_global_mutex);
     iothread_locked = true;
 }
+#endif /* CONFIG_SYNC_PROFILER */
 
 void qemu_mutex_unlock_iothread(void)
 {
