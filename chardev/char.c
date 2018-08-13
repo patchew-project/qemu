@@ -838,6 +838,9 @@ QemuOptsList qemu_chardev_opts = {
             .name = "tls-creds",
             .type = QEMU_OPT_STRING,
         },{
+            .name = "websock",
+            .type = QEMU_OPT_BOOL,
+        },{
             .name = "width",
             .type = QEMU_OPT_NUMBER,
         },{
