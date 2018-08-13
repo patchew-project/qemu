@@ -300,6 +300,22 @@ Show dynamic compiler opcode counters
 ETEXI
 
     {
+        .name       = "sync",
+        .args_type  = "max:i?",
+        .params     = "[max]",
+        .help       = "show sync profiling info for "
+	              "up to max entries (default: 10). "
+		      "Entries are sorted by wait time.",
+        .cmd        = hmp_info_sync,
+    },
+
+STEXI
+@item info sync
+@findex sync
+Show sync profiling info.
+ETEXI
+
+    {
         .name       = "kvm",
         .args_type  = "",
         .params     = "",
