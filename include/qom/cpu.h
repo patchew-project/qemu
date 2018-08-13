@@ -411,6 +411,8 @@ struct CPUState {
 
     bool ignore_memory_transaction_failures;
 
+    bool in_cpu_list; /* protected by qemu_cpu_list_lock */
+
     /* Note that this is accessed at the start of every TB via a negative
        offset from AREG0.  Leave this field at the end so as to make the
        (absolute value) offset as small as possible.  This reduces code

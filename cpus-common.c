@@ -85,6 +85,7 @@ void cpu_list_add(CPUState *cpu)
         assert(!cpu_index_auto_assigned);
     }
     QTAILQ_INSERT_TAIL(&cpus, cpu, node);
+    cpu->in_cpu_list = true;
     qemu_mutex_unlock(&qemu_cpu_list_lock);
 
     finish_safe_work(cpu);
@@ -93,7 +94,7 @@ void cpu_list_add(CPUState *cpu)
 void cpu_list_remove(CPUState *cpu)
 {
     qemu_mutex_lock(&qemu_cpu_list_lock);
-    if (!QTAILQ_IN_USE(cpu, node)) {
+    if (!cpu->in_cpu_list) {
         /* there is nothing to undo since cpu_exec_init() hasn't been called */
         qemu_mutex_unlock(&qemu_cpu_list_lock);
         return;
