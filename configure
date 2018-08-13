@@ -408,6 +408,7 @@ bsd="no"
 linux="no"
 solaris="no"
 profiler="no"
+sync_profiler="no"
 cocoa="no"
 softmmu="yes"
 linux_user="no"
@@ -1163,6 +1164,8 @@ for opt do
   ;;
   --enable-profiler) profiler="yes"
   ;;
+  --enable-sync-profiler) sync_profiler="yes"
+  ;;
   --disable-cocoa) cocoa="no"
   ;;
   --enable-cocoa)
@@ -1621,6 +1624,7 @@ Advanced options (experts only):
   --tls-priority           default TLS protocol/cipher priority string
   --enable-gprof           QEMU profiling with gprof
   --enable-profiler        profiler support
+  --enable-sync-profiler   support profiling of synchronization primitives
   --enable-xen-pv-domain-build
                            xen pv domain builder
   --enable-debug-stack-usage
@@ -5893,6 +5897,7 @@ echo "gprof enabled     $gprof"
 echo "sparse enabled    $sparse"
 echo "strip binaries    $strip_opt"
 echo "profiler          $profiler"
+echo "sync profiler     $sync_profiler"
 echo "static build      $static"
 if test "$darwin" = "yes" ; then
     echo "Cocoa support     $cocoa"
@@ -6145,6 +6150,9 @@ if test "$static" = "yes" ; then
 fi
 if test "$profiler" = "yes" ; then
   echo "CONFIG_PROFILER=y" >> $config_host_mak
+fi
+if test "$sync_profiler" = "yes" ; then
+  echo "CONFIG_SYNC_PROFILER=y" >> $config_host_mak
 fi
 if test "$slirp" = "yes" ; then
   echo "CONFIG_SLIRP=y" >> $config_host_mak
