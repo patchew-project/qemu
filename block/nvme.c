@@ -489,10 +489,8 @@ static void nvme_handle_event(EventNotifier *n)
     BDRVNVMeState *s = container_of(n, BDRVNVMeState, irq_notifier);
 
     trace_nvme_handle_event(s);
-    aio_context_acquire(s->aio_context);
     event_notifier_test_and_clear(n);
     nvme_poll_queues(s);
-    aio_context_release(s->aio_context);
 }
 
 static bool nvme_add_io_queue(BlockDriverState *bs, Error **errp)
@@ -539,11 +537,9 @@ static bool nvme_poll_cb(void *opaque)
 {
     EventNotifier *e = opaque;
     BDRVNVMeState *s = container_of(e, BDRVNVMeState, irq_notifier);
-    bool progress = false;
 
     trace_nvme_poll_cb(s);
-    progress = nvme_poll_queues(s);
-    return progress;
+    return nvme_poll_queues(s);
 }
 
 static int nvme_init(BlockDriverState *bs, const char *device, int namespace,
