@@ -50,7 +50,6 @@ read -P0 0x3fe0000 64k
 --- Cleanup ---
 
 {u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'device': u'drive0', u'type': u'backup', u'speed': 0, u'len': 67108864, u'offset': 393216}, u'event': u'BLOCK_JOB_CANCELLED'}
 {u'return': {}}
 {u'return': {}}
 

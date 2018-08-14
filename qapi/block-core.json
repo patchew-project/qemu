@@ -2549,7 +2549,8 @@
             'host_cdrom', 'host_device', 'http', 'https', 'iscsi', 'luks',
             'nbd', 'nfs', 'null-aio', 'null-co', 'nvme', 'parallels', 'qcow',
             'qcow2', 'qed', 'quorum', 'raw', 'rbd', 'replication', 'sheepdog',
-            'ssh', 'throttle', 'vdi', 'vhdx', 'vmdk', 'vpc', 'vvfat', 'vxhs' ] }
+            'ssh', 'throttle', 'vdi', 'vhdx', 'vmdk', 'vpc', 'vvfat', 'vxhs',
+            'fleecing-hook'] }
 
 ##
 # @BlockdevOptionsFile:
@@ -3636,7 +3637,8 @@
       'vmdk':       'BlockdevOptionsGenericCOWFormat',
       'vpc':        'BlockdevOptionsGenericFormat',
       'vvfat':      'BlockdevOptionsVVFAT',
-      'vxhs':       'BlockdevOptionsVxHS'
+      'vxhs':       'BlockdevOptionsVxHS',
+      'fleecing-hook': 'BlockdevOptionsGenericCOWFormat'
   } }
 
 ##
@@ -3755,6 +3757,23 @@
 #
 ##
 { 'command': 'blockdev-del', 'data': { 'node-name': 'str' } }
+
+##
+# @x-drop-fleecing:
+#
+# Deletes fleecing-hook filter from the top of the backing chain.
+#
+# @node-name: Name of the fleecing-hook node name.
+#
+# Since: 3.1
+#
+# -> { "execute": "x-drop-fleecing",
+#      "arguments": { "node-name": "fleece0" }
+#    }
+# <- { "return": {} }
+#
+##
+{ 'command': 'x-drop-fleecing', 'data': { 'node-name': 'str' } }
 
 ##
 # @BlockdevCreateOptionsFile:
