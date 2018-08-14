@@ -6935,6 +6935,7 @@ case "$target_name" in
     TARGET_BASE_ARCH=i386
     gdb_xml_files="i386-64bit.xml i386-64bit-core.xml i386-64bit-sse.xml"
     target_compiler=$cross_cc_x86_64
+    mttcg="yes"
   ;;
   alpha)
     mttcg="yes"
