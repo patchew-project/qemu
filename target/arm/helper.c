@@ -5436,6 +5436,11 @@ void register_cp_regs_for_features(ARMCPU *cpu)
               .opc0 = 3, .opc1 = 4, .crn = 1, .crm = 0, .opc2 = 1,
               .access = PL2_RW, .type = ARM_CP_CONST,
               .resetvalue = 0 },
+            /* HACTLR2 maps to ACTLR_EL2[63:32] */
+            { .name = "HACTLR2", .state = ARM_CP_STATE_AA32,
+              .cp = 15, .opc1 = 4, .crn = 1, .crm = 0, .opc2 = 3,
+              .access = PL2_RW, .type = ARM_CP_CONST,
+              .resetvalue = 0 },
             { .name = "ACTLR_EL3", .state = ARM_CP_STATE_AA64,
               .opc0 = 3, .opc1 = 6, .crn = 1, .crm = 0, .opc2 = 1,
               .access = PL3_RW, .type = ARM_CP_CONST,
