@@ -141,10 +141,12 @@ void helper_stsw(CPUPPCState *env, target_ulong addr, uint32_t nb,
     }
 }
 
-void helper_dcbz(CPUPPCState *env, target_ulong addr, uint32_t opcode)
+static void helper_dcbz_common(CPUPPCState *env, target_ulong addr,
+                               uint32_t opcode, bool ep)
 {
     target_ulong mask, dcbz_size = env->dcache_line_size;
     uint32_t i;
+    int mmu_idx;
     void *haddr;
 
 #if defined(TARGET_PPC64)
@@ -164,8 +166,9 @@ void helper_dcbz(CPUPPCState *env, target_ulong addr, uint32_t opcode)
         env->reserve_addr = (target_ulong)-1ULL;
     }
 
+    mmu_idx = ep ? PPC_TLB_EPID_STORE : env->dmmu_idx;
     /* Try fast path translate */
-    haddr = tlb_vaddr_to_host(env, addr, MMU_DATA_STORE, env->dmmu_idx);
+    haddr = tlb_vaddr_to_host(env, addr, MMU_DATA_STORE, mmu_idx);
     if (haddr) {
         memset(haddr, 0, dcbz_size);
     } else {
@@ -174,6 +177,16 @@ void helper_dcbz(CPUPPCState *env, target_ulong addr, uint32_t opcode)
             cpu_stq_data_ra(env, addr + i, 0, GETPC());
         }
     }
+}
+
+void helper_dcbz(CPUPPCState *env, target_ulong addr, uint32_t opcode)
+{
+    helper_dcbz_common(env, addr, opcode, false);
+}
+
+void helper_dcbzep(CPUPPCState *env, target_ulong addr, uint32_t opcode)
+{
+    helper_dcbz_common(env, addr, opcode, true);
 }
 
 void helper_icbi(CPUPPCState *env, target_ulong addr)
@@ -185,6 +198,13 @@ void helper_icbi(CPUPPCState *env, target_ulong addr)
      * do the load "by hand".
      */
     cpu_ldl_data_ra(env, addr, GETPC());
+}
+
+void helper_icbiep(CPUPPCState *env, target_ulong addr)
+{
+    /* See comments above */
+    addr &= ~(env->dcache_line_size - 1);
+    cpu_ldl_epl_ra(env, addr, GETPC());
 }
 
 /* XXX: to be tested */
