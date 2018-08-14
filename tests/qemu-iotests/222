@@ -86,14 +86,19 @@ with iotests.FilePath('base.img') as base_img_path, \
             "driver": "file",
             "filename": fleece_img_path,
         },
-        "backing": src_node,
+        # backing is unset, otherwise we can't insert filter,
+        # instead, fleecing_hook will set backing link for
+        # tgt_node automatically.
     }))
 
-    # Establish COW from source to fleecing node
-    log(vm.qmp("blockdev-backup",
-               device=src_node,
-               target=tgt_node,
-               sync="none"))
+    # Establish COW from source to fleecing node, also,
+    # source becomes backing file of target.
+    log(vm.qmp("blockdev-add", **{
+        "driver": "fleecing-hook",
+        "node-name": "hook",
+        "file": tgt_node,
+        "backing": src_node,
+    }))
 
     log('')
     log('--- Setting up NBD Export ---')
@@ -137,10 +142,8 @@ with iotests.FilePath('base.img') as base_img_path, \
     log('--- Cleanup ---')
     log('')
 
-    log(vm.qmp('block-job-cancel', device=src_node))
-    log(vm.event_wait('BLOCK_JOB_CANCELLED'),
-        filters=[iotests.filter_qmp_event])
     log(vm.qmp('nbd-server-stop'))
+    log(vm.qmp('x-drop-fleecing', node_name="hook"))
     log(vm.qmp('blockdev-del', node_name=tgt_node))
     vm.shutdown()
 
