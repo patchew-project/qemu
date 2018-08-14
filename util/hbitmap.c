@@ -244,6 +244,44 @@ int64_t hbitmap_next_zero(const HBitmap *hb, uint64_t start, int64_t end)
     return res;
 }
 
+bool hbitmap_next_dirty_area(const HBitmap *hb, uint64_t *offset,
+                             uint64_t end, uint64_t *length)
+{
+    HBitmapIter hbi;
+    int64_t off1, off0;
+    uint32_t granularity = 1UL << hb->granularity;
+
+    if (end == 0) {
+        end = hb->orig_size;
+    }
+
+    hbitmap_iter_init(&hbi, hb, *offset);
+    off1 = hbitmap_iter_next(&hbi, true);
+
+    if (off1 < 0 || off1 >= end) {
+        return false;
+    }
+
+    if (off1 + granularity >= end) {
+        if (off1 > *offset) {
+            *offset = off1;
+        }
+        *length = end - *offset;
+        return true;
+    }
+
+    off0 = hbitmap_next_zero(hb, off1 + granularity, end);
+    if (off0 < 0) {
+        off0 = end;
+    }
+
+    if (off1 > *offset) {
+        *offset = off1;
+    }
+    *length = off0 - *offset;
+    return true;
+}
+
 bool hbitmap_empty(const HBitmap *hb)
 {
     return hb->count == 0;
