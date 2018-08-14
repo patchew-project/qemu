@@ -158,7 +158,18 @@ static uint64_t ioportF0_read(void *opaque, hwaddr addr, unsigned size)
 /* TSC handling */
 uint64_t cpu_get_tsc(CPUX86State *env)
 {
-    return cpu_get_ticks();
+    uint64_t ret;
+    bool locked;
+
+    locked = qemu_mutex_iothread_locked();
+    if (!locked) {
+        qemu_mutex_lock_iothread();
+    }
+    ret = cpu_get_ticks();
+    if (!locked) {
+        qemu_mutex_unlock_iothread();
+    }
+    return ret;
 }
 
 /* IRQ handling */
