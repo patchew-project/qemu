@@ -71,26 +71,34 @@
 
 //#define MACRO_TEST   1
 
+/* we need thread-local storage for mttcg */
+#ifdef CONFIG_USER_ONLY
+#define I386_THREAD
+#else
+#define I386_THREAD __thread
+#endif
+
 /* global register indexes */
-static TCGv cpu_A0;
-static TCGv cpu_cc_dst, cpu_cc_src, cpu_cc_src2, cpu_cc_srcT;
+static TCGv cpu_cc_dst, cpu_cc_src, cpu_cc_src2;
 static TCGv_i32 cpu_cc_op;
 static TCGv cpu_regs[CPU_NB_REGS];
 static TCGv cpu_seg_base[6];
 static TCGv_i64 cpu_bndl[4];
 static TCGv_i64 cpu_bndu[4];
 /* local temps */
-static TCGv cpu_T0, cpu_T1;
+static I386_THREAD TCGv cpu_cc_srcT;
+static I386_THREAD TCGv cpu_A0;
+static I386_THREAD TCGv cpu_T0, cpu_T1;
 /* local register indexes (only used inside old micro ops) */
-static TCGv cpu_tmp0, cpu_tmp4;
-static TCGv_ptr cpu_ptr0, cpu_ptr1;
-static TCGv_i32 cpu_tmp2_i32, cpu_tmp3_i32;
-static TCGv_i64 cpu_tmp1_i64;
+static I386_THREAD TCGv cpu_tmp0, cpu_tmp4;
+static I386_THREAD TCGv_ptr cpu_ptr0, cpu_ptr1;
+static I386_THREAD TCGv_i32 cpu_tmp2_i32, cpu_tmp3_i32;
+static I386_THREAD TCGv_i64 cpu_tmp1_i64;
 
 #include "exec/gen-icount.h"
 
 #ifdef TARGET_X86_64
-static int x86_64_hregs;
+static I386_THREAD int x86_64_hregs;
 #endif
 
 typedef struct DisasContext {
