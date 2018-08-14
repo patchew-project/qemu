@@ -308,6 +308,8 @@ int64_t cpu_get_ticks(void)
 {
     int64_t ticks;
 
+    g_assert(qemu_mutex_iothread_locked());
+
     if (use_icount) {
         return cpu_get_icount();
     }
