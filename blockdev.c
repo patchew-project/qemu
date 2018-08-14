@@ -4284,6 +4284,43 @@ out:
     aio_context_release(aio_context);
 }
 
+void qmp_x_drop_fleecing(const char *node_name, Error **errp)
+{
+    AioContext *aio_context;
+    BlockDriverState *bs;
+
+    bs = bdrv_find_node(node_name);
+    if (!bs) {
+        error_setg(errp, "Cannot find node %s", node_name);
+        return;
+    }
+
+    if (!bdrv_has_blk(bs)) {
+        error_setg(errp, "Node %s is not inserted", node_name);
+        return;
+    }
+
+    if (!bs->backing) {
+        error_setg(errp, "'%s' has no backing", node_name);
+        return;
+    }
+
+    aio_context = bdrv_get_aio_context(bs);
+    aio_context_acquire(aio_context);
+
+    bdrv_drained_begin(bs);
+
+    bdrv_child_try_set_perm(bs->backing, 0, BLK_PERM_ALL, &error_abort);
+    bdrv_replace_node(bs, backing_bs(bs), &error_abort);
+    bdrv_set_backing_hd(bs, NULL, &error_abort);
+
+    bdrv_drained_end(bs);
+
+    qmp_blockdev_del(node_name, &error_abort);
+
+    aio_context_release(aio_context);
+}
+
 static BdrvChild *bdrv_find_child(BlockDriverState *parent_bs,
                                   const char *child_name)
 {
