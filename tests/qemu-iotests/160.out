@@ -6,7 +6,7 @@ No errors were found on the image.
 wrote 524288/524288 bytes at offset 24
 512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
-== Converting the image with dd with skip=1 ==
+== Converting the image with dd with skip=0 seek=0 ==
 No errors were found on the image.
 
 == Compare the images with qemu-img compare ==
@@ -18,7 +18,7 @@ No errors were found on the image.
 wrote 524288/524288 bytes at offset 24
 512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
-== Converting the image with dd with count=1 skip=1 ==
+== Converting the image with dd with skip=0 seek=2 ==
 No errors were found on the image.
 
 == Compare the images with qemu-img compare ==
@@ -30,7 +30,7 @@ No errors were found on the image.
 wrote 524288/524288 bytes at offset 24
 512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
-== Converting the image with dd with skip=2 ==
+== Converting the image with dd with skip=0 seek=30 ==
 No errors were found on the image.
 
 == Compare the images with qemu-img compare ==
@@ -42,7 +42,7 @@ No errors were found on the image.
 wrote 524288/524288 bytes at offset 24
 512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
-== Converting the image with dd with count=1 skip=2 ==
+== Converting the image with dd with skip=0 seek=30K ==
 No errors were found on the image.
 
 == Compare the images with qemu-img compare ==
@@ -54,7 +54,7 @@ No errors were found on the image.
 wrote 524288/524288 bytes at offset 24
 512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
-== Converting the image with dd with skip=30 ==
+== Converting the image with dd with count=1 skip=0 seek=0 ==
 No errors were found on the image.
 
 == Compare the images with qemu-img compare ==
@@ -66,7 +66,7 @@ No errors were found on the image.
 wrote 524288/524288 bytes at offset 24
 512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
-== Converting the image with dd with count=1 skip=30 ==
+== Converting the image with dd with count=1 skip=0 seek=2 ==
 No errors were found on the image.
 
 == Compare the images with qemu-img compare ==
@@ -78,7 +78,7 @@ No errors were found on the image.
 wrote 524288/524288 bytes at offset 24
 512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
-== Converting the image with dd with skip=30K ==
+== Converting the image with dd with count=1 skip=0 seek=30 ==
 No errors were found on the image.
 
 == Compare the images with qemu-img compare ==
@@ -90,7 +90,295 @@ No errors were found on the image.
 wrote 524288/524288 bytes at offset 24
 512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
-== Converting the image with dd with count=1 skip=30K ==
+== Converting the image with dd with count=1 skip=0 seek=30K ==
+No errors were found on the image.
+
+== Compare the images with qemu-img compare ==
+Images are identical.
+
+== Creating image ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+No errors were found on the image.
+wrote 524288/524288 bytes at offset 24
+512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== Converting the image with dd with skip=2 seek=0 ==
+No errors were found on the image.
+
+== Compare the images with qemu-img compare ==
+Images are identical.
+
+== Creating image ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+No errors were found on the image.
+wrote 524288/524288 bytes at offset 24
+512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== Converting the image with dd with skip=2 seek=2 ==
+No errors were found on the image.
+
+== Compare the images with qemu-img compare ==
+Images are identical.
+
+== Creating image ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+No errors were found on the image.
+wrote 524288/524288 bytes at offset 24
+512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== Converting the image with dd with skip=2 seek=30 ==
+No errors were found on the image.
+
+== Compare the images with qemu-img compare ==
+Images are identical.
+
+== Creating image ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+No errors were found on the image.
+wrote 524288/524288 bytes at offset 24
+512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== Converting the image with dd with skip=2 seek=30K ==
+No errors were found on the image.
+
+== Compare the images with qemu-img compare ==
+Images are identical.
+
+== Creating image ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+No errors were found on the image.
+wrote 524288/524288 bytes at offset 24
+512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== Converting the image with dd with count=1 skip=2 seek=0 ==
+No errors were found on the image.
+
+== Compare the images with qemu-img compare ==
+Images are identical.
+
+== Creating image ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+No errors were found on the image.
+wrote 524288/524288 bytes at offset 24
+512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== Converting the image with dd with count=1 skip=2 seek=2 ==
+No errors were found on the image.
+
+== Compare the images with qemu-img compare ==
+Images are identical.
+
+== Creating image ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+No errors were found on the image.
+wrote 524288/524288 bytes at offset 24
+512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== Converting the image with dd with count=1 skip=2 seek=30 ==
+No errors were found on the image.
+
+== Compare the images with qemu-img compare ==
+Images are identical.
+
+== Creating image ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+No errors were found on the image.
+wrote 524288/524288 bytes at offset 24
+512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== Converting the image with dd with count=1 skip=2 seek=30K ==
+No errors were found on the image.
+
+== Compare the images with qemu-img compare ==
+Images are identical.
+
+== Creating image ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+No errors were found on the image.
+wrote 524288/524288 bytes at offset 24
+512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== Converting the image with dd with skip=30 seek=0 ==
+No errors were found on the image.
+
+== Compare the images with qemu-img compare ==
+Images are identical.
+
+== Creating image ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+No errors were found on the image.
+wrote 524288/524288 bytes at offset 24
+512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== Converting the image with dd with skip=30 seek=2 ==
+No errors were found on the image.
+
+== Compare the images with qemu-img compare ==
+Images are identical.
+
+== Creating image ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+No errors were found on the image.
+wrote 524288/524288 bytes at offset 24
+512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== Converting the image with dd with skip=30 seek=30 ==
+No errors were found on the image.
+
+== Compare the images with qemu-img compare ==
+Images are identical.
+
+== Creating image ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+No errors were found on the image.
+wrote 524288/524288 bytes at offset 24
+512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== Converting the image with dd with skip=30 seek=30K ==
+No errors were found on the image.
+
+== Compare the images with qemu-img compare ==
+Images are identical.
+
+== Creating image ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+No errors were found on the image.
+wrote 524288/524288 bytes at offset 24
+512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== Converting the image with dd with count=1 skip=30 seek=0 ==
+No errors were found on the image.
+
+== Compare the images with qemu-img compare ==
+Images are identical.
+
+== Creating image ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+No errors were found on the image.
+wrote 524288/524288 bytes at offset 24
+512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== Converting the image with dd with count=1 skip=30 seek=2 ==
+No errors were found on the image.
+
+== Compare the images with qemu-img compare ==
+Images are identical.
+
+== Creating image ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+No errors were found on the image.
+wrote 524288/524288 bytes at offset 24
+512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== Converting the image with dd with count=1 skip=30 seek=30 ==
+No errors were found on the image.
+
+== Compare the images with qemu-img compare ==
+Images are identical.
+
+== Creating image ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+No errors were found on the image.
+wrote 524288/524288 bytes at offset 24
+512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== Converting the image with dd with count=1 skip=30 seek=30K ==
+No errors were found on the image.
+
+== Compare the images with qemu-img compare ==
+Images are identical.
+
+== Creating image ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+No errors were found on the image.
+wrote 524288/524288 bytes at offset 24
+512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== Converting the image with dd with skip=30K seek=0 ==
+No errors were found on the image.
+
+== Compare the images with qemu-img compare ==
+Images are identical.
+
+== Creating image ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+No errors were found on the image.
+wrote 524288/524288 bytes at offset 24
+512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== Converting the image with dd with skip=30K seek=2 ==
+No errors were found on the image.
+
+== Compare the images with qemu-img compare ==
+Images are identical.
+
+== Creating image ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+No errors were found on the image.
+wrote 524288/524288 bytes at offset 24
+512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== Converting the image with dd with skip=30K seek=30 ==
+No errors were found on the image.
+
+== Compare the images with qemu-img compare ==
+Images are identical.
+
+== Creating image ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+No errors were found on the image.
+wrote 524288/524288 bytes at offset 24
+512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== Converting the image with dd with skip=30K seek=30K ==
+No errors were found on the image.
+
+== Compare the images with qemu-img compare ==
+Images are identical.
+
+== Creating image ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+No errors were found on the image.
+wrote 524288/524288 bytes at offset 24
+512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== Converting the image with dd with count=1 skip=30K seek=0 ==
+No errors were found on the image.
+
+== Compare the images with qemu-img compare ==
+Images are identical.
+
+== Creating image ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+No errors were found on the image.
+wrote 524288/524288 bytes at offset 24
+512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== Converting the image with dd with count=1 skip=30K seek=2 ==
+No errors were found on the image.
+
+== Compare the images with qemu-img compare ==
+Images are identical.
+
+== Creating image ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+No errors were found on the image.
+wrote 524288/524288 bytes at offset 24
+512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== Converting the image with dd with count=1 skip=30K seek=30 ==
+No errors were found on the image.
+
+== Compare the images with qemu-img compare ==
+Images are identical.
+
+== Creating image ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+No errors were found on the image.
+wrote 524288/524288 bytes at offset 24
+512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== Converting the image with dd with count=1 skip=30K seek=30K ==
 No errors were found on the image.
 
 == Compare the images with qemu-img compare ==

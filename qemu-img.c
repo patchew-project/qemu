@@ -195,7 +195,8 @@ static void QEMU_NORETURN help(void)
            "  'count=N' copy only N input blocks\n"
            "  'if=FILE' read from FILE\n"
            "  'of=FILE' write to FILE\n"
-           "  'skip=N' skip N bs-sized blocks at the start of input\n";
+           "  'skip=N' skip N bs-sized blocks at the start of input\n"
+           "  'seek=N' skip N bs-sized blocks at the start of output\n";
 
     printf("%s\nSupported formats:", help_msg);
     bdrv_iterate_format(format_print, NULL);
@@ -4296,11 +4297,12 @@ out:
     return 0;
 }
 
-#define C_BS      01
-#define C_COUNT   02
-#define C_IF      04
-#define C_OF      010
-#define C_SKIP    020
+#define C_BS      0x1
+#define C_COUNT   0x2
+#define C_IF      0x4
+#define C_OF      0x8
+#define C_SKIP    0x10
+#define C_SEEK    0x20
 
 struct DdInfo {
     unsigned int flags;
@@ -4383,6 +4385,20 @@ static int img_dd_skip(const char *arg,
     return 0;
 }
 
+static int img_dd_seek(const char *arg,
+                       struct DdIo *in, struct DdIo *out,
+                       struct DdInfo *dd)
+{
+    out->offset = cvtnum(arg);
+
+    if (out->offset < 0) {
+        error_report("invalid number: '%s'", arg);
+        return 1;
+    }
+
+    return 0;
+}
+
 static int img_dd(int argc, char **argv)
 {
     int ret = 0;
@@ -4399,6 +4415,7 @@ static int img_dd(int argc, char **argv)
     const char *fmt = NULL;
     int64_t size = 0;
     int64_t block_count = 0, out_pos, in_pos, end;
+    int64_t seek = 0;
     bool force_share = false;
     struct DdInfo dd = {
         .flags = 0,
@@ -4423,6 +4440,7 @@ static int img_dd(int argc, char **argv)
         { "if", img_dd_if, C_IF },
         { "of", img_dd_of, C_OF },
         { "skip", img_dd_skip, C_SKIP },
+        { "seek", img_dd_seek, C_SEEK },
         { NULL, NULL, 0 }
     };
     const struct option long_options[] = {
@@ -4574,7 +4592,14 @@ static int img_dd(int argc, char **argv)
         size = dd.count * in.bsz;
     }
 
-    qemu_opt_set_number(opts, BLOCK_OPT_SIZE, size, &error_abort);
+    if (dd.flags & C_SEEK && out.offset * out.bsz > INT64_MAX - size) {
+        error_report("Seek too large for '%s'", out.filename);
+        ret = -1;
+        goto out;
+    }
+    seek = out.offset * out.bsz;
+
+    qemu_opt_set_number(opts, BLOCK_OPT_SIZE, size + seek, &error_abort);
     end = size + in_pos;
 
     ret = bdrv_create(drv, out.filename, opts, &local_err);
@@ -4617,7 +4642,7 @@ static int img_dd(int argc, char **argv)
         }
         in_pos += in_ret;
 
-        out_ret = blk_pwrite(blk2, out_pos, in.buf, in_ret, 0);
+        out_ret = blk_pwrite(blk2, out_pos + seek, in.buf, in_ret, 0);
 
         if (out_ret < 0) {
             error_report("error while writing to output image file: %s",
