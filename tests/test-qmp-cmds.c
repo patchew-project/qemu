@@ -122,6 +122,21 @@ static void test_dispatch_cmd(void)
     qobject_unref(req);
 }
 
+static void test_dispatch_cmd_oob(void)
+{
+    QDict *req = qdict_new();
+    QDict *resp;
+
+    qdict_put_str(req, "exec-oob", "test-flags-command");
+
+    resp = qmp_dispatch(&qmp_commands, QOBJECT(req), true);
+    assert(resp != NULL);
+    assert(!qdict_haskey(resp, "error"));
+
+    qobject_unref(resp);
+    qobject_unref(req);
+}
+
 /* test commands that return an error due to invalid parameters */
 static void test_dispatch_cmd_failure(void)
 {
@@ -287,6 +302,7 @@ int main(int argc, char **argv)
     g_test_init(&argc, &argv, NULL);
 
     g_test_add_func("/dispatch_cmd", test_dispatch_cmd);
+    g_test_add_func("/dispatch_cmd_oob", test_dispatch_cmd_oob);
     g_test_add_func("/dispatch_cmd_failure", test_dispatch_cmd_failure);
     g_test_add_func("/dispatch_cmd_io", test_dispatch_cmd_io);
     g_test_add_func("/dealloc_types", test_dealloc_types);
