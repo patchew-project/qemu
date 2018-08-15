@@ -689,7 +689,7 @@ monitor_qapi_event_queue_no_reenter(QAPIEvent event, QDict *qdict)
 }
 
 static void
-monitor_qapi_event_queue(QAPIEvent event, QDict *qdict, Error **errp)
+monitor_qapi_event_queue(QAPIEvent event, QDict *qdict)
 {
     /*
      * monitor_qapi_event_queue_no_reenter() is not reentrant: it
@@ -4310,8 +4310,7 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
              * that command was dropped.
              */
             qapi_event_send_command_dropped(id,
-                                            COMMAND_DROP_REASON_QUEUE_FULL,
-                                            &error_abort);
+                                            COMMAND_DROP_REASON_QUEUE_FULL);
             qmp_request_free(req_obj);
             return;
         }

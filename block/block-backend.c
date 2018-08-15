@@ -981,8 +981,7 @@ void blk_dev_change_media_cb(BlockBackend *blk, bool load, Error **errp)
 
         if (tray_was_open != tray_is_open) {
             char *id = blk_get_attached_dev_id(blk);
-            qapi_event_send_device_tray_moved(blk_name(blk), id, tray_is_open,
-                                              &error_abort);
+            qapi_event_send_device_tray_moved(blk_name(blk), id, tray_is_open);
             g_free(id);
         }
     }
@@ -1666,8 +1665,7 @@ static void send_qmp_error_event(BlockBackend *blk,
     qapi_event_send_block_io_error(blk_name(blk), !!bs,
                                    bs ? bdrv_get_node_name(bs) : NULL, optype,
                                    action, blk_iostatus_is_enabled(blk),
-                                   error == ENOSPC, strerror(error),
-                                   &error_abort);
+                                   error == ENOSPC, strerror(error));
 }
 
 /* This is done by device models because, while the block layer knows
@@ -1783,7 +1781,7 @@ void blk_eject(BlockBackend *blk, bool eject_flag)
      * the frontend experienced a tray event. */
     id = blk_get_attached_dev_id(blk);
     qapi_event_send_device_tray_moved(blk_name(blk), id,
-                                      eject_flag, &error_abort);
+                                      eject_flag);
     g_free(id);
 }
 
