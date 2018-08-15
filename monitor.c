@@ -376,6 +376,7 @@ static void monitor_qmp_cleanup_req_queue_locked(Monitor *mon)
     while (!g_queue_is_empty(mon->qmp.qmp_requests)) {
         qmp_request_free(g_queue_pop_head(mon->qmp.qmp_requests));
     }
+    trace_monitor_qmp_request_queue(mon, 0);
 }
 
 /* Caller must hold the mon->qmp.qmp_lock */
@@ -384,6 +385,7 @@ static void monitor_qmp_cleanup_resp_queue_locked(Monitor *mon)
     while (!g_queue_is_empty(mon->qmp.qmp_responses)) {
         qobject_unref((QDict *)g_queue_pop_head(mon->qmp.qmp_responses));
     }
+    trace_monitor_qmp_response_queue(mon, 0);
 }
 
 static void monitor_qmp_cleanup_queues(Monitor *mon)
@@ -409,6 +411,7 @@ static void monitor_qmp_try_resume_locked(Monitor *mon)
     if (mon->qmp.need_resume) {
         monitor_resume(mon);
         mon->qmp.need_resume = false;
+        trace_monitor_qmp_resume(mon);
     }
 }
 
@@ -556,6 +559,7 @@ static void qmp_queue_response(Monitor *mon, QDict *rsp)
          */
         qemu_mutex_lock(&mon->qmp.qmp_lock);
         g_queue_push_tail(mon->qmp.qmp_responses, qobject_ref(rsp));
+        trace_monitor_qmp_response_queue(mon, mon->qmp.qmp_responses->length);
         qemu_mutex_unlock(&mon->qmp.qmp_lock);
         qemu_bh_schedule(qmp_respond_bh);
     } else {
@@ -579,6 +583,7 @@ static QDict *monitor_qmp_response_pop_one(Monitor *mon)
 
     qemu_mutex_lock(&mon->qmp.qmp_lock);
     data = g_queue_pop_head(mon->qmp.qmp_responses);
+    trace_monitor_qmp_response_queue(mon, mon->qmp.qmp_responses->length);
     /* In case if we were suspended due to response queue full */
     monitor_qmp_try_resume_locked(mon);
     qemu_mutex_unlock(&mon->qmp.qmp_lock);
@@ -4223,6 +4228,7 @@ static QMPRequest *monitor_qmp_requests_pop_any(void)
     QTAILQ_FOREACH(mon, &mon_list, entry) {
         qemu_mutex_lock(&mon->qmp.qmp_lock);
         req_obj = g_queue_pop_head(mon->qmp.qmp_requests);
+        trace_monitor_qmp_request_queue(mon, mon->qmp.qmp_requests->length);
         qemu_mutex_unlock(&mon->qmp.qmp_lock);
         if (req_obj) {
             break;
@@ -4280,6 +4286,7 @@ static void monitor_qmp_suspend_locked(Monitor *mon)
     assert(mon->qmp.need_resume == false);
     monitor_suspend(mon);
     mon->qmp.need_resume = true;
+    trace_monitor_qmp_suspend(mon);
 }
 
 static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
@@ -4353,6 +4360,7 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
      * etc. will be delivered to the handler side.
      */
     g_queue_push_tail(mon->qmp.qmp_requests, req_obj);
+    trace_monitor_qmp_request_queue(mon, mon->qmp.qmp_requests->length);
     qemu_mutex_unlock(&mon->qmp.qmp_lock);
 
     /* Kick the dispatcher routine */

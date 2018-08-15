@@ -50,6 +50,10 @@ handle_qmp_command(void *mon, const char *req) "mon %p req: %s"
 monitor_suspend(void *ptr, int cnt) "mon %p: %d"
 monitor_qmp_cmd_in_band(const char *id) "%s"
 monitor_qmp_cmd_out_of_band(const char *id) "%s"
+monitor_qmp_suspend(void *mon) "mon=%p"
+monitor_qmp_resume(void *mon) "mon=%p"
+monitor_qmp_request_queue(void *mon, int len) "mon=%p len=%d"
+monitor_qmp_response_queue(void *mon, int len) "mon=%p len=%d"
 
 # dma-helpers.c
 dma_blk_io(void *dbs, void *bs, int64_t offset, bool to_dev) "dbs=%p bs=%p offset=%" PRId64 " to_dev=%d"
