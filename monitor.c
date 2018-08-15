@@ -552,23 +552,15 @@ static void qmp_send_response(Monitor *mon, QDict *rsp)
 
 static void qmp_queue_response(Monitor *mon, QDict *rsp)
 {
-    if (mon->use_io_thread) {
-        /*
-         * Push a reference to the response queue.  The I/O thread
-         * drains that queue and emits.
-         */
-        qemu_mutex_lock(&mon->qmp.qmp_lock);
-        g_queue_push_tail(mon->qmp.qmp_responses, qobject_ref(rsp));
-        trace_monitor_qmp_response_queue(mon, mon->qmp.qmp_responses->length);
-        qemu_mutex_unlock(&mon->qmp.qmp_lock);
-        qemu_bh_schedule(qmp_respond_bh);
-    } else {
-        /*
-         * Not using monitor I/O thread, i.e. we are in the main thread.
-         * Emit right away.
-         */
-        qmp_send_response(mon, rsp);
-    }
+    /*
+     * Push a reference to the response queue.  The I/O thread drains
+     * that queue and emits.
+     */
+    qemu_mutex_lock(&mon->qmp.qmp_lock);
+    g_queue_push_tail(mon->qmp.qmp_responses, qobject_ref(rsp));
+    trace_monitor_qmp_response_queue(mon, mon->qmp.qmp_responses->length);
+    qemu_mutex_unlock(&mon->qmp.qmp_lock);
+    qemu_bh_schedule(qmp_respond_bh);
 }
 
 struct QMPResponse {
@@ -4433,12 +4425,9 @@ void monitor_resume(Monitor *mon)
     if (atomic_dec_fetch(&mon->suspend_cnt) == 0) {
         if (monitor_is_qmp(mon)) {
             /*
-             * For QMP monitors that are running in the I/O thread,
-             * let's kick the thread in case it's sleeping.
+             * Let's kick the thread in case it's sleeping.
              */
-            if (mon->use_io_thread) {
-                aio_notify(iothread_get_aio_context(mon_iothread));
-            }
+            aio_notify(iothread_get_aio_context(mon_iothread));
         } else {
             assert(mon->rs);
             readline_show_prompt(mon->rs);
