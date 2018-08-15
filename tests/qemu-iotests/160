@@ -44,6 +44,7 @@ _supported_os Linux
 TEST_SKIP_BLOCKS="1 2 30 30K"
 
 for skip in $TEST_SKIP_BLOCKS; do
+  for count in '' 'count=1 '; do
     echo
     echo "== Creating image =="
 
@@ -53,17 +54,19 @@ for skip in $TEST_SKIP_BLOCKS; do
     $QEMU_IO -c "write -P 0xa 24 512k" "$TEST_IMG" | _filter_qemu_io
 
     echo
-    echo "== Converting the image with dd with skip=$skip =="
+    echo "== Converting the image with dd with ${count}skip=$skip =="
 
-    $QEMU_IMG dd if="$TEST_IMG" of="$TEST_IMG.out" skip="$skip" -O "$IMGFMT" \
+    $QEMU_IMG dd if="$TEST_IMG" of="$TEST_IMG.out" $count skip="$skip" -O "$IMGFMT" \
         2> /dev/null
     TEST_IMG="$TEST_IMG.out" _check_test_img
-    dd if="$TEST_IMG" of="$TEST_IMG.out.dd" skip="$skip" status=none
+    dd if="$TEST_IMG" of="$TEST_IMG.out.dd" $count skip="$skip" status=none
 
     echo
     echo "== Compare the images with qemu-img compare =="
 
     $QEMU_IMG compare "$TEST_IMG.out.dd" "$TEST_IMG.out"
+    rm "$TEST_IMG.out.dd"
+  done
 done
 
 echo

@@ -4398,7 +4398,7 @@ static int img_dd(int argc, char **argv)
     const char *out_fmt = "raw";
     const char *fmt = NULL;
     int64_t size = 0;
-    int64_t block_count = 0, out_pos, in_pos;
+    int64_t block_count = 0, out_pos, in_pos, end;
     bool force_share = false;
     struct DdInfo dd = {
         .flags = 0,
@@ -4559,19 +4559,23 @@ static int img_dd(int argc, char **argv)
         goto out;
     }
 
+    /* Overflow means the specified offset is beyond input image's size */
+    if (dd.flags & C_SKIP && (in.offset > INT64_MAX / in.bsz ||
+                              size < in.bsz * in.offset)) {
+        size = 0;
+        error_report("%s: cannot skip to specified offset", in.filename);
+    } else {
+        size -= in.offset * in.bsz;
+        in_pos = in.offset * in.bsz;
+    }
+
     if (dd.flags & C_COUNT && dd.count <= INT64_MAX / in.bsz &&
         dd.count * in.bsz < size) {
         size = dd.count * in.bsz;
     }
 
-    /* Overflow means the specified offset is beyond input image's size */
-    if (dd.flags & C_SKIP && (in.offset > INT64_MAX / in.bsz ||
-                              size < in.bsz * in.offset)) {
-        qemu_opt_set_number(opts, BLOCK_OPT_SIZE, 0, &error_abort);
-    } else {
-        qemu_opt_set_number(opts, BLOCK_OPT_SIZE,
-                            size - in.bsz * in.offset, &error_abort);
-    }
+    qemu_opt_set_number(opts, BLOCK_OPT_SIZE, size, &error_abort);
+    end = size + in_pos;
 
     ret = bdrv_create(drv, out.filename, opts, &local_err);
     if (ret < 0) {
@@ -4595,24 +4599,13 @@ static int img_dd(int argc, char **argv)
         goto out;
     }
 
-    if (dd.flags & C_SKIP && (in.offset > INT64_MAX / in.bsz ||
-                              size < in.offset * in.bsz)) {
-        /* We give a warning if the skip option is bigger than the input
-         * size and create an empty output disk image (i.e. like dd(1)).
-         */
-        error_report("%s: cannot skip to specified offset", in.filename);
-        in_pos = size;
-    } else {
-        in_pos = in.offset * in.bsz;
-    }
-
     in.buf = g_new(uint8_t, in.bsz);
 
-    for (out_pos = 0; in_pos < size; block_count++) {
+    for (out_pos = 0; in_pos < end; block_count++) {
         int in_ret, out_ret;
 
-        if (in_pos + in.bsz > size) {
-            in_ret = blk_pread(blk1, in_pos, in.buf, size - in_pos);
+        if (in_pos + in.bsz > end) {
+            in_ret = blk_pread(blk1, in_pos, in.buf, end - in_pos);
         } else {
             in_ret = blk_pread(blk1, in_pos, in.buf, in.bsz);
         }
