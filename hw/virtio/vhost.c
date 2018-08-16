@@ -1633,6 +1633,37 @@ void vhost_dev_stop(struct vhost_dev *hdev, VirtIODevice *vdev)
     hdev->vdev = NULL;
 }
 
+int vhost_dev_reconnect(struct vhost_dev *hdev)
+{
+    int i, r;
+
+    assert(hdev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_USER);
+    assert(hdev->started);
+    assert(hdev->vhost_ops);
+    assert(hdev->vdev);
+
+    for (i = 0; i < hdev->nvqs; ++i) {
+        /* Sync internal last avail idx to the device used idx. */
+        virtio_queue_restore_last_avail_idx(hdev->vdev, hdev->vq_index + i);
+    }
+
+    r = vhost_dev_sync_backend(hdev);
+    if (r < 0) {
+        goto fail;
+    }
+
+    /* Sync previous mask values */
+    for (i = 0; i < hdev->nvqs; ++i) {
+        unsigned idx = hdev->vq_index + i;
+        vhost_virtqueue_mask(hdev, hdev->vdev, idx, hdev->vqs[idx].masked);
+    }
+
+    return 0;
+
+fail:
+    return r;
+}
+
 int vhost_net_set_backend(struct vhost_dev *hdev,
                           struct vhost_vring_file *file)
 {

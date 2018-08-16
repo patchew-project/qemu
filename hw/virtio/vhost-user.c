@@ -1121,6 +1121,17 @@ out:
     return ret;
 }
 
+static void vhost_close_slave_channel(struct vhost_dev *dev)
+{
+    struct vhost_user *u = dev->opaque;
+
+    if (u->slave_fd >= 0) {
+        qemu_set_fd_handler(u->slave_fd, NULL, NULL, NULL);
+        close(u->slave_fd);
+        u->slave_fd = -1;
+    }
+}
+
 /*
  * Called back from the postcopy fault thread when a fault is received on our
  * ufd.
@@ -1334,6 +1345,41 @@ static int vhost_user_postcopy_notifier(NotifierWithReturn *notifier,
     return 0;
 }
 
+static void vhost_user_reconnect_handler(void *opaque, int event)
+{
+    struct vhost_user *u = opaque;
+    struct vhost_dev *dev = u->dev;
+    int err;
+
+    if (!dev->started || event != CHR_EVENT_OPENED) {
+        return;
+    }
+
+    if (virtio_has_feature(dev->features, VHOST_USER_F_PROTOCOL_FEATURES)) {
+        err = vhost_user_set_protocol_features(dev, dev->protocol_features);
+        if (err < 0) {
+            goto fail;
+        }
+    }
+
+    vhost_close_slave_channel(dev);
+    err = vhost_setup_slave_channel(dev);
+    if (err < 0) {
+        goto fail;
+    }
+
+    err = vhost_dev_reconnect(dev);
+    if (err < 0) {
+        goto fail;
+    }
+
+    return;
+
+fail:
+    error_report("Failed to reconnect to backend: %d", err);
+    qemu_chr_fe_disconnect(u->user->chr);
+}
+
 static int vhost_user_backend_init(struct vhost_dev *dev, void *opaque)
 {
     uint64_t features, protocol_features;
@@ -1347,6 +1393,19 @@ static int vhost_user_backend_init(struct vhost_dev *dev, void *opaque)
     u->slave_fd = -1;
     u->dev = dev;
     dev->opaque = u;
+
+    /* We expect the socket is already connected, but Chardev with reconnect
+     * option postpones connect till machine init done event. If this is the
+     * case, then the connect will be forced. */
+    if (!qemu_chr_fe_backend_open(u->user->chr) &&
+        qemu_chr_fe_wait_connected(u->user->chr, NULL) < 0) {
+        return -1;
+    }
+
+    /* Set reconnection handler. */
+    qemu_chr_fe_set_handlers(u->user->chr, NULL, NULL,
+                             vhost_user_reconnect_handler,
+                             NULL, u, NULL, false);
 
     err = vhost_user_get_features(dev, &features);
     if (err < 0) {
@@ -1430,11 +1489,7 @@ static int vhost_user_backend_cleanup(struct vhost_dev *dev)
         postcopy_remove_notifier(&u->postcopy_notifier);
         u->postcopy_notifier.notify = NULL;
     }
-    if (u->slave_fd >= 0) {
-        qemu_set_fd_handler(u->slave_fd, NULL, NULL, NULL);
-        close(u->slave_fd);
-        u->slave_fd = -1;
-    }
+    vhost_close_slave_channel(dev);
     g_free(u->region_rb);
     u->region_rb = NULL;
     g_free(u->region_rb_offset);
