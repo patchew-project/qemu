@@ -1798,6 +1798,7 @@ User authorization
 M: Daniel P. Berrange <berrange@redhat.com>
 S: Maintained
 F: authz/
+F: qapi/authz.json
 F: include/authz/
 F: tests/test-authz-*
 
