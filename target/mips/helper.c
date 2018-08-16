@@ -682,6 +682,31 @@ static void set_hflags_for_handler (CPUMIPSState *env)
 
 static inline void set_badinstr_registers(CPUMIPSState *env)
 {
+    if (env->insn_flags & ISA_NANOMIPS32) {
+        if (env->CP0_Config3 & (1 << CP0C3_BI)) {
+            uint32_t instr = (cpu_lduw_code(env, env->active_tc.PC)) << 16;
+            if ((instr & 0x10000000) == 0) {
+                instr |= cpu_lduw_code(env, env->active_tc.PC + 2);
+            }
+            env->CP0_BadInstr = instr;
+
+            if ((instr & 0xFC000000) == 0x60000000) {
+                instr = cpu_lduw_code(env, env->active_tc.PC + 4) << 16;
+                env->CP0_BadInstrX = instr;
+            }
+        }
+        if ((env->CP0_Config3 & (1 << CP0C3_BP)) &&
+            (env->hflags & MIPS_HFLAG_BMASK)) {
+            if (!(env->hflags & MIPS_HFLAG_B16)) {
+                env->CP0_BadInstrP = cpu_ldl_code(env, env->active_tc.PC - 4);
+            } else {
+                env->CP0_BadInstrP =
+                    (cpu_lduw_code(env, env->active_tc.PC - 2)) << 16;
+            }
+        }
+        return;
+    }
+
     if (env->hflags & MIPS_HFLAG_M16) {
         /* TODO: add BadInstr support for microMIPS */
         return;
