@@ -147,4 +147,5 @@ typedef struct PCIResReserve {
 int pci_bridge_qemu_reserve_cap_init(PCIDevice *dev, int cap_offset,
                                PCIResReserve res_reserve, Error **errp);
 
+void pci_bridge_qemu_reserve_cap_uninit(PCIDevice *dev);
 #endif /* QEMU_PCI_BRIDGE_H */

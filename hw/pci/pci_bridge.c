@@ -465,6 +465,15 @@ int pci_bridge_qemu_reserve_cap_init(PCIDevice *dev, int cap_offset,
     return 0;
 }
 
+void pci_bridge_qemu_reserve_cap_uninit(PCIDevice *dev)
+{
+    uint8_t pos = pci_find_capability(dev, PCI_CAP_ID_VNDR);
+
+    pci_del_capability(dev, PCI_CAP_ID_VNDR, sizeof(PCIBridgeQemuCap));
+    memset(dev->config + pos + PCI_CAP_FLAGS, 0,
+           sizeof(PCIBridgeQemuCap) - PCI_CAP_FLAGS);
+}
+
 static const TypeInfo pci_bridge_type_info = {
     .name = TYPE_PCI_BRIDGE,
     .parent = TYPE_PCI_DEVICE,
