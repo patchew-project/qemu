@@ -558,6 +558,8 @@ struct mips_opcode
 #define INSN_ISA32R6              0x00000200
 #define INSN_ISA64R6              0x00000400
 
+#define INSN_ISANANOMIPS32        0x00000800
+
 /* Masks used for MIPS-defined ASEs.  */
 #define INSN_ASE_MASK		  0x0000f000
 
@@ -1166,6 +1168,8 @@ extern const int bfd_mips16_num_opcodes;
 #define I65	INSN_ISA64R2
 #define I32R6   INSN_ISA32R6
 #define I64R6   INSN_ISA64R6
+
+#define M32R7   INSN_ISANANOMIPS32
 
 /* MIPS64 MIPS-3D ASE support.  */
 #define I16     INSN_MIPS16
@@ -5086,7 +5090,7 @@ print_insn_little_mips (bfd_vma memaddr, struct disassemble_info *info)
 {
   return _print_insn_mips (memaddr, info, BFD_ENDIAN_LITTLE);
 }
-
+
 /* Disassemble mips16 instructions.  */
 #if 0
 static int
@@ -5798,3 +5802,355 @@ with the -M switch (multiple options should be separated by commas):\n");
   fprintf (stream, "\n");
 }
 #endif
+
+const struct mips_opcode micromips_opcodes[] = {
+/*
+ * These instructions appear first so that the disassembler will find
+ *  them first.  The assemblers uses a hash table based on the
+ *  instruction name anyhow.
+ */
+
+/* name,        args,       match,      mask,       pinfo,        membership */
+{"add",         "d,t,v",    0x20000110, 0xfc0003ff, WR_t,         0, M32R7},
+/* put sigrie before addiu */
+{"sigrie",      "mij",      0x00000000, 0xffe00000, WR_d,         0, M32R7},
+{"addiu",       "v,t,mid",  0x00000000, 0xfc006000, WR_d,         0, M32R7},
+/* addiugp */
+{"addiu",       "v,m8,mik", 0x40000000, 0xfc000003, WR_d,         0, M32R7},
+{"au20ipc",     "v,miv",    0xe0000002, 0xfc000002, WR_d,         0, M32R7},
+/* aluipcgp */
+{"alu20ipc",    "m8,miv",   0xe0000002, 0xffe00002, WR_d,         0, M32R7},
+{"addu",        "d,t,v",    0x20000150, 0xfc0003ff, WR_d,         0, M32R7},
+{"align",       "d,t,v",    0x2000001f, 0xfc00003f, WR_d,         0, M32R7},
+{"and",         "d,t,v",    0x20000250, 0xfc0003ff, WR_d,         0, M32R7},
+{"andi",        "v,t,miC",  0x80002000, 0xfc00f000, WR_d,         0, M32R7},
+{"balc",        "map",      0x2a000000, 0xfe000000, WR_d,         0, M32R7},
+{"bc",          "map",      0x28000000, 0xfc000000, WR_d,         0, M32R7},
+{"beqc",        "t,v,mae",  0x88000000, 0xfc00c000, WR_d,         0, M32R7},
+{"beqic",      "v,miB,mab", 0xc8000000, 0xfc1c0000, WR_d,         0, M32R7},
+{"beqzc",       "v,mak",    0xe8000000, 0xfc100000, WR_d,         0, M32R7},
+{"bgec",        "t,v,mae",  0x88008000, 0xfc00c000, WR_d,         0, M32R7},
+{"bgeic",      "v,miB,mab", 0xc8080000, 0xfc1c0000, WR_d,         0, M32R7},
+{"bgeuc",       "t,v,mae",  0x8800c000, 0xfc00c000, WR_d,         0, M32R7},
+{"bgeiuc",     "v,miB,mab", 0xc80c0000, 0xfc1c0000, WR_d,         0, M32R7},
+{"bitswap",     "v,t",      0x20000b3f, 0xfc00ffff, WR_d,         0, M32R7},
+{"bltc",        "t,v,mae",  0xa8008000, 0xfc00c000, WR_d,         0, M32R7},
+{"bltic",      "v,miB,mab", 0xc8180000, 0xfc1c0000, WR_d,         0, M32R7},
+{"bltuc",       "t,v,mae",  0xa800c000, 0xfc00c000, WR_d,         0, M32R7},
+{"bltiuc",     "v,miB,mab", 0xc81c0000, 0xfc1c0000, WR_d,         0, M32R7},
+{"bnec",        "t,v,mae",  0xa8000000, 0xfc00c000, WR_d,         0, M32R7},
+{"bneic",      "v,miB,mab", 0xc8100000, 0xfc1c0000, WR_d,         0, M32R7},
+{"bnezc",       "v,mak",    0xe8100000, 0xfc100000, WR_d,         0, M32R7},
+{"break",       "mij",      0x00100000, 0xfff80000, WR_d,         0, M32R7},
+{"cache",       "6,mi8(t)", 0xa4001900, 0xfc007f00, WR_d,         0, M32R7},
+{"clo",         "v,t",      0x20004b3f, 0xfc00ffff, WR_d,         0, M32R7},
+{"clz",         "v,t",      0x20005b3f, 0xfc00ffff, WR_d,         0, M32R7},
+{"di",          "",         0x2000477f, 0xffe0ffff, WR_d,         0, M32R7},
+{"di",          "v",        0x2000477f, 0xfc00ffff, WR_d,         0, M32R7},
+{"div",         "d,t,v",    0x20000118, 0xfc0003ff, WR_d,         0, M32R7},
+{"divu",        "d,t,v",    0x20000198, 0xfc0003ff, WR_d,         0, M32R7},
+{"ei",          "",         0x2000577f, 0xffe0ffff, WR_d,         0, M32R7},
+{"ei",          "v",        0x2000577f, 0xfc00ffff, WR_d,         0, M32R7},
+{"eret",        "",         0x2000f37f, 0xfc01ffff, WR_d,         0, M32R7},
+{"eretnc",      "",         0x2001f37f, 0xfc01ffff, WR_d,         0, M32R7},
+{"ext",      "v,t,mi5,miz", 0x8000f000, 0xfc00f820, WR_d,         0, M32R7},
+{"ins",      "v,t,mi5,miZ", 0x8000e000, 0xfc00f820, WR_d,         0, M32R7},
+{"jalrc",       "v,t",      0x48000000, 0xfc00f000, WR_d,         0, M32R7},
+{"jalrc.hb",    "v,t",      0x48001000, 0xfc00f000, WR_d,         0, M32R7},
+{"lb",          "v,mic(t)", 0x84000000, 0xfc00f000, WR_d,         0, M32R7},
+/* lbgp */
+{"lb",         "v,mii(m8)", 0x44000000, 0xfc1c0000, WR_d,         0, M32R7},
+/* lbs9 */
+{"lb",          "v,mi8(t)", 0xa4000000, 0xfc007f00, WR_d,         0, M32R7},
+{"lbu",         "v,mic(t)", 0x84002000, 0xfc00f000, WR_d,         0, M32R7},
+/* lbugp */
+{"lbu",        "v,mii(m8)", 0x44080000, 0xfc1c0000, WR_d,         0, M32R7},
+/* lbus9 */
+{"lbu",         "v,mi8(t)", 0xa4001000, 0xfc007f00, WR_d,         0, M32R7},
+{"lbux",        "d,t(v)",   0x40000107, 0xfc0007ff, WR_d,         0, M32R7},
+{"lbx",         "d,t(v)",   0x40000107, 0xfc000007, WR_d,         0, M32R7},
+{"lh",          "v,mic(t)", 0x84004000, 0xfc00f000, WR_d,         0, M32R7},
+/* lhgp */
+{"lh",         "v,mii(m8)", 0x44100000, 0xfc1c0000, WR_d,         0, M32R7},
+/* lhs9 */
+{"lh",          "v,mi8(t)", 0xa4002000, 0xfc007f00, WR_d,         0, M32R7},
+{"lhu",         "v,mic(t)", 0x84006000, 0xfc00f000, WR_d,         0, M32R7},
+/* lhugp */
+{"lhu",        "v,mii(m8)", 0x44180000, 0xfc1c0000, WR_d,         0, M32R7},
+/* lhus9 */
+{"lhu",         "v,mi8(t)", 0xa4003000, 0xfc007f00, WR_d,         0, M32R7},
+{"lhux",        "d,t(v)",   0x40000307, 0xfc0007ff, WR_d,         0, M32R7},
+{"lhuxs",       "d,t(v)",   0x40000347, 0xfc0007ff, WR_d,         0, M32R7},
+{"lhx",         "d,t(v)",   0x40000207, 0xfc0007ff, WR_d,         0, M32R7},
+{"lhxs",        "d,t(v)",   0x40000247, 0xfc0007ff, WR_d,         0, M32R7},
+{"ll",          "v,mi8(t)", 0xa4004100, 0xfc007f03, WR_d,         0, M32R7},
+{"llwp",        "v,mu,(t)", 0xa4004101, 0xfc007f03, WR_d,         0, M32R7},
+{"lsa",        "d,t,v,mi(", 0x4000000f, 0xfc00003f, WR_d,         0, M32R7},
+{"lu20i",       "v,miv",    0xe0000000, 0xfc000002, WR_t,         0, M32R7},
+{"lw",          "v,mic(t)", 0x84008000, 0xfc00f000, WR_d,         0, M32R7},
+/* lws9 */
+{"lw",          "v,mi8(t)", 0xa4004000, 0xfc007f00, WR_d,         0, M32R7},
+/* lwgp */
+{"lw",         "v,mik(m8)", 0x40000002, 0xfc000003, WR_d,         0, M32R7},
+{"lwx",         "d,t(v)",   0x20000407, 0xfc0007ff, WR_d,         0, M32R7},
+{"lwxs",        "d,t(v)",   0x20000447, 0xfc0007ff, WR_d,         0, M32R7},
+{"mfc0",        "v,mG",     0x20000030, 0xfc003bff, WR_d,         0, M32R7},
+{"mfc0",        "v,mD",     0x20000030, 0xfc0003ff, WR_d,         0, M32R7},
+{"mod",         "d,t,v",    0x20000158, 0xfc0003ff, WR_d,         0, M32R7},
+{"modu",        "d,t,v",    0x200001d8, 0xfc0003ff, WR_d,         0, M32R7},
+{"move.balc",  "mo,ml,mal", 0x08000000, 0xfc000000, WR_d,         0, M32R7},
+{"movn",        "d,t,v",    0x20000610, 0xfc0007ff, WR_d,         0, M32R7},
+{"movz",        "d,t,v",    0x20000210, 0xfc0007ff, WR_d,         0, M32R7},
+{"mtc0",        "v,mG",     0x20000070, 0xfc003bff, WR_d,         0, M32R7},
+{"mtc0",        "v,mD",     0x20000070, 0xfc0003ff, WR_d,         0, M32R7},
+{"muh",         "d,t,v",    0x20000058, 0xfc0003ff, WR_d,         0, M32R7},
+{"muhu",        "d,t,v",    0x200000d8, 0xfc0003ff, WR_d,         0, M32R7},
+{"mul",         "d,t,v",    0x20000018, 0xfc0003ff, WR_d,         0, M32R7},
+{"mulu",        "d,t,v",    0x20000098, 0xfc0003ff, WR_d,         0, M32R7},
+{"nop",         "",         0x8000c000, 0xffe0f1ff, WR_d,         0, M32R7},
+{"nor",         "d,t,v",    0x200002d0, 0xfc0003ff, WR_d,         0, M32R7},
+{"or",          "d,t,v",    0x20000290, 0xfc0003ff, WR_d,         0, M32R7},
+{"ori",         "v,t,miC",  0x80000000, 0xfc00f000, WR_d,         0, M32R7},
+{"pause",       "",         0x8000c005, 0xffe0f1ff, WR_d,         0, M32R7},
+/* put synci before pref */
+{"synci",       "mi8(t)",   0xa7e01800, 0xffe07f00, WR_d,         0, M32R7},
+{"pref",      "miL,mi8(t)", 0xa4001800, 0xfc007f00, WR_d,         0, M32R7},
+{"rdhwr",       "v,mg",     0x200001c0, 0xfc0003ff, WR_d,         0, M32R7},
+{"rdpgpr",      "v,t",      0x2000e17f, 0xfc00ffff, WR_d,         0, M32R7},
+{"restore",     "mib,v",    0x80013000, 0xfc01f004, WR_d,         0, M32R7},
+{"restore.jrc", "mib,v",    0x80013004, 0xfc01f004, WR_d,         0, M32R7},
+{"rotr",        "v,t,mi5",  0x8000c0c0, 0xfc00f1e0, WR_d,         0, M32R7},
+{"rotrv",       "d,t,v",    0x200000d0, 0xfc0003ff, WR_d,         0, M32R7},
+{"save",        "mib,v",    0x80003000, 0xfc01f000, WR_d,         0, M32R7},
+{"sb",          "v,mic(t)", 0x84001000, 0xfc00f000, WR_d,         0, M32R7},
+/* sbs9 */
+{"sb",          "v,mi8(t)", 0xa4000800, 0xfc007f00, WR_d,         0, M32R7},
+/* sbgp */
+{"sb",         "v,mii(m8)", 0x44040000, 0xfc1c0000, WR_d,         0, M32R7},
+{"sbx",         "d,t(v)",   0x20000087, 0xfc0007ff, WR_d,         0, M32R7},
+{"sc",          "v,mi8(t)", 0xa4004900, 0xfc007f03, WR_d,         0, M32R7},
+{"scwp",        "v,m3,(t)", 0xa4004901, 0xfc007f03, WR_d,         0, M32R7},
+{"seb",         "v,t",      0x20002b3f, 0xfc00ffff, WR_d,         0, M32R7},
+{"seh",         "v,t",      0x20003b3f, 0xfc00ffff, WR_d,         0, M32R7},
+{"seqi",        "v,t,mic",  0x20006000, 0xfc00f000, WR_d,         0, M32R7},
+{"sh",          "v,mic(t)", 0x84005000, 0xfc00f000, WR_d,         0, M32R7},
+/* shs9 */
+{"sh",          "v,mi8(t)", 0xa4002800, 0xfc007f00, WR_d,         0, M32R7},
+/* shgp */
+{"sh",         "v,mii(m8)", 0x44140000, 0xfc1c0000, WR_d,         0, M32R7},
+{"shx",         "d,t(v)",   0x20000287, 0xfc0007ff, WR_d,         0, M32R7},
+{"shxs",        "d,t(v)",   0x200002c7, 0xfc0007ff, WR_d,         0, M32R7},
+/* put sync/ehb before sll */
+{"sync",        "miG",      0x8000c006, 0xffe0f1ff, WR_d,         0, M32R7},
+{"ehb",         "",         0x8000c003, 0xffe0f1ff, WR_d,         0, M32R7},
+{"sll",         "v,t,mi5",  0x8000c000, 0xfc00f1e0, WR_d,         0, M32R7},
+{"sllv",        "d,t,v",    0x20000010, 0xfc0003ff, WR_d,         0, M32R7},
+{"slt",         "d,t,v",    0x20000350, 0xfc0003ff, WR_d,         0, M32R7},
+{"slti",        "v,t,mic",  0x80004000, 0xfc00f000, WR_d,         0, M32R7},
+{"sltiu",       "v,t,mic",  0x80005000, 0xfc00f000, WR_d,         0, M32R7},
+{"sltu",        "d,t,v",    0x20000390, 0xfc0003ff, WR_d,         0, M32R7},
+{"sov",         "d,t,v",    0x200003d0, 0xfc0003ff, WR_d,         0, M32R7},
+{"sra",         "v,t,mi5",  0x8000c080, 0xfc00f1e0, WR_d,         0, M32R7},
+{"srav",        "d,t,v",    0x20000090, 0xfc0003ff, WR_d,         0, M32R7},
+{"srl",         "v,t,mi5",  0x8000c040, 0xfc00f1e0, WR_d,         0, M32R7},
+{"srlv",        "d,t,v",    0x20000050, 0xfc0003ff, WR_d,         0, M32R7},
+{"sub",         "d,t,v",    0x20000190, 0xfc0003ff, WR_d,         0, M32R7},
+{"subu",        "d,t,v",    0x200001d0, 0xfc0003ff, WR_d,         0, M32R7},
+{"sw",          "v,mic(t)", 0x84009000, 0xfc00f000, WR_d,         0, M32R7},
+/* sws9 */
+{"sw",          "v,mi8(t)", 0xa4004800, 0xfc007f00, WR_d,         0, M32R7},
+/* swgp */
+{"sw",         "v,mik(m8)", 0x40000003, 0xfc000003, WR_d,         0, M32R7},
+{"swx",         "d,t(v)",   0x20000487, 0xfc0007ff, WR_d,         0, M32R7},
+{"swxs",        "d,t(v)",   0x200004c7, 0xfc0007ff, WR_d,         0, M32R7},
+{"syscall",     "mii",      0x00080000, 0xfffc0000, WR_d,         0, M32R7},
+{"ualw",        "v,mi8(t)", 0xa4000100, 0xfc007f00, WR_d,         0, M32R7},
+{"uasw",        "v,mi8(t)", 0xa4000900, 0xfc007f00, WR_d,         0, M32R7},
+{"wait",        "miG",      0x2000c37f, 0xfc00ffff, WR_d,         0, M32R7},
+{"wrpgpr",      "v,t",      0x2000f17f, 0xfc00ffff, WR_d,         0, M32R7},
+{"wsbh",        "v,t",      0x20007b3f, 0xfc00ffff, WR_d,         0, M32R7},
+{"xor",         "d,t,v",    0x20000310, 0xfc0003ff, WR_d,         0, M32R7},
+{"xori",        "v,t,miC",  0x80001000, 0xfc00f000, WR_d,         0, M32R7},
+{"deret",       "",         0x2000e37f, 0xfc00ffff, WR_d,         0, M32R7},
+{"sdbbp",       "mij",      0x00180000, 0xfff80000, WR_d,         0, M32R7},
+{"tlbinv",      "",         0x2000077f, 0xfc00ffff, WR_d,         0, M32R7},
+{"tlbinvf",     "",         0x2000177f, 0xfc00ffff, WR_d,         0, M32R7},
+{"tlbp",        "",         0x2000037f, 0xfc00ffff, WR_d,         0, M32R7},
+{"tlbr",        "",         0x2000137f, 0xfc00ffff, WR_d,         0, M32R7},
+{"tlbwi",       "",         0x2000237f, 0xfc00ffff, WR_d,         0, M32R7},
+{"tlbwr",       "",         0x2000337f, 0xfc00ffff, WR_d,         0, M32R7},
+{"dvp",         "v",        0x20000390, 0xfc00ffff, WR_d,         0, M32R7},
+{"evp",         "v",        0x20000790, 0xfc00ffff, WR_d,         0, M32R7},
+{"balrc",       "v,t",      0x48008000, 0xfc00f200, WR_d,         0, M32R7},
+{"balrsc",      "v,t",      0x48008200, 0xfc00f200, WR_d,         0, M32R7},
+{"brc",         "t",        0x48008000, 0xffe0f200, WR_d,         0, M32R7},
+{"brsc",        "t",        0x48008200, 0xffe0f200, WR_d,         0, M32R7},
+/* ADDIU48 */
+{"addiu",       "v,miw",    0x60010000, 0xfc1f0000, WR_d,         0, M32R7},
+/* ADDIUGP48 */
+{"addiu",       "v,m8,miw", 0x60020000, 0xfc1f0000, WR_d,         0, M32R7},
+/* li48 */
+{"li",          "v,miw",    0x60000000, 0xfc1f0000, WR_d,         0, M32R7},
+
+/*  put before addiurs5 */
+{"nop",         "",         0x9008,     0xffff,     WR_t,         0, M32R7},
+/* addiu r1 sp */
+{"addiu",      "mt,m9,mi7", 0x7040,     0xfc40,     WR_t,         0, M32R7},
+/* addiu r2 */
+{"addiu",      "mt,ms,mi4", 0x9000,     0xfc08,     WR_t,         0, M32R7},
+/* addiu rs5 */
+{"addiu",       "m5,mi3",   0x9008,     0xfc08,     WR_t,         0, M32R7},
+{"addu",        "md,ms,mt", 0xb000,     0xfc01,     WR_t,         0, M32R7},
+{"and",         "mt,ms",    0x5008,     0xfc0f,     WR_t,         0, M32R7},
+{"andi",       "mt,ms,mi0", 0xf000,     0xfc00,     WR_t,         0, M32R7},
+{"balc",        "maa",      0x3800,     0xfc00,     WR_t,         0, M32R7},
+{"bc",          "maa",      0x1800,     0xfc00,     WR_t,         0, M32R7},
+/*  put jrc, jalrc before b{eq|ne}c */
+{"jrc",         "m5",       0xd800,     0xfc1f,     WR_t,         0, M32R7},
+{"jalrc",       "m5",       0xd810,     0xfc1f,     WR_t,         0, M32R7},
+/* b{eq|ne}c */
+{"",         "mQmt,ms,ma4", 0xd800,     0xfc00,     WR_t,         0, M32R7},
+{"beqzc",       "mt,ma7",   0x9800,     0xfc00,     WR_t,         0, M32R7},
+{"bnezc",       "mt,ma7",   0xb800,     0xfc00,     WR_t,         0, M32R7},
+{"break",       "mi2",      0x1010,     0xfff8,     WR_t,         0, M32R7},
+
+{"lb",        "mt,mi1(ms)", 0x1400,     0xfc0c,     WR_t,         0, M32R7},
+{"lbu",        "mt,mi1(ms", 0x1408,     0xfc0c,     WR_t,         0, M32R7},
+{"lh",        "mt,mi@(ms)", 0x3400,     0xfc09,     WR_t,         0, M32R7},
+{"lhu",       "mt,mi@(ms)", 0x3408,     0xfc09,     WR_t,         0, M32R7},
+{"li",          "mt,mi)",   0xd000,     0xfc00,     WR_t,         0, M32R7},
+
+/* lw 4x4 */
+{"lw",        "m(,mi#(m$)", 0x9400,     0xfc00,     WR_t,         0, M32R7},
+{"lw",        "mt,mi%(ms)", 0x7400,     0xfc00,     WR_t,         0, M32R7},
+/* lwgp16 */
+{"lw",        "mt,mi*(m8)", 0xb400,     0xfc00,     WR_t,         0, M32R7},
+/* lwsp */
+{"lw",        "m5,mi6(m9)", 0x5400,     0xfc00,     WR_t,         0, M32R7},
+{"lwxs",       "md,ms(mt)", 0x5001,     0xfc01,     WR_t,         0, M32R7},
+/* put sdbbp befroe move */
+{"sdbbp",       "mi2",      0x1018,     0xfff8,     WR_t,         0, M32R7},
+{"move",        "m5,m0",    0x1000,     0xfc00,     WR_t,         0, M32R7},
+{"movep",       "mP",       0xbc00,     0xfc00,     WR_t,         0, M32R7},
+/* moveprev */
+{"movep",       "mV",       0xfc00,     0xfc00,     WR_t,         0, M32R7},
+{"not",         "mt,ms",    0x5000,     0xfc0f,     WR_t,         0, M32R7},
+{"or",          "mt,ms",    0x500c,     0xfc0f,     WR_t,         0, M32R7},
+{"restore",     "mi^",      0x1fe0,     0xffe1,     WR_t,         0, M32R7},
+{"restore.jrc", "mi^",      0x1c20,     0xfc21,     WR_t,         0, M32R7},
+{"save",        "mi^",      0x1c00,     0xfc21,     WR_t,         0, M32R7},
+{"sb",        "mT,mi1(ms)", 0x1404,     0xfc0c,     WR_t,         0, M32R7},
+{"sh",        "mT,mi@(ms)", 0x1401,     0xfc09,     WR_t,         0, M32R7},
+{"sll",        "mt,ms,mi2", 0x3000,     0xfc08,     WR_t,         0, M32R7},
+{"srl",        "mt,ms,mi2", 0x3008,     0xfc08,     WR_t,         0, M32R7},
+{"subu",        "md,ms,mt", 0xb001,     0xfc01,     WR_t,         0, M32R7},
+{"sw",        "mT,mi%(ms)", 0xf400,     0xfc00,     WR_t,         0, M32R7},
+/* swsp */
+{"sw",        "m5,mi6(m9)", 0xd400,     0xfc00,     WR_t,         0, M32R7},
+/* sw 4x4 */
+{"sw",        "m(,mi#(m$)", 0x9c00,     0xfc00,     WR_t,         0, M32R7},
+{"syscall",     "mi1",      0x1008,     0xfffc,     WR_t,         0, M32R7},
+{"xor",         "mt,ms",    0x5004,     0xfc0f,     WR_t,         0, M32R7},
+};
+
+#define MICROMIPS_NUM_OPCODES \
+    ((sizeof micromips_opcodes) / (sizeof(micromips_opcodes[0])))
+const int bfd_micromips_num_opcodes = MICROMIPS_NUM_OPCODES;
+
+/* The mips16 registers.  */
+
+/*
+ * static const unsigned int umips_decode_gpr3[] =
+ *      { 16, 17, 18, 19, 4, 5, 6, 7};
+ *
+ * static const unsigned int umips_decode_gpr3_src_store[] =
+ *      {  0, 17, 18, 19, 4, 5, 6, 7};
+ */
+
+#define umips_decode_gpr3_reg_names(rn) mips_gpr_names[umips_decode_gpr3[rn]]
+#define umips_decode_gpr3_src_store_reg_names(rn) \
+    mips_gpr_names[umips_decode_gpr3_src_store[rn]]
+
+int nanomips_dis(char *buf, unsigned address, unsigned short one,
+                 unsigned short two, unsigned short three);
+
+int print_insn_micromips(bfd_vma memaddr, struct disassemble_info *info)
+{
+    int status;
+    bfd_byte buffer[2];
+    uint16_t insn1 = 0, insn2 = 0, insn3 = 0;
+    char buf[200];
+
+    info->bytes_per_chunk = 2;
+    info->display_endian = info->endian;
+    info->insn_info_valid = 1;
+    info->branch_delay_insns = 0;
+    info->data_size = 0;
+    info->insn_type = dis_nonbranch;
+    info->target = 0;
+    info->target2 = 0;
+
+    set_default_mips_dis_options(info);
+    parse_mips_dis_options(info->disassembler_options);
+
+    status = (*info->read_memory_func)(memaddr, buffer, 2, info);
+    if (status != 0) {
+        (*info->memory_error_func)(status, memaddr, info);
+        return -1;
+    }
+
+    if (info->endian == BFD_ENDIAN_BIG) {
+        insn1 = bfd_getb16(buffer);
+    } else {
+        insn1 = bfd_getl16(buffer);
+    }
+    (*info->fprintf_func)(info->stream, "%04x ", insn1);
+
+    /* Handle 32-bit opcodes.  */
+    if ((insn1 & 0x1000) == 0) {
+        status = (*info->read_memory_func)(memaddr + 2, buffer, 2, info);
+        if (status != 0) {
+            (*info->memory_error_func)(status, memaddr + 2, info);
+            return -1;
+        }
+
+        if (info->endian == BFD_ENDIAN_BIG) {
+            insn2 = bfd_getb16(buffer);
+        } else {
+            insn2 = bfd_getl16(buffer);
+        }
+        (*info->fprintf_func)(info->stream, "%04x ", insn2);
+    } else {
+        (*info->fprintf_func)(info->stream, "     ");
+    }
+    /* Handle 48-bit opcodes.  */
+    if ((insn1 >> 10) == 0x18) {
+        status = (*info->read_memory_func)(memaddr + 4, buffer, 2, info);
+        if (status != 0) {
+            (*info->memory_error_func)(status, memaddr + 4, info);
+            return -1;
+        }
+
+        if (info->endian == BFD_ENDIAN_BIG) {
+            insn3 = bfd_getb16(buffer);
+        } else {
+            insn3 = bfd_getl16(buffer);
+        }
+        (*info->fprintf_func)(info->stream, "%04x ", insn3);
+    } else {
+        (*info->fprintf_func)(info->stream, "     ");
+    }
+
+    int length = nanomips_dis(buf, memaddr, insn1, insn2, insn3);
+
+    /* FIXME: Should probably use a hash table on the major opcode here.  */
+
+    (*info->fprintf_func) (info->stream, "%s", buf);
+    if (length > 0) {
+        return length / 8;
+    }
+
+    info->insn_type = dis_noninsn;
+
+    return insn3 ? 6 : insn2 ? 4 : 2;
+}
