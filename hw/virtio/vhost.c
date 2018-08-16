@@ -941,15 +941,14 @@ out:
     return ret;
 }
 
-static int vhost_virtqueue_start(struct vhost_dev *dev,
-                                struct VirtIODevice *vdev,
-                                struct vhost_virtqueue *vq,
-                                unsigned idx)
+static int vhost_virtqueue_sync_backend(struct vhost_dev *dev,
+                                        struct VirtIODevice *vdev,
+                                        struct vhost_virtqueue *vq,
+                                        unsigned idx)
 {
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
     VirtioBusState *vbus = VIRTIO_BUS(qbus);
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(vbus);
-    hwaddr s, l, a;
     int r;
     int vhost_vq_index = dev->vhost_ops->vhost_get_vq_index(dev, idx);
     struct vhost_vring_file file = {
@@ -960,13 +959,7 @@ static int vhost_virtqueue_start(struct vhost_dev *dev,
     };
     struct VirtQueue *vvq = virtio_get_queue(vdev, idx);
 
-    a = virtio_queue_get_desc_addr(vdev, idx);
-    if (a == 0) {
-        /* Queue might not be ready for start */
-        return 0;
-    }
-
-    vq->num = state.num = virtio_queue_get_num(vdev, idx);
+    state.num = virtio_queue_get_num(vdev, idx);
     r = dev->vhost_ops->vhost_set_vring_num(dev, &state);
     if (r) {
         VHOST_OPS_DEBUG("vhost_set_vring_num failed");
@@ -988,6 +981,63 @@ static int vhost_virtqueue_start(struct vhost_dev *dev,
             return -errno;
         }
     }
+
+    r = vhost_virtqueue_set_addr(dev, vq, vhost_vq_index, dev->log_enabled);
+    if (r < 0) {
+        r = -errno;
+        goto fail;
+    }
+
+    file.fd = event_notifier_get_fd(virtio_queue_get_host_notifier(vvq));
+    r = dev->vhost_ops->vhost_set_vring_kick(dev, &file);
+    if (r) {
+        VHOST_OPS_DEBUG("vhost_set_vring_kick failed");
+        r = -errno;
+        goto fail;
+    }
+
+    /* Clear and discard previous events if any. */
+    event_notifier_test_and_clear(&vq->masked_notifier);
+
+    /* Init vring in unmasked state, unless guest_notifier_mask
+     * will do it later.
+     */
+    if (!vdev->use_guest_notifier_mask) {
+        /* TODO: check and handle errors. */
+        vhost_virtqueue_mask(dev, vdev, idx, false);
+    }
+
+    if (k->query_guest_notifiers &&
+        k->query_guest_notifiers(qbus->parent) &&
+        virtio_queue_vector(vdev, idx) == VIRTIO_NO_VECTOR) {
+        file.fd = -1;
+        r = dev->vhost_ops->vhost_set_vring_call(dev, &file);
+        if (r) {
+            goto fail;
+        }
+    }
+
+    return 0;
+
+fail:
+    return r;
+}
+
+static int vhost_virtqueue_setup(struct vhost_dev *dev,
+                                 struct VirtIODevice *vdev,
+                                 struct vhost_virtqueue *vq,
+                                 unsigned idx)
+{
+    hwaddr s, l, a;
+    int r;
+
+    a = virtio_queue_get_desc_addr(vdev, idx);
+    if (a == 0) {
+        /* Queue might not be ready for start */
+        return 0;
+    }
+
+    vq->num = virtio_queue_get_num(vdev, idx);
 
     vq->desc_size = s = l = virtio_queue_get_desc_size(vdev, idx);
     vq->desc_phys = a;
@@ -1011,46 +1061,8 @@ static int vhost_virtqueue_start(struct vhost_dev *dev,
         goto fail_alloc_used;
     }
 
-    r = vhost_virtqueue_set_addr(dev, vq, vhost_vq_index, dev->log_enabled);
-    if (r < 0) {
-        r = -errno;
-        goto fail_alloc;
-    }
-
-    file.fd = event_notifier_get_fd(virtio_queue_get_host_notifier(vvq));
-    r = dev->vhost_ops->vhost_set_vring_kick(dev, &file);
-    if (r) {
-        VHOST_OPS_DEBUG("vhost_set_vring_kick failed");
-        r = -errno;
-        goto fail_kick;
-    }
-
-    /* Clear and discard previous events if any. */
-    event_notifier_test_and_clear(&vq->masked_notifier);
-
-    /* Init vring in unmasked state, unless guest_notifier_mask
-     * will do it later.
-     */
-    if (!vdev->use_guest_notifier_mask) {
-        /* TODO: check and handle errors. */
-        vhost_virtqueue_mask(dev, vdev, idx, false);
-    }
-
-    if (k->query_guest_notifiers &&
-        k->query_guest_notifiers(qbus->parent) &&
-        virtio_queue_vector(vdev, idx) == VIRTIO_NO_VECTOR) {
-        file.fd = -1;
-        r = dev->vhost_ops->vhost_set_vring_call(dev, &file);
-        if (r) {
-            goto fail_vector;
-        }
-    }
-
     return 0;
 
-fail_vector:
-fail_kick:
-fail_alloc:
     vhost_memory_unmap(dev, vq->used, virtio_queue_get_used_size(vdev, idx),
                        0, 0);
 fail_alloc_used:
@@ -1158,6 +1170,7 @@ static int vhost_virtqueue_init(struct vhost_dev *dev,
         return r;
     }
 
+    dev->vqs[n].masked = true;
     file.fd = event_notifier_get_fd(&vq->masked_notifier);
     r = dev->vhost_ops->vhost_set_vring_call(dev, &file);
     if (r) {
@@ -1417,6 +1430,7 @@ void vhost_virtqueue_mask(struct vhost_dev *hdev, VirtIODevice *vdev, int n,
     } else {
         file.fd = event_notifier_get_fd(virtio_queue_get_guest_notifier(vvq));
     }
+    hdev->vqs[index].masked = mask;
 
     file.index = hdev->vhost_ops->vhost_get_vq_index(hdev, n);
     r = hdev->vhost_ops->vhost_set_vring_call(hdev, &file);
@@ -1483,56 +1497,41 @@ void vhost_dev_set_config_notifier(struct vhost_dev *hdev,
     hdev->config_ops = ops;
 }
 
-/* Host notifiers must be enabled at this point. */
-int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
+static int vhost_dev_sync_backend(struct vhost_dev *hdev)
 {
     int i, r;
-
-    /* should only be called after backend is connected */
     assert(hdev->vhost_ops);
-
-    hdev->started = true;
-    hdev->vdev = vdev;
+    assert(hdev->vdev);
 
     r = vhost_dev_set_features(hdev, hdev->log_enabled);
     if (r < 0) {
-        goto fail_features;
-    }
-
-    if (vhost_dev_has_iommu(hdev)) {
-        memory_listener_register(&hdev->iommu_listener, vdev->dma_as);
+        goto fail;
     }
 
     r = hdev->vhost_ops->vhost_set_mem_table(hdev, hdev->mem);
     if (r < 0) {
-        VHOST_OPS_DEBUG("vhost_set_mem_table failed");
         r = -errno;
-        goto fail_mem;
+        goto fail;
     }
+
     for (i = 0; i < hdev->nvqs; ++i) {
-        r = vhost_virtqueue_start(hdev,
-                                  vdev,
-                                  hdev->vqs + i,
-                                  hdev->vq_index + i);
+        r = vhost_virtqueue_sync_backend(hdev,
+                                         hdev->vdev,
+                                         hdev->vqs + i,
+                                         hdev->vq_index + i);
         if (r < 0) {
-            goto fail_vq;
+            goto fail;
         }
     }
 
     if (hdev->log_enabled) {
         uint64_t log_base;
-
-        hdev->log_size = vhost_get_log_size(hdev);
-        hdev->log = vhost_log_get(hdev->log_size,
-                                  vhost_dev_log_is_shared(hdev));
-        log_base = (uintptr_t)hdev->log->log;
-        r = hdev->vhost_ops->vhost_set_log_base(hdev,
-                                                hdev->log_size ? log_base : 0,
-                                                hdev->log);
+        assert(hdev->log);
+        log_base = hdev->log_size ? (uintptr_t)hdev->log->log : 0;
+        r = hdev->vhost_ops->vhost_set_log_base(hdev, log_base, hdev->log);
         if (r < 0) {
-            VHOST_OPS_DEBUG("vhost_set_log_base failed");
             r = -errno;
-            goto fail_log;
+            goto fail;
         }
     }
 
@@ -1546,20 +1545,65 @@ int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
             vhost_device_iotlb_miss(hdev, vq->used_phys, true);
         }
     }
+
     return 0;
-fail_log:
+
+fail:
+    return r;
+}
+
+/* Host notifiers must be enabled at this point. */
+int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
+{
+    int i, r;
+
+    /* should only be called after backend is connected */
+    assert(hdev->vhost_ops);
+
+    hdev->started = true;
+    hdev->vdev = vdev;
+
+    if (vhost_dev_has_iommu(hdev)) {
+        memory_listener_register(&hdev->iommu_listener, vdev->dma_as);
+    }
+
+    for (i = 0; i < hdev->nvqs; ++i) {
+        r = vhost_virtqueue_setup(hdev,
+                                  vdev,
+                                  hdev->vqs + i,
+                                  hdev->vq_index + i);
+        if (r < 0) {
+            goto fail_vq;
+        }
+    }
+
+    if (hdev->log_enabled) {
+        hdev->log_size = vhost_get_log_size(hdev);
+        hdev->log = vhost_log_get(hdev->log_size,
+                                  vhost_dev_log_is_shared(hdev));
+    }
+
+    r = vhost_dev_sync_backend(hdev);
+    if (r < 0) {
+        goto fail_sync;
+    }
+
+    return 0;
+
+fail_sync:
     vhost_log_put(hdev, false);
+
 fail_vq:
+    if (vhost_dev_has_iommu(hdev)) {
+        memory_listener_unregister(&hdev->iommu_listener);
+    }
+
     while (--i >= 0) {
         vhost_virtqueue_stop(hdev,
                              vdev,
                              hdev->vqs + i,
                              hdev->vq_index + i);
     }
-    i = hdev->nvqs;
-
-fail_mem:
-fail_features:
 
     hdev->started = false;
     return r;

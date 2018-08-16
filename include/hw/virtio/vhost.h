@@ -20,6 +20,7 @@ struct vhost_virtqueue {
     unsigned avail_size;
     unsigned long long used_phys;
     unsigned used_size;
+    bool masked;
     EventNotifier masked_notifier;
     struct vhost_dev *dev;
 };
