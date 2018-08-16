@@ -742,6 +742,9 @@ case "$cpu" in
     supported_cpu="yes"
     cross_cc_mips=$host_cc
   ;;
+  nanomips*)
+    cpu="mips"
+  ;;
   sparc|sun4[cdmuv])
     cpu="sparc"
     supported_cpu="yes"
@@ -6883,7 +6886,7 @@ target_name=$(echo $target | cut -d '-' -f 1)
 target_bigendian="no"
 
 case "$target_name" in
-  armeb|aarch64_be|hppa|lm32|m68k|microblaze|mips|mipsn32|mips64|moxie|or1k|ppc|ppcemb|ppc64|ppc64abi32|s390x|sh4eb|sparc|sparc64|sparc32plus|xtensaeb)
+  armeb|aarch64_be|hppa|lm32|m68k|microblaze|mips|mipsn32|mips64|moxie|nanomipseb|or1k|ppc|ppcemb|ppc64|ppc64abi32|s390x|sh4eb|sparc|sparc64|sparc32plus|xtensaeb)
   target_bigendian=yes
   ;;
 esac
@@ -6998,6 +7001,11 @@ case "$target_name" in
   ;;
   moxie)
     target_compiler=$cross_cc_moxie
+  ;;
+  nanomips|nanomipseb)
+    TARGET_ARCH=nanomips
+    TARGET_BASE_ARCH=mips
+    echo "TARGET_ABI_MIPSP32=y" >> $config_target_mak
   ;;
   nios2)
     target_compiler=$cross_cc_nios2
@@ -7255,6 +7263,9 @@ for i in $ARCH $TARGET_BASE_ARCH ; do
   ;;
   moxie*)
     disas_config "MOXIE"
+  ;;
+  nanomips*)
+    disas_config "MIPS"
   ;;
   nios2)
     disas_config "NIOS2"
