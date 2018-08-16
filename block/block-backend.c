@@ -141,7 +141,7 @@ static char *blk_root_get_parent_desc(BdrvChild *child)
     } else {
         /* TODO Callback into the BB owner for something more detailed */
         g_free(dev_id);
-        return g_strdup("a block device");
+        return g_strdup_printf("a block device %p", blk);
     }
 }
 
