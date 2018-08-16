@@ -1291,6 +1291,10 @@ static inline void init_thread(struct target_pt_regs *regs,
 #define ELF_CLASS ELFCLASS64
 #endif
 
+#ifdef TARGET_ABI_MIPSP32
+#define ELF_FLAGS EF_NANOMIPS_ABI_P32
+#endif
+
 static inline void init_thread(struct target_pt_regs *regs,
                                struct image_info *infop)
 {
@@ -1398,6 +1402,10 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs,
 
 #ifndef ELF_HWCAP
 #define ELF_HWCAP 0
+#endif
+
+#ifndef ELF_FLAGS
+#define ELF_FLAGS 0
 #endif
 
 #ifndef STACK_GROWS_DOWN
@@ -3432,7 +3440,7 @@ static int elf_core_dump(int signr, const CPUArchState *env)
      * Construct valid coredump ELF header.  We also
      * add one more segment for notes.
      */
-    fill_elf_header(&elf, segs + 1, ELF_MACHINE, 0);
+    fill_elf_header(&elf, segs + 1, ELF_MACHINE, ELF_FLAGS);
     if (dump_write(fd, &elf, sizeof (elf)) != 0)
         goto out;
 
