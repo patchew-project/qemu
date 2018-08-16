@@ -1704,6 +1704,16 @@ F: scripts/qmp/
 F: tests/qmp-test.c
 T: git git://repo.or.cz/qemu/armbru.git qapi-next
 
+qtest
+M: Paolo Bonzini <pbonzini@redhat.com>
+M: Thomas Huth <thuth@redhat.com>
+M: Laurent Vivier <lvivier@redhat.com>
+S: Maintained
+F: qtest.c
+F: tests/libqtest.*
+F: tests/libqos/
+F: tests/*-test.c
+
 Register API
 M: Alistair Francis <alistair@alistair23.me>
 S: Maintained
