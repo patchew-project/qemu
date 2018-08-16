@@ -1165,7 +1165,10 @@ static int tcp_chr_machine_done_hook(Chardev *chr)
 {
     SocketChardev *s = SOCKET_CHARDEV(chr);
 
-    if (s->reconnect_time) {
+    /* It's possible that connection was established during the device
+     * initialization. So check if the socket is already connected to
+     * prevent extra connection attempt. */
+    if (!s->connected && s->reconnect_time) {
         tcp_chr_connect_async(chr);
     }
 
