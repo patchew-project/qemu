@@ -2705,6 +2705,8 @@ The binary format is detected automatically.
 
 @command{qemu-mipsn32el} executes 32-bit little endian MIPS binaries (MIPS N32 ABI).
 
+@command{qemu-nanomips} executes 32-bit little endian nanoMIPS binaries (MIPS P32 ABI).
+
 @cindex user mode (NiosII)
 @command{qemu-nios2} TODO.
 
