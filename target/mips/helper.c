@@ -656,7 +656,8 @@ target_ulong exception_resume_pc (CPUMIPSState *env)
     target_ulong bad_pc;
     target_ulong isa_mode;
 
-    isa_mode = !!(env->hflags & MIPS_HFLAG_M16);
+    isa_mode = env->hflags & MIPS_HFLAG_M16 &&
+                !(env->insn_flags & ISA_NANOMIPS32);
     bad_pc = env->active_tc.PC | isa_mode;
     if (env->hflags & MIPS_HFLAG_BMASK) {
         /* If the exception was raised from a delay slot, come back to
