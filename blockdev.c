@@ -3485,6 +3485,11 @@ BlockDeviceInfoList *qmp_query_named_block_nodes(Error **errp)
     return bdrv_named_nodes_list(errp);
 }
 
+BlockRelationInfoList *qmp_x_query_block_nodes_relations(Error **errp)
+{
+    return bdrv_block_relations_list(errp);
+}
+
 BlockJob *do_blockdev_backup(BlockdevBackup *backup, JobTxn *txn,
                              Error **errp)
 {

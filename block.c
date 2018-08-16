@@ -4003,6 +4003,63 @@ BlockDeviceInfoList *bdrv_named_nodes_list(Error **errp)
     return list;
 }
 
+BlockRelationInfoList *bdrv_block_relations_list(Error **errp)
+{
+    BlockRelationInfoList *list = NULL, *entry;
+    BlockDriverState *bs;
+    struct {
+        unsigned int flag;
+        BlockPermission num;
+    } permissions[] = {
+        { BLK_PERM_CONSISTENT_READ, BLOCK_PERMISSION_CONSISTENT_READ },
+        { BLK_PERM_WRITE,           BLOCK_PERMISSION_WRITE },
+        { BLK_PERM_WRITE_UNCHANGED, BLOCK_PERMISSION_WRITE_UNCHANGED },
+        { BLK_PERM_RESIZE,          BLOCK_PERMISSION_RESIZE },
+        { BLK_PERM_GRAPH_MOD,       BLOCK_PERMISSION_GRAPH_MOD },
+        { 0, 0 }
+    }, *p;
+
+    QTAILQ_FOREACH(bs, &graph_bdrv_states, node_list) {
+        BdrvChild *child;
+
+        QLIST_FOREACH(child, &bs->parents, next_parent) {
+            entry = g_new0(BlockRelationInfoList, 1);
+            BlockRelationInfo *info = g_new0(BlockRelationInfo, 1);
+
+            info->parent_is_bds = child->role->parent_is_bds;
+            info->parent = child->role->parent_is_bds ?
+                               g_strdup(bdrv_get_node_name(child->opaque)) :
+                               bdrv_child_user_desc(child);
+            info->child = g_strdup(bs->node_name);
+            assert(bs == child->bs);
+            info->name = g_strdup(child->name);
+
+            for (p = permissions; p->flag; p++) {
+                BlockPermissionList *en;
+
+                if (p->flag & child->perm) {
+                    en = g_new(BlockPermissionList, 1);
+                    en->value = p->num;
+                    en->next = info->perm;
+                    info->perm = en;
+                }
+                if (p->flag & child->shared_perm) {
+                    en = g_new(BlockPermissionList, 1);
+                    en->value = p->num;
+                    en->next = info->shared_perm;
+                    info->shared_perm = en;
+                }
+            }
+
+            entry->value = info;
+            entry->next = list;
+            list = entry;
+        }
+    }
+
+    return list;
+}
+
 BlockDriverState *bdrv_lookup_bs(const char *device,
                                  const char *node_name,
                                  Error **errp)

@@ -1630,6 +1630,77 @@
 { 'command': 'query-named-block-nodes', 'returns': [ 'BlockDeviceInfo' ] }
 
 ##
+# @BlockPermission:
+#
+# Enum of base block permissions.
+#
+# @consistent-read: A user that has the "permission" of consistent reads is
+#                   guaranteed that their view of the contents of the block
+#                   device is complete and self-consistent, representing the
+#                   contents of a disk at a specific point.
+#                   For most block devices (including their backing files) this
+#                   is true, but the property cannot be maintained in a few
+#                   situations like for intermediate nodes of a commit block
+#                   job.
+#
+# @write: This permission is required to change the visible disk contents.
+#
+# @write-unchanged: This permission (which is weaker than BLK_PERM_WRITE) is
+#                   both enough and required for writes to the block node when
+#                   the caller promises that the visible disk content doesn't
+#                   change.
+#                   As the BLK_PERM_WRITE permission is strictly stronger,
+#                   either is sufficient to perform an unchanging write.
+#
+# @resize: This permission is required to change the size of a block node.
+#
+# @graph-mod: This permission is required to change the node that this
+#             BdrvChild points to.
+#
+# Since: 3.1
+##
+{ 'enum': 'BlockPermission',
+  'data': [ 'consistent-read', 'write', 'write-unchanged', 'resize',
+            'graph-mod' ] }
+
+##
+# @BlockRelationInfo:
+#
+# Information about relation between block node and its parent.
+#
+# @parent: node name or some other parent name/description, if parent is not a
+#          block node.
+#
+# @parent-is-bds: parent is block node.
+#
+# @child: node name
+#
+# @name: name of the relation (examples are 'file' and 'backing')
+#
+# @perm: Granted permissions for the parent operating on the child.
+#
+# @shared-perm: Permissions that can still be granted to other users of the
+#               child while it is still attached this parent.
+#
+# Since: 3.1
+##
+{ 'struct': 'BlockRelationInfo',
+  'data': { 'parent': 'str', 'parent-is-bds': 'bool', 'child': 'str',
+            'name': 'str', 'perm': [ 'BlockPermission' ],
+            'shared-perm': [ 'BlockPermission' ] } }
+
+##
+# @x-query-block-nodes-relations:
+#
+# Get the block relations list.
+#
+# Returns: the list of BlockRelationInfo.
+#
+# Since: 3.1
+##
+{ 'command': 'x-query-block-nodes-relations', 'returns': [ 'BlockRelationInfo' ] }
+
+##
 # @drive-mirror:
 #
 # Start mirroring a block device's writes to a new destination. target
