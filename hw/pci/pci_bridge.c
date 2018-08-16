@@ -411,38 +411,34 @@ void pci_bridge_map_irq(PCIBridge *br, const char* bus_name,
 
 
 int pci_bridge_qemu_reserve_cap_init(PCIDevice *dev, int cap_offset,
-                                     uint32_t bus_reserve, uint64_t io_reserve,
-                                     uint64_t mem_non_pref_reserve,
-                                     uint64_t mem_pref_32_reserve,
-                                     uint64_t mem_pref_64_reserve,
-                                     Error **errp)
+                                     PCIResReserve res, Error **errp)
 {
-    if (mem_pref_32_reserve != (uint64_t)-1 &&
-        mem_pref_64_reserve != (uint64_t)-1) {
+    if (res.pref32_reserve != (uint64_t)-1 &&
+        res.pref64_reserve != (uint64_t)-1) {
         error_setg(errp,
                    "PCI resource reserve cap: PREF32 and PREF64 conflict");
         return -EINVAL;
     }
 
-    if (mem_non_pref_reserve != (uint64_t)-1 &&
-        mem_non_pref_reserve >= (1ULL << 32)) {
+    if (res.mem_reserve != (uint64_t)-1 &&
+        res.mem_reserve >= (1ULL << 32)) {
         error_setg(errp,
                    "PCI resource reserve cap: mem-reserve must be less than 4G");
         return -EINVAL;
     }
 
-    if (mem_pref_32_reserve != (uint64_t)-1 &&
-        mem_pref_32_reserve >= (1ULL << 32)) {
+    if (res.pref32_reserve != (uint64_t)-1 &&
+        res.pref32_reserve >= (1ULL << 32)) {
         error_setg(errp,
                    "PCI resource reserve cap: pref32-reserve  must be less than 4G");
         return -EINVAL;
     }
 
-    if (bus_reserve == (uint32_t)-1 &&
-        io_reserve == (uint64_t)-1 &&
-        mem_non_pref_reserve == (uint64_t)-1 &&
-        mem_pref_32_reserve == (uint64_t)-1 &&
-        mem_pref_64_reserve == (uint64_t)-1) {
+    if (res.bus_reserve == (uint32_t)-1 &&
+        res.io_reserve == (uint64_t)-1 &&
+        res.mem_reserve == (uint64_t)-1 &&
+        res.pref32_reserve == (uint64_t)-1 &&
+        res.pref64_reserve == (uint64_t)-1) {
         return 0;
     }
 
@@ -450,11 +446,11 @@ int pci_bridge_qemu_reserve_cap_init(PCIDevice *dev, int cap_offset,
     PCIBridgeQemuCap cap = {
             .len = cap_len,
             .type = REDHAT_PCI_CAP_RESOURCE_RESERVE,
-            .bus_res = bus_reserve,
-            .io = io_reserve,
-            .mem = mem_non_pref_reserve,
-            .mem_pref_32 = mem_pref_32_reserve,
-            .mem_pref_64 = mem_pref_64_reserve
+            .bus_res = res.bus_reserve,
+            .io = res.io_reserve,
+            .mem = res.mem_reserve,
+            .mem_pref_32 = res.pref32_reserve,
+            .mem_pref_64 = res.pref64_reserve
     };
 
     int offset = pci_add_capability(dev, PCI_CAP_ID_VNDR,
