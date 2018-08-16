@@ -460,3 +460,56 @@ class QEMUMachine(object):
                                                  socket.SOCK_STREAM)
             self._console_socket.connect(self._console_address)
         return self._console_socket
+
+    def render_block_graph(self, filename):
+        '''
+        Render graph in text (dot) representation into "filename" and graphical
+        representation into pdf file "filename".pdf
+        '''
+
+        try:
+            from graphviz import Digraph
+        except ImportError:
+            print "Can't import graphviz. Please run 'pip install graphviz'"
+            return
+
+        nodes = self.qmp('query-named-block-nodes')['return']
+        edges = self.qmp('x-query-block-nodes-relations')['return']
+        node_names = []
+
+        graph = Digraph(comment='Block Nodes Graph')
+        graph.node('permission symbols:\l'
+                   ' w - Write\l'
+                   ' r - consistent-Read\l'
+                   ' u - write - Unchanged\l'
+                   ' g - Graph-mod\l'
+                   ' s - reSize\l'
+                   'edge label scheme:\l'
+                   ' <child type>\l'
+                   ' <perm>\l'
+                   ' <shared_perm>\l', shape='none')
+
+        def perm(arr):
+            s = 'w' if 'write' in arr else '_'
+            s += 'r' if 'consistent-read' in arr else '_'
+            s += 'u' if 'write-unchanged' in arr else '_'
+            s += 'g' if 'graph-mod' in arr else '_'
+            s += 's' if 'resize' in arr else '_'
+            return s
+
+        for n in nodes:
+            node_names.append(n['node-name'])
+            label = n['node-name'] + ' [' + n['drv'] + ']'
+            if n['drv'] == 'file':
+                label = '<%s<br/>%s>' % (label, os.path.basename(n['file']))
+            graph.node(n['node-name'], label)
+
+        for r in edges:
+            if r['parent'] not in node_names:
+                graph.node(r['parent'], shape='box')
+
+            label = '%s\l%s\l%s\l' % (r['name'], perm(r['perm']),
+                                      perm(r['shared-perm']))
+            graph.edge(r['parent'], r['child'], label=label)
+
+        graph.render(filename)
