@@ -190,6 +190,8 @@ M: Aurelien Jarno <aurelien@aurel32.net>
 M: Aleksandar Markovic <amarkovic@wavecomp.com>
 S: Maintained
 F: target/mips/
+F: disas/mips.c
+F: gdb-xml/*ips*.xml
 F: hw/mips/
 F: hw/misc/mips_*
 F: hw/intc/mips_gic.c
@@ -199,7 +201,6 @@ F: include/hw/misc/mips_*
 F: include/hw/intc/mips_gic.h
 F: include/hw/timer/mips_gictimer.h
 F: tests/tcg/mips/
-F: disas/mips.c
 
 Moxie
 M: Anthony Green <green@moxielogic.com>
