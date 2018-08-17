@@ -27,7 +27,6 @@ typedef enum {
     JSON_KEYWORD,
     JSON_STRING,
     JSON_INTERPOL,
-    JSON_SKIP,
     JSON_END_OF_INPUT           /* must be last */
 } JSONTokenType;
 

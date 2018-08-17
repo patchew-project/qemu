@@ -119,7 +119,6 @@ enum {
     IN_SIGN,
     IN_KEYWORD,
     IN_INTERPOL,
-    IN_WHITESPACE,
 };
 
 QEMU_BUILD_BUG_ON(JSON_ERROR != 0); /* json_lexer[] relies on this */
@@ -214,15 +213,6 @@ static const uint8_t json_lexer[][256] =  {
         ['a' ... 'z'] = IN_KEYWORD,
     },
 
-    /* whitespace */
-    [IN_WHITESPACE] = {
-        TERMINAL(JSON_SKIP),
-        [' '] = IN_WHITESPACE,
-        ['\t'] = IN_WHITESPACE,
-        ['\r'] = IN_WHITESPACE,
-        ['\n'] = IN_WHITESPACE,
-    },
-
     /* interpolation */
     [IN_INTERPOL] = {
         TERMINAL(JSON_INTERPOL),
@@ -249,12 +239,16 @@ static const uint8_t json_lexer[][256] =  {
         [','] = JSON_COMMA,
         [':'] = JSON_COLON,
         ['a' ... 'z'] = IN_KEYWORD,
-        [' '] = IN_WHITESPACE,
-        ['\t'] = IN_WHITESPACE,
-        ['\r'] = IN_WHITESPACE,
-        ['\n'] = IN_WHITESPACE,
+        [' '] = IN_START,
+        ['\t'] = IN_START,
+        ['\r'] = IN_START,
+        ['\n'] = IN_START,
     },
     [IN_START_INTERPOL]['%'] = IN_INTERPOL,
+    [IN_START_INTERPOL][' '] = IN_START_INTERPOL,
+    [IN_START_INTERPOL]['\t'] = IN_START_INTERPOL,
+    [IN_START_INTERPOL]['\r'] = IN_START_INTERPOL,
+    [IN_START_INTERPOL]['\n'] = IN_START_INTERPOL,
 };
 
 void json_lexer_init(JSONLexer *lexer, bool enable_interpolation)
@@ -279,7 +273,7 @@ static void json_lexer_feed_char(JSONLexer *lexer, char ch, bool flush)
         assert(lexer->state <= ARRAY_SIZE(json_lexer));
         new_state = json_lexer[lexer->state][(uint8_t)ch];
         char_consumed = !TERMINAL_NEEDED_LOOKAHEAD(lexer->state, new_state);
-        if (char_consumed && !flush) {
+        if (char_consumed && new_state != lexer->start_state && !flush) {
             g_string_append_c(lexer->token, ch);
         }
 
@@ -297,8 +291,6 @@ static void json_lexer_feed_char(JSONLexer *lexer, char ch, bool flush)
         case JSON_STRING:
             json_message_process_token(lexer, lexer->token, new_state,
                                        lexer->x, lexer->y);
-            /* fall through */
-        case JSON_SKIP:
             g_string_truncate(lexer->token, 0);
             new_state = lexer->start_state;
             break;
