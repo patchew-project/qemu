@@ -268,9 +268,32 @@ bool bdrv_drain_poll(BlockDriverState *bs, bool recursive,
 static bool bdrv_drain_poll_top_level(BlockDriverState *bs, bool recursive,
                                       BdrvChild *ignore_parent)
 {
+    AioContext *ctx = bdrv_get_aio_context(bs);
+
+    /*
+     * We cannot easily release the lock unconditionally here because many
+     * callers of drain function (like qemu initialisation, tools, etc.) don't
+     * even hold the main context lock.
+     *
+     * This means that we fix potential deadlocks for the case where we are in
+     * the main context and polling a BDS in a different AioContext, but
+     * draining a BDS in the main context from a different I/O thread would
+     * still have this problem. Fortunately, this isn't supposed to happen
+     * anyway.
+     */
+    if (ctx != qemu_get_aio_context()) {
+        aio_context_release(ctx);
+    } else {
+        assert(qemu_get_current_aio_context() == qemu_get_aio_context());
+    }
+
     /* Execute pending BHs first and check everything else only after the BHs
      * have executed. */
-    while (aio_poll(bs->aio_context, false));
+    while (aio_poll(ctx, false));
+
+    if (ctx != qemu_get_aio_context()) {
+        aio_context_acquire(ctx);
+    }
 
     return bdrv_drain_poll(bs, recursive, ignore_parent, false);
 }
