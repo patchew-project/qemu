@@ -115,12 +115,12 @@ enum json_lexer_state {
     IN_NONZERO_NUMBER,
     IN_NEG_NONZERO_NUMBER,
     IN_KEYWORD,
-    IN_ESCAPE,
-    IN_ESCAPE_L,
-    IN_ESCAPE_LL,
-    IN_ESCAPE_I,
-    IN_ESCAPE_I6,
-    IN_ESCAPE_I64,
+    IN_INTERPOL,
+    IN_INTERPOL_L,
+    IN_INTERPOL_LL,
+    IN_INTERPOL_I,
+    IN_INTERPOL_I6,
+    IN_INTERPOL_I64,
     IN_WHITESPACE,
     IN_START,
 };
@@ -221,40 +221,40 @@ static const uint8_t json_lexer[][256] =  {
         ['\n'] = IN_WHITESPACE,
     },
 
-    /* escape */
-    [IN_ESCAPE_LL] = {
-        ['d'] = JSON_ESCAPE,
-        ['u'] = JSON_ESCAPE,
+    /* interpolation */
+    [IN_INTERPOL_LL] = {
+        ['d'] = JSON_INTERPOL,
+        ['u'] = JSON_INTERPOL,
     },
 
-    [IN_ESCAPE_L] = {
-        ['d'] = JSON_ESCAPE,
-        ['l'] = IN_ESCAPE_LL,
-        ['u'] = JSON_ESCAPE,
+    [IN_INTERPOL_L] = {
+        ['d'] = JSON_INTERPOL,
+        ['l'] = IN_INTERPOL_LL,
+        ['u'] = JSON_INTERPOL,
     },
 
-    [IN_ESCAPE_I64] = {
-        ['d'] = JSON_ESCAPE,
-        ['u'] = JSON_ESCAPE,
+    [IN_INTERPOL_I64] = {
+        ['d'] = JSON_INTERPOL,
+        ['u'] = JSON_INTERPOL,
     },
 
-    [IN_ESCAPE_I6] = {
-        ['4'] = IN_ESCAPE_I64,
+    [IN_INTERPOL_I6] = {
+        ['4'] = IN_INTERPOL_I64,
     },
 
-    [IN_ESCAPE_I] = {
-        ['6'] = IN_ESCAPE_I6,
+    [IN_INTERPOL_I] = {
+        ['6'] = IN_INTERPOL_I6,
     },
 
-    [IN_ESCAPE] = {
-        ['d'] = JSON_ESCAPE,
-        ['i'] = JSON_ESCAPE,
-        ['p'] = JSON_ESCAPE,
-        ['s'] = JSON_ESCAPE,
-        ['u'] = JSON_ESCAPE,
-        ['f'] = JSON_ESCAPE,
-        ['l'] = IN_ESCAPE_L,
-        ['I'] = IN_ESCAPE_I,
+    [IN_INTERPOL] = {
+        ['d'] = JSON_INTERPOL,
+        ['i'] = JSON_INTERPOL,
+        ['p'] = JSON_INTERPOL,
+        ['s'] = JSON_INTERPOL,
+        ['u'] = JSON_INTERPOL,
+        ['f'] = JSON_INTERPOL,
+        ['l'] = IN_INTERPOL_L,
+        ['I'] = IN_INTERPOL_I,
     },
 
     /* top level rule */
@@ -271,7 +271,7 @@ static const uint8_t json_lexer[][256] =  {
         [','] = JSON_COMMA,
         [':'] = JSON_COLON,
         ['a' ... 'z'] = IN_KEYWORD,
-        ['%'] = IN_ESCAPE,
+        ['%'] = IN_INTERPOL,
         [' '] = IN_WHITESPACE,
         ['\t'] = IN_WHITESPACE,
         ['\r'] = IN_WHITESPACE,
@@ -311,7 +311,7 @@ static void json_lexer_feed_char(JSONLexer *lexer, char ch, bool flush)
         case JSON_RSQUARE:
         case JSON_COLON:
         case JSON_COMMA:
-        case JSON_ESCAPE:
+        case JSON_INTERPOL:
         case JSON_INTEGER:
         case JSON_FLOAT:
         case JSON_KEYWORD:
