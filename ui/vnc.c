@@ -3964,7 +3964,7 @@ void vnc_display_open(const char *id, Error **errp)
     trace_vnc_auth_init(vd, 1, vd->ws_auth, vd->ws_subauth);
 
 #ifdef CONFIG_VNC_SASL
-    if ((saslErr = sasl_server_init(NULL, "qemu")) != SASL_OK) {
+    if (sasl && ((saslErr = sasl_server_init(NULL, "qemu")) != SASL_OK)) {
         error_setg(errp, "Failed to initialize SASL auth: %s",
                    sasl_errstring(saslErr, NULL, NULL));
         goto fail;
