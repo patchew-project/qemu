@@ -407,6 +407,28 @@ void qdict_del(QDict *qdict, const char *key)
 }
 
 /**
+ * qdict_steal(): Steal a 'key:value' pair from the dictionary
+ *
+ * Return the associated entry value and remove it, or NULL.
+ */
+QObject *qdict_steal(QDict *qdict, const char *key)
+{
+    QDictEntry *entry;
+    QObject *val = NULL;
+
+    entry = qdict_find(qdict, key, tdb_hash(key) % QDICT_BUCKET_MAX);
+    if (entry) {
+        QLIST_REMOVE(entry, next);
+        val = qobject_ref(entry->value);
+        qentry_destroy(entry);
+        qdict->size--;
+    }
+
+    return val;
+}
+
+
+/**
  * qdict_is_equal(): Test whether the two QDicts are equal
  *
  * Here, equality means whether they contain the same keys and whether

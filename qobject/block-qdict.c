@@ -692,8 +692,6 @@ void qdict_join(QDict *dest, QDict *src, bool overwrite)
  */
 bool qdict_rename_keys(QDict *qdict, const QDictRenames *renames, Error **errp)
 {
-    QObject *qobj;
-
     while (renames->from) {
         if (qdict_haskey(qdict, renames->from)) {
             if (qdict_haskey(qdict, renames->to)) {
@@ -702,9 +700,8 @@ bool qdict_rename_keys(QDict *qdict, const QDictRenames *renames, Error **errp)
                 return false;
             }
 
-            qobj = qdict_get(qdict, renames->from);
-            qdict_put_obj(qdict, renames->to, qobject_ref(qobj));
-            qdict_del(qdict, renames->from);
+            qdict_put_obj(qdict, renames->to,
+                          qdict_steal(qdict, renames->from));
         }
 
         renames++;

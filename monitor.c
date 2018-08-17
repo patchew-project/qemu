@@ -4262,8 +4262,7 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
 
     qdict = qobject_to(QDict, req);
     if (qdict) {
-        id = qobject_ref(qdict_get(qdict, "id"));
-        qdict_del(qdict, "id");
+        id = qdict_steal(qdict, "id");
     } /* else will fail qmp_dispatch() */
 
     if (req && trace_event_get_state_backends(TRACE_HANDLE_QMP_COMMAND)) {
