@@ -93,7 +93,8 @@
  *   (apostrophe) instead of %x22 (quotation mark), and can't contain
  *   unescaped apostrophe, but can contain unescaped quotation mark.
  * - Interpolation, if enabled:
- *   interpolation = %((l|ll|I64)[du]|[ipsf])
+ *   The lexer accepts %[A-Za-z0-9]*, and leaves rejecting invalid
+ *   ones to the parser.
  *
  * Note:
  * - Input must be encoded in modified UTF-8.
@@ -116,11 +117,6 @@ enum json_lexer_state {
     IN_NEG_NONZERO_NUMBER,
     IN_KEYWORD,
     IN_INTERPOL,
-    IN_INTERPOL_L,
-    IN_INTERPOL_LL,
-    IN_INTERPOL_I,
-    IN_INTERPOL_I6,
-    IN_INTERPOL_I64,
     IN_WHITESPACE,
     IN_START,
     IN_START_INTERPOL,          /* must be IN_START + 1 */
@@ -224,39 +220,11 @@ static const uint8_t json_lexer[][256] =  {
     },
 
     /* interpolation */
-    [IN_INTERPOL_LL] = {
-        ['d'] = JSON_INTERPOL,
-        ['u'] = JSON_INTERPOL,
-    },
-
-    [IN_INTERPOL_L] = {
-        ['d'] = JSON_INTERPOL,
-        ['l'] = IN_INTERPOL_LL,
-        ['u'] = JSON_INTERPOL,
-    },
-
-    [IN_INTERPOL_I64] = {
-        ['d'] = JSON_INTERPOL,
-        ['u'] = JSON_INTERPOL,
-    },
-
-    [IN_INTERPOL_I6] = {
-        ['4'] = IN_INTERPOL_I64,
-    },
-
-    [IN_INTERPOL_I] = {
-        ['6'] = IN_INTERPOL_I6,
-    },
-
     [IN_INTERPOL] = {
-        ['d'] = JSON_INTERPOL,
-        ['i'] = JSON_INTERPOL,
-        ['p'] = JSON_INTERPOL,
-        ['s'] = JSON_INTERPOL,
-        ['u'] = JSON_INTERPOL,
-        ['f'] = JSON_INTERPOL,
-        ['l'] = IN_INTERPOL_L,
-        ['I'] = IN_INTERPOL_I,
+        TERMINAL(JSON_INTERPOL),
+        ['A' ... 'Z'] = IN_INTERPOL,
+        ['a' ... 'z'] = IN_INTERPOL,
+        ['0' ... '9'] = IN_INTERPOL,
     },
 
     /*
