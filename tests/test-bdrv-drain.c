@@ -795,6 +795,7 @@ static void test_blockjob_common(enum drain_type drain_type)
     BlockBackend *blk_src, *blk_target;
     BlockDriverState *src, *target;
     BlockJob *job;
+    AioContext *ctx;
     int ret;
 
     src = bdrv_new_open_driver(&bdrv_test, "source", BDRV_O_RDWR,
@@ -806,6 +807,9 @@ static void test_blockjob_common(enum drain_type drain_type)
                                   &error_abort);
     blk_target = blk_new(BLK_PERM_ALL, BLK_PERM_ALL);
     blk_insert_bs(blk_target, target, &error_abort);
+
+    ctx = qemu_get_aio_context();
+    aio_context_acquire(ctx);
 
     job = block_job_create("job0", &test_job_driver, NULL, src, 0, BLK_PERM_ALL,
                            0, 0, NULL, NULL, &error_abort);
@@ -852,6 +856,8 @@ static void test_blockjob_common(enum drain_type drain_type)
 
     ret = job_complete_sync(&job->job, &error_abort);
     g_assert_cmpint(ret, ==, 0);
+
+    aio_context_release(ctx);
 
     blk_unref(blk_src);
     blk_unref(blk_target);
