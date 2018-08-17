@@ -108,6 +108,7 @@ enum json_lexer_state {
     IN_SQ_STRING_ESCAPE,
     IN_SQ_STRING,
     IN_ZERO,
+    IN_BAD_ZERO,
     IN_DIGITS,
     IN_DIGIT,
     IN_EXP_E,
@@ -159,8 +160,12 @@ static const uint8_t json_lexer[][256] =  {
     /* Zero */
     [IN_ZERO] = {
         TERMINAL(JSON_INTEGER),
-        ['0' ... '9'] = IN_ERROR,
+        ['0' ... '9'] = IN_BAD_ZERO,
         ['.'] = IN_MANTISSA,
+    },
+
+    [IN_BAD_ZERO] = {
+        ['0' ... '9'] = IN_BAD_ZERO,
     },
 
     /* Float */
