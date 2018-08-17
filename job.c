@@ -410,6 +410,11 @@ static void job_event_ready(Job *job)
     notifier_list_notify(&job->on_ready, job);
 }
 
+static void job_event_idle(Job *job)
+{
+    notifier_list_notify(&job->on_idle, job);
+}
+
 void job_enter_cond(Job *job, bool(*fn)(Job *job))
 {
     if (!job_started(job)) {
@@ -455,6 +460,7 @@ static void coroutine_fn job_do_yield(Job *job, uint64_t ns)
         timer_mod(&job->sleep_timer, ns);
     }
     job->busy = false;
+    job_event_idle(job);
     job_unlock();
     qemu_coroutine_yield();
 
@@ -547,6 +553,7 @@ static void coroutine_fn job_co_entry(void *opaque)
     assert(job && job->driver && job->driver->start);
     job_pause_point(job);
     job->driver->start(job);
+    job_event_idle(job);
 }
 
 
