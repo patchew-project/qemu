@@ -65,6 +65,7 @@
 
 enum QSPType {
     QSP_MUTEX,
+    QSP_BQL_MUTEX,
     QSP_REC_MUTEX,
     QSP_CONDVAR,
 };
@@ -116,10 +117,12 @@ static bool qsp_initialized, qsp_initializing;
 
 static const char * const qsp_typenames[] = {
     [QSP_MUTEX]     = "mutex",
+    [QSP_BQL_MUTEX] = "BQL mutex",
     [QSP_REC_MUTEX] = "rec_mutex",
     [QSP_CONDVAR]   = "condvar",
 };
 
+QemuMutexLockFunc qemu_bql_mutex_lock_func = qemu_mutex_lock_impl;
 QemuMutexLockFunc qemu_mutex_lock_func = qemu_mutex_lock_impl;
 QemuMutexTrylockFunc qemu_mutex_trylock_func = qemu_mutex_trylock_impl;
 QemuRecMutexLockFunc qemu_rec_mutex_lock_func = qemu_rec_mutex_lock_impl;
@@ -368,6 +371,7 @@ static QSPEntry *qsp_entry_get(const void *obj, const char *file, int line,
         return err;                                                     \
     }
 
+QSP_GEN_VOID(QemuMutex, QSP_BQL_MUTEX, qsp_bql_mutex_lock, qemu_mutex_lock_impl)
 QSP_GEN_VOID(QemuMutex, QSP_MUTEX, qsp_mutex_lock, qemu_mutex_lock_impl)
 QSP_GEN_RET1(QemuMutex, QSP_MUTEX, qsp_mutex_trylock, qemu_mutex_trylock_impl)
 
@@ -403,6 +407,7 @@ void qsp_enable(void)
 {
     atomic_set(&qemu_mutex_lock_func, qsp_mutex_lock);
     atomic_set(&qemu_mutex_trylock_func, qsp_mutex_trylock);
+    atomic_set(&qemu_bql_mutex_lock_func, qsp_bql_mutex_lock);
     atomic_set(&qemu_rec_mutex_lock_func, qsp_rec_mutex_lock);
     atomic_set(&qemu_rec_mutex_trylock_func, qsp_rec_mutex_trylock);
     atomic_set(&qemu_cond_wait_func, qsp_cond_wait);
@@ -412,6 +417,7 @@ void qsp_disable(void)
 {
     atomic_set(&qemu_mutex_lock_func, qemu_mutex_lock_impl);
     atomic_set(&qemu_mutex_trylock_func, qemu_mutex_trylock_impl);
+    atomic_set(&qemu_bql_mutex_lock_func, qemu_mutex_lock_impl);
     atomic_set(&qemu_rec_mutex_lock_func, qemu_rec_mutex_lock_impl);
     atomic_set(&qemu_rec_mutex_trylock_func, qemu_rec_mutex_trylock_impl);
     atomic_set(&qemu_cond_wait_func, qemu_cond_wait_impl);
