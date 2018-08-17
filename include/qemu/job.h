@@ -205,6 +205,13 @@ struct JobDriver {
     void (*drain)(Job *job);
 
     /**
+     * If the callback is not NULL, exit will be invoked from the main thread
+     * when the job's coroutine has finished, but before transactional
+     * convergence; before @prepare or @abort.
+     */
+    void (*exit)(Job *job);
+
+    /**
      * If the callback is not NULL, prepare will be invoked when all the jobs
      * belonging to the same transaction complete; or upon this job's completion
      * if it is not in a transaction.
