@@ -1647,6 +1647,29 @@ static int fix_l2_entry_to_zero(BlockDriverState *bs, BdrvCheckResult *res,
     return ret;
 }
 
+/* Zero out L1 entry
+ *
+ * Returns: -errno if overlap check failed
+ *          0 if write failed
+ *          1 on success
+ */
+static int fix_l1_entry_to_zero(BlockDriverState *bs, BdrvCheckResult *res,
+                                BdrvCheckMode fix, int64_t l1_offset,
+                                int l1_index, bool active,
+                                const char *fmt, ...)
+{
+    int ret;
+    int ign = active ? QCOW2_OL_ACTIVE_L2 : QCOW2_OL_INACTIVE_L2;
+    va_list args;
+
+    va_start(args, fmt);
+    ret = fix_table_entry(bs, res, fix, "L1", l1_offset, l1_index, 0, ign,
+                          fmt, args);
+    va_end(args);
+
+    return ret;
+}
+
 /*
  * Increases the refcount in the given refcount table for the all clusters
  * referenced in the L2 table. While doing so, performs some checks on L2
@@ -1808,6 +1831,7 @@ static int check_refcounts_l1(BlockDriverState *bs,
 {
     BDRVQcow2State *s = bs->opaque;
     uint64_t *l1_table = NULL, l2_offset, l1_size2;
+    int64_t file_len;
     int i, ret;
 
     l1_size2 = l1_size * sizeof(uint64_t);
@@ -1837,12 +1861,32 @@ static int check_refcounts_l1(BlockDriverState *bs,
             be64_to_cpus(&l1_table[i]);
     }
 
+    file_len = bdrv_getlength(bs->file->bs);
+    if (file_len < 0) {
+        ret = file_len;
+        goto fail;
+    }
+
     /* Do the actual checks */
     for(i = 0; i < l1_size; i++) {
         l2_offset = l1_table[i];
         if (l2_offset) {
             /* Mark L2 table as used */
             l2_offset &= L1E_OFFSET_MASK;
+            if (l2_offset >= file_len) {
+                ret = fix_l1_entry_to_zero(
+                        bs, res, fix, l1_table_offset, i, active,
+                        "l2 table offset out of file: offset 0x%" PRIx64,
+                        l2_offset);
+                if (ret < 0) {
+                    /* Something is seriously wrong, so abort checking
+                     * this L1 table */
+                    goto fail;
+                }
+
+                continue;
+            }
+
             ret = qcow2_inc_refcounts_imrt(bs, res,
                                            refcount_table, refcount_table_size,
                                            l2_offset, s->cluster_size);
