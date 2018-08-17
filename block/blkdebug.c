@@ -846,7 +846,8 @@ static void blkdebug_refresh_filename(BlockDriverState *bs, QDict *options)
     opts = qdict_new();
     qdict_put_str(opts, "driver", "blkdebug");
 
-    qdict_put(opts, "image", qobject_ref(bs->file->bs->full_open_options));
+    qdict_put(opts, "image", bs->file->bs->full_open_options ?
+              qobject_ref(bs->file->bs->full_open_options) : NULL);
 
     for (e = qdict_first(options); e; e = qdict_next(options, e)) {
         if (strcmp(qdict_entry_key(e), "x-image")) {

@@ -74,9 +74,8 @@ static inline void qobject_init(QObject *obj, QType type)
 
 static inline void qobject_ref_impl(QObject *obj)
 {
-    if (obj) {
-        obj->base.refcnt++;
-    }
+    assert(obj);
+    obj->base.refcnt++;
 }
 
 /**
@@ -103,6 +102,7 @@ static inline void qobject_unref_impl(QObject *obj)
 
 /**
  * qobject_ref(): Increment QObject's reference count
+ * @obj: a #QObject or child type instance (must not be NULL)
  *
  * Returns: the same @obj. The type of @obj will be propagated to the
  * return type.
@@ -116,6 +116,7 @@ static inline void qobject_unref_impl(QObject *obj)
 /**
  * qobject_unref(): Decrement QObject's reference count, deallocate
  * when it reaches zero
+ * @obj: a #QObject or child type instance (can be NULL)
  */
 #define qobject_unref(obj) qobject_unref_impl(QOBJECT(obj))
 

@@ -675,7 +675,7 @@ monitor_qapi_event_queue_no_reenter(QAPIEvent event, QDict *qdict)
 
             evstate = g_new(MonitorQAPIEventState, 1);
             evstate->event = event;
-            evstate->data = qobject_ref(data);
+            evstate->data = data ? qobject_ref(data) : NULL;
             evstate->qdict = NULL;
             evstate->timer = timer_new_ns(monitor_get_event_clock(),
                                           monitor_qapi_event_handler,
