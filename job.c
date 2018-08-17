@@ -1016,7 +1016,10 @@ int job_finish_sync(Job *job, void (*finish)(Job *, Error **errp), Error **errp)
         job_drain(job);
     }
     while (!job_is_completed(job)) {
+        AioContext *aio_context = job->aio_context;
+        aio_context_release(aio_context);
         aio_poll(qemu_get_aio_context(), true);
+        aio_context_acquire(aio_context);
     }
     ret = (job_is_cancelled(job) && job->ret == 0) ? -ECANCELED : job->ret;
     job_unref(job);
