@@ -309,6 +309,10 @@ static void bdrv_co_drain_bh_cb(void *opaque)
     BdrvCoDrainData *data = opaque;
     Coroutine *co = data->co;
     BlockDriverState *bs = data->bs;
+    AioContext *ctx;
+
+    ctx = bdrv_get_aio_context(bs);
+    aio_context_acquire(ctx);
 
     if (bs) {
         bdrv_dec_in_flight(bs);
@@ -323,6 +327,8 @@ static void bdrv_co_drain_bh_cb(void *opaque)
         assert(data->begin);
         bdrv_drain_all_begin();
     }
+
+    aio_context_release(ctx);
 
     data->done = true;
     aio_co_wake(co);
