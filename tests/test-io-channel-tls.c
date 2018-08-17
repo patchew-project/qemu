@@ -68,7 +68,7 @@ static QCryptoTLSCreds *test_tls_creds_create(QCryptoTLSCredsEndpoint endpoint,
                                               const char *certdir)
 {
     Object *parent = object_get_objects_root();
-    Object *creds = object_new_with_props(
+    Object *creds = object_new_child(
         TYPE_QCRYPTO_TLS_CREDS_X509,
         parent,
         (endpoint == QCRYPTO_TLS_CREDS_ENDPOINT_SERVER ?

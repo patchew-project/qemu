@@ -41,14 +41,14 @@ typedef struct QCryptoTLSCredsAnonClass QCryptoTLSCredsAnonClass;
  * due to lacking MITM attack protection amongst other problems.
  *
  * This is a user creatable object, which can be instantiated
- * via object_new_propv():
+ * via object_new_child():
  *
  * <example>
  *   <title>Creating anonymous TLS credential objects in code</title>
  *   <programlisting>
  *   Object *obj;
  *   Error *err = NULL;
- *   obj = object_new_propv(TYPE_QCRYPTO_TLS_CREDS_ANON,
+ *   obj = object_new_child(TYPE_QCRYPTO_TLS_CREDS_ANON,
  *                          "tlscreds0",
  *                          &err,
  *                          "endpoint", "server",

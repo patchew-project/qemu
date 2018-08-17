@@ -239,7 +239,7 @@ static ssize_t test_block_write_func(QCryptoBlock *block,
 
 static Object *test_block_secret(void)
 {
-    return object_new_with_props(
+    return object_new_child(
         TYPE_QCRYPTO_SECRET,
         object_get_objects_root(),
         "sec0",

@@ -557,28 +557,28 @@ Object *object_new(const char *typename)
 }
 
 
-Object *object_new_with_props(const char *typename,
-                              Object *parent,
-                              const char *id,
-                              Error **errp,
-                              ...)
+Object *object_new_child(const char *typename,
+                         Object *parent,
+                         const char *id,
+                         Error **errp,
+                         ...)
 {
     va_list vargs;
     Object *obj;
 
     va_start(vargs, errp);
-    obj = object_new_with_propv(typename, parent, id, errp, vargs);
+    obj = object_new_childv(typename, parent, id, errp, vargs);
     va_end(vargs);
 
     return obj;
 }
 
 
-Object *object_new_with_propv(const char *typename,
-                              Object *parent,
-                              const char *id,
-                              Error **errp,
-                              va_list vargs)
+Object *object_new_childv(const char *typename,
+                          Object *parent,
+                          const char *id,
+                          Error **errp,
+                          va_list vargs)
 {
     Object *obj;
     ObjectClass *klass;

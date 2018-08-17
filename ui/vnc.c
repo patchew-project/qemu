@@ -3536,21 +3536,21 @@ vnc_display_create_creds(bool x509,
     Error *err = NULL;
 
     if (x509) {
-        creds = object_new_with_props(TYPE_QCRYPTO_TLS_CREDS_X509,
-                                      parent,
-                                      credsid,
-                                      &err,
-                                      "endpoint", "server",
-                                      "dir", dir,
-                                      "verify-peer", x509verify ? "yes" : "no",
-                                      NULL);
+        creds = object_new_child(TYPE_QCRYPTO_TLS_CREDS_X509,
+                                 parent,
+                                 credsid,
+                                 &err,
+                                 "endpoint", "server",
+                                 "dir", dir,
+                                 "verify-peer", x509verify ? "yes" : "no",
+                                  NULL);
     } else {
-        creds = object_new_with_props(TYPE_QCRYPTO_TLS_CREDS_ANON,
-                                      parent,
-                                      credsid,
-                                      &err,
-                                      "endpoint", "server",
-                                      NULL);
+        creds = object_new_child(TYPE_QCRYPTO_TLS_CREDS_ANON,
+                                 parent,
+                                 credsid,
+                                 &err,
+                                 "endpoint", "server",
+                                 NULL);
     }
 
     g_free(credsid);

@@ -344,14 +344,14 @@ static void test_dummy_createv(void)
     Error *err = NULL;
     Object *parent = object_get_objects_root();
     DummyObject *dobj = DUMMY_OBJECT(
-        object_new_with_props(TYPE_DUMMY,
-                              parent,
-                              "dummy0",
-                              &err,
-                              "bv", "yes",
-                              "sv", "Hiss hiss hiss",
-                              "av", "platypus",
-                              NULL));
+        object_new_child(TYPE_DUMMY,
+                         parent,
+                         "dummy0",
+                         &err,
+                         "bv", "yes",
+                         "sv", "Hiss hiss hiss",
+                         "av", "platypus",
+                         NULL));
 
     g_assert(err == NULL);
     g_assert_cmpstr(dobj->sv, ==, "Hiss hiss hiss");
@@ -373,11 +373,7 @@ static Object *new_helper(Error **errp,
     Object *obj;
 
     va_start(vargs, parent);
-    obj = object_new_with_propv(TYPE_DUMMY,
-                                parent,
-                                "dummy0",
-                                errp,
-                                vargs);
+    obj = object_new_childv(TYPE_DUMMY, parent, "dummy0", errp, vargs);
     va_end(vargs);
     return obj;
 }
@@ -452,14 +448,14 @@ static void test_dummy_badenum(void)
     Error *err = NULL;
     Object *parent = object_get_objects_root();
     Object *dobj =
-        object_new_with_props(TYPE_DUMMY,
-                              parent,
-                              "dummy0",
-                              &err,
-                              "bv", "yes",
-                              "sv", "Hiss hiss hiss",
-                              "av", "yeti",
-                              NULL);
+        object_new_child(TYPE_DUMMY,
+                         parent,
+                         "dummy0",
+                         &err,
+                         "bv", "yes",
+                         "sv", "Hiss hiss hiss",
+                         "av", "yeti",
+                          NULL);
 
     g_assert(dobj == NULL);
     g_assert(err != NULL);
@@ -479,7 +475,7 @@ static void test_dummy_getenum(void)
     int val;
     Object *parent = object_get_objects_root();
     DummyObject *dobj = DUMMY_OBJECT(
-        object_new_with_props(TYPE_DUMMY,
+        object_new_child(TYPE_DUMMY,
                          parent,
                          "dummy0",
                          &err,
@@ -521,14 +517,14 @@ static void test_dummy_iterator(void)
 {
     Object *parent = object_get_objects_root();
     DummyObject *dobj = DUMMY_OBJECT(
-        object_new_with_props(TYPE_DUMMY,
-                              parent,
-                              "dummy0",
-                              &error_abort,
-                              "bv", "yes",
-                              "sv", "Hiss hiss hiss",
-                              "av", "platypus",
-                              NULL));
+        object_new_child(TYPE_DUMMY,
+                         parent,
+                         "dummy0",
+                         &error_abort,
+                         "bv", "yes",
+                         "sv", "Hiss hiss hiss",
+                         "av", "platypus",
+                         NULL));
 
     ObjectProperty *prop;
     ObjectPropertyIterator iter;
@@ -563,11 +559,11 @@ static void test_dummy_delchild(void)
 {
     Object *parent = object_get_objects_root();
     DummyDev *dev = DUMMY_DEV(
-        object_new_with_props(TYPE_DUMMY_DEV,
-                              parent,
-                              "dev0",
-                              &error_abort,
-                              NULL));
+        object_new_child(TYPE_DUMMY_DEV,
+                         parent,
+                         "dev0",
+                         &error_abort,
+                         NULL));
 
     object_unparent(OBJECT(dev));
 }

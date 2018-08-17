@@ -67,8 +67,8 @@ AUXBus *aux_init_bus(DeviceState *parent, const char *name)
     Object *auxtoi2c;
 
     bus = AUX_BUS(qbus_create(TYPE_AUX_BUS, parent, name));
-    auxtoi2c = object_new_with_props(TYPE_AUXTOI2C, OBJECT(bus), "i2c",
-                                     &error_abort, NULL);
+    auxtoi2c = object_new_child(TYPE_AUXTOI2C, OBJECT(bus), "i2c",
+                                &error_abort, NULL);
     qdev_set_parent_bus(DEVICE(auxtoi2c), BUS(bus));
 
     bus->bridge = AUXTOI2C(auxtoi2c);

@@ -45,14 +45,14 @@ typedef struct QCryptoTLSCredsX509Class QCryptoTLSCredsX509Class;
  * of x509 credentials used to perform a TLS handshake.
  *
  * This is a user creatable object, which can be instantiated
- * via object_new_propv():
+ * via object_new_child():
  *
  * <example>
  *   <title>Creating x509 TLS credential objects in code</title>
  *   <programlisting>
  *   Object *obj;
  *   Error *err = NULL;
- *   obj = object_new_propv(TYPE_QCRYPTO_TLS_CREDS_X509,
+ *   obj = object_new_child(TYPE_QCRYPTO_TLS_CREDS_X509,
  *                          "tlscreds0",
  *                          &err,
  *                          "endpoint", "server",

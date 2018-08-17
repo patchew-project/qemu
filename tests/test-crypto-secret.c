@@ -27,7 +27,7 @@
 
 static void test_secret_direct(void)
 {
-    Object *sec = object_new_with_props(
+    Object *sec = object_new_child(
         TYPE_QCRYPTO_SECRET,
         object_get_objects_root(),
         "sec0",
@@ -58,7 +58,7 @@ static void test_secret_indirect_good(void)
 
     g_assert(write(fd, "123456", 6) == 6);
 
-    sec = object_new_with_props(
+    sec = object_new_child(
         TYPE_QCRYPTO_SECRET,
         object_get_objects_root(),
         "sec0",
@@ -81,7 +81,7 @@ static void test_secret_indirect_good(void)
 
 static void test_secret_indirect_badfile(void)
 {
-    Object *sec = object_new_with_props(
+    Object *sec = object_new_child(
         TYPE_QCRYPTO_SECRET,
         object_get_objects_root(),
         "sec0",
@@ -104,7 +104,7 @@ static void test_secret_indirect_emptyfile(void)
     g_assert(fd >= 0);
     g_assert_nonnull(fname);
 
-    sec = object_new_with_props(
+    sec = object_new_child(
         TYPE_QCRYPTO_SECRET,
         object_get_objects_root(),
         "sec0",
@@ -127,7 +127,7 @@ static void test_secret_indirect_emptyfile(void)
 
 static void test_secret_noconv_base64_good(void)
 {
-    Object *sec = object_new_with_props(
+    Object *sec = object_new_child(
         TYPE_QCRYPTO_SECRET,
         object_get_objects_root(),
         "sec0",
@@ -148,7 +148,7 @@ static void test_secret_noconv_base64_good(void)
 
 static void test_secret_noconv_base64_bad(void)
 {
-    Object *sec = object_new_with_props(
+    Object *sec = object_new_child(
         TYPE_QCRYPTO_SECRET,
         object_get_objects_root(),
         "sec0",
@@ -163,7 +163,7 @@ static void test_secret_noconv_base64_bad(void)
 
 static void test_secret_noconv_utf8(void)
 {
-    Object *sec = object_new_with_props(
+    Object *sec = object_new_child(
         TYPE_QCRYPTO_SECRET,
         object_get_objects_root(),
         "sec0",
@@ -184,7 +184,7 @@ static void test_secret_noconv_utf8(void)
 
 static void test_secret_conv_base64_utf8valid(void)
 {
-    Object *sec = object_new_with_props(
+    Object *sec = object_new_child(
         TYPE_QCRYPTO_SECRET,
         object_get_objects_root(),
         "sec0",
@@ -205,7 +205,7 @@ static void test_secret_conv_base64_utf8valid(void)
 
 static void test_secret_conv_base64_utf8invalid(void)
 {
-    Object *sec = object_new_with_props(
+    Object *sec = object_new_child(
         TYPE_QCRYPTO_SECRET,
         object_get_objects_root(),
         "sec0",
@@ -224,7 +224,7 @@ static void test_secret_conv_base64_utf8invalid(void)
 
 static void test_secret_conv_utf8_base64(void)
 {
-    Object *sec = object_new_with_props(
+    Object *sec = object_new_child(
         TYPE_QCRYPTO_SECRET,
         object_get_objects_root(),
         "sec0",
@@ -244,7 +244,7 @@ static void test_secret_conv_utf8_base64(void)
 
 static void test_secret_crypt_raw(void)
 {
-    Object *master = object_new_with_props(
+    Object *master = object_new_child(
         TYPE_QCRYPTO_SECRET,
         object_get_objects_root(),
         "master",
@@ -252,7 +252,7 @@ static void test_secret_crypt_raw(void)
         "data", "9miloPQCzGy+TL6aonfzVcptibCmCIhKzrnlfwiWivk=",
         "format", "base64",
         NULL);
-    Object *sec = object_new_with_props(
+    Object *sec = object_new_child(
         TYPE_QCRYPTO_SECRET,
         object_get_objects_root(),
         "sec0",
@@ -277,7 +277,7 @@ static void test_secret_crypt_raw(void)
 
 static void test_secret_crypt_base64(void)
 {
-    Object *master = object_new_with_props(
+    Object *master = object_new_child(
         TYPE_QCRYPTO_SECRET,
         object_get_objects_root(),
         "master",
@@ -285,7 +285,7 @@ static void test_secret_crypt_base64(void)
         "data", "9miloPQCzGy+TL6aonfzVcptibCmCIhKzrnlfwiWivk=",
         "format", "base64",
         NULL);
-    Object *sec = object_new_with_props(
+    Object *sec = object_new_child(
         TYPE_QCRYPTO_SECRET,
         object_get_objects_root(),
         "sec0",
@@ -309,7 +309,7 @@ static void test_secret_crypt_base64(void)
 
 static void test_secret_crypt_short_key(void)
 {
-    Object *master = object_new_with_props(
+    Object *master = object_new_child(
         TYPE_QCRYPTO_SECRET,
         object_get_objects_root(),
         "master",
@@ -317,7 +317,7 @@ static void test_secret_crypt_short_key(void)
         "data", "9miloPQCzGy+TL6aonfzVc",
         "format", "base64",
         NULL);
-    Object *sec = object_new_with_props(
+    Object *sec = object_new_child(
         TYPE_QCRYPTO_SECRET,
         object_get_objects_root(),
         "sec0",
@@ -335,7 +335,7 @@ static void test_secret_crypt_short_key(void)
 
 static void test_secret_crypt_short_iv(void)
 {
-    Object *master = object_new_with_props(
+    Object *master = object_new_child(
         TYPE_QCRYPTO_SECRET,
         object_get_objects_root(),
         "master",
@@ -343,7 +343,7 @@ static void test_secret_crypt_short_iv(void)
         "data", "9miloPQCzGy+TL6aonfzVcptibCmCIhKzrnlfwiWivk=",
         "format", "base64",
         NULL);
-    Object *sec = object_new_with_props(
+    Object *sec = object_new_child(
         TYPE_QCRYPTO_SECRET,
         object_get_objects_root(),
         "sec0",
@@ -361,7 +361,7 @@ static void test_secret_crypt_short_iv(void)
 
 static void test_secret_crypt_missing_iv(void)
 {
-    Object *master = object_new_with_props(
+    Object *master = object_new_child(
         TYPE_QCRYPTO_SECRET,
         object_get_objects_root(),
         "master",
@@ -369,7 +369,7 @@ static void test_secret_crypt_missing_iv(void)
         "data", "9miloPQCzGy+TL6aonfzVcptibCmCIhKzrnlfwiWivk=",
         "format", "base64",
         NULL);
-    Object *sec = object_new_with_props(
+    Object *sec = object_new_child(
         TYPE_QCRYPTO_SECRET,
         object_get_objects_root(),
         "sec0",
@@ -386,7 +386,7 @@ static void test_secret_crypt_missing_iv(void)
 
 static void test_secret_crypt_bad_iv(void)
 {
-    Object *master = object_new_with_props(
+    Object *master = object_new_child(
         TYPE_QCRYPTO_SECRET,
         object_get_objects_root(),
         "master",
@@ -394,7 +394,7 @@ static void test_secret_crypt_bad_iv(void)
         "data", "9miloPQCzGy+TL6aonfzVcptibCmCIhKzrnlfwiWivk=",
         "format", "base64",
         NULL);
-    Object *sec = object_new_with_props(
+    Object *sec = object_new_child(
         TYPE_QCRYPTO_SECRET,
         object_get_objects_root(),
         "sec0",

@@ -363,9 +363,9 @@ IOThread *iothread_create(const char *id, Error **errp)
 {
     Object *obj;
 
-    obj = object_new_with_props(TYPE_IOTHREAD,
-                                object_get_internal_root(),
-                                id, errp, NULL);
+    obj = object_new_child(TYPE_IOTHREAD,
+                           object_get_internal_root(),
+                           id, errp, NULL);
 
     return IOTHREAD(obj);
 }

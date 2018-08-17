@@ -609,7 +609,7 @@ struct InterfaceClass
 Object *object_new(const char *typename);
 
 /**
- * object_new_with_props:
+ * object_new_child:
  * @typename:  The name of the type of the object to instantiate.
  * @parent: the parent object
  * @id: The unique ID of the object
@@ -635,15 +635,15 @@ Object *object_new(const char *typename);
  *   Error *err = NULL;
  *   Object *obj;
  *
- *   obj = object_new_with_props(TYPE_MEMORY_BACKEND_FILE,
- *                               object_get_objects_root(),
- *                               "hostmem0",
- *                               &err,
- *                               "share", "yes",
- *                               "mem-path", "/dev/shm/somefile",
- *                               "prealloc", "yes",
- *                               "size", "1048576",
- *                               NULL);
+ *   obj = object_new_child(TYPE_MEMORY_BACKEND_FILE,
+ *                          object_get_objects_root(),
+ *                          "hostmem0",
+ *                          &err,
+ *                          "share", "yes",
+ *                          "mem-path", "/dev/shm/somefile",
+ *                          "prealloc", "yes",
+ *                          "size", "1048576",
+ *                          NULL);
  *
  *   if (!obj) {
  *     g_printerr("Cannot create memory backend: %s\n",
@@ -657,27 +657,27 @@ Object *object_new(const char *typename);
  *
  * Returns: The newly allocated, instantiated & initialized object.
  */
-Object *object_new_with_props(const char *typename,
-                              Object *parent,
-                              const char *id,
-                              Error **errp,
-                              ...) QEMU_SENTINEL;
+Object *object_new_child(const char *typename,
+                         Object *parent,
+                         const char *id,
+                         Error **errp,
+                         ...) QEMU_SENTINEL;
 
 /**
- * object_new_with_propv:
+ * object_new_childv:
  * @typename:  The name of the type of the object to instantiate.
  * @parent: the parent object
  * @id: The unique ID of the object
  * @errp: pointer to error object
  * @vargs: list of property names and values
  *
- * See object_new_with_props() for documentation.
+ * See object_new_child() for documentation.
  */
-Object *object_new_with_propv(const char *typename,
-                              Object *parent,
-                              const char *id,
-                              Error **errp,
-                              va_list vargs);
+Object *object_new_childv(const char *typename,
+                          Object *parent,
+                          const char *id,
+                          Error **errp,
+                          va_list vargs);
 
 /**
  * object_set_props:
