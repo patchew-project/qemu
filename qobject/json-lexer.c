@@ -101,8 +101,9 @@
  * - Decoding and validating is left to the parser.
  */
 
-enum json_lexer_state {
-    IN_ERROR = 0,               /* must really be 0, see json_lexer[] */
+enum {
+    IN_START = JSON_END_OF_INPUT + 1,
+    IN_START_INTERPOL,          /* must be IN_START + 1 */
     IN_DQ_STRING_ESCAPE,
     IN_DQ_STRING,
     IN_SQ_STRING_ESCAPE,
@@ -119,11 +120,9 @@ enum json_lexer_state {
     IN_KEYWORD,
     IN_INTERPOL,
     IN_WHITESPACE,
-    IN_START,
-    IN_START_INTERPOL,          /* must be IN_START + 1 */
 };
 
-QEMU_BUILD_BUG_ON((int)JSON_MIN <= (int)IN_START_INTERPOL);
+QEMU_BUILD_BUG_ON(JSON_ERROR != 0); /* json_lexer[] relies on this */
 QEMU_BUILD_BUG_ON(IN_START_INTERPOL != IN_START + 1);
 
 #define TERMINAL(state) [0 ... 0x7F] = (state)
@@ -132,10 +131,10 @@ QEMU_BUILD_BUG_ON(IN_START_INTERPOL != IN_START + 1);
    from OLD_STATE required lookahead.  This happens whenever the table
    below uses the TERMINAL macro.  */
 #define TERMINAL_NEEDED_LOOKAHEAD(old_state, terminal) \
-    (terminal != IN_ERROR && json_lexer[(old_state)][0] == (terminal))
+    (terminal != JSON_ERROR && json_lexer[(old_state)][0] == (terminal))
 
 static const uint8_t json_lexer[][256] =  {
-    /* Relies on default initialization to IN_ERROR! */
+    /* Relies on default initialization to JSON_ERROR */
 
     /* double quote string */
     [IN_DQ_STRING_ESCAPE] = {
@@ -303,7 +302,7 @@ static void json_lexer_feed_char(JSONLexer *lexer, char ch, bool flush)
             g_string_truncate(lexer->token, 0);
             new_state = lexer->start_state;
             break;
-        case IN_ERROR:
+        case JSON_ERROR:
             /* XXX: To avoid having previous bad input leaving the parser in an
              * unresponsive state where we consume unpredictable amounts of
              * subsequent "good" input, percolate this error state up to the

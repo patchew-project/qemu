@@ -14,10 +14,9 @@
 #ifndef QEMU_JSON_LEXER_H
 #define QEMU_JSON_LEXER_H
 
-
-typedef enum json_token_type {
-    JSON_MIN = 100,
-    JSON_LCURLY = JSON_MIN,
+typedef enum {
+    JSON_ERROR = 0,             /* must be zero */
+    JSON_LCURLY,
     JSON_RCURLY,
     JSON_LSQUARE,
     JSON_RSQUARE,
@@ -29,8 +28,7 @@ typedef enum json_token_type {
     JSON_STRING,
     JSON_INTERPOL,
     JSON_SKIP,
-    JSON_ERROR,
-    JSON_END_OF_INPUT
+    JSON_END_OF_INPUT           /* must be last */
 } JSONTokenType;
 
 typedef struct JSONLexer {
