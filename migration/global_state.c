@@ -42,7 +42,7 @@ int global_state_store(void)
 void global_state_store_running(void)
 {
     const char *state = RunState_str(RUN_STATE_RUNNING);
-    strncpy((char *)global_state.runstate,
+    g_strlcpy((char *)global_state.runstate,
            state, sizeof(global_state.runstate));
 }
 
