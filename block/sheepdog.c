@@ -1224,19 +1224,19 @@ static int find_vdi_name(BDRVSheepdogState *s, const char *filename,
     SheepdogVdiReq hdr;
     SheepdogVdiRsp *rsp = (SheepdogVdiRsp *)&hdr;
     unsigned int wlen, rlen = 0;
-    char buf[SD_MAX_VDI_LEN + SD_MAX_VDI_TAG_LEN];
+    /* Ensures that the buffer is zero-filled,
+     * which is desirable since we'll soon be sending those bytes, and
+     * don't want the send_req to read uninitialized data.
+     */
+    char buf[SD_MAX_VDI_LEN + SD_MAX_VDI_TAG_LEN] = { };
 
     fd = connect_to_sdog(s, errp);
     if (fd < 0) {
         return fd;
     }
 
-    /* This pair of strncpy calls ensures that the buffer is zero-filled,
-     * which is desirable since we'll soon be sending those bytes, and
-     * don't want the send_req to read uninitialized data.
-     */
-    strncpy(buf, filename, SD_MAX_VDI_LEN);
-    strncpy(buf + SD_MAX_VDI_LEN, tag, SD_MAX_VDI_TAG_LEN);
+    g_strlcpy(buf, filename, SD_MAX_VDI_LEN);
+    g_strlcpy(buf + SD_MAX_VDI_LEN, tag, SD_MAX_VDI_TAG_LEN);
 
     memset(&hdr, 0, sizeof(hdr));
     if (lock) {
