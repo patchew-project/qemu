@@ -93,7 +93,7 @@ static void reclaim_list_el(struct rcu_head *prcu)
     struct list_element *el = container_of(prcu, struct list_element, rcu);
     g_free(el);
     /* Accessed only from call_rcu thread.  */
-    n_reclaims++;
+    atomic_set(&n_reclaims, n_reclaims + 1);
 }
 
 static QLIST_HEAD(q_list_head, list_element) Q_list_head;
@@ -182,7 +182,7 @@ static void *rcu_q_updater(void *arg)
     qemu_mutex_lock(&counts_mutex);
     n_nodes += n_nodes_local;
     n_updates += n_updates_local;
-    n_nodes_removed += n_removed_local;
+    atomic_set(&n_nodes_removed, n_nodes_removed + n_removed_local);
     qemu_mutex_unlock(&counts_mutex);
     return NULL;
 }
@@ -239,16 +239,18 @@ static void rcu_qtest(const char *test, int duration, int nreaders)
     n_nodes_removed += n_removed_local;
     qemu_mutex_unlock(&counts_mutex);
     synchronize_rcu();
-    while (n_nodes_removed > n_reclaims) {
+    while (atomic_read(&n_nodes_removed) > atomic_read(&n_reclaims)) {
         g_usleep(100);
         synchronize_rcu();
     }
     if (g_test_in_charge) {
-        g_assert_cmpint(n_nodes_removed, ==, n_reclaims);
+        g_assert_cmpint(atomic_read(&n_nodes_removed), ==,
+                        atomic_read(&n_reclaims));
     } else {
         printf("%s: %d readers; 1 updater; nodes read: "  \
                "%lld, nodes removed: %lld; nodes reclaimed: %lld\n",
-               test, nthreadsrunning - 1, n_reads, n_nodes_removed, n_reclaims);
+               test, nthreadsrunning - 1, n_reads,
+               atomic_read(&n_nodes_removed), atomic_read(&n_reclaims));
         exit(0);
     }
 }
