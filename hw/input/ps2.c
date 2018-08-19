@@ -685,8 +685,17 @@ static int ps2_mouse_send_packet(PS2MouseState *s)
     /* update deltas */
     s->mouse_dx -= dx1;
     s->mouse_dy -= dy1;
-    s->mouse_dz -= dz1;
+    /*
+     * This prevents the mouse from going crazy in Windows that doesn't support
+     * the Microsoft Intellimouse standard.
+     */
+    if (s->mouse_type == 0 && s->mouse_dz != 0) {
+        s->mouse_dz = 0;
+        ps2_reset_queue(&s->common);
+        return 1;
+    }
 
+    s->mouse_dz -= dz1;
     return 1;
 }
 
