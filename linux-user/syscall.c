@@ -2659,11 +2659,16 @@ static abi_long host_to_target_data_addr_rtattr(struct rtattr *rtattr)
 static abi_long host_to_target_data_route_rtattr(struct rtattr *rtattr)
 {
     uint32_t *u32;
+    struct rta_cacheinfo *ci;
+
     switch (rtattr->rta_type) {
     /* binary: depends on family type */
     case RTA_GATEWAY:
     case RTA_DST:
     case RTA_PREFSRC:
+        break;
+    /* u8 */
+    case RTA_PREF:
         break;
     /* u32 */
     case RTA_PRIORITY:
@@ -2671,6 +2676,20 @@ static abi_long host_to_target_data_route_rtattr(struct rtattr *rtattr)
     case RTA_OIF:
         u32 = RTA_DATA(rtattr);
         *u32 = tswap32(*u32);
+        break;
+    /* struct rta_cacheinfo */
+    case RTA_CACHEINFO:
+        ci = RTA_DATA(rtattr);
+        ci->rta_clntref = tswap32(ci->rta_clntref);
+        ci->rta_lastuse = tswap32(ci->rta_lastuse);
+        ci->rta_expires = tswap32(ci->rta_expires);
+        ci->rta_error = tswap32(ci->rta_error);
+        ci->rta_used = tswap32(ci->rta_used);
+#if defined(RTNETLINK_HAVE_PEERINFO)
+        ci->rta_id = tswap32(ci->rta_id);
+        ci->rta_ts = tswap32(ci->rta_ts);
+        ci->rta_tsage = tswap32(ci->rta_tsage);
+#endif
         break;
     default:
         gemu_log("Unknown host RTA type: %d\n", rtattr->rta_type);
