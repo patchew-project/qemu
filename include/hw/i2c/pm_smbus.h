@@ -33,4 +33,6 @@ typedef struct PMSMBus {
 
 void pm_smbus_init(DeviceState *parent, PMSMBus *smb);
 
+extern const VMStateDescription pmsmb_vmstate;
+
 #endif /* PM_SMBUS_H */
