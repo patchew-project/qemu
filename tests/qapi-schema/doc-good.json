@@ -1,4 +1,3 @@
-# -*- Mode: Python -*-
 # Positive QAPI doc comment tests
 
 { 'pragma': { 'doc-required': true } }

@@ -1,5 +1,3 @@
-# -*- Mode: makefile -*-
-
 BUILD_DIR?=$(CURDIR)/..
 
 include ../config-host.mak
