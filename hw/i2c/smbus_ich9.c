@@ -40,15 +40,18 @@
 typedef struct ICH9SMBState {
     PCIDevice dev;
 
+    bool irq_enabled;
+
     PMSMBus smb;
 } ICH9SMBState;
 
 static const VMStateDescription vmstate_ich9_smbus = {
     .name = "ich9_smb",
-    .version_id = 2,
+    .version_id = 3,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
         VMSTATE_PCI_DEVICE(dev, ICH9SMBState),
+        VMSTATE_BOOL_V(irq_enabled, ICH9SMBState, 3),
         VMSTATE_STRUCT(smb, ICH9SMBState, 2, pmsmb_vmstate, PMSMBus),
         VMSTATE_END_OF_LIST()
     }
@@ -110,11 +113,25 @@ static void ich9_smb_class_init(ObjectClass *klass, void *data)
     dc->user_creatable = false;
 }
 
+static void ich9_smb_set_irq(PMSMBus *pmsmb, bool enabled)
+{
+    ICH9SMBState *s = pmsmb->opaque;
+
+    if (enabled == s->irq_enabled) {
+        return;
+    }
+
+    s->irq_enabled = enabled;
+    pci_set_irq(&s->dev, enabled);
+}
+
 I2CBus *ich9_smb_init(PCIBus *bus, int devfn, uint32_t smb_io_base)
 {
     PCIDevice *d =
         pci_create_simple_multifunction(bus, devfn, true, TYPE_ICH9_SMB_DEVICE);
     ICH9SMBState *s = ICH9_SMB_DEVICE(d);
+    s->smb.set_irq = ich9_smb_set_irq;
+    s->smb.opaque = s;
     return s->smb.smbus;
 }
 
