@@ -18,6 +18,41 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+/*
+ * QEMU interface:
+ *  + QOM property "num-cpu": number of CPUs to support
+ *  + QOM property "num-irq": number of IRQs (including both SPIs and PPIs)
+ *  + QOM property "revision": GIC version (1 or 2), or 0 for the 11MPCore GIC
+ *  + QOM property "has-security-extensions": set true if the GIC should
+ *    implement the security extensions
+ *  + QOM property "has-virtualization-extensions": set true if the GIC should
+ *    implement the virtualization extensions
+ *  + unnamed GPIO inputs: (where P is number of PPIs, i.e. num-irq - 32)
+ *    [0..P-1]  SPIs
+ *    [P..P+31] PPIs for CPU 0
+ *    [P+32..P+63] PPIs for CPU 1
+ *    ...
+ *  + sysbus IRQ 0 : IRQ
+ *  + sysbus IRQ 1 : FIQ
+ *  + sysbus IRQ 2 : VIRQ (exists even if virt extensions not present)
+ *  + sysbus IRQ 3 : VFIQ (exists even if virt extensions not present)
+ *  + sysbus IRQ 4 : maintenance IRQ for CPU i/f 0 (only if virt extns present)
+ *  + sysbus IRQ 5 : maintenance IRQ for CPU i/f 1 (only if virt extns present)
+ *    ...
+ *  + sysbus MMIO regions: (in order; numbers will vary depending on
+ *    whether virtualization extensions are present and on number of cores)
+ *    - distributor registers (GICD*)
+ *    - CPU interface for the accessing core (GICC*)
+ *    - virtual interface control registers (GICH*) (only if virt extns present)
+ *    - virtual CPU interface for the accessing core (GICV*) (only if virt)
+ *    - CPU 0 CPU interface registers
+ *    - CPU 1 CPU interface registers
+ *      ...
+ *    - CPU 0 VCPU interface registers (only if virt extns present)
+ *    - CPU 1 VCPU interface registers (only if virt extns present)
+ *      ...
+ */
+
 #ifndef HW_ARM_GIC_H
 #define HW_ARM_GIC_H
 
