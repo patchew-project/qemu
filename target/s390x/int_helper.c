@@ -24,6 +24,7 @@
 #include "exec/exec-all.h"
 #include "qemu/host-utils.h"
 #include "exec/helper-proto.h"
+#include "exec/cpu_ldst.h"
 
 /* #define DEBUG_HELPER */
 #ifdef DEBUG_HELPER
@@ -116,6 +117,55 @@ uint64_t HELPER(divu64)(CPUS390XState *env, uint64_t ah, uint64_t al,
 #endif
     }
     return ret;
+}
+
+static void general_operand_exception(CPUS390XState *env, uintptr_t ra)
+{
+#ifndef CONFIG_USER_ONLY
+    LowCore *lowcore;
+
+    lowcore = cpu_map_lowcore(env);
+    lowcore->data_exc_code = 0;
+    cpu_unmap_lowcore(lowcore);
+#endif
+    s390_program_interrupt(env, PGM_DATA, ILEN_AUTO, ra);
+}
+
+uint64_t HELPER(cvb)(CPUS390XState *env, uint64_t src, uint32_t n)
+{
+    int i, j;
+    uintptr_t ra = GETPC();
+    int64_t dec, sign = 0, digit, val = 0, pow10 = 0;
+
+    for (i = 0; i < n; i++) {
+        dec = cpu_ldq_data_ra(env, src + (n - i - 1) * 8, ra);
+        for (j = 0; j < 16; j++, dec >>= 4) {
+            if (i == 0 && j == 0) {
+                sign = dec & 0xf;
+                if (sign < 0xa) {
+                    general_operand_exception(env, ra);
+                }
+                continue;
+            }
+            digit = dec & 0xf;
+            if (digit > 0x9) {
+                general_operand_exception(env, ra);
+            }
+            if (i == 0 && j == 1) {
+                if (sign == 0xb || sign == 0xd) {
+                    val = -digit;
+                    pow10 = -10;
+                } else {
+                    val = digit;
+                    pow10 = 10;
+                }
+            } else {
+                val += digit * pow10;
+                pow10 *= 10;
+            }
+        }
+    }
+    return val;
 }
 
 uint64_t HELPER(cvd)(int32_t reg)
