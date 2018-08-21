@@ -1603,6 +1603,47 @@ static void migration_update_rates(RAMState *rs, int64_t end_time)
     }
 }
 
+static void
+update_compress_thread_counts(const CompressParam *param, int bytes_xmit)
+{
+    if (param->zero_page) {
+        ram_counters.duplicate++;
+    }
+    ram_counters.transferred += bytes_xmit;
+}
+
+static void flush_compressed_data(RAMState *rs)
+{
+    int idx, len, thread_count;
+
+    if (!migrate_use_compression()) {
+        return;
+    }
+    thread_count = migrate_compress_threads();
+
+    qemu_mutex_lock(&comp_done_lock);
+    for (idx = 0; idx < thread_count; idx++) {
+        while (!comp_param[idx].done) {
+            qemu_cond_wait(&comp_done_cond, &comp_done_lock);
+        }
+    }
+    qemu_mutex_unlock(&comp_done_lock);
+
+    for (idx = 0; idx < thread_count; idx++) {
+        qemu_mutex_lock(&comp_param[idx].mutex);
+        if (!comp_param[idx].quit) {
+            len = qemu_put_qemu_file(rs->f, comp_param[idx].file);
+            /*
+             * it's safe to fetch zero_page without holding comp_done_lock
+             * as there is no further request submitted to the thread,
+             * i.e, the thread should be waiting for a request at this point.
+             */
+            update_compress_thread_counts(&comp_param[idx], len);
+        }
+        qemu_mutex_unlock(&comp_param[idx].mutex);
+    }
+}
+
 static void migration_bitmap_sync(RAMState *rs)
 {
     RAMBlock *block;
@@ -1610,6 +1651,14 @@ static void migration_bitmap_sync(RAMState *rs)
     uint64_t bytes_xfer_now;
 
     ram_counters.dirty_sync_count++;
+
+    /*
+     * if memory migration starts over, we will meet a dirtied page which
+     * may still exists in compression threads's ring, so we should flush
+     * the compressed data to make sure the new page is not overwritten by
+     * the old one in the destination.
+     */
+    flush_compressed_data(rs);
 
     if (!rs->time_last_bitmap_sync) {
         rs->time_last_bitmap_sync = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
@@ -1877,47 +1926,6 @@ static bool do_compress_ram_page(QEMUFile *f, z_stream *stream, RAMBlock *block,
 exit:
     ram_release_pages(block->idstr, offset & TARGET_PAGE_MASK, 1);
     return zero_page;
-}
-
-static void
-update_compress_thread_counts(const CompressParam *param, int bytes_xmit)
-{
-    if (param->zero_page) {
-        ram_counters.duplicate++;
-    }
-    ram_counters.transferred += bytes_xmit;
-}
-
-static void flush_compressed_data(RAMState *rs)
-{
-    int idx, len, thread_count;
-
-    if (!migrate_use_compression()) {
-        return;
-    }
-    thread_count = migrate_compress_threads();
-
-    qemu_mutex_lock(&comp_done_lock);
-    for (idx = 0; idx < thread_count; idx++) {
-        while (!comp_param[idx].done) {
-            qemu_cond_wait(&comp_done_cond, &comp_done_lock);
-        }
-    }
-    qemu_mutex_unlock(&comp_done_lock);
-
-    for (idx = 0; idx < thread_count; idx++) {
-        qemu_mutex_lock(&comp_param[idx].mutex);
-        if (!comp_param[idx].quit) {
-            len = qemu_put_qemu_file(rs->f, comp_param[idx].file);
-            /*
-             * it's safe to fetch zero_page without holding comp_done_lock
-             * as there is no further request submitted to the thread,
-             * i.e, the thread should be waiting for a request at this point.
-             */
-            update_compress_thread_counts(&comp_param[idx], len);
-        }
-        qemu_mutex_unlock(&comp_param[idx].mutex);
-    }
 }
 
 static inline void set_compress_params(CompressParam *param, RAMBlock *block,
