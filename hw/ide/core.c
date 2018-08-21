@@ -440,6 +440,14 @@ static void ide_issue_trim_cb(void *opaque, int ret)
     TrimAIOCB *iocb = opaque;
     IDEState *s = iocb->s;
 
+    if (iocb->i >= 0) {
+        if (ret >= 0) {
+            block_acct_done(blk_get_stats(s->blk), &s->acct);
+        } else {
+            block_acct_failed(blk_get_stats(s->blk), &s->acct);
+        }
+    }
+
     if (ret >= 0) {
         while (iocb->j < iocb->qiov->niov) {
             int j = iocb->j;
@@ -460,6 +468,9 @@ static void ide_issue_trim_cb(void *opaque, int ret)
                     iocb->ret = -EINVAL;
                     goto done;
                 }
+
+                block_acct_start(blk_get_stats(s->blk), &s->acct,
+                                 count << BDRV_SECTOR_BITS, BLOCK_ACCT_UNMAP);
 
                 /* Got an entry! Submit and exit.  */
                 iocb->aiocb = blk_aio_pdiscard(s->blk,
@@ -845,6 +856,7 @@ static void ide_dma_cb(void *opaque, int ret)
     }
 
     if (ret == -EINVAL) {
+        block_acct_invalid(blk_get_stats(s->blk), BLOCK_ACCT_UNMAP);
         ide_dma_error(s);
         return;
     }
