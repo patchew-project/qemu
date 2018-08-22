@@ -1112,6 +1112,14 @@ typedef struct {
 /* We are exiting the TB to the main loop.  */
 #define DISAS_PC_STALE_NOCHAIN  DISAS_TARGET_4
 
+
+/* Instruction flags */
+#define IF_HFP1     0x0001      /* r1 points at fp reg for HFP instructions */
+#define IF_HFP2     0x0002      /* r2 points at fp reg for HFP instructions */
+#define IF_HFP3     0x0004      /* r3 points at fp reg for HFP instructions */
+#define IF_BFP      0x0008      /* binary floating point instruction */
+#define IF_DFP      0x0010      /* decimal floating point instruction */
+
 struct DisasInsn {
     unsigned opc:16;
     unsigned flags:16;
