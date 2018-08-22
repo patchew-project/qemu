@@ -21,11 +21,13 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "internal.h"
+#include "exec/helper-proto.h"
 #include "qemu/timer.h"
 #include "exec/exec-all.h"
 #include "exec/cpu_ldst.h"
 #include "hw/s390x/ioinst.h"
 #include "exec/address-spaces.h"
+#include "tcg_s390x.h"
 #ifndef CONFIG_USER_ONLY
 #include "sysemu/sysemu.h"
 #include "hw/s390x/s390_flic.h"
@@ -47,6 +49,32 @@
 #define DPRINTF(fmt, ...) \
     do { } while (0)
 #endif
+
+void QEMU_NORETURN tcg_s390_data_exception(CPUS390XState *env, uint32_t dxc,
+                                           uintptr_t ra)
+{
+    CPUState *cs = CPU(s390_env_get_cpu(env));
+
+    g_assert(!(dxc & ~0xff));
+#if !defined(CONFIG_USER_ONLY)
+    /* Store the DXC into the lowcore */
+    stw_phys(cs->as, env->psa + offsetof(LowCore, data_exc_code), dxc);
+#endif
+
+    /* Store the DXC into the FPC if AFP is enabled */
+    if (env->cregs[0] & CR0_AFP) {
+        env->fpc = (env->fpc & ~0xff00) | (dxc << 8);
+    }
+    s390_program_interrupt(env, PGM_DATA, ILEN_AUTO, ra);
+
+    /* the following is not necessary, but allows us to use noreturn */
+    cpu_loop_exit_restore(cs, ra);
+}
+
+void HELPER(data_exception)(CPUS390XState *env, uint32_t dxc)
+{
+    tcg_s390_data_exception(env, dxc, GETPC());
+}
 
 #if defined(CONFIG_USER_ONLY)
 
