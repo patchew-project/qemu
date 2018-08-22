@@ -3864,6 +3864,8 @@ Disable set*uid|gid system calls
 Disable *fork and execve
 @item resourcecontrol=@var{string}
 Disable process affinity and schedular priority
+@item tsync=@var{bool}
+Apply seccomp filter to all threads (default is auto, and will warn if fail)
 @end table
 ETEXI
 

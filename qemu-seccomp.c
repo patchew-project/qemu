@@ -119,6 +119,45 @@ qemu_seccomp(unsigned int operation, unsigned int flags, void *args)
 #endif
 }
 
+static bool qemu_seccomp_syscall_check(void)
+{
+    int rc;
+
+    /*
+     * this is an invalid call because the second argument is non-zero, but
+     * depending on the errno value of ENOSYS or EINVAL we can guess if the
+     * seccomp() syscal is supported or not
+     */
+    rc = qemu_seccomp(SECCOMP_SET_MODE_STRICT, 1, NULL);
+    if (rc < 0 && errno == EINVAL) {
+        return true;
+    }
+
+    return false;
+}
+
+static bool qemu_seccomp_get_default_tsync(void)
+{
+    bool tsync = true;
+
+    /* TSYNC support was added with the syscall */
+    if (!qemu_seccomp_syscall_check()) {
+        error_report("The host kernel doesn't support seccomp TSYNC!");
+        tsync = false;
+    }
+
+#if !(SCMP_VER_MAJOR >= 2 && SCMP_VER_MINOR >= 2)
+    error_report("libseccomp is too old to support TSYNC!");
+    tsync = false;
+#endif
+
+    if (!tsync) {
+        error_report("Only the main thread will be filtered by seccomp!");
+    }
+
+    return tsync;
+}
+
 static uint32_t qemu_seccomp_get_kill_action(void)
 {
 #if defined(SECCOMP_GET_ACTION_AVAIL) && defined(SCMP_ACT_KILL_PROCESS) && \
@@ -136,7 +175,7 @@ static uint32_t qemu_seccomp_get_kill_action(void)
 }
 
 
-static int seccomp_start(uint32_t seccomp_opts)
+static int seccomp_start(uint32_t seccomp_opts, bool tsync)
 {
     int rc = 0;
     unsigned int i = 0;
@@ -147,6 +186,17 @@ static int seccomp_start(uint32_t seccomp_opts)
     if (ctx == NULL) {
         rc = -1;
         goto seccomp_return;
+    }
+
+    if (tsync) {
+#if SCMP_VER_MAJOR >= 2 && SCMP_VER_MINOR >= 2
+        rc = seccomp_attr_set(ctx, SCMP_FLTATR_CTL_TSYNC, 1);
+#else
+        rc = -1;
+#endif
+        if (rc != 0) {
+            goto seccomp_return;
+        }
     }
 
     for (i = 0; i < ARRAY_SIZE(blacklist); i++) {
@@ -175,6 +225,13 @@ int parse_sandbox(void *opaque, QemuOpts *opts, Error **errp)
         uint32_t seccomp_opts = QEMU_SECCOMP_SET_DEFAULT
                 | QEMU_SECCOMP_SET_OBSOLETE;
         const char *value = NULL;
+        bool tsync;
+
+        if (qemu_opt_get(opts, "tsync")) {
+            tsync = qemu_opt_get_bool(opts, "tsync", true);
+        } else {
+            tsync = qemu_seccomp_get_default_tsync();
+        }
 
         value = qemu_opt_get(opts, "obsolete");
         if (value) {
@@ -236,7 +293,7 @@ int parse_sandbox(void *opaque, QemuOpts *opts, Error **errp)
             }
         }
 
-        if (seccomp_start(seccomp_opts) < 0) {
+        if (seccomp_start(seccomp_opts, tsync) < 0) {
             error_report("failed to install seccomp syscall filter "
                          "in the kernel");
             return -1;
@@ -270,6 +327,10 @@ static QemuOptsList qemu_sandbox_opts = {
         {
             .name = "resourcecontrol",
             .type = QEMU_OPT_STRING,
+        },
+        {
+            .name = "tsync",
+            .type = QEMU_OPT_BOOL,
         },
         { /* end of list */ }
     },
