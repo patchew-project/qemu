@@ -105,6 +105,7 @@ ChardevBackend *qemu_chr_parse_opts(QemuOpts *opts,
  * @qemu_chr_new:
  *
  * Create a new character backend from a URI.
+ * Do not implicitely initialize a monitor if the chardev is muxed.
  *
  * @label the name of the backend
  * @filename the URI
@@ -112,6 +113,19 @@ ChardevBackend *qemu_chr_parse_opts(QemuOpts *opts,
  * Returns: a new character backend
  */
 Chardev *qemu_chr_new(const char *label, const char *filename);
+
+/**
+ * @qemu_chr_new_mux_mon:
+ *
+ * Create a new character backend from a URI.
+ * Implicitely initialize a monitor if the chardev is muxed.
+ *
+ * @label the name of the backend
+ * @filename the URI
+ *
+ * Returns: a new character backend
+ */
+Chardev *qemu_chr_new_mux_mon(const char *label, const char *filename);
 
 /**
  * @qemu_chr_change:
@@ -138,10 +152,12 @@ void qemu_chr_cleanup(void);
  *
  * @label the name of the backend
  * @filename the URI
+ * @with_mux_mon if chardev is muxed, initialize a monitor
  *
  * Returns: a new character backend
  */
-Chardev *qemu_chr_new_noreplay(const char *label, const char *filename);
+Chardev *qemu_chr_new_noreplay(const char *label, const char *filename,
+                               bool with_mux_mon);
 
 /**
  * @qemu_chr_be_can_write:

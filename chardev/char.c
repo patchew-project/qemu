@@ -683,7 +683,8 @@ out:
     return chr;
 }
 
-Chardev *qemu_chr_new_noreplay(const char *label, const char *filename)
+Chardev *qemu_chr_new_noreplay(const char *label, const char *filename,
+                               bool with_mux_mon)
 {
     const char *p;
     Chardev *chr;
@@ -702,17 +703,19 @@ Chardev *qemu_chr_new_noreplay(const char *label, const char *filename)
     if (err) {
         error_report_err(err);
     }
-    if (chr && qemu_opt_get_bool(opts, "mux", 0)) {
+    if (with_mux_mon && chr && qemu_opt_get_bool(opts, "mux", 0)) {
         monitor_init(chr, MONITOR_USE_READLINE);
     }
     qemu_opts_del(opts);
     return chr;
 }
 
-Chardev *qemu_chr_new(const char *label, const char *filename)
+static Chardev *qemu_chr_new_with_mux_mon(const char *label,
+                                          const char *filename,
+                                          bool with_mux_mon)
 {
     Chardev *chr;
-    chr = qemu_chr_new_noreplay(label, filename);
+    chr = qemu_chr_new_noreplay(label, filename, with_mux_mon);
     if (chr) {
         if (replay_mode != REPLAY_MODE_NONE) {
             qemu_chr_set_feature(chr, QEMU_CHAR_FEATURE_REPLAY);
@@ -724,6 +727,16 @@ Chardev *qemu_chr_new(const char *label, const char *filename)
         replay_register_char_driver(chr);
     }
     return chr;
+}
+
+Chardev *qemu_chr_new(const char *label, const char *filename)
+{
+    return qemu_chr_new_with_mux_mon(label, filename, false);
+}
+
+Chardev *qemu_chr_new_mux_mon(const char *label, const char *filename)
+{
+    return qemu_chr_new_with_mux_mon(label, filename, true);
 }
 
 static int qmp_query_chardev_foreach(Object *obj, void *data)

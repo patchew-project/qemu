@@ -207,7 +207,10 @@ static int con_init(struct XenDevice *xendev)
     } else {
         snprintf(label, sizeof(label), "xencons%d", con->xendev.dev);
         qemu_chr_fe_init(&con->chr,
-                         qemu_chr_new(label, output), &error_abort);
+                         /*
+                          * FIXME: should it support implicit muxed monitors?
+                          */
+                         qemu_chr_new_mux_mon(label, output), &error_abort);
     }
 
     xenstore_store_pv_console_info(con->xendev.dev,
