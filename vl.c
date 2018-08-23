@@ -1238,10 +1238,10 @@ static void smp_parse(QemuOpts *opts)
             exit(1);
         }
 
-        if (sockets * cores * threads > max_cpus) {
+        if (sockets * cores * threads != max_cpus) {
             error_report("cpu topology: "
-                         "sockets (%u) * cores (%u) * threads (%u) > "
-                         "maxcpus (%u)",
+                         "sockets (%u) * cores (%u) * threads (%u) not equal to"
+                         " maxcpus (%u)",
                          sockets, cores, threads, max_cpus);
             exit(1);
         }
