@@ -3999,6 +3999,135 @@ BlockDeviceInfoList *bdrv_named_nodes_list(Error **errp)
     return list;
 }
 
+#define QAPI_LIST_ADD(list, element) do { \
+    typeof(list) _tmp = g_new(typeof(*(list)), 1); \
+    _tmp->value = (element); \
+    _tmp->next = (list); \
+    list = _tmp; \
+} while (0)
+
+typedef struct BlockGraphConstructor {
+    BlockGraph *graph;
+    GHashTable *hash;
+} BlockGraphConstructor;
+
+static BlockGraphConstructor *graph_new(void)
+{
+    BlockGraphConstructor *gr = g_new(BlockGraphConstructor, 1);
+
+    gr->graph = g_new0(BlockGraph, 1);
+    gr->hash = g_hash_table_new(NULL, NULL);
+
+    return gr;
+}
+
+static BlockGraph *graph_finalize(BlockGraphConstructor *gr)
+{
+    g_hash_table_destroy(gr->hash);
+
+    return gr->graph;
+}
+
+static uint64_t graph_node_num(BlockGraphConstructor *gr, void *node)
+{
+    uint64_t ret = (uint64_t)g_hash_table_lookup(gr->hash, node);
+
+    if (ret > 0) {
+        return ret;
+    }
+
+    ret = g_hash_table_size(gr->hash) + 1;
+    g_hash_table_insert(gr->hash, node, (void *)ret);
+
+    return ret;
+}
+
+static void graph_add_node(BlockGraphConstructor *gr, void *node,
+                           BlockGraphNodeType type, const char *name)
+{
+    BlockGraphNode *n;
+
+    n = g_new0(BlockGraphNode, 1);
+
+    n->id = graph_node_num(gr, node);
+    n->type = type;
+    n->name = g_strdup(name);
+
+    QAPI_LIST_ADD(gr->graph->nodes, n);
+}
+
+static void graph_add_edge(BlockGraphConstructor *gr, void *parent,
+                           const BdrvChild *child)
+{
+    typedef struct {
+        unsigned int flag;
+        BlockPermission num;
+    } PermissionMap;
+
+    static PermissionMap permissions[] = {
+        { BLK_PERM_CONSISTENT_READ, BLOCK_PERMISSION_CONSISTENT_READ },
+        { BLK_PERM_WRITE,           BLOCK_PERMISSION_WRITE },
+        { BLK_PERM_WRITE_UNCHANGED, BLOCK_PERMISSION_WRITE_UNCHANGED },
+        { BLK_PERM_RESIZE,          BLOCK_PERMISSION_RESIZE },
+        { BLK_PERM_GRAPH_MOD,       BLOCK_PERMISSION_GRAPH_MOD },
+        { 0, 0 }
+    };
+    PermissionMap *p;
+    BlockGraphEdge *edge;
+
+    edge = g_new0(BlockGraphEdge, 1);
+
+    edge->parent = graph_node_num(gr, parent);
+    edge->child = graph_node_num(gr, child->bs);
+    edge->name = g_strdup(child->name);
+
+    for (p = permissions; p->flag; p++) {
+        if (p->flag & child->perm) {
+            QAPI_LIST_ADD(edge->perm, p->num);
+        }
+        if (p->flag & child->shared_perm) {
+            QAPI_LIST_ADD(edge->shared_perm, p->num);
+        }
+    }
+
+    QAPI_LIST_ADD(gr->graph->edges, edge);
+}
+
+
+BlockGraph *bdrv_get_block_graph(Error **errp)
+{
+    BlockBackend *blk;
+    BlockJob *job;
+    BlockDriverState *bs;
+    BdrvChild *child;
+    BlockGraphConstructor *gr = graph_new();
+
+    for (blk = blk_all_next(NULL); blk; blk = blk_all_next(blk)) {
+        graph_add_node(gr, blk, BLOCK_GRAPH_NODE_TYPE_BLK, blk_name(blk));
+        if (blk_root(blk)) {
+            graph_add_edge(gr, blk, blk_root(blk));
+        }
+    }
+
+    for (job = block_job_next(NULL); job; job = block_job_next(job)) {
+        GSList *el;
+
+        graph_add_node(gr, job, BLOCK_GRAPH_NODE_TYPE_JOB, job->job.id);
+        for (el = job->nodes; el; el = el->next) {
+            graph_add_edge(gr, job, (BdrvChild *)el->data);
+        }
+    }
+
+    QTAILQ_FOREACH(bs, &graph_bdrv_states, node_list) {
+        graph_add_node(gr, bs, BLOCK_GRAPH_NODE_TYPE_BDS, bs->node_name);
+        QLIST_FOREACH(child, &bs->children, next) {
+            graph_add_edge(gr, bs, child);
+        }
+    }
+
+    return graph_finalize(gr);
+}
+
 BlockDriverState *bdrv_lookup_bs(const char *device,
                                  const char *node_name,
                                  Error **errp)
