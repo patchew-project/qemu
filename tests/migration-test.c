@@ -93,6 +93,18 @@ static void init_bootfile_x86(const char *bootpath)
     fclose(bootfile);
 }
 
+#include "tests/migration/s390x-a-b.h"
+
+static void init_bootfile_s390x(const char *bootpath)
+{
+    FILE *bootfile = fopen(bootpath, "wb");
+    size_t len = sizeof(s390x_a_b_elf);
+
+    g_assert_cmpint(fwrite(s390x_a_b_elf, len, 1, bootfile), ==, 1);
+    fclose(bootfile);
+}
+
+
 /*
  * Wait for some output in the serial output file,
  * we get an 'A' followed by an endless string of 'B's
@@ -460,6 +472,17 @@ static int test_migrate_start(QTestState **from, QTestState **to,
                                   " -serial file:%s/dest_serial"
                                   " -incoming %s",
                                   accel, tmpfs, uri);
+    } else if (g_str_equal(arch, "s390x")) {
+        init_bootfile_s390x(bootpath);
+        cmd_src = g_strdup_printf("-machine accel=%s -m 128M"
+                                  " -name source,debug-threads=on"
+                                  " -serial file:%s/src_serial -bios %s",
+                                  accel, tmpfs, bootpath);
+        cmd_dst = g_strdup_printf("-machine accel=%s -m 128M"
+                                  " -name target,debug-threads=on"
+                                  " -serial file:%s/dest_serial -bios %s"
+                                  " -incoming %s",
+                                  accel, tmpfs, bootpath, uri);
     } else {
         g_assert_not_reached();
     }
