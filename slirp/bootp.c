@@ -306,6 +306,14 @@ static void bootp_reply(Slirp *slirp, const struct bootp_t *bp)
             q += val;
         }
 
+        if (slirp->tftp_server_name) {
+            val = strlen(slirp->tftp_server_name);
+            *q++ = RFC2132_TFTP_SERVER_NAME;
+            *q++ = val;
+            memcpy(q, slirp->tftp_server_name, val);
+            q += val;
+        }
+
         if (slirp->vdnssearch) {
             size_t spaceleft = sizeof(rbp->bp_vend) - (q - rbp->bp_vend);
             val = slirp->vdnssearch_len;

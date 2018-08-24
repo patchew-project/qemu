@@ -219,6 +219,8 @@ struct Slirp {
     GRand *grand;
     QEMUTimer *ra_timer;
 
+    char *tftp_server_name;
+
     void *opaque;
 };
 
