@@ -65,8 +65,6 @@ class BaseVM(object):
             self._stdout = self._devnull
         self._args = [ \
             "-nodefaults", "-m", "4G",
-            "-netdev", "user,id=vnet,hostfwd=:127.0.0.1:0-:22",
-            "-device", "virtio-net-pci,netdev=vnet",
             "-vnc", "127.0.0.1:0,to=20",
             "-serial", "file:%s" % os.path.join(self._tmpdir, "serial.out")]
         if vcpus:
@@ -145,8 +143,10 @@ class BaseVM(object):
                             "-device",
                             "virtio-blk,drive=%s,serial=%s,bootindex=1" % (name, name)]
 
-    def boot(self, img, extra_args=[]):
+    def boot(self, img, extra_args=[], extra_usernet_args=""):
         args = self._args + [
+            "-netdev", "user,id=vnet,hostfwd=:127.0.0.1:0-:22" + extra_usernet_args,
+            "-device", "virtio-net-pci,netdev=vnet",
             "-device", "VGA",
             "-drive", "file=%s,if=none,id=drive0,cache=writeback" % img,
             "-device", "virtio-blk,drive=drive0,bootindex=0"]
@@ -195,6 +195,28 @@ class BaseVM(object):
 
     def qmp(self, *args, **kwargs):
         return self._guest.qmp(*args, **kwargs)
+
+    def start_http_server(self, workdir, ports=range(8010, 8020), sudo=False):
+        p = None
+        token = "%d-%d" % (os.getpid(), time.time())
+        with open(os.path.join(workdir, token), "w") as f:
+            f.write("# QEMU VM testing HTTP server token file #")
+            f.flush()
+        for port in ports:
+            cmd = ["python3", "-m", "http.server", str(port)]
+            if sudo:
+                cmd = ["sudo", "-n"] + cmd
+            p = subprocess.Popen(cmd, cwd=workdir)
+            for retry in range(5):
+                if p.poll() != None:
+                    break
+                if subprocess.call("curl http://127.0.0.1:%d/%s &>/dev/null" % \
+                        (port, token),
+                                   shell=True) == 0:
+                    atexit.register(p.terminate)
+                    return port
+                time.sleep(0.3)
+        raise IOError("Failed to start HTTP server")
 
 def parse_args(vm_name):
     parser = optparse.OptionParser(
