@@ -1398,6 +1398,9 @@ static TCGv_i32 fpu_fcr0, fpu_fcr31;
 static TCGv_i64 fpu_f64[32];
 static TCGv_i64 msa_wr_d[64];
 
+/* MXU registers */
+static TCGv mxu_gpr[16];
+
 #include "exec/gen-icount.h"
 
 #define gen_helper_0e0i(name, arg) do {                           \
@@ -1517,6 +1520,13 @@ static const char * const msaregnames[] = {
     "w30.d0", "w30.d1", "w31.d0", "w31.d1",
 };
 
+static const char * const mxuregnames[] = {
+    "XR1",  "XR2",  "XR3",  "XR4",  "XR5",
+    "XR6",  "XR7",  "XR8",  "XR9",  "XR10",
+    "XR11", "XR12", "XR13", "XR14", "XR15",
+    "XR16",
+};
+
 #define LOG_DISAS(...)                                                        \
     do {                                                                      \
         if (MIPS_DEBUG_DISAS) {                                               \
@@ -1548,6 +1558,21 @@ static inline void gen_store_gpr (TCGv t, int reg)
 {
     if (reg != 0)
         tcg_gen_mov_tl(cpu_gpr[reg], t);
+}
+
+/* MXU General purpose registers moves. */
+static inline void gen_load_mxu_gpr (TCGv t, int reg)
+{
+    if (reg == 0)
+        tcg_gen_movi_tl(t, 0);
+    else
+        tcg_gen_mov_tl(t, mxu_gpr[reg-1]);
+}
+
+static inline void gen_store_mxu_gpr (TCGv t, int reg)
+{
+    if (reg != 0)
+        tcg_gen_mov_tl(mxu_gpr[reg-1], t);
 }
 
 /* Moves to/from shadow registers. */
@@ -20742,6 +20767,11 @@ void mips_tcg_init(void)
     fpu_fcr31 = tcg_global_mem_new_i32(cpu_env,
                                        offsetof(CPUMIPSState, active_fpu.fcr31),
                                        "fcr31");
+
+    for (i = 0; i < 16; i++)
+        mxu_gpr[i] = tcg_global_mem_new(cpu_env,
+                                        offsetof(CPUMIPSState, active_tc.mxu_gpr[i]),
+                                        mxuregnames[i]);
 }
 
 #include "translate_init.inc.c"
