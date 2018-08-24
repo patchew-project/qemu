@@ -1027,7 +1027,8 @@
 #
 ##
 { 'struct'  : 'DisplayGTK',
-  'data'    : { '*grab-on-hover' : 'bool' } }
+  'data'    : { '*grab-on-hover' : 'bool',
+                '*zoom-to-fit'   : 'bool'  } }
 
  ##
  # @DisplayGLMode:
