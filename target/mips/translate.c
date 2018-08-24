@@ -347,7 +347,8 @@ enum {
     OPC_MSUB     = 0x04 | OPC_SPECIAL2,
     OPC_MSUBU    = 0x05 | OPC_SPECIAL2,
     /* Loongson 2F */
-    OPC_MULT_G_2F   = 0x10 | OPC_SPECIAL2,
+    /* opcode 0x10 overlaps loongson and MXU command */
+    OPC_MULT_G_2F_MXU_S32LDD   = 0x10 | OPC_SPECIAL2,
     OPC_DMULT_G_2F  = 0x11 | OPC_SPECIAL2,
     OPC_MULTU_G_2F  = 0x12 | OPC_SPECIAL2,
     OPC_DMULTU_G_2F = 0x13 | OPC_SPECIAL2,
@@ -3801,6 +3802,15 @@ typedef union {
     struct {
         uint32_t op:6;
         uint32_t xra:4;
+        uint32_t s12:10;
+        uint32_t sel:1;
+        uint32_t rb:5;
+        uint32_t special2:6;
+    } S32LDD;
+
+    struct {
+        uint32_t op:6;
+        uint32_t xra:4;
         uint32_t xrb:4;
         uint32_t xrc:4;
         uint32_t xrd:4;
@@ -3923,6 +3933,24 @@ static void gen_mxu(DisasContext *ctx, uint32_t opc)
             break;
         }
         gen_store_mxu_gpr(t0, opcode->S8LDD.xra);
+        break;
+
+    case OPC_MULT_G_2F_MXU_S32LDD:
+        gen_load_gpr(t0, opcode->S32LDD.rb);
+
+        tcg_gen_movi_tl(t1, opcode->S32LDD.s12);
+        tcg_gen_shli_tl(t1, t1, 2);
+        if (opcode->S32LDD.s12 & 0x200) {
+            tcg_gen_ori_tl(t1, t1, 0xFFFFF000);
+        }
+        tcg_gen_add_tl(t1, t0, t1);
+        tcg_gen_qemu_ld_tl(t1, t1, ctx->mem_idx, MO_SL);
+
+        if (opcode->S32LDD.sel == 1) {
+            /* S32LDDR */
+            tcg_gen_bswap32_tl(t1, t1);
+        }
+        gen_store_mxu_gpr(t1, opcode->S32LDD.xra);
         break;
 
     case OPC_MXU_D16MUL:
@@ -4093,7 +4121,7 @@ static void gen_loongson_integer(DisasContext *ctx, uint32_t opc,
 
     switch (opc) {
     case OPC_MULT_G_2E:
-    case OPC_MULT_G_2F:
+    case OPC_MULT_G_2F_MXU_S32LDD:
     case OPC_MULTU_G_2E:
     case OPC_MULTU_G_2F:
 #if defined(TARGET_MIPS64)
@@ -4116,7 +4144,7 @@ static void gen_loongson_integer(DisasContext *ctx, uint32_t opc,
 
     switch (opc) {
     case OPC_MULT_G_2E:
-    case OPC_MULT_G_2F:
+    case OPC_MULT_G_2F_MXU_S32LDD:
         tcg_gen_mul_tl(cpu_gpr[rd], t0, t1);
         tcg_gen_ext32s_tl(cpu_gpr[rd], cpu_gpr[rd]);
         break;
@@ -18153,7 +18181,6 @@ static void decode_opc_special2_legacy(CPUMIPSState *env, DisasContext *ctx)
         break;
     case OPC_DIV_G_2F:
     case OPC_DIVU_G_2F:
-    case OPC_MULT_G_2F:
     case OPC_MULTU_G_2F:
     case OPC_MOD_G_2F:
     case OPC_MODU_G_2F:
@@ -18170,6 +18197,15 @@ static void decode_opc_special2_legacy(CPUMIPSState *env, DisasContext *ctx)
         gen_mxu(ctx, op1);
         break;
 
+    case OPC_MULT_G_2F_MXU_S32LDD:
+        /* There is an overlap of opcodes between Loongson2F and MXU */
+        if (ctx->insn_flags & INSN_LOONGSON2F) {
+            check_insn(ctx, INSN_LOONGSON2F);
+            gen_loongson_integer(ctx, op1, rd, rs, rt);
+        } else {
+            gen_mxu(ctx, op1);
+        }
+        break;
     case OPC_CLO:
     case OPC_CLZ:
         check_insn(ctx, ISA_MIPS32);
