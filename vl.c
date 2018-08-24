@@ -2302,10 +2302,8 @@ static int fsdev_init_func(void *opaque, QemuOpts *opts, Error **errp)
 }
 #endif
 
-static int mon_init_func(void *opaque, QemuOpts *opts, Error **errp)
+static int mon_parse_flags(QemuOpts *opts)
 {
-    Chardev *chr;
-    const char *chardev;
     const char *mode;
     int flags;
 
@@ -2330,6 +2328,16 @@ static int mon_init_func(void *opaque, QemuOpts *opts, Error **errp)
         flags |= MONITOR_USE_OOB;
     }
 
+    return flags;
+}
+
+static int mon_init_func(void *opaque, QemuOpts *opts, Error **errp)
+{
+    Chardev *chr;
+    const char *chardev;
+    int flags;
+
+    flags = mon_parse_flags(opts);
     chardev = qemu_opt_get(opts, "chardev");
     chr = qemu_chr_find(chardev);
     if (chr == NULL) {
