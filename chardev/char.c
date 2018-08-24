@@ -41,6 +41,13 @@
 /***********************************************************/
 /* character device */
 
+typedef struct {
+    IOThread *iothread;
+    GMainContext *gcontext;
+} ChardevContextMap;
+
+static ChardevContextMap *chr_context_table;
+
 static Object *get_chardevs_root(void)
 {
     return container_get(object_get_root(), "/chardevs");
@@ -623,6 +630,7 @@ Chardev *qemu_chr_new_from_opts(QemuOpts *opts, Error **errp)
     const char *name = chardev_alias_translate(qemu_opt_get(opts, "backend"));
     const char *id = qemu_opts_id(opts);
     char *bid = NULL;
+    ChardevContext context;
 
     if (name && is_help_option(name)) {
         GString *str = g_string_new("");
@@ -633,6 +641,8 @@ Chardev *qemu_chr_new_from_opts(QemuOpts *opts, Error **errp)
         g_string_free(str, true);
         return NULL;
     }
+
+    context = qemu_opt_get_number(opts, "context", CHR_CONTEXT_MAIN);
 
     if (id == NULL) {
         error_setg(errp, "chardev: no id specified");
@@ -655,7 +665,7 @@ Chardev *qemu_chr_new_from_opts(QemuOpts *opts, Error **errp)
 
     chr = qemu_chardev_new(bid ? bid : id,
                            object_class_get_name(OBJECT_CLASS(cc)),
-                           backend, errp);
+                           backend, context, errp);
 
     if (chr == NULL) {
         goto out;
@@ -668,7 +678,8 @@ Chardev *qemu_chr_new_from_opts(QemuOpts *opts, Error **errp)
         backend->type = CHARDEV_BACKEND_KIND_MUX;
         backend->u.mux.data = g_new0(ChardevMux, 1);
         backend->u.mux.data->chardev = g_strdup(bid);
-        mux = qemu_chardev_new(id, TYPE_CHARDEV_MUX, backend, errp);
+        mux = qemu_chardev_new(id, TYPE_CHARDEV_MUX,
+                               backend, CHR_CONTEXT_MAIN, errp);
         if (mux == NULL) {
             object_unparent(OBJECT(chr));
             chr = NULL;
@@ -876,6 +887,10 @@ QemuOptsList qemu_chardev_opts = {
         },{
             .name = "logappend",
             .type = QEMU_OPT_BOOL,
+        },{
+            /* TODO: should only be used internally */
+            .name = "context",
+            .type = QEMU_OPT_NUMBER,
         },
         { /* end of list */ }
     },
@@ -893,8 +908,42 @@ void qemu_chr_set_feature(Chardev *chr,
     return set_bit(feature, chr->features);
 }
 
+static void qemu_chr_context_init(void)
+{
+    if (!chr_context_table) {
+        ChardevContext i;
+        ChardevContextMap *map;
+
+        chr_context_table = g_new0(ChardevContextMap, CHR_CONTEXT_MAX);
+
+        /* This stands for the main context */
+        chr_context_table[0].iothread = NULL;
+        chr_context_table[0].gcontext = NULL;
+
+        for (i = 1; i < CHR_CONTEXT_MAX; i++) {
+            map = &chr_context_table[i];
+            map->iothread = iothread_create("chr_iothread", &error_abort);
+            map->gcontext = iothread_get_g_main_context(map->iothread);
+        }
+    }
+}
+
+IOThread *qemu_chr_iothread_get(ChardevContext context)
+{
+    assert(context >= 0 && context < CHR_CONTEXT_MAX);
+    qemu_chr_context_init();
+    return chr_context_table[context].iothread;
+}
+
+GMainContext *qemu_chr_context_get(ChardevContext context)
+{
+    assert(context >= 0 && context < CHR_CONTEXT_MAX);
+    qemu_chr_context_init();
+    return chr_context_table[context].gcontext;
+}
+
 Chardev *qemu_chardev_new(const char *id, const char *typename,
-                          ChardevBackend *backend,
+                          ChardevBackend *backend, ChardevContext context,
                           Error **errp)
 {
     Object *obj;
@@ -907,6 +956,7 @@ Chardev *qemu_chardev_new(const char *id, const char *typename,
     obj = object_new(typename);
     chr = CHARDEV(obj);
     chr->label = g_strdup(id);
+    chr->gcontext = qemu_chr_context_get(context);
 
     qemu_char_open(chr, backend, &be_opened, &local_err);
     if (local_err) {
@@ -951,7 +1001,7 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
     }
 
     chr = qemu_chardev_new(id, object_class_get_name(OBJECT_CLASS(cc)),
-                           backend, errp);
+                           backend, CHR_CONTEXT_MAIN, errp);
     if (!chr) {
         return NULL;
     }
@@ -1009,7 +1059,7 @@ ChardevReturn *qmp_chardev_change(const char *id, ChardevBackend *backend,
     }
 
     chr_new = qemu_chardev_new(NULL, object_class_get_name(OBJECT_CLASS(cc)),
-                               backend, errp);
+                               backend, CHR_CONTEXT_MAIN, errp);
     if (!chr_new) {
         return NULL;
     }
@@ -1102,6 +1152,19 @@ GSource *qemu_chr_timeout_add_ms(Chardev *chr, guint ms,
 void qemu_chr_cleanup(void)
 {
     object_unparent(get_chardevs_root());
+
+    if (chr_context_table) {
+        ChardevContext i;
+        ChardevContextMap *map;
+        for (i = 1; i < CHR_CONTEXT_MAX; i++) {
+            map = &chr_context_table[i];
+            map->gcontext = NULL;
+            iothread_destroy(map->iothread);
+            map->iothread = NULL;
+        }
+        g_free(chr_context_table);
+        chr_context_table = NULL;
+    }
 }
 
 static void register_types(void)

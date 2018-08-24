@@ -2052,7 +2052,7 @@ int gdbserver_start(const char *device)
 
         /* Initialize a monitor terminal for gdb */
         mon_chr = qemu_chardev_new(NULL, TYPE_CHARDEV_GDB,
-                                   NULL, &error_abort);
+                                   NULL, CHR_CONTEXT_MAIN, &error_abort);
         monitor_init(mon_chr, 0);
     } else {
         qemu_chr_fe_deinit(&s->chr, true);

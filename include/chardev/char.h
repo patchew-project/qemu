@@ -5,6 +5,7 @@
 #include "qemu/main-loop.h"
 #include "qemu/bitmap.h"
 #include "qom/object.h"
+#include "sysemu/iothread.h"
 
 #define IAC_EOR 239
 #define IAC_SE 240
@@ -66,6 +67,15 @@ struct Chardev {
     GMainContext *gcontext;
     DECLARE_BITMAP(features, QEMU_CHAR_FEATURE_LAST);
 };
+
+/* This decides the customized context to run the chardev */
+typedef enum {
+    /* Run the chardev in the main context (NULL) */
+    CHR_CONTEXT_MAIN,
+    /* Run the chardev in the monitor specific context */
+    CHR_CONTEXT_MONITOR,
+    CHR_CONTEXT_MAX,
+} ChardevContext;
 
 /**
  * @qemu_chr_new_from_opts:
@@ -262,7 +272,10 @@ typedef struct ChardevClass {
 } ChardevClass;
 
 Chardev *qemu_chardev_new(const char *id, const char *typename,
-                          ChardevBackend *backend, Error **errp);
+                          ChardevBackend *backend, ChardevContext context,
+                          Error **errp);
+IOThread *qemu_chr_iothread_get(ChardevContext context);
+GMainContext *qemu_chr_context_get(ChardevContext context);
 
 extern int term_escape_char;
 
