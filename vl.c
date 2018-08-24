@@ -2349,6 +2349,32 @@ static int mon_init_func(void *opaque, QemuOpts *opts, Error **errp)
     return 0;
 }
 
+/*
+ * This setup the backends properly, it really has nothing to do with
+ * monitor itself yet.
+ */
+static int mon_setup_func(void *opaque, QemuOpts *opts, Error **errp)
+{
+    const char *chardev;
+    int flags;
+    QemuOpts *chr_opts;
+
+    flags = mon_parse_flags(opts);
+    chardev = qemu_opt_get(opts, "chardev");
+
+    /*
+     * If out-of-band is enabled on the monitor, choose the correct
+     * context for the backend before it initializes.
+     */
+    if (flags & MONITOR_USE_OOB) {
+        chr_opts = qemu_opts_find(qemu_find_opts("chardev"), chardev);
+        qemu_opt_set_number(chr_opts, "context", CHR_CONTEXT_MONITOR,
+                            &error_abort);
+    }
+
+    return 0;
+}
+
 static void monitor_parse(const char *optarg, const char *mode, bool pretty)
 {
     static int monitor_device_index = 0;
@@ -4275,6 +4301,11 @@ int main(int argc, char **argv, char **envp)
     if (qemu_opts_foreach(qemu_find_opts("object"),
                           user_creatable_add_opts_foreach,
                           object_create_initial, NULL)) {
+        exit(1);
+    }
+
+    if (qemu_opts_foreach(qemu_find_opts("mon"),
+                          mon_setup_func, NULL, NULL)) {
         exit(1);
     }
 

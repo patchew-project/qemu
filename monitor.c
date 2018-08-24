@@ -4543,7 +4543,7 @@ static AioContext *monitor_get_aio_context(void)
 
 static void monitor_iothread_init(void)
 {
-    mon_iothread = iothread_create("mon_iothread", &error_abort);
+    mon_iothread = qemu_chr_iothread_get(CHR_CONTEXT_MONITOR);
 
     /*
      * The dispatcher BH must run in the main loop thread, since we
@@ -4735,7 +4735,7 @@ void monitor_cleanup(void)
     qemu_bh_delete(qmp_respond_bh);
     qmp_respond_bh = NULL;
 
-    iothread_destroy(mon_iothread);
+    /* It'll be cleaned up by chardev */
     mon_iothread = NULL;
 }
 

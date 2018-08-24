@@ -267,6 +267,12 @@ void qemu_chr_fe_set_handlers(CharBackend *b,
         remove_fd_in_watch(s);
     } else {
         fe_open = 1;
+        /*
+         * Currently we don't allow to change context after chardev is
+         * created.  TODO: either remove these context parameters, or
+         * re-activate dynamic context switch for chardevs.
+         */
+        assert(context == s->gcontext);
     }
     b->chr_can_read = fd_can_read;
     b->chr_read = fd_read;
