@@ -19,6 +19,15 @@
 
 const char common_args[] = "-nodefaults -machine none";
 
+static const char *get_error_class(QDict *resp)
+{
+    QDict *error = qdict_get_qdict(resp, "error");
+    const char *desc = qdict_get_try_str(error, "desc");
+
+    g_assert(desc);
+    return error ? qdict_get_try_str(error, "class") : NULL;
+}
+
 /* Query smoke tests */
 
 static int query_error_class(const char *cmd)
@@ -197,6 +206,24 @@ static void add_query_tests(QmpSchema *schema)
     }
 }
 
+static void test_object_add_without_props(void)
+{
+    QTestState *qts;
+    QDict *ret;
+
+    qts = qtest_init(common_args);
+
+    ret = qtest_qmp(qts,
+                    "{'execute': 'object-add', 'arguments':"
+                    " {'qom-type': 'memory-backend-ram', 'id': 'ram1' } }");
+    g_assert_nonnull(ret);
+
+    g_assert_cmpstr(get_error_class(ret), ==, "GenericError");
+
+    qobject_unref(ret);
+    qtest_quit(qts);
+}
+
 int main(int argc, char *argv[])
 {
     QmpSchema schema;
@@ -206,6 +233,10 @@ int main(int argc, char *argv[])
 
     qmp_schema_init(&schema);
     add_query_tests(&schema);
+
+    qtest_add_func("qmp/object-add-without-props",
+                   test_object_add_without_props);
+
     ret = g_test_run();
 
     qmp_schema_cleanup(&schema);
