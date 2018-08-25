@@ -241,7 +241,7 @@ typedef struct TCGRelocation {
     int type;
     tcg_insn_unit *ptr;
     intptr_t addend;
-} TCGRelocation; 
+} TCGRelocation;
 
 typedef struct TCGLabel {
     unsigned has_value : 1;
@@ -679,6 +679,7 @@ struct TCGContext {
 #ifdef CONFIG_DEBUG_TCG
     int temps_in_use;
     int goto_tb_issue_mask;
+    int pending_relocs;
 #endif
 
     /* Code generation.  Note that we specifically do not use tcg_insn_unit

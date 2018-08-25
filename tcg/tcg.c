@@ -256,6 +256,21 @@ static __attribute__((unused)) inline void tcg_patch64(tcg_insn_unit *p,
 }
 #endif
 
+static void tcg_pending_relocs_inc(TCGContext *s)
+{
+#ifdef CONFIG_DEBUG_TCG
+    s->pending_relocs++;
+#endif
+}
+
+static void tcg_pending_relocs_dec(TCGContext *s)
+{
+#ifdef CONFIG_DEBUG_TCG
+    tcg_debug_assert(s->pending_relocs > 0);
+    s->pending_relocs--;
+#endif
+}
+
 /* label relocation processing */
 
 static void tcg_out_reloc(TCGContext *s, tcg_insn_unit *code_ptr, int type,
@@ -276,6 +291,7 @@ static void tcg_out_reloc(TCGContext *s, tcg_insn_unit *code_ptr, int type,
         r->addend = addend;
         r->next = l->u.first_reloc;
         l->u.first_reloc = r;
+        tcg_pending_relocs_inc(s);
     }
 }
 
@@ -287,6 +303,7 @@ static void tcg_out_label(TCGContext *s, TCGLabel *l, tcg_insn_unit *ptr)
     tcg_debug_assert(!l->has_value);
 
     for (r = l->u.first_reloc; r != NULL; r = r->next) {
+        tcg_pending_relocs_dec(s);
         patch_reloc(r->ptr, r->type, value, r->addend);
     }
 
@@ -3518,6 +3535,9 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb)
 #ifdef TCG_TARGET_NEED_POOL_LABELS
     s->pool_labels = NULL;
 #endif
+#ifdef CONFIG_DEBUG_TCG
+    s->pending_relocs = 0;
+#endif
 
     num_insns = -1;
     QTAILQ_FOREACH(op, &s->ops, link) {
@@ -3587,6 +3607,15 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb)
         }
     }
     tcg_debug_assert(num_insns >= 0);
+
+#ifdef CONFIG_DEBUG_TCG
+    if (s->pending_relocs) {
+        qemu_log("warning: block at " TARGET_FMT_lx  " has "
+                 "%d unresolved references to jump labels\n",
+                 tb->pc, s->pending_relocs);
+    }
+#endif
+
     s->gen_insn_end_off[num_insns] = tcg_current_code_size(s);
 
     /* Generate TB finalization at the end of block */
