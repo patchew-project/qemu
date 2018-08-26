@@ -3241,6 +3241,25 @@ int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
             QObject *new = entry->value;
             QObject *old = qdict_get(reopen_state->bs->options, entry->key);
 
+            /* We allow child references 'child_name'='value'
+             * if 'child_name' is an existing child of the BDS
+             * and 'value' is the child's node name (a string). */
+            if (qobject_type(new) == QTYPE_QSTRING) {
+                BdrvChild *child;
+                QLIST_FOREACH(child, &reopen_state->bs->children, next) {
+                    if (!strcmp(child->name, entry->key)) {
+                        break;
+                    }
+                }
+
+                if (child) {
+                    const char *str = qobject_get_try_str(new);
+                    if (!strcmp(child->bs->node_name, str)) {
+                        continue; /* Found child with this name, skip option */
+                    }
+                }
+            }
+
             /*
              * TODO: When using -drive to specify blockdev options, all values
              * will be strings; however, when using -blockdev, blockdev-add or
