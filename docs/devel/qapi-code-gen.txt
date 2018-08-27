@@ -1412,6 +1412,7 @@ Example:
             { "name", QLIT_QSTR("Event") },
             { }
         })),
+        /* "0" = q_empty */
         QLIT_QDICT(((QLitDictEntry[]) {
             { "members", QLIT_QLIST(((QLitObject[]) {
                 { }
