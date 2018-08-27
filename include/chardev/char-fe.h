@@ -82,8 +82,6 @@ bool qemu_chr_fe_backend_open(CharBackend *be);
  *
  * Set the front end char handlers. The front end takes the focus if
  * any of the handler is non-NULL.
- *
- * Without associated Chardev, nothing is changed.
  */
 void qemu_chr_fe_set_handlers(CharBackend *b,
                               IOCanReadHandler *fd_can_read,
