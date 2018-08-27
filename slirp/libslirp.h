@@ -13,10 +13,12 @@ Slirp *slirp_init(int restricted, bool in_enabled, struct in_addr vnetwork,
                   bool in6_enabled,
                   struct in6_addr vprefix_addr6, uint8_t vprefix_len,
                   struct in6_addr vhost6, const char *vhostname,
+                  const char *tftp_server_name,
                   const char *tftp_path, const char *bootfile,
                   struct in_addr vdhcp_start, struct in_addr vnameserver,
                   struct in6_addr vnameserver6, const char **vdnssearch,
-                  const char *vdomainname, void *opaque);
+                  const char *vdomainname,
+                  void *opaque);
 void slirp_cleanup(Slirp *slirp);
 
 void slirp_pollfds_fill(GArray *pollfds, uint32_t *timeout);
