@@ -404,7 +404,8 @@ QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename)
     }
     if (strstart(filename, "tcp:", &p) ||
         strstart(filename, "telnet:", &p) ||
-        strstart(filename, "tn3270:", &p)) {
+        strstart(filename, "tn3270:", &p) ||
+        strstart(filename, "websock:", &p)) {
         if (sscanf(p, "%64[^:]:%32[^,]%n", host, port, &pos) < 2) {
             host[0] = 0;
             if (sscanf(p, ":%32[^,]%n", port, &pos) < 1)
@@ -424,6 +425,8 @@ QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename)
             qemu_opt_set(opts, "telnet", "on", &error_abort);
         } else if (strstart(filename, "tn3270:", &p)) {
             qemu_opt_set(opts, "tn3270", "on", &error_abort);
+        } else if (strstart(filename, "websock:", &p)) {
+            qemu_opt_set(opts, "websock", "on", &error_abort);
         }
         return opts;
     }
@@ -837,6 +840,9 @@ QemuOptsList qemu_chardev_opts = {
         },{
             .name = "tls-creds",
             .type = QEMU_OPT_STRING,
+        },{
+            .name = "websock",
+            .type = QEMU_OPT_BOOL,
         },{
             .name = "width",
             .type = QEMU_OPT_NUMBER,
