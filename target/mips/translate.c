@@ -366,6 +366,7 @@ enum {
     OPC_DCLO     = 0x25 | OPC_SPECIAL2,
     /* MXU */
     OPC_MXU_D16MUL = 0x08 | OPC_SPECIAL2,
+    OPC_MXU_D16MAC = 0x0A | OPC_SPECIAL2,
     OPC_MXU_S8LDD  = 0x22 | OPC_SPECIAL2,
     OPC_MXU_S32I2M = 0x2F | OPC_SPECIAL2,
     OPC_MXU_S32M2I = 0x2E | OPC_SPECIAL2,
@@ -3911,7 +3912,7 @@ static void gen_cl (DisasContext *ctx, uint32_t opc,
 static void gen_mxu(DisasContext *ctx, uint32_t opc)
 {
     TCGv t0, t1, t2, t3;
-    uint32_t rb, xra, xrb, xrc, xrd, s8, sel, optn2, optn3;
+    uint32_t rb, xra, xrb, xrc, xrd, s8, sel, optn2, optn3, aptn2;
 
     t0 = tcg_temp_new();
     t1 = tcg_temp_new();
@@ -4024,6 +4025,64 @@ static void gen_mxu(DisasContext *ctx, uint32_t opc)
         case 3: /* XRB.L*XRC.H == lop, XRB.H*XRC.L == rop */
             tcg_gen_mul_tl(t3, t0, t3);
             tcg_gen_mul_tl(t2, t1, t2);
+            break;
+        }
+        gen_store_mxu_gpr(t3, xra);
+        gen_store_mxu_gpr(t2, xrd);
+        break;
+
+    case OPC_MXU_D16MAC:
+        xra = extract32(ctx->opcode, 6, 4);
+        xrb = extract32(ctx->opcode, 10, 4);
+        xrc = extract32(ctx->opcode, 14, 4);
+        xrd = extract32(ctx->opcode, 18, 4);
+        optn2 = extract32(ctx->opcode, 22, 2);
+        aptn2 = extract32(ctx->opcode, 24, 2);
+
+        gen_load_mxu_gpr(t1, xrb);
+        tcg_gen_sextract_tl(t0, t1, 0, 16);
+        tcg_gen_sextract_tl(t1, t1, 16, 16);
+        gen_load_mxu_gpr(t3, xrc);
+        tcg_gen_sextract_tl(t2, t3, 0, 16);
+        tcg_gen_sextract_tl(t3, t3, 16, 16);
+
+        switch (optn2) {
+        case 0: /* XRB.H*XRC.H == lop, XRB.L*XRC.L == rop */
+            tcg_gen_mul_tl(t3, t1, t3);
+            tcg_gen_mul_tl(t2, t0, t2);
+            break;
+        case 1: /* XRB.L*XRC.H == lop, XRB.L*XRC.L == rop */
+            tcg_gen_mul_tl(t3, t0, t3);
+            tcg_gen_mul_tl(t2, t0, t2);
+            break;
+        case 2: /* XRB.H*XRC.H == lop, XRB.H*XRC.L == rop */
+            tcg_gen_mul_tl(t3, t1, t3);
+            tcg_gen_mul_tl(t2, t1, t2);
+            break;
+        case 3: /* XRB.L*XRC.H == lop, XRB.H*XRC.L == rop */
+            tcg_gen_mul_tl(t3, t0, t3);
+            tcg_gen_mul_tl(t2, t1, t2);
+            break;
+        }
+        gen_load_mxu_gpr(t0, xra);
+        gen_load_mxu_gpr(t1, xrd);
+
+        switch (aptn2) {
+        case 0:
+            tcg_gen_add_tl(t3, t0, t3);
+            tcg_gen_add_tl(t2, t1, t2);
+            break;
+        case 1:
+            tcg_gen_add_tl(t3, t0, t3);
+            tcg_gen_sub_tl(t2, t1, t2);
+            break;
+        case 2:
+            tcg_gen_sub_tl(t3, t0, t3);
+            tcg_gen_add_tl(t2, t1, t2);
+            break;
+        case 3:
+            tcg_gen_sub_tl(t3, t0, t3);
+            tcg_gen_sub_tl(t2, t1, t2);
             break;
         }
         gen_store_mxu_gpr(t3, xra);
@@ -22823,6 +22882,7 @@ static void decode_opc_special2_legacy(CPUMIPSState *env, DisasContext *ctx)
     case OPC_MXU_S32M2I:
     case OPC_MXU_S8LDD:
     case OPC_MXU_D16MUL:
+    case OPC_MXU_D16MAC:
         gen_mxu(ctx, op1);
         break;
 
