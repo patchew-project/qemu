@@ -249,6 +249,9 @@ extern intptr_t qemu_host_page_mask;
 /* FIXME: Code that sets/uses this is broken and needs to go away.  */
 #define PAGE_RESERVED  0x0020
 #endif
+#if defined(CONFIG_LINUX) && defined(CONFIG_USER_ONLY)
+#define PAGE_MAP_ANONYMOUS 0x0080
+#endif
 
 #if defined(CONFIG_USER_ONLY)
 void page_dump(FILE *f);
@@ -257,8 +260,14 @@ typedef int (*walk_memory_regions_fn)(void *, target_ulong,
                                       target_ulong, unsigned long);
 int walk_memory_regions(void *, walk_memory_regions_fn);
 
+enum page_set_flags_mode {
+    PAGE_SET_ALL_FLAGS,
+    PAGE_SET_PROTECTION
+};
+
 int page_get_flags(target_ulong address);
-void page_set_flags(target_ulong start, target_ulong end, int flags);
+void page_set_flags(target_ulong start, target_ulong end, int flags,
+                    enum page_set_flags_mode);
 int page_check_range(target_ulong start, target_ulong len, int flags);
 #endif
 

@@ -125,7 +125,7 @@ int target_mprotect(abi_ulong start, abi_ulong len, int prot)
         if (ret != 0)
             goto error;
     }
-    page_set_flags(start, start + len, prot | PAGE_VALID);
+    page_set_flags(start, start + len, prot, PAGE_SET_PROTECTION);
     mmap_unlock();
     return 0;
 error:
@@ -214,7 +214,7 @@ static abi_ulong mmap_find_vma(abi_ulong start, abi_ulong size)
            to mmap.  */
         page_set_flags(last_brk & TARGET_PAGE_MASK,
                        TARGET_PAGE_ALIGN(new_brk),
-                       PAGE_RESERVED);
+                       PAGE_RESERVED, PAGE_SET_ALL_FLAGS);
     }
     last_brk = new_brk;
 
@@ -397,7 +397,7 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
         }
     }
  the_end1:
-    page_set_flags(start, start + len, prot | PAGE_VALID);
+    page_set_flags(start, start + len, prot | PAGE_VALID, PAGE_SET_ALL_FLAGS);
  the_end:
 #ifdef DEBUG_MMAP
     printf("ret=0x" TARGET_FMT_lx "\n", start);
@@ -460,7 +460,7 @@ int target_munmap(abi_ulong start, abi_ulong len)
     }
 
     if (ret == 0)
-        page_set_flags(start, start + len, 0);
+        page_set_flags(start, start + len, 0, PAGE_SET_ALL_FLAGS);
     mmap_unlock();
     return ret;
 }

@@ -124,7 +124,7 @@ int target_mprotect(abi_ulong start, abi_ulong len, int prot)
         if (ret != 0)
             goto error;
     }
-    page_set_flags(start, start + len, prot | PAGE_VALID);
+    page_set_flags(start, start + len, prot, PAGE_SET_PROTECTION);
     mmap_unlock();
     return 0;
 error:
@@ -362,6 +362,7 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
                      int flags, int fd, abi_ulong offset)
 {
     abi_ulong ret, end, real_start, real_end, retaddr, host_offset, host_len;
+    int page_flags;
 
     mmap_lock();
 #ifdef DEBUG_MMAP
@@ -562,7 +563,11 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
         }
     }
  the_end1:
-    page_set_flags(start, start + len, prot | PAGE_VALID);
+    page_flags = prot | PAGE_VALID;
+    if (flags & MAP_ANONYMOUS) {
+        page_flags |= PAGE_MAP_ANONYMOUS;
+    }
+    page_set_flags(start, start + len, page_flags, PAGE_SET_ALL_FLAGS);
  the_end:
 #ifdef DEBUG_MMAP
     printf("ret=0x" TARGET_ABI_FMT_lx "\n", start);
@@ -675,7 +680,7 @@ int target_munmap(abi_ulong start, abi_ulong len)
     }
 
     if (ret == 0) {
-        page_set_flags(start, start + len, 0);
+        page_set_flags(start, start + len, 0, PAGE_SET_ALL_FLAGS);
         tb_invalidate_phys_range(start, start + len);
     }
     mmap_unlock();
@@ -755,10 +760,44 @@ abi_long target_mremap(abi_ulong old_addr, abi_ulong old_size,
     } else {
         new_addr = h2g(host_addr);
         prot = page_get_flags(old_addr);
-        page_set_flags(old_addr, old_addr + old_size, 0);
-        page_set_flags(new_addr, new_addr + new_size, prot | PAGE_VALID);
+        page_set_flags(old_addr, old_addr + old_size, 0,
+                       PAGE_SET_ALL_FLAGS);
+        page_set_flags(new_addr, new_addr + new_size, prot | PAGE_VALID,
+                       PAGE_SET_ALL_FLAGS);
     }
     tb_invalidate_phys_range(new_addr, new_addr + new_size);
     mmap_unlock();
     return new_addr;
+}
+
+int target_madvise(abi_ulong start, abi_ulong len, int advice)
+{
+    abi_ulong end, addr;
+    int ret;
+
+    len = TARGET_PAGE_ALIGN(len);
+    start &= TARGET_PAGE_MASK;
+
+    if (!guest_range_valid(start, len)) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    /* A straight passthrough may not be safe because qemu sometimes
+       turns private file-backed mappings into anonymous mappings.
+       Most flags are hints so we ignore them.
+       One exception is made for MADV_DONTNEED on anonymous mappings,
+       that applications may rely on to zero out pages. */
+    if (advice & MADV_DONTNEED) {
+        end = start + len;
+        for (addr = start; addr < end; addr += TARGET_PAGE_SIZE) {
+            if (page_get_flags(addr) & PAGE_MAP_ANONYMOUS) {
+                ret = madvise(g2h(addr), TARGET_PAGE_SIZE, MADV_DONTNEED);
+                if (ret != 0) {
+                    return ret;
+                }
+            }
+        }
+    }
+    return 0;
 }
