@@ -668,10 +668,11 @@ static void ibm_40p_init(MachineState *machine)
     dev = DEVICE(pci_create_simple(pci_bus, PCI_DEVFN(11, 0), "i82378"));
     qdev_connect_gpio_out(dev, 0,
                           cpu->env.irq_inputs[PPC6xx_INPUT_INT]);
-    sysbus_connect_irq(pcihost, 0, qdev_get_gpio_in(dev, 15));
-    sysbus_connect_irq(pcihost, 1, qdev_get_gpio_in(dev, 13));
-    sysbus_connect_irq(pcihost, 2, qdev_get_gpio_in(dev, 15));
-    sysbus_connect_irq(pcihost, 3, qdev_get_gpio_in(dev, 13));
+    /* According to PReP specification section 6.1.6 "System Interrupt
+     * Assignments", all PCI interrupts are routed via IRQ 15 */
+    for (i = 0; i < PCI_NUM_PINS; i++) {
+        sysbus_connect_irq(pcihost, i, qdev_get_gpio_in(dev, 15));
+    }
     isa_bus = ISA_BUS(qdev_get_child_bus(dev, "isa.0"));
 
     /* Memory controller */
