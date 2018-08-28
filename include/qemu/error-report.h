@@ -58,10 +58,7 @@ void warn_report_once_cond(bool *printed, const char *fmt, ...)
         static bool print_once_;                \
         bool ret_print_once_ = !print_once_;    \
                                                 \
-        if (!print_once_) {                     \
-            print_once_ = true;                 \
-            error_report(fmt, ##__VA_ARGS__);   \
-        }                                       \
+        error_report_once_cond(&print_once_, fmt, ##__VA_ARGS__); \
         unlikely(ret_print_once_);              \
     })
 
@@ -74,10 +71,7 @@ void warn_report_once_cond(bool *printed, const char *fmt, ...)
         static bool print_once_;                \
         bool ret_print_once_ = !print_once_;    \
                                                 \
-        if (!print_once_) {                     \
-            print_once_ = true;                 \
-            warn_report(fmt, ##__VA_ARGS__);    \
-        }                                       \
+        warn_report_once_cond(&print_once_, fmt, ##__VA_ARGS__); \
         unlikely(ret_print_once_);              \
     })
 
