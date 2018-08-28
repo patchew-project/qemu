@@ -1698,6 +1698,24 @@ static int coroutine_fn
 vmdk_co_pwritev_compressed(BlockDriverState *bs, uint64_t offset,
                            uint64_t bytes, QEMUIOVector *qiov)
 {
+    if (bytes == 0) {
+        /* align end of file to a sector boundary. */
+        BDRVVmdkState *s = bs->opaque;
+        int i, ret;
+        int64_t length;
+
+        for (i = 0; i < s->num_extents; i++) {
+            length = bdrv_getlength(s->extents[i].file->bs);
+            if (length < 0) {
+                return length;
+            }
+            ret = bdrv_truncate(s->extents[i].file, length, PREALLOC_MODE_OFF, NULL);
+            if (ret < 0) {
+                return ret;
+            }
+        }
+        return 0;
+    }
     return vmdk_co_pwritev(bs, offset, bytes, qiov, 0);
 }
 
