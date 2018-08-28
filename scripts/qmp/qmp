@@ -63,6 +63,16 @@ def main(args):
     if not path:
         print("QMP path isn't set, use --path=qmp-monitor-address or set QMP_PATH")
         return 1
+    tcp_addr = path.split(':')
+    if len(tcp_addr) == 2:
+        try:
+            port = int(tcp_addr[1])
+        except ValueError:
+            print("QMP path contains a non-numeric TCP port")
+            return 1
+        addr = ( tcp_addr[0], port )
+    else:
+        addr = path
 
     if len(args):
         command, args = args[0], args[1:]
@@ -74,7 +84,7 @@ def main(args):
     if command in ['help']:
         os.execlp('man', 'man', 'qmp')
 
-    srv = QEMUMonitorProtocol(path)
+    srv = QEMUMonitorProtocol(addr)
     srv.connect()
 
     def do_command(srv, cmd, **kwds):
@@ -99,7 +109,7 @@ def main(args):
             raise
         return 0
 
-    srv = QEMUMonitorProtocol(path)
+    srv = QEMUMonitorProtocol(addr)
     srv.connect()
 
     arguments = {}
