@@ -1438,9 +1438,23 @@ struct exec
 
 /* Necessary parameters */
 #define TARGET_ELF_EXEC_PAGESIZE TARGET_PAGE_SIZE
-#define TARGET_ELF_PAGESTART(_v) ((_v) & \
-                                 ~(abi_ulong)(TARGET_ELF_EXEC_PAGESIZE-1))
-#define TARGET_ELF_PAGEOFFSET(_v) ((_v) & (TARGET_ELF_EXEC_PAGESIZE-1))
+#define TARGET_ELF_PAGESTART(_v, _a, _s, _m) \
+        (((_a & ~_m) != 0) ? \
+         (_v) & ~(abi_ulong)(TARGET_ELF_EXEC_PAGESIZE - 1) : \
+         ((TARGET_ELF_EXEC_PAGESIZE > _s) ? \
+          (_v) & ~(abi_ulong)(TARGET_ELF_EXEC_PAGESIZE - 1) : \
+          (_v) & ~(abi_ulong)(_s - 1)));
+#define TARGET_ELF_PAGEOFFSET(_v, _a, _s, _m) \
+        (((_a & ~_m) != 0) ? \
+         (_v) & (TARGET_ELF_EXEC_PAGESIZE - 1) : \
+         ((TARGET_ELF_EXEC_PAGESIZE > _s) ? \
+          (_v) & (TARGET_ELF_EXEC_PAGESIZE - 1) : \
+          (_v) & (_s - 1)));
+#define TARGET_ELF_PAGELENGTH(_v, _a, _s, _m) \
+        (((_a & ~_m) != 0) ? \
+         TARGET_PAGE_ALIGN(_v) : \
+         ((TARGET_ELF_EXEC_PAGESIZE > _s) ? \
+          TARGET_PAGE_ALIGN(_v) : HOST_PAGE_ALIGN(_v)));
 
 #define DLINFO_ITEMS 15
 
@@ -2279,7 +2293,7 @@ static void load_elf_image(const char *image_name, int image_fd,
     for (i = 0; i < ehdr->e_phnum; i++) {
         struct elf_phdr *eppnt = phdr + i;
         if (eppnt->p_type == PT_LOAD) {
-            abi_ulong vaddr, vaddr_po, vaddr_ps, vaddr_ef, vaddr_em;
+            abi_ulong vaddr, vaddr_po, vaddr_ps, vaddr_ef, vaddr_em, vaddr_len;
             int elf_prot = 0;
 
             if (eppnt->p_flags & PF_R) elf_prot =  PROT_READ;
@@ -2287,10 +2301,17 @@ static void load_elf_image(const char *image_name, int image_fd,
             if (eppnt->p_flags & PF_X) elf_prot |= PROT_EXEC;
 
             vaddr = load_bias + eppnt->p_vaddr;
-            vaddr_po = TARGET_ELF_PAGEOFFSET(vaddr);
-            vaddr_ps = TARGET_ELF_PAGESTART(vaddr);
-
-            error = target_mmap(vaddr_ps, eppnt->p_filesz + vaddr_po,
+            vaddr_po = TARGET_ELF_PAGEOFFSET(vaddr, info->alignment,
+                                             qemu_host_page_size,
+                                             qemu_host_page_mask);
+            vaddr_ps = TARGET_ELF_PAGESTART(vaddr, info->alignment,
+                                            qemu_host_page_size,
+                                            qemu_host_page_mask);
+            vaddr_len = TARGET_ELF_PAGELENGTH(eppnt->p_filesz + vaddr_po,
+                                              info->alignment,
+                                              qemu_host_page_size,
+                                              qemu_host_page_mask);
+            error = target_mmap(vaddr_ps, vaddr_len,
                                 elf_prot, MAP_PRIVATE | MAP_FIXED,
                                 image_fd, eppnt->p_offset - vaddr_po);
             if (error == -1) {
