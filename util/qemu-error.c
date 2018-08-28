@@ -310,3 +310,47 @@ void info_report(const char *fmt, ...)
     vreport(REPORT_TYPE_INFO, fmt, ap);
     va_end(ap);
 }
+
+/*
+ * If *printed is false, print an error message to current monitor if we
+ * have one, else to stderr, and flip *printed to true.
+ * If printed is NULL, do not print anything.
+ * Format arguments like sprintf().  The resulting message should be
+ * a single phrase, with no newline or trailing punctuation.
+ * Prepend the current location and append a newline.
+ * It's wrong to call this in a QMP monitor.  Use error_setg() there.
+ */
+void error_report_once_cond(bool *printed, const char *fmt, ...)
+{
+    va_list ap;
+
+    if (!printed || *printed) {
+        return;
+    }
+    *printed = true;
+    va_start(ap, fmt);
+    vreport(REPORT_TYPE_ERROR, fmt, ap);
+    va_end(ap);
+}
+
+/*
+ * If *printed is false, print a warning message to current monitor if we
+ * have one, else to stderr, and flip *printed to true.
+ * If printed is NULL, do not print anything.
+ * Format arguments like sprintf().  The resulting message should be
+ * a single phrase, with no newline or trailing punctuation.
+ * Prepend the current location and append a newline.
+ * It's wrong to call this in a QMP monitor.  Use error_setg() there.
+ */
+void warn_report_once_cond(bool *printed, const char *fmt, ...)
+{
+    va_list ap;
+
+    if (!printed || *printed) {
+        return;
+    }
+    *printed = true;
+    va_start(ap, fmt);
+    vreport(REPORT_TYPE_WARNING, fmt, ap);
+    va_end(ap);
+}

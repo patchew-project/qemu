@@ -44,6 +44,11 @@ void error_report(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
 void warn_report(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
 void info_report(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
 
+void error_report_once_cond(bool *printed, const char *fmt, ...)
+    GCC_FMT_ATTR(2, 3);
+void warn_report_once_cond(bool *printed, const char *fmt, ...)
+    GCC_FMT_ATTR(2, 3);
+
 /*
  * Similar to error_report(), except it prints the message just once.
  * Return true when it prints, false otherwise.
