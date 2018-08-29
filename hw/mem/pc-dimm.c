@@ -65,13 +65,8 @@ void pc_dimm_plug(DeviceState *dev, MachineState *machine, Error **errp)
     PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(dimm);
     MemoryRegion *vmstate_mr = ddc->get_vmstate_memory_region(dimm,
                                                               &error_abort);
-    MemoryRegion *mr = ddc->get_memory_region(dimm, &error_abort);
-    uint64_t addr;
 
-    addr = object_property_get_uint(OBJECT(dev), PC_DIMM_ADDR_PROP,
-                                    &error_abort);
-
-    memory_device_plug_region(machine, mr, addr);
+    memory_device_plug(MEMORY_DEVICE(dev), machine);
     vmstate_register_ram(vmstate_mr, dev);
 }
 
