@@ -2266,7 +2266,6 @@ static void build_srat_hotpluggable_memory(GArray *table_data, uint64_t base,
     for (cur = base, info = info_list;
          cur < end;
          cur += size, info = info->next) {
-        numamem = acpi_data_push(table_data, sizeof *numamem);
 
         if (!info) {
             /*
@@ -2278,19 +2277,30 @@ static void build_srat_hotpluggable_memory(GArray *table_data, uint64_t base,
              * Memory devices may override proximity set by this entry,
              * providing _PXM method if necessary.
              */
+            numamem = acpi_data_push(table_data, sizeof *numamem);
             build_srat_memory(numamem, end - 1, 1, default_node,
                               MEM_AFFINITY_HOTPLUGGABLE | MEM_AFFINITY_ENABLED);
             break;
         }
 
         mi = info->value;
+        if (mi->type != MEMORY_DEVICE_INFO_KIND_DIMM &&
+            mi->type != MEMORY_DEVICE_INFO_KIND_NVDIMM) {
+            /*
+             * Don't indicate memory devices that are not proper ACPI devices,
+             * merge them with the empty ranges.
+             */
+            size = 0;
+            continue;
+        }
+
         is_nvdimm = (mi->type == MEMORY_DEVICE_INFO_KIND_NVDIMM);
         di = !is_nvdimm ? mi->u.dimm.data : mi->u.nvdimm.data;
 
         if (cur < di->addr) {
+            numamem = acpi_data_push(table_data, sizeof *numamem);
             build_srat_memory(numamem, cur, di->addr - cur, default_node,
                               MEM_AFFINITY_HOTPLUGGABLE | MEM_AFFINITY_ENABLED);
-            numamem = acpi_data_push(table_data, sizeof *numamem);
         }
 
         size = di->size;
@@ -2303,6 +2313,7 @@ static void build_srat_hotpluggable_memory(GArray *table_data, uint64_t base,
             flags |= MEM_AFFINITY_NON_VOLATILE;
         }
 
+        numamem = acpi_data_push(table_data, sizeof *numamem);
         build_srat_memory(numamem, di->addr, size, di->node, flags);
     }
 
