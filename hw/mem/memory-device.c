@@ -19,6 +19,22 @@
 #include "sysemu/kvm.h"
 #include "trace.h"
 
+const char *memory_device_id(const MemoryDeviceState *md)
+{
+    Object *obj = OBJECT(md);
+
+    /* always use the ID of the proxy device for virtio devices */
+    if (object_dynamic_cast(obj, TYPE_VIRTIO_DEVICE)) {
+        if (obj->parent && object_dynamic_cast(obj->parent, TYPE_DEVICE)) {
+            const DeviceState *parent_dev = DEVICE(obj->parent);
+
+            return parent_dev->id;
+        }
+        return NULL;
+    }
+    return DEVICE(md)->id;
+}
+
 static gint memory_device_addr_sort(gconstpointer a, gconstpointer b)
 {
     const MemoryDeviceState *md_a = MEMORY_DEVICE(a);
@@ -168,6 +184,7 @@ static uint64_t memory_device_get_free_addr(MachineState *ms,
     for (item = list; item; item = g_slist_next(item)) {
         MemoryDeviceState *md = item->data;
         const MemoryDeviceClass *mdc = MEMORY_DEVICE_GET_CLASS(OBJECT(md));
+        const char *id = memory_device_id(md);
         uint64_t md_size, md_addr;
 
         md_addr = mdc->get_addr(md);
@@ -178,8 +195,8 @@ static uint64_t memory_device_get_free_addr(MachineState *ms,
 
         if (ranges_overlap(md_addr, md_size, new_addr, size)) {
             if (hint) {
-                const DeviceState *d = DEVICE(md);
-                error_setg(errp, "address range conflicts with '%s'", d->id);
+                error_setg(errp, "address range conflicts with '%s'",
+                           id ? id : 0);
                 goto out;
             }
             new_addr = QEMU_ALIGN_UP(md_addr + md_size, align);
