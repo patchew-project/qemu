@@ -112,6 +112,12 @@ static void virtio_pmem_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    /* pre_plug handler wasn't executed (e.g. from machine hotplug handler) */
+    if (!pmem->pre_plugged) {
+        error_setg(errp, "virtio-pmem is not compatible with the machine");
+        return;
+    }
+
     host_memory_backend_set_mapped(pmem->memdev, true);
     virtio_init(vdev, TYPE_VIRTIO_PMEM, VIRTIO_ID_PMEM,
                                           sizeof(struct virtio_pmem_config));
@@ -201,6 +207,34 @@ static void virtio_pmem_class_init(ObjectClass *klass, void *data)
     mdc->get_plugged_size = virtio_pmem_md_get_plugged_size;
     mdc->get_memory_region  = virtio_pmem_md_get_memory_region;
     mdc->fill_device_info = virtio_pmem_md_fill_device_info;
+}
+
+void virtio_pmem_pre_plug(VirtIOPMEM *pmem, MachineState *ms, Error **errp)
+{
+    /*
+     * The proxy device (e.g. virtio-pmem-pci) has an hotplug handler and
+     * will attach the virtio-pmem device to its bus (parent_bus). This
+     * device will realize the virtio-mem device from its realize function,
+     * therefore when it is hotplugged itself. The proxy device bus
+     * therefore has no hotplug handler and we don't have to forward any
+     * calls.
+     */
+    if (!DEVICE(pmem)->parent_bus ||
+        DEVICE(pmem)->parent_bus->hotplug_handler) {
+        error_setg(errp, "virtio-pmem is not compatible with the proxy.");
+    }
+    memory_device_pre_plug(MEMORY_DEVICE(pmem), ms, NULL, errp);
+    pmem->pre_plugged = true;
+}
+
+void virtio_pmem_plug(VirtIOPMEM *pmem, MachineState *ms, Error **errp)
+{
+    memory_device_plug(MEMORY_DEVICE(pmem), ms);
+}
+
+void virtio_pmem_unplug(VirtIOPMEM *pmem, MachineState *ms, Error **errp)
+{
+    memory_device_unplug(MEMORY_DEVICE(pmem), ms);
 }
 
 static TypeInfo virtio_pmem_info = {

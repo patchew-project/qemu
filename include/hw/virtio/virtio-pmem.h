@@ -31,10 +31,21 @@ typedef struct VirtIOPMEM {
     VirtQueue *rq_vq;
     uint64_t start;
     HostMemoryBackend *memdev;
+
+    /*
+     * Safety net to make sure we can catch trying to be realized on a
+     * machine that is not prepared to properly hotplug virtio-pmem from
+     * its machine hotplug handler.
+     */
+    bool pre_plugged;
 } VirtIOPMEM;
 
 struct virtio_pmem_config {
     uint64_t start;
     uint64_t size;
 };
+
+void virtio_pmem_pre_plug(VirtIOPMEM *pmem, MachineState *ms, Error **errp);
+void virtio_pmem_plug(VirtIOPMEM *pmem, MachineState *ms, Error **errp);
+void virtio_pmem_unplug(VirtIOPMEM *pmem, MachineState *ms, Error **errp);
 #endif
