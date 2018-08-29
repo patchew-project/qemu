@@ -348,6 +348,23 @@ static void test_qmp_preconfig(void)
     qtest_quit(qs);
 }
 
+static void test_qom_set_without_value(void)
+{
+    QTestState *qts;
+    QDict *ret;
+
+    qts = qtest_init(common_args);
+
+    ret = qtest_qmp(qts, "{'execute': 'qom-set', 'arguments':"
+                    " { 'path': '/machine', 'property': 'rtc-time' } }");
+    g_assert_nonnull(ret);
+
+    g_assert_cmpstr(get_error_class(ret), ==, "GenericError");
+
+    qobject_unref(ret);
+    qtest_quit(qts);
+}
+
 int main(int argc, char *argv[])
 {
     g_test_init(&argc, &argv, NULL);
@@ -355,6 +372,7 @@ int main(int argc, char *argv[])
     qtest_add_func("qmp/protocol", test_qmp_protocol);
     qtest_add_func("qmp/oob", test_qmp_oob);
     qtest_add_func("qmp/preconfig", test_qmp_preconfig);
+    qtest_add_func("qmp/qom-set-without-value", test_qom_set_without_value);
 
     return g_test_run();
 }
