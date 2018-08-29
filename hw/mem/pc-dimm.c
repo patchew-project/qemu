@@ -236,8 +236,8 @@ static uint64_t pc_dimm_md_get_addr(const MemoryDeviceState *md)
     return dimm->addr;
 }
 
-static uint64_t pc_dimm_md_get_region_size(const MemoryDeviceState *md,
-                                           Error **errp)
+static uint64_t pc_dimm_md_get_plugged_size(const MemoryDeviceState *md,
+                                            Error **errp)
 {
     /* dropping const here is fine as we don't touch the memory region */
     PCDIMMDevice *dimm = PC_DIMM(md);
@@ -249,7 +249,17 @@ static uint64_t pc_dimm_md_get_region_size(const MemoryDeviceState *md,
         return 0;
     }
 
+    /* for a dimm plugged_size == region_size */
     return memory_region_size(mr);
+}
+
+static MemoryRegion *pc_dimm_md_get_memory_region(MemoryDeviceState *md,
+                                                  Error **errp)
+{
+    PCDIMMDevice *dimm = PC_DIMM(md);
+    const PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(md);
+
+    return ddc->get_memory_region(dimm, errp);
 }
 
 static void pc_dimm_md_fill_device_info(const MemoryDeviceState *md,
@@ -297,9 +307,8 @@ static void pc_dimm_class_init(ObjectClass *oc, void *data)
     ddc->get_vmstate_memory_region = pc_dimm_get_memory_region;
 
     mdc->get_addr = pc_dimm_md_get_addr;
-    /* for a dimm plugged_size == region_size */
-    mdc->get_plugged_size = pc_dimm_md_get_region_size;
-    mdc->get_region_size = pc_dimm_md_get_region_size;
+    mdc->get_plugged_size = pc_dimm_md_get_plugged_size;
+    mdc->get_memory_region = pc_dimm_md_get_memory_region;
     mdc->fill_device_info = pc_dimm_md_fill_device_info;
 }
 

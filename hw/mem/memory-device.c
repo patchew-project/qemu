@@ -56,11 +56,13 @@ static int memory_device_used_region_size(Object *obj, void *opaque)
 
     if (object_dynamic_cast(obj, TYPE_MEMORY_DEVICE)) {
         const DeviceState *dev = DEVICE(obj);
-        const MemoryDeviceState *md = MEMORY_DEVICE(obj);
+        MemoryDeviceState *md = MEMORY_DEVICE(obj);
         const MemoryDeviceClass *mdc = MEMORY_DEVICE_GET_CLASS(obj);
 
         if (dev->realized) {
-            *size += mdc->get_region_size(md, &error_abort);
+            MemoryRegion *mr = mdc->get_memory_region(md, &error_abort);
+
+            *size += memory_region_size(mr);
         }
     }
 
@@ -162,12 +164,12 @@ uint64_t memory_device_get_free_addr(MachineState *ms, const uint64_t *hint,
     /* find address range that will fit new memory device */
     object_child_foreach(OBJECT(ms), memory_device_build_list, &list);
     for (item = list; item; item = g_slist_next(item)) {
-        const MemoryDeviceState *md = item->data;
+        MemoryDeviceState *md = item->data;
         const MemoryDeviceClass *mdc = MEMORY_DEVICE_GET_CLASS(OBJECT(md));
         uint64_t md_size, md_addr;
 
         md_addr = mdc->get_addr(md);
-        md_size = mdc->get_region_size(md, &error_abort);
+        md_size = memory_region_size(mdc->get_memory_region(md, &error_abort));
         if (*errp) {
             goto out;
         }
