@@ -76,9 +76,8 @@ void pc_dimm_unplug(DeviceState *dev, MachineState *machine)
     PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(dimm);
     MemoryRegion *vmstate_mr = ddc->get_vmstate_memory_region(dimm,
                                                               &error_abort);
-    MemoryRegion *mr = ddc->get_memory_region(dimm, &error_abort);
 
-    memory_device_unplug_region(machine, mr);
+    memory_device_unplug(MEMORY_DEVICE(dev), machine);
     vmstate_unregister_ram(vmstate_mr, dev);
 }
 
