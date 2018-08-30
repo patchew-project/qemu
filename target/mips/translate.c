@@ -1621,6 +1621,34 @@ static inline void gen_store_gpr (TCGv t, int reg)
         tcg_gen_mov_tl(cpu_gpr[reg], t);
 }
 
+/* MXU General purpose registers moves. */
+static inline void gen_load_mxu_gpr(TCGv t, unsigned int reg)
+{
+    if (reg == 0) {
+        tcg_gen_movi_tl(t, 0);
+    } else if (reg <= 15) {
+        tcg_gen_mov_tl(t, mxu_gpr[reg - 1]);
+    }
+}
+
+static inline void gen_store_mxu_gpr(TCGv t, unsigned int reg)
+{
+    if (reg > 0 && reg <= 15) {
+        tcg_gen_mov_tl(mxu_gpr[reg - 1], t);
+    }
+}
+
+/* MXU control register moves. */
+static inline void gen_load_mxu_cr(TCGv t)
+{
+    tcg_gen_mov_tl(t, mxu_CR);
+}
+
+static inline void gen_store_mxu_cr(TCGv t)
+{
+    tcg_gen_mov_tl(mxu_CR, t);
+}
+
 /* Moves to/from shadow registers. */
 static inline void gen_load_srsgpr (int from, int to)
 {
@@ -3942,6 +3970,51 @@ static void gen_cl (DisasContext *ctx, uint32_t opc,
         break;
 #endif
     }
+}
+
+/* MXU Instructions */
+
+/* S32I2M XRa, rb - Register move from GRF to XRF */
+static void gen_mxu_s32i2m(DisasContext *ctx, uint32_t opc)
+{
+    TCGv t0;
+    uint32_t xra, rb;
+
+    t0 = tcg_temp_new();
+
+    xra = extract32(ctx->opcode, 6, 5);
+    rb = extract32(ctx->opcode, 16, 5);
+
+    gen_load_gpr(t0, rb);
+    if (xra <= 15) {
+        gen_store_mxu_gpr(t0, xra);
+    } else if (xra == 16) {
+        gen_store_mxu_cr(t0);
+    }
+
+    tcg_temp_free(t0);
+}
+
+/* S32M2I XRa, rb - Register move from XRF to GRF */
+static void gen_mxu_s32m2i(DisasContext *ctx, uint32_t opc)
+{
+    TCGv t0;
+    uint32_t xra, rb;
+
+    t0 = tcg_temp_new();
+
+    xra = extract32(ctx->opcode, 6, 5);
+    rb = extract32(ctx->opcode, 16, 5);
+
+    if (xra <= 15) {
+        gen_load_mxu_gpr(t0, xra);
+    } else if (xra == 16) {
+        gen_load_mxu_cr(t0);
+    }
+
+    gen_store_gpr(t0, rb);
+
+    tcg_temp_free(t0);
 }
 
 /* Godson integer instructions */
@@ -22708,6 +22781,15 @@ static void decode_opc_special2_mxu(CPUMIPSState *env, DisasContext *ctx)
     case OPC_MUL:
         gen_arith(ctx, op1, rd, rs, rt);
         break;
+
+    case OPC_MXU_S32I2M:
+        gen_mxu_s32i2m(ctx, op1);
+        break;
+
+    case OPC_MXU_S32M2I:
+        gen_mxu_s32m2i(ctx, op1);
+        break;
+
     default:            /* Invalid */
         MIPS_INVAL("special2_mxu");
         generate_exception_end(ctx, EXCP_RI);
@@ -22747,6 +22829,7 @@ static void decode_opc_special2_legacy(CPUMIPSState *env, DisasContext *ctx)
         check_insn(ctx, INSN_LOONGSON2F);
         gen_loongson_integer(ctx, op1, rd, rs, rt);
         break;
+
     case OPC_CLO:
     case OPC_CLZ:
         check_insn(ctx, ISA_MIPS32);
