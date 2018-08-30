@@ -320,15 +320,6 @@ static inline void gen_trap(DisasContext *s)
     gen_data_exception(0xff);
 }
 
-#ifndef CONFIG_USER_ONLY
-static void check_privileged(DisasContext *s)
-{
-    if (s->base.tb->flags & FLAG_MASK_PSTATE) {
-        gen_program_exception(s, PGM_PRIVILEGED);
-    }
-}
-#endif
-
 static TCGv_i64 get_address(DisasContext *s, int x2, int b2, int d2)
 {
     TCGv_i64 tmp = tcg_temp_new_i64();
@@ -1119,6 +1110,7 @@ typedef struct {
 #define IF_HFP3     0x0004      /* r3 points at fp reg for HFP instructions */
 #define IF_BFP      0x0008      /* binary floating point instruction */
 #define IF_DFP      0x0010      /* decimal floating point instruction */
+#define IF_PRIV     0x0020      /* priviledged instruction */
 
 struct DisasInsn {
     unsigned opc:16;
@@ -2046,7 +2038,6 @@ static DisasJumpType op_csp(DisasContext *s, DisasOps *o)
     /* Note that in1 = R1 (zero-extended expected value),
        out = R1 (original reg), out2 = R1+1 (new value).  */
 
-    check_privileged(s);
     addr = tcg_temp_new_i64();
     old = tcg_temp_new_i64();
     tcg_gen_andi_i64(addr, o->in2, -1ULL << (mop & MO_SIZE));
@@ -2170,7 +2161,6 @@ static DisasJumpType op_diag(DisasContext *s, DisasOps *o)
     TCGv_i32 r3 = tcg_const_i32(get_field(s->fields, r3));
     TCGv_i32 func_code = tcg_const_i32(get_field(s->fields, i2));
 
-    check_privileged(s);
     gen_helper_diag(cpu_env, r1, r3, func_code);
 
     tcg_temp_free_i32(func_code);
@@ -2434,7 +2424,6 @@ static DisasJumpType op_idte(DisasContext *s, DisasOps *o)
 {
     TCGv_i32 m4;
 
-    check_privileged(s);
     if (s390_has_feat(S390_FEAT_LOCAL_TLB_CLEARING)) {
         m4 = tcg_const_i32(get_field(s->fields, m4));
     } else {
@@ -2449,7 +2438,6 @@ static DisasJumpType op_ipte(DisasContext *s, DisasOps *o)
 {
     TCGv_i32 m4;
 
-    check_privileged(s);
     if (s390_has_feat(S390_FEAT_LOCAL_TLB_CLEARING)) {
         m4 = tcg_const_i32(get_field(s->fields, m4));
     } else {
@@ -2462,7 +2450,6 @@ static DisasJumpType op_ipte(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_iske(DisasContext *s, DisasOps *o)
 {
-    check_privileged(s);
     gen_helper_iske(o->out, cpu_env, o->in2);
     return DISAS_NEXT;
 }
@@ -2761,7 +2748,6 @@ static DisasJumpType op_lctl(DisasContext *s, DisasOps *o)
 {
     TCGv_i32 r1 = tcg_const_i32(get_field(s->fields, r1));
     TCGv_i32 r3 = tcg_const_i32(get_field(s->fields, r3));
-    check_privileged(s);
     gen_helper_lctl(cpu_env, r1, o->in2, r3);
     tcg_temp_free_i32(r1);
     tcg_temp_free_i32(r3);
@@ -2773,7 +2759,6 @@ static DisasJumpType op_lctlg(DisasContext *s, DisasOps *o)
 {
     TCGv_i32 r1 = tcg_const_i32(get_field(s->fields, r1));
     TCGv_i32 r3 = tcg_const_i32(get_field(s->fields, r3));
-    check_privileged(s);
     gen_helper_lctlg(cpu_env, r1, o->in2, r3);
     tcg_temp_free_i32(r1);
     tcg_temp_free_i32(r3);
@@ -2783,7 +2768,6 @@ static DisasJumpType op_lctlg(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_lra(DisasContext *s, DisasOps *o)
 {
-    check_privileged(s);
     gen_helper_lra(o->out, cpu_env, o->in2);
     set_cc_static(s);
     return DISAS_NEXT;
@@ -2791,8 +2775,6 @@ static DisasJumpType op_lra(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_lpp(DisasContext *s, DisasOps *o)
 {
-    check_privileged(s);
-
     tcg_gen_st_i64(o->in2, cpu_env, offsetof(CPUS390XState, pp));
     return DISAS_NEXT;
 }
@@ -2801,7 +2783,6 @@ static DisasJumpType op_lpsw(DisasContext *s, DisasOps *o)
 {
     TCGv_i64 t1, t2;
 
-    check_privileged(s);
     per_breaking_event(s);
 
     t1 = tcg_temp_new_i64();
@@ -2821,7 +2802,6 @@ static DisasJumpType op_lpswe(DisasContext *s, DisasOps *o)
 {
     TCGv_i64 t1, t2;
 
-    check_privileged(s);
     per_breaking_event(s);
 
     t1 = tcg_temp_new_i64();
@@ -3019,14 +2999,12 @@ static DisasJumpType op_lpq(DisasContext *s, DisasOps *o)
 #ifndef CONFIG_USER_ONLY
 static DisasJumpType op_lura(DisasContext *s, DisasOps *o)
 {
-    check_privileged(s);
     gen_helper_lura(o->out, cpu_env, o->in2);
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_lurag(DisasContext *s, DisasOps *o)
 {
-    check_privileged(s);
     gen_helper_lurag(o->out, cpu_env, o->in2);
     return DISAS_NEXT;
 }
@@ -3185,7 +3163,6 @@ static DisasJumpType op_mvcos(DisasContext *s, DisasOps *o)
 static DisasJumpType op_mvcp(DisasContext *s, DisasOps *o)
 {
     int r1 = get_field(s->fields, l1);
-    check_privileged(s);
     gen_helper_mvcp(cc_op, cpu_env, regs[r1], o->addr1, o->in2);
     set_cc_static(s);
     return DISAS_NEXT;
@@ -3194,7 +3171,6 @@ static DisasJumpType op_mvcp(DisasContext *s, DisasOps *o)
 static DisasJumpType op_mvcs(DisasContext *s, DisasOps *o)
 {
     int r1 = get_field(s->fields, l1);
-    check_privileged(s);
     gen_helper_mvcs(cc_op, cpu_env, regs[r1], o->addr1, o->in2);
     set_cc_static(s);
     return DISAS_NEXT;
@@ -3480,7 +3456,6 @@ static DisasJumpType op_popcnt(DisasContext *s, DisasOps *o)
 #ifndef CONFIG_USER_ONLY
 static DisasJumpType op_ptlb(DisasContext *s, DisasOps *o)
 {
-    check_privileged(s);
     gen_helper_ptlb(cpu_env);
     return DISAS_NEXT;
 }
@@ -3671,7 +3646,6 @@ static DisasJumpType op_rll64(DisasContext *s, DisasOps *o)
 #ifndef CONFIG_USER_ONLY
 static DisasJumpType op_rrbe(DisasContext *s, DisasOps *o)
 {
-    check_privileged(s);
     gen_helper_rrbe(cc_op, cpu_env, o->in2);
     set_cc_static(s);
     return DISAS_NEXT;
@@ -3679,7 +3653,6 @@ static DisasJumpType op_rrbe(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_sacf(DisasContext *s, DisasOps *o)
 {
-    check_privileged(s);
     gen_helper_sacf(cpu_env, o->in2);
     /* Addressing mode has changed, so end the block.  */
     return DISAS_PC_STALE;
@@ -3769,7 +3742,6 @@ static DisasJumpType op_sqxb(DisasContext *s, DisasOps *o)
 #ifndef CONFIG_USER_ONLY
 static DisasJumpType op_servc(DisasContext *s, DisasOps *o)
 {
-    check_privileged(s);
     gen_helper_servc(cc_op, cpu_env, o->in2, o->in1);
     set_cc_static(s);
     return DISAS_NEXT;
@@ -3779,7 +3751,6 @@ static DisasJumpType op_sigp(DisasContext *s, DisasOps *o)
 {
     TCGv_i32 r1 = tcg_const_i32(get_field(s->fields, r1));
     TCGv_i32 r3 = tcg_const_i32(get_field(s->fields, r3));
-    check_privileged(s);
     gen_helper_sigp(cc_op, cpu_env, o->in2, r1, r3);
     set_cc_static(s);
     tcg_temp_free_i32(r1);
@@ -3961,7 +3932,6 @@ static DisasJumpType op_ectg(DisasContext *s, DisasOps *o)
 #ifndef CONFIG_USER_ONLY
 static DisasJumpType op_spka(DisasContext *s, DisasOps *o)
 {
-    check_privileged(s);
     tcg_gen_shri_i64(o->in2, o->in2, 4);
     tcg_gen_deposit_i64(psw_mask, psw_mask, o->in2, PSW_SHIFT_KEY, 4);
     return DISAS_NEXT;
@@ -3969,14 +3939,12 @@ static DisasJumpType op_spka(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_sske(DisasContext *s, DisasOps *o)
 {
-    check_privileged(s);
     gen_helper_sske(cpu_env, o->in1, o->in2);
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_ssm(DisasContext *s, DisasOps *o)
 {
-    check_privileged(s);
     tcg_gen_deposit_i64(psw_mask, psw_mask, o->in2, 56, 8);
     /* Exit to main loop to reevaluate s390_cpu_exec_interrupt.  */
     return DISAS_PC_STALE_NOCHAIN;
@@ -3984,7 +3952,6 @@ static DisasJumpType op_ssm(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_stap(DisasContext *s, DisasOps *o)
 {
-    check_privileged(s);
     tcg_gen_ld32u_i64(o->out, cpu_env, offsetof(CPUS390XState, core_id));
     return DISAS_NEXT;
 }
@@ -4026,7 +3993,6 @@ static DisasJumpType op_stcke(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_sck(DisasContext *s, DisasOps *o)
 {
-    check_privileged(s);
     tcg_gen_qemu_ld_i64(o->in1, o->addr1, get_mem_index(s), MO_TEQ | MO_ALIGN);
     gen_helper_sck(cc_op, cpu_env, o->in1);
     set_cc_static(s);
@@ -4035,21 +4001,18 @@ static DisasJumpType op_sck(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_sckc(DisasContext *s, DisasOps *o)
 {
-    check_privileged(s);
     gen_helper_sckc(cpu_env, o->in2);
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_sckpf(DisasContext *s, DisasOps *o)
 {
-    check_privileged(s);
     gen_helper_sckpf(cpu_env, regs[0]);
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_stckc(DisasContext *s, DisasOps *o)
 {
-    check_privileged(s);
     gen_helper_stckc(o->out, cpu_env);
     return DISAS_NEXT;
 }
@@ -4058,7 +4021,6 @@ static DisasJumpType op_stctg(DisasContext *s, DisasOps *o)
 {
     TCGv_i32 r1 = tcg_const_i32(get_field(s->fields, r1));
     TCGv_i32 r3 = tcg_const_i32(get_field(s->fields, r3));
-    check_privileged(s);
     gen_helper_stctg(cpu_env, r1, o->in2, r3);
     tcg_temp_free_i32(r1);
     tcg_temp_free_i32(r3);
@@ -4069,7 +4031,6 @@ static DisasJumpType op_stctl(DisasContext *s, DisasOps *o)
 {
     TCGv_i32 r1 = tcg_const_i32(get_field(s->fields, r1));
     TCGv_i32 r3 = tcg_const_i32(get_field(s->fields, r3));
-    check_privileged(s);
     gen_helper_stctl(cpu_env, r1, o->in2, r3);
     tcg_temp_free_i32(r1);
     tcg_temp_free_i32(r3);
@@ -4078,35 +4039,30 @@ static DisasJumpType op_stctl(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_stidp(DisasContext *s, DisasOps *o)
 {
-    check_privileged(s);
     tcg_gen_ld_i64(o->out, cpu_env, offsetof(CPUS390XState, cpuid));
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_spt(DisasContext *s, DisasOps *o)
 {
-    check_privileged(s);
     gen_helper_spt(cpu_env, o->in2);
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_stfl(DisasContext *s, DisasOps *o)
 {
-    check_privileged(s);
     gen_helper_stfl(cpu_env);
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_stpt(DisasContext *s, DisasOps *o)
 {
-    check_privileged(s);
     gen_helper_stpt(o->out, cpu_env);
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_stsi(DisasContext *s, DisasOps *o)
 {
-    check_privileged(s);
     gen_helper_stsi(cc_op, cpu_env, o->in2, regs[0], regs[1]);
     set_cc_static(s);
     return DISAS_NEXT;
@@ -4114,14 +4070,12 @@ static DisasJumpType op_stsi(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_spx(DisasContext *s, DisasOps *o)
 {
-    check_privileged(s);
     gen_helper_spx(cpu_env, o->in2);
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_xsch(DisasContext *s, DisasOps *o)
 {
-    check_privileged(s);
     gen_helper_xsch(cpu_env, regs[1]);
     set_cc_static(s);
     return DISAS_NEXT;
@@ -4129,7 +4083,6 @@ static DisasJumpType op_xsch(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_csch(DisasContext *s, DisasOps *o)
 {
-    check_privileged(s);
     gen_helper_csch(cpu_env, regs[1]);
     set_cc_static(s);
     return DISAS_NEXT;
@@ -4137,7 +4090,6 @@ static DisasJumpType op_csch(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_hsch(DisasContext *s, DisasOps *o)
 {
-    check_privileged(s);
     gen_helper_hsch(cpu_env, regs[1]);
     set_cc_static(s);
     return DISAS_NEXT;
@@ -4145,7 +4097,6 @@ static DisasJumpType op_hsch(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_msch(DisasContext *s, DisasOps *o)
 {
-    check_privileged(s);
     gen_helper_msch(cpu_env, regs[1], o->in2);
     set_cc_static(s);
     return DISAS_NEXT;
@@ -4153,7 +4104,6 @@ static DisasJumpType op_msch(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_rchp(DisasContext *s, DisasOps *o)
 {
-    check_privileged(s);
     gen_helper_rchp(cpu_env, regs[1]);
     set_cc_static(s);
     return DISAS_NEXT;
@@ -4161,7 +4111,6 @@ static DisasJumpType op_rchp(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_rsch(DisasContext *s, DisasOps *o)
 {
-    check_privileged(s);
     gen_helper_rsch(cpu_env, regs[1]);
     set_cc_static(s);
     return DISAS_NEXT;
@@ -4169,21 +4118,18 @@ static DisasJumpType op_rsch(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_sal(DisasContext *s, DisasOps *o)
 {
-    check_privileged(s);
     gen_helper_sal(cpu_env, regs[1]);
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_schm(DisasContext *s, DisasOps *o)
 {
-    check_privileged(s);
     gen_helper_schm(cpu_env, regs[1], regs[2], o->in2);
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_siga(DisasContext *s, DisasOps *o)
 {
-    check_privileged(s);
     /* From KVM code: Not provided, set CC = 3 for subchannel not operational */
     gen_op_movi_cc(s, 3);
     return DISAS_NEXT;
@@ -4191,14 +4137,12 @@ static DisasJumpType op_siga(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_stcps(DisasContext *s, DisasOps *o)
 {
-    check_privileged(s);
     /* The instruction is suppressed if not provided. */
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_ssch(DisasContext *s, DisasOps *o)
 {
-    check_privileged(s);
     gen_helper_ssch(cpu_env, regs[1], o->in2);
     set_cc_static(s);
     return DISAS_NEXT;
@@ -4206,7 +4150,6 @@ static DisasJumpType op_ssch(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_stsch(DisasContext *s, DisasOps *o)
 {
-    check_privileged(s);
     gen_helper_stsch(cpu_env, regs[1], o->in2);
     set_cc_static(s);
     return DISAS_NEXT;
@@ -4214,7 +4157,6 @@ static DisasJumpType op_stsch(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_stcrw(DisasContext *s, DisasOps *o)
 {
-    check_privileged(s);
     gen_helper_stcrw(cpu_env, o->in2);
     set_cc_static(s);
     return DISAS_NEXT;
@@ -4222,7 +4164,6 @@ static DisasJumpType op_stcrw(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_tpi(DisasContext *s, DisasOps *o)
 {
-    check_privileged(s);
     gen_helper_tpi(cc_op, cpu_env, o->addr1);
     set_cc_static(s);
     return DISAS_NEXT;
@@ -4230,7 +4171,6 @@ static DisasJumpType op_tpi(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_tsch(DisasContext *s, DisasOps *o)
 {
-    check_privileged(s);
     gen_helper_tsch(cpu_env, regs[1], o->in2);
     set_cc_static(s);
     return DISAS_NEXT;
@@ -4238,7 +4178,6 @@ static DisasJumpType op_tsch(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_chsc(DisasContext *s, DisasOps *o)
 {
-    check_privileged(s);
     gen_helper_chsc(cpu_env, o->in2);
     set_cc_static(s);
     return DISAS_NEXT;
@@ -4246,7 +4185,6 @@ static DisasJumpType op_chsc(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_stpx(DisasContext *s, DisasOps *o)
 {
-    check_privileged(s);
     tcg_gen_ld_i64(o->out, cpu_env, offsetof(CPUS390XState, psa));
     tcg_gen_andi_i64(o->out, o->out, 0x7fffe000);
     return DISAS_NEXT;
@@ -4256,8 +4194,6 @@ static DisasJumpType op_stnosm(DisasContext *s, DisasOps *o)
 {
     uint64_t i2 = get_field(s->fields, i2);
     TCGv_i64 t;
-
-    check_privileged(s);
 
     /* It is important to do what the instruction name says: STORE THEN.
        If we let the output hook perform the store then if we fault and
@@ -4280,14 +4216,12 @@ static DisasJumpType op_stnosm(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_stura(DisasContext *s, DisasOps *o)
 {
-    check_privileged(s);
     gen_helper_stura(cpu_env, o->in2, o->in1);
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_sturg(DisasContext *s, DisasOps *o)
 {
-    check_privileged(s);
     gen_helper_sturg(cpu_env, o->in2, o->in1);
     return DISAS_NEXT;
 }
@@ -4553,7 +4487,6 @@ static DisasJumpType op_tcxb(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_testblock(DisasContext *s, DisasOps *o)
 {
-    check_privileged(s);
     gen_helper_testblock(cc_op, cpu_env, o->in2);
     set_cc_static(s);
     return DISAS_NEXT;
@@ -4811,7 +4744,6 @@ static DisasJumpType op_clp(DisasContext *s, DisasOps *o)
 {
     TCGv_i32 r2 = tcg_const_i32(get_field(s->fields, r2));
 
-    check_privileged(s);
     gen_helper_clp(cpu_env, r2);
     tcg_temp_free_i32(r2);
     set_cc_static(s);
@@ -4823,7 +4755,6 @@ static DisasJumpType op_pcilg(DisasContext *s, DisasOps *o)
     TCGv_i32 r1 = tcg_const_i32(get_field(s->fields, r1));
     TCGv_i32 r2 = tcg_const_i32(get_field(s->fields, r2));
 
-    check_privileged(s);
     gen_helper_pcilg(cpu_env, r1, r2);
     tcg_temp_free_i32(r1);
     tcg_temp_free_i32(r2);
@@ -4836,7 +4767,6 @@ static DisasJumpType op_pcistg(DisasContext *s, DisasOps *o)
     TCGv_i32 r1 = tcg_const_i32(get_field(s->fields, r1));
     TCGv_i32 r2 = tcg_const_i32(get_field(s->fields, r2));
 
-    check_privileged(s);
     gen_helper_pcistg(cpu_env, r1, r2);
     tcg_temp_free_i32(r1);
     tcg_temp_free_i32(r2);
@@ -4849,7 +4779,6 @@ static DisasJumpType op_stpcifc(DisasContext *s, DisasOps *o)
     TCGv_i32 r1 = tcg_const_i32(get_field(s->fields, r1));
     TCGv_i32 ar = tcg_const_i32(get_field(s->fields, b2));
 
-    check_privileged(s);
     gen_helper_stpcifc(cpu_env, r1, o->addr1, ar);
     tcg_temp_free_i32(ar);
     tcg_temp_free_i32(r1);
@@ -4859,7 +4788,6 @@ static DisasJumpType op_stpcifc(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_sic(DisasContext *s, DisasOps *o)
 {
-    check_privileged(s);
     gen_helper_sic(cpu_env, o->in1, o->in2);
     return DISAS_NEXT;
 }
@@ -4869,7 +4797,6 @@ static DisasJumpType op_rpcit(DisasContext *s, DisasOps *o)
     TCGv_i32 r1 = tcg_const_i32(get_field(s->fields, r1));
     TCGv_i32 r2 = tcg_const_i32(get_field(s->fields, r2));
 
-    check_privileged(s);
     gen_helper_rpcit(cpu_env, r1, r2);
     tcg_temp_free_i32(r1);
     tcg_temp_free_i32(r2);
@@ -4883,7 +4810,6 @@ static DisasJumpType op_pcistb(DisasContext *s, DisasOps *o)
     TCGv_i32 r3 = tcg_const_i32(get_field(s->fields, r3));
     TCGv_i32 ar = tcg_const_i32(get_field(s->fields, b2));
 
-    check_privileged(s);
     gen_helper_pcistb(cpu_env, r1, r3, o->addr1, ar);
     tcg_temp_free_i32(ar);
     tcg_temp_free_i32(r1);
@@ -4897,7 +4823,6 @@ static DisasJumpType op_mpcifc(DisasContext *s, DisasOps *o)
     TCGv_i32 r1 = tcg_const_i32(get_field(s->fields, r1));
     TCGv_i32 ar = tcg_const_i32(get_field(s->fields, b2));
 
-    check_privileged(s);
     gen_helper_mpcifc(cpu_env, r1, o->addr1, ar);
     tcg_temp_free_i32(ar);
     tcg_temp_free_i32(r1);
@@ -6088,6 +6013,12 @@ static DisasJumpType translate_one(CPUS390XState *env, DisasContext *s)
 
     /* process flags */
     if (insn->flags) {
+        /* priviledged instruction */
+        if ((s->base.tb->flags & FLAG_MASK_PSTATE) && (insn->flags & IF_PRIV)) {
+            gen_program_exception(s, PGM_PRIVILEGED);
+            return DISAS_NORETURN;
+        }
+
         /* if AFP is not enabled, instructions and registers are forbidden */
         if (!(s->base.tb->flags & FLAG_MASK_AFP)) {
             uint8_t dxc = 0;
