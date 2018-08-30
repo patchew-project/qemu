@@ -1462,6 +1462,8 @@ static TCGv_i64 msa_wr_d[64];
 static TCGv mxu_gpr[15];
 static TCGv mxu_CR;
 
+#define MXUEN 0x01
+
 #include "exec/gen-icount.h"
 
 #define gen_helper_0e0i(name, arg) do {                           \
@@ -3974,6 +3976,16 @@ static void gen_cl (DisasContext *ctx, uint32_t opc,
 
 /* MXU Instructions */
 
+/* MXU operand getting patterns OPTN3 */
+#define MXU_OPTN3_PTN0  0
+#define MXU_OPTN3_PTN1  1
+#define MXU_OPTN3_PTN2  2
+#define MXU_OPTN3_PTN3  3
+#define MXU_OPTN3_PTN4  4
+#define MXU_OPTN3_PTN5  5
+#define MXU_OPTN3_PTN6  6
+#define MXU_OPTN3_PTN7  7
+
 /* S32I2M XRa, rb - Register move from GRF to XRF */
 static void gen_mxu_s32i2m(DisasContext *ctx, uint32_t opc)
 {
@@ -4015,6 +4027,88 @@ static void gen_mxu_s32m2i(DisasContext *ctx, uint32_t opc)
     gen_store_gpr(t0, rb);
 
     tcg_temp_free(t0);
+}
+
+/* S8LDD XRa, rb, S8, OPTN3 - Load a byte from memory to XRF */
+static void gen_mxu_s8ldd(DisasContext *ctx, uint32_t opc)
+{
+    TCGv t0, t1;
+    TCGLabel *l0;
+    uint32_t xra, s8, optn3, rb;
+
+    t0 = tcg_temp_new();
+    t1 = tcg_temp_new();
+
+    l0 = gen_new_label();
+
+    xra = extract32(ctx->opcode, 6, 4);
+    s8 = extract32(ctx->opcode, 10, 8);
+    optn3 = extract32(ctx->opcode, 18, 3);
+    rb = extract32(ctx->opcode, 21, 5);
+
+    gen_load_mxu_cr(t0);
+    tcg_gen_andi_tl(t0, t0, MXUEN);
+    tcg_gen_brcondi_tl(TCG_COND_NE, t0, MXUEN, l0);
+
+    gen_load_gpr(t0, rb);
+    tcg_gen_addi_tl(t0, t0, (int8_t)s8);
+    switch (optn3) {
+    /*XRa[7:0] = tmp8 */
+    case MXU_OPTN3_PTN0:
+        tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx, MO_UB);
+        gen_load_mxu_gpr(t0, xra);
+        tcg_gen_deposit_tl(t0, t0, t1, 0, 8);
+        break;
+    /* XRa[15:8] = tmp8 */
+    case MXU_OPTN3_PTN1:
+        tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx, MO_UB);
+        gen_load_mxu_gpr(t0, xra);
+        tcg_gen_deposit_tl(t0, t0, t1, 8, 8);
+        break;
+    /* XRa[23:16] = tmp8 */
+    case MXU_OPTN3_PTN2:
+        tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx, MO_UB);
+        gen_load_mxu_gpr(t0, xra);
+        tcg_gen_deposit_tl(t0, t0, t1, 16, 8);
+        break;
+    /* XRa[31:24] = tmp8 */
+    case MXU_OPTN3_PTN3:
+        tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx, MO_UB);
+        gen_load_mxu_gpr(t0, xra);
+        tcg_gen_deposit_tl(t0, t0, t1, 24, 8);
+        break;
+    /* XRa = {8'b0, tmp8, 8'b0, tmp8} */
+    case MXU_OPTN3_PTN4:
+        tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx, MO_UB);
+        tcg_gen_deposit_tl(t0, t1, t1, 16, 16);
+        break;
+    /* XRa = {tmp8, 8'b0, tmp8, 8'b0} */
+    case MXU_OPTN3_PTN5:
+        tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx, MO_UB);
+        tcg_gen_shli_tl(t1, t1, 8);
+        tcg_gen_deposit_tl(t0, t1, t1, 16, 16);
+        break;
+    /* XRa = {{8{sign of tmp8}}, tmp8, {8{sign of tmp8}}, tmp8} */
+    case MXU_OPTN3_PTN6:
+        tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx, MO_SB);
+        tcg_gen_mov_tl(t0, t1);
+        tcg_gen_andi_tl(t0, t0, 0xFF00FFFF);
+        tcg_gen_shli_tl(t1, t1, 16);
+        tcg_gen_or_tl(t0, t0, t1);
+        break;
+    /* XRa = {tmp8, tmp8, tmp8, tmp8} */
+    case MXU_OPTN3_PTN7:
+        tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx, MO_UB);
+        tcg_gen_deposit_tl(t1, t1, t1, 8, 8);
+        tcg_gen_deposit_tl(t0, t1, t1, 16, 16);
+        break;
+    }
+    gen_store_mxu_gpr(t0, xra);
+
+    gen_set_label(l0);
+
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
 }
 
 /* Godson integer instructions */
@@ -22788,6 +22882,10 @@ static void decode_opc_special2_mxu(CPUMIPSState *env, DisasContext *ctx)
 
     case OPC_MXU_S32M2I:
         gen_mxu_s32m2i(ctx, op1);
+        break;
+
+    case OPC_MXU_S8LDD:
+        gen_mxu_s8ldd(ctx, op1);
         break;
 
     default:            /* Invalid */
