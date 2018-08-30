@@ -58,11 +58,17 @@ void qlist_destroy_obj(QObject *obj);
 
 static inline const QListEntry *qlist_first(const QList *qlist)
 {
+    if (!qlist) {
+        return NULL;
+    }
     return QTAILQ_FIRST(&qlist->head);
 }
 
 static inline const QListEntry *qlist_next(const QListEntry *entry)
 {
+    if (!entry) {
+        return NULL;
+    }
     return QTAILQ_NEXT(entry, next);
 }
 
