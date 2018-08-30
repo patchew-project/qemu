@@ -2044,7 +2044,9 @@ static void transfer_vcpu(GuestLogicalProcessor *vcpu, bool sys2vcpu,
                               vcpu->logical_id);
     dirfd = open(dirpath, O_RDONLY | O_DIRECTORY);
     if (dirfd == -1) {
-        error_setg_errno(errp, errno, "open(\"%s\")", dirpath);
+        if (!(sys2vcpu && errno == ENOENT)) {
+            error_setg_errno(errp, errno, "open(\"%s\")", dirpath);
+        }
     } else {
         static const char fn[] = "online";
         int fd;
