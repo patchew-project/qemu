@@ -4359,6 +4359,51 @@ static void gen_mxu_q8mul(DisasContext *ctx, uint32_t opc)
     tcg_temp_free(t7);
 }
 
+/* S32LDD XRa, rb, S12 - Load a word from memory to XRF
+ * S32LDDR XRa, rb, S12 - Load a word from memory to XRF,
+ *                        reversed byte sequence */
+static void gen_mxu_s32ldd(DisasContext *ctx, uint32_t opc)
+{
+    TCGv t0, t1;
+    TCGLabel *l0;
+    uint32_t xra, s12, sel, rb;
+
+    t0 = tcg_temp_new();
+    t1 = tcg_temp_new();
+
+    l0 = gen_new_label();
+
+    xra = extract32(ctx->opcode, 6, 4);
+    s12 = extract32(ctx->opcode, 10, 10);
+    sel = extract32(ctx->opcode, 20, 1);
+    rb = extract32(ctx->opcode, 21, 5);
+
+    gen_load_mxu_cr(t0);
+    tcg_gen_andi_tl(t0, t0, MXUEN);
+    tcg_gen_brcondi_tl(TCG_COND_NE, t0, MXUEN, l0);
+
+    gen_load_gpr(t0, rb);
+
+    tcg_gen_movi_tl(t1, s12);
+    tcg_gen_shli_tl(t1, t1, 2);
+    if (s12 & 0x200) {
+        tcg_gen_ori_tl(t1, t1, 0xFFFFF000);
+    }
+    tcg_gen_add_tl(t1, t0, t1);
+    tcg_gen_qemu_ld_tl(t1, t1, ctx->mem_idx, MO_SL);
+
+    if (sel == 1) {
+        /* S32LDDR */
+        tcg_gen_bswap32_tl(t1, t1);
+    }
+    gen_store_mxu_gpr(t1, xra);
+
+    gen_set_label(l0);
+
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
+}
+
 /* Godson integer instructions */
 static void gen_loongson_integer(DisasContext *ctx, uint32_t opc,
                                  int rd, int rs, int rt)
@@ -23146,6 +23191,10 @@ static void decode_opc_special2_mxu(CPUMIPSState *env, DisasContext *ctx)
 
     case OPC_MXU_Q8MUL:
         gen_mxu_q8mul(ctx, op1);
+        break;
+
+    case OPC_MXU_S32LDD:
+        gen_mxu_s32ldd(ctx, op1);
         break;
 
     default:            /* Invalid */
