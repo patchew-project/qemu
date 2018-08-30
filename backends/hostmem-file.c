@@ -54,7 +54,7 @@ file_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
 #ifndef CONFIG_LINUX
     error_setg(errp, "-mem-path not supported on this host");
 #else
-    if (!host_memory_backend_mr_inited(backend)) {
+    {
         gchar *path;
         backend->force_prealloc = mem_prealloc;
         path = object_get_canonical_path(OBJECT(backend));
