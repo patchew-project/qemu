@@ -59,10 +59,10 @@ qio_channel_command_new_spawn(const char *const argv[],
 
     flags = flags & O_ACCMODE;
 
-    if (flags == O_RDONLY) {
+    if ((flags & O_RDONLY) == O_RDONLY) {
         stdinnull = true;
     }
-    if (flags == O_WRONLY) {
+    if ((flags & O_WRONLY) == O_WRONLY) {
         stdoutnull = true;
     }
 
