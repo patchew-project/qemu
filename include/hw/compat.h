@@ -2,7 +2,16 @@
 #define HW_COMPAT_H
 
 #define HW_COMPAT_3_0 \
-    /* empty */
+    {\
+        .driver   = "tpm-crb",\
+        .property = "ppi",\
+        .value    = "false",\
+    },\
+    {\
+        .driver   = "tpm-tis",\
+        .property = "ppi",\
+        .value    = "false",\
+    },
 
 #define HW_COMPAT_2_12 \
     {\
