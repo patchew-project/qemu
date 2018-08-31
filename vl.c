@@ -2560,6 +2560,15 @@ static void qemu_run_exit_notifiers(void)
     notifier_list_notify(&exit_notifiers, NULL);
 }
 
+static const char *pid_file;
+
+static void qemu_unlink_pidfile(void)
+{
+    if (pid_file) {
+        unlink(pid_file);
+    }
+}
+
 bool machine_init_done;
 
 void qemu_add_machine_init_done_notifier(Notifier *notify)
@@ -2884,7 +2893,6 @@ int main(int argc, char **argv, char **envp)
     const char *vga_model = NULL;
     const char *qtest_chrdev = NULL;
     const char *qtest_log = NULL;
-    const char *pid_file = NULL;
     const char *incoming = NULL;
     bool userconfig = true;
     bool nographic = false;
@@ -3910,6 +3918,7 @@ int main(int argc, char **argv, char **envp)
         error_reportf_err(err, "cannot create PID file: ");
         exit(1);
     }
+    atexit(qemu_unlink_pidfile);
 
     if (qemu_init_main_loop(&main_loop_err)) {
         error_report_err(main_loop_err);
