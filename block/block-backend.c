@@ -136,7 +136,7 @@ static char *blk_root_get_parent_desc(BdrvChild *child)
     }
 
     dev_id = blk_get_attached_dev_id(blk);
-    if (*dev_id) {
+    if (dev_id && *dev_id) {
         return dev_id;
     } else {
         /* TODO Callback into the BB owner for something more detailed */
