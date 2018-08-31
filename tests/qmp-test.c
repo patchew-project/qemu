@@ -93,11 +93,7 @@ static void test_malformed(QTestState *qts)
     g_assert(recovered(qts));
 
     /* lexical error: interpolation */
-    qtest_qmp_send_raw(qts, "%%p\n");
-    /* two errors, one for "%", one for "p" */
-    resp = qtest_qmp_receive(qts);
-    g_assert_cmpstr(get_error_class(resp), ==, "GenericError");
-    qobject_unref(resp);
+    qtest_qmp_send_raw(qts, "%%p");
     resp = qtest_qmp_receive(qts);
     g_assert_cmpstr(get_error_class(resp), ==, "GenericError");
     qobject_unref(resp);
