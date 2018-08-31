@@ -448,6 +448,9 @@ static direntry_t *create_long_filename(BDRVVVFATState *s, const char *filename)
 
     for(i=0;i<number_of_entries;i++) {
         entry=array_get_next(&(s->directory));
+        if (entry == NULL) {
+            continue;
+        }
         entry->attributes=0xf;
         entry->reserved[0]=0;
         entry->begin=0;
@@ -665,6 +668,9 @@ static inline void fat_set(BDRVVVFATState* s,unsigned int cluster,uint32_t value
     } else {
         int offset = (cluster*3/2);
         unsigned char* p = array_get(&(s->fat), offset);
+        if (p == NULL) {
+            return;
+        }
         switch (cluster&1) {
         case 0:
                 p[0] = value&0xff;
@@ -730,6 +736,9 @@ static inline direntry_t* create_short_and_long_name(BDRVVVFATState* s,
 
     if(is_dot) {
         entry=array_get_next(&(s->directory));
+        if (entry == NULL) {
+            return NULL;
+        }
         memset(entry->name, 0x20, sizeof(entry->name));
         memcpy(entry->name,filename,strlen(filename));
         return entry;
@@ -844,6 +853,12 @@ static int read_directory(BDRVVVFATState* s, int mapping_index)
         /* create mapping for this file */
         if(!is_dot && !is_dotdot && (S_ISDIR(st.st_mode) || st.st_size)) {
             s->current_mapping = array_get_next(&(s->mapping));
+            if (s->current_mapping == NULL) {
+                fprintf(stderr, "Failed to create mapping for file\n");
+                g_free(buffer);
+                closedir(dir);
+                return -2;
+            }
             s->current_mapping->begin=0;
             s->current_mapping->end=st.st_size;
             /*
@@ -941,6 +956,9 @@ static int init_directories(BDRVVVFATState* s,
     /* add volume label */
     {
         direntry_t* entry=array_get_next(&(s->directory));
+        if (entry == NULL) {
+            return -1;
+        }
         entry->attributes=0x28; /* archive | volume label */
         memcpy(entry->name, s->volume_label, sizeof(entry->name));
     }
@@ -953,6 +971,9 @@ static int init_directories(BDRVVVFATState* s,
     s->cluster_count=sector2cluster(s, s->sector_count);
 
     mapping = array_get_next(&(s->mapping));
+    if (mapping == NULL) {
+        return -1;
+    }
     mapping->begin = 0;
     mapping->dir_index = 0;
     mapping->info.dir.parent_mapping_index = -1;
@@ -1630,6 +1651,9 @@ static void schedule_rename(BDRVVVFATState* s,
         uint32_t cluster, char* new_path)
 {
     commit_t* commit = array_get_next(&(s->commits));
+    if (commit == NULL) {
+        return;
+    }
     commit->path = new_path;
     commit->param.rename.cluster = cluster;
     commit->action = ACTION_RENAME;
@@ -1639,6 +1663,9 @@ static void schedule_writeout(BDRVVVFATState* s,
         int dir_index, uint32_t modified_offset)
 {
     commit_t* commit = array_get_next(&(s->commits));
+    if (commit == NULL) {
+        return;
+    }
     commit->path = NULL;
     commit->param.writeout.dir_index = dir_index;
     commit->param.writeout.modified_offset = modified_offset;
@@ -1649,6 +1676,9 @@ static void schedule_new_file(BDRVVVFATState* s,
         char* path, uint32_t first_cluster)
 {
     commit_t* commit = array_get_next(&(s->commits));
+    if (commit == NULL) {
+        return;
+    }
     commit->path = path;
     commit->param.new_file.first_cluster = first_cluster;
     commit->action = ACTION_NEW_FILE;
@@ -1657,6 +1687,9 @@ static void schedule_new_file(BDRVVVFATState* s,
 static void schedule_mkdir(BDRVVVFATState* s, uint32_t cluster, char* path)
 {
     commit_t* commit = array_get_next(&(s->commits));
+    if (commit == NULL) {
+        return;
+    }
     commit->path = path;
     commit->param.mkdir.cluster = cluster;
     commit->action = ACTION_MKDIR;
@@ -2261,6 +2294,9 @@ static mapping_t* insert_mapping(BDRVVVFATState* s,
     }
     if (index >= s->mapping.next || mapping->begin > begin) {
         mapping = array_insert(&(s->mapping), index, 1);
+        if (mapping == NULL) {
+            return NULL;
+        }
         mapping->path = NULL;
         adjust_mapping_indices(s, index, +1);
     }
@@ -2428,6 +2464,9 @@ static int commit_direntries(BDRVVVFATState* s,
     direntry_t* direntry = array_get(&(s->directory), dir_index);
     uint32_t first_cluster = dir_index == 0 ? 0 : begin_of_direntry(direntry);
     mapping_t* mapping = find_mapping_for_cluster(s, first_cluster);
+    if (mapping == NULL) {
+        return -1;
+    }
 
     int factor = 0x10 * s->sectors_per_cluster;
     int old_cluster_count, new_cluster_count;
@@ -2494,6 +2533,9 @@ DLOG(fprintf(stderr, "commit_direntries for %s, parent_mapping_index %d\n", mapp
         direntry = array_get(&(s->directory), first_dir_index + i);
         if (is_directory(direntry) && !is_dot(direntry)) {
             mapping = find_mapping_for_cluster(s, first_cluster);
+            if (mapping == NULL) {
+                return -1;
+            }
             assert(mapping->mode & MODE_DIRECTORY);
             ret = commit_direntries(s, first_dir_index + i,
                 array_index(&(s->mapping), mapping));
@@ -2521,6 +2563,10 @@ static int commit_one_file(BDRVVVFATState* s,
 
     assert(offset < size);
     assert((offset % s->cluster_size) == 0);
+
+    if (mapping == NULL) {
+        return -1;
+    }
 
     for (i = s->cluster_size; i < offset; i += s->cluster_size)
         c = modified_fat_get(s, c);
@@ -2668,6 +2714,9 @@ static int handle_renames_and_mkdirs(BDRVVVFATState* s)
         if (commit->action == ACTION_RENAME) {
             mapping_t* mapping = find_mapping_for_cluster(s,
                     commit->param.rename.cluster);
+            if (mapping == NULL) {
+                return -1;
+            }
             char* old_path = mapping->path;
 
             assert(commit->path);
@@ -2692,6 +2741,9 @@ static int handle_renames_and_mkdirs(BDRVVVFATState* s)
                         if (is_file(d) || (is_directory(d) && !is_dot(d))) {
                             mapping_t* m = find_mapping_for_cluster(s,
                                     begin_of_direntry(d));
+                            if (m == NULL) {
+                                return -3;
+                            }
                             int l = strlen(m->path);
                             char* new_path = g_malloc(l + diff + 1);
 
@@ -3193,6 +3245,10 @@ static int enable_write_target(BlockDriverState *bs, Error **errp)
 
     backing = bdrv_new_open_driver(&vvfat_write_target, NULL, BDRV_O_ALLOW_RDWR,
                                    &error_abort);
+    if (!backing) {
+        ret = -EINVAL;
+        goto err;
+    }
     *(void**) backing->opaque = s;
 
     bdrv_set_backing_hd(s->bs, backing, &error_abort);
