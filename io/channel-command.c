@@ -61,8 +61,7 @@ qio_channel_command_new_spawn(const char *const argv[],
 
     if (flags == O_RDONLY) {
         stdinnull = true;
-    }
-    if (flags == O_WRONLY) {
+    } else if (flags == O_WRONLY) {
         stdoutnull = true;
     }
 
