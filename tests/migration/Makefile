@@ -5,7 +5,7 @@
 # See the COPYING file in the top-level directory.
 #
 
-TARGET_LIST = x86_64
+TARGET_LIST = x86_64 aarch64
 
 SRC_PATH = ../..
 
