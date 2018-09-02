@@ -1129,6 +1129,24 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             .reg = R_EDX, },
         .tcg_features = ~0U,
     },
+    /*Below are MSR exposed features*/
+    [FEATURE_WORDS_ARCH_CAPABILITIES] = {
+        .type = MSR_FEATURE_WORD,
+        .feat_names = {
+            "rdctl-no", "ibrs-all", "rsba", NULL,
+            "ssb-no", NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+        },
+        .msr = { .index = MSR_IA32_ARCH_CAPABILITIES,
+                .cpuid_dep = { FEAT_7_0_EDX,
+                    CPUID_7_0_EDX_ARCH_CAPABILITIES }
+                },
+    },
 };
 
 typedef struct X86RegisterInfo32 {
@@ -3680,7 +3698,14 @@ static uint32_t x86_cpu_get_supported_feature_word(FeatureWord w,
                                                 wi->cpuid.reg);
             break;
         case MSR_FEATURE_WORD:
-            r = kvm_arch_get_supported_msr_feature(kvm_state,
+            /* Special case:
+             * No matter host status, IA32_ARCH_CAPABILITIES.RSBA [bit 2]
+             * is always supported in guest.
+             */
+            if (wi->msr.index == MSR_IA32_ARCH_CAPABILITIES) {
+                r = MSR_ARCH_CAP_RSBA;
+            }
+            r |= kvm_arch_get_supported_msr_feature(kvm_state,
                         wi->msr.index);
             break;
         }
