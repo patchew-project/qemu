@@ -3670,7 +3670,7 @@ static uint32_t x86_cpu_get_supported_feature_word(FeatureWord w,
                                                    bool migratable_only)
 {
     FeatureWordInfo *wi = &feature_word_info[w];
-    uint32_t r;
+    uint32_t r = 0;
 
     if (kvm_enabled()) {
         switch (wi->type) {
@@ -3679,8 +3679,9 @@ static uint32_t x86_cpu_get_supported_feature_word(FeatureWord w,
                                                 wi->cpuid.ecx,
                                                 wi->cpuid.reg);
             break;
-        default:
-            r = 0;
+        case MSR_FEATURE_WORD:
+            r = kvm_arch_get_supported_msr_feature(kvm_state,
+                        wi->msr.index);
             break;
         }
     } else if (hvf_enabled()) {

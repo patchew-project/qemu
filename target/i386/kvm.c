@@ -107,6 +107,7 @@ static int has_pit_state2;
 static bool has_msr_mcg_ext_ctl;
 
 static struct kvm_cpuid2 *cpuid_cache;
+static struct kvm_msr_list *kvm_feature_msrs;
 
 int kvm_has_pit_state2(void)
 {
@@ -419,6 +420,33 @@ uint32_t kvm_arch_get_supported_cpuid(KVMState *s, uint32_t function,
 
     return ret;
 }
+
+uint32_t kvm_arch_get_supported_msr_feature(KVMState *s, uint32_t index)
+{
+    struct {
+        struct kvm_msrs info;
+        struct kvm_msr_entry entries[1];
+    } msr_data;
+    uint32_t ret;
+
+    if (kvm_feature_msrs == NULL) { /*ARCH doesn't support feature MSRs*/
+        return 0;
+    }
+
+    msr_data.info.nmsrs = 1;
+    msr_data.entries[0].index = index;
+
+    ret = kvm_ioctl(s, KVM_GET_MSRS, &msr_data);
+
+    if (ret != 1) {
+        fprintf(stderr, "KVM get MSR (index=0x%x) feature failed, %s\n",
+            index, strerror(-ret));
+        exit(1);
+    }
+
+    return msr_data.entries[0].data;
+}
+
 
 typedef struct HWPoisonPage {
     ram_addr_t ram_addr;
@@ -1239,6 +1267,45 @@ void kvm_arch_do_init_vcpu(X86CPU *cpu)
     }
 }
 
+static int kvm_get_supported_feature_msrs(KVMState *s)
+{
+    int ret = 0;
+
+    if (kvm_feature_msrs != NULL) {
+        return 0;
+    }
+
+    if (!kvm_check_extension(s, KVM_CAP_GET_MSR_FEATURES)) {
+        return -1;
+    }
+
+    struct kvm_msr_list msr_list;
+
+    msr_list.nmsrs = 0;
+    ret = kvm_ioctl(s, KVM_GET_MSR_FEATURE_INDEX_LIST, &msr_list);
+    if (ret < 0 && ret != -E2BIG) {
+        return ret;
+    }
+
+    assert(msr_list.nmsrs > 0);
+    kvm_feature_msrs = (struct kvm_msr_list *) \
+        g_malloc0(sizeof(msr_list) +
+                 msr_list.nmsrs * sizeof(msr_list.indices[0]));
+
+    kvm_feature_msrs->nmsrs = msr_list.nmsrs;
+    ret = kvm_ioctl(s, KVM_GET_MSR_FEATURE_INDEX_LIST, kvm_feature_msrs);
+
+    if (ret < 0) {
+        fprintf(stderr, "Fetch KVM feature MSRs failed: %s\n",
+            strerror(-ret));
+        g_free(kvm_feature_msrs);
+        kvm_feature_msrs = NULL;
+        return ret;
+    }
+
+    return 0;
+}
+
 static int kvm_get_supported_msrs(KVMState *s)
 {
     static int kvm_supported_msrs;
@@ -1390,6 +1457,11 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     ret = kvm_get_supported_msrs(s);
     if (ret < 0) {
         return ret;
+    }
+
+    ret = kvm_get_supported_feature_msrs(s);
+    if (ret < 0) { /*if MSR based features aren't supported, ignore it.*/
+        warn_report("Get supported feature MSRs failed.");
     }
 
     uname(&utsname);
