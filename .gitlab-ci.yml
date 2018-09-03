@@ -1,0 +1,48 @@
+before_script:
+ - apt-get update -qq
+ - apt-get install -y -qq flex bison libglib2.0-dev libpixman-1-dev
+
+build-system1:
+ script:
+ - apt-get install -y -qq libgtk-3-dev libvte-dev nettle-dev libcacard-dev
+      libusb-dev libvde-dev libspice-protocol-dev libgl1-mesa-dev
+ - ./configure --enable-werror --target-list="aarch64-softmmu alpha-softmmu
+      cris-softmmu hppa-softmmu lm32-softmmu moxie-softmmu microblazeel-softmmu
+      microblaze-softmmu mips-softmmu mips64el-softmmu m68k-softmmu ppc-softmmu"
+ - make -j2
+ - make -j2 check
+
+build-system2:
+ script:
+ - apt-get install -y -qq libsdl2-dev libgcrypt-dev libbrlapi-dev libaio-dev
+      libfdt-dev liblzo2-dev librdmacm-dev libibverbs-dev libibumad-dev
+ - ./configure --enable-werror --target-list="tricore-softmmu unicore32-softmmu
+      riscv32-softmmu riscv64-softmmu s390x-softmmu sh4-softmmu sparc-softmmu
+      sparc64-softmmu x86_64-softmmu xtensa-softmmu nios2-softmmu or1k-softmmu"
+ - make -j2
+ - make -j2 check
+
+build-clang:
+ script:
+ - apt-get install -y -qq clang libgtk-3-dev libsdl2-dev libbluetooth-dev
+      xfslibs-dev libiscsi-dev libnfs-dev libseccomp-dev gnutls-dev librbd-dev
+ - CC="clang" ./configure --enable-werror --target-list="tilegx-linux-user
+      arm-softmmu i386-softmmu ppc64-softmmu s390x-softmmu sparc-softmmu"
+ - make -j2
+ - make -j2 check
+
+build-disabled:
+ script:
+ - ./configure --enable-werror --disable-tcg --disable-slirp --disable-libxml2
+      --disable-capstone --disable-live-block-migration --disable-glusterfs
+      --disable-replication --disable-coroutine-pool --disable-smartcard
+      --disable-guest-agent --disable-curses --disable-curl --disable-tpm
+      --disable-qom-cast-debug --disable-spice --disable-vhost-vsock
+      --disable-vhost-net --disable-vhost-crypto --disable-vhost-user
+ - make -j2
+
+build-user:
+ script:
+ - ./configure --enable-werror --disable-system --disable-guest-agent
+ - make -j2
+ - make -j2 check
