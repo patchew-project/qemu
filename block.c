@@ -788,6 +788,18 @@ static BlockdevDetectZeroesOptions bdrv_parse_detect_zeroes(QemuOpts *opts,
     return detect_zeroes;
 }
 
+static bool bdrv_parse_force_share(QemuOpts *opts, int flags, Error **errp)
+{
+    bool value = qemu_opt_get_bool_del(opts, BDRV_OPT_FORCE_SHARE, false);
+
+    if (value && (flags & BDRV_O_RDWR)) {
+        error_setg(errp, BDRV_OPT_FORCE_SHARE
+                   "=on can only be used with read-only images");
+    }
+
+    return value;
+}
+
 /**
  * Set open flags for a given discard mode
  *
@@ -1373,12 +1385,9 @@ static int bdrv_open_common(BlockDriverState *bs, BlockBackend *file,
     drv = bdrv_find_format(driver_name);
     assert(drv != NULL);
 
-    bs->force_share = qemu_opt_get_bool(opts, BDRV_OPT_FORCE_SHARE, false);
-
-    if (bs->force_share && (bs->open_flags & BDRV_O_RDWR)) {
-        error_setg(errp,
-                   BDRV_OPT_FORCE_SHARE
-                   "=on can only be used with read-only images");
+    bs->force_share = bdrv_parse_force_share(opts, bs->open_flags, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
         ret = -EINVAL;
         goto fail_opts;
     }
@@ -3201,6 +3210,14 @@ int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
         goto error;
     }
 
+    reopen_state->force_share =
+        bdrv_parse_force_share(opts, reopen_state->flags, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        ret = -EINVAL;
+        goto error;
+    }
+
     /* All other options (including node-name and driver) must be unchanged.
      * Put them back into the QDict, so that they are checked at the end
      * of this function. */
@@ -3351,6 +3368,7 @@ void bdrv_reopen_commit(BDRVReopenState *reopen_state)
     bs->open_flags         = reopen_state->flags;
     bs->read_only = !(reopen_state->flags & BDRV_O_RDWR);
     bs->detect_zeroes      = reopen_state->detect_zeroes;
+    bs->force_share        = reopen_state->force_share;
 
     /* Remove child references from bs->options and bs->explicit_options.
      * Child options were already removed in bdrv_reopen_queue_child() */
