@@ -3155,6 +3155,7 @@ int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
     BlockDriver *drv;
     QemuOpts *opts;
     QDict *orig_reopen_opts;
+    const char *value;
     bool read_only;
 
     assert(reopen_state != NULL);
@@ -3176,6 +3177,15 @@ int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
     }
 
     update_flags_from_options(&reopen_state->flags, opts);
+
+    value = qemu_opt_get_del(opts, "discard");
+    if (value != NULL) {
+        if (bdrv_parse_discard_flags(value, &reopen_state->flags) != 0) {
+            error_setg(errp, "Invalid discard option");
+            ret = -EINVAL;
+            goto error;
+        }
+    }
 
     /* All other options (including node-name and driver) must be unchanged.
      * Put them back into the QDict, so that they are checked at the end
