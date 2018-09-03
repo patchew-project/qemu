@@ -4620,6 +4620,7 @@ int main(int argc, char **argv, char **envp)
         if (load_snapshot(loadvm, &local_err) < 0) {
             error_report_err(local_err);
             autostart = 0;
+            exit(1);
         }
     }
 
