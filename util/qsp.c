@@ -351,6 +351,7 @@ static QSPEntry *qsp_entry_get(const void *obj, const char *file, int line,
 static void qsp_entry_aggregate(QSPEntry *to, const QSPEntry *from)
 {
 #ifdef CONFIG_ATOMIC64
+    /* use __nocheck because sizeof(void *) might be < sizeof(u64) */
     to->ns += atomic_read__nocheck(&from->ns);
     to->n_acqs += atomic_read__nocheck(&from->n_acqs);
 #else
@@ -359,8 +360,8 @@ static void qsp_entry_aggregate(QSPEntry *to, const QSPEntry *from)
 
     do {
         version = seqlock_read_begin(&from->sequence);
-        ns = atomic_read__nocheck(&from->ns);
-        n_acqs = atomic_read__nocheck(&from->n_acqs);
+        ns = from->ns;
+        n_acqs = from->n_acqs;
     } while (seqlock_read_retry(&from->sequence, version));
 
     to->ns += ns;
@@ -375,14 +376,17 @@ static void qsp_entry_aggregate(QSPEntry *to, const QSPEntry *from)
  */
 static inline void do_qsp_entry_record(QSPEntry *e, int64_t delta, bool acq)
 {
-#ifndef CONFIG_ATOMIC64
-    seqlock_write_begin(&e->sequence);
-#endif
+#ifdef CONFIG_ATOMIC64
     atomic_set__nocheck(&e->ns, e->ns + delta);
     if (acq) {
         atomic_set__nocheck(&e->n_acqs, e->n_acqs + 1);
     }
-#ifndef CONFIG_ATOMIC64
+#else
+    seqlock_write_begin(&e->sequence);
+    e->ns += delta;
+    if (acq) {
+        e->n_acqs++;
+    }
     seqlock_write_end(&e->sequence);
 #endif
 }
