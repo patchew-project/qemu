@@ -9272,7 +9272,14 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
             rlim.rlim_cur = target_to_host_rlim(target_rlim->rlim_cur);
             rlim.rlim_max = target_to_host_rlim(target_rlim->rlim_max);
             unlock_user_struct(target_rlim, arg2, 0);
-            return get_errno(setrlimit(resource, &rlim));
+            if (HOST_LONG_BITS <= TARGET_LONG_BITS ||
+                (resource != RLIMIT_DATA &&
+                 resource != RLIMIT_AS &&
+                 resource != RLIMIT_STACK)) {
+                return get_errno(setrlimit(resource, &rlim));
+            } else {
+                return 0;
+            }
         }
 #endif
 #ifdef TARGET_NR_getrlimit
