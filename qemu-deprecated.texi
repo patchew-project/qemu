@@ -139,6 +139,25 @@ The 'file' driver for drives is no longer appropriate for character or host
 devices and will only accept regular files (S_IFREG). The correct driver
 for these file types is 'host_cdrom' or 'host_device' as appropriate.
 
+@subsection -smp X,[socket=a,core=b,thread=c],maxcpus=Y (since 3.1)
+
+CPU topology properties should describe whole machine topology including
+possible CPUs, but historically it was possible to start QEMU with
+an incorrect topology where
+  sockets * cores * threads >= X && X < maxcpus
+which could lead to an incorrect topology enumeration by the guest.
+Support for invalid topologies will be removed, the user must ensure
+topologies described with -smp include all possible cpus, i.e.
+  sockets * cores * threads == maxcpus
+Note: it's assumed that maxcpus value must be multiple of the topology
+options present on command line to avoid creating an invalid topology.
+If maxcpus isn't be multiple of present topology options then the condition
+(sockets * cores * threads == maxcpus) can't be satisfied and it will
+trigger deprecation warning which later will be converted to a error.
+If you get deprecation warning it's recommended to explicitly specify
+a correct topology to make warning go away and ensure that it will
+continue working in the future.
+
 @section QEMU Machine Protocol (QMP) commands
 
 @subsection block-dirty-bitmap-add "autoload" parameter (since 2.12.0)
