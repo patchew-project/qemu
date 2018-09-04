@@ -98,7 +98,11 @@ static void hppa_cpu_realizefn(DeviceState *dev, Error **errp)
         return;
     }
 
-    qemu_init_vcpu(cs);
+    qemu_init_vcpu(cs, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
     acc->parent_realize(dev, errp);
 
 #ifndef CONFIG_USER_ONLY

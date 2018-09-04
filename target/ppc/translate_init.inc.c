@@ -9707,7 +9707,11 @@ static void ppc_cpu_realize(DeviceState *dev, Error **errp)
                                  32, "power-vsx.xml", 0);
     }
 
-    qemu_init_vcpu(cs);
+    qemu_init_vcpu(cs, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
 
     pcc->parent_realize(dev, errp);
 

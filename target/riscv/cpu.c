@@ -303,7 +303,11 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    qemu_init_vcpu(cs);
+    qemu_init_vcpu(cs, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
     cpu_reset(cs);
 
     mcc->parent_realize(dev, errp);
