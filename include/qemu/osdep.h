@@ -421,7 +421,7 @@ struct qemu_signalfd_siginfo {
                              additional fields in the future) */
 };
 
-int qemu_signalfd(const sigset_t *mask);
+int qemu_signalfd(const sigset_t *mask, Error **errp);
 void sigaction_invoke(struct sigaction *action,
                       struct qemu_signalfd_siginfo *info);
 #endif

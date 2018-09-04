@@ -16,6 +16,7 @@
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qemu/thread.h"
+#include "qapi/error.h"
 
 #include <sys/syscall.h>
 
@@ -65,7 +66,7 @@ static void *sigwait_compat(void *opaque)
     }
 }
 
-static int qemu_signalfd_compat(const sigset_t *mask)
+static int qemu_signalfd_compat(const sigset_t *mask, Error **errp)
 {
     struct sigfd_compat_info *info;
     QemuThread thread;
@@ -73,11 +74,13 @@ static int qemu_signalfd_compat(const sigset_t *mask)
 
     info = malloc(sizeof(*info));
     if (info == NULL) {
+        error_setg(errp, "Failed to malloc in %s", __func__);
         errno = ENOMEM;
         return -1;
     }
 
     if (pipe(fds) == -1) {
+        error_setg(errp, "Failed to create a pipe in %s", __func__);
         free(info);
         return -1;
     }
@@ -94,17 +97,21 @@ static int qemu_signalfd_compat(const sigset_t *mask)
     return fds[0];
 }
 
-int qemu_signalfd(const sigset_t *mask)
+int qemu_signalfd(const sigset_t *mask, Error **errp)
 {
-#if defined(CONFIG_SIGNALFD)
     int ret;
+    Error *local_err = NULL;
 
+#if defined(CONFIG_SIGNALFD)
     ret = syscall(SYS_signalfd, -1, mask, _NSIG / 8);
     if (ret != -1) {
         qemu_set_cloexec(ret);
         return ret;
     }
 #endif
-
-    return qemu_signalfd_compat(mask);
+    ret = qemu_signalfd_compat(mask, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+    }
+    return ret;
 }

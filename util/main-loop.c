@@ -71,10 +71,11 @@ static void sigfd_handler(void *opaque)
     }
 }
 
-static int qemu_signal_init(void)
+static int qemu_signal_init(Error **errp)
 {
     int sigfd;
     sigset_t set;
+    Error *local_err = NULL;
 
     /*
      * SIG_IPI must be blocked in the main thread and must not be caught
@@ -94,9 +95,10 @@ static int qemu_signal_init(void)
     pthread_sigmask(SIG_BLOCK, &set, NULL);
 
     sigdelset(&set, SIG_IPI);
-    sigfd = qemu_signalfd(&set);
+    sigfd = qemu_signalfd(&set, &local_err);
     if (sigfd == -1) {
         fprintf(stderr, "failed to create signalfd\n");
+        error_propagate(errp, local_err);
         return -errno;
     }
 
@@ -109,7 +111,7 @@ static int qemu_signal_init(void)
 
 #else /* _WIN32 */
 
-static int qemu_signal_init(void)
+static int qemu_signal_init(Error **errp)
 {
     return 0;
 }
@@ -148,8 +150,9 @@ int qemu_init_main_loop(Error **errp)
 
     init_clocks(qemu_timer_notify_cb);
 
-    ret = qemu_signal_init();
+    ret = qemu_signal_init(&local_error);
     if (ret) {
+        error_propagate(errp, local_error);
         return ret;
     }
 
