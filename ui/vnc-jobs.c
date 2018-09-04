@@ -331,7 +331,7 @@ static bool vnc_worker_thread_running(void)
     return queue; /* Check global queue */
 }
 
-void vnc_start_worker_thread(void)
+void vnc_start_worker_thread(Error **errp)
 {
     VncJobQueue *q;
 
