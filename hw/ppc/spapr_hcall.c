@@ -478,6 +478,7 @@ static target_ulong h_resize_hpt_prepare(PowerPCCPU *cpu,
     sPAPRPendingHPT *pending = spapr->pending_hpt;
     uint64_t current_ram_size;
     int rc;
+    Error *local_err = NULL;
 
     if (spapr->resize_hpt == SPAPR_RESIZE_HPT_DISABLED) {
         return H_AUTHORITY;
@@ -539,7 +540,13 @@ static target_ulong h_resize_hpt_prepare(PowerPCCPU *cpu,
     pending->ret = H_HARDWARE;
 
     qemu_thread_create(&pending->thread, "sPAPR HPT prepare",
-                       hpt_prepare_thread, pending, QEMU_THREAD_DETACHED);
+                       hpt_prepare_thread, pending,
+                       QEMU_THREAD_DETACHED, &local_err);
+    if (local_err) {
+        error_reportf_err(error_in, "Failed in %s() when calls "
+                          "qemu_thread_create(): \n", __func__);
+        return H_RESOURCE;
+    }
 
     spapr->pending_hpt = pending;
 

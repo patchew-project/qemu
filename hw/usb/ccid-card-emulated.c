@@ -483,6 +483,7 @@ static void emulated_realize(CCIDCardState *base, Error **errp)
     EmulatedState *card = EMULATED_CCID_CARD(base);
     VCardEmulError ret;
     const EnumTable *ptable;
+    Error *local_err = NULL;
 
     QSIMPLEQ_INIT(&card->event_list);
     QSIMPLEQ_INIT(&card->guest_apdu_list);
@@ -539,9 +540,17 @@ static void emulated_realize(CCIDCardState *base, Error **errp)
         return;
     }
     qemu_thread_create(&card->event_thread_id, "ccid/event", event_thread,
-                       card, QEMU_THREAD_JOINABLE);
+                       card, QEMU_THREAD_JOINABLE, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
     qemu_thread_create(&card->apdu_thread_id, "ccid/apdu", handle_apdu_thread,
-                       card, QEMU_THREAD_JOINABLE);
+                       card, QEMU_THREAD_JOINABLE, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
 }
 
 static void emulated_unrealize(CCIDCardState *base, Error **errp)

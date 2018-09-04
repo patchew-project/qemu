@@ -470,6 +470,7 @@ static void compress_threads_save_cleanup(void)
 static int compress_threads_save_setup(void)
 {
     int i, thread_count;
+    Error *local_err = NULL;
 
     if (!migrate_use_compression()) {
         return 0;
@@ -501,7 +502,12 @@ static int compress_threads_save_setup(void)
         qemu_cond_init(&comp_param[i].cond);
         qemu_thread_create(compress_threads + i, "compress",
                            do_data_compress, comp_param + i,
-                           QEMU_THREAD_JOINABLE);
+                           QEMU_THREAD_JOINABLE, &local_err);
+        if (local_err) {
+            error_reportf_err(local_err, "Failed in %s() when calls "
+                              "qemu_thread_create(): \n", __func__);
+            goto exit;
+        }
     }
     return 0;
 
@@ -1076,7 +1082,13 @@ static void multifd_new_send_channel_async(QIOTask *task, gpointer opaque)
         qio_channel_set_delay(p->c, false);
         p->running = true;
         qemu_thread_create(&p->thread, p->name, multifd_send_thread, p,
-                           QEMU_THREAD_JOINABLE);
+                           QEMU_THREAD_JOINABLE, &local_err);
+        if (local_err) {
+            error_reportf_err(local_err, "Failed in %s() when calls "
+                              "qemu_thread_create(): \n", __func__);
+            migrate_set_error(migrate_get_current(), local_err);
+            return;
+        }
 
         atomic_inc(&multifd_send_state->count);
     }
@@ -1346,7 +1358,13 @@ bool multifd_recv_new_channel(QIOChannel *ioc)
 
     p->running = true;
     qemu_thread_create(&p->thread, p->name, multifd_recv_thread, p,
-                       QEMU_THREAD_JOINABLE);
+                       QEMU_THREAD_JOINABLE, &local_err);
+    if (local_err) {
+        error_reportf_err(local_err, "Failed in %s() when calls "
+                          "qemu_thread_create(): \n", __func__);
+        multifd_recv_terminate_threads(local_err);
+        return false;
+    }
     atomic_inc(&multifd_recv_state->count);
     return multifd_recv_state->count == migrate_multifd_channels();
 }
@@ -3542,6 +3560,7 @@ static void compress_threads_load_cleanup(void)
 static int compress_threads_load_setup(QEMUFile *f)
 {
     int i, thread_count;
+    Error *local_err = NULL;
 
     if (!migrate_use_compression()) {
         return 0;
@@ -3565,7 +3584,12 @@ static int compress_threads_load_setup(QEMUFile *f)
         decomp_param[i].quit = false;
         qemu_thread_create(decompress_threads + i, "decompress",
                            do_data_decompress, decomp_param + i,
-                           QEMU_THREAD_JOINABLE);
+                           QEMU_THREAD_JOINABLE, &local_err);
+        if (local_err) {
+            error_reportf_err(local_err, "Failed in %s() when calls "
+                              "qemu_thread_create(): \n", __func__);
+            goto exit;
+        }
     }
     return 0;
 exit:

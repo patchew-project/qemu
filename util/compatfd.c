@@ -71,6 +71,7 @@ static int qemu_signalfd_compat(const sigset_t *mask, Error **errp)
     struct sigfd_compat_info *info;
     QemuThread thread;
     int fds[2];
+    Error *local_err = NULL;
 
     info = malloc(sizeof(*info));
     if (info == NULL) {
@@ -92,7 +93,12 @@ static int qemu_signalfd_compat(const sigset_t *mask, Error **errp)
     info->fd = fds[1];
 
     qemu_thread_create(&thread, "signalfd_compat", sigwait_compat, info,
-                       QEMU_THREAD_DETACHED);
+                       QEMU_THREAD_DETACHED, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        free(info);
+        return -1;
+    }
 
     return fds[0];
 }
