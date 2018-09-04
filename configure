@@ -7534,6 +7534,12 @@ cat <<EOD >config.status
 # Compiler output produced by configure, useful for debugging
 # configure, is in config.log if it exists.
 EOD
+if [ -n "$PKG_CONFIG_LIBDIR" ]; then
+    echo "export PKG_CONFIG_LIBDIR=\"$PKG_CONFIG_LIBDIR\"" >>config.status
+fi
+if [ -n "$WINDRES" ]; then
+    echo "export WINDRES=\"$WINDRES\"" >>config.status
+fi
 printf "exec" >>config.status
 printf " '%s'" "$0" "$@" >>config.status
 echo ' "$@"' >>config.status
