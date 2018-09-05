@@ -3231,6 +3231,14 @@ static void vtd_reset(DeviceState *dev)
      * When device reset, throw away all mappings and external caches
      */
     vtd_address_space_unmap_all(s);
+
+    /*
+     * Switch address spaces if needed (e.g., when reboot from a
+     * kernel that has IOMMU enabled, we should switch address spaces
+     * to rebuild the GPA->HPA mappings otherwise SeaBIOS might
+     * encounter DMA errors when running with e.g. a NVMe card).
+     */
+    vtd_switch_address_space_all(s);
 }
 
 static AddressSpace *vtd_host_dma_iommu(PCIBus *bus, void *opaque, int devfn)
