@@ -2361,6 +2361,9 @@ RAMBlock *qemu_ram_alloc_internal(ram_addr_t size, ram_addr_t max_size,
 RAMBlock *qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
                                    MemoryRegion *mr, Error **errp)
 {
+    assert(size >= TARGET_PAGE_SIZE);
+    assert(size % TARGET_PAGE_SIZE == 0);
+
     return qemu_ram_alloc_internal(size, size, NULL, host, false,
                                    false, mr, errp);
 }

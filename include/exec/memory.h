@@ -700,6 +700,7 @@ void memory_region_init_ram_from_fd(MemoryRegion *mr,
  *        must be unique within any device
  * @size: size of the region.
  * @ptr: memory to be mapped; must contain at least @size bytes.
+ * @ptr_size: size of @ptr buffer
  *
  * Note that this function does not do anything to cause the data in the
  * RAM memory region to be migrated; that is the responsibility of the caller.
@@ -708,7 +709,8 @@ void memory_region_init_ram_ptr(MemoryRegion *mr,
                                 struct Object *owner,
                                 const char *name,
                                 uint64_t size,
-                                void *ptr);
+                                void *ptr,
+                                uint64_t ptr_size);
 
 /**
  * memory_region_init_ram_device_ptr:  Initialize RAM device memory region from
@@ -727,6 +729,7 @@ void memory_region_init_ram_ptr(MemoryRegion *mr,
  * @name: the name of the region.
  * @size: size of the region.
  * @ptr: memory to be mapped; must contain at least @size bytes.
+ * @ptr_size: size of @ptr buffer
  *
  * Note that this function does not do anything to cause the data in the
  * RAM memory region to be migrated; that is the responsibility of the caller.
@@ -736,7 +739,8 @@ void memory_region_init_ram_device_ptr(MemoryRegion *mr,
                                        struct Object *owner,
                                        const char *name,
                                        uint64_t size,
-                                       void *ptr);
+                                       void *ptr,
+                                       uint64_t ptr_size);
 
 /**
  * memory_region_init_alias: Initialize a memory region that aliases all or a
