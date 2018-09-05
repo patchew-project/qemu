@@ -131,9 +131,10 @@ a. replication_start_all()
    thread.
 b. replication_do_checkpoint_all()
    This interface is called after all VM state is transferred to
-   Secondary QEMU. The Disk buffer will be dropped in this interface.
-   The caller must hold the I/O mutex lock if it is in migration/checkpoint
-   thread.
+   secondary node, and in primary node this interface no need to
+   called after synchronizing all the states. The Disk buffer will be dropped
+   in this interface. The caller must hold the I/O mutex lock if it is
+   in migration/checkpoint thread.
 c. replication_get_error_all()
    This interface is called to check if error happened in replication.
    The caller must hold the I/O mutex lock if it is in migration/checkpoint
