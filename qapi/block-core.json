@@ -2941,11 +2941,11 @@
             'refblock_alloc_write_blocks', 'refblock_alloc_write_table',
             'refblock_alloc_switch_table', 'cluster_alloc',
             'cluster_alloc_bytes', 'cluster_free', 'flush_to_os',
-            'flush_to_disk', 'pwritev_rmw_head', 'pwritev_rmw_after_head',
-            'pwritev_rmw_tail', 'pwritev_rmw_after_tail', 'pwritev',
-            'pwritev_zero', 'pwritev_done', 'empty_image_prepare',
-            'l1_shrink_write_table', 'l1_shrink_free_l2_clusters',
-            'cor_write'] }
+            'flush_to_disk', 'preadv', 'pwritev_rmw_head',
+            'pwritev_rmw_after_head', 'pwritev_rmw_tail',
+            'pwritev_rmw_after_tail', 'pwritev', 'pwritev_zero', 'pwritev_done',
+            'empty_image_prepare', 'l1_shrink_write_table',
+            'l1_shrink_free_l2_clusters', 'cor_write'] }
 
 ##
 # @BlkdebugInjectErrorOptions:
@@ -2978,6 +2978,34 @@
             '*sector': 'int',
             '*once': 'bool',
             '*immediately': 'bool' } }
+
+##
+# @BlkdebugDelayOptions:
+#
+# Describes a single latency injection for blkdebug.
+#
+# @event:       trigger event
+#
+# @state:       the state identifier blkdebug needs to be in to
+#               actually trigger the event; defaults to "any"
+#
+# @latency:     The delay to add to an I/O, in microseconds.
+#
+# @sector:      specifies the sector index which has to be affected
+#               in order to actually trigger the event; defaults to "any
+#               sector"
+#
+# @once:        disables further events after this one has been
+#               triggered; defaults to false
+#
+# Since: 3.0
+##
+{ 'struct': 'BlkdebugDelayOptions',
+  'data': { 'event': 'BlkdebugEvent',
+            '*state': 'int',
+            '*latency': 'int',
+            '*sector': 'int',
+            '*once': 'bool' } }
 
 ##
 # @BlkdebugSetStateOptions:
@@ -3049,6 +3077,7 @@
             '*opt-write-zero': 'int32', '*max-write-zero': 'int32',
             '*opt-discard': 'int32', '*max-discard': 'int32',
             '*inject-error': ['BlkdebugInjectErrorOptions'],
+            '*delay': ['BlkdebugDelayOptions'],
             '*set-state': ['BlkdebugSetStateOptions'] } }
 
 ##

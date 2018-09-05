@@ -100,6 +100,69 @@ $QEMU_IO -c "open -o driver=$IMGFMT,file.driver=blkdebug,file.inject-error.event
          -c 'read -P 42 0x38000 512'
 
 echo
+echo "=== Testing blkdebug latency through filename ==="
+echo
+
+$QEMU_IO -c "open -o file.driver=blkdebug,file.delay.event=write_aio,file.delay.latency=10000 $TEST_IMG" \
+         -c 'aio_write -P 42 0x28000 512' \
+         -c 'aio_read -P 42 0x38000 512' \
+         | _filter_qemu_io
+
+echo
+echo "=== Testing blkdebug latency through file blockref ==="
+echo
+
+$QEMU_IO -c "open -o driver=$IMGFMT,file.driver=blkdebug,file.delay.event=write_aio,file.delay.latency=10000,file.image.filename=$TEST_IMG" \
+         -c 'aio_write -P 42 0x28000 512' \
+         -c 'aio_read -P 42 0x38000 512' \
+         | _filter_qemu_io
+
+# Using QMP is synchronous by default, so even though we would
+# expect reordering due to using the aio_* commands, they are
+# not. The purpose of this test is to verify that the driver
+# can be setup via QMP, and IO can complete. See the qemu-io
+# test above to prove delay functionality
+echo
+echo "=== Testing blkdebug on existing block device ==="
+echo
+
+run_qemu <<EOF
+{ "execute": "qmp_capabilities" }
+{ "execute": "blockdev-add",
+    "arguments": {
+        "node-name": "drive0",
+        "driver": "file",
+        "filename": "$TEST_IMG"
+    }
+}
+{ "execute": "blockdev-add",
+    "arguments": {
+        "driver": "$IMGFMT",
+        "node-name": "drive0-debug",
+        "file": {
+            "driver": "blkdebug",
+            "image": "drive0",
+            "delay": [{
+                "event": "write_aio",
+                "latency": 10000
+            }]
+        }
+    }
+}
+{ "execute": "human-monitor-command",
+    "arguments": {
+        "command-line": 'qemu-io drive0-debug "aio_write 0 512"'
+    }
+}
+{ "execute": "human-monitor-command",
+    "arguments": {
+        "command-line": 'qemu-io drive0-debug "aio_read 0 512"'
+    }
+}
+{ "execute": "quit" }
+EOF
+
+echo
 echo "=== Testing blkdebug on existing block device ==="
 echo
 

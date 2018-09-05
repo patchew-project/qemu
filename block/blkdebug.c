@@ -65,6 +65,7 @@ typedef struct BlkdebugSuspendedReq {
 
 enum {
     ACTION_INJECT_ERROR,
+    ACTION_DELAY,
     ACTION_SET_STATE,
     ACTION_SUSPEND,
 };
@@ -73,13 +74,16 @@ typedef struct BlkdebugRule {
     BlkdebugEvent event;
     int action;
     int state;
+    int once;
+    int64_t offset;
     union {
         struct {
             int error;
             int immediately;
-            int once;
-            int64_t offset;
         } inject;
+        struct {
+            int64_t latency;
+        } delay;
         struct {
             int new_state;
         } set_state;
@@ -123,6 +127,33 @@ static QemuOptsList inject_error_opts = {
     },
 };
 
+static QemuOptsList delay_opts = {
+    .name = "delay",
+    .head = QTAILQ_HEAD_INITIALIZER(delay_opts.head),
+    .desc = {
+        {
+            .name = "event",
+        },
+        {
+            .name = "state",
+            .type = QEMU_OPT_NUMBER,
+        },
+        {
+            .name = "latency",
+            .type = QEMU_OPT_NUMBER,
+        },
+        {
+            .name = "sector",
+            .type = QEMU_OPT_NUMBER,
+        },
+        {
+            .name = "once",
+            .type = QEMU_OPT_BOOL,
+        },
+        { /* end of list */ }
+    },
+};
+
 static QemuOptsList set_state_opts = {
     .name = "set-state",
     .head = QTAILQ_HEAD_INITIALIZER(set_state_opts.head),
@@ -145,6 +176,7 @@ static QemuOptsList set_state_opts = {
 
 static QemuOptsList *config_groups[] = {
     &inject_error_opts,
+    &delay_opts,
     &set_state_opts,
     NULL
 };
@@ -182,16 +214,21 @@ static int add_rule(void *opaque, QemuOpts *opts, Error **errp)
         .state  = qemu_opt_get_number(opts, "state", 0),
     };
 
+    rule->once  = qemu_opt_get_bool(opts, "once", 0);
+    sector = qemu_opt_get_number(opts, "sector", -1);
+    rule->offset = sector == -1 ? -1 : sector * BDRV_SECTOR_SIZE;
+
     /* Parse action-specific options */
     switch (d->action) {
     case ACTION_INJECT_ERROR:
         rule->options.inject.error = qemu_opt_get_number(opts, "errno", EIO);
-        rule->options.inject.once  = qemu_opt_get_bool(opts, "once", 0);
         rule->options.inject.immediately =
             qemu_opt_get_bool(opts, "immediately", 0);
-        sector = qemu_opt_get_number(opts, "sector", -1);
-        rule->options.inject.offset =
-            sector == -1 ? -1 : sector * BDRV_SECTOR_SIZE;
+        break;
+
+    case ACTION_DELAY:
+        rule->options.delay.latency =
+            qemu_opt_get_number(opts, "latency", 100) * SCALE_US;
         break;
 
     case ACTION_SET_STATE:
@@ -264,6 +301,14 @@ static int read_config(BDRVBlkdebugState *s, const char *filename,
         goto fail;
     }
 
+    d.action = ACTION_DELAY;
+    qemu_opts_foreach(&delay_opts, add_rule, &d, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        ret = -EINVAL;
+        goto fail;
+    }
+
     d.action = ACTION_SET_STATE;
     qemu_opts_foreach(&set_state_opts, add_rule, &d, &local_err);
     if (local_err) {
@@ -275,6 +320,7 @@ static int read_config(BDRVBlkdebugState *s, const char *filename,
     ret = 0;
 fail:
     qemu_opts_reset(&inject_error_opts);
+    qemu_opts_reset(&delay_opts);
     qemu_opts_reset(&set_state_opts);
     if (f) {
         fclose(f);
@@ -473,39 +519,61 @@ out:
 static int rule_check(BlockDriverState *bs, uint64_t offset, uint64_t bytes)
 {
     BDRVBlkdebugState *s = bs->opaque;
-    BlkdebugRule *rule = NULL;
+    BlkdebugRule *rule = NULL, *delay_rule = NULL, *error_rule = NULL;
+    int64_t latency;
     int error;
     bool immediately;
+    int ret = 0;
 
     QSIMPLEQ_FOREACH(rule, &s->active_rules, active_next) {
-        uint64_t inject_offset = rule->options.inject.offset;
-
-        if (inject_offset == -1 ||
-            (bytes && inject_offset >= offset &&
-             inject_offset < offset + bytes))
+        if (rule->offset == -1 ||
+            (bytes && rule->offset >= offset &&
+             rule->offset < offset + bytes))
         {
-            break;
+            if (!error_rule && rule->action == ACTION_INJECT_ERROR) {
+                error_rule = rule;
+            } else if (!delay_rule && rule->action == ACTION_DELAY) {
+                delay_rule = rule;
+            }
+
+            if (error_rule && delay_rule) {
+                break;
+            }
         }
     }
 
-    if (!rule || !rule->options.inject.error) {
-        return 0;
+    if (delay_rule) {
+        latency = delay_rule->options.delay.latency;
+
+        if (delay_rule->once) {
+            QSIMPLEQ_REMOVE(&s->active_rules, delay_rule, BlkdebugRule, active_next);
+            remove_rule(delay_rule);
+        }
+
+        if (latency != 0) {
+            qemu_co_sleep_ns(QEMU_CLOCK_REALTIME, latency);
+        }
     }
 
-    immediately = rule->options.inject.immediately;
-    error = rule->options.inject.error;
+    if (error_rule) {
+        error = error_rule->options.inject.error;
+        immediately = error_rule->options.inject.immediately;
 
-    if (rule->options.inject.once) {
-        QSIMPLEQ_REMOVE(&s->active_rules, rule, BlkdebugRule, active_next);
-        remove_rule(rule);
+        if (error_rule->once) {
+            QSIMPLEQ_REMOVE(&s->active_rules, error_rule, BlkdebugRule, active_next);
+            remove_rule(error_rule);
+        }
+
+        if (error && !immediately) {
+            aio_co_schedule(qemu_get_current_aio_context(),
+                            qemu_coroutine_self());
+            qemu_coroutine_yield();
+        }
+
+        ret = -error;
     }
 
-    if (!immediately) {
-        aio_co_schedule(qemu_get_current_aio_context(), qemu_coroutine_self());
-        qemu_coroutine_yield();
-    }
-
-    return -error;
+    return ret;
 }
 
 static int coroutine_fn
@@ -694,6 +762,7 @@ static bool process_rule(BlockDriverState *bs, struct BlkdebugRule *rule,
     /* Take the action */
     switch (rule->action) {
     case ACTION_INJECT_ERROR:
+    case ACTION_DELAY:
         if (!injected) {
             QSIMPLEQ_INIT(&s->active_rules);
             injected = true;

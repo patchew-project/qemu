@@ -24,7 +24,7 @@ This way, all error paths can be tested to make sure they are correct.
 Rules
 -----
 The blkdebug block driver takes a list of "rules" that tell the error injection
-engine when to fail an I/O request.
+engine when to fail (inject-error) or add latency to (delay) an I/O request.
 
 Each I/O request is evaluated against the rules.  If a rule matches the request
 then its "action" is executed.
@@ -33,16 +33,24 @@ Rules can be placed in a configuration file; the configuration file
 follows the same .ini-like format used by QEMU's -readconfig option, and
 each section of the file represents a rule.
 
-The following configuration file defines a single rule:
+The following configuration file defines multiple rules:
 
   $ cat blkdebug.conf
   [inject-error]
   event = "read_aio"
   errno = "28"
 
-This rule fails all aio read requests with ENOSPC (28).  Note that the errno
-value depends on the host.  On Linux, see
+  [delay]
+  event = "read_aio"
+  sector = "2048"
+  latency = "500000"
+
+The error rule fails all aio read requests with ENOSPC (28).  Note that the
+errno value depends on the host.  On Linux, see
 /usr/include/asm-generic/errno-base.h for errno values.
+
+The delay rule adds 500 ms of latency to a read I/O request containing sector
+2048.
 
 Invoke QEMU as follows:
 
@@ -60,20 +68,26 @@ Rules support the following attributes:
           rule to match.  See the "State transitions" section for information
           on states.
 
-  errno - the numeric errno value to return when a request matches this rule.
-          The errno values depend on the host since the numeric values are not
-          standarized in the POSIX specification.
-
   sector - (optional) a sector number that the request must overlap in order to
            match this rule
 
   once - (optional, default "off") only execute this action on the first
          matching request
 
+Error injection rules support the following attributes:
+
+  errno - the numeric errno value to return when a request matches this rule.
+          The errno values depend on the host since the numeric values are not
+          standarized in the POSIX specification.
+
   immediately - (optional, default "off") return a NULL BlockAIOCB
                 pointer and fail without an errno instead.  This
                 exercises the code path where BlockAIOCB fails and the
                 caller's BlockCompletionFunc is not invoked.
+
+Delay rules support the following attribute:
+
+  latency - the delay to add to an I/O request, in microseconds.
 
 Events
 ------
