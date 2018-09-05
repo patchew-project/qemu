@@ -1431,6 +1431,8 @@ for opt do
   ;;
   --enable-capstone=system) capstone="system"
   ;;
+  --enable-capstone=internal) capstone="internal"
+  ;;
   --with-git=*) git="$optarg"
   ;;
   --enable-git-update) git_update=yes
@@ -1635,6 +1637,9 @@ Advanced options (experts only):
                            xen pv domain builder
   --enable-debug-stack-usage
                            track the maximum stack usage of stacks created by qemu_alloc_stack
+  --enable-capstone[=LOCATION]
+                           Where to look for capstone library.
+                           Supported options: internal, git, system
 
 Optional features, enabled with --enable-FEATURE and
 disabled with --disable-FEATURE, default is enabled if available:
