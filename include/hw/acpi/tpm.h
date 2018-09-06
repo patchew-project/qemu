@@ -197,4 +197,12 @@ REG32(CRB_DATA_BUFFER, 0x80)
 #define TPM_PPI_VERSION_NONE        0
 #define TPM_PPI_VERSION_1_30        1
 
+/* whether function is blocked by BIOS settings; bits 0, 1, 2 */
+#define TPM_PPI_FUNC_NOT_IMPLEMENTED     (0 << 0)
+#define TPM_PPI_FUNC_BIOS_ONLY           (1 << 0)
+#define TPM_PPI_FUNC_BLOCKED             (2 << 0)
+#define TPM_PPI_FUNC_ALLOWED_USR_REQ     (3 << 0)
+#define TPM_PPI_FUNC_ALLOWED_USR_NOT_REQ (4 << 0)
+#define TPM_PPI_FUNC_MASK                (7 << 0)
+
 #endif /* HW_ACPI_TPM_H */
