@@ -2678,6 +2678,11 @@ static int machine_set_property(void *opaque,
     return 0;
 }
 
+static gint
+pstrcmp(const char **a, const char **b)
+{
+    return g_strcmp0(*a, *b);
+}
 
 /*
  * Initial object creation happens before all other
@@ -2686,8 +2691,10 @@ static int machine_set_property(void *opaque,
  * cannot be created here, as it depends on the chardev
  * already existing.
  */
-static bool object_create_initial(const char *type)
+static bool object_create_initial(const char *type, QemuOpts *opts)
 {
+    ObjectClass *klass;
+
     if (is_help_option(type)) {
         GSList *l, *list;
 
@@ -2698,6 +2705,38 @@ static bool object_create_initial(const char *type)
             error_printf("%s\n", object_class_get_name(oc));
         }
         g_slist_free(list);
+        exit(0);
+    }
+
+    klass = object_class_by_name(type);
+    if (klass && qemu_opt_has_help_opt(opts)) {
+        ObjectPropertyIterator iter;
+        ObjectProperty *prop;
+        GPtrArray *array = g_ptr_array_new();
+        int i;
+
+        object_class_property_iter_init(&iter, klass);
+        while ((prop = object_property_iter_next(&iter))) {
+            GString *str;
+
+            if (!prop->set) {
+                continue;
+            }
+
+            str = g_string_new(NULL);
+            g_string_append_printf(str, "%s.%s=%s", type,
+                                   prop->name, prop->type);
+            if (prop->description) {
+                g_string_append_printf(str, " (%s)", prop->description);
+            }
+            g_ptr_array_add(array, g_string_free(str, false));
+        }
+        g_ptr_array_sort(array, (GCompareFunc)pstrcmp);
+        for (i = 0; i < array->len; i++) {
+            error_printf("%s\n", (char *)array->pdata[i]);
+        }
+        g_ptr_array_set_free_func(array, g_free);
+        g_ptr_array_free(array, true);
         exit(0);
     }
 
@@ -2747,9 +2786,9 @@ static bool object_create_initial(const char *type)
  * The remainder of object creation happens after the
  * creation of chardev, fsdev, net clients and device data types.
  */
-static bool object_create_delayed(const char *type)
+static bool object_create_delayed(const char *type, QemuOpts *opts)
 {
-    return !object_create_initial(type);
+    return !object_create_initial(type, opts);
 }
 
 
