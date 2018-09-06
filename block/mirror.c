@@ -79,6 +79,7 @@ typedef struct MirrorBlockJob {
     int max_iov;
     bool initial_zeroing_ongoing;
     int in_active_write_counter;
+    bool prepared;
 } MirrorBlockJob;
 
 typedef struct MirrorBDSOpaque {
@@ -607,7 +608,7 @@ static void mirror_wait_for_all_io(MirrorBlockJob *s)
     }
 }
 
-static void mirror_exit(Job *job)
+static int mirror_exit_common(Job *job)
 {
     MirrorBlockJob *s = container_of(job, MirrorBlockJob, common.job);
     BlockJob *bjob = &s->common;
@@ -617,7 +618,13 @@ static void mirror_exit(Job *job)
     BlockDriverState *target_bs = blk_bs(s->target);
     BlockDriverState *mirror_top_bs = s->mirror_top_bs;
     Error *local_err = NULL;
-    int ret = job->ret;
+    bool abort = job->ret < 0;
+    int ret = 0;
+
+    if (s->prepared) {
+        return 0;
+    }
+    s->prepared = true;
 
     bdrv_release_dirty_bitmap(src, s->dirty_bitmap);
 
@@ -642,7 +649,7 @@ static void mirror_exit(Job *job)
      * required before it could become a backing file of target_bs. */
     bdrv_child_try_set_perm(mirror_top_bs->backing, 0, BLK_PERM_ALL,
                             &error_abort);
-    if (ret == 0 && s->backing_mode == MIRROR_SOURCE_BACKING_CHAIN) {
+    if (!abort && s->backing_mode == MIRROR_SOURCE_BACKING_CHAIN) {
         BlockDriverState *backing = s->is_none_mode ? src : s->base;
         if (backing_bs(target_bs) != backing) {
             bdrv_set_backing_hd(target_bs, backing, &local_err);
@@ -658,11 +665,8 @@ static void mirror_exit(Job *job)
         aio_context_acquire(replace_aio_context);
     }
 
-    if (s->should_complete && ret == 0) {
-        BlockDriverState *to_replace = src;
-        if (s->to_replace) {
-            to_replace = s->to_replace;
-        }
+    if (s->should_complete && !abort) {
+        BlockDriverState *to_replace = s->to_replace ?: src;
 
         if (bdrv_get_flags(target_bs) != bdrv_get_flags(to_replace)) {
             bdrv_reopen(target_bs, bdrv_get_flags(to_replace), NULL);
@@ -711,7 +715,18 @@ static void mirror_exit(Job *job)
     bdrv_unref(mirror_top_bs);
     bdrv_unref(src);
 
-    job->ret = ret;
+    return ret;
+}
+
+static int mirror_prepare(Job *job)
+{
+    return mirror_exit_common(job);
+}
+
+static void mirror_abort(Job *job)
+{
+    int ret = mirror_exit_common(job);
+    assert(ret == 0);
 }
 
 static void mirror_throttle(MirrorBlockJob *s)
@@ -1132,7 +1147,8 @@ static const BlockJobDriver mirror_job_driver = {
         .user_resume            = block_job_user_resume,
         .drain                  = block_job_drain,
         .run                    = mirror_run,
-        .exit                   = mirror_exit,
+        .prepare                = mirror_prepare,
+        .abort                  = mirror_abort,
         .pause                  = mirror_pause,
         .complete               = mirror_complete,
     },
@@ -1149,7 +1165,8 @@ static const BlockJobDriver commit_active_job_driver = {
         .user_resume            = block_job_user_resume,
         .drain                  = block_job_drain,
         .run                    = mirror_run,
-        .exit                   = mirror_exit,
+        .prepare                = mirror_prepare,
+        .abort                  = mirror_abort,
         .pause                  = mirror_pause,
         .complete               = mirror_complete,
     },
