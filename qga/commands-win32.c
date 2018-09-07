@@ -633,15 +633,32 @@ static GuestDiskAddressList *build_guest_disk_info(char *guid, Error **errp)
          * https://technet.microsoft.com/en-us/library/ee851589(v=ws.10).aspx */
         if (DeviceIoControl(vol_h, IOCTL_SCSI_GET_ADDRESS, NULL, 0, scsi_ad,
                             sizeof(SCSI_ADDRESS), &len, NULL)) {
+            Error *local_err = NULL;
             disk->unit = addr.Lun;
             disk->target = addr.TargetId;
             disk->bus = addr.PathId;
-            disk->pci_controller = get_pci_info(name, errp);
+            g_debug("unit=%lld target=%lld bus=%lld",
+                disk->unit, disk->target, disk->bus);
+            disk->pci_controller = get_pci_info(name, &local_err);
+
+            if (local_err) {
+                g_debug("failed to get PCI controller info: %s",
+                    error_get_pretty(local_err));
+                error_free(local_err);
+            } else if (disk->pci_controller != NULL) {
+                g_debug("pci: domain=%lld bus=%lld slot=%lld function=%lld",
+                    disk->pci_controller->domain,
+                    disk->pci_controller->bus,
+                    disk->pci_controller->slot,
+                    disk->pci_controller->function);
+            }
         }
-        /* We do not set error in this case, because we still have enough
-         * information about volume. */
-    } else {
-         disk->pci_controller = NULL;
+    }
+    /* We do not set error in case pci_controller is NULL, because we still
+     * have enough information about volume. */
+    if (disk->pci_controller == NULL) {
+        g_debug("no PCI controller info");
+        disk->pci_controller = g_malloc0(sizeof(GuestPCIAddress));
     }
 
     list = g_malloc0(sizeof(*list));
