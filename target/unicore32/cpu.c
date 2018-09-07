@@ -96,7 +96,9 @@ static void uc32_cpu_realizefn(DeviceState *dev, Error **errp)
         return;
     }
 
-    qemu_init_vcpu(cs);
+    if (!qemu_init_vcpu(cs, errp)) {
+        return;
+    }
 
     ucc->parent_realize(dev, errp);
 }
