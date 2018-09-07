@@ -477,9 +477,26 @@ static GuestDiskBusType find_bus_type(STORAGE_BUS_TYPE bus)
     return win2qemu[(int)bus];
 }
 
+/* XXX: The following function is BROKEN!
+ *
+ * It does not work and probably has never worked. When we query for list of
+ * disks we get cryptic names like "\Device\0000001d" instead of
+ * "\PhysicalDriveX" or "\HarddiskX". Whether the names can be translated one
+ * way or the other for comparison is an open question.
+ *
+ * When we query volume names (the original version) we are able to match those
+ * but then the property queries report error "Invalid function". (duh!)
+ */
+
+/*
 DEFINE_GUID(GUID_DEVINTERFACE_VOLUME,
         0x53f5630dL, 0xb6bf, 0x11d0, 0x94, 0xf2,
         0x00, 0xa0, 0xc9, 0x1e, 0xfb, 0x8b);
+*/
+DEFINE_GUID(GUID_DEVINTERFACE_DISK,
+        0x53f56307L, 0xb6bf, 0x11d0, 0x94, 0xf2,
+        0x00, 0xa0, 0xc9, 0x1e, 0xfb, 0x8b);
+
 
 static GuestPCIAddress *get_pci_info(char *guid, Error **errp)
 {
@@ -497,7 +514,7 @@ static GuestPCIAddress *get_pci_info(char *guid, Error **errp)
         goto out;
     }
 
-    dev_info = SetupDiGetClassDevs(&GUID_DEVINTERFACE_VOLUME, 0, 0,
+    dev_info = SetupDiGetClassDevs(&GUID_DEVINTERFACE_DISK, 0, 0,
                                    DIGCF_PRESENT | DIGCF_DEVICEINTERFACE);
     if (dev_info == INVALID_HANDLE_VALUE) {
         error_setg_win32(errp, GetLastError(), "failed to get devices tree");
@@ -632,31 +649,24 @@ out_free:
     return;
 }
 
-/* VSS provider works with volumes, thus there is no difference if
- * the volume consist of spanned disks. Info about the first disk in the
- * volume is returned for the spanned disk group (LVM) */
-static GuestDiskAddressList *build_guest_disk_info(char *guid, Error **errp)
+static void get_single_disk_info(GuestDiskAddress *disk, Error **errp)
 {
-    GuestDiskAddressList *list = NULL;
-    GuestDiskAddress *disk;
     SCSI_ADDRESS addr, *scsi_ad;
     DWORD len;
-    HANDLE vol_h;
+    HANDLE disk_h;
     Error *local_err = NULL;
 
     scsi_ad = &addr;
-    char *name = g_strndup(guid, strlen(guid)-1);
 
-    g_debug("getting disk info for: %s", name);
-    vol_h = CreateFile(name, 0, FILE_SHARE_READ, NULL, OPEN_EXISTING,
+    g_debug("getting disk info for: %s", disk->dev);
+    disk_h = CreateFile(disk->dev, 0, FILE_SHARE_READ, NULL, OPEN_EXISTING,
                        0, NULL);
-    if (vol_h == INVALID_HANDLE_VALUE) {
-        error_setg_win32(errp, GetLastError(), "failed to open volume");
-        goto err;
+    if (disk_h == INVALID_HANDLE_VALUE) {
+        error_setg_win32(errp, GetLastError(), "failed to open disk");
+        return;
     }
 
-    disk = g_malloc0(sizeof(*disk));
-    get_disk_properties(vol_h, disk, &local_err);
+    get_disk_properties(disk_h, disk, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         goto err_close;
@@ -674,20 +684,20 @@ static GuestDiskAddressList *build_guest_disk_info(char *guid, Error **errp)
          * according to Microsoft docs
          * https://technet.microsoft.com/en-us/library/ee851589(v=ws.10).aspx */
         g_debug("getting pci-controller info");
-        if (DeviceIoControl(vol_h, IOCTL_SCSI_GET_ADDRESS, NULL, 0, scsi_ad,
+        if (DeviceIoControl(disk_h, IOCTL_SCSI_GET_ADDRESS, NULL, 0, scsi_ad,
                             sizeof(SCSI_ADDRESS), &len, NULL)) {
-            Error *local_err = NULL;
             disk->unit = addr.Lun;
             disk->target = addr.TargetId;
             disk->bus = addr.PathId;
             g_debug("unit=%lld target=%lld bus=%lld",
                 disk->unit, disk->target, disk->bus);
-            disk->pci_controller = get_pci_info(name, &local_err);
+            disk->pci_controller = get_pci_info(disk->dev, &local_err);
 
             if (local_err) {
                 g_debug("failed to get PCI controller info: %s",
                     error_get_pretty(local_err));
                 error_free(local_err);
+                local_err = NULL;
             } else if (disk->pci_controller != NULL) {
                 g_debug("pci: domain=%lld bus=%lld slot=%lld function=%lld",
                     disk->pci_controller->domain,
@@ -704,19 +714,107 @@ static GuestDiskAddressList *build_guest_disk_info(char *guid, Error **errp)
         disk->pci_controller = g_malloc0(sizeof(GuestPCIAddress));
     }
 
-    list = g_malloc0(sizeof(*list));
-    list->value = disk;
-    list->next = NULL;
-    CloseHandle(vol_h);
-    return list;
-
 err_close:
+    CloseHandle(disk_h);
+    return;
+}
+
+static GuestDiskAddressList *build_guest_disk_info(char *guid, Error **errp)
+{
+    Error *local_err = NULL;
+    GuestDiskAddressList *list = NULL, *cur_item = NULL;
+    GuestDiskAddress *disk = NULL;
+    int i;
+    HANDLE vol_h;
+    DWORD size;
+    PVOLUME_DISK_EXTENTS extents = NULL;
+
+    /* strip final backslash */
+    char *name = g_strndup(guid, strlen(guid)-1);
+
+    g_debug("opening %s", name);
+    vol_h = CreateFile(name, 0, FILE_SHARE_READ, NULL, OPEN_EXISTING,
+                       0, NULL);
+    if (vol_h == INVALID_HANDLE_VALUE) {
+        error_setg_win32(errp, GetLastError(), "failed to open volume");
+        goto out;
+    }
+
+    /* Get list of extents */
+    g_debug("getting disk extents");
+    size = sizeof(VOLUME_DISK_EXTENTS);
+    extents = g_malloc0(size);
+    if (!DeviceIoControl(vol_h, IOCTL_VOLUME_GET_VOLUME_DISK_EXTENTS, NULL,
+                         0, extents, size, NULL, NULL)) {
+        DWORD last_err = GetLastError();
+        if (last_err == ERROR_MORE_DATA) {
+            /* Try once more with big enough buffer */
+            size = sizeof(VOLUME_DISK_EXTENTS)
+                + extents->NumberOfDiskExtents * sizeof(DISK_EXTENT);
+            g_free(extents);
+            extents = g_malloc0(size);
+            if (!DeviceIoControl(
+                    vol_h, IOCTL_VOLUME_GET_VOLUME_DISK_EXTENTS, NULL,
+                    0, extents, size, NULL, NULL)) {
+                error_setg_win32(errp, GetLastError(), "failed to get disk extents");
+                return NULL;
+            }
+        } else if (last_err == ERROR_INVALID_FUNCTION) {
+            /* Possibly CD-ROM or a shared drive. Try to pass the volume */
+            g_debug("volume not on disk");
+            disk = g_malloc0(sizeof(GuestDiskAddress));
+            disk->has_dev = true;
+            disk->dev = g_strdup(name);
+            get_single_disk_info(disk, &local_err);
+            if (local_err) {
+                g_debug("failed to get disk info, ignoring error: %s",
+                    error_get_pretty(local_err));
+                error_free(local_err);
+                goto out;
+            }
+            list = g_malloc0(sizeof(*list));
+            list->value = disk;
+            disk = NULL;
+            list->next = NULL;
+            goto out;
+        } else {
+            error_setg_win32(errp, GetLastError(), "failed to get disk extents");
+            goto out;
+        }
+    }
+    g_debug("Number of extents: %lu", extents->NumberOfDiskExtents);
+
+    /* Go through each extent */
+    for (i = 0; i < extents->NumberOfDiskExtents; i++) {
+        disk = g_malloc0(sizeof(GuestDiskAddress));
+
+        /* Disk numbers directly correspond to numbers used in UNCs
+         * See documentation for DISK_EXTENT:
+         * https://docs.microsoft.com/en-us/windows/desktop/api/winioctl/ns-winioctl-_disk_extent
+         */
+        disk->has_dev = true;
+        disk->dev = g_strdup_printf("\\\\?\\PhysicalDrive%lu",
+            extents->Extents[i].DiskNumber);
+
+        get_single_disk_info(disk, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            goto out;
+        }
+        cur_item = g_malloc0(sizeof(*list));
+        cur_item->value = disk;
+        disk = NULL;
+        cur_item->next = list;
+        list = cur_item;
+    }
+
+
+out:
+    g_free(extents);
     g_free(disk);
-    CloseHandle(vol_h);
-err:
     g_free(name);
 
-    return NULL;
+    return list;
 }
 
 #else
@@ -783,6 +881,12 @@ static GuestFilesystemInfo *build_guest_fsinfo(char *guid, Error **errp)
     }
     fs->type = g_strdup(fs_name);
     fs->disk = build_guest_disk_info(guid, errp);
+    if (fs->disk == NULL) {
+        g_free(fs);
+        fs = NULL;
+        goto free;
+    }
+
 free:
     g_free(mnt_point);
     return fs;
@@ -803,7 +907,7 @@ GuestFilesystemInfoList *qmp_guest_get_fsinfo(Error **errp)
     do {
         GuestFilesystemInfo *info = build_guest_fsinfo(guid, errp);
         if (info == NULL) {
-            continue;
+            goto out;
         }
         new = g_malloc(sizeof(*ret));
         new->value = info;
@@ -815,6 +919,7 @@ GuestFilesystemInfoList *qmp_guest_get_fsinfo(Error **errp)
         error_setg_win32(errp, GetLastError(), "failed to find next volume");
     }
 
+out:
     FindVolumeClose(vol_h);
     return ret;
 }
