@@ -364,6 +364,7 @@ static bool touch_all_pages(char *area, size_t hpagesize, size_t numpages,
     size_t size_per_thread;
     char *addr = area;
     int i = 0;
+    Error *local_err = NULL;
 
     memset_thread_failed = false;
     memset_num_threads = get_memset_num_threads(smp_cpus);
@@ -375,15 +376,20 @@ static bool touch_all_pages(char *area, size_t hpagesize, size_t numpages,
         memset_thread[i].numpages = (i == (memset_num_threads - 1)) ?
                                     numpages : numpages_per_thread;
         memset_thread[i].hpagesize = hpagesize;
-        qemu_thread_create(&memset_thread[i].pgthread, "touch_pages",
-                           do_touch_pages, &memset_thread[i],
-                           QEMU_THREAD_JOINABLE);
+        if (!qemu_thread_create(&memset_thread[i].pgthread, "touch_pages",
+                                do_touch_pages, &memset_thread[i],
+                                QEMU_THREAD_JOINABLE, &local_err)) {
+            error_reportf_err(local_err, "Failed to create do_touch_pages.");
+            memset_thread_failed = true;
+            goto out;
+        }
         addr += size_per_thread;
         numpages -= numpages_per_thread;
     }
     for (i = 0; i < memset_num_threads; i++) {
         qemu_thread_join(&memset_thread[i].pgthread);
     }
+out:
     g_free(memset_thread);
     memset_thread = NULL;
 
