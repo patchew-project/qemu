@@ -1467,7 +1467,9 @@ static void virtio_net_handle_tx_bh(VirtIODevice *vdev, VirtQueue *vq)
         return;
     }
     virtio_queue_set_notification(vq, 0);
-    qemu_bh_schedule(q->tx_bh);
+    if (q->tx_bh) {
+        qemu_bh_schedule(q->tx_bh);
+    }
 }
 
 static void virtio_net_tx_timer(void *opaque)
