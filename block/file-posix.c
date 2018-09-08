@@ -2325,6 +2325,7 @@ static int find_allocation(BlockDriverState *bs, off_t start,
     BDRVRawState *s = bs->opaque;
     off_t offs;
 
+#if !(defined(__APPLE__) && defined(__MACH__))
     /*
      * SEEK_DATA cases:
      * D1. offs == start: start is in data
@@ -2395,6 +2396,64 @@ static int find_allocation(BlockDriverState *bs, off_t start,
         *hole = offs;
         return 0;
     }
+#else
+    /*
+     * In macOS, lseek with SEEK_DATA seeks to the next data region
+     * even though the offset is in the middle of a data region.
+     * In addition, there may be many data regions without any holes among
+     * them, like this:  |----Data----|----Data----|
+     *
+     * Although the behavior of lseek with SEEK_DATA is different in macOS,
+     * the behavior of lseek with SEEK_HOLE in macOS is the same as the one in
+     * Linux.
+     *
+     * Therefore, the cases D1, D2 and H2 are changed to the followings
+     * for macOS:
+     *  D1. offs == start: start is at the beginning of a data region.
+     *  D2. offs > start: either start is in a hole, next data at offs
+     *      or start is in the middle of a data region,
+     *      next data at offs.
+     *  H2. offs > start: start is in data, next hole at offs
+     */
+
+    offs = lseek(s->fd, start, SEEK_HOLE);
+    if (offs < 0) {
+        return -errno;  /* H3 or H4 */
+    }
+
+    if (offs < start) {
+        /* This is not a valid return by lseek().  We are safe to just return
+         * -EIO in this case, and we'll treat it like D4. */
+        return -EIO;
+    }
+
+    if (offs > start) {
+        /* H2: start is in data, next hole at offs */
+        *data = start;
+        *hole = offs;
+        return 0;
+    }
+
+    /* H1: start is in a hole */
+    offs = lseek(s->fd, start, SEEK_DATA);
+
+    if (offs < 0) {
+        return -errno;  /* H1 and (D3 or D4) */
+    }
+
+    if (offs < start) {
+        /* This is not a valid return by lseek().  We are safe to just return
+         * -EIO in this case, and we'll treat it like D4. */
+        return -EIO;
+    }
+
+    if (offs > start) {
+        /* H1 and D2: start is in a hole, next data at offs */
+        *hole = start;
+        *data = offs;
+        return 0;
+    }
+#endif
 
     /* D1 and H1 */
     return -EBUSY;
