@@ -56,6 +56,8 @@
 #define		INSN_LOONGSON2E  0x20000000
 #define		INSN_LOONGSON2F  0x40000000
 #define		INSN_VR54XX	0x80000000
+#define     INSN_R3900       0x100000000ULL
+#define     INSN_R5900       0x200000000ULL
 
 /* MIPS CPU defines. */
 #define		CPU_MIPS1	(ISA_MIPS1)
