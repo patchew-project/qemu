@@ -1,1 +1,2 @@
 common-obj-$(CONFIG_MCB) += mcb.o
+common-obj-$(CONFIG_MCB) += mcb-pci.o
