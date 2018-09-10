@@ -252,8 +252,8 @@ void cpu_update_icount(CPUState *cpu)
 
     seqlock_write_lock(&timers_state.vm_clock_seqlock,
                        &timers_state.vm_clock_lock);
-    atomic_set__nocheck(&timers_state.qemu_icount,
-                        timers_state.qemu_icount + executed);
+    atomic_set_i64(&timers_state.qemu_icount,
+                   timers_state.qemu_icount + executed);
     seqlock_write_unlock(&timers_state.vm_clock_seqlock,
                          &timers_state.vm_clock_lock);
 }
@@ -270,8 +270,8 @@ static int64_t cpu_get_icount_raw_locked(void)
         /* Take into account what has run */
         cpu_update_icount(cpu);
     }
-    /* The read is protected by the seqlock, so __nocheck is okay.  */
-    return atomic_read__nocheck(&timers_state.qemu_icount);
+    /* The read is protected by the seqlock, but needs atomic64 to avoid UB */
+    return atomic_read_i64(&timers_state.qemu_icount);
 }
 
 static int64_t cpu_get_icount_locked(void)
