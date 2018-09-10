@@ -868,6 +868,7 @@ static void tpm_tis_reset(DeviceState *dev)
     s->be_buffer_size = MIN(tpm_backend_get_buffer_size(s->be_driver),
                             TPM_TIS_BUFFER_MAX);
 
+    tpm_ppi_reset(&s->ppi);
     tpm_backend_reset(s->be_driver);
 
     s->active_locty = TPM_TIS_NO_LOCALITY;

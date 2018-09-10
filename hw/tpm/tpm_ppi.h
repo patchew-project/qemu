@@ -23,4 +23,6 @@ typedef struct TPMPPI {
 bool tpm_ppi_init(TPMPPI *tpmppi, struct MemoryRegion *m,
                   hwaddr addr, Object *obj, Error **errp);
 
+void tpm_ppi_reset(TPMPPI *tpmppi);
+
 #endif /* TPM_TPM_PPI_H */
