@@ -7,9 +7,12 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/host-utils.h"
 
 int qemu_icache_linesize = 0;
+int qemu_icache_linesize_log;
 int qemu_dcache_linesize = 0;
+int qemu_dcache_linesize_log;
 
 /*
  * Operating system specific detection mechanisms.
@@ -173,5 +176,7 @@ static void __attribute__((constructor)) init_cache_info(void)
     fallback_cache_info(&isize, &dsize);
 
     qemu_icache_linesize = isize;
+    qemu_icache_linesize_log = 31 - clz32(isize);
     qemu_dcache_linesize = dsize;
+    qemu_dcache_linesize_log = 31 - clz32(dsize);
 }
