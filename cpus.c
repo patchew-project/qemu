@@ -250,16 +250,12 @@ void cpu_update_icount(CPUState *cpu)
     int64_t executed = cpu_get_icount_executed(cpu);
     cpu->icount_budget -= executed;
 
-#ifndef CONFIG_ATOMIC64
     seqlock_write_lock(&timers_state.vm_clock_seqlock,
                        &timers_state.vm_clock_lock);
-#endif
     atomic_set__nocheck(&timers_state.qemu_icount,
                         timers_state.qemu_icount + executed);
-#ifndef CONFIG_ATOMIC64
     seqlock_write_unlock(&timers_state.vm_clock_seqlock,
                          &timers_state.vm_clock_lock);
-#endif
 }
 
 static int64_t cpu_get_icount_raw_locked(void)
