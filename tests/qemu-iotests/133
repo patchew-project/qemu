@@ -92,6 +92,12 @@ echo
 IMGOPTSSYNTAX=false $QEMU_IO -f null-co -c 'reopen' -c 'info' \
     "json:{'driver': 'null-co', 'size': 65536}"
 
+echo
+echo "=== Check that invalid options are handled correctly ==="
+echo
+
+$QEMU_IO -c 'reopen -o read-only=foo' $TEST_IMG
+
 # success, all done
 echo "*** done"
 rm -f $seq.full

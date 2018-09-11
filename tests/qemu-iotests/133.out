@@ -24,4 +24,8 @@ Cannot change the option 'driver'
 
 format name: null-co
 format name: null-co
+
+=== Check that invalid options are handled correctly ===
+
+Parameter 'read-only' expects 'on' or 'off'
 *** done
