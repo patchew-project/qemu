@@ -97,6 +97,12 @@ STEXI
 @item resize [--object @var{objectdef}] [--image-opts] [-f @var{fmt}] [--preallocation=@var{prealloc}] [-q] [--shrink] @var{filename} [+ | -]@var{size}
 ETEXI
 
+DEF("removebmp", img_removebmp,
+    "removebmp [--object objectdef] [--image-opts] [-q] [-f fmt] filename dirtybitmap")
+STEXI
+@item removebmp [--object @var{objectdef}] [--image-opts] [-q] [-f @var{fmt}] @var{filename} @var{dirtybitmap}
+ETEXI
+
 STEXI
 @end table
 ETEXI
