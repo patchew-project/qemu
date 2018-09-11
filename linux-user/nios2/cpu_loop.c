@@ -71,6 +71,9 @@ void cpu_loop(CPUNios2State *env)
                 gdbsig = TARGET_SIGTRAP;
                 break;
             }
+        case EXCP_DEBUG:
+            gdbsig = TARGET_SIGTRAP;
+            break;
         case 0xaa:
             switch (env->regs[R_PC]) {
             /*case 0x1000:*/  /* TODO:__kuser_helper_version */
