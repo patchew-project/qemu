@@ -213,6 +213,11 @@ typedef struct PowerDevice {
     MemoryRegion power_mmio;
 } PowerDevice;
 
+static uint64_t power_mem_read(void *opaque, hwaddr addr, unsigned size)
+{
+    return 0;
+}
+
 /* Power */
 static void power_mem_write(void *opaque, hwaddr addr,
                             uint64_t val, unsigned size)
@@ -224,6 +229,7 @@ static void power_mem_write(void *opaque, hwaddr addr,
 }
 
 static const MemoryRegionOps power_mem_ops = {
+    .read = power_mem_read,
     .write = power_mem_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
