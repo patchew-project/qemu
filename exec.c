@@ -2681,6 +2681,11 @@ void memory_notdirty_write_complete(NotDirtyInfo *ndi)
     }
 }
 
+static uint64_t notdirty_mem_read(void *opaque, hwaddr addr, unsigned size)
+{
+    return 0;
+}
+
 /* Called within RCU critical section.  */
 static void notdirty_mem_write(void *opaque, hwaddr ram_addr,
                                uint64_t val, unsigned size)
@@ -2702,6 +2707,7 @@ static bool notdirty_mem_accepts(void *opaque, hwaddr addr,
 }
 
 static const MemoryRegionOps notdirty_mem_ops = {
+    .read = notdirty_mem_read,
     .write = notdirty_mem_write,
     .valid.accepts = notdirty_mem_accepts,
     .endianness = DEVICE_NATIVE_ENDIAN,
@@ -2964,6 +2970,7 @@ static uint16_t dummy_section(PhysPageMap *map, FlatView *fv, MemoryRegion *mr)
 
     return phys_section_add(map, &section);
 }
+
 
 static void readonly_mem_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned size)
