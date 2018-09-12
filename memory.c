@@ -406,6 +406,10 @@ static MemTxResult memory_region_oldmmio_read_accessor(MemoryRegion *mr,
 {
     uint64_t tmp;
 
+    if (!mr->ops->old_mmio.read[ctz32(size)]) {
+        return MEMTX_DECODE_ERROR;
+    }
+
     tmp = mr->ops->old_mmio.read[ctz32(size)](mr->opaque, addr);
     if (mr->subpage) {
         trace_memory_region_subpage_read(get_cpu_index(), mr, addr, tmp, size);
