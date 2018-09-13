@@ -17,8 +17,13 @@ The protocol defines 2 sides of the communication, master and slave. Master is
 the application that shares its virtqueues, in our case QEMU. Slave is the
 consumer of the virtqueues.
 
-In the current implementation QEMU is the Master, and the Slave is intended to
-be a software Ethernet switch running in user space, such as Snabbswitch.
+In the current implementation QEMU is the Master, and the Slave is the
+external process consuming the virtio queues, for example a software
+Ethernet switch running in user space, such as Snabbswitch, or a block
+device backend processing read & write to a virtual disk. In order to
+facilitate interoperability between various backend implementations,
+it is recommended to follow the "Backend program conventions"
+described in this document.
 
 Master and slave can be either a client (i.e. connecting) or server (listening)
 in the socket communication.
@@ -835,3 +840,100 @@ resilient for selective requests.
 For the message types that already solicit a reply from the client, the
 presence of VHOST_USER_PROTOCOL_F_REPLY_ACK or need_reply bit being set brings
 no behavioural change. (See the 'Communication' section for details.)
+
+Backend program conventions
+---------------------------
+
+vhost-user backends provide various services and they may need to be
+configured manually depending on the use case. However, it is a good
+idea to follow the conventions listed here when possible. Users, QEMU
+or libvirt, can then rely on some common behaviour to avoid
+heterogenous configuration and management of the backend program and
+facilitate interoperability.
+
+In order to be discoverable, default vhost-user backends should be
+located under "/usr/libexec", and be named "vhost-user-$device" where
+"$device" is the device name in lower-case following the name listed
+in the Linux virtio_ids.h header (ex: the VIRTIO_ID_RPROC_SERIAL
+backend would be named "vhost-user-rproc-serial").
+
+Mechanisms to list, and to select among alternatives implementations
+or modify the default backend are not described at this point (a
+distribution may use update-alternatives, for example, to list and to
+pick a different default backend).
+
+The backend program must end (as quickly and cleanly as possible) when
+the SIGTERM signal is received. Eventually, it may be SIGKILL by the
+management layer after a few seconds.
+
+The following command line options have an expected behaviour. They
+are mandatory, unless explicitly said differently:
+
+* --socket-path=PATH
+
+This option specify the location of the vhost-user Unix domain socket.
+It is incompatible with --fd.
+
+* --fd=FDNUM
+
+When this argument is given, the backend program is started with the
+vhost-user socket as file descriptor FDNUM. It is incompatible with
+--socket-path.
+
+* --print-capabilities
+
+Output to stdout a line-seperated list of backend capabilities, and
+then exit successfully. Other options and arguments should be ignored,
+and the backend program should not perform its normal function.
+
+At the time of writing, there are no common capabilities. Some
+device-specific capabilities are listed in the respective sections. By
+convention, device-specific capabilities are prefixed by their device
+name.
+
+* --pidfile=PATH
+
+Write the process id (PID) to the given file PATH. This is mostly
+useful if the backend daemonize/fork itself.
+
+vhost-user-input program conventions
+------------------------------------
+
+Capabilities:
+
+input-evdev-path
+
+    The --evdev-path command line option is supported.
+
+input-no-grab
+
+    The --no-grab command line option is supported.
+
+* --evdev-path=PATH (optional)
+
+Specify the linux input device.
+
+* --no-grab (optional)
+
+Do no request exclusive access to the input device.
+
+vhost-user-gpu program conventions
+----------------------------------
+
+Capabilities:
+
+gpu-render-node
+
+    The --render-node command line option is supported.
+
+gpu-virgl
+
+    The --virgl command line option is supported.
+
+* --render-node=PATH (optional)
+
+Specify the GPU DRM render node.
+
+* --virgl (optional)
+
+Enable virgl rendering support.
