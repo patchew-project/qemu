@@ -27,4 +27,8 @@
  */
 #define ARM_TEST_MAX_KERNEL_SIZE (512 * 1024)
 
+/* S390 */
+#define S390_TEST_MEM_START (1 * 1024 * 1024)
+#define S390_TEST_MEM_END   (100 * 1024 * 1024)
+
 #endif /* _TEST_MIGRATION_H_ */
