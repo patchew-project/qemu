@@ -104,9 +104,9 @@ static void GCC_FMT_ATTR(3, 4) prom_set(uint32_t* prom_buf, int index,
 
 static int64_t load_kernel (CPUMIPSState *env)
 {
-    int64_t kernel_entry, kernel_low, kernel_high;
+    int64_t kernel_entry, kernel_low, kernel_highi, initrd_size;
     int index = 0;
-    long kernel_size, initrd_size;
+    long kernel_size;
     ram_addr_t initrd_offset;
     uint32_t *prom_buf;
     long prom_size;
