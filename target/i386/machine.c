@@ -842,6 +842,43 @@ static const VMStateDescription vmstate_tsc_khz = {
     }
 };
 
+static int nested_state_post_load(void *opaque, int version_id)
+{
+    X86CPU *cpu = opaque;
+    CPUX86State *env = &cpu->env;
+
+    /*
+     * Verify that the size specified in given struct is set
+     * to no more than the size that our kernel support
+     */
+    if (env->nested_state->size > env->nested_state_len) {
+        return -EINVAL;
+    }
+
+    return 0;
+}
+
+static bool nested_state_needed(void *opaque)
+{
+    X86CPU *cpu = opaque;
+    CPUX86State *env = &cpu->env;
+    return (env->nested_state_len > 0);
+}
+
+static const VMStateDescription vmstate_nested_state = {
+    .name = "cpu/nested_state",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .post_load = nested_state_post_load,
+    .needed = nested_state_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_VBUFFER_UINT32(env.nested_state, X86CPU,
+                               0, NULL,
+                               env.nested_state_len),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static bool mcg_ext_ctl_needed(void *opaque)
 {
     X86CPU *cpu = opaque;
@@ -1080,6 +1117,7 @@ VMStateDescription vmstate_x86_cpu = {
         &vmstate_msr_intel_pt,
         &vmstate_msr_virt_ssbd,
         &vmstate_svm_npt,
+        &vmstate_nested_state,
         NULL
     }
 };
