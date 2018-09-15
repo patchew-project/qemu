@@ -756,6 +756,50 @@ static void arm_cpu_finalizefn(Object *obj)
     }
 }
 
+static uint32_t resolve_id_isar0(CPUARMState *env, uint32_t orig)
+{
+    uint32_t ret = 0;
+
+    if (arm_feature(env, ARM_FEATURE_SWP)) {
+        ret = deposit32(ret, 0, 4, 1);            /* Swap */
+    }
+    if (arm_feature(env, ARM_FEATURE_V5)) {
+        ret = deposit32(ret , 4, 4, 1);           /* BitCount */
+    }
+    if (arm_feature(env, ARM_FEATURE_THUMB2)) {
+        ret = deposit32(ret, 8, 4, 1);            /* BitField */
+        ret = deposit32(ret, 12, 4, 1);           /* CmpBranch */
+    }
+
+    /*
+     * Coproc -- generically, v5te has mcrr (3), v6 has mcrr2 (4),
+     * and v8 requires none (0).  There does not appear to be a way
+     * to guess the value though, as some v6 and v7 cores also use none.
+     */
+    ret |= orig & MAKE_64BIT_MASK(16, 4);
+
+    if (arm_feature(env, ARM_FEATURE_V5)) {
+        ret = deposit32(ret, 20, 4, 1);           /* Debug */
+    }
+    /* Divide */
+    if (arm_feature(env, ARM_FEATURE_ARM_DIV)) {
+        ret = deposit32(ret, 24, 4, 2);
+    } else if (arm_feature(env, ARM_FEATURE_THUMB_DIV)) {
+        ret = deposit32(ret, 24, 4, 1);
+    }
+
+    return ret;
+}
+
+static void resolve_id_regs(ARMCPU *cpu)
+{
+    CPUARMState *env = &cpu->env;
+    uint64_t orig;
+
+    cpu->id_isar0 = resolve_id_isar0(env, orig = cpu->id_isar0);
+    g_assert_cmphex(cpu->id_isar0, ==, orig);
+}
+
 static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
@@ -1003,6 +1047,7 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
         set_feature(env, ARM_FEATURE_VBAR);
     }
 
+    resolve_id_regs(cpu);
     register_cp_regs_for_features(cpu);
     arm_cpu_register_gdb_regs_for_features(cpu);
 
