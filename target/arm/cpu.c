@@ -1062,6 +1062,24 @@ static uint64_t resolve_id_aa64isar0(CPUARMState *env)
     return ret;
 }
 
+static uint64_t resolve_id_aa64isar1(CPUARMState *env)
+{
+    uint64_t ret = 0;
+
+    /* DPB -- not implemented yet */
+    /* APA -- not implemented yet */
+    /* API -- not implemented yet */
+    /* JSCVT -- not implemented yet */
+    if (arm_feature(env, ARM_FEATURE_V8_FCMA)) {
+        ret = deposit64(ret, 16, 4, 1);
+    }
+    /* LRCPC -- not implemented yet */
+    /* GPA -- not implemented yet */
+    /* GPI -- not implemented yet */
+
+    return ret;
+}
+
 static void resolve_id_regs(ARMCPU *cpu)
 {
     CPUARMState *env = &cpu->env;
@@ -1102,6 +1120,8 @@ static void resolve_id_regs(ARMCPU *cpu)
     orig = cpu->id_aa64isar0;
     cpu->id_aa64isar0 = resolve_id_aa64isar0(env);
     g_assert_cmphex(cpu->id_aa64isar0, ==, orig);
+
+    cpu->id_aa64isar1 = resolve_id_aa64isar1(env);
 }
 
 static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
