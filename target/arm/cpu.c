@@ -791,13 +791,48 @@ static uint32_t resolve_id_isar0(CPUARMState *env, uint32_t orig)
     return ret;
 }
 
+static uint32_t resolve_id_isar1(CPUARMState *env)
+{
+    uint32_t ret = 0;
+
+    if (arm_feature(env, ARM_FEATURE_V6)) {
+        ret = deposit32(ret, 0, 4, 1);            /* Endian */
+        if (!arm_feature(env, ARM_FEATURE_M)) {
+            ret = deposit32(ret, 4, 4, 1);        /* Except */
+            ret = deposit32(ret, 8, 4, 1);        /* Except_AR */
+        }
+        /* Extend */
+        ret = deposit32(ret, 12, 4,
+                             arm_feature(env, ARM_FEATURE_THUMB_DSP) ? 2 : 1);
+    }
+    if (arm_feature(env, ARM_FEATURE_THUMB2)) {
+        ret = deposit32(ret, 16, 4, 1);           /* IfThen */
+        ret = deposit32(ret, 20, 4, 1);           /* Immediate */
+    }
+    /* Interwork -- note we don't support pre-armv4t.  */
+    ret = deposit32(ret, 24, 4,
+                         arm_feature(env, ARM_FEATURE_V7)
+                         && !arm_feature(env, ARM_FEATURE_M) ? 3 :
+                         arm_feature(env, ARM_FEATURE_V5) ? 2 : 1);
+    if (arm_feature(env, ARM_FEATURE_JAZELLE)) {
+        ret = deposit32(ret, 28, 4, 1);           /* Jazelle */
+    }
+
+    return ret;
+}
+
 static void resolve_id_regs(ARMCPU *cpu)
 {
     CPUARMState *env = &cpu->env;
     uint64_t orig;
 
-    cpu->id_isar0 = resolve_id_isar0(env, orig = cpu->id_isar0);
+    orig = cpu->id_isar0;
+    cpu->id_isar0 = resolve_id_isar0(env, orig);
     g_assert_cmphex(cpu->id_isar0, ==, orig);
+
+    orig = cpu->id_isar1;
+    cpu->id_isar1 = resolve_id_isar1(env);
+    g_assert_cmphex(cpu->id_isar1, ==, orig);
 }
 
 static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
