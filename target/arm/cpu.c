@@ -992,6 +992,31 @@ static uint32_t resolve_id_pfr0(CPUARMState *env)
     return ret;
 }
 
+static uint32_t resolve_id_pfr1(CPUARMState *env)
+{
+    uint32_t ret = 0;
+
+    if (arm_feature(env, ARM_FEATURE_M)) {
+        ret = deposit32(ret, 8, 4, 2);            /* MProgMod */
+    } else {
+        ret = deposit32(ret, 0, 4, 1);            /* ProgMod */
+    }
+    if (arm_feature(env, ARM_FEATURE_EL3)) {
+        ret = deposit32(ret, 4, 4, 1);            /* Security */
+    }
+    if (arm_feature(env, ARM_FEATURE_EL2)) {
+        ret = deposit32(ret, 12, 4, 1);           /* Virtualization */
+    }
+    if (arm_feature(env, ARM_FEATURE_GENERIC_TIMER)) {
+        ret = deposit32(ret, 16, 4, 1);           /* GenTimer */
+    }
+    /* Sec_frac -- no partial features implemented without EL3 */
+    /* Virt_frac -- no partial features implemented without EL2 */
+    /* GIC -- info not available yet; filled in by id_pfr1_read */
+
+    return ret;
+}
+
 static void resolve_id_regs(ARMCPU *cpu)
 {
     CPUARMState *env = &cpu->env;
@@ -1024,6 +1049,10 @@ static void resolve_id_regs(ARMCPU *cpu)
     orig = cpu->id_pfr0;
     cpu->id_pfr0 = resolve_id_pfr0(env);
     g_assert_cmphex(cpu->id_pfr0, ==, orig);
+
+    orig = cpu->id_pfr1;
+    cpu->id_pfr1 = resolve_id_pfr1(env);
+    g_assert_cmphex(cpu->id_pfr1, ==, orig);
 }
 
 static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
