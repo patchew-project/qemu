@@ -969,6 +969,29 @@ static uint32_t resolve_id_isar6(CPUARMState *env)
     return ret;
 }
 
+static uint32_t resolve_id_pfr0(CPUARMState *env)
+{
+    uint32_t ret = 0;
+
+    if (!arm_feature(env, ARM_FEATURE_M)) {
+        ret = deposit32(ret, 0, 4, 1);            /* State0 -- A32 */
+    }
+    if (arm_feature(env, ARM_FEATURE_THUMB2)) {
+        ret = deposit32(ret, 4, 4, 3);            /* State1 -- T32 */
+    } else if (arm_feature(env, ARM_FEATURE_V5)) {
+        ret = deposit32(ret, 4, 4, 1);            /* State1 -- bl/blx only */
+    }
+    if (arm_feature(env, ARM_FEATURE_JAZELLE)) {
+        ret = deposit32(ret, 8, 4, 1);            /* State2 -- Jazelle */
+    }
+    if (arm_feature(env, ARM_FEATURE_THUMB2EE)) {
+        ret = deposit32(ret, 12, 4, 1);           /* State3 -- T32EE */
+    }
+    /* RAS -- not implemented yet */
+
+    return ret;
+}
+
 static void resolve_id_regs(ARMCPU *cpu)
 {
     CPUARMState *env = &cpu->env;
@@ -997,6 +1020,10 @@ static void resolve_id_regs(ARMCPU *cpu)
 
     cpu->id_isar5 = resolve_id_isar5(env);
     cpu->id_isar6 = resolve_id_isar6(env);
+
+    orig = cpu->id_pfr0;
+    cpu->id_pfr0 = resolve_id_pfr0(env);
+    g_assert_cmphex(cpu->id_pfr0, ==, orig);
 }
 
 static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
