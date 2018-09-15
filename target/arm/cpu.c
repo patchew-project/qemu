@@ -1108,49 +1108,22 @@ static uint64_t resolve_id_aa64pfr0(CPUARMState *env)
 static void resolve_id_regs(ARMCPU *cpu)
 {
     CPUARMState *env = &cpu->env;
-    uint64_t orig;
 
-    orig = cpu->id_isar0;
-    cpu->id_isar0 = resolve_id_isar0(env, orig);
-    g_assert_cmphex(cpu->id_isar0, ==, orig);
-
-    orig = cpu->id_isar1;
+    cpu->id_isar0 = resolve_id_isar0(env, cpu->id_isar0);
     cpu->id_isar1 = resolve_id_isar1(env);
-    g_assert_cmphex(cpu->id_isar1, ==, orig);
-
-    orig = cpu->id_isar2;
-    cpu->id_isar2 = resolve_id_isar2(env, orig);
-    g_assert_cmphex(cpu->id_isar2, ==, orig);
-
-    orig = cpu->id_isar3;
+    cpu->id_isar2 = resolve_id_isar2(env, cpu->id_isar2);
     cpu->id_isar3 = resolve_id_isar3(env);
-    g_assert_cmphex(cpu->id_isar3, ==, orig);
-
-    orig = cpu->id_isar4;
     cpu->id_isar4 = resolve_id_isar4(env);
-    /* Willfully ignore the SWP_frac field.  */
-    g_assert_cmphex(cpu->id_isar4 & 0x0fffffff, ==, orig & 0x0fffffff);
-
     cpu->id_isar5 = resolve_id_isar5(env);
     cpu->id_isar6 = resolve_id_isar6(env);
-
-    orig = cpu->id_pfr0;
     cpu->id_pfr0 = resolve_id_pfr0(env);
-    g_assert_cmphex(cpu->id_pfr0, ==, orig);
-
-    orig = cpu->id_pfr1;
     cpu->id_pfr1 = resolve_id_pfr1(env);
-    g_assert_cmphex(cpu->id_pfr1, ==, orig);
 
-    orig = cpu->id_aa64isar0;
-    cpu->id_aa64isar0 = resolve_id_aa64isar0(env);
-    g_assert_cmphex(cpu->id_aa64isar0, ==, orig);
-
-    cpu->id_aa64isar1 = resolve_id_aa64isar1(env);
-
-    orig = cpu->id_aa64pfr0;
-    cpu->id_aa64pfr0 = resolve_id_aa64pfr0(env);
-    g_assert_cmphex(cpu->id_aa64pfr0, ==, orig);
+    if (arm_feature(env, ARM_FEATURE_AARCH64)) {
+        cpu->id_aa64isar0 = resolve_id_aa64isar0(env);
+        cpu->id_aa64isar1 = resolve_id_aa64isar1(env);
+        cpu->id_aa64pfr0 = resolve_id_aa64pfr0(env);
+    }
 }
 
 static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
