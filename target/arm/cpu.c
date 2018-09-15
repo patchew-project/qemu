@@ -926,6 +926,49 @@ static uint32_t resolve_id_isar4(CPUARMState *env)
     return ret;
 }
 
+static uint32_t resolve_id_isar5(CPUARMState *env)
+{
+    uint32_t ret = 0;
+
+    /* SEVL -- we always implement as NOP.  */
+    /* AES */
+    if (arm_feature(env, ARM_FEATURE_V8_PMULL)) {
+        ret = deposit32(ret, 4, 4, 2);
+    } else if (arm_feature(env, ARM_FEATURE_V8_AES)) {
+        ret = deposit32(ret, 4, 4, 1);
+    }
+    if (arm_feature(env, ARM_FEATURE_V8_SHA1)) {
+        ret = deposit32(ret, 8, 4, 1);            /* SHA1 */
+    }
+    if (arm_feature(env, ARM_FEATURE_V8_SHA256)) {
+        ret = deposit32(ret, 12, 4, 1);           /* SHA2 */
+    }
+    if (arm_feature(env, ARM_FEATURE_CRC)) {
+        ret = deposit32(ret, 16, 4, 1);           /* CRC32 */
+    }
+    if (arm_feature(env, ARM_FEATURE_V8_RDM)) {
+        ret = deposit32(ret, 24, 4, 1);           /* RDM */
+    }
+    if (arm_feature(env, ARM_FEATURE_V8_FCMA)) {
+        ret = deposit32(ret, 28, 4, 1);           /* VCMA */
+    }
+
+    return ret;
+}
+
+static uint32_t resolve_id_isar6(CPUARMState *env)
+{
+    uint32_t ret = 0;
+
+    /* JSCVT -- not implemented yet */
+    /* FHM -- not implemented yet */
+    if (arm_feature(env, ARM_FEATURE_V8_DOTPROD)) {
+        ret = deposit32(ret, 4, 4, 1);            /* DP */
+    }
+
+    return ret;
+}
+
 static void resolve_id_regs(ARMCPU *cpu)
 {
     CPUARMState *env = &cpu->env;
@@ -951,6 +994,9 @@ static void resolve_id_regs(ARMCPU *cpu)
     cpu->id_isar4 = resolve_id_isar4(env);
     /* Willfully ignore the SWP_frac field.  */
     g_assert_cmphex(cpu->id_isar4 & 0x0fffffff, ==, orig & 0x0fffffff);
+
+    cpu->id_isar5 = resolve_id_isar5(env);
+    cpu->id_isar6 = resolve_id_isar6(env);
 }
 
 static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
