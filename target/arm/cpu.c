@@ -855,6 +855,38 @@ static uint32_t resolve_id_isar2(CPUARMState *env, uint32_t orig)
     return ret;
 }
 
+static uint32_t resolve_id_isar3(CPUARMState *env)
+{
+    uint32_t ret = 0;
+
+    if (arm_feature(env, ARM_FEATURE_V5)) {
+        ret = deposit32(ret, 0, 4, 1);            /* Saturate */
+    }
+    if (arm_feature(env, ARM_FEATURE_V6)) {
+        ret = deposit32(ret, 4, 4, 3);            /* SIMD */
+    }
+    ret = deposit32(ret, 8, 4, 1);                /* SVC -- no pre-armv4t */
+    /* SynchPrim */
+    if (arm_feature(env, ARM_FEATURE_V6K)) {
+        ret = deposit32(ret, 12, 4, 2);           /* ldrex, ldrexb, ldrexd */
+    } else if (arm_feature(env, ARM_FEATURE_V6)) {
+        ret = deposit32(ret, 12, 4, 1);           /* ldrex only */
+    }
+    if (arm_feature(env, ARM_FEATURE_THUMB2)) {
+        ret = deposit32(ret, 16, 4, 1);           /* TabBranch */
+        ret = deposit32(ret, 20, 4, 1);           /* T32Copy */
+    }
+    if (arm_feature(env, ARM_FEATURE_THUMB2) ||
+        arm_feature(env, ARM_FEATURE_V6K)) {
+        ret = deposit32(ret, 24, 4, 1);           /* TrueNOP */
+    }
+    if (arm_feature(env, ARM_FEATURE_THUMB2EE)) {
+        ret = deposit32(ret, 28, 4, 1);           /* T32EE */
+    }
+
+    return ret;
+}
+
 static void resolve_id_regs(ARMCPU *cpu)
 {
     CPUARMState *env = &cpu->env;
@@ -871,6 +903,10 @@ static void resolve_id_regs(ARMCPU *cpu)
     orig = cpu->id_isar2;
     cpu->id_isar2 = resolve_id_isar2(env, orig);
     g_assert_cmphex(cpu->id_isar2, ==, orig);
+
+    orig = cpu->id_isar3;
+    cpu->id_isar3 = resolve_id_isar3(env);
+    g_assert_cmphex(cpu->id_isar3, ==, orig);
 }
 
 static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
