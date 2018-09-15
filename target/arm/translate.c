@@ -9390,6 +9390,10 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
                         TCGv taddr;
                         TCGMemOp opc = s->be_data;
 
+                        if (!arm_dc_feature(s, ARM_FEATURE_SWP)) {
+                            goto illegal_op;
+                        }
+
                         rm = (insn) & 0xf;
 
                         if (insn & (1 << 22)) {
