@@ -821,6 +821,40 @@ static uint32_t resolve_id_isar1(CPUARMState *env)
     return ret;
 }
 
+static uint32_t resolve_id_isar2(CPUARMState *env, uint32_t orig)
+{
+    uint32_t ret = 0;
+
+    /* LoadStore */
+    ret = deposit32(ret, 0, 4,
+                    arm_feature(env, ARM_FEATURE_V8) ? 2 :
+                    arm_feature(env, ARM_FEATURE_V5) ? 1 : 0);
+    /*
+     * MemHint -- v7mp has pldw (4), v7 has pli (3), but values 1 & 2
+     * mean the same thing, and there does not seem to be a way to tell
+     * them apart for v5 & v6.
+     */
+    ret |= orig & MAKE_64BIT_MASK(4, 4);
+    /* MultiAccessInt -- micro-architectural detail.  */
+    ret |= orig & MAKE_64BIT_MASK(8, 4);
+    /* Mult -- note we don't support pre-armv4t.  */
+    ret = deposit32(ret, 12, 4, arm_feature(env, ARM_FEATURE_THUMB2) ? 2 : 1);
+    /* MultS -- note we don't support pre-armv4t.  */
+    ret = deposit32(ret, 16, 4,
+                    arm_feature(env, ARM_FEATURE_V6) ? 3 :
+                    arm_feature(env, ARM_FEATURE_V5) ? 2 : 1);
+    /* MultU -- note we don't support pre-armv4t.  */
+    ret = deposit32(ret, 20, 4, arm_feature(env, ARM_FEATURE_V6) ? 2 : 1);
+    /* PSR_AR */
+    ret = deposit32(ret, 24, 4, arm_feature(env, ARM_FEATURE_M) ? 0 : 1);
+    /* Reversal */
+    ret = deposit32(ret, 28, 4,
+                    arm_feature(env, ARM_FEATURE_THUMB2) ? 2 :
+                    arm_feature(env, ARM_FEATURE_V6) ? 1 : 0);
+
+    return ret;
+}
+
 static void resolve_id_regs(ARMCPU *cpu)
 {
     CPUARMState *env = &cpu->env;
@@ -833,6 +867,10 @@ static void resolve_id_regs(ARMCPU *cpu)
     orig = cpu->id_isar1;
     cpu->id_isar1 = resolve_id_isar1(env);
     g_assert_cmphex(cpu->id_isar1, ==, orig);
+
+    orig = cpu->id_isar2;
+    cpu->id_isar2 = resolve_id_isar2(env, orig);
+    g_assert_cmphex(cpu->id_isar2, ==, orig);
 }
 
 static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
