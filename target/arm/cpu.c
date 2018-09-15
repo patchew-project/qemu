@@ -887,6 +887,45 @@ static uint32_t resolve_id_isar3(CPUARMState *env)
     return ret;
 }
 
+static uint32_t resolve_id_isar4(CPUARMState *env)
+{
+    uint32_t ret = 0;
+
+    /* Unpriv -- note we don't support pre-armv4t.  */
+    ret = deposit32(ret, 0, 4, arm_feature(env, ARM_FEATURE_THUMB2) ? 2 : 1);
+    /* WithShifts */
+    if (!arm_feature(env, ARM_FEATURE_M)) {
+        ret = deposit32(ret, 4, 4, 4);
+    } else if (arm_feature(env, ARM_FEATURE_V8)) {
+        ret = deposit32(ret, 4, 4, 3);
+    }
+    ret = deposit32(ret, 8, 4, 1);                /* Writeback */
+    if (arm_feature(env, ARM_FEATURE_EL3)) {
+        /* Note that EL3 indicates Security Extensions.  */
+        /* ??? In translate.c we check V6K instead.  */
+        ret = deposit32(ret, 12, 4, 1);           /* SMC */
+    }
+    if (arm_feature(env, ARM_FEATURE_V7)) {
+        ret = deposit32(ret, 16, 4, 1);           /* Barrier */
+    }
+    if (!arm_feature(env, ARM_FEATURE_V6K) &&
+        arm_feature(env, ARM_FEATURE_V6)) {
+        ret = deposit32(ret, 20, 4, 3);           /* SyncPrim_frac */
+    }
+    if (arm_feature(env, ARM_FEATURE_M)) {
+        ret = deposit32(ret, 24, 4, 1);           /* PSR_M */
+    }
+    /*
+     * SWP_frac -- Value 1 indicates that SWP and SWPB only work in a
+     * uniprocessor context.  Looking at ARM_FEATURE_SWP, we will have
+     * already set ID_ISAR0.Swap to 1, which means that SWP_frac must
+     * be ignored.  While leaving this field 0 may not match certain
+     * real cpus, it is correct with respect to our implementation.
+     */
+
+    return ret;
+}
+
 static void resolve_id_regs(ARMCPU *cpu)
 {
     CPUARMState *env = &cpu->env;
@@ -907,6 +946,11 @@ static void resolve_id_regs(ARMCPU *cpu)
     orig = cpu->id_isar3;
     cpu->id_isar3 = resolve_id_isar3(env);
     g_assert_cmphex(cpu->id_isar3, ==, orig);
+
+    orig = cpu->id_isar4;
+    cpu->id_isar4 = resolve_id_isar4(env);
+    /* Willfully ignore the SWP_frac field.  */
+    g_assert_cmphex(cpu->id_isar4 & 0x0fffffff, ==, orig & 0x0fffffff);
 }
 
 static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
