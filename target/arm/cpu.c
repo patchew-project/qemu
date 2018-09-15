@@ -1080,6 +1080,31 @@ static uint64_t resolve_id_aa64isar1(CPUARMState *env)
     return ret;
 }
 
+static uint64_t resolve_id_aa64pfr0(CPUARMState *env)
+{
+    uint64_t ret = 0;
+
+    ret = deposit64(ret, 0, 4, 2);                /* EL0 */
+    ret = deposit64(ret, 4, 4, 2);                /* EL1 */
+    if (arm_feature(env, ARM_FEATURE_EL2)) {
+        ret = deposit64(ret, 8, 4, 2);            /* EL2 */
+    }
+    if (arm_feature(env, ARM_FEATURE_EL3)) {
+        ret = deposit64(ret, 12, 4, 2);           /* EL3 */
+    }
+    if (arm_feature(env, ARM_FEATURE_V8_FP16)) {
+        ret = deposit64(ret, 16, 4, 1);           /* FP */
+        ret = deposit64(ret, 20, 4, 1);           /* AdvSIMD */
+    }
+    /* GIC -- info not available yet; filled in by id_aa64pfr0_read */
+    /* RAS -- not implemented yet */
+    if (arm_feature(env, ARM_FEATURE_SVE)) {
+        ret = deposit64(ret, 32, 4, 1);           /* SVE */
+    }
+
+    return ret;
+}
+
 static void resolve_id_regs(ARMCPU *cpu)
 {
     CPUARMState *env = &cpu->env;
@@ -1122,6 +1147,10 @@ static void resolve_id_regs(ARMCPU *cpu)
     g_assert_cmphex(cpu->id_aa64isar0, ==, orig);
 
     cpu->id_aa64isar1 = resolve_id_aa64isar1(env);
+
+    orig = cpu->id_aa64pfr0;
+    cpu->id_aa64pfr0 = resolve_id_aa64pfr0(env);
+    g_assert_cmphex(cpu->id_aa64pfr0, ==, orig);
 }
 
 static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
