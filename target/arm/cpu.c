@@ -1017,6 +1017,51 @@ static uint32_t resolve_id_pfr1(CPUARMState *env)
     return ret;
 }
 
+static uint64_t resolve_id_aa64isar0(CPUARMState *env)
+{
+    uint64_t ret = 0;
+
+    /* AES */
+    if (arm_feature(env, ARM_FEATURE_V8_PMULL)) {
+        ret = deposit64(ret, 4, 4, 2);
+    } else if (arm_feature(env, ARM_FEATURE_V8_AES)) {
+        ret = deposit64(ret, 4, 4, 1);
+    }
+    if (arm_feature(env, ARM_FEATURE_V8_SHA1)) {
+        ret = deposit64(ret, 8, 4, 1);            /* SHA1 */
+    }
+    /* SHA2 */
+    if (arm_feature(env, ARM_FEATURE_V8_SHA512)) {
+        ret = deposit64(ret, 12, 4, 2);
+    } else if (arm_feature(env, ARM_FEATURE_V8_SHA256)) {
+        ret = deposit64(ret, 12, 4, 1);
+    }
+    if (arm_feature(env, ARM_FEATURE_CRC)) {
+        ret = deposit64(ret, 16, 4, 1);           /* CRC32 */
+    }
+    if (arm_feature(env, ARM_FEATURE_V8_ATOMICS)) {
+        ret = deposit64(ret, 20, 4, 2);           /* Atomic */
+    }
+    if (arm_feature(env, ARM_FEATURE_V8_RDM)) {
+        ret = deposit64(ret, 28, 4, 1);           /* RDM */
+    }
+    if (arm_feature(env, ARM_FEATURE_V8_SHA3)) {
+        ret = deposit64(ret, 32, 4, 1);           /* SHA3 */
+    }
+    if (arm_feature(env, ARM_FEATURE_V8_SM3)) {
+        ret = deposit64(ret, 36, 4, 1);           /* SM3 */
+    }
+    if (arm_feature(env, ARM_FEATURE_V8_SM4)) {
+        ret = deposit64(ret, 40, 4, 1);           /* SM4 */
+    }
+    if (arm_feature(env, ARM_FEATURE_V8_DOTPROD)) {
+        ret = deposit64(ret, 44, 4, 1);           /* DP */
+    }
+    /* FHM -- not implemented yet */
+
+    return ret;
+}
+
 static void resolve_id_regs(ARMCPU *cpu)
 {
     CPUARMState *env = &cpu->env;
@@ -1053,6 +1098,10 @@ static void resolve_id_regs(ARMCPU *cpu)
     orig = cpu->id_pfr1;
     cpu->id_pfr1 = resolve_id_pfr1(env);
     g_assert_cmphex(cpu->id_pfr1, ==, orig);
+
+    orig = cpu->id_aa64isar0;
+    cpu->id_aa64isar0 = resolve_id_aa64isar0(env);
+    g_assert_cmphex(cpu->id_aa64isar0, ==, orig);
 }
 
 static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
