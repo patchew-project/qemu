@@ -1191,6 +1191,22 @@ int kvm_arch_init_vcpu(CPUState *cs)
     if (has_xsave) {
         env->xsave_buf = qemu_memalign(4096, sizeof(struct kvm_xsave));
     }
+
+    env->nested_state_len = kvm_max_nested_state_length();
+    if (env->nested_state_len > 0) {
+        uint32_t min_nested_state_len =
+            offsetof(struct kvm_nested_state, size) + sizeof(uint32_t);
+
+        /*
+         * Verify nested state length cover at least the size
+         * field of struct kvm_nested_state
+         */
+        assert(env->nested_state_len >= min_nested_state_len);
+
+        env->nested_state = g_malloc0(env->nested_state_len);
+        env->nested_state->size = env->nested_state_len;
+    }
+
     cpu->kvm_msr_buf = g_malloc0(MSR_BUF_SIZE);
 
     if (!(env->features[FEAT_8000_0001_EDX] & CPUID_EXT2_RDTSCP)) {
@@ -2867,12 +2883,50 @@ static int kvm_get_debugregs(X86CPU *cpu)
     return 0;
 }
 
+static int kvm_put_nested_state(X86CPU *cpu)
+{
+    CPUX86State *env = &cpu->env;
+
+    if (kvm_max_nested_state_length() == 0) {
+        return 0;
+    }
+
+    assert(env->nested_state->size <= env->nested_state_len);
+    return kvm_vcpu_ioctl(CPU(cpu), KVM_SET_NESTED_STATE, env->nested_state);
+}
+
+static int kvm_get_nested_state(X86CPU *cpu)
+{
+    CPUX86State *env = &cpu->env;
+
+    if (kvm_max_nested_state_length() == 0) {
+        return 0;
+    }
+
+
+    /*
+     * It is possible that migration restored a smaller size into
+     * nested_state->size than what our kernel support.
+     * We preserve migration origin nested_state->size for
+     * call to KVM_SET_NESTED_STATE but wish that our next call
+     * to KVM_GET_NESTED_STATE will use max size our kernel support.
+     */
+    env->nested_state->size = env->nested_state_len;
+
+    return kvm_vcpu_ioctl(CPU(cpu), KVM_GET_NESTED_STATE, env->nested_state);
+}
+
 int kvm_arch_put_registers(CPUState *cpu, int level)
 {
     X86CPU *x86_cpu = X86_CPU(cpu);
     int ret;
 
     assert(cpu_is_stopped(cpu) || qemu_cpu_is_self(cpu));
+
+    ret = kvm_put_nested_state(x86_cpu);
+    if (ret < 0) {
+        return ret;
+    }
 
     if (level >= KVM_PUT_RESET_STATE) {
         ret = kvm_put_msr_feature_control(x86_cpu);
@@ -2986,6 +3040,10 @@ int kvm_arch_get_registers(CPUState *cs)
         goto out;
     }
     ret = kvm_get_debugregs(cpu);
+    if (ret < 0) {
+        goto out;
+    }
+    ret = kvm_get_nested_state(cpu);
     if (ret < 0) {
         goto out;
     }

@@ -842,6 +842,78 @@ static const VMStateDescription vmstate_tsc_khz = {
     }
 };
 
+static int nested_state_post_load(void *opaque, int version_id)
+{
+    X86CPU *cpu = opaque;
+    CPUX86State *env = &cpu->env;
+    uint32_t min_nested_state_len =
+        offsetof(struct kvm_nested_state, size) + sizeof(uint32_t);
+    uint32_t max_nested_state_len = kvm_max_nested_state_length();
+
+    /*
+     * If our kernel don't support setting nested state
+     * and we have received nested state from migration stream,
+     * we need to fail migration
+     */
+    if (max_nested_state_len == 0) {
+        error_report("Received nested state when "
+                     "kernel cannot restore it");
+        return -EINVAL;
+    }
+
+    /*
+     * Verify that the size of received buffer covers the
+     * struct size field and that the size specified
+     * in given struct is set to no more than the size
+     * that our kernel support
+     */
+    if (env->nested_state_len < min_nested_state_len) {
+        error_report("Received nested state size less than min: "
+                     "len=%d, min=%d",
+                     env->nested_state_len, min_nested_state_len);
+        return -EINVAL;
+    }
+    if (env->nested_state->size > max_nested_state_len) {
+        error_report("Recieved unsupported nested state size: "
+                     "nested_state->size=%d, max=%d",
+                     env->nested_state->size, max_nested_state_len);
+        return -EINVAL;
+    }
+
+    /*
+     * Reallocate nested_state buffer to always remain
+     * in max size which our kernel can support
+     */
+    env->nested_state_len = max_nested_state_len;
+    env->nested_state = g_realloc(env->nested_state,
+                                  env->nested_state_len);
+    assert(env->nested_state);
+
+    return 0;
+}
+
+static bool nested_state_needed(void *opaque)
+{
+    X86CPU *cpu = opaque;
+    CPUX86State *env = &cpu->env;
+    return (env->nested_state_len > 0);
+}
+
+static const VMStateDescription vmstate_nested_state = {
+    .name = "cpu/nested_state",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .post_load = nested_state_post_load,
+    .needed = nested_state_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(env.nested_state_len, X86CPU),
+        VMSTATE_VBUFFER_ALLOC_UINT32(env.nested_state, X86CPU,
+                                     0, NULL,
+                                     env.nested_state_len),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static bool mcg_ext_ctl_needed(void *opaque)
 {
     X86CPU *cpu = opaque;
@@ -1080,6 +1152,7 @@ VMStateDescription vmstate_x86_cpu = {
         &vmstate_msr_intel_pt,
         &vmstate_msr_virt_ssbd,
         &vmstate_svm_npt,
+        &vmstate_nested_state,
         NULL
     }
 };
