@@ -101,13 +101,7 @@ static inline void hreg_compute_hflags(CPUPPCState *env)
 
 static inline void cpu_interrupt_exittb(CPUState *cs)
 {
-    if (!qemu_mutex_iothread_locked()) {
-        qemu_mutex_lock_iothread();
-        cpu_interrupt(cs, CPU_INTERRUPT_EXITTB);
-        qemu_mutex_unlock_iothread();
-    } else {
-        cpu_interrupt(cs, CPU_INTERRUPT_EXITTB);
-    }
+    cpu_interrupt(cs, CPU_INTERRUPT_EXITTB);
 }
 
 static inline int hreg_store_msr(CPUPPCState *env, target_ulong value,
