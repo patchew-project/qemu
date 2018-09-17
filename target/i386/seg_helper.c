@@ -1323,7 +1323,7 @@ bool x86_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 
 #if !defined(CONFIG_USER_ONLY)
     if (interrupt_request & CPU_INTERRUPT_POLL) {
-        cs->interrupt_request &= ~CPU_INTERRUPT_POLL;
+        cpu_reset_interrupt(cs, CPU_INTERRUPT_POLL);
         apic_poll_irq(cpu->apic_state);
         /* Don't process multiple interrupt requests in a single call.
            This is required to make icount-driven execution deterministic. */
@@ -1337,18 +1337,18 @@ bool x86_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
         if ((interrupt_request & CPU_INTERRUPT_SMI) &&
             !(env->hflags & HF_SMM_MASK)) {
             cpu_svm_check_intercept_param(env, SVM_EXIT_SMI, 0, 0);
-            cs->interrupt_request &= ~CPU_INTERRUPT_SMI;
+            cpu_reset_interrupt(cs, CPU_INTERRUPT_SMI);
             do_smm_enter(cpu);
             ret = true;
         } else if ((interrupt_request & CPU_INTERRUPT_NMI) &&
                    !(env->hflags2 & HF2_NMI_MASK)) {
             cpu_svm_check_intercept_param(env, SVM_EXIT_NMI, 0, 0);
-            cs->interrupt_request &= ~CPU_INTERRUPT_NMI;
+            cpu_reset_interrupt(cs, CPU_INTERRUPT_NMI);
             env->hflags2 |= HF2_NMI_MASK;
             do_interrupt_x86_hardirq(env, EXCP02_NMI, 1);
             ret = true;
         } else if (interrupt_request & CPU_INTERRUPT_MCE) {
-            cs->interrupt_request &= ~CPU_INTERRUPT_MCE;
+            cpu_reset_interrupt(cs, CPU_INTERRUPT_MCE);
             do_interrupt_x86_hardirq(env, EXCP12_MCHK, 0);
             ret = true;
         } else if ((interrupt_request & CPU_INTERRUPT_HARD) &&
@@ -1359,8 +1359,7 @@ bool x86_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
                       !(env->hflags & HF_INHIBIT_IRQ_MASK))))) {
             int intno;
             cpu_svm_check_intercept_param(env, SVM_EXIT_INTR, 0, 0);
-            cs->interrupt_request &= ~(CPU_INTERRUPT_HARD |
-                                       CPU_INTERRUPT_VIRQ);
+            cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD | CPU_INTERRUPT_VIRQ);
             intno = cpu_get_pic_interrupt(env);
             qemu_log_mask(CPU_LOG_TB_IN_ASM,
                           "Servicing hardware INT=0x%02x\n", intno);
@@ -1380,7 +1379,7 @@ bool x86_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
             qemu_log_mask(CPU_LOG_TB_IN_ASM,
                           "Servicing virtual hardware INT=0x%02x\n", intno);
             do_interrupt_x86_hardirq(env, intno, 1);
-            cs->interrupt_request &= ~CPU_INTERRUPT_VIRQ;
+            cpu_reset_interrupt(cs, CPU_INTERRUPT_VIRQ);
             ret = true;
 #endif
         }
