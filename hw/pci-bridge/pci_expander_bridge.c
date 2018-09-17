@@ -42,6 +42,8 @@ typedef struct PXBBus {
 #define TYPE_PXB_PCIE_DEVICE "pxb-pcie"
 #define PXB_PCIE_DEV(obj) OBJECT_CHECK(PXBDev, (obj), TYPE_PXB_PCIE_DEVICE)
 
+#define PROP_PXB_PCIE_DOMAIN_NR "domain_nr"
+#define PROP_PXB_PCIE_MAX_BUS "max_bus"
 #define PROP_PXB_BUS_NR "bus_nr"
 #define PROP_PXB_NUMA_NODE "numa_node"
 
@@ -52,6 +54,8 @@ typedef struct PXBDev {
 
     uint8_t bus_nr;
     uint16_t numa_node;
+    uint32_t domain_nr; /* PCI domain, non-zero means separate domain */
+    uint8_t max_bus;    /* max bus number to use(including this one) */
 } PXBDev;
 
 #define TYPE_PXB_PCIE_HOST "pxb-pcie-host"
@@ -79,6 +83,14 @@ static int pxb_bus_num(PCIBus *bus)
     PXBDev *pxb = convert_to_pxb(bus->parent_dev);
 
     return pxb->bus_nr;
+}
+
+static int pxb_domain_num(PCIBus *bus)
+{
+    PXBDev *pxb = convert_to_pxb(bus->parent_dev);
+
+    /* for pxb, this should always be zero */
+    return pxb->domain_nr;
 }
 
 static bool pxb_is_root(PCIBus *bus)
@@ -122,7 +134,7 @@ static const char *pxb_host_root_bus_path(PCIHostState *host_bridge,
     PXBBus *bus = pci_bus_is_express(rootbus) ?
                   PXB_PCIE_BUS(rootbus) : PXB_BUS(rootbus);
 
-    snprintf(bus->bus_path, 8, "0000:%02x", pxb_bus_num(rootbus));
+    snprintf(bus->bus_path, 8, "%04x:%02x", pxb_domain_num(rootbus), pxb_bus_num(rootbus));
     return bus->bus_path;
 }
 
@@ -275,7 +287,10 @@ static gint pxb_compare(gconstpointer a, gconstpointer b)
 {
     const PXBDev *pxb_a = a, *pxb_b = b;
 
-    return pxb_a->bus_nr < pxb_b->bus_nr ? -1 :
+    /* compare domain_nr first, then bus_nr */
+    return pxb_a->domain_nr < pxb_b->domain_nr ? -1 :
+           pxb_a->domain_nr > pxb_b->domain_nr ?  1 :
+           pxb_a->bus_nr < pxb_b->bus_nr ? -1 :
            pxb_a->bus_nr > pxb_b->bus_nr ?  1 :
            0;
 }
@@ -299,6 +314,7 @@ static void pxb_dev_realize_common(PCIDevice *dev, bool pcie, Error **errp)
     }
 
     if (pcie) {
+        g_assert (pxb->domain_nr == 0 || pxb->max_bus >= pxb->bus_nr);
         ds = qdev_create(NULL, TYPE_PXB_PCIE_HOST);
         bus = pci_root_bus_new(ds, dev_name, NULL, NULL, 0, TYPE_PXB_PCIE_BUS);
     } else {
@@ -368,6 +384,9 @@ static Property pxb_dev_properties[] = {
 static Property pxb_pcie_dev_properties[] = {
     DEFINE_PROP_UINT8(PROP_PXB_BUS_NR, PXBDev, bus_nr, 0),
     DEFINE_PROP_UINT16(PROP_PXB_NUMA_NODE, PXBDev, numa_node, NUMA_NODE_UNASSIGNED),
+    DEFINE_PROP_UINT32(PROP_PXB_PCIE_DOMAIN_NR, PXBDev, domain_nr, 0),
+    /* set a small default value, bus range is [bus_nr, max_bus] */
+    DEFINE_PROP_UINT8(PROP_PXB_PCIE_MAX_BUS, PXBDev, max_bus, 15),
     DEFINE_PROP_END_OF_LIST(),
 };
 
