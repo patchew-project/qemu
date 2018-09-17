@@ -324,6 +324,31 @@ MemoryRegion *sysbus_address_space(SysBusDevice *dev)
     return get_system_memory();
 }
 
+static void sysbus_device_clock_callback(void *opaque, ClockState *clk)
+{
+    SysBusDevice *dev = opaque;
+    bool enable = clock_state_is_domain_running(clk);
+    int i;
+
+    /* set/clear mmio visible flag on clock change */
+    for (i = 0; i < dev->num_mmio && i < QDEV_MAX_MMIO; i++) {
+        MemoryRegion *mr = sysbus_mmio_get_region(dev, i);
+        memory_region_set_enabled(mr, enable);
+    }
+}
+
+void sysbus_init_bus_interface_clock(SysBusDevice *dev, const char *name)
+{
+    assert(dev->bus_itf_clk == NULL);
+    dev->bus_itf_clk = qdev_init_clock_in(DEVICE(dev), name,
+            sysbus_device_clock_callback, dev);
+}
+
+ClockIn *sysbus_get_bus_interface_clock(SysBusDevice *dev)
+{
+    return dev->bus_itf_clk;
+}
+
 static void sysbus_device_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);

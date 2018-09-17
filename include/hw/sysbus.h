@@ -73,6 +73,7 @@ struct SysBusDevice {
     } mmio[QDEV_MAX_MMIO];
     int num_pio;
     uint32_t pio[QDEV_MAX_PIO];
+    ClockIn *bus_itf_clk;
 };
 
 typedef void FindSysbusDeviceFunc(SysBusDevice *sbdev, void *opaque);
@@ -134,5 +135,26 @@ static inline DeviceState *sysbus_try_create_simple(const char *name,
 {
     return sysbus_try_create_varargs(name, addr, irq, NULL);
 }
+
+/**
+ * sysbus_init_bus_interface_clock:
+ * @dev: the sysbus device
+ * @name: the name of the clock
+ *
+ * Add the bus interface clock to the device. Mmios will be enabled/disabled
+ * according to the clock status. Must not be called more than once on the same
+ * device.
+ *
+ * Note: if this clock remains unconnected, the sysbus device will work as if
+ * the clock was absent (no side-effect).
+ */
+void sysbus_init_bus_interface_clock(SysBusDevice *dev, const char *name);
+
+/**
+ * sysbus_init_get_interface_clock:
+ * @dev: the sysbus device
+ * @retuns: the clock previously added by sysbus_init_bus_interface_clock.
+ */
+ClockIn *sysbus_get_bus_interface_clock(SysBusDevice *dev);
 
 #endif /* HW_SYSBUS_H */
