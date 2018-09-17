@@ -1879,10 +1879,12 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
 
     crs_range_set_init(&crs_range_set);
     bus = PC_MACHINE(machine)->bus;
+    i = 1; // PCI0 is q35 host, pxb starts from PCI1
     if (bus) {
         QLIST_FOREACH(bus, &bus->child, sibling) {
             uint8_t bus_num = pci_bus_num(bus);
             uint8_t numa_node = pci_bus_numa_node(bus);
+            uint32_t domain_num = pci_bus_domain_num(bus);
 
             /* look only for expander root buses */
             if (!pci_bus_is_root(bus)) {
@@ -1894,9 +1896,10 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
             }
 
             scope = aml_scope("\\_SB");
-            dev = aml_device("PC%.02X", bus_num);
+            dev = aml_device("PCI%d", i++);
             aml_append(dev, aml_name_decl("_UID", aml_int(bus_num)));
             aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0A03")));
+            aml_append(dev, aml_name_decl("_SEG", aml_int(domain_num)));
             aml_append(dev, aml_name_decl("_BBN", aml_int(bus_num)));
             if (pci_bus_is_express(bus)) {
                 aml_append(dev, build_q35_osc_method());
@@ -2130,35 +2133,39 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
     {
         Object *pci_host;
         PCIBus *bus = NULL;
+        int index = 0;
 
         pci_host = acpi_get_i386_pci_host();
-        if (pci_host) {
+        while (pci_host) {
             bus = PCI_HOST_BRIDGE(pci_host)->bus;
-        }
 
-        if (bus) {
-            Aml *scope = aml_scope("PCI0");
-            /* Scan all PCI buses. Generate tables to support hotplug. */
-            build_append_pci_bus_devices(scope, bus, pm->pcihp_bridge_en);
+            if (bus) {
+                Aml *scope = aml_scope("PCI%d", index);
+                /* Scan all PCI buses. Generate tables to support hotplug. */
+                build_append_pci_bus_devices(scope, bus, pm->pcihp_bridge_en);
 
-            if (TPM_IS_TIS(tpm_find())) {
-                dev = aml_device("ISA.TPM");
-                aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0C31")));
-                aml_append(dev, aml_name_decl("_STA", aml_int(0xF)));
-                crs = aml_resource_template();
-                aml_append(crs, aml_memory32_fixed(TPM_TIS_ADDR_BASE,
-                           TPM_TIS_ADDR_SIZE, AML_READ_WRITE));
-                /*
-                    FIXME: TPM_TIS_IRQ=5 conflicts with PNP0C0F irqs,
-                    Rewrite to take IRQ from TPM device model and
-                    fix default IRQ value there to use some unused IRQ
-                 */
-                /* aml_append(crs, aml_irq_no_flags(TPM_TIS_IRQ)); */
-                aml_append(dev, aml_name_decl("_CRS", crs));
-                aml_append(scope, dev);
+                /* Only add TPM once in pci domain 0 */
+                if (index++ == 0 && TPM_IS_TIS(tpm_find())) {
+                    dev = aml_device("ISA.TPM");
+                    aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0C31")));
+                    aml_append(dev, aml_name_decl("_STA", aml_int(0xF)));
+                    crs = aml_resource_template();
+                    aml_append(crs, aml_memory32_fixed(TPM_TIS_ADDR_BASE,
+                               TPM_TIS_ADDR_SIZE, AML_READ_WRITE));
+                    /*
+                        FIXME: TPM_TIS_IRQ=5 conflicts with PNP0C0F irqs,
+                        Rewrite to take IRQ from TPM device model and
+                        fix default IRQ value there to use some unused IRQ
+                     */
+                    /* aml_append(crs, aml_irq_no_flags(TPM_TIS_IRQ)); */
+                    aml_append(dev, aml_name_decl("_CRS", crs));
+                    aml_append(scope, dev);
+                }
+
+                aml_append(sb_scope, scope);
             }
 
-            aml_append(sb_scope, scope);
+            pci_host = OBJECT(QTAILQ_NEXT(PCI_HOST_BRIDGE(pci_host), next));
         }
     }
 
