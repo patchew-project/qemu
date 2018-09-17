@@ -20,6 +20,7 @@
 #include "hw/pci-bridge/pci_expander_bridge.h"
 #include "qemu/range.h"
 #include "qemu/error-report.h"
+#include "qemu/units.h"
 #include "sysemu/numa.h"
 #include "qapi/visitor.h"
 
@@ -395,6 +396,41 @@ static void pxb_dev_exitfn(PCIDevice *pci_dev)
     pxb_dev_list = g_list_remove(pxb_dev_list, pxb);
 }
 
+static void pxb_pcie_update_pciexbar(PXBDev *pxb)
+{
+    PCIDevice *pci_dev = PCI_DEVICE(pxb);
+    PCIBus *pxb_bus = pci_get_bus(pci_dev);
+    BusState *bus = BUS(QLIST_FIRST(&pxb_bus->child));
+    PCIExpressHost *pehb = PCIE_HOST_BRIDGE(bus->parent);
+
+    uint64_t addr;
+    uint32_t length;
+    int enable;
+
+    addr = pci_get_quad(pci_dev->config + PXB_PCIE_HOST_BRIDGE_MCFG_BAR);
+    enable = addr & PXB_PCIE_HOST_BRIDGE_ENABLE;
+    addr &= PXB_PCIE_HOST_BRIDGE_PCIEXBAR_ADMSK;
+    length = (pxb->max_bus - pxb->bus_nr + 1) * MiB;
+
+    pcie_host_mmcfg_update(pehb, enable, addr, length);
+}
+
+static void pxb_pcie_config_write(PCIDevice *d, uint32_t address,
+                                      uint32_t val, int len)
+{
+    PXBDev *pxb = PXB_PCIE_DEV(d);
+
+    pci_default_write_config(d, address, val, len);
+
+    /* Since desired bus number is provided by pxb-pcie,
+       we just need seabios to decide the mcfg_base for us.
+       mcfg_size can be calculated easily */
+    if (ranges_overlap(address, len, PXB_PCIE_HOST_BRIDGE_MCFG_BAR,
+                       PXB_PCIE_HOST_BRIDGE_MCFG_BAR_SIZE)) {
+        pxb_pcie_update_pciexbar(pxb);
+    }
+}
+
 static Property pxb_dev_properties[] = {
     /* Note: 0 is not a legal PXB bus number. */
     DEFINE_PROP_UINT8(PROP_PXB_BUS_NR, PXBDev, bus_nr, 0),
@@ -459,6 +495,7 @@ static void pxb_pcie_dev_class_init(ObjectClass *klass, void *data)
     k->vendor_id = PCI_VENDOR_ID_REDHAT;
     k->device_id = PCI_DEVICE_ID_REDHAT_PXB_PCIE;
     k->class_id = PCI_CLASS_BRIDGE_HOST;
+    k->config_write = pxb_pcie_config_write;
 
     dc->desc = "PCI Express Expander Bridge";
     dc->props = pxb_pcie_dev_properties;
