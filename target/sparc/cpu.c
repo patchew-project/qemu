@@ -709,7 +709,7 @@ static bool sparc_cpu_has_work(CPUState *cs)
     SPARCCPU *cpu = SPARC_CPU(cs);
     CPUSPARCState *env = &cpu->env;
 
-    return (cs->interrupt_request & CPU_INTERRUPT_HARD) &&
+    return (atomic_read(&cs->interrupt_request) & CPU_INTERRUPT_HARD) &&
            cpu_interrupts_enabled(env);
 }
 
