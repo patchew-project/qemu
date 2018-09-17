@@ -15,10 +15,12 @@
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/pci/pci_host.h"
+#include "hw/pci/pcie_host.h"
 #include "hw/pci/pci_bridge.h"
 #include "qemu/range.h"
 #include "qemu/error-report.h"
 #include "sysemu/numa.h"
+#include "qapi/visitor.h"
 
 #define TYPE_PXB_BUS "pxb-bus"
 #define PXB_BUS(obj) OBJECT_CHECK(PXBBus, (obj), TYPE_PXB_BUS)
@@ -40,6 +42,9 @@ typedef struct PXBBus {
 #define TYPE_PXB_PCIE_DEVICE "pxb-pcie"
 #define PXB_PCIE_DEV(obj) OBJECT_CHECK(PXBDev, (obj), TYPE_PXB_PCIE_DEVICE)
 
+#define PROP_PXB_BUS_NR "bus_nr"
+#define PROP_PXB_NUMA_NODE "numa_node"
+
 typedef struct PXBDev {
     /*< private >*/
     PCIDevice parent_obj;
@@ -48,6 +53,16 @@ typedef struct PXBDev {
     uint8_t bus_nr;
     uint16_t numa_node;
 } PXBDev;
+
+#define TYPE_PXB_PCIE_HOST "pxb-pcie-host"
+#define PXB_PCIE_HOST_DEVICE(obj) \
+     OBJECT_CHECK(PXBPCIEHost, (obj), TYPE_PXB_PCIE_HOST)
+
+typedef struct PXBPCIEHost {
+    /*< private >*/
+    PCIExpressHost parent_obj;
+    /*< public >*/
+} PXBPCIEHost;
 
 static PXBDev *convert_to_pxb(PCIDevice *dev)
 {
@@ -142,6 +157,40 @@ static char *pxb_host_ofw_unit_address(const SysBusDevice *dev)
     return NULL;
 }
 
+static void pxb_pcie_host_get_mmcfg_base(Object *obj, Visitor *v, const char *name,
+                                    void *opaque, Error **errp)
+{
+    PCIExpressHost *e = PCIE_HOST_BRIDGE(obj);
+
+    visit_type_uint64(v, name, &e->size, errp);
+}
+
+static void pxb_pcie_host_get_mmcfg_size(Object *obj, Visitor *v, const char *name,
+                                    void *opaque, Error **errp)
+{
+    PCIExpressHost *e = PCIE_HOST_BRIDGE(obj);
+
+    visit_type_uint64(v, name, &e->size, errp);
+}
+
+static void pxb_pcie_host_initfn(Object *obj)
+{
+    PCIHostState *phb = PCI_HOST_BRIDGE(obj);
+
+    memory_region_init_io(&phb->conf_mem, obj, &pci_host_conf_le_ops, phb,
+                          "pci-conf-idx", 4);
+    memory_region_init_io(&phb->data_mem, obj, &pci_host_data_le_ops, phb,
+                          "pci-conf-data", 4);
+
+    object_property_add(obj, PCIE_HOST_MCFG_BASE, "uint64",
+                         pxb_pcie_host_get_mmcfg_base,
+                         NULL, NULL, NULL, NULL);
+
+    object_property_add(obj, PCIE_HOST_MCFG_SIZE, "uint64",
+                         pxb_pcie_host_get_mmcfg_size,
+                         NULL, NULL, NULL, NULL);
+}
+
 static void pxb_host_class_init(ObjectClass *class, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(class);
@@ -159,6 +208,27 @@ static const TypeInfo pxb_host_info = {
     .name          = TYPE_PXB_HOST,
     .parent        = TYPE_PCI_HOST_BRIDGE,
     .class_init    = pxb_host_class_init,
+};
+
+static void pxb_pcie_host_class_init(ObjectClass *class, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(class);
+    SysBusDeviceClass *sbc = SYS_BUS_DEVICE_CLASS(class);
+    PCIHostBridgeClass *hc = PCI_HOST_BRIDGE_CLASS(class);
+
+    dc->fw_name = "pcie";
+    /* Reason: Internal part of the pxb/pxb-pcie device, not usable by itself */
+    dc->user_creatable = false;
+    sbc->explicit_ofw_unit_address = pxb_host_ofw_unit_address;
+    hc->root_bus_path = pxb_host_root_bus_path;
+}
+
+static const TypeInfo pxb_pcie_host_info = {
+    .name          = TYPE_PXB_PCIE_HOST,
+    .parent        = TYPE_PCIE_HOST_BRIDGE,
+    .instance_size = sizeof(PXBPCIEHost),
+    .instance_init = pxb_pcie_host_initfn,
+    .class_init    = pxb_pcie_host_class_init,
 };
 
 /*
@@ -228,10 +298,11 @@ static void pxb_dev_realize_common(PCIDevice *dev, bool pcie, Error **errp)
         dev_name = dev->qdev.id;
     }
 
-    ds = qdev_create(NULL, TYPE_PXB_HOST);
     if (pcie) {
+        ds = qdev_create(NULL, TYPE_PXB_PCIE_HOST);
         bus = pci_root_bus_new(ds, dev_name, NULL, NULL, 0, TYPE_PXB_PCIE_BUS);
     } else {
+        ds = qdev_create(NULL, TYPE_PXB_HOST);
         bus = pci_root_bus_new(ds, "pxb-internal", NULL, NULL, 0, TYPE_PXB_BUS);
         bds = qdev_create(BUS(bus), "pci-bridge");
         bds->id = dev_name;
@@ -289,8 +360,14 @@ static void pxb_dev_exitfn(PCIDevice *pci_dev)
 
 static Property pxb_dev_properties[] = {
     /* Note: 0 is not a legal PXB bus number. */
-    DEFINE_PROP_UINT8("bus_nr", PXBDev, bus_nr, 0),
-    DEFINE_PROP_UINT16("numa_node", PXBDev, numa_node, NUMA_NODE_UNASSIGNED),
+    DEFINE_PROP_UINT8(PROP_PXB_BUS_NR, PXBDev, bus_nr, 0),
+    DEFINE_PROP_UINT16(PROP_PXB_NUMA_NODE, PXBDev, numa_node, NUMA_NODE_UNASSIGNED),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static Property pxb_pcie_dev_properties[] = {
+    DEFINE_PROP_UINT8(PROP_PXB_BUS_NR, PXBDev, bus_nr, 0),
+    DEFINE_PROP_UINT16(PROP_PXB_NUMA_NODE, PXBDev, numa_node, NUMA_NODE_UNASSIGNED),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -344,7 +421,7 @@ static void pxb_pcie_dev_class_init(ObjectClass *klass, void *data)
     k->class_id = PCI_CLASS_BRIDGE_HOST;
 
     dc->desc = "PCI Express Expander Bridge";
-    dc->props = pxb_dev_properties;
+    dc->props = pxb_pcie_dev_properties;
     dc->hotpluggable = false;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
 }
@@ -365,6 +442,7 @@ static void pxb_register_types(void)
     type_register_static(&pxb_bus_info);
     type_register_static(&pxb_pcie_bus_info);
     type_register_static(&pxb_host_info);
+    type_register_static(&pxb_pcie_host_info);
     type_register_static(&pxb_dev_info);
     type_register_static(&pxb_pcie_dev_info);
 }
