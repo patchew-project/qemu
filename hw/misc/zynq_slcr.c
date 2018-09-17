@@ -33,6 +33,8 @@
         } \
     } while (0)
 
+#define INPUT_PS_REF_CLK_FREQUENCY (33333333)
+
 #define XILINX_LOCK_KEY 0x767b
 #define XILINX_UNLOCK_KEY 0xdf0d
 
@@ -44,15 +46,27 @@ REG32(LOCKSTA, 0x00c)
 REG32(ARM_PLL_CTRL, 0x100)
 REG32(DDR_PLL_CTRL, 0x104)
 REG32(IO_PLL_CTRL, 0x108)
+/* fields for [ARM|DDR|IO_PLL]_CTRL registers */
+    FIELD(xxx_PLL_CTRL, PLL_RESET, 0, 1)
+    FIELD(xxx_PLL_CTRL, PLL_PWRDWN, 1, 1)
+    FIELD(xxx_PLL_CTRL, PLL_BYPASS_QUAL, 3, 1)
+    FIELD(xxx_PLL_CTRL, PLL_BYPASS_FORCE, 4, 1)
+    FIELD(xxx_PLL_CTRL, PLL_FPDIV, 12, 7)
 REG32(PLL_STATUS, 0x10c)
 REG32(ARM_PLL_CFG, 0x110)
 REG32(DDR_PLL_CFG, 0x114)
 REG32(IO_PLL_CFG, 0x118)
 
 REG32(ARM_CLK_CTRL, 0x120)
+    FIELD(ARM_CLK_CTRL, SRCSEL,  4, 2)
+    FIELD(ARM_CLK_CTRL, DIVISOR, 8, 6)
+    FIELD(ARM_CLK_CTRL, CPU_1XCLKACT, 27, 1)
+    FIELD(ARM_CLK_CTRL, CPU_PERI_CLKACT, 28, 1)
 REG32(DDR_CLK_CTRL, 0x124)
 REG32(DCI_CLK_CTRL, 0x128)
 REG32(APER_CLK_CTRL, 0x12c)
+    FIELD(APER_CLK_CTRL, UART0_CPU1XCLKACT, 20, 1)
+    FIELD(APER_CLK_CTRL, UART1_CPU1XCLKACT, 21, 1)
 REG32(USB0_CLK_CTRL, 0x130)
 REG32(USB1_CLK_CTRL, 0x134)
 REG32(GEM0_RCLK_CTRL, 0x138)
@@ -63,12 +77,19 @@ REG32(SMC_CLK_CTRL, 0x148)
 REG32(LQSPI_CLK_CTRL, 0x14c)
 REG32(SDIO_CLK_CTRL, 0x150)
 REG32(UART_CLK_CTRL, 0x154)
+    FIELD(UART_CLK_CTRL, CLKACT0, 0, 1)
+    FIELD(UART_CLK_CTRL, CLKACT1, 1, 1)
+    FIELD(UART_CLK_CTRL, SRCSEL,  4, 2)
+    FIELD(UART_CLK_CTRL, DIVISOR, 8, 6)
 REG32(SPI_CLK_CTRL, 0x158)
 REG32(CAN_CLK_CTRL, 0x15c)
 REG32(CAN_MIOCLK_CTRL, 0x160)
 REG32(DBG_CLK_CTRL, 0x164)
 REG32(PCAP_CLK_CTRL, 0x168)
 REG32(TOPSW_CLK_CTRL, 0x16c)
+/* common fields to lots of *_CLK_CTRL registers */
+    FIELD(xxx_CLK_CTRL, SRCSEL,  4, 2)
+    FIELD(xxx_CLK_CTRL, DIVISOR, 8, 6)
 
 #define FPGA_CTRL_REGS(n, start) \
     REG32(FPGA ## n ## _CLK_CTRL, (start)) \
@@ -96,6 +117,10 @@ REG32(SPI_RST_CTRL, 0x21c)
 REG32(CAN_RST_CTRL, 0x220)
 REG32(I2C_RST_CTRL, 0x224)
 REG32(UART_RST_CTRL, 0x228)
+    FIELD(UART_RST_CTRL, UART0_CPU1X_RST, 0, 1)
+    FIELD(UART_RST_CTRL, UART1_CPU1X_RST, 1, 1)
+    FIELD(UART_RST_CTRL, UART0_REF_RST, 2, 1)
+    FIELD(UART_RST_CTRL, UART1_REF_RST, 3, 1)
 REG32(GPIO_RST_CTRL, 0x22c)
 REG32(LQSPI_RST_CTRL, 0x230)
 REG32(SMC_RST_CTRL, 0x234)
@@ -178,7 +203,106 @@ typedef struct ZynqSLCRState {
     MemoryRegion iomem;
 
     uint32_t regs[ZYNQ_SLCR_NUM_REGS];
+
+    ClockOut *uart0_amba_clk;
+    ClockOut *uart1_amba_clk;
+    ClockOut *uart0_ref_clk;
+    ClockOut *uart1_ref_clk;
 } ZynqSLCRState;
+
+/*
+ * return the output frequency of ARM/DDR/IO pll
+ * using input frequency and PLL_CTRL register
+ */
+static uint64_t zynq_slcr_compute_pll(uint64_t input, uint32_t ctrl_reg)
+{
+    uint32_t mult = ((ctrl_reg & R_xxx_PLL_CTRL_PLL_FPDIV_MASK) >>
+            R_xxx_PLL_CTRL_PLL_FPDIV_SHIFT);
+
+    /* first, check if pll is bypassed */
+    if (ctrl_reg & R_xxx_PLL_CTRL_PLL_BYPASS_FORCE_MASK) {
+        return input;
+    }
+
+    /* is pll disabled ? */
+    if (ctrl_reg & (R_xxx_PLL_CTRL_PLL_RESET_MASK |
+                    R_xxx_PLL_CTRL_PLL_PWRDWN_MASK)) {
+        return 0;
+    }
+
+    return input * mult;
+}
+
+/*
+ * return the output frequency of a clock given:
+ * + the pll's frequencies in an array corresponding to mux's indexes
+ * + the register xxx_CLK_CTRL value
+ * + enable bit index in ctrl register
+ *
+ * This function make the assumption that ctrl_reg value is organized as follow:
+ * + bits[13:8] clock divisor
+ * + bits[5:4]  clock mux selector (index in array)
+ * + bits[index] clock enable
+ */
+static uint64_t zynq_slcr_compute_clock(const uint64_t plls[],
+                                        uint32_t ctrl_reg,
+                                        unsigned index)
+{
+    uint32_t divisor = FIELD_EX32(ctrl_reg, xxx_CLK_CTRL, DIVISOR);
+    uint32_t srcsel = FIELD_EX32(ctrl_reg, xxx_CLK_CTRL, SRCSEL);
+
+    if ((ctrl_reg & (1u << index)) == 0) {
+        return 0;
+    }
+
+    return plls[srcsel] / (divisor ? divisor : 1u);
+}
+
+#define ZYNQ_CLOCK(_state, _plls, _reg, _enable_field) \
+    zynq_slcr_compute_clock((_plls), (_state)->regs[R_ ## _reg], \
+            R_ ## _reg ## _ ## _enable_field ## _SHIFT)
+#define ZYNQ_CLOCK_GATE(_state, _clk, _reg, _field) \
+    (ARRAY_FIELD_EX32((_state)->regs, _reg, _field) ? (_clk) : 0)
+#define ZYNQ_CLOCK_RESET(_state, _reg, _field) \
+    (ARRAY_FIELD_EX32((_state)->regs, _reg, _field) != 0)
+
+static void zynq_clock_set(ClockOut *clk, uint64_t freq, bool reset)
+{
+    ClockState value = {
+        .frequency = freq,
+        .domain_reset = reset,
+    };
+    clock_set(clk, &value);
+}
+
+static void zynq_slcr_compute_clocks(ZynqSLCRState *s)
+{
+    uint64_t ps_clk = INPUT_PS_REF_CLK_FREQUENCY;
+    uint64_t io_pll = zynq_slcr_compute_pll(ps_clk, s->regs[R_IO_PLL_CTRL]);
+    uint64_t arm_pll = zynq_slcr_compute_pll(ps_clk, s->regs[R_ARM_PLL_CTRL]);
+    uint64_t ddr_pll = zynq_slcr_compute_pll(ps_clk, s->regs[R_DDR_PLL_CTRL]);
+    uint64_t cpu_mux[4] = {arm_pll, arm_pll, ddr_pll, io_pll};
+    uint64_t uart_mux[4] = {io_pll, io_pll, arm_pll, ddr_pll};
+    uint64_t cpu1x_clk;
+
+    /* compute uartX amba clocks */
+    cpu1x_clk = ZYNQ_CLOCK(s, cpu_mux, ARM_CLK_CTRL, CPU_PERI_CLKACT);
+    cpu1x_clk = ZYNQ_CLOCK_GATE(s, cpu1x_clk, ARM_CLK_CTRL, CPU_1XCLKACT);
+    zynq_clock_set(s->uart0_amba_clk,
+            ZYNQ_CLOCK_GATE(s, cpu1x_clk, APER_CLK_CTRL, UART0_CPU1XCLKACT),
+            ZYNQ_CLOCK_RESET(s, UART_RST_CTRL, UART0_CPU1X_RST));
+    zynq_clock_set(s->uart1_amba_clk,
+            ZYNQ_CLOCK_GATE(s, cpu1x_clk, APER_CLK_CTRL, UART1_CPU1XCLKACT),
+            ZYNQ_CLOCK_RESET(s, UART_RST_CTRL, UART1_CPU1X_RST));
+
+    /* compute uartX ref clocks */
+    zynq_clock_set(s->uart0_ref_clk,
+            ZYNQ_CLOCK(s, uart_mux, UART_CLK_CTRL, CLKACT0),
+            ZYNQ_CLOCK_RESET(s, UART_RST_CTRL, UART0_REF_RST));
+    zynq_clock_set(s->uart1_ref_clk,
+            ZYNQ_CLOCK(s, uart_mux, UART_CLK_CTRL, CLKACT1),
+            ZYNQ_CLOCK_RESET(s, UART_RST_CTRL, UART1_REF_RST));
+}
 
 static void zynq_slcr_reset(DeviceState *d)
 {
@@ -274,6 +398,8 @@ static void zynq_slcr_reset(DeviceState *d)
     s->regs[R_DDRIOB + 4] = s->regs[R_DDRIOB + 5] = s->regs[R_DDRIOB + 6]
                           = 0x00000e00;
     s->regs[R_DDRIOB + 12] = 0x00000021;
+
+    zynq_slcr_compute_clocks(s);
 }
 
 
@@ -408,6 +534,15 @@ static void zynq_slcr_write(void *opaque, hwaddr offset,
             qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
         }
         break;
+    case R_IO_PLL_CTRL:
+    case R_ARM_PLL_CTRL:
+    case R_DDR_PLL_CTRL:
+    case R_ARM_CLK_CTRL:
+    case R_APER_CLK_CTRL:
+    case R_UART_CLK_CTRL:
+    case R_UART_RST_CTRL:
+        zynq_slcr_compute_clocks(s);
+        break;
     }
 }
 
@@ -417,6 +552,14 @@ static const MemoryRegionOps slcr_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+static const ClockPortInitArray zynq_slcr_clocks = {
+    QDEV_CLOCK_OUT(ZynqSLCRState, uart0_amba_clk),
+    QDEV_CLOCK_OUT(ZynqSLCRState, uart1_amba_clk),
+    QDEV_CLOCK_OUT(ZynqSLCRState, uart0_ref_clk),
+    QDEV_CLOCK_OUT(ZynqSLCRState, uart1_ref_clk),
+    QDEV_CLOCK_END,
+};
+
 static void zynq_slcr_init(Object *obj)
 {
     ZynqSLCRState *s = ZYNQ_SLCR(obj);
@@ -424,12 +567,24 @@ static void zynq_slcr_init(Object *obj)
     memory_region_init_io(&s->iomem, obj, &slcr_ops, s, "slcr",
                           ZYNQ_SLCR_MMIO_SIZE);
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->iomem);
+
+    qdev_init_clocks(DEVICE(obj), zynq_slcr_clocks);
+}
+
+static int zynq_slcr_post_load(void *opaque, int version_id)
+{
+    ZynqSLCRState *s = opaque;
+
+    /* we need to setup all clock ports after migration */
+    zynq_slcr_compute_clocks(s);
+    return 0;
 }
 
 static const VMStateDescription vmstate_zynq_slcr = {
     .name = "zynq_slcr",
     .version_id = 2,
     .minimum_version_id = 2,
+    .post_load = zynq_slcr_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, ZynqSLCRState, ZYNQ_SLCR_NUM_REGS),
         VMSTATE_END_OF_LIST()
