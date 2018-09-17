@@ -742,7 +742,13 @@ void ppc_cpu_do_interrupt(CPUState *cs)
     PowerPCCPU *cpu = POWERPC_CPU(cs);
     CPUPPCState *env = &cpu->env;
 
-    powerpc_excp(cpu, env->excp_model, cs->exception_index);
+    if (qemu_mutex_iothread_locked()) {
+        powerpc_excp(cpu, env->excp_model, cs->exception_index);
+    } else {
+        qemu_mutex_lock_iothread();
+        powerpc_excp(cpu, env->excp_model, cs->exception_index);
+        qemu_mutex_unlock_iothread();
+    }
 }
 
 static void ppc_hw_interrupt(CPUPPCState *env)

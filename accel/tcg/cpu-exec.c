@@ -497,9 +497,7 @@ static inline bool cpu_handle_exception(CPUState *cpu, int *ret)
 #else
         if (replay_exception()) {
             CPUClass *cc = CPU_GET_CLASS(cpu);
-            qemu_mutex_lock_iothread();
             cc->do_interrupt(cpu);
-            qemu_mutex_unlock_iothread();
             cpu->exception_index = -1;
         } else if (!replay_has_interrupt()) {
             /* give a chance to iothread in replay mode */

@@ -378,7 +378,8 @@ static void do_mchk_interrupt(CPUS390XState *env)
     load_psw(env, mask, addr);
 }
 
-void s390_cpu_do_interrupt(CPUState *cs)
+/* call with the BQL held */
+static void s390_cpu_do_interrupt_locked(CPUState *cs)
 {
     QEMUS390FLICState *flic = QEMU_S390_FLIC(s390_get_flic());
     S390CPU *cpu = S390_CPU(cs);
@@ -454,6 +455,17 @@ try_deliver:
     } else if (cs->halted) {
         /* unhalt if we had a WAIT PSW somehwere in our injection chain */
         s390_cpu_unhalt(cpu);
+    }
+}
+
+void s390_cpu_do_interrupt(CPUState *cs)
+{
+    if (qemu_mutex_iothread_locked()) {
+        s390_cpu_do_interrupt_locked(cs);
+    } else {
+        qemu_mutex_lock_iothread();
+        s390_cpu_do_interrupt_locked(cs);
+        qemu_mutex_unlock_iothread();
     }
 }
 

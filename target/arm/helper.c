@@ -7644,7 +7644,8 @@ gen_invep:
     return false;
 }
 
-void arm_v7m_cpu_do_interrupt(CPUState *cs)
+/* call with the BQL held */
+static void arm_v7m_cpu_do_interrupt_locked(CPUState *cs)
 {
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
@@ -7826,6 +7827,17 @@ void arm_v7m_cpu_do_interrupt(CPUState *cs)
 
     ignore_stackfaults = v7m_push_stack(cpu);
     v7m_exception_taken(cpu, lr, false, ignore_stackfaults);
+}
+
+void arm_v7m_cpu_do_interrupt(CPUState *cs)
+{
+    if (qemu_mutex_iothread_locked()) {
+        arm_v7m_cpu_do_interrupt_locked(cs);
+    } else {
+        qemu_mutex_lock_iothread();
+        arm_v7m_cpu_do_interrupt_locked(cs);
+        qemu_mutex_unlock_iothread();
+    }
 }
 
 /* Function used to synchronize QEMU's AArch64 register set with AArch32
@@ -8482,8 +8494,9 @@ static inline bool check_for_semihosting(CPUState *cs)
  * Do any appropriate logging, handle PSCI calls, and then hand off
  * to the AArch64-entry or AArch32-entry function depending on the
  * target exception level's register width.
+ * Call with the BQL held.
  */
-void arm_cpu_do_interrupt(CPUState *cs)
+static void arm_cpu_do_interrupt_locked(CPUState *cs)
 {
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
@@ -8531,6 +8544,17 @@ void arm_cpu_do_interrupt(CPUState *cs)
 
     if (!kvm_enabled()) {
         atomic_or(&cs->interrupt_request, CPU_INTERRUPT_EXITTB);
+    }
+}
+
+void arm_cpu_do_interrupt(CPUState *cs)
+{
+    if (qemu_mutex_iothread_locked()) {
+        arm_cpu_do_interrupt_locked(cs);
+    } else {
+        qemu_mutex_lock_iothread();
+        arm_cpu_do_interrupt_locked(cs);
+        qemu_mutex_unlock_iothread();
     }
 }
 

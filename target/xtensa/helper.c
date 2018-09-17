@@ -26,6 +26,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/main-loop.h"
 #include "qemu/units.h"
 #include "cpu.h"
 #include "exec/exec-all.h"
@@ -243,8 +244,8 @@ static void handle_interrupt(CPUXtensaState *env)
     }
 }
 
-/* Called from cpu_handle_interrupt with BQL held */
-void xtensa_cpu_do_interrupt(CPUState *cs)
+/* Call with the BQL held */
+static void xtensa_cpu_do_interrupt_locked(CPUState *cs)
 {
     XtensaCPU *cpu = XTENSA_CPU(cs);
     CPUXtensaState *env = &cpu->env;
@@ -296,6 +297,17 @@ void xtensa_cpu_do_interrupt(CPUState *cs)
         break;
     }
     check_interrupts(env);
+}
+
+void xtensa_cpu_do_interrupt(CPUState *cs)
+{
+    if (qemu_mutex_iothread_locked()) {
+        xtensa_cpu_do_interrupt_locked(cs);
+    } else {
+        qemu_mutex_lock_iothread();
+        xtensa_cpu_do_interrupt_locked(cs);
+        qemu_mutex_unlock_iothread();
+    }
 }
 #else
 void xtensa_cpu_do_interrupt(CPUState *cs)

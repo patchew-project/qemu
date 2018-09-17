@@ -79,7 +79,8 @@ int cpu_sh4_is_cached(CPUSH4State * env, target_ulong addr)
 #define MMU_DADDR_ERROR_READ     (-12)
 #define MMU_DADDR_ERROR_WRITE    (-13)
 
-void superh_cpu_do_interrupt(CPUState *cs)
+/* call with the BQL held */
+static void superh_cpu_do_interrupt_locked(CPUState *cs)
 {
     SuperHCPU *cpu = SUPERH_CPU(cs);
     CPUSH4State *env = &cpu->env;
@@ -208,6 +209,17 @@ void superh_cpu_do_interrupt(CPUState *cs)
         env->intevt = irq_vector;
         env->pc = env->vbr + 0x600;
         return;
+    }
+}
+
+void superh_cpu_do_interrupt(CPUState *cs)
+{
+    if (qemu_mutex_iothread_locked()) {
+        superh_cpu_do_interrupt_locked(cs);
+    } else {
+        qemu_mutex_lock_iothread();
+        superh_cpu_do_interrupt_locked(cs);
+        qemu_mutex_unlock_iothread();
     }
 }
 
