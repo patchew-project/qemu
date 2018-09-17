@@ -138,3 +138,29 @@ void qdev_clock_connect(DeviceState *dev, const char *name,
 
     clock_connect(ncl->in , drv_ncl->out);
 }
+
+void qdev_init_clocks(DeviceState *dev, const ClockPortInitArray clocks)
+{
+    const struct ClockPortInitElem *elem;
+
+    assert(dev);
+    assert(clocks);
+
+    for (elem = &clocks[0]; elem->name != NULL; elem++) {
+        /* offset cannot be inside the DeviceState part */
+        assert(elem->offset == 0 || elem->offset > sizeof(DeviceState));
+        if (elem->output) {
+            ClockOut *clk;
+            clk = qdev_init_clock_out(dev, elem->name);
+            if (elem->offset) {
+                *(ClockOut **)(((void *) dev) + elem->offset) = clk;
+            }
+        } else {
+            ClockIn *clk;
+            clk = qdev_init_clock_in(dev, elem->name, elem->callback, dev);
+            if (elem->offset) {
+                *(ClockIn **)(((void *) dev) + elem->offset) = clk;
+            }
+        }
+    }
+}
