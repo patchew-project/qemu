@@ -2,7 +2,19 @@
 #define HW_COMPAT_H
 
 #define HW_COMPAT_3_0 \
-    /* empty */
+    {\
+        .driver   = "usb-kbd",\
+        .property = "serial",\
+        .value    = "42",\
+    },{\
+        .driver   = "usb-mouse",\
+        .property = "serial",\
+        .value    = "42",\
+    },{\
+        .driver   = "usb-tablet",\
+        .property = "serial",\
+        .value    = "42",\
+    },
 
 #define HW_COMPAT_2_12 \
     {\
