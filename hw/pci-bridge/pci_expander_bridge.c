@@ -370,6 +370,11 @@ static void pxb_dev_realize_common(PCIDevice *dev, bool pcie, Error **errp)
                                PCI_STATUS_66MHZ | PCI_STATUS_FAST_BACK);
     pci_config_set_class(dev->config, PCI_CLASS_BRIDGE_HOST);
 
+    if (pcie && pxb->domain_nr > 0) {
+       pci_set_long(dev->config + PXB_PCIE_HOST_BRIDGE_MCFG_SIZE,
+                    (pxb->max_bus - pxb->bus_nr + 1) * MiB);
+    }
+
     pxb_dev_list = g_list_insert_sorted(pxb_dev_list, pxb, pxb_compare);
     return;
 

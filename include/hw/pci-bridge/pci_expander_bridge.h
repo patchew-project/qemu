@@ -20,4 +20,6 @@ typedef struct PXBPCIEHost {
 /* The mcfg_base of pxb-pcie is not 256MB-aligned, but MB-aligned */
 #define PXB_PCIE_HOST_BRIDGE_PCIEXBAR_ADMSK         Q35_MASK(64, 35, 20)
 
+#define PXB_PCIE_HOST_BRIDGE_MCFG_SIZE              0x58    /* 32bit register */
+
 #endif
