@@ -17,6 +17,7 @@
 #include "hw/pci/pci_host.h"
 #include "hw/pci/pcie_host.h"
 #include "hw/pci/pci_bridge.h"
+#include "hw/pci-bridge/pci_expander_bridge.h"
 #include "qemu/range.h"
 #include "qemu/error-report.h"
 #include "sysemu/numa.h"
@@ -58,16 +59,6 @@ typedef struct PXBDev {
     uint8_t max_bus;    /* max bus number to use(including this one) */
 } PXBDev;
 
-#define TYPE_PXB_PCIE_HOST "pxb-pcie-host"
-#define PXB_PCIE_HOST_DEVICE(obj) \
-     OBJECT_CHECK(PXBPCIEHost, (obj), TYPE_PXB_PCIE_HOST)
-
-typedef struct PXBPCIEHost {
-    /*< private >*/
-    PCIExpressHost parent_obj;
-    /*< public >*/
-} PXBPCIEHost;
-
 static PXBDev *convert_to_pxb(PCIDevice *dev)
 {
     return pci_bus_is_express(pci_get_bus(dev))
@@ -85,11 +76,17 @@ static int pxb_bus_num(PCIBus *bus)
     return pxb->bus_nr;
 }
 
-static int pxb_domain_num(PCIBus *bus)
+static int pxb_max_bus(PCIBus *bus)
 {
     PXBDev *pxb = convert_to_pxb(bus->parent_dev);
 
-    /* for pxb, this should always be zero */
+    return pxb->max_bus;
+}
+
+static uint32_t pxb_domain_num(PCIBus *bus)
+{
+    PXBDev *pxb = convert_to_pxb(bus->parent_dev);
+
     return pxb->domain_nr;
 }
 
@@ -110,8 +107,10 @@ static void pxb_bus_class_init(ObjectClass *class, void *data)
     PCIBusClass *pbc = PCI_BUS_CLASS(class);
 
     pbc->bus_num = pxb_bus_num;
+    pbc->max_bus = pxb_max_bus;
     pbc->is_root = pxb_is_root;
     pbc->numa_node = pxb_bus_numa_node;
+    pbc->domain_num = pxb_domain_num;
 }
 
 static const TypeInfo pxb_bus_info = {
@@ -174,7 +173,17 @@ static void pxb_pcie_host_get_mmcfg_base(Object *obj, Visitor *v, const char *na
 {
     PCIExpressHost *e = PCIE_HOST_BRIDGE(obj);
 
-    visit_type_uint64(v, name, &e->size, errp);
+    visit_type_uint64(v, name, &e->base_addr, errp);
+}
+
+static void pxb_pcie_host_set_mmcfg_base(Object *obj, Visitor *v, const char *name,
+                       void *opaque, Error **errp)
+{
+    PXBPCIEHost *host = PXB_PCIE_HOST_DEVICE(obj);
+    uint64_t value;
+
+    visit_type_uint64(v, name, &value, errp);
+    host->parent_obj.base_addr = value;
 }
 
 static void pxb_pcie_host_get_mmcfg_size(Object *obj, Visitor *v, const char *name,
@@ -183,6 +192,16 @@ static void pxb_pcie_host_get_mmcfg_size(Object *obj, Visitor *v, const char *na
     PCIExpressHost *e = PCIE_HOST_BRIDGE(obj);
 
     visit_type_uint64(v, name, &e->size, errp);
+}
+
+static void pxb_pcie_host_set_mmcfg_size(Object *obj, Visitor *v, const char *name,
+                       void *opaque, Error **errp)
+{
+    PXBPCIEHost *host = PXB_PCIE_HOST_DEVICE(obj);
+    uint32_t value;
+
+    visit_type_uint32(v, name, &value, errp);
+    host->parent_obj.size = value;
 }
 
 static void pxb_pcie_host_initfn(Object *obj)
@@ -196,11 +215,13 @@ static void pxb_pcie_host_initfn(Object *obj)
 
     object_property_add(obj, PCIE_HOST_MCFG_BASE, "uint64",
                          pxb_pcie_host_get_mmcfg_base,
-                         NULL, NULL, NULL, NULL);
+                         pxb_pcie_host_set_mmcfg_base,
+                         NULL, NULL, NULL);
 
     object_property_add(obj, PCIE_HOST_MCFG_SIZE, "uint64",
                          pxb_pcie_host_get_mmcfg_size,
-                         NULL, NULL, NULL, NULL);
+                         pxb_pcie_host_set_mmcfg_size,
+                         NULL, NULL, NULL);
 }
 
 static void pxb_host_class_init(ObjectClass *class, void *data)

@@ -55,6 +55,7 @@
 #include "hw/i386/ich9.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/pci-host/q35.h"
+#include "hw/pci-bridge/pci_expander_bridge.h"
 #include "hw/i386/x86-iommu.h"
 
 #include "hw/acpi/aml-build.h"
@@ -89,6 +90,10 @@
 typedef struct AcpiMcfgInfo {
     uint64_t mcfg_base;
     uint32_t mcfg_size;
+    uint32_t domain_nr;
+    uint8_t start_bus;
+    uint8_t end_bus;
+    QTAILQ_ENTRY(AcpiMcfgInfo) next;
 } AcpiMcfgInfo;
 
 typedef struct AcpiPmInfo {
@@ -118,6 +123,9 @@ typedef struct AcpiBuildPciBusHotplugState {
     struct AcpiBuildPciBusHotplugState *parent;
     bool pcihp_bridge_en;
 } AcpiBuildPciBusHotplugState;
+
+static QTAILQ_HEAD(, AcpiMcfgInfo) mcfg =
+         QTAILQ_HEAD_INITIALIZER(mcfg);
 
 static void init_common_fadt_data(Object *o, AcpiFadtData *data)
 {
@@ -2378,18 +2386,28 @@ build_srat(GArray *table_data, BIOSLinker *linker, MachineState *machine)
 }
 
 static void
-build_mcfg_q35(GArray *table_data, BIOSLinker *linker, AcpiMcfgInfo *info)
+build_mcfg_q35(GArray *table_data, BIOSLinker *linker)
 {
-    AcpiTableMcfg *mcfg;
+    AcpiTableMcfg *mcfg_tbl;
     const char *sig;
-    int len = sizeof(*mcfg) + 1 * sizeof(mcfg->allocation[0]);
+    int len, count = 0;
+    AcpiMcfgInfo *info;
 
-    mcfg = acpi_data_push(table_data, len);
-    mcfg->allocation[0].address = cpu_to_le64(info->mcfg_base);
-    /* Only a single allocation so no need to play with segments */
-    mcfg->allocation[0].pci_segment = cpu_to_le16(0);
-    mcfg->allocation[0].start_bus_number = 0;
-    mcfg->allocation[0].end_bus_number = PCIE_MMCFG_BUS(info->mcfg_size - 1);
+    QTAILQ_FOREACH(info, &mcfg, next) {
+        count++;
+    }
+
+    len = sizeof(*mcfg_tbl) + count * sizeof(mcfg_tbl->allocation[0]);
+
+    mcfg_tbl = acpi_data_push(table_data, len);
+
+    count = 0;
+    QTAILQ_FOREACH(info, &mcfg, next) {
+        mcfg_tbl->allocation[count].address = cpu_to_le64(info->mcfg_base);
+        mcfg_tbl->allocation[count].pci_segment = cpu_to_le16(info->domain_nr);
+        mcfg_tbl->allocation[count].start_bus_number = info->start_bus;
+        mcfg_tbl->allocation[count++].end_bus_number = info->end_bus;
+    }
 
     /* MCFG is used for ECAM which can be enabled or disabled by guest.
      * To avoid table size changes (which create migration issues),
@@ -2397,13 +2415,13 @@ build_mcfg_q35(GArray *table_data, BIOSLinker *linker, AcpiMcfgInfo *info)
      * but set the signature to a reserved value in this case.
      * ACPI spec requires OSPMs to ignore such tables.
      */
-    if (info->mcfg_base == PCIE_BASE_ADDR_UNMAPPED) {
+    if (QTAILQ_FIRST(&mcfg)->mcfg_base == PCIE_BASE_ADDR_UNMAPPED) {
         /* Reserved signature: ignored by OSPM */
         sig = "QEMU";
     } else {
         sig = "MCFG";
     }
-    build_header(linker, table_data, (void *)mcfg, sig, len, 1, NULL, NULL);
+    build_header(linker, table_data, (void *)mcfg_tbl, sig, len, 1, NULL, NULL);
 }
 
 /*
@@ -2557,25 +2575,66 @@ struct AcpiBuildState {
     MemoryRegion *linker_mr;
 } AcpiBuildState;
 
-static bool acpi_get_mcfg(AcpiMcfgInfo *mcfg)
+static inline void cleanup_mcfg(void)
+{
+    AcpiMcfgInfo *cfg, *tmp;
+
+    QTAILQ_FOREACH_SAFE (cfg, &mcfg, next, tmp) {
+        QTAILQ_REMOVE(&mcfg, cfg, next);
+        free(cfg);
+    }
+}
+
+static bool acpi_get_mcfg(void)
 {
     Object *pci_host;
     QObject *o;
+    AcpiMcfgInfo *info;
+    uint8_t bus_nr = 0, end_bus = 255;
+    uint32_t domain_nr = 0, mcfg_size = MCH_HOST_BRIDGE_PCIEXBAR_MAX;
+    uint64_t mcfg_base = MCH_HOST_BRIDGE_PCIEXBAR_DEFAULT;
+    PCIBus *bus;
 
     pci_host = acpi_get_i386_pci_host();
     g_assert(pci_host);
 
-    o = object_property_get_qobject(pci_host, PCIE_HOST_MCFG_BASE, NULL);
-    if (!o) {
-        return false;
-    }
-    mcfg->mcfg_base = qnum_get_uint(qobject_to(QNum, o));
-    qobject_unref(o);
+    while (pci_host) {
+        if (object_dynamic_cast(pci_host, TYPE_PXB_PCIE_HOST)) {
+            /* we are in pxb-pcie, overwrite default value */
+            bus = PCI_HOST_BRIDGE(pci_host)->bus;
+            domain_nr = pci_bus_domain_num(bus);
+            if (domain_nr == 0) {
+                pci_host = OBJECT(QTAILQ_NEXT(PCI_HOST_BRIDGE(pci_host), next));
+                continue;
+            }
 
-    o = object_property_get_qobject(pci_host, PCIE_HOST_MCFG_SIZE, NULL);
-    assert(o);
-    mcfg->mcfg_size = qnum_get_uint(qobject_to(QNum, o));
-    qobject_unref(o);
+            o = object_property_get_qobject(pci_host, PCIE_HOST_MCFG_BASE, NULL);
+            assert(o);
+            mcfg_base = qnum_get_uint(qobject_to(QNum, o));
+            qobject_unref(o);
+
+            o = object_property_get_qobject(pci_host, PCIE_HOST_MCFG_SIZE, NULL);
+            assert(o);
+            mcfg_size = qnum_get_uint(qobject_to(QNum, o));
+            qobject_unref(o);
+
+            bus_nr = pci_bus_num(bus);
+            domain_nr = pci_bus_domain_num(bus);
+            end_bus = pci_bus_max_bus(bus);
+        }
+
+        info = g_new0(AcpiMcfgInfo, 1);
+        g_assert(info);
+        info->domain_nr = domain_nr;
+        info->start_bus = bus_nr;
+        info->end_bus = end_bus;
+        info->mcfg_base = mcfg_base;
+        info->mcfg_size = mcfg_size;
+
+        QTAILQ_INSERT_TAIL(&mcfg, info, next);
+        pci_host = OBJECT(QTAILQ_NEXT(PCI_HOST_BRIDGE(pci_host), next));
+    }
+
     return true;
 }
 
@@ -2588,7 +2647,6 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
     unsigned facs, dsdt, rsdt, fadt;
     AcpiPmInfo pm;
     AcpiMiscInfo misc;
-    AcpiMcfgInfo mcfg;
     Range pci_hole, pci_hole64;
     uint8_t *u;
     size_t aml_len = 0;
@@ -2669,10 +2727,11 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
             build_slit(tables_blob, tables->linker);
         }
     }
-    if (acpi_get_mcfg(&mcfg)) {
+    if (acpi_get_mcfg()) {
         acpi_add_table(table_offsets, tables_blob);
-        build_mcfg_q35(tables_blob, tables->linker, &mcfg);
+        build_mcfg_q35(tables_blob, tables->linker);
     }
+    cleanup_mcfg();
     if (x86_iommu_get_default()) {
         IommuType IOMMUType = x86_iommu_get_type();
         if (IOMMUType == TYPE_AMD) {
