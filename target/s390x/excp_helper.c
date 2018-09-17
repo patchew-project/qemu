@@ -480,10 +480,13 @@ bool s390_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
                the parent EXECUTE insn.  */
             return false;
         }
+        qemu_mutex_lock_iothread();
         if (s390_cpu_has_int(cpu)) {
             s390_cpu_do_interrupt(cs);
+            qemu_mutex_unlock_iothread();
             return true;
         }
+        qemu_mutex_unlock_iothread();
         if (env->psw.mask & PSW_MASK_WAIT) {
             /* Woken up because of a floating interrupt but it has already
              * been delivered. Go back to sleep. */

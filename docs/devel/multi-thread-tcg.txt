@@ -231,8 +231,11 @@ BQL. Currently ARM targets serialise all ARM_CP_IO register accesses
 and also defer the reset/startup of vCPUs to the vCPU context by way
 of async_run_on_cpu().
 
-Updates to interrupt state are also protected by the BQL as they can
-often be cross vCPU.
+The CPUClass callbacks cpu_exec_interrupt and do_interrupt are invoked
+without BQL protection.  Accesses to the interrupt controller from
+the vCPU thread, for example while processing CPU_INTERRUPT_HARD, must
+either call qemu_mutex_lock_iothread/qemu_mutex_unlock_iothread or use
+a separate mutex.
 
 Memory Consistency
 ==================

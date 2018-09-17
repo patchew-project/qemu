@@ -357,7 +357,8 @@ static void arm_cpu_reset(CPUState *s)
     hw_watchpoint_update_all(cpu);
 }
 
-bool arm_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
+/* call with the BQL held */
+static bool arm_cpu_exec_interrupt_locked(CPUState *cs, int interrupt_request)
 {
     CPUClass *cc = CPU_GET_CLASS(cs);
     CPUARMState *env = cs->env_ptr;
@@ -411,6 +412,16 @@ bool arm_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
     return ret;
 }
 
+bool arm_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
+{
+    bool ret;
+
+    qemu_mutex_lock_iothread();
+    ret = arm_cpu_exec_interrupt_locked(cs, interrupt_request);
+    qemu_mutex_unlock_iothread();
+    return ret;
+}
+
 #if !defined(CONFIG_USER_ONLY) || !defined(TARGET_AARCH64)
 static bool arm_v7m_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 {
@@ -419,6 +430,7 @@ static bool arm_v7m_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
     CPUARMState *env = &cpu->env;
     bool ret = false;
 
+    qemu_mutex_lock_iothread();
     /* ARMv7-M interrupt masking works differently than -A or -R.
      * There is no FIQ/IRQ distinction. Instead of I and F bits
      * masking FIQ and IRQ interrupts, an exception is taken only
@@ -432,6 +444,7 @@ static bool arm_v7m_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
         cc->do_interrupt(cs);
         ret = true;
     }
+    qemu_mutex_unlock_iothread();
     return ret;
 }
 #endif

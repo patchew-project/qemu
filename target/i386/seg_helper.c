@@ -19,6 +19,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/main-loop.h"
 #include "cpu.h"
 #include "qemu/log.h"
 #include "exec/helper-proto.h"
@@ -1324,7 +1325,9 @@ bool x86_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 #if !defined(CONFIG_USER_ONLY)
     if (interrupt_request & CPU_INTERRUPT_POLL) {
         cpu_reset_interrupt(cs, CPU_INTERRUPT_POLL);
+        qemu_mutex_lock_iothread();
         apic_poll_irq(cpu->apic_state);
+        qemu_mutex_unlock_iothread();
         /* Don't process multiple interrupt requests in a single call.
            This is required to make icount-driven execution deterministic. */
         return true;
