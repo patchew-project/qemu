@@ -3007,9 +3007,7 @@ void kvm_arch_pre_run(CPUState *cpu, struct kvm_run *run)
     /* Inject NMI */
     if (interrupt_request & (CPU_INTERRUPT_NMI | CPU_INTERRUPT_SMI)) {
         if (interrupt_request & CPU_INTERRUPT_NMI) {
-            qemu_mutex_lock_iothread();
             cpu_reset_interrupt(cpu, CPU_INTERRUPT_NMI);
-            qemu_mutex_unlock_iothread();
             DPRINTF("injected NMI\n");
             ret = kvm_vcpu_ioctl(cpu, KVM_NMI);
             if (ret < 0) {
@@ -3018,9 +3016,7 @@ void kvm_arch_pre_run(CPUState *cpu, struct kvm_run *run)
             }
         }
         if (atomic_read(&cpu->interrupt_request) & CPU_INTERRUPT_SMI) {
-            qemu_mutex_lock_iothread();
             cpu_reset_interrupt(cpu, CPU_INTERRUPT_SMI);
-            qemu_mutex_unlock_iothread();
             DPRINTF("injected SMI\n");
             ret = kvm_vcpu_ioctl(cpu, KVM_SMI);
             if (ret < 0) {
