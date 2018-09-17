@@ -30,13 +30,13 @@ struct QObject *object_property_get_qobject(Object *obj, const char *name,
 /**
  * object_property_set_qobject:
  * @obj: the object
- * @ret: The value that will be written to the property.
+ * @value: The value that will be written to the property.
  * @name: the name of the property
  * @errp: returns an error if this function fails
  *
  * Writes a property to a object.
  */
-void object_property_set_qobject(Object *obj, struct QObject *qobj,
+void object_property_set_qobject(Object *obj, struct QObject *value,
                                  const char *name, struct Error **errp);
 
 #endif
