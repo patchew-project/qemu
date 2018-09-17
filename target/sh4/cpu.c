@@ -45,7 +45,7 @@ static void superh_cpu_synchronize_from_tb(CPUState *cs, TranslationBlock *tb)
 
 static bool superh_cpu_has_work(CPUState *cs)
 {
-    return cs->interrupt_request & CPU_INTERRUPT_HARD;
+    return atomic_read(&cs->interrupt_request) & CPU_INTERRUPT_HARD;
 }
 
 /* CPUClass::reset() */
