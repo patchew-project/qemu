@@ -84,7 +84,8 @@ static void mb_cpu_set_pc(CPUState *cs, vaddr value)
 
 static bool mb_cpu_has_work(CPUState *cs)
 {
-    return cs->interrupt_request & (CPU_INTERRUPT_HARD | CPU_INTERRUPT_NMI);
+    return atomic_read(&cs->interrupt_request) & (CPU_INTERRUPT_HARD |
+                                                  CPU_INTERRUPT_NMI);
 }
 
 #ifndef CONFIG_USER_ONLY
