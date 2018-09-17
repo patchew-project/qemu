@@ -1,0 +1,6 @@
+# See docs/devel/tracing.txt for syntax documentation.
+
+# hw/core/clock-port.c
+clock_connect(const char *clk, const char *driver) "'%s' drived-by '%s'"
+clock_disconnect(const char *clk) "'%s'"
+clock_update(const char *clk, uint64_t freq, int reset) "'%s' frequency %" PRIu64 "Hz reset %d"
