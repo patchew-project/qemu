@@ -4,5 +4,6 @@
 #include "hw/hw.h"
 #include "hw/qdev-core.h"
 #include "hw/qdev-properties.h"
+#include "hw/qdev-clock.h"
 
 #endif

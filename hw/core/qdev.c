@@ -790,6 +790,7 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
     DeviceClass *dc = DEVICE_GET_CLASS(dev);
     HotplugHandler *hotplug_ctrl;
     BusState *bus;
+    NamedClockList *clk;
     Error *local_err = NULL;
     bool unattached_parent = false;
     static int unattached_count;
@@ -846,6 +847,15 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
          */
         g_free(dev->canonical_path);
         dev->canonical_path = object_get_canonical_path(OBJECT(dev));
+        QLIST_FOREACH(clk, &dev->clocks, node) {
+            if (clk->forward) {
+                continue;
+            } else if (clk->in != NULL) {
+                clock_setup_canonical_path(CLOCK_PORT(clk->in));
+            } else {
+                clock_setup_canonical_path(CLOCK_PORT(clk->out));
+            }
+        }
 
         if (qdev_get_vmsd(dev)) {
             if (vmstate_register_with_alias_id(dev, -1, qdev_get_vmsd(dev), dev,
@@ -972,6 +982,7 @@ static void device_initfn(Object *obj)
                              (Object **)&dev->parent_bus, NULL, 0,
                              &error_abort);
     QLIST_INIT(&dev->gpios);
+    QLIST_INIT(&dev->clocks);
 }
 
 static void device_post_init(Object *obj)
@@ -983,6 +994,7 @@ static void device_post_init(Object *obj)
 static void device_finalize(Object *obj)
 {
     NamedGPIOList *ngl, *next;
+    NamedClockList *clk, *clk_next;
 
     DeviceState *dev = DEVICE(obj);
 
@@ -994,6 +1006,23 @@ static void device_finalize(Object *obj)
         /* ngl->out irqs are owned by the other end and should not be freed
          * here
          */
+    }
+
+    QLIST_FOREACH_SAFE(clk, &dev->clocks, node, clk_next) {
+        QLIST_REMOVE(clk, node);
+        if (!clk->forward && clk->in) {
+            /*
+             * if this clock is not forwarded, clk->in & clk->out are child of
+             * dev.
+             * At this point the properties and associated reference are
+             * already deleted but we kept a ref on clk->in to ensure we
+             * don't have a lost callback to a deleted device somewhere.
+             */
+            clock_clear_callback(clk->in);
+            object_unref(OBJECT(clk->in));
+        }
+        g_free(clk->name);
+        g_free(clk);
     }
 
     /* Only send event if the device had been completely realized */
