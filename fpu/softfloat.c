@@ -751,9 +751,17 @@ float64 __attribute__((flatten)) float64_add(float64 a, float64 b,
 {
     FloatParts pa = float64_unpack_canonical(a, status);
     FloatParts pb = float64_unpack_canonical(b, status);
-    FloatParts pr = addsub_floats(pa, pb, false, status);
+    FloatParts intermediate_parts = addsub_floats(pa, pb, false, status);
 
-    return float64_round_pack_canonical(pr, status);
+    float64 rounded_result = float64_round_pack_canonical(intermediate_parts,
+                                                          status);
+    FloatParts rounded_parts = float64_unpack_canonical(rounded_result, status);
+
+    if (rounded_parts.frac != intermediate_parts.frac) {
+        float_raise(float_flag_round, status);
+    }
+
+    return rounded_result;
 }
 
 float16 __attribute__((flatten)) float16_sub(float16 a, float16 b,

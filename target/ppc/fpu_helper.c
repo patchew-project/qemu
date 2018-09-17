@@ -581,6 +581,7 @@ static void do_float_check_status(CPUPPCState *env, uintptr_t raddr)
     CPUState *cs = CPU(ppc_env_get_cpu(env));
     int status = get_float_exception_flags(&env->fp_status);
     bool inexact_happened = false;
+    bool round_happened = false;
 
     if (status & float_flag_overflow) {
         float_overflow_excp(env);
@@ -591,9 +592,20 @@ static void do_float_check_status(CPUPPCState *env, uintptr_t raddr)
         inexact_happened = true;
     }
 
+    /* if the round flag was set */
+    if (status & float_flag_round) {
+        round_happened = true;
+        env->fpscr |= 1 << FPSCR_FR;
+    }
+
     /* if the inexact flag was not set */
     if (inexact_happened == false) {
         env->fpscr &= ~(1 << FPSCR_FI); /* clear the FPSCR[FI] bit */
+    }
+
+    /* if the floating-point fraction rounded bit was not set */
+    if (round_happened == false) {
+        env->fpscr &= ~(1 << FPSCR_FR); /* clear the FPSCR[FR] bit */
     }
 
     if (cs->exception_index == POWERPC_EXCP_PROGRAM &&
