@@ -1230,7 +1230,10 @@
 ##
 # @system_wakeup:
 #
-# Wakeup guest from suspend.  Does nothing in case the guest isn't suspended.
+# If the guest has wake-up from suspend support enabled
+# (wakeup-suspend-support flag from query-current-machine), wakeup guest
+# from suspend if the guest is in SUSPENDED state. Returns an error
+# otherwise.
 #
 # Since:  1.1
 #

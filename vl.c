@@ -1747,7 +1747,7 @@ void qemu_register_wakeup_support(void)
     wakeup_suspend_enabled = true;
 }
 
-static bool qemu_wakeup_suspend_enabled(void)
+bool qemu_wakeup_suspend_enabled(void)
 {
     return wakeup_suspend_enabled;
 }

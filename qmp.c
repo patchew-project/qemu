@@ -183,6 +183,16 @@ void qmp_cont(Error **errp)
 
 void qmp_system_wakeup(Error **errp)
 {
+    if (!qemu_wakeup_suspend_enabled()) {
+        error_setg(errp,
+                   "wake-up from suspend is not supported by this guest");
+        return;
+    }
+    if (!runstate_check(RUN_STATE_SUSPENDED)) {
+        error_setg(errp,
+                   "Unable to wake up: guest is not in suspended state");
+        return;
+    }
     qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER);
 }
 
