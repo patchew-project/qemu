@@ -1104,7 +1104,13 @@
 ##
 # @cpu-add:
 #
-# Adds CPU with specified ID
+# Adds CPU with specified ID.
+#
+# Notes: This command is likely to be deprecated in the future.  The
+#        way to achieve the intended functionality of 'cpu-add', which
+#        is to allow CPU hot-plug, is possible with the combination of
+#        QMP 'query-hotpluggable-cpus' and 'device_add'.  (And
+#        hot-unplug via 'device_del'.)
 #
 # @id: ID of CPU to be created, valid values [0..max_cpus)
 #
