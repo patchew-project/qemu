@@ -82,6 +82,7 @@
 
 #define DEFAULT_CLUSTER_SIZE S_64KiB
 
+#define DEFAULT_CACHE_CLEAN_INTERVAL 600  /* seconds */
 
 #define QCOW2_OPT_LAZY_REFCOUNTS "lazy-refcounts"
 #define QCOW2_OPT_DISCARD_REQUEST "pass-discard-request"
