@@ -53,6 +53,7 @@ enum VhostUserProtocolFeature {
     VHOST_USER_PROTOCOL_F_CONFIG = 9,
     VHOST_USER_PROTOCOL_F_SLAVE_SEND_FD = 10,
     VHOST_USER_PROTOCOL_F_HOST_NOTIFIER = 11,
+    VHOST_USER_PROTOCOL_F_VFIO_CONTAINER = 12,
 
     VHOST_USER_PROTOCOL_F_MAX
 };
@@ -99,6 +100,7 @@ typedef enum VhostUserSlaveRequest {
     VHOST_USER_SLAVE_IOTLB_MSG = 1,
     VHOST_USER_SLAVE_CONFIG_CHANGE_MSG = 2,
     VHOST_USER_SLAVE_VRING_HOST_NOTIFIER_MSG = 3,
+    VHOST_USER_SLAVE_VFIO_CONTAINER_MSG = 4,
     VHOST_USER_SLAVE_MAX
 }  VhostUserSlaveRequest;
 
@@ -400,6 +402,16 @@ void vu_set_queue_handler(VuDev *dev, VuVirtq *vq,
  */
 bool vu_set_queue_host_notifier(VuDev *dev, VuVirtq *vq, int fd,
                                 int size, int offset);
+
+/**
+ * vu_set_vfio_container:
+ * @dev: a VuDev context
+ * @fd: a VFIO container file descriptor
+ *
+ * Set device's VFIO container file descriptor. If called with
+ * -1 @fd, the container is destroyed.
+ */
+bool vu_set_vfio_container(VuDev *dev, int fd);
 
 /**
  * vu_queue_set_notification:

@@ -979,6 +979,32 @@ bool vu_set_queue_host_notifier(VuDev *dev, VuVirtq *vq, int fd,
     return vu_process_message_reply(dev, &vmsg);
 }
 
+bool vu_set_vfio_container(VuDev *dev, int fd)
+{
+    int fd_num = 0;
+    VhostUserMsg vmsg = {
+        .request = VHOST_USER_SLAVE_VFIO_CONTAINER_MSG,
+        .flags = VHOST_USER_VERSION | VHOST_USER_NEED_REPLY_MASK,
+        .size = 0,
+    };
+
+    if (fd != -1) {
+        vmsg.fds[fd_num++] = fd;
+    }
+
+    vmsg.fd_num = fd_num;
+
+    if ((dev->protocol_features & VHOST_USER_PROTOCOL_F_SLAVE_SEND_FD) == 0) {
+        return false;
+    }
+
+    if (!vu_message_write(dev, dev->slave_fd, &vmsg)) {
+        return false;
+    }
+
+    return vu_process_message_reply(dev, &vmsg);
+}
+
 static bool
 vu_set_vring_call_exec(VuDev *dev, VhostUserMsg *vmsg)
 {
@@ -1033,7 +1059,8 @@ vu_get_protocol_features_exec(VuDev *dev, VhostUserMsg *vmsg)
     uint64_t features = 1ULL << VHOST_USER_PROTOCOL_F_LOG_SHMFD |
                         1ULL << VHOST_USER_PROTOCOL_F_SLAVE_REQ |
                         1ULL << VHOST_USER_PROTOCOL_F_HOST_NOTIFIER |
-                        1ULL << VHOST_USER_PROTOCOL_F_SLAVE_SEND_FD;
+                        1ULL << VHOST_USER_PROTOCOL_F_SLAVE_SEND_FD |
+                        1ULL << VHOST_USER_PROTOCOL_F_VFIO_CONTAINER;
 
     if (have_userfault()) {
         features |= 1ULL << VHOST_USER_PROTOCOL_F_PAGEFAULT;
