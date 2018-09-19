@@ -858,6 +858,38 @@ struct target_pollfd {
 
 #define TARGET_FS_IOC_FIEMAP TARGET_IOWR('f',11,struct fiemap)
 
+#if defined(CONFIG_USBFS)
+/* usb ioctls */
+#define TARGET_USBDEVFS_CONTROL TARGET_IOWR('U', 0, struct usbdevfs_ctrltransfer)
+#define TARGET_USBDEVFS_BULK TARGET_IOWR('U', 2, struct usbdevfs_bulktransfer)
+#define TARGET_USBDEVFS_RESETEP TARGET_IOR('U', 3, int)
+#define TARGET_USBDEVFS_SETINTERFACE TARGET_IOR('U', 4, struct usbdevfs_setinterface)
+#define TARGET_USBDEVFS_SETCONFIGURATION TARGET_IOR('U',  5, int)
+#define TARGET_USBDEVFS_GETDRIVER TARGET_IOW('U', 8, struct usbdevfs_getdriver)
+#define TARGET_USBDEVFS_SUBMITURB TARGET_IOR('U', 10, struct usbdevfs_urb)
+#define TARGET_USBDEVFS_DISCARDURB TARGET_IO('U', 11)
+#define TARGET_USBDEVFS_REAPURB TARGET_IOW('U', 12, int)
+#define TARGET_USBDEVFS_REAPURBNDELAY TARGET_IOW('U', 13, int)
+#define TARGET_USBDEVFS_DISCSIGNAL TARGET_IOR('U', 14, struct usbdevfs_disconnectsignal)
+#define TARGET_USBDEVFS_CLAIMINTERFACE TARGET_IOR('U', 15, int)
+#define TARGET_USBDEVFS_RELEASEINTERFACE TARGET_IOR('U', 16, int)
+#define TARGET_USBDEVFS_CONNECTINFO TARGET_IOW('U', 17, struct usbdevfs_connectinfo)
+#define TARGET_USBDEVFS_IOCTL TARGET_IOWR('U', 18, struct usbdevfs_ioctl)
+#define TARGET_USBDEVFS_HUB_PORTINFO TARGET_IOR('U', 19, struct usbdevfs_hub_portinfo)
+#define TARGET_USBDEVFS_RESET TARGET_IO('U', 20)
+#define TARGET_USBDEVFS_CLEAR_HALT TARGET_IOR('U', 21, int)
+#define TARGET_USBDEVFS_DISCONNECT TARGET_IO('U', 22)
+#define TARGET_USBDEVFS_CONNECT TARGET_IO('U', 23)
+#define TARGET_USBDEVFS_CLAIM_PORT TARGET_IOR('U', 24, int)
+#define TARGET_USBDEVFS_RELEASE_PORT TARGET_IOR('U', 25, int)
+#define TARGET_USBDEVFS_GET_CAPABILITIES TARGET_IOR('U', 26, int)
+#define TARGET_USBDEVFS_DISCONNECT_CLAIM TARGET_IOR('U', 27, struct usbdevfs_disconnect_claim)
+#define TARGET_USBDEVFS_ALLOC_STREAMS TARGET_IOR('U', 28, struct usbdevfs_streams)
+#define TARGET_USBDEVFS_FREE_STREAMS TARGET_IOR('U', 29, struct usbdevfs_streams)
+#define TARGET_USBDEVFS_DROP_PRIVILEGES TARGET_IOW('U', 30, int)
+#define TARGET_USBDEVFS_GET_SPEED TARGET_IO('U', 31)
+#endif /* CONFIG_USBFS */
+
 /* cdrom commands */
 #define TARGET_CDROMPAUSE		0x5301 /* Pause Audio Operation */
 #define TARGET_CDROMRESUME		0x5302 /* Resume paused Audio Operation */
