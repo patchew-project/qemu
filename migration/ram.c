@@ -907,6 +907,11 @@ static void multifd_send_terminate_threads(Error *err)
         }
     }
 
+    /* in case multifd_send_state has been freed earlier */
+    if (!multifd_send_state) {
+        return;
+    }
+
     for (i = 0; i < migrate_multifd_channels(); i++) {
         MultiFDSendParams *p = &multifd_send_state->params[i];
 
@@ -926,6 +931,10 @@ int multifd_save_cleanup(Error **errp)
         return 0;
     }
     multifd_send_terminate_threads(NULL);
+    /* in case multifd_send_state has been freed earlier */
+    if (!multifd_send_state) {
+        return 0;
+    }
     for (i = 0; i < migrate_multifd_channels(); i++) {
         MultiFDSendParams *p = &multifd_send_state->params[i];
 
@@ -1131,7 +1140,7 @@ struct {
     uint64_t packet_num;
 } *multifd_recv_state;
 
-static void multifd_recv_terminate_threads(Error *err)
+static void multifd_recv_terminate_threads(Error *err, bool channel)
 {
     int i;
 
@@ -1143,6 +1152,11 @@ static void multifd_recv_terminate_threads(Error *err)
             migrate_set_state(&s->state, s->state,
                               MIGRATION_STATUS_FAILED);
         }
+    }
+
+    /* in case p->c is not initialized */
+    if (!channel) {
+        return;
     }
 
     for (i = 0; i < migrate_multifd_channels(); i++) {
@@ -1166,7 +1180,7 @@ int multifd_load_cleanup(Error **errp)
     if (!migrate_use_multifd()) {
         return 0;
     }
-    multifd_recv_terminate_threads(NULL);
+    multifd_recv_terminate_threads(NULL, true);
     for (i = 0; i < migrate_multifd_channels(); i++) {
         MultiFDRecvParams *p = &multifd_recv_state->params[i];
 
@@ -1269,7 +1283,7 @@ static void *multifd_recv_thread(void *opaque)
     }
 
     if (local_err) {
-        multifd_recv_terminate_threads(local_err);
+        multifd_recv_terminate_threads(local_err, true);
     }
     qemu_mutex_lock(&p->mutex);
     p->running = false;
@@ -1331,7 +1345,7 @@ bool multifd_recv_new_channel(QIOChannel *ioc)
 
     id = multifd_recv_initial_packet(ioc, &local_err);
     if (id < 0) {
-        multifd_recv_terminate_threads(local_err);
+        multifd_recv_terminate_threads(local_err, false);
         return false;
     }
 
@@ -1339,7 +1353,7 @@ bool multifd_recv_new_channel(QIOChannel *ioc)
     if (p->c != NULL) {
         error_setg(&local_err, "multifd: received id '%d' already setup'",
                    id);
-        multifd_recv_terminate_threads(local_err);
+        multifd_recv_terminate_threads(local_err, true);
         return false;
     }
     p->c = ioc;
