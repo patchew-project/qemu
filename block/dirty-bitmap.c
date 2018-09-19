@@ -798,7 +798,7 @@ void bdrv_merge_dirty_bitmap(BdrvDirtyBitmap *dest, const BdrvDirtyBitmap *src,
 
     qemu_mutex_lock(dest->mutex);
 
-    assert(bdrv_dirty_bitmap_enabled(dest));
+    assert(!bdrv_dirty_bitmap_frozen(dest));
     assert(!bdrv_dirty_bitmap_readonly(dest));
 
     if (!hbitmap_merge(dest->bitmap, src->bitmap)) {
