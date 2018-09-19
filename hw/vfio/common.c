@@ -41,6 +41,7 @@ struct vfio_group_head vfio_group_list =
     QLIST_HEAD_INITIALIZER(vfio_group_list);
 struct vfio_as_head vfio_address_spaces =
     QLIST_HEAD_INITIALIZER(vfio_address_spaces);
+QemuMutex vfio_address_spaces_lock;
 
 #ifdef CONFIG_KVM
 /*
@@ -1043,6 +1044,8 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
     int ret, fd;
     VFIOAddressSpace *space;
 
+    qemu_mutex_lock(&vfio_address_spaces_lock);
+
     space = vfio_get_address_space(as);
 
     /*
@@ -1073,10 +1076,14 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
     qemu_balloon_inhibit(true);
 
     QLIST_FOREACH(container, &space->containers, next) {
+        if (container->external) {
+            continue;
+        }
         if (!ioctl(group->fd, VFIO_GROUP_SET_CONTAINER, &container->fd)) {
             group->container = container;
             QLIST_INSERT_HEAD(&container->group_list, group, container_next);
             vfio_kvm_device_add_group(group);
+            qemu_mutex_unlock(&vfio_address_spaces_lock);
             return 0;
         }
     }
@@ -1249,6 +1256,7 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
 
     container->initialized = true;
 
+    qemu_mutex_unlock(&vfio_address_spaces_lock);
     return 0;
 listener_release_exit:
     QLIST_REMOVE(group, container_next);
@@ -1265,6 +1273,7 @@ close_fd_exit:
 put_space_exit:
     qemu_balloon_inhibit(false);
     vfio_put_address_space(space);
+    qemu_mutex_unlock(&vfio_address_spaces_lock);
 
     return ret;
 }
@@ -1272,6 +1281,8 @@ put_space_exit:
 static void vfio_disconnect_container(VFIOGroup *group)
 {
     VFIOContainer *container = group->container;
+
+    qemu_mutex_lock(&vfio_address_spaces_lock);
 
     QLIST_REMOVE(group, container_next);
     group->container = NULL;
@@ -1309,6 +1320,147 @@ static void vfio_disconnect_container(VFIOGroup *group)
 
         vfio_put_address_space(space);
     }
+
+    qemu_mutex_unlock(&vfio_address_spaces_lock);
+}
+
+/*
+ * Currently, only TYPE1 IOMMU is supported.
+ */
+VFIOContainer *vfio_new_container(int container_fd, AddressSpace *as,
+                                  Error **errp)
+{
+    VFIOContainer *container;
+    int ret, fd;
+    VFIOAddressSpace *space;
+    struct vfio_iommu_type1_info info;
+    hwaddr pgmask;
+    bool v2;
+
+    trace_vfio_new_container(container_fd);
+
+    qemu_mutex_lock(&vfio_address_spaces_lock);
+
+    space = vfio_get_address_space(as);
+
+    qemu_balloon_inhibit(true);
+
+    fd = container_fd;
+    if (fd < 0) {
+        error_setg(errp, "invalid container fd %d", fd);
+        goto put_space_exit;
+    }
+
+    ret = ioctl(fd, VFIO_GET_API_VERSION);
+    if (ret != VFIO_API_VERSION) {
+        error_setg(errp, "supported vfio version: %d, "
+                   "reported version: %d", VFIO_API_VERSION, ret);
+        goto put_space_exit;
+    }
+
+    container = g_malloc0(sizeof(*container));
+    container->space = space;
+    container->fd = fd;
+    QLIST_INIT(&container->giommu_list);
+    QLIST_INIT(&container->hostwin_list);
+
+    if (!ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_TYPE1_IOMMU) &&
+        !ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_TYPE1v2_IOMMU)) {
+        error_setg(errp, "No available IOMMU models");
+        goto free_container_exit;
+    }
+    v2 = !!ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_TYPE1v2_IOMMU);
+    container->iommu_type = v2 ? VFIO_TYPE1v2_IOMMU : VFIO_TYPE1_IOMMU;
+
+    /*
+     * FIXME: This assumes that a Type1 IOMMU can map any 64-bit
+     * IOVA whatsoever.  That's not actually true, but the current
+     * kernel interface doesn't tell us what it can map, and the
+     * existing Type1 IOMMUs generally support any IOVA we're
+     * going to actually try in practice.
+     */
+    info.argsz = sizeof(info);
+    ret = ioctl(fd, VFIO_IOMMU_GET_INFO, &info);
+    /* Ignore errors */
+    if (ret || !(info.flags & VFIO_IOMMU_INFO_PGSIZES)) {
+        /* Assume 4k IOVA page size */
+        info.iova_pgsizes = 4096;
+    }
+    vfio_host_win_add(container, 0, (hwaddr)-1, info.iova_pgsizes);
+    container->pgsizes = info.iova_pgsizes;
+
+    pgmask = (1ULL << ctz64(container->pgsizes)) - 1;
+    vfio_dma_unmap(container, 0, (ram_addr_t)-1 & ~pgmask);
+
+    container->external = true;
+
+    QLIST_INIT(&container->group_list);
+    QLIST_INSERT_HEAD(&space->containers, container, next);
+
+    container->listener = vfio_memory_listener;
+
+    memory_listener_register(&container->listener, container->space->as);
+
+    if (container->error) {
+        error_setg_errno(errp, -container->error,
+                         "memory listener initialization failed for container");
+        goto listener_release_exit;
+    }
+
+    container->initialized = true;
+
+    qemu_mutex_unlock(&vfio_address_spaces_lock);
+    return container;
+
+listener_release_exit:
+    QLIST_REMOVE(container, next);
+    vfio_listener_release(container);
+
+free_container_exit:
+    g_free(container);
+
+put_space_exit:
+    qemu_balloon_inhibit(false);
+    vfio_put_address_space(space);
+    qemu_mutex_unlock(&vfio_address_spaces_lock);
+
+    return NULL;
+}
+
+void vfio_free_container(VFIOContainer *container)
+{
+    VFIOAddressSpace *space = container->space;
+    VFIOGuestIOMMU *giommu, *tmp;
+    hwaddr pgmask;
+
+    if (!container->external) {
+        return;
+    }
+
+    trace_vfio_free_container(container->fd);
+
+    qemu_mutex_lock(&vfio_address_spaces_lock);
+
+    vfio_listener_release(container);
+
+    pgmask = (1ULL << ctz64(container->pgsizes)) - 1;
+    vfio_dma_unmap(container, 0, (ram_addr_t)-1 & ~pgmask);
+
+    QLIST_REMOVE(container, next);
+    QLIST_FOREACH_SAFE(giommu, &container->giommu_list, giommu_next, tmp) {
+        memory_region_unregister_iommu_notifier(
+                MEMORY_REGION(giommu->iommu), &giommu->n);
+        QLIST_REMOVE(giommu, giommu_next);
+        g_free(giommu);
+    }
+
+    close(container->fd);
+    g_free(container);
+
+    qemu_balloon_inhibit(false);
+    vfio_put_address_space(space);
+
+    qemu_mutex_unlock(&vfio_address_spaces_lock);
 }
 
 VFIOGroup *vfio_get_group(int groupid, AddressSpace *as, Error **errp)
@@ -1601,8 +1753,12 @@ static int vfio_eeh_container_op(VFIOContainer *container, uint32_t op)
 
 static VFIOContainer *vfio_eeh_as_container(AddressSpace *as)
 {
-    VFIOAddressSpace *space = vfio_get_address_space(as);
+    VFIOAddressSpace *space;
     VFIOContainer *container = NULL;
+
+    qemu_mutex_lock(&vfio_address_spaces_lock);
+
+    space = vfio_get_address_space(as);
 
     if (QLIST_EMPTY(&space->containers)) {
         /* No containers to act on */
@@ -1620,6 +1776,7 @@ static VFIOContainer *vfio_eeh_as_container(AddressSpace *as)
 
 out:
     vfio_put_address_space(space);
+    qemu_mutex_unlock(&vfio_address_spaces_lock);
     return container;
 }
 
@@ -1638,4 +1795,9 @@ int vfio_eeh_as_op(AddressSpace *as, uint32_t op)
         return -ENODEV;
     }
     return vfio_eeh_container_op(container, op);
+}
+
+static void __attribute__((__constructor__)) vfio_common_init(void)
+{
+    qemu_mutex_init(&vfio_address_spaces_lock);
 }

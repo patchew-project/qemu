@@ -73,6 +73,7 @@ typedef struct VFIOContainer {
     unsigned iommu_type;
     int error;
     bool initialized;
+    bool external; /* Used outside the hw/vfio */
     unsigned long pgsizes;
     /*
      * This assumes the host IOMMU can support only a single
@@ -180,6 +181,7 @@ int vfio_get_device(VFIOGroup *group, const char *name,
 extern const MemoryRegionOps vfio_region_ops;
 extern QLIST_HEAD(vfio_group_head, VFIOGroup) vfio_group_list;
 extern QLIST_HEAD(vfio_as_head, VFIOAddressSpace) vfio_address_spaces;
+extern QemuMutex vfio_address_spaces_lock;
 
 #ifdef CONFIG_LINUX
 int vfio_get_region_info(VFIODevice *vbasedev, int index,
@@ -195,5 +197,12 @@ int vfio_spapr_create_window(VFIOContainer *container,
                              hwaddr *pgsize);
 int vfio_spapr_remove_window(VFIOContainer *container,
                              hwaddr offset_within_address_space);
+
+/*
+ * APIs used by modules outside hw/vfio.
+ */
+VFIOContainer *vfio_new_container(int container_fd, AddressSpace *as,
+                                  Error **errp);
+void vfio_free_container(VFIOContainer *container);
 
 #endif /* HW_VFIO_VFIO_COMMON_H */
