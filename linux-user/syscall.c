@@ -5491,6 +5491,174 @@ static abi_long do_ioctl_ifconf(const IOCTLEntry *ie, uint8_t *buf_temp,
     return ret;
 }
 
+#if defined(CONFIG_USBFS)
+#if HOST_LONG_BITS > 64
+#error USBDEVFS thunks do not support >64 bit hosts yet.
+#endif
+static GHashTable *usbdevfs_urb_hashtable(void)
+{
+    static GHashTable *urb_hashtable;
+
+    if (!urb_hashtable) {
+        urb_hashtable = g_hash_table_new(g_int64_hash, g_int64_equal);
+    }
+    return urb_hashtable;
+}
+
+static abi_long
+do_ioctl_usbdevfs_reapurb(const IOCTLEntry *ie, uint8_t *buf_temp,
+                          int fd, int cmd, abi_long arg)
+{
+    const argtype *arg_type = ie->arg_type;
+    GHashTable * const urb_hash = usbdevfs_urb_hashtable();
+    const argtype ptrvoid_arg_type[] = { TYPE_PTRVOID, 0, 0 };
+    int target_size;
+    int64_t reaped_userurb;
+    int64_t target_urbptr;
+    uintptr_t target_urbptr_ptr;
+    char *tagged_urb;
+    void *argptr;
+    abi_long ret;
+
+    target_size = thunk_type_size(++arg_type, THUNK_TARGET);
+
+    ret = get_errno(safe_ioctl(fd, ie->host_cmd, buf_temp));
+    if (is_error(ret)) {
+        return ret;
+    }
+
+    memcpy(&reaped_userurb, buf_temp, sizeof(int64_t));
+    tagged_urb = ((char *)(uintptr_t)reaped_userurb) - sizeof(int64_t);
+    memcpy(&target_urbptr, tagged_urb, sizeof(int64_t));
+    if (!target_urbptr) {
+        return -TARGET_EFAULT;
+    }
+    g_hash_table_remove(urb_hash, tagged_urb);
+
+    argptr = lock_user(VERIFY_WRITE, (abi_long) target_urbptr, target_size, 0);
+    if (!argptr) {
+        g_free(tagged_urb);
+        return -TARGET_EFAULT;
+    }
+    thunk_convert(argptr, (char *)(uintptr_t)reaped_userurb, arg_type,
+                  THUNK_TARGET);
+    unlock_user(argptr, target_urbptr, target_size);
+
+    target_size = thunk_type_size(ptrvoid_arg_type, THUNK_TARGET);
+    argptr = lock_user(VERIFY_WRITE, (abi_long)arg, target_size, 0);
+    if (!argptr) {
+        g_free(tagged_urb);
+        return -TARGET_EFAULT;
+    }
+    target_urbptr_ptr = (uintptr_t) target_urbptr;
+    thunk_convert(argptr, &target_urbptr_ptr, ptrvoid_arg_type, THUNK_TARGET);
+    unlock_user(argptr, (abi_long) arg, target_size);
+    g_free(tagged_urb);
+    return ret;
+}
+
+static abi_long
+do_ioctl_usbdevfs_discardurb(const IOCTLEntry *ie,
+                             uint8_t *buf_temp __attribute__((unused)),
+                             int fd, int cmd, abi_long arg)
+{
+    GHashTable * const urb_hash = usbdevfs_urb_hashtable();
+    abi_long host_urb;
+    int64_t tag_urb_key;
+    char *tagged_urb;
+
+    /* map target pointer back to host tagged URB. */
+    tag_urb_key = (int64_t) arg;
+    tagged_urb = g_hash_table_lookup(urb_hash, &tag_urb_key);
+    if (!tagged_urb) {
+        return -TARGET_EFAULT;
+    }
+    /* offset from tag to urb */
+    host_urb = (abi_long) (tagged_urb + sizeof(int64_t));
+    return get_errno(safe_ioctl(fd, ie->host_cmd, host_urb));
+}
+
+static int convert_iso_packets(uint8_t *dst, int totlen, abi_long src)
+{
+    void *srcptr;
+    int host_size, target_size;
+    int i, iso_packets;
+    const argtype arg_type[] = { MK_STRUCT(STRUCT_usbdevfs_iso_packet_desc) };
+
+    if (((struct usbdevfs_urb *)dst)->type == USBDEVFS_URB_TYPE_ISO) {
+        iso_packets = ((struct usbdevfs_urb *)dst)->number_of_packets;
+    } else {
+        iso_packets = 0;
+    }
+
+    host_size = thunk_type_size(arg_type, THUNK_HOST);
+    target_size = thunk_type_size(arg_type, THUNK_TARGET);
+
+    for (i = 0; i < iso_packets; ++i) {
+        if ((totlen + host_size) >= MAX_STRUCT_SIZE) {
+            break;
+        }
+        srcptr = lock_user(VERIFY_READ, src, target_size, 1);
+        thunk_convert(dst + totlen, srcptr, arg_type, THUNK_HOST);
+        unlock_user(srcptr, src, 0);
+        src += target_size;
+        totlen += host_size;
+    }
+    return totlen;
+}
+
+static abi_long
+do_ioctl_usbdevfs_submiturb(const IOCTLEntry *ie, uint8_t *buf_temp,
+                            int fd, int cmd, abi_long arg)
+{
+    const argtype *arg_type = ie->arg_type;
+    int target_size;
+    int host_size;
+    abi_long ret;
+    char *tagged_urb = NULL;
+    void *argptr;
+    int64_t arg_tag;
+    GHashTable * const urb_hash = usbdevfs_urb_hashtable();
+
+    /*
+     * each submitted URB needs to map to a unique ID for the
+     * kernel, and that unique ID needs to be a pointer to
+     * host memory.  hence, we need to malloc for each URB.
+     * isochronous transfers have a variable length struct.
+     */
+    arg_type++;
+    host_size = thunk_type_size(arg_type, THUNK_HOST);
+    target_size = thunk_type_size(arg_type, THUNK_TARGET);
+
+    argptr = lock_user(VERIFY_READ, arg, target_size, 1);
+    if (!argptr) {
+        return -TARGET_EFAULT;
+    }
+    thunk_convert(buf_temp, argptr, arg_type, THUNK_HOST);
+    unlock_user(argptr, arg, 0);
+
+    host_size = convert_iso_packets(buf_temp, host_size, arg + target_size);
+
+    /* allocate extra space for a tag. */
+    tagged_urb = g_try_malloc0(host_size + sizeof(int64_t));
+    if (!tagged_urb) {
+        return -TARGET_ENOMEM;
+    }
+    memcpy(&tagged_urb[sizeof(int64_t)], buf_temp, host_size);
+
+    ret = get_errno(safe_ioctl(fd, ie->host_cmd, &tagged_urb[sizeof(int64_t)]));
+    if (is_error(ret)) {
+        g_free(tagged_urb);
+    } else {
+        arg_tag = (int64_t) arg;
+        memcpy(tagged_urb, &arg_tag, sizeof(int64_t));
+        g_hash_table_insert(urb_hash, tagged_urb, tagged_urb);
+    }
+
+    return ret;
+}
+#endif /* CONFIG_USBFS */
+
 static abi_long do_ioctl_dm(const IOCTLEntry *ie, uint8_t *buf_temp, int fd,
                             int cmd, abi_long arg)
 {
