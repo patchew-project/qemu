@@ -184,10 +184,15 @@ check-block-$(CONFIG_POSIX) += tests/qemu-iotests-quick.sh
 check-qtest-generic-y = tests/qmp-test$(EXESUF)
 gcov-files-generic-y = monitor.c qapi/qmp-dispatch.c
 check-qtest-generic-y += tests/qmp-cmd-test$(EXESUF)
-
 check-qtest-generic-y += tests/device-introspect-test$(EXESUF)
 gcov-files-generic-y = qdev-monitor.c qmp.c
 check-qtest-generic-y += tests/cdrom-test$(EXESUF)
+check-qtest-generic-y += tests/machine-none-test$(EXESUF)
+check-qtest-generic-y += tests/qom-test$(EXESUF)
+check-qtest-generic-y += tests/test-hmp$(EXESUF)
+check-qtest-generic-$(CONFIG_ISA_TESTDEV) += tests/endianness-test$(EXESUF)
+check-qtest-generic-$(CONFIG_WDT_IB700) += tests/wdt_ib700-test$(EXESUF)
+gcov-files-generic-$(CONFIG_WDT_IB700) += hw/watchdog/watchdog.c hw/watchdog/wdt_ib700.c
 
 gcov-files-ipack-y += hw/ipack/ipack.c
 check-qtest-ipack-y += tests/ipoctal232-test$(EXESUF)
@@ -255,12 +260,9 @@ check-qtest-pci-$(CONFIG_IVSHMEM_DEVICE) += tests/ivshmem-test$(EXESUF)
 gcov-files-pci-$(CONFIG_IVSHMEM_DEVICE) += hw/misc/ivshmem.c
 check-qtest-pci-y += tests/megasas-test$(EXESUF)
 gcov-files-pci-y += hw/scsi/megasas.c
-check-qtest-$(CONFIG_VMXNET3_PCI) += tests/vmxnet3-test$(EXESUF)
-gcov-files-$(CONFIG_VMXNET3_PCI) += hw/net/vmxnet3.c
-check-qtest-$(CONFIG_ISA_TESTDEV) = tests/endianness-test$(EXESUF)
-check-qtest-$(CONFIG_WDT_IB700) += tests/wdt_ib700-test$(EXESUF)
-gcov-files-$(CONFIG_WDT_IB700) += hw/watchdog/watchdog.c hw/watchdog/wdt_ib700.c
 
+check-qtest-i386-$(CONFIG_VMXNET3_PCI) += tests/vmxnet3-test$(EXESUF)
+gcov-files-i386-$(CONFIG_VMXNET3_PCI) += hw/net/vmxnet3.c
 check-qtest-i386-y += tests/fdc-test$(EXESUF)
 gcov-files-i386-y = hw/block/fdc.c
 check-qtest-i386-y += tests/ide-test$(EXESUF)
@@ -403,10 +405,6 @@ check-qtest-s390x-$(CONFIG_POSIX) += tests/test-filter-redirector$(EXESUF)
 check-qtest-s390x-y += tests/drive_del-test$(EXESUF)
 check-qtest-s390x-y += tests/virtio-ccw-test$(EXESUF)
 check-qtest-s390x-y += tests/cpu-plug-test$(EXESUF)
-
-check-qtest-generic-y += tests/machine-none-test$(EXESUF)
-check-qtest-generic-y += tests/qom-test$(EXESUF)
-check-qtest-generic-y += tests/test-hmp$(EXESUF)
 
 qapi-schema += alternate-any.json
 qapi-schema += alternate-array.json
