@@ -4234,7 +4234,23 @@ if compile_prog "" "" ; then
   memfd=yes
 fi
 
-
+# check for usbfs
+have_usbfs=no
+if test "$linux_user" = "yes"; then
+  cat > $TMPC << EOF
+#include <linux/usbdevice_fs.h>
+int main(void) {
+#if !defined(USBDEVFS_URB_TYPE_CONTROL)
+#error Missing usbdevfs defintions.
+#else
+	return 0;
+#endif
+}
+EOF
+  if compile_prog "" "" ; then
+    have_usbfs=yes
+  fi
+fi
 
 # check for fallocate
 fallocate=no
@@ -6344,6 +6360,9 @@ if test "$eventfd" = "yes" ; then
 fi
 if test "$memfd" = "yes" ; then
   echo "CONFIG_MEMFD=y" >> $config_host_mak
+fi
+if test "$have_usbfs" = "yes" ; then
+  echo "CONFIG_USBFS=y" >> $config_host_mak
 fi
 if test "$fallocate" = "yes" ; then
   echo "CONFIG_FALLOCATE=y" >> $config_host_mak
