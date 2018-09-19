@@ -427,6 +427,9 @@ static inline void terminate_compression_threads(void)
     thread_count = migrate_compress_threads();
 
     for (idx = 0; idx < thread_count; idx++) {
+        if (!comp_param[idx].mutex.initialized) {
+            break;
+        }
         qemu_mutex_lock(&comp_param[idx].mutex);
         comp_param[idx].quit = true;
         qemu_cond_signal(&comp_param[idx].cond);
@@ -438,7 +441,7 @@ static void compress_threads_save_cleanup(void)
 {
     int i, thread_count;
 
-    if (!migrate_use_compression()) {
+    if (!migrate_use_compression() || !comp_param) {
         return;
     }
     terminate_compression_threads();
