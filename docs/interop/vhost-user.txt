@@ -397,6 +397,7 @@ Protocol features
 #define VHOST_USER_PROTOCOL_F_CONFIG         9
 #define VHOST_USER_PROTOCOL_F_SLAVE_SEND_FD  10
 #define VHOST_USER_PROTOCOL_F_HOST_NOTIFIER  11
+#define VHOST_USER_PROTOCOL_F_VFIO_CONTAINER 12
 
 Master message types
 --------------------
@@ -814,6 +815,26 @@ Slave message types
       sent with a file descriptor.
       This request should be sent only when VHOST_USER_PROTOCOL_F_HOST_NOTIFIER
       protocol feature has been successfully negotiated.
+
+ * VHOST_USER_SLAVE_VFIO_CONTAINER_MSG
+
+      Id: 4
+      Equivalent ioctl: N/A
+      Slave payload: N/A
+      Master payload: N/A
+
+      When VHOST_USER_PROTOCOL_F_VFIO_CONTAINER is negotiated, vhost-user
+      slave could send this request to share its VFIO container fd via
+      ancillary data to master. Before sending a VFIO container fd to
+      master, slave should make sure that IOMMU type has already been
+      set correctly. After receiving this request from slave, master will
+      destroy the existing VFIO container (including clearing all the DMA
+      mappings and closing the container fd) if any and setup a new VFIO
+      container (including clearing all the existing DMA mappings in this
+      new container and setup DMA mappings for this container based on
+      virtio device's DMA address space) if the request is sent with a
+      file descriptor.
+
 
 VHOST_USER_PROTOCOL_F_REPLY_ACK:
 -------------------------------
