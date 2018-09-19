@@ -35,6 +35,9 @@
 #include "standard-headers/linux/virtio_net.h"
 #include "contrib/libvhost-user/libvhost-user.h"
 
+#include <sys/ioctl.h>
+#include <linux/vfio.h>
+
 #define VHOST_USER_BRIDGE_DEBUG 1
 
 #define DPRINT(...) \
@@ -71,6 +74,8 @@ typedef struct VubrDev {
         void *addr;
         pthread_t thread;
     } notifier;
+    int vfio_container;
+    int vfio_group;
 } VubrDev;
 
 static void
@@ -467,6 +472,12 @@ vubr_queue_set_started(VuDev *dev, int qidx, bool started)
                                    qidx * getpagesize());
     }
 
+    /* We can test setting VFIO container multiple times
+     * by doing this in queue start */
+    if (started && vubr->vfio_container >= 0) {
+        vu_set_vfio_container(dev, vubr->vfio_container);
+    }
+
     if (qidx % 2 == 1) {
         vu_set_queue_handler(dev, vq, started ? vubr_handle_tx : NULL);
     }
@@ -537,6 +548,7 @@ vubr_new(const char *path, bool client)
     }
 
     dev->notifier.fd = -1;
+    dev->vfio_container = -1;
 
     un.sun_family = AF_UNIX;
     strcpy(un.sun_path, path);
@@ -640,6 +652,43 @@ vubr_host_notifier_setup(VubrDev *dev)
     dev->notifier.fd = fd;
     dev->notifier.addr = addr;
     dev->notifier.thread = thread;
+}
+
+static void
+vubr_vfio_container_setup(VubrDev *dev, const char *vfio_group)
+{
+    int container_fd;
+    int group_fd;
+
+    container_fd = open("/dev/vfio/vfio", O_RDWR);
+    if (container_fd < 0) {
+        vubr_die("open(/dev/vfio/vfio)");
+    }
+
+    group_fd = open(vfio_group, O_RDWR);
+    if (group_fd < 0) {
+        vubr_die(vfio_group);
+    }
+
+    if (ioctl(group_fd, VFIO_GROUP_SET_CONTAINER, &container_fd) < 0) {
+        vubr_die("ioctl(VFIO_GROUP_SET_CONTAINER)");
+    }
+
+    if (ioctl(container_fd, VFIO_CHECK_EXTENSION, VFIO_TYPE1_IOMMU) ||
+        ioctl(container_fd, VFIO_CHECK_EXTENSION, VFIO_TYPE1v2_IOMMU)) {
+        bool v2 = !!ioctl(container_fd, VFIO_CHECK_EXTENSION,
+                          VFIO_TYPE1v2_IOMMU);
+
+        if (ioctl(container_fd, VFIO_SET_IOMMU, v2 ? VFIO_TYPE1v2_IOMMU :
+                  VFIO_TYPE1_IOMMU) < 0) {
+            vubr_die("ioctl(VFIO_SET_IOMMU)");
+        }
+    } else {
+        vubr_die("No available IOMMU models");
+    }
+
+    dev->vfio_container = container_fd;
+    dev->vfio_group = group_fd;
 }
 
 static void
@@ -757,8 +806,9 @@ main(int argc, char *argv[])
     int opt;
     bool client = false;
     bool host_notifier = false;
+    char *vfio_group = NULL;
 
-    while ((opt = getopt(argc, argv, "l:r:u:cH")) != -1) {
+    while ((opt = getopt(argc, argv, "l:r:u:cHG:")) != -1) {
 
         switch (opt) {
         case 'l':
@@ -780,6 +830,9 @@ main(int argc, char *argv[])
         case 'H':
             host_notifier = true;
             break;
+        case 'G':
+            vfio_group = optarg;
+            break;
         default:
             goto out;
         }
@@ -799,6 +852,10 @@ main(int argc, char *argv[])
         vubr_host_notifier_setup(dev);
     }
 
+    if (vfio_group) {
+        vubr_vfio_container_setup(dev, vfio_group);
+    }
+
     vubr_backend_udp_setup(dev, lhost, lport, rhost, rport);
     vubr_run(dev);
 
@@ -808,7 +865,8 @@ main(int argc, char *argv[])
 
 out:
     fprintf(stderr, "Usage: %s ", argv[0]);
-    fprintf(stderr, "[-c] [-H] [-u ud_socket_path] [-l lhost:lport] [-r rhost:rport]\n");
+    fprintf(stderr, "[-c] [-H] [-u ud_socket_path] [-l lhost:lport]\n");
+    fprintf(stderr, "\t\t[-r rhost:rport] [-G /dev/vfio/GROUP]\n");
     fprintf(stderr, "\t-u path to unix doman socket. default: %s\n",
             DEFAULT_UD_SOCKET);
     fprintf(stderr, "\t-l local host and port. default: %s:%s\n",
@@ -817,6 +875,7 @@ out:
             DEFAULT_RHOST, DEFAULT_RPORT);
     fprintf(stderr, "\t-c client mode\n");
     fprintf(stderr, "\t-H use host notifier\n");
+    fprintf(stderr, "\t-G VFIO group path.\n");
 
     return 1;
 }
