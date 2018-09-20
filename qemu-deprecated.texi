@@ -99,6 +99,11 @@ The ``query-cpus'' command is replaced by the ``query-cpus-fast'' command.
 The ``arch'' output member of the ``query-cpus-fast'' command is
 replaced by the ``target'' output member.
 
+@subsection cpu-add (since 3.1)
+
+The intended functionality of ``cpu-add'' command, which is the ability
+to hot-plug vCPUs, can now be achieved by the ``device_add'' command.
+
 @section System emulator devices
 
 @subsection ivshmem (since 2.6.0)
