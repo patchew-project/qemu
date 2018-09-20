@@ -216,6 +216,7 @@ struct FlatRange {
     uint8_t dirty_log_mask;
     bool romd_mode;
     bool readonly;
+    bool nv;
 };
 
 #define FOR_EACH_FLAT_RANGE(var, view)          \
@@ -231,6 +232,7 @@ section_from_flat_range(FlatRange *fr, FlatView *fv)
         .size = fr->addr.size,
         .offset_within_address_space = int128_get64(fr->addr.start),
         .readonly = fr->readonly,
+        .nv = fr->nv,
     };
 }
 
@@ -240,7 +242,8 @@ static bool flatrange_equal(FlatRange *a, FlatRange *b)
         && addrrange_equal(a->addr, b->addr)
         && a->offset_in_region == b->offset_in_region
         && a->romd_mode == b->romd_mode
-        && a->readonly == b->readonly;
+        && a->readonly == b->readonly
+        && a->nv == b->nv;
 }
 
 static FlatView *flatview_new(MemoryRegion *mr_root)
@@ -312,7 +315,8 @@ static bool can_merge(FlatRange *r1, FlatRange *r2)
                      int128_make64(r2->offset_in_region))
         && r1->dirty_log_mask == r2->dirty_log_mask
         && r1->romd_mode == r2->romd_mode
-        && r1->readonly == r2->readonly;
+        && r1->readonly == r2->readonly
+        && r1->nv == r2->nv;
 }
 
 /* Attempt to simplify a view by merging adjacent ranges */
@@ -619,7 +623,8 @@ static void render_memory_region(FlatView *view,
                                  MemoryRegion *mr,
                                  Int128 base,
                                  AddrRange clip,
-                                 bool readonly)
+                                 bool readonly,
+                                 bool nv)
 {
     MemoryRegion *subregion;
     unsigned i;
@@ -635,6 +640,7 @@ static void render_memory_region(FlatView *view,
 
     int128_addto(&base, int128_make64(mr->addr));
     readonly |= mr->readonly;
+    nv |= mr->nv;
 
     tmp = addrrange_make(base, mr->size);
 
@@ -647,13 +653,13 @@ static void render_memory_region(FlatView *view,
     if (mr->alias) {
         int128_subfrom(&base, int128_make64(mr->alias->addr));
         int128_subfrom(&base, int128_make64(mr->alias_offset));
-        render_memory_region(view, mr->alias, base, clip, readonly);
+        render_memory_region(view, mr->alias, base, clip, readonly, nv);
         return;
     }
 
     /* Render subregions in priority order. */
     QTAILQ_FOREACH(subregion, &mr->subregions, subregions_link) {
-        render_memory_region(view, subregion, base, clip, readonly);
+        render_memory_region(view, subregion, base, clip, readonly, nv);
     }
 
     if (!mr->terminates) {
@@ -668,6 +674,7 @@ static void render_memory_region(FlatView *view,
     fr.dirty_log_mask = memory_region_get_dirty_log_mask(mr);
     fr.romd_mode = mr->romd_mode;
     fr.readonly = readonly;
+    fr.nv = nv;
 
     /* Render the region itself into any gaps left by the current view. */
     for (i = 0; i < view->nr && int128_nz(remain); ++i) {
@@ -753,7 +760,8 @@ static FlatView *generate_memory_topology(MemoryRegion *mr)
 
     if (mr) {
         render_memory_region(view, mr, int128_zero(),
-                             addrrange_make(int128_zero(), int128_2_64()), false);
+                             addrrange_make(int128_zero(), int128_2_64()),
+                             false, false);
     }
     flatview_simplify(view);
 
@@ -2038,6 +2046,16 @@ void memory_region_set_readonly(MemoryRegion *mr, bool readonly)
     }
 }
 
+void memory_region_set_nv(MemoryRegion *mr, bool nv)
+{
+    if (mr->nv != nv) {
+        memory_region_transaction_begin();
+        mr->nv = nv;
+        memory_region_update_pending |= mr->enabled;
+        memory_region_transaction_commit();
+    }
+}
+
 void memory_region_rom_device_set_romd(MemoryRegion *mr, bool romd_mode)
 {
     if (mr->romd_mode != romd_mode) {
@@ -2488,6 +2506,7 @@ static MemoryRegionSection memory_region_find_rcu(MemoryRegion *mr,
     ret.size = range.size;
     ret.offset_within_address_space = int128_get64(range.start);
     ret.readonly = fr->readonly;
+    ret.nv = fr->nv;
     return ret;
 }
 
@@ -2838,10 +2857,11 @@ static void mtree_print_mr(fprintf_function mon_printf, void *f,
             QTAILQ_INSERT_TAIL(alias_print_queue, ml, mrqueue);
         }
         mon_printf(f, TARGET_FMT_plx "-" TARGET_FMT_plx
-                   " (prio %d, %s): alias %s @%s " TARGET_FMT_plx
+                   " (prio %d, %s%s): alias %s @%s " TARGET_FMT_plx
                    "-" TARGET_FMT_plx "%s",
                    cur_start, cur_end,
                    mr->priority,
+                   mr->nv ? "nv-" : "",
                    memory_region_type((MemoryRegion *)mr),
                    memory_region_name(mr),
                    memory_region_name(mr->alias),
@@ -2853,9 +2873,10 @@ static void mtree_print_mr(fprintf_function mon_printf, void *f,
         }
     } else {
         mon_printf(f,
-                   TARGET_FMT_plx "-" TARGET_FMT_plx " (prio %d, %s): %s%s",
+                   TARGET_FMT_plx "-" TARGET_FMT_plx " (prio %d, %s%s): %s%s",
                    cur_start, cur_end,
                    mr->priority,
+                   mr->nv ? "nv-" : "",
                    memory_region_type((MemoryRegion *)mr),
                    memory_region_name(mr),
                    mr->enabled ? "" : " [disabled]");
@@ -2940,19 +2961,21 @@ static void mtree_print_flatview(gpointer key, gpointer value,
         mr = range->mr;
         if (range->offset_in_region) {
             p(f, MTREE_INDENT TARGET_FMT_plx "-"
-              TARGET_FMT_plx " (prio %d, %s): %s @" TARGET_FMT_plx,
+              TARGET_FMT_plx " (prio %d, %s%s): %s @" TARGET_FMT_plx,
               int128_get64(range->addr.start),
               int128_get64(range->addr.start) + MR_SIZE(range->addr.size),
               mr->priority,
+              range->nv ? "nv-" : "",
               range->readonly ? "rom" : memory_region_type(mr),
               memory_region_name(mr),
               range->offset_in_region);
         } else {
             p(f, MTREE_INDENT TARGET_FMT_plx "-"
-              TARGET_FMT_plx " (prio %d, %s): %s",
+              TARGET_FMT_plx " (prio %d, %s%s): %s",
               int128_get64(range->addr.start),
               int128_get64(range->addr.start) + MR_SIZE(range->addr.size),
               mr->priority,
+              range->nv ? "nv-" : "",
               range->readonly ? "rom" : memory_region_type(mr),
               memory_region_name(mr));
         }
