@@ -104,8 +104,8 @@
 /* Misc Control Register #1 */
 #define R_MISC_CTRL1      (0x50 / 4)
 
-/* Misc Control Register #2 */
-#define R_MISC_CTRL2      (0x54 / 4)
+/* SPI dummy cycle data */
+#define R_DUMMY_DATA      (0x54 / 4)
 
 /* DMA Control/Status Register */
 #define R_DMA_CTRL        (0x80 / 4)
@@ -550,7 +550,7 @@ static void aspeed_smc_flash_setup(AspeedSMCFlash *fl, uint32_t addr)
      */
     if (aspeed_smc_flash_mode(fl) == CTRL_FREADMODE) {
         for (i = 0; i < aspeed_smc_flash_dummies(fl); i++) {
-            ssi_transfer(fl->controller->spi, 0xFF);
+            ssi_transfer(fl->controller->spi, s->regs[R_DUMMY_DATA] & 0xff);
         }
     }
 }
@@ -682,6 +682,7 @@ static uint64_t aspeed_smc_read(void *opaque, hwaddr addr, unsigned int size)
         addr == s->r_timings ||
         addr == s->r_ce_ctrl ||
         addr == R_INTR_CTRL ||
+        addr == R_DUMMY_DATA ||
         (s->ctrl->has_dma && addr == R_DMA_CTRL) ||
         (s->ctrl->has_dma && addr == R_DMA_FLASH_ADDR) ||
         (s->ctrl->has_dma && addr == R_DMA_DRAM_ADDR) ||
@@ -957,6 +958,8 @@ static void aspeed_smc_write(void *opaque, hwaddr addr, uint64_t data,
         }
     } else if (addr == R_INTR_CTRL) {
         s->regs[addr] = value;
+    } else if (addr == R_DUMMY_DATA) {
+        s->regs[addr] = value & 0xff ;
     } else if (s->ctrl->has_dma && addr == R_DMA_CTRL) {
         aspeed_smc_dma_ctrl(s, value);
     } else if (s->ctrl->has_dma && addr == R_DMA_DRAM_ADDR) {
