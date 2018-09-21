@@ -751,6 +751,30 @@ static void aspeed_smc_dma_calibration(AspeedSMCState *s)
     s->regs[s->r_ctrl0 + cs] |= CE_CTRL_CLOCK_FREQ(hclk_div);
 }
 
+static bool aspeed_smc_inject_read_failure(AspeedSMCState *s)
+{
+    uint8_t delay =
+        (s->regs[R_DMA_CTRL] >> DMA_CTRL_DELAY_SHIFT) & DMA_CTRL_DELAY_MASK;
+    uint8_t hclk_mask =
+        (s->regs[R_DMA_CTRL] >> DMA_CTRL_FREQ_SHIFT) & DMA_CTRL_FREQ_MASK;
+
+    /*
+     * Typical values of a palmetto-bmc machine.
+     */
+    switch (aspeed_smc_hclk_divisor(hclk_mask)) {
+    case 4 ... 16:
+        return false;
+    case 3: /* at least one HCLK cycle delay */
+        return (delay & 0x7) < 1;
+    case 2: /* at least two HCLK cycle delay */
+        return (delay & 0x7) < 2;
+    case 1: /* (> 100MHz) is above the max freq of the controller */
+        return true;
+    default:
+        g_assert_not_reached();
+    }
+}
+
 /*
  * Accumulate the result of the reads to provide a checksum that will
  * be used to validate the read timing settings.
@@ -788,6 +812,11 @@ static void aspeed_smc_dma_checksum(AspeedSMCState *s)
         s->regs[R_DMA_FLASH_ADDR] += 4;
         s->regs[R_DMA_LEN] -= 4;
     }
+
+    if (aspeed_smc_inject_read_failure(s)) {
+        s->regs[R_DMA_CHECKSUM] = 0xbadc0de;
+    }
+
 }
 
 static void aspeed_smc_dma_rw(AspeedSMCState *s)
