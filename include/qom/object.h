@@ -101,24 +101,31 @@ typedef struct InterfaceInfo InterfaceInfo;
  *   </programlisting>
  * </example>
  *
- * Every type has an #ObjectClass associated with it.  #ObjectClass derivatives
- * are instantiated dynamically but there is only ever one instance for any
- * given type.  The #ObjectClass typically holds a table of function pointers
- * for the virtual methods implemented by this type.
+ * Every type has an #ObjectClass associated with it.  #ObjectClass
+ * derivatives are instantiated dynamically but there is only ever one
+ * instance for any given type.  The #ObjectClass typically holds a
+ * table of function pointers for the virtual methods implemented by
+ * this type. You can cast an #ObjectClass to a subclass (or
+ * base-class) type using object_class_dynamic_cast().
  *
- * Using object_new(), a new #Object derivative will be instantiated.  You can
- * cast an #Object to a subclass (or base-class) type using
- * object_dynamic_cast().  You typically want to define macro wrappers around
- * OBJECT_CHECK() and OBJECT_CLASS_CHECK() to make it easier to convert to a
- * specific type:
+ * Using object_new(), a new #Object derivative will be instantiated.
+ * You can cast an #Object to a subclass (or base-class) type using
+ * object_dynamic_cast().
+ *
+ * You typically want to define macro wrappers to make it easier to
+ * handle casting:
  *
  * <example>
  *   <title>Typecasting macros</title>
  *   <programlisting>
  *    #define MY_DEVICE_GET_CLASS(obj) \
  *       OBJECT_GET_CLASS(MyDeviceClass, obj, TYPE_MY_DEVICE)
+ *    #define IS_MY_DEVICE_CLASS(klass) \
+ *       object_class_dynamic_cast(OBJECT_CLASS(klass), TYPE_MY_DEVICE)
  *    #define MY_DEVICE_CLASS(klass) \
  *       OBJECT_CLASS_CHECK(MyDeviceClass, klass, TYPE_MY_DEVICE)
+ *    #define IS_MY_DEVICE(obj) \
+ *       object_dynamic_cast(OBJECT(obj), TYPE_MY_DEVICE)
  *    #define MY_DEVICE(obj) \
  *       OBJECT_CHECK(MyDevice, obj, TYPE_MY_DEVICE)
  *   </programlisting>
