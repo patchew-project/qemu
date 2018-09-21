@@ -2955,6 +2955,10 @@ void qmp_x_block_dirty_bitmap_merge(const char *node, const char *dst_name,
         error_setg(errp, "Bitmap '%s' is readonly and cannot be modified",
                    dst_name);
         return;
+    } else if (bdrv_dirty_bitmap_qmp_locked(dst)) {
+        error_setg(errp, "Bitmap '%s' is in-use by an operation "
+                   "and cannot be modified", dst_name);
+        return;
     }
 
     src = bdrv_find_dirty_bitmap(bs, src_name);
