@@ -100,6 +100,8 @@ typedef struct AspeedSMCState {
     /* for DMA support */
     uint64_t sdram_base;
     uint64_t max_ram_size;
+    MemoryRegion dma_mr;
+    AddressSpace dma_as;
 
     AspeedSMCFlash *flashes;
 } AspeedSMCState;
