@@ -176,6 +176,12 @@ bool bdrv_dirty_bitmap_frozen(BdrvDirtyBitmap *bitmap)
     return bitmap->successor;
 }
 
+/* Both conditions disallow user-modification via QMP. */
+bool bdrv_dirty_bitmap_user_modifiable(BdrvDirtyBitmap *bitmap) {
+    return !(bdrv_dirty_bitmap_frozen(bitmap) ||
+             bdrv_dirty_bitmap_qmp_locked(bitmap));
+}
+
 void bdrv_dirty_bitmap_set_qmp_locked(BdrvDirtyBitmap *bitmap, bool qmp_locked)
 {
     qemu_mutex_lock(bitmap->mutex);
@@ -797,8 +803,7 @@ void bdrv_merge_dirty_bitmap(BdrvDirtyBitmap *dest, const BdrvDirtyBitmap *src,
 
     qemu_mutex_lock(dest->mutex);
 
-    assert(!bdrv_dirty_bitmap_frozen(dest));
-    assert(!bdrv_dirty_bitmap_qmp_locked(dest));
+    assert(bdrv_dirty_bitmap_user_modifiable(dest));
     assert(!bdrv_dirty_bitmap_readonly(dest));
 
     if (!hbitmap_merge(dest->bitmap, src->bitmap)) {

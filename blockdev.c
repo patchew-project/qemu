@@ -2009,11 +2009,8 @@ static void block_dirty_bitmap_clear_prepare(BlkActionState *common,
         return;
     }
 
-    if (bdrv_dirty_bitmap_frozen(state->bitmap)) {
-        error_setg(errp, "Cannot modify a frozen bitmap");
-        return;
-    } else if (bdrv_dirty_bitmap_qmp_locked(state->bitmap)) {
-        error_setg(errp, "Cannot modify a locked bitmap");
+    if (!bdrv_dirty_bitmap_user_modifiable(state->bitmap)) {
+        error_setg(errp, "Cannot modify a bitmap in-use by another operation");
         return;
     } else if (bdrv_dirty_bitmap_readonly(state->bitmap)) {
         error_setg(errp, "Cannot clear a readonly bitmap");
@@ -2838,14 +2835,9 @@ void qmp_block_dirty_bitmap_remove(const char *node, const char *name,
         return;
     }
 
-    if (bdrv_dirty_bitmap_frozen(bitmap)) {
+    if (!bdrv_dirty_bitmap_user_modifiable(bitmap)) {
         error_setg(errp,
-                   "Bitmap '%s' is currently frozen and cannot be removed",
-                   name);
-        return;
-    } else if (bdrv_dirty_bitmap_qmp_locked(bitmap)) {
-        error_setg(errp,
-                   "Bitmap '%s' is currently locked and cannot be removed",
+                   "Bitmap '%s' is currently in-use by another operation and cannot be removed",
                    name);
         return;
     }
@@ -2876,14 +2868,9 @@ void qmp_block_dirty_bitmap_clear(const char *node, const char *name,
         return;
     }
 
-    if (bdrv_dirty_bitmap_frozen(bitmap)) {
+    if (!bdrv_dirty_bitmap_user_modifiable(bitmap)) {
         error_setg(errp,
-                   "Bitmap '%s' is currently frozen and cannot be modified",
-                   name);
-        return;
-    } else if (bdrv_dirty_bitmap_qmp_locked(bitmap)) {
-        error_setg(errp,
-                   "Bitmap '%s' is currently locked and cannot be modified",
+                   "Bitmap '%s' is currently in-use by another operation and cannot be cleared",
                    name);
         return;
     } else if (bdrv_dirty_bitmap_readonly(bitmap)) {
@@ -2947,17 +2934,14 @@ void qmp_x_block_dirty_bitmap_merge(const char *node, const char *dst_name,
         return;
     }
 
-    if (bdrv_dirty_bitmap_frozen(dst)) {
-        error_setg(errp, "Bitmap '%s' is frozen and cannot be modified",
+    if (!bdrv_dirty_bitmap_user_modifiable(dst)) {
+        error_setg(errp,
+                   "Bitmap '%s' is currently in-use by another operation and cannot be modified",
                    dst_name);
         return;
     } else if (bdrv_dirty_bitmap_readonly(dst)) {
         error_setg(errp, "Bitmap '%s' is readonly and cannot be modified",
                    dst_name);
-        return;
-    } else if (bdrv_dirty_bitmap_qmp_locked(dst)) {
-        error_setg(errp, "Bitmap '%s' is in-use by an operation "
-                   "and cannot be modified", dst_name);
         return;
     }
 
