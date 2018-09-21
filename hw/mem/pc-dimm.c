@@ -272,7 +272,7 @@ static void pc_dimm_md_fill_device_info(const MemoryDeviceState *md,
                                         NULL);
     di->memdev = object_get_canonical_path(OBJECT(dimm->hostmem));
 
-    if (object_dynamic_cast(OBJECT(dev), TYPE_NVDIMM)) {
+    if (IS_NVDIMM(dev)) {
         info->u.nvdimm.data = di;
         info->type = MEMORY_DEVICE_INFO_KIND_NVDIMM;
     } else {

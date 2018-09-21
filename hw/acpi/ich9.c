@@ -490,7 +490,7 @@ void ich9_pm_device_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
 
     if (lpc->pm.acpi_memory_hotplug.is_enabled &&
         object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
-        if (object_dynamic_cast(OBJECT(dev), TYPE_NVDIMM)) {
+        if (IS_NVDIMM(dev)) {
             nvdimm_acpi_plug_cb(hotplug_dev, dev);
         } else {
             acpi_memory_plug_cb(hotplug_dev, &lpc->pm.acpi_memory_hotplug,

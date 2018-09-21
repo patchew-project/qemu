@@ -1680,7 +1680,6 @@ static void pc_memory_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
 {
     const PCMachineState *pcms = PC_MACHINE(hotplug_dev);
     const PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(pcms);
-    const bool is_nvdimm = object_dynamic_cast(OBJECT(dev), TYPE_NVDIMM);
     const uint64_t legacy_align = TARGET_PAGE_SIZE;
 
     /*
@@ -1694,7 +1693,7 @@ static void pc_memory_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
         return;
     }
 
-    if (is_nvdimm && !pcms->acpi_nvdimm_state.is_enabled) {
+    if (IS_NVDIMM(dev) && !pcms->acpi_nvdimm_state.is_enabled) {
         error_setg(errp, "nvdimm is not enabled: missing 'nvdimm' in '-M'");
         return;
     }
@@ -1709,14 +1708,13 @@ static void pc_memory_plug(HotplugHandler *hotplug_dev,
     HotplugHandlerClass *hhc;
     Error *local_err = NULL;
     PCMachineState *pcms = PC_MACHINE(hotplug_dev);
-    bool is_nvdimm = object_dynamic_cast(OBJECT(dev), TYPE_NVDIMM);
 
     pc_dimm_plug(dev, MACHINE(pcms), &local_err);
     if (local_err) {
         goto out;
     }
 
-    if (is_nvdimm) {
+    if (IS_NVDIMM(dev)) {
         nvdimm_plug(&pcms->acpi_nvdimm_state);
     }
 
@@ -1744,7 +1742,7 @@ static void pc_memory_unplug_request(HotplugHandler *hotplug_dev,
         goto out;
     }
 
-    if (object_dynamic_cast(OBJECT(dev), TYPE_NVDIMM)) {
+    if (IS_NVDIMM(dev)) {
         error_setg(&local_err,
                    "nvdimm device hot unplug is not supported yet.");
         goto out;

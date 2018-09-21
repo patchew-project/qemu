@@ -37,7 +37,7 @@ static int nvdimm_device_list(Object *obj, void *opaque)
 {
     GSList **list = opaque;
 
-    if (object_dynamic_cast(obj, TYPE_NVDIMM)) {
+    if (IS_NVDIMM(obj)) {
         *list = g_slist_append(*list, DEVICE(obj));
     }
 
