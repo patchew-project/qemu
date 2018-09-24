@@ -51,7 +51,7 @@ file_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
         error_setg(errp, "mem-path property not set");
         return;
     }
-#ifndef CONFIG_LINUX
+#if !defined(CONFIG_LINUX) && !defined(CONFIG_DARWIN)
     error_setg(errp, "-mem-path not supported on this host");
 #else
     if (!host_memory_backend_mr_inited(backend)) {
