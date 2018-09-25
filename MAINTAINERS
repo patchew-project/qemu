@@ -1980,28 +1980,22 @@ F: block/vmdk.c
 
 RBD
 M: Josh Durgin <jdurgin@redhat.com>
-M: Jeff Cody <jcody@redhat.com>
 L: qemu-block@nongnu.org
 S: Supported
 F: block/rbd.c
-T: git git://github.com/codyprime/qemu-kvm-jtc.git block
 
 Sheepdog
 M: Hitoshi Mitake <mitake.hitoshi@lab.ntt.co.jp>
 M: Liu Yuan <namei.unix@gmail.com>
-M: Jeff Cody <jcody@redhat.com>
 L: qemu-block@nongnu.org
 L: sheepdog@lists.wpkg.org
 S: Supported
 F: block/sheepdog.c
-T: git git://github.com/codyprime/qemu-kvm-jtc.git block
 
 VHDX
-M: Jeff Cody <jcody@redhat.com>
 L: qemu-block@nongnu.org
 S: Supported
 F: block/vhdx*
-T: git git://github.com/codyprime/qemu-kvm-jtc.git block
 
 VDI
 M: Stefan Weil <sw@weilnetz.de>
@@ -2032,34 +2026,26 @@ F: docs/interop/nbd.txt
 T: git git://repo.or.cz/qemu/ericb.git nbd
 
 NFS
-M: Jeff Cody <jcody@redhat.com>
 M: Peter Lieven <pl@kamp.de>
 L: qemu-block@nongnu.org
 S: Maintained
 F: block/nfs.c
-T: git git://github.com/codyprime/qemu-kvm-jtc.git block
 
 SSH
 M: Richard W.M. Jones <rjones@redhat.com>
-M: Jeff Cody <jcody@redhat.com>
 L: qemu-block@nongnu.org
 S: Supported
 F: block/ssh.c
-T: git git://github.com/codyprime/qemu-kvm-jtc.git block
 
 CURL
-M: Jeff Cody <jcody@redhat.com>
 L: qemu-block@nongnu.org
 S: Supported
 F: block/curl.c
-T: git git://github.com/codyprime/qemu-kvm-jtc.git block
 
 GLUSTER
-M: Jeff Cody <jcody@redhat.com>
 L: qemu-block@nongnu.org
 S: Supported
 F: block/gluster.c
-T: git git://github.com/codyprime/qemu-kvm-jtc.git block
 
 Null Block Driver
 M: Fam Zheng <famz@redhat.com>
