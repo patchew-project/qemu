@@ -132,15 +132,17 @@ typedef struct QemuIplParameters QemuIplParameters;
 struct S390IPLState {
     /*< private >*/
     DeviceState parent_obj;
+    /* Packed structs first (to make sure we've got a proper alignment): */
+    IplParameterBlock iplb;
+    QemuIplParameters qipl;
+    /* Other private members without packed attribute: */
     uint64_t start_addr;
     uint64_t compat_start_addr;
     uint64_t bios_start_addr;
     uint64_t compat_bios_start_addr;
     bool enforce_bios;
-    IplParameterBlock iplb;
     bool iplb_valid;
     bool netboot;
-    QemuIplParameters qipl;
     /* reset related properties don't have to be migrated or reset */
     enum s390_reset reset_type;
     int reset_cpu_index;
