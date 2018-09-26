@@ -34,7 +34,6 @@ void pc_dimm_pre_plug(PCDIMMDevice *dimm, MachineState *machine,
 {
     DeviceState *dev = DEVICE(dimm);
     Error *local_err = NULL;
-    uint64_t addr;
     int slot;
 
     slot = object_property_get_int(OBJECT(dev), PC_DIMM_SLOT_PROP,
@@ -49,13 +48,6 @@ void pc_dimm_pre_plug(PCDIMMDevice *dimm, MachineState *machine,
 
     memory_device_pre_plug(MEMORY_DEVICE(dev), machine, legacy_align,
                            &local_err);
-    if (local_err) {
-        goto out;
-    }
-
-    addr = object_property_get_uint(OBJECT(dev), PC_DIMM_ADDR_PROP,
-                                    &error_abort);
-    trace_mhp_pc_dimm_assigned_address(addr);
 out:
     error_propagate(errp, local_err);
 }
