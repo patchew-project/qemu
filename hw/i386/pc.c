@@ -74,6 +74,7 @@
 #include "hw/nmi.h"
 #include "hw/i386/intel_iommu.h"
 #include "hw/net/ne2000-isa.h"
+#include "hw/virtio/virtio-pmem.h"
 
 /* debug PC/ISA interrupts */
 //#define DEBUG_IRQ
@@ -2013,6 +2014,8 @@ static void pc_machine_device_pre_plug_cb(HotplugHandler *hotplug_dev,
         pc_memory_pre_plug(hotplug_dev, dev, errp);
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_CPU)) {
         pc_cpu_pre_plug(hotplug_dev, dev, errp);
+    } else if (object_dynamic_cast(OBJECT(dev), TYPE_VIRTIO_PMEM)) {
+        virtio_pmem_pre_plug(VIRTIO_PMEM(dev), MACHINE(hotplug_dev), errp);
     }
 }
 
@@ -2023,6 +2026,8 @@ static void pc_machine_device_plug_cb(HotplugHandler *hotplug_dev,
         pc_memory_plug(hotplug_dev, dev, errp);
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_CPU)) {
         pc_cpu_plug(hotplug_dev, dev, errp);
+    } else if (object_dynamic_cast(OBJECT(dev), TYPE_VIRTIO_PMEM)) {
+        virtio_pmem_plug(VIRTIO_PMEM(dev), MACHINE(hotplug_dev), errp);
     }
 }
 
@@ -2052,11 +2057,20 @@ static void pc_machine_device_unplug_cb(HotplugHandler *hotplug_dev,
     }
 }
 
+static void pc_machine_device_do_unplug_cb(HotplugHandler *hotplug_dev,
+                                           DeviceState *dev)
+{
+    if (object_dynamic_cast(OBJECT(dev), TYPE_VIRTIO_PMEM)) {
+        virtio_pmem_do_unplug(VIRTIO_PMEM(dev), MACHINE(hotplug_dev));
+    }
+}
+
 static HotplugHandler *pc_get_hotpug_handler(MachineState *machine,
                                              DeviceState *dev)
 {
     if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM) ||
-        object_dynamic_cast(OBJECT(dev), TYPE_CPU)) {
+        object_dynamic_cast(OBJECT(dev), TYPE_CPU) ||
+        object_dynamic_cast(OBJECT(dev), TYPE_VIRTIO_PMEM)) {
         return HOTPLUG_HANDLER(machine);
     }
 
@@ -2395,6 +2409,7 @@ static void pc_machine_class_init(ObjectClass *oc, void *data)
     hc->pre_plug = pc_machine_device_pre_plug_cb;
     hc->plug = pc_machine_device_plug_cb;
     hc->unplug_request = pc_machine_device_unplug_request_cb;
+    hc->do_unplug = pc_machine_device_do_unplug_cb;
     hc->unplug = pc_machine_device_unplug_cb;
     nc->nmi_monitor_handler = x86_nmi;
     mc->default_cpu_type = TARGET_DEFAULT_CPU_TYPE;
