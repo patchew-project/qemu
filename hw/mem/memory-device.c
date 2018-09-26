@@ -85,7 +85,8 @@ static void memory_device_check_addable(MachineState *ms, uint64_t size,
 
     /* will we exceed the total amount of memory specified */
     memory_device_used_region_size(OBJECT(ms), &used_region_size);
-    if (used_region_size + size > ms->maxram_size - ms->ram_size) {
+    if (used_region_size + size < used_region_size ||
+        used_region_size + size > ms->maxram_size - ms->ram_size) {
         error_setg(errp, "not enough space, currently 0x%" PRIx64
                    " in use of total hot pluggable 0x" RAM_ADDR_FMT,
                    used_region_size, ms->maxram_size - ms->ram_size);
@@ -115,7 +116,7 @@ uint64_t memory_device_get_free_addr(MachineState *ms, const uint64_t *hint,
     }
     address_space_start = ms->device_memory->base;
     address_space_end = address_space_start +
-                        memory_region_size(&ms->device_memory->mr);
+                        memory_region_size(&ms->device_memory->mr) - 1;
     g_assert(address_space_end >= address_space_start);
 
     /* address_space_start indicates the maximum alignment we expect */
@@ -149,7 +150,8 @@ uint64_t memory_device_get_free_addr(MachineState *ms, const uint64_t *hint,
                        "] before 0x%" PRIx64, new_addr, size,
                        address_space_start);
             return 0;
-        } else if ((new_addr + size) > address_space_end) {
+        } else if (new_addr + size - 1 < new_addr ||
+                   new_addr + size - 1 > address_space_end) {
             error_setg(errp, "can't add memory [0x%" PRIx64 ":0x%" PRIx64
                        "] beyond 0x%" PRIx64, new_addr, size,
                        address_space_end);
@@ -182,7 +184,8 @@ uint64_t memory_device_get_free_addr(MachineState *ms, const uint64_t *hint,
         }
     }
 
-    if (new_addr + size > address_space_end) {
+    if (new_addr + size - 1 < new_addr || !new_addr ||
+        new_addr + size - 1 > address_space_end) {
         error_setg(errp, "could not find position in guest address space for "
                    "memory device - memory fragmented due to alignments");
         goto out;
