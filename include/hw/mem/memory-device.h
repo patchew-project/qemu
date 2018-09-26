@@ -45,6 +45,10 @@ typedef struct MemoryDeviceState {
  * successive memory regions, a covering memory region is to be used.
  * Scattered memory regions are not supported for single devices.
  * @fill_device_info: Translate current @md state into #MemoryDeviceInfo.
+ * @get_device_id: Allows memory devices behind proxy devices
+ * (e.g. virtio based) to report the id of the proxy device to the user
+ * instead of the (empty) id of the memory device. The default
+ * implementation (unless overridden) will return the ordinary device id.
  */
 typedef struct MemoryDeviceClass {
     /* private */
@@ -57,6 +61,7 @@ typedef struct MemoryDeviceClass {
     MemoryRegion *(*get_memory_region)(MemoryDeviceState *md, Error **errp);
     void (*fill_device_info)(const MemoryDeviceState *md,
                              MemoryDeviceInfo *info);
+    const char *(*get_device_id)(const MemoryDeviceState *md);
 } MemoryDeviceClass;
 
 MemoryDeviceInfoList *qmp_memory_device_list(void);

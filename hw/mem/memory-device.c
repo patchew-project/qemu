@@ -174,8 +174,10 @@ static uint64_t memory_device_get_free_addr(MachineState *ms,
 
         if (ranges_overlap(md_addr, md_size, new_addr, size)) {
             if (hint) {
-                const DeviceState *d = DEVICE(md);
-                error_setg(errp, "address range conflicts with '%s'", d->id);
+                const char *id = mdc->get_device_id(md);
+
+                error_setg(errp, "address range conflicts with '%s'",
+                           id ? id : "(unnamed)");
                 goto out;
             }
             new_addr = QEMU_ALIGN_UP(md_addr + md_size, align);
@@ -328,10 +330,23 @@ uint64_t memory_device_get_region_size(const MemoryDeviceState *md,
     return memory_region_size(mr);
 }
 
+static const char *memory_device_get_device_id(const MemoryDeviceState *md)
+{
+    return DEVICE(md)->id;
+}
+
+static void memory_device_class_init(ObjectClass *oc, void *data)
+{
+    MemoryDeviceClass *mdc = MEMORY_DEVICE_CLASS(oc);
+
+    mdc->get_device_id = memory_device_get_device_id;
+}
+
 static const TypeInfo memory_device_info = {
     .name          = TYPE_MEMORY_DEVICE,
     .parent        = TYPE_INTERFACE,
     .class_size = sizeof(MemoryDeviceClass),
+    .class_init =  memory_device_class_init,
 };
 
 static void memory_device_register_types(void)
