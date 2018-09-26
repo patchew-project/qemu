@@ -873,6 +873,12 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
         }
     } else if (!value && dev->realized) {
         Error **local_errp = NULL;
+
+        hotplug_ctrl = qdev_get_hotplug_handler(dev);
+        if (hotplug_ctrl) {
+            hotplug_handler_do_unplug(hotplug_ctrl, dev);
+        }
+
         QLIST_FOREACH(bus, &dev->child_bus, sibling) {
             local_errp = local_err ? NULL : &local_err;
             object_property_set_bool(OBJECT(bus), false, "realized",

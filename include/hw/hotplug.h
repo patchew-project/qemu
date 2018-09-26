@@ -31,12 +31,20 @@ typedef struct HotplugHandler {
 
 /**
  * hotplug_fn:
- * @plug_handler: a device performing plug/uplug action
+ * @plug_handler: a device performing (un)plug action
  * @plugged_dev: a device that has been (un)plugged
  * @errp: returns an error if this function fails
  */
 typedef void (*hotplug_fn)(HotplugHandler *plug_handler,
                            DeviceState *plugged_dev, Error **errp);
+
+/**
+ * hotplug_fn_nofail:
+ * @plug_handler: a device performing un(plug) action
+ * @plugged_dev: a device that has been (un)plugged
+ */
+typedef void (*hotplug_fn_nofail)(HotplugHandler *plug_handler,
+                                  DeviceState *plugged_dev);
 
 /**
  * HotplugDeviceClass:
@@ -49,12 +57,17 @@ typedef void (*hotplug_fn)(HotplugHandler *plug_handler,
  * @plug: plug callback called at end of device.realize(true).
  * @post_plug: post plug callback called after device.realize(true) and device
  *             reset
+ * @do_unplug: unplug callback called at start of device.realize(false)
  * @unplug_request: unplug request callback.
  *                  Used as a means to initiate device unplug for devices that
  *                  require asynchronous unplug handling.
  * @unplug: unplug callback.
  *          Used for device removal with devices that implement
  *          asynchronous and synchronous (surprise) removal.
+ * Note: unplug_request and unplug are only called for devices to initiate
+ *       unplug of a device hierarchy (e.g. triggered by device_del). For
+ *       devices that will be removed along with this device hierarchy only
+ *       do_unplug will be called (e.g. to unassign resources).
  */
 typedef struct HotplugHandlerClass {
     /* <private> */
@@ -63,7 +76,8 @@ typedef struct HotplugHandlerClass {
     /* <public> */
     hotplug_fn pre_plug;
     hotplug_fn plug;
-    void (*post_plug)(HotplugHandler *plug_handler, DeviceState *plugged_dev);
+    hotplug_fn_nofail post_plug;
+    hotplug_fn_nofail do_unplug;
     hotplug_fn unplug_request;
     hotplug_fn unplug;
 } HotplugHandlerClass;
@@ -92,6 +106,14 @@ void hotplug_handler_pre_plug(HotplugHandler *plug_handler,
  * Call #HotplugHandlerClass.post_plug callback of @plug_handler.
  */
 void hotplug_handler_post_plug(HotplugHandler *plug_handler,
+                               DeviceState *plugged_dev);
+
+/**
+ * hotplug_handler_do_unplug:
+ *
+ * Call #HotplugHandlerClass.do_unplug callback of @plug_handler.
+ */
+void hotplug_handler_do_unplug(HotplugHandler *plug_handler,
                                DeviceState *plugged_dev);
 
 /**

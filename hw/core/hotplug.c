@@ -45,6 +45,16 @@ void hotplug_handler_post_plug(HotplugHandler *plug_handler,
     }
 }
 
+void hotplug_handler_do_unplug(HotplugHandler *plug_handler,
+                                 DeviceState *plugged_dev)
+{
+    HotplugHandlerClass *hdc = HOTPLUG_HANDLER_GET_CLASS(plug_handler);
+
+    if (hdc->do_unplug) {
+        hdc->do_unplug(plug_handler, plugged_dev);
+    }
+}
+
 void hotplug_handler_unplug_request(HotplugHandler *plug_handler,
                                     DeviceState *plugged_dev,
                                     Error **errp)
