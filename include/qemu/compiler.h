@@ -119,6 +119,21 @@
 #define GCC_FMT_ATTR(n, m)
 #endif
 
+/*
+ * Clang 3.4 claims to be compatible with GCC 4.2, but does not have the
+ * "flatten" attribute, so we've got to handle Clang via __has_attribute here
+ */
+#if defined(__clang__) && defined(__has_attribute)
+# if __has_attribute(flatten)
+#  define QEMU_FLATTEN __attribute__((flatten))
+# endif
+#elif !defined(__clang__) && QEMU_GNUC_PREREQ(4, 1)
+# define QEMU_FLATTEN __attribute__((flatten))
+#endif
+#ifndef QEMU_FLATTEN
+# define QEMU_FLATTEN
+#endif
+
 #ifndef __has_feature
 #define __has_feature(x) 0 /* compatibility with non-clang compilers */
 #endif

@@ -726,7 +726,7 @@ static FloatParts addsub_floats(FloatParts a, FloatParts b, bool subtract,
  * IEC/IEEE Standard for Binary Floating-Point Arithmetic.
  */
 
-float16  __attribute__((flatten)) float16_add(float16 a, float16 b,
+float16 QEMU_FLATTEN float16_add(float16 a, float16 b,
                                               float_status *status)
 {
     FloatParts pa = float16_unpack_canonical(a, status);
@@ -736,7 +736,7 @@ float16  __attribute__((flatten)) float16_add(float16 a, float16 b,
     return float16_round_pack_canonical(pr, status);
 }
 
-float32 __attribute__((flatten)) float32_add(float32 a, float32 b,
+float32 QEMU_FLATTEN float32_add(float32 a, float32 b,
                                              float_status *status)
 {
     FloatParts pa = float32_unpack_canonical(a, status);
@@ -746,7 +746,7 @@ float32 __attribute__((flatten)) float32_add(float32 a, float32 b,
     return float32_round_pack_canonical(pr, status);
 }
 
-float64 __attribute__((flatten)) float64_add(float64 a, float64 b,
+float64 QEMU_FLATTEN float64_add(float64 a, float64 b,
                                              float_status *status)
 {
     FloatParts pa = float64_unpack_canonical(a, status);
@@ -756,7 +756,7 @@ float64 __attribute__((flatten)) float64_add(float64 a, float64 b,
     return float64_round_pack_canonical(pr, status);
 }
 
-float16 __attribute__((flatten)) float16_sub(float16 a, float16 b,
+float16 QEMU_FLATTEN float16_sub(float16 a, float16 b,
                                              float_status *status)
 {
     FloatParts pa = float16_unpack_canonical(a, status);
@@ -766,7 +766,7 @@ float16 __attribute__((flatten)) float16_sub(float16 a, float16 b,
     return float16_round_pack_canonical(pr, status);
 }
 
-float32 __attribute__((flatten)) float32_sub(float32 a, float32 b,
+float32 QEMU_FLATTEN float32_sub(float32 a, float32 b,
                                              float_status *status)
 {
     FloatParts pa = float32_unpack_canonical(a, status);
@@ -776,7 +776,7 @@ float32 __attribute__((flatten)) float32_sub(float32 a, float32 b,
     return float32_round_pack_canonical(pr, status);
 }
 
-float64 __attribute__((flatten)) float64_sub(float64 a, float64 b,
+float64 QEMU_FLATTEN float64_sub(float64 a, float64 b,
                                              float_status *status)
 {
     FloatParts pa = float64_unpack_canonical(a, status);
@@ -835,7 +835,7 @@ static FloatParts mul_floats(FloatParts a, FloatParts b, float_status *s)
     g_assert_not_reached();
 }
 
-float16 __attribute__((flatten)) float16_mul(float16 a, float16 b,
+float16 QEMU_FLATTEN float16_mul(float16 a, float16 b,
                                              float_status *status)
 {
     FloatParts pa = float16_unpack_canonical(a, status);
@@ -845,7 +845,7 @@ float16 __attribute__((flatten)) float16_mul(float16 a, float16 b,
     return float16_round_pack_canonical(pr, status);
 }
 
-float32 __attribute__((flatten)) float32_mul(float32 a, float32 b,
+float32 QEMU_FLATTEN float32_mul(float32 a, float32 b,
                                              float_status *status)
 {
     FloatParts pa = float32_unpack_canonical(a, status);
@@ -855,7 +855,7 @@ float32 __attribute__((flatten)) float32_mul(float32 a, float32 b,
     return float32_round_pack_canonical(pr, status);
 }
 
-float64 __attribute__((flatten)) float64_mul(float64 a, float64 b,
+float64 QEMU_FLATTEN float64_mul(float64 a, float64 b,
                                              float_status *status)
 {
     FloatParts pa = float64_unpack_canonical(a, status);
@@ -1068,7 +1068,7 @@ static FloatParts muladd_floats(FloatParts a, FloatParts b, FloatParts c,
     return a;
 }
 
-float16 __attribute__((flatten)) float16_muladd(float16 a, float16 b, float16 c,
+float16 QEMU_FLATTEN float16_muladd(float16 a, float16 b, float16 c,
                                                 int flags, float_status *status)
 {
     FloatParts pa = float16_unpack_canonical(a, status);
@@ -1079,7 +1079,7 @@ float16 __attribute__((flatten)) float16_muladd(float16 a, float16 b, float16 c,
     return float16_round_pack_canonical(pr, status);
 }
 
-float32 __attribute__((flatten)) float32_muladd(float32 a, float32 b, float32 c,
+float32 QEMU_FLATTEN float32_muladd(float32 a, float32 b, float32 c,
                                                 int flags, float_status *status)
 {
     FloatParts pa = float32_unpack_canonical(a, status);
@@ -1090,7 +1090,7 @@ float32 __attribute__((flatten)) float32_muladd(float32 a, float32 b, float32 c,
     return float32_round_pack_canonical(pr, status);
 }
 
-float64 __attribute__((flatten)) float64_muladd(float64 a, float64 b, float64 c,
+float64 QEMU_FLATTEN float64_muladd(float64 a, float64 b, float64 c,
                                                 int flags, float_status *status)
 {
     FloatParts pa = float64_unpack_canonical(a, status);
@@ -2402,21 +2402,21 @@ static FloatParts sqrt_float(FloatParts a, float_status *s, const FloatFmt *p)
     return a;
 }
 
-float16 __attribute__((flatten)) float16_sqrt(float16 a, float_status *status)
+float16 QEMU_FLATTEN float16_sqrt(float16 a, float_status *status)
 {
     FloatParts pa = float16_unpack_canonical(a, status);
     FloatParts pr = sqrt_float(pa, status, &float16_params);
     return float16_round_pack_canonical(pr, status);
 }
 
-float32 __attribute__((flatten)) float32_sqrt(float32 a, float_status *status)
+float32 QEMU_FLATTEN float32_sqrt(float32 a, float_status *status)
 {
     FloatParts pa = float32_unpack_canonical(a, status);
     FloatParts pr = sqrt_float(pa, status, &float32_params);
     return float32_round_pack_canonical(pr, status);
 }
 
-float64 __attribute__((flatten)) float64_sqrt(float64 a, float_status *status)
+float64 QEMU_FLATTEN float64_sqrt(float64 a, float_status *status)
 {
     FloatParts pa = float64_unpack_canonical(a, status);
     FloatParts pr = sqrt_float(pa, status, &float64_params);
