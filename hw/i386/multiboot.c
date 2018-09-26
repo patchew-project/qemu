@@ -186,7 +186,8 @@ int load_multiboot(FWCfgState *fw_cfg,
     memset(&mbs, 0, sizeof(mbs));
 
     if (flags & 0x00000004) { /* MULTIBOOT_HEADER_HAS_VBE */
-        error_report("multiboot knows VBE. we don't");
+        error_report("This multiboot image uses VBE, which QEMU "
+                     "does not support");
     }
     if (!(flags & 0x00010000)) { /* MULTIBOOT_HEADER_HAS_ADDR */
         uint64_t elf_entry;
