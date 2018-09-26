@@ -34,6 +34,7 @@ typedef struct MemoryDeviceState {
  * @get_addr: The address of the @md in guest physical memory. "0" means that
  * no address has been specified by the user and that no address has been
  * assigned yet.
+ * @set_addr: Set the address of the @md in guest physical memory.
  * @get_plugged_size: The amount of memory provided by this @md currently
  * usable ("plugged") by the guest. This is helpful for devices that
  * dynamically manage the amount of memory accessible by the guest via
@@ -51,6 +52,7 @@ typedef struct MemoryDeviceClass {
 
     /* public */
     uint64_t (*get_addr)(const MemoryDeviceState *md);
+    void (*set_addr)(MemoryDeviceState *md, uint64_t addr, Error **errp);
     uint64_t (*get_plugged_size)(const MemoryDeviceState *md, Error **errp);
     MemoryRegion *(*get_memory_region)(MemoryDeviceState *md, Error **errp);
     void (*fill_device_info)(const MemoryDeviceState *md,
