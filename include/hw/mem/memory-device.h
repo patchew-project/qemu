@@ -39,8 +39,6 @@ typedef struct MemoryDeviceState {
  * dynamically manage the amount of memory accessible by the guest via
  * the reserved memory region. For most devices, this corresponds to the
  * size of the memory region.
- * @get_region_size: The size of the memory region of the @md that's mapped
- * in guest physical memory at @get_addr.
  * @get_memory_region: The memory region of the @md that's mapped in guest
  * physical memory at @get_addr. If a @md is ever composed of multiple
  * successive memory regions, a covering memory region is to be used.
@@ -54,7 +52,6 @@ typedef struct MemoryDeviceClass {
     /* public */
     uint64_t (*get_addr)(const MemoryDeviceState *md);
     uint64_t (*get_plugged_size)(const MemoryDeviceState *md, Error **errp);
-    uint64_t (*get_region_size)(const MemoryDeviceState *md, Error **errp);
     MemoryRegion *(*get_memory_region)(MemoryDeviceState *md, Error **errp);
     void (*fill_device_info)(const MemoryDeviceState *md,
                              MemoryDeviceInfo *info);
