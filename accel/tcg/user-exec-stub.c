@@ -10,7 +10,7 @@ void cpu_resume(CPUState *cpu)
 {
 }
 
-void qemu_init_vcpu(CPUState *cpu)
+bool qemu_init_vcpu(CPUState *cpu, Error **errp)
 {
 }
 
