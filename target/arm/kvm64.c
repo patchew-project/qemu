@@ -356,13 +356,23 @@ bool kvm_arm_hw_debug_active(CPUState *cs)
     return ((cur_hw_wps > 0) || (cur_hw_bps > 0));
 }
 
+/*
+ * We shouldn't rely on gdb correctly setting the top bits of DBGBVR
+ * and the HW lists the top bits a RESS - sign-extending the top bit
+ * of the VA address. As it is IMPDEF if the write is either a sign
+ * extension or kept as is we might fix it up before we compare with
+ * the correctly reported and sign extended address.
+ */
+
 static bool find_hw_breakpoint(CPUState *cpu, target_ulong pc)
 {
     int i;
 
     for (i = 0; i < cur_hw_bps; i++) {
         HWBreakpoint *bp = get_hw_bp(i);
-        if (bp->bvr == pc) {
+        target_ulong bvr = bp->bvr;
+        bvr |= extract64(bvr, 52, 1) ? MAKE_64BIT_MASK(53, 11) : 0;
+        if (bvr == pc) {
             return true;
         }
     }
