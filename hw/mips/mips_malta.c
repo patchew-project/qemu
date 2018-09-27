@@ -995,8 +995,8 @@ static void GCC_FMT_ATTR(3, 4) prom_set(uint32_t* prom_buf, int index,
 /* Kernel */
 static int64_t load_kernel (void)
 {
-    int64_t kernel_entry, kernel_high;
-    long kernel_size, initrd_size;
+    int64_t kernel_entry, kernel_high, initrd_size;
+    long kernel_size;
     ram_addr_t initrd_offset;
     int big_endian;
     uint32_t *prom_buf;
