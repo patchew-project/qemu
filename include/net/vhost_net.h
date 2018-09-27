@@ -27,6 +27,7 @@ void vhost_net_cleanup(VHostNetState *net);
 
 uint64_t vhost_net_get_features(VHostNetState *net, uint64_t features);
 void vhost_net_ack_features(VHostNetState *net, uint64_t features);
+void vhost_net_mark_break_down(VHostNetState *net);
 
 bool vhost_net_virtqueue_pending(VHostNetState *net, int n);
 void vhost_net_virtqueue_mask(VHostNetState *net, VirtIODevice *dev,

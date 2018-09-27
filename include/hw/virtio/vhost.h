@@ -74,6 +74,7 @@ struct vhost_dev {
     bool started;
     bool log_enabled;
     uint64_t log_size;
+    bool break_down;
     Error *migration_blocker;
     const VhostOps *vhost_ops;
     void *opaque;
