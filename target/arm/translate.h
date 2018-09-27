@@ -196,6 +196,7 @@ static inline TCGv_i32 get_ahp_flag(void)
 
 FORWARD_FEATURE(thumb_div)
 FORWARD_FEATURE(arm_div)
+FORWARD_FEATURE(jazelle)
 FORWARD_FEATURE(aes)
 FORWARD_FEATURE(pmull)
 FORWARD_FEATURE(sha1)
