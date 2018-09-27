@@ -301,9 +301,8 @@ static const VMStateDescription vmstate_m = {
 static bool thumb2ee_needed(void *opaque)
 {
     ARMCPU *cpu = opaque;
-    CPUARMState *env = &cpu->env;
 
-    return arm_feature(env, ARM_FEATURE_THUMB2EE);
+    return aa32_feature_t32ee(cpu);
 }
 
 static const VMStateDescription vmstate_thumb2ee = {
