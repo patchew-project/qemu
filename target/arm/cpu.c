@@ -1827,17 +1827,17 @@ static void arm_max_initfn(Object *obj)
         cortex_a15_initfn(obj);
 #ifdef CONFIG_USER_ONLY
         /* We don't set these in system emulation mode for the moment,
-         * since we don't correctly set the ID registers to advertise them,
+         * since we don't correctly set (all of) the ID registers to
+         * advertise them.
          */
         set_feature(&cpu->env, ARM_FEATURE_V8);
-        set_feature(&cpu->env, ARM_FEATURE_V8_AES);
-        set_feature(&cpu->env, ARM_FEATURE_V8_SHA1);
-        set_feature(&cpu->env, ARM_FEATURE_V8_SHA256);
-        set_feature(&cpu->env, ARM_FEATURE_V8_PMULL);
-        set_feature(&cpu->env, ARM_FEATURE_CRC);
-        set_feature(&cpu->env, ARM_FEATURE_V8_RDM);
-        set_feature(&cpu->env, ARM_FEATURE_V8_DOTPROD);
-        set_feature(&cpu->env, ARM_FEATURE_V8_FCMA);
+        FIELD_DP32(cpu->id_isar5, ID_ISAR5, AES, 2); /* AES + PMULL */
+        FIELD_DP32(cpu->id_isar5, ID_ISAR5, SHA1, 1);
+        FIELD_DP32(cpu->id_isar5, ID_ISAR5, SHA2, 1);
+        FIELD_DP32(cpu->id_isar5, ID_ISAR5, CRC32, 1);
+        FIELD_DP32(cpu->id_isar5, ID_ISAR5, RDM, 1);
+        FIELD_DP32(cpu->id_isar5, ID_ISAR5, VCMA, 1);
+        FIELD_DP32(cpu->id_isar6, ID_ISAR6, DP, 1);
 #endif
     }
 }

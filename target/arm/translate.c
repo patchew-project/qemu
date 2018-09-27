@@ -5660,7 +5660,7 @@ static const uint8_t neon_2rm_sizes[] = {
 static int do_v81_helper(DisasContext *s, gen_helper_gvec_3_ptr *fn,
                          int q, int rd, int rn, int rm)
 {
-    if (arm_dc_feature(s, ARM_FEATURE_V8_RDM)) {
+    if (aa32_dc_feature_rdm(s)) {
         int opr_sz = (1 + q) * 8;
         tcg_gen_gvec_3_ptr(vfp_reg_offset(1, rd),
                            vfp_reg_offset(1, rn),
@@ -5734,7 +5734,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                 return 1;
             }
             if (!u) { /* SHA-1 */
-                if (!arm_dc_feature(s, ARM_FEATURE_V8_SHA1)) {
+                if (!aa32_dc_feature_sha1(s)) {
                     return 1;
                 }
                 ptr1 = vfp_reg_ptr(true, rd);
@@ -5744,7 +5744,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                 gen_helper_crypto_sha1_3reg(ptr1, ptr2, ptr3, tmp4);
                 tcg_temp_free_i32(tmp4);
             } else { /* SHA-256 */
-                if (!arm_dc_feature(s, ARM_FEATURE_V8_SHA256) || size == 3) {
+                if (!aa32_dc_feature_sha2(s) || size == 3) {
                     return 1;
                 }
                 ptr1 = vfp_reg_ptr(true, rd);
@@ -6739,7 +6739,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                 if (op == 14 && size == 2) {
                     TCGv_i64 tcg_rn, tcg_rm, tcg_rd;
 
-                    if (!arm_dc_feature(s, ARM_FEATURE_V8_PMULL)) {
+                    if (!aa32_dc_feature_pmull(s)) {
                         return 1;
                     }
                     tcg_rn = tcg_temp_new_i64();
@@ -7056,7 +7056,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                     {
                         NeonGenThreeOpEnvFn *fn;
 
-                        if (!arm_dc_feature(s, ARM_FEATURE_V8_RDM)) {
+                        if (!aa32_dc_feature_rdm(s)) {
                             return 1;
                         }
                         if (u && ((rd | rn) & 1)) {
@@ -7330,8 +7330,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                     break;
                 }
                 case NEON_2RM_AESE: case NEON_2RM_AESMC:
-                    if (!arm_dc_feature(s, ARM_FEATURE_V8_AES)
-                        || ((rm | rd) & 1)) {
+                    if (!aa32_dc_feature_aes(s) || ((rm | rd) & 1)) {
                         return 1;
                     }
                     ptr1 = vfp_reg_ptr(true, rd);
@@ -7352,8 +7351,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                     tcg_temp_free_i32(tmp3);
                     break;
                 case NEON_2RM_SHA1H:
-                    if (!arm_dc_feature(s, ARM_FEATURE_V8_SHA1)
-                        || ((rm | rd) & 1)) {
+                    if (!aa32_dc_feature_sha1(s) || ((rm | rd) & 1)) {
                         return 1;
                     }
                     ptr1 = vfp_reg_ptr(true, rd);
@@ -7370,10 +7368,10 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                     }
                     /* bit 6 (q): set -> SHA256SU0, cleared -> SHA1SU1 */
                     if (q) {
-                        if (!arm_dc_feature(s, ARM_FEATURE_V8_SHA256)) {
+                        if (!aa32_dc_feature_sha2(s)) {
                             return 1;
                         }
-                    } else if (!arm_dc_feature(s, ARM_FEATURE_V8_SHA1)) {
+                    } else if (!aa32_dc_feature_sha1(s)) {
                         return 1;
                     }
                     ptr1 = vfp_reg_ptr(true, rd);
@@ -7784,7 +7782,7 @@ static int disas_neon_insn_3same_ext(DisasContext *s, uint32_t insn)
         /* VCMLA -- 1111 110R R.1S .... .... 1000 ...0 .... */
         int size = extract32(insn, 20, 1);
         data = extract32(insn, 23, 2); /* rot */
-        if (!arm_dc_feature(s, ARM_FEATURE_V8_FCMA)
+        if (!aa32_dc_feature_vcma(s)
             || (!size && !arm_dc_feature(s, ARM_FEATURE_V8_FP16))) {
             return 1;
         }
@@ -7793,7 +7791,7 @@ static int disas_neon_insn_3same_ext(DisasContext *s, uint32_t insn)
         /* VCADD -- 1111 110R 1.0S .... .... 1000 ...0 .... */
         int size = extract32(insn, 20, 1);
         data = extract32(insn, 24, 1); /* rot */
-        if (!arm_dc_feature(s, ARM_FEATURE_V8_FCMA)
+        if (!aa32_dc_feature_vcma(s)
             || (!size && !arm_dc_feature(s, ARM_FEATURE_V8_FP16))) {
             return 1;
         }
@@ -7801,7 +7799,7 @@ static int disas_neon_insn_3same_ext(DisasContext *s, uint32_t insn)
     } else if ((insn & 0xfeb00f00) == 0xfc200d00) {
         /* V[US]DOT -- 1111 1100 0.10 .... .... 1101 .Q.U .... */
         bool u = extract32(insn, 4, 1);
-        if (!arm_dc_feature(s, ARM_FEATURE_V8_DOTPROD)) {
+        if (!aa32_dc_feature_dp(s)) {
             return 1;
         }
         fn_gvec = u ? gen_helper_gvec_udot_b : gen_helper_gvec_sdot_b;
@@ -7863,7 +7861,7 @@ static int disas_neon_insn_2reg_scalar_ext(DisasContext *s, uint32_t insn)
         int size = extract32(insn, 23, 1);
         int index;
 
-        if (!arm_dc_feature(s, ARM_FEATURE_V8_FCMA)) {
+        if (!aa32_dc_feature_vcma(s)) {
             return 1;
         }
         if (size == 0) {
@@ -7884,7 +7882,7 @@ static int disas_neon_insn_2reg_scalar_ext(DisasContext *s, uint32_t insn)
     } else if ((insn & 0xffb00f00) == 0xfe200d00) {
         /* V[US]DOT -- 1111 1110 0.10 .... .... 1101 .Q.U .... */
         int u = extract32(insn, 4, 1);
-        if (!arm_dc_feature(s, ARM_FEATURE_V8_DOTPROD)) {
+        if (!aa32_dc_feature_dp(s)) {
             return 1;
         }
         fn_gvec = u ? gen_helper_gvec_udot_idx_b : gen_helper_gvec_sdot_idx_b;
@@ -8860,8 +8858,7 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
              * op1 == 3 is UNPREDICTABLE but handle as UNDEFINED.
              * Bits 8, 10 and 11 should be zero.
              */
-            if (!arm_dc_feature(s, ARM_FEATURE_CRC) || op1 == 0x3 ||
-                (c & 0xd) != 0) {
+            if (!aa32_dc_feature_crc32(s) || op1 == 0x3 || (c & 0xd) != 0) {
                 goto illegal_op;
             }
 
@@ -10706,7 +10703,7 @@ static void disas_thumb2_insn(DisasContext *s, uint32_t insn)
                 case 0x28:
                 case 0x29:
                 case 0x2a:
-                    if (!arm_dc_feature(s, ARM_FEATURE_CRC)) {
+                    if (!aa32_dc_feature_crc32(s)) {
                         goto illegal_op;
                     }
                     break;

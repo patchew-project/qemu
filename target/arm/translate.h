@@ -7,6 +7,7 @@
 /* internal defines */
 typedef struct DisasContext {
     DisasContextBase base;
+    ARMCPU *cpu;  /* for access to the id_* registers */
 
     target_ulong pc;
     target_ulong page_start;
@@ -188,5 +189,20 @@ static inline TCGv_i32 get_ahp_flag(void)
 
     return ret;
 }
+
+#define FORWARD_FEATURE(NAME) \
+    static inline bool aa32_dc_feature_##NAME(DisasContext *dc) \
+    { return aa32_feature_##NAME(dc->cpu); }
+
+FORWARD_FEATURE(aes)
+FORWARD_FEATURE(pmull)
+FORWARD_FEATURE(sha1)
+FORWARD_FEATURE(sha2)
+FORWARD_FEATURE(crc32)
+FORWARD_FEATURE(rdm)
+FORWARD_FEATURE(vcma)
+FORWARD_FEATURE(dp)
+
+#undef FORWARD_FEATURE
 
 #endif /* TARGET_ARM_TRANSLATE_H */
