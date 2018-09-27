@@ -69,6 +69,25 @@ typedef struct GAPersistentState {
     int64_t fd_counter;
 } GAPersistentState;
 
+typedef struct GAConfig {
+    char *channel_path;
+    char *method;
+    char *log_filepath;
+    char *pid_filepath;
+#ifdef CONFIG_FSFREEZE
+    char *fsfreeze_hook;
+#endif
+    char *state_dir;
+#ifdef _WIN32
+    const char *service;
+#endif
+    gchar *bliststr; /* blacklist may point to this string */
+    GList *blacklist;
+    int daemonize;
+    GLogLevelFlags log_level;
+    int dumpconf;
+} GAConfig;
+
 struct GAState {
     JSONMessageParser parser;
     GMainLoop *main_loop;
@@ -94,6 +113,8 @@ struct GAState {
 #endif
     gchar *pstate_filepath;
     GAPersistentState pstate;
+    GAConfig *config;
+    int socket_activation;
 };
 
 struct GAState *ga_state;
@@ -939,25 +960,6 @@ static GList *split_list(const gchar *str, const gchar *delim)
     return list;
 }
 
-typedef struct GAConfig {
-    char *channel_path;
-    char *method;
-    char *log_filepath;
-    char *pid_filepath;
-#ifdef CONFIG_FSFREEZE
-    char *fsfreeze_hook;
-#endif
-    char *state_dir;
-#ifdef _WIN32
-    const char *service;
-#endif
-    gchar *bliststr; /* blacklist may point to this string */
-    GList *blacklist;
-    int daemonize;
-    GLogLevelFlags log_level;
-    int dumpconf;
-} GAConfig;
-
 static void config_load(GAConfig *config)
 {
     GError *gerr = NULL;
@@ -1245,7 +1247,7 @@ static bool check_is_frozen(GAState *s)
     return false;
 }
 
-static GAState *initialize_agent(GAConfig *config)
+static GAState *initialize_agent(GAConfig *config, int socket_activation)
 {
     GAState *s = g_new0(GAState, 1);
 
@@ -1338,6 +1340,8 @@ static GAState *initialize_agent(GAConfig *config)
 
     s->main_loop = g_main_loop_new(NULL, false);
 
+    s->config = config;
+    s->socket_activation = socket_activation;
     ga_state = s;
     return s;
 }
@@ -1361,10 +1365,10 @@ static void cleanup_agent(GAState *s)
     ga_state = NULL;
 }
 
-static int run_agent(GAState *s, GAConfig *config, int socket_activation)
+static int run_agent(GAState *s)
 {
-    if (!channel_init(ga_state, config->method, config->channel_path,
-                      socket_activation ? FIRST_SOCKET_ACTIVATION_FD : -1)) {
+    if (!channel_init(s, s->config->method, s->config->channel_path,
+                      s->socket_activation ? FIRST_SOCKET_ACTIVATION_FD : -1)) {
         g_critical("failed to initialize guest agent channel");
         return EXIT_FAILURE;
     }
@@ -1459,12 +1463,12 @@ int main(int argc, char **argv)
         goto end;
     }
 
-    s = initialize_agent(config);
+    s = initialize_agent(config, socket_activation);
     if (!s) {
         g_critical("error initializing guest agent");
         goto end;
     }
-    ret = run_agent(s, config, socket_activation);
+    ret = run_agent(s);
     cleanup_agent(s);
 
 end:
