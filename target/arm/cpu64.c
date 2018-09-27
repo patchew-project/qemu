@@ -259,6 +259,8 @@ static void aarch64_max_initfn(Object *obj)
         FIELD_DP64(cpu->id_aa64isar1, ID_AA64ISAR1, FCMA, 1);
 
         FIELD_DP64(cpu->id_aa64pfr0, ID_AA64PFR0, SVE, 1);
+        FIELD_DP64(cpu->id_aa64pfr0, ID_AA64PFR0, FP, 1);
+        FIELD_DP64(cpu->id_aa64pfr0, ID_AA64PFR0, ADVSIMD, 1);
 
         /* Replicate the same data to the 32-bit id registers.  */
         FIELD_DP32(cpu->id_isar5, ID_ISAR5, AES, 2); /* AES + PMULL */
@@ -268,15 +270,12 @@ static void aarch64_max_initfn(Object *obj)
         FIELD_DP32(cpu->id_isar5, ID_ISAR5, RDM, 1);
         FIELD_DP32(cpu->id_isar5, ID_ISAR5, VCMA, 1);
         FIELD_DP32(cpu->id_isar6, ID_ISAR6, DP, 1);
+        /*
+         * FIXME: ARMv8.2-FP16 is not implemented for aa32,
+         * so do not set MVFR1.FPHP and MVFR.SIMDHP.
+         */
 
 #ifdef CONFIG_USER_ONLY
-        /* We don't set these in system emulation mode for the moment,
-         * since we don't correctly set the ID registers to advertise them,
-         * and in some cases they're only available in AArch64 and not AArch32,
-         * whereas the architecture requires them to be present in both if
-         * present in either.
-         */
-        set_feature(&cpu->env, ARM_FEATURE_V8_FP16);
         /* For usermode -cpu max we can use a larger and more efficient DCZ
          * blocksize since we don't have to follow what the hardware does.
          */

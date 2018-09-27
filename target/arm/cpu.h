@@ -1566,7 +1566,6 @@ enum arm_features {
     ARM_FEATURE_PMU, /* has PMU support */
     ARM_FEATURE_VBAR, /* has cp15 VBAR */
     ARM_FEATURE_M_SECURITY, /* M profile Security Extension */
-    ARM_FEATURE_V8_FP16, /* implements v8.2 half-precision float */
     ARM_FEATURE_M_MAIN, /* M profile Main Extension */
 };
 
@@ -3176,6 +3175,16 @@ static inline bool aa32_feature_dp(ARMCPU *cpu)
     return FIELD_EX32(cpu->id_isar6, ID_ISAR6, DP) != 0;
 }
 
+static inline bool aa32_feature_fp16_arith(ARMCPU *cpu)
+{
+    /*
+     * This is a placeholder for use by VCMA until the rest of
+     * the ARMv8.2-FP16 extension is implemented for aa32 mode.
+     * At which point we can properly set and check MVFR1.FPHP.
+     */
+    return FIELD_EX64(cpu->id_aa64pfr0, ID_AA64PFR0, FP) == 1;
+}
+
 /*
  * 64-bit feature tests via id registers.
  */
@@ -3242,6 +3251,12 @@ static inline bool aa64_feature_dp(ARMCPU *cpu)
 static inline bool aa64_feature_fcma(ARMCPU *cpu)
 {
     return FIELD_EX64(cpu->id_aa64isar1, ID_AA64ISAR1, FCMA) != 0;
+}
+
+static inline bool aa64_feature_fp16(ARMCPU *cpu)
+{
+    /* We always set the AdvSIMD and FP fields identically wrt FP16.  */
+    return FIELD_EX64(cpu->id_aa64pfr0, ID_AA64PFR0, FP) == 1;
 }
 
 static inline bool aa64_feature_sve(ARMCPU *cpu)

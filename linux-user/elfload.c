@@ -573,8 +573,6 @@ static uint32_t get_elf_hwcap(void)
     hwcaps |= ARM_HWCAP_A64_ASIMD;
 
     /* probe for the extra features */
-#define GET_FEATURE(feat, hwcap) \
-    do { if (arm_feature(&cpu->env, feat)) { hwcaps |= hwcap; } } while (0)
 #define GET_FEATURE_ID(feat, hwcap) \
     do { if (aa64_feature_##feat(cpu)) { hwcaps |= hwcap; } } while (0)
 
@@ -587,15 +585,13 @@ static uint32_t get_elf_hwcap(void)
     GET_FEATURE_ID(sha3, ARM_HWCAP_A64_SHA3);
     GET_FEATURE_ID(sm3, ARM_HWCAP_A64_SM3);
     GET_FEATURE_ID(sm4, ARM_HWCAP_A64_SM4);
-    GET_FEATURE(ARM_FEATURE_V8_FP16,
-                ARM_HWCAP_A64_FPHP | ARM_HWCAP_A64_ASIMDHP);
+    GET_FEATURE_ID(fp16, ARM_HWCAP_A64_FPHP | ARM_HWCAP_A64_ASIMDHP);
     GET_FEATURE_ID(atomics, ARM_HWCAP_A64_ATOMICS);
     GET_FEATURE_ID(rdm, ARM_HWCAP_A64_ASIMDRDM);
     GET_FEATURE_ID(dp, ARM_HWCAP_A64_ASIMDDP);
     GET_FEATURE_ID(fcma, ARM_HWCAP_A64_FCMA);
     GET_FEATURE_ID(sve, ARM_HWCAP_A64_SVE);
 
-#undef GET_FEATURE
 #undef GET_FEATURE_ID
 
     return hwcaps;
