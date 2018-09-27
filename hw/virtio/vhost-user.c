@@ -213,14 +213,20 @@ static bool ioeventfd_enabled(void)
 static int vhost_user_read(struct vhost_dev *dev, VhostUserMsg *msg)
 {
     struct vhost_user *u = dev->opaque;
-    CharBackend *chr = u->user->chr;
+    CharBackend *chr;
     uint8_t *p = (uint8_t *) msg;
     int r, size = VHOST_USER_HDR_SIZE;
 
+    if (dev->break_down) {
+        goto fail;
+    }
+
+    chr = u->user->chr;
     r = qemu_chr_fe_read_all(chr, p, size);
     if (r != size) {
         error_report("Failed to read msg header. Read %d instead of %d."
                      " Original request %d.", r, size, msg->hdr.request);
+        dev->break_down = true;
         goto fail;
     }
 
@@ -299,9 +305,12 @@ static int vhost_user_write(struct vhost_dev *dev, VhostUserMsg *msg,
                             int *fds, int fd_num)
 {
     struct vhost_user *u = dev->opaque;
-    CharBackend *chr = u->user->chr;
+    CharBackend *chr;
     int ret, size = VHOST_USER_HDR_SIZE + msg->hdr.size;
 
+    if (dev->break_down) {
+        return -1;
+    }
     /*
      * For non-vring specific requests, like VHOST_USER_SET_MEM_TABLE,
      * we just need send it once in the first time. For later such
@@ -312,6 +321,7 @@ static int vhost_user_write(struct vhost_dev *dev, VhostUserMsg *msg,
         return 0;
     }
 
+    chr = u->user->chr;
     if (qemu_chr_fe_set_msgfds(chr, fds, fd_num) < 0) {
         error_report("Failed to set msg fds.");
         return -1;
@@ -319,6 +329,7 @@ static int vhost_user_write(struct vhost_dev *dev, VhostUserMsg *msg,
 
     ret = qemu_chr_fe_write_all(chr, (const uint8_t *) msg, size);
     if (ret != size) {
+        dev->break_down = true;
         error_report("Failed to write msg."
                      " Wrote %d instead of %d.", ret, size);
         return -1;

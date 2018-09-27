@@ -113,6 +113,11 @@ uint64_t vhost_net_get_features(struct vhost_net *net, uint64_t features)
             features);
 }
 
+void vhost_net_mark_break_down(struct vhost_net *net)
+{
+    net->dev.break_down = true;
+}
+
 void vhost_net_ack_features(struct vhost_net *net, uint64_t features)
 {
     net->dev.acked_features = net->dev.backend_features;
@@ -156,6 +161,7 @@ struct vhost_net *vhost_net_init(VhostNetOptions *options)
     net->dev.max_queues = 1;
     net->dev.nvqs = 2;
     net->dev.vqs = net->vqs;
+    net->dev.break_down = false;
 
     if (backend_kernel) {
         r = vhost_net_get_fd(options->net_backend);

@@ -270,6 +270,9 @@ static void net_vhost_user_event(void *opaque, int event)
         if (s->watch) {
             AioContext *ctx = qemu_get_current_aio_context();
 
+            if (s->vhost_net) {
+                vhost_net_mark_break_down(s->vhost_net);
+            }
             g_source_remove(s->watch);
             s->watch = 0;
             qemu_chr_fe_set_handlers(&s->chr, NULL, NULL, NULL, NULL,
