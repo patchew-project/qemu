@@ -5587,7 +5587,7 @@ void register_cp_regs_for_features(ARMCPU *cpu)
         define_one_arm_cp_reg(cpu, &sctlr);
     }
 
-    if (arm_feature(env, ARM_FEATURE_SVE)) {
+    if (aa64_feature_sve(cpu)) {
         define_one_arm_cp_reg(cpu, &zcr_el1_reginfo);
         if (arm_feature(env, ARM_FEATURE_EL2)) {
             define_one_arm_cp_reg(cpu, &zcr_el2_reginfo);
@@ -12587,13 +12587,15 @@ void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
     uint32_t flags;
 
     if (is_a64(env)) {
+        ARMCPU *cpu = arm_env_get_cpu(env);
+
         *pc = env->pc;
         flags = ARM_TBFLAG_AARCH64_STATE_MASK;
         /* Get control bits for tagged addresses */
         flags |= (arm_regime_tbi0(env, mmu_idx) << ARM_TBFLAG_TBI0_SHIFT);
         flags |= (arm_regime_tbi1(env, mmu_idx) << ARM_TBFLAG_TBI1_SHIFT);
 
-        if (arm_feature(env, ARM_FEATURE_SVE)) {
+        if (aa64_feature_sve(cpu)) {
             int sve_el = sve_exception_el(env);
             uint32_t zcr_len;
 
@@ -12604,7 +12606,6 @@ void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
                 zcr_len = 0;
             } else {
                 int current_el = arm_current_el(env);
-                ARMCPU *cpu = arm_env_get_cpu(env);
 
                 zcr_len = cpu->sve_max_vq - 1;
                 if (current_el <= 1) {

@@ -258,6 +258,8 @@ static void aarch64_max_initfn(Object *obj)
 
         FIELD_DP64(cpu->id_aa64isar1, ID_AA64ISAR1, FCMA, 1);
 
+        FIELD_DP64(cpu->id_aa64pfr0, ID_AA64PFR0, SVE, 1);
+
         /* Replicate the same data to the 32-bit id registers.  */
         FIELD_DP32(cpu->id_isar5, ID_ISAR5, AES, 2); /* AES + PMULL */
         FIELD_DP32(cpu->id_isar5, ID_ISAR5, SHA1, 1);
@@ -275,7 +277,6 @@ static void aarch64_max_initfn(Object *obj)
          * present in either.
          */
         set_feature(&cpu->env, ARM_FEATURE_V8_FP16);
-        set_feature(&cpu->env, ARM_FEATURE_SVE);
         /* For usermode -cpu max we can use a larger and more efficient DCZ
          * blocksize since we don't have to follow what the hardware does.
          */

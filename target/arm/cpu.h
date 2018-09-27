@@ -1508,6 +1508,16 @@ FIELD(ID_AA64ISAR1, LRCPC, 20, 4)
 FIELD(ID_AA64ISAR1, GPA, 24, 4)
 FIELD(ID_AA64ISAR1, GPI, 28, 4)
 
+FIELD(ID_AA64PFR0, EL0, 0, 4)
+FIELD(ID_AA64PFR0, EL1, 4, 4)
+FIELD(ID_AA64PFR0, EL2, 8, 4)
+FIELD(ID_AA64PFR0, EL3, 12, 4)
+FIELD(ID_AA64PFR0, FP, 16, 4)
+FIELD(ID_AA64PFR0, ADVSIMD, 20, 4)
+FIELD(ID_AA64PFR0, GIC, 24, 4)
+FIELD(ID_AA64PFR0, RAS, 28, 4)
+FIELD(ID_AA64PFR0, SVE, 32, 4)
+
 QEMU_BUILD_BUG_ON(ARRAY_SIZE(((ARMCPU *)0)->ccsidr) <= R_V7M_CSSELR_INDEX_MASK);
 
 /* If adding a feature bit which corresponds to a Linux ELF
@@ -1556,7 +1566,6 @@ enum arm_features {
     ARM_FEATURE_PMU, /* has PMU support */
     ARM_FEATURE_VBAR, /* has cp15 VBAR */
     ARM_FEATURE_M_SECURITY, /* M profile Security Extension */
-    ARM_FEATURE_SVE, /* has Scalable Vector Extension */
     ARM_FEATURE_V8_FP16, /* implements v8.2 half-precision float */
     ARM_FEATURE_M_MAIN, /* M profile Main Extension */
 };
@@ -3233,6 +3242,11 @@ static inline bool aa64_feature_dp(ARMCPU *cpu)
 static inline bool aa64_feature_fcma(ARMCPU *cpu)
 {
     return FIELD_EX64(cpu->id_aa64isar1, ID_AA64ISAR1, FCMA) != 0;
+}
+
+static inline bool aa64_feature_sve(ARMCPU *cpu)
+{
+    return FIELD_EX64(cpu->id_aa64pfr0, ID_AA64PFR0, SVE) != 0;
 }
 
 #endif
