@@ -194,6 +194,8 @@ static inline TCGv_i32 get_ahp_flag(void)
     static inline bool aa32_dc_feature_##NAME(DisasContext *dc) \
     { return aa32_feature_##NAME(dc->cpu); }
 
+FORWARD_FEATURE(thumb_div)
+FORWARD_FEATURE(arm_div)
 FORWARD_FEATURE(aes)
 FORWARD_FEATURE(pmull)
 FORWARD_FEATURE(sha1)
