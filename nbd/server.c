@@ -333,7 +333,7 @@ static int nbd_opt_read_name(NBDClient *client, char *name, uint32_t *length,
     if (ret <= 0) {
         return ret;
     }
-    cpu_to_be32s(&len);
+    len = cpu_to_be32(len);
 
     if (len > NBD_MAX_NAME_SIZE) {
         return nbd_opt_invalid(client, errp,
@@ -618,9 +618,9 @@ static int nbd_negotiate_handle_info(NBDClient *client, uint16_t myflags,
     /* maximum - At most 32M, but smaller as appropriate. */
     sizes[2] = MIN(blk_get_max_transfer(exp->blk), NBD_MAX_BUFFER_SIZE);
     trace_nbd_negotiate_handle_info_block_size(sizes[0], sizes[1], sizes[2]);
-    cpu_to_be32s(&sizes[0]);
-    cpu_to_be32s(&sizes[1]);
-    cpu_to_be32s(&sizes[2]);
+    sizes[0] = cpu_to_be32(sizes[0]);
+    sizes[1] = cpu_to_be32(sizes[1]);
+    sizes[2] = cpu_to_be32(sizes[2]);
     rc = nbd_negotiate_send_info(client, NBD_INFO_BLOCK_SIZE,
                                  sizeof(sizes), sizes, errp);
     if (rc < 0) {
@@ -904,7 +904,7 @@ static int nbd_negotiate_meta_query(NBDClient *client,
     if (ret <= 0) {
         return ret;
     }
-    cpu_to_be32s(&len);
+    len = cpu_to_be32(len);
 
     if (len < ns_len) {
         trace_nbd_negotiate_meta_query_skip("length too short");
@@ -971,7 +971,7 @@ static int nbd_negotiate_meta_queries(NBDClient *client,
     if (ret <= 0) {
         return ret;
     }
-    cpu_to_be32s(&nb_queries);
+    nb_queries = cpu_to_be32(nb_queries);
     trace_nbd_negotiate_meta_context(nbd_opt_lookup(client->opt),
                                      export_name, nb_queries);
 
@@ -1049,7 +1049,7 @@ static int nbd_negotiate_options(NBDClient *client, uint16_t myflags,
         error_prepend(errp, "read failed: ");
         return -EIO;
     }
-    be32_to_cpus(&flags);
+    flags = be32_to_cpu(flags);
     trace_nbd_negotiate_options_flags(flags);
     if (flags & NBD_FLAG_C_FIXED_NEWSTYLE) {
         fixedNewstyle = true;
@@ -1873,7 +1873,7 @@ static int blockstatus_to_extent_be(BlockDriverState *bs, uint64_t offset,
         remaining_bytes -= num;
     }
 
-    cpu_to_be32s(&extent->flags);
+    extent->flags = cpu_to_be32(extent->flags);
     extent->length = cpu_to_be32(bytes - remaining_bytes);
 
     return 0;
