@@ -34,6 +34,7 @@
 #include "qemu/systemd.h"
 #include "qemu-version.h"
 #ifdef _WIN32
+#include <dbt.h>
 #include "qga/service-win32.h"
 #include "qga/vss-win32.h"
 #endif
@@ -101,6 +102,8 @@ struct GAState {
     bool logging_enabled;
 #ifdef _WIN32
     GAService service;
+    HANDLE channel_available_event;
+    HANDLE stop_event;
 #endif
     bool delimit_response;
     bool frozen;
@@ -137,6 +140,7 @@ static const char *ga_freeze_whitelist[] = {
 #ifdef _WIN32
 DWORD WINAPI service_ctrl_handler(DWORD ctrl, DWORD type, LPVOID data,
                                   LPVOID ctx);
+DWORD WINAPI handle_serial_device_events(DWORD type, LPVOID data);
 VOID WINAPI service_main(DWORD argc, TCHAR *argv[]);
 #endif
 static int run_agent(GAState *s);
@@ -729,6 +733,36 @@ static gboolean channel_init(GAState *s, const gchar *method, const gchar *path,
 }
 
 #ifdef _WIN32
+DWORD WINAPI handle_serial_device_events(DWORD type, LPVOID data)
+{
+    DWORD ret = NO_ERROR;
+    PDEV_BROADCAST_HDR broadcast_header = (PDEV_BROADCAST_HDR)data;
+
+    if (broadcast_header->dbch_devicetype == DBT_DEVTYP_DEVICEINTERFACE) {
+        switch (type) {
+            /* Device inserted */
+        case DBT_DEVICEARRIVAL:
+            /* Start QEMU-ga's service */
+            if (!SetEvent(ga_state->channel_available_event)) {
+                ret = GetLastError();
+            }
+            break;
+            /* Device removed */
+        case DBT_DEVICEQUERYREMOVE:
+        case DBT_DEVICEREMOVEPENDING:
+        case DBT_DEVICEREMOVECOMPLETE:
+            /* Stop QEMU-ga's service */
+            if (!ResetEvent(ga_state->channel_available_event)) {
+                ret = GetLastError();
+            }
+            break;
+        default:
+            ret = ERROR_CALL_NOT_IMPLEMENTED;
+        }
+    }
+    return ret;
+}
+
 DWORD WINAPI service_ctrl_handler(DWORD ctrl, DWORD type, LPVOID data,
                                   LPVOID ctx)
 {
@@ -740,8 +774,12 @@ DWORD WINAPI service_ctrl_handler(DWORD ctrl, DWORD type, LPVOID data,
         case SERVICE_CONTROL_STOP:
         case SERVICE_CONTROL_SHUTDOWN:
             quit_handler(SIGTERM);
+            SetEvent(ga_state->stop_event);
             service->status.dwCurrentState = SERVICE_STOP_PENDING;
             SetServiceStatus(service->status_handle, &service->status);
+            break;
+        case SERVICE_CONTROL_DEVICEEVENT:
+            handle_serial_device_events(type, data);
             break;
 
         default:
@@ -769,10 +807,25 @@ VOID WINAPI service_main(DWORD argc, TCHAR *argv[])
     service->status.dwServiceSpecificExitCode = NO_ERROR;
     service->status.dwCheckPoint = 0;
     service->status.dwWaitHint = 0;
+    DEV_BROADCAST_DEVICEINTERFACE notification_filter;
+    ZeroMemory(&notification_filter, sizeof(notification_filter));
+    notification_filter.dbcc_devicetype = DBT_DEVTYP_DEVICEINTERFACE;
+    notification_filter.dbcc_size = sizeof(DEV_BROADCAST_DEVICEINTERFACE);
+    notification_filter.dbcc_classguid = GUID_VIOSERIAL_PORT;
+
+    service->device_notification_handle =
+        RegisterDeviceNotification(service->status_handle,
+            &notification_filter, DEVICE_NOTIFY_SERVICE_HANDLE);
+    if (!service->device_notification_handle) {
+        g_critical("Failed to register device notification handle!\n");
+        return;
+    }
     SetServiceStatus(service->status_handle, &service->status);
+    ResetEvent(ga_state->stop_event);
 
     run_agent(ga_state);
 
+    UnregisterDeviceNotification(service->device_notification_handle);
     service->status.dwCurrentState = SERVICE_STOPPED;
     SetServiceStatus(service->status_handle, &service->status);
 }
@@ -1360,12 +1413,32 @@ static GAState *initialize_agent(GAConfig *config, int socket_activation)
 
     s->config = config;
     s->socket_activation = socket_activation;
+
+#ifdef _WIN32
+    s->channel_available_event = CreateEvent(NULL, TRUE, FALSE,
+                                             TEXT("ChannelAvailableEvent"));
+    if (s->channel_available_event == NULL) {
+        g_critical("CreateEvent failed");
+        return NULL;
+    }
+    s->stop_event = CreateEvent(NULL, TRUE, FALSE,
+                                TEXT("StopEvent"));
+    if (s->stop_event == NULL) {
+        g_critical("CreateEvent failed");
+        return NULL;
+    }
+#endif
+
     ga_state = s;
     return s;
 }
 
 static void cleanup_agent(GAState *s)
 {
+#ifdef _WIN32
+    CloseHandle(s->channel_available_event);
+    CloseHandle(s->stop_event);
+#endif
     if (s->command_state) {
         ga_command_state_cleanup_all(s->command_state);
         ga_command_state_free(s->command_state);
@@ -1397,6 +1470,32 @@ static int run_agent_once(GAState *s)
     return EXIT_SUCCESS;
 }
 
+static void wait_for_channel_availability(GAState *s)
+{
+    g_warning("waiting for channel path...");
+#ifndef _WIN32
+    sleep(QGA_RETRY_INTERVAL);
+#else
+    DWORD dwWaitResult;
+
+    HANDLE lpHandles[2] = { s->channel_available_event, s->stop_event };
+
+    dwWaitResult = WaitForMultipleObjects(2, lpHandles, false, INFINITE);
+
+    switch (dwWaitResult) {
+    case WAIT_OBJECT_0:
+        break;
+    case (WAIT_OBJECT_0 + 1):
+        g_warning("service stopped");
+        break;
+    case WAIT_TIMEOUT:
+        break;
+    default:
+        g_critical("WaitForMultipleObjects failed");
+    }
+#endif
+}
+
 static int run_agent(GAState *s)
 {
     int ret = EXIT_SUCCESS;
@@ -1407,7 +1506,7 @@ static int run_agent(GAState *s)
         ret = run_agent_once(s);
         if (s->config->retry_path && !s->force_exit) {
             g_warning("agent stopped unexpectedly, restarting...");
-            sleep(QGA_RETRY_INTERVAL);
+            wait_for_channel_availability(s);
         }
     } while (s->config->retry_path && !s->force_exit);
 
