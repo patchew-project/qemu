@@ -1320,9 +1320,9 @@ static NetClientInfo net_lan9118_info = {
     .link_status_changed = lan9118_set_link,
 };
 
-static int lan9118_init1(SysBusDevice *sbd)
+static void lan9118_realize(DeviceState *dev, Error **errp)
 {
-    DeviceState *dev = DEVICE(sbd);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     lan9118_state *s = LAN9118(dev);
     QEMUBH *bh;
     int i;
@@ -1349,8 +1349,6 @@ static int lan9118_init1(SysBusDevice *sbd)
     s->timer = ptimer_init(bh, PTIMER_POLICY_DEFAULT);
     ptimer_set_freq(s->timer, 10000);
     ptimer_set_limit(s->timer, 0xffff, 1);
-
-    return 0;
 }
 
 static Property lan9118_properties[] = {
@@ -1362,12 +1360,11 @@ static Property lan9118_properties[] = {
 static void lan9118_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = lan9118_init1;
     dc->reset = lan9118_reset;
     dc->props = lan9118_properties;
     dc->vmsd = &vmstate_lan9118;
+    dc->realize = lan9118_realize;
 }
 
 static const TypeInfo lan9118_info = {
@@ -1386,16 +1383,15 @@ static void lan9118_register_types(void)
    implemented.  */
 void lan9118_init(NICInfo *nd, uint32_t base, qemu_irq irq)
 {
-    DeviceState *dev;
-    SysBusDevice *s;
+    Object *obj;
 
     qemu_check_nic_model(nd, "lan9118");
-    dev = qdev_create(NULL, TYPE_LAN9118);
-    qdev_set_nic_properties(dev, nd);
-    qdev_init_nofail(dev);
-    s = SYS_BUS_DEVICE(dev);
-    sysbus_mmio_map(s, 0, base);
-    sysbus_connect_irq(s, 0, irq);
+
+    obj = object_new(TYPE_LAN9118);
+    qdev_set_nic_properties(DEVICE(obj), nd);
+    qdev_init_nofail(DEVICE(obj));
+    sysbus_mmio_map(SYS_BUS_DEVICE(obj), 0, base);
+    sysbus_connect_irq(SYS_BUS_DEVICE(obj), 0, irq);
 }
 
 type_init(lan9118_register_types)
