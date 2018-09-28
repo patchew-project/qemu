@@ -10,6 +10,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 import os
+import gzip
 import time
 import shutil
 import logging
@@ -121,4 +122,46 @@ class BootFirmwareX86(Test):
         for line in expected:
             if line + '\r\n' not in lines:
                 self.fail('missing: %s' % line)
+        shutil.rmtree(tmpdirname, ignore_errors=True)
+
+
+class BootFirmwareAarch64(Test):
+    """
+    Boots the EDK2 firmware on a default virt machine and checks the console is
+    operational
+
+    :avocado: enable
+    :avocado: tags=arch:aarch64
+    :avocado: tags=aarch64,quick
+    """
+
+    timeout = 15
+
+    def test_aavmf(self):
+        tmpdirname = tempfile.mkdtemp()
+        image_url = ('http://snapshots.linaro.org/components/kernel/'
+                    'leg-virt-tianocore-edk2-upstream/latest/'
+                    'QEMU-AARCH64/DEBUG_GCC5/QEMU_EFI.img.gz')
+        image_path_gz = self.fetch_asset(image_url)
+        image_path = os.path.join(tmpdirname, 'flash.img')
+        with gzip.open(image_path_gz) as gz, open(image_path, 'wb') as img:
+            shutil.copyfileobj(gz, img)
+
+        self.vm.set_machine('virt')
+        self.vm.set_console()
+        self.vm.add_args('-nographic',
+                         '-cpu', 'cortex-a57',
+                         '-m', '1G',
+                         '-pflash', image_path)
+        self.vm.launch()
+        console = self.vm.console_socket.makefile()
+        serial_logger = logging.getLogger('serial')
+
+        # serial console checks
+        while True:
+            msg = console.readline()
+            if not '\x1b' in msg: # ignore ANSI sequences
+                serial_logger.debug(msg.strip())
+            if 'Start PXE over IPv4InstallProtocolInterface:' in msg:
+                break
         shutil.rmtree(tmpdirname, ignore_errors=True)
