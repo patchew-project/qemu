@@ -239,9 +239,6 @@ struct Monitor {
     int mux_out;
 };
 
-/* Shared monitor I/O thread */
-IOThread *mon_iothread;
-
 /* Bottom half to dispatch the requests received from I/O thread */
 QEMUBH *qmp_dispatcher_bh;
 
@@ -262,10 +259,11 @@ typedef struct QMPRequest QMPRequest;
 /* QMP checker flags */
 #define QMP_ACCEPT_UNKNOWNS 1
 
-/* Protects mon_list, monitor_qapi_event_state.  */
+/* Protects mon_list, monitor_qapi_event_state and mon_iothread. */
 static QemuMutex monitor_lock;
 static GHashTable *monitor_qapi_event_state;
 static QTAILQ_HEAD(mon_list, Monitor) mon_list;
+IOThread *mon_iothread; /* Shared monitor I/O thread */
 
 /* Protects mon_fdsets */
 static QemuMutex mon_fdsets_lock;
@@ -710,6 +708,7 @@ static void handle_hmp_command(Monitor *mon, const char *cmdline);
 static void monitor_data_init(Monitor *mon, bool skip_flush,
                               bool use_io_thread)
 {
+    assert(!use_io_thread || mon_iothread);
     memset(mon, 0, sizeof(Monitor));
     qemu_mutex_init(&mon->mon_lock);
     qemu_mutex_init(&mon->qmp.qmp_queue_lock);
@@ -4453,16 +4452,11 @@ static AioContext *monitor_get_aio_context(void)
 
 static void monitor_iothread_init(void)
 {
-    mon_iothread = iothread_create("mon_iothread", &error_abort);
-
-    /*
-     * The dispatcher BH must run in the main loop thread, since we
-     * have commands assuming that context.  It would be nice to get
-     * rid of those assumptions.
-     */
-    qmp_dispatcher_bh = aio_bh_new(iohandler_get_aio_context(),
-                                   monitor_qmp_bh_dispatcher,
-                                   NULL);
+    qemu_mutex_lock(&monitor_lock);
+    if (!mon_iothread) {
+        mon_iothread = iothread_create("mon_iothread", &error_abort);
+    }
+    qemu_mutex_unlock(&monitor_lock);
 }
 
 void monitor_init_globals(void)
@@ -4472,7 +4466,15 @@ void monitor_init_globals(void)
     sortcmdlist();
     qemu_mutex_init(&monitor_lock);
     qemu_mutex_init(&mon_fdsets_lock);
-    monitor_iothread_init();
+
+    /*
+     * The dispatcher BH must run in the main loop thread, since we
+     * have commands assuming that context.  It would be nice to get
+     * rid of those assumptions.
+     */
+    qmp_dispatcher_bh = aio_bh_new(iohandler_get_aio_context(),
+                                   monitor_qmp_bh_dispatcher,
+                                   NULL);
 }
 
 /* These functions just adapt the readline interface in a typesafe way.  We
@@ -4535,6 +4537,9 @@ static void monitor_qmp_setup_handlers_bh(void *opaque)
     monitor_list_append(mon);
 }
 
+/*
+ * This expects to be run in the main thread.
+ */
 void monitor_init(Chardev *chr, int flags)
 {
     Monitor *mon = g_malloc(sizeof(*mon));
@@ -4550,6 +4555,9 @@ void monitor_init(Chardev *chr, int flags)
         if (use_readline) {
             error_report("Monitor out-of-band is only supported by QMP");
             exit(1);
+        }
+        if (!mon_iothread) {
+            monitor_iothread_init();
         }
     }
 
@@ -4607,7 +4615,9 @@ void monitor_cleanup(void)
      * we need to unregister from chardev below in
      * monitor_data_destroy(), and chardev is not thread-safe yet
      */
-    iothread_stop(mon_iothread);
+    if (mon_iothread) {
+        iothread_stop(mon_iothread);
+    }
 
     /* Flush output buffers and destroy monitors */
     qemu_mutex_lock(&monitor_lock);
@@ -4622,9 +4632,10 @@ void monitor_cleanup(void)
     /* QEMUBHs needs to be deleted before destroying the I/O thread */
     qemu_bh_delete(qmp_dispatcher_bh);
     qmp_dispatcher_bh = NULL;
-
-    iothread_destroy(mon_iothread);
-    mon_iothread = NULL;
+    if (mon_iothread) {
+        iothread_destroy(mon_iothread);
+        mon_iothread = NULL;
+    }
 }
 
 QemuOptsList qemu_mon_opts = {
