@@ -766,9 +766,9 @@ static NetClientInfo net_smc91c111_info = {
     .receive = smc91c111_receive,
 };
 
-static int smc91c111_init1(SysBusDevice *sbd)
+static void smc91c111_realize(DeviceState *dev, Error **errp)
 {
-    DeviceState *dev = DEVICE(sbd);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     smc91c111_state *s = SMC91C111(dev);
 
     memory_region_init_io(&s->mmio, OBJECT(s), &smc91c111_mem_ops, s,
@@ -780,7 +780,6 @@ static int smc91c111_init1(SysBusDevice *sbd)
                           object_get_typename(OBJECT(dev)), dev->id, s);
     qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
     /* ??? Save/restore.  */
-    return 0;
 }
 
 static Property smc91c111_properties[] = {
@@ -791,9 +790,8 @@ static Property smc91c111_properties[] = {
 static void smc91c111_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = smc91c111_init1;
+    dc->realize = smc91c111_realize;
     dc->reset = smc91c111_reset;
     dc->vmsd = &vmstate_smc91c111;
     dc->props = smc91c111_properties;
@@ -815,16 +813,14 @@ static void smc91c111_register_types(void)
    implemented.  */
 void smc91c111_init(NICInfo *nd, uint32_t base, qemu_irq irq)
 {
-    DeviceState *dev;
-    SysBusDevice *s;
+    Object *obj;
 
     qemu_check_nic_model(nd, "smc91c111");
-    dev = qdev_create(NULL, TYPE_SMC91C111);
-    qdev_set_nic_properties(dev, nd);
-    qdev_init_nofail(dev);
-    s = SYS_BUS_DEVICE(dev);
-    sysbus_mmio_map(s, 0, base);
-    sysbus_connect_irq(s, 0, irq);
+    obj = object_new(TYPE_SMC91C111);
+    qdev_set_nic_properties(DEVICE(obj), nd);
+    qdev_init_nofail(DEVICE(obj));
+    sysbus_mmio_map(SYS_BUS_DEVICE(obj), 0, base);
+    sysbus_connect_irq(SYS_BUS_DEVICE(obj), 0, irq);
 }
 
 type_init(smc91c111_register_types)
