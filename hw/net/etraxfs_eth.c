@@ -585,6 +585,13 @@ static NetClientInfo net_etraxfs_info = {
     .link_status_changed = eth_set_link,
 };
 
+static void etraxfs_eth_reset(DeviceState *dev)
+{
+    ETRAXFSEthState *s = ETRAX_FS_ETH(dev);
+
+    tdk_init(&s->phy);
+}
+
 static void etraxfs_eth_realize(DeviceState *dev, Error **errp)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
@@ -609,8 +616,6 @@ static void etraxfs_eth_realize(DeviceState *dev, Error **errp)
                           object_get_typename(OBJECT(s)), dev->id, s);
     qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
 
-
-    tdk_init(&s->phy);
     mdio_attach(&s->mdio_bus, &s->phy, s->phyaddr);
 }
 
@@ -627,6 +632,7 @@ static void etraxfs_eth_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = etraxfs_eth_realize;
+    dc->reset = etraxfs_eth_reset;
     dc->props = etraxfs_eth_properties;
     /* Reason: pointer properties "dma_out", "dma_in" */
     dc->user_creatable = false;
