@@ -190,6 +190,7 @@ F: disas/microblaze.c
 MIPS
 M: Aurelien Jarno <aurelien@aurel32.net>
 M: Aleksandar Markovic <amarkovic@wavecomp.com>
+R: Philippe Mathieu-Daudé <f4bug@amsat.org>
 S: Maintained
 F: target/mips/
 F: hw/mips/
@@ -1976,6 +1977,7 @@ F: disas/i386.c
 
 MIPS target
 M: Aurelien Jarno <aurelien@aurel32.net>
+R: Philippe Mathieu-Daudé <f4bug@amsat.org>
 S: Maintained
 F: tcg/mips/
 F: disas/mips.c
