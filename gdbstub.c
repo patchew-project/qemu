@@ -642,6 +642,33 @@ static int memtox(char *buf, const char *mem, int len)
     return p - buf;
 }
 
+static uint32_t gdb_get_cpu_pid(const GDBState *s, CPUState *cpu)
+{
+    gchar *path;
+    gchar *cont;
+    const char *left;
+    unsigned long pid;
+
+    if (!s->multiprocess || (s->process_num == 1)) {
+        return 1;
+    }
+
+    path = object_get_canonical_path(OBJECT(cpu));
+    cont = g_strrstr(path, "/" GDB_CPU_GROUP_NAME "[");
+
+    if (cont == NULL) {
+        return 1;
+    }
+
+    cont += strlen("/" GDB_CPU_GROUP_NAME "[");
+
+    if (qemu_strtoul(cont, &left, 10, &pid)) {
+        return 1;
+    }
+
+    return pid + 1;
+}
+
 static const char *get_feature_xml(const char *p, const char **newp,
                                    CPUClass *cc)
 {
@@ -911,6 +938,19 @@ static CPUState *find_cpu(uint32_t thread_id)
     return NULL;
 }
 
+static char *gdb_fmt_thread_id(const GDBState *s, CPUState *cpu,
+                           char *buf, size_t buf_size)
+{
+    if (s->multiprocess) {
+        snprintf(buf, buf_size, "p%02x.%02x",
+                 gdb_get_cpu_pid(s, cpu), cpu_gdb_index(cpu));
+    } else {
+        snprintf(buf, buf_size, "%02x", cpu_gdb_index(cpu));
+    }
+
+    return buf;
+}
+
 static int is_query_packet(const char *p, const char *query, char separator)
 {
     unsigned int query_len = strlen(query);
@@ -1022,6 +1062,7 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
     int ch, reg_size, type, res;
     uint8_t mem_buf[MAX_PACKET_LENGTH];
     char buf[sizeof(mem_buf) + 1 /* trailing NUL */];
+    char thread_id[16];
     uint8_t *registers;
     target_ulong addr, len;
 
@@ -1032,8 +1073,8 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
     switch(ch) {
     case '?':
         /* TODO: Make this return the correct value for user-mode.  */
-        snprintf(buf, sizeof(buf), "T%02xthread:%02x;", GDB_SIGNAL_TRAP,
-                 cpu_gdb_index(s->c_cpu));
+        snprintf(buf, sizeof(buf), "T%02xthread:%s;", GDB_SIGNAL_TRAP,
+                 gdb_fmt_thread_id(s, s->c_cpu, thread_id, sizeof(thread_id)));
         put_packet(s, buf);
         /* Remove all the breakpoints when this query is issued,
          * because gdb is doing and initial connect and the state
