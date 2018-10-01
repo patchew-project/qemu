@@ -198,6 +198,7 @@ typedef struct lsi_request {
     uint32_t dma_len;
     uint8_t *dma_buf;
     uint32_t pending;
+    uint64_t deadline;
     int out;
     QTAILQ_ENTRY(lsi_request) next;
 } lsi_request;
@@ -232,6 +233,9 @@ typedef struct {
     int command_complete;
     QTAILQ_HEAD(, lsi_request) queue;
     lsi_request *current;
+    int want_resel;     /* need resel to handle queued completed cmds */
+    uint32_t resel_dsp; /* DMA Scripts Ptr (DSP) of reselection scsi scripts */
+    uint32_t next_dsp;  /* if want_resel, will be loaded with above */
 
     uint32_t dsa;
     uint32_t temp;
@@ -309,6 +313,44 @@ typedef struct {
 static inline int lsi_irq_on_rsl(LSIState *s)
 {
     return (s->sien0 & LSI_SIST0_RSL) && (s->scid & LSI_SCID_RRE);
+}
+#ifdef DEBUG_LSI
+static void showq(LSIState *s)
+{
+    lsi_request *p;
+    int count = 0;
+
+    QTAILQ_FOREACH(p, &s->queue, next) {
+        DPRINTF("%d: tag=%x, pending=%x, deadline=%lx\n",
+            count++, p->tag, p->pending, p->deadline);
+    }
+}
+
+static int get_pending_count(LSIState *s)
+{
+    lsi_request *p;
+    int count = 0;
+
+    QTAILQ_FOREACH(p, &s->queue, next) {
+        if (p->pending) {
+            count++;
+        }
+    }
+    return count;
+}
+#endif
+static int pending_past_deadline(LSIState *s)
+{
+    lsi_request *p;
+
+    QTAILQ_FOREACH(p, &s->queue, next) {
+        if (p->pending) {
+            if (qemu_clock_get_ns(QEMU_CLOCK_REALTIME) > p->deadline) {
+                return 1;
+            }
+        }
+    }
+    return 0;
 }
 
 static void lsi_soft_reset(LSIState *s)
@@ -634,15 +676,22 @@ static void lsi_do_dma(LSIState *s, int out)
     }
 }
 
+/* Max time a completed command can be on the queue before Reselection needed */
+#define LSI_DEADLINE    1000
 
 /* Add a command to the queue.  */
 static void lsi_queue_command(LSIState *s)
 {
     lsi_request *p = s->current;
+    uint64_t timeout_ms = LSI_DEADLINE;
 
     DPRINTF("Queueing tag=0x%x\n", p->tag);
     assert(s->current != NULL);
     assert(s->current->dma_len == 0);
+
+    p->deadline = qemu_clock_get_ns(QEMU_CLOCK_REALTIME) +
+        timeout_ms * 1000000ULL;
+
     QTAILQ_INSERT_TAIL(&s->queue, s->current, next);
     s->current = NULL;
 
@@ -668,6 +717,8 @@ static void lsi_reselect(LSIState *s, lsi_request *p)
 
     assert(s->current == NULL);
     QTAILQ_REMOVE(&s->queue, p, next);
+    DPRINTF("lsi_reselect: p->tag=%x, p->pending=%x, p->deadline=%lx\n",
+        p->tag, p->pending, p->deadline);
     s->current = p;
 
     id = (p->tag >> 8) & 0xf;
@@ -774,6 +825,10 @@ static void lsi_command_complete(SCSIRequest *req, uint32_t status, size_t resid
         req->hba_private = NULL;
         lsi_request_free(s, s->current);
         scsi_req_unref(req);
+    }
+    if (pending_past_deadline(s)) {
+        DPRINTF("lsi_command_complete: want_resel = 1\n");
+        s->want_resel = 1;
     }
     lsi_resume_script(s);
 }
@@ -987,7 +1042,7 @@ static void lsi_do_msgout(LSIState *s)
             s->select_tag |= lsi_get_msgbyte(s) | LSI_TAG_VALID;
             break;
         case 0x22: /* ORDERED queue */
-            BADF("ORDERED queue not implemented\n");
+            DPRINTF("ORDERED queue not implemented\n");
             s->select_tag |= lsi_get_msgbyte(s) | LSI_TAG_VALID;
             break;
         case 0x0d:
@@ -1075,8 +1130,17 @@ static void lsi_memcpy(LSIState *s, uint32_t dest, uint32_t src, int count)
 static void lsi_wait_reselect(LSIState *s)
 {
     lsi_request *p;
+#ifdef DEBUG_LSI
+    int pending_count = get_pending_count(s);
 
-    DPRINTF("Wait Reselect\n");
+    if (pending_count) {
+        DPRINTF("Wait Reselect, s->current=%p, pending_count=%d\n",
+            s->current, pending_count);
+        showq(s);
+    }
+#endif
+    if (s->current)
+        return;
 
     QTAILQ_FOREACH(p, &s->queue, next) {
         if (p->pending) {
@@ -1089,6 +1153,9 @@ static void lsi_wait_reselect(LSIState *s)
     }
 }
 
+#define SCRIPTS_LOAD_AND_STORE  0xe2340004
+#define SCRIPTS_WAIT_RESELECT   0x50000000
+
 static void lsi_execute_script(LSIState *s)
 {
     PCIDevice *pci_dev = PCI_DEVICE(s);
@@ -1096,10 +1163,16 @@ static void lsi_execute_script(LSIState *s)
     uint32_t addr, addr_high;
     int opcode;
     int insn_processed = 0;
+    uint32_t save_dsp = 0;
 
     s->istat1 |= LSI_ISTAT1_SRUN;
 again:
     insn_processed++;
+    if (s->next_dsp) {
+        save_dsp = s->dsp;
+        s->dsp = s->next_dsp;
+        DPRINTF("lsi_execute_script: setting up for wait_reselection...\n");
+    }
     insn = read_dword(s, s->dsp);
     if (!insn) {
         /* If we receive an empty opcode increment the DSP by 4 bytes
@@ -1107,9 +1180,18 @@ again:
         s->dsp += 4;
         goto again;
     }
+    if (s->want_resel && s->resel_dsp && (insn == SCRIPTS_LOAD_AND_STORE)) {
+        /* Reselection follows Load and Store */
+        DPRINTF("lsi_execute_script: detects want_resel...\n");
+        s->next_dsp = s->resel_dsp;
+        s->want_resel = 0;
+    }
     addr = read_dword(s, s->dsp + 4);
     addr_high = 0;
-    DPRINTF("SCRIPTS dsp=%08x opcode %08x arg %08x\n", s->dsp, insn, addr);
+    if ((insn == SCRIPTS_WAIT_RESELECT) && !s->resel_dsp) {
+        s->resel_dsp = s->dsp;    /* save resel dsp for later use */
+        DPRINTF("lsi_execute_script: s->resel_dsp=%x\n", s->resel_dsp);
+    }
     s->dsps = addr;
     s->dcmd = insn >> 24;
     s->dsp += 8;
@@ -1273,7 +1355,13 @@ again:
                 s->scntl1 &= ~LSI_SCNTL1_CON;
                 break;
             case 2: /* Wait Reselect */
+                DPRINTF("Wait Reselect\n");
                 if (!lsi_irq_on_rsl(s)) {
+                    if (save_dsp) {
+                        DPRINTF("Restore original s->dsp=%x\n", save_dsp);
+                        s->dsp = save_dsp;
+                        save_dsp = s->next_dsp = 0;
+                    }
                     lsi_wait_reselect(s);
                 }
                 break;
