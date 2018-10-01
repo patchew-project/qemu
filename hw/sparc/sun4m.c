@@ -42,7 +42,7 @@
 #include "hw/nvram/chrp_nvram.h"
 #include "hw/nvram/fw_cfg.h"
 #include "hw/char/escc.h"
-#include "hw/empty_slot.h"
+#include "hw/misc/unimp.h"
 #include "hw/loader.h"
 #include "elf.h"
 #include "trace.h"
@@ -863,7 +863,8 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
     ram_init(0, machine->ram_size, hwdef->max_mem);
     /* models without ECC don't trap when missing ram is accessed */
     if (!hwdef->ecc_base) {
-        empty_slot_init(machine->ram_size, hwdef->max_mem - machine->ram_size);
+        create_unimplemented_device("ecc", machine->ram_size,
+                                    hwdef->max_mem - machine->ram_size);
     }
 
     prom_init(hwdef->slavio_base, bios_name);
@@ -892,9 +893,10 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
     if (hwdef->iommu_pad_base) {
         /* On the real hardware (SS-5, LX) the MMU is not padded, but aliased.
            Software shouldn't use aliased addresses, neither should it crash
-           when does. Using empty_slot instead of aliasing can help with
-           debugging such accesses */
-        empty_slot_init(hwdef->iommu_pad_base,hwdef->iommu_pad_len);
+           when does. Using the 'unimplemented device' instead of aliasing can
+           help with debugging such accesses */
+        create_unimplemented_device("iommu.alias", hwdef->iommu_pad_base,
+                                    hwdef->iommu_pad_len);
     }
 
     sparc32_dma_init(hwdef->dma_base,
@@ -944,12 +946,13 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
     for (i = num_vsimms; i < MAX_VSIMMS; i++) {
         /* vsimm registers probed by OBP */
         if (hwdef->vsimm[i].reg_base) {
-            empty_slot_init(hwdef->vsimm[i].reg_base, 0x2000);
+            create_unimplemented_device("vsimm", hwdef->vsimm[i].reg_base,
+                                        0x2000);
         }
     }
 
     if (hwdef->sx_base) {
-        empty_slot_init(hwdef->sx_base, 0x2000);
+        create_unimplemented_device("sx", hwdef->sx_base, 0x2000);
     }
 
     nvram = m48t59_init(slavio_irq[0], hwdef->nvram_base, 0, 0x2000, 1968, 8);
@@ -1012,14 +1015,15 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
     if (hwdef->dbri_base) {
         /* ISDN chip with attached CS4215 audio codec */
         /* prom space */
-        empty_slot_init(hwdef->dbri_base+0x1000, 0x30);
+        create_unimplemented_device("dbri.prom", hwdef->dbri_base + 0x1000,
+                                    0x30);
         /* reg space */
-        empty_slot_init(hwdef->dbri_base+0x10000, 0x100);
+        create_unimplemented_device("dbri", hwdef->dbri_base + 0x10000, 0x100);
     }
 
     if (hwdef->bpp_base) {
         /* parallel port */
-        empty_slot_init(hwdef->bpp_base, 0x20);
+        create_unimplemented_device("bpp", hwdef->bpp_base, 0x20);
     }
 
     kernel_size = sun4m_load_kernel(machine->kernel_filename,
