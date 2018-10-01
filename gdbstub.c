@@ -1328,6 +1328,38 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
                 goto unknown_command;
             }
             break;
+        } else if (strncmp(p, "Attach", 6) == 0) {
+            unsigned long pid;
+
+            p += 7;
+
+            qemu_strtoul(p, &p, 16, &pid);
+
+            process = gdb_get_process(s, pid);
+
+            if (process == NULL) {
+                put_packet(s, "E22");
+                break;
+            }
+
+            cpu = get_first_cpu_in_process(s, process);
+
+            if (cpu == NULL) {
+                /* Refuse to attach an empty process */
+                put_packet(s, "E22");
+                break;
+            }
+
+            process->attached = true;
+
+            s->g_cpu = cpu;
+            s->c_cpu = cpu;
+
+            snprintf(buf, sizeof(buf), "T%02xthread:%s;", GDB_SIGNAL_TRAP,
+                     gdb_fmt_thread_id(s, cpu, thread_id, sizeof(thread_id)));
+
+            put_packet(s, buf);
+            break;
         } else {
             goto unknown_command;
         }
