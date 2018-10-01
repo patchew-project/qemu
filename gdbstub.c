@@ -297,6 +297,13 @@ typedef struct GDBRegisterState {
     struct GDBRegisterState *next;
 } GDBRegisterState;
 
+typedef struct GDBProcess {
+    uint32_t pid;
+    bool attached;
+
+    char target_xml[1024];
+} GDBProcess;
+
 enum RSState {
     RS_INACTIVE,
     RS_IDLE,
@@ -325,6 +332,9 @@ typedef struct GDBState {
     CharBackend chr;
     Chardev *mon_chr;
 #endif
+    bool multiprocess;
+    GDBProcess *processes;
+    int process_num;
     char syscall_buf[256];
     gdb_syscall_complete_cb current_syscall_cb;
 } GDBState;
@@ -1752,6 +1762,20 @@ void gdb_exit(CPUArchState *env, int code)
 #endif
 }
 
+/*
+ * Create a unique process containing all the CPUs.
+ */
+static void create_unique_process(GDBState *s)
+{
+    GDBProcess *process;
+
+    s->processes = g_malloc0(sizeof(GDBProcess));
+    s->process_num = 1;
+    process = &s->processes[0];
+
+    process->pid = 1;
+}
+
 #ifdef CONFIG_USER_ONLY
 int
 gdb_handlesig(CPUState *cpu, int sig)
@@ -1849,6 +1873,7 @@ static bool gdb_accept(void)
     s = g_malloc0(sizeof(GDBState));
     s->c_cpu = first_cpu;
     s->g_cpu = first_cpu;
+    create_unique_process(s);
     s->fd = fd;
     gdb_has_xml = false;
 
@@ -2005,6 +2030,44 @@ static const TypeInfo char_gdb_type_info = {
     .class_init = char_gdb_class_init,
 };
 
+static void create_processes(GDBState *s)
+{
+    Object *container;
+    int i = 0;
+    char process_str[16];
+
+    container = object_resolve_path(GDB_CPU_GROUP_NAME "[0]", NULL);
+
+    while (container) {
+        s->processes = g_renew(GDBProcess, s->processes, i + 1);
+
+        GDBProcess *process = &s->processes[i];
+
+        /* GDB process IDs -1 and 0 are reserved */
+        process->pid = i + 1;
+        process->attached = false;
+        process->target_xml[0] = '\0';
+
+        i++;
+        snprintf(process_str, sizeof(process_str), GDB_CPU_GROUP_NAME "[%d]", i);
+        container = object_resolve_path(process_str, NULL);
+    }
+
+    if (!s->processes) {
+        /* No CPU group specified by the machine */
+        create_unique_process(s);
+    } else {
+        s->process_num = i;
+    }
+}
+
+static void cleanup_processes(GDBState *s)
+{
+    g_free(s->processes);
+    s->process_num = 0;
+    s->processes = NULL;
+}
+
 int gdbserver_start(const char *device)
 {
     trace_gdbstub_op_start(device);
@@ -2057,11 +2120,15 @@ int gdbserver_start(const char *device)
     } else {
         qemu_chr_fe_deinit(&s->chr, true);
         mon_chr = s->mon_chr;
+        cleanup_processes(s);
         memset(s, 0, sizeof(GDBState));
         s->mon_chr = mon_chr;
     }
     s->c_cpu = first_cpu;
     s->g_cpu = first_cpu;
+
+    create_processes(s);
+
     if (chr) {
         qemu_chr_fe_init(&s->chr, chr, &error_abort);
         qemu_chr_fe_set_handlers(&s->chr, gdb_chr_can_receive, gdb_chr_receive,
