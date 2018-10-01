@@ -53,7 +53,7 @@
 #include "sysemu/qtest.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
-#include "hw/empty_slot.h"
+#include "hw/misc/unimp.h"
 #include "sysemu/kvm.h"
 #include "exec/semihost.h"
 #include "hw/mips/cps.h"
@@ -1216,7 +1216,7 @@ void mips_malta_init(MachineState *machine)
     /* The whole address space decoded by the GT-64120A doesn't generate
        exception when accessing invalid memory. Create an empty slot to
        emulate this feature. */
-    empty_slot_init(0, 0x20000000);
+    create_unimplemented_device("gt64120-SysAD", 0, 0x20000000);
 
     qdev_init_nofail(dev);
 
