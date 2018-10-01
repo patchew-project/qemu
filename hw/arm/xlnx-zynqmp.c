@@ -24,6 +24,7 @@
 #include "exec/address-spaces.h"
 #include "sysemu/kvm.h"
 #include "kvm_arm.h"
+#include "exec/gdbstub.h"
 
 #define GIC_NUM_SPI_INTR 160
 
@@ -177,13 +178,14 @@ static void xlnx_zynqmp_create_rpu(XlnxZynqMPState *s, const char *boot_cpu,
     Error *err = NULL;
     int i;
     int num_rpus = MIN(smp_cpus - XLNX_ZYNQMP_NUM_APU_CPUS, XLNX_ZYNQMP_NUM_RPU_CPUS);
+    Object *rpu_group = gdb_cpu_group_container_get(OBJECT(s));
 
     for (i = 0; i < num_rpus; i++) {
         char *name;
 
         object_initialize(&s->rpu_cpu[i], sizeof(s->rpu_cpu[i]),
                           "cortex-r5f-" TYPE_ARM_CPU);
-        object_property_add_child(OBJECT(s), "rpu-cpu[*]",
+        object_property_add_child(rpu_group, "rpu-cpu[*]",
                                   OBJECT(&s->rpu_cpu[i]), &error_abort);
 
         name = object_get_canonical_path_component(OBJECT(&s->rpu_cpu[i]));
@@ -212,9 +214,10 @@ static void xlnx_zynqmp_init(Object *obj)
     XlnxZynqMPState *s = XLNX_ZYNQMP(obj);
     int i;
     int num_apus = MIN(smp_cpus, XLNX_ZYNQMP_NUM_APU_CPUS);
+    Object *apu_group = gdb_cpu_group_container_get(obj);
 
     for (i = 0; i < num_apus; i++) {
-        object_initialize_child(obj, "apu-cpu[*]", &s->apu_cpu[i],
+        object_initialize_child(apu_group, "apu-cpu[*]", &s->apu_cpu[i],
                                 sizeof(s->apu_cpu[i]),
                                 "cortex-a53-" TYPE_ARM_CPU, &error_abort, NULL);
     }
