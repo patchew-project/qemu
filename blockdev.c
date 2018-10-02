@@ -4368,20 +4368,22 @@ void qmp_x_blockdev_set_iothread(const char *node_name, StrOrNull *iothread,
 }
 
 void qmp_x_block_latency_histogram_set(
-    const char *device,
+    bool has_device, const char *device,
+    bool has_id, const char *id,
     bool has_boundaries, uint64List *boundaries,
     bool has_boundaries_read, uint64List *boundaries_read,
     bool has_boundaries_write, uint64List *boundaries_write,
     bool has_boundaries_flush, uint64List *boundaries_flush,
     Error **errp)
 {
-    BlockBackend *blk = blk_by_name(device);
+    BlockBackend *blk;
     BlockAcctStats *stats;
 
+    blk = qmp_get_blk(has_device ? device : NULL, has_id ? id : NULL, errp);
     if (!blk) {
-        error_setg(errp, "Device '%s' not found", device);
         return;
     }
+
     stats = blk_get_stats(blk);
 
     if (!has_boundaries && !has_boundaries_read && !has_boundaries_write &&
