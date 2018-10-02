@@ -682,6 +682,7 @@ static void qdev_print(Monitor *mon, DeviceState *dev, int indent)
     ObjectClass *class;
     BusState *child;
     NamedGPIOList *ngl;
+    NamedClockList *clk;
 
     qdev_printf("dev: %s, id \"%s\"\n", object_get_typename(OBJECT(dev)),
                 dev->id ? dev->id : "");
@@ -694,6 +695,17 @@ static void qdev_print(Monitor *mon, DeviceState *dev, int indent)
         if (ngl->num_out) {
             qdev_printf("gpio-out \"%s\" %d\n", ngl->name ? ngl->name : "",
                         ngl->num_out);
+        }
+    }
+    QLIST_FOREACH(clk, &dev->clocks, node) {
+        if (clk->out) {
+            qdev_printf("clock-out%s \"%s\"\n",
+                        clk->forward ? " (fw)" : "",
+                        clk->name);
+        } else {
+            qdev_printf("clock-in%s \"%s\" freq=%" PRIu64 "Hz\n",
+                        clk->forward ? " (fw)" : "",
+                        clk->name, clock_get_frequency(clk->in));
         }
     }
     class = object_get_class(OBJECT(dev));
