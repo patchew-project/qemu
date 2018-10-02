@@ -21,6 +21,7 @@
 #include "hw/sysbus.h"
 #include "chardev/char-fe.h"
 #include "qemu/timer.h"
+#include "hw/clock-port.h"
 
 #define CADENCE_UART_RX_FIFO_SIZE           16
 #define CADENCE_UART_TX_FIFO_SIZE           16
@@ -47,6 +48,8 @@ typedef struct {
     CharBackend chr;
     qemu_irq irq;
     QEMUTimer *fifo_trigger_handle;
+    ClockIn *refclk;
+    ClockIn *busclk;
 } CadenceUARTState;
 
 static inline DeviceState *cadence_uart_create(hwaddr addr,

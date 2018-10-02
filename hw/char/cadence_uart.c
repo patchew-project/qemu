@@ -28,6 +28,7 @@
 #include "qemu/timer.h"
 #include "qemu/log.h"
 #include "hw/char/cadence_uart.h"
+#include "trace.h"
 
 #ifdef CADENCE_UART_ERR_DEBUG
 #define DB_PRINT(...) do { \
@@ -94,7 +95,7 @@
 #define LOCAL_LOOPBACK         (0x2 << UART_MR_CHMODE_SH)
 #define REMOTE_LOOPBACK        (0x3 << UART_MR_CHMODE_SH)
 
-#define UART_INPUT_CLK         50000000
+#define UART_DEFAULT_REF_CLK (50 * 1000 * 1000)
 
 #define R_CR       (0x00/4)
 #define R_MR       (0x04/4)
@@ -165,15 +166,30 @@ static void uart_send_breaks(CadenceUARTState *s)
                       &break_enabled);
 }
 
+static unsigned int uart_input_clk(CadenceUARTState *s)
+{
+    return clock_get_frequency(s->refclk);
+}
+
 static void uart_parameters_setup(CadenceUARTState *s)
 {
     QEMUSerialSetParams ssp;
     unsigned int baud_rate, packet_size;
 
     baud_rate = (s->r[R_MR] & UART_MR_CLKS) ?
-            UART_INPUT_CLK / 8 : UART_INPUT_CLK;
+            uart_input_clk(s) / 8 : uart_input_clk(s);
+    baud_rate /= (s->r[R_BRGR] * (s->r[R_BDIV] + 1));
+    trace_cadence_uart_baudrate(baud_rate);
 
-    ssp.speed = baud_rate / (s->r[R_BRGR] * (s->r[R_BDIV] + 1));
+    ssp.speed = baud_rate;
+    if (ssp.speed == 0) {
+        /*
+         * Avoid division-by-zero below.
+         * TODO: find something better
+         */
+        ssp.speed = 1;
+    }
+
     packet_size = 1;
 
     switch (s->r[R_MR] & UART_MR_PAR) {
@@ -337,6 +353,11 @@ static void uart_receive(void *opaque, const uint8_t *buf, int size)
     CadenceUARTState *s = opaque;
     uint32_t ch_mode = s->r[R_MR] & UART_MR_CHMODE;
 
+    /* ignore characters when unclocked */
+    if (!clock_is_enabled(s->refclk)) {
+        return;
+    }
+
     if (ch_mode == NORMAL_MODE || ch_mode == ECHO_MODE) {
         uart_write_rx_fifo(opaque, buf, size);
     }
@@ -349,6 +370,11 @@ static void uart_event(void *opaque, int event)
 {
     CadenceUARTState *s = opaque;
     uint8_t buf = '\0';
+
+    /* ignore events when unclocked */
+    if (!clock_is_enabled(s->refclk)) {
+        return;
+    }
 
     if (event == CHR_EVENT_BREAK) {
         uart_write_rx_fifo(opaque, &buf, 1);
@@ -381,6 +407,14 @@ static void uart_write(void *opaque, hwaddr offset,
                           uint64_t value, unsigned size)
 {
     CadenceUARTState *s = opaque;
+
+    /* ignore accesses when bus or ref clock is disabled */
+    if (!(clock_is_enabled(s->busclk) && clock_is_enabled(s->refclk))) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                "cadence_uart: Trying to write register 0x%x"
+                " while clock is disabled\n", (unsigned) offset);
+        return;
+    }
 
     DB_PRINT(" offset:%x data:%08x\n", (unsigned)offset, (unsigned)value);
     offset >>= 2;
@@ -440,6 +474,14 @@ static uint64_t uart_read(void *opaque, hwaddr offset,
     CadenceUARTState *s = opaque;
     uint32_t c = 0;
 
+    /* ignore accesses when bus or ref clock is disabled */
+    if (!(clock_is_enabled(s->busclk) && clock_is_enabled(s->refclk))) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                "cadence_uart: Trying to read register 0x%x"
+                " while clock is disabled\n", (unsigned) offset);
+        return 0;
+    }
+
     offset >>= 2;
     if (offset >= CADENCE_UART_R_MAX) {
         c = 0;
@@ -488,6 +530,14 @@ static void cadence_uart_realize(DeviceState *dev, Error **errp)
                              uart_event, NULL, s, NULL, true);
 }
 
+static void cadence_uart_refclk_update(void *opaque)
+{
+    CadenceUARTState *s = opaque;
+
+    /* recompute uart's speed on clock change */
+    uart_parameters_setup(s);
+}
+
 static void cadence_uart_init(Object *obj)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
@@ -497,7 +547,24 @@ static void cadence_uart_init(Object *obj)
     sysbus_init_mmio(sbd, &s->iomem);
     sysbus_init_irq(sbd, &s->irq);
 
+    s->refclk = qdev_init_clock_in(DEVICE(obj), "refclk",
+            cadence_uart_refclk_update, s);
+    /* initialize the frequency in case the clock remains unconnected */
+    clock_init_frequency(s->refclk, UART_DEFAULT_REF_CLK);
+    s->busclk = qdev_init_clock_in(DEVICE(obj), "busclk", NULL, NULL);
+    /* initialize the frequency to non-zero in case it remains unconnected */
+    clock_init_frequency(s->busclk, 100 * 1000 * 1000);
+
     s->char_tx_time = (NANOSECONDS_PER_SECOND / 9600) * 10;
+}
+
+static int cadence_uart_pre_load(void *opaque)
+{
+    CadenceUARTState *s = opaque;
+
+    clock_init_frequency(s->refclk, UART_DEFAULT_REF_CLK);
+    clock_init_frequency(s->busclk, 100 * 1000 * 1000);
+    return 0;
 }
 
 static int cadence_uart_post_load(void *opaque, int version_id)
@@ -516,10 +583,22 @@ static int cadence_uart_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateDescription vmstate_cadence_uart_clocks = {
+    .name = "cadence_uart_clocks",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .fields = (VMStateField[]) {
+        VMSTATE_CLOCKIN(refclk, CadenceUARTState),
+        VMSTATE_CLOCKIN(busclk, CadenceUARTState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_cadence_uart = {
     .name = "cadence_uart",
     .version_id = 2,
     .minimum_version_id = 2,
+    .pre_load = cadence_uart_pre_load,
     .post_load = cadence_uart_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(r, CadenceUARTState, CADENCE_UART_R_MAX),
@@ -532,7 +611,10 @@ static const VMStateDescription vmstate_cadence_uart = {
         VMSTATE_UINT32(rx_wpos, CadenceUARTState),
         VMSTATE_TIMER_PTR(fifo_trigger_handle, CadenceUARTState),
         VMSTATE_END_OF_LIST()
-    }
+    },
+    .subsections = (const VMStateDescription * []) {
+        &vmstate_cadence_uart_clocks,
+    },
 };
 
 static Property cadence_uart_properties[] = {
@@ -548,7 +630,7 @@ static void cadence_uart_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_cadence_uart;
     dc->reset = cadence_uart_reset;
     dc->props = cadence_uart_properties;
-  }
+}
 
 static const TypeInfo cadence_uart_info = {
     .name          = TYPE_CADENCE_UART,
