@@ -4367,7 +4367,7 @@ void qmp_x_blockdev_set_iothread(const char *node_name, StrOrNull *iothread,
     aio_context_release(old_context);
 }
 
-void qmp_x_block_latency_histogram_set(
+void qmp_block_latency_histogram_set(
     bool has_device, const char *device,
     bool has_id, const char *id,
     bool has_boundaries, uint64List *boundaries,
