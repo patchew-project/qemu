@@ -1112,19 +1112,75 @@ static FloatParts div_floats(FloatParts a, FloatParts b, float_status *s)
     bool sign = a.sign ^ b.sign;
 
     if (a.cls == float_class_normal && b.cls == float_class_normal) {
-        uint64_t temp_lo, temp_hi;
+        uint64_t n0, n1, d0, d1, q0, q1, r1, r0, m, d;
         int exp = a.exp - b.exp;
+
+        /*
+         * We want the 2*N / N-bit division to produce exactly an N-bit
+         * result, so that we do not have to renormalize afterward.
+         * If A < B, then division would produce an (N-1)-bit result;
+         * shift A left by one to produce the an N-bit result, and
+         * decrement the exponent to match.
+         *
+         * The udiv_qrnnd algorithm that we're using requires normalization,
+         * i.e. the msb of the denominator must be set.  Since we know that
+         * DECOMPOSED_BINARY_POINT is msb-1, everything must be shifted left
+         * by one more.
+         */
         if (a.frac < b.frac) {
             exp -= 1;
-            shortShift128Left(0, a.frac, DECOMPOSED_BINARY_POINT + 1,
-                              &temp_hi, &temp_lo);
+            shortShift128Left(0, a.frac, DECOMPOSED_BINARY_POINT + 2, &n1, &n0);
         } else {
-            shortShift128Left(0, a.frac, DECOMPOSED_BINARY_POINT,
-                              &temp_hi, &temp_lo);
+            shortShift128Left(0, a.frac, DECOMPOSED_BINARY_POINT + 1, &n1, &n0);
         }
-        /* LSB of quot is set if inexact which roundandpack will use
-         * to set flags. Yet again we re-use a for the result */
-        a.frac = div128To64(temp_lo, temp_hi, b.frac);
+        d = b.frac << 1;
+
+        /*
+         * From the GNU Multi Precision Library - longlong.h __udiv_qrnnd
+         * (https://gmplib.org/repo/gmp/file/tip/longlong.h)
+         * Licensed under the GPLv2/LGPLv3.
+         */
+        d0 = (uint32_t)d;
+        d1 = d >> 32;
+
+        r1 = n1 % d1;
+        q1 = n1 / d1;
+        m = q1 * d0;
+        r1 = (r1 << 32) | (n0 >> 32);
+        if (r1 < m) {
+            q1 -= 1;
+            r1 += d;
+            if (r1 >= d) {
+                if (r1 < m) {
+                    q1 -= 1;
+                    r1 += d;
+                }
+            }
+        }
+        r1 -= m;
+
+        r0 = r1 % d1;
+        q0 = r1 / d1;
+        m = q0 * d0;
+        r0 = (r0 << 32) | (uint32_t)n0;
+        if (r0 < m) {
+            q0 -= 1;
+            r0 += d;
+            if (r0 >= d) {
+                if (r0 < m) {
+                    q0 -= 1;
+                    r0 += d;
+                }
+            }
+        }
+        r0 -= m;
+        /* End of __udiv_qrnnd.  */
+
+        /* Adjust remainder for normalization step.  */
+        r0 >>= 1;
+
+        /* Set lsb if there is a remainder, to set inexact.  */
+        a.frac = (q1 << 32) | q0 | (r0 != 0);
         a.sign = sign;
         a.exp = exp;
         return a;
