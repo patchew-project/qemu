@@ -426,7 +426,7 @@ static inline void *tlb_vaddr_to_host(CPUArchState *env, abi_ptr addr,
         tlb_addr = tlbentry->addr_read;
         break;
     case 1:
-        tlb_addr = tlbentry->addr_write;
+        tlb_addr = atomic_read(&tlbentry->addr_write);
         break;
     case 2:
         tlb_addr = tlbentry->addr_code;
