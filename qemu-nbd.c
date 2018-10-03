@@ -56,7 +56,7 @@
 #define MBR_SIZE 512
 
 static NBDExport *exp;
-static bool newproto;
+static bool oldstyle;
 static int verbose;
 static char *srcpath;
 static SocketAddress *saddr;
@@ -84,8 +84,9 @@ static void usage(const char *name)
 "  -e, --shared=NUM          device can be shared by NUM clients (default '1')\n"
 "  -t, --persistent          don't exit on the last connection\n"
 "  -v, --verbose             display extra debugging information\n"
-"  -x, --export-name=NAME    expose export by name\n"
-"  -D, --description=TEXT    with -x, also export a human-readable description\n"
+"  -x, --export-name=NAME    expose export by name (default "")\n"
+"  -D, --description=TEXT    expose a human-readable description of export\n"
+"  -O, --oldstyle            force oldstyle (not with -x, -D, or --tls-creds)\n"
 "\n"
 "Exposing part of the image:\n"
 "  -o, --offset=OFFSET       offset into the image\n"
@@ -354,7 +355,7 @@ static void nbd_accept(QIONetListener *listener, QIOChannelSocket *cioc,
 
     nb_fds++;
     nbd_update_server_watch();
-    nbd_client_new(newproto ? NULL : exp, cioc,
+    nbd_client_new(oldstyle ? exp : NULL, cioc,
                    tlscreds, NULL, nbd_client_closed);
 }
 
@@ -502,7 +503,7 @@ int main(int argc, char **argv)
     off_t fd_size;
     QemuOpts *sn_opts = NULL;
     const char *sn_id_or_name = NULL;
-    const char *sopt = "hVb:o:p:rsnP:c:dvk:e:f:tl:x:T:D:";
+    const char *sopt = "hVb:o:p:rsnP:c:dvk:e:f:tl:x:T:D:O";
     struct option lopt[] = {
         { "help", no_argument, NULL, 'h' },
         { "version", no_argument, NULL, 'V' },
@@ -529,6 +530,7 @@ int main(int argc, char **argv)
         { "object", required_argument, NULL, QEMU_NBD_OPT_OBJECT },
         { "export-name", required_argument, NULL, 'x' },
         { "description", required_argument, NULL, 'D' },
+        { "oldstyle", no_argument, NULL, 'O' },
         { "tls-creds", required_argument, NULL, QEMU_NBD_OPT_TLSCREDS },
         { "image-opts", no_argument, NULL, QEMU_NBD_OPT_IMAGE_OPTS },
         { "trace", required_argument, NULL, 'T' },
@@ -723,6 +725,9 @@ int main(int argc, char **argv)
         case 'D':
             export_description = optarg;
             break;
+        case 'O':
+            oldstyle = true;
+            break;
         case 'v':
             verbose = 1;
             break;
@@ -799,7 +804,16 @@ int main(int argc, char **argv)
         }
     }
 
+    if (!oldstyle && !export_name) {
+        /* Set the default NBD protocol export name, to favor new style. */
+        export_name = "";
+    }
+
     if (tlscredsid) {
+        if (oldstyle) {
+            error_report("TLS is incompatible with oldstyle");
+            exit(EXIT_FAILURE);
+        }
         if (sockpath) {
             error_report("TLS is only supported with IPv4/IPv6");
             exit(EXIT_FAILURE);
@@ -807,11 +821,6 @@ int main(int argc, char **argv)
         if (device) {
             error_report("TLS is not supported with a host device");
             exit(EXIT_FAILURE);
-        }
-        if (!export_name) {
-            /* Set the default NBD protocol export name, since
-             * we *must* use new style protocol for TLS */
-            export_name = "";
         }
         tlscreds = nbd_get_tls_creds(tlscredsid, &local_err);
         if (local_err) {
@@ -1013,13 +1022,13 @@ int main(int argc, char **argv)
         error_report_err(local_err);
         exit(EXIT_FAILURE);
     }
+    if (oldstyle && (export_name || export_description)) {
+        error_report("oldstyle negotiation cannot set export details");
+        exit(EXIT_FAILURE);
+    }
     if (export_name) {
         nbd_export_set_name(exp, export_name);
         nbd_export_set_description(exp, export_description);
-        newproto = true;
-    } else if (export_description) {
-        error_report("Export description requires an export name");
-        exit(EXIT_FAILURE);
     }
 
     if (device) {
