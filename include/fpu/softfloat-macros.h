@@ -630,7 +630,8 @@ static inline uint64_t estimateDiv128To64(uint64_t a0, uint64_t a1, uint64_t b)
  *
  * Licensed under the GPLv2/LGPLv3
  */
-static inline uint64_t div128To64(uint64_t n0, uint64_t n1, uint64_t d)
+static inline uint64_t udiv_qrnnd(uint64_t *r, uint64_t n1,
+                                  uint64_t n0, uint64_t d)
 {
     uint64_t d0, d1, q0, q1, r1, r0, m;
 
@@ -669,8 +670,8 @@ static inline uint64_t div128To64(uint64_t n0, uint64_t n1, uint64_t d)
     }
     r0 -= m;
 
-    /* Return remainder in LSB */
-    return (q1 << 32) | q0 | (r0 != 0);
+    *r = r0;
+    return (q1 << 32) | q0;
 }
 
 /*----------------------------------------------------------------------------
