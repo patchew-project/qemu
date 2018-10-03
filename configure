@@ -476,6 +476,7 @@ libxml2=""
 docker="no"
 debug_mutex="no"
 libpmem=""
+gpio=""
 
 # cross compilers defaults, can be overridden with --cross-cc-ARCH
 cross_cc_aarch64="aarch64-linux-gnu-gcc"
@@ -1444,6 +1445,10 @@ for opt do
   ;;
   --disable-libpmem) libpmem=no
   ;;
+  --disable-gpio) gpio="no"
+  ;;
+  --enable-gpio) gpio="yes"
+  ;;
   *)
       echo "ERROR: unknown option $opt"
       echo "Try '$0 --help' for more information"
@@ -1721,6 +1726,7 @@ disabled with --disable-FEATURE, default is enabled if available:
   capstone        capstone disassembler support
   debug-mutex     mutex debugging support
   libpmem         libpmem support
+  gpio            gpio support
 
 NOTE: The object files are built at the place where configure is launched
 EOF
@@ -5633,6 +5639,24 @@ if test "$libpmem" != "no"; then
 fi
 
 ##########################################
+# check for libgpiod
+
+if test "$gpio" != "no"; then
+	if $pkg_config --exists "libgpiod"; then
+		gpio="yes"
+		libgpiod_libs=$($pkg_config --libs libgpiod)
+		libgpiod_cflags=$($pkg_config --cflags libgpiod)
+		libs_softmmu="$libs_softmmu $libgpiod_libs"
+		QEMU_CFLAGS="$QEMU_CFLAGS $libgpiod_cflags"
+	else
+		if test "$gpio" = "yes" ; then
+			feature_not_found "gpio" "Install libgpiod"
+		fi
+		gpio="no"
+	fi
+fi
+
+##########################################
 # End of CC checks
 # After here, no more $cc or $ld runs
 
@@ -6102,6 +6126,7 @@ echo "VxHS block device $vxhs"
 echo "capstone          $capstone"
 echo "docker            $docker"
 echo "libpmem support   $libpmem"
+echo "gpio support      $gpio"
 
 if test "$sdl_too_old" = "yes"; then
 echo "-> Your SDL version is too old - please upgrade to have SDL support"
@@ -6861,6 +6886,10 @@ fi
 
 if test "$libpmem" = "yes" ; then
   echo "CONFIG_LIBPMEM=y" >> $config_host_mak
+fi
+
+if test "$gpio" = "yes" ; then
+  echo "CONFIG_GPIO=y" >> $config_host_mak
 fi
 
 if test "$tcg_interpreter" = "yes"; then

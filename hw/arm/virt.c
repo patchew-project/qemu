@@ -40,6 +40,7 @@
 #include "hw/devices.h"
 #include "net/net.h"
 #include "sysemu/device_tree.h"
+#include "sysemu/gpiodev.h"
 #include "sysemu/numa.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/kvm.h"
@@ -761,6 +762,11 @@ static void create_gpio(const VirtMachineState *vms, qemu_irq *pic)
     const char compat[] = "arm,pl061\0arm,primecell";
 
     pl061_dev = sysbus_create_simple("pl061", base, pic[irq]);
+#ifdef CONFIG_GPIO
+    if (!the_pl061_dev) {
+        the_pl061_dev = pl061_dev;
+    }
+#endif
 
     uint32_t phandle = qemu_fdt_alloc_phandle(vms->fdt);
     nodename = g_strdup_printf("/pl061@%" PRIx64, base);

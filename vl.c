@@ -102,6 +102,9 @@ int main(int argc, char **argv)
 #ifdef CONFIG_VIRTFS
 #include "fsdev/qemu-fsdev.h"
 #endif
+#ifdef CONFIG_GPIO
+#include "sysemu/gpiodev.h"
+#endif
 #include "sysemu/qtest.h"
 
 #include "disas/disas.h"
@@ -2259,6 +2262,14 @@ static int fsdev_init_func(void *opaque, QemuOpts *opts, Error **errp)
 }
 #endif
 
+#ifdef CONFIG_GPIO
+static int gpiodev_init_func(void *opaque, QemuOpts *opts, Error **errp)
+{
+
+    return qemu_gpiodev_add(opts);
+}
+#endif
+
 static int mon_init_func(void *opaque, QemuOpts *opts, Error **errp)
 {
     Chardev *chr;
@@ -3333,6 +3344,15 @@ int main(int argc, char **argv, char **envp)
                     exit(1);
                 }
                 break;
+#ifdef CONFIG_GPIO
+            case QEMU_OPTION_gpiodev:
+                opts = qemu_opts_parse_noisily(qemu_find_opts("gpiodev"),
+                                               optarg, true);
+                if (!opts) {
+                    exit(1);
+                }
+                break;
+#endif
             case QEMU_OPTION_virtfs: {
                 QemuOpts *fsdev;
                 QemuOpts *device;
@@ -4469,6 +4489,13 @@ int main(int argc, char **argv, char **envp)
                           device_init_func, NULL, NULL)) {
         exit(1);
     }
+
+#ifdef CONFIG_GPIO
+    if (qemu_opts_foreach(qemu_find_opts("gpiodev"),
+                          gpiodev_init_func, NULL, NULL)) {
+        exit(1);
+    }
+#endif
 
     cpu_synchronize_all_post_init();
 

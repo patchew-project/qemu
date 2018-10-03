@@ -2903,6 +2903,26 @@ DEFHEADING()
 
 #endif
 
+#ifdef CONFIG_GPIO
+DEFHEADING(GPIO device options:)
+
+DEF("gpiodev", HAS_ARG, QEMU_OPTION_gpiodev,
+    "-gpiodev gpiochip,vgpios=x:y:...:z,gpios=x:y:...:z\n", QEMU_ARCH_ALL)
+STEXI
+@item -gpiodev @var{gpiochip},vgpios=@var{vgpios},gpios=@var{gpios}
+@findef -gpiodev
+Define a new GPIO device. Valid options are:
+@table @option
+@item @var{gpiochip}
+This option specifies the GPIO chip to map virtual gpios to.
+@item vgpios=@var{vgpios}
+Specifies an array of virtual GPIOs to be mapped to physical GPIOs.
+@item gpios=@var{gpios}
+Specifies an array of physical GPIOs to be used as mapping targets.
+@end table
+ETEXI
+#endif
+
 DEFHEADING(Linux/Multiboot boot specific:)
 STEXI
 
