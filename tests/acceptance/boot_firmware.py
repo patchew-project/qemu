@@ -121,3 +121,39 @@ class BootFirmware(Test):
                 debugcon_logger.debug(line.strip())
             for exp in expected:
                 self.assertIn(exp + '\r\n', content)
+
+    def test_ovmf_virt(self):
+        """
+        Boots OVMF on the default virt machine, checks the debug console
+
+        :avocado: tags=arch:aarch64
+        :avocado: tags=maxtime:20s
+        """
+        image_url = ('http://snapshots.linaro.org/components/kernel/'
+                    'leg-virt-tianocore-edk2-upstream/latest/'
+                    'QEMU-AARCH64/DEBUG_GCC5/QEMU_EFI.img.gz')
+        image_path_gz = self.fetch_asset(image_url)
+        image_path = os.path.join(self.workdir, 'flash.img')
+
+        # kludge until Avocado support gzip files
+        import gzip, shutil
+        with gzip.open(image_path_gz) as gz, open(image_path, 'wb') as img:
+            shutil.copyfileobj(gz, img)
+
+        serial_path = os.path.join(self.workdir, 'serial.log')
+        self.vm.set_machine('virt')
+        self.vm.add_args('-nographic',
+                         '-cpu', 'cortex-a57',
+                         '-m', '1G', # 1GB min to boot fw?
+                         '-drive', 'file=%s,format=raw,if=pflash' % image_path,
+                         '-chardev', 'file,path=%s,id=console' % serial_path,
+                         '-serial', 'chardev:console')
+        self.vm.launch()
+        serial_logger = logging.getLogger('serial')
+
+        # serial console checks
+        if not wait_for(read_console_for_string, timeout=15, step=0,
+                        args=(open(serial_path),
+                              'Start PXE over IPv4',
+                              serial_logger)):
+            self.fail("OVMF failed to boot")
