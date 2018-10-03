@@ -86,6 +86,7 @@ static void usage(const char *name)
 "  -v, --verbose             display extra debugging information\n"
 "  -x, --export-name=NAME    expose export by name\n"
 "  -D, --description=TEXT    with -x, also export a human-readable description\n"
+"  -O, --oldstyle            force oldstyle negotiation\n"
 "\n"
 "Exposing part of the image:\n"
 "  -o, --offset=OFFSET       offset into the image\n"
@@ -529,6 +530,7 @@ int main(int argc, char **argv)
         { "object", required_argument, NULL, QEMU_NBD_OPT_OBJECT },
         { "export-name", required_argument, NULL, 'x' },
         { "description", required_argument, NULL, 'D' },
+        { "oldstyle", no_argument, NULL, 'O' },
         { "tls-creds", required_argument, NULL, QEMU_NBD_OPT_TLSCREDS },
         { "image-opts", no_argument, NULL, QEMU_NBD_OPT_IMAGE_OPTS },
         { "trace", required_argument, NULL, 'T' },
@@ -551,6 +553,7 @@ int main(int argc, char **argv)
     QDict *options = NULL;
     const char *export_name = NULL;
     const char *export_description = NULL;
+    bool oldstyle = false;
     const char *tlscredsid = NULL;
     bool imageOpts = false;
     bool writethrough = true;
@@ -723,6 +726,9 @@ int main(int argc, char **argv)
         case 'D':
             export_description = optarg;
             break;
+        case 'O':
+            oldstyle = true;
+            break;
         case 'v':
             verbose = 1;
             break;
@@ -799,7 +805,16 @@ int main(int argc, char **argv)
         }
     }
 
+    if (!oldstyle && !export_name) {
+        /* Set the default NBD protocol export name, to favor new style. */
+        export_name = "";
+    }
+
     if (tlscredsid) {
+        if (oldstyle) {
+            error_report("TLS is incompatible with oldstyle");
+            exit(EXIT_FAILURE);
+        }
         if (sockpath) {
             error_report("TLS is only supported with IPv4/IPv6");
             exit(EXIT_FAILURE);
@@ -807,11 +822,6 @@ int main(int argc, char **argv)
         if (device) {
             error_report("TLS is not supported with a host device");
             exit(EXIT_FAILURE);
-        }
-        if (!export_name) {
-            /* Set the default NBD protocol export name, since
-             * we *must* use new style protocol for TLS */
-            export_name = "";
         }
         tlscreds = nbd_get_tls_creds(tlscredsid, &local_err);
         if (local_err) {
@@ -1013,13 +1023,14 @@ int main(int argc, char **argv)
         error_report_err(local_err);
         exit(EXIT_FAILURE);
     }
+    if (oldstyle && (export_name || export_description)) {
+        error_report("oldstyle negotiation cannot set export details");
+        exit(EXIT_FAILURE);
+    }
     if (export_name) {
         nbd_export_set_name(exp, export_name);
         nbd_export_set_description(exp, export_description);
         newproto = true;
-    } else if (export_description) {
-        error_report("Export description requires an export name");
-        exit(EXIT_FAILURE);
     }
 
     if (device) {
