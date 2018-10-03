@@ -1522,6 +1522,9 @@ void vm_state_notify(int running, RunState state)
     }
 }
 
+static ShutdownCause shutdown_reason;
+static bool shutdown_was_reset;
+
 static ShutdownCause reset_requested;
 static ShutdownCause shutdown_requested;
 static int shutdown_signal;
@@ -1681,6 +1684,7 @@ void qemu_system_guest_panicked(GuestPanicInformation *info)
 void qemu_system_reset_request(ShutdownCause reason)
 {
     if (no_reboot && reason != SHUTDOWN_CAUSE_SUBSYSTEM_RESET) {
+        shutdown_was_reset = true;
         shutdown_requested = reason;
     } else {
         reset_requested = reason;
@@ -1811,6 +1815,7 @@ static bool main_loop_should_exit(void)
         if (no_shutdown) {
             vm_stop(RUN_STATE_SHUTDOWN);
         } else {
+            shutdown_reason = request;
             return true;
         }
     }
@@ -2899,6 +2904,7 @@ int main(int argc, char **argv, char **envp)
     Error *err = NULL;
     bool list_data_dirs = false;
     char *dir, **dirs;
+    const char *exit_script = NULL;
     typedef struct BlockdevOptions_queue {
         BlockdevOptions *bdo;
         Location loc;
@@ -3586,6 +3592,9 @@ int main(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_no_shutdown:
                 no_shutdown = 1;
+                break;
+            case QEMU_OPTION_exit_script:
+                exit_script = optarg;
                 break;
             case QEMU_OPTION_show_cursor:
                 cursor_hide = 0;
@@ -4576,6 +4585,42 @@ int main(int argc, char **argv, char **envp)
     user_creatable_cleanup();
     migration_object_finalize();
     /* TODO: unref root container, check all devices are ok */
+
+    if (exit_script) {
+        int pid, status;
+        char *args[5];
+
+        /* try to launch network script */
+        pid = fork();
+        if (pid < 0) {
+            error_report("could not launch exit script '%s'", exit_script);
+            exit(1);
+        }
+        if (pid == 0) {
+            int open_max = sysconf(_SC_OPEN_MAX), i;
+
+            for (i = 3; i < open_max; i++) {
+                close(i);
+            }
+            args[0] = (char *)exit_script;
+            args[1] = g_strdup_printf("%d", shutdown_reason);
+            args[2] = g_strdup_printf("%d", shutdown_was_reset);
+            args[3] = qemu_get_vm_name();
+            args[4] = NULL;
+            execv(exit_script, args);
+            _exit(1);
+        } else {
+            while (waitpid(pid, &status, 0) != pid) {
+                /* loop */
+            }
+
+            if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+                error_report("exit script '%s' failed with status %d",
+                             exit_script, status);
+                exit(1);
+            }
+        }
+    }
 
     return 0;
 }
