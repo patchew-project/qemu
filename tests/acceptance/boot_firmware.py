@@ -72,3 +72,52 @@ class BootFirmware(Test):
                 debugcon_logger.debug(line.strip())
             for exp in expected:
                 self.assertIn(exp + '\n', content)
+
+    def test_ovmf_pc(self):
+        """
+        Boots OVMF on the default PC machine, checks the debug console
+
+        :avocado: tags=arch:x86_64
+        :avocado: tags=maxtime:10s
+        """
+        debugcon_path = os.path.join(self.workdir, 'debugconsole.log')
+        serial_logger = logging.getLogger('serial')
+        debugcon_logger = logging.getLogger('debugcon')
+
+        self.vm.set_machine('pc')
+        self.vm.set_console()
+        self.vm.add_args('-nographic',
+                         '-net', 'none',
+                         '-global', 'isa-debugcon.iobase=0x402',
+                         '-debugcon', 'file:%s' % debugcon_path,
+                         '--bios', '/usr/share/OVMF/OVMF_CODE.fd')
+        self.vm.launch()
+        console = self.vm.console_socket.makefile()
+
+        # serial console checks
+        if not wait_for(read_console_for_string, timeout=10, step=0,
+                        args=(console, 'EDK II', serial_logger)):
+            self.fail("OVMF failed to boot")
+
+        # debug console checks
+        expected = [
+            'SEC: Normal boot',
+            'S3 support was detected on QEMU',
+            'Platform PEI Firmware Volume Initialization',
+            'DXE IPL Entry',
+            'Installing FVB for EMU Variable support',
+            'SmbiosCreateTable: Initialize 32-bit entry point structure',
+            'PlatformBootManagerBeforeConsole',
+            'OnRootBridgesConnected: root bridges have been connected, '
+                'installing ACPI tables',
+            'Found LPC Bridge device',
+            'PlatformBootManagerAfterConsole',
+            'EfiBootManagerConnectAll',
+            '[Bds]Booting EFI Internal Shell',
+        ]
+        with open(debugcon_path) as debugcon:
+            content = debugcon.readlines()
+            for line in content: # TODO use FDDrainer
+                debugcon_logger.debug(line.strip())
+            for exp in expected:
+                self.assertIn(exp + '\r\n', content)
