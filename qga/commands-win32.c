@@ -735,6 +735,12 @@ static GuestFilesystemInfo *build_guest_fsinfo(char *guid, Error **errp)
     }
     fs->type = g_strdup(fs_name);
     fs->disk = build_guest_disk_info(guid, errp);
+    if (fs->disk == NULL) {
+        g_free(fs);
+        fs = NULL;
+        goto free;
+    }
+
 free:
     g_free(mnt_point);
     return fs;
@@ -755,7 +761,7 @@ GuestFilesystemInfoList *qmp_guest_get_fsinfo(Error **errp)
     do {
         GuestFilesystemInfo *info = build_guest_fsinfo(guid, errp);
         if (info == NULL) {
-            continue;
+            goto out;
         }
         new = g_malloc(sizeof(*ret));
         new->value = info;
@@ -767,6 +773,7 @@ GuestFilesystemInfoList *qmp_guest_get_fsinfo(Error **errp)
         error_setg_win32(errp, GetLastError(), "failed to find next volume");
     }
 
+out:
     FindVolumeClose(vol_h);
     return ret;
 }
