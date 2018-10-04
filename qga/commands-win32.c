@@ -632,20 +632,15 @@ out_free:
     return;
 }
 
-/* VSS provider works with volumes, thus there is no difference if
- * the volume consist of spanned disks. Info about the first disk in the
- * volume is returned for the spanned disk group (LVM) */
-static GuestDiskAddressList *build_guest_disk_info(char *guid, Error **errp)
+static void get_single_disk_info(char *name, GuestDiskAddress *disk,
+    Error **errp)
 {
-    GuestDiskAddressList *list = NULL;
-    GuestDiskAddress *disk;
     SCSI_ADDRESS addr, *scsi_ad;
     DWORD len;
     HANDLE vol_h;
     Error *local_err = NULL;
 
     scsi_ad = &addr;
-    char *name = g_strndup(guid, strlen(guid)-1);
 
     g_debug("getting disk info for: %s", name);
     vol_h = CreateFile(name, 0, FILE_SHARE_READ, NULL, OPEN_EXISTING,
@@ -655,7 +650,6 @@ static GuestDiskAddressList *build_guest_disk_info(char *guid, Error **errp)
         goto err;
     }
 
-    disk = g_malloc0(sizeof(*disk));
     get_disk_properties(vol_h, disk, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
@@ -676,7 +670,6 @@ static GuestDiskAddressList *build_guest_disk_info(char *guid, Error **errp)
         g_debug("getting pci-controller info");
         if (DeviceIoControl(vol_h, IOCTL_SCSI_GET_ADDRESS, NULL, 0, scsi_ad,
                             sizeof(SCSI_ADDRESS), &len, NULL)) {
-            Error *local_err = NULL;
             disk->unit = addr.Lun;
             disk->target = addr.TargetId;
             disk->bus = addr.PathId;
@@ -688,6 +681,7 @@ static GuestDiskAddressList *build_guest_disk_info(char *guid, Error **errp)
                 g_debug("failed to get PCI controller info: %s",
                     error_get_pretty(local_err));
                 error_free(local_err);
+                local_err = NULL;
             } else if (disk->pci_controller != NULL) {
                 g_debug("pci: domain=%lld bus=%lld slot=%lld function=%lld",
                     disk->pci_controller->domain,
@@ -704,20 +698,44 @@ static GuestDiskAddressList *build_guest_disk_info(char *guid, Error **errp)
         disk->pci_controller = g_malloc0(sizeof(GuestPCIAddress));
     }
 
-    list = g_malloc0(sizeof(*list));
-    list->value = disk;
-    list->next = NULL;
-    CloseHandle(vol_h);
-    g_free(name);
-    return list;
-
 err_close:
-    g_free(disk);
     CloseHandle(vol_h);
 err:
+    return;
+}
+
+/* VSS provider works with volumes, thus there is no difference if
+ * the volume consist of spanned disks. Info about the first disk in the
+ * volume is returned for the spanned disk group (LVM) */
+static GuestDiskAddressList *build_guest_disk_info(char *guid, Error **errp)
+{
+    Error *local_err = NULL;
+    GuestDiskAddressList *list = NULL, *cur_item = NULL;
+    GuestDiskAddress *disk = NULL;
+
+    /* strip final backslash */
+    char *name = g_strdup(guid);
+    if (g_str_has_suffix(name, "\\") == TRUE) {
+        name[strlen(name) - 1] = 0;
+    }
+
+    disk = g_malloc0(sizeof(GuestDiskAddress));
+    get_single_disk_info(name, disk, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        goto out;
+    }
+
+    cur_item = g_malloc0(sizeof(*list));
+    cur_item->value = disk;
+    disk = NULL;
+    list = cur_item;
+
+out:
+    g_free(disk);
     g_free(name);
 
-    return NULL;
+    return list;
 }
 
 #else
