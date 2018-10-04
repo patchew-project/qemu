@@ -16,6 +16,11 @@ class Vnc(Test):
     :avocado: enable
     :avocado: tags=vnc,quick
     """
+    def setUp(self):
+        super(Vnc, self).setUp()
+        self.vm.set_arch(self.arch)
+        self.vm.set_machine()
+
     def test_no_vnc(self):
         self.vm.add_args('-nodefaults', '-S')
         self.vm.launch()
