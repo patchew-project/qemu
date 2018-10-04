@@ -19,12 +19,13 @@ class BootLinuxConsole(Test):
     and the kernel command line is properly passed from QEMU to the kernel
 
     :avocado: enable
-    :avocado: tags=x86_64
     """
 
     timeout = 60
 
     def test(self):
+        if self.arch != 'x86_64':
+            self.cancel('Currently specific to the x86_64 arch')
         kernel_url = ('https://mirrors.kernel.org/fedora/releases/28/'
                       'Everything/x86_64/os/images/pxeboot/vmlinuz')
         kernel_hash = '238e083e114c48200f80d889f7e32eeb2793e02a'
