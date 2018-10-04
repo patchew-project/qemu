@@ -27,6 +27,7 @@
 #include "sysemu/rng.h"
 #include "hw/ppc/spapr.h"
 #include "kvm_ppc.h"
+#include "spapr_rng.h"
 
 #define SPAPR_RNG(obj) \
     OBJECT_CHECK(sPAPRRngState, (obj), TYPE_SPAPR_RNG)
@@ -130,29 +131,6 @@ static void spapr_rng_realize(DeviceState *dev, Error **errp)
     } else {
         error_setg(errp, "spapr-rng needs an RNG backend!");
     }
-}
-
-int spapr_rng_populate_dt(void *fdt)
-{
-    int node;
-    int ret;
-
-    node = qemu_fdt_add_subnode(fdt, "/ibm,platform-facilities");
-    if (node <= 0) {
-        return -1;
-    }
-    ret = fdt_setprop_string(fdt, node, "device_type",
-                             "ibm,platform-facilities");
-    ret |= fdt_setprop_cell(fdt, node, "#address-cells", 0x1);
-    ret |= fdt_setprop_cell(fdt, node, "#size-cells", 0x0);
-
-    node = fdt_add_subnode(fdt, node, "ibm,random-v1");
-    if (node <= 0) {
-        return -1;
-    }
-    ret |= fdt_setprop_string(fdt, node, "compatible", "ibm,random");
-
-    return ret ? -1 : 0;
 }
 
 static Property spapr_rng_properties[] = {
