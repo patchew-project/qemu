@@ -54,7 +54,7 @@ struct DisasContext {
     int cring;
     int ring;
     uint32_t lbeg;
-    uint32_t lend;
+    uint32_t lend_dist;
 
     bool sar_5bit;
     bool sar_m32_5bit;
@@ -431,14 +431,13 @@ static void gen_callwi(DisasContext *dc, int callinc, uint32_t dest, int slot)
 
 static bool gen_check_loop_end(DisasContext *dc, int slot)
 {
-    if (option_enabled(dc, XTENSA_OPTION_LOOP) &&
-            !(dc->base.tb->flags & XTENSA_TBFLAG_EXCM) &&
-            dc->base.pc_next == dc->lend) {
+    if (dc->lend_dist && dc->lend_dist <= MAX_INSN_LENGTH &&
+        dc->base.pc_next - dc->base.pc_first == dc->lend_dist) {
         TCGLabel *label = gen_new_label();
 
         tcg_gen_brcondi_i32(TCG_COND_EQ, cpu_SR[LCOUNT], 0, label);
         tcg_gen_subi_i32(cpu_SR[LCOUNT], cpu_SR[LCOUNT], 1);
-        gen_jumpi(dc, dc->lbeg, slot);
+        gen_jump(dc, cpu_SR[LBEG]);
         gen_set_label(label);
         gen_jumpi(dc, dc->base.pc_next, -1);
         return true;
@@ -532,16 +531,6 @@ static void gen_rsr(DisasContext *dc, TCGv_i32 d, uint32_t sr)
     } else {
         tcg_gen_mov_i32(d, cpu_SR[sr]);
     }
-}
-
-static void gen_wsr_lbeg(DisasContext *dc, uint32_t sr, TCGv_i32 s)
-{
-    gen_helper_wsr_lbeg(cpu_env, s);
-}
-
-static void gen_wsr_lend(DisasContext *dc, uint32_t sr, TCGv_i32 s)
-{
-    gen_helper_wsr_lend(cpu_env, s);
 }
 
 static void gen_wsr_sar(DisasContext *dc, uint32_t sr, TCGv_i32 s)
@@ -743,8 +732,6 @@ static void gen_wsr(DisasContext *dc, uint32_t sr, TCGv_i32 s)
 {
     static void (* const wsr_handler[256])(DisasContext *dc,
                                            uint32_t sr, TCGv_i32 v) = {
-        [LBEG] = gen_wsr_lbeg,
-        [LEND] = gen_wsr_lend,
         [SAR] = gen_wsr_sar,
         [BR] = gen_wsr_br,
         [LITBASE] = gen_wsr_litbase,
@@ -1098,7 +1085,11 @@ static void xtensa_tr_init_disas_context(DisasContextBase *dcbase,
     dc->ring = tb_flags & XTENSA_TBFLAG_RING_MASK;
     dc->cring = (tb_flags & XTENSA_TBFLAG_EXCM) ? 0 : dc->ring;
     dc->lbeg = env->sregs[LBEG];
-    dc->lend = env->sregs[LEND];
+    dc->lend_dist = (tb_flags & XTENSA_TBFLAG_LEND_MASK) >>
+        XTENSA_TBFLAG_LEND_SHIFT;
+    if (dc->lend_dist > MAX_INSN_LENGTH) {
+        dc->lend_dist = (1 << (dc->lend_dist - MAX_INSN_LENGTH)) + 1;
+    }
     dc->debug = tb_flags & XTENSA_TBFLAG_DEBUG;
     dc->icount = tb_flags & XTENSA_TBFLAG_ICOUNT;
     dc->cpenable = (tb_flags & XTENSA_TBFLAG_CPENABLE_MASK) >>
@@ -1150,7 +1141,6 @@ static void xtensa_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
     CPUXtensaState *env = cpu->env_ptr;
-    target_ulong page_start;
 
     /* These two conditions only apply to the first insn in the TB,
        but this is the first TranslateOps hook that allows exiting.  */
@@ -1189,11 +1179,16 @@ static void xtensa_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
     }
 
     /* End the TB if the next insn will cross into the next page.  */
-    page_start = dc->base.pc_first & TARGET_PAGE_MASK;
-    if (dc->base.is_jmp == DISAS_NEXT &&
-        (dc->pc - page_start >= TARGET_PAGE_SIZE ||
-         dc->pc - page_start + xtensa_insn_len(env, dc) > TARGET_PAGE_SIZE)) {
-        dc->base.is_jmp = DISAS_TOO_MANY;
+    if (dc->base.is_jmp == DISAS_NEXT) {
+        target_ulong page_start = dc->base.pc_first & TARGET_PAGE_MASK;
+        unsigned next_insn_len = xtensa_insn_len(env, dc);
+
+        if (dc->pc - page_start >= TARGET_PAGE_SIZE ||
+            dc->pc - page_start + next_insn_len > TARGET_PAGE_SIZE ||
+            (dc->lend_dist &&
+             dc->pc - dc->base.pc_first + next_insn_len > dc->lend_dist)) {
+            dc->base.is_jmp = DISAS_TOO_MANY;
+        }
     }
 }
 
@@ -1712,12 +1707,10 @@ static void translate_loop(DisasContext *dc, const uint32_t arg[],
                            const uint32_t par[])
 {
     uint32_t lend = arg[1];
-    TCGv_i32 tmp = tcg_const_i32(lend);
 
     tcg_gen_subi_i32(cpu_SR[LCOUNT], cpu_R[arg[0]], 1);
     tcg_gen_movi_i32(cpu_SR[LBEG], dc->base.pc_next);
-    gen_helper_wsr_lend(cpu_env, tmp);
-    tcg_temp_free(tmp);
+    tcg_gen_movi_i32(cpu_SR[LEND], lend);
 
     if (par[0] != TCG_COND_NEVER) {
         TCGLabel *label = gen_new_label();
@@ -4609,7 +4602,6 @@ static const XtensaOpcodeOps core_ops[] = {
         .translate = translate_wsr,
         .test_ill = test_ill_wsr,
         .par = (const uint32_t[]){LBEG},
-        .op_flags = XTENSA_OP_EXIT_TB_0,
         .windowed_register_op = 0x1,
     }, {
         .name = "wsr.lcount",
@@ -4622,7 +4614,7 @@ static const XtensaOpcodeOps core_ops[] = {
         .translate = translate_wsr,
         .test_ill = test_ill_wsr,
         .par = (const uint32_t[]){LEND},
-        .op_flags = XTENSA_OP_EXIT_TB_0,
+        .op_flags = XTENSA_OP_EXIT_TB_M1,
         .windowed_register_op = 0x1,
     }, {
         .name = "wsr.litbase",
@@ -5183,7 +5175,6 @@ static const XtensaOpcodeOps core_ops[] = {
         .translate = translate_xsr,
         .test_ill = test_ill_xsr,
         .par = (const uint32_t[]){LBEG},
-        .op_flags = XTENSA_OP_EXIT_TB_0,
         .windowed_register_op = 0x1,
     }, {
         .name = "xsr.lcount",
@@ -5196,7 +5187,7 @@ static const XtensaOpcodeOps core_ops[] = {
         .translate = translate_xsr,
         .test_ill = test_ill_xsr,
         .par = (const uint32_t[]){LEND},
-        .op_flags = XTENSA_OP_EXIT_TB_0,
+        .op_flags = XTENSA_OP_EXIT_TB_M1,
         .windowed_register_op = 0x1,
     }, {
         .name = "xsr.litbase",

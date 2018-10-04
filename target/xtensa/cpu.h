@@ -694,6 +694,8 @@ static inline int cpu_mmu_index(CPUXtensaState *env, bool ifetch)
 #define XTENSA_TBFLAG_CWOE 0x40000
 #define XTENSA_TBFLAG_CALLINC_MASK 0x180000
 #define XTENSA_TBFLAG_CALLINC_SHIFT 19
+#define XTENSA_TBFLAG_LEND_MASK 0xfe00000
+#define XTENSA_TBFLAG_LEND_SHIFT 21
 
 static inline void cpu_get_tb_cpu_state(CPUXtensaState *env, target_ulong *pc,
         target_ulong *cs_base, uint32_t *flags)
@@ -706,6 +708,15 @@ static inline void cpu_get_tb_cpu_state(CPUXtensaState *env, target_ulong *pc,
     *flags |= xtensa_get_ring(env);
     if (env->sregs[PS] & PS_EXCM) {
         *flags |= XTENSA_TBFLAG_EXCM;
+    } else if (xtensa_option_enabled(env->config, XTENSA_OPTION_LOOP)) {
+        target_ulong lend_dist = env->sregs[LEND] - env->pc;
+
+        if (lend_dist > (1u << TARGET_PAGE_BITS)) {
+            lend_dist = MAX_INSN_LENGTH + 31 - TARGET_PAGE_BITS;
+        } else if (lend_dist > MAX_INSN_LENGTH) {
+            lend_dist = MAX_INSN_LENGTH + 31 - clz32(lend_dist);
+        }
+        *flags |= lend_dist << XTENSA_TBFLAG_LEND_SHIFT;
     }
     if (xtensa_option_enabled(env->config, XTENSA_OPTION_EXTENDED_L32R) &&
             (env->sregs[LITBASE] & 1)) {
