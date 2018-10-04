@@ -113,6 +113,7 @@ class QEMUMachine(object):
         self._test_dir = test_dir
         self._temp_dir = None
         self._launched = False
+        self._arch = None
         self._machine = None
         self._console_device_type = None
         self._console_address = None
@@ -405,6 +406,12 @@ class QEMUMachine(object):
         Adds to the list of extra arguments to be given to the QEMU binary
         '''
         self._args.extend(args)
+
+    def set_arch(self, arch):
+        """
+        Sets the architecture of this machine
+        """
+        self._arch = arch
 
     def set_machine(self, machine_type):
         '''
