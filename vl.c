@@ -1522,6 +1522,9 @@ void vm_state_notify(int running, RunState state)
     }
 }
 
+static ShutdownCause shutdown_reason;
+static bool shutdown_was_reset;
+
 static ShutdownCause reset_requested;
 static ShutdownCause shutdown_requested;
 static int shutdown_signal;
@@ -1681,6 +1684,7 @@ void qemu_system_guest_panicked(GuestPanicInformation *info)
 void qemu_system_reset_request(ShutdownCause reason)
 {
     if (no_reboot && reason != SHUTDOWN_CAUSE_SUBSYSTEM_RESET) {
+        shutdown_was_reset = true;
         shutdown_requested = reason;
     } else {
         reset_requested = reason;
@@ -1811,6 +1815,7 @@ static bool main_loop_should_exit(void)
         if (no_shutdown) {
             vm_stop(RUN_STATE_SHUTDOWN);
         } else {
+            shutdown_reason = request;
             return true;
         }
     }
@@ -2908,6 +2913,7 @@ int main(int argc, char **argv, char **envp)
     Error *err = NULL;
     bool list_data_dirs = false;
     char *dir, **dirs;
+    const char *exit_script = NULL;
     typedef struct BlockdevOptions_queue {
         BlockdevOptions *bdo;
         Location loc;
@@ -3596,6 +3602,11 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_no_shutdown:
                 no_shutdown = 1;
                 break;
+#ifndef _WIN32
+            case QEMU_OPTION_exit_script:
+                exit_script = optarg;
+                break;
+#endif
             case QEMU_OPTION_show_cursor:
                 cursor_hide = 0;
                 break;
@@ -4589,6 +4600,24 @@ int main(int argc, char **argv, char **envp)
     user_creatable_cleanup();
     migration_object_finalize();
     /* TODO: unref root container, check all devices are ok */
+
+    if (exit_script) {
+        char *args[5];
+        Error *local_err =  NULL;
+        args[0] = (char *)exit_script;
+        args[1] = g_strdup_printf("%d", shutdown_reason);
+        args[2] = g_strdup_printf("%d", shutdown_was_reset);
+        args[3] = (char *)qemu_get_vm_name();
+        args[4] = NULL;
+
+        qemu_launch_script(exit_script, args, -1, &local_err);
+        g_free(args[1]);
+        g_free(args[2]);
+        if (local_err) {
+            error_report_err(local_err);
+            exit(1);
+        }
+    }
 
     return 0;
 }

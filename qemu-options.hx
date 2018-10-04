@@ -3421,6 +3421,26 @@ This allows for instance switching to monitor to commit changes to the
 disk image.
 ETEXI
 
+#ifndef _WIN32
+DEF("exit-script", HAS_ARG, QEMU_OPTION_exit_script, \
+    "-exit-script    <file>\n"
+    "                      Execute the script in file on exit.\n"
+    "                      The arguments are:\n"
+    "                       - the shutdown reason,\n"
+    "                       - if it was really a reset (if -no-reboot was set)\n"
+    "                       - the name of the guest",
+    QEMU_ARCH_ALL)
+STEXI
+@item -exit-script @var{file}
+@findex -exit-script
+Execute the script @var{file} on exit.
+The arguments are:
+ - the shutdown reason
+ - if it was really a reset (if -no-reboot was set)
+ - the name of the guest
+ETEXI
+#endif
+
 DEF("loadvm", HAS_ARG, QEMU_OPTION_loadvm, \
     "-loadvm [tag|id]\n" \
     "                start right away with a saved state (loadvm in monitor)\n",
