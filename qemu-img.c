@@ -1085,7 +1085,7 @@ static int64_t find_nonzero(const uint8_t *buf, int64_t n)
 }
 
 /*
- * Returns true iff the first sector pointed to by 'buf' contains at least
+ * Returns true if the first sector pointed to by 'buf' contains at least
  * a non-NUL byte.
  *
  * 'pnum' is set to the number of sectors (including and immediately following
