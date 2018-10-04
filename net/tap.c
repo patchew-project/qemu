@@ -62,9 +62,6 @@ typedef struct TAPState {
     Notifier exit;
 } TAPState;
 
-static void launch_script(const char *setup_script, const char *ifname,
-                          int fd, Error **errp);
-
 static void tap_send(void *opaque);
 static void tap_writable(void *opaque);
 
@@ -300,7 +297,11 @@ static void tap_exit_notify(Notifier *notifier, void *data)
     Error *err = NULL;
 
     if (s->down_script[0]) {
-        launch_script(s->down_script, s->down_script_arg, s->fd, &err);
+        char *args[3];
+        args[0] = (char *)(s->down_script);
+        args[1] = (char *)(s->down_script_arg);
+        args[2] = NULL;
+        qemu_launch_script(s->down_script, args, s->fd, &err);
         if (err) {
             error_report_err(err);
         }
@@ -395,47 +396,6 @@ static TAPState *net_tap_fd_init(NetClientState *peer,
     qemu_add_exit_notifier(&s->exit);
 
     return s;
-}
-
-static void launch_script(const char *setup_script, const char *ifname,
-                          int fd, Error **errp)
-{
-    int pid, status;
-    char *args[3];
-    char **parg;
-
-    /* try to launch network script */
-    pid = fork();
-    if (pid < 0) {
-        error_setg_errno(errp, errno, "could not launch network script %s",
-                         setup_script);
-        return;
-    }
-    if (pid == 0) {
-        int open_max = sysconf(_SC_OPEN_MAX), i;
-
-        for (i = 3; i < open_max; i++) {
-            if (i != fd) {
-                close(i);
-            }
-        }
-        parg = args;
-        *parg++ = (char *)setup_script;
-        *parg++ = (char *)ifname;
-        *parg = NULL;
-        execv(setup_script, args);
-        _exit(1);
-    } else {
-        while (waitpid(pid, &status, 0) != pid) {
-            /* loop */
-        }
-
-        if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
-            return;
-        }
-        error_setg(errp, "network script %s failed with status %d",
-                   setup_script, status);
-    }
 }
 
 static int recv_fd(int c)
@@ -626,7 +586,11 @@ static int net_tap_init(const NetdevTapOptions *tap, int *vnet_hdr,
     if (setup_script &&
         setup_script[0] != '\0' &&
         strcmp(setup_script, "no") != 0) {
-        launch_script(setup_script, ifname, fd, &err);
+        char *args[3];
+        args[0] = (char *)setup_script;
+        args[1] = (char *)ifname;
+        args[2] = NULL;
+        qemu_launch_script(setup_script, args, fd, &err);
         if (err) {
             error_propagate(errp, err);
             close(fd);
