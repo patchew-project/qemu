@@ -21,8 +21,6 @@
 #include "qemu.h"
 #include "exec/user/thunk.h"
 
-//#define DEBUG
-
 static unsigned int max_struct_entries;
 StructEntry *struct_entries;
 
