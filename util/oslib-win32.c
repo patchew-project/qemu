@@ -803,3 +803,11 @@ bool qemu_write_pidfile(const char *filename, Error **errp)
     }
     return true;
 }
+
+void qemu_launch_script(const char *script, char *const args[], int fd,
+                        Error **errp)
+{
+    errno = ENOSYS;
+    error_setg_errno(errp, errno,
+                     "cannot fork child process");
+}

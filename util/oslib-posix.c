@@ -698,3 +698,37 @@ void sigaction_invoke(struct sigaction *action,
     }
     action->sa_sigaction(info->ssi_signo, &si, NULL);
 }
+
+void qemu_launch_script(const char *script, char *const args[], int fd,
+                        Error **errp)
+{
+    int pid, status;
+
+    pid = fork();
+    if (pid < 0) {
+        error_setg_errno(errp, errno, "could not launch script %s",
+                         script);
+        return;
+    }
+    if (pid == 0) {
+        int open_max = sysconf(_SC_OPEN_MAX), i;
+
+        for (i = 3; i < open_max; i++) {
+            if (i != fd) {
+                close(i);
+            }
+        }
+        execv(script, args);
+        _exit(1);
+    } else {
+        while (waitpid(pid, &status, 0) != pid) {
+            /* loop */
+        }
+
+        if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+            return;
+        }
+        error_setg(errp, "script %s failed with status %d",
+                   script, status);
+    }
+}

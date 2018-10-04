@@ -564,6 +564,18 @@ char *qemu_get_pid_name(pid_t pid);
  */
 pid_t qemu_fork(Error **errp);
 
+/**
+ * qemu_launch_script:
+ * @script: the path to the script
+ * @args: the arguments for the script
+ * @fd: a file descriptor that should not be closed
+ *
+ * fork and exec a script with the given arguments
+ * closes all file descriptors > 2 except the one given with fd
+ */
+void qemu_launch_script(const char *script, char *const args[], int fd,
+                        Error **errp);
+
 /* Using intptr_t ensures that qemu_*_page_mask is sign-extended even
  * when intptr_t is 32-bit and we are aligning a long long.
  */
