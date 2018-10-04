@@ -36,6 +36,15 @@ CONSOLE_DEV_TYPES = {
     r'^s390-ccw-virtio.*': 'sclpconsole',
     }
 
+#: Maps archictures to the preferred machine type
+MACHINE_TYPES = {
+    r'^aarch64$': 'virt',
+    r'^ppc$': 'g3beige',
+    r'^ppc64$': 'pseries',
+    r'^s390x$': 's390-ccw-virtio',
+    r'^x86_64$': 'q35',
+    }
+
 
 class QEMUMachineError(Exception):
     """
@@ -413,13 +422,24 @@ class QEMUMachine(object):
         """
         self._arch = arch
 
-    def set_machine(self, machine_type):
+    def set_machine(self, machine_type=None):
         '''
         Sets the machine type
 
         If set, the machine type will be added to the base arguments
         of the resulting QEMU command line.
         '''
+        if machine_type is None:
+            if self._arch is None:
+                raise QEMUMachineError("Can not set a default machine type: "
+                                       "QEMU instance without a defined arch")
+            for regex, machine in MACHINE_TYPES.items():
+                if re.match(regex, self._arch):
+                    machine_type = machine
+                    break
+            if machine_type is None:
+                raise QEMUMachineError("Can not set a machine type: no "
+                                       "matching machine type definition")
         self._machine = machine_type
 
     def set_console(self, device_type=None):
