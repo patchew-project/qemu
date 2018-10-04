@@ -1522,6 +1522,14 @@ F: tests/test-qemu-opts.c
 F: util/keyval.c
 F: util/qemu-option.c
 
+Generic command line options
+M: Paolo Bonzini <pbonzini@redhat.com>
+R: Markus Armbruster <armbru@redhat.com>
+R: Thomas Huth <thuth@redhat.com>
+S: Maintained
+F: qemu-options*
+F: vl.c
+
 Coverity model
 M: Markus Armbruster <armbru@redhat.com>
 S: Supported
