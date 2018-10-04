@@ -507,7 +507,14 @@ static GuestPCIAddress *get_pci_info(char *guid, Error **errp)
     char dev_name[MAX_PATH];
     char *buffer = NULL;
     GuestPCIAddress *pci = NULL;
-    char *name = g_strdup(&guid[4]);
+    char *name = NULL;
+
+    if ((g_str_has_prefix(guid, "\\\\.\\") == TRUE) ||
+        (g_str_has_prefix(guid, "\\\\?\\") == TRUE)) {
+        name = g_strdup(&guid[4]);
+    } else {
+        name = g_strdup(guid);
+    }
 
     if (!QueryDosDevice(name, dev_name, ARRAY_SIZE(dev_name))) {
         error_setg_win32(errp, GetLastError(), "failed to get dos device name");
