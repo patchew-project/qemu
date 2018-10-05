@@ -1,0 +1,32 @@
+# -*- Mode: makefile -*-
+#
+# QEMU plugins
+#
+# This Makefile is used to build plugins for QEMU. Unlike the rest of
+# the object files we build we don't have visibility of QEMU's
+# internals. When called from the main makefile we build plugins into
+# BUILD_DIR/plugins otherwise where ever the Makefile was called from.
+# QEMU_SRC
+#
+
+BUILD_DIR ?= $(CURDIR)
+CC ?= cc
+
+ifndef QEMU_SRC
+$(error need to define QEMU_SRC for the build)
+endif
+
+GLIB_CFLAGS = $(shell pkg-config --cflags glib-2.0)
+CFLAGS = -I$(QEMU_SRC)/include/plugins $(GLIB_CFLAGS) -fno-PIE -fPIC -O3 -g
+LDFLAGS = $(shell pkg-config --libs glib-2.0) -shared
+
+SRC = $(wildcard *.c)
+PLUGINS = $(addprefix $(BUILD_DIR)/,$(SRC:.c=.so))
+
+$(BUILD_DIR)/%.so: %.c
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
+
+all: $(PLUGINS)
+
+clean:
+	rm -f $(PLUGIN_SO) $(PLUGIN_OBJ)

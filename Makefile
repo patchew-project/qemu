@@ -438,7 +438,7 @@ dummy := $(call unnest-vars,, \
 
 include $(SRC_PATH)/tests/Makefile.include
 
-all: $(DOCS) $(TOOLS) $(HELPERS-y) recurse-all modules
+all: $(DOCS) $(TOOLS) $(HELPERS-y) recurse-all modules plugins
 
 qemu-version.h: FORCE
 	$(call quiet-command, \
@@ -1092,6 +1092,9 @@ help:
 	@echo  '  all             - Build all'
 ifdef CONFIG_MODULES
 	@echo  '  modules         - Build all modules'
+endif
+ifdef CONFIG_TRACE_PLUGIN
+	@echo  '  plugins         - Build all plugins'
 endif
 	@echo  '  dir/file.o      - Build specified target only'
 	@echo  '  install         - Install QEMU, documentation and tools'

@@ -58,3 +58,27 @@ util-obj-$(CONFIG_TRACE_PLUGIN) += plugins.o
 util-obj-y += control.o
 target-obj-y += control-target.o
 util-obj-y += qmp.o
+
+######################################################################
+# Plugins
+ifdef CONFIG_TRACE_PLUGIN
+
+PLUGINS=$(dir $(wildcard $(SRC_PATH)/trace/plugins/*/.))
+
+.PHONY: plugins $(PLUGINS)
+
+plugins: $(PLUGINS)
+	$(info built all plugins $(PLUGINS))
+
+$(PLUGINS):
+	$(call quiet-command, 							\
+	   (cd $@ && $(MAKE) -f $(SRC_PATH)/trace/plugins/Makefile.plugins 	\
+				QEMU_SRC=$(SRC_PATH) 				\
+				BUILD_DIR=$(BUILD_DIR)/trace/plugins), 		\
+	"PLUGIN","in $@")
+
+else
+
+plugins:
+
+endif
