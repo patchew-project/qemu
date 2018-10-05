@@ -66,7 +66,7 @@ typedef struct AccelClass {
 
 extern unsigned long tcg_tb_size;
 
-void configure_accelerator(MachineState *ms);
+void configure_accelerator(MachineState *ms, const char *progname);
 /* Register accelerator specific global properties */
 void accel_register_compat_props(AccelState *accel);
 /* Called just before os_setup_post (ie just before drop OS privs) */

@@ -4220,7 +4220,7 @@ int main(int argc, char **argv, char **envp)
         exit(1);
     }
 
-    configure_accelerator(current_machine);
+    configure_accelerator(current_machine, argv[0]);
 
     if (!qtest_enabled() && machine_class->deprecation_reason) {
         error_report("Machine type '%s' is deprecated: %s",
