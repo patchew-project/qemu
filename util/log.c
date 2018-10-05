@@ -56,9 +56,6 @@ static bool log_uses_own_buffers;
 void qemu_set_log(int log_flags)
 {
     qemu_loglevel = log_flags;
-#ifdef CONFIG_TRACE_LOG
-    qemu_loglevel |= LOG_TRACE;
-#endif
     if (!qemu_logfile &&
         (is_daemonized() ? logfilename != NULL : qemu_loglevel)) {
         if (logfilename) {

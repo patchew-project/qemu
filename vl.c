@@ -2955,6 +2955,7 @@ int main(int argc, char **argv, char **envp)
     Error *err = NULL;
     bool list_data_dirs = false;
     char *dir, **dirs;
+    int maybe_log_trace = 0;
     typedef struct BlockdevOptions_queue {
         BlockdevOptions *bdo;
         Location loc;
@@ -4032,6 +4033,19 @@ int main(int argc, char **argv, char **envp)
     }
     trace_init_file(trace_file);
 
+#if defined(CONFIG_TRACE_SIMPLE) && defined(CONFIG_TRACE_LOG)
+    /* If the user has both log and simple tracing enabled but hasn't
+     * defined a binary trace file ensure we enable the right logging
+     * flags.
+     */
+    if (!trace_file) {
+        maybe_log_trace = LOG_TRACE;
+    }
+#elif defined CONFIG_TRACE_LOG
+    /* with just CONFIG_TRACE_LOG we enable unconditionally */
+    maybe_log_trace = LOG_TRACE;
+#endif
+
     /* Open the logfile at this point and set the log mask if necessary.
      */
     if (log_file) {
@@ -4045,9 +4059,9 @@ int main(int argc, char **argv, char **envp)
             qemu_print_log_usage(stdout);
             exit(1);
         }
-        qemu_set_log(mask);
+        qemu_set_log(mask | maybe_log_trace);
     } else {
-        qemu_set_log(0);
+        qemu_set_log(maybe_log_trace);
     }
 
     /* add configured firmware directories */
