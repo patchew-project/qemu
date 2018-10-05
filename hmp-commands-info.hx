@@ -683,6 +683,23 @@ STEXI
 Show available trace-events & their state.
 ETEXI
 
+#if defined(CONFIG_TRACE_PLUGIN)
+    {
+        .name       = "trace-plugins",
+        .args_type  = "name:s?",
+        .params     = "[name]",
+        .help       = "show available plugins and any extra info "
+                      "(name: plugin name pattern)",
+        .cmd = hmp_info_trace_plugins,
+    },
+
+STEXI
+@item info trace-plugins
+@findex info trace-plugins
+Show available trace-plugins & their state.
+ETEXI
+#endif
+
     {
         .name       = "tpm",
         .args_type  = "",

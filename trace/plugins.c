@@ -58,6 +58,21 @@ void qemu_plugin_parse_cmd_args(const char *optarg)
                      qemu_opt_get(opts, "args"));
 }
 
+GString *qemu_plugin_status(const char *name)
+{
+    QemuPluginInfo *info;
+    GString *status = g_string_new("");
+
+    QLIST_FOREACH(info, &qemu_plugins, next) {
+        if (info->status) {
+            char *pstatus = info->status();
+            g_string_append_printf(status, "%s: %s\n", info->filename, pstatus);
+            g_free(pstatus);
+        }
+    }
+    return status;
+}
+
 static int bind_to_tracepoints(GModule *g_module, GPtrArray *events)
 {
     int count = 0;

@@ -67,6 +67,9 @@
 #ifdef CONFIG_TRACE_SIMPLE
 #include "trace/simple.h"
 #endif
+#ifdef CONFIG_TRACE_PLUGIN
+#include "qemu/plugins.h"
+#endif
 #include "exec/memory.h"
 #include "exec/exec-all.h"
 #include "qemu/log.h"
@@ -1428,6 +1431,17 @@ static void hmp_info_trace_events(Monitor *mon, const QDict *qdict)
     }
     qapi_free_TraceEventInfoList(events);
 }
+
+#ifdef CONFIG_TRACE_PLUGIN
+static void hmp_info_trace_plugins(Monitor *mon, const QDict *qdict)
+{
+    const char *name = qdict_get_try_str(qdict, "name");
+    GString *status = qemu_plugin_status(name);
+
+    monitor_printf(mon, "%s", status->str);
+    g_string_free(status, true);
+}
+#endif
 
 void qmp_client_migrate_info(const char *protocol, const char *hostname,
                              bool has_port, int64_t port,
