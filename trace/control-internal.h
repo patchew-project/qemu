@@ -80,6 +80,12 @@ static inline bool trace_event_get_vcpu_state_dynamic(CPUState *vcpu,
     return trace_event_get_vcpu_state_dynamic_by_vcpu_id(vcpu, vcpu_id);
 }
 
+#ifdef CONFIG_TRACE_PLUGIN
+static inline uintptr_t trace_event_get_plugin(TraceEvent *ev)
+{
+    return ev->plugin;
+}
+#endif
 
 void trace_event_register_group(TraceEvent **events);
 

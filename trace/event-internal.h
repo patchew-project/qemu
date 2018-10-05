@@ -38,6 +38,9 @@ typedef struct TraceEvent {
     const bool sstate;
     uint16_t *dstate;
     uint64_t count;
+#ifdef CONFIG_TRACE_PLUGIN
+    uintptr_t plugin;
+#endif
 } TraceEvent;
 
 void trace_event_set_state_dynamic_init(TraceEvent *ev, bool state);
