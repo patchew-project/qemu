@@ -19,6 +19,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "trace.h"
 #include "qapi/error.h"
 #include "qemu-common.h"
 #include "qom/cpu.h"
@@ -111,6 +112,8 @@ void cpu_reset_interrupt(CPUState *cpu, int mask)
 
 void cpu_exit(CPUState *cpu)
 {
+    trace_cpu_exit(cpu, cpu->cpu_index);
+
     atomic_set(&cpu->exit_request, 1);
     /* Ensure cpu_exec will see the exit request after TCG has exited.  */
     smp_wmb();
