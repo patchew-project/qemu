@@ -130,6 +130,7 @@ int main(int argc, char **argv)
 #include "qapi/qapi-commands-run-state.h"
 #include "qapi/qmp/qerror.h"
 #include "sysemu/iothread.h"
+#include "qemu/plugins.h"
 
 #define MAX_VIRTIO_CONSOLES 1
 
@@ -3931,6 +3932,11 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_enable_sync_profile:
                 qsp_enable();
                 break;
+#ifdef CONFIG_TRACE_PLUGIN
+            case QEMU_OPTION_plugin:
+                qemu_plugin_parse_cmd_args(optarg);
+                break;
+#endif
             case QEMU_OPTION_nouserconfig:
                 /* Nothing to be parsed here. Especially, do not error out below. */
                 break;
@@ -4495,6 +4501,8 @@ int main(int argc, char **argv, char **envp)
         current_machine->cpu_type = parse_cpu_model(cpu_model);
     }
     parse_numa_opts(current_machine);
+
+    qemu_plugins_init();
 
     /* do monitor/qmp handling at preconfig state if requested */
     main_loop();
