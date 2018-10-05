@@ -1,5 +1,21 @@
 # Trace events for debugging and performance instrumentation
 
+# cputlb.c - SoftMMU TLB flushes
+#
+# There a numerous different functions for variations on flushing by
+# page/mmuidx and other critera. However we use common events and tag
+# them with the appropriate line number in cputlb.c
+#
+#   - setting to=-1 indicates work scheduled on all vCPUs
+#
+tlb_flush_self(int line, int vcpu) "cputlb.c:%d cpu %d"
+tlb_flush_async_schedule(int line, int from, int to) "cputlb.c:%d from_cpu=%d to_cpu=%d"
+tlb_flush_synced_schedule(int line, int from, int to) "cputlb.c:%d from_cpu=%d to_cpu=%d"
+# The following are the workers, usually running from a async work queue
+tlb_flush_all_work(int vcpu) "cpu %d"
+tlb_flush_work(int line, int vcpu, unsigned long data) "cputlb.c:%d cpu %d, %lux"
+tlb_flush_work_complete(int line, int vcpu) "cputlb.c:%d cpu %d"
+
 # TCG related tracing (you still need -d nochain to get a full picture
 # as otherwise you'll only see the first TB executed in a chain)
 # cpu-exec.c
