@@ -3487,6 +3487,9 @@ glib_modules=gthread-2.0
 if test "$modules" = yes; then
     glib_modules="$glib_modules gmodule-export-2.0"
 fi
+if have_backend "plugin"; then
+    glib_modules="$glib_modules gmodule-2.0"
+fi
 
 # This workaround is required due to a bug in pkg-config file for glib as it
 # doesn't define GLIB_STATIC_COMPILATION for pkg-config --static
@@ -6759,6 +6762,9 @@ if have_backend "syslog"; then
   else
     feature_not_found "syslog(trace backend)" "syslog not available"
   fi
+fi
+if have_backend "plugin"; then
+  echo "CONFIG_TRACE_PLUGIN=y" >> $config_host_mak
 fi
 echo "CONFIG_TRACE_FILE=$trace_file" >> $config_host_mak
 
