@@ -81,6 +81,8 @@ def generate_c(event, group):
         cond = "trace_event_get_state(%s)" % event_id
 
     out('',
+        '    %(event_obj)s.count++;',
+        '',
         '    if (!%(cond)s) {',
         '        return;',
         '    }',
