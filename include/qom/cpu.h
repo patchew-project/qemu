@@ -1085,6 +1085,8 @@ void cpu_exec_initfn(CPUState *cpu);
 void cpu_exec_realizefn(CPUState *cpu, Error **errp);
 void cpu_exec_unrealizefn(CPUState *cpu);
 
+bool target_words_bigendian(void);
+
 #ifdef NEED_CPU_H
 
 #ifdef CONFIG_SOFTMMU
