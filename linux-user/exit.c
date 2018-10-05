@@ -17,11 +17,22 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "qemu/osdep.h"
+#include "qemu/plugins.h"
 #include "qemu.h"
 
 #ifdef CONFIG_GCOV
 extern void __gcov_dump(void);
 #endif
+
+static void plugin_report(void)
+{
+#ifdef CONFIG_TRACE_PLUGIN
+    GString *plugin_report = qemu_plugin_status("");
+    qemu_log_mask(LOG_TRACE, "%s", plugin_report->str);
+    g_string_free(plugin_report, true);
+#endif
+}
+
 
 void preexit_cleanup(CPUArchState *env, int code)
 {
@@ -31,5 +42,6 @@ void preexit_cleanup(CPUArchState *env, int code)
 #ifdef CONFIG_GCOV
         __gcov_dump();
 #endif
+        plugin_report();
         gdb_exit(env, code);
 }
