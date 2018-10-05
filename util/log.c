@@ -149,19 +149,30 @@ bool qemu_log_in_addr_range(uint64_t addr)
     }
 }
 
+static void maybe_allocate_dfilter(int size_hint)
+{
+    if (!debug_regions) {
+        debug_regions = g_array_sized_new(FALSE, FALSE,
+                                          sizeof(Range),
+                                          size_hint ? size_hint : 1);
+    }
+}
+
+/* This is only really used for testing, usually dfilter stacks */
+void qemu_reset_dfilter_ranges(void)
+{
+    GArray *old = debug_regions;
+    debug_regions = NULL;
+    g_array_free(old, TRUE);
+}
 
 void qemu_set_dfilter_ranges(const char *filter_spec, Error **errp)
 {
     gchar **ranges = g_strsplit(filter_spec, ",", 0);
     int i;
 
-    if (debug_regions) {
-        g_array_unref(debug_regions);
-        debug_regions = NULL;
-    }
+    maybe_allocate_dfilter(g_strv_length(ranges));
 
-    debug_regions = g_array_sized_new(FALSE, FALSE,
-                                      sizeof(Range), g_strv_length(ranges));
     for (i = 0; ranges[i]; i++) {
         const char *r = ranges[i];
         const char *range_op, *r2, *e;

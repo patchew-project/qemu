@@ -43,12 +43,16 @@ static void test_parse_range(void)
     g_assert(qemu_log_in_addr_range(0x10ff));
     g_assert_false(qemu_log_in_addr_range(0x1100));
 
+    qemu_reset_dfilter_ranges();
+
     qemu_set_dfilter_ranges("0x1000-0x100", &error_abort);
 
     g_assert_false(qemu_log_in_addr_range(0x1001));
     g_assert(qemu_log_in_addr_range(0x1000));
     g_assert(qemu_log_in_addr_range(0x0f01));
     g_assert_false(qemu_log_in_addr_range(0x0f00));
+
+    qemu_reset_dfilter_ranges();
 
     qemu_set_dfilter_ranges("0x1000..0x1100", &error_abort);
 
@@ -57,11 +61,15 @@ static void test_parse_range(void)
     g_assert(qemu_log_in_addr_range(0x1100));
     g_assert_false(qemu_log_in_addr_range(0x1101));
 
+    qemu_reset_dfilter_ranges();
+
     qemu_set_dfilter_ranges("0x1000..0x1000", &error_abort);
 
     g_assert_false(qemu_log_in_addr_range(0xfff));
     g_assert(qemu_log_in_addr_range(0x1000));
     g_assert_false(qemu_log_in_addr_range(0x1001));
+
+    qemu_reset_dfilter_ranges();
 
     qemu_set_dfilter_ranges("0x1000+0x100,0x2100-0x100,0x3000..0x3100",
                             &error_abort);
@@ -69,14 +77,20 @@ static void test_parse_range(void)
     g_assert(qemu_log_in_addr_range(0x2050));
     g_assert(qemu_log_in_addr_range(0x3050));
 
+    qemu_reset_dfilter_ranges();
+
     qemu_set_dfilter_ranges("0xffffffffffffffff-1", &error_abort);
     g_assert(qemu_log_in_addr_range(UINT64_MAX));
     g_assert_false(qemu_log_in_addr_range(UINT64_MAX - 1));
+
+    qemu_reset_dfilter_ranges();
 
     qemu_set_dfilter_ranges("0..0xffffffffffffffff", &err);
     g_assert(qemu_log_in_addr_range(0));
     g_assert(qemu_log_in_addr_range(UINT64_MAX));
  
+    qemu_reset_dfilter_ranges();
+
     qemu_set_dfilter_ranges("2..1", &err);
     error_free_or_abort(&err);
 
