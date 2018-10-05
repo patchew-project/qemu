@@ -15,6 +15,11 @@ tlb_flush_synced_schedule(int line, int from, int to) "cputlb.c:%d from_cpu=%d t
 tlb_flush_all_work(int vcpu) "cpu %d"
 tlb_flush_work(int line, int vcpu, unsigned long data) "cputlb.c:%d cpu %d, %lux"
 tlb_flush_work_complete(int line, int vcpu) "cputlb.c:%d cpu %d"
+#
+# TLB entries
+#
+tlb_set_page(int vcpu, unsigned long vaddr, unsigned long paddr) "cpu:%d vaddr:0x%lx paddr:0x%lx"
+tlb_set_page_attrs(unsigned int attrs, int prot, int mmu_idx, int size) "attrs:0x%x prot:0x%x mmu_idx:%d size:%d"
 
 # TCG related tracing (you still need -d nochain to get a full picture
 # as otherwise you'll only see the first TB executed in a chain)

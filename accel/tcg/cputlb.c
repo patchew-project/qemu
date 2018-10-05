@@ -34,30 +34,15 @@
 #include "exec/helper-proto.h"
 #include "qemu/atomic.h"
 
-/* DEBUG defines, enable DEBUG_TLB_LOG to log to the CPU_LOG_MMU target */
+/* DEBUG_TLB turns on internal self-checks, actions are logged via
+ * trace-events */
 /* #define DEBUG_TLB */
-/* #define DEBUG_TLB_LOG */
 
 #ifdef DEBUG_TLB
 # define DEBUG_TLB_GATE 1
-# ifdef DEBUG_TLB_LOG
-#  define DEBUG_TLB_LOG_GATE 1
-# else
-#  define DEBUG_TLB_LOG_GATE 0
-# endif
 #else
 # define DEBUG_TLB_GATE 0
-# define DEBUG_TLB_LOG_GATE 0
 #endif
-
-#define tlb_debug(fmt, ...) do { \
-    if (DEBUG_TLB_LOG_GATE) { \
-        qemu_log_mask(CPU_LOG_MMU, "%s: " fmt, __func__, \
-                      ## __VA_ARGS__); \
-    } else if (DEBUG_TLB_GATE) { \
-        fprintf(stderr, "%s: " fmt, __func__, ## __VA_ARGS__); \
-    } \
-} while (0)
 
 #define assert_cpu_is_self(this_cpu) do {                         \
         if (DEBUG_TLB_GATE) {                                     \
@@ -124,7 +109,6 @@ static void tlb_flush_nocheck(CPUState *cpu)
 
     assert_cpu_is_self(cpu);
     atomic_set(&env->tlb_flush_count, env->tlb_flush_count + 1);
-    tlb_debug("(count: %zu)\n", tlb_flush_count());
 
     memset(env->tlb_table, -1, sizeof(env->tlb_table));
     memset(env->tlb_v_table, -1, sizeof(env->tlb_v_table));
@@ -629,6 +613,9 @@ void tlb_set_page_with_attrs(CPUState *cpu, target_ulong vaddr,
 
     assert_cpu_is_self(cpu);
 
+    trace_tlb_set_page(cpu->cpu_index, vaddr, paddr);
+    trace_tlb_set_page_attrs(*(unsigned int *) &attrs, prot, mmu_idx, size);
+
     if (size < TARGET_PAGE_SIZE) {
         sz = TARGET_PAGE_SIZE;
     } else {
@@ -643,10 +630,6 @@ void tlb_set_page_with_attrs(CPUState *cpu, target_ulong vaddr,
     section = address_space_translate_for_iotlb(cpu, asidx, paddr_page,
                                                 &xlat, &sz, attrs, &prot);
     assert(sz >= TARGET_PAGE_SIZE);
-
-    tlb_debug("vaddr=" TARGET_FMT_lx " paddr=0x" TARGET_FMT_plx
-              " prot=%x idx=%d\n",
-              vaddr, paddr, prot, mmu_idx);
 
     address = vaddr_page;
     if (size < TARGET_PAGE_SIZE) {
