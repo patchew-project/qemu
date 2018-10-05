@@ -33,6 +33,7 @@
 # @name: Event name.
 # @state: Tracing state.
 # @vcpu: Whether this is a per-vCPU event (since 2.7).
+# @count: Current hits on trace-point (since 3.1).
 #
 # An event is per-vCPU if it has the "vcpu" property in the "trace-events"
 # files.
@@ -40,7 +41,7 @@
 # Since: 2.2
 ##
 { 'struct': 'TraceEventInfo',
-  'data': {'name': 'str', 'state': 'TraceEventState', 'vcpu': 'bool'} }
+  'data': {'name': 'str', 'state': 'TraceEventState', 'vcpu': 'bool', 'count': 'int' } }
 
 ##
 # @trace-event-get-state:

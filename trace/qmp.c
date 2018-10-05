@@ -102,6 +102,7 @@ TraceEventInfoList *qmp_trace_event_get_state(const char *name,
         elem->value = g_new(TraceEventInfo, 1);
         elem->value->vcpu = is_vcpu;
         elem->value->name = g_strdup(trace_event_get_name(ev));
+        elem->value->count = ev->count;
 
         if (!trace_event_get_state_static(ev)) {
             elem->value->state = TRACE_EVENT_STATE_UNAVAILABLE;

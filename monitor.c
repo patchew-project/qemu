@@ -1421,9 +1421,10 @@ static void hmp_info_trace_events(Monitor *mon, const QDict *qdict)
     }
 
     for (elem = events; elem != NULL; elem = elem->next) {
-        monitor_printf(mon, "%s : state %u\n",
+        monitor_printf(mon, "%s : state %u count %" PRIu64 "\n",
                        elem->value->name,
-                       elem->value->state == TRACE_EVENT_STATE_ENABLED ? 1 : 0);
+                       elem->value->state == TRACE_EVENT_STATE_ENABLED ? 1 : 0,
+                       elem->value->count);
     }
     qapi_free_TraceEventInfoList(events);
 }
