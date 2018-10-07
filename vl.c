@@ -2207,8 +2207,9 @@ static int parse_fw_cfg(void *opaque, QemuOpts *opts, Error **errp)
         size = strlen(str); /* NUL terminator NOT included in fw_cfg blob */
         buf = g_memdup(str, size);
     } else {
-        if (!g_file_get_contents(file, &buf, &size, NULL)) {
-            error_report("can't load %s", file);
+        GError *error = NULL;
+        if (!g_file_get_contents(file, &buf, &size, &error)) {
+            error_report("can't load %s, %s", file, error->message);
             return -1;
         }
     }
