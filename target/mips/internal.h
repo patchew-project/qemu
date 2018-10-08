@@ -62,6 +62,7 @@ struct mips_def_t {
     int insn_flags;
     enum mips_mmu_types mmu_type;
     int32_t SAARP;
+    int32_t DSPRAMP;
 };
 
 extern const struct mips_def_t mips_defs[];
