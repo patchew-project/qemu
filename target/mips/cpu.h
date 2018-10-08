@@ -252,6 +252,7 @@ struct CPUMIPSState {
 #define CP0GN_VPId 0
     target_ulong CP0_Context;
     target_ulong CP0_KScratch[MIPS_KSCRATCH_NUM];
+    int32_t CP0_MemoryMapID;
     int32_t CP0_PageMask;
     int32_t CP0_PageGrain_rw_bitmask;
     int32_t CP0_PageGrain;
@@ -325,6 +326,12 @@ struct CPUMIPSState {
     uint32_t CP0_BadInstrP;
     uint32_t CP0_BadInstrX;
     int32_t CP0_Count;
+#define CP0SAARI_IDX    0
+    uint32_t CP0_SAARI;
+#define CP0SAAR_BASE    12
+#define CP0SAAR_SIZE    1
+#define CP0SAAR_EN      0
+    uint64_t CP0_SAAR[2];
     target_ulong CP0_EntryHi;
 #define CP0EnHi_EHINV 10
     target_ulong CP0_EntryHi_ASID_mask;
@@ -616,6 +623,7 @@ struct CPUMIPSState {
     uint32_t CP0_Status_rw_bitmask; /* Read/write bits in CP0_Status */
     uint32_t CP0_TCStatus_rw_bitmask; /* Read/write bits in CP0_TCStatus */
     int insn_flags; /* Supported instruction set */
+    int saarp;
 
     /* Fields up to this point are cleared by a CPU reset */
     struct {} end_reset_fields;

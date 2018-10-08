@@ -61,6 +61,7 @@ struct mips_def_t {
     target_ulong CP0_EBaseWG_rw_bitmask;
     int insn_flags;
     enum mips_mmu_types mmu_type;
+    int32_t SAARP;
 };
 
 extern const struct mips_def_t mips_defs[];
@@ -91,6 +92,7 @@ struct r4k_tlb_t {
     target_ulong VPN;
     uint32_t PageMask;
     uint16_t ASID;
+    uint32_t MMID;
     unsigned int G:1;
     unsigned int C0:3;
     unsigned int C1:3;
