@@ -101,14 +101,23 @@ void sdl2_2d_switch(DisplayChangeListener *dcl,
     case PIXMAN_r5g6b5:
         format = SDL_PIXELFORMAT_RGB565;
         break;
+    case PIXMAN_a8r8g8b8:
     case PIXMAN_x8r8g8b8:
         format = SDL_PIXELFORMAT_ARGB8888;
         break;
+    case PIXMAN_a8b8g8r8:
+    case PIXMAN_x8b8g8r8:
+        format = SDL_PIXELFORMAT_ABGR8888;
+        break;
+    case PIXMAN_r8g8b8a8:
     case PIXMAN_r8g8b8x8:
         format = SDL_PIXELFORMAT_RGBA8888;
         break;
     case PIXMAN_b8g8r8x8:
         format = SDL_PIXELFORMAT_BGRX8888;
+        break;
+    case PIXMAN_b8g8r8a8:
+        format = SDL_PIXELFORMAT_BGRA8888;
         break;
     default:
         g_assert_not_reached();
