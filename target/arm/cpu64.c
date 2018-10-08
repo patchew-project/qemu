@@ -266,6 +266,8 @@ static void aarch64_max_initfn(Object *obj)
 
         t = cpu->id_aa64pfr0;
         t = FIELD_DP64(t, ID_AA64PFR0, SVE, 1);
+        t = FIELD_DP64(t, ID_AA64PFR0, FP, 1);
+        t = FIELD_DP64(t, ID_AA64PFR0, ADVSIMD, 1);
         cpu->id_aa64pfr0 = t;
 
         /* Replicate the same data to the 32-bit id registers.  */
@@ -283,13 +285,6 @@ static void aarch64_max_initfn(Object *obj)
         cpu->id_isar6 = u;
 
 #ifdef CONFIG_USER_ONLY
-        /* We don't set these in system emulation mode for the moment,
-         * since we don't correctly set the ID registers to advertise them,
-         * and in some cases they're only available in AArch64 and not AArch32,
-         * whereas the architecture requires them to be present in both if
-         * present in either.
-         */
-        set_feature(&cpu->env, ARM_FEATURE_V8_FP16);
         /* For usermode -cpu max we can use a larger and more efficient DCZ
          * blocksize since we don't have to follow what the hardware does.
          */
