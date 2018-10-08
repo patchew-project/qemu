@@ -107,6 +107,9 @@
 # a guest-initiated ACPI shutdown request or other hardware-specific action)
 # rather than a host request (such as sending qemu a SIGINT). (since 2.10)
 #
+# @was_reset: If true, the shutdown was actually a reset, but no-reboot
+# was set, so it got converted to a shutdown
+#
 # Note: If the command-line option "-no-shutdown" has been specified, qemu will
 # not exit, and a STOP event will eventually follow the SHUTDOWN event
 #
@@ -118,7 +121,7 @@
 #      "timestamp": { "seconds": 1267040730, "microseconds": 682951 } }
 #
 ##
-{ 'event': 'SHUTDOWN', 'data': { 'guest': 'bool' } }
+{ 'event': 'SHUTDOWN', 'data': { 'guest': 'bool', 'was_reset': 'bool' } }
 
 ##
 # @POWERDOWN:

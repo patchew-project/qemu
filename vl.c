@@ -1524,6 +1524,7 @@ void vm_state_notify(int running, RunState state)
 
 static ShutdownCause reset_requested;
 static ShutdownCause shutdown_requested;
+static bool shutdown_was_reset;
 static int shutdown_signal;
 static pid_t shutdown_pid;
 static int powerdown_requested;
@@ -1681,6 +1682,7 @@ void qemu_system_guest_panicked(GuestPanicInformation *info)
 void qemu_system_reset_request(ShutdownCause reason)
 {
     if (no_reboot && reason != SHUTDOWN_CAUSE_SUBSYSTEM_RESET) {
+        shutdown_was_reset = true;
         shutdown_requested = reason;
     } else {
         reset_requested = reason;
@@ -1807,7 +1809,8 @@ static bool main_loop_should_exit(void)
     request = qemu_shutdown_requested();
     if (request) {
         qemu_kill_report();
-        qapi_event_send_shutdown(shutdown_caused_by_guest(request));
+        qapi_event_send_shutdown(shutdown_caused_by_guest(request),
+                                 shutdown_was_reset);
         if (no_shutdown) {
             vm_stop(RUN_STATE_SHUTDOWN);
         } else {
