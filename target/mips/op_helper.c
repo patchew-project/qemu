@@ -1560,6 +1560,13 @@ void helper_mtc0_saar(CPUMIPSState *env, target_ulong arg1)
     uint32_t target = env->CP0_SAARI & 0x3f;
     if (target < 2) {
         env->CP0_SAAR[target] = arg1 & 0x00000ffffffff03fULL;
+        switch (target) {
+        case 0:
+            if (env->itu) {
+                itc_reconfigure(env->itu);
+            }
+            break;
+        }
     }
 }
 
@@ -1570,6 +1577,13 @@ void helper_mthc0_saar(CPUMIPSState *env, target_ulong arg1)
         env->CP0_SAAR[target] =
             (((uint64_t) arg1 << 32) & 0x00000fff00000000ULL) |
             (env->CP0_SAAR[target] & 0x00000000ffffffffULL);
+        switch (target) {
+        case 0:
+            if (env->itu) {
+                itc_reconfigure(env->itu);
+            }
+            break;
+        }
     }
 }
 
