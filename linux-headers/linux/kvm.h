@@ -9,7 +9,7 @@
  */
 
 #include <linux/types.h>
-
+#include <linux/compiler.h>
 #include <linux/ioctl.h>
 #include <asm/kvm.h>
 
@@ -481,7 +481,7 @@ struct kvm_dirty_log {
 	__u32 slot;
 	__u32 padding1;
 	union {
-		void *dirty_bitmap; /* one bit per page */
+		void __user *dirty_bitmap; /* one bit per page */
 		__u64 padding2;
 	};
 };
@@ -951,6 +951,9 @@ struct kvm_ppc_resize_hpt {
 #define KVM_CAP_HYPERV_TLBFLUSH 155
 #define KVM_CAP_S390_HPAGE_1M 156
 #define KVM_CAP_NESTED_STATE 157
+#define KVM_CAP_ARM_INJECT_SERROR_ESR 158
+#define KVM_CAP_MSR_PLATFORM_INFO 159
+#define KVM_CAP_HYPERV_SEND_IPI 160
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
