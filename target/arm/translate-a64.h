@@ -123,4 +123,24 @@ typedef void GVecGen2iFn(unsigned, uint32_t, uint32_t, int64_t,
 typedef void GVecGen3Fn(unsigned, uint32_t, uint32_t,
                         uint32_t, uint32_t, uint32_t);
 
+#define FORWARD_FEATURE(NAME) \
+    static inline bool aa64_dc_feature_##NAME(DisasContext *dc) \
+    { return aa64_feature_##NAME(dc->cpu); }
+
+FORWARD_FEATURE(aes)
+FORWARD_FEATURE(pmull)
+FORWARD_FEATURE(sha1)
+FORWARD_FEATURE(sha256)
+FORWARD_FEATURE(sha512)
+FORWARD_FEATURE(crc32)
+FORWARD_FEATURE(atomics)
+FORWARD_FEATURE(rdm)
+FORWARD_FEATURE(sha3)
+FORWARD_FEATURE(sm3)
+FORWARD_FEATURE(sm4)
+FORWARD_FEATURE(dp)
+FORWARD_FEATURE(fcma)
+
+#undef FORWARD_FEATURE
+
 #endif /* TARGET_ARM_TRANSLATE_A64_H */

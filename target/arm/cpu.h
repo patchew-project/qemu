@@ -1573,30 +1573,18 @@ enum arm_features {
     ARM_FEATURE_LPAE, /* has Large Physical Address Extension */
     ARM_FEATURE_V8,
     ARM_FEATURE_AARCH64, /* supports 64 bit mode */
-    ARM_FEATURE_V8_AES, /* implements AES part of v8 Crypto Extensions */
     ARM_FEATURE_CBAR, /* has cp15 CBAR */
     ARM_FEATURE_CRC, /* ARMv8 CRC instructions */
     ARM_FEATURE_CBAR_RO, /* has cp15 CBAR and it is read-only */
     ARM_FEATURE_EL2, /* has EL2 Virtualization support */
     ARM_FEATURE_EL3, /* has EL3 Secure monitor support */
-    ARM_FEATURE_V8_SHA1, /* implements SHA1 part of v8 Crypto Extensions */
-    ARM_FEATURE_V8_SHA256, /* implements SHA256 part of v8 Crypto Extensions */
-    ARM_FEATURE_V8_PMULL, /* implements PMULL part of v8 Crypto Extensions */
     ARM_FEATURE_THUMB_DSP, /* DSP insns supported in the Thumb encodings */
     ARM_FEATURE_PMU, /* has PMU support */
     ARM_FEATURE_VBAR, /* has cp15 VBAR */
     ARM_FEATURE_M_SECURITY, /* M profile Security Extension */
     ARM_FEATURE_JAZELLE, /* has (trivial) Jazelle implementation */
     ARM_FEATURE_SVE, /* has Scalable Vector Extension */
-    ARM_FEATURE_V8_SHA512, /* implements SHA512 part of v8 Crypto Extensions */
-    ARM_FEATURE_V8_SHA3, /* implements SHA3 part of v8 Crypto Extensions */
-    ARM_FEATURE_V8_SM3, /* implements SM3 part of v8 Crypto Extensions */
-    ARM_FEATURE_V8_SM4, /* implements SM4 part of v8 Crypto Extensions */
-    ARM_FEATURE_V8_ATOMICS, /* ARMv8.1-Atomics feature */
-    ARM_FEATURE_V8_RDM, /* implements v8.1 simd round multiply */
-    ARM_FEATURE_V8_DOTPROD, /* implements v8.2 simd dot product */
     ARM_FEATURE_V8_FP16, /* implements v8.2 half-precision float */
-    ARM_FEATURE_V8_FCMA, /* has complex number part of v8.3 extensions.  */
     ARM_FEATURE_M_MAIN, /* M profile Main Extension */
 };
 
@@ -3147,5 +3135,116 @@ static inline uint64_t *aa64_vfp_qreg(CPUARMState *env, unsigned regno)
 
 /* Shared between translate-sve.c and sve_helper.c.  */
 extern const uint64_t pred_esz_masks[4];
+
+/*
+ * 32-bit feature tests via id registers.
+ */
+static inline bool aa32_feature_aes(ARMCPU *cpu)
+{
+    return FIELD_EX32(cpu->id_isar5, ID_ISAR5, AES) != 0;
+}
+
+static inline bool aa32_feature_pmull(ARMCPU *cpu)
+{
+    return FIELD_EX32(cpu->id_isar5, ID_ISAR5, AES) > 1;
+}
+
+static inline bool aa32_feature_sha1(ARMCPU *cpu)
+{
+    return FIELD_EX32(cpu->id_isar5, ID_ISAR5, SHA1) != 0;
+}
+
+static inline bool aa32_feature_sha2(ARMCPU *cpu)
+{
+    return FIELD_EX32(cpu->id_isar5, ID_ISAR5, SHA2) != 0;
+}
+
+static inline bool aa32_feature_crc32(ARMCPU *cpu)
+{
+    return FIELD_EX32(cpu->id_isar5, ID_ISAR5, CRC32) != 0;
+}
+
+static inline bool aa32_feature_rdm(ARMCPU *cpu)
+{
+    return FIELD_EX32(cpu->id_isar5, ID_ISAR5, RDM) != 0;
+}
+
+static inline bool aa32_feature_vcma(ARMCPU *cpu)
+{
+    return FIELD_EX32(cpu->id_isar5, ID_ISAR5, VCMA) != 0;
+}
+
+static inline bool aa32_feature_dp(ARMCPU *cpu)
+{
+    return FIELD_EX32(cpu->id_isar6, ID_ISAR6, DP) != 0;
+}
+
+/*
+ * 64-bit feature tests via id registers.
+ */
+static inline bool aa64_feature_aes(ARMCPU *cpu)
+{
+    return FIELD_EX64(cpu->id_aa64isar0, ID_AA64ISAR0, AES) != 0;
+}
+
+static inline bool aa64_feature_pmull(ARMCPU *cpu)
+{
+    return FIELD_EX64(cpu->id_aa64isar0, ID_AA64ISAR0, AES) > 1;
+}
+
+static inline bool aa64_feature_sha1(ARMCPU *cpu)
+{
+    return FIELD_EX64(cpu->id_aa64isar0, ID_AA64ISAR0, SHA1) != 0;
+}
+
+static inline bool aa64_feature_sha256(ARMCPU *cpu)
+{
+    return FIELD_EX64(cpu->id_aa64isar0, ID_AA64ISAR0, SHA2) != 0;
+}
+
+static inline bool aa64_feature_sha512(ARMCPU *cpu)
+{
+    return FIELD_EX64(cpu->id_aa64isar0, ID_AA64ISAR0, SHA2) > 1;
+}
+
+static inline bool aa64_feature_crc32(ARMCPU *cpu)
+{
+    return FIELD_EX64(cpu->id_aa64isar0, ID_AA64ISAR0, CRC32) != 0;
+}
+
+static inline bool aa64_feature_atomics(ARMCPU *cpu)
+{
+    return FIELD_EX64(cpu->id_aa64isar0, ID_AA64ISAR0, ATOMIC) != 0;
+}
+
+static inline bool aa64_feature_rdm(ARMCPU *cpu)
+{
+    return FIELD_EX64(cpu->id_aa64isar0, ID_AA64ISAR0, RDM) != 0;
+}
+
+static inline bool aa64_feature_sha3(ARMCPU *cpu)
+{
+    return FIELD_EX64(cpu->id_aa64isar0, ID_AA64ISAR0, SHA3) != 0;
+}
+
+static inline bool aa64_feature_sm3(ARMCPU *cpu)
+{
+    return FIELD_EX64(cpu->id_aa64isar0, ID_AA64ISAR0, SM3) != 0;
+}
+
+static inline bool aa64_feature_sm4(ARMCPU *cpu)
+{
+    return FIELD_EX64(cpu->id_aa64isar0, ID_AA64ISAR0, SM4) != 0;
+}
+
+static inline bool aa64_feature_dp(ARMCPU *cpu)
+{
+    return FIELD_EX64(cpu->id_aa64isar0, ID_AA64ISAR0, DP) != 0;
+}
+
+static inline bool aa64_feature_fcma(ARMCPU *cpu)
+{
+    return FIELD_EX64(cpu->id_aa64isar1, ID_AA64ISAR1, FCMA) != 0;
+}
 
 #endif
