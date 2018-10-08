@@ -1580,7 +1580,6 @@ enum arm_features {
     ARM_FEATURE_PMU, /* has PMU support */
     ARM_FEATURE_VBAR, /* has cp15 VBAR */
     ARM_FEATURE_M_SECURITY, /* M profile Security Extension */
-    ARM_FEATURE_JAZELLE, /* has (trivial) Jazelle implementation */
     ARM_FEATURE_SVE, /* has Scalable Vector Extension */
     ARM_FEATURE_V8_FP16, /* implements v8.2 half-precision float */
     ARM_FEATURE_M_MAIN, /* M profile Main Extension */
@@ -3145,6 +3144,11 @@ static inline bool aa32_feature_thumb_div(ARMCPU *cpu)
 static inline bool aa32_feature_arm_div(ARMCPU *cpu)
 {
     return FIELD_EX32(cpu->id_isar0, ID_ISAR0, DIVIDE) > 1;
+}
+
+static inline bool aa32_feature_jazelle(ARMCPU *cpu)
+{
+    return FIELD_EX32(cpu->id_isar1, ID_ISAR1, JAZELLE) != 0;
 }
 
 static inline bool aa32_feature_aes(ARMCPU *cpu)
