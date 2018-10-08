@@ -131,9 +131,8 @@ static const VMStateDescription vmstate_iwmmxt = {
 static bool sve_needed(void *opaque)
 {
     ARMCPU *cpu = opaque;
-    CPUARMState *env = &cpu->env;
 
-    return arm_feature(env, ARM_FEATURE_SVE);
+    return aa64_feature_sve(cpu);
 }
 
 /* The first two words of each Zreg is stored in VFP state.  */
