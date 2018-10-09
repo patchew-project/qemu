@@ -4149,6 +4149,12 @@ static void monitor_qmp_bh_dispatcher(void *data)
     need_resume = !qmp_oob_enabled(mon) ||
         mon->qmp.qmp_requests->length == QMP_REQ_QUEUE_LEN_MAX - 1;
     qemu_mutex_unlock(&mon->qmp.qmp_queue_lock);
+
+    if (need_resume) {
+        /* Pairs with the monitor_suspend() in handle_qmp_command() */
+        monitor_resume(mon);
+    }
+
     if (req_obj->req) {
         trace_monitor_qmp_cmd_in_band(qobject_get_try_str(req_obj->id) ?: "");
         monitor_qmp_dispatch(mon, req_obj->req, req_obj->id);
@@ -4160,10 +4166,6 @@ static void monitor_qmp_bh_dispatcher(void *data)
         qobject_unref(rsp);
     }
 
-    if (need_resume) {
-        /* Pairs with the monitor_suspend() in handle_qmp_command() */
-        monitor_resume(mon);
-    }
     qmp_request_free(req_obj);
 
     /* Reschedule instead of looping so the main loop stays responsive */
