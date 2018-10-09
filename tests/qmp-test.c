@@ -18,6 +18,7 @@
 #include "qapi/qmp/qlist.h"
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/qmp/qstring.h"
+#include "monitor/monitor.h"
 
 const char common_args[] = "-nodefaults -machine none";
 
@@ -218,6 +219,8 @@ static void test_qmp_oob(void)
     const QListEntry *entry;
     QList *capabilities;
     QString *qstr;
+    gchar *id;
+    int i;
 
     qts = qtest_init_without_qmp_handshake(common_args);
 
@@ -272,6 +275,29 @@ static void test_qmp_oob(void)
     unblock_blocked_cmd();
     recv_cmd_id(qts, "blocks-2");
     recv_cmd_id(qts, "err-2");
+
+    /*
+     * Test queue full.  When that happens, the out-of-band command
+     * will only be able to be handled after the queue is shrinked, so
+     * it'll be processed only after one existing in-band command
+     * finishes.
+     */
+    for (i = 1; i <= QMP_REQ_QUEUE_LEN_MAX; i++) {
+        id = g_strdup_printf("queue-blocks-%d", i);
+        send_cmd_that_blocks(qts, id);
+        g_free(id);
+    }
+    send_oob_cmd_that_fails(qts, "oob-1");
+    unblock_blocked_cmd();
+    recv_cmd_id(qts, "queue-blocks-1");
+    recv_cmd_id(qts, "oob-1");
+    for (i = 2; i <= QMP_REQ_QUEUE_LEN_MAX; i++) {
+        unblock_blocked_cmd();
+        id = g_strdup_printf("queue-blocks-%d", i);
+        recv_cmd_id(qts, id);
+        g_free(id);
+    }
+
     cleanup_blocking_cmd();
 
     qtest_quit(qts);
