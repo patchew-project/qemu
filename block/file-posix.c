@@ -450,6 +450,7 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
     int fd, ret;
     struct stat st;
     OnOffAuto locking;
+    bool auto_readonly = bdrv_flags & BDRV_O_AUTO_RDONLY;
 
     opts = qemu_opts_create(&raw_runtime_opts, NULL, 0, &error_abort);
     qemu_opts_absorb_qdict(opts, options, &local_err);
@@ -527,6 +528,18 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
 
     s->fd = -1;
     fd = qemu_open(filename, s->open_flags, 0644);
+
+    if (auto_readonly && fd < 0 && (errno == EACCES || errno == EROFS)) {
+        ret = bdrv_set_read_only(bs, true, errp);
+        if (ret < 0) {
+            goto fail;
+        }
+        bdrv_flags &= ~BDRV_O_RDWR;
+        raw_parse_flags(bdrv_flags, &s->open_flags);
+        assert(!(s->open_flags & O_CREAT));
+        fd = qemu_open(filename, s->open_flags);
+    }
+
     if (fd < 0) {
         ret = -errno;
         error_setg_errno(errp, errno, "Could not open '%s'", filename);
