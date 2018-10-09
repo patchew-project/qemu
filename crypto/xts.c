@@ -37,19 +37,17 @@ typedef struct {
         (D)->b = (S1)->b ^ (S2)->b;             \
     } while (0)
 
-static void xts_mult_x(uint8_t *I)
+static void xts_mult_x(xts_uint128 *I)
 {
-    int x;
-    uint8_t t, tt;
+    uint64_t tt;
 
-    for (x = t = 0; x < 16; x++) {
-        tt = I[x] >> 7;
-        I[x] = ((I[x] << 1) | t) & 0xFF;
-        t = tt;
+    tt = I->a >> 63;
+    I->a = I->a << 1;
+
+    if (I->b >> 63) {
+        I->a ^= 0x87;
     }
-    if (tt) {
-        I[0] ^= 0x87;
-    }
+    I->b = (I->b << 1) | tt;
 }
 
 
@@ -77,7 +75,7 @@ static void xts_tweak_encdec(const void *ctx,
     xts_uint128_xor(dst, dst, iv);
 
     /* LFSR the tweak */
-    xts_mult_x((uint8_t *)iv);
+    xts_mult_x(iv);
 }
 
 
@@ -124,7 +122,7 @@ void xts_decrypt(const void *datactx,
     if (mo > 0) {
         xts_uint128 S, D;
         memcpy(&CC, &T, XTS_BLOCK_SIZE);
-        xts_mult_x((uint8_t *)&CC);
+        xts_mult_x(&CC);
 
         /* PP = tweak decrypt block m-1 */
         memcpy(&S, src, XTS_BLOCK_SIZE);
