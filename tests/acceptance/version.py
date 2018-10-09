@@ -18,6 +18,8 @@ class Version(Test):
     :avocado: tags=quick
     """
     def test_qmp_human_info_version(self):
+        self.vm.set_arch(self.arch)
+        self.vm.set_machine()
         self.vm.launch()
         res = self.vm.command('human-monitor-command',
                               command_line='info version')

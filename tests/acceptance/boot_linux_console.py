@@ -30,7 +30,8 @@ class BootLinuxConsole(Test):
         kernel_hash = '238e083e114c48200f80d889f7e32eeb2793e02a'
         kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
 
-        self.vm.set_machine('pc')
+        self.vm.set_arch(self.arch)
+        self.vm.set_machine()
         self.vm.set_console()
         kernel_command_line = 'console=ttyS0'
         self.vm.add_args('-kernel', kernel_path,
