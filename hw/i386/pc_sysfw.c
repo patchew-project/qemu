@@ -209,9 +209,9 @@ static void old_pc_system_rom_init(MemoryRegion *rom_memory, bool isapc_ram_fw)
         goto bios_error;
     }
     bios = g_malloc(sizeof(*bios));
-    memory_region_init_ram(bios, NULL, "pc.bios", bios_size, &error_fatal);
-    if (!isapc_ram_fw) {
-        memory_region_set_readonly(bios, true);
+    memory_region_init_rom(bios, NULL, "pc.bios", bios_size, &error_fatal);
+    if (isapc_ram_fw) {
+        memory_region_set_readonly(bios, false);
     }
     ret = rom_add_file_fixed(bios_name, (uint32_t)(-bios_size), -1);
     if (ret != 0) {
@@ -230,8 +230,8 @@ static void old_pc_system_rom_init(MemoryRegion *rom_memory, bool isapc_ram_fw)
                                         0x100000 - isa_bios_size,
                                         isa_bios,
                                         1);
-    if (!isapc_ram_fw) {
-        memory_region_set_readonly(isa_bios, true);
+    if (isapc_ram_fw) {
+        memory_region_set_readonly(isa_bios, false);
     }
 
     /* map all the bios at the top of memory */
