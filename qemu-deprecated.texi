@@ -121,6 +121,12 @@ replaced by the ``target'' output member.
 The @option{[hub_id name]} parameter tuple of the 'hostfwd_add' and
 'hostfwd_remove' HMP commands has been replaced by @option{netdev_id}.
 
+@subsection acl_show, acl_reset, acl_policy, acl_add, acl_remove (since 3.1)
+
+The ``acl_show'', ``acl_reset'', ``acl_policy'', ``acl_add'', and
+``acl_remove'' commands are deprecated with no replacement. Authorization
+for VNC should be performed using the pluggable QAuthZ objects.
+
 @section System emulator devices
 
 @subsection ivshmem (since 2.6.0)
