@@ -837,7 +837,7 @@ struct Rom {
     uint8_t *data;
     MemoryRegion *mr;
     AddressSpace *as;
-    int isrom;
+    bool isrom;
     char *fw_dir;
     char *fw_file;
 
