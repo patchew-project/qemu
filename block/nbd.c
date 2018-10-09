@@ -445,7 +445,9 @@ static int nbd_open(BlockDriverState *bs, QDict *options, int flags,
 
     /* NBD handshake */
     ret = nbd_client_init(bs, sioc, s->export, tlscreds, hostname,
-                          qemu_opt_get(opts, "x-dirty-bitmap"), errp);
+                          qemu_opt_get(opts, "x-dirty-bitmap"),
+                          (flags & BDRV_O_AUTO_RDONLY),
+                          errp);
  error:
     if (sioc) {
         object_unref(OBJECT(sioc));

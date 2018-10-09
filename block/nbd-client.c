@@ -971,6 +971,7 @@ int nbd_client_init(BlockDriverState *bs,
                     QCryptoTLSCreds *tlscreds,
                     const char *hostname,
                     const char *x_dirty_bitmap,
+                    bool auto_readonly,
                     Error **errp)
 {
     NBDClientSession *client = nbd_get_client_session(bs);
@@ -994,9 +995,16 @@ int nbd_client_init(BlockDriverState *bs,
     }
     if (client->info.flags & NBD_FLAG_READ_ONLY &&
         !bdrv_is_read_only(bs)) {
-        error_setg(errp,
-                   "request for write access conflicts with read-only export");
-        return -EACCES;
+        if (auto_readonly) {
+            ret = bdrv_set_read_only(bs, true, errp);
+            if (ret < 0) {
+                return ret;
+            }
+        } else {
+            error_setg(errp, "request for write access conflicts with "
+                             "read-only export");
+            return -EACCES;
+        }
     }
     if (client->info.flags & NBD_FLAG_SEND_FUA) {
         bs->supported_write_flags = BDRV_REQ_FUA;

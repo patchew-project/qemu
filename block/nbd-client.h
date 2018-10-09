@@ -46,6 +46,7 @@ int nbd_client_init(BlockDriverState *bs,
                     QCryptoTLSCreds *tlscreds,
                     const char *hostname,
                     const char *x_dirty_bitmap,
+                    bool auto_readonly,
                     Error **errp);
 void nbd_client_close(BlockDriverState *bs);
 
