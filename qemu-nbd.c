@@ -52,6 +52,7 @@
 #define QEMU_NBD_OPT_TLSCREDS      261
 #define QEMU_NBD_OPT_IMAGE_OPTS    262
 #define QEMU_NBD_OPT_FORK          263
+#define QEMU_NBD_OPT_TLSAUTHZ      264
 
 #define MBR_SIZE 512
 
@@ -65,6 +66,7 @@ static int shared = 1;
 static int nb_fds;
 static QIONetListener *server;
 static QCryptoTLSCreds *tlscreds;
+static const char *tlsauthz;
 
 static void usage(const char *name)
 {
@@ -354,7 +356,7 @@ static void nbd_accept(QIONetListener *listener, QIOChannelSocket *cioc,
 
     nb_fds++;
     nbd_update_server_watch();
-    nbd_client_new(cioc, tlscreds, NULL, nbd_client_closed);
+    nbd_client_new(cioc, tlscreds, tlsauthz, nbd_client_closed);
 }
 
 static void nbd_update_server_watch(void)
@@ -532,6 +534,7 @@ int main(int argc, char **argv)
         { "image-opts", no_argument, NULL, QEMU_NBD_OPT_IMAGE_OPTS },
         { "trace", required_argument, NULL, 'T' },
         { "fork", no_argument, NULL, QEMU_NBD_OPT_FORK },
+        { "tls-authz", no_argument, NULL, QEMU_NBD_OPT_TLSAUTHZ },
         { NULL, 0, NULL, 0 }
     };
     int ch;
@@ -754,6 +757,9 @@ int main(int argc, char **argv)
             g_free(trace_file);
             trace_file = trace_opt_parse(optarg);
             break;
+        case QEMU_NBD_OPT_TLSAUTHZ:
+            tlsauthz = optarg;
+            break;
         case QEMU_NBD_OPT_FORK:
             fork_process = true;
             break;
@@ -811,6 +817,11 @@ int main(int argc, char **argv)
         if (local_err) {
             error_report("Failed to get TLS creds %s",
                          error_get_pretty(local_err));
+            exit(EXIT_FAILURE);
+        }
+    } else {
+        if (tlsauthz) {
+            error_report("--tls-authz is not permitted without --tls-creds");
             exit(EXIT_FAILURE);
         }
     }
