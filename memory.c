@@ -1491,7 +1491,6 @@ void memory_region_init_ram_shared_nomigrate(MemoryRegion *mr,
     mr->ram_block = qemu_ram_alloc(size, share, mr, &err);
     mr->dirty_log_mask = tcg_enabled() ? (1 << DIRTY_MEMORY_CODE) : 0;
     if (err) {
-        mr->size = int128_zero();
         object_unparent(OBJECT(mr));
         error_propagate(errp, err);
     }
@@ -1516,7 +1515,6 @@ void memory_region_init_resizeable_ram(MemoryRegion *mr,
                                               mr, &err);
     mr->dirty_log_mask = tcg_enabled() ? (1 << DIRTY_MEMORY_CODE) : 0;
     if (err) {
-        mr->size = int128_zero();
         object_unparent(OBJECT(mr));
         error_propagate(errp, err);
     }
@@ -1541,7 +1539,6 @@ void memory_region_init_ram_from_file(MemoryRegion *mr,
     mr->ram_block = qemu_ram_alloc_from_file(size, mr, ram_flags, path, &err);
     mr->dirty_log_mask = tcg_enabled() ? (1 << DIRTY_MEMORY_CODE) : 0;
     if (err) {
-        mr->size = int128_zero();
         object_unparent(OBJECT(mr));
         error_propagate(errp, err);
     }
@@ -1565,7 +1562,6 @@ void memory_region_init_ram_from_fd(MemoryRegion *mr,
                                            fd, &err);
     mr->dirty_log_mask = tcg_enabled() ? (1 << DIRTY_MEMORY_CODE) : 0;
     if (err) {
-        mr->size = int128_zero();
         object_unparent(OBJECT(mr));
         error_propagate(errp, err);
     }
@@ -1628,7 +1624,6 @@ void memory_region_init_rom_nomigrate(MemoryRegion *mr,
     mr->ram_block = qemu_ram_alloc(size, false, mr, &err);
     mr->dirty_log_mask = tcg_enabled() ? (1 << DIRTY_MEMORY_CODE) : 0;
     if (err) {
-        mr->size = int128_zero();
         object_unparent(OBJECT(mr));
         error_propagate(errp, err);
     }
@@ -1652,7 +1647,6 @@ void memory_region_init_rom_device_nomigrate(MemoryRegion *mr,
     mr->destructor = memory_region_destructor_ram;
     mr->ram_block = qemu_ram_alloc(size, false,  mr, &err);
     if (err) {
-        mr->size = int128_zero();
         object_unparent(OBJECT(mr));
         error_propagate(errp, err);
     }
@@ -1701,6 +1695,7 @@ static void memory_region_finalize(Object *obj)
     memory_region_clear_coalescing(mr);
     g_free((char *)mr->name);
     g_free(mr->ioeventfds);
+    mr->size = int128_zero();
 }
 
 Object *memory_region_owner(MemoryRegion *mr)
