@@ -5,7 +5,7 @@
 # See the COPYING file in the top-level directory.
 #
 
-TARGET_LIST = i386
+TARGET_LIST = i386 s390x
 
 SRC_PATH = ../..
 
