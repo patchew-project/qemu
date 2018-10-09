@@ -2098,6 +2098,7 @@ long enter_stack[4096];
 
 static void test_enter(void)
 {
+#if !(defined __clang__)
 #if defined(__x86_64__)
     TEST_ENTER("q", uint64_t, 0);
     TEST_ENTER("q", uint64_t, 1);
@@ -2114,6 +2115,7 @@ static void test_enter(void)
     TEST_ENTER("w", uint16_t, 1);
     TEST_ENTER("w", uint16_t, 2);
     TEST_ENTER("w", uint16_t, 31);
+#endif
 }
 
 #ifdef TEST_SSE
