@@ -4297,6 +4297,13 @@ int monitor_suspend(Monitor *mon)
     return 0;
 }
 
+static void monitor_accept_input(void *opaque)
+{
+    Monitor *mon = opaque;
+
+    qemu_chr_fe_accept_input(&mon->chr);
+}
+
 void monitor_resume(Monitor *mon)
 {
     if (monitor_is_hmp_non_interactive(mon)) {
@@ -4310,13 +4317,14 @@ void monitor_resume(Monitor *mon)
              * let's kick the thread in case it's sleeping.
              */
             if (mon->use_io_thread) {
-                aio_notify(iothread_get_aio_context(mon_iothread));
+                aio_bh_schedule_oneshot(iothread_get_aio_context(mon_iothread),
+                                        monitor_accept_input, mon);
             }
         } else {
             assert(mon->rs);
             readline_show_prompt(mon->rs);
+            monitor_accept_input(mon);
         }
-        qemu_chr_fe_accept_input(&mon->chr);
     }
     trace_monitor_suspend(mon, -1);
 }
