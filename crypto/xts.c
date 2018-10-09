@@ -31,6 +31,12 @@ typedef struct {
     uint64_t b;
 } xts_uint128;
 
+#define xts_uint128_xor(D, S1, S2)              \
+    do {                                        \
+        (D)->a = (S1)->a ^ (S2)->a;             \
+        (D)->b = (S1)->b ^ (S2)->b;             \
+    } while (0)
+
 static void xts_mult_x(uint8_t *I)
 {
     int x;
@@ -59,25 +65,19 @@ static void xts_mult_x(uint8_t *I)
  */
 static void xts_tweak_encdec(const void *ctx,
                              xts_cipher_func *func,
-                             const uint8_t *src,
-                             uint8_t *dst,
-                             uint8_t *iv)
+                             const xts_uint128 *src,
+                             xts_uint128 *dst,
+                             xts_uint128 *iv)
 {
-    unsigned long x;
-
     /* tweak encrypt block i */
-    for (x = 0; x < XTS_BLOCK_SIZE; x++) {
-        dst[x] = src[x] ^ iv[x];
-    }
+    xts_uint128_xor(dst, src, iv);
 
-    func(ctx, XTS_BLOCK_SIZE, dst, dst);
+    func(ctx, XTS_BLOCK_SIZE, (uint8_t *)dst, (uint8_t *)dst);
 
-    for (x = 0; x < XTS_BLOCK_SIZE; x++) {
-        dst[x] = dst[x] ^ iv[x];
-    }
+    xts_uint128_xor(dst, dst, iv);
 
     /* LFSR the tweak */
-    xts_mult_x(iv);
+    xts_mult_x((uint8_t *)iv);
 }
 
 
@@ -110,7 +110,11 @@ void xts_decrypt(const void *datactx,
     encfunc(tweakctx, XTS_BLOCK_SIZE, (uint8_t *)&T, iv);
 
     for (i = 0; i < lim; i++) {
-        xts_tweak_encdec(datactx, decfunc, src, dst, (uint8_t *)&T);
+        xts_uint128 S, D;
+
+        memcpy(&S, src, XTS_BLOCK_SIZE);
+        xts_tweak_encdec(datactx, decfunc, &S, &D, &T);
+        memcpy(dst, &D, XTS_BLOCK_SIZE);
 
         src += XTS_BLOCK_SIZE;
         dst += XTS_BLOCK_SIZE;
@@ -118,11 +122,13 @@ void xts_decrypt(const void *datactx,
 
     /* if length is not a multiple of XTS_BLOCK_SIZE then */
     if (mo > 0) {
+        xts_uint128 S, D;
         memcpy(&CC, &T, XTS_BLOCK_SIZE);
         xts_mult_x((uint8_t *)&CC);
 
         /* PP = tweak decrypt block m-1 */
-        xts_tweak_encdec(datactx, decfunc, src, (uint8_t *)&PP, (uint8_t *)&CC);
+        memcpy(&S, src, XTS_BLOCK_SIZE);
+        xts_tweak_encdec(datactx, decfunc, &S, &PP, &CC);
 
         /* Pm = first length % XTS_BLOCK_SIZE bytes of PP */
         for (i = 0; i < mo; i++) {
@@ -134,7 +140,8 @@ void xts_decrypt(const void *datactx,
         }
 
         /* Pm-1 = Tweak uncrypt CC */
-        xts_tweak_encdec(datactx, decfunc, (uint8_t *)&CC, dst, (uint8_t *)&T);
+        xts_tweak_encdec(datactx, decfunc, &CC, &D, &T);
+        memcpy(dst, &D, XTS_BLOCK_SIZE);
     }
 
     /* Decrypt the iv back */
@@ -171,7 +178,11 @@ void xts_encrypt(const void *datactx,
     encfunc(tweakctx, XTS_BLOCK_SIZE, (uint8_t *)&T, iv);
 
     for (i = 0; i < lim; i++) {
-        xts_tweak_encdec(datactx, encfunc, src, dst, (uint8_t *)&T);
+        xts_uint128 S, D;
+
+        memcpy(&S, src, XTS_BLOCK_SIZE);
+        xts_tweak_encdec(datactx, encfunc, &S, &D, &T);
+        memcpy(dst, &D, XTS_BLOCK_SIZE);
 
         dst += XTS_BLOCK_SIZE;
         src += XTS_BLOCK_SIZE;
@@ -179,8 +190,10 @@ void xts_encrypt(const void *datactx,
 
     /* if length is not a multiple of XTS_BLOCK_SIZE then */
     if (mo > 0) {
+        xts_uint128 S, D;
         /* CC = tweak encrypt block m-1 */
-        xts_tweak_encdec(datactx, encfunc, src, (uint8_t *)&CC, (uint8_t *)&T);
+        memcpy(&S, src, XTS_BLOCK_SIZE);
+        xts_tweak_encdec(datactx, encfunc, &S, &CC, &T);
 
         /* Cm = first length % XTS_BLOCK_SIZE bytes of CC */
         for (i = 0; i < mo; i++) {
@@ -193,7 +206,8 @@ void xts_encrypt(const void *datactx,
         }
 
         /* Cm-1 = Tweak encrypt PP */
-        xts_tweak_encdec(datactx, encfunc, (uint8_t *)&PP, dst, (uint8_t *)&T);
+        xts_tweak_encdec(datactx, encfunc, &PP, &D, &T);
+        memcpy(dst, &D, XTS_BLOCK_SIZE);
     }
 
     /* Decrypt the iv back */
