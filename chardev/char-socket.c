@@ -52,6 +52,7 @@ typedef struct {
     QIONetListener *listener;
     GSource *hup_source;
     QCryptoTLSCreds *tls_creds;
+    char *tls_authz;
     int connected;
     int max_size;
     int do_telnetopt;
@@ -737,7 +738,7 @@ static void tcp_chr_tls_init(Chardev *chr)
     if (s->is_listen) {
         tioc = qio_channel_tls_new_server(
             s->ioc, s->tls_creds,
-            NULL, /* XXX Use an ACL */
+            s->tls_authz,
             &err);
     } else {
         tioc = qio_channel_tls_new_client(
@@ -889,6 +890,7 @@ static void char_socket_finalize(Object *obj)
     if (s->tls_creds) {
         object_unref(OBJECT(s->tls_creds));
     }
+    g_free(s->tls_authz);
 
     qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
 }
@@ -994,6 +996,7 @@ static void qmp_chardev_open_socket(Chardev *chr,
             }
         }
     }
+    s->tls_authz = g_strdup(sock->tls_authz);
 
     s->addr = addr = socket_address_flatten(sock->addr);
 
@@ -1075,6 +1078,7 @@ static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
     const char *fd = qemu_opt_get(opts, "fd");
     const char *tls_creds = qemu_opt_get(opts, "tls-creds");
     SocketAddressLegacy *addr;
+    const char *tls_authz = qemu_opt_get(opts, "tls-authz");
     ChardevSocket *sock;
 
     if ((!!path + !!fd + !!host) != 1) {
@@ -1103,6 +1107,10 @@ static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
     } else {
         g_assert_not_reached();
     }
+    if (tls_authz && !tls_creds) {
+        error_setg(errp, "Authorization can only be used when TLS is enabled");
+        return;
+    }
 
     sock = backend->u.socket.data = g_new0(ChardevSocket, 1);
     qemu_chr_parse_common(opts, qapi_ChardevSocket_base(sock));
@@ -1120,6 +1128,7 @@ static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
     sock->has_reconnect = true;
     sock->reconnect = reconnect;
     sock->tls_creds = g_strdup(tls_creds);
+    sock->tls_authz = g_strdup(tls_authz);
 
     addr = g_new0(SocketAddressLegacy, 1);
     if (path) {

@@ -861,6 +861,9 @@ QemuOptsList qemu_chardev_opts = {
             .name = "tls-creds",
             .type = QEMU_OPT_STRING,
         },{
+            .name = "tls-authz",
+            .type = QEMU_OPT_STRING,
+        },{
             .name = "width",
             .type = QEMU_OPT_NUMBER,
         },{
