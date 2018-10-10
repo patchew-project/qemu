@@ -16,6 +16,7 @@
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qemu/thread.h"
+#include "qapi/error.h"
 
 #include <sys/syscall.h>
 
@@ -65,7 +66,7 @@ static void *sigwait_compat(void *opaque)
     }
 }
 
-static int qemu_signalfd_compat(const sigset_t *mask)
+static int qemu_signalfd_compat(const sigset_t *mask, Error **errp)
 {
     struct sigfd_compat_info *info;
     QemuThread thread;
@@ -73,11 +74,13 @@ static int qemu_signalfd_compat(const sigset_t *mask)
 
     info = malloc(sizeof(*info));
     if (info == NULL) {
+        error_setg(errp, "Failed to allocate signalfd memory");
         errno = ENOMEM;
         return -1;
     }
 
     if (pipe(fds) == -1) {
+        error_setg(errp, "Failed to create signalfd pipe");
         free(info);
         return -1;
     }
@@ -94,7 +97,7 @@ static int qemu_signalfd_compat(const sigset_t *mask)
     return fds[0];
 }
 
-int qemu_signalfd(const sigset_t *mask)
+int qemu_signalfd(const sigset_t *mask, Error **errp)
 {
 #if defined(CONFIG_SIGNALFD)
     int ret;
@@ -106,5 +109,5 @@ int qemu_signalfd(const sigset_t *mask)
     }
 #endif
 
-    return qemu_signalfd_compat(mask);
+    return qemu_signalfd_compat(mask, errp);
 }
