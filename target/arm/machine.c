@@ -584,7 +584,7 @@ static int cpu_pre_save(void *opaque)
 {
     ARMCPU *cpu = opaque;
 
-    pmccntr_op_start(&cpu->env);
+    pmu_op_start(&cpu->env);
 
     if (kvm_enabled()) {
         if (!write_kvmstate_to_list(cpu)) {
@@ -610,13 +610,13 @@ static int cpu_pre_save(void *opaque)
 static void cpu_post_save(void *opaque)
 {
     ARMCPU *cpu = opaque;
-    pmccntr_op_finish(&cpu->env);
+    pmu_op_finish(&cpu->env);
 }
 
 static int cpu_pre_load(void *opaque)
 {
     ARMCPU *cpu = opaque;
-    pmccntr_op_start(&cpu->env);
+    pmu_op_start(&cpu->env);
     return 0;
 }
 
@@ -667,7 +667,7 @@ static int cpu_post_load(void *opaque, int version_id)
     hw_breakpoint_update_all(cpu);
     hw_watchpoint_update_all(cpu);
 
-    pmccntr_op_finish(&cpu->env);
+    pmu_op_finish(&cpu->env);
 
     return 0;
 }
