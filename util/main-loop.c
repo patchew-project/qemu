@@ -96,7 +96,7 @@ static int qemu_signal_init(Error **errp)
     sigdelset(&set, SIG_IPI);
     sigfd = qemu_signalfd(&set, errp);
     if (sigfd == -1) {
-        return -errno;
+        return -1;
     }
 
     fcntl_setfl(sigfd, O_NONBLOCK);

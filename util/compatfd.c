@@ -91,8 +91,13 @@ static int qemu_signalfd_compat(const sigset_t *mask, Error **errp)
     memcpy(&info->mask, mask, sizeof(*mask));
     info->fd = fds[1];
 
-    qemu_thread_create(&thread, "signalfd_compat", sigwait_compat, info,
-                       QEMU_THREAD_DETACHED);
+    if (!qemu_thread_create(&thread, "signalfd_compat", sigwait_compat,
+                            info, QEMU_THREAD_DETACHED, errp)) {
+        close(fds[0]);
+        close(fds[1]);
+        free(info);
+        return -1;
+    }
 
     return fds[0];
 }

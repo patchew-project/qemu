@@ -164,8 +164,10 @@ static void start_comp_thread(RdmaBackendDev *backend_dev)
     snprintf(thread_name, sizeof(thread_name), "rdma_comp_%s",
              ibv_get_device_name(backend_dev->ib_dev));
     backend_dev->comp_thread.run = true;
+    /* FIXME: let the further caller handle the error instead of abort() here */
     qemu_thread_create(&backend_dev->comp_thread.thread, thread_name,
-                       comp_handler_thread, backend_dev, QEMU_THREAD_DETACHED);
+                       comp_handler_thread, backend_dev,
+                       QEMU_THREAD_DETACHED, &error_abort);
 }
 
 void rdma_backend_register_comp_handler(void (*handler)(int status,
