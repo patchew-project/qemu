@@ -35,6 +35,10 @@
 #include "hw/ide/pci.h"
 #include "trace.h"
 
+#define TYPE_PIIX3_IDE "piix3-ide"
+#define TYPE_PIIX3_IDE_XEN "piix3-ide-xen"
+#define TYPE_PIIX4_IDE "piix4-ide"
+
 static uint64_t bmdma_read(void *opaque, hwaddr addr, unsigned size)
 {
     BMDMAState *bm = opaque;
@@ -204,7 +208,7 @@ PCIDevice *pci_piix3_xen_ide_init(PCIBus *bus, DriveInfo **hd_table, int devfn)
 {
     PCIDevice *dev;
 
-    dev = pci_create_simple(bus, devfn, "piix3-ide-xen");
+    dev = pci_create_simple(bus, devfn, TYPE_PIIX3_IDE_XEN);
     pci_ide_create_devs(dev, hd_table);
     return dev;
 }
@@ -226,7 +230,7 @@ PCIDevice *pci_piix3_ide_init(PCIBus *bus, DriveInfo **hd_table, int devfn)
 {
     PCIDevice *dev;
 
-    dev = pci_create_simple(bus, devfn, "piix3-ide");
+    dev = pci_create_simple(bus, devfn, TYPE_PIIX3_IDE);
     pci_ide_create_devs(dev, hd_table);
     return dev;
 }
@@ -237,7 +241,7 @@ PCIDevice *pci_piix4_ide_init(PCIBus *bus, DriveInfo **hd_table, int devfn)
 {
     PCIDevice *dev;
 
-    dev = pci_create_simple(bus, devfn, "piix4-ide");
+    dev = pci_create_simple(bus, devfn, TYPE_PIIX4_IDE);
     pci_ide_create_devs(dev, hd_table);
     return dev;
 }
@@ -257,13 +261,13 @@ static void piix3_ide_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo piix3_ide_info = {
-    .name          = "piix3-ide",
+    .name          = TYPE_PIIX3_IDE,
     .parent        = TYPE_PCI_IDE,
     .class_init    = piix3_ide_class_init,
 };
 
 static const TypeInfo piix3_ide_xen_info = {
-    .name          = "piix3-ide-xen",
+    .name          = TYPE_PIIX3_IDE_XEN,
     .parent        = TYPE_PCI_IDE,
     .class_init    = piix3_ide_class_init,
 };
@@ -283,7 +287,7 @@ static void piix4_ide_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo piix4_ide_info = {
-    .name          = "piix4-ide",
+    .name          = TYPE_PIIX4_IDE,
     .parent        = TYPE_PCI_IDE,
     .class_init    = piix4_ide_class_init,
 };
