@@ -1558,6 +1558,63 @@ enum {
     CHECK_FRAG_INFO = 0x2,      /* update BlockFragInfo counters */
 };
 
+typedef enum {
+    REP_ACTIVE_L1,
+    REP_INACTIVE_L1,
+    REP_ACTIVE_L2,
+    REP_INACTIVE_L2
+} RepTableType;
+
+/* repair_table_entry
+ *
+ * Rewrite entry in L1 or L2 table and set @res appropriately.
+ *
+ * Returns: -errno if overlap check failed
+ *          0 if write failed
+ *          1 on success
+ */
+static int repair_table_entry(BlockDriverState *bs, BdrvCheckResult *res,
+                              RepTableType type, uint64_t table_offset,
+                              int entry_index, uint64_t new_val)
+{
+    int ret;
+    uint64_t entry_offset =
+            table_offset + (uint64_t)entry_index * sizeof(new_val);
+
+    static const struct {
+        const char *name;
+        int ign;
+    } types[] = {
+        [REP_ACTIVE_L1] = { "L1", QCOW2_OL_ACTIVE_L1 },
+        [REP_INACTIVE_L1] = { "L1", QCOW2_OL_INACTIVE_L1 },
+        [REP_ACTIVE_L2] = { "L2", QCOW2_OL_ACTIVE_L1 },
+        [REP_INACTIVE_L2] = { "L2", QCOW2_OL_INACTIVE_L1 },
+    };
+
+    cpu_to_be64s(&new_val);
+    ret = qcow2_pre_write_overlap_check(bs, types[type].ign, entry_offset,
+                                        sizeof(new_val));
+    if (ret < 0) {
+        res->check_errors++;
+        fprintf(stderr,
+                "ERROR: Cannot write %s table entry: "
+                "overlap check failed: %s\n",
+                types[type].name, strerror(-ret));
+        return ret;
+    }
+
+    ret = bdrv_pwrite_sync(bs->file, entry_offset, &new_val, sizeof(new_val));
+    if (ret < 0) {
+        res->check_errors++;
+        fprintf(stderr, "ERROR: Failed to overwrite %s table entry: %s\n",
+                types[type].name, strerror(-ret));
+        return 0;
+    }
+
+    res->corruptions_fixed++;
+    return 1;
+}
+
 /*
  * Increases the refcount in the given refcount table for the all clusters
  * referenced in the L2 table. While doing so, performs some checks on L2
@@ -1572,9 +1629,11 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
                               int flags, BdrvCheckMode fix, bool active)
 {
     BDRVQcow2State *s = bs->opaque;
-    uint64_t *l2_table, l2_entry;
+    uint64_t *l2_table;
     uint64_t next_contiguous_offset = 0;
     int i, l2_size, ret;
+    bool fix_er = fix & BDRV_FIX_ERRORS;
+    RepTableType type = active ? REP_ACTIVE_L2 : REP_INACTIVE_L2;
 
     /* Read L2 table from disk */
     l2_size = s->l2_size * sizeof(uint64_t);
@@ -1589,13 +1648,17 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
 
     /* Do the actual checks */
     for(i = 0; i < s->l2_size; i++) {
-        l2_entry = be64_to_cpu(l2_table[i]);
+        uint64_t l2_entry = be64_to_cpu(l2_table[i]);
+        uint64_t l2_entry_fix = l2_entry;
+        QCow2ClusterType entry_type = qcow2_get_cluster_type(l2_entry);
+        int64_t offset, size;
+        bool fatal = false; /* l2_entry is fatally corrupted, don't count it if
+                                fail to fix */
 
-        switch (qcow2_get_cluster_type(l2_entry)) {
+        /* check for errors: either increase res->corruptions or set
+         * @l2_entry_fix to something other */
+        switch (entry_type) {
         case QCOW2_CLUSTER_COMPRESSED:
-        {
-            int64_t csize, coffset;
-
             /* Compressed clusters don't have QCOW_OFLAG_COPIED */
             if (l2_entry & QCOW_OFLAG_COPIED) {
                 fprintf(stderr, "ERROR: coffset=0x%" PRIx64 ": "
@@ -1605,18 +1668,90 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
                 res->corruptions++;
             }
 
-            /* Mark cluster as used */
-            csize = (((l2_entry >> s->csize_shift) & s->csize_mask) + 1) * 512;
-            coffset = l2_entry & s->cluster_offset_mask & ~511;
-            ret = qcow2_inc_refcounts_imrt(bs, res,
-                                           refcount_table, refcount_table_size,
-                                           coffset, csize);
-            if (ret < 0) {
-                goto fail;
+            offset = l2_entry & s->cluster_offset_mask & ~511;
+            size = (((l2_entry >> s->csize_shift) & s->csize_mask) + 1) * 512;
+            break;
+
+        case QCOW2_CLUSTER_ZERO_ALLOC:
+        case QCOW2_CLUSTER_NORMAL:
+            offset = l2_entry & L2E_OFFSET_MASK;
+            size = s->cluster_size;
+
+            /* Correct offsets are cluster aligned */
+            if (offset_into_cluster(s, offset)) {
+                fatal = true; /* misaligned cluster leads to
+                               * qcow2_signal_corruption(fatal = true)
+                               */
+                if (qcow2_get_cluster_type(l2_entry) ==
+                    QCOW2_CLUSTER_ZERO_ALLOC)
+                {
+                    fprintf(stderr, "%s offset=%" PRIx64 ": Preallocated zero "
+                            "cluster is not properly aligned; L2 entry "
+                            "corrupted.\n",
+                            fix_er ? "Repairing" : "ERROR", offset);
+                    l2_entry_fix = QCOW_OFLAG_ZERO;
+                } else {
+                    fprintf(stderr, "ERROR offset=%" PRIx64 ": Data cluster is "
+                        "not properly aligned; L2 entry corrupted.\n", offset);
+                    res->corruptions++;
+                }
             }
 
-            if (flags & CHECK_FRAG_INFO) {
-                res->bfi.allocated_clusters++;
+            break;
+
+        case QCOW2_CLUSTER_ZERO_PLAIN:
+        case QCOW2_CLUSTER_UNALLOCATED:
+            /* No allocation to be counted */
+            continue;
+
+        default:
+            abort();
+        }
+
+        /* handle found errors */
+        if (l2_entry_fix != l2_entry) {
+            if (fix_er) {
+                ret = repair_table_entry(bs, res, type,
+                                         l2_offset, i, l2_entry_fix);
+                if (ret < 0) {
+                    /* Something is seriously wrong, so abort checking
+                     * this L2 table */
+                    goto fail;
+                } else if (ret == 1) {
+                    /* successfully fixed */
+                    l2_entry = l2_entry_fix;
+                    entry_type = qcow2_get_cluster_type(l2_entry);
+                    fatal = false;
+                }
+            } else {
+                res->corruptions++;
+            }
+        }
+        if (fatal || entry_type == QCOW2_CLUSTER_ZERO_PLAIN ||
+            entry_type == QCOW2_CLUSTER_ZERO_PLAIN)
+        {
+            /* entry is either:
+             *   fatally corrupted, and we did not fix it,
+             *   we can't count it like normal entry
+             * or:
+             *   successfully fixed to be zero/unallocated,
+             *   we should not count it.
+             */
+            continue;
+        }
+
+        ret = qcow2_inc_refcounts_imrt(bs, res,
+                                       refcount_table, refcount_table_size,
+                                       offset, size);
+        if (ret < 0) {
+            goto fail;
+        }
+
+        /* update counters */
+        if (flags & CHECK_FRAG_INFO) {
+            res->bfi.allocated_clusters++;
+            switch (entry_type) {
+            case QCOW2_CLUSTER_COMPRESSED:
                 res->bfi.compressed_clusters++;
 
                 /* Compressed clusters are fragmented by nature.  Since they
@@ -1625,93 +1760,20 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
                  * compressed clusters.
                  */
                 res->bfi.fragmented_clusters++;
-            }
-            break;
-        }
+                break;
 
-        case QCOW2_CLUSTER_ZERO_ALLOC:
-        case QCOW2_CLUSTER_NORMAL:
-        {
-            uint64_t offset = l2_entry & L2E_OFFSET_MASK;
-
-            /* Correct offsets are cluster aligned */
-            if (offset_into_cluster(s, offset)) {
-                if (qcow2_get_cluster_type(l2_entry) ==
-                    QCOW2_CLUSTER_ZERO_ALLOC)
-                {
-                    fprintf(stderr, "%s offset=%" PRIx64 ": Preallocated zero "
-                            "cluster is not properly aligned; L2 entry "
-                            "corrupted.\n",
-                            fix & BDRV_FIX_ERRORS ? "Repairing" : "ERROR",
-                            offset);
-                    if (fix & BDRV_FIX_ERRORS) {
-                        uint64_t l2e_offset =
-                            l2_offset + (uint64_t)i * sizeof(uint64_t);
-                        int ign = active ? QCOW2_OL_ACTIVE_L2 :
-                                           QCOW2_OL_INACTIVE_L2;
-
-                        l2_entry = QCOW_OFLAG_ZERO;
-                        l2_table[i] = cpu_to_be64(l2_entry);
-                        ret = qcow2_pre_write_overlap_check(bs, ign,
-                                l2e_offset, sizeof(uint64_t));
-                        if (ret < 0) {
-                            fprintf(stderr, "ERROR: Overlap check failed\n");
-                            res->check_errors++;
-                            /* Something is seriously wrong, so abort checking
-                             * this L2 table */
-                            goto fail;
-                        }
-
-                        ret = bdrv_pwrite_sync(bs->file, l2e_offset,
-                                               &l2_table[i], sizeof(uint64_t));
-                        if (ret < 0) {
-                            fprintf(stderr, "ERROR: Failed to overwrite L2 "
-                                    "table entry: %s\n", strerror(-ret));
-                            res->check_errors++;
-                            /* Do not abort, continue checking the rest of this
-                             * L2 table's entries */
-                        } else {
-                            res->corruptions_fixed++;
-                        }
-                    } else {
-                        res->corruptions++;
-                    }
-                } else {
-                    fprintf(stderr, "ERROR offset=%" PRIx64 ": Data cluster is "
-                        "not properly aligned; L2 entry corrupted.\n", offset);
-                    res->corruptions++;
-                }
-
-                /* Skip marking the cluster as used
-                 * (l2 entry is marked as zero or still fatally corrupted) */
-                continue;
-            }
-
-            if (flags & CHECK_FRAG_INFO) {
-                res->bfi.allocated_clusters++;
+            case QCOW2_CLUSTER_ZERO_ALLOC:
+            case QCOW2_CLUSTER_NORMAL:
                 if (next_contiguous_offset &&
                     offset != next_contiguous_offset) {
                     res->bfi.fragmented_clusters++;
                 }
                 next_contiguous_offset = offset + s->cluster_size;
+                break;
+
+            default:
+                abort();
             }
-
-            /* Mark cluster as used */
-            ret = qcow2_inc_refcounts_imrt(bs, res,
-                                           refcount_table, refcount_table_size,
-                                           offset, s->cluster_size);
-            if (ret < 0) {
-                goto fail;
-            }
-            break;
-        }
-
-        case QCOW2_CLUSTER_ZERO_PLAIN:
-        case QCOW2_CLUSTER_UNALLOCATED:
-            break;
-
-        default:
-            abort();
         }
     }
 
