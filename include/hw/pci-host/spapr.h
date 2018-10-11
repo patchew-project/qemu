@@ -34,15 +34,15 @@
 
 typedef struct sPAPRPHBState sPAPRPHBState;
 
-typedef struct spapr_pci_msi {
+typedef struct sPAPRMSI {
     uint32_t first_irq;
     uint32_t num;
-} spapr_pci_msi;
+} sPAPRMSI;
 
-typedef struct spapr_pci_msi_mig {
+typedef struct sPAPRMSIMig {
     uint32_t key;
-    spapr_pci_msi value;
-} spapr_pci_msi_mig;
+    sPAPRMSI value;
+} sPAPRMSIMig;
 
 struct sPAPRPHBState {
     PCIHostState parent_obj;
@@ -70,7 +70,7 @@ struct sPAPRPHBState {
     GHashTable *msi;
     /* Temporary cache for migration purposes */
     int32_t msi_devs_num;
-    spapr_pci_msi_mig *msi_devs;
+    sPAPRMSIMig *msi_devs;
 
     QLIST_ENTRY(sPAPRPHBState) list;
 
