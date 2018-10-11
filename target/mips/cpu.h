@@ -290,6 +290,12 @@ struct CPUMIPSState {
 #define CP0SC2_XR_MASK  (0xFFULL << CP0SC2_XR)
 #define CP0SC2_MASK     (CP0SC_1GMASK | (CP0SC_1GMASK << 16) | CP0SC2_XR_MASK)
     target_ulong CP0_PWBase;
+    target_ulong CP0_PWField;
+#define CP0PF_GDI  24    /* 29..24 */
+#define CP0PF_UDI  18    /* 23..18 */
+#define CP0PF_MDI  12    /* 17..12 */
+#define CP0PF_PTI  6     /* 11..6  */
+#define CP0PF_PTEI 0     /*  5..0  */
     int32_t CP0_Wired;
     int32_t CP0_SRSConf0_rw_bitmask;
     int32_t CP0_SRSConf0;
