@@ -15,8 +15,6 @@
 #define IN_PORT_N	3
 #define OUT_PORT_N	3
 
-#define CODEC		"wm8750"
-
 typedef struct {
     int adc;
     int adc_hz;
@@ -204,11 +202,11 @@ static void wm8750_set_format(WM8750State *s)
     in_fmt.fmt = AUD_FMT_S16;
 
     s->adc_voice[0] = AUD_open_in(&s->card, s->adc_voice[0],
-                    CODEC ".input1", s, wm8750_audio_in_cb, &in_fmt);
+                    TYPE_WM8750 ".input1", s, wm8750_audio_in_cb, &in_fmt);
     s->adc_voice[1] = AUD_open_in(&s->card, s->adc_voice[1],
-                    CODEC ".input2", s, wm8750_audio_in_cb, &in_fmt);
+                    TYPE_WM8750 ".input2", s, wm8750_audio_in_cb, &in_fmt);
     s->adc_voice[2] = AUD_open_in(&s->card, s->adc_voice[2],
-                    CODEC ".input3", s, wm8750_audio_in_cb, &in_fmt);
+                    TYPE_WM8750 ".input3", s, wm8750_audio_in_cb, &in_fmt);
 
     /* Setup output */
     out_fmt.endianness = 0;
@@ -217,12 +215,12 @@ static void wm8750_set_format(WM8750State *s)
     out_fmt.fmt = AUD_FMT_S16;
 
     s->dac_voice[0] = AUD_open_out(&s->card, s->dac_voice[0],
-                    CODEC ".speaker", s, wm8750_audio_out_cb, &out_fmt);
+                    TYPE_WM8750 ".speaker", s, wm8750_audio_out_cb, &out_fmt);
     s->dac_voice[1] = AUD_open_out(&s->card, s->dac_voice[1],
-                    CODEC ".headphone", s, wm8750_audio_out_cb, &out_fmt);
+                    TYPE_WM8750 ".headphone", s, wm8750_audio_out_cb, &out_fmt);
     /* MONOMIX is also in stereo for simplicity */
     s->dac_voice[2] = AUD_open_out(&s->card, s->dac_voice[2],
-                    CODEC ".monomix", s, wm8750_audio_out_cb, &out_fmt);
+                    TYPE_WM8750 ".monomix", s, wm8750_audio_out_cb, &out_fmt);
     /* no sense emulating OUT3 which is a mix of other outputs */
 
     wm8750_vol_update(s);
@@ -584,7 +582,7 @@ static int wm8750_post_load(void *opaque, int version_id)
 }
 
 static const VMStateDescription vmstate_wm8750 = {
-    .name = CODEC,
+    .name = TYPE_WM8750,
     .version_id = 0,
     .minimum_version_id = 0,
     .pre_save = wm8750_pre_save,
@@ -621,7 +619,7 @@ static void wm8750_realize(DeviceState *dev, Error **errp)
 {
     WM8750State *s = WM8750(dev);
 
-    AUD_register_card(CODEC, &s->card);
+    AUD_register_card(TYPE_WM8750, &s->card);
     wm8750_reset(I2C_SLAVE(s));
 }
 
