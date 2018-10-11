@@ -2894,6 +2894,10 @@ void virtio_init(VirtIODevice *vdev, const char *name,
     vdev->use_guest_notifier_mask = true;
 }
 
+bool virtio_queue_packed_get_wc(VirtIODevice *vdev, int n)
+{
+    return vdev->vq[n].avail_wrap_counter;
+}
 hwaddr virtio_queue_get_desc_addr(VirtIODevice *vdev, int n)
 {
     return vdev->vq[n].vring.desc;

@@ -295,6 +295,7 @@ void virtio_queue_aio_set_host_notifier_handler(VirtQueue *vq, AioContext *ctx,
                                                 VirtIOHandleAIOOutput handle_output);
 VirtQueue *virtio_vector_first_queue(VirtIODevice *vdev, uint16_t vector);
 VirtQueue *virtio_vector_next_queue(VirtQueue *vq);
+bool virtio_queue_packed_get_wc(VirtIODevice *vdev, int n);
 
 static inline void virtio_add_feature(uint64_t *features, unsigned int fbit)
 {
