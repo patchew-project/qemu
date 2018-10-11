@@ -1198,6 +1198,8 @@ static ssize_t virtio_net_receive_rcu(NetClientState *nc, const uint8_t *buf,
     struct virtio_net_hdr_mrg_rxbuf mhdr;
     unsigned mhdr_cnt = 0;
     size_t offset, i, guest_offset;
+    VirtQueueElement head;
+    int head_len = 0;
 
     if (!virtio_net_can_receive(nc)) {
         return -1;
@@ -1275,7 +1277,13 @@ static ssize_t virtio_net_receive_rcu(NetClientState *nc, const uint8_t *buf,
         }
 
         /* signal other side */
-        virtqueue_fill(q->rx_vq, elem, total, i++);
+        if (i == 0) {
+            head_len = total;
+            head = *elem;
+        } else {
+            virtqueue_fill(q->rx_vq, elem, len, i);
+        }
+        i++;
         g_free(elem);
     }
 
@@ -1286,6 +1294,7 @@ static ssize_t virtio_net_receive_rcu(NetClientState *nc, const uint8_t *buf,
                      &mhdr.num_buffers, sizeof mhdr.num_buffers);
     }
 
+    virtqueue_fill(q->rx_vq, &head, head_len, 0);
     virtqueue_flush(q->rx_vq, i);
     virtio_notify(vdev, q->rx_vq);
 
