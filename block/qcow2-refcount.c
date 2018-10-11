@@ -1634,15 +1634,6 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
         {
             uint64_t offset = l2_entry & L2E_OFFSET_MASK;
 
-            if (flags & CHECK_FRAG_INFO) {
-                res->bfi.allocated_clusters++;
-                if (next_contiguous_offset &&
-                    offset != next_contiguous_offset) {
-                    res->bfi.fragmented_clusters++;
-                }
-                next_contiguous_offset = offset + s->cluster_size;
-            }
-
             /* Correct offsets are cluster aligned */
             if (offset_into_cluster(s, offset)) {
                 if (qcow2_get_cluster_type(l2_entry) ==
@@ -1681,9 +1672,6 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
                              * L2 table's entries */
                         } else {
                             res->corruptions_fixed++;
-                            /* Skip marking the cluster as used
-                             * (it is unused now) */
-                            continue;
                         }
                     } else {
                         res->corruptions++;
@@ -1693,6 +1681,19 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
                         "not properly aligned; L2 entry corrupted.\n", offset);
                     res->corruptions++;
                 }
+
+                /* Skip marking the cluster as used
+                 * (l2 entry is marked as zero or still fatally corrupted) */
+                continue;
+            }
+
+            if (flags & CHECK_FRAG_INFO) {
+                res->bfi.allocated_clusters++;
+                if (next_contiguous_offset &&
+                    offset != next_contiguous_offset) {
+                    res->bfi.fragmented_clusters++;
+                }
+                next_contiguous_offset = offset + s->cluster_size;
             }
 
             /* Mark cluster as used */
