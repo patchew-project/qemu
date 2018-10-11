@@ -21,14 +21,14 @@ typedef struct VIOsPAPRVTYDevice {
 #define VIO_SPAPR_VTY_DEVICE(obj) \
      OBJECT_CHECK(VIOsPAPRVTYDevice, (obj), TYPE_VIO_SPAPR_VTY_DEVICE)
 
-static int vty_can_receive(void *opaque)
+static size_t vty_can_receive(void *opaque)
 {
     VIOsPAPRVTYDevice *dev = VIO_SPAPR_VTY_DEVICE(opaque);
 
     return VTERM_BUFSIZE - (dev->in - dev->out);
 }
 
-static void vty_receive(void *opaque, const uint8_t *buf, int size)
+static void vty_receive(void *opaque, const uint8_t *buf, size_t size)
 {
     VIOsPAPRVTYDevice *dev = VIO_SPAPR_VTY_DEVICE(opaque);
     int i;
@@ -42,7 +42,7 @@ static void vty_receive(void *opaque, const uint8_t *buf, int size)
             static bool reported;
             if (!reported) {
                 error_report("VTY input buffer exhausted - characters dropped."
-                             " (input size = %i)", size);
+                             " (input size = %zu)", size);
                 reported = true;
             }
             break;

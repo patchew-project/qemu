@@ -158,7 +158,7 @@ static const MemoryRegionOps uart_mmio_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void uart_rx(void *opaque, const uint8_t *buf, int size)
+static void uart_rx(void *opaque, const uint8_t *buf, size_t size)
 {
     MilkymistUartState *s = opaque;
 
@@ -170,7 +170,7 @@ static void uart_rx(void *opaque, const uint8_t *buf, int size)
     uart_update_irq(s);
 }
 
-static int uart_can_rx(void *opaque)
+static size_t uart_can_rx(void *opaque)
 {
     MilkymistUartState *s = opaque;
 

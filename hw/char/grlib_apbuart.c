@@ -130,14 +130,14 @@ static void uart_add_to_fifo(UART          *uart,
     uart->len += length;
 }
 
-static int grlib_apbuart_can_receive(void *opaque)
+static size_t grlib_apbuart_can_receive(void *opaque)
 {
     UART *uart = opaque;
 
     return FIFO_LENGTH - uart->len;
 }
 
-static void grlib_apbuart_receive(void *opaque, const uint8_t *buf, int size)
+static void grlib_apbuart_receive(void *opaque, const uint8_t *buf, size_t size)
 {
     UART *uart = opaque;
 

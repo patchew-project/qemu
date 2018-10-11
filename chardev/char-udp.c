@@ -65,7 +65,7 @@ static void udp_chr_flush_buffer(UdpChardev *s)
     }
 }
 
-static int udp_chr_read_poll(void *opaque)
+static size_t udp_chr_read_poll(void *opaque)
 {
     Chardev *chr = CHARDEV(opaque);
     UdpChardev *s = UDP_CHARDEV(opaque);

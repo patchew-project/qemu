@@ -108,7 +108,7 @@ static void cmsdk_apb_uart_update(CMSDKAPBUART *s)
     qemu_set_irq(s->uartint, !!(s->intstatus));
 }
 
-static int uart_can_receive(void *opaque)
+static size_t uart_can_receive(void *opaque)
 {
     CMSDKAPBUART *s = CMSDK_APB_UART(opaque);
 
@@ -119,7 +119,7 @@ static int uart_can_receive(void *opaque)
     return 0;
 }
 
-static void uart_receive(void *opaque, const uint8_t *buf, int size)
+static void uart_receive(void *opaque, const uint8_t *buf, size_t size)
 {
     CMSDKAPBUART *s = CMSDK_APB_UART(opaque);
 

@@ -105,7 +105,7 @@ do { fprintf(stderr, "serial: " fmt , ## __VA_ARGS__); } while (0)
 do {} while (0)
 #endif
 
-static void serial_receive1(void *opaque, const uint8_t *buf, int size);
+static void serial_receive1(void *opaque, const uint8_t *buf, size_t size);
 static void serial_xmit(SerialState *s);
 
 static inline void recv_fifo_put(SerialState *s, uint8_t chr)
@@ -600,13 +600,13 @@ static void fifo_timeout_int (void *opaque) {
     }
 }
 
-static int serial_can_receive1(void *opaque)
+static size_t serial_can_receive1(void *opaque)
 {
     SerialState *s = opaque;
     return serial_can_receive(s);
 }
 
-static void serial_receive1(void *opaque, const uint8_t *buf, int size)
+static void serial_receive1(void *opaque, const uint8_t *buf, size_t size)
 {
     SerialState *s = opaque;
 

@@ -224,7 +224,7 @@ static void pl011_write(void *opaque, hwaddr offset,
     }
 }
 
-static int pl011_can_receive(void *opaque)
+static size_t pl011_can_receive(void *opaque)
 {
     PL011State *s = (PL011State *)opaque;
     int r;
@@ -260,7 +260,7 @@ static void pl011_put_fifo(void *opaque, uint32_t value)
     }
 }
 
-static void pl011_receive(void *opaque, const uint8_t *buf, int size)
+static void pl011_receive(void *opaque, const uint8_t *buf, size_t size)
 {
     pl011_put_fifo(opaque, *buf);
 }

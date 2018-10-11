@@ -166,7 +166,7 @@
 #define R_EXTINT 15
 
 static void handle_kbd_command(ESCCChannelState *s, int val);
-static int serial_can_receive(void *opaque);
+static size_t serial_can_receive(void *opaque);
 static void serial_receive_byte(ESCCChannelState *s, int ch);
 
 static void clear_queue(void *opaque)
@@ -573,7 +573,7 @@ static const MemoryRegionOps escc_mem_ops = {
     },
 };
 
-static int serial_can_receive(void *opaque)
+static size_t serial_can_receive(void *opaque)
 {
     ESCCChannelState *s = opaque;
     int ret;
@@ -601,7 +601,7 @@ static void serial_receive_break(ESCCChannelState *s)
     escc_update_irq(s);
 }
 
-static void serial_receive1(void *opaque, const uint8_t *buf, int size)
+static void serial_receive1(void *opaque, const uint8_t *buf, size_t size)
 {
     ESCCChannelState *s = opaque;
     serial_receive_byte(s, buf[0]);

@@ -683,7 +683,7 @@ err:
     return ret < 0 ? ret : -EIO;
 }
 
-static int compare_chr_can_read(void *opaque)
+static size_t compare_chr_can_read(void *opaque)
 {
     return COMPARE_READ_LEN_MAX;
 }
@@ -692,7 +692,7 @@ static int compare_chr_can_read(void *opaque)
  * Called from the main thread on the primary for packets
  * arriving over the socket from the primary.
  */
-static void compare_pri_chr_in(void *opaque, const uint8_t *buf, int size)
+static void compare_pri_chr_in(void *opaque, const uint8_t *buf, size_t size)
 {
     CompareState *s = COLO_COMPARE(opaque);
     int ret;
@@ -709,7 +709,7 @@ static void compare_pri_chr_in(void *opaque, const uint8_t *buf, int size)
  * Called from the main thread on the primary for packets
  * arriving over the socket from the secondary.
  */
-static void compare_sec_chr_in(void *opaque, const uint8_t *buf, int size)
+static void compare_sec_chr_in(void *opaque, const uint8_t *buf, size_t size)
 {
     CompareState *s = COLO_COMPARE(opaque);
     int ret;

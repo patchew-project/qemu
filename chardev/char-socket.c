@@ -120,7 +120,7 @@ static void tcp_chr_accept(QIONetListener *listener,
                            QIOChannelSocket *cioc,
                            void *opaque);
 
-static int tcp_chr_read_poll(void *opaque);
+static size_t tcp_chr_read_poll(void *opaque);
 static void tcp_chr_disconnect(Chardev *chr);
 
 /* Called with chr_write_lock held.  */
@@ -157,7 +157,7 @@ static int tcp_chr_write(Chardev *chr, const uint8_t *buf, int len)
     }
 }
 
-static int tcp_chr_read_poll(void *opaque)
+static size_t tcp_chr_read_poll(void *opaque)
 {
     Chardev *chr = CHARDEV(opaque);
     SocketChardev *s = SOCKET_CHARDEV(opaque);

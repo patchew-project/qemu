@@ -1058,7 +1058,7 @@ static void strongarm_uart_rx_push(StrongARMUARTState *s, uint16_t c)
         s->rx_fifo[(s->rx_start + 11) % 12] |= RX_FIFO_ROR;
 }
 
-static int strongarm_uart_can_receive(void *opaque)
+static size_t strongarm_uart_can_receive(void *opaque)
 {
     StrongARMUARTState *s = opaque;
 
@@ -1072,7 +1072,8 @@ static int strongarm_uart_can_receive(void *opaque)
     return 1;
 }
 
-static void strongarm_uart_receive(void *opaque, const uint8_t *buf, int size)
+static void strongarm_uart_receive(void *opaque, const uint8_t *buf,
+                                   size_t size)
 {
     StrongARMUARTState *s = opaque;
     int i;

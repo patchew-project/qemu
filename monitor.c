@@ -4038,7 +4038,7 @@ cleanup:
     free_cmdline_args(args, nb_args);
 }
 
-static int monitor_can_read(void *opaque)
+static size_t monitor_can_read(void *opaque)
 {
     Monitor *mon = opaque;
 
@@ -4240,14 +4240,14 @@ static void handle_qmp_command(void *opaque, QObject *req, Error *err)
     qemu_bh_schedule(qmp_dispatcher_bh);
 }
 
-static void monitor_qmp_read(void *opaque, const uint8_t *buf, int size)
+static void monitor_qmp_read(void *opaque, const uint8_t *buf, size_t size)
 {
     Monitor *mon = opaque;
 
     json_message_parser_feed(&mon->qmp.parser, (const char *) buf, size);
 }
 
-static void monitor_read(void *opaque, const uint8_t *buf, int size)
+static void monitor_read(void *opaque, const uint8_t *buf, size_t size)
 {
     Monitor *old_mon = cur_mon;
     int i;

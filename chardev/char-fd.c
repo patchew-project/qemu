@@ -69,7 +69,7 @@ static gboolean fd_chr_read(QIOChannel *chan, GIOCondition cond, void *opaque)
     return TRUE;
 }
 
-static int fd_chr_read_poll(void *opaque)
+static size_t fd_chr_read_poll(void *opaque)
 {
     Chardev *chr = CHARDEV(opaque);
     FDChardev *s = FD_CHARDEV(opaque);

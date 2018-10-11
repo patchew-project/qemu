@@ -48,7 +48,7 @@ static void rng_egd_request_entropy(RngBackend *b, RngRequest *req)
     }
 }
 
-static int rng_egd_chr_can_read(void *opaque)
+static size_t rng_egd_chr_can_read(void *opaque)
 {
     RngEgd *s = RNG_EGD(opaque);
     RngRequest *req;
@@ -61,7 +61,7 @@ static int rng_egd_chr_can_read(void *opaque)
     return size;
 }
 
-static void rng_egd_chr_read(void *opaque, const uint8_t *buf, int size)
+static void rng_egd_chr_read(void *opaque, const uint8_t *buf, size_t size)
 {
     RngEgd *s = RNG_EGD(opaque);
     size_t buf_offset = 0;

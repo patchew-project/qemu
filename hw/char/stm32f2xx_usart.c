@@ -38,7 +38,7 @@
 
 #define DB_PRINT(fmt, args...) DB_PRINT_L(1, fmt, ## args)
 
-static int stm32f2xx_usart_can_receive(void *opaque)
+static size_t stm32f2xx_usart_can_receive(void *opaque)
 {
     STM32F2XXUsartState *s = opaque;
 
@@ -49,7 +49,8 @@ static int stm32f2xx_usart_can_receive(void *opaque)
     return 0;
 }
 
-static void stm32f2xx_usart_receive(void *opaque, const uint8_t *buf, int size)
+static void stm32f2xx_usart_receive(void *opaque, const uint8_t *buf,
+                                    size_t size)
 {
     STM32F2XXUsartState *s = opaque;
 

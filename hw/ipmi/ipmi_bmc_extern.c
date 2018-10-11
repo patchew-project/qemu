@@ -85,8 +85,8 @@ typedef struct IPMIBmcExtern {
     bool send_reset;
 } IPMIBmcExtern;
 
-static int can_receive(void *opaque);
-static void receive(void *opaque, const uint8_t *buf, int size);
+static size_t can_receive(void *opaque);
+static void receive(void *opaque, const uint8_t *buf, size_t size);
 static void chr_event(void *opaque, int event);
 
 static unsigned char
@@ -311,12 +311,12 @@ static void handle_msg(IPMIBmcExtern *ibe)
     k->handle_rsp(ibe->parent.intf, ibe->inbuf[0], ibe->inbuf + 1, ibe->inpos - 1);
 }
 
-static int can_receive(void *opaque)
+static size_t can_receive(void *opaque)
 {
     return 1;
 }
 
-static void receive(void *opaque, const uint8_t *buf, int size)
+static void receive(void *opaque, const uint8_t *buf, size_t size)
 {
     IPMIBmcExtern *ibe = opaque;
     int i;

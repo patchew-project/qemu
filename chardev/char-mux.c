@@ -192,7 +192,7 @@ static void mux_chr_accept_input(Chardev *chr)
     }
 }
 
-static int mux_chr_can_read(void *opaque)
+static size_t mux_chr_can_read(void *opaque)
 {
     MuxChardev *d = MUX_CHARDEV(opaque);
     int m = d->focus;
@@ -209,7 +209,7 @@ static int mux_chr_can_read(void *opaque)
     return 0;
 }
 
-static void mux_chr_read(void *opaque, const uint8_t *buf, int size)
+static void mux_chr_read(void *opaque, const uint8_t *buf, size_t size)
 {
     Chardev *chr = CHARDEV(opaque);
     MuxChardev *d = MUX_CHARDEV(opaque);

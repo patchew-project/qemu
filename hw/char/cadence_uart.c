@@ -216,7 +216,7 @@ static void uart_parameters_setup(CadenceUARTState *s)
     qemu_chr_fe_ioctl(&s->chr, CHR_IOCTL_SERIAL_SET_PARAMS, &ssp);
 }
 
-static int uart_can_receive(void *opaque)
+static size_t uart_can_receive(void *opaque)
 {
     CadenceUARTState *s = opaque;
     int ret = MAX(CADENCE_UART_RX_FIFO_SIZE, CADENCE_UART_TX_FIFO_SIZE);
@@ -332,7 +332,7 @@ static void uart_write_tx_fifo(CadenceUARTState *s, const uint8_t *buf,
     cadence_uart_xmit(NULL, G_IO_OUT, s);
 }
 
-static void uart_receive(void *opaque, const uint8_t *buf, int size)
+static void uart_receive(void *opaque, const uint8_t *buf, size_t size)
 {
     CadenceUARTState *s = opaque;
     uint32_t ch_mode = s->r[R_MR] & UART_MR_CHMODE;

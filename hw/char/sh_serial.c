@@ -300,7 +300,7 @@ static uint64_t sh_serial_read(void *opaque, hwaddr offs,
     return ret;
 }
 
-static int sh_serial_can_receive(sh_serial_state *s)
+static size_t sh_serial_can_receive(sh_serial_state *s)
 {
     return s->scr & (1 << 4);
 }
@@ -311,7 +311,7 @@ static void sh_serial_receive_break(sh_serial_state *s)
         s->sr |= (1 << 4);
 }
 
-static int sh_serial_can_receive1(void *opaque)
+static size_t sh_serial_can_receive1(void *opaque)
 {
     sh_serial_state *s = opaque;
     return sh_serial_can_receive(s);
@@ -327,7 +327,7 @@ static void sh_serial_timeout_int(void *opaque)
     }
 }
 
-static void sh_serial_receive1(void *opaque, const uint8_t *buf, int size)
+static void sh_serial_receive1(void *opaque, const uint8_t *buf, size_t size)
 {
     sh_serial_state *s = opaque;
 

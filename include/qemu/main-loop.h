@@ -167,7 +167,7 @@ void qemu_del_wait_object(HANDLE handle, WaitObjectFunc *func, void *opaque);
 
 /* async I/O support */
 
-typedef void IOReadHandler(void *opaque, const uint8_t *buf, int size);
+typedef void IOReadHandler(void *opaque, const uint8_t *buf, size_t size);
 
 /**
  * IOCanReadHandler: Return the number of bytes that #IOReadHandler can accept
@@ -182,7 +182,7 @@ typedef void IOReadHandler(void *opaque, const uint8_t *buf, int size);
  * is called again.  aio_notify() or qemu_notify_event() can be used to kick
  * the event loop.
  */
-typedef int IOCanReadHandler(void *opaque);
+typedef size_t IOCanReadHandler(void *opaque);
 
 /**
  * qemu_set_fd_handler: Register a file descriptor with the main loop

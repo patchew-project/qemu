@@ -61,7 +61,7 @@ typedef struct SCLPConsoleLM {
  * truncated to the guest in case it doesn't fit into the SCCB.
  */
 
-static int chr_can_read(void *opaque)
+static size_t chr_can_read(void *opaque)
 {
     SCLPConsoleLM *scon = opaque;
 
@@ -71,7 +71,7 @@ static int chr_can_read(void *opaque)
     return 1;
 }
 
-static void chr_read(void *opaque, const uint8_t *buf, int size)
+static void chr_read(void *opaque, const uint8_t *buf, size_t size)
 {
     SCLPConsoleLM *scon = opaque;
 

@@ -267,14 +267,14 @@ static void mcf_uart_event(void *opaque, int event)
     }
 }
 
-static int mcf_uart_can_receive(void *opaque)
+static size_t mcf_uart_can_receive(void *opaque)
 {
     mcf_uart_state *s = (mcf_uart_state *)opaque;
 
     return s->rx_enabled && (s->sr & MCF_UART_FFULL) == 0;
 }
 
-static void mcf_uart_receive(void *opaque, const uint8_t *buf, int size)
+static void mcf_uart_receive(void *opaque, const uint8_t *buf, size_t size)
 {
     mcf_uart_state *s = (mcf_uart_state *)opaque;
 

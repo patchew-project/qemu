@@ -293,7 +293,7 @@ static void imx_serial_write(void *opaque, hwaddr offset,
     }
 }
 
-static int imx_can_receive(void *opaque)
+static size_t imx_can_receive(void *opaque)
 {
     IMXSerialState *s = (IMXSerialState *)opaque;
     return !(s->usr1 & USR1_RRDY);
@@ -315,7 +315,7 @@ static void imx_put_data(void *opaque, uint32_t value)
     imx_update(s);
 }
 
-static void imx_receive(void *opaque, const uint8_t *buf, int size)
+static void imx_receive(void *opaque, const uint8_t *buf, size_t size)
 {
     imx_put_data(opaque, *buf);
 }
