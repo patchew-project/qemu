@@ -296,6 +296,13 @@ struct CPUMIPSState {
 #define CP0PF_MDI  12    /* 17..12 */
 #define CP0PF_PTI  6     /* 11..6  */
 #define CP0PF_PTEI 0     /*  5..0  */
+    target_ulong CP0_PWSize;
+#define CP0PS_PS   30
+#define CP0PS_GDW  24    /* 29..24 */
+#define CP0PS_UDW  18    /* 23..18 */
+#define CP0PS_MDW  12    /* 17..12 */
+#define CP0PS_PTW  6     /* 11..6  */
+#define CP0PS_PTEW 0     /*  5..0  */
     int32_t CP0_Wired;
     int32_t CP0_SRSConf0_rw_bitmask;
     int32_t CP0_SRSConf0;
