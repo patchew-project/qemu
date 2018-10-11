@@ -1629,11 +1629,37 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
                               int flags, BdrvCheckMode fix, bool active)
 {
     BDRVQcow2State *s = bs->opaque;
-    uint64_t *l2_table;
+    uint64_t *l2_table, zero_fix_entry;
     uint64_t next_contiguous_offset = 0;
     int i, l2_size, ret;
     bool fix_er = fix & BDRV_FIX_ERRORS;
     RepTableType type = active ? REP_ACTIVE_L2 : REP_INACTIVE_L2;
+    const char *zero_fix_desc = "";
+    int64_t file_len = bdrv_getlength(bs->file->bs);
+
+    if (file_len < 0) {
+        return file_len;
+    }
+
+    if (fix_er) {
+        /* prepare options for fixing corrupted l2 entries to be marked as zero
+         * or unallocated
+         */
+        if (s->qcow_version >= 3) {
+            zero_fix_entry = QCOW_OFLAG_ZERO;
+            zero_fix_desc = ": mark cluster as zero";
+        } else {
+            /* v2 doesn't support ZERO flag, so we just mark it unallocated.
+             * It's a bit unsafe, as backing file may become available through
+             * the hole. However, discard for v2 do the same, so we don't care
+             * too.
+             */
+            zero_fix_entry = 0;
+            zero_fix_desc = ": mark cluster as unallocated (warning: "
+                            "underlying backing file may become available "
+                            "through the hole)";
+        }
+    }
 
     /* Read L2 table from disk */
     l2_size = s->l2_size * sizeof(uint64_t);
@@ -1670,12 +1696,50 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
 
             offset = l2_entry & s->cluster_offset_mask & ~511;
             size = (((l2_entry >> s->csize_shift) & s->csize_mask) + 1) * 512;
+
+            if (offset + size > QEMU_ALIGN_UP(file_len, 512)) {
+                /* The compressed data does not necessarily occupy
+                 * all of the bytes in the final 512-bytes sector
+                 */
+                const char *fix_desc = "";
+                uint64_t orig_size = size;
+                fatal = true;
+
+                if (fix_er) {
+                    if (offset < file_len) {
+                        size = QEMU_ALIGN_UP(file_len, 512) - offset;
+                        l2_entry_fix &=
+                                ~((uint64_t)s->csize_mask << s->csize_shift);
+                        l2_entry_fix |= (size / 512 - 1) << s->csize_shift;
+                        fix_desc = ": try to fix cluster size";
+                    } else {
+                        l2_entry_fix = zero_fix_entry;
+                        fix_desc = zero_fix_desc;
+                    }
+                } else {
+                    res->corruptions++;
+                }
+                fprintf(stderr, "%s: compressed cluster out of file: "
+                        "offset 0x%" PRIx64 " size 0x%" PRIx64 "%s\n",
+                        fix_er ? "Repairing" : "ERROR",
+                        offset, orig_size, fix_desc);
+            }
             break;
 
         case QCOW2_CLUSTER_ZERO_ALLOC:
         case QCOW2_CLUSTER_NORMAL:
             offset = l2_entry & L2E_OFFSET_MASK;
             size = s->cluster_size;
+
+            if (offset >= file_len) {
+                fatal = true; /* for sure, there is no allocation after EOF */
+                fprintf(stderr,
+                        "%s: cluster out of file: offset 0x%" PRIx64 "%s\n",
+                        fix_er ? "Repairing" : "ERROR", offset,
+                        fix_er ? zero_fix_desc : "");
+                l2_entry_fix = zero_fix_entry;
+                break;
+            }
 
             /* Correct offsets are cluster aligned */
             if (offset_into_cluster(s, offset)) {
