@@ -406,7 +406,7 @@ static void mv88w8618_eth_realize(DeviceState *dev, Error **errp)
 }
 
 static const VMStateDescription mv88w8618_eth_vmsd = {
-    .name = "mv88w8618_eth",
+    .name = TYPE_MV88W8618_ETH,
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
@@ -645,7 +645,7 @@ static void musicpal_lcd_init(Object *obj)
 }
 
 static const VMStateDescription musicpal_lcd_vmsd = {
-    .name = "musicpal_lcd",
+    .name = TYPE_MUSICPAL_LCD,
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
@@ -771,7 +771,7 @@ static void mv88w8618_pic_init(Object *obj)
 }
 
 static const VMStateDescription mv88w8618_pic_vmsd = {
-    .name = "mv88w8618_pic",
+    .name = TYPE_MV88W8618_PIC,
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
@@ -951,7 +951,7 @@ static const VMStateDescription mv88w8618_timer_vmsd = {
 };
 
 static const VMStateDescription mv88w8618_pit_vmsd = {
-    .name = "mv88w8618_pit",
+    .name = TYPE_MV88W8618_PIT,
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
@@ -1038,7 +1038,7 @@ static void mv88w8618_flashcfg_init(Object *obj)
 }
 
 static const VMStateDescription mv88w8618_flashcfg_vmsd = {
-    .name = "mv88w8618_flashcfg",
+    .name = TYPE_MV88W8618_FLASHCFG,
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
@@ -1375,7 +1375,7 @@ static void musicpal_gpio_init(Object *obj)
 }
 
 static const VMStateDescription musicpal_gpio_vmsd = {
-    .name = "musicpal_gpio",
+    .name = TYPE_MUSICPAL_GPIO,
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
@@ -1539,7 +1539,7 @@ static void musicpal_key_init(Object *obj)
 }
 
 static const VMStateDescription musicpal_key_vmsd = {
-    .name = "musicpal_key",
+    .name = TYPE_MUSICPAL_KEY,
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
@@ -1693,7 +1693,7 @@ static void musicpal_init(MachineState *machine)
     }
 
     wm8750_dev = i2c_create_slave(i2c, TYPE_WM8750, MP_WM_ADDR);
-    dev = qdev_create(NULL, "mv88w8618_audio");
+    dev = qdev_create(NULL, TYPE_MV88W8618_AUDIO);
     s = SYS_BUS_DEVICE(dev);
     object_property_set_link(OBJECT(dev), OBJECT(wm8750_dev),
                              TYPE_WM8750, NULL);

@@ -39,7 +39,6 @@
 #define MP_AUDIO_CLOCK_24MHZ    (1 << 9)
 #define MP_AUDIO_MONO           (1 << 14)
 
-#define TYPE_MV88W8618_AUDIO "mv88w8618_audio"
 #define MV88W8618_AUDIO(obj) \
     OBJECT_CHECK(mv88w8618_audio_state, (obj), TYPE_MV88W8618_AUDIO)
 
@@ -268,7 +267,7 @@ static void mv88w8618_audio_realize(DeviceState *dev, Error **errp)
 }
 
 static const VMStateDescription mv88w8618_audio_vmsd = {
-    .name = "mv88w8618_audio",
+    .name = TYPE_MV88W8618_AUDIO,
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
