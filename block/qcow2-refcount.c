@@ -1803,6 +1803,13 @@ static int check_refcounts_l1(BlockDriverState *bs,
     BDRVQcow2State *s = bs->opaque;
     uint64_t *l1_table = NULL, l2_offset, l1_size2;
     int i, ret;
+    bool fix_er = fix & BDRV_FIX_ERRORS;
+    RepTableType type = active ? REP_ACTIVE_L1 : REP_INACTIVE_L1;
+    int64_t file_len = bdrv_getlength(bs->file->bs);
+
+    if (file_len < 0) {
+        return file_len;
+    }
 
     l1_size2 = l1_size * sizeof(uint64_t);
 
@@ -1837,6 +1844,25 @@ static int check_refcounts_l1(BlockDriverState *bs,
         if (l2_offset) {
             /* Mark L2 table as used */
             l2_offset &= L1E_OFFSET_MASK;
+            if (l2_offset >= file_len) {
+                fprintf(stderr,
+                        "%s: l2 table offset out of file: offset 0x%" PRIx64
+                        "\n", fix_er ? "Repairing" : "ERROR", l2_offset);
+                if (fix_er) {
+                    ret = repair_table_entry(bs, res, type,
+                                             l1_table_offset, i, 0);
+                    if (ret < 0) {
+                        /* Something is seriously wrong, so abort checking
+                         * this L1 table */
+                        goto fail;
+                    }
+                } else {
+                    res->corruptions++;
+                }
+
+                continue;
+            }
+
             ret = qcow2_inc_refcounts_imrt(bs, res,
                                            refcount_table, refcount_table_size,
                                            l2_offset, s->cluster_size);
