@@ -996,14 +996,14 @@ static int vhost_virtqueue_start(struct vhost_dev *dev,
         r = -ENOMEM;
         goto fail_alloc_desc;
     }
-    vq->avail_size = s = l = virtio_queue_get_avail_size(vdev, idx);
+    vq->avail_size = s = l = virtio_queue_get_driver_size(vdev, idx);
     vq->avail_phys = a = virtio_queue_get_avail_addr(vdev, idx);
     vq->avail = vhost_memory_map(dev, a, &l, 0);
     if (!vq->avail || l != s) {
         r = -ENOMEM;
         goto fail_alloc_avail;
     }
-    vq->used_size = s = l = virtio_queue_get_used_size(vdev, idx);
+    vq->used_size = s = l = virtio_queue_get_device_size(vdev, idx);
     vq->used_phys = a = virtio_queue_get_used_addr(vdev, idx);
     vq->used = vhost_memory_map(dev, a, &l, 1);
     if (!vq->used || l != s) {
@@ -1051,10 +1051,10 @@ static int vhost_virtqueue_start(struct vhost_dev *dev,
 fail_vector:
 fail_kick:
 fail_alloc:
-    vhost_memory_unmap(dev, vq->used, virtio_queue_get_used_size(vdev, idx),
+    vhost_memory_unmap(dev, vq->used, virtio_queue_get_device_size(vdev, idx),
                        0, 0);
 fail_alloc_used:
-    vhost_memory_unmap(dev, vq->avail, virtio_queue_get_avail_size(vdev, idx),
+    vhost_memory_unmap(dev, vq->avail, virtio_queue_get_driver_size(vdev, idx),
                        0, 0);
 fail_alloc_avail:
     vhost_memory_unmap(dev, vq->desc, virtio_queue_get_desc_size(vdev, idx),
@@ -1101,10 +1101,10 @@ static void vhost_virtqueue_stop(struct vhost_dev *dev,
                                                 vhost_vq_index);
     }
 
-    vhost_memory_unmap(dev, vq->used, virtio_queue_get_used_size(vdev, idx),
-                       1, virtio_queue_get_used_size(vdev, idx));
-    vhost_memory_unmap(dev, vq->avail, virtio_queue_get_avail_size(vdev, idx),
-                       0, virtio_queue_get_avail_size(vdev, idx));
+    vhost_memory_unmap(dev, vq->used, virtio_queue_get_device_size(vdev, idx),
+                       1, virtio_queue_get_device_size(vdev, idx));
+    vhost_memory_unmap(dev, vq->avail, virtio_queue_get_driver_size(vdev, idx),
+                       0, virtio_queue_get_driver_size(vdev, idx));
     vhost_memory_unmap(dev, vq->desc, virtio_queue_get_desc_size(vdev, idx),
                        0, virtio_queue_get_desc_size(vdev, idx));
 }
