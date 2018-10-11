@@ -39,6 +39,13 @@ typedef struct VRingDesc
     uint16_t next;
 } VRingDesc;
 
+typedef struct VRingPackedDesc {
+    uint64_t addr;
+    uint32_t len;
+    uint16_t id;
+    uint16_t flags;
+} VRingPackedDesc;
+
 typedef struct VRingAvail
 {
     uint16_t flags;
@@ -62,8 +69,14 @@ typedef struct VRingUsed
 typedef struct VRingMemoryRegionCaches {
     struct rcu_head rcu;
     MemoryRegionCache desc;
-    MemoryRegionCache avail;
-    MemoryRegionCache used;
+    union {
+        MemoryRegionCache avail;
+        MemoryRegionCache driver;
+    };
+    union {
+        MemoryRegionCache used;
+        MemoryRegionCache device;
+    };
 } VRingMemoryRegionCaches;
 
 typedef struct VRing
@@ -77,6 +90,11 @@ typedef struct VRing
     VRingMemoryRegionCaches *caches;
 } VRing;
 
+typedef struct VRingPackedDescEvent {
+    uint16_t off_wrap;
+    uint16_t flags;
+} VRingPackedDescEvent ;
+
 struct VirtQueue
 {
     VRing vring;
@@ -86,6 +104,10 @@ struct VirtQueue
 
     /* Last avail_idx read from VQ. */
     uint16_t shadow_avail_idx;
+
+    uint16_t event_idx;
+    bool event_wrap_counter;
+    bool avail_wrap_counter;
 
     uint16_t used_idx;
 
