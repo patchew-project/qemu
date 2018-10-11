@@ -275,6 +275,7 @@ static void ccid_card_vscard_read(void *opaque, const uint8_t *buf, int size)
     PassthruState *card = opaque;
     VSCMsgHeader *hdr;
 
+    assert(0 <= size && size < VSCARD_IN_SIZE);
     if (card->vscard_in_pos + size > VSCARD_IN_SIZE) {
         error_report("no room for data: pos %u +  size %d > %" PRId64 "."
                      " dropping connection.",
