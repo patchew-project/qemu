@@ -33,6 +33,7 @@ typedef struct proxy_device {
        int n_mr_sections;
         MemoryRegionSection *mr_sections;
         ProxyLinkState *proxy_link;
+        MemoryListener memory_listener;
         int link_up;
 } proxy_device;
 
@@ -52,5 +53,7 @@ typedef struct PCIProxyDev {
 void init_emulation_process(PCIProxyDev *pdev, char *command, Error **errp);
 int config_op_send(PCIProxyDev *dev, uint32_t addr, uint32_t val, int l,
                                                        unsigned int op);
+void deconfigure_memory_listener(PCIProxyDev *pdev);
+void configure_memory_listener(PCIProxyDev *pdev);
 
 #endif

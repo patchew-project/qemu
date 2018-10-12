@@ -159,6 +159,8 @@ static void pci_proxy_dev_realize(PCIDevice *device, Error **errp)
         printf("Proxy link is not set\n");
     }
 
+    configure_memory_listener(dev);
+
     pci_conf[PCI_LATENCY_TIMER] = 0xff;
 
     memory_region_init_io(&dev->mmio_io, OBJECT(dev), &proxy_device_mmio_ops,
@@ -213,3 +215,157 @@ void init_emulation_process(PCIProxyDev *pdev, char *command, Error **errp)
 }
 
 type_init(pci_proxy_dev_register_types)
+
+static void proxy_ml_begin(MemoryListener *listener)
+{
+    int mrs;
+    struct proxy_device *pdev = container_of(listener, struct proxy_device,
+                                             memory_listener);
+
+    for (mrs = 0; mrs < pdev->n_mr_sections; mrs++) {
+        memory_region_unref(pdev->mr_sections[mrs].mr);
+    }
+
+    g_free(pdev->mr_sections);
+    pdev->mr_sections = NULL;
+    pdev->n_mr_sections = 0;
+}
+
+static bool proxy_mrs_can_merge(uint64_t host, uint64_t prev_host, size_t size)
+{
+    bool merge;
+    ram_addr_t offset;
+    int fd1, fd2;
+    MemoryRegion *mr;
+
+    mr = memory_region_from_host((void *)(uintptr_t)host, &offset);
+    fd1 = memory_region_get_fd(mr);
+
+    mr = memory_region_from_host((void *)(uintptr_t)prev_host, &offset);
+    fd2 = memory_region_get_fd(mr);
+
+    merge = (fd1 == fd2);
+
+    merge &= ((prev_host + size) == host);
+
+    return merge;
+}
+
+static void proxy_ml_region_addnop(MemoryListener *listener,
+                                   MemoryRegionSection *section)
+{
+    bool need_add = true;
+    uint64_t mrs_size, mrs_gpa, mrs_page;
+    uintptr_t mrs_host;
+    RAMBlock *mrs_rb;
+    MemoryRegionSection *prev_sec;
+    struct proxy_device *pdev = container_of(listener, struct proxy_device,
+                                             memory_listener);
+
+    if (!(memory_region_is_ram(section->mr) &&
+          !memory_region_is_rom(section->mr))) {
+        return;
+    }
+
+    mrs_rb = section->mr->ram_block;
+    mrs_page = (uint64_t)qemu_ram_pagesize(mrs_rb);
+    mrs_size = int128_get64(section->size);
+    mrs_gpa = section->offset_within_address_space;
+    mrs_host = (uintptr_t)memory_region_get_ram_ptr(section->mr) +
+               section->offset_within_region;
+
+    mrs_host = mrs_host & ~(mrs_page - 1);
+    mrs_gpa = mrs_gpa & ~(mrs_page - 1);
+    mrs_size = ROUND_UP(mrs_size, mrs_page);
+
+    if (pdev->n_mr_sections) {
+        prev_sec = pdev->mr_sections + (pdev->n_mr_sections - 1);
+        uint64_t prev_gpa_start = prev_sec->offset_within_address_space;
+        uint64_t prev_size = int128_get64(prev_sec->size);
+        uint64_t prev_gpa_end   = range_get_last(prev_gpa_start, prev_size);
+        uint64_t prev_host_start =
+            (uintptr_t)memory_region_get_ram_ptr(prev_sec->mr) +
+            prev_sec->offset_within_region;
+        uint64_t prev_host_end = range_get_last(prev_host_start, prev_size);
+
+        if (mrs_gpa <= (prev_gpa_end + 1)) {
+            if (mrs_gpa < prev_gpa_start) {
+                assert(0);
+            }
+
+            if ((section->mr == prev_sec->mr) &&
+                proxy_mrs_can_merge(mrs_host, prev_host_start,
+                                    (mrs_gpa - prev_gpa_start))) {
+                uint64_t max_end = MAX(prev_host_end, mrs_host + mrs_size);
+               need_add = false;
+                prev_sec->offset_within_address_space =
+                    MIN(prev_gpa_start, mrs_gpa);
+                prev_sec->offset_within_region =
+                    MIN(prev_host_start, mrs_host) -
+                    (uintptr_t)memory_region_get_ram_ptr(prev_sec->mr);
+                prev_sec->size = int128_make64(max_end - MIN(prev_host_start,
+                                                             mrs_host));
+            }
+        }
+    }
+
+    if (need_add) {
+        ++pdev->n_mr_sections;
+        pdev->mr_sections = g_renew(MemoryRegionSection, pdev->mr_sections,
+                                    pdev->n_mr_sections);
+        pdev->mr_sections[pdev->n_mr_sections - 1] = *section;
+        pdev->mr_sections[pdev->n_mr_sections - 1].fv = NULL;
+        memory_region_ref(section->mr);
+    }
+}
+
+static void proxy_ml_commit(MemoryListener *listener)
+{
+    ProcMsg msg;
+    ram_addr_t offset;
+    MemoryRegion *mr;
+    MemoryRegionSection section;
+    uintptr_t host_addr;
+    int region;
+    struct proxy_device *pdev = container_of(listener, struct proxy_device,
+                                             memory_listener);
+
+    msg.cmd = SYNC_SYSMEM;
+    msg.bytestream = 0;
+    msg.num_fds = pdev->n_mr_sections;
+    assert(msg.num_fds <= MAX_FDS);
+
+    for (region = 0; region < pdev->n_mr_sections; region++) {
+        section = pdev->mr_sections[region];
+        msg.data1.sync_sysmem.gpas[region] =
+            section.offset_within_address_space;
+        msg.data1.sync_sysmem.sizes[region] = int128_get64(section.size);
+        host_addr = (uintptr_t)memory_region_get_ram_ptr(section.mr) +
+                    section.offset_within_region;
+        mr = memory_region_from_host((void *)host_addr, &offset);
+        msg.fds[region] = memory_region_get_fd(mr);
+    }
+    proxy_proc_send(pdev->proxy_link, &msg);
+}
+
+void deconfigure_memory_listener(PCIProxyDev *pdev)
+{
+    memory_listener_unregister(&pdev->proxy_dev.memory_listener);
+}
+
+static MemoryListener proxy_listener = {
+        .begin = proxy_ml_begin,
+        .commit = proxy_ml_commit,
+        .region_add = proxy_ml_region_addnop,
+        .region_nop = proxy_ml_region_addnop,
+        .priority = 10,
+};
+
+void configure_memory_listener(PCIProxyDev *dev)
+{
+    dev->proxy_dev.memory_listener = proxy_listener;
+    dev->proxy_dev.n_mr_sections = 0;
+    dev->proxy_dev.mr_sections = NULL;
+    memory_listener_register(&dev->proxy_dev.memory_listener,
+                             &address_space_memory);
+}
