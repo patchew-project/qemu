@@ -44,3 +44,5 @@ scsi-dev-obj-y += scsi/
 scsi-dev-obj-y += block/
 scsi-dev-obj-y += pci/
 scsi-dev-obj-y += nvram/
+
+common-obj-y += qemu-proxy.o
