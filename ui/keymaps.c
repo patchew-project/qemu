@@ -27,6 +27,7 @@
 #include "sysemu/sysemu.h"
 #include "trace.h"
 #include "qemu/error-report.h"
+#include "qapi/error.h"
 
 struct keysym2code {
     uint32_t count;
@@ -81,7 +82,7 @@ static void add_keysym(char *line, int keysym, int keycode, kbd_layout_t *k)
 
 static kbd_layout_t *parse_keyboard_layout(const name2keysym_t *table,
                                            const char *language,
-                                           kbd_layout_t *k)
+                                           kbd_layout_t *k, Error **errp)
 {
     FILE *f;
     char * filename;
@@ -94,7 +95,7 @@ static kbd_layout_t *parse_keyboard_layout(const name2keysym_t *table,
     f = filename ? fopen(filename, "r") : NULL;
     g_free(filename);
     if (!f) {
-        fprintf(stderr, "Could not read keymap file: '%s'\n", language);
+        error_setg(errp, "could not read keymap file: '%s'", language);
         return NULL;
     }
 
@@ -118,7 +119,7 @@ static kbd_layout_t *parse_keyboard_layout(const name2keysym_t *table,
             continue;
         }
         if (!strncmp(line, "include ", 8)) {
-            parse_keyboard_layout(table, line + 8, k);
+            parse_keyboard_layout(table, line + 8, k, errp);
         } else {
             int offset = 0;
             while (line[offset] != 0 &&
@@ -170,9 +171,9 @@ static kbd_layout_t *parse_keyboard_layout(const name2keysym_t *table,
 
 
 kbd_layout_t *init_keyboard_layout(const name2keysym_t *table,
-                                   const char *language)
+                                   const char *language, Error **errp)
 {
-    return parse_keyboard_layout(table, language, NULL);
+    return parse_keyboard_layout(table, language, NULL, errp);
 }
 
 
