@@ -1624,6 +1624,11 @@ void helper_mtc0_saar(CPUMIPSState *env, target_ulong arg1)
                 itc_reconfigure(env->itu);
             }
             break;
+        case 1:
+            if (env->dspram) {
+                dspram_reconfigure(env->dspram);
+            }
+            break;
         }
     }
 }
@@ -1639,6 +1644,11 @@ void helper_mthc0_saar(CPUMIPSState *env, target_ulong arg1)
         case 0:
             if (env->itu) {
                 itc_reconfigure(env->itu);
+            }
+            break;
+        case 1:
+            if (env->dspram) {
+                dspram_reconfigure(env->dspram);
             }
             break;
         }
