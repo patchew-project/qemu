@@ -31,7 +31,7 @@ typedef struct FDChardev {
     Chardev parent;
 
     QIOChannel *ioc_in, *ioc_out;
-    int max_size;
+    size_t max_size;
 } FDChardev;
 
 #define TYPE_CHARDEV_FD "chardev-fd"
