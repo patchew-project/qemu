@@ -849,6 +849,15 @@ static int qemu_gluster_open(BlockDriverState *bs,  QDict *options,
     qemu_gluster_parse_flags(bdrv_flags, &open_flags);
 
     s->fd = glfs_open(s->glfs, gconf->path, open_flags);
+    if (!s->fd && errno == EACCES) {
+        /* Try to degrade to read-only, but if it doesn't work, still use the
+         * normal error message. */
+        ret = bdrv_apply_auto_read_only(bs, NULL, NULL);
+        if (ret == 0) {
+            open_flags = (open_flags & ~O_RDWR) | O_RDONLY;
+            s->fd = glfs_open(s->glfs, gconf->path, open_flags);
+        }
+    }
     if (!s->fd) {
         ret = -errno;
     }
