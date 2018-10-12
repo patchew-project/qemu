@@ -20,7 +20,7 @@
 
 #define REQUIRE_FPU \
 if (!(ctx->flags & TB_FLAGS_FP_ENABLE)) \
-    gen_exception_illegal(ctx)
+    return false;
 
 static bool trans_flw(DisasContext *ctx, arg_flw *a, uint32_t insn)
 {
@@ -336,7 +336,7 @@ static bool trans_fcvt_l_s(DisasContext *ctx, arg_fcvt_l_s *a, uint32_t insn)
     gen_set_gpr(a->rd, t0);
     tcg_temp_free(t0);
 #else
-    gen_exception_illegal(ctx);
+    return false;
 #endif
 
     return true;
@@ -353,7 +353,7 @@ static bool trans_fcvt_lu_s(DisasContext *ctx, arg_fcvt_lu_s *a, uint32_t insn)
     gen_set_gpr(a->rd, t0);
     tcg_temp_free(t0);
 #else
-    gen_exception_illegal(ctx);
+    return false;
 #endif
 
     return true;
@@ -372,7 +372,7 @@ static bool trans_fcvt_s_l(DisasContext *ctx, arg_fcvt_s_l *a, uint32_t insn)
 
     tcg_temp_free(t0);
 #else
-    gen_exception_illegal(ctx);
+    return false;
 #endif
     return true;
 }
@@ -390,7 +390,7 @@ static bool trans_fcvt_s_lu(DisasContext *ctx, arg_fcvt_s_lu *a, uint32_t insn)
 
     tcg_temp_free(t0);
 #else
-    gen_exception_illegal(ctx);
+    return false;
 #endif
     return true;
 }

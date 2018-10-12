@@ -37,8 +37,7 @@ static bool trans_ebreak(DisasContext *ctx, arg_ebreak *a, uint32_t insn)
 
 static bool trans_uret(DisasContext *ctx, arg_uret *a, uint32_t insn)
 {
-    gen_exception_illegal(ctx);
-    return true;
+    return false;
 }
 
 static bool trans_sret(DisasContext *ctx, arg_sret *a, uint32_t insn)
@@ -61,8 +60,7 @@ static bool trans_sret(DisasContext *ctx, arg_sret *a, uint32_t insn)
 
 static bool trans_hret(DisasContext *ctx, arg_hret *a, uint32_t insn)
 {
-    gen_exception_illegal(ctx);
-    return true;
+    return false;
 }
 
 static bool trans_mret(DisasContext *ctx, arg_mret *a, uint32_t insn)

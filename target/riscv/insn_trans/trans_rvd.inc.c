@@ -253,7 +253,7 @@ static bool trans_fclass_d(DisasContext *ctx, arg_fclass_d *a, uint32_t insn)
     gen_set_gpr(a->rd, t0);
     tcg_temp_free(t0);
 #else
-    gen_exception_illegal(ctx);
+    return false;
 #endif
     return true;
 }
@@ -323,7 +323,7 @@ static bool trans_fcvt_l_d(DisasContext *ctx, arg_fcvt_l_d *a, uint32_t insn)
     gen_set_gpr(a->rd, t0);
     tcg_temp_free(t0);
 #else
-    gen_exception_illegal(ctx);
+    return false;
 #endif
     return true;
 }
@@ -339,7 +339,7 @@ static bool trans_fcvt_lu_d(DisasContext *ctx, arg_fcvt_lu_d *a, uint32_t insn)
     gen_set_gpr(a->rd, t0);
     tcg_temp_free(t0);
 #else
-    gen_exception_illegal(ctx);
+    return false;
 #endif
     return true;
 }
@@ -351,7 +351,7 @@ static bool trans_fmv_x_d(DisasContext *ctx, arg_fmv_x_d *a, uint32_t insn)
 
     gen_set_gpr(a->rd, cpu_fpr[a->rs1]);
 #else
-    gen_exception_illegal(ctx);
+    return false;
 #endif
     return true;
 }
@@ -368,7 +368,7 @@ static bool trans_fcvt_d_l(DisasContext *ctx, arg_fcvt_d_l *a, uint32_t insn)
     gen_helper_fcvt_d_l(cpu_fpr[a->rd], cpu_env, t0);
     tcg_temp_free(t0);
 #else
-    gen_exception_illegal(ctx);
+    return false;
 #endif
     return true;
 }
@@ -385,7 +385,7 @@ static bool trans_fcvt_d_lu(DisasContext *ctx, arg_fcvt_d_lu *a, uint32_t insn)
     gen_helper_fcvt_d_lu(cpu_fpr[a->rd], cpu_env, t0);
     tcg_temp_free(t0);
 #else
-    gen_exception_illegal(ctx);
+    return false;
 #endif
     return true;
 }
@@ -401,7 +401,7 @@ static bool trans_fmv_d_x(DisasContext *ctx, arg_fmv_d_x *a, uint32_t insn)
     tcg_gen_mov_tl(cpu_fpr[a->rd], t0);
     tcg_temp_free(t0);
 #else
-    gen_exception_illegal(ctx);
+    return false;
 #endif
     return true;
 }

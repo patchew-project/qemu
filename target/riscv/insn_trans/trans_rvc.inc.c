@@ -23,8 +23,7 @@ static bool trans_c_addi4spn(DisasContext *ctx, arg_c_addi4spn *a,
 {
     if (a->nzuimm == 0) {
         /* Reserved in ISA */
-        gen_exception_illegal(ctx);
-        return true;
+        return false;
     }
     arg_addi arg = { .rd = a->rd, .rs1 = 2, .imm = a->nzuimm };
     return trans_addi(ctx, &arg, insn);
@@ -144,14 +143,12 @@ static bool trans_c_srli(DisasContext *ctx, arg_c_srli *a, uint16_t insn)
 {
     if (a->shamt == 0) {
         /* Reserved in ISA */
-        gen_exception_illegal(ctx);
-        return true;
+        return false;
     }
 #ifdef TARGET_RISCV32
     /* Ensure, that shamt[5] is zero for RV32 */
     if (a->shamt >= 32) {
-        gen_exception_illegal(ctx);
-        return true;
+        return false;
     }
 #endif
 
@@ -163,14 +160,12 @@ static bool trans_c_srai(DisasContext *ctx, arg_c_srai *a, uint16_t insn)
 {
     if (a->shamt == 0) {
         /* Reserved in ISA */
-        gen_exception_illegal(ctx);
-        return true;
+        return false;
     }
 #ifdef TARGET_RISCV32
     /* Ensure, that shamt[5] is zero for RV32 */
     if (a->shamt >= 32) {
-        gen_exception_illegal(ctx);
-        return true;
+        return false;
     }
 #endif
 
@@ -242,15 +237,13 @@ static bool trans_c_slli(DisasContext *ctx, arg_c_slli *a, uint16_t insn)
 {
     if (a->shamt == 0) {
         /* Reserved in ISA */
-        gen_exception_illegal(ctx);
-        return true;
+        return false;
     }
 
 #ifdef TARGET_RISCV32
     /* Ensure, that shamt[5] is zero for RV32 */
     if (a->shamt >= 32) {
-        gen_exception_illegal(ctx);
-        return true;
+        return false;
     }
 #endif
 

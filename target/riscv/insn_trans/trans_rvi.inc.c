@@ -286,8 +286,7 @@ static bool trans_slli(DisasContext *ctx, arg_slli *a, uint32_t insn)
         gen_get_gpr(t, a->rs1);
 
         if (a->shamt >= TARGET_LONG_BITS) {
-            gen_exception_illegal(ctx);
-            return true;
+            return false;
         }
         tcg_gen_shli_tl(t, t, a->shamt);
 
@@ -447,8 +446,7 @@ static bool trans_sraiw(DisasContext *ctx, arg_sraiw *a, uint32_t insn)
 static bool trans_addw(DisasContext *ctx, arg_addw *a, uint32_t insn)
 {
 #if !defined(TARGET_RISCV64)
-    gen_exception_illegal(ctx);
-    return true;
+    return false;
 #endif
     return trans_arith(ctx, a, &tcg_gen_add_tl);
 }
@@ -456,8 +454,7 @@ static bool trans_addw(DisasContext *ctx, arg_addw *a, uint32_t insn)
 static bool trans_subw(DisasContext *ctx, arg_subw *a, uint32_t insn)
 {
 #if !defined(TARGET_RISCV64)
-    gen_exception_illegal(ctx);
-    return true;
+    return false;
 #endif
     return trans_arith(ctx, a, &tcg_gen_sub_tl);
 }
@@ -465,8 +462,7 @@ static bool trans_subw(DisasContext *ctx, arg_subw *a, uint32_t insn)
 static bool trans_sllw(DisasContext *ctx, arg_sllw *a, uint32_t insn)
 {
 #if !defined(TARGET_RISCV64)
-    gen_exception_illegal(ctx);
-    return true;
+    return false;
 #endif
     TCGv source1 = tcg_temp_new();
     TCGv source2 = tcg_temp_new();
@@ -486,8 +482,7 @@ static bool trans_sllw(DisasContext *ctx, arg_sllw *a, uint32_t insn)
 static bool trans_srlw(DisasContext *ctx, arg_srlw *a, uint32_t insn)
 {
 #if !defined(TARGET_RISCV64)
-    gen_exception_illegal(ctx);
-    return true;
+    return false;
 #endif
     TCGv source1 = tcg_temp_new();
     TCGv source2 = tcg_temp_new();
@@ -509,8 +504,7 @@ static bool trans_srlw(DisasContext *ctx, arg_srlw *a, uint32_t insn)
 static bool trans_sraw(DisasContext *ctx, arg_sraw *a, uint32_t insn)
 {
 #if !defined(TARGET_RISCV64)
-    gen_exception_illegal(ctx);
-    return true;
+    return false;
 #endif
     TCGv source1 = tcg_temp_new();
     TCGv source2 = tcg_temp_new();

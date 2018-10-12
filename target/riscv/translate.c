@@ -427,6 +427,7 @@ static void decode_opc(CPURISCVState *env, DisasContext *ctx)
     } else {
         ctx->pc_succ_insn = ctx->base.pc_next + 4;
         if (!decode_insn32(ctx, ctx->opcode)) {
+            gen_exception_illegal(ctx);
         }
     }
 }
