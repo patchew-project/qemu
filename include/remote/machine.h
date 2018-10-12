@@ -1,5 +1,5 @@
 /*
- * Remote SCSI device
+ * Remote machine configuration
  *
  * Copyright 2018, Oracle and/or its affiliates. All rights reserved.
  *
@@ -22,23 +22,22 @@
  * THE SOFTWARE.
  */
 
-#include <stdio.h>
+#ifndef REMOTE_MACHINE_H
+#define REMOTE_MACHINE_H
 
 #include "qemu/osdep.h"
-#include "qemu/module.h"
-#include "remote/pcihost.h"
-#include "remote/machine.h"
+#include "qom/object.h"
 #include "hw/boards.h"
+#include "remote/pcihost.h"
 
-static RemMachineState *machine;
+typedef struct RemMachineState {
+    MachineState parent_obj;
 
-int main(int argc, char *argv[])
-{
-    module_call_init(MODULE_INIT_QOM);
+    RemPCIHost *host;
+} RemMachineState;
 
-    machine = REMOTE_MACHINE(object_new(TYPE_REMOTE_MACHINE));
+#define TYPE_REMOTE_MACHINE "remote-machine"
+#define REMOTE_MACHINE(obj) \
+    OBJECT_CHECK(RemMachineState, (obj), TYPE_REMOTE_MACHINE)
 
-    current_machine = MACHINE(machine);
-
-    return 0;
-}
+#endif
