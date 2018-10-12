@@ -221,7 +221,7 @@ static void char_win_stdio_finalize(Object *obj)
     }
 }
 
-static int win_stdio_write(Chardev *chr, const uint8_t *buf, int len)
+static size_t win_stdio_write(Chardev *chr, const uint8_t *buf, size_t len)
 {
     HANDLE  hStdOut = GetStdHandle(STD_OUTPUT_HANDLE);
     DWORD   dwSize;

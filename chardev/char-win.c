@@ -152,7 +152,7 @@ int win_chr_pipe_poll(void *opaque)
 }
 
 /* Called with chr_write_lock held.  */
-static int win_chr_write(Chardev *chr, const uint8_t *buf, int len1)
+static size_t win_chr_write(Chardev *chr, const uint8_t *buf, size_t len1)
 {
     WinChardev *s = WIN_CHARDEV(chr);
     DWORD len, ret, size, err;
