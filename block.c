@@ -930,6 +930,7 @@ static void bdrv_inherited_options(int *child_flags, QDict *child_options,
 
     /* Inherit the read-only option from the parent if it's not set */
     qdict_copy_default(child_options, parent_options, BDRV_OPT_READ_ONLY);
+    qdict_copy_default(child_options, parent_options, BDRV_OPT_AUTO_READ_ONLY);
 
     /* Our block drivers take care to send flushes and respect unmap policy,
      * so we can default to enable both on lower layers regardless of the
@@ -1053,6 +1054,7 @@ static void bdrv_backing_options(int *child_flags, QDict *child_options,
 
     /* backing files always opened read-only */
     qdict_set_default_str(child_options, BDRV_OPT_READ_ONLY, "on");
+    qdict_set_default_str(child_options, BDRV_OPT_AUTO_READ_ONLY, "off");
     flags &= ~BDRV_O_COPY_ON_READ;
 
     /* snapshot=on is handled on the top layer */
@@ -1142,6 +1144,10 @@ static void update_flags_from_options(int *flags, QemuOpts *opts)
         *flags |= BDRV_O_RDWR;
     }
 
+    assert(qemu_opt_find(opts, BDRV_OPT_AUTO_READ_ONLY));
+    if (qemu_opt_get_bool_del(opts, BDRV_OPT_AUTO_READ_ONLY, false)) {
+        *flags |= BDRV_O_AUTO_RDONLY;
+    }
 }
 
 static void update_options_from_flags(QDict *options, int flags)
@@ -1155,6 +1161,10 @@ static void update_options_from_flags(QDict *options, int flags)
     }
     if (!qdict_haskey(options, BDRV_OPT_READ_ONLY)) {
         qdict_put_bool(options, BDRV_OPT_READ_ONLY, !(flags & BDRV_O_RDWR));
+    }
+    if (!qdict_haskey(options, BDRV_OPT_AUTO_READ_ONLY)) {
+        qdict_put_bool(options, BDRV_OPT_AUTO_READ_ONLY,
+                       flags & BDRV_O_AUTO_RDONLY);
     }
 }
 
@@ -1329,6 +1339,11 @@ QemuOptsList bdrv_runtime_opts = {
             .help = "Node is opened in read-only mode",
         },
         {
+            .name = BDRV_OPT_AUTO_READ_ONLY,
+            .type = QEMU_OPT_BOOL,
+            .help = "Node can become read-only if opening read-write fails",
+        },
+        {
             .name = "detect-zeroes",
             .type = QEMU_OPT_STRING,
             .help = "try to optimize zero writes (off, on, unmap)",
@@ -1430,7 +1445,9 @@ static int bdrv_open_common(BlockDriverState *bs, BlockBackend *file,
     assert(atomic_read(&bs->copy_on_read) == 0);
 
     if (bs->open_flags & BDRV_O_COPY_ON_READ) {
-        if (!bs->read_only) {
+        if ((bs->open_flags & (BDRV_O_RDWR | BDRV_O_AUTO_RDONLY))
+            == BDRV_O_RDWR)
+        {
             bdrv_enable_copy_on_read(bs);
         } else {
             error_setg(errp, "Can't use copy-on-read on read-only device");
@@ -2486,6 +2503,8 @@ BlockDriverState *bdrv_open_blockdev_ref(BlockdevRef *ref, Error **errp)
         qdict_set_default_str(qdict, BDRV_OPT_CACHE_DIRECT, "off");
         qdict_set_default_str(qdict, BDRV_OPT_CACHE_NO_FLUSH, "off");
         qdict_set_default_str(qdict, BDRV_OPT_READ_ONLY, "off");
+        qdict_set_default_str(qdict, BDRV_OPT_AUTO_READ_ONLY, "off");
+
     }
 
     bs = bdrv_open_inherit(NULL, reference, qdict, 0, NULL, NULL, errp);
