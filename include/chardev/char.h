@@ -251,7 +251,7 @@ typedef struct ChardevClass {
                  bool *be_opened, Error **errp);
 
     int (*chr_write)(Chardev *s, const uint8_t *buf, int len);
-    int (*chr_sync_read)(Chardev *s, const uint8_t *buf, int len);
+    size_t (*chr_sync_read)(Chardev *s, const uint8_t *buf, size_t len);
     GSource *(*chr_add_watch)(Chardev *s, GIOCondition cond);
     void (*chr_update_read_handler)(Chardev *s);
     int (*chr_ioctl)(Chardev *s, int cmd, void *arg);
