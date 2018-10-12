@@ -429,6 +429,7 @@ dummy := $(call unnest-vars,, \
                 qom-obj-y \
                 io-obj-y \
                 common-obj-y \
+                remote-obj-y \
                 scsi-dev-obj-y \
                 common-obj-m \
                 ui-obj-y \

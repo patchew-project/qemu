@@ -190,6 +190,7 @@ block-obj-y :=
 common-obj-y :=
 chardev-obj-y :=
 scsi-dev-obj-y :=
+remote-obj-y :=
 include $(SRC_PATH)/Makefile.objs
 dummy := $(call unnest-vars,,target-obj-y)
 target-obj-y-save := $(target-obj-y)
@@ -202,6 +203,7 @@ dummy := $(call unnest-vars,.., \
                qom-obj-y \
                io-obj-y \
                common-obj-y \
+               remote-obj-y \
                scsi-dev-obj-y \
                common-obj-m)
 target-obj-y := $(target-obj-y-save)
@@ -217,6 +219,7 @@ all-scsi-dev-obj-y += $(block-obj-y)
 all-scsi-dev-obj-y += $(crypto-obj-y)
 all-scsi-dev-obj-y += $(io-obj-y)
 all-scsi-dev-obj-y += $(chardev-obj-y)
+all-scsi-dev-obj-y += $(remote-obj-y)
 all-scsi-dev-obj-y += $(scsi-dev-obj-y)
 
 $(QEMU_PROG_BUILD): config-devices.mak

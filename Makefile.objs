@@ -89,6 +89,10 @@ scsi-dev-obj-y += qdev-monitor.o
 scsi-dev-obj-y += bootdevice.o
 scsi-dev-obj-y += iothread.o
 
+#################################################
+# remote-obj-y is code used by all remote devices
+remote-obj-y += remote/
+
 #######################################################################
 # crypto-obj-y is code used by both qemu system emulation and qemu-img
 

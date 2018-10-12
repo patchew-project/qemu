@@ -8,6 +8,6 @@ common-obj-$(CONFIG_PCI) += pcie.o pcie_aer.o pcie_port.o
 common-obj-$(call lnot,$(CONFIG_PCI)) += pci-stub.o
 common-obj-$(CONFIG_ALL) += pci-stub.o
 
-scsi-dev-obj-y += pci.o pci_bridge.o
+scsi-dev-obj-y += pci.o pci_bridge.o pci_host.o pcie_host.o
 scsi-dev-obj-y += msi.o msix.o
 scsi-dev-obj-y += pcie.o
