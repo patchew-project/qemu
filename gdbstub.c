@@ -1955,7 +1955,7 @@ static void gdb_monitor_output(GDBState *s, const char *msg, int len)
     put_packet(s, buf);
 }
 
-static int gdb_monitor_write(Chardev *chr, const uint8_t *buf, int len)
+static size_t gdb_monitor_write(Chardev *chr, const uint8_t *buf, size_t len)
 {
     const char *p = (const char *)buf;
     int max_sz;

@@ -45,7 +45,7 @@ typedef struct {
 #define UDP_CHARDEV(obj) OBJECT_CHECK(UdpChardev, (obj), TYPE_CHARDEV_UDP)
 
 /* Called with chr_write_lock held.  */
-static int udp_chr_write(Chardev *chr, const uint8_t *buf, int len)
+static size_t udp_chr_write(Chardev *chr, const uint8_t *buf, size_t len)
 {
     UdpChardev *s = UDP_CHARDEV(chr);
 

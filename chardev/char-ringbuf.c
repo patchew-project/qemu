@@ -49,12 +49,12 @@ static size_t ringbuf_count(const Chardev *chr)
     return d->prod - d->cons;
 }
 
-static int ringbuf_chr_write(Chardev *chr, const uint8_t *buf, int len)
+static size_t ringbuf_chr_write(Chardev *chr, const uint8_t *buf, size_t len)
 {
     RingBufChardev *d = RINGBUF_CHARDEV(chr);
     int i;
 
-    if (!buf || (len < 0)) {
+    if (!buf) {
         return -1;
     }
 

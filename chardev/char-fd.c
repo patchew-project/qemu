@@ -32,7 +32,7 @@
 #include "chardev/char-io.h"
 
 /* Called with chr_write_lock held.  */
-static int fd_chr_write(Chardev *chr, const uint8_t *buf, int len)
+static size_t fd_chr_write(Chardev *chr, const uint8_t *buf, size_t len)
 {
     FDChardev *s = FD_CHARDEV(chr);
 

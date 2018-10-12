@@ -33,7 +33,7 @@
 /* MUX driver for serial I/O splitting */
 
 /* Called with chr_write_lock held.  */
-static int mux_chr_write(Chardev *chr, const uint8_t *buf, int len)
+static size_t mux_chr_write(Chardev *chr, const uint8_t *buf, size_t len)
 {
     MuxChardev *d = MUX_CHARDEV(chr);
     int ret;

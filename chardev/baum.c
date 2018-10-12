@@ -479,7 +479,7 @@ static int baum_eat_packet(BaumChardev *baum, const uint8_t *buf, int len)
 }
 
 /* The other end is writing some data.  Store it and try to interpret */
-static int baum_chr_write(Chardev *chr, const uint8_t *buf, int len)
+static size_t baum_chr_write(Chardev *chr, const uint8_t *buf, size_t len)
 {
     BaumChardev *baum = BAUM_CHARDEV(chr);
     int tocopy, cur, eaten, orig_len = len;

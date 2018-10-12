@@ -82,7 +82,7 @@ static int testdev_eat_packet(TestdevChardev *testdev)
 }
 
 /* The other end is writing some data.  Store it and try to interpret */
-static int testdev_chr_write(Chardev *chr, const uint8_t *buf, int len)
+static size_t testdev_chr_write(Chardev *chr, const uint8_t *buf, size_t len)
 {
     TestdevChardev *testdev = TESTDEV_CHARDEV(chr);
     int tocopy, eaten, orig_len = len;

@@ -314,8 +314,8 @@ static void csrhci_ready_for_next_inpkt(struct csrhci_s *s)
     s->in_hdr = INT_MAX;
 }
 
-static int csrhci_write(struct Chardev *chr,
-                const uint8_t *buf, int len)
+static size_t csrhci_write(struct Chardev *chr,
+                const uint8_t *buf, size_t len)
 {
     struct csrhci_s *s = (struct csrhci_s *)chr;
     int total = 0;

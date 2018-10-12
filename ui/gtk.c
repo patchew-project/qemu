@@ -1842,7 +1842,7 @@ static void gd_vc_adjustment_changed(GtkAdjustment *adjustment, void *opaque)
     }
 }
 
-static int gd_vc_chr_write(Chardev *chr, const uint8_t *buf, int len)
+static size_t gd_vc_chr_write(Chardev *chr, const uint8_t *buf, size_t len)
 {
     VCChardev *vcd = VC_CHARDEV(chr);
     VirtualConsole *vc = vcd->console;

@@ -245,7 +245,7 @@ static void char_init(Object *obj)
     qemu_mutex_init(&chr->chr_write_lock);
 }
 
-static int null_chr_write(Chardev *chr, const uint8_t *buf, int len)
+static size_t null_chr_write(Chardev *chr, const uint8_t *buf, size_t len)
 {
     return len;
 }
