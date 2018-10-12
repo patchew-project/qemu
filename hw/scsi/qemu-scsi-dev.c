@@ -23,22 +23,93 @@
  */
 
 #include <stdio.h>
+#include <glib.h>
+#include <unistd.h>
 
 #include "qemu/osdep.h"
 #include "qemu/module.h"
 #include "remote/pcihost.h"
 #include "remote/machine.h"
 #include "hw/boards.h"
+#include "remote/memory.h"
+#include "io/proxy-link.h"
+#include "qapi/error.h"
+#include "qemu/main-loop.h"
+#include "sysemu/cpus.h"
+#include "qemu-common.h"
 
 static RemMachineState *machine;
+static ProxyLinkState *proxy_link;
+
+static void process_msg(GIOCondition cond)
+{
+    ProcMsg *msg = NULL;
+    Error *err = NULL;
+
+    if ((cond & G_IO_HUP) || (cond & G_IO_ERR)) {
+        error_setg(&err, "socket closed, cond is %d", cond);
+        goto finalize_loop;
+    }
+
+    msg = g_malloc0(sizeof(ProcMsg));
+
+    if (proxy_proc_recv(proxy_link, msg)) {
+        error_setg(&err, "Failed to receive message");
+        goto finalize_loop;
+    }
+
+    switch (msg->cmd) {
+    case INIT:
+        break;
+    case CONF_WRITE:
+        break;
+    case CONF_READ:
+        break;
+    default:
+        error_setg(&err, "Unknown command");
+        goto finalize_loop;
+    }
+
+    g_free(msg);
+
+    return;
+
+finalize_loop:
+    error_report_err(err);
+    g_free(msg);
+    proxy_link_finalize(proxy_link);
+    proxy_link = NULL;
+}
 
 int main(int argc, char *argv[])
 {
+    Error *err = NULL;
+
     module_call_init(MODULE_INIT_QOM);
 
     machine = REMOTE_MACHINE(object_new(TYPE_REMOTE_MACHINE));
 
     current_machine = MACHINE(machine);
+
+    if (qemu_init_main_loop(&err)) {
+        error_report_err(err);
+        return -EBUSY;
+    }
+
+    qemu_init_cpu_loop();
+
+    page_size_init();
+
+    proxy_link = proxy_link_create();
+    if (!proxy_link) {
+        printf("Could not create proxy link\n");
+        return -1;
+    }
+
+    proxy_link_set_sock(proxy_link, STDIN_FILENO);
+    proxy_link_set_callback(proxy_link, process_msg);
+
+    start_handler(proxy_link);
 
     return 0;
 }
