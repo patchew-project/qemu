@@ -304,6 +304,11 @@ struct CPUMIPSState {
 #define CP0PS_PTW  6     /* 11..6  */
 #define CP0PS_PTEW 0     /*  5..0  */
     int32_t CP0_Wired;
+    int32_t CP0_PWCtl;
+#define CP0PC_PWEN      31
+#define CP0PC_DPH       7
+#define CP0PC_HUGEPG    6
+#define CP0PC_PSN       0     /*  5..0  */
     int32_t CP0_SRSConf0_rw_bitmask;
     int32_t CP0_SRSConf0;
 #define CP0SRSC0_M	31
