@@ -23,6 +23,13 @@
  */
 #define SIGSET_T_SIZE (_NSIG / 8)
 
+#if defined TARGET_MIPS
+#define TIF_32BIT_FPREGS    27  /* 32-bit floating point registers  */
+#define TIF_HYBRID_FPREGS   28  /* 64b FP registers, odd singles    */
+                                /* in bits 63:32 of even doubles    */
+#define TIF_MSA_CTX_LIVE    30  /* MSA context must be preserved    */
+#endif /* TARGET_MIPS */
+
 /* This struct is used to hold certain information about the image.
  * Basically, it replicates in user space what would be certain
  * task_struct fields in the kernel
@@ -67,6 +74,11 @@ struct image_info {
         uint32_t        fp_abi;
         uint32_t        interp_fp_abi;
         uint32_t        overall_fp_mode;
+#endif /* TARGET_MIPS */
+
+        /* The fields that correspond to kernel thread info flags. */
+#if defined TARGET_MIPS
+        abi_ulong       thread_info_flags;
 #endif /* TARGET_MIPS */
 
         struct image_info *other_info;
