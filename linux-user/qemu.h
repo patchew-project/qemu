@@ -60,6 +60,15 @@ struct image_info {
         abi_ulong       pt_dynamic_addr;
         abi_ulong       interpreter_loadmap_addr;
         abi_ulong       interpreter_pt_dynamic_addr;
+
+        /* The fields that correspond to kernel arch_elf_state structure. */
+#if defined TARGET_MIPS
+        uint32_t        nan_2008;
+        uint32_t        fp_abi;
+        uint32_t        interp_fp_abi;
+        uint32_t        overall_fp_mode;
+#endif /* TARGET_MIPS */
+
         struct image_info *other_info;
 };
 
