@@ -277,7 +277,7 @@ static void rtas_ibm_change_msi(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     unsigned int irq, max_irqs = 0;
     sPAPRPHBState *phb = NULL;
     PCIDevice *pdev = NULL;
-    spapr_pci_msi *msi;
+    sPAPRpciMSI *msi;
     int *config_addr_key;
     Error *err = NULL;
     int i;
@@ -325,7 +325,7 @@ static void rtas_ibm_change_msi(PowerPCCPU *cpu, sPAPRMachineState *spapr,
         return;
     }
 
-    msi = (spapr_pci_msi *) g_hash_table_lookup(phb->msi, &config_addr);
+    msi = (sPAPRpciMSI *) g_hash_table_lookup(phb->msi, &config_addr);
 
     /* Releasing MSIs */
     if (!req_num) {
@@ -414,7 +414,7 @@ static void rtas_ibm_change_msi(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                      irq, req_num);
 
     /* Add MSI device to cache */
-    msi = g_new(spapr_pci_msi, 1);
+    msi = g_new(sPAPRpciMSI, 1);
     msi->first_irq = irq;
     msi->num = req_num;
     config_addr_key = g_new(int, 1);
@@ -445,7 +445,7 @@ static void rtas_ibm_query_interrupt_source_number(PowerPCCPU *cpu,
     unsigned int intr_src_num = -1, ioa_intr_num = rtas_ld(args, 3);
     sPAPRPHBState *phb = NULL;
     PCIDevice *pdev = NULL;
-    spapr_pci_msi *msi;
+    sPAPRpciMSI *msi;
 
     /* Find sPAPRPHBState */
     phb = spapr_pci_find_phb(spapr, buid);
@@ -458,7 +458,7 @@ static void rtas_ibm_query_interrupt_source_number(PowerPCCPU *cpu,
     }
 
     /* Find device descriptor and start IRQ */
-    msi = (spapr_pci_msi *) g_hash_table_lookup(phb->msi, &config_addr);
+    msi = (sPAPRpciMSI *) g_hash_table_lookup(phb->msi, &config_addr);
     if (!msi || !msi->first_irq || !msi->num || (ioa_intr_num >= msi->num)) {
         trace_spapr_pci_msi("Failed to return vector", config_addr);
         rtas_st(rets, 0, RTAS_OUT_HW_ERROR);
@@ -1849,9 +1849,9 @@ static const VMStateDescription vmstate_spapr_pci_msi = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField []) {
-        VMSTATE_UINT32(key, spapr_pci_msi_mig),
-        VMSTATE_UINT32(value.first_irq, spapr_pci_msi_mig),
-        VMSTATE_UINT32(value.num, spapr_pci_msi_mig),
+        VMSTATE_UINT32(key, sPAPRpciMSImig),
+        VMSTATE_UINT32(value.first_irq, sPAPRpciMSImig),
+        VMSTATE_UINT32(value.num, sPAPRpciMSImig),
         VMSTATE_END_OF_LIST()
     },
 };
@@ -1883,12 +1883,12 @@ static int spapr_pci_pre_save(void *opaque)
     if (!sphb->msi_devs_num) {
         return 0;
     }
-    sphb->msi_devs = g_new(spapr_pci_msi_mig, sphb->msi_devs_num);
+    sphb->msi_devs = g_new(sPAPRpciMSImig, sphb->msi_devs_num);
 
     g_hash_table_iter_init(&iter, sphb->msi);
     for (i = 0; g_hash_table_iter_next(&iter, &key, &value); ++i) {
         sphb->msi_devs[i].key = *(uint32_t *) key;
-        sphb->msi_devs[i].value = *(spapr_pci_msi *) value;
+        sphb->msi_devs[i].value = *(sPAPRpciMSI *) value;
     }
 
     return 0;
@@ -1938,7 +1938,7 @@ static const VMStateDescription vmstate_spapr_pci = {
                              vmstate_spapr_pci_lsi, struct spapr_pci_lsi),
         VMSTATE_INT32(msi_devs_num, sPAPRPHBState),
         VMSTATE_STRUCT_VARRAY_ALLOC(msi_devs, sPAPRPHBState, msi_devs_num, 0,
-                                    vmstate_spapr_pci_msi, spapr_pci_msi_mig),
+                                    vmstate_spapr_pci_msi, sPAPRpciMSImig),
         VMSTATE_END_OF_LIST()
     },
 };
