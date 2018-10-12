@@ -167,7 +167,7 @@ void qemu_del_wait_object(HANDLE handle, WaitObjectFunc *func, void *opaque);
 
 /* async I/O support */
 
-typedef void IOReadHandler(void *opaque, const uint8_t *buf, int size);
+typedef void IOReadHandler(void *opaque, const uint8_t *buf, size_t size);
 
 /**
  * IOCanReadHandler: Return the number of bytes that #IOReadHandler can accept

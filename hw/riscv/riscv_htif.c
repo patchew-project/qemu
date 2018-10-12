@@ -74,7 +74,7 @@ static int htif_can_recv(void *opaque)
  * Called by the char dev to supply input to HTIF console.
  * We assume that we will receive one character at a time.
  */
-static void htif_recv(void *opaque, const uint8_t *buf, int size)
+static void htif_recv(void *opaque, const uint8_t *buf, size_t size)
 {
     HTIFState *htifstate = opaque;
 

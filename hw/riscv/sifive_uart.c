@@ -123,7 +123,7 @@ static const MemoryRegionOps uart_ops = {
     }
 };
 
-static void uart_rx(void *opaque, const uint8_t *buf, int size)
+static void uart_rx(void *opaque, const uint8_t *buf, size_t size)
 {
     SiFiveUARTState *s = opaque;
 

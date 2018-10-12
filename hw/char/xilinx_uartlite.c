@@ -177,7 +177,7 @@ static Property xilinx_uartlite_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
-static void uart_rx(void *opaque, const uint8_t *buf, int size)
+static void uart_rx(void *opaque, const uint8_t *buf, size_t size)
 {
     XilinxUARTLite *s = opaque;
 

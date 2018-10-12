@@ -468,7 +468,7 @@ static int hostdev_can_receive(void *opaque)
     return ch->rx_enabled ? available_bytes : 0;
 }
 
-static void hostdev_receive(void *opaque, const uint8_t *buf, int size)
+static void hostdev_receive(void *opaque, const uint8_t *buf, size_t size)
 {
     SCC2698Channel *ch = opaque;
     IPOctalState *dev = ch->ipoctal;

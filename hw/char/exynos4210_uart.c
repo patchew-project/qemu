@@ -495,7 +495,8 @@ static int exynos4210_uart_can_receive(void *opaque)
 }
 
 
-static void exynos4210_uart_receive(void *opaque, const uint8_t *buf, int size)
+static void exynos4210_uart_receive(void *opaque, const uint8_t *buf,
+                                    size_t size)
 {
     Exynos4210UartState *s = (Exynos4210UartState *)opaque;
     int i;

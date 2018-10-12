@@ -260,7 +260,7 @@ static void pl011_put_fifo(void *opaque, uint32_t value)
     }
 }
 
-static void pl011_receive(void *opaque, const uint8_t *buf, int size)
+static void pl011_receive(void *opaque, const uint8_t *buf, size_t size)
 {
     pl011_put_fifo(opaque, *buf);
 }

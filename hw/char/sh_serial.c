@@ -327,7 +327,7 @@ static void sh_serial_timeout_int(void *opaque)
     }
 }
 
-static void sh_serial_receive1(void *opaque, const uint8_t *buf, int size)
+static void sh_serial_receive1(void *opaque, const uint8_t *buf, size_t size)
 {
     sh_serial_state *s = opaque;
 

@@ -315,7 +315,7 @@ static void imx_put_data(void *opaque, uint32_t value)
     imx_update(s);
 }
 
-static void imx_receive(void *opaque, const uint8_t *buf, int size)
+static void imx_receive(void *opaque, const uint8_t *buf, size_t size)
 {
     imx_put_data(opaque, *buf);
 }

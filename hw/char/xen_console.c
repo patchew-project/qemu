@@ -122,7 +122,7 @@ static int xencons_can_receive(void *opaque)
     return ring_free_bytes(con);
 }
 
-static void xencons_receive(void *opaque, const uint8_t *buf, int len)
+static void xencons_receive(void *opaque, const uint8_t *buf, size_t len)
 {
     struct XenConsole *con = opaque;
     struct xencons_interface *intf = con->sring;

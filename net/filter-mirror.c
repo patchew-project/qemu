@@ -119,7 +119,7 @@ static int redirector_chr_can_read(void *opaque)
     return REDIRECTOR_MAX_LEN;
 }
 
-static void redirector_chr_read(void *opaque, const uint8_t *buf, int size)
+static void redirector_chr_read(void *opaque, const uint8_t *buf, size_t size)
 {
     NetFilterState *nf = opaque;
     MirrorState *s = FILTER_REDIRECTOR(nf);

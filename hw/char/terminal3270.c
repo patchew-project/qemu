@@ -90,7 +90,7 @@ static gboolean send_timing_mark_cb(gpointer opaque)
  * As of now, for such case, we simply terminate the connection,
  * and we should come back here later with a better solution.
  */
-static void terminal_read(void *opaque, const uint8_t *buf, int size)
+static void terminal_read(void *opaque, const uint8_t *buf, size_t size)
 {
     Terminal3270 *t = opaque;
     CcwDevice *ccw_dev = CCW_DEVICE(t);

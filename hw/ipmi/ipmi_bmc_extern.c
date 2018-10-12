@@ -312,7 +312,7 @@ static int can_receive(void *opaque)
     return 1;
 }
 
-static void receive(void *opaque, const uint8_t *buf, int size)
+static void receive(void *opaque, const uint8_t *buf, size_t size)
 {
     IPMIBmcExtern *ibe = opaque;
     int i;

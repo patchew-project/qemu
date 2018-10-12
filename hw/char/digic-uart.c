@@ -119,7 +119,7 @@ static int uart_can_rx(void *opaque)
     return !(s->reg_st & ST_RX_RDY);
 }
 
-static void uart_rx(void *opaque, const uint8_t *buf, int size)
+static void uart_rx(void *opaque, const uint8_t *buf, size_t size)
 {
     DigicUartState *s = opaque;
 

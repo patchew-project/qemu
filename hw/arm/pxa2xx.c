@@ -1929,7 +1929,7 @@ static int pxa2xx_fir_is_empty(void *opaque)
     return (s->rx_len < 64);
 }
 
-static void pxa2xx_fir_rx(void *opaque, const uint8_t *buf, int size)
+static void pxa2xx_fir_rx(void *opaque, const uint8_t *buf, size_t size)
 {
     PXA2xxFIrState *s = (PXA2xxFIrState *) opaque;
     if (!(s->control[0] & (1 << 4)))			/* RXE */

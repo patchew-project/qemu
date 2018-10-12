@@ -235,7 +235,7 @@ static void bcm2835_aux_put_fifo(void *opaque, uint8_t value)
     bcm2835_aux_update(s);
 }
 
-static void bcm2835_aux_receive(void *opaque, const uint8_t *buf, int size)
+static void bcm2835_aux_receive(void *opaque, const uint8_t *buf, size_t size)
 {
     bcm2835_aux_put_fifo(opaque, *buf);
 }

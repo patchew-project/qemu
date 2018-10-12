@@ -628,14 +628,14 @@ static int ivshmem_can_receive(void *opaque)
     return sizeof(s->msg_buf) - s->msg_buffered_bytes;
 }
 
-static void ivshmem_read(void *opaque, const uint8_t *buf, int size)
+static void ivshmem_read(void *opaque, const uint8_t *buf, size_t size)
 {
     IVShmemState *s = opaque;
     Error *err = NULL;
     int fd;
     int64_t msg;
 
-    assert(size >= 0 && s->msg_buffered_bytes + size <= sizeof(s->msg_buf));
+    assert(s->msg_buffered_bytes + size <= sizeof(s->msg_buf));
     memcpy((unsigned char *)&s->msg_buf + s->msg_buffered_bytes, buf, size);
     s->msg_buffered_bytes += size;
     if (s->msg_buffered_bytes < sizeof(s->msg_buf)) {

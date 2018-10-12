@@ -1302,7 +1302,7 @@ static int usbredir_chardev_can_read(void *opaque)
     return 1 * MiB;
 }
 
-static void usbredir_chardev_read(void *opaque, const uint8_t *buf, int size)
+static void usbredir_chardev_read(void *opaque, const uint8_t *buf, size_t size)
 {
     USBRedirDevice *dev = opaque;
 

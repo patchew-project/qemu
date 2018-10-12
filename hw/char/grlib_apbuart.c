@@ -137,7 +137,7 @@ static int grlib_apbuart_can_receive(void *opaque)
     return FIFO_LENGTH - uart->len;
 }
 
-static void grlib_apbuart_receive(void *opaque, const uint8_t *buf, int size)
+static void grlib_apbuart_receive(void *opaque, const uint8_t *buf, size_t size)
 {
     UART *uart = opaque;
 

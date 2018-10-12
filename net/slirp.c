@@ -718,7 +718,7 @@ static int guestfwd_can_read(void *opaque)
     return slirp_socket_can_recv(fwd->slirp, fwd->server, fwd->port);
 }
 
-static void guestfwd_read(void *opaque, const uint8_t *buf, int size)
+static void guestfwd_read(void *opaque, const uint8_t *buf, size_t size)
 {
     struct GuestFwd *fwd = opaque;
     slirp_socket_recv(fwd->slirp, fwd->server, fwd->port, buf, size);

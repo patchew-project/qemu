@@ -1072,7 +1072,8 @@ static int strongarm_uart_can_receive(void *opaque)
     return 1;
 }
 
-static void strongarm_uart_receive(void *opaque, const uint8_t *buf, int size)
+static void strongarm_uart_receive(void *opaque, const uint8_t *buf,
+                                   size_t size)
 {
     StrongARMUARTState *s = opaque;
     int i;

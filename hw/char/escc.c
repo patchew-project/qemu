@@ -601,7 +601,7 @@ static void serial_receive_break(ESCCChannelState *s)
     escc_update_irq(s);
 }
 
-static void serial_receive1(void *opaque, const uint8_t *buf, int size)
+static void serial_receive1(void *opaque, const uint8_t *buf, size_t size)
 {
     ESCCChannelState *s = opaque;
     serial_receive_byte(s, buf[0]);

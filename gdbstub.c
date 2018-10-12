@@ -1923,7 +1923,7 @@ static int gdb_chr_can_receive(void *opaque)
   return MAX_PACKET_LENGTH;
 }
 
-static void gdb_chr_receive(void *opaque, const uint8_t *buf, int size)
+static void gdb_chr_receive(void *opaque, const uint8_t *buf, size_t size)
 {
     int i;
 
