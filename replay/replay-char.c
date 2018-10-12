@@ -49,7 +49,7 @@ void replay_register_char_driver(Chardev *chr)
     char_drivers[drivers_count++] = chr;
 }
 
-void replay_chr_be_write(Chardev *s, uint8_t *buf, int len)
+void replay_chr_be_write(Chardev *s, uint8_t *buf, size_t len)
 {
     CharEvent *event = g_malloc0(sizeof(CharEvent));
 
@@ -94,7 +94,7 @@ void *replay_event_char_read_load(void)
     return event;
 }
 
-void replay_char_write_event_save(int res, int offset)
+void replay_char_write_event_save(int res, size_t offset)
 {
     g_assert(replay_mutex_locked());
 
@@ -104,7 +104,7 @@ void replay_char_write_event_save(int res, int offset)
     replay_put_dword(offset);
 }
 
-void replay_char_write_event_load(int *res, int *offset)
+void replay_char_write_event_load(int *res, size_t *offset)
 {
     g_assert(replay_mutex_locked());
 
@@ -150,7 +150,7 @@ void replay_char_read_all_save_error(int res)
     replay_put_dword(res);
 }
 
-void replay_char_read_all_save_buf(uint8_t *buf, int offset)
+void replay_char_read_all_save_buf(uint8_t *buf, size_t offset)
 {
     g_assert(replay_mutex_locked());
     replay_save_instructions();

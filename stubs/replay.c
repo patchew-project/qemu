@@ -34,17 +34,17 @@ void replay_register_char_driver(Chardev *chr)
 {
 }
 
-void replay_chr_be_write(Chardev *s, uint8_t *buf, int len)
+void replay_chr_be_write(Chardev *s, uint8_t *buf, size_t len)
 {
     abort();
 }
 
-void replay_char_write_event_save(int res, int offset)
+void replay_char_write_event_save(int res, size_t offset)
 {
     abort();
 }
 
-void replay_char_write_event_load(int *res, int *offset)
+void replay_char_write_event_load(int *res, size_t *offset)
 {
     abort();
 }
@@ -59,7 +59,7 @@ void replay_char_read_all_save_error(int res)
     abort();
 }
 
-void replay_char_read_all_save_buf(uint8_t *buf, int offset)
+void replay_char_read_all_save_buf(uint8_t *buf, size_t offset)
 {
     abort();
 }

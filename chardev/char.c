@@ -100,7 +100,7 @@ static void qemu_chr_write_log(Chardev *s, const uint8_t *buf, size_t len)
 
 static int qemu_chr_write_buffer(Chardev *s,
                                  const uint8_t *buf, int len,
-                                 int *offset, bool write_all)
+                                 size_t *offset, bool write_all)
 {
     ChardevClass *cc = CHARDEV_GET_CLASS(s);
     int res = 0;
@@ -132,9 +132,10 @@ static int qemu_chr_write_buffer(Chardev *s,
     return res;
 }
 
-int qemu_chr_write(Chardev *s, const uint8_t *buf, int len, bool write_all)
+size_t qemu_chr_write(Chardev *s, const uint8_t *buf, size_t len,
+                      bool write_all)
 {
-    int offset = 0;
+    size_t offset = 0;
     int res;
 
     if (qemu_chr_replay(s) && replay_mode == REPLAY_MODE_PLAY) {
@@ -156,21 +157,21 @@ int qemu_chr_write(Chardev *s, const uint8_t *buf, int len, bool write_all)
     return offset;
 }
 
-int qemu_chr_be_can_write(Chardev *s)
+size_t qemu_chr_be_can_write(Chardev *s)
 {
     CharBackend *be = s->be;
-    int res;
+    size_t res;
 
     if (!be || !be->chr_can_read) {
         return 0;
     }
 
     res = be->chr_can_read(be->opaque);
-    assert(res >= 0);
+    assert((ssize_t)res >= 0); /* "fail-safe" assertion */
     return res;
 }
 
-void qemu_chr_be_write_impl(Chardev *s, uint8_t *buf, int len)
+void qemu_chr_be_write_impl(Chardev *s, uint8_t *buf, size_t len)
 {
     CharBackend *be = s->be;
 
@@ -179,7 +180,7 @@ void qemu_chr_be_write_impl(Chardev *s, uint8_t *buf, int len)
     }
 }
 
-void qemu_chr_be_write(Chardev *s, uint8_t *buf, int len)
+void qemu_chr_be_write(Chardev *s, uint8_t *buf, size_t len)
 {
     if (qemu_chr_replay(s)) {
         if (replay_mode == REPLAY_MODE_PLAY) {

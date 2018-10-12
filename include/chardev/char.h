@@ -163,7 +163,7 @@ Chardev *qemu_chr_new_noreplay(const char *label, const char *filename,
  *
  * Returns: the number of bytes the front end can receive via @qemu_chr_be_write
  */
-int qemu_chr_be_can_write(Chardev *s);
+size_t qemu_chr_be_can_write(Chardev *s);
 
 /**
  * qemu_chr_be_write:
@@ -174,7 +174,7 @@ int qemu_chr_be_can_write(Chardev *s);
  * the caller should call @qemu_chr_be_can_write to determine how much data
  * the front end can currently accept.
  */
-void qemu_chr_be_write(Chardev *s, uint8_t *buf, int len);
+void qemu_chr_be_write(Chardev *s, uint8_t *buf, size_t len);
 
 /**
  * qemu_chr_be_write_impl:
@@ -183,7 +183,7 @@ void qemu_chr_be_write(Chardev *s, uint8_t *buf, int len);
  *
  * Implementation of back end writing. Used by replay module.
  */
-void qemu_chr_be_write_impl(Chardev *s, uint8_t *buf, int len);
+void qemu_chr_be_write_impl(Chardev *s, uint8_t *buf, size_t len);
 
 /**
  * qemu_chr_be_update_read_handlers:
@@ -211,7 +211,8 @@ void qemu_chr_set_feature(Chardev *chr,
                           ChardevFeature feature);
 QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename,
                                 bool permit_mux_mon);
-int qemu_chr_write(Chardev *s, const uint8_t *buf, int len, bool write_all);
+size_t qemu_chr_write(Chardev *s, const uint8_t *buf, size_t len,
+                      bool write_all);
 #define qemu_chr_write_all(s, buf, len) qemu_chr_write(s, buf, len, true)
 int qemu_chr_wait_connected(Chardev *chr, Error **errp);
 
