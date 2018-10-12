@@ -173,3 +173,102 @@ static bool trans_amomaxu_w(DisasContext *ctx, arg_amomaxu_w *a, uint32_t insn)
 {
     return gen_amo(ctx, a, OPC_RISC_AMOMAXU, (MO_ALIGN | MO_TESL));
 }
+
+static bool trans_lr_d(DisasContext *ctx, arg_lr_d *a, uint32_t insn)
+{
+#ifdef TARGET_RISCV64
+    return gen_lr(ctx, a, MO_ALIGN | MO_TEQ);
+#else
+    return false;
+#endif
+}
+
+static bool trans_sc_d(DisasContext *ctx, arg_sc_d *a, uint32_t insn)
+{
+#ifdef TARGET_RISCV64
+    return gen_sc(ctx, a, (MO_ALIGN | MO_TEQ));
+#else
+    return false;
+#endif
+}
+
+static bool trans_amoswap_d(DisasContext *ctx, arg_amoswap_d *a, uint32_t insn)
+{
+#ifdef TARGET_RISCV64
+    return gen_amo(ctx, a, OPC_RISC_AMOSWAP, (MO_ALIGN | MO_TEQ));
+#else
+    return false;
+#endif
+}
+
+static bool trans_amoadd_d(DisasContext *ctx, arg_amoadd_d *a, uint32_t insn)
+{
+#ifdef TARGET_RISCV64
+    return gen_amo(ctx, a, OPC_RISC_AMOADD, (MO_ALIGN | MO_TEQ));
+#else
+    return false;
+#endif
+}
+
+static bool trans_amoxor_d(DisasContext *ctx, arg_amoxor_d *a, uint32_t insn)
+{
+#ifdef TARGET_RISCV64
+    return gen_amo(ctx, a, OPC_RISC_AMOXOR, (MO_ALIGN | MO_TEQ));
+#else
+    return false;
+#endif
+}
+
+static bool trans_amoand_d(DisasContext *ctx, arg_amoand_d *a, uint32_t insn)
+{
+#ifdef TARGET_RISCV64
+    return gen_amo(ctx, a, OPC_RISC_AMOAND, (MO_ALIGN | MO_TEQ));
+#else
+    return false;
+#endif
+}
+
+static bool trans_amoor_d(DisasContext *ctx, arg_amoor_d *a, uint32_t insn)
+{
+#ifdef TARGET_RISCV64
+    return gen_amo(ctx, a, OPC_RISC_AMOOR, (MO_ALIGN | MO_TEQ));
+#else
+    return false;
+#endif
+}
+
+static bool trans_amomin_d(DisasContext *ctx, arg_amomin_d *a, uint32_t insn)
+{
+#ifdef TARGET_RISCV64
+    return gen_amo(ctx, a, OPC_RISC_AMOMIN, (MO_ALIGN | MO_TEQ));
+#else
+    return false;
+#endif
+}
+
+static bool trans_amomax_d(DisasContext *ctx, arg_amomax_d *a, uint32_t insn)
+{
+#ifdef TARGET_RISCV64
+    return gen_amo(ctx, a, OPC_RISC_AMOMAX, (MO_ALIGN | MO_TEQ));
+#else
+    return false;
+#endif
+}
+
+static bool trans_amominu_d(DisasContext *ctx, arg_amominu_d *a, uint32_t insn)
+{
+#ifdef TARGET_RISCV64
+    return gen_amo(ctx, a, OPC_RISC_AMOMINU, (MO_ALIGN | MO_TEQ));
+#else
+    return false;
+#endif
+}
+
+static bool trans_amomaxu_d(DisasContext *ctx, arg_amomaxu_d *a, uint32_t insn)
+{
+#ifdef TARGET_RISCV64
+    return gen_amo(ctx, a, OPC_RISC_AMOMAXU, (MO_ALIGN | MO_TEQ));
+#else
+    return false;
+#endif
+}
