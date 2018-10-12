@@ -239,6 +239,10 @@ struct target_pt_regs {
 
 #define TARGET_FORCE_SHMLBA
 
+/* MIPS-specific prctl() options */
+#define TARGET_PR_SET_FP_MODE  45
+#define TARGET_PR_GET_FP_MODE  46
+
 static inline abi_ulong target_shmlba(CPUMIPSState *env)
 {
     return 0x40000;
