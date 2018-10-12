@@ -69,13 +69,13 @@ static gboolean fd_chr_read(QIOChannel *chan, GIOCondition cond, void *opaque)
     return TRUE;
 }
 
-static int fd_chr_read_poll(void *opaque)
+static gboolean fd_chr_read_poll(void *opaque)
 {
     Chardev *chr = CHARDEV(opaque);
     FDChardev *s = FD_CHARDEV(opaque);
 
     s->max_size = qemu_chr_be_can_write(chr);
-    return s->max_size;
+    return s->max_size > 0;
 }
 
 static GSource *fd_chr_add_watch(Chardev *chr, GIOCondition cond)

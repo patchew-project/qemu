@@ -30,7 +30,7 @@ typedef struct IOWatchPoll {
     QIOChannel *ioc;
     GSource *src;
 
-    IOCanReadHandler *fd_can_read;
+    GSourceFunc fd_can_read;
     GSourceFunc fd_read;
     void *opaque;
 } IOWatchPoll;
@@ -76,7 +76,7 @@ static GSourceFuncs io_watch_poll_funcs = {
 
 GSource *io_add_watch_poll(Chardev *chr,
                         QIOChannel *ioc,
-                        IOCanReadHandler *fd_can_read,
+                        GSourceFunc fd_can_read,
                         QIOChannelFunc fd_read,
                         gpointer user_data,
                         GMainContext *context)

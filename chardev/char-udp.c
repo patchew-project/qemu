@@ -65,7 +65,7 @@ static void udp_chr_flush_buffer(UdpChardev *s)
     }
 }
 
-static int udp_chr_read_poll(void *opaque)
+static gboolean udp_chr_read_poll(void *opaque)
 {
     Chardev *chr = CHARDEV(opaque);
     UdpChardev *s = UDP_CHARDEV(opaque);
@@ -77,7 +77,7 @@ static int udp_chr_read_poll(void *opaque)
      */
     udp_chr_flush_buffer(s);
 
-    return s->max_size;
+    return s->max_size > 0;
 }
 
 static gboolean udp_chr_read(QIOChannel *chan, GIOCondition cond, void *opaque)

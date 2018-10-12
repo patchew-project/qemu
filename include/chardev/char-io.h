@@ -31,7 +31,7 @@
 /* Can only be used for read */
 GSource *io_add_watch_poll(Chardev *chr,
                         QIOChannel *ioc,
-                        IOCanReadHandler *fd_can_read,
+                        GSourceFunc fd_can_read,
                         QIOChannelFunc fd_read,
                         gpointer user_data,
                         GMainContext *context);
