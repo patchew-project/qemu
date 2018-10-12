@@ -39,6 +39,8 @@ typedef struct ProxyLinkState ProxyLinkState;
 #define PROXY_LINK(obj) \
     OBJECT_CHECK(ProxyLinkState, (obj), TYPE_PROXY_LINK)
 
+#include "exec/hwaddr.h"
+
 #define MAX_FDS 8
 
 #define PROC_HDR_SIZE offsetof(ProcMsg, data1.u64)
@@ -47,8 +49,14 @@ typedef enum {
     INIT = 0,
     CONF_READ,
     CONF_WRITE,
+    SYNC_SYSMEM,
     MAX,
 } proc_cmd_t;
+
+typedef struct {
+    hwaddr gpas[MAX_FDS];
+    uint64_t sizes[MAX_FDS];
+} sync_sysmem_msg_t;
 
 typedef struct {
     proc_cmd_t cmd;
@@ -57,6 +65,7 @@ typedef struct {
 
     union {
         uint64_t u64;
+        sync_sysmem_msg_t sync_sysmem;
     } data1;
 
     int fds[MAX_FDS];

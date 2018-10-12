@@ -1,2 +1,3 @@
 remote-obj-y += pcihost.o
 remote-obj-y += machine.o
+remote-obj-y += memory.o
