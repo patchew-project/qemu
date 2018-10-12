@@ -267,7 +267,7 @@ static void mcf_uart_event(void *opaque, int event)
     }
 }
 
-static int mcf_uart_can_receive(void *opaque)
+static size_t mcf_uart_can_receive(void *opaque)
 {
     mcf_uart_state *s = (mcf_uart_state *)opaque;
 

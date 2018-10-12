@@ -307,7 +307,7 @@ static void handle_msg(IPMIBmcExtern *ibe)
     k->handle_rsp(ibe->parent.intf, ibe->inbuf[0], ibe->inbuf + 1, ibe->inpos - 1);
 }
 
-static int can_receive(void *opaque)
+static size_t can_receive(void *opaque)
 {
     return 1;
 }

@@ -421,7 +421,7 @@ static void usb_serial_handle_data(USBDevice *dev, USBPacket *p)
     }
 }
 
-static int usb_serial_can_read(void *opaque)
+static size_t usb_serial_can_read(void *opaque)
 {
     USBSerialState *s = opaque;
 

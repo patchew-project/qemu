@@ -1284,7 +1284,7 @@ static void usbredir_do_attach(void *opaque)
  * chardev callbacks
  */
 
-static int usbredir_chardev_can_read(void *opaque)
+static size_t usbredir_chardev_can_read(void *opaque)
 {
     USBRedirDevice *dev = opaque;
 

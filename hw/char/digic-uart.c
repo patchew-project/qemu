@@ -112,7 +112,7 @@ static const MemoryRegionOps uart_mmio_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static int uart_can_rx(void *opaque)
+static size_t uart_can_rx(void *opaque)
 {
     DigicUartState *s = opaque;
 

@@ -187,7 +187,7 @@ static void serial_receive(void *opaque, const uint8_t *buf, size_t size)
     ser_update_irq(s);
 }
 
-static int serial_can_receive(void *opaque)
+static size_t serial_can_receive(void *opaque)
 {
     ETRAXSerial *s = opaque;
 

@@ -65,7 +65,7 @@ void htif_symbol_callback(const char *st_name, int st_info, uint64_t st_value,
 /*
  * Called by the char dev to see if HTIF is ready to accept input.
  */
-static int htif_can_recv(void *opaque)
+static size_t htif_can_recv(void *opaque)
 {
     return 1;
 }

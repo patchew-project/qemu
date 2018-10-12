@@ -182,7 +182,7 @@ typedef void IOReadHandler(void *opaque, const uint8_t *buf, size_t size);
  * is called again.  aio_notify() or qemu_notify_event() can be used to kick
  * the event loop.
  */
-typedef int IOCanReadHandler(void *opaque);
+typedef size_t IOCanReadHandler(void *opaque);
 
 /**
  * qemu_set_fd_handler: Register a file descriptor with the main loop

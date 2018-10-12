@@ -211,7 +211,7 @@ static void bcm2835_aux_write(void *opaque, hwaddr offset, uint64_t value,
     bcm2835_aux_update(s);
 }
 
-static int bcm2835_aux_can_receive(void *opaque)
+static size_t bcm2835_aux_can_receive(void *opaque)
 {
     BCM2835AuxState *s = opaque;
 

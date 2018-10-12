@@ -61,7 +61,7 @@ typedef struct SCLPConsoleLM {
  * truncated to the guest in case it doesn't fit into the SCCB.
  */
 
-static int chr_can_read(void *opaque)
+static size_t chr_can_read(void *opaque)
 {
     SCLPConsoleLM *scon = opaque;
 

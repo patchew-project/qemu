@@ -683,7 +683,7 @@ err:
     return ret < 0 ? ret : -EIO;
 }
 
-static int compare_chr_can_read(void *opaque)
+static size_t compare_chr_can_read(void *opaque)
 {
     return COMPARE_READ_LEN_MAX;
 }

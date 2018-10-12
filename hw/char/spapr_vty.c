@@ -21,7 +21,7 @@ typedef struct VIOsPAPRVTYDevice {
 #define VIO_SPAPR_VTY_DEVICE(obj) \
      OBJECT_CHECK(VIOsPAPRVTYDevice, (obj), TYPE_VIO_SPAPR_VTY_DEVICE)
 
-static int vty_can_receive(void *opaque)
+static size_t vty_can_receive(void *opaque)
 {
     VIOsPAPRVTYDevice *dev = VIO_SPAPR_VTY_DEVICE(opaque);
 

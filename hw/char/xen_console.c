@@ -116,7 +116,7 @@ static int ring_free_bytes(struct XenConsole *con)
     return (sizeof(intf->in) - space);
 }
 
-static int xencons_can_receive(void *opaque)
+static size_t xencons_can_receive(void *opaque)
 {
     struct XenConsole *con = opaque;
     return ring_free_bytes(con);

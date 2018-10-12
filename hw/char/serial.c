@@ -561,7 +561,7 @@ static uint64_t serial_ioport_read(void *opaque, hwaddr addr, unsigned size)
     return ret;
 }
 
-static int serial_can_receive(SerialState *s)
+static size_t serial_can_receive(SerialState *s)
 {
     if(s->fcr & UART_FCR_FE) {
         if (s->recv_fifo.num < UART_FIFO_LENGTH) {
@@ -600,7 +600,7 @@ static void fifo_timeout_int (void *opaque) {
     }
 }
 
-static int serial_can_receive1(void *opaque)
+static size_t serial_can_receive1(void *opaque)
 {
     SerialState *s = opaque;
     return serial_can_receive(s);

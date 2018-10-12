@@ -95,7 +95,7 @@ static void juart_rx(void *opaque, const uint8_t *buf, size_t size)
     s->jrx = *buf | JRX_FULL;
 }
 
-static int juart_can_rx(void *opaque)
+static size_t juart_can_rx(void *opaque)
 {
     LM32JuartState *s = opaque;
 

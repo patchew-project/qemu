@@ -665,7 +665,7 @@ static void qtest_read(void *opaque, const uint8_t *buf, size_t size)
     qtest_process_inbuf(chr, inbuf);
 }
 
-static int qtest_can_read(void *opaque)
+static size_t qtest_can_read(void *opaque)
 {
     return 1024;
 }

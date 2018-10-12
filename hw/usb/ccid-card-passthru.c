@@ -112,7 +112,7 @@ static void ccid_card_vscard_send_init(PassthruState *s)
                          (uint8_t *)&msg, sizeof(msg));
 }
 
-static int ccid_card_vscard_can_read(void *opaque)
+static size_t ccid_card_vscard_can_read(void *opaque)
 {
     PassthruState *card = opaque;
 

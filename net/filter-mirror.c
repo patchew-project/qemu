@@ -114,7 +114,7 @@ static void redirector_to_filter(NetFilterState *nf,
      }
 }
 
-static int redirector_chr_can_read(void *opaque)
+static size_t redirector_chr_can_read(void *opaque)
 {
     return REDIRECTOR_MAX_LEN;
 }

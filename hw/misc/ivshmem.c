@@ -620,7 +620,7 @@ static void process_msg(IVShmemState *s, int64_t msg, int fd, Error **errp)
     }
 }
 
-static int ivshmem_can_receive(void *opaque)
+static size_t ivshmem_can_receive(void *opaque)
 {
     IVShmemState *s = opaque;
 

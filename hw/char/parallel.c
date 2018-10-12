@@ -513,7 +513,7 @@ static const VMStateDescription vmstate_parallel_isa = {
     }
 };
 
-static int parallel_can_receive(void *opaque)
+static size_t parallel_can_receive(void *opaque)
 {
      return 1;
 }

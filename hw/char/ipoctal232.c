@@ -461,10 +461,10 @@ static void mem_write8(IPackDevice *ip, uint32_t addr, uint8_t val)
     }
 }
 
-static int hostdev_can_receive(void *opaque)
+static size_t hostdev_can_receive(void *opaque)
 {
     SCC2698Channel *ch = opaque;
-    int available_bytes = RX_FIFO_SIZE - ch->rx_pending;
+    size_t available_bytes = RX_FIFO_SIZE - ch->rx_pending;
     return ch->rx_enabled ? available_bytes : 0;
 }
 

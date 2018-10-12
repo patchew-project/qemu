@@ -1916,7 +1916,7 @@ void gdbserver_fork(CPUState *cpu)
     cpu_watchpoint_remove_all(cpu, BP_GDB);
 }
 #else
-static int gdb_chr_can_receive(void *opaque)
+static size_t gdb_chr_can_receive(void *opaque)
 {
   /* We can handle an arbitrarily large amount of data.
    Pick the maximum packet size, which is as good as anything.  */

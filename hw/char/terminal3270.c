@@ -38,7 +38,7 @@ typedef struct Terminal3270 {
 #define TERMINAL_3270(obj) \
         OBJECT_CHECK(Terminal3270, (obj), TYPE_TERMINAL_3270)
 
-static int terminal_can_read(void *opaque)
+static size_t terminal_can_read(void *opaque)
 {
     Terminal3270 *t = opaque;
 

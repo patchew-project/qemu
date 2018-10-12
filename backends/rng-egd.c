@@ -48,11 +48,11 @@ static void rng_egd_request_entropy(RngBackend *b, RngRequest *req)
     }
 }
 
-static int rng_egd_chr_can_read(void *opaque)
+static size_t rng_egd_chr_can_read(void *opaque)
 {
     RngEgd *s = RNG_EGD(opaque);
     RngRequest *req;
-    int size = 0;
+    size_t size = 0;
 
     QSIMPLEQ_FOREACH(req, &s->parent.requests, next) {
         size += req->size - req->offset;

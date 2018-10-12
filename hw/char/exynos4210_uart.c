@@ -487,7 +487,7 @@ static const MemoryRegionOps exynos4210_uart_ops = {
     },
 };
 
-static int exynos4210_uart_can_receive(void *opaque)
+static size_t exynos4210_uart_can_receive(void *opaque)
 {
     Exynos4210UartState *s = (Exynos4210UartState *)opaque;
 

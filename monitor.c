@@ -4038,7 +4038,7 @@ cleanup:
     free_cmdline_args(args, nb_args);
 }
 
-static int monitor_can_read(void *opaque)
+static size_t monitor_can_read(void *opaque)
 {
     Monitor *mon = opaque;
 

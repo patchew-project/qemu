@@ -170,7 +170,7 @@ static void uart_rx(void *opaque, const uint8_t *buf, size_t size)
     uart_update_irq(s);
 }
 
-static int uart_can_rx(void *opaque)
+static size_t uart_can_rx(void *opaque)
 {
     MilkymistUartState *s = opaque;
 

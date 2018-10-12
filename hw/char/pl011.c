@@ -224,10 +224,10 @@ static void pl011_write(void *opaque, hwaddr offset,
     }
 }
 
-static int pl011_can_receive(void *opaque)
+static size_t pl011_can_receive(void *opaque)
 {
     PL011State *s = (PL011State *)opaque;
-    int r;
+    size_t r;
 
     if (s->lcr & 0x10) {
         r = s->read_count < 16;

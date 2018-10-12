@@ -126,7 +126,7 @@ static void guest_writable(VirtIOSerialPort *port)
 }
 
 /* Readiness of the guest to accept data on a port */
-static int chr_can_read(void *opaque)
+static size_t chr_can_read(void *opaque)
 {
     VirtConsole *vcon = opaque;
 

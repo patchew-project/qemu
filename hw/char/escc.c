@@ -166,7 +166,7 @@
 #define R_EXTINT 15
 
 static void handle_kbd_command(ESCCChannelState *s, int val);
-static int serial_can_receive(void *opaque);
+static size_t serial_can_receive(void *opaque);
 static void serial_receive_byte(ESCCChannelState *s, int ch);
 
 static void clear_queue(void *opaque)
@@ -573,10 +573,10 @@ static const MemoryRegionOps escc_mem_ops = {
     },
 };
 
-static int serial_can_receive(void *opaque)
+static size_t serial_can_receive(void *opaque)
 {
     ESCCChannelState *s = opaque;
-    int ret;
+    size_t ret;
 
     if (((s->wregs[W_RXCTRL] & RXCTRL_RXEN) == 0) // Rx not enabled
         || ((s->rregs[R_STATUS] & STATUS_RXAV) == STATUS_RXAV))
