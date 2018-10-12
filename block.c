@@ -266,27 +266,36 @@ int bdrv_can_set_read_only(BlockDriverState *bs, bool read_only,
     return 0;
 }
 
-/* TODO Remove (deprecated since 2.11)
- * Block drivers are not supposed to automatically change bs->read_only.
- * Instead, they should just check whether they can provide what the user
- * explicitly requested and error out if read-write is requested, but they can
- * only provide read-only access. */
-int bdrv_set_read_only(BlockDriverState *bs, bool read_only, Error **errp)
+/*
+ * Called by a driver that can only provide a read-only image.
+ *
+ * Returns 0 if the node is already read-only or it could switch the node to
+ * read-only because BDRV_O_AUTO_RDONLY is set.
+ *
+ * Returns -EACCES if the node is read-write and BDRV_O_AUTO_RDONLY is not set.
+ * If @errmsg is not NULL, it is used as the error message for the Error
+ * object.
+ */
+int bdrv_apply_auto_read_only(BlockDriverState *bs, const char *errmsg,
+                              Error **errp)
 {
     int ret = 0;
 
-    ret = bdrv_can_set_read_only(bs, read_only, false, errp);
+    if (!(bs->open_flags & BDRV_O_RDWR)) {
+        return 0;
+    }
+    if (!(bs->open_flags & BDRV_O_AUTO_RDONLY)) {
+        error_setg(errp, "%s", errmsg ?: "Image is read-only");
+        return -EACCES;
+    }
+
+    ret = bdrv_can_set_read_only(bs, true, false, errp);
     if (ret < 0) {
         return ret;
     }
 
-    bs->read_only = read_only;
-
-    if (read_only) {
-        bs->open_flags &= ~BDRV_O_RDWR;
-    } else {
-        bs->open_flags |= BDRV_O_RDWR;
-    }
+    bs->read_only = true;
+    bs->open_flags &= ~BDRV_O_RDWR;
 
     return 0;
 }
