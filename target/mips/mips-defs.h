@@ -46,8 +46,8 @@
 #define   ASE_MIPS3D    0x00020000
 #define   ASE_MDMX      0x00040000
 #define   ASE_DSP       0x00080000
-#define   ASE_DSPR2     0x00100000
-#define   ASE_DSPR3     0x02000000
+#define   ASE_DSP_R2    0x00100000
+#define   ASE_DSP_R3    0x02000000
 #define   ASE_MT        0x00200000
 #define   ASE_SMARTMIPS 0x00400000
 #define   ASE_MICROMIPS 0x00800000

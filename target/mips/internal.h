@@ -358,12 +358,12 @@ static inline void compute_hflags(CPUMIPSState *env)
         (env->CP0_Config5 & (1 << CP0C5_SBRI))) {
         env->hflags |= MIPS_HFLAG_SBRI;
     }
-    if (env->insn_flags & ASE_DSPR3) {
+    if (env->insn_flags & ASE_DSP_R3) {
         if (env->CP0_Status & (1 << CP0St_MX)) {
             env->hflags |= MIPS_HFLAG_DSP | MIPS_HFLAG_DSPR2 |
                            MIPS_HFLAG_DSPR3;
         }
-    } else if (env->insn_flags & ASE_DSPR2) {
+    } else if (env->insn_flags & ASE_DSP_R2) {
         /* Enables access MIPS DSP resources, now our cpu is DSP ASER2,
            so enable to access DSPR2 resources. */
         if (env->CP0_Status & (1 << CP0St_MX)) {
