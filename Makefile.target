@@ -19,21 +19,26 @@ ifdef CONFIG_USER_ONLY
 # user emulator name
 QEMU_PROG=qemu-$(TARGET_NAME)
 QEMU_PROG_BUILD = $(QEMU_PROG)
+SCSI_DEV_PROG=qemu-scsi-dev
+SCSI_DEV_BUILD = $(SCSI_DEV_PROG)
 else
 # system emulator name
 QEMU_PROG=qemu-system-$(TARGET_NAME)$(EXESUF)
+SCSI_DEV_PROG=qemu-scsi-dev
 ifneq (,$(findstring -mwindows,$(SDL_LIBS)))
 # Terminate program name with a 'w' because the linker builds a windows executable.
 QEMU_PROGW=qemu-system-$(TARGET_NAME)w$(EXESUF)
 $(QEMU_PROG): $(QEMU_PROGW)
 	$(call quiet-command,$(OBJCOPY) --subsystem console $(QEMU_PROGW) $(QEMU_PROG),"GEN","$(TARGET_DIR)$(QEMU_PROG)")
 QEMU_PROG_BUILD = $(QEMU_PROGW)
+SCSI_DEV_BUILD = $(SCSI_DEV_PROG)
 else
 QEMU_PROG_BUILD = $(QEMU_PROG)
+SCSI_DEV_BUILD = $(SCSI_DEV_PROG)
 endif
 endif
 
-PROGS=$(QEMU_PROG) $(QEMU_PROGW)
+PROGS=$(QEMU_PROG) $(QEMU_PROGW) $(SCSI_DEV_PROG)
 STPFILES=
 
 # Makefile Tests
@@ -107,6 +112,13 @@ obj-y += target/$(TARGET_BASE_ARCH)/
 obj-y += disas.o
 obj-$(call notempty,$(TARGET_XML_FILES)) += gdbstub-xml.o
 
+scsi-dev-tgt-obj-y += accel/stubs/kvm-stub.o
+scsi-dev-tgt-obj-y += accel/stubs/tcg-stub.o
+scsi-dev-tgt-obj-y += stubs/vl-stub.o
+scsi-dev-tgt-obj-y += stubs/net-stub.o
+scsi-dev-tgt-obj-y += stubs/monitor.o
+scsi-dev-tgt-obj-y += stubs/replay.o
+
 #########################################################
 # Linux user emulator target
 
@@ -164,10 +176,20 @@ endif # CONFIG_SOFTMMU
 dummy := $(call unnest-vars,,obj-y)
 all-obj-y := $(obj-y)
 
+dummy := $(call unnest-vars,..,scsi-dev-tgt-obj-y)
+all-scsi-dev-obj-y := $(scsi-dev-tgt-obj-y)
+
+all-scsi-dev-obj-y += memory.o
+all-scsi-dev-obj-y += exec.o
+all-scsi-dev-obj-y += numa.o
+all-scsi-dev-obj-y += ioport.o
+all-scsi-dev-obj-y += cpus.o
+
 target-obj-y :=
 block-obj-y :=
 common-obj-y :=
 chardev-obj-y :=
+scsi-dev-obj-y :=
 include $(SRC_PATH)/Makefile.objs
 dummy := $(call unnest-vars,,target-obj-y)
 target-obj-y-save := $(target-obj-y)
@@ -180,6 +202,7 @@ dummy := $(call unnest-vars,.., \
                qom-obj-y \
                io-obj-y \
                common-obj-y \
+               scsi-dev-obj-y \
                common-obj-m)
 target-obj-y := $(target-obj-y-save)
 all-obj-y += $(common-obj-y)
@@ -190,12 +213,26 @@ all-obj-$(CONFIG_USER_ONLY) += $(crypto-aes-obj-y)
 all-obj-$(CONFIG_SOFTMMU) += $(crypto-obj-y)
 all-obj-$(CONFIG_SOFTMMU) += $(io-obj-y)
 
+all-scsi-dev-obj-y += $(block-obj-y)
+all-scsi-dev-obj-y += $(crypto-obj-y)
+all-scsi-dev-obj-y += $(io-obj-y)
+all-scsi-dev-obj-y += $(chardev-obj-y)
+all-scsi-dev-obj-y += $(scsi-dev-obj-y)
+
 $(QEMU_PROG_BUILD): config-devices.mak
+$(SCSI_DEV_BUILD): config-devices.mak
 
 COMMON_LDADDS = ../libqemuutil.a
 
 # build either PROG or PROGW
 $(QEMU_PROG_BUILD): $(all-obj-y) $(COMMON_LDADDS)
+	$(call LINK, $(filter-out %.mak, $^))
+ifdef CONFIG_DARWIN
+	$(call quiet-command,Rez -append $(SRC_PATH)/pc-bios/qemu.rsrc -o $@,"REZ","$(TARGET_DIR)$@")
+	$(call quiet-command,SetFile -a C $@,"SETFILE","$(TARGET_DIR)$@")
+endif
+
+$(SCSI_DEV_BUILD): $(all-scsi-dev-obj-y) $(COMMON_LDADDS)
 	$(call LINK, $(filter-out %.mak, $^))
 ifdef CONFIG_DARWIN
 	$(call quiet-command,Rez -append $(SRC_PATH)/pc-bios/qemu.rsrc -o $@,"REZ","$(TARGET_DIR)$@")

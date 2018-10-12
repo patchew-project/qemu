@@ -2,3 +2,7 @@ qom-obj-y = object.o container.o qom-qobject.o
 qom-obj-y += object_interfaces.o
 
 common-obj-y = cpu.o
+
+scsi-dev-obj-y += object.o qom-qobject.o container.o
+scsi-dev-obj-y += object_interfaces.o
+scsi-dev-obj-y += cpu.o

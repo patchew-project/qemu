@@ -38,3 +38,9 @@ devices-dirs-$(CONFIG_SOFTMMU) += smbios/
 devices-dirs-y += core/
 common-obj-y += $(devices-dirs-y)
 obj-y += $(devices-dirs-y)
+
+scsi-dev-obj-y += core/
+scsi-dev-obj-y += scsi/
+scsi-dev-obj-y += block/
+scsi-dev-obj-y += pci/
+scsi-dev-obj-y += nvram/

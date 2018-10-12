@@ -23,3 +23,17 @@ common-obj-$(CONFIG_PLATFORM_BUS) += platform-bus.o
 
 obj-$(CONFIG_SOFTMMU) += generic-loader.o
 obj-$(CONFIG_SOFTMMU) += null-machine.o
+
+scsi-dev-obj-y += qdev-properties.o
+scsi-dev-obj-y += qdev.o
+scsi-dev-obj-y += bus.o
+scsi-dev-obj-y += irq.o
+scsi-dev-obj-y += hotplug.o
+scsi-dev-obj-y += machine.o
+scsi-dev-obj-y += fw-path-provider.o
+scsi-dev-obj-y += reset.o
+scsi-dev-obj-y += sysbus.o
+scsi-dev-obj-y += loader.o
+scsi-dev-obj-y += nmi.o
+scsi-dev-obj-y += qdev-properties-system.o
+scsi-dev-obj-y += qdev-fw.o

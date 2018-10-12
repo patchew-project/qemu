@@ -73,6 +73,22 @@ block-obj-$(CONFIG_REPLICATION) += replication.o
 
 block-obj-m = block/
 
+####################################################
+# scsi-dev-obj-y is code used by remote SCSI device
+
+scsi-dev-obj-y += hw/
+scsi-dev-obj-y += qom/
+scsi-dev-obj-y += backends/
+scsi-dev-obj-y += block/
+scsi-dev-obj-y += migration/
+
+scsi-dev-obj-y += cpus-common.o
+scsi-dev-obj-y += dma-helpers.o
+scsi-dev-obj-y += blockdev.o
+scsi-dev-obj-y += qdev-monitor.o
+scsi-dev-obj-y += bootdevice.o
+scsi-dev-obj-y += iothread.o
+
 #######################################################################
 # crypto-obj-y is code used by both qemu system emulation and qemu-img
 
