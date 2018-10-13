@@ -33,6 +33,10 @@
 
 #define MAX_ETH_FRAME_SIZE 1514
 
+#define TYPE_NE2000 "ne2k_pci"
+#define NE2000(obj) \
+    OBJECT_CHECK(PCINE2000State, (obj), TYPE_NE2000)
+
 #define E8390_CMD	0x00  /* The command register (for all pages) */
 /* Page 0 register offsets. */
 #define EN0_CLDALO	0x01	/* Low byte of current local dma addr  RD */
@@ -720,7 +724,7 @@ static NetClientInfo net_ne2000_info = {
 
 static void pci_ne2000_realize(PCIDevice *pci_dev, Error **errp)
 {
-    PCINE2000State *d = DO_UPCAST(PCINE2000State, dev, pci_dev);
+    PCINE2000State *d = NE2000(pci_dev);
     NE2000State *s;
     uint8_t *pci_conf;
 
@@ -742,7 +746,7 @@ static void pci_ne2000_realize(PCIDevice *pci_dev, Error **errp)
 
 static void pci_ne2000_exit(PCIDevice *pci_dev)
 {
-    PCINE2000State *d = DO_UPCAST(PCINE2000State, dev, pci_dev);
+    PCINE2000State *d = NE2000(pci_dev);
     NE2000State *s = &d->ne2000;
 
     qemu_del_nic(s->nic);
@@ -751,13 +755,12 @@ static void pci_ne2000_exit(PCIDevice *pci_dev)
 
 static void ne2000_instance_init(Object *obj)
 {
-    PCIDevice *pci_dev = PCI_DEVICE(obj);
-    PCINE2000State *d = DO_UPCAST(PCINE2000State, dev, pci_dev);
+    PCINE2000State *d = NE2000(obj);
     NE2000State *s = &d->ne2000;
 
     device_add_bootindex_property(obj, &s->c.bootindex,
                                   "bootindex", "/ethernet-phy@0",
-                                  &pci_dev->qdev, NULL);
+                                  DEVICE(obj), NULL);
 }
 
 static Property ne2000_properties[] = {
@@ -782,7 +785,7 @@ static void ne2000_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo ne2000_info = {
-    .name          = "ne2k_pci",
+    .name          = TYPE_NE2000,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCINE2000State),
     .class_init    = ne2000_class_init,
