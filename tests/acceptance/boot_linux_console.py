@@ -8,11 +8,22 @@
 # This work is licensed under the terms of the GNU GPL, version 2 or
 # later.  See the COPYING file in the top-level directory.
 
+import os
 import logging
 import subprocess
 
 from avocado import skip
 from avocado_qemu import Test
+from avocado.utils.wait import wait_for
+
+
+def read_stream_for_string(stream, expected_string, logger=None):
+    msg = stream.readline()
+    if len(msg) == 0:
+        return False
+    if logger:
+        logger.debug(msg.strip())
+    return expected_string in msg
 
 
 class BootLinuxConsole(Test):
@@ -185,3 +196,56 @@ class BootLinuxConsole(Test):
                 break
             if 'Kernel panic - not syncing' in msg:
                 self.fail("Kernel panic reached")
+
+class BootLinuxTracing(Test):
+    """
+    Boots a Linux kernel and checks that via the Tracing framework that
+    a specific trace events occured, demostrating the kernel is operational.
+
+    :avocado: enable
+    """
+
+    timeout = 60
+
+    def test_sh4_r2d(self):
+        """
+        This test requires the dpkg-deb tool (apt/dnf install dpkg) to extract
+        the kernel from the Debian package.
+        This test also requires the QEMU binary to be compiled with:
+
+          $ configure ... --enable-trace-backends=log
+
+        The kernel can be rebuilt using this Debian kernel source [1] and
+        following the instructions on [2].
+
+        [1] https://kernel-team.pages.debian.net/kernel-handbook/ch-common-tasks.html#s-common-official
+        [2] http://snapshot.debian.org/package/linux-2.6/2.6.32-30/#linux-source-2.6.32_2.6.32-30
+
+        :avocado: tags=arch:sh4
+        """
+        if self.arch != 'sh4':
+            self.cancel('Currently specific to the %s target arch' % self.arch)
+
+        deb_url = ('http://snapshot.debian.org/archive/'
+                   'debian-ports/20110116T065852Z/pool-sh4/main/l/'
+                   'linux-2.6/linux-image-2.6.32-5-sh7751r_2.6.32-30_sh4.deb')
+        deb_hash = '8025e503319dc8ad786756e3afaa8eb868e9ef59'
+        deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
+        subprocess.check_call(['dpkg-deb', '--extract', deb_path, self.workdir])
+        kernel_path = self.workdir + '/boot/vmlinuz-2.6.32-5-sh7751r'
+        trace_path = os.path.join(self.workdir, 'trace.log')
+        trace_logger = logging.getLogger('trace')
+
+        self.vm.set_arch(self.arch)
+        self.vm.set_machine('r2d')
+        kernel_command_line = 'noiotrap'
+        self.vm.add_args('-trace', "enable=usb_ohci_*,file=" + trace_path,
+                         '-kernel', kernel_path,
+                         '-append', kernel_command_line)
+
+        self.vm.launch()
+        if not wait_for(read_stream_for_string, timeout=15, step=0,
+                        args=(open(trace_path),
+                              'usb_ohci_hub_power_up powered up all ports',
+                              trace_logger)):
+            self.fail("Machine failed to boot")
