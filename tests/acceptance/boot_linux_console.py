@@ -15,7 +15,7 @@ from avocado_qemu import Test
 
 class BootLinuxConsole(Test):
     """
-    Boots a x86_64 Linux kernel and checks that the console is operational
+    Boots a Linux kernel and checks that the console is operational
     and the kernel command line is properly passed from QEMU to the kernel
 
     :avocado: enable
@@ -23,7 +23,7 @@ class BootLinuxConsole(Test):
 
     timeout = 60
 
-    def test(self):
+    def test_x86_64_pc(self):
         if self.arch != 'x86_64':
             self.cancel('Currently specific to the x86_64 target arch')
         kernel_url = ('https://mirrors.kernel.org/fedora/releases/28/'
