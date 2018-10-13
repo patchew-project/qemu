@@ -8,7 +8,8 @@
 /*
  * virtio-vga: This extends VirtioPCIProxy.
  */
-#define TYPE_VIRTIO_VGA "virtio-vga"
+#define TYPE_VIRTIO_VGA_PREFIX "virtio-vga"
+#define TYPE_VIRTIO_VGA (TYPE_VIRTIO_VGA_PREFIX "-base")
 #define VIRTIO_VGA(obj) \
         OBJECT_CHECK(VirtIOVGA, (obj), TYPE_VIRTIO_VGA)
 
@@ -207,9 +208,9 @@ static void virtio_vga_inst_initfn(Object *obj)
                                 TYPE_VIRTIO_GPU);
 }
 
-static TypeInfo virtio_vga_info = {
-    .name          = TYPE_VIRTIO_VGA,
-    .parent        = TYPE_VIRTIO_PCI,
+static VirtioPCIDeviceTypeInfo virtio_vga_info = {
+    .name_prefix   = TYPE_VIRTIO_VGA_PREFIX,
+    .modern_only   = true,
     .instance_size = sizeof(struct VirtIOVGA),
     .instance_init = virtio_vga_inst_initfn,
     .class_init    = virtio_vga_class_init,
@@ -217,7 +218,7 @@ static TypeInfo virtio_vga_info = {
 
 static void virtio_vga_register_types(void)
 {
-    type_register_static(&virtio_vga_info);
+    virtio_register_types(&virtio_vga_info);
 }
 
 type_init(virtio_vga_register_types)
