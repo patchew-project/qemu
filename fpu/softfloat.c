@@ -1077,8 +1077,8 @@ float16  __attribute__((flatten)) float16_add(float16 a, float16 b,
     return float16_round_pack_canonical(pr, status);
 }
 
-float32 __attribute__((flatten)) float32_add(float32 a, float32 b,
-                                             float_status *status)
+static float32 QEMU_SOFTFLOAT_ATTR
+soft_float32_add(float32 a, float32 b, float_status *status)
 {
     FloatParts pa = float32_unpack_canonical(a, status);
     FloatParts pb = float32_unpack_canonical(b, status);
@@ -1087,8 +1087,8 @@ float32 __attribute__((flatten)) float32_add(float32 a, float32 b,
     return float32_round_pack_canonical(pr, status);
 }
 
-float64 __attribute__((flatten)) float64_add(float64 a, float64 b,
-                                             float_status *status)
+static float64 QEMU_SOFTFLOAT_ATTR
+soft_float64_add(float64 a, float64 b, float_status *status)
 {
     FloatParts pa = float64_unpack_canonical(a, status);
     FloatParts pb = float64_unpack_canonical(b, status);
@@ -1107,8 +1107,8 @@ float16 __attribute__((flatten)) float16_sub(float16 a, float16 b,
     return float16_round_pack_canonical(pr, status);
 }
 
-float32 __attribute__((flatten)) float32_sub(float32 a, float32 b,
-                                             float_status *status)
+static float32 QEMU_SOFTFLOAT_ATTR
+soft_float32_sub(float32 a, float32 b, float_status *status)
 {
     FloatParts pa = float32_unpack_canonical(a, status);
     FloatParts pb = float32_unpack_canonical(b, status);
@@ -1117,14 +1117,104 @@ float32 __attribute__((flatten)) float32_sub(float32 a, float32 b,
     return float32_round_pack_canonical(pr, status);
 }
 
-float64 __attribute__((flatten)) float64_sub(float64 a, float64 b,
-                                             float_status *status)
+static float64 QEMU_SOFTFLOAT_ATTR
+soft_float64_sub(float64 a, float64 b, float_status *status)
 {
     FloatParts pa = float64_unpack_canonical(a, status);
     FloatParts pb = float64_unpack_canonical(b, status);
     FloatParts pr = addsub_floats(pa, pb, true, status);
 
     return float64_round_pack_canonical(pr, status);
+}
+
+static float float_add(float a, float b)
+{
+    return a + b;
+}
+
+static float float_sub(float a, float b)
+{
+    return a - b;
+}
+
+static double double_add(double a, double b)
+{
+    return a + b;
+}
+
+static double double_sub(double a, double b)
+{
+    return a - b;
+}
+
+static bool f32_addsub_post(float32 a, float32 b, const struct float_status *s)
+{
+    return !(float32_is_zero(a) && float32_is_zero(b));
+}
+
+static bool
+float_addsub_post(float a, float b, const struct float_status *s)
+{
+    return !(fpclassify(a) == FP_ZERO && fpclassify(b) == FP_ZERO);
+}
+
+static bool f64_addsub_post(float64 a, float64 b, const struct float_status *s)
+{
+    return !(float64_is_zero(a) && float64_is_zero(b));
+}
+
+static bool
+double_addsub_post(double a, double b, const struct float_status *s)
+{
+    return !(fpclassify(a) == FP_ZERO && fpclassify(b) == FP_ZERO);
+}
+
+static float32 float32_addsub(float32 a, float32 b, float_status *s,
+                              float_op2_func_t hard, f32_op2_func_t soft)
+{
+    if (QEMU_HARDFLOAT_2F32_USE_FP) {
+        return float_gen2(a, b, s, hard, soft, float_is_zon2, float_addsub_post,
+                          NULL, NULL);
+    } else {
+        return f32_gen2(a, b, s, hard, soft, f32_is_zon2, f32_addsub_post,
+                        NULL, NULL);
+    }
+}
+
+static float64 float64_addsub(float64 a, float64 b, float_status *s,
+                              double_op2_func_t hard, f64_op2_func_t soft)
+{
+    if (QEMU_HARDFLOAT_2F64_USE_FP) {
+        return double_gen2(a, b, s, hard, soft, double_is_zon2,
+                           double_addsub_post, NULL, NULL);
+    } else {
+        return f64_gen2(a, b, s, hard, soft, f64_is_zon2, f64_addsub_post,
+                        NULL, NULL);
+    }
+}
+
+float32 __attribute__((flatten))
+float32_add(float32 a, float32 b, float_status *s)
+{
+    return float32_addsub(a, b, s, float_add, soft_float32_add);
+}
+
+float32 __attribute__((flatten))
+float32_sub(float32 a, float32 b, float_status *s)
+{
+    return float32_addsub(a, b, s, float_sub, soft_float32_sub);
+}
+
+float64 __attribute__((flatten))
+float64_add(float64 a, float64 b, float_status *s)
+{
+    return float64_addsub(a, b, s, double_add, soft_float64_add);
+}
+
+float64 __attribute__((flatten))
+float64_sub(float64 a, float64 b, float_status *s)
+{
+    return float64_addsub(a, b, s, double_sub, soft_float64_sub);
 }
 
 /*
