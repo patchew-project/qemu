@@ -11,6 +11,7 @@
 import logging
 import subprocess
 
+from avocado import skip
 from avocado_qemu import Test
 
 
@@ -124,6 +125,53 @@ class BootLinuxConsole(Test):
         kernel_command_line = 'console=ttyS0 printk.time=0'
         self.vm.add_args('-m', "64",
                          '-serial', "chardev:console",
+                         '-kernel', kernel_path,
+                         '-append', kernel_command_line)
+
+        self.vm.launch()
+        console = self.vm.console_socket.makefile()
+        console_logger = logging.getLogger('console')
+        while True:
+            msg = console.readline()
+            console_logger.debug(msg.strip())
+            if 'Kernel command line: %s' % kernel_command_line in msg:
+                break
+            if 'Kernel panic - not syncing' in msg:
+                self.fail("Kernel panic reached")
+
+    @skip("console not working on r2d machine")
+    def test_sh4_r2d(self):
+        """
+        This test requires the dpkg-deb tool (apt/dnf install dpkg) to extract
+        the kernel from the Debian package.
+        This test also requires the QEMU binary to be compiled with:
+
+          $ configure ... --enable-trace-backends=log
+
+        The kernel can be rebuilt using this Debian kernel source [1] and
+        following the instructions on [2].
+
+        [1] https://kernel-team.pages.debian.net/kernel-handbook/ch-common-tasks.html#s-common-official
+        [2] http://snapshot.debian.org/package/linux-2.6/2.6.32-30/#linux-source-2.6.32_2.6.32-30
+
+        :avocado: tags=arch:sh4
+        """
+        if self.arch != 'sh4':
+            self.cancel('Currently specific to the %s target arch' % self.arch)
+
+        deb_url = ('http://snapshot.debian.org/archive/'
+                   'debian-ports/20110116T065852Z/pool-sh4/main/l/'
+                   'linux-2.6/linux-image-2.6.32-5-sh7751r_2.6.32-30_sh4.deb')
+        deb_hash = '8025e503319dc8ad786756e3afaa8eb868e9ef59'
+        deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
+        subprocess.check_call(['dpkg-deb', '--extract', deb_path, self.workdir])
+        kernel_path = self.workdir + '/boot/vmlinuz-2.6.32-5-sh7751r'
+
+        self.vm.set_arch(self.arch)
+        self.vm.set_machine('r2d')
+        self.vm.set_console("") # XXX
+        kernel_command_line = 'console=ttyS0 printk.time=0 noiotrap'
+        self.vm.add_args('-serial', "chardev:console",
                          '-kernel', kernel_path,
                          '-append', kernel_command_line)
 
