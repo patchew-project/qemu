@@ -490,6 +490,7 @@ bool timerlist_run_timers(QEMUTimerList *timer_list)
     bool progress = false;
     QEMUTimerCB *cb;
     void *opaque;
+    bool need_replay_checkpoint = false;
 
     if (!atomic_read(&timer_list->active_timers)) {
         return false;
@@ -500,28 +501,52 @@ bool timerlist_run_timers(QEMUTimerList *timer_list)
         goto out;
     }
 
-    switch (timer_list->clock->type) {
-    case QEMU_CLOCK_REALTIME:
-        break;
-    default:
-    case QEMU_CLOCK_VIRTUAL:
-        if (!replay_checkpoint(CHECKPOINT_CLOCK_VIRTUAL)) {
-            goto out;
+    current_time = qemu_clock_get_ns(timer_list->clock->type);
+
+    if (replay_mode != REPLAY_MODE_NONE) {
+        switch (timer_list->clock->type) {
+        case QEMU_CLOCK_REALTIME:
+            break;
+        default:
+        case QEMU_CLOCK_VIRTUAL:
+            /* Check whether there are pending timers used for external
+             * subsystems, before doing replay checkpoint. If there are only
+             * such timers, then checkpoint will be redundant, because these
+             * timers don't change guest state directly.
+             * Procedure optimized to finish traversing timer list quickly,
+             * because it's a rare condition.
+             */
+            qemu_mutex_lock(&timer_list->active_timers_lock);
+            ts = timer_list->active_timers;
+            while (timer_expired_ns(ts, current_time)) {
+                if (!(ts->attributes & QEMU_TIMER_ATTR(EXTERNAL))) {
+                    need_replay_checkpoint = true;
+                    break;
+                }
+                ts = ts->next;
+            }
+            qemu_mutex_unlock(&timer_list->active_timers_lock);
+            if (!need_replay_checkpoint) {
+                break;
+            }
+
+            if (!replay_checkpoint(CHECKPOINT_CLOCK_VIRTUAL)) {
+                goto out;
+            }
+            break;
+        case QEMU_CLOCK_HOST:
+            if (!replay_checkpoint(CHECKPOINT_CLOCK_HOST)) {
+                goto out;
+            }
+            break;
+        case QEMU_CLOCK_VIRTUAL_RT:
+            if (!replay_checkpoint(CHECKPOINT_CLOCK_VIRTUAL_RT)) {
+                goto out;
+            }
+            break;
         }
-        break;
-    case QEMU_CLOCK_HOST:
-        if (!replay_checkpoint(CHECKPOINT_CLOCK_HOST)) {
-            goto out;
-        }
-        break;
-    case QEMU_CLOCK_VIRTUAL_RT:
-        if (!replay_checkpoint(CHECKPOINT_CLOCK_VIRTUAL_RT)) {
-            goto out;
-        }
-        break;
     }
 
-    current_time = qemu_clock_get_ns(timer_list->clock->type);
     for(;;) {
         qemu_mutex_lock(&timer_list->active_timers_lock);
         ts = timer_list->active_timers;
