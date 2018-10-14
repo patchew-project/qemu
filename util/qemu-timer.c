@@ -339,15 +339,21 @@ int qemu_poll_ns(GPollFD *fds, guint nfds, int64_t timeout)
 }
 
 
-void timer_init_tl(QEMUTimer *ts,
-                   QEMUTimerList *timer_list, int scale,
-                   QEMUTimerCB *cb, void *opaque)
+void timer_init_a_tl(QEMUTimer *ts,
+                     QEMUTimerList *timer_list, int scale, int attributes,
+                     QEMUTimerCB *cb, void *opaque)
 {
     ts->timer_list = timer_list;
     ts->cb = cb;
     ts->opaque = opaque;
     ts->scale = scale;
+    ts->attributes = attributes;
     ts->expire_time = -1;
+}
+
+int timer_get_attributes(QEMUTimer *ts)
+{
+    return ts->attributes;
 }
 
 void timer_deinit(QEMUTimer *ts)

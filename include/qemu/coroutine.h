@@ -276,7 +276,10 @@ void qemu_co_rwlock_unlock(CoRwlock *lock);
 /**
  * Yield the coroutine for a given duration
  */
-void coroutine_fn qemu_co_sleep_ns(QEMUClockType type, int64_t ns);
+#define qemu_co_sleep_ns(type, ns) \
+    qemu_co_sleep_a_ns(type, 0, ns)
+void coroutine_fn qemu_co_sleep_a_ns(QEMUClockType type, int attributes,
+                                     int64_t ns);
 
 /**
  * Yield until a file descriptor becomes readable

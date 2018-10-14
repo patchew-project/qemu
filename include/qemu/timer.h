@@ -52,6 +52,28 @@ typedef enum {
     QEMU_CLOCK_MAX
 } QEMUClockType;
 
+/**
+ * QEMU Timer attributes:
+ *
+ * An individual timer may be assigned with one or multiple attributes when
+ * initialized.
+ * Attribute is a static flag, meaning that timer has corresponding property.
+ * Attributes are defined in QEMUTimerAttrBit enum and encoded to bit set,
+ * which used to initialize timer, stored to 'attributes' member and can be
+ * retrieved externally with timer_get_attributes() call.
+ * Values of QEMUTimerAttrBit aren't used directly,
+ * instead each attribute in bit set accessed with QEMU_TIMER_ATTR(id) macro,
+ * where 'id' is a unique part of attribute identifier.
+ *
+ * No attributes defined currently.
+ */
+
+typedef enum {
+    /* none */
+} QEMUTimerAttrBit;
+
+#define QEMU_TIMER_ATTR(id) (1 << QEMU_TIMER_ATTRBIT_ ## id)
+
 typedef struct QEMUTimerList QEMUTimerList;
 
 struct QEMUTimerListGroup {
@@ -67,6 +89,7 @@ struct QEMUTimer {
     QEMUTimerCB *cb;
     void *opaque;
     QEMUTimer *next;
+    int attributes;
     int scale;
 };
 
@@ -418,10 +441,11 @@ int64_t timerlistgroup_deadline_ns(QEMUTimerListGroup *tlg);
  */
 
 /**
- * timer_init_tl:
+ * timer_init_a_tl:
  * @ts: the timer to be initialised
  * @timer_list: the timer list to attach the timer to
  * @scale: the scale value for the timer
+ * @attributes: 0, or one to multiple OR'ed QEMU_TIMER_ATTR(id) values to assign
  * @cb: the callback to be called when the timer expires
  * @opaque: the opaque pointer to be passed to the callback
  *
@@ -431,9 +455,9 @@ int64_t timerlistgroup_deadline_ns(QEMUTimerListGroup *tlg);
  * You need not call an explicit deinit call. Simply make
  * sure it is not on a list with timer_del.
  */
-void timer_init_tl(QEMUTimer *ts,
-                   QEMUTimerList *timer_list, int scale,
-                   QEMUTimerCB *cb, void *opaque);
+void timer_init_a_tl(QEMUTimer *ts,
+                     QEMUTimerList *timer_list, int scale, int attributes,
+                     QEMUTimerCB *cb, void *opaque);
 
 /**
  * timer_init:
@@ -452,7 +476,29 @@ void timer_init_tl(QEMUTimer *ts,
 static inline void timer_init(QEMUTimer *ts, QEMUClockType type, int scale,
                               QEMUTimerCB *cb, void *opaque)
 {
-    timer_init_tl(ts, main_loop_tlg.tl[type], scale, cb, opaque);
+    timer_init_a_tl(ts, main_loop_tlg.tl[type], scale, 0, cb, opaque);
+}
+
+/**
+ * timer_init_a:
+ * @ts: the timer to be initialised
+ * @type: the clock to associate with the timer
+ * @scale: the scale value for the timer
+ * @attributes: 0, or one to multiple OR'ed QEMU_TIMER_ATTR(id) values to assign
+ * @cb: the callback to call when the timer expires
+ * @opaque: the opaque pointer to pass to the callback
+ *
+ * Initialize a timer with the given scale and attributes on the default
+ * timer list associated with the clock.
+ *
+ * You need not call an explicit deinit call. Simply make
+ * sure it is not on a list with timer_del.
+ */
+static inline void timer_init_a(QEMUTimer *ts, QEMUClockType type,
+                                int scale, int attributes,
+                                QEMUTimerCB *cb, void *opaque)
+{
+    timer_init_a_tl(ts, main_loop_tlg.tl[type], scale, attributes, cb, opaque);
 }
 
 /**
@@ -513,9 +559,10 @@ static inline void timer_init_ms(QEMUTimer *ts, QEMUClockType type,
 }
 
 /**
- * timer_new_tl:
+ * timer_new_a_tl:
  * @timer_list: the timer list to attach the timer to
  * @scale: the scale value for the timer
+ * @attributes: 0, or one to multiple OR'ed QEMU_TIMER_ATTR(id) values to assign
  * @cb: the callback to be called when the timer expires
  * @opaque: the opaque pointer to be passed to the callback
  *
@@ -527,13 +574,13 @@ static inline void timer_init_ms(QEMUTimer *ts, QEMUClockType type,
  *
  * Returns: a pointer to the timer
  */
-static inline QEMUTimer *timer_new_tl(QEMUTimerList *timer_list,
-                                      int scale,
-                                      QEMUTimerCB *cb,
-                                      void *opaque)
+static inline QEMUTimer *timer_new_a_tl(QEMUTimerList *timer_list,
+                                        int scale, int attributes,
+                                        QEMUTimerCB *cb,
+                                        void *opaque)
 {
     QEMUTimer *ts = g_malloc0(sizeof(QEMUTimer));
-    timer_init_tl(ts, timer_list, scale, cb, opaque);
+    timer_init_a_tl(ts, timer_list, scale, attributes, cb, opaque);
     return ts;
 }
 
@@ -544,8 +591,8 @@ static inline QEMUTimer *timer_new_tl(QEMUTimerList *timer_list,
  * @cb: the callback to be called when the timer expires
  * @opaque: the opaque pointer to be passed to the callback
  *
- * Create a new timer and associate it with the default
- * timer list for the clock type @type.
+ * Create a new timer with the given scale,
+ * and associate it with the default timer list for the clock type @type.
  *
  * The default timer list has one special feature: in icount mode,
  * %QEMU_CLOCK_VIRTUAL timers are run in the vCPU thread.  This is
@@ -558,7 +605,34 @@ static inline QEMUTimer *timer_new_tl(QEMUTimerList *timer_list,
 static inline QEMUTimer *timer_new(QEMUClockType type, int scale,
                                    QEMUTimerCB *cb, void *opaque)
 {
-    return timer_new_tl(main_loop_tlg.tl[type], scale, cb, opaque);
+    return timer_new_a_tl(main_loop_tlg.tl[type], scale, 0, cb, opaque);
+}
+
+/**
+ * timer_new_a:
+ * @type: the clock type to use
+ * @scale: the scale value for the timer
+ * @attributes: 0, or one to multiple OR'ed QEMU_TIMER_ATTR(id) values to assign
+ * @cb: the callback to be called when the timer expires
+ * @opaque: the opaque pointer to be passed to the callback
+ *
+ * Create a new timer with the given scale and attributes,
+ * and associate it with the default timer list for the clock type @type.
+ *
+ * The default timer list has one special feature: in icount mode,
+ * %QEMU_CLOCK_VIRTUAL timers are run in the vCPU thread.  This is
+ * not true of other timer lists, which are typically associated
+ * with an AioContext---each of them runs its timer callbacks in its own
+ * AioContext thread.
+ *
+ * Returns: a pointer to the timer
+ */
+static inline QEMUTimer *timer_new_a(QEMUClockType type,
+                                     int scale, int attributes,
+                                     QEMUTimerCB *cb, void *opaque)
+{
+    return timer_new_a_tl(main_loop_tlg.tl[type],
+                          scale, attributes, cb, opaque);
 }
 
 /**
@@ -629,6 +703,14 @@ static inline QEMUTimer *timer_new_ms(QEMUClockType type, QEMUTimerCB *cb,
 {
     return timer_new(type, SCALE_MS, cb, opaque);
 }
+
+/**
+ * timer_get_attributes:
+ * @ts: the timer
+ *
+ * Return 0, or one to multiple OR'ed QEMU_TIMER_ATTR(id) values
+ */
+int timer_get_attributes(QEMUTimer *ts);
 
 /**
  * timer_deinit:

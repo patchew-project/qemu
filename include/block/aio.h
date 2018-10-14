@@ -407,8 +407,33 @@ static inline QEMUTimer *aio_timer_new(AioContext *ctx, QEMUClockType type,
                                        int scale,
                                        QEMUTimerCB *cb, void *opaque)
 {
-    return timer_new_tl(ctx->tlg.tl[type], scale, cb, opaque);
+    return timer_new_a_tl(ctx->tlg.tl[type], scale, 0, cb, opaque);
 }
+
+/**
+ * aio_timer_new_a:
+ * @ctx: the aio context
+ * @type: the clock type
+ * @scale: the scale
+ * @attributes: 0, or one to multiple OR'ed QEMU_TIMER_ATTR(id) values to assign
+ * @cb: the callback to call on timer expiry
+ * @opaque: the opaque pointer to pass to the callback
+ *
+ * Allocate a new timer (with attributes) attached to the context @ctx.
+ * The function is responsible for memory allocation.
+ *
+ * The preferred interface is aio_timer_init. Use that
+ * unless you really need dynamic memory allocation.
+ *
+ * Returns: a pointer to the new timer
+ */
+static inline QEMUTimer *aio_timer_new_a(AioContext *ctx, QEMUClockType type,
+                                         int scale, int attributes,
+                                         QEMUTimerCB *cb, void *opaque)
+{
+    return timer_new_a_tl(ctx->tlg.tl[type], scale, attributes, cb, opaque);
+}
+
 
 /**
  * aio_timer_init:
@@ -427,7 +452,28 @@ static inline void aio_timer_init(AioContext *ctx,
                                   int scale,
                                   QEMUTimerCB *cb, void *opaque)
 {
-    timer_init_tl(ts, ctx->tlg.tl[type], scale, cb, opaque);
+    timer_init_a_tl(ts, ctx->tlg.tl[type], scale, 0, cb, opaque);
+}
+
+/**
+ * aio_timer_init_a:
+ * @ctx: the aio context
+ * @ts: the timer
+ * @type: the clock type
+ * @scale: the scale
+ * @attributes: 0, or one to multiple OR'ed QEMU_TIMER_ATTR(id) values to assign
+ * @cb: the callback to call on timer expiry
+ * @opaque: the opaque pointer to pass to the callback
+ *
+ * Initialise a new timer (with attributes) attached to the context @ctx.
+ * The caller is responsible for memory allocation.
+ */
+static inline void aio_timer_init_a(AioContext *ctx,
+                                    QEMUTimer *ts, QEMUClockType type,
+                                    int scale, int attributes,
+                                    QEMUTimerCB *cb, void *opaque)
+{
+    timer_init_a_tl(ts, ctx->tlg.tl[type], scale, attributes, cb, opaque);
 }
 
 /**
