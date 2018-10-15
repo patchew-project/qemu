@@ -10,6 +10,7 @@
 
 import json
 import errno
+import os
 import socket
 import logging
 
@@ -253,4 +254,10 @@ class QEMUMonitorProtocol(object):
         return self.__sock.fileno()
 
     def is_scm_available(self):
+        # This did not exist before 3.2, but since then it is
+        # mandatory for our purpose
+        try:
+            os.set_inheritable(self.get_sock_fd(), True)
+        except AttributeError:
+            pass
         return self.__sock.family == socket.AF_UNIX

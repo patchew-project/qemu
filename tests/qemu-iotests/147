@@ -229,6 +229,13 @@ class BuiltinNBD(NBDBlockdevAddBase):
         sockfd = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         sockfd.connect(unix_socket)
 
+        # This did not exist before 3.2, but since then it is
+        # mandatory for our purpose
+        try:
+            os.set_inheritable(sockfd.fileno(), True)
+        except AttributeError:
+            pass
+
         result = self.vm.send_fd_scm(str(sockfd.fileno()))
         self.assertEqual(result, 0, 'Failed to send socket FD')
 

@@ -142,10 +142,18 @@ class QEMUMachine(object):
         if opts:
             options.append(opts)
 
+        # This did not exist before 3.2, but since then it is
+        # mandatory for our purpose
+        try:
+            os.set_inheritable(fd, True)
+        except AttributeError:
+            pass
+
         self._args.append('-add-fd')
         self._args.append(','.join(options))
         return self
 
+    # The caller needs to make sure the FD is inheritable
     def send_fd_scm(self, fd_file_path):
         # In iotest.py, the qmp should always use unix socket.
         assert self._qmp.is_scm_available()
@@ -159,7 +167,7 @@ class QEMUMachine(object):
                     "%s" % fd_file_path]
         devnull = open(os.path.devnull, 'rb')
         proc = subprocess.Popen(fd_param, stdin=devnull, stdout=subprocess.PIPE,
-                                stderr=subprocess.STDOUT)
+                                stderr=subprocess.STDOUT, close_fds=False)
         output = proc.communicate()[0]
         if output:
             LOG.debug(output)
@@ -280,7 +288,8 @@ class QEMUMachine(object):
                                        stdin=devnull,
                                        stdout=self._qemu_log_file,
                                        stderr=subprocess.STDOUT,
-                                       shell=False)
+                                       shell=False,
+                                       close_fds=False)
         self._post_launch()
 
     def wait(self):
