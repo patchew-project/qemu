@@ -750,8 +750,8 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
         /* Take care whenever deciding to actually deprecate; once this ability
          * is removed, we will not be able to open any images with legacy-styled
          * backing image strings. */
-        error_report("RBD options encoded in the filename as keyvalue pairs "
-                     "is deprecated");
+        warn_report("RBD options encoded in the filename as keyvalue pairs "
+                    "is deprecated");
     }
 
     /* Remove the processed options from the QDict (the visitor processes
@@ -781,10 +781,10 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
      * leave as-is */
     if (s->snap != NULL) {
         if (!bdrv_is_read_only(bs)) {
-            error_report("Opening rbd snapshots without an explicit "
-                         "read-only=on option is deprecated. Future versions "
-                         "will refuse to open the image instead of "
-                         "automatically marking the image read-only.");
+            warn_report("Opening rbd snapshots without an explicit "
+                        "read-only=on option is deprecated");
+            error_printf("Future versions may refuse to open the image "
+                         "instead of automatically marking it read-only.\n");
             r = bdrv_set_read_only(bs, true, &local_err);
             if (r < 0) {
                 error_propagate(errp, local_err);
