@@ -137,6 +137,8 @@ with iotests.FilePath('base.img') as base_img_path, \
     log('--- Cleanup ---')
     log('')
 
+    from render_block_graph import render_block_graph
+    render_block_graph(vm, '/tmp/out.dot')
     log(vm.qmp('block-job-cancel', device=src_node))
     log(vm.event_wait('BLOCK_JOB_CANCELLED'),
         filters=[iotests.filter_qmp_event])
