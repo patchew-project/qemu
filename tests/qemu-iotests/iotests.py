@@ -250,10 +250,45 @@ def filter_img_info(output, filename):
         lines.append(line)
     return '\n'.join(lines)
 
+def log_to_string_repr(obj):
+    # Normal Python 3 strings are the unicode strings from Python 2;
+    # and normal Python 2 strings are byte strings in Python 3.  Thus,
+    # we convert bytes -> str in py3 and unicode -> str in py2.
+    if sys.version_info.major >= 3:
+        if type(obj) is bytes:
+            return repr(obj.decode('utf-8'))
+    else:
+        if type(obj) is unicode:
+            return repr(obj.encode('utf-8'))
+        elif type(obj) is long:
+            return str(obj) # repr() would include an 'L' suffix
+
+    if type(obj) is list:
+        return '[' + ', '.join(map(log_to_string_repr, obj)) + ']'
+    elif type(obj) is dict:
+        return '{' + ', '.join(map(lambda k: log_to_string_repr(k) + ': ' +
+                                             log_to_string_repr(obj[k]),
+                                   sorted(obj.keys()))) + '}'
+    else:
+        return repr(obj)
+
+def log_to_string(obj):
+    if type(obj) is str:
+        return obj
+
+    if sys.version_info.major >= 3:
+        if type(obj) is bytes:
+            return obj.decode('utf-8')
+    else:
+        if type(obj) is unicode:
+            return obj.encode('utf-8')
+
+    return log_to_string_repr(obj)
+
 def log(msg, filters=[]):
     for flt in filters:
         msg = flt(msg)
-    print(msg)
+    print(log_to_string(msg))
 
 class Timeout:
     def __init__(self, seconds, errmsg = "Timeout"):
@@ -441,10 +476,11 @@ class VM(qtest.QEMUQtestMachine):
         return result
 
     def qmp_log(self, cmd, filters=[filter_testfiles], **kwargs):
-        logmsg = "{'execute': '%s', 'arguments': %s}" % (cmd, kwargs)
+        logmsg = "{'execute': '%s', 'arguments': %s}" % \
+            (cmd, log_to_string(kwargs))
         log(logmsg, filters)
         result = self.qmp(cmd, **kwargs)
-        log(str(result), filters)
+        log(log_to_string(result), filters)
         return result
 
     def run_job(self, job, auto_finalize=True, auto_dismiss=False):
