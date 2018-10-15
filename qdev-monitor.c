@@ -285,8 +285,13 @@ int qdev_device_help(QemuOpts *opts)
         goto error;
     }
 
+    if (prop_list) {
+        out_printf("%s options:\n", driver);
+    } else {
+        out_printf("There are no options for %s.\n", driver);
+    }
     for (prop = prop_list; prop; prop = prop->next) {
-        out_printf("%s.%s=%s", driver, prop->value->name, prop->value->type);
+        out_printf("  %s: %s", prop->value->name, prop->value->type);
         if (prop->value->has_description) {
             out_printf(" (%s)\n", prop->value->description);
         } else {
