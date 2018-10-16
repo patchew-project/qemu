@@ -111,7 +111,7 @@ static void pc_init1(MachineState *machine,
      *    so legacy non-PAE guests can get as much memory as possible in
      *    the 32bit address space below 4G.
      *
-     *  - Note that Xen has its own ram setp code in xen_ram_init(),
+     *  - Note that Xen has its own ram setup code in xen_ram_init(),
      *    called via xen_hvm_init().
      *
      * Examples:
