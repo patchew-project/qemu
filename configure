@@ -6992,6 +6992,8 @@ TARGET_ARCH="$target_name"
 TARGET_BASE_ARCH=""
 TARGET_ABI_DIR=""
 
+# When updating target_name => TARGET_ARCH, please also update the
+# HOST_TARGET_ARCH mapping in tests/acceptance/avocado_qemu/__init__.py
 case "$target_name" in
   i386)
     mttcg="yes"

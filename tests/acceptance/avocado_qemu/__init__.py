@@ -19,6 +19,28 @@ sys.path.append(os.path.join(SRC_ROOT_DIR, 'scripts'))
 
 from qemu import QEMUMachine
 
+
+#: Mapping of host arch names to target arch names.  It's expected that the
+#: arch identification on the host, using os.uname()[4], would return the
+#: key (LHS).  The QEMU target name, and consequently the target binary, would
+#: be based on the name on the value (RHS).
+HOST_TARGET_ARCH = {
+    'armeb': 'arm',
+    'aarch64_be': 'aarch64',
+    'microblazeel': 'microblaze',
+    'mipsel': 'mips',
+    'mipsn32el' : 'mips64',
+    'mips64el': 'mips64',
+    'or1k': 'openrisc',
+    'ppc64le': 'ppc64',
+    'ppc64abi32': 'ppc64',
+    'riscv64': 'riscv',
+    'sh4eb': 'sh4',
+    'sparc32plus': 'sparc64',
+    'xtensaeb': 'xtensa'
+    }
+
+
 def is_readable_executable_file(path):
     return os.path.isfile(path) and os.access(path, os.R_OK | os.X_OK)
 
@@ -29,6 +51,7 @@ def pick_default_qemu_bin():
     directory or in the source tree root directory.
     """
     arch = os.uname()[4]
+    arch = HOST_TARGET_ARCH.get(arch, arch)
     qemu_bin_relative_path = os.path.join("%s-softmmu" % arch,
                                           "qemu-system-%s" % arch)
     if is_readable_executable_file(qemu_bin_relative_path):
