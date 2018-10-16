@@ -604,6 +604,97 @@ struct vfio_device_ioeventfd {
 
 #define VFIO_DEVICE_IOEVENTFD		_IO(VFIO_TYPE, VFIO_BASE + 16)
 
+/**
+ * VFIO_DEVICE_MIGRATION_INFO - _IOW(VFIO_TYPE, VFIO_BASE + 17,
+ *                              struct vfio_device_migration_info)
+ * Flag VFIO_MIGRATION_PROBE:
+ *      To query if feature is supported
+ *
+ * Flag VFIO_MIGRATION_GET_REGION:
+ *      To get migration region info
+ *      region_index [output] : region index to be used for migration region
+ *      size [output]: size of migration region
+ *
+ * Flag VFIO_MIGRATION_SET_STATE:
+ *      To set device state in vendor driver
+ *      device_state [input] : User space app sends device state to vendor
+ *           driver on state change
+ *
+ * Flag VFIO_MIGRATION_GET_PENDING:
+ *      To get pending bytes yet to be migrated from vendor driver
+ *      threshold_size [Input] : threshold of buffer in User space app.
+ *      pending_precopy_only [output] : pending data which must be migrated in
+ *          precopy phase or in stopped state, in other words - before target
+ *          vm start
+ *      pending_compatible [output] : pending data which may be migrated in any
+ *           phase
+ *      pending_postcopy_only [output] : pending data which must be migrated in
+ *           postcopy phase or in stopped state, in other words - after source
+ *           vm stop
+ *      Sum of pending_precopy_only, pending_compatible and
+ *      pending_postcopy_only is the whole amount of pending data.
+ *
+ * Flag VFIO_MIGRATION_GET_BUFFER:
+ *      On this flag, vendor driver should write data to migration region and
+ *      return number of bytes written in the region.
+ *      bytes_written [output] : number of bytes written in migration buffer by
+ *          vendor driver
+ *
+ * Flag VFIO_MIGRATION_SET_BUFFER
+ *      In migration resume path, user space app writes to migration region and
+ *      communicates it to vendor driver with this ioctl with this flag.
+ *      bytes_written [Input] : number of bytes written in migration buffer by
+ *          user space app.
+ *
+ * Flag VFIO_MIGRATION_GET_DIRTY_PFNS
+ *      Get bitmap of dirty pages from vendor driver from given start address.
+ *      start_addr [Input] : start address
+ *      pfn_count [Input] : Total pfn count from start_addr for which dirty
+ *          bitmap is requested
+ *      dirty_bitmap [Output] : bitmap memory allocated by user space
+ *           application, vendor driver should return the bitmap with bits set
+ *           only for pages to be marked dirty.
+ * Return: 0 on success, -errno on failure.
+ */
+
+struct vfio_device_migration_info {
+	__u32 argsz;
+	__u32 flags;
+#define VFIO_MIGRATION_PROBE            (1 << 0)
+#define VFIO_MIGRATION_GET_REGION       (1 << 1)
+#define VFIO_MIGRATION_SET_STATE        (1 << 2)
+#define VFIO_MIGRATION_GET_PENDING      (1 << 3)
+#define VFIO_MIGRATION_GET_BUFFER       (1 << 4)
+#define VFIO_MIGRATION_SET_BUFFER       (1 << 5)
+#define VFIO_MIGRATION_GET_DIRTY_PFNS   (1 << 6)
+        __u32 region_index;	            /* region index */
+        __u64 size;	                    /* size */
+        __u32 device_state;                 /* VFIO device state */
+        __u64 pending_precopy_only;
+        __u64 pending_compatible;
+        __u64 pending_postcopy_only;
+        __u64 threshold_size;
+        __u64 bytes_written;
+        __u64 start_addr;
+        __u64 pfn_count;
+	__u8  dirty_bitmap[];
+};
+
+enum {
+    VFIO_DEVICE_STATE_NONE,
+    VFIO_DEVICE_STATE_RUNNING,
+    VFIO_DEVICE_STATE_MIGRATION_SETUP,
+    VFIO_DEVICE_STATE_MIGRATION_PRECOPY_ACTIVE,
+    VFIO_DEVICE_STATE_MIGRATION_STOPNCOPY_ACTIVE,
+    VFIO_DEVICE_STATE_MIGRATION_SAVE_COMPLETED,
+    VFIO_DEVICE_STATE_MIGRATION_RESUME,
+    VFIO_DEVICE_STATE_MIGRATION_RESUME_COMPLETED,
+    VFIO_DEVICE_STATE_MIGRATION_FAILED,
+    VFIO_DEVICE_STATE_MIGRATION_CANCELLED,
+};
+
+#define VFIO_DEVICE_MIGRATION_INFO _IO(VFIO_TYPE, VFIO_BASE + 17)
+
 /* -------- API for Type1 VFIO IOMMU -------- */
 
 /**
