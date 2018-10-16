@@ -101,6 +101,7 @@ struct KVMState
     int nr_allocated_irq_routes;
     unsigned long *used_gsi_bitmap;
     unsigned int gsi_count;
+    long mmap_size;
     QTAILQ_HEAD(msi_hashtab, KVMMSIRoute) msi_hashtab[KVM_MSI_HASHTAB_SIZE];
 #endif
     KVMMemoryListener memory_listener;
@@ -285,20 +286,12 @@ static int kvm_set_user_memory_region(KVMMemoryListener *kml, KVMSlot *slot, boo
 int kvm_destroy_vcpu(CPUState *cpu)
 {
     KVMState *s = kvm_state;
-    long mmap_size;
     struct KVMParkedVcpu *vcpu = NULL;
     int ret = 0;
 
     DPRINTF("kvm_destroy_vcpu\n");
 
-    mmap_size = kvm_ioctl(s, KVM_GET_VCPU_MMAP_SIZE, 0);
-    if (mmap_size < 0) {
-        ret = mmap_size;
-        DPRINTF("KVM_GET_VCPU_MMAP_SIZE failed\n");
-        goto err;
-    }
-
-    ret = munmap(cpu->kvm_run, mmap_size);
+    ret = munmap(cpu->kvm_run, s->mmap_size);
     if (ret < 0) {
         goto err;
     }
@@ -332,7 +325,6 @@ static int kvm_get_vcpu(KVMState *s, unsigned long vcpu_id)
 int kvm_init_vcpu(CPUState *cpu)
 {
     KVMState *s = kvm_state;
-    long mmap_size;
     int ret;
 
     DPRINTF("kvm_init_vcpu\n");
@@ -347,14 +339,7 @@ int kvm_init_vcpu(CPUState *cpu)
     cpu->kvm_state = s;
     cpu->vcpu_dirty = true;
 
-    mmap_size = kvm_ioctl(s, KVM_GET_VCPU_MMAP_SIZE, 0);
-    if (mmap_size < 0) {
-        ret = mmap_size;
-        DPRINTF("KVM_GET_VCPU_MMAP_SIZE failed\n");
-        goto err;
-    }
-
-    cpu->kvm_run = mmap(NULL, mmap_size, PROT_READ | PROT_WRITE, MAP_SHARED,
+    cpu->kvm_run = mmap(NULL, s->mmap_size, PROT_READ | PROT_WRITE, MAP_SHARED,
                         cpu->kvm_fd, 0);
     if (cpu->kvm_run == MAP_FAILED) {
         ret = -errno;
@@ -1582,6 +1567,13 @@ static int kvm_init(MachineState *ms)
     }
 
     s->vmfd = ret;
+
+    s->mmap_size = kvm_ioctl(s, KVM_GET_VCPU_MMAP_SIZE, 0);
+    if (s->mmap_size < 0) {
+        ret = s->mmap_size;
+        fprintf(stderr, "KVM_GET_VCPU_MMAP_SIZE failed\n");
+        goto err;
+    }
 
     /* check the vcpu limits */
     soft_vcpus_limit = kvm_recommended_vcpus(s);
