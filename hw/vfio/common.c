@@ -50,7 +50,8 @@ struct vfio_as_head vfio_address_spaces =
  * initialized, this file descriptor is only released on QEMU exit and
  * we'll re-use it should another vfio device be attached before then.
  */
-static int vfio_kvm_device_fd = -1;
+// XXX: Add vfio API for vDPA use case
+int vfio_kvm_device_fd = -1;
 #endif
 
 /*

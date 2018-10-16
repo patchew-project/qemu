@@ -149,6 +149,7 @@ typedef struct VhostOps {
 } VhostOps;
 
 extern const VhostOps user_ops;
+extern const VhostOps vfio_ops;
 
 int vhost_set_backend_type(struct vhost_dev *dev,
                            VhostBackendType backend_type);
