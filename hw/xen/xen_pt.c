@@ -849,7 +849,7 @@ static void xen_pt_realize(PCIDevice *d, Error **errp)
     machine_irq = s->real_device.irq;
     rc = xc_physdev_map_pirq(xen_xc, xen_domid, machine_irq, &pirq);
     if (rc < 0) {
-        error_setg_errno(errp, errno, "Mapping machine irq %u to"
+        XEN_PT_ERR(d, "Mapping machine irq %u to"
                          " pirq %i failed", machine_irq, pirq);
 
         /* Disable PCI intx assertion (turn on bit10 of devctl) */
@@ -871,7 +871,7 @@ static void xen_pt_realize(PCIDevice *d, Error **errp)
                                        PCI_SLOT(d->devfn),
                                        e_intx);
         if (rc < 0) {
-            error_setg_errno(errp, errno, "Binding of interrupt %u failed",
+            XEN_PT_ERR(d, "Binding of interrupt %u failed",
                              e_intx);
 
             /* Disable PCI intx assertion (turn on bit10 of devctl) */
