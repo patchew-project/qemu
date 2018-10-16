@@ -4,6 +4,7 @@ common-obj-y += dump.o
 common-obj-y += eth.o
 common-obj-$(CONFIG_L2TPV3) += l2tpv3.o
 common-obj-$(CONFIG_POSIX) += vhost-user.o
+common-obj-$(CONFIG_LINUX) += vhost-vfio.o
 common-obj-$(CONFIG_SLIRP) += slirp.o
 common-obj-$(CONFIG_VDE) += vde.o
 common-obj-$(CONFIG_NETMAP) += netmap.o

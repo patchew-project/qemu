@@ -438,6 +438,23 @@
     '*queues':        'int' } }
 
 ##
+# @NetdevVhostVFIOOptions:
+#
+# Vhost-vfio network backend
+#
+# @sysfsdev: name of a mdev dev path in sysfs
+#
+# @queues: number of queues to be created for multiqueue vhost-vfio
+#          (default: 1) (Since 2.11)
+#
+# Since: 2.11
+##
+{ 'struct': 'NetdevVhostVFIOOptions',
+  'data': {
+    '*sysfsdev':     'str',
+    '*queues':       'int' } }
+
+##
 # @NetClientDriver:
 #
 # Available netdev drivers.
@@ -448,7 +465,7 @@
 ##
 { 'enum': 'NetClientDriver',
   'data': [ 'none', 'nic', 'user', 'tap', 'l2tpv3', 'socket', 'vde',
-            'bridge', 'hubport', 'netmap', 'vhost-user' ] }
+            'bridge', 'hubport', 'netmap', 'vhost-user', 'vhost-vfio' ] }
 
 ##
 # @Netdev:
@@ -476,7 +493,8 @@
     'bridge':   'NetdevBridgeOptions',
     'hubport':  'NetdevHubPortOptions',
     'netmap':   'NetdevNetmapOptions',
-    'vhost-user': 'NetdevVhostUserOptions' } }
+    'vhost-user': 'NetdevVhostUserOptions',
+    'vhost-vfio': 'NetdevVhostVFIOOptions' } }
 
 ##
 # @NetLegacy:

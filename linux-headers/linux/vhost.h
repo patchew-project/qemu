@@ -225,4 +225,13 @@ struct vhost_scsi_target {
 #define VHOST_VSOCK_SET_GUEST_CID	_IOW(VHOST_VIRTIO, 0x60, __u64)
 #define VHOST_VSOCK_SET_RUNNING		_IOW(VHOST_VIRTIO, 0x61, int)
 
+
+/* VHOST_DEVICE specific defines */
+
+#define VHOST_DEVICE_SET_STATE _IOW(VHOST_VIRTIO, 0x70, __u64)
+
+#define VHOST_DEVICE_S_STOPPED 0
+#define VHOST_DEVICE_S_RUNNING 1
+#define VHOST_DEVICE_S_MAX     2
+
 #endif

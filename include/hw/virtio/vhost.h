@@ -111,6 +111,8 @@ bool vhost_has_free_slot(void);
 int vhost_net_set_backend(struct vhost_dev *hdev,
                           struct vhost_vring_file *file);
 
+int vhost_set_state(struct vhost_dev *hdev, int state);
+
 int vhost_device_iotlb_miss(struct vhost_dev *dev, uint64_t iova, int write);
 int vhost_dev_get_config(struct vhost_dev *dev, uint8_t *config,
                          uint32_t config_len);

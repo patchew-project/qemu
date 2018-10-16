@@ -17,6 +17,7 @@
 #include "net/net.h"
 #include "net/tap.h"
 #include "net/vhost-user.h"
+#include "net/vhost-vfio.h"
 
 #include "hw/virtio/virtio-net.h"
 #include "net/vhost_net.h"
@@ -87,6 +88,37 @@ static const int user_feature_bits[] = {
     VHOST_INVALID_FEATURE_BIT
 };
 
+/* Features supported by vhost vfio. */
+static const int vfio_feature_bits[] = {
+    VIRTIO_F_NOTIFY_ON_EMPTY,
+    VIRTIO_RING_F_INDIRECT_DESC,
+    VIRTIO_RING_F_EVENT_IDX,
+
+    VIRTIO_F_ANY_LAYOUT,
+    VIRTIO_F_VERSION_1,
+    VIRTIO_NET_F_CSUM,
+    VIRTIO_NET_F_GUEST_CSUM,
+    VIRTIO_NET_F_GSO,
+    VIRTIO_NET_F_GUEST_TSO4,
+    VIRTIO_NET_F_GUEST_TSO6,
+    VIRTIO_NET_F_GUEST_ECN,
+    VIRTIO_NET_F_GUEST_UFO,
+    VIRTIO_NET_F_HOST_TSO4,
+    VIRTIO_NET_F_HOST_TSO6,
+    VIRTIO_NET_F_HOST_ECN,
+    VIRTIO_NET_F_HOST_UFO,
+    VIRTIO_NET_F_MRG_RXBUF,
+    VIRTIO_NET_F_MTU,
+    VIRTIO_F_IOMMU_PLATFORM,
+
+    /* This bit implies RARP isn't sent by QEMU out of band */
+    VIRTIO_NET_F_GUEST_ANNOUNCE,
+
+    VIRTIO_NET_F_MQ,
+
+    VHOST_INVALID_FEATURE_BIT
+};
+
 static const int *vhost_net_get_feature_bits(struct vhost_net *net)
 {
     const int *feature_bits = 0;
@@ -97,6 +129,9 @@ static const int *vhost_net_get_feature_bits(struct vhost_net *net)
         break;
     case NET_CLIENT_DRIVER_VHOST_USER:
         feature_bits = user_feature_bits;
+        break;
+    case NET_CLIENT_DRIVER_VHOST_VFIO:
+        feature_bits = vfio_feature_bits;
         break;
     default:
         error_report("Feature bits not defined for this type: %d",
@@ -296,6 +331,7 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(dev)));
     VirtioBusState *vbus = VIRTIO_BUS(qbus);
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(vbus);
+    struct vhost_net *net;
     int r, e, i;
 
     if (!k->set_guest_notifiers) {
@@ -304,8 +340,6 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
     }
 
     for (i = 0; i < total_queues; i++) {
-        struct vhost_net *net;
-
         net = get_vhost_net(ncs[i].peer);
         vhost_net_set_vq_index(net, i * 2);
 
@@ -341,6 +375,11 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
         }
     }
 
+    net = get_vhost_net(ncs[0].peer);
+    if (net->nc->info->type == NET_CLIENT_DRIVER_VHOST_VFIO) {
+        r = vhost_set_state(&net->dev, VHOST_DEVICE_S_RUNNING);
+    }         // FIXME: support other device type too
+
     return 0;
 
 err_start:
@@ -362,7 +401,13 @@ void vhost_net_stop(VirtIODevice *dev, NetClientState *ncs,
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(dev)));
     VirtioBusState *vbus = VIRTIO_BUS(qbus);
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(vbus);
+    struct vhost_net *net;
     int i, r;
+
+    net = get_vhost_net(ncs[0].peer);
+    if (net->nc->info->type == NET_CLIENT_DRIVER_VHOST_VFIO) {
+        r = vhost_set_state(&net->dev, VHOST_DEVICE_S_STOPPED);
+    }
 
     for (i = 0; i < total_queues; i++) {
         vhost_net_stop_one(get_vhost_net(ncs[i].peer), dev);
@@ -385,7 +430,8 @@ int vhost_net_notify_migration_done(struct vhost_net *net, char* mac_addr)
 {
     const VhostOps *vhost_ops = net->dev.vhost_ops;
 
-    assert(vhost_ops->backend_type == VHOST_BACKEND_TYPE_USER);
+    assert(vhost_ops->backend_type == VHOST_BACKEND_TYPE_USER ||
+		    vhost_ops->backend_type == VHOST_BACKEND_TYPE_VFIO);
     assert(vhost_ops->vhost_migration_done);
 
     return vhost_ops->vhost_migration_done(&net->dev, mac_addr);
@@ -416,6 +462,10 @@ VHostNetState *get_vhost_net(NetClientState *nc)
         break;
     case NET_CLIENT_DRIVER_VHOST_USER:
         vhost_net = vhost_user_get_vhost_net(nc);
+        assert(vhost_net);
+        break;
+    case NET_CLIENT_DRIVER_VHOST_VFIO:
+        vhost_net = vhost_vfio_get_vhost_net(nc);
         assert(vhost_net);
         break;
     default:

@@ -1596,3 +1596,18 @@ int vhost_net_set_backend(struct vhost_dev *hdev,
 
     return -1;
 }
+
+/*
+ * XXX:
+ * state:
+ * 0 - stop
+ * 1 - start
+ */
+int vhost_set_state(struct vhost_dev *hdev, int state)
+{
+    if (hdev->vhost_ops->vhost_set_state) {
+        return hdev->vhost_ops->vhost_set_state(hdev, state);
+    }
+
+    return -1;
+}
