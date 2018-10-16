@@ -288,6 +288,10 @@ static int init_dirty_bitmap_migration(void)
             bs = backing_bs(bs);
         }
 
+        if (!bs || bs->implicit) {
+            continue;
+        }
+
         for (bitmap = bdrv_dirty_bitmap_next(bs, NULL); bitmap;
              bitmap = bdrv_dirty_bitmap_next(bs, bitmap))
         {
