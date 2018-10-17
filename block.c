@@ -2942,12 +2942,19 @@ static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
     if (parent_options) {
         QemuOpts *opts;
         QDict *options_copy;
+        Error *local_err = NULL;
         assert(!flags);
         role->inherit_options(&flags, options, parent_flags, parent_options);
         options_copy = qdict_clone_shallow(options);
         opts = qemu_opts_create(&bdrv_runtime_opts, NULL, 0, &error_abort);
-        qemu_opts_absorb_qdict(opts, options_copy, NULL);
-        update_flags_from_options(&flags, opts);
+        qemu_opts_absorb_qdict(opts, options_copy, &local_err);
+        /* Don't call update_flags_from_options() if the options are wrong.
+         * bdrv_reopen_prepare() will later return an error. */
+        if (!local_err) {
+            update_flags_from_options(&flags, opts);
+        } else {
+            error_free(local_err);
+        }
         qemu_opts_del(opts);
         qobject_unref(options_copy);
     }
