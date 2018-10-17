@@ -23,10 +23,10 @@
 # creator
 owner=xiawenc@linux.vnet.ibm.com
 
-seq=`basename $0`
+seq=$(basename $0)
 echo "QA output created by $seq"
 
-here=`pwd`
+here=$(pwd)
 status=1	# failure is the default!
 
 nbd_unix_socket=$TEST_DIR/test_qemu_nbd_socket

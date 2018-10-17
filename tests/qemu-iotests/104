@@ -21,10 +21,10 @@
 # creator
 owner=hutao@cn.fujitsu.com
 
-seq=`basename $0`
+seq=$(basename $0)
 echo "QA output created by $seq"
 
-here=`pwd`
+here=$(pwd)
 status=1	# failure is the default!
 
 trap "exit \$status" 0 1 2 3 15

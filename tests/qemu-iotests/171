@@ -22,10 +22,10 @@
 # creator
 owner=tgolembi@redhat.com
 
-seq=`basename $0`
+seq=$(basename $0)
 echo "QA output created by $seq"
 
-here=`pwd`
+here=$(pwd)
 status=1	# failure is the default!
 
 _cleanup()
