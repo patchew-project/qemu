@@ -28,4 +28,12 @@ format name: null-co
 === Check that invalid options are handled correctly ===
 
 Parameter 'read-only' expects 'on' or 'off'
+
+=== Check that mixing -c/-r/-w and their corresponding options is forbidden ===
+
+Cannot set both -r/-w and 'read-only'
+Cannot set both -r/-w and 'read-only'
+Cannot set both -c and the cache options
+Cannot set both -c and the cache options
+Cannot set both -c and the cache options
 *** done
