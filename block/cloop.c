@@ -74,10 +74,10 @@ static int cloop_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     if (!bdrv_is_read_only(bs)) {
-        error_report("Opening cloop images without an explicit read-only=on "
-                     "option is deprecated. Future versions will refuse to "
-                     "open the image instead of automatically marking the "
-                     "image read-only.");
+        warn_report("Opening cloop images without an explicit read-only=on "
+                    "option is deprecated");
+        error_printf("Future versions may refuse to open the image "
+                     "instead of automatically marking it read-only.\n");
         ret = bdrv_set_read_only(bs, true, errp);
         if (ret < 0) {
             return ret;
