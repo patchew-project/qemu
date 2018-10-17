@@ -29,6 +29,7 @@
 #include "qemu/osdep.h"
 #include "block/block_int.h"
 #include "qapi/error.h"
+#include "qemu/error-report.h"
 #include "qemu/option.h"
 
 typedef struct BDRVRawState {
@@ -436,14 +437,14 @@ static int raw_open(BlockDriverState *bs, QDict *options, int flags,
             bs->file->bs->supported_zero_flags);
 
     if (bs->probed && !bdrv_is_read_only(bs)) {
-        fprintf(stderr,
-                "WARNING: Image format was not specified for '%s' and probing "
-                "guessed raw.\n"
-                "         Automatically detecting the format is dangerous for "
-                "raw images, write operations on block 0 will be restricted.\n"
-                "         Specify the 'raw' format explicitly to remove the "
-                "restrictions.\n",
-                bs->file->bs->filename);
+        warn_report("Image format was not specified for '%s' and probing "
+                    "guessed raw",
+                    bs->file->bs->filename);
+        error_printf("Automatically detecting the format is dangerous for "
+                     "raw images, write\n"
+                     "operations on block 0 will be restricted.\n"
+                     "Specify the 'raw' format explicitly to remove the "
+                     "restrictions.\n");
     }
 
     ret = raw_read_options(options, bs, s, errp);

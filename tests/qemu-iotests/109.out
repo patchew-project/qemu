@@ -5,8 +5,9 @@ QA output created by 109
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 Formatting 'TEST_DIR/t.raw.src', fmt=IMGFMT size=67108864
 {"return": {}}
-WARNING: Image format was not specified for 'TEST_DIR/t.raw' and probing guessed raw.
-         Automatically detecting the format is dangerous for raw images, write operations on block 0 will be restricted.
+warning: Image format was not specified for 'TEST_DIR/t.raw' and probing guessed raw
+Automatically detecting the format is dangerous for raw images, write
+operations on block 0 will be restricted.
          Specify the 'raw' format explicitly to remove the restrictions.
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "created", "id": "src"}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "running", "id": "src"}}
@@ -43,8 +44,9 @@ Images are identical.
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 Formatting 'TEST_DIR/t.raw.src', fmt=IMGFMT size=67108864
 {"return": {}}
-WARNING: Image format was not specified for 'TEST_DIR/t.raw' and probing guessed raw.
-         Automatically detecting the format is dangerous for raw images, write operations on block 0 will be restricted.
+warning: Image format was not specified for 'TEST_DIR/t.raw' and probing guessed raw
+Automatically detecting the format is dangerous for raw images, write
+operations on block 0 will be restricted.
          Specify the 'raw' format explicitly to remove the restrictions.
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "created", "id": "src"}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "running", "id": "src"}}
@@ -81,8 +83,9 @@ Images are identical.
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 Formatting 'TEST_DIR/t.raw.src', fmt=IMGFMT size=67108864
 {"return": {}}
-WARNING: Image format was not specified for 'TEST_DIR/t.raw' and probing guessed raw.
-         Automatically detecting the format is dangerous for raw images, write operations on block 0 will be restricted.
+warning: Image format was not specified for 'TEST_DIR/t.raw' and probing guessed raw
+Automatically detecting the format is dangerous for raw images, write
+operations on block 0 will be restricted.
          Specify the 'raw' format explicitly to remove the restrictions.
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "created", "id": "src"}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "running", "id": "src"}}
@@ -119,8 +122,9 @@ Images are identical.
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 Formatting 'TEST_DIR/t.raw.src', fmt=IMGFMT size=67108864
 {"return": {}}
-WARNING: Image format was not specified for 'TEST_DIR/t.raw' and probing guessed raw.
-         Automatically detecting the format is dangerous for raw images, write operations on block 0 will be restricted.
+warning: Image format was not specified for 'TEST_DIR/t.raw' and probing guessed raw
+Automatically detecting the format is dangerous for raw images, write
+operations on block 0 will be restricted.
          Specify the 'raw' format explicitly to remove the restrictions.
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "created", "id": "src"}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "running", "id": "src"}}
@@ -157,8 +161,9 @@ Images are identical.
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 Formatting 'TEST_DIR/t.raw.src', fmt=IMGFMT size=67108864
 {"return": {}}
-WARNING: Image format was not specified for 'TEST_DIR/t.raw' and probing guessed raw.
-         Automatically detecting the format is dangerous for raw images, write operations on block 0 will be restricted.
+warning: Image format was not specified for 'TEST_DIR/t.raw' and probing guessed raw
+Automatically detecting the format is dangerous for raw images, write
+operations on block 0 will be restricted.
          Specify the 'raw' format explicitly to remove the restrictions.
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "created", "id": "src"}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "running", "id": "src"}}
@@ -195,8 +200,9 @@ Images are identical.
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 Formatting 'TEST_DIR/t.raw.src', fmt=IMGFMT size=67108864
 {"return": {}}
-WARNING: Image format was not specified for 'TEST_DIR/t.raw' and probing guessed raw.
-         Automatically detecting the format is dangerous for raw images, write operations on block 0 will be restricted.
+warning: Image format was not specified for 'TEST_DIR/t.raw' and probing guessed raw
+Automatically detecting the format is dangerous for raw images, write
+operations on block 0 will be restricted.
          Specify the 'raw' format explicitly to remove the restrictions.
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "created", "id": "src"}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "running", "id": "src"}}
@@ -232,8 +238,9 @@ Images are identical.
 
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 {"return": {}}
-WARNING: Image format was not specified for 'TEST_DIR/t.raw' and probing guessed raw.
-         Automatically detecting the format is dangerous for raw images, write operations on block 0 will be restricted.
+warning: Image format was not specified for 'TEST_DIR/t.raw' and probing guessed raw
+Automatically detecting the format is dangerous for raw images, write
+operations on block 0 will be restricted.
          Specify the 'raw' format explicitly to remove the restrictions.
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "created", "id": "src"}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "running", "id": "src"}}
@@ -269,8 +276,9 @@ Images are identical.
 
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 {"return": {}}
-WARNING: Image format was not specified for 'TEST_DIR/t.raw' and probing guessed raw.
-         Automatically detecting the format is dangerous for raw images, write operations on block 0 will be restricted.
+warning: Image format was not specified for 'TEST_DIR/t.raw' and probing guessed raw
+Automatically detecting the format is dangerous for raw images, write
+operations on block 0 will be restricted.
          Specify the 'raw' format explicitly to remove the restrictions.
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "created", "id": "src"}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "running", "id": "src"}}
@@ -306,8 +314,9 @@ Images are identical.
 
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 {"return": {}}
-WARNING: Image format was not specified for 'TEST_DIR/t.raw' and probing guessed raw.
-         Automatically detecting the format is dangerous for raw images, write operations on block 0 will be restricted.
+warning: Image format was not specified for 'TEST_DIR/t.raw' and probing guessed raw
+Automatically detecting the format is dangerous for raw images, write
+operations on block 0 will be restricted.
          Specify the 'raw' format explicitly to remove the restrictions.
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "created", "id": "src"}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "running", "id": "src"}}
@@ -343,8 +352,9 @@ Images are identical.
 
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 {"return": {}}
-WARNING: Image format was not specified for 'TEST_DIR/t.raw' and probing guessed raw.
-         Automatically detecting the format is dangerous for raw images, write operations on block 0 will be restricted.
+warning: Image format was not specified for 'TEST_DIR/t.raw' and probing guessed raw
+Automatically detecting the format is dangerous for raw images, write
+operations on block 0 will be restricted.
          Specify the 'raw' format explicitly to remove the restrictions.
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "created", "id": "src"}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "running", "id": "src"}}
@@ -380,8 +390,9 @@ Images are identical.
 
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 {"return": {}}
-WARNING: Image format was not specified for 'TEST_DIR/t.raw' and probing guessed raw.
-         Automatically detecting the format is dangerous for raw images, write operations on block 0 will be restricted.
+warning: Image format was not specified for 'TEST_DIR/t.raw' and probing guessed raw
+Automatically detecting the format is dangerous for raw images, write
+operations on block 0 will be restricted.
          Specify the 'raw' format explicitly to remove the restrictions.
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "created", "id": "src"}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "running", "id": "src"}}
