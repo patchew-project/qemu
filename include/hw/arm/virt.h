@@ -70,6 +70,7 @@ enum {
     VIRT_MMIO,
     VIRT_RTC,
     VIRT_FW_CFG,
+    VIRT_PVPANIC_MMIO,
     VIRT_PCIE,
     VIRT_PCIE_MMIO,
     VIRT_PCIE_PIO,
