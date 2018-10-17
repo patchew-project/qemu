@@ -63,17 +63,17 @@ static void bt_host_send(struct HCIInfo *hci,
     }
 }
 
-static void bt_host_cmd(struct HCIInfo *hci, const uint8_t *data, int len)
+static void bt_host_cmd(struct HCIInfo *hci, const uint8_t *data, size_t len)
 {
     bt_host_send(hci, HCI_COMMAND_PKT, data, len);
 }
 
-static void bt_host_acl(struct HCIInfo *hci, const uint8_t *data, int len)
+static void bt_host_acl(struct HCIInfo *hci, const uint8_t *data, size_t len)
 {
     bt_host_send(hci, HCI_ACLDATA_PKT, data, len);
 }
 
-static void bt_host_sco(struct HCIInfo *hci, const uint8_t *data, int len)
+static void bt_host_sco(struct HCIInfo *hci, const uint8_t *data, size_t len)
 {
     bt_host_send(hci, HCI_SCODATA_PKT, data, len);
 }

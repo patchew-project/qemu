@@ -45,7 +45,7 @@ static void bt_dummy_lmp_disconnect_master(struct bt_link_s *link)
 }
 
 static void bt_dummy_lmp_acl_resp(struct bt_link_s *link,
-                const uint8_t *data, int start, int len)
+                const uint8_t *data, int start, size_t len)
 {
     error_report("%s: stray ACL response PDU, fixme", __func__);
     exit(-1);

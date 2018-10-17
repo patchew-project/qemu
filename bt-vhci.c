@@ -125,13 +125,13 @@ static void vhci_host_send(void *opaque,
 }
 
 static void vhci_out_hci_packet_event(void *opaque,
-                const uint8_t *data, int len)
+                const uint8_t *data, size_t len)
 {
     vhci_host_send(opaque, HCI_EVENT_PKT, data, len);
 }
 
 static void vhci_out_hci_packet_acl(void *opaque,
-                const uint8_t *data, int len)
+                const uint8_t *data, size_t len)
 {
     vhci_host_send(opaque, HCI_ACLDATA_PKT, data, len);
 }

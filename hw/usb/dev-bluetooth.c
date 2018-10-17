@@ -319,7 +319,7 @@ static inline void usb_bt_fifo_dequeue(struct usb_hci_in_fifo_s *fifo,
 
 static inline void usb_bt_fifo_out_enqueue(struct USBBtState *s,
                 struct usb_hci_out_fifo_s *fifo,
-                void (*send)(struct HCIInfo *, const uint8_t *, int),
+                void (*send)(struct HCIInfo *, const uint8_t *, size_t),
                 int (*complete)(const uint8_t *, int),
                 USBPacket *p)
 {
@@ -478,7 +478,7 @@ static void usb_bt_handle_data(USBDevice *dev, USBPacket *p)
 }
 
 static void usb_bt_out_hci_packet_event(void *opaque,
-                const uint8_t *data, int len)
+                const uint8_t *data, size_t len)
 {
     struct USBBtState *s = (struct USBBtState *) opaque;
 
@@ -489,7 +489,7 @@ static void usb_bt_out_hci_packet_event(void *opaque,
 }
 
 static void usb_bt_out_hci_packet_acl(void *opaque,
-                const uint8_t *data, int len)
+                const uint8_t *data, size_t len)
 {
     struct USBBtState *s = (struct USBBtState *) opaque;
 
