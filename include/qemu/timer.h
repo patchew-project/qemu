@@ -65,14 +65,20 @@ typedef enum {
  * instead each attribute in bit set accessed with QEMU_TIMER_ATTR_<id> macro,
  * where <id> is a unique part of attribute identifier.
  *
- * No attributes defined currently.
+ * The following attributes are available:
+ *
+ * QEMU_TIMER_ATTR_EXTERNAL: drives external subsystem
+ *
+ * Timers with this attribute do not recorded in rr mode, therefore it could be
+ * used for the subsystems that operate outside the guest core. Applicable only
+ * with virtual clock type.
  */
 
 typedef enum {
-    QEMU_TIMER_ATTRBIT__NONE
+    QEMU_TIMER_ATTRBIT_EXTERNAL,
 } QEMUTimerAttrBit;
 
-#define QEMU_TIMER_ATTR__NONE (1 << QEMU_TIMER_ATTRBIT__NONE)
+#define QEMU_TIMER_ATTR_EXTERNAL (1 << QEMU_TIMER_ATTRBIT_EXTERNAL)
 
 typedef struct QEMUTimerList QEMUTimerList;
 
