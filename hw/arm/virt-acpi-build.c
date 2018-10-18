@@ -545,6 +545,7 @@ build_srat(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     int i, srat_start;
     uint64_t mem_base;
     MachineClass *mc = MACHINE_GET_CLASS(vms);
+    MachineState *ms = MACHINE(vms);
     const CPUArchIdList *cpu_list = mc->possible_cpu_arch_ids(MACHINE(vms));
 
     srat_start = table_data->len;
@@ -569,6 +570,9 @@ build_srat(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
             mem_base += numa_info[i].node_mem;
         }
     }
+
+    build_srat_hotpluggable_memory(table_data, ms->device_memory->base,
+                                   ms->device_memory->mr.size, 0);
 
     build_header(linker, table_data, (void *)(table_data->data + srat_start),
                  "SRAT", table_data->len - srat_start, 3, NULL, NULL);
