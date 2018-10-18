@@ -65,7 +65,7 @@ typedef enum {
  * QEMU_TIMER_ATTR_EXTERNAL: drives external subsystem
  *
  * Timers with this attribute do not recorded in rr mode, therefore it could be
- * used for the subsystems that operate outside the guest core. Applicable only
+ * used for the subsystems that operate outside the guest core. Relevant only
  * with virtual clock type.
  */
 

@@ -490,6 +490,7 @@ bool timerlist_run_timers(QEMUTimerList *timer_list)
     QEMUTimerCB *cb;
     void *opaque;
     bool need_replay_checkpoint = false;
+    ReplayCheckpoint replay_checkpoint_id;
 
     if (!atomic_read(&timer_list->active_timers)) {
         return false;
@@ -500,43 +501,40 @@ bool timerlist_run_timers(QEMUTimerList *timer_list)
         goto out;
     }
 
-    switch (timer_list->clock->type) {
-    case QEMU_CLOCK_REALTIME:
-        break;
-    default:
-    case QEMU_CLOCK_VIRTUAL:
-        if (replay_mode != REPLAY_MODE_NONE) {
-            /* Checkpoint for virtual clock is redundant in cases where
-             * it's being triggered with only non-EXTERNAL timers, because
-             * these timers don't change guest state directly.
-             * Since it has conditional dependence on specific timers, it is
-             * subject to race conditions and requires special handling.
-             * See below.
-             */
+    if (replay_mode != REPLAY_MODE_NONE) {
+        /* Postpone actual checkpointing to timer list processing
+         * to properly check if we actually need it.
+         */
+        switch (timer_list->clock->type) {
+        case QEMU_CLOCK_VIRTUAL:
             need_replay_checkpoint = true;
+            replay_checkpoint_id = CHECKPOINT_CLOCK_VIRTUAL;
+            break;
+        case QEMU_CLOCK_HOST:
+            need_replay_checkpoint = true;
+            replay_checkpoint_id = CHECKPOINT_CLOCK_HOST;
+            break;
+        case QEMU_CLOCK_VIRTUAL_RT:
+            need_replay_checkpoint = true;
+            replay_checkpoint_id = CHECKPOINT_CLOCK_VIRTUAL_RT;
+            break;
+        default:
+            break;
         }
-        break;
-    case QEMU_CLOCK_HOST:
-        if (!replay_checkpoint(CHECKPOINT_CLOCK_HOST)) {
-            goto out;
-        }
-        break;
-    case QEMU_CLOCK_VIRTUAL_RT:
-        if (!replay_checkpoint(CHECKPOINT_CLOCK_VIRTUAL_RT)) {
-            goto out;
-        }
-        break;
     }
 
     /*
-     * Extract expired timers from active timers list and and process them.
+     * Extract expired timers from active timers list and and process them,
+     * taking into account checkpointing required in rr mode.
      *
-     * In rr mode we need "filtered" checkpointing for virtual clock.
-     * Checkpoint must be replayed before any non-EXTERNAL timer has been
-     * processed and only one time (virtual clock value stays same). But these
-     * timers may appear in the timers list while it being processed, so this
-     * must be checked until we finally decide that "no timers left - we are
-     * done".
+     * Checkpoint must be replayed before any timer has been processed
+     * and only one time. But new timers may appear in the timers list while
+     * it's being processed, so this must be checked until we finally decide
+     * that "no timers left - we are done" (to avoid skipping checkpoint due to
+     * possible races).
+     * Also checkpoint for virtual clock is redundant in cases where it's being
+     * triggered with only non-EXTERNAL timers, because these timers don't
+     * change guest state directly.
      */
     current_time = qemu_clock_get_ns(timer_list->clock->type);
     qemu_mutex_lock(&timer_list->active_timers_lock);
@@ -552,7 +550,7 @@ bool timerlist_run_timers(QEMUTimerList *timer_list)
             /* once we got here, checkpoint clock only once */
             need_replay_checkpoint = false;
             qemu_mutex_unlock(&timer_list->active_timers_lock);
-            if (!replay_checkpoint(CHECKPOINT_CLOCK_VIRTUAL)) {
+            if (!replay_checkpoint(replay_checkpoint_id)) {
                 goto out;
             }
             qemu_mutex_lock(&timer_list->active_timers_lock);
