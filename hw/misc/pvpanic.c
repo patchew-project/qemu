@@ -25,7 +25,7 @@
 /* The pv event value */
 #define PVPANIC_PANICKED        (1 << PVPANIC_F_PANICKED)
 
-#define ISA_PVPANIC_DEVICE(obj)    \
+#define PVPANIC(obj)    \
     OBJECT_CHECK(PVPanicState, (obj), TYPE_PVPANIC)
 
 static void handle_event(int event)
@@ -46,9 +46,11 @@ static void handle_event(int event)
 #include "hw/isa/isa.h"
 
 typedef struct PVPanicState {
-    ISADevice parent_obj;
+    /*< private >*/
+    ISADevice isadev;
 
-    MemoryRegion io;
+    /*< public >*/
+    MemoryRegion mr;
     uint16_t ioport;
 } PVPanicState;
 
@@ -75,15 +77,15 @@ static const MemoryRegionOps pvpanic_ops = {
 
 static void pvpanic_isa_initfn(Object *obj)
 {
-    PVPanicState *s = ISA_PVPANIC_DEVICE(obj);
+    PVPanicState *s = PVPANIC(obj);
 
-    memory_region_init_io(&s->io, OBJECT(s), &pvpanic_ops, s, "pvpanic", 1);
+    memory_region_init_io(&s->mr, OBJECT(s), &pvpanic_ops, s, "pvpanic", 1);
 }
 
 static void pvpanic_isa_realizefn(DeviceState *dev, Error **errp)
 {
     ISADevice *d = ISA_DEVICE(dev);
-    PVPanicState *s = ISA_PVPANIC_DEVICE(dev);
+    PVPanicState *s = PVPANIC(dev);
     FWCfgState *fw_cfg = fw_cfg_find();
     uint16_t *pvpanic_port;
 
@@ -96,7 +98,7 @@ static void pvpanic_isa_realizefn(DeviceState *dev, Error **errp)
     fw_cfg_add_file(fw_cfg, "etc/pvpanic-port", pvpanic_port,
                     sizeof(*pvpanic_port));
 
-    isa_register_ioport(d, &s->io, s->ioport);
+    isa_register_ioport(d, &s->mr, s->ioport);
 }
 
 static Property pvpanic_isa_properties[] = {
