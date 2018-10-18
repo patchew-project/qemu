@@ -489,6 +489,7 @@ bool timerlist_run_timers(QEMUTimerList *timer_list)
     bool progress = false;
     QEMUTimerCB *cb;
     void *opaque;
+    bool need_replay_checkpoint = false;
 
     if (!atomic_read(&timer_list->active_timers)) {
         return false;
@@ -504,8 +505,15 @@ bool timerlist_run_timers(QEMUTimerList *timer_list)
         break;
     default:
     case QEMU_CLOCK_VIRTUAL:
-        if (!replay_checkpoint(CHECKPOINT_CLOCK_VIRTUAL)) {
-            goto out;
+        if (replay_mode != REPLAY_MODE_NONE) {
+            /* Checkpoint for virtual clock is redundant in cases where
+             * it's being triggered with only non-EXTERNAL timers, because
+             * these timers don't change guest state directly.
+             * Since it has conditional dependence on specific timers, it is
+             * subject to race conditions and requires special handling.
+             * See below.
+             */
+            need_replay_checkpoint = true;
         }
         break;
     case QEMU_CLOCK_HOST:
@@ -520,13 +528,38 @@ bool timerlist_run_timers(QEMUTimerList *timer_list)
         break;
     }
 
+    /*
+     * Extract expired timers from active timers list and and process them.
+     *
+     * In rr mode we need "filtered" checkpointing for virtual clock.
+     * Checkpoint must be replayed before any non-EXTERNAL timer has been
+     * processed and only one time (virtual clock value stays same). But these
+     * timers may appear in the timers list while it being processed, so this
+     * must be checked until we finally decide that "no timers left - we are
+     * done".
+     */
     current_time = qemu_clock_get_ns(timer_list->clock->type);
-    for(;;) {
-        qemu_mutex_lock(&timer_list->active_timers_lock);
-        ts = timer_list->active_timers;
+    qemu_mutex_lock(&timer_list->active_timers_lock);
+    while ((ts = timer_list->active_timers)) {
         if (!timer_expired_ns(ts, current_time)) {
-            qemu_mutex_unlock(&timer_list->active_timers_lock);
+            /* No expired timers left.
+             * (If rr checkpoint was needed, it either already handled,
+             *  or may be skipped.) */
             break;
+        }
+        if (need_replay_checkpoint
+                && !(ts->attributes & QEMU_TIMER_ATTR_EXTERNAL)) {
+            /* once we got here, checkpoint clock only once */
+            need_replay_checkpoint = false;
+            qemu_mutex_unlock(&timer_list->active_timers_lock);
+            if (!replay_checkpoint(CHECKPOINT_CLOCK_VIRTUAL)) {
+                goto out;
+            }
+            qemu_mutex_lock(&timer_list->active_timers_lock);
+            /* it's better to start over again,
+             * just in case if timer list was modified
+             */
+            continue;
         }
 
         /* remove timer from the list before calling the callback */
@@ -535,12 +568,15 @@ bool timerlist_run_timers(QEMUTimerList *timer_list)
         ts->expire_time = -1;
         cb = ts->cb;
         opaque = ts->opaque;
-        qemu_mutex_unlock(&timer_list->active_timers_lock);
 
         /* run the callback (the timer list can be modified) */
+        qemu_mutex_unlock(&timer_list->active_timers_lock);
         cb(opaque);
+        qemu_mutex_lock(&timer_list->active_timers_lock);
+
         progress = true;
     }
+    qemu_mutex_unlock(&timer_list->active_timers_lock);
 
 out:
     qemu_event_set(&timer_list->timers_done_ev);
