@@ -21,10 +21,10 @@
 # creator
 owner=kwolf@redhat.com
 
-seq=`basename $0`
+seq=$(basename $0)
 echo "QA output created by $seq"
 
-here=`pwd`
+here=$(pwd)
 status=1	# failure is the default!
 
 _cleanup()
@@ -50,7 +50,7 @@ echo
 echo "creating image"
 _make_test_img 1M
 
-for i in `seq 1 10`; do
+for i in $(seq 1 10); do
     echo "savevm $i"
     $QEMU -nographic -hda "$TEST_IMG" -serial none -monitor stdio >/dev/null 2>&1 <<EOF
 savevm test-$i
