@@ -25,6 +25,8 @@
 #include "hw/input/adb.h"
 #include "adb-internal.h"
 
+#define ADB_POLL_FREQ 50
+
 /* error codes */
 #define ADB_RET_NOTPRESENT (-2)
 
