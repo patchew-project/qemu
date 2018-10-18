@@ -108,8 +108,12 @@
  * of a terabyte of RAM will be doing it on a host with more than a
  * terabyte of physical address space.)
  */
+#define SZ_1G (1024ULL * 1024 * 1024)
 #define RAMLIMIT_GB 255
-#define RAMLIMIT_BYTES (RAMLIMIT_GB * 1024ULL * 1024 * 1024)
+#define RAMLIMIT_BYTES (RAMLIMIT_GB * SZ_1G)
+
+/* device memory starts at 2TB */
+#define DEVICE_MEM_BASE (2048 * SZ_1G)
 
 /* Addresses and sizes of our components.
  * 0..128MB is space for a flash device so we can run bootrom code such as UEFI.
@@ -1748,6 +1752,38 @@ static HotplugHandler *virt_machine_get_hotplug_handler(MachineState *machine,
     return NULL;
 }
 
+/*
+ * for arm64 kvm_type [7-0] encodes the IPA size shift
+ */
+static inline int virt_kvm_type(MachineState *ms, const char *type_str)
+{
+    int max_vm_phys_shift = kvm_arm_get_max_vm_phys_shift(ms);
+    ram_addr_t device_mem_size = ms->maxram_size - ms->ram_size;
+    uint8_t requested_vm_phys_shift;
+
+    if (!device_mem_size) {
+        return 0; /* default 40b IPA */
+    }
+
+    /* we need at least 42b IPA to fit device memory at 2TB*/
+    if (max_vm_phys_shift < 42) {
+        error_report("This host does not support 42b IPA: "
+                     "maxram/slots options not usable");
+        exit(1);
+    }
+
+    requested_vm_phys_shift = 64 - clz64(DEVICE_MEM_BASE + device_mem_size);
+
+    if (requested_vm_phys_shift > max_vm_phys_shift) {
+        error_report("maxmem option value too large. Max supported value "
+                     "for this host is 0x%"PRIx64,
+                     (ram_addr_t)((1ULL << max_vm_phys_shift) - DEVICE_MEM_BASE));
+       exit(1);
+    }
+
+    return requested_vm_phys_shift;
+}
+
 static void virt_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -1772,6 +1808,7 @@ static void virt_machine_class_init(ObjectClass *oc, void *data)
     mc->cpu_index_to_instance_props = virt_cpu_index_to_props;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-a15");
     mc->get_default_cpu_node_id = virt_get_default_cpu_node_id;
+    mc->kvm_type = virt_kvm_type;
     assert(!mc->get_hotplug_handler);
     mc->get_hotplug_handler = virt_machine_get_hotplug_handler;
     hc->plug = virt_machine_device_plug_cb;
@@ -1878,7 +1915,16 @@ static void virt_3_1_instance_init(Object *obj)
 
 static void virt_machine_3_1_options(MachineClass *mc)
 {
+    VirtMachineClass *vmc = VIRT_MACHINE_CLASS(OBJECT_CLASS(mc));
+
     virt_machine_3_2_options(mc);
+
+    /*
+     * Device memory and capability to set the max IPA address shift
+     * are enabled from 3.2 onwards
+     */
+    vmc->no_device_memory = true;
+    mc->kvm_type = NULL;
 }
 DEFINE_VIRT_MACHINE(3, 1)
 
