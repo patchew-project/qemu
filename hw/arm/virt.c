@@ -59,6 +59,7 @@
 #include "qapi/visitor.h"
 #include "standard-headers/linux/input.h"
 #include "hw/arm/smmuv3.h"
+#include "hw/misc/pvpanic.h"
 
 #define DEFINE_VIRT_MACHINE_LATEST(major, minor, latest) \
     static void virt_##major##_##minor##_class_init(ObjectClass *oc, \
@@ -140,6 +141,7 @@ static const MemMapEntry a15memmap[] = {
     [VIRT_UART] =               { 0x09000000, 0x00001000 },
     [VIRT_RTC] =                { 0x09010000, 0x00001000 },
     [VIRT_FW_CFG] =             { 0x09020000, 0x00000018 },
+    [VIRT_PVPANIC_MMIO] =       { 0x09020018, 0x00000002 },
     [VIRT_GPIO] =               { 0x09030000, 0x00001000 },
     [VIRT_SECURE_UART] =        { 0x09040000, 0x00001000 },
     [VIRT_SMMU] =               { 0x09050000, 0x00020000 },
@@ -799,6 +801,23 @@ static void create_gpio(const VirtMachineState *vms, qemu_irq *pic)
     /* connect powerdown request */
     qemu_register_powerdown_notifier(&virt_system_powerdown_notifier);
 
+    g_free(nodename);
+}
+
+static void create_pvpanic_device(const VirtMachineState *vms)
+{
+    char *nodename;
+    hwaddr base = vms->memmap[VIRT_PVPANIC_MMIO].base;
+    hwaddr size = vms->memmap[VIRT_PVPANIC_MMIO].size;
+
+    sysbus_create_simple(TYPE_PVPANIC, base, NULL);
+
+    nodename = g_strdup_printf("/pvpanic-mmio@%" PRIx64, base);
+    qemu_fdt_add_subnode(vms->fdt, nodename);
+    qemu_fdt_setprop_string(vms->fdt, nodename,
+                            "compatible", "pvpanic,mmio");
+    qemu_fdt_setprop_sized_cells(vms->fdt, nodename, "reg",
+                                 2, base, 2, size);
     g_free(nodename);
 }
 
@@ -1547,6 +1566,8 @@ static void machvirt_init(MachineState *machine)
     create_rtc(vms, pic);
 
     create_pcie(vms, pic);
+
+    create_pvpanic_device(vms);
 
     create_gpio(vms, pic);
 
