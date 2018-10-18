@@ -4266,6 +4266,9 @@ int main(int argc, char **argv, char **envp)
         object_unref(OBJECT(current_machine));
         exit(1);
     }
+    current_machine->ram_size = ram_size;
+    current_machine->maxram_size = maxram_size;
+    current_machine->ram_slots = ram_slots;
 
     configure_accelerator(current_machine);
 
@@ -4470,9 +4473,6 @@ int main(int argc, char **argv, char **envp)
     replay_checkpoint(CHECKPOINT_INIT);
     qdev_machine_init();
 
-    current_machine->ram_size = ram_size;
-    current_machine->maxram_size = maxram_size;
-    current_machine->ram_slots = ram_slots;
     current_machine->boot_order = boot_order;
 
     /* parse features once if machine provides default cpu_type */
