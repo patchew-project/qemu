@@ -80,6 +80,7 @@ enum {
     VIRT_GPIO,
     VIRT_SECURE_UART,
     VIRT_SECURE_MEM,
+    VIRT_DEVICE_MEM,
 };
 
 typedef enum VirtIOMMUType {
