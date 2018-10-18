@@ -11,6 +11,7 @@ common-obj-$(CONFIG_PCA9552) += pca9552.o
 
 common-obj-y += unimp.o
 common-obj-$(CONFIG_FW_CFG_DMA) += vmcoreinfo.o
+common-obj-$(CONFIG_PVPANIC) += pvpanic.o
 
 # ARM devices
 common-obj-$(CONFIG_PL310) += arm_l2x0.o
@@ -70,7 +71,6 @@ obj-$(CONFIG_IOTKIT_SECCTL) += iotkit-secctl.o
 obj-$(CONFIG_IOTKIT_SYSCTL) += iotkit-sysctl.o
 obj-$(CONFIG_IOTKIT_SYSINFO) += iotkit-sysinfo.o
 
-obj-$(CONFIG_PVPANIC) += pvpanic.o
 obj-$(CONFIG_HYPERV_TESTDEV) += hyperv_testdev.o
 obj-$(CONFIG_AUX) += auxbus.o
 obj-$(CONFIG_ASPEED_SOC) += aspeed_scu.o aspeed_sdmc.o
