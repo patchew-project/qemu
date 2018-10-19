@@ -607,15 +607,19 @@ Object *object_new_with_propv(const char *typename,
         goto error;
     }
 
-    object_property_add_child(parent, id, obj, &local_err);
-    if (local_err) {
-        goto error;
+    if (id != NULL) {
+        object_property_add_child(parent, id, obj, &local_err);
+        if (local_err) {
+            goto error;
+        }
     }
 
     if (object_dynamic_cast(obj, TYPE_USER_CREATABLE)) {
         user_creatable_complete(obj, &local_err);
         if (local_err) {
-            object_unparent(obj);
+            if (id != NULL) {
+                object_unparent(obj);
+            }
             goto error;
         }
     }
