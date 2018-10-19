@@ -717,37 +717,37 @@ case "$cpu" in
   ppc|ppc64|s390|s390x|sparc64|x32)
     cpu="$cpu"
     supported_cpu="yes"
-    eval "cross_cc_${cpu}=\$host_cc"
+    eval "cross_cc_${cpu}=\$cc"
   ;;
   i386|i486|i586|i686|i86pc|BePC)
     cpu="i386"
     supported_cpu="yes"
-    cross_cc_i386=$host_cc
+    cross_cc_i386=$cc
   ;;
   x86_64|amd64)
     cpu="x86_64"
     supported_cpu="yes"
-    cross_cc_x86_64=$host_cc
+    cross_cc_x86_64=$cc
   ;;
   armv*b|armv*l|arm)
     cpu="arm"
     supported_cpu="yes"
-    cross_cc_arm=$host_cc
+    cross_cc_arm=$cc
   ;;
   aarch64)
     cpu="aarch64"
     supported_cpu="yes"
-    cross_cc_aarch64=$host_cc
+    cross_cc_aarch64=$cc
   ;;
   mips*)
     cpu="mips"
     supported_cpu="yes"
-    cross_cc_mips=$host_cc
+    cross_cc_mips=$cc
   ;;
   sparc|sun4[cdmuv])
     cpu="sparc"
     supported_cpu="yes"
-    cross_cc_sparc=$host_cc
+    cross_cc_sparc=$cc
   ;;
   *)
     # This will result in either an error or falling back to TCI later
