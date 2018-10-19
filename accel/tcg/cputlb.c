@@ -95,7 +95,7 @@ static void flush_all_helper(CPUState *src, run_on_cpu_func fn,
 
     CPU_FOREACH(cpu) {
         if (cpu != src) {
-            async_run_on_cpu(cpu, fn, d);
+            async_run_on_cpu_no_bql(cpu, fn, d);
         }
     }
 }
@@ -163,8 +163,8 @@ void tlb_flush(CPUState *cpu)
     if (cpu->created && !qemu_cpu_is_self(cpu)) {
         if (atomic_mb_read(&cpu->pending_tlb_flush) != ALL_MMUIDX_BITS) {
             atomic_mb_set(&cpu->pending_tlb_flush, ALL_MMUIDX_BITS);
-            async_run_on_cpu(cpu, tlb_flush_global_async_work,
-                             RUN_ON_CPU_NULL);
+            async_run_on_cpu_no_bql(cpu, tlb_flush_global_async_work,
+                                    RUN_ON_CPU_NULL);
         }
     } else {
         tlb_flush_nocheck(cpu);
@@ -224,8 +224,8 @@ void tlb_flush_by_mmuidx(CPUState *cpu, uint16_t idxmap)
             tlb_debug("reduced mmu_idx: 0x%" PRIx16 "\n", pending_flushes);
 
             atomic_or(&cpu->pending_tlb_flush, pending_flushes);
-            async_run_on_cpu(cpu, tlb_flush_by_mmuidx_async_work,
-                             RUN_ON_CPU_HOST_INT(pending_flushes));
+            async_run_on_cpu_no_bql(cpu, tlb_flush_by_mmuidx_async_work,
+                                    RUN_ON_CPU_HOST_INT(pending_flushes));
         }
     } else {
         tlb_flush_by_mmuidx_async_work(cpu,
@@ -319,8 +319,8 @@ void tlb_flush_page(CPUState *cpu, target_ulong addr)
     tlb_debug("page :" TARGET_FMT_lx "\n", addr);
 
     if (!qemu_cpu_is_self(cpu)) {
-        async_run_on_cpu(cpu, tlb_flush_page_async_work,
-                         RUN_ON_CPU_TARGET_PTR(addr));
+        async_run_on_cpu_no_bql(cpu, tlb_flush_page_async_work,
+                                RUN_ON_CPU_TARGET_PTR(addr));
     } else {
         tlb_flush_page_async_work(cpu, RUN_ON_CPU_TARGET_PTR(addr));
     }
@@ -391,8 +391,9 @@ void tlb_flush_page_by_mmuidx(CPUState *cpu, target_ulong addr, uint16_t idxmap)
     addr_and_mmu_idx |= idxmap;
 
     if (!qemu_cpu_is_self(cpu)) {
-        async_run_on_cpu(cpu, tlb_check_page_and_flush_by_mmuidx_async_work,
-                         RUN_ON_CPU_TARGET_PTR(addr_and_mmu_idx));
+        async_run_on_cpu_no_bql(cpu,
+                                tlb_check_page_and_flush_by_mmuidx_async_work,
+                                RUN_ON_CPU_TARGET_PTR(addr_and_mmu_idx));
     } else {
         tlb_check_page_and_flush_by_mmuidx_async_work(
             cpu, RUN_ON_CPU_TARGET_PTR(addr_and_mmu_idx));
