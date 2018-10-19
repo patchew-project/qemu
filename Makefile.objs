@@ -63,6 +63,11 @@ util-obj-y += qapi/qapi-introspect.o
 chardev-obj-y = chardev/
 
 #######################################################################
+# authz-obj-y is code used by both qemu system emulation and qemu-img
+
+authz-obj-y = authz/
+
+#######################################################################
 # block-obj-y is code used by both qemu system emulation and qemu-img
 
 block-obj-y += nbd/
@@ -200,6 +205,7 @@ trace-events-subdirs =
 trace-events-subdirs += accel/kvm
 trace-events-subdirs += accel/tcg
 trace-events-subdirs += audio
+trace-events-subdirs += authz
 trace-events-subdirs += block
 trace-events-subdirs += chardev
 trace-events-subdirs += crypto
