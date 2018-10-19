@@ -649,7 +649,7 @@ static bool mips_vpe_is_wfi(MIPSCPU *c)
 
     /* If the VPE is halted but otherwise active, it means it's waiting for
        an interrupt.  */
-    return cpu->halted && mips_vpe_active(env);
+    return cpu_halted(cpu) && mips_vpe_active(env);
 }
 
 static bool mips_vp_is_wfi(MIPSCPU *c)
@@ -657,7 +657,7 @@ static bool mips_vp_is_wfi(MIPSCPU *c)
     CPUState *cpu = CPU(c);
     CPUMIPSState *env = &c->env;
 
-    return cpu->halted && mips_vp_active(env);
+    return cpu_halted(cpu) && mips_vp_active(env);
 }
 
 static inline void mips_vpe_wake(MIPSCPU *c)
@@ -674,7 +674,7 @@ static inline void mips_vpe_sleep(MIPSCPU *cpu)
 
     /* The VPE was shut off, really go to bed.
        Reset any old _WAKE requests.  */
-    cs->halted = 1;
+    cpu_halted_set(cs, 1);
     cpu_reset_interrupt(cs, CPU_INTERRUPT_WAKE);
 }
 
@@ -2605,7 +2605,7 @@ void helper_wait(CPUMIPSState *env)
 {
     CPUState *cs = CPU(mips_env_get_cpu(env));
 
-    cs->halted = 1;
+    cpu_halted_set(cs, 1);
     cpu_reset_interrupt(cs, CPU_INTERRUPT_WAKE);
     /* Last instruction in the block, PC was updated before
        - no need to recover PC and icount */
