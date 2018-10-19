@@ -668,7 +668,7 @@ static void vfio_platform_realize(DeviceState *dev, Error **errp)
             error_setg(errp, "%s", gerr->message);
             g_error_free(gerr);
             g_free(path);
-            return;
+            goto out;
         }
         g_free(path);
         vdev->compat = contents;
@@ -690,6 +690,8 @@ out:
     if (!ret) {
         return;
     }
+
+    qemu_mutex_destroy(&vdev->intp_mutex);
 
     if (vdev->vbasedev.name) {
         error_prepend(errp, ERR_PREFIX, vdev->vbasedev.name);
