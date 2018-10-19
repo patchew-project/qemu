@@ -987,6 +987,15 @@ void cpu_remove_sync(CPUState *cpu);
 void process_queued_cpu_work(CPUState *cpu);
 
 /**
+ * process_queued_cpu_work_locked - process all items on CPU work queue
+ * @cpu: The CPU which work queue to process.
+ *
+ * Call with @cpu->lock held.
+ * See also: process_queued_cpu_work()
+ */
+void process_queued_cpu_work_locked(CPUState *cpu);
+
+/**
  * cpu_exec_start:
  * @cpu: The CPU for the current thread.
  *
