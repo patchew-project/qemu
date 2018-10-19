@@ -504,6 +504,41 @@ static inline void cpu_halted_set(CPUState *cpu, uint32_t val)
     cpu_mutex_unlock(cpu);
 }
 
+static inline uint32_t cpu_interrupt_request(CPUState *cpu)
+{
+    uint32_t ret;
+
+    if (cpu_mutex_locked(cpu)) {
+        return cpu->interrupt_request;
+    }
+    cpu_mutex_lock(cpu);
+    ret = cpu->interrupt_request;
+    cpu_mutex_unlock(cpu);
+    return ret;
+}
+
+static inline void cpu_interrupt_request_or(CPUState *cpu, uint32_t mask)
+{
+    if (cpu_mutex_locked(cpu)) {
+        cpu->interrupt_request |= mask;
+        return;
+    }
+    cpu_mutex_lock(cpu);
+    cpu->interrupt_request |= mask;
+    cpu_mutex_unlock(cpu);
+}
+
+static inline void cpu_interrupt_request_set(CPUState *cpu, uint32_t val)
+{
+    if (cpu_mutex_locked(cpu)) {
+        cpu->interrupt_request = val;
+        return;
+    }
+    cpu_mutex_lock(cpu);
+    cpu->interrupt_request = val;
+    cpu_mutex_unlock(cpu);
+}
+
 static inline void cpu_tb_jmp_cache_clear(CPUState *cpu)
 {
     unsigned int i;
