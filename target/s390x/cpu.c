@@ -24,6 +24,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/main-loop.h"
 #include "qapi/error.h"
 #include "cpu.h"
 #include "internal.h"
@@ -55,9 +56,11 @@ static void s390_cpu_set_pc(CPUState *cs, vaddr value)
     cpu->env.psw.addr = value;
 }
 
-static bool s390_cpu_has_work(CPUState *cs)
+static bool s390_cpu_has_work_locked(CPUState *cs)
 {
     S390CPU *cpu = S390_CPU(cs);
+
+    g_assert(qemu_mutex_iothread_locked());
 
     /* STOPPED cpus can never wake up */
     if (s390_cpu_get_state(cpu) != S390_CPU_STATE_LOAD &&
@@ -70,6 +73,21 @@ static bool s390_cpu_has_work(CPUState *cs)
     }
 
     return s390_cpu_has_int(cpu);
+}
+
+static bool s390_cpu_has_work(CPUState *cs)
+{
+    if (!qemu_mutex_iothread_locked()) {
+        bool ret;
+
+        cpu_mutex_unlock(cs);
+        qemu_mutex_lock_iothread();
+        cpu_mutex_lock(cs);
+        ret = s390_cpu_has_work_locked(cs);
+        qemu_mutex_unlock_iothread();
+        return ret;
+    }
+    return s390_cpu_has_work_locked(cs);
 }
 
 #if !defined(CONFIG_USER_ONLY)
