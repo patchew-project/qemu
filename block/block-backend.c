@@ -909,6 +909,7 @@ void *blk_get_attached_dev(BlockBackend *blk)
 char *blk_get_attached_dev_id(BlockBackend *blk)
 {
     DeviceState *dev;
+    char *dev_id;
 
     assert(!blk->legacy_dev);
     dev = blk->dev;
@@ -918,7 +919,10 @@ char *blk_get_attached_dev_id(BlockBackend *blk)
     } else if (dev->id) {
         return g_strdup(dev->id);
     }
-    return object_get_canonical_path(OBJECT(dev));
+
+    dev_id = object_get_canonical_path(OBJECT(dev));
+
+    return dev_id ? dev_id : g_strdup("");
 }
 
 /*
