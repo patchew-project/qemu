@@ -86,7 +86,7 @@ static void xtensa_cpu_reset(CPUState *s)
 
 #ifndef CONFIG_USER_ONLY
     reset_mmu(env);
-    s->halted = env->runstall;
+    cpu_halted_set(s, env->runstall);
 #endif
 }
 
