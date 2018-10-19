@@ -1259,7 +1259,9 @@ int kvm_arch_init_vcpu(CPUState *cs)
         c->ecx = c->edx = 0;
 
         c = cpuid_find_entry(&cpuid_data.cpuid, kvm_base, 0);
-        c->eax = MAX(c->eax, KVM_CPUID_SIGNATURE | 0x10);
+        if (c) {
+            c->eax = MAX(c->eax, KVM_CPUID_SIGNATURE | 0x10);
+       }
     }
 
     cpuid_data.cpuid.nent = cpuid_i;
