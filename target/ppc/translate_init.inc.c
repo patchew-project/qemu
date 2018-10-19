@@ -18,6 +18,7 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "qemu/main-loop.h"
 #include "disas/bfd.h"
 #include "exec/gdbstub.h"
 #include "kvm_ppc.h"
@@ -8440,10 +8441,12 @@ static bool ppc_pvr_match_power7(PowerPCCPUClass *pcc, uint32_t pvr)
     return false;
 }
 
-static bool cpu_has_work_POWER7(CPUState *cs)
+static bool cpu_has_work_POWER7_locked(CPUState *cs)
 {
     PowerPCCPU *cpu = POWERPC_CPU(cs);
     CPUPPCState *env = &cpu->env;
+
+    g_assert(qemu_mutex_iothread_locked());
 
     if (cpu_halted(cs)) {
         if (!(cpu_interrupt_request(cs) & CPU_INTERRUPT_HARD)) {
@@ -8472,6 +8475,21 @@ static bool cpu_has_work_POWER7(CPUState *cs)
     } else {
         return msr_ee && (cpu_interrupt_request(cs) & CPU_INTERRUPT_HARD);
     }
+}
+
+static bool cpu_has_work_POWER7(CPUState *cs)
+{
+    if (!qemu_mutex_iothread_locked()) {
+        bool ret;
+
+        cpu_mutex_unlock(cs);
+        qemu_mutex_lock_iothread();
+        cpu_mutex_lock(cs);
+        ret = cpu_has_work_POWER7_locked(cs);
+        qemu_mutex_unlock_iothread();
+        return ret;
+    }
+    return cpu_has_work_POWER7_locked(cs);
 }
 
 POWERPC_FAMILY(POWER7)(ObjectClass *oc, void *data)
@@ -8594,10 +8612,12 @@ static bool ppc_pvr_match_power8(PowerPCCPUClass *pcc, uint32_t pvr)
     return false;
 }
 
-static bool cpu_has_work_POWER8(CPUState *cs)
+static bool cpu_has_work_POWER8_locked(CPUState *cs)
 {
     PowerPCCPU *cpu = POWERPC_CPU(cs);
     CPUPPCState *env = &cpu->env;
+
+    g_assert(qemu_mutex_iothread_locked());
 
     if (cpu_halted(cs)) {
         if (!(cpu_interrupt_request(cs) & CPU_INTERRUPT_HARD)) {
@@ -8634,6 +8654,21 @@ static bool cpu_has_work_POWER8(CPUState *cs)
     } else {
         return msr_ee && (cpu_interrupt_request(cs) & CPU_INTERRUPT_HARD);
     }
+}
+
+static bool cpu_has_work_POWER8(CPUState *cs)
+{
+    if (!qemu_mutex_iothread_locked()) {
+        bool ret;
+
+        cpu_mutex_unlock(cs);
+        qemu_mutex_lock_iothread();
+        cpu_mutex_lock(cs);
+        ret = cpu_has_work_POWER8_locked(cs);
+        qemu_mutex_unlock_iothread();
+        return ret;
+    }
+    return cpu_has_work_POWER8_locked(cs);
 }
 
 POWERPC_FAMILY(POWER8)(ObjectClass *oc, void *data)
@@ -8786,10 +8821,12 @@ static bool ppc_pvr_match_power9(PowerPCCPUClass *pcc, uint32_t pvr)
     return false;
 }
 
-static bool cpu_has_work_POWER9(CPUState *cs)
+static bool cpu_has_work_POWER9_locked(CPUState *cs)
 {
     PowerPCCPU *cpu = POWERPC_CPU(cs);
     CPUPPCState *env = &cpu->env;
+
+    g_assert(qemu_mutex_iothread_locked());
 
     if (cpu_halted(cs)) {
         if (!(cpu_interrupt_request(cs) & CPU_INTERRUPT_HARD)) {
@@ -8827,6 +8864,21 @@ static bool cpu_has_work_POWER9(CPUState *cs)
     } else {
         return msr_ee && (cpu_interrupt_request(cs) & CPU_INTERRUPT_HARD);
     }
+}
+
+static bool cpu_has_work_POWER9(CPUState *cs)
+{
+    if (!qemu_mutex_iothread_locked()) {
+        bool ret;
+
+        cpu_mutex_unlock(cs);
+        qemu_mutex_lock_iothread();
+        cpu_mutex_lock(cs);
+        ret = cpu_has_work_POWER9_locked(cs);
+        qemu_mutex_unlock_iothread();
+        return ret;
+    }
+    return cpu_has_work_POWER9_locked(cs);
 }
 
 POWERPC_FAMILY(POWER9)(ObjectClass *oc, void *data)
@@ -10231,12 +10283,29 @@ static void ppc_cpu_set_pc(CPUState *cs, vaddr value)
     cpu->env.nip = value;
 }
 
-static bool ppc_cpu_has_work(CPUState *cs)
+static bool ppc_cpu_has_work_locked(CPUState *cs)
 {
     PowerPCCPU *cpu = POWERPC_CPU(cs);
     CPUPPCState *env = &cpu->env;
 
+    g_assert(qemu_mutex_iothread_locked());
+
     return msr_ee && (cpu_interrupt_request(cs) & CPU_INTERRUPT_HARD);
+}
+
+static bool ppc_cpu_has_work(CPUState *cs)
+{
+    if (!qemu_mutex_iothread_locked()) {
+        bool ret;
+
+        cpu_mutex_unlock(cs);
+        qemu_mutex_lock_iothread();
+        cpu_mutex_lock(cs);
+        ret = ppc_cpu_has_work_locked(cs);
+        qemu_mutex_unlock_iothread();
+        return ret;
+    }
+    return ppc_cpu_has_work_locked(cs);
 }
 
 /* CPUClass::reset() */
