@@ -518,6 +518,7 @@ static int vfio_populate_device(VFIODevice *vbasedev, Error **errp)
     return 0;
 irq_err:
     timer_del(vdev->mmap_timer);
+    timer_free(vdev->mmap_timer);
     QLIST_FOREACH_SAFE(intp, &vdev->intp_list, next, tmp) {
         QLIST_REMOVE(intp, next);
         g_free(intp);
