@@ -80,6 +80,7 @@ static VFIOINTp *vfio_init_intp(VFIODevice *vbasedev,
         intp->unmask = g_malloc0(sizeof(EventNotifier));
         ret = event_notifier_init(intp->unmask, 0);
         if (ret) {
+            event_notifier_cleanup(intp->interrupt);
             g_free(intp->interrupt);
             g_free(intp->unmask);
             g_free(intp);
