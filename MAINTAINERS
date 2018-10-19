@@ -1866,6 +1866,12 @@ F: include/qemu/sockets.h
 F: util/qemu-sockets.c
 F: qapi/sockets.json
 
+File monitor
+M: Daniel P. Berrange <berrange@redhat.com>
+S: Odd fixes
+F: util/filemonitor.c
+F: include/qemu/filemonitor.h
+
 Throttling infrastructure
 M: Alberto Garcia <berto@igalia.com>
 S: Supported
