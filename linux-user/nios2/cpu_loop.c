@@ -68,7 +68,10 @@ void cpu_loop(CPUNios2State *env)
                 env->regs[R_EA] = env->regs[R_PC] + 4;
                 env->regs[R_PC] = cpu->exception_addr;
 
-                gdbsig = TARGET_SIGTRAP;
+                info.si_signo = TARGET_SIGTRAP;
+                info.si_errno = 0;
+                info.si_code = TARGET_TRAP_BRKPT;
+                queue_signal(env, info.si_signo, QEMU_SI_FAULT, &info);
                 break;
             }
         case 0xaa:
@@ -106,14 +109,7 @@ kuser_fail:
         default:
             EXCP_DUMP(env, "\nqemu: unhandled CPU exception %#x - aborting\n",
                      trapnr);
-            gdbsig = TARGET_SIGILL;
-            break;
-        }
-        if (gdbsig) {
-            gdb_handlesig(cs, gdbsig);
-            if (gdbsig != TARGET_SIGTRAP) {
-                exit(EXIT_FAILURE);
-            }
+            abort();
         }
 
         process_pending_signals(env);
