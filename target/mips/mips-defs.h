@@ -67,6 +67,7 @@
 /*
  *   bits 56-63: vendor-specific ASEs
  */
+#define ASE_MXU           0x0100000000000000ULL
 
 /* MIPS CPU defines. */
 #define		CPU_MIPS1	(ISA_MIPS1)
