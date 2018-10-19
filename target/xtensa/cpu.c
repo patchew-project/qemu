@@ -29,6 +29,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/main-loop.h"
 #include "qapi/error.h"
 #include "cpu.h"
 #include "qemu-common.h"
@@ -42,15 +43,32 @@ static void xtensa_cpu_set_pc(CPUState *cs, vaddr value)
     cpu->env.pc = value;
 }
 
-static bool xtensa_cpu_has_work(CPUState *cs)
+static bool xtensa_cpu_has_work_locked(CPUState *cs)
 {
 #ifndef CONFIG_USER_ONLY
     XtensaCPU *cpu = XTENSA_CPU(cs);
+
+    g_assert(qemu_mutex_iothread_locked());
 
     return !cpu->env.runstall && cpu->env.pending_irq_level;
 #else
     return true;
 #endif
+}
+
+static bool xtensa_cpu_has_work(CPUState *cs)
+{
+    if (!qemu_mutex_iothread_locked()) {
+        bool ret;
+
+        cpu_mutex_unlock(cs);
+        qemu_mutex_lock_iothread();
+        cpu_mutex_lock(cs);
+        ret = xtensa_cpu_has_work_locked(cs);
+        qemu_mutex_unlock_iothread();
+        return ret;
+    }
+    return xtensa_cpu_has_work_locked(cs);
 }
 
 /* CPUClass::reset() */
