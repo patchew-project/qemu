@@ -105,7 +105,7 @@ void helper_sleep(CPUSH4State *env)
 {
     CPUState *cs = CPU(sh_env_get_cpu(env));
 
-    cs->halted = 1;
+    cpu_halted_set(cs, 1);
     env->in_sleep = 1;
     raise_exception(env, EXCP_HLT, 0);
 }
