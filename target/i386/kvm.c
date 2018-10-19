@@ -798,6 +798,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
     uint32_t unused;
     struct kvm_cpuid_entry2 *c;
     uint32_t signature[3];
+    uint16_t evmcs_version;
     int kvm_base = KVM_CPUID_SIGNATURE;
     int r;
     Error *local_err = NULL;
@@ -841,7 +842,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
             memset(signature, 0, 12);
             memcpy(signature, cpu->hyperv_vendor_id, len);
         }
-        c->eax = HV_CPUID_MIN;
+        c->eax = cpu->hyperv_evmcs ? HV_CPUID_MIN_NESTED : HV_CPUID_MIN;
         c->ebx = signature[0];
         c->ecx = signature[1];
         c->edx = signature[2];
@@ -888,7 +889,16 @@ int kvm_arch_init_vcpu(CPUState *cs)
             c->eax |= HV_REMOTE_TLB_FLUSH_RECOMMENDED;
             c->eax |= HV_EX_PROCESSOR_MASKS_RECOMMENDED;
         }
-
+        if (cpu->hyperv_evmcs) {
+            if (kvm_vcpu_enable_cap(cs, KVM_CAP_HYPERV_ENLIGHTENED_VMCS, 0,
+                                    (uintptr_t)&evmcs_version)) {
+                fprintf(stderr, "Hyper-V Enlightened VMCS "
+                        "(requested by 'hv-evmcs' cpu flag) "
+                        "is not supported by kernel\n");
+                return -ENOSYS;
+            }
+            c->eax |= HV_ENLIGHTENED_VMCS_RECOMMENDED;
+        }
         c->ebx = cpu->hyperv_spinlock_attempts;
 
         c = &cpuid_data.entries[cpuid_i++];
@@ -899,6 +909,12 @@ int kvm_arch_init_vcpu(CPUState *cs)
 
         kvm_base = KVM_CPUID_SIGNATURE_NEXT;
         has_msr_hv_hypercall = true;
+
+        if (cpu->hyperv_evmcs) {
+            c = &cpuid_data.entries[cpuid_i++];
+            c->function = HV_CPUID_NESTED_FEATURES;
+            c->eax = evmcs_version;
+        }
     }
 
     if (cpu->expose_kvm) {
