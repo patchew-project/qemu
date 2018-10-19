@@ -198,7 +198,7 @@ static void qemu_s390_flic_notify(uint32_t type)
         }
 
         /* we always kick running CPUs for now, this is tricky */
-        if (cs->halted) {
+        if (cpu_halted(cs)) {
             /* don't check for subclasses, CPUs double check when waking up */
             if (type & FLIC_PENDING_SERVICE) {
                 if (!(cpu->env.psw.mask & PSW_MASK_EXT)) {
