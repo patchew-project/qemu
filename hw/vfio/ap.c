@@ -147,7 +147,7 @@ static void vfio_ap_reset(DeviceState *dev)
 }
 
 static const VMStateDescription vfio_ap_vmstate = {
-    .name = TYPE_VFIO_AP_DEVICE,
+    .name = "vfio-ap",
     .unmigratable = 1,
 };
 
