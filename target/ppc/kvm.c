@@ -1368,7 +1368,7 @@ MemTxAttrs kvm_arch_post_run(CPUState *cs, struct kvm_run *run)
 
 int kvm_arch_process_async_events(CPUState *cs)
 {
-    return cs->halted;
+    return cpu_halted(cs);
 }
 
 static int kvmppc_handle_halt(PowerPCCPU *cpu)
@@ -1377,7 +1377,7 @@ static int kvmppc_handle_halt(PowerPCCPU *cpu)
     CPUPPCState *env = &cpu->env;
 
     if (!(cs->interrupt_request & CPU_INTERRUPT_HARD) && (msr_ee)) {
-        cs->halted = 1;
+        cpu_halted_set(cs, 1);
         cs->exception_index = EXCP_HLT;
     }
 

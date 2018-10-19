@@ -657,7 +657,7 @@ static void ppce500_cpu_reset_sec(void *opaque)
 
     /* Secondary CPU starts in halted state for now. Needs to change when
        implementing non-kernel boot. */
-    cs->halted = 1;
+    cpu_halted_set(cs, 1);
     cs->exception_index = EXCP_HLT;
 }
 
@@ -671,7 +671,7 @@ static void ppce500_cpu_reset(void *opaque)
     cpu_reset(cs);
 
     /* Set initial guest state. */
-    cs->halted = 0;
+    cpu_halted_set(cs, 0);
     env->gpr[1] = (16 * MiB) - 8;
     env->gpr[3] = bi->dt_base;
     env->gpr[4] = 0;

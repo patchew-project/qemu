@@ -107,9 +107,11 @@ static void spin_kick(CPUState *cs, run_on_cpu_data data)
     map_start = ldq_p(&curspin->addr) & ~(map_size - 1);
     mmubooke_create_initial_mapping(env, 0, map_start, map_size);
 
-    cs->halted = 0;
-    cs->exception_index = -1;
+    cpu_mutex_lock(cs);
+    cpu_halted_set(cs, 0);
     cs->stopped = false;
+    cpu_mutex_unlock(cs);
+    cs->exception_index = -1;
     qemu_cpu_kick(cs);
 }
 

@@ -1088,11 +1088,13 @@ static target_ulong h_cede(PowerPCCPU *cpu, sPAPRMachineState *spapr,
 
     env->msr |= (1ULL << MSR_EE);
     hreg_compute_hflags(env);
+    cpu_mutex_lock(cs);
     if (!cpu_has_work(cs)) {
-        cs->halted = 1;
+        cpu_halted_set(cs, 1);
         cs->exception_index = EXCP_HLT;
         cs->exit_request = 1;
     }
+    cpu_mutex_unlock(cs);
     return H_SUCCESS;
 }
 
