@@ -19,6 +19,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/main-loop.h"
 #include "qapi/error.h"
 #include "cpu.h"
 #include "internal.h"
@@ -51,11 +52,13 @@ static void mips_cpu_synchronize_from_tb(CPUState *cs, TranslationBlock *tb)
     env->hflags |= tb->flags & MIPS_HFLAG_BMASK;
 }
 
-static bool mips_cpu_has_work(CPUState *cs)
+static bool mips_cpu_has_work_locked(CPUState *cs)
 {
     MIPSCPU *cpu = MIPS_CPU(cs);
     CPUMIPSState *env = &cpu->env;
     bool has_work = false;
+
+    g_assert(qemu_mutex_iothread_locked());
 
     /* Prior to MIPS Release 6 it is implementation dependent if non-enabled
        interrupts wake-up the CPU, however most of the implementations only
@@ -90,6 +93,21 @@ static bool mips_cpu_has_work(CPUState *cs)
         }
     }
     return has_work;
+}
+
+static bool mips_cpu_has_work(CPUState *cs)
+{
+    if (!qemu_mutex_iothread_locked()) {
+        bool ret;
+
+        cpu_mutex_unlock(cs);
+        qemu_mutex_lock_iothread();
+        cpu_mutex_lock(cs);
+        ret = mips_cpu_has_work_locked(cs);
+        qemu_mutex_unlock_iothread();
+        return ret;
+    }
+    return mips_cpu_has_work_locked(cs);
 }
 
 /* CPUClass::reset() */
