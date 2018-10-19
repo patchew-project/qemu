@@ -18,6 +18,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/main-loop.h"
 #include "qapi/error.h"
 #include "cpu.h"
 #include "qemu/error-report.h"
@@ -704,13 +705,28 @@ static void sparc_cpu_synchronize_from_tb(CPUState *cs, TranslationBlock *tb)
     cpu->env.npc = tb->cs_base;
 }
 
-static bool sparc_cpu_has_work(CPUState *cs)
+static bool sparc_cpu_has_work_locked(CPUState *cs)
 {
     SPARCCPU *cpu = SPARC_CPU(cs);
     CPUSPARCState *env = &cpu->env;
 
+    g_assert(qemu_mutex_iothread_locked());
+
     return (cpu_interrupt_request(cs) & CPU_INTERRUPT_HARD) &&
            cpu_interrupts_enabled(env);
+}
+
+static bool sparc_cpu_has_work(CPUState *cs)
+{
+    if (!qemu_mutex_iothread_locked()) {
+        bool ret;
+
+        qemu_mutex_lock_iothread();
+        ret = sparc_cpu_has_work_locked(cs);
+        qemu_mutex_unlock_iothread();
+        return ret;
+    }
+    return sparc_cpu_has_work_locked(cs);
 }
 
 static char *sparc_cpu_type_name(const char *cpu_model)
