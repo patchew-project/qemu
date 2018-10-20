@@ -344,8 +344,8 @@ static bool gen_arith_imm(DisasContext *ctx, arg_arith_imm *a,
     return true;
 }
 
-static bool trans_arith(DisasContext *ctx, arg_arith *a,
-                        void(*func)(TCGv, TCGv, TCGv))
+static bool gen_arith(DisasContext *ctx, arg_arith *a,
+                      void(*func)(TCGv, TCGv, TCGv))
 {
     TCGv source1, source2;
     source1 = tcg_temp_new();

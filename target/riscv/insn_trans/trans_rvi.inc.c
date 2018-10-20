@@ -315,12 +315,12 @@ static bool trans_srai(DisasContext *ctx, arg_srai *a, uint32_t insn)
 
 static bool trans_add(DisasContext *ctx, arg_add *a, uint32_t insn)
 {
-    return trans_arith(ctx, a, &tcg_gen_add_tl);
+    return gen_arith(ctx, a, &tcg_gen_add_tl);
 }
 
 static bool trans_sub(DisasContext *ctx, arg_sub *a, uint32_t insn)
 {
-    return trans_arith(ctx, a, &tcg_gen_sub_tl);
+    return gen_arith(ctx, a, &tcg_gen_sub_tl);
 }
 
 static bool trans_sll(DisasContext *ctx, arg_sll *a, uint32_t insn)
@@ -363,7 +363,7 @@ static bool trans_sltu(DisasContext *ctx, arg_sltu *a, uint32_t insn)
 
 static bool trans_xor(DisasContext *ctx, arg_xor *a, uint32_t insn)
 {
-    return trans_arith(ctx, a, &tcg_gen_xor_tl);
+    return gen_arith(ctx, a, &tcg_gen_xor_tl);
 }
 
 
@@ -379,12 +379,12 @@ static bool trans_sra(DisasContext *ctx, arg_sra *a, uint32_t insn)
 
 static bool trans_or(DisasContext *ctx, arg_or *a, uint32_t insn)
 {
-    return trans_arith(ctx, a, &tcg_gen_or_tl);
+    return gen_arith(ctx, a, &tcg_gen_or_tl);
 }
 
 static bool trans_and(DisasContext *ctx, arg_and *a, uint32_t insn)
 {
-    return trans_arith(ctx, a, &tcg_gen_and_tl);
+    return gen_arith(ctx, a, &tcg_gen_and_tl);
 }
 
 static bool trans_addiw(DisasContext *ctx, arg_addiw *a, uint32_t insn)
@@ -453,7 +453,7 @@ static bool trans_addw(DisasContext *ctx, arg_addw *a, uint32_t insn)
 #if !defined(TARGET_RISCV64)
     return false;
 #endif
-    return trans_arith(ctx, a, &tcg_gen_add_tl);
+    return gen_arith(ctx, a, &tcg_gen_add_tl);
 }
 
 static bool trans_subw(DisasContext *ctx, arg_subw *a, uint32_t insn)
@@ -461,7 +461,7 @@ static bool trans_subw(DisasContext *ctx, arg_subw *a, uint32_t insn)
 #if !defined(TARGET_RISCV64)
     return false;
 #endif
-    return trans_arith(ctx, a, &tcg_gen_sub_tl);
+    return gen_arith(ctx, a, &tcg_gen_sub_tl);
 }
 
 static bool trans_sllw(DisasContext *ctx, arg_sllw *a, uint32_t insn)
