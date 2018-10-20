@@ -129,41 +129,49 @@ static bool trans_bgeu(DisasContext *ctx, arg_bgeu *a, uint32_t insn)
     return gen_branch(ctx, a, TCG_COND_GEU);
 }
 
+static bool gen_load(DisasContext *ctx, arg_lb *a, int memop)
+{
+    TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
+    gen_get_gpr(t0, a->rs1);
+    tcg_gen_addi_tl(t0, t0, a->imm);
+
+    tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx, memop);
+    gen_set_gpr(a->rd, t1);
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
+     return true;
+}
+
 static bool trans_lb(DisasContext *ctx, arg_lb *a, uint32_t insn)
 {
-    gen_load(ctx, OPC_RISC_LB, a->rd, a->rs1, a->imm);
-    return true;
+    return gen_load(ctx, a, MO_SB);
 }
 
 static bool trans_lh(DisasContext *ctx, arg_lh *a, uint32_t insn)
 {
-    gen_load(ctx, OPC_RISC_LH, a->rd, a->rs1, a->imm);
-    return true;
+    return gen_load(ctx, a, MO_TESW);
 }
 
 static bool trans_lw(DisasContext *ctx, arg_lw *a, uint32_t insn)
 {
-    gen_load(ctx, OPC_RISC_LW, a->rd, a->rs1, a->imm);
-    return true;
+    return gen_load(ctx, a, MO_TESL);
 }
 
 static bool trans_lbu(DisasContext *ctx, arg_lbu *a, uint32_t insn)
 {
-    gen_load(ctx, OPC_RISC_LBU, a->rd, a->rs1, a->imm);
-    return true;
+    return gen_load(ctx, a, MO_UB);
 }
 
 static bool trans_lhu(DisasContext *ctx, arg_lhu *a, uint32_t insn)
 {
-    gen_load(ctx, OPC_RISC_LHU, a->rd, a->rs1, a->imm);
-    return true;
+    return gen_load(ctx, a, MO_TEUW);
 }
 
 static bool trans_lwu(DisasContext *ctx, arg_lwu *a, uint32_t insn)
 {
 #ifdef TARGET_RISCV64
-    gen_load(ctx, OPC_RISC_LWU, a->rd, a->rs1, a->imm);
-    return true;
+    return gen_load(ctx, a, MO_TEUL);
 #else
     return false;
 #endif
@@ -172,8 +180,7 @@ static bool trans_lwu(DisasContext *ctx, arg_lwu *a, uint32_t insn)
 static bool trans_ld(DisasContext *ctx, arg_ld *a, uint32_t insn)
 {
 #ifdef TARGET_RISCV64
-    gen_load(ctx, OPC_RISC_LD, a->rd, a->rs1, a->imm);
-    return true;
+    return gen_load(ctx, a, MO_TEQ);
 #else
     return false;
 #endif
