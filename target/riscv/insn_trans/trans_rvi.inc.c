@@ -186,29 +186,40 @@ static bool trans_ld(DisasContext *ctx, arg_ld *a, uint32_t insn)
 #endif
 }
 
+static bool gen_store(DisasContext *ctx, arg_sb *a, int memop)
+{
+    TCGv t0 = tcg_temp_new();
+    TCGv dat = tcg_temp_new();
+    gen_get_gpr(t0, a->rs1);
+    tcg_gen_addi_tl(t0, t0, a->imm);
+    gen_get_gpr(dat, a->rs2);
+
+    tcg_gen_qemu_st_tl(dat, t0, ctx->mem_idx, memop);
+    tcg_temp_free(t0);
+    tcg_temp_free(dat);
+    return true;
+}
+
+
 static bool trans_sb(DisasContext *ctx, arg_sb *a, uint32_t insn)
 {
-    gen_store(ctx, OPC_RISC_SB, a->rs1, a->rs2, a->imm);
-    return true;
+    return gen_store(ctx, a, MO_SB);
 }
 
 static bool trans_sh(DisasContext *ctx, arg_sh *a, uint32_t insn)
 {
-    gen_store(ctx, OPC_RISC_SH, a->rs1, a->rs2, a->imm);
-    return true;
+    return gen_store(ctx, a, MO_TESW);
 }
 
 static bool trans_sw(DisasContext *ctx, arg_sw *a, uint32_t insn)
 {
-    gen_store(ctx, OPC_RISC_SW, a->rs1, a->rs2, a->imm);
-    return true;
+    return gen_store(ctx, a, MO_TESL);
 }
 
 static bool trans_sd(DisasContext *ctx, arg_sd *a, uint32_t insn)
 {
 #ifdef TARGET_RISCV64
-    gen_store(ctx, OPC_RISC_SD, a->rs1, a->rs2, a->imm);
-    return true;
+    return gen_store(ctx, a, MO_TEQ);
 #else
     return false;
 #endif
