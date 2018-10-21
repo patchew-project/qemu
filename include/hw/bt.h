@@ -94,9 +94,9 @@ struct bt_device_s {
     void (*lmp_disconnect_master)(struct bt_link_s *link);
     void (*lmp_disconnect_slave)(struct bt_link_s *link);
     void (*lmp_acl_data)(struct bt_link_s *link, const uint8_t *data,
-                    int start, int len);
+                    int start, size_t len);
     void (*lmp_acl_resp)(struct bt_link_s *link, const uint8_t *data,
-                    int start, int len);
+                    int start, size_t len);
     void (*lmp_mode_change)(struct bt_link_s *link);
 
     void (*handle_destroy)(struct bt_device_s *device);
@@ -148,12 +148,12 @@ struct bt_l2cap_device_s {
 
 struct bt_l2cap_conn_params_s {
     /* Input */
-    uint8_t *(*sdu_out)(struct bt_l2cap_conn_params_s *chan, int len);
+    uint8_t *(*sdu_out)(struct bt_l2cap_conn_params_s *chan, size_t len);
     void (*sdu_submit)(struct bt_l2cap_conn_params_s *chan);
     int remote_mtu;
     /* Output */
     void *opaque;
-    void (*sdu_in)(void *opaque, const uint8_t *data, int len);
+    void (*sdu_in)(void *opaque, const uint8_t *data, size_t len);
     void (*close)(void *opaque);
 };
 
