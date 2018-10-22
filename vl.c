@@ -2283,7 +2283,7 @@ static int chardev_init_func(void *opaque, QemuOpts *opts, Error **errp)
 #ifdef CONFIG_VIRTFS
 static int fsdev_init_func(void *opaque, QemuOpts *opts, Error **errp)
 {
-    return qemu_fsdev_add(opts);
+    return qemu_fsdev_add(opts, errp);
 }
 #endif
 
@@ -4270,10 +4270,8 @@ int main(int argc, char **argv, char **envp)
                       chardev_init_func, NULL, &error_fatal);
 
 #ifdef CONFIG_VIRTFS
-    if (qemu_opts_foreach(qemu_find_opts("fsdev"),
-                          fsdev_init_func, NULL, NULL)) {
-        exit(1);
-    }
+    qemu_opts_foreach(qemu_find_opts("fsdev"),
+                      fsdev_init_func, NULL, &error_fatal);
 #endif
 
     if (qemu_opts_foreach(qemu_find_opts("device"),
