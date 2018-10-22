@@ -19,6 +19,7 @@
 #include "exec/memory-internal.h"
 #include "qemu/error-report.h"
 #include "sysemu/hw_accel.h"
+#include "hw/s390x/tod.h"
 
 #ifndef DEBUG_S390PCI_INST
 #define DEBUG_S390PCI_INST  0
@@ -293,7 +294,7 @@ int clp_service_call(S390CPU *cpu, uint8_t r2, uintptr_t ra)
         resgrp->fr = 1;
         stq_p(&resgrp->dasm, 0);
         stq_p(&resgrp->msia, ZPCI_MSI_ADDR);
-        stw_p(&resgrp->mui, 0);
+        stw_p(&resgrp->mui, DEFAULT_MUI);
         stw_p(&resgrp->i, 128);
         stw_p(&resgrp->maxstbl, 128);
         resgrp->version = 0;
@@ -456,6 +457,10 @@ int pcilg_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2, uintptr_t ra)
         return 0;
     }
 
+    if (pbdev->fmb_addr) {
+        pbdev->fmb.ld_ops++;
+    }
+
     env->regs[r1] = data;
     setcc(cpu, ZPCI_PCI_LS_OK);
     return 0;
@@ -559,6 +564,10 @@ int pcistg_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2, uintptr_t ra)
         setcc(cpu, ZPCI_PCI_LS_ERR);
         s390_set_status_code(env, r2, ZPCI_PCI_ST_INVAL_AS);
         return 0;
+    }
+
+    if (pbdev->fmb_addr) {
+        pbdev->fmb.st_ops++;
     }
 
     setcc(cpu, ZPCI_PCI_LS_OK);
@@ -681,6 +690,9 @@ err:
         s390_set_status_code(env, r1, ZPCI_PCI_ST_FUNC_IN_ERR);
         s390_pci_generate_error_event(error, pbdev->fh, pbdev->fid, start, 0);
     } else {
+        if (pbdev->fmb_addr) {
+            pbdev->fmb.rpcit_ops++;
+        }
         setcc(cpu, ZPCI_PCI_LS_OK);
     }
     return 0;
@@ -781,6 +793,10 @@ int pcistb_service_call(S390CPU *cpu, uint8_t r1, uint8_t r3, uint64_t gaddr,
             s390_program_interrupt(env, PGM_OPERAND, 6, ra);
             return 0;
         }
+    }
+
+    if (pbdev->fmb_addr) {
+        pbdev->fmb.stb_ops++;
     }
 
     setcc(cpu, ZPCI_PCI_LS_OK);
@@ -887,6 +903,63 @@ void pci_dereg_ioat(S390PCIIOMMU *iommu)
     iommu->pba = 0;
     iommu->pal = 0;
     iommu->g_iota = 0;
+}
+
+void fmb_timer_free(S390PCIBusDevice *pbdev)
+{
+    if (pbdev->fmb_timer) {
+        timer_del(pbdev->fmb_timer);
+        timer_free(pbdev->fmb_timer);
+        pbdev->fmb_timer = NULL;
+    }
+    pbdev->fmb_addr = 0;
+    memset(&pbdev->fmb, 0, sizeof(ZpciFmb));
+}
+
+static int fmb_do_update(S390PCIBusDevice *pbdev, uint8_t offset, int len)
+{
+    MemTxResult ret;
+
+    ret = address_space_write(&address_space_memory,
+                              pbdev->fmb_addr + (uint64_t)offset,
+                              MEMTXATTRS_UNSPECIFIED,
+                              (uint8_t *)&pbdev->fmb + offset,
+                              len);
+    if (ret) {
+        s390_pci_generate_error_event(ERR_EVENT_FMBA, pbdev->fh, pbdev->fid,
+                                      pbdev->fmb_addr, 0);
+        fmb_timer_free(pbdev);
+    }
+
+    return ret;
+}
+
+static void fmb_update(void *opaque)
+{
+    S390PCIBusDevice *pbdev = opaque;
+    int64_t t = qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL);
+    uint8_t offset = offsetof(ZpciFmb, last_update);
+
+    /* Update U bit */
+    pbdev->fmb.last_update |= UPDATE_U_BIT;
+    if (fmb_do_update(pbdev, offset, sizeof(uint64_t))) {
+        return;
+    }
+
+    /* Update FMB counters */
+    pbdev->fmb.sample++;
+    if (fmb_do_update(pbdev, 0, sizeof(ZpciFmb))) {
+        return;
+    }
+
+    /* Clear U bit and update the time */
+    pbdev->fmb.last_update = time2tod(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
+    pbdev->fmb.last_update &= ~UPDATE_U_BIT;
+    if (fmb_do_update(pbdev, offset, sizeof(uint64_t))) {
+        return;
+    }
+
+    timer_mod(pbdev->fmb_timer, t + DEFAULT_MUI);
 }
 
 int mpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba, uint8_t ar,
@@ -1018,9 +1091,35 @@ int mpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba, uint8_t ar,
             s390_set_status_code(env, r1, ZPCI_MOD_ST_SEQUENCE);
         }
         break;
-    case ZPCI_MOD_FC_SET_MEASURE:
-        pbdev->fmb_addr = ldq_p(&fib.fmb_addr);
+    case ZPCI_MOD_FC_SET_MEASURE: {
+        uint64_t fmb_addr = ldq_p(&fib.fmb_addr);
+
+        if (fmb_addr & FMBK_MASK) {
+            cc = ZPCI_PCI_LS_ERR;
+            s390_pci_generate_error_event(ERR_EVENT_FMBPRO, pbdev->fh,
+                                          pbdev->fid, fmb_addr, 0);
+            fmb_timer_free(pbdev);
+            break;
+        }
+
+        if (!fmb_addr) {
+            /* Stop updating FMB. */
+            fmb_timer_free(pbdev);
+            break;
+        }
+
+        pbdev->fmb_addr = fmb_addr;
+        if (!pbdev->fmb_timer) {
+            pbdev->fmb_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL,
+                                            fmb_update, pbdev);
+        } else if (timer_pending(pbdev->fmb_timer)) {
+            /* Remove pending timer to update FMB address. */
+            timer_del(pbdev->fmb_timer);
+        }
+        timer_mod(pbdev->fmb_timer,
+                  qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + DEFAULT_MUI);
         break;
+    }
     default:
         s390_program_interrupt(&cpu->env, PGM_OPERAND, 6, ra);
         cc = ZPCI_PCI_LS_ERR;

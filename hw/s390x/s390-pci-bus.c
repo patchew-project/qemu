@@ -976,6 +976,7 @@ static void s390_pcihost_hot_unplug(HotplugHandler *hotplug_dev,
     bus = pci_get_bus(pci_dev);
     devfn = pci_dev->devfn;
     object_unparent(OBJECT(pci_dev));
+    fmb_timer_free(pbdev);
     s390_pci_msix_free(pbdev);
     s390_pci_iommu_free(s, bus, devfn);
     pbdev->pdev = NULL;
@@ -1147,7 +1148,7 @@ static void s390_pci_device_reset(DeviceState *dev)
         pci_dereg_ioat(pbdev->iommu);
     }
 
-    pbdev->fmb_addr = 0;
+    fmb_timer_free(pbdev);
 }
 
 static void s390_pci_get_fid(Object *obj, Visitor *v, const char *name,

@@ -286,6 +286,29 @@ typedef struct S390PCIIOMMUTable {
     S390PCIIOMMU *iommu[PCI_SLOT_MAX];
 } S390PCIIOMMUTable;
 
+/* Function Measurement Block */
+#define DEFAULT_MUI 4000
+#define UPDATE_U_BIT 0x1ULL
+#define FMBK_MASK 0xfULL
+
+typedef struct ZpciFmbFmt0 {
+    uint64_t dma_rbytes;
+    uint64_t dma_wbytes;
+} ZpciFmbFmt0;
+
+typedef struct ZpciFmb {
+    uint8_t format;
+    uint8_t fmt_ind[3];
+    uint32_t sample;
+    uint64_t last_update;
+    uint64_t ld_ops;
+    uint64_t st_ops;
+    uint64_t stb_ops;
+    uint64_t rpcit_ops;
+    ZpciFmbFmt0 fmt0;
+} ZpciFmb;
+QEMU_BUILD_BUG_MSG(offsetof(ZpciFmb, fmt0) != 48, "padding in ZpciFmb");
+
 struct S390PCIBusDevice {
     DeviceState qdev;
     PCIDevice *pdev;
@@ -297,6 +320,8 @@ struct S390PCIBusDevice {
     uint32_t fid;
     bool fid_defined;
     uint64_t fmb_addr;
+    ZpciFmb fmb;
+    QEMUTimer *fmb_timer;
     uint8_t isc;
     uint16_t noi;
     uint16_t maxstbl;
