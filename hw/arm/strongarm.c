@@ -532,7 +532,9 @@ static void strongarm_gpio_handler_update(StrongARMGPIOInfo *s)
 
     for (diff = s->prev_level ^ level; diff; diff ^= 1 << bit) {
         bit = ctz32(diff);
-        qemu_set_irq(s->handler[bit], (level >> bit) & 1);
+        if (bit < ARRAY_SIZE(s->handler)) {
+            qemu_set_irq(s->handler[bit], (level >> bit) & 1);
+        }
     }
 
     s->prev_level = level;
