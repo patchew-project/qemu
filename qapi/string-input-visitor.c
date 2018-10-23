@@ -247,15 +247,16 @@ error:
 static void parse_type_uint64(Visitor *v, const char *name, uint64_t *obj,
                               Error **errp)
 {
-    /* FIXME: parse_type_int64 mishandles values over INT64_MAX */
-    int64_t i;
-    Error *err = NULL;
-    parse_type_int64(v, name, &i, &err);
-    if (err) {
-        error_propagate(errp, err);
-    } else {
-        *obj = i;
+    StringInputVisitor *siv = to_siv(v);
+    uint64_t val;
+
+    if (qemu_strtou64(siv->string, NULL, 0, &val)) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, name ? name : "null",
+                   "an uint64 value");
+        return;
     }
+
+    *obj = val;
 }
 
 static void parse_type_size(Visitor *v, const char *name, uint64_t *obj,
