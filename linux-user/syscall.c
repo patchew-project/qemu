@@ -6342,7 +6342,29 @@ static inline abi_long host_to_target_stat64(void *cpu_env,
     return 0;
 }
 #endif
+#ifdef TARGET_NR_semtimedop
+static inline abi_long do_semtimedop(int semid, abi_long ptr, unsigned nsops,
+                                     abi_long timeout)
+{
+    struct sembuf sops[nsops];
+    struct timespec ts, *pts;
 
+    if (timeout) {
+        pts = &ts;
+        if (target_to_host_timespec(pts, timeout)) {
+            return -TARGET_EFAULT;
+        }
+    } else {
+        pts = NULL;
+    }
+
+    if (target_to_host_sembuf(sops, ptr, nsops)) {
+        return -TARGET_EFAULT;
+    }
+
+    return get_errno(semtimedop(semid, sops, nsops, pts));
+}
+#endif
 /* ??? Using host futex calls even when target atomic operations
    are not really atomic probably breaks things.  However implementing
    futexes locally would make futexes shared between multiple processes
@@ -8840,6 +8862,11 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
 #ifdef TARGET_NR_semget
     case TARGET_NR_semget:
         return get_errno(semget(arg1, arg2, arg3));
+#endif
+#ifdef TARGET_NR_semtimedop
+    case TARGET_NR_semtimedop:
+        ret = do_semtimedop(arg1, arg2, arg3, arg4);
+        break;
 #endif
 #ifdef TARGET_NR_semop
     case TARGET_NR_semop:
