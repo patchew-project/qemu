@@ -31,6 +31,7 @@
 #include "hw/loader-fit.h"
 #include "hw/mips/cps.h"
 #include "hw/mips/cpudevs.h"
+#include "hw/mips/mips.h"
 #include "hw/pci-host/xilinx-pcie.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
@@ -333,10 +334,12 @@ static const void *boston_fdt_filter(void *opaque, const void *fdt_orig,
 {
     BostonState *s = BOSTON(opaque);
     MachineState *machine = s->mach;
-    const char *cmdline;
+    GString *cmdline;
     int err;
     void *fdt;
     size_t fdt_sz, ram_low_sz, ram_high_sz;
+    target_ulong initrd_size;
+    ram_addr_t initrd_offset;
 
     fdt_sz = fdt_totalsize(fdt_orig) * 2;
     fdt = g_malloc0(fdt_sz);
@@ -347,19 +350,53 @@ static const void *boston_fdt_filter(void *opaque, const void *fdt_orig,
         return NULL;
     }
 
-    cmdline = (machine->kernel_cmdline && machine->kernel_cmdline[0])
-            ? machine->kernel_cmdline : " ";
-    err = qemu_fdt_setprop_string(fdt, "/chosen", "bootargs", cmdline);
-    if (err < 0) {
-        fprintf(stderr, "couldn't set /chosen/bootargs\n");
-        return NULL;
-    }
-
     ram_low_sz = MIN(256 * MiB, machine->ram_size);
     ram_high_sz = machine->ram_size - ram_low_sz;
     qemu_fdt_setprop_sized_cells(fdt, "/memory@0", "reg",
                                  1, 0x00000000, 1, ram_low_sz,
                                  1, 0x90000000, 1, ram_high_sz);
+
+    cmdline = g_string_new(machine->kernel_cmdline);
+
+    /* load initrd */
+    initrd_offset = 0;
+    if (machine->initrd_filename) {
+        initrd_size = get_image_size(machine->initrd_filename);
+        if (initrd_size != (target_ulong) -1) {
+            /*
+             * The kernel allocates the bootmap memory in the low memory after
+             * the initrd. It takes at most 128kiB for 2GB RAM and 4kiB pages.
+             */
+            initrd_offset = (ram_low_sz - initrd_size - 131072
+                             - ~INITRD_PAGE_MASK) & INITRD_PAGE_MASK;
+
+            if ((int64_t)cpu_mips_kseg0_to_phys(NULL, *load_addr + fdt_sz)
+                >= (int64_t)initrd_offset) {
+                error_report("memory too small for initial ram disk '%s'",
+                             machine->initrd_filename);
+                exit(1);
+            }
+
+            initrd_size = load_image_targphys(machine->initrd_filename,
+                                              initrd_offset,
+                                              initrd_size);
+        }
+        if (initrd_size == (target_ulong) -1) {
+            error_report("could not load initial ram disk '%s'",
+                         machine->initrd_filename);
+            exit(1);
+        }
+        g_string_append_printf(cmdline, " rd_start=0x%" PRIx64 " rd_size=%li",
+                               cpu_mips_phys_to_kseg0(NULL, initrd_offset),
+                               initrd_size);
+    }
+
+    err = qemu_fdt_setprop_string(fdt, "/chosen", "bootargs", cmdline->str);
+    g_string_free(cmdline, true);
+    if (err < 0) {
+        error_report("couldn't set /chosen/bootargs");
+        exit(1);
+    }
 
     fdt = g_realloc(fdt, fdt_totalsize(fdt));
     qemu_fdt_dumpdtb(fdt, fdt_sz);
