@@ -627,6 +627,10 @@ static GuestDiskAddressList *build_guest_disk_info(char *guid, Error **errp)
 
     disk = g_malloc0(sizeof(*disk));
     disk->bus_type = find_bus_type(bus);
+    /* always set pci_controller as required by schema. get_pci_info() should
+     * report -1 values for non-PCI buses rather than fail.
+     */
+    disk->pci_controller = get_pci_info(name, errp);
     if (bus == BusTypeScsi || bus == BusTypeAta || bus == BusTypeRAID
 #if (_WIN32_WINNT >= 0x0600)
             /* This bus type is not supported before Windows Server 2003 SP1 */
@@ -641,12 +645,9 @@ static GuestDiskAddressList *build_guest_disk_info(char *guid, Error **errp)
             disk->unit = addr.Lun;
             disk->target = addr.TargetId;
             disk->bus = addr.PathId;
-            disk->pci_controller = get_pci_info(name, errp);
         }
         /* We do not set error in this case, because we still have enough
          * information about volume. */
-    } else {
-         disk->pci_controller = NULL;
     }
 
     list = g_malloc0(sizeof(*list));
