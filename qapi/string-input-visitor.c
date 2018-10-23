@@ -20,6 +20,7 @@
 #include "qemu/option.h"
 #include "qemu/queue.h"
 #include "qemu/range.h"
+#include "qemu/cutils.h"
 
 
 struct StringInputVisitor
@@ -46,10 +47,10 @@ static void free_range(void *range, void *dummy)
 
 static int parse_str(StringInputVisitor *siv, const char *name, Error **errp)
 {
-    char *str = (char *) siv->string;
-    long long start, end;
+    const char *str = (char *) siv->string;
+    const char *endptr;
+    int64_t start, end;
     Range *cur;
-    char *endptr;
 
     if (siv->ranges) {
         return 0;
@@ -60,9 +61,7 @@ static int parse_str(StringInputVisitor *siv, const char *name, Error **errp)
     }
 
     do {
-        errno = 0;
-        start = strtoll(str, &endptr, 0);
-        if (errno == 0 && endptr > str) {
+        if (!qemu_strtoi64(str, &endptr, 0, &start)) {
             if (*endptr == '\0') {
                 cur = g_malloc0(sizeof(*cur));
                 range_set_bounds(cur, start, start);
@@ -71,11 +70,7 @@ static int parse_str(StringInputVisitor *siv, const char *name, Error **errp)
                 str = NULL;
             } else if (*endptr == '-') {
                 str = endptr + 1;
-                errno = 0;
-                end = strtoll(str, &endptr, 0);
-                if (errno == 0 && endptr > str && start <= end &&
-                    (start > INT64_MAX - 65536 ||
-                     end < start + 65536)) {
+                if (!qemu_strtoi64(str, &endptr, 0, &end) && start < end) {
                     if (*endptr == '\0') {
                         cur = g_malloc0(sizeof(*cur));
                         range_set_bounds(cur, start, end);
