@@ -4813,7 +4813,7 @@ static void gen_muldiv(DisasContext *ctx, uint32_t opc,
  *
  * and
  *
- *     MADD[U]    rd, rs, rt
+ *     MADD[U][1] rd, rs, rt
  *
  * such that
  *
@@ -4875,6 +4875,9 @@ static void gen_mul_txx9(DisasContext *ctx, uint32_t opc,
             tcg_temp_free_i32(t3);
         }
         break;
+    case TX79_MMI_MADD1:
+        acc = 1;
+        /* Fall through */
     case TX79_MMI_MADD:
         {
             TCGv_i64 t2 = tcg_temp_new_i64();
@@ -4894,6 +4897,9 @@ static void gen_mul_txx9(DisasContext *ctx, uint32_t opc,
             tcg_temp_free_i64(t2);
         }
         break;
+    case TX79_MMI_MADDU1:
+        acc = 1;
+        /* Fall through */
     case TX79_MMI_MADDU:
         {
             TCGv_i64 t2 = tcg_temp_new_i64();
@@ -24749,6 +24755,8 @@ static void decode_tx79_mmi(CPUMIPSState *env, DisasContext *ctx)
     case TX79_MMI_MULTU1:
     case TX79_MMI_MADD:
     case TX79_MMI_MADDU:
+    case TX79_MMI_MADD1:
+    case TX79_MMI_MADDU1:
         gen_mul_txx9(ctx, opc, rd, rs, rt);
         break;
     case TX79_MMI_DIV1:
@@ -24764,8 +24772,6 @@ static void decode_tx79_mmi(CPUMIPSState *env, DisasContext *ctx)
         gen_HILO(ctx, opc, 1, rd);
         break;
     case TX79_MMI_PLZCW:         /* TODO: TX79_MMI_PLZCW */
-    case TX79_MMI_MADD1:         /* TODO: TX79_MMI_MADD1 */
-    case TX79_MMI_MADDU1:        /* TODO: TX79_MMI_MADDU1 */
     case TX79_MMI_PMFHL:         /* TODO: TX79_MMI_PMFHL */
     case TX79_MMI_PMTHL:         /* TODO: TX79_MMI_PMTHL */
     case TX79_MMI_PSLLH:         /* TODO: TX79_MMI_PSLLH */
