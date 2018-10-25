@@ -26092,7 +26092,8 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
         decode_opc_special(env, ctx);
         break;
     case OPC_SPECIAL2:
-        if ((ctx->insn_flags & INSN_R5900) && (ctx->insn_flags & ASE_MMI)) {
+        if ((ctx->insn_flags & INSN_R5900) &&
+            (ctx->insn_flags & ASE_TOSHIBA_MMI)) {
             decode_tx79_mmi(env, ctx);
         } else {
             decode_opc_special2_legacy(env, ctx);

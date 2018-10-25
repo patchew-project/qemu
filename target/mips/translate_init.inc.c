@@ -466,7 +466,7 @@ const mips_def_t mips_defs[] =
 #endif /* !CONFIG_USER_ONLY */
         .SEGBITS = 32,
         .PABITS = 32,
-        .insn_flags = CPU_R5900 | ASE_MMI,
+        .insn_flags = CPU_R5900 | ASE_TOSHIBA_MMI,
         .mmu_type = MMU_TYPE_R4000,
     },
     {
