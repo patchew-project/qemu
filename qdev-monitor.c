@@ -560,6 +560,49 @@ void qdev_set_id(DeviceState *dev, const char *id)
     }
 }
 
+struct DeviceBusTuple
+{
+    DeviceState *dev;
+    BusState *bus;
+} DeviceBusTuple;
+
+static int has_standby_device(void *opaque, const char *name, const char *value,
+                        Error **errp)
+{
+    if (strcmp(name, "standby") == 0)
+    {
+        struct DeviceBusTuple *tuple = (struct DeviceBusTuple *)opaque;
+        const char *dev_id = (tuple->dev)->id;
+        BusState *bus = tuple->bus;
+
+        if (qdev_should_hide_device(dev_id, bus))
+        {
+            return 1;
+        }
+        else
+        {
+            error_setg(errp, "An error occurred: Please note that the primary device should be"
+            " must be placed after the standby device in the command line");
+            return -1;
+        }
+    }
+    return 0;
+}
+
+static bool should_hide_device(DeviceState *dev, QemuOpts *opts,BusState *bus, Error **err)
+{
+    struct DeviceBusTuple tuple;
+    tuple.dev = dev;
+    tuple.bus = bus;
+
+    if (//!qemu_opt_get(opts, "vfio-pci") ||
+        qemu_opt_foreach(opts, has_standby_device, &tuple, err) == 0)
+    {
+        return false;
+    }
+    return true;
+}
+
 DeviceState *qdev_device_add(QemuOpts *opts, Error **errp)
 {
     DeviceClass *dc;
@@ -613,6 +656,13 @@ DeviceState *qdev_device_add(QemuOpts *opts, Error **errp)
     /* create device */
     dev = DEVICE(object_new(driver));
 
+    qdev_set_id(dev, qemu_opts_id(opts));
+
+    dev->hidden = should_hide_device(dev, opts, bus, &err);
+    if (err)
+    {
+        goto err_del_dev;
+    }
     if (bus) {
         qdev_set_parent_bus(dev, bus);
     } else if (qdev_hotplug && !qdev_get_machine_hotplug_handler(dev)) {
@@ -622,15 +672,17 @@ DeviceState *qdev_device_add(QemuOpts *opts, Error **errp)
         goto err_del_dev;
     }
 
-    qdev_set_id(dev, qemu_opts_id(opts));
-
     /* set properties */
     if (qemu_opt_foreach(opts, set_property, dev, &err)) {
         goto err_del_dev;
     }
 
     dev->opts = opts;
-    object_property_set_bool(OBJECT(dev), true, "realized", &err);
+    if (!dev->hidden)
+    {
+        object_property_set_bool(OBJECT(dev), true, "realized", &err);
+    }
+
     if (err != NULL) {
         dev->opts = NULL;
         goto err_del_dev;

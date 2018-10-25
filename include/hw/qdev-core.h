@@ -144,6 +144,7 @@ struct DeviceState {
     char *canonical_path;
     bool realized;
     bool pending_deleted_event;
+    bool hidden;
     QemuOpts *opts;
     int hotplugged;
     BusState *parent_bus;
@@ -157,6 +158,11 @@ struct DeviceState {
 struct DeviceListener {
     void (*realize)(DeviceListener *listener, DeviceState *dev);
     void (*unrealize)(DeviceListener *listener, DeviceState *dev);
+    /* This callback is called just upon init of the DeviceState
+     * and can be used by a standby device for informing qdev if this
+     * device should be hidden by cross checking the ids
+     */
+    void (*should_be_hidden)(DeviceListener *listener, const char *dev_id, BusState *bus, bool *res);
     QTAILQ_ENTRY(DeviceListener) link;
 };
 
@@ -207,6 +213,7 @@ struct BusState {
     int max_index;
     bool realized;
     QTAILQ_HEAD(ChildrenHead, BusChild) children;
+    QTAILQ_HEAD(HiddenChildrenHead, BusChild) hidden_children;
     QLIST_ENTRY(BusState) sibling;
 };
 
@@ -361,7 +368,7 @@ int qdev_walk_children(DeviceState *dev,
 
 void qdev_reset_all(DeviceState *dev);
 void qdev_reset_all_fn(void *opaque);
-
+void qdev_unhide(const char *dev_id, BusState *bus, Error **errp);
 /**
  * @qbus_reset_all:
  * @bus: Bus to be reset.
@@ -434,5 +441,7 @@ static inline bool qbus_is_hotpluggable(BusState *bus)
 
 void device_listener_register(DeviceListener *listener);
 void device_listener_unregister(DeviceListener *listener);
+
+bool qdev_should_hide_device(const char *dev_id, BusState *bus);
 
 #endif

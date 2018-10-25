@@ -70,6 +70,7 @@ static Property pci_props[] = {
                     QEMU_PCIE_LNKSTA_DLLLA_BITNR, true),
     DEFINE_PROP_BIT("x-pcie-extcap-init", PCIDevice, cap_present,
                     QEMU_PCIE_EXTCAP_INIT_BITNR, true),
+    DEFINE_PROP_STRING("standby", PCIDevice, standby_id_str),
     DEFINE_PROP_END_OF_LIST()
 };
 

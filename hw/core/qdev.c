@@ -77,16 +77,23 @@ static void bus_add_child(BusState *bus, DeviceState *child)
     kid->child = child;
     object_ref(OBJECT(kid->child));
 
-    QTAILQ_INSERT_HEAD(&bus->children, kid, sibling);
+    if(child->hidden)
+    {
+        QTAILQ_INSERT_HEAD(&bus->hidden_children, kid, sibling);
+    }
+    else
+    {
+        QTAILQ_INSERT_HEAD(&bus->children, kid, sibling);
 
-    /* This transfers ownership of kid->child to the property.  */
-    snprintf(name, sizeof(name), "child[%d]", kid->index);
-    object_property_add_link(OBJECT(bus), name,
+        /* This transfers ownership of kid->child to the property.  */
+        snprintf(name, sizeof(name), "child[%d]", kid->index);
+        object_property_add_link(OBJECT(bus), name,
                              object_get_typename(OBJECT(child)),
                              (Object **)&kid->child,
                              NULL, /* read-only property */
                              0, /* return ownership on prop deletion */
                              NULL);
+    }
 }
 
 void qdev_set_parent_bus(DeviceState *dev, BusState *bus)
@@ -104,9 +111,35 @@ void qdev_set_parent_bus(DeviceState *dev, BusState *bus)
     }
     dev->parent_bus = bus;
     object_ref(OBJECT(bus));
+
     bus_add_child(bus, dev);
+
     if (replugging) {
         object_unref(OBJECT(dev));
+    }
+}
+
+void qdev_unhide(const char *dev_id, BusState *bus, Error **errp)
+{
+    BusChild *kid;
+    DeviceState *dev = NULL;
+
+    QTAILQ_FOREACH(kid, &bus->hidden_children, sibling) {
+        if (!strcmp(kid->child->id,dev_id)) {
+            dev = kid->child;
+            break;
+        }
+    }
+
+    if (dev && dev->hidden)
+    {
+        dev->hidden = false;
+        QTAILQ_REMOVE(&bus->hidden_children, kid, sibling);
+        qdev_set_parent_bus(dev, dev->parent_bus);
+        object_property_set_bool(OBJECT(dev), true, "realized", errp);
+        if (!errp)
+        hotplug_handler_plug(bus->hotplug_handler, dev,
+                    errp);
     }
 }
 
@@ -206,6 +239,13 @@ void device_listener_register(DeviceListener *listener)
 void device_listener_unregister(DeviceListener *listener)
 {
     QTAILQ_REMOVE(&device_listeners, listener, link);
+}
+
+bool qdev_should_hide_device(const char *dev_id, BusState *bus)
+{
+    bool res;
+    DEVICE_LISTENER_CALL(should_be_hidden, Forward, dev_id, bus, &res);
+    return res;
 }
 
 void qdev_set_legacy_instance_id(DeviceState *dev, int alias_id,
