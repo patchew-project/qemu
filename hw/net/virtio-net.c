@@ -686,6 +686,7 @@ static void virtio_net_set_features(VirtIODevice *vdev, uint64_t features)
 {
     VirtIONet *n = VIRTIO_NET(vdev);
     int i;
+    Error *err;
 
     if (n->mtu_bypass_backend &&
             !virtio_has_feature(vdev->backend_features, VIRTIO_NET_F_MTU)) {
@@ -720,6 +721,10 @@ static void virtio_net_set_features(VirtIODevice *vdev, uint64_t features)
         memset(n->vlans, 0, MAX_VLAN >> 3);
     } else {
         memset(n->vlans, 0xff, MAX_VLAN >> 3);
+    }
+
+    if (virtio_has_feature(features, VIRTIO_NET_F_STANDBY)) {
+        qdev_unhide(n->net_conf.primary_id_str, n->primary_parent_bus, &err);
     }
 }
 
@@ -1946,6 +1951,20 @@ void virtio_net_set_netclient_name(VirtIONet *n, const char *name,
     n->netclient_type = g_strdup(type);
 }
 
+static void virtio_net_primary_should_be_hidden(DeviceListener *listener,const char *dev_id, BusState *bus, bool *res)
+{
+   VirtIONet *n = container_of(listener, VirtIONet, primary_listener);
+    if (!strcmp(n->net_conf.primary_id_str ,dev_id) && bus)
+    {
+        printf("net_confnet_confnet_confnet_confnet_conf\n");
+        n->host_features |= (1ULL << VIRTIO_NET_F_STANDBY);
+        n->primary_parent_bus = bus;
+        *res = true;
+        return;
+    }
+    *res = false;
+}
+
 static void virtio_net_device_realize(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
@@ -1974,6 +1993,11 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
         error_setg(errp, "'speed' must be between 0 and INT_MAX");
     } else if (n->net_conf.speed >= 0) {
         n->host_features |= (1ULL << VIRTIO_NET_F_SPEED_DUPLEX);
+    }
+
+    if (n->net_conf.primary_id_str) {
+        n->primary_listener.should_be_hidden = virtio_net_primary_should_be_hidden;
+        device_listener_register(&n->primary_listener);
     }
 
     virtio_net_set_config_size(n, n->host_features);
@@ -2198,6 +2222,7 @@ static Property virtio_net_properties[] = {
                      true),
     DEFINE_PROP_INT32("speed", VirtIONet, net_conf.speed, SPEED_UNKNOWN),
     DEFINE_PROP_STRING("duplex", VirtIONet, net_conf.duplex_str),
+    DEFINE_PROP_STRING("primary", VirtIONet, net_conf.primary_id_str),
     DEFINE_PROP_END_OF_LIST(),
 };
 

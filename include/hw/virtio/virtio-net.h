@@ -42,6 +42,7 @@ typedef struct virtio_net_conf
     int32_t speed;
     char *duplex_str;
     uint8_t duplex;
+    char *primary_id_str;
 } virtio_net_conf;
 
 /* Maximum packet size we can receive from tap device: header + 64k */
@@ -103,9 +104,13 @@ typedef struct VirtIONet {
     int announce_counter;
     bool needs_vnet_hdr_swap;
     bool mtu_bypass_backend;
+    BusState *primary_parent_bus;
+    DeviceListener primary_listener;
 } VirtIONet;
 
 void virtio_net_set_netclient_name(VirtIONet *n, const char *name,
                                    const char *type);
+void virtio_net_register_primary_device(DeviceState *vdev, DeviceState *pdev);
+
 
 #endif
