@@ -26100,7 +26100,8 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
         }
         break;
     case OPC_SPECIAL3:
-        if (ctx->insn_flags & INSN_R5900) {
+        if ((ctx->insn_flags & INSN_R5900) &&
+            (ctx->insn_flags & ASE_TOSHIBA_MMI)) {
             decode_tx79_sq(env, ctx);    /* TX79_SQ */
         } else {
             decode_opc_special3(env, ctx);
@@ -26764,7 +26765,8 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
         }
         break;
     case OPC_MSA: /* OPC_MDMX */
-        if (ctx->insn_flags & INSN_R5900) {
+        if ((ctx->insn_flags & INSN_R5900) &&
+            (ctx->insn_flags & ASE_TOSHIBA_MMI)) {
             decode_tx79_lq(env, ctx);    /* TX79_LQ */
         } else {
             /* MDMX: Not implemented. */
