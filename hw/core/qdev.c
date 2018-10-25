@@ -133,11 +133,18 @@ DeviceState *qdev_create(BusState *bus, const char *name)
 
 DeviceState *qdev_try_create(BusState *bus, const char *type)
 {
+    DeviceClass *dc;
     DeviceState *dev;
 
-    if (object_class_by_name(type) == NULL) {
+    dc = DEVICE_CLASS(object_class_by_name(type));
+    if (dc == NULL) {
         return NULL;
     }
+    if (dc->deprecation_reason) {
+        warn_report("device %s is deprecated (%s)",
+                    type, dc->deprecation_reason);
+    }
+
     dev = DEVICE(object_new(type));
     if (!dev) {
         return NULL;

@@ -105,6 +105,7 @@ typedef struct DeviceClass {
      */
     bool user_creatable;
     bool hotpluggable;
+    const char *deprecation_reason;
 
     /* callbacks */
     DeviceReset reset;

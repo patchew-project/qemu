@@ -128,6 +128,9 @@ static void qdev_print_devinfo(DeviceClass *dc)
     if (!dc->user_creatable) {
         out_printf(", no-user");
     }
+    if (!dc->deprecation_reason) {
+        out_printf(", deprecated");
+    }
     out_printf("\n");
 }
 
@@ -578,6 +581,10 @@ DeviceState *qdev_device_add(QemuOpts *opts, Error **errp)
     dc = qdev_get_device_class(&driver, errp);
     if (!dc) {
         return NULL;
+    }
+    if (dc->deprecation_reason) {
+        warn_report("device %s is deprecated (%s)",
+                    driver, dc->deprecation_reason);
     }
 
     /* find bus */
