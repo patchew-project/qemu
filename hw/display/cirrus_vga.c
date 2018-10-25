@@ -3024,6 +3024,8 @@ static void cirrus_vga_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_pci_cirrus_vga;
     dc->props = pci_vga_cirrus_properties;
     dc->hotpluggable = false;
+    dc->deprecation_reason =
+        "https://www.kraxel.org/blog/2014/10/qemu-using-cirrus-considered-harmful";
 }
 
 static const TypeInfo cirrus_vga_info = {

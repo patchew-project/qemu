@@ -120,6 +120,10 @@ or ``ivshmem-doorbell`` device types.
 
 Has known buffer overflow.
 
+@subsection cirrus (since 3.1)
+
+Use stdvga instead (-vga std or -device VGA).
+
 @section System emulator machines
 
 @subsection pc-0.10 and pc-0.11 (since 3.0)
