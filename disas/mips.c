@@ -301,7 +301,7 @@ struct mips_opcode
   unsigned long pinfo2;
   /* A collection of bits describing the instruction sets of which this
      instruction or macro is a member. */
-  unsigned long membership;
+  uint64_t membership;
 };
 
 /* These are the characters which may appear in the args field of an
