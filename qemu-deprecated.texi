@@ -116,6 +116,10 @@ The @option{[hub_id name]} parameter tuple of the 'hostfwd_add' and
 The ``ivshmem'' device type is replaced by either the ``ivshmem-plain''
 or ``ivshmem-doorbell`` device types.
 
+@subsection adlib (since 3.1)
+
+Has known buffer overflow.
+
 @section System emulator machines
 
 @subsection pc-0.10 and pc-0.11 (since 3.0)

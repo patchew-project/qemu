@@ -311,6 +311,7 @@ static void adlib_class_initfn (ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
     dc->desc = ADLIB_DESC;
     dc->props = adlib_properties;
+    dc->deprecation_reason = "insecure, buffer overflow in opl2 emulation";
 }
 
 static const TypeInfo adlib_info = {
