@@ -205,7 +205,7 @@ typedef struct {
     /* Action to take at the end of a MSG IN phase.
        0 = COMMAND, 1 = disconnect, 2 = DATA OUT, 3 = DATA IN.  */
     int msg_action;
-    int msg_len;
+    uint8_t msg_len;
     uint8_t msg[LSI_MAX_MSGIN_LEN];
     /* 0 if SCRIPTS are running or stopped.
      * 1 if a Wait Reselect instruction has been issued.
@@ -861,12 +861,15 @@ static void lsi_do_status(LSIState *s)
 
 static void lsi_do_msgin(LSIState *s)
 {
-    int len;
+    uint8_t len;
     trace_lsi_do_msgin(s->dbc, s->msg_len);
     s->sfbr = s->msg[0];
     len = s->msg_len;
     if (len > s->dbc)
         len = s->dbc;
+    if (len > LSI_MAX_MSGIN_LEN) {
+        len = LSI_MAX_MSGIN_LEN;
+    }
     pci_dma_write(PCI_DEVICE(s), s->dnad, s->msg, len);
     /* Linux drivers rely on the last byte being in the SIDL.  */
     s->sidl = s->msg[len - 1];
@@ -2114,7 +2117,7 @@ static const VMStateDescription vmstate_lsi_scsi = {
         VMSTATE_INT32(carry, LSIState),
         VMSTATE_INT32(status, LSIState),
         VMSTATE_INT32(msg_action, LSIState),
-        VMSTATE_INT32(msg_len, LSIState),
+        VMSTATE_UINT8(msg_len, LSIState),
         VMSTATE_BUFFER(msg, LSIState),
         VMSTATE_INT32(waiting, LSIState),
 
