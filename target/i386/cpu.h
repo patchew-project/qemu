@@ -480,7 +480,11 @@ typedef enum X86Seg {
 #define XSTATE_Hi16_ZMM_MASK            (1ULL << XSTATE_Hi16_ZMM_BIT)
 #define XSTATE_PKRU_MASK                (1ULL << XSTATE_PKRU_BIT)
 
-/* CPUID feature words */
+/*
+* Feature words
+* 2 categories, CPUID feature words and MSR feature words
+* MSR feature words definition begins after MSR_FEATURE_WORD_BEGIN
+*/
 typedef enum FeatureWord {
     FEAT_1_EDX,         /* CPUID[1].EDX */
     FEAT_1_ECX,         /* CPUID[1].ECX */
@@ -502,6 +506,7 @@ typedef enum FeatureWord {
     FEAT_6_EAX,         /* CPUID[6].EAX */
     FEAT_XSAVE_COMP_LO, /* CPUID[EAX=0xd,ECX=0].EAX */
     FEAT_XSAVE_COMP_HI, /* CPUID[EAX=0xd,ECX=0].EDX */
+    MSR_FEATURE_WORD_BEGIN, /* Define MSR feature words below */
     FEATURE_WORDS,
 } FeatureWord;
 
