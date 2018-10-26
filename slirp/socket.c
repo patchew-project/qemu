@@ -776,6 +776,79 @@ tcp_listen(Slirp *slirp, uint32_t haddr, u_int hport, uint32_t laddr,
 	return so;
 }
 
+struct socket *
+tcp6_listen(Slirp *slirp, struct in6_addr haddr, u_int hport,
+            struct in6_addr laddr, u_int lport, int flags)
+{
+    struct sockaddr_in6 addr;
+    struct socket *so;
+    int s, opt = 1;
+    socklen_t addrlen = sizeof(addr);
+    memset(&addr, 0, addrlen);
+
+    /* The same flow as in tcp_listen above */
+
+    so = socreate(slirp);
+    if (!so) {
+        return NULL;
+    }
+
+    so->so_tcpcb = tcp_newtcpcb(so);
+    if (so->so_tcpcb == NULL) {
+        free(so);
+        return NULL;
+    }
+
+    insque(so, &slirp->tcb);
+
+    if (flags & SS_FACCEPTONCE) {
+        so->so_tcpcb->t_timer[TCPT_KEEP] = TCPTV_KEEP_INIT * 2;
+    }
+
+    so->so_state &= SS_PERSISTENT_MASK;
+    so->so_state |= (SS_FACCEPTCONN | flags);
+    so->so_lfamily = AF_INET6;
+    so->so_lport6 = lport; /* Kept in network format */
+    so->so_laddr6 = laddr;
+
+    addr.sin6_family = AF_INET6;
+    addr.sin6_addr = haddr;
+    addr.sin6_port = hport;
+
+    s = qemu_socket(AF_INET6, SOCK_STREAM, 0);
+    if ((s < 0) ||
+        (socket_set_fast_reuse(s) < 0) ||
+        (bind(s, (struct sockaddr *)&addr, sizeof(addr)) < 0) ||
+        (listen(s, 1) < 0)) {
+        int tmperrno = errno; /* Don't clobber the real reason we failed */
+            if (s >= 0) {
+                closesocket(s);
+            }
+        sofree(so);
+        /* Restore the real errno */
+#ifdef _WIN32
+        WSASetLastError(tmperrno);
+#else
+        errno = tmperrno;
+#endif
+        return NULL;
+    }
+    qemu_setsockopt(s, SOL_SOCKET, SO_OOBINLINE, &opt, sizeof(int));
+
+    getsockname(s, (struct sockaddr *)&addr, &addrlen);
+    so->fhost.sin6 = addr;
+
+    if (!memcmp(&addr.sin6_addr, &in6addr_any, sizeof(in6addr_any)) ||
+        !memcmp(&addr.sin6_addr, &in6addr_loopback,
+                sizeof(in6addr_loopback))) {
+
+        memcpy(&so->so_faddr6, &slirp->vhost_addr6, sizeof(slirp->vhost_addr6));
+    }
+
+    so->s = s;
+    return so;
+}
+
 /*
  * Various session state calls
  * XXX Should be #define's
