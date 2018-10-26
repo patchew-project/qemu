@@ -507,6 +507,7 @@ typedef enum FeatureWord {
     FEAT_XSAVE_COMP_LO, /* CPUID[EAX=0xd,ECX=0].EAX */
     FEAT_XSAVE_COMP_HI, /* CPUID[EAX=0xd,ECX=0].EDX */
     MSR_FEATURE_WORD_BEGIN, /* Define MSR feature words below */
+    FEAT_ARCH_CAPABILITIES = MSR_FEATURE_WORD_BEGIN,
     FEATURE_WORDS,
 } FeatureWord;
 
@@ -734,6 +735,13 @@ typedef uint32_t FeatureWordArray[FEATURE_WORDS];
 #define CPUID_TOPOLOGY_LEVEL_INVALID  (0U << 8)
 #define CPUID_TOPOLOGY_LEVEL_SMT      (1U << 8)
 #define CPUID_TOPOLOGY_LEVEL_CORE     (2U << 8)
+
+/* MSR Feature Bits */
+#define MSR_ARCH_CAP_RDCL_NO    (1U << 0)
+#define MSR_ARCH_CAP_IBRS_ALL   (1U << 1)
+#define MSR_ARCH_CAP_RSBA       (1U << 2)
+#define MSR_ARCH_CAP_SKIP_L1DFL_VMENTRY (1U << 3)
+#define MSR_ARCH_CAP_SSB_NO     (1U << 4)
 
 #ifndef HYPERV_SPINLOCK_NEVER_RETRY
 #define HYPERV_SPINLOCK_NEVER_RETRY             0xFFFFFFFF
