@@ -29,6 +29,8 @@
 
 void hmp_hostfwd_add(Monitor *mon, const QDict *qdict);
 void hmp_hostfwd_remove(Monitor *mon, const QDict *qdict);
+void hmp_ipv6_hostfwd_add(Monitor *mon, const QDict *qdict);
+void hmp_ipv6_hostfwd_remove(Monitor *mon, const QDict *qdict);
 
 void hmp_info_usernet(Monitor *mon, const QDict *qdict);
 
