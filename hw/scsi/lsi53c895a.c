@@ -861,12 +861,13 @@ static void lsi_do_status(LSIState *s)
 
 static void lsi_do_msgin(LSIState *s)
 {
-    int len;
+    uint8_t len;
     trace_lsi_do_msgin(s->dbc, s->msg_len);
     s->sfbr = s->msg[0];
     len = s->msg_len;
     if (len > s->dbc)
         len = s->dbc;
+    assert(len <= LSI_MAX_MSGIN_LEN);
     pci_dma_write(PCI_DEVICE(s), s->dnad, s->msg, len);
     /* Linux drivers rely on the last byte being in the SIDL.  */
     s->sidl = s->msg[len - 1];
@@ -2103,11 +2104,23 @@ static int lsi_pre_save(void *opaque)
     return 0;
 }
 
+static int lsi_post_load(void *opaque, int version_id)
+{
+    LSIState *s = opaque;
+
+    if (s->msg_len < 0 || s->msg_len > LSI_MAX_MSGIN_LEN) {
+        return -EINVAL;
+    }
+
+    return 0;
+}
+
 static const VMStateDescription vmstate_lsi_scsi = {
     .name = "lsiscsi",
     .version_id = 0,
     .minimum_version_id = 0,
     .pre_save = lsi_pre_save,
+    .post_load = lsi_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_PCI_DEVICE(parent_obj, LSIState),
 
