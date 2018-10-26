@@ -116,6 +116,11 @@ The @option{[hub_id name]} parameter tuple of the 'hostfwd_add' and
 The ``ivshmem'' device type is replaced by either the ``ivshmem-plain''
 or ``ivshmem-doorbell`` device types.
 
+@subsection Strongarm sa1100 and sa1110 and related devices (since 3.1)
+
+Without the deprecated "collie" board there is no other machine which is
+able to use these devices.
+
 @section System emulator machines
 
 @subsection pc-0.10 and pc-0.11 (since 3.0)
