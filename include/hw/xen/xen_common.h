@@ -1,15 +1,6 @@
 #ifndef QEMU_HW_XEN_COMMON_H
 #define QEMU_HW_XEN_COMMON_H
 
-/*
- * If we have new enough libxenctrl then we do not want/need these compat
- * interfaces, despite what the user supplied cflags might say. They
- * must be undefined before including xenctrl.h
- */
-#undef XC_WANT_COMPAT_EVTCHN_API
-#undef XC_WANT_COMPAT_GNTTAB_API
-#undef XC_WANT_COMPAT_MAP_FOREIGN_API
-
 #include <xenctrl.h>
 #include <xenstore.h>
 #include <xen/io/xenbus.h>
