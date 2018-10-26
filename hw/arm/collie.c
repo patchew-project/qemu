@@ -60,6 +60,7 @@ static void collie_machine_init(MachineClass *mc)
     mc->init = collie_init;
     mc->ignore_memory_transaction_failures = true;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("sa1110");
+    mc->deprecation_reason = "board is incomplete and unmaintained";
 }
 
 DEFINE_MACHINE("collie", collie_machine_init)
