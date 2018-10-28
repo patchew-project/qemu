@@ -99,6 +99,15 @@ static void test_fw_cfg_boot_menu(void)
     g_assert_cmpint(qfw_cfg_get_u16(fw_cfg, FW_CFG_BOOT_MENU), ==, boot_menu);
 }
 
+static void test_fw_cfg_reboot_timeout(void)
+{
+    uint32_t reboot_timeout;
+
+    qfw_cfg_get_file(fw_cfg, "etc/boot-fail-wait",
+                     &reboot_timeout, sizeof(reboot_timeout));
+    g_assert_cmpint(reboot_timeout, <=, 65535);
+}
+
 int main(int argc, char **argv)
 {
     QTestState *s;
@@ -106,7 +115,8 @@ int main(int argc, char **argv)
 
     g_test_init(&argc, &argv, NULL);
 
-    s = qtest_init("-uuid 4600cb32-38ec-4b2f-8acb-81c6ea54f2d8");
+    s = qtest_init("-uuid 4600cb32-38ec-4b2f-8acb-81c6ea54f2d8"
+                   " -boot reboot-timeout=4294967295");
 
     fw_cfg = pc_fw_cfg_init(s);
 
@@ -125,6 +135,7 @@ int main(int argc, char **argv)
     qtest_add_func("fw_cfg/max_cpus", test_fw_cfg_max_cpus);
     qtest_add_func("fw_cfg/numa", test_fw_cfg_numa);
     qtest_add_func("fw_cfg/boot_menu", test_fw_cfg_boot_menu);
+    qtest_add_func("fw_cfg/reboot_timeout", test_fw_cfg_reboot_timeout);
 
     ret = g_test_run();
 
