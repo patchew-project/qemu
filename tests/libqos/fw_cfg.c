@@ -16,6 +16,7 @@
 #include "libqos/fw_cfg.h"
 #include "libqtest.h"
 #include "qemu/bswap.h"
+#include "standard-headers/linux/qemu_fw_cfg.h"
 
 void qfw_cfg_select(QFWCFG *fw_cfg, uint16_t key)
 {
@@ -52,6 +53,35 @@ uint64_t qfw_cfg_get_u64(QFWCFG *fw_cfg, uint16_t key)
     uint64_t value;
     qfw_cfg_get(fw_cfg, key, &value, sizeof(value));
     return le64_to_cpu(value);
+}
+
+void qfw_cfg_get_file(QFWCFG *fw_cfg, const char *filename,
+                      void *data, size_t buflen)
+{
+    uint32_t count;
+    uint32_t i;
+    unsigned char *filesbuf = NULL;
+    uint32_t dsize;
+    struct fw_cfg_file *p;
+
+    qfw_cfg_get(fw_cfg, FW_CFG_FILE_DIR, &count, sizeof(count));
+    count = be32_to_cpu(count);
+    dsize = sizeof(uint32_t) + count * sizeof(struct fw_cfg_file);
+    filesbuf = g_malloc0(dsize);
+    qfw_cfg_get(fw_cfg, FW_CFG_FILE_DIR, filesbuf, dsize);
+    p = (struct fw_cfg_file *)(filesbuf + 4);
+    for (i = 0; i < count; ++i, ++p) {
+        if (!strcmp(p->name, filename)) {
+            uint32_t len = be32_to_cpu(p->size);
+            uint16_t sel = be16_to_cpu(p->select);
+            void *buf = g_malloc0(len);
+            qfw_cfg_get(fw_cfg, sel, buf, len);
+            memcpy(data, buf, buflen);
+            g_free(buf);
+            break;
+        }
+    }
+    g_free(filesbuf);
 }
 
 static void mm_fw_cfg_select(QFWCFG *fw_cfg, uint16_t key)
