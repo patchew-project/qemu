@@ -1742,9 +1742,14 @@ static int loadvm_postcopy_handle_listen(MigrationIncomingState *mis)
     mis->have_listen_thread = true;
     /* Start up the listening thread and wait for it to signal ready */
     qemu_sem_init(&mis->listen_thread_sem, 0);
-    qemu_thread_create(&mis->listen_thread, "postcopy/listen",
-                       postcopy_ram_listen_thread, NULL,
-                       QEMU_THREAD_DETACHED);
+    if (!qemu_thread_create(&mis->listen_thread, "postcopy/listen",
+                            postcopy_ram_listen_thread, NULL,
+                            QEMU_THREAD_DETACHED, &local_err)) {
+        error_reportf_err(local_err,
+                          "failed to create postcopy_ram_listen_thread: ");
+        qemu_sem_destroy(&mis->listen_thread_sem);
+        return -1;
+    }
     qemu_sem_wait(&mis->listen_thread_sem);
     qemu_sem_destroy(&mis->listen_thread_sem);
 

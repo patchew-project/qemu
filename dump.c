@@ -2020,8 +2020,10 @@ void qmp_dump_guest_memory(bool paging, const char *file,
     if (detach_p) {
         /* detached dump */
         s->detached = true;
-        qemu_thread_create(&s->dump_thread, "dump_thread", dump_thread,
-                           s, QEMU_THREAD_DETACHED);
+        if (!qemu_thread_create(&s->dump_thread, "dump_thread", dump_thread,
+                                s, QEMU_THREAD_DETACHED, errp)) {
+            /* keep 'if' here in case there is further error handling logic */
+        }
     } else {
         /* sync dump */
         dump_process(s, errp);

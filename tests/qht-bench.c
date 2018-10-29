@@ -9,6 +9,7 @@
 #include "qemu/atomic.h"
 #include "qemu/qht.h"
 #include "qemu/rcu.h"
+#include "qapi/error.h"
 #include "exec/tb-hash-xx.h"
 
 struct thread_stats {
@@ -247,7 +248,7 @@ th_create_n(QemuThread **threads, struct thread_info **infos, const char *name,
         prepare_thread_info(&info[i], offset + i);
         info[i].func = func;
         qemu_thread_create(&th[i], name, thread_func, &info[i],
-                           QEMU_THREAD_JOINABLE);
+                           QEMU_THREAD_JOINABLE, &error_abort);
     }
 }
 

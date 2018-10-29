@@ -438,10 +438,8 @@ static void process_incoming_migration_co(void *opaque)
         /* Make sure all file formats flush their mutable metadata */
         bdrv_invalidate_cache_all(&local_err);
         if (local_err) {
-            migrate_set_state(&mis->state, MIGRATION_STATUS_ACTIVE,
-                    MIGRATION_STATUS_FAILED);
             error_report_err(local_err);
-            exit(EXIT_FAILURE);
+            goto fail;
         }
 
         if (colo_init_ram_cache() < 0) {
@@ -449,8 +447,13 @@ static void process_incoming_migration_co(void *opaque)
             exit(EXIT_FAILURE);
         }
 
-        qemu_thread_create(&mis->colo_incoming_thread, "COLO incoming",
-             colo_process_incoming_thread, mis, QEMU_THREAD_JOINABLE);
+        if (!qemu_thread_create(&mis->colo_incoming_thread, "COLO incoming",
+                                colo_process_incoming_thread, mis,
+                                QEMU_THREAD_JOINABLE, &local_err)) {
+            error_reportf_err(local_err, "failed to create "
+                              "colo_process_incoming_thread: ");
+            goto fail;
+        }
         mis->have_colo_incoming_thread = true;
         qemu_coroutine_yield();
 
@@ -461,20 +464,22 @@ static void process_incoming_migration_co(void *opaque)
     }
 
     if (ret < 0) {
-        Error *local_err = NULL;
-
-        migrate_set_state(&mis->state, MIGRATION_STATUS_ACTIVE,
-                          MIGRATION_STATUS_FAILED);
         error_report("load of migration failed: %s", strerror(-ret));
-        qemu_fclose(mis->from_src_file);
-        if (multifd_load_cleanup(&local_err) != 0) {
-            error_report_err(local_err);
-        }
-        exit(EXIT_FAILURE);
+        goto fail;
     }
     mis->bh = qemu_bh_new(process_incoming_migration_bh, mis);
     qemu_bh_schedule(mis->bh);
     mis->migration_incoming_co = NULL;
+    return;
+fail:
+    local_err = NULL;
+    migrate_set_state(&mis->state, MIGRATION_STATUS_ACTIVE,
+                      MIGRATION_STATUS_FAILED);
+    qemu_fclose(mis->from_src_file);
+    if (multifd_load_cleanup(&local_err) != 0) {
+        error_report_err(local_err);
+    }
+    exit(EXIT_FAILURE);
 }
 
 static void migration_incoming_setup(QEMUFile *f)
@@ -2336,6 +2341,7 @@ out:
 static int open_return_path_on_source(MigrationState *ms,
                                       bool create_thread)
 {
+    Error *local_err = NULL;
 
     ms->rp_state.from_dst_file = qemu_file_get_return_path(ms->to_dst_file);
     if (!ms->rp_state.from_dst_file) {
@@ -2349,8 +2355,13 @@ static int open_return_path_on_source(MigrationState *ms,
         return 0;
     }
 
-    qemu_thread_create(&ms->rp_state.rp_thread, "return path",
-                       source_return_path_thread, ms, QEMU_THREAD_JOINABLE);
+    if (!qemu_thread_create(&ms->rp_state.rp_thread, "return path",
+                            source_return_path_thread, ms,
+                            QEMU_THREAD_JOINABLE, &local_err)) {
+        error_reportf_err(local_err,
+                          "failed to create source_return_path_thread: ");
+        return -1;
+    }
 
     trace_open_return_path_on_source_continue();
 
@@ -3180,8 +3191,13 @@ void migrate_fd_connect(MigrationState *s, Error *error_in)
         migrate_fd_cleanup(s);
         return;
     }
-    qemu_thread_create(&s->thread, "live_migration", migration_thread, s,
-                       QEMU_THREAD_JOINABLE);
+    if (!qemu_thread_create(&s->thread, "live_migration", migration_thread,
+                            s, QEMU_THREAD_JOINABLE, &error_in)) {
+        error_reportf_err(error_in, "failed to create migration_thread: ");
+        migrate_set_state(&s->state, s->state, MIGRATION_STATUS_FAILED);
+        migrate_fd_cleanup(s);
+        return;
+    }
     s->migration_thread_running = true;
 }
 

@@ -15,6 +15,7 @@
 #include "qemu/atomic.h"
 #include "qemu/notify.h"
 #include "qemu-thread-common.h"
+#include "qapi/error.h"
 
 static bool name_threads;
 
@@ -504,9 +505,9 @@ static void *qemu_thread_start(void *args)
     return start_routine(arg);
 }
 
-void qemu_thread_create(QemuThread *thread, const char *name,
-                       void *(*start_routine)(void*),
-                       void *arg, int mode)
+bool qemu_thread_create(QemuThread *thread, const char *name,
+                        void *(*start_routine)(void *),
+                        void *arg, int mode, Error **errp)
 {
     sigset_t set, oldset;
     int err;
@@ -515,7 +516,9 @@ void qemu_thread_create(QemuThread *thread, const char *name,
 
     err = pthread_attr_init(&attr);
     if (err) {
-        error_exit(err, __func__);
+        error_setg_errno(errp, -err, "pthread_attr_init failed: %s",
+                         strerror(err));
+        return false;
     }
 
     if (mode == QEMU_THREAD_DETACHED) {
@@ -530,16 +533,21 @@ void qemu_thread_create(QemuThread *thread, const char *name,
     qemu_thread_args->name = g_strdup(name);
     qemu_thread_args->start_routine = start_routine;
     qemu_thread_args->arg = arg;
-
     err = pthread_create(&thread->thread, &attr,
                          qemu_thread_start, qemu_thread_args);
-
-    if (err)
-        error_exit(err, __func__);
+    if (err) {
+        error_setg_errno(errp, -err, "pthread_create failed: %s",
+                         strerror(err));
+        pthread_attr_destroy(&attr);
+        g_free(qemu_thread_args->name);
+        g_free(qemu_thread_args);
+        return false;
+    }
 
     pthread_sigmask(SIG_SETMASK, &oldset, NULL);
 
     pthread_attr_destroy(&attr);
+    return true;
 }
 
 void qemu_thread_get_self(QemuThread *thread)
