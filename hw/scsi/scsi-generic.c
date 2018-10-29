@@ -16,6 +16,7 @@
 #include "qemu-common.h"
 #include "qemu/error-report.h"
 #include "hw/scsi/scsi.h"
+#include "hw/scsi/emulation.h"
 #include "sysemu/block-backend.h"
 
 #ifdef __linux__
@@ -209,9 +210,24 @@ static void scsi_handle_inquiry_reply(SCSIGenericReq *r, SCSIDevice *s)
     }
 }
 
-static int scsi_emulate_block_limits(SCSIGenericReq *r)
+static int scsi_generic_emulate_block_limits(SCSIGenericReq *r, SCSIDevice *s)
 {
-    r->buflen = scsi_disk_emulate_vpd_page(&r->req, r->buf);
+    int len, buflen;
+    uint8_t buf[64];
+
+    SCSIBlockLimits bl = {
+        .max_io_sectors = blk_get_max_transfer(s->conf.blk) / s->blocksize
+    };
+
+    memset(r->buf, 0, r->buflen);
+    stb_p(buf, s->type);
+    stb_p(buf + 1, 0xb0);
+    len = scsi_emulate_block_limits(buf + 4, &bl);
+    assert(len <= sizeof(buf) - 4);
+    stw_be_p(buf + 2, len);
+
+    memcpy(r->buf, buf, MIN(r->buflen, len + 4));
+
     r->io_header.sb_len_wr = 0;
 
     /*
@@ -259,7 +275,7 @@ static void scsi_read_complete(void * opaque, int ret)
                          r->req.cmd.buf[2] == 0xb0;
 
         if (is_vpd_bl && sg_io_sense_from_errno(-ret, &r->io_header, &sense)) {
-            len = scsi_emulate_block_limits(r);
+            len = scsi_generic_emulate_block_limits(r, s);
             /*
              * No need to let scsi_read_complete go on and handle an
              * INQUIRY VPD BL request we created manually.
