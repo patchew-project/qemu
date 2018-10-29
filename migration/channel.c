@@ -44,7 +44,12 @@ void migration_channel_process_incoming(QIOChannel *ioc)
             error_report_err(local_err);
         }
     } else {
-        migration_ioc_process_incoming(ioc);
+        Error *local_err = NULL;
+        migration_ioc_process_incoming(ioc, &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+            exit(EXIT_FAILURE);
+        }
     }
 }
 

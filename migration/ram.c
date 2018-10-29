@@ -1072,6 +1072,7 @@ out:
 static void multifd_new_send_channel_async(QIOTask *task, gpointer opaque)
 {
     MultiFDSendParams *p = opaque;
+    MigrationState *s = migrate_get_current();
     QIOChannel *sioc = QIO_CHANNEL(qio_task_get_source(task));
     Error *local_err = NULL;
 
@@ -1080,6 +1081,7 @@ static void multifd_new_send_channel_async(QIOTask *task, gpointer opaque)
     }
 
     if (qio_task_propagate_error(task, &local_err)) {
+        migrate_set_state(&s->state, s->state, MIGRATION_STATUS_FAILED);
         if (multifd_save_cleanup(&local_err) != 0) {
             migrate_set_error(migrate_get_current(), local_err);
         }
@@ -1337,16 +1339,20 @@ bool multifd_recv_all_channels_created(void)
 }
 
 /* Return true if multifd is ready for the migration, otherwise false */
-bool multifd_recv_new_channel(QIOChannel *ioc)
+bool multifd_recv_new_channel(QIOChannel *ioc, Error **errp)
 {
+    MigrationIncomingState *mis = migration_incoming_get_current();
     MultiFDRecvParams *p;
     Error *local_err = NULL;
     int id;
 
     id = multifd_recv_initial_packet(ioc, &local_err);
     if (id < 0) {
+        error_propagate_prepend(errp, local_err,
+                        "failed to receive packet via multifd channel %x: ",
+                        multifd_recv_state->count);
         multifd_recv_terminate_threads(local_err, false);
-        return false;
+        goto fail;
     }
 
     p = &multifd_recv_state->params[id];
@@ -1354,7 +1360,8 @@ bool multifd_recv_new_channel(QIOChannel *ioc)
         error_setg(&local_err, "multifd: received id '%d' already setup'",
                    id);
         multifd_recv_terminate_threads(local_err, true);
-        return false;
+        error_propagate(errp, local_err);
+        goto fail;
     }
     p->c = ioc;
     object_ref(OBJECT(ioc));
@@ -1366,6 +1373,10 @@ bool multifd_recv_new_channel(QIOChannel *ioc)
                        QEMU_THREAD_JOINABLE);
     atomic_inc(&multifd_recv_state->count);
     return multifd_recv_state->count == migrate_multifd_channels();
+fail:
+    qemu_fclose(mis->from_src_file);
+    mis->from_src_file = NULL;
+    return false;
 }
 
 /**
