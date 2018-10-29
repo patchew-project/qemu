@@ -720,6 +720,25 @@ F: hw/char/mcf_uart.c
 F: hw/net/mcf_fec.c
 F: include/hw/m68k/mcf*.h
 
+q800
+M: Laurent Vivier <laurent@vivier.eu>
+S: Maintained
+F: hw/audio/asc.c
+F: hw/block/swim.c
+F: hw/m68k/bootinfo.h
+F: hw/display/macfb-template.h
+F: hw/display/macfb.c
+F: hw/intc/q800_irq.c
+F: hw/m68k/q800.c
+F: hw/misc/mac_via.c
+F: hw/nubus/*
+F: include/hw/audio/asc.h
+F: include/hw/block/swim.h
+F: include/hw/display/macfb.h
+F: include/hw/intc/q800_irq.h
+F: include/hw/misc/mac_via.h
+F: include/hw/nubus/*
+
 MicroBlaze Machines
 -------------------
 petalogix_s3adsp1800
