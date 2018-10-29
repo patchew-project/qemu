@@ -116,6 +116,8 @@ static void aw_a10_realize(DeviceState *dev, Error **errp)
     if (machine_usb(current_machine)) {
         sysbus_create_simple("sysbus-ohci", 0x01c14400, s->irq[64]);
         sysbus_create_simple("sysbus-ohci", 0x01c1c400, s->irq[65]);
+        sysbus_create_simple(TYPE_AW_A10_EHCI, 0x01c14000, s->irq[39]);
+        sysbus_create_simple(TYPE_AW_A10_EHCI, 0x01c1c000, s->irq[40]);
     }
 }
 
