@@ -190,6 +190,7 @@ qemu_irq *xen_interrupt_controller_init(void)
 static void xen_ram_init(PCMachineState *pcms,
                          ram_addr_t ram_size, MemoryRegion **ram_memory_p)
 {
+    AcpiConfiguration *conf = &pcms->acpi_configuration;
     MemoryRegion *sysmem = get_system_memory();
     ram_addr_t block_len;
     uint64_t user_lowmem = object_property_get_uint(qdev_get_machine(),
@@ -207,20 +208,20 @@ static void xen_ram_init(PCMachineState *pcms,
     }
 
     if (ram_size >= user_lowmem) {
-        pcms->above_4g_mem_size = ram_size - user_lowmem;
-        pcms->below_4g_mem_size = user_lowmem;
+        conf->above_4g_mem_size = ram_size - user_lowmem;
+        conf->below_4g_mem_size = user_lowmem;
     } else {
-        pcms->above_4g_mem_size = 0;
-        pcms->below_4g_mem_size = ram_size;
+        conf->above_4g_mem_size = 0;
+        conf->below_4g_mem_size = ram_size;
     }
-    if (!pcms->above_4g_mem_size) {
+    if (!conf->above_4g_mem_size) {
         block_len = ram_size;
     } else {
         /*
          * Xen does not allocate the memory continuously, it keeps a
          * hole of the size computed above or passed in.
          */
-        block_len = (1ULL << 32) + pcms->above_4g_mem_size;
+        block_len = (1ULL << 32) + conf->above_4g_mem_size;
     }
     memory_region_init_ram(&ram_memory, NULL, "xen.ram", block_len,
                            &error_fatal);
@@ -237,12 +238,12 @@ static void xen_ram_init(PCMachineState *pcms,
      */
     memory_region_init_alias(&ram_lo, NULL, "xen.ram.lo",
                              &ram_memory, 0xc0000,
-                             pcms->below_4g_mem_size - 0xc0000);
+                             conf->below_4g_mem_size - 0xc0000);
     memory_region_add_subregion(sysmem, 0xc0000, &ram_lo);
-    if (pcms->above_4g_mem_size > 0) {
+    if (conf->above_4g_mem_size > 0) {
         memory_region_init_alias(&ram_hi, NULL, "xen.ram.hi",
                                  &ram_memory, 0x100000000ULL,
-                                 pcms->above_4g_mem_size);
+                                 conf->above_4g_mem_size);
         memory_region_add_subregion(sysmem, 0x100000000ULL, &ram_hi);
     }
 }
