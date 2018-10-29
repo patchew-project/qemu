@@ -158,7 +158,7 @@ static int tpm_emulator_unix_tx_bufs(TPMEmulator *tpm_emu,
 static int tpm_emulator_set_locality(TPMEmulator *tpm_emu, uint8_t locty_number,
                                      Error **errp)
 {
-    ptm_loc loc;
+    ptm_loc loc = { 0 };
 
     if (tpm_emu->cur_locty_number == locty_number) {
         return 0;
