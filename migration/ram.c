@@ -922,7 +922,7 @@ static void multifd_send_terminate_threads(Error *err)
     }
 }
 
-int multifd_save_cleanup(Error **errp)
+int multifd_save_cleanup(void)
 {
     int i;
     int ret = 0;
@@ -1082,9 +1082,8 @@ static void multifd_new_send_channel_async(QIOTask *task, gpointer opaque)
 
     if (qio_task_propagate_error(task, &local_err)) {
         migrate_set_state(&s->state, s->state, MIGRATION_STATUS_FAILED);
-        if (multifd_save_cleanup(&local_err) != 0) {
-            migrate_set_error(migrate_get_current(), local_err);
-        }
+        multifd_save_cleanup();
+        migrate_set_error(migrate_get_current(), local_err);
     } else {
         p->c = QIO_CHANNEL(sioc);
         qio_channel_set_delay(p->c, false);
