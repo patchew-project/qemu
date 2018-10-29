@@ -20,6 +20,7 @@
 #include "qemu/timer.h"
 #include "sysemu/dma.h"
 #include "qemu/log.h"
+#include "hw/dma/pl330.h"
 
 #ifndef PL330_ERR_DEBUG
 #define PL330_ERR_DEBUG 0
@@ -271,7 +272,6 @@ struct PL330State {
 
 };
 
-#define TYPE_PL330 "pl330"
 #define PL330(obj) OBJECT_CHECK(PL330State, (obj), TYPE_PL330)
 
 static const VMStateDescription vmstate_pl330 = {

@@ -34,6 +34,7 @@
 #include "hw/char/cadence_uart.h"
 #include "hw/net/cadence_gem.h"
 #include "hw/cpu/a9mpcore.h"
+#include "hw/dma/pl330.h"
 
 #define NUM_SPI_FLASHES 4
 #define NUM_QSPI_FLASHES 2
@@ -278,22 +279,7 @@ static void zynq_init(MachineState *machine)
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0xF8007100);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, pic[39-IRQ_OFFSET]);
 
-    dev = qdev_create(NULL, "pl330");
-    qdev_prop_set_uint8(dev, "num_chnls",  8);
-    qdev_prop_set_uint8(dev, "num_periph_req",  4);
-    qdev_prop_set_uint8(dev, "num_events",  16);
-
-    qdev_prop_set_uint8(dev, "data_width",  64);
-    qdev_prop_set_uint8(dev, "wr_cap",  8);
-    qdev_prop_set_uint8(dev, "wr_q_dep",  16);
-    qdev_prop_set_uint8(dev, "rd_cap",  8);
-    qdev_prop_set_uint8(dev, "rd_q_dep",  16);
-    qdev_prop_set_uint16(dev, "data_buffer_dep",  256);
-
-    qdev_init_nofail(dev);
-    busdev = SYS_BUS_DEVICE(dev);
-    sysbus_mmio_map(busdev, 0, 0xF8003000);
-    sysbus_connect_irq(busdev, 0, pic[45-IRQ_OFFSET]); /* abort irq line */
+    pl330_init(0xf8003000, pic[45 - IRQ_OFFSET], 4); /* abort irq line */
     for (n = 0; n < ARRAY_SIZE(dma_irqs); ++n) { /* event irqs */
         sysbus_connect_irq(busdev, n + 1, pic[dma_irqs[n] - IRQ_OFFSET]);
     }

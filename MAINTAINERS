@@ -452,6 +452,7 @@ F: hw/display/pl110*
 F: hw/dma/pl080.c
 F: include/hw/dma/pl080.h
 F: hw/dma/pl330.c
+F: include/hw/dma/pl330.h
 F: hw/gpio/pl061.c
 F: hw/input/pl050.c
 F: hw/intc/pl190.c
