@@ -411,18 +411,6 @@ const mips_def_t mips_defs[] =
         .mmu_type = MMU_TYPE_R4000,
     },
     {
-        /*
-         * The Toshiba TX System RISC TX79 Core Architecture manual
-         *
-         * https://wiki.qemu.org/File:C790.pdf
-         *
-         * describes the C790 processor that is a follow-up to the R5900.
-         * There are a few notable differences in that the R5900 FPU
-         *
-         * - is not IEEE 754-1985 compliant,
-         * - does not implement double format, and
-         * - its machine code is nonstandard.
-         */
         .name = "R5900",
         .CP0_PRid = 0x00002E00,
         /* No L2 cache, icache size 32k, dcache size 32k, uncached coherency. */
