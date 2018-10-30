@@ -7370,6 +7370,12 @@ fi
 # DIRS are directories which we simply mkdir in the build tree;
 # LINKS are things to symlink back into the source tree
 # (these can be both files and directories).
+# Caution: do not add files or directories here using wildcards. This
+# will result in problems later if a new file matching the wildcard is
+# added to the source tree -- nothing will cause configure to be rerun
+# so the build tree will be missing the link back to the new file, and
+# tests might fail. Prefer to keep the relevant files in their own
+# directory and symlink the directory instead.
 DIRS="tests tests/tcg tests/tcg/cris tests/tcg/lm32 tests/libqos tests/qapi-schema tests/tcg/xtensa tests/qemu-iotests tests/vm"
 DIRS="$DIRS tests/fp"
 DIRS="$DIRS docs docs/interop fsdev scsi"
@@ -7385,6 +7391,7 @@ LINKS="$LINKS pc-bios/s390-ccw/Makefile"
 LINKS="$LINKS roms/seabios/Makefile roms/vgabios/Makefile"
 LINKS="$LINKS pc-bios/qemu-icon.bmp"
 LINKS="$LINKS .gdbinit scripts" # scripts needed by relative path in .gdbinit
+LINKS="$LINKS tests/acpi-test-data tests/hex-loader-check-data"
 for bios_file in \
     $source_path/pc-bios/*.bin \
     $source_path/pc-bios/*.lid \
@@ -7397,14 +7404,6 @@ for bios_file in \
     $source_path/pc-bios/palcode-*
 do
     LINKS="$LINKS pc-bios/$(basename $bios_file)"
-done
-for test_file in $(find $source_path/tests/acpi-test-data -type f)
-do
-    LINKS="$LINKS tests/acpi-test-data$(echo $test_file | sed -e 's/.*acpi-test-data//')"
-done
-for test_file in $(find $source_path/tests/hex-loader-check-data -type f)
-do
-    LINKS="$LINKS tests/hex-loader-check-data$(echo $test_file | sed -e 's/.*hex-loader-check-data//')"
 done
 mkdir -p $DIRS
 for f in $LINKS ; do
