@@ -970,11 +970,6 @@ static void device_initfn(Object *obj)
     QLIST_INIT(&dev->gpios);
 }
 
-static void device_post_init(Object *obj)
-{
-    object_property_set_globals(obj);
-}
-
 /* Unlink device from bus and free the structure.  */
 static void device_finalize(Object *obj)
 {
@@ -1098,7 +1093,6 @@ static const TypeInfo device_type_info = {
     .parent = TYPE_OBJECT,
     .instance_size = sizeof(DeviceState),
     .instance_init = device_initfn,
-    .instance_post_init = device_post_init,
     .instance_finalize = device_finalize,
     .class_base_init = device_class_base_init,
     .class_init = device_class_init,

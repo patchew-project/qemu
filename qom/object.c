@@ -12,6 +12,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qom/globals.h"
 #include "qom/object.h"
 #include "qom/object_interfaces.h"
 #include "qemu/cutils.h"
@@ -390,6 +391,7 @@ static void object_initialize_with_type(void *data, size_t size, TypeImpl *type)
                                             NULL, object_property_free);
     object_init_with_type(obj, type);
     object_post_init_with_type(obj, type);
+    object_property_set_globals(obj);
 }
 
 void object_initialize(void *data, size_t size, const char *typename)
