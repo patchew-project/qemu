@@ -3,6 +3,7 @@
 
 #include "qemu/queue.h"
 #include "qemu/bitmap.h"
+#include "qemu/support-state.h"
 #include "qom/object.h"
 #include "hw/irq.h"
 #include "hw/hotplug.h"
@@ -105,6 +106,7 @@ typedef struct DeviceClass {
      */
     bool user_creatable;
     bool hotpluggable;
+    QemuSupportState supported;
 
     /* callbacks */
     DeviceReset reset;

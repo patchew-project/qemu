@@ -128,6 +128,9 @@ static void qdev_print_devinfo(DeviceClass *dc)
     if (!dc->user_creatable) {
         out_printf(", no-user");
     }
+    if (dc->supported.state != SUPPORT_STATE_UNKNOWN) {
+        out_printf(", %s", SupportState_str(dc->supported.state));
+    }
     out_printf("\n");
 }
 
@@ -578,6 +581,10 @@ DeviceState *qdev_device_add(QemuOpts *opts, Error **errp)
     dc = qdev_get_device_class(&driver, errp);
     if (!dc) {
         return NULL;
+    }
+    if (qemu_is_deprecated(&dc->supported) ||
+        qemu_is_obsolete(&dc->supported)) {
+        qemu_warn_support_state("device", driver, &dc->supported);
     }
 
     /* find bus */
