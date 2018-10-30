@@ -410,6 +410,8 @@ const mips_def_t mips_defs[] =
         .insn_flags = CPU_MIPS32R5 | ASE_MSA,
         .mmu_type = MMU_TYPE_R4000,
     },
+#if defined(CONFIG_USER_ONLY)
+#if !defined(TARGET_MIPS64)
     {
         .name = "R5900",
         .CP0_PRid = 0x00002E00,
@@ -457,6 +459,8 @@ const mips_def_t mips_defs[] =
         .insn_flags = CPU_R5900 | ASE_MMI,
         .mmu_type = MMU_TYPE_R4000,
     },
+#endif
+#endif
     {
         /* A generic CPU supporting MIPS32 Release 6 ISA.
            FIXME: Support IEEE 754-2008 FP.
