@@ -259,6 +259,7 @@ static void type_initialize_interface(TypeImpl *ti, TypeImpl *interface_type,
 
     ti->class->interfaces = g_slist_append(ti->class->interfaces,
                                            iface_impl->class);
+    ti->class->set_globals |= iface_impl->class->set_globals;
 }
 
 static void object_property_free(gpointer data)
@@ -391,7 +392,9 @@ static void object_initialize_with_type(void *data, size_t size, TypeImpl *type)
                                             NULL, object_property_free);
     object_init_with_type(obj, type);
     object_post_init_with_type(obj, type);
-    object_property_set_globals(obj);
+    if (object_get_class(obj)->set_globals) {
+        object_property_set_globals(obj);
+    }
 }
 
 void object_initialize(void *data, size_t size, const char *typename)

@@ -400,6 +400,7 @@ struct ObjectClass
     ObjectUnparent *unparent;
 
     GHashTable *properties;
+    bool set_globals;
 };
 
 /**

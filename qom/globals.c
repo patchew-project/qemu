@@ -18,11 +18,6 @@ void object_property_set_globals(Object *obj)
     GList *l;
     DeviceState *dev = (DeviceState *)object_dynamic_cast(obj, TYPE_DEVICE);
 
-    if (!dev && !IS_USER_CREATABLE(obj)) {
-        /* only TYPE_DEVICE and TYPE_USER_CREATABLE support globals */
-        return;
-    }
-
     for (l = global_props; l; l = l->next) {
         GlobalProperty *prop = l->data;
         Error *err = NULL;

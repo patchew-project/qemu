@@ -1042,6 +1042,7 @@ static void device_class_init(ObjectClass *class, void *data)
      */
     dc->hotpluggable = true;
     dc->user_creatable = true;
+    class->set_globals = true;
 }
 
 void device_class_set_parent_reset(DeviceClass *dc,
