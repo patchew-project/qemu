@@ -151,3 +151,19 @@
              'ppc64', 'riscv32', 'riscv64', 's390x', 'sh4',
              'sh4eb', 'sparc', 'sparc64', 'tricore', 'unicore32',
              'x86_64', 'xtensa', 'xtensaeb' ] }
+
+##
+# @SupportState:
+#
+# Indicate Support level of qemu devices, backends, subsystems, ...
+#
+# Since: 3.2
+##
+{ 'enum': 'SupportState',
+  'data': [ 'unknown',
+            'supported',
+            'maintained',
+            'odd-fixes',
+            'orphan',
+            'obsolete',
+            'deprecated' ] }
