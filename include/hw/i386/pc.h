@@ -300,7 +300,7 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
         .driver   = TYPE_X86_CPU,\
         .property = "x-hv-synic-kvm-only",\
         .value    = "on",\
-    }
+    },
 
 #define PC_COMPAT_2_12 \
     HW_COMPAT_2_12 \
