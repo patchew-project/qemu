@@ -81,6 +81,9 @@ static void isa_cirrus_vga_class_init(ObjectClass *klass, void *data)
     dc->realize = isa_cirrus_vga_realizefn;
     dc->props = isa_cirrus_vga_properties;
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
+    dc->supported.state = SUPPORT_STATE_OBSOLETE;
+    dc->supported.reason = "use \"-vga std\" instead, see "
+        "https://www.kraxel.org/blog/2014/10/qemu-using-cirrus-considered-harmful/";
 }
 
 static const TypeInfo isa_cirrus_vga_info = {
