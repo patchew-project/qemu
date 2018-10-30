@@ -57,7 +57,7 @@ memfd_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
         return;
     }
 
-    name = object_get_canonical_path(OBJECT(backend));
+    name = host_memory_backend_get_name(backend);
     memory_region_init_ram_from_fd(&backend->mr, OBJECT(backend),
                                    name, backend->size, true, fd, errp);
     g_free(name);
