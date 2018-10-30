@@ -90,7 +90,7 @@ check-unit-y += tests/test-qht$(EXESUF)
 check-unit-y += tests/test-qht-par$(EXESUF)
 check-unit-y += tests/test-bitops$(EXESUF)
 check-unit-y += tests/test-bitcnt$(EXESUF)
-check-unit-y += tests/test-qdev-global-props$(EXESUF)
+check-unit-y += tests/test-global-props$(EXESUF)
 check-unit-y += tests/check-qom-interface$(EXESUF)
 check-unit-y += tests/check-qom-proplist$(EXESUF)
 check-unit-y += tests/test-qemu-opts$(EXESUF)
@@ -559,7 +559,7 @@ tests/atomic64-bench$(EXESUF): tests/atomic64-bench.o $(test-util-obj-y)
 tests/fp/%:
 	$(MAKE) -C $(dir $@) $(notdir $@)
 
-tests/test-qdev-global-props$(EXESUF): tests/test-qdev-global-props.o \
+tests/test-global-props$(EXESUF): tests/test-global-props.o \
 	hw/core/qdev.o hw/core/qdev-properties.o hw/core/hotplug.o\
 	hw/core/bus.o \
 	hw/core/irq.o \

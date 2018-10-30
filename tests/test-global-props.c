@@ -27,7 +27,100 @@
 #include "hw/qdev.h"
 #include "qom/object.h"
 #include "qapi/visitor.h"
+#include "qom/object_interfaces.h"
 
+#define TYPE_DUMMY "qemu-dummy"
+
+typedef struct DummyObject DummyObject;
+typedef struct DummyObjectClass DummyObjectClass;
+
+#define DUMMY_OBJECT(obj)                           \
+    OBJECT_CHECK(DummyObject, (obj), TYPE_DUMMY)
+
+struct DummyObject {
+    Object parent_obj;
+
+    char *sv;
+};
+
+struct DummyObjectClass {
+    ObjectClass parent_class;
+};
+
+static void dummy_set_sv(Object *obj,
+                         const char *value,
+                         Error **errp)
+{
+    DummyObject *dobj = DUMMY_OBJECT(obj);
+
+    g_free(dobj->sv);
+    dobj->sv = g_strdup(value);
+}
+
+static char *dummy_get_sv(Object *obj,
+                          Error **errp)
+{
+    DummyObject *dobj = DUMMY_OBJECT(obj);
+
+    return g_strdup(dobj->sv);
+}
+
+
+
+static void dummy_class_init(ObjectClass *cls, void *data)
+{
+    object_class_property_add_str(cls, "sv",
+                                  dummy_get_sv,
+                                  dummy_set_sv,
+                                  NULL);
+}
+
+
+static void dummy_finalize(Object *obj)
+{
+    DummyObject *dobj = DUMMY_OBJECT(obj);
+
+    g_free(dobj->sv);
+}
+
+
+static const TypeInfo dummy_info = {
+    .name          = TYPE_DUMMY,
+    .parent        = TYPE_OBJECT,
+    .instance_size = sizeof(DummyObject),
+    .instance_finalize = dummy_finalize,
+    .class_size = sizeof(DummyObjectClass),
+    .class_init = dummy_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_USER_CREATABLE },
+        { }
+    }
+};
+
+static void test_global_props_uc_subprocess(void)
+{
+    DummyObject *d;
+    static GlobalProperty gp = {
+        TYPE_DUMMY, "sv", "foobar",
+    };
+
+    d = DUMMY_OBJECT(object_new(TYPE_DUMMY));
+    g_assert_null(d->sv);
+    object_unref(OBJECT(d));
+
+    object_property_register_global(&gp);
+    d = DUMMY_OBJECT(object_new(TYPE_DUMMY));
+    g_assert_cmpstr(d->sv, ==, "foobar");
+    object_unref(OBJECT(d));
+}
+
+static void test_global_props_uc(void)
+{
+    g_test_trap_subprocess("/global-props/usercreatable/subprocess", 0, 0);
+    g_test_trap_assert_passed();
+    g_test_trap_assert_stderr("");
+    g_test_trap_assert_stdout("");
+}
 
 #define TYPE_STATIC_PROPS "static_prop_type"
 #define STATIC_TYPE(obj) \
@@ -83,7 +176,8 @@ static void test_static_prop_subprocess(void)
 
 static void test_static_prop(void)
 {
-    g_test_trap_subprocess("/qdev/properties/static/default/subprocess", 0, 0);
+    g_test_trap_subprocess("/global-props/qdev/static/default/subprocess",
+                           0, 0);
     g_test_trap_assert_passed();
     g_test_trap_assert_stderr("");
     g_test_trap_assert_stdout("");
@@ -119,7 +213,7 @@ static void test_static_globalprop_subprocess(void)
 
 static void test_static_globalprop(void)
 {
-    g_test_trap_subprocess("/qdev/properties/static/global/subprocess", 0, 0);
+    g_test_trap_subprocess("/global-props/qdev/static/global/subprocess", 0, 0);
     g_test_trap_assert_passed();
     g_test_trap_assert_stderr("");
     g_test_trap_assert_stdout("");
@@ -245,7 +339,8 @@ static void test_dynamic_globalprop_subprocess(void)
 
 static void test_dynamic_globalprop(void)
 {
-    g_test_trap_subprocess("/qdev/properties/dynamic/global/subprocess", 0, 0);
+    g_test_trap_subprocess("/global-props/qdev/dynamic/global/subprocess",
+                           0, 0);
     g_test_trap_assert_passed();
     g_test_trap_assert_stderr_unmatched("*prop1*");
     g_test_trap_assert_stderr_unmatched("*prop2*");
@@ -290,7 +385,8 @@ static void test_dynamic_globalprop_nouser_subprocess(void)
 
 static void test_dynamic_globalprop_nouser(void)
 {
-    g_test_trap_subprocess("/qdev/properties/dynamic/global/nouser/subprocess", 0, 0);
+    g_test_trap_subprocess("/global-props/qdev"
+                           "/dynamic/global/nouser/subprocess", 0, 0);
     g_test_trap_assert_passed();
     g_test_trap_assert_stderr("");
     g_test_trap_assert_stdout("");
@@ -323,6 +419,7 @@ int main(int argc, char **argv)
     g_test_init(&argc, &argv, NULL);
 
     module_call_init(MODULE_INIT_QOM);
+    type_register_static(&dummy_info);
     type_register_static(&static_prop_type);
     type_register_static(&subclass_type);
     type_register_static(&dynamic_prop_type);
@@ -330,27 +427,32 @@ int main(int argc, char **argv)
     type_register_static(&nohotplug_type);
     type_register_static(&nondevice_type);
 
-    g_test_add_func("/qdev/properties/static/default/subprocess",
+    g_test_add_func("/global-props/usercreatable/subprocess",
+                    test_global_props_uc_subprocess);
+    g_test_add_func("/global-props/usercreatable",
+                    test_global_props_uc);
+
+    g_test_add_func("/global-props/qdev/static/default/subprocess",
                     test_static_prop_subprocess);
-    g_test_add_func("/qdev/properties/static/default",
+    g_test_add_func("/global-props/qdev/static/default",
                     test_static_prop);
 
-    g_test_add_func("/qdev/properties/static/global/subprocess",
+    g_test_add_func("/global-props/qdev/static/global/subprocess",
                     test_static_globalprop_subprocess);
-    g_test_add_func("/qdev/properties/static/global",
+    g_test_add_func("/global-props/qdev/static/global",
                     test_static_globalprop);
 
-    g_test_add_func("/qdev/properties/dynamic/global/subprocess",
+    g_test_add_func("/global-props/qdev/dynamic/global/subprocess",
                     test_dynamic_globalprop_subprocess);
-    g_test_add_func("/qdev/properties/dynamic/global",
+    g_test_add_func("/global-props/qdev/dynamic/global",
                     test_dynamic_globalprop);
 
-    g_test_add_func("/qdev/properties/dynamic/global/nouser/subprocess",
+    g_test_add_func("/global-props/qdev/dynamic/global/nouser/subprocess",
                     test_dynamic_globalprop_nouser_subprocess);
-    g_test_add_func("/qdev/properties/dynamic/global/nouser",
+    g_test_add_func("/global-props/qdev/dynamic/global/nouser",
                     test_dynamic_globalprop_nouser);
 
-    g_test_add_func("/qdev/properties/global/subclass",
+    g_test_add_func("/global-props/qdev/global/subclass",
                     test_subclass_global_props);
 
     g_test_run();
