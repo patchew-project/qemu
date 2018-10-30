@@ -15,22 +15,28 @@ void object_property_register_global(GlobalProperty *prop)
 
 void object_property_set_globals(Object *obj)
 {
-    DeviceState *dev = DEVICE(obj);
     GList *l;
+    DeviceState *dev = (DeviceState *)object_dynamic_cast(obj, TYPE_DEVICE);
+
+    if (!dev && !IS_USER_CREATABLE(obj)) {
+        /* only TYPE_DEVICE and TYPE_USER_CREATABLE support globals */
+        return;
+    }
 
     for (l = global_props; l; l = l->next) {
         GlobalProperty *prop = l->data;
         Error *err = NULL;
 
-        if (object_dynamic_cast(OBJECT(dev), prop->driver) == NULL) {
+        if (object_dynamic_cast(obj, prop->driver) == NULL) {
             continue;
         }
         prop->used = true;
-        object_property_parse(OBJECT(dev), prop->value, prop->property, &err);
+        object_property_parse(obj, prop->value, prop->property, &err);
         if (err != NULL) {
             error_prepend(&err, "can't apply global %s.%s=%s: ",
                           prop->driver, prop->property, prop->value);
-            if (!dev->hotplugged && prop->errp) {
+
+            if (dev && !dev->hotplugged && prop->errp) {
                 error_propagate(prop->errp, err);
             } else {
                 assert(prop->user_provided);
@@ -56,15 +62,15 @@ int object_property_check_globals(void)
             continue;
         }
         oc = object_class_by_name(prop->driver);
-        oc = object_class_dynamic_cast(oc, TYPE_DEVICE);
-        if (!oc) {
+        dc = (DeviceClass *)object_class_dynamic_cast(oc, TYPE_DEVICE);
+        if (!IS_USER_CREATABLE_CLASS(oc) && !dc) {
             warn_report("global %s.%s has invalid class name",
                         prop->driver, prop->property);
             ret = 1;
             continue;
         }
-        dc = DEVICE_CLASS(oc);
-        if (!dc->hotpluggable && !prop->used) {
+
+        if (dc && !dc->hotpluggable) {
             warn_report("global %s.%s=%s not used",
                         prop->driver, prop->property, prop->value);
             ret = 1;
