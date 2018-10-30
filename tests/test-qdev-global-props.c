@@ -94,7 +94,7 @@ static void register_global_properties(GlobalProperty *props)
     int i;
 
     for (i = 0; props[i].driver != NULL; i++) {
-        qdev_prop_register_global(props + i);
+        object_property_register_global(props + i);
     }
 }
 
@@ -233,7 +233,7 @@ static void test_dynamic_globalprop_subprocess(void)
 
     g_assert_cmpuint(mt->prop1, ==, 101);
     g_assert_cmpuint(mt->prop2, ==, 102);
-    all_used = qdev_prop_check_globals();
+    all_used = object_property_check_globals();
     g_assert_cmpuint(all_used, ==, 1);
     g_assert(props[0].used);
     g_assert(props[1].used);
@@ -278,7 +278,7 @@ static void test_dynamic_globalprop_nouser_subprocess(void)
 
     g_assert_cmpuint(mt->prop1, ==, 101);
     g_assert_cmpuint(mt->prop2, ==, 102);
-    all_used = qdev_prop_check_globals();
+    all_used = object_property_check_globals();
     g_assert_cmpuint(all_used, ==, 0);
     g_assert(props[0].used);
     g_assert(props[1].used);

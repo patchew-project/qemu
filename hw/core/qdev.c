@@ -972,7 +972,7 @@ static void device_initfn(Object *obj)
 
 static void device_post_init(Object *obj)
 {
-    qdev_prop_set_globals(DEVICE(obj));
+    object_property_set_globals(obj);
 }
 
 /* Unlink device from bus and free the structure.  */

@@ -127,7 +127,7 @@ void accel_register_compat_props(AccelState *accel)
     for (; prop && prop->driver; prop++) {
         /* Any compat_props must never cause error */
         prop->errp = &error_abort;
-        qdev_prop_register_global(prop);
+        object_property_register_global(prop);
     }
 }
 

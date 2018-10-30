@@ -3414,7 +3414,7 @@ static void x86_cpu_parse_featurestr(const char *typename, char *features,
         prop->property = g_strdup(name);
         prop->value = g_strdup(val);
         prop->errp = &error_fatal;
-        qdev_prop_register_global(prop);
+        object_property_register_global(prop);
     }
 
     if (ambiguous) {

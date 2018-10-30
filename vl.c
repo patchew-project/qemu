@@ -926,7 +926,7 @@ static void configure_rtc(QemuOpts *opts)
                 .value    = "slew",
             };
 
-            qdev_prop_register_global(&slew_lost_ticks);
+            object_property_register_global(&slew_lost_ticks);
         } else if (!strcmp(value, "none")) {
             /* discard is default */
         } else {
@@ -2922,7 +2922,7 @@ static int global_init_func(void *opaque, QemuOpts *opts, Error **errp)
     g->value    = qemu_opt_get(opts, "value");
     g->user_provided = true;
     g->errp = &error_fatal;
-    qdev_prop_register_global(g);
+    object_property_register_global(g);
     return 0;
 }
 
@@ -4604,7 +4604,7 @@ int main(int argc, char **argv, char **envp)
         replay_vmstate_init();
     }
 
-    qdev_prop_check_globals();
+    object_property_check_globals();
     if (vmstate_dump_file) {
         /* dump and exit */
         dump_vmstate_json_to_file(vmstate_dump_file);

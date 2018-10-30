@@ -112,7 +112,7 @@ cpu_add_feat_as_prop(const char *typename, const char *name, const char *val)
     prop->property = g_strdup(name);
     prop->value = g_strdup(val);
     prop->errp = &error_fatal;
-    qdev_prop_register_global(prop);
+    object_property_register_global(prop);
 }
 
 /* Parse "+feature,-feature,feature=foo" CPU feature string */

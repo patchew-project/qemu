@@ -858,7 +858,7 @@ void machine_register_compat_props(MachineState *machine)
         p = g_array_index(mc->compat_props, GlobalProperty *, i);
         /* Machine compat_props must never cause errors: */
         p->errp = &error_abort;
-        qdev_prop_register_global(p);
+        object_property_register_global(p);
     }
 }
 
