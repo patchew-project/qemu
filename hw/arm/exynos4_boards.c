@@ -49,6 +49,9 @@
 #endif
 
 #define SMDK_LAN9118_BASE_ADDR      0x05000000
+#define SMDK_PL330_BASE0_ADDR       0x12680000
+#define SMDK_PL330_BASE1_ADDR       0x12690000
+#define SMDK_PL330_BASE2_ADDR       0x12850000
 
 typedef enum Exynos4BoardType {
     EXYNOS4_BOARD_NURI,
@@ -100,6 +103,19 @@ static void lan9215_init(uint32_t base, qemu_irq irq)
         sysbus_mmio_map(s, 0, base);
         sysbus_connect_irq(s, 0, irq);
     }
+}
+
+static void pl330_init(uint32_t base, qemu_irq irq, int nreq)
+{
+    SysBusDevice *busdev;
+    DeviceState *dev;
+
+    dev = qdev_create(NULL, "pl330");
+    qdev_prop_set_uint8(dev, "num_periph_req",  nreq);
+    qdev_init_nofail(dev);
+    busdev = SYS_BUS_DEVICE(dev);
+    sysbus_mmio_map(busdev, 0, base);
+    sysbus_connect_irq(busdev, 0, irq);
 }
 
 static void exynos4_boards_init_ram(Exynos4BoardState *s,
@@ -171,6 +187,14 @@ static void smdkc210_init(MachineState *machine)
 
     lan9215_init(SMDK_LAN9118_BASE_ADDR,
             qemu_irq_invert(s->soc->irq_table[exynos4210_get_irq(37, 1)]));
+
+    pl330_init(SMDK_PL330_BASE0_ADDR,
+            qemu_irq_invert(s->soc->irq_table[exynos4210_get_irq(35, 1)]), 32);
+    pl330_init(SMDK_PL330_BASE1_ADDR,
+            qemu_irq_invert(s->soc->irq_table[exynos4210_get_irq(36, 1)]), 32);
+    pl330_init(SMDK_PL330_BASE2_ADDR,
+            qemu_irq_invert(s->soc->irq_table[exynos4210_get_irq(34, 1)]), 1);
+
     arm_load_kernel(ARM_CPU(first_cpu), &exynos4_board_binfo);
 }
 
