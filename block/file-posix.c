@@ -163,6 +163,11 @@ typedef struct BDRVRawState {
     bool has_fallocate;
     bool needs_alignment;
     bool check_cache_dropped;
+    struct {
+        int64_t discard_nb_ok;
+        int64_t discard_nb_failed;
+        int64_t discard_bytes_ok;
+    } stats;
 
     PRManager *pr_mgr;
 } BDRVRawState;
@@ -2595,12 +2600,25 @@ static void coroutine_fn raw_co_invalidate_cache(BlockDriverState *bs,
 #endif /* !__linux__ */
 }
 
+static void raw_account_discard(BDRVRawState *s, uint64_t nbytes, int ret)
+{
+    if (ret) {
+        s->stats.discard_nb_failed++;
+    } else {
+        s->stats.discard_nb_ok++;
+        s->stats.discard_bytes_ok += nbytes;
+    }
+}
+
 static coroutine_fn int
 raw_co_pdiscard(BlockDriverState *bs, int64_t offset, int bytes)
 {
     BDRVRawState *s = bs->opaque;
+    int ret;
 
-    return paio_submit_co(bs, s->fd, offset, NULL, bytes, QEMU_AIO_DISCARD);
+    ret = paio_submit_co(bs, s->fd, offset, NULL, bytes, QEMU_AIO_DISCARD);
+    raw_account_discard(s, bytes, ret);
+    return ret;
 }
 
 static int coroutine_fn raw_co_pwrite_zeroes(
@@ -3097,10 +3115,14 @@ hdev_co_pdiscard(BlockDriverState *bs, int64_t offset, int bytes)
 
     ret = fd_open(bs);
     if (ret < 0) {
+        raw_account_discard(s, bytes, ret);
         return ret;
     }
-    return paio_submit_co(bs, s->fd, offset, NULL, bytes,
-                          QEMU_AIO_DISCARD | QEMU_AIO_BLKDEV);
+
+    ret = paio_submit_co(bs, s->fd, offset, NULL, bytes,
+                         QEMU_AIO_DISCARD | QEMU_AIO_BLKDEV);
+    raw_account_discard(s, bytes, ret);
+    return ret;
 }
 
 static coroutine_fn int hdev_co_pwrite_zeroes(BlockDriverState *bs,
