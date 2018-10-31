@@ -1430,8 +1430,9 @@ static ssize_t handle_aiocb_write_zeroes_block(RawPosixAIOData *aiocb)
     return ret;
 }
 
-static ssize_t handle_aiocb_write_zeroes(RawPosixAIOData *aiocb)
+static int handle_aiocb_write_zeroes(void *opaque)
 {
+    RawPosixAIOData *aiocb = opaque;
 #if defined(CONFIG_FALLOCATE) || defined(CONFIG_XFS)
     BDRVRawState *s = aiocb->bs->opaque;
 #endif
@@ -1495,8 +1496,9 @@ static ssize_t handle_aiocb_write_zeroes(RawPosixAIOData *aiocb)
     return -ENOTSUP;
 }
 
-static ssize_t handle_aiocb_write_zeroes_unmap(RawPosixAIOData *aiocb)
+static int handle_aiocb_write_zeroes_unmap(void *opaque)
 {
+    RawPosixAIOData *aiocb = opaque;
     BDRVRawState *s G_GNUC_UNUSED = aiocb->bs->opaque;
     int ret;
 
@@ -1771,11 +1773,7 @@ static int aio_worker(void *arg)
         ret = handle_aiocb_discard(aiocb);
         break;
     case QEMU_AIO_WRITE_ZEROES:
-        ret = handle_aiocb_write_zeroes(aiocb);
-        break;
     case QEMU_AIO_WRITE_ZEROES | QEMU_AIO_DISCARD:
-        ret = handle_aiocb_write_zeroes_unmap(aiocb);
-        break;
     case QEMU_AIO_COPY_RANGE:
     case QEMU_AIO_TRUNCATE:
         g_assert_not_reached();
@@ -2601,18 +2599,41 @@ raw_co_pdiscard(BlockDriverState *bs, int64_t offset, int bytes)
     return paio_submit_co(bs, s->fd, offset, NULL, bytes, QEMU_AIO_DISCARD);
 }
 
+static int coroutine_fn
+raw_do_pwrite_zeroes(BlockDriverState *bs, int64_t offset, int bytes,
+                     BdrvRequestFlags flags, bool blkdev)
+{
+    BDRVRawState *s = bs->opaque;
+    RawPosixAIOData acb;
+    ThreadPoolFunc *handler;
+
+    acb = (RawPosixAIOData) {
+        .bs             = bs,
+        .aio_fildes     = s->fd,
+        .aio_type       = QEMU_AIO_WRITE_ZEROES,
+        .aio_offset     = offset,
+        .aio_nbytes     = bytes,
+    };
+
+    if (blkdev) {
+        acb.aio_type |= QEMU_AIO_BLKDEV;
+    }
+
+    if (flags & BDRV_REQ_MAY_UNMAP) {
+        acb.aio_type |= QEMU_AIO_DISCARD;
+        handler = handle_aiocb_write_zeroes_unmap;
+    } else {
+        handler = handle_aiocb_write_zeroes;
+    }
+
+    return raw_thread_pool_submit(bs, handler, &acb);
+}
+
 static int coroutine_fn raw_co_pwrite_zeroes(
     BlockDriverState *bs, int64_t offset,
     int bytes, BdrvRequestFlags flags)
 {
-    BDRVRawState *s = bs->opaque;
-    int operation = QEMU_AIO_WRITE_ZEROES;
-
-    if (flags & BDRV_REQ_MAY_UNMAP) {
-        operation |= QEMU_AIO_DISCARD;
-    }
-
-    return paio_submit_co(bs, s->fd, offset, NULL, bytes, operation);
+    return raw_do_pwrite_zeroes(bs, offset, bytes, flags, false);
 }
 
 static int raw_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
@@ -3117,8 +3138,6 @@ hdev_co_pdiscard(BlockDriverState *bs, int64_t offset, int bytes)
 static coroutine_fn int hdev_co_pwrite_zeroes(BlockDriverState *bs,
     int64_t offset, int bytes, BdrvRequestFlags flags)
 {
-    BDRVRawState *s = bs->opaque;
-    int operation = QEMU_AIO_WRITE_ZEROES | QEMU_AIO_BLKDEV;
     int rc;
 
     rc = fd_open(bs);
@@ -3126,11 +3145,7 @@ static coroutine_fn int hdev_co_pwrite_zeroes(BlockDriverState *bs,
         return rc;
     }
 
-    if (flags & BDRV_REQ_MAY_UNMAP) {
-        operation |= QEMU_AIO_DISCARD;
-    }
-
-    return paio_submit_co(bs, s->fd, offset, NULL, bytes, operation);
+    return raw_do_pwrite_zeroes(bs, offset, bytes, flags, true);
 }
 
 static int coroutine_fn hdev_co_create_opts(const char *filename, QemuOpts *opts,
