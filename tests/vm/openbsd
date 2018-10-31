@@ -14,6 +14,9 @@
 import os
 import sys
 import subprocess
+import time
+import atexit
+import tempfile
 import basevm
 
 class OpenBSDVM(basevm.BaseVM):
@@ -21,25 +24,83 @@ class OpenBSDVM(basevm.BaseVM):
     arch = "x86_64"
     BUILD_SCRIPT = """
         set -e;
-        rm -rf /var/tmp/qemu-test.*
-        cd $(mktemp -d /var/tmp/qemu-test.XXXXXX);
+        rm -rf $HOME/qemu-test.*
+        cd $(mktemp -d $HOME/qemu-test.XXXXXX);
         tar -xf /dev/rsd1c;
-        ./configure --cc=x86_64-unknown-openbsd6.1-gcc-4.9.4 --python=python2.7 {configure_opts};
+        ./configure {configure_opts};
         gmake --output-sync -j{jobs} {verbose};
         # XXX: "gmake check" seems to always hang or fail
         #gmake --output-sync -j{jobs} check {verbose};
     """
 
+    def _install_os(self, img):
+        tmpdir = tempfile.mkdtemp()
+        pxeboot = self._download_with_cache("https://fastly.cdn.openbsd.org/pub/OpenBSD/6.4/amd64/pxeboot",
+                sha256sum="d87ab39d941ff926d693943a927585945456ccedb76ea504a251b4b93cd4c266")
+        bsd_rd = self._download_with_cache("https://fastly.cdn.openbsd.org/pub/OpenBSD/6.4/amd64/bsd.rd",
+                sha256sum="89505c683cbcd75582fe475e847ed53d89e2b8180c3e3d61f4eb4b76b5e11f5c")
+        install = self._download_with_cache("https://fastly.cdn.openbsd.org/pub/OpenBSD/6.4/amd64/install64.iso",
+                sha256sum='81833b79e23dc0f961ac5fb34484bca66386deb3181ddb8236870fa4f488cdd2')
+        subprocess.check_call(["qemu-img", "create", img, "32G"])
+        subprocess.check_call(["cp", pxeboot, os.path.join(tmpdir, "auto_install")])
+        subprocess.check_call(["cp", bsd_rd, os.path.join(tmpdir, "bsd")])
+
+        self._gen_install_conf(tmpdir)
+        # BOOTP filename being auto_install makes sure OpenBSD installer
+        # not prompt for "auto install mode"
+        usernet_args = ",tftp=%s,bootfile=/auto_install" % tmpdir
+        usernet_args += ",tftp-server-name=10.0.2.4"
+        usernet_args += ",guestfwd=tcp:10.0.2.4:80-cmd:cat %s" % \
+            os.path.join(tmpdir, "install.conf")
+        self.boot(img,
+                  extra_args=["-boot", "once=n", "-no-reboot",
+                              "-cdrom", install],
+                  extra_usernet_args=usernet_args)
+        self.wait()
+
+    def _gen_install_conf(self, tmpdir):
+        contents = """\
+HTTP/1.0 200 OK
+
+System hostname = qemu-openbsd
+Password for root = qemupass
+Public ssh key for root = {pub_key}
+Allow root ssh login = yes
+Network interfaces = vio0
+IPv4 address for vio0 = dhcp
+Setup a user = qemu
+Password for user = qemupass
+Public ssh key for user = {pub_key}
+What timezone are you in = US/Eastern
+Server = fastly.cdn.openbsd.org
+Use http = yes
+Default IPv4 route = 10.0.2.2
+Location of sets = cd0
+Set name(s) = all
+Continue without verification = yes
+""".format(pub_key=basevm.SSH_PUB_KEY)
+        with open(os.path.join(tmpdir, "install.conf"), "w") as f:
+            f.write(contents)
+
     def build_image(self, img):
-        cimg = self._download_with_cache("http://download.patchew.org/openbsd-6.1-amd64.img.xz",
-                sha256sum='8c6cedc483e602cfee5e04f0406c64eb99138495e8ca580bc0293bcf0640c1bf')
-        img_tmp_xz = img + ".tmp.xz"
-        img_tmp = img + ".tmp"
-        subprocess.check_call(["cp", "-f", cimg, img_tmp_xz])
-        subprocess.check_call(["xz", "-df", img_tmp_xz])
-        if os.path.exists(img):
-            os.remove(img)
-        os.rename(img_tmp, img)
+
+        self._install_os(img + ".tmp")
+
+        self.boot(img + ".tmp")
+        self.wait_ssh()
+
+        self.ssh_root("usermod -G operator qemu")
+        self.ssh_root("echo https://fastly.cdn.openbsd.org/pub/OpenBSD > /etc/installurl")
+        for pkg in ["git", "gmake", "glib2", "bison", "sdl2"]:
+            self.ssh_root("pkg_add " + pkg)
+        self.ssh_root("ln -sf /usr/local/bin/python2.7 /usr/local/bin/python")
+        self.ssh_root("ln -sf /usr/local/bin/python2.7-2to3 /usr/local/bin/2to3")
+        self.ssh_root("ln -sf /usr/local/bin/python2.7-config /usr/local/bin/python-config")
+        self.ssh_root("ln -sf /usr/local/bin/pydoc2.7 /usr/local/bin/pydoc")
+        self.ssh_root("shutdown -p now")
+        self.wait()
+
+        subprocess.check_call(["mv", img + ".tmp", img])
 
 if __name__ == "__main__":
     sys.exit(basevm.main(OpenBSDVM))
