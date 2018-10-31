@@ -1920,9 +1920,11 @@ void hmp_block_stream(Monitor *mon, const QDict *qdict)
     const char *device = qdict_get_str(qdict, "device");
     const char *base = qdict_get_try_str(qdict, "base");
     int64_t speed = qdict_get_try_int(qdict, "speed", 0);
+    bool discard = qdict_get_try_bool(qdict, "discard", false);
 
     qmp_block_stream(true, device, device, base != NULL, base, false, NULL,
-                     false, NULL, qdict_haskey(qdict, "speed"), speed, true,
+                     false, NULL, qdict_haskey(qdict, "speed"), speed,
+                     qdict_haskey(qdict, "discard"), discard, true,
                      BLOCKDEV_ON_ERROR_REPORT, false, false, false, false,
                      &error);
 
