@@ -16,13 +16,9 @@
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# This is concatenated with insn16.decode for risc64 targets.
+# This is concatenated with insn16.decode for risc32 targets.
 # All of the fields and formats are there.
 
-# *** RV64C Standard Extension (Quadrant 0) ***
-ld      011  ... ... .. ... 00 @cl_d
-sd      111  ... ... .. ... 00 @cs_d
-
-# *** RV64C Standard Extension (Quadrant 1) ***
-subw              100 1 11 ... 00 ... 01 @cs_2
-addw              100 1 11 ... 01 ... 01 @cs_2
+# *** RV32C Standard Extension (Quadrant 0) ***
+flw     011 ... ... .. ... 00   @cl_w
+fsw     111 ... ... .. ... 00   @cs_w

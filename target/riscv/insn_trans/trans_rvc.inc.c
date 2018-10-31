@@ -28,28 +28,6 @@ static bool trans_c_addi4spn(DisasContext *ctx, arg_c_addi4spn *a)
     return trans_addi(ctx, &arg);
 }
 
-static bool trans_c_flw_ld(DisasContext *ctx, arg_c_flw_ld *a)
-{
-#ifdef TARGET_RISCV32
-    /* C.FLW ( RV32FC-only ) */
-    return false;
-#else
-    /* C.LD ( RV64C/RV128C-only ) */
-    return false;
-#endif
-}
-
-static bool trans_c_fsw_sd(DisasContext *ctx, arg_c_fsw_sd *a)
-{
-#ifdef TARGET_RISCV32
-    /* C.FSW ( RV32FC-only ) */
-    return false;
-#else
-    /* C.SD ( RV64C/RV128C-only ) */
-    return false;
-#endif
-}
-
 static bool trans_c_addi(DisasContext *ctx, arg_c_addi *a)
 {
     if (a->imm == 0) {
