@@ -219,6 +219,9 @@ typedef struct {
     int command_complete;
     QTAILQ_HEAD(, lsi_request) queue;
     lsi_request *current;
+    bool want_resel;    /* need resel to handle queued completed cmds */
+    uint32_t resel_dsp; /* DMA Scripts Ptr (DSP) of reselection scsi scripts */
+    uint32_t next_dsp;  /* if want_resel, will be loaded with above */
 
     uint32_t dsa;
     uint32_t temp;
@@ -296,6 +299,18 @@ typedef struct {
 static inline int lsi_irq_on_rsl(LSIState *s)
 {
     return (s->sien0 & LSI_SIST0_RSL) && (s->scid & LSI_SCID_RRE);
+}
+
+static lsi_request *get_pending_req(LSIState *s)
+{
+    lsi_request *p;
+
+    QTAILQ_FOREACH(p, &s->queue, next) {
+        if (p->pending) {
+            return p;
+        }
+    }
+    return NULL;
 }
 
 static void lsi_soft_reset(LSIState *s)
@@ -446,7 +461,6 @@ static void lsi_update_irq(LSIState *s)
 {
     int level;
     static int last_level;
-    lsi_request *p;
 
     /* It's unclear whether the DIP/SIP bits should be cleared when the
        Interrupt Status Registers are cleared or when istat0 is read.
@@ -477,12 +491,12 @@ static void lsi_update_irq(LSIState *s)
     lsi_set_irq(s, level);
 
     if (!level && lsi_irq_on_rsl(s) && !(s->scntl1 & LSI_SCNTL1_CON)) {
+        lsi_request *p;
+
         trace_lsi_update_irq_disconnected();
-        QTAILQ_FOREACH(p, &s->queue, next) {
-            if (p->pending) {
-                lsi_reselect(s, p);
-                break;
-            }
+        p = get_pending_req(s);
+        if (p) {
+            lsi_reselect(s, p);
         }
     }
 }
@@ -759,6 +773,8 @@ static void lsi_command_complete(SCSIRequest *req, uint32_t status, size_t resid
         lsi_request_free(s, s->current);
         scsi_req_unref(req);
     }
+    s->want_resel = get_pending_req(s) ? true : false;
+
     lsi_resume_script(s);
 }
 
@@ -1064,16 +1080,20 @@ static void lsi_wait_reselect(LSIState *s)
 
     trace_lsi_wait_reselect();
 
-    QTAILQ_FOREACH(p, &s->queue, next) {
-        if (p->pending) {
-            lsi_reselect(s, p);
-            break;
-        }
+    if (s->current) {
+        return;
+    }
+
+    p = get_pending_req(s);
+    if (p) {
+        lsi_reselect(s, p);
     }
     if (s->current == NULL) {
         s->waiting = 1;
     }
 }
+
+#define SCRIPTS_LOAD_AND_STORE  0xe2340004
 
 static void lsi_execute_script(LSIState *s)
 {
@@ -1082,10 +1102,15 @@ static void lsi_execute_script(LSIState *s)
     uint32_t addr, addr_high;
     int opcode;
     int insn_processed = 0;
+    uint32_t save_dsp = 0;
 
     s->istat1 |= LSI_ISTAT1_SRUN;
 again:
     insn_processed++;
+    if (s->next_dsp) {
+        save_dsp = s->dsp;
+        s->dsp = s->next_dsp;
+    }
     insn = read_dword(s, s->dsp);
     if (!insn) {
         /* If we receive an empty opcode increment the DSP by 4 bytes
@@ -1093,6 +1118,10 @@ again:
         s->dsp += 4;
         goto again;
     }
+    if (s->want_resel && s->resel_dsp && (insn == SCRIPTS_LOAD_AND_STORE)) {
+        s->next_dsp = s->resel_dsp;
+        s->want_resel = 0;
+     }
     addr = read_dword(s, s->dsp + 4);
     addr_high = 0;
     trace_lsi_execute_script(s->dsp, insn, addr);
@@ -1260,7 +1289,19 @@ again:
                 s->scntl1 &= ~LSI_SCNTL1_CON;
                 break;
             case 2: /* Wait Reselect */
+                if (save_dsp == 0) {
+                    /*
+                     * dsp is advanced by 8 after loading the instruction
+                     * at top of this routine. Adjust dsp back to what it
+                     * was to get start address of Reselect Scripts.
+                     */
+                    s->resel_dsp = s->dsp - 8;
+                }
                 if (!lsi_irq_on_rsl(s)) {
+                    if (save_dsp) {
+                        s->dsp = save_dsp;
+                        save_dsp = s->next_dsp = 0;
+                    }
                     lsi_wait_reselect(s);
                 }
                 break;
