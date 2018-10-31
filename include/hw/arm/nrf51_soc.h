@@ -14,6 +14,7 @@
 #include "hw/arm/armv7m.h"
 #include "hw/char/nrf51_uart.h"
 #include "hw/misc/nrf51_rng.h"
+#include "hw/nvram/nrf51_nvm.h"
 
 #define TYPE_NRF51_SOC "nrf51-soc"
 #define NRF51_SOC(obj) \
@@ -28,6 +29,7 @@ typedef struct NRF51State {
 
     NRF51UARTState uart;
     NRF51RNGState rng;
+    NRF51NVMState nvm;
 
     MemoryRegion iomem;
     MemoryRegion sram;
