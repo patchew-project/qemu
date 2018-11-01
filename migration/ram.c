@@ -1072,6 +1072,7 @@ out:
 static void multifd_new_send_channel_async(QIOTask *task, gpointer opaque)
 {
     MultiFDSendParams *p = opaque;
+    MigrationState *s = migrate_get_current();
     QIOChannel *sioc = QIO_CHANNEL(qio_task_get_source(task));
     Error *local_err = NULL;
 
@@ -1083,6 +1084,7 @@ static void multifd_new_send_channel_async(QIOTask *task, gpointer opaque)
         if (multifd_save_cleanup(&local_err) != 0) {
             migrate_set_error(migrate_get_current(), local_err);
         }
+        migrate_set_state(&s->state, s->state, MIGRATION_STATUS_FAILED);
     } else {
         p->c = QIO_CHANNEL(sioc);
         qio_channel_set_delay(p->c, false);
