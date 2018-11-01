@@ -272,21 +272,24 @@ static void char_mux_finalize(Object *obj)
     for (i = 0; i < d->mux_cnt; i++) {
         CharBackend *be = d->backends[i];
         if (be) {
+            if (be->chr && be->chr->be_open) {
+                qemu_chr_be_event(be->chr, CHR_EVENT_CLOSED);
+            }
             be->chr = NULL;
         }
     }
     qemu_chr_fe_deinit(&d->chr, false);
 }
 
-void mux_chr_set_handlers(Chardev *chr, GMainContext *context)
+void mux_chr_set_handlers(Chardev *chr, bool is_open, GMainContext *context)
 {
     MuxChardev *d = MUX_CHARDEV(chr);
 
     /* Fix up the real driver with mux routines */
     qemu_chr_fe_set_handlers(&d->chr,
-                             mux_chr_can_read,
-                             mux_chr_read,
-                             mux_chr_event,
+                             is_open ? mux_chr_can_read : NULL,
+                             is_open ? mux_chr_read : NULL,
+                             is_open ? mux_chr_event : NULL,
                              NULL,
                              chr,
                              context, true);
@@ -367,7 +370,7 @@ static int open_muxes(Chardev *chr)
      * mark mux as OPENED so any new FEs will immediately receive
      * OPENED event
      */
-    qemu_chr_be_event(chr, CHR_EVENT_OPENED);
+    chr->be_open = 1;
 
     return 0;
 }
