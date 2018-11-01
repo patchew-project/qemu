@@ -25,6 +25,7 @@
 typedef struct VirtConsole {
     VirtIOSerialPort parent_obj;
 
+    bool backend_active;
     CharBackend chr;
     guint watch;
 } VirtConsole;
@@ -149,6 +150,11 @@ static void chr_event(void *opaque, int event)
     VirtIOSerialPort *port = VIRTIO_SERIAL_PORT(vcon);
 
     trace_virtio_console_chr_event(port->id, event);
+
+    if (!vcon->backend_active) {
+        return;
+    }
+
     switch (event) {
     case CHR_EVENT_OPENED:
         virtio_serial_open(port);
@@ -187,17 +193,24 @@ static int chr_be_change(void *opaque)
     return 0;
 }
 
+static bool virtconsole_is_backend_enabled(VirtIOSerialPort *port)
+{
+    VirtConsole *vcon = VIRTIO_CONSOLE(port);
+
+    return vcon->backend_active;
+}
+
 static void virtconsole_enable_backend(VirtIOSerialPort *port, bool enable)
 {
     VirtConsole *vcon = VIRTIO_CONSOLE(port);
 
-    if (!qemu_chr_fe_backend_connected(&vcon->chr)) {
-        return;
-    }
-
     if (enable) {
         VirtIOSerialPortClass *k = VIRTIO_SERIAL_PORT_GET_CLASS(port);
 
+        if (!k->is_console && virtio_serial_is_opened(port)
+            && !qemu_chr_fe_backend_open(&vcon->chr)) {
+            virtio_serial_close(port);
+        }
         qemu_chr_fe_set_handlers(&vcon->chr, chr_can_read, chr_read,
                                  k->is_console ? NULL : chr_event,
                                  chr_be_change, vcon, NULL, false);
@@ -205,6 +218,7 @@ static void virtconsole_enable_backend(VirtIOSerialPort *port, bool enable)
         qemu_chr_fe_set_handlers(&vcon->chr, NULL, NULL, NULL,
                                  NULL, NULL, NULL, false);
     }
+    vcon->backend_active = enable;
 }
 
 static void virtconsole_realize(DeviceState *dev, Error **errp)
@@ -220,6 +234,7 @@ static void virtconsole_realize(DeviceState *dev, Error **errp)
     }
 
     if (qemu_chr_fe_backend_connected(&vcon->chr)) {
+        vcon->backend_active = true;
         /*
          * For consoles we don't block guest data transfer just
          * because nothing is connected - we'll just let it go
@@ -278,6 +293,7 @@ static void virtserialport_class_init(ObjectClass *klass, void *data)
     k->unrealize = virtconsole_unrealize;
     k->have_data = flush_buf;
     k->set_guest_connected = set_guest_connected;
+    k->is_backend_enabled = virtconsole_is_backend_enabled;
     k->enable_backend = virtconsole_enable_backend;
     k->guest_writable = guest_writable;
     dc->props = virtserialport_properties;

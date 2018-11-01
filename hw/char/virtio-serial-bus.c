@@ -258,6 +258,11 @@ static size_t send_control_event(VirtIOSerial *vser, uint32_t port_id,
 }
 
 /* Functions for use inside qemu to open and read from/write to ports */
+bool virtio_serial_is_opened(VirtIOSerialPort *port)
+{
+    return port->host_connected;
+}
+
 int virtio_serial_open(VirtIOSerialPort *port)
 {
     /* Don't allow opening an already-open port */
@@ -643,7 +648,8 @@ static void set_status(VirtIODevice *vdev, uint8_t status)
 
     QTAILQ_FOREACH(port, &vser->ports, next) {
         VirtIOSerialPortClass *vsc = VIRTIO_SERIAL_PORT_GET_CLASS(port);
-        if (vsc->enable_backend) {
+        if (vsc->is_backend_enabled && vsc->enable_backend
+            && (vsc->is_backend_enabled(port) != vdev->vm_running)) {
             vsc->enable_backend(port, vdev->vm_running);
         }
     }

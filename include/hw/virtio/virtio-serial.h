@@ -58,6 +58,8 @@ typedef struct VirtIOSerialPortClass {
         /* Guest opened/closed device. */
     void (*set_guest_connected)(VirtIOSerialPort *port, int guest_connected);
 
+    /* Is backend currently enabled for virtio serial port */
+    bool (*is_backend_enabled)(VirtIOSerialPort *port);
     /* Enable/disable backend for virtio serial port */
     void (*enable_backend)(VirtIOSerialPort *port, bool enable);
 
@@ -192,6 +194,12 @@ struct VirtIOSerial {
 };
 
 /* Interface to the virtio-serial bus */
+
+/*
+ * Checks status of connection to the port
+ *   Returns true if connected, false otherwise.
+ */
+bool virtio_serial_is_opened(VirtIOSerialPort *port);
 
 /*
  * Open a connection to the port
