@@ -1639,7 +1639,7 @@ static void external_snapshot_prepare(BlkActionState *common,
         }
 
         options = qdict_new();
-        if (s->has_snapshot_node_name) {
+        if (snapshot_node_name) {
             qdict_put_str(options, "node-name", snapshot_node_name);
         }
         qdict_put_str(options, "driver", format);
