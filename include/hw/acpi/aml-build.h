@@ -229,6 +229,12 @@ typedef struct AcpiMcfgInfo {
     uint32_t mcfg_size;
 } AcpiMcfgInfo;
 
+typedef struct AcpiPciBus {
+    PCIBus *pci_bus;
+    Range *pci_hole;
+    Range *pci_hole64;
+} AcpiPciBus;
+
 typedef struct CrsRangeEntry {
     uint64_t base;
     uint64_t limit;
@@ -411,6 +417,8 @@ Aml *build_osc_method(uint32_t value);
 void build_mcfg(GArray *table_data, BIOSLinker *linker, AcpiMcfgInfo *info);
 Aml *build_gsi_link_dev(const char *name, uint8_t uid, uint8_t gsi);
 Aml *build_prt(bool is_pci0_prt);
+void acpi_dsdt_add_pci_bus(Aml *dsdt, AcpiPciBus *pci_host);
+Aml *build_pci_host_bridge(Aml *table, AcpiPciBus *pci_host);
 void crs_range_set_init(CrsRangeSet *range_set);
 Aml *build_crs(PCIHostState *host, CrsRangeSet *range_set);
 void crs_replace_with_free_ranges(GPtrArray *ranges,
