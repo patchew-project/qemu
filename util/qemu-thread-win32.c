@@ -20,6 +20,7 @@
 #include "qemu/thread.h"
 #include "qemu/notify.h"
 #include "qemu-thread-common.h"
+#include "qapi/error.h"
 #include <process.h>
 
 static bool name_threads;
@@ -388,9 +389,9 @@ void *qemu_thread_join(QemuThread *thread)
     return ret;
 }
 
-void qemu_thread_create(QemuThread *thread, const char *name,
-                       void *(*start_routine)(void *),
-                       void *arg, int mode)
+bool qemu_thread_create(QemuThread *thread, const char *name,
+                        void *(*start_routine)(void *),
+                        void *arg, int mode, Error **errp)
 {
     HANDLE hThread;
     struct QemuThreadData *data;
@@ -409,10 +410,17 @@ void qemu_thread_create(QemuThread *thread, const char *name,
     hThread = (HANDLE) _beginthreadex(NULL, 0, win32_start_routine,
                                       data, 0, &thread->tid);
     if (!hThread) {
-        error_exit(GetLastError(), __func__);
+        if (data->mode != QEMU_THREAD_DETACHED) {
+            DeleteCriticalSection(&data->cs);
+        }
+        error_setg_errno(errp, errno,
+                         "failed to create win32_start_routine");
+        g_free(data);
+        return false;
     }
     CloseHandle(hThread);
     thread->data = data;
+    return true;
 }
 
 void qemu_thread_get_self(QemuThread *thread)

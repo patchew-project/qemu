@@ -544,10 +544,17 @@ static void emulated_realize(CCIDCardState *base, Error **errp)
         error_setg(errp, "%s: failed to initialize vcard", TYPE_EMULATED_CCID);
         goto out2;
     }
-    qemu_thread_create(&card->event_thread_id, "ccid/event", event_thread,
-                       card, QEMU_THREAD_JOINABLE);
-    qemu_thread_create(&card->apdu_thread_id, "ccid/apdu", handle_apdu_thread,
-                       card, QEMU_THREAD_JOINABLE);
+    if (!qemu_thread_create(&card->event_thread_id, "ccid/event", event_thread,
+                            card, QEMU_THREAD_JOINABLE, errp)) {
+        error_report("failed to create event_thread");
+        goto out2;
+    }
+    if (!qemu_thread_create(&card->apdu_thread_id, "ccid/apdu",
+                            handle_apdu_thread, card,
+                            QEMU_THREAD_JOINABLE, errp)) {
+        error_report("failed to create handle_apdu_thread");
+        goto out2;
+    }
 
 out2:
     clean_event_notifier(card);
