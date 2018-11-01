@@ -828,8 +828,16 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
          * include the various other features that V7VE implies.
          * Presence of EL2 itself is ARM_FEATURE_EL2, and of the
          * Security Extensions is ARM_FEATURE_EL3.
+         *
+         * V7VE requires ARM division.  However, there exist AArch64 cpus
+         * without AArch32 support.  When KVM queries ID_ISAR0_EL1 on such
+         * a host, the value is UNKNOWN.  Similarly, we cannot check
+         * ID_AA64PFR0 without AArch64 support.  Check everything in order.
          */
-        assert(cpu_isar_feature(arm_div, cpu));
+        if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64)
+            && cpu_isar_feature(aa64_a32, cpu)) {
+            assert(cpu_isar_feature(arm_div, cpu));
+        }
         set_feature(env, ARM_FEATURE_LPAE);
         set_feature(env, ARM_FEATURE_V7);
     }
