@@ -5279,7 +5279,9 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
     }
 #endif
 
-    qemu_init_vcpu(cs);
+    if (!qemu_init_vcpu(cs, errp)) {
+        return;
+    }
 
     /*
      * Most Intel and certain AMD CPUs support hyperthreading. Even though QEMU
