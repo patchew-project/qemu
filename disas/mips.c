@@ -611,6 +611,9 @@ struct mips_opcode
 /* ST Microelectronics Loongson 2F.  */
 #define INSN_LOONGSON_2F          0x80000000
 
+/* Sony/Toshiba R5900 */
+#define INSN_5900                 0x100000000
+
 /* MIPS ISA defines, use instead of hardcoding ISA level.  */
 
 #define       ISA_UNKNOWN     0               /* Gas internal use.  */
@@ -646,6 +649,7 @@ struct mips_opcode
 #define CPU_R5000	5000
 #define CPU_VR5400	5400
 #define CPU_VR5500	5500
+#define CPU_R5900       5900
 #define CPU_R6000	6000
 #define CPU_RM7000	7000
 #define CPU_R8000	8000
@@ -1193,6 +1197,7 @@ extern const int bfd_mips16_num_opcodes;
 #define N5	(INSN_5400 | INSN_5500)
 #define N54	INSN_5400
 #define N55	INSN_5500
+#define EE      INSN_5900    /* Emotion Engine */
 
 #define G1      (T3             \
                  )
@@ -3861,6 +3866,7 @@ struct mips_arch_choice
 #define bfd_mach_mips5000              5000
 #define bfd_mach_mips5400              5400
 #define bfd_mach_mips5500              5500
+#define bfd_mach_mips5900              5900
 #define bfd_mach_mips6000              6000
 #define bfd_mach_mips7000              7000
 #define bfd_mach_mips8000              8000
@@ -3907,6 +3913,8 @@ static const struct mips_arch_choice mips_arch_choices[] =
   { "vr5400",	1, bfd_mach_mips5400, CPU_VR5400, ISA_MIPS4,
     mips_cp0_names_numeric, NULL, 0, mips_hwr_names_numeric },
   { "vr5500",	1, bfd_mach_mips5500, CPU_VR5500, ISA_MIPS4,
+    mips_cp0_names_numeric, NULL, 0, mips_hwr_names_numeric },
+  { "r5900",    1, bfd_mach_mips5900, CPU_R5900, ISA_MIPS3,
     mips_cp0_names_numeric, NULL, 0, mips_hwr_names_numeric },
   { "r6000",	1, bfd_mach_mips6000, CPU_R6000, ISA_MIPS2,
     mips_cp0_names_numeric, NULL, 0, mips_hwr_names_numeric },
