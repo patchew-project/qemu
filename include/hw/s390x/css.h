@@ -217,6 +217,7 @@ IOInstEnding do_subchannel_work_passthrough(SubchDev *sub);
 typedef enum {
     CSS_IO_ADAPTER_VIRTIO = 0,
     CSS_IO_ADAPTER_PCI = 1,
+    CSS_IO_ADAPTER_AP = 2,
     CSS_IO_ADAPTER_TYPE_NUMS,
 } CssIoAdapterType;
 
