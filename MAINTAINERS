@@ -685,6 +685,7 @@ F: hw/arm/microbit.c
 F: include/hw/arm/nrf51_soc.h
 
 Raspberry Pi
+R: Philippe Mathieu-Daudé <f4bug@amsat.org>
 L: qemu-arm@nongnu.org
 S: Odd Fixes
 F: hw/*/bcm283*
