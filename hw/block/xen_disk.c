@@ -83,11 +83,9 @@ struct XenBlkDev {
 
     /* request lists */
     QLIST_HEAD(inflight_head, ioreq) inflight;
-    QLIST_HEAD(finished_head, ioreq) finished;
     QLIST_HEAD(freelist_head, ioreq) freelist;
     int                 requests_total;
     int                 requests_inflight;
-    int                 requests_finished;
     unsigned int        max_requests;
 
     gboolean            feature_discard;
@@ -104,6 +102,9 @@ struct XenBlkDev {
 /* Threshold of in-flight requests above which we will start using
  * blk_io_plug()/blk_io_unplug() to batch requests */
 #define IO_PLUG_THRESHOLD 1
+
+static int blk_send_response(struct ioreq *ioreq);
+
 /* ------------------------------------------------------------- */
 
 static void ioreq_reset(struct ioreq *ioreq)
@@ -155,12 +156,10 @@ static void ioreq_finish(struct ioreq *ioreq)
     struct XenBlkDev *blkdev = ioreq->blkdev;
 
     QLIST_REMOVE(ioreq, list);
-    QLIST_INSERT_HEAD(&blkdev->finished, ioreq, list);
     blkdev->requests_inflight--;
-    blkdev->requests_finished++;
 }
 
-static void ioreq_release(struct ioreq *ioreq, bool finish)
+static void ioreq_release(struct ioreq *ioreq)
 {
     struct XenBlkDev *blkdev = ioreq->blkdev;
 
@@ -168,11 +167,7 @@ static void ioreq_release(struct ioreq *ioreq, bool finish)
     ioreq_reset(ioreq);
     ioreq->blkdev = blkdev;
     QLIST_INSERT_HEAD(&blkdev->freelist, ioreq, list);
-    if (finish) {
-        blkdev->requests_finished--;
-    } else {
-        blkdev->requests_inflight--;
-    }
+    blkdev->requests_inflight--;
 }
 
 /*
@@ -351,6 +346,10 @@ static void qemu_aio_complete(void *opaque, int ret)
     default:
         break;
     }
+    if (blk_send_response(ioreq)) {
+        xen_pv_send_notify(&blkdev->xendev);
+    }
+    ioreq_release(ioreq);
     qemu_bh_schedule(blkdev->bh);
 
 done:
@@ -455,7 +454,7 @@ err:
     return -1;
 }
 
-static int blk_send_response_one(struct ioreq *ioreq)
+static int blk_send_response(struct ioreq *ioreq)
 {
     struct XenBlkDev  *blkdev = ioreq->blkdev;
     int               send_notify   = 0;
@@ -504,22 +503,6 @@ static int blk_send_response_one(struct ioreq *ioreq)
     return send_notify;
 }
 
-/* walk finished list, send outstanding responses, free requests */
-static void blk_send_response_all(struct XenBlkDev *blkdev)
-{
-    struct ioreq *ioreq;
-    int send_notify = 0;
-
-    while (!QLIST_EMPTY(&blkdev->finished)) {
-        ioreq = QLIST_FIRST(&blkdev->finished);
-        send_notify += blk_send_response_one(ioreq);
-        ioreq_release(ioreq, true);
-    }
-    if (send_notify) {
-        xen_pv_send_notify(&blkdev->xendev);
-    }
-}
-
 static int blk_get_request(struct XenBlkDev *blkdev, struct ioreq *ioreq, RING_IDX rc)
 {
     switch (blkdev->protocol) {
@@ -554,7 +537,6 @@ static void blk_handle_requests(struct XenBlkDev *blkdev)
     rp = blkdev->rings.common.sring->req_prod;
     xen_rmb(); /* Ensure we see queued requests up to 'rp'. */
 
-    blk_send_response_all(blkdev);
     /* If there was more than IO_PLUG_THRESHOLD ioreqs in flight
      * when we got here, this is an indication that there the bottleneck
      * is below us, so it's worth beginning to batch up I/O requests
@@ -597,10 +579,10 @@ static void blk_handle_requests(struct XenBlkDev *blkdev)
                 break;
             };
 
-            if (blk_send_response_one(ioreq)) {
+            if (blk_send_response(ioreq)) {
                 xen_pv_send_notify(&blkdev->xendev);
             }
-            ioreq_release(ioreq, false);
+            ioreq_release(ioreq);
             continue;
         }
 
@@ -646,7 +628,6 @@ static void blk_alloc(struct XenDevice *xendev)
     trace_xen_disk_alloc(xendev->name);
 
     QLIST_INIT(&blkdev->inflight);
-    QLIST_INIT(&blkdev->finished);
     QLIST_INIT(&blkdev->freelist);
 
     blkdev->iothread = iothread_create(xendev->name, &err);
