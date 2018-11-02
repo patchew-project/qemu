@@ -815,6 +815,8 @@ struct ARMCPU {
         uint64_t id_aa64isar1;
         uint64_t id_aa64pfr0;
         uint64_t id_aa64pfr1;
+        uint64_t id_aa64mmfr0;
+        uint64_t id_aa64mmfr1;
     } isar;
     uint32_t midr;
     uint32_t revidr;
@@ -836,8 +838,6 @@ struct ARMCPU {
     uint64_t id_aa64dfr1;
     uint64_t id_aa64afr0;
     uint64_t id_aa64afr1;
-    uint64_t id_aa64mmfr0;
-    uint64_t id_aa64mmfr1;
     uint32_t dbgdidr;
     uint32_t clidr;
     uint64_t mp_affinity; /* MP ID without feature bits */
@@ -1553,6 +1553,24 @@ FIELD(ID_AA64PFR0, ADVSIMD, 20, 4)
 FIELD(ID_AA64PFR0, GIC, 24, 4)
 FIELD(ID_AA64PFR0, RAS, 28, 4)
 FIELD(ID_AA64PFR0, SVE, 32, 4)
+
+FIELD(ID_AA64MMFR0, PARange, 0, 4)
+FIELD(ID_AA64MMFR0, ASIDBits, 4, 4)
+FIELD(ID_AA64MMFR0, BigEnd, 8, 4)
+FIELD(ID_AA64MMFR0, SNSMem, 12, 4)
+FIELD(ID_AA64MMFR0, BigEndEL0, 16, 4)
+FIELD(ID_AA64MMFR0, TGran16, 20, 4)
+FIELD(ID_AA64MMFR0, TGran64, 24, 4)
+FIELD(ID_AA64MMFR0, TGran4, 28, 4)
+
+FIELD(ID_AA64MMFR1, HAFDBS, 0, 4)
+FIELD(ID_AA64MMFR1, VMIDBits, 4, 4)
+FIELD(ID_AA64MMFR1, VH, 8, 4)
+FIELD(ID_AA64MMFR1, HPDS, 12, 4)
+FIELD(ID_AA64MMFR1, LO, 16, 4)
+FIELD(ID_AA64MMFR1, PAN, 20, 4)
+FIELD(ID_AA64MMFR1, SpecSEI, 24, 4)
+FIELD(ID_AA64MMFR1, XNX, 28, 4)
 
 QEMU_BUILD_BUG_ON(ARRAY_SIZE(((ARMCPU *)0)->ccsidr) <= R_V7M_CSSELR_INDEX_MASK);
 
