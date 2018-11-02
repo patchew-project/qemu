@@ -121,6 +121,12 @@ static void bcm2835_property_mbox_push(BCM2835PropertyState *s, uint32_t value)
             resplen = 8;
             break;
 
+        case 0x00030030: /* domain state */
+            qemu_log_mask(LOG_UNIMP,
+                          "bcm2835_property: %x get domain state NYI\n", tag);
+            resplen = 8;
+            break;
+
         case 0x00038002: /* Set clock rate */
         case 0x00038004: /* Set max clock rate */
         case 0x00038007: /* Set min clock rate */
