@@ -278,28 +278,13 @@ static void pdb_reader_exit(struct pdb_reader *r)
 int pdb_init_from_file(const char *name, struct pdb_reader *reader)
 {
     int err = 0;
-    int fd;
-    void *map;
-    struct stat st;
 
-    fd = open(name, O_RDONLY, 0);
-    if (fd == -1) {
-        eprintf("Failed to open PDB file \'%s\'\n", name);
+    if (file_map(name, &reader->mf)) {
+        eprintf("Failed to map PDB file\n");
         return 1;
     }
-    reader->fd = fd;
 
-    fstat(fd, &st);
-    reader->file_size = st.st_size;
-
-    map = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
-    if (map == MAP_FAILED) {
-        eprintf("Failed to map PDB file\n");
-        err = 1;
-        goto out_fd;
-    }
-
-    if (pdb_reader_init(reader, map)) {
+    if (pdb_reader_init(reader, reader->mf.map)) {
         err = 1;
         goto out_unmap;
     }
@@ -307,16 +292,13 @@ int pdb_init_from_file(const char *name, struct pdb_reader *reader)
     return 0;
 
 out_unmap:
-    munmap(map, st.st_size);
-out_fd:
-    close(fd);
+    file_unmap(&reader->mf);
 
     return err;
 }
 
 void pdb_exit(struct pdb_reader *reader)
 {
-    munmap(reader->ds.header, reader->file_size);
-    close(reader->fd);
+    file_unmap(&reader->mf);
     pdb_reader_exit(reader);
 }

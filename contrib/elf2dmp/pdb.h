@@ -11,6 +11,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#include "file_map.h"
+
 typedef struct GUID {
     unsigned int Data1;
     unsigned short Data2;
@@ -218,8 +220,7 @@ typedef struct pdb_seg {
 #define IMAGE_FILE_MACHINE_AMD64 0x8664
 
 struct pdb_reader {
-    int fd;
-    size_t file_size;
+    mapped_file mf;
     struct {
         PDB_DS_HEADER *header;
         PDB_DS_TOC *toc;

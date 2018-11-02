@@ -711,7 +711,7 @@ ifneq ($(EXESUF),)
 qemu-ga: qemu-ga$(EXESUF) $(QGA_VSS_PROVIDER) $(QEMU_GA_MSI)
 endif
 
-elf2dmp: LIBS = $(CURL_LIBS)
+elf2dmp: LIBS += $(CURL_LIBS)
 elf2dmp: $(elf2dmp-obj-y)
 	$(call LINK, $^)
 

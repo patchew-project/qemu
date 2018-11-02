@@ -34,8 +34,9 @@ static uint8_t *pa_space_resolve(struct pa_space *ps, uint64_t pa)
 
 int pa_space_create(struct pa_space *ps, QEMU_Elf *qemu_elf)
 {
-    Elf64_Half phdr_nr = elf_getphdrnum(qemu_elf->map);
-    Elf64_Phdr *phdr = elf64_getphdr(qemu_elf->map);
+    void *map = QEMU_Elf_get_map(qemu_elf);
+    Elf64_Half phdr_nr = elf_getphdrnum(map);
+    Elf64_Phdr *phdr = elf64_getphdr(map);
     size_t block_i = 0;
     size_t i;
 
@@ -55,7 +56,7 @@ int pa_space_create(struct pa_space *ps, QEMU_Elf *qemu_elf)
     for (i = 0; i < phdr_nr; i++) {
         if (phdr[i].p_type == PT_LOAD) {
             ps->block[block_i] = (struct pa_block) {
-                .addr = (uint8_t *)qemu_elf->map + phdr[i].p_offset,
+                .addr = (uint8_t *)map + phdr[i].p_offset,
                 .paddr = phdr[i].p_paddr,
                 .size = phdr[i].p_filesz,
             };

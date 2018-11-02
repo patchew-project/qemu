@@ -60,10 +60,16 @@ Elf64_Half elf_getphdrnum(void *map)
     return ehdr->e_phnum;
 }
 
+void *QEMU_Elf_get_map(QEMU_Elf *qe)
+{
+    return qe->mf.map;
+}
+
 static int init_states(QEMU_Elf *qe)
 {
-    Elf64_Phdr *phdr = elf64_getphdr(qe->map);
-    Elf64_Nhdr *start = (void *)((uint8_t *)qe->map + phdr[0].p_offset);
+    void *map = QEMU_Elf_get_map(qe);
+    Elf64_Phdr *phdr = elf64_getphdr(map);
+    Elf64_Nhdr *start = (void *)((uint8_t *)map + phdr[0].p_offset);
     Elf64_Nhdr *end = (void *)((uint8_t *)start + phdr[0].p_memsz);
     Elf64_Nhdr *nhdr;
     size_t cpu_nr = 0;
@@ -121,23 +127,10 @@ static void exit_states(QEMU_Elf *qe)
 int QEMU_Elf_init(QEMU_Elf *qe, const char *filename)
 {
     int err = 0;
-    struct stat st;
 
-    qe->fd = open(filename, O_RDONLY, 0);
-    if (qe->fd == -1) {
-        eprintf("Failed to open ELF dump file \'%s\'\n", filename);
-        return 1;
-    }
-
-    fstat(qe->fd, &st);
-    qe->size = st.st_size;
-
-    qe->map = mmap(NULL, qe->size, PROT_READ | PROT_WRITE,
-            MAP_PRIVATE, qe->fd, 0);
-    if (qe->map == MAP_FAILED) {
+    if (file_map(filename, &qe->mf)) {
         eprintf("Failed to map ELF file\n");
-        err = 1;
-        goto out_fd;
+        return 1;
     }
 
     if (init_states(qe)) {
@@ -149,9 +142,7 @@ int QEMU_Elf_init(QEMU_Elf *qe, const char *filename)
     return 0;
 
 out_unmap:
-    munmap(qe->map, qe->size);
-out_fd:
-    close(qe->fd);
+    file_unmap(&qe->mf);
 
     return err;
 }
@@ -159,6 +150,5 @@ out_fd:
 void QEMU_Elf_exit(QEMU_Elf *qe)
 {
     exit_states(qe);
-    munmap(qe->map, qe->size);
-    close(qe->fd);
+    file_unmap(&qe->mf);
 }
