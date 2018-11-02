@@ -27,16 +27,89 @@
 #include "sysemu/sysemu.h"
 #include "hw/s390x/ap-bridge.h"
 #include "exec/address-spaces.h"
+#include "hw/s390x/s390_flic.h"
+#include "hw/s390x/css.h"
 
 #define VFIO_AP_DEVICE_TYPE      "vfio-ap"
 
 typedef struct VFIOAPDevice {
     APDevice apdev;
     VFIODevice vdev;
+    QTAILQ_ENTRY(VFIOAPDevice) sibling;
+    APQueue apq[MAX_AP][MAX_DOMAIN];
 } VFIOAPDevice;
 
 #define VFIO_AP_DEVICE(obj) \
         OBJECT_CHECK(VFIOAPDevice, (obj), VFIO_AP_DEVICE_TYPE)
+
+VFIOAPDevice *vfio_apdev;
+static APDevice *matrix;
+
+static int ap_aqic(CPUS390XState *env)
+{
+    struct pqap_cmd cmd = reg2cmd(env->regs[0]);
+    struct ap_status status = reg2status(env->regs[1]);
+    uint64_t guest_nib = env->regs[2];
+    struct vfio_ap_aqic param = {};
+    int retval;
+    VFIODevice *vdev;
+    VFIOAPDevice *ap_vdev;
+    APQueue *apq;
+
+    ap_vdev = DO_UPCAST(VFIOAPDevice, apdev, matrix);
+    apq = &ap_vdev->apq[cmd.apid][cmd.apqi];
+    vdev = &ap_vdev->vdev;
+
+    if (status.irq) {
+        if (apq->nib) {
+            status.rc = AP_RC_BAD_STATE;
+            goto error;
+        }
+    } else {
+        if (!apq->nib) {
+            status.rc = AP_RC_BAD_STATE;
+            goto error;
+        }
+    }
+    if (!guest_nib) {
+        status.rc = AP_RC_INVALID_ADDR;
+        goto error;
+    }
+
+    apq->routes.adapter.adapter_id = css_get_adapter_id(
+                                       CSS_IO_ADAPTER_AP, status.isc);
+
+    apq->nib = get_indicator(ldq_p(&guest_nib), 8);
+
+    retval = map_indicator(&apq->routes.adapter, apq->nib);
+    if (retval) {
+        status.rc = AP_RC_INVALID_ADDR;
+        env->regs[1] = status2reg(status);
+        goto error;
+    }
+
+    param.cmd = env->regs[0];
+    param.status = env->regs[1];
+    param.nib = env->regs[2];
+    param.adapter_id = apq->routes.adapter.adapter_id;
+    param.argsz = sizeof(param);
+
+    retval = ioctl(vdev->fd, VFIO_AP_SET_IRQ, &param);
+    status = reg2status(param.status);
+    if (retval) {
+        goto err_ioctl;
+    }
+
+    env->regs[1] = param.status;
+
+    return 0;
+err_ioctl:
+    release_indicator(&apq->routes.adapter, apq->nib);
+    apq->nib = NULL;
+error:
+    env->regs[1] = status2reg(status);
+    return 0;
+}
 
 /*
  * ap_pqap
@@ -45,7 +118,20 @@ typedef struct VFIOAPDevice {
  */
 int ap_pqap(CPUS390XState *env)
 {
-    return -PGM_OPERATION;
+    struct pqap_cmd cmd = reg2cmd(env->regs[0]);
+    int cc = 0;
+
+    switch (cmd.fc) {
+    case AQIC:
+        if (!s390_has_feat(S390_FEAT_AP_QUEUE_INTERRUPT_CONTROL)) {
+            return -PGM_OPERATION;
+        }
+        cc = ap_aqic(env);
+        break;
+    default:
+        return -PGM_OPERATION;
+    }
+    return cc;
 }
 
 static void vfio_ap_compute_needs_reset(VFIODevice *vdev)
@@ -119,6 +205,9 @@ static void vfio_ap_realize(DeviceState *dev, Error **errp)
         goto out_get_dev_err;
     }
 
+    matrix = apdev;
+    css_register_io_adapters(CSS_IO_ADAPTER_AP, true, false,
+                             0, &error_abort);
     return;
 
 out_get_dev_err:
@@ -135,6 +224,7 @@ static void vfio_ap_unrealize(DeviceState *dev, Error **errp)
     VFIOGroup *group = vapdev->vdev.group;
 
     vfio_ap_put_device(vapdev);
+    matrix = NULL;
     vfio_put_group(group);
 }
 
