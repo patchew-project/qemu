@@ -9682,6 +9682,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
     bool ttbr1_valid = true;
     uint64_t descaddrmask;
     bool aarch64 = arm_el_is_aa64(env, el);
+    bool hpd = false;
 
     /* TODO:
      * This code does not handle the different format TCR for VTCR_EL2.
@@ -9796,6 +9797,13 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
         if (tg == 2) { /* 16KB pages */
             stride = 11;
         }
+        if (aarch64) {
+            if (el > 1) {
+                hpd = extract64(tcr->raw_tcr, 24, 1);
+            } else {
+                hpd = extract64(tcr->raw_tcr, 41, 1);
+            }
+        }
     } else {
         /* We should only be here if TTBR1 is valid */
         assert(ttbr1_valid);
@@ -9810,6 +9818,9 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
         }
         if (tg == 1) { /* 16KB pages */
             stride = 11;
+        }
+        if (aarch64) {
+            hpd = extract64(tcr->raw_tcr, 42, 1);
         }
     }
 
@@ -9904,7 +9915,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
         descaddr = descriptor & descaddrmask;
 
         if ((descriptor & 2) && (level < 3)) {
-            /* Table entry. The top five bits are attributes which  may
+            /* Table entry. The top five bits are attributes which may
              * propagate down through lower levels of the table (and
              * which are all arranged so that 0 means "no effect", so
              * we can gather them up by ORing in the bits at each level).
@@ -9928,14 +9939,16 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
             /* Stage 2 table descriptors do not include any attribute fields */
             break;
         }
-        /* Merge in attributes from table descriptors */
-        attrs |= extract32(tableattrs, 0, 2) << 11; /* XN, PXN */
-        attrs |= extract32(tableattrs, 3, 1) << 5; /* APTable[1] => AP[2] */
-        /* The sense of AP[1] vs APTable[0] is reversed, as APTable[0] == 1
-         * means "force PL1 access only", which means forcing AP[1] to 0.
+        /*
+         * Merge in attributes from table descriptors, if the
+         * Hierarchical Permission Disable bit is not set.
          */
-        if (extract32(tableattrs, 2, 1)) {
-            attrs &= ~(1 << 4);
+        if (!hpd) {
+            attrs |= extract32(tableattrs, 0, 2) << 11; /* XN, PXN */
+            /* !APTable[0] => AP[1].  */
+            attrs &= ~(extract32(tableattrs, 2, 1) << 4);
+            /* APTable[1] => AP[2] */
+            attrs |= extract32(tableattrs, 3, 1) << 5;
         }
         attrs |= nstable << 3; /* NS */
         break;
