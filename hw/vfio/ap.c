@@ -38,6 +38,16 @@ typedef struct VFIOAPDevice {
 #define VFIO_AP_DEVICE(obj) \
         OBJECT_CHECK(VFIOAPDevice, (obj), VFIO_AP_DEVICE_TYPE)
 
+/*
+ * ap_pqap
+ * @env: environment pointing to registers
+ * return value: Code Condition
+ */
+int ap_pqap(CPUS390XState *env)
+{
+    return -PGM_OPERATION;
+}
+
 static void vfio_ap_compute_needs_reset(VFIODevice *vdev)
 {
     vdev->needs_reset = false;

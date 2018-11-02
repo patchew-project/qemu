@@ -19,4 +19,13 @@ typedef struct APDevice {
 #define AP_DEVICE(obj) \
     OBJECT_CHECK(APDevice, (obj), AP_DEVICE_TYPE)
 
+#define AP_DEVICE_GET_CLASS(obj) \
+    OBJECT_GET_CLASS(APDeviceClass, (obj), AP_DEVICE_TYPE)
+
+#define AP_DEVICE_CLASS(klass) \
+    OBJECT_CLASS_CHECK(APDeviceClass, (klass), AP_DEVICE_TYPE)
+
+#include "cpu.h"
+int ap_pqap(CPUS390XState *env);
+
 #endif /* HW_S390X_AP_DEVICE_H */
