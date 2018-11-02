@@ -101,6 +101,9 @@ struct XenBlkDev {
     AioContext          *ctx;
 };
 
+/* Threshold of in-flight requests above which we will start using
+ * blk_io_plug()/blk_io_unplug() to batch requests */
+#define IO_PLUG_THRESHOLD 1
 /* ------------------------------------------------------------- */
 
 static void ioreq_reset(struct ioreq *ioreq)
@@ -542,6 +545,8 @@ static void blk_handle_requests(struct XenBlkDev *blkdev)
 {
     RING_IDX rc, rp;
     struct ioreq *ioreq;
+    int inflight_atstart = blkdev->requests_inflight;
+    int batched = 0;
 
     blkdev->more_work = 0;
 
@@ -550,6 +555,16 @@ static void blk_handle_requests(struct XenBlkDev *blkdev)
     xen_rmb(); /* Ensure we see queued requests up to 'rp'. */
 
     blk_send_response_all(blkdev);
+    /* If there was more than IO_PLUG_THRESHOLD ioreqs in flight
+     * when we got here, this is an indication that there the bottleneck
+     * is below us, so it's worth beginning to batch up I/O requests
+     * rather than submitting them immediately. The maximum number
+     * of requests we're willing to batch is the number already in
+     * flight, so it can grow up to max_requests when the bottleneck
+     * is below us */
+    if (inflight_atstart > IO_PLUG_THRESHOLD) {
+        blk_io_plug(blkdev->blk);
+    }
     while (rc != rp) {
         /* pull request from ring */
         if (RING_REQUEST_CONS_OVERFLOW(&blkdev->rings.common, rc)) {
@@ -589,7 +604,21 @@ static void blk_handle_requests(struct XenBlkDev *blkdev)
             continue;
         }
 
+        if (inflight_atstart > IO_PLUG_THRESHOLD && batched >= inflight_atstart) {
+            blk_io_unplug(blkdev->blk);
+        }
         ioreq_runio_qemu_aio(ioreq);
+        if (inflight_atstart > IO_PLUG_THRESHOLD) {
+            if (batched >= inflight_atstart) {
+                blk_io_plug(blkdev->blk);
+                batched=0;
+            } else {
+                batched++;
+            }
+        }
+    }
+    if (inflight_atstart > IO_PLUG_THRESHOLD) {
+        blk_io_unplug(blkdev->blk);
     }
 
     if (blkdev->more_work && blkdev->requests_inflight < blkdev->max_requests) {
