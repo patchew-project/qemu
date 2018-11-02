@@ -159,7 +159,7 @@ static void bcm2835_aux_write(void *opaque, hwaddr offset, uint64_t value,
     case AUX_ENABLES:
         if (value != 1) {
             qemu_log_mask(LOG_UNIMP, "%s: unsupported attempt to enable SPI "
-                          "or disable UART\n", __func__);
+                          "or disable UART: 0x%lx\n", __func__, value);
         }
         break;
 

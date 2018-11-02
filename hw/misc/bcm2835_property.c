@@ -277,7 +277,7 @@ static void bcm2835_property_mbox_push(BCM2835PropertyState *s, uint32_t value)
 
         default:
             qemu_log_mask(LOG_GUEST_ERROR,
-                          "bcm2835_property: unhandled tag %08x\n", tag);
+                          "bcm2835_property: unhandled tag 0x%08x\n", tag);
             break;
         }
 
