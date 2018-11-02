@@ -132,3 +132,11 @@ iotkit_sysinfo_write(uint64_t offset, uint64_t data, unsigned size) "IoTKit SysI
 iotkit_sysctl_read(uint64_t offset, uint64_t data, unsigned size) "IoTKit SysCtl read: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %u"
 iotkit_sysctl_write(uint64_t offset, uint64_t data, unsigned size) "IoTKit SysCtl write: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %u"
 iotkit_sysctl_reset(void) "IoTKit SysCtl: reset"
+
+# hw/misc/bcm2835_cprman.c
+bcm2835_cprman_rd(unsigned size, uint64_t offset, const char *reg_name, uint32_t value) "cprman: rd%u @0x%03" PRIx64 " %s val:0x%x"
+bcm2835_cprman_rd_div(const char *reg_name, uint32_t v0, uint32_t v1) "cprman: rd %s.DIV float:%u.%u"
+bcm2835_cprman_rd_ctl(const char *reg_name, const char *src, uint32_t ena) "cprman: rd %s.CTL src:%s enabled:%u"
+bcm2835_cprman_wr(unsigned size, uint64_t offset, const char *reg_name, uint32_t value) "cprman: wr%u @0x%03" PRIx64 " %s val:0x%x"
+bcm2835_cprman_wr_div(const char *reg_name, uint32_t v0, uint32_t v1) "cprman: wr %s.DIV float:%u.%u"
+bcm2835_cprman_wr_ctl(const char *reg_name, const char *src, uint32_t ena) "cprman: wr %s.CTL src:%s enabled:%u"

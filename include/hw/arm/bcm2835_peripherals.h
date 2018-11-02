@@ -18,6 +18,7 @@
 #include "hw/dma/bcm2835_dma.h"
 #include "hw/intc/bcm2835_ic.h"
 #include "hw/misc/bcm2835_property.h"
+#include "hw/misc/bcm2835_cprman.h"
 #include "hw/misc/bcm2835_rng.h"
 #include "hw/misc/bcm2835_mbox.h"
 #include "hw/sd/sdhci.h"
@@ -39,7 +40,7 @@ typedef struct BCM2835PeripheralState {
     qemu_irq irq, fiq;
 
     UnimplementedDeviceState pm;
-    UnimplementedDeviceState cprman;
+    BCM2835CprmanState cprman;
     UnimplementedDeviceState a2w;
     SysBusDevice *uart0;
     BCM2835AuxState aux;
