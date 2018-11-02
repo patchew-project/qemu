@@ -223,6 +223,11 @@ const char *error_get_pretty(const Error *err)
     return err->msg;
 }
 
+const char *error_get_hint(const Error *err)
+{
+    return err->hint ? err->hint->str : NULL;
+}
+
 void error_report_err(Error *err)
 {
     error_report("%s", error_get_pretty(err));

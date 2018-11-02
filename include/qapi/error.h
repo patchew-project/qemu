@@ -140,6 +140,11 @@ typedef enum ErrorClass {
 const char *error_get_pretty(const Error *err);
 
 /*
+ * Get @err's hint if any. Otherwise return NULL.
+ */
+const char *error_get_hint(const Error *err);
+
+/*
  * Get @err's error class.
  * Note: use of error classes other than ERROR_CLASS_GENERIC_ERROR is
  * strongly discouraged.
