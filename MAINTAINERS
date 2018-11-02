@@ -684,6 +684,12 @@ F: hw/arm/nrf51_soc.c
 F: hw/arm/microbit.c
 F: include/hw/arm/nrf51_soc.h
 
+Raspberry Pi
+L: qemu-arm@nongnu.org
+S: Odd Fixes
+F: hw/*/bcm283*
+F: include/hw/*/bcm283*
+
 CRIS Machines
 -------------
 Axis Dev88
