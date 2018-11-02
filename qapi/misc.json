@@ -407,7 +407,7 @@
 #
 # Since: 2.6
 ##
-{ 'struct': 'CpuInfoX86', 'data': { 'pc': 'int' } }
+{ 'struct': 'CpuInfoX86', 'data': { 'pc': 'uint64' } }
 
 ##
 # @CpuInfoSPARC:
@@ -420,7 +420,7 @@
 #
 # Since: 2.6
 ##
-{ 'struct': 'CpuInfoSPARC', 'data': { 'pc': 'int', 'npc': 'int' } }
+{ 'struct': 'CpuInfoSPARC', 'data': { 'pc': 'uint64', 'npc': 'uint64' } }
 
 ##
 # @CpuInfoPPC:
@@ -431,7 +431,7 @@
 #
 # Since: 2.6
 ##
-{ 'struct': 'CpuInfoPPC', 'data': { 'nip': 'int' } }
+{ 'struct': 'CpuInfoPPC', 'data': { 'nip': 'uint64' } }
 
 ##
 # @CpuInfoMIPS:
@@ -442,7 +442,7 @@
 #
 # Since: 2.6
 ##
-{ 'struct': 'CpuInfoMIPS', 'data': { 'PC': 'int' } }
+{ 'struct': 'CpuInfoMIPS', 'data': { 'PC': 'uint64' } }
 
 ##
 # @CpuInfoTricore:
@@ -453,7 +453,7 @@
 #
 # Since: 2.6
 ##
-{ 'struct': 'CpuInfoTricore', 'data': { 'PC': 'int' } }
+{ 'struct': 'CpuInfoTricore', 'data': { 'PC': 'uint64' } }
 
 ##
 # @CpuInfoRISCV:
@@ -464,7 +464,7 @@
 #
 # Since 2.12
 ##
-{ 'struct': 'CpuInfoRISCV', 'data': { 'pc': 'int' } }
+{ 'struct': 'CpuInfoRISCV', 'data': { 'pc': 'uint64' } }
 
 ##
 # @CpuS390State:
