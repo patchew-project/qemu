@@ -85,7 +85,7 @@
 #define BLOCK_OPT_STATIC "static"
 
 #define SECTOR_SIZE 512
-#define DEFAULT_CLUSTER_SIZE (1 * MiB)
+#define DEFAULT_CLUSTER_SIZE S_1MiB
 
 #if defined(CONFIG_VDI_DEBUG)
 #define VDI_DEBUG 1
