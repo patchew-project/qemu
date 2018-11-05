@@ -393,6 +393,9 @@ void
 build_rsdp(GArray *table_data,
            BIOSLinker *linker, unsigned rsdt_tbl_offset);
 void
+build_rsdp_xsdt(GArray *table_data,
+                BIOSLinker *linker, unsigned xsdt_tbl_offset);
+void
 build_rsdt(GArray *table_data, BIOSLinker *linker, GArray *table_offsets,
            const char *oem_id, const char *oem_table_id);
 void
