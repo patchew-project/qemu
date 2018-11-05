@@ -576,6 +576,9 @@ static void pvrdma_realize(PCIDevice *pdev, Error **errp)
         return;
     }
 
+    /* Break if not vmxnet3 device in slot 0 */
+    dev->func0 = VMXNET3(pci_get_function_0(pdev));
+
     memdev_root = object_resolve_path("/objects", NULL);
     if (memdev_root) {
         object_child_foreach(memdev_root, pvrdma_check_ram_shared, &ram_shared);
