@@ -730,6 +730,8 @@ struct ARMCPU {
 
     /* Timers used by the generic (architected) timer */
     QEMUTimer *gt_timer[NUM_GTIMERS];
+    /* Timer used by the PMU */
+    QEMUTimer *pmu_timer;
     /* GPIO outputs for generic timer */
     qemu_irq gt_timer_outputs[NUM_GTIMERS];
     /* GPIO output for GICv3 maintenance interrupt signal */
@@ -987,6 +989,11 @@ void pmccntr_op_finish(CPUARMState *env);
  */
 void pmu_op_start(CPUARMState *env);
 void pmu_op_finish(CPUARMState *env);
+
+/**
+ * Called when a PMU counter is due to overflow
+ */
+void arm_pmu_timer_cb(void *opaque);
 
 /**
  * Functions to register as EL change hooks for PMU mode filtering
