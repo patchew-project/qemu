@@ -216,6 +216,7 @@ static void pc_init1(MachineState *machine,
         no_hpet = 1;
     }
     isa_bus_irqs(isa_bus, pcms->gsi);
+    acpi_conf->pci_host = pci_host;
 
     if (kvm_pic_in_kernel()) {
         i8259 = kvm_i8259_init(isa_bus);
