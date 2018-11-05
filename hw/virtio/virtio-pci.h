@@ -31,6 +31,10 @@
 #include "hw/virtio/vhost-user-blk.h"
 #endif
 
+#ifdef CONFIG_VHOST_BLK
+#include "hw/virtio/vhost-blk.h"
+#endif
+
 #ifdef CONFIG_VIRTFS
 #include "hw/9pfs/virtio-9p.h"
 #endif
@@ -50,6 +54,7 @@ typedef struct VirtIONetPCI VirtIONetPCI;
 typedef struct VHostSCSIPCI VHostSCSIPCI;
 typedef struct VHostUserSCSIPCI VHostUserSCSIPCI;
 typedef struct VHostUserBlkPCI VHostUserBlkPCI;
+typedef struct VHostBlkPCI VHostBlkPCI;
 typedef struct VirtIORngPCI VirtIORngPCI;
 typedef struct VirtIOInputPCI VirtIOInputPCI;
 typedef struct VirtIOInputHIDPCI VirtIOInputHIDPCI;
@@ -259,6 +264,20 @@ struct VHostUserSCSIPCI {
 struct VHostUserBlkPCI {
     VirtIOPCIProxy parent_obj;
     VHostUserBlk vdev;
+};
+#endif
+
+#ifdef CONFIG_VHOST_BLK
+/*
+ * vhost-blk-pci: This extends VirtioPCIProxy.
+ */
+#define TYPE_VHOST_BLK_PCI "vhost-blk-pci"
+#define VHOST_BLK_PCI(obj) \
+        OBJECT_CHECK(VHostBlkPCI, (obj), TYPE_VHOST_BLK_PCI)
+
+struct VHostBlkPCI {
+    VirtIOPCIProxy parent_obj;
+    VHostBlk vdev;
 };
 #endif
 
