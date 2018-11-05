@@ -1615,7 +1615,7 @@ build_tpm2(GArray *table_data, BIOSLinker *linker, GArray *tcpalog)
 #define HOLE_640K_START  (640 * KiB)
 #define HOLE_640K_END   (1 * MiB)
 
-static void
+void
 build_srat(GArray *table_data, BIOSLinker *linker,
            MachineState *machine, AcpiConfiguration *acpi_conf)
 {
