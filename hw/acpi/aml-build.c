@@ -22,6 +22,8 @@
 #include "qemu/osdep.h"
 #include <glib/gprintf.h>
 #include "hw/acpi/aml-build.h"
+#include "hw/acpi/builder.h"
+#include "hw/mem/memory-device.h"
 #include "qemu/bswap.h"
 #include "qemu/bitops.h"
 #include "sysemu/numa.h"
@@ -1617,23 +1619,15 @@ void acpi_build_tables_cleanup(AcpiBuildTables *tables, bool mfre)
     g_array_free(tables->vmgenid, mfre);
 }
 
-/*
- * Because of the PXB hosts we cannot simply query TYPE_PCI_HOST_BRIDGE.
- */
 Object *acpi_get_pci_host(void)
 {
-    PCIHostState *host;
+    MachineState *ms = MACHINE(qdev_get_machine());
+    AcpiBuilder *ab = ACPI_BUILDER(ms);
+    AcpiConfiguration *acpi_conf;
 
-    host = OBJECT_CHECK(PCIHostState,
-                        object_resolve_path("/machine/i440fx", NULL),
-                        TYPE_PCI_HOST_BRIDGE);
-    if (!host) {
-        host = OBJECT_CHECK(PCIHostState,
-                            object_resolve_path("/machine/q35", NULL),
-                            TYPE_PCI_HOST_BRIDGE);
-    }
+    acpi_conf = acpi_builder_configuration(ab);
 
-    return OBJECT(host);
+    return OBJECT(acpi_conf->pci_host);
 }
 
 
