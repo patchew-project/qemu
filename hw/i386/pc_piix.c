@@ -32,6 +32,7 @@
 #include "hw/display/ramfb.h"
 #include "hw/smbios/smbios.h"
 #include "hw/pci/pci.h"
+#include "hw/pci/pci_host.h"
 #include "hw/pci/pci_ids.h"
 #include "hw/usb.h"
 #include "net/net.h"
@@ -75,6 +76,7 @@ static void pc_init1(MachineState *machine,
     MemoryRegion *system_memory = get_system_memory();
     MemoryRegion *system_io = get_system_io();
     int i;
+    struct PCIHostState *pci_host;
     PCIBus *pci_bus;
     ISABus *isa_bus;
     PCII440FXState *i440fx_state;
@@ -196,15 +198,17 @@ static void pc_init1(MachineState *machine,
     }
 
     if (pcmc->pci_enabled) {
-        pci_bus = i440fx_init(host_type,
-                              pci_type,
-                              &i440fx_state, &piix3_devfn, &isa_bus, pcms->gsi,
-                              system_memory, system_io, machine->ram_size,
-                              acpi_conf->below_4g_mem_size,
-                              acpi_conf->above_4g_mem_size,
-                              pci_memory, ram_memory);
+        pci_host = i440fx_init(host_type,
+                               pci_type,
+                               &i440fx_state, &piix3_devfn, &isa_bus, pcms->gsi,
+                               system_memory, system_io, machine->ram_size,
+                               acpi_conf->below_4g_mem_size,
+                               acpi_conf->above_4g_mem_size,
+                               pci_memory, ram_memory);
+        pci_bus = pci_host->bus;
         pcms->bus = pci_bus;
     } else {
+        pci_host = NULL;
         pci_bus = NULL;
         i440fx_state = NULL;
         isa_bus = isa_bus_new(NULL, get_system_memory(), system_io,
