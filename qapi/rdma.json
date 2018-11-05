@@ -1,0 +1,34 @@
+# -*- Mode: Python -*-
+#
+
+##
+# = RDMA device
+##
+
+##
+# @RDMA_GID_STATUS_CHANGED:
+#
+# Emitted when guest driver adds/deletes GID to/from device
+#
+# @netdev: RoCE Network Device name - char *
+#
+# @gid-status: Add or delete indication - bool
+#
+# @subnet-prefix: Subnet Prefix - uint64
+#
+# @interface-id : Interface ID - uint64
+#
+# Since: 2.12.1
+#
+# Example:
+#
+# <- { {"timestamp": {"seconds": 1540819325, "microseconds": 504544},
+#       "event": "ADDGID", "data": {"netdev": "bridge0",
+#       "interface-id": 7052258031502978997, "subnet-prefix": 33022}}
+#
+##
+{ 'event': 'RDMA_GID_STATUS_CHANGED',
+  'data': { 'netdev'        : 'str',
+            'gid-status'    : 'bool',
+            'subnet-prefix' : 'uint64',
+            'interface-id'  : 'uint64' } }
