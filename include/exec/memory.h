@@ -127,7 +127,14 @@ typedef struct IOMMUNotifier IOMMUNotifier;
 #define RAM_PMEM (1 << 5)
 
 /* RAM can be mmap by a MAP_SYNC flag */
-#define RAM_SYNC (1 << 6)
+#define RAM_SYNC_SHIFT  6
+#define RAM_SYNC_SHIFT_AUTO  7
+
+#define RAM_SYNC_ON_OFF_AUTO_ON   (1UL << RAM_SYNC_SHIFT)
+#define RAM_SYNC_ON_OFF_AUTO_OFF  (0UL << RAM_SYNC_SHIFT)
+#define RAM_SYNC_ON_OFF_AUTO_AUTO (1UL << RAM_SYNC_SHIFT_AUTO)
+
+#define RAM_SYNC (RAM_SYNC_ON_OFF_AUTO_ON | RAM_SYNC_ON_OFF_AUTO_AUTO)
 
 static inline void iommu_notifier_init(IOMMUNotifier *n, IOMMUNotify fn,
                                        IOMMUNotifierFlag flags,

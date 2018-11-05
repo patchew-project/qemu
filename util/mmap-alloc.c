@@ -111,6 +111,10 @@ void *qemu_ram_mmap(int fd, size_t size, size_t align, uint32_t flags)
     assert(is_power_of_2(align));
     /* Always align to host page size */
     assert(align >= getpagesize());
+    if ((flags & RAM_SYNC_ON_OFF_AUTO_ON) &&
+        (!shared || !MAP_SYNC_FLAGS)) {
+        return MAP_FAILED;
+    }
     if ((flags & RAM_SYNC) && shared) {
         mmap_xflags |= MAP_SYNC_FLAGS;
     }
@@ -123,8 +127,12 @@ void *qemu_ram_mmap(int fd, size_t size, size_t align, uint32_t flags)
                 (shared ? MAP_SHARED : MAP_PRIVATE) | mmap_xflags,
                 fd, 0);
     if ((ptr1 == MAP_FAILED) && (mmap_xflags & MAP_SYNC_FLAGS)) {
-        mmap_xflags &= ~MAP_SYNC_FLAGS;
-        goto retry_mmap_fd;
+        if (flags & RAM_SYNC_ON_OFF_AUTO_AUTO) {
+            mmap_xflags &= ~MAP_SYNC_FLAGS;
+            goto retry_mmap_fd;
+        }
+        munmap(ptr, total);
+        return MAP_FAILED;
     }
 
     if (offset > 0) {
