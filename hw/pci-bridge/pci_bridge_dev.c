@@ -219,6 +219,19 @@ static void pci_bridge_dev_plug_cb(HotplugHandler *hotplug_dev,
     shpc_device_plug_cb(hotplug_dev, dev, errp);
 }
 
+static void pci_bridge_dev_unplug_cb(HotplugHandler *hotplug_dev,
+                                     DeviceState *dev, Error **errp)
+{
+    PCIDevice *pci_hotplug_dev = PCI_DEVICE(hotplug_dev);
+
+    if (!shpc_present(pci_hotplug_dev)) {
+        error_setg(errp, "standard hotplug controller has been disabled for "
+                   "this %s", TYPE_PCI_BRIDGE_DEV);
+        return;
+    }
+    shpc_device_unplug_cb(hotplug_dev, dev, errp);
+}
+
 static void pci_bridge_dev_unplug_request_cb(HotplugHandler *hotplug_dev,
                                              DeviceState *dev, Error **errp)
 {
@@ -251,6 +264,7 @@ static void pci_bridge_dev_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &pci_bridge_dev_vmstate;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     hc->plug = pci_bridge_dev_plug_cb;
+    hc->unplug = pci_bridge_dev_unplug_cb;
     hc->unplug_request = pci_bridge_dev_unplug_request_cb;
 }
 
