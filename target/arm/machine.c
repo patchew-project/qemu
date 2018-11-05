@@ -604,6 +604,8 @@ static int cpu_pre_save(void *opaque)
 {
     ARMCPU *cpu = opaque;
 
+    pmu_op_start(&cpu->env);
+
     if (kvm_enabled()) {
         if (!write_kvmstate_to_list(cpu)) {
             /* This should never fail */
@@ -622,6 +624,20 @@ static int cpu_pre_save(void *opaque)
     memcpy(cpu->cpreg_vmstate_values, cpu->cpreg_values,
            cpu->cpreg_array_len * sizeof(uint64_t));
 
+    return 0;
+}
+
+static int cpu_post_save(void *opaque)
+{
+    ARMCPU *cpu = opaque;
+    pmu_op_finish(&cpu->env);
+    return 0;
+}
+
+static int cpu_pre_load(void *opaque)
+{
+    ARMCPU *cpu = opaque;
+    pmu_op_start(&cpu->env);
     return 0;
 }
 
@@ -672,6 +688,8 @@ static int cpu_post_load(void *opaque, int version_id)
     hw_breakpoint_update_all(cpu);
     hw_watchpoint_update_all(cpu);
 
+    pmu_op_finish(&cpu->env);
+
     return 0;
 }
 
@@ -680,6 +698,8 @@ const VMStateDescription vmstate_arm_cpu = {
     .version_id = 22,
     .minimum_version_id = 22,
     .pre_save = cpu_pre_save,
+    .post_save = cpu_post_save,
+    .pre_load = cpu_pre_load,
     .post_load = cpu_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(env.regs, ARMCPU, 16),
