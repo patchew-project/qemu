@@ -183,3 +183,32 @@
             'unsupported',
             'obsolete',
             'deprecated' ] }
+
+##
+# @UsageHints:
+#
+# Usage recommendations.
+#
+# @unspecified: not specified (zero-initialized).
+#
+# @green: Best choice.  Typically paravirtual devices go into this
+#         category.
+#         Example (nic): virtio-net.
+#         Example (usb); xhci.
+#
+# @yellow: Reasonable choice.  Typically emulated devices with
+#          good performance go into this category.
+#          Example (nic): e1000, e1000e
+#
+# @red: Bad choice.  Avoid this unless you run an old guest which
+#       lacks support for something better.
+#       Example (nic): rtl8139, pcnet, ne2k, ...
+#       Example (usb): ehci, uhci, ohci
+#
+# Since: 3.2
+##
+{ 'enum': 'UsageHints',
+  'data': [ 'unspecified',
+            'green',
+            'yellow',
+            'red' ] }

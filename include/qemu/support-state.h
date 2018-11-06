@@ -5,6 +5,7 @@
 
 typedef struct QemuSupportState {
     SupportState state;
+    UsageHints   hints;
     const char   *help;
 } QemuSupportState;
 
