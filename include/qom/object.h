@@ -15,6 +15,7 @@
 #define QEMU_OBJECT_H
 
 #include "qapi/qapi-builtin-types.h"
+#include "qemu/support-state.h"
 #include "qemu/queue.h"
 
 struct TypeImpl;
@@ -399,6 +400,8 @@ struct ObjectClass
     ObjectUnparent *unparent;
 
     GHashTable *properties;
+
+    QemuSupportState supported;
 };
 
 /**

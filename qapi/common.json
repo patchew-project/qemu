@@ -151,3 +151,35 @@
              'ppc64', 'riscv32', 'riscv64', 's390x', 'sh4',
              'sh4eb', 'sparc', 'sparc64', 'tricore', 'unicore32',
              'x86_64', 'xtensa', 'xtensaeb' ] }
+
+##
+# @SupportState:
+#
+# Indicate Support level of qemu devices, backends, subsystems, ...
+#
+# @unspecified: not specified (zero-initialized).
+#
+# @experimental: in development, can be unstable or incomplete.
+#
+# @supported: works stable and is fully supported.
+#             (supported + maintained in MAINTAINERS).
+#
+# @unsupported: should work, support is weak or not present.
+#               (odd-fixes + orphan in MAINTAINERS).
+#
+# @obsolete: is obsolete, still present for compatibility reasons,
+#            will likely be removed at some point in the future.
+#            Not deprecated (yet).
+#            (obsolete in MAINTAINERS).
+#
+# @deprecated: is deprecated, according to qemu deprecation policy.
+#
+# Since: 3.2
+##
+{ 'enum': 'SupportState',
+  'data': [ 'unspecified',
+            'experimental',
+            'supported',
+            'unsupported',
+            'obsolete',
+            'deprecated' ] }
