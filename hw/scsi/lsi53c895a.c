@@ -2032,6 +2032,7 @@ static void lsi_ram_write(void *opaque, hwaddr addr,
     uint32_t mask;
     int shift;
 
+    addr &= 0x01FFF;
     newval = s->script_ram[addr >> 2];
     shift = (addr & 3) * 8;
     mask = ((uint64_t)1 << (size * 8)) - 1;
@@ -2047,6 +2048,7 @@ static uint64_t lsi_ram_read(void *opaque, hwaddr addr,
     uint32_t val;
     uint32_t mask;
 
+    addr &= 0x01FFF;
     val = s->script_ram[addr >> 2];
     mask = ((uint64_t)1 << (size * 8)) - 1;
     val >>= (addr & 3) * 8;
