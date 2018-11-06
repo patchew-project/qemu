@@ -955,9 +955,12 @@ DEFINE_I440FX_MACHINE(v0_12, "pc-0.12", pc_compat_0_13,
 
 static void pc_i440fx_0_11_machine_options(MachineClass *m)
 {
+    ObjectClass *oc = OBJECT_CLASS(m);
+
     pc_i440fx_0_12_machine_options(m);
     m->hw_version = "0.11";
-    m->deprecation_reason = "use a newer machine type instead";
+    oc->supported.state = SUPPORT_STATE_DEPRECATED;
+    oc->supported.help = "use a newer machine type instead";
     SET_MACHINE_COMPAT(m, PC_COMPAT_0_11);
 }
 

@@ -2577,7 +2577,7 @@ static gint machine_class_cmp(gconstpointer a, gconstpointer b)
             }
             printf("%-20s %s%s%s\n", mc->name, mc->desc,
                    mc->is_default ? " (default)" : "",
-                   mc->deprecation_reason ? " (deprecated)" : "");
+                   qemu_is_deprecated(OBJECT_CLASS(mc)) ? " (deprecated)" : "");
         }
     }
 
@@ -4301,9 +4301,10 @@ int main(int argc, char **argv, char **envp)
 
     configure_accelerator(current_machine);
 
-    if (!qtest_enabled() && machine_class->deprecation_reason) {
+    if (!qtest_enabled() && qemu_is_deprecated(OBJECT_CLASS(machine_class))) {
         error_report("Machine type '%s' is deprecated: %s",
-                     machine_class->name, machine_class->deprecation_reason);
+                     machine_class->name,
+                     OBJECT_CLASS(machine_class)->supported.help);
     }
 
     /*
