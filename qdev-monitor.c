@@ -115,6 +115,8 @@ static void out_printf(const char *fmt, ...)
 
 static void qdev_print_devinfo(DeviceClass *dc)
 {
+    ObjectClass *oc = OBJECT_CLASS(dc);
+
     out_printf("name \"%s\"", object_class_get_name(OBJECT_CLASS(dc)));
     if (dc->bus_type) {
         out_printf(", bus %s", dc->bus_type);
@@ -127,6 +129,9 @@ static void qdev_print_devinfo(DeviceClass *dc)
     }
     if (!dc->user_creatable) {
         out_printf(", no-user");
+    }
+    if (oc->supported.state != SUPPORT_STATE_UNSPECIFIED) {
+        out_printf(", %s", SupportState_str(oc->supported.state));
     }
     out_printf("\n");
 }
@@ -587,6 +592,10 @@ DeviceState *qdev_device_add(QemuOpts *opts, Error **errp)
     dc = qdev_get_device_class(&driver, errp);
     if (!dc) {
         return NULL;
+    }
+    if (qemu_is_deprecated(OBJECT_CLASS(dc)) ||
+        qemu_is_obsolete(OBJECT_CLASS(dc))) {
+        qemu_warn_support_state("device", driver, OBJECT_CLASS(dc));
     }
 
     /* find bus */

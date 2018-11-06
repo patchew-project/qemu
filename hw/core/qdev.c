@@ -133,10 +133,16 @@ DeviceState *qdev_create(BusState *bus, const char *name)
 
 DeviceState *qdev_try_create(BusState *bus, const char *type)
 {
+    ObjectClass *oc;
     DeviceState *dev;
 
-    if (object_class_by_name(type) == NULL) {
+    oc = object_class_by_name(type);
+    if (oc == NULL) {
         return NULL;
+    }
+    if (qemu_is_deprecated(oc) ||
+        qemu_is_obsolete(oc)) {
+        qemu_warn_support_state("device", type, oc);
     }
     dev = DEVICE(object_new(type));
     if (!dev) {
