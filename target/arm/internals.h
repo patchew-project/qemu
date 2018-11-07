@@ -52,9 +52,13 @@ static inline bool excp_is_internal(int excp)
 }
 
 /* Scale factor for generic timers, ie number of ns per tick.
- * This gives a 62.5MHz timer.
+ * Calculated dynamically based on CNTFRQ with a default value
+ * that gives a 62.5MHZ timer.
  */
-#define GTIMER_SCALE 16
+#define GTIMER_SCALE        system_clock_scale
+#define GTIMER_SCALE_DEF    16
+
+uint64_t gt_get_countervalue(CPUARMState *);
 
 /* Bit definitions for the v7M CONTROL register */
 FIELD(V7M_CONTROL, NPRIV, 0, 1)

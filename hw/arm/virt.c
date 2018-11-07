@@ -59,6 +59,7 @@
 #include "qapi/visitor.h"
 #include "standard-headers/linux/input.h"
 #include "hw/arm/smmuv3.h"
+#include "target/arm/internals.h"
 
 #define DEFINE_VIRT_MACHINE_LATEST(major, minor, latest) \
     static void virt_##major##_##minor##_class_init(ObjectClass *oc, \
@@ -1748,6 +1749,19 @@ static HotplugHandler *virt_machine_get_hotplug_handler(MachineState *machine,
     return NULL;
 }
 
+static void set_system_clock_scale(void)
+{
+    unsigned long cntfrq_el0;
+
+    asm volatile("mrs %0, cntfrq_el0" : "=r"(cntfrq_el0));
+
+    if (cntfrq_el0 == 0) {
+        cntfrq_el0 = GTIMER_SCALE_DEF;
+    }
+
+    system_clock_scale = NANOSECONDS_PER_SECOND / (int)cntfrq_el0;
+}
+
 static void virt_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -1775,6 +1789,7 @@ static void virt_machine_class_init(ObjectClass *oc, void *data)
     assert(!mc->get_hotplug_handler);
     mc->get_hotplug_handler = virt_machine_get_hotplug_handler;
     hc->plug = virt_machine_device_plug_cb;
+    set_system_clock_scale();
 }
 
 static const TypeInfo virt_machine_info = {
