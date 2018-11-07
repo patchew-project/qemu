@@ -679,6 +679,8 @@ Object *object_new_with_propv(const char *typename,
                               Error **errp,
                               va_list vargs);
 
+void object_apply_global_props(Object *obj, GArray *props, Error **errp);
+
 /**
  * object_set_props:
  * @obj: the object instance to set properties on

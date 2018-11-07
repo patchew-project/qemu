@@ -28,7 +28,6 @@
 #include "qom/object.h"
 #include "qapi/visitor.h"
 
-
 #define TYPE_STATIC_PROPS "static_prop_type"
 #define STATIC_TYPE(obj) \
     OBJECT_CHECK(MyType, (obj), TYPE_STATIC_PROPS)

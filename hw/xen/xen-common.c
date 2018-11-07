@@ -181,11 +181,18 @@ static GlobalProperty xen_compat_props[] = {
 static void xen_accel_class_init(ObjectClass *oc, void *data)
 {
     AccelClass *ac = ACCEL_CLASS(oc);
+    int i;
+
     ac->name = "Xen";
     ac->init_machine = xen_init;
     ac->setup_post = xen_setup_post;
     ac->allowed = &xen_allowed;
-    ac->global_props = xen_compat_props;
+
+    ac->compat_props = g_array_new(false, false, sizeof(void *));
+    for (i = 0; xen_compat_props[i].driver != NULL; i++) {
+        GlobalProperty *prop = &xen_compat_props[i];
+        g_array_append_val(ac->compat_props, prop);
+    }
 }
 
 #define TYPE_XEN_ACCEL ACCEL_CLASS_NAME("xen")
