@@ -47,10 +47,11 @@ typedef struct ICH9SMBState {
 
 static const VMStateDescription vmstate_ich9_smbus = {
     .name = "ich9_smb",
-    .version_id = 1,
+    .version_id = 2,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_PCI_DEVICE(dev, struct ICH9SMBState),
+        VMSTATE_PCI_DEVICE(dev, ICH9SMBState),
+        VMSTATE_STRUCT(smb, ICH9SMBState, 2, pmsmb_vmstate, PMSMBus),
         VMSTATE_END_OF_LIST()
     }
 };
