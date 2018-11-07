@@ -31,9 +31,27 @@ typedef struct TestIfClass {
     uint32_t test;
 } TestIfClass;
 
+typedef struct DirectImpl {
+    Object parent_obj;
+
+    bool if_post_init;
+} DirectImpl;
+
+#define TYPE_DIRECT_IMPL "direct-impl"
+#define DIRECT_IMPL(obj) \
+    OBJECT_CHECK(DirectImpl, (obj), TYPE_DIRECT_IMPL)
+
+static void test_if_post_init(Object *obj)
+{
+    DirectImpl *d = DIRECT_IMPL(obj);
+
+    d->if_post_init = true;
+}
+
 static const TypeInfo test_if_info = {
     .name          = TYPE_TEST_IF,
     .parent        = TYPE_INTERFACE,
+    .instance_post_init = test_if_post_init,
     .class_size = sizeof(TestIfClass),
 };
 
@@ -47,11 +65,10 @@ static void test_class_init(ObjectClass *oc, void *data)
     tc->test = PATTERN;
 }
 
-#define TYPE_DIRECT_IMPL "direct-impl"
-
 static const TypeInfo direct_impl_info = {
     .name = TYPE_DIRECT_IMPL,
     .parent = TYPE_OBJECT,
+    .instance_size = sizeof(DirectImpl),
     .class_init = test_class_init,
     .interfaces = (InterfaceInfo[]) {
         { TYPE_TEST_IF },
@@ -70,10 +87,12 @@ static void test_interface_impl(const char *type)
 {
     Object *obj = object_new(type);
     TestIf *iobj = TEST_IF(obj);
+    DirectImpl *d = DIRECT_IMPL(obj);
     TestIfClass *ioc = TEST_IF_GET_CLASS(iobj);
 
     g_assert(iobj);
     g_assert(ioc->test == PATTERN);
+    g_assert(d->if_post_init == true);
     object_unref(obj);
 }
 

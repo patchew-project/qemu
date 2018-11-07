@@ -290,7 +290,6 @@ static void type_initialize(TypeImpl *ti)
         assert(ti->instance_size == 0);
         assert(ti->abstract);
         assert(!ti->instance_init);
-        assert(!ti->instance_post_init);
         assert(!ti->instance_finalize);
         assert(!ti->num_interfaces);
     }
@@ -363,6 +362,13 @@ static void object_init_with_type(Object *obj, TypeImpl *ti)
 
 static void object_post_init_with_type(Object *obj, TypeImpl *ti)
 {
+    GSList *e;
+
+    for (e = ti->class->interfaces; e; e = e->next) {
+        TypeImpl *itype = OBJECT_CLASS(e->data)->type;
+        object_post_init_with_type(obj, itype);
+    }
+
     if (ti->instance_post_init) {
         ti->instance_post_init(obj);
     }
