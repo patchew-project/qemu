@@ -1892,15 +1892,23 @@ DEF("netdev", HAS_ARG, QEMU_OPTION_netdev,
     "                use 'pincounter=on' to work around broken counter handling in peer\n"
     "                use 'offset=X' to add an extra offset between header and data\n"
 #endif
-    "-netdev socket,id=str[,fd=h][,listen=[host]:port][,connect=host:port]\n"
+    "-netdev socket,id=str,fd=h\n"
     "                configure a network backend to connect to another network\n"
-    "                using a socket connection\n"
-    "-netdev socket,id=str[,fd=h][,mcast=maddr:port[,localaddr=addr]]\n"
+    "                using an existing socket connection\n"
+    "-netdev socket,id=str,listen=[host]:port\n"
+    "                configure a network backend to accept and use an incoming TCP connection\n"
+    "                from remote client\n"
+    "-netdev socket,id=str,connect=host:port\n"
+    "                configure a network backend to connect to remote server\n"
+    "                using an outgoing TCP connection\n"
+    "-netdev socket,id=str,mcast=maddr:port[,localaddr=addr]\n"
     "                configure a network backend to connect to a multicast maddr and port\n"
-    "                use 'localaddr=addr' to specify the host address to send packets from\n"
-    "-netdev socket,id=str[,fd=h][,udp=host:port][,localaddr=host:port]\n"
-    "                configure a network backend to connect to another network\n"
+    "                using UDP multicasting\n"
+    "                use 'localaddr' to specify the address of host network interface to bind to\n"
+    "-netdev socket,id=str,udp=rhost:rport,localaddr=[host]:port\n"
+    "                configure a network backend to connect to an unicast rhost and rport\n"
     "                using an UDP tunnel\n"
+    "                use 'localaddr' to specify the host address and port to bind to\n"
 #ifdef CONFIG_VDE
     "-netdev vde,id=str[,sock=socketpath][,port=n][,group=groupname][,mode=octalmode]\n"
     "                configure a network backend to connect to port 'n' of a vde switch\n"
@@ -2211,14 +2219,25 @@ qemu-system-i386 linux.img -netdev bridge,id=n1 -device virtio-net,netdev=n1
 qemu-system-i386 linux.img -netdev bridge,br=qemubr0,id=n1 -device virtio-net,netdev=n1
 @end example
 
-@item -netdev socket,id=@var{id}[,fd=@var{h}][,listen=[@var{host}]:@var{port}][,connect=@var{host}:@var{port}]
+@item -netdev socket,id=@var{id},fd=@var{h}
 
-This host network backend can be used to connect the guest's network to
-another QEMU virtual machine using a TCP socket connection. If @option{listen}
-is specified, QEMU waits for incoming connections on @var{port}
-(@var{host} is optional). @option{connect} is used to connect to
-another QEMU instance using the @option{listen} option. @option{fd}=@var{h}
-specifies an already opened TCP socket.
+Configure a socket host network backend to connect the guest's network to
+another QEMU virtual machine using an existing socket connection, specified
+by socket descriptor @option{fd}=@var{h}.
+User application must pass already binded and/or connected socket endpoint of
+SOCK_STREAM or SOCK_DGRAM type, created in AF_LOCAL/AF_UNIX or AF_INET domain.
+For example, application may create unix socket pair to connect two QEMU
+instances. On the other side, this has restriction preventing passing
+multicast (AF_INET) sockets, because they will not work in connected state.
+
+@item -netdev socket,id=@var{id}[,listen=[@var{host}]:@var{port}][,connect=@var{host}:@var{port}]
+
+Configure a socket host network backend to connect the guest's network to
+another QEMU virtual machine using a TCP socket connection (IPv4 only).
+Exactly one of @option{listen} or @option{connect} options must be specified.
+Option @option{listen} tells QEMU to wait for incoming (single) connection
+on @var{port} (@var{host} is optional). Option @option{connect} tells QEMU
+to connect to another QEMU instance using the @option{listen} option.
 
 Example:
 @example
@@ -2232,21 +2251,26 @@ qemu-system-i386 linux.img \
                  -netdev socket,id=n2,connect=127.0.0.1:1234
 @end example
 
-@item -netdev socket,id=@var{id}[,fd=@var{h}][,mcast=@var{maddr}:@var{port}[,localaddr=@var{addr}]]
+@item -netdev socket,id=@var{id},mcast=@var{maddr}:@var{port}[,localaddr=@var{addr}]
 
 Configure a socket host network backend to share the guest's network traffic
-with another QEMU virtual machines using a UDP multicast socket, effectively
-making a bus for every QEMU with same multicast address @var{maddr} and @var{port}.
-NOTES:
+with another QEMU virtual machines using a UDP multicasting (IPv4 only),
+effectively making a bus for every QEMU with same multicast address @var{maddr}
+and @var{port}.
+Use @option{localaddr}=@var{addr} to specify address of specific network
+interface on host machine to bind socket to.
+
+Notes:
 @enumerate
 @item
 Several QEMU can be running on different hosts and share same bus (assuming
 correct multicast setup for these hosts).
 @item
-mcast support is compatible with User Mode Linux (argument @option{eth@var{N}=mcast}), see
-@url{http://user-mode-linux.sf.net}.
+Without specifying @option{localaddr} default network interface will be
+selected, which choice is very specific to host OS and its setup.
 @item
-Use @option{fd=h} to specify an already opened UDP multicast socket.
+mcast support is compatible with User Mode Linux (argument
+@option{eth@var{N}=mcast}), see @url{http://user-mode-linux.sf.net}.
 @end enumerate
 
 Example:
@@ -2280,6 +2304,27 @@ Example (send packets from host's 1.2.3.4):
 qemu-system-i386 linux.img \
                  -device e1000,netdev=n1,mac=52:54:00:12:34:56 \
                  -netdev socket,id=n1,mcast=239.192.168.1:1102,localaddr=1.2.3.4
+@end example
+
+@item -netdev socket,id=@var{id},udp=@var{rhost}:@var{rport},localaddr=[@var{host}]:@var{port}
+
+Configure a socket host network backend to connect the guest's network to
+another QEMU virtual machine using an UDP tunnel (IPv4 only).
+Use @option{localaddr} to specify @var{host} address (optional) and @var{port}
+to bind socket to (receive packets in and send packets from). Another QEMU
+instance must be binded to specified @var{rhost} (or all addresses)
+and @var{rport}.
+
+Example:
+@example
+# launch a first QEMU instance
+qemu-system-i386 linux.img \
+                 -device e1000,netdev=n1,mac=52:54:00:12:34:56 \
+                 -netdev socket,id=n1,udp=127.0.0.1:1234,localaddr=:4321
+# launch a second QEMU instance
+qemu-system-i386 linux.img \
+                 -device e1000,netdev=n2,mac=52:54:00:12:34:57 \
+                 -netdev socket,id=n2,udp=127.0.0.1:4321,localaddr=:1234
 @end example
 
 @item -netdev l2tpv3,id=@var{id},src=@var{srcaddr},dst=@var{dstaddr}[,srcport=@var{srcport}][,dstport=@var{dstport}],txsession=@var{txsession}[,rxsession=@var{rxsession}][,ipv6][,udp][,cookie64][,counter][,pincounter][,txcookie=@var{txcookie}][,rxcookie=@var{rxcookie}][,offset=@var{offset}]

@@ -83,7 +83,7 @@ static int get_str_sep(char *buf, int buf_size, const char **pp, int sep)
     return 0;
 }
 
-int parse_host_port(struct sockaddr_in *saddr, const char *str,
+int parse_host_port(struct sockaddr_in *saddr, const char *str, bool h_addr_opt,
                     Error **errp)
 {
     char buf[512];
@@ -99,6 +99,10 @@ int parse_host_port(struct sockaddr_in *saddr, const char *str,
     }
     saddr->sin_family = AF_INET;
     if (buf[0] == '\0') {
+        if (!h_addr_opt) {
+            error_setg(errp, "'%s' doesn't contain hostname/address part", str);
+            return -1;
+        }
         saddr->sin_addr.s_addr = 0;
     } else {
         if (qemu_isdigit(buf[0])) {
@@ -111,7 +115,7 @@ int parse_host_port(struct sockaddr_in *saddr, const char *str,
             he = gethostbyname(buf);
             if (he == NULL) {
                 error_setg(errp, "can't resolve host address '%s'", buf);
-                return - 1;
+                return -1;
             }
             saddr->sin_addr = *(struct in_addr *)he->h_addr;
         }

@@ -269,15 +269,15 @@
 #
 # @fd: file descriptor of an already opened socket
 #
-# @listen: port number, and optional hostname, to listen on
+# @listen: port number, and optional hostname, to listen on (new TCP socket)
 #
-# @connect: port number, and optional hostname, to connect to
+# @connect: port number, and optional hostname, to connect to (new TCP socket)
 #
-# @mcast: UDP multicast address and port number
+# @localaddr: source address (optional for tunnel) and port (new UDP socket)
 #
-# @localaddr: source address and port for multicast and udp packets
+# @mcast: multicast address and port number (new UDP multicast socket)
 #
-# @udp: UDP unicast address and port number
+# @udp: unicast address and port number (new UDP tunnel socket)
 #
 # Since: 1.2
 ##
@@ -286,8 +286,8 @@
     '*fd':        'str',
     '*listen':    'str',
     '*connect':   'str',
-    '*mcast':     'str',
     '*localaddr': 'str',
+    '*mcast':     'str',
     '*udp':       'str' } }
 
 ##

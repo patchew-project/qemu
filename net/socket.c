@@ -40,7 +40,10 @@ typedef struct NetSocketState {
     int fd;
     SocketReadState rs;
     unsigned int send_index;      /* number of bytes sent (only SOCK_STREAM) */
-    struct sockaddr_in dgram_dst; /* contains inet host and port destination iff connectionless (SOCK_DGRAM) */
+    bool dgram_connected;         /* whether connect() call was done for socket
+                                   * (SOCK_DGRAM) */
+    struct sockaddr_in dgram_dst; /* contains inet host and port destination
+                                   * if dgram_connected=false */
     IOHandler *send_fn;           /* differs between SOCK_STREAM/SOCK_DGRAM */
     bool read_poll;               /* waiting to receive data? */
     bool write_poll;              /* waiting to transmit data? */
@@ -78,7 +81,8 @@ static void net_socket_writable(void *opaque)
     qemu_flush_queued_packets(&s->nc);
 }
 
-static ssize_t net_socket_receive(NetClientState *nc, const uint8_t *buf, size_t size)
+static ssize_t net_socket_receive(NetClientState *nc,
+                                  const uint8_t *buf, size_t size)
 {
     NetSocketState *s = DO_UPCAST(NetSocketState, nc, nc);
     uint32_t len = htonl(size);
@@ -113,15 +117,21 @@ static ssize_t net_socket_receive(NetClientState *nc, const uint8_t *buf, size_t
     return size;
 }
 
-static ssize_t net_socket_receive_dgram(NetClientState *nc, const uint8_t *buf, size_t size)
+static ssize_t net_socket_receive_dgram(NetClientState *nc,
+                                        const uint8_t *buf, size_t size)
 {
     NetSocketState *s = DO_UPCAST(NetSocketState, nc, nc);
+    struct sockaddr *raddr = NULL;
+    socklen_t raddr_size = 0;
     ssize_t ret;
 
+    if (!s->dgram_connected) {
+        raddr = (struct sockaddr *)&s->dgram_dst;
+        raddr_size = sizeof(s->dgram_dst);
+    }
+
     do {
-        ret = qemu_sendto(s->fd, buf, size, 0,
-                          (struct sockaddr *)&s->dgram_dst,
-                          sizeof(s->dgram_dst));
+        ret = qemu_sendto(s->fd, buf, size, 0, raddr, raddr_size);
     } while (ret == -1 && errno == EINTR);
 
     if (ret == -1 && errno == EAGAIN) {
@@ -213,6 +223,7 @@ static int net_socket_mcast_create(struct sockaddr_in *mcastaddr,
                                    struct in_addr *localaddr,
                                    Error **errp)
 {
+    struct sockaddr_in bind_addr;
     struct ip_mreq imr;
     int fd;
     int val, ret;
@@ -249,14 +260,7 @@ static int net_socket_mcast_create(struct sockaddr_in *mcastaddr,
         goto fail;
     }
 
-    ret = bind(fd, (struct sockaddr *)mcastaddr, sizeof(*mcastaddr));
-    if (ret < 0) {
-        error_setg_errno(errp, errno, "can't bind ip=%s to socket",
-                         inet_ntoa(mcastaddr->sin_addr));
-        goto fail;
-    }
-
-    /* Add host to multicast group */
+    /* Init multicast group request */
     imr.imr_multiaddr = mcastaddr->sin_addr;
     if (localaddr) {
         imr.imr_interface = *localaddr;
@@ -264,6 +268,21 @@ static int net_socket_mcast_create(struct sockaddr_in *mcastaddr,
         imr.imr_interface.s_addr = htonl(INADDR_ANY);
     }
 
+    bind_addr = *mcastaddr;
+#ifdef _WIN32
+    /* See remarks about multicasting at
+     * https://docs.microsoft.com/ru-ru/windows/desktop/api/winsock2/nf-winsock2-bind
+     */
+    bind_addr.sin_addr = imr.imr_interface;
+#endif
+    ret = bind(fd, (struct sockaddr *)&bind_addr, sizeof(bind_addr));
+    if (ret < 0) {
+        error_setg_errno(errp, errno, "can't bind ip=%s to socket",
+                         inet_ntoa(bind_addr.sin_addr));
+        goto fail;
+    }
+
+    /* Add host to multicast group */
     ret = qemu_setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP,
                           &imr, sizeof(struct ip_mreq));
     if (ret < 0) {
@@ -328,39 +347,10 @@ static NetClientInfo net_dgram_socket_info = {
 static NetSocketState *net_socket_fd_init_dgram(NetClientState *peer,
                                                 const char *model,
                                                 const char *name,
-                                                int fd, int is_connected,
-                                                const char *mcast,
-                                                Error **errp)
+                                                int fd, bool is_connected)
 {
-    struct sockaddr_in saddr;
-    int newfd;
     NetClientState *nc;
     NetSocketState *s;
-
-    /* fd passed: multicast: "learn" dgram_dst address from bound address and save it
-     * Because this may be "shared" socket from a "master" process, datagrams would be recv()
-     * by ONLY ONE process: we must "clone" this dgram socket --jjo
-     */
-
-    if (is_connected && mcast != NULL) {
-            if (parse_host_port(&saddr, mcast, errp) < 0) {
-                goto err;
-            }
-            /* must be bound */
-            if (saddr.sin_addr.s_addr == 0) {
-                error_setg(errp, "can't setup multicast destination address");
-                goto err;
-            }
-            /* clone dgram socket */
-            newfd = net_socket_mcast_create(&saddr, NULL, errp);
-            if (newfd < 0) {
-                goto err;
-            }
-            /* clone newfd to fd, close newfd */
-            dup2(newfd, fd);
-            close(newfd);
-
-    }
 
     nc = qemu_new_net_client(&net_dgram_socket_info, peer, model, name);
 
@@ -368,26 +358,15 @@ static NetSocketState *net_socket_fd_init_dgram(NetClientState *peer,
 
     s->fd = fd;
     s->listen_fd = -1;
+    s->dgram_connected = is_connected;
     s->send_fn = net_socket_send_dgram;
     net_socket_rs_init(&s->rs, net_socket_rs_finalize, false);
     net_socket_read_poll(s, true);
 
-    /* mcast: save bound address as dst */
-    if (is_connected && mcast != NULL) {
-        s->dgram_dst = saddr;
-        snprintf(nc->info_str, sizeof(nc->info_str),
-                 "socket: fd=%d (cloned mcast=%s:%d)",
-                 fd, inet_ntoa(saddr.sin_addr), ntohs(saddr.sin_port));
-    } else {
-        snprintf(nc->info_str, sizeof(nc->info_str),
-                 "socket: fd=%d", fd);
-    }
+    snprintf(nc->info_str, sizeof(nc->info_str),
+             "socket: fd=%d", fd);
 
     return s;
-
-err:
-    closesocket(fd);
-    return NULL;
 }
 
 static void net_socket_connect(void *opaque)
@@ -407,7 +386,7 @@ static NetClientInfo net_socket_info = {
 static NetSocketState *net_socket_fd_init_stream(NetClientState *peer,
                                                  const char *model,
                                                  const char *name,
-                                                 int fd, int is_connected)
+                                                 int fd, bool is_connected)
 {
     NetClientState *nc;
     NetSocketState *s;
@@ -435,21 +414,20 @@ static NetSocketState *net_socket_fd_init_stream(NetClientState *peer,
 
 static NetSocketState *net_socket_fd_init(NetClientState *peer,
                                           const char *model, const char *name,
-                                          int fd, int is_connected,
-                                          const char *mc, Error **errp)
+                                          int fd, bool is_connected,
+                                          Error **errp)
 {
     int so_type = -1, optlen=sizeof(so_type);
 
     if(getsockopt(fd, SOL_SOCKET, SO_TYPE, (char *)&so_type,
         (socklen_t *)&optlen)< 0) {
-        error_setg(errp, "can't get socket option SO_TYPE");
+        error_setg_errno(errp, errno, "can't get socket option SO_TYPE");
         closesocket(fd);
         return NULL;
     }
     switch(so_type) {
     case SOCK_DGRAM:
-        return net_socket_fd_init_dgram(peer, model, name, fd, is_connected,
-                                        mc, errp);
+        return net_socket_fd_init_dgram(peer, model, name, fd, is_connected);
     case SOCK_STREAM:
         return net_socket_fd_init_stream(peer, model, name, fd, is_connected);
     default:
@@ -497,7 +475,7 @@ static int net_socket_listen_init(NetClientState *peer,
     struct sockaddr_in saddr;
     int fd, ret;
 
-    if (parse_host_port(&saddr, host_str, errp) < 0) {
+    if (parse_host_port(&saddr, host_str, true, errp) < 0) {
         return -1;
     }
 
@@ -542,10 +520,11 @@ static int net_socket_connect_init(NetClientState *peer,
                                    Error **errp)
 {
     NetSocketState *s;
-    int fd, connected, ret;
+    int fd, ret;
     struct sockaddr_in saddr;
+    bool connected;
 
-    if (parse_host_port(&saddr, host_str, errp) < 0) {
+    if (parse_host_port(&saddr, host_str, false, errp) < 0) {
         return -1;
     }
 
@@ -556,7 +535,7 @@ static int net_socket_connect_init(NetClientState *peer,
     }
     qemu_set_nonblock(fd);
 
-    connected = 0;
+    connected = false;
     for(;;) {
         ret = connect(fd, (struct sockaddr *)&saddr, sizeof(saddr));
         if (ret < 0) {
@@ -572,11 +551,11 @@ static int net_socket_connect_init(NetClientState *peer,
                 return -1;
             }
         } else {
-            connected = 1;
+            connected = true;
             break;
         }
     }
-    s = net_socket_fd_init(peer, model, name, fd, connected, NULL, errp);
+    s = net_socket_fd_init(peer, model, name, fd, connected, errp);
     if (!s) {
         return -1;
     }
@@ -599,7 +578,7 @@ static int net_socket_mcast_init(NetClientState *peer,
     struct sockaddr_in saddr;
     struct in_addr localaddr, *param_localaddr;
 
-    if (parse_host_port(&saddr, host_str, errp) < 0) {
+    if (parse_host_port(&saddr, host_str, false, errp) < 0) {
         return -1;
     }
 
@@ -619,7 +598,7 @@ static int net_socket_mcast_init(NetClientState *peer,
         return -1;
     }
 
-    s = net_socket_fd_init(peer, model, name, fd, 0, NULL, errp);
+    s = net_socket_fd_init(peer, model, name, fd, false, errp);
     if (!s) {
         return -1;
     }
@@ -644,11 +623,11 @@ static int net_socket_udp_init(NetClientState *peer,
     int fd, ret;
     struct sockaddr_in laddr, raddr;
 
-    if (parse_host_port(&laddr, lhost, errp) < 0) {
+    if (parse_host_port(&laddr, lhost, true, errp) < 0) {
         return -1;
     }
 
-    if (parse_host_port(&raddr, rhost, errp) < 0) {
+    if (parse_host_port(&raddr, rhost, false, errp) < 0) {
         return -1;
     }
 
@@ -667,19 +646,25 @@ static int net_socket_udp_init(NetClientState *peer,
     }
     ret = bind(fd, (struct sockaddr *)&laddr, sizeof(laddr));
     if (ret < 0) {
-        error_setg_errno(errp, errno, "can't bind ip=%s to socket",
-                         inet_ntoa(laddr.sin_addr));
+        error_setg_errno(errp, errno, "can't bind %s:%"PRIu16" to socket",
+                         inet_ntoa(laddr.sin_addr), laddr.sin_port);
+        closesocket(fd);
+        return -1;
+    }
+    do {
+        ret = connect(fd, (struct sockaddr *)&raddr, sizeof(raddr));
+    } while ((ret < 0) && (errno == EINTR));
+    if (ret < 0) {
+        error_setg_errno(errp, errno, "can't connect socket");
         closesocket(fd);
         return -1;
     }
     qemu_set_nonblock(fd);
 
-    s = net_socket_fd_init(peer, model, name, fd, 0, NULL, errp);
+    s = net_socket_fd_init(peer, model, name, fd, true, errp);
     if (!s) {
         return -1;
     }
-
-    s->dgram_dst = raddr;
 
     snprintf(s->nc.info_str, sizeof(s->nc.info_str),
              "socket: udp=%s:%d",
@@ -697,7 +682,7 @@ int net_init_socket(const Netdev *netdev, const char *name,
 
     if (sock->has_fd + sock->has_listen + sock->has_connect + sock->has_mcast +
         sock->has_udp != 1) {
-        error_setg(errp, "exactly one of listen=, connect=, mcast= or udp="
+        error_setg(errp, "exactly one of fd=, listen=, connect=, mcast= or udp="
                    " is required");
         return -1;
     }
@@ -715,8 +700,7 @@ int net_init_socket(const Netdev *netdev, const char *name,
             return -1;
         }
         qemu_set_nonblock(fd);
-        if (!net_socket_fd_init(peer, "socket", name, fd, 1, sock->mcast,
-                                errp)) {
+        if (!net_socket_fd_init(peer, "socket", name, fd, true, errp)) {
             return -1;
         }
         return 0;

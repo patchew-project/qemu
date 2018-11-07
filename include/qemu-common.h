@@ -67,6 +67,8 @@ int qemu_openpty_raw(int *aslave, char *pty_name);
 #define qemu_setsockopt(sockfd, level, optname, optval, optlen) \
     setsockopt(sockfd, level, optname, (const void *)optval, optlen)
 #define qemu_recv(sockfd, buf, len, flags) recv(sockfd, (void *)buf, len, flags)
+#define qemu_send(sockfd, buf, len, flags) \
+    send(sockfd, (const void *)buf, len, flags)
 #define qemu_sendto(sockfd, buf, len, flags, destaddr, addrlen) \
     sendto(sockfd, (const void *)buf, len, flags, destaddr, addrlen)
 #else
@@ -75,6 +77,7 @@ int qemu_openpty_raw(int *aslave, char *pty_name);
 #define qemu_setsockopt(sockfd, level, optname, optval, optlen) \
     setsockopt(sockfd, level, optname, optval, optlen)
 #define qemu_recv(sockfd, buf, len, flags) recv(sockfd, buf, len, flags)
+#define qemu_send(sockfd, buf, len, flags) send(sockfd, buf, len, flags)
 #define qemu_sendto(sockfd, buf, len, flags, destaddr, addrlen) \
     sendto(sockfd, buf, len, flags, destaddr, addrlen)
 #endif
