@@ -4409,49 +4409,21 @@ static void gen_HILO(DisasContext *ctx, uint32_t opc, int acc, int reg)
 
     switch (opc) {
     case OPC_MFHI:
-#if defined(TARGET_MIPS64)
-        if (acc != 0) {
-            tcg_gen_ext32s_tl(cpu_gpr[reg], cpu_HI[acc]);
-        } else
-#endif
-        {
-            tcg_gen_mov_tl(cpu_gpr[reg], cpu_HI[acc]);
-        }
+        tcg_gen_mov_tl(cpu_gpr[reg], cpu_HI[acc]);
         break;
     case OPC_MFLO:
-#if defined(TARGET_MIPS64)
-        if (acc != 0) {
-            tcg_gen_ext32s_tl(cpu_gpr[reg], cpu_LO[acc]);
-        } else
-#endif
-        {
-            tcg_gen_mov_tl(cpu_gpr[reg], cpu_LO[acc]);
-        }
+        tcg_gen_mov_tl(cpu_gpr[reg], cpu_LO[acc]);
         break;
     case OPC_MTHI:
         if (reg != 0) {
-#if defined(TARGET_MIPS64)
-            if (acc != 0) {
-                tcg_gen_ext32s_tl(cpu_HI[acc], cpu_gpr[reg]);
-            } else
-#endif
-            {
-                tcg_gen_mov_tl(cpu_HI[acc], cpu_gpr[reg]);
-            }
+            tcg_gen_mov_tl(cpu_HI[acc], cpu_gpr[reg]);
         } else {
             tcg_gen_movi_tl(cpu_HI[acc], 0);
         }
         break;
     case OPC_MTLO:
         if (reg != 0) {
-#if defined(TARGET_MIPS64)
-            if (acc != 0) {
-                tcg_gen_ext32s_tl(cpu_LO[acc], cpu_gpr[reg]);
-            } else
-#endif
-            {
-                tcg_gen_mov_tl(cpu_LO[acc], cpu_gpr[reg]);
-            }
+            tcg_gen_mov_tl(cpu_LO[acc], cpu_gpr[reg]);
         } else {
             tcg_gen_movi_tl(cpu_LO[acc], 0);
         }
