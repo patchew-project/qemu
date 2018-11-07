@@ -392,7 +392,11 @@ void object_apply_global_props(Object *obj, GArray *props, Error **errp)
         if (err != NULL) {
             error_prepend(&err, "can't apply global %s.%s=%s: ",
                           p->driver, p->property, p->value);
-            error_propagate(errp, err);
+            if (errp) {
+                error_propagate(errp, err);
+            } else {
+                warn_report_err(err);
+            }
         }
     }
 }
