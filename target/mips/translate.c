@@ -28329,8 +28329,11 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
         break;
     case OPC_PREF:
         check_insn_opc_removed(ctx, ISA_MIPS32R6);
-        check_insn(ctx, ISA_MIPS4 | ISA_MIPS32 |
-                   INSN_R5900);
+        if (ctx->insn_flags & INSN_R5900) {
+            /* The R5900 implements PREF. */
+        } else {
+            check_insn(ctx, ISA_MIPS4 | ISA_MIPS32);
+        }
         /* Treat as NOP. */
         break;
 
