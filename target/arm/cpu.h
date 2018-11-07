@@ -610,6 +610,9 @@ typedef struct CPUARMState {
     struct CPUBreakpoint *cpu_breakpoint[16];
     struct CPUWatchpoint *cpu_watchpoint[16];
 
+    uint64_t pause_start;   /* start time of last pause */
+    uint64_t pause_total;   /* total pause time */
+
     /* Fields up to this point are cleared by a CPU reset */
     struct {} end_reset_fields;
 
