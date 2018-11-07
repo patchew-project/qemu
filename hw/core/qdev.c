@@ -972,14 +972,6 @@ static void device_initfn(Object *obj)
 
 static void device_post_init(Object *obj)
 {
-    if (current_machine) {
-        MachineClass *mc = MACHINE_GET_CLASS(current_machine);
-        AccelClass *ac = ACCEL_GET_CLASS(current_machine->accelerator);
-
-        object_apply_global_props(obj, mc->compat_props, &error_abort);
-        object_apply_global_props(obj, ac->compat_props, &error_abort);
-    }
-
     qdev_prop_set_globals(DEVICE(obj));
 }
 
@@ -1112,6 +1104,10 @@ static const TypeInfo device_type_info = {
     .class_init = device_class_init,
     .abstract = true,
     .class_size = sizeof(DeviceClass),
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_COMPAT_PROPS },
+        { }
+    }
 };
 
 static void qdev_register_types(void)

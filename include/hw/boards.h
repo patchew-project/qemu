@@ -9,6 +9,8 @@
 #include "qom/object.h"
 #include "qom/cpu.h"
 
+#define TYPE_COMPAT_PROPS "compat-props"
+
 /**
  * memory_region_allocate_system_memory - Allocate a board's main memory
  * @mr: the #MemoryRegion to be initialized
