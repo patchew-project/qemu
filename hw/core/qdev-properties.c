@@ -1173,22 +1173,32 @@ void qdev_prop_set_ptr(DeviceState *dev, const char *name, void *value)
     *ptr = value;
 }
 
-static GList *global_props;
+static GArray *global_props(void)
+{
+    static GArray *gp;
+
+    if (!gp) {
+        gp = g_array_new(false, false, sizeof(GlobalProperty *));
+    }
+
+    return gp;
+}
 
 void qdev_prop_register_global(GlobalProperty *prop)
 {
-    global_props = g_list_append(global_props, prop);
+    g_array_append_val(global_props(), prop);
 }
 
 int qdev_prop_check_globals(void)
 {
-    GList *l;
-    int ret = 0;
+    int i, ret = 0;
 
-    for (l = global_props; l; l = l->next) {
-        GlobalProperty *prop = l->data;
+    for (i = 0; i < global_props()->len; i++) {
+        GlobalProperty *prop;
         ObjectClass *oc;
         DeviceClass *dc;
+
+        prop = g_array_index(global_props(), GlobalProperty *, i);
         if (prop->used) {
             continue;
         }
@@ -1213,12 +1223,13 @@ int qdev_prop_check_globals(void)
 
 void qdev_prop_set_globals(DeviceState *dev)
 {
-    GList *l;
+    int i;
 
-    for (l = global_props; l; l = l->next) {
-        GlobalProperty *prop = l->data;
+    for (i = 0; i < global_props()->len; i++) {
+        GlobalProperty *prop;
         Error *err = NULL;
 
+        prop = g_array_index(global_props(), GlobalProperty *, i);
         if (object_dynamic_cast(OBJECT(dev), prop->driver) == NULL) {
             continue;
         }
