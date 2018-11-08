@@ -2235,6 +2235,7 @@ S: Maintained
 F: hw/rdma/*
 F: hw/rdma/vmw/*
 F: docs/pvrdma.txt
+F: contrib/rdmacm-mux/*
 
 Build and test automation
 -------------------------
