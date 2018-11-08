@@ -257,7 +257,7 @@ static void set_netdev(Object *obj, Visitor *v, const char *name,
     Property *prop = opaque;
     NICPeers *peers_ptr = qdev_get_prop_ptr(dev, prop);
     NetClientState **ncs = peers_ptr->ncs;
-    NetClientState *peers[MAX_QUEUE_NUM];
+    NetClientState *peers[MAX_QUEUE_NUM] = {NULL};
     Error *local_err = NULL;
     int queues, err = 0, i = 0;
     char *str;
