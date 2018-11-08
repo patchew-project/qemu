@@ -216,6 +216,13 @@ static KVMSlot *kvm_lookup_matching_slot(KVMMemoryListener *kml,
     return NULL;
 }
 
+bool is_kvm_memory(hwaddr start_addr, hwaddr size)
+{
+    KVMMemoryListener *kml = &kvm_state->memory_listener;
+
+    return NULL != kvm_lookup_matching_slot(kml, start_addr, size);
+}
+
 /*
  * Calculate and align the start address and the size of the section.
  * Return the size. If the size is 0, the aligned section is empty.
