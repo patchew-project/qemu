@@ -107,7 +107,11 @@ matrix:
     - env: CONFIG="--disable-tcg"
            TEST_CMD=""
       compiler: gcc
-    - env: CONFIG=""
+    # OSX builds
+    - env: CONFIG="--disable-user"
+      os: osx
+      compiler: clang
+    - env: CONFIG="--disable-system --disable-tools --disable-docs --disable-guest-agent"
       os: osx
       compiler: clang
     # Python builds
