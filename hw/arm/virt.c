@@ -1920,6 +1920,10 @@ static void virt_machine_2_11_options(MachineClass *mc)
     virt_machine_2_12_options(mc);
     SET_MACHINE_COMPAT(mc, VIRT_COMPAT_2_11);
     vmc->smbios_old_sys_ver = true;
+    /* Disable memory recovery feature for 2.11 as RAS support was
+     * introduced with 2.12.
+     */
+    vmc->no_ras = true;
 }
 DEFINE_VIRT_MACHINE(2, 11)
 
