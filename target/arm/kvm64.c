@@ -594,6 +594,45 @@ int kvm_arm_cpreg_level(uint64_t regidx)
     return KVM_PUT_RUNTIME_STATE;
 }
 
+/* Inject synchronous external abort */
+static void kvm_inject_arm_sea(CPUState *c)
+{
+    ARMCPU *cpu = ARM_CPU(c);
+    CPUARMState *env = &cpu->env;
+    CPUClass *cc = CPU_GET_CLASS(c);
+    uint32_t esr;
+    int ret;
+
+    /* This exception is synchronous data abort */
+    c->exception_index = EXCP_DATA_ABORT;
+    /* Inject the exception to guest EL1 */
+    env->exception.target_el = 1;
+
+    /* Set the DFSC to synchronous external abort and set FnV to not valid,
+     * this will tell guest the FAR_ELx is UNKNOWN for this abort.
+     */
+
+    /* This exception comes from lower or current exception level. */
+    if (arm_current_el(env) == PSTATE_MODE_EL0t) {
+        esr = syn_data_abort_no_iss(0, 1, 0, 0, 0, 0, 0x10);
+    } else {
+        esr = syn_data_abort_no_iss(1, 1, 0, 0, 0, 0, 0x10);
+    }
+
+    env->exception.syndrome = esr;
+
+    cc->do_interrupt(c);
+    if (kvm_enabled()) {
+        /* write ESR_EL1 from cpustate to list*/
+        ret = write_part_cpustate_to_list(cpu,
+                    offsetof(CPUARMState, cp15.esr_el[1]));
+        if (!ret) {
+            fprintf(stderr, "<%s> failed to set esr_el1\n", __func__);
+            abort();
+        }
+    }
+}
+
 #define AARCH64_CORE_REG(x)   (KVM_REG_ARM64 | KVM_REG_SIZE_U64 | \
                  KVM_REG_ARM_CORE | KVM_REG_ARM_CORE_REG(x))
 
