@@ -28,6 +28,7 @@
 #include "exec/address-spaces.h"
 #include "hw/boards.h"
 #include "qemu/log.h"
+#include "exec/ram_addr.h"
 
 const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
     KVM_CAP_LAST_INFO
@@ -175,6 +176,8 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     kvm_halt_in_kernel_allowed = true;
 
     cap_has_mp_state = kvm_check_extension(s, KVM_CAP_MP_STATE);
+
+    qemu_register_reset(kvm_unpoison_all, NULL);
 
     return 0;
 }

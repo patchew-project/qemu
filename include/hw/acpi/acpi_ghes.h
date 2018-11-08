@@ -40,6 +40,9 @@
 #define GHES_CPER_OK                1
 #define GHES_CPER_FAIL              0
 
+#define GHES_CPER_OK                1
+#define GHES_CPER_FAIL              0
+
 /* The max size in bytes for one error block */
 #define GHES_MAX_RAW_DATA_LENGTH        0x1000
 /* Now only have GPIO-Signal and ARMv8 SEA notification types error sources
@@ -79,4 +82,5 @@ void build_apei_hest(GArray *table_data, GArray *hardware_error,
 
 void build_hardware_error_table(GArray *hardware_errors, BIOSLinker *linker);
 void ghes_add_fw_cfg(FWCfgState *s, GArray *hardware_errors);
+bool ghes_record_errors(uint32_t notify, uint64_t error_physical_addr);
 #endif
