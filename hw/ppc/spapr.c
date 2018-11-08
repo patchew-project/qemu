@@ -1633,7 +1633,10 @@ static void spapr_machine_reset(void)
     /* Load the fdt */
     qemu_fdt_dumpdtb(fdt, fdt_totalsize(fdt));
     cpu_physical_memory_write(fdt_addr, fdt, fdt_totalsize(fdt));
-    g_free(fdt);
+    g_free(spapr->fdt_blob);
+    spapr->fdt_size = fdt_totalsize(fdt);
+    spapr->fdt_initial_size = spapr->fdt_size;
+    spapr->fdt_blob = fdt;
 
     /* Set up the entry state */
     spapr_cpu_set_entry_state(first_ppc_cpu, SPAPR_ENTRY_POINT, fdt_addr);
@@ -1887,6 +1890,27 @@ static const VMStateDescription vmstate_spapr_irq_map = {
     },
 };
 
+static bool spapr_dtb_needed(void *opaque)
+{
+    sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(opaque);
+
+    return smc->update_dt_enabled;
+}
+
+static const VMStateDescription vmstate_spapr_dtb = {
+    .name = "spapr_dtb",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = spapr_dtb_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(fdt_initial_size, sPAPRMachineState),
+        VMSTATE_UINT32(fdt_size, sPAPRMachineState),
+        VMSTATE_VBUFFER_ALLOC_UINT32(fdt_blob, sPAPRMachineState, 0, NULL,
+                                     fdt_size),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 static const VMStateDescription vmstate_spapr = {
     .name = "spapr",
     .version_id = 3,
@@ -1915,6 +1939,7 @@ static const VMStateDescription vmstate_spapr = {
         &vmstate_spapr_cap_sbbc,
         &vmstate_spapr_cap_ibs,
         &vmstate_spapr_irq_map,
+        &vmstate_spapr_dtb,
         NULL
     }
 };
@@ -3849,6 +3874,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     hc->unplug = spapr_machine_device_unplug;
 
     smc->dr_lmb_enabled = true;
+    smc->update_dt_enabled = true;
     mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("power8_v2.0");
     mc->has_hotpluggable_cpus = true;
     smc->resize_hpt_default = SPAPR_RESIZE_HPT_ENABLED;
@@ -3965,6 +3991,7 @@ static void spapr_machine_3_0_class_options(MachineClass *mc)
 
     smc->legacy_irq_allocation = true;
     smc->irq = &spapr_irq_xics_legacy;
+    smc->update_dt_enabled = false;
 }
 
 DEFINE_SPAPR_MACHINE(3_0, "3.0", false);
