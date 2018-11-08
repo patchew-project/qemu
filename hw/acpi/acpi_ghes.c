@@ -26,6 +26,87 @@
 #include "sysemu/sysemu.h"
 #include "qemu/error-report.h"
 
+/* UEFI 2.6: N.2.5 Memory Error Section */
+static void build_append_mem_cper(GArray *table, uint64_t error_physical_addr)
+{
+    /*
+     * Memory Error Record
+     */
+    build_append_int_noprefix(table,
+                 (1UL << 14) | /* Type Valid */
+                 (1UL << 1) /* Physical Address Valid */,
+                 8);
+    /* Memory error status information */
+    build_append_int_noprefix(table, 0, 8);
+    /* The physical address at which the memory error occurred */
+    build_append_int_noprefix(table, error_physical_addr, 8);
+    build_append_int_noprefix(table, 0, 48);
+    build_append_int_noprefix(table, 0 /* Unknown error */, 1);
+    build_append_int_noprefix(table, 0, 7);
+}
+
+static int ghes_record_mem_error(uint64_t error_block_address,
+                                    uint64_t error_physical_addr)
+{
+    GArray *block;
+    uint64_t current_block_length;
+    uint32_t data_length;
+    /* Memory section */
+    char mem_section_id_le[] = {0x14, 0x11, 0xBC, 0xA5, 0x64, 0x6F, 0xDE,
+                                0x4E, 0xB8, 0x63, 0x3E, 0x83, 0xED, 0x7C,
+                                0x83, 0xB1};
+    uint8_t fru_id[16] = {0};
+    uint8_t fru_text[20] = {0};
+
+    block = g_array_new(false, true /* clear */, 1);
+
+    /* Read the current length in bytes of the generic error data */
+    cpu_physical_memory_read(error_block_address +
+        offsetof(AcpiGenericErrorStatus, data_length), &data_length, 4);
+
+    /* The current whole length in bytes of the generic error status block */
+    current_block_length = sizeof(AcpiGenericErrorStatus) + le32_to_cpu(data_length);
+
+    /* Add a new generic error data entry*/
+    data_length += GHES_DATA_LENGTH;
+    data_length += GHES_CPER_LENGTH;
+
+    /* Check whether it will run out of the preallocated memory if adding a new
+     * generic error data entry
+     */
+    if ((data_length + sizeof(AcpiGenericErrorStatus)) > GHES_MAX_RAW_DATA_LENGTH) {
+        error_report("Record CPER out of boundary!!!");
+        return GHES_CPER_FAIL;
+    }
+    /* Build the new generic error status block header */
+    build_append_ghes_generic_status(block, cpu_to_le32(ACPI_GEBS_UNCORRECTABLE), 0, 0,
+        cpu_to_le32(data_length), cpu_to_le32(ACPI_CPER_SEV_RECOVERABLE));
+
+    /* Write back above generic error status block header to guest memory */
+    cpu_physical_memory_write(error_block_address, block->data,
+                              block->len);
+
+    /* Build the generic error data entries */
+
+    data_length = block->len;
+    /* Build the new generic error data entry header */
+    build_append_ghes_generic_data(block, mem_section_id_le,
+                    cpu_to_le32(ACPI_CPER_SEV_RECOVERABLE), cpu_to_le32(0x300), 0, 0,
+                    cpu_to_le32(80)/* the total size of Memory Error Record */, fru_id,
+                    fru_text, 0);
+
+    /* Build the memory section CPER */
+    build_append_mem_cper(block, error_physical_addr);
+
+    /* Write back above whole new generic error data entry to guest memory */
+    cpu_physical_memory_write(error_block_address + current_block_length,
+                    block->data + data_length, block->len - data_length);
+
+    g_array_free(block, true);
+
+    return GHES_CPER_OK;
+}
+
 /* Build table for the hardware error fw_cfg blob */
 void build_hardware_error_table(GArray *hardware_errors, BIOSLinker *linker)
 {
@@ -168,4 +249,87 @@ void ghes_add_fw_cfg(FWCfgState *s, GArray *hardware_error)
     /* Create a read-write fw_cfg file for Address */
     fw_cfg_add_file_callback(s, GHES_DATA_ADDR_FW_CFG_FILE, NULL, NULL, NULL,
         &ges.ghes_addr_le, sizeof(ges.ghes_addr_le), false);
+}
+
+bool ghes_record_errors(uint32_t notify, uint64_t physical_address)
+{
+    uint64_t error_block_addr, read_ack_register_addr;
+    int read_ack_register = 0, loop = 0;
+    uint64_t start_addr = le32_to_cpu(ges.ghes_addr_le);
+    bool ret = GHES_CPER_FAIL;
+    const uint8_t error_source_id[] = { 0xff, 0xff, 0xff, 0xff,
+                                        0xff, 0xff, 0xff, 0, 1};
+
+    /*
+     * | +---------------------+ ges.ghes_addr_le
+     * | |error_block_address0|
+     * | +---------------------+
+     * | |error_block_address1|
+     * | +---------------------+ --+--
+     * | |    .............    | GHES_ADDRESS_SIZE
+     * | +---------------------+ --+--
+     * | |error_block_addressN|
+     * | +---------------------+
+     * | | read_ack_register0  |
+     * | +---------------------+ --+--
+     * | | read_ack_register1  | GHES_ADDRESS_SIZE
+     * | +---------------------+ --+--
+     * | |   .............     |
+     * | +---------------------+
+     * | | read_ack_registerN  |
+     * | +---------------------+ --+--
+     * | |      CPER           |   |
+     * | |      ....           | GHES_MAX_RAW_DATA_LENGT
+     * | |      CPER           |   |
+     * | +---------------------+ --+--
+     * | |    ..........       |
+     * | +---------------------+
+     * | |      CPER           |
+     * | |      ....           |
+     * | |      CPER           |
+     * | +---------------------+
+     */
+    if (physical_address && notify < ACPI_HEST_NOTIFY_RESERVED) {
+        /* Find and check the source id for this new CPER */
+        if (error_source_id[notify] != 0xff) {
+            start_addr += error_source_id[notify] * GHES_ADDRESS_SIZE;
+        } else {
+            goto out;
+        }
+
+        cpu_physical_memory_read(start_addr, &error_block_addr,
+                                    GHES_ADDRESS_SIZE);
+
+        read_ack_register_addr = start_addr +
+                        ACPI_HEST_ERROR_SOURCE_COUNT * GHES_ADDRESS_SIZE;
+retry:
+        cpu_physical_memory_read(read_ack_register_addr,
+                                 &read_ack_register, GHES_ADDRESS_SIZE);
+
+        /* zero means OSPM does not acknowledge the error */
+        if (!read_ack_register) {
+            if (loop < 3) {
+                usleep(100 * 1000);
+                loop++;
+                goto retry;
+            } else {
+                error_report("Last time OSPM does not acknowledge the error,"
+                    " record CPER failed this time, set the ack value to"
+                    " avoid blocking next time CPER record! exit");
+                read_ack_register = 1;
+                cpu_physical_memory_write(read_ack_register_addr,
+                    &read_ack_register, GHES_ADDRESS_SIZE);
+            }
+        } else {
+            if (error_block_addr) {
+                read_ack_register = 0;
+                cpu_physical_memory_write(read_ack_register_addr,
+                    &read_ack_register, GHES_ADDRESS_SIZE);
+                ret = ghes_record_mem_error(error_block_addr, physical_address);
+            }
+        }
+    }
+
+out:
+    return ret;
 }
