@@ -37,14 +37,12 @@ typedef struct RecvMadList {
 typedef struct RdmaBackendDev {
     struct ibv_device_attr dev_attr;
     RdmaBackendThread comp_thread;
-    union ibv_gid gid;
     PCIDevice *dev;
     RdmaDeviceResources *rdma_dev_res;
     struct ibv_device *ib_dev;
     struct ibv_context *context;
     struct ibv_comp_channel *channel;
     uint8_t port_num;
-    uint8_t backend_gid_idx;
     RecvMadList recv_mads_list;
     CharBackend *mad_chr_be;
 } RdmaBackendDev;
@@ -66,6 +64,7 @@ typedef struct RdmaBackendCQ {
 typedef struct RdmaBackendQP {
     struct ibv_pd *ibpd;
     struct ibv_qp *ibqp;
+    uint8_t sgid_idx;
 } RdmaBackendQP;
 
 #endif
