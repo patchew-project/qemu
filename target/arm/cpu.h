@@ -2331,6 +2331,8 @@ bool write_list_to_cpustate(ARMCPU *cpu);
  */
 bool write_cpustate_to_list(ARMCPU *cpu);
 
+bool write_part_cpustate_to_list(ARMCPU *cpu, ptrdiff_t fieldoffset);
+
 #define ARM_CPUID_TI915T      0x54029152
 #define ARM_CPUID_TI925T      0x54029252
 

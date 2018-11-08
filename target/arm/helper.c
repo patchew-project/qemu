@@ -263,6 +263,29 @@ static bool raw_accessors_invalid(const ARMCPRegInfo *ri)
     return true;
 }
 
+bool write_part_cpustate_to_list(ARMCPU *cpu, ptrdiff_t fieldoffset)
+{
+    const ARMCPRegInfo *ri;
+    uint32_t regidx, i;
+
+    for (i = 0; i < cpu->cpreg_array_len; i++) {
+        regidx = kvm_to_cpreg_id(cpu->cpreg_indexes[i]);
+        ri = get_arm_cp_reginfo(cpu->cp_regs, regidx);
+        if (!ri) {
+            continue;
+        }
+
+        if (ri->type & ARM_CP_NO_RAW) {
+            continue;
+        }
+        if (ri->fieldoffset == fieldoffset) {
+            cpu->cpreg_values[i] = read_raw_cp_reg(&cpu->env, ri);
+            return true;
+        }
+    }
+    return false;
+}
+
 bool write_cpustate_to_list(ARMCPU *cpu)
 {
     /* Write the coprocessor state from cpu->env to the (index,value) list. */
