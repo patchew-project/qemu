@@ -6,9 +6,10 @@ from __future__ import print_function
 # gdb ${KERNEL}.vmlinux -x ${QEMU_SRC}/tests/guest-debug/test-gdbstub.py
 
 import gdb
+import re
 
 failcount = 0
-
+addr_match = re.compile("(0x[0-9a-f]{4,16})")
 
 def report(cond, msg):
     "Report success/fail of test"
@@ -37,26 +38,30 @@ def check_break(sym_name):
     gdb.execute("c")
 
     # hopefully we came back
-    end_pc = gdb.parse_and_eval('$pc')
-    print ("%s == %s %d" % (end_pc, sym.value(), bp.hit_count))
+    hit = bp.hit_count
     bp.delete()
 
-    # can we test we hit bp?
-    return end_pc == sym.value()
+    # did we hit bp?
+    return hit > 0
 
 
 # We need to do hbreak manually as the python interface doesn't export it
+# As the resolution of sym_name might not exactly match where the
+# breakpoint actually ends up we need to fish it out from result of
+# gdb.execute.
 def check_hbreak(sym_name):
     "Setup hardware breakpoint, continue and check we stopped."
-    sym, ok = gdb.lookup_symbol(sym_name)
-    gdb.execute("hbreak %s" % (sym_name))
+    result = gdb.execute("hbreak %s" % (sym_name), to_string=True)
+    addr_txt = addr_match.search(result).group()
+    addr = int(addr_txt, 16)
+
     gdb.execute("c")
 
     # hopefully we came back
     end_pc = gdb.parse_and_eval('$pc')
-    print ("%s == %s" % (end_pc, sym.value()))
+    print ("%s == %s" % (end_pc, addr))
 
-    if end_pc == sym.value():
+    if end_pc == addr:
         gdb.execute("d 1")
         return True
     else:
