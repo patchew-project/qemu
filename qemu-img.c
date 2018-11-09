@@ -3960,7 +3960,7 @@ typedef struct BenchData {
     int bufsize;
     int step;
     int nrreq;
-    int n;
+    unsigned int n;
     int flush_interval;
     bool drain_on_flush;
     uint8_t *buf;
@@ -4051,7 +4051,7 @@ static int img_bench(int argc, char **argv)
     bool quiet = false;
     bool image_opts = false;
     bool is_write = false;
-    int count = 75000;
+    unsigned int count = 75000;
     int depth = 64;
     int64_t offset = 0;
     size_t bufsize = 4096;
@@ -4098,7 +4098,7 @@ static int img_bench(int argc, char **argv)
         {
             unsigned long res;
 
-            if (qemu_strtoul(optarg, NULL, 0, &res) < 0 || res > INT_MAX) {
+            if (qemu_strtoul(optarg, NULL, 0, &res) < 0 || res > UINT_MAX || res <= 0) {
                 error_report("Invalid request count specified");
                 return 1;
             }
@@ -4248,7 +4248,7 @@ static int img_bench(int argc, char **argv)
         .flush_interval = flush_interval,
         .drain_on_flush = drain_on_flush,
     };
-    printf("Sending %d %s requests, %d bytes each, %d in parallel "
+    printf("Sending %u %s requests, %d bytes each, %d in parallel "
            "(starting at offset %" PRId64 ", step size %d)\n",
            data.n, data.write ? "write" : "read", data.bufsize, data.nrreq,
            data.offset, data.step);
