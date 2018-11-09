@@ -155,17 +155,12 @@ static void net_socket_send(void *opaque)
 {
     NetSocketState *s = opaque;
     int size;
-    int ret;
-    uint8_t buf1[NET_BUFSIZE];
-    const uint8_t *buf;
+    uint8_t buf[NET_BUFSIZE];
 
-    size = qemu_recv(s->fd, buf1, sizeof(buf1), 0);
-    if (size < 0) {
-        if (errno != EWOULDBLOCK)
-            goto eoc;
-    } else if (size == 0) {
+    size = qemu_recv(s->fd, buf, sizeof(buf), 0);
+    if (size == 0 || (size < 0 && errno != EWOULDBLOCK) ||
+        net_fill_rstate(&s->rs, buf, size) == -1) {
         /* end of connection */
-    eoc:
         net_socket_read_poll(s, false);
         net_socket_write_poll(s, false);
         if (s->listen_fd != -1) {
@@ -177,15 +172,6 @@ static void net_socket_send(void *opaque)
         net_socket_rs_init(&s->rs, net_socket_rs_finalize, false);
         s->nc.link_down = true;
         memset(s->nc.info_str, 0, sizeof(s->nc.info_str));
-
-        return;
-    }
-    buf = buf1;
-
-    ret = net_fill_rstate(&s->rs, buf, size);
-
-    if (ret == -1) {
-        goto eoc;
     }
 }
 
