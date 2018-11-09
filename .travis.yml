@@ -112,9 +112,11 @@ matrix:
       compiler: clang
     # Python builds
     - env: CONFIG="--target-list=x86_64-softmmu"
+      language: python
       python:
-        - "3.0"
+        - "3.2"
     - env: CONFIG="--target-list=x86_64-softmmu"
+      language: python
       python:
         - "3.6"
     # Acceptance (Functional) tests
