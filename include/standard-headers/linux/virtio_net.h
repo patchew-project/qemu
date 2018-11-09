@@ -57,6 +57,10 @@
 					 * Steering */
 #define VIRTIO_NET_F_CTRL_MAC_ADDR 23	/* Set MAC address */
 
+#define VIRTIO_NET_F_RSC_EXT	38
+#define VIRTIO_NET_F_GUEST_RSC4_DONT_USE	41	/* reserved */
+#define VIRTIO_NET_F_GUEST_RSC6_DONT_USE	42	/* reserved */
+
 #define VIRTIO_NET_F_STANDBY	  62	/* Act as standby for another device
 					 * with the same MAC.
 					 */
@@ -104,6 +108,7 @@ struct virtio_net_config {
 struct virtio_net_hdr_v1 {
 #define VIRTIO_NET_HDR_F_NEEDS_CSUM	1	/* Use csum_start, csum_offset */
 #define VIRTIO_NET_HDR_F_DATA_VALID	2	/* Csum is valid */
+#define VIRTIO_NET_HDR_F_RSC_INFO	4	/* rsc_ext data in csum_ fields */
 	uint8_t flags;
 #define VIRTIO_NET_HDR_GSO_NONE		0	/* Not a GSO frame */
 #define VIRTIO_NET_HDR_GSO_TCPV4	1	/* GSO frame, IPv4 TCP (TSO) */
@@ -117,6 +122,9 @@ struct virtio_net_hdr_v1 {
 	__virtio16 csum_offset;	/* Offset after that to place checksum */
 	__virtio16 num_buffers;	/* Number of merged rx buffers */
 };
+
+#define rsc_ext_num_packets		csum_start
+#define rsc_ext_num_dupacks		csum_offset
 
 #ifndef VIRTIO_NET_NO_LEGACY
 /* This header comes first in the scatter-gather list.
