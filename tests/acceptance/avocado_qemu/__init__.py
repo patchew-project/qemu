@@ -40,6 +40,20 @@ def pick_default_qemu_bin():
         return qemu_bin_from_src_dir_path
 
 
+def pick_default_qemu_img_bin():
+    """
+    Picks the path of a QEMU binary, starting either in the current working
+    directory or in the source tree root directory.
+    """
+    qemu_img_bin_local = os.path.abspath("qemu-img")
+    if is_readable_executable_file(qemu_img_bin_local):
+        return qemu_img_bin_local
+
+    qemu_img_bin_from_src_dir_path = os.path.join(SRC_ROOT_DIR, "qemu-img")
+    if is_readable_executable_file(qemu_img_bin_from_src_dir_path):
+        return qemu_img_bin_from_src_dir_path
+
+
 class Test(avocado.Test):
     def setUp(self):
         self.vm = None
@@ -52,3 +66,9 @@ class Test(avocado.Test):
     def tearDown(self):
         if self.vm is not None:
             self.vm.shutdown()
+
+
+class QemuImgTest(avocado.Test):
+    def setUp(self):
+        self.qemu_img_bin = self.params.get('qemu_img_bin',
+                                            default=pick_default_qemu_img_bin())
