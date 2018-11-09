@@ -10,8 +10,8 @@
  * See the COPYING file in the top-level directory.
  */
 
-#include "qemu/osdep.h"
 #include "vss-common.h"
+#include "qemu/osdep.h"
 #include "requester.h"
 #include "install.h"
 #include <inc/win2003/vswriter.h>

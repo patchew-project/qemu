@@ -13,6 +13,8 @@
 #ifndef VSS_COMMON_H
 #define VSS_COMMON_H
 
+#define USE_NATIVE_MINGW32_ASSERT
+
 #define __MIDL_user_allocate_free_DEFINED__
 #include <windows.h>
 #include <shlwapi.h>
