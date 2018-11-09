@@ -29,6 +29,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "monitor/qdev.h"
 #include "qapi/error.h"
 #include "hw/sysbus.h"
 #include "hw/arm/arm.h"
@@ -49,6 +50,7 @@
 #include "qemu/bitops.h"
 #include "qemu/error-report.h"
 #include "hw/pci-host/gpex.h"
+#include "hw/virtio/virtio-pci.h"
 #include "hw/arm/sysbus-fdt.h"
 #include "hw/platform-bus.h"
 #include "hw/arm/fdt.h"
@@ -59,6 +61,7 @@
 #include "qapi/visitor.h"
 #include "standard-headers/linux/input.h"
 #include "hw/arm/smmuv3.h"
+#include "hw/virtio/virtio-iommu.h"
 
 #define DEFINE_VIRT_MACHINE_LATEST(major, minor, latest) \
     static void virt_##major##_##minor##_class_init(ObjectClass *oc, \
@@ -1085,6 +1088,33 @@ static void create_smmu(const VirtMachineState *vms, qemu_irq *pic,
     g_free(node);
 }
 
+static void create_virtio_iommu(VirtMachineState *vms,
+                                const char *pciehb_nodename, PCIBus *bus)
+{
+    const char compat[] = "virtio,pci-iommu";
+    uint16_t bdf = 0x8; /* 00:01.0 */
+    DeviceState *dev;
+    char *node;
+
+    dev = qdev_create(BUS(bus), TYPE_VIRTIO_IOMMU_PCI);
+    object_property_set_bool(OBJECT(dev), true, "realized", &error_fatal);
+
+    node = g_strdup_printf("%s/virtio_iommu@%d", pciehb_nodename, bdf);
+    qemu_fdt_add_subnode(vms->fdt, node);
+    qemu_fdt_setprop(vms->fdt, node, "compatible", compat, sizeof(compat));
+    qemu_fdt_setprop_sized_cells(vms->fdt, node, "reg",
+                                 1, bdf << 8 /* phys.hi */,
+                                 1, 0        /* phys.mid */,
+                                 1, 0        /* phys.lo  */,
+                                 1, 0        /* size.hi  */,
+                                 1, 0        /* size.low */);
+
+    qemu_fdt_setprop_cell(vms->fdt, node, "#iommu-cells", 1);
+    qemu_fdt_setprop_cell(vms->fdt, node, "phandle", vms->iommu_phandle);
+    g_free(node);
+}
+
+
 static void create_pcie(VirtMachineState *vms, qemu_irq *pic)
 {
     hwaddr base_mmio = vms->memmap[VIRT_PCIE_MMIO].base;
@@ -1205,10 +1235,22 @@ static void create_pcie(VirtMachineState *vms, qemu_irq *pic)
     if (vms->iommu) {
         vms->iommu_phandle = qemu_fdt_alloc_phandle(vms->fdt);
 
-        create_smmu(vms, pic, pci->bus);
+        switch (vms->iommu) {
+        case VIRT_IOMMU_SMMUV3:
+            create_smmu(vms, pic, pci->bus);
+            qemu_fdt_setprop_cells(vms->fdt, nodename, "iommu-map",
+                                   0x0, vms->iommu_phandle, 0x0, 0x10000);
+            break;
+        case VIRT_IOMMU_VIRTIO:
+            create_virtio_iommu(vms, nodename, pci->bus);
+            qemu_fdt_setprop_cells(vms->fdt, nodename, "iommu-map",
+                                   0x0, vms->iommu_phandle, 0x0, 0x8,
+                                   0x9, vms->iommu_phandle, 0x9, 0xfff7);
+            break;
+        default:
+            g_assert_not_reached();
+        }
 
-        qemu_fdt_setprop_cells(vms->fdt, nodename, "iommu-map",
-                               0x0, vms->iommu_phandle, 0x0, 0x10000);
     }
 
     g_free(nodename);
