@@ -114,8 +114,8 @@
                                      VTD_INTERRUPT_ADDR_FIRST + 1)
 
 /* The shift of source_id in the key of IOTLB hash table */
-#define VTD_IOTLB_SID_SHIFT         36
-#define VTD_IOTLB_LVL_SHIFT         52
+#define VTD_IOTLB_SID_SHIFT         45
+#define VTD_IOTLB_LVL_SHIFT         61
 #define VTD_IOTLB_MAX_SIZE          1024    /* Max size of the hash table */
 
 /* IOTLB_REG */
@@ -450,9 +450,6 @@ typedef struct VTDRootEntry VTDRootEntry;
 #define VTD_SL_LEVEL_BITS           9
 
 /* Second Level Paging Structure */
-#define VTD_SL_PML4_LEVEL           4
-#define VTD_SL_PDP_LEVEL            3
-#define VTD_SL_PD_LEVEL             2
 #define VTD_SL_PT_LEVEL             1
 #define VTD_SL_PT_ENTRY_NR          512
 
