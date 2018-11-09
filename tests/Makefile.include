@@ -87,7 +87,10 @@ check-unit-y += tests/test-rcu-simpleq$(EXESUF)
 check-unit-y += tests/test-rcu-tailq$(EXESUF)
 check-unit-y += tests/test-qdist$(EXESUF)
 check-unit-y += tests/test-qht$(EXESUF)
+# test-qht-par gets stuck quite often on OSX
+ifneq ($(CONFIG_DARWIN),y)
 check-unit-y += tests/test-qht-par$(EXESUF)
+endif
 check-unit-y += tests/test-bitops$(EXESUF)
 check-unit-y += tests/test-bitcnt$(EXESUF)
 check-unit-y += tests/test-qdev-global-props$(EXESUF)
