@@ -694,7 +694,7 @@ void HELPER(msr_banked)(CPUARMState *env, uint32_t value, uint32_t tgtmode,
         env->banked_r13[bank_number(tgtmode)] = value;
         break;
     case 14:
-        env->banked_r14[bank_number(tgtmode)] = value;
+        env->banked_r14[r14_bank_number(tgtmode)] = value;
         break;
     case 8 ... 12:
         switch (tgtmode) {

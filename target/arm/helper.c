@@ -6455,13 +6455,14 @@ static void switch_mode(CPUARMState *env, int mode)
 
     i = bank_number(old_mode);
     env->banked_r13[i] = env->regs[13];
-    env->banked_r14[i] = env->regs[14];
     env->banked_spsr[i] = env->spsr;
 
     i = bank_number(mode);
     env->regs[13] = env->banked_r13[i];
-    env->regs[14] = env->banked_r14[i];
     env->spsr = env->banked_spsr[i];
+
+    env->banked_r14[r14_bank_number(old_mode)] = env->regs[14];
+    env->regs[14] = env->banked_r14[r14_bank_number(mode)];
 }
 
 /* Physical Interrupt Target EL Lookup Table
@@ -8040,7 +8041,7 @@ void aarch64_sync_32_to_64(CPUARMState *env)
         if (mode == ARM_CPU_MODE_HYP) {
             env->xregs[14] = env->regs[14];
         } else {
-            env->xregs[14] = env->banked_r14[bank_number(ARM_CPU_MODE_USR)];
+            env->xregs[14] = env->banked_r14[r14_bank_number(ARM_CPU_MODE_USR)];
         }
     }
 
@@ -8054,7 +8055,7 @@ void aarch64_sync_32_to_64(CPUARMState *env)
         env->xregs[16] = env->regs[14];
         env->xregs[17] = env->regs[13];
     } else {
-        env->xregs[16] = env->banked_r14[bank_number(ARM_CPU_MODE_IRQ)];
+        env->xregs[16] = env->banked_r14[r14_bank_number(ARM_CPU_MODE_IRQ)];
         env->xregs[17] = env->banked_r13[bank_number(ARM_CPU_MODE_IRQ)];
     }
 
@@ -8062,7 +8063,7 @@ void aarch64_sync_32_to_64(CPUARMState *env)
         env->xregs[18] = env->regs[14];
         env->xregs[19] = env->regs[13];
     } else {
-        env->xregs[18] = env->banked_r14[bank_number(ARM_CPU_MODE_SVC)];
+        env->xregs[18] = env->banked_r14[r14_bank_number(ARM_CPU_MODE_SVC)];
         env->xregs[19] = env->banked_r13[bank_number(ARM_CPU_MODE_SVC)];
     }
 
@@ -8070,7 +8071,7 @@ void aarch64_sync_32_to_64(CPUARMState *env)
         env->xregs[20] = env->regs[14];
         env->xregs[21] = env->regs[13];
     } else {
-        env->xregs[20] = env->banked_r14[bank_number(ARM_CPU_MODE_ABT)];
+        env->xregs[20] = env->banked_r14[r14_bank_number(ARM_CPU_MODE_ABT)];
         env->xregs[21] = env->banked_r13[bank_number(ARM_CPU_MODE_ABT)];
     }
 
@@ -8078,7 +8079,7 @@ void aarch64_sync_32_to_64(CPUARMState *env)
         env->xregs[22] = env->regs[14];
         env->xregs[23] = env->regs[13];
     } else {
-        env->xregs[22] = env->banked_r14[bank_number(ARM_CPU_MODE_UND)];
+        env->xregs[22] = env->banked_r14[r14_bank_number(ARM_CPU_MODE_UND)];
         env->xregs[23] = env->banked_r13[bank_number(ARM_CPU_MODE_UND)];
     }
 
@@ -8095,7 +8096,7 @@ void aarch64_sync_32_to_64(CPUARMState *env)
             env->xregs[i] = env->fiq_regs[i - 24];
         }
         env->xregs[29] = env->banked_r13[bank_number(ARM_CPU_MODE_FIQ)];
-        env->xregs[30] = env->banked_r14[bank_number(ARM_CPU_MODE_FIQ)];
+        env->xregs[30] = env->banked_r14[r14_bank_number(ARM_CPU_MODE_FIQ)];
     }
 
     env->pc = env->regs[15];
@@ -8145,7 +8146,7 @@ void aarch64_sync_64_to_32(CPUARMState *env)
         if (mode == ARM_CPU_MODE_HYP) {
             env->regs[14] = env->xregs[14];
         } else {
-            env->banked_r14[bank_number(ARM_CPU_MODE_USR)] = env->xregs[14];
+            env->banked_r14[r14_bank_number(ARM_CPU_MODE_USR)] = env->xregs[14];
         }
     }
 
@@ -8159,7 +8160,7 @@ void aarch64_sync_64_to_32(CPUARMState *env)
         env->regs[14] = env->xregs[16];
         env->regs[13] = env->xregs[17];
     } else {
-        env->banked_r14[bank_number(ARM_CPU_MODE_IRQ)] = env->xregs[16];
+        env->banked_r14[r14_bank_number(ARM_CPU_MODE_IRQ)] = env->xregs[16];
         env->banked_r13[bank_number(ARM_CPU_MODE_IRQ)] = env->xregs[17];
     }
 
@@ -8167,7 +8168,7 @@ void aarch64_sync_64_to_32(CPUARMState *env)
         env->regs[14] = env->xregs[18];
         env->regs[13] = env->xregs[19];
     } else {
-        env->banked_r14[bank_number(ARM_CPU_MODE_SVC)] = env->xregs[18];
+        env->banked_r14[r14_bank_number(ARM_CPU_MODE_SVC)] = env->xregs[18];
         env->banked_r13[bank_number(ARM_CPU_MODE_SVC)] = env->xregs[19];
     }
 
@@ -8175,7 +8176,7 @@ void aarch64_sync_64_to_32(CPUARMState *env)
         env->regs[14] = env->xregs[20];
         env->regs[13] = env->xregs[21];
     } else {
-        env->banked_r14[bank_number(ARM_CPU_MODE_ABT)] = env->xregs[20];
+        env->banked_r14[r14_bank_number(ARM_CPU_MODE_ABT)] = env->xregs[20];
         env->banked_r13[bank_number(ARM_CPU_MODE_ABT)] = env->xregs[21];
     }
 
@@ -8183,7 +8184,7 @@ void aarch64_sync_64_to_32(CPUARMState *env)
         env->regs[14] = env->xregs[22];
         env->regs[13] = env->xregs[23];
     } else {
-        env->banked_r14[bank_number(ARM_CPU_MODE_UND)] = env->xregs[22];
+        env->banked_r14[r14_bank_number(ARM_CPU_MODE_UND)] = env->xregs[22];
         env->banked_r13[bank_number(ARM_CPU_MODE_UND)] = env->xregs[23];
     }
 
@@ -8200,7 +8201,7 @@ void aarch64_sync_64_to_32(CPUARMState *env)
             env->fiq_regs[i - 24] = env->xregs[i];
         }
         env->banked_r13[bank_number(ARM_CPU_MODE_FIQ)] = env->xregs[29];
-        env->banked_r14[bank_number(ARM_CPU_MODE_FIQ)] = env->xregs[30];
+        env->banked_r14[r14_bank_number(ARM_CPU_MODE_FIQ)] = env->xregs[30];
     }
 
     env->regs[15] = env->pc;
