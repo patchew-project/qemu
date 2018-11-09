@@ -1710,6 +1710,8 @@ static char *virt_get_iommu(Object *obj, Error **errp)
         return g_strdup("none");
     case VIRT_IOMMU_SMMUV3:
         return g_strdup("smmuv3");
+    case VIRT_IOMMU_VIRTIO:
+        return g_strdup("virtio");
     default:
         g_assert_not_reached();
     }
@@ -1721,11 +1723,13 @@ static void virt_set_iommu(Object *obj, const char *value, Error **errp)
 
     if (!strcmp(value, "smmuv3")) {
         vms->iommu = VIRT_IOMMU_SMMUV3;
+    } else if (!strcmp(value, "virtio")) {
+        vms->iommu = VIRT_IOMMU_VIRTIO;
     } else if (!strcmp(value, "none")) {
         vms->iommu = VIRT_IOMMU_NONE;
     } else {
         error_setg(errp, "Invalid iommu value");
-        error_append_hint(errp, "Valid values are none, smmuv3.\n");
+        error_append_hint(errp, "Valid values are none, smmuv3, virtio.\n");
     }
 }
 
@@ -1901,7 +1905,7 @@ static void virt_3_1_instance_init(Object *obj)
     object_property_add_str(obj, "iommu", virt_get_iommu, virt_set_iommu, NULL);
     object_property_set_description(obj, "iommu",
                                     "Set the IOMMU type. "
-                                    "Valid values are none and smmuv3",
+                                    "Valid values are none, smmuv3, virtio",
                                     NULL);
 
     vms->memmap = a15memmap;
