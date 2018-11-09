@@ -107,7 +107,34 @@ matrix:
     - env: CONFIG="--disable-tcg"
            TEST_CMD=""
       compiler: gcc
-    - env: CONFIG=""
+    # osx+clang jobs are broken in a number of target specific sets to
+    # allow jobs to finish before timing out
+    - env: CONFIG="--target-list=aarch64-softmmu,alpha-softmmu,arm-softmmu,cris-softmmu"
+           TEST_CMD="make V=1 check"
+      os: osx
+      compiler: clang
+    - env: CONFIG="--target-list=i386-softmmu,lm32-softmmu,m68k-softmmu,moxie-softmmu"
+           TEST_CMD="make V=1 check"
+      os: osx
+      compiler: clang
+    - env: CONFIG="--target-list=mips-softmmu,mips64-softmmu,mips64el-softmmu,mipsel-softmmu"
+           TEST_CMD="make V=1 check"
+      os: osx
+      compiler: clang
+    - env: CONFIG="--target-list=nios2-softmmu,or1k-softmmu,ppc-softmmu,ppc64-softmmu,riscv32-softmmu"
+           TEST_CMD="make V=1 check"
+      os: osx
+      compiler: clang
+    - env: CONFIG="--target-list=s390x-softmmu,sh4-softmmu,sh4eb-softmmu,sparc-softmmu,sparc64-softmmu"
+           TEST_CMD="make V=1 check"
+      os: osx
+      compiler: clang
+    - env: CONFIG="--target-list=unicore32-softmmu,x86_64-softmmu,xtensa-softmmu,xtensaeb-softmmu"
+           TEST_CMD="make V=1 check"
+      os: osx
+      compiler: clang
+    - env: CONFIG="--target-list=hppa-softmmu,microblaze-softmmu,microblazeel-softmmu,tricore-softmmu,riscv64-softmmu"
+           TEST_CMD="make V=1 check"
       os: osx
       compiler: clang
     # Python builds
