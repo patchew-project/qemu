@@ -514,7 +514,9 @@ static uint32_t acpi_pm_tmr_get(ACPIREGS *ar)
 static void acpi_pm_tmr_timer(void *opaque)
 {
     ACPIREGS *ar = opaque;
-    qemu_system_wakeup_request(QEMU_WAKEUP_REASON_PMTIMER);
+    Error *err = NULL;
+
+    qemu_system_wakeup_request(QEMU_WAKEUP_REASON_PMTIMER, &err);
     ar->tmr.update_sci(ar);
 }
 

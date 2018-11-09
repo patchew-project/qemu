@@ -253,9 +253,10 @@ void ps2_queue_4(PS2State *s, int b1, int b2, int b3, int b4)
 static void ps2_put_keycode(void *opaque, int keycode)
 {
     PS2KbdState *s = opaque;
+    Error *err = NULL;
 
     trace_ps2_put_keycode(opaque, keycode);
-    qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER);
+    qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER, &err);
 
     if (s->translate) {
         if (keycode == 0xf0) {
@@ -276,6 +277,7 @@ static void ps2_keyboard_event(DeviceState *dev, QemuConsole *src,
 {
     PS2KbdState *s = (PS2KbdState *)dev;
     InputKeyEvent *key = evt->u.key.data;
+    Error *err = NULL;
     int qcode;
     uint16_t keycode = 0;
     int mod;
@@ -285,7 +287,7 @@ static void ps2_keyboard_event(DeviceState *dev, QemuConsole *src,
         return;
     }
 
-    qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER);
+    qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER, &err);
     assert(evt->type == INPUT_EVENT_KIND_KEY);
     qcode = qemu_input_key_value_to_qcode(key->key);
 
@@ -741,6 +743,7 @@ static void ps2_mouse_event(DeviceState *dev, QemuConsole *src,
 static void ps2_mouse_sync(DeviceState *dev)
 {
     PS2MouseState *s = (PS2MouseState *)dev;
+    Error *err = NULL;
 
     /* do not sync while disabled to prevent stream corruption */
     if (!(s->mouse_status & MOUSE_STATUS_ENABLED)) {
@@ -748,7 +751,7 @@ static void ps2_mouse_sync(DeviceState *dev)
     }
 
     if (s->mouse_buttons) {
-        qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER);
+        qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER, &err);
     }
     if (!(s->mouse_status & MOUSE_STATUS_REMOTE)) {
         /* if not remote, send event. Multiple events are sent if

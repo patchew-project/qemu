@@ -443,6 +443,7 @@ static uint64_t get_next_alarm(RTCState *s)
 static void rtc_update_timer(void *opaque)
 {
     RTCState *s = opaque;
+    Error *err = NULL;
     int32_t irqs = REG_C_UF;
     int32_t new_irqs;
 
@@ -455,7 +456,7 @@ static void rtc_update_timer(void *opaque)
     if (qemu_clock_get_ns(rtc_clock) >= s->next_alarm_time) {
         irqs |= REG_C_AF;
         if (s->cmos_data[RTC_REG_B] & REG_B_AIE) {
-            qemu_system_wakeup_request(QEMU_WAKEUP_REASON_RTC);
+            qemu_system_wakeup_request(QEMU_WAKEUP_REASON_RTC, &err);
         }
     }
 
