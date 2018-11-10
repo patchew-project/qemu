@@ -112,6 +112,7 @@ S: Maintained
 F: cpus.c
 F: exec.c
 F: accel/tcg/
+F: scripts/decodetree.py
 F: include/exec/cpu*.h
 F: include/exec/exec-all.h
 F: include/exec/helper*.h
