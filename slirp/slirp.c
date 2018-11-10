@@ -1444,7 +1444,7 @@ static void slirp_state_save(QEMUFile *f, void *opaque)
     struct ex_list *ex_ptr;
 
     for (ex_ptr = slirp->exec_list; ex_ptr; ex_ptr = ex_ptr->ex_next)
-        if (ex_ptr->ex_pty == 3) {
+        if (ex_ptr->ex_chardev) {
             struct socket *so;
             so = slirp_find_ctl_socket(slirp, ex_ptr->ex_addr,
                                        ntohs(ex_ptr->ex_fport));
@@ -1482,7 +1482,7 @@ static int slirp_state_load(QEMUFile *f, void *opaque, int version_id)
             return -EINVAL;
         }
         for (ex_ptr = slirp->exec_list; ex_ptr; ex_ptr = ex_ptr->ex_next) {
-            if (ex_ptr->ex_pty == 3 &&
+            if (ex_ptr->ex_chardev &&
                 so->so_faddr.s_addr == ex_ptr->ex_addr.s_addr &&
                 so->so_fport == ex_ptr->ex_fport) {
                 break;
