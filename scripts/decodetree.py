@@ -1030,7 +1030,11 @@ def main():
     else:
         output_fd = sys.stdout
 
+    hdr_guard = filename.split(os.path.sep)[-1].upper().replace('.', '_') + "_H"
+
     output_autogen()
+    output('#ifndef ' + hdr_guard + '\n')
+    output('#define ' + hdr_guard + '\n')
     for n in sorted(arguments.keys()):
         f = arguments[n]
         f.output_def()
@@ -1066,6 +1070,7 @@ def main():
     t.output_code(4, False, 0, 0)
 
     output('}\n')
+    output('#endif /* ' + hdr_guard + ' */\n')
 
     if output_file:
         output_fd.close()
