@@ -900,12 +900,12 @@ class Tree:
             def str_case(b):
                 return '0x{0:08x}'.format(b)
 
-        output(ind, 'switch (', str_switch(self.thismask), ') {\n')
+        output(ind, 'switch (', str_switch(self.thismask & insnmask), ') {\n')
         for b, s in sorted(self.subs):
             assert (self.thismask & ~s.fixedmask) == 0
             innermask = outermask | self.thismask
             innerbits = outerbits | b
-            output(ind, 'case ', str_case(b), ':\n')
+            output(ind, 'case ', str_case(b & insnmask), ':\n')
             output(ind, '    /* ',
                    str_match_bits(innerbits, innermask), ' */\n')
             s.output_code(i + 4, extracted, innerbits, innermask)
