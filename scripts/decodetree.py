@@ -420,7 +420,7 @@ class Arguments:
 
 class General:
     """Common code between instruction formats and instruction patterns"""
-    def __init__(self, name, lineno, base, fixb, fixm, udfm, fldm, flds):
+    def __init__(self, name, lineno, base, fixb, fixm, udfm, fldm, flds, chkfs):
         self.name = name
         self.file = input_file
         self.lineno = lineno
@@ -430,6 +430,7 @@ class General:
         self.undefmask = udfm
         self.fieldmask = fldm
         self.fields = flds
+        self.check_funcs = chkfs
 
     def __str__(self):
         r = self.name
@@ -480,6 +481,8 @@ class Pattern(General):
             output(ind, self.base.extract_name(), '(&u.f_', arg, ', insn);\n')
         for n, f in self.fields.items():
             output(ind, 'u.f_', arg, '.', n, ' = ', f.str_extract(), ';\n')
+        for f, a in self.check_funcs:
+            output(ind, 'check_', f, '(ctx, ', a, ');\n')
         output(ind, 'return ', translate_prefix, '_', self.name,
                '(ctx, &u.f_', arg, ');\n')
 # end Pattern
@@ -583,6 +586,11 @@ def add_field_byname(lineno, flds, new_name, old_name):
     return add_field(lineno, flds, new_name, lookup_field(lineno, old_name))
 
 
+def add_func_check(lineno, chkfns, check_funcname, check_arg):
+    chkfns += [(check_funcname, check_arg)]
+    return chkfns
+
+
 def infer_argument_set(flds):
     global arguments
     global decode_function
@@ -624,7 +632,7 @@ def infer_format(arg, fieldmask, flds):
     if not arg:
         arg = infer_argument_set(flds)
 
-    fmt = Format(name, 0, arg, 0, 0, 0, fieldmask, var_flds)
+    fmt = Format(name, 0, arg, 0, 0, 0, fieldmask, var_flds, [])
     formats[name] = fmt
 
     return (fmt, const_flds)
@@ -646,6 +654,7 @@ def parse_generic(lineno, is_format, name, toks):
     undefmask = 0
     width = 0
     flds = {}
+    chkfns = []
     arg = None
     fmt = None
     for t in toks:
@@ -688,6 +697,13 @@ def parse_generic(lineno, is_format, name, toks):
             (fname, value) = t.split('=')
             value = int(value)
             flds = add_field(lineno, flds, fname, ConstField(value))
+            continue
+
+        # '>FUNC=ARG' calls check_FUNC(ctx, ARG).
+        if t[0] == '>':
+            (fname, farg) = t[1:].split('=')
+            tt = t[2 + len(fname) + len(farg):]
+            chkfns = add_func_check(lineno, chkfns, fname, farg)
             continue
 
         # Pattern of 0s, 1s, dots and dashes indicate required zeros,
@@ -752,7 +768,7 @@ def parse_generic(lineno, is_format, name, toks):
         if name in formats:
             error(lineno, 'duplicate format name', name)
         fmt = Format(name, lineno, arg, fixedbits, fixedmask,
-                     undefmask, fieldmask, flds)
+                     undefmask, fieldmask, flds, chkfns)
         formats[name] = fmt
     else:
         # Patterns can reference a format ...
@@ -779,7 +795,7 @@ def parse_generic(lineno, is_format, name, toks):
             if f not in flds.keys() and f not in fmt.fields.keys():
                 error(lineno, 'field {0} not initialized'.format(f))
         pat = Pattern(name, lineno, fmt, fixedbits, fixedmask,
-                      undefmask, fieldmask, flds)
+                      undefmask, fieldmask, flds, chkfns)
         patterns.append(pat)
 
     # Validate the masks that we have assembled.
