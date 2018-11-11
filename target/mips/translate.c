@@ -27848,6 +27848,8 @@ static void gen_msa(CPUMIPSState *env, DisasContext *ctx)
 
 }
 
+#include "translate.inc.c"
+
 static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
 {
     int32_t offset;
@@ -27870,6 +27872,11 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
         tcg_gen_movi_i32(hflags, ctx->hflags & ~MIPS_HFLAG_BMASK);
         gen_goto_tb(ctx, 1, ctx->base.pc_next + 4);
         gen_set_label(l1);
+    }
+
+    /* Transition to the auto-generated decoder.  */
+    if (decode(ctx, ctx->opcode)) {
+        return;
     }
 
     op = MASK_OP_MAJOR(ctx->opcode);

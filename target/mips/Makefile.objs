@@ -2,3 +2,11 @@ obj-y += translate.o dsp_helper.o op_helper.o lmi_helper.o helper.o cpu.o
 obj-y += gdbstub.o msa_helper.o mips-semi.o
 obj-$(CONFIG_SOFTMMU) += machine.o cp0_timer.o
 obj-$(CONFIG_KVM) += kvm.o
+
+DECODETREE = $(SRC_PATH)/scripts/decodetree.py
+
+target/mips/decode.inc.c: $(SRC_PATH)/target/mips/insns.decode $(DECODETREE)
+	$(call quiet-command,\
+	  $(PYTHON) $(DECODETREE) -o $@ $<, "GEN", $(TARGET_DIR)$@)
+
+target/mips/translate.o: target/mips/decode.inc.c
