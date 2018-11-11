@@ -1060,12 +1060,13 @@ def main():
     output(decode_scope, 'bool ', decode_function,
            '(DisasContext *ctx, ', insntype, ' insn)\n{\n')
 
-    i4 = str_indent(4)
-    output(i4, 'union {\n')
-    for n in sorted(arguments.keys()):
-        f = arguments[n]
-        output(i4, i4, f.struct_name(), ' f_', f.name, ';\n')
-    output(i4, '} u;\n\n')
+    if arguments:
+        i4 = str_indent(4)
+        output(i4, 'union {\n')
+        for n in sorted(arguments.keys()):
+            f = arguments[n]
+            output(i4, i4, f.struct_name(), ' f_', f.name, ';\n')
+        output(i4, '} u;\n\n')
 
     t.output_code(4, False, 0, 0)
 
