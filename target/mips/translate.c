@@ -16534,7 +16534,7 @@ static void decode_micromips32_opc(CPUMIPSState *env, DisasContext *ctx)
             check_insn(ctx, ASE_MIPS3D);
             /* Fall through */
         do_cp1branch:
-            if (env->CP0_Config1 & (1 << CP0C1_FP)) {
+            if (ctx->CP0_Config1 & (1 << CP0C1_FP)) {
                 check_cp1_enabled(ctx);
                 gen_compute_branch1(ctx, mips32_op,
                                     (ctx->opcode >> 18) & 0x7, imm << 1);
@@ -23809,7 +23809,7 @@ static void decode_opc_special_legacy(CPUMIPSState *env, DisasContext *ctx)
         break;
     case OPC_MOVCI:
         check_insn(ctx, ISA_MIPS4 | ISA_MIPS32);
-        if (env->CP0_Config1 & (1 << CP0C1_FP)) {
+        if (ctx->CP0_Config1 & (1 << CP0C1_FP)) {
             check_cp1_enabled(ctx);
             gen_movci(ctx, rd, rs, (ctx->opcode >> 18) & 0x7,
                       (ctx->opcode >> 16) & 1);
