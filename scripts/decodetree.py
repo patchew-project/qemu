@@ -420,7 +420,7 @@ class Arguments:
 
 class General:
     """Common code between instruction formats and instruction patterns"""
-    def __init__(self, name, lineno, base, fixb, fixm, udfm, fldm, flds, chkfs):
+    def __init__(self, name, lineno, base, fixb, fixm, udfm, fldm, flds, chkfs, chkif):
         self.name = name
         self.file = input_file
         self.lineno = lineno
@@ -431,6 +431,7 @@ class General:
         self.fieldmask = fldm
         self.fields = flds
         self.check_funcs = chkfs
+        self.check_cond = chkif
 
     def __str__(self):
         r = self.name
@@ -483,6 +484,9 @@ class Pattern(General):
             output(ind, 'u.f_', arg, '.', n, ' = ', f.str_extract(), ';\n')
         for f, a in self.check_funcs:
             output(ind, 'check_', f, '(ctx, ', a, ');\n')
+        if self.check_cond:
+            output(ind, 'if (!(', self.check_cond, '))\n')
+            output(ind, '    return false;\n')
         output(ind, 'return ', translate_prefix, '_', self.name,
                '(ctx, &u.f_', arg, ');\n')
 # end Pattern
@@ -591,6 +595,10 @@ def add_func_check(lineno, chkfns, check_funcname, check_arg):
     return chkfns
 
 
+def add_cond_check(lineno, chkifs, condition):
+    return condition
+
+
 def infer_argument_set(flds):
     global arguments
     global decode_function
@@ -632,7 +640,7 @@ def infer_format(arg, fieldmask, flds):
     if not arg:
         arg = infer_argument_set(flds)
 
-    fmt = Format(name, 0, arg, 0, 0, 0, fieldmask, var_flds, [])
+    fmt = Format(name, 0, arg, 0, 0, 0, fieldmask, var_flds, [], None)
     formats[name] = fmt
 
     return (fmt, const_flds)
@@ -655,6 +663,7 @@ def parse_generic(lineno, is_format, name, toks):
     width = 0
     flds = {}
     chkfns = []
+    chkifs = None
     arg = None
     fmt = None
     for t in toks:
@@ -704,6 +713,13 @@ def parse_generic(lineno, is_format, name, toks):
             (fname, farg) = t[1:].split('=')
             tt = t[2 + len(fname) + len(farg):]
             chkfns = add_func_check(lineno, chkfns, fname, farg)
+            continue
+
+        # '?condition' calls if(condition).
+        if t[0] == '?':
+            cond = t[1:]
+            tt = t[1 + len(cond):]
+            chkifs = add_cond_check(lineno, chkifs, cond)
             continue
 
         # Pattern of 0s, 1s, dots and dashes indicate required zeros,
@@ -768,7 +784,7 @@ def parse_generic(lineno, is_format, name, toks):
         if name in formats:
             error(lineno, 'duplicate format name', name)
         fmt = Format(name, lineno, arg, fixedbits, fixedmask,
-                     undefmask, fieldmask, flds, chkfns)
+                     undefmask, fieldmask, flds, chkfns, chkifs)
         formats[name] = fmt
     else:
         # Patterns can reference a format ...
@@ -795,7 +811,7 @@ def parse_generic(lineno, is_format, name, toks):
             if f not in flds.keys() and f not in fmt.fields.keys():
                 error(lineno, 'field {0} not initialized'.format(f))
         pat = Pattern(name, lineno, fmt, fixedbits, fixedmask,
-                      undefmask, fieldmask, flds, chkfns)
+                      undefmask, fieldmask, flds, chkfns, chkifs)
         patterns.append(pat)
 
     # Validate the masks that we have assembled.
