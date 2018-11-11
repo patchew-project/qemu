@@ -895,10 +895,10 @@ class Tree:
                 return '0x{0:x}'.format(b >> sh)
         else:
             def str_switch(b):
-                return 'insn & 0x{0:08x}'.format(b)
+                return 'insn & 0x{0:08x}'.format(b & 0xffffffff)
 
             def str_case(b):
-                return '0x{0:08x}'.format(b)
+                return '0x{0:08x}'.format(b & 0xffffffff)
 
         output(ind, 'switch (', str_switch(self.thismask), ') {\n')
         for b, s in sorted(self.subs):
