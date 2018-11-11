@@ -25649,8 +25649,6 @@ static void decode_opc_special2_legacy(CPUMIPSState *env, DisasContext *ctx)
     int rs, rt, rd;
     uint32_t op1;
 
-    check_insn_opc_removed(ctx, ISA_MIPS32R6);
-
     rs = (ctx->opcode >> 21) & 0x1f;
     rt = (ctx->opcode >> 16) & 0x1f;
     rd = (ctx->opcode >> 11) & 0x1f;
@@ -27890,6 +27888,7 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
         } else if (ctx->insn_flags & ASE_MXU) {
             decode_opc_mxu(env, ctx);
         } else {
+            check_insn_opc_removed(ctx, ISA_MIPS32R6);
             decode_opc_special2_legacy(env, ctx);
         }
         break;
