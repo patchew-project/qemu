@@ -1,2 +1,10 @@
 # MIPS32/MIPS64 Instruction Set
 #
+# From:
+# - MIPS32 Architecture For Programmers Volume II-A (Document Number: MD00086)
+
+####
+# System Instructions
+####
+
+synci           000001 ----- 11111 ----------------          >insn=ISA_MIPS32R2

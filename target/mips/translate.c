@@ -27948,12 +27948,6 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
             check_insn(ctx, ISA_MIPS32R6);
             generate_exception_end(ctx, EXCP_RI);
             break;
-        case OPC_SYNCI:
-            check_insn(ctx, ISA_MIPS32R2);
-            /* Break the TB to be able to sync copied instructions
-               immediately */
-            ctx->base.is_jmp = DISAS_STOP;
-            break;
         case OPC_BPOSGE32:    /* MIPS DSP branch */
 #if defined(TARGET_MIPS64)
         case OPC_BPOSGE64:

@@ -11,3 +11,10 @@
 
 /* Include the auto-generated decoder.  */
 #include "decode.inc.c"
+
+static bool trans_synci(DisasContext *dc, arg_synci *a)
+{
+    /* Break the TB to be able to sync copied instructions immediately */
+    dc->base.is_jmp = DISAS_STOP;
+    return true;
+}
