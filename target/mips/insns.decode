@@ -2,9 +2,21 @@
 #
 # From:
 # - MIPS32 Architecture For Programmers Volume II-A (Document Number: MD00086)
+# - MIPS64 Architecture For Programmers Volume II-A (Document Number: MD00087)
+
+&rs_rt_rd       rs rt rd
+
+@rs_rt_rd       ...... rs:5  rt:5  rd:5  00000 ......   &rs_rt_rd
 
 ####
 # System Instructions
 ####
 
 synci           000001 ----- 11111 ----------------          >insn=ISA_MIPS32R2
+
+####
+# Special2 Instructions
+####
+
+dclz            011100 ..... ..... ..... ..... 100100   @rs_rt_rd   ?ctx->insn_flags&ISA_MIPS64
+dclo            011100 ..... ..... ..... ..... 100101   @rs_rt_rd   ?ctx->insn_flags&ISA_MIPS64

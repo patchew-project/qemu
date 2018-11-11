@@ -18,3 +18,15 @@ static bool trans_synci(DisasContext *dc, arg_synci *a)
     dc->base.is_jmp = DISAS_STOP;
     return true;
 }
+
+static bool trans_dclz(DisasContext *ctx, arg_rs_rt_rd *a)
+{
+    gen_cl(ctx, OPC_DCLZ, a->rd, a->rs);
+    return true;
+}
+
+static bool trans_dclo(DisasContext *ctx, arg_rs_rt_rd *a)
+{
+    gen_cl(ctx, OPC_DCLO, a->rd, a->rs);
+    return true;
+}
