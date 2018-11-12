@@ -78,48 +78,40 @@ static const int tcg_target_call_oarg_regs[1] = {
 #define TCG_REG_GUEST_BASE TCG_REG_X28
 #endif
 
-static inline void reloc_pc26(tcg_insn_unit *code_ptr, tcg_insn_unit *target)
+static inline bool reloc_pc26(tcg_insn_unit *code_ptr, tcg_insn_unit *target)
 {
     ptrdiff_t offset = target - code_ptr;
-    tcg_debug_assert(offset == sextract64(offset, 0, 26));
-    /* read instruction, mask away previous PC_REL26 parameter contents,
-       set the proper offset, then write back the instruction. */
-    *code_ptr = deposit32(*code_ptr, 0, 26, offset);
+    if (offset == sextract64(offset, 0, 26)) {
+        /* read instruction, mask away previous PC_REL26 parameter contents,
+           set the proper offset, then write back the instruction. */
+        *code_ptr = deposit32(*code_ptr, 0, 26, offset);
+        return true;
+    }
+    return false;
 }
 
-static inline void reloc_pc26_atomic(tcg_insn_unit *code_ptr,
-                                     tcg_insn_unit *target)
+static inline bool reloc_pc19(tcg_insn_unit *code_ptr, tcg_insn_unit *target)
 {
     ptrdiff_t offset = target - code_ptr;
-    tcg_insn_unit insn;
-    tcg_debug_assert(offset == sextract64(offset, 0, 26));
-    /* read instruction, mask away previous PC_REL26 parameter contents,
-       set the proper offset, then write back the instruction. */
-    insn = atomic_read(code_ptr);
-    atomic_set(code_ptr, deposit32(insn, 0, 26, offset));
+    if (offset == sextract64(offset, 0, 19)) {
+        *code_ptr = deposit32(*code_ptr, 5, 19, offset);
+        return true;
+    }
+    return false;
 }
 
-static inline void reloc_pc19(tcg_insn_unit *code_ptr, tcg_insn_unit *target)
-{
-    ptrdiff_t offset = target - code_ptr;
-    tcg_debug_assert(offset == sextract64(offset, 0, 19));
-    *code_ptr = deposit32(*code_ptr, 5, 19, offset);
-}
-
-static inline void patch_reloc(tcg_insn_unit *code_ptr, int type,
+static inline bool patch_reloc(tcg_insn_unit *code_ptr, int type,
                                intptr_t value, intptr_t addend)
 {
     tcg_debug_assert(addend == 0);
     switch (type) {
     case R_AARCH64_JUMP26:
     case R_AARCH64_CALL26:
-        reloc_pc26(code_ptr, (tcg_insn_unit *)value);
-        break;
+        return reloc_pc26(code_ptr, (tcg_insn_unit *)value);
     case R_AARCH64_CONDBR19:
-        reloc_pc19(code_ptr, (tcg_insn_unit *)value);
-        break;
+        return reloc_pc19(code_ptr, (tcg_insn_unit *)value);
     default:
-        tcg_abort();
+        g_assert_not_reached();
     }
 }
 

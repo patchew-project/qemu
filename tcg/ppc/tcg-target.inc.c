@@ -186,16 +186,14 @@ static inline bool in_range_b(tcg_target_long target)
     return target == sextract64(target, 0, 26);
 }
 
-static uint32_t reloc_pc24_val(tcg_insn_unit *pc, tcg_insn_unit *target)
+static bool reloc_pc24_cond(tcg_insn_unit *pc, tcg_insn_unit *target)
 {
     ptrdiff_t disp = tcg_ptr_byte_diff(target, pc);
-    tcg_debug_assert(in_range_b(disp));
-    return disp & 0x3fffffc;
-}
-
-static void reloc_pc24(tcg_insn_unit *pc, tcg_insn_unit *target)
-{
-    *pc = (*pc & ~0x3fffffc) | reloc_pc24_val(pc, target);
+    if (in_range_b(disp)) {
+        *pc = (*pc & ~0x3fffffc) | (disp & 0x3fffffc);
+        return true;
+    }
+    return false;
 }
 
 static uint16_t reloc_pc14_val(tcg_insn_unit *pc, tcg_insn_unit *target)
@@ -205,10 +203,22 @@ static uint16_t reloc_pc14_val(tcg_insn_unit *pc, tcg_insn_unit *target)
     return disp & 0xfffc;
 }
 
+static bool reloc_pc14_cond(tcg_insn_unit *pc, tcg_insn_unit *target)
+{
+    ptrdiff_t disp = tcg_ptr_byte_diff(target, pc);
+    if (disp == (int16_t) disp) {
+        *pc = (*pc & ~0xfffc) | (disp & 0xfffc);
+        return true;
+    }
+    return false;
+}
+
+#ifdef CONFIG_SOFTMMU
 static void reloc_pc14(tcg_insn_unit *pc, tcg_insn_unit *target)
 {
-    *pc = (*pc & ~0xfffc) | reloc_pc14_val(pc, target);
+    tcg_debug_assert(reloc_pc14_cond(pc, target));
 }
+#endif
 
 static inline void tcg_out_b_noaddr(TCGContext *s, int insn)
 {
@@ -525,7 +535,7 @@ static const uint32_t tcg_to_isel[] = {
     [TCG_COND_GTU] = ISEL | BC_(7, CR_GT),
 };
 
-static void patch_reloc(tcg_insn_unit *code_ptr, int type,
+static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
                         intptr_t value, intptr_t addend)
 {
     tcg_insn_unit *target;
@@ -536,11 +546,9 @@ static void patch_reloc(tcg_insn_unit *code_ptr, int type,
 
     switch (type) {
     case R_PPC_REL14:
-        reloc_pc14(code_ptr, target);
-        break;
+        return reloc_pc14_cond(code_ptr, target);
     case R_PPC_REL24:
-        reloc_pc24(code_ptr, target);
-        break;
+        return reloc_pc24_cond(code_ptr, target);
     case R_PPC_ADDR16:
         /* We are abusing this relocation type.  This points to a pair
            of insns, addis + load.  If the displacement is small, we
@@ -552,11 +560,14 @@ static void patch_reloc(tcg_insn_unit *code_ptr, int type,
         } else {
             int16_t lo = value;
             int hi = value - lo;
-            assert(hi + lo == value);
-            code_ptr[0] = deposit32(code_ptr[0], 0, 16, hi >> 16);
-            code_ptr[1] = deposit32(code_ptr[1], 0, 16, lo);
+            if (hi + lo == value) {
+                code_ptr[0] = deposit32(code_ptr[0], 0, 16, hi >> 16);
+                code_ptr[1] = deposit32(code_ptr[1], 0, 16, lo);
+            } else {
+                return false;
+            }
         }
-        break;
+        return true;
     default:
         g_assert_not_reached();
     }
