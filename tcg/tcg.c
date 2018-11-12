@@ -521,6 +521,13 @@ static void tcg_region_assign(TCGContext *s, size_t curr_region)
     s->code_gen_ptr = start;
     s->code_gen_buffer_size = end - start;
     s->code_gen_highwater = end - TCG_HIGHWATER;
+
+#ifdef TCG_TARGET_NEED_LDST_OOL_LABELS
+    /* No thunks yet generated this region.  Even if they were in range,
+       this is also the most convenient place to clear the table after a
+       full tb_flush.  */
+    g_hash_table_remove_all(s->ldst_ool_thunks);
+#endif
 }
 
 static bool tcg_region_alloc__locked(TCGContext *s)
@@ -964,6 +971,11 @@ void tcg_context_init(TCGContext *s)
     tcg_debug_assert(!tcg_regset_test_reg(s->reserved_regs, TCG_AREG0));
     ts = tcg_global_reg_new_internal(s, TCG_TYPE_PTR, TCG_AREG0, "env");
     cpu_env = temp_tcgv_ptr(ts);
+
+#ifdef TCG_TARGET_NEED_LDST_OOL_LABELS
+    /* Both key and value are raw pointers.  */
+    s->ldst_ool_thunks = g_hash_table_new(NULL, NULL);
+#endif
 }
 
 /*
@@ -3540,6 +3552,9 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb)
 #ifdef TCG_TARGET_NEED_LDST_LABELS
     QSIMPLEQ_INIT(&s->ldst_labels);
 #endif
+#ifdef TCG_TARGET_NEED_LDST_OOL_LABELS
+    QSIMPLEQ_INIT(&s->ldst_ool_labels);
+#endif
 #ifdef TCG_TARGET_NEED_POOL_LABELS
     s->pool_labels = NULL;
 #endif
@@ -3617,6 +3632,11 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb)
     /* Generate TB finalization at the end of block */
 #ifdef TCG_TARGET_NEED_LDST_LABELS
     if (!tcg_out_ldst_finalize(s)) {
+        return -1;
+    }
+#endif
+#ifdef TCG_TARGET_NEED_LDST_OOL_LABELS
+    if (!tcg_out_ldst_ool_finalize(s)) {
         return -1;
     }
 #endif
