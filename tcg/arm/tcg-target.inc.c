@@ -270,38 +270,15 @@ static const char *target_parse_constraint(TCGArgConstraint *ct,
         ct->u.regs = 0xffff;
         break;
 
-    /* qemu_ld address */
-    case 'l':
-        ct->ct |= TCG_CT_REG;
-        ct->u.regs = 0xffff;
-#ifdef CONFIG_SOFTMMU
-        /* r0-r2,lr will be overwritten when reading the tlb entry,
-           so don't use these. */
-        tcg_regset_reset_reg(ct->u.regs, TCG_REG_R0);
-        tcg_regset_reset_reg(ct->u.regs, TCG_REG_R1);
-        tcg_regset_reset_reg(ct->u.regs, TCG_REG_R2);
-        tcg_regset_reset_reg(ct->u.regs, TCG_REG_R14);
-#endif
-        break;
-
+#ifndef CONFIG_SOFTMMU
     /* qemu_st address & data */
     case 's':
         ct->ct |= TCG_CT_REG;
         ct->u.regs = 0xffff;
-        /* r0-r2 will be overwritten when reading the tlb entry (softmmu only)
-           and r0-r1 doing the byte swapping, so don't use these. */
+        /* r0 and tmp are needed for byte swapping.  */
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_R0);
-        tcg_regset_reset_reg(ct->u.regs, TCG_REG_R1);
-#if defined(CONFIG_SOFTMMU)
-        /* Avoid clashes with registers being used for helper args */
-        tcg_regset_reset_reg(ct->u.regs, TCG_REG_R2);
-#if TARGET_LONG_BITS == 64
-        /* Avoid clashes with registers being used for helper args */
-        tcg_regset_reset_reg(ct->u.regs, TCG_REG_R3);
-#endif
-        tcg_regset_reset_reg(ct->u.regs, TCG_REG_R14);
-#endif
         break;
+#endif
 
     default:
         return NULL;
@@ -1630,8 +1607,8 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, bool is64)
     TCGMemOpIdx oi;
     TCGMemOp opc;
 #ifdef CONFIG_SOFTMMU
-    int mem_index;
-    TCGReg addend;
+    int mem_index, avail;
+    TCGReg addend, t0, t1;
     tcg_insn_unit *label_ptr;
 #endif
 
@@ -1644,8 +1621,20 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, bool is64)
 
 #ifdef CONFIG_SOFTMMU
     mem_index = get_mmuidx(oi);
+
+    avail = 0xf;
+    avail &= ~(1 << addrlo);
+    if (TARGET_LONG_BITS == 64) {
+        avail &= ~(1 << addrhi);
+    }
+    tcg_debug_assert(avail & 1);
+    t0 = TCG_REG_R0;
+    avail &= ~1;
+    tcg_debug_assert(avail != 0);
+    t1 = ctz32(avail);
+
     addend = tcg_out_tlb_read(s, addrlo, addrhi, opc, mem_index, 1,
-                              TCG_REG_R0, TCG_REG_R1, TCG_REG_TMP);
+                              t0, t1, TCG_REG_TMP);
 
     /* This a conditional BL only to load a pointer within this opcode into LR
        for the slow path.  We will not be using the value for a tail call.  */
@@ -1762,8 +1751,8 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is64)
     TCGMemOpIdx oi;
     TCGMemOp opc;
 #ifdef CONFIG_SOFTMMU
-    int mem_index;
-    TCGReg addend;
+    int mem_index, avail;
+    TCGReg addend, t0, t1;
     tcg_insn_unit *label_ptr;
 #endif
 
@@ -1776,8 +1765,24 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is64)
 
 #ifdef CONFIG_SOFTMMU
     mem_index = get_mmuidx(oi);
+
+    avail = 0xf;
+    avail &= ~(1 << addrlo);
+    avail &= ~(1 << datalo);
+    if (TARGET_LONG_BITS == 64) {
+        avail &= ~(1 << addrhi);
+    }
+    if (is64) {
+        avail &= ~(1 << datahi);
+    }
+    tcg_debug_assert(avail & 1);
+    t0 = TCG_REG_R0;
+    avail &= ~1;
+    tcg_debug_assert(avail != 0);
+    t1 = ctz32(avail);
+
     addend = tcg_out_tlb_read(s, addrlo, addrhi, opc, mem_index, 0,
-                              TCG_REG_R0, TCG_REG_R1, TCG_REG_TMP);
+                              t0, t1, TCG_REG_TMP);
 
     tcg_out_qemu_st_index(s, COND_EQ, opc, datalo, datahi, addrlo, addend);
 
@@ -2118,11 +2123,14 @@ static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
     static const TCGTargetOpDef r = { .args_ct_str = { "r" } };
     static const TCGTargetOpDef r_r = { .args_ct_str = { "r", "r" } };
     static const TCGTargetOpDef s_s = { .args_ct_str = { "s", "s" } };
-    static const TCGTargetOpDef r_l = { .args_ct_str = { "r", "l" } };
+    static const TCGTargetOpDef a_b = { .args_ct_str = { "a", "b" } };
+    static const TCGTargetOpDef c_b = { .args_ct_str = { "c", "b" } };
     static const TCGTargetOpDef r_r_r = { .args_ct_str = { "r", "r", "r" } };
-    static const TCGTargetOpDef r_r_l = { .args_ct_str = { "r", "r", "l" } };
-    static const TCGTargetOpDef r_l_l = { .args_ct_str = { "r", "l", "l" } };
     static const TCGTargetOpDef s_s_s = { .args_ct_str = { "s", "s", "s" } };
+    static const TCGTargetOpDef a_c_d = { .args_ct_str = { "a", "c", "d" } };
+    static const TCGTargetOpDef a_b_b = { .args_ct_str = { "a", "b", "b" } };
+    static const TCGTargetOpDef e_c_d = { .args_ct_str = { "e", "c", "d" } };
+    static const TCGTargetOpDef e_f_b = { .args_ct_str = { "e", "f", "b" } };
     static const TCGTargetOpDef r_r_ri = { .args_ct_str = { "r", "r", "ri" } };
     static const TCGTargetOpDef r_r_rI = { .args_ct_str = { "r", "r", "rI" } };
     static const TCGTargetOpDef r_r_rIN
@@ -2131,10 +2139,12 @@ static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
         = { .args_ct_str = { "r", "r", "rIK" } };
     static const TCGTargetOpDef r_r_r_r
         = { .args_ct_str = { "r", "r", "r", "r" } };
-    static const TCGTargetOpDef r_r_l_l
-        = { .args_ct_str = { "r", "r", "l", "l" } };
     static const TCGTargetOpDef s_s_s_s
         = { .args_ct_str = { "s", "s", "s", "s" } };
+    static const TCGTargetOpDef a_b_c_d
+        = { .args_ct_str = { "a", "b", "c", "d" } };
+    static const TCGTargetOpDef e_f_c_d
+        = { .args_ct_str = { "e", "f", "c", "d" } };
     static const TCGTargetOpDef br
         = { .args_ct_str = { "r", "rIN" } };
     static const TCGTargetOpDef dep
@@ -2215,13 +2225,37 @@ static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
         return &setc2;
 
     case INDEX_op_qemu_ld_i32:
-        return TARGET_LONG_BITS == 32 ? &r_l : &r_l_l;
+        if (!USING_SOFTMMU) {
+            return TARGET_LONG_BITS == 32 ? &r_r : &r_r_r;
+        } else if (TARGET_LONG_BITS == 32) {
+            return &a_b;     /* temps available r0, r2, r3, r12 */
+        } else {
+            return &a_c_d;   /* temps available r0, r1, r12 */
+        }
     case INDEX_op_qemu_ld_i64:
-        return TARGET_LONG_BITS == 32 ? &r_r_l : &r_r_l_l;
+        if (!USING_SOFTMMU) {
+            return TARGET_LONG_BITS == 32 ? &r_r_r : &r_r_r_r;
+        } else if (TARGET_LONG_BITS == 32) {
+            return &a_b_b;   /* temps available r0, r2, r3, r12 */
+        } else {
+            return &a_b_c_d; /* temps available r0, r1, r12 */
+        }
     case INDEX_op_qemu_st_i32:
-        return TARGET_LONG_BITS == 32 ? &s_s : &s_s_s;
+        if (!USING_SOFTMMU) {
+            return TARGET_LONG_BITS == 32 ? &s_s : &s_s_s;
+        } else if (TARGET_LONG_BITS == 32) {
+            return &c_b;     /* temps available r0, r3, r12 */
+        } else {
+            return &e_c_d;   /* temps available r0, r1, r12 */
+        }
     case INDEX_op_qemu_st_i64:
-        return TARGET_LONG_BITS == 32 ? &s_s_s : &s_s_s_s;
+        if (!USING_SOFTMMU) {
+            return TARGET_LONG_BITS == 32 ? &s_s_s : &s_s_s_s;
+        } else if (TARGET_LONG_BITS == 32) {
+            return &e_f_b;   /* temps available r0, r2, r3, r12 */
+        } else {
+            return &e_f_c_d; /* temps available r0, r1, r12 */
+        }
 
     default:
         return NULL;
