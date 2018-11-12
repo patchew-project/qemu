@@ -1137,7 +1137,7 @@ static int bdrv_open_flags(BlockDriverState *bs, int flags)
 
 static void update_flags_from_options(int *flags, QemuOpts *opts)
 {
-    *flags &= ~BDRV_O_CACHE_MASK;
+    *flags &= ~(BDRV_O_CACHE_MASK | BDRV_O_RDWR | BDRV_O_AUTO_RDONLY);
 
     if (qemu_opt_get_bool_del(opts, BDRV_OPT_CACHE_NO_FLUSH, false)) {
         *flags |= BDRV_O_NO_FLUSH;
@@ -1146,8 +1146,6 @@ static void update_flags_from_options(int *flags, QemuOpts *opts)
     if (qemu_opt_get_bool_del(opts, BDRV_OPT_CACHE_DIRECT, false)) {
         *flags |= BDRV_O_NOCACHE;
     }
-
-    *flags &= ~BDRV_O_RDWR;
 
     if (!qemu_opt_get_bool_del(opts, BDRV_OPT_READ_ONLY, false)) {
         *flags |= BDRV_O_RDWR;
