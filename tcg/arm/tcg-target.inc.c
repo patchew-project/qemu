@@ -246,7 +246,12 @@ static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
 static const char *target_parse_constraint(TCGArgConstraint *ct,
                                            const char *ct_str, TCGType type)
 {
-    switch (*ct_str++) {
+    char c = *ct_str++;
+    switch (c) {
+    case 'a' ... 'f': /* r0 - r5 */
+        ct->ct |= TCG_CT_REG;
+        tcg_regset_set_reg(ct->u.regs, TCG_REG_R0 + (c - 'a'));
+        break;
     case 'I':
         ct->ct |= TCG_CT_CONST_ARM;
         break;
