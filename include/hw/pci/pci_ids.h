@@ -272,5 +272,6 @@
 #define PCI_VENDOR_ID_SYNOPSYS           0x16C3
 
 #define PCI_VENDOR_ID_NVIDIA             0x10de
+#define PCI_VENDOR_ID_NVIDIA_V100_SXM2   0x1db1
 
 #endif

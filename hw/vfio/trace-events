@@ -68,6 +68,7 @@ vfio_quirk_nvidia_bar5_state(const char *name, const char *state) "%s %s"
 vfio_quirk_nvidia_bar5_probe(const char *name) "%s"
 vfio_quirk_nvidia_bar0_msi_ack(const char *name) "%s"
 vfio_quirk_nvidia_bar0_probe(const char *name) "%s"
+vfio_quirk_nvidia_v100_bar0_probe(const char *name) "%s"
 vfio_quirk_rtl8168_fake_latch(const char *name, uint64_t val) "%s 0x%"PRIx64
 vfio_quirk_rtl8168_msix_write(const char *name, uint16_t offset, uint64_t val) "%s MSI-X table write[0x%x]: 0x%"PRIx64
 vfio_quirk_rtl8168_msix_read(const char *name, uint16_t offset, uint64_t val) "%s MSI-X table read[0x%x]: 0x%"PRIx64

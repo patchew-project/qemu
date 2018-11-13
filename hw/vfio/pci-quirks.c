@@ -996,6 +996,31 @@ static void vfio_probe_nvidia_bar0_quirk(VFIOPCIDevice *vdev, int nr)
     trace_vfio_quirk_nvidia_bar0_probe(vdev->vbasedev.name);
 }
 
+static void vfio_probe_nvidia_v100_bar0_quirk(VFIOPCIDevice *vdev, int nr)
+{
+    VFIOQuirk *quirk;
+
+    if (vdev->no_nvidia_v100_quirks ||
+        !vfio_pci_is(vdev, PCI_VENDOR_ID_NVIDIA,
+                     PCI_VENDOR_ID_NVIDIA_V100_SXM2) ||
+        nr != 0) {
+        return;
+    }
+
+    quirk = vfio_quirk_alloc(1);
+
+    memory_region_init_io(quirk->mem, OBJECT(vdev),
+                          NULL, quirk,
+                          "vfio-nvidia-v100_bar0-block-quirk",
+                          4);
+    memory_region_add_subregion_overlap(vdev->bars[nr].region.mem,
+                                        0x22408, quirk->mem, 1);
+
+    QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, quirk, next);
+
+    trace_vfio_quirk_nvidia_v100_bar0_probe(vdev->vbasedev.name);
+}
+
 /*
  * TODO - Some Nvidia devices provide config access to their companion HDA
  * device and even to their parent bridge via these config space mirrors.
@@ -1853,6 +1878,7 @@ void vfio_bar_quirk_setup(VFIOPCIDevice *vdev, int nr)
     vfio_probe_ati_bar2_quirk(vdev, nr);
     vfio_probe_nvidia_bar5_quirk(vdev, nr);
     vfio_probe_nvidia_bar0_quirk(vdev, nr);
+    vfio_probe_nvidia_v100_bar0_quirk(vdev, nr);
     vfio_probe_rtl8168_bar2_quirk(vdev, nr);
     vfio_probe_igd_bar4_quirk(vdev, nr);
 }
