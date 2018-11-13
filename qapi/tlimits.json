@@ -74,7 +74,7 @@
 #
 # @iops_size: an I/O size in bytes (Since 1.7)
 #
-# Since: 3.2
+# Since: 4.0
 #
 ##
 { 'struct': 'ThrottleLimits',
