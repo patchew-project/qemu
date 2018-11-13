@@ -12,13 +12,10 @@
 #include "internals.h"
 #include "exec/gdbstub.h"
 #include "exec/helper-proto.h"
-#include "qemu/host-utils.h"
 #include "sysemu/arch_init.h"
 #include "sysemu/sysemu.h"
-#include "qemu/bitops.h"
 #include "qemu/crc32c.h"
 #include "exec/exec-all.h"
-#include "exec/cpu_ldst.h"
 #include "arm_ldst.h"
 #include <zlib.h> /* For crc32 */
 #include "exec/semihost.h"
