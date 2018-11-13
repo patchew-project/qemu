@@ -1661,6 +1661,16 @@ static gboolean gd_configure(GtkWidget *widget,
     return FALSE;
 }
 
+static gboolean gd_frame_tick(GtkWidget *widget,
+                              GdkFrameClock *frame_clock,
+                              gpointer opaque)
+{
+    VirtualConsole *vc = opaque;
+
+    vc->gfx.dcl.ops->dpy_refresh(&vc->gfx.dcl);
+    return G_SOURCE_CONTINUE;
+}
+
 /** Virtual Console Callbacks **/
 
 static GSList *gd_vc_menu_init(GtkDisplayState *s, VirtualConsole *vc,
@@ -1911,6 +1921,12 @@ static void gd_connect_vc_gfx_signals(VirtualConsole *vc)
                          G_CALLBACK(gd_focus_out_event), vc);
         g_signal_connect(vc->gfx.drawing_area, "configure-event",
                          G_CALLBACK(gd_configure), vc);
+        if (1 /* make that a config option ??? */) {
+            update_displaychangelistener(&vc->gfx.dcl,
+                                         GUI_REFRESH_INTERVAL_IDLE);
+            gtk_widget_add_tick_callback(vc->gfx.drawing_area,
+                                         gd_frame_tick, vc, NULL);
+        }
     } else {
         g_signal_connect(vc->gfx.drawing_area, "key-press-event",
                          G_CALLBACK(gd_text_key_down), vc);
