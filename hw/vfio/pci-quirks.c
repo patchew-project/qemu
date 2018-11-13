@@ -2206,3 +2206,96 @@ int vfio_add_virt_caps(VFIOPCIDevice *vdev, Error **errp)
 
     return 0;
 }
+
+static void vfio_pci_npu2_atsd_get_tgt(Object *obj, Visitor *v,
+                                       const char *name,
+                                       void *opaque, Error **errp)
+{
+    uint64_t tgt = (uint64_t) opaque;
+    visit_type_uint64(v, name, &tgt, errp);
+}
+
+int vfio_pci_nvlink2_ram_init(VFIOPCIDevice *vdev, Error **errp)
+{
+    int ret;
+    void *p;
+    struct vfio_region_info *nv2region = NULL;
+    struct vfio_info_cap_header *hdr;
+    struct vfio_region_info_cap_npu2 *cap;
+    MemoryRegion *nv2mr = g_malloc0(sizeof(*nv2mr));
+
+    ret = vfio_get_dev_region_info(&vdev->vbasedev,
+                                   VFIO_REGION_TYPE_PCI_VENDOR_TYPE |
+                                   PCI_VENDOR_ID_NVIDIA,
+                                   VFIO_REGION_SUBTYPE_NVIDIA_NVLINK2_RAM,
+                                   &nv2region);
+    if (ret) {
+        return ret;
+    }
+
+    p = mmap(NULL, nv2region->size, PROT_READ | PROT_WRITE | PROT_EXEC,
+             MAP_SHARED, vdev->vbasedev.fd, nv2region->offset);
+
+    if (!p) {
+        return -errno;
+    }
+
+    memory_region_init_ram_ptr(nv2mr, OBJECT(vdev), "nvlink2-mr",
+                               nv2region->size, p);
+
+    hdr = vfio_get_region_info_cap(nv2region, VFIO_REGION_INFO_CAP_NPU2);
+    cap = (struct vfio_region_info_cap_npu2 *) hdr;
+
+    object_property_add(OBJECT(nv2mr), "tgt", "uint64",
+                        vfio_pci_npu2_atsd_get_tgt, NULL, NULL,
+                        (void *) cap->tgt, NULL);
+    trace_vfio_pci_nvidia_gpu_ram_setup_quirk(vdev->vbasedev.name, cap->tgt,
+                                              nv2region->size);
+    g_free(nv2region);
+
+    return 0;
+}
+
+int vfio_pci_npu2_atsd_init(VFIOPCIDevice *vdev, Error **errp)
+{
+    int ret;
+    void *p;
+    struct vfio_region_info *atsd_region = NULL;
+    struct vfio_info_cap_header *hdr;
+    struct vfio_region_info_cap_npu2 *cap;
+    MemoryRegion *atsd_mr = g_malloc0(sizeof(*atsd_mr));
+
+    ret = vfio_get_dev_region_info(&vdev->vbasedev,
+                                   VFIO_REGION_TYPE_PCI_VENDOR_TYPE |
+                                   PCI_VENDOR_ID_IBM,
+                                   VFIO_REGION_SUBTYPE_IBM_NVLINK2_ATSD,
+                                   &atsd_region);
+    if (ret) {
+        return ret;
+    }
+
+    p = mmap(NULL, atsd_region->size, PROT_READ | PROT_WRITE | PROT_EXEC,
+             MAP_SHARED, vdev->vbasedev.fd, atsd_region->offset);
+
+    if (!p) {
+        return -errno;
+    }
+
+    memory_region_init_ram_device_ptr(atsd_mr, OBJECT(vdev),
+                                      "nvlink2-atsd-mr",
+                                      atsd_region->size,
+                                      p);
+
+    hdr = vfio_get_region_info_cap(atsd_region, VFIO_REGION_INFO_CAP_NPU2);
+    cap = (struct vfio_region_info_cap_npu2 *) hdr;
+
+    object_property_add(OBJECT(atsd_mr), "tgt", "uint64",
+                        vfio_pci_npu2_atsd_get_tgt, NULL, NULL,
+                        (void *) cap->tgt, NULL);
+
+    trace_vfio_pci_npu2_setup_quirk(vdev->vbasedev.name, cap->tgt,
+                                    atsd_region->size);
+    g_free(atsd_region);
+
+    return 0;
+}

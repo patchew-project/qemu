@@ -87,6 +87,24 @@ struct sPAPRPHBState {
     uint32_t mig_liobn;
     hwaddr mig_mem_win_addr, mig_mem_win_size;
     hwaddr mig_io_win_addr, mig_io_win_size;
+    hwaddr nv2_gpa_win_addr;
+    hwaddr nv2_atsd_win_addr;
+
+    struct spapr_phb_pci_nvgpu_config {
+        uint64_t nv2_ram;
+        uint64_t nv2_atsd;
+        int num;
+        struct {
+            int links;
+            uint64_t tgt;
+            uint64_t gpa;
+            PCIDevice *gpdev;
+            uint64_t atsd[3];
+            PCIDevice *npdev[3];
+        } gpus[6];
+        uint64_t atsd[64]; /* Big Endian (BE), ready for the DT */
+        int atsd_num;
+    } nvgpus;
 };
 
 #define SPAPR_PCI_MEM_WIN_BUS_OFFSET 0x80000000ULL
@@ -103,6 +121,16 @@ struct sPAPRPHBState {
 #define SPAPR_PCI_IO_WIN_SIZE        0x10000
 
 #define SPAPR_PCI_MSI_WINDOW         0x40000000000ULL
+
+#define PHANDLE_PCIDEV(phb, pdev)    (0x12000000 | \
+                                     (((phb)->index) << 16) | ((pdev)->devfn))
+#define PHANDLE_GPURAM(phb, n)       (0x110000FF | ((n) << 8) | \
+                                     (((phb)->index) << 16))
+#define GPURAM_ASSOCIATIVITY(phb, n) (255 - ((phb)->index * 3 + (n)))
+#define SPAPR_PCI_NV2RAM64_WIN_BASE  0x10000000000ULL /* 1 TiB */
+#define SPAPR_PCI_NV2RAM64_WIN_SIZE  0x02000000000ULL
+#define PHANDLE_NVLINK(phb, gn, nn)  (0x00130000 | (((phb)->index) << 8) | \
+                                     ((gn) << 4) | (nn))
 
 static inline qemu_irq spapr_phb_lsi_qirq(struct sPAPRPHBState *phb, int pin)
 {

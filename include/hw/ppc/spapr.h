@@ -109,7 +109,8 @@ struct sPAPRMachineClass {
     void (*phb_placement)(sPAPRMachineState *spapr, uint32_t index,
                           uint64_t *buid, hwaddr *pio, 
                           hwaddr *mmio32, hwaddr *mmio64,
-                          unsigned n_dma, uint32_t *liobns, Error **errp);
+                          unsigned n_dma, uint32_t *liobns, hwaddr *nv2gpa,
+                          hwaddr *nv2atsd, Error **errp);
     sPAPRResizeHPT resize_hpt_default;
     sPAPRCapabilities default_caps;
     sPAPRIrq *irq;
