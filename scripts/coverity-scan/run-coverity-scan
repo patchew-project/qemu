@@ -29,6 +29,7 @@
 
 # Command line options:
 #   --dry-run : run the tools, but don't actually do the upload
+#   --docker : create and work inside a docker container
 #   --update-tools-only : update the cached copy of the tools, but don't run them
 #   --tokenfile : file to read Coverity token from
 #   --version ver : specify version being analyzed (default: ask git)
@@ -122,6 +123,7 @@ update_coverity_tools () {
 # Check user-provided environment variables and arguments
 DRYRUN=no
 UPDATE_ONLY=no
+DOCKER=no
 
 while [ "$#" -ge 1 ]; do
     case "$1" in
@@ -169,6 +171,10 @@ while [ "$#" -ge 1 ]; do
             SRCDIR="$1"
             shift
             ;;
+        --docker)
+            DOCKER=yes
+            shift
+            ;;
         *)
             echo "Unexpected argument '$1'"
             exit 1
@@ -199,6 +205,10 @@ PROJTOKEN="$COVERITY_TOKEN"
 PROJNAME=QEMU
 TARBALL=cov-int.tar.xz
 
+if [ "$UPDATE_ONLY" = yes ] && [ "$DOCKER" = yes ]; then
+    echo "Combining --docker and --update-only is not supported"
+    exit 1
+fi
 
 if [ "$UPDATE_ONLY" = yes ]; then
     # Just do the tools update; we don't need to check whether
@@ -228,6 +238,54 @@ fi
 if [ -z "$COVERITY_EMAIL" ]; then
     COVERITY_EMAIL="$(git config user.email)"
 fi
+
+# Run ourselves inside docker if that's what the user wants
+if [ "$DOCKER" = yes ]; then
+    # build docker container including the coverity-scan tools
+    # Put the Coverity token into a temporary file that only
+    # we have read access to, and then pass it to docker build
+    # using --secret. This requires at least Docker 18.09.
+    # Mostly what we are trying to do here is ensure we don't leak
+    # the token into the Docker image.
+    umask 077
+    SECRETDIR=$(mktemp -d)
+    if [ -z "$SECRETDIR" ]; then
+        echo "Failed to create temporary directory"
+        exit 1
+    fi
+    trap 'rm -rf "$SECRETDIR"' INT TERM EXIT
+    echo "Created temporary directory $SECRETDIR"
+    SECRET="$SECRETDIR/token"
+    echo "$COVERITY_TOKEN" > "$SECRET"
+    echo "Building docker container..."
+    # TODO: This re-downloads the tools every time, rather than
+    # caching and reusing the image produced with the downloaded tools.
+    # Not sure why.
+    # TODO: how do you get 'docker build' to print the output of the
+    # commands it is running to its stdout? This would be useful for debug.
+    DOCKER_BUILDKIT=1 docker build -t coverity-scanner \
+                   --secret id=coverity.token,src="$SECRET" \
+                   -f scripts/coverity-scan/coverity-scan.docker \
+                   scripts/coverity-scan
+    echo "Archiving sources to be analyzed..."
+    ./scripts/archive-source.sh "$SECRETDIR/qemu-sources.tgz"
+    (cd "$SECRETDIR" && mkdir qemu && cd qemu && tar xvf ../qemu-sources.tgz)
+    if [ "$DRYRUN" = yes ]; then
+        DRYRUNARG=--dry-run
+    fi
+    echo "Running scanner..."
+    # Arrange for this docker run to get access to the sources with -v.
+    # We pass through all the configuration from the outer script to the inner.
+    docker run -it --env COVERITY_EMAIL --env COVERITY_BUILD_CMD \
+           -v "$SECRETDIR:/work" coverity-scanner \
+           ./run-coverity-scan --version "$VERSION" \
+           --description "$DESCRIPTION" $DRYRUNARG --tokenfile /work/token \
+           --srcdir /work/qemu
+    echo "Docker work complete."
+    exit 0
+fi
+
+# Otherwise, continue with the full build and upload process.
 
 check_upload_permissions
 
