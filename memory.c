@@ -1377,13 +1377,15 @@ static MemTxResult memory_region_dispatch_read1(MemoryRegion *mr,
                                          mr->ops->impl.max_access_size,
                                          memory_region_read_accessor,
                                          mr, attrs);
-    } else {
+    } else if (mr->ops->read_with_attrs) {
         return access_with_adjusted_size(addr, pval, size,
                                          mr->ops->impl.min_access_size,
                                          mr->ops->impl.max_access_size,
                                          memory_region_read_with_attrs_accessor,
                                          mr, attrs);
     }
+
+    return MEMTX_DECODE_ERROR;
 }
 
 MemTxResult memory_region_dispatch_read(MemoryRegion *mr,
@@ -1454,7 +1456,7 @@ MemTxResult memory_region_dispatch_write(MemoryRegion *mr,
                                          mr->ops->impl.max_access_size,
                                          memory_region_write_accessor, mr,
                                          attrs);
-    } else {
+    } else if (mr->ops->write_with_attrs) {
         return
             access_with_adjusted_size(addr, &data, size,
                                       mr->ops->impl.min_access_size,
@@ -1462,6 +1464,8 @@ MemTxResult memory_region_dispatch_write(MemoryRegion *mr,
                                       memory_region_write_with_attrs_accessor,
                                       mr, attrs);
     }
+
+    return MEMTX_DECODE_ERROR;
 }
 
 void memory_region_init_io(MemoryRegion *mr,
