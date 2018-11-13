@@ -173,9 +173,6 @@ enum bt_l2cap_psm_predef {
 /* bt-sdp.c */
 void bt_l2cap_sdp_init(struct bt_l2cap_device_s *dev);
 
-/* bt-hid.c */
-struct bt_device_s *bt_keyboard_init(struct bt_scatternet_s *net);
-
 /* Link Management Protocol layer defines */
 
 #define LLID_ACLU_CONT		0x1

@@ -988,37 +988,6 @@ static void bt_vhci_add(int vlan_id)
     bt_vhci_init(bt_new_hci(vlan));
 }
 
-static struct bt_device_s *bt_device_add(const char *opt)
-{
-    struct bt_scatternet_s *vlan;
-    int vlan_id = 0;
-    char *endp = strstr(opt, ",vlan=");
-    int len = (endp ? endp - opt : strlen(opt)) + 1;
-    char devname[10];
-
-    pstrcpy(devname, MIN(sizeof(devname), len), opt);
-
-    if (endp) {
-        vlan_id = strtol(endp + 6, &endp, 0);
-        if (*endp) {
-            error_report("unrecognised bluetooth vlan Id");
-            return 0;
-        }
-    }
-
-    vlan = qemu_find_bt_vlan(vlan_id);
-
-    if (!vlan->slave)
-        warn_report("adding a slave device to an empty scatternet %i",
-                    vlan_id);
-
-    if (!strcmp(devname, "keyboard"))
-        return bt_keyboard_init(vlan);
-
-    error_report("unsupported bluetooth device '%s'", devname);
-    return 0;
-}
-
 static int bt_parse(const char *opt)
 {
     const char *endp, *p;
@@ -1051,8 +1020,7 @@ static int bt_parse(const char *opt)
             bt_vhci_add(vlan);
             return 0;
         }
-    } else if (strstart(opt, "device:", &endp))
-        return !bt_device_add(endp);
+    }
 
     error_report("bad bluetooth parameter '%s'", opt);
     return 1;

@@ -983,11 +983,7 @@ configure an USB bluetooth device, you might need to use
 bluetooth dongle whose type is specified in the same format as with
 the @option{-bt hci} option, @pxref{bt-hcis,,allowed HCI types}.  If
 no type is given, the HCI logic corresponds to @code{-bt hci,vlan=0}.
-This USB device implements the USB Transport Layer of HCI.  Example
-usage:
-@example
-@command{qemu-system-i386} [...@var{OPTIONS}...] @option{-usbdevice} bt:hci,vlan=3 @option{-bt} device:keyboard,vlan=3
-@end example
+This USB device implements the USB Transport Layer of HCI.
 @end table
 
 @node host_usb_devices

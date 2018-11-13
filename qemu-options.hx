@@ -2808,15 +2808,6 @@ be used as following:
 qemu-system-i386 [...OPTIONS...] -bt hci,vlan=5 -bt vhci,vlan=5
 @end example
 
-@item -bt device:@var{dev}[,vlan=@var{n}]
-Emulate a bluetooth device @var{dev} and place it in network @var{n}
-(default @code{0}).  QEMU can only emulate one type of bluetooth devices
-currently:
-
-@table @option
-@item keyboard
-Virtual wireless keyboard implementing the HIDP bluetooth profile.
-@end table
 ETEXI
 
 STEXI
