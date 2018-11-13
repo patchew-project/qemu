@@ -16,7 +16,6 @@
 #include "sysemu/sysemu.h"
 #include "qemu/crc32c.h"
 #include "exec/exec-all.h"
-#include "arm_ldst.h"
 #include <zlib.h> /* For crc32 */
 #include "exec/semihost.h"
 #include "sysemu/kvm.h"
