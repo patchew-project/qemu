@@ -1821,7 +1821,7 @@ static int aio_worker(void *arg)
 static int paio_submit_co_full(BlockDriverState *bs, int fd,
                                int64_t offset, int fd2, int64_t offset2,
                                QEMUIOVector *qiov,
-                               int bytes, int type)
+                               uint64_t bytes, int type)
 {
     RawPosixAIOData *acb = g_new(RawPosixAIOData, 1);
     ThreadPool *pool;
@@ -1832,6 +1832,7 @@ static int paio_submit_co_full(BlockDriverState *bs, int fd,
     acb->aio_fd2 = fd2;
     acb->aio_offset2 = offset2;
 
+    assert(bytes <= SIZE_MAX);
     acb->aio_nbytes = bytes;
     acb->aio_offset = offset;
 
@@ -1848,7 +1849,7 @@ static int paio_submit_co_full(BlockDriverState *bs, int fd,
 
 static inline int paio_submit_co(BlockDriverState *bs, int fd,
                                  int64_t offset, QEMUIOVector *qiov,
-                                 int bytes, int type)
+                                 uint64_t bytes, int type)
 {
     return paio_submit_co_full(bs, fd, offset, -1, 0, qiov, bytes, type);
 }
