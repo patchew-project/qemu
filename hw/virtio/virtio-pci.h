@@ -216,7 +216,8 @@ static inline void virtio_pci_disable_modern(VirtIOPCIProxy *proxy)
 /*
  * virtio-scsi-pci: This extends VirtioPCIProxy.
  */
-#define TYPE_VIRTIO_SCSI_PCI "virtio-scsi-pci"
+#define TYPE_VIRTIO_SCSI_PCI_PREFIX "virtio-scsi-pci"
+#define TYPE_VIRTIO_SCSI_PCI (TYPE_VIRTIO_SCSI_PCI_PREFIX "-base")
 #define VIRTIO_SCSI_PCI(obj) \
         OBJECT_CHECK(VirtIOSCSIPCI, (obj), TYPE_VIRTIO_SCSI_PCI)
 
@@ -229,7 +230,8 @@ struct VirtIOSCSIPCI {
 /*
  * vhost-scsi-pci: This extends VirtioPCIProxy.
  */
-#define TYPE_VHOST_SCSI_PCI "vhost-scsi-pci"
+#define TYPE_VHOST_SCSI_PCI_PREFIX "vhost-scsi-pci"
+#define TYPE_VHOST_SCSI_PCI (TYPE_VHOST_SCSI_PCI_PREFIX "-base")
 #define VHOST_SCSI_PCI(obj) \
         OBJECT_CHECK(VHostSCSIPCI, (obj), TYPE_VHOST_SCSI_PCI)
 
@@ -239,7 +241,8 @@ struct VHostSCSIPCI {
 };
 #endif
 
-#define TYPE_VHOST_USER_SCSI_PCI "vhost-user-scsi-pci"
+#define TYPE_VHOST_USER_SCSI_PCI_PREFIX "vhost-user-scsi-pci"
+#define TYPE_VHOST_USER_SCSI_PCI (TYPE_VHOST_USER_SCSI_PCI_PREFIX "-base")
 #define VHOST_USER_SCSI_PCI(obj) \
         OBJECT_CHECK(VHostUserSCSIPCI, (obj), TYPE_VHOST_USER_SCSI_PCI)
 
@@ -252,7 +255,8 @@ struct VHostUserSCSIPCI {
 /*
  * vhost-user-blk-pci: This extends VirtioPCIProxy.
  */
-#define TYPE_VHOST_USER_BLK_PCI "vhost-user-blk-pci"
+#define TYPE_VHOST_USER_BLK_PCI_PREFIX "vhost-user-blk-pci"
+#define TYPE_VHOST_USER_BLK_PCI (TYPE_VHOST_USER_BLK_PCI_PREFIX "-base")
 #define VHOST_USER_BLK_PCI(obj) \
         OBJECT_CHECK(VHostUserBlkPCI, (obj), TYPE_VHOST_USER_BLK_PCI)
 
@@ -265,7 +269,8 @@ struct VHostUserBlkPCI {
 /*
  * virtio-blk-pci: This extends VirtioPCIProxy.
  */
-#define TYPE_VIRTIO_BLK_PCI "virtio-blk-pci"
+#define TYPE_VIRTIO_BLK_PCI_PREFIX "virtio-blk-pci"
+#define TYPE_VIRTIO_BLK_PCI (TYPE_VIRTIO_BLK_PCI_PREFIX "-base")
 #define VIRTIO_BLK_PCI(obj) \
         OBJECT_CHECK(VirtIOBlkPCI, (obj), TYPE_VIRTIO_BLK_PCI)
 
@@ -277,7 +282,8 @@ struct VirtIOBlkPCI {
 /*
  * virtio-balloon-pci: This extends VirtioPCIProxy.
  */
-#define TYPE_VIRTIO_BALLOON_PCI "virtio-balloon-pci"
+#define TYPE_VIRTIO_BALLOON_PCI_PREFIX "virtio-balloon-pci"
+#define TYPE_VIRTIO_BALLOON_PCI (TYPE_VIRTIO_BALLOON_PCI_PREFIX "-base")
 #define VIRTIO_BALLOON_PCI(obj) \
         OBJECT_CHECK(VirtIOBalloonPCI, (obj), TYPE_VIRTIO_BALLOON_PCI)
 
@@ -289,7 +295,8 @@ struct VirtIOBalloonPCI {
 /*
  * virtio-serial-pci: This extends VirtioPCIProxy.
  */
-#define TYPE_VIRTIO_SERIAL_PCI "virtio-serial-pci"
+#define TYPE_VIRTIO_SERIAL_PCI_PREFIX "virtio-serial-pci"
+#define TYPE_VIRTIO_SERIAL_PCI (TYPE_VIRTIO_SERIAL_PCI_PREFIX "-base")
 #define VIRTIO_SERIAL_PCI(obj) \
         OBJECT_CHECK(VirtIOSerialPCI, (obj), TYPE_VIRTIO_SERIAL_PCI)
 
@@ -301,7 +308,8 @@ struct VirtIOSerialPCI {
 /*
  * virtio-net-pci: This extends VirtioPCIProxy.
  */
-#define TYPE_VIRTIO_NET_PCI "virtio-net-pci"
+#define TYPE_VIRTIO_NET_PCI_PREFIX "virtio-net-pci"
+#define TYPE_VIRTIO_NET_PCI (TYPE_VIRTIO_NET_PCI_PREFIX "-base")
 #define VIRTIO_NET_PCI(obj) \
         OBJECT_CHECK(VirtIONetPCI, (obj), TYPE_VIRTIO_NET_PCI)
 
@@ -316,7 +324,8 @@ struct VirtIONetPCI {
 
 #ifdef CONFIG_VIRTFS
 
-#define TYPE_VIRTIO_9P_PCI "virtio-9p-pci"
+#define TYPE_VIRTIO_9P_PCI_PREFIX "virtio-9p-pci"
+#define TYPE_VIRTIO_9P_PCI (TYPE_VIRTIO_9P_PCI_PREFIX "-base")
 #define VIRTIO_9P_PCI(obj) \
         OBJECT_CHECK(V9fsPCIState, (obj), TYPE_VIRTIO_9P_PCI)
 
@@ -330,7 +339,8 @@ typedef struct V9fsPCIState {
 /*
  * virtio-rng-pci: This extends VirtioPCIProxy.
  */
-#define TYPE_VIRTIO_RNG_PCI "virtio-rng-pci"
+#define TYPE_VIRTIO_RNG_PCI_PREFIX "virtio-rng-pci"
+#define TYPE_VIRTIO_RNG_PCI (TYPE_VIRTIO_RNG_PCI_PREFIX "-base")
 #define VIRTIO_RNG_PCI(obj) \
         OBJECT_CHECK(VirtIORngPCI, (obj), TYPE_VIRTIO_RNG_PCI)
 
@@ -365,7 +375,8 @@ struct VirtIOInputHIDPCI {
 
 #ifdef CONFIG_LINUX
 
-#define TYPE_VIRTIO_INPUT_HOST_PCI "virtio-input-host-pci"
+#define TYPE_VIRTIO_INPUT_HOST_PCI_PREFIX "virtio-input-host-pci"
+#define TYPE_VIRTIO_INPUT_HOST_PCI (TYPE_VIRTIO_INPUT_HOST_PCI_PREFIX "-base")
 #define VIRTIO_INPUT_HOST_PCI(obj) \
         OBJECT_CHECK(VirtIOInputHostPCI, (obj), TYPE_VIRTIO_INPUT_HOST_PCI)
 
@@ -392,7 +403,8 @@ struct VirtIOGPUPCI {
 /*
  * vhost-vsock-pci: This extends VirtioPCIProxy.
  */
-#define TYPE_VHOST_VSOCK_PCI "vhost-vsock-pci"
+#define TYPE_VHOST_VSOCK_PCI_PREFIX "vhost-vsock-pci"
+#define TYPE_VHOST_VSOCK_PCI (TYPE_VHOST_VSOCK_PCI_PREFIX "-base")
 #define VHOST_VSOCK_PCI(obj) \
         OBJECT_CHECK(VHostVSockPCI, (obj), TYPE_VHOST_VSOCK_PCI)
 
@@ -416,5 +428,49 @@ struct VirtIOCryptoPCI {
 
 /* Virtio ABI version, if we increment this, we break the guest driver. */
 #define VIRTIO_PCI_ABI_VERSION          0
+
+/**
+ * VirtioPCIDeviceTypeInfo:
+ *
+ * Template for virtio PCI device types.  See virtio_pci_types_register()
+ * for details.
+ */
+typedef struct VirtioPCIDeviceTypeInfo {
+    /* Prefix for the class names */
+    const char *name_prefix;
+    /* Parent type.  If NULL, TYPE_VIRTIO_PCI is used */
+    const char *parent;
+    /* If modern_only is true, only <name_prefix> type will be registered */
+    bool modern_only;
+
+    /* Same as TypeInfo fields: */
+    size_t instance_size;
+    void (*instance_init)(Object *obj);
+    void (*class_init)(ObjectClass *klass, void *data);
+} VirtioPCIDeviceTypeInfo;
+
+/*
+ * Register virtio-pci types.  Each virtio-pci device type will be available
+ * in 3 flavors:
+ * - <prefix>-transitional: modern device supporting legacy drivers
+ *   - Supports Conventional PCI buses only
+ * - <prefix>-non-transitional: modern-only
+ *   - Supports Conventional PCI and PCI Express buses
+ * - <prefix>: virtio version configurable, legacy driver support
+ *                  automatically selected when device is plugged
+ *   _ This was the only flavor supported until QEMU 3.1
+ *   - Supports Conventional PCI and PCI Express buses
+ *
+ * All the types above will inherit from "<prefix>-base", so generic
+ * code can use "<prefix>-base" on type casts.
+ *
+ * We need a separate "<prefix>-base" type instead of making all types inherit
+ * from <prefix> for two reasons:
+ * 1) <prefix> will implement INTERFACE_PCIE_DEVICE, but
+ *    <prefix>-transitional won't.
+ * 2) <prefix> will have the "disable-legacy" and "disable-modern" properties,
+ *    <prefix>-transitional and <prefix>-non-transitional won't.
+ */
+void virtio_pci_types_register(const VirtioPCIDeviceTypeInfo *t);
 
 #endif
