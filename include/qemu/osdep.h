@@ -129,7 +129,7 @@ extern int daemon(int, int);
  * code that is unreachable when features are disabled.
  * All supported versions of Glib's g_assert() satisfy this requirement.
  */
-#ifdef __MINGW32__
+#if defined(__MINGW32__) && !defined(USE_NATIVE_MINGW32_ASSERT)
 #undef assert
 #define assert(x)  g_assert(x)
 #endif
