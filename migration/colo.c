@@ -33,8 +33,10 @@
 #include "sysemu/cpus.h"
 #include "net/filter.h"
 
+#ifdef CONFIG_REPLICATION
 static bool vmstate_loading;
 static Notifier packets_compare_notifier;
+#endif
 
 #define COLO_BUFFER_BASE_SIZE (4 * 1024 * 1024)
 
@@ -59,6 +61,7 @@ static bool colo_runstate_is_stopped(void)
 
 static void secondary_vm_do_failover(void)
 {
+#ifdef CONFIG_REPLICATION
     int old_state;
     MigrationIncomingState *mis = migration_incoming_get_current();
     Error *local_err = NULL;
@@ -121,10 +124,14 @@ static void secondary_vm_do_failover(void)
     if (mis->migration_incoming_co) {
         qemu_coroutine_enter(mis->migration_incoming_co);
     }
+#else
+    abort();
+#endif
 }
 
 static void primary_vm_do_failover(void)
 {
+#ifdef CONFIG_REPLICATION
     MigrationState *s = migrate_get_current();
     int old_state;
     Error *local_err = NULL;
@@ -165,6 +172,9 @@ static void primary_vm_do_failover(void)
 
     /* Notify COLO thread that failover work is finished */
     qemu_sem_post(&s->colo_exit_sem);
+#else
+    abort();
+#endif
 }
 
 COLOMode get_colo_mode(void)
@@ -270,6 +280,8 @@ COLOStatus *qmp_query_colo_status(Error **errp)
 
     return s;
 }
+
+#ifdef CONFIG_REPLICATION
 
 static void colo_send_message(QEMUFile *f, COLOMessage msg,
                               Error **errp)
@@ -489,9 +501,11 @@ static void colo_compare_notify_checkpoint(Notifier *notifier, void *data)
 {
     colo_checkpoint_notify(data);
 }
+#endif
 
 static void colo_process_checkpoint(MigrationState *s)
 {
+#ifdef CONFIG_REPLICATION
     QIOChannelBuffer *bioc;
     QEMUFile *fb = NULL;
     int64_t current_time = qemu_clock_get_ms(QEMU_CLOCK_HOST);
@@ -603,6 +617,9 @@ out:
     if (s->rp_state.from_dst_file) {
         qemu_fclose(s->rp_state.from_dst_file);
     }
+#else
+    abort();
+#endif
 }
 
 void colo_checkpoint_notify(void *opaque)
@@ -631,6 +648,7 @@ void migrate_start_colo_process(MigrationState *s)
     qemu_mutex_lock_iothread();
 }
 
+#ifdef CONFIG_REPLICATION
 static void colo_wait_handle_message(QEMUFile *f, int *checkpoint_request,
                                      Error **errp)
 {
@@ -653,9 +671,11 @@ static void colo_wait_handle_message(QEMUFile *f, int *checkpoint_request,
         break;
     }
 }
+#endif
 
 void *colo_process_incoming_thread(void *opaque)
 {
+#ifdef CONFIG_REPLICATION
     MigrationIncomingState *mis = opaque;
     QEMUFile *fb = NULL;
     QIOChannelBuffer *bioc = NULL; /* Cache incoming device state */
@@ -859,4 +879,7 @@ out:
 
     rcu_unregister_thread();
     return NULL;
+#else
+    abort();
+#endif
 }
