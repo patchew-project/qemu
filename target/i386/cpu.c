@@ -426,6 +426,24 @@ static void encode_cache_cpuid8000001d(CPUCacheInfo *cache, CPUState *cs,
            (cache->complex_indexing ? CACHE_COMPLEX_IDX : 0);
 }
 
+static void set_custom_cache_size(CPUCacheInfo *c, uint64_t sz)
+{
+    /*
+     * Descriptors that have 'sets', also have 'partitions' initialized,
+     * so we can compute the new number of sets. For others, just tweak the
+     * size.
+     */
+    assert(c->partitions > 0 || c->sets == 0);
+    if (c->sets > 0) {
+        uint32_t sets = sz / (c->line_size * c->associativity * c->partitions);
+
+        if (sets == 0)
+            return;
+        c->sets = sets;
+    }
+    c->size = sz;
+}
+
 /* Data structure to hold the configuration info for a given core index */
 struct core_topology {
     /* core complex id of the current core index */
@@ -4193,8 +4211,14 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         if (!cpu->enable_l3_cache) {
             *ecx = 0;
         } else {
+            if (cpu->l3_cache_size > 0)
+                set_custom_cache_size(env->cache_info_cpuid2.l3_cache,
+                                      cpu->l3_cache_size);
             *ecx = cpuid2_cache_descriptor(env->cache_info_cpuid2.l3_cache);
         }
+        if (cpu->l2_cache_size > 0)
+            set_custom_cache_size(env->cache_info_cpuid2.l2_cache,
+                                  cpu->l2_cache_size);
         *edx = (cpuid2_cache_descriptor(env->cache_info_cpuid2.l1d_cache) << 16) |
                (cpuid2_cache_descriptor(env->cache_info_cpuid2.l1i_cache) <<  8) |
                (cpuid2_cache_descriptor(env->cache_info_cpuid2.l2_cache));
@@ -4222,6 +4246,9 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
                                     eax, ebx, ecx, edx);
                 break;
             case 2: /* L2 cache info */
+                if (cpu->l2_cache_size > 0)
+                    set_custom_cache_size(env->cache_info_cpuid4.l2_cache,
+                                          cpu->l2_cache_size);
                 encode_cache_cpuid4(env->cache_info_cpuid4.l2_cache,
                                     cs->nr_threads, cs->nr_cores,
                                     eax, ebx, ecx, edx);
@@ -4229,6 +4256,9 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
             case 3: /* L3 cache info */
                 pkg_offset = apicid_pkg_offset(cs->nr_cores, cs->nr_threads);
                 if (cpu->enable_l3_cache) {
+                    if (cpu->l3_cache_size > 0)
+                        set_custom_cache_size(env->cache_info_cpuid4.l3_cache,
+                                              cpu->l3_cache_size);
                     encode_cache_cpuid4(env->cache_info_cpuid4.l3_cache,
                                         (1 << pkg_offset), cs->nr_cores,
                                         eax, ebx, ecx, edx);
