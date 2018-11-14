@@ -4490,6 +4490,12 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
                (L2_DTLB_4K_ENTRIES << 16) | \
                (AMD_ENC_ASSOC(L2_ITLB_4K_ASSOC) << 12) | \
                (L2_ITLB_4K_ENTRIES);
+        if (cpu->l2_cache_size > 0)
+            set_custom_cache_size(env->cache_info_amd.l2_cache,
+                                  cpu->l2_cache_size);
+        if (cpu->enable_l3_cache && cpu->l3_cache_size > 0)
+            set_custom_cache_size(env->cache_info_amd.l3_cache,
+                                  cpu->l3_cache_size);
         encode_cache_cpuid80000006(env->cache_info_amd.l2_cache,
                                    cpu->enable_l3_cache ?
                                    env->cache_info_amd.l3_cache : NULL,
@@ -4546,10 +4552,16 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
                                        eax, ebx, ecx, edx);
             break;
         case 2: /* L2 cache info */
+            if (cpu->l2_cache_size > 0)
+                set_custom_cache_size(env->cache_info_amd.l2_cache,
+                                      cpu->l2_cache_size * MiB);
             encode_cache_cpuid8000001d(env->cache_info_amd.l2_cache, cs,
                                        eax, ebx, ecx, edx);
             break;
         case 3: /* L3 cache info */
+            if (cpu->enable_l3_cache && cpu->l3_cache_size > 0)
+                set_custom_cache_size(env->cache_info_amd.l3_cache,
+                                      cpu->l3_cache_size * MiB);
             encode_cache_cpuid8000001d(env->cache_info_amd.l3_cache, cs,
                                        eax, ebx, ecx, edx);
             break;
