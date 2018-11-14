@@ -95,3 +95,4 @@
 { 'include': 'introspect.json' }
 { 'include': 'misc.json' }
 { 'include': 'tlimits.json' }
+{ 'include': 'fsdev.json' }

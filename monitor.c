@@ -708,14 +708,9 @@ static void monitor_qapi_event_init(void)
 
 static void handle_hmp_command(Monitor *mon, const char *cmdline);
 
-static void monitor_iothread_init(void);
-
 static void monitor_data_init(Monitor *mon, bool skip_flush,
                               bool use_io_thread)
 {
-    if (use_io_thread && !mon_iothread) {
-        monitor_iothread_init();
-    }
     memset(mon, 0, sizeof(Monitor));
     qemu_mutex_init(&mon->mon_lock);
     qemu_mutex_init(&mon->qmp.qmp_queue_lock);
@@ -1173,6 +1168,10 @@ static void qmp_unregister_commands_hack(void)
 #if !defined(TARGET_PPC) && !defined(TARGET_ARM) && !defined(TARGET_I386) \
     && !defined(TARGET_S390X)
     qmp_unregister_command(&qmp_commands, "query-cpu-definitions");
+#endif
+#ifndef CONFIG_VIRTFS
+    qmp_unregister_command(&qmp_commands, "fsdev-set-io-throttle");
+    qmp_unregister_command(&qmp_commands, "query-fsdev-io-throttle");
 #endif
 }
 
@@ -4297,7 +4296,7 @@ int monitor_suspend(Monitor *mon)
 
     atomic_inc(&mon->suspend_cnt);
 
-    if (monitor_is_qmp(mon) && mon->use_io_thread) {
+    if (monitor_is_qmp(mon)) {
         /*
          * Kick I/O thread to make sure this takes effect.  It'll be
          * evaluated again in prepare() of the watch object.
@@ -4466,15 +4465,6 @@ static AioContext *monitor_get_aio_context(void)
 static void monitor_iothread_init(void)
 {
     mon_iothread = iothread_create("mon_iothread", &error_abort);
-}
-
-void monitor_init_globals(void)
-{
-    monitor_init_qmp_commands();
-    monitor_qapi_event_init();
-    sortcmdlist();
-    qemu_mutex_init(&monitor_lock);
-    qemu_mutex_init(&mon_fdsets_lock);
 
     /*
      * The dispatcher BH must run in the main loop thread, since we
@@ -4484,6 +4474,16 @@ void monitor_init_globals(void)
     qmp_dispatcher_bh = aio_bh_new(iohandler_get_aio_context(),
                                    monitor_qmp_bh_dispatcher,
                                    NULL);
+}
+
+void monitor_init_globals(void)
+{
+    monitor_init_qmp_commands();
+    monitor_qapi_event_init();
+    sortcmdlist();
+    qemu_mutex_init(&monitor_lock);
+    qemu_mutex_init(&mon_fdsets_lock);
+    monitor_iothread_init();
 }
 
 /* These functions just adapt the readline interface in a typesafe way.  We
@@ -4628,9 +4628,7 @@ void monitor_cleanup(void)
      * we need to unregister from chardev below in
      * monitor_data_destroy(), and chardev is not thread-safe yet
      */
-    if (mon_iothread) {
-        iothread_stop(mon_iothread);
-    }
+    iothread_stop(mon_iothread);
 
     /* Flush output buffers and destroy monitors */
     qemu_mutex_lock(&monitor_lock);
@@ -4645,10 +4643,9 @@ void monitor_cleanup(void)
     /* QEMUBHs needs to be deleted before destroying the I/O thread */
     qemu_bh_delete(qmp_dispatcher_bh);
     qmp_dispatcher_bh = NULL;
-    if (mon_iothread) {
-        iothread_destroy(mon_iothread);
-        mon_iothread = NULL;
-    }
+
+    iothread_destroy(mon_iothread);
+    mon_iothread = NULL;
 }
 
 QemuOptsList qemu_mon_opts = {
