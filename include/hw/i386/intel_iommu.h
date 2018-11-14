@@ -47,9 +47,9 @@
 #define VTD_SID_TO_DEVFN(sid)       ((sid) & 0xff)
 
 #define DMAR_REG_SIZE               0x230
-#define VTD_HOST_AW_39BIT           39
-#define VTD_HOST_AW_48BIT           48
-#define VTD_HOST_ADDRESS_WIDTH      VTD_HOST_AW_39BIT
+#define VTD_AW_39BIT                39
+#define VTD_AW_48BIT                48
+#define VTD_ADDRESS_WIDTH           VTD_AW_39BIT
 #define VTD_HAW_MASK(aw)            ((1ULL << (aw)) - 1)
 
 #define DMAR_REPORT_F_INTR          (1)
@@ -244,7 +244,8 @@ struct IntelIOMMUState {
     bool intr_eime;                 /* Extended interrupt mode enabled */
     OnOffAuto intr_eim;             /* Toggle for EIM cabability */
     bool buggy_eim;                 /* Force buggy EIM unless eim=off */
-    uint8_t aw_bits;                /* Host/IOVA address width (in bits) */
+    uint8_t aw_bits;                /* IOVA address width (in bits) */
+    uint8_t haw_bits;               /* Hardware address width (in bits) */
 
     /*
      * Protects IOMMU states in general.  Currently it protects the
