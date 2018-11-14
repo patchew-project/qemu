@@ -49,6 +49,7 @@
 #define DMAR_REG_SIZE               0x230
 #define VTD_AW_39BIT                39
 #define VTD_AW_48BIT                48
+#define VTD_AW_57BIT                57
 #define VTD_ADDRESS_WIDTH           VTD_AW_39BIT
 #define VTD_HAW_MASK(aw)            ((1ULL << (aw)) - 1)
 
