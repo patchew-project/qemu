@@ -111,4 +111,6 @@
             .help = "when limiting by iops max size of an I/O in bytes",\
         }
 
+void throttle_parse_options(ThrottleConfig *, QemuOpts *);
+
 #endif
