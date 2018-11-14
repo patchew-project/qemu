@@ -5778,6 +5778,14 @@ static Property x86_cpu_properties[] = {
     DEFINE_PROP_INT32("x-hv-max-vps", X86CPU, hv_max_vps, -1),
     DEFINE_PROP_BOOL("x-hv-synic-kvm-only", X86CPU, hyperv_synic_kvm_only,
                      false),
+
+    /*
+     * Custom size for L2 and/or L3 cache. Default (0) means we use the
+     * default value for the CPU.
+     */
+    DEFINE_PROP_SIZE("l2-cache-size", X86CPU, l2_cache_size, 0),
+    DEFINE_PROP_SIZE("l3-cache-size", X86CPU, l3_cache_size, 0),
+
     DEFINE_PROP_END_OF_LIST()
 };
 

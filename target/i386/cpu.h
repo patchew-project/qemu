@@ -1476,6 +1476,9 @@ struct X86CPU {
     int32_t core_id;
     int32_t thread_id;
 
+    uint64_t l2_cache_size;
+    uint64_t l3_cache_size;
+
     int32_t hv_max_vps;
 };
 

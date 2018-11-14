@@ -308,6 +308,14 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
         .driver   = "Skylake-Server-IBRS" "-" TYPE_X86_CPU,\
         .property = "pku",\
         .value    = "off",\
+    },{\
+        .driver   = TYPE_X86_CPU,\
+        .property = "l3-cache-size",\
+        .value    = "off",\
+    },{\
+        .driver   = TYPE_X86_CPU,\
+        .property = "l2-cache-size",\
+        .value    = "off",\
     },
 
 #define PC_COMPAT_2_12 \
