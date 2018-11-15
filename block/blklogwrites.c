@@ -328,6 +328,7 @@ static void blk_log_writes_refresh_limits(BlockDriverState *bs, Error **errp)
 {
     BDRVBlkLogWritesState *s = bs->opaque;
     bs->bl.request_alignment = s->sectorsize;
+    bs->bl.max_transfer = INT64_MAX;
 }
 
 static int coroutine_fn
