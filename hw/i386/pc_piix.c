@@ -443,6 +443,7 @@ static void pc_i440fx_2_12_machine_options(MachineClass *m)
     pc_i440fx_3_0_machine_options(m);
     m->is_default = 0;
     m->alias = NULL;
+    m->smbus_no_migration_support = true;
     SET_MACHINE_COMPAT(m, PC_COMPAT_2_12);
 }
 
