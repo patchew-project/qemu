@@ -415,9 +415,7 @@ static int blkdebug_open(BlockDriverState *bs, QDict *options, int flags,
     align = MAX(s->align, bs->file->bs->bl.request_alignment);
 
     s->max_transfer = qemu_opt_get_size(opts, "max-transfer", 0);
-    if (s->max_transfer &&
-        (s->max_transfer >= INT_MAX ||
-         !QEMU_IS_ALIGNED(s->max_transfer, align))) {
+    if (s->max_transfer && !QEMU_IS_ALIGNED(s->max_transfer, align)) {
         error_setg(errp, "Cannot meet constraints with max-transfer %" PRIu64,
                    s->max_transfer);
         goto out;
@@ -477,6 +475,7 @@ static int rule_check(BlockDriverState *bs, uint64_t offset, uint64_t bytes)
     int error;
     bool immediately;
 
+    assert(offset <= INT64_MAX - bytes);
     QSIMPLEQ_FOREACH(rule, &s->active_rules, active_next) {
         uint64_t inject_offset = rule->options.inject.offset;
 
@@ -517,9 +516,7 @@ blkdebug_co_preadv(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
     /* Sanity check block layer guarantees */
     assert(QEMU_IS_ALIGNED(offset, bs->bl.request_alignment));
     assert(QEMU_IS_ALIGNED(bytes, bs->bl.request_alignment));
-    if (bs->bl.max_transfer) {
-        assert(bytes <= bs->bl.max_transfer);
-    }
+    assert(bytes <= bs->bl.max_transfer);
 
     err = rule_check(bs, offset, bytes);
     if (err) {
@@ -538,9 +535,7 @@ blkdebug_co_pwritev(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
     /* Sanity check block layer guarantees */
     assert(QEMU_IS_ALIGNED(offset, bs->bl.request_alignment));
     assert(QEMU_IS_ALIGNED(bytes, bs->bl.request_alignment));
-    if (bs->bl.max_transfer) {
-        assert(bytes <= bs->bl.max_transfer);
-    }
+    assert(bytes <= bs->bl.max_transfer);
 
     err = rule_check(bs, offset, bytes);
     if (err) {
@@ -865,9 +860,7 @@ static void blkdebug_refresh_limits(BlockDriverState *bs, Error **errp)
     if (s->align) {
         bs->bl.request_alignment = s->align;
     }
-    if (s->max_transfer) {
-        bs->bl.max_transfer = s->max_transfer;
-    }
+    bs->bl.max_transfer = s->max_transfer ?: INT64_MAX;
     if (s->opt_write_zero) {
         bs->bl.pwrite_zeroes_alignment = s->opt_write_zero;
     }
