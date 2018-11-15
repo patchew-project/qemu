@@ -1073,6 +1073,9 @@ static void raw_refresh_limits(BlockDriverState *bs, Error **errp)
     raw_probe_alignment(bs, s->fd, errp);
     bs->bl.min_mem_alignment = s->buf_align;
     bs->bl.opt_mem_alignment = MAX(s->buf_align, getpagesize());
+    if (!bs->bl.max_transfer) {
+        bs->bl.max_transfer = SIZE_MAX;
+    }
 }
 
 static int check_for_dasd(int fd)
