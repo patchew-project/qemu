@@ -833,7 +833,7 @@ ETEXI
 
     {
         .name       = "memsave",
-        .args_type  = "val:l,size:l,filename:s",
+        .args_type  = "val:l,size:l,filename:F",
         .params     = "addr size file",
         .help       = "save to disk virtual memory dump starting at 'addr' of size 'size'",
         .cmd        = hmp_memsave,
@@ -847,7 +847,7 @@ ETEXI
 
     {
         .name       = "pmemsave",
-        .args_type  = "val:l,size:l,filename:s",
+        .args_type  = "val:l,size:l,filename:F",
         .params     = "addr size file",
         .help       = "save to disk physical memory dump starting at 'addr' of size 'size'",
         .cmd        = hmp_pmemsave,
