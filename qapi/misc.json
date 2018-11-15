@@ -1187,6 +1187,26 @@
   'data': {'val': 'int', 'size': 'int', 'filename': 'str'} }
 
 ##
+# @pmemload:
+#
+# Load a portion of guest physical memory from a file.
+#
+# @val: the physical address of the guest to start from
+#
+# @filename: the file to load the memory from as binary data
+#
+# @size: the size of memory region to load (defaults to whole file)
+#
+# @offset: the offset in the file to start from (defaults to 0)
+#
+# Returns: Nothing on success
+#
+# Since: 4.0
+##
+{ 'command': 'pmemload',
+  'data': {'val': 'int', 'filename': 'str', '*size': 'int', '*offset': 'int'} }
+
+##
 # @cont:
 #
 # Resume guest VCPU execution.
