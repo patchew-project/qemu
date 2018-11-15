@@ -19,6 +19,18 @@
 
 /* migration/ram.c */
 
+typedef enum PrecopyNotifyReason {
+    PRECOPY_NOTIFY_ERR = 0,
+    PRECOPY_NOTIFY_START_ITERATION = 1,
+    PRECOPY_NOTIFY_BEFORE_SYNC_BITMAP = 2,
+    PRECOPY_NOTIFY_AFTER_SYNC_BITMAP = 3,
+    PRECOPY_NOTIFY_MAX = 4,
+} PrecopyNotifyReason;
+
+void precopy_infrastructure_init(void);
+void precopy_add_notifier(Notifier *n);
+void precopy_remove_notifier(Notifier *n);
+
 void ram_mig_init(void);
 void qemu_guest_free_page_hint(void *addr, size_t len);
 

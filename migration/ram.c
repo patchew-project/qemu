@@ -292,6 +292,8 @@ struct RAMState {
     bool ram_bulk_stage;
     /* How many times we have dirty too many pages */
     int dirty_rate_high_cnt;
+    /* ram save states used for notifiers */
+    int ram_save_state;
     /* these variables are used for bitmap sync */
     /* last time we did a full bitmap_sync */
     int64_t time_last_bitmap_sync;
@@ -327,6 +329,28 @@ struct RAMState {
 typedef struct RAMState RAMState;
 
 static RAMState *ram_state;
+
+static NotifierList precopy_notifier_list;
+
+void precopy_infrastructure_init(void)
+{
+    notifier_list_init(&precopy_notifier_list);
+}
+
+void precopy_add_notifier(Notifier *n)
+{
+    notifier_list_add(&precopy_notifier_list, n);
+}
+
+void precopy_remove_notifier(Notifier *n)
+{
+    notifier_remove(n);
+}
+
+static void precopy_notify(PrecopyNotifyReason reason)
+{
+    notifier_list_notify(&precopy_notifier_list, &reason);
+}
 
 uint64_t ram_bytes_remaining(void)
 {
@@ -1642,6 +1666,8 @@ static void migration_bitmap_sync(RAMState *rs)
     int64_t end_time;
     uint64_t bytes_xfer_now;
 
+    precopy_notify(PRECOPY_NOTIFY_BEFORE_SYNC_BITMAP);
+
     ram_counters.dirty_sync_count++;
 
     if (!rs->time_last_bitmap_sync) {
@@ -1699,6 +1725,8 @@ static void migration_bitmap_sync(RAMState *rs)
     if (migrate_use_events()) {
         qapi_event_send_migration_pass(ram_counters.dirty_sync_count);
     }
+
+    precopy_notify(PRECOPY_NOTIFY_AFTER_SYNC_BITMAP);
 }
 
 /**
@@ -2555,6 +2583,8 @@ static void ram_state_reset(RAMState *rs)
     rs->last_page = 0;
     rs->last_version = ram_list.version;
     rs->ram_bulk_stage = true;
+
+    precopy_notify(PRECOPY_NOTIFY_START_ITERATION);
 }
 
 #define MAX_WAIT 50 /* ms, half buffered_file limit */
@@ -3324,6 +3354,7 @@ out:
 
     ret = qemu_file_get_error(f);
     if (ret < 0) {
+        precopy_notify(PRECOPY_NOTIFY_ERR);
         return ret;
     }
 
