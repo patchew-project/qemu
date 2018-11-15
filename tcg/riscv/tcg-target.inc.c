@@ -422,6 +422,68 @@ static void patch_reloc(tcg_insn_unit *code_ptr, int type,
     }
 }
 
+/*
+ * TCG intrinsics
+ */
+
+static void tcg_out_mov(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg)
+{
+    if (ret == arg) {
+        return;
+    }
+    switch (type) {
+    case TCG_TYPE_I32:
+    case TCG_TYPE_I64:
+        tcg_out_opc_imm(s, OPC_ADDI, ret, arg, 0);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void tcg_out_movi(TCGContext *s, TCGType type, TCGReg rd,
+                         tcg_target_long val)
+{
+    tcg_target_long lo = sextract32(val, 0, 12);
+    tcg_target_long hi = val - lo;
+
+    RISCVInsn add32_op = TCG_TARGET_REG_BITS == 64 ? OPC_ADDIW : OPC_ADDI;
+
+#if TCG_TARGET_REG_BITS == 64
+    ptrdiff_t offset = tcg_pcrel_diff(s, (void *)val);
+#endif
+
+    if (val == lo) {
+        tcg_out_opc_imm(s, OPC_ADDI, rd, TCG_REG_ZERO, val);
+    } else if (val && !(val & (val - 1))) {
+        /* power of 2 */
+        tcg_out_opc_imm(s, OPC_ADDI, rd, TCG_REG_ZERO, 1);
+        tcg_out_opc_imm(s, OPC_SLLI, rd, rd, ctz64(val));
+    } else if (TCG_TARGET_REG_BITS == 64 &&
+               !(val >> 31 == 0 || val >> 31 == -1)) {
+        int shift = 12 + ctz64(hi >> 12);
+        hi >>= shift;
+        tcg_out_movi(s, type, rd, hi);
+        tcg_out_opc_imm(s, OPC_SLLI, rd, rd, shift);
+        if (lo != 0) {
+            tcg_out_opc_imm(s, OPC_ADDI, rd, rd, lo);
+        }
+#if TCG_TARGET_REG_BITS == 64
+    } else if (offset == sextract32(offset, 1, 31) << 1) {
+        tcg_out_opc_upper(s, OPC_AUIPC, rd, 0);
+        tcg_out_opc_imm(s, OPC_ADDI, rd, rd, 0);
+        reloc_call(s->code_ptr - 2, (tcg_insn_unit *)val);
+#endif
+    } else {
+        if (hi != 0) {
+            tcg_out_opc_upper(s, OPC_LUI, rd, hi);
+        }
+        if (lo != 0) {
+            tcg_out_opc_imm(s, add32_op, rd, hi == 0 ? TCG_REG_ZERO : rd, lo);
+        }
+    }
+}
+
 void tb_target_set_jmp_target(uintptr_t tc_ptr, uintptr_t jmp_addr,
                               uintptr_t addr)
 {
