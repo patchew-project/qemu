@@ -38,19 +38,41 @@
 typedef struct SMBusDeviceClass
 {
     I2CSlaveClass parent_class;
+
+    /*
+     * An operation with no data, special in SMBus.
+     * This may be NULL, quick commands are ignore in that case.
+     */
     void (*quick_cmd)(SMBusDevice *dev, uint8_t read);
-    void (*send_byte)(SMBusDevice *dev, uint8_t val);
+
+    /*
+     * We can't distinguish between a word write and a block write with
+     * length 1, so pass the whole data block including the length byte
+     * (if present).  The device is responsible figuring out what type of
+     * command this is.
+     * This may be NULL if no data is written to the device.  Writes
+     * will be ignore in that case.
+     */
+    int (*write_data)(SMBusDevice *dev, uint8_t *buf, uint8_t len);
+
+    /*
+     * Likewise we can't distinguish between different reads, or even know
+     * the length of the read until the read is complete, so read data a
+     * byte at a time.  The device is responsible for adding the length
+     * byte on block reads.  This call cannot fail, it should return
+     * something, preferably 0xff if nothing is available.
+     * This may be NULL if no data is read from the device.  Reads will
+     * return 0xff in that case.
+     */
     uint8_t (*receive_byte)(SMBusDevice *dev);
-    /* We can't distinguish between a word write and a block write with
-       length 1, so pass the whole data block including the length byte
-       (if present).  The device is responsible figuring out what type of
-       command  this is.  */
-    void (*write_data)(SMBusDevice *dev, uint8_t cmd, uint8_t *buf, int len);
-    /* Likewise we can't distinguish between different reads, or even know
-       the length of the read until the read is complete, so read data a
-       byte at a time.  The device is responsible for adding the length
-       byte on block reads.  */
-    uint8_t (*read_data)(SMBusDevice *dev, uint8_t cmd, int n);
+
+    /*
+     * Called whan an SMBus transaction has completed.  This can be used
+     * so the device knows when an operation completes.  This is not
+     * called after quick commands, those are complete by nature.
+     * This may be NULL if the device doesn't need this.
+     */
+    void (*transaction_complete)(SMBusDevice *dev);
 } SMBusDeviceClass;
 
 struct SMBusDevice {
@@ -61,7 +83,6 @@ struct SMBusDevice {
     int mode;
     int data_len;
     uint8_t data_buf[34]; /* command + len + 32 bytes of data.  */
-    uint8_t command;
 };
 
 #endif

@@ -36,28 +36,12 @@ typedef struct SMBusEEPROMDevice {
     uint8_t offset;
 } SMBusEEPROMDevice;
 
-static void eeprom_quick_cmd(SMBusDevice *dev, uint8_t read)
-{
-#ifdef DEBUG
-    printf("eeprom_quick_cmd: addr=0x%02x read=%d\n", dev->i2c.address, read);
-#endif
-}
-
-static void eeprom_send_byte(SMBusDevice *dev, uint8_t val)
-{
-    SMBusEEPROMDevice *eeprom = (SMBusEEPROMDevice *) dev;
-#ifdef DEBUG
-    printf("eeprom_send_byte: addr=0x%02x val=0x%02x\n",
-           dev->i2c.address, val);
-#endif
-    eeprom->offset = val;
-}
-
 static uint8_t eeprom_receive_byte(SMBusDevice *dev)
 {
     SMBusEEPROMDevice *eeprom = (SMBusEEPROMDevice *) dev;
     uint8_t *data = eeprom->data;
     uint8_t val = data[eeprom->offset++];
+
 #ifdef DEBUG
     printf("eeprom_receive_byte: addr=0x%02x val=0x%02x\n",
            dev->i2c.address, val);
@@ -65,37 +49,26 @@ static uint8_t eeprom_receive_byte(SMBusDevice *dev)
     return val;
 }
 
-static void eeprom_write_data(SMBusDevice *dev, uint8_t cmd, uint8_t *buf, int len)
+static int eeprom_write_data(SMBusDevice *dev, uint8_t *buf, uint8_t len)
 {
     SMBusEEPROMDevice *eeprom = (SMBusEEPROMDevice *) dev;
-    int n;
+    uint8_t *data = eeprom->data;
+
 #ifdef DEBUG
     printf("eeprom_write_byte: addr=0x%02x cmd=0x%02x val=0x%02x\n",
            dev->i2c.address, cmd, buf[0]);
 #endif
-    /* A page write operation is not a valid SMBus command.
-       It is a block write without a length byte.  Fortunately we
-       get the full block anyway.  */
-    /* TODO: Should this set the current location?  */
-    if (cmd + len > 256)
-        n = 256 - cmd;
-    else
-        n = len;
-    memcpy(eeprom->data + cmd, buf, n);
-    len -= n;
-    if (len)
-        memcpy(eeprom->data, buf + n, len);
-}
+    /* len is guaranteed to be > 0 */
+    eeprom->offset = buf[0];
+    buf++;
+    len--;
 
-static uint8_t eeprom_read_data(SMBusDevice *dev, uint8_t cmd, int n)
-{
-    SMBusEEPROMDevice *eeprom = (SMBusEEPROMDevice *) dev;
-    /* If this is the first byte then set the current position.  */
-    if (n == 0)
-        eeprom->offset = cmd;
-    /* As with writes, we implement block reads without the
-       SMBus length byte.  */
-    return eeprom_receive_byte(dev);
+    for (; len > 0; len--) {
+        data[eeprom->offset] = *buf++;
+        eeprom->offset = (eeprom->offset + 1) % 256;
+    }
+
+    return 0;
 }
 
 static void smbus_eeprom_realize(DeviceState *dev, Error **errp)
@@ -116,11 +89,8 @@ static void smbus_eeprom_class_initfn(ObjectClass *klass, void *data)
     SMBusDeviceClass *sc = SMBUS_DEVICE_CLASS(klass);
 
     dc->realize = smbus_eeprom_realize;
-    sc->quick_cmd = eeprom_quick_cmd;
-    sc->send_byte = eeprom_send_byte;
     sc->receive_byte = eeprom_receive_byte;
     sc->write_data = eeprom_write_data;
-    sc->read_data = eeprom_read_data;
     dc->props = smbus_eeprom_properties;
     /* Reason: pointer property "data" */
     dc->user_creatable = false;
