@@ -618,6 +618,7 @@ static void qcow_refresh_limits(BlockDriverState *bs, Error **errp)
      * it's easier to let the block layer handle rounding than to
      * audit this code further. */
     bs->bl.request_alignment = BDRV_SECTOR_SIZE;
+    bs->bl.max_transfer = BDRV_REQUEST_MAX_BYTES;
 }
 
 static coroutine_fn int qcow_co_preadv(BlockDriverState *bs, uint64_t offset,

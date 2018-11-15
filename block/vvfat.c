@@ -1304,6 +1304,7 @@ fail:
 static void vvfat_refresh_limits(BlockDriverState *bs, Error **errp)
 {
     bs->bl.request_alignment = BDRV_SECTOR_SIZE; /* No sub-sector I/O */
+    bs->bl.max_transfer = BDRV_REQUEST_MAX_BYTES;
 }
 
 static inline void vvfat_close_current_file(BDRVVVFATState *s)

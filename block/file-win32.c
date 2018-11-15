@@ -256,6 +256,7 @@ static void raw_probe_alignment(BlockDriverState *bs, Error **errp)
 
     /* XXX Does Windows support AIO on less than 512-byte alignment? */
     bs->bl.request_alignment = 512;
+    bs->bl.max_transfer = BDRV_REQUEST_MAX_BYTES;
 }
 
 static void raw_parse_flags(int flags, bool use_aio, int *access_flags,
@@ -716,6 +717,7 @@ static void hdev_refresh_limits(BlockDriverState *bs, Error **errp)
 {
     /* XXX Does Windows support AIO on less than 512-byte alignment? */
     bs->bl.request_alignment = 512;
+    bs->bl.max_transfer = BDRV_REQUEST_MAX_BYTES;
 }
 
 static int hdev_open(BlockDriverState *bs, QDict *options, int flags,

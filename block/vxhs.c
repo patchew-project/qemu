@@ -221,6 +221,7 @@ static void vxhs_refresh_limits(BlockDriverState *bs, Error **errp)
 {
     /* XXX Does VXHS support AIO on less than 512-byte alignment? */
     bs->bl.request_alignment = 512;
+    bs->bl.max_transfer = BDRV_REQUEST_MAX_BYTES;
 }
 
 static int vxhs_init_and_ref(void)

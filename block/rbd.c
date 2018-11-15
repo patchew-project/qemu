@@ -236,6 +236,7 @@ static void qemu_rbd_refresh_limits(BlockDriverState *bs, Error **errp)
 {
     /* XXX Does RBD support AIO on less than 512-byte alignment? */
     bs->bl.request_alignment = 512;
+    bs->bl.max_transfer = BDRV_REQUEST_MAX_BYTES;
 }
 
 

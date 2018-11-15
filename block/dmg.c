@@ -535,6 +535,7 @@ fail:
 static void dmg_refresh_limits(BlockDriverState *bs, Error **errp)
 {
     bs->bl.request_alignment = BDRV_SECTOR_SIZE; /* No sub-sector I/O */
+    bs->bl.max_transfer = BDRV_REQUEST_MAX_BYTES;
 }
 
 static inline int is_sector_in_chunk(BDRVDMGState* s,
