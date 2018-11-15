@@ -159,6 +159,13 @@ void bdrv_refresh_limits(BlockDriverState *bs, Error **errp)
     if (drv->bdrv_refresh_limits) {
         drv->bdrv_refresh_limits(bs, errp);
     }
+
+    /* Clamp max_transfer to 2G */
+    if (bs->bl.max_transfer > UINT32_MAX) {
+        bs->bl.max_transfer = QEMU_ALIGN_DOWN(BDRV_REQUEST_MAX_BYTES,
+                                              MAX(bs->bl.opt_transfer,
+                                                  bs->bl.request_alignment));
+    }
 }
 
 /**
