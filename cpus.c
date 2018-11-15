@@ -2369,7 +2369,7 @@ CpuInfoFastList *qmp_query_cpus_fast(Error **errp)
 void qmp_memsave(int64_t addr, int64_t size, const char *filename,
                  bool has_cpu, int64_t cpu_index, Error **errp)
 {
-    FILE *f;
+    int fd;
     uint32_t l;
     CPUState *cpu;
     uint8_t buf[1024];
@@ -2386,8 +2386,8 @@ void qmp_memsave(int64_t addr, int64_t size, const char *filename,
         return;
     }
 
-    f = fopen(filename, "wb");
-    if (!f) {
+    fd = qemu_open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, 0600);
+    if (fd < 0) {
         error_setg_file_open(errp, errno, filename);
         return;
     }
@@ -2402,7 +2402,7 @@ void qmp_memsave(int64_t addr, int64_t size, const char *filename,
                              " specified", orig_addr, orig_size);
             goto exit;
         }
-        if (fwrite(buf, 1, l, f) != l) {
+        if (qemu_write_full(fd, buf, l) != l) {
             error_setg(errp, QERR_IO_ERROR);
             goto exit;
         }
@@ -2411,18 +2411,18 @@ void qmp_memsave(int64_t addr, int64_t size, const char *filename,
     }
 
 exit:
-    fclose(f);
+    qemu_close(fd);
 }
 
 void qmp_pmemsave(int64_t addr, int64_t size, const char *filename,
                   Error **errp)
 {
-    FILE *f;
+    int fd;
     uint32_t l;
     uint8_t buf[1024];
 
-    f = fopen(filename, "wb");
-    if (!f) {
+    fd = qemu_open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, 0600);
+    if (fd < 0) {
         error_setg_file_open(errp, errno, filename);
         return;
     }
@@ -2433,7 +2433,7 @@ void qmp_pmemsave(int64_t addr, int64_t size, const char *filename,
             l = size;
         }
         cpu_physical_memory_read(addr, buf, l);
-        if (fwrite(buf, 1, l, f) != l) {
+        if (qemu_write_full(fd, buf, l) != l) {
             error_setg(errp, QERR_IO_ERROR);
             goto exit;
         }
@@ -2442,7 +2442,7 @@ void qmp_pmemsave(int64_t addr, int64_t size, const char *filename,
     }
 
 exit:
-    fclose(f);
+    qemu_close(fd);
 }
 
 void qmp_inject_nmi(Error **errp)
