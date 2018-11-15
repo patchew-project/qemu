@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "hw/hw.h"
 #include "hw/boards.h"
 #include "hw/i2c/i2c.h"
@@ -163,12 +164,20 @@ void smbus_eeprom_init_one(I2CBus *smbus, uint8_t address, uint8_t *eeprom_buf)
     qdev_init_nofail(dev);
 }
 
-void smbus_eeprom_init(I2CBus *smbus, int nb_eeprom,
+void smbus_eeprom_init(I2CBus *smbus, unsigned int nb_eeprom,
                        const uint8_t *eeprom_spd, int eeprom_spd_size)
 {
     int i;
+    uint8_t *eeprom_buf;
+
+    if (nb_eeprom > SMBUS_EEPROM_MAX) {
+        error_report("At most %u EEPROM are supported on a SMBus.",
+                     SMBUS_EEPROM_MAX);
+        exit(1);
+    }
+
      /* XXX: make this persistent */
-    uint8_t *eeprom_buf = g_malloc0(8 * SMBUS_EEPROM_SIZE);
+    eeprom_buf = g_malloc0(nb_eeprom * SMBUS_EEPROM_SIZE);
     if (eeprom_spd_size > 0) {
         memcpy(eeprom_buf, eeprom_spd, eeprom_spd_size);
     }
