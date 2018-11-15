@@ -328,8 +328,6 @@ block_crypto_co_preadv(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
                        QEMUIOVector *qiov, int flags)
 {
     BlockCrypto *crypto = bs->opaque;
-    uint64_t cur_bytes; /* number of bytes in current iteration */
-    uint64_t bytes_done = 0;
     uint8_t *cipher_data = NULL;
     QEMUIOVector hd_qiov;
     int ret = 0;
@@ -346,37 +344,29 @@ block_crypto_co_preadv(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
     /* Bounce buffer because we don't wish to expose cipher text
      * in qiov which points to guest memory.
      */
-    cipher_data =
-        qemu_try_blockalign(bs->file->bs, MIN(BLOCK_CRYPTO_MAX_IO_SIZE,
-                                              qiov->size));
+    assert(qiov->size <= BLOCK_CRYPTO_MAX_IO_SIZE);
+    cipher_data = qemu_try_blockalign(bs->file->bs, qiov->size);
     if (cipher_data == NULL) {
         ret = -ENOMEM;
         goto cleanup;
     }
 
-    while (bytes) {
-        cur_bytes = MIN(bytes, BLOCK_CRYPTO_MAX_IO_SIZE);
+    qemu_iovec_reset(&hd_qiov);
+    qemu_iovec_add(&hd_qiov, cipher_data, bytes);
 
-        qemu_iovec_reset(&hd_qiov);
-        qemu_iovec_add(&hd_qiov, cipher_data, cur_bytes);
-
-        ret = bdrv_co_preadv(bs->file, payload_offset + offset + bytes_done,
-                             cur_bytes, &hd_qiov, 0);
-        if (ret < 0) {
-            goto cleanup;
-        }
-
-        if (qcrypto_block_decrypt(crypto->block, offset + bytes_done,
-                                  cipher_data, cur_bytes, NULL) < 0) {
-            ret = -EIO;
-            goto cleanup;
-        }
-
-        qemu_iovec_from_buf(qiov, bytes_done, cipher_data, cur_bytes);
-
-        bytes -= cur_bytes;
-        bytes_done += cur_bytes;
+    ret = bdrv_co_preadv(bs->file, payload_offset + offset, bytes,
+                         &hd_qiov, 0);
+    if (ret < 0) {
+        goto cleanup;
     }
+
+    if (qcrypto_block_decrypt(crypto->block, offset,
+                              cipher_data, bytes, NULL) < 0) {
+        ret = -EIO;
+        goto cleanup;
+    }
+
+    qemu_iovec_from_buf(qiov, 0, cipher_data, bytes);
 
  cleanup:
     qemu_iovec_destroy(&hd_qiov);
@@ -391,8 +381,6 @@ block_crypto_co_pwritev(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
                         QEMUIOVector *qiov, int flags)
 {
     BlockCrypto *crypto = bs->opaque;
-    uint64_t cur_bytes; /* number of bytes in current iteration */
-    uint64_t bytes_done = 0;
     uint8_t *cipher_data = NULL;
     QEMUIOVector hd_qiov;
     int ret = 0;
@@ -409,36 +397,28 @@ block_crypto_co_pwritev(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
     /* Bounce buffer because we're not permitted to touch
      * contents of qiov - it points to guest memory.
      */
-    cipher_data =
-        qemu_try_blockalign(bs->file->bs, MIN(BLOCK_CRYPTO_MAX_IO_SIZE,
-                                              qiov->size));
+    assert(qiov->size <= BLOCK_CRYPTO_MAX_IO_SIZE);
+    cipher_data = qemu_try_blockalign(bs->file->bs, qiov->size);
     if (cipher_data == NULL) {
         ret = -ENOMEM;
         goto cleanup;
     }
 
-    while (bytes) {
-        cur_bytes = MIN(bytes, BLOCK_CRYPTO_MAX_IO_SIZE);
+    qemu_iovec_to_buf(qiov, 0, cipher_data, bytes);
 
-        qemu_iovec_to_buf(qiov, bytes_done, cipher_data, cur_bytes);
+    if (qcrypto_block_encrypt(crypto->block, offset,
+                              cipher_data, bytes, NULL) < 0) {
+        ret = -EIO;
+        goto cleanup;
+    }
 
-        if (qcrypto_block_encrypt(crypto->block, offset + bytes_done,
-                                  cipher_data, cur_bytes, NULL) < 0) {
-            ret = -EIO;
-            goto cleanup;
-        }
+    qemu_iovec_reset(&hd_qiov);
+    qemu_iovec_add(&hd_qiov, cipher_data, bytes);
 
-        qemu_iovec_reset(&hd_qiov);
-        qemu_iovec_add(&hd_qiov, cipher_data, cur_bytes);
-
-        ret = bdrv_co_pwritev(bs->file, payload_offset + offset + bytes_done,
-                              cur_bytes, &hd_qiov, flags);
-        if (ret < 0) {
-            goto cleanup;
-        }
-
-        bytes -= cur_bytes;
-        bytes_done += cur_bytes;
+    ret = bdrv_co_pwritev(bs->file, payload_offset + offset,
+                          bytes, &hd_qiov, flags);
+    if (ret < 0) {
+        goto cleanup;
     }
 
  cleanup:
@@ -453,7 +433,7 @@ static void block_crypto_refresh_limits(BlockDriverState *bs, Error **errp)
     BlockCrypto *crypto = bs->opaque;
     uint64_t sector_size = qcrypto_block_get_sector_size(crypto->block);
     bs->bl.request_alignment = sector_size; /* No sub-sector I/O */
-    bs->bl.max_transfer = INT64_MAX;
+    bs->bl.max_transfer = BLOCK_CRYPTO_MAX_IO_SIZE;
 }
 
 
