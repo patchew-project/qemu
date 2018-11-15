@@ -860,6 +860,20 @@ save to disk physical memory dump starting at @var{addr} of size @var{size}.
 ETEXI
 
     {
+        .name       = "pmemload",
+        .args_type  = "val:l,size:l,offset:l,filename:F",
+        .params     = "addr size offset file",
+        .help       = "load from disk physical memory dump starting at 'addr' of size 'size' at file offset 'offset'",
+        .cmd        = hmp_pmemload,
+    },
+
+STEXI
+@item pmemload @var{addr} @var{size} @var{offset} @var{file}
+@findex pmemload
+load from disk physical memory dump starting at @var{addr} of size @var{size} at file offset @var{offset}.
+ETEXI
+
+    {
         .name       = "boot_set",
         .args_type  = "bootdevice:s",
         .params     = "bootdevice",
