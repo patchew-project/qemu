@@ -453,6 +453,7 @@ static void block_crypto_refresh_limits(BlockDriverState *bs, Error **errp)
     BlockCrypto *crypto = bs->opaque;
     uint64_t sector_size = qcrypto_block_get_sector_size(crypto->block);
     bs->bl.request_alignment = sector_size; /* No sub-sector I/O */
+    bs->bl.max_transfer = INT64_MAX;
 }
 
 
