@@ -30,6 +30,7 @@ typedef enum PrecopyNotifyReason {
 void precopy_infrastructure_init(void);
 void precopy_add_notifier(Notifier *n);
 void precopy_remove_notifier(Notifier *n);
+void precopy_disable_bulk_stage(void);
 
 void ram_mig_init(void);
 void qemu_guest_free_page_hint(void *addr, size_t len);
