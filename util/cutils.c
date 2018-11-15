@@ -545,6 +545,44 @@ int qemu_strtou64(const char *nptr, const char **endptr, int base,
 }
 
 /**
+ * Convert string @nptr to a double.
+ *
+ * Works like qemu_strtoul(), except it stores +/-HUGE_VAL on
+ * overflow/underflow.
+ */
+int qemu_strtod(const char *nptr, const char **endptr, double *result)
+{
+    char *ep;
+
+    if (!nptr) {
+        if (endptr) {
+            *endptr = nptr;
+        }
+        return -EINVAL;
+    }
+
+    errno = 0;
+    *result = strtod(nptr, &ep);
+    return check_strtox_error(nptr, ep, endptr, errno);
+}
+
+/**
+ * Convert string @nptr to a finite double.
+ *
+ * Works like qemu_strtoul(), except it stores +/-HUGE_VAL on
+ * overflow/underflow. "NaN" or "inf" are rejcted with -EINVAL.
+ */
+int qemu_strtod_finite(const char *nptr, const char **endptr, double *result)
+{
+    int ret = qemu_strtod(nptr, endptr, result);
+
+    if (!ret && !isfinite(*result)) {
+        return -EINVAL;
+    }
+    return ret;
+}
+
+/**
  * Searches for the first occurrence of 'c' in 's', and returns a pointer
  * to the trailing null byte if none was found.
  */
