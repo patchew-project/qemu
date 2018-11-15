@@ -129,6 +129,9 @@ void bdrv_refresh_limits(BlockDriverState *bs, Error **errp)
     /* Default alignment based on whether driver has byte interface */
     bs->bl.request_alignment = (drv->bdrv_co_preadv ||
                                 drv->bdrv_aio_preadv) ? 1 : 512;
+    /* Default cap at 2G for drivers without byte interface */
+    if (bs->bl.request_alignment == 1)
+        bs->bl.max_transfer = BDRV_REQUEST_MAX_BYTES;
 
     /* Take some limits from the children as a default */
     if (bs->file) {
@@ -160,12 +163,11 @@ void bdrv_refresh_limits(BlockDriverState *bs, Error **errp)
         drv->bdrv_refresh_limits(bs, errp);
     }
 
-    /* Clamp max_transfer to 2G */
-    if (bs->bl.max_transfer > UINT32_MAX) {
-        bs->bl.max_transfer = QEMU_ALIGN_DOWN(BDRV_REQUEST_MAX_BYTES,
-                                              MAX(bs->bl.opt_transfer,
-                                                  bs->bl.request_alignment));
-    }
+    /* Check that we got a maximum cap, and round it down as needed */
+    assert(bs->bl.max_transfer);
+    bs->bl.max_transfer = QEMU_ALIGN_DOWN(bs->bl.max_transfer,
+                                          MAX(bs->bl.opt_transfer,
+                                              bs->bl.request_alignment));
 }
 
 /**
@@ -1145,8 +1147,7 @@ static int coroutine_fn bdrv_co_do_copy_on_readv(BdrvChild *child,
     int64_t cluster_bytes;
     size_t skip_bytes;
     int ret;
-    int max_transfer = MIN_NON_ZERO(bs->bl.max_transfer,
-                                    BDRV_REQUEST_MAX_BYTES);
+    int max_transfer = MIN(bs->bl.max_transfer, BDRV_REQUEST_MAX_BYTES);
     unsigned int progress = 0;
 
     if (!drv) {
@@ -1286,8 +1287,7 @@ static int coroutine_fn bdrv_aligned_preadv(BdrvChild *child,
     assert((bytes & (align - 1)) == 0);
     assert(!qiov || bytes == qiov->size);
     assert((bs->open_flags & BDRV_O_NO_IO) == 0);
-    max_transfer = QEMU_ALIGN_DOWN(MIN_NON_ZERO(bs->bl.max_transfer, INT_MAX),
-                                   align);
+    max_transfer = QEMU_ALIGN_DOWN(MIN(bs->bl.max_transfer, INT_MAX), align);
 
     /* TODO: We would need a per-BDS .supported_read_flags and
      * potential fallback support, if we ever implement any read flags
@@ -1460,7 +1460,7 @@ static int coroutine_fn bdrv_co_do_pwrite_zeroes(BlockDriverState *bs,
     int max_write_zeroes = MIN_NON_ZERO(bs->bl.max_pwrite_zeroes, INT_MAX);
     int alignment = MAX(bs->bl.pwrite_zeroes_alignment,
                         bs->bl.request_alignment);
-    int max_transfer = MIN_NON_ZERO(bs->bl.max_transfer, MAX_BOUNCE_BUFFER);
+    int max_transfer = MIN(bs->bl.max_transfer, MAX_BOUNCE_BUFFER);
 
     if (!drv) {
         return -ENOMEDIUM;
@@ -1668,8 +1668,7 @@ static int coroutine_fn bdrv_aligned_pwritev(BdrvChild *child,
     assert((offset & (align - 1)) == 0);
     assert((bytes & (align - 1)) == 0);
     assert(!qiov || bytes == qiov->size);
-    max_transfer = QEMU_ALIGN_DOWN(MIN_NON_ZERO(bs->bl.max_transfer, INT_MAX),
-                                   align);
+    max_transfer = QEMU_ALIGN_DOWN(MIN(bs->bl.max_transfer, INT_MAX), align);
 
     ret = bdrv_co_write_req_prepare(child, offset, bytes, req, flags);
 

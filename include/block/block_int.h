@@ -548,11 +548,11 @@ typedef struct BlockLimits {
     uint32_t opt_transfer;
 
     /* Maximal transfer length in bytes.  Need not be power of 2, but
-     * must be multiple of opt_transfer and bl.request_alignment, or 0
-     * for no 32-bit limit.  The block layer fragments all actions
-     * below 2G, so setting this value to anything larger than INT_MAX
-     * implies that the driver has been audited for 64-bit
-     * cleanness. */
+     * must be larger than opt_transfer and request_alignment (the
+     * block layer rounds it down as needed).  The block layer
+     * fragments all actions below 2G, so setting this value to
+     * anything larger than INT_MAX implies that the driver has been
+     * audited for 64-bit cleanness. */
     uint64_t max_transfer;
 
     /* memory alignment, in bytes so that no bounce buffer is needed */
