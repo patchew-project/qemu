@@ -38,6 +38,8 @@ struct kbd_layout_t {
     GHashTable *hash;
 };
 
+GList *keyboard_files;
+
 static int get_keysym(const name2keysym_t *table,
                       const char *name)
 {
@@ -80,6 +82,11 @@ static void add_keysym(char *line, int keysym, int keycode, kbd_layout_t *k)
     trace_keymap_add(keysym, keycode, line);
 }
 
+static gint compare_string(gconstpointer a, gconstpointer b)
+{
+    return g_strcmp0(a, b);
+}
+
 static int parse_keyboard_layout(kbd_layout_t *k,
                                  const name2keysym_t *table,
                                  const char *language, Error **errp)
@@ -94,12 +101,18 @@ static int parse_keyboard_layout(kbd_layout_t *k,
     filename = qemu_find_file(QEMU_FILE_TYPE_KEYMAP, language);
     trace_keymap_parse(filename);
     f = filename ? fopen(filename, "r") : NULL;
-    g_free(filename);
     if (!f) {
+        g_free(filename);
         error_setg(errp, "could not read keymap file: '%s'", language);
         return -1;
     }
 
+    if (g_list_find_custom(keyboard_files, filename, compare_string)) {
+        error_setg(errp, "find recursive keyboard layout: %s'", filename);
+        g_free(filename);
+        return -1;
+    }
+    keyboard_files = g_list_append(keyboard_files, filename);
     for(;;) {
         if (fgets(line, 1024, f) == NULL) {
             break;
@@ -168,6 +181,8 @@ static int parse_keyboard_layout(kbd_layout_t *k,
     ret = 0;
 out:
     fclose(f);
+    keyboard_files = g_list_remove(keyboard_files, filename);
+    g_free(filename);
     return ret;
 }
 
