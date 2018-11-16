@@ -443,6 +443,91 @@ static const TypeInfo xive_source_info = {
 };
 
 /*
+ * XIVE Router (aka. Virtualization Controller or IVRE)
+ */
+
+int xive_router_get_eas(XiveRouter *xrtr, uint32_t lisn, XiveEAS *eas)
+{
+    XiveRouterClass *xrc = XIVE_ROUTER_GET_CLASS(xrtr);
+
+    return xrc->get_eas(xrtr, lisn, eas);
+}
+
+int xive_router_set_eas(XiveRouter *xrtr, uint32_t lisn, XiveEAS *eas)
+{
+    XiveRouterClass *xrc = XIVE_ROUTER_GET_CLASS(xrtr);
+
+    return xrc->set_eas(xrtr, lisn, eas);
+}
+
+static void xive_router_notify(XiveFabric *xf, uint32_t lisn)
+{
+    XiveRouter *xrtr = XIVE_ROUTER(xf);
+    XiveEAS eas;
+
+    /* EAS cache lookup */
+    if (xive_router_get_eas(xrtr, lisn, &eas)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: Unknown LISN %x\n", lisn);
+        return;
+    }
+
+    /* The IVRE has a State Bit Cache for its internal sources which
+     * is also involed at this point. We skip the SBC lookup because
+     * the state bits of the sources are modeled internally in QEMU.
+     */
+
+    if (!(eas.w & EAS_VALID)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: invalid LISN %x\n", lisn);
+        return;
+    }
+
+    if (eas.w & EAS_MASKED) {
+        /* Notification completed */
+        return;
+    }
+}
+
+static Property xive_router_properties[] = {
+    DEFINE_PROP_UINT32("chip-id", XiveRouter, chip_id, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void xive_router_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    XiveFabricClass *xfc = XIVE_FABRIC_CLASS(klass);
+
+    dc->desc    = "XIVE Router Engine";
+    dc->props   = xive_router_properties;
+    xfc->notify = xive_router_notify;
+}
+
+static const TypeInfo xive_router_info = {
+    .name          = TYPE_XIVE_ROUTER,
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .abstract      = true,
+    .class_size    = sizeof(XiveRouterClass),
+    .class_init    = xive_router_class_init,
+    .interfaces    = (InterfaceInfo[]) {
+        { TYPE_XIVE_FABRIC },
+        { }
+    }
+};
+
+void xive_eas_pic_print_info(XiveEAS *eas, uint32_t lisn, Monitor *mon)
+{
+    if (!(eas->w & EAS_VALID)) {
+        return;
+    }
+
+    monitor_printf(mon, "  %08x %s end:%02x/%04x data:%08x\n",
+                   lisn, eas->w & EAS_MASKED ? "M" : " ",
+                   (uint8_t)  GETFIELD(EAS_END_BLOCK, eas->w),
+                   (uint32_t) GETFIELD(EAS_END_INDEX, eas->w),
+                   (uint32_t) GETFIELD(EAS_END_DATA, eas->w));
+}
+
+/*
  * XIVE Fabric
  */
 static const TypeInfo xive_fabric_info = {
@@ -455,6 +540,7 @@ static void xive_register_types(void)
 {
     type_register_static(&xive_source_info);
     type_register_static(&xive_fabric_info);
+    type_register_static(&xive_router_info);
 }
 
 type_init(xive_register_types)

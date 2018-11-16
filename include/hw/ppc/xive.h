@@ -11,6 +11,7 @@
 #define PPC_XIVE_H
 
 #include "hw/sysbus.h"
+#include "hw/ppc/xive_regs.h"
 
 /*
  * XIVE Fabric (Interface between Source and Router)
@@ -167,5 +168,36 @@ static inline void xive_source_irq_set(XiveSource *xsrc, uint32_t srcno,
         bitmap_set(xsrc->lsi_map, srcno, 1);
     }
 }
+
+/*
+ * XIVE Router
+ */
+
+typedef struct XiveRouter {
+    SysBusDevice    parent;
+
+    uint32_t        chip_id;
+} XiveRouter;
+
+#define TYPE_XIVE_ROUTER "xive-router"
+#define XIVE_ROUTER(obj)                                \
+    OBJECT_CHECK(XiveRouter, (obj), TYPE_XIVE_ROUTER)
+#define XIVE_ROUTER_CLASS(klass)                                        \
+    OBJECT_CLASS_CHECK(XiveRouterClass, (klass), TYPE_XIVE_ROUTER)
+#define XIVE_ROUTER_GET_CLASS(obj)                              \
+    OBJECT_GET_CLASS(XiveRouterClass, (obj), TYPE_XIVE_ROUTER)
+
+typedef struct XiveRouterClass {
+    SysBusDeviceClass parent;
+
+    /* XIVE table accessors */
+    int (*get_eas)(XiveRouter *xrtr, uint32_t lisn, XiveEAS *eas);
+    int (*set_eas)(XiveRouter *xrtr, uint32_t lisn, XiveEAS *eas);
+} XiveRouterClass;
+
+void xive_eas_pic_print_info(XiveEAS *eas, uint32_t lisn, Monitor *mon);
+
+int xive_router_get_eas(XiveRouter *xrtr, uint32_t lisn, XiveEAS *eas);
+int xive_router_set_eas(XiveRouter *xrtr, uint32_t lisn, XiveEAS *eas);
 
 #endif /* PPC_XIVE_H */
