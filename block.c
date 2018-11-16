@@ -3332,7 +3332,7 @@ int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
             if (!qobject_is_equal(new, old)) {
                 error_setg(errp, "Cannot change the option '%s'", entry->key);
                 ret = -EINVAL;
-                goto error;
+                goto late_error;
             }
         } while ((entry = qdict_next(reopen_state->options, entry)));
     }
@@ -3340,7 +3340,7 @@ int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
     ret = bdrv_check_perm(reopen_state->bs, queue, reopen_state->perm,
                           reopen_state->shared_perm, NULL, errp);
     if (ret < 0) {
-        goto error;
+        goto late_error;
     }
 
     ret = 0;
@@ -3350,6 +3350,19 @@ int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
     reopen_state->options = qobject_ref(orig_reopen_opts);
 
 error:
+    qemu_opts_del(opts);
+    qobject_unref(orig_reopen_opts);
+    g_free(discard);
+    return ret;
+
+late_error:
+    /* drv->bdrv_reopen_prepare() has succeeded, so we need to call
+     * drv->bdrv_reopen_abort() before signaling an error
+     * (bdrv_reopen_multiple() will not call bdrv_reopen_abort() when
+     * the respective bdrv_reopen_prepare() failed) */
+    if (drv->bdrv_reopen_abort) {
+        drv->bdrv_reopen_abort(reopen_state);
+    }
     qemu_opts_del(opts);
     qobject_unref(orig_reopen_opts);
     g_free(discard);
