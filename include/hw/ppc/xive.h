@@ -237,6 +237,7 @@ int xive_router_get_nvt(XiveRouter *xrtr, uint8_t nvt_blk, uint32_t nvt_idx,
                         XiveNVT *nvt);
 int xive_router_set_nvt(XiveRouter *xrtr, uint8_t nvt_blk, uint32_t nvt_idx,
                         XiveNVT *nvt);
+void xive_router_notify(XiveFabric *xf, uint32_t lisn);
 
 /*
  * XIVE END ESBs

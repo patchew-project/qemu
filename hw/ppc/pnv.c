@@ -279,7 +279,10 @@ static void pnv_dt_chip(PnvChip *chip, void *fdt)
         pnv_dt_core(chip, pnv_core, fdt);
 
         /* Interrupt Control Presenters (ICP). One per core. */
-        pnv_dt_icp(chip, fdt, pnv_core->pir, CPU_CORE(pnv_core)->nr_threads);
+        if (!pnv_chip_is_power9(chip)) {
+            pnv_dt_icp(chip, fdt, pnv_core->pir,
+                       CPU_CORE(pnv_core)->nr_threads);
+        }
     }
 
     if (chip->ram_size) {
@@ -693,7 +696,15 @@ static uint32_t pnv_chip_core_pir_p9(PnvChip *chip, uint32_t core_id)
 static Object *pnv_chip_power9_intc_create(PnvChip *chip, Object *child,
                                            Error **errp)
 {
-    return NULL;
+    Pnv9Chip *chip9 = PNV9_CHIP(chip);
+
+    /*
+     * The core creates its interrupt presenter but the XIVE interrupt
+     * controller object is initialized afterwards. Hopefully, it's
+     * only used at runtime.
+     */
+    return xive_tctx_create(child, TYPE_XIVE_TCTX,
+                            XIVE_ROUTER(&chip9->xive), errp);
 }
 
 /* Allowed core identifiers on a POWER8 Processor Chip :
@@ -875,11 +886,19 @@ static void pnv_chip_power8nvl_class_init(ObjectClass *klass, void *data)
 
 static void pnv_chip_power9_instance_init(Object *obj)
 {
+    Pnv9Chip *chip9 = PNV9_CHIP(obj);
+
+    object_initialize(&chip9->xive, sizeof(chip9->xive), TYPE_PNV_XIVE);
+    object_property_add_child(obj, "xive", OBJECT(&chip9->xive), NULL);
+    object_property_add_const_link(OBJECT(&chip9->xive), "chip", obj,
+                                   &error_abort);
 }
 
 static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
 {
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(dev);
+    Pnv9Chip *chip9 = PNV9_CHIP(dev);
+    PnvChip *chip = PNV_CHIP(dev);
     Error *local_err = NULL;
 
     pcc->parent_realize(dev, &local_err);
@@ -887,6 +906,24 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, local_err);
         return;
     }
+
+    object_property_set_int(OBJECT(&chip9->xive), PNV9_XIVE_IC_BASE(chip),
+                            "ic-bar", &error_fatal);
+    object_property_set_int(OBJECT(&chip9->xive), PNV9_XIVE_VC_BASE(chip),
+                            "vc-bar", &error_fatal);
+    object_property_set_int(OBJECT(&chip9->xive), PNV9_XIVE_PC_BASE(chip),
+                            "pc-bar", &error_fatal);
+    object_property_set_int(OBJECT(&chip9->xive), PNV9_XIVE_TM_BASE(chip),
+                            "tm-bar", &error_fatal);
+    object_property_set_bool(OBJECT(&chip9->xive), true, "realized",
+                             &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+    qdev_set_parent_bus(DEVICE(&chip9->xive), sysbus_get_default());
+    pnv_xscom_add_subregion(chip, PNV9_XSCOM_XIVE_BASE,
+                            &chip9->xive.xscom_regs);
 }
 
 static void pnv_chip_power9_class_init(ObjectClass *klass, void *data)
@@ -1087,12 +1124,23 @@ static void pnv_pic_print_info(InterruptStatsProvider *obj,
     CPU_FOREACH(cs) {
         PowerPCCPU *cpu = POWERPC_CPU(cs);
 
-        icp_pic_print_info(ICP(cpu->intc), mon);
+        if (pnv_chip_is_power9(pnv->chips[0])) {
+            xive_tctx_pic_print_info(XIVE_TCTX(cpu->intc), mon);
+        } else {
+            icp_pic_print_info(ICP(cpu->intc), mon);
+        }
     }
 
     for (i = 0; i < pnv->num_chips; i++) {
-        Pnv8Chip *chip8 = PNV8_CHIP(pnv->chips[i]);
-        ics_pic_print_info(&chip8->psi.ics, mon);
+        PnvChip *chip = pnv->chips[i];
+
+        if (pnv_chip_is_power9(pnv->chips[i])) {
+            Pnv9Chip *chip9 = PNV9_CHIP(chip);
+            pnv_xive_pic_print_info(&chip9->xive, mon);
+        } else {
+            Pnv8Chip *chip8 = PNV8_CHIP(chip);
+            ics_pic_print_info(&chip8->psi.ics, mon);
+        }
     }
 }
 

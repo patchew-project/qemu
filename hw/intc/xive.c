@@ -51,6 +51,8 @@ static uint8_t exception_mask(uint8_t ring)
     switch (ring) {
     case TM_QW1_OS:
         return TM_QW1_NSR_EO;
+    case TM_QW3_HV_PHYS:
+        return TM_QW3_NSR_HE;
     default:
         g_assert_not_reached();
     }
@@ -85,7 +87,17 @@ static void xive_tctx_notify(XiveTCTX *tctx, uint8_t ring)
     uint8_t *regs = &tctx->regs[ring];
 
     if (regs[TM_PIPR] < regs[TM_CPPR]) {
-        regs[TM_NSR] |= exception_mask(ring);
+        switch (ring) {
+        case TM_QW1_OS:
+            regs[TM_NSR] |= TM_QW1_NSR_EO;
+            break;
+        case TM_QW3_HV_PHYS:
+            regs[TM_NSR] |= SETFIELD(TM_QW3_NSR_HE, regs[TM_NSR],
+                                     TM_QW3_NSR_HE_PHYS);
+            break;
+        default:
+            g_assert_not_reached();
+        }
         qemu_irq_raise(tctx->output);
     }
 }
@@ -115,6 +127,38 @@ static void xive_tctx_set_cppr(XiveTCTX *tctx, uint8_t ring, uint8_t cppr)
 #define XIVE_TM_HV_PAGE   0x1
 #define XIVE_TM_OS_PAGE   0x2
 #define XIVE_TM_USER_PAGE 0x3
+
+static void xive_tm_set_hv_cppr(XiveTCTX *tctx, hwaddr offset,
+                                uint64_t value, unsigned size)
+{
+    xive_tctx_set_cppr(tctx, TM_QW3_HV_PHYS, value & 0xff);
+}
+
+static uint64_t xive_tm_ack_hv_reg(XiveTCTX *tctx, hwaddr offset, unsigned size)
+{
+    return xive_tctx_accept(tctx, TM_QW3_HV_PHYS);
+}
+
+static uint64_t xive_tm_pull_pool_ctx(XiveTCTX *tctx, hwaddr offset,
+                                      unsigned size)
+{
+    uint64_t ret;
+
+    ret = tctx->regs[TM_QW2_HV_POOL + TM_WORD2] & TM_QW2W2_POOL_CAM;
+    tctx->regs[TM_QW2_HV_POOL + TM_WORD2] &= ~TM_QW2W2_POOL_CAM;
+    return ret;
+}
+
+static void xive_tm_vt_push(XiveTCTX *tctx, hwaddr offset,
+                            uint64_t value, unsigned size)
+{
+    tctx->regs[TM_QW3_HV_PHYS + TM_WORD2] = value & 0xff;
+}
+
+static uint64_t xive_tm_vt_poll(XiveTCTX *tctx, hwaddr offset, unsigned size)
+{
+    return tctx->regs[TM_QW3_HV_PHYS + TM_WORD2] & 0xff;
+}
 
 /*
  * Define an access map for each page of the TIMA that we will use in
@@ -295,10 +339,16 @@ static const XiveTmOp xive_tm_operations[] = {
      * effects
      */
     { XIVE_TM_OS_PAGE, TM_QW1_OS + TM_CPPR,   1, xive_tm_set_os_cppr, NULL },
+    { XIVE_TM_HV_PAGE, TM_QW3_HV_PHYS + TM_CPPR, 1, xive_tm_set_hv_cppr, NULL },
+    { XIVE_TM_HV_PAGE, TM_QW3_HV_PHYS + TM_WORD2, 1, xive_tm_vt_push, NULL },
+    { XIVE_TM_HV_PAGE, TM_QW3_HV_PHYS + TM_WORD2, 1, NULL, xive_tm_vt_poll },
 
     /* MMIOs above 2K : special operations with side effects */
     { XIVE_TM_OS_PAGE, TM_SPC_ACK_OS_REG,     2, NULL, xive_tm_ack_os_reg },
     { XIVE_TM_OS_PAGE, TM_SPC_SET_OS_PENDING, 1, xive_tm_set_os_pending, NULL },
+    { XIVE_TM_HV_PAGE, TM_SPC_ACK_HV_REG,     2, NULL, xive_tm_ack_hv_reg },
+    { XIVE_TM_HV_PAGE, TM_SPC_PULL_POOL_CTX,  4, NULL, xive_tm_pull_pool_ctx },
+    { XIVE_TM_HV_PAGE, TM_SPC_PULL_POOL_CTX,  8, NULL, xive_tm_pull_pool_ctx },
 };
 
 static const XiveTmOp *xive_tm_find_op(hwaddr offset, unsigned size, bool write)
@@ -327,7 +377,8 @@ static const XiveTmOp *xive_tm_find_op(hwaddr offset, unsigned size, bool write)
 static void xive_tm_write(void *opaque, hwaddr offset,
                           uint64_t value, unsigned size)
 {
-    PowerPCCPU *cpu = POWERPC_CPU(current_cpu);
+    PowerPCCPU **cpuptr = opaque;
+    PowerPCCPU *cpu = *cpuptr ? *cpuptr : POWERPC_CPU(current_cpu);
     XiveTCTX *tctx = XIVE_TCTX(cpu->intc);
     const XiveTmOp *xto;
 
@@ -366,7 +417,8 @@ static void xive_tm_write(void *opaque, hwaddr offset,
 
 static uint64_t xive_tm_read(void *opaque, hwaddr offset, unsigned size)
 {
-    PowerPCCPU *cpu = POWERPC_CPU(current_cpu);
+    PowerPCCPU **cpuptr = opaque;
+    PowerPCCPU *cpu = *cpuptr ? *cpuptr : POWERPC_CPU(current_cpu);
     XiveTCTX *tctx = XIVE_TCTX(cpu->intc);
     const XiveTmOp *xto;
 
@@ -501,6 +553,9 @@ static void xive_tctx_base_reset(void *dev)
      */
     tctx->regs[TM_QW1_OS + TM_PIPR] =
         ipb_to_pipr(tctx->regs[TM_QW1_OS + TM_IPB]);
+    tctx->regs[TM_QW3_HV_PHYS + TM_PIPR] =
+        ipb_to_pipr(tctx->regs[TM_QW3_HV_PHYS + TM_IPB]);
+
 
     /*
      * QEMU sPAPR XIVE only. To let the controller model reset the OS
@@ -1513,7 +1568,7 @@ static void xive_router_end_notify(XiveRouter *xrtr, uint8_t end_blk,
     /* TODO: Auto EOI. */
 }
 
-static void xive_router_notify(XiveFabric *xf, uint32_t lisn)
+void xive_router_notify(XiveFabric *xf, uint32_t lisn)
 {
     XiveRouter *xrtr = XIVE_ROUTER(xf);
     XiveEAS eas;
