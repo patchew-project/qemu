@@ -854,6 +854,8 @@ static int hyperv_init_vcpu(X86CPU *cpu)
 }
 
 static Error *invtsc_mig_blocker;
+static Error *vmx_mig_blocker;
+static Error *svm_mig_blocker;
 
 #define KVM_MAX_CPUID_ENTRIES  100
 
@@ -1244,6 +1246,29 @@ int kvm_arch_init_vcpu(CPUState *cs)
     if (c) {
         has_msr_feature_control = !!(c->ecx & CPUID_EXT_VMX) ||
                                   !!(c->ecx & CPUID_EXT_SMX);
+
+    }
+
+    if ((env->features[FEAT_1_ECX] & CPUID_EXT_VMX) && !vmx_mig_blocker) {
+        error_setg(&vmx_mig_blocker,
+                   "Nested VMX virtualization does not support live migration yet");
+        r = migrate_add_blocker(vmx_mig_blocker, &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+            error_free(vmx_mig_blocker);
+            return r;
+        }
+    }
+
+    if ((env->features[FEAT_8000_0001_ECX] & CPUID_EXT3_SVM) && !svm_mig_blocker) {
+        error_setg(&svm_mig_blocker,
+                   "Nested SVM virtualization does not support live migration yet");
+        r = migrate_add_blocker(svm_mig_blocker, &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+            error_free(svm_mig_blocker);
+            return r;
+        }
     }
 
     if (env->mcg_cap & MCG_LMCE_P) {
