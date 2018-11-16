@@ -2752,6 +2752,8 @@ void qmp_block_set_io_throttle(BlockIOThrottle *arg, Error **errp)
         cfg.op_size = arg->iops_size;
     }
 
+    throttle_limits_to_config(qapi_BlockIOThrottle_base(arg), &cfg, errp);
+
     if (!throttle_is_valid(&cfg, errp)) {
         goto out;
     }
