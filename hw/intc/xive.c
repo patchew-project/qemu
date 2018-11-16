@@ -443,6 +443,101 @@ static const TypeInfo xive_source_info = {
 };
 
 /*
+ * XiveEND helpers
+ */
+
+void xive_end_reset(XiveEND *end)
+{
+    memset(end, 0, sizeof(*end));
+
+    /* switch off the escalation and notification ESBs */
+    end->w1 = END_W1_ESe_Q | END_W1_ESn_Q;
+}
+
+static void xive_end_queue_pic_print_info(XiveEND *end, uint32_t width,
+                                          Monitor *mon)
+{
+    uint64_t qaddr_base = (((uint64_t)(end->w2 & 0x0fffffff)) << 32) | end->w3;
+    uint32_t qsize = GETFIELD(END_W0_QSIZE, end->w0);
+    uint32_t qindex = GETFIELD(END_W1_PAGE_OFF, end->w1);
+    uint32_t qentries = 1 << (qsize + 10);
+    int i;
+
+    /*
+     * print out the [ (qindex - (width - 1)) .. (qindex + 1)] window
+     */
+    monitor_printf(mon, " [ ");
+    qindex = (qindex - (width - 1)) & (qentries - 1);
+    for (i = 0; i < width; i++) {
+        uint64_t qaddr = qaddr_base + (qindex << 2);
+        uint32_t qdata = -1;
+
+        if (dma_memory_read(&address_space_memory, qaddr, &qdata,
+                            sizeof(qdata))) {
+            qemu_log_mask(LOG_GUEST_ERROR, "XIVE: failed to read EQ @0x%"
+                          HWADDR_PRIx "\n", qaddr);
+            return;
+        }
+        monitor_printf(mon, "%s%08x ", i == width - 1 ? "^" : "",
+                       be32_to_cpu(qdata));
+        qindex = (qindex + 1) & (qentries - 1);
+    }
+    monitor_printf(mon, "]\n");
+}
+
+void xive_end_pic_print_info(XiveEND *end, uint32_t end_idx, Monitor *mon)
+{
+    uint64_t qaddr_base = (((uint64_t)(end->w2 & 0x0fffffff)) << 32) | end->w3;
+    uint32_t qindex = GETFIELD(END_W1_PAGE_OFF, end->w1);
+    uint32_t qgen = GETFIELD(END_W1_GENERATION, end->w1);
+    uint32_t qsize = GETFIELD(END_W0_QSIZE, end->w0);
+    uint32_t qentries = 1 << (qsize + 10);
+
+    uint32_t nvt = GETFIELD(END_W6_NVT_INDEX, end->w6);
+    uint8_t priority = GETFIELD(END_W7_F0_PRIORITY, end->w7);
+
+    if (!(end->w0 & END_W0_VALID)) {
+        return;
+    }
+
+    monitor_printf(mon, "  %08x %c%c%c%c%c prio:%d nvt:%04x eq:@%08"PRIx64
+                   "% 6d/%5d ^%d", end_idx,
+                   end->w0 & END_W0_VALID ? 'v' : '-',
+                   end->w0 & END_W0_ENQUEUE ? 'q' : '-',
+                   end->w0 & END_W0_UCOND_NOTIFY ? 'n' : '-',
+                   end->w0 & END_W0_BACKLOG ? 'b' : '-',
+                   end->w0 & END_W0_ESCALATE_CTL ? 'e' : '-',
+                   priority, nvt, qaddr_base, qindex, qentries, qgen);
+
+    xive_end_queue_pic_print_info(end, 6, mon);
+}
+
+static void xive_end_push(XiveEND *end, uint32_t data)
+{
+    uint64_t qaddr_base = (((uint64_t)(end->w2 & 0x0fffffff)) << 32) | end->w3;
+    uint32_t qsize = GETFIELD(END_W0_QSIZE, end->w0);
+    uint32_t qindex = GETFIELD(END_W1_PAGE_OFF, end->w1);
+    uint32_t qgen = GETFIELD(END_W1_GENERATION, end->w1);
+
+    uint64_t qaddr = qaddr_base + (qindex << 2);
+    uint32_t qdata = cpu_to_be32((qgen << 31) | (data & 0x7fffffff));
+    uint32_t qentries = 1 << (qsize + 10);
+
+    if (dma_memory_write(&address_space_memory, qaddr, &qdata, sizeof(qdata))) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: failed to write END data @0x%"
+                      HWADDR_PRIx "\n", qaddr);
+        return;
+    }
+
+    qindex = (qindex + 1) & (qentries - 1);
+    if (qindex == 0) {
+        qgen ^= 1;
+        end->w1 = SETFIELD(END_W1_GENERATION, end->w1, qgen);
+    }
+    end->w1 = SETFIELD(END_W1_PAGE_OFF, end->w1, qindex);
+}
+
+/*
  * XIVE Router (aka. Virtualization Controller or IVRE)
  */
 
@@ -460,6 +555,82 @@ int xive_router_set_eas(XiveRouter *xrtr, uint32_t lisn, XiveEAS *eas)
     return xrc->set_eas(xrtr, lisn, eas);
 }
 
+int xive_router_get_end(XiveRouter *xrtr, uint8_t end_blk, uint32_t end_idx,
+                        XiveEND *end)
+{
+   XiveRouterClass *xrc = XIVE_ROUTER_GET_CLASS(xrtr);
+
+   return xrc->get_end(xrtr, end_blk, end_idx, end);
+}
+
+int xive_router_set_end(XiveRouter *xrtr, uint8_t end_blk, uint32_t end_idx,
+                        XiveEND *end)
+{
+   XiveRouterClass *xrc = XIVE_ROUTER_GET_CLASS(xrtr);
+
+   return xrc->set_end(xrtr, end_blk, end_idx, end);
+}
+
+/*
+ * An END trigger can come from an event trigger (IPI or HW) or from
+ * another chip. We don't model the PowerBus but the END trigger
+ * message has the same parameters than in the function below.
+ */
+static void xive_router_end_notify(XiveRouter *xrtr, uint8_t end_blk,
+                                   uint32_t end_idx, uint32_t end_data)
+{
+    XiveEND end;
+    uint8_t priority;
+    uint8_t format;
+
+    /* END cache lookup */
+    if (xive_router_get_end(xrtr, end_blk, end_idx, &end)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: No END %x/%x\n", end_blk,
+                      end_idx);
+        return;
+    }
+
+    if (!(end.w0 & END_W0_VALID)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: END %x/%x is invalid\n",
+                      end_blk, end_idx);
+        return;
+    }
+
+    if (end.w0 & END_W0_ENQUEUE) {
+        xive_end_push(&end, end_data);
+        xive_router_set_end(xrtr, end_blk, end_idx, &end);
+    }
+
+    /*
+     * The W7 format depends on the F bit in W6. It defines the type
+     * of the notification :
+     *
+     *   F=0 : single or multiple NVT notification
+     *   F=1 : User level Event-Based Branch (EBB) notification, no
+     *         priority
+     */
+    format = GETFIELD(END_W6_FORMAT_BIT, end.w6);
+    priority = GETFIELD(END_W7_F0_PRIORITY, end.w7);
+
+    /* The END is masked */
+    if (format == 0 && priority == 0xff) {
+        return;
+    }
+
+    /*
+     * Check the END ESn (Event State Buffer for notification) for
+     * even futher coalescing in the Router
+     */
+    if (!(end.w0 & END_W0_UCOND_NOTIFY)) {
+        qemu_log_mask(LOG_UNIMP, "XIVE: !UCOND_NOTIFY not implemented\n");
+        return;
+    }
+
+    /*
+     * Follows IVPE notification
+     */
+}
+
 static void xive_router_notify(XiveFabric *xf, uint32_t lisn)
 {
     XiveRouter *xrtr = XIVE_ROUTER(xf);
@@ -471,9 +642,9 @@ static void xive_router_notify(XiveFabric *xf, uint32_t lisn)
         return;
     }
 
-    /* The IVRE has a State Bit Cache for its internal sources which
-     * is also involed at this point. We skip the SBC lookup because
-     * the state bits of the sources are modeled internally in QEMU.
+    /* The IVRE checks the State Bit Cache at this point. We skip the
+     * SBC lookup because the state bits of the sources are modeled
+     * internally in QEMU.
      */
 
     if (!(eas.w & EAS_VALID)) {
@@ -485,6 +656,14 @@ static void xive_router_notify(XiveFabric *xf, uint32_t lisn)
         /* Notification completed */
         return;
     }
+
+    /*
+     * The event trigger becomes an END trigger
+     */
+    xive_router_end_notify(xrtr,
+                           GETFIELD(EAS_END_BLOCK, eas.w),
+                           GETFIELD(EAS_END_INDEX, eas.w),
+                           GETFIELD(EAS_END_DATA,  eas.w));
 }
 
 static Property xive_router_properties[] = {

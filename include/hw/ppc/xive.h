@@ -193,11 +193,29 @@ typedef struct XiveRouterClass {
     /* XIVE table accessors */
     int (*get_eas)(XiveRouter *xrtr, uint32_t lisn, XiveEAS *eas);
     int (*set_eas)(XiveRouter *xrtr, uint32_t lisn, XiveEAS *eas);
+    int (*get_end)(XiveRouter *xrtr, uint8_t end_blk, uint32_t end_idx,
+                   XiveEND *end);
+    int (*set_end)(XiveRouter *xrtr, uint8_t end_blk, uint32_t end_idx,
+                   XiveEND *end);
 } XiveRouterClass;
 
 void xive_eas_pic_print_info(XiveEAS *eas, uint32_t lisn, Monitor *mon);
 
 int xive_router_get_eas(XiveRouter *xrtr, uint32_t lisn, XiveEAS *eas);
 int xive_router_set_eas(XiveRouter *xrtr, uint32_t lisn, XiveEAS *eas);
+int xive_router_get_end(XiveRouter *xrtr, uint8_t end_blk, uint32_t end_idx,
+                        XiveEND *end);
+int xive_router_set_end(XiveRouter *xrtr, uint8_t end_blk, uint32_t end_idx,
+                        XiveEND *end);
+
+/*
+ * For legacy compatibility, the exceptions define up to 256 different
+ * priorities. P9 implements only 9 levels : 8 active levels [0 - 7]
+ * and the least favored level 0xFF.
+ */
+#define XIVE_PRIORITY_MAX  7
+
+void xive_end_reset(XiveEND *end);
+void xive_end_pic_print_info(XiveEND *end, uint32_t end_idx, Monitor *mon);
 
 #endif /* PPC_XIVE_H */
