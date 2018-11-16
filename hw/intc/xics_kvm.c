@@ -131,7 +131,8 @@ static void icp_kvm_init(ICPState *icp, Error **errp)
     int ret;
 
     if (kernel_xics_fd == -1) {
-        abort();
+        error_setg(errp, "KVM XICS device is not initialized");
+        return;
     }
 
     cs = icp->cs;
