@@ -90,6 +90,7 @@
 { 'include': 'tpm.json' }
 { 'include': 'ui.json' }
 { 'include': 'migration.json' }
+{ 'include': 'tlimits.json' }
 { 'include': 'transaction.json' }
 { 'include': 'trace.json' }
 { 'include': 'introspect.json' }

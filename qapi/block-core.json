@@ -8,6 +8,7 @@
 { 'include': 'crypto.json' }
 { 'include': 'job.json' }
 { 'include': 'sockets.json' }
+{ 'include': 'tlimits.json' }
 
 ##
 # @SnapshotInfo:
@@ -2162,54 +2163,6 @@
 { 'struct': 'BlockIOThrottle',
   'base': 'ThrottleLimits',
   'data': { '*device': 'str', '*id': 'str', '*group': 'str' } }
-
-##
-# @ThrottleLimits:
-#
-# Limit parameters for throttling.
-# Since some limit combinations are illegal, limits should always be set in one
-# transaction. All fields are optional. When setting limits, if a field is
-# missing the current value is not changed.
-#
-# @iops:             limit total I/O operations per second
-# @iops_max:         I/O operations burst
-# @iops_max_length:  length of the iops_total_max burst period, in seconds
-#                          It must only be set if @iops_total_max is set as well.
-# @iops_rd:              limit read operations per second
-# @iops_rd_max:          I/O operations read burst
-# @iops_rd_max_length:   length of the iops_read_max burst period, in seconds
-#                          It must only be set if @iops_read_max is set as well.
-# @iops_wr:             limit write operations per second
-# @iops_wr_max:         I/O operations write burst
-# @iops_wr_max_length:  length of the iops_write_max burst period, in seconds
-#                          It must only be set if @iops_write_max is set as well.
-# @bps:              limit total bytes per second
-# @bps_max:          total bytes burst
-# @bps_max_length:   length of the bps_total_max burst period, in seconds.
-#                          It must only be set if @bps_total_max is set as well.
-# @bps_rd:               limit read bytes per second
-# @bps_rd_max:           total bytes read burst
-# @bps_rd_max_length:    length of the bps_read_max burst period, in seconds
-#                          It must only be set if @bps_read_max is set as well.
-# @bps_wr:              limit write bytes per second
-# @bps_wr_max:          total bytes write burst
-# @bps_wr_max_length:   length of the bps_write_max burst period, in seconds
-#                          It must only be set if @bps_write_max is set as well.
-# @iops_size:              when limiting by iops max size of an I/O in bytes
-#
-# Since: 2.11
-##
-{ 'struct': 'ThrottleLimits',
-  'data': { '*iops' : 'int', '*iops_max' : 'int',
-            '*iops_max_length' : 'int', '*iops_rd' : 'int',
-            '*iops_rd_max' : 'int', '*iops_rd_max_length' : 'int',
-            '*iops_wr' : 'int', '*iops_wr_max' : 'int',
-            '*iops_wr_max_length' : 'int', '*bps' : 'int',
-            '*bps_max' : 'int', '*bps_max_length' : 'int',
-            '*bps_rd' : 'int', '*bps_rd_max' : 'int',
-            '*bps_rd_max_length' : 'int', '*bps_wr' : 'int',
-            '*bps_wr_max' : 'int', '*bps_wr_max_length' : 'int',
-            '*iops_size' : 'int' } }
 
 ##
 # @block-stream:
