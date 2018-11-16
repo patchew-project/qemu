@@ -13,6 +13,27 @@
 #include "hw/sysbus.h"
 
 /*
+ * XIVE Fabric (Interface between Source and Router)
+ */
+
+typedef struct XiveFabric {
+    Object parent;
+} XiveFabric;
+
+#define TYPE_XIVE_FABRIC "xive-fabric"
+#define XIVE_FABRIC(obj)                                     \
+    OBJECT_CHECK(XiveFabric, (obj), TYPE_XIVE_FABRIC)
+#define XIVE_FABRIC_CLASS(klass)                                     \
+    OBJECT_CLASS_CHECK(XiveFabricClass, (klass), TYPE_XIVE_FABRIC)
+#define XIVE_FABRIC_GET_CLASS(obj)                                   \
+    OBJECT_GET_CLASS(XiveFabricClass, (obj), TYPE_XIVE_FABRIC)
+
+typedef struct XiveFabricClass {
+    InterfaceClass parent;
+    void (*notify)(XiveFabric *xf, uint32_t lisn);
+} XiveFabricClass;
+
+/*
  * XIVE Interrupt Source
  */
 
@@ -42,6 +63,8 @@ typedef struct XiveSource {
     uint64_t        esb_flags;
     uint32_t        esb_shift;
     MemoryRegion    esb_mmio;
+
+    XiveFabric      *xive;
 } XiveSource;
 
 /*

@@ -152,7 +152,11 @@ static bool xive_source_esb_eoi(XiveSource *xsrc, uint32_t srcno)
  */
 static void xive_source_notify(XiveSource *xsrc, int srcno)
 {
+    XiveFabricClass *xfc = XIVE_FABRIC_GET_CLASS(xsrc->xive);
 
+    if (xfc->notify) {
+        xfc->notify(xsrc->xive, srcno);
+    }
 }
 
 /*
@@ -358,6 +362,17 @@ static void xive_source_reset(DeviceState *dev)
 static void xive_source_realize(DeviceState *dev, Error **errp)
 {
     XiveSource *xsrc = XIVE_SOURCE(dev);
+    Object *obj;
+    Error *local_err = NULL;
+
+    obj = object_property_get_link(OBJECT(dev), "xive", &local_err);
+    if (!obj) {
+        error_propagate(errp, local_err);
+        error_prepend(errp, "required link 'xive' not found: ");
+        return;
+    }
+
+    xsrc->xive = XIVE_FABRIC(obj);
 
     if (!xsrc->nr_irqs) {
         error_setg(errp, "Number of interrupt needs to be greater than 0");
@@ -427,9 +442,19 @@ static const TypeInfo xive_source_info = {
     .class_init    = xive_source_class_init,
 };
 
+/*
+ * XIVE Fabric
+ */
+static const TypeInfo xive_fabric_info = {
+    .name = TYPE_XIVE_FABRIC,
+    .parent = TYPE_INTERFACE,
+    .class_size = sizeof(XiveFabricClass),
+};
+
 static void xive_register_types(void)
 {
     type_register_static(&xive_source_info);
+    type_register_static(&xive_fabric_info);
 }
 
 type_init(xive_register_types)
