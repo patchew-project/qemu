@@ -1135,7 +1135,7 @@ static int nbd_negotiate_options(NBDClient *client, uint16_t myflags,
 
             default:
                 ret = nbd_opt_drop(client, NBD_REP_ERR_TLS_REQD, errp,
-                                   "Option 0x%" PRIx32
+                                   "Option 0x%" PRIx32 " "
                                    "not permitted before TLS", option);
                 /* Let the client keep trying, unless they asked to
                  * quit. In this mode, we've already sent an error, so
