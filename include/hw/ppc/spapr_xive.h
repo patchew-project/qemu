@@ -65,5 +65,7 @@ bool spapr_xive_priority_is_valid(uint8_t priority);
 typedef struct sPAPRMachineState sPAPRMachineState;
 
 void spapr_xive_hcall_init(sPAPRMachineState *spapr);
+void spapr_dt_xive(sPAPRXive *xive, int nr_servers, void *fdt,
+                   uint32_t phandle);
 
 #endif /* PPC_SPAPR_XIVE_H */
