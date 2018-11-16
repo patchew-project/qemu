@@ -284,6 +284,8 @@ typedef struct XiveTCTX {
 extern const MemoryRegionOps xive_tm_ops;
 
 void xive_tctx_pic_print_info(XiveTCTX *tctx, Monitor *mon);
+Object *xive_tctx_create(Object *cpu, const char *type, XiveRouter *xrtr,
+                         Error **errp);
 
 static inline uint32_t xive_tctx_cam_line(uint8_t nvt_blk, uint32_t nvt_idx)
 {

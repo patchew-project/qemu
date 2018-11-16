@@ -177,6 +177,7 @@ struct sPAPRMachineState {
     int32_t irq_map_nr;
     unsigned long *irq_map;
     sPAPRXive  *xive;
+    const char *xive_tctx_type;
 
     bool cmd_line_caps[SPAPR_CAP_NUM];
     sPAPRCapabilities def, eff, mig;
