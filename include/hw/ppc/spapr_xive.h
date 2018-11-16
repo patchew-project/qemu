@@ -91,6 +91,7 @@ typedef struct sPAPRMachineState sPAPRMachineState;
 void spapr_xive_hcall_init(sPAPRMachineState *spapr);
 void spapr_dt_xive(sPAPRXive *xive, int nr_servers, void *fdt,
                    uint32_t phandle);
+void spapr_xive_mmio_map(sPAPRXive *xive);
 
 /*
  * XIVE KVM models

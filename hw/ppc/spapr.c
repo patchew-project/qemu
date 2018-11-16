@@ -1628,6 +1628,8 @@ static void spapr_machine_reset(void)
         spapr_irq_msi_reset(spapr);
     }
 
+    spapr_irq_reset(spapr, &error_fatal);
+
     qemu_devices_reset();
 
     /* DRC reset may cause a device to be unplugged. This will cause troubles

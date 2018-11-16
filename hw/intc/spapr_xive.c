@@ -51,7 +51,7 @@ void spapr_xive_pic_print_info(sPAPRXive *xive, Monitor *mon)
 }
 
 /* Map the ESB pages and the TIMA pages */
-static void spapr_xive_mmio_map(sPAPRXive *xive)
+void spapr_xive_mmio_map(sPAPRXive *xive)
 {
     sysbus_mmio_map(SYS_BUS_DEVICE(&xive->source), 0, xive->vc_base);
     sysbus_mmio_map(SYS_BUS_DEVICE(&xive->end_source), 0, xive->end_base);
@@ -77,8 +77,6 @@ static void spapr_xive_base_reset(DeviceState *dev)
     for (i = 0; i < xive->nr_ends; i++) {
         xive_end_reset(&xive->endt[i]);
     }
-
-    spapr_xive_mmio_map(xive);
 }
 
 static void spapr_xive_base_instance_init(Object *obj)
