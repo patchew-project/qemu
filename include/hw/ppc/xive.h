@@ -38,6 +38,10 @@ typedef struct XiveFabricClass {
  * XIVE Interrupt Source
  */
 
+#define TYPE_XIVE_SOURCE_BASE "xive-source-base"
+#define XIVE_SOURCE_BASE(obj) \
+    OBJECT_CHECK(XiveSource, (obj), TYPE_XIVE_SOURCE_BASE)
+
 #define TYPE_XIVE_SOURCE "xive-source"
 #define XIVE_SOURCE(obj) OBJECT_CHECK(XiveSource, (obj), TYPE_XIVE_SOURCE)
 
@@ -67,6 +71,18 @@ typedef struct XiveSource {
 
     XiveFabric      *xive;
 } XiveSource;
+
+#define XIVE_SOURCE_BASE_CLASS(klass) \
+     OBJECT_CLASS_CHECK(XiveSourceClass, (klass), TYPE_XIVE_SOURCE_BASE)
+#define XIVE_SOURCE_BASE_GET_CLASS(obj) \
+     OBJECT_GET_CLASS(XiveSourceClass, (obj), TYPE_XIVE_SOURCE_BASE)
+
+typedef struct XiveSourceClass {
+    SysBusDeviceClass parent_class;
+
+    DeviceRealize     parent_realize;
+    DeviceReset       parent_reset;
+} XiveSourceClass;
 
 /*
  * ESB MMIO setting. Can be one page, for both source triggering and
@@ -253,6 +269,9 @@ void xive_end_pic_print_info(XiveEND *end, uint32_t end_idx, Monitor *mon);
  * XIVE Thread interrupt Management (TM) context
  */
 
+#define TYPE_XIVE_TCTX_BASE "xive-tctx-base"
+#define XIVE_TCTX_BASE(obj) OBJECT_CHECK(XiveTCTX, (obj), TYPE_XIVE_TCTX_BASE)
+
 #define TYPE_XIVE_TCTX "xive-tctx"
 #define XIVE_TCTX(obj) OBJECT_CHECK(XiveTCTX, (obj), TYPE_XIVE_TCTX)
 
@@ -277,6 +296,17 @@ typedef struct XiveTCTX {
 
     XiveRouter  *xrtr;
 } XiveTCTX;
+
+#define XIVE_TCTX_BASE_CLASS(klass) \
+     OBJECT_CLASS_CHECK(XiveTCTXClass, (klass), TYPE_XIVE_TCTX_BASE)
+#define XIVE_TCTX_BASE_GET_CLASS(obj) \
+     OBJECT_GET_CLASS(XiveTCTXClass, (obj), TYPE_XIVE_TCTX_BASE)
+
+typedef struct XiveTCTXClass {
+    DeviceClass       parent_class;
+
+    DeviceRealize     parent_realize;
+} XiveTCTXClass;
 
 /*
  * XIVE Thread Interrupt Management Aera (TIMA)

@@ -243,7 +243,7 @@ static sPAPRXive *spapr_xive_create(sPAPRMachineState *spapr,
         return NULL;
     }
     qdev_set_parent_bus(DEVICE(obj), sysbus_get_default());
-    xive = SPAPR_XIVE(obj);
+    xive = SPAPR_XIVE_BASE(obj);
 
     /* Enable the CPU IPIs */
     for (i = 0; i < nr_servers; ++i) {
@@ -311,7 +311,7 @@ static void spapr_irq_print_info_xive(sPAPRMachineState *spapr,
     CPU_FOREACH(cs) {
         PowerPCCPU *cpu = POWERPC_CPU(cs);
 
-        xive_tctx_pic_print_info(XIVE_TCTX(cpu->intc), mon);
+        xive_tctx_pic_print_info(XIVE_TCTX_BASE(cpu->intc), mon);
     }
 
     spapr_xive_pic_print_info(spapr->xive, mon);

@@ -478,9 +478,9 @@ static uint32_t xive_tctx_hw_cam_line(XiveTCTX *tctx, bool block_group)
     return tctx_hw_cam_line(block_group, (pir >> 8) & 0xf, pir & 0x7f);
 }
 
-static void xive_tctx_reset(void *dev)
+static void xive_tctx_base_reset(void *dev)
 {
-    XiveTCTX *tctx = XIVE_TCTX(dev);
+    XiveTCTX *tctx = XIVE_TCTX_BASE(dev);
     XiveRouterClass *xrc = XIVE_ROUTER_GET_CLASS(tctx->xrtr);
 
     memset(tctx->regs, 0, sizeof(tctx->regs));
@@ -506,9 +506,9 @@ static void xive_tctx_reset(void *dev)
     }
 }
 
-static void xive_tctx_realize(DeviceState *dev, Error **errp)
+static void xive_tctx_base_realize(DeviceState *dev, Error **errp)
 {
-    XiveTCTX *tctx = XIVE_TCTX(dev);
+    XiveTCTX *tctx = XIVE_TCTX_BASE(dev);
     PowerPCCPU *cpu;
     CPUPPCState *env;
     Object *obj;
@@ -544,15 +544,15 @@ static void xive_tctx_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    qemu_register_reset(xive_tctx_reset, dev);
+    qemu_register_reset(xive_tctx_base_reset, dev);
 }
 
-static void xive_tctx_unrealize(DeviceState *dev, Error **errp)
+static void xive_tctx_base_unrealize(DeviceState *dev, Error **errp)
 {
-    qemu_unregister_reset(xive_tctx_reset, dev);
+    qemu_unregister_reset(xive_tctx_base_reset, dev);
 }
 
-static const VMStateDescription vmstate_xive_tctx = {
+static const VMStateDescription vmstate_xive_tctx_base = {
     .name = TYPE_XIVE_TCTX,
     .version_id = 1,
     .minimum_version_id = 1,
@@ -562,21 +562,28 @@ static const VMStateDescription vmstate_xive_tctx = {
     },
 };
 
-static void xive_tctx_class_init(ObjectClass *klass, void *data)
+static void xive_tctx_base_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->realize = xive_tctx_realize;
-    dc->unrealize = xive_tctx_unrealize;
+    dc->realize = xive_tctx_base_realize;
+    dc->unrealize = xive_tctx_base_unrealize;
     dc->desc = "XIVE Interrupt Thread Context";
-    dc->vmsd = &vmstate_xive_tctx;
+    dc->vmsd = &vmstate_xive_tctx_base;
 }
+
+static const TypeInfo xive_tctx_base_info = {
+    .name          = TYPE_XIVE_TCTX_BASE,
+    .parent        = TYPE_DEVICE,
+    .abstract      = true,
+    .instance_size = sizeof(XiveTCTX),
+    .class_init    = xive_tctx_base_class_init,
+    .class_size    = sizeof(XiveTCTXClass),
+};
 
 static const TypeInfo xive_tctx_info = {
     .name          = TYPE_XIVE_TCTX,
-    .parent        = TYPE_DEVICE,
-    .instance_size = sizeof(XiveTCTX),
-    .class_init    = xive_tctx_class_init,
+    .parent        = TYPE_XIVE_TCTX_BASE,
 };
 
 Object *xive_tctx_create(Object *cpu, const char *type, XiveRouter *xrtr,
@@ -933,9 +940,9 @@ void xive_source_pic_print_info(XiveSource *xsrc, uint32_t offset, Monitor *mon)
     }
 }
 
-static void xive_source_reset(DeviceState *dev)
+static void xive_source_base_reset(DeviceState *dev)
 {
-    XiveSource *xsrc = XIVE_SOURCE(dev);
+    XiveSource *xsrc = XIVE_SOURCE_BASE(dev);
 
     /* Do not clear the LSI bitmap */
 
@@ -943,9 +950,9 @@ static void xive_source_reset(DeviceState *dev)
     memset(xsrc->status, 0x1, xsrc->nr_irqs);
 }
 
-static void xive_source_realize(DeviceState *dev, Error **errp)
+static void xive_source_base_realize(DeviceState *dev,  Error **errp)
 {
-    XiveSource *xsrc = XIVE_SOURCE(dev);
+    XiveSource *xsrc = XIVE_SOURCE_BASE(dev);
     Object *obj;
     Error *local_err = NULL;
 
@@ -971,21 +978,14 @@ static void xive_source_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    xsrc->qirqs = qemu_allocate_irqs(xive_source_set_irq, xsrc,
-                                     xsrc->nr_irqs);
-
     xsrc->status = g_malloc0(xsrc->nr_irqs);
 
     xsrc->lsi_map = bitmap_new(xsrc->nr_irqs);
     xsrc->lsi_map_size = xsrc->nr_irqs;
 
-    memory_region_init_io(&xsrc->esb_mmio, OBJECT(xsrc),
-                          &xive_source_esb_ops, xsrc, "xive.esb",
-                          (1ull << xsrc->esb_shift) * xsrc->nr_irqs);
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &xsrc->esb_mmio);
 }
 
-static const VMStateDescription vmstate_xive_source = {
+static const VMStateDescription vmstate_xive_source_base = {
     .name = TYPE_XIVE_SOURCE,
     .version_id = 1,
     .minimum_version_id = 1,
@@ -1001,29 +1001,68 @@ static const VMStateDescription vmstate_xive_source = {
  * The default XIVE interrupt source setting for the ESB MMIOs is two
  * 64k pages without Store EOI, to be in sync with KVM.
  */
-static Property xive_source_properties[] = {
+static Property xive_source_base_properties[] = {
     DEFINE_PROP_UINT64("flags", XiveSource, esb_flags, 0),
     DEFINE_PROP_UINT32("nr-irqs", XiveSource, nr_irqs, 0),
     DEFINE_PROP_UINT32("shift", XiveSource, esb_shift, XIVE_ESB_64K_2PAGE),
     DEFINE_PROP_END_OF_LIST(),
 };
 
-static void xive_source_class_init(ObjectClass *klass, void *data)
+static void xive_source_base_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->desc    = "XIVE Interrupt Source";
-    dc->props   = xive_source_properties;
-    dc->realize = xive_source_realize;
-    dc->reset   = xive_source_reset;
-    dc->vmsd    = &vmstate_xive_source;
+    dc->props   = xive_source_base_properties;
+    dc->realize = xive_source_base_realize;
+    dc->reset   = xive_source_base_reset;
+    dc->vmsd    = &vmstate_xive_source_base;
+}
+
+static const TypeInfo xive_source_base_info = {
+    .name          = TYPE_XIVE_SOURCE_BASE,
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .abstract      = true,
+    .instance_size = sizeof(XiveSource),
+    .class_init    = xive_source_base_class_init,
+    .class_size    = sizeof(XiveSourceClass),
+};
+
+static void xive_source_realize(DeviceState *dev, Error **errp)
+{
+    XiveSource *xsrc = XIVE_SOURCE(dev);
+    XiveSourceClass *xsc = XIVE_SOURCE_BASE_GET_CLASS(dev);
+    Error *local_err = NULL;
+
+    xsc->parent_realize(dev, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    xsrc->qirqs = qemu_allocate_irqs(xive_source_set_irq, xsrc, xsrc->nr_irqs);
+
+    memory_region_init_io(&xsrc->esb_mmio, OBJECT(xsrc),
+                          &xive_source_esb_ops, xsrc, "xive.esb",
+                          (1ull << xsrc->esb_shift) * xsrc->nr_irqs);
+    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &xsrc->esb_mmio);
+}
+
+static void xive_source_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    XiveSourceClass *xsc = XIVE_SOURCE_BASE_CLASS(klass);
+
+    device_class_set_parent_realize(dc, xive_source_realize,
+                                    &xsc->parent_realize);
 }
 
 static const TypeInfo xive_source_info = {
     .name          = TYPE_XIVE_SOURCE,
-    .parent        = TYPE_SYS_BUS_DEVICE,
+    .parent        = TYPE_XIVE_SOURCE_BASE,
     .instance_size = sizeof(XiveSource),
     .class_init    = xive_source_class_init,
+    .class_size    = sizeof(XiveSourceClass),
 };
 
 /*
@@ -1659,10 +1698,12 @@ static const TypeInfo xive_fabric_info = {
 
 static void xive_register_types(void)
 {
+    type_register_static(&xive_source_base_info);
     type_register_static(&xive_source_info);
     type_register_static(&xive_fabric_info);
     type_register_static(&xive_router_info);
     type_register_static(&xive_end_source_info);
+    type_register_static(&xive_tctx_base_info);
     type_register_static(&xive_tctx_info);
 }
 

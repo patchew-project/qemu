@@ -13,6 +13,10 @@
 #include "hw/sysbus.h"
 #include "hw/ppc/xive.h"
 
+#define TYPE_SPAPR_XIVE_BASE "spapr-xive-base"
+#define SPAPR_XIVE_BASE(obj) \
+    OBJECT_CHECK(sPAPRXive, (obj), TYPE_SPAPR_XIVE_BASE)
+
 #define TYPE_SPAPR_XIVE "spapr-xive"
 #define SPAPR_XIVE(obj) OBJECT_CHECK(sPAPRXive, (obj), TYPE_SPAPR_XIVE)
 
@@ -37,6 +41,17 @@ typedef struct sPAPRXive {
     hwaddr        tm_base;
     MemoryRegion  tm_mmio;
 } sPAPRXive;
+
+#define SPAPR_XIVE_BASE_CLASS(klass) \
+     OBJECT_CLASS_CHECK(sPAPRXiveClass, (klass), TYPE_SPAPR_XIVE_BASE)
+#define SPAPR_XIVE_BASE_GET_CLASS(obj) \
+     OBJECT_GET_CLASS(sPAPRXiveClass, (obj), TYPE_SPAPR_XIVE_BASE)
+
+typedef struct sPAPRXiveClass {
+    XiveRouterClass parent_class;
+
+    DeviceRealize   parent_realize;
+} sPAPRXiveClass;
 
 bool spapr_xive_irq_enable(sPAPRXive *xive, uint32_t lisn, bool lsi);
 bool spapr_xive_irq_disable(sPAPRXive *xive, uint32_t lisn);
