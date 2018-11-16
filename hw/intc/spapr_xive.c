@@ -27,8 +27,13 @@
 
 void spapr_xive_pic_print_info(sPAPRXive *xive, Monitor *mon)
 {
+    sPAPRXiveClass *sxc = SPAPR_XIVE_BASE_GET_CLASS(xive);
     int i;
     uint32_t offset = 0;
+
+    if (sxc->synchronize_state) {
+        sxc->synchronize_state(xive);
+    }
 
     monitor_printf(mon, "XIVE Source %08x .. %08x\n", offset,
                    offset + xive->source.nr_irqs - 1);
@@ -354,10 +359,37 @@ static const VMStateDescription vmstate_spapr_xive_eas = {
     },
 };
 
+static int vmstate_spapr_xive_pre_save(void *opaque)
+{
+    sPAPRXive *xive = SPAPR_XIVE_BASE(opaque);
+    sPAPRXiveClass *sxc = SPAPR_XIVE_BASE_GET_CLASS(xive);
+
+    if (sxc->pre_save) {
+        return sxc->pre_save(xive);
+    }
+
+    return 0;
+}
+
+/* handled at the machine level */
+int spapr_xive_post_load(sPAPRXive *xive, int version_id)
+{
+    sPAPRXiveClass *sxc = SPAPR_XIVE_BASE_GET_CLASS(xive);
+
+    if (sxc->post_load) {
+        return sxc->post_load(xive, version_id);
+    }
+
+    return 0;
+}
+
 static const VMStateDescription vmstate_spapr_xive_base = {
     .name = TYPE_SPAPR_XIVE,
     .version_id = 1,
     .minimum_version_id = 1,
+    .pre_save = vmstate_spapr_xive_pre_save,
+    .post_load = NULL, /* handled at the machine level */
+    .priority = MIG_PRI_XIVE_IC,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32_EQUAL(nr_irqs, sPAPRXive, NULL),
         VMSTATE_STRUCT_VARRAY_POINTER_UINT32(eat, sPAPRXive, nr_irqs,

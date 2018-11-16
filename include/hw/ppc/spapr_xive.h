@@ -55,12 +55,17 @@ typedef struct sPAPRXiveClass {
     XiveRouterClass parent_class;
 
     DeviceRealize   parent_realize;
+
+    void (*synchronize_state)(sPAPRXive *xive);
+    int  (*pre_save)(sPAPRXive *xsrc);
+    int  (*post_load)(sPAPRXive *xsrc, int version_id);
 } sPAPRXiveClass;
 
 bool spapr_xive_irq_enable(sPAPRXive *xive, uint32_t lisn, bool lsi);
 bool spapr_xive_irq_disable(sPAPRXive *xive, uint32_t lisn);
 void spapr_xive_pic_print_info(sPAPRXive *xive, Monitor *mon);
 qemu_irq spapr_xive_qirq(sPAPRXive *xive, uint32_t lisn);
+int spapr_xive_post_load(sPAPRXive *xive, int version_id);
 
 /*
  * sPAPR NVT and END indexing helpers

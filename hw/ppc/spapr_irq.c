@@ -359,7 +359,7 @@ static Object *spapr_irq_cpu_intc_create_xive(sPAPRMachineState *spapr,
 
 static int spapr_irq_post_load_xive(sPAPRMachineState *spapr, int version_id)
 {
-    return 0;
+    return spapr_xive_post_load(spapr->xive, version_id);
 }
 
 /*

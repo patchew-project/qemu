@@ -438,8 +438,13 @@ static const struct {
 
 void xive_tctx_pic_print_info(XiveTCTX *tctx, Monitor *mon)
 {
+    XiveTCTXClass *xtc = XIVE_TCTX_BASE_GET_CLASS(tctx);
     int cpu_index = tctx->cs ? tctx->cs->cpu_index : -1;
     int i;
+
+    if (xtc->synchronize_state) {
+        xtc->synchronize_state(tctx);
+    }
 
     monitor_printf(mon, "CPU[%04x]:   QW   NSR CPPR IPB LSMFB ACK# INC AGE PIPR"
                    "  W2\n", cpu_index);
@@ -552,10 +557,23 @@ static void xive_tctx_base_unrealize(DeviceState *dev, Error **errp)
     qemu_unregister_reset(xive_tctx_base_reset, dev);
 }
 
+static int vmstate_xive_tctx_post_load(void *opaque, int version_id)
+{
+    XiveTCTX *tctx = XIVE_TCTX_BASE(opaque);
+    XiveTCTXClass *xtc = XIVE_TCTX_BASE_GET_CLASS(tctx);
+
+    if (xtc->post_load) {
+        return xtc->post_load(tctx, version_id);
+    }
+
+    return 0;
+}
+
 static const VMStateDescription vmstate_xive_tctx_base = {
     .name = TYPE_XIVE_TCTX,
     .version_id = 1,
     .minimum_version_id = 1,
+    .post_load = vmstate_xive_tctx_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_BUFFER(regs, XiveTCTX),
         VMSTATE_END_OF_LIST()
@@ -581,9 +599,37 @@ static const TypeInfo xive_tctx_base_info = {
     .class_size    = sizeof(XiveTCTXClass),
 };
 
+static int xive_tctx_post_load(XiveTCTX *tctx, int version_id)
+{
+    XiveRouterClass *xrc = XIVE_ROUTER_GET_CLASS(tctx->xrtr);
+
+    /*
+     * When we collect the states from KVM XIVE irqchip, we set word2
+     * of the thread context to print out the OS CAM line under the
+     * QEMU monitor.
+     *
+     * This breaks migration on a guest using TCG or not using a KVM
+     * irqchip. Fix with an extra reset of the thread contexts.
+     */
+    if (xrc->reset_tctx) {
+        xrc->reset_tctx(tctx->xrtr, tctx);
+    }
+    return 0;
+}
+
+static void xive_tctx_class_init(ObjectClass *klass, void *data)
+{
+    XiveTCTXClass *xtc = XIVE_TCTX_BASE_CLASS(klass);
+
+    xtc->post_load = xive_tctx_post_load;
+}
+
 static const TypeInfo xive_tctx_info = {
     .name          = TYPE_XIVE_TCTX,
     .parent        = TYPE_XIVE_TCTX_BASE,
+    .instance_size = sizeof(XiveTCTX),
+    .class_init    = xive_tctx_class_init,
+    .class_size    = sizeof(XiveTCTXClass),
 };
 
 Object *xive_tctx_create(Object *cpu, const char *type, XiveRouter *xrtr,

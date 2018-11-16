@@ -309,6 +309,9 @@ typedef struct XiveTCTXClass {
     DeviceClass       parent_class;
 
     DeviceRealize     parent_realize;
+
+    void (*synchronize_state)(XiveTCTX *tctx);
+    int  (*post_load)(XiveTCTX *tctx, int version_id);
 } XiveTCTXClass;
 
 /*
