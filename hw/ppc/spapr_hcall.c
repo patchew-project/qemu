@@ -1654,6 +1654,22 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
             (spapr_h_cas_compose_response(spapr, args[1], args[2],
                                           ov5_updates) != 0);
     }
+
+    /*
+     * Generate a machine reset when we have an update of the
+     * interrupt mode.
+     */
+    if (!spapr->cas_reboot) {
+        sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
+
+        /*
+         * The reset is not required when running under the XIVE-only
+         * machine. This test can be certainly improved.
+         */
+        spapr->cas_reboot = spapr_ovec_test(ov5_updates, OV5_XIVE_EXPLOIT)
+            && smc->irq != &spapr_irq_xive;
+    }
+
     spapr_ovec_cleanup(ov5_updates);
 
     if (spapr->cas_reboot) {

@@ -409,6 +409,146 @@ sPAPRIrq spapr_irq_xive = {
 };
 
 /*
+ * Dual XIVE and XICS IRQ backend.
+ *
+ * Both interrupt mode, XIVE and XICS, objects are created but the
+ * machine starts in legacy interrupt mode (XICS). It can be changed
+ * by the CAS negotiation process and, in that case, the new mode is
+ * activated after extra machine reset.
+ */
+
+/*
+ * Returns the sPAPR IRQ backend negotiated by CAS. XICS is the
+ * default.
+ */
+static sPAPRIrq *spapr_irq_current(sPAPRMachineState *spapr)
+{
+    return spapr_ovec_test(spapr->ov5_cas, OV5_XIVE_EXPLOIT) ?
+        &spapr_irq_xive : &spapr_irq_xics;
+}
+
+static void spapr_irq_init_dual(sPAPRMachineState *spapr, int nr_irqs,
+                                int nr_servers, Error **errp)
+{
+    Error *local_err = NULL;
+
+    if (kvm_enabled()) {
+        error_setg(errp, "No KVM support for the 'dual' machine");
+        return;
+    }
+
+    spapr_irq_xics.init(spapr, spapr_irq_xics.nr_irqs, nr_servers, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    spapr_irq_xive.init(spapr, spapr_irq_xive.nr_irqs, nr_servers, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+}
+
+static int spapr_irq_claim_dual(sPAPRMachineState *spapr, int irq, bool lsi,
+                                Error **errp)
+{
+    int ret;
+    Error *local_err = NULL;
+
+    ret = spapr_irq_xive.claim(spapr, irq, lsi, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return ret;
+    }
+
+    ret = spapr_irq_xics.claim(spapr, irq, lsi, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+    }
+
+    return ret;
+}
+
+static void spapr_irq_free_dual(sPAPRMachineState *spapr, int irq, int num)
+{
+    spapr_irq_xive.free(spapr, irq, num);
+    spapr_irq_xics.free(spapr, irq, num);
+}
+
+static qemu_irq spapr_qirq_dual(sPAPRMachineState *spapr, int irq)
+{
+    return spapr_irq_current(spapr)->qirq(spapr, irq);
+}
+
+static void spapr_irq_print_info_dual(sPAPRMachineState *spapr, Monitor *mon)
+{
+    spapr_irq_current(spapr)->print_info(spapr, mon);
+}
+
+static void spapr_irq_dt_populate_dual(sPAPRMachineState *spapr,
+                                       uint32_t nr_servers, void *fdt,
+                                       uint32_t phandle)
+{
+    spapr_irq_current(spapr)->dt_populate(spapr, nr_servers, fdt, phandle);
+}
+
+static Object *spapr_irq_cpu_intc_create_dual(sPAPRMachineState *spapr,
+                                              Object *cpu, Error **errp)
+{
+    Error *local_err = NULL;
+
+    spapr_irq_xive.cpu_intc_create(spapr, cpu, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return NULL;
+    }
+
+    /* Default to XICS interrupt mode */
+    return spapr_irq_xics.cpu_intc_create(spapr, cpu, errp);
+}
+
+static int spapr_irq_post_load_dual(sPAPRMachineState *spapr, int version_id)
+{
+    /*
+     * Force a reset of the XIVE backend after migration.
+     */
+    if (spapr_ovec_test(spapr->ov5_cas, OV5_XIVE_EXPLOIT)) {
+        spapr_irq_xive.reset(spapr, &error_fatal);
+    }
+
+    return spapr_irq_current(spapr)->post_load(spapr, version_id);
+}
+
+static void spapr_irq_reset_dual(sPAPRMachineState *spapr, Error **errp)
+{
+    /*
+     * Only XICS is reseted at startup as it is the default interrupt
+     * mode.
+     */
+    spapr_irq_current(spapr)->reset(spapr, errp);
+}
+
+#define SPAPR_IRQ_DUAL_NR_IRQS     0x2000
+#define SPAPR_IRQ_DUAL_NR_MSIS     (SPAPR_IRQ_DUAL_NR_IRQS - SPAPR_IRQ_MSI)
+
+sPAPRIrq spapr_irq_dual = {
+    .nr_irqs     = SPAPR_IRQ_DUAL_NR_IRQS,
+    .nr_msis     = SPAPR_IRQ_DUAL_NR_MSIS,
+    .ov5         = 0x80, /* both mode */
+
+    .init        = spapr_irq_init_dual,
+    .claim       = spapr_irq_claim_dual,
+    .free        = spapr_irq_free_dual,
+    .qirq        = spapr_qirq_dual,
+    .print_info  = spapr_irq_print_info_dual,
+    .dt_populate = spapr_irq_dt_populate_dual,
+    .cpu_intc_create = spapr_irq_cpu_intc_create_dual,
+    .post_load   = spapr_irq_post_load_dual,
+    .reset       = spapr_irq_reset_dual,
+};
+
+/*
  * sPAPR IRQ frontend routines for devices
  */
 void spapr_irq_init(sPAPRMachineState *spapr, int nr_servers, Error **errp)
