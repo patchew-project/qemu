@@ -108,5 +108,6 @@ void spapr_xive_mmio_map(sPAPRXive *xive);
 #define XIVE_TCTX_KVM(obj)   OBJECT_CHECK(XiveTCTX, (obj), TYPE_XIVE_TCTX_KVM)
 
 void spapr_xive_kvm_init(sPAPRXive *xive, Error **errp);
+void spapr_xive_kvm_fini(sPAPRXive *xive, Error **errp);
 
 #endif /* PPC_SPAPR_XIVE_H */

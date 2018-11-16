@@ -55,6 +55,16 @@ static void kvm_cpu_enable(CPUState *cs)
     QLIST_INSERT_HEAD(&kvm_enabled_cpus, enabled_cpu, node);
 }
 
+static void kvm_cpu_disable_all(void)
+{
+    KVMEnabledCPU *enabled_cpu, *next;
+
+    QLIST_FOREACH_SAFE(enabled_cpu, &kvm_enabled_cpus, node, next) {
+        QLIST_REMOVE(enabled_cpu, node);
+        g_free(enabled_cpu);
+    }
+}
+
 /*
  * XIVE Thread Interrupt Management context (KVM)
  */
@@ -862,6 +872,50 @@ void spapr_xive_kvm_init(sPAPRXive *xive, Error **errp)
     kvm_kernel_irqchip = true;
     kvm_msi_via_irqfd_allowed = true;
     kvm_gsi_direct_mapping = true;
+}
+
+void spapr_xive_kvm_fini(sPAPRXive *xive, Error **errp)
+{
+    XiveSource *xsrc = &xive->source;
+    struct kvm_create_device xive_destroy_device = {
+        .fd = xive->fd,
+        .type = KVM_DEV_TYPE_XIVE,
+        .flags = 0,
+    };
+    size_t esb_len = (1ull << xsrc->esb_shift) * xsrc->nr_irqs;
+    int rc;
+
+    /* The KVM XIVE device is not in use */
+    if (xive->fd == -1) {
+        return;
+    }
+
+    if (!kvm_enabled() || !kvmppc_has_cap_xive()) {
+        error_setg(errp,
+                   "IRQ_XIVE capability must be present for KVM XIVE device");
+        return;
+    }
+
+    /* Clear the KVM mapping */
+    sysbus_mmio_unmap(SYS_BUS_DEVICE(xsrc), 0);
+    munmap(xsrc->esb_mmap, esb_len);
+    sysbus_mmio_unmap(SYS_BUS_DEVICE(xive), 0);
+    munmap(xive->tm_mmap, 4ull << TM_SHIFT);
+
+    /* Destroy the KVM device. This also clears the VCPU presenters */
+    rc = kvm_vm_ioctl(kvm_state, KVM_DESTROY_DEVICE, &xive_destroy_device);
+    if (rc < 0) {
+        error_setg_errno(errp, -rc, "Error on KVM_DESTROY_DEVICE for XIVE");
+    }
+    close(xive->fd);
+    xive->fd = -1;
+
+    kvm_kernel_irqchip = false;
+    kvm_msi_via_irqfd_allowed = false;
+    kvm_gsi_direct_mapping = false;
+
+    /* Clear the local list of presenter (hotplug) */
+    kvm_cpu_disable_all();
 }
 
 static void spapr_xive_kvm_realize(DeviceState *dev, Error **errp)
