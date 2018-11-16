@@ -656,6 +656,11 @@ static int spapr_xive_kvm_pre_save(sPAPRXive *xive)
     int i;
     int ret = 0;
 
+    /* The KVM XIVE device is not in use */
+    if (xive->fd == -1) {
+        return 0;
+    }
+
     /* Quiesce the sources, to stop the flow of event notifications */
     for (i = 0; i < xsrc->nr_irqs; i++) {
         /*
