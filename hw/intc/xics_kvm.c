@@ -190,12 +190,6 @@ static void icp_kvm_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, local_err);
         return;
     }
-
-    icp_kvm_init(ICP(dev), &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
 }
 
 static void icp_kvm_class_init(ObjectClass *klass, void *data)
@@ -427,6 +421,8 @@ static void rtas_dummy(PowerPCCPU *cpu, sPAPRMachineState *spapr,
 int xics_kvm_init(sPAPRMachineState *spapr, Error **errp)
 {
     int rc;
+    CPUState *cs;
+    Error *local_err = NULL;
 
     if (!kvm_enabled() || !kvm_check_extension(kvm_state, KVM_CAP_IRQ_XICS)) {
         error_setg(errp,
@@ -475,6 +471,16 @@ int xics_kvm_init(sPAPRMachineState *spapr, Error **errp)
     kvm_msi_via_irqfd_allowed = true;
     kvm_gsi_direct_mapping = true;
 
+    /* Connect the presenters to the VCPU */
+    CPU_FOREACH(cs) {
+        PowerPCCPU *cpu = POWERPC_CPU(cs);
+
+        icp_kvm_init(ICP(cpu->intc), &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            goto fail;
+        }
+    }
     return 0;
 
 fail:

@@ -148,17 +148,10 @@ static void xive_tctx_kvm_init(XiveTCTX *tctx, Error **errp)
 
 static void xive_tctx_kvm_realize(DeviceState *dev, Error **errp)
 {
-    XiveTCTX *tctx = XIVE_TCTX_KVM(dev);
     XiveTCTXClass *xtc = XIVE_TCTX_BASE_GET_CLASS(dev);
     Error *local_err = NULL;
 
     xtc->parent_realize(dev, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
-
-    xive_tctx_kvm_init(tctx, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -222,12 +215,9 @@ static void xive_source_kvm_init(XiveSource *xsrc, Error **errp)
 
 static void xive_source_kvm_reset(DeviceState *dev)
 {
-    XiveSource *xsrc = XIVE_SOURCE_KVM(dev);
     XiveSourceClass *xsc = XIVE_SOURCE_BASE_GET_CLASS(dev);
 
     xsc->parent_reset(dev);
-
-    xive_source_kvm_init(xsrc, &error_fatal);
 }
 
 /*
@@ -346,12 +336,6 @@ static void xive_source_kvm_realize(DeviceState *dev, Error **errp)
 
     xsrc->qirqs = qemu_allocate_irqs(xive_source_kvm_set_irq, xsrc,
                                      xsrc->nr_irqs);
-
-    xive_source_kvm_mmap(xsrc, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
 }
 
 static void xive_source_kvm_unrealize(DeviceState *dev, Error **errp)
@@ -823,6 +807,7 @@ void spapr_xive_kvm_init(sPAPRXive *xive, Error **errp)
 {
     Error *local_err = NULL;
     size_t tima_len;
+    CPUState *cs;
 
     if (!kvm_enabled() || !kvmppc_has_cap_xive()) {
         error_setg(errp,
@@ -850,7 +835,18 @@ void spapr_xive_kvm_init(sPAPRXive *xive, Error **errp)
         return;
     }
 
-    /* Let the XiveSource KVM model handle the mapping for the moment */
+    xive_source_kvm_mmap(&xive->source, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    /* Create the KVM interrupt sources */
+    xive_source_kvm_init(&xive->source, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
 
     /* TIMA KVM mapping
      *
@@ -868,6 +864,17 @@ void spapr_xive_kvm_init(sPAPRXive *xive, Error **errp)
     memory_region_init_ram_device_ptr(&xive->tm_mmio, OBJECT(xive),
                                       "xive.tima", tima_len, xive->tm_mmap);
     sysbus_init_mmio(SYS_BUS_DEVICE(xive), &xive->tm_mmio);
+
+    /* Connect the presenters to the VCPU */
+    CPU_FOREACH(cs) {
+        PowerPCCPU *cpu = POWERPC_CPU(cs);
+
+        xive_tctx_kvm_init(XIVE_TCTX_BASE(cpu->intc), &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
+        }
+    }
 
     kvm_kernel_irqchip = true;
     kvm_msi_via_irqfd_allowed = true;
@@ -920,15 +927,8 @@ void spapr_xive_kvm_fini(sPAPRXive *xive, Error **errp)
 
 static void spapr_xive_kvm_realize(DeviceState *dev, Error **errp)
 {
-    sPAPRXive *xive = SPAPR_XIVE_KVM(dev);
     sPAPRXiveClass *sxc = SPAPR_XIVE_BASE_GET_CLASS(dev);
     Error *local_err = NULL;
-
-    spapr_xive_kvm_init(xive, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
 
     /* Initialize the source and the local routing tables */
     sxc->parent_realize(dev, &local_err);
