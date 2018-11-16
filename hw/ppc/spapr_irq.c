@@ -12,6 +12,7 @@
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "hw/ppc/spapr.h"
+#include "hw/ppc/spapr_xive.h"
 #include "hw/ppc/xics.h"
 #include "sysemu/kvm.h"
 
@@ -91,7 +92,7 @@ error:
 }
 
 static void spapr_irq_init_xics(sPAPRMachineState *spapr, int nr_irqs,
-                                Error **errp)
+                                int nr_servers, Error **errp)
 {
     MachineState *machine = MACHINE(spapr);
     Error *local_err = NULL;
@@ -204,10 +205,122 @@ sPAPRIrq spapr_irq_xics = {
     .print_info  = spapr_irq_print_info_xics,
 };
 
+ /*
+ * XIVE IRQ backend.
+ */
+static sPAPRXive *spapr_xive_create(sPAPRMachineState *spapr,
+                                    const char *type_xive, int nr_irqs,
+                                    int nr_servers, Error **errp)
+{
+    sPAPRXive *xive;
+    Error *local_err = NULL;
+    Object *obj;
+    uint32_t nr_ends = nr_servers << 3; /* 8 priority ENDs per CPU */
+    int i;
+
+    obj = object_new(type_xive);
+    object_property_set_int(obj, nr_irqs, "nr-irqs", &error_abort);
+    object_property_set_int(obj, nr_ends, "nr-ends", &error_abort);
+    object_property_set_bool(obj, true, "realized", &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return NULL;
+    }
+    qdev_set_parent_bus(DEVICE(obj), sysbus_get_default());
+    xive = SPAPR_XIVE(obj);
+
+    /* Enable the CPU IPIs */
+    for (i = 0; i < nr_servers; ++i) {
+        spapr_xive_irq_enable(xive, SPAPR_IRQ_IPI + i, false);
+    }
+
+    return xive;
+}
+
+static void spapr_irq_init_xive(sPAPRMachineState *spapr, int nr_irqs,
+                                int nr_servers, Error **errp)
+{
+    MachineState *machine = MACHINE(spapr);
+    Error *local_err = NULL;
+
+    /* KVM XIVE support */
+    if (kvm_enabled()) {
+        if (machine_kernel_irqchip_required(machine)) {
+            error_setg(errp, "kernel_irqchip requested. no XIVE support");
+            return;
+        }
+    }
+
+    /* QEMU XIVE support */
+    spapr->xive = spapr_xive_create(spapr, TYPE_SPAPR_XIVE, nr_irqs, nr_servers,
+                                    &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+}
+
+static int spapr_irq_claim_xive(sPAPRMachineState *spapr, int irq, bool lsi,
+                                Error **errp)
+{
+    if (!spapr_xive_irq_enable(spapr->xive, irq, lsi)) {
+        error_setg(errp, "IRQ %d is invalid", irq);
+        return -1;
+    }
+    return 0;
+}
+
+static void spapr_irq_free_xive(sPAPRMachineState *spapr, int irq, int num)
+{
+    int i;
+
+    for (i = irq; i < irq + num; ++i) {
+        spapr_xive_irq_disable(spapr->xive, i);
+    }
+}
+
+static qemu_irq spapr_qirq_xive(sPAPRMachineState *spapr, int irq)
+{
+    return spapr_xive_qirq(spapr->xive, irq);
+}
+
+static void spapr_irq_print_info_xive(sPAPRMachineState *spapr,
+                                      Monitor *mon)
+{
+    CPUState *cs;
+
+    CPU_FOREACH(cs) {
+        PowerPCCPU *cpu = POWERPC_CPU(cs);
+
+        xive_tctx_pic_print_info(XIVE_TCTX(cpu->intc), mon);
+    }
+
+    spapr_xive_pic_print_info(spapr->xive, mon);
+}
+
+/*
+ * XIVE uses the full IRQ number space. Set it to 8K to be compatible
+ * with XICS.
+ */
+
+#define SPAPR_IRQ_XIVE_NR_IRQS     0x2000
+#define SPAPR_IRQ_XIVE_NR_MSIS     (SPAPR_IRQ_XIVE_NR_IRQS - SPAPR_IRQ_MSI)
+
+sPAPRIrq spapr_irq_xive = {
+    .nr_irqs     = SPAPR_IRQ_XIVE_NR_IRQS,
+    .nr_msis     = SPAPR_IRQ_XIVE_NR_MSIS,
+
+    .init        = spapr_irq_init_xive,
+    .claim       = spapr_irq_claim_xive,
+    .free        = spapr_irq_free_xive,
+    .qirq        = spapr_qirq_xive,
+    .print_info  = spapr_irq_print_info_xive,
+};
+
 /*
  * sPAPR IRQ frontend routines for devices
  */
-void spapr_irq_init(sPAPRMachineState *spapr, Error **errp)
+void spapr_irq_init(sPAPRMachineState *spapr, int nr_servers, Error **errp)
 {
     sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
 
@@ -216,7 +329,7 @@ void spapr_irq_init(sPAPRMachineState *spapr, Error **errp)
         spapr_irq_msi_init(spapr, smc->irq->nr_msis);
     }
 
-    smc->irq->init(spapr, smc->irq->nr_irqs, errp);
+    smc->irq->init(spapr, smc->irq->nr_irqs, nr_servers, errp);
 }
 
 int spapr_irq_claim(sPAPRMachineState *spapr, int irq, bool lsi, Error **errp)
