@@ -809,7 +809,7 @@ static void spapr_xive_kvm_instance_init(Object *obj)
                               NULL);
 }
 
-static void spapr_xive_kvm_init(sPAPRXive *xive, Error **errp)
+void spapr_xive_kvm_init(sPAPRXive *xive, Error **errp)
 {
     Error *local_err = NULL;
     size_t tima_len;
