@@ -238,4 +238,40 @@ typedef struct XiveENDSource {
 void xive_end_reset(XiveEND *end);
 void xive_end_pic_print_info(XiveEND *end, uint32_t end_idx, Monitor *mon);
 
+/*
+ * XIVE Thread interrupt Management (TM) context
+ */
+
+#define TYPE_XIVE_TCTX "xive-tctx"
+#define XIVE_TCTX(obj) OBJECT_CHECK(XiveTCTX, (obj), TYPE_XIVE_TCTX)
+
+/*
+ * XIVE Thread interrupt Management register rings :
+ *
+ *   QW-0  User       event-based exception state
+ *   QW-1  O/S        OS context for priority management, interrupt acks
+ *   QW-2  Pool       hypervisor context for virtual processor being dispatched
+ *   QW-3  Physical   for the security monitor to manage the entire context
+ */
+#define TM_RING_COUNT           4
+#define TM_RING_SIZE            0x10
+
+typedef struct XiveTCTX {
+    DeviceState parent_obj;
+
+    CPUState    *cs;
+    qemu_irq    output;
+
+    uint8_t     regs[TM_RING_COUNT * TM_RING_SIZE];
+
+    XiveRouter  *xrtr;
+} XiveTCTX;
+
+/*
+ * XIVE Thread Interrupt Management Aera (TIMA)
+ */
+extern const MemoryRegionOps xive_tm_ops;
+
+void xive_tctx_pic_print_info(XiveTCTX *tctx, Monitor *mon);
+
 #endif /* PPC_XIVE_H */
