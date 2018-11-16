@@ -218,6 +218,11 @@ static int spapr_irq_post_load_xics(sPAPRMachineState *spapr, int version_id)
 
 static void spapr_irq_reset_xics(sPAPRMachineState *spapr, Error **errp)
 {
+    CPUState *cs;
+
+    CPU_FOREACH(cs) {
+        spapr_cpu_core_set_intc(POWERPC_CPU(cs), spapr->icp_type);
+    }
 }
 
 #define SPAPR_IRQ_XICS_NR_IRQS     0x1000
@@ -370,6 +375,12 @@ static int spapr_irq_post_load_xive(sPAPRMachineState *spapr, int version_id)
 
 static void spapr_irq_reset_xive(sPAPRMachineState *spapr, Error **errp)
 {
+    CPUState *cs;
+
+    CPU_FOREACH(cs) {
+        spapr_cpu_core_set_intc(POWERPC_CPU(cs), spapr->xive_tctx_type);
+    }
+
     spapr_xive_mmio_map(spapr->xive);
 }
 

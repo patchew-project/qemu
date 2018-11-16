@@ -398,3 +398,29 @@ static const TypeInfo spapr_cpu_core_type_infos[] = {
 };
 
 DEFINE_TYPES(spapr_cpu_core_type_infos)
+
+typedef struct ForeachFindIntCArgs {
+    const char *intc_type;
+    Object *intc;
+} ForeachFindIntCArgs;
+
+static int spapr_cpu_core_find_intc(Object *child, void *opaque)
+{
+    ForeachFindIntCArgs *args = opaque;
+
+    if (object_dynamic_cast(child, args->intc_type)) {
+        args->intc = child;
+    }
+
+    return args->intc != NULL;
+}
+
+void spapr_cpu_core_set_intc(PowerPCCPU *cpu, const char *intc_type)
+{
+    ForeachFindIntCArgs args = { intc_type, NULL };
+
+    object_child_foreach(OBJECT(cpu), spapr_cpu_core_find_intc, &args);
+    g_assert(args.intc);
+
+    cpu->intc = args.intc;
+}
