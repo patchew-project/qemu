@@ -90,11 +90,10 @@ error:
     return NULL;
 }
 
-static void spapr_irq_init_xics(sPAPRMachineState *spapr, Error **errp)
+static void spapr_irq_init_xics(sPAPRMachineState *spapr, int nr_irqs,
+                                Error **errp)
 {
     MachineState *machine = MACHINE(spapr);
-    sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
-    int nr_irqs = smc->irq->nr_irqs;
     Error *local_err = NULL;
 
     if (kvm_enabled()) {
@@ -217,7 +216,7 @@ void spapr_irq_init(sPAPRMachineState *spapr, Error **errp)
         spapr_irq_msi_init(spapr, smc->irq->nr_msis);
     }
 
-    smc->irq->init(spapr, errp);
+    smc->irq->init(spapr, smc->irq->nr_irqs, errp);
 }
 
 int spapr_irq_claim(sPAPRMachineState *spapr, int irq, bool lsi, Error **errp)
