@@ -209,6 +209,26 @@ int xive_router_set_end(XiveRouter *xrtr, uint8_t end_blk, uint32_t end_idx,
                         XiveEND *end);
 
 /*
+ * XIVE END ESBs
+ */
+
+#define TYPE_XIVE_END_SOURCE "xive-end-source"
+#define XIVE_END_SOURCE(obj) \
+    OBJECT_CHECK(XiveENDSource, (obj), TYPE_XIVE_END_SOURCE)
+
+typedef struct XiveENDSource {
+    SysBusDevice parent;
+
+    uint32_t        nr_ends;
+
+    /* ESB memory region */
+    uint32_t        esb_shift;
+    MemoryRegion    esb_mmio;
+
+    XiveRouter      *xrtr;
+} XiveENDSource;
+
+/*
  * For legacy compatibility, the exceptions define up to 256 different
  * priorities. P9 implements only 9 levels : 8 active levels [0 - 7]
  * and the least favored level 0xFF.
