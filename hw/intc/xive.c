@@ -481,6 +481,7 @@ static uint32_t xive_tctx_hw_cam_line(XiveTCTX *tctx, bool block_group)
 static void xive_tctx_reset(void *dev)
 {
     XiveTCTX *tctx = XIVE_TCTX(dev);
+    XiveRouterClass *xrc = XIVE_ROUTER_GET_CLASS(tctx->xrtr);
 
     memset(tctx->regs, 0, sizeof(tctx->regs));
 
@@ -495,6 +496,14 @@ static void xive_tctx_reset(void *dev)
      */
     tctx->regs[TM_QW1_OS + TM_PIPR] =
         ipb_to_pipr(tctx->regs[TM_QW1_OS + TM_IPB]);
+
+    /*
+     * QEMU sPAPR XIVE only. To let the controller model reset the OS
+     * CAM line with the VP identifier.
+     */
+    if (xrc->reset_tctx) {
+        xrc->reset_tctx(tctx->xrtr, tctx);
+    }
 }
 
 static void xive_tctx_realize(DeviceState *dev, Error **errp)

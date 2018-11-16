@@ -187,6 +187,8 @@ typedef struct XiveRouter {
 #define XIVE_ROUTER_GET_CLASS(obj)                              \
     OBJECT_GET_CLASS(XiveRouterClass, (obj), TYPE_XIVE_ROUTER)
 
+typedef struct XiveTCTX XiveTCTX;
+
 typedef struct XiveRouterClass {
     SysBusDeviceClass parent;
 
@@ -201,6 +203,7 @@ typedef struct XiveRouterClass {
                    XiveNVT *nvt);
     int (*set_nvt)(XiveRouter *xrtr, uint8_t nvt_blk, uint32_t nvt_idx,
                    XiveNVT *nvt);
+    void (*reset_tctx)(XiveRouter *xrtr, XiveTCTX *tctx);
 } XiveRouterClass;
 
 void xive_eas_pic_print_info(XiveEAS *eas, uint32_t lisn, Monitor *mon);
