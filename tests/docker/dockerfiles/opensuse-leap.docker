@@ -1,0 +1,62 @@
+FROM opensuse/leap
+ENV PACKAGES \
+    bc \
+    bison \
+    bluez-devel \
+    brlapi-devel \
+    bzip2 \
+    flex \
+    gcc \
+    gcc-c++ \
+    gettext-tools \
+    git \
+    glib2-devel \
+    glusterfs-devel \
+    gtk3-devel \
+    gtkglext-devel \
+    gzip \
+    hostname \
+    libSDL2-devel \
+    libaio-devel \
+    libasan4 \
+    libcap-devel \
+    libcap-ng-devel \
+    libcurl-devel \
+    libfdt-devel \
+    libgcrypt-devel \
+    libgnutls-devel \
+    libjpeg62-devel \
+    libnettle-devel \
+    libnuma-devel \
+    libpixman-1-0-devel \
+    libpng16-devel \
+    librbd-devel \
+    libspice-server-devel \
+    libssh2-devel \
+    libtasn1-devel \
+    libxml2-devel \
+    lzo-devel \
+    make \
+    ncurses-devel \
+    perl \
+    pkg-config \
+    python3 \
+    python3-PyYAML \
+    snappy-devel \
+    sparse \
+    tar \
+    usbredir-devel \
+    virglrenderer-devel \
+    vte-devel \
+    which \
+    xen-devel
+    zlib-devel \
+ENV QEMU_CONFIGURE_OPTS --python=/usr/bin/python3
+
+ENV LANG en_US.UTF-8
+ENV LANGUAGE en_US:en
+ENV LC_ALL en_US.UTF-8
+
+RUN zypper ref && zypper up -y
+RUN zypper install -y $PACKAGES
+RUN rpm -q $PACKAGES | sort > /packages.txt
