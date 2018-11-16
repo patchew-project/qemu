@@ -961,6 +961,7 @@ void nbd_client_close(BlockDriverState *bs)
     }
 
     nbd_send_request(client->ioc, &request);
+    client->quit = true;
 
     nbd_teardown_connection(bs);
 }
