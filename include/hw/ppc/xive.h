@@ -32,8 +32,10 @@ typedef struct XiveSource {
     /* IRQs */
     uint32_t        nr_irqs;
     qemu_irq        *qirqs;
+    unsigned long   *lsi_map;
+    int32_t         lsi_map_size; /* for VMSTATE_BITMAP */
 
-    /* PQ bits */
+    /* PQ bits and LSI assertion bit */
     uint8_t         *status;
 
     /* ESB memory region */
@@ -89,6 +91,7 @@ static inline hwaddr xive_source_esb_mgmt(XiveSource *xsrc, int srcno)
  * When doing an EOI, the Q bit will indicate if the interrupt
  * needs to be re-triggered.
  */
+#define XIVE_STATUS_ASSERTED  0x4  /* Extra bit for LSI */
 #define XIVE_ESB_VAL_P        0x2
 #define XIVE_ESB_VAL_Q        0x1
 
@@ -125,6 +128,21 @@ static inline qemu_irq xive_source_qirq(XiveSource *xsrc, uint32_t srcno)
 {
     assert(srcno < xsrc->nr_irqs);
     return xsrc->qirqs[srcno];
+}
+
+static inline bool xive_source_irq_is_lsi(XiveSource *xsrc, uint32_t srcno)
+{
+    assert(srcno < xsrc->nr_irqs);
+    return test_bit(srcno, xsrc->lsi_map);
+}
+
+static inline void xive_source_irq_set(XiveSource *xsrc, uint32_t srcno,
+                                       bool lsi)
+{
+    assert(srcno < xsrc->nr_irqs);
+    if (lsi) {
+        bitmap_set(xsrc->lsi_map, srcno, 1);
+    }
 }
 
 #endif /* PPC_XIVE_H */
