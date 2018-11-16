@@ -1125,8 +1125,11 @@ static void spapr_dt_ov5_platform_support(sPAPRMachineState *spapr, void *fdt,
         } else {
             val[3] = 0x00; /* Hash */
         }
-        /* TODO: test KVM support */
-        val[1] = smc->irq->ov5;
+        if (kvmppc_has_cap_xive()) {
+            val[1] = smc->irq->ov5;
+        } else {
+            val[1] = 0x00;
+        }
     } else {
         val[1] = smc->irq->ov5;
 

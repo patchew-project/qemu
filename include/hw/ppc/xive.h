@@ -69,6 +69,9 @@ typedef struct XiveSource {
     uint32_t        esb_shift;
     MemoryRegion    esb_mmio;
 
+    /* KVM support */
+    void            *esb_mmap;
+
     XiveFabric      *xive;
 } XiveSource;
 

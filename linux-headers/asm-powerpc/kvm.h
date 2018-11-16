@@ -675,4 +675,16 @@ struct kvm_ppc_cpu_char {
 #define  KVM_XICS_PRESENTED		(1ULL << 43)
 #define  KVM_XICS_QUEUED		(1ULL << 44)
 
+/* POWER9 XIVE Native Interrupt Controller */
+#define KVM_DEV_XIVE_GRP_CTRL		1
+#define   KVM_DEV_XIVE_GET_ESB_FD	1
+#define   KVM_DEV_XIVE_GET_TIMA_FD	2
+#define   KVM_DEV_XIVE_VC_BASE		3
+#define KVM_DEV_XIVE_GRP_SOURCES	2	/* 64-bit source attributes */
+
+/* Layout of 64-bit XIVE source attribute values */
+#define KVM_XIVE_LEVEL_SENSITIVE	(1ULL << 0)
+#define KVM_XIVE_LEVEL_ASSERTED		(1ULL << 1)
+
+
 #endif /* __LINUX_KVM_POWERPC_H */
