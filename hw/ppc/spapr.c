@@ -1097,12 +1097,14 @@ static void spapr_dt_rtas(sPAPRMachineState *spapr, void *fdt)
     spapr_dt_rtas_tokens(fdt, rtas);
 }
 
-/* Prepare ibm,arch-vec-5-platform-support, which indicates the MMU features
- * that the guest may request and thus the valid values for bytes 24..26 of
- * option vector 5: */
-static void spapr_dt_ov5_platform_support(void *fdt, int chosen)
+/* Prepare ibm,arch-vec-5-platform-support, which indicates the MMU
+ * and the XIVE features that the guest may request and thus the valid
+ * values for bytes 23..26 of option vector 5: */
+static void spapr_dt_ov5_platform_support(sPAPRMachineState *spapr, void *fdt,
+                                          int chosen)
 {
     PowerPCCPU *first_ppc_cpu = POWERPC_CPU(first_cpu);
+    sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
 
     char val[2 * 4] = {
         23, 0x00, /* Xive mode, filled in below. */
@@ -1123,7 +1125,11 @@ static void spapr_dt_ov5_platform_support(void *fdt, int chosen)
         } else {
             val[3] = 0x00; /* Hash */
         }
+        /* TODO: test KVM support */
+        val[1] = smc->irq->ov5;
     } else {
+        val[1] = smc->irq->ov5;
+
         /* V3 MMU supports both hash and radix in tcg (with dynamic switching) */
         val[3] = 0xC0;
     }
@@ -1191,7 +1197,7 @@ static void spapr_dt_chosen(sPAPRMachineState *spapr, void *fdt)
         _FDT(fdt_setprop_string(fdt, chosen, "stdout-path", stdout_path));
     }
 
-    spapr_dt_ov5_platform_support(fdt, chosen);
+    spapr_dt_ov5_platform_support(spapr, fdt, chosen);
 
     g_free(stdout_path);
     g_free(bootlist);
@@ -2622,6 +2628,11 @@ static void spapr_machine_init(MachineState *machine)
     /* advertise support for ibm,dyamic-memory-v2 */
     spapr_ovec_set(spapr->ov5, OV5_DRMEM_V2);
 
+    /* advertise XIVE */
+    if (smc->irq->ov5) {
+        spapr_ovec_set(spapr->ov5, OV5_XIVE_EXPLOIT);
+    }
+
     /* init CPUs */
     spapr_init_cpus(spapr);
 
@@ -3970,6 +3981,21 @@ static void spapr_machine_3_1_class_options(MachineClass *mc)
 }
 
 DEFINE_SPAPR_MACHINE(3_1, "3.1", true);
+
+static void spapr_machine_3_1_xive_instance_options(MachineState *machine)
+{
+    spapr_machine_3_1_instance_options(machine);
+}
+
+static void spapr_machine_3_1_xive_class_options(MachineClass *mc)
+{
+    sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
+
+    spapr_machine_3_1_class_options(mc);
+    smc->irq = &spapr_irq_xive;
+}
+
+DEFINE_SPAPR_MACHINE(3_1_xive, "3.1-xive", false);
 
 /*
  * pseries-3.0

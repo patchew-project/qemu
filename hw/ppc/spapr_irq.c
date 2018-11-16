@@ -210,6 +210,7 @@ static Object *spapr_irq_cpu_intc_create_xics(sPAPRMachineState *spapr,
 sPAPRIrq spapr_irq_xics = {
     .nr_irqs     = SPAPR_IRQ_XICS_NR_IRQS,
     .nr_msis     = SPAPR_IRQ_XICS_NR_MSIS,
+    .ov5         = 0x0, /* XICS only */
 
     .init        = spapr_irq_init_xics,
     .claim       = spapr_irq_claim_xics,
@@ -341,6 +342,7 @@ static Object *spapr_irq_cpu_intc_create_xive(sPAPRMachineState *spapr,
 sPAPRIrq spapr_irq_xive = {
     .nr_irqs     = SPAPR_IRQ_XIVE_NR_IRQS,
     .nr_msis     = SPAPR_IRQ_XIVE_NR_MSIS,
+    .ov5         = 0x40, /* XIVE exploitation mode only */
 
     .init        = spapr_irq_init_xive,
     .claim       = spapr_irq_claim_xive,
@@ -447,6 +449,7 @@ int spapr_irq_find(sPAPRMachineState *spapr, int num, bool align, Error **errp)
 sPAPRIrq spapr_irq_xics_legacy = {
     .nr_irqs     = SPAPR_IRQ_XICS_LEGACY_NR_IRQS,
     .nr_msis     = SPAPR_IRQ_XICS_LEGACY_NR_IRQS,
+    .ov5         = 0x0, /* XICS only */
 
     .init        = spapr_irq_init_xics,
     .claim       = spapr_irq_claim_xics,
