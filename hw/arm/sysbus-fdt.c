@@ -419,9 +419,14 @@ static int add_amd_xgbe_fdt_node(SysBusDevice *sbdev, void *opaque)
 static bool vfio_platform_match(SysBusDevice *sbdev,
                                 const BindingEntry *entry)
 {
-    VFIOPlatformDevice *vdev = VFIO_PLATFORM_DEVICE(sbdev);
+    VFIOPlatformDevice *vdev;
     const char *compat;
     unsigned int n;
+
+    vdev = (VFIOPlatformDevice *) object_dynamic_cast(OBJECT(sbdev),
+                                                TYPE_VFIO_PLATFORM);
+    if (!vdev)
+        return false;
 
     for (n = vdev->num_compat, compat = vdev->compat; n > 0;
          n--, compat += strlen(compat) + 1) {
