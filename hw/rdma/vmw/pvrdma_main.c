@@ -24,6 +24,7 @@
 #include "hw/qdev-properties.h"
 #include "cpu.h"
 #include "trace.h"
+#include "sysemu/sysemu.h"
 
 #include "../rdma_rm.h"
 #include "../rdma_backend.h"
@@ -559,6 +560,14 @@ static int pvrdma_check_ram_shared(Object *obj, void *opaque)
     return 0;
 }
 
+static void pvrdma_shutdown_notifier(Notifier *n, void *opaque)
+{
+    PVRDMADev *dev = container_of(n, PVRDMADev, shutdown_notifier);
+    PCIDevice *pci_dev = PCI_DEVICE(dev);
+
+    pvrdma_fini(pci_dev);
+}
+
 static void pvrdma_realize(PCIDevice *pdev, Error **errp)
 {
     int rc;
@@ -631,6 +640,9 @@ static void pvrdma_realize(PCIDevice *pdev, Error **errp)
     if (rc) {
         goto out;
     }
+
+    dev->shutdown_notifier.notify = pvrdma_shutdown_notifier;
+    qemu_register_shutdown_notifier(&dev->shutdown_notifier);
 
 out:
     if (rc) {
