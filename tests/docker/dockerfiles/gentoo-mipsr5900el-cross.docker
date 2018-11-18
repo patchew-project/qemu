@@ -1,0 +1,39 @@
+#
+# Docker mipsel (r5900) cross-compiler target
+#
+# Using multi-stage builds, this image requires docker-17.05.0 or later.
+# (See: https://github.com/gentoo/gentoo-docker-images)
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+# name the portage image
+FROM gentoo/portage:latest as portage
+
+# image is based on stage3-amd64
+FROM gentoo/stage3-amd64:latest
+
+# copy the entire portage volume in
+COPY --from=portage /usr/portage /usr/portage
+
+MAINTAINER Philippe Mathieu-Daudé <f4bug@amsat.org>
+
+# continue with image build ...
+RUN emerge -qv sys-devel/crossdev
+
+# set CROSSDEV_OVERLAY to /usr/local/portage-crossdev
+RUN mkdir -p /usr/local/portage-crossdev/{profiles,metadata} && \
+    echo 'crossdev' > /usr/local/portage-crossdev/profiles/repo_name && \
+    echo 'masters = gentoo' > /usr/local/portage-crossdev/metadata/layout.conf && \
+    chown -R portage:portage /usr/local/portage-crossdev && \
+    mkdir -p /etc/portage/repos.conf
+ADD crossdev.conf /etc/portage/repos.conf/crossdev.conf
+
+# Fredrik's patches
+RUN mkdir -p /etc/portage/patches/cross-mipsr5900el-unknown-linux-gnu/{binutils,gcc}
+ADD binutils-v2.30-ps2-llsc.patch /etc/portage/patches/cross-mipsr5900el-unknown-linux-gnu/binutils
+ADD gcc-v7.2.0-ps2.patch /etc/portage/patches/cross-mipsr5900el-unknown-linux-gnu/gcc
+ADD gcc-v7.2.0-ps2-llsc.patch /etc/portage/patches/cross-mipsr5900el-unknown-linux-gnu/gcc
+
+RUN crossdev -s3 -t mipsr5900el-unknown-linux-gnu --binutils ">=2.30" --gcc ">=7.2.0"
+
+ENV QEMU_CONFIGURE_OPTS --cross-prefix=mipsr5900el-unknown-linux-gnu-

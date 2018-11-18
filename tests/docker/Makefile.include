@@ -119,6 +119,12 @@ docker-image-debian-sparc64-cross: docker-image-debian-sid
 docker-image-debian-mips64-cross: docker-image-debian-sid
 docker-image-debian-riscv64-cross: docker-image-debian-sid
 docker-image-debian-powerpc-cross: docker-image-debian-sid
+docker-image-gentoo-mipsr5900el-cross: EXTRA_FILES:=$(addprefix \
+			$(SRC_PATH)/tests/docker/dockerfiles/gentoo-mipsr5900el-cross.docker.d/,\
+				crossdev.conf \
+				binutils-v2.30-ps2-llsc.patch \
+				gcc-v7.2.0-ps2.patch \
+				gcc-v7.2.0-ps2-llsc.patch)
 docker-image-travis: NOUSER=1
 
 # Specialist build images, sometimes very limited tools

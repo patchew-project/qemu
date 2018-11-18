@@ -1,0 +1,36 @@
+diff --git a/opcodes/mips-opc.c b/opcodes/mips-opc.c
+index 1cbcbc6..0986b0a 100644
+--- a/opcodes/mips-opc.c
++++ b/opcodes/mips-opc.c
+@@ -1280,11 +1280,11 @@ const struct mips_opcode mips_builtin_opcodes[] =
+ {"li.s",		"t,f",		0,    (int) M_LI_S,	INSN_MACRO,		INSN2_M_FP_S,	I1,		0,	0 },
+ {"li.s",		"T,l",		0,    (int) M_LI_SS,	INSN_MACRO,		INSN2_M_FP_S,	I1,		0,	0 },
+ {"ll",			"t,+j(b)",	0x7c000036, 0xfc00007f, WR_1|RD_3|LM,		0,		I37,		0,	0 },
+-{"ll",			"t,o(b)",	0xc0000000, 0xfc000000, WR_1|RD_3|LM,		0,		I2,		0,	EE|I37 },
+-{"ll",			"t,A(b)",	0,    (int) M_LL_AB,	INSN_MACRO,		0,		I2,		0,	EE },
++{"ll",			"t,o(b)",	0xc0000000, 0xfc000000, WR_1|RD_3|LM,		0,		I2,		0,	I37 },
++{"ll",			"t,A(b)",	0,    (int) M_LL_AB,	INSN_MACRO,		0,		I2,		0,	0 },
+ {"lld",			"t,+j(b)",	0x7c000037, 0xfc00007f, WR_1|RD_3|LM,		0,		I69,		0,	0 },
+-{"lld",			"t,o(b)",	0xd0000000, 0xfc000000, WR_1|RD_3|LM,		0,		I3,		0,	EE|I69 },
+-{"lld",			"t,A(b)",	0,    (int) M_LLD_AB,	INSN_MACRO,		0,		I3,		0,	EE },
++{"lld",			"t,o(b)",	0xd0000000, 0xfc000000, WR_1|RD_3|LM,		0,		I3,		0,	I69 },
++{"lld",			"t,A(b)",	0,    (int) M_LLD_AB,	INSN_MACRO,		0,		I3,		0,	0 },
+ {"lq",			"t,o(b)",	0x78000000, 0xfc000000, WR_1|RD_3|LM,		0,		MMI,		0,	0 },
+ {"lq",			"t,A(b)",	0,    (int) M_LQ_AB,	INSN_MACRO,		0,		MMI,		0,	0 },
+ {"lqc2",		"+7,o(b)",	0xd8000000, 0xfc000000,	RD_3|WR_C2|LM,		0,		EE,		0,	0 },
+@@ -1810,11 +1810,11 @@ const struct mips_opcode mips_builtin_opcodes[] =
+ {"sb",			"t,o(b)",	0xa0000000, 0xfc000000,	RD_1|RD_3|SM,		0,		I1,		0,	0 },
+ {"sb",			"t,A(b)",	0,    (int) M_SB_AB,	INSN_MACRO,		0,		I1,		0,	0 },
+ {"sc",			"t,+j(b)",	0x7c000026, 0xfc00007f, MOD_1|RD_3|SM,		0,		I37,		0,	0 },
+-{"sc",			"t,o(b)",	0xe0000000, 0xfc000000, MOD_1|RD_3|SM,		0,		I2,		0,	EE|I37 },
+-{"sc",			"t,A(b)",	0,    (int) M_SC_AB,	INSN_MACRO,		0,		I2,		0,	EE },
++{"sc",			"t,o(b)",	0xe0000000, 0xfc000000, MOD_1|RD_3|SM,		0,		I2,		0,	I37 },
++{"sc",			"t,A(b)",	0,    (int) M_SC_AB,	INSN_MACRO,		0,		I2,		0,	0 },
+ {"scd",			"t,+j(b)",	0x7c000027, 0xfc00007f, MOD_1|RD_3|SM,		0,		I69,		0,	0 },
+-{"scd",			"t,o(b)",	0xf0000000, 0xfc000000, MOD_1|RD_3|SM,		0,		I3,		0,	EE|I69 },
+-{"scd",			"t,A(b)",	0,    (int) M_SCD_AB,	INSN_MACRO,		0,		I3,		0,	EE },
++{"scd",			"t,o(b)",	0xf0000000, 0xfc000000, MOD_1|RD_3|SM,		0,		I3,		0,	I69 },
++{"scd",			"t,A(b)",	0,    (int) M_SCD_AB,	INSN_MACRO,		0,		I3,		0,	0 },
+ /* The macro has to be first to handle o32 correctly.  */
+ {"sd",			"t,A(b)",	0,    (int) M_SD_AB,	INSN_MACRO,		0,		I1,		0,	0 },
+ {"sd",			"t,o(b)",	0xfc000000, 0xfc000000,	RD_1|RD_3|SM,		0,		I3,		0,	0 },

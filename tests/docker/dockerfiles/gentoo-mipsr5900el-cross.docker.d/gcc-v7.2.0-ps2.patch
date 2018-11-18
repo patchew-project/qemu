@@ -1,0 +1,219 @@
+commit ff785b9af62d5dfe1c0e3d3cf0052e7b5cf281ad
+Author: Rick Gaiser <rgaiser@gmail.com>
+Date:   Thu Apr 26 22:30:11 2018 +0200
+
+    Apply gcc-7.2.0-libgcc.patch from uyjulian
+
+diff --git a/gcc/config/mips/mips.c b/gcc/config/mips/mips.c
+index 6bfd86a..2996ebc 100644
+--- a/gcc/config/mips/mips.c
++++ b/gcc/config/mips/mips.c
+@@ -19747,6 +19747,11 @@ mips_option_override (void)
+     error ("unsupported combination: %s",
+ 	   "-march=r5900 -mhard-float -mdouble-float");
+ 
++  /* The R5900 does not support some MIPS16 instructions.  */
++  if (TARGET_MIPS5900 && ((mips_base_compression_flags & MASK_MIPS16) != 0))
++	  error("unsupported combination: %s",
++		  "-march=r5900 -mips16");
++
+   /* If a -mlong* option was given, check that it matches the ABI,
+      otherwise infer the -mlong* setting from the other options.  */
+   if ((target_flags_explicit & MASK_LONG64) != 0)
+diff --git a/libgcc/config.host b/libgcc/config.host
+index bedcf10..4a85a15 100644
+--- a/libgcc/config.host
++++ b/libgcc/config.host
+@@ -144,7 +144,11 @@ mips*-*-*)
+ 	cpu_type=mips
+ 	tmake_file="mips/t-mips"
+ 	if test "${libgcc_cv_mips_hard_float}" = yes; then
++	    if test "${libgcc_cv_mips_single_float}" = yes; then
++                tmake_file="${tmake_file} t-hardfp-sf t-hardfp"
++	    else
+ 		tmake_file="${tmake_file} t-hardfp-sfdf t-hardfp"
++	    fi
+ 	else
+ 		tmake_file="${tmake_file} t-softfp-sfdf"
+ 	fi
+@@ -858,19 +862,16 @@ mips*-*-netbsd*)			# NetBSD/mips, either endian.
+ mips*-*-linux*)				# Linux MIPS, either endian.
+ 	extra_parts="$extra_parts crtfastmath.o"
+ 	tmake_file="${tmake_file} t-crtfm"
+-	case ${host} in
+-	  mips64r5900* | mipsr5900*)
+-	    # The MIPS16 support code uses floating point
+-	    # instructions that are not supported on r5900.
+-	    ;;
+-	  *)
++    if test "${libgcc_cv_mips16}" = yes; then
+ 	    tmake_file="${tmake_file} mips/t-mips16 t-slibgcc-libgcc"
+-	    ;;
+-	esac
++    fi
+ 	md_unwind_header=mips/linux-unwind.h
+ 	;;
+ mips*-sde-elf*)
+-	tmake_file="$tmake_file mips/t-crtstuff mips/t-mips16"
++	tmake_file="$tmake_file mips/t-crtstuff"
++    if test "${libgcc_cv_mips16}" = yes; then
++	  tmake_file="${tmake_file} mips/t-mips16"
++    fi
+ 	case "${with_newlib}" in
+ 	  yes)
+ 	    # newlib / libgloss.
+@@ -900,7 +901,10 @@ mipsisa64sb1-*-elf* | mipsisa64sb1el-*-elf*)
+ 	extra_parts="$extra_parts crti.o crtn.o"
+ 	;;
+ mips-*-elf* | mipsel-*-elf*)
+-	tmake_file="$tmake_file mips/t-elf mips/t-crtstuff mips/t-mips16"
++	tmake_file="$tmake_file mips/t-elf mips/t-crtstuff"
++    if test "${libgcc_cv_mips16}" = yes; then
++	  tmake_file="${tmake_file} mips/t-mips16"
++    fi
+ 	extra_parts="$extra_parts crti.o crtn.o"
+ 	;;
+ mipsr5900-*-elf* | mipsr5900el-*-elf*)
+@@ -908,7 +912,10 @@ mipsr5900-*-elf* | mipsr5900el-*-elf*)
+ 	extra_parts="$extra_parts crti.o crtn.o"
+ 	;;
+ mips64-*-elf* | mips64el-*-elf*)
+-	tmake_file="$tmake_file mips/t-elf mips/t-crtstuff mips/t-mips16"
++	tmake_file="$tmake_file mips/t-elf mips/t-crtstuff"
++    if test "${libgcc_cv_mips16}" = yes; then
++	  tmake_file="${tmake_file} mips/t-mips16"
++    fi
+ 	extra_parts="$extra_parts crti.o crtn.o"
+ 	;;
+ mips64r5900-*-elf* | mips64r5900el-*-elf*)
+@@ -924,7 +931,10 @@ mips64orion-*-elf* | mips64orionel-*-elf*)
+ 	extra_parts="$extra_parts crti.o crtn.o"
+ 	;;
+ mips*-*-rtems*)
+-	tmake_file="$tmake_file mips/t-elf mips/t-crtstuff mips/t-mips16"
++	tmake_file="$tmake_file mips/t-elf mips/t-crtstuff"
++    if test "${libgcc_cv_mips16}" = yes; then
++	  tmake_file="${tmake_file} mips/t-mips16"
++    fi
+ 	extra_parts="$extra_parts crti.o crtn.o"
+ 	;;
+ mips-wrs-vxworks)
+diff --git a/libgcc/config/t-hardfp-sf b/libgcc/config/t-hardfp-sf
+new file mode 100644
+index 0000000..e63ad47
+--- /dev/null
++++ b/libgcc/config/t-hardfp-sf
+@@ -0,0 +1,32 @@
++# Copyright (C) 2014-2015 Free Software Foundation, Inc.
++
++# This file is part of GCC.
++
++# GCC is free software; you can redistribute it and/or modify
++# it under the terms of the GNU General Public License as published by
++# the Free Software Foundation; either version 3, or (at your option)
++# any later version.
++
++# GCC is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++# GNU General Public License for more details.
++
++# You should have received a copy of the GNU General Public License
++# along with GCC; see the file COPYING3.  If not see
++# <http://www.gnu.org/licenses/>.
++
++hardfp_float_modes := sf
++# di and ti are provided by libgcc2.c where needed.
++hardfp_int_modes := si
++hardfp_extensions :=
++hardfp_truncations :=
++
++# Emulate 64 bit float:
++FPBIT = true
++DPBIT = true
++# Don't build functions handled by 32 bit hardware:
++LIB2FUNCS_EXCLUDE = _addsub_sf _mul_sf _div_sf \
++    _fpcmp_parts_sf _compare_sf _eq_sf _ne_sf _gt_sf _ge_sf \
++    _lt_sf _le_sf _unord_sf _si_to_sf _sf_to_si _negate_sf \
++    _thenan_sf _sf_to_usi _usi_to_sf
+diff --git a/libgcc/configure b/libgcc/configure
+index 42dda7f..716bba9 100644
+--- a/libgcc/configure
++++ b/libgcc/configure
+@@ -4871,6 +4871,48 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+ fi
+ { $as_echo "$as_me:${as_lineno-$LINENO}: result: $libgcc_cv_mips_hard_float" >&5
+ $as_echo "$libgcc_cv_mips_hard_float" >&6; }
++  { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether the target is single-float" >&5
++$as_echo_n "checking whether the target is single-float... " >&6; }
++if test "${libgcc_cv_mips_single_float+set}" = set; then :
++  $as_echo_n "(cached) " >&6
++else
++  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
++/* end confdefs.h.  */
++#ifndef __mips_single_float
++     #error FOO
++     #endif
++_ACEOF
++if ac_fn_c_try_compile "$LINENO"; then :
++  libgcc_cv_mips_single_float=yes
++else
++  libgcc_cv_mips_single_float=no
++fi
++rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
++fi
++{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $libgcc_cv_mips_single_float" >&5
++$as_echo "$libgcc_cv_mips_single_float" >&6; }
++  # Some targets (i.e. R5900) don't support some MIPS16 instructions.
++  { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether the target supports the MIPS16 ASE" >&5
++$as_echo_n "checking whether the target supports MIPS16 ASE... " >&6; }
++if test "${libgcc_cv_mips16+set}" = set; then :
++  $as_echo_n "(cached) " >&6
++else
++  CFLAGS_hold=$CFLAGS
++		 CFLAGS="$CFLAGS -mips16"
++		 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
++/* end confdefs.h.  */
++int i;
++_ACEOF
++if ac_fn_c_try_compile "$LINENO"; then :
++  libgcc_cv_mips16=yes
++else
++  libgcc_cv_mips16=no
++fi
++rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
++	CFLAGS=$CFLAGS_hold
++fi
++{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $libgcc_cv_mips16" >&5
++$as_echo "$libgcc_cv_mips16" >&6; }
+ esac
+ 
+ case ${host} in
+diff --git a/libgcc/configure.ac b/libgcc/configure.ac
+index 6bcaad6..5bce467 100644
+--- a/libgcc/configure.ac
++++ b/libgcc/configure.ac
+@@ -292,6 +292,23 @@ mips*-*-*)
+      #endif],
+     [libgcc_cv_mips_hard_float=yes],
+     [libgcc_cv_mips_hard_float=no])])
++  AC_CACHE_CHECK([whether the target is single-float],
++		 [libgcc_cv_mips_single_float],
++		 [AC_COMPILE_IFELSE(
++    [#ifndef __mips_single_float
++     #error FOO
++     #endif],
++    [libgcc_cv_mips_single_float=yes],
++    [libgcc_cv_mips_single_float=no])])
++  # Some targets (i.e. R5900) don't support some MIPS16 instructions.
++  AC_CACHE_CHECK([whether the target supports the MIPS16 ASE],
++		 [libgcc_cv_mips16],
++		 [CFLAGS_hold=$CFLAGS
++		 CFLAGS="$CFLAGS -mips16"
++		 AC_COMPILE_IFELSE([[int i;]],
++    [libgcc_cv_mips16=yes],
++    [libgcc_cv_mips16=no])
++	CFLAGS=$CFLAGS_hold])
+ esac
+ 
+ case ${host} in
