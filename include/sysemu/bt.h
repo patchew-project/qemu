@@ -5,12 +5,12 @@
 
 struct HCIInfo {
     int (*bdaddr_set)(struct HCIInfo *hci, const uint8_t *bd_addr);
-    void (*cmd_send)(struct HCIInfo *hci, const uint8_t *data, int len);
-    void (*sco_send)(struct HCIInfo *hci, const uint8_t *data, int len);
-    void (*acl_send)(struct HCIInfo *hci, const uint8_t *data, int len);
+    void (*cmd_send)(struct HCIInfo *hci, const uint8_t *data, size_t len);
+    void (*sco_send)(struct HCIInfo *hci, const uint8_t *data, size_t len);
+    void (*acl_send)(struct HCIInfo *hci, const uint8_t *data, size_t len);
     void *opaque;
-    void (*evt_recv)(void *opaque, const uint8_t *data, int len);
-    void (*acl_recv)(void *opaque, const uint8_t *data, int len);
+    void (*evt_recv)(void *opaque, const uint8_t *data, size_t len);
+    void (*acl_recv)(void *opaque, const uint8_t *data, size_t len);
 };
 
 /* bt-host.c */
