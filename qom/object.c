@@ -1087,7 +1087,12 @@ ObjectProperty *object_property_find(Object *obj, const char *name,
         return prop;
     }
 
-    error_setg(errp, "Property '.%s' not found", name);
+    /* Optimized to avoid calling error_setg if errp == NULL
+     * otherwise every property add call hits error_setg
+     * making it impratical to set breakpoints in GDB */
+    if (errp) {
+        error_setg(errp, "Property '.%s' not found", name);
+    }
     return NULL;
 }
 
@@ -1133,7 +1138,10 @@ ObjectProperty *object_class_property_find(ObjectClass *klass, const char *name,
     }
 
     prop = g_hash_table_lookup(klass->properties, name);
-    if (!prop) {
+    /* Optimized to avoid calling error_setg if errp == NULL
+     * otherwise every property add call hits error_setg
+     * making it impratical to set breakpoints in GDB */
+    if (!prop && errp) {
         error_setg(errp, "Property '.%s' not found", name);
     }
     return prop;
