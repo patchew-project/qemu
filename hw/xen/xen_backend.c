@@ -809,9 +809,8 @@ static const TypeInfo xensysbus_info = {
     }
 };
 
-static int xen_sysdev_init(SysBusDevice *dev)
+static void xen_sysdev_realize(DeviceState *dev, Error **errp)
 {
-    return 0;
 }
 
 static Property xen_sysdev_properties[] = {
@@ -821,9 +820,8 @@ static Property xen_sysdev_properties[] = {
 static void xen_sysdev_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = xen_sysdev_init;
+    dc->realize = xen_sysdev_realize;
     dc->props = xen_sysdev_properties;
     dc->bus_type = TYPE_XENSYSBUS;
 }
