@@ -119,6 +119,7 @@ static void puv3_intc_realize(DeviceState *dev, Error **errp)
 static void puv3_intc_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+
     dc->realize = puv3_intc_realize;
 }
 
