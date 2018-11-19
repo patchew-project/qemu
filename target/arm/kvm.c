@@ -670,6 +670,10 @@ int kvm_arch_process_async_events(CPUState *cs)
     return 0;
 }
 
+void kvm_arch_set_singlestep(CPUState *cs, int enabled)
+{
+}
+
 /* The #ifdef protections are until 32bit headers are imported and can
  * be removed once both 32 and 64 bit reach feature parity.
  */

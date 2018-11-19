@@ -3521,6 +3521,10 @@ static int kvm_handle_debug(X86CPU *cpu,
     return ret;
 }
 
+void kvm_arch_set_singlestep(CPUState *cs, int enabled)
+{
+}
+
 void kvm_arch_update_guest_debug(CPUState *cpu, struct kvm_guest_debug *dbg)
 {
     const uint8_t type_code[] = {
