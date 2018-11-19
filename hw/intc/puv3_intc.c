@@ -101,29 +101,25 @@ static const MemoryRegionOps puv3_intc_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static int puv3_intc_init(SysBusDevice *sbd)
+static void puv3_intc_realize(DeviceState *dev, Error **errp)
 {
-    DeviceState *dev = DEVICE(sbd);
     PUV3INTCState *s = PUV3_INTC(dev);
 
     qdev_init_gpio_in(dev, puv3_intc_handler, PUV3_IRQS_NR);
-    sysbus_init_irq(sbd, &s->parent_irq);
+    sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->parent_irq);
 
     s->reg_ICMR = 0;
     s->reg_ICPR = 0;
 
     memory_region_init_io(&s->iomem, OBJECT(s), &puv3_intc_ops, s, "puv3_intc",
                           PUV3_REGS_OFFSET);
-    sysbus_init_mmio(sbd, &s->iomem);
-
-    return 0;
+    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->iomem);
 }
 
 static void puv3_intc_class_init(ObjectClass *klass, void *data)
 {
-    SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
-
-    sdc->init = puv3_intc_init;
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    dc->realize = puv3_intc_realize;
 }
 
 static const TypeInfo puv3_intc_info = {
