@@ -484,8 +484,8 @@ static void reset_event_facility(DeviceState *dev)
 
 static void init_event_facility_class(ObjectClass *klass, void *data)
 {
-    SysBusDeviceClass *sbdc = SYS_BUS_DEVICE_CLASS(klass);
-    DeviceClass *dc = DEVICE_CLASS(sbdc);
+    SysBusDeviceClass *sbc = SYS_BUS_DEVICE_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(sbc);
     SCLPEventFacilityClass *k = EVENT_FACILITY_CLASS(dc);
 
     dc->reset = reset_event_facility;
