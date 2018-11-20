@@ -87,6 +87,7 @@ long qemu_getrampagesize(void);
  *              or bit-or of following values
  *              - RAM_SHARED: mmap the backing file or device with MAP_SHARED
  *              - RAM_PMEM: the backend @mem_path or @fd is persistent memory
+ *              - RAM_SYNC:   mmap with MAP_SYNC flag
  *              Other bits are ignored.
  *  @mem_path or @fd: specify the backing file or device
  *  @errp: pointer to Error*, to store an error if it happens
