@@ -31,6 +31,7 @@
 #include "qapi/qapi-visit-misc.h"
 #include "qemu/error-report.h"
 #include "qemu/option.h"
+#include "qemu/cutils.h"
 
 struct acpi_table_header {
     uint16_t _length;         /* our length, not actual part of the hdr */
@@ -181,7 +182,7 @@ static void acpi_table_install(const char unsigned *blob, size_t bloblen,
     ext_hdr->_length = cpu_to_le16(acpi_payload_size);
 
     if (hdrs->has_sig) {
-        strncpy(ext_hdr->sig, hdrs->sig, sizeof ext_hdr->sig);
+        strpadcpy(ext_hdr->sig, sizeof ext_hdr->sig, hdrs->sig, 0);
         ++changed_fields;
     }
 
@@ -200,12 +201,12 @@ static void acpi_table_install(const char unsigned *blob, size_t bloblen,
     ext_hdr->checksum = 0;
 
     if (hdrs->has_oem_id) {
-        strncpy(ext_hdr->oem_id, hdrs->oem_id, sizeof ext_hdr->oem_id);
+        strpadcpy(ext_hdr->oem_id, sizeof ext_hdr->oem_id, hdrs->oem_id, 0);
         ++changed_fields;
     }
     if (hdrs->has_oem_table_id) {
-        strncpy(ext_hdr->oem_table_id, hdrs->oem_table_id,
-                sizeof ext_hdr->oem_table_id);
+        strpadcpy(ext_hdr->oem_table_id, sizeof ext_hdr->oem_table_id,
+                  hdrs->oem_table_id, 0);
         ++changed_fields;
     }
     if (hdrs->has_oem_rev) {
@@ -213,8 +214,8 @@ static void acpi_table_install(const char unsigned *blob, size_t bloblen,
         ++changed_fields;
     }
     if (hdrs->has_asl_compiler_id) {
-        strncpy(ext_hdr->asl_compiler_id, hdrs->asl_compiler_id,
-                sizeof ext_hdr->asl_compiler_id);
+        strpadcpy(ext_hdr->asl_compiler_id, sizeof ext_hdr->asl_compiler_id,
+                  hdrs->asl_compiler_id, 0);
         ++changed_fields;
     }
     if (hdrs->has_asl_compiler_rev) {

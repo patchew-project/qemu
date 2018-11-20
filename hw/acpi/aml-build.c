@@ -24,6 +24,7 @@
 #include "hw/acpi/aml-build.h"
 #include "qemu/bswap.h"
 #include "qemu/bitops.h"
+#include "qemu/cutils.h"
 #include "sysemu/numa.h"
 
 static GArray *build_alloc_array(void)
@@ -1532,13 +1533,14 @@ build_header(BIOSLinker *linker, GArray *table_data,
     h->revision = rev;
 
     if (oem_id) {
-        strncpy((char *)h->oem_id, oem_id, sizeof h->oem_id);
+        strpadcpy((char *)h->oem_id, sizeof h->oem_id, oem_id, 0);
     } else {
         memcpy(h->oem_id, ACPI_BUILD_APPNAME6, 6);
     }
 
     if (oem_table_id) {
-        strncpy((char *)h->oem_table_id, oem_table_id, sizeof(h->oem_table_id));
+        strpadcpy((char *)h->oem_table_id, sizeof(h->oem_table_id),
+                  oem_table_id, 0);
     } else {
         memcpy(h->oem_table_id, ACPI_BUILD_APPNAME4, 4);
         memcpy(h->oem_table_id + 4, sig, 4);
