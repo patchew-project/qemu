@@ -293,6 +293,7 @@ static void tpm_tis_request_completed(TPMIf *ti, int ret)
     uint8_t locty = s->cmd.locty;
     uint8_t l;
 
+    assert(TPM_TIS_IS_VALID_LOCTY(locty));
     if (s->cmd.selftest_done) {
         for (l = 0; l < TPM_TIS_NUM_LOCALITIES; l++) {
             s->loc[l].sts |= TPM_TIS_STS_SELFTEST_DONE;
@@ -401,6 +402,7 @@ static uint64_t tpm_tis_mmio_read(void *opaque, hwaddr addr,
     uint32_t avail;
     uint8_t v;
 
+    assert(TPM_TIS_IS_VALID_LOCTY(locty));
     if (tpm_backend_had_startup_error(s->be_driver)) {
         return 0;
     }
@@ -523,6 +525,7 @@ static void tpm_tis_mmio_write(void *opaque, hwaddr addr,
     uint16_t len;
     uint32_t mask = (size == 1) ? 0xff : ((size == 2) ? 0xffff : ~0);
 
+    assert(TPM_TIS_IS_VALID_LOCTY(locty));
     trace_tpm_tis_mmio_write(size, addr, val);
 
     if (locty == 4) {
@@ -642,7 +645,7 @@ static void tpm_tis_mmio_write(void *opaque, hwaddr addr,
             }
         }
 
-        if (set_new_locty) {
+        if (set_new_locty && TPM_TIS_IS_VALID_LOCTY(active_locty)) {
             tpm_tis_new_active_locality(s, active_locty);
         }
 
