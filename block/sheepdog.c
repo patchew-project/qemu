@@ -1236,6 +1236,7 @@ static int find_vdi_name(BDRVSheepdogState *s, const char *filename,
      * don't want the send_req to read uninitialized data.
      */
     strncpy(buf, filename, SD_MAX_VDI_LEN);
+    assert(strlen(tag) < SD_MAX_VDI_TAG_LEN);
     strncpy(buf + SD_MAX_VDI_LEN, tag, SD_MAX_VDI_TAG_LEN);
 
     memset(&hdr, 0, sizeof(hdr));
