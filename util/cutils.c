@@ -206,20 +206,18 @@ static int64_t suffix_mul(char suffix, int64_t unit)
  * in *end, if not NULL. Return -ERANGE on overflow, Return -EINVAL on
  * other error.
  */
-static int do_strtosz(const char *nptr, char **end,
+static int do_strtosz(const char *nptr, const char **end,
                       const char default_suffix, int64_t unit,
                       uint64_t *result)
 {
     int retval;
-    char *endptr;
+    const char *endptr;
     unsigned char c;
     int mul_required = 0;
     double val, mul, integral, fraction;
 
-    errno = 0;
-    val = strtod(nptr, &endptr);
-    if (isnan(val) || endptr == nptr || errno != 0) {
-        retval = -EINVAL;
+    retval = qemu_strtod_finite(nptr, &endptr, &val);
+    if (retval) {
         goto out;
     }
     fraction = modf(val, &integral);
@@ -259,17 +257,17 @@ out:
     return retval;
 }
 
-int qemu_strtosz(const char *nptr, char **end, uint64_t *result)
+int qemu_strtosz(const char *nptr, const char **end, uint64_t *result)
 {
     return do_strtosz(nptr, end, 'B', 1024, result);
 }
 
-int qemu_strtosz_MiB(const char *nptr, char **end, uint64_t *result)
+int qemu_strtosz_MiB(const char *nptr, const char **end, uint64_t *result)
 {
     return do_strtosz(nptr, end, 'M', 1024, result);
 }
 
-int qemu_strtosz_metric(const char *nptr, char **end, uint64_t *result)
+int qemu_strtosz_metric(const char *nptr, const char **end, uint64_t *result)
 {
     return do_strtosz(nptr, end, 'B', 1000, result);
 }
