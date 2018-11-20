@@ -26,6 +26,7 @@
 #include "qom/object.h"
 #include "qemu/rcu.h"
 #include "hw/qdev-core.h"
+#include "qapi/error.h"
 
 #define RAM_ADDR_INVALID (~(ram_addr_t)0)
 
@@ -135,6 +136,13 @@ typedef struct IOMMUNotifier IOMMUNotifier;
 #define RAM_SYNC_ON_OFF_AUTO_AUTO (1UL << RAM_SYNC_SHIFT_AUTO)
 
 #define RAM_SYNC (RAM_SYNC_ON_OFF_AUTO_ON | RAM_SYNC_ON_OFF_AUTO_AUTO)
+
+static inline uint64_t qemu_ram_sync_flags(OnOffAuto v)
+{
+    return v == ON_OFF_AUTO_OFF ? RAM_SYNC_ON_OFF_AUTO_OFF :
+           v == ON_OFF_AUTO_ON ? RAM_SYNC_ON_OFF_AUTO_ON :
+           RAM_SYNC_ON_OFF_AUTO_AUTO;
+}
 
 static inline void iommu_notifier_init(IOMMUNotifier *n, IOMMUNotify fn,
                                        IOMMUNotifierFlag flags,

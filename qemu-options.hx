@@ -3943,7 +3943,7 @@ property must be set.  These objects are placed in the
 
 @table @option
 
-@item -object memory-backend-file,id=@var{id},size=@var{size},mem-path=@var{dir},share=@var{on|off},discard-data=@var{on|off},merge=@var{on|off},dump=@var{on|off},prealloc=@var{on|off},host-nodes=@var{host-nodes},policy=@var{default|preferred|bind|interleave},align=@var{align}
+@item -object memory-backend-file,id=@var{id},size=@var{size},mem-path=@var{dir},share=@var{on|off},discard-data=@var{on|off},merge=@var{on|off},dump=@var{on|off},prealloc=@var{on|off},host-nodes=@var{host-nodes},policy=@var{default|preferred|bind|interleave},align=@var{align},sync=@var{on|off|auto}
 
 Creates a memory file backend object, which can be used to back
 the guest RAM with huge pages.
@@ -4017,6 +4017,26 @@ using the SNIA NVM programming model (e.g. Intel NVDIMM).
 If @option{pmem} is set to 'on', QEMU will take necessary operations to
 guarantee the persistence of its own writes to @option{mem-path}
 (e.g. in vNVDIMM label emulation and live migration).
+
+The @option{sync} option specifies whether QEMU mmap(2) @option{mem-path}
+with MAP_SYNC flag, which can guarantee the guest write persistence to
+@option{mem-path} even on the host crash and power failures. MAP_SYNC
+requires supports from both the host kernel (since Linux kernel 4.15)
+and @option{mem-path} (only files supporting DAX). It can take one of
+following values:
+
+@table @option
+@item @var{on}
+try to pass MAP_SYNC to mmap(2); if MAP_SYNC is not supported or
+@option{share}=@var{off}, QEMU will abort
+
+@item @var{off}
+never pass MAP_SYNC to mmap(2)
+
+@item @var{auto} (default)
+if MAP_SYNC is supported and @option{share}=@var{on}, work as if
+@option{sync}=@var{on}; otherwise, work as if @option{sync}=@var{off}
+@end table
 
 @item -object memory-backend-ram,id=@var{id},merge=@var{on|off},dump=@var{on|off},share=@var{on|off},prealloc=@var{on|off},size=@var{size},host-nodes=@var{host-nodes},policy=@var{default|preferred|bind|interleave}
 
