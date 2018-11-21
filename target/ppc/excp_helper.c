@@ -687,10 +687,10 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
         new_msr |= (1 << MSR_IR) | (1 << MSR_DR);
         switch(ail) {
         case AIL_0001_8000:
-            vector |= 0x18000;
+            vector |= AIL_0001_8000_OFFSET;
             break;
         case AIL_C000_0000_0000_4000:
-            vector |= 0xc000000000004000ull;
+            vector |= AIL_C000_0000_0000_4000_OFFSET;
             break;
         default:
             cpu_abort(cs, "Invalid AIL combination %d\n", ail);
