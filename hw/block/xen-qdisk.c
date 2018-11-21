@@ -11,6 +11,14 @@
 #include "hw/xen/xen-qdisk.h"
 #include "trace.h"
 
+static char *xen_qdisk_get_name(XenDevice *xendev, Error **errp)
+{
+    XenQdiskDevice *qdiskdev = XEN_QDISK_DEVICE(xendev);
+    XenQdiskVdev *vdev = &qdiskdev->vdev;
+
+    return g_strdup_printf("%lu", vdev->number);
+}
+
 static void xen_qdisk_realize(XenDevice *xendev, Error **errp)
 {
     XenQdiskDevice *qdiskdev = XEN_QDISK_DEVICE(xendev);
@@ -234,6 +242,9 @@ static void xen_qdisk_class_init(ObjectClass *class, void *data)
     DeviceClass *dev_class = DEVICE_CLASS(class);
     XenDeviceClass *xendev_class = XEN_DEVICE_CLASS(class);
 
+    xendev_class->backend = "qdisk";
+    xendev_class->device = "vbd";
+    xendev_class->get_name = xen_qdisk_get_name;
     xendev_class->realize = xen_qdisk_realize;
     xendev_class->unrealize = xen_qdisk_unrealize;
 
