@@ -49,6 +49,15 @@ class Test(avocado.Test):
             self.cancel("No QEMU binary defined or found in the source tree")
         self.vm = QEMUMachine(self.qemu_bin)
 
+        # RFC: avocado.utils.vmimage.get() uses qemu-img, from the
+        # system's PATH, to create a snapshot.  This is a transparent,
+        # but implicit way of making sure it finds the qemu-img that
+        # matches the code being tested (as tests it indirectly too).
+        # As for the cleanup, given that in the Avocado test execution
+        # model every test is started in a different process, no
+        # cleanup is needed.
+        os.environ['PATH'] = '%s:%s' % (SRC_ROOT_DIR, os.environ['PATH'])
+
     def tearDown(self):
         if self.vm is not None:
             self.vm.shutdown()
