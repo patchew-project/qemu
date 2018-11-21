@@ -130,4 +130,6 @@ xen_disk_free(char *name) "%s"
 
 # hw/block/xen-qdisk.c
 xen_qdisk_realize(uint32_t disk, uint32_t partition) "d%up%u"
+xen_qdisk_connect(uint32_t disk, uint32_t partition) "d%up%u"
+xen_qdisk_disconnect(uint32_t disk, uint32_t partition) "d%up%u"
 xen_qdisk_unrealize(uint32_t disk, uint32_t partition) "d%up%u"

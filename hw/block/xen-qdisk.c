@@ -32,12 +32,67 @@ static void xen_qdisk_realize(XenDevice *xendev, Error **errp)
     trace_xen_qdisk_realize(vdev->disk, vdev->partition);
 }
 
+static void xen_qdisk_connect(XenQdiskDevice *qdiskdev, Error **errp)
+{
+    XenQdiskVdev *vdev = &qdiskdev->vdev;
+
+    trace_xen_qdisk_connect(vdev->disk, vdev->partition);
+}
+
+static void xen_qdisk_disconnect(XenQdiskDevice *qdiskdev, Error **errp)
+{
+    XenQdiskVdev *vdev = &qdiskdev->vdev;
+
+    trace_xen_qdisk_disconnect(vdev->disk, vdev->partition);
+}
+
+static void xen_qdisk_frontend_changed(XenDevice *xendev,
+                                       enum xenbus_state frontend_state,
+                                       Error **errp)
+{
+    XenQdiskDevice *qdiskdev = XEN_QDISK_DEVICE(xendev);
+    enum xenbus_state backend_state = xen_device_backend_get_state(xendev);
+    Error *local_err = NULL;
+
+    switch (frontend_state) {
+    case XenbusStateInitialised:
+    case XenbusStateConnected:
+        if (backend_state == XenbusStateConnected) {
+            break;
+        }
+
+        xen_qdisk_disconnect(qdiskdev, &error_fatal);
+        xen_qdisk_connect(qdiskdev, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            break;
+        }
+
+        xen_device_backend_set_state(xendev, XenbusStateConnected);
+        break;
+
+    case XenbusStateClosing:
+        xen_device_backend_set_state(xendev, XenbusStateClosing);
+        break;
+
+    case XenbusStateClosed:
+        xen_qdisk_disconnect(qdiskdev, &error_fatal);
+        xen_device_backend_set_state(xendev, XenbusStateClosed);
+        break;
+
+    default:
+        break;
+    }
+}
+
 static void xen_qdisk_unrealize(XenDevice *xendev, Error **errp)
 {
     XenQdiskDevice *qdiskdev = XEN_QDISK_DEVICE(xendev);
     XenQdiskVdev *vdev = &qdiskdev->vdev;
 
     trace_xen_qdisk_unrealize(vdev->disk, vdev->partition);
+
+    xen_qdisk_disconnect(qdiskdev, &error_fatal);
 }
 
 static char *disk_to_vbd_name(unsigned int disk)
@@ -246,6 +301,7 @@ static void xen_qdisk_class_init(ObjectClass *class, void *data)
     xendev_class->device = "vbd";
     xendev_class->get_name = xen_qdisk_get_name;
     xendev_class->realize = xen_qdisk_realize;
+    xendev_class->frontend_changed = xen_qdisk_frontend_changed;
     xendev_class->unrealize = xen_qdisk_unrealize;
 
     dev_class->desc = "Xen Qdisk Device";

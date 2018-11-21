@@ -23,4 +23,9 @@ int xs_node_vscanf(struct xs_handle *xsh, const char *node, const char *key,
 int xs_node_scanf(struct xs_handle *xsh, const char *node, const char *key,
                   const char *fmt, ...);
 
+void xs_node_watch(struct xs_handle *xsh, const char *node, const char *key,
+                   char *token, Error **errp);
+void xs_node_unwatch(struct xs_handle *xsh, const char *node, const char *key,
+                     const char *token);
+
 #endif /* HW_XEN_BUS_HELPER_H */

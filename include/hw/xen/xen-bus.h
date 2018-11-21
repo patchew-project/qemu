@@ -8,6 +8,11 @@
 
 #include "hw/xen/xen_common.h"
 #include "hw/sysbus.h"
+#include "qemu/notify.h"
+
+typedef void (*XenWatchHandler)(void *opaque);
+
+typedef struct XenWatch XenWatch;
 
 typedef struct XenDevice {
     DeviceState qdev;
@@ -16,10 +21,14 @@ typedef struct XenDevice {
     char *backend_path, *frontend_path;
     enum xenbus_state backend_state, frontend_state;
     Notifier exit;
+    XenWatch *frontend_state_watch;
 } XenDevice;
 
 typedef char *(*XenDeviceGetName)(XenDevice *xendev, Error **errp);
 typedef void (*XenDeviceRealize)(XenDevice *xendev, Error **errp);
+typedef void (*XenDeviceFrontendChanged)(XenDevice *xendev,
+                                         enum xenbus_state frontend_state,
+                                         Error **errp);
 typedef void (*XenDeviceUnrealize)(XenDevice *xendev, Error **errp);
 
 typedef struct XenDeviceClass {
@@ -30,6 +39,7 @@ typedef struct XenDeviceClass {
     const char *device;
     XenDeviceGetName get_name;
     XenDeviceRealize realize;
+    XenDeviceFrontendChanged frontend_changed;
     XenDeviceUnrealize unrealize;
 } XenDeviceClass;
 
@@ -45,6 +55,7 @@ typedef struct XenBus {
     BusState qbus;
     domid_t backend_id;
     struct xs_handle *xsh;
+    NotifierList watch_notifiers;
 } XenBus;
 
 typedef struct XenBusClass {
@@ -61,5 +72,9 @@ typedef struct XenBusClass {
     OBJECT_GET_CLASS(XenBusClass, (obj), TYPE_XEN_BUS)
 
 void xen_bus_init(void);
+
+void xen_device_backend_set_state(XenDevice *xendev,
+                                  enum xenbus_state state);
+enum xenbus_state xen_device_backend_get_state(XenDevice *xendev);
 
 #endif /* HW_XEN_BUS_H */

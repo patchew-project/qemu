@@ -122,3 +122,31 @@ int xs_node_scanf(struct xs_handle *xsh, const char *node, const char *key,
 
     return rc;
 }
+
+void xs_node_watch(struct xs_handle *xsh, const char *node, const char *key,
+                   char *token, Error **errp)
+{
+    char *path;
+
+    path = (strlen(node) != 0) ? g_strdup_printf("%s/%s", node, key) :
+        g_strdup(key);
+
+    if (!xs_watch(xsh, path, token)) {
+        error_setg_errno(errp, errno, "failed to watch path '%s'", path);
+    }
+
+    g_free(path);
+}
+
+void xs_node_unwatch(struct xs_handle *xsh, const char *node,
+                     const char *key, const char *token)
+{
+    char *path;
+
+    path = (strlen(node) != 0) ? g_strdup_printf("%s/%s", node, key) :
+        g_strdup(key);
+
+    xs_unwatch(xsh, path, token);
+
+    g_free(path);
+}

@@ -4,6 +4,9 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
+#include "qemu/main-loop.h"
+#include "qemu/uuid.h"
 #include "hw/hw.h"
 #include "hw/sysbus.h"
 #include "hw/xen/xen.h"
@@ -57,6 +60,78 @@ static char *xen_bus_get_dev_path(DeviceState *dev)
     return xen_device_get_backend_path(XEN_DEVICE(dev));
 }
 
+struct XenWatch {
+    char *node, *key;
+    char *token;
+    XenWatchHandler handler;
+    void *opaque;
+    Notifier notifier;
+};
+
+static void watch_notify(Notifier *n, void *data)
+{
+    XenWatch *watch = container_of(n, XenWatch, notifier);
+    const char *token = data;
+
+    if (!strcmp(watch->token, token)) {
+        watch->handler(watch->opaque);
+    }
+}
+
+static XenWatch *xen_bus_add_watch(XenBus *xenbus, const char *node,
+                                   const char *key, XenWatchHandler handler,
+                                   void *opaque, Error **errp)
+{
+    XenWatch *watch = g_new0(XenWatch, 1);
+    QemuUUID uuid;
+    Error *local_err = NULL;
+
+    qemu_uuid_generate(&uuid);
+    watch->token = qemu_uuid_unparse_strdup(&uuid);
+
+    trace_xen_bus_add_watch(node, key, watch->token);
+
+    watch->node = g_strdup(node);
+    watch->key = g_strdup(key);
+    watch->handler = handler;
+    watch->opaque = opaque;
+    watch->notifier.notify = watch_notify;
+
+    notifier_list_add(&xenbus->watch_notifiers, &watch->notifier);
+
+    xs_node_watch(xenbus->xsh, node, key, watch->token, &local_err);
+
+    if (local_err) {
+        error_propagate(errp, local_err);
+
+        notifier_remove(&watch->notifier);
+
+        g_free(watch->token);
+        g_free(watch->key);
+        g_free(watch->node);
+
+        g_free(watch);
+        watch = NULL;
+    }
+
+    return watch;
+}
+
+static void xen_bus_remove_watch(XenBus *xenbus, XenWatch *watch)
+{
+    trace_xen_bus_remove_watch(watch->node, watch->key, watch->token);
+
+    xs_node_unwatch(xenbus->xsh, watch->node, watch->key, watch->token);
+
+    notifier_remove(&watch->notifier);
+
+    g_free(watch->token);
+    g_free(watch->key);
+    g_free(watch->node);
+
+    g_free(watch);
+}
+
 static void xen_bus_unrealize(BusState *bus, Error **errp)
 {
     XenBus *xenbus = XEN_BUS(bus);
@@ -67,7 +142,32 @@ static void xen_bus_unrealize(BusState *bus, Error **errp)
         return;
     }
 
+    qemu_set_fd_handler(xs_fileno(xenbus->xsh), NULL, NULL, NULL);
+
     xs_close(xenbus->xsh);
+}
+
+static void xen_bus_watch(void *opaque)
+{
+    XenBus *xenbus = opaque;
+    char **v;
+    const char *token;
+    unsigned int n;
+
+    g_assert(xenbus->xsh);
+
+    v = xs_read_watch(xenbus->xsh, &n);
+    if (!v) {
+        return;
+    }
+
+    token = v[XS_WATCH_TOKEN];
+
+    trace_xen_bus_watch(token);
+
+    notifier_list_notify(&xenbus->watch_notifiers, (void *)token);
+
+    free(v);
 }
 
 static void xen_bus_realize(BusState *bus, Error **errp)
@@ -90,6 +190,9 @@ static void xen_bus_realize(BusState *bus, Error **errp)
         xenbus->backend_id = 0; /* Assume lack of node means dom0 */
     }
 
+    notifier_list_init(&xenbus->watch_notifiers);
+    qemu_set_fd_handler(xs_fileno(xenbus->xsh), xen_bus_watch, NULL,
+                        xenbus);
     return;
 
 fail:
@@ -127,8 +230,25 @@ static void xen_device_backend_printf(XenDevice *xendev, const char *key,
     va_end(ap);
 }
 
-static void xen_device_backend_set_state(XenDevice *xendev,
-                                         enum xenbus_state state)
+static int xen_device_backend_scanf(XenDevice *xendev, const char *key,
+                                    const char *fmt, ...)
+{
+    XenBus *xenbus = XEN_BUS(qdev_get_parent_bus(DEVICE(xendev)));
+    va_list ap;
+    int rc;
+
+    g_assert(xenbus->xsh);
+
+    va_start(ap, fmt);
+    rc = xs_node_vscanf(xenbus->xsh, xendev->backend_path, key, fmt,
+                        ap);
+    va_end(ap);
+
+    return rc;
+}
+
+void xen_device_backend_set_state(XenDevice *xendev,
+                                  enum xenbus_state state)
 {
     const char *type = object_get_typename(OBJECT(xendev));
 
@@ -141,6 +261,11 @@ static void xen_device_backend_set_state(XenDevice *xendev,
 
     xendev->backend_state = state;
     xen_device_backend_printf(xendev, "state", "%u", state);
+}
+
+enum xenbus_state xen_device_backend_get_state(XenDevice *xendev)
+{
+    return xendev->backend_state;
 }
 
 static void xen_device_backend_create(XenDevice *xendev, Error **errp)
@@ -193,6 +318,23 @@ static void xen_device_frontend_printf(XenDevice *xendev, const char *key,
     va_end(ap);
 }
 
+static int xen_device_frontend_scanf(XenDevice *xendev, const char *key,
+                                      const char *fmt, ...)
+{
+    XenBus *xenbus = XEN_BUS(qdev_get_parent_bus(DEVICE(xendev)));
+    va_list ap;
+    int rc;
+
+    g_assert(xenbus->xsh);
+
+    va_start(ap, fmt);
+    rc = xs_node_vscanf(xenbus->xsh, xendev->frontend_path, key, fmt,
+                        ap);
+    va_end(ap);
+
+    return rc;
+}
+
 static void xen_device_frontend_set_state(XenDevice *xendev,
                                           enum xenbus_state state)
 {
@@ -207,6 +349,53 @@ static void xen_device_frontend_set_state(XenDevice *xendev,
 
     xendev->frontend_state = state;
     xen_device_frontend_printf(xendev, "state", "%u", state);
+}
+
+static void xen_device_frontend_changed(void *opaque)
+{
+    XenDevice *xendev = opaque;
+    XenDeviceClass *xendev_class = XEN_DEVICE_GET_CLASS(xendev);
+    const char *type = object_get_typename(OBJECT(xendev));
+    enum xenbus_state state;
+
+    trace_xen_device_frontend_changed(type, xendev->name);
+
+    if (xen_device_frontend_scanf(xendev, "state", "%u", &state) != 1) {
+        state = XenbusStateUnknown;
+    }
+
+    xen_device_frontend_set_state(xendev, state);
+
+    if (xendev_class->frontend_changed) {
+        Error *local_err = NULL;
+
+        xendev_class->frontend_changed(xendev, state, &local_err);
+
+        if (local_err) {
+            const char *msg = error_get_pretty(local_err);
+
+            error_report("frontend change error: %s", msg);
+            error_free(local_err);
+        }
+    }
+
+    /*
+     * If a backend is still 'online' then its state should be cycled
+     * back round to InitWait in order for a new frontend instance to
+     * connect. This may happen when, for example, a frontend driver is
+     * re-installed or updated.
+     */
+    if (xendev->backend_state == XenbusStateClosed) {
+        unsigned int online;
+
+        if (xen_device_backend_scanf(xendev, "online", "%u", &online) != 1) {
+            online = 0;
+        }
+
+        if (online) {
+            xen_device_backend_set_state(xendev, XenbusStateInitWait);
+        }
+    }
 }
 
 static void xen_device_frontend_create(XenDevice *xendev, Error **errp)
@@ -230,11 +419,23 @@ static void xen_device_frontend_create(XenDevice *xendev, Error **errp)
         error_propagate(errp, local_err);
         error_prepend(errp, "failed to create frontend: ");
     }
+
+    xendev->frontend_state_watch =
+        xen_bus_add_watch(xenbus, xendev->frontend_path, "state",
+                          xen_device_frontend_changed, xendev, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        error_prepend(errp, "failed to watch frontend state: ");
+    }
 }
 
 static void xen_device_frontend_destroy(XenDevice *xendev)
 {
     XenBus *xenbus = XEN_BUS(qdev_get_parent_bus(DEVICE(xendev)));
+
+    if (xendev->frontend_state_watch) {
+        xen_bus_remove_watch(xenbus, xendev->frontend_state_watch);
+    }
 
     if (!xendev->frontend_path) {
         return;
