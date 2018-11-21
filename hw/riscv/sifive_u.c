@@ -238,6 +238,8 @@ static void create_fdt(SiFiveUState *s, const struct MemmapEntry *memmap,
 
 static void riscv_sifive_u_init(MachineState *machine)
 {
+    warn_report("The sifive_u machine is deprecated.");
+
     const struct MemmapEntry *memmap = sifive_u_memmap;
 
     SiFiveUState *s = g_new0(SiFiveUState, 1);

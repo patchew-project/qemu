@@ -95,7 +95,7 @@ static void sifive_mmio_emulate(MemoryRegion *parent, const char *name,
     memory_region_add_subregion(parent, offset, mock_mmio);
 }
 
-static void riscv_sifive_e_init(MachineState *machine)
+static void riscv_sifive_hifive1_init(MachineState *machine)
 {
     const struct MemmapEntry *memmap = sifive_e_memmap;
 
@@ -133,6 +133,17 @@ static void riscv_sifive_e_init(MachineState *machine)
     if (machine->kernel_filename) {
         load_kernel(machine->kernel_filename);
     }
+}
+
+static void riscv_sifive_e_init(MachineState *machine)
+{
+#if defined(TARGET_RISCV32)
+    warn_report("The sifive_e machine is deprecated in favor of sifive-hifive1");
+#else
+    warn_report("The sifive_e machine is deprecated.");
+#endif
+
+    return riscv_sifive_hifive1_init(machine);
 }
 
 static void riscv_sifive_e_soc_init(Object *obj)
@@ -213,12 +224,23 @@ static void riscv_sifive_e_soc_realize(DeviceState *dev, Error **errp)
 
 static void riscv_sifive_e_machine_init(MachineClass *mc)
 {
-    mc->desc = "RISC-V Board compatible with SiFive E SDK";
+    mc->desc = "(deprecated) RISC-V Board compatible with SiFive E SDK";
     mc->init = riscv_sifive_e_init;
     mc->max_cpus = 1;
 }
 
 DEFINE_MACHINE("sifive_e", riscv_sifive_e_machine_init)
+
+#if defined(TARGET_RISCV32)
+static void riscv_sifive_hifive1_machine_init(MachineClass *mc)
+{
+    mc->desc = "SiFive's HiFive1 Development Board";
+    mc->init = riscv_sifive_hifive1_init;
+    mc->max_cpus = 1;
+}
+
+DEFINE_MACHINE("sifive-hifive1", riscv_sifive_hifive1_machine_init)
+#endif
 
 static void riscv_sifive_e_soc_class_init(ObjectClass *oc, void *data)
 {
