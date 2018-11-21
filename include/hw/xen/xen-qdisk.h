@@ -44,6 +44,7 @@ struct XenQdiskDevice {
     BlockConf conf;
     unsigned int max_ring_page_order;
     IOThread *iothread;
+    IOThread *auto_iothread;
     XenQdiskDataPlane *dataplane;
 };
 

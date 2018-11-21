@@ -5,9 +5,12 @@
 
 #include "qemu/osdep.h"
 #include "qemu/cutils.h"
+#include "qemu/option.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
+#include "qapi/qmp/qdict.h"
 #include "hw/hw.h"
+#include "hw/xen/xen-backend.h"
 #include "hw/xen/xen-qdisk.h"
 #include "sysemu/blockdev.h"
 #include "sysemu/block-backend.h"
@@ -28,6 +31,8 @@ static void xen_qdisk_realize(XenDevice *xendev, Error **errp)
     XenQdiskDevice *qdiskdev = XEN_QDISK_DEVICE(xendev);
     XenQdiskVdev *vdev = &qdiskdev->vdev;
     BlockConf *conf = &qdiskdev->conf;
+    IOThread *iothread = qdiskdev->auto_iothread ?
+        qdiskdev->auto_iothread : qdiskdev->iothread;
     DriveInfo *dinfo;
     bool is_cdrom;
     unsigned int info;
@@ -97,7 +102,7 @@ static void xen_qdisk_realize(XenDevice *xendev, Error **errp)
                               size / conf->logical_block_size);
 
     qdiskdev->dataplane = xen_qdisk_dataplane_create(xendev, conf,
-                                                     qdiskdev->iothread);
+                                                     iothread);
 }
 
 static void xen_qdisk_connect(XenQdiskDevice *qdiskdev, Error **errp)
@@ -228,6 +233,11 @@ static void xen_qdisk_unrealize(XenDevice *xendev, Error **errp)
 
     xen_qdisk_dataplane_destroy(qdiskdev->dataplane);
     qdiskdev->dataplane = NULL;
+
+    if (qdiskdev->auto_iothread) {
+        iothread_destroy(qdiskdev->auto_iothread);
+        qdiskdev->auto_iothread = NULL;
+    }
 }
 
 static char *disk_to_vbd_name(unsigned int disk)
@@ -461,3 +471,228 @@ static void xen_qdisk_register_types(void)
 }
 
 type_init(xen_qdisk_register_types)
+
+static void xen_qdisk_drive_create(const char *id, QDict *opts,
+                                   Error **errp)
+{
+    const char *params, *device_type, *mode, *direct_io_safe,
+        *discard_enable;
+    char *format = NULL;
+    char *file = NULL;
+    char *drive_optstr = NULL;
+    QemuOpts *drive_opts;
+    Error *local_err = NULL;
+
+    params = qdict_get_try_str(opts, "params");
+    if (params) {
+        char **v = g_strsplit(params, ":", 2);
+
+        if (v[1] == NULL) {
+            file = g_strdup(v[0]);
+        } else {
+            if (strcmp(v[0], "aio") == 0) {
+                format = g_strdup("raw");
+            } else if (strcmp(v[0], "vhd") == 0) {
+                format = g_strdup("vpc");
+            } else {
+                format = g_strdup(v[0]);
+            }
+            file = g_strdup(v[1]);
+        }
+
+        g_strfreev(v);
+    }
+
+    if (!file) {
+        error_setg(errp, "no file parameter");
+        return;
+    }
+
+    drive_optstr = g_strdup_printf("id=%s", id);
+    drive_opts = drive_def(drive_optstr);
+    if (!drive_opts) {
+        error_setg(errp, "failed to create drive options");
+        goto done;
+    }
+
+    qemu_opt_set(drive_opts, "file", file, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        error_prepend(errp, "failed to set 'file': ");
+        goto done;
+    }
+
+    if (format) {
+        qemu_opt_set(drive_opts, "format", format, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            error_prepend(errp, "failed to set 'format': ");
+            goto done;
+        }
+    }
+
+    device_type = qdict_get_try_str(opts, "device-type");
+    if (device_type) {
+        qemu_opt_set(drive_opts, "media", device_type, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            error_prepend(errp, "failed to set 'media': ");
+            goto done;
+        }
+    }
+
+    mode = qdict_get_try_str(opts, "mode");
+    if (mode && *mode != 'w') {
+        qemu_opt_set_bool(drive_opts, BDRV_OPT_READ_ONLY, true, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            error_prepend(errp, "failed to set '%s': ", BDRV_OPT_READ_ONLY);
+            goto done;
+        }
+    }
+
+    qemu_opt_set(drive_opts, "file.locking", "off", &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        error_prepend(errp, "failed to set 'file.locking': ");
+        goto done;
+    }
+
+    qemu_opt_set_bool(drive_opts, BDRV_OPT_CACHE_WB, true, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        error_prepend(errp, "failed to set '%s': ", BDRV_OPT_CACHE_WB);
+        goto done;
+    }
+
+    direct_io_safe = qdict_get_try_str(opts, "direct-io-safe");
+    if (direct_io_safe) {
+        qemu_opt_set_bool(drive_opts, BDRV_OPT_CACHE_DIRECT, true,
+                          &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            error_prepend(errp, "failed to set '%s': ",
+                          BDRV_OPT_CACHE_DIRECT);
+            goto done;
+        }
+
+        qemu_opt_set(drive_opts, "aio", "native", &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            error_prepend(errp, "failed to set 'aio': ");
+            goto done;
+        }
+    }
+
+    discard_enable = qdict_get_try_str(opts, "discard-enable");
+    if (discard_enable) {
+        unsigned long value;
+
+        if (!qemu_strtoul(discard_enable, NULL, 2, &value)) {
+            qemu_opt_set_bool(drive_opts, BDRV_OPT_DISCARD, !!value,
+                              &local_err);
+            if (local_err) {
+                error_propagate(errp, local_err);
+                error_prepend(errp, "failed to set '%s': ",
+                              BDRV_OPT_DISCARD);
+                goto done;
+            }
+        }
+    }
+
+    drive_new(drive_opts, IF_NONE, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        error_prepend(errp, "failed to create drive: ");
+        goto done;
+    }
+
+done:
+    g_free(drive_optstr);
+    g_free(format);
+    g_free(file);
+}
+
+static void xen_qdisk_device_create(BusState *bus, const char *name,
+                                    QDict *opts, Error **errp)
+{
+    unsigned long number;
+    const char *vdev;
+    BlockBackend *blk = NULL;
+    IOThread *iothread = NULL;
+    DeviceState *dev = NULL;
+    Error *local_err = NULL;
+
+    trace_xen_qdisk_device_create(name);
+
+    if (qemu_strtoul(name, NULL, 10, &number)) {
+        error_setg(errp, "failed to parse name '%s'", name);
+        return;
+    }
+
+    vdev = qdict_get_try_str(opts, "dev");
+    if (!vdev) {
+        error_setg(errp, "no dev parameter");
+        return;
+    }
+
+    xen_qdisk_drive_create(vdev, opts, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    blk = blk_by_name(vdev);
+    g_assert(blk);
+
+    iothread = iothread_create(vdev, &error_abort);
+
+    dev = qdev_create(bus, TYPE_XEN_QDISK_DEVICE);
+
+    qdev_prop_set_string(dev, "vdev", vdev);
+
+    if (XEN_QDISK_DEVICE(dev)->vdev.number != number) {
+        error_setg(errp, "invalid dev parameter '%s'", vdev);
+        goto unref;
+    }
+
+    qdev_prop_set_drive(dev, "drive", blk, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        error_prepend(errp, "failed to set 'drive': ");
+        goto unref;
+    }
+
+    XEN_QDISK_DEVICE(dev)->auto_iothread = iothread;
+
+    qdev_init_nofail(dev);
+
+    blockdev_mark_auto_del(blk);
+    return;
+
+unref:
+    if (dev) {
+        object_unparent(OBJECT(dev));
+    }
+
+    if (iothread) {
+        iothread_destroy(iothread);
+    }
+
+    if (blk) {
+        monitor_remove_blk(blk);
+        blk_unref(blk);
+    }
+}
+
+static const XenBackendInfo xen_qdisk_backend_info = {
+    .type = "qdisk",
+    .create = xen_qdisk_device_create,
+};
+
+static void xen_qdisk_register_backend(void)
+{
+    xen_backend_register(&xen_qdisk_backend_info);
+}
+
+xen_backend_init(xen_qdisk_register_backend);
