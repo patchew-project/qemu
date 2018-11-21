@@ -217,8 +217,8 @@ static const TypeInfo xen_bus_type_info = {
     .class_init = xen_bus_class_init,
 };
 
-static void xen_device_backend_printf(XenDevice *xendev, const char *key,
-                                      const char *fmt, ...)
+void xen_device_backend_printf(XenDevice *xendev, const char *key,
+                               const char *fmt, ...)
 {
     XenBus *xenbus = XEN_BUS(qdev_get_parent_bus(DEVICE(xendev)));
     va_list ap;
@@ -305,8 +305,8 @@ static void xen_device_backend_destroy(XenDevice *xendev)
     g_free(xendev->backend_path);
 }
 
-static void xen_device_frontend_printf(XenDevice *xendev, const char *key,
-                                       const char *fmt, ...)
+void xen_device_frontend_printf(XenDevice *xendev, const char *key,
+                                const char *fmt, ...)
 {
     XenBus *xenbus = XEN_BUS(qdev_get_parent_bus(DEVICE(xendev)));
     va_list ap;
@@ -318,8 +318,8 @@ static void xen_device_frontend_printf(XenDevice *xendev, const char *key,
     va_end(ap);
 }
 
-static int xen_device_frontend_scanf(XenDevice *xendev, const char *key,
-                                      const char *fmt, ...)
+int xen_device_frontend_scanf(XenDevice *xendev, const char *key,
+                              const char *fmt, ...)
 {
     XenBus *xenbus = XEN_BUS(qdev_get_parent_bus(DEVICE(xendev)));
     va_list ap;

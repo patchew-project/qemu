@@ -6,7 +6,15 @@
 #ifndef HW_XEN_QDISK_H
 #define HW_XEN_QDISK_H
 
+#include "hw/xen/xen.h"
 #include "hw/xen/xen-bus.h"
+#include "hw/block/block.h"
+#include "hw/block/xen_blkif.h"
+#include "hw/block/dataplane/xen-qdisk.h"
+#include "sysemu/blockdev.h"
+#include "sysemu/iothread.h"
+#include "sysemu/block-backend.h"
+#include "sysemu/iothread.h"
 
 typedef enum XenQdiskVdevType {
     XEN_QDISK_VDEV_TYPE_DP,
@@ -33,6 +41,10 @@ typedef struct XenQdiskDevice XenQdiskDevice;
 struct XenQdiskDevice {
     XenDevice xendev;
     XenQdiskVdev vdev;
+    BlockConf conf;
+    unsigned int max_ring_page_order;
+    IOThread *iothread;
+    XenQdiskDataPlane *dataplane;
 };
 
 #endif /* HW_XEN_QDISK_H */
