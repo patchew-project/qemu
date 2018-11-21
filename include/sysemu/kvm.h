@@ -259,6 +259,8 @@ int kvm_remove_breakpoint(CPUState *cpu, target_ulong addr,
 void kvm_remove_all_breakpoints(CPUState *cpu);
 int kvm_update_guest_debug(CPUState *cpu, unsigned long reinject_trap);
 
+void kvm_set_singlestep(CPUState *cpu, int enabled);
+
 int kvm_on_sigbus_vcpu(CPUState *cpu, int code, void *addr);
 int kvm_on_sigbus(int code, void *addr);
 
@@ -430,6 +432,8 @@ int kvm_arch_remove_hw_breakpoint(target_ulong addr,
 void kvm_arch_remove_all_hw_breakpoints(void);
 
 void kvm_arch_update_guest_debug(CPUState *cpu, struct kvm_guest_debug *dbg);
+
+void kvm_arch_set_singlestep(CPUState *cpu, int enabled);
 
 bool kvm_arch_stop_on_emulation_error(CPUState *cpu);
 

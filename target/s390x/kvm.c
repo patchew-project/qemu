@@ -975,6 +975,10 @@ void kvm_arch_remove_all_hw_breakpoints(void)
     hw_breakpoints = NULL;
 }
 
+void kvm_arch_set_singlestep(CPUState *cs, int enabled)
+{
+}
+
 void kvm_arch_update_guest_debug(CPUState *cpu, struct kvm_guest_debug *dbg)
 {
     int i;

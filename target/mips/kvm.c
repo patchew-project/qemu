@@ -119,6 +119,10 @@ int kvm_arch_remove_sw_breakpoint(CPUState *cs, struct kvm_sw_breakpoint *bp)
     return 0;
 }
 
+void kvm_arch_set_singlestep(CPUState *cs, int enabled)
+{
+}
+
 static inline int cpu_mips_io_interrupts_pending(MIPSCPU *cpu)
 {
     CPUMIPSState *env = &cpu->env;
