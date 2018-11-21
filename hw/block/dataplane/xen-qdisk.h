@@ -9,7 +9,7 @@
 #include "hw/xen/xen-bus.h"
 #include "sysemu/iothread.h"
 
-typedef struct XenBlkDev XenQdiskDataPlane;
+typedef struct XenQdiskDataPlane XenQdiskDataPlane;
 
 XenQdiskDataPlane *xen_qdisk_dataplane_create(XenDevice *xendev,
                                               BlockConf *conf,
