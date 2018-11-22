@@ -297,11 +297,15 @@ struct vfio_region_info_cap_type {
 
 #define VFIO_REGION_TYPE_PCI_VENDOR_TYPE	(1 << 31)
 #define VFIO_REGION_TYPE_PCI_VENDOR_MASK	(0xffff)
+#define VFIO_REGION_TYPE_CCW			(1 << 30)
 
 /* 8086 Vendor sub-types */
 #define VFIO_REGION_SUBTYPE_INTEL_IGD_OPREGION	(1)
 #define VFIO_REGION_SUBTYPE_INTEL_IGD_HOST_CFG	(2)
 #define VFIO_REGION_SUBTYPE_INTEL_IGD_LPC_CFG	(3)
+
+/* ccw sub-types */
+#define VFIO_REGION_SUBTYPE_CCW_ASYNC_CMD	(1)
 
 /*
  * The MSIX mappable capability informs that MSIX data of a BAR can be mmapped
