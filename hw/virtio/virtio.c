@@ -2558,6 +2558,12 @@ int virtio_save(VirtIODevice *vdev, QEMUFile *f)
          */
         qemu_put_be64(f, vdev->vq[i].vring.desc);
         qemu_put_be16s(f, &vdev->vq[i].last_avail_idx);
+        qemu_put_8s(f, (const uint8_t *)&vdev->vq[i].avail_wrap_counter);
+        qemu_put_8s(f, (const uint8_t *)&vdev->vq[i].event_wrap_counter);
+        qemu_put_8s(f, (const uint8_t *)&vdev->vq[i].used_wrap_counter);
+        qemu_put_be16s(f, &vdev->vq[i].used_idx);
+        qemu_put_be16s(f, &vdev->vq[i].shadow_avail_idx);
+        qemu_put_be32s(f, &vdev->vq[i].inuse);
         if (k->save_queue) {
             k->save_queue(qbus->parent, i, f);
         }
@@ -2705,6 +2711,14 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
         }
         vdev->vq[i].vring.desc = qemu_get_be64(f);
         qemu_get_be16s(f, &vdev->vq[i].last_avail_idx);
+
+        qemu_get_8s(f, (uint8_t *)&vdev->vq[i].avail_wrap_counter);
+        qemu_get_8s(f, (uint8_t *)&vdev->vq[i].event_wrap_counter);
+        qemu_get_8s(f, (uint8_t *)&vdev->vq[i].used_wrap_counter);
+        qemu_get_be16s(f, &vdev->vq[i].used_idx);
+        qemu_get_be16s(f, &vdev->vq[i].shadow_avail_idx);
+        qemu_get_be32s(f, &vdev->vq[i].inuse);
+
         vdev->vq[i].signalled_used_valid = false;
         vdev->vq[i].notification = true;
 
@@ -2784,6 +2798,10 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
                 virtio_init_region_cache(vdev, i);
             } else {
                 virtio_queue_update_rings(vdev, i);
+            }
+
+            if (virtio_vdev_has_feature(vdev, VIRTIO_F_RING_PACKED)) {
+                continue;
             }
 
             nheads = vring_avail_idx(&vdev->vq[i]) - vdev->vq[i].last_avail_idx;
