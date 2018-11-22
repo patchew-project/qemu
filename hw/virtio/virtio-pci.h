@@ -26,6 +26,7 @@
 #include "hw/virtio/virtio-input.h"
 #include "hw/virtio/virtio-gpu.h"
 #include "hw/virtio/virtio-crypto.h"
+#include "hw/virtio/virtio-iommu.h"
 #include "hw/virtio/vhost-user-scsi.h"
 #if defined(CONFIG_VHOST_USER) && defined(CONFIG_LINUX)
 #include "hw/virtio/vhost-user-blk.h"
@@ -57,6 +58,7 @@ typedef struct VirtIOInputHostPCI VirtIOInputHostPCI;
 typedef struct VirtIOGPUPCI VirtIOGPUPCI;
 typedef struct VHostVSockPCI VHostVSockPCI;
 typedef struct VirtIOCryptoPCI VirtIOCryptoPCI;
+typedef struct VirtIOIOMMUPCI VirtIOIOMMUPCI;
 
 /* virtio-pci-bus */
 
@@ -361,6 +363,18 @@ struct VirtIOInputPCI {
 struct VirtIOInputHIDPCI {
     VirtIOPCIProxy parent_obj;
     VirtIOInputHID vdev;
+};
+
+/*
+ *  * virtio-iommu-pci: This extends VirtioPCIProxy.
+ *   */
+#define TYPE_VIRTIO_IOMMU_PCI "virtio-iommu-pci"
+#define VIRTIO_IOMMU_PCI(obj) \
+        OBJECT_CHECK(VirtIOIOMMUPCI, (obj), TYPE_VIRTIO_IOMMU_PCI)
+
+struct VirtIOIOMMUPCI {
+    VirtIOPCIProxy parent_obj;
+    VirtIOIOMMU vdev;
 };
 
 #ifdef CONFIG_LINUX
