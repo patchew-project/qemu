@@ -940,6 +940,8 @@ docs/version.texi: $(SRC_PATH)/VERSION
 
 %.html: %.texi docs/version.texi
 	$(call quiet-command,LC_ALL=C $(MAKEINFO) $(MAKEINFOFLAGS) --no-headers \
+	--set-customization-variable EXTRA_HEAD="`cat $(SRC_PATH)/docs/texinfo-extra-head.html`" \
+	--css-include=$(SRC_PATH)/docs/texinfo.css \
 	--html $< -o $@,"GEN","$@")
 
 %.info: %.texi docs/version.texi
