@@ -929,6 +929,10 @@ static void intel_hda_reg_write(IntelHDAState *d, const IntelHDAReg *reg, uint32
     if (!reg) {
         return;
     }
+    if (!reg->wmask) {
+        /* read-only register */
+        return;
+    }
 
     if (d->debug) {
         time_t now = time(NULL);
