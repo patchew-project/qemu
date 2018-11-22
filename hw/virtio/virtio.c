@@ -2963,19 +2963,40 @@ hwaddr virtio_queue_get_used_size(VirtIODevice *vdev, int n)
     }
 }
 
-uint16_t virtio_queue_get_last_avail_idx(VirtIODevice *vdev, int n)
+int virtio_queue_get_last_avail_idx(VirtIODevice *vdev, int n)
 {
-    return vdev->vq[n].last_avail_idx;
+    int idx;
+
+    if (virtio_host_has_feature(vdev, VIRTIO_F_RING_PACKED)) {
+        idx = vdev->vq[n].last_avail_idx;
+        idx |= ((int)vdev->vq[n].avail_wrap_counter) << 15;
+        idx |= (vdev->vq[n].used_idx) << 16;
+        idx |= ((int)vdev->vq[n].used_wrap_counter) << 31;
+    } else {
+        idx = (int)vdev->vq[n].last_avail_idx;
+    }
+    return idx;
 }
 
-void virtio_queue_set_last_avail_idx(VirtIODevice *vdev, int n, uint16_t idx)
+void virtio_queue_set_last_avail_idx(VirtIODevice *vdev, int n, int idx)
 {
-    vdev->vq[n].last_avail_idx = idx;
-    vdev->vq[n].shadow_avail_idx = idx;
+    if (virtio_vdev_has_feature(vdev, VIRTIO_F_RING_PACKED)) {
+        vdev->vq[n].last_avail_idx = idx & 0x7fff;
+        vdev->vq[n].avail_wrap_counter = !!(idx & 0x8000);
+        vdev->vq[n].used_idx = (idx & 0x7fff0000) >> 16;
+        vdev->vq[n].used_wrap_counter = !!(idx & 0x80000000);
+    } else {
+        vdev->vq[n].last_avail_idx = idx;
+        vdev->vq[n].shadow_avail_idx = idx;
+    }
 }
 
 void virtio_queue_restore_last_avail_idx(VirtIODevice *vdev, int n)
 {
+    if (virtio_vdev_has_feature(vdev, VIRTIO_F_RING_PACKED)) {
+        return;
+    }
+
     rcu_read_lock();
     if (vdev->vq[n].vring.desc) {
         vdev->vq[n].last_avail_idx = vring_used_idx(&vdev->vq[n]);
@@ -2986,6 +3007,10 @@ void virtio_queue_restore_last_avail_idx(VirtIODevice *vdev, int n)
 
 void virtio_queue_update_used_idx(VirtIODevice *vdev, int n)
 {
+    if (virtio_vdev_has_feature(vdev, VIRTIO_F_RING_PACKED)) {
+        return;
+    }
+
     rcu_read_lock();
     if (vdev->vq[n].vring.desc) {
         vdev->vq[n].used_idx = vring_used_idx(&vdev->vq[n]);
