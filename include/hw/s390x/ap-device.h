@@ -19,4 +19,6 @@ typedef struct APDevice {
 #define AP_DEVICE(obj) \
     OBJECT_CHECK(APDevice, (obj), AP_DEVICE_TYPE)
 
+APDevice *s390_get_ap(void);
+
 #endif /* HW_S390X_AP_DEVICE_H */

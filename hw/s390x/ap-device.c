@@ -11,13 +11,35 @@
 #include "qemu/module.h"
 #include "qapi/error.h"
 #include "hw/qdev.h"
+#include "hw/s390x/ap-bridge.h"
 #include "hw/s390x/ap-device.h"
+
+APDevice *s390_get_ap(void)
+{
+    static DeviceState *apb;
+    BusState *bus;
+    BusChild *child;
+    static APDevice *ap;
+
+    if (ap) {
+        return ap;
+    }
+
+    apb = s390_get_ap_bridge();
+    /* We have only a single child on the BUS */
+    bus = qdev_get_child_bus(apb, TYPE_AP_BUS);
+    child = QTAILQ_FIRST(&bus->children);
+    assert(child != NULL);
+    ap = DO_UPCAST(APDevice, parent_obj, child->child);
+    return ap;
+}
 
 static void ap_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->desc = "AP device class";
+    dc->bus_type = TYPE_AP_BUS;
     dc->hotpluggable = false;
 }
 

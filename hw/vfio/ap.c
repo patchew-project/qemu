@@ -35,9 +35,6 @@ typedef struct VFIOAPDevice {
     VFIODevice vdev;
 } VFIOAPDevice;
 
-#define VFIO_AP_DEVICE(obj) \
-        OBJECT_CHECK(VFIOAPDevice, (obj), VFIO_AP_DEVICE_TYPE)
-
 static void vfio_ap_compute_needs_reset(VFIODevice *vdev)
 {
     vdev->needs_reset = false;
@@ -90,8 +87,8 @@ static void vfio_ap_realize(DeviceState *dev, Error **errp)
     char *mdevid;
     Error *local_err = NULL;
     VFIOGroup *vfio_group;
-    APDevice *apdev = AP_DEVICE(dev);
-    VFIOAPDevice *vapdev = VFIO_AP_DEVICE(apdev);
+    APDevice *apdev = DO_UPCAST(APDevice, parent_obj, dev);
+    VFIOAPDevice *vapdev = DO_UPCAST(VFIOAPDevice, apdev, apdev);
 
     vfio_group = vfio_ap_get_group(vapdev, &local_err);
     if (!vfio_group) {
@@ -120,8 +117,8 @@ out_err:
 
 static void vfio_ap_unrealize(DeviceState *dev, Error **errp)
 {
-    APDevice *apdev = AP_DEVICE(dev);
-    VFIOAPDevice *vapdev = VFIO_AP_DEVICE(apdev);
+    APDevice *apdev = DO_UPCAST(APDevice, parent_obj, dev);
+    VFIOAPDevice *vapdev = DO_UPCAST(VFIOAPDevice, apdev, apdev);
     VFIOGroup *group = vapdev->vdev.group;
 
     vfio_ap_put_device(vapdev);
@@ -136,8 +133,8 @@ static Property vfio_ap_properties[] = {
 static void vfio_ap_reset(DeviceState *dev)
 {
     int ret;
-    APDevice *apdev = AP_DEVICE(dev);
-    VFIOAPDevice *vapdev = VFIO_AP_DEVICE(apdev);
+    APDevice *apdev = DO_UPCAST(APDevice, parent_obj, dev);
+    VFIOAPDevice *vapdev = DO_UPCAST(VFIOAPDevice, apdev, apdev);
 
     ret = ioctl(vapdev->vdev.fd, VFIO_DEVICE_RESET);
     if (ret) {
@@ -163,7 +160,6 @@ static void vfio_ap_class_init(ObjectClass *klass, void *data)
     dc->unrealize = vfio_ap_unrealize;
     dc->hotpluggable = false;
     dc->reset = vfio_ap_reset;
-    dc->bus_type = TYPE_AP_BUS;
 }
 
 static const TypeInfo vfio_ap_info = {
