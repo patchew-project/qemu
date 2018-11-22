@@ -14,6 +14,18 @@
 #include "hw/s390x/ap-bridge.h"
 #include "cpu.h"
 
+DeviceState *s390_get_ap_bridge(void)
+{
+    static DeviceState *apb;
+
+    if (!apb) {
+        apb = DEVICE(object_resolve_path(TYPE_AP_BRIDGE, NULL));
+        assert(apb != NULL);
+    }
+
+    return apb;
+}
+
 static char *ap_bus_get_dev_path(DeviceState *dev)
 {
     /* at most one */

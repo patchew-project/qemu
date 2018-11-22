@@ -15,5 +15,6 @@
 #define TYPE_AP_BUS "ap-bus"
 
 void s390_init_ap(void);
+DeviceState *s390_get_ap_bridge(void);
 
 #endif
