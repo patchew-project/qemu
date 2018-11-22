@@ -45,6 +45,7 @@
 #include "trace.h"
 #include "hw/s390x/s390-pci-inst.h"
 #include "hw/s390x/s390-pci-bus.h"
+#include "hw/s390x/ap-device.h"
 #include "hw/s390x/ipl.h"
 #include "hw/s390x/ebcdic.h"
 #include "exec/memattrs.h"
@@ -88,6 +89,7 @@
 #define PRIV_B2_CHSC                    0x5f
 #define PRIV_B2_SIGA                    0x74
 #define PRIV_B2_XSCH                    0x76
+#define PRIV_B2_PQAP                    0xaf
 
 #define PRIV_EB_SQBS                    0x8a
 #define PRIV_EB_PCISTB                  0xd0
@@ -1154,6 +1156,32 @@ static int kvm_sclp_service_call(S390CPU *cpu, struct kvm_run *run,
     return 0;
 }
 
+static int kvm_ap_pqap(S390CPU *cpu, uint16_t ipbh0)
+{
+    CPUS390XState *env = &cpu->env;
+    int r;
+
+    if (env->psw.mask & PSW_MASK_PSTATE) {
+        kvm_s390_program_interrupt(cpu, PGM_PRIVILEGED);
+        return 0;
+    }
+
+    if (env->regs[0] & AP_AQIC_ZERO_BITS) {
+        kvm_s390_program_interrupt(cpu, PGM_SPECIFICATION);
+        return 0;
+    }
+
+    r = ap_pqap(&cpu->env);
+
+    if (r < 0) {
+        kvm_s390_program_interrupt(cpu, -r);
+    } else {
+        setcc(cpu, r);
+    }
+
+    return 0;
+}
+
 static int handle_b2(S390CPU *cpu, struct kvm_run *run, uint8_t ipa1)
 {
     CPUS390XState *env = &cpu->env;
@@ -1215,6 +1243,9 @@ static int handle_b2(S390CPU *cpu, struct kvm_run *run, uint8_t ipa1)
         break;
     case PRIV_B2_SCLP_CALL:
         rc = kvm_sclp_service_call(cpu, run, ipbh0);
+        break;
+    case PRIV_B2_PQAP:
+        rc = kvm_ap_pqap(cpu, ipbh0);
         break;
     default:
         rc = -1;

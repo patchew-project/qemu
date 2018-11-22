@@ -4,6 +4,7 @@
  * Copyright 2018 IBM Corp.
  * Author(s): Tony Krowiak <akrowiak@linux.ibm.com>
  *            Halil Pasic <pasic@linux.ibm.com>
+ *            Pierre Morel <pmorel@linux.ibm.com>
  *
  * This work is licensed under the terms of the GNU GPL, version 2 or (at
  * your option) any later version. See the COPYING file in the top-level
@@ -14,7 +15,6 @@
 #include <sys/ioctl.h>
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "hw/sysbus.h"
 #include "hw/vfio/vfio.h"
 #include "hw/vfio/vfio-common.h"
 #include "hw/s390x/ap-device.h"
@@ -27,6 +27,8 @@
 #include "sysemu/sysemu.h"
 #include "hw/s390x/ap-bridge.h"
 #include "exec/address-spaces.h"
+#include "hw/s390x/s390_flic.h"
+#include "hw/s390x/css.h"
 
 #define VFIO_AP_DEVICE_TYPE      "vfio-ap"
 
@@ -34,6 +36,117 @@ typedef struct VFIOAPDevice {
     APDevice apdev;
     VFIODevice vdev;
 } VFIOAPDevice;
+
+static uint32_t ap_pqap_clear_irq(VFIODevice *vdev, APQueue *apq)
+{
+    struct vfio_ap_aqic param;
+    uint32_t retval;
+
+    param.apqn = apq->apqn;
+    param.isc = apq->isc;
+    param.argsz = sizeof(param);
+
+    retval = ioctl(vdev->fd, VFIO_AP_CLEAR_IRQ, &param);
+    switch (retval) {
+    case 0:    /* Fall through and return the instruction status */
+        release_indicator(&apq->routes.adapter, apq->nib);
+    case -EIO: /* The case the PQAP instruction failed with status */
+        return  param.status;
+    default:   /* The case the ioctl call failed without isuing instruction */
+        break;
+    }
+    return ap_reg_set_status(AP_RC_INVALID_ADDR);
+}
+
+static uint32_t ap_pqap_set_irq(VFIODevice *vdev, APQueue *apq, uint64_t g_nib)
+{
+    struct vfio_ap_aqic param;
+    uint32_t retval;
+    uint32_t id;
+
+    id = css_get_adapter_id(CSS_IO_ADAPTER_AP, apq->isc);
+    if (id == -1) {
+        return ap_reg_set_status(AP_RC_INVALID_ADDR);
+    }
+    apq->routes.adapter.adapter_id = id;
+    apq->nib = get_indicator(ldq_p(&g_nib), 8);
+
+    retval = map_indicator(&apq->routes.adapter, apq->nib);
+    if (retval) {
+        return ap_reg_set_status(AP_RC_INVALID_ADDR);
+    }
+
+    param.apqn = apq->apqn;
+    param.isc = apq->isc;
+    param.nib = g_nib;
+    param.adapter_id = id;
+    param.argsz = sizeof(param);
+
+    retval =  ioctl(vdev->fd, VFIO_AP_SET_IRQ, &param);
+    switch (retval) {
+    case -EIO: /* The case the PQAP instruction failed with status */
+        release_indicator(&apq->routes.adapter, apq->nib);
+    case 0:    /* Fall through and return the instruction status */
+        return  param.status;
+    default:   /* The case the ioctl call failed without isuing instruction */
+        break;
+    }
+    release_indicator(&apq->routes.adapter, apq->nib);
+    return ap_reg_set_status(AP_RC_INVALID_ADDR);
+}
+
+static int ap_pqap_aqic(CPUS390XState *env)
+{
+    uint64_t g_nib = env->regs[2];
+    uint8_t apid = ap_reg_get_apid(env->regs[0]);
+    uint8_t apqi = ap_reg_get_apqi(env->regs[0]);
+    uint32_t retval;
+    APDevice *ap = s390_get_ap();
+    VFIODevice *vdev;
+    VFIOAPDevice *ap_vdev;
+    APQueue *apq;
+
+    ap_vdev = DO_UPCAST(VFIOAPDevice, apdev, ap);
+    vdev = &ap_vdev->vdev;
+    apq = &ap->card[apid].queue[apqi];
+    apq->isc = ap_reg_get_isc(env->regs[1]);
+    apq->apqn = (apid << 8) | apqi;
+
+    if (ap_reg_get_ir(env->regs[1])) {
+        retval = ap_pqap_set_irq(vdev, apq, g_nib);
+    } else {
+        retval = ap_pqap_clear_irq(vdev, apq);
+    }
+
+    env->regs[1] = retval;
+    if (retval & AP_STATUS_RC_MASK) {
+        return 3;
+    }
+
+    return 0;
+}
+
+/*
+ * ap_pqap
+ * @env: environment pointing to registers
+ * return value: Code Condition
+ */
+int ap_pqap(CPUS390XState *env)
+{
+    int cc = 0;
+
+    switch (ap_reg_get_fc(env->regs[0])) {
+    case AQIC:
+        if (!s390_has_feat(S390_FEAT_AP_QUEUE_INTERRUPT_CONTROL)) {
+            return -PGM_OPERATION;
+        }
+        cc = ap_pqap_aqic(env);
+        break;
+    default:
+        return -PGM_OPERATION;
+    }
+    return cc;
+}
 
 static void vfio_ap_compute_needs_reset(VFIODevice *vdev)
 {
@@ -106,6 +219,8 @@ static void vfio_ap_realize(DeviceState *dev, Error **errp)
         goto out_get_dev_err;
     }
 
+    css_register_io_adapters(CSS_IO_ADAPTER_AP, true, false,
+                             0, &error_abort);
     return;
 
 out_get_dev_err:
