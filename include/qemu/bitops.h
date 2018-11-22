@@ -80,6 +80,19 @@ static inline void change_bit(long nr, unsigned long *addr)
 }
 
 /**
+ * change_bit_atomic - Toggle a bit in memory atomically
+ * @nr: Bit to change
+ * @addr: Address to start counting from
+ */
+static inline void change_bit_atomic(long nr, unsigned long *addr)
+{
+    unsigned long mask = BIT_MASK(nr);
+    unsigned long *p = addr + BIT_WORD(nr);
+
+    atomic_xor(p, mask);
+}
+
+/**
  * test_and_set_bit - Set a bit and return its old value
  * @nr: Bit to set
  * @addr: Address to count from
