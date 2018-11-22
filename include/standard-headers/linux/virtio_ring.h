@@ -42,6 +42,10 @@
 /* This means the buffer contains a list of buffer descriptors. */
 #define VRING_DESC_F_INDIRECT	4
 
+/* Mark a descriptor as available or used. */
+#define VRING_DESC_F_AVAIL	(1ul << 7)
+#define VRING_DESC_F_USED	(1ul << 15)
+
 /* The Host uses this in used->flags to advise the Guest: don't kick me when
  * you add a buffer.  It's unreliable, so it's simply an optimization.  Guest
  * will still kick if it's out of buffers. */
@@ -50,6 +54,17 @@
  * when you consume a buffer.  It's unreliable, so it's simply an
  * optimization.  */
 #define VRING_AVAIL_F_NO_INTERRUPT	1
+
+/* Enable events. */
+#define VRING_EVENT_F_ENABLE	0x0
+/* Disable events. */
+#define VRING_EVENT_F_DISABLE	0x1
+/*
+ * Enable events for a specific descriptor
+ * (as specified by Descriptor Ring Change Event Offset/Wrap Counter).
+ * Only valid if VIRTIO_RING_F_EVENT_IDX has been negotiated.
+ */
+#define VRING_EVENT_F_DESC	0x2
 
 /* We support indirect buffer descriptors */
 #define VIRTIO_RING_F_INDIRECT_DESC	28
@@ -168,5 +183,33 @@ static inline int vring_need_event(uint16_t event_idx, uint16_t new_idx, uint16_
 	 * event indexes in virtio start at 0. */
 	return (uint16_t)(new_idx - event_idx - 1) < (uint16_t)(new_idx - old);
 }
+
+struct vring_packed_desc_event {
+	/* Descriptor Ring Change Event Offset/Wrap Counter. */
+	__virtio16 off_wrap;
+	/* Descriptor Ring Change Event Flags. */
+	__virtio16 flags;
+};
+
+struct vring_packed_desc {
+	/* Buffer Address. */
+	__virtio64 addr;
+	/* Buffer Length. */
+	__virtio32 len;
+	/* Buffer ID. */
+	__virtio16 id;
+	/* The flags depending on descriptor type. */
+	__virtio16 flags;
+};
+
+struct vring_packed {
+	unsigned int num;
+
+	struct vring_packed_desc *desc;
+
+	struct vring_packed_desc_event *driver;
+
+	struct vring_packed_desc_event *device;
+};
 
 #endif /* _LINUX_VIRTIO_RING_H */
