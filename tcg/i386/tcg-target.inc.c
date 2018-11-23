@@ -240,10 +240,7 @@ static const char *constrain_memop_arg(QemuMemArgType type, bool is_64, int hi)
 #else
 static const char *constrain_memop_arg(QemuMemArgType type, bool is_64, int hi)
 {
-    if (TCG_TARGET_REG_BITS == 64) {
-        /* Temps are still needed for guest_base && !guest_base_flags.  */
-        return "L";
-    } else if (type == ARG_STVAL && !is_64) {
+    if (TCG_TARGET_REG_BITS == 32 && type == ARG_STVAL && !is_64) {
         /* Byte stores must happen from q-regs.  Because of this, we must
          * constrain all INDEX_op_qemu_st_i32 to use q-regs.
          */
@@ -351,14 +348,6 @@ static const char *target_parse_constraint(TCGArgConstraint *ct,
         /* A vector register.  */
         ct->ct |= TCG_CT_REG;
         ct->u.regs |= ALL_VECTOR_REGS;
-        break;
-
-        /* qemu_ld/st address constraint */
-    case 'L':
-        ct->ct |= TCG_CT_REG;
-        ct->u.regs = TCG_TARGET_REG_BITS == 64 ? 0xffff : 0xff;
-        tcg_regset_reset_reg(ct->u.regs, TCG_REG_L0);
-        tcg_regset_reset_reg(ct->u.regs, TCG_REG_L1);
         break;
 
     case 'e':
