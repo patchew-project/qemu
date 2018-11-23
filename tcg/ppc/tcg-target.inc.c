@@ -236,10 +236,11 @@ static inline void tcg_out_bc_noaddr(TCGContext *s, int insn)
 static const char *target_parse_constraint(TCGArgConstraint *ct,
                                            const char *ct_str, TCGType type)
 {
-    switch (*ct_str++) {
-    case 'A': case 'B': case 'C': case 'D':
+    char c = *ct_str++;
+    switch (c) {
+    case 'A': case 'B': case 'C': case 'D': case 'E': case 'F':
         ct->ct |= TCG_CT_REG;
-        tcg_regset_set_reg(ct->u.regs, 3 + ct_str[0] - 'A');
+        tcg_regset_set_reg(ct->u.regs, 3 + c - 'A');
         break;
     case 'r':
         ct->ct |= TCG_CT_REG;
