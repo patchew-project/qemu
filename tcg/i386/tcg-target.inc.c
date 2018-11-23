@@ -1818,6 +1818,16 @@ static inline void setup_guest_base_seg(void)
         guest_base_flags = P_GS;
     }
 }
+#elif defined (__FreeBSD__) || defined (__FreeBSD_kernel__)
+# include <machine/sysarch.h>
+
+static int guest_base_flags;
+static inline void setup_guest_base_seg(void)
+{
+    if (sysarch(AMD64_SET_GSBASE, &guest_base) == 0) {
+        guest_base_flags = P_GS;
+    }
+}
 #else
 # define guest_base_flags 0
 static inline void setup_guest_base_seg(void) { }
