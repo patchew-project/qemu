@@ -167,29 +167,32 @@ static bool have_lzcnt;
 
 static tcg_insn_unit *tb_ret_addr;
 
-static void patch_reloc(tcg_insn_unit *code_ptr, int type,
+static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
                         intptr_t value, intptr_t addend)
 {
     value += addend;
-    switch(type) {
+
+    switch (type) {
     case R_386_PC32:
         value -= (uintptr_t)code_ptr;
         if (value != (int32_t)value) {
-            tcg_abort();
+            return false;
         }
         /* FALLTHRU */
     case R_386_32:
         tcg_patch32(code_ptr, value);
-        break;
+        return true;
+
     case R_386_PC8:
         value -= (uintptr_t)code_ptr;
         if (value != (int8_t)value) {
-            tcg_abort();
+            return false;
         }
         tcg_patch8(code_ptr, value);
-        break;
+        return true;
+
     default:
-        tcg_abort();
+        g_assert_not_reached();
     }
 }
 

@@ -140,6 +140,8 @@ static bool tcg_out_pool_finalize(TCGContext *s)
 
     for (; p != NULL; p = p->next) {
         size_t size = sizeof(tcg_target_ulong) * p->nlong;
+        bool ok;
+
         if (!l || l->nlong != p->nlong || memcmp(l->data, p->data, size)) {
             if (unlikely(a > s->code_gen_highwater)) {
                 return false;
@@ -148,7 +150,8 @@ static bool tcg_out_pool_finalize(TCGContext *s)
             a += size;
             l = p;
         }
-        patch_reloc(p->label, p->rtype, (intptr_t)a - size, p->addend);
+        ok = patch_reloc(p->label, p->rtype, (intptr_t)a - size, p->addend);
+        tcg_debug_assert(ok);
     }
 
     s->code_ptr = a;

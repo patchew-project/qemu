@@ -291,32 +291,34 @@ static inline int check_fit_i32(int32_t val, unsigned int bits)
 # define check_fit_ptr  check_fit_i32
 #endif
 
-static void patch_reloc(tcg_insn_unit *code_ptr, int type,
+static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
                         intptr_t value, intptr_t addend)
 {
     uint32_t insn = *code_ptr;
     intptr_t pcrel;
+    bool ret;
 
     value += addend;
     pcrel = tcg_ptr_byte_diff((tcg_insn_unit *)value, code_ptr);
 
     switch (type) {
     case R_SPARC_WDISP16:
-        assert(check_fit_ptr(pcrel >> 2, 16));
+        ret = check_fit_ptr(pcrel >> 2, 16);
         insn &= ~INSN_OFF16(-1);
         insn |= INSN_OFF16(pcrel);
         break;
     case R_SPARC_WDISP19:
-        assert(check_fit_ptr(pcrel >> 2, 19));
+        ret = check_fit_ptr(pcrel >> 2, 19);
         insn &= ~INSN_OFF19(-1);
         insn |= INSN_OFF19(pcrel);
         break;
     case R_SPARC_13:
         /* Note that we're abusing this reloc type for our own needs.  */
+        ret = true;
         if (!check_fit_ptr(value, 13)) {
             int adj = (value > 0 ? 0xff8 : -0x1000);
             value -= adj;
-            assert(check_fit_ptr(value, 13));
+            ret = check_fit_ptr(value, 13);
             *code_ptr++ = (ARITH_ADD | INSN_RD(TCG_REG_T2)
                            | INSN_RS1(TCG_REG_TB) | INSN_IMM13(adj));
             insn ^= INSN_RS1(TCG_REG_TB) ^ INSN_RS1(TCG_REG_T2);
@@ -328,12 +330,13 @@ static void patch_reloc(tcg_insn_unit *code_ptr, int type,
         /* Note that we're abusing this reloc type for our own needs.  */
         code_ptr[0] = deposit32(code_ptr[0], 0, 22, value >> 10);
         code_ptr[1] = deposit32(code_ptr[1], 0, 10, value);
-        return;
+        return value == (intptr_t)(uint32_t)value;
     default:
         g_assert_not_reached();
     }
 
     *code_ptr = insn;
+    return ret;
 }
 
 /* parse target specific constraints */
