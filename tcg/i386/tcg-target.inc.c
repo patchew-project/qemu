@@ -121,12 +121,16 @@ static const int tcg_target_call_oarg_regs[] = {
 #define TCG_CT_CONST_I32 0x400
 #define TCG_CT_CONST_WSZ 0x800
 
-/* Registers used with L constraint, which are the first argument
-   registers on x86_64, and two random call clobbered registers on
-   i386. */
+/* Registers used with L constraint, which are two random
+ * call clobbered registers.  These should be free.
+ */
 #if TCG_TARGET_REG_BITS == 64
-# define TCG_REG_L0 tcg_target_call_iarg_regs[0]
-# define TCG_REG_L1 tcg_target_call_iarg_regs[1]
+# define TCG_REG_L0   TCG_REG_RAX
+# ifdef _WIN64
+#  define TCG_REG_L1  TCG_REG_R10
+# else
+#  define TCG_REG_L1  TCG_REG_RDI
+# endif
 #else
 # define TCG_REG_L0 TCG_REG_EAX
 # define TCG_REG_L1 TCG_REG_EDX
@@ -1628,6 +1632,7 @@ static TCGReg tcg_out_tlb_load(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
     unsigned a_mask = (1 << a_bits) - 1;
     unsigned s_mask = (1 << s_bits) - 1;
     target_ulong tlb_mask;
+    TCGReg base;
 
     if (TCG_TARGET_REG_BITS == 64) {
         if (TARGET_LONG_BITS == 64) {
@@ -1674,7 +1679,12 @@ static TCGReg tcg_out_tlb_load(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
        before the fastpath ADDQ below.  For 64-bit guest and x32 host, MOVQ
        copies the entire guest address for the slow path, while truncation
        for the 32-bit host happens with the fastpath ADDL below.  */
-    tcg_out_mov(s, ttype, r1, addrlo);
+    if (TCG_TARGET_REG_BITS == 64) {
+        base = tcg_target_call_iarg_regs[1];
+    } else {
+        base = r1;
+    }
+    tcg_out_mov(s, ttype, base, addrlo);
 
     /* jne slow_path */
     tcg_out_opc(s, OPC_JCC_long + JCC_JNE, 0, 0, 0);
@@ -1693,11 +1703,11 @@ static TCGReg tcg_out_tlb_load(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
 
     /* TLB Hit.  */
 
-    /* add addend(r0), r1 */
-    tcg_out_modrm_offset(s, OPC_ADD_GvEv + hrexw, r1, r0,
+    /* add addend(r0), base */
+    tcg_out_modrm_offset(s, OPC_ADD_GvEv + hrexw, base, r0,
                          offsetof(CPUTLBEntry, addend) - which);
 
-    return r1;
+    return base;
 }
 
 /*
