@@ -300,6 +300,8 @@ typedef struct GDBRegisterState {
 typedef struct GDBProcess {
     uint32_t pid;
     bool attached;
+
+    char target_xml[1024];
 } GDBProcess;
 
 enum RSState {
@@ -808,13 +810,14 @@ static CPUState *gdb_first_attached_cpu(const GDBState *s)
     return cpu;
 }
 
-static const char *get_feature_xml(const char *p, const char **newp,
-                                   CPUClass *cc)
+static const char *get_feature_xml(const GDBState *s, const char *p,
+                                   const char **newp, GDBProcess *process)
 {
     size_t len;
     int i;
     const char *name;
-    static char target_xml[1024];
+    CPUState *cpu = get_first_cpu_in_process(s, process);
+    CPUClass *cc = CPU_GET_CLASS(cpu);
 
     len = 0;
     while (p[len] && p[len] != ':')
@@ -823,36 +826,37 @@ static const char *get_feature_xml(const char *p, const char **newp,
 
     name = NULL;
     if (strncmp(p, "target.xml", len) == 0) {
-        /* Generate the XML description for this CPU.  */
-        if (!target_xml[0]) {
-            GDBRegisterState *r;
-            CPUState *cpu = first_cpu;
+        char *buf = process->target_xml;
+        const size_t buf_sz = sizeof(process->target_xml);
 
-            pstrcat(target_xml, sizeof(target_xml),
+        /* Generate the XML description for this CPU.  */
+        if (!buf[0]) {
+            GDBRegisterState *r;
+
+            pstrcat(buf, buf_sz,
                     "<?xml version=\"1.0\"?>"
                     "<!DOCTYPE target SYSTEM \"gdb-target.dtd\">"
                     "<target>");
             if (cc->gdb_arch_name) {
                 gchar *arch = cc->gdb_arch_name(cpu);
-                pstrcat(target_xml, sizeof(target_xml), "<architecture>");
-                pstrcat(target_xml, sizeof(target_xml), arch);
-                pstrcat(target_xml, sizeof(target_xml), "</architecture>");
+                pstrcat(buf, buf_sz, "<architecture>");
+                pstrcat(buf, buf_sz, arch);
+                pstrcat(buf, buf_sz, "</architecture>");
                 g_free(arch);
             }
-            pstrcat(target_xml, sizeof(target_xml), "<xi:include href=\"");
-            pstrcat(target_xml, sizeof(target_xml), cc->gdb_core_xml_file);
-            pstrcat(target_xml, sizeof(target_xml), "\"/>");
+            pstrcat(buf, buf_sz, "<xi:include href=\"");
+            pstrcat(buf, buf_sz, cc->gdb_core_xml_file);
+            pstrcat(buf, buf_sz, "\"/>");
             for (r = cpu->gdb_regs; r; r = r->next) {
-                pstrcat(target_xml, sizeof(target_xml), "<xi:include href=\"");
-                pstrcat(target_xml, sizeof(target_xml), r->xml);
-                pstrcat(target_xml, sizeof(target_xml), "\"/>");
+                pstrcat(buf, buf_sz, "<xi:include href=\"");
+                pstrcat(buf, buf_sz, r->xml);
+                pstrcat(buf, buf_sz, "\"/>");
             }
-            pstrcat(target_xml, sizeof(target_xml), "</target>");
+            pstrcat(buf, buf_sz, "</target>");
         }
-        return target_xml;
+        return buf;
     }
     if (cc->gdb_get_dynamic_xml) {
-        CPUState *cpu = first_cpu;
         char *xmlname = g_strndup(p, len);
         const char *xml = cc->gdb_get_dynamic_xml(cpu, xmlname);
 
@@ -1262,6 +1266,7 @@ out:
 static int gdb_handle_packet(GDBState *s, const char *line_buf)
 {
     CPUState *cpu;
+    GDBProcess *process;
     CPUClass *cc;
     const char *p;
     uint32_t pid, tid;
@@ -1645,14 +1650,15 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
             const char *xml;
             target_ulong total_len;
 
-            cc = CPU_GET_CLASS(first_cpu);
+            process = gdb_get_cpu_process(s, s->g_cpu);
+            cc = CPU_GET_CLASS(s->g_cpu);
             if (cc->gdb_core_xml_file == NULL) {
                 goto unknown_command;
             }
 
             gdb_has_xml = true;
             p += 19;
-            xml = get_feature_xml(p, &p, cc);
+            xml = get_feature_xml(s, p, &p, process);
             if (!xml) {
                 snprintf(buf, sizeof(buf), "E00");
                 put_packet(s, buf);
@@ -2329,6 +2335,7 @@ static int find_cpu_clusters(Object *child, void *opaque)
         assert(process->pid != UINT32_MAX);
         process->pid = cluster->cluster_id + 1;
         process->attached = false;
+        process->target_xml[0] = '\0';
 
         return 0;
     }
