@@ -125,6 +125,18 @@ static const char *target_parse_constraint(TCGArgConstraint *ct,
                                            const char *ct_str, TCGType type)
 {
     switch (*ct_str++) {
+    case 'a': /* x0 */
+        ct->ct |= TCG_CT_REG;
+        tcg_regset_set_reg(ct->u.regs, TCG_REG_X0);
+        break;
+    case 'b': /* x1 */
+        ct->ct |= TCG_CT_REG;
+        tcg_regset_set_reg(ct->u.regs, TCG_REG_X1);
+        break;
+    case 'c': /* x2 */
+        ct->ct |= TCG_CT_REG;
+        tcg_regset_set_reg(ct->u.regs, TCG_REG_X2);
+        break;
     case 'r': /* general registers */
         ct->ct |= TCG_CT_REG;
         ct->u.regs |= 0xffffffffu;
