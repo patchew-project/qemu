@@ -1678,6 +1678,9 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     target_ulong virt_page2;
     tcg_insn_unit *gen_code_buf;
     int gen_code_size, search_size;
+#ifdef TCG_TARGET_NEED_LDST_OOL_LABELS
+    size_t ldst_ool_generation = tcg_ctx->ldst_ool_generation;
+#endif
 #ifdef CONFIG_PROFILER
     TCGProfile *prof = &tcg_ctx->prof;
     int64_t ti;
@@ -1831,10 +1834,16 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     existing_tb = tb_link_page(tb, phys_pc, phys_page2);
     /* if the TB already exists, discard what we just translated */
     if (unlikely(existing_tb != tb)) {
-        uintptr_t orig_aligned = (uintptr_t)gen_code_buf;
+        bool discard = true;
 
-        orig_aligned -= ROUND_UP(sizeof(*tb), qemu_icache_linesize);
-        atomic_set(&tcg_ctx->code_gen_ptr, (void *)orig_aligned);
+#ifdef TCG_TARGET_NEED_LDST_OOL_LABELS
+        discard = ldst_ool_generation == tcg_ctx->ldst_ool_generation;
+#endif
+        if (discard) {
+            uintptr_t orig_aligned = (uintptr_t)gen_code_buf;
+            orig_aligned -= ROUND_UP(sizeof(*tb), qemu_icache_linesize);
+            atomic_set(&tcg_ctx->code_gen_ptr, (void *)orig_aligned);
+        }
         return existing_tb;
     }
     tcg_tb_insert(tb);
