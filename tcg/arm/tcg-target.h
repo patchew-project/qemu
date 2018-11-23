@@ -131,7 +131,11 @@ enum {
 };
 
 #define TCG_TARGET_DEFAULT_MO (0)
+#ifdef CONFIG_SOFTMMU
 #define TCG_TARGET_HAS_MEMORY_BSWAP     1
+#else
+#define TCG_TARGET_HAS_MEMORY_BSWAP     0
+#endif
 
 static inline void flush_icache_range(uintptr_t start, uintptr_t stop)
 {
