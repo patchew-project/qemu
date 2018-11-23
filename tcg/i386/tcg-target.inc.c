@@ -1614,9 +1614,9 @@ static void * const qemu_st_helpers[16] = {
 
    First argument register is clobbered.  */
 
-static inline void tcg_out_tlb_load(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
-                                    int mem_index, TCGMemOp opc,
-                                    tcg_insn_unit **label_ptr, int which)
+static TCGReg tcg_out_tlb_load(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
+                               int mem_index, TCGMemOp opc,
+                               tcg_insn_unit **label_ptr, int which)
 {
     const TCGReg r0 = TCG_REG_L0;
     const TCGReg r1 = TCG_REG_L1;
@@ -1696,6 +1696,8 @@ static inline void tcg_out_tlb_load(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
     /* add addend(r0), r1 */
     tcg_out_modrm_offset(s, OPC_ADD_GvEv + hrexw, r1, r0,
                          offsetof(CPUTLBEntry, addend) - which);
+
+    return r1;
 }
 
 /*
@@ -2001,10 +2003,6 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, bool is64)
     TCGReg addrhi __attribute__((unused));
     TCGMemOpIdx oi;
     TCGMemOp opc;
-#if defined(CONFIG_SOFTMMU)
-    int mem_index;
-    tcg_insn_unit *label_ptr[2];
-#endif
 
     datalo = *args++;
     datahi = (TCG_TARGET_REG_BITS == 32 && is64 ? *args++ : 0);
@@ -2014,17 +2012,21 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, bool is64)
     opc = get_memop(oi);
 
 #if defined(CONFIG_SOFTMMU)
-    mem_index = get_mmuidx(oi);
+    {
+        int mem_index = get_mmuidx(oi);
+        tcg_insn_unit *label_ptr[2];
+        TCGReg base;
 
-    tcg_out_tlb_load(s, addrlo, addrhi, mem_index, opc,
-                     label_ptr, offsetof(CPUTLBEntry, addr_read));
+        base = tcg_out_tlb_load(s, addrlo, addrhi, mem_index, opc,
+                                label_ptr, offsetof(CPUTLBEntry, addr_read));
 
-    /* TLB Hit.  */
-    tcg_out_qemu_ld_direct(s, datalo, datahi, TCG_REG_L1, -1, 0, 0, opc);
+        /* TLB Hit.  */
+        tcg_out_qemu_ld_direct(s, datalo, datahi, base, -1, 0, 0, opc);
 
-    /* Record the current context of a load into ldst label */
-    add_qemu_ldst_label(s, true, oi, datalo, datahi, addrlo, addrhi,
-                        s->code_ptr, label_ptr);
+        /* Record the current context of a load into ldst label */
+        add_qemu_ldst_label(s, true, oi, datalo, datahi, addrlo, addrhi,
+                            s->code_ptr, label_ptr);
+    }
 #else
     {
         int32_t offset = guest_base;
@@ -2141,10 +2143,6 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is64)
     TCGReg addrhi __attribute__((unused));
     TCGMemOpIdx oi;
     TCGMemOp opc;
-#if defined(CONFIG_SOFTMMU)
-    int mem_index;
-    tcg_insn_unit *label_ptr[2];
-#endif
 
     datalo = *args++;
     datahi = (TCG_TARGET_REG_BITS == 32 && is64 ? *args++ : 0);
@@ -2154,17 +2152,21 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is64)
     opc = get_memop(oi);
 
 #if defined(CONFIG_SOFTMMU)
-    mem_index = get_mmuidx(oi);
+    {
+        int mem_index = get_mmuidx(oi);
+        tcg_insn_unit *label_ptr[2];
+        TCGReg base;
 
-    tcg_out_tlb_load(s, addrlo, addrhi, mem_index, opc,
-                     label_ptr, offsetof(CPUTLBEntry, addr_write));
+        base = tcg_out_tlb_load(s, addrlo, addrhi, mem_index, opc,
+                                label_ptr, offsetof(CPUTLBEntry, addr_write));
 
-    /* TLB Hit.  */
-    tcg_out_qemu_st_direct(s, datalo, datahi, TCG_REG_L1, 0, 0, opc);
+        /* TLB Hit.  */
+        tcg_out_qemu_st_direct(s, datalo, datahi, base, 0, 0, opc);
 
-    /* Record the current context of a store into ldst label */
-    add_qemu_ldst_label(s, false, oi, datalo, datahi, addrlo, addrhi,
-                        s->code_ptr, label_ptr);
+        /* Record the current context of a store into ldst label */
+        add_qemu_ldst_label(s, false, oi, datalo, datahi, addrlo, addrhi,
+                            s->code_ptr, label_ptr);
+    }
 #else
     {
         int32_t offset = guest_base;
