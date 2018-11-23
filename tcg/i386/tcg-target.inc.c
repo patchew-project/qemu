@@ -1814,9 +1814,12 @@ int arch_prctl(int code, unsigned long addr);
 static int guest_base_flags;
 static inline void setup_guest_base_seg(void)
 {
-    if (arch_prctl(ARCH_SET_GS, guest_base) == 0) {
-        guest_base_flags = P_GS;
+    /* There is no reason this syscall should fail.  */
+    if (arch_prctl(ARCH_SET_GS, guest_base) < 0) {
+        perror("arch_prctl(ARCH_SET_GS)");
+        exit(1);
     }
+    guest_base_flags = P_GS;
 }
 #elif defined (__FreeBSD__) || defined (__FreeBSD_kernel__)
 # include <machine/sysarch.h>
@@ -1824,13 +1827,28 @@ static inline void setup_guest_base_seg(void)
 static int guest_base_flags;
 static inline void setup_guest_base_seg(void)
 {
-    if (sysarch(AMD64_SET_GSBASE, &guest_base) == 0) {
-        guest_base_flags = P_GS;
+    /* There is no reason this syscall should fail.  */
+    if (sysarch(AMD64_SET_GSBASE, &guest_base) < 0) {
+        perror("sysarch(AMD64_SET_GSBASE)");
+        exit(1);
     }
+    guest_base_flags = P_GS;
 }
 #else
 # define guest_base_flags 0
-static inline void setup_guest_base_seg(void) { }
+static inline void setup_guest_base_seg(void)
+{
+    /*
+     * Verify we can proceed without scratch registers.
+     * If guest_base > INT32_MAX, then it would need to be loaded.
+     * If 32-bit guest, the address would need to be zero-extended.
+     */
+    if (TCG_TARGET_REG_BITS == 64
+        && (TARGET_LONG_BITS == 32 || guest_base > INT32_MAX)) {
+        error_report("Segment base register not supported on this OS");
+        exit(1);
+    }
+}
 #endif /* SOFTMMU */
 
 static void tcg_out_qemu_ld_direct(TCGContext *s, TCGReg datalo, TCGReg datahi,
@@ -2013,16 +2031,6 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, bool is64)
             if (TCG_TARGET_REG_BITS > TARGET_LONG_BITS) {
                 seg |= P_ADDR32;
             }
-        } else if (TCG_TARGET_REG_BITS == 64) {
-            if (TARGET_LONG_BITS == 32) {
-                tcg_out_ext32u(s, TCG_REG_L0, base);
-                base = TCG_REG_L0;
-            }
-            if (offset != guest_base) {
-                tcg_out_movi(s, TCG_TYPE_I64, TCG_REG_L1, guest_base);
-                index = TCG_REG_L1;
-                offset = 0;
-            }
         }
 
         tcg_out_qemu_ld_direct(s, datalo, datahi,
@@ -2155,22 +2163,6 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is64)
             offset = 0;
             if (TCG_TARGET_REG_BITS > TARGET_LONG_BITS) {
                 seg |= P_ADDR32;
-            }
-        } else if (TCG_TARGET_REG_BITS == 64) {
-            /* ??? Note that we can't use the same SIB addressing scheme
-               as for loads, since we require L0 free for bswap.  */
-            if (offset != guest_base) {
-                if (TARGET_LONG_BITS == 32) {
-                    tcg_out_ext32u(s, TCG_REG_L0, base);
-                    base = TCG_REG_L0;
-                }
-                tcg_out_movi(s, TCG_TYPE_I64, TCG_REG_L1, guest_base);
-                tgen_arithr(s, ARITH_ADD + P_REXW, TCG_REG_L1, base);
-                base = TCG_REG_L1;
-                offset = 0;
-            } else if (TARGET_LONG_BITS == 32) {
-                tcg_out_ext32u(s, TCG_REG_L1, base);
-                base = TCG_REG_L1;
             }
         }
 
