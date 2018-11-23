@@ -240,7 +240,17 @@ static const char *constrain_memop_arg(QemuMemArgType type, bool is_64, int hi)
 #else
 static const char *constrain_memop_arg(QemuMemArgType type, bool is_64, int hi)
 {
-    return "L";
+    if (TCG_TARGET_REG_BITS == 64) {
+        /* Temps are still needed for guest_base && !guest_base_flags.  */
+        return "L";
+    } else if (type == ARG_STVAL && !is_64) {
+        /* Byte stores must happen from q-regs.  Because of this, we must
+         * constrain all INDEX_op_qemu_st_i32 to use q-regs.
+         */
+        return "q";
+    } else {
+        return "r";
+    }
 }
 #endif /* CONFIG_SOFTMMU */
 
@@ -2038,15 +2048,8 @@ static void tcg_out_qemu_st_direct(TCGContext *s, TCGReg datalo, TCGReg datahi,
 
     switch (memop & MO_SIZE) {
     case MO_8:
-        /*
-         * In 32-bit mode, 8-bit stores can only happen from [abcd]x.
-         * ??? Adjust constraints such that this is is forced, then
-         * we won't need a scratch at all for user-only.
-         */
-        if (TCG_TARGET_REG_BITS == 32 && datalo >= 4) {
-            tcg_out_mov(s, TCG_TYPE_I32, scratch, datalo);
-            datalo = scratch;
-        }
+        /* In 32-bit mode, 8-bit stores can only happen from [abcd]x.  */
+        tcg_debug_assert(TCG_TARGET_REG_BITS == 64 || datalo < 4);
         tcg_out_modrm_offset(s, OPC_MOVB_EvGv + P_REXB_R + seg,
                              datalo, base, ofs);
         break;
