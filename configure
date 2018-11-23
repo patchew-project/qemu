@@ -5722,7 +5722,7 @@ if test "$want_tools" = "yes" ; then
   if [ "$ivshmem" = "yes" ]; then
     tools="ivshmem-client\$(EXESUF) ivshmem-server\$(EXESUF) $tools"
   fi
-  if [ "$posix" = "yes" ] && [ "$curl" = "yes" ]; then
+  if [ "$mingw32" = "no" ] && [ "$curl" = "yes" ]; then
     tools="elf2dmp $tools"
   fi
 fi
