@@ -13,11 +13,23 @@
  */
 #ifndef HW_MISC_PVPANIC_H
 #define HW_MISC_PVPANIC_H
+#include "hw/isa/isa.h"
 
 #define TYPE_PVPANIC "pvpanic"
 #define TYPE_PVPANIC_MMIO "pvpanic-mmio"
 
 #define PVPANIC_IOPORT_PROP "ioport"
+
+/* PVPanicISAState for ISA device and
+ * use ioport.
+ */
+typedef struct PVPanicISAState {
+    ISADevice parent_obj;
+    /*< private>*/
+    uint16_t ioport;
+    /*<public>*/
+    MemoryRegion mr;
+} PVPanicISAState;
 
 /* PVPanicMMIOState for sysbus device and
  * use mmio.
@@ -29,6 +41,9 @@ typedef struct PVPanicMMIOState {
     /* public */
     MemoryRegion mr;
 } PVPanicMMIOState;
+
+#define PVPANIC_ISA_DEVICE(obj)    \
+    OBJECT_CHECK(PVPanicISAState, (obj), TYPE_PVPANIC)
 
 #define PVPANIC_MMIO_DEVICE(obj)    \
     OBJECT_CHECK(PVPanicMMIOState, (obj), TYPE_PVPANIC_MMIO)

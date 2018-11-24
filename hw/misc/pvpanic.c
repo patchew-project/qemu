@@ -27,9 +27,6 @@
 /* The pv event value */
 #define PVPANIC_PANICKED        (1 << PVPANIC_F_PANICKED)
 
-#define PVPANIC_ISA_DEVICE(obj)    \
-    OBJECT_CHECK(PVPanicISAState, (obj), TYPE_PVPANIC)
-
 static void handle_event(int event)
 {
     static bool logged;
@@ -44,19 +41,6 @@ static void handle_event(int event)
         return;
     }
 }
-
-#include "hw/isa/isa.h"
-
-/* PVPanicISAState for ISA device and
- * use ioport.
- */
-typedef struct PVPanicISAState {
-    ISADevice parent_obj;
-    /*< private>*/
-    uint16_t ioport;
-    /*<public>*/
-    MemoryRegion mr;
-} PVPanicISAState;
 
 /* return supported events on read */
 static uint64_t pvpanic_read(void *opaque, hwaddr addr, unsigned size)
