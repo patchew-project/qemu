@@ -109,7 +109,6 @@ L: qemu-s390x@nongnu.org
 Guest CPU cores (TCG):
 ----------------------
 Overall
-L: qemu-devel@nongnu.org
 M: Peter Crosthwaite <crosthwaite.peter@gmail.com>
 M: Richard Henderson <rth@twiddle.net>
 R: Paolo Bonzini <pbonzini@redhat.com>
@@ -403,30 +402,25 @@ Hosts:
 ------
 
 LINUX
-L: qemu-devel@nongnu.org
 S: Maintained
 F: linux-*
 F: linux-headers/
 
 POSIX
-L: qemu-devel@nongnu.org
 S: Maintained
 F: *posix*
 
 NETBSD
-L: qemu-devel@nongnu.org
 M: Kamil Rytarowski <kamil@netbsd.org>
 S: Maintained
 K: ^Subject:.*(?i)NetBSD
 
 OPENBSD
-L: qemu-devel@nongnu.org
 M: Brad Smith <brad@comstyle.com>
 S: Maintained
 K: ^Subject:.*(?i)OpenBSD
 
 W32, W64
-L: qemu-devel@nongnu.org
 M: Stefan Weil <sw@weilnetz.de>
 S: Maintained
 F: *win32*
@@ -532,7 +526,6 @@ F: include/hw/*/digic*
 Gumstix
 M: Peter Maydell <peter.maydell@linaro.org>
 R: Philippe Mathieu-Daudé <f4bug@amsat.org>
-L: qemu-devel@nongnu.org
 L: qemu-arm@nongnu.org
 S: Odd Fixes
 F: hw/arm/gumstix.c
@@ -953,7 +946,6 @@ F: include/hw/intc/heathrow_pic.h
 
 PReP
 M: Hervé Poussineau <hpoussin@reactos.org>
-L: qemu-devel@nongnu.org
 L: qemu-ppc@nongnu.org
 S: Maintained
 F: hw/ppc/prep.c
@@ -1690,7 +1682,6 @@ S: Supported
 F: scripts/coverity-model.c
 
 CPU
-L: qemu-devel@nongnu.org
 S: Supported
 F: qom/cpu.c
 F: include/qom/cpu.h
@@ -1722,7 +1713,6 @@ F: util/error.c
 F: util/qemu-error.c
 
 GDB stub
-L: qemu-devel@nongnu.org
 S: Odd Fixes
 F: gdbstub*
 F: gdb-xml/
@@ -2124,7 +2114,6 @@ F: tcg/arm/
 F: disas/arm.c
 
 i386 target
-L: qemu-devel@nongnu.org
 S: Maintained
 F: tcg/i386/
 F: disas/i386.c
@@ -2389,7 +2378,6 @@ Build and test automation
 M: Alex Bennée <alex.bennee@linaro.org>
 M: Fam Zheng <famz@redhat.com>
 R: Philippe Mathieu-Daudé <philmd@redhat.com>
-L: qemu-devel@nongnu.org
 S: Maintained
 F: .travis.yml
 F: scripts/travis/
@@ -2405,7 +2393,6 @@ M: Alex Bennée <alex.bennee@linaro.org>
 R: Philippe Mathieu-Daudé <f4bug@amsat.org>
 F: tests/tcg/Makefile
 F: tests/tcg/Makefile.include
-L: qemu-devel@nongnu.org
 
 Documentation
 -------------
