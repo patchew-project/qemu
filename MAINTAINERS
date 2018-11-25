@@ -879,6 +879,15 @@ F: hw/core/loader-fit.c
 F: hw/mips/boston.c
 F: hw/pci-host/xilinx-pcie.c
 
+HP-PARISC Machines
+------------------
+
+Dino
+M: Richard Henderson <rth@twiddle.net>
+S: Maintained
+F: hw/hppa/
+F: pc-bios/hppa-firmware.img
+
 OpenRISC Machines
 -----------------
 or1k-sim
