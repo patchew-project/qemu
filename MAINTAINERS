@@ -930,6 +930,7 @@ F: hw/nvram/mac_nvram.c
 F: include/hw/misc/macio/
 F: include/hw/misc/mos6522.h
 F: include/hw/ppc/mac_dbdma.h
+F: include/hw/nvram/chrp_nvram.h
 
 Old World
 M: David Gibson <david@gibson.dropbear.id.au>
