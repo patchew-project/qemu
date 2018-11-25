@@ -864,6 +864,7 @@ R: Stefan Markovic <smarkovic@wavecomp.com>
 S: Odd Fixes
 F: hw/mips/mips_fulong2e.c
 F: hw/isa/vt82c686.c
+F: hw/pci-host/bonito.c
 
 F: include/hw/isa/vt82c686.h
 
