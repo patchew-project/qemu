@@ -4612,6 +4612,22 @@ void bdrv_invalidate_cache_all(Error **errp)
     }
 }
 
+static bool bdrv_has_active_bds_parent(BlockDriverState *bs)
+{
+    BdrvChild *parent;
+
+    QLIST_FOREACH(parent, &bs->parents, next_parent) {
+        if (parent->role->parent_is_bds) {
+            BlockDriverState *parent_bs = parent->opaque;
+            if (!(parent_bs->open_flags & BDRV_O_INACTIVE)) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 static int bdrv_inactivate_recurse(BlockDriverState *bs,
                                    bool setting_flag)
 {
@@ -4620,6 +4636,12 @@ static int bdrv_inactivate_recurse(BlockDriverState *bs,
 
     if (!bs->drv) {
         return -ENOMEDIUM;
+    }
+
+    /* Make sure that we don't inactivate a child before its parent.
+     * It will be covered by recursion from the yet active parent. */
+    if (bdrv_has_active_bds_parent(bs)) {
+        return 0;
     }
 
     if (!setting_flag && bs->drv->bdrv_inactivate) {
