@@ -64,7 +64,9 @@ typedef enum {
     FIXUP_BOARDID,      /* overwrite with board ID number */
     FIXUP_BOARD_SETUP,  /* overwrite with board specific setup code address */
     FIXUP_ARGPTR,       /* overwrite with pointer to kernel args */
+    FIXUP_ARGPTR_HIGHER_32BITS,       /* overwrite with pointer to kernel args (higher 32 bits) */
     FIXUP_ENTRYPOINT,   /* overwrite with kernel entry point */
+    FIXUP_ENTRYPOINT_HIGHER_32BITS,   /* overwrite with kernel entry point (higher 32 bits) */
     FIXUP_GIC_CPU_IF,   /* overwrite with GIC CPU interface address */
     FIXUP_BOOTREG,      /* overwrite with boot register address */
     FIXUP_DSB,          /* overwrite with correct DSB insn for cpu */
@@ -84,9 +86,9 @@ static const ARMInsnFixup bootloader_aarch64[] = {
     { 0x58000084 }, /* ldr x4, entry ; Load the lower 32-bits of kernel entry */
     { 0xd61f0080 }, /* br x4      ; Jump to the kernel entry point */
     { 0, FIXUP_ARGPTR }, /* arg: .word @DTB Lower 32-bits */
-    { 0 }, /* .word @DTB Higher 32-bits */
+    { 0, FIXUP_ARGPTR_HIGHER_32BITS}, /* .word @DTB Higher 32-bits */
     { 0, FIXUP_ENTRYPOINT }, /* entry: .word @Kernel Entry Lower 32-bits */
-    { 0 }, /* .word @Kernel Entry Higher 32-bits */
+    { 0, FIXUP_ENTRYPOINT_HIGHER_32BITS }, /* .word @Kernel Entry Higher 32-bits */
     { 0, FIXUP_TERMINATOR }
 };
 
@@ -175,7 +177,9 @@ static void write_bootloader(const char *name, hwaddr addr,
         case FIXUP_BOARDID:
         case FIXUP_BOARD_SETUP:
         case FIXUP_ARGPTR:
+        case FIXUP_ARGPTR_HIGHER_32BITS:
         case FIXUP_ENTRYPOINT:
+        case FIXUP_ENTRYPOINT_HIGHER_32BITS:
         case FIXUP_GIC_CPU_IF:
         case FIXUP_BOOTREG:
         case FIXUP_DSB:
@@ -939,7 +943,6 @@ static uint64_t load_aarch64_image(const char *filename, hwaddr mem_base,
             }
         }
     }
-
     *entry = mem_base + kernel_load_offset;
     rom_add_blob_fixed_as(filename, buffer, size, *entry, as);
 
@@ -1153,8 +1156,10 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
             info->dtb_start = QEMU_ALIGN_UP(info->initrd_start + initrd_size,
                                            align);
             fixupcontext[FIXUP_ARGPTR] = info->dtb_start;
+            fixupcontext[FIXUP_ARGPTR_HIGHER_32BITS] = info->dtb_start >> 32;
         } else {
             fixupcontext[FIXUP_ARGPTR] = info->loader_start + KERNEL_ARGS_ADDR;
+            fixupcontext[FIXUP_ARGPTR_HIGHER_32BITS] = (info->loader_start + KERNEL_ARGS_ADDR) >> 32;
             if (info->ram_size >= (1ULL << 32)) {
                 error_report("RAM size must be less than 4GB to boot"
                              " Linux kernel using ATAGS (try passing a device tree"
@@ -1163,6 +1168,7 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
             }
         }
         fixupcontext[FIXUP_ENTRYPOINT] = entry;
+        fixupcontext[FIXUP_ENTRYPOINT_HIGHER_32BITS] = entry >> 32;
 
         write_bootloader("bootloader", info->loader_start,
                          primary_loader, fixupcontext, as);
