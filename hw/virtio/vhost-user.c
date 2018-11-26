@@ -210,7 +210,7 @@ static bool ioeventfd_enabled(void)
     return kvm_enabled() && kvm_eventfds_enabled();
 }
 
-static int vhost_user_read(struct vhost_dev *dev, VhostUserMsg *msg)
+static int vhost_user_read_header(struct vhost_dev *dev, VhostUserMsg *msg)
 {
     struct vhost_user *u = dev->opaque;
     CharBackend *chr = u->user->chr;
@@ -221,7 +221,7 @@ static int vhost_user_read(struct vhost_dev *dev, VhostUserMsg *msg)
     if (r != size) {
         error_report("Failed to read msg header. Read %d instead of %d."
                      " Original request %d.", r, size, msg->hdr.request);
-        goto fail;
+        return -1;
     }
 
     /* validate received flags */
@@ -229,7 +229,21 @@ static int vhost_user_read(struct vhost_dev *dev, VhostUserMsg *msg)
         error_report("Failed to read msg header."
                 " Flags 0x%x instead of 0x%x.", msg->hdr.flags,
                 VHOST_USER_REPLY_MASK | VHOST_USER_VERSION);
-        goto fail;
+        return -1;
+    }
+
+    return 0;
+}
+
+static int vhost_user_read(struct vhost_dev *dev, VhostUserMsg *msg)
+{
+    struct vhost_user *u = dev->opaque;
+    CharBackend *chr = u->user->chr;
+    uint8_t *p = (uint8_t *) msg;
+    int r, size;
+
+    if (vhost_user_read_header(dev, msg) < 0) {
+        return -1;
     }
 
     /* validate message size is sane */
@@ -237,7 +251,7 @@ static int vhost_user_read(struct vhost_dev *dev, VhostUserMsg *msg)
         error_report("Failed to read msg header."
                 " Size %d exceeds the maximum %zu.", msg->hdr.size,
                 VHOST_USER_PAYLOAD_SIZE);
-        goto fail;
+        return -1;
     }
 
     if (msg->hdr.size) {
@@ -247,14 +261,11 @@ static int vhost_user_read(struct vhost_dev *dev, VhostUserMsg *msg)
         if (r != size) {
             error_report("Failed to read msg payload."
                          " Read %d instead of %d.", r, msg->hdr.size);
-            goto fail;
+            return -1;
         }
     }
 
     return 0;
-
-fail:
-    return -1;
 }
 
 static int process_message_reply(struct vhost_dev *dev,
