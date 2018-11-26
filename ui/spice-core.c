@@ -331,12 +331,12 @@ static const char *stream_video_names[] = {
                stream_video_names, ARRAY_SIZE(stream_video_names))
 
 static const char *compression_names[] = {
-    [ SPICE_IMAGE_COMPRESS_OFF ]      = "off",
-    [ SPICE_IMAGE_COMPRESS_AUTO_GLZ ] = "auto_glz",
-    [ SPICE_IMAGE_COMPRESS_AUTO_LZ ]  = "auto_lz",
-    [ SPICE_IMAGE_COMPRESS_QUIC ]     = "quic",
-    [ SPICE_IMAGE_COMPRESS_GLZ ]      = "glz",
-    [ SPICE_IMAGE_COMPRESS_LZ ]       = "lz",
+    [ SPICE_IMAGE_COMPRESSION_OFF ]      = "off",
+    [ SPICE_IMAGE_COMPRESSION_AUTO_GLZ ] = "auto_glz",
+    [ SPICE_IMAGE_COMPRESSION_AUTO_LZ ]  = "auto_lz",
+    [ SPICE_IMAGE_COMPRESSION_QUIC ]     = "quic",
+    [ SPICE_IMAGE_COMPRESSION_GLZ ]      = "glz",
+    [ SPICE_IMAGE_COMPRESSION_LZ ]       = "lz",
 };
 #define parse_compression(_name)                                        \
     parse_name(_name, "image compression",                              \
@@ -643,7 +643,7 @@ void qemu_spice_init(void)
         *x509_cert_file = NULL,
         *x509_cacert_file = NULL;
     int port, tls_port, addr_flags;
-    spice_image_compression_t compression;
+    SpiceImageCompression compression;
     spice_wan_compression_t wan_compr;
     bool seamless_migration;
 
@@ -754,7 +754,7 @@ void qemu_spice_init(void)
 #endif
     }
 
-    compression = SPICE_IMAGE_COMPRESS_AUTO_GLZ;
+    compression = SPICE_IMAGE_COMPRESSION_AUTO_GLZ;
     str = qemu_opt_get(opts, "image-compression");
     if (str) {
         compression = parse_compression(str);
