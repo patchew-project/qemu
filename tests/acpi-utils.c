@@ -52,14 +52,44 @@ uint32_t acpi_find_rsdp_address(void)
     return off;
 }
 
-void acpi_parse_rsdp_table(uint32_t addr, AcpiRsdpDescriptor *rsdp_table)
+uint32_t acpi_find_rsdt_address(uint8_t *rsdp_table)
 {
-    ACPI_READ_FIELD(rsdp_table->signature, addr);
-    ACPI_ASSERT_CMP64(rsdp_table->signature, "RSD PTR ");
+    uint32_t rsdt_physical_address = *((uint32_t *)(rsdp_table +
+                                                    ACPI_RSDP_RSDT_OFFSET));
+    uint8_t revision = rsdp_table[ACPI_RSDP_REVISION_OFFSET];
 
-    ACPI_READ_FIELD(rsdp_table->checksum, addr);
-    ACPI_READ_ARRAY(rsdp_table->oem_id, addr);
-    ACPI_READ_FIELD(rsdp_table->revision, addr);
-    ACPI_READ_FIELD(rsdp_table->rsdt_physical_address, addr);
-    ACPI_READ_FIELD(rsdp_table->length, addr);
+    if (revision != ACPI_RSDP_REV_1) {
+        return 0;
+    }
+
+    return le32_to_cpu(rsdt_physical_address);
+}
+
+uint64_t acpi_find_xsdt_address(uint8_t *rsdp_table)
+{
+    uint64_t xsdt_physical_address = *((uint64_t *)(rsdp_table +
+                                                    ACPI_RSDP_XSDT_OFFSET));
+    uint8_t revision = rsdp_table[ACPI_RSDP_REVISION_OFFSET];
+
+    if (revision != ACPI_RSDP_REV_2) {
+        return 0;
+    }
+
+    return le64_to_cpu(xsdt_physical_address);
+}
+
+void acpi_parse_rsdp_table(uint32_t addr, uint8_t *rsdp_table, uint8_t revision)
+{
+    switch (revision) {
+    case ACPI_RSDP_REV_1:
+        memread(addr, rsdp_table, ACPI_RSDP_REV_1_LEN);
+        break;
+    case ACPI_RSDP_REV_2:
+        memread(addr, rsdp_table, ACPI_RSDP_REV_2_LEN);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    ACPI_ASSERT_CMP64(*((uint64_t *)(rsdp_table)), ACPI_RSDP_SIGNATURE);
 }
