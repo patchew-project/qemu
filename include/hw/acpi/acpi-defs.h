@@ -61,8 +61,30 @@ typedef struct AcpiRsdpData {
     unsigned *xsdt_tbl_offset;
 } AcpiRsdpData;
 
+/* RSDP signature */
+#define ACPI_RSDP_SIGNATURE "RSD PTR "
+
+/* RSDP Revisions */
 #define ACPI_RSDP_REV_1 0
 #define ACPI_RSDP_REV_2 2
+
+/* RSDP lengths */
+#define ACPI_RSDP_REV_1_LEN    20
+#define ACPI_RSDP_REV_2_LEN    36
+#define ACPI_RSDP_SIG_LEN      8
+#define ACPI_RSDP_OEMID_LEN    6
+#define ACPI_RSDP_REVISION_LEN 1
+#define ACPI_RSDP_LEN_LEN      4
+#define ACPI_RSDP_CHECKSUM_LEN 1
+#define ACPI_RSDP_RESERVED_LEN 3
+
+/* RSDP offsets */
+#define ACPI_RSDP_CHECKSUM_OFFSET     8
+#define ACPI_RSDP_REVISION_OFFSET     15
+#define ACPI_RSDP_RSDT_OFFSET         16
+#define ACPI_RSDP_XSDT_OFFSET         24
+#define ACPI_RSDP_EXT_CHECKSUM_OFFSET 32
+
 
 /* Table structure from Linux kernel (the ACPI tables are under the
    BSD license) */
