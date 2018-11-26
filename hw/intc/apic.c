@@ -886,8 +886,11 @@ static void apic_realize(DeviceState *dev, Error **errp)
     APICCommonState *s = APIC(dev);
 
     if (s->id >= MAX_APICS) {
-        error_setg(errp, "%s initialization failed. APIC ID %d is invalid",
-                   object_get_typename(OBJECT(dev)), s->id);
+        error_setg(errp, "APIC ID %d is too large", s->id);
+        error_append_hint(errp,
+            "Possible solutions:\n"
+            "* Lowering the number of VCPUs on the -smp option\n"
+            "* Using accel=kvm,kernel-irqchip=on or accel=kvm,kernel-irqchip=split\n");
         return;
     }
 
