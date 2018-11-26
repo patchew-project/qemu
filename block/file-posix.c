@@ -1991,6 +1991,7 @@ static int coroutine_fn raw_co_truncate(BlockDriverState *bs, int64_t offset,
     BDRVRawState *s = bs->opaque;
     struct stat st;
     int ret;
+    int64_t sectors;
 
     if (fstat(s->fd, &st)) {
         ret = -errno;
@@ -2011,6 +2012,20 @@ static int coroutine_fn raw_co_truncate(BlockDriverState *bs, int64_t offset,
     if (S_ISCHR(st.st_mode) || S_ISBLK(st.st_mode)) {
         if (offset > raw_getlength(bs)) {
             error_setg(errp, "Cannot grow device files");
+            return -EINVAL;
+        }
+
+        sectors = raw_getlength(bs) >> BDRV_SECTOR_BITS;
+        if (sectors > bs->total_sectors) {
+            /* device size actually grew */
+            if (offset <= bs->total_sectors * BDRV_SECTOR_SIZE) {
+                error_setg(errp, "The effective size of this device is "
+                        "greater than or equal to the argument");
+                return -EINVAL;
+            }
+        } else if (sectors == bs->total_sectors) {
+            /* device size actually not changed */
+            error_setg(errp, "Detect device file size not changing");
             return -EINVAL;
         }
     } else {
