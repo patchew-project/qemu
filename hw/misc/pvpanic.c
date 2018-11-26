@@ -25,8 +25,8 @@
 /* The pv event value */
 #define PVPANIC_PANICKED        (1 << PVPANIC_F_PANICKED)
 
-#define ISA_PVPANIC_DEVICE(obj)    \
-    OBJECT_CHECK(PVPanicState, (obj), TYPE_PVPANIC)
+#define PVPANIC_ISA_DEVICE(obj)    \
+    OBJECT_CHECK(PVPanicISAState, (obj), TYPE_PVPANIC)
 
 static void handle_event(int event)
 {
@@ -45,12 +45,16 @@ static void handle_event(int event)
 
 #include "hw/isa/isa.h"
 
-typedef struct PVPanicState {
+/* PVPanicISAState for ISA device and
+ * use ioport.
+ */
+typedef struct PVPanicISAState {
     ISADevice parent_obj;
-
-    MemoryRegion io;
+    /*< private>*/
     uint16_t ioport;
-} PVPanicState;
+    /*<public>*/
+    MemoryRegion mr;
+} PVPanicISAState;
 
 /* return supported events on read */
 static uint64_t pvpanic_ioport_read(void *opaque, hwaddr addr, unsigned size)
@@ -75,15 +79,15 @@ static const MemoryRegionOps pvpanic_ops = {
 
 static void pvpanic_isa_initfn(Object *obj)
 {
-    PVPanicState *s = ISA_PVPANIC_DEVICE(obj);
+    PVPanicISAState *s = PVPANIC_ISA_DEVICE(obj);
 
-    memory_region_init_io(&s->io, OBJECT(s), &pvpanic_ops, s, "pvpanic", 1);
+    memory_region_init_io(&s->mr, OBJECT(s), &pvpanic_ops, s, "pvpanic", 1);
 }
 
 static void pvpanic_isa_realizefn(DeviceState *dev, Error **errp)
 {
     ISADevice *d = ISA_DEVICE(dev);
-    PVPanicState *s = ISA_PVPANIC_DEVICE(dev);
+    PVPanicISAState *s = PVPANIC_ISA_DEVICE(dev);
     FWCfgState *fw_cfg = fw_cfg_find();
     uint16_t *pvpanic_port;
 
@@ -96,11 +100,11 @@ static void pvpanic_isa_realizefn(DeviceState *dev, Error **errp)
     fw_cfg_add_file(fw_cfg, "etc/pvpanic-port", pvpanic_port,
                     sizeof(*pvpanic_port));
 
-    isa_register_ioport(d, &s->io, s->ioport);
+    isa_register_ioport(d, &s->mr, s->ioport);
 }
 
 static Property pvpanic_isa_properties[] = {
-    DEFINE_PROP_UINT16(PVPANIC_IOPORT_PROP, PVPanicState, ioport, 0x505),
+    DEFINE_PROP_UINT16(PVPANIC_IOPORT_PROP, PVPanicISAState, ioport, 0x505),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -116,7 +120,7 @@ static void pvpanic_isa_class_init(ObjectClass *klass, void *data)
 static TypeInfo pvpanic_isa_info = {
     .name          = TYPE_PVPANIC,
     .parent        = TYPE_ISA_DEVICE,
-    .instance_size = sizeof(PVPanicState),
+    .instance_size = sizeof(PVPanicISAState),
     .instance_init = pvpanic_isa_initfn,
     .class_init    = pvpanic_isa_class_init,
 };
