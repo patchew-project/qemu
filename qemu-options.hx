@@ -4241,6 +4241,26 @@ secondary:
 If you want to know the detail of above command line, you can read
 the colo-compare git log.
 
+@item -object vhost-user-backend,id=id=@var{id},chardev=@var{chardevid}
+
+Create a vhost-user-backend object that holds a connection to a
+vhost-user backend and can be referenced from virtio/vhost-user
+devices that support it.
+
+The @var{id} parameter is a unique ID that will be used to reference
+this vhost-user backend from the @option{vhost-user} device. The
+@var{chardev} parameter is the unique ID of a character device backend
+that provides the connection to the vhost-user slave process. (Since 3.2)
+
+@example
+
+ # qemu-system-x86_64 \
+   [...] \
+   -object vhost-user-backend,id=vuid,chardev=char0 \
+   -device vhost-user-input-pci,vhost-user=vuid
+   [...]
+@end example
+
 @item -object cryptodev-backend-builtin,id=@var{id}[,queues=@var{queues}]
 
 Creates a cryptodev backend which executes crypto opreation from
