@@ -5725,6 +5725,9 @@ if test "$want_tools" = "yes" ; then
   if [ "$posix" = "yes" ] && [ "$curl" = "yes" ]; then
     tools="elf2dmp $tools"
   fi
+  if [ "$vhost_user" = "yes" ] && [ "$linux" = "yes" ] ; then
+    tools="vhost-user-input\$(EXESUF) $tools"
+  fi
 fi
 if test "$softmmu" = yes ; then
   if test "$linux" = yes; then
