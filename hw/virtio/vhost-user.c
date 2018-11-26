@@ -89,6 +89,7 @@ typedef enum VhostUserRequest {
     VHOST_USER_POSTCOPY_ADVISE  = 28,
     VHOST_USER_POSTCOPY_LISTEN  = 29,
     VHOST_USER_POSTCOPY_END     = 30,
+    VHOST_USER_INPUT_GET_CONFIG = 31,
     VHOST_USER_MAX
 } VhostUserRequest;
 
@@ -336,6 +337,65 @@ static int vhost_user_write(struct vhost_dev *dev, VhostUserMsg *msg,
     }
 
     return 0;
+}
+
+static void *vhost_user_read_size(struct vhost_dev *dev, uint32_t size)
+{
+    struct vhost_user *u = dev->opaque;
+    CharBackend *chr = u->user->chr;
+    int r;
+    uint8_t *p = g_malloc(size);
+
+    r = qemu_chr_fe_read_all(chr, p, size);
+    if (r != size) {
+        error_report("Failed to read msg payload."
+                     " Read %d instead of %u.", r, size);
+        g_free(p);
+        return NULL;
+    }
+
+    return p;
+}
+
+int vhost_user_input_get_config(struct vhost_dev *dev,
+                                struct virtio_input_config **config)
+{
+    void *p = NULL;
+    VhostUserMsg msg = {
+        .hdr.request = VHOST_USER_INPUT_GET_CONFIG,
+        .hdr.flags = VHOST_USER_VERSION,
+    };
+
+    if (vhost_user_write(dev, &msg, NULL, 0) < 0) {
+        goto err;
+    }
+
+    if (vhost_user_read_header(dev, &msg) < 0) {
+        goto err;
+    }
+
+    if (msg.hdr.request != VHOST_USER_INPUT_GET_CONFIG) {
+        error_report("Received unexpected msg type. Expected %d received %d",
+                     VHOST_USER_INPUT_GET_CONFIG, msg.hdr.request);
+        goto err;
+    }
+
+    if (msg.hdr.size % sizeof(struct virtio_input_config)) {
+        error_report("Invalid msg size");
+        goto err;
+    }
+
+    p = vhost_user_read_size(dev, msg.hdr.size);
+    if (!p) {
+        goto err;
+    }
+
+    *config = p;
+    return msg.hdr.size / sizeof(struct virtio_input_config);
+
+err:
+    g_free(p);
+    return -1;
 }
 
 static int vhost_user_set_log_base(struct vhost_dev *dev, uint64_t base,
