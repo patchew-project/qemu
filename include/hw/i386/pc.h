@@ -169,6 +169,9 @@ void gsi_handler(void *opaque, int n, int level);
 #define TYPE_VMPORT "vmport"
 typedef uint32_t (VMPortReadFunc)(void *opaque, uint32_t address);
 
+/* vmmouse.c */
+#define TYPE_VMMOUSE "vmmouse"
+
 static inline void vmport_init(ISABus *bus)
 {
     isa_create_simple(bus, TYPE_VMPORT);

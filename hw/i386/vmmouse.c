@@ -52,7 +52,6 @@
 #define DPRINTF(fmt, ...) do { } while (0)
 #endif
 
-#define TYPE_VMMOUSE "vmmouse"
 #define VMMOUSE(obj) OBJECT_CHECK(VMMouseState, (obj), TYPE_VMMOUSE)
 
 typedef struct VMMouseState
