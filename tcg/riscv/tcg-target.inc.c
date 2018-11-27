@@ -434,6 +434,84 @@ static void patch_reloc(tcg_insn_unit *code_ptr, int type,
     }
 }
 
+/*
+ * TCG intrinsics
+ */
+
+static void tcg_out_mov(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg)
+{
+    if (ret == arg) {
+        return;
+    }
+    switch (type) {
+    case TCG_TYPE_I32:
+    case TCG_TYPE_I64:
+        tcg_out_opc_imm(s, OPC_ADDI, ret, arg, 0);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void tcg_out_movi(TCGContext *s, TCGType type, TCGReg rd,
+                         tcg_target_long val)
+{
+#if TCG_TARGET_REG_BITS == 64
+    tcg_target_long lo = sextract64(val, 0, 12);
+#else
+    tcg_target_long lo = sextract32(val, 0, 12);
+#endif
+    tcg_target_long hi = val - lo;
+    int shift;
+    tcg_target_long tmp;
+
+    RISCVInsn add32_op = TCG_TARGET_REG_BITS == 64 ? OPC_ADDIW : OPC_ADDI;
+
+#if TCG_TARGET_REG_BITS == 64
+    ptrdiff_t offset = tcg_pcrel_diff(s, (void *)val);
+#endif
+
+    if (TCG_TARGET_REG_BITS == 32 || val == (int32_t)val) {
+        tcg_out_opc_upper(s, OPC_LUI, rd, hi);
+        if (lo != 0) {
+            tcg_out_opc_imm(s, add32_op, rd, rd, lo);
+        }
+
+        return;
+    }
+
+    /* We can only be here if TCG_TARGET_REG_BITS != 32 */
+    if (offset == sextract64(offset, 1, 31) << 1) {
+        tcg_out_opc_upper(s, OPC_AUIPC, rd, 0);
+        tcg_out_opc_imm(s, OPC_ADDI, rd, rd, 0);
+        reloc_call(s->code_ptr - 2, (tcg_insn_unit *)val);
+        return;
+    }
+
+    shift = ctz64(val);
+    tmp = val >> shift;
+
+    if (tmp == sextract64(tmp, 0, 12)) {
+        tcg_out_opc_imm(s, OPC_ADDI, rd, TCG_REG_ZERO, 1);
+        tcg_out_opc_imm(s, OPC_SLLI, rd, rd, ctz64(val));
+    } else if (!(val >> 31 == 0 || val >> 31 == -1)) {
+        shift = ctz64(hi);
+        hi >>= shift;
+        tcg_out_movi(s, type, rd, hi);
+        tcg_out_opc_imm(s, OPC_SLLI, rd, rd, shift);
+        if (lo != 0) {
+            tcg_out_opc_imm(s, OPC_ADDI, rd, rd, lo);
+        }
+    } else {
+        if (hi != 0) {
+            tcg_out_opc_upper(s, OPC_LUI, rd, hi);
+        }
+        if (lo != 0) {
+            tcg_out_opc_imm(s, add32_op, rd, hi == 0 ? TCG_REG_ZERO : rd, lo);
+        }
+    }
+}
+
 void tb_target_set_jmp_target(uintptr_t tc_ptr, uintptr_t jmp_addr,
                               uintptr_t addr)
 {
