@@ -1882,7 +1882,7 @@ static void virt_3_0_instance_init(Object *obj)
 static void virt_machine_3_0_options(MachineClass *mc)
 {
     virt_machine_3_1_options(mc);
-    SET_MACHINE_COMPAT(mc, VIRT_COMPAT_3_0);
+    SET_COMPAT(mc, VIRT_COMPAT_3_0);
 }
 DEFINE_VIRT_MACHINE(3, 0)
 
@@ -1899,7 +1899,7 @@ static void virt_machine_2_12_options(MachineClass *mc)
     VirtMachineClass *vmc = VIRT_MACHINE_CLASS(OBJECT_CLASS(mc));
 
     virt_machine_3_0_options(mc);
-    SET_MACHINE_COMPAT(mc, VIRT_COMPAT_2_12);
+    SET_COMPAT(mc, VIRT_COMPAT_2_12);
     vmc->no_highmem_ecam = true;
     mc->max_cpus = 255;
 }
@@ -1918,7 +1918,7 @@ static void virt_machine_2_11_options(MachineClass *mc)
     VirtMachineClass *vmc = VIRT_MACHINE_CLASS(OBJECT_CLASS(mc));
 
     virt_machine_2_12_options(mc);
-    SET_MACHINE_COMPAT(mc, VIRT_COMPAT_2_11);
+    SET_COMPAT(mc, VIRT_COMPAT_2_11);
     vmc->smbios_old_sys_ver = true;
 }
 DEFINE_VIRT_MACHINE(2, 11)
@@ -1934,7 +1934,7 @@ static void virt_2_10_instance_init(Object *obj)
 static void virt_machine_2_10_options(MachineClass *mc)
 {
     virt_machine_2_11_options(mc);
-    SET_MACHINE_COMPAT(mc, VIRT_COMPAT_2_10);
+    SET_COMPAT(mc, VIRT_COMPAT_2_10);
     /* before 2.11 we never faulted accesses to bad addresses */
     mc->ignore_memory_transaction_failures = true;
 }
@@ -1951,7 +1951,7 @@ static void virt_2_9_instance_init(Object *obj)
 static void virt_machine_2_9_options(MachineClass *mc)
 {
     virt_machine_2_10_options(mc);
-    SET_MACHINE_COMPAT(mc, VIRT_COMPAT_2_9);
+    SET_COMPAT(mc, VIRT_COMPAT_2_9);
 }
 DEFINE_VIRT_MACHINE(2, 9)
 
@@ -1968,7 +1968,7 @@ static void virt_machine_2_8_options(MachineClass *mc)
     VirtMachineClass *vmc = VIRT_MACHINE_CLASS(OBJECT_CLASS(mc));
 
     virt_machine_2_9_options(mc);
-    SET_MACHINE_COMPAT(mc, VIRT_COMPAT_2_8);
+    SET_COMPAT(mc, VIRT_COMPAT_2_8);
     /* For 2.8 and earlier we falsely claimed in the DT that
      * our timers were edge-triggered, not level-triggered.
      */
@@ -1989,7 +1989,7 @@ static void virt_machine_2_7_options(MachineClass *mc)
     VirtMachineClass *vmc = VIRT_MACHINE_CLASS(OBJECT_CLASS(mc));
 
     virt_machine_2_8_options(mc);
-    SET_MACHINE_COMPAT(mc, VIRT_COMPAT_2_7);
+    SET_COMPAT(mc, VIRT_COMPAT_2_7);
     /* ITS was introduced with 2.8 */
     vmc->no_its = true;
     /* Stick with 1K pages for migration compatibility */
@@ -2010,7 +2010,7 @@ static void virt_machine_2_6_options(MachineClass *mc)
     VirtMachineClass *vmc = VIRT_MACHINE_CLASS(OBJECT_CLASS(mc));
 
     virt_machine_2_7_options(mc);
-    SET_MACHINE_COMPAT(mc, VIRT_COMPAT_2_6);
+    SET_COMPAT(mc, VIRT_COMPAT_2_6);
     vmc->disallow_affinity_adjustment = true;
     /* Disable PMU for 2.6 as PMU support was first introduced in 2.7 */
     vmc->no_pmu = true;

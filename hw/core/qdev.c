@@ -971,16 +971,25 @@ static void device_initfn(Object *obj)
 }
 
 static const GPtrArray *ac_compat_props;
+static const GPtrArray *mc_compat_props;
 
 void accel_register_compat_props(const GPtrArray *props)
 {
     ac_compat_props = props;
 }
 
+void machine_register_compat_props(const GPtrArray *props)
+{
+    mc_compat_props = props;
+}
+
 static void device_post_init(Object *obj)
 {
     if (ac_compat_props) {
         object_apply_global_props(obj, ac_compat_props, &error_abort);
+    }
+    if (mc_compat_props) {
+        object_apply_global_props(obj, mc_compat_props, &error_abort);
     }
 
     qdev_prop_set_globals(DEVICE(obj));

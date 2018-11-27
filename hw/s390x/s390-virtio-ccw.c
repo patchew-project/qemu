@@ -762,7 +762,7 @@ static void ccw_machine_3_0_class_options(MachineClass *mc)
 
     s390mc->hpage_1m_allowed = false;
     ccw_machine_3_1_class_options(mc);
-    SET_MACHINE_COMPAT(mc, CCW_COMPAT_3_0);
+    SET_COMPAT(mc, CCW_COMPAT_3_0);
 }
 DEFINE_CCW_MACHINE(3_0, "3.0", false);
 
@@ -776,7 +776,7 @@ static void ccw_machine_2_12_instance_options(MachineState *machine)
 static void ccw_machine_2_12_class_options(MachineClass *mc)
 {
     ccw_machine_3_0_class_options(mc);
-    SET_MACHINE_COMPAT(mc, CCW_COMPAT_2_12);
+    SET_COMPAT(mc, CCW_COMPAT_2_12);
 }
 DEFINE_CCW_MACHINE(2_12, "2.12", false);
 
@@ -792,7 +792,7 @@ static void ccw_machine_2_11_instance_options(MachineState *machine)
 static void ccw_machine_2_11_class_options(MachineClass *mc)
 {
     ccw_machine_2_12_class_options(mc);
-    SET_MACHINE_COMPAT(mc, CCW_COMPAT_2_11);
+    SET_COMPAT(mc, CCW_COMPAT_2_11);
 }
 DEFINE_CCW_MACHINE(2_11, "2.11", false);
 
@@ -804,7 +804,7 @@ static void ccw_machine_2_10_instance_options(MachineState *machine)
 static void ccw_machine_2_10_class_options(MachineClass *mc)
 {
     ccw_machine_2_11_class_options(mc);
-    SET_MACHINE_COMPAT(mc, CCW_COMPAT_2_10);
+    SET_COMPAT(mc, CCW_COMPAT_2_10);
 }
 DEFINE_CCW_MACHINE(2_10, "2.10", false);
 
@@ -823,7 +823,7 @@ static void ccw_machine_2_9_class_options(MachineClass *mc)
     S390CcwMachineClass *s390mc = S390_MACHINE_CLASS(mc);
 
     ccw_machine_2_10_class_options(mc);
-    SET_MACHINE_COMPAT(mc, CCW_COMPAT_2_9);
+    SET_COMPAT(mc, CCW_COMPAT_2_9);
     s390mc->css_migration_enabled = false;
 }
 DEFINE_CCW_MACHINE(2_9, "2.9", false);
@@ -836,7 +836,7 @@ static void ccw_machine_2_8_instance_options(MachineState *machine)
 static void ccw_machine_2_8_class_options(MachineClass *mc)
 {
     ccw_machine_2_9_class_options(mc);
-    SET_MACHINE_COMPAT(mc, CCW_COMPAT_2_8);
+    SET_COMPAT(mc, CCW_COMPAT_2_8);
 }
 DEFINE_CCW_MACHINE(2_8, "2.8", false);
 
@@ -851,7 +851,7 @@ static void ccw_machine_2_7_class_options(MachineClass *mc)
 
     s390mc->cpu_model_allowed = false;
     ccw_machine_2_8_class_options(mc);
-    SET_MACHINE_COMPAT(mc, CCW_COMPAT_2_7);
+    SET_COMPAT(mc, CCW_COMPAT_2_7);
 }
 DEFINE_CCW_MACHINE(2_7, "2.7", false);
 
@@ -866,7 +866,7 @@ static void ccw_machine_2_6_class_options(MachineClass *mc)
 
     s390mc->ri_allowed = false;
     ccw_machine_2_7_class_options(mc);
-    SET_MACHINE_COMPAT(mc, CCW_COMPAT_2_6);
+    SET_COMPAT(mc, CCW_COMPAT_2_6);
 }
 DEFINE_CCW_MACHINE(2_6, "2.6", false);
 
@@ -878,7 +878,7 @@ static void ccw_machine_2_5_instance_options(MachineState *machine)
 static void ccw_machine_2_5_class_options(MachineClass *mc)
 {
     ccw_machine_2_6_class_options(mc);
-    SET_MACHINE_COMPAT(mc, CCW_COMPAT_2_5);
+    SET_COMPAT(mc, CCW_COMPAT_2_5);
 }
 DEFINE_CCW_MACHINE(2_5, "2.5", false);
 
@@ -890,7 +890,7 @@ static void ccw_machine_2_4_instance_options(MachineState *machine)
 static void ccw_machine_2_4_class_options(MachineClass *mc)
 {
     ccw_machine_2_5_class_options(mc);
-    SET_MACHINE_COMPAT(mc, CCW_COMPAT_2_4);
+    SET_COMPAT(mc, CCW_COMPAT_2_4);
 }
 DEFINE_CCW_MACHINE(2_4, "2.4", false);
 

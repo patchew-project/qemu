@@ -279,6 +279,7 @@ typedef struct GlobalProperty {
     } while (0)
 
 void accel_register_compat_props(const GPtrArray *props);
+void machine_register_compat_props(const GPtrArray *props);
 
 /*** Board API.  This should go away once we have a machine config file.  ***/
 

@@ -3986,7 +3986,7 @@ static void spapr_machine_3_0_class_options(MachineClass *mc)
     sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
 
     spapr_machine_3_1_class_options(mc);
-    SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_3_0);
+    SET_COMPAT(mc, SPAPR_COMPAT_3_0);
 
     smc->legacy_irq_allocation = true;
     smc->irq = &spapr_irq_xics_legacy;
@@ -4020,7 +4020,7 @@ static void spapr_machine_2_12_class_options(MachineClass *mc)
     sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
 
     spapr_machine_3_0_class_options(mc);
-    SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_12);
+    SET_COMPAT(mc, SPAPR_COMPAT_2_12);
 
     /* We depend on kvm_enabled() to choose a default value for the
      * hpt-max-page-size capability. Of course we can't do it here
@@ -4066,7 +4066,7 @@ static void spapr_machine_2_11_class_options(MachineClass *mc)
 
     spapr_machine_2_12_class_options(mc);
     smc->default_caps.caps[SPAPR_CAP_HTM] = SPAPR_CAP_ON;
-    SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_11);
+    SET_COMPAT(mc, SPAPR_COMPAT_2_11);
 }
 
 DEFINE_SPAPR_MACHINE(2_11, "2.11", false);
@@ -4085,7 +4085,7 @@ static void spapr_machine_2_10_instance_options(MachineState *machine)
 static void spapr_machine_2_10_class_options(MachineClass *mc)
 {
     spapr_machine_2_11_class_options(mc);
-    SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_10);
+    SET_COMPAT(mc, SPAPR_COMPAT_2_10);
 }
 
 DEFINE_SPAPR_MACHINE(2_10, "2.10", false);
@@ -4111,7 +4111,7 @@ static void spapr_machine_2_9_class_options(MachineClass *mc)
     sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
 
     spapr_machine_2_10_class_options(mc);
-    SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_9);
+    SET_COMPAT(mc, SPAPR_COMPAT_2_9);
     mc->numa_auto_assign_ram = numa_legacy_auto_assign_ram;
     smc->pre_2_10_has_unused_icps = true;
     smc->resize_hpt_default = SPAPR_RESIZE_HPT_DISABLED;
@@ -4138,7 +4138,7 @@ static void spapr_machine_2_8_instance_options(MachineState *machine)
 static void spapr_machine_2_8_class_options(MachineClass *mc)
 {
     spapr_machine_2_9_class_options(mc);
-    SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_8);
+    SET_COMPAT(mc, SPAPR_COMPAT_2_8);
     mc->numa_mem_align_shift = 23;
 }
 
@@ -4233,7 +4233,7 @@ static void spapr_machine_2_7_class_options(MachineClass *mc)
 
     spapr_machine_2_8_class_options(mc);
     mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("power7_v2.3");
-    SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_7);
+    SET_COMPAT(mc, SPAPR_COMPAT_2_7);
     smc->phb_placement = phb_placement_2_7;
 }
 
@@ -4259,7 +4259,7 @@ static void spapr_machine_2_6_class_options(MachineClass *mc)
 {
     spapr_machine_2_7_class_options(mc);
     mc->has_hotpluggable_cpus = false;
-    SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_6);
+    SET_COMPAT(mc, SPAPR_COMPAT_2_6);
 }
 
 DEFINE_SPAPR_MACHINE(2_6, "2.6", false);
@@ -4286,7 +4286,7 @@ static void spapr_machine_2_5_class_options(MachineClass *mc)
 
     spapr_machine_2_6_class_options(mc);
     smc->use_ohci_by_default = true;
-    SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_5);
+    SET_COMPAT(mc, SPAPR_COMPAT_2_5);
 }
 
 DEFINE_SPAPR_MACHINE(2_5, "2.5", false);
@@ -4308,7 +4308,7 @@ static void spapr_machine_2_4_class_options(MachineClass *mc)
 
     spapr_machine_2_5_class_options(mc);
     smc->dr_lmb_enabled = false;
-    SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_4);
+    SET_COMPAT(mc, SPAPR_COMPAT_2_4);
 }
 
 DEFINE_SPAPR_MACHINE(2_4, "2.4", false);
@@ -4332,7 +4332,7 @@ static void spapr_machine_2_3_instance_options(MachineState *machine)
 static void spapr_machine_2_3_class_options(MachineClass *mc)
 {
     spapr_machine_2_4_class_options(mc);
-    SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_3);
+    SET_COMPAT(mc, SPAPR_COMPAT_2_3);
 }
 DEFINE_SPAPR_MACHINE(2_3, "2.3", false);
 
@@ -4357,7 +4357,7 @@ static void spapr_machine_2_2_instance_options(MachineState *machine)
 static void spapr_machine_2_2_class_options(MachineClass *mc)
 {
     spapr_machine_2_3_class_options(mc);
-    SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_2);
+    SET_COMPAT(mc, SPAPR_COMPAT_2_2);
 }
 DEFINE_SPAPR_MACHINE(2_2, "2.2", false);
 
@@ -4375,7 +4375,7 @@ static void spapr_machine_2_1_instance_options(MachineState *machine)
 static void spapr_machine_2_1_class_options(MachineClass *mc)
 {
     spapr_machine_2_2_class_options(mc);
-    SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_1);
+    SET_COMPAT(mc, SPAPR_COMPAT_2_1);
 }
 DEFINE_SPAPR_MACHINE(2_1, "2.1", false);
 
