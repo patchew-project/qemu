@@ -1552,7 +1552,8 @@ static void pc_superio_init(ISABus *isa_bus, bool create_fdctrl, bool no_vmport)
     }
     if (vmmouse) {
         DeviceState *dev = DEVICE(vmmouse);
-        qdev_prop_set_ptr(dev, "ps2_mouse", i8042);
+        object_property_set_link(OBJECT(dev), OBJECT(i8042),
+                                 "ps2_mouse", &error_abort);
         qdev_init_nofail(dev);
     }
     port92 = isa_create_simple(isa_bus, TYPE_PORT92);
