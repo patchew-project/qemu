@@ -7382,7 +7382,11 @@ for i in $ARCH $TARGET_BASE_ARCH ; do
   mips*)
     disas_config "MIPS"
     if test -n "${cxx}"; then
-      disas_config "NANOMIPS"
+      # The nanomips disassembler currently does not work correctly
+      # on big endian host.
+      if test "$bigendian" = "no" ; then
+        disas_config "NANOMIPS"
+      fi
     fi
   ;;
   moxie*)
