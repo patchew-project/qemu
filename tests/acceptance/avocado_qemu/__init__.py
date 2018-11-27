@@ -13,9 +13,10 @@ import sys
 
 import avocado
 
-SRC_ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-SRC_ROOT_DIR = os.path.abspath(os.path.dirname(SRC_ROOT_DIR))
-sys.path.append(os.path.join(SRC_ROOT_DIR, 'scripts'))
+THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+TOP_DIR = os.path.dirname(os.path.dirname(os.path.dirname(THIS_DIR)))
+PYTHON_MODULE_PATH = os.path.join(TOP_DIR, 'python')
+sys.path.append(PYTHON_MODULE_PATH)
 
 from qemu import QEMUMachine
 
@@ -34,7 +35,7 @@ def pick_default_qemu_bin():
     if is_readable_executable_file(qemu_bin_relative_path):
         return qemu_bin_relative_path
 
-    qemu_bin_from_src_dir_path = os.path.join(SRC_ROOT_DIR,
+    qemu_bin_from_src_dir_path = os.path.join(TOP_DIR,
                                               qemu_bin_relative_path)
     if is_readable_executable_file(qemu_bin_from_src_dir_path):
         return qemu_bin_from_src_dir_path

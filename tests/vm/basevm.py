@@ -17,8 +17,6 @@ import sys
 import logging
 import time
 import datetime
-sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", "scripts"))
-from qemu import QEMUMachine, kvm_available
 import subprocess
 import hashlib
 import optparse
@@ -27,6 +25,13 @@ import tempfile
 import shutil
 import multiprocessing
 import traceback
+
+THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+TOP_DIR = os.path.dirname(os.path.dirname(THIS_DIR))
+PYTHON_MODULE_PATH = os.path.join(TOP_DIR, 'python')
+sys.path.append(PYTHON_MODULE_PATH)
+
+from qemu import QEMUMachine, kvm_available
 
 SSH_KEY = open(os.path.join(os.path.dirname(__file__),
                "..", "keys", "id_rsa")).read()

@@ -13,7 +13,8 @@
 
 import socket
 import os
-import qemu
+
+from . import QEMUMachine
 
 
 class QEMUQtestProtocol(object):
@@ -73,7 +74,7 @@ class QEMUQtestProtocol(object):
         self._sock.settimeout(timeout)
 
 
-class QEMUQtestMachine(qemu.QEMUMachine):
+class QEMUQtestMachine(QEMUMachine):
     '''A QEMU VM'''
 
     def __init__(self, binary, args=None, name=None, test_dir="/var/tmp",

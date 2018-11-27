@@ -24,12 +24,16 @@ import re
 import sys
 import time
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'scripts'))
-import qemu
-import qmp.qmp
 from guestperf.progress import Progress, ProgressStats
 from guestperf.report import Report
 from guestperf.timings import TimingRecord, Timings
+
+THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+TOP_DIR = os.path.dirname(os.path.dirname(os.path.dirname(THIS_DIR)))
+PYTHON_MODULE_PATH = os.path.join(TOP_DIR, 'python')
+sys.path.append(PYTHON_MODULE_PATH)
+
+import qemu
 
 
 class Engine(object):

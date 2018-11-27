@@ -31,8 +31,12 @@ import logging
 import atexit
 import io
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'scripts'))
-import qtest
+THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+TOP_DIR = os.path.dirname(os.path.dirname(THIS_DIR))
+PYTHON_MODULE_PATH = os.path.join(TOP_DIR, 'python')
+sys.path.append(PYTHON_MODULE_PATH)
+
+from qemu import qtest
 
 
 # This will not work if arguments contain spaces but is necessary if we

@@ -35,6 +35,11 @@ import random
 import argparse
 from itertools import chain
 
+THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+TOP_DIR = os.path.dirname(THIS_DIR)
+PYTHON_MODULE_PATH = os.path.join(TOP_DIR, 'python')
+sys.path.append(PYTHON_MODULE_PATH)
+
 from qemu import QEMUMachine
 
 logger = logging.getLogger('device-crash-test')
