@@ -4254,6 +4254,13 @@ static ImageInfoSpecific *qcow2_get_specific_info(BlockDriverState *bs)
     BDRVQcow2State *s = bs->opaque;
     ImageInfoSpecific *spec_info;
     QCryptoBlockInfo *encrypt_info = NULL;
+    Error *local_err = NULL;
+    Qcow2BitmapInfoList *bitmaps;
+
+    bitmaps = qcow2_get_bitmap_info_list(bs, &local_err);
+    if (local_err != NULL) {
+        error_report_err(local_err);
+    }
 
     if (s->crypto != NULL) {
         encrypt_info = qcrypto_block_get_info(s->crypto, &error_abort);
@@ -4268,6 +4275,7 @@ static ImageInfoSpecific *qcow2_get_specific_info(BlockDriverState *bs)
         *spec_info->u.qcow2.data = (ImageInfoSpecificQCow2){
             .compat             = g_strdup("0.10"),
             .refcount_bits      = s->refcount_bits,
+            .bitmaps            = bitmaps,
         };
     } else if (s->qcow_version == 3) {
         *spec_info->u.qcow2.data = (ImageInfoSpecificQCow2){
@@ -4279,6 +4287,8 @@ static ImageInfoSpecific *qcow2_get_specific_info(BlockDriverState *bs)
                                   QCOW2_INCOMPAT_CORRUPT,
             .has_corrupt        = true,
             .refcount_bits      = s->refcount_bits,
+            .has_bitmaps        = bitmaps ? true : false,
+            .bitmaps            = bitmaps,
         };
     } else {
         /* if this assertion fails, this probably means a new version was

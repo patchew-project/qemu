@@ -77,7 +77,8 @@
       '*lazy-refcounts': 'bool',
       '*corrupt': 'bool',
       'refcount-bits': 'int',
-      '*encrypt': 'ImageInfoSpecificQCow2Encryption'
+      '*encrypt': 'ImageInfoSpecificQCow2Encryption',
+      '*bitmaps': ['Qcow2BitmapInfo']
   } }
 
 ##
@@ -452,6 +453,38 @@
 { 'struct': 'BlockDirtyInfo',
   'data': {'*name': 'str', 'count': 'int', 'granularity': 'uint32',
            'status': 'DirtyBitmapStatus'} }
+
+##
+# @Qcow2BitmapInfoFlags:
+#
+# An enumeration of states that a bitmap can report to the user.
+#
+# @in-use: The bitmap was not saved correctly and may be inconsistent.
+#
+# @auto: The bitmap must reflect all changes of the virtual disk by any
+#        application that would write to this qcow2 file.
+#
+# Since: 3.2
+##
+{ 'enum': 'Qcow2BitmapInfoFlags',
+  'data': ['in-use', 'auto'] }
+
+##
+# @Qcow2BitmapInfo:
+#
+# Image bitmap information.
+#
+# @name: the name of the dirty bitmap
+#
+# @granularity: granularity of the dirty bitmap in bytes
+#
+# @flags: flags of the dirty bitmap
+#
+# Since: 3.2
+##
+{ 'struct': 'Qcow2BitmapInfo',
+  'data': {'name': 'str', 'granularity': 'uint32',
+           'flags': ['Qcow2BitmapInfoFlags']} }
 
 ##
 # @BlockLatencyHistogramInfo:
