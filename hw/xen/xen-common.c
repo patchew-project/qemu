@@ -159,24 +159,22 @@ static int xen_init(MachineState *ms)
     return 0;
 }
 
-static GlobalProperty xen_compat_props[] = {
-    {
-        .driver = "migration",
-        .property = "store-global-state",
-        .value = "off",
-    },
-    {
-        .driver = "migration",
-        .property = "send-configuration",
-        .value = "off",
-    },
-    {
-        .driver = "migration",
-        .property = "send-section-footer",
-        .value = "off",
-    },
-    { /* end of list */ },
-};
+#define XEN_COMPAT                              \
+    {                                           \
+        .driver = "migration",                  \
+        .property = "store-global-state",       \
+        .value = "off",                         \
+    },                                          \
+    {                                           \
+        .driver = "migration",                  \
+        .property = "send-configuration",       \
+        .value = "off",                         \
+    },                                          \
+    {                                           \
+        .driver = "migration",                  \
+        .property = "send-section-footer",      \
+        .value = "off",                         \
+    }
 
 static void xen_accel_class_init(ObjectClass *oc, void *data)
 {
@@ -185,7 +183,9 @@ static void xen_accel_class_init(ObjectClass *oc, void *data)
     ac->init_machine = xen_init;
     ac->setup_post = xen_setup_post;
     ac->allowed = &xen_allowed;
-    ac->global_props = xen_compat_props;
+    ac->compat_props = g_ptr_array_new();
+
+    SET_COMPAT(ac, XEN_COMPAT);
 }
 
 #define TYPE_XEN_ACCEL ACCEL_CLASS_NAME("xen")

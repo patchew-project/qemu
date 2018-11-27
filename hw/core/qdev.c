@@ -970,8 +970,19 @@ static void device_initfn(Object *obj)
     QLIST_INIT(&dev->gpios);
 }
 
+static const GPtrArray *ac_compat_props;
+
+void accel_register_compat_props(const GPtrArray *props)
+{
+    ac_compat_props = props;
+}
+
 static void device_post_init(Object *obj)
 {
+    if (ac_compat_props) {
+        object_apply_global_props(obj, ac_compat_props, &error_abort);
+    }
+
     qdev_prop_set_globals(DEVICE(obj));
 }
 

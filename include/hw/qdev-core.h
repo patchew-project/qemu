@@ -267,6 +267,19 @@ typedef struct GlobalProperty {
     Error **errp;
 } GlobalProperty;
 
+#define SET_COMPAT(S, COMPAT)                                       \
+    do {                                                            \
+        int i;                                                      \
+        static GlobalProperty props[] = {                           \
+            COMPAT                                                  \
+        };                                                          \
+        for (i = 0; i < G_N_ELEMENTS(props); i++) {                 \
+            g_ptr_array_add((S)->compat_props, (void *)&props[i]);  \
+        }                                                           \
+    } while (0)
+
+void accel_register_compat_props(const GPtrArray *props);
+
 /*** Board API.  This should go away once we have a machine config file.  ***/
 
 DeviceState *qdev_create(BusState *bus, const char *name);
