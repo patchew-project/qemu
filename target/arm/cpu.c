@@ -734,7 +734,7 @@ static Property arm_cpu_pmsav7_dregion_property =
 static Property arm_cpu_initsvtor_property =
             DEFINE_PROP_UINT32("init-svtor", ARMCPU, init_svtor, 0);
 
-static void arm_cpu_post_init(Object *obj)
+void arm_cpu_post_init(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
 
@@ -2094,6 +2094,7 @@ static void arm_host_initfn(Object *obj)
     ARMCPU *cpu = ARM_CPU(obj);
 
     kvm_arm_set_cpu_features_from_host(cpu);
+    arm_cpu_post_init(ARM_CPU(obj));
 }
 
 static const TypeInfo host_arm_cpu_type_info = {
@@ -2108,14 +2109,23 @@ static const TypeInfo host_arm_cpu_type_info = {
 
 #endif
 
+static void arm_cpu_instance_init(Object *obj)
+{
+    const ARMCPUInfo *info = object_class_get_class_data(object_get_class(obj));
+
+    info->initfn(obj);
+    arm_cpu_post_init(obj);
+}
+
 static void cpu_register(const ARMCPUInfo *info)
 {
     TypeInfo type_info = {
         .parent = TYPE_ARM_CPU,
         .instance_size = sizeof(ARMCPU),
-        .instance_init = info->initfn,
+        .instance_init = arm_cpu_instance_init,
         .class_size = sizeof(ARMCPUClass),
         .class_init = info->class_init,
+        .class_data = (void *)info,
     };
 
     type_info.name = g_strdup_printf("%s-" TYPE_ARM_CPU, info->name);
@@ -2128,7 +2138,6 @@ static const TypeInfo arm_cpu_type_info = {
     .parent = TYPE_CPU,
     .instance_size = sizeof(ARMCPU),
     .instance_init = arm_cpu_initfn,
-    .instance_post_init = arm_cpu_post_init,
     .instance_finalize = arm_cpu_finalizefn,
     .abstract = true,
     .class_size = sizeof(ARMCPUClass),
