@@ -30,6 +30,7 @@
 #include "gicv3_internal.h"
 #include "vgic_common.h"
 #include "migration/blocker.h"
+#include "target/arm/internals.h"
 
 #ifdef DEBUG_GICV3_KVM
 #define DPRINTF(fmt, ...) \
@@ -745,9 +746,38 @@ static void vm_change_state_handler(void *opaque, int running,
 {
     GICv3State *s = (GICv3State *)opaque;
     Error *err = NULL;
+    CPUState *cpu;
+    CPUARMState *env;
+    struct kvm_one_reg reg;
     int ret;
+    uint64_t cnt;
 
     if (running) {
+        CPU_FOREACH(cpu) {
+
+            env = (CPUARMState *)(cpu->env_ptr);
+
+            if (!env->pause_start) {
+                continue;
+            }
+
+            /*
+             * Accumulate the total pause time and set the
+             * counter virtual offset accordingly.
+             */
+            cnt = gt_get_countervalue(env);
+            env->pause_total += (cnt - env->pause_start);
+            env->cp15.cntvoff_el2 = cnt - env->pause_total;
+
+            env->pause_start = 0;   /* clear for next pause */
+            reg.id = KVM_REG_ARM_TIMER_CNT;
+            reg.addr = (uintptr_t) &env->cp15.cntvoff_el2;
+            ret = kvm_vcpu_ioctl(cpu, KVM_SET_ONE_REG, &reg);
+            if (ret) {
+                error_report("Set virtual counter offset failed: %d", ret);
+                abort();
+            }
+        }
         return;
     }
 
@@ -759,6 +789,15 @@ static void vm_change_state_handler(void *opaque, int running,
     }
     if (ret < 0 && ret != -EFAULT) {
         abort();
+    }
+
+    CPU_FOREACH(cpu) {
+        /*
+         * Record the current pause start time.
+         */
+        env = (CPUARMState *)(cpu->env_ptr);
+        cnt = gt_get_countervalue(env);
+        env->pause_start = cnt;
     }
 }
 
