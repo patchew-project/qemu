@@ -606,6 +606,57 @@ static bool tcg_out_sti(TCGContext *s, TCGType type, TCGArg val,
     return false;
 }
 
+static void tcg_out_addsub2(TCGContext *s,
+                            TCGReg rl, TCGReg rh,
+                            TCGReg al, TCGReg ah,
+                            TCGReg bl, TCGReg bh,
+                            bool cbl, bool cbh, bool is_sub)
+{
+    /* FIXME: This is just copied from MIPS */
+    TCGReg th = TCG_REG_TMP1;
+
+    /* If we have a negative constant such that negating it would
+       make the high part zero, we can (usually) eliminate one insn.  */
+    if (cbl && cbh && bh == -1 && bl != 0) {
+        bl = -bl;
+        bh = 0;
+        is_sub = !is_sub;
+    }
+
+    /* By operating on the high part first, we get to use the final
+       carry operation to move back from the temporary.  */
+    if (!cbh) {
+        tcg_out_opc_reg(s, (is_sub ? OPC_SUB : OPC_ADDI), th, ah, bh);
+    } else if (bh != 0 || ah == rl) {
+        tcg_out_opc_imm(s, OPC_ADDI, th, ah, (is_sub ? -bh : bh));
+    } else {
+        th = ah;
+    }
+
+    if (is_sub) {
+        if (cbl) {
+            tcg_out_opc_imm(s, OPC_SLLI, TCG_REG_TMP0, al, bl);
+            tcg_out_opc_imm(s, OPC_ADDI, rl, al, -bl);
+        } else {
+            tcg_out_opc_reg(s, OPC_SLLI, TCG_REG_TMP0, al, bl);
+            tcg_out_opc_reg(s, OPC_SUB, rl, al, bl);
+        }
+        tcg_out_opc_reg(s, OPC_SUB, rh, th, TCG_REG_TMP0);
+    } else {
+        if (cbl) {
+            tcg_out_opc_imm(s, OPC_ADDI, rl, al, bl);
+            tcg_out_opc_imm(s, OPC_SLLI, TCG_REG_TMP0, rl, bl);
+        } else if (rl == al && rl == bl) {
+            tcg_out_opc_imm(s, OPC_SRLI, TCG_REG_TMP0, al, 31);
+            tcg_out_opc_reg(s, OPC_ADDI, rl, al, bl);
+        } else {
+            tcg_out_opc_reg(s, OPC_ADDI, rl, al, bl);
+            tcg_out_opc_reg(s, OPC_SLLI, TCG_REG_TMP0, rl, (rl == bl ? al : bl));
+        }
+        tcg_out_opc_reg(s, OPC_ADDI, rh, th, TCG_REG_TMP0);
+    }
+}
+
 static const struct {
     RISCVInsn op;
     bool swap;
@@ -1384,6 +1435,18 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         }
         break;
 
+    case INDEX_op_add2_i32:
+    case INDEX_op_add2_i64:
+        tcg_out_addsub2(s, a0, a1, a2, args[3], args[4], args[5],
+                        const_args[4], const_args[5], false);
+        break;
+
+    case INDEX_op_sub2_i32:
+    case INDEX_op_sub2_i64:
+        tcg_out_addsub2(s, a0, a1, a2, args[3], args[4], args[5],
+                        const_args[4], const_args[5], true);
+        break;
+
     case INDEX_op_brcond_i32:
     case INDEX_op_brcond_i64:
         tcg_out_brcond(s, a2, a0, a1, arg_label(args[3]));
@@ -1439,6 +1502,8 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
 
     case INDEX_op_ext32s_i64:
+    case INDEX_op_extrl_i64_i32:
+    case INDEX_op_extrh_i64_i32:
     case INDEX_op_ext_i32_i64:
         tcg_out_ext32s(s, a0, a1);
         break;
@@ -1505,6 +1570,8 @@ static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
         = { .args_ct_str = { "LZ", "LZ", "L" } };
     static const TCGTargetOpDef LZ_LZ_L_L
         = { .args_ct_str = { "LZ", "LZ", "L", "L" } };
+    static const TCGTargetOpDef rZ_rZ_rZ_rZ_rZ_rZ
+        = { .args_ct_str = { "rZ", "rZ", "rZ", "rZ", "rZ", "rZ" } };
 
     switch (op) {
     case INDEX_op_goto_ptr:
@@ -1537,6 +1604,8 @@ static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
     case INDEX_op_ext16s_i32:
     case INDEX_op_ext16s_i64:
     case INDEX_op_ext32s_i64:
+    case INDEX_op_extrl_i64_i32:
+    case INDEX_op_extrh_i64_i32:
     case INDEX_op_ext_i32_i64:
         return &r_r;
 
@@ -1592,6 +1661,14 @@ static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
     case INDEX_op_brcond_i32:
     case INDEX_op_brcond_i64:
         return &rZ_rZ;
+
+    case INDEX_op_add2_i32:
+    case INDEX_op_add2_i64:
+        return &rZ_rZ_rZ_rZ_rZ_rZ;
+
+    case INDEX_op_sub2_i32:
+    case INDEX_op_sub2_i64:
+        return &rZ_rZ_rZ_rZ_rZ_rZ;
 
     case INDEX_op_brcond2_i32:
         return &rZ_rZ_rZ_rZ;
