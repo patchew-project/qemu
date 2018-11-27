@@ -2,7 +2,15 @@
 #define HW_COMPAT_H
 
 #define HW_COMPAT_3_1 \
-    /* empty */
+    {\
+        .driver   = "memory-backend-file",\
+        .property = "x-use-canonical-path-for-ramblock-id",\
+        .value    = "true",\
+    },{\
+        .driver   = "memory-backend-memfd",\
+        .property = "x-use-canonical-path-for-ramblock-id",\
+        .value    = "true",\
+    },
 
 #define HW_COMPAT_3_0 \
     /* empty */
