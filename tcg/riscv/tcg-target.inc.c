@@ -418,10 +418,37 @@ static void reloc_call(tcg_insn_unit *code_ptr, tcg_insn_unit *target)
 static void patch_reloc(tcg_insn_unit *code_ptr, int type,
                         intptr_t value, intptr_t addend)
 {
+    uint32_t insn = *code_ptr;
+    intptr_t diff;
+    bool short_jmp;
+
     tcg_debug_assert(addend == 0);
+
     switch (type) {
     case R_RISCV_BRANCH:
-        reloc_sbimm12(code_ptr, (tcg_insn_unit *)value);
+        diff = value - (uintptr_t)code_ptr;
+#if TCG_TARGET_REG_BITS == 64
+        short_jmp = diff == sextract64(diff, 0, 12);
+#else
+        short_jmp = diff == sextract32(diff, 0, 12);
+#endif
+        if (short_jmp) {
+            reloc_sbimm12(code_ptr, (tcg_insn_unit *)value);
+        } else {
+            /* Invert the condition */
+            insn = insn ^ (1 << 12);
+            /* Clear the offset */
+            insn &= 0xFFF;
+            /* Set the offset to the PC + 8 */
+            insn |= ((unsigned int)(code_ptr + 8)) << 12;
+
+            /* Move forward */
+            code_ptr++;
+            insn = *code_ptr;
+
+            /* Overwrite the NOP with jal x0,value */
+            insn = encode_uj(OPC_JAL, TCG_REG_ZERO, value);
+        }
         break;
     case R_RISCV_JAL:
         reloc_jimm20(code_ptr, (tcg_insn_unit *)value);
@@ -677,16 +704,27 @@ static void tcg_out_brcond(TCGContext *s, TCGCond cond, TCGReg arg1,
                            TCGReg arg2, TCGLabel *l)
 {
     RISCVInsn op = tcg_brcond_to_riscv[cond].op;
+    intptr_t diff;
     bool swap = tcg_brcond_to_riscv[cond].swap;
-
-    tcg_out_opc_branch(s, op, swap ? arg2 : arg1, swap ? arg1 : arg2, 0);
+    bool short_jmp;
 
     tcg_debug_assert(op != 0);
 
-    if (l->has_value) {
+    tcg_out_opc_branch(s, op, swap ? arg2 : arg1, swap ? arg1 : arg2, 0);
+
+    diff = l->u.value_ptr - (uintptr_t)s->code_gen_ptr;
+#if TCG_TARGET_REG_BITS == 64
+    short_jmp = diff == sextract64(diff, 0, 12);
+#else
+    short_jmp = diff == sextract32(diff, 0, 12);
+#endif
+
+    if (l->has_value && short_jmp) {
         reloc_sbimm12(s->code_ptr - 1, l->u.value_ptr);
     } else {
         tcg_out_reloc(s, s->code_ptr - 1, R_RISCV_BRANCH, l, 0);
+        /* NOP to allow patching later */
+        tcg_out_opc_imm(s, OPC_ADDI, TCG_REG_ZERO, TCG_REG_ZERO, 0);
     }
 }
 
