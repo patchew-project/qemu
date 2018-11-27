@@ -129,8 +129,8 @@ memfd_backend_instance_init(Object *obj)
 {
     HostMemoryBackendMemfd *m = MEMORY_BACKEND_MEMFD(obj);
 
-    /* default to sealed file */
-    m->seal = true;
+    /* default to sealed file if supported */
+    m->seal = qemu_memfd_check(MFD_ALLOW_SEALING);
 }
 
 static void
