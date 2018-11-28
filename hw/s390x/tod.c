@@ -97,9 +97,14 @@ static SaveVMHandlers savevm_tod = {
 static void s390_tod_realize(DeviceState *dev, Error **errp)
 {
     S390TODState *td = S390_TOD(dev);
+    S390TODClass *tdc = S390_TOD_GET_CLASS(td);
 
     /* Legacy migration interface */
     register_savevm_live(NULL, "todclock", 0, 1, &savevm_tod, td);
+
+    if (tdc->realize) {
+        tdc->realize(td, errp);
+    }
 }
 
 static void s390_tod_class_init(ObjectClass *oc, void *data)
