@@ -320,6 +320,44 @@ void glue(address_space_stl_notdirty, SUFFIX)(ARG1_DECL,
     RCU_READ_UNLOCK();
 }
 
+/* This is meant to be used for atomic PTE updates under MT-TCG */
+uint32_t glue(address_space_cmpxchgl_notdirty, SUFFIX)(ARG1_DECL,
+    hwaddr addr, uint32_t old, uint32_t new, MemTxAttrs attrs, MemTxResult *result)
+{
+    uint8_t *ptr;
+    MemoryRegion *mr;
+    hwaddr l = 4;
+    hwaddr addr1;
+    MemTxResult r;
+    uint8_t dirty_log_mask;
+
+    /* Must test result */
+    assert(result);
+
+    RCU_READ_LOCK();
+    mr = TRANSLATE(addr, &addr1, &l, true, attrs);
+    if (l < 4 || !memory_access_is_direct(mr, true)) {
+        r = MEMTX_ERROR;
+    } else {
+        uint32_t orig = old;
+
+        ptr = qemu_map_ram_ptr(mr->ram_block, addr1);
+        old = atomic_cmpxchg(ptr, orig, new);
+
+        if (old == orig) {
+            dirty_log_mask = memory_region_get_dirty_log_mask(mr);
+            dirty_log_mask &= ~(1 << DIRTY_MEMORY_CODE);
+            cpu_physical_memory_set_dirty_range(memory_region_get_ram_addr(mr) + addr,
+                                                4, dirty_log_mask);
+        }
+        r = MEMTX_OK;
+    }
+    *result = r;
+    RCU_READ_UNLOCK();
+
+    return old;
+}
+
 /* warning: addr must be aligned */
 static inline void glue(address_space_stl_internal, SUFFIX)(ARG1_DECL,
     hwaddr addr, uint32_t val, MemTxAttrs attrs,
