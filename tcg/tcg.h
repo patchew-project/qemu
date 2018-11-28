@@ -1081,9 +1081,6 @@ TCGOp *tcg_op_insert_after(TCGContext *s, TCGOp *op, TCGOpcode opc, int narg);
 
 void tcg_optimize(TCGContext *s);
 
-/* only used for debugging purposes */
-void tcg_dump_ops(TCGContext *s);
-
 TCGv_i32 tcg_const_i32(int32_t val);
 TCGv_i64 tcg_const_i64(int64_t val);
 TCGv_i32 tcg_const_local_i32(int32_t val);
