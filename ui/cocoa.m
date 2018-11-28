@@ -972,6 +972,8 @@ QemuCocoaView *cocoaView;
 - (IBAction) do_about_menu_item: (id) sender;
 - (void)make_about_window;
 - (void)adjustSpeed:(id)sender;
+- (void) cocoa_refresh;
+- (void) cocoa_refresh_internal: (id) dummy;
 @end
 
 @implementation QemuCocoaAppController
@@ -1406,6 +1408,37 @@ QemuCocoaView *cocoaView;
     COCOA_DEBUG("cpu throttling at %d%c\n", cpu_throttle_get_percentage(), '%');
 }
 
+- (void) cocoa_refresh
+{
+    [self performSelectorOnMainThread: @selector(cocoa_refresh_internal:) withObject: nil waitUntilDone: YES];
+}
+
+- (void) cocoa_refresh_internal: (id) dummy
+{
+    COCOA_DEBUG("qemu_cocoa: cocoa_refresh\n");
+    graphic_hw_update(NULL);
+
+    if (qemu_input_is_absolute()) {
+        if (![cocoaView isAbsoluteEnabled]) {
+            if ([cocoaView isMouseGrabbed]) {
+                [cocoaView ungrabMouse];
+            }
+        }
+        [cocoaView setAbsoluteEnabled:YES];
+    }
+
+    NSDate *distantPast;
+    NSEvent *event;
+    distantPast = [NSDate distantPast];
+    do {
+        event = [NSApp nextEventMatchingMask:NSEventMaskAny untilDate:distantPast
+                                      inMode: NSDefaultRunLoopMode dequeue:YES];
+        if (event != nil) {
+            [cocoaView handleEvent:event];
+        }
+    } while(event != nil);
+}
+
 @end
 
 
@@ -1579,31 +1612,7 @@ static void cocoa_switch(DisplayChangeListener *dcl,
 
 static void cocoa_refresh(DisplayChangeListener *dcl)
 {
-    NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
-
-    COCOA_DEBUG("qemu_cocoa: cocoa_refresh\n");
-    graphic_hw_update(NULL);
-
-    if (qemu_input_is_absolute()) {
-        if (![cocoaView isAbsoluteEnabled]) {
-            if ([cocoaView isMouseGrabbed]) {
-                [cocoaView ungrabMouse];
-            }
-        }
-        [cocoaView setAbsoluteEnabled:YES];
-    }
-
-    NSDate *distantPast;
-    NSEvent *event;
-    distantPast = [NSDate distantPast];
-    do {
-        event = [NSApp nextEventMatchingMask:NSEventMaskAny untilDate:distantPast
-                        inMode: NSDefaultRunLoopMode dequeue:YES];
-        if (event != nil) {
-            [cocoaView handleEvent:event];
-        }
-    } while(event != nil);
-    [pool release];
+    [[NSApp delegate] cocoa_refresh];
 }
 
 static void cocoa_cleanup(void)
