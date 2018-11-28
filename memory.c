@@ -1021,6 +1021,8 @@ void memory_region_transaction_begin(void)
     ++memory_region_transaction_depth;
 }
 
+static void memory_region_update_coalesced_range_as(MemoryRegion *mr, AddressSpace *as);
+
 void memory_region_transaction_commit(void)
 {
     AddressSpace *as;
@@ -1038,6 +1040,7 @@ void memory_region_transaction_commit(void)
             QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
                 address_space_set_flatview(as);
                 address_space_update_ioeventfds(as);
+                memory_region_update_coalesced_range_as(NULL, as);
             }
             memory_region_update_pending = false;
             ioeventfd_update_pending = false;
@@ -2142,7 +2145,7 @@ static void memory_region_update_coalesced_range_as(MemoryRegion *mr, AddressSpa
 
     view = address_space_get_flatview(as);
     FOR_EACH_FLAT_RANGE(fr, view) {
-        if (fr->mr == mr) {
+        if (fr->mr == mr || (!mr && !QTAILQ_EMPTY(&fr->mr->coalesced))) {
             section = (MemoryRegionSection) {
                 .fv = view,
                 .offset_within_address_space = int128_get64(fr->addr.start),
@@ -2152,7 +2155,7 @@ static void memory_region_update_coalesced_range_as(MemoryRegion *mr, AddressSpa
             MEMORY_LISTENER_CALL(as, coalesced_io_del, Reverse, &section,
                                  int128_get64(fr->addr.start),
                                  int128_get64(fr->addr.size));
-            QTAILQ_FOREACH(cmr, &mr->coalesced, link) {
+            QTAILQ_FOREACH(cmr, &fr->mr->coalesced, link) {
                 tmp = addrrange_shift(cmr->addr,
                                       int128_sub(fr->addr.start,
                                                  int128_make64(fr->offset_in_region)));
