@@ -2272,10 +2272,8 @@ TCGOp *tcg_op_insert_after(TCGContext *s, TCGOp *old_op,
 
 /* liveness analysis: end of function: all temps are dead, and globals
    should be in memory. */
-static void tcg_la_func_end(TCGContext *s)
+static void la_func_end(TCGContext *s, int ng, int nt)
 {
-    int ng = s->nb_globals;
-    int nt = s->nb_temps;
     int i;
 
     for (i = 0; i < ng; ++i) {
@@ -2288,10 +2286,8 @@ static void tcg_la_func_end(TCGContext *s)
 
 /* liveness analysis: end of basic block: all temps are dead, globals
    and local temps should be in memory. */
-static void tcg_la_bb_end(TCGContext *s)
+static void la_bb_end(TCGContext *s, int ng, int nt)
 {
-    int ng = s->nb_globals;
-    int nt = s->nb_temps;
     int i;
 
     for (i = 0; i < ng; ++i) {
@@ -2310,9 +2306,10 @@ static void tcg_la_bb_end(TCGContext *s)
 static void liveness_pass_1(TCGContext *s)
 {
     int nb_globals = s->nb_globals;
+    int nb_temps = s->nb_temps;
     TCGOp *op, *op_prev;
 
-    tcg_la_func_end(s);
+    la_func_end(s, nb_globals, nb_temps);
 
     QTAILQ_FOREACH_REVERSE_SAFE(op, &s->ops, TCGOpHead, link, op_prev) {
         int i, nb_iargs, nb_oargs;
@@ -2507,7 +2504,7 @@ static void liveness_pass_1(TCGContext *s)
 
             /* if end of basic block, update */
             if (def->flags & TCG_OPF_BB_END) {
-                tcg_la_bb_end(s);
+                la_bb_end(s, nb_globals, nb_temps);
             } else if (def->flags & TCG_OPF_SIDE_EFFECTS) {
                 /* globals should be synced to memory */
                 for (i = 0; i < nb_globals; i++) {
