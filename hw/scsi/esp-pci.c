@@ -463,6 +463,14 @@ static void dc390_write_config(PCIDevice *dev,
     }
 }
 
+static void dc390_scsi_uninit(PCIDevice *dev)
+{
+    DC390State *pci = DC390(dev);
+
+    eeprom93xx_free(&dev->qdev, pci->eeprom);
+    esp_pci_scsi_uninit(dev);
+}
+
 static void dc390_scsi_realize(PCIDevice *dev, Error **errp)
 {
     DC390State *pci = DC390(dev);
@@ -510,6 +518,7 @@ static void dc390_class_init(ObjectClass *klass, void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->realize = dc390_scsi_realize;
+    k->exit = dc390_scsi_uninit;
     k->config_read = dc390_read_config;
     k->config_write = dc390_write_config;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
