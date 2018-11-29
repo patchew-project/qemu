@@ -896,6 +896,33 @@ GEN_WINDBG_KSPEC_REGS_RW(windbg_read_ks_regs, false)
 __attribute__ ((unused)) /* unused yet */
 GEN_WINDBG_KSPEC_REGS_RW(windbg_write_ks_regs, true)
 
+void kd_api_get_context(CPUState *cs, PacketData *pd)
+{
+    int err;
+
+    pd->extra_size = sizeof(CPU_CONTEXT);
+    err = windbg_read_context(cs, pd->extra, pd->extra_size,
+                              0, sizeof(CPU_CONTEXT));
+
+    if (err) {
+        pd->extra_size = 0;
+        pd->m64.ReturnStatus = STATUS_UNSUCCESSFUL;
+    }
+}
+
+void kd_api_set_context(CPUState *cs, PacketData *pd)
+{
+    int err;
+
+    err = windbg_write_context(cs, pd->extra, pd->extra_size,
+                               0, sizeof(CPU_CONTEXT));
+    pd->extra_size = 0;
+
+    if (err) {
+        pd->m64.ReturnStatus = STATUS_UNSUCCESSFUL;
+    }
+}
+
 static bool find_KPCR(CPUState *cs)
 {
     X86CPU *cpu = X86_CPU(cs);

@@ -69,6 +69,8 @@ const char *kd_pkt_type_name(int id);
 
 void kd_api_read_virtual_memory(CPUState *cs, PacketData *pd);
 void kd_api_write_virtual_memory(CPUState *cs, PacketData *pd);
+void kd_api_get_context(CPUState *cs, PacketData *pd);
+void kd_api_set_context(CPUState *cs, PacketData *pd);
 void kd_api_unsupported(CPUState *cs, PacketData *pd);
 
 DBGKD_ANY_WAIT_STATE_CHANGE *kd_state_change_exc(CPUState *cs);
