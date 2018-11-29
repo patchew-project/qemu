@@ -197,6 +197,13 @@ InitedAddr windbg_search_vmaddr(CPUState *cs, target_ulong start,
     return ret;
 }
 
+void kd_api_unsupported(CPUState *cs, PacketData *pd)
+{
+    WINDBG_ERROR("Caught unimplemented api %s", kd_api_name(pd->m64.ApiNumber));
+    pd->m64.ReturnStatus = STATUS_UNSUCCESSFUL;
+    pd->extra_size = 0;
+}
+
 const char *kd_api_name(int id)
 {
     return (id >= DbgKdMinimumManipulate && id < DbgKdMaximumManipulate)
