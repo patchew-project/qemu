@@ -113,4 +113,12 @@ gint g_poll_fixed(GPollFD *fds, guint nfds, gint timeout);
 
 #pragma GCC diagnostic pop
 
+/* See https://gitlab.gnome.org/GNOME/glib/merge_requests/501 */
+#define g_test_message(...)                                     \
+    do {                                                        \
+        if (!g_test_subprocess()) {                             \
+            g_test_message(__VA_ARGS__);                        \
+        }                                                       \
+    } while (0)
+
 #endif
