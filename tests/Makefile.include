@@ -799,41 +799,53 @@ tests/test-qga$(EXESUF): qemu-ga$(EXESUF)
 tests/test-qga$(EXESUF): tests/test-qga.o $(qtest-obj-y)
 
 SPEED = quick
-GTESTER_OPTIONS = -k $(if $(V),--verbose,-q)
-GCOV_OPTIONS = -n $(if $(V),-f,)
 
 # gtester tests, possibly with verbose output
 
+do_test_human = \
+	$(call quiet-command, \
+	  { $(foreach COMMAND, $1, \
+	    $(if $(V), echo $(notdir $(COMMAND)):;) \
+	    MALLOC_PERTURB_=$${MALLOC_PERTURB_:-$$(( $${RANDOM:-0} % 255 + 1))} \
+	      $2 $(COMMAND) -m=$(SPEED) -k $(if $(V), --tap | ./scripts/tap-driver.pl, \
+		   >/dev/null );) }, \
+	  "TEST","$@")
+
+do_test_tap = \
+	$(call quiet-command, \
+	  { $(foreach COMMAND, $1, \
+	    MALLOC_PERTURB_=$${MALLOC_PERTURB_:-$$(( $${RANDOM:-0} % 255 + 1))} \
+	      $2 $(COMMAND) -m=$(SPEED) -k --tap | sed "s/^[a-z][a-z]* [0-9]* /&$(notdir $(COMMAND)) /" ;) } \
+	      | $(SRC_PATH)/scripts/tap-merge.pl \
+	      $(if $(V), | tee "$@" | ./scripts/tap-driver.pl, >"$@"), \
+	  "TAP","$@")
+
 .PHONY: $(patsubst %, check-qtest-%, $(QTEST_TARGETS))
 $(patsubst %, check-qtest-%, $(QTEST_TARGETS)): check-qtest-%: subdir-%-softmmu $(check-qtest-y)
-	$(call quiet-command,QTEST_QEMU_BINARY=$*-softmmu/qemu-system-$* \
-		QTEST_QEMU_IMG=qemu-img$(EXESUF) \
-		MALLOC_PERTURB_=$${MALLOC_PERTURB_:-$$(( $${RANDOM:-0} % 255 + 1))} \
-		gtester $(GTESTER_OPTIONS) -m=$(SPEED) $(check-qtest-$*-y) $(check-qtest-generic-y),"GTESTER","$@")
+	$(call do_test_human,$(check-qtest-$*-y) $(check-qtest-generic-y), \
+	  QTEST_QEMU_BINARY=$*-softmmu/qemu-system-$* \
+	  QTEST_QEMU_IMG=qemu-img$(EXESUF))
 
 .PHONY: $(patsubst %, check-%, $(check-unit-y) $(check-speed-y))
 $(patsubst %, check-%, $(check-unit-y) $(check-speed-y)): check-%: %
-	$(call quiet-command, \
-		MALLOC_PERTURB_=$${MALLOC_PERTURB_:-$$(( $${RANDOM:-0} % 255 + 1))} \
-		gtester $(GTESTER_OPTIONS) -m=$(SPEED) $*,"GTESTER","$*")
+	$(call do_test_human, $*)
 
-# gtester tests with XML output
+# gtester tests with TAP output
 
-$(patsubst %, check-report-qtest-%.xml, $(QTEST_TARGETS)): check-report-qtest-%.xml: $(check-qtest-y)
-	$(call quiet-command,QTEST_QEMU_BINARY=$*-softmmu/qemu-system-$* \
-		QTEST_QEMU_IMG=qemu-img$(EXESUF) \
-	  gtester -q $(GTESTER_OPTIONS) -o $@ -m=$(SPEED) $(check-qtest-$*-y) $(check-qtest-generic-y),"GTESTER","$@")
+$(patsubst %, check-report-qtest-%.tap, $(QTEST_TARGETS)): check-report-qtest-%.tap: $(check-qtest-y)
+	$(call do_test_tap, $(check-qtest-$*-y) $(check-qtest-generic-y), \
+	  QTEST_QEMU_BINARY=$*-softmmu/qemu-system-$* \
+	  QTEST_QEMU_IMG=qemu-img$(EXESUF))
 
-check-report-unit.xml: $(check-unit-y)
-	$(call quiet-command,gtester -q $(GTESTER_OPTIONS) -o $@ -m=$(SPEED) $^,"GTESTER","$@")
+check-report-unit.tap: $(check-unit-y)
+	$(call do_test_tap,$^, \
+	  QTEST_QEMU_BINARY=$*-softmmu/qemu-system-$* \
+	  QTEST_QEMU_IMG=qemu-img$(EXESUF))
 
 # Reports and overall runs
 
-check-report.xml: $(patsubst %,check-report-qtest-%.xml, $(QTEST_TARGETS)) check-report-unit.xml
-	$(call quiet-command,$(SRC_PATH)/scripts/gtester-cat $^ > $@,"GEN","$@")
-
-check-report.html: check-report.xml
-	$(call quiet-command,gtester-report $< > $@,"GEN","$@")
+check-report.tap: $(patsubst %,check-report-qtest-%.tap, $(QTEST_TARGETS)) check-report-unit.tap
+	$(call quiet-command,$(SRC_PATH)/scripts/tap-merge.py $^ > $@,"GEN","$@")
 
 # Per guest TCG tests
 
