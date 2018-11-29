@@ -476,6 +476,16 @@ void kd_api_fill_memory(CPUState *cs, PacketData *pd)
     g_free(mem);
 }
 
+void kd_api_query_memory(CPUState *cs, PacketData *pd)
+{
+    DBGKD_QUERY_MEMORY *mem = &pd->m64.u.QueryMemory;
+
+    /* TODO: Needs test memory. */
+    stl_p(&mem->AddressSpace, DBGKD_QUERY_MEMORY_PROCESS);
+    stl_p(&mem->Flags, DBGKD_QUERY_MEMORY_READ | DBGKD_QUERY_MEMORY_WRITE |
+                       DBGKD_QUERY_MEMORY_EXECUTE);
+}
+
 void kd_api_unsupported(CPUState *cs, PacketData *pd)
 {
     WINDBG_ERROR("Caught unimplemented api %s", kd_api_name(pd->m64.ApiNumber));
