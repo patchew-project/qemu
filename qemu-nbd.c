@@ -546,7 +546,7 @@ int main(int argc, char **argv)
     int opt_ind = 0;
     char *end;
     int flags = BDRV_O_RDWR;
-    int partition = -1;
+    int partition = 0;
     int ret = 0;
     bool seen_cache = false;
     bool seen_discard = false;
@@ -685,13 +685,9 @@ int main(int argc, char **argv)
             flags &= ~BDRV_O_RDWR;
             break;
         case 'P':
-            partition = strtol(optarg, &end, 0);
-            if (*end) {
-                error_report("Invalid partition `%s'", optarg);
-                exit(EXIT_FAILURE);
-            }
-            if (partition < 1 || partition > 8) {
-                error_report("Invalid partition %d", partition);
+            if (qemu_strtoi(optarg, NULL, 0, &partition) < 0 ||
+                partition < 1 || partition > 8) {
+                error_report("Invalid partition %s", optarg);
                 exit(EXIT_FAILURE);
             }
             break;
@@ -1004,7 +1000,7 @@ int main(int argc, char **argv)
     }
     fd_size -= dev_offset;
 
-    if (partition != -1) {
+    if (partition) {
         ret = find_partition(blk, partition, &dev_offset, &fd_size);
         if (ret < 0) {
             error_report("Could not find partition %d: %s", partition,
