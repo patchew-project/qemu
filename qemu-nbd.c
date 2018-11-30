@@ -43,6 +43,12 @@
 #include "trace/control.h"
 #include "qemu-version.h"
 
+#ifdef __linux__
+#define HAVE_NBD_DEVICE 1
+#else
+#define HAVE_NBD_DEVICE 0
+#endif
+
 #define SOCKET_PATH                "/var/lock/qemu-nbd-%s"
 #define QEMU_NBD_OPT_CACHE         256
 #define QEMU_NBD_OPT_AIO           257
@@ -98,11 +104,11 @@ static void usage(const char *name)
 "                            specify tracing options\n"
 "  --fork                    fork off the server process and exit the parent\n"
 "                            once the server is running\n"
-#ifdef __linux__
+#if HAVE_NBD_DEVICE
+"\n"
 "Kernel NBD client support:\n"
 "  -c, --connect=DEV         connect FILE to the local NBD device DEV\n"
 "  -d, --disconnect          disconnect the specified device\n"
-"\n"
 #endif
 "\n"
 "Block device options:\n"
@@ -236,6 +242,7 @@ static void termsig_handler(int signum)
 }
 
 
+#if HAVE_NBD_DEVICE
 static void *show_parts(void *arg)
 {
     char *device = arg;
@@ -321,6 +328,7 @@ out:
     kill(getpid(), SIGTERM);
     return (void *) EXIT_FAILURE;
 }
+#endif /* HAVE_NBD_DEVICE */
 
 static int nbd_can_accept(void)
 {
@@ -815,6 +823,7 @@ int main(int argc, char **argv)
     }
 
     if (disconnect) {
+#if HAVE_NBD_DEVICE
         int nbdfd = open(argv[optind], O_RDWR);
         if (nbdfd < 0) {
             error_report("Cannot open %s: %s", argv[optind],
@@ -828,6 +837,10 @@ int main(int argc, char **argv)
         printf("%s disconnected\n", argv[optind]);
 
         return 0;
+#else
+        error_report("Kernel /dev/nbdN support not available");
+        exit(EXIT_FAILURE);
+#endif
     }
 
     if ((device && !verbose) || fork_process) {
@@ -1006,6 +1019,7 @@ int main(int argc, char **argv)
     nbd_export_set_description(exp, export_description);
 
     if (device) {
+#if HAVE_NBD_DEVICE
         int ret;
 
         ret = pthread_create(&client_thread, NULL, nbd_client_thread, device);
@@ -1013,6 +1027,10 @@ int main(int argc, char **argv)
             error_report("Failed to create client thread: %s", strerror(ret));
             exit(EXIT_FAILURE);
         }
+#else
+        error_report("Kernel /dev/nbdN support not available");
+        exit(EXIT_FAILURE);
+#endif
     } else {
         /* Shut up GCC warnings.  */
         memset(&client_thread, 0, sizeof(client_thread));
