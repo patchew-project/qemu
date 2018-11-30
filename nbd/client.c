@@ -731,7 +731,6 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name,
                           QIOChannel **outioc, NBDExportInfo *info,
                           Error **errp)
 {
-    char buf[256];
     uint64_t magic;
     int rc;
     bool zeroes = true;
@@ -752,21 +751,14 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name,
         goto fail;
     }
 
-    if (nbd_read(ioc, buf, 8, errp) < 0) {
+    if (nbd_read(ioc, &magic, sizeof(magic), errp) < 0) {
         error_prepend(errp, "Failed to read data: ");
         goto fail;
     }
-
-    buf[8] = '\0';
-    if (strlen(buf) == 0) {
-        error_setg(errp, "Server connection closed unexpectedly");
-        goto fail;
-    }
-
-    magic = ldq_be_p(buf);
+    magic = be64_to_cpu(magic);
     trace_nbd_receive_negotiate_magic(magic);
 
-    if (memcmp(buf, "NBDMAGIC", 8) != 0) {
+    if (magic != NBD_INIT_MAGIC) {
         error_setg(errp, "Invalid magic received");
         goto fail;
     }
