@@ -232,18 +232,21 @@ static int nbd_handle_reply_err(QIOChannel *ioc, NBDOptionReply *reply,
     return result;
 }
 
-/* Process another portion of the NBD_OPT_LIST reply.  Set *@match if
- * the current reply matches @want or if the server does not support
- * NBD_OPT_LIST, otherwise leave @match alone.  Return 0 if iteration
- * is complete, positive if more replies are expected, or negative
- * with @errp set if an unrecoverable error occurred. */
+/* Process another portion of the NBD_OPT_LIST reply.  If @want, then
+ * set *@match if the current reply matches @want or if the server
+ * does not support NBD_OPT_LIST, otherwise leave @match alone.
+ * Otherwise, @nameout and @description are malloc'd to contain
+ * NUL-terminated copies of the reply.  Return 0 if iteration is
+ * complete, positive if more replies are expected, or negative with
+ * @errp set if an unrecoverable error occurred. */
 static int nbd_receive_list(QIOChannel *ioc, const char *want, bool *match,
-                            Error **errp)
+                            char **nameout, char **description, Error **errp)
 {
     NBDOptionReply reply;
     uint32_t len;
     uint32_t namelen;
-    char name[NBD_MAX_NAME_SIZE + 1];
+    char array[NBD_MAX_NAME_SIZE + 1];
+    char *name = array;
     int error;
 
     if (nbd_receive_option_reply(ioc, NBD_OPT_LIST, &reply, errp) < 0) {
@@ -253,7 +256,12 @@ static int nbd_receive_list(QIOChannel *ioc, const char *want, bool *match,
     if (error <= 0) {
         /* The server did not support NBD_OPT_LIST, so set *match on
          * the assumption that any name will be accepted.  */
-        *match = true;
+        if (want) {
+            *match = true;
+        } else if (!error) {
+            error_setg(errp, "Server does not support export lists");
+            error = -1;
+        }
         return error;
     }
     len = reply.length;
@@ -290,30 +298,49 @@ static int nbd_receive_list(QIOChannel *ioc, const char *want, bool *match,
         nbd_send_opt_abort(ioc);
         return -1;
     }
-    if (namelen != strlen(want)) {
-        if (nbd_drop(ioc, len, errp) < 0) {
-            error_prepend(errp,
-                          "failed to skip export name with wrong length: ");
-            nbd_send_opt_abort(ioc);
-            return -1;
+    if (want) {
+        if (namelen != strlen(want)) {
+            if (nbd_drop(ioc, len, errp) < 0) {
+                error_prepend(errp,
+                              "failed to skip export name with wrong length: ");
+                nbd_send_opt_abort(ioc);
+                return -1;
+            }
+            return 1;
         }
-        return 1;
+        assert(namelen < sizeof(array));
+    } else {
+        assert(nameout);
+        *nameout = name = g_new(char, namelen + 1);
     }
 
-    assert(namelen < sizeof(name));
     if (nbd_read(ioc, name, namelen, errp) < 0) {
         error_prepend(errp, "failed to read export name: ");
         nbd_send_opt_abort(ioc);
+        if (!want) {
+            free(name);
+        }
         return -1;
     }
     name[namelen] = '\0';
     len -= namelen;
-    if (nbd_drop(ioc, len, errp) < 0) {
+    if (!want) {
+        assert(description);
+        *description = g_new(char, len + 1);
+        if (nbd_read(ioc, *description, len, errp) < 0) {
+            error_prepend(errp, "failed to read export description: ");
+            nbd_send_opt_abort(ioc);
+            free(name);
+            free(*description);
+            return -1;
+        }
+        (*description)[len] = '\0';
+    } else if (nbd_drop(ioc, len, errp) < 0) {
         error_prepend(errp, "failed to read export description: ");
         nbd_send_opt_abort(ioc);
         return -1;
     }
-    if (!strcmp(name, want)) {
+    if (want && !strcmp(name, want)) {
         *match = true;
     }
     return 1;
@@ -498,7 +525,8 @@ static int nbd_receive_query_exports(QIOChannel *ioc,
     }
 
     while (1) {
-        int ret = nbd_receive_list(ioc, wantname, &foundExport, errp);
+        int ret = nbd_receive_list(ioc, wantname, &foundExport,
+                                   NULL, NULL, errp);
 
         if (ret < 0) {
             /* Server gave unexpected reply */
