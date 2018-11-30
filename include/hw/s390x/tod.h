@@ -44,9 +44,6 @@ typedef struct S390TODClass {
     void (*set)(S390TODState *td, const S390TOD *tod, Error **errp);
 } S390TODClass;
 
-/* The value of the TOD clock for 1.1.1970. */
-#define TOD_UNIX_EPOCH 0x7d91048bca000000ULL
-
 /* Converts ns to s390's clock format */
 static inline uint64_t time2tod(uint64_t ns)
 {
