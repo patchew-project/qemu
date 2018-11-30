@@ -291,7 +291,7 @@ static inline int check_fit_i32(int32_t val, unsigned int bits)
 # define check_fit_ptr  check_fit_i32
 #endif
 
-static void patch_reloc(tcg_insn_unit *code_ptr, int type,
+static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
                         intptr_t value, intptr_t addend)
 {
     uint32_t insn = *code_ptr;
@@ -328,12 +328,13 @@ static void patch_reloc(tcg_insn_unit *code_ptr, int type,
         /* Note that we're abusing this reloc type for our own needs.  */
         code_ptr[0] = deposit32(code_ptr[0], 0, 22, value >> 10);
         code_ptr[1] = deposit32(code_ptr[1], 0, 10, value);
-        return;
+        return true;
     default:
         g_assert_not_reached();
     }
 
     *code_ptr = insn;
+    return true;
 }
 
 /* parse target specific constraints */
