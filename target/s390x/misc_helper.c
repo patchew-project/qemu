@@ -76,8 +76,19 @@ uint64_t HELPER(stpt)(CPUS390XState *env)
 #endif
 }
 
-#ifndef CONFIG_USER_ONLY
+#ifdef CONFIG_USER_ONLY
+/* Store Clock */
+uint64_t HELPER(stck)(CPUS390XState *env)
+{
+    struct timespec ts;
+    uint64_t ms;
 
+    clock_gettime(CLOCK_REALTIME, &ts);
+    ms = (ts.tv_nsec / 1000) + (ts.tv_sec * 100000ull);
+
+    return TOD_UNIX_EPOCH + ms;
+}
+#else
 /* SCLP service call */
 uint32_t HELPER(servc)(CPUS390XState *env, uint64_t r1, uint64_t r2)
 {
