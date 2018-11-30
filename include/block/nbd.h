@@ -262,6 +262,9 @@ struct NBDExportInfo {
     /* Set by client before nbd_receive_negotiate() */
     bool request_sizes;
     char *x_dirty_bitmap;
+
+    /* Set by client before nbd_receive_negotiate(), or by server results
+     * during nbd_receive_export_list() */
     char *name; /* must be non-NULL */
 
     /* In-out fields, set by client before nbd_receive_negotiate() and
@@ -269,7 +272,8 @@ struct NBDExportInfo {
     bool structured_reply;
     bool base_allocation; /* base:allocation context for NBD_CMD_BLOCK_STATUS */
 
-    /* Set by server results during nbd_receive_negotiate() */
+    /* Set by server results during nbd_receive_negotiate() and
+     * nbd_receive_export_list() */
     uint64_t size;
     uint16_t flags;
     uint32_t min_block;
@@ -277,12 +281,21 @@ struct NBDExportInfo {
     uint32_t max_block;
 
     uint32_t meta_base_allocation_id;
+
+    /* Set by server results during nbd_receive_export_list() */
+    char *description;
+    int n_contexts;
+    char **contexts;
 };
 typedef struct NBDExportInfo NBDExportInfo;
 
 int nbd_receive_negotiate(QIOChannel *ioc, QCryptoTLSCreds *tlscreds,
                           const char *hostname, QIOChannel **outioc,
                           NBDExportInfo *info, Error **errp);
+void nbd_free_export_list(NBDExportInfo *info, int count);
+int nbd_receive_export_list(QIOChannel *ioc, QCryptoTLSCreds *tlscreds,
+                            const char *hostname, NBDExportInfo **info,
+                            Error **errp);
 int nbd_init(int fd, QIOChannelSocket *sioc, NBDExportInfo *info,
              Error **errp);
 int nbd_send_request(QIOChannel *ioc, NBDRequest *request);
