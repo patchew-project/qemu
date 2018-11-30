@@ -584,10 +584,9 @@ static const BlockJobDriver stream_job_driver = {
 
 void stream_start(const char *job_id, BlockDriverState *bs,
                   BlockDriverState *base, const char *backing_file_str,
-                  int creation_flags, int64_t speed,
+                  int creation_flags, int64_t speed, bool discard,
                   BlockdevOnError on_error, Error **errp)
 {
-    const bool discard = false;
     StreamBlockJob *s = NULL;
     BlockDriverState *iter;
     int orig_bs_flags;
