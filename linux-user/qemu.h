@@ -481,7 +481,7 @@ static inline int access_ok(int type, abi_ulong addr, abi_ulong size)
  *   https://gcc.gnu.org/bugzilla/show_bug.cgi?id=83256 -- so we only
  *   include the warning-suppression pragmas for clang
  */
-#ifdef __clang__
+#if defined(__clang__) && __has_warning("-Wpragmas")
 #define PRAGMA_DISABLE_PACKED_WARNING                                   \
     _Pragma("GCC diagnostic push");                                     \
     _Pragma("GCC diagnostic ignored \"-Wpragmas\"");                    \
