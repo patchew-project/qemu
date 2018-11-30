@@ -21,6 +21,7 @@
 #include "qapi/error.h"
 #include "trace.h"
 #include "nbd-internal.h"
+#include "qemu/cutils.h"
 
 /* Definitions for opaque data types */
 
@@ -736,12 +737,13 @@ static int nbd_negotiate_simple_meta_context(QIOChannel *ioc,
                 return -1;
             }
             g_free(name);
+            received = true;
         } else {
             info->contexts = g_renew(char *, info->contexts,
                                      ++info->n_contexts);
             info->contexts[info->n_contexts - 1] = name;
+            received |= strstart(name, "qemu:", NULL);
         }
-        received = true;
 
         /* receive NBD_REP_ACK */
         if (nbd_receive_option_reply(ioc, opt, &reply, errp) < 0) {
@@ -769,6 +771,13 @@ static int nbd_negotiate_simple_meta_context(QIOChannel *ioc,
 
     if (received && opt == NBD_OPT_SET_META_CONTEXT) {
         info->meta_base_allocation_id = received_id;
+    }
+
+    /* Recurse to work around qemu 3.0 bug - the server forgot to send
+     * "qemu:" replies to 0 queries. */
+    if (!context && !received) {
+        return nbd_negotiate_simple_meta_context(ioc, opt, "qemu:", info,
+                                                 errp);
     }
 
     return received || opt == NBD_OPT_LIST_META_CONTEXT;
