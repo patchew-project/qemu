@@ -16,7 +16,14 @@
 #include "libqos/pci.h"
 #include "libqos/malloc.h"
 
-QPCIBus *qpci_init_pc(QTestState *qts, QGuestAllocator *alloc);
+/* qpci_new_pc():
+* this function creates a new QPCIBusPC object,
+ * and properly initialize its fields.
+ *
+ * returns the QPCIBus *bus field of a newly
+ * allocated QPCIBusPC.
+ */
+QPCIBus *qpci_new_pc(QTestState *qts, QGuestAllocator *alloc);
 void     qpci_free_pc(QPCIBus *bus);
 
 #endif
