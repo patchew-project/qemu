@@ -929,6 +929,13 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
          */
         .no_autoenable_flags = ~0U,
     },
+    /*
+     * .feat_names are commented out for Hyper-V enlightenments because we
+     * don't want to have two different ways for enabling them on QEMU command
+     * line. Some features (e.g. "hyperv_time", "hyperv_vapic", ...) require
+     * enabling several feature bits simultaneously, exposing these bits
+     * individually may just confuse guests.
+     */
     [FEAT_HYPERV_EAX] = {
         .type = CPUID_FEATURE_WORD,
         .feat_names = {
@@ -979,6 +986,36 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             NULL, NULL, NULL, NULL,
         },
         .cpuid = { .eax = 0x40000003, .reg = R_EDX, },
+    },
+    [FEAT_HV_RECOMM_EAX] = {
+        .type = CPUID_FEATURE_WORD,
+        .feat_names = {
+            NULL /* hv_recommend_pv_as_switch */,
+            NULL /* hv_recommend_pv_tlbflush_local */,
+            NULL /* hv_recommend_pv_tlbflush_remote */,
+            NULL /* hv_recommend_msr_apic_access */,
+            NULL /* hv_recommend_msr_reset */,
+            NULL /* hv_recommend_relaxed_timing */,
+            NULL /* hv_recommend_dma_remapping */,
+            NULL /* hv_recommend_int_remapping */,
+            NULL /* hv_recommend_x2apic_msrs */,
+            NULL /* hv_recommend_autoeoi_deprecation */,
+            NULL /* hv_recommend_pv_ipi */,
+            NULL /* hv_recommend_ex_hypercalls */,
+            NULL /* hv_hypervisor_is_nested */,
+            NULL /* hv_recommend_int_mbec */,
+            NULL /* hv_recommend_evmcs */,
+            NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+        },
+        .cpuid = { .eax = 0x40000004, .reg = R_EAX, },
+    },
+    [FEAT_HV_NESTED_EAX] = {
+        .type = CPUID_FEATURE_WORD,
+        .cpuid = { .eax = 0x4000000A, .reg = R_EAX, },
     },
     [FEAT_SVM] = {
         .type = CPUID_FEATURE_WORD,
