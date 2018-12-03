@@ -265,9 +265,7 @@ union ppc_avr_t {
     int32_t s32[4];
     uint64_t u64[2];
     int64_t s64[2];
-#ifdef CONFIG_INT128
     __uint128_t u128;
-#endif
     Int128 s128;
 };
 

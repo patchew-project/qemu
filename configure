@@ -5137,35 +5137,11 @@ EOF
   fi
 fi
 
-########################################
-# check if __[u]int128_t is usable.
-
-int128=no
-cat > $TMPC << EOF
-#if defined(__clang_major__) && defined(__clang_minor__)
-# if ((__clang_major__ < 3) || (__clang_major__ == 3) && (__clang_minor__ < 2))
-#  error __int128_t does not work in CLANG before 3.2
-# endif
-#endif
-__int128_t a;
-__uint128_t b;
-int main (void) {
-  a = a + b;
-  b = a * b;
-  a = a * a;
-  return 0;
-}
-EOF
-if compile_prog "" "" ; then
-    int128=yes
-fi
-
 #########################################
 # See if 128-bit atomic operations are supported.
 
 atomic128=no
-if test "$int128" = "yes"; then
-  cat > $TMPC << EOF
+cat > $TMPC << EOF
 int main(void)
 {
   unsigned __int128 x = 0, y = 0;
@@ -5175,13 +5151,12 @@ int main(void)
   return 0;
 }
 EOF
-  if compile_prog "" "" ; then
-    atomic128=yes
-  fi
+if compile_prog "" "" ; then
+  atomic128=yes
 fi
 
 cmpxchg128=no
-if test "$int128" = yes -a "$atomic128" = no; then
+if test "$atomic128" = no; then
   cat > $TMPC << EOF
 int main(void)
 {
@@ -6706,10 +6681,6 @@ fi
 
 if test "$cpuid_h" = "yes" ; then
   echo "CONFIG_CPUID_H=y" >> $config_host_mak
-fi
-
-if test "$int128" = "yes" ; then
-  echo "CONFIG_INT128=y" >> $config_host_mak
 fi
 
 if test "$atomic128" = "yes" ; then

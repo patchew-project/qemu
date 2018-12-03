@@ -100,7 +100,6 @@ uint64_t HELPER(divu64)(CPUS390XState *env, uint64_t ah, uint64_t al,
         ret = al / b;
     } else {
         /* ??? Move i386 idivq helper to host-utils.  */
-#ifdef CONFIG_INT128
         __uint128_t a = ((__uint128_t)ah << 64) | al;
         __uint128_t q = a / b;
         env->retxl = a % b;
@@ -108,12 +107,6 @@ uint64_t HELPER(divu64)(CPUS390XState *env, uint64_t ah, uint64_t al,
         if (ret != q) {
             s390_program_interrupt(env, PGM_FIXPT_DIVIDE, ILEN_AUTO, GETPC());
         }
-#else
-        S390CPU *cpu = s390_env_get_cpu(env);
-        /* 32-bit hosts would need special wrapper functionality - just abort if
-           we encounter such a case; it's very unlikely anyways. */
-        cpu_abort(CPU(cpu), "128 -> 64/64 division not implemented\n");
-#endif
     }
     return ret;
 }
