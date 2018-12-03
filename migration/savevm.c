@@ -1018,6 +1018,7 @@ void qemu_savevm_state_header(QEMUFile *f)
 void qemu_savevm_state_setup(QEMUFile *f)
 {
     SaveStateEntry *se;
+    Error *local_err = NULL;
     int ret;
 
     trace_savevm_state_setup();
@@ -1038,6 +1039,10 @@ void qemu_savevm_state_setup(QEMUFile *f)
             qemu_file_set_error(f, ret);
             break;
         }
+    }
+
+    if (precopy_notify(PRECOPY_NOTIFY_SETUP, &local_err)) {
+        error_report_err(local_err);
     }
 }
 
@@ -1181,6 +1186,11 @@ int qemu_savevm_state_complete_precopy(QEMUFile *f, bool iterable_only,
     SaveStateEntry *se;
     int ret;
     bool in_postcopy = migration_in_postcopy();
+    Error *local_err = NULL;
+
+    if (precopy_notify(PRECOPY_NOTIFY_COMPLETE, &local_err)) {
+        error_report_err(local_err);
+    }
 
     trace_savevm_state_complete_precopy();
 
@@ -1313,6 +1323,11 @@ void qemu_savevm_state_pending(QEMUFile *f, uint64_t threshold_size,
 void qemu_savevm_state_cleanup(void)
 {
     SaveStateEntry *se;
+    Error *local_err = NULL;
+
+    if (precopy_notify(PRECOPY_NOTIFY_CLEANUP, &local_err)) {
+        error_report_err(local_err);
+    }
 
     trace_savevm_state_cleanup();
     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
