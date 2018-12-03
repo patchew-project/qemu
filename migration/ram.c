@@ -354,6 +354,15 @@ int precopy_notify(PrecopyNotifyReason reason, Error **errp)
     return notifier_with_return_list_notify(&precopy_notifier_list, &pnd);
 }
 
+void precopy_disable_bulk_stage(void)
+{
+    if (!ram_state) {
+        return;
+    }
+
+    ram_state->ram_bulk_stage = false;
+}
+
 uint64_t ram_bytes_remaining(void)
 {
     return ram_state ? (ram_state->migration_dirty_pages * TARGET_PAGE_SIZE) :
