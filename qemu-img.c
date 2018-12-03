@@ -1569,6 +1569,7 @@ typedef struct ImgConvertState {
     int64_t target_backing_sectors; /* negative if unknown */
     bool wr_in_order;
     bool copy_range;
+    bool quiet;
     int min_sparse;
     int alignment;
     size_t cluster_sectors;
@@ -2008,7 +2009,7 @@ static int img_convert(int argc, char **argv)
     QDict *open_opts = NULL;
     char *options = NULL;
     Error *local_err = NULL;
-    bool writethrough, src_writethrough, quiet = false, image_opts = false,
+    bool writethrough, src_writethrough, image_opts = false,
          skip_create = false, progress = false, tgt_image_opts = false;
     int64_t ret = -EINVAL;
     bool force_share = false;
@@ -2116,7 +2117,7 @@ static int img_convert(int argc, char **argv)
             src_cache = optarg;
             break;
         case 'q':
-            quiet = true;
+            s.quiet = true;
             break;
         case 'n':
             skip_create = true;
@@ -2205,7 +2206,7 @@ static int img_convert(int argc, char **argv)
     }
 
     /* Initialize before goto out */
-    if (quiet) {
+    if (s.quiet) {
         progress = false;
     }
     qemu_progress_init(progress, 1.0);
@@ -2216,7 +2217,7 @@ static int img_convert(int argc, char **argv)
 
     for (bs_i = 0; bs_i < s.src_num; bs_i++) {
         s.src[bs_i] = img_open(image_opts, argv[optind + bs_i],
-                               fmt, src_flags, src_writethrough, quiet,
+                               fmt, src_flags, src_writethrough, s.quiet,
                                force_share);
         if (!s.src[bs_i]) {
             ret = -1;
@@ -2379,7 +2380,7 @@ static int img_convert(int argc, char **argv)
 
     if (skip_create) {
         s.target = img_open(tgt_image_opts, out_filename, out_fmt,
-                            flags, writethrough, quiet, false);
+                            flags, writethrough, s.quiet, false);
     } else {
         /* TODO ultimately we should allow --target-image-opts
          * to be used even when -n is not given.
@@ -2387,7 +2388,7 @@ static int img_convert(int argc, char **argv)
          * to allow filenames in option syntax
          */
         s.target = img_open_file(out_filename, open_opts, out_fmt,
-                                 flags, writethrough, quiet, false);
+                                 flags, writethrough, s.quiet, false);
         open_opts = NULL; /* blk_new_open will have freed it */
     }
     if (!s.target) {
