@@ -720,12 +720,13 @@ void bdrv_dec_in_flight(BlockDriverState *bs)
     bdrv_wakeup(bs);
 }
 
-static bool coroutine_fn wait_serialising_requests(BdrvTrackedRequest *self)
+static bool coroutine_fn find_or_wait_serialising_requests(
+    BdrvTrackedRequest *self, bool wait)
 {
     BlockDriverState *bs = self->bs;
     BdrvTrackedRequest *req;
     bool retry;
-    bool waited = false;
+    bool found = false;
 
     if (!atomic_read(&bs->serialising_in_flight)) {
         return false;
@@ -751,11 +752,14 @@ static bool coroutine_fn wait_serialising_requests(BdrvTrackedRequest *self)
                  * will wait for us as soon as it wakes up, then just go on
                  * (instead of producing a deadlock in the former case). */
                 if (!req->waiting_for) {
+                    found = true;
+                    if (!wait) {
+                        break;
+                    }
                     self->waiting_for = req;
                     qemu_co_queue_wait(&req->wait_queue, &bs->reqs_lock);
                     self->waiting_for = NULL;
                     retry = true;
-                    waited = true;
                     break;
                 }
             }
@@ -763,7 +767,12 @@ static bool coroutine_fn wait_serialising_requests(BdrvTrackedRequest *self)
         qemu_co_mutex_unlock(&bs->reqs_lock);
     } while (retry);
 
-    return waited;
+    return found;
+}
+
+static bool coroutine_fn wait_serialising_requests(BdrvTrackedRequest *self)
+{
+    return find_or_wait_serialising_requests(self, true);
 }
 
 static int bdrv_check_byte_request(BlockDriverState *bs, int64_t offset,
@@ -1585,7 +1594,7 @@ bdrv_co_write_req_prepare(BdrvChild *child, int64_t offset, uint64_t bytes,
                           BdrvTrackedRequest *req, int flags)
 {
     BlockDriverState *bs = child->bs;
-    bool waited;
+    bool found;
     int64_t end_sector = DIV_ROUND_UP(offset + bytes, BDRV_SECTOR_SIZE);
 
     if (bs->read_only) {
@@ -1602,9 +1611,13 @@ bdrv_co_write_req_prepare(BdrvChild *child, int64_t offset, uint64_t bytes,
         mark_request_serialising(req, bdrv_get_cluster_size(bs));
     }
 
-    waited = wait_serialising_requests(req);
+    found = find_or_wait_serialising_requests(req,
+                                              !(flags & BDRV_REQ_ALLOCATE));
+    if (found && (flags & BDRV_REQ_ALLOCATE)) {
+        return -EAGAIN;
+    }
 
-    assert(!waited || !req->serialising ||
+    assert(!found || !req->serialising ||
            is_request_serialising_and_aligned(req));
     assert(req->overlap_offset <= offset);
     assert(offset + bytes <= req->overlap_offset + req->overlap_bytes);
@@ -1865,6 +1878,10 @@ int coroutine_fn bdrv_co_pwritev(BdrvChild *child,
 
     assert(!((flags & BDRV_REQ_ALLOCATE) && (flags & BDRV_REQ_MAY_UNMAP)));
     assert(!((flags & BDRV_REQ_ALLOCATE) && !(flags & BDRV_REQ_ZERO_WRITE)));
+
+    if (flags & BDRV_REQ_ALLOCATE) {
+        flags |= BDRV_REQ_SERIALISING;
+    }
 
     trace_bdrv_co_pwritev(child->bs, offset, bytes, flags);
 
