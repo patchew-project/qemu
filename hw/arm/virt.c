@@ -199,6 +199,9 @@ static void create_pvpanic_device(const VirtMachineState *vms)
     hwaddr base = vms->memmap[VIRT_PVPANIC].base;
     hwaddr size = vms->memmap[VIRT_PVPANIC].size;
 
+    if (!vms->pvpanic) {
+        return;
+    }
     sysbus_create_simple(TYPE_PVPANIC_MMIO, base, NULL);
 
     nodename = g_strdup_printf("/pvpanic-mmio@%" PRIx64, base);
