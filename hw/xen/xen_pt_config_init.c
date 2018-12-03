@@ -300,7 +300,12 @@ static int xen_pt_irqpin_reg_init(XenPCIPassthroughState *s,
                                   XenPTRegInfo *reg, uint32_t real_offset,
                                   uint32_t *data)
 {
-    *data = xen_pt_pci_read_intx(s);
+    if (s->real_device.irq)
+        *data = xen_pt_pci_read_intx(s);
+    else {
+        XEN_PT_LOG(&s->dev, "machine irq is 0, init guest PCI_INTERRUPT_PIN to 0\n");
+        *data = 0;
+    }
     return 0;
 }
 
