@@ -299,6 +299,7 @@ static void pci_basic(void)
     qvirtqueue_cleanup(dev->vdev.bus, &vqpci->vq, &qs->alloc);
     qvirtio_pci_device_disable(dev);
     qvirtio_pci_device_free(dev);
+    g_free(dev);
     qtest_shutdown(qs);
 }
 
@@ -393,6 +394,7 @@ static void pci_indirect(void)
     qvirtqueue_cleanup(dev->vdev.bus, &vqpci->vq, &qs->alloc);
     qvirtio_pci_device_disable(dev);
     qvirtio_pci_device_free(dev);
+    g_free(dev);
     qtest_shutdown(qs);
 }
 
@@ -422,6 +424,7 @@ static void pci_config(void)
 
     qvirtio_pci_device_disable(dev);
     qvirtio_pci_device_free(dev);
+    g_free(dev);
 
     qtest_shutdown(qs);
 }
@@ -530,6 +533,7 @@ static void pci_msix(void)
     qpci_msix_disable(dev->pdev);
     qvirtio_pci_device_disable(dev);
     qvirtio_pci_device_free(dev);
+    g_free(dev);
     qtest_shutdown(qs);
 }
 
@@ -653,6 +657,7 @@ static void pci_idx(void)
     qpci_msix_disable(dev->pdev);
     qvirtio_pci_device_disable(dev);
     qvirtio_pci_device_free(dev);
+    g_free(dev);
     qtest_shutdown(qs);
 }
 
@@ -673,6 +678,7 @@ static void pci_hotplug(void)
     g_assert(dev);
     qvirtio_pci_device_disable(dev);
     qvirtio_pci_device_free(dev);
+    g_free(dev);
 
     /* unplug secondary disk */
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
