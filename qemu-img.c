@@ -66,6 +66,7 @@ enum {
     OPTION_SIZE = 264,
     OPTION_PREALLOCATION = 265,
     OPTION_SHRINK = 266,
+    OPTION_SALVAGE = 267,
 };
 
 typedef enum OutputFormat {
@@ -1569,6 +1570,7 @@ typedef struct ImgConvertState {
     int64_t target_backing_sectors; /* negative if unknown */
     bool wr_in_order;
     bool copy_range;
+    bool salvage;
     bool quiet;
     int min_sparse;
     int alignment;
@@ -1616,23 +1618,43 @@ static int convert_iteration_sectors(ImgConvertState *s, int64_t sector_num)
     }
 
     if (s->sector_next_status <= sector_num) {
-        int64_t count = n * BDRV_SECTOR_SIZE;
+        uint64_t offset = (sector_num - src_cur_offset) * BDRV_SECTOR_SIZE;
+        int64_t count;
 
-        if (s->target_has_backing) {
+        do {
+            count = n * BDRV_SECTOR_SIZE;
 
-            ret = bdrv_block_status(blk_bs(s->src[src_cur]),
-                                    (sector_num - src_cur_offset) *
-                                    BDRV_SECTOR_SIZE,
-                                    count, &count, NULL, NULL);
-        } else {
-            ret = bdrv_block_status_above(blk_bs(s->src[src_cur]), NULL,
-                                          (sector_num - src_cur_offset) *
-                                          BDRV_SECTOR_SIZE,
-                                          count, &count, NULL, NULL);
-        }
-        if (ret < 0) {
-            return ret;
-        }
+            if (s->target_has_backing) {
+                ret = bdrv_block_status(blk_bs(s->src[src_cur]), offset,
+                                        count, &count, NULL, NULL);
+            } else {
+                ret = bdrv_block_status_above(blk_bs(s->src[src_cur]), NULL,
+                                              offset, count, &count, NULL,
+                                              NULL);
+            }
+
+            if (ret < 0) {
+                if (s->salvage) {
+                    if (n == 1) {
+                        if (!s->quiet) {
+                            warn_report("Failed to inquire block status of %s "
+                                        "at offset %#" PRIx64 ": %s",
+                                        blk_bs(s->src[src_cur])->filename,
+                                        offset, strerror(-ret));
+                        }
+                        /* Just try to read the data, then */
+                        ret = BDRV_BLOCK_DATA;
+                        count = BDRV_SECTOR_SIZE;
+                    } else {
+                        /* Retry on a shorter range */
+                        n = DIV_ROUND_UP(n, 4);
+                    }
+                } else {
+                    return ret;
+                }
+            }
+        } while (ret < 0);
+
         n = DIV_ROUND_UP(count, BDRV_SECTOR_SIZE);
 
         if (ret & BDRV_BLOCK_ZERO) {
@@ -1669,6 +1691,7 @@ static int convert_iteration_sectors(ImgConvertState *s, int64_t sector_num)
 static int coroutine_fn convert_co_read(ImgConvertState *s, int64_t sector_num,
                                         int nb_sectors, uint8_t *buf)
 {
+    uint64_t single_read_until = 0;
     int n, ret;
     QEMUIOVector qiov;
     struct iovec iov;
@@ -1678,6 +1701,7 @@ static int coroutine_fn convert_co_read(ImgConvertState *s, int64_t sector_num,
         BlockBackend *blk;
         int src_cur;
         int64_t bs_sectors, src_cur_offset;
+        uint64_t offset;
 
         /* In the case of compression with multiple source files, we can get a
          * nb_sectors that spreads into the next part. So we must be able to
@@ -1686,16 +1710,34 @@ static int coroutine_fn convert_co_read(ImgConvertState *s, int64_t sector_num,
         blk = s->src[src_cur];
         bs_sectors = s->src_sectors[src_cur];
 
+        offset = (sector_num - src_cur_offset) << BDRV_SECTOR_BITS;
+
         n = MIN(nb_sectors, bs_sectors - (sector_num - src_cur_offset));
+        if (single_read_until > offset) {
+            n = 1;
+        }
+
         iov.iov_base = buf;
         iov.iov_len = n << BDRV_SECTOR_BITS;
         qemu_iovec_init_external(&qiov, &iov, 1);
 
-        ret = blk_co_preadv(
-                blk, (sector_num - src_cur_offset) << BDRV_SECTOR_BITS,
-                n << BDRV_SECTOR_BITS, &qiov, 0);
+        ret = blk_co_preadv(blk, offset, n << BDRV_SECTOR_BITS, &qiov, 0);
         if (ret < 0) {
-            return ret;
+            if (s->salvage) {
+                if (n > 1) {
+                    single_read_until = offset + (n << BDRV_SECTOR_BITS);
+                    continue;
+                } else {
+                    if (!s->quiet) {
+                        warn_report("Failed to read offset %#" PRIx64 " from "
+                                    "%s: %s", offset, blk_bs(blk)->filename,
+                                    strerror(-ret));
+                    }
+                    memset(buf, 0, BDRV_SECTOR_SIZE);
+                }
+            } else {
+                return ret;
+            }
         }
 
         sector_num += n;
@@ -2031,6 +2073,7 @@ static int img_convert(int argc, char **argv)
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
             {"force-share", no_argument, 0, 'U'},
             {"target-image-opts", no_argument, 0, OPTION_TARGET_IMAGE_OPTS},
+            {"salvage", no_argument, 0, OPTION_SALVAGE},
             {0, 0, 0, 0}
         };
         c = getopt_long(argc, argv, ":hf:O:B:Cco:l:S:pt:T:qnm:WU",
@@ -2147,6 +2190,9 @@ static int img_convert(int argc, char **argv)
         }
         case OPTION_IMAGE_OPTS:
             image_opts = true;
+            break;
+        case OPTION_SALVAGE:
+            s.salvage = true;
             break;
         case OPTION_TARGET_IMAGE_OPTS:
             tgt_image_opts = true;
