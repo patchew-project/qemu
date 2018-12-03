@@ -712,15 +712,11 @@ ssize_t qemu_deliver_packet_iov(NetClientState *sender,
                                 void *opaque)
 {
     NetClientState *nc = opaque;
-    size_t size = iov_size(iov, iovcnt);
     int ret;
 
-    if (size > INT_MAX) {
-        return size;
-    }
 
     if (nc->link_down) {
-        return size;
+        return iov_size(iov, iovcnt);
     }
 
     if (nc->receive_disabled) {
@@ -745,10 +741,15 @@ ssize_t qemu_sendv_packet_async(NetClientState *sender,
                                 NetPacketSent *sent_cb)
 {
     NetQueue *queue;
+    size_t size = iov_size(iov, iovcnt);
     int ret;
 
+    if (size > NET_BUFSIZE) {
+        return size;
+    }
+
     if (sender->link_down || !sender->peer) {
-        return iov_size(iov, iovcnt);
+        return size;
     }
 
     /* Let filters handle the packet first */
