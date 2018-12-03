@@ -143,6 +143,8 @@ typedef struct TestServer {
     int fds_num;
     int fds[VHOST_MEMORY_MAX_NREGIONS];
     VhostUserMemory memory;
+    GMainLoop *loop;
+    GThread *thread;
     GMutex data_mutex;
     GCond data_cond;
     int log_fd;
@@ -490,6 +492,10 @@ static TestServer *test_server_new(const gchar *name)
 {
     TestServer *server = g_new0(TestServer, 1);
 
+    server->loop = g_main_loop_new(NULL, FALSE);
+    /* run the main loop thread so the chardev may operate */
+    server->thread = g_thread_new(NULL, thread_function, server->loop);
+
     server->socket_path = g_strdup_printf("%s/%s.sock", tmpfs, name);
     server->mig_path = g_strdup_printf("%s/%s.mig", tmpfs, name);
     server->chr_name = g_strdup_printf("chr-%s", name);
@@ -533,9 +539,18 @@ static void test_server_listen(TestServer *server)
     test_server_create_chr(server, ",server,nowait");
 }
 
-static gboolean _test_server_free(TestServer *server)
+static void test_server_free(TestServer *server)
 {
     int i;
+    int ret;
+
+    /* finish the helper thread and dispatch pending sources */
+    g_main_loop_quit(server->loop);
+    g_thread_join(server->thread);
+    while (g_main_context_pending(NULL)) {
+        g_main_context_iteration (NULL, TRUE);
+    }
+    g_main_loop_unref(server->loop);
 
     qemu_chr_fe_deinit(&server->chr, true);
 
@@ -558,13 +573,6 @@ static gboolean _test_server_free(TestServer *server)
     qpci_free_pc(server->bus);
 
     g_free(server);
-
-    return FALSE;
-}
-
-static void test_server_free(TestServer *server)
-{
-    g_idle_add((GSourceFunc)_test_server_free, server);
 }
 
 static void wait_for_log_fd(TestServer *s)
@@ -969,8 +977,6 @@ int main(int argc, char **argv)
     const char *hugefs;
     int ret;
     char template[] = "/tmp/vhost-test-XXXXXX";
-    GMainLoop *loop;
-    GThread *thread;
 
     g_test_init(&argc, &argv, NULL);
 
@@ -990,10 +996,6 @@ int main(int argc, char **argv)
     } else {
         root = tmpfs;
     }
-
-    loop = g_main_loop_new(NULL, FALSE);
-    /* run the main loop thread so the chardev may operate */
-    thread = g_thread_new(NULL, thread_function, loop);
 
     if (qemu_memfd_check(0)) {
         qtest_add_data_func("/vhost-user/read-guest-mem/memfd",
@@ -1021,14 +1023,6 @@ int main(int argc, char **argv)
     ret = g_test_run();
 
     /* cleanup */
-
-    /* finish the helper thread and dispatch pending sources */
-    g_main_loop_quit(loop);
-    g_thread_join(thread);
-    while (g_main_context_pending(NULL)) {
-        g_main_context_iteration (NULL, TRUE);
-    }
-    g_main_loop_unref(loop);
 
     ret = rmdir(tmpfs);
     if (ret != 0) {
