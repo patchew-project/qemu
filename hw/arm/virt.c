@@ -1656,6 +1656,20 @@ static void virt_set_its(Object *obj, bool value, Error **errp)
     vms->its = value;
 }
 
+static bool virt_get_pvpanic(Object *obj, Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+
+    return vms->pvpanic;
+}
+
+static void virt_set_pvpanic(Object *obj, bool value, Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+
+    vms->pvpanic = value;
+}
+
 static char *virt_get_gic_version(Object *obj, Error **errp)
 {
     VirtMachineState *vms = VIRT_MACHINE(obj);
@@ -1883,6 +1897,15 @@ static void virt_3_1_instance_init(Object *obj)
     object_property_set_description(obj, "iommu",
                                     "Set the IOMMU type. "
                                     "Valid values are none and smmuv3",
+                                    NULL);
+
+    /* Default disallows pvpanic-mmio instantiation */
+    vms->pvpanic = false;
+    object_property_add_bool(obj, "pvpanic", virt_get_pvpanic,
+                             virt_set_pvpanic, NULL);
+    object_property_set_description(obj, "pvpanic",
+                                    "Set on/off to enable/disable "
+                                    "PVPANIC MMIO device",
                                     NULL);
 
     vms->memmap = a15memmap;

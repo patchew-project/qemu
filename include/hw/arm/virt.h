@@ -113,6 +113,7 @@ typedef struct {
     bool highmem;
     bool highmem_ecam;
     bool its;
+    bool pvpanic;
     bool virt;
     int32_t gic_version;
     VirtIOMMUType iommu;
