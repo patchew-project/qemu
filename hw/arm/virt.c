@@ -1797,7 +1797,7 @@ static void machvirt_machine_init(void)
 }
 type_init(machvirt_machine_init);
 
-static void virt_3_1_instance_init(Object *obj)
+static void virt_4_0_instance_init(Object *obj)
 {
     VirtMachineState *vms = VIRT_MACHINE(obj);
     VirtMachineClass *vmc = VIRT_MACHINE_GET_CLASS(vms);
@@ -1867,10 +1867,28 @@ static void virt_3_1_instance_init(Object *obj)
     vms->irqmap = a15irqmap;
 }
 
-static void virt_machine_3_1_options(MachineClass *mc)
+static void virt_machine_4_0_options(MachineClass *mc)
 {
 }
-DEFINE_VIRT_MACHINE_AS_LATEST(3, 1)
+DEFINE_VIRT_MACHINE_AS_LATEST(4, 0)
+
+static GlobalProperty virt_compat_3_1[] = {
+    HW_COMPAT_3_1
+};
+
+static void virt_3_1_instance_init(Object *obj)
+{
+    virt_4_0_instance_init(obj);
+}
+
+static void virt_machine_3_1_options(MachineClass *mc)
+{
+    virt_machine_4_0_options(mc);
+    compat_props_add(mc->compat_props,
+                     virt_compat_3_1, G_N_ELEMENTS(virt_compat_3_1));
+}
+
+DEFINE_VIRT_MACHINE(3, 1)
 
 static GlobalProperty virt_compat_3_0[] = {
     HW_COMPAT_3_0
