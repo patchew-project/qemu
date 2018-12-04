@@ -1872,8 +1872,9 @@ static void virt_machine_3_1_options(MachineClass *mc)
 }
 DEFINE_VIRT_MACHINE_AS_LATEST(3, 1)
 
-#define VIRT_COMPAT_3_0 \
+static GlobalProperty virt_compat_3_0[] = {
     HW_COMPAT_3_0
+};
 
 static void virt_3_0_instance_init(Object *obj)
 {
@@ -1883,12 +1884,14 @@ static void virt_3_0_instance_init(Object *obj)
 static void virt_machine_3_0_options(MachineClass *mc)
 {
     virt_machine_3_1_options(mc);
-    SET_MACHINE_COMPAT(mc, VIRT_COMPAT_3_0);
+    compat_props_add(mc->compat_props,
+                     virt_compat_3_0, G_N_ELEMENTS(virt_compat_3_0));
 }
 DEFINE_VIRT_MACHINE(3, 0)
 
-#define VIRT_COMPAT_2_12 \
+static GlobalProperty virt_compat_2_12[] = {
     HW_COMPAT_2_12
+};
 
 static void virt_2_12_instance_init(Object *obj)
 {
@@ -1900,14 +1903,16 @@ static void virt_machine_2_12_options(MachineClass *mc)
     VirtMachineClass *vmc = VIRT_MACHINE_CLASS(OBJECT_CLASS(mc));
 
     virt_machine_3_0_options(mc);
-    SET_MACHINE_COMPAT(mc, VIRT_COMPAT_2_12);
+    compat_props_add(mc->compat_props,
+                     virt_compat_2_12, G_N_ELEMENTS(virt_compat_2_12));
     vmc->no_highmem_ecam = true;
     mc->max_cpus = 255;
 }
 DEFINE_VIRT_MACHINE(2, 12)
 
-#define VIRT_COMPAT_2_11 \
+static GlobalProperty virt_compat_2_11[] = {
     HW_COMPAT_2_11
+};
 
 static void virt_2_11_instance_init(Object *obj)
 {
@@ -1919,13 +1924,15 @@ static void virt_machine_2_11_options(MachineClass *mc)
     VirtMachineClass *vmc = VIRT_MACHINE_CLASS(OBJECT_CLASS(mc));
 
     virt_machine_2_12_options(mc);
-    SET_MACHINE_COMPAT(mc, VIRT_COMPAT_2_11);
+    compat_props_add(mc->compat_props,
+                     virt_compat_2_11, G_N_ELEMENTS(virt_compat_2_11));
     vmc->smbios_old_sys_ver = true;
 }
 DEFINE_VIRT_MACHINE(2, 11)
 
-#define VIRT_COMPAT_2_10 \
+static GlobalProperty virt_compat_2_10[] = {
     HW_COMPAT_2_10
+};
 
 static void virt_2_10_instance_init(Object *obj)
 {
@@ -1935,14 +1942,16 @@ static void virt_2_10_instance_init(Object *obj)
 static void virt_machine_2_10_options(MachineClass *mc)
 {
     virt_machine_2_11_options(mc);
-    SET_MACHINE_COMPAT(mc, VIRT_COMPAT_2_10);
+    compat_props_add(mc->compat_props,
+                     virt_compat_2_10, G_N_ELEMENTS(virt_compat_2_10));
     /* before 2.11 we never faulted accesses to bad addresses */
     mc->ignore_memory_transaction_failures = true;
 }
 DEFINE_VIRT_MACHINE(2, 10)
 
-#define VIRT_COMPAT_2_9 \
+static GlobalProperty virt_compat_2_9[] = {
     HW_COMPAT_2_9
+};
 
 static void virt_2_9_instance_init(Object *obj)
 {
@@ -1952,12 +1961,14 @@ static void virt_2_9_instance_init(Object *obj)
 static void virt_machine_2_9_options(MachineClass *mc)
 {
     virt_machine_2_10_options(mc);
-    SET_MACHINE_COMPAT(mc, VIRT_COMPAT_2_9);
+    compat_props_add(mc->compat_props,
+                     virt_compat_2_9, G_N_ELEMENTS(virt_compat_2_9));
 }
 DEFINE_VIRT_MACHINE(2, 9)
 
-#define VIRT_COMPAT_2_8 \
+static GlobalProperty virt_compat_2_8[] = {
     HW_COMPAT_2_8
+};
 
 static void virt_2_8_instance_init(Object *obj)
 {
@@ -1969,7 +1980,8 @@ static void virt_machine_2_8_options(MachineClass *mc)
     VirtMachineClass *vmc = VIRT_MACHINE_CLASS(OBJECT_CLASS(mc));
 
     virt_machine_2_9_options(mc);
-    SET_MACHINE_COMPAT(mc, VIRT_COMPAT_2_8);
+    compat_props_add(mc->compat_props,
+                     virt_compat_2_8, G_N_ELEMENTS(virt_compat_2_8));
     /* For 2.8 and earlier we falsely claimed in the DT that
      * our timers were edge-triggered, not level-triggered.
      */
@@ -1977,8 +1989,9 @@ static void virt_machine_2_8_options(MachineClass *mc)
 }
 DEFINE_VIRT_MACHINE(2, 8)
 
-#define VIRT_COMPAT_2_7 \
+static GlobalProperty virt_compat_2_7[] = {
     HW_COMPAT_2_7
+};
 
 static void virt_2_7_instance_init(Object *obj)
 {
@@ -1990,7 +2003,8 @@ static void virt_machine_2_7_options(MachineClass *mc)
     VirtMachineClass *vmc = VIRT_MACHINE_CLASS(OBJECT_CLASS(mc));
 
     virt_machine_2_8_options(mc);
-    SET_MACHINE_COMPAT(mc, VIRT_COMPAT_2_7);
+    compat_props_add(mc->compat_props,
+                     virt_compat_2_7, G_N_ELEMENTS(virt_compat_2_7));
     /* ITS was introduced with 2.8 */
     vmc->no_its = true;
     /* Stick with 1K pages for migration compatibility */
@@ -1998,8 +2012,9 @@ static void virt_machine_2_7_options(MachineClass *mc)
 }
 DEFINE_VIRT_MACHINE(2, 7)
 
-#define VIRT_COMPAT_2_6 \
+static GlobalProperty virt_compat_2_6[] = {
     HW_COMPAT_2_6
+};
 
 static void virt_2_6_instance_init(Object *obj)
 {
@@ -2011,7 +2026,8 @@ static void virt_machine_2_6_options(MachineClass *mc)
     VirtMachineClass *vmc = VIRT_MACHINE_CLASS(OBJECT_CLASS(mc));
 
     virt_machine_2_7_options(mc);
-    SET_MACHINE_COMPAT(mc, VIRT_COMPAT_2_6);
+    compat_props_add(mc->compat_props,
+                     virt_compat_2_6, G_N_ELEMENTS(virt_compat_2_6));
     vmc->disallow_affinity_adjustment = true;
     /* Disable PMU for 2.6 as PMU support was first introduced in 2.7 */
     vmc->no_pmu = true;
