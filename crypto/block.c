@@ -275,3 +275,29 @@ int qcrypto_cipher_encrypt_helper(QCryptoCipher *cipher,
     return do_qcrypto_cipher_encrypt(cipher, niv, ivgen, sectorsize, offset,
                                      buf, len, qcrypto_cipher_encrypt, errp);
 }
+
+
+int qcrypto_block_decrypt_helper(QCryptoBlock *block,
+                                 int sectorsize,
+                                 uint64_t offset,
+                                 uint8_t *buf,
+                                 size_t len,
+                                 Error **errp)
+{
+    return do_qcrypto_cipher_encrypt(block->cipher, block->niv, block->ivgen,
+                                     sectorsize, offset, buf, len,
+                                     qcrypto_cipher_decrypt, errp);
+}
+
+
+int qcrypto_block_encrypt_helper(QCryptoBlock *block,
+                                 int sectorsize,
+                                 uint64_t offset,
+                                 uint8_t *buf,
+                                 size_t len,
+                                 Error **errp)
+{
+    return do_qcrypto_cipher_encrypt(block->cipher, block->niv, block->ivgen,
+                                     sectorsize, offset, buf, len,
+                                     qcrypto_cipher_encrypt, errp);
+}
