@@ -867,6 +867,11 @@ const char *object_class_get_name(ObjectClass *klass)
     return klass->type->name;
 }
 
+void *object_class_get_class_data(ObjectClass *klass)
+{
+    return klass->type->class_data;
+}
+
 ObjectClass *object_class_by_name(const char *typename)
 {
     TypeImpl *type = type_get_by_name(typename);

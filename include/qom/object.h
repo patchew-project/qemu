@@ -916,6 +916,15 @@ ObjectClass *object_class_dynamic_cast(ObjectClass *klass,
  */
 ObjectClass *object_class_get_parent(ObjectClass *klass);
 
+
+/**
+ * object_class_get_class_data:
+ * @klass: The class to obtain associated data.
+ *
+ * Returns: the class_data given when registering the type.
+ */
+void *object_class_get_class_data(ObjectClass *klass);
+
 /**
  * object_class_get_name:
  * @klass: The class to obtain the QOM typename for.
