@@ -196,6 +196,8 @@ void qemu_chr_be_update_read_handlers(Chardev *s,
     s->gcontext = context;
     if (cc->chr_update_read_handler) {
         cc->chr_update_read_handler(s);
+    } else if (s->gcontext) {
+        g_assert_not_reached();
     }
 }
 
@@ -240,6 +242,15 @@ static void char_init(Object *obj)
 
     chr->logfd = -1;
     qemu_mutex_init(&chr->chr_write_lock);
+
+    /*
+     * Assume if chr_update_read_handler is implemented it will
+     * take the updated gcontext into account.
+     */
+    if (CHARDEV_GET_CLASS(chr)->chr_update_read_handler) {
+        qemu_chr_set_feature(chr, QEMU_CHAR_FEATURE_GCONTEXT);
+    }
+
 }
 
 static int null_chr_write(Chardev *chr, const uint8_t *buf, int len)
