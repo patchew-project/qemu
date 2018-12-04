@@ -75,6 +75,8 @@ typedef enum {
  * @readfunc: callback for reading data from the volume
  * @opaque: data to pass to @readfunc
  * @flags: bitmask of QCryptoBlockOpenFlags values
+ * @n_threads: prepare block to multi tasking with up to
+ *             @n_threads threads
  * @errp: pointer to a NULL-initialized error object
  *
  * Create a new block encryption object for an existing
@@ -107,6 +109,7 @@ QCryptoBlock *qcrypto_block_open(QCryptoBlockOpenOptions *options,
                                  QCryptoBlockReadFunc readfunc,
                                  void *opaque,
                                  unsigned int flags,
+                                 int n_threads,
                                  Error **errp);
 
 /**
@@ -202,11 +205,22 @@ int qcrypto_block_encrypt(QCryptoBlock *block,
  * qcrypto_block_get_cipher:
  * @block: the block encryption object
  *
- * Get the cipher to use for payload encryption
+ * Get the cipher to use for payload encryption. Must be paired with
+ * qcrypto_block_put_cipher.
  *
  * Returns: the cipher object
  */
 QCryptoCipher *qcrypto_block_get_cipher(QCryptoBlock *block);
+
+/**
+ * qcrypto_block_put_cipher:
+ * @block: the block encryption object
+ *
+ * Put cipher back to the block. Must follow qcrypto_block_get_cipher.
+ *
+ * Returns: the cipher object
+ */
+void qcrypto_block_put_cipher(QCryptoBlock *block, QCryptoCipher *cipher);
 
 /**
  * qcrypto_block_get_ivgen:

@@ -269,6 +269,8 @@ static void test_block_assert_setup(const struct QCryptoBlockTestData *data,
                     qcrypto_ivgen_get_algorithm(ivgen));
     g_assert_cmpint(data->ivgen_hash, ==,
                     qcrypto_ivgen_get_hash(ivgen));
+
+    qcrypto_block_put_cipher(blk, cipher);
 }
 
 
