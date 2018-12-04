@@ -447,14 +447,23 @@ static void aarch64_cpu_class_init(ObjectClass *oc, void *data)
     cc->gdb_arch_name = aarch64_gdb_arch_name;
 }
 
+static void aarch64_cpu_instance_init(Object *obj)
+{
+    const ARMCPUInfo *info = object_class_get_class_data(object_get_class(obj));
+
+    info->initfn(obj);
+    arm_cpu_post_init(obj);
+}
+
 static void aarch64_cpu_register(const ARMCPUInfo *info)
 {
     TypeInfo type_info = {
         .parent = TYPE_AARCH64_CPU,
         .instance_size = sizeof(ARMCPU),
-        .instance_init = info->initfn,
+        .instance_init = aarch64_cpu_instance_init,
         .class_size = sizeof(ARMCPUClass),
         .class_init = info->class_init,
+        .class_data = (void *)info,
     };
 
     type_info.name = g_strdup_printf("%s-" TYPE_ARM_CPU, info->name);
