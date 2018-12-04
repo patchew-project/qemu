@@ -361,6 +361,7 @@ struct CompressParam {
 
     /* internally used fields */
     z_stream stream;
+    int current_compress_level;
     uint8_t *originbuf;
 };
 typedef struct CompressParam CompressParam;
@@ -394,6 +395,27 @@ static QemuThread *decompress_threads;
 static QemuMutex decomp_done_lock;
 static QemuCond decomp_done_cond;
 
+static int initial_compress_stream(CompressParam *param)
+{
+    int ret = -1;
+    int current_compress_level = 0;
+
+    if (param == NULL) {
+        goto exit;
+    }
+
+    current_compress_level = migrate_compress_level();
+    if (deflateInit(&(param->stream), current_compress_level) != Z_OK) {
+        goto exit;
+    }
+
+    param->current_compress_level = current_compress_level;
+    return 0;
+
+exit:
+    return ret;
+}
+
 static bool do_compress_ram_page(QEMUFile *f, z_stream *stream, RAMBlock *block,
                                  ram_addr_t offset, uint8_t *source_buf);
 
@@ -410,6 +432,12 @@ static void *do_data_compress(void *opaque)
             block = param->block;
             offset = param->offset;
             param->block = NULL;
+            if (param->current_compress_level != migrate_compress_level()) {
+                if (initial_compress_stream(param) != 0) {
+                    qemu_file_set_error(migrate_get_current()->to_dst_file, -1);
+                    error_report("fail to update compress stream!");
+                }
+            }
             qemu_mutex_unlock(&param->mutex);
 
             zero_page = do_compress_ram_page(param->file, &param->stream,
@@ -488,8 +516,8 @@ static int compress_threads_save_setup(void)
             goto exit;
         }
 
-        if (deflateInit(&comp_param[i].stream,
-                        migrate_compress_level()) != Z_OK) {
+        if (initial_compress_stream(&comp_param[i]) != 0) {
+            error_report("fail to initial compress stream!");
             g_free(comp_param[i].originbuf);
             goto exit;
         }
