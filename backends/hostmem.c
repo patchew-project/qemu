@@ -28,6 +28,16 @@ QEMU_BUILD_BUG_ON(HOST_MEM_POLICY_BIND != MPOL_BIND);
 QEMU_BUILD_BUG_ON(HOST_MEM_POLICY_INTERLEAVE != MPOL_INTERLEAVE);
 #endif
 
+char *
+host_memory_backend_get_name(HostMemoryBackend *self)
+{
+    if (!self->use_canonical_path) {
+        return object_get_canonical_path_component(OBJECT(self));
+    }
+
+    return object_get_canonical_path(OBJECT(self));
+}
+
 static void
 host_memory_backend_get_size(Object *obj, Visitor *v, const char *name,
                              void *opaque, Error **errp)
@@ -238,6 +248,11 @@ static void host_memory_backend_init(Object *obj)
     backend->prealloc = mem_prealloc;
 }
 
+static void host_memory_backend_post_init(Object *obj)
+{
+    object_apply_compat_props(obj);
+}
+
 bool host_memory_backend_mr_inited(HostMemoryBackend *backend)
 {
     /*
@@ -386,6 +401,23 @@ static void host_memory_backend_set_share(Object *o, bool value, Error **errp)
     backend->share = value;
 }
 
+static bool
+host_memory_backend_get_use_canonical_path(Object *obj, Error **errp)
+{
+    HostMemoryBackend *self = MEMORY_BACKEND(obj);
+
+    return self->use_canonical_path;
+}
+
+static void
+host_memory_backend_set_use_canonical_path(Object *obj, bool value,
+                                           Error **errp)
+{
+    HostMemoryBackend *self = MEMORY_BACKEND(obj);
+
+    self->use_canonical_path = value;
+}
+
 static void
 host_memory_backend_class_init(ObjectClass *oc, void *data)
 {
@@ -432,6 +464,9 @@ host_memory_backend_class_init(ObjectClass *oc, void *data)
         &error_abort);
     object_class_property_set_description(oc, "share",
         "Mark the memory as private to QEMU or shared", &error_abort);
+    object_class_property_add_bool(oc, "x-use-canonical-path-for-ramblock-id",
+        host_memory_backend_get_use_canonical_path,
+        host_memory_backend_set_use_canonical_path, &error_abort);
 }
 
 static const TypeInfo host_memory_backend_info = {
@@ -442,6 +477,7 @@ static const TypeInfo host_memory_backend_info = {
     .class_init = host_memory_backend_class_init,
     .instance_size = sizeof(HostMemoryBackend),
     .instance_init = host_memory_backend_init,
+    .instance_post_init = host_memory_backend_post_init,
     .interfaces = (InterfaceInfo[]) {
         { TYPE_USER_CREATABLE },
         { }
