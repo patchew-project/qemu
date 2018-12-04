@@ -383,10 +383,12 @@ int mmu_translate_real(CPUS390XState *env, target_ulong raddr, int rw,
                        target_ulong *addr, int *flags);
 
 
-/* misc_helper.c */
+/* diag.c */
 int handle_diag_288(CPUS390XState *env, uint64_t r1, uint64_t r3);
 void handle_diag_308(CPUS390XState *env, uint64_t r1, uint64_t r3,
                      uintptr_t ra);
+void diag318_register(void);
+void diag318_reset(void);
 
 
 /* translate.c */

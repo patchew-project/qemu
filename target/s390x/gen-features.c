@@ -450,6 +450,7 @@ static uint16_t full_GEN12_GA1[] = {
     S390_FEAT_AP_QUERY_CONFIG_INFO,
     S390_FEAT_AP_FACILITIES_TEST,
     S390_FEAT_AP,
+    S390_FEAT_DIAG318,
 };
 
 static uint16_t full_GEN12_GA2[] = {

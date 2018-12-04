@@ -27,6 +27,7 @@
 #include "qemu/cutils.h"
 #include "qemu/option.h"
 #include "exec/exec-all.h"
+#include "internal.h"
 
 #define KERN_IMAGE_START                0x010000UL
 #define LINUX_MAGIC_ADDR                0x010008UL
@@ -230,6 +231,8 @@ static void s390_ipl_realize(DeviceState *dev, Error **errp)
     ipl->compat_start_addr = ipl->start_addr;
     ipl->compat_bios_start_addr = ipl->bios_start_addr;
     qemu_register_reset(qdev_reset_all_fn, dev);
+
+    diag318_register();
 error:
     error_propagate(errp, err);
 }
