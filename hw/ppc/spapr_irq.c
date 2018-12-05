@@ -216,6 +216,11 @@ static void spapr_irq_reset_xics(sPAPRMachineState *spapr, Error **errp)
     CPU_FOREACH(cs) {
         spapr_cpu_core_set_intc(POWERPC_CPU(cs), spapr->icp_type);
     }
+
+    /* Deactivate the XIVE MMIOs */
+    if (spapr->xive) {
+        spapr_xive_enable_mmio(spapr->xive, false);
+    }
 }
 
 #define SPAPR_IRQ_XICS_NR_IRQS     0x1000
@@ -365,6 +370,9 @@ static void spapr_irq_reset_xive(sPAPRMachineState *spapr, Error **errp)
      * to come after the XiveTCTX reset handlers.
      */
     spapr_xive_reset_tctx(spapr->xive);
+
+    /* Activate the XIVE MMIOs */
+    spapr_xive_enable_mmio(spapr->xive, true);
 }
 
 /*

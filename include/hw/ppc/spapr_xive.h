@@ -65,6 +65,7 @@ void spapr_dt_xive(sPAPRMachineState *spapr, uint32_t nr_servers, void *fdt,
                    uint32_t phandle);
 void spapr_xive_reset_tctx(sPAPRXive *xive);
 void spapr_xive_map_mmio(sPAPRXive *xive);
+void spapr_xive_enable_mmio(sPAPRXive *xive, bool enable);
 
 /*
  * KVM XIVE device helpers
