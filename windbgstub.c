@@ -91,7 +91,6 @@ static void windbg_store_packet(KD_PACKET *packet)
     stl_p(&packet->Checksum, packet->Checksum);
 }
 
-__attribute__ ((unused)) /* unused yet */
 static void windbg_send_data_packet(WindbgState *state, uint8_t *data,
                                     uint16_t byte_count, uint16_t type)
 {
@@ -141,6 +140,40 @@ static void windbg_process_data_packet(WindbgState *state)
 
 static void windbg_process_control_packet(WindbgState *state)
 {
+    ParsingContext *ctx = &state->ctx;
+
+    switch (ctx->packet.PacketType) {
+    case PACKET_TYPE_KD_ACKNOWLEDGE:
+        if (state->wait_packet_type == PACKET_TYPE_KD_ACKNOWLEDGE &&
+            (ctx->packet.PacketId == (state->curr_packet_id &
+                                      ~SYNC_PACKET_ID))) {
+            state->curr_packet_id ^= 1;
+            state->wait_packet_type = 0;
+        }
+        break;
+
+    case PACKET_TYPE_KD_RESET: {
+        state->curr_packet_id = INITIAL_PACKET_ID;
+        windbg_send_control_packet(state, PACKET_TYPE_KD_RESET, 0);
+
+        DBGKD_ANY_WAIT_STATE_CHANGE *sc = kd_state_change_ls(qemu_get_cpu(0));
+        windbg_send_data_packet(state, (uint8_t *) sc,
+                                sizeof(DBGKD_ANY_WAIT_STATE_CHANGE),
+                                PACKET_TYPE_KD_STATE_CHANGE64);
+        g_free(sc);
+        break;
+    }
+
+    case PACKET_TYPE_KD_RESEND:
+        break;
+
+    default:
+        WINDBG_ERROR("Caught unsupported control packet 0x%x",
+                     ctx->packet.PacketType);
+
+        windbg_send_control_packet(state, PACKET_TYPE_KD_RESEND, 0);
+        break;
+    }
 }
 
 static void windbg_ctx_handler(WindbgState *state)
