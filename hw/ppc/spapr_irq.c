@@ -257,6 +257,8 @@ static void spapr_irq_init_xive(sPAPRMachineState *spapr, int nr_irqs,
         error_propagate(errp, local_err);
         return;
     }
+
+    spapr_xive_hcall_init(spapr);
 }
 
 static int spapr_irq_claim_xive(sPAPRMachineState *spapr, int irq, bool lsi,
