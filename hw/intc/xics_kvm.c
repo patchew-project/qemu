@@ -68,6 +68,11 @@ static void icp_get_kvm_state(ICPState *icp)
     uint64_t state;
     int ret;
 
+    /* The KVM XICS device is not in use */
+    if (kernel_xics_fd == -1) {
+        return;
+    }
+
     /* ICP for this CPU thread is not in use, exiting */
     if (!icp->cs) {
         return;
@@ -103,6 +108,11 @@ static int icp_set_kvm_state(ICPState *icp, int version_id)
 {
     uint64_t state;
     int ret;
+
+    /* The KVM XICS device is not in use */
+    if (kernel_xics_fd == -1) {
+        return 0;
+    }
 
     /* ICP for this CPU thread is not in use, exiting */
     if (!icp->cs) {
@@ -140,8 +150,8 @@ static void icp_kvm_connect(ICPState *icp, Error **errp)
     unsigned long vcpu_id;
     int ret;
 
+    /* The KVM XICS device is not in use */
     if (kernel_xics_fd == -1) {
-        abort();
         return;
     }
 
@@ -220,6 +230,11 @@ static void ics_get_kvm_state(ICSState *ics)
     uint64_t state;
     int i;
 
+    /* The KVM XICS device is not in use */
+    if (kernel_xics_fd == -1) {
+        return;
+    }
+
     for (i = 0; i < ics->nr_irqs; i++) {
         ICSIRQState *irq = &ics->irqs[i];
 
@@ -279,6 +294,11 @@ static int ics_set_kvm_state(ICSState *ics, int version_id)
     int i;
     Error *local_err = NULL;
 
+    /* The KVM XICS device is not in use */
+    if (kernel_xics_fd == -1) {
+        return 0;
+    }
+
     for (i = 0; i < ics->nr_irqs; i++) {
         ICSIRQState *irq = &ics->irqs[i];
         int ret;
@@ -324,6 +344,9 @@ static void ics_kvm_set_irq(void *opaque, int srcno, int val)
     ICSState *ics = opaque;
     struct kvm_irq_level args;
     int rc;
+
+    /* The KVM XICS device should be in use */
+    assert(kernel_xics_fd != -1);
 
     args.irq = srcno + ics->offset;
     if (ics->irqs[srcno].flags & XICS_FLAGS_IRQ_MSI) {

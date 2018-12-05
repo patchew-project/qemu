@@ -94,8 +94,14 @@ static void kvmppc_xive_cpu_set_state(XiveTCTX *tctx, Error **errp)
 
 void kvmppc_xive_cpu_get_state(XiveTCTX *tctx, Error **errp)
 {
+    sPAPRXive *xive = SPAPR_MACHINE(qdev_get_machine())->xive;
     uint64_t state[4] = { 0 };
     int ret;
+
+    /* The KVM XIVE device is not in use */
+    if (xive->fd == -1) {
+        return;
+    }
 
     ret = kvm_get_one_reg(tctx->cs, KVM_REG_PPC_NVT_STATE, state);
     if (ret != 0) {
@@ -131,6 +137,11 @@ void kvmppc_xive_cpu_connect(XiveTCTX *tctx, Error **errp)
     sPAPRXive *xive = SPAPR_MACHINE(qdev_get_machine())->xive;
     unsigned long vcpu_id;
     int ret;
+
+    /* The KVM XIVE device is not in use */
+    if (xive->fd == -1) {
+        return;
+    }
 
     /* Check if CPU was hot unplugged and replugged. */
     if (kvm_cpu_is_enabled(tctx->cs)) {
@@ -215,8 +226,12 @@ static void kvmppc_xive_source_get_state(XiveSource *xsrc)
 void kvmppc_xive_source_set_irq(void *opaque, int srcno, int val)
 {
     XiveSource *xsrc = opaque;
+    sPAPRXive *xive = SPAPR_XIVE(xsrc->xive);
     struct kvm_irq_level args;
     int rc;
+
+    /* The KVM XIVE device should be in use */
+    assert(xive->fd != -1);
 
     args.irq = srcno;
     if (!xive_source_irq_is_lsi(xsrc, srcno)) {
@@ -564,6 +579,11 @@ int kvmppc_xive_pre_save(sPAPRXive *xive)
     Error *local_err = NULL;
     CPUState *cs;
 
+    /* The KVM XIVE device is not in use */
+    if (xive->fd == -1) {
+        return 0;
+    }
+
     /* Grab the EAT */
     kvmppc_xive_get_eas_state(xive, &local_err);
     if (local_err) {
@@ -595,6 +615,9 @@ int kvmppc_xive_post_load(sPAPRXive *xive, int version_id)
 {
     Error *local_err = NULL;
     CPUState *cs;
+
+    /* The KVM XIVE device should be in use */
+    assert(xive->fd != -1);
 
     /* Restore the ENDT first. The targetting depends on it. */
     CPU_FOREACH(cs) {
@@ -631,6 +654,11 @@ void kvmppc_xive_synchronize_state(sPAPRXive *xive)
 {
     XiveSource *xsrc = &xive->source;
     CPUState *cs;
+
+    /* The KVM XIVE device is not in use */
+    if (xive->fd == -1) {
+        return;
+    }
 
     /*
      * When the VM is stopped, the sources are masked and the previous
