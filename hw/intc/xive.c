@@ -552,6 +552,37 @@ static const TypeInfo xive_tctx_info = {
     .class_init    = xive_tctx_class_init,
 };
 
+Object *xive_tctx_create(Object *cpu, XiveRouter *xrtr, Error **errp)
+{
+
+    CPUPPCState *env = &POWERPC_CPU(cpu)->env;
+    uint32_t pir = env->spr_cb[SPR_PIR].default_value;
+    uint32_t hw_cam = hw_cam_line((pir >> 8) & 0xf, pir & 0x7f);
+    Error *local_err = NULL;
+    Object *obj;
+
+    obj = object_new(TYPE_XIVE_TCTX);
+    object_property_add_child(cpu, TYPE_XIVE_TCTX, obj, &error_abort);
+    object_unref(obj);
+    object_property_add_const_link(obj, "cpu", cpu, &error_abort);
+    object_property_add_const_link(obj, "xive", OBJECT(xrtr), &error_abort);
+    object_property_set_int(obj, hw_cam, "hw-cam", &local_err);
+    if (local_err) {
+        goto error;
+    }
+    object_property_set_bool(obj, true, "realized", &local_err);
+    if (local_err) {
+        goto error;
+    }
+
+    return obj;
+
+error:
+    object_unparent(obj);
+    error_propagate(errp, local_err);
+    return NULL;
+}
+
 /*
  * XIVE ESB helpers
  */
