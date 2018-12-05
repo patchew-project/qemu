@@ -13,6 +13,7 @@
 #include "qapi/error.h"
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_xive.h"
+#include "hw/ppc/spapr_cpu_core.h"
 #include "hw/ppc/xics.h"
 #include "sysemu/kvm.h"
 
@@ -208,6 +209,10 @@ static int spapr_irq_post_load_xics(sPAPRMachineState *spapr, int version_id)
     return 0;
 }
 
+static void spapr_irq_reset_xics(sPAPRMachineState *spapr, Error **errp)
+{
+}
+
 #define SPAPR_IRQ_XICS_NR_IRQS     0x1000
 #define SPAPR_IRQ_XICS_NR_MSIS     \
     (XICS_IRQ_BASE + SPAPR_IRQ_XICS_NR_IRQS - SPAPR_IRQ_MSI)
@@ -224,6 +229,7 @@ sPAPRIrq spapr_irq_xics = {
     .dt_populate = spapr_dt_xics,
     .cpu_intc_create = spapr_irq_cpu_intc_create_xics,
     .post_load   = spapr_irq_post_load_xics,
+    .reset       = spapr_irq_reset_xics,
 };
 
 /*
@@ -331,6 +337,15 @@ static int spapr_irq_post_load_xive(sPAPRMachineState *spapr, int version_id)
     return 0;
 }
 
+static void spapr_irq_reset_xive(sPAPRMachineState *spapr, Error **errp)
+{
+    /*
+     * Set the OS CAM line of the cpu interrupt thread context. Needs
+     * to come after the XiveTCTX reset handlers.
+     */
+    spapr_xive_reset_tctx(spapr->xive);
+}
+
 /*
  * XIVE uses the full IRQ number space. Set it to 8K to be compatible
  * with XICS.
@@ -351,6 +366,7 @@ sPAPRIrq spapr_irq_xive = {
     .dt_populate = spapr_dt_xive,
     .cpu_intc_create = spapr_irq_cpu_intc_create_xive,
     .post_load   = spapr_irq_post_load_xive,
+    .reset       = spapr_irq_reset_xive,
 };
 
 /*
@@ -394,6 +410,15 @@ int spapr_irq_post_load(sPAPRMachineState *spapr, int version_id)
     sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
 
     return smc->irq->post_load(spapr, version_id);
+}
+
+void spapr_irq_reset(sPAPRMachineState *spapr, Error **errp)
+{
+    sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
+
+    if (smc->irq->reset) {
+        smc->irq->reset(spapr, errp);
+    }
 }
 
 /*
