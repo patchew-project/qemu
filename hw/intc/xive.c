@@ -15,6 +15,7 @@
 #include "sysemu/dma.h"
 #include "hw/qdev-properties.h"
 #include "monitor/monitor.h"
+#include "hw/boards.h"
 #include "hw/ppc/xive.h"
 #include "hw/ppc/xive_regs.h"
 
@@ -511,6 +512,15 @@ static void xive_tctx_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    /* Connect the presenter to the VCPU (required for CPU hotplug) */
+    if (kvmppc_xive_enabled()) {
+        kvmppc_xive_cpu_connect(tctx, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
+        }
+    }
+
     qemu_register_reset(xive_tctx_reset, dev);
 }
 
@@ -927,6 +937,10 @@ static void xive_source_reset(void *dev)
 
     /* PQs are initialized to 0b01 (Q=1) which corresponds to "ints off" */
     memset(xsrc->status, XIVE_ESB_OFF, xsrc->nr_irqs);
+
+    if (kvmppc_xive_enabled()) {
+        kvmppc_xive_source_reset(xsrc, &error_fatal);
+    }
 }
 
 static void xive_source_realize(DeviceState *dev, Error **errp)
@@ -934,6 +948,7 @@ static void xive_source_realize(DeviceState *dev, Error **errp)
     XiveSource *xsrc = XIVE_SOURCE(dev);
     Object *obj;
     Error *local_err = NULL;
+    qemu_irq_handler irq_handler;
 
     obj = object_property_get_link(OBJECT(dev), "xive", &local_err);
     if (!obj) {
@@ -960,12 +975,17 @@ static void xive_source_realize(DeviceState *dev, Error **errp)
     xsrc->status = g_malloc0(xsrc->nr_irqs);
     xsrc->lsi_map = bitmap_new(xsrc->nr_irqs);
 
-    memory_region_init_io(&xsrc->esb_mmio, OBJECT(xsrc),
-                          &xive_source_esb_ops, xsrc, "xive.esb",
-                          (1ull << xsrc->esb_shift) * xsrc->nr_irqs);
+    if (kvmppc_xive_enabled()) {
+        irq_handler = kvmppc_xive_source_set_irq;
+    } else {
+        irq_handler = xive_source_set_irq;
 
-    xsrc->qirqs = qemu_allocate_irqs(xive_source_set_irq, xsrc,
-                                     xsrc->nr_irqs);
+        memory_region_init_io(&xsrc->esb_mmio, OBJECT(xsrc),
+                              &xive_source_esb_ops, xsrc, "xive.esb",
+                              (1ull << xsrc->esb_shift) * xsrc->nr_irqs);
+    }
+
+    xsrc->qirqs = qemu_allocate_irqs(irq_handler, xsrc, xsrc->nr_irqs);
 
     qemu_register_reset(xive_source_reset, dev);
 }

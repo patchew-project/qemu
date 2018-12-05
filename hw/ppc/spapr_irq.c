@@ -268,16 +268,7 @@ static sPAPRXive *spapr_xive_create(sPAPRMachineState *spapr, int nr_irqs,
 static void spapr_irq_init_xive(sPAPRMachineState *spapr, int nr_irqs,
                                 Error **errp)
 {
-    MachineState *machine = MACHINE(spapr);
     Error *local_err = NULL;
-
-    /* No KVM support */
-    if (kvm_enabled()) {
-        if (machine_kernel_irqchip_required(machine)) {
-            error_setg(errp, "kernel_irqchip requested. no XIVE support");
-            return;
-        }
-    }
 
     spapr->xive = spapr_xive_create(spapr, nr_irqs,
                                     spapr_max_server_number(spapr), &local_err);

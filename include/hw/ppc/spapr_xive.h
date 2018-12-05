@@ -35,6 +35,10 @@ typedef struct sPAPRXive {
     /* TIMA mapping address */
     hwaddr        tm_base;
     MemoryRegion  tm_mmio;
+
+    /* KVM support */
+    int           fd;
+    void          *tm_mmap;
 } sPAPRXive;
 
 bool spapr_xive_irq_claim(sPAPRXive *xive, uint32_t lisn, bool lsi);
@@ -48,5 +52,11 @@ void spapr_xive_hcall_init(sPAPRMachineState *spapr);
 void spapr_dt_xive(sPAPRMachineState *spapr, uint32_t nr_servers, void *fdt,
                    uint32_t phandle);
 void spapr_xive_reset_tctx(sPAPRXive *xive);
+void spapr_xive_map_mmio(sPAPRXive *xive);
+
+/*
+ * KVM XIVE device helpers
+ */
+void kvmppc_xive_connect(sPAPRXive *xive, Error **errp);
 
 #endif /* PPC_SPAPR_XIVE_H */

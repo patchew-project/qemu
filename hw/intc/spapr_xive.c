@@ -174,7 +174,7 @@ void spapr_xive_pic_print_info(sPAPRXive *xive, Monitor *mon)
     }
 }
 
-static void spapr_xive_map_mmio(sPAPRXive *xive)
+void spapr_xive_map_mmio(sPAPRXive *xive)
 {
     sysbus_mmio_map(SYS_BUS_DEVICE(xive), 0, xive->vc_base);
     sysbus_mmio_map(SYS_BUS_DEVICE(xive), 1, xive->end_base);
@@ -250,6 +250,9 @@ static void spapr_xive_instance_init(Object *obj)
                       TYPE_XIVE_END_SOURCE);
     object_property_add_child(obj, "end_source", OBJECT(&xive->end_source),
                               NULL);
+
+    /* Not connected to the KVM XIVE device */
+    xive->fd = -1;
 }
 
 static void spapr_xive_realize(DeviceState *dev, Error **errp)
@@ -304,17 +307,25 @@ static void spapr_xive_realize(DeviceState *dev, Error **errp)
     xive->eat = g_new0(XiveEAS, xive->nr_irqs);
     xive->endt = g_new0(XiveEND, xive->nr_ends);
 
-    /* TIMA initialization */
-    memory_region_init_io(&xive->tm_mmio, OBJECT(xive), &xive_tm_ops, xive,
-                          "xive.tima", 4ull << TM_SHIFT);
+    if (kvmppc_xive_enabled()) {
+        kvmppc_xive_connect(xive, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
+        }
+    } else {
+        /* TIMA initialization */
+        memory_region_init_io(&xive->tm_mmio, OBJECT(xive), &xive_tm_ops, xive,
+                              "xive.tima", 4ull << TM_SHIFT);
 
-    /* Define all XIVE MMIO regions on SysBus */
-    sysbus_init_mmio(SYS_BUS_DEVICE(xive), &xsrc->esb_mmio);
-    sysbus_init_mmio(SYS_BUS_DEVICE(xive), &end_xsrc->esb_mmio);
-    sysbus_init_mmio(SYS_BUS_DEVICE(xive), &xive->tm_mmio);
+        /* Define all XIVE MMIO regions on SysBus */
+        sysbus_init_mmio(SYS_BUS_DEVICE(xive), &xsrc->esb_mmio);
+        sysbus_init_mmio(SYS_BUS_DEVICE(xive), &end_xsrc->esb_mmio);
+        sysbus_init_mmio(SYS_BUS_DEVICE(xive), &xive->tm_mmio);
 
-    /* Map all regions */
-    spapr_xive_map_mmio(xive);
+        /* Map all regions */
+        spapr_xive_map_mmio(xive);
+    }
 
     qemu_register_reset(spapr_xive_reset, dev);
 }
