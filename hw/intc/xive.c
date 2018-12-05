@@ -358,6 +358,25 @@ void xive_tctx_pic_print_info(XiveTCTX *tctx, Monitor *mon)
     }
 }
 
+/* The HW CAM (23bits) is hardwired to :
+ *
+ *   0x000||0b1||4Bit chip number||7Bit Thread number.
+ *
+ * and when the block grouping extension is enabled :
+ *
+ *   4Bit chip number||0x001||7Bit Thread number.
+ */
+static uint32_t hw_cam_line(uint8_t chip_id, uint8_t tid)
+{
+    bool block_group = false; /* TODO (PowerNV) */
+
+    if (block_group) {
+        return 1 << 11 | (chip_id & 0xf) << 7 | (tid & 0x7f);
+    } else {
+        return (chip_id & 0xf) << 11 | 1 << 7 | (tid & 0x7f);
+    }
+}
+
 static void xive_tctx_reset(void *dev)
 {
     XiveTCTX *tctx = XIVE_TCTX(dev);
@@ -387,6 +406,12 @@ static void xive_tctx_realize(DeviceState *dev, Error **errp)
 
     cpu = POWERPC_CPU(obj);
     tctx->cs = CPU(obj);
+
+    if (!tctx->hw_cam) {
+        error_setg(errp, "XIVE: HW CAM is not set for CPU %d",
+                   tctx->cs->cpu_index);
+        return;
+    }
 
     env = &cpu->env;
     switch (PPC_INPUT(env)) {
@@ -418,11 +443,17 @@ static const VMStateDescription vmstate_xive_tctx = {
     },
 };
 
+static Property  xive_tctx_properties[] = {
+    DEFINE_PROP_UINT32("hw-cam", XiveTCTX, hw_cam, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void xive_tctx_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->desc = "XIVE Interrupt Thread Context";
+    dc->props = xive_tctx_properties;
     dc->realize = xive_tctx_realize;
     dc->unrealize = xive_tctx_unrealize;
     dc->vmsd = &vmstate_xive_tctx;
@@ -978,6 +1009,194 @@ int xive_router_write_end(XiveRouter *xrtr, uint8_t end_blk, uint32_t end_idx,
    return xrc->write_end(xrtr, end_blk, end_idx, end, word_number);
 }
 
+int xive_router_get_nvt(XiveRouter *xrtr, uint8_t nvt_blk, uint32_t nvt_idx,
+                        XiveNVT *nvt)
+{
+   XiveRouterClass *xrc = XIVE_ROUTER_GET_CLASS(xrtr);
+
+   return xrc->get_nvt(xrtr, nvt_blk, nvt_idx, nvt);
+}
+
+int xive_router_write_nvt(XiveRouter *xrtr, uint8_t nvt_blk, uint32_t nvt_idx,
+                        XiveNVT *nvt, uint8_t word_number)
+{
+   XiveRouterClass *xrc = XIVE_ROUTER_GET_CLASS(xrtr);
+
+   return xrc->write_nvt(xrtr, nvt_blk, nvt_idx, nvt, word_number);
+}
+
+/*
+ * The thread context register words are in big-endian format.
+ */
+static int xive_presenter_tctx_match(XiveTCTX *tctx, uint8_t format,
+                                     uint8_t nvt_blk, uint32_t nvt_idx,
+                                     bool cam_ignore, uint32_t logic_serv)
+{
+    uint32_t cam = xive_nvt_cam_line(nvt_blk, nvt_idx);
+    uint8_t *regs;
+    uint32_t qw3w2;
+    uint32_t qw2w2;
+    uint32_t qw1w2;
+    uint32_t qw0w2;
+
+    /* TODO (PowerNV): ignore low order bits of nvt id */
+
+    regs = &tctx->regs[TM_QW3_HV_PHYS];
+    qw3w2 = be32_to_cpu(*((uint32_t *) &regs[TM_WORD2]));
+    regs = &tctx->regs[TM_QW2_HV_POOL];
+    qw2w2 = be32_to_cpu(*((uint32_t *) &regs[TM_WORD2]));
+    regs = &tctx->regs[TM_QW1_OS];
+    qw1w2 = be32_to_cpu(*((uint32_t *) &regs[TM_WORD2]));
+    regs = &tctx->regs[TM_QW0_USER];
+    qw0w2 = be32_to_cpu(*((uint32_t *) &regs[TM_WORD2]));
+
+    if (format == 0) {
+        /* F=0 & i=1: Logical server notification */
+        if (cam_ignore == true) {
+            qemu_log_mask(LOG_UNIMP, "XIVE: no support for LS NVT %x/%x\n",
+                          nvt_blk, nvt_idx);
+             return -1;
+        }
+
+        /* F=0 & i=0: Specific NVT notification */
+
+        /* PHYS ring */
+        if ((qw3w2 & TM_QW3W2_VT) &&
+            tctx->hw_cam == hw_cam_line(nvt_blk, nvt_idx)) {
+            return TM_QW3_HV_PHYS;
+        }
+
+        /* HV POOL ring */
+        if ((qw2w2 & TM_QW2W2_VP) &&
+            cam == GETFIELD(TM_QW2W2_POOL_CAM, qw2w2)) {
+            return TM_QW2_HV_POOL;
+        }
+
+        /* OS ring */
+        if ((qw1w2 & TM_QW1W2_VO) &&
+            cam == GETFIELD(TM_QW1W2_OS_CAM, qw1w2)) {
+            return TM_QW1_OS;
+        }
+    } else {
+        /* F=1 : User level Event-Based Branch (EBB) notification */
+
+        /* USER ring */
+        if  ((qw1w2 & TM_QW1W2_VO) &&
+             (cam == GETFIELD(TM_QW1W2_OS_CAM, qw1w2)) &&
+             (qw0w2 & TM_QW0W2_VU) &&
+             (logic_serv == GETFIELD(TM_QW0W2_LOGIC_SERV, qw0w2))) {
+            return TM_QW0_USER;
+        }
+    }
+    return -1;
+}
+
+typedef struct XiveTCTXMatch {
+    XiveTCTX *tctx;
+    uint8_t ring;
+} XiveTCTXMatch;
+
+static bool xive_presenter_match(XiveRouter *xrtr, uint8_t format,
+                                 uint8_t nvt_blk, uint32_t nvt_idx,
+                                 bool cam_ignore, uint8_t priority,
+                                 uint32_t logic_serv, XiveTCTXMatch *match)
+{
+    CPUState *cs;
+
+    /* TODO (PowerNV): handle chip_id overwrite of block field for
+     * hardwired CAM compares */
+
+    CPU_FOREACH(cs) {
+        PowerPCCPU *cpu = POWERPC_CPU(cs);
+        XiveTCTX *tctx = XIVE_TCTX(cpu->intc);
+        int ring;
+
+        /*
+         * HW checks that the CPU is enabled in the Physical Thread
+         * Enable Register (PTER).
+         */
+
+        /*
+         * Check the thread context CAM lines and record matches. We
+         * will handle CPU exception delivery later
+         */
+        ring = xive_presenter_tctx_match(tctx, format, nvt_blk, nvt_idx,
+                                         cam_ignore, logic_serv);
+        /*
+         * Save the context and follow on to catch duplicates, that we
+         * don't support yet.
+         */
+        if (ring != -1) {
+            if (match->tctx) {
+                qemu_log_mask(LOG_GUEST_ERROR, "XIVE: already found a thread "
+                              "context NVT %x/%x\n", nvt_blk, nvt_idx);
+                return false;
+            }
+
+            match->ring = ring;
+            match->tctx = tctx;
+        }
+    }
+
+    if (!match->tctx) {
+        qemu_log_mask(LOG_UNIMP, "XIVE: NVT %x/%x is not dispatched\n",
+                      nvt_blk, nvt_idx);
+        return false;
+    }
+
+    return true;
+}
+
+/*
+ * This is our simple Xive Presenter Engine model. It is merged in the
+ * Router as it does not require an extra object.
+ *
+ * It receives notification requests sent by the IVRE to find one
+ * matching NVT (or more) dispatched on the processor threads. In case
+ * of a single NVT notification, the process is abreviated and the
+ * thread is signaled if a match is found. In case of a logical server
+ * notification (bits ignored at the end of the NVT identifier), the
+ * IVPE and IVRE select a winning thread using different filters. This
+ * involves 2 or 3 exchanges on the PowerBus that the model does not
+ * support.
+ *
+ * The parameters represent what is sent on the PowerBus
+ */
+static void xive_presenter_notify(XiveRouter *xrtr, uint8_t format,
+                                  uint8_t nvt_blk, uint32_t nvt_idx,
+                                  bool cam_ignore, uint8_t priority,
+                                  uint32_t logic_serv)
+{
+    XiveNVT nvt;
+    XiveTCTXMatch match = { 0 };
+    bool found;
+
+    /* NVT cache lookup */
+    if (xive_router_get_nvt(xrtr, nvt_blk, nvt_idx, &nvt)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: no NVT %x/%x\n",
+                      nvt_blk, nvt_idx);
+        return;
+    }
+
+    if (!xive_nvt_is_valid(&nvt)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: NVT %x/%x is invalid\n",
+                      nvt_blk, nvt_idx);
+        return;
+    }
+
+    found = xive_presenter_match(xrtr, format, nvt_blk, nvt_idx, cam_ignore,
+                                 priority, logic_serv, &match);
+    if (found) {
+        return;
+    }
+
+    /* If no matching NVT is dispatched on a HW thread :
+     * - update the NVT structure if backlog is activated
+     * - escalate (ESe PQ bits and EAS in w4-5) if escalation is
+     *   activated
+     */
+}
+
 /*
  * An END trigger can come from an event trigger (IPI or HW) or from
  * another chip. We don't model the PowerBus but the END trigger
@@ -1047,6 +1266,14 @@ static void xive_router_end_notify(XiveRouter *xrtr, uint8_t end_blk,
     /*
      * Follows IVPE notification
      */
+    xive_presenter_notify(xrtr, format,
+                          GETFIELD_BE32(END_W6_NVT_BLOCK, end.w6),
+                          GETFIELD_BE32(END_W6_NVT_INDEX, end.w6),
+                          GETFIELD_BE32(END_W7_F0_IGNORE, end.w7),
+                          priority,
+                          GETFIELD_BE32(END_W7_F1_LOG_SERVER_ID, end.w7));
+
+    /* TODO: Auto EOI. */
 }
 
 static void xive_router_notify(XiveNotifier *xn, uint32_t lisn)
