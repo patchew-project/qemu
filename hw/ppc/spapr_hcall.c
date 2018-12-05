@@ -1654,6 +1654,19 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
             (spapr_h_cas_compose_response(spapr, args[1], args[2],
                                           ov5_updates) != 0);
     }
+
+    /*
+     * Generate a machine reset when we have an update of the
+     * interrupt mode. Only required on the machine supporting both
+     * mode.
+     */
+    if (!spapr->cas_reboot) {
+        sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
+
+        spapr->cas_reboot = spapr_ovec_test(ov5_updates, OV5_XIVE_EXPLOIT)
+            && smc->irq->ov5 == SPAPR_OV5_XIVE_BOTH;
+    }
+
     spapr_ovec_cleanup(ov5_updates);
 
     if (spapr->cas_reboot) {

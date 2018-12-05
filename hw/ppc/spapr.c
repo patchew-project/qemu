@@ -2634,7 +2634,8 @@ static void spapr_machine_init(MachineState *machine)
     spapr_ovec_set(spapr->ov5, OV5_DRMEM_V2);
 
     /* advertise XIVE */
-    if (smc->irq->ov5 == SPAPR_OV5_XIVE_EXPLOIT) {
+    if (smc->irq->ov5 == SPAPR_OV5_XIVE_EXPLOIT ||
+        smc->irq->ov5 == SPAPR_OV5_XIVE_BOTH) {
         spapr_ovec_set(spapr->ov5, OV5_XIVE_EXPLOIT);
     }
 
@@ -4001,6 +4002,21 @@ static void spapr_machine_3_1_xive_class_options(MachineClass *mc)
 }
 
 DEFINE_SPAPR_MACHINE(3_1_xive, "3.1-xive", false);
+
+static void spapr_machine_3_1_dual_instance_options(MachineState *machine)
+{
+    spapr_machine_3_1_instance_options(machine);
+}
+
+static void spapr_machine_3_1_dual_class_options(MachineClass *mc)
+{
+    sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
+
+    spapr_machine_3_1_class_options(mc);
+    smc->irq = &spapr_irq_dual;
+}
+
+DEFINE_SPAPR_MACHINE(3_1_dual, "3.1-dual", false);
 
 /*
  * pseries-3.0
