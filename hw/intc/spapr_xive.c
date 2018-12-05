@@ -82,6 +82,19 @@ static int spapr_xive_target_to_nvt(sPAPRXive *xive, uint32_t target,
  * sPAPR END indexing uses a simple mapping of the CPU vcpu_id, 8
  * priorities per CPU
  */
+int spapr_xive_end_to_target(sPAPRXive *xive, uint8_t end_blk, uint32_t end_idx,
+                             uint32_t *out_server, uint8_t *out_prio)
+{
+    if (out_server) {
+        *out_server = end_idx >> 3;
+    }
+
+    if (out_prio) {
+        *out_prio = end_idx & 0x7;
+    }
+    return 0;
+}
+
 void spapr_xive_cpu_to_end(sPAPRXive *xive, PowerPCCPU *cpu, uint8_t prio,
                            uint8_t *out_end_blk, uint32_t *out_end_idx)
 {
@@ -426,10 +439,31 @@ static const VMStateDescription vmstate_spapr_xive_eas = {
     },
 };
 
+static int vmstate_spapr_xive_pre_save(void *opaque)
+{
+    if (kvmppc_xive_enabled()) {
+        return kvmppc_xive_pre_save(SPAPR_XIVE(opaque));
+    }
+
+    return 0;
+}
+
+/* Called by the sPAPR machine 'post_load' method */
+int spapr_xive_post_load(sPAPRXive *xive, int version_id)
+{
+    if (kvmppc_xive_enabled()) {
+        return kvmppc_xive_post_load(xive, version_id);
+    }
+
+    return 0;
+}
+
 static const VMStateDescription vmstate_spapr_xive = {
     .name = TYPE_SPAPR_XIVE,
     .version_id = 1,
     .minimum_version_id = 1,
+    .pre_save = vmstate_spapr_xive_pre_save,
+    .post_load = NULL, /* handled at the machine level */
     .fields = (VMStateField[]) {
         VMSTATE_UINT32_EQUAL(nr_irqs, sPAPRXive, NULL),
         VMSTATE_STRUCT_VARRAY_POINTER_UINT32(eat, sPAPRXive, nr_irqs,

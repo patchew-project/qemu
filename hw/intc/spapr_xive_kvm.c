@@ -60,7 +60,29 @@ static void kvm_cpu_enable(CPUState *cs)
 /*
  * XIVE Thread Interrupt Management context (KVM)
  */
-static void kvmppc_xive_cpu_get_state(XiveTCTX *tctx, Error **errp)
+
+static void kvmppc_xive_cpu_set_state(XiveTCTX *tctx, Error **errp)
+{
+    uint64_t state[4];
+    int ret;
+
+    /* word0 and word1 of the OS ring. */
+    state[0] = *((uint64_t *) &tctx->regs[TM_QW1_OS]);
+
+    /*
+     * OS CAM line. Used by KVM to print out the VP identifier. This
+     * is for debug only.
+     */
+    state[1] = *((uint64_t *) &tctx->regs[TM_QW1_OS + TM_WORD2]);
+
+    ret = kvm_set_one_reg(tctx->cs, KVM_REG_PPC_NVT_STATE, state);
+    if (ret != 0) {
+        error_setg_errno(errp, errno, "Could restore KVM XIVE CPU %ld state",
+                         kvm_arch_vcpu_id(tctx->cs));
+    }
+}
+
+void kvmppc_xive_cpu_get_state(XiveTCTX *tctx, Error **errp)
 {
     uint64_t state[4] = { 0 };
     int ret;
@@ -210,6 +232,59 @@ void kvmppc_xive_source_set_irq(void *opaque, int srcno, int val)
 /*
  * sPAPR XIVE interrupt controller (KVM)
  */
+
+static int kvmppc_xive_set_eq_state(sPAPRXive *xive, CPUState *cs,
+                                       Error **errp)
+{
+    unsigned long vcpu_id = kvm_arch_vcpu_id(cs);
+    int ret;
+    int i;
+
+    for (i = 0; i < XIVE_PRIORITY_MAX + 1; i++) {
+        Error *local_err = NULL;
+        XiveEND *end;
+        uint8_t end_blk;
+        uint32_t end_idx;
+        struct kvm_ppc_xive_eq kvm_eq = { 0 };
+        uint64_t kvm_eq_idx;
+
+        if (spapr_xive_priority_is_reserved(i)) {
+            continue;
+        }
+
+        spapr_xive_cpu_to_end(xive, POWERPC_CPU(cs), i, &end_blk, &end_idx);
+        assert(end_idx < xive->nr_ends);
+        end = &xive->endt[end_idx];
+
+        if (!xive_end_is_valid(end)) {
+            continue;
+        }
+
+        /* Build the KVM state from the local END structure */
+        kvm_eq.flags   = KVM_XIVE_EQ_FLAG_ALWAYS_NOTIFY;
+        kvm_eq.qsize   = GETFIELD_BE32(END_W0_QSIZE, end->w0) + 12;
+        kvm_eq.qpage   = (uint64_t) be32_to_cpu(end->w2 & 0x0fffffff) << 32 |
+            be32_to_cpu(end->w3);
+        kvm_eq.qtoggle = GETFIELD_BE32(END_W1_GENERATION, end->w1);
+        kvm_eq.qindex  = GETFIELD_BE32(END_W1_PAGE_OFF, end->w1);
+
+        /* Encode the tuple (server, prio) as a KVM EQ index */
+        kvm_eq_idx = i << KVM_XIVE_EQ_PRIORITY_SHIFT &
+            KVM_XIVE_EQ_PRIORITY_MASK;
+        kvm_eq_idx |= vcpu_id << KVM_XIVE_EQ_SERVER_SHIFT &
+            KVM_XIVE_EQ_SERVER_MASK;
+
+        ret = kvm_device_access(xive->fd, KVM_DEV_XIVE_GRP_EQ, kvm_eq_idx,
+                                &kvm_eq, true, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return ret;
+        }
+    }
+
+    return 0;
+}
+
 static int kvmppc_xive_get_eq_state(sPAPRXive *xive, CPUState *cs,
                                        Error **errp)
 {
@@ -279,6 +354,48 @@ static int kvmppc_xive_get_eq_state(sPAPRXive *xive, CPUState *cs,
     }
 
     return 0;
+}
+
+static void kvmppc_xive_set_eas_state(sPAPRXive *xive, Error **errp)
+{
+    XiveSource *xsrc = &xive->source;
+    int i;
+
+    for (i = 0; i < xsrc->nr_irqs; i++) {
+        XiveEAS *eas = &xive->eat[i];
+        uint32_t end_idx;
+        uint32_t end_blk;
+        uint32_t eisn;
+        uint8_t priority;
+        uint32_t server;
+        uint64_t kvm_eas;
+        Error *local_err = NULL;
+
+        /* No need to set MASKED EAS, this is the default state after reset */
+        if (!xive_eas_is_valid(eas) || xive_eas_is_masked(eas)) {
+            continue;
+        }
+
+        end_idx = GETFIELD_BE64(EAS_END_INDEX, eas->w);
+        end_blk = GETFIELD_BE64(EAS_END_BLOCK, eas->w);
+        eisn = GETFIELD_BE64(EAS_END_DATA, eas->w);
+
+        spapr_xive_end_to_target(xive, end_blk, end_idx, &server, &priority);
+
+        kvm_eas = priority << KVM_XIVE_EAS_PRIORITY_SHIFT &
+            KVM_XIVE_EAS_PRIORITY_MASK;
+        kvm_eas |= server << KVM_XIVE_EAS_SERVER_SHIFT &
+            KVM_XIVE_EAS_SERVER_MASK;
+        kvm_eas |= ((uint64_t)eisn << KVM_XIVE_EAS_EISN_SHIFT) &
+            KVM_XIVE_EAS_EISN_MASK;
+
+        kvm_device_access(xive->fd, KVM_DEV_XIVE_GRP_EAS, i, &kvm_eas, true,
+                          &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
+        }
+    }
 }
 
 static void kvmppc_xive_get_eas_state(sPAPRXive *xive, Error **errp)
@@ -430,6 +547,74 @@ static void kvmppc_xive_change_state_handler(void *opaque, int running,
     if (local_err) {
         error_report_err(local_err);
     }
+}
+
+int kvmppc_xive_pre_save(sPAPRXive *xive)
+{
+    Error *local_err = NULL;
+    CPUState *cs;
+
+    /* Grab the EAT */
+    kvmppc_xive_get_eas_state(xive, &local_err);
+    if (local_err) {
+        error_report_err(local_err);
+        return -1;
+    }
+
+    /*
+     * Grab the ENDT. The EQ index and the toggle bit are what we want
+     * to capture.
+     */
+    CPU_FOREACH(cs) {
+        kvmppc_xive_get_eq_state(xive, cs, &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
+/*
+ * The sPAPRXive 'post_load' method is called by the sPAPR machine
+ * 'post_load' method, when all XIVE states have been transferred and
+ * loaded.
+ */
+int kvmppc_xive_post_load(sPAPRXive *xive, int version_id)
+{
+    Error *local_err = NULL;
+    CPUState *cs;
+
+    /* Restore the ENDT first. The targetting depends on it. */
+    CPU_FOREACH(cs) {
+        kvmppc_xive_set_eq_state(xive, cs, &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+            return -1;
+        }
+    }
+
+    /* Restore the EAT */
+    kvmppc_xive_set_eas_state(xive, &local_err);
+    if (local_err) {
+        error_report_err(local_err);
+        return -1;
+    }
+
+    /* Restore the thread interrupt contexts */
+    CPU_FOREACH(cs) {
+        PowerPCCPU *cpu = POWERPC_CPU(cs);
+
+        kvmppc_xive_cpu_set_state(XIVE_TCTX(cpu->intc), &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+            return -1;
+        }
+    }
+
+    /* The source states will be restored when the machine starts running */
+    return 0;
 }
 
 void kvmppc_xive_synchronize_state(sPAPRXive *xive)

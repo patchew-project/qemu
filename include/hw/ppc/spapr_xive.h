@@ -47,6 +47,7 @@ bool spapr_xive_irq_free(sPAPRXive *xive, uint32_t lisn);
 void spapr_xive_pic_print_info(sPAPRXive *xive, Monitor *mon);
 qemu_irq spapr_xive_qirq(sPAPRXive *xive, uint32_t lisn);
 bool spapr_xive_priority_is_reserved(uint8_t priority);
+int spapr_xive_post_load(sPAPRXive *xive, int version_id);
 
 void spapr_xive_cpu_to_nvt(sPAPRXive *xive, PowerPCCPU *cpu,
                            uint8_t *out_nvt_blk, uint32_t *out_nvt_idx);
@@ -54,6 +55,8 @@ void spapr_xive_cpu_to_end(sPAPRXive *xive, PowerPCCPU *cpu, uint8_t prio,
                            uint8_t *out_end_blk, uint32_t *out_end_idx);
 int spapr_xive_target_to_end(sPAPRXive *xive, uint32_t target, uint8_t prio,
                              uint8_t *out_end_blk, uint32_t *out_end_idx);
+int spapr_xive_end_to_target(sPAPRXive *xive, uint8_t end_blk, uint32_t end_idx,
+                             uint32_t *out_server, uint8_t *out_prio);
 
 typedef struct sPAPRMachineState sPAPRMachineState;
 
@@ -68,5 +71,7 @@ void spapr_xive_map_mmio(sPAPRXive *xive);
  */
 void kvmppc_xive_connect(sPAPRXive *xive, Error **errp);
 void kvmppc_xive_synchronize_state(sPAPRXive *xive);
+int kvmppc_xive_pre_save(sPAPRXive *xive);
+int kvmppc_xive_post_load(sPAPRXive *xive, int version_id);
 
 #endif /* PPC_SPAPR_XIVE_H */
