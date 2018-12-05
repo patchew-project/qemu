@@ -109,6 +109,9 @@ static struct e820_entry *e820_table;
 static unsigned e820_entries;
 struct hpet_fw_config hpet_cfg = {.count = UINT8_MAX};
 
+/* Physical Address of PVH entry point read from kernel ELF NOTE */
+static size_t pvh_start_addr;
+
 void gsi_handler(void *opaque, int n, int level)
 {
     GSIState *s = opaque;
@@ -834,6 +837,267 @@ struct setup_data {
     uint8_t data[0];
 } __attribute__((packed));
 
+/*
+ * Search through the ELF Notes for an entry with the given
+ * ELF Note type
+ */
+static void *get_elf_note_type(void *ehdr, void *phdr, bool elf_is64,
+    size_t elf_note_type)
+{
+    void *nhdr = NULL;
+    size_t nhdr_size = elf_is64 ? sizeof(Elf64_Nhdr) : sizeof(Elf32_Nhdr);
+    size_t elf_note_entry_sz = 0;
+    size_t phdr_off;
+    size_t phdr_align;
+    size_t phdr_memsz;
+    size_t nhdr_namesz;
+    size_t nhdr_descsz;
+    size_t note_type;
+
+    phdr_off = elf_is64 ?
+        ((Elf64_Phdr *)phdr)->p_offset : ((Elf32_Phdr *)phdr)->p_offset;
+    phdr_align = elf_is64 ?
+        ((Elf64_Phdr *)phdr)->p_align : ((Elf32_Phdr *)phdr)->p_align;
+    phdr_memsz = elf_is64 ?
+        ((Elf64_Phdr *)phdr)->p_memsz : ((Elf32_Phdr *)phdr)->p_memsz;
+
+    nhdr = ehdr + phdr_off;
+    note_type = elf_is64 ?
+        ((Elf64_Nhdr *)nhdr)->n_type : ((Elf32_Nhdr *)nhdr)->n_type;
+    nhdr_namesz = elf_is64 ?
+        ((Elf64_Nhdr *)nhdr)->n_namesz : ((Elf32_Nhdr *)nhdr)->n_namesz;
+    nhdr_descsz = elf_is64 ?
+        ((Elf64_Nhdr *)nhdr)->n_descsz : ((Elf32_Nhdr *)nhdr)->n_descsz;
+
+    while (note_type != elf_note_type) {
+        elf_note_entry_sz = nhdr_size +
+            QEMU_ALIGN_UP(nhdr_namesz, phdr_align) +
+            QEMU_ALIGN_UP(nhdr_descsz, phdr_align);
+
+        /*
+         * Verify that we haven't exceeded the end of the ELF Note section.
+         * If we have, then there is no note of the given type present
+         * in the ELF Notes.
+         */
+        if (phdr_off + phdr_memsz < ((nhdr - ehdr) + elf_note_entry_sz)) {
+            error_report("Note type (0x%lx) not found in ELF Note section",
+                elf_note_type);
+            return NULL;
+        }
+
+        /* skip to the next ELF Note entry */
+        nhdr += elf_note_entry_sz;
+        note_type = elf_is64 ?
+            ((Elf64_Nhdr *)nhdr)->n_type : ((Elf32_Nhdr *)nhdr)->n_type;
+        nhdr_namesz = elf_is64 ?
+            ((Elf64_Nhdr *)nhdr)->n_namesz : ((Elf32_Nhdr *)nhdr)->n_namesz;
+        nhdr_descsz = elf_is64 ?
+            ((Elf64_Nhdr *)nhdr)->n_descsz : ((Elf32_Nhdr *)nhdr)->n_descsz;
+    }
+
+    return nhdr;
+}
+
+/*
+ * The entry point into the kernel for PVH boot is different from
+ * the native entry point.  The PVH entry is defined by the x86/HVM
+ * direct boot ABI and is available in an ELFNOTE in the kernel binary.
+ * This function reads the ELF headers of the binary specified on the
+ * command line by -kernel (path contained in 'filename') and discovers
+ * the PVH entry address from the appropriate ELF Note.
+ *
+ * The address of the PVH entry point is saved to the 'pvh_start_addr'
+ * global variable. The ELF class of the binary is returned via 'elfclass'
+ * (although the entry point is 32-bit, the kernel binary can be either
+ * 32-bit or 64-bit).
+ */
+static bool read_pvh_start_addr_elf_note(const char *filename,
+    unsigned char *elfclass)
+{
+    void *ehdr = NULL; /* Cast to Elf64_Ehdr or Elf32_Ehdr */
+    void *phdr = NULL; /* Cast to Elf64_Phdr or Elf32_Phdr */
+    void *nhdr = NULL; /* Cast to Elf64_Nhdr or Elf32_Nhdr */
+    struct stat statbuf;
+    size_t ehdr_size;
+    size_t phdr_size;
+    size_t nhdr_size;
+    size_t elf_note_data_addr;
+    /* Ehdr fields */
+    size_t ehdr_poff;
+    /* Phdr fields */
+    size_t phdr_off;
+    size_t phdr_align;
+    size_t phdr_memsz;
+    size_t phdr_type;
+    /* Nhdr fields */
+    size_t nhdr_namesz;
+    size_t nhdr_descsz;
+    bool elf_is64;
+    FILE *file;
+    union {
+        Elf32_Ehdr h32;
+        Elf64_Ehdr h64;
+    } elf_header;
+    Error *err = NULL;
+
+    pvh_start_addr = 0;
+
+    if (filename == NULL) {
+        return false;
+    }
+
+    file = fopen(filename, "rb");
+    if (file == NULL) {
+        error_report("fopen(%s) failed", filename);
+        return false;
+    }
+
+    if (fstat(fileno(file), &statbuf) < 0) {
+        error_report("fstat() failed on file (%s)", filename);
+        return false;
+    }
+
+    load_elf_hdr(filename, &elf_header, &elf_is64, &err);
+    if (err) {
+        error_free(err);
+        fclose(file);
+        return false;
+    }
+
+    *elfclass = elf_is64 ?
+        elf_header.h64.e_ident[EI_CLASS] : elf_header.h32.e_ident[EI_CLASS];
+    if (*elfclass == ELFCLASSNONE) {
+        error_report("kernel binary (%s) is ELFCLASSNONE", filename);
+        fclose(file);
+        return false;
+    }
+
+    ehdr_size = elf_is64 ? sizeof(Elf64_Ehdr) : sizeof(Elf32_Ehdr);
+    phdr_size = elf_is64 ? sizeof(Elf64_Phdr) : sizeof(Elf32_Phdr);
+    nhdr_size = elf_is64 ? sizeof(Elf64_Nhdr) : sizeof(Elf32_Nhdr);
+
+    /* We have already validated the ELF header when calling elf_load_hdr() */
+
+    ehdr = mmap(0, statbuf.st_size,
+        PROT_READ | PROT_WRITE, MAP_PRIVATE, fileno(file), 0);
+    if (ehdr == MAP_FAILED) {
+        error_report("Failed to mmap kernel binary (%s)", filename);
+        goto done;
+    }
+
+    /*
+     * Search through the program execution header for the
+     * ELF Note section.
+     */
+
+    ehdr_poff = elf_is64 ?
+        ((Elf64_Ehdr *)(ehdr))->e_phoff : ((Elf32_Ehdr *)(ehdr))->e_phoff;
+    if (statbuf.st_size < (ehdr_size + ehdr_poff)) {
+        error_report("ELF NOTE section exceeds file (%s) size",
+            filename);
+        goto done;
+    }
+
+    phdr = ehdr + ehdr_poff;
+    phdr_type = elf_is64 ?
+        ((Elf64_Phdr *)phdr)->p_type : ((Elf32_Phdr *)phdr)->p_type;
+    while (phdr != NULL && phdr_type != PT_NOTE) {
+        if (statbuf.st_size < ((phdr - ehdr) + phdr_size)) {
+            error_report("ELF Program headers in file (%s) too short",
+                filename);
+            goto done;
+        }
+        phdr += phdr_size;
+        phdr_type = elf_is64 ?
+            ((Elf64_Phdr *)phdr)->p_type : ((Elf32_Phdr *)phdr)->p_type;
+    }
+
+    phdr_off = elf_is64 ?
+        ((Elf64_Phdr *)phdr)->p_offset : ((Elf32_Phdr *)phdr)->p_offset;
+    phdr_align = elf_is64 ?
+        ((Elf64_Phdr *)phdr)->p_align : ((Elf32_Phdr *)phdr)->p_align;
+    phdr_memsz = elf_is64 ?
+        ((Elf64_Phdr *)phdr)->p_memsz : ((Elf32_Phdr *)phdr)->p_memsz;
+
+    /*
+     * check that the start of the ELF Note section is within the bounds
+     * of the kernel ELF binary
+     */
+    if (statbuf.st_size < (ehdr_poff + phdr_size + phdr_off)) {
+        error_report("Start of ELF note section outside of file (%s) bounds",
+            filename);
+        goto done;
+    }
+    /*
+     * check that the end of the ELF Note section is within the bounds
+     * of the kernel ELF binary
+     */
+    if (statbuf.st_size < (phdr_off + phdr_memsz)) {
+        error_report("End of ELF note section outside of file (%s) bounds",
+            filename);
+        goto done;
+    }
+
+    /*
+     * Search through the ELF Notes for an entry with the
+     * Physical Address (PA) of the PVH entry point.
+     */
+    nhdr = get_elf_note_type(ehdr, phdr, elf_is64, XEN_ELFNOTE_PHYS32_ENTRY);
+    if (nhdr == NULL) {
+        error_report("No PVH Entry details in kernel (%s) ELF Note section",
+            filename);
+        goto done;
+    }
+
+    /*
+     * Verify that the returned ELF Note header doesn't exceed the
+     * end of the kernel file
+     */
+    if (statbuf.st_size < ((nhdr - ehdr))) {
+        error_report("ELF Nhdr offset (0x%lx) exceeds file (%s) bounds (%ld)",
+            (nhdr - ehdr), filename, statbuf.st_size);
+        goto done;
+    }
+
+    nhdr_namesz = elf_is64 ?
+        ((Elf64_Nhdr *)nhdr)->n_namesz : ((Elf32_Nhdr *)nhdr)->n_namesz;
+    nhdr_descsz = elf_is64 ?
+        ((Elf64_Nhdr *)nhdr)->n_descsz : ((Elf32_Nhdr *)nhdr)->n_descsz;
+
+    /*
+     * Verify that the ELF Note contents don't exceed the end of the
+     * kernel file
+     */
+    if (statbuf.st_size < ((nhdr - ehdr)) + nhdr_size +
+        QEMU_ALIGN_UP(nhdr_namesz, phdr_align) +
+        QEMU_ALIGN_UP(nhdr_descsz, phdr_align)) {
+        error_report("ELF Nhdr contents (0x%lx) exceeds file bounds (%ld)",
+            (nhdr - ehdr) + nhdr_size + QEMU_ALIGN_UP(nhdr_namesz, phdr_align) +
+            QEMU_ALIGN_UP(nhdr_descsz, phdr_align), statbuf.st_size);
+        goto done;
+    }
+
+    elf_note_data_addr =
+        (size_t)nhdr + nhdr_size + QEMU_ALIGN_UP(nhdr_namesz, phdr_align);
+
+    pvh_start_addr = *(size_t *)elf_note_data_addr;
+
+    /*
+     * Verify that the PVH Entry point address does not exceed the
+     * bounds of the kernel file.
+     */
+    if (statbuf.st_size < pvh_start_addr) {
+        error_report("PVH ELF note addr (0x%lx) exceeds file (%s) bounds (%ld)",
+            (elf_note_data_addr - (size_t)ehdr), filename, statbuf.st_size);
+        pvh_start_addr = 0;
+        goto done;
+    }
+
+done:
+    (void) munmap(ehdr, statbuf.st_size);
+    return pvh_start_addr != 0;
+}
+
 static void load_linux(PCMachineState *pcms,
                        FWCfgState *fw_cfg)
 {
@@ -1334,9 +1598,11 @@ void pc_memory_init(PCMachineState *pcms,
     int linux_boot, i;
     MemoryRegion *ram, *option_rom_mr;
     MemoryRegion *ram_below_4g, *ram_above_4g;
-    FWCfgState *fw_cfg;
+    FWCfgState *fw_cfg = NULL;
+    unsigned char class = ELFCLASSNONE;
     MachineState *machine = MACHINE(pcms);
     PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(pcms);
+    const char *kernel_filename = machine->kernel_filename;
 
     assert(machine->ram_size == pcms->below_4g_mem_size +
                                 pcms->above_4g_mem_size);
@@ -1416,6 +1682,10 @@ void pc_memory_init(PCMachineState *pcms,
                            "device-memory", device_mem_size);
         memory_region_add_subregion(system_memory, machine->device_memory->base,
                                     &machine->device_memory->mr);
+    }
+
+    if (linux_boot) {
+        read_pvh_start_addr_elf_note(kernel_filename, &class);
     }
 
     /* Initialize PC system firmware */
