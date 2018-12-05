@@ -53,4 +53,6 @@ static inline sPAPRCPUState *spapr_cpu_state(PowerPCCPU *cpu)
     return (sPAPRCPUState *)cpu->machine_data;
 }
 
+void spapr_cpu_core_set_intc(PowerPCCPU *cpu, const char *intc_type);
+
 #endif
