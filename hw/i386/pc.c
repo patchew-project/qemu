@@ -54,6 +54,7 @@
 #include "sysemu/qtest.h"
 #include "kvm_i386.h"
 #include "hw/xen/xen.h"
+#include "hw/xen/start_info.h"
 #include "ui/qemu-spice.h"
 #include "exec/memory.h"
 #include "exec/address-spaces.h"
@@ -1098,6 +1099,50 @@ done:
     return pvh_start_addr != 0;
 }
 
+static bool load_elfboot(const char *kernel_filename,
+                   int kernel_file_size,
+                   uint8_t *header,
+                   size_t pvh_xen_start_addr,
+                   FWCfgState *fw_cfg)
+{
+    uint32_t flags = 0;
+    uint32_t mh_load_addr = 0;
+    uint32_t elf_kernel_size = 0;
+    uint64_t elf_entry;
+    uint64_t elf_low, elf_high;
+    int kernel_size;
+
+    if (ldl_p(header) != 0x464c457f) {
+        return false; /* no elfboot */
+    }
+
+    bool elf_is64 = header[EI_CLASS] == ELFCLASS64;
+    flags = elf_is64 ?
+        ((Elf64_Ehdr *)header)->e_flags : ((Elf32_Ehdr *)header)->e_flags;
+
+    if (flags & 0x00010004) { /* LOAD_ELF_HEADER_HAS_ADDR */
+        error_report("elfboot unsupported flags = %x", flags);
+        exit(1);
+    }
+
+    kernel_size = load_elf(kernel_filename, NULL, NULL, &elf_entry,
+                           &elf_low, &elf_high, 0, I386_ELF_MACHINE,
+                           0, 0);
+
+    if (kernel_size < 0) {
+        error_report("Error while loading elf kernel");
+        exit(1);
+    }
+    mh_load_addr = elf_low;
+    elf_kernel_size = elf_high - elf_low;
+
+    fw_cfg_add_i32(fw_cfg, FW_CFG_KERNEL_ENTRY, pvh_xen_start_addr);
+    fw_cfg_add_i32(fw_cfg, FW_CFG_KERNEL_ADDR, mh_load_addr);
+    fw_cfg_add_i32(fw_cfg, FW_CFG_KERNEL_SIZE, elf_kernel_size);
+
+    return true;
+}
+
 static void load_linux(PCMachineState *pcms,
                        FWCfgState *fw_cfg)
 {
@@ -1138,6 +1183,33 @@ static void load_linux(PCMachineState *pcms,
     if (ldl_p(header+0x202) == 0x53726448) {
         protocol = lduw_p(header+0x206);
     } else {
+        /* If the kernel address for using the x86/HVM direct boot ABI has
+         * been saved then proceed with booting the uncompressed kernel */
+        if (pvh_start_addr) {
+            if (load_elfboot(kernel_filename, kernel_size,
+                             header, pvh_start_addr, fw_cfg)) {
+                struct hvm_modlist_entry ramdisk_mod = { 0 };
+
+                fclose(f);
+
+                fw_cfg_add_i32(fw_cfg, FW_CFG_CMDLINE_SIZE,
+                    strlen(kernel_cmdline) + 1);
+                fw_cfg_add_string(fw_cfg, FW_CFG_CMDLINE_DATA, kernel_cmdline);
+
+                assert(machine->device_memory != NULL);
+                ramdisk_mod.paddr = machine->device_memory->base;
+                ramdisk_mod.size =
+                    memory_region_size(&machine->device_memory->mr);
+
+                fw_cfg_add_bytes(fw_cfg, FW_CFG_KERNEL_DATA, &ramdisk_mod,
+                                 sizeof(ramdisk_mod));
+                fw_cfg_add_i32(fw_cfg, FW_CFG_SETUP_SIZE, sizeof(header));
+                fw_cfg_add_bytes(fw_cfg, FW_CFG_SETUP_DATA,
+                                 header, sizeof(header));
+
+                return;
+            }
+        }
         /* This looks like a multiboot kernel. If it is, let's stop
            treating it like a Linux kernel. */
         if (load_multiboot(fw_cfg, f, kernel_filename, initrd_filename,
