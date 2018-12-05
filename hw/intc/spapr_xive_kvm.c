@@ -60,6 +60,39 @@ static void kvm_cpu_enable(CPUState *cs)
 /*
  * XIVE Thread Interrupt Management context (KVM)
  */
+static void kvmppc_xive_cpu_get_state(XiveTCTX *tctx, Error **errp)
+{
+    uint64_t state[4] = { 0 };
+    int ret;
+
+    ret = kvm_get_one_reg(tctx->cs, KVM_REG_PPC_NVT_STATE, state);
+    if (ret != 0) {
+        error_setg_errno(errp, errno, "Could capture KVM XIVE CPU %ld state",
+                         kvm_arch_vcpu_id(tctx->cs));
+        return;
+    }
+
+    /* word0 and word1 of the OS ring. */
+    *((uint64_t *) &tctx->regs[TM_QW1_OS]) = state[0];
+
+    /*
+     * KVM also returns word2 containing the OS CAM line which is
+     * interesting to print out in the QEMU monitor.
+     */
+    *((uint64_t *) &tctx->regs[TM_QW1_OS + TM_WORD2]) = state[1];
+}
+
+static void kvmppc_xive_cpu_do_synchronize_state(CPUState *cpu,
+                                              run_on_cpu_data arg)
+{
+    kvmppc_xive_cpu_get_state(arg.host_ptr, &error_fatal);
+}
+
+void kvmppc_xive_cpu_synchronize_state(XiveTCTX *tctx)
+{
+    run_on_cpu(tctx->cs, kvmppc_xive_cpu_do_synchronize_state,
+               RUN_ON_CPU_HOST_PTR(tctx));
+}
 
 void kvmppc_xive_cpu_connect(XiveTCTX *tctx, Error **errp)
 {
@@ -119,6 +152,34 @@ void kvmppc_xive_source_reset(XiveSource *xsrc, Error **errp)
     }
 }
 
+/*
+ * This is used to perform the magic loads on the ESB pages, described
+ * in xive.h.
+ */
+static uint8_t xive_esb_read(XiveSource *xsrc, int srcno, uint32_t offset)
+{
+    unsigned long addr = (unsigned long) xsrc->esb_mmap +
+        xive_source_esb_mgmt(xsrc, srcno) + offset;
+
+    /* Prevent the compiler from optimizing away the load */
+    volatile uint64_t value = *((uint64_t *) addr);
+
+    return be64_to_cpu(value) & 0x3;
+}
+
+static void kvmppc_xive_source_get_state(XiveSource *xsrc)
+{
+    int i;
+
+    for (i = 0; i < xsrc->nr_irqs; i++) {
+        /* Perform a load without side effect to retrieve the PQ bits */
+        uint8_t pq = xive_esb_read(xsrc, i, XIVE_ESB_GET);
+
+        /* and save PQ locally */
+        xive_source_esb_set(xsrc, i, pq);
+    }
+}
+
 void kvmppc_xive_source_set_irq(void *opaque, int srcno, int val)
 {
     XiveSource *xsrc = opaque;
@@ -149,6 +210,143 @@ void kvmppc_xive_source_set_irq(void *opaque, int srcno, int val)
 /*
  * sPAPR XIVE interrupt controller (KVM)
  */
+static int kvmppc_xive_get_eq_state(sPAPRXive *xive, CPUState *cs,
+                                       Error **errp)
+{
+    unsigned long vcpu_id = kvm_arch_vcpu_id(cs);
+    int ret;
+    int i;
+
+    for (i = 0; i < XIVE_PRIORITY_MAX + 1; i++) {
+        Error *local_err = NULL;
+        struct kvm_ppc_xive_eq kvm_eq = { 0 };
+        uint64_t kvm_eq_idx;
+        XiveEND end = { 0 };
+        uint8_t end_blk, nvt_blk;
+        uint32_t end_idx, nvt_idx;
+
+        /* Skip priorities reserved for the hypervisor */
+        if (spapr_xive_priority_is_reserved(i)) {
+            continue;
+        }
+
+        /* Encode the tuple (server, prio) as a KVM EQ index */
+        kvm_eq_idx = i << KVM_XIVE_EQ_PRIORITY_SHIFT &
+            KVM_XIVE_EQ_PRIORITY_MASK;
+        kvm_eq_idx |= vcpu_id << KVM_XIVE_EQ_SERVER_SHIFT &
+            KVM_XIVE_EQ_SERVER_MASK;
+
+        ret = kvm_device_access(xive->fd, KVM_DEV_XIVE_GRP_EQ, kvm_eq_idx,
+                                &kvm_eq, false, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return ret;
+        }
+
+        if (!(kvm_eq.flags & KVM_XIVE_EQ_FLAG_ENABLED)) {
+            continue;
+        }
+
+        /* Update the local END structure with the KVM input */
+        if (kvm_eq.flags & KVM_XIVE_EQ_FLAG_ENABLED) {
+            end.w0 |= cpu_to_be32(END_W0_VALID | END_W0_ENQUEUE);
+        }
+        if (kvm_eq.flags & KVM_XIVE_EQ_FLAG_ALWAYS_NOTIFY) {
+            end.w0 |= cpu_to_be32(END_W0_UCOND_NOTIFY);
+        }
+        if (kvm_eq.flags & KVM_XIVE_EQ_FLAG_ESCALATE) {
+            end.w0 |= cpu_to_be32(END_W0_ESCALATE_CTL);
+        }
+        end.w0 |= SETFIELD_BE32(END_W0_QSIZE, 0ul, kvm_eq.qsize - 12);
+
+        end.w1 = SETFIELD_BE32(END_W1_GENERATION, 0ul, kvm_eq.qtoggle) |
+            SETFIELD_BE32(END_W1_PAGE_OFF, 0ul, kvm_eq.qindex);
+        end.w2 = cpu_to_be32((kvm_eq.qpage >> 32) & 0x0fffffff);
+        end.w3 = cpu_to_be32(kvm_eq.qpage & 0xffffffff);
+        end.w4 = 0;
+        end.w5 = 0;
+
+        spapr_xive_cpu_to_nvt(xive, POWERPC_CPU(cs), &nvt_blk, &nvt_idx);
+
+        end.w6 = SETFIELD_BE32(END_W6_NVT_BLOCK, 0ul, nvt_blk) |
+            SETFIELD_BE32(END_W6_NVT_INDEX, 0ul, nvt_idx);
+        end.w7 = SETFIELD_BE32(END_W7_F0_PRIORITY, 0ul, i);
+
+        spapr_xive_cpu_to_end(xive, POWERPC_CPU(cs), i, &end_blk, &end_idx);
+
+        assert(end_idx < xive->nr_ends);
+        memcpy(&xive->endt[end_idx], &end, sizeof(XiveEND));
+    }
+
+    return 0;
+}
+
+static void kvmppc_xive_get_eas_state(sPAPRXive *xive, Error **errp)
+{
+    XiveSource *xsrc = &xive->source;
+    int i;
+
+    for (i = 0; i < xsrc->nr_irqs; i++) {
+        XiveEAS *eas = &xive->eat[i];
+        XiveEAS new_eas;
+        uint64_t kvm_eas;
+        uint8_t priority;
+        uint32_t server;
+        uint32_t end_idx;
+        uint8_t end_blk;
+        uint32_t eisn;
+        Error *local_err = NULL;
+
+        if (!xive_eas_is_valid(eas)) {
+            continue;
+        }
+
+        kvm_device_access(xive->fd, KVM_DEV_XIVE_GRP_EAS, i, &kvm_eas, false,
+                          &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
+        }
+
+        priority = (kvm_eas & KVM_XIVE_EAS_PRIORITY_MASK) >>
+            KVM_XIVE_EAS_PRIORITY_SHIFT;
+        server = (kvm_eas & KVM_XIVE_EAS_SERVER_MASK) >>
+            KVM_XIVE_EAS_SERVER_SHIFT;
+        eisn = (kvm_eas & KVM_XIVE_EAS_EISN_MASK) >> KVM_XIVE_EAS_EISN_SHIFT;
+
+        if (spapr_xive_target_to_end(xive, server, priority, &end_blk,
+                                     &end_idx)) {
+            error_setg(errp, "XIVE: invalid tuple CPU %d priority %d", server,
+                       priority);
+            return;
+        }
+
+        new_eas.w = cpu_to_be64(EAS_VALID);
+        if (kvm_eas & KVM_XIVE_EAS_MASK_MASK) {
+            new_eas.w |= cpu_to_be64(EAS_MASKED);
+        }
+
+        new_eas.w = SETFIELD_BE64(EAS_END_INDEX, new_eas.w, end_idx);
+        new_eas.w = SETFIELD_BE64(EAS_END_BLOCK, new_eas.w, end_blk);
+        new_eas.w = SETFIELD_BE64(EAS_END_DATA, new_eas.w, eisn);
+
+        *eas = new_eas;
+    }
+}
+
+void kvmppc_xive_synchronize_state(sPAPRXive *xive)
+{
+    XiveSource *xsrc = &xive->source;
+    CPUState *cs;
+
+    kvmppc_xive_source_get_state(xsrc);
+
+    kvmppc_xive_get_eas_state(xive, &error_fatal);
+
+    CPU_FOREACH(cs) {
+        kvmppc_xive_get_eq_state(xive, cs, &error_fatal);
+    }
+}
 
 static void *kvmppc_xive_mmap(sPAPRXive *xive, int ctrl, size_t len,
                                  Error **errp)

@@ -447,5 +447,6 @@ static inline bool kvmppc_xive_enabled(void)
 void kvmppc_xive_source_reset(XiveSource *xsrc, Error **errp);
 void kvmppc_xive_source_set_irq(void *opaque, int srcno, int val);
 void kvmppc_xive_cpu_connect(XiveTCTX *tctx, Error **errp);
+void kvmppc_xive_cpu_synchronize_state(XiveTCTX *tctx);
 
 #endif /* PPC_XIVE_H */

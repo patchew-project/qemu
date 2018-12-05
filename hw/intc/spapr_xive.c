@@ -48,8 +48,8 @@ static uint32_t spapr_xive_nvt_to_target(sPAPRXive *xive, uint8_t nvt_blk,
     return nvt_idx - SPAPR_XIVE_NVT_BASE;
 }
 
-static void spapr_xive_cpu_to_nvt(sPAPRXive *xive, PowerPCCPU *cpu,
-                                  uint8_t *out_nvt_blk, uint32_t *out_nvt_idx)
+void spapr_xive_cpu_to_nvt(sPAPRXive *xive, PowerPCCPU *cpu,
+                           uint8_t *out_nvt_blk, uint32_t *out_nvt_idx)
 {
     XiveRouter *xrtr = XIVE_ROUTER(xive);
 
@@ -82,9 +82,8 @@ static int spapr_xive_target_to_nvt(sPAPRXive *xive, uint32_t target,
  * sPAPR END indexing uses a simple mapping of the CPU vcpu_id, 8
  * priorities per CPU
  */
-static void spapr_xive_cpu_to_end(sPAPRXive *xive, PowerPCCPU *cpu,
-                                  uint8_t prio, uint8_t *out_end_blk,
-                                  uint32_t *out_end_idx)
+void spapr_xive_cpu_to_end(sPAPRXive *xive, PowerPCCPU *cpu, uint8_t prio,
+                           uint8_t *out_end_blk, uint32_t *out_end_idx)
 {
     XiveRouter *xrtr = XIVE_ROUTER(xive);
 
@@ -100,9 +99,8 @@ static void spapr_xive_cpu_to_end(sPAPRXive *xive, PowerPCCPU *cpu,
     }
 }
 
-static int spapr_xive_target_to_end(sPAPRXive *xive,
-                                    uint32_t target, uint8_t prio,
-                                    uint8_t *out_end_blk, uint32_t *out_end_idx)
+int spapr_xive_target_to_end(sPAPRXive *xive, uint32_t target, uint8_t prio,
+                             uint8_t *out_end_blk, uint32_t *out_end_idx)
 {
    PowerPCCPU *cpu = spapr_find_cpu(target);
 
@@ -140,6 +138,10 @@ void spapr_xive_pic_print_info(sPAPRXive *xive, Monitor *mon)
 {
     XiveSource *xsrc = &xive->source;
     int i;
+
+    if (kvmppc_xive_enabled()) {
+        kvmppc_xive_synchronize_state(xive);
+    }
 
     monitor_printf(mon, "  LSIN         PQ    EISN     CPU/PRIO EQ\n");
 
@@ -539,7 +541,7 @@ qemu_irq spapr_xive_qirq(sPAPRXive *xive, uint32_t lisn)
  * interrupts (DD2.X POWER9). So we only allow the guest to use
  * priorities [0..6].
  */
-static bool spapr_xive_priority_is_reserved(uint8_t priority)
+bool spapr_xive_priority_is_reserved(uint8_t priority)
 {
     switch (priority) {
     case 0 ... 6:
