@@ -203,6 +203,7 @@ sPAPRIrq spapr_irq_xics = {
     .free        = spapr_irq_free_xics,
     .qirq        = spapr_qirq_xics,
     .print_info  = spapr_irq_print_info_xics,
+    .dt_populate = spapr_dt_xics,
 };
 
 /*
@@ -316,6 +317,7 @@ sPAPRIrq spapr_irq_xive = {
     .free        = spapr_irq_free_xive,
     .qirq        = spapr_qirq_xive,
     .print_info  = spapr_irq_print_info_xive,
+    .dt_populate = spapr_dt_xive,
 };
 
 /*
@@ -420,4 +422,5 @@ sPAPRIrq spapr_irq_xics_legacy = {
     .free        = spapr_irq_free_xics,
     .qirq        = spapr_qirq_xics,
     .print_info  = spapr_irq_print_info_xics,
+    .dt_populate = spapr_dt_xics,
 };
