@@ -654,6 +654,8 @@ static void set_pci_devfn(Object *obj, Visitor *v, const char *name,
                           void *opaque, Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
+    BusState *bus = qdev_get_parent_bus(dev);
+    BusClass *bus_class = bus ? BUS_GET_CLASS(bus) : NULL;
     Property *prop = opaque;
     int32_t value, *ptr = qdev_get_prop_ptr(dev, prop);
     unsigned int slot, fn, n;
@@ -687,7 +689,8 @@ static void set_pci_devfn(Object *obj, Visitor *v, const char *name,
             goto invalid;
         }
     }
-    if (str[n] != '\0' || fn > 7 || slot > 31) {
+    if (str[n] != '\0' || fn > 7 || slot > 31 || (bus_class &&
+        bus_class->max_dev != 0 && slot >= bus_class->max_dev)) {
         goto invalid;
     }
     *ptr = slot << 3 | fn;
