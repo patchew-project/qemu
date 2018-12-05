@@ -71,6 +71,7 @@ void spapr_xive_enable_mmio(sPAPRXive *xive, bool enable);
  * KVM XIVE device helpers
  */
 void kvmppc_xive_connect(sPAPRXive *xive, Error **errp);
+void kvmppc_xive_disconnect(sPAPRXive *xive, Error **errp);
 void kvmppc_xive_synchronize_state(sPAPRXive *xive);
 int kvmppc_xive_pre_save(sPAPRXive *xive);
 int kvmppc_xive_post_load(sPAPRXive *xive, int version_id);

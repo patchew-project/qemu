@@ -57,6 +57,16 @@ static void kvm_cpu_enable(CPUState *cs)
     QLIST_INSERT_HEAD(&kvm_enabled_cpus, enabled_cpu, node);
 }
 
+static void kvm_cpu_disable_all(void)
+{
+    KVMEnabledCPU *enabled_cpu, *next;
+
+    QLIST_FOREACH_SAFE(enabled_cpu, &kvm_enabled_cpus, node, next) {
+        QLIST_REMOVE(enabled_cpu, node);
+        g_free(enabled_cpu);
+    }
+}
+
 /*
  * XIVE Thread Interrupt Management context (KVM)
  */
@@ -742,4 +752,55 @@ void kvmppc_xive_connect(sPAPRXive *xive, Error **errp)
 
     /* Map all regions */
     spapr_xive_map_mmio(xive);
+}
+
+void kvmppc_xive_disconnect(sPAPRXive *xive, Error **errp)
+{
+    XiveSource *xsrc;
+    struct kvm_create_device xive_destroy_device = { 0 };
+    size_t esb_len;
+    int rc;
+
+    if (!kvm_enabled() || !kvmppc_has_cap_xive()) {
+        error_setg(errp,
+                   "IRQ_XIVE capability must be present for KVM XIVE device");
+        return;
+    }
+
+    /* The KVM XIVE device is not in use */
+    if (!xive || xive->fd == -1) {
+        return;
+    }
+
+    /* Clear the KVM mapping */
+    xsrc = &xive->source;
+    esb_len = (1ull << xsrc->esb_shift) * xsrc->nr_irqs;
+
+    sysbus_mmio_unmap(SYS_BUS_DEVICE(xive), 0);
+    munmap(xsrc->esb_mmap, esb_len);
+
+    sysbus_mmio_unmap(SYS_BUS_DEVICE(xive), 1);
+
+    sysbus_mmio_unmap(SYS_BUS_DEVICE(xive), 2);
+    munmap(xive->tm_mmap, 4ull << TM_SHIFT);
+
+    /* Destroy the KVM device. This also clears the VCPU presenters */
+    xive_destroy_device.fd = xive->fd;
+    xive_destroy_device.type = KVM_DEV_TYPE_XIVE;
+    rc = kvm_vm_ioctl(kvm_state, KVM_DESTROY_DEVICE, &xive_destroy_device);
+    if (rc < 0) {
+        error_setg_errno(errp, -rc, "Error on KVM_DESTROY_DEVICE for XIVE");
+    }
+    close(xive->fd);
+    xive->fd = -1;
+
+    kvm_kernel_irqchip = false;
+    kvm_msi_via_irqfd_allowed = false;
+    kvm_gsi_direct_mapping = false;
+
+    /* Clear the local list of presenter (hotplug) */
+    kvm_cpu_disable_all();
+
+    /* VM Change state handler is not needed anymore */
+    qemu_del_vm_change_state_handler(xive->change);
 }

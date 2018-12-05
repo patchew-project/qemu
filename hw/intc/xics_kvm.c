@@ -50,6 +50,16 @@ typedef struct KVMEnabledICP {
 static QLIST_HEAD(, KVMEnabledICP)
     kvm_enabled_icps = QLIST_HEAD_INITIALIZER(&kvm_enabled_icps);
 
+static void kvm_disable_icps(void)
+{
+    KVMEnabledICP *enabled_icp, *next;
+
+    QLIST_FOREACH_SAFE(enabled_icp, &kvm_enabled_icps, node, next) {
+        QLIST_REMOVE(enabled_icp, node);
+        g_free(enabled_icp);
+    }
+}
+
 /*
  * ICP-KVM
  */
@@ -454,6 +464,53 @@ fail:
     kvmppc_define_rtas_kernel_token(0, "ibm,int-on");
     kvmppc_define_rtas_kernel_token(0, "ibm,int-off");
     return -1;
+}
+
+int xics_kvm_disconnect(sPAPRMachineState *spapr, Error **errp)
+{
+    int rc;
+    struct kvm_create_device xics_create_device = {
+        .fd = kernel_xics_fd,
+        .type = KVM_DEV_TYPE_XICS,
+        .flags = 0,
+    };
+
+    /* The KVM XICS device is not in use */
+    if (kernel_xics_fd == -1) {
+        return 0;
+    }
+
+    if (!kvm_enabled() || !kvm_check_extension(kvm_state, KVM_CAP_IRQ_XICS)) {
+        error_setg(errp,
+                   "KVM and IRQ_XICS capability must be present for KVM XICS device");
+        return -1;
+    }
+
+    rc = kvm_vm_ioctl(kvm_state, KVM_DESTROY_DEVICE, &xics_create_device);
+    if (rc < 0) {
+        error_setg_errno(errp, -rc, "Error on KVM_DESTROY_DEVICE for XICS");
+    }
+    close(kernel_xics_fd);
+    kernel_xics_fd = -1;
+
+    spapr_rtas_register(RTAS_IBM_SET_XIVE, NULL, 0);
+    spapr_rtas_register(RTAS_IBM_GET_XIVE, NULL, 0);
+    spapr_rtas_register(RTAS_IBM_INT_OFF, NULL, 0);
+    spapr_rtas_register(RTAS_IBM_INT_ON, NULL, 0);
+
+    kvmppc_define_rtas_kernel_token(0, "ibm,set-xive");
+    kvmppc_define_rtas_kernel_token(0, "ibm,get-xive");
+    kvmppc_define_rtas_kernel_token(0, "ibm,int-on");
+    kvmppc_define_rtas_kernel_token(0, "ibm,int-off");
+
+    kvm_kernel_irqchip = false;
+    kvm_msi_via_irqfd_allowed = false;
+    kvm_gsi_direct_mapping = false;
+
+    /* Clear the presenter from the VCPUs */
+    kvm_disable_icps();
+
+    return rc;
 }
 
 static void xics_kvm_register_types(void)
