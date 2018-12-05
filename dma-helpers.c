@@ -235,7 +235,7 @@ BlockAIOCB *dma_blk_read_io_func(int64_t offset, QEMUIOVector *iov,
                                  void *opaque)
 {
     BlockBackend *blk = opaque;
-    return blk_aio_preadv(blk, offset, iov, 0, cb, cb_opaque);
+    return blk_aio_preadv(blk, offset, iov, BDRV_REQ_EXTERNAL, cb, cb_opaque);
 }
 
 BlockAIOCB *dma_blk_read(BlockBackend *blk,
@@ -253,7 +253,7 @@ BlockAIOCB *dma_blk_write_io_func(int64_t offset, QEMUIOVector *iov,
                                   void *opaque)
 {
     BlockBackend *blk = opaque;
-    return blk_aio_pwritev(blk, offset, iov, 0, cb, cb_opaque);
+    return blk_aio_pwritev(blk, offset, iov, BDRV_REQ_EXTERNAL, cb, cb_opaque);
 }
 
 BlockAIOCB *dma_blk_write(BlockBackend *blk,

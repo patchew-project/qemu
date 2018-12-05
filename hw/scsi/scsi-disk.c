@@ -1732,7 +1732,7 @@ static void scsi_write_same_complete(void *opaque, int ret)
         qemu_iovec_init_external(&data->qiov, &data->iov, 1);
         r->req.aiocb = blk_aio_pwritev(s->qdev.conf.blk,
                                        data->sector << BDRV_SECTOR_BITS,
-                                       &data->qiov, 0,
+                                       &data->qiov, BDRV_REQ_EXTERNAL,
                                        scsi_write_same_complete, data);
         aio_context_release(blk_get_aio_context(s->qdev.conf.blk));
         return;
@@ -1804,7 +1804,7 @@ static void scsi_disk_emulate_write_same(SCSIDiskReq *r, uint8_t *inbuf)
                      data->iov.iov_len, BLOCK_ACCT_WRITE);
     r->req.aiocb = blk_aio_pwritev(s->qdev.conf.blk,
                                    data->sector << BDRV_SECTOR_BITS,
-                                   &data->qiov, 0,
+                                   &data->qiov, BDRV_REQ_EXTERNAL,
                                    scsi_write_same_complete, data);
 }
 
@@ -2862,7 +2862,8 @@ BlockAIOCB *scsi_dma_readv(int64_t offset, QEMUIOVector *iov,
 {
     SCSIDiskReq *r = opaque;
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
-    return blk_aio_preadv(s->qdev.conf.blk, offset, iov, 0, cb, cb_opaque);
+    return blk_aio_preadv(s->qdev.conf.blk, offset, iov, BDRV_REQ_EXTERNAL,
+                          cb, cb_opaque);
 }
 
 static
@@ -2872,7 +2873,8 @@ BlockAIOCB *scsi_dma_writev(int64_t offset, QEMUIOVector *iov,
 {
     SCSIDiskReq *r = opaque;
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
-    return blk_aio_pwritev(s->qdev.conf.blk, offset, iov, 0, cb, cb_opaque);
+    return blk_aio_pwritev(s->qdev.conf.blk, offset, iov, BDRV_REQ_EXTERNAL,
+                           cb, cb_opaque);
 }
 
 static void scsi_disk_base_class_initfn(ObjectClass *klass, void *data)

@@ -83,8 +83,14 @@ typedef enum {
      */
     BDRV_REQ_SERIALISING        = 0x80,
 
+    /*
+     * marks requests comming from external sources,
+     * e.g block requests from dma running in the vCPU thread
+     */
+    BDRV_REQ_EXTERNAL   = 0x100,
+
     /* Mask of valid flags */
-    BDRV_REQ_MASK               = 0xff,
+    BDRV_REQ_MASK               = 0xfff,
 } BdrvRequestFlags;
 
 typedef struct BlockSizes {

@@ -1148,6 +1148,8 @@ static int blk_check_byte_request(BlockBackend *blk, int64_t offset,
     return 0;
 }
 
+static void coroutine_fn blk_postpone_request(BlockBackend *blk);
+
 int coroutine_fn blk_co_preadv(BlockBackend *blk, int64_t offset,
                                unsigned int bytes, QEMUIOVector *qiov,
                                BdrvRequestFlags flags)
@@ -1156,6 +1158,10 @@ int coroutine_fn blk_co_preadv(BlockBackend *blk, int64_t offset,
     BlockDriverState *bs = blk_bs(blk);
 
     trace_blk_co_preadv(blk, bs, offset, bytes, flags);
+
+    if ((flags & BDRV_REQ_EXTERNAL)) {
+        blk_postpone_request(blk);
+    }
 
     ret = blk_check_byte_request(blk, offset, bytes);
     if (ret < 0) {
@@ -1183,6 +1189,10 @@ int coroutine_fn blk_co_pwritev(BlockBackend *blk, int64_t offset,
     BlockDriverState *bs = blk_bs(blk);
 
     trace_blk_co_pwritev(blk, bs, offset, bytes, flags);
+
+    if ((flags & BDRV_REQ_EXTERNAL)) {
+        blk_postpone_request(blk);
+    }
 
     ret = blk_check_byte_request(blk, offset, bytes);
     if (ret < 0) {
@@ -1302,6 +1312,27 @@ static void blk_dec_in_flight(BlockBackend *blk)
 {
     atomic_dec(&blk->in_flight);
     aio_wait_kick();
+}
+
+static void coroutine_fn blk_postpone_request(BlockBackend *blk)
+{
+    AioContext *ctx;
+
+    assert(qemu_in_coroutine());
+    ctx = qemu_coroutine_get_aio_context(qemu_coroutine_self());
+
+    /*
+     * Put the request to the postponed queue if
+     * external requests is not allowed currenly
+     * The request is continued when the context
+     * leaves the bdrv "drained" section allowing
+     * external requests
+     */
+    if (aio_external_disabled(ctx)) {
+        blk_dec_in_flight(blk);
+        qemu_co_queue_wait(&ctx->postponed_reqs, NULL);
+        blk_inc_in_flight(blk);
+    }
 }
 
 static void error_callback_bh(void *opaque)

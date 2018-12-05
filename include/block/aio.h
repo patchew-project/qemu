@@ -19,6 +19,7 @@
 #include "qemu/event_notifier.h"
 #include "qemu/thread.h"
 #include "qemu/timer.h"
+#include "qemu/coroutine.h"
 
 typedef struct BlockAIOCB BlockAIOCB;
 typedef void BlockCompletionFunc(void *opaque, int ret);
@@ -130,6 +131,11 @@ struct AioContext {
     QEMUTimerListGroup tlg;
 
     int external_disable_cnt;
+    /* Queue to store the requests coming when the context is disabled for
+     * external requests.
+     * Don't use a separate lock for protection relying the context lock
+     */
+    CoQueue postponed_reqs;
 
     /* Number of AioHandlers without .io_poll() */
     int poll_disable_cnt;
@@ -484,6 +490,15 @@ static inline void aio_timer_init(AioContext *ctx,
 int64_t aio_compute_timeout(AioContext *ctx);
 
 /**
+ * aio_co_enter:
+ * @ctx: the context to run the coroutine
+ * @co: the coroutine to run
+ *
+ * Enter a coroutine in the specified AioContext.
+ */
+void aio_co_enter(AioContext *ctx, struct Coroutine *co);
+
+/**
  * aio_disable_external:
  * @ctx: the aio context
  *
@@ -491,9 +506,17 @@ int64_t aio_compute_timeout(AioContext *ctx);
  */
 static inline void aio_disable_external(AioContext *ctx)
 {
+    aio_context_acquire(ctx);
     atomic_inc(&ctx->external_disable_cnt);
+    aio_context_release(ctx);
 }
 
+static void run_postponed_co(void *opaque)
+{
+    AioContext *ctx = (AioContext *) opaque;
+
+    qemu_co_queue_restart_all(&ctx->postponed_reqs);
+}
 /**
  * aio_enable_external:
  * @ctx: the aio context
@@ -504,12 +527,17 @@ static inline void aio_enable_external(AioContext *ctx)
 {
     int old;
 
+    aio_context_acquire(ctx);
     old = atomic_fetch_dec(&ctx->external_disable_cnt);
     assert(old > 0);
     if (old == 1) {
+        Coroutine *co = qemu_coroutine_create(run_postponed_co, ctx);
+        aio_co_enter(ctx, co);
+
         /* Kick event loop so it re-arms file descriptors */
         aio_notify(ctx);
     }
+    aio_context_release(ctx);
 }
 
 /**
@@ -563,15 +591,6 @@ void aio_co_schedule(AioContext *ctx, struct Coroutine *co);
  * aio_co_wake() is active.
  */
 void aio_co_wake(struct Coroutine *co);
-
-/**
- * aio_co_enter:
- * @ctx: the context to run the coroutine
- * @co: the coroutine to run
- *
- * Enter a coroutine in the specified AioContext.
- */
-void aio_co_enter(AioContext *ctx, struct Coroutine *co);
 
 /**
  * Return the AioContext whose event loop runs in the current thread.
