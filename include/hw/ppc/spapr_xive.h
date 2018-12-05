@@ -39,6 +39,7 @@ typedef struct sPAPRXive {
     /* KVM support */
     int           fd;
     void          *tm_mmap;
+    VMChangeStateEntry *change;
 } sPAPRXive;
 
 bool spapr_xive_irq_claim(sPAPRXive *xive, uint32_t lisn, bool lsi);

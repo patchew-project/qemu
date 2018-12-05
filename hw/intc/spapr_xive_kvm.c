@@ -334,12 +334,118 @@ static void kvmppc_xive_get_eas_state(sPAPRXive *xive, Error **errp)
     }
 }
 
+/*
+ * Sync the XIVE controller through KVM to flush any in-flight event
+ * notification and stabilize the EQs.
+ */
+ static void kvmppc_xive_sync_all(sPAPRXive *xive, Error **errp)
+{
+    XiveSource *xsrc = &xive->source;
+    Error *local_err = NULL;
+    int i;
+
+    /* Sync the KVM source. This reaches the XIVE HW through OPAL */
+    for (i = 0; i < xsrc->nr_irqs; i++) {
+        XiveEAS *eas = &xive->eat[i];
+
+        if (!xive_eas_is_valid(eas)) {
+            continue;
+        }
+
+        kvm_device_access(xive->fd, KVM_DEV_XIVE_GRP_SYNC, i, NULL, true,
+                          &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
+        }
+    }
+}
+
+/*
+ * The primary goal of the XIVE VM change handler is to mark the EQ
+ * pages dirty when all XIVE event notifications have stopped.
+ *
+ * Whenever the VM is stopped, the VM change handler masks the sources
+ * (PQ=01) to stop the flow of events and saves the previous state in
+ * anticipation of a migration. The XIVE controller is then synced
+ * through KVM to flush any in-flight event notification and stabilize
+ * the EQs.
+ *
+ * At this stage, we can mark the EQ page dirty and let a migration
+ * sequence transfer the EQ pages to the destination, which is done
+ * just after the stop state.
+ *
+ * The previous configuration of the sources is restored when the VM
+ * runs again.
+ */
+static void kvmppc_xive_change_state_handler(void *opaque, int running,
+                                             RunState state)
+{
+    sPAPRXive *xive = opaque;
+    XiveSource *xsrc = &xive->source;
+    Error *local_err = NULL;
+    int i;
+
+    /*
+     * Restore the sources to their initial state. This is called when
+     * the VM resumes after a stop or a migration.
+     */
+    if (running) {
+        for (i = 0; i < xsrc->nr_irqs; i++) {
+            uint8_t pq = xive_source_esb_get(xsrc, i);
+            if (xive_esb_read(xsrc, i, XIVE_ESB_SET_PQ_00 + (pq << 8)) != 0x1) {
+                error_report("XIVE: IRQ %d has an invalid state", i);
+            }
+        }
+
+        return;
+    }
+
+    /*
+     * Mask the sources, to stop the flow of event notifications, and
+     * save the PQs locally in the XiveSource object. The XiveSource
+     * state will be collected later on by its vmstate handler if a
+     * migration is in progress.
+     */
+    for (i = 0; i < xsrc->nr_irqs; i++) {
+        uint8_t pq = xive_esb_read(xsrc, i, XIVE_ESB_SET_PQ_01);
+        xive_source_esb_set(xsrc, i, pq);
+    }
+
+    /*
+     * Sync the XIVE controller in KVM, to flush in-flight event
+     * notification that should be enqueued in the EQs.
+     */
+    kvmppc_xive_sync_all(xive, &local_err);
+    if (local_err) {
+        error_report_err(local_err);
+        return;
+    }
+
+    /*
+     * Mark the XIVE EQ pages dirty to collect all updates.
+     */
+    kvm_device_access(xive->fd, KVM_DEV_XIVE_GRP_CTRL,
+                      KVM_DEV_XIVE_SAVE_EQ_PAGES, NULL, true, &local_err);
+    if (local_err) {
+        error_report_err(local_err);
+    }
+}
+
 void kvmppc_xive_synchronize_state(sPAPRXive *xive)
 {
     XiveSource *xsrc = &xive->source;
     CPUState *cs;
 
-    kvmppc_xive_source_get_state(xsrc);
+    /*
+     * When the VM is stopped, the sources are masked and the previous
+     * state is saved in anticipation of a migration. We should not
+     * synchronize the source state in that case else we will override
+     * the saved state.
+     */
+    if (runstate_is_running()) {
+        kvmppc_xive_source_get_state(xsrc);
+    }
 
     kvmppc_xive_get_eas_state(xive, &error_fatal);
 
@@ -441,6 +547,9 @@ void kvmppc_xive_connect(sPAPRXive *xive, Error **errp)
     memory_region_init_ram_device_ptr(&xive->tm_mmio, OBJECT(xive),
                                       "xive.tima", tima_len, xive->tm_mmap);
     sysbus_init_mmio(SYS_BUS_DEVICE(xive), &xive->tm_mmio);
+
+    xive->change = qemu_add_vm_change_state_handler(
+        kvmppc_xive_change_state_handler, xive);
 
     kvm_kernel_irqchip = true;
     kvm_msi_via_irqfd_allowed = true;
