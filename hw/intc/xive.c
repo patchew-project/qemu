@@ -958,10 +958,6 @@ static void xive_source_reset(void *dev)
 
     /* PQs are initialized to 0b01 (Q=1) which corresponds to "ints off" */
     memset(xsrc->status, XIVE_ESB_OFF, xsrc->nr_irqs);
-
-    if (kvmppc_xive_enabled()) {
-        kvmppc_xive_source_reset(xsrc, &error_fatal);
-    }
 }
 
 static void xive_source_realize(DeviceState *dev, Error **errp)

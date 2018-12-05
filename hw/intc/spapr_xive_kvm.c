@@ -712,6 +712,14 @@ void kvmppc_xive_connect(sPAPRXive *xive, Error **errp)
     Error *local_err = NULL;
     size_t esb_len;
     size_t tima_len;
+    CPUState *cs;
+
+    /* The KVM XIVE device already in use. This is the case when
+     * rebooting XIVE -> XIVE
+     */
+    if (xive->fd != -1) {
+        return;
+    }
 
     if (!kvm_enabled() || !kvmppc_has_cap_xive()) {
         error_setg(errp,
@@ -773,6 +781,24 @@ void kvmppc_xive_connect(sPAPRXive *xive, Error **errp)
 
     xive->change = qemu_add_vm_change_state_handler(
         kvmppc_xive_change_state_handler, xive);
+
+    /* Connect the presenters to the initial VCPUs of the machine */
+    CPU_FOREACH(cs) {
+        PowerPCCPU *cpu = POWERPC_CPU(cs);
+
+        kvmppc_xive_cpu_connect(XIVE_TCTX(cpu->intc), &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
+        }
+    }
+
+    /* Update the KVM sources */
+    kvmppc_xive_source_reset(xsrc, &local_err);
+    if (local_err) {
+            error_propagate(errp, local_err);
+            return;
+    }
 
     kvm_kernel_irqchip = true;
     kvm_msi_via_irqfd_allowed = true;

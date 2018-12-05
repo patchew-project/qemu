@@ -331,13 +331,7 @@ static void spapr_xive_realize(DeviceState *dev, Error **errp)
     xive->eat = g_new0(XiveEAS, xive->nr_irqs);
     xive->endt = g_new0(XiveEND, xive->nr_ends);
 
-    if (kvmppc_xive_enabled()) {
-        kvmppc_xive_connect(xive, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
-            return;
-        }
-    } else {
+    if (!kvmppc_xive_enabled()) {
         /* TIMA initialization */
         memory_region_init_io(&xive->tm_mmio, OBJECT(xive), &xive_tm_ops, xive,
                               "xive.tima", 4ull << TM_SHIFT);

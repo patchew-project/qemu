@@ -98,20 +98,14 @@ static void spapr_irq_init_xics(sPAPRMachineState *spapr, int nr_irqs,
     MachineState *machine = MACHINE(spapr);
     Error *local_err = NULL;
 
-    if (kvm_enabled()) {
-        if (machine_kernel_irqchip_allowed(machine) &&
-            !xics_kvm_init(spapr, &local_err)) {
-            spapr->icp_type = TYPE_KVM_ICP;
-            spapr->ics = spapr_ics_create(spapr, TYPE_ICS_KVM, nr_irqs,
-                                          &local_err);
+    if (kvm_enabled() && machine_kernel_irqchip_allowed(machine)) {
+        spapr->icp_type = TYPE_KVM_ICP;
+        spapr->ics = spapr_ics_create(spapr, TYPE_ICS_KVM, nr_irqs,
+                                      &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
         }
-        if (machine_kernel_irqchip_required(machine) && !spapr->ics) {
-            error_prepend(&local_err,
-                          "kernel_irqchip requested but unavailable: ");
-            goto error;
-        }
-        error_free(local_err);
-        local_err = NULL;
     }
 
     if (!spapr->ics) {
@@ -119,10 +113,11 @@ static void spapr_irq_init_xics(sPAPRMachineState *spapr, int nr_irqs,
         spapr->icp_type = TYPE_ICP;
         spapr->ics = spapr_ics_create(spapr, TYPE_ICS_SIMPLE, nr_irqs,
                                       &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
+        }
     }
-
-error:
-    error_propagate(errp, local_err);
 }
 
 #define ICS_IRQ_FREE(ics, srcno)   \
@@ -211,7 +206,9 @@ static int spapr_irq_post_load_xics(sPAPRMachineState *spapr, int version_id)
 
 static void spapr_irq_reset_xics(sPAPRMachineState *spapr, Error **errp)
 {
+    MachineState *machine = MACHINE(spapr);
     CPUState *cs;
+    Error *local_err = NULL;
 
     CPU_FOREACH(cs) {
         spapr_cpu_core_set_intc(POWERPC_CPU(cs), spapr->icp_type);
@@ -220,6 +217,22 @@ static void spapr_irq_reset_xics(sPAPRMachineState *spapr, Error **errp)
     /* Deactivate the XIVE MMIOs */
     if (spapr->xive) {
         spapr_xive_enable_mmio(spapr->xive, false);
+    }
+
+    /* Get rid of the KVM XIVE device and activate XICS */
+    if (kvm_enabled() && machine_kernel_irqchip_allowed(machine)) {
+        kvmppc_xive_disconnect(spapr->xive, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            error_prepend(errp, "KVM XIVE disconnect failed: ");
+            return;
+        }
+        xics_kvm_init(spapr, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            error_prepend(errp, "KVM XICS connect failed: ");
+            return;
+        }
     }
 }
 
@@ -360,6 +373,7 @@ static int spapr_irq_post_load_xive(sPAPRMachineState *spapr, int version_id)
 static void spapr_irq_reset_xive(sPAPRMachineState *spapr, Error **errp)
 {
     CPUState *cs;
+    Error *local_err = NULL;
 
     CPU_FOREACH(cs) {
         spapr_cpu_core_set_intc(POWERPC_CPU(cs), TYPE_XIVE_TCTX);
@@ -370,6 +384,22 @@ static void spapr_irq_reset_xive(sPAPRMachineState *spapr, Error **errp)
      * to come after the XiveTCTX reset handlers.
      */
     spapr_xive_reset_tctx(spapr->xive);
+
+    /* Get rid of the KVM XICS device and activate XIVE */
+    if (kvmppc_xive_enabled()) {
+        xics_kvm_disconnect(spapr, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            error_prepend(errp, "KVM XICS disconnect failed: ");
+            return;
+        }
+        kvmppc_xive_connect(spapr->xive, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            error_prepend(errp, "KVM XIVE connect failed: ");
+            return;
+        }
+    }
 
     /* Activate the XIVE MMIOs */
     spapr_xive_enable_mmio(spapr->xive, true);
@@ -421,13 +451,7 @@ static sPAPRIrq *spapr_irq_current(sPAPRMachineState *spapr)
 static void spapr_irq_init_dual(sPAPRMachineState *spapr, int nr_irqs,
                                 Error **errp)
 {
-    MachineState *machine = MACHINE(spapr);
     Error *local_err = NULL;
-
-    if (kvm_enabled() && machine_kernel_irqchip_allowed(machine)) {
-        error_setg(errp, "No KVM support for the 'dual' machine");
-        return;
-    }
 
     spapr_irq_xics.init(spapr, spapr_irq_xics.nr_irqs, &local_err);
     if (local_err) {

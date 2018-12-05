@@ -431,6 +431,15 @@ static void rtas_dummy(PowerPCCPU *cpu, sPAPRMachineState *spapr,
 int xics_kvm_init(sPAPRMachineState *spapr, Error **errp)
 {
     int rc;
+    CPUState *cs;
+    Error *local_err = NULL;
+
+    /* The KVM XICS device already in use. This is the case when
+     * rebooting XICS -> XICS
+     */
+    if (kernel_xics_fd != -1) {
+        return 0;
+    }
 
     if (!kvm_enabled() || !kvm_check_extension(kvm_state, KVM_CAP_IRQ_XICS)) {
         error_setg(errp,
@@ -478,6 +487,22 @@ int xics_kvm_init(sPAPRMachineState *spapr, Error **errp)
     kvm_kernel_irqchip = true;
     kvm_msi_via_irqfd_allowed = true;
     kvm_gsi_direct_mapping = true;
+
+    /* Connect the presenters to the initial VCPUs of the machine */
+    CPU_FOREACH(cs) {
+        PowerPCCPU *cpu = POWERPC_CPU(cs);
+        ICPState *icp = ICP(cpu->intc);
+
+        icp_kvm_connect(icp, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            goto fail;
+        }
+        icp_set_kvm_state(icp, 1);
+    }
+
+    /* Update the KVM sources */
+    ics_set_kvm_state(ICS_KVM(spapr->ics), 1);
 
     return 0;
 
