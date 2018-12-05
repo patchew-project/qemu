@@ -123,11 +123,8 @@ static void icp_kvm_reset(DeviceState *dev)
     icp_set_kvm_state(ICP(dev), 1);
 }
 
-static void icp_kvm_realize(DeviceState *dev, Error **errp)
+static void icp_kvm_connect(ICPState *icp, Error **errp)
 {
-    ICPState *icp = ICP(dev);
-    ICPStateClass *icpc = ICP_GET_CLASS(icp);
-    Error *local_err = NULL;
     CPUState *cs;
     KVMEnabledICP *enabled_icp;
     unsigned long vcpu_id;
@@ -135,11 +132,6 @@ static void icp_kvm_realize(DeviceState *dev, Error **errp)
 
     if (kernel_xics_fd == -1) {
         abort();
-    }
-
-    icpc->parent_realize(dev, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
         return;
     }
 
@@ -166,6 +158,25 @@ static void icp_kvm_realize(DeviceState *dev, Error **errp)
     enabled_icp = g_malloc(sizeof(*enabled_icp));
     enabled_icp->vcpu_id = vcpu_id;
     QLIST_INSERT_HEAD(&kvm_enabled_icps, enabled_icp, node);
+}
+
+static void icp_kvm_realize(DeviceState *dev, Error **errp)
+{
+    ICPStateClass *icpc = ICP_GET_CLASS(dev);
+    Error *local_err = NULL;
+
+    icpc->parent_realize(dev, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    /* Connect the presenter to the VCPU (required for CPU hotplug) */
+    icp_kvm_connect(ICP(dev), &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
 }
 
 static void icp_kvm_class_init(ObjectClass *klass, void *data)
