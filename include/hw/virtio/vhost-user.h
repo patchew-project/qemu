@@ -17,11 +17,19 @@ typedef struct VhostUserHostNotifier {
     bool set;
 } VhostUserHostNotifier;
 
+typedef struct VhostUserInflight {
+    void *addr;
+    uint32_t size;
+    int fd;
+} VhostUserInflight;
+
 typedef struct VhostUserState {
     CharBackend *chr;
     VhostUserHostNotifier notifier[VIRTIO_QUEUE_MAX];
+    VhostUserInflight inflight[VIRTIO_QUEUE_MAX];
 } VhostUserState;
 
+void vhost_user_inflight_reset(VhostUserState *user);
 VhostUserState *vhost_user_init(void);
 void vhost_user_cleanup(VhostUserState *user);
 

@@ -19,6 +19,7 @@
 #include "sysemu/kvm.h"
 #include "qemu/error-report.h"
 #include "qemu/sockets.h"
+#include "qemu/memfd.h"
 #include "sysemu/cryptodev.h"
 #include "migration/migration.h"
 #include "migration/postcopy-ram.h"
@@ -52,6 +53,7 @@ enum VhostUserProtocolFeature {
     VHOST_USER_PROTOCOL_F_CONFIG = 9,
     VHOST_USER_PROTOCOL_F_SLAVE_SEND_FD = 10,
     VHOST_USER_PROTOCOL_F_HOST_NOTIFIER = 11,
+    VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD = 12,
     VHOST_USER_PROTOCOL_F_MAX
 };
 
@@ -89,6 +91,7 @@ typedef enum VhostUserRequest {
     VHOST_USER_POSTCOPY_ADVISE  = 28,
     VHOST_USER_POSTCOPY_LISTEN  = 29,
     VHOST_USER_POSTCOPY_END     = 30,
+    VHOST_USER_SET_VRING_INFLIGHT = 31,
     VHOST_USER_MAX
 } VhostUserRequest;
 
@@ -147,6 +150,11 @@ typedef struct VhostUserVringArea {
     uint64_t offset;
 } VhostUserVringArea;
 
+typedef struct VhostUserVringInflight {
+    uint32_t size;
+    uint32_t idx;
+} VhostUserVringInflight;
+
 typedef struct {
     VhostUserRequest request;
 
@@ -169,6 +177,7 @@ typedef union {
         VhostUserConfig config;
         VhostUserCryptoSession session;
         VhostUserVringArea area;
+        VhostUserVringInflight inflight;
 } VhostUserPayload;
 
 typedef struct VhostUserMsg {
@@ -1739,6 +1748,58 @@ static bool vhost_user_mem_section_filter(struct vhost_dev *dev,
     return result;
 }
 
+static int vhost_user_set_vring_inflight(struct vhost_dev *dev, int idx)
+{
+    struct vhost_user *u = dev->opaque;
+
+    if (!virtio_has_feature(dev->protocol_features,
+                            VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD)) {
+        return 0;
+    }
+
+    if (!u->user->inflight[idx].addr) {
+        Error *err = NULL;
+
+        u->user->inflight[idx].size = qemu_real_host_page_size;
+        u->user->inflight[idx].addr = qemu_memfd_alloc("vhost-inflight",
+                                      u->user->inflight[idx].size,
+                                      F_SEAL_GROW | F_SEAL_SHRINK | F_SEAL_SEAL,
+                                      &u->user->inflight[idx].fd, &err);
+        if (err) {
+            error_report_err(err);
+            u->user->inflight[idx].addr = NULL;
+            return -1;
+        }
+    }
+
+    VhostUserMsg msg = {
+        .hdr.request = VHOST_USER_SET_VRING_INFLIGHT,
+        .hdr.flags = VHOST_USER_VERSION,
+        .payload.inflight.size = u->user->inflight[idx].size,
+        .payload.inflight.idx = idx,
+        .hdr.size = sizeof(msg.payload.inflight),
+    };
+
+    if (vhost_user_write(dev, &msg, &u->user->inflight[idx].fd, 1) < 0) {
+        return -1;
+    }
+
+    return 0;
+}
+
+void vhost_user_inflight_reset(VhostUserState *user)
+{
+    int i;
+
+    for (i = 0; i < VIRTIO_QUEUE_MAX; i++) {
+        if (!user->inflight[i].addr) {
+            continue;
+        }
+
+        memset(user->inflight[i].addr, 0, user->inflight[i].size);
+    }
+}
+
 VhostUserState *vhost_user_init(void)
 {
     VhostUserState *user = g_new0(struct VhostUserState, 1);
@@ -1755,6 +1816,13 @@ void vhost_user_cleanup(VhostUserState *user)
             object_unparent(OBJECT(&user->notifier[i].mr));
             munmap(user->notifier[i].addr, qemu_real_host_page_size);
             user->notifier[i].addr = NULL;
+        }
+
+        if (user->inflight[i].addr) {
+            munmap(user->inflight[i].addr, user->inflight[i].size);
+            user->inflight[i].addr = NULL;
+            close(user->inflight[i].fd);
+            user->inflight[i].fd = -1;
         }
     }
 }
@@ -1790,4 +1858,5 @@ const VhostOps user_ops = {
         .vhost_crypto_create_session = vhost_user_crypto_create_session,
         .vhost_crypto_close_session = vhost_user_crypto_close_session,
         .vhost_backend_mem_section_filter = vhost_user_mem_section_filter,
+        .vhost_set_vring_inflight = vhost_user_set_vring_inflight,
 };

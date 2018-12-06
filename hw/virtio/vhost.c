@@ -973,6 +973,14 @@ static int vhost_virtqueue_start(struct vhost_dev *dev,
         return -errno;
     }
 
+    if (dev->vhost_ops->vhost_set_vring_inflight) {
+        r = dev->vhost_ops->vhost_set_vring_inflight(dev, vhost_vq_index);
+        if (r) {
+            VHOST_OPS_DEBUG("vhost_set_vring_inflight failed");
+            return -errno;
+        }
+    }
+
     state.num = virtio_queue_get_last_avail_idx(vdev, idx);
     r = dev->vhost_ops->vhost_set_vring_base(dev, &state);
     if (r) {
