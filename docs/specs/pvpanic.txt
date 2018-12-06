@@ -1,13 +1,17 @@
 PVPANIC DEVICE
 ==============
 
-pvpanic device is a simulated ISA device, through which a guest panic
+pvpanic device is a simulated device, through which a guest panic
 event is sent to qemu, and a QMP event is generated. This allows
 management apps (e.g. libvirt) to be notified and respond to the event.
 
 The management app has the option of waiting for GUEST_PANICKED events,
 and/or polling for guest-panicked RunState, to learn when the pvpanic
 device has fired a panic event.
+
+The pvpanic device can be implemented as an ISA device (using IOPORT),
+or, since qemu 4.0, as a PCI device (using MMIO address space of pci
+device).
 
 ISA Interface
 -------------
@@ -18,6 +22,13 @@ recognize. On write, the bits not recognized by the device are ignored.
 Software should set only bits both itself and the device recognize.
 Currently, only bit 0 is recognized, setting it indicates a guest panic
 has happened.
+
+PCI Interface
+-------------
+
+The PCI interface is similar to the ISA interface except that it uses
+MMIO. For example, the arm virt machine could enable pvpanic-pci device 
+according to adding "-device pvpanic-pci" in qemu command.
 
 ACPI Interface
 --------------
