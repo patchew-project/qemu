@@ -37,6 +37,10 @@ typedef struct VHostUserBlk {
     uint32_t config_wce;
     struct vhost_dev dev;
     VhostUserState *vhost_user;
+    struct vhost_virtqueue *vqs;
+    guint watch;
+    bool should_start;
+    bool connected;
 } VHostUserBlk;
 
 #endif
