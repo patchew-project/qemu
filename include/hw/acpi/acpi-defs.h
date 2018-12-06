@@ -628,7 +628,11 @@ struct AcpiIortItsGroup {
 } QEMU_PACKED;
 typedef struct AcpiIortItsGroup AcpiIortItsGroup;
 
-#define ACPI_IORT_SMMU_V3_COHACC_OVERRIDE 1
+enum {
+    ACPI_IORT_SMMU_V3_COHACC_OVERRIDE = 1 << 0,
+    ACPI_IORT_SMMU_V3_HTTU_OVERRIDE   = 3 << 1,
+    ACPI_IORT_SMMU_V3_PXM_VALID       = 1 << 3
+};
 
 struct AcpiIortSmmu3 {
     ACPI_IORT_NODE_HEADER_DEF
@@ -641,6 +645,8 @@ struct AcpiIortSmmu3 {
     uint32_t pri_gsiv;
     uint32_t gerr_gsiv;
     uint32_t sync_gsiv;
+    uint32_t pxm;
+    uint32_t id_mapping_index;
     AcpiIortIdMapping id_mapping_array[0];
 } QEMU_PACKED;
 typedef struct AcpiIortSmmu3 AcpiIortSmmu3;
@@ -650,6 +656,8 @@ struct AcpiIortRC {
     AcpiIortMemoryAccess memory_properties;
     uint32_t ats_attribute;
     uint32_t pci_segment_number;
+    uint8_t memory_address_limit;
+    uint8_t reserved2[3];
     AcpiIortIdMapping id_mapping_array[0];
 } QEMU_PACKED;
 typedef struct AcpiIortRC AcpiIortRC;

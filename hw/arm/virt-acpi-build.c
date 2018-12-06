@@ -423,6 +423,7 @@ build_iort(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
      */
     iort_node_offset = sizeof(*iort);
     iort->node_offset = cpu_to_le32(iort_node_offset);
+    iort->revision = 0;
 
     /* ITS group node */
     node_size =  sizeof(*its) + sizeof(uint32_t);
@@ -445,6 +446,7 @@ build_iort(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
 
         smmu->type = ACPI_IORT_NODE_SMMU_V3;
         smmu->length = cpu_to_le16(node_size);
+        smmu->revision = cpu_to_le32(2);
         smmu->mapping_count = cpu_to_le32(1);
         smmu->mapping_offset = cpu_to_le32(sizeof(*smmu));
         smmu->base_address = cpu_to_le64(vms->memmap[VIRT_SMMU].base);
@@ -470,6 +472,7 @@ build_iort(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
 
     rc->type = ACPI_IORT_NODE_PCI_ROOT_COMPLEX;
     rc->length = cpu_to_le16(node_size);
+    rc->revision = cpu_to_le32(1);
     rc->mapping_count = cpu_to_le32(1);
     rc->mapping_offset = cpu_to_le32(sizeof(*rc));
 
@@ -477,6 +480,7 @@ build_iort(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     rc->memory_properties.cache_coherency = cpu_to_le32(1);
     rc->memory_properties.memory_flags = 0x3; /* CCA = CPM = DCAS = 1 */
     rc->pci_segment_number = 0; /* MCFG pci_segment */
+    rc->memory_address_limit = 64;
 
     /* Identity RID mapping covering the whole input RID range */
     idmap = &rc->id_mapping_array[0];
