@@ -417,6 +417,23 @@ void kd_api_write_physical_memory(CPUState *cs, PacketData *pd)
     stl_p(&mem->ActualBytesWritten, len);
 }
 
+void kd_api_search_memory(CPUState *cs, PacketData *pd)
+{
+    DBGKD_SEARCH_MEMORY *m64c = &pd->m64.u.SearchMemory;
+    int s_len = MAX(ldq_p(&m64c->SearchLength), 1);
+    int p_len = MIN(ldl_p(&m64c->PatternLength), pd->extra_size);
+    target_ulong addr = ldq_p(&m64c->SearchAddress);
+    InitedAddr find =
+        windbg_search_vmaddr(cs, addr, addr + s_len, pd->extra, p_len);
+    pd->extra_size = 0;
+    if (find.is_init) {
+        stl_p(&m64c->FoundAddress, find.addr);
+        pd->m64.ReturnStatus = STATUS_SUCCESS;
+    } else {
+        pd->m64.ReturnStatus = STATUS_NO_MORE_ENTRIES;
+    }
+}
+
 void kd_api_clear_all_internal_breakpoints(CPUState *cs, PacketData *pd)
 {
 }
