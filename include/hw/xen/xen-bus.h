@@ -23,7 +23,9 @@ typedef struct XenDevice {
     char *backend_path, *frontend_path;
     enum xenbus_state backend_state, frontend_state;
     Notifier exit;
-    XenWatch *frontend_state_watch;
+    XenWatch *backend_state_watch, *frontend_state_watch;
+    bool backend_online;
+    XenWatch *backend_online_watch;
     xengnttab_handle *xgth;
     bool feature_grant_copy;
     xenevtchn_handle *xeh;
@@ -63,6 +65,7 @@ typedef struct XenBus {
     domid_t backend_id;
     struct xs_handle *xsh;
     NotifierList watch_notifiers;
+    XenWatch *backend_watch;
 } XenBus;
 
 typedef struct XenBusClass {
