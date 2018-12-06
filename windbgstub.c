@@ -129,9 +129,19 @@ static void windbg_send_control_packet(WindbgState *state, uint16_t type,
     qemu_chr_fe_write(&state->chr, PTR(packet), sizeof(packet));
 }
 
+static void windbg_bp_handler(CPUState *cs)
+{
+    DBGKD_ANY_WAIT_STATE_CHANGE *sc = kd_state_change_exc(cs);
+    windbg_send_data_packet(windbg_state, (uint8_t *) sc,
+                            sizeof(DBGKD_ANY_WAIT_STATE_CHANGE),
+                            PACKET_TYPE_KD_STATE_CHANGE64);
+}
+
 static void windbg_vm_stop(void)
 {
+    CPUState *cs = qemu_get_cpu(0);
     vm_stop(RUN_STATE_PAUSED);
+    windbg_bp_handler(cs);
 }
 
 static void windbg_process_manipulate_packet(WindbgState *state)
@@ -480,6 +490,10 @@ int windbg_server_start(const char *device)
                              windbg_chr_receive, NULL, NULL, NULL, NULL, true);
 
     qemu_register_reset(windbg_handle_reset, NULL);
+
+    if (!register_excp_debug_handler(windbg_bp_handler)) {
+        exit(1);
+    }
 
     atexit(windbg_exit);
     return 0;
