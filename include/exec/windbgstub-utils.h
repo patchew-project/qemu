@@ -67,6 +67,9 @@ typedef struct PacketData {
 const char *kd_api_name(int id);
 const char *kd_pkt_type_name(int id);
 
+DBGKD_ANY_WAIT_STATE_CHANGE *kd_state_change_exc(CPUState *cs);
+DBGKD_ANY_WAIT_STATE_CHANGE *kd_state_change_ls(CPUState *cs);
+
 bool windbg_on_load(void);
 void windbg_on_reset(void);
 

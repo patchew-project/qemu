@@ -161,7 +161,6 @@ void windbg_on_reset(void)
 #endif
 }
 
-__attribute__ ((unused)) /* unused yet */
 static void kd_init_state_change(CPUState *cs, DBGKD_ANY_WAIT_STATE_CHANGE *sc)
 {
     X86CPU *cpu = X86_CPU(cs);
@@ -200,4 +199,36 @@ static void kd_init_state_change(CPUState *cs, DBGKD_ANY_WAIT_STATE_CHANGE *sc)
     /* This is a feature */
     memset(cr->InstructionStream, 0, DBGKD_MAXSTREAM);
     stw_p(&cr->InstructionCount, 0);
+}
+
+DBGKD_ANY_WAIT_STATE_CHANGE *kd_state_change_exc(CPUState *cs)
+{
+    DBGKD_ANY_WAIT_STATE_CHANGE *sc = g_new0(DBGKD_ANY_WAIT_STATE_CHANGE, 1);
+    DBGKM_EXCEPTION_RECORD64 *exc = &sc->u.Exception.ExceptionRecord;
+    X86CPU *cpu = X86_CPU(cs);
+    CPUX86State *env = &cpu->env;
+
+    kd_init_state_change(cs, sc);
+
+    stl_p(&sc->NewState, DbgKdExceptionStateChange);
+    sttul_p(&exc->ExceptionAddress, env->eip);
+
+    /* TODO: Fix this hardcoded value. */
+    stl_p(&exc->ExceptionCode, 0x80000003);
+
+    return sc;
+}
+
+DBGKD_ANY_WAIT_STATE_CHANGE *kd_state_change_ls(CPUState *cs)
+{
+    DBGKD_ANY_WAIT_STATE_CHANGE *sc = g_new0(DBGKD_ANY_WAIT_STATE_CHANGE, 1);
+
+    kd_init_state_change(cs, sc);
+
+    stl_p(&sc->NewState, DbgKdLoadSymbolsStateChange);
+
+    /* TODO: Path to load symbold (with extra array). */
+    stl_p(&sc->u.LoadSymbols.PathNameLength, 0);
+
+    return sc;
 }
