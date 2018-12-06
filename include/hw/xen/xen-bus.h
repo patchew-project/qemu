@@ -84,6 +84,16 @@ void xen_device_backend_set_state(XenDevice *xendev,
                                   enum xenbus_state state);
 enum xenbus_state xen_device_backend_get_state(XenDevice *xendev);
 
+void xen_device_backend_printf(XenDevice *xendev, const char *key,
+                               const char *fmt, ...)
+    GCC_FMT_ATTR(3, 4);
+void xen_device_frontend_printf(XenDevice *xendev, const char *key,
+                                const char *fmt, ...)
+    GCC_FMT_ATTR(3, 4);
+
+int xen_device_frontend_scanf(XenDevice *xendev, const char *key,
+                              const char *fmt, ...);
+
 void xen_device_set_max_grant_refs(XenDevice *xendev, unsigned int nr_refs,
                                    Error **errp);
 void *xen_device_map_grant_refs(XenDevice *xendev, uint32_t *refs,
