@@ -37,6 +37,7 @@ typedef struct XenBlockDevice {
     unsigned int info;
     unsigned int max_ring_page_order;
     IOThread *iothread;
+    IOThread *auto_iothread;
     XenBlockDataPlane *dataplane;
 } XenBlockDevice;
 

@@ -193,7 +193,7 @@ static void xen_bus_backend_create(XenBus *xenbus, const char *type,
 
     if (local_err) {
         error_reportf_err(local_err, "failed to create '%s' device '%s': ",
-                      type, name);
+                          type, name);
     }
 }
 
