@@ -20,6 +20,7 @@
 #include "sysemu/cpus.h"
 #include "hw/s390x/ipl.h"
 #include "hw/s390x/s390-virtio-ccw.h"
+#include "kvm_s390x.h"
 
 int handle_diag_288(CPUS390XState *env, uint64_t r1, uint64_t r3)
 {
@@ -133,4 +134,55 @@ out:
         hw_error("Unhandled diag308 subcode %" PRIx64, subcode);
         break;
     }
+}
+
+typedef struct Diag318Data {
+    uint64_t cpc;
+} Diag318Data;
+static Diag318Data diag318data;
+
+void diag318_reset(void)
+{
+    if (s390_has_feat(S390_FEAT_DIAG318)) {
+        kvm_s390_set_cpc(0);
+    }
+}
+
+static int diag318_post_load(void *opaque, int version_id)
+{
+    Diag318Data *d = opaque;
+
+    kvm_s390_set_cpc(d->cpc);
+    return 0;
+}
+
+static int diag318_pre_save(void *opaque)
+{
+    Diag318Data *d = opaque;
+
+    kvm_s390_get_cpc(&d->cpc);
+    return 0;
+}
+
+static bool diag318_needed(void *opaque)
+{
+    return s390_has_feat(S390_FEAT_DIAG318);
+}
+
+const VMStateDescription vmstate_diag318 = {
+    .name = "diag318",
+    .post_load = diag318_post_load,
+    .pre_save = diag318_pre_save,
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = diag318_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64(cpc, Diag318Data),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+void diag318_register(void)
+{
+    vmstate_register(NULL, 0, &vmstate_diag318, &diag318data);
 }
