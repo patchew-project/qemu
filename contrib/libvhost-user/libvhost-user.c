@@ -100,6 +100,7 @@ vu_request_to_string(unsigned int req)
         REQ(VHOST_USER_POSTCOPY_ADVISE),
         REQ(VHOST_USER_POSTCOPY_LISTEN),
         REQ(VHOST_USER_POSTCOPY_END),
+        REQ(VHOST_USER_SET_VRING_INFLIGHT),
         REQ(VHOST_USER_MAX),
     };
 #undef REQ
@@ -890,6 +891,41 @@ vu_check_queue_msg_file(VuDev *dev, VhostUserMsg *vmsg)
     return true;
 }
 
+static int
+vu_check_queue_inflights(VuDev *dev, VuVirtq *vq)
+{
+    int i = 0;
+
+    if ((dev->protocol_features &
+         VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD) == 0) {
+        return 0;
+    }
+
+    if (unlikely(!vq->inflight.addr)) {
+        return -1;
+    }
+
+    vq->used_idx = vq->vring.used->idx;
+    vq->inflight_num = 0;
+    for (i = 0; i < vq->vring.num; i++) {
+        if (vq->inflight.addr[i] == 0) {
+            continue;
+        }
+
+        vq->inflight_desc[vq->inflight_num++] = i;
+        vq->inuse++;
+    }
+    vq->shadow_avail_idx = vq->last_avail_idx = vq->inuse + vq->used_idx;
+
+    /* in case of I/O hang after reconnecting */
+    if (eventfd_write(vq->kick_fd, 1) ||
+        eventfd_write(vq->call_fd, 1)) {
+        return -1;
+    }
+
+    return 0;
+}
+
 static bool
 vu_set_vring_kick_exec(VuDev *dev, VhostUserMsg *vmsg)
 {
@@ -923,6 +959,10 @@ vu_set_vring_kick_exec(VuDev *dev, VhostUserMsg *vmsg)
 
         DPRINT("Waiting for kicks on fd: %d for vq: %d\n",
                dev->vq[index].kick_fd, index);
+    }
+
+    if (vu_check_queue_inflights(dev, &dev->vq[index])) {
+        vu_panic(dev, "Failed to check inflights for vq: %d\n", index);
     }
 
     return false;
@@ -1216,6 +1256,44 @@ vu_set_postcopy_end(VuDev *dev, VhostUserMsg *vmsg)
 }
 
 static bool
+vu_set_vring_inflight(VuDev *dev, VhostUserMsg *vmsg)
+{
+    int fd;
+    uint32_t size, idx;
+    void *rc;
+
+    if (vmsg->fd_num != 1 ||
+        vmsg->size != sizeof(vmsg->payload.inflight)) {
+        vu_panic(dev, "Invalid vring_inflight message size:%d fds:%d",
+                 vmsg->size, vmsg->fd_num);
+        return false;
+    }
+
+    fd = vmsg->fds[0];
+    idx = vmsg->payload.inflight.idx;
+    size = vmsg->payload.inflight.size;
+    DPRINT("vring_inflight idx: %"PRId32"\n", idx);
+    DPRINT("vring_inflight size: %"PRId32"\n", size);
+
+    rc = mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+
+    close(fd);
+
+    if (rc == MAP_FAILED) {
+        vu_panic(dev, "vring_inflight mmap error: %s", strerror(errno));
+        return false;
+    }
+
+    if (dev->vq[idx].inflight.addr) {
+        munmap(dev->vq[idx].inflight.addr, dev->vq[idx].inflight.size);
+    }
+    dev->vq[idx].inflight.addr = (char *)rc;
+    dev->vq[idx].inflight.size = size;
+
+    return false;
+}
+
+static bool
 vu_process_message(VuDev *dev, VhostUserMsg *vmsg)
 {
     int do_reply = 0;
@@ -1292,6 +1370,8 @@ vu_process_message(VuDev *dev, VhostUserMsg *vmsg)
         return vu_set_postcopy_listen(dev, vmsg);
     case VHOST_USER_POSTCOPY_END:
         return vu_set_postcopy_end(dev, vmsg);
+    case VHOST_USER_SET_VRING_INFLIGHT:
+        return vu_set_vring_inflight(dev, vmsg);
     default:
         vmsg_close_fds(vmsg);
         vu_panic(dev, "Unhandled request: %d", vmsg->request);
@@ -1358,6 +1438,11 @@ vu_deinit(VuDev *dev)
         if (vq->err_fd != -1) {
             close(vq->err_fd);
             vq->err_fd = -1;
+        }
+
+        if (vq->inflight.addr) {
+            munmap(vq->inflight.addr, vq->inflight.size);
+            vq->inflight.addr = NULL;
         }
     }
 
@@ -1935,15 +2020,56 @@ vu_queue_map_desc(VuDev *dev, VuVirtq *vq, unsigned int idx, size_t sz)
     return elem;
 }
 
+static int
+vu_queue_inflight_get(VuDev *dev, VuVirtq *vq, int desc_idx)
+{
+    if ((dev->protocol_features &
+         VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD) == 0) {
+        return 0;
+    }
+
+    if (unlikely(!vq->inflight.addr)) {
+        return -1;
+    }
+
+    vq->inflight.addr[desc_idx] = 1;
+
+    return 0;
+}
+
+static int
+vu_queue_inflight_put(VuDev *dev, VuVirtq *vq, int desc_idx)
+{
+    if ((dev->protocol_features &
+         VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD) == 0) {
+        return 0;
+    }
+
+    if (unlikely(!vq->inflight.addr)) {
+        return -1;
+    }
+
+    vq->inflight.addr[desc_idx] = 0;
+
+    return 0;
+}
+
 void *
 vu_queue_pop(VuDev *dev, VuVirtq *vq, size_t sz)
 {
+    int i;
     unsigned int head;
     VuVirtqElement *elem;
 
     if (unlikely(dev->broken) ||
         unlikely(!vq->vring.avail)) {
         return NULL;
+    }
+
+    if (unlikely(vq->inflight_num > 0)) {
+        i = (--vq->inflight_num);
+        elem = vu_queue_map_desc(dev, vq, vq->inflight_desc[i], sz);
+        return elem;
     }
 
     if (vu_queue_empty(dev, vq)) {
@@ -1973,6 +2099,8 @@ vu_queue_pop(VuDev *dev, VuVirtq *vq, size_t sz)
     }
 
     vq->inuse++;
+
+    vu_queue_inflight_get(dev, vq, head);
 
     return elem;
 }
@@ -2119,4 +2247,5 @@ vu_queue_push(VuDev *dev, VuVirtq *vq,
 {
     vu_queue_fill(dev, vq, elem, len, 0);
     vu_queue_flush(dev, vq, 1);
+    vu_queue_inflight_put(dev, vq, elem->index);
 }
