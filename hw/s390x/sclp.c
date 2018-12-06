@@ -73,6 +73,8 @@ static void read_SCP_info(SCLPDevice *sclp, SCCB *sccb)
                          read_info->conf_char);
     s390_get_feat_block(S390_FEAT_TYPE_SCLP_CONF_CHAR_EXT,
                          read_info->conf_char_ext);
+    /* Read Info byte 134 */
+    s390_get_feat_block(S390_FEAT_TYPE_SCLP_BYTE_134, read_info->byte_134);
 
     read_info->facilities = cpu_to_be64(SCLP_HAS_CPU_INFO |
                                         SCLP_HAS_IOA_RECONFIG);

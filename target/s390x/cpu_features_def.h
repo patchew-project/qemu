@@ -109,6 +109,9 @@ typedef enum {
     S390_FEAT_SIE_PFMFI,
     S390_FEAT_SIE_IBS,
 
+    /* Read Info Byte 134 */
+    S390_FEAT_DIAG318,
+
     /* Sclp Cpu */
     S390_FEAT_SIE_F2,
     S390_FEAT_SIE_SKEY,

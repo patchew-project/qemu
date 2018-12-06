@@ -52,7 +52,7 @@
 
 #define MMU_USER_IDX 0
 
-#define S390_MAX_CPUS 248
+#define S390_MAX_CPUS 247
 
 typedef struct PSW {
     uint64_t mask;
