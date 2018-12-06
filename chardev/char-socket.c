@@ -1072,7 +1072,7 @@ static void qmp_chardev_open_socket(Chardev *chr,
         s->reconnect_time = reconnect;
     }
 
-    if (s->reconnect_time) {
+    if (s->reconnect_time && !is_waitconnect) {
         tcp_chr_connect_async(chr);
     } else {
         if (s->is_listen) {
@@ -1120,7 +1120,8 @@ static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
                                   Error **errp)
 {
     bool is_listen      = qemu_opt_get_bool(opts, "server", false);
-    bool is_waitconnect = is_listen && qemu_opt_get_bool(opts, "wait", true);
+    bool is_waitconnect = is_listen ? qemu_opt_get_bool(opts, "wait", true) :
+                          qemu_opt_get_bool(opts, "wait", false);
     bool is_telnet      = qemu_opt_get_bool(opts, "telnet", false);
     bool is_tn3270      = qemu_opt_get_bool(opts, "tn3270", false);
     bool is_websock     = qemu_opt_get_bool(opts, "websocket", false);
