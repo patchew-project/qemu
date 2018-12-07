@@ -627,6 +627,7 @@ static void *fw_cfg_modify_bytes_read(FWCfgState *s, uint16_t key,
 
 void fw_cfg_add_bytes(FWCfgState *s, uint16_t key, void *data, size_t len)
 {
+    trace_fw_cfg_add_bytes(key, len);
     fw_cfg_add_bytes_callback(s, key, NULL, NULL, NULL, data, len, true);
 }
 
@@ -634,6 +635,7 @@ void fw_cfg_add_string(FWCfgState *s, uint16_t key, const char *value)
 {
     size_t sz = strlen(value) + 1;
 
+    trace_fw_cfg_add_string(key, value);
     fw_cfg_add_bytes(s, key, g_memdup(value, sz), sz);
 }
 
@@ -643,6 +645,7 @@ void fw_cfg_add_i16(FWCfgState *s, uint16_t key, uint16_t value)
 
     copy = g_malloc(sizeof(value));
     *copy = cpu_to_le16(value);
+    trace_fw_cfg_add_i16(key, value);
     fw_cfg_add_bytes(s, key, copy, sizeof(value));
 }
 
@@ -662,6 +665,7 @@ void fw_cfg_add_i32(FWCfgState *s, uint16_t key, uint32_t value)
 
     copy = g_malloc(sizeof(value));
     *copy = cpu_to_le32(value);
+    trace_fw_cfg_add_i32(key, value);
     fw_cfg_add_bytes(s, key, copy, sizeof(value));
 }
 
@@ -671,6 +675,7 @@ void fw_cfg_add_i64(FWCfgState *s, uint16_t key, uint64_t value)
 
     copy = g_malloc(sizeof(value));
     *copy = cpu_to_le64(value);
+    trace_fw_cfg_add_i64(key, value);
     fw_cfg_add_bytes(s, key, copy, sizeof(value));
 }
 
