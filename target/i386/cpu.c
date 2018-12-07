@@ -3615,19 +3615,29 @@ static void x86_cpu_class_check_missing_features(X86CPUClass *xcc,
 
     x86_cpu_filter_features(xc);
 
+    /* Uses an auxiliar dictionary to ensure the list of features has not
+       repeated name. */
+    QDict *unique_feats_dict = qdict_new();
+
     for (w = 0; w < FEATURE_WORDS; w++) {
         uint32_t filtered = xc->filtered_features[w];
         int i;
         for (i = 0; i < 32; i++) {
             if (filtered & (1UL << i)) {
+                const char *fname = g_strdup(x86_cpu_feature_name(w, i));
+                if (!fname || qdict_haskey(unique_feats_dict, fname)) {
+                    continue;
+                }
                 strList *new = g_new0(strList, 1);
-                new->value = g_strdup(x86_cpu_feature_name(w, i));
+                new->value = g_strdup(fname);
                 *next = new;
                 next = &new->next;
+                qdict_put_null(unique_feats_dict, new->value);
             }
         }
     }
 
+    g_free(unique_feats_dict);
     object_unref(OBJECT(xc));
 }
 
