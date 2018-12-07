@@ -36,6 +36,7 @@
 #include "qemu/config-file.h"
 #include "qemu/cutils.h"
 #include "qapi/error.h"
+#include "monitor/monitor.h"
 
 #define FW_CFG_FILE_SLOTS_DFLT 0x20
 
@@ -1164,3 +1165,117 @@ static void fw_cfg_register_types(void)
 }
 
 type_init(fw_cfg_register_types)
+
+static const char *fw_cfg_wellknown_entries[0x20] = {
+    [FW_CFG_SIGNATURE] = "signature",
+    [FW_CFG_ID] = "id",
+    [FW_CFG_UUID] = "uuid",
+    [FW_CFG_RAM_SIZE] = "ram_size",
+    [FW_CFG_NOGRAPHIC] = "nographic",
+    [FW_CFG_NB_CPUS] = "nb_cpus",
+    [FW_CFG_MACHINE_ID] = "machine_id",
+    [FW_CFG_KERNEL_ADDR] = "kernel_addr",
+    [FW_CFG_KERNEL_SIZE] = "kernel_size",
+    [FW_CFG_KERNEL_CMDLINE] = "kernel_cmdline",
+    [FW_CFG_INITRD_ADDR] = "initrd_addr",
+    [FW_CFG_INITRD_SIZE] = "initdr_size",
+    [FW_CFG_BOOT_DEVICE] = "boot_device",
+    [FW_CFG_NUMA] = "numa",
+    [FW_CFG_BOOT_MENU] = "boot_menu",
+    [FW_CFG_MAX_CPUS] = "max_cpus",
+    [FW_CFG_KERNEL_ENTRY] = "kernel_entry",
+    [FW_CFG_KERNEL_DATA] = "kernel_data",
+    [FW_CFG_INITRD_DATA] = "initrd_data",
+    [FW_CFG_CMDLINE_ADDR] = "cmdline_addr",
+    [FW_CFG_CMDLINE_SIZE] = "cmdline_size",
+    [FW_CFG_CMDLINE_DATA] = "cmdline_data",
+    [FW_CFG_SETUP_ADDR] = "setup_addr",
+    [FW_CFG_SETUP_SIZE] = "setup_size",
+    [FW_CFG_SETUP_DATA] = "setup_data",
+    [FW_CFG_FILE_DIR] = "file_dir",
+};
+
+void hmp_info_fw_cfg(Monitor *mon, const QDict *qdict)
+{
+    FWCfgState *s = fw_cfg_find();
+    int arch, key;
+
+    monitor_printf(mon, "%12s %5s %7s %9s %6s %-24s\n",
+                   "Type", "Perm", "Size", "Specific", "Order", "Info");
+    for (arch = 0; arch < ARRAY_SIZE(s->entries); ++arch) {
+        for (key = 0; key < fw_cfg_max_entry(s); ++key) {
+            FWCfgEntry *e = &s->entries[arch][key];
+            const char *perm = e->allow_write ? "RW" : "RO";
+            const char *arch_spec = arch ? "arch_spec" : "";
+            char *type, *info = NULL;
+
+            if (!e->len) {
+                continue;
+            }
+            if (key >= FW_CFG_FILE_FIRST) {
+                int id = key - FW_CFG_FILE_FIRST;
+                const char *path = s->files->f[id].name;
+
+                type = g_strdup_printf("file (id %d)", id);
+                monitor_printf(mon, "%12s %5s %7d %10s %5d %-24s\n",
+                               type, perm, e->len, arch_spec,
+                               get_fw_cfg_order(s, path), path);
+                g_free(type);
+                continue;
+            }
+            type = g_strdup(fw_cfg_wellknown_entries[key]);
+            if (!type) {
+                type = g_strdup_printf("entry_%d", key);
+            }
+
+            switch (key) {
+            case FW_CFG_SIGNATURE:
+                info = g_strndup((const gchar *)e->data, e->len);
+                break;
+            case FW_CFG_UUID:
+                info = qemu_uuid_unparse_strdup((const QemuUUID *)e->data);
+                break;
+            case FW_CFG_ID:
+            case FW_CFG_NOGRAPHIC:
+            case FW_CFG_NB_CPUS:
+            case FW_CFG_BOOT_MENU:
+            case FW_CFG_MAX_CPUS:
+            case FW_CFG_RAM_SIZE:
+            case FW_CFG_KERNEL_ADDR:
+            case FW_CFG_KERNEL_SIZE:
+            case FW_CFG_KERNEL_CMDLINE:
+            case FW_CFG_KERNEL_ENTRY:
+            case FW_CFG_KERNEL_DATA:
+            case FW_CFG_INITRD_ADDR:
+            case FW_CFG_INITRD_SIZE:
+            case FW_CFG_INITRD_DATA:
+            case FW_CFG_CMDLINE_ADDR:
+            case FW_CFG_CMDLINE_SIZE:
+            case FW_CFG_CMDLINE_DATA:
+            case FW_CFG_SETUP_ADDR:
+            case FW_CFG_SETUP_SIZE:
+            case FW_CFG_SETUP_DATA:
+                switch (e->len) {
+                case 2:
+                    info = g_strdup_printf("0x%04x", lduw_le_p(e->data));
+                    break;
+                case 4:
+                    info = g_strdup_printf("0x%08x", ldl_le_p(e->data));
+                    break;
+                case 8:
+                    info = g_strdup_printf("0x%016" PRIx64, ldq_le_p(e->data));
+                    break;
+                default:
+                    break;
+                }
+                break;
+            default:
+                break;
+            }
+            monitor_printf(mon, "%12s %5s %7d %10s %5s %-24s\n",
+                           type, perm, e->len, arch_spec, "", info ? info : "");
+            g_free(type);
+            g_free(info);
+        }
+    }
+}

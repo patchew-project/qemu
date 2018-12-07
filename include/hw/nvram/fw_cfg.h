@@ -226,4 +226,6 @@ FWCfgState *fw_cfg_init_mem_wide(hwaddr ctl_addr,
 FWCfgState *fw_cfg_find(void);
 bool fw_cfg_dma_enabled(void *opaque);
 
+void hmp_info_fw_cfg(Monitor *mon, const QDict *qdict);
+
 #endif

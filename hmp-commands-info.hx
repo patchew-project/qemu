@@ -918,6 +918,20 @@ STEXI
 Show SEV information.
 ETEXI
 
+    {
+        .name       = "fw_cfg",
+        .args_type  = "",
+        .params     = "",
+        .help       = "Display the table of the fw_cfg entries registered",
+        .cmd        = hmp_info_fw_cfg,
+    },
+
+STEXI
+@item info fw_cfg
+@findex info fw_cfg
+Show roms.
+ETEXI
+
 STEXI
 @end table
 ETEXI
