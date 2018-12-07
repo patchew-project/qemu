@@ -842,6 +842,28 @@ void fw_cfg_add_file(FWCfgState *s,  const char *filename,
     fw_cfg_add_file_callback(s, filename, NULL, NULL, NULL, data, len, true);
 }
 
+void *fw_cfg_add_file_from_host(FWCfgState *s, const char *filename,
+                                const char *host_path, size_t *len)
+{
+    GError *gerr = NULL;
+    gchar *ptr = NULL;
+    gsize contents_len = 0;
+
+
+    if (g_file_get_contents(host_path, &ptr, &contents_len, &gerr)) {
+        fw_cfg_add_file(s, filename, ptr, contents_len);
+    } else {
+        error_report("failed to read file %s, %s", host_path, gerr->message);
+        g_error_free(gerr);
+        return NULL;
+    }
+    if (len) {
+        *len = contents_len;
+    }
+
+    return ptr;
+}
+
 void *fw_cfg_modify_file(FWCfgState *s, const char *filename,
                         void *data, size_t len)
 {

@@ -167,6 +167,28 @@ void fw_cfg_add_file(FWCfgState *s, const char *filename, void *data,
                      size_t len);
 
 /**
+ * fw_cfg_add_file_from_host:
+ * @s: fw_cfg device being modified
+ * @filename: name of new fw_cfg file item
+ * @host_path: path of the host file to read the data from
+ * @len: pointer to hold the length of the host file (optional)
+ *
+ * Read the content of a host file as a raw "blob" then add a new NAMED
+ * fw_cfg item of the file size. If @len is provided, it will contains the
+ * total length read from the host file. The data referenced by the starting
+ * pointer is only linked, NOT copied, into the data structure of the fw_cfg
+ * device.
+ * The next available (unused) selector key starting at FW_CFG_FILE_FIRST
+ * will be used; also, a new entry will be added to the file directory
+ * structure residing at key value FW_CFG_FILE_DIR, containing the item name,
+ * data size, and assigned selector key value.
+ *
+ * Returns: pointer to the file content, or NULL if an error occured.
+ */
+void *fw_cfg_add_file_from_host(FWCfgState *s, const char *filename,
+                                const char *host_path, size_t *len);
+
+/**
  * fw_cfg_add_file_callback:
  * @s: fw_cfg device being modified
  * @filename: name of new fw_cfg file item
