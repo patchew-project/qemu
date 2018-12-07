@@ -271,7 +271,10 @@ static void ppc_heathrow_init(MachineState *machine)
 
     pci_bus = PCI_HOST_BRIDGE(dev)->bus;
 
-    pci_vga_init(pci_bus);
+    dev = qdev_create(BUS(pci_bus), "VGA");
+    qdev_prop_set_int32(dev, "addr", -1);
+    qdev_prop_set_bit(dev, "edid", true);
+    qdev_init_nofail(dev);
 
     for (i = 0; i < nb_nics; i++) {
         pci_nic_init_nofail(&nd_table[i], pci_bus, "ne2k_pci", NULL);
