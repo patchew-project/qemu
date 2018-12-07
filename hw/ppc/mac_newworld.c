@@ -430,7 +430,10 @@ static void ppc_core99_init(MachineState *machine)
         }
     }
 
-    pci_vga_init(pci_bus);
+    dev = qdev_create(BUS(pci_bus), "VGA");
+    qdev_prop_set_int32(dev, "addr", -1);
+    qdev_prop_set_bit(dev, "edid", true);
+    qdev_init_nofail(dev);
 
     if (graphic_depth != 15 && graphic_depth != 32 && graphic_depth != 8) {
         graphic_depth = 15;
