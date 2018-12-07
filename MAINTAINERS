@@ -935,7 +935,8 @@ F: hw/ppc/mpc8544ds.c
 F: hw/ppc/mpc8544_guts.c
 
 New World
-M: David Gibson <david@gibson.dropbear.id.au>
+M: Mark Cave-Ayland <mark.cave-ayland@ilande.co.uk>
+R: David Gibson <david@gibson.dropbear.id.au>
 L: qemu-ppc@nongnu.org
 S: Odd Fixes
 F: hw/ppc/mac_newworld.c
@@ -949,7 +950,8 @@ F: include/hw/misc/mos6522.h
 F: include/hw/ppc/mac_dbdma.h
 
 Old World
-M: David Gibson <david@gibson.dropbear.id.au>
+M: Mark Cave-Ayland <mark.cave-ayland@ilande.co.uk>
+R: David Gibson <david@gibson.dropbear.id.au>
 L: qemu-ppc@nongnu.org
 S: Odd Fixes
 F: hw/ppc/mac_oldworld.c
