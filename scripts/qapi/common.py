@@ -578,6 +578,7 @@ def find_alternate_member_qtype(qapi_type):
 # Return the discriminator enum define if discriminator is specified as an
 # enum type, otherwise return None.
 def discriminator_find_enum_define(expr):
+    name = expr['union']
     base = expr.get('base')
     discriminator = expr.get('discriminator')
 
@@ -594,6 +595,7 @@ def discriminator_find_enum_define(expr):
 
     if isinstance(discriminator_value, dict):
         discriminator_value = discriminator_value['type']
+
     return enum_types.get(discriminator_value)
 
 
@@ -800,7 +802,12 @@ def check_union(expr, info):
                                "struct '%s'"
                                % (discriminator, base))
         if isinstance(discriminator_value, dict):
+            if discriminator_value.get('if'):
+                raise QAPISemError(info, 'The discriminator %s.%s for union %s '
+                                   'must not be conditional' %
+                                   (base, discriminator, name))
             discriminator_value = discriminator_value['type']
+
         enum_define = enum_types.get(discriminator_value)
         allow_metas = ['struct']
         # Do not allow string discriminator
@@ -1023,6 +1030,7 @@ def check_exprs(exprs):
 
         if 'include' in expr:
             continue
+        info = expr_elem['info']
         if 'union' in expr and not discriminator_find_enum_define(expr):
             name = '%sKind' % expr['union']
         elif 'alternate' in expr:
