@@ -47,6 +47,11 @@ struct target_pt_regs {
 #endif
 #define UNAME_MINIMUM_RELEASE "4.15.0"
 
+/* This is sometimes needed to compile riscv32 Linux user mode */
+#if !defined(__NR__llseek) && !defined(__NR_lseek)
+#define __NR__llseek __NR3264_lseek
+#endif
+
 #define TARGET_MINSIGSTKSZ 2048
 #define TARGET_MLOCKALL_MCL_CURRENT 1
 #define TARGET_MLOCKALL_MCL_FUTURE  2
