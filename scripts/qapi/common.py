@@ -874,7 +874,8 @@ def check_enum(expr, info):
     for member in members:
         if isinstance(member, dict):
             source = "dictionary member of enum '%s'" % name
-            check_known_keys(info, source, member, ['name'], [])
+            check_known_keys(info, source, member, ['name'], ['if'])
+            check_if(member, info)
             member = member['name']
 
         check_name(info, "Member of enum '%s'" % name, member,
@@ -1358,9 +1359,10 @@ class QAPISchemaObjectType(QAPISchemaType):
 class QAPISchemaMember(object):
     role = 'member'
 
-    def __init__(self, name):
+    def __init__(self, name, ifcond=None):
         assert isinstance(name, str)
         self.name = name
+        self.ifcond = listify_cond(ifcond)
         self.owner = None
 
     def set_owner(self, name):
@@ -1672,9 +1674,11 @@ class QAPISchema(object):
         for v in values:
             if isinstance(v, dict):
                 name = v['name']
+                ifcond = v.get('if')
             else:
                 name = v
-            enum.append(QAPISchemaMember(name))
+                ifcond = None
+            enum.append(QAPISchemaMember(name, ifcond))
         return enum
 
     def _make_implicit_enum_type(self, name, info, ifcond, values):
