@@ -857,7 +857,7 @@ def check_alternate(expr, info):
         if isinstance(value, dict):
             check_known_keys(info,
                              "member '%s' of alternate '%s'" % (key, name),
-                             value, ['type'], [])
+                             value, ['type'], ['if'])
             typ = value['type']
         else:
             typ = value
@@ -1784,8 +1784,8 @@ class QAPISchema(object):
                                               self._make_members(data, info),
                                               None))
 
-    def _make_variant(self, case, typ):
-        return QAPISchemaObjectTypeVariant(case, typ)
+    def _make_variant(self, case, typ, ifcond):
+        return QAPISchemaObjectTypeVariant(case, typ, ifcond)
 
     def _make_simple_variant(self, case, typ, ifcond, info):
         if isinstance(typ, list):
@@ -1808,7 +1808,7 @@ class QAPISchema(object):
                 name, info, doc, ifcond,
                 'base', self._make_members(base, info))
         if tag_name:
-            variants = [self._make_variant(key, value['type'])
+            variants = [self._make_variant(key, value['type'], value.get('if'))
                         for (key, value) in data.items()]
             members = []
         else:
@@ -1829,7 +1829,7 @@ class QAPISchema(object):
         name = expr['alternate']
         data = expr['data']
         ifcond = expr.get('if')
-        variants = [self._make_variant(key, value['type'])
+        variants = [self._make_variant(key, value['type'], value.get('if'))
                     for (key, value) in data.items()]
         tag_member = QAPISchemaObjectTypeMember('type', 'QType', False)
         self._def_entity(
