@@ -661,7 +661,7 @@ def check_if(expr, info):
 
 
 def check_type(info, source, value, allow_array=False,
-               allow_dict=False, allow_optional=False,
+               allow_implicit=False, allow_optional=False,
                allow_metas=[]):
     global all_names
 
@@ -688,7 +688,7 @@ def check_type(info, source, value, allow_array=False,
                                (source, all_names[value], value))
         return
 
-    if not allow_dict:
+    if not allow_implicit:
         raise QAPISemError(info, "%s should be a type name" % source)
 
     if not isinstance(value, OrderedDict):
@@ -718,7 +718,7 @@ def check_command(expr, info):
     if boxed:
         args_meta += ['union', 'alternate']
     check_type(info, "'data' for command '%s'" % name,
-               expr.get('data'), allow_dict=not boxed, allow_optional=True,
+               expr.get('data'), allow_implicit=not boxed, allow_optional=True,
                allow_metas=args_meta)
     returns_meta = ['union', 'struct']
     if name in returns_whitelist:
@@ -736,7 +736,7 @@ def check_event(expr, info):
     if boxed:
         meta += ['union', 'alternate']
     check_type(info, "'data' for event '%s'" % name,
-               expr.get('data'), allow_dict=not boxed, allow_optional=True,
+               expr.get('data'), allow_implicit=not boxed, allow_optional=True,
                allow_metas=meta)
 
 
@@ -764,7 +764,7 @@ def check_union(expr, info):
     else:
         # The object must have a string or dictionary 'base'.
         check_type(info, "'base' for union '%s'" % name,
-                   base, allow_dict=True, allow_optional=True,
+                   base, allow_implicit=True, allow_optional=True,
                    allow_metas=['struct'])
         if not base:
             raise QAPISemError(info, "Flat union '%s' must have a base"
@@ -887,7 +887,7 @@ def check_struct(expr, info):
     members = expr['data']
 
     check_type(info, "'data' for struct '%s'" % name, members,
-               allow_dict=True, allow_optional=True)
+               allow_implicit=True, allow_optional=True)
     check_type(info, "'base' for struct '%s'" % name, expr.get('base'),
                allow_metas=['struct'])
 
