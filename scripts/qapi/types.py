@@ -201,6 +201,9 @@ class QAPISchemaGenTypeVisitor(QAPISchemaModularCVisitor):
 ''',
                                       types=types, visit=visit))
         self._genh.preamble_add(mcgen('''
+#ifndef QEMU_OSDEP_H
+#error Please include osdep.h first!
+#endif
 #include "qapi/qapi-builtin-types.h"
 '''))
 
