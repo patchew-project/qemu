@@ -1714,16 +1714,7 @@ class QAPISchema(object):
                                             qtype_values, 'QTYPE'))
 
     def _make_enum_members(self, values):
-        enum = []
-        for v in values:
-            if isinstance(v, dict):
-                name = v['name']
-                ifcond = v.get('if')
-            else:
-                name = v
-                ifcond = None
-            enum.append(QAPISchemaMember(name, ifcond))
-        return enum
+        return [QAPISchemaMember(v['name'], v.get('if')) for v in values]
 
     def _make_implicit_enum_type(self, name, info, ifcond, values):
         # See also QAPISchemaObjectTypeMember._pretty_owner()
