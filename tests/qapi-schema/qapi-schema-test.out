@@ -290,6 +290,12 @@ object TestIfUnion
     case union_bar: q_obj_str-wrapper
         if ['defined(TEST_IF_UNION_BAR)']
     if ['defined(TEST_IF_UNION) && defined(TEST_IF_STRUCT)']
+object q_obj_TestIfUnionCmd-arg
+    member union_cmd_arg: TestIfUnion optional=False
+    if ['defined(TEST_IF_UNION)']
+command TestIfUnionCmd q_obj_TestIfUnionCmd-arg -> None
+   gen=True success_response=True boxed=False oob=False preconfig=False
+    if ['defined(TEST_IF_UNION)']
 alternate TestIfAlternate
     tag type
     case foo: int
