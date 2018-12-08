@@ -717,7 +717,7 @@ def check_type(info, source, value, allow_array=False,
         # an optional argument.
         if isinstance(arg, dict):
             check_known_keys(info, "member '%s' of %s" % (key, source),
-                             arg, ['type'], [])
+                             arg, ['type'], ['if'])
             typ = arg['type']
         else:
             typ = arg
@@ -1438,8 +1438,8 @@ class QAPISchemaMember(object):
 
 
 class QAPISchemaObjectTypeMember(QAPISchemaMember):
-    def __init__(self, name, typ, optional):
-        QAPISchemaMember.__init__(self, name)
+    def __init__(self, name, typ, optional, ifcond=None):
+        QAPISchemaMember.__init__(self, name, ifcond)
         assert isinstance(typ, str)
         assert isinstance(optional, bool)
         self._type_name = typ
@@ -1762,7 +1762,7 @@ class QAPISchema(object):
             name, info, doc, ifcond,
             self._make_enum_members(data), prefix))
 
-    def _make_member(self, name, typ, info):
+    def _make_member(self, name, typ, ifcond, info):
         optional = False
         if name.startswith('*'):
             name = name[1:]
@@ -1770,10 +1770,10 @@ class QAPISchema(object):
         if isinstance(typ, list):
             assert len(typ) == 1
             typ = self._make_array_type(typ[0], info)
-        return QAPISchemaObjectTypeMember(name, typ, optional)
+        return QAPISchemaObjectTypeMember(name, typ, optional, ifcond)
 
     def _make_members(self, data, info):
-        return [self._make_member(key, value['type'], info)
+        return [self._make_member(key, value['type'], value.get('if'), info)
                 for (key, value) in data.items()]
 
     def _def_struct_type(self, expr, info, doc):
@@ -1794,7 +1794,7 @@ class QAPISchema(object):
             typ = self._make_array_type(typ[0], info)
         typ = self._make_implicit_object_type(
             typ, info, None, self.lookup_type(typ),
-            'wrapper', [self._make_member('data', typ, info)])
+            'wrapper', [self._make_member('data', typ, None, info)])
         return QAPISchemaObjectTypeVariant(case, typ)
 
     def _def_union_type(self, expr, info, doc):
