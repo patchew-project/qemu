@@ -262,6 +262,7 @@ S: Maintained
 F: target/riscv/
 F: hw/riscv/
 F: include/hw/riscv/
+F: tcg/riscv/
 F: linux-user/host/riscv32/
 F: linux-user/host/riscv64/
 F: disas/riscv.c
