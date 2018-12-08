@@ -1663,9 +1663,10 @@ class QAPISchema(object):
         self.the_empty_object_type = QAPISchemaObjectType(
             'q_empty', None, None, None, None, [], None)
         self._def_entity(self.the_empty_object_type)
-        qtype_values = self._make_enum_members(['none', 'qnull', 'qnum',
-                                                'qstring', 'qdict', 'qlist',
-                                                'qbool'])
+
+        qtypes = ['none', 'qnull', 'qnum', 'qstring', 'qdict', 'qlist', 'qbool']
+        qtype_values = self._make_enum_members([{'name': n} for n in qtypes])
+
         self._def_entity(QAPISchemaEnumType('QType', None, None, None,
                                             qtype_values, 'QTYPE'))
 
