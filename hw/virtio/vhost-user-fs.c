@@ -296,6 +296,7 @@ static void vuf_device_realize(DeviceState *dev, Error **errp)
     unsigned int i;
     size_t len;
     int ret;
+    int mdvtfd = -1;
 
     if (!fs->conf.chardev.chr) {
         error_setg(errp, "missing chardev");
@@ -338,6 +339,31 @@ static void vuf_device_realize(DeviceState *dev, Error **errp)
                          "no smaller than the page size");
         return;
     }
+
+    if (fs->conf.mdvtpath) {
+        struct stat statbuf;
+
+        mdvtfd = open(fs->conf.mdvtpath, O_RDWR);
+        if (mdvtfd < 0) {
+            error_setg_errno(errp, errno,
+                             "Failed to open meta-data version table '%s'",
+                             fs->conf.mdvtpath);
+
+            return;
+        }
+        if (fstat(mdvtfd, &statbuf) == -1) {
+            error_setg_errno(errp, errno,
+                             "Failed to stat meta-data version table '%s'",
+                             fs->conf.mdvtpath);
+            close(mdvtfd);
+            return;
+        }
+
+        fs->mdvt_size = statbuf.st_size;
+    }
+    fprintf(stderr, "%s: cachesize=%zd mdvt_size=%zd\n", __func__,
+            fs->conf.cache_size, fs->mdvt_size);
+
     /* We need a region with some host memory, 'ram' is the easiest */
     memory_region_init_ram_nomigrate(&fs->cache, OBJECT(vdev),
                        "virtio-fs-cache",
@@ -347,6 +373,15 @@ static void vuf_device_realize(DeviceState *dev, Error **errp)
      */
     mprotect(memory_region_get_ram_ptr(&fs->cache), fs->conf.cache_size,
              PROT_NONE);
+
+
+    if (mdvtfd) {
+        memory_region_init_ram_from_fd(&fs->mdvt, OBJECT(vdev),
+                       "virtio-fs-mdvt",
+                       fs->mdvt_size, true, mdvtfd, NULL);
+        /* The version table is read-only by the guest */
+        memory_region_set_readonly(&fs->mdvt, true);
+    }
 
     fs->vhost_user = vhost_user_init();
     if (!fs->vhost_user) {
@@ -416,6 +451,7 @@ static Property vuf_properties[] = {
     DEFINE_PROP_UINT16("queue-size", VHostUserFS, conf.queue_size, 128),
     DEFINE_PROP_STRING("vhostfd", VHostUserFS, conf.vhostfd),
     DEFINE_PROP_SIZE("cache-size", VHostUserFS, conf.cache_size, 1ull << 30),
+    DEFINE_PROP_STRING("versiontable", VHostUserFS, conf.mdvtpath),
     DEFINE_PROP_END_OF_LIST(),
 };
 
