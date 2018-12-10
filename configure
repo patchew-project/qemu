@@ -371,6 +371,7 @@ vhost_crypto="no"
 vhost_scsi="no"
 vhost_vsock="no"
 vhost_user=""
+vhost_user_fs="no"
 kvm="no"
 hax="no"
 hvf="no"
@@ -878,6 +879,7 @@ Linux)
   vhost_crypto="yes"
   vhost_scsi="yes"
   vhost_vsock="yes"
+  vhost_user_fs="yes"
   QEMU_INCLUDES="-I\$(SRC_PATH)/linux-headers -I$PWD/linux-headers $QEMU_INCLUDES"
   supported_os="yes"
   libudev="yes"
@@ -1271,6 +1273,10 @@ for opt do
   --disable-vhost-vsock) vhost_vsock="no"
   ;;
   --enable-vhost-vsock) vhost_vsock="yes"
+  ;;
+  --disable-vhost-user-fs) vhost_user_fs="no"
+  ;;
+  --enable-vhost-user-fs) vhost_user_fs="yes"
   ;;
   --disable-opengl) opengl="no"
   ;;
@@ -6054,6 +6060,7 @@ echo "vhost-crypto support $vhost_crypto"
 echo "vhost-scsi support $vhost_scsi"
 echo "vhost-vsock support $vhost_vsock"
 echo "vhost-user support $vhost_user"
+echo "vhost-user-fs support $vhost_user_fs"
 echo "Trace backends    $trace_backends"
 if have_backend "simple"; then
 echo "Trace output file $trace_file-<pid>"
@@ -6523,6 +6530,9 @@ if test "$vhost_vsock" = "yes" ; then
 fi
 if test "$vhost_user" = "yes" ; then
   echo "CONFIG_VHOST_USER=y" >> $config_host_mak
+fi
+if test "$vhost_user_fs" = "yes" ; then
+  echo "CONFIG_VHOST_USER_FS=y" >> $config_host_mak
 fi
 if test "$blobs" = "yes" ; then
   echo "INSTALL_BLOBS=yes" >> $config_host_mak
