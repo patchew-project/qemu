@@ -59,6 +59,8 @@ static void bus_remove_child(BusState *bus, DeviceState *child)
             snprintf(name, sizeof(name), "child[%d]", kid->index);
             QTAILQ_REMOVE(&bus->children, kid, sibling);
 
+            bus->max_index--;
+
             /* This gives back ownership of kid->child back to us.  */
             object_property_del(OBJECT(bus), name, NULL);
             object_unref(OBJECT(kid->child));
