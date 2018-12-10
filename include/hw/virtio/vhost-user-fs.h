@@ -49,6 +49,7 @@ typedef struct {
     char *vhostfd;
     size_t cache_size;
     char *mdvtpath;
+    char *journalpath;
 } VHostUserFSConf;
 
 typedef struct {
@@ -64,6 +65,9 @@ typedef struct {
     /* Metadata version table */
     size_t mdvt_size;
     MemoryRegion mdvt;
+    /* Journal */
+    size_t journal_size;
+    MemoryRegion journal;
 } VHostUserFS;
 
 /* Callbacks from the vhost-user code for slave commands */

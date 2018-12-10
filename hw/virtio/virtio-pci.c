@@ -2687,10 +2687,12 @@ static void vhost_user_fs_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
     cachesize = memory_region_size(&dev->vdev.cache);
 
     /* PCIe bar needs to be a power of 2 */
-    totalsize = pow2ceil(cachesize + dev->vdev.mdvt_size);
+    totalsize = pow2ceil(cachesize + dev->vdev.mdvt_size +
+                         dev->vdev.journal_size);
 
     /* The bar starts with the data/DAX cache
      * followed by the metadata cache.
+     * followed by the journal
      */
     memory_region_init(&dev->cachebar, OBJECT(vpci_dev),
                        "vhost-fs-pci-cachebar", totalsize);
@@ -2704,6 +2706,16 @@ static void vhost_user_fs_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
         virtio_pci_add_shm_cap(vpci_dev, VIRTIO_FS_PCI_CACHE_BAR,
                                cachesize, dev->vdev.mdvt_size,
                                VIRTIO_FS_PCI_SHMCAP_ID_VERTAB);
+    }
+
+    if (dev->vdev.journal_size) {
+        memory_region_add_subregion(&dev->cachebar,
+                                    cachesize + dev->vdev.mdvt_size,
+                                    &dev->vdev.journal);
+        virtio_pci_add_shm_cap(vpci_dev, VIRTIO_FS_PCI_CACHE_BAR,
+                               cachesize + dev->vdev.mdvt_size,
+                               dev->vdev.journal_size,
+                               VIRTIO_FS_PCI_SHMCAP_ID_JOURNAL);
     }
 
     /* After 'realized' so the memory region exists */
