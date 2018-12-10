@@ -69,6 +69,11 @@
 # @encrypt: details about encryption parameters; only set if image
 #           is encrypted (since 2.10)
 #
+# @bitmaps: list of qcow2 bitmaps details; the empty list designates
+#           "fail to load bitmaps" if it is passed to the caller or
+#           "no bitmaps" otherwise;
+#           unsupported for the format QCOW2 v2 (since 4.0)
+#
 # Since: 1.7
 ##
 { 'struct': 'ImageInfoSpecificQCow2',
@@ -77,7 +82,8 @@
       '*lazy-refcounts': 'bool',
       '*corrupt': 'bool',
       'refcount-bits': 'int',
-      '*encrypt': 'ImageInfoSpecificQCow2Encryption'
+      '*encrypt': 'ImageInfoSpecificQCow2Encryption',
+      '*bitmaps': ['Qcow2BitmapInfo']
   } }
 
 ##
@@ -452,6 +458,41 @@
 { 'struct': 'BlockDirtyInfo',
   'data': {'*name': 'str', 'count': 'int', 'granularity': 'uint32',
            'status': 'DirtyBitmapStatus'} }
+
+##
+# @Qcow2BitmapInfoFlags:
+#
+# An enumeration of flags that a bitmap can report to the user.
+#
+# @in-use: The bitmap was not saved correctly and may be inconsistent.
+#
+# @auto: The bitmap must reflect all changes of the virtual disk by any
+#        application that would write to this qcow2 file.
+#
+# Since: 4.0
+##
+{ 'enum': 'Qcow2BitmapInfoFlags',
+  'data': ['in-use', 'auto'] }
+
+##
+# @Qcow2BitmapInfo:
+#
+# Qcow2 bitmap information.
+#
+# @name: the name of the bitmap
+#
+# @granularity: granularity of the bitmap in bytes
+#
+# @flags: flags of the bitmap
+#
+# @unknown-flags: unspecified flags if detected
+#
+# Since: 4.0
+##
+{ 'struct': 'Qcow2BitmapInfo',
+  'data': {'name': 'str', 'granularity': 'uint32',
+           'flags': ['Qcow2BitmapInfoFlags'],
+           '*unknown-flags': 'uint32' } }
 
 ##
 # @BlockLatencyHistogramInfo:
