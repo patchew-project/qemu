@@ -429,6 +429,7 @@ struct VirtIOCryptoPCI {
 struct VHostUserFSPCI {
     VirtIOPCIProxy parent_obj;
     VHostUserFS vdev;
+    MemoryRegion cachebar;
 };
 #endif
 

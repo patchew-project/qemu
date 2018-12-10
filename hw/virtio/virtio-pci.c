@@ -18,6 +18,7 @@
 #include "qemu/osdep.h"
 
 #include "standard-headers/linux/virtio_pci.h"
+#include "standard-headers/linux/virtio_fs.h"
 #include "hw/virtio/virtio.h"
 #include "hw/virtio/virtio-blk.h"
 #include "hw/virtio/virtio-net.h"
@@ -2678,9 +2679,27 @@ static void vhost_user_fs_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
 {
     VHostUserFSPCI *dev = VHOST_USER_FS_PCI(vpci_dev);
     DeviceState *vdev = DEVICE(&dev->vdev);
+    uint64_t cachesize;
 
     qdev_set_parent_bus(vdev, BUS(&vpci_dev->bus));
     object_property_set_bool(OBJECT(vdev), true, "realized", errp);
+    cachesize = memory_region_size(&dev->vdev.cache);
+
+    /* The bar starts with the data/DAX cache
+     * Others will be added later.
+     */
+    memory_region_init(&dev->cachebar, OBJECT(vpci_dev),
+                       "vhost-fs-pci-cachebar", cachesize);
+    memory_region_add_subregion(&dev->cachebar, 0, &dev->vdev.cache);
+    virtio_pci_add_shm_cap(vpci_dev, VIRTIO_FS_PCI_CACHE_BAR, 0, cachesize,
+                           VIRTIO_FS_PCI_SHMCAP_ID_CACHE);
+
+    /* After 'realized' so the memory region exists */
+    pci_register_bar(&vpci_dev->pci_dev, VIRTIO_FS_PCI_CACHE_BAR,
+                     PCI_BASE_ADDRESS_SPACE_MEMORY |
+                     PCI_BASE_ADDRESS_MEM_PREFETCH |
+                     PCI_BASE_ADDRESS_MEM_TYPE_64,
+                     &dev->cachebar);
 }
 
 static void vhost_user_fs_pci_class_init(ObjectClass *klass, void *data)
