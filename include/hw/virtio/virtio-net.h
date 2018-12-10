@@ -22,6 +22,10 @@
 #define VIRTIO_NET(obj) \
         OBJECT_CHECK(VirtIONet, (obj), TYPE_VIRTIO_NET)
 
+#define FAILOVER_NOTIFY_EVENT(type, n, path) \
+        qapi_event_send_failover_##type##_primary \
+                (!!n->netclient_name, n->netclient_name, path)
+
 #define TX_TIMER_INTERVAL 150000 /* 150 us */
 
 /* Limit the number of packets that can be sent via a single flush

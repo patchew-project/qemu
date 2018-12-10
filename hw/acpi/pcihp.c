@@ -176,6 +176,25 @@ static void acpi_pcihp_eject_slot(AcpiPciHpState *s, unsigned bsel, unsigned slo
     }
 }
 
+static void acpi_pcihp_cleanup_failover_primary(AcpiPciHpState *s, int bsel)
+{
+    BusChild *kid, *next;
+    PCIBus *bus = acpi_pcihp_find_hotplug_bus(s, bsel);
+
+    if (!bus) {
+        return;
+    }
+    QTAILQ_FOREACH_SAFE(kid, &bus->qbus.children, sibling, next) {
+        DeviceState *qdev = kid->child;
+        PCIDevice *pdev = PCI_DEVICE(qdev);
+        int slot = PCI_SLOT(pdev->devfn);
+
+        if (pdev->failover_primary) {
+            s->acpi_pcihp_pci_status[bsel].down |= (1U << slot);
+        }
+    }
+}
+
 static void acpi_pcihp_update_hotplug_bus(AcpiPciHpState *s, int bsel)
 {
     BusChild *kid, *next;
@@ -207,6 +226,14 @@ static void acpi_pcihp_update(AcpiPciHpState *s)
     int i;
 
     for (i = 0; i < ACPI_PCIHP_MAX_HOTPLUG_BUS; ++i) {
+        /*
+         * Set the acpi_pcihp_pci_status[].down bits of all the
+         * failover_primary devices so that the devices are ejected
+         * from the guest. We can't use the qdev_unplug() as well as the
+         * hotplug_handler to unplug the devices, because the guest may
+         * not be in a state to cooperate.
+         */
+        acpi_pcihp_cleanup_failover_primary(s, i);
         acpi_pcihp_update_hotplug_bus(s, i);
     }
 }

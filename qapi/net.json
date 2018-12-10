@@ -683,3 +683,47 @@
 ##
 { 'event': 'NIC_RX_FILTER_CHANGED',
   'data': { '*name': 'str', 'path': 'str' } }
+
+##
+# @FAILOVER_PLUG_PRIMARY:
+#
+# Emitted when the guest successfully loads the driver after the STANDBY
+# feature bit is negotiated.
+#
+# @device: Indicates the virtio_net device.
+#
+# @path: Indicates the device path.
+#
+# Since: 3.0
+#
+# Example:
+#
+# <- {"timestamp": {"seconds": 1432121972, "microseconds": 744001},
+#     "event": "FAILOVER_PLUG_PRIMARY",
+#     "data": {"device": "net0", "path": "/machine/peripheral/net0/virtio-backend"} }
+#
+##
+{ 'event': 'FAILOVER_PLUG_PRIMARY',
+  'data': {'*device': 'str', 'path': 'str'} }
+
+##
+# @FAILOVER_UNPLUG_PRIMARY:
+#
+# Emitted when the guest resets the virtio_net driver.
+# The reset can be the result of either unloading the driver or a reboot.
+#
+# @device: Indicates the virtio_net device.
+#
+# @path: Indicates the device path.
+#
+# Since: 3.0
+#
+# Example:
+#
+# <- {"timestamp": {"seconds": 1432121972, "microseconds": 744001},
+#     "event": "FAILOVER_UNPLUG_PRIMARY",
+#     "data": {"device": "net0", "path": "/machine/peripheral/net0/virtio-backend"} }
+#
+##
+{ 'event': 'FAILOVER_UNPLUG_PRIMARY',
+  'data': {'*device': 'str', 'path': 'str'} }
