@@ -1290,9 +1290,15 @@ void copy_scsw_to_guest(SCSW *dest, const SCSW *src)
 static void copy_schib_to_guest(SCHIB *dest, const SCHIB *src)
 {
     int i;
+    PMCW srcpmcw, destpmcw;
+    SCSW srcscsw, destscsw;
 
-    copy_pmcw_to_guest(&dest->pmcw, &src->pmcw);
-    copy_scsw_to_guest(&dest->scsw, &src->scsw);
+    srcpmcw = src->pmcw;
+    copy_pmcw_to_guest(&destpmcw, &srcpmcw);
+    dest->pmcw = destpmcw;
+    srcscsw = src->scsw;
+    copy_scsw_to_guest(&destscsw, &srcscsw);
+    dest->scsw = destscsw;
     dest->mba = cpu_to_be64(src->mba);
     for (i = 0; i < ARRAY_SIZE(dest->mda); i++) {
         dest->mda[i] = src->mda[i];
@@ -1339,9 +1345,15 @@ static void copy_scsw_from_guest(SCSW *dest, const SCSW *src)
 static void copy_schib_from_guest(SCHIB *dest, const SCHIB *src)
 {
     int i;
+    PMCW srcpmcw, destpmcw;
+    SCSW srcscsw, destscsw;
 
-    copy_pmcw_from_guest(&dest->pmcw, &src->pmcw);
-    copy_scsw_from_guest(&dest->scsw, &src->scsw);
+    srcpmcw = src->pmcw;
+    copy_pmcw_from_guest(&destpmcw, &srcpmcw);
+    dest->pmcw = destpmcw;
+    srcscsw = src->scsw;
+    copy_scsw_from_guest(&destscsw, &srcscsw);
+    dest->scsw = destscsw;
     dest->mba = be64_to_cpu(src->mba);
     for (i = 0; i < ARRAY_SIZE(dest->mda); i++) {
         dest->mda[i] = src->mda[i];
