@@ -727,3 +727,29 @@
 ##
 { 'event': 'FAILOVER_UNPLUG_PRIMARY',
   'data': {'*device': 'str', 'path': 'str'} }
+
+##
+# @FAILOVER_PRIMARY_CHANGED:
+#
+# Emitted whenever the driver of failover primary is loaded or unloaded
+# by the guest.
+#
+# @device: device name
+#
+# @path: device path
+#
+# @enabled: true if driver is loaded thus device is enabled in guest
+#
+# Since: 3.0
+#
+# Example:
+#
+# <- { "event": "FAILOVER_PRIMARY_CHANGED",
+#      "data": { "device": "vfio-0",
+#                "path": "/machine/peripheral/vfio-0" },
+#                "enabled": "true" },
+#      "timestamp": { "seconds": 1539935213, "microseconds": 753529 } }
+#
+##
+{ 'event': 'FAILOVER_PRIMARY_CHANGED',
+  'data': { '*device': 'str', 'path': 'str', 'enabled': 'bool' } }
