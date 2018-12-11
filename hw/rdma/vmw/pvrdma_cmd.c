@@ -337,7 +337,9 @@ static int create_cq(PVRDMADev *dev, union pvrdma_cmd_req *req,
 
     resp->hdr.err = rdma_rm_alloc_cq(&dev->rdma_dev_res, &dev->backend_dev,
                                      cmd->cqe, &resp->cq_handle, ring);
-    resp->cqe = cmd->cqe;
+    if (resp->hdr.err) {
+        g_free(ring);
+    }
 
 out:
     pr_dbg("ret=%d\n", resp->hdr.err);
@@ -490,6 +492,10 @@ static int create_qp(PVRDMADev *dev, union pvrdma_cmd_req *req,
                                      cmd->max_send_sge, cmd->send_cq_handle,
                                      cmd->max_recv_wr, cmd->max_recv_sge,
                                      cmd->recv_cq_handle, rings, &resp->qpn);
+    if (resp->hdr.err) {
+        g_free(rings);
+        goto out;
+    }
 
     resp->max_send_wr = cmd->max_send_wr;
     resp->max_recv_wr = cmd->max_recv_wr;
