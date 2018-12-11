@@ -632,6 +632,30 @@ static void vm_change_state_handler(void *opaque, int running,
     }
 }
 
+static void qemu_log_func(const gchar *log_domain,
+                          GLogLevelFlags log_level,
+                          const gchar *message,
+                          gpointer user_data)
+{
+    switch (log_level & G_LOG_LEVEL_MASK) {
+        case G_LOG_LEVEL_DEBUG:
+            break;
+        case G_LOG_LEVEL_INFO:
+            /* Fall through */
+        case G_LOG_LEVEL_MESSAGE:
+            info_report("%s", message);
+            break;
+        case G_LOG_LEVEL_WARNING:
+            /* Fall through */
+        case G_LOG_LEVEL_CRITICAL:
+            warn_report("%s", message);
+            break;
+        case G_LOG_LEVEL_ERROR:
+            error_report("%s", message);
+            break;
+    }
+}
+
 void qemu_spice_init(void)
 {
     QemuOpts *opts = QTAILQ_FIRST(&qemu_spice_opts.head);
@@ -647,6 +671,7 @@ void qemu_spice_init(void)
     spice_wan_compression_t wan_compr;
     bool seamless_migration;
 
+    g_log_set_default_handler(qemu_log_func, NULL);
     qemu_thread_get_self(&me);
 
     if (!opts) {
