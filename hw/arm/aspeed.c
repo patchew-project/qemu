@@ -21,8 +21,10 @@
 #include "hw/i2c/smbus.h"
 #include "qemu/log.h"
 #include "sysemu/block-backend.h"
+#include "sysemu/device_tree.h"
 #include "hw/loader.h"
 #include "qemu/error-report.h"
+#include <libfdt.h>
 
 static struct arm_boot_info aspeed_board_binfo = {
     .board_id = -1, /* device-tree-only board */
@@ -126,6 +128,36 @@ static void write_boot_rom(DriveInfo *dinfo, hwaddr addr, size_t rom_size,
     g_free(storage);
 }
 
+static void fdt_add_shutdown_node(void *fdt)
+{
+    const char *nodename = "/syscon-poweroff";
+    uint32_t phandle;
+    int offset;
+
+    /* Find the scu phandle */
+    offset = fdt_path_offset(fdt, "/ahb/apb/syscon@1e6e2000");
+    if (offset < 0) {
+        error_report("%s couldn't find syscon, guest shutdown unavailable: %s",
+                     __func__, fdt_strerror(offset));
+        return;
+    }
+    phandle = fdt_get_phandle(fdt, offset);
+
+    /* Add syscon-poweroff node and use 0x1A0, an un-used SCU register */
+    qemu_fdt_add_subnode(fdt, nodename);
+    qemu_fdt_setprop_string(fdt, nodename, "compatible", "syscon-poweroff");
+    qemu_fdt_setprop_cells(fdt, nodename, "regmap", phandle);
+    qemu_fdt_setprop_cells(fdt, nodename, "offset", 0x1A0);
+    qemu_fdt_setprop_cells(fdt, nodename, "value", 1);
+}
+
+static void aspeed_board_modify_dtb(const struct arm_boot_info *binfo,
+                                    void *fdt)
+{
+    fdt_add_shutdown_node(fdt);
+}
+
+
 static void aspeed_board_init_flashes(AspeedSMCState *s, const char *flashtype,
                                       Error **errp)
 {
@@ -228,6 +260,7 @@ static void aspeed_board_init(MachineState *machine,
     aspeed_board_binfo.kernel_cmdline = machine->kernel_cmdline;
     aspeed_board_binfo.ram_size = ram_size;
     aspeed_board_binfo.loader_start = sc->info->sdram_base;
+    aspeed_board_binfo.modify_dtb = aspeed_board_modify_dtb;
 
     if (cfg->i2c_init) {
         cfg->i2c_init(bmc);
