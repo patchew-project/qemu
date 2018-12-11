@@ -273,6 +273,10 @@ static int create_cq_ring(PCIDevice *pci_dev , PvrdmaRing **ring,
         pr_dbg("Failed to map to CQ page table\n");
         goto out;
     }
+    if (!nchunks || nchunks > PVRDMA_MAX_FAST_REG_PAGES) {
+        pr_dbg("invalid nchunks: %d\n", nchunks);
+        goto out;
+    }
 
     r = g_malloc(sizeof(*r));
     *ring = r;
@@ -387,6 +391,11 @@ static int create_qp_rings(PCIDevice *pci_dev, uint64_t pdir_dma,
     tbl = rdma_pci_dma_map(pci_dev, dir[0], TARGET_PAGE_SIZE);
     if (!tbl) {
         pr_dbg("Failed to map to CQ page table\n");
+        goto out;
+    }
+    if (!spages || spages > PVRDMA_MAX_FAST_REG_PAGES
+        || !rpages || rpages > PVRDMA_MAX_FAST_REG_PAGES) {
+        pr_dbg("invalid pages: %d, %d\n", spages, rpages);
         goto out;
     }
 
