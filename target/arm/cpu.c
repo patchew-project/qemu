@@ -1110,7 +1110,9 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
     }
 #endif
 
-    qemu_init_vcpu(cs);
+    if (!qemu_init_vcpu(cs, errp)) {
+        return;
+    }
     cpu_reset(cs);
 
     acc->parent_realize(dev, errp);
