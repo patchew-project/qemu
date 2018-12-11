@@ -16,6 +16,7 @@
 #include "qapi/visitor.h"
 #include "qemu/bitops.h"
 #include "qemu/log.h"
+#include "sysemu/sysemu.h"
 #include "crypto/random.h"
 #include "trace.h"
 
@@ -84,6 +85,7 @@
 #define SRAM_DECODE_BASE1    TO_REG(0x194)
 #define SRAM_DECODE_BASE2    TO_REG(0x198)
 #define BMC_REV              TO_REG(0x19C)
+#define POWEROFF             TO_REG(0x1A0)
 #define BMC_DEV_ID           TO_REG(0x1A4)
 
 #define SCU_IO_REGION_SIZE 0x1000
@@ -264,6 +266,9 @@ static void aspeed_scu_write(void *opaque, hwaddr offset, uint64_t data,
         }
         /* Avoid assignment below, we've handled everything */
         return;
+    case POWEROFF:
+        qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
+        break;
     case FREQ_CNTR_EVAL:
     case VGA_SCRATCH1 ... VGA_SCRATCH8:
     case RNG_DATA:
