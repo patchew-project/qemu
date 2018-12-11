@@ -103,12 +103,24 @@ struct XenBlkDev {
 
 /* ------------------------------------------------------------- */
 
+static void ioreq_buf_alloc(struct ioreq *ioreq, size_t alignment)
+{
+    if (ioreq->buf)
+        qemu_vfree(ioreq->buf);
+    ioreq->buf = qemu_memalign(XC_PAGE_SIZE, ioreq->size);
+}
+static void ioreq_buf_free(struct ioreq *ioreq)
+{
+    if (ioreq->buf)
+        qemu_vfree(ioreq->buf);
+    ioreq->buf = NULL;
+}
 static void ioreq_reset(struct ioreq *ioreq)
 {
+    ioreq_buf_free(ioreq);
     memset(&ioreq->req, 0, sizeof(ioreq->req));
     ioreq->status = 0;
     ioreq->start = 0;
-    ioreq->buf = NULL;
     ioreq->size = 0;
     ioreq->presync = 0;
 
@@ -315,14 +327,14 @@ static void qemu_aio_complete(void *opaque, int ret)
         if (ret == 0) {
             ioreq_grant_copy(ioreq);
         }
-        qemu_vfree(ioreq->buf);
+        ioreq_buf_free(ioreq);
         break;
     case BLKIF_OP_WRITE:
     case BLKIF_OP_FLUSH_DISKCACHE:
         if (!ioreq->req.nr_segments) {
             break;
         }
-        qemu_vfree(ioreq->buf);
+        ioreq_buf_free(ioreq);
         break;
     default:
         break;
@@ -390,12 +402,12 @@ static int ioreq_runio_qemu_aio(struct ioreq *ioreq)
 {
     struct XenBlkDev *blkdev = ioreq->blkdev;
 
-    ioreq->buf = qemu_memalign(XC_PAGE_SIZE, ioreq->size);
+    ioreq_buf_alloc(ioreq, XC_PAGE_SIZE);
     if (ioreq->req.nr_segments &&
         (ioreq->req.operation == BLKIF_OP_WRITE ||
          ioreq->req.operation == BLKIF_OP_FLUSH_DISKCACHE) &&
         ioreq_grant_copy(ioreq)) {
-        qemu_vfree(ioreq->buf);
+        ioreq_buf_free(ioreq);
         goto err;
     }
 
