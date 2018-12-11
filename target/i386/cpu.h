@@ -1457,6 +1457,9 @@ struct X86CPU {
     /* if true override the phys_bits value with a value read from the host */
     bool host_phys_bits;
 
+    /* if set, limit maximum value for phys_bits when host_phys_bits is true */
+    uint8_t host_phys_bits_limit;
+
     /* Stop SMI delivery for migration compatibility with old machines */
     bool kvm_no_smi_migration;
 
