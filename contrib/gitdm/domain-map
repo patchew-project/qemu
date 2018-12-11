@@ -1,0 +1,15 @@
+#
+# QEMU gitdm domain-map
+#
+# This maps email domains to nice easy to read company names
+#
+
+ibm.com         IBM
+igalia.com      Igalia
+ispras.ru       Institute for System Programming of RAS
+linaro.org      Linaro
+oracle.com      Oracle
+redhat.com      RedHat
+sifive.com      SiFive
+virtuozzo.com   Virtuozzo
+xilinx.com      Xilinx
