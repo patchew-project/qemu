@@ -200,3 +200,10 @@ nvic_sysreg_write(uint64_t addr, uint32_t value, unsigned size) "NVIC sysreg wri
 heathrow_write(uint64_t addr, unsigned int n, uint64_t value) "0x%"PRIx64" %u: 0x%"PRIx64
 heathrow_read(uint64_t addr, unsigned int n, uint64_t value) "0x%"PRIx64" %u: 0x%"PRIx64
 heathrow_set_irq(int num, int level) "set_irq: num=0x%02x level=%d"
+
+# hw/intc/puv3_intc.c
+puv3_intc_handler(int irq, int level) "irq 0x%x, level 0x%x"
+puv3_intc_read_bad(uint32_t offset) "Bad offset 0x%x"
+puv3_intc_read(uint32_t offset, uint32_t value) "offset 0x%x, value 0x%x"
+puv3_intc_write(uint32_t offset, uint64_t value) "offset 0x%x, value 0x%" PRIx64
+puv3_intc_write_bad(uint32_t offset) "Bad offset 0x%x"

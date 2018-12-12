@@ -10,9 +10,8 @@
  */
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
-
-#undef DEBUG_PUV3
 #include "hw/unicore32/puv3.h"
+#include "trace.h"
 
 #define TYPE_PUV3_INTC "puv3_intc"
 #define PUV3_INTC(obj) OBJECT_CHECK(PUV3INTCState, (obj), TYPE_PUV3_INTC)
@@ -42,7 +41,7 @@ static void puv3_intc_handler(void *opaque, int irq, int level)
 {
     PUV3INTCState *s = opaque;
 
-    DPRINTF("irq 0x%x, level 0x%x\n", irq, level);
+    trace_puv3_intc_handler(irq, level);
     if (level) {
         s->reg_ICPR |= (1 << irq);
     } else {
@@ -65,9 +64,9 @@ static uint64_t puv3_intc_read(void *opaque, hwaddr offset,
         ret = s->reg_ICPR; /* the same value with ICPR */
         break;
     default:
-        DPRINTF("Bad offset %x\n", (int)offset);
+        trace_puv3_intc_read_bad(offset);
     }
-    DPRINTF("offset 0x%x, value 0x%x\n", offset, ret);
+    trace_puv3_intc_read(offset, ret);
     return ret;
 }
 
@@ -76,7 +75,7 @@ static void puv3_intc_write(void *opaque, hwaddr offset,
 {
     PUV3INTCState *s = opaque;
 
-    DPRINTF("offset 0x%x, value 0x%x\n", offset, value);
+    trace_puv3_intc_write(offset, value);
     switch (offset) {
     case 0x00: /* INTC_ICLR */
     case 0x14: /* INTC_ICCR */
@@ -85,7 +84,7 @@ static void puv3_intc_write(void *opaque, hwaddr offset,
         s->reg_ICMR = value;
         break;
     default:
-        DPRINTF("Bad offset 0x%x\n", (int)offset);
+        trace_puv3_intc_write_bad(offset);
         return;
     }
     puv3_intc_update(s);
