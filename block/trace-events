@@ -156,3 +156,20 @@ nvme_cmd_map_qiov_iov(void *s, int i, void *page, int pages) "s %p iov[%d] %p pa
 
 # block/iscsi.c
 iscsi_xcopy(void *src_lun, uint64_t src_off, void *dst_lun, uint64_t dst_off, uint64_t bytes, int ret) "src_lun %p offset %"PRIu64" dst_lun %p offset %"PRIu64" bytes %"PRIu64" ret %d"
+
+# block/ssh.c
+ssh_restart_coroutine(void *co) "co=%p"
+ssh_flush(void) "fsync"
+ssh_check_host_key_knownhosts(const char *key) "host key OK: %s"
+ssh_connect_to_ssh(char *path, int flags, int mode) "opening file %s flags=0x%x creat_mode=0%o"
+ssh_co_yield(int sock, void *rd_handler, void *wr_handler) "s->sock=%d rd_handler=%p wr_handler=%p"
+ssh_co_yield_back(int sock) "s->sock=%d - back"
+ssh_getlength(int64_t length) "length=%" PRIi64
+ssh_co_create_opts(uint64_t size) "total_size=%" PRIu64
+ssh_read(int64_t offset, size_t size) "offset=%" PRIi64 " size=%zu"
+ssh_read_buf(void *buf, size_t size) "sftp_read buf=%p size=%zu"
+ssh_read_return(size_t ret) "sftp_read returned %zd"
+ssh_write(int64_t offset, size_t size) "offset=%" PRIi64 " size=%zu"
+ssh_write_buf(void *buf, size_t size) "sftp_write buf=%p size=%zu"
+ssh_write_return(size_t ret) "sftp_write returned %zd"
+ssh_seek(uint64_t offset) "seeking to offset=%" PRIi64
