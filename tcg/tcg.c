@@ -2269,7 +2269,7 @@ static void liveness_pass_1(TCGContext *s)
 
     tcg_la_func_end(s);
 
-    QTAILQ_FOREACH_REVERSE_SAFE(op, &s->ops, TCGOpHead, link, op_prev) {
+    QTAILQ_FOREACH_REVERSE_SAFE(op, &s->ops, link, op_prev) {
         int i, nb_iargs, nb_oargs;
         TCGOpcode opc_new, opc_new2;
         bool have_opc_new2;
