@@ -207,6 +207,8 @@ REG32(CRB_DATA_BUFFER, 0x80)
 #define TPM_PPI_FUNC_ALLOWED_USR_NOT_REQ (4 << 0)
 #define TPM_PPI_FUNC_MASK                (7 << 0)
 
+#define TPM_PPI_MOVV_OFFSET 0x15a
+
 void tpm_build_ppi_acpi(TPMIf *tpm, Aml *dev);
 
 #endif /* HW_ACPI_TPM_H */
