@@ -156,6 +156,7 @@ static void pcie_slot_class_init(ObjectClass *oc, void *data)
     dc->props = pcie_slot_props;
     hc->pre_plug = pcie_cap_slot_pre_plug_cb;
     hc->plug = pcie_cap_slot_plug_cb;
+    hc->unplug = pcie_cap_slot_unplug_cb;
     hc->unplug_request = pcie_cap_slot_unplug_request_cb;
 }
 
