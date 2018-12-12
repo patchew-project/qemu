@@ -30,11 +30,4 @@
 #define PUV3_IRQS_PS2_AUX       (23)
 #define PUV3_IRQS_OST0          (26)
 
-/* All puv3_*.c use DPRINTF for debug. */
-#ifdef DEBUG_PUV3
-#define DPRINTF(fmt, ...) printf("%s: " fmt , __func__, ## __VA_ARGS__)
-#else
-#define DPRINTF(fmt, ...) do {} while (0)
-#endif
-
 #endif /* QEMU_HW_PUV3_H */
