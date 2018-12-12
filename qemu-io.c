@@ -206,7 +206,8 @@ static int open_f(BlockBackend *blk, int argc, char **argv)
             break;
         case 'o':
             if (imageOpts) {
-                printf("--image-opts and 'open -o' are mutually exclusive\n");
+                fprintf(stderr,
+                        "--image-opts and 'open -o' are mutually exclusive\n");
                 qemu_opts_reset(&empty_opts);
                 return -EINVAL;
             }
