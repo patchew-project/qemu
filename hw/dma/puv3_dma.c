@@ -11,9 +11,8 @@
 #include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "hw/sysbus.h"
-
-#undef DEBUG_PUV3
 #include "hw/unicore32/puv3.h"
+#include "trace.h"
 
 #define PUV3_DMA_CH_NR          (6)
 #define PUV3_DMA_CH_MASK        (0xff)
@@ -42,9 +41,9 @@ static uint64_t puv3_dma_read(void *opaque, hwaddr offset,
         ret = s->reg_CFG[PUV3_DMA_CH(offset)];
         break;
     default:
-        DPRINTF("Bad offset 0x%x\n", offset);
+        trace_puv3_dma_read_bad(offset);
     }
-    DPRINTF("offset 0x%x, value 0x%x\n", offset, ret);
+    trace_puv3_dma_read(offset, ret);
 
     return ret;
 }
@@ -61,9 +60,9 @@ static void puv3_dma_write(void *opaque, hwaddr offset,
         s->reg_CFG[PUV3_DMA_CH(offset)] = value;
         break;
     default:
-        DPRINTF("Bad offset 0x%x\n", offset);
+        trace_puv3_dma_write_bad(offset);
     }
-    DPRINTF("offset 0x%x, value 0x%x\n", offset, value);
+    trace_puv3_dma_write(offset, value);
 }
 
 static const MemoryRegionOps puv3_dma_ops = {
