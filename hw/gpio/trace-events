@@ -1,0 +1,6 @@
+# hw/gpio/puv3_gpio.c
+puv3_gpio_read_bad(unsigned offset) "Bad offset 0x%x"
+puv3_gpio_read(unsigned offset, uint32_t value) "offset 0x%x, value 0x%x"
+puv3_gpio_write(unsigned offset, uint64_t value) "offset 0x%x, value 0x%" PRIx64
+puv3_gpio_write_error(void) "Write gpio input port error!"
+puv3_gpio_write_bad(unsigned offset) "Bad offset 0x%x"

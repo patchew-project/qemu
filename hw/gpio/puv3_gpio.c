@@ -11,9 +11,8 @@
 #include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "hw/sysbus.h"
-
-#undef DEBUG_PUV3
 #include "hw/unicore32/puv3.h"
+#include "trace.h"
 
 #define TYPE_PUV3_GPIO "puv3_gpio"
 #define PUV3_GPIO(obj) OBJECT_CHECK(PUV3GPIOState, (obj), TYPE_PUV3_GPIO)
@@ -46,9 +45,9 @@ static uint64_t puv3_gpio_read(void *opaque, hwaddr offset,
         ret = s->reg_GPIR;
         break;
     default:
-        DPRINTF("Bad offset 0x%x\n", offset);
+        trace_puv3_gpio_read_bad(offset);
     }
-    DPRINTF("offset 0x%x, value 0x%x\n", offset, ret);
+    trace_puv3_gpio_read(offset, ret);
 
     return ret;
 }
@@ -58,7 +57,7 @@ static void puv3_gpio_write(void *opaque, hwaddr offset,
 {
     PUV3GPIOState *s = opaque;
 
-    DPRINTF("offset 0x%x, value 0x%x\n", offset, value);
+    trace_puv3_gpio_write(offset, value);
     switch (offset) {
     case 0x04:
         s->reg_GPDR = value;
@@ -67,14 +66,14 @@ static void puv3_gpio_write(void *opaque, hwaddr offset,
         if (s->reg_GPDR & value) {
             s->reg_GPLR |= value;
         } else {
-            DPRINTF("Write gpio input port error!");
+            trace_puv3_gpio_write_error();
         }
         break;
     case 0x0c:
         if (s->reg_GPDR & value) {
             s->reg_GPLR &= ~value;
         } else {
-            DPRINTF("Write gpio input port error!");
+            trace_puv3_gpio_write_error();
         }
         break;
     case 0x10: /* GRER */
@@ -85,7 +84,7 @@ static void puv3_gpio_write(void *opaque, hwaddr offset,
         s->reg_GPIR = value;
         break;
     default:
-        DPRINTF("Bad offset 0x%x\n", offset);
+        trace_puv3_gpio_write_bad(offset);
     }
 }
 
