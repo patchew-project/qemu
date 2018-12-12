@@ -53,12 +53,12 @@ struct schib_config {
     __u64 mba;
     __u32 intparm;
     __u16 mbi;
-    __u32 isc:3;
-    __u32 ena:1;
-    __u32 mme:2;
-    __u32 mp:1;
-    __u32 csense:1;
-    __u32 mbfc:1;
+    __u32 isc    : 3;
+    __u32 ena    : 1;
+    __u32 mme    : 2;
+    __u32 mp     : 1;
+    __u32 csense : 1;
+    __u32 mbfc   : 1;
 } __attribute__ ((packed));
 
 struct scsw {
@@ -77,41 +77,41 @@ struct scsw {
 /*
  * subchannel information block
  */
-struct schib {
+typedef struct schib {
     struct pmcw pmcw;     /* path management control word */
     struct scsw scsw;     /* subchannel status word */
     __u64 mba;            /* measurement block address */
     __u8 mda[4];          /* model dependent area */
-} __attribute__ ((packed,aligned(4)));
+} __attribute__ ((packed, aligned(4))) Schib;
 
-struct subchannel_id {
+typedef struct subchannel_id {
         __u32 cssid  : 8;
         __u32        : 4;
         __u32 m      : 1;
         __u32 ssid   : 2;
         __u32 one    : 1;
         __u32 sch_no : 16;
-} __attribute__ ((packed, aligned(4)));
+} __attribute__ ((packed, aligned(4))) SubChannelId;
 
 struct chsc_header {
     __u16 length;
     __u16 code;
 } __attribute__((packed));
 
-struct chsc_area_sda {
+typedef struct chsc_area_sda {
     struct chsc_header request;
-    __u8 reserved1:4;
-    __u8 format:4;
+    __u8 reserved1  : 4;
+    __u8 format     : 4;
     __u8 reserved2;
     __u16 operation_code;
     __u32 reserved3;
     __u32 reserved4;
     __u32 operation_data_area[252];
     struct chsc_header response;
-    __u32 reserved5:4;
-    __u32 format2:4;
-    __u32 reserved6:24;
-} __attribute__((packed));
+    __u32 reserved5 : 4;
+    __u32 format2   : 4;
+    __u32 reserved6 : 24;
+} __attribute__((packed)) ChscAreaSda;
 
 /*
  * TPI info structure
@@ -128,12 +128,12 @@ struct tpi_info {
 } __attribute__ ((packed, aligned(4)));
 
 /* channel command word (type 1) */
-struct ccw1 {
+typedef struct ccw1 {
     __u8 cmd_code;
     __u8 flags;
     __u16 count;
     __u32 cda;
-} __attribute__ ((packed, aligned(8)));
+} __attribute__ ((packed, aligned(8))) Ccw1;
 
 #define CCW_FLAG_DC              0x80
 #define CCW_FLAG_CC              0x40
@@ -162,27 +162,27 @@ struct ccw1 {
 /*
  * Command-mode operation request block
  */
-struct cmd_orb {
+typedef struct cmd_orb {
     __u32 intparm;    /* interruption parameter */
-    __u32 key:4;      /* flags, like key, suspend control, etc. */
-    __u32 spnd:1;     /* suspend control */
-    __u32 res1:1;     /* reserved */
-    __u32 mod:1;      /* modification control */
-    __u32 sync:1;     /* synchronize control */
-    __u32 fmt:1;      /* format control */
-    __u32 pfch:1;     /* prefetch control */
-    __u32 isic:1;     /* initial-status-interruption control */
-    __u32 alcc:1;     /* address-limit-checking control */
-    __u32 ssic:1;     /* suppress-suspended-interr. control */
-    __u32 res2:1;     /* reserved */
-    __u32 c64:1;      /* IDAW/QDIO 64 bit control  */
-    __u32 i2k:1;      /* IDAW 2/4kB block size control */
-    __u32 lpm:8;      /* logical path mask */
-    __u32 ils:1;      /* incorrect length */
-    __u32 zero:6;     /* reserved zeros */
-    __u32 orbx:1;     /* ORB extension control */
-    __u32 cpa;    /* channel program address */
-}  __attribute__ ((packed, aligned(4)));
+    __u32 key  : 4;   /* flags, like key, suspend control, etc. */
+    __u32 spnd : 1;   /* suspend control */
+    __u32 res1 : 1;   /* reserved */
+    __u32 mod  : 1;   /* modification control */
+    __u32 sync : 1;   /* synchronize control */
+    __u32 fmt  : 1;   /* format control */
+    __u32 pfch : 1;   /* prefetch control */
+    __u32 isic : 1;   /* initial-status-interruption control */
+    __u32 alcc : 1;   /* address-limit-checking control */
+    __u32 ssic : 1;   /* suppress-suspended-interr. control */
+    __u32 res2 : 1;   /* reserved */
+    __u32 c64  : 1;   /* IDAW/QDIO 64 bit control  */
+    __u32 i2k  : 1;   /* IDAW 2/4kB block size control */
+    __u32 lpm  : 8;   /* logical path mask */
+    __u32 ils  : 1;   /* incorrect length */
+    __u32 zero : 6;   /* reserved zeros */
+    __u32 orbx : 1;   /* ORB extension control */
+    __u32 cpa;        /* channel program address */
+}  __attribute__ ((packed, aligned(4))) CmdOrb;
 
 struct ciw {
     __u8 type;
@@ -193,7 +193,7 @@ struct ciw {
 /*
  * sense-id response buffer layout
  */
-struct senseid {
+typedef struct senseid {
     /* common part */
     __u8  reserved;   /* always 0x'FF' */
     __u16 cu_type;    /* control unit type */
@@ -203,15 +203,15 @@ struct senseid {
     __u8  unused;     /* padding byte */
     /* extended part */
     struct ciw ciw[62];
-}  __attribute__ ((packed, aligned(4)));
+}  __attribute__ ((packed, aligned(4))) SenseId;
 
 /* interruption response block */
-struct irb {
+typedef struct irb {
     struct scsw scsw;
     __u32 esw[5];
     __u32 ecw[8];
     __u32 emw[8];
-}  __attribute__ ((packed, aligned(4)));
+}  __attribute__ ((packed, aligned(4))) Irb;
 
 /*
  * Some S390 specific IO instructions as inline
