@@ -2431,7 +2431,7 @@ build_dmar_q35(GArray *table_data, BIOSLinker *linker)
     }
 
     dmar = acpi_data_push(table_data, sizeof(*dmar));
-    dmar->host_address_width = intel_iommu->aw_bits - 1;
+    dmar->host_address_width = intel_iommu->haw_bits - 1;
     dmar->flags = dmar_flags;
 
     /* DMAR Remapping Hardware Unit Definition structure */
