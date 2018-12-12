@@ -132,3 +132,9 @@ iotkit_sysinfo_write(uint64_t offset, uint64_t data, unsigned size) "IoTKit SysI
 iotkit_sysctl_read(uint64_t offset, uint64_t data, unsigned size) "IoTKit SysCtl read: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %u"
 iotkit_sysctl_write(uint64_t offset, uint64_t data, unsigned size) "IoTKit SysCtl write: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %u"
 iotkit_sysctl_reset(void) "IoTKit SysCtl: reset"
+
+# hw/misc/puv3_pm.c
+puv3_pm_read_bad(uint32_t offset) "Bad offset 0x%x"
+puv3_pm_read(uint32_t offset, uint32_t value) "offset 0x%x, value 0x%x"
+puv3_pm_write_bad(uint32_t offset) "Bad offset 0x%x"
+puv3_pm_write(uint32_t offset, uint64_t value) "offset 0x%x, value 0x%" PRIx64
