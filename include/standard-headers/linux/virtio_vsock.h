@@ -38,6 +38,9 @@
 #include "standard-headers/linux/virtio_ids.h"
 #include "standard-headers/linux/virtio_config.h"
 
+/* Virtio-vsock feature */
+#define VIRTIO_VSOCK_F_MRG_RXBUF 0 /* Host can merge receive buffers. */
+
 struct virtio_vsock_config {
 	uint64_t guest_cid;
 } QEMU_PACKED;
