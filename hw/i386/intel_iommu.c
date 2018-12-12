@@ -664,16 +664,16 @@ static inline bool vtd_iova_range_check(uint64_t iova, VTDContextEntry *ce,
 
 /*
  * Rsvd field masks for spte:
- *     Index [1] to [4] 4k pages
- *     Index [5] to [8] large pages
+ *     Index [1] to [5] 4k pages
+ *     Index [6] to [10] large pages
  */
-static uint64_t vtd_paging_entry_rsvd_field[9];
+static uint64_t vtd_paging_entry_rsvd_field[11];
 
 static bool vtd_slpte_nonzero_rsvd(uint64_t slpte, uint32_t level)
 {
     if (slpte & VTD_SL_PT_PAGE_SIZE_MASK) {
         /* Maybe large page */
-        return slpte & vtd_paging_entry_rsvd_field[level + 4];
+        return slpte & vtd_paging_entry_rsvd_field[level + 5];
     } else {
         return slpte & vtd_paging_entry_rsvd_field[level];
     }
@@ -3127,6 +3127,8 @@ static void vtd_init(IntelIOMMUState *s)
              VTD_CAP_SAGAW_39bit | VTD_CAP_MGAW(s->aw_bits);
     if (s->aw_bits == VTD_AW_48BIT) {
         s->cap |= VTD_CAP_SAGAW_48bit;
+    } else if (s->aw_bits == VTD_AW_57BIT) {
+        s->cap |= VTD_CAP_SAGAW_57bit | VTD_CAP_SAGAW_48bit;
     }
     s->ecap = VTD_ECAP_QI | VTD_ECAP_IRO;
     s->haw_bits = cpu->phys_bits;
@@ -3139,10 +3141,12 @@ static void vtd_init(IntelIOMMUState *s)
     vtd_paging_entry_rsvd_field[2] = VTD_SPTE_PAGE_L2_RSVD_MASK(s->haw_bits);
     vtd_paging_entry_rsvd_field[3] = VTD_SPTE_PAGE_L3_RSVD_MASK(s->haw_bits);
     vtd_paging_entry_rsvd_field[4] = VTD_SPTE_PAGE_L4_RSVD_MASK(s->haw_bits);
-    vtd_paging_entry_rsvd_field[5] = VTD_SPTE_LPAGE_L1_RSVD_MASK(s->haw_bits);
-    vtd_paging_entry_rsvd_field[6] = VTD_SPTE_LPAGE_L2_RSVD_MASK(s->haw_bits);
-    vtd_paging_entry_rsvd_field[7] = VTD_SPTE_LPAGE_L3_RSVD_MASK(s->haw_bits);
-    vtd_paging_entry_rsvd_field[8] = VTD_SPTE_LPAGE_L4_RSVD_MASK(s->haw_bits);
+    vtd_paging_entry_rsvd_field[5] = VTD_SPTE_PAGE_L5_RSVD_MASK(s->haw_bits);
+    vtd_paging_entry_rsvd_field[6] = VTD_SPTE_LPAGE_L1_RSVD_MASK(s->haw_bits);
+    vtd_paging_entry_rsvd_field[7] = VTD_SPTE_LPAGE_L2_RSVD_MASK(s->haw_bits);
+    vtd_paging_entry_rsvd_field[8] = VTD_SPTE_LPAGE_L3_RSVD_MASK(s->haw_bits);
+    vtd_paging_entry_rsvd_field[9] = VTD_SPTE_LPAGE_L4_RSVD_MASK(s->haw_bits);
+    vtd_paging_entry_rsvd_field[10] = VTD_SPTE_LPAGE_L5_RSVD_MASK(s->haw_bits);
 
     if (x86_iommu->intr_supported) {
         s->ecap |= VTD_ECAP_IR | VTD_ECAP_MHMV;
@@ -3241,6 +3245,23 @@ static AddressSpace *vtd_host_dma_iommu(PCIBus *bus, void *opaque, int devfn)
     return &vtd_as->as;
 }
 
+static bool host_has_la57(void)
+{
+    uint32_t ecx, unused;
+
+    host_cpuid(7, 0, &unused, &unused, &ecx, &unused);
+    return ecx & CPUID_7_0_ECX_LA57;
+}
+
+static bool guest_has_la57(void)
+{
+    CPUState *cs = first_cpu;
+    X86CPU *cpu = X86_CPU(cs);
+    CPUX86State *env = &cpu->env;
+
+    return env->features[FEAT_7_0_ECX] & CPUID_7_0_ECX_LA57;
+}
+
 static bool vtd_decide_config(IntelIOMMUState *s, Error **errp)
 {
     X86IOMMUState *x86_iommu = X86_IOMMU_DEVICE(s);
@@ -3267,11 +3288,19 @@ static bool vtd_decide_config(IntelIOMMUState *s, Error **errp)
         }
     }
 
-    /* Currently only address widths supported are 39 and 48 bits */
+    /* Currently address widths supported are 39, 48, and 57 bits */
     if ((s->aw_bits != VTD_AW_39BIT) &&
-        (s->aw_bits != VTD_AW_48BIT)) {
-        error_setg(errp, "Supported values for x-aw-bits are: %d, %d",
-                   VTD_AW_39BIT, VTD_AW_48BIT);
+        (s->aw_bits != VTD_AW_48BIT) &&
+        (s->aw_bits != VTD_AW_57BIT)) {
+        error_setg(errp, "Supported values for x-aw-bits are: %d, %d, %d",
+                   VTD_AW_39BIT, VTD_AW_48BIT, VTD_AW_57BIT);
+        return false;
+    }
+
+    if ((s->aw_bits == VTD_AW_57BIT) &&
+        !(host_has_la57() && guest_has_la57())) {
+        error_setg(errp, "Do not support 57-bit DMA address, unless both "
+                         "host and guest are capable of 5-level paging");
         return false;
     }
 
