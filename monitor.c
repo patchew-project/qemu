@@ -266,11 +266,11 @@ typedef struct QMPRequest QMPRequest;
 /* Protects mon_list, monitor_qapi_event_state.  */
 static QemuMutex monitor_lock;
 static GHashTable *monitor_qapi_event_state;
-static QTAILQ_HEAD(mon_list, Monitor) mon_list;
+static QTAILQ_HEAD(, Monitor) mon_list;
 
 /* Protects mon_fdsets */
 static QemuMutex mon_fdsets_lock;
-static QLIST_HEAD(mon_fdsets, MonFdset) mon_fdsets;
+static QLIST_HEAD(, MonFdset) mon_fdsets;
 
 static int mon_refcount;
 
