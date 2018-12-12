@@ -22,6 +22,14 @@
 # define QEMU_GNUC_PREREQ(maj, min) 0
 #endif
 
+/*
+ * We need at least GCC 4.1 for atomics support. Clang also supports these,
+ * and reports itself as GCC 4.2, so it passes this check, too.
+ */
+#if !QEMU_GNUC_PREREQ(4, 1)
+#error QEMU needs a compiler that is compatible with GCC v4.1 or newer
+#endif
+
 #define QEMU_NORETURN __attribute__ ((__noreturn__))
 
 #define QEMU_WARN_UNUSED_RESULT __attribute__((warn_unused_result))
