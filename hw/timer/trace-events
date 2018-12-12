@@ -72,3 +72,10 @@ sun4v_rtc_write(uint64_t addr, uint64_t value) "write: addr 0x%" PRIx64 " value 
 
 # hw/timer/xlnx-zynqmp-rtc.c
 xlnx_zynqmp_rtc_gettime(int year, int month, int day, int hour, int min, int sec) "Get time from host: %d-%d-%d %2d:%02d:%02d"
+
+# hw/timer/puv3_ost.c
+puv3_ost_read_bad(uint32_t offset) "Bad offset 0x%x"
+puv3_ost_read(uint32_t offset, uint32_t value) "offset 0x%x, value 0x%x"
+puv3_ost_write(uint32_t offset, uint64_t value) "offset 0x%x, value 0x%" PRIx64
+puv3_ost_write_bad(uint32_t offset) "Bad offset 0x%x"
+puv3_ost_tick(uint32_t oscr, uint32_t osmr0) "ost hit when ptimer counter from 0x%x to 0x%x!"

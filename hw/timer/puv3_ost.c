@@ -12,9 +12,8 @@
 #include "hw/sysbus.h"
 #include "hw/ptimer.h"
 #include "qemu/main-loop.h"
-
-#undef DEBUG_PUV3
 #include "hw/unicore32/puv3.h"
+#include "trace.h"
 
 #define TYPE_PUV3_OST "puv3_ost"
 #define PUV3_OST(obj) OBJECT_CHECK(PUV3OSTState, (obj), TYPE_PUV3_OST)
@@ -51,9 +50,9 @@ static uint64_t puv3_ost_read(void *opaque, hwaddr offset,
         ret = s->reg_OIER;
         break;
     default:
-        DPRINTF("Bad offset %x\n", (int)offset);
+        trace_puv3_ost_read_bad(offset);
     }
-    DPRINTF("offset 0x%x, value 0x%x\n", offset, ret);
+    trace_puv3_ost_read(offset, ret);
     return ret;
 }
 
@@ -62,7 +61,7 @@ static void puv3_ost_write(void *opaque, hwaddr offset,
 {
     PUV3OSTState *s = opaque;
 
-    DPRINTF("offset 0x%x, value 0x%x\n", offset, value);
+    trace_puv3_ost_write(offset, value);
     switch (offset) {
     case 0x00: /* Match Register 0 */
         s->reg_OSMR0 = value;
@@ -85,7 +84,7 @@ static void puv3_ost_write(void *opaque, hwaddr offset,
         s->reg_OIER = value;
         break;
     default:
-        DPRINTF("Bad offset %x\n", (int)offset);
+        trace_puv3_ost_write_bad(offset);
     }
 }
 
@@ -103,8 +102,7 @@ static void puv3_ost_tick(void *opaque)
 {
     PUV3OSTState *s = opaque;
 
-    DPRINTF("ost hit when ptimer counter from 0x%x to 0x%x!\n",
-            s->reg_OSCR, s->reg_OSMR0);
+    trace_puv3_ost_tick(s->reg_OSCR, s->reg_OSMR0);
 
     s->reg_OSCR = s->reg_OSMR0;
     if (s->reg_OIER) {
