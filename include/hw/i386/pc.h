@@ -296,6 +296,19 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
 
 #define PC_COMPAT_3_1 \
     HW_COMPAT_3_1 \
+    {\
+        .driver   = "Opteron_G3" "-" TYPE_X86_CPU,\
+        .property = "rdtscp",\
+        .value    = "off",\
+    },{\
+        .driver   = "Opteron_G4" "-" TYPE_X86_CPU,\
+        .property = "rdtscp",\
+        .value    = "off",\
+    },{\
+        .driver   = "Opteron_G5" "-" TYPE_X86_CPU,\
+        .property = "rdtscp",\
+        .value    = "off",\
+    },
 
 #define PC_COMPAT_3_0 \
     HW_COMPAT_3_0 \
