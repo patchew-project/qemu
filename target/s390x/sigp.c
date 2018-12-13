@@ -115,7 +115,7 @@ static void sigp_stop(CPUState *cs, run_on_cpu_data arg)
     }
 
     /* disabled wait - sleeping in user space */
-    if (cs->halted) {
+    if (cpu_halted(cs)) {
         s390_cpu_set_state(S390_CPU_STATE_STOPPED, cpu);
     } else {
         /* execute the stop function */
@@ -131,7 +131,7 @@ static void sigp_stop_and_store_status(CPUState *cs, run_on_cpu_data arg)
     SigpInfo *si = arg.host_ptr;
 
     /* disabled wait - sleeping in user space */
-    if (s390_cpu_get_state(cpu) == S390_CPU_STATE_OPERATING && cs->halted) {
+    if (s390_cpu_get_state(cpu) == S390_CPU_STATE_OPERATING && cpu_halted(cs)) {
         s390_cpu_set_state(S390_CPU_STATE_STOPPED, cpu);
     }
 
@@ -313,7 +313,7 @@ static void sigp_cond_emergency(S390CPU *src_cpu, S390CPU *dst_cpu,
     }
 
     /* this looks racy, but these values are only used when STOPPED */
-    idle = CPU(dst_cpu)->halted;
+    idle = cpu_halted(CPU(dst_cpu));
     psw_addr = dst_cpu->env.psw.addr;
     psw_mask = dst_cpu->env.psw.mask;
     asn = si->param;
@@ -347,7 +347,7 @@ static void sigp_sense_running(S390CPU *dst_cpu, SigpInfo *si)
     }
 
     /* If halted (which includes also STOPPED), it is not running */
-    if (CPU(dst_cpu)->halted) {
+    if (cpu_halted(CPU(dst_cpu))) {
         si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
     } else {
         set_sigp_status(si, SIGP_STAT_NOT_RUNNING);
