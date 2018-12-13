@@ -807,7 +807,7 @@ void xtensa_runstall(CPUXtensaState *env, bool runstall)
     CPUState *cpu = CPU(xtensa_env_get_cpu(env));
 
     env->runstall = runstall;
-    cpu->halted = runstall;
+    cpu_halted_set(cpu, runstall);
     if (runstall) {
         cpu_interrupt(cpu, CPU_INTERRUPT_HALT);
     } else {
