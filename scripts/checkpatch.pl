@@ -1858,6 +1858,38 @@ sub process {
 		$line =~ s@//.*@@;
 		$opline =~ s@//.*@@;
 
+# check for malformed comment block.
+		if ($rawline =~ m{/\*} && $rawline !~ m{\*\/}) {
+			if ($rawline !~ m{^.\s*/\*+$}) {
+				WARN("comment block should begin on its own" .
+					" line\n" . $herecurr);
+			}
+
+			my $rel_line = 1;
+			my $reported = 0;
+			my $comment_line = '';
+			my $herecurr = '';
+			do {
+				$comment_line = $rawlines[$rel_line + $linenr
+					- 1];
+				$herecurr = "#".($linenr + $rel_line) .
+					": FILE: ".$realfile .
+					":".($realline + $rel_line)."\n" .
+					$comment_line."\n";
+				if (!$reported && $comment_line !~ m{^.\s*\*}) {
+					WARN("line in comment block should" .
+						" start with asterisk\n" .
+						$herecurr);
+					$reported = 1;
+				}
+				$rel_line++;
+			} while ($comment_line && $comment_line !~ m{\*\/});
+
+			if ($comment_line && $comment_line !~ m{^.\s*\*+\/}) {
+				WARN("comment block should end on its own" .
+					" line\n".$herecurr);
+			}
+		}
 # check for global initialisers.
 		if ($line =~ /^.$Type\s*$Ident\s*(?:\s+$Modifier)*\s*=\s*(0|NULL|false)\s*;/) {
 			ERROR("do not initialise globals to 0 or NULL\n" .
