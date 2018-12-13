@@ -2601,6 +2601,11 @@ static ImageInfoList *collect_image_info_list(bool image_opts,
             blk_unref(blk);
             goto err;
         }
+        if (info->format_specific &&
+            info->format_specific->type == IMAGE_INFO_SPECIFIC_KIND_QCOW2 &&
+            info->format_specific->u.qcow2.data->has_bitmaps == false) {
+            warn_report("Failed to load bitmap list");
+        }
 
         elem = g_new0(ImageInfoList, 1);
         elem->value = info;
