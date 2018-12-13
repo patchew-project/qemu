@@ -38,6 +38,7 @@
 #include <libgen.h>
 #include <sys/signal.h>
 #include "qemu/cutils.h"
+#include "qemu/error-report.h"
 
 #ifdef CONFIG_LINUX
 #include <sys/syscall.h>
@@ -233,14 +234,32 @@ void qemu_set_block(int fd)
 {
     int f;
     f = fcntl(fd, F_GETFL);
-    fcntl(fd, F_SETFL, f & ~O_NONBLOCK);
+    if (f < 0) {
+        error_report("Unable to get file status flag on fd %d: %s(errno=%d)",
+                    fd, strerror(errno), errno);
+        abort();
+    }
+    if (fcntl(fd, F_SETFL, f & ~O_NONBLOCK) < 0) {
+        error_report("Unable to set blocking flag on fd %d: %s(errno=%d)",
+                    fd, strerror(errno), errno);
+        abort();
+    }
 }
 
 void qemu_set_nonblock(int fd)
 {
     int f;
     f = fcntl(fd, F_GETFL);
-    fcntl(fd, F_SETFL, f | O_NONBLOCK);
+    if (f < 0) {
+        error_report("Unable to get file status flag on fd %d: %s(errno=%d)",
+                    fd, strerror(errno), errno);
+        abort();
+    }
+    if (fcntl(fd, F_SETFL, f | O_NONBLOCK) < 0) {
+        error_report("Unable to set nonblocking flag on fd %d: %s(errno=%d)",
+                    fd, strerror(errno), errno);
+        abort();
+    }
 }
 
 int socket_set_fast_reuse(int fd)
@@ -259,9 +278,17 @@ void qemu_set_cloexec(int fd)
 {
     int f;
     f = fcntl(fd, F_GETFD);
-    assert(f != -1);
-    f = fcntl(fd, F_SETFD, f | FD_CLOEXEC);
-    assert(f != -1);
+    if (f < 0) {
+        error_report("Unable to get fd flags on fd %d: %s(errno=%d)",
+                    fd, strerror(errno), errno);
+        abort();
+    }
+    if (fcntl(fd, F_SETFD, f | FD_CLOEXEC) < 0) {
+        error_report("Unable to set fd close-on-exec flag on fd %d:"
+                    "%s(errno=%d)",
+                    fd, strerror(errno), errno);
+        abort();
+    }
 }
 
 /*
