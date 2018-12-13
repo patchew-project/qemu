@@ -989,14 +989,20 @@ int kvm_arch_get_registers(CPUState *cs)
     return ret;
 }
 
-/* C6.6.29 BRK instruction */
+/* BRK (A64) and BKPT (A32) instructions */
 static const uint32_t brk_insn = 0xd4200000;
+static const uint32_t bkpt_insn = 0xe1200070;
 
 int kvm_arch_insert_sw_breakpoint(CPUState *cs, struct kvm_sw_breakpoint *bp)
 {
+    CPUARMState *env = &ARM_CPU(cs)->env;
+    int el = arm_current_el(env);
+    bool is_aa64 = arm_el_is_aa64(env, el);
+    const uint32_t *bpi = is_aa64 ? &brk_insn : &bkpt_insn;
+
     if (have_guest_debug) {
         if (cpu_memory_rw_debug(cs, bp->pc, (uint8_t *)&bp->saved_insn, 4, 0) ||
-            cpu_memory_rw_debug(cs, bp->pc, (uint8_t *)&brk_insn, 4, 1)) {
+            cpu_memory_rw_debug(cs, bp->pc, (uint8_t *)bpi, 4, 1)) {
             return -EINVAL;
         }
         return 0;
@@ -1012,7 +1018,7 @@ int kvm_arch_remove_sw_breakpoint(CPUState *cs, struct kvm_sw_breakpoint *bp)
 
     if (have_guest_debug) {
         if (cpu_memory_rw_debug(cs, bp->pc, (uint8_t *)&brk, 4, 0) ||
-            brk != brk_insn ||
+            !(brk == brk_insn || brk == bkpt_insn) ||
             cpu_memory_rw_debug(cs, bp->pc, (uint8_t *)&bp->saved_insn, 4, 1)) {
             return -EINVAL;
         }
@@ -1055,6 +1061,7 @@ bool kvm_arm_handle_debug(CPUState *cs, struct kvm_debug_exit_arch *debug_exit)
             return false;
         }
         break;
+    case EC_AA32_BKPT:
     case EC_AA64_BKPT:
         if (kvm_find_sw_breakpoint(cs, env->pc)) {
             return true;
