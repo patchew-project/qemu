@@ -1613,6 +1613,12 @@ uint64_t ram_pagesize_summary(void)
     return summary;
 }
 
+uint64_t ram_get_total_transferred_pages(void)
+{
+    return  ram_counters.normal + ram_counters.duplicate +
+                compression_counters.pages + xbzrle_counters.pages;
+}
+
 static void compress_adaptive_init(void)
 {
     /* fully wait on default. */

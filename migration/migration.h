@@ -126,6 +126,12 @@ struct MigrationState
      */
     QemuSemaphore rate_limit_sem;
 
+    /* pages already send at the beggining of current interation */
+    uint64_t iteration_initial_pages;
+
+    /* pages transferred per second */
+    double pages_per_second;
+
     /* bytes already send at the beggining of current interation */
     uint64_t iteration_initial_bytes;
     /* time at the start of current iteration */
@@ -278,6 +284,8 @@ int migrate_compress_threads(void);
 int migrate_compress_wait_thread(void);
 int migrate_compress_wait_thread_adaptive(void);
 void compress_adaptive_update(double mbps);
+
+uint64_t ram_get_total_transferred_pages(void);
 
 int migrate_decompress_threads(void);
 bool migrate_use_events(void);
