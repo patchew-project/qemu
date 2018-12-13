@@ -706,6 +706,9 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
     params->compress_threads = s->parameters.compress_threads;
     params->has_compress_wait_thread = true;
     params->compress_wait_thread = s->parameters.compress_wait_thread;
+    params->has_compress_wait_thread_adaptive = true;
+    params->compress_wait_thread_adaptive =
+                            s->parameters.compress_wait_thread_adaptive;
     params->has_decompress_threads = true;
     params->decompress_threads = s->parameters.decompress_threads;
     params->has_cpu_throttle_initial = true;
@@ -799,6 +802,8 @@ static void populate_ram_info(MigrationInfo *info, MigrationState *s)
                                     compression_counters.compressed_size;
         info->compression->compression_rate =
                                     compression_counters.compression_rate;
+        info->compression->compress_no_wait_weight =
+                                compression_counters.compress_no_wait_weight;
     }
 
     if (cpu_throttle_active()) {
@@ -1132,6 +1137,11 @@ static void migrate_params_test_apply(MigrateSetParameters *params,
         dest->compress_wait_thread = params->compress_wait_thread;
     }
 
+    if (params->has_compress_wait_thread_adaptive) {
+        dest->compress_wait_thread_adaptive =
+            params->compress_wait_thread_adaptive;
+    }
+
     if (params->has_decompress_threads) {
         dest->decompress_threads = params->decompress_threads;
     }
@@ -1202,6 +1212,11 @@ static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
 
     if (params->has_compress_wait_thread) {
         s->parameters.compress_wait_thread = params->compress_wait_thread;
+    }
+
+    if (params->has_compress_wait_thread_adaptive) {
+        s->parameters.compress_wait_thread_adaptive =
+            params->compress_wait_thread_adaptive;
     }
 
     if (params->has_decompress_threads) {
@@ -1925,6 +1940,15 @@ bool migrate_postcopy_blocktime(void)
     return s->enabled_capabilities[MIGRATION_CAPABILITY_POSTCOPY_BLOCKTIME];
 }
 
+int64_t migration_max_bandwidth(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->parameters.max_bandwidth;
+}
+
 bool migrate_use_compression(void)
 {
     MigrationState *s;
@@ -1959,6 +1983,15 @@ int migrate_compress_wait_thread(void)
     s = migrate_get_current();
 
     return s->parameters.compress_wait_thread;
+}
+
+int migrate_compress_wait_thread_adaptive(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->parameters.compress_wait_thread_adaptive;
 }
 
 int migrate_decompress_threads(void)
@@ -2898,6 +2931,8 @@ static void migration_update_counters(MigrationState *s,
     s->mbps = (((double) transferred * 8.0) /
                ((double) time_spent / 1000.0)) / 1000.0 / 1000.0;
 
+    compress_adaptive_update(s->mbps);
+
     /*
      * if we haven't sent anything, we don't want to
      * recalculate. 10000 is a small enough number for our purposes
@@ -3232,6 +3267,8 @@ static Property migration_properties[] = {
                       DEFAULT_MIGRATE_COMPRESS_THREAD_COUNT),
     DEFINE_PROP_BOOL("x-compress-wait-thread", MigrationState,
                       parameters.compress_wait_thread, true),
+    DEFINE_PROP_BOOL("x-ccompress-wait-thread-adaptive", MigrationState,
+                      parameters.compress_wait_thread_adaptive, false),
     DEFINE_PROP_UINT8("x-decompress-threads", MigrationState,
                       parameters.decompress_threads,
                       DEFAULT_MIGRATE_DECOMPRESS_THREAD_COUNT),

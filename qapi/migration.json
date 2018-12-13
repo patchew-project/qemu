@@ -90,11 +90,16 @@
 #
 # @compression-rate: rate of compressed size
 #
+# @compress-no-wait-weight: it controls how many pages are directly posted
+#     out as normal page when all compression threads are currently busy.
+#     Only available if compress-wait-thread-adaptive is on. (Since 3.2)
+#
 # Since: 3.1
 ##
 { 'struct': 'CompressionStats',
   'data': {'pages': 'int', 'busy': 'int', 'busy-rate': 'number',
-	   'compressed-size': 'int', 'compression-rate': 'number' } }
+	   'compressed-size': 'int', 'compression-rate': 'number',
+	   'compress-no-wait-weight': 'int'} }
 
 ##
 # @MigrationStatus:
@@ -490,6 +495,11 @@
 #                        compression thread to become available; otherwise,
 #                        send the page uncompressed. (Since 3.1)
 #
+# @compress-wait-thread-adaptive: Adaptively controls compress-wait-thread
+#          based on the rate limit and it's off on default. When it is on
+#          and it has enough bandwidth, it acts as compress-wait-thread is
+#          off. (Since 3.2)
+#
 # @decompress-threads: Set decompression thread count to be used in live
 #          migration, the decompression thread count is an integer between 1
 #          and 255. Usually, decompression is at least 4 times as fast as
@@ -558,7 +568,7 @@
 ##
 { 'enum': 'MigrationParameter',
   'data': ['compress-level', 'compress-threads', 'decompress-threads',
-           'compress-wait-thread',
+           'compress-wait-thread', 'compress-wait-thread-adaptive',
            'cpu-throttle-initial', 'cpu-throttle-increment',
            'tls-creds', 'tls-hostname', 'max-bandwidth',
            'downtime-limit', 'x-checkpoint-delay', 'block-incremental',
@@ -577,6 +587,11 @@
 #                        currently busy. If true (default), wait for a free
 #                        compression thread to become available; otherwise,
 #                        send the page uncompressed. (Since 3.1)
+#
+# @compress-wait-thread-adaptive: Adaptively controls compress-wait-thread
+#          based on the rate limit and it's off on default. When it is on
+#          and it has enough bandwidth, it acts as compress-wait-thread is
+#          off. (Since 3.2)
 #
 # @decompress-threads: decompression thread count
 #
@@ -653,6 +668,7 @@
   'data': { '*compress-level': 'int',
             '*compress-threads': 'int',
             '*compress-wait-thread': 'bool',
+            '*compress-wait-thread-adaptive': 'bool',
             '*decompress-threads': 'int',
             '*cpu-throttle-initial': 'int',
             '*cpu-throttle-increment': 'int',
@@ -697,6 +713,11 @@
 #                        currently busy. If true (default), wait for a free
 #                        compression thread to become available; otherwise,
 #                        send the page uncompressed. (Since 3.1)
+#
+# @compress-wait-thread-adaptive: Adaptively controls compress-wait-thread
+#          based on the rate limit and it's off on default. When it is on
+#          and it has enough bandwidth, it acts as compress-wait-thread is
+#          off. (Since 3.2)
 #
 # @decompress-threads: decompression thread count
 #
@@ -769,6 +790,7 @@
   'data': { '*compress-level': 'uint8',
             '*compress-threads': 'uint8',
             '*compress-wait-thread': 'bool',
+            '*compress-wait-thread-adaptive': 'bool',
             '*decompress-threads': 'uint8',
             '*cpu-throttle-initial': 'uint8',
             '*cpu-throttle-increment': 'uint8',

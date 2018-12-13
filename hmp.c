@@ -282,6 +282,8 @@ void hmp_info_migrate(Monitor *mon, const QDict *qdict)
                        info->compression->compressed_size);
         monitor_printf(mon, "compression rate: %0.2f\n",
                        info->compression->compression_rate);
+        monitor_printf(mon, "compress-no-wait-weight: %"PRIu64"\n",
+                       info->compression->compress_no_wait_weight);
     }
 
     if (info->has_cpu_throttle_percentage) {
@@ -344,6 +346,11 @@ void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "%s: %s\n",
             MigrationParameter_str(MIGRATION_PARAMETER_COMPRESS_WAIT_THREAD),
             params->compress_wait_thread ? "on" : "off");
+        assert(params->has_compress_wait_thread_adaptive);
+        monitor_printf(mon, "%s: %s\n",
+            MigrationParameter_str(
+                MIGRATION_PARAMETER_COMPRESS_WAIT_THREAD_ADAPTIVE),
+            params->compress_wait_thread_adaptive ? "on" : "off");
         assert(params->has_decompress_threads);
         monitor_printf(mon, "%s: %u\n",
             MigrationParameter_str(MIGRATION_PARAMETER_DECOMPRESS_THREADS),
@@ -1675,6 +1682,10 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
     case MIGRATION_PARAMETER_COMPRESS_WAIT_THREAD:
         p->has_compress_wait_thread = true;
         visit_type_bool(v, param, &p->compress_wait_thread, &err);
+        break;
+    case MIGRATION_PARAMETER_COMPRESS_WAIT_THREAD_ADAPTIVE:
+        p->has_compress_wait_thread_adaptive = true;
+        visit_type_bool(v, param, &p->compress_wait_thread_adaptive, &err);
         break;
     case MIGRATION_PARAMETER_DECOMPRESS_THREADS:
         p->has_decompress_threads = true;
