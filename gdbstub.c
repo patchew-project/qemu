@@ -1304,7 +1304,7 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
                 /* memtohex() doubles the required space */
                 len = snprintf((char *)mem_buf, sizeof(buf) / 2,
                                "CPU#%d [%s]", cpu->cpu_index,
-                               cpu->halted ? "halted " : "running");
+                               cpu_halted(cpu) ? "halted " : "running");
                 trace_gdbstub_op_extra_info((char *)mem_buf);
                 memtohex(buf, mem_buf, len);
                 put_packet(s, buf);
