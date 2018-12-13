@@ -524,6 +524,7 @@ int main(int argc, char **argv)
     signal(SIGPIPE, SIG_IGN);
 #endif
 
+    qemu_init_logging();
     module_call_init(MODULE_INIT_TRACE);
     progname = g_path_get_basename(argv[0]);
     qemu_init_exec_dir(argv[0]);
