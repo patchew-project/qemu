@@ -1705,7 +1705,7 @@ free:
     s->write_pending = false;
 }
 
-static void usb_mtp_write_metadata(MTPState *s)
+static void usb_mtp_write_metadata(MTPState *s, uint64_t dlen)
 {
     MTPData *d = s->data_out;
     ObjectInfo *dataset = (ObjectInfo *)d->data;
@@ -1717,7 +1717,8 @@ static void usb_mtp_write_metadata(MTPState *s)
     assert(!s->write_pending);
     assert(p != NULL);
 
-    filename = utf16_to_str(dataset->length, dataset->filename);
+    filename = utf16_to_str(MIN(dataset->length, dlen - offsetof(ObjectInfo, filename)),
+                            dataset->filename);
 
     if (strchr(filename, '/')) {
         usb_mtp_queue_result(s, RES_PARAMETER_NOT_SUPPORTED, d->trans,
@@ -1733,7 +1734,6 @@ static void usb_mtp_write_metadata(MTPState *s)
     s->dataset.filename = filename;
     s->dataset.format = dataset->format;
     s->dataset.size = dataset->size;
-    s->dataset.filename = filename;
     s->write_pending = true;
 
     if (s->dataset.format == FMT_ASSOCIATION) {
@@ -1802,7 +1802,7 @@ static void usb_mtp_get_data(MTPState *s, mtp_container *container,
         if (d->offset == d->length) {
             /* The operation might have already failed */
             if (!s->result) {
-                usb_mtp_write_metadata(s);
+                usb_mtp_write_metadata(s, dlen);
             }
             usb_mtp_data_free(s->data_out);
             s->data_out = NULL;
