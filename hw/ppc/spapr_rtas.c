@@ -109,7 +109,7 @@ static void rtas_query_cpu_stopped_state(PowerPCCPU *cpu_,
     id = rtas_ld(args, 0);
     cpu = spapr_find_cpu(id);
     if (cpu != NULL) {
-        if (CPU(cpu)->halted) {
+        if (cpu_halted(CPU(cpu))) {
             rtas_st(rets, 1, 0);
         } else {
             rtas_st(rets, 1, 2);
@@ -153,7 +153,7 @@ static void rtas_start_cpu(PowerPCCPU *callcpu, sPAPRMachineState *spapr,
     env = &newcpu->env;
     pcc = POWERPC_CPU_GET_CLASS(newcpu);
 
-    if (!CPU(newcpu)->halted) {
+    if (!cpu_halted(CPU(newcpu))) {
         rtas_st(rets, 0, RTAS_OUT_HW_ERROR);
         return;
     }
@@ -207,7 +207,7 @@ static void rtas_stop_self(PowerPCCPU *cpu, sPAPRMachineState *spapr,
      * This could deliver an interrupt on a dying CPU and crash the
      * guest */
     ppc_store_lpcr(cpu, env->spr[SPR_LPCR] & ~pcc->lpcr_pm);
-    cs->halted = 1;
+    cpu_halted_set(cs, 1);
     kvmppc_set_reg_ppc_online(cpu, 0);
     qemu_cpu_kick(cs);
 }
