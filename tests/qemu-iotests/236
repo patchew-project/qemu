@@ -1,0 +1,123 @@
+#!/usr/bin/env python
+#
+# Test bitmap merges.
+#
+# Copyright (c) 2018 John Snow for Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# owner=jsnow@redhat.com
+
+import sys
+import os
+import iotests
+from iotests import log
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'scripts'))
+from qemu import QEMUMachine
+
+iotests.verify_image_format(supported_fmts=['qcow2'])
+
+patterns = [("0x5d", "0",         "64k"),
+            ("0xd5", "1M",        "64k"),
+            ("0xdc", "32M",       "64k"),
+            ("0xcd", "0x3ff0000", "64k")]  # 64M - 64K
+
+overwrite = [("0xab", "0",         "64k"), # Full overwrite
+             ("0xad", "0x00f8000", "64k"), # Partial-left (1M-32K)
+             ("0x1d", "0x2008000", "64k"), # Partial-right (32M+32K)
+             ("0xea", "0x3fe0000", "64k")] # Adjacent-left (64M - 128K)
+
+with iotests.FilePath('img') as img_path, \
+     iotests.VM() as vm:
+
+    log('--- Preparing image & VM ---\n')
+    iotests.qemu_img_pipe('create', '-f', iotests.imgfmt, img_path, '64M')
+    vm.add_drive(img_path)
+    vm.launch()
+
+    log('--- Adding preliminary bitmaps A & B ---\n')
+    vm.qmp_log("block-dirty-bitmap-add", node="drive0", name="bitmapA")
+    vm.qmp_log("block-dirty-bitmap-add", node="drive0", name="bitmapB")
+
+    # Dirties 4 clusters. count=262144
+    log('')
+    log('--- Emulating writes ---\n')
+    for p in patterns:
+        cmd = "write -P%s %s %s" % p
+        log(cmd)
+        log(vm.hmp_qemu_io("drive0", cmd))
+
+    vm.qmp_log("query-block", indent=2,
+               filters=[iotests.filter_generated_node_ids,
+                        iotests.filter_testfiles])
+
+    log('')
+    log('--- Disabling B & Adding C ---\n')
+    vm.qmp_log("transaction", actions=[
+        { "type": "block-dirty-bitmap-disable",
+          "data": { "node": "drive0", "name": "bitmapB" }},
+        { "type": "block-dirty-bitmap-add",
+          "data": { "node": "drive0", "name": "bitmapC" }}
+    ])
+
+    log('')
+    log('--- Emulating further writes ---\n')
+    # Dirties 6 clusters, 3 of which are new in contrast to "A".
+    # A = 64 * 1024 * (4 + 3) = 458752
+    # C = 64 * 1024 * 6       = 393216
+    for p in overwrite:
+        cmd = "write -P%s %s %s" % p
+        log(cmd)
+        log(vm.hmp_qemu_io("drive0", cmd))
+
+    log('')
+    log('--- Disabling A & C ---\n')
+    vm.qmp_log("transaction", actions=[
+        { "type": "block-dirty-bitmap-disable",
+          "data": { "node": "drive0", "name": "bitmapA" }},
+        { "type": "block-dirty-bitmap-disable",
+          "data": { "node": "drive0", "name": "bitmapC" }}
+    ])
+
+    # A: 7 clusters
+    # B: 4 clusters
+    # C: 6 clusters
+    vm.qmp_log("query-block", indent=2,
+               filters=[iotests.filter_generated_node_ids,
+                        iotests.filter_testfiles])
+
+    log('')
+    log('--- Creating D as a merge of B & C ---\n')
+    # Good hygiene: create a disabled bitmap as a merge target.
+    vm.qmp_log("transaction", actions=[
+        { "type": "block-dirty-bitmap-add",
+          "data": { "node": "drive0", "name": "bitmapD", "disabled": True }},
+        { "type": "block-dirty-bitmap-merge",
+          "data": { "node": "drive0", "target": "bitmapD",
+                    "bitmaps": ["bitmapB", "bitmapC"] }}
+    ])
+
+    # A and D should now both have 7 clusters apiece.
+    # B and C remain unchanged with 4 and 6 respectively.
+    vm.qmp_log("query-block", indent=2,
+               filters=[iotests.filter_generated_node_ids,
+                        iotests.filter_testfiles])
+
+    # A and D should be equivalent.
+    vm.qmp_log('x-debug-block-dirty-bitmap-sha256',
+               node="drive0", name="bitmapA")
+    vm.qmp_log('x-debug-block-dirty-bitmap-sha256',
+               node="drive0", name="bitmapD")
+
+    vm.shutdown()

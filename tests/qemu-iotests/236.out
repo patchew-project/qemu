@@ -1,0 +1,265 @@
+--- Preparing image & VM ---
+
+--- Adding preliminary bitmaps A & B ---
+
+{"execute": "block-dirty-bitmap-add", "arguments": {"name": "bitmapA", "node": "drive0"}}
+{"return": {}}
+{"execute": "block-dirty-bitmap-add", "arguments": {"name": "bitmapB", "node": "drive0"}}
+{"return": {}}
+
+--- Emulating writes ---
+
+write -P0x5d 0 64k
+{"return": ""}
+write -P0xd5 1M 64k
+{"return": ""}
+write -P0xdc 32M 64k
+{"return": ""}
+write -P0xcd 0x3ff0000 64k
+{"return": ""}
+{"execute": "query-block", "arguments": {}}
+{
+  "return": [
+    {
+      "device": "drive0",
+      "dirty-bitmaps": [
+        {
+          "count": 262144,
+          "granularity": 65536,
+          "name": "bitmapB",
+          "status": "active"
+        },
+        {
+          "count": 262144,
+          "granularity": 65536,
+          "name": "bitmapA",
+          "status": "active"
+        }
+      ],
+      "inserted": {
+        "backing_file_depth": 0,
+        "bps": 0,
+        "bps_rd": 0,
+        "bps_wr": 0,
+        "cache": {
+          "direct": false,
+          "no-flush": false,
+          "writeback": true
+        },
+        "detect_zeroes": "off",
+        "drv": "qcow2",
+        "encrypted": false,
+        "encryption_key_missing": false,
+        "file": "TEST_DIR/PID-img",
+        "image": {
+          "actual-size": 528384,
+          "cluster-size": 65536,
+          "dirty-flag": false,
+          "filename": "TEST_DIR/PID-img",
+          "format": "qcow2",
+          "format-specific": {
+            "data": {
+              "compat": "1.1",
+              "corrupt": false,
+              "lazy-refcounts": false,
+              "refcount-bits": 16
+            },
+            "type": "qcow2"
+          },
+          "virtual-size": 67108864
+        },
+        "iops": 0,
+        "iops_rd": 0,
+        "iops_wr": 0,
+        "node-name": "NODE_NAME",
+        "ro": false,
+        "write_threshold": 0
+      },
+      "io-status": "ok",
+      "locked": false,
+      "qdev": "/machine/peripheral-anon/device[0]/virtio-backend",
+      "removable": false,
+      "type": "unknown"
+    }
+  ]
+}
+
+--- Disabling B & Adding C ---
+
+{"execute": "transaction", "arguments": {"actions": [{"data": {"name": "bitmapB", "node": "drive0"}, "type": "block-dirty-bitmap-disable"}, {"data": {"name": "bitmapC", "node": "drive0"}, "type": "block-dirty-bitmap-add"}]}}
+{"return": {}}
+
+--- Emulating further writes ---
+
+write -P0xab 0 64k
+{"return": ""}
+write -P0xad 0x00f8000 64k
+{"return": ""}
+write -P0x1d 0x2008000 64k
+{"return": ""}
+write -P0xea 0x3fe0000 64k
+{"return": ""}
+
+--- Disabling A & C ---
+
+{"execute": "transaction", "arguments": {"actions": [{"data": {"name": "bitmapA", "node": "drive0"}, "type": "block-dirty-bitmap-disable"}, {"data": {"name": "bitmapC", "node": "drive0"}, "type": "block-dirty-bitmap-disable"}]}}
+{"return": {}}
+{"execute": "query-block", "arguments": {}}
+{
+  "return": [
+    {
+      "device": "drive0",
+      "dirty-bitmaps": [
+        {
+          "count": 393216,
+          "granularity": 65536,
+          "name": "bitmapC",
+          "status": "disabled"
+        },
+        {
+          "count": 262144,
+          "granularity": 65536,
+          "name": "bitmapB",
+          "status": "disabled"
+        },
+        {
+          "count": 458752,
+          "granularity": 65536,
+          "name": "bitmapA",
+          "status": "disabled"
+        }
+      ],
+      "inserted": {
+        "backing_file_depth": 0,
+        "bps": 0,
+        "bps_rd": 0,
+        "bps_wr": 0,
+        "cache": {
+          "direct": false,
+          "no-flush": false,
+          "writeback": true
+        },
+        "detect_zeroes": "off",
+        "drv": "qcow2",
+        "encrypted": false,
+        "encryption_key_missing": false,
+        "file": "TEST_DIR/PID-img",
+        "image": {
+          "actual-size": 724992,
+          "cluster-size": 65536,
+          "dirty-flag": false,
+          "filename": "TEST_DIR/PID-img",
+          "format": "qcow2",
+          "format-specific": {
+            "data": {
+              "compat": "1.1",
+              "corrupt": false,
+              "lazy-refcounts": false,
+              "refcount-bits": 16
+            },
+            "type": "qcow2"
+          },
+          "virtual-size": 67108864
+        },
+        "iops": 0,
+        "iops_rd": 0,
+        "iops_wr": 0,
+        "node-name": "NODE_NAME",
+        "ro": false,
+        "write_threshold": 0
+      },
+      "io-status": "ok",
+      "locked": false,
+      "qdev": "/machine/peripheral-anon/device[0]/virtio-backend",
+      "removable": false,
+      "type": "unknown"
+    }
+  ]
+}
+
+--- Creating D as a merge of B & C ---
+
+{"execute": "transaction", "arguments": {"actions": [{"data": {"disabled": true, "name": "bitmapD", "node": "drive0"}, "type": "block-dirty-bitmap-add"}, {"data": {"bitmaps": ["bitmapB", "bitmapC"], "node": "drive0", "target": "bitmapD"}, "type": "block-dirty-bitmap-merge"}]}}
+{"return": {}}
+{"execute": "query-block", "arguments": {}}
+{
+  "return": [
+    {
+      "device": "drive0",
+      "dirty-bitmaps": [
+        {
+          "count": 458752,
+          "granularity": 65536,
+          "name": "bitmapD",
+          "status": "disabled"
+        },
+        {
+          "count": 393216,
+          "granularity": 65536,
+          "name": "bitmapC",
+          "status": "disabled"
+        },
+        {
+          "count": 262144,
+          "granularity": 65536,
+          "name": "bitmapB",
+          "status": "disabled"
+        },
+        {
+          "count": 458752,
+          "granularity": 65536,
+          "name": "bitmapA",
+          "status": "disabled"
+        }
+      ],
+      "inserted": {
+        "backing_file_depth": 0,
+        "bps": 0,
+        "bps_rd": 0,
+        "bps_wr": 0,
+        "cache": {
+          "direct": false,
+          "no-flush": false,
+          "writeback": true
+        },
+        "detect_zeroes": "off",
+        "drv": "qcow2",
+        "encrypted": false,
+        "encryption_key_missing": false,
+        "file": "TEST_DIR/PID-img",
+        "image": {
+          "actual-size": 724992,
+          "cluster-size": 65536,
+          "dirty-flag": false,
+          "filename": "TEST_DIR/PID-img",
+          "format": "qcow2",
+          "format-specific": {
+            "data": {
+              "compat": "1.1",
+              "corrupt": false,
+              "lazy-refcounts": false,
+              "refcount-bits": 16
+            },
+            "type": "qcow2"
+          },
+          "virtual-size": 67108864
+        },
+        "iops": 0,
+        "iops_rd": 0,
+        "iops_wr": 0,
+        "node-name": "NODE_NAME",
+        "ro": false,
+        "write_threshold": 0
+      },
+      "io-status": "ok",
+      "locked": false,
+      "qdev": "/machine/peripheral-anon/device[0]/virtio-backend",
+      "removable": false,
+      "type": "unknown"
+    }
+  ]
+}
+{"execute": "x-debug-block-dirty-bitmap-sha256", "arguments": {"name": "bitmapA", "node": "drive0"}}
+{"return": {"sha256": "7abe3d7e3c794cfaf9b08bc9ce599192c96a2206f07b42d9997ff78fdd7af744"}}
+{"execute": "x-debug-block-dirty-bitmap-sha256", "arguments": {"name": "bitmapD", "node": "drive0"}}
+{"return": {"sha256": "7abe3d7e3c794cfaf9b08bc9ce599192c96a2206f07b42d9997ff78fdd7af744"}}
