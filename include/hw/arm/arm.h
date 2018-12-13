@@ -171,4 +171,6 @@ void arm_write_secure_board_setup_dummy_smc(ARMCPU *cpu,
    ticks.  */
 extern int system_clock_scale;
 
+void arm_cpu_enable_aarch64_gdbstub(CPUClass *cc);
+
 #endif /* HW_ARM_H */

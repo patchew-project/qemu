@@ -890,9 +890,13 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
      * queries ID_ISAR0_EL1 on such a host, the value is UNKNOWN.
      * Similarly, we cannot check ID_AA64PFR0 without AArch64 support.
      */
+#ifdef TARGET_AARCH64
     if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64)) {
+        CPUClass *cc = CPU_GET_CLASS(cs);
         no_aa32 = !cpu_isar_feature(aa64_aa32, cpu);
+        arm_cpu_enable_aarch64_gdbstub(cc);
     }
+#endif
 
     if (arm_feature(env, ARM_FEATURE_V7VE)) {
         /* v7 Virtualization Extensions. In real hardware this implies
