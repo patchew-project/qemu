@@ -94,32 +94,13 @@ static void cpu_common_get_memory_mapping(CPUState *cpu,
     error_setg(errp, "Obtaining memory mappings is unsupported on this CPU.");
 }
 
-/* Resetting the IRQ comes from across the code base so we take the
- * BQL here if we need to.  cpu_interrupt assumes it is held.*/
 void cpu_reset_interrupt(CPUState *cpu, int mask)
 {
-    bool has_bql = qemu_mutex_iothread_locked();
-    bool has_cpu_lock = cpu_mutex_locked(cpu);
-
-    if (has_bql) {
-        if (has_cpu_lock) {
-            atomic_set(&cpu->interrupt_request, cpu->interrupt_request & ~mask);
-        } else {
-            cpu_mutex_lock(cpu);
-            atomic_set(&cpu->interrupt_request, cpu->interrupt_request & ~mask);
-            cpu_mutex_unlock(cpu);
-        }
-        return;
-    }
-
-    if (has_cpu_lock) {
-        cpu_mutex_unlock(cpu);
-    }
-    qemu_mutex_lock_iothread();
-    cpu_mutex_lock(cpu);
-    atomic_set(&cpu->interrupt_request, cpu->interrupt_request & ~mask);
-    qemu_mutex_unlock_iothread();
-    if (!has_cpu_lock) {
+    if (cpu_mutex_locked(cpu)) {
+        atomic_set(&cpu->interrupt_request, cpu->interrupt_request & ~mask);
+    } else {
+        cpu_mutex_lock(cpu);
+        atomic_set(&cpu->interrupt_request, cpu->interrupt_request & ~mask);
         cpu_mutex_unlock(cpu);
     }
 }
