@@ -3424,8 +3424,8 @@ static void tcg_target_qemu_prologue(TCGContext *s)
     tcg_out_addi(s, TCG_REG_ESP, -stack_addend);
     /* jmp *tb.  */
     tcg_out_modrm_offset(s, OPC_GRP5, EXT5_JMPN_Ev, TCG_REG_ESP,
-		         (ARRAY_SIZE(tcg_target_callee_save_regs) + 2) * 4
-			 + stack_addend);
+                         (ARRAY_SIZE(tcg_target_callee_save_regs) + 2) * 4
+                         + stack_addend);
 #else
     tcg_out_mov(s, TCG_TYPE_PTR, TCG_AREG0, tcg_target_call_iarg_regs[0]);
     tcg_out_addi(s, TCG_REG_ESP, -stack_addend);
