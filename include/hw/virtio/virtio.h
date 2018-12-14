@@ -254,6 +254,14 @@ typedef struct virtio_input_conf virtio_input_conf;
 typedef struct VirtIOSCSIConf VirtIOSCSIConf;
 typedef struct VirtIORNGConf VirtIORNGConf;
 
+#define DEFINE_VIRTIO_FEATURE_BIT_NEGOTIATED(_name, _bit)     \
+    DEFINE_PROP_BIT64_RO("negotiated-" _name, VirtIODevice,   \
+                         guest_features, _bit)
+
+#define DEFINE_VIRTIO_FEATURE_BIT(_name, _state, _field, _bit, _defval) \
+    DEFINE_PROP_BIT64(_name, _state, _field, _bit, _defval),            \
+    DEFINE_VIRTIO_FEATURE_BIT_NEGOTIATED(_name, _bit)
+
 hwaddr virtio_queue_get_desc_addr(VirtIODevice *vdev, int n);
 hwaddr virtio_queue_get_avail_addr(VirtIODevice *vdev, int n);
 hwaddr virtio_queue_get_used_addr(VirtIODevice *vdev, int n);

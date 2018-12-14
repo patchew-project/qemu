@@ -86,7 +86,7 @@ typedef struct VirtIOSCSI {
     bool dataplane_starting;
     bool dataplane_stopping;
     bool dataplane_fenced;
-    uint32_t host_features;
+    uint64_t host_features;
 } VirtIOSCSI;
 
 typedef struct VirtIOSCSIReq {
