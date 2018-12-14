@@ -14,6 +14,7 @@
 #include "hw/arm/arm.h"
 #include "sysemu/sysemu.h"
 #include "exec/address-spaces.h"
+#include "qemu/error-report.h"
 
 #include "hw/arm/nrf51_soc.h"
 
@@ -28,6 +29,13 @@ typedef struct {
 #define MICROBIT_MACHINE(obj) \
     OBJECT_CHECK(MicrobitMachineState, obj, TYPE_MICROBIT_MACHINE)
 
+static void microbit_cpu_reset(void *opaque)
+{
+    ARMCPU *cpu = opaque;
+
+    cpu_reset(CPU(cpu));
+}
+
 static void microbit_init(MachineState *machine)
 {
     MicrobitMachineState *s = MICROBIT_MACHINE(machine);
@@ -41,8 +49,13 @@ static void microbit_init(MachineState *machine)
                              &error_fatal);
     object_property_set_bool(soc, true, "realized", &error_fatal);
 
-    armv7m_load_kernel(ARM_CPU(first_cpu), machine->kernel_filename,
-                       NRF51_SOC(soc)->flash_size);
+    if (machine->kernel_filename) {
+        armv7m_load_kernel(ARM_CPU(first_cpu), machine->kernel_filename,
+                           NRF51_SOC(soc)->flash_size);
+    } else {
+        /* armv7m_load_kernel() does this, we need to do it manually here */
+        qemu_register_reset(microbit_cpu_reset, ARM_CPU(first_cpu));
+    }
 }
 
 static void microbit_machine_class_init(ObjectClass *oc, void *data)
