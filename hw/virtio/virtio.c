@@ -2601,7 +2601,16 @@ static void virtio_device_instance_finalize(Object *obj)
 }
 
 static Property virtio_properties[] = {
-    DEFINE_VIRTIO_COMMON_FEATURES(VirtIODevice, host_features),
+    DEFINE_PROP_BIT64("indirect_desc", VirtIODevice, host_features,
+                      VIRTIO_RING_F_INDIRECT_DESC, true),
+    DEFINE_PROP_BIT64("event_idx", VirtIODevice, host_features,
+                      VIRTIO_RING_F_EVENT_IDX, true),
+    DEFINE_PROP_BIT64("notify_on_empty", VirtIODevice, host_features,
+                      VIRTIO_F_NOTIFY_ON_EMPTY, true),
+    DEFINE_PROP_BIT64("any_layout", VirtIODevice, host_features,
+                      VIRTIO_F_ANY_LAYOUT, true),
+    DEFINE_PROP_BIT64("iommu_platform", VirtIODevice, host_features,
+                      VIRTIO_F_IOMMU_PLATFORM, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
