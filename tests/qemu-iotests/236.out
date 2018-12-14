@@ -1,0 +1,200 @@
+--- Preparing image & VM ---
+
+--- Adding preliminary bitmaps A & B ---
+
+{"execute": "block-dirty-bitmap-add", "arguments": {"name": "bitmapA", "node": "drive0"}}
+{"return": {}}
+{"execute": "block-dirty-bitmap-add", "arguments": {"name": "bitmapB", "node": "drive0"}}
+{"return": {}}
+
+--- Emulating writes ---
+
+write -P0x5d 0 64k
+{"return": ""}
+write -P0xd5 1M 64k
+{"return": ""}
+write -P0xdc 32M 64k
+{"return": ""}
+write -P0xcd 0x3ff0000 64k
+{"return": ""}
+{
+  "drive0": [
+    {
+      "status": "active",
+      "count": 262144,
+      "name": "bitmapB",
+      "granularity": 65536
+    },
+    {
+      "status": "active",
+      "count": 262144,
+      "name": "bitmapA",
+      "granularity": 65536
+    }
+  ]
+}
+
+--- Disabling B & Adding C ---
+
+{
+  "arguments": {
+    "actions": [
+      {
+        "data": {
+          "name": "bitmapB",
+          "node": "drive0"
+        },
+        "type": "block-dirty-bitmap-disable"
+      },
+      {
+        "data": {
+          "name": "bitmapC",
+          "node": "drive0"
+        },
+        "type": "block-dirty-bitmap-add"
+      },
+      {
+        "data": {
+          "name": "bitmapC",
+          "node": "drive0"
+        },
+        "type": "block-dirty-bitmap-disable"
+      },
+      {
+        "data": {
+          "name": "bitmapC",
+          "node": "drive0"
+        },
+        "type": "block-dirty-bitmap-enable"
+      }
+    ]
+  },
+  "execute": "transaction"
+}
+{
+  "return": {}
+}
+
+--- Emulating further writes ---
+
+write -P0xab 0 64k
+{"return": ""}
+write -P0xad 0x00f8000 64k
+{"return": ""}
+write -P0x1d 0x2008000 64k
+{"return": ""}
+write -P0xea 0x3fe0000 64k
+{"return": ""}
+
+--- Disabling A & C ---
+
+{
+  "arguments": {
+    "actions": [
+      {
+        "data": {
+          "name": "bitmapA",
+          "node": "drive0"
+        },
+        "type": "block-dirty-bitmap-disable"
+      },
+      {
+        "data": {
+          "name": "bitmapC",
+          "node": "drive0"
+        },
+        "type": "block-dirty-bitmap-disable"
+      }
+    ]
+  },
+  "execute": "transaction"
+}
+{
+  "return": {}
+}
+{
+  "drive0": [
+    {
+      "status": "disabled",
+      "count": 393216,
+      "name": "bitmapC",
+      "granularity": 65536
+    },
+    {
+      "status": "disabled",
+      "count": 262144,
+      "name": "bitmapB",
+      "granularity": 65536
+    },
+    {
+      "status": "disabled",
+      "count": 458752,
+      "name": "bitmapA",
+      "granularity": 65536
+    }
+  ]
+}
+
+--- Creating D as a merge of B & C ---
+
+{
+  "arguments": {
+    "actions": [
+      {
+        "data": {
+          "disabled": true,
+          "name": "bitmapD",
+          "node": "drive0"
+        },
+        "type": "block-dirty-bitmap-add"
+      },
+      {
+        "data": {
+          "bitmaps": [
+            "bitmapB",
+            "bitmapC"
+          ],
+          "node": "drive0",
+          "target": "bitmapD"
+        },
+        "type": "block-dirty-bitmap-merge"
+      }
+    ]
+  },
+  "execute": "transaction"
+}
+{
+  "return": {}
+}
+{
+  "drive0": [
+    {
+      "status": "disabled",
+      "count": 458752,
+      "name": "bitmapD",
+      "granularity": 65536
+    },
+    {
+      "status": "disabled",
+      "count": 393216,
+      "name": "bitmapC",
+      "granularity": 65536
+    },
+    {
+      "status": "disabled",
+      "count": 262144,
+      "name": "bitmapB",
+      "granularity": 65536
+    },
+    {
+      "status": "disabled",
+      "count": 458752,
+      "name": "bitmapA",
+      "granularity": 65536
+    }
+  ]
+}
+{"execute": "x-debug-block-dirty-bitmap-sha256", "arguments": {"name": "bitmapA", "node": "drive0"}}
+{"return": {"sha256": "7abe3d7e3c794cfaf9b08bc9ce599192c96a2206f07b42d9997ff78fdd7af744"}}
+{"execute": "x-debug-block-dirty-bitmap-sha256", "arguments": {"name": "bitmapD", "node": "drive0"}}
+{"return": {"sha256": "7abe3d7e3c794cfaf9b08bc9ce599192c96a2206f07b42d9997ff78fdd7af744"}}
