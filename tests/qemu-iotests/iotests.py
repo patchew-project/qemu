@@ -447,12 +447,21 @@ class VM(qtest.QEMUQtestMachine):
             result.append(filter_qmp_event(ev))
         return result
 
-    def qmp_log(self, cmd, filters=[filter_testfiles], **kwargs):
-        logmsg = '{"execute": "%s", "arguments": %s}' % \
-            (cmd, json.dumps(kwargs, sort_keys=True))
+    def qmp_log(self, cmd, indent=None, filters=[filter_testfiles], **kwargs):
+        # Python < 3.4 needs to know not to add whitespace when pretty-printing:
+        separators = (',', ': ') if indent is not None else (',', ': ')
+        if indent is not None:
+            fullcmd = { "execute": cmd,
+                        "arguments": kwargs }
+            logmsg = json.dumps(fullcmd, indent=indent, separators=separators,
+                                sort_keys=True)
+        else:
+            logmsg = '{"execute": "%s", "arguments": %s}' % \
+                (cmd, json.dumps(kwargs, sort_keys=True))
         log(logmsg, filters)
         result = self.qmp(cmd, **kwargs)
-        log(json.dumps(result, sort_keys=True), filters)
+        log(json.dumps(result, indent=indent, separators=separators,
+                       sort_keys=True), filters)
         return result
 
     def run_job(self, job, auto_finalize=True, auto_dismiss=False):
