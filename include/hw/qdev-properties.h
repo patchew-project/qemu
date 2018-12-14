@@ -9,6 +9,7 @@
 
 extern const PropertyInfo qdev_prop_bit;
 extern const PropertyInfo qdev_prop_bit64;
+extern const PropertyInfo qdev_prop_bit64_ro;
 extern const PropertyInfo qdev_prop_bool;
 extern const PropertyInfo qdev_prop_uint8;
 extern const PropertyInfo qdev_prop_uint16;
@@ -94,6 +95,14 @@ extern const PropertyInfo qdev_prop_off_auto_pcibar;
             + type_check(uint64_t, typeof_field(_state, _field)),       \
         .set_default = true,                                            \
         .defval.u  = (bool)_defval,                                     \
+        }
+
+#define DEFINE_PROP_BIT64_RO(_name, _state, _field, _bit) {             \
+        .name      = (_name),                                           \
+        .info      = &(qdev_prop_bit64_ro),                             \
+        .bitnr    = (_bit),                                             \
+        .offset    = offsetof(_state, _field)                           \
+            + type_check(uint64_t, typeof_field(_state, _field)),       \
         }
 
 #define DEFINE_PROP_BOOL(_name, _state, _field, _defval) {       \

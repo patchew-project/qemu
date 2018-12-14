@@ -146,7 +146,8 @@ const PropertyInfo qdev_prop_bit = {
 
 static uint64_t qdev_get_prop_mask64(Property *prop)
 {
-    assert(prop->info == &qdev_prop_bit64);
+    assert(prop->info == &qdev_prop_bit64 ||
+           prop->info == &qdev_prop_bit64_ro);
     return 0x1ull << prop->bitnr;
 }
 
@@ -199,6 +200,12 @@ const PropertyInfo qdev_prop_bit64 = {
     .get   = prop_get_bit64,
     .set   = prop_set_bit64,
     .set_default_value = set_default_value_bool,
+};
+
+const PropertyInfo qdev_prop_bit64_ro = {
+    .name  = "bool",
+    .description = "on/off",
+    .get   = prop_get_bit64,
 };
 
 /* --- bool --- */
