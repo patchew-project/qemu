@@ -29,6 +29,15 @@
                                 (0x1ULL << VIRTIO_F_NOTIFY_ON_EMPTY) | \
                                 (0x1ULL << VIRTIO_F_ANY_LAYOUT))
 
+#ifndef VIRTIO_F_ORDER_PLATFORM
+/*
+ * This feature indicates that memory accesses by the driver and the device
+ * are ordered in a way described by the platform.
+ * Not yet defined in Linux, i.e. not in standard-headers.
+ */
+#define VIRTIO_F_ORDER_PLATFORM 36
+#endif
+
 struct VirtQueue;
 
 static inline hwaddr vring_align(hwaddr addr,
@@ -264,7 +273,9 @@ typedef struct VirtIORNGConf VirtIORNGConf;
     DEFINE_PROP_BIT64("any_layout", _state, _field, \
                       VIRTIO_F_ANY_LAYOUT, true), \
     DEFINE_PROP_BIT64("iommu_platform", _state, _field, \
-                      VIRTIO_F_IOMMU_PLATFORM, false)
+                      VIRTIO_F_IOMMU_PLATFORM, false),  \
+    DEFINE_PROP_BIT64("order_platform", _state, _field, \
+                      VIRTIO_F_ORDER_PLATFORM, false)
 
 hwaddr virtio_queue_get_desc_addr(VirtIODevice *vdev, int n);
 hwaddr virtio_queue_get_avail_addr(VirtIODevice *vdev, int n);
