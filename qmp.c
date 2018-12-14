@@ -430,56 +430,22 @@ ObjectTypeInfoList *qmp_qom_list_types(bool has_implements,
     return ret;
 }
 
-/* Return a DevicePropertyInfo for a qdev property.
- *
- * If a qdev property with the given name does not exist, use the given default
- * type.  If the qdev property info should not be shown, return NULL.
- *
- * The caller must free the return value.
- */
-static ObjectPropertyInfo *make_device_property_info(ObjectClass *klass,
-                                                  const char *name,
-                                                  const char *default_type,
-                                                  const char *description)
+static void push_property_info(ObjectPropertyInfoList **prop_list,
+                               ObjectProperty *prop)
 {
     ObjectPropertyInfo *info;
-    Property *prop;
+    ObjectPropertyInfoList *entry;
 
-    do {
-        for (prop = DEVICE_CLASS(klass)->props; prop && prop->name; prop++) {
-            if (strcmp(name, prop->name) != 0) {
-                continue;
-            }
+    info = g_new0(ObjectPropertyInfo, 1);
+    info->name = g_strdup(prop->name);
+    info->type = g_strdup(prop->type);
+    info->has_description = !!prop->description;
+    info->description = g_strdup(prop->description);
 
-            /*
-             * TODO Properties without a parser are just for dirty hacks.
-             * qdev_prop_ptr is the only such PropertyInfo.  It's marked
-             * for removal.  This conditional should be removed along with
-             * it.
-             */
-            if (!prop->info->set && !prop->info->create) {
-                return NULL;           /* no way to set it, don't show */
-            }
-
-            info = g_malloc0(sizeof(*info));
-            info->name = g_strdup(prop->name);
-            info->type = default_type ? g_strdup(default_type)
-                                      : g_strdup(prop->info->name);
-            info->has_description = !!prop->info->description;
-            info->description = g_strdup(prop->info->description);
-            return info;
-        }
-        klass = object_class_get_parent(klass);
-    } while (klass != object_class_by_name(TYPE_DEVICE));
-
-    /* Not a qdev property, use the default type */
-    info = g_malloc0(sizeof(*info));
-    info->name = g_strdup(name);
-    info->type = g_strdup(default_type);
-    info->has_description = !!description;
-    info->description = g_strdup(description);
-
-    return info;
+    entry = g_new0(ObjectPropertyInfoList, 1);
+    entry->value = info;
+    entry->next = *prop_list;
+    *prop_list = entry;
 }
 
 ObjectPropertyInfoList *qmp_device_list_properties(const char *typename,
@@ -514,9 +480,6 @@ ObjectPropertyInfoList *qmp_device_list_properties(const char *typename,
 
     object_property_iter_init(&iter, obj);
     while ((prop = object_property_iter_next(&iter))) {
-        ObjectPropertyInfo *info;
-        ObjectPropertyInfoList *entry;
-
         /* Skip Object and DeviceState properties */
         if (strcmp(prop->name, "type") == 0 ||
             strcmp(prop->name, "realized") == 0 ||
@@ -533,16 +496,12 @@ ObjectPropertyInfoList *qmp_device_list_properties(const char *typename,
             continue;
         }
 
-        info = make_device_property_info(klass, prop->name, prop->type,
-                                         prop->description);
-        if (!info) {
+        /* Skip readonly properties. */
+        if (!prop->set) {
             continue;
         }
 
-        entry = g_malloc0(sizeof(*entry));
-        entry->value = info;
-        entry->next = prop_list;
-        prop_list = entry;
+        push_property_info(&prop_list, prop);
     }
 
     object_unref(obj);
@@ -579,19 +538,12 @@ ObjectPropertyInfoList *qmp_qom_list_properties(const char *typename,
         object_property_iter_init(&iter, obj);
     }
     while ((prop = object_property_iter_next(&iter))) {
-        ObjectPropertyInfo *info;
-        ObjectPropertyInfoList *entry;
+        /* Skip readonly properties. */
+        if (!prop->set) {
+            continue;
+        }
 
-        info = g_malloc0(sizeof(*info));
-        info->name = g_strdup(prop->name);
-        info->type = g_strdup(prop->type);
-        info->has_description = !!prop->description;
-        info->description = g_strdup(prop->description);
-
-        entry = g_malloc0(sizeof(*entry));
-        entry->value = info;
-        entry->next = prop_list;
-        prop_list = entry;
+        push_property_info(&prop_list, prop);
     }
 
     object_unref(obj);
