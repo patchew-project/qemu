@@ -2382,8 +2382,8 @@ void object_property_add_alias(Object *obj, const char *name,
     prop->target_name = g_strdup(target_name);
 
     op = object_property_add(obj, name, prop_type,
-                             property_get_alias,
-                             property_set_alias,
+                             target_prop->get ? property_get_alias : NULL,
+                             target_prop->set ? property_set_alias : NULL,
                              property_release_alias,
                              prop, &local_err);
     if (local_err) {
