@@ -29,7 +29,9 @@
 #include "exec/ram_addr.h"
 #include "sysemu/kvm.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/accel.h"
 #include "hw/qdev-properties.h"
+#include "hw/boards.h"
 #include "migration/vmstate.h"
 
 //#define DEBUG_UNASSIGNED
@@ -2924,6 +2926,8 @@ struct FlatViewInfo {
     int counter;
     bool dispatch_tree;
     bool owner;
+    AccelClass *ac;
+    const char *ac_name;
 };
 
 static void mtree_print_flatview(gpointer key, gpointer value,
@@ -2939,6 +2943,7 @@ static void mtree_print_flatview(gpointer key, gpointer value,
     int n = view->nr;
     int i;
     AddressSpace *as;
+    bool system_as = false;
 
     p(f, "FlatView #%d\n", fvi->counter);
     ++fvi->counter;
@@ -2950,6 +2955,9 @@ static void mtree_print_flatview(gpointer key, gpointer value,
             p(f, ", alias %s", memory_region_name(as->root->alias));
         }
         p(f, "\n");
+        if (as == &address_space_memory) {
+            system_as = true;
+        }
     }
 
     p(f, " Root memory region: %s\n",
@@ -2984,6 +2992,13 @@ static void mtree_print_flatview(gpointer key, gpointer value,
         }
         if (fvi->owner) {
             mtree_print_mr_owner(p, f, mr);
+        }
+
+        if (system_as && fvi->ac &&
+            fvi->ac->has_memory(current_machine,
+                                int128_get64(range->addr.start),
+                                MR_SIZE(range->addr.size) + 1)) {
+            p(f, " %s", fvi->ac_name);
         }
         p(f, "\n");
         range++;
@@ -3028,6 +3043,13 @@ void mtree_info(fprintf_function mon_printf, void *f, bool flatview,
         };
         GArray *fv_address_spaces;
         GHashTable *views = g_hash_table_new(g_direct_hash, g_direct_equal);
+        AccelClass *ac = ACCEL_GET_CLASS(current_machine->accelerator);
+
+        if (ac->has_memory) {
+            fvi.ac = ac;
+            fvi.ac_name = current_machine->accel ? current_machine->accel :
+                object_class_get_name(OBJECT_CLASS(ac));
+        }
 
         /* Gather all FVs in one table */
         QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {

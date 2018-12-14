@@ -2589,11 +2589,21 @@ int kvm_get_one_reg(CPUState *cs, uint64_t id, void *target)
     return r;
 }
 
+static bool kvm_accel_has_memory(MachineState *ms, hwaddr start_addr,
+                                 hwaddr size)
+{
+    KVMState *kvm = KVM_STATE(ms->accelerator);
+    KVMMemoryListener *kml = &kvm->memory_listener;
+
+    return NULL != kvm_lookup_matching_slot(kml, start_addr, size);
+}
+
 static void kvm_accel_class_init(ObjectClass *oc, void *data)
 {
     AccelClass *ac = ACCEL_CLASS(oc);
     ac->name = "KVM";
     ac->init_machine = kvm_init;
+    ac->has_memory = kvm_accel_has_memory;
     ac->allowed = &kvm_allowed;
 }
 
