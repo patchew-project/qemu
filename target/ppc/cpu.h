@@ -70,18 +70,18 @@
 #define PPC_ELF_MACHINE     EM_PPC
 #endif
 
-#define PPC_BIT(bit)            (0x8000000000000000UL >> (bit))
-#define PPC_BIT32(bit)          (0x80000000UL >> (bit))
-#define PPC_BIT8(bit)           (0x80UL >> (bit))
+#define PPC_BIT(bit)            (0x8000000000000000ULL >> (bit))
+#define PPC_BIT32(bit)          (0x80000000ULL >> (bit))
+#define PPC_BIT8(bit)           (0x80ULL >> (bit))
 #define PPC_BITMASK(bs, be)     ((PPC_BIT(bs) - PPC_BIT(be)) | PPC_BIT(bs))
 #define PPC_BITMASK32(bs, be)   ((PPC_BIT32(bs) - PPC_BIT32(be)) | \
                                  PPC_BIT32(bs))
 #define PPC_BITMASK8(bs, be)    ((PPC_BIT8(bs) - PPC_BIT8(be)) | PPC_BIT8(bs))
 
 #if HOST_LONG_BITS == 32
-# define MASK_TO_LSH(m)          (__builtin_ffsll(m) - 1)
+# define MASK_TO_LSH(m)          ctz32(m)
 #elif HOST_LONG_BITS == 64
-# define MASK_TO_LSH(m)          (__builtin_ffsl(m) - 1)
+# define MASK_TO_LSH(m)          ctz64(m)
 #else
 # error Unknown sizeof long
 #endif
