@@ -824,14 +824,16 @@ docs/interop/qemu-qmp-qapi.texi: qapi/qapi-doc.texi
 docs/interop/qemu-ga-qapi.texi: qga/qapi-generated/qga-qapi-doc.texi
 	@cp -p $< $@
 
-qemu.1: qemu-doc.texi qemu-options.texi qemu-monitor.texi qemu-monitor-info.texi
-qemu.1: qemu-option-trace.texi
-qemu-img.1: qemu-img.texi qemu-option-trace.texi qemu-img-cmds.texi
-fsdev/virtfs-proxy-helper.1: fsdev/virtfs-proxy-helper.texi
-qemu-nbd.8: qemu-nbd.texi qemu-option-trace.texi
-qemu-ga.8: qemu-ga.texi
-docs/qemu-block-drivers.7: docs/qemu-block-drivers.texi
-docs/qemu-cpu-models.7: docs/qemu-cpu-models.texi
+qemu.1: qemu-doc.texi qemu-options.texi qemu-monitor.texi \
+	qemu-monitor-info.texi scripts/texi2pod.pl
+qemu.1: qemu-option-trace.texi scripts/texi2pod.pl
+qemu-img.1: qemu-img.texi qemu-option-trace.texi qemu-img-cmds.texi \
+	 scripts/texi2pod.pl
+fsdev/virtfs-proxy-helper.1: fsdev/virtfs-proxy-helper.texi scripts/texi2pod.pl
+qemu-nbd.8: qemu-nbd.texi qemu-option-trace.texi scripts/texi2pod.pl
+qemu-ga.8: qemu-ga.texi scripts/texi2pod.pl
+docs/qemu-block-drivers.7: docs/qemu-block-drivers.texi scripts/texi2pod.pl
+docs/qemu-cpu-models.7: docs/qemu-cpu-models.texi scripts/texi2pod.pl
 
 html: qemu-doc.html docs/interop/qemu-qmp-ref.html docs/interop/qemu-ga-ref.html
 info: qemu-doc.info docs/interop/qemu-qmp-ref.info docs/interop/qemu-ga-ref.info
