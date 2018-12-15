@@ -544,9 +544,8 @@ int main(int argc, char **argv)
     };
     int ch;
     int opt_ind = 0;
-    char *end;
     int flags = BDRV_O_RDWR;
-    int partition = -1;
+    int partition = 0;
     int ret = 0;
     bool seen_cache = false;
     bool seen_discard = false;
@@ -657,13 +656,9 @@ int main(int argc, char **argv)
             port = optarg;
             break;
         case 'o':
-                dev_offset = strtoll (optarg, &end, 0);
-            if (*end) {
-                error_report("Invalid offset `%s'", optarg);
-                exit(EXIT_FAILURE);
-            }
-            if (dev_offset < 0) {
-                error_report("Offset must be positive `%s'", optarg);
+            if (qemu_strtoi64(optarg, NULL, 0, &dev_offset) < 0 ||
+                dev_offset < 0) {
+                error_report("Invalid offset '%s'", optarg);
                 exit(EXIT_FAILURE);
             }
             break;
@@ -685,13 +680,9 @@ int main(int argc, char **argv)
             flags &= ~BDRV_O_RDWR;
             break;
         case 'P':
-            partition = strtol(optarg, &end, 0);
-            if (*end) {
-                error_report("Invalid partition `%s'", optarg);
-                exit(EXIT_FAILURE);
-            }
-            if (partition < 1 || partition > 8) {
-                error_report("Invalid partition %d", partition);
+            if (qemu_strtoi(optarg, NULL, 0, &partition) < 0 ||
+                partition < 1 || partition > 8) {
+                error_report("Invalid partition '%s'", optarg);
                 exit(EXIT_FAILURE);
             }
             break;
@@ -709,13 +700,9 @@ int main(int argc, char **argv)
             device = optarg;
             break;
         case 'e':
-            shared = strtol(optarg, &end, 0);
-            if (*end) {
+            if (qemu_strtoi(optarg, NULL, 0, &shared) < 0 ||
+                shared < 1) {
                 error_report("Invalid shared device number '%s'", optarg);
-                exit(EXIT_FAILURE);
-            }
-            if (shared < 1) {
-                error_report("Shared device number must be greater than 0");
                 exit(EXIT_FAILURE);
             }
             break;
@@ -1006,7 +993,7 @@ int main(int argc, char **argv)
     }
     fd_size -= dev_offset;
 
-    if (partition != -1) {
+    if (partition) {
         ret = find_partition(blk, partition, &dev_offset, &fd_size);
         if (ret < 0) {
             error_report("Could not find partition %d: %s", partition,
