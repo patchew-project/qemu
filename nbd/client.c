@@ -684,10 +684,11 @@ static int nbd_negotiate_simple_meta_context(QIOChannel *ioc,
         return ret;
     }
 
-    if (reply.type == NBD_REP_META_CONTEXT) {
+    while (reply.type == NBD_REP_META_CONTEXT) {
         char *name;
 
-        if (reply.length != sizeof(info->context_id) + context_len) {
+        if (reply.length <= sizeof(info->context_id) ||
+            reply.length > NBD_MAX_BUFFER_SIZE) {
             error_setg(errp, "Failed to negotiate meta context '%s', server "
                        "answered with unexpected length %" PRIu32, context,
                        reply.length);
@@ -708,6 +709,15 @@ static int nbd_negotiate_simple_meta_context(QIOChannel *ioc,
             return -1;
         }
         name[reply.length] = '\0';
+        trace_nbd_opt_meta_reply(name, info->context_id);
+
+        if (received) {
+            error_setg(errp, "Server replied with more than one context");
+            g_free(name);
+            nbd_send_opt_abort(ioc);
+            return -1;
+        }
+
         if (strcmp(context, name)) {
             error_setg(errp, "Failed to negotiate meta context '%s', server "
                        "answered with different context '%s'", context,
@@ -717,8 +727,6 @@ static int nbd_negotiate_simple_meta_context(QIOChannel *ioc,
             return -1;
         }
         g_free(name);
-
-        trace_nbd_opt_meta_reply(context, info->context_id);
         received = true;
 
         /* receive NBD_REP_ACK */
