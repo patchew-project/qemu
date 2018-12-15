@@ -23,6 +23,7 @@
 #include "migration/migration.h"
 #include "migration/postcopy-ram.h"
 #include "trace.h"
+#include "sysemu/qtest.h"
 
 #include <sys/ioctl.h>
 #include <sys/socket.h>
@@ -742,7 +743,7 @@ static int vhost_set_vring_file(struct vhost_dev *dev,
         .hdr.size = sizeof(msg.payload.u64),
     };
 
-    if (ioeventfd_enabled() && file->fd > 0) {
+    if ((qtest_enabled() || ioeventfd_enabled()) && file->fd > 0) {
         fds[fd_num++] = file->fd;
     } else {
         msg.payload.u64 |= VHOST_USER_VRING_NOFD_MASK;
