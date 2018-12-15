@@ -669,6 +669,83 @@ static int nbd_send_one_meta_context(QIOChannel *ioc,
     return ret;
 }
 
+/* nbd_receive_one_meta_context:
+ * Called in a loop to receive and trace one set/list meta context reply.
+ * Pass non-NULL @name or @id to collect results back to the caller, which
+ * must eventually call g_free().
+ * return 1 if more contexts are expected,
+ *        0 if operation is complete,
+ *        -1 with errp set for any error
+ */
+static int nbd_receive_one_meta_context(QIOChannel *ioc,
+                                        uint32_t opt,
+                                        char **name,
+                                        uint32_t *id,
+                                        Error **errp)
+{
+    int ret;
+    NBDOptionReply reply;
+    char *local_name = NULL;
+    uint32_t local_id;
+
+    if (nbd_receive_option_reply(ioc, opt, &reply, errp) < 0) {
+        return -1;
+    }
+
+    ret = nbd_handle_reply_err(ioc, &reply, errp);
+    if (ret <= 0) {
+        return ret;
+    }
+
+    if (reply.type == NBD_REP_ACK) {
+        if (reply.length != 0) {
+            error_setg(errp, "Unexpected length to ACK response");
+            nbd_send_opt_abort(ioc);
+            return -1;
+        }
+        return 0;
+    } else if (reply.type != NBD_REP_META_CONTEXT) {
+        error_setg(errp, "Unexpected reply type %u (%s), expected %u (%s)",
+                   reply.type, nbd_rep_lookup(reply.type),
+                   NBD_REP_META_CONTEXT, nbd_rep_lookup(NBD_REP_META_CONTEXT));
+        nbd_send_opt_abort(ioc);
+        return -1;
+    }
+
+    if (reply.length <= sizeof(local_id) ||
+        reply.length > NBD_MAX_BUFFER_SIZE) {
+        error_setg(errp, "Failed to negotiate meta context, server "
+                   "answered with unexpected length %" PRIu32,
+                   reply.length);
+        nbd_send_opt_abort(ioc);
+        return -1;
+    }
+
+    if (nbd_read(ioc, &local_id, sizeof(local_id), errp) < 0) {
+        return -1;
+    }
+    local_id = be32_to_cpu(local_id);
+
+    reply.length -= sizeof(local_id);
+    local_name = g_malloc(reply.length + 1);
+    if (nbd_read(ioc, local_name, reply.length, errp) < 0) {
+        g_free(local_name);
+        return -1;
+    }
+    local_name[reply.length] = '\0';
+    trace_nbd_opt_meta_reply(nbd_opt_lookup(opt), local_name, local_id);
+
+    if (name) {
+        *name = local_name;
+    } else {
+        g_free(local_name);
+    }
+    if (id) {
+        *id = local_id;
+    }
+    return 1;
+}
+
 /* nbd_negotiate_simple_meta_context:
  * Request the server to set the meta context for export @info->name
  * using @info->x_dirty_bitmap with a fallback to "base:allocation",
@@ -690,7 +767,6 @@ static int nbd_negotiate_simple_meta_context(QIOChannel *ioc,
      * function should lose the term _simple.
      */
     int ret;
-    NBDOptionReply reply;
     const char *context = info->x_dirty_bitmap ?: "base:allocation";
     bool received = false;
 
@@ -699,43 +775,16 @@ static int nbd_negotiate_simple_meta_context(QIOChannel *ioc,
         return -1;
     }
 
-    if (nbd_receive_option_reply(ioc, NBD_OPT_SET_META_CONTEXT, &reply,
-                                 errp) < 0)
-    {
-        return -1;
-    }
-
-    ret = nbd_handle_reply_err(ioc, &reply, errp);
-    if (ret <= 0) {
-        return ret;
-    }
-
-    while (reply.type == NBD_REP_META_CONTEXT) {
+    while (1) {
         char *name;
 
-        if (reply.length <= sizeof(info->context_id) ||
-            reply.length > NBD_MAX_BUFFER_SIZE) {
-            error_setg(errp, "Failed to negotiate meta context '%s', server "
-                       "answered with unexpected length %" PRIu32, context,
-                       reply.length);
-            nbd_send_opt_abort(ioc);
+        ret = nbd_receive_one_meta_context(ioc, NBD_OPT_SET_META_CONTEXT,
+                                           &name, &info->context_id, errp);
+        if (ret < 0) {
             return -1;
+        } else if (ret == 0) {
+            return received;
         }
-
-        if (nbd_read(ioc, &info->context_id, sizeof(info->context_id),
-                     errp) < 0) {
-            return -1;
-        }
-        info->context_id = be32_to_cpu(info->context_id);
-
-        reply.length -= sizeof(info->context_id);
-        name = g_malloc(reply.length + 1);
-        if (nbd_read(ioc, name, reply.length, errp) < 0) {
-            g_free(name);
-            return -1;
-        }
-        name[reply.length] = '\0';
-        trace_nbd_opt_meta_reply(name, info->context_id);
 
         if (received) {
             error_setg(errp, "Server replied with more than one context");
@@ -754,34 +803,7 @@ static int nbd_negotiate_simple_meta_context(QIOChannel *ioc,
         }
         g_free(name);
         received = true;
-
-        /* receive NBD_REP_ACK */
-        if (nbd_receive_option_reply(ioc, NBD_OPT_SET_META_CONTEXT, &reply,
-                                     errp) < 0)
-        {
-            return -1;
-        }
-
-        ret = nbd_handle_reply_err(ioc, &reply, errp);
-        if (ret <= 0) {
-            return ret;
-        }
     }
-
-    if (reply.type != NBD_REP_ACK) {
-        error_setg(errp, "Unexpected reply type %u (%s), expected %u (%s)",
-                   reply.type, nbd_rep_lookup(reply.type),
-                   NBD_REP_ACK, nbd_rep_lookup(NBD_REP_ACK));
-        nbd_send_opt_abort(ioc);
-        return -1;
-    }
-    if (reply.length) {
-        error_setg(errp, "Unexpected length to ACK response");
-        nbd_send_opt_abort(ioc);
-        return -1;
-    }
-
-    return received;
 }
 
 int nbd_receive_negotiate(QIOChannel *ioc, QCryptoTLSCreds *tlscreds,
