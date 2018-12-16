@@ -13,7 +13,6 @@ util-obj-y += qapi/qapi-visit.o
 util-obj-y += $(QAPI_MODULES:%=qapi/qapi-visit-%.o)
 util-obj-y += qapi/qapi-events.o
 util-obj-y += $(QAPI_MODULES:%=qapi/qapi-events-%.o)
-util-obj-y += qapi/qapi-introspect.o
 
 chardev-obj-y = chardev/
 
@@ -94,7 +93,6 @@ common-obj-$(CONFIG_FDT) += device_tree.o
 
 common-obj-y += qapi/qapi-commands.o
 common-obj-y += $(QAPI_MODULES:%=qapi/qapi-commands-%.o)
-common-obj-y += qapi/qapi-introspect.o
 common-obj-y += qmp.o hmp.o
 endif
 
