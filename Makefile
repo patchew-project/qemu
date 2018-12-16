@@ -92,16 +92,20 @@ GENERATED_FILES = qemu-version.h config-host.h qemu-options.def
 #see Makefile.objs for the definition of QAPI_MODULES
 GENERATED_QAPI_FILES = qapi/qapi-builtin-types.h qapi/qapi-builtin-types.c
 GENERATED_QAPI_FILES += qapi/qapi-types.h qapi/qapi-types.c
+GENERATED_QAPI_FILES += qapi/target-qapi-types.h qapi/target-qapi-types.c
 GENERATED_QAPI_FILES += $(QAPI_MODULES:%=qapi/qapi-types-%.h)
 GENERATED_QAPI_FILES += $(QAPI_MODULES:%=qapi/qapi-types-%.c)
 GENERATED_QAPI_FILES += qapi/qapi-builtin-visit.h qapi/qapi-builtin-visit.c
 GENERATED_QAPI_FILES += qapi/qapi-visit.h qapi/qapi-visit.c
+GENERATED_QAPI_FILES += qapi/target-qapi-visit.h qapi/target-qapi-visit.c
 GENERATED_QAPI_FILES += $(QAPI_MODULES:%=qapi/qapi-visit-%.h)
 GENERATED_QAPI_FILES += $(QAPI_MODULES:%=qapi/qapi-visit-%.c)
 GENERATED_QAPI_FILES += qapi/qapi-commands.h qapi/qapi-commands.c
+GENERATED_QAPI_FILES += qapi/target-qapi-commands.h qapi/target-qapi-commands.c
 GENERATED_QAPI_FILES += $(QAPI_MODULES:%=qapi/qapi-commands-%.h)
 GENERATED_QAPI_FILES += $(QAPI_MODULES:%=qapi/qapi-commands-%.c)
 GENERATED_QAPI_FILES += qapi/qapi-events.h qapi/qapi-events.c
+GENERATED_QAPI_FILES += qapi/target-qapi-events.h qapi/target-qapi-events.c
 GENERATED_QAPI_FILES += $(QAPI_MODULES:%=qapi/qapi-events-%.h)
 GENERATED_QAPI_FILES += $(QAPI_MODULES:%=qapi/qapi-events-%.c)
 GENERATED_QAPI_FILES += qapi/qapi-introspect.c qapi/qapi-introspect.h
@@ -528,7 +532,8 @@ qga/qapi-generated/qapi-gen-timestamp: $(SRC_PATH)/qga/qapi-schema.json $(qapi-p
 	@>$@
 
 qapi-modules = $(SRC_PATH)/qapi/qapi-schema.json \
-               $(QAPI_MODULES:%=$(SRC_PATH)/qapi/%.json)
+               $(QAPI_MODULES:%=$(SRC_PATH)/qapi/%.json) \
+               $(SRC_PATH)/qapi/target.json
 
 $(GENERATED_QAPI_FILES): qapi-gen-timestamp ;
 qapi-gen-timestamp: $(qapi-modules) $(qapi-py)

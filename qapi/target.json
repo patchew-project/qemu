@@ -1,0 +1,13 @@
+# -*- Mode: Python -*-
+#
+
+##
+# = Target-specific commands & events
+##
+
+{ 'pragma': { 'top-unit': 'target' } }
+
+##
+# @DUMMY:
+##
+{ 'event': 'DUMMY' }
