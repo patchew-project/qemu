@@ -674,7 +674,6 @@ monitor_qapi_event_queue(unsigned event, QDict *qdict)
         .size = QAPI_EVENT__MAX,
         .rate = {
             /* Limit guest-triggerable events to 1 per second */
-            [QAPI_EVENT_RTC_CHANGE]        = 1000 * SCALE_MS,
             [QAPI_EVENT_WATCHDOG]          = 1000 * SCALE_MS,
             [QAPI_EVENT_BALLOON_CHANGE]    = 1000 * SCALE_MS,
             [QAPI_EVENT_QUORUM_REPORT_BAD] = 1000 * SCALE_MS,
@@ -718,6 +717,13 @@ target_monitor_qapi_event_queue(unsigned event, QDict *qdict)
     static MonitorEventRateLimit limiter = {
         .size = TARGET_QAPI_EVENT__MAX,
         .rate = {
+            /* Limit guest-triggerable events to 1 per second */
+#if defined(TARGET_ALPHA) || defined(TARGET_ARM) || defined(TARGET_HPPA) || \
+    defined(TARGET_I386) || defined(TARGET_MIPS) | defined(TARGET_MIPS64) || \
+    defined(TARGET_MOXIE) || defined(TARGET_PPC) || defined(TARGET_PPC64) || \
+    defined(TARGET_S390X) || defined(TARGET_SH4) || defined(TARGET_SPARC)
+            [TARGET_QAPI_EVENT_RTC_CHANGE] = 1000 * SCALE_MS,
+#endif
             [TARGET_QAPI_EVENT__MAX]       = 0,
         },
     };

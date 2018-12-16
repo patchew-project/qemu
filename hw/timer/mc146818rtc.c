@@ -32,7 +32,7 @@
 #include "hw/timer/mc146818rtc.h"
 #include "qapi/error.h"
 #include "qapi/target-qapi-commands.h"
-#include "qapi/qapi-events-misc.h"
+#include "qapi/target-qapi-events.h"
 #include "qapi/visitor.h"
 #include "exec/address-spaces.h"
 
