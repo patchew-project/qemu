@@ -298,9 +298,11 @@ class QAPISchemaGenVisitVisitor(QAPISchemaModularCVisitor):
 ''',
                                       prefix=prefix))
 
-    def _begin_module(self, name):
-        types = self._module_basename('qapi-types', name)
-        visit = self._module_basename('qapi-visit', name)
+    def _begin_module(self, name, main_module):
+        types = self._module_basename('qapi-types', name,
+                                      self._unit, main_module)
+        visit = self._module_basename('qapi-visit', name,
+                                      self._unit, main_module)
         self._genc.preamble_add(mcgen('''
 #include "qemu/osdep.h"
 #include "qemu-common.h"

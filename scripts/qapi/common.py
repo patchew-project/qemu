@@ -269,11 +269,12 @@ class QAPISchemaParser(object):
         self.exprs = []
         self.docs = []
         self.accept()
+        self._top_unit = None
         cur_doc = None
 
         while self.tok is not None:
             info = {'file': self.fname, 'line': self.line,
-                    'parent': self.incl_info}
+                    'parent': self.incl_info, 'top-unit': self._top_unit}
             if self.tok == '#':
                 self.reject_expr_doc(cur_doc)
                 cur_doc = self.get_doc(info)
@@ -296,6 +297,9 @@ class QAPISchemaParser(object):
                 exprs_include = self._include(include, info, incl_fname,
                                               previously_included)
                 if exprs_include:
+                    incl_info = self.exprs[-1]['info']
+                    if exprs_include._top_unit:
+                        incl_info['has-pragma-top-unit'] = exprs_include._top_unit
                     self.exprs.extend(exprs_include.exprs)
                     self.docs.extend(exprs_include.docs)
             elif "pragma" in expr:
@@ -357,6 +361,11 @@ class QAPISchemaParser(object):
                 raise QAPISemError(info,
                                    "Pragma 'doc-required' must be boolean")
             doc_required = value
+        elif name == 'top-unit':
+            if not isinstance(value, str):
+                raise QAPISemError(info,
+                                   "Pragma 'top-unit' must be a string")
+            self._top_unit = value
         elif name == 'returns-whitelist':
             if (not isinstance(value, list)
                     or any([not isinstance(elt, str) for elt in value])):
@@ -1081,6 +1090,11 @@ class QAPISchemaEntity(object):
     def c_name(self):
         return c_name(self.name)
 
+    def get_top_unit(self):
+        if self.info:
+            return self.info['top-unit']
+        return None
+
     def check(self, schema):
         if isinstance(self._ifcond, QAPISchemaType):
             # inherit the condition from a type
@@ -1099,6 +1113,12 @@ class QAPISchemaEntity(object):
 
 class QAPISchemaVisitor(object):
     def visit_begin(self, schema):
+        pass
+
+    def visit_unit_begin(self, unit):
+        pass
+
+    def visit_unit_end(self):
         pass
 
     def visit_end(self):
@@ -1610,7 +1630,7 @@ class QAPISchema(object):
         parser = QAPISchemaParser(f)
         exprs = check_exprs(parser.exprs)
         self.docs = parser.docs
-        self._entity_list = []
+        self._entity_list = {} # dict of unit name -> list of entity
         self._entity_dict = {}
         self._predefining = True
         self._def_predefineds()
@@ -1622,7 +1642,8 @@ class QAPISchema(object):
         # Only the predefined types are allowed to not have info
         assert ent.info or self._predefining
         assert ent.name is None or ent.name not in self._entity_dict
-        self._entity_list.append(ent)
+        entity_list = self._entity_list.setdefault(ent.get_top_unit(), [])
+        entity_list.append(ent)
         if ent.name is not None:
             self._entity_dict[ent.name] = ent
         if ent.info:
@@ -1861,18 +1882,23 @@ class QAPISchema(object):
                 assert False
 
     def check(self):
-        for ent in self._entity_list:
-            ent.check(self)
+        for unit in self._entity_list:
+            for ent in self._entity_list[unit]:
+                ent.check(self)
 
     def visit(self, visitor):
         visitor.visit_begin(self)
-        module = None
-        for entity in self._entity_list:
-            if visitor.visit_needed(entity):
+        for unit in self._entity_list:
+            module = None
+            visitor.visit_unit_begin(unit)
+            for entity in self._entity_list[unit]:
+                if not visitor.visit_needed(entity):
+                    continue
                 if entity.module != module:
                     module = entity.module
                     visitor.visit_module(module)
                 entity.visit(visitor)
+            visitor.visit_unit_end()
         visitor.visit_end()
 
 
@@ -2313,6 +2339,19 @@ class QAPISchemaMonolithicCVisitor(QAPISchemaVisitor):
         self._genh.write(output_dir, self._prefix + self._what + '.h')
 
 
+class QAPIGenCModule(object):
+
+    def __init__(self, blurb, pydoc, unit, main_module=False):
+        self.genc = QAPIGenC(blurb, pydoc)
+        self.genh = QAPIGenH(blurb, pydoc)
+        self.unit = unit
+        self.main_module = main_module
+
+    def write(self, output_dir, basename):
+        self.genc.write(output_dir, basename + '.c')
+        self.genh.write(output_dir, basename + '.h')
+
+
 class QAPISchemaModularCVisitor(QAPISchemaVisitor):
 
     def __init__(self, prefix, what, blurb, pydoc):
@@ -2321,48 +2360,70 @@ class QAPISchemaModularCVisitor(QAPISchemaVisitor):
         self._blurb = blurb
         self._pydoc = pydoc
         self._module = {}
+        self._unit = None
         self._main_module = None
 
-    def _module_basename(self, what, name):
+    def _module_basename(self, what, name, unit=None, main_module=False):
         if name is None:
             return re.sub(r'-', '-builtin-', what)
         basename = os.path.join(os.path.dirname(name),
                                 self._prefix + what)
-        if name == self._main_module:
+        if unit:
+            basename = unit + '-' + basename
+        if main_module:
             return basename
         return basename + '-' + os.path.splitext(os.path.basename(name))[0]
 
+    def _prefix_unit(self):
+        if self._unit:
+            return self._prefix + self._unit + '-'
+        return self._prefix
+
+    def visit_unit_begin(self, unit):
+        self._unit = unit
+        self._main_module = None
+
     def _add_module(self, name, blurb):
-        if self._main_module is None and name is not None:
+        main_module = False
+        if (name is not None and
+            ((self._unit is None and self._main_module is None) or
+             (self._unit == os.path.splitext(os.path.basename(name))[0]))):
             self._main_module = name
-        genc = QAPIGenC(blurb, self._pydoc)
-        genh = QAPIGenH(blurb, self._pydoc)
-        self._module[name] = (genc, genh)
+            main_module = True
+        self._module[name] = QAPIGenCModule(blurb, self._pydoc,
+                                            self._unit, main_module)
         self._set_module(name)
+        return main_module
+
+    def get_module_gen(self, name):
+        mod = self._module[name]
+        return mod.genc, mod.genh
 
     def _set_module(self, name):
-        self._genc, self._genh = self._module[name]
+        self._genc, self._genh = self.get_module_gen(name)
 
     def write(self, output_dir, opt_builtins=False):
         for name in self._module:
             if name is None and not opt_builtins:
                 continue
-            basename = self._module_basename(self._what, name)
-            (genc, genh) = self._module[name]
-            genc.write(output_dir, basename + '.c')
-            genh.write(output_dir, basename + '.h')
+            module = self._module[name]
+            basename = self._module_basename(self._what, name,
+                                             module.unit, module.main_module)
+            module.write(output_dir, basename)
 
-    def _begin_module(self, name):
+    def _begin_module(self, name, main_module):
         pass
 
     def visit_module(self, name):
         if name in self._module:
             self._set_module(name)
             return
-        self._add_module(name, self._blurb)
-        self._begin_module(name)
+        main_module = self._add_module(name, self._blurb)
+        self._begin_module(name, main_module)
 
     def visit_include(self, name, info):
+        if 'has-pragma-top-unit' in info:
+            return
         basename = self._module_basename(self._what, name)
         self._genh.preamble_add(mcgen('''
 #include "%(basename)s.h"

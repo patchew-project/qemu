@@ -58,7 +58,12 @@ def gen_param_var(typ):
     return ret
 
 
-def gen_event_send(name, arg_type, boxed, event_enum_name):
+def gen_event_send(unit, name, arg_type, boxed, event_enum_name):
+    if not unit:
+        unit = ''
+    else:
+        unit += '_'
+
     # FIXME: Our declaration of local variables (and of 'errp' in the
     # parameter list) can collide with exploded members of the event's
     # data type passed in as parameters.  If this collision ever hits in
@@ -86,7 +91,7 @@ def gen_event_send(name, arg_type, boxed, event_enum_name):
 
     ret += mcgen('''
 
-    emit = qmp_event_get_func_emit();
+    emit = %(unit)sqmp_event_get_func_emit();
     if (!emit) {
         return;
     }
@@ -94,7 +99,7 @@ def gen_event_send(name, arg_type, boxed, event_enum_name):
     qmp = qmp_event_build_dict("%(name)s");
 
 ''',
-                 name=name)
+                 name=name, unit=unit)
 
     if arg_type and not arg_type.is_empty():
         ret += mcgen('''
@@ -143,12 +148,17 @@ class QAPISchemaGenEventVisitor(QAPISchemaModularCVisitor):
         QAPISchemaModularCVisitor.__init__(
             self, prefix, 'qapi-events',
             ' * Schema-defined QAPI/QMP events', __doc__)
-        self._event_enum_name = c_name(prefix + 'QAPIEvent', protect=False)
+
+    def visit_unit_begin(self, unit):
+        super(self.__class__, self).visit_unit_begin(unit)
+        self._event_enum_name = c_name(self._prefix_unit() + 'QAPIEvent', protect=False)
         self._event_enum_members = []
 
-    def _begin_module(self, name):
-        types = self._module_basename('qapi-types', name)
-        visit = self._module_basename('qapi-visit', name)
+    def _begin_module(self, name, main_module):
+        types = self._module_basename('qapi-types', name,
+                                      self._unit, main_module)
+        visit = self._module_basename('qapi-visit', name,
+                                      self._unit, main_module)
         self._genc.add(mcgen('''
 #include "qemu/osdep.h"
 #include "qemu-common.h"
@@ -160,7 +170,7 @@ class QAPISchemaGenEventVisitor(QAPISchemaModularCVisitor):
 #include "qapi/qmp-event.h"
 
 ''',
-                             visit=visit, prefix=self._prefix))
+                             visit=visit, prefix=self._prefix_unit()))
         self._genh.add(mcgen('''
 #include "qapi/util.h"
 #include "%(types)s.h"
@@ -168,17 +178,16 @@ class QAPISchemaGenEventVisitor(QAPISchemaModularCVisitor):
 ''',
                              types=types))
 
-    def visit_end(self):
-        (genc, genh) = self._module[self._main_module]
+    def visit_unit_end(self):
+        (genc, genh) = self.get_module_gen(self._main_module)
         genh.add(gen_enum(self._event_enum_name, self._event_enum_members))
-        genc.add(gen_enum_lookup(self._event_enum_name,
-                                 self._event_enum_members))
+        genc.add(gen_enum_lookup(self._event_enum_name, self._event_enum_members))
 
     def visit_event(self, name, info, ifcond, arg_type, boxed):
         with ifcontext(ifcond, self._genh, self._genc):
             self._genh.add(gen_event_send_decl(name, arg_type, boxed))
-            self._genc.add(gen_event_send(name, arg_type, boxed,
-                                          self._event_enum_name))
+            self._genc.add(gen_event_send(self._unit, name,
+                                          arg_type, boxed, self._event_enum_name))
         self._event_enum_members.append(QAPISchemaMember(name, ifcond))
 
 

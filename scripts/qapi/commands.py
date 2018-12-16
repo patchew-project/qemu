@@ -237,14 +237,20 @@ class QAPISchemaGenCommandVisitor(QAPISchemaModularCVisitor):
         QAPISchemaModularCVisitor.__init__(
             self, prefix, 'qapi-commands',
             ' * Schema-defined QAPI/QMP commands', __doc__)
+
+    def visit_unit_begin(self, unit):
+        super(self.__class__, self).visit_unit_begin(unit)
         self._regy = QAPIGenCCode()
         self._visited_ret_types = {}
 
-    def _begin_module(self, name):
+    def _begin_module(self, name, main_module):
         self._visited_ret_types[self._genc] = set()
-        commands = self._module_basename('qapi-commands', name)
-        types = self._module_basename('qapi-types', name)
-        visit = self._module_basename('qapi-visit', name)
+        commands = self._module_basename('qapi-commands', name,
+                                         self._unit, main_module)
+        types = self._module_basename('qapi-types', name,
+                                      self._unit, main_module)
+        visit = self._module_basename('qapi-visit', name,
+                                      self._unit, main_module)
         self._genc.add(mcgen('''
 #include "qemu/osdep.h"
 #include "qemu-common.h"
@@ -267,13 +273,13 @@ class QAPISchemaGenCommandVisitor(QAPISchemaModularCVisitor):
 ''',
                              types=types))
 
-    def visit_end(self):
-        (genc, genh) = self._module[self._main_module]
+    def visit_unit_end(self):
+        (genc, genh) = self.get_module_gen(self._main_module)
         genh.add(mcgen('''
 void %(c_prefix)sqmp_register_commands(QmpCommandList *cmds);
 ''',
-                       c_prefix=c_name(self._prefix, protect=False)))
-        genc.add(gen_registry(self._regy.get_content(), self._prefix))
+                       c_prefix=c_name(self._prefix_unit(), protect=False)))
+        genc.add(gen_registry(self._regy.get_content(), self._prefix_unit()))
 
     def visit_command(self, name, info, ifcond, arg_type, ret_type, gen,
                       success_response, boxed, allow_oob, allow_preconfig):
