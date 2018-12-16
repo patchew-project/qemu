@@ -1182,7 +1182,7 @@ static void monitor_init_qmp_commands(void)
      */
 
     QTAILQ_INIT(&qmp_commands);
-    qmp_init_marshal(&qmp_commands);
+    qmp_register_commands(&qmp_commands);
 
     qmp_register_command(&qmp_commands, "query-qmp-schema",
                          qmp_query_qmp_schema, QCO_ALLOW_PRECONFIG);

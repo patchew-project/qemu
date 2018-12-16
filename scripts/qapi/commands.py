@@ -220,7 +220,7 @@ def gen_register_command(name, success_response, allow_oob, allow_preconfig):
 def gen_registry(registry, prefix):
     ret = mcgen('''
 
-void %(c_prefix)sqmp_init_marshal(QmpCommandList *cmds)
+void %(c_prefix)sqmp_register_commands(QmpCommandList *cmds)
 {
 ''',
                 c_prefix=c_name(prefix, protect=False))
@@ -270,7 +270,7 @@ class QAPISchemaGenCommandVisitor(QAPISchemaModularCVisitor):
     def visit_end(self):
         (genc, genh) = self._module[self._main_module]
         genh.add(mcgen('''
-void %(c_prefix)sqmp_init_marshal(QmpCommandList *cmds);
+void %(c_prefix)sqmp_register_commands(QmpCommandList *cmds);
 ''',
                        c_prefix=c_name(self._prefix, protect=False)))
         genc.add(gen_registry(self._regy.get_content(), self._prefix))

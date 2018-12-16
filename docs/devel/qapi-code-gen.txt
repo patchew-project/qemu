@@ -1271,7 +1271,7 @@ Example:
 
     UserDefOne *qmp_my_command(UserDefOneList *arg1, Error **errp);
     void qmp_marshal_my_command(QDict *args, QObject **ret, Error **errp);
-    void example_qmp_init_marshal(QmpCommandList *cmds);
+    void example_qmp_register_commands(QmpCommandList *cmds);
 
     #endif /* EXAMPLE_QAPI_COMMANDS_H */
     $ cat qapi-generated/example-qapi-commands.c
@@ -1332,7 +1332,7 @@ Example:
         visit_free(v);
     }
 
-    void example_qmp_init_marshal(QmpCommandList *cmds)
+    void example_qmp_register_commands(QmpCommandList *cmds)
     {
         qmp_register_command(cmds, "my-command",
                              qmp_marshal_my_command, QCO_NO_OPTIONS);

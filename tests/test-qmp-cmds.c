@@ -326,7 +326,7 @@ int main(int argc, char **argv)
     g_test_add_func("/qmp/dealloc_partial", test_dealloc_partial);
 
     QTAILQ_INIT(&qmp_commands);
-    test_qmp_init_marshal(&qmp_commands);
+    test_qmp_register_commands(&qmp_commands);
     g_test_run();
 
     return 0;
