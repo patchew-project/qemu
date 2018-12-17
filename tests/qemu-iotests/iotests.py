@@ -251,13 +251,17 @@ def filter_img_info(output, filename):
         lines.append(line)
     return '\n'.join(lines)
 
-def log(msg, filters=[]):
+def log(msg, filters=[], indent=None):
+    if type(msg) is dict or type(msg) is list:
+        msg = json.dumps(msg, sort_keys=True, indent=indent)
+
     for flt in filters:
         msg = flt(msg)
-    if type(msg) is dict or type(msg) is list:
-        print(json.dumps(msg, sort_keys=True))
-    else:
-        print(msg)
+
+    # drop trailing whitespaces
+    msg = re.sub(r'[ \t]+$', '', msg, flags=re.MULTILINE)
+
+    print(msg)
 
 class Timeout:
     def __init__(self, seconds, errmsg = "Timeout"):
@@ -444,12 +448,20 @@ class VM(qtest.QEMUQtestMachine):
             result.append(filter_qmp_event(ev))
         return result
 
-    def qmp_log(self, cmd, filters=[filter_testfiles], **kwargs):
+    # qmp_log_depr is deprecated.
+    # TODO: replace all it's usage cases with qmp_log, and drop the definition.
+    def qmp_log_depr(self, cmd, filters=[filter_testfiles], **kwargs):
         logmsg = '{"execute": "%s", "arguments": %s}' % \
             (cmd, json.dumps(kwargs, sort_keys=True))
         log(logmsg, filters)
         result = self.qmp(cmd, **kwargs)
         log(json.dumps(result, sort_keys=True), filters)
+        return result
+
+    def qmp_log(self, cmd, filters=[filter_testfiles], **kwargs):
+        log({'execute': cmd, 'arguments': kwargs}, filters, indent=2)
+        result = self.qmp(cmd, **kwargs)
+        log(result, filters, indent=2)
         return result
 
     def run_job(self, job, auto_finalize=True, auto_dismiss=False):
@@ -463,9 +475,9 @@ class VM(qtest.QEMUQtestMachine):
                             if j['id'] == job:
                                 log('Job failed: %s' % (j['error']))
                     elif status == 'pending' and not auto_finalize:
-                        self.qmp_log('job-finalize', id=job)
+                        self.qmp_log_depr('job-finalize', id=job)
                     elif status == 'concluded' and not auto_dismiss:
-                        self.qmp_log('job-dismiss', id=job)
+                        self.qmp_log_depr('job-dismiss', id=job)
                     elif status == 'null':
                         return
                 else:

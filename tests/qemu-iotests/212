@@ -27,7 +27,7 @@ iotests.verify_image_format(supported_fmts=['parallels'])
 iotests.verify_protocol(supported=['file'])
 
 def blockdev_create(vm, options):
-    result = vm.qmp_log('blockdev-create', job_id='job0', options=options)
+    result = vm.qmp_log_depr('blockdev-create', job_id='job0', options=options)
 
     if 'return' in result:
         assert result['return'] == {}
@@ -50,7 +50,7 @@ with iotests.FilePath('t.parallels') as disk_path, \
                           'filename': disk_path,
                           'size': 0 })
 
-    vm.qmp_log('blockdev-add', driver='file', filename=disk_path,
+    vm.qmp_log_depr('blockdev-add', driver='file', filename=disk_path,
                node_name='imgfile')
 
     blockdev_create(vm, { 'driver': imgfmt,

@@ -27,7 +27,7 @@ iotests.verify_image_format(supported_fmts=['luks'])
 iotests.verify_protocol(supported=['file'])
 
 def blockdev_create(vm, options):
-    result = vm.qmp_log('blockdev-create', job_id='job0', options=options)
+    result = vm.qmp_log_depr('blockdev-create', job_id='job0', options=options)
 
     if 'return' in result:
         assert result['return'] == {}
@@ -52,7 +52,7 @@ with iotests.FilePath('t.luks') as disk_path, \
                           'filename': disk_path,
                           'size': 0 })
 
-    vm.qmp_log('blockdev-add', driver='file', filename=disk_path,
+    vm.qmp_log_depr('blockdev-add', driver='file', filename=disk_path,
                node_name='imgfile')
 
     blockdev_create(vm, { 'driver': imgfmt,
@@ -170,10 +170,10 @@ with iotests.FilePath('t.luks') as disk_path, \
 
     vm.add_blockdev('driver=luks,file=node0,key-secret=keysec0,node-name=node1')
     vm.launch()
-    vm.qmp_log('block_resize', node_name='node1', size=9223372036854775296)
-    vm.qmp_log('block_resize', node_name='node1', size=9223372036854775808)
-    vm.qmp_log('block_resize', node_name='node1', size=18446744073709551104)
-    vm.qmp_log('block_resize', node_name='node1', size=-9223372036854775808)
+    vm.qmp_log_depr('block_resize', node_name='node1', size=9223372036854775296)
+    vm.qmp_log_depr('block_resize', node_name='node1', size=9223372036854775808)
+    vm.qmp_log_depr('block_resize', node_name='node1', size=18446744073709551104)
+    vm.qmp_log_depr('block_resize', node_name='node1', size=-9223372036854775808)
     vm.shutdown()
 
     # TODO Proper support for images to be used with imgopts and/or protocols
