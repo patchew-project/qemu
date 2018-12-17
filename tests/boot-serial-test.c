@@ -130,11 +130,12 @@ static testdef_t tests[] = {
 
 static bool check_guest_output(const testdef_t *test, int fd)
 {
-    int i, nbr = 0, pos = 0, ccnt;
+    int nbr = 0, pos = 0, ccnt;
+    time_t now, start = time(NULL);
     char ch;
 
-    /* Poll serial output... Wait at most 360 seconds */
-    for (i = 0; i < 36000; ++i) {
+    /* Poll serial output... */
+    while (1) {
         ccnt = 0;
         while (ccnt++ < 512 && (nbr = read(fd, &ch, 1)) == 1) {
             if (ch == test->expect[pos]) {
@@ -148,6 +149,15 @@ static bool check_guest_output(const testdef_t *test, int fd)
             }
         }
         g_assert(nbr >= 0);
+        /* Wait only if the child is still alive.  */
+        if (!qtest_probe_child(global_qtest)) {
+            break;
+        }
+        /* Wait at most 360 seconds.  */
+        now = time(NULL);
+        if (now - start >= 360) {
+            break;
+        }
         g_usleep(10000);
     }
 
