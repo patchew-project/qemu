@@ -1597,8 +1597,8 @@ bool NMD::SLTU_cond(uint64 instruction)
  */
 std::string NMD::ABS_D(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 fd_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
 
     std::string fs = FPR(copy(fs_value));
     std::string fd = FPR(copy(fd_value));
@@ -1619,8 +1619,8 @@ std::string NMD::ABS_D(uint64 instruction)
  */
 std::string NMD::ABS_S(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 fd_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
 
     std::string fs = FPR(copy(fs_value));
     std::string fd = FPR(copy(fd_value));
@@ -1727,8 +1727,8 @@ std::string NMD::ACLR(uint64 instruction)
 std::string NMD::ADD(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -1800,8 +1800,8 @@ std::string NMD::ADD_S(uint64 instruction)
 std::string NMD::ADDIU_32_(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 u_value = extract_u_15_to_0(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 u_value = extract_u_15_to_0(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string rs = GPR(copy(rs_value));
@@ -1907,8 +1907,8 @@ std::string NMD::ADDIU_GP_W_(uint64 instruction)
 std::string NMD::ADDIU_NEG_(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 u_value = extract_u_11_10_9_8_7_6_5_4_3_2_1_0(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 u_value = extract_u_11_10_9_8_7_6_5_4_3_2_1_0(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string rs = GPR(copy(rs_value));
@@ -2039,8 +2039,8 @@ std::string NMD::ADDIUPC_48_(uint64 instruction)
 std::string NMD::ADDQ_PH(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -2063,8 +2063,8 @@ std::string NMD::ADDQ_PH(uint64 instruction)
 std::string NMD::ADDQ_S_PH(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -2087,8 +2087,8 @@ std::string NMD::ADDQ_S_PH(uint64 instruction)
 std::string NMD::ADDQ_S_W(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -2112,8 +2112,8 @@ std::string NMD::ADDQ_S_W(uint64 instruction)
 std::string NMD::ADDQH_PH(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -2137,8 +2137,8 @@ std::string NMD::ADDQH_PH(uint64 instruction)
 std::string NMD::ADDQH_R_PH(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -2161,8 +2161,8 @@ std::string NMD::ADDQH_R_PH(uint64 instruction)
 std::string NMD::ADDQH_R_W(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -2185,8 +2185,8 @@ std::string NMD::ADDQH_R_W(uint64 instruction)
 std::string NMD::ADDQH_W(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -2209,8 +2209,8 @@ std::string NMD::ADDQH_W(uint64 instruction)
 std::string NMD::ADDSC(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -2256,8 +2256,8 @@ std::string NMD::ADDU_16_(uint64 instruction)
 std::string NMD::ADDU_32_(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -2279,8 +2279,8 @@ std::string NMD::ADDU_32_(uint64 instruction)
  */
 std::string NMD::ADDU_4X4_(uint64 instruction)
 {
-    uint64 rs4_value = extract_rs4_4_2_1_0(instruction);
     uint64 rt4_value = extract_rt4_9_7_6_5(instruction);
+    uint64 rs4_value = extract_rs4_4_2_1_0(instruction);
 
     std::string rs4 = GPR(encode_gpr4(rs4_value));
     std::string rt4 = GPR(encode_gpr4(rt4_value));
@@ -2302,8 +2302,8 @@ std::string NMD::ADDU_4X4_(uint64 instruction)
 std::string NMD::ADDU_PH(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -2326,8 +2326,8 @@ std::string NMD::ADDU_PH(uint64 instruction)
 std::string NMD::ADDU_QB(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -2350,8 +2350,8 @@ std::string NMD::ADDU_QB(uint64 instruction)
 std::string NMD::ADDU_S_PH(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -2374,8 +2374,8 @@ std::string NMD::ADDU_S_PH(uint64 instruction)
 std::string NMD::ADDU_S_QB(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -2399,8 +2399,8 @@ std::string NMD::ADDU_S_QB(uint64 instruction)
 std::string NMD::ADDUH_QB(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -2424,8 +2424,8 @@ std::string NMD::ADDUH_QB(uint64 instruction)
 std::string NMD::ADDUH_R_QB(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -2447,8 +2447,8 @@ std::string NMD::ADDUH_R_QB(uint64 instruction)
 std::string NMD::ADDWC(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -2514,8 +2514,8 @@ std::string NMD::AND_16_(uint64 instruction)
 std::string NMD::AND_32_(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -2561,8 +2561,8 @@ std::string NMD::ANDI_16_(uint64 instruction)
 std::string NMD::ANDI_32_(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 u_value = extract_u_11_10_9_8_7_6_5_4_3_2_1_0(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 u_value = extract_u_11_10_9_8_7_6_5_4_3_2_1_0(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string rs = GPR(copy(rs_value));
@@ -2585,8 +2585,8 @@ std::string NMD::ANDI_32_(uint64 instruction)
 std::string NMD::APPEND(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 sa_value = extract_sa_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 sa_value = extract_sa_15_14_13_12_11(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string rs = GPR(copy(rs_value));
@@ -3378,8 +3378,8 @@ std::string NMD::CACHEE(uint64 instruction)
  */
 std::string NMD::CEIL_L_D(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
 
     std::string ft = FPR(copy(ft_value));
     std::string fs = FPR(copy(fs_value));
@@ -3400,8 +3400,8 @@ std::string NMD::CEIL_L_D(uint64 instruction)
  */
 std::string NMD::CEIL_L_S(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
 
     std::string ft = FPR(copy(ft_value));
     std::string fs = FPR(copy(fs_value));
@@ -3422,8 +3422,8 @@ std::string NMD::CEIL_L_S(uint64 instruction)
  */
 std::string NMD::CEIL_W_D(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
 
     std::string ft = FPR(copy(ft_value));
     std::string fs = FPR(copy(fs_value));
@@ -3444,8 +3444,8 @@ std::string NMD::CEIL_W_D(uint64 instruction)
  */
 std::string NMD::CEIL_W_S(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
 
     std::string ft = FPR(copy(ft_value));
     std::string fs = FPR(copy(fs_value));
@@ -3466,8 +3466,8 @@ std::string NMD::CEIL_W_S(uint64 instruction)
  */
 std::string NMD::CFC1(uint64 instruction)
 {
-    uint64 cs_value = extract_cs_20_19_18_17_16(instruction);
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
+    uint64 cs_value = extract_cs_20_19_18_17_16(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string cs = CPR(copy(cs_value));
@@ -3488,8 +3488,8 @@ std::string NMD::CFC1(uint64 instruction)
  */
 std::string NMD::CFC2(uint64 instruction)
 {
-    uint64 cs_value = extract_cs_20_19_18_17_16(instruction);
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
+    uint64 cs_value = extract_cs_20_19_18_17_16(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string cs = CPR(copy(cs_value));
@@ -3510,8 +3510,8 @@ std::string NMD::CFC2(uint64 instruction)
  */
 std::string NMD::CLASS_D(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
 
     std::string ft = FPR(copy(ft_value));
     std::string fs = FPR(copy(fs_value));
@@ -3532,8 +3532,8 @@ std::string NMD::CLASS_D(uint64 instruction)
  */
 std::string NMD::CLASS_S(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
 
     std::string ft = FPR(copy(ft_value));
     std::string fs = FPR(copy(fs_value));
@@ -3598,9 +3598,9 @@ std::string NMD::CLZ(uint64 instruction)
  */
 std::string NMD::CMP_AF_D(uint64 instruction)
 {
-    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
+    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
     std::string fs = FPR(copy(fs_value));
@@ -3622,9 +3622,9 @@ std::string NMD::CMP_AF_D(uint64 instruction)
  */
 std::string NMD::CMP_AF_S(uint64 instruction)
 {
-    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
+    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
     std::string fs = FPR(copy(fs_value));
@@ -3646,9 +3646,9 @@ std::string NMD::CMP_AF_S(uint64 instruction)
  */
 std::string NMD::CMP_EQ_D(uint64 instruction)
 {
-    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
+    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
     std::string fs = FPR(copy(fs_value));
@@ -3692,9 +3692,9 @@ std::string NMD::CMP_EQ_PH(uint64 instruction)
  */
 std::string NMD::CMP_EQ_S(uint64 instruction)
 {
-    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
+    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
     std::string fs = FPR(copy(fs_value));
@@ -3716,9 +3716,9 @@ std::string NMD::CMP_EQ_S(uint64 instruction)
  */
 std::string NMD::CMP_LE_D(uint64 instruction)
 {
-    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
+    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
     std::string fs = FPR(copy(fs_value));
@@ -3762,9 +3762,9 @@ std::string NMD::CMP_LE_PH(uint64 instruction)
  */
 std::string NMD::CMP_LE_S(uint64 instruction)
 {
-    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
+    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
     std::string fs = FPR(copy(fs_value));
@@ -3786,9 +3786,9 @@ std::string NMD::CMP_LE_S(uint64 instruction)
  */
 std::string NMD::CMP_LT_D(uint64 instruction)
 {
-    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
+    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
     std::string fs = FPR(copy(fs_value));
@@ -3832,9 +3832,9 @@ std::string NMD::CMP_LT_PH(uint64 instruction)
  */
 std::string NMD::CMP_LT_S(uint64 instruction)
 {
-    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
+    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
     std::string fs = FPR(copy(fs_value));
@@ -3856,9 +3856,9 @@ std::string NMD::CMP_LT_S(uint64 instruction)
  */
 std::string NMD::CMP_NE_D(uint64 instruction)
 {
-    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
+    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
     std::string fs = FPR(copy(fs_value));
@@ -3880,9 +3880,9 @@ std::string NMD::CMP_NE_D(uint64 instruction)
  */
 std::string NMD::CMP_NE_S(uint64 instruction)
 {
-    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
+    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
     std::string fs = FPR(copy(fs_value));
@@ -3904,9 +3904,9 @@ std::string NMD::CMP_NE_S(uint64 instruction)
  */
 std::string NMD::CMP_OR_D(uint64 instruction)
 {
-    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
+    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
     std::string fs = FPR(copy(fs_value));
@@ -3928,9 +3928,9 @@ std::string NMD::CMP_OR_D(uint64 instruction)
  */
 std::string NMD::CMP_OR_S(uint64 instruction)
 {
-    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
+    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
     std::string fs = FPR(copy(fs_value));
@@ -3952,9 +3952,9 @@ std::string NMD::CMP_OR_S(uint64 instruction)
  */
 std::string NMD::CMP_SAF_D(uint64 instruction)
 {
-    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
+    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
     std::string fs = FPR(copy(fs_value));
@@ -3976,9 +3976,9 @@ std::string NMD::CMP_SAF_D(uint64 instruction)
  */
 std::string NMD::CMP_SAF_S(uint64 instruction)
 {
-    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
+    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
     std::string fs = FPR(copy(fs_value));
@@ -4000,9 +4000,9 @@ std::string NMD::CMP_SAF_S(uint64 instruction)
  */
 std::string NMD::CMP_SEQ_D(uint64 instruction)
 {
-    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
+    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
     std::string fs = FPR(copy(fs_value));
@@ -4024,9 +4024,9 @@ std::string NMD::CMP_SEQ_D(uint64 instruction)
  */
 std::string NMD::CMP_SEQ_S(uint64 instruction)
 {
-    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
+    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
     std::string fs = FPR(copy(fs_value));
@@ -4048,9 +4048,9 @@ std::string NMD::CMP_SEQ_S(uint64 instruction)
  */
 std::string NMD::CMP_SLE_D(uint64 instruction)
 {
-    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
+    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
     std::string fs = FPR(copy(fs_value));
@@ -4072,9 +4072,9 @@ std::string NMD::CMP_SLE_D(uint64 instruction)
  */
 std::string NMD::CMP_SLE_S(uint64 instruction)
 {
-    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
+    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
     std::string fs = FPR(copy(fs_value));
@@ -4096,9 +4096,9 @@ std::string NMD::CMP_SLE_S(uint64 instruction)
  */
 std::string NMD::CMP_SLT_D(uint64 instruction)
 {
-    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
+    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
     std::string fs = FPR(copy(fs_value));
@@ -4120,9 +4120,9 @@ std::string NMD::CMP_SLT_D(uint64 instruction)
  */
 std::string NMD::CMP_SLT_S(uint64 instruction)
 {
-    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
+    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
     std::string fs = FPR(copy(fs_value));
@@ -4144,9 +4144,9 @@ std::string NMD::CMP_SLT_S(uint64 instruction)
  */
 std::string NMD::CMP_SNE_D(uint64 instruction)
 {
-    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
+    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
     std::string fs = FPR(copy(fs_value));
@@ -4168,9 +4168,9 @@ std::string NMD::CMP_SNE_D(uint64 instruction)
  */
 std::string NMD::CMP_SNE_S(uint64 instruction)
 {
-    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
+    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
     std::string fs = FPR(copy(fs_value));
@@ -4192,9 +4192,9 @@ std::string NMD::CMP_SNE_S(uint64 instruction)
  */
 std::string NMD::CMP_SOR_D(uint64 instruction)
 {
-    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
+    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
     std::string fs = FPR(copy(fs_value));
@@ -4216,9 +4216,9 @@ std::string NMD::CMP_SOR_D(uint64 instruction)
  */
 std::string NMD::CMP_SOR_S(uint64 instruction)
 {
-    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
+    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
     std::string fs = FPR(copy(fs_value));
@@ -4240,9 +4240,9 @@ std::string NMD::CMP_SOR_S(uint64 instruction)
  */
 std::string NMD::CMP_SUEQ_D(uint64 instruction)
 {
-    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
+    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
     std::string fs = FPR(copy(fs_value));
@@ -4264,9 +4264,9 @@ std::string NMD::CMP_SUEQ_D(uint64 instruction)
  */
 std::string NMD::CMP_SUEQ_S(uint64 instruction)
 {
-    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
+    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
     std::string fs = FPR(copy(fs_value));
@@ -4288,9 +4288,9 @@ std::string NMD::CMP_SUEQ_S(uint64 instruction)
  */
 std::string NMD::CMP_SULE_D(uint64 instruction)
 {
-    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
+    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
     std::string fs = FPR(copy(fs_value));
@@ -4312,9 +4312,9 @@ std::string NMD::CMP_SULE_D(uint64 instruction)
  */
 std::string NMD::CMP_SULE_S(uint64 instruction)
 {
-    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
+    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
     std::string fs = FPR(copy(fs_value));
@@ -4336,9 +4336,9 @@ std::string NMD::CMP_SULE_S(uint64 instruction)
  */
 std::string NMD::CMP_SULT_D(uint64 instruction)
 {
-    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
+    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
     std::string fs = FPR(copy(fs_value));
@@ -4360,9 +4360,9 @@ std::string NMD::CMP_SULT_D(uint64 instruction)
  */
 std::string NMD::CMP_SULT_S(uint64 instruction)
 {
-    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
+    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
     std::string fs = FPR(copy(fs_value));
@@ -4384,9 +4384,9 @@ std::string NMD::CMP_SULT_S(uint64 instruction)
  */
 std::string NMD::CMP_SUN_D(uint64 instruction)
 {
-    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
+    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
     std::string fs = FPR(copy(fs_value));
@@ -4408,9 +4408,9 @@ std::string NMD::CMP_SUN_D(uint64 instruction)
  */
 std::string NMD::CMP_SUNE_D(uint64 instruction)
 {
-    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
+    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
     std::string fs = FPR(copy(fs_value));
@@ -4432,9 +4432,9 @@ std::string NMD::CMP_SUNE_D(uint64 instruction)
  */
 std::string NMD::CMP_SUNE_S(uint64 instruction)
 {
-    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
+    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
     std::string fs = FPR(copy(fs_value));
@@ -4456,9 +4456,9 @@ std::string NMD::CMP_SUNE_S(uint64 instruction)
  */
 std::string NMD::CMP_SUN_S(uint64 instruction)
 {
-    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
+    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
     std::string fs = FPR(copy(fs_value));
@@ -4480,9 +4480,9 @@ std::string NMD::CMP_SUN_S(uint64 instruction)
  */
 std::string NMD::CMP_UEQ_D(uint64 instruction)
 {
-    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
+    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
     std::string fs = FPR(copy(fs_value));
@@ -4504,9 +4504,9 @@ std::string NMD::CMP_UEQ_D(uint64 instruction)
  */
 std::string NMD::CMP_UEQ_S(uint64 instruction)
 {
-    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
+    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
     std::string fs = FPR(copy(fs_value));
@@ -4528,9 +4528,9 @@ std::string NMD::CMP_UEQ_S(uint64 instruction)
  */
 std::string NMD::CMP_ULE_D(uint64 instruction)
 {
-    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
+    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
     std::string fs = FPR(copy(fs_value));
@@ -4552,9 +4552,9 @@ std::string NMD::CMP_ULE_D(uint64 instruction)
  */
 std::string NMD::CMP_ULE_S(uint64 instruction)
 {
-    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
+    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
     std::string fs = FPR(copy(fs_value));
@@ -4576,9 +4576,9 @@ std::string NMD::CMP_ULE_S(uint64 instruction)
  */
 std::string NMD::CMP_ULT_D(uint64 instruction)
 {
-    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
+    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
     std::string fs = FPR(copy(fs_value));
@@ -4600,9 +4600,9 @@ std::string NMD::CMP_ULT_D(uint64 instruction)
  */
 std::string NMD::CMP_ULT_S(uint64 instruction)
 {
-    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
+    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
     std::string fs = FPR(copy(fs_value));
@@ -4624,9 +4624,9 @@ std::string NMD::CMP_ULT_S(uint64 instruction)
  */
 std::string NMD::CMP_UN_D(uint64 instruction)
 {
-    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
+    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
     std::string fs = FPR(copy(fs_value));
@@ -4648,9 +4648,9 @@ std::string NMD::CMP_UN_D(uint64 instruction)
  */
 std::string NMD::CMP_UNE_D(uint64 instruction)
 {
-    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
+    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
     std::string fs = FPR(copy(fs_value));
@@ -4672,9 +4672,9 @@ std::string NMD::CMP_UNE_D(uint64 instruction)
  */
 std::string NMD::CMP_UNE_S(uint64 instruction)
 {
-    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
+    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
     std::string fs = FPR(copy(fs_value));
@@ -4696,9 +4696,9 @@ std::string NMD::CMP_UNE_S(uint64 instruction)
  */
 std::string NMD::CMP_UN_S(uint64 instruction)
 {
-    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
+    uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
     std::string fs = FPR(copy(fs_value));
@@ -4721,8 +4721,8 @@ std::string NMD::CMP_UN_S(uint64 instruction)
 std::string NMD::CMPGDU_EQ_QB(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -4745,8 +4745,8 @@ std::string NMD::CMPGDU_EQ_QB(uint64 instruction)
 std::string NMD::CMPGDU_LE_QB(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -4769,8 +4769,8 @@ std::string NMD::CMPGDU_LE_QB(uint64 instruction)
 std::string NMD::CMPGDU_LT_QB(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -4793,8 +4793,8 @@ std::string NMD::CMPGDU_LT_QB(uint64 instruction)
 std::string NMD::CMPGU_EQ_QB(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -4817,8 +4817,8 @@ std::string NMD::CMPGU_EQ_QB(uint64 instruction)
 std::string NMD::CMPGU_LE_QB(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -4841,8 +4841,8 @@ std::string NMD::CMPGU_LE_QB(uint64 instruction)
 std::string NMD::CMPGU_LT_QB(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -4950,8 +4950,8 @@ std::string NMD::COP2_1(uint64 instruction)
  */
 std::string NMD::CTC1(uint64 instruction)
 {
-    uint64 cs_value = extract_cs_20_19_18_17_16(instruction);
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
+    uint64 cs_value = extract_cs_20_19_18_17_16(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string cs = CPR(copy(cs_value));
@@ -4972,8 +4972,8 @@ std::string NMD::CTC1(uint64 instruction)
  */
 std::string NMD::CTC2(uint64 instruction)
 {
-    uint64 cs_value = extract_cs_20_19_18_17_16(instruction);
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
+    uint64 cs_value = extract_cs_20_19_18_17_16(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string cs = CPR(copy(cs_value));
@@ -4994,8 +4994,8 @@ std::string NMD::CTC2(uint64 instruction)
  */
 std::string NMD::CVT_D_L(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
 
     std::string ft = FPR(copy(ft_value));
     std::string fs = FPR(copy(fs_value));
@@ -5016,8 +5016,8 @@ std::string NMD::CVT_D_L(uint64 instruction)
  */
 std::string NMD::CVT_D_S(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
 
     std::string ft = FPR(copy(ft_value));
     std::string fs = FPR(copy(fs_value));
@@ -5038,8 +5038,8 @@ std::string NMD::CVT_D_S(uint64 instruction)
  */
 std::string NMD::CVT_D_W(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
 
     std::string ft = FPR(copy(ft_value));
     std::string fs = FPR(copy(fs_value));
@@ -5060,8 +5060,8 @@ std::string NMD::CVT_D_W(uint64 instruction)
  */
 std::string NMD::CVT_L_D(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
 
     std::string ft = FPR(copy(ft_value));
     std::string fs = FPR(copy(fs_value));
@@ -5082,8 +5082,8 @@ std::string NMD::CVT_L_D(uint64 instruction)
  */
 std::string NMD::CVT_L_S(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
 
     std::string ft = FPR(copy(ft_value));
     std::string fs = FPR(copy(fs_value));
@@ -5104,8 +5104,8 @@ std::string NMD::CVT_L_S(uint64 instruction)
  */
 std::string NMD::CVT_S_D(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
 
     std::string ft = FPR(copy(ft_value));
     std::string fs = FPR(copy(fs_value));
@@ -5126,8 +5126,8 @@ std::string NMD::CVT_S_D(uint64 instruction)
  */
 std::string NMD::CVT_S_L(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
 
     std::string ft = FPR(copy(ft_value));
     std::string fs = FPR(copy(fs_value));
@@ -5148,8 +5148,8 @@ std::string NMD::CVT_S_L(uint64 instruction)
  */
 std::string NMD::CVT_S_PL(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
 
     std::string ft = FPR(copy(ft_value));
     std::string fs = FPR(copy(fs_value));
@@ -5170,8 +5170,8 @@ std::string NMD::CVT_S_PL(uint64 instruction)
  */
 std::string NMD::CVT_S_PU(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
 
     std::string ft = FPR(copy(ft_value));
     std::string fs = FPR(copy(fs_value));
@@ -5192,8 +5192,8 @@ std::string NMD::CVT_S_PU(uint64 instruction)
  */
 std::string NMD::CVT_S_W(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
 
     std::string ft = FPR(copy(ft_value));
     std::string fs = FPR(copy(fs_value));
@@ -5214,8 +5214,8 @@ std::string NMD::CVT_S_W(uint64 instruction)
  */
 std::string NMD::CVT_W_D(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
 
     std::string ft = FPR(copy(ft_value));
     std::string fs = FPR(copy(fs_value));
@@ -5236,8 +5236,8 @@ std::string NMD::CVT_W_D(uint64 instruction)
  */
 std::string NMD::CVT_W_S(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
 
     std::string ft = FPR(copy(ft_value));
     std::string fs = FPR(copy(fs_value));
@@ -5281,8 +5281,8 @@ std::string NMD::DADDIU_48_(uint64 instruction)
 std::string NMD::DADDIU_NEG_(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 u_value = extract_u_11_10_9_8_7_6_5_4_3_2_1_0(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 u_value = extract_u_11_10_9_8_7_6_5_4_3_2_1_0(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string rs = GPR(copy(rs_value));
@@ -5305,8 +5305,8 @@ std::string NMD::DADDIU_NEG_(uint64 instruction)
 std::string NMD::DADDIU_U12_(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 u_value = extract_u_11_10_9_8_7_6_5_4_3_2_1_0(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 u_value = extract_u_11_10_9_8_7_6_5_4_3_2_1_0(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string rs = GPR(copy(rs_value));
@@ -5329,8 +5329,8 @@ std::string NMD::DADDIU_U12_(uint64 instruction)
 std::string NMD::DADD(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -5353,8 +5353,8 @@ std::string NMD::DADD(uint64 instruction)
 std::string NMD::DADDU(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -5421,8 +5421,8 @@ std::string NMD::DCLZ(uint64 instruction)
 std::string NMD::DDIV(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -5445,8 +5445,8 @@ std::string NMD::DDIV(uint64 instruction)
 std::string NMD::DDIVU(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -5487,9 +5487,9 @@ std::string NMD::DERET(uint64 instruction)
 std::string NMD::DEXTM(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
+    uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
     uint64 msbd_value = extract_msbt_10_9_8_7_6(instruction);
     uint64 lsb_value = extract_lsb_4_3_2_1_0(instruction);
-    uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string rs = GPR(copy(rs_value));
@@ -5513,9 +5513,9 @@ std::string NMD::DEXTM(uint64 instruction)
 std::string NMD::DEXT(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
+    uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
     uint64 msbd_value = extract_msbt_10_9_8_7_6(instruction);
     uint64 lsb_value = extract_lsb_4_3_2_1_0(instruction);
-    uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string rs = GPR(copy(rs_value));
@@ -5539,9 +5539,9 @@ std::string NMD::DEXT(uint64 instruction)
 std::string NMD::DEXTU(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
+    uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
     uint64 msbd_value = extract_msbt_10_9_8_7_6(instruction);
     uint64 lsb_value = extract_lsb_4_3_2_1_0(instruction);
-    uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string rs = GPR(copy(rs_value));
@@ -5565,9 +5565,9 @@ std::string NMD::DEXTU(uint64 instruction)
 std::string NMD::DINSM(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
+    uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
     uint64 msbd_value = extract_msbt_10_9_8_7_6(instruction);
     uint64 lsb_value = extract_lsb_4_3_2_1_0(instruction);
-    uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string rs = GPR(copy(rs_value));
@@ -5593,9 +5593,9 @@ std::string NMD::DINSM(uint64 instruction)
 std::string NMD::DINS(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
+    uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
     uint64 msbd_value = extract_msbt_10_9_8_7_6(instruction);
     uint64 lsb_value = extract_lsb_4_3_2_1_0(instruction);
-    uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string rs = GPR(copy(rs_value));
@@ -5621,9 +5621,9 @@ std::string NMD::DINS(uint64 instruction)
 std::string NMD::DINSU(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
+    uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
     uint64 msbd_value = extract_msbt_10_9_8_7_6(instruction);
     uint64 lsb_value = extract_lsb_4_3_2_1_0(instruction);
-    uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string rs = GPR(copy(rs_value));
@@ -5669,8 +5669,8 @@ std::string NMD::DI(uint64 instruction)
 std::string NMD::DIV(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -5692,8 +5692,8 @@ std::string NMD::DIV(uint64 instruction)
  */
 std::string NMD::DIV_D(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
@@ -5716,8 +5716,8 @@ std::string NMD::DIV_D(uint64 instruction)
  */
 std::string NMD::DIV_S(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
@@ -5741,8 +5741,8 @@ std::string NMD::DIV_S(uint64 instruction)
 std::string NMD::DIVU(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -5765,9 +5765,9 @@ std::string NMD::DIVU(uint64 instruction)
 std::string NMD::DLSA(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
+    uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
     uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 u2_value = extract_u2_10_9(instruction);
-    uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -5858,8 +5858,8 @@ std::string NMD::DMFC1(uint64 instruction)
  */
 std::string NMD::DMFC2(uint64 instruction)
 {
-    uint64 cs_value = extract_cs_20_19_18_17_16(instruction);
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
+    uint64 cs_value = extract_cs_20_19_18_17_16(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string cs = CPR(copy(cs_value));
@@ -5905,8 +5905,8 @@ std::string NMD::DMFGC0(uint64 instruction)
 std::string NMD::DMOD(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -5929,8 +5929,8 @@ std::string NMD::DMOD(uint64 instruction)
 std::string NMD::DMODU(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -5998,8 +5998,8 @@ std::string NMD::DMTC1(uint64 instruction)
  */
 std::string NMD::DMTC2(uint64 instruction)
 {
-    uint64 cs_value = extract_cs_20_19_18_17_16(instruction);
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
+    uint64 cs_value = extract_cs_20_19_18_17_16(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string cs = CPR(copy(cs_value));
@@ -6065,8 +6065,8 @@ std::string NMD::DMT(uint64 instruction)
 std::string NMD::DMUH(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -6089,8 +6089,8 @@ std::string NMD::DMUH(uint64 instruction)
 std::string NMD::DMUHU(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -6113,8 +6113,8 @@ std::string NMD::DMUHU(uint64 instruction)
 std::string NMD::DMUL(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -6137,8 +6137,8 @@ std::string NMD::DMUL(uint64 instruction)
 std::string NMD::DMULU(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -6161,8 +6161,8 @@ std::string NMD::DMULU(uint64 instruction)
 std::string NMD::DPA_W_PH(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 ac_value = extract_ac_13_12(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 ac_value = extract_ac_13_12(instruction);
 
     std::string ac = AC(copy(ac_value));
     std::string rs = GPR(copy(rs_value));
@@ -6185,8 +6185,8 @@ std::string NMD::DPA_W_PH(uint64 instruction)
 std::string NMD::DPAQ_SA_L_W(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 ac_value = extract_ac_13_12(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 ac_value = extract_ac_13_12(instruction);
 
     std::string ac = AC(copy(ac_value));
     std::string rs = GPR(copy(rs_value));
@@ -6209,8 +6209,8 @@ std::string NMD::DPAQ_SA_L_W(uint64 instruction)
 std::string NMD::DPAQ_S_W_PH(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 ac_value = extract_ac_13_12(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 ac_value = extract_ac_13_12(instruction);
 
     std::string ac = AC(copy(ac_value));
     std::string rs = GPR(copy(rs_value));
@@ -6233,8 +6233,8 @@ std::string NMD::DPAQ_S_W_PH(uint64 instruction)
 std::string NMD::DPAQX_SA_W_PH(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 ac_value = extract_ac_13_12(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 ac_value = extract_ac_13_12(instruction);
 
     std::string ac = AC(copy(ac_value));
     std::string rs = GPR(copy(rs_value));
@@ -6257,8 +6257,8 @@ std::string NMD::DPAQX_SA_W_PH(uint64 instruction)
 std::string NMD::DPAQX_S_W_PH(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 ac_value = extract_ac_13_12(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 ac_value = extract_ac_13_12(instruction);
 
     std::string ac = AC(copy(ac_value));
     std::string rs = GPR(copy(rs_value));
@@ -6281,8 +6281,8 @@ std::string NMD::DPAQX_S_W_PH(uint64 instruction)
 std::string NMD::DPAU_H_QBL(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 ac_value = extract_ac_13_12(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 ac_value = extract_ac_13_12(instruction);
 
     std::string ac = AC(copy(ac_value));
     std::string rs = GPR(copy(rs_value));
@@ -6305,8 +6305,8 @@ std::string NMD::DPAU_H_QBL(uint64 instruction)
 std::string NMD::DPAU_H_QBR(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 ac_value = extract_ac_13_12(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 ac_value = extract_ac_13_12(instruction);
 
     std::string ac = AC(copy(ac_value));
     std::string rs = GPR(copy(rs_value));
@@ -6329,8 +6329,8 @@ std::string NMD::DPAU_H_QBR(uint64 instruction)
 std::string NMD::DPAX_W_PH(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 ac_value = extract_ac_13_12(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 ac_value = extract_ac_13_12(instruction);
 
     std::string ac = AC(copy(ac_value));
     std::string rs = GPR(copy(rs_value));
@@ -6353,8 +6353,8 @@ std::string NMD::DPAX_W_PH(uint64 instruction)
 std::string NMD::DPS_W_PH(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 ac_value = extract_ac_13_12(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 ac_value = extract_ac_13_12(instruction);
 
     std::string ac = AC(copy(ac_value));
     std::string rs = GPR(copy(rs_value));
@@ -6377,8 +6377,8 @@ std::string NMD::DPS_W_PH(uint64 instruction)
 std::string NMD::DPSQ_SA_L_W(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 ac_value = extract_ac_13_12(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 ac_value = extract_ac_13_12(instruction);
 
     std::string ac = AC(copy(ac_value));
     std::string rs = GPR(copy(rs_value));
@@ -6401,8 +6401,8 @@ std::string NMD::DPSQ_SA_L_W(uint64 instruction)
 std::string NMD::DPSQ_S_W_PH(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 ac_value = extract_ac_13_12(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 ac_value = extract_ac_13_12(instruction);
 
     std::string ac = AC(copy(ac_value));
     std::string rs = GPR(copy(rs_value));
@@ -6425,8 +6425,8 @@ std::string NMD::DPSQ_S_W_PH(uint64 instruction)
 std::string NMD::DPSQX_SA_W_PH(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 ac_value = extract_ac_13_12(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 ac_value = extract_ac_13_12(instruction);
 
     std::string ac = AC(copy(ac_value));
     std::string rs = GPR(copy(rs_value));
@@ -6449,8 +6449,8 @@ std::string NMD::DPSQX_SA_W_PH(uint64 instruction)
 std::string NMD::DPSQX_S_W_PH(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 ac_value = extract_ac_13_12(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 ac_value = extract_ac_13_12(instruction);
 
     std::string ac = AC(copy(ac_value));
     std::string rs = GPR(copy(rs_value));
@@ -6473,8 +6473,8 @@ std::string NMD::DPSQX_S_W_PH(uint64 instruction)
 std::string NMD::DPSU_H_QBL(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 ac_value = extract_ac_13_12(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 ac_value = extract_ac_13_12(instruction);
 
     std::string ac = AC(copy(ac_value));
     std::string rs = GPR(copy(rs_value));
@@ -6497,8 +6497,8 @@ std::string NMD::DPSU_H_QBL(uint64 instruction)
 std::string NMD::DPSU_H_QBR(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 ac_value = extract_ac_13_12(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 ac_value = extract_ac_13_12(instruction);
 
     std::string ac = AC(copy(ac_value));
     std::string rs = GPR(copy(rs_value));
@@ -6521,8 +6521,8 @@ std::string NMD::DPSU_H_QBR(uint64 instruction)
 std::string NMD::DPSX_W_PH(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 ac_value = extract_ac_13_12(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 ac_value = extract_ac_13_12(instruction);
 
     std::string ac = AC(copy(ac_value));
     std::string rs = GPR(copy(rs_value));
@@ -6545,8 +6545,8 @@ std::string NMD::DPSX_W_PH(uint64 instruction)
 std::string NMD::DROTR(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 shift_value = extract_shift_4_3_2_1_0(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 shift_value = extract_shift_4_3_2_1_0(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string rs = GPR(copy(rs_value));
@@ -6569,8 +6569,8 @@ std::string NMD::DROTR(uint64 instruction)
 std::string NMD::DROTR32(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 shift_value = extract_shift_4_3_2_1_0(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 shift_value = extract_shift_4_3_2_1_0(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string rs = GPR(copy(rs_value));
@@ -6593,8 +6593,8 @@ std::string NMD::DROTR32(uint64 instruction)
 std::string NMD::DROTRV(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -6617,9 +6617,9 @@ std::string NMD::DROTRV(uint64 instruction)
 std::string NMD::DROTX(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 shift_value = extract_shift_5_4_3_2_1_0(instruction);
-    uint64 shiftx_value = extract_shiftx_11_10_9_8_7_6(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 shiftx_value = extract_shiftx_11_10_9_8_7_6(instruction);
+    uint64 shift_value = extract_shift_5_4_3_2_1_0(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string rs = GPR(copy(rs_value));
@@ -6643,8 +6643,8 @@ std::string NMD::DROTX(uint64 instruction)
 std::string NMD::DSLL(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 shift_value = extract_shift_4_3_2_1_0(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 shift_value = extract_shift_4_3_2_1_0(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string rs = GPR(copy(rs_value));
@@ -6667,8 +6667,8 @@ std::string NMD::DSLL(uint64 instruction)
 std::string NMD::DSLL32(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 shift_value = extract_shift_4_3_2_1_0(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 shift_value = extract_shift_4_3_2_1_0(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string rs = GPR(copy(rs_value));
@@ -6691,8 +6691,8 @@ std::string NMD::DSLL32(uint64 instruction)
 std::string NMD::DSLLV(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -6715,8 +6715,8 @@ std::string NMD::DSLLV(uint64 instruction)
 std::string NMD::DSRA(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 shift_value = extract_shift_4_3_2_1_0(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 shift_value = extract_shift_4_3_2_1_0(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string rs = GPR(copy(rs_value));
@@ -6739,8 +6739,8 @@ std::string NMD::DSRA(uint64 instruction)
 std::string NMD::DSRA32(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 shift_value = extract_shift_4_3_2_1_0(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 shift_value = extract_shift_4_3_2_1_0(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string rs = GPR(copy(rs_value));
@@ -6763,8 +6763,8 @@ std::string NMD::DSRA32(uint64 instruction)
 std::string NMD::DSRAV(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -6787,8 +6787,8 @@ std::string NMD::DSRAV(uint64 instruction)
 std::string NMD::DSRL(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 shift_value = extract_shift_4_3_2_1_0(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 shift_value = extract_shift_4_3_2_1_0(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string rs = GPR(copy(rs_value));
@@ -6811,8 +6811,8 @@ std::string NMD::DSRL(uint64 instruction)
 std::string NMD::DSRL32(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 shift_value = extract_shift_4_3_2_1_0(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 shift_value = extract_shift_4_3_2_1_0(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string rs = GPR(copy(rs_value));
@@ -6835,8 +6835,8 @@ std::string NMD::DSRL32(uint64 instruction)
 std::string NMD::DSRLV(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -6859,8 +6859,8 @@ std::string NMD::DSRLV(uint64 instruction)
 std::string NMD::DSUB(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -6883,8 +6883,8 @@ std::string NMD::DSUB(uint64 instruction)
 std::string NMD::DSUBU(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -7108,8 +7108,8 @@ std::string NMD::EXTD(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
     uint64 shift_value = extract_shift_10_9_8_7_6(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -7134,8 +7134,8 @@ std::string NMD::EXTD32(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
     uint64 shift_value = extract_shift_10_9_8_7_6(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -7183,8 +7183,8 @@ std::string NMD::EXTPDP(uint64 instruction)
 std::string NMD::EXTPDPV(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 ac_value = extract_ac_13_12(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 ac_value = extract_ac_13_12(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string ac = AC(copy(ac_value));
@@ -7231,8 +7231,8 @@ std::string NMD::EXTP(uint64 instruction)
 std::string NMD::EXTPV(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 ac_value = extract_ac_13_12(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 ac_value = extract_ac_13_12(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string ac = AC(copy(ac_value));
@@ -7351,8 +7351,8 @@ std::string NMD::EXTR_W(uint64 instruction)
 std::string NMD::EXTRV_RS_W(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 ac_value = extract_ac_13_12(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 ac_value = extract_ac_13_12(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string ac = AC(copy(ac_value));
@@ -7375,8 +7375,8 @@ std::string NMD::EXTRV_RS_W(uint64 instruction)
 std::string NMD::EXTRV_R_W(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 ac_value = extract_ac_13_12(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 ac_value = extract_ac_13_12(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string ac = AC(copy(ac_value));
@@ -7399,8 +7399,8 @@ std::string NMD::EXTRV_R_W(uint64 instruction)
 std::string NMD::EXTRV_S_H(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 ac_value = extract_ac_13_12(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 ac_value = extract_ac_13_12(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string ac = AC(copy(ac_value));
@@ -7423,8 +7423,8 @@ std::string NMD::EXTRV_S_H(uint64 instruction)
 std::string NMD::EXTRV_W(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 ac_value = extract_ac_13_12(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 ac_value = extract_ac_13_12(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string ac = AC(copy(ac_value));
@@ -7449,8 +7449,8 @@ std::string NMD::EXTW(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
     uint64 shift_value = extract_shift_10_9_8_7_6(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -7473,8 +7473,8 @@ std::string NMD::EXTW(uint64 instruction)
  */
 std::string NMD::FLOOR_L_D(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
 
     std::string ft = FPR(copy(ft_value));
     std::string fs = FPR(copy(fs_value));
@@ -7495,8 +7495,8 @@ std::string NMD::FLOOR_L_D(uint64 instruction)
  */
 std::string NMD::FLOOR_L_S(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
 
     std::string ft = FPR(copy(ft_value));
     std::string fs = FPR(copy(fs_value));
@@ -7517,8 +7517,8 @@ std::string NMD::FLOOR_L_S(uint64 instruction)
  */
 std::string NMD::FLOOR_W_D(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
 
     std::string ft = FPR(copy(ft_value));
     std::string fs = FPR(copy(fs_value));
@@ -7539,8 +7539,8 @@ std::string NMD::FLOOR_W_D(uint64 instruction)
  */
 std::string NMD::FLOOR_W_S(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
 
     std::string ft = FPR(copy(ft_value));
     std::string fs = FPR(copy(fs_value));
@@ -7562,8 +7562,8 @@ std::string NMD::FLOOR_W_S(uint64 instruction)
 std::string NMD::FORK(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -7848,8 +7848,8 @@ std::string NMD::LB_S9_(uint64 instruction)
 std::string NMD::LB_U12_(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 u_value = extract_u_11_10_9_8_7_6_5_4_3_2_1_0(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 u_value = extract_u_11_10_9_8_7_6_5_4_3_2_1_0(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string u = IMMEDIATE(copy(u_value));
@@ -7966,8 +7966,8 @@ std::string NMD::LBU_S9_(uint64 instruction)
 std::string NMD::LBU_U12_(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 u_value = extract_u_11_10_9_8_7_6_5_4_3_2_1_0(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 u_value = extract_u_11_10_9_8_7_6_5_4_3_2_1_0(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string u = IMMEDIATE(copy(u_value));
@@ -8014,8 +8014,8 @@ std::string NMD::LBUE(uint64 instruction)
 std::string NMD::LBUX(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -8038,8 +8038,8 @@ std::string NMD::LBUX(uint64 instruction)
 std::string NMD::LBX(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -8108,8 +8108,8 @@ std::string NMD::LD_S9_(uint64 instruction)
 std::string NMD::LD_U12_(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 u_value = extract_u_11_10_9_8_7_6_5_4_3_2_1_0(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 u_value = extract_u_11_10_9_8_7_6_5_4_3_2_1_0(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string u = IMMEDIATE(copy(u_value));
@@ -8322,8 +8322,8 @@ std::string NMD::LDPC_48_(uint64 instruction)
 std::string NMD::LDX(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -8346,8 +8346,8 @@ std::string NMD::LDX(uint64 instruction)
 std::string NMD::LDXS(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -8440,8 +8440,8 @@ std::string NMD::LH_S9_(uint64 instruction)
 std::string NMD::LH_U12_(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 u_value = extract_u_11_10_9_8_7_6_5_4_3_2_1_0(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 u_value = extract_u_11_10_9_8_7_6_5_4_3_2_1_0(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string u = IMMEDIATE(copy(u_value));
@@ -8558,8 +8558,8 @@ std::string NMD::LHU_S9_(uint64 instruction)
 std::string NMD::LHU_U12_(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 u_value = extract_u_11_10_9_8_7_6_5_4_3_2_1_0(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 u_value = extract_u_11_10_9_8_7_6_5_4_3_2_1_0(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string u = IMMEDIATE(copy(u_value));
@@ -8606,8 +8606,8 @@ std::string NMD::LHUE(uint64 instruction)
 std::string NMD::LHUX(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -8630,8 +8630,8 @@ std::string NMD::LHUX(uint64 instruction)
 std::string NMD::LHUXS(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -8654,8 +8654,8 @@ std::string NMD::LHUXS(uint64 instruction)
 std::string NMD::LHXS(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -8678,8 +8678,8 @@ std::string NMD::LHXS(uint64 instruction)
 std::string NMD::LHX(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -8794,8 +8794,8 @@ std::string NMD::LLD(uint64 instruction)
 std::string NMD::LLDP(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 ru_value = extract_ru_7_6_5_4_3(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 ru_value = extract_ru_7_6_5_4_3(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string ru = GPR(copy(ru_value));
@@ -8842,8 +8842,8 @@ std::string NMD::LLE(uint64 instruction)
 std::string NMD::LLWP(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 ru_value = extract_ru_7_6_5_4_3(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 ru_value = extract_ru_7_6_5_4_3(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string ru = GPR(copy(ru_value));
@@ -8866,8 +8866,8 @@ std::string NMD::LLWP(uint64 instruction)
 std::string NMD::LLWPE(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 ru_value = extract_ru_7_6_5_4_3(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 ru_value = extract_ru_7_6_5_4_3(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string ru = GPR(copy(ru_value));
@@ -9076,8 +9076,8 @@ std::string NMD::LW_SP_(uint64 instruction)
 std::string NMD::LW_U12_(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 u_value = extract_u_11_10_9_8_7_6_5_4_3_2_1_0(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 u_value = extract_u_11_10_9_8_7_6_5_4_3_2_1_0(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string u = IMMEDIATE(copy(u_value));
@@ -9360,8 +9360,8 @@ std::string NMD::LWU_S9_(uint64 instruction)
 std::string NMD::LWU_U12_(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 u_value = extract_u_11_10_9_8_7_6_5_4_3_2_1_0(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 u_value = extract_u_11_10_9_8_7_6_5_4_3_2_1_0(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string u = IMMEDIATE(copy(u_value));
@@ -9384,8 +9384,8 @@ std::string NMD::LWU_U12_(uint64 instruction)
 std::string NMD::LWUX(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -9408,8 +9408,8 @@ std::string NMD::LWUX(uint64 instruction)
 std::string NMD::LWUXS(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -9432,8 +9432,8 @@ std::string NMD::LWUXS(uint64 instruction)
 std::string NMD::LWX(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -9455,9 +9455,9 @@ std::string NMD::LWX(uint64 instruction)
  */
 std::string NMD::LWXS_16_(uint64 instruction)
 {
-    uint64 rd3_value = extract_rd3_3_2_1(instruction);
     uint64 rt3_value = extract_rt3_9_8_7(instruction);
     uint64 rs3_value = extract_rs3_6_5_4(instruction);
+    uint64 rd3_value = extract_rd3_3_2_1(instruction);
 
     std::string rd3 = GPR(encode_gpr3(rd3_value));
     std::string rs3 = GPR(encode_gpr3(rs3_value));
@@ -9480,8 +9480,8 @@ std::string NMD::LWXS_16_(uint64 instruction)
 std::string NMD::LWXS_32_(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -9504,8 +9504,8 @@ std::string NMD::LWXS_32_(uint64 instruction)
 std::string NMD::MADD_DSP_(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 ac_value = extract_ac_13_12(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 ac_value = extract_ac_13_12(instruction);
 
     std::string ac = AC(copy(ac_value));
     std::string rs = GPR(copy(rs_value));
@@ -9527,8 +9527,8 @@ std::string NMD::MADD_DSP_(uint64 instruction)
  */
 std::string NMD::MADDF_D(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
@@ -9551,8 +9551,8 @@ std::string NMD::MADDF_D(uint64 instruction)
  */
 std::string NMD::MADDF_S(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
@@ -9576,8 +9576,8 @@ std::string NMD::MADDF_S(uint64 instruction)
 std::string NMD::MADDU_DSP_(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 ac_value = extract_ac_13_12(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 ac_value = extract_ac_13_12(instruction);
 
     std::string ac = AC(copy(ac_value));
     std::string rs = GPR(copy(rs_value));
@@ -9600,8 +9600,8 @@ std::string NMD::MADDU_DSP_(uint64 instruction)
 std::string NMD::MAQ_S_W_PHL(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 ac_value = extract_ac_13_12(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 ac_value = extract_ac_13_12(instruction);
 
     std::string ac = AC(copy(ac_value));
     std::string rs = GPR(copy(rs_value));
@@ -9624,8 +9624,8 @@ std::string NMD::MAQ_S_W_PHL(uint64 instruction)
 std::string NMD::MAQ_S_W_PHR(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 ac_value = extract_ac_13_12(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 ac_value = extract_ac_13_12(instruction);
 
     std::string ac = AC(copy(ac_value));
     std::string rs = GPR(copy(rs_value));
@@ -9648,8 +9648,8 @@ std::string NMD::MAQ_S_W_PHR(uint64 instruction)
 std::string NMD::MAQ_SA_W_PHL(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 ac_value = extract_ac_13_12(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 ac_value = extract_ac_13_12(instruction);
 
     std::string ac = AC(copy(ac_value));
     std::string rs = GPR(copy(rs_value));
@@ -9672,8 +9672,8 @@ std::string NMD::MAQ_SA_W_PHL(uint64 instruction)
 std::string NMD::MAQ_SA_W_PHR(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 ac_value = extract_ac_13_12(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 ac_value = extract_ac_13_12(instruction);
 
     std::string ac = AC(copy(ac_value));
     std::string rs = GPR(copy(rs_value));
@@ -9695,8 +9695,8 @@ std::string NMD::MAQ_SA_W_PHR(uint64 instruction)
  */
 std::string NMD::MAX_D(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
@@ -9719,8 +9719,8 @@ std::string NMD::MAX_D(uint64 instruction)
  */
 std::string NMD::MAX_S(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
@@ -9743,8 +9743,8 @@ std::string NMD::MAX_S(uint64 instruction)
  */
 std::string NMD::MAXA_D(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
@@ -9767,8 +9767,8 @@ std::string NMD::MAXA_D(uint64 instruction)
  */
 std::string NMD::MAXA_S(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
@@ -9837,8 +9837,8 @@ std::string NMD::MFC1(uint64 instruction)
  */
 std::string NMD::MFC2(uint64 instruction)
 {
-    uint64 cs_value = extract_cs_20_19_18_17_16(instruction);
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
+    uint64 cs_value = extract_cs_20_19_18_17_16(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string cs = CPR(copy(cs_value));
@@ -9929,8 +9929,8 @@ std::string NMD::MFHC1(uint64 instruction)
  */
 std::string NMD::MFHC2(uint64 instruction)
 {
-    uint64 cs_value = extract_cs_20_19_18_17_16(instruction);
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
+    uint64 cs_value = extract_cs_20_19_18_17_16(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string cs = CPR(copy(cs_value));
@@ -10071,8 +10071,8 @@ std::string NMD::MFTR(uint64 instruction)
  */
 std::string NMD::MIN_D(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
@@ -10095,8 +10095,8 @@ std::string NMD::MIN_D(uint64 instruction)
  */
 std::string NMD::MIN_S(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
@@ -10119,8 +10119,8 @@ std::string NMD::MIN_S(uint64 instruction)
  */
 std::string NMD::MINA_D(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
@@ -10143,8 +10143,8 @@ std::string NMD::MINA_D(uint64 instruction)
  */
 std::string NMD::MINA_S(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
@@ -10168,8 +10168,8 @@ std::string NMD::MINA_S(uint64 instruction)
 std::string NMD::MOD(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -10192,8 +10192,8 @@ std::string NMD::MOD(uint64 instruction)
 std::string NMD::MODSUB(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -10216,8 +10216,8 @@ std::string NMD::MODSUB(uint64 instruction)
 std::string NMD::MODU(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -10239,8 +10239,8 @@ std::string NMD::MODU(uint64 instruction)
  */
 std::string NMD::MOV_D(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
 
     std::string ft = FPR(copy(ft_value));
     std::string fs = FPR(copy(fs_value));
@@ -10261,8 +10261,8 @@ std::string NMD::MOV_D(uint64 instruction)
  */
 std::string NMD::MOV_S(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
 
     std::string ft = FPR(copy(ft_value));
     std::string fs = FPR(copy(fs_value));
@@ -10283,9 +10283,9 @@ std::string NMD::MOV_S(uint64 instruction)
  */
 std::string NMD::MOVE_BALC(uint64 instruction)
 {
+    uint64 rtz4_value = extract_rtz4_27_26_25_23_22_21(instruction);
     uint64 rd1_value = extract_rdl_25_24(instruction);
     int64 s_value = extr_sil0il21bs1_il1il1bs20Tmsb21(instruction);
-    uint64 rtz4_value = extract_rtz4_27_26_25_23_22_21(instruction);
 
     std::string rd1 = GPR(encode_rd1_from_rd(rd1_value));
     std::string rtz4 = GPR(encode_gpr4_zero(rtz4_value));
@@ -10384,8 +10384,8 @@ std::string NMD::MOVE(uint64 instruction)
 std::string NMD::MOVN(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -10408,8 +10408,8 @@ std::string NMD::MOVN(uint64 instruction)
 std::string NMD::MOVZ(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -10432,8 +10432,8 @@ std::string NMD::MOVZ(uint64 instruction)
 std::string NMD::MSUB_DSP_(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 ac_value = extract_ac_13_12(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 ac_value = extract_ac_13_12(instruction);
 
     std::string ac = AC(copy(ac_value));
     std::string rs = GPR(copy(rs_value));
@@ -10455,8 +10455,8 @@ std::string NMD::MSUB_DSP_(uint64 instruction)
  */
 std::string NMD::MSUBF_D(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
@@ -10479,8 +10479,8 @@ std::string NMD::MSUBF_D(uint64 instruction)
  */
 std::string NMD::MSUBF_S(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
@@ -10504,8 +10504,8 @@ std::string NMD::MSUBF_S(uint64 instruction)
 std::string NMD::MSUBU_DSP_(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 ac_value = extract_ac_13_12(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 ac_value = extract_ac_13_12(instruction);
 
     std::string ac = AC(copy(ac_value));
     std::string rs = GPR(copy(rs_value));
@@ -10573,8 +10573,8 @@ std::string NMD::MTC1(uint64 instruction)
  */
 std::string NMD::MTC2(uint64 instruction)
 {
-    uint64 cs_value = extract_cs_20_19_18_17_16(instruction);
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
+    uint64 cs_value = extract_cs_20_19_18_17_16(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string cs = CPR(copy(cs_value));
@@ -10665,8 +10665,8 @@ std::string NMD::MTHC1(uint64 instruction)
  */
 std::string NMD::MTHC2(uint64 instruction)
 {
-    uint64 cs_value = extract_cs_20_19_18_17_16(instruction);
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
+    uint64 cs_value = extract_cs_20_19_18_17_16(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string cs = CPR(copy(cs_value));
@@ -10711,8 +10711,8 @@ std::string NMD::MTHGC0(uint64 instruction)
  */
 std::string NMD::MTHI_DSP_(uint64 instruction)
 {
-    uint64 ac_value = extract_ac_13_12(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 ac_value = extract_ac_13_12(instruction);
 
     std::string rs = GPR(copy(rs_value));
     std::string ac = AC(copy(ac_value));
@@ -10733,8 +10733,8 @@ std::string NMD::MTHI_DSP_(uint64 instruction)
  */
 std::string NMD::MTHLIP(uint64 instruction)
 {
-    uint64 ac_value = extract_ac_13_12(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 ac_value = extract_ac_13_12(instruction);
 
     std::string rs = GPR(copy(rs_value));
     std::string ac = AC(copy(ac_value));
@@ -10781,8 +10781,8 @@ std::string NMD::MTHTR(uint64 instruction)
  */
 std::string NMD::MTLO_DSP_(uint64 instruction)
 {
-    uint64 ac_value = extract_ac_13_12(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 ac_value = extract_ac_13_12(instruction);
 
     std::string rs = GPR(copy(rs_value));
     std::string ac = AC(copy(ac_value));
@@ -10830,8 +10830,8 @@ std::string NMD::MTTR(uint64 instruction)
 std::string NMD::MUH(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -10854,8 +10854,8 @@ std::string NMD::MUH(uint64 instruction)
 std::string NMD::MUHU(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -10878,8 +10878,8 @@ std::string NMD::MUHU(uint64 instruction)
 std::string NMD::MUL_32_(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -10923,8 +10923,8 @@ std::string NMD::MUL_4X4_(uint64 instruction)
  */
 std::string NMD::MUL_D(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
@@ -10948,8 +10948,8 @@ std::string NMD::MUL_D(uint64 instruction)
 std::string NMD::MUL_PH(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -10972,8 +10972,8 @@ std::string NMD::MUL_PH(uint64 instruction)
 std::string NMD::MUL_S_PH(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -10995,8 +10995,8 @@ std::string NMD::MUL_S_PH(uint64 instruction)
  */
 std::string NMD::MUL_S(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
@@ -11020,8 +11020,8 @@ std::string NMD::MUL_S(uint64 instruction)
 std::string NMD::MULEQ_S_W_PHL(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -11044,8 +11044,8 @@ std::string NMD::MULEQ_S_W_PHL(uint64 instruction)
 std::string NMD::MULEQ_S_W_PHR(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -11068,8 +11068,8 @@ std::string NMD::MULEQ_S_W_PHR(uint64 instruction)
 std::string NMD::MULEU_S_PH_QBL(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -11092,8 +11092,8 @@ std::string NMD::MULEU_S_PH_QBL(uint64 instruction)
 std::string NMD::MULEU_S_PH_QBR(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -11116,8 +11116,8 @@ std::string NMD::MULEU_S_PH_QBR(uint64 instruction)
 std::string NMD::MULQ_RS_PH(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -11140,8 +11140,8 @@ std::string NMD::MULQ_RS_PH(uint64 instruction)
 std::string NMD::MULQ_RS_W(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -11164,8 +11164,8 @@ std::string NMD::MULQ_RS_W(uint64 instruction)
 std::string NMD::MULQ_S_PH(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -11188,8 +11188,8 @@ std::string NMD::MULQ_S_PH(uint64 instruction)
 std::string NMD::MULQ_S_W(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -11212,8 +11212,8 @@ std::string NMD::MULQ_S_W(uint64 instruction)
 std::string NMD::MULSA_W_PH(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 ac_value = extract_ac_13_12(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 ac_value = extract_ac_13_12(instruction);
 
     std::string ac = AC(copy(ac_value));
     std::string rs = GPR(copy(rs_value));
@@ -11236,8 +11236,8 @@ std::string NMD::MULSA_W_PH(uint64 instruction)
 std::string NMD::MULSAQ_S_W_PH(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 ac_value = extract_ac_13_12(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 ac_value = extract_ac_13_12(instruction);
 
     std::string ac = AC(copy(ac_value));
     std::string rs = GPR(copy(rs_value));
@@ -11260,8 +11260,8 @@ std::string NMD::MULSAQ_S_W_PH(uint64 instruction)
 std::string NMD::MULT_DSP_(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 ac_value = extract_ac_13_12(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 ac_value = extract_ac_13_12(instruction);
 
     std::string ac = AC(copy(ac_value));
     std::string rs = GPR(copy(rs_value));
@@ -11284,8 +11284,8 @@ std::string NMD::MULT_DSP_(uint64 instruction)
 std::string NMD::MULTU_DSP_(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 ac_value = extract_ac_13_12(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 ac_value = extract_ac_13_12(instruction);
 
     std::string ac = AC(copy(ac_value));
     std::string rs = GPR(copy(rs_value));
@@ -11308,8 +11308,8 @@ std::string NMD::MULTU_DSP_(uint64 instruction)
 std::string NMD::MULU(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -11331,8 +11331,8 @@ std::string NMD::MULU(uint64 instruction)
  */
 std::string NMD::NEG_D(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
 
     std::string ft = FPR(copy(ft_value));
     std::string fs = FPR(copy(fs_value));
@@ -11353,8 +11353,8 @@ std::string NMD::NEG_D(uint64 instruction)
  */
 std::string NMD::NEG_S(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
 
     std::string ft = FPR(copy(ft_value));
     std::string fs = FPR(copy(fs_value));
@@ -11412,8 +11412,8 @@ std::string NMD::NOP_32_(uint64 instruction)
 std::string NMD::NOR(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -11480,8 +11480,8 @@ std::string NMD::OR_16_(uint64 instruction)
 std::string NMD::OR_32_(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -11504,8 +11504,8 @@ std::string NMD::OR_32_(uint64 instruction)
 std::string NMD::ORI(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 u_value = extract_u_11_10_9_8_7_6_5_4_3_2_1_0(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 u_value = extract_u_11_10_9_8_7_6_5_4_3_2_1_0(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string rs = GPR(copy(rs_value));
@@ -11528,8 +11528,8 @@ std::string NMD::ORI(uint64 instruction)
 std::string NMD::PACKRL_PH(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -11570,8 +11570,8 @@ std::string NMD::PAUSE(uint64 instruction)
 std::string NMD::PICK_PH(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -11594,8 +11594,8 @@ std::string NMD::PICK_PH(uint64 instruction)
 std::string NMD::PICK_QB(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -11838,8 +11838,8 @@ std::string NMD::PRECEU_PH_QBR(uint64 instruction)
 std::string NMD::PRECR_QB_PH(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -11910,8 +11910,8 @@ std::string NMD::PRECR_SRA_R_PH_W(uint64 instruction)
 std::string NMD::PRECRQ_PH_W(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -11934,8 +11934,8 @@ std::string NMD::PRECRQ_PH_W(uint64 instruction)
 std::string NMD::PRECRQ_QB_PH(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -11958,8 +11958,8 @@ std::string NMD::PRECRQ_QB_PH(uint64 instruction)
 std::string NMD::PRECRQ_RS_PH_W(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -11982,8 +11982,8 @@ std::string NMD::PRECRQ_RS_PH_W(uint64 instruction)
 std::string NMD::PRECRQU_S_QB_PH(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -12005,9 +12005,9 @@ std::string NMD::PRECRQU_S_QB_PH(uint64 instruction)
  */
 std::string NMD::PREF_S9_(uint64 instruction)
 {
-    int64 s_value = extr_sil0il0bs8_il15il8bs1Tmsb8(instruction);
     uint64 hint_value = extract_hint_25_24_23_22_21(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    int64 s_value = extr_sil0il0bs8_il15il8bs1Tmsb8(instruction);
 
     std::string hint = IMMEDIATE(copy(hint_value));
     std::string s = IMMEDIATE(copy(s_value));
@@ -12030,8 +12030,8 @@ std::string NMD::PREF_S9_(uint64 instruction)
 std::string NMD::PREF_U12_(uint64 instruction)
 {
     uint64 hint_value = extract_hint_25_24_23_22_21(instruction);
-    uint64 u_value = extract_u_11_10_9_8_7_6_5_4_3_2_1_0(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 u_value = extract_u_11_10_9_8_7_6_5_4_3_2_1_0(instruction);
 
     std::string hint = IMMEDIATE(copy(hint_value));
     std::string u = IMMEDIATE(copy(u_value));
@@ -12191,8 +12191,8 @@ std::string NMD::RDPGPR(uint64 instruction)
  */
 std::string NMD::RECIP_D(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
 
     std::string ft = FPR(copy(ft_value));
     std::string fs = FPR(copy(fs_value));
@@ -12213,8 +12213,8 @@ std::string NMD::RECIP_D(uint64 instruction)
  */
 std::string NMD::RECIP_S(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
 
     std::string ft = FPR(copy(ft_value));
     std::string fs = FPR(copy(fs_value));
@@ -12368,8 +12368,8 @@ std::string NMD::RESTORE_JRC_16_(uint64 instruction)
  */
 std::string NMD::RESTORE_JRC_32_(uint64 instruction)
 {
-    uint64 count_value = extract_count_19_18_17_16(instruction);
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
+    uint64 count_value = extract_count_19_18_17_16(instruction);
     uint64 u_value = extr_uil3il3bs9Fmsb11(instruction);
     uint64 gp_value = extract_gp_2(instruction);
 
@@ -12413,8 +12413,8 @@ std::string NMD::RESTOREF(uint64 instruction)
  */
 std::string NMD::RINT_D(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
 
     std::string ft = FPR(copy(ft_value));
     std::string fs = FPR(copy(fs_value));
@@ -12435,8 +12435,8 @@ std::string NMD::RINT_D(uint64 instruction)
  */
 std::string NMD::RINT_S(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
 
     std::string ft = FPR(copy(ft_value));
     std::string fs = FPR(copy(fs_value));
@@ -12458,8 +12458,8 @@ std::string NMD::RINT_S(uint64 instruction)
 std::string NMD::ROTR(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 shift_value = extract_shift_4_3_2_1_0(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 shift_value = extract_shift_4_3_2_1_0(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string rs = GPR(copy(rs_value));
@@ -12482,8 +12482,8 @@ std::string NMD::ROTR(uint64 instruction)
 std::string NMD::ROTRV(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -12506,10 +12506,10 @@ std::string NMD::ROTRV(uint64 instruction)
 std::string NMD::ROTX(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 shift_value = extract_shift_4_3_2_1_0(instruction);
+    uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
     uint64 shiftx_value = extr_shiftxil7il1bs4Fmsb4(instruction);
     uint64 stripe_value = extract_stripe_6(instruction);
-    uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 shift_value = extract_shift_4_3_2_1_0(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string rs = GPR(copy(rs_value));
@@ -12534,8 +12534,8 @@ std::string NMD::ROTX(uint64 instruction)
  */
 std::string NMD::ROUND_L_D(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
 
     std::string ft = FPR(copy(ft_value));
     std::string fs = FPR(copy(fs_value));
@@ -12556,8 +12556,8 @@ std::string NMD::ROUND_L_D(uint64 instruction)
  */
 std::string NMD::ROUND_L_S(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
 
     std::string ft = FPR(copy(ft_value));
     std::string fs = FPR(copy(fs_value));
@@ -12578,8 +12578,8 @@ std::string NMD::ROUND_L_S(uint64 instruction)
  */
 std::string NMD::ROUND_W_D(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
 
     std::string ft = FPR(copy(ft_value));
     std::string fs = FPR(copy(fs_value));
@@ -12600,8 +12600,8 @@ std::string NMD::ROUND_W_D(uint64 instruction)
  */
 std::string NMD::ROUND_W_S(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
 
     std::string ft = FPR(copy(ft_value));
     std::string fs = FPR(copy(fs_value));
@@ -12622,8 +12622,8 @@ std::string NMD::ROUND_W_S(uint64 instruction)
  */
 std::string NMD::RSQRT_D(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
 
     std::string ft = FPR(copy(ft_value));
     std::string fs = FPR(copy(fs_value));
@@ -12644,8 +12644,8 @@ std::string NMD::RSQRT_D(uint64 instruction)
  */
 std::string NMD::RSQRT_S(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
 
     std::string ft = FPR(copy(ft_value));
     std::string fs = FPR(copy(fs_value));
@@ -12804,8 +12804,8 @@ std::string NMD::SB_S9_(uint64 instruction)
 std::string NMD::SB_U12_(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 u_value = extract_u_11_10_9_8_7_6_5_4_3_2_1_0(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 u_value = extract_u_11_10_9_8_7_6_5_4_3_2_1_0(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string u = IMMEDIATE(copy(u_value));
@@ -12852,8 +12852,8 @@ std::string NMD::SBE(uint64 instruction)
 std::string NMD::SBX(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -12924,8 +12924,8 @@ std::string NMD::SCD(uint64 instruction)
 std::string NMD::SCDP(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 ru_value = extract_ru_7_6_5_4_3(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 ru_value = extract_ru_7_6_5_4_3(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string ru = GPR(copy(ru_value));
@@ -12972,8 +12972,8 @@ std::string NMD::SCE(uint64 instruction)
 std::string NMD::SCWP(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 ru_value = extract_ru_7_6_5_4_3(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 ru_value = extract_ru_7_6_5_4_3(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string ru = GPR(copy(ru_value));
@@ -12996,8 +12996,8 @@ std::string NMD::SCWP(uint64 instruction)
 std::string NMD::SCWPE(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 ru_value = extract_ru_7_6_5_4_3(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 ru_value = extract_ru_7_6_5_4_3(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string ru = GPR(copy(ru_value));
@@ -13066,8 +13066,8 @@ std::string NMD::SD_S9_(uint64 instruction)
 std::string NMD::SD_U12_(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 u_value = extract_u_11_10_9_8_7_6_5_4_3_2_1_0(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 u_value = extract_u_11_10_9_8_7_6_5_4_3_2_1_0(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string u = IMMEDIATE(copy(u_value));
@@ -13320,8 +13320,8 @@ std::string NMD::SDPC_48_(uint64 instruction)
 std::string NMD::SDXS(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -13344,8 +13344,8 @@ std::string NMD::SDXS(uint64 instruction)
 std::string NMD::SDX(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -13411,8 +13411,8 @@ std::string NMD::SEH(uint64 instruction)
  */
 std::string NMD::SEL_D(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
@@ -13435,8 +13435,8 @@ std::string NMD::SEL_D(uint64 instruction)
  */
 std::string NMD::SEL_S(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
@@ -13459,8 +13459,8 @@ std::string NMD::SEL_S(uint64 instruction)
  */
 std::string NMD::SELEQZ_D(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
@@ -13483,8 +13483,8 @@ std::string NMD::SELEQZ_D(uint64 instruction)
  */
 std::string NMD::SELEQZ_S(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
@@ -13507,8 +13507,8 @@ std::string NMD::SELEQZ_S(uint64 instruction)
  */
 std::string NMD::SELNEZ_D(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
@@ -13531,8 +13531,8 @@ std::string NMD::SELNEZ_D(uint64 instruction)
  */
 std::string NMD::SELNEZ_S(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
@@ -13556,8 +13556,8 @@ std::string NMD::SELNEZ_S(uint64 instruction)
 std::string NMD::SEQI(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 u_value = extract_u_11_10_9_8_7_6_5_4_3_2_1_0(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 u_value = extract_u_11_10_9_8_7_6_5_4_3_2_1_0(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string rs = GPR(copy(rs_value));
@@ -13650,8 +13650,8 @@ std::string NMD::SH_S9_(uint64 instruction)
 std::string NMD::SH_U12_(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 u_value = extract_u_11_10_9_8_7_6_5_4_3_2_1_0(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 u_value = extract_u_11_10_9_8_7_6_5_4_3_2_1_0(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string u = IMMEDIATE(copy(u_value));
@@ -13838,8 +13838,8 @@ std::string NMD::SHLL_S_W(uint64 instruction)
 std::string NMD::SHLLV_PH(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rt = GPR(copy(rt_value));
@@ -13862,8 +13862,8 @@ std::string NMD::SHLLV_PH(uint64 instruction)
 std::string NMD::SHLLV_QB(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rt = GPR(copy(rt_value));
@@ -13886,8 +13886,8 @@ std::string NMD::SHLLV_QB(uint64 instruction)
 std::string NMD::SHLLV_S_PH(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rt = GPR(copy(rt_value));
@@ -13910,8 +13910,8 @@ std::string NMD::SHLLV_S_PH(uint64 instruction)
 std::string NMD::SHLLV_S_W(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rt = GPR(copy(rt_value));
@@ -14054,8 +14054,8 @@ std::string NMD::SHRA_R_W(uint64 instruction)
 std::string NMD::SHRAV_PH(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rt = GPR(copy(rt_value));
@@ -14078,8 +14078,8 @@ std::string NMD::SHRAV_PH(uint64 instruction)
 std::string NMD::SHRAV_QB(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rt = GPR(copy(rt_value));
@@ -14102,8 +14102,8 @@ std::string NMD::SHRAV_QB(uint64 instruction)
 std::string NMD::SHRAV_R_PH(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rt = GPR(copy(rt_value));
@@ -14126,8 +14126,8 @@ std::string NMD::SHRAV_R_PH(uint64 instruction)
 std::string NMD::SHRAV_R_QB(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rt = GPR(copy(rt_value));
@@ -14150,8 +14150,8 @@ std::string NMD::SHRAV_R_QB(uint64 instruction)
 std::string NMD::SHRAV_R_W(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rt = GPR(copy(rt_value));
@@ -14222,8 +14222,8 @@ std::string NMD::SHRL_QB(uint64 instruction)
 std::string NMD::SHRLV_PH(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rt = GPR(copy(rt_value));
@@ -14246,8 +14246,8 @@ std::string NMD::SHRLV_PH(uint64 instruction)
 std::string NMD::SHRLV_QB(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rt = GPR(copy(rt_value));
@@ -14270,8 +14270,8 @@ std::string NMD::SHRLV_QB(uint64 instruction)
 std::string NMD::SHX(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -14294,8 +14294,8 @@ std::string NMD::SHX(uint64 instruction)
 std::string NMD::SHXS(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -14362,8 +14362,8 @@ std::string NMD::SLL_16_(uint64 instruction)
 std::string NMD::SLL_32_(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 shift_value = extract_shift_4_3_2_1_0(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 shift_value = extract_shift_4_3_2_1_0(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string rs = GPR(copy(rs_value));
@@ -14386,8 +14386,8 @@ std::string NMD::SLL_32_(uint64 instruction)
 std::string NMD::SLLV(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -14410,8 +14410,8 @@ std::string NMD::SLLV(uint64 instruction)
 std::string NMD::SLT(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -14434,8 +14434,8 @@ std::string NMD::SLT(uint64 instruction)
 std::string NMD::SLTI(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 u_value = extract_u_11_10_9_8_7_6_5_4_3_2_1_0(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 u_value = extract_u_11_10_9_8_7_6_5_4_3_2_1_0(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string rs = GPR(copy(rs_value));
@@ -14458,8 +14458,8 @@ std::string NMD::SLTI(uint64 instruction)
 std::string NMD::SLTIU(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 u_value = extract_u_11_10_9_8_7_6_5_4_3_2_1_0(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 u_value = extract_u_11_10_9_8_7_6_5_4_3_2_1_0(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string rs = GPR(copy(rs_value));
@@ -14482,8 +14482,8 @@ std::string NMD::SLTIU(uint64 instruction)
 std::string NMD::SLTU(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -14506,8 +14506,8 @@ std::string NMD::SLTU(uint64 instruction)
 std::string NMD::SOV(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -14549,8 +14549,8 @@ std::string NMD::SPECIAL2(uint64 instruction)
  */
 std::string NMD::SQRT_D(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
 
     std::string ft = FPR(copy(ft_value));
     std::string fs = FPR(copy(fs_value));
@@ -14571,8 +14571,8 @@ std::string NMD::SQRT_D(uint64 instruction)
  */
 std::string NMD::SQRT_S(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
 
     std::string ft = FPR(copy(ft_value));
     std::string fs = FPR(copy(fs_value));
@@ -14618,8 +14618,8 @@ std::string NMD::SRA(uint64 instruction)
 std::string NMD::SRAV(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -14666,8 +14666,8 @@ std::string NMD::SRL_16_(uint64 instruction)
 std::string NMD::SRL_32_(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 shift_value = extract_shift_4_3_2_1_0(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 shift_value = extract_shift_4_3_2_1_0(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string rs = GPR(copy(rs_value));
@@ -14690,8 +14690,8 @@ std::string NMD::SRL_32_(uint64 instruction)
 std::string NMD::SRLV(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -14714,8 +14714,8 @@ std::string NMD::SRLV(uint64 instruction)
 std::string NMD::SUB(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -14737,8 +14737,8 @@ std::string NMD::SUB(uint64 instruction)
  */
 std::string NMD::SUB_D(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
@@ -14761,8 +14761,8 @@ std::string NMD::SUB_D(uint64 instruction)
  */
 std::string NMD::SUB_S(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 fd_value = extract_fd_10_9_8_7_6(instruction);
 
     std::string fd = FPR(copy(fd_value));
@@ -14786,8 +14786,8 @@ std::string NMD::SUB_S(uint64 instruction)
 std::string NMD::SUBQ_PH(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -14811,8 +14811,8 @@ std::string NMD::SUBQ_PH(uint64 instruction)
 std::string NMD::SUBQ_S_PH(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -14836,8 +14836,8 @@ std::string NMD::SUBQ_S_PH(uint64 instruction)
 std::string NMD::SUBQ_S_W(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -14861,8 +14861,8 @@ std::string NMD::SUBQ_S_W(uint64 instruction)
 std::string NMD::SUBQH_PH(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -14886,8 +14886,8 @@ std::string NMD::SUBQH_PH(uint64 instruction)
 std::string NMD::SUBQH_R_PH(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -14911,8 +14911,8 @@ std::string NMD::SUBQH_R_PH(uint64 instruction)
 std::string NMD::SUBQH_R_W(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -14936,8 +14936,8 @@ std::string NMD::SUBQH_R_W(uint64 instruction)
 std::string NMD::SUBQH_W(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -14959,9 +14959,9 @@ std::string NMD::SUBQH_W(uint64 instruction)
  */
 std::string NMD::SUBU_16_(uint64 instruction)
 {
-    uint64 rd3_value = extract_rd3_3_2_1(instruction);
     uint64 rt3_value = extract_rt3_9_8_7(instruction);
     uint64 rs3_value = extract_rs3_6_5_4(instruction);
+    uint64 rd3_value = extract_rd3_3_2_1(instruction);
 
     std::string rd3 = GPR(encode_gpr3(rd3_value));
     std::string rs3 = GPR(encode_gpr3(rs3_value));
@@ -14984,8 +14984,8 @@ std::string NMD::SUBU_16_(uint64 instruction)
 std::string NMD::SUBU_32_(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -15008,8 +15008,8 @@ std::string NMD::SUBU_32_(uint64 instruction)
 std::string NMD::SUBU_PH(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -15032,8 +15032,8 @@ std::string NMD::SUBU_PH(uint64 instruction)
 std::string NMD::SUBU_QB(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -15056,8 +15056,8 @@ std::string NMD::SUBU_QB(uint64 instruction)
 std::string NMD::SUBU_S_PH(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -15080,8 +15080,8 @@ std::string NMD::SUBU_S_PH(uint64 instruction)
 std::string NMD::SUBU_S_QB(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -15105,8 +15105,8 @@ std::string NMD::SUBU_S_QB(uint64 instruction)
 std::string NMD::SUBUH_QB(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -15130,8 +15130,8 @@ std::string NMD::SUBUH_QB(uint64 instruction)
 std::string NMD::SUBUH_R_QB(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -15292,8 +15292,8 @@ std::string NMD::SW_SP_(uint64 instruction)
 std::string NMD::SW_U12_(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 u_value = extract_u_11_10_9_8_7_6_5_4_3_2_1_0(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 u_value = extract_u_11_10_9_8_7_6_5_4_3_2_1_0(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string u = IMMEDIATE(copy(u_value));
@@ -15530,8 +15530,8 @@ std::string NMD::SWPC_48_(uint64 instruction)
 std::string NMD::SWX(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -15554,8 +15554,8 @@ std::string NMD::SWX(uint64 instruction)
 std::string NMD::SWXS(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -15939,8 +15939,8 @@ std::string NMD::TNE(uint64 instruction)
  */
 std::string NMD::TRUNC_L_D(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
 
     std::string ft = FPR(copy(ft_value));
     std::string fs = FPR(copy(fs_value));
@@ -15961,8 +15961,8 @@ std::string NMD::TRUNC_L_D(uint64 instruction)
  */
 std::string NMD::TRUNC_L_S(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
 
     std::string ft = FPR(copy(ft_value));
     std::string fs = FPR(copy(fs_value));
@@ -15983,8 +15983,8 @@ std::string NMD::TRUNC_L_S(uint64 instruction)
  */
 std::string NMD::TRUNC_W_D(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
 
     std::string ft = FPR(copy(ft_value));
     std::string fs = FPR(copy(fs_value));
@@ -16005,8 +16005,8 @@ std::string NMD::TRUNC_W_D(uint64 instruction)
  */
 std::string NMD::TRUNC_W_S(uint64 instruction)
 {
-    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
     uint64 ft_value = extract_ft_20_19_18_17_16(instruction);
+    uint64 fs_value = extract_fs_15_14_13_12_11(instruction);
 
     std::string ft = FPR(copy(ft_value));
     std::string fs = FPR(copy(fs_value));
@@ -16283,8 +16283,8 @@ std::string NMD::XOR_16_(uint64 instruction)
 std::string NMD::XOR_32_(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 rd_value = extract_rd_15_14_13_12_11(instruction);
 
     std::string rd = GPR(copy(rd_value));
     std::string rs = GPR(copy(rs_value));
@@ -16307,8 +16307,8 @@ std::string NMD::XOR_32_(uint64 instruction)
 std::string NMD::XORI(uint64 instruction)
 {
     uint64 rt_value = extract_rt_25_24_23_22_21(instruction);
-    uint64 u_value = extract_u_11_10_9_8_7_6_5_4_3_2_1_0(instruction);
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
+    uint64 u_value = extract_u_11_10_9_8_7_6_5_4_3_2_1_0(instruction);
 
     std::string rt = GPR(copy(rt_value));
     std::string rs = GPR(copy(rs_value));
