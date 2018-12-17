@@ -18,33 +18,35 @@ static inline TCGv_ptr gen_avr_ptr(int reg)
 static void glue(gen_, name)(DisasContext *ctx)                                       \
 {                                                                             \
     TCGv EA;                                                                  \
-    TCGv_i64 avr;                                                             \
+    TCGv_i64 avr1, avr2;                                                      \
     if (unlikely(!ctx->altivec_enabled)) {                                    \
         gen_exception(ctx, POWERPC_EXCP_VPU);                                 \
         return;                                                               \
     }                                                                         \
     gen_set_access_type(ctx, ACCESS_INT);                                     \
-    avr = tcg_temp_new_i64();                                                 \
+    avr1 = tcg_temp_new_i64();                                                \
+    avr2 = tcg_temp_new_i64();                                                \
     EA = tcg_temp_new();                                                      \
     gen_addr_reg_index(ctx, EA);                                              \
     tcg_gen_andi_tl(EA, EA, ~0xf);                                            \
     /* We only need to swap high and low halves. gen_qemu_ld64_i64 does       \
        necessary 64-bit byteswap already. */                                  \
     if (ctx->le_mode) {                                                       \
-        gen_qemu_ld64_i64(ctx, avr, EA);                                      \
-        set_avr64(rD(ctx->opcode), avr, false);                               \
+        gen_qemu_ld64_i64(ctx, avr1, EA);                                     \
         tcg_gen_addi_tl(EA, EA, 8);                                           \
-        gen_qemu_ld64_i64(ctx, avr, EA);                                      \
-        set_avr64(rD(ctx->opcode), avr, true);                                \
+        gen_qemu_ld64_i64(ctx, avr2, EA);                                     \
+        set_avr64(rD(ctx->opcode), avr1, false);                              \
+        set_avr64(rD(ctx->opcode), avr2, true);                               \
     } else {                                                                  \
-        gen_qemu_ld64_i64(ctx, avr, EA);                                      \
-        set_avr64(rD(ctx->opcode), avr, true);                                \
+        gen_qemu_ld64_i64(ctx, avr1, EA);                                     \
         tcg_gen_addi_tl(EA, EA, 8);                                           \
-        gen_qemu_ld64_i64(ctx, avr, EA);                                      \
-        set_avr64(rD(ctx->opcode), avr, false);                               \
+        gen_qemu_ld64_i64(ctx, avr2, EA);                                     \
+        set_avr64(rD(ctx->opcode), avr1, true);                               \
+        set_avr64(rD(ctx->opcode), avr2, false);                              \
     }                                                                         \
     tcg_temp_free(EA);                                                        \
-    tcg_temp_free_i64(avr);                                                   \
+    tcg_temp_free_i64(avr1);                                                  \
+    tcg_temp_free_i64(avr2);                                                  \
 }
 
 #define GEN_VR_STX(name, opc2, opc3)                                          \
