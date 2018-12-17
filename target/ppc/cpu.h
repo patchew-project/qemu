@@ -1016,8 +1016,6 @@ struct CPUPPCState {
 
     /* Floating point execution context */
     float_status fp_status;
-    /* floating point registers */
-    float64 fpr[32];
     /* floating point status and control register */
     target_ulong fpscr;
 
@@ -1067,11 +1065,10 @@ struct CPUPPCState {
     /* Special purpose registers */
     target_ulong spr[1024];
     ppc_spr_t spr_cb[1024];
-    /* Altivec registers */
-    ppc_avr_t avr[32];
+    /* Vector status and control register */
     uint32_t vscr;
-    /* VSX registers */
-    uint64_t vsr[32];
+    /* VSX registers (including FP and AVR) */
+    ppc_vsr_t vsr[64] QEMU_ALIGNED(16);
     /* SPE registers */
     uint64_t spe_acc;
     uint32_t spe_fscr;
