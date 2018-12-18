@@ -480,6 +480,11 @@ uint32_t helper_mfvscr(CPUPPCState *env)
     return env->vscr;
 }
 
+static inline void set_vscr_sat(CPUPPCState *env)
+{
+    env->vscr |= 1 << VSCR_SAT;
+}
+
 void helper_vaddcuw(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 {
     int i;
@@ -593,7 +598,7 @@ VARITHFPFMA(nmsubfp, float_muladd_negate_result | float_muladd_negate_c);
             }                                                           \
         }                                                               \
         if (sat) {                                                      \
-            env->vscr |= (1 << VSCR_SAT);                               \
+            set_vscr_sat(env);                                          \
         }                                                               \
     }
 #define VARITHSAT_SIGNED(suffix, element, optype, cvt)          \
@@ -865,7 +870,7 @@ void helper_vcmpbfp_dot(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a,
             }                                                           \
         }                                                               \
         if (sat) {                                                      \
-            env->vscr |= (1 << VSCR_SAT);                               \
+            set_vscr_sat(env);                                          \
         }                                                               \
     }
 VCT(uxs, cvtsduw, u32)
@@ -916,7 +921,7 @@ void helper_vmhaddshs(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a,
     }
 
     if (sat) {
-        env->vscr |= (1 << VSCR_SAT);
+        set_vscr_sat(env);
     }
 }
 
@@ -933,7 +938,7 @@ void helper_vmhraddshs(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a,
     }
 
     if (sat) {
-        env->vscr |= (1 << VSCR_SAT);
+        set_vscr_sat(env);
     }
 }
 
@@ -1061,7 +1066,7 @@ void helper_vmsumshs(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a,
     }
 
     if (sat) {
-        env->vscr |= (1 << VSCR_SAT);
+        set_vscr_sat(env);
     }
 }
 
@@ -1114,7 +1119,7 @@ void helper_vmsumuhs(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a,
     }
 
     if (sat) {
-        env->vscr |= (1 << VSCR_SAT);
+        set_vscr_sat(env);
     }
 }
 
@@ -1633,7 +1638,7 @@ void helper_vpkpx(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
         }                                                               \
         *r = result;                                                    \
         if (dosat && sat) {                                             \
-            env->vscr |= (1 << VSCR_SAT);                               \
+            set_vscr_sat(env);                                          \
         }                                                               \
     }
 #define I(x, y) (x)
@@ -2106,7 +2111,7 @@ void helper_vsumsws(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
     *r = result;
 
     if (sat) {
-        env->vscr |= (1 << VSCR_SAT);
+        set_vscr_sat(env);
     }
 }
 
@@ -2133,7 +2138,7 @@ void helper_vsum2sws(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 
     *r = result;
     if (sat) {
-        env->vscr |= (1 << VSCR_SAT);
+        set_vscr_sat(env);
     }
 }
 
@@ -2152,7 +2157,7 @@ void helper_vsum4sbs(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
     }
 
     if (sat) {
-        env->vscr |= (1 << VSCR_SAT);
+        set_vscr_sat(env);
     }
 }
 
@@ -2169,7 +2174,7 @@ void helper_vsum4shs(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
     }
 
     if (sat) {
-        env->vscr |= (1 << VSCR_SAT);
+        set_vscr_sat(env);
     }
 }
 
@@ -2188,7 +2193,7 @@ void helper_vsum4ubs(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
     }
 
     if (sat) {
-        env->vscr |= (1 << VSCR_SAT);
+        set_vscr_sat(env);
     }
 }
 
