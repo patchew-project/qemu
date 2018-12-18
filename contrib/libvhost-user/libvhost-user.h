@@ -53,6 +53,7 @@ enum VhostUserProtocolFeature {
     VHOST_USER_PROTOCOL_F_CONFIG = 9,
     VHOST_USER_PROTOCOL_F_SLAVE_SEND_FD = 10,
     VHOST_USER_PROTOCOL_F_HOST_NOTIFIER = 11,
+    VHOST_USER_PROTOCOL_F_SLAVE_SHMFD = 12,
 
     VHOST_USER_PROTOCOL_F_MAX
 };
@@ -91,6 +92,8 @@ typedef enum VhostUserRequest {
     VHOST_USER_POSTCOPY_ADVISE  = 28,
     VHOST_USER_POSTCOPY_LISTEN  = 29,
     VHOST_USER_POSTCOPY_END     = 30,
+    VHOST_USER_GET_SHM_SIZE = 31,
+    VHOST_USER_SET_SHM_FD = 32,
     VHOST_USER_MAX
 } VhostUserRequest;
 
@@ -138,6 +141,15 @@ typedef struct VhostUserVringArea {
     uint64_t offset;
 } VhostUserVringArea;
 
+typedef struct VhostUserShm {
+    uint64_t mmap_size;
+    uint64_t mmap_offset;
+    uint32_t dev_size;
+    uint32_t vq_size;
+    uint32_t align;
+    uint32_t version;
+} VhostUserShm;
+
 #if defined(_WIN32)
 # define VU_PACKED __attribute__((gcc_struct, packed))
 #else
@@ -163,6 +175,7 @@ typedef struct VhostUserMsg {
         VhostUserLog log;
         VhostUserConfig config;
         VhostUserVringArea area;
+        VhostUserShm shm;
     } payload;
 
     int fds[VHOST_MEMORY_MAX_NREGIONS];
@@ -234,8 +247,18 @@ typedef struct VuRing {
     uint32_t flags;
 } VuRing;
 
+typedef struct VuVirtqShm {
+    char inflight[VIRTQUEUE_MAX_SIZE];
+} VuVirtqShm;
+
 typedef struct VuVirtq {
     VuRing vring;
+
+    VuVirtqShm *shm;
+
+    uint16_t inflight_desc[VIRTQUEUE_MAX_SIZE];
+
+    uint16_t inflight_num;
 
     /* Next head to pop */
     uint16_t last_avail_idx;
@@ -279,11 +302,21 @@ typedef void (*vu_set_watch_cb) (VuDev *dev, int fd, int condition,
                                  vu_watch_cb cb, void *data);
 typedef void (*vu_remove_watch_cb) (VuDev *dev, int fd);
 
+typedef struct VuDevShmInfo {
+    void *addr;
+    uint64_t mmap_size;
+    uint32_t dev_size;
+    uint32_t vq_size;
+    uint32_t align;
+    uint32_t version;
+} VuDevShmInfo;
+
 struct VuDev {
     int sock;
     uint32_t nregions;
     VuDevRegion regions[VHOST_MEMORY_MAX_NREGIONS];
     VuVirtq vq[VHOST_MAX_NR_VIRTQUEUE];
+    VuDevShmInfo shm_info;
     int log_call_fd;
     int slave_fd;
     uint64_t log_size;
