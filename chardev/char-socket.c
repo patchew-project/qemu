@@ -70,6 +70,7 @@ typedef struct {
     TCPChardevTelnetInit *telnet_init;
 
     bool is_websock;
+    bool is_disconnected;
 
     GSource *reconnect_timer;
     int64_t reconnect_time;
@@ -1000,6 +1001,7 @@ static void qmp_chardev_open_socket(Chardev *chr,
     bool is_tn3270      = sock->has_tn3270  ? sock->tn3270  : false;
     bool is_waitconnect = sock->has_wait    ? sock->wait    : false;
     bool is_websock     = sock->has_websocket ? sock->websocket : false;
+    bool is_disconnected = sock->has_disconnected ? sock->disconnected : false;
     int64_t reconnect   = sock->has_reconnect ? sock->reconnect : 0;
     QIOChannelSocket *sioc = NULL;
     SocketAddress *addr;
@@ -1072,6 +1074,10 @@ static void qmp_chardev_open_socket(Chardev *chr,
         s->reconnect_time = reconnect;
     }
 
+    if (!s->is_listen && is_disconnected) {
+        return;
+    }
+
     if (s->reconnect_time) {
         tcp_chr_connect_async(chr);
     } else {
@@ -1125,6 +1131,8 @@ static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
     bool is_tn3270      = qemu_opt_get_bool(opts, "tn3270", false);
     bool is_websock     = qemu_opt_get_bool(opts, "websocket", false);
     bool do_nodelay     = !qemu_opt_get_bool(opts, "delay", true);
+    bool is_disconnected = !is_listen &&
+                           qemu_opt_get_bool(opts, "disconnected", false);
     int64_t reconnect   = qemu_opt_get_number(opts, "reconnect", 0);
     const char *path = qemu_opt_get(opts, "path");
     const char *host = qemu_opt_get(opts, "host");
@@ -1176,6 +1184,8 @@ static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
     sock->websocket = is_websock;
     sock->has_wait = true;
     sock->wait = is_waitconnect;
+    sock->has_disconnected = true;
+    sock->disconnected = is_disconnected;
     sock->has_reconnect = qemu_opt_find(opts, "reconnect");
     sock->reconnect = reconnect;
     sock->tls_creds = g_strdup(tls_creds);
