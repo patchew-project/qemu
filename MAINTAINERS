@@ -396,7 +396,9 @@ M: Marcelo Tosatti <mtosatti@redhat.com>
 L: kvm@vger.kernel.org
 S: Supported
 F: target/i386/kvm.c
+F: include/sysemu/sev.h
 F: scripts/kvm/vmxcap
+F: docs/amd-memory-encryption.txt
 
 Guest CPU Cores (Xen):
 ----------------------
