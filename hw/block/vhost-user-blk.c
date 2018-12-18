@@ -126,6 +126,13 @@ static void vhost_user_blk_start(VirtIODevice *vdev)
     }
 
     s->dev.acked_features = vdev->guest_features;
+
+    ret = vhost_dev_set_shm(&s->dev, s->shm);
+    if (ret < 0) {
+        error_report("Error set shared memory: %d", -ret);
+        goto err_guest_notifiers;
+    }
+
     ret = vhost_dev_start(&s->dev, vdev);
     if (ret < 0) {
         error_report("Error starting vhost: %d", -ret);
@@ -245,6 +252,13 @@ static void vhost_user_blk_handle_output(VirtIODevice *vdev, VirtQueue *vq)
     }
 }
 
+static void vhost_user_blk_reset(VirtIODevice *vdev)
+{
+    VHostUserBlk *s = VHOST_USER_BLK(vdev);
+
+    vhost_dev_reset_shm(s->shm);
+}
+
 static void vhost_user_blk_device_realize(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
@@ -284,6 +298,8 @@ static void vhost_user_blk_device_realize(DeviceState *dev, Error **errp)
                          vhost_user_blk_handle_output);
     }
 
+    s->shm = g_new0(struct vhost_shm, 1);
+
     s->dev.nvqs = s->num_queues;
     s->dev.vqs = g_new(struct vhost_virtqueue, s->dev.nvqs);
     s->dev.vq_index = 0;
@@ -309,12 +325,19 @@ static void vhost_user_blk_device_realize(DeviceState *dev, Error **errp)
         s->blkcfg.num_queues = s->num_queues;
     }
 
+    ret = vhost_dev_init_shm(&s->dev, s->shm);
+    if (ret < 0) {
+        error_setg(errp, "vhost-user-blk: init shared memory failed");
+        goto vhost_err;
+    }
+
     return;
 
 vhost_err:
     vhost_dev_cleanup(&s->dev);
 virtio_err:
     g_free(s->dev.vqs);
+    g_free(s->shm);
     virtio_cleanup(vdev);
 
     vhost_user_cleanup(user);
@@ -329,7 +352,9 @@ static void vhost_user_blk_device_unrealize(DeviceState *dev, Error **errp)
 
     vhost_user_blk_set_status(vdev, 0);
     vhost_dev_cleanup(&s->dev);
+    vhost_dev_free_shm(s->shm);
     g_free(s->dev.vqs);
+    g_free(s->shm);
     virtio_cleanup(vdev);
 
     if (s->vhost_user) {
@@ -379,6 +404,7 @@ static void vhost_user_blk_class_init(ObjectClass *klass, void *data)
     vdc->set_config = vhost_user_blk_set_config;
     vdc->get_features = vhost_user_blk_get_features;
     vdc->set_status = vhost_user_blk_set_status;
+    vdc->reset = vhost_user_blk_reset;
 }
 
 static const TypeInfo vhost_user_blk_info = {
