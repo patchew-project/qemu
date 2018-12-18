@@ -142,6 +142,19 @@ Depending on the request type, payload can be:
    Offset: a 64-bit offset of this area from the start of the
        supplied file descriptor
 
+ * Shm description
+   -----------------------------------
+   | mmap_size | mmap_offset | dev_size | vq_size | align | version |
+   -----------------------------------
+
+   Mmap_size: a 64-bit size of the shared memory
+   Mmap_offset: a 64-bit offset of the shared memory from the start
+                of the supplied file descriptor
+   Dev_size: a 32-bit size of device region in shared memory
+   Vq_size: a 32-bit size of each virtqueue region in shared memory
+   Align: a 32-bit align of each region in shared memory
+   Version: a 32-bit version of this shared memory
+
 In QEMU the vhost-user message is implemented with the following struct:
 
 typedef struct VhostUserMsg {
@@ -157,6 +170,7 @@ typedef struct VhostUserMsg {
         struct vhost_iotlb_msg iotlb;
         VhostUserConfig config;
         VhostUserVringArea area;
+        VhostUserShm shm;
     };
 } QEMU_PACKED VhostUserMsg;
 
@@ -175,6 +189,7 @@ the ones that do:
  * VHOST_USER_GET_PROTOCOL_FEATURES
  * VHOST_USER_GET_VRING_BASE
  * VHOST_USER_SET_LOG_BASE (if VHOST_USER_PROTOCOL_F_LOG_SHMFD)
+ * VHOST_USER_GET_SHM_SIZE (if VHOST_USER_PROTOCOL_F_SLAVE_SHMFD)
 
 [ Also see the section on REPLY_ACK protocol extension. ]
 
@@ -188,6 +203,7 @@ in the ancillary data:
  * VHOST_USER_SET_VRING_CALL
  * VHOST_USER_SET_VRING_ERR
  * VHOST_USER_SET_SLAVE_REQ_FD
+ * VHOST_USER_SET_SHM_FD (if VHOST_USER_PROTOCOL_F_SLAVE_SHMFD)
 
 If Master is unable to send the full message or receives a wrong reply it will
 close the connection. An optional reconnection mechanism can be implemented.
@@ -397,6 +413,7 @@ Protocol features
 #define VHOST_USER_PROTOCOL_F_CONFIG         9
 #define VHOST_USER_PROTOCOL_F_SLAVE_SEND_FD  10
 #define VHOST_USER_PROTOCOL_F_HOST_NOTIFIER  11
+#define VHOST_USER_PROTOCOL_F_SLAVE_SHMFD 12
 
 Master message types
 --------------------
@@ -760,6 +777,30 @@ Master message types
       is sent at the end of the migration, after VHOST_USER_POSTCOPY_LISTEN
       was previously sent.
       The value returned is an error indication; 0 is success.
+
+ * VHOST_USER_GET_SHM_SIZE
+      Id: 31
+      Equivalent ioctl: N/A
+      Master payload: shm description
+
+      When VHOST_USER_PROTOCOL_F_SLAVE_SHMFD protocol feature has been
+      successfully negotiated, master need to provide a shared memory to
+      slave. This message is used by master to get required size from slave.
+      The shared memory contains one region for device and several regions
+      for virtqueue. The size of those two kinds of regions is specified
+      by dev_size field and vq_size filed. The align field specify the alignment
+      of those regions.
+
+ * VHOST_USER_SET_SHM_FD
+      Id: 32
+      Equivalent ioctl: N/A
+      Master payload: shm description
+
+      When VHOST_USER_PROTOCOL_F_SLAVE_SHMFD protocol feature has been
+      successfully negotiated, master uses this message to set shared memory
+      for slave. The memory fd is passed in the ancillary data. The shared
+      memory should be used to record inflight I/O by slave. And master will
+      clear it when vm reset.
 
 Slave message types
 -------------------
