@@ -1396,7 +1396,10 @@ VFIO
 M: Alex Williamson <alex.williamson@redhat.com>
 S: Supported
 F: hw/vfio/*
+F: util/vfio-helpers.c
 F: include/hw/vfio/
+F: include/qemu/vfio-helpers.h
+F: docs/igd-assign.txt
 
 vfio-ccw
 M: Cornelia Huck <cohuck@redhat.com>
@@ -2338,6 +2341,8 @@ M: Fam Zheng <fam@euphon.net>
 L: qemu-block@nongnu.org
 S: Supported
 F: block/nvme*
+F: util/vfio-helpers.c
+F: include/qemu/vfio-helpers.h
 
 Bootdevice
 M: Gonglei <arei.gonglei@huawei.com>
