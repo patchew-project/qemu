@@ -469,14 +469,10 @@ void helper_lvsr(ppc_avr_t *r, target_ulong sh)
     }
 }
 
-void helper_mtvscr(CPUPPCState *env, ppc_avr_t *r)
+void helper_mtvscr(CPUPPCState *env, uint32_t vscr)
 {
-#if defined(HOST_WORDS_BIGENDIAN)
-    env->vscr = r->u32[3];
-#else
-    env->vscr = r->u32[0];
-#endif
-    set_flush_to_zero(vscr_nj, &env->vec_status);
+    env->vscr = vscr;
+    set_flush_to_zero((vscr >> VSCR_NJ) & 1, &env->vec_status);
 }
 
 void helper_vaddcuw(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
