@@ -277,34 +277,14 @@ static void glue(gen_, name)(DisasContext *ctx)                         \
            16, 16);                                                     \
 }
 
-#define GEN_VXFORM_VN(name, vece, tcg_op, opc2, opc3)                   \
-static void glue(gen_, name)(DisasContext *ctx)                         \
-{                                                                       \
-    if (unlikely(!ctx->altivec_enabled)) {                              \
-        gen_exception(ctx, POWERPC_EXCP_VPU);                           \
-        return;                                                         \
-    }                                                                   \
-                                                                        \
-    tcg_op(vece,                                                        \
-           avr64_offset(rD(ctx->opcode), true),                         \
-           avr64_offset(rA(ctx->opcode), true),                         \
-           avr64_offset(rB(ctx->opcode), true),                         \
-           16, 16);                                                     \
-                                                                        \
-    tcg_gen_gvec_not(vece,                                              \
-                     avr64_offset(rD(ctx->opcode), true),               \
-                     avr64_offset(rD(ctx->opcode), true),               \
-                     16, 16);                                           \
-}
-
 /* Logical operations */
 GEN_VXFORM_V(vand, MO_64, tcg_gen_gvec_and, 2, 16);
 GEN_VXFORM_V(vandc, MO_64, tcg_gen_gvec_andc, 2, 17);
 GEN_VXFORM_V(vor, MO_64, tcg_gen_gvec_or, 2, 18);
 GEN_VXFORM_V(vxor, MO_64, tcg_gen_gvec_xor, 2, 19);
-GEN_VXFORM_VN(vnor, MO_64, tcg_gen_gvec_or, 2, 20);
-GEN_VXFORM_VN(veqv, MO_64, tcg_gen_gvec_xor, 2, 26);
-GEN_VXFORM_VN(vnand, MO_64, tcg_gen_gvec_and, 2, 22);
+GEN_VXFORM_V(vnor, MO_64, tcg_gen_gvec_nor, 2, 20);
+GEN_VXFORM_V(veqv, MO_64, tcg_gen_gvec_eqv, 2, 26);
+GEN_VXFORM_V(vnand, MO_64, tcg_gen_gvec_nand, 2, 22);
 GEN_VXFORM_V(vorc, MO_64, tcg_gen_gvec_orc, 2, 21);
 
 #define GEN_VXFORM(name, opc2, opc3)                                    \
