@@ -43,7 +43,7 @@ enum {
 struct AcpiRsdpDescriptor {        /* Root System Descriptor Pointer */
     uint64_t signature;              /* ACPI signature, contains "RSD PTR " */
     uint8_t  checksum;               /* To make sum of struct == 0 */
-    uint8_t  oem_id [6];             /* OEM identification */
+    uint8_t  oem_id [6] QEMU_NONSTRING; /* OEM identification */
     uint8_t  revision;               /* Must be 0 for 1.0, 2 for 2.0 */
     uint32_t rsdt_physical_address;  /* 32-bit physical address of RSDT */
     uint32_t length;                 /* XSDT Length in bytes including hdr */
@@ -62,10 +62,10 @@ typedef struct AcpiRsdpDescriptor AcpiRsdpDescriptor;
     uint32_t length;                 /* Length of table, in bytes, including header */ \
     uint8_t  revision;               /* ACPI Specification minor version # */ \
     uint8_t  checksum;               /* To make sum of entire table == 0 */ \
-    uint8_t  oem_id [6];             /* OEM identification */ \
-    uint8_t  oem_table_id [8];       /* OEM table identification */ \
+    uint8_t  oem_id [6] QEMU_NONSTRING; /* OEM identification */ \
+    uint8_t  oem_table_id [8] QEMU_NONSTRING; /* OEM table identification */ \
     uint32_t oem_revision;           /* OEM revision number */ \
-    uint8_t  asl_compiler_id [4];    /* ASL compiler vendor ID */ \
+    uint8_t  asl_compiler_id [4] QEMU_NONSTRING; /* ASL compiler vendor ID */ \
     uint32_t asl_compiler_revision;  /* ASL compiler revision number */
 
 
