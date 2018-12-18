@@ -88,6 +88,9 @@ typedef enum {
      * efficiently allocate the space so it reads as zeroes, or return an error.
      * If this flag is set then BDRV_REQ_ZERO_WRITE must also be set.
      * This flag cannot be set together with BDRV_REQ_MAY_UNMAP.
+     * This flag implicitly sets BDRV_REQ_SERIALISING meaning it is protected
+     * from conflicts with overlapping requests. If such conflict is detected,
+     * -EAGAIN is returned.
      */
     BDRV_REQ_ALLOCATE           = 0x100,
 
