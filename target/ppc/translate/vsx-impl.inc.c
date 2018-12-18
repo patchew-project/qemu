@@ -1356,9 +1356,10 @@ static void gen_xxspltw(DisasContext *ctx)
 
 static void gen_xxspltib(DisasContext *ctx)
 {
-    unsigned char uim8 = IMM8(ctx->opcode);
-    TCGv_i64 vsr = tcg_temp_new_i64();
-    if (xS(ctx->opcode) < 32) {
+    uint8_t uim8 = IMM8(ctx->opcode);
+    int rt = xT(ctx->opcode);
+
+    if (rt < 32) {
         if (unlikely(!ctx->altivec_enabled)) {
             gen_exception(ctx, POWERPC_EXCP_VPU);
             return;
@@ -1369,10 +1370,7 @@ static void gen_xxspltib(DisasContext *ctx)
             return;
         }
     }
-    tcg_gen_movi_i64(vsr, pattern(uim8));
-    set_cpu_vsrh(xT(ctx->opcode), vsr);
-    set_cpu_vsrl(xT(ctx->opcode), vsr);
-    tcg_temp_free_i64(vsr);
+    tcg_gen_gvec_dup8i(vsr_full_offset(rt), 16, 16, uim8);
 }
 
 static void gen_xxsldwi(DisasContext *ctx)
