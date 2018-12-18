@@ -1784,8 +1784,7 @@ S: Supported
 F: scripts/coverity-model.c
 
 CPU
-L: qemu-devel@nongnu.org
-S: Supported
+S: Orphan
 F: qom/cpu.c
 F: include/qom/cpu.h
 
