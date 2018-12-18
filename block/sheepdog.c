@@ -1231,12 +1231,12 @@ static int find_vdi_name(BDRVSheepdogState *s, const char *filename,
         return fd;
     }
 
-    /* This pair of strncpy calls ensures that the buffer is zero-filled,
+    /* This pair of strpadcpy calls ensures that the buffer is zero-filled,
      * which is desirable since we'll soon be sending those bytes, and
      * don't want the send_req to read uninitialized data.
      */
-    strncpy(buf, filename, SD_MAX_VDI_LEN);
-    strncpy(buf + SD_MAX_VDI_LEN, tag, SD_MAX_VDI_TAG_LEN);
+    strpadcpy(buf, SD_MAX_VDI_LEN, filename, '\0');
+    strpadcpy(buf + SD_MAX_VDI_LEN, SD_MAX_VDI_TAG_LEN, tag, '\0');
 
     memset(&hdr, 0, sizeof(hdr));
     if (lock) {
