@@ -21,7 +21,7 @@
 
 typedef struct {
     uint32_t size;
-    uint8_t runstate[100];
+    uint8_t runstate[100] QEMU_NONSTRING;
     RunState state;
     bool received;
 } GlobalState;
