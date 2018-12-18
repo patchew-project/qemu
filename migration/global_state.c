@@ -106,7 +106,7 @@ static int global_state_pre_save(void *opaque)
     GlobalState *s = opaque;
 
     trace_migrate_global_state_pre_save((char *)s->runstate);
-    s->size = strlen((char *)s->runstate) + 1;
+    s->size = strnlen((char *)s->runstate, sizeof(s->runstate)) + 1;
 
     return 0;
 }
