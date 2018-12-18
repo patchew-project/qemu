@@ -346,6 +346,7 @@ fdt=""
 netmap="no"
 sdl=""
 sdlabi=""
+sdl_image=""
 virtfs=""
 mpath=""
 vnc="yes"
@@ -2962,6 +2963,7 @@ sdl_probe ()
       feature_not_found "sdl" "Install SDL2-devel"
     fi
     sdl=no
+    sdl_image=no
     # no need to do the rest
     return
   fi
@@ -2992,6 +2994,21 @@ EOF
       sdl=yes
     fi
 
+    if $pkg_config SDL2_image --exists; then
+	if test "$static" = "yes"; then
+	    sdl_image_libs=$($pkg_config SDL2_image --libs --static 2>/dev/null)
+	else
+	    sdl_image_libs=$($pkg_config SDL2_image --libs 2>/dev/null)
+	fi
+	sdl_image_cflags=$($pkg_config SDL2_image --cflags 2>/dev/null)
+	sdl_image=yes
+
+	sdl_cflags="$sdl_cflags $sdl_image_cflags"
+	sdl_libs="$sdl_libs $sdl_image_libs"
+    else
+	sdl_image=no
+    fi
+
     # static link with sdl ? (note: sdl.pc's --static --libs is broken)
     if test "$sdl" = "yes" -a "$static" = "yes" ; then
       if test $? = 0 && echo $sdl_libs | grep -- -laa > /dev/null; then
@@ -3002,6 +3019,7 @@ EOF
 	:
       else
         sdl=no
+        sdl_image=no
       fi
     fi # static link
   else # sdl not found
@@ -3009,6 +3027,7 @@ EOF
       feature_not_found "sdl" "Install SDL devel"
     fi
     sdl=no
+    sdl_image=no
   fi # sdl compile test
 }
 
@@ -6022,6 +6041,7 @@ if test "$darwin" = "yes" ; then
     echo "Cocoa support     $cocoa"
 fi
 echo "SDL support       $sdl $(echo_version $sdl $sdlversion)"
+echo "SDL image support $sdl_image"
 echo "GTK support       $gtk $(echo_version $gtk $gtk_version)"
 echo "GTK GL support    $gtk_gl"
 echo "VTE support       $vte $(echo_version $vte $vteversion)"
@@ -6362,6 +6382,9 @@ if test "$sdl" = "yes" ; then
   echo "CONFIG_SDLABI=$sdlabi" >> $config_host_mak
   echo "SDL_CFLAGS=$sdl_cflags" >> $config_host_mak
   echo "SDL_LIBS=$sdl_libs" >> $config_host_mak
+  if test "$sdl_image" = "yes" ; then
+      echo "CONFIG_SDL_IMAGE=y" >> $config_host_mak
+  fi
 fi
 if test "$cocoa" = "yes" ; then
   echo "CONFIG_COCOA=y" >> $config_host_mak
