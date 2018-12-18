@@ -305,20 +305,18 @@ static void *server_thread(void *data)
     return NULL;
 }
 
-static void setup_vm_with_server(IVState *s, int nvectors, bool msi)
+static void setup_vm_with_server(IVState *s, int nvectors)
 {
-    char *cmd = g_strdup_printf("-chardev socket,id=chr0,path=%s,nowait "
-                                "-device ivshmem%s,chardev=chr0,vectors=%d",
-                                tmpserver,
-                                msi ? "-doorbell" : ",size=1M,msi=off",
-                                nvectors);
+    char *cmd = g_strdup_printf("-chardev socket,id=chr0,path=%s,nowait -device"
+                                " ivshmem-doorbell,chardev=chr0,vectors=%d",
+                                tmpserver, nvectors);
 
-    setup_vm_cmd(s, cmd, msi);
+    setup_vm_cmd(s, cmd, true);
 
     g_free(cmd);
 }
 
-static void test_ivshmem_server(bool msi)
+static void test_ivshmem_server(void)
 {
     IVState state1, state2, *s1, *s2;
     ServerThread thread;
@@ -341,9 +339,9 @@ static void test_ivshmem_server(bool msi)
     thread.thread = g_thread_new("ivshmem-server", server_thread, &thread);
     g_assert(thread.thread != NULL);
 
-    setup_vm_with_server(&state1, nvectors, msi);
+    setup_vm_with_server(&state1, nvectors);
     s1 = &state1;
-    setup_vm_with_server(&state2, nvectors, msi);
+    setup_vm_with_server(&state2, nvectors);
     s2 = &state2;
 
     /* check got different VM ids */
@@ -355,39 +353,29 @@ static void test_ivshmem_server(bool msi)
 
     /* check number of MSI-X vectors */
     global_qtest = s1->qs->qts;
-    if (msi) {
-        ret = qpci_msix_table_size(s1->dev);
-        g_assert_cmpuint(ret, ==, nvectors);
-    }
+    ret = qpci_msix_table_size(s1->dev);
+    g_assert_cmpuint(ret, ==, nvectors);
 
     /* TODO test behavior before MSI-X is enabled */
 
     /* ping vm2 -> vm1 on vector 0 */
-    if (msi) {
-        ret = qpci_msix_pending(s1->dev, 0);
-        g_assert_cmpuint(ret, ==, 0);
-    } else {
-        g_assert_cmpuint(in_reg(s1, INTRSTATUS), ==, 0);
-    }
+    ret = qpci_msix_pending(s1->dev, 0);
+    g_assert_cmpuint(ret, ==, 0);
     out_reg(s2, DOORBELL, vm1 << 16);
     do {
         g_usleep(10000);
-        ret = msi ? qpci_msix_pending(s1->dev, 0) : in_reg(s1, INTRSTATUS);
+        ret = qpci_msix_pending(s1->dev, 0);
     } while (ret == 0 && g_get_monotonic_time() < end_time);
     g_assert_cmpuint(ret, !=, 0);
 
     /* ping vm1 -> vm2 on vector 1 */
     global_qtest = s2->qs->qts;
-    if (msi) {
-        ret = qpci_msix_pending(s2->dev, 1);
-        g_assert_cmpuint(ret, ==, 0);
-    } else {
-        g_assert_cmpuint(in_reg(s2, INTRSTATUS), ==, 0);
-    }
+    ret = qpci_msix_pending(s2->dev, 1);
+    g_assert_cmpuint(ret, ==, 0);
     out_reg(s1, DOORBELL, vm2 << 16 | 1);
     do {
         g_usleep(10000);
-        ret = msi ? qpci_msix_pending(s2->dev, 1) : in_reg(s2, INTRSTATUS);
+        ret = qpci_msix_pending(s2->dev, 1);
     } while (ret == 0 && g_get_monotonic_time() < end_time);
     g_assert_cmpuint(ret, !=, 0);
 
@@ -405,27 +393,17 @@ static void test_ivshmem_server(bool msi)
     close(thread.pipe[0]);
 }
 
-static void test_ivshmem_server_msi(void)
-{
-    test_ivshmem_server(true);
-}
-
-static void test_ivshmem_server_irq(void)
-{
-    test_ivshmem_server(false);
-}
-
 #define PCI_SLOT_HP             0x06
 
 static void test_ivshmem_hotplug(void)
 {
     const char *arch = qtest_get_arch();
 
-    qtest_start("");
+    qtest_start("-object memory-backend-ram,size=1M,id=mb1");
 
-    qtest_qmp_device_add("ivshmem",
-                         "iv1", "{'addr': %s, 'shm': %s, 'size': '1M'}",
-                         stringify(PCI_SLOT_HP), tmpshm);
+    qtest_qmp_device_add("ivshmem-plain", "iv1",
+                         "{'addr': %s, 'memdev': 'mb1'}",
+                         stringify(PCI_SLOT_HP));
     if (strcmp(arch, "ppc64") != 0) {
         qpci_unplug_acpi_device_test("iv1", PCI_SLOT_HP);
     }
@@ -525,8 +503,7 @@ int main(int argc, char **argv)
     if (g_test_slow()) {
         qtest_add_func("/ivshmem/pair", test_ivshmem_pair);
         if (strcmp(arch, "ppc64") != 0) {
-            qtest_add_func("/ivshmem/server-msi", test_ivshmem_server_msi);
-            qtest_add_func("/ivshmem/server-irq", test_ivshmem_server_irq);
+            qtest_add_func("/ivshmem/server", test_ivshmem_server);
         }
     }
 
