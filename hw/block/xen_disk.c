@@ -801,7 +801,9 @@ static int blk_connect(struct XenDevice *xendev)
          * so we can blk_unref() unconditionally */
         blk_ref(blkdev->blk);
     }
-    blk_attach_dev_legacy(blkdev->blk, blkdev);
+    if (blk_attach_dev(blkdev->blk, DEVICE(blkdev)) < 0) {
+        return -1;
+    }
     blkdev->file_size = blk_getlength(blkdev->blk);
     if (blkdev->file_size < 0) {
         BlockDriverState *bs = blk_bs(blkdev->blk);
@@ -951,7 +953,7 @@ static void blk_disconnect(struct XenDevice *xendev)
 
     if (blkdev->blk) {
         blk_set_aio_context(blkdev->blk, qemu_get_aio_context());
-        blk_detach_dev(blkdev->blk, blkdev);
+        blk_detach_dev(blkdev->blk, DEVICE(blkdev));
         blk_unref(blkdev->blk);
         blkdev->blk = NULL;
     }
