@@ -28,6 +28,7 @@
 #include "trace.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
+#include "ui/input.h"
 
 struct keysym2code {
     uint32_t count;
@@ -189,7 +190,7 @@ kbd_layout_t *init_keyboard_layout(const name2keysym_t *table,
 
 
 int keysym2scancode(kbd_layout_t *k, int keysym,
-                    KbdState *kbd)
+                    KbdState *kbd, bool down)
 {
     static const uint32_t mask =
         SCANCODE_SHIFT | SCANCODE_ALTGR | SCANCODE_CTRL;
@@ -213,27 +214,39 @@ int keysym2scancode(kbd_layout_t *k, int keysym,
         return keysym2code->keycodes[0];
     }
 
-    /*
-     * We have multiple keysym -> keycode mappings.
-     *
-     * Check whenever we find one mapping where the modifier state of
-     * the mapping matches the current user interface modifier state.
-     * If so, prefer that one.
-     */
-    mods = 0;
-    if (kbd && kbd_state_modifier_get(kbd, KBD_MOD_SHIFT)) {
-        mods |= SCANCODE_SHIFT;
-    }
-    if (kbd && kbd_state_modifier_get(kbd, KBD_MOD_ALTGR)) {
-        mods |= SCANCODE_ALTGR;
-    }
-    if (kbd && kbd_state_modifier_get(kbd, KBD_MOD_CTRL)) {
-        mods |= SCANCODE_CTRL;
-    }
+    /* We have multiple keysym -> keycode mappings. */
+    if (down) {
+        /*
+         * On keydown: Check whenever we find one mapping where the
+         * modifier state of the mapping matches the current user
+         * interface modifier state.  If so, prefer that one.
+         */
+        mods = 0;
+        if (kbd && kbd_state_modifier_get(kbd, KBD_MOD_SHIFT)) {
+            mods |= SCANCODE_SHIFT;
+        }
+        if (kbd && kbd_state_modifier_get(kbd, KBD_MOD_ALTGR)) {
+            mods |= SCANCODE_ALTGR;
+        }
+        if (kbd && kbd_state_modifier_get(kbd, KBD_MOD_CTRL)) {
+            mods |= SCANCODE_CTRL;
+        }
 
-    for (i = 0; i < keysym2code->count; i++) {
-        if ((keysym2code->keycodes[i] & mask) == mods) {
-            return keysym2code->keycodes[i];
+        for (i = 0; i < keysym2code->count; i++) {
+            if ((keysym2code->keycodes[i] & mask) == mods) {
+                return keysym2code->keycodes[i];
+            }
+        }
+    } else {
+        /*
+         * On keyup: Try find a key which is actually down.
+         */
+        for (i = 0; i < keysym2code->count; i++) {
+            QKeyCode qcode = qemu_input_key_number_to_qcode
+                (keysym2code->keycodes[i]);
+            if (kbd && kbd_state_key_get(kbd, qcode)) {
+                return keysym2code->keycodes[i];
+            }
         }
     }
     return keysym2code->keycodes[0];
