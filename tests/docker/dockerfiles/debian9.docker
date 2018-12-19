@@ -24,6 +24,7 @@ RUN DEBIAN_FRONTEND=noninteractive eatmydata \
         flex \
         gettext \
         git \
+        libtest-harness-perl \
         pkg-config \
         psmisc \
         python \

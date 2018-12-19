@@ -16,6 +16,7 @@ RUN DEBIAN_FRONTEND=noninteractive eatmydata \
         liblzo2-dev \
         librdmacm-dev \
         libsnappy-dev \
+        libtest-harness-perl \
         libvte-dev
 
 # virgl
