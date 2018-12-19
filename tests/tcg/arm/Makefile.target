@@ -10,7 +10,7 @@ VPATH 		+= $(ARM_SRC)
 
 ARM_TESTS=hello-arm test-arm-iwmmxt
 
-TESTS += $(ARM_TESTS) fcvt
+TESTS += $(ARM_TESTS) fcvt barrier
 
 hello-arm: CFLAGS+=-marm -ffreestanding
 hello-arm: LDFLAGS+=-nostdlib
@@ -30,3 +30,7 @@ endif
 
 # On ARM Linux only supports 4k pages
 EXTRA_RUNS+=run-test-mmap-4096
+
+# Barrier tests need atomic definitions, steal QEMUs
+barrier: CFLAGS+=-I$(SRC_PATH)/include/qemu
+barrier: LDFLAGS+=-lpthread
