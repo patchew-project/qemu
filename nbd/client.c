@@ -1028,7 +1028,7 @@ int nbd_disconnect(int fd)
 
 #else
 int nbd_init(int fd, QIOChannelSocket *ioc, NBDExportInfo *info,
-	     Error **errp)
+             Error **errp)
 {
     error_setg(errp, "nbd_init is only supported on Linux");
     return -ENOTSUP;
