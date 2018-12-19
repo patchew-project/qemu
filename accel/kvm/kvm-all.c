@@ -1468,7 +1468,8 @@ static void kvm_irqchip_create(MachineState *machine, KVMState *s)
      * in-kernel irqchip for us */
     ret = kvm_arch_irqchip_create(machine, s);
     if (ret == 0) {
-        if (machine_kernel_irqchip_split(machine)) {
+        if (machine_kernel_irqchip_required(machine) &&
+            machine_kernel_irqchip_split(machine)) {
             perror("Split IRQ chip mode not supported.");
             exit(1);
         } else {
