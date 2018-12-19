@@ -440,6 +440,8 @@ int main(int argc, char **argv)
 #else
 int main(int argc, char **argv)
 {
-    return 0;
+    g_test_init(&argc, &argv, NULL);
+    g_test_skip();
+    return g_test_run();
 }
 #endif
