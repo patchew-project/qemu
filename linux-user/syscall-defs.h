@@ -21,6 +21,18 @@ SYSCALL_DEF(close, ARG_DEC);
 SYSCALL_DEF(open, ARG_STR, ARG_OPENFLAG, ARG_MODEFLAG);
 #endif
 SYSCALL_DEF(openat, ARG_ATDIRFD, ARG_STR, ARG_OPENFLAG, ARG_MODEFLAG);
+SYSCALL_DEF_FULL(pread64, .impl = impl_pread64,
+                 .args = args_pread64_pwrite64,
+                 .arg_type = { ARG_DEC, ARG_PTR, ARG_DEC, ARG_DEC64 });
+SYSCALL_DEF_FULL(pwrite64, .impl = impl_pwrite64,
+                 .args = args_pread64_pwrite64,
+                 .arg_type = { ARG_DEC, ARG_PTR, ARG_DEC, ARG_DEC64 });
+SYSCALL_DEF_FULL(preadv, .impl = impl_preadv,
+                 .args = args_preadv_pwritev,
+                 .arg_type = { ARG_DEC, ARG_PTR, ARG_DEC, ARG_DEC64 });
+SYSCALL_DEF_FULL(pwritev, .impl = impl_pwritev,
+                 .args = args_preadv_pwritev,
+                 .arg_type = { ARG_DEC, ARG_PTR, ARG_DEC, ARG_DEC64 });
 SYSCALL_DEF(read, ARG_DEC, ARG_PTR, ARG_DEC);
 #ifdef TARGET_NR_readlink
 SYSCALL_DEF(readlink, ARG_STR, ARG_PTR, ARG_DEC);
@@ -28,4 +40,6 @@ SYSCALL_DEF(readlink, ARG_STR, ARG_PTR, ARG_DEC);
 #ifdef TARGET_NR_readlinkat
 SYSCALL_DEF(readlinkat, ARG_ATDIRFD, ARG_STR, ARG_PTR, ARG_DEC);
 #endif
+SYSCALL_DEF(readv, ARG_DEC, ARG_PTR, ARG_DEC);
 SYSCALL_DEF(write, ARG_DEC, ARG_PTR, ARG_DEC);
+SYSCALL_DEF(writev, ARG_DEC, ARG_PTR, ARG_DEC);

@@ -315,6 +315,104 @@ SYSCALL_IMPL(openat)
     return do_openat(cpu_env, arg1, arg2, arg3, arg4);
 }
 
+/*
+ * Both pread64 and pwrite64 merge args into a 64-bit offset,
+ * but the input registers and ordering are target specific.
+ */
+#if TARGET_ABI_BITS == 32
+SYSCALL_ARGS(pread64_pwrite64)
+{
+    /* We have already assigned out[0-2].  */
+    int off = regpairs_aligned(cpu_env, TARGET_NR_pread64);
+    out[3] = target_offset64(in[3 + off], in[4 + off]);
+    return def;
+}
+#else
+#define args_pread64_pwrite64 NULL
+#endif
+
+SYSCALL_IMPL(pread64)
+{
+    void *p = lock_user(VERIFY_WRITE, arg2, arg3, 0);
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(pread64(arg1, p, arg3, arg4));
+    unlock_user(p, arg2, ret);
+    return ret;
+}
+
+SYSCALL_IMPL(pwrite64)
+{
+    void *p = lock_user(VERIFY_READ, arg2, arg3, 0);
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(pwrite64(arg1, p, arg3, arg4));
+    unlock_user(p, arg2, 0);
+    return ret;
+}
+
+/*
+ * Both preadv and pwritev merge args 4/5 into a 64-bit offset.
+ * Moreover, the parts are *always* in little-endian order.
+ */
+#if TARGET_ABI_BITS == 32
+SYSCALL_ARGS(preadv_pwritev)
+{
+    /* We have already assigned out[0-2].  */
+    abi_ulong lo = in[3], hi = in[4];
+    out[3] = ((hi << (TARGET_ABI_BITS - 1)) << 1) | lo;
+    return def;
+}
+#else
+#define args_preadv_pwritev NULL
+#endif
+
+/* Perform the inverse operation for the host.  */
+static inline void host_offset64_low_high(unsigned long *l, unsigned long *h,
+                                          uint64_t off)
+{
+    *l = off;
+    *h = (off >> (HOST_LONG_BITS - 1)) >> 1;
+}
+
+SYSCALL_IMPL(preadv)
+{
+    struct iovec *vec = lock_iovec(VERIFY_WRITE, arg2, arg3, 0);
+    unsigned long lo, hi;
+    abi_long ret;
+
+    if (vec == NULL) {
+        return -host_to_target_errno(errno);
+    }
+
+    host_offset64_low_high(&lo, &hi, arg4);
+    ret = get_errno(safe_preadv(arg1, vec, arg3, lo, hi));
+    unlock_iovec(vec, arg2, arg3, 1);
+    return ret;
+}
+
+SYSCALL_IMPL(pwritev)
+{
+    struct iovec *vec = lock_iovec(VERIFY_READ, arg2, arg3, 1);
+    unsigned long lo, hi;
+    abi_long ret;
+
+    if (vec == NULL) {
+        ret = -host_to_target_errno(errno);
+    }
+
+    host_offset64_low_high(&lo, &hi, arg4);
+    ret = get_errno(safe_pwritev(arg1, vec, arg3, lo, hi));
+    unlock_iovec(vec, arg2, arg3, 0);
+    return ret;
+}
+
 SYSCALL_IMPL(read)
 {
     abi_long ret;
@@ -403,6 +501,19 @@ SYSCALL_IMPL(readlinkat)
 }
 #endif
 
+SYSCALL_IMPL(readv)
+{
+    struct iovec *vec = lock_iovec(VERIFY_WRITE, arg2, arg3, 0);
+    abi_long ret;
+
+    if (vec == NULL) {
+        return -host_to_target_errno(errno);
+    }
+    ret = get_errno(safe_readv(arg1, vec, arg3));
+    unlock_iovec(vec, arg2, arg3, 1);
+    return ret;
+}
+
 SYSCALL_IMPL(write)
 {
     TargetFdDataFunc trans;
@@ -429,5 +540,18 @@ SYSCALL_IMPL(write)
         ret = get_errno(safe_write(arg1, p, arg3));
     }
     unlock_user(p, arg2, 0);
+    return ret;
+}
+
+SYSCALL_IMPL(writev)
+{
+    struct iovec *vec = lock_iovec(VERIFY_READ, arg2, arg3, 1);
+    abi_long ret;
+
+    if (vec == NULL) {
+        return -host_to_target_errno(errno);
+    }
+    ret = get_errno(safe_writev(arg1, vec, arg3));
+    unlock_iovec(vec, arg2, arg3, 0);
     return ret;
 }
