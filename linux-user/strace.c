@@ -1,8 +1,4 @@
 #include "qemu/osdep.h"
-#include <sys/ipc.h>
-#include <sys/msg.h>
-#include <sys/sem.h>
-#include <sys/shm.h>
 #include <sys/select.h>
 #include <sys/mount.h>
 #include <arpa/inet.h>
@@ -74,54 +70,6 @@ UNUSED static void print_socket_protocol(int domain, int type, int protocol);
 /*
  * Utility functions
  */
-static void
-print_ipc_cmd(int cmd)
-{
-#define output_cmd(val) \
-if( cmd == val ) { \
-    gemu_log(#val); \
-    return; \
-}
-
-    cmd &= 0xff;
-
-    /* General IPC commands */
-    output_cmd( IPC_RMID );
-    output_cmd( IPC_SET );
-    output_cmd( IPC_STAT );
-    output_cmd( IPC_INFO );
-    /* msgctl() commands */
-    output_cmd( MSG_STAT );
-    output_cmd( MSG_INFO );
-    /* shmctl() commands */
-    output_cmd( SHM_LOCK );
-    output_cmd( SHM_UNLOCK );
-    output_cmd( SHM_STAT );
-    output_cmd( SHM_INFO );
-    /* semctl() commands */
-    output_cmd( GETPID );
-    output_cmd( GETVAL );
-    output_cmd( GETALL );
-    output_cmd( GETNCNT );
-    output_cmd( GETZCNT );
-    output_cmd( SETVAL );
-    output_cmd( SETALL );
-    output_cmd( SEM_STAT );
-    output_cmd( SEM_INFO );
-    output_cmd( IPC_RMID );
-    output_cmd( IPC_RMID );
-    output_cmd( IPC_RMID );
-    output_cmd( IPC_RMID );
-    output_cmd( IPC_RMID );
-    output_cmd( IPC_RMID );
-    output_cmd( IPC_RMID );
-    output_cmd( IPC_RMID );
-    output_cmd( IPC_RMID );
-
-    /* Some value we don't recognize */
-    gemu_log("%d",cmd);
-}
-
 static void
 print_signal(abi_ulong arg, int last)
 {
@@ -620,18 +568,6 @@ print_newselect(const struct syscallname *name,
 }
 #endif
 
-#ifdef TARGET_NR_semctl
-static void
-print_semctl(const struct syscallname *name,
-             abi_long arg1, abi_long arg2, abi_long arg3,
-             abi_long arg4, abi_long arg5, abi_long arg6)
-{
-    gemu_log("%s(" TARGET_ABI_FMT_ld "," TARGET_ABI_FMT_ld ",", name->name, arg1, arg2);
-    print_ipc_cmd(arg3);
-    gemu_log(",0x" TARGET_ABI_FMT_lx ")", arg4);
-}
-#endif
-
 static void
 print_execve(const struct syscallname *name,
              abi_long arg1, abi_long arg2, abi_long arg3,
@@ -663,25 +599,6 @@ print_execve(const struct syscallname *name,
 
     gemu_log("NULL})");
 }
-
-#ifdef TARGET_NR_ipc
-static void
-print_ipc(const struct syscallname *name,
-          abi_long arg1, abi_long arg2, abi_long arg3,
-          abi_long arg4, abi_long arg5, abi_long arg6)
-{
-    switch(arg1) {
-    case IPCOP_semctl:
-        gemu_log("semctl(" TARGET_ABI_FMT_ld "," TARGET_ABI_FMT_ld ",", arg1, arg2);
-        print_ipc_cmd(arg3);
-        gemu_log(",0x" TARGET_ABI_FMT_lx ")", arg4);
-        break;
-    default:
-        gemu_log("%s(" TARGET_ABI_FMT_ld "," TARGET_ABI_FMT_ld "," TARGET_ABI_FMT_ld "," TARGET_ABI_FMT_ld ")",
-                 name->name, arg1, arg2, arg3, arg4);
-    }
-}
-#endif
 
 /*
  * Variants for the return value output function
