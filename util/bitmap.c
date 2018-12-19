@@ -42,6 +42,10 @@ int slow_bitmap_empty(const unsigned long *bitmap, long bits)
 {
     long k, lim = bits/BITS_PER_LONG;
 
+    if (unlikely(!bits)) {
+        return 0;
+    }
+
     for (k = 0; k < lim; ++k) {
         if (bitmap[k]) {
             return 0;
@@ -59,6 +63,10 @@ int slow_bitmap_empty(const unsigned long *bitmap, long bits)
 int slow_bitmap_full(const unsigned long *bitmap, long bits)
 {
     long k, lim = bits/BITS_PER_LONG;
+
+    if (unlikely(!bits)) {
+        return 0;
+    }
 
     for (k = 0; k < lim; ++k) {
         if (~bitmap[k]) {
@@ -79,6 +87,10 @@ int slow_bitmap_equal(const unsigned long *bitmap1,
                       const unsigned long *bitmap2, long bits)
 {
     long k, lim = bits/BITS_PER_LONG;
+
+    if (unlikely(!bits)) {
+        return 0;
+    }
 
     for (k = 0; k < lim; ++k) {
         if (bitmap1[k] != bitmap2[k]) {
@@ -115,6 +127,10 @@ int slow_bitmap_and(unsigned long *dst, const unsigned long *bitmap1,
     long k;
     long nr = BITS_TO_LONGS(bits);
     unsigned long result = 0;
+
+    if (unlikely(!bits)) {
+        return 0;
+    }
 
     for (k = 0; k < nr; k++) {
         result |= (dst[k] = bitmap1[k] & bitmap2[k]);
@@ -342,6 +358,10 @@ int slow_bitmap_intersects(const unsigned long *bitmap1,
 {
     long k, lim = bits/BITS_PER_LONG;
 
+    if (unlikely(!bits)) {
+        return 0;
+    }
+
     for (k = 0; k < lim; ++k) {
         if (bitmap1[k] & bitmap2[k]) {
             return 1;
@@ -359,6 +379,10 @@ int slow_bitmap_intersects(const unsigned long *bitmap1,
 long slow_bitmap_count_one(const unsigned long *bitmap, long nbits)
 {
     long k, lim = nbits / BITS_PER_LONG, result = 0;
+
+    if (unlikely(!nbits)) {
+        return 0;
+    }
 
     for (k = 0; k < lim; k++) {
         result += ctpopl(bitmap[k]);

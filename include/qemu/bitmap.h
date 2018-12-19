@@ -113,6 +113,10 @@ static inline void bitmap_zero(unsigned long *dst, long nbits)
 
 static inline void bitmap_fill(unsigned long *dst, long nbits)
 {
+    if (unlikely(!nbits)) {
+        return;
+    }
+
     size_t nlongs = BITS_TO_LONGS(nbits);
     if (!small_nbits(nbits)) {
         long len = (nlongs - 1) * sizeof(unsigned long);
@@ -174,6 +178,10 @@ static inline void bitmap_complement(unsigned long *dst,
                                      const unsigned long *src,
                                      long nbits)
 {
+    if (unlikely(!nbits)) {
+        return;
+    }
+
     if (small_nbits(nbits)) {
         *dst = ~(*src) & BITMAP_LAST_WORD_MASK(nbits);
     } else {
@@ -184,6 +192,10 @@ static inline void bitmap_complement(unsigned long *dst,
 static inline int bitmap_equal(const unsigned long *src1,
                                const unsigned long *src2, long nbits)
 {
+    if (unlikely(!nbits)) {
+        return 0;
+    }
+
     if (small_nbits(nbits)) {
         return ! ((*src1 ^ *src2) & BITMAP_LAST_WORD_MASK(nbits));
     } else {
@@ -193,6 +205,10 @@ static inline int bitmap_equal(const unsigned long *src1,
 
 static inline int bitmap_empty(const unsigned long *src, long nbits)
 {
+    if (unlikely(!nbits)) {
+        return 0;
+    }
+
     if (small_nbits(nbits)) {
         return ! (*src & BITMAP_LAST_WORD_MASK(nbits));
     } else {
@@ -202,6 +218,10 @@ static inline int bitmap_empty(const unsigned long *src, long nbits)
 
 static inline int bitmap_full(const unsigned long *src, long nbits)
 {
+    if (unlikely(!nbits)) {
+        return 0;
+    }
+
     if (small_nbits(nbits)) {
         return ! (~(*src) & BITMAP_LAST_WORD_MASK(nbits));
     } else {
@@ -212,6 +232,10 @@ static inline int bitmap_full(const unsigned long *src, long nbits)
 static inline int bitmap_intersects(const unsigned long *src1,
                                     const unsigned long *src2, long nbits)
 {
+    if (unlikely(!nbits)) {
+        return 0;
+    }
+
     if (small_nbits(nbits)) {
         return ((*src1 & *src2) & BITMAP_LAST_WORD_MASK(nbits)) != 0;
     } else {
