@@ -189,7 +189,7 @@ kbd_layout_t *init_keyboard_layout(const name2keysym_t *table,
 
 
 int keysym2scancode(kbd_layout_t *k, int keysym,
-                    bool shift, bool altgr, bool ctrl)
+                    KbdState *kbd)
 {
     static const uint32_t mask =
         SCANCODE_SHIFT | SCANCODE_ALTGR | SCANCODE_CTRL;
@@ -221,13 +221,13 @@ int keysym2scancode(kbd_layout_t *k, int keysym,
      * If so, prefer that one.
      */
     mods = 0;
-    if (shift) {
+    if (kbd && kbd_state_modifier_get(kbd, KBD_MOD_SHIFT)) {
         mods |= SCANCODE_SHIFT;
     }
-    if (altgr) {
+    if (kbd && kbd_state_modifier_get(kbd, KBD_MOD_ALTGR)) {
         mods |= SCANCODE_ALTGR;
     }
-    if (ctrl) {
+    if (kbd && kbd_state_modifier_get(kbd, KBD_MOD_CTRL)) {
         mods |= SCANCODE_CTRL;
     }
 
