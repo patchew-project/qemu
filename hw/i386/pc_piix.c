@@ -725,10 +725,6 @@ DEFINE_I440FX_MACHINE(v1_3, "pc-1.3", pc_compat_1_3,
             .property = "msix",\
             .value    = "off",\
         },{\
-            .driver   = "ivshmem",\
-            .property = "use64",\
-            .value    = "0",\
-        },{\
             .driver   = "qxl",\
             .property = "revision",\
             .value    = stringify(3),\
