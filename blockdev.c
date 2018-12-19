@@ -3663,6 +3663,8 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
                                    BlockDriverState *target,
                                    bool has_replaces, const char *replaces,
                                    enum MirrorSyncMode sync,
+                                   bool has_bitmap_name,
+                                   const char *bitmap_name,
                                    BlockMirrorBackingMode backing_mode,
                                    bool has_speed, int64_t speed,
                                    bool has_granularity, uint32_t granularity,
@@ -3680,6 +3682,7 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
                                    Error **errp)
 {
     int job_flags = JOB_DEFAULT;
+    BdrvDirtyBitmap *src_bitmap;
 
     if (!has_speed) {
         speed = 0;
@@ -3702,6 +3705,23 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
     if (!has_filter_node_name) {
         filter_node_name = NULL;
     }
+    if (!has_bitmap_name) {
+        bitmap_name = NULL;
+    }
+    /*
+     * In incremental mode, we should create null name bitmap by
+     * using user bitmap's granularity.
+     */
+    if (sync == MIRROR_SYNC_MODE_INCREMENTAL && bitmap_name != NULL) {
+        src_bitmap = bdrv_find_dirty_bitmap(bs, bitmap_name);
+        if (!src_bitmap) {
+            error_setg(errp, "Error: can't find dirty bitmap "
+                       "before start incremental drive-mirror");
+            return;
+        }
+        granularity = bdrv_dirty_bitmap_granularity(src_bitmap);
+    }
+
     if (!has_copy_mode) {
         copy_mode = MIRROR_COPY_MODE_BACKGROUND;
     }
@@ -3739,7 +3759,7 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
      */
     mirror_start(job_id, bs, target,
                  has_replaces ? replaces : NULL, job_flags,
-                 speed, granularity, buf_size, sync, backing_mode,
+                 speed, granularity, buf_size, sync, bitmap_name, backing_mode,
                  on_source_error, on_target_error, unmap, filter_node_name,
                  copy_mode, errp);
 }
@@ -3785,6 +3805,16 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
     }
     if (arg->sync == MIRROR_SYNC_MODE_NONE) {
         source = bs;
+    }
+    if ((arg->sync == MIRROR_SYNC_MODE_INCREMENTAL) &&
+        (!arg->has_bitmap_name)) {
+        error_setg(errp, "incremental mode must specify the bitmap name");
+        goto out;
+    }
+    if ((arg->sync == MIRROR_SYNC_MODE_INCREMENTAL) &&
+        (arg->has_granularity)) {
+        error_setg(errp, "incremental mode can not set bitmap granularity");
+        goto out;
     }
 
     size = bdrv_getlength(bs);
@@ -3880,6 +3910,7 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
 
     blockdev_mirror_common(arg->has_job_id ? arg->job_id : NULL, bs, target_bs,
                            arg->has_replaces, arg->replaces, arg->sync,
+                           arg->has_bitmap_name, arg->bitmap_name,
                            backing_mode, arg->has_speed, arg->speed,
                            arg->has_granularity, arg->granularity,
                            arg->has_buf_size, arg->buf_size,
@@ -3937,7 +3968,8 @@ void qmp_blockdev_mirror(bool has_job_id, const char *job_id,
     bdrv_set_aio_context(target_bs, aio_context);
 
     blockdev_mirror_common(has_job_id ? job_id : NULL, bs, target_bs,
-                           has_replaces, replaces, sync, backing_mode,
+                           has_replaces, replaces, sync, false, NULL,
+                           backing_mode,
                            has_speed, speed,
                            has_granularity, granularity,
                            has_buf_size, buf_size,

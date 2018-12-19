@@ -91,6 +91,8 @@ bool hbitmap_merge(const HBitmap *a, const HBitmap *b, HBitmap *result);
  */
 bool hbitmap_can_merge(const HBitmap *a, const HBitmap *b);
 
+bool hbitmap_copy(HBitmap *dst, const HBitmap *src);
+
 /**
  * hbitmap_empty:
  * @hb: HBitmap to operate on.

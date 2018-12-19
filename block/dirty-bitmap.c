@@ -348,6 +348,20 @@ BdrvDirtyBitmap *bdrv_reclaim_dirty_bitmap(BlockDriverState *bs,
     return ret;
 }
 
+BdrvDirtyBitmap *bdrv_copy_dirty_bitmap_locked(BdrvDirtyBitmap *src,
+                                               BdrvDirtyBitmap *dest,
+                                               Error **errp)
+{
+    qemu_mutex_lock(src->mutex);
+    if (!hbitmap_copy(dest->bitmap, src->bitmap)) {
+        error_setg(errp, "Error: copy src bitmap failed");
+        return NULL;
+    }
+    qemu_mutex_unlock(src->mutex);
+
+    return dest;
+}
+
 /**
  * Truncates _all_ bitmaps attached to a BDS.
  * Called with BQL taken.
