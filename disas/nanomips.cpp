@@ -852,23 +852,6 @@ uint64 NMD::extract_stripe_6(uint64 instruction)
 }
 
 
-uint64 NMD::extr_xil17il0bs1Fmsb0(uint64 instruction)
-{
-    uint64 value = 0;
-    value |= extract_bits(instruction, 17, 1);
-    return value;
-}
-
-
-uint64 NMD::extr_xil2il0bs1_il15il0bs1Fmsb0(uint64 instruction)
-{
-    uint64 value = 0;
-    value |= extract_bits(instruction, 2, 1);
-    value |= extract_bits(instruction, 15, 1);
-    return value;
-}
-
-
 uint64 NMD::extract_ac_13_12(uint64 instruction)
 {
     uint64 value = 0;
@@ -919,14 +902,6 @@ uint64 NMD::extract_shift_5_4_3_2_1_0(uint64 instruction)
 }
 
 
-uint64 NMD::extr_xil10il0bs6Fmsb5(uint64 instruction)
-{
-    uint64 value = 0;
-    value |= extract_bits(instruction, 10, 6);
-    return value;
-}
-
-
 uint64 NMD::extract_count_19_18_17_16(uint64 instruction)
 {
     uint64 value = 0;
@@ -939,15 +914,6 @@ uint64 NMD::extract_code_2_1_0(uint64 instruction)
 {
     uint64 value = 0;
     value |= extract_bits(instruction, 0, 3);
-    return value;
-}
-
-
-uint64 NMD::extr_xil10il0bs4_il22il0bs4Fmsb3(uint64 instruction)
-{
-    uint64 value = 0;
-    value |= extract_bits(instruction, 10, 4);
-    value |= extract_bits(instruction, 22, 4);
     return value;
 }
 
@@ -976,14 +942,6 @@ uint64 NMD::extr_uil3il3bs18Fmsb20(uint64 instruction)
 }
 
 
-uint64 NMD::extr_xil12il0bs1Fmsb0(uint64 instruction)
-{
-    uint64 value = 0;
-    value |= extract_bits(instruction, 12, 1);
-    return value;
-}
-
-
 uint64 NMD::extr_uil0il2bs4Fmsb5(uint64 instruction)
 {
     uint64 value = 0;
@@ -1004,14 +962,6 @@ uint64 NMD::extr_uil0il2bs3Fmsb4(uint64 instruction)
 {
     uint64 value = 0;
     value |= extract_bits(instruction, 0, 3) << 2;
-    return value;
-}
-
-
-uint64 NMD::extr_xil10il0bs1Fmsb0(uint64 instruction)
-{
-    uint64 value = 0;
-    value |= extract_bits(instruction, 10, 1);
     return value;
 }
 
@@ -1048,35 +998,10 @@ uint64 NMD::extract_ru_7_6_5_4_3(uint64 instruction)
 }
 
 
-uint64 NMD::extr_xil21il0bs5Fmsb4(uint64 instruction)
-{
-    uint64 value = 0;
-    value |= extract_bits(instruction, 21, 5);
-    return value;
-}
-
-
-uint64 NMD::extr_xil9il0bs3Fmsb2(uint64 instruction)
-{
-    uint64 value = 0;
-    value |= extract_bits(instruction, 9, 3);
-    return value;
-}
-
-
 uint64 NMD::extract_u_17_to_0(uint64 instruction)
 {
     uint64 value = 0;
     value |= extract_bits(instruction, 0, 18);
-    return value;
-}
-
-
-uint64 NMD::extr_xil14il0bs1_il15il0bs1Fmsb0(uint64 instruction)
-{
-    uint64 value = 0;
-    value |= extract_bits(instruction, 14, 1);
-    value |= extract_bits(instruction, 15, 1);
     return value;
 }
 
@@ -1086,14 +1011,6 @@ uint64 NMD::extract_rsz4_4_2_1_0(uint64 instruction)
     uint64 value = 0;
     value |= extract_bits(instruction, 0, 3);
     value |= extract_bits(instruction, 4, 1) << 3;
-    return value;
-}
-
-
-uint64 NMD::extr_xil24il0bs1Fmsb0(uint64 instruction)
-{
-    uint64 value = 0;
-    value |= extract_bits(instruction, 24, 1);
     return value;
 }
 
@@ -1150,15 +1067,6 @@ int64 NMD::extract_shift_21_20_19_18_17_16(uint64 instruction)
 }
 
 
-uint64 NMD::extr_xil6il0bs3_il10il0bs1Fmsb2(uint64 instruction)
-{
-    uint64 value = 0;
-    value |= extract_bits(instruction, 6, 3);
-    value |= extract_bits(instruction, 10, 1);
-    return value;
-}
-
-
 uint64 NMD::extract_rd2_3_8(uint64 instruction)
 {
     uint64 value = 0;
@@ -1168,26 +1076,10 @@ uint64 NMD::extract_rd2_3_8(uint64 instruction)
 }
 
 
-uint64 NMD::extr_xil16il0bs5Fmsb4(uint64 instruction)
-{
-    uint64 value = 0;
-    value |= extract_bits(instruction, 16, 5);
-    return value;
-}
-
-
 uint64 NMD::extract_code_17_to_0(uint64 instruction)
 {
     uint64 value = 0;
     value |= extract_bits(instruction, 0, 18);
-    return value;
-}
-
-
-uint64 NMD::extr_xil0il0bs12Fmsb11(uint64 instruction)
-{
-    uint64 value = 0;
-    value |= extract_bits(instruction, 0, 12);
     return value;
 }
 
@@ -1260,15 +1152,6 @@ uint64 NMD::extract_hs_20_19_18_17_16(uint64 instruction)
 }
 
 
-uint64 NMD::extr_xil10il0bs1_il14il0bs2Fmsb1(uint64 instruction)
-{
-    uint64 value = 0;
-    value |= extract_bits(instruction, 10, 1);
-    value |= extract_bits(instruction, 14, 2);
-    return value;
-}
-
-
 uint64 NMD::extract_sel_13_12_11(uint64 instruction)
 {
     uint64 value = 0;
@@ -1281,14 +1164,6 @@ uint64 NMD::extract_lsb_4_3_2_1_0(uint64 instruction)
 {
     uint64 value = 0;
     value |= extract_bits(instruction, 0, 5);
-    return value;
-}
-
-
-uint64 NMD::extr_xil14il0bs2Fmsb1(uint64 instruction)
-{
-    uint64 value = 0;
-    value |= extract_bits(instruction, 14, 2);
     return value;
 }
 
@@ -1333,14 +1208,6 @@ uint64 NMD::extract_cs_20_19_18_17_16(uint64 instruction)
 }
 
 
-uint64 NMD::extr_xil16il0bs10Fmsb9(uint64 instruction)
-{
-    uint64 value = 0;
-    value |= extract_bits(instruction, 16, 10);
-    return value;
-}
-
-
 uint64 NMD::extract_rt4_9_7_6_5(uint64 instruction)
 {
     uint64 value = 0;
@@ -1362,14 +1229,6 @@ uint64 NMD::extr_uil0il2bs6Fmsb7(uint64 instruction)
 {
     uint64 value = 0;
     value |= extract_bits(instruction, 0, 6) << 2;
-    return value;
-}
-
-
-uint64 NMD::extr_xil17il0bs9Fmsb8(uint64 instruction)
-{
-    uint64 value = 0;
-    value |= extract_bits(instruction, 17, 9);
     return value;
 }
 
@@ -1464,15 +1323,6 @@ uint64 NMD::extract_bit_16_15_14_13_12_11(uint64 instruction)
 }
 
 
-uint64 NMD::extr_xil10il0bs1_il11il0bs5Fmsb4(uint64 instruction)
-{
-    uint64 value = 0;
-    value |= extract_bits(instruction, 10, 1);
-    value |= extract_bits(instruction, 11, 5);
-    return value;
-}
-
-
 uint64 NMD::extract_mask_20_19_18_17_16_15_14(uint64 instruction)
 {
     uint64 value = 0;
@@ -1533,22 +1383,6 @@ uint64 NMD::extract_u_20_19_18_17_16_15_14_13(uint64 instruction)
 }
 
 
-uint64 NMD::extr_xil15il0bs1Fmsb0(uint64 instruction)
-{
-    uint64 value = 0;
-    value |= extract_bits(instruction, 15, 1);
-    return value;
-}
-
-
-uint64 NMD::extr_xil11il0bs5Fmsb4(uint64 instruction)
-{
-    uint64 value = 0;
-    value |= extract_bits(instruction, 11, 5);
-    return value;
-}
-
-
 uint64 NMD::extr_uil2il2bs16Fmsb17(uint64 instruction)
 {
     uint64 value = 0;
@@ -1591,15 +1425,6 @@ int64 NMD::extr_sil0il25bs1_il1il1bs24Tmsb25(uint64 instruction)
 }
 
 
-uint64 NMD::extr_xil0il0bs3_il4il0bs1Fmsb2(uint64 instruction)
-{
-    uint64 value = 0;
-    value |= extract_bits(instruction, 0, 3);
-    value |= extract_bits(instruction, 4, 1);
-    return value;
-}
-
-
 uint64 NMD::extract_u_1_0(uint64 instruction)
 {
     uint64 value = 0;
@@ -1617,27 +1442,10 @@ uint64 NMD::extr_uil3il3bs1_il8il2bs1Fmsb3(uint64 instruction)
 }
 
 
-uint64 NMD::extr_xil9il0bs3_il16il0bs5Fmsb4(uint64 instruction)
-{
-    uint64 value = 0;
-    value |= extract_bits(instruction, 9, 3);
-    value |= extract_bits(instruction, 16, 5);
-    return value;
-}
-
-
 uint64 NMD::extract_fd_10_9_8_7_6(uint64 instruction)
 {
     uint64 value = 0;
     value |= extract_bits(instruction, 11, 5);
-    return value;
-}
-
-
-uint64 NMD::extr_xil6il0bs3Fmsb2(uint64 instruction)
-{
-    uint64 value = 0;
-    value |= extract_bits(instruction, 6, 3);
     return value;
 }
 
@@ -1675,14 +1483,6 @@ uint64 NMD::extract_ct_25_24_23_22_21(uint64 instruction)
 }
 
 
-uint64 NMD::extr_xil11il0bs1Fmsb0(uint64 instruction)
-{
-    uint64 value = 0;
-    value |= extract_bits(instruction, 11, 1);
-    return value;
-}
-
-
 uint64 NMD::extr_uil2il2bs19Fmsb20(uint64 instruction)
 {
     uint64 value = 0;
@@ -1705,14 +1505,6 @@ uint64 NMD::extr_uil0il1bs4Fmsb4(uint64 instruction)
 {
     uint64 value = 0;
     value |= extract_bits(instruction, 0, 4) << 1;
-    return value;
-}
-
-
-uint64 NMD::extr_xil9il0bs2Fmsb1(uint64 instruction)
-{
-    uint64 value = 0;
-    value |= extract_bits(instruction, 9, 2);
     return value;
 }
 
