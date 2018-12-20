@@ -205,11 +205,15 @@ EXTRACT_HELPER(DCMX, 16, 7);
 EXTRACT_HELPER_SPLIT_3(DCMX_XV, 5, 16, 0, 1, 2, 5, 1, 6, 6);
 
 #if defined(HOST_WORDS_BIGENDIAN)
+#define HI_IDX 0
+#define LO_IDX 1
 #define VsrB(i) u8[i]
 #define VsrH(i) u16[i]
 #define VsrW(i) u32[i]
 #define VsrD(i) u64[i]
 #else
+#define HI_IDX 1
+#define LO_IDX 0
 #define VsrB(i) u8[15 - (i)]
 #define VsrH(i) u16[7 - (i)]
 #define VsrW(i) u32[3 - (i)]
