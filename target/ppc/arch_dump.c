@@ -140,7 +140,7 @@ static void ppc_write_elf_fpregset(NoteFuncArg *arg, PowerPCCPU *cpu)
     memset(fpregset, 0, sizeof(*fpregset));
 
     for (i = 0; i < 32; i++) {
-        fpregset->fpr[i] = cpu_to_dump64(s, cpu->env.fpr[i]);
+        fpregset->fpr[i] = cpu_to_dump64(s, cpu->env.vsr[i].u64[0]);
     }
     fpregset->fpscr = cpu_to_dump_reg(s, cpu->env.fpscr);
 }
@@ -166,11 +166,11 @@ static void ppc_write_elf_vmxregset(NoteFuncArg *arg, PowerPCCPU *cpu)
 #endif
 
         if (needs_byteswap) {
-            vmxregset->avr[i].u64[0] = bswap64(cpu->env.avr[i].u64[1]);
-            vmxregset->avr[i].u64[1] = bswap64(cpu->env.avr[i].u64[0]);
+            vmxregset->avr[i].u64[0] = bswap64(cpu->env.vsr[32 + i].u64[1]);
+            vmxregset->avr[i].u64[1] = bswap64(cpu->env.vsr[32 + i].u64[0]);
         } else {
-            vmxregset->avr[i].u64[0] = cpu->env.avr[i].u64[0];
-            vmxregset->avr[i].u64[1] = cpu->env.avr[i].u64[1];
+            vmxregset->avr[i].u64[0] = cpu->env.vsr[32 + i].u64[0];
+            vmxregset->avr[i].u64[1] = cpu->env.vsr[32 + i].u64[1];
         }
     }
     vmxregset->vscr.u32[3] = cpu_to_dump32(s, cpu->env.vscr);
@@ -188,7 +188,7 @@ static void ppc_write_elf_vsxregset(NoteFuncArg *arg, PowerPCCPU *cpu)
     memset(vsxregset, 0, sizeof(*vsxregset));
 
     for (i = 0; i < 32; i++) {
-        vsxregset->vsr[i] = cpu_to_dump64(s, cpu->env.vsr[i]);
+        vsxregset->vsr[i] = cpu_to_dump64(s, cpu->env.vsr[i].u64[1]);
     }
 }
 
