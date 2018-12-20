@@ -246,9 +246,28 @@ def filter_qmp_event(event):
         event['timestamp']['microseconds'] = 'USECS'
     return event
 
+def filter_qmp(qmsg, filter_fn):
+    '''Given a string filter, filter a QMP object's values.
+    filter_fn takes a (key, value) pair.'''
+    for key in qmsg:
+        if isinstance(qmsg[key], list):
+            qmsg[key] = [filter_qmp(atom, filter_fn) for atom in qmsg[key]]
+        elif isinstance(qmsg[key], dict):
+            qmsg[key] = filter_qmp(qmsg[key], filter_fn)
+        else:
+            qmsg[key] = filter_fn(key, qmsg[key])
+    return qmsg
+
 def filter_testfiles(msg):
     prefix = os.path.join(test_dir, "%s-" % (os.getpid()))
     return msg.replace(prefix, 'TEST_DIR/PID-')
+
+def filter_qmp_testfiles(qmsg):
+    def _filter(key, value):
+        if key == 'filename' or key == 'backing-file':
+            return filter_testfiles(value)
+        return value
+    return filter_qmp(qmsg, _filter)
 
 def filter_generated_node_ids(msg):
     return re.sub("#block[0-9]+", "NODE_NAME", msg)
@@ -465,10 +484,9 @@ class VM(qtest.QEMUQtestMachine):
             ("execute", cmd),
             ("arguments", ordered_kwargs(kwargs))
         ))
-        logmsg = json.dumps(full_cmd)
-        log(logmsg, filters)
+        log(full_cmd, filters)
         result = self.qmp(cmd, **kwargs)
-        log(json.dumps(result, sort_keys=True), filters)
+        log(result, filters)
         return result
 
     def run_job(self, job, auto_finalize=True, auto_dismiss=False):
