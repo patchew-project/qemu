@@ -765,6 +765,34 @@ bool hbitmap_merge(const HBitmap *a, const HBitmap *b, HBitmap *result)
     return true;
 }
 
+/*
+ * Copy HBitmaps form src to dst.
+ *
+ * @return true if the copy was successful,
+ *         false if it was not attempted.
+ */
+bool hbitmap_copy(HBitmap *dst, const HBitmap *src)
+{
+    int i;
+
+    if ((dst->size != src->size) || (dst->granularity != src->granularity)) {
+        return false;
+    }
+
+    if (hbitmap_count(src) == 0) {
+        return true;
+    }
+
+    for (i = HBITMAP_LEVELS - 1; i >= 0; i--) {
+        memcpy(dst->levels[i], src->levels[i],
+               src->sizes[i] * sizeof(unsigned long));
+    }
+
+    dst->count = src->count;
+    return true;
+}
+
+
 HBitmap *hbitmap_create_meta(HBitmap *hb, int chunk_size)
 {
     assert(!(chunk_size & (chunk_size - 1)));
