@@ -204,6 +204,25 @@ GEN_INPUT_FLUSH3(float64_input_flush3, float64)
 #endif
 
 /*
+ * Choose whether to accelerate fused multiply-accumulate operations
+ * with hard float functions. Some versions of glibc's maths library
+ * have been reported to be broken on x86 without FMA instructions.
+ */
+#if defined(__x86_64__)
+/* this was actually reported as glibc-2.12-1.149.el6_6.5.x86_64 was
+ * broken but glibc 2.12-1.209 works but out of caution lets disable
+ * for all older glibcs.
+ */
+#if defined(__GLIBC__) && (__GLIBC__ == 2 && __GLIBC_MINOR__ <= 12)
+#define QEMU_HARDFLOAT_USE_FMA 0
+#else
+#define QEMU_HARDFLOAT_USE_FMA 1
+#endif
+#else
+#define QEMU_HARDFLOAT_USE_FMA 1
+#endif
+
+/*
  * QEMU_HARDFLOAT_USE_ISINF chooses whether to use isinf() over
  * float{32,64}_is_infinity when !USE_FP.
  * On x86_64/aarch64, using the former over the latter can yield a ~6% speedup.
@@ -1551,6 +1570,9 @@ float32_muladd(float32 xa, float32 xb, float32 xc, int flags, float_status *s)
     ub.s = xb;
     uc.s = xc;
 
+    if (!QEMU_HARDFLOAT_USE_FMA) {
+        goto soft;
+    }
     if (unlikely(!can_use_fpu(s))) {
         goto soft;
     }
@@ -1612,6 +1634,9 @@ float64_muladd(float64 xa, float64 xb, float64 xc, int flags, float_status *s)
     ub.s = xb;
     uc.s = xc;
 
+    if (!QEMU_HARDFLOAT_USE_FMA) {
+        goto soft;
+    }
     if (unlikely(!can_use_fpu(s))) {
         goto soft;
     }
