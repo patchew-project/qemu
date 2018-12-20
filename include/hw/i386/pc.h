@@ -296,6 +296,35 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
 
 #define PC_COMPAT_3_1 \
     HW_COMPAT_3_1 \
+    {\
+        .driver   = "Skylake-Client" "-" TYPE_X86_CPU,\
+        .property = "mpx",\
+        .value    = "on",\
+    },{\
+        .driver   = "Skylake-Client-IBRS" "-" TYPE_X86_CPU,\
+        .property = "mpx",\
+        .value    = "on",\
+    },{\
+        .driver   = "Skylake-Server" "-" TYPE_X86_CPU,\
+        .property = "mpx",\
+        .value    = "on",\
+    },{\
+        .driver   = "Skylake-Server-IBRS" "-" TYPE_X86_CPU,\
+        .property = "mpx",\
+        .value    = "on",\
+    },{\
+        .driver   = "Cascadelake-Server" "-" TYPE_X86_CPU,\
+        .property = "mpx",\
+        .value    = "on",\
+    },{\
+        .driver   = "Icelake-Client" "-" TYPE_X86_CPU,\
+        .property = "mpx",\
+        .value    = "on",\
+    },{\
+        .driver   = "Icelake-Server" "-" TYPE_X86_CPU,\
+        .property = "mpx",\
+        .value    = "on",\
+    },
 
 #define PC_COMPAT_3_0 \
     HW_COMPAT_3_0 \
