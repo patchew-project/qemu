@@ -11,12 +11,14 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#ifndef _WIN32
 typedef struct GUID {
     unsigned int Data1;
     unsigned short Data2;
     unsigned short Data3;
     unsigned char Data4[8];
 } GUID;
+#endif
 
 struct PDB_FILE {
     uint32_t size;
