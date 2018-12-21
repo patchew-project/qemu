@@ -27,10 +27,12 @@
 
 #ifdef FLOAT_MIXENG
 typedef float mixeng_real;
-struct mixeng_volume { int mute; mixeng_real r; mixeng_real l; };
+struct mixeng_volume { int mute; mixeng_real r; mixeng_real l;
+                       bool db_known; double r_db; double l_db; };
 struct st_sample { mixeng_real l; mixeng_real r; };
 #else
-struct mixeng_volume { int mute; int64_t r; int64_t l; };
+struct mixeng_volume { int mute; int64_t r; int64_t l;
+                       bool db_known; double r_db; double l_db;};
 struct st_sample { int64_t l; int64_t r; };
 #endif
 

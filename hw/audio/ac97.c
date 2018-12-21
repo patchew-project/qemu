@@ -470,7 +470,7 @@ static void update_combined_volume_out (AC97LinkState *s)
     lvol = (lvol * plvol) / 255;
     rvol = (rvol * prvol) / 255;
 
-    AUD_set_volume_out (s->voice_po, mute, lvol, rvol);
+    AUD_set_volume_out (s->voice_po, mute, lvol, rvol, false, 0, 0);
 }
 
 static void update_volume_in (AC97LinkState *s)
@@ -481,7 +481,7 @@ static void update_volume_in (AC97LinkState *s)
     get_volume (mixer_load (s, AC97_Record_Gain_Mute), 0x0f, 0,
                 &mute, &lvol, &rvol);
 
-    AUD_set_volume_in (s->voice_pi, mute, lvol, rvol);
+    AUD_set_volume_in (s->voice_pi, mute, lvol, rvol, false, 0, 0);
 }
 
 static void set_volume (AC97LinkState *s, int index, uint32_t val)
