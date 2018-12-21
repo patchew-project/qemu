@@ -437,6 +437,7 @@ static void hda_audio_set_amp(HDAAudioStream *st)
 {
     bool muted;
     uint32_t left, right;
+    double left_db, right_db;
 
     if (st->node == NULL) {
         return;
@@ -446,6 +447,9 @@ static void hda_audio_set_amp(HDAAudioStream *st)
     left  = st->mute_left  ? 0 : st->gain_left;
     right = st->mute_right ? 0 : st->gain_right;
 
+    left_db = ((int64_t)left - QEMU_HDA_AMP_STEPS) * QEMU_HDA_AMP_DB_OF_STEP;
+    right_db = ((int64_t)right - QEMU_HDA_AMP_STEPS) * QEMU_HDA_AMP_DB_OF_STEP;
+
     left = left * 255 / QEMU_HDA_AMP_STEPS;
     right = right * 255 / QEMU_HDA_AMP_STEPS;
 
@@ -454,10 +458,10 @@ static void hda_audio_set_amp(HDAAudioStream *st)
     }
     if (st->output) {
         AUD_set_volume_out(st->voice.out, muted, left, right,
-                           false, 0, 0);
+                           true, left_db, right_db);
     } else {
         AUD_set_volume_in(st->voice.in, muted, left, right,
-                          false, 0, 0);
+                          true, left_db, right_db);
     }
 }
 
