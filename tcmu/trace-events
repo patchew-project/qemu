@@ -1,0 +1,12 @@
+# tcmu/tcmu.c
+
+qemu_tcmu_aio_cb(void) "aio cb"
+qemu_tcmu_handle_cmd(uint8_t cdb) "handle cmd: 0x%x"
+qemu_tcmu_handle_cmd_read(uint64_t offset) "read at %ld"
+qemu_tcmu_handle_cmd_write(uint64_t offset) "write at %ld"
+qemu_tcmu_handle_cmd_unknown_cmd(uint8_t cdb) "unknown cmd: 0x%x"
+qemu_tcmu_master_read(void) "master read"
+qemu_tcmu_start(void) "start"
+qemu_tcmu_start_register(void) "register"
+qemu_tcmu_parse_cfgstr(void) "parse noisily"
+export_init_func(void) "parse common"

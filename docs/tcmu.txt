@@ -1,0 +1,91 @@
+Introduction
+-------------------------
+TCMU is the abbreviation of TCM in Userspace and TCM is another
+name for LIO, an ISCSI target in Linux kernel. TCM can serve
+file, block device, RAM, etc as storage backend for ISCSI target
+totally in kernel. But for userspace storage like Glusterfs and 
+Ceph, it's hard for TCM to handle as backend storage. TCMU is used
+in this situation by utilizing UIO ring buffer to passthrough
+userspace so a userspace program can process SCSI command by handling
+TCMU protocol. Qemu-tcmu is such userspace program which can export
+any format/protocol that QEMU supports as ISCSI target or loopback
+by linking to libtcmu in tcmu-runner(a userspace helper daemon to
+handle TCMU interfaces).
+
+Installation
+--------------------
+Qemu-tcmu depends on libtcmu/tcmu-runner to handle TCMU userspace
+interfaces and targetcli-fb and other utilities to manage ISCSI
+targets.
+
+1. install and config tcmu-runner
+
+   # git clone https://github.com/open-iscsi/tcmu-runner
+   # cd tcmu-runner
+   # cmake -DSUPPORT_SYSTEMD=ON -DCMAKE_INSTALL_PREFIX=/usr
+   # make install
+   # systemctl daemon-reload
+   # systemctl enable tcmu-runner
+   # systemctl start tcmu-runner
+
+2. install rtslib-fb
+
+   # git clone https://github.com/open-iscsi/rtslib-fb.git
+   # cd rtslib-fb
+   # python setup.py install
+
+3. install configshell-fb
+
+   # git clone https://github.com/open-iscsi/configshell-fb.git
+   # cd configshell-fb
+   # python setup.py install
+
+4. install targetcli-fb 
+
+   # git clone https://github.com/open-iscsi/targetcli-fb.git
+   # cd targetcli-fb
+   # python setup.py install
+
+5. install qemu-tcmu
+
+   # git clone https://github.com/qemu/qemu.git
+   # cd qemu
+   # ./configure --target-list=x86_64-softmmu \
+                 --enable-libiscsi \
+                 --enable-tcmu
+   # make -j 
+   # make -j install
+
+Now we can use qemu-tcmu to export images.
+
+1. create backend storage file
+
+   # qemu-img create test.file 1G
+
+2. load TCMU kernel module
+
+   # modprobe target_core_user
+
+3. start qemu-tcmu
+
+   # qemu-tcmu
+
+4. configure ISCSI target via targetcli
+
+   # IQN=iqn.2016-11.org.test:qemu-tcmu-test
+   # targetcli /backstores/user:qemu create qemulun 1G @id=test@file=/root/test.file
+   # targetcli /iscsi create $IQN
+   # targetcli /iscsi/$IQN/tpg1 set attribute \
+                             authentication=0 \
+                             generate_node_acls=1 \
+                             demo_mode_write_protect=0 \
+                             prod_mode_write_protect=0
+   # targetcli /iscsi/$IQN/tpg1/luns create /backstores/user:qemu/qemulun
+
+Then you can connect this exported target on another initiator host.
+
+Others
+------
+More infomation about TCMU and tcmu-runner please refer to
+Documentation/target/tcmu-design.txt in Linux kernel and
+https://github.com/open-iscsi/tcmu-runner.

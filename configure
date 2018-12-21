@@ -346,6 +346,7 @@ fdt=""
 netmap="no"
 sdl=""
 sdlabi=""
+tcmu=""
 virtfs=""
 mpath=""
 vnc="yes"
@@ -1033,6 +1034,10 @@ for opt do
     # autoconf-generated configure scripts. This allows QEMU's
     # configure to be used by RPM and similar macros that set
     # lots of directory switches by default.
+  ;;
+  --enable-tcmu) tcmu="yes"
+  ;;
+  --disable-tcmu) tcmu="no"
   ;;
   --disable-sdl) sdl="no"
   ;;
@@ -3607,6 +3612,36 @@ else
 fi
 
 ##########################################
+# tcmu support probe
+
+if test "$tcmu" != "no"; then
+  # Sanity check for gio-unix-2.0 (part of glib2), cannot fail unless something
+  # is very wrong.
+  if ! $pkg_config gio-unix-2.0; then
+    error_exit "glib is required to compile QEMU"
+  fi
+  cat > $TMPC <<EOF
+#include <stdio.h>
+#include <libtcmu.h>
+
+int main(int argc, char **argv)
+{
+  struct tcmulib_context *ctx = tcmulib_initialize(NULL, 0);
+  tcmulib_register(ctx);
+  return ctx != NULL;
+}
+EOF
+  if compile_prog "" "-ltcmu" ; then
+    tcmu=yes
+    tcmu_libs="-ltcmu"
+  elif test "$tcmu" == "yes"; then
+    feature_not_found "libtcmu" "Install libtcmu devel (>=1.0.5)"
+  else
+    tcmu=no
+  fi
+fi
+
+##########################################
 # libmpathpersist probe
 
 if test "$mpath" != "no" ; then
@@ -5756,6 +5791,9 @@ if test "$want_tools" = "yes" ; then
   if [ "$posix" = "yes" ] && [ "$curl" = "yes" ]; then
     tools="elf2dmp $tools"
   fi
+  if [ "$linux" = "yes" -a "$tcmu" = "yes" ] ; then
+    tools="qemu-tcmu\$(EXESUF) $tools"
+  fi
 fi
 if test "$softmmu" = yes ; then
   if test "$linux" = yes; then
@@ -6142,6 +6180,7 @@ echo "capstone          $capstone"
 echo "docker            $docker"
 echo "libpmem support   $libpmem"
 echo "libudev           $libudev"
+echo "tcmu support      $tcmu"
 
 if test "$sdl_too_old" = "yes"; then
 echo "-> Your SDL version is too old - please upgrade to have SDL support"
@@ -6780,6 +6819,12 @@ fi
 
 if test "$live_block_migration" = "yes" ; then
   echo "CONFIG_LIVE_BLOCK_MIGRATION=y" >> $config_host_mak
+fi
+
+if test "$tcmu" = "yes" ; then
+  echo "CONFIG_TCMU=m" >> $config_host_mak
+  echo "TCMU_CFLAGS=$tcmu_cflags" >> $config_host_mak
+  echo "TCMU_LIBS=$tcmu_libs" >> $config_host_mak
 fi
 
 if test "$tpm" = "yes"; then
