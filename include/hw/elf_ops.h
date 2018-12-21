@@ -266,6 +266,7 @@ fail:
 }
 
 static int glue(load_elf, SZ)(const char *name, int fd,
+                              uint64_t (*elf_note_fn)(void *, void *, bool),
                               uint64_t (*translate_fn)(void *, uint64_t),
                               void *translate_opaque,
                               int must_swab, uint64_t *pentry,
@@ -496,8 +497,30 @@ static int glue(load_elf, SZ)(const char *name, int fd,
                 high = addr + mem_size;
 
             data = NULL;
+
+        } else if (ph->p_type == PT_NOTE && elf_note_fn) {
+            struct elf_note *nhdr = NULL;
+
+            file_size = ph->p_filesz; /* Size of the range of ELF notes */
+            data = g_malloc0(file_size);
+            if (ph->p_filesz > 0) {
+                if (lseek(fd, ph->p_offset, SEEK_SET) < 0) {
+                    goto fail;
+                }
+                if (read(fd, data, file_size) != file_size) {
+                    goto fail;
+                }
+            }
+
+            if (nhdr != NULL) {
+                bool is64 =
+                    sizeof(struct elf_note) == sizeof(struct elf64_note);
+                elf_note_fn((void *)nhdr, (void *)&ph->p_align, is64);
+            }
+            g_free(data);
         }
     }
+
     g_free(phdr);
     if (lowaddr)
         *lowaddr = (uint64_t)(elf_sword)low;
