@@ -1012,6 +1012,7 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             .needs_ecx = true, .ecx = 0,
             .reg = R_EBX,
         },
+        .unmigratable_features = CPUID_7_0_EBX_INTEL_PT,
         .tcg_features = TCG_7_0_EBX_FEATURES,
     },
     [FEAT_7_0_ECX] = {
