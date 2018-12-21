@@ -724,8 +724,13 @@ static int qpa_ctl_out (HWVoiceOut *hw, int cmd, ...)
             va_end (ap);
 
             v.channels = 2;
-            v.values[0] = ((PA_VOLUME_NORM - PA_VOLUME_MUTED) * sw->vol.l) / UINT32_MAX;
-            v.values[1] = ((PA_VOLUME_NORM - PA_VOLUME_MUTED) * sw->vol.r) / UINT32_MAX;
+            if (sw->vol.db_known) {
+                v.values[0] = pa_sw_volume_from_dB(sw->vol.l_db);
+                v.values[1] = pa_sw_volume_from_dB(sw->vol.r_db);
+            } else {
+                v.values[0] = ((PA_VOLUME_NORM - PA_VOLUME_MUTED) * sw->vol.l) / UINT32_MAX;
+                v.values[1] = ((PA_VOLUME_NORM - PA_VOLUME_MUTED) * sw->vol.r) / UINT32_MAX;
+            }
 
             pa_threaded_mainloop_lock (g->mainloop);
 
