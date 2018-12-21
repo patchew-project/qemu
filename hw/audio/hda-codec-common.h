@@ -32,7 +32,7 @@
     (AC_AMPCAP_MUTE |                                                   \
      (QEMU_HDA_AMP_STEPS << AC_AMPCAP_OFFSET_SHIFT)    |                \
      (QEMU_HDA_AMP_STEPS << AC_AMPCAP_NUM_STEPS_SHIFT) |                \
-     (3                  << AC_AMPCAP_STEP_SIZE_SHIFT))
+     (QEMU_HDA_AMP_STEP_SIZE << AC_AMPCAP_STEP_SIZE_SHIFT))
 #else
 #define QEMU_HDA_ID_OUTPUT  ((QEMU_HDA_ID_VENDOR << 16) | 0x11)
 #define QEMU_HDA_ID_DUPLEX  ((QEMU_HDA_ID_VENDOR << 16) | 0x21)

@@ -146,6 +146,9 @@ const struct mixeng_volume nominal_volume = {
     .r = 1ULL << 32,
     .l = 1ULL << 32,
 #endif
+    .db_known = false,
+    .r_db = 0,
+    .l_db = 0
 };
 
 #ifdef AUDIO_IS_FLAWLESS_AND_NO_CHECKS_ARE_REQURIED
@@ -2089,7 +2092,8 @@ void AUD_del_capture (CaptureVoiceOut *cap, void *cb_opaque)
     }
 }
 
-void AUD_set_volume_out (SWVoiceOut *sw, int mute, uint8_t lvol, uint8_t rvol)
+void AUD_set_volume_out (SWVoiceOut *sw, int mute, uint8_t lvol, uint8_t rvol,
+                         bool db_known, double lvol_db, double rvol_db)
 {
     if (sw) {
         HWVoiceOut *hw = sw->hw;
@@ -2097,6 +2101,9 @@ void AUD_set_volume_out (SWVoiceOut *sw, int mute, uint8_t lvol, uint8_t rvol)
         sw->vol.mute = mute;
         sw->vol.l = nominal_volume.l * lvol / 255;
         sw->vol.r = nominal_volume.r * rvol / 255;
+        sw->vol.db_known = db_known;
+        sw->vol.l_db = lvol_db;
+        sw->vol.r_db = rvol_db;
 
         if (hw->pcm_ops->ctl_out) {
             hw->pcm_ops->ctl_out (hw, VOICE_VOLUME, sw);
@@ -2104,7 +2111,8 @@ void AUD_set_volume_out (SWVoiceOut *sw, int mute, uint8_t lvol, uint8_t rvol)
     }
 }
 
-void AUD_set_volume_in (SWVoiceIn *sw, int mute, uint8_t lvol, uint8_t rvol)
+void AUD_set_volume_in (SWVoiceIn *sw, int mute, uint8_t lvol, uint8_t rvol,
+                        bool db_known, double lvol_db, double rvol_db)
 {
     if (sw) {
         HWVoiceIn *hw = sw->hw;
@@ -2112,6 +2120,9 @@ void AUD_set_volume_in (SWVoiceIn *sw, int mute, uint8_t lvol, uint8_t rvol)
         sw->vol.mute = mute;
         sw->vol.l = nominal_volume.l * lvol / 255;
         sw->vol.r = nominal_volume.r * rvol / 255;
+        sw->vol.db_known = db_known;
+        sw->vol.l_db = lvol_db;
+        sw->vol.r_db = rvol_db;
 
         if (hw->pcm_ops->ctl_in) {
             hw->pcm_ops->ctl_in (hw, VOICE_VOLUME, sw);

@@ -144,30 +144,36 @@ static void wm8750_vol_update(WM8750State *s)
 
     AUD_set_volume_in(s->adc_voice[0], s->mute,
                     s->inmute[0] ? 0 : WM8750_INVOL_TRANSFORM(s->invol[0]),
-                    s->inmute[1] ? 0 : WM8750_INVOL_TRANSFORM(s->invol[1]));
+                    s->inmute[1] ? 0 : WM8750_INVOL_TRANSFORM(s->invol[1]),
+                    false, 0, 0);
     AUD_set_volume_in(s->adc_voice[1], s->mute,
                     s->inmute[0] ? 0 : WM8750_INVOL_TRANSFORM(s->invol[0]),
-                    s->inmute[1] ? 0 : WM8750_INVOL_TRANSFORM(s->invol[1]));
+                    s->inmute[1] ? 0 : WM8750_INVOL_TRANSFORM(s->invol[1]),
+                    false, 0, 0);
     AUD_set_volume_in(s->adc_voice[2], s->mute,
                     s->inmute[0] ? 0 : WM8750_INVOL_TRANSFORM(s->invol[0]),
-                    s->inmute[1] ? 0 : WM8750_INVOL_TRANSFORM(s->invol[1]));
+                    s->inmute[1] ? 0 : WM8750_INVOL_TRANSFORM(s->invol[1]),
+                    false, 0, 0);
 
     /* FIXME: multiply all volumes by s->outvol[0], s->outvol[1] */
 
     /* Speaker: LOUT2VOL ROUT2VOL */
     AUD_set_volume_out(s->dac_voice[0], s->mute,
                     s->outmute[0] ? 0 : WM8750_OUTVOL_TRANSFORM(s->outvol[4]),
-                    s->outmute[1] ? 0 : WM8750_OUTVOL_TRANSFORM(s->outvol[5]));
+                    s->outmute[1] ? 0 : WM8750_OUTVOL_TRANSFORM(s->outvol[5]),
+                    false, 0, 0);
 
     /* Headphone: LOUT1VOL ROUT1VOL */
     AUD_set_volume_out(s->dac_voice[1], s->mute,
                     s->outmute[0] ? 0 : WM8750_OUTVOL_TRANSFORM(s->outvol[2]),
-                    s->outmute[1] ? 0 : WM8750_OUTVOL_TRANSFORM(s->outvol[3]));
+                    s->outmute[1] ? 0 : WM8750_OUTVOL_TRANSFORM(s->outvol[3]),
+                    false, 0, 0);
 
     /* MONOOUT: MONOVOL MONOVOL */
     AUD_set_volume_out(s->dac_voice[2], s->mute,
                     s->outmute[0] ? 0 : WM8750_OUTVOL_TRANSFORM(s->outvol[6]),
-                    s->outmute[1] ? 0 : WM8750_OUTVOL_TRANSFORM(s->outvol[6]));
+                    s->outmute[1] ? 0 : WM8750_OUTVOL_TRANSFORM(s->outvol[6]),
+                    false, 0, 0);
 }
 
 static void wm8750_set_format(WM8750State *s)

@@ -119,6 +119,8 @@ static void hda_codec_parse_fmt(uint32_t format, struct audsettings *as)
                               0x1fc /* 16 -> 96 kHz */)
 #define QEMU_HDA_AMP_NONE    (0)
 #define QEMU_HDA_AMP_STEPS   0x4a
+#define QEMU_HDA_AMP_STEP_SIZE 3
+#define QEMU_HDA_AMP_DB_OF_STEP ((QEMU_HDA_AMP_STEP_SIZE + 1) * 0.25)
 
 #define   PARAM mixemu
 #define   HDA_MIXER
@@ -451,9 +453,11 @@ static void hda_audio_set_amp(HDAAudioStream *st)
         return;
     }
     if (st->output) {
-        AUD_set_volume_out(st->voice.out, muted, left, right);
+        AUD_set_volume_out(st->voice.out, muted, left, right,
+                           false, 0, 0);
     } else {
-        AUD_set_volume_in(st->voice.in, muted, left, right);
+        AUD_set_volume_in(st->voice.in, muted, left, right,
+                          false, 0, 0);
     }
 }
 

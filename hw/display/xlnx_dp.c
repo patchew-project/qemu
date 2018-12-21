@@ -1271,7 +1271,8 @@ static void xlnx_dp_realize(DeviceState *dev, Error **errp)
                                            s,
                                            xlnx_dp_audio_callback,
                                            &as);
-    AUD_set_volume_out(s->amixer_output_stream, 0, 255, 255);
+    AUD_set_volume_out(s->amixer_output_stream, 0, 255, 255,
+                       false, 0, 0);
     xlnx_dp_audio_activate(s);
 }
 

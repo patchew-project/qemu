@@ -500,7 +500,8 @@ static int usb_audio_set_control(USBAudioState *s, uint8_t attrib,
                     s->out.mute, s->out.vol[0], s->out.vol[1]);
         }
         AUD_set_volume_out(s->out.voice, s->out.mute,
-                           s->out.vol[0], s->out.vol[1]);
+                           s->out.vol[0], s->out.vol[1],
+                           false, 0, 0);
     }
 
     return ret;
@@ -653,7 +654,8 @@ static void usb_audio_realize(USBDevice *dev, Error **errp)
 
     s->out.voice = AUD_open_out(&s->card, s->out.voice, TYPE_USB_AUDIO,
                                 s, output_callback, &s->out.as);
-    AUD_set_volume_out(s->out.voice, s->out.mute, s->out.vol[0], s->out.vol[1]);
+    AUD_set_volume_out(s->out.voice, s->out.mute, s->out.vol[0], s->out.vol[1],
+                       false, 0, 0);
     AUD_set_active_out(s->out.voice, 0);
 }
 
