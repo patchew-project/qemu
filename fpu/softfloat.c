@@ -1542,6 +1542,8 @@ soft_f64_muladd(float64 a, float64 b, float64 c, int flags,
     return float64_round_pack_canonical(pr, status);
 }
 
+static bool force_soft_fma;
+
 float32 QEMU_FLATTEN
 float32_muladd(float32 xa, float32 xb, float32 xc, int flags, float_status *s)
 {
@@ -1562,6 +1564,11 @@ float32_muladd(float32 xa, float32 xb, float32 xc, int flags, float_status *s)
     if (unlikely(!f32_is_zon3(ua, ub, uc))) {
         goto soft;
     }
+
+    if (unlikely(force_soft_fma)) {
+        goto soft;
+    }
+
     /*
      * When (a || b) == 0, there's no need to check for under/over flow,
      * since we know the addend is (normal || 0) and the product is 0.
@@ -1623,6 +1630,11 @@ float64_muladd(float64 xa, float64 xb, float64 xc, int flags, float_status *s)
     if (unlikely(!f64_is_zon3(ua, ub, uc))) {
         goto soft;
     }
+
+    if (unlikely(force_soft_fma)) {
+        goto soft;
+    }
+
     /*
      * When (a || b) == 0, there's no need to check for under/over flow,
      * since we know the addend is (normal || 0) and the product is 0.
@@ -7973,4 +7985,77 @@ float128 float128_scalbn(float128 a, int n, float_status *status)
     return normalizeRoundAndPackFloat128( aSign, aExp, aSig0, aSig1
                                          , status);
 
+}
+
+#ifdef CONFIG_CPUID_H
+#include "qemu/cpuid.h"
+#endif
+
+static void check_host_hw_fma(void)
+{
+#ifdef CONFIG_CPUID_H
+    int max = __get_cpuid_max(0, NULL);
+    int a, b, c, d;
+    bool has_fma3 = false;
+    bool has_fma4 = false;
+    bool has_avx = false;
+
+    if (max >= 1) {
+        __cpuid(1, a, b, c, d);
+
+        /* check whether avx is usable */
+        if (c & bit_OSXSAVE) {
+            int bv;
+
+            __asm("xgetbv" : "=a"(bv), "=d"(d) : "c"(0));
+            if ((bv & 6) == 6) {
+                has_avx = c & bit_AVX;
+            }
+        }
+
+        if (has_avx) {
+            /* fma3 */
+            has_fma3 = c & bit_FMA3;
+
+            /* fma4 */
+            __cpuid(0x80000000, a, b, c, d);
+            if (a >= 0x80000001) {
+                __cpuid(0x80000001, a, b, c, d);
+
+                has_fma4 = c & bit_FMA4;
+            }
+        }
+    }
+    /*
+     * Without HW FMA, whatever the libc does is probably slower than our
+     * softfloat implementation.
+     */
+    if (!has_fma3 && !has_fma4) {
+        force_soft_fma = true;
+    }
+#endif
+}
+
+static void __attribute__((constructor)) softfloat_init(void)
+{
+    union_float64 ua, ub, uc, ur;
+
+    if (QEMU_NO_HARDFLOAT) {
+        return;
+    }
+
+    /*
+     * Test that the host's FMA is not obviously broken. For example,
+     * glibc < 2.23 can perform an incorrect FMA on certain hosts; see
+     *   https://sourceware.org/bugzilla/show_bug.cgi?id=13304
+     */
+    ua.s = 0x0020000000000001ULL;
+    ub.s = 0x3ca0000000000000ULL;
+    uc.s = 0x0020000000000000ULL;
+    ur.h = fma(ua.h, ub.h, uc.h);
+    if (ur.s != 0x0020000000000001ULL) {
+        force_soft_fma = true;
+    }
+
+    check_host_hw_fma();
 }

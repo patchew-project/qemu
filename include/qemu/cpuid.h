@@ -25,6 +25,9 @@
 #endif
 
 /* Leaf 1, %ecx */
+#ifndef bit_FMA3
+#define bit_FMA3        (1 << 12)
+#endif
 #ifndef bit_SSE4_1
 #define bit_SSE4_1      (1 << 19)
 #endif
@@ -52,6 +55,9 @@
 /* Leaf 0x80000001, %ecx */
 #ifndef bit_LZCNT
 #define bit_LZCNT       (1 << 5)
+#endif
+#ifndef bit_FMA4
+#define bit_FMA4        (1 << 16)
 #endif
 
 #endif /* QEMU_CPUID_H */
