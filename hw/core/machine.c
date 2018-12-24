@@ -37,6 +37,21 @@ static void machine_set_accel(Object *obj, const char *value, Error **errp)
     ms->accel = g_strdup(value);
 }
 
+static void machine_get_kernel_irqchip(Object *obj, Visitor *v,
+                                       const char *name, void *opaque,
+                                       Error **errp)
+{
+    MachineState *ms = MACHINE(obj);
+    OnOffSplit mode;
+
+    if (ms->kernel_irqchip_split) {
+        mode = ON_OFF_SPLIT_SPLIT;
+    } else {
+        mode = (ms->kernel_irqchip_allowed && ms->kernel_irqchip_required) ?
+                ON_OFF_SPLIT_ON : ON_OFF_SPLIT_OFF;
+    }
+    visit_type_OnOffSplit(v, name, &mode, errp);
+}
 static void machine_set_kernel_irqchip(Object *obj, Visitor *v,
                                        const char *name, void *opaque,
                                        Error **errp)
@@ -540,7 +555,7 @@ static void machine_class_init(ObjectClass *oc, void *data)
         "Accelerator list", &error_abort);
 
     object_class_property_add(oc, "kernel-irqchip", "on|off|split",
-        NULL, machine_set_kernel_irqchip,
+        machine_get_kernel_irqchip, machine_set_kernel_irqchip,
         NULL, NULL, &error_abort);
     object_class_property_set_description(oc, "kernel-irqchip",
         "Configure KVM in-kernel irqchip", &error_abort);
