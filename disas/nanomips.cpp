@@ -1812,13 +1812,14 @@ std::string NMD::ADDIU_32_(uint64 instruction)
 
 
 /*
+ * ADDIU[48] rt, imm - Add Immediate (Untrapped) (rs = rt)
  *
- *
- *   3         2         1
- *  10987654321098765432109876543210
- *  001000          0010000100111111
+ *         4         3         2         1
+ *  765432109876543210987654321098765432109876543210
+ *  011000     00001
  *     rt -----
- *          rs -----
+ *          s[15:0] ----------------
+ *                         s[31:16] ----------------
  */
 std::string NMD::ADDIU_48_(uint64 instruction)
 {
@@ -1833,13 +1834,14 @@ std::string NMD::ADDIU_48_(uint64 instruction)
 
 
 /*
+ * ADDIU[GP48] rt, imm - Add Immediate (Untrapped) (rs = 28)
  *
- *
- *   3         2         1
- *  10987654321098765432109876543210
- *  001000          0010000100111111
+ *         4         3         2         1
+ *  765432109876543210987654321098765432109876543210
+ *  011000     00010
  *     rt -----
- *          rs -----
+ *          s[15:0] ----------------
+ *                         s[31:16] ----------------
  */
 std::string NMD::ADDIU_GP48_(uint64 instruction)
 {
@@ -2005,14 +2007,14 @@ std::string NMD::ADDIUPC_32_(uint64 instruction)
 
 
 /*
+ * ADDIUPC[48] rt, imm - Add Immediate (Untrapped) to PC
  *
- *
- *   3         2         1
- *  10987654321098765432109876543210
- *  001000               x1110000101
+ *         4         3         2         1
+ *  765432109876543210987654321098765432109876543210
+ *  011000     00011
  *     rt -----
- *          rs -----
- *               rd -----
+ *          s[15:0] ----------------
+ *                         s[31:16] ----------------
  */
 std::string NMD::ADDIUPC_48_(uint64 instruction)
 {
@@ -8712,14 +8714,14 @@ std::string NMD::LI_16_(uint64 instruction)
 
 
 /*
+ * LI[48] rt, s - Load Immediate
  *
- *
- *   3         2         1
- *  10987654321098765432109876543210
- *  001000               x1110000101
+ *         4         3         2         1
+ *  765432109876543210987654321098765432109876543210
+ *  011000     00000
  *     rt -----
- *          rs -----
- *               rd -----
+ *          s[15:0] ----------------
+ *                         s[31:16] ----------------
  */
 std::string NMD::LI_48_(uint64 instruction)
 {
@@ -9280,14 +9282,14 @@ std::string NMD::LWM(uint64 instruction)
 
 
 /*
+ * LWPC[48] rt, address - Load Word PC relative
  *
- *
- *   3         2         1
- *  10987654321098765432109876543210
- *  001000               x1110000101
+ *         4         3         2         1
+ *  765432109876543210987654321098765432109876543210
+ *  011000     01011
  *     rt -----
- *          rs -----
- *               rd -----
+ *          s[15:0] ----------------
+ *                         s[31:16] ----------------
  */
 std::string NMD::LWPC_48_(uint64 instruction)
 {
@@ -15496,14 +15498,14 @@ std::string NMD::SWM(uint64 instruction)
 
 
 /*
- * ADDQH_R.W rd, rt, rs - Add Fractional Words And Shift Right to Halve Results
+ * SWPC[48] rt, address - Load Word PC relative
  *
- *   3         2         1
- *  10987654321098765432109876543210
- *  001000               00010001101
+ *         4         3         2         1
+ *  765432109876543210987654321098765432109876543210
+ *  011000     01111
  *     rt -----
- *          rs -----
- *               rd -----
+ *          s[15:0] ----------------
+ *                         s[31:16] ----------------
  */
 std::string NMD::SWPC_48_(uint64 instruction)
 {
