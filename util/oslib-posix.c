@@ -431,15 +431,17 @@ static inline int get_memset_num_threads(int smp_cpus)
 }
 
 static bool touch_all_pages(char *area, size_t hpagesize, size_t numpages,
-                            int smp_cpus)
+                            int smp_cpus, Error **errp)
 {
     size_t numpages_per_thread;
     size_t size_per_thread;
     char *addr = area;
     int i = 0;
+    int started_thread = 0;
 
     memset_thread_failed = false;
     memset_num_threads = get_memset_num_threads(smp_cpus);
+    started_thread = memset_num_threads;
     memset_thread = g_new0(MemsetThread, memset_num_threads);
     numpages_per_thread = (numpages / memset_num_threads);
     size_per_thread = (hpagesize * numpages_per_thread);
@@ -448,14 +450,18 @@ static bool touch_all_pages(char *area, size_t hpagesize, size_t numpages,
         memset_thread[i].numpages = (i == (memset_num_threads - 1)) ?
                                     numpages : numpages_per_thread;
         memset_thread[i].hpagesize = hpagesize;
-        /* TODO: let the callers handle the error instead of abort() here */
-        qemu_thread_create(&memset_thread[i].pgthread, "touch_pages",
-                           do_touch_pages, &memset_thread[i],
-                           QEMU_THREAD_JOINABLE, &error_abort);
+        if (!qemu_thread_create(&memset_thread[i].pgthread, "touch_pages",
+                                do_touch_pages, &memset_thread[i],
+                                QEMU_THREAD_JOINABLE, errp)) {
+            memset_thread_failed = true;
+            started_thread = i;
+            goto out;
+        }
         addr += size_per_thread;
         numpages -= numpages_per_thread;
     }
-    for (i = 0; i < memset_num_threads; i++) {
+out:
+    for (i = 0; i < started_thread; i++) {
         qemu_thread_join(&memset_thread[i].pgthread);
     }
     g_free(memset_thread);
@@ -471,6 +477,7 @@ void os_mem_prealloc(int fd, char *area, size_t memory, int smp_cpus,
     struct sigaction act, oldact;
     size_t hpagesize = qemu_fd_getpagesize(fd);
     size_t numpages = DIV_ROUND_UP(memory, hpagesize);
+    Error *local_err = NULL;
 
     memset(&act, 0, sizeof(act));
     act.sa_handler = &sigbus_handler;
@@ -484,9 +491,9 @@ void os_mem_prealloc(int fd, char *area, size_t memory, int smp_cpus,
     }
 
     /* touch pages simultaneously */
-    if (touch_all_pages(area, hpagesize, numpages, smp_cpus)) {
-        error_setg(errp, "os_mem_prealloc: Insufficient free host memory "
-            "pages available to allocate guest RAM");
+    if (touch_all_pages(area, hpagesize, numpages, smp_cpus, &local_err)) {
+        error_propagate_prepend(errp, local_err, "os_mem_prealloc: Insufficient"
+            " free host memory pages available to allocate guest RAM: ");
     }
 
     ret = sigaction(SIGBUS, &oldact, NULL);
