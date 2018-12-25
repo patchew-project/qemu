@@ -1931,7 +1931,7 @@ void cpu_remove_sync(CPUState *cpu)
 /* For temporary buffers for forming a name */
 #define VCPU_THREAD_NAME_SIZE 16
 
-static void qemu_tcg_init_vcpu(CPUState *cpu)
+static void qemu_tcg_init_vcpu(CPUState *cpu, Error **errp)
 {
     char thread_name[VCPU_THREAD_NAME_SIZE];
     static QemuCond *single_tcg_halt_cond;
@@ -1961,17 +1961,20 @@ static void qemu_tcg_init_vcpu(CPUState *cpu)
             snprintf(thread_name, VCPU_THREAD_NAME_SIZE, "CPU %d/TCG",
                  cpu->cpu_index);
 
-            /* TODO: let the callers handle the error instead of abort() here */
-            qemu_thread_create(cpu->thread, thread_name, qemu_tcg_cpu_thread_fn,
-                               cpu, QEMU_THREAD_JOINABLE, &error_abort);
+            if (!qemu_thread_create(cpu->thread, thread_name,
+                                    qemu_tcg_cpu_thread_fn, cpu,
+                                    QEMU_THREAD_JOINABLE, errp)) {
+                return;
+            }
 
         } else {
             /* share a single thread for all cpus with TCG */
             snprintf(thread_name, VCPU_THREAD_NAME_SIZE, "ALL CPUs/TCG");
-            /* TODO: let the callers handle the error instead of abort() here */
-            qemu_thread_create(cpu->thread, thread_name,
-                               qemu_tcg_rr_cpu_thread_fn,
-                               cpu, QEMU_THREAD_JOINABLE, &error_abort);
+            if (!qemu_thread_create(cpu->thread, thread_name,
+                                    qemu_tcg_rr_cpu_thread_fn, cpu,
+                                    QEMU_THREAD_JOINABLE, errp)) {
+                return;
+            }
 
             single_tcg_halt_cond = cpu->halt_cond;
             single_tcg_cpu_thread = cpu->thread;
@@ -1989,7 +1992,7 @@ static void qemu_tcg_init_vcpu(CPUState *cpu)
     }
 }
 
-static void qemu_hax_start_vcpu(CPUState *cpu)
+static void qemu_hax_start_vcpu(CPUState *cpu, Error **errp)
 {
     char thread_name[VCPU_THREAD_NAME_SIZE];
 
@@ -1999,15 +2002,16 @@ static void qemu_hax_start_vcpu(CPUState *cpu)
 
     snprintf(thread_name, VCPU_THREAD_NAME_SIZE, "CPU %d/HAX",
              cpu->cpu_index);
-    /* TODO: let the further caller handle the error instead of abort() here */
-    qemu_thread_create(cpu->thread, thread_name, qemu_hax_cpu_thread_fn,
-                       cpu, QEMU_THREAD_JOINABLE, &error_abort);
+    if (!qemu_thread_create(cpu->thread, thread_name, qemu_hax_cpu_thread_fn,
+                            cpu, QEMU_THREAD_JOINABLE, errp)) {
+        return;
+    }
 #ifdef _WIN32
     cpu->hThread = qemu_thread_get_handle(cpu->thread);
 #endif
 }
 
-static void qemu_kvm_start_vcpu(CPUState *cpu)
+static void qemu_kvm_start_vcpu(CPUState *cpu, Error **errp)
 {
     char thread_name[VCPU_THREAD_NAME_SIZE];
 
@@ -2016,12 +2020,13 @@ static void qemu_kvm_start_vcpu(CPUState *cpu)
     qemu_cond_init(cpu->halt_cond);
     snprintf(thread_name, VCPU_THREAD_NAME_SIZE, "CPU %d/KVM",
              cpu->cpu_index);
-    /* TODO: let the further caller handle the error instead of abort() here */
-    qemu_thread_create(cpu->thread, thread_name, qemu_kvm_cpu_thread_fn,
-                       cpu, QEMU_THREAD_JOINABLE, &error_abort);
+    if (!qemu_thread_create(cpu->thread, thread_name, qemu_kvm_cpu_thread_fn,
+                            cpu, QEMU_THREAD_JOINABLE, errp)) {
+        /* keep 'if' here in case there is further error handling logic */
+    }
 }
 
-static void qemu_hvf_start_vcpu(CPUState *cpu)
+static void qemu_hvf_start_vcpu(CPUState *cpu, Error **errp)
 {
     char thread_name[VCPU_THREAD_NAME_SIZE];
 
@@ -2035,12 +2040,13 @@ static void qemu_hvf_start_vcpu(CPUState *cpu)
 
     snprintf(thread_name, VCPU_THREAD_NAME_SIZE, "CPU %d/HVF",
              cpu->cpu_index);
-    /* TODO: let the further caller handle the error instead of abort() here */
-    qemu_thread_create(cpu->thread, thread_name, qemu_hvf_cpu_thread_fn,
-                       cpu, QEMU_THREAD_JOINABLE, &error_abort);
+    if (!qemu_thread_create(cpu->thread, thread_name, qemu_hvf_cpu_thread_fn,
+                            cpu, QEMU_THREAD_JOINABLE, errp)) {
+        /* keep 'if' here in case there is further error handling logic */
+    }
 }
 
-static void qemu_whpx_start_vcpu(CPUState *cpu)
+static void qemu_whpx_start_vcpu(CPUState *cpu, Error **errp)
 {
     char thread_name[VCPU_THREAD_NAME_SIZE];
 
@@ -2049,15 +2055,16 @@ static void qemu_whpx_start_vcpu(CPUState *cpu)
     qemu_cond_init(cpu->halt_cond);
     snprintf(thread_name, VCPU_THREAD_NAME_SIZE, "CPU %d/WHPX",
              cpu->cpu_index);
-    /* TODO: let the further caller handle the error instead of abort() here */
-    qemu_thread_create(cpu->thread, thread_name, qemu_whpx_cpu_thread_fn,
-                       cpu, QEMU_THREAD_JOINABLE, &error_abort);
+    if (!qemu_thread_create(cpu->thread, thread_name, qemu_whpx_cpu_thread_fn,
+                            cpu, QEMU_THREAD_JOINABLE, errp)) {
+        return;
+    }
 #ifdef _WIN32
     cpu->hThread = qemu_thread_get_handle(cpu->thread);
 #endif
 }
 
-static void qemu_dummy_start_vcpu(CPUState *cpu)
+static void qemu_dummy_start_vcpu(CPUState *cpu, Error **errp)
 {
     char thread_name[VCPU_THREAD_NAME_SIZE];
 
@@ -2066,16 +2073,18 @@ static void qemu_dummy_start_vcpu(CPUState *cpu)
     qemu_cond_init(cpu->halt_cond);
     snprintf(thread_name, VCPU_THREAD_NAME_SIZE, "CPU %d/DUMMY",
              cpu->cpu_index);
-    /* TODO: let the further caller handle the error instead of abort() here */
-    qemu_thread_create(cpu->thread, thread_name, qemu_dummy_cpu_thread_fn,
-                       cpu, QEMU_THREAD_JOINABLE, &error_abort);
+    if (!qemu_thread_create(cpu->thread, thread_name, qemu_dummy_cpu_thread_fn,
+                            cpu, QEMU_THREAD_JOINABLE, errp)) {
+        /* keep 'if' here in case there is further error handling logic */
+    }
 }
 
-void qemu_init_vcpu(CPUState *cpu)
+bool qemu_init_vcpu(CPUState *cpu, Error **errp)
 {
     cpu->nr_cores = smp_cores;
     cpu->nr_threads = smp_threads;
     cpu->stopped = true;
+    Error *local_err = NULL;
 
     if (!cpu->as) {
         /* If the target cpu hasn't set up any address spaces itself,
@@ -2086,22 +2095,29 @@ void qemu_init_vcpu(CPUState *cpu)
     }
 
     if (kvm_enabled()) {
-        qemu_kvm_start_vcpu(cpu);
+        qemu_kvm_start_vcpu(cpu, &local_err);
     } else if (hax_enabled()) {
-        qemu_hax_start_vcpu(cpu);
+        qemu_hax_start_vcpu(cpu, &local_err);
     } else if (hvf_enabled()) {
-        qemu_hvf_start_vcpu(cpu);
+        qemu_hvf_start_vcpu(cpu, &local_err);
     } else if (tcg_enabled()) {
-        qemu_tcg_init_vcpu(cpu);
+        qemu_tcg_init_vcpu(cpu, &local_err);
     } else if (whpx_enabled()) {
-        qemu_whpx_start_vcpu(cpu);
+        qemu_whpx_start_vcpu(cpu, &local_err);
     } else {
-        qemu_dummy_start_vcpu(cpu);
+        qemu_dummy_start_vcpu(cpu, &local_err);
+    }
+
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return false;
     }
 
     while (!cpu->created) {
         qemu_cond_wait(&qemu_cpu_cond, &qemu_global_mutex);
     }
+
+    return true;
 }
 
 void cpu_stop_current(void)
