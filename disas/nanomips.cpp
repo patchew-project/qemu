@@ -2483,13 +2483,12 @@ std::string NMD::ALUIPC(uint64 instruction)
 
 
 /*
- * AND[16] rt3, rs3 -
+ * AND[16] rt3, rs3 - Write logical OR of registers rs3 and rt3 to register rt3
  *
  *  5432109876543210
- *  101100
+ *  010100      1000
  *    rt3 ---
  *       rs3 ---
- *           eu ----
  */
 std::string NMD::AND_16_(uint64 instruction)
 {
@@ -2499,7 +2498,7 @@ std::string NMD::AND_16_(uint64 instruction)
     std::string rt3 = GPR(encode_gpr3(rt3_value));
     std::string rs3 = GPR(encode_gpr3(rs3_value));
 
-    return img::format("AND %s, %s", rs3, rt3);
+    return img::format("AND[16] %s, %s", rs3, rt3);
 }
 
 
@@ -2528,10 +2527,10 @@ std::string NMD::AND_32_(uint64 instruction)
 
 
 /*
- * ANDI rt, rs, u -
+ * ANDI rt, rs, u - Write logical AND of register rs3 and immediate eu to rt3
  *
  *  5432109876543210
- *  101100
+ *  111100
  *    rt3 ---
  *       rs3 ---
  *           eu ----
@@ -2546,7 +2545,7 @@ std::string NMD::ANDI_16_(uint64 instruction)
     std::string rs3 = GPR(encode_gpr3(rs3_value));
     std::string eu = IMMEDIATE(encode_eu_from_u_andi16(eu_value));
 
-    return img::format("ANDI %s, %s, %s", rt3, rs3, eu);
+    return img::format("ANDI[16] %s, %s, %s", rt3, rs3, eu);
 }
 
 
@@ -11426,14 +11425,12 @@ std::string NMD::NOR(uint64 instruction)
 
 
 /*
- * ADDQH_R.W rd, rt, rs - Add Fractional Words And Shift Right to Halve Results
+ * NOT[16] rt3, rs3 - Write logical inversion of register rs3 to register rt3
  *
- *   3         2         1
- *  10987654321098765432109876543210
- *  001000               00010001101
- *     rt -----
- *          rs -----
- *               rd -----
+ *  5432109876543210
+ *  010100      0000
+ *    rt3 ---
+ *       rs3 ---
  */
 std::string NMD::NOT_16_(uint64 instruction)
 {
@@ -11443,19 +11440,17 @@ std::string NMD::NOT_16_(uint64 instruction)
     std::string rt3 = GPR(encode_gpr3(rt3_value));
     std::string rs3 = GPR(encode_gpr3(rs3_value));
 
-    return img::format("NOT %s, %s", rt3, rs3);
+    return img::format("NOT[16] %s, %s", rt3, rs3);
 }
 
 
 /*
- * ADDQH_R.W rd, rt, rs - Add Fractional Words And Shift Right to Halve Results
+ * OR[16] rs3, rt3 - Write logical OR of registers rs3 and rt3 to register rt3
  *
- *   3         2         1
- *  10987654321098765432109876543210
- *  001000               00010001101
- *     rt -----
- *          rs -----
- *               rd -----
+ *  5432109876543210
+ *  010100      1100
+ *    rt3 ---
+ *       rs3 ---
  */
 std::string NMD::OR_16_(uint64 instruction)
 {
@@ -11465,7 +11460,7 @@ std::string NMD::OR_16_(uint64 instruction)
     std::string rs3 = GPR(encode_gpr3(rs3_value));
     std::string rt3 = GPR(encode_gpr3(rt3_value));
 
-    return img::format("OR %s, %s", rs3, rt3);
+    return img::format("OR[16] %s, %s", rs3, rt3);
 }
 
 
@@ -16251,14 +16246,12 @@ std::string NMD::WRPGPR(uint64 instruction)
 
 
 /*
- * ADDQH_R.W rd, rt, rs - Add Fractional Words And Shift Right to Halve Results
+ * XOR[16] rs3, rt3 - Write logical XOR of registers rs3 and rt3 to register rt3
  *
- *   3         2         1
- *  10987654321098765432109876543210
- *  001000               00010001101
- *     rt -----
- *          rs -----
- *               rd -----
+ *  5432109876543210
+ *  010100      0100
+ *    rt3 ---
+ *       rs3 ---
  */
 std::string NMD::XOR_16_(uint64 instruction)
 {
@@ -16268,7 +16261,7 @@ std::string NMD::XOR_16_(uint64 instruction)
     std::string rs3 = GPR(encode_gpr3(rs3_value));
     std::string rt3 = GPR(encode_gpr3(rt3_value));
 
-    return img::format("XOR %s, %s", rs3, rt3);
+    return img::format("XOR[16] %s, %s", rs3, rt3);
 }
 
 
