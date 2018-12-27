@@ -304,6 +304,22 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
         .driver   = "Cascadelake-Server" "-" TYPE_X86_CPU,\
         .property = "stepping",\
         .value    = "5",\
+    },{\
+        .driver   = "Cascadelake-Server" "-" TYPE_X86_CPU,\
+        .property = "arch-capabilities",\
+        .value    = "off",\
+    },{\
+        .driver   = "Cascadelake-Server" "-" TYPE_X86_CPU,\
+        .property = "rdctl-no",\
+        .value    = "off",\
+    },{\
+        .driver   = "Cascadelake-Server" "-" TYPE_X86_CPU,\
+        .property = "ibrs-all",\
+        .value    = "off",\
+    },{\
+        .driver   = "Cascadelake-Server" "-" TYPE_X86_CPU,\
+        .property = "skip-l1dfl-vmentry",\
+        .value    = "off",\
     },
 
 #define PC_COMPAT_3_0 \
