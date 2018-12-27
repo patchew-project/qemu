@@ -76,6 +76,7 @@ static void eeprom_write_data(SMBusDevice *dev, uint8_t cmd, uint8_t *buf, int l
        It is a block write without a length byte.  Fortunately we
        get the full block anyway.  */
     /* TODO: Should this set the current location?  */
+    len &= 0xff;
     if (cmd + len > 256)
         n = 256 - cmd;
     else
