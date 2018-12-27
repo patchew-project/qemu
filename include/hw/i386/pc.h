@@ -300,6 +300,10 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
         .driver   = "intel-iommu",\
         .property = "dma-drain",\
         .value    = "off",\
+    },{\
+        .driver   = "Cascadelake-Server" "-" TYPE_X86_CPU,\
+        .property = "stepping",\
+        .value    = "5",\
     },
 
 #define PC_COMPAT_3_0 \
