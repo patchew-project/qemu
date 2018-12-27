@@ -295,7 +295,7 @@ uint64 NMD::renumber_registers(uint64 index, uint64 *register_list,
  * decode sections so they are based on the encode, the equivalent decode
  * functions need writing eventually.
  */
-uint64 NMD::encode_gpr3(uint64 d)
+uint64 NMD::decode_gpr_gpr3(uint64 d)
 {
     static uint64 register_list[] = { 16, 17, 18, 19,  4,  5,  6,  7 };
     return renumber_registers(d, register_list,
@@ -380,14 +380,14 @@ int64 NMD::neg_copy(int64 d)
 /* strange wrapper around  gpr3 */
 uint64 NMD::encode_rs3_and_check_rs3_ge_rt3(uint64 d)
 {
-return encode_gpr3(d);
+return decode_gpr_gpr3(d);
 }
 
 
 /* strange wrapper around  gpr3 */
 uint64 NMD::encode_rs3_and_check_rs3_lt_rt3(uint64 d)
 {
-    return encode_gpr3(d);
+    return decode_gpr_gpr3(d);
 }
 
 
@@ -1932,7 +1932,7 @@ std::string NMD::ADDIU_R1_SP_(uint64 instruction)
     uint64 u_value = extract_u_5_4_3_2_1_0__s2(instruction);
     uint64 rt3_value = extract_rt3_9_8_7(instruction);
 
-    std::string rt3 = GPR(encode_gpr3(rt3_value));
+    std::string rt3 = GPR(decode_gpr_gpr3(rt3_value));
     std::string u = IMMEDIATE(copy(u_value));
 
     return img::format("ADDIU %s, $%d, %s", rt3, 29, u);
@@ -1954,8 +1954,8 @@ std::string NMD::ADDIU_R2_(uint64 instruction)
     uint64 rs3_value = extract_rs3_6_5_4(instruction);
     uint64 u_value = extract_u_2_1_0__s2(instruction);
 
-    std::string rt3 = GPR(encode_gpr3(rt3_value));
-    std::string rs3 = GPR(encode_gpr3(rs3_value));
+    std::string rt3 = GPR(decode_gpr_gpr3(rt3_value));
+    std::string rs3 = GPR(decode_gpr_gpr3(rs3_value));
     std::string u = IMMEDIATE(copy(u_value));
 
     return img::format("ADDIU %s, %s, %s", rt3, rs3, u);
@@ -2235,9 +2235,9 @@ std::string NMD::ADDU_16_(uint64 instruction)
     uint64 rs3_value = extract_rs3_6_5_4(instruction);
     uint64 rd3_value = extract_rd3_3_2_1(instruction);
 
-    std::string rt3 = GPR(encode_gpr3(rt3_value));
-    std::string rs3 = GPR(encode_gpr3(rs3_value));
-    std::string rd3 = GPR(encode_gpr3(rd3_value));
+    std::string rt3 = GPR(decode_gpr_gpr3(rt3_value));
+    std::string rs3 = GPR(decode_gpr_gpr3(rs3_value));
+    std::string rd3 = GPR(decode_gpr_gpr3(rd3_value));
 
     return img::format("ADDU %s, %s, %s", rd3, rs3, rt3);
 }
@@ -2494,8 +2494,8 @@ std::string NMD::AND_16_(uint64 instruction)
     uint64 rt3_value = extract_rt3_9_8_7(instruction);
     uint64 rs3_value = extract_rs3_6_5_4(instruction);
 
-    std::string rt3 = GPR(encode_gpr3(rt3_value));
-    std::string rs3 = GPR(encode_gpr3(rs3_value));
+    std::string rt3 = GPR(decode_gpr_gpr3(rt3_value));
+    std::string rs3 = GPR(decode_gpr_gpr3(rs3_value));
 
     return img::format("AND %s, %s", rs3, rt3);
 }
@@ -2540,8 +2540,8 @@ std::string NMD::ANDI_16_(uint64 instruction)
     uint64 rs3_value = extract_rs3_6_5_4(instruction);
     uint64 eu_value = extract_eu_3_2_1_0(instruction);
 
-    std::string rt3 = GPR(encode_gpr3(rt3_value));
-    std::string rs3 = GPR(encode_gpr3(rs3_value));
+    std::string rt3 = GPR(decode_gpr_gpr3(rt3_value));
+    std::string rs3 = GPR(decode_gpr_gpr3(rs3_value));
     std::string eu = IMMEDIATE(encode_eu_from_u_andi16(eu_value));
 
     return img::format("ANDI %s, %s, %s", rt3, rs3, eu);
@@ -2875,7 +2875,7 @@ std::string NMD::BEQC_16_(uint64 instruction)
     uint64 u_value = extract_u_3_2_1_0__s1(instruction);
 
     std::string rs3 = GPR(encode_rs3_and_check_rs3_lt_rt3(rs3_value));
-    std::string rt3 = GPR(encode_gpr3(rt3_value));
+    std::string rt3 = GPR(decode_gpr_gpr3(rt3_value));
     std::string u = ADDRESS(encode_u_from_address(u_value), 2);
 
     return img::format("BEQC %s, %s, %s", rs3, rt3, u);
@@ -2945,7 +2945,7 @@ std::string NMD::BEQZC_16_(uint64 instruction)
     uint64 rt3_value = extract_rt3_9_8_7(instruction);
     int64 s_value = extract_s__se7_0_6_5_4_3_2_1_s1(instruction);
 
-    std::string rt3 = GPR(encode_gpr3(rt3_value));
+    std::string rt3 = GPR(decode_gpr_gpr3(rt3_value));
     std::string s = ADDRESS(encode_s_from_address(s_value), 2);
 
     return img::format("BEQZC %s, %s", rt3, s);
@@ -3161,7 +3161,7 @@ std::string NMD::BNEC_16_(uint64 instruction)
     uint64 u_value = extract_u_3_2_1_0__s1(instruction);
 
     std::string rs3 = GPR(encode_rs3_and_check_rs3_ge_rt3(rs3_value));
-    std::string rt3 = GPR(encode_gpr3(rt3_value));
+    std::string rt3 = GPR(decode_gpr_gpr3(rt3_value));
     std::string u = ADDRESS(encode_u_from_address(u_value), 2);
 
     return img::format("BNEC %s, %s, %s", rs3, rt3, u);
@@ -3231,7 +3231,7 @@ std::string NMD::BNEZC_16_(uint64 instruction)
     uint64 rt3_value = extract_rt3_9_8_7(instruction);
     int64 s_value = extract_s__se7_0_6_5_4_3_2_1_s1(instruction);
 
-    std::string rt3 = GPR(encode_gpr3(rt3_value));
+    std::string rt3 = GPR(decode_gpr_gpr3(rt3_value));
     std::string s = ADDRESS(encode_s_from_address(s_value), 2);
 
     return img::format("BNEZC %s, %s", rt3, s);
@@ -7781,9 +7781,9 @@ std::string NMD::LB_16_(uint64 instruction)
     uint64 rs3_value = extract_rs3_6_5_4(instruction);
     uint64 u_value = extract_u_1_0(instruction);
 
-    std::string rt3 = GPR(encode_gpr3(rt3_value));
+    std::string rt3 = GPR(decode_gpr_gpr3(rt3_value));
     std::string u = IMMEDIATE(copy(u_value));
-    std::string rs3 = GPR(encode_gpr3(rs3_value));
+    std::string rs3 = GPR(decode_gpr_gpr3(rs3_value));
 
     return img::format("LB %s, %s(%s)", rt3, u, rs3);
 }
@@ -7899,9 +7899,9 @@ std::string NMD::LBU_16_(uint64 instruction)
     uint64 rs3_value = extract_rs3_6_5_4(instruction);
     uint64 u_value = extract_u_1_0(instruction);
 
-    std::string rt3 = GPR(encode_gpr3(rt3_value));
+    std::string rt3 = GPR(decode_gpr_gpr3(rt3_value));
     std::string u = IMMEDIATE(copy(u_value));
-    std::string rs3 = GPR(encode_gpr3(rs3_value));
+    std::string rs3 = GPR(decode_gpr_gpr3(rs3_value));
 
     return img::format("LBU %s, %s(%s)", rt3, u, rs3);
 }
@@ -8373,9 +8373,9 @@ std::string NMD::LH_16_(uint64 instruction)
     uint64 rs3_value = extract_rs3_6_5_4(instruction);
     uint64 u_value = extract_u_2_1__s1(instruction);
 
-    std::string rt3 = GPR(encode_gpr3(rt3_value));
+    std::string rt3 = GPR(decode_gpr_gpr3(rt3_value));
     std::string u = IMMEDIATE(copy(u_value));
-    std::string rs3 = GPR(encode_gpr3(rs3_value));
+    std::string rs3 = GPR(decode_gpr_gpr3(rs3_value));
 
     return img::format("LH %s, %s(%s)", rt3, u, rs3);
 }
@@ -8491,9 +8491,9 @@ std::string NMD::LHU_16_(uint64 instruction)
     uint64 rs3_value = extract_rs3_6_5_4(instruction);
     uint64 u_value = extract_u_2_1__s1(instruction);
 
-    std::string rt3 = GPR(encode_gpr3(rt3_value));
+    std::string rt3 = GPR(decode_gpr_gpr3(rt3_value));
     std::string u = IMMEDIATE(copy(u_value));
-    std::string rs3 = GPR(encode_gpr3(rs3_value));
+    std::string rs3 = GPR(decode_gpr_gpr3(rs3_value));
 
     return img::format("LHU %s, %s(%s)", rt3, u, rs3);
 }
@@ -8704,7 +8704,7 @@ std::string NMD::LI_16_(uint64 instruction)
     uint64 rt3_value = extract_rt3_9_8_7(instruction);
     uint64 eu_value = extract_eu_6_5_4_3_2_1_0(instruction);
 
-    std::string rt3 = GPR(encode_gpr3(rt3_value));
+    std::string rt3 = GPR(decode_gpr_gpr3(rt3_value));
     std::string eu = IMMEDIATE(encode_eu_from_s_li16(eu_value));
 
     return img::format("LI %s, %s", rt3, eu);
@@ -8941,9 +8941,9 @@ std::string NMD::LW_16_(uint64 instruction)
     uint64 rs3_value = extract_rs3_6_5_4(instruction);
     uint64 u_value = extract_u_3_2_1_0__s2(instruction);
 
-    std::string rt3 = GPR(encode_gpr3(rt3_value));
+    std::string rt3 = GPR(decode_gpr_gpr3(rt3_value));
     std::string u = IMMEDIATE(copy(u_value));
-    std::string rs3 = GPR(encode_gpr3(rs3_value));
+    std::string rs3 = GPR(decode_gpr_gpr3(rs3_value));
 
     return img::format("LW %s, %s(%s)", rt3, u, rs3);
 }
@@ -9010,7 +9010,7 @@ std::string NMD::LW_GP16_(uint64 instruction)
     uint64 rt3_value = extract_rt3_9_8_7(instruction);
     uint64 u_value = extract_u_6_5_4_3_2_1_0__s2(instruction);
 
-    std::string rt3 = GPR(encode_gpr3(rt3_value));
+    std::string rt3 = GPR(decode_gpr_gpr3(rt3_value));
     std::string u = IMMEDIATE(copy(u_value));
 
     return img::format("LW %s, %s($%d)", rt3, u, 28);
@@ -9459,9 +9459,9 @@ std::string NMD::LWXS_16_(uint64 instruction)
     uint64 rs3_value = extract_rs3_6_5_4(instruction);
     uint64 rd3_value = extract_rd3_3_2_1(instruction);
 
-    std::string rd3 = GPR(encode_gpr3(rd3_value));
-    std::string rs3 = GPR(encode_gpr3(rs3_value));
-    std::string rt3 = IMMEDIATE(encode_gpr3(rt3_value));
+    std::string rd3 = GPR(decode_gpr_gpr3(rd3_value));
+    std::string rs3 = GPR(decode_gpr_gpr3(rs3_value));
+    std::string rt3 = IMMEDIATE(decode_gpr_gpr3(rt3_value));
 
     return img::format("LWXS %s, %s(%s)", rd3, rs3, rt3);
 }
@@ -11438,8 +11438,8 @@ std::string NMD::NOT_16_(uint64 instruction)
     uint64 rt3_value = extract_rt3_9_8_7(instruction);
     uint64 rs3_value = extract_rs3_6_5_4(instruction);
 
-    std::string rt3 = GPR(encode_gpr3(rt3_value));
-    std::string rs3 = GPR(encode_gpr3(rs3_value));
+    std::string rt3 = GPR(decode_gpr_gpr3(rt3_value));
+    std::string rs3 = GPR(decode_gpr_gpr3(rs3_value));
 
     return img::format("NOT %s, %s", rt3, rs3);
 }
@@ -11460,8 +11460,8 @@ std::string NMD::OR_16_(uint64 instruction)
     uint64 rt3_value = extract_rt3_9_8_7(instruction);
     uint64 rs3_value = extract_rs3_6_5_4(instruction);
 
-    std::string rs3 = GPR(encode_gpr3(rs3_value));
-    std::string rt3 = GPR(encode_gpr3(rt3_value));
+    std::string rs3 = GPR(decode_gpr_gpr3(rs3_value));
+    std::string rt3 = GPR(decode_gpr_gpr3(rt3_value));
 
     return img::format("OR %s, %s", rs3, rt3);
 }
@@ -12739,7 +12739,7 @@ std::string NMD::SB_16_(uint64 instruction)
 
     std::string rtz3 = GPR(encode_gpr3_store(rtz3_value));
     std::string u = IMMEDIATE(copy(u_value));
-    std::string rs3 = GPR(encode_gpr3(rs3_value));
+    std::string rs3 = GPR(decode_gpr_gpr3(rs3_value));
 
     return img::format("SB %s, %s(%s)", rtz3, u, rs3);
 }
@@ -13585,7 +13585,7 @@ std::string NMD::SH_16_(uint64 instruction)
 
     std::string rtz3 = GPR(encode_gpr3_store(rtz3_value));
     std::string u = IMMEDIATE(copy(u_value));
-    std::string rs3 = GPR(encode_gpr3(rs3_value));
+    std::string rs3 = GPR(decode_gpr_gpr3(rs3_value));
 
     return img::format("SH %s, %s(%s)", rtz3, u, rs3);
 }
@@ -14341,8 +14341,8 @@ std::string NMD::SLL_16_(uint64 instruction)
     uint64 rs3_value = extract_rs3_6_5_4(instruction);
     uint64 shift3_value = extract_shift3_2_1_0(instruction);
 
-    std::string rt3 = GPR(encode_gpr3(rt3_value));
-    std::string rs3 = GPR(encode_gpr3(rs3_value));
+    std::string rt3 = GPR(decode_gpr_gpr3(rt3_value));
+    std::string rs3 = GPR(decode_gpr_gpr3(rs3_value));
     std::string shift3 = IMMEDIATE(encode_shift3_from_shift(shift3_value));
 
     return img::format("SLL %s, %s, %s", rt3, rs3, shift3);
@@ -14645,8 +14645,8 @@ std::string NMD::SRL_16_(uint64 instruction)
     uint64 rs3_value = extract_rs3_6_5_4(instruction);
     uint64 shift3_value = extract_shift3_2_1_0(instruction);
 
-    std::string rt3 = GPR(encode_gpr3(rt3_value));
-    std::string rs3 = GPR(encode_gpr3(rs3_value));
+    std::string rt3 = GPR(decode_gpr_gpr3(rt3_value));
+    std::string rs3 = GPR(decode_gpr_gpr3(rs3_value));
     std::string shift3 = IMMEDIATE(encode_shift3_from_shift(shift3_value));
 
     return img::format("SRL %s, %s, %s", rt3, rs3, shift3);
@@ -14963,9 +14963,9 @@ std::string NMD::SUBU_16_(uint64 instruction)
     uint64 rs3_value = extract_rs3_6_5_4(instruction);
     uint64 rd3_value = extract_rd3_3_2_1(instruction);
 
-    std::string rd3 = GPR(encode_gpr3(rd3_value));
-    std::string rs3 = GPR(encode_gpr3(rs3_value));
-    std::string rt3 = GPR(encode_gpr3(rt3_value));
+    std::string rd3 = GPR(decode_gpr_gpr3(rd3_value));
+    std::string rs3 = GPR(decode_gpr_gpr3(rs3_value));
+    std::string rt3 = GPR(decode_gpr_gpr3(rt3_value));
 
     return img::format("SUBU %s, %s, %s", rd3, rs3, rt3);
 }
@@ -15159,7 +15159,7 @@ std::string NMD::SW_16_(uint64 instruction)
 
     std::string rtz3 = GPR(encode_gpr3_store(rtz3_value));
     std::string u = IMMEDIATE(copy(u_value));
-    std::string rs3 = GPR(encode_gpr3(rs3_value));
+    std::string rs3 = GPR(decode_gpr_gpr3(rs3_value));
 
     return img::format("SW %s, %s(%s)", rtz3, u, rs3);
 }
@@ -16263,8 +16263,8 @@ std::string NMD::XOR_16_(uint64 instruction)
     uint64 rt3_value = extract_rt3_9_8_7(instruction);
     uint64 rs3_value = extract_rs3_6_5_4(instruction);
 
-    std::string rs3 = GPR(encode_gpr3(rs3_value));
-    std::string rt3 = GPR(encode_gpr3(rt3_value));
+    std::string rs3 = GPR(decode_gpr_gpr3(rs3_value));
+    std::string rt3 = GPR(decode_gpr_gpr3(rt3_value));
 
     return img::format("XOR %s, %s", rs3, rt3);
 }
