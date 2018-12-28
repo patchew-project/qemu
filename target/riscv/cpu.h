@@ -290,8 +290,11 @@ static inline void cpu_get_tb_cpu_state(CPURISCVState *env, target_ulong *pc,
 }
 
 void csr_write_helper(CPURISCVState *env, target_ulong val_to_write,
-        target_ulong csrno);
-target_ulong csr_read_helper(CPURISCVState *env, target_ulong csrno);
+                      target_ulong csrno, bool debugger);
+target_ulong csr_read_helper(CPURISCVState *env, target_ulong csrno,
+                             bool debugger);
+
+void riscv_cpu_register_gdb_regs_for_features(CPUState *cs);
 
 #include "exec/cpu-all.h"
 

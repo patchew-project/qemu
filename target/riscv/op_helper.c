@@ -87,7 +87,7 @@ static void validate_mstatus_fs(CPURISCVState *env, uintptr_t ra)
  * Adapted from Spike's processor_t::set_csr
  */
 void csr_write_helper(CPURISCVState *env, target_ulong val_to_write,
-        target_ulong csrno)
+                      target_ulong csrno, bool debugger)
 {
 #ifndef CONFIG_USER_ONLY
     uint64_t delegable_ints = MIP_SSIP | MIP_STIP | MIP_SEIP;
@@ -96,15 +96,21 @@ void csr_write_helper(CPURISCVState *env, target_ulong val_to_write,
 
     switch (csrno) {
     case CSR_FFLAGS:
-        validate_mstatus_fs(env, GETPC());
+        if (!debugger) {
+            validate_mstatus_fs(env, GETPC());
+        }
         cpu_riscv_set_fflags(env, val_to_write & (FSR_AEXC >> FSR_AEXC_SHIFT));
         break;
     case CSR_FRM:
-        validate_mstatus_fs(env, GETPC());
+        if (!debugger) {
+            validate_mstatus_fs(env, GETPC());
+        }
         env->frm = val_to_write & (FSR_RD >> FSR_RD_SHIFT);
         break;
     case CSR_FCSR:
-        validate_mstatus_fs(env, GETPC());
+        if (!debugger) {
+            validate_mstatus_fs(env, GETPC());
+        }
         env->frm = (val_to_write & FSR_RD) >> FSR_RD_SHIFT;
         cpu_riscv_set_fflags(env, (val_to_write & FSR_AEXC) >> FSR_AEXC_SHIFT);
         break;
@@ -169,7 +175,9 @@ void csr_write_helper(CPURISCVState *env, target_ulong val_to_write,
          * CLINT, no additional locking is needed for read-modifiy-write
          * CSR operations
          */
-        qemu_mutex_lock_iothread();
+        if (!debugger) {
+            qemu_mutex_lock_iothread();
+        }
         RISCVCPU *cpu = riscv_env_get_cpu(env);
         riscv_cpu_update_mip(cpu, MIP_SSIP | MIP_STIP,
                                   (val_to_write & (MIP_SSIP | MIP_STIP)));
@@ -177,7 +185,9 @@ void csr_write_helper(CPURISCVState *env, target_ulong val_to_write,
          * csrs, csrc on mip.SEIP is not decomposable into separate read and
          * write steps, so a different implementation is needed
          */
-        qemu_mutex_unlock_iothread();
+        if (!debugger) {
+            qemu_mutex_unlock_iothread();
+        }
         break;
     }
     case CSR_MIE: {
@@ -247,21 +257,25 @@ void csr_write_helper(CPURISCVState *env, target_ulong val_to_write,
             mask |= SSTATUS_MXR;
         }
         ms = (ms & ~mask) | (val_to_write & mask);
-        csr_write_helper(env, ms, CSR_MSTATUS);
+        csr_write_helper(env, ms, CSR_MSTATUS, debugger);
         break;
     }
     case CSR_SIP: {
-        qemu_mutex_lock_iothread();
+        if (!debugger) {
+            qemu_mutex_lock_iothread();
+        }
         target_ulong next_mip = (env->mip & ~env->mideleg)
                                 | (val_to_write & env->mideleg);
-        qemu_mutex_unlock_iothread();
-        csr_write_helper(env, next_mip, CSR_MIP);
+        if (!debugger) {
+            qemu_mutex_unlock_iothread();
+        }
+        csr_write_helper(env, next_mip, CSR_MIP, debugger);
         break;
     }
     case CSR_SIE: {
         target_ulong next_mie = (env->mie & ~env->mideleg)
                                 | (val_to_write & env->mideleg);
-        csr_write_helper(env, next_mie, CSR_MIE);
+        csr_write_helper(env, next_mie, CSR_MIE, debugger);
         break;
     }
     case CSR_SATP: /* CSR_SPTBR */ {
@@ -371,7 +385,9 @@ void csr_write_helper(CPURISCVState *env, target_ulong val_to_write,
     do_illegal:
 #endif
     default:
-        do_raise_exception_err(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
+        if (!debugger) {
+            do_raise_exception_err(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
+        }
     }
 }
 
@@ -380,7 +396,8 @@ void csr_write_helper(CPURISCVState *env, target_ulong val_to_write,
  *
  * Adapted from Spike's processor_t::get_csr
  */
-target_ulong csr_read_helper(CPURISCVState *env, target_ulong csrno)
+target_ulong csr_read_helper(CPURISCVState *env, target_ulong csrno,
+                             bool debugger)
 {
 #ifndef CONFIG_USER_ONLY
     target_ulong ctr_en = env->priv == PRV_U ? env->scounteren :
@@ -416,13 +433,19 @@ target_ulong csr_read_helper(CPURISCVState *env, target_ulong csrno)
 
     switch (csrno) {
     case CSR_FFLAGS:
-        validate_mstatus_fs(env, GETPC());
+        if (!debugger) {
+            validate_mstatus_fs(env, GETPC());
+        }
         return cpu_riscv_get_fflags(env);
     case CSR_FRM:
-        validate_mstatus_fs(env, GETPC());
+        if (!debugger) {
+            validate_mstatus_fs(env, GETPC());
+        }
         return env->frm;
     case CSR_FCSR:
-        validate_mstatus_fs(env, GETPC());
+        if (!debugger) {
+            validate_mstatus_fs(env, GETPC());
+        }
         return (cpu_riscv_get_fflags(env) << FSR_AEXC_SHIFT)
                 | (env->frm << FSR_RD_SHIFT);
     /* rdtime/rdtimeh is trapped and emulated by bbl in system mode */
@@ -504,9 +527,13 @@ target_ulong csr_read_helper(CPURISCVState *env, target_ulong csrno)
         return env->mstatus & mask;
     }
     case CSR_SIP: {
-        qemu_mutex_lock_iothread();
+        if (!debugger) {
+            qemu_mutex_lock_iothread();
+        }
         target_ulong tmp = env->mip & env->mideleg;
-        qemu_mutex_unlock_iothread();
+        if (!debugger) {
+            qemu_mutex_unlock_iothread();
+        }
         return tmp;
     }
     case CSR_SIE:
@@ -539,9 +566,13 @@ target_ulong csr_read_helper(CPURISCVState *env, target_ulong csrno)
     case CSR_MSTATUS:
         return env->mstatus;
     case CSR_MIP: {
-        qemu_mutex_lock_iothread();
+        if (!debugger) {
+            qemu_mutex_lock_iothread();
+        }
         target_ulong tmp = env->mip;
-        qemu_mutex_unlock_iothread();
+        if (!debugger) {
+            qemu_mutex_unlock_iothread();
+        }
         return tmp;
     }
     case CSR_MIE:
@@ -601,7 +632,11 @@ target_ulong csr_read_helper(CPURISCVState *env, target_ulong csrno)
 #endif
     }
     /* used by e.g. MTIME read */
-    do_raise_exception_err(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
+    if (!debugger) {
+        do_raise_exception_err(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
+    } else {
+        return 0;
+    }
 }
 
 /*
@@ -625,8 +660,8 @@ target_ulong helper_csrrw(CPURISCVState *env, target_ulong src,
         target_ulong csr)
 {
     validate_csr(env, csr, 1, GETPC());
-    uint64_t csr_backup = csr_read_helper(env, csr);
-    csr_write_helper(env, src, csr);
+    uint64_t csr_backup = csr_read_helper(env, csr, false);
+    csr_write_helper(env, src, csr, false);
     return csr_backup;
 }
 
@@ -634,9 +669,9 @@ target_ulong helper_csrrs(CPURISCVState *env, target_ulong src,
         target_ulong csr, target_ulong rs1_pass)
 {
     validate_csr(env, csr, rs1_pass != 0, GETPC());
-    uint64_t csr_backup = csr_read_helper(env, csr);
+    uint64_t csr_backup = csr_read_helper(env, csr, false);
     if (rs1_pass != 0) {
-        csr_write_helper(env, src | csr_backup, csr);
+        csr_write_helper(env, src | csr_backup, csr, false);
     }
     return csr_backup;
 }
@@ -645,9 +680,9 @@ target_ulong helper_csrrc(CPURISCVState *env, target_ulong src,
         target_ulong csr, target_ulong rs1_pass)
 {
     validate_csr(env, csr, rs1_pass != 0, GETPC());
-    uint64_t csr_backup = csr_read_helper(env, csr);
+    uint64_t csr_backup = csr_read_helper(env, csr, false);
     if (rs1_pass != 0) {
-        csr_write_helper(env, (~src) & csr_backup, csr);
+        csr_write_helper(env, (~src) & csr_backup, csr, false);
     }
     return csr_backup;
 }
@@ -674,7 +709,7 @@ target_ulong helper_sret(CPURISCVState *env, target_ulong cpu_pc_deb)
     mstatus = set_field(mstatus, MSTATUS_SPIE, 0);
     mstatus = set_field(mstatus, MSTATUS_SPP, PRV_U);
     riscv_set_mode(env, prev_priv);
-    csr_write_helper(env, mstatus, CSR_MSTATUS);
+    csr_write_helper(env, mstatus, CSR_MSTATUS, false);
 
     return retpc;
 }
@@ -699,7 +734,7 @@ target_ulong helper_mret(CPURISCVState *env, target_ulong cpu_pc_deb)
     mstatus = set_field(mstatus, MSTATUS_MPIE, 0);
     mstatus = set_field(mstatus, MSTATUS_MPP, PRV_U);
     riscv_set_mode(env, prev_priv);
-    csr_write_helper(env, mstatus, CSR_MSTATUS);
+    csr_write_helper(env, mstatus, CSR_MSTATUS, false);
 
     return retpc;
 }
