@@ -20,6 +20,7 @@
 #include "qemu-common.h"
 #include "exec/gdbstub.h"
 #include "cpu.h"
+#include "csr-map.h"
 
 int riscv_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
 {
