@@ -150,7 +150,12 @@ def qemu_io(*args):
 
 def qemu_io_silent(*args):
     '''Run qemu-io and return the exit code, suppressing stdout'''
-    args = qemu_io_args + list(args)
+    if '-f' in qemu_io_args and '-f' in args:
+        ind = qemu_io_args.index('-f')
+        args = qemu_io_args[:ind] + qemu_io_args[ind+2:] + list(args)
+    else:
+        args = qemu_io_args + list(args)
+
     exitcode = subprocess.call(args, stdout=open('/dev/null', 'w'))
     if exitcode < 0:
         sys.stderr.write('qemu-io received signal %i: %s\n' %
