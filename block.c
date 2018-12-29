@@ -3536,7 +3536,7 @@ void bdrv_close_all(void)
 
 static bool should_update_child(BdrvChild *c, BlockDriverState *to)
 {
-    BdrvChild *to_c;
+    GList *queue = NULL, *pos;
 
     if (c->role->stay_at_node) {
         return false;
@@ -3572,13 +3572,36 @@ static bool should_update_child(BdrvChild *c, BlockDriverState *to)
      * if A is a child of B, that means we cannot replace A by B there
      * because that would create a loop.  Silently detaching A from B
      * is also not really an option.  So overall just leaving A in
-     * place there is the most sensible choice. */
-    QLIST_FOREACH(to_c, &to->children, next) {
-        if (to_c == c) {
-            return false;
+     * place there is the most sensible choice.
+     *
+     * We would also create a loop in any cases where @c is only
+     * indirectly referenced by @to. Prevent this by returning false
+     * if @c is found (by breadth-first search) anywhere in the whole
+     * subtree of @to.
+     */
+
+    pos = queue = g_list_append(queue, to);
+    while (pos) {
+        BlockDriverState *v = pos->data;
+        BdrvChild *c2;
+
+        QLIST_FOREACH(c2, &v->children, next) {
+            if (c2 == c) {
+                g_list_free(queue);
+                return false;
+            }
+
+            if (g_list_find(queue, c2->bs)) {
+                continue;
+            }
+
+            queue = g_list_append(queue, c2->bs);
         }
+
+        pos = pos->next;
     }
 
+    g_list_free(queue);
     return true;
 }
 
