@@ -22,11 +22,22 @@
 
 #include "qemu/osdep.h"
 #include "block/block_int.h"
+#include "qapi/qmp/qdict.h"
+
+typedef struct BDRVCORState {
+    bool discard;
+} BDRVCORState;
 
 
 static int cor_open(BlockDriverState *bs, QDict *options, int flags,
                     Error **errp)
 {
+    if (qdict_haskey(options, "driver.discard")) {
+        BDRVCORState *s = bs->opaque;
+        s->discard = qdict_get_bool(options, "driver.discard");
+        qdict_del(options, "driver.discard");
+    }
+
     bs->file = bdrv_open_child(NULL, options, "file", bs, &child_file, false,
                                errp);
     if (!bs->file) {
@@ -66,6 +77,11 @@ static void cor_child_perm(BlockDriverState *bs, BdrvChild *c,
              (c->perm & PERM_UNCHANGED);
     *nshared = (shared & PERM_PASSTHROUGH) |
                (c->shared_perm & PERM_UNCHANGED);
+
+    BDRVCORState *s = bs->opaque;
+    if (s->discard) {
+        *nshared |= BLK_PERM_WRITE;
+    }
 }
 
 
@@ -134,8 +150,15 @@ static bool cor_recurse_is_first_non_filter(BlockDriverState *bs,
 }
 
 
+static int cor_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
+{
+    return bdrv_get_info(bs->file->bs, bdi);
+}
+
+
 BlockDriver bdrv_copy_on_read = {
     .format_name                        = "copy-on-read",
+    .instance_size                      = sizeof(BDRVCORState),
 
     .bdrv_open                          = cor_open,
     .bdrv_child_perm                    = cor_child_perm,
@@ -148,6 +171,7 @@ BlockDriver bdrv_copy_on_read = {
     .bdrv_co_pwrite_zeroes              = cor_co_pwrite_zeroes,
     .bdrv_co_pdiscard                   = cor_co_pdiscard,
 
+    .bdrv_get_info                      = cor_get_info,
     .bdrv_eject                         = cor_eject,
     .bdrv_lock_medium                   = cor_lock_medium,
 
