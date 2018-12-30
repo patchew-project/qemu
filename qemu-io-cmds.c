@@ -114,7 +114,11 @@ static int command(BlockBackend *blk, const cmdinfo_t *ct, int argc,
         }
     }
 
+#ifdef __GNU_LIBRARY__
     optind = 0;
+#else
+    optind = 1;
+#endif
     return ct->cfunc(blk, argc, argv);
 }
 
