@@ -50,6 +50,7 @@ typedef struct MirrorBlockJob {
     /* Used to block operations on the drive-mirror-replace target */
     Error *replace_blocker;
     bool is_none_mode;
+    BdrvDirtyBitmap *src_bitmap;
     BlockMirrorBackingMode backing_mode;
     MirrorCopyMode copy_mode;
     BlockdevOnError on_source_error, on_target_error;
@@ -814,6 +815,27 @@ static int coroutine_fn mirror_dirty_init(MirrorBlockJob *s)
     return 0;
 }
 
+/*
+ * init dirty bitmap by using user bitmap. usr->hbitmap will be copy to
+ * mirror bitmap->hbitmap instead of reuse it.
+ */
+static int coroutine_fn mirror_dirty_init_incremental(MirrorBlockJob *s)
+{
+    BdrvDirtyBitmap *src, *dest;
+
+    dest = s->dirty_bitmap;
+    src = s->src_bitmap;
+    if (!src) {
+        return -1;
+    }
+
+    if (!bdrv_copy_dirty_bitmap(src, dest, NULL)) {
+        return -1;
+    }
+
+    return 0;
+}
+
 /* Called when going out of the streaming phase to flush the bulk of the
  * data to the medium, or just before completing.
  */
@@ -913,9 +935,17 @@ static int coroutine_fn mirror_run(Job *job, Error **errp)
 
     s->last_pause_ns = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
     if (!s->is_none_mode) {
-        ret = mirror_dirty_init(s);
-        if (ret < 0 || job_is_cancelled(&s->common.job)) {
-            goto immediate_exit;
+        /* incremental mode */
+        if (s->src_bitmap) {
+            ret = mirror_dirty_init_incremental(s);
+            if (ret < 0) {
+                goto immediate_exit;
+            }
+        } else {
+            ret = mirror_dirty_init(s);
+            if (ret < 0 || job_is_cancelled(&s->common.job)) {
+                goto immediate_exit;
+            }
         }
     }
 
@@ -1484,7 +1514,8 @@ static void mirror_start_job(const char *job_id, BlockDriverState *bs,
                              BlockCompletionFunc *cb,
                              void *opaque,
                              const BlockJobDriver *driver,
-                             bool is_none_mode, BlockDriverState *base,
+                             bool is_none_mode, BdrvDirtyBitmap *src_bitmap,
+                             BlockDriverState *base,
                              bool auto_complete, const char *filter_node_name,
                              bool is_mirror, MirrorCopyMode copy_mode,
                              Error **errp)
@@ -1598,6 +1629,7 @@ static void mirror_start_job(const char *job_id, BlockDriverState *bs,
     s->on_source_error = on_source_error;
     s->on_target_error = on_target_error;
     s->is_none_mode = is_none_mode;
+    s->src_bitmap = src_bitmap;
     s->backing_mode = backing_mode;
     s->copy_mode = copy_mode;
     s->base = base;
@@ -1664,7 +1696,8 @@ void mirror_start(const char *job_id, BlockDriverState *bs,
                   BlockDriverState *target, const char *replaces,
                   int creation_flags, int64_t speed,
                   uint32_t granularity, int64_t buf_size,
-                  MirrorSyncMode mode, BlockMirrorBackingMode backing_mode,
+                  MirrorSyncMode mode, BdrvDirtyBitmap *src_bitmap,
+                  BlockMirrorBackingMode backing_mode,
                   BlockdevOnError on_source_error,
                   BlockdevOnError on_target_error,
                   bool unmap, const char *filter_node_name,
@@ -1673,17 +1706,14 @@ void mirror_start(const char *job_id, BlockDriverState *bs,
     bool is_none_mode;
     BlockDriverState *base;
 
-    if (mode == MIRROR_SYNC_MODE_INCREMENTAL) {
-        error_setg(errp, "Sync mode 'incremental' not supported");
-        return;
-    }
     is_none_mode = mode == MIRROR_SYNC_MODE_NONE;
     base = mode == MIRROR_SYNC_MODE_TOP ? backing_bs(bs) : NULL;
     mirror_start_job(job_id, bs, creation_flags, target, replaces,
                      speed, granularity, buf_size, backing_mode,
                      on_source_error, on_target_error, unmap, NULL, NULL,
-                     &mirror_job_driver, is_none_mode, base, false,
-                     filter_node_name, true, copy_mode, errp);
+                     &mirror_job_driver, is_none_mode,
+                     src_bitmap, base, false, filter_node_name, true,
+                     copy_mode, errp);
 }
 
 void commit_active_start(const char *job_id, BlockDriverState *bs,
@@ -1707,7 +1737,8 @@ void commit_active_start(const char *job_id, BlockDriverState *bs,
     mirror_start_job(job_id, bs, creation_flags, base, NULL, speed, 0, 0,
                      MIRROR_LEAVE_BACKING_CHAIN,
                      on_error, on_error, true, cb, opaque,
-                     &commit_active_job_driver, false, base, auto_complete,
+                     &commit_active_job_driver, false,
+                     NULL, base, auto_complete,
                      filter_node_name, false, MIRROR_COPY_MODE_BACKGROUND,
                      &local_err);
     if (local_err) {
