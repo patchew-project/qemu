@@ -51,6 +51,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/units.h"
+#include "qemu/sizes.h"
 #include "qapi/error.h"
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/qapi-visit-block-core.h"

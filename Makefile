@@ -122,6 +122,8 @@ endif
 
 GENERATED_FILES += module_block.h
 
+GENERATED_FILES += $(SRC_PATH)/include/qemu/sizes.h
+
 TRACE_HEADERS = trace-root.h $(trace-events-subdirs:%=%/trace.h)
 TRACE_SOURCES = trace-root.c $(trace-events-subdirs:%=%/trace.c)
 TRACE_DTRACE =
@@ -498,6 +500,9 @@ scsi/qemu-pr-helper$(EXESUF): scsi/qemu-pr-helper.o scsi/utils.o $(crypto-obj-y)
 ifdef CONFIG_MPATH
 scsi/qemu-pr-helper$(EXESUF): LIBS += -ludev -lmultipath -lmpathpersist
 endif
+
+$(SRC_PATH)/include/qemu/sizes.h: $(SRC_PATH)/scripts/gen-sizes.sh
+	$(call quiet-command,sh $(SRC_PATH)/scripts/gen-sizes.sh $@,"GEN","$@")
 
 qemu-img-cmds.h: $(SRC_PATH)/qemu-img-cmds.hx $(SRC_PATH)/scripts/hxtool
 	$(call quiet-command,sh $(SRC_PATH)/scripts/hxtool -h < $< > $@,"GEN","$@")

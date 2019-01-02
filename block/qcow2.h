@@ -27,7 +27,7 @@
 
 #include "crypto/block.h"
 #include "qemu/coroutine.h"
-#include "qemu/units.h"
+#include "qemu/sizes.h"
 
 //#define DEBUG_ALLOC
 //#define DEBUG_ALLOC2
