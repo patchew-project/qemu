@@ -28,6 +28,9 @@
 #ifdef CONFIG_LINUX
 #include <linux/vfio.h>
 #endif
+#ifdef CONFIG_FNMATCH
+#include <fnmatch.h>
+#endif
 #include "hw/arm/sysbus-fdt.h"
 #include "qemu/error-report.h"
 #include "sysemu/device_tree.h"
@@ -415,6 +418,232 @@ static int add_amd_xgbe_fdt_node(SysBusDevice *sbdev, void *opaque)
     return 0;
 }
 
+enum GenericPropertyAction {
+    PROP_IGNORE,
+    PROP_WARN,
+    PROP_COPY,
+    PROP_REJECT,
+};
+
+static struct {
+    const char *name;
+    enum GenericPropertyAction action;
+} generic_properties[] = {
+    { "name",            PROP_IGNORE }, /* handled automatically */
+    { "phandle",         PROP_IGNORE }, /* not needed for the generic case */
+
+    /* The following are copied and remapped by dedicated code */
+    { "reg",             PROP_IGNORE },
+    { "interrupts",      PROP_IGNORE },
+
+    /* The following are handled by the host */
+    { "power-domains",   PROP_IGNORE }, /* power management (+ opt. clocks) */
+    { "iommus",          PROP_IGNORE }, /* isolation */
+    { "resets",          PROP_IGNORE }, /* isolation */
+    { "pinctrl-*",       PROP_IGNORE }, /* pin control */
+
+    /* Ignoring the following may or may not work, hence the warning */
+    { "gpio-ranges",     PROP_WARN },   /* no support for pinctrl yet */
+    { "dmas",            PROP_WARN },   /* no support for external DMACs yet */
+
+    /* The following are irrelevant, as corresponding specifiers are ignored */
+    { "clock-names",     PROP_IGNORE },
+    { "reset-names",     PROP_IGNORE },
+    { "dma-names",       PROP_IGNORE },
+
+    /* Whitelist of properties not taking phandles, and thus safe to copy */
+    { "compatible",      PROP_COPY },
+    { "status",          PROP_COPY },
+    { "reg-names",       PROP_COPY },
+    { "interrupt-names", PROP_COPY },
+    { "#*-cells",        PROP_COPY },
+};
+
+#ifndef CONFIG_FNMATCH
+/* Fall back to exact string matching instead of allowing wildcards */
+static inline int fnmatch(const char *pattern, const char *string, int flags)
+{
+        return strcmp(pattern, string);
+}
+#endif
+
+static enum GenericPropertyAction get_generic_property_action(const char *name)
+{
+    unsigned int i;
+
+    for (i = 0; i < ARRAY_SIZE(generic_properties); i++) {
+        if (!fnmatch(generic_properties[i].name, name, 0)) {
+            return generic_properties[i].action;
+        }
+    }
+
+    /*
+     * Unfortunately DT properties do not carry type information,
+     * so we have to assume everything else contains a phandle,
+     * and must be rejected
+     */
+    return PROP_REJECT;
+}
+
+/**
+ * copy_generic_node
+ *
+ * Copy the generic part of a DT node from the host
+ */
+static void copy_generic_node(void *host_fdt, void *guest_fdt, char *host_path,
+                              char *guest_path)
+{
+    int node, prop, len;
+    const void *data;
+    const char *name;
+    enum GenericPropertyAction action;
+
+    node = fdt_path_offset(host_fdt, host_path);
+    if (node < 0) {
+        error_report("Cannot find node %s: %s", host_path, fdt_strerror(node));
+        exit(1);
+    }
+
+    /* Submodes are not yet supported */
+    if (fdt_first_subnode(host_fdt, node) >= 0) {
+        error_report("%s has unsupported subnodes", host_path);
+        goto unsupported;
+    }
+
+    /* Copy generic properties */
+    fdt_for_each_property_offset(prop, host_fdt, node) {
+        data = fdt_getprop_by_offset(host_fdt, prop, &name, &len);
+        if (!data) {
+            error_report("Cannot get property of %s: %s", host_path,
+                         fdt_strerror(len));
+            exit(1);
+        }
+
+        if (!len) {
+            /* Zero-sized properties are safe to copy */
+            action = PROP_COPY;
+        } else if (!strcmp(name, "clocks")) {
+            /* Reject "clocks" if "power-domains" is not present */
+            action = fdt_getprop(host_fdt, node, "power-domains", NULL)
+                     ? PROP_WARN : PROP_REJECT;
+        } else {
+            action = get_generic_property_action(name);
+        }
+
+        switch (action) {
+        case PROP_WARN:
+            warn_report("%s: Ignoring %s property", host_path, name);
+        case PROP_IGNORE:
+            break;
+
+        case PROP_COPY:
+            qemu_fdt_setprop(guest_fdt, guest_path, name, data, len);
+            break;
+
+        case PROP_REJECT:
+            error_report("%s has unsupported %s property", host_path, name);
+            goto unsupported;
+        }
+    }
+    return;
+
+unsupported:
+    error_report("You can ask a wizard to enhance me");
+    exit(1);
+}
+
+/**
+ * add_generic_fdt_node
+ *
+ * Generates a generic DT node by copying properties from the host
+ */
+static int add_generic_fdt_node(SysBusDevice *sbdev, void *opaque)
+{
+    PlatformBusFDTData *data = opaque;
+    VFIOPlatformDevice *vdev = VFIO_PLATFORM_DEVICE(sbdev);
+    const char *parent_node = data->pbus_node_name;
+    void *guest_fdt = data->fdt, *host_fdt;
+    VFIODevice *vbasedev = &vdev->vbasedev;
+    char **node_path, *node_name, *dt_name;
+    PlatformBusDevice *pbus = data->pbus;
+    uint32_t *reg_attr, *irq_attr;
+    uint64_t mmio_base;
+    int i, irq_number;
+    VFIOINTp *intp;
+
+    host_fdt = load_device_tree_from_sysfs();
+
+    dt_name = sysfs_to_dt_name(vbasedev->name);
+    if (!dt_name) {
+        error_report("%s incorrect sysfs device name %s", __func__,
+                     vbasedev->name);
+        exit(1);
+    }
+    node_path = qemu_fdt_node_path(host_fdt, dt_name, vdev->compat,
+                                   &error_fatal);
+    if (!node_path || !node_path[0]) {
+        error_report("%s unable to retrieve node path for %s/%s", __func__,
+                     dt_name, vdev->compat);
+        exit(1);
+    }
+
+    if (node_path[1]) {
+        error_report("%s more than one node matching %s/%s!", __func__,
+                     dt_name, vdev->compat);
+        exit(1);
+    }
+
+    mmio_base = platform_bus_get_mmio_addr(pbus, sbdev, 0);
+    node_name = g_strdup_printf("%s/%s@%" PRIx64, parent_node,
+                               vbasedev->name, mmio_base);
+    qemu_fdt_add_subnode(guest_fdt, node_name);
+
+    /* Copy generic parts from host */
+    copy_generic_node(host_fdt, guest_fdt, node_path[0], node_name);
+
+    /* Copy reg (remapped) */
+    reg_attr = g_new(uint32_t, vbasedev->num_regions * 2);
+    for (i = 0; i < vbasedev->num_regions; i++) {
+        mmio_base = platform_bus_get_mmio_addr(pbus, sbdev, i);
+        reg_attr[2 * i] = cpu_to_be32(mmio_base);
+        reg_attr[2 * i + 1] = cpu_to_be32(
+                                memory_region_size(vdev->regions[i]->mem));
+    }
+    qemu_fdt_setprop(guest_fdt, node_name, "reg", reg_attr,
+                     vbasedev->num_regions * 2 * sizeof(uint32_t));
+
+    /* Copy interrupts (remapped) */
+    if (vbasedev->num_irqs) {
+        irq_attr = g_new(uint32_t, vbasedev->num_irqs * 3);
+        for (i = 0; i < vbasedev->num_irqs; i++) {
+            irq_number = platform_bus_get_irqn(pbus, sbdev, i) +
+                         data->irq_start;
+            irq_attr[3 * i] = cpu_to_be32(GIC_FDT_IRQ_TYPE_SPI);
+            irq_attr[3 * i + 1] = cpu_to_be32(irq_number);
+            QLIST_FOREACH(intp, &vdev->intp_list, next) {
+                if (intp->pin == i) {
+                    break;
+                }
+            }
+            if (intp->flags & VFIO_IRQ_INFO_AUTOMASKED) {
+                irq_attr[3 * i + 2] = cpu_to_be32(GIC_FDT_IRQ_FLAGS_LEVEL_HI);
+            } else {
+                irq_attr[3 * i + 2] = cpu_to_be32(GIC_FDT_IRQ_FLAGS_EDGE_LO_HI);
+            }
+        }
+        qemu_fdt_setprop(guest_fdt, node_name, "interrupts",
+                         irq_attr, vbasedev->num_irqs * 3 * sizeof(uint32_t));
+        g_free(irq_attr);
+    }
+
+    g_free(reg_attr);
+    g_free(node_name);
+    g_strfreev(node_path);
+    g_free(dt_name);
+    g_free(host_fdt);
+    return 0;
+}
+
 /* DT compatible matching */
 static bool vfio_platform_match(SysBusDevice *sbdev,
                                 const BindingEntry *entry)
@@ -422,6 +651,11 @@ static bool vfio_platform_match(SysBusDevice *sbdev,
     VFIOPlatformDevice *vdev = VFIO_PLATFORM_DEVICE(sbdev);
     const char *compat;
     unsigned int n;
+
+    if (!entry->compat) {
+        /* Generic DT fallback */
+        return true;
+    }
 
     for (n = vdev->num_compat, compat = vdev->compat; n > 0;
          n--, compat += strlen(compat) + 1) {
@@ -459,6 +693,10 @@ static const BindingEntry bindings[] = {
     VFIO_PLATFORM_BINDING("amd,xgbe-seattle-v1a", add_amd_xgbe_fdt_node),
 #endif
     TYPE_BINDING(TYPE_RAMFB_DEVICE, no_fdt_node),
+#ifdef CONFIG_LINUX
+    /* Generic DT fallback must be last */
+    VFIO_PLATFORM_BINDING(NULL, add_generic_fdt_node),
+#endif
     TYPE_BINDING("", NULL), /* last element */
 };
 
