@@ -666,6 +666,7 @@ static void usb_mtp_object_readdir(MTPState *s, MTPObject *o)
     }
     dir = fdopendir(fd);
     if (!dir) {
+        close(fd);
         return;
     }
 #ifdef CONFIG_INOTIFY1
@@ -682,6 +683,7 @@ static void usb_mtp_object_readdir(MTPState *s, MTPObject *o)
         usb_mtp_add_child(s, o, entry->d_name);
     }
     closedir(dir);
+    close(fd);
 }
 
 /* ----------------------------------------------------------------------- */
