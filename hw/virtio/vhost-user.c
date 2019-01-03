@@ -52,6 +52,7 @@ enum VhostUserProtocolFeature {
     VHOST_USER_PROTOCOL_F_CONFIG = 9,
     VHOST_USER_PROTOCOL_F_SLAVE_SEND_FD = 10,
     VHOST_USER_PROTOCOL_F_HOST_NOTIFIER = 11,
+    VHOST_USER_PROTOCOL_F_SLAVE_SHMFD = 12,
     VHOST_USER_PROTOCOL_F_MAX
 };
 
@@ -89,6 +90,8 @@ typedef enum VhostUserRequest {
     VHOST_USER_POSTCOPY_ADVISE  = 28,
     VHOST_USER_POSTCOPY_LISTEN  = 29,
     VHOST_USER_POSTCOPY_END     = 30,
+    VHOST_USER_GET_SHM_SIZE = 31,
+    VHOST_USER_SET_SHM_FD = 32,
     VHOST_USER_MAX
 } VhostUserRequest;
 
@@ -147,6 +150,15 @@ typedef struct VhostUserVringArea {
     uint64_t offset;
 } VhostUserVringArea;
 
+typedef struct VhostUserShm {
+    uint64_t mmap_size;
+    uint64_t mmap_offset;
+    uint32_t dev_size;
+    uint32_t vq_size;
+    uint32_t align;
+    uint32_t version;
+} VhostUserShm;
+
 typedef struct {
     VhostUserRequest request;
 
@@ -169,6 +181,7 @@ typedef union {
         VhostUserConfig config;
         VhostUserCryptoSession session;
         VhostUserVringArea area;
+        VhostUserShm shm;
 } VhostUserPayload;
 
 typedef struct VhostUserMsg {
@@ -1739,6 +1752,77 @@ static bool vhost_user_mem_section_filter(struct vhost_dev *dev,
     return result;
 }
 
+static int vhost_user_get_shm_size(struct vhost_dev *dev,
+                                   struct vhost_shm *shm)
+{
+    VhostUserMsg msg = {
+        .hdr.request = VHOST_USER_GET_SHM_SIZE,
+        .hdr.flags = VHOST_USER_VERSION,
+        .hdr.size = sizeof(msg.payload.shm),
+    };
+
+    if (!virtio_has_feature(dev->protocol_features,
+                            VHOST_USER_PROTOCOL_F_SLAVE_SHMFD)) {
+        shm->dev_size = 0;
+        shm->vq_size = 0;
+        return 0;
+    }
+
+    if (vhost_user_write(dev, &msg, NULL, 0) < 0) {
+        return -1;
+    }
+
+    if (vhost_user_read(dev, &msg) < 0) {
+        return -1;
+    }
+
+    if (msg.hdr.request != VHOST_USER_GET_SHM_SIZE) {
+        error_report("Received unexpected msg type. "
+                     "Expected %d received %d",
+                     VHOST_USER_GET_SHM_SIZE, msg.hdr.request);
+        return -1;
+    }
+
+    if (msg.hdr.size != sizeof(msg.payload.shm)) {
+        error_report("Received bad msg size.");
+        return -1;
+    }
+
+    shm->dev_size = msg.payload.shm.dev_size;
+    shm->vq_size = msg.payload.shm.vq_size;
+    shm->align = msg.payload.shm.align;
+    shm->version = msg.payload.shm.version;
+
+    return 0;
+}
+
+static int vhost_user_set_shm_fd(struct vhost_dev *dev,
+                                 struct vhost_shm *shm)
+{
+    VhostUserMsg msg = {
+        .hdr.request = VHOST_USER_SET_SHM_FD,
+        .hdr.flags = VHOST_USER_VERSION,
+        .payload.shm.mmap_size = shm->mmap_size,
+        .payload.shm.mmap_offset = 0,
+        .payload.shm.dev_size = shm->dev_size,
+        .payload.shm.vq_size = shm->vq_size,
+        .payload.shm.align = shm->align,
+        .payload.shm.version = shm->version,
+        .hdr.size = sizeof(msg.payload.shm),
+    };
+
+    if (!virtio_has_feature(dev->protocol_features,
+                            VHOST_USER_PROTOCOL_F_SLAVE_SHMFD)) {
+        return 0;
+    }
+
+    if (vhost_user_write(dev, &msg, &shm->fd, 1) < 0) {
+        return -1;
+    }
+
+    return 0;
+}
+
 VhostUserState *vhost_user_init(void)
 {
     VhostUserState *user = g_new0(struct VhostUserState, 1);
@@ -1790,4 +1874,6 @@ const VhostOps user_ops = {
         .vhost_crypto_create_session = vhost_user_crypto_create_session,
         .vhost_crypto_close_session = vhost_user_crypto_close_session,
         .vhost_backend_mem_section_filter = vhost_user_mem_section_filter,
+        .vhost_get_shm_size = vhost_user_get_shm_size,
+        .vhost_set_shm_fd = vhost_user_set_shm_fd,
 };

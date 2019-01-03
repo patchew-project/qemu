@@ -7,6 +7,17 @@
 #include "exec/memory.h"
 
 /* Generic structures common for any vhost based device. */
+
+struct vhost_shm {
+    void *addr;
+    uint64_t mmap_size;
+    uint32_t dev_size;
+    uint32_t vq_size;
+    uint32_t align;
+    uint32_t version;
+    int fd;
+};
+
 struct vhost_virtqueue {
     int kick;
     int call;
@@ -120,4 +131,12 @@ int vhost_dev_set_config(struct vhost_dev *dev, const uint8_t *data,
  */
 void vhost_dev_set_config_notifier(struct vhost_dev *dev,
                                    const VhostDevConfigOps *ops);
+
+void vhost_dev_reset_shm(struct vhost_shm *shm);
+void vhost_dev_free_shm(struct vhost_shm *shm);
+int vhost_dev_alloc_shm(struct vhost_shm *shm);
+void vhost_dev_save_shm(struct vhost_shm *shm, QEMUFile *f);
+int vhost_dev_load_shm(struct vhost_shm *shm, QEMUFile *f);
+int vhost_dev_set_shm(struct vhost_dev *dev, struct vhost_shm *shm);
+int vhost_dev_init_shm(struct vhost_dev *dev, struct vhost_shm *shm);
 #endif

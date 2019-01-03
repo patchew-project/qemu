@@ -1481,6 +1481,123 @@ void vhost_dev_set_config_notifier(struct vhost_dev *hdev,
     hdev->config_ops = ops;
 }
 
+void vhost_dev_reset_shm(struct vhost_shm *shm)
+{
+    if (shm->addr) {
+        memset(shm->addr, 0, shm->mmap_size);
+    }
+}
+
+void vhost_dev_free_shm(struct vhost_shm *shm)
+{
+    if (shm->addr) {
+        qemu_memfd_free(shm->addr, shm->mmap_size, shm->fd);
+        shm->addr = NULL;
+        shm->fd = -1;
+    }
+}
+
+int vhost_dev_alloc_shm(struct vhost_shm *shm)
+{
+    Error *err = NULL;
+    int fd = -1;
+    void *addr = qemu_memfd_alloc("vhost-shm", shm->mmap_size,
+                                  F_SEAL_GROW | F_SEAL_SHRINK | F_SEAL_SEAL,
+                                  &fd, &err);
+    if (err) {
+        error_report_err(err);
+        return -1;
+    }
+
+    shm->addr = addr;
+    shm->fd = fd;
+
+    return 0;
+}
+
+void vhost_dev_save_shm(struct vhost_shm *shm, QEMUFile *f)
+{
+    if (shm->addr) {
+        qemu_put_be64(f, shm->mmap_size);
+        qemu_put_be32(f, shm->dev_size);
+        qemu_put_be32(f, shm->vq_size);
+        qemu_put_be32(f, shm->align);
+        qemu_put_be32(f, shm->version);
+        qemu_put_buffer(f, shm->addr, shm->mmap_size);
+    } else {
+        qemu_put_be64(f, 0);
+    }
+}
+
+int vhost_dev_load_shm(struct vhost_shm *shm, QEMUFile *f)
+{
+    uint64_t mmap_size;
+
+    mmap_size = qemu_get_be64(f);
+    if (!mmap_size) {
+        return 0;
+    }
+
+    vhost_dev_free_shm(shm);
+
+    shm->mmap_size = mmap_size;
+    shm->dev_size = qemu_get_be32(f);
+    shm->vq_size = qemu_get_be32(f);
+    shm->align = qemu_get_be32(f);
+    shm->version = qemu_get_be32(f);
+
+    if (vhost_dev_alloc_shm(shm)) {
+        return -ENOMEM;
+    }
+
+    qemu_get_buffer(f, shm->addr, mmap_size);
+
+    return 0;
+}
+
+int vhost_dev_set_shm(struct vhost_dev *dev, struct vhost_shm *shm)
+{
+    int r;
+
+    if (dev->vhost_ops->vhost_set_shm_fd && shm->addr) {
+        r = dev->vhost_ops->vhost_set_shm_fd(dev, shm);
+        if (r) {
+            VHOST_OPS_DEBUG("vhost_set_vring_shm_fd failed");
+            return -errno;
+        }
+    }
+
+    return 0;
+}
+
+int vhost_dev_init_shm(struct vhost_dev *dev, struct vhost_shm *shm)
+{
+    int r;
+
+    if (dev->vhost_ops->vhost_get_shm_size) {
+        r = dev->vhost_ops->vhost_get_shm_size(dev, shm);
+        if (r) {
+            VHOST_OPS_DEBUG("vhost_get_vring_shm_size failed");
+            return -errno;
+        }
+
+        if (!shm->dev_size && !shm->vq_size) {
+            return 0;
+        }
+
+        shm->mmap_size = QEMU_ALIGN_UP(shm->dev_size, shm->align) +
+                         dev->nvqs * QEMU_ALIGN_UP(shm->vq_size, shm->align);
+
+        if (vhost_dev_alloc_shm(shm)) {
+            return -ENOMEM;
+        }
+
+        vhost_dev_reset_shm(shm);
+    }
+
+    return 0;
+}
+
 /* Host notifiers must be enabled at this point. */
 int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
 {
