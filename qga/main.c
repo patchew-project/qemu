@@ -561,6 +561,8 @@ static void process_command(GAState *s, QDict *req)
 {
     QDict *rsp;
     int ret;
+    QDict *ersp;
+    Error *err = NULL;
 
     g_assert(req);
     g_debug("processing command");
@@ -569,9 +571,20 @@ static void process_command(GAState *s, QDict *req)
         ret = send_response(s, rsp);
         if (ret < 0) {
             g_warning("error sending response: %s", strerror(-ret));
+            goto err;
         }
         qobject_unref(rsp);
     }
+    return;
+err:
+    error_setg(&err, "Insufficient system resources exist to "
+                      "complete the requested service");
+    ersp = qmp_error_response(err);
+    ret = send_response(s, ersp);
+    if (ret < 0) {
+        g_warning("error sending error response: %s", strerror(-ret));
+    }
+    qobject_unref(ersp);
 }
 
 /* handle requests/control events coming in over the channel */
