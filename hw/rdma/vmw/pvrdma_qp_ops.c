@@ -168,6 +168,7 @@ int pvrdma_qp_send(PVRDMADev *dev, uint32_t qp_handle)
         sgid = rdma_rm_get_gid(&dev->rdma_dev_res, wqe->hdr.wr.ud.av.gid_index);
         if (!sgid) {
             pr_dbg("Fail to get gid for idx %d\n", wqe->hdr.wr.ud.av.gid_index);
+            g_free(comp_ctx);
             return -EIO;
         }
         pr_dbg("sgid_id=%d, sgid=0x%llx\n", wqe->hdr.wr.ud.av.gid_index,
@@ -179,6 +180,7 @@ int pvrdma_qp_send(PVRDMADev *dev, uint32_t qp_handle)
         if (sgid_idx <= 0) {
             pr_dbg("Fail to get bk sgid_idx for sgid_idx %d\n",
                    wqe->hdr.wr.ud.av.gid_index);
+            g_free(comp_ctx);
             return -EIO;
         }
 
