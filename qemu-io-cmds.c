@@ -114,7 +114,7 @@ static int command(BlockBackend *blk, const cmdinfo_t *ct, int argc,
         }
     }
 
-    optind = 0;
+    optind = 1;
     return ct->cfunc(blk, argc, argv);
 }
 
