@@ -59,6 +59,7 @@
 /qemu-version.h
 /qemu-version.h.tmp
 /module_block.h
+/pow2_sizes.h
 /scsi/qemu-pr-helper
 /vhost-user-scsi
 /vhost-user-blk
