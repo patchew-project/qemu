@@ -2556,8 +2556,9 @@ undefined if TCP options are specified for a unix socket.
 
 @option{server} specifies that the socket shall be a listening socket.
 
-@option{nowait} specifies that QEMU should not block waiting for a client to
-connect to a listening socket.
+@option{nowait} specifies that QEMU should not wait for being connected on
+server sockets or try to do a sync/async connect on client sockets during
+initialization of the chardev.
 
 @option{telnet} specifies that traffic on the socket should interpret telnet
 escape sequences.
@@ -3093,7 +3094,9 @@ I/O to a location or wait for a connection from a location.  By default
 the TCP Net Console is sent to @var{host} at the @var{port}.  If you use
 the @var{server} option QEMU will wait for a client socket application
 to connect to the port before continuing, unless the @code{nowait}
-option was specified.  The @code{nodelay} option disables the Nagle buffering
+option was specified. And the @code{nowait} option could also be
+used when @var{noserver} is set to disallow QEMU to connect during
+initialization.  The @code{nodelay} option disables the Nagle buffering
 algorithm.  The @code{reconnect} option only applies if @var{noserver} is
 set, if the connection goes down it will attempt to reconnect at the
 given interval.  If @var{host} is omitted, 0.0.0.0 is assumed. Only
