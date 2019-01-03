@@ -956,6 +956,10 @@ static void s390_pcihost_unplug(HotplugHandler *hotplug_dev, DeviceState *dev,
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_S390_PCI_DEVICE)) {
         pbdev = S390_PCI_DEVICE(dev);
         pci_dev = pbdev->pdev;
+    } else {
+        error_setg(errp, "s390: device unplug for not supported device"
+                   " type: %s", object_get_typename(OBJECT(dev)));
+        return;
     }
 
     switch (pbdev->state) {
