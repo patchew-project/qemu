@@ -642,6 +642,7 @@ S: Odd Fixes
 F: hw/arm/nseries.c
 F: hw/input/tsc2*.c
 F: include/hw/display/blizzard.h
+F: include/hw/input/ti_uwire_tsc.h
 F: include/hw/misc/cbus.h
 
 Palm
@@ -651,6 +652,7 @@ L: qemu-arm@nongnu.org
 S: Odd Fixes
 F: hw/arm/palm.c
 F: hw/input/tsc2*.c
+F: include/hw/input/ti_uwire_tsc.h
 
 Raspberry Pi
 M: Peter Maydell <peter.maydell@linaro.org>
