@@ -296,30 +296,6 @@ static int check_strtox_error(const char *nptr, char *ep,
     return -libc_errno;
 }
 
-/**
- * Convert string @nptr to an integer, and store it in @result.
- *
- * This is a wrapper around strtol() that is harder to misuse.
- * Semantics of @nptr, @endptr, @base match strtol() with differences
- * noted below.
- *
- * @nptr may be null, and no conversion is performed then.
- *
- * If no conversion is performed, store @nptr in *@endptr and return
- * -EINVAL.
- *
- * If @endptr is null, and the string isn't fully converted, return
- * -EINVAL.  This is the case when the pointer that would be stored in
- * a non-null @endptr points to a character other than '\0'.
- *
- * If the conversion overflows @result, store INT_MAX in @result,
- * and return -ERANGE.
- *
- * If the conversion underflows @result, store INT_MIN in @result,
- * and return -ERANGE.
- *
- * Else store the converted value in @result, and return zero.
- */
 int qemu_strtoi(const char *nptr, const char **endptr, int base,
                 int *result)
 {
@@ -348,31 +324,6 @@ int qemu_strtoi(const char *nptr, const char **endptr, int base,
     return check_strtox_error(nptr, ep, endptr, errno);
 }
 
-/**
- * Convert string @nptr to an unsigned integer, and store it in @result.
- *
- * This is a wrapper around strtoul() that is harder to misuse.
- * Semantics of @nptr, @endptr, @base match strtoul() with differences
- * noted below.
- *
- * @nptr may be null, and no conversion is performed then.
- *
- * If no conversion is performed, store @nptr in *@endptr and return
- * -EINVAL.
- *
- * If @endptr is null, and the string isn't fully converted, return
- * -EINVAL.  This is the case when the pointer that would be stored in
- * a non-null @endptr points to a character other than '\0'.
- *
- * If the conversion overflows @result, store UINT_MAX in @result,
- * and return -ERANGE.
- *
- * Else store the converted value in @result, and return zero.
- *
- * Note that a number with a leading minus sign gets converted without
- * the minus sign, checked for overflow (see above), then negated (in
- * @result's type).  This is exactly how strtoul() works.
- */
 int qemu_strtoui(const char *nptr, const char **endptr, int base,
                  unsigned int *result)
 {
@@ -407,30 +358,6 @@ int qemu_strtoui(const char *nptr, const char **endptr, int base,
     return check_strtox_error(nptr, ep, endptr, errno);
 }
 
-/**
- * Convert string @nptr to a long integer, and store it in @result.
- *
- * This is a wrapper around strtol() that is harder to misuse.
- * Semantics of @nptr, @endptr, @base match strtol() with differences
- * noted below.
- *
- * @nptr may be null, and no conversion is performed then.
- *
- * If no conversion is performed, store @nptr in *@endptr and return
- * -EINVAL.
- *
- * If @endptr is null, and the string isn't fully converted, return
- * -EINVAL.  This is the case when the pointer that would be stored in
- * a non-null @endptr points to a character other than '\0'.
- *
- * If the conversion overflows @result, store LONG_MAX in @result,
- * and return -ERANGE.
- *
- * If the conversion underflows @result, store LONG_MIN in @result,
- * and return -ERANGE.
- *
- * Else store the converted value in @result, and return zero.
- */
 int qemu_strtol(const char *nptr, const char **endptr, int base,
                 long *result)
 {
@@ -449,31 +376,6 @@ int qemu_strtol(const char *nptr, const char **endptr, int base,
     return check_strtox_error(nptr, ep, endptr, errno);
 }
 
-/**
- * Convert string @nptr to an unsigned long, and store it in @result.
- *
- * This is a wrapper around strtoul() that is harder to misuse.
- * Semantics of @nptr, @endptr, @base match strtoul() with differences
- * noted below.
- *
- * @nptr may be null, and no conversion is performed then.
- *
- * If no conversion is performed, store @nptr in *@endptr and return
- * -EINVAL.
- *
- * If @endptr is null, and the string isn't fully converted, return
- * -EINVAL.  This is the case when the pointer that would be stored in
- * a non-null @endptr points to a character other than '\0'.
- *
- * If the conversion overflows @result, store ULONG_MAX in @result,
- * and return -ERANGE.
- *
- * Else store the converted value in @result, and return zero.
- *
- * Note that a number with a leading minus sign gets converted without
- * the minus sign, checked for overflow (see above), then negated (in
- * @result's type).  This is exactly how strtoul() works.
- */
 int qemu_strtoul(const char *nptr, const char **endptr, int base,
                  unsigned long *result)
 {
@@ -496,12 +398,6 @@ int qemu_strtoul(const char *nptr, const char **endptr, int base,
     return check_strtox_error(nptr, ep, endptr, errno);
 }
 
-/**
- * Convert string @nptr to an int64_t.
- *
- * Works like qemu_strtol(), except it stores INT64_MAX on overflow,
- * and INT_MIN on underflow.
- */
 int qemu_strtoi64(const char *nptr, const char **endptr, int base,
                  int64_t *result)
 {
@@ -521,11 +417,6 @@ int qemu_strtoi64(const char *nptr, const char **endptr, int base,
     return check_strtox_error(nptr, ep, endptr, errno);
 }
 
-/**
- * Convert string @nptr to an uint64_t.
- *
- * Works like qemu_strtoul(), except it stores UINT64_MAX on overflow.
- */
 int qemu_strtou64(const char *nptr, const char **endptr, int base,
                   uint64_t *result)
 {
@@ -549,30 +440,6 @@ int qemu_strtou64(const char *nptr, const char **endptr, int base,
     return check_strtox_error(nptr, ep, endptr, errno);
 }
 
-/**
- * Convert string @nptr to a double.
-  *
- * This is a wrapper around strtod() that is harder to misuse.
- * Semantics of @nptr and @endptr match strtod() with differences
- * noted below.
- *
- * @nptr may be null, and no conversion is performed then.
- *
- * If no conversion is performed, store @nptr in *@endptr and return
- * -EINVAL.
- *
- * If @endptr is null, and the string isn't fully converted, return
- * -EINVAL. This is the case when the pointer that would be stored in
- * a non-null @endptr points to a character other than '\0'.
- *
- * If the conversion overflows, store +/-HUGE_VAL in @result, depending
- * on the sign, and return -ERANGE.
- *
- * If the conversion underflows, store +/-0.0 in @result, depending on the
- * sign, and return -ERANGE.
- *
- * Else store the converted value in @result, and return zero.
- */
 int qemu_strtod(const char *nptr, const char **endptr, double *result)
 {
     char *ep;
@@ -589,12 +456,6 @@ int qemu_strtod(const char *nptr, const char **endptr, double *result)
     return check_strtox_error(nptr, ep, endptr, errno);
 }
 
-/**
- * Convert string @nptr to a finite double.
- *
- * Works like qemu_strtod(), except that "NaN" and "inf" are rejected
- * with -EINVAL and no conversion is performed.
- */
 int qemu_strtod_finite(const char *nptr, const char **endptr, double *result)
 {
     double tmp;
@@ -614,10 +475,6 @@ int qemu_strtod_finite(const char *nptr, const char **endptr, double *result)
     return ret;
 }
 
-/**
- * Searches for the first occurrence of 'c' in 's', and returns a pointer
- * to the trailing null byte if none was found.
- */
 #ifndef HAVE_STRCHRNUL
 const char *qemu_strchrnul(const char *s, int c)
 {
@@ -629,34 +486,6 @@ const char *qemu_strchrnul(const char *s, int c)
 }
 #endif
 
-/**
- * parse_uint:
- *
- * @s: String to parse
- * @value: Destination for parsed integer value
- * @endptr: Destination for pointer to first character not consumed
- * @base: integer base, between 2 and 36 inclusive, or 0
- *
- * Parse unsigned integer
- *
- * Parsed syntax is like strtoull()'s: arbitrary whitespace, a single optional
- * '+' or '-', an optional "0x" if @base is 0 or 16, one or more digits.
- *
- * If @s is null, or @base is invalid, or @s doesn't start with an
- * integer in the syntax above, set *@value to 0, *@endptr to @s, and
- * return -EINVAL.
- *
- * Set *@endptr to point right beyond the parsed integer (even if the integer
- * overflows or is negative, all digits will be parsed and *@endptr will
- * point right beyond them).
- *
- * If the integer is negative, set *@value to 0, and return -ERANGE.
- *
- * If the integer overflows unsigned long long, set *@value to
- * ULLONG_MAX, and return -ERANGE.
- *
- * Else, set *@value to the parsed integer, and return 0.
- */
 int parse_uint(const char *s, unsigned long long *value, char **endptr,
                int base)
 {
@@ -698,20 +527,6 @@ out:
     return r;
 }
 
-/**
- * parse_uint_full:
- *
- * @s: String to parse
- * @value: Destination for parsed integer value
- * @base: integer base, between 2 and 36 inclusive, or 0
- *
- * Parse unsigned integer from entire string
- *
- * Have the same behavior of parse_uint(), but with an additional check
- * for additional data after the parsed number. If extra characters are present
- * after the parsed number, the function will return -EINVAL, and *@v will
- * be set to 0.
- */
 int parse_uint_full(const char *s, unsigned long long *value, int base)
 {
     char *endp;
