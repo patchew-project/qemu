@@ -640,6 +640,7 @@ M: Peter Maydell <peter.maydell@linaro.org>
 L: qemu-arm@nongnu.org
 S: Odd Fixes
 F: hw/arm/nseries.c
+F: hw/input/tsc2*.c
 F: include/hw/display/blizzard.h
 F: include/hw/misc/cbus.h
 
@@ -649,6 +650,7 @@ M: Peter Maydell <peter.maydell@linaro.org>
 L: qemu-arm@nongnu.org
 S: Odd Fixes
 F: hw/arm/palm.c
+F: hw/input/tsc2*.c
 
 Raspberry Pi
 M: Peter Maydell <peter.maydell@linaro.org>
