@@ -319,3 +319,48 @@ int ppc_cpu_gdb_write_register_apple(CPUState *cs, uint8_t *mem_buf, int n)
     }
     return r;
 }
+
+#ifndef CONFIG_USER_ONLY
+int ppc_gdb_gen_spr_xml(CPUState *cs)
+{
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    CPUPPCState *env = &cpu->env;
+    GString *s = g_string_new(NULL);
+    int num_regs = 0;
+    int i;
+
+    g_string_printf(s, "<?xml version=\"1.0\"?>");
+    g_string_append_printf(s, "<!DOCTYPE target SYSTEM \"gdb-target.dtd\">");
+    g_string_append_printf(s, "<feature name=\"org.qemu.power.spr\">");
+
+    for (i = 0; i < ARRAY_SIZE(env->spr_cb); i++) {
+        ppc_spr_t *spr = &env->spr_cb[i];
+
+        if (!spr->name) {
+            continue;
+        }
+
+        g_string_append_printf(s, "<reg name=\"%s\"",
+                               g_ascii_strdown(spr->name, -1));
+        g_string_append_printf(s, " bitsize=\"%d\"", TARGET_LONG_BITS);
+        g_string_append_printf(s, " group=\"spr\"/>");
+
+        num_regs++;
+    }
+
+    g_string_append_printf(s, "</feature>");
+    env->gdb_spr_xml = g_string_free(s, false);
+    return num_regs;
+}
+
+const char *ppc_gdb_get_dynamic_xml(CPUState *cs, const char *xml_name)
+{
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    CPUPPCState *env = &cpu->env;
+
+    if (strcmp(xml_name, "power-spr.xml") == 0) {
+        return env->gdb_spr_xml;
+    }
+    return NULL;
+}
+#endif
