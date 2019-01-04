@@ -18,7 +18,6 @@
 /* Number of 2k memory pages available.  */
 #define NUM_PACKETS 4
 
-#define TYPE_SMC91C111 "smc91c111"
 #define SMC91C111(obj) OBJECT_CHECK(smc91c111_state, (obj), TYPE_SMC91C111)
 
 typedef struct {
@@ -807,22 +806,6 @@ static const TypeInfo smc91c111_info = {
 static void smc91c111_register_types(void)
 {
     type_register_static(&smc91c111_info);
-}
-
-/* Legacy helper function.  Should go away when machine config files are
-   implemented.  */
-void smc91c111_init(NICInfo *nd, uint32_t base, qemu_irq irq)
-{
-    DeviceState *dev;
-    SysBusDevice *s;
-
-    qemu_check_nic_model(nd, "smc91c111");
-    dev = qdev_create(NULL, TYPE_SMC91C111);
-    qdev_set_nic_properties(dev, nd);
-    qdev_init_nofail(dev);
-    s = SYS_BUS_DEVICE(dev);
-    sysbus_mmio_map(s, 0, base);
-    sysbus_connect_irq(s, 0, irq);
 }
 
 type_init(smc91c111_register_types)
