@@ -233,17 +233,31 @@ extern int daemon(int, int);
 #endif
 
 #ifndef MIN
-#define MIN(a, b) (((a) < (b)) ? (a) : (b))
+#define MIN(a, b)              \
+    ({                         \
+        __auto_type _a = (a);  \
+        __auto_type _b = (b);  \
+        _a < _b ? _a : _b;     \
+    })
 #endif
 #ifndef MAX
-#define MAX(a, b) (((a) > (b)) ? (a) : (b))
+#define MAX(a, b)              \
+    ({                         \
+        __auto_type _a = (a);  \
+        __auto_type _b = (b);  \
+        _a > _b ? _a : _b;     \
+    })
 #endif
 
 /* Minimum function that returns zero only iff both values are zero.
  * Intended for use with unsigned values only. */
 #ifndef MIN_NON_ZERO
-#define MIN_NON_ZERO(a, b) ((a) == 0 ? (b) : \
-                                ((b) == 0 ? (a) : (MIN(a, b))))
+#define MIN_NON_ZERO(a, b)                              \
+    ({                                                  \
+        __auto_type _a = (a);                           \
+        __auto_type _b = (b);                           \
+        _a == 0 ? _b : (_b == 0 || _b > _a) ? _a : _b;  \
+    })
 #endif
 
 /* Round number down to multiple */
