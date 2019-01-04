@@ -641,6 +641,7 @@ L: qemu-arm@nongnu.org
 S: Odd Fixes
 F: hw/arm/nseries.c
 F: include/hw/display/blizzard.h
+F: include/hw/misc/cbus.h
 
 Palm
 M: Andrzej Zaborowski <balrogg@gmail.com>
