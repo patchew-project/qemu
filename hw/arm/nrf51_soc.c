@@ -32,6 +32,11 @@
 #define NRF51822_FLASH_SIZE     (256 * NRF51_PAGE_SIZE)
 #define NRF51822_SRAM_SIZE      (16 * NRF51_PAGE_SIZE)
 
+#define NRF51_TWI_EVENT_STOPPED 0x104
+#define NRF51_TWI_EVENT_RXDREADY 0x108
+#define NRF51_TWI_EVENT_TXDSENT 0x11c
+#define NRF51_TWI_REG_RXD 0x518
+
 #define BASE_TO_IRQ(base) ((base >> 12) & 0x1F)
 
 static uint64_t clock_read(void *opaque, hwaddr addr, unsigned int size)
@@ -53,6 +58,58 @@ static const MemoryRegionOps clock_ops = {
     .write = clock_write
 };
 
+/* Two-Wire Interface (TWI) is not implemented but the microbit-dal firmware
+ * panics if the TWI accelerometer and magnetometer WHO_AM_I registers cannot
+ * be read.  Stub out this read sequence so microbit-dal starts up.
+ */
+static uint32_t twi_read_sequence[] = {0x5A, 0x5A, 0x40};
+static uint32_t twi_regs[0x1000 / 4];
+
+static uint64_t twi_read(void *opaque, hwaddr addr, unsigned int size)
+{
+    static int i;
+    uint64_t data = 0x00;
+
+    switch (addr) {
+    case NRF51_TWI_EVENT_STOPPED:
+        data = 0x01;
+        break;
+    case NRF51_TWI_EVENT_RXDREADY:
+        data = 0x01;
+        break;
+    case NRF51_TWI_EVENT_TXDSENT:
+        data = 0x01;
+        break;
+    case NRF51_TWI_REG_RXD:
+        data = twi_read_sequence[i];
+        if (i < ARRAY_SIZE(twi_read_sequence)) {
+            i++;
+        }
+        break;
+    default:
+        data = twi_regs[addr / 4];
+        break;
+    }
+
+    qemu_log_mask(LOG_UNIMP, "%s: 0x%" HWADDR_PRIx " [%u] = %" PRIx32 "\n",
+                  __func__, addr, size, (uint32_t)data);
+
+
+    return data;
+}
+
+static void twi_write(void *opaque, hwaddr addr, uint64_t data,
+                      unsigned int size)
+{
+    qemu_log_mask(LOG_UNIMP, "%s: 0x%" HWADDR_PRIx " <- 0x%" PRIx64 " [%u]\n",
+                  __func__, addr, data, size);
+    twi_regs[addr / 4] = data;
+}
+
+static const MemoryRegionOps twi_ops = {
+    .read = twi_read,
+    .write = twi_write
+};
 
 static void nrf51_soc_realize(DeviceState *dev_soc, Error **errp)
 {
@@ -155,6 +212,11 @@ static void nrf51_soc_realize(DeviceState *dev_soc, Error **errp)
                           "nrf51_soc.clock", 0x1000);
     memory_region_add_subregion_overlap(&s->container,
                                         NRF51_IOMEM_BASE, &s->clock, -1);
+
+    memory_region_init_io(&s->twi, NULL, &twi_ops, NULL,
+                          "nrf51_soc.twi", 0x1000);
+    memory_region_add_subregion_overlap(&s->container,
+                                        NRF51_TWI_BASE, &s->twi, -1);
 
     create_unimplemented_device("nrf51_soc.io", NRF51_IOMEM_BASE,
                                 NRF51_IOMEM_SIZE);
