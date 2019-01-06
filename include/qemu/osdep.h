@@ -232,18 +232,48 @@ extern int daemon(int, int);
 #define SIZE_MAX ((size_t)-1)
 #endif
 
-#ifndef MIN
-#define MIN(a, b) (((a) < (b)) ? (a) : (b))
-#endif
-#ifndef MAX
-#define MAX(a, b) (((a) > (b)) ? (a) : (b))
-#endif
+/*
+ * Two variations of MIN/MAX macros. The first is for runtime use, and
+ * evaluates arguments only once (so it is safe even with side
+ * effects), but will not work in constant contexts (such as array
+ * size declarations).  The second is for compile-time use, where
+ * evaluating arguments twice is safe because the result is going to
+ * be constant anyway.
+ */
+#undef MIN
+#define MIN(a, b)                            \
+    ({                                       \
+        QEMU_TYPEOF((a) + 0) _a = (a) + 0;   \
+        QEMU_TYPEOF((b) + 0) _b = (b) + 0;   \
+        _a < _b ? _a : _b;                   \
+    })
+#define MIN_CONST(a, b)                                         \
+    __builtin_choose_expr(                                      \
+        __builtin_constant_p(a) && __builtin_constant_p(b),     \
+        (a) < (b) ? (a) : (b),                                  \
+        __builtin_unreachable())
+#undef MAX
+#define MAX(a, b)                            \
+    ({                                       \
+        QEMU_TYPEOF((a) + 0) _a = (a) + 0;   \
+        QEMU_TYPEOF((b) + 0) _b = (b) + 0;   \
+        _a > _b ? _a : _b;                   \
+    })
+#define MAX_CONST(a, b)                                         \
+    __builtin_choose_expr(                                      \
+        __builtin_constant_p(a) && __builtin_constant_p(b),     \
+        (a) > (b) ? (a) : (b),                                  \
+        __builtin_unreachable())
 
 /* Minimum function that returns zero only iff both values are zero.
  * Intended for use with unsigned values only. */
 #ifndef MIN_NON_ZERO
-#define MIN_NON_ZERO(a, b) ((a) == 0 ? (b) : \
-                                ((b) == 0 ? (a) : (MIN(a, b))))
+#define MIN_NON_ZERO(a, b)                              \
+    ({                                                  \
+        QEMU_TYPEOF((a) + 0) _a = (a) + 0;              \
+        QEMU_TYPEOF((b) + 0) _b = (b) + 0;              \
+        _a == 0 ? _b : (_b == 0 || _b > _a) ? _a : _b;  \
+    })
 #endif
 
 /* Round number down to multiple */

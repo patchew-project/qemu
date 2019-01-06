@@ -191,4 +191,14 @@
 #define QEMU_GENERIC9(x, a0, ...) QEMU_GENERIC_IF(x, a0, QEMU_GENERIC8(x, __VA_ARGS__))
 #define QEMU_GENERIC10(x, a0, ...) QEMU_GENERIC_IF(x, a0, QEMU_GENERIC9(x, __VA_ARGS__))
 
+/*
+ * Automatic type deduction, to be used as:
+ * QEMU_TYPEOF(expr) name = expr;
+ */
+#if QEMU_GNUC_PREREQ(4, 9)
+# define QEMU_TYPEOF(a) __auto_type
+#else
+# define QEMU_TYPEOF(a) typeof(a)
+#endif
+
 #endif /* COMPILER_H */
