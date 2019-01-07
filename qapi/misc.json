@@ -865,6 +865,9 @@
 #
 # @regions: a list of the PCI I/O regions associated with the device
 #
+# @failover_status: if 'failover-primary' property is 'true', true if PCI
+#                   bus master bit on the device is enabled
+#
 # Notes: the contents of @class_info.desc are not stable and should only be
 #        treated as informational.
 #
@@ -874,7 +877,7 @@
   'data': {'bus': 'int', 'slot': 'int', 'function': 'int',
            'class_info': 'PciDeviceClass', 'id': 'PciDeviceId',
            '*irq': 'int', 'qdev_id': 'str', '*pci_bridge': 'PciBridgeInfo',
-           'regions': ['PciMemoryRegion']} }
+           'regions': ['PciMemoryRegion'], '*failover_status': 'bool'} }
 
 ##
 # @PciInfo:

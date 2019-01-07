@@ -1765,6 +1765,11 @@ static PciDeviceInfo *qmp_query_pci_device(PCIDevice *dev, PCIBus *bus,
             pci_get_word(dev->config + PCI_CB_SUBSYSTEM_VENDOR_ID);
     }
 
+    if (dev->failover_primary) {
+        info->has_failover_status = true;
+        info->failover_status = dev->bus_master_enable_region.enabled;
+    }
+
     return info;
 }
 
