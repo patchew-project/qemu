@@ -890,6 +890,11 @@ static void hmp_info_pci_device(Monitor *mon, const PciDeviceInfo *dev)
         }
     }
 
+    if (dev->has_failover_status) {
+        monitor_printf(mon, "      Failover primary, bus master %s.\n",
+                       dev->failover_status ? "enabled" : "disabled");
+    }
+
     monitor_printf(mon, "      id \"%s\"\n", dev->qdev_id);
 
     if (dev->has_pci_bridge) {
