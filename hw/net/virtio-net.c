@@ -248,6 +248,29 @@ static void virtio_net_drop_tx_queue_data(VirtIODevice *vdev, VirtQueue *vq)
     }
 }
 
+static void virtio_net_failover_notify_event(VirtIONet *n, uint8_t status)
+{
+    VirtIODevice *vdev = VIRTIO_DEVICE(n);
+
+    if (virtio_has_feature(vdev->guest_features, VIRTIO_NET_F_STANDBY)) {
+        const char *ncn = n->netclient_name;
+        gchar *path = object_get_canonical_path(OBJECT(n->qdev));
+        /*
+         * Emit FAILOVER_STANDBY_CHANGED event with enabled=true
+         *   when the status transitions from 0 to VIRTIO_CONFIG_S_DRIVER_OK
+         * Emit FAILOVER_STANDBY_CHANGED event with enabled=false
+         *   when the status transitions from VIRTIO_CONFIG_S_DRIVER_OK to 0
+         */
+        if ((status & VIRTIO_CONFIG_S_DRIVER_OK) &&
+                (!(vdev->status & VIRTIO_CONFIG_S_DRIVER_OK))) {
+            qapi_event_send_failover_standby_changed(!!ncn, ncn, path, true);
+        } else if ((!(status & VIRTIO_CONFIG_S_DRIVER_OK)) &&
+                (vdev->status & VIRTIO_CONFIG_S_DRIVER_OK)) {
+            qapi_event_send_failover_standby_changed(!!ncn, ncn, path, false);
+        }
+    }
+}
+
 static void virtio_net_set_status(struct VirtIODevice *vdev, uint8_t status)
 {
     VirtIONet *n = VIRTIO_NET(vdev);
@@ -256,6 +279,7 @@ static void virtio_net_set_status(struct VirtIODevice *vdev, uint8_t status)
     uint8_t queue_status;
 
     virtio_net_vnet_endian_status(n, status);
+    virtio_net_failover_notify_event(n, status);
     virtio_net_vhost_status(n, status);
 
     for (i = 0; i < n->max_queues; i++) {

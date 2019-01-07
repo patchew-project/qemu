@@ -684,3 +684,31 @@
 ##
 { 'event': 'NIC_RX_FILTER_CHANGED',
   'data': { '*name': 'str', 'path': 'str' } }
+
+##
+# @FAILOVER_STANDBY_CHANGED:
+#
+# Emitted whenever the virtio_net driver status changes (either the guest
+# successfully loads the driver after the F_STANDBY feature bit is negotiated,
+# or the guest unloads the driver or reboots).
+#
+# @device: Indicates the virtio_net device.
+#
+# @path: Indicates the device path.
+#
+# @enabled: true if the virtio_net driver is loaded.
+#           false if the virtio_net driver is unloaded or the guest reboots.
+#
+# Since: 4.0
+#
+# Example:
+#
+# <- { "event": "FAILOVER_STANDBY_CHANGED",
+#      "data": { "device": "net0",
+#                "path": "/machine/peripheral/net0/virtio-backend",
+#                "enabled": "true" },
+#      "timestamp": { "seconds": 1432121972, "microseconds": 744001 } },
+#
+##
+{ 'event': 'FAILOVER_STANDBY_CHANGED',
+  'data': {'*device': 'str', 'path': 'str', 'enabled': 'bool'} }
