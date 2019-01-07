@@ -263,9 +263,11 @@ static void virtio_net_failover_notify_event(VirtIONet *n, uint8_t status)
          */
         if ((status & VIRTIO_CONFIG_S_DRIVER_OK) &&
                 (!(vdev->status & VIRTIO_CONFIG_S_DRIVER_OK))) {
+            n->standby_enabled = true;
             qapi_event_send_failover_standby_changed(!!ncn, ncn, path, true);
         } else if ((!(status & VIRTIO_CONFIG_S_DRIVER_OK)) &&
                 (vdev->status & VIRTIO_CONFIG_S_DRIVER_OK)) {
+            n->standby_enabled = false;
             qapi_event_send_failover_standby_changed(!!ncn, ncn, path, false);
         }
     }
@@ -444,6 +446,19 @@ static RxFilterInfo *virtio_net_query_rxfilter(NetClientState *nc)
 
     /* enable event notification after query */
     nc->rxfilter_notify_enabled = 1;
+
+    return info;
+}
+
+static StandbyStatusInfo *virtio_net_query_standby_status(NetClientState *nc)
+{
+    StandbyStatusInfo *info;
+    VirtIONet *n = qemu_get_nic_opaque(nc);
+
+    info = g_malloc0(sizeof(*info));
+    info->device = g_strdup(n->netclient_name);
+    info->path = g_strdup(object_get_canonical_path(OBJECT(n->qdev)));
+    info->enabled = n->standby_enabled;
 
     return info;
 }
@@ -1923,6 +1938,7 @@ static NetClientInfo net_virtio_info = {
     .receive = virtio_net_receive,
     .link_status_changed = virtio_net_set_link_status,
     .query_rx_filter = virtio_net_query_rxfilter,
+    .query_standby_status = virtio_net_query_standby_status,
 };
 
 static bool virtio_net_guest_notifier_pending(VirtIODevice *vdev, int idx)

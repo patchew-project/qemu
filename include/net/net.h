@@ -50,6 +50,7 @@ typedef void (NetCleanup) (NetClientState *);
 typedef void (LinkStatusChanged)(NetClientState *);
 typedef void (NetClientDestructor)(NetClientState *);
 typedef RxFilterInfo *(QueryRxFilter)(NetClientState *);
+typedef StandbyStatusInfo *(QueryStandbyStatus)(NetClientState *);
 typedef bool (HasUfo)(NetClientState *);
 typedef bool (HasVnetHdr)(NetClientState *);
 typedef bool (HasVnetHdrLen)(NetClientState *, int);
@@ -71,6 +72,7 @@ typedef struct NetClientInfo {
     NetCleanup *cleanup;
     LinkStatusChanged *link_status_changed;
     QueryRxFilter *query_rx_filter;
+    QueryStandbyStatus *query_standby_status;
     NetPoll *poll;
     HasUfo *has_ufo;
     HasVnetHdr *has_vnet_hdr;
