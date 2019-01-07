@@ -231,17 +231,22 @@ static char **guest_exec_get_args(const strList *entry, bool log)
     int count = 1, i = 0;  /* reserve for NULL terminator */
     char **args;
     char *str; /* for logging array of arguments */
-    size_t str_size = 1;
+    size_t str_size = 1, args_max;
 
+    args_max = sysconf(_SC_ARG_MAX);
     for (it = entry; it != NULL; it = it->next) {
         count++;
         str_size += 1 + strlen(it->value);
+        if (str_size >= args_max / 2
+            || count >= args_max / sizeof(char *)) {
+            break;
+        }
     }
 
     str = g_malloc(str_size);
     *str = 0;
     args = g_malloc(count * sizeof(char *));
-    for (it = entry; it != NULL; it = it->next) {
+    for (it = entry; it != NULL && i < count; it = it->next) {
         args[i++] = it->value;
         pstrcat(str, str_size, it->value);
         if (it->next) {
