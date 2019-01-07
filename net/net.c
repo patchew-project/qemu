@@ -1320,6 +1320,67 @@ RxFilterInfoList *qmp_query_rx_filter(bool has_name, const char *name,
     return filter_list;
 }
 
+StandbyStatusInfoList *qmp_query_standby_status(bool has_device,
+                                                const char *device,
+                                                Error **errp)
+{
+    NetClientState *nc;
+    StandbyStatusInfoList *status_list = NULL, *last_entry = NULL;
+
+    QTAILQ_FOREACH(nc, &net_clients, next) {
+        StandbyStatusInfoList *entry;
+        StandbyStatusInfo *info;
+
+        if (has_device && strcmp(nc->name, device) != 0) {
+            continue;
+        }
+
+        /* only query standby status information of NIC */
+        if (nc->info->type != NET_CLIENT_DRIVER_NIC) {
+            if (has_device) {
+                error_setg(errp, "net client(%s) isn't a NIC", device);
+                return NULL;
+            }
+            continue;
+        }
+
+        /*
+         * only query information on queue 0 since the info is per nic,
+         * not per queue.
+         */
+        if (nc->queue_index != 0) {
+            continue;
+        }
+
+        if (nc->info->query_standby_status) {
+            info = nc->info->query_standby_status(nc);
+            entry = g_malloc0(sizeof(*entry));
+            entry->value = info;
+
+            if (!status_list) {
+                status_list = entry;
+            } else {
+                last_entry->next = entry;
+            }
+            last_entry = entry;
+        } else if (has_device) {
+            error_setg(errp, "net client(%s) doesn't support"
+                       " standby status querying", device);
+            return NULL;
+        }
+
+        if (has_device) {
+            break;
+        }
+    }
+
+    if (status_list == NULL && has_device) {
+        error_setg(errp, "invalid net client name: %s", device);
+    }
+
+    return status_list;
+}
+
 void hmp_info_network(Monitor *mon, const QDict *qdict)
 {
     NetClientState *nc, *peer;

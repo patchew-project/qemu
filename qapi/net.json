@@ -712,3 +712,49 @@
 ##
 { 'event': 'FAILOVER_STANDBY_CHANGED',
   'data': {'*device': 'str', 'path': 'str', 'enabled': 'bool'} }
+
+##
+# @StandbyStatusInfo:
+#
+# Standby status information for a virtio_net device.
+#
+# @device: Indicates the virtio_net device.
+#
+# @path: Indicates the device path.
+#
+# @enabled: true if the virtio_net driver is loaded.
+#           false if the virtio_net driver is unloaded or the guest rebooted.
+#
+# Since: 4.0
+##
+{ 'struct': 'StandbyStatusInfo',
+  'data': {'device': 'str', 'path': 'str', 'enabled': 'bool'} }
+
+##
+# @query-standby-status:
+#
+# Return Standby status information for all virtio_net devices,
+#        or for the given virtio_net device.
+#
+# @device: Name of the virtio_net device.
+#
+# Returns: List of @StandbyStatusInfo for all virtio_net devices,
+#          or for the given virtio_net device.
+#          Returns an error if the given @device doesn't exist.
+#
+# Since: 4.0
+#
+# Example:
+#
+# -> { "execute": "query-standby-status", "arguments": { "device": "net0" } }
+# <- { "return": [
+#                  { 'device': 'net0',
+#                    'path': '/machine/peripheral/net0/virtio-backend',
+#                    'enabled': 'true'
+#                  }
+#                ]
+#    }
+#
+##
+{ 'command': 'query-standby-status', 'data': { '*device': 'str' },
+  'returns': ['StandbyStatusInfo'] }
