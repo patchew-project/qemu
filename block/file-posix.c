@@ -167,6 +167,7 @@ typedef struct BDRVRawState {
     bool has_fallocate;
     bool needs_alignment;
     bool check_cache_dropped;
+    bool rough_block_status;
 
     PRManager *pr_mgr;
 } BDRVRawState;
@@ -439,6 +440,13 @@ static QemuOptsList raw_runtime_opts = {
             .type = QEMU_OPT_BOOL,
             .help = "check that page cache was dropped on live migration (default: off)"
         },
+        {
+            .name = "rough-block-status",
+            .type = QEMU_OPT_BOOL,
+            .help = "If set, on block-status querying assume that the whole "
+                    "file is data and do not try to find holes through system "
+                    "calls (default: off)"
+        },
         { /* end of list */ }
     },
 };
@@ -525,6 +533,8 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
 
     s->check_cache_dropped = qemu_opt_get_bool(opts, "x-check-cache-dropped",
                                                false);
+    s->rough_block_status = qemu_opt_get_bool(opts, "rough-block-status",
+                                              false);
 
     s->open_flags = open_flags;
     raw_parse_flags(bdrv_flags, &s->open_flags);
@@ -2424,6 +2434,7 @@ static int coroutine_fn raw_co_block_status(BlockDriverState *bs,
                                             int64_t *map,
                                             BlockDriverState **file)
 {
+    BDRVRawState *s = bs->opaque;
     off_t data = 0, hole = 0;
     int ret;
 
@@ -2432,7 +2443,7 @@ static int coroutine_fn raw_co_block_status(BlockDriverState *bs,
         return ret;
     }
 
-    if (!want_zero) {
+    if (!want_zero || s->rough_block_status) {
         *pnum = bytes;
         *map = offset;
         *file = bs;
