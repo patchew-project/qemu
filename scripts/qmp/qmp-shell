@@ -33,7 +33,11 @@
 # key=value pairs also support Python or JSON object literal subset notations,
 # without spaces. Dictionaries/objects {} are supported as are arrays [].
 #
-#    example-command arg-name1={'key':'value','obj'={'prop':"value"}}
+#  JSON:
+#    example-command arg-name1='{"key":"value","obj":{"prop":"value"}}'
+#    example-command arg-name1='{"key":"value","obj":[1,true,"three"]}'
+#  free style:
+#    example-command arg-name1="{'key':'value',\"obj\":[1,True,\"three\"]}"
 #
 # Both JSON and Python formatting should work, including both styles of
 # string literal quotes. Both paradigms of literal values should work,
