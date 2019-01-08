@@ -157,14 +157,6 @@ int pvrdma_qp_send(PVRDMADev *dev, uint32_t qp_handle)
 
         pr_dbg("wr_id=%" PRIx64 "\n", wqe->hdr.wr_id);
 
-        /* Prepare CQE */
-        comp_ctx = g_malloc(sizeof(CompHandlerCtx));
-        comp_ctx->dev = dev;
-        comp_ctx->cq_handle = qp->send_cq_handle;
-        comp_ctx->cqe.wr_id = wqe->hdr.wr_id;
-        comp_ctx->cqe.qp = qp_handle;
-        comp_ctx->cqe.opcode = IBV_WC_SEND;
-
         sgid = rdma_rm_get_gid(&dev->rdma_dev_res, wqe->hdr.wr.ud.av.gid_index);
         if (!sgid) {
             pr_dbg("Fail to get gid for idx %d\n", wqe->hdr.wr.ud.av.gid_index);
@@ -181,6 +173,14 @@ int pvrdma_qp_send(PVRDMADev *dev, uint32_t qp_handle)
                    wqe->hdr.wr.ud.av.gid_index);
             return -EIO;
         }
+
+        /* Prepare CQE */
+        comp_ctx = g_malloc(sizeof(CompHandlerCtx));
+        comp_ctx->dev = dev;
+        comp_ctx->cq_handle = qp->send_cq_handle;
+        comp_ctx->cqe.wr_id = wqe->hdr.wr_id;
+        comp_ctx->cqe.qp = qp_handle;
+        comp_ctx->cqe.opcode = IBV_WC_SEND;
 
         rdma_backend_post_send(&dev->backend_dev, &qp->backend_qp, qp->qp_type,
                                (struct ibv_sge *)&wqe->sge[0], wqe->hdr.num_sge,
