@@ -108,6 +108,7 @@ typedef struct VFIODevice {
     struct VFIOGroup *group;
     char *sysfsdev;
     char *name;
+    char *vfioid;
     DeviceState *dev;
     int fd;
     int type;

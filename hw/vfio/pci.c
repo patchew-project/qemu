@@ -2533,7 +2533,12 @@ static void vfio_populate_device(VFIOPCIDevice *vdev, Error **errp)
     }
 
     for (i = VFIO_PCI_BAR0_REGION_INDEX; i < VFIO_PCI_ROM_REGION_INDEX; i++) {
-        char *name = g_strdup_printf("%s BAR %d", vbasedev->name, i);
+        char *name;
+        if (vbasedev->vfioid) {
+            name = g_strdup_printf("%s BAR %d", vbasedev->vfioid, i);
+        } else {
+            name = g_strdup_printf("%s BAR %d", vbasedev->name, i);
+        }
 
         ret = vfio_region_setup(OBJECT(vdev), vbasedev,
                                 &vdev->bars[i].region, i, name);
@@ -3180,6 +3185,7 @@ static void vfio_instance_init(Object *obj)
 static Property vfio_pci_dev_properties[] = {
     DEFINE_PROP_PCI_HOST_DEVADDR("host", VFIOPCIDevice, host),
     DEFINE_PROP_STRING("sysfsdev", VFIOPCIDevice, vbasedev.sysfsdev),
+    DEFINE_PROP_STRING("vfioid", VFIOPCIDevice, vbasedev.vfioid),
     DEFINE_PROP_ON_OFF_AUTO("display", VFIOPCIDevice,
                             display, ON_OFF_AUTO_OFF),
     DEFINE_PROP_UINT32("x-intx-mmap-timeout-ms", VFIOPCIDevice,
