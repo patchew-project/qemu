@@ -221,6 +221,22 @@ static int vfio_dma_unmap(VFIOContainer *container,
     };
 
     if (ioctl(container->fd, VFIO_IOMMU_UNMAP_DMA, &unmap)) {
+        /*
+         * Give it another shot due to a bug in kernel (v4.15-v4.20)
+         * that could potentially reject a region that exactly covers
+         * the whole u64 address space (71a7d3d78e3c, "vfio/type1:
+         * silence integer overflow warning", 2017-10-20).  If that
+         * happens, we retry for one more time assuming that the last
+         * page of the address space (2^64-getpagesize()) has already
+         * been dropped.
+         */
+        if (errno == EINVAL && unmap.size && unmap.iova + unmap.size == 0) {
+            trace_vfio_dma_unmap_workaround_overflow();
+            unmap.size -= getpagesize();
+            if (ioctl(container->fd, VFIO_IOMMU_UNMAP_DMA, &unmap) == 0) {
+                return 0;
+            }
+        }
         error_report("VFIO_UNMAP_DMA: %d", -errno);
         return -errno;
     }
