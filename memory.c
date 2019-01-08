@@ -1588,6 +1588,7 @@ void memory_region_init_ram_ptr(MemoryRegion *mr,
                                 uint64_t size,
                                 void *ptr)
 {
+    DeviceState *owner_dev;
     memory_region_init(mr, owner, name, size);
     mr->ram = true;
     mr->terminates = true;
@@ -1597,6 +1598,9 @@ void memory_region_init_ram_ptr(MemoryRegion *mr,
     /* qemu_ram_alloc_from_ptr cannot fail with ptr != NULL.  */
     assert(ptr != NULL);
     mr->ram_block = qemu_ram_alloc_from_ptr(size, ptr, mr, &error_fatal);
+
+    owner_dev = DEVICE(owner);
+    vmstate_register_ram(mr, owner_dev);
 }
 
 void memory_region_init_ram_device_ptr(MemoryRegion *mr,
