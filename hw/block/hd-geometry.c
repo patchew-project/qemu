@@ -55,6 +55,7 @@ struct partition {
 static int guess_disk_lchs(BlockBackend *blk,
                            int *pcylinders, int *pheads, int *psectors)
 {
+    AioContext *ctx = blk_get_aio_context(blk);
     uint8_t buf[BDRV_SECTOR_SIZE];
     int i, heads, sectors, cylinders;
     struct partition *p;
@@ -68,7 +69,10 @@ static int guess_disk_lchs(BlockBackend *blk,
      * but also in async I/O mode. So the I/O throttling function has to
      * be disabled temporarily here, not permanently.
      */
-    if (blk_pread_unthrottled(blk, 0, buf, BDRV_SECTOR_SIZE) < 0) {
+    aio_context_acquire(ctx);
+    i = blk_pread_unthrottled(blk, 0, buf, BDRV_SECTOR_SIZE);
+    aio_context_release(ctx);
+    if (i < 0) {
         return -1;
     }
     /* test msdos magic */
