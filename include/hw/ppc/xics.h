@@ -47,6 +47,8 @@ typedef struct ICSState ICSState;
 typedef struct ICSIRQState ICSIRQState;
 typedef struct XICSFabric XICSFabric;
 
+#include "hw/ppc/spapr.h"
+
 #define TYPE_ICP "icp"
 #define ICP(obj) OBJECT_CHECK(ICPState, (obj), TYPE_ICP)
 
@@ -199,8 +201,6 @@ void ics_pic_print_info(ICSState *ics, Monitor *mon);
 
 void ics_resend(ICSState *ics);
 void icp_resend(ICPState *ss);
-
-typedef struct sPAPRMachineState sPAPRMachineState;
 
 void spapr_dt_xics(sPAPRMachineState *spapr, uint32_t nr_servers, void *fdt,
                    uint32_t phandle);
