@@ -1036,6 +1036,61 @@ static void vfio_put_address_space(VFIOAddressSpace *space)
     }
 }
 
+static void vfio_iommu_type1_get_info(int fd, VFIOContainer *container)
+{
+    struct vfio_iommu_type1_info *info;
+    size_t argsz = sizeof(*info);
+    struct vfio_info_cap_header *hdr;
+    struct vfio_iommu_cap_dma *dma_info;
+    int ret = 0;
+
+    info = g_malloc0(argsz);
+
+retry:
+    info->argsz = argsz;
+    info->flags = VFIO_IOMMU_INFO_CAPABILITIES;
+
+    ret = ioctl(fd, VFIO_IOMMU_GET_INFO, info);
+    /* Ignore errors */
+    if (ret) {
+        goto out;
+    }
+    if (!(info->flags & VFIO_IOMMU_INFO_PGSIZES)) {
+        info->iova_pgsizes = 4096;
+    }
+
+    if (info->argsz > argsz) {
+        argsz = info->argsz;
+        info = g_realloc(info, argsz);
+
+        goto retry;
+    }
+    if (info->argsz != argsz) {
+        goto out;
+    }
+    /* Now we have the capabilities */
+    hdr = (struct vfio_info_cap_header *)((unsigned char *)info +
+                                          sizeof(struct vfio_iommu_type1_info) +
+                                          info->cap_offset);
+    do {
+        dma_info = (struct vfio_iommu_cap_dma *) (hdr);
+        if (hdr->id == VFIO_IOMMU_INFO_CAP_DMA) {
+            vfio_host_win_add(container, 0,
+                              dma_info->dma_end - dma_info->dma_start,
+                              info->iova_pgsizes);
+            container->pgsizes = info->iova_pgsizes;
+            return;
+        }
+        hdr = (struct vfio_info_cap_header *)((unsigned char *) dma_info +
+                                              hdr->next);
+    } while (hdr->next);
+out:
+    /* Assume 4k IOVA page size */
+    vfio_host_win_add(container, 0, (hwaddr)-1,  4096);
+    container->pgsizes = 4096;
+    return;
+}
+
 static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
                                   Error **errp)
 {
@@ -1104,7 +1159,6 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
     if (ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_TYPE1_IOMMU) ||
         ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_TYPE1v2_IOMMU)) {
         bool v2 = !!ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_TYPE1v2_IOMMU);
-        struct vfio_iommu_type1_info info;
 
         ret = ioctl(group->fd, VFIO_GROUP_SET_CONTAINER, &fd);
         if (ret) {
@@ -1121,22 +1175,7 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
             goto free_container_exit;
         }
 
-        /*
-         * FIXME: This assumes that a Type1 IOMMU can map any 64-bit
-         * IOVA whatsoever.  That's not actually true, but the current
-         * kernel interface doesn't tell us what it can map, and the
-         * existing Type1 IOMMUs generally support any IOVA we're
-         * going to actually try in practice.
-         */
-        info.argsz = sizeof(info);
-        ret = ioctl(fd, VFIO_IOMMU_GET_INFO, &info);
-        /* Ignore errors */
-        if (ret || !(info.flags & VFIO_IOMMU_INFO_PGSIZES)) {
-            /* Assume 4k IOVA page size */
-            info.iova_pgsizes = 4096;
-        }
-        vfio_host_win_add(container, 0, (hwaddr)-1, info.iova_pgsizes);
-        container->pgsizes = info.iova_pgsizes;
+        vfio_iommu_type1_get_info(fd, container);
     } else if (ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_SPAPR_TCE_IOMMU) ||
                ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_SPAPR_TCE_v2_IOMMU)) {
         struct vfio_iommu_spapr_tce_info info;
