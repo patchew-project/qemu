@@ -142,6 +142,18 @@ Depending on the request type, payload can be:
    Offset: a 64-bit offset of this area from the start of the
        supplied file descriptor
 
+ * Inflight description
+   ----------------------------------------------------------
+   | mmap size | mmap offset | align | num queues | version |
+   ----------------------------------------------------------
+
+   mmap size: a 64-bit size of area to track inflight I/O
+   mmap offset: a 64-bit offset of this area from the start
+                of the supplied file descriptor
+   align: a 32-bit align of each region in this area
+   num queues: a 16-bit number of virtqueues
+   version: a 16-bit version of this area
+
 In QEMU the vhost-user message is implemented with the following struct:
 
 typedef struct VhostUserMsg {
@@ -157,6 +169,7 @@ typedef struct VhostUserMsg {
         struct vhost_iotlb_msg iotlb;
         VhostUserConfig config;
         VhostUserVringArea area;
+        VhostUserInflight inflight;
     };
 } QEMU_PACKED VhostUserMsg;
 
@@ -175,6 +188,7 @@ the ones that do:
  * VHOST_USER_GET_PROTOCOL_FEATURES
  * VHOST_USER_GET_VRING_BASE
  * VHOST_USER_SET_LOG_BASE (if VHOST_USER_PROTOCOL_F_LOG_SHMFD)
+ * VHOST_USER_GET_INFLIGHT_FD (if VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD)
 
 [ Also see the section on REPLY_ACK protocol extension. ]
 
@@ -188,6 +202,7 @@ in the ancillary data:
  * VHOST_USER_SET_VRING_CALL
  * VHOST_USER_SET_VRING_ERR
  * VHOST_USER_SET_SLAVE_REQ_FD
+ * VHOST_USER_SET_INFLIGHT_FD (if VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD)
 
 If Master is unable to send the full message or receives a wrong reply it will
 close the connection. An optional reconnection mechanism can be implemented.
@@ -382,6 +397,30 @@ If VHOST_USER_PROTOCOL_F_SLAVE_SEND_FD protocol feature is negotiated,
 slave can send file descriptors (at most 8 descriptors in each message)
 to master via ancillary data using this fd communication channel.
 
+Inflight I/O tracking
+---------------------
+
+To support slave reconnecting, slave need to track inflight I/O in a
+shared memory. VHOST_USER_GET_INFLIGHT_FD and VHOST_USER_SET_INFLIGHT_FD
+are used to transfer the memory between master and slave. And to encourage
+consistency, we provide a recommended format for this memory:
+
+offset	 width	  description
+0x0      0x400    region for queue0
+0x400    0x400    region for queue1
+0x800    0x400    region for queue2
+...      ...      ...
+
+For each virtqueue, we have a 1024 bytes region. The region's format is like:
+
+offset   width    description
+0x0      0x1      descriptor 0 is in use or not
+0x1      0x1      descriptor 1 is in use or not
+0x2      0x1      descriptor 2 is in use or not
+...      ...      ...
+
+For each descriptor, we use one byte to specify whether it's in use or not.
+
 Protocol features
 -----------------
 
@@ -397,6 +436,7 @@ Protocol features
 #define VHOST_USER_PROTOCOL_F_CONFIG         9
 #define VHOST_USER_PROTOCOL_F_SLAVE_SEND_FD  10
 #define VHOST_USER_PROTOCOL_F_HOST_NOTIFIER  11
+#define VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD 12
 
 Master message types
 --------------------
@@ -760,6 +800,26 @@ Master message types
       is sent at the end of the migration, after VHOST_USER_POSTCOPY_LISTEN
       was previously sent.
       The value returned is an error indication; 0 is success.
+
+ * VHOST_USER_GET_INFLIGHT_FD
+      Id: 31
+      Equivalent ioctl: N/A
+      Master payload: inflight description
+
+      When VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD protocol feature has been
+      successfully negotiated, this message is submitted by master to get
+      a shared memory from slave. The shared memory will be used to track
+      inflight I/O by slave. Master should clear it when vm reset.
+
+ * VHOST_USER_SET_INFLIGHT_FD
+      Id: 32
+      Equivalent ioctl: N/A
+      Master payload: inflight description
+
+      When VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD protocol feature has been
+      successfully negotiated, this message is submitted by master to send
+      the shared inflight buffer back to slave so that slave could get
+      inflight I/O after a crash or restart.
 
 Slave message types
 -------------------
