@@ -1072,37 +1072,37 @@ static void qmp_chardev_open_socket(Chardev *chr,
         s->reconnect_time = reconnect;
     }
 
-    if (s->reconnect_time) {
-        tcp_chr_connect_async(chr);
-    } else {
-        if (s->is_listen) {
-            char *name;
-            s->listener = qio_net_listener_new();
+    if (s->is_listen) {
+        char *name;
+        s->listener = qio_net_listener_new();
 
-            name = g_strdup_printf("chardev-tcp-listener-%s", chr->label);
-            qio_net_listener_set_name(s->listener, name);
-            g_free(name);
+        name = g_strdup_printf("chardev-tcp-listener-%s", chr->label);
+        qio_net_listener_set_name(s->listener, name);
+        g_free(name);
 
-            if (qio_net_listener_open_sync(s->listener, s->addr, errp) < 0) {
-                object_unref(OBJECT(s->listener));
-                s->listener = NULL;
-                goto error;
-            }
+        if (qio_net_listener_open_sync(s->listener, s->addr, errp) < 0) {
+            object_unref(OBJECT(s->listener));
+            s->listener = NULL;
+            goto error;
+        }
 
-            qapi_free_SocketAddress(s->addr);
-            s->addr = socket_local_address(s->listener->sioc[0]->fd, errp);
-            update_disconnected_filename(s);
+        qapi_free_SocketAddress(s->addr);
+        s->addr = socket_local_address(s->listener->sioc[0]->fd, errp);
+        update_disconnected_filename(s);
 
-            if (is_waitconnect &&
-                qemu_chr_wait_connected(chr, errp) < 0) {
-                return;
-            }
-            if (!s->ioc) {
-                qio_net_listener_set_client_func_full(s->listener,
-                                                      tcp_chr_accept,
-                                                      chr, NULL,
-                                                      chr->gcontext);
-            }
+        if (is_waitconnect &&
+            qemu_chr_wait_connected(chr, errp) < 0) {
+            return;
+        }
+        if (!s->ioc) {
+            qio_net_listener_set_client_func_full(s->listener,
+                                                  tcp_chr_accept,
+                                                  chr, NULL,
+                                                  chr->gcontext);
+        }
+    } else if (is_waitconnect) {
+        if (s->reconnect_time) {
+            tcp_chr_connect_async(chr);
         } else if (qemu_chr_wait_connected(chr, errp) < 0) {
             goto error;
         }
@@ -1120,7 +1120,7 @@ static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
                                   Error **errp)
 {
     bool is_listen      = qemu_opt_get_bool(opts, "server", false);
-    bool is_waitconnect = is_listen && qemu_opt_get_bool(opts, "wait", true);
+    bool is_waitconnect = qemu_opt_get_bool(opts, "wait", true);
     bool is_telnet      = qemu_opt_get_bool(opts, "telnet", false);
     bool is_tn3270      = qemu_opt_get_bool(opts, "tn3270", false);
     bool is_websock     = qemu_opt_get_bool(opts, "websocket", false);
