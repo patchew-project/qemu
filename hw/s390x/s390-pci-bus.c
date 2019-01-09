@@ -551,7 +551,7 @@ static void s390_pci_iommu_replay(IOMMUMemoryRegion *iommu,
     return;
 }
 
-static S390PCIIOMMU *s390_pci_get_iommu(S390pciState *s, PCIBus *bus,
+S390PCIIOMMU *s390_pci_get_iommu(S390pciState *s, PCIBus *bus,
                                         int devfn)
 {
     uint64_t key = (uintptr_t)bus;

@@ -1045,7 +1045,6 @@ static void vfio_iommu_type1_get_info(int fd, VFIOContainer *container)
     int ret = 0;
 
     info = g_malloc0(argsz);
-
 retry:
     info->argsz = argsz;
     info->flags = VFIO_IOMMU_INFO_CAPABILITIES;
@@ -1079,6 +1078,8 @@ retry:
                               dma_info->dma_end - dma_info->dma_start,
                               info->iova_pgsizes);
             container->pgsizes = info->iova_pgsizes;
+            vfio_s390_iommu_setup(container, dma_info->dma_start,
+                                  dma_info->dma_end, info->iova_pgsizes);
             return;
         }
         hdr = (struct vfio_info_cap_header *)((unsigned char *) dma_info +
@@ -1088,6 +1089,7 @@ out:
     /* Assume 4k IOVA page size */
     vfio_host_win_add(container, 0, (hwaddr)-1,  4096);
     container->pgsizes = 4096;
+    vfio_s390_iommu_setup(container, 0,  (hwaddr)-1,  4096);
     return;
 }
 

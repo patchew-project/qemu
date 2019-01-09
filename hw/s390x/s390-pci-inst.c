@@ -19,6 +19,7 @@
 #include "exec/memory-internal.h"
 #include "qemu/error-report.h"
 #include "sysemu/hw_accel.h"
+#include "hw/vfio/vfio-common.h"
 
 #ifndef DEBUG_S390PCI_INST
 #define DEBUG_S390PCI_INST  0
@@ -30,6 +31,16 @@
             fprintf(stderr, "s390pci-inst: " fmt, ## __VA_ARGS__); \
         }                                                          \
     } while (0)
+
+void vfio_s390_iommu_setup(VFIOContainer *container, uint64_t min,
+                           uint64_t max, uint64_t pgsize)
+{
+    S390PCIIOMMU *iommu;
+
+    iommu = container_of(container->space->as, S390PCIIOMMU, as);
+    iommu->sdma = min;
+    iommu->edma = max;
+}
 
 static void s390_set_status_code(CPUS390XState *env,
                                  uint8_t r, uint64_t status_code)
@@ -153,6 +164,7 @@ int clp_service_call(S390CPU *cpu, uint8_t r2, uintptr_t ra)
     uint8_t cc = 0;
     CPUS390XState *env = &cpu->env;
     S390pciState *s = s390_get_phb();
+    S390PCIIOMMU *iommu;
     int i;
 
     if (env->psw.mask & PSW_MASK_PSTATE) {
@@ -279,8 +291,10 @@ int clp_service_call(S390CPU *cpu, uint8_t r2, uintptr_t ra)
                     resquery->bar_size[i]);
         }
 
-        stq_p(&resquery->sdma, ZPCI_SDMA_ADDR);
-        stq_p(&resquery->edma, ZPCI_EDMA_ADDR);
+        iommu = s390_pci_get_iommu(s, pci_get_bus(pbdev->pdev),
+                                   PCI_FUNC(pbdev->pdev->devfn));
+        stq_p(&resquery->sdma, iommu->sdma);
+        stq_p(&resquery->edma, iommu->edma);
         stl_p(&resquery->fid, pbdev->fid);
         stw_p(&resquery->pchid, 0);
         stw_p(&resquery->ug, 1);
@@ -860,7 +874,7 @@ static int reg_ioat(CPUS390XState *env, S390PCIIOMMU *iommu, ZpciFib fib,
 
     pba &= ~0xfff;
     pal |= 0xfff;
-    if (pba > pal || pba < ZPCI_SDMA_ADDR || pal > ZPCI_EDMA_ADDR) {
+    if (pba > pal || pba < iommu->sdma || pal > iommu->edma) {
         s390_program_interrupt(env, PGM_OPERAND, 6, ra);
         return -EINVAL;
     }

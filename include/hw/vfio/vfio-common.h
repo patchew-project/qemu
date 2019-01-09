@@ -198,4 +198,7 @@ int vfio_spapr_create_window(VFIOContainer *container,
 int vfio_spapr_remove_window(VFIOContainer *container,
                              hwaddr offset_within_address_space);
 
+void vfio_s390_iommu_setup(VFIOContainer *container, uint64_t min,
+                           uint64_t max, uint64_t pgsize);
+
 #endif /* HW_VFIO_VFIO_COMMON_H */

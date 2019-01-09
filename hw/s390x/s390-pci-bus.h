@@ -275,6 +275,8 @@ typedef struct S390PCIIOMMU {
     IOMMUMemoryRegion iommu_mr;
     bool enabled;
     uint64_t g_iota;
+    uint64_t sdma;
+    uint64_t edma;
     uint64_t pba;
     uint64_t pal;
     GHashTable *iotlb;
@@ -343,5 +345,6 @@ S390PCIBusDevice *s390_pci_find_dev_by_target(S390pciState *s,
                                               const char *target);
 S390PCIBusDevice *s390_pci_find_next_avail_dev(S390pciState *s,
                                                S390PCIBusDevice *pbdev);
+S390PCIIOMMU *s390_pci_get_iommu(S390pciState *s, PCIBus *bus, int devfn);
 
 #endif
