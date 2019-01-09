@@ -40,6 +40,14 @@ GlobalProperty hw_compat_3_1[] = {
         .driver   = "memory-backend-memfd",
         .property = "x-use-canonical-path-for-ramblock-id",
         .value    = "true",
+    },{
+        .driver   = "tpm-crb",
+        .property = "ppi",
+        .value    = "false",
+    },{
+        .driver   = "tpm-tis",
+        .property = "ppi",
+        .value    = "false",
     },
 };
 const size_t hw_compat_3_1_len = G_N_ELEMENTS(hw_compat_3_1);
