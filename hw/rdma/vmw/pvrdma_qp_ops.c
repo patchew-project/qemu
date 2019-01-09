@@ -133,7 +133,7 @@ int pvrdma_qp_ops_init(void)
     return 0;
 }
 
-int pvrdma_qp_send(PVRDMADev *dev, uint32_t qp_handle)
+void pvrdma_qp_send(PVRDMADev *dev, uint32_t qp_handle)
 {
     RdmaRmQP *qp;
     PvrdmaSqWqe *wqe;
@@ -145,7 +145,8 @@ int pvrdma_qp_send(PVRDMADev *dev, uint32_t qp_handle)
 
     qp = rdma_rm_get_qp(&dev->rdma_dev_res, qp_handle);
     if (unlikely(!qp)) {
-        return -EINVAL;
+        pr_dbg("Invalid qpn\n");
+        return;
     }
 
     ring = (PvrdmaRing *)qp->opaque;
@@ -193,11 +194,9 @@ int pvrdma_qp_send(PVRDMADev *dev, uint32_t qp_handle)
 
         wqe = pvrdma_ring_next_elem_read(ring);
     }
-
-    return 0;
 }
 
-int pvrdma_qp_recv(PVRDMADev *dev, uint32_t qp_handle)
+void pvrdma_qp_recv(PVRDMADev *dev, uint32_t qp_handle)
 {
     RdmaRmQP *qp;
     PvrdmaRqWqe *wqe;
@@ -207,7 +206,8 @@ int pvrdma_qp_recv(PVRDMADev *dev, uint32_t qp_handle)
 
     qp = rdma_rm_get_qp(&dev->rdma_dev_res, qp_handle);
     if (unlikely(!qp)) {
-        return -EINVAL;
+        pr_dbg("Invalid qpn\n");
+        return;
     }
 
     ring = &((PvrdmaRing *)qp->opaque)[1];
@@ -236,8 +236,6 @@ int pvrdma_qp_recv(PVRDMADev *dev, uint32_t qp_handle)
 
         wqe = pvrdma_ring_next_elem_read(ring);
     }
-
-    return 0;
 }
 
 void pvrdma_cq_poll(RdmaDeviceResources *dev_res, uint32_t cq_handle)
