@@ -4892,7 +4892,7 @@ static QemuOptsList qcow2_create_opts = {
             .name = BLOCK_OPT_CLUSTER_SIZE,
             .type = QEMU_OPT_SIZE,
             .help = "qcow2 cluster size",
-            .def_value_str = stringify(DEFAULT_CLUSTER_SIZE)
+            .def_value_int = DEFAULT_CLUSTER_SIZE,
         },
         {
             .name = BLOCK_OPT_PREALLOC,

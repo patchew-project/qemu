@@ -985,7 +985,7 @@ static QemuOptsList vdi_create_opts = {
             .name = BLOCK_OPT_CLUSTER_SIZE,
             .type = QEMU_OPT_SIZE,
             .help = "VDI cluster (block) size",
-            .def_value_str = stringify(DEFAULT_CLUSTER_SIZE)
+            .def_value_int = DEFAULT_CLUSTER_SIZE,
         },
 #endif
 #if defined(CONFIG_VDI_STATIC_IMAGE)

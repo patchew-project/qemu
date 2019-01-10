@@ -1651,7 +1651,7 @@ static QemuOptsList qed_create_opts = {
             .name = BLOCK_OPT_CLUSTER_SIZE,
             .type = QEMU_OPT_SIZE,
             .help = "Cluster size (in bytes)",
-            .def_value_str = stringify(QED_DEFAULT_CLUSTER_SIZE)
+            .def_value_int = QED_DEFAULT_CLUSTER_SIZE,
         },
         {
             .name = BLOCK_OPT_TABLE_SIZE,

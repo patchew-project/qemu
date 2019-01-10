@@ -2085,13 +2085,12 @@ static QemuOptsList vhdx_create_opts = {
        {
            .name = VHDX_BLOCK_OPT_LOG_SIZE,
            .type = QEMU_OPT_SIZE,
-           .def_value_str = stringify(DEFAULT_LOG_SIZE),
+           .def_value_int = DEFAULT_LOG_SIZE,
            .help = "Log size; min 1MB."
        },
        {
            .name = VHDX_BLOCK_OPT_BLOCK_SIZE,
            .type = QEMU_OPT_SIZE,
-           .def_value_str = stringify(0),
            .help = "Block Size; min 1MB, max 256MB. " \
                    "0 means auto-calculate based on image size."
        },

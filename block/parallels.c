@@ -96,7 +96,7 @@ static QemuOptsList parallels_create_opts = {
             .name = BLOCK_OPT_CLUSTER_SIZE,
             .type = QEMU_OPT_SIZE,
             .help = "Parallels image cluster size",
-            .def_value_str = stringify(DEFAULT_CLUSTER_SIZE),
+            .def_value_int = DEFAULT_CLUSTER_SIZE,
         },
         { /* end of list */ }
     }
