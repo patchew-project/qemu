@@ -160,6 +160,7 @@ static void ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind, Error **errp)
 {
     IDEBus *bus = DO_UPCAST(IDEBus, qbus, dev->qdev.parent_bus);
     IDEState *s = bus->ifs + dev->unit;
+    AioContext *ctx;
     int ret;
 
     if (!dev->conf.blk) {
@@ -174,36 +175,39 @@ static void ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind, Error **errp)
         }
     }
 
+    ctx = blk_get_aio_context(dev->conf.blk);
+    aio_context_acquire(ctx);
+
     if (dev->conf.discard_granularity == -1) {
         dev->conf.discard_granularity = 512;
     } else if (dev->conf.discard_granularity &&
                dev->conf.discard_granularity != 512) {
         error_setg(errp, "discard_granularity must be 512 for ide");
-        return;
+        goto out;
     }
 
     blkconf_blocksizes(&dev->conf);
     if (dev->conf.logical_block_size != 512) {
         error_setg(errp, "logical_block_size must be 512 for IDE");
-        return;
+        goto out;
     }
 
     if (kind != IDE_CD) {
         if (!blkconf_geometry(&dev->conf, &dev->chs_trans, 65535, 16, 255,
                               errp)) {
-            return;
+            goto out;
         }
     }
     if (!blkconf_apply_backend_options(&dev->conf, kind == IDE_CD,
                                        kind != IDE_CD, errp)) {
-        return;
+        goto out;
     }
 
     if (ide_init_drive(s, dev->conf.blk, kind,
                        dev->version, dev->serial, dev->model, dev->wwn,
                        dev->conf.cyls, dev->conf.heads, dev->conf.secs,
                        dev->chs_trans, errp) < 0) {
-        return;
+        goto out;
     }
 
     if (!dev->version) {
@@ -215,6 +219,9 @@ static void ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind, Error **errp)
 
     add_boot_device_path(dev->conf.bootindex, &dev->qdev,
                          dev->unit ? "/disk@1" : "/disk@0");
+
+out:
+    aio_context_release(ctx);
 }
 
 static void ide_dev_get_bootindex(Object *obj, Visitor *v, const char *name,
