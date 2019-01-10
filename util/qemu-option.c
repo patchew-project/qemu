@@ -321,7 +321,8 @@ const char *qemu_opt_get(QemuOpts *opts, const char *name)
     opt = qemu_opt_find(opts, name);
     if (!opt) {
         const QemuOptDesc *desc = find_desc_by_name(opts->list->desc, name);
-        if (desc && desc->def_value_str) {
+        if (desc) {
+            assert(!desc->def_value_int);
             return desc->def_value_str;
         }
     }
@@ -364,8 +365,22 @@ char *qemu_opt_get_del(QemuOpts *opts, const char *name)
     opt = qemu_opt_find(opts, name);
     if (!opt) {
         desc = find_desc_by_name(opts->list->desc, name);
-        if (desc && desc->def_value_str) {
-            str = g_strdup(desc->def_value_str);
+        if (desc) {
+            if (desc->def_value_str) {
+                str = g_strdup(desc->def_value_str);
+            } else if (desc->def_value_int) {
+                switch (desc->type) {
+                case QEMU_OPT_BOOL:
+                    str = g_strdup("on");
+                    break;
+                case QEMU_OPT_NUMBER:
+                case QEMU_OPT_SIZE:
+                    str = g_strdup_printf("%" PRId64, desc->def_value_int);
+                    break;
+                default:
+                    abort();
+                }
+            }
         }
         return str;
     }
@@ -400,8 +415,15 @@ static bool qemu_opt_get_bool_helper(QemuOpts *opts, const char *name,
     opt = qemu_opt_find(opts, name);
     if (opt == NULL) {
         const QemuOptDesc *desc = find_desc_by_name(opts->list->desc, name);
-        if (desc && desc->def_value_str) {
-            parse_option_bool(name, desc->def_value_str, &ret, &error_abort);
+        if (desc) {
+            if (desc->def_value_int) {
+                assert(desc->type != QEMU_OPT_STRING);
+                return true;
+            }
+            if (desc->def_value_str) {
+                parse_option_bool(name, desc->def_value_str, &ret,
+                                  &error_abort);
+            }
         }
         return ret;
     }
@@ -436,8 +458,15 @@ static uint64_t qemu_opt_get_number_helper(QemuOpts *opts, const char *name,
     opt = qemu_opt_find(opts, name);
     if (opt == NULL) {
         const QemuOptDesc *desc = find_desc_by_name(opts->list->desc, name);
-        if (desc && desc->def_value_str) {
-            parse_option_number(name, desc->def_value_str, &ret, &error_abort);
+        if (desc) {
+            if (desc->def_value_int) {
+                assert(desc->type != QEMU_OPT_STRING);
+                return desc->def_value_int;
+            }
+            if (desc->def_value_str) {
+                parse_option_number(name, desc->def_value_str, &ret,
+                                    &error_abort);
+            }
         }
         return ret;
     }
@@ -473,8 +502,15 @@ static uint64_t qemu_opt_get_size_helper(QemuOpts *opts, const char *name,
     opt = qemu_opt_find(opts, name);
     if (opt == NULL) {
         const QemuOptDesc *desc = find_desc_by_name(opts->list->desc, name);
-        if (desc && desc->def_value_str) {
-            parse_option_size(name, desc->def_value_str, &ret, &error_abort);
+        if (desc) {
+            if (desc->def_value_int) {
+                assert(desc->type != QEMU_OPT_STRING);
+                return desc->def_value_int;
+            }
+            if (desc->def_value_str) {
+                parse_option_size(name, desc->def_value_str, &ret,
+                                  &error_abort);
+            }
         }
         return ret;
     }
@@ -787,9 +823,23 @@ void qemu_opts_print(QemuOpts *opts, const char *separator)
     }
     for (; desc && desc->name; desc++) {
         const char *value;
+        char *tmp = NULL;
         opt = qemu_opt_find(opts, desc->name);
 
         value = opt ? opt->str : desc->def_value_str;
+        if (!value && desc->def_value_int) {
+            switch (desc->type) {
+            case QEMU_OPT_BOOL:
+                value = tmp = g_strdup("on");
+                break;
+            case QEMU_OPT_NUMBER:
+            case QEMU_OPT_SIZE:
+                value = tmp = g_strdup_printf("%" PRId64, desc->def_value_int);
+                break;
+            default:
+                abort();
+            }
+        }
         if (!value) {
             continue;
         }
@@ -803,6 +853,7 @@ void qemu_opts_print(QemuOpts *opts, const char *separator)
             printf("%s%s=%s", sep, desc->name, value);
         }
         sep = separator;
+        g_free(tmp);
     }
 }
 

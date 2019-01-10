@@ -46,6 +46,18 @@ typedef struct QemuOptDesc {
     const char *name;
     enum QemuOptType type;
     const char *help;
+    /*
+     * For QEMU_OPT_STRING: Leave def_value_int 0, and set def_value_str
+     * to a default value or leave NULL for no default.
+     *
+     * For other types: Initialize at most non-zero def_value_int or a
+     * parseable def_value_str for a default (must use a string for an
+     * explicit default of 0, although an implicit default generally
+     * works).  If setting def_value_int, calling qemu_opt_get() on
+     * that option will abort(); instead, call qemu_opt_get_del() or a
+     * typed getter.
+     */
+    uint64_t def_value_int;
     const char *def_value_str;
 } QemuOptDesc;
 
