@@ -3171,6 +3171,7 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
         if (migrate_postcopy_ram() && block->page_size != qemu_host_page_size) {
             qemu_put_be64(f, block->page_size);
         }
+        qemu_put_be64(f, block->offset);
     }
 
     rcu_read_unlock();
@@ -4031,7 +4032,7 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
 
     seq_iter++;
 
-    if (version_id != 4) {
+    if (version_id < 4) {
         ret = -EINVAL;
     }
 
@@ -4129,6 +4130,16 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
                                          "(local) %zd != %" PRId64,
                                          id, block->page_size,
                                          remote_page_size);
+                            ret = -EINVAL;
+                        }
+                    }
+                    if (version_id >= 5) {
+                        ram_addr_t offset;
+                        offset = qemu_get_be64(f);
+                        if (block->offset != offset) {
+                            error_report("Mismatched RAM block offset %s "
+                                         "%" PRId64 "!= %" PRId64,
+                                         id, offset, (uint64_t)block->offset);
                             ret = -EINVAL;
                         }
                     }
@@ -4363,5 +4374,5 @@ static SaveVMHandlers savevm_ram_handlers = {
 void ram_mig_init(void)
 {
     qemu_mutex_init(&XBZRLE.lock);
-    register_savevm_live(NULL, "ram", 0, 4, &savevm_ram_handlers, &ram_state);
+    register_savevm_live(NULL, "ram", 0, 5, &savevm_ram_handlers, &ram_state);
 }
