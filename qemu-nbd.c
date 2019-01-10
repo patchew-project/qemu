@@ -999,10 +999,9 @@ int main(int argc, char **argv)
         }
     }
 
-    exp = nbd_export_new(bs, dev_offset, fd_size, nbdflags, nbd_export_closed,
+    exp = nbd_export_new(bs, dev_offset, fd_size, export_name,
+                         export_description, nbdflags, nbd_export_closed,
                          writethrough, NULL, &error_fatal);
-    nbd_export_set_name(exp, export_name);
-    nbd_export_set_description(exp, export_description);
 
     if (device) {
         int ret;
