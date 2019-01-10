@@ -2318,16 +2318,20 @@ static void scsi_disk_unit_attention_reported(SCSIDevice *dev)
 static void scsi_realize(SCSIDevice *dev, Error **errp)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, dev);
+    AioContext *ctx;
 
     if (!s->qdev.conf.blk) {
         error_setg(errp, "drive property not set");
         return;
     }
 
+    ctx = blk_get_aio_context(s->qdev.conf.blk);
+    aio_context_acquire(ctx);
+
     if (!(s->features & (1 << SCSI_DISK_F_REMOVABLE)) &&
         !blk_is_inserted(s->qdev.conf.blk)) {
         error_setg(errp, "Device needs media, but drive is empty");
-        return;
+        goto out;
     }
 
     blkconf_blocksizes(&s->qdev.conf);
@@ -2336,18 +2340,18 @@ static void scsi_realize(SCSIDevice *dev, Error **errp)
         s->qdev.conf.physical_block_size) {
         error_setg(errp,
                    "logical_block_size > physical_block_size not supported");
-        return;
+        goto out;
     }
 
     if (dev->type == TYPE_DISK) {
         if (!blkconf_geometry(&dev->conf, NULL, 65535, 255, 255, errp)) {
-            return;
+            goto out;
         }
     }
     if (!blkconf_apply_backend_options(&dev->conf,
                                        blk_is_read_only(s->qdev.conf.blk),
                                        dev->type == TYPE_DISK, errp)) {
-        return;
+        goto out;
     }
 
     if (s->qdev.conf.discard_granularity == -1) {
@@ -2364,7 +2368,7 @@ static void scsi_realize(SCSIDevice *dev, Error **errp)
 
     if (blk_is_sg(s->qdev.conf.blk)) {
         error_setg(errp, "unwanted /dev/sg*");
-        return;
+        goto out;
     }
 
     if ((s->features & (1 << SCSI_DISK_F_REMOVABLE)) &&
@@ -2376,6 +2380,9 @@ static void scsi_realize(SCSIDevice *dev, Error **errp)
     blk_set_guest_block_size(s->qdev.conf.blk, s->qdev.blocksize);
 
     blk_iostatus_enable(s->qdev.conf.blk);
+
+out:
+    aio_context_release(ctx);
 }
 
 static void scsi_hd_realize(SCSIDevice *dev, Error **errp)
@@ -2385,7 +2392,10 @@ static void scsi_hd_realize(SCSIDevice *dev, Error **errp)
      * backend will be issued in scsi_realize
      */
     if (s->qdev.conf.blk) {
+        AioContext *ctx = blk_get_aio_context(s->qdev.conf.blk);
+        aio_context_acquire(ctx);
         blkconf_blocksizes(&s->qdev.conf);
+        aio_context_release(ctx);
     }
     s->qdev.blocksize = s->qdev.conf.logical_block_size;
     s->qdev.type = TYPE_DISK;
@@ -2553,6 +2563,7 @@ static int get_device_type(SCSIDiskState *s)
 static void scsi_block_realize(SCSIDevice *dev, Error **errp)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, dev);
+    AioContext *ctx;
     int sg_version;
     int rc;
 
@@ -2568,7 +2579,10 @@ static void scsi_block_realize(SCSIDevice *dev, Error **errp)
     }
 
     /* check we are using a driver managing SG_IO (version 3 and after) */
+    ctx = blk_get_aio_context(s->qdev.conf.blk);
+    aio_context_acquire(ctx);
     rc = blk_ioctl(s->qdev.conf.blk, SG_GET_VERSION_NUM, &sg_version);
+    aio_context_release(ctx);
     if (rc < 0) {
         error_setg_errno(errp, -rc, "cannot get SG_IO version number");
         if (rc != -EPERM) {
