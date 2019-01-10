@@ -85,7 +85,7 @@
 #define BLOCK_OPT_STATIC "static"
 
 #define SECTOR_SIZE 512
-#define DEFAULT_CLUSTER_SIZE S_1MiB
+#define DEFAULT_CLUSTER_SIZE (1 * MiB)
 
 #if defined(CONFIG_VDI_DEBUG)
 #define VDI_DEBUG 1
@@ -432,7 +432,7 @@ static int vdi_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     } else if (header.block_size != DEFAULT_CLUSTER_SIZE) {
         error_setg(errp, "unsupported VDI image (block size %" PRIu32
-                         " is not %" PRIu32 ")",
+                         " is not %" PRIu64 ")",
                    header.block_size, DEFAULT_CLUSTER_SIZE);
         ret = -ENOTSUP;
         goto fail;
