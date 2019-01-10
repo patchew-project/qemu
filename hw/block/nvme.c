@@ -1203,6 +1203,7 @@ static void nvme_realize(PCIDevice *pci_dev, Error **errp)
 {
     NvmeCtrl *n = NVME(pci_dev);
     NvmeIdCtrl *id = &n->id_ctrl;
+    AioContext *ctx;
 
     int i;
     int64_t bs_size;
@@ -1213,20 +1214,23 @@ static void nvme_realize(PCIDevice *pci_dev, Error **errp)
         return;
     }
 
+    ctx = blk_get_aio_context(n->conf.blk);
+    aio_context_acquire(ctx);
+
     bs_size = blk_getlength(n->conf.blk);
     if (bs_size < 0) {
         error_setg(errp, "could not get backing file size");
-        return;
+        goto out;
     }
 
     if (!n->serial) {
         error_setg(errp, "serial property not set");
-        return;
+        goto out;
     }
     blkconf_blocksizes(&n->conf);
     if (!blkconf_apply_backend_options(&n->conf, blk_is_read_only(n->conf.blk),
                                        false, errp)) {
-        return;
+        goto out;
     }
 
     pci_conf = pci_dev->config;
@@ -1323,6 +1327,9 @@ static void nvme_realize(PCIDevice *pci_dev, Error **errp)
             cpu_to_le64(n->ns_size >>
                 id_ns->lbaf[NVME_ID_NS_FLBAS_INDEX(ns->id_ns.flbas)].ds);
     }
+
+out:
+    aio_context_release(ctx);
 }
 
 static void nvme_exit(PCIDevice *pci_dev)
