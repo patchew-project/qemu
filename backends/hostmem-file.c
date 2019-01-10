@@ -63,7 +63,8 @@ file_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
                                      name,
                                      backend->size, fb->align,
                                      (backend->share ? RAM_SHARED : 0) |
-                                     (fb->is_pmem ? RAM_PMEM : 0),
+                                     (fb->is_pmem ? RAM_PMEM : 0) |
+                                     RAM_EXTERNAL,
                                      fb->mem_path, errp);
     g_free(name);
 #endif
