@@ -593,13 +593,18 @@ static void usb_msd_storage_realize(USBDevice *dev, Error **errp)
     MSDState *s = USB_STORAGE_DEV(dev);
     BlockBackend *blk = s->conf.blk;
     SCSIDevice *scsi_dev;
+    AioContext *ctx;
 
     if (!blk) {
         error_setg(errp, "drive property not set");
         return;
     }
 
+    ctx = blk_get_aio_context(blk);
+    aio_context_acquire(ctx);
     blkconf_blocksizes(&s->conf);
+    aio_context_release(ctx);
+
     if (!blkconf_apply_backend_options(&s->conf, blk_is_read_only(blk), true,
                                        errp)) {
         return;
