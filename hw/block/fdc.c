@@ -512,6 +512,7 @@ static void floppy_drive_realize(DeviceState *qdev, Error **errp)
 {
     FloppyDrive *dev = FLOPPY_DRIVE(qdev);
     FloppyBus *bus = FLOPPY_BUS(qdev->parent_bus);
+    AioContext *ctx;
     FDrive *drive;
     int ret;
 
@@ -543,13 +544,16 @@ static void floppy_drive_realize(DeviceState *qdev, Error **errp)
         assert(ret == 0);
     }
 
+    ctx = blk_get_aio_context(dev->conf.blk);
+    aio_context_acquire(ctx);
+
     blkconf_blocksizes(&dev->conf);
     if (dev->conf.logical_block_size != 512 ||
         dev->conf.physical_block_size != 512)
     {
         error_setg(errp, "Physical and logical block size must "
                    "be 512 for floppy");
-        return;
+        goto out;
     }
 
     /* rerror/werror aren't supported by fdc and therefore not even registered
@@ -561,7 +565,7 @@ static void floppy_drive_realize(DeviceState *qdev, Error **errp)
     if (!blkconf_apply_backend_options(&dev->conf,
                                        blk_is_read_only(dev->conf.blk),
                                        false, errp)) {
-        return;
+        goto out;
     }
 
     /* 'enospc' is the default for -drive, 'report' is what blk_new() gives us
@@ -569,11 +573,11 @@ static void floppy_drive_realize(DeviceState *qdev, Error **errp)
     if (blk_get_on_error(dev->conf.blk, 0) != BLOCKDEV_ON_ERROR_ENOSPC &&
         blk_get_on_error(dev->conf.blk, 0) != BLOCKDEV_ON_ERROR_REPORT) {
         error_setg(errp, "fdc doesn't support drive option werror");
-        return;
+        goto out;
     }
     if (blk_get_on_error(dev->conf.blk, 1) != BLOCKDEV_ON_ERROR_REPORT) {
         error_setg(errp, "fdc doesn't support drive option rerror");
-        return;
+        goto out;
     }
 
     drive->conf = &dev->conf;
@@ -589,6 +593,9 @@ static void floppy_drive_realize(DeviceState *qdev, Error **errp)
     dev->type = drive->drive;
 
     fd_revalidate(drive);
+
+out:
+    aio_context_release(ctx);
 }
 
 static void floppy_drive_class_init(ObjectClass *klass, void *data)
