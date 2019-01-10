@@ -12,11 +12,12 @@
 struct VIOsPAPRBus;
 struct sPAPRPHBState;
 struct sPAPRNVRAM;
+struct ICSState;
+struct sPAPRXive;
+
 typedef struct sPAPREventLogEntry sPAPREventLogEntry;
 typedef struct sPAPREventSource sPAPREventSource;
 typedef struct sPAPRPendingHPT sPAPRPendingHPT;
-typedef struct ICSState ICSState;
-typedef struct sPAPRXive sPAPRXive;
 
 #define HPTE64_V_HPTE_DIRTY     0x0000000000000040ULL
 #define SPAPR_ENTRY_POINT       0x100
@@ -127,7 +128,7 @@ struct sPAPRMachineState {
     struct VIOsPAPRBus *vio_bus;
     QLIST_HEAD(, sPAPRPHBState) phbs;
     struct sPAPRNVRAM *nvram;
-    ICSState *ics;
+    struct ICSState *ics;
     sPAPRRTCState rtc;
 
     sPAPRResizeHPT resize_hpt;
@@ -180,7 +181,7 @@ struct sPAPRMachineState {
     const char *icp_type;
     int32_t irq_map_nr;
     unsigned long *irq_map;
-    sPAPRXive  *xive;
+    struct sPAPRXive  *xive;
     sPAPRIrq *irq;
     qemu_irq *qirqs;
 

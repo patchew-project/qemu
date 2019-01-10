@@ -11,6 +11,7 @@
 #define PPC_SPAPR_XIVE_H
 
 #include "hw/ppc/xive.h"
+#include "hw/ppc/spapr.h"
 
 #define TYPE_SPAPR_XIVE "spapr-xive"
 #define SPAPR_XIVE(obj) OBJECT_CHECK(sPAPRXive, (obj), TYPE_SPAPR_XIVE)
@@ -40,8 +41,6 @@ typedef struct sPAPRXive {
 bool spapr_xive_irq_claim(sPAPRXive *xive, uint32_t lisn, bool lsi);
 bool spapr_xive_irq_free(sPAPRXive *xive, uint32_t lisn);
 void spapr_xive_pic_print_info(sPAPRXive *xive, Monitor *mon);
-
-typedef struct sPAPRMachineState sPAPRMachineState;
 
 void spapr_xive_hcall_init(sPAPRMachineState *spapr);
 void spapr_dt_xive(sPAPRMachineState *spapr, uint32_t nr_servers, void *fdt,
