@@ -218,6 +218,8 @@ static void target_restore_general_frame(CPUARMState *env,
     __get_user(env->pc, &sf->uc.tuc_mcontext.pc);
     __get_user(pstate, &sf->uc.tuc_mcontext.pstate);
     pstate_write(env, pstate);
+    /* Reset btype that might have been there going into the frame.  */
+    env->btype = 0;
 }
 
 static void target_restore_fpsimd_record(CPUARMState *env,
@@ -510,6 +512,8 @@ static void target_setup_frame(int usig, struct target_sigaction *ka,
     env->xregs[29] = frame_addr + fr_ofs;
     env->pc = ka->_sa_handler;
     env->xregs[30] = return_addr;
+    /* Reset btype going into the signal handler.  */
+    env->btype = 0;
     if (info) {
         tswap_siginfo(&frame->info, info);
         env->xregs[1] = frame_addr + offsetof(struct target_rt_sigframe, info);
