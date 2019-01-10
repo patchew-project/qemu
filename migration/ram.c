@@ -166,6 +166,11 @@ out:
 
 #undef RAMBLOCK_FOREACH
 
+static bool is_ignored_block(RAMBlock *block)
+{
+    return migrate_ignore_external() && qemu_ram_is_external(block);
+}
+
 static void ramblock_recv_map_init(void)
 {
     RAMBlock *rb;
@@ -1537,7 +1542,7 @@ unsigned long migration_bitmap_find_dirty(RAMState *rs, RAMBlock *rb,
     unsigned long *bitmap = rb->bmap;
     unsigned long next;
 
-    if (!qemu_ram_is_migratable(rb)) {
+    if (!qemu_ram_is_migratable(rb) || is_ignored_block(rb)) {
         return size;
     }
 
@@ -1651,6 +1656,9 @@ static void migration_bitmap_sync(RAMState *rs)
     qemu_mutex_lock(&rs->bitmap_mutex);
     rcu_read_lock();
     RAMBLOCK_FOREACH_MIGRATABLE(block) {
+        if (is_ignored_block(block)) {
+            continue;
+        }
         migration_bitmap_sync_range(rs, block, 0, block->used_length);
     }
     ram_counters.remaining = ram_bytes_remaining();
@@ -2472,17 +2480,25 @@ void acct_update_position(QEMUFile *f, size_t size, bool zero)
     }
 }
 
-uint64_t ram_bytes_total(void)
+static uint64_t ram_bytes_total_common(bool skip_ignored)
 {
     RAMBlock *block;
     uint64_t total = 0;
 
     rcu_read_lock();
     RAMBLOCK_FOREACH_MIGRATABLE(block) {
+        if (skip_ignored && is_ignored_block(block)) {
+            continue;
+        }
         total += block->used_length;
     }
     rcu_read_unlock();
     return total;
+}
+
+uint64_t ram_bytes_total(void)
+{
+    return ram_bytes_total_common(true);
 }
 
 static void xbzrle_load_setup(void)
@@ -3162,7 +3178,7 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
 
     rcu_read_lock();
 
-    qemu_put_be64(f, ram_bytes_total() | RAM_SAVE_FLAG_MEM_SIZE);
+    qemu_put_be64(f, ram_bytes_total_common(false) | RAM_SAVE_FLAG_MEM_SIZE);
 
     RAMBLOCK_FOREACH_MIGRATABLE(block) {
         qemu_put_byte(f, strlen(block->idstr));
@@ -3172,6 +3188,7 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
             qemu_put_be64(f, block->page_size);
         }
         qemu_put_be64(f, block->offset);
+        qemu_put_byte(f, is_ignored_block(block) ? 1 : 0);
     }
 
     rcu_read_unlock();
@@ -4135,12 +4152,26 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
                     }
                     if (version_id >= 5) {
                         ram_addr_t offset;
+                        bool ignored;
                         offset = qemu_get_be64(f);
+                        ignored = qemu_get_byte(f);
                         if (block->offset != offset) {
                             error_report("Mismatched RAM block offset %s "
                                          "%" PRId64 "!= %" PRId64,
                                          id, offset, (uint64_t)block->offset);
                             ret = -EINVAL;
+                        }
+                        if (ignored) {
+                            if (!migrate_ignore_external()) {
+                                error_report("Unexpected ignored RAM block %s: "
+                                             "ignore-external capability is "
+                                             "disabled", id);
+                                ret = -EINVAL;
+                            } else if (!qemu_ram_is_external(block)) {
+                                error_report("Only external RAM block %s "
+                                             "can be ignored", id);
+                                ret = -EINVAL;
+                            }
                         }
                     }
                     ram_control_load_hook(f, RAM_CONTROL_BLOCK_REG,

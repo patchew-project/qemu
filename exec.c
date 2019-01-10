@@ -2001,6 +2001,11 @@ void qemu_ram_unset_migratable(RAMBlock *rb)
     rb->flags &= ~RAM_MIGRATABLE;
 }
 
+bool qemu_ram_is_external(RAMBlock *rb)
+{
+    return rb->flags & RAM_EXTERNAL;
+}
+
 /* Called with iothread lock held.  */
 void qemu_ram_set_idstr(RAMBlock *new_block, const char *name, DeviceState *dev)
 {
