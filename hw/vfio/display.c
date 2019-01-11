@@ -42,6 +42,8 @@ static void vfio_display_edid_link_up(void *opaque)
     VFIOPCIDevice *vdev = opaque;
     VFIODisplay *dpy = vdev->dpy;
 
+    fprintf(stderr, "%s:\n", __func__);
+
     dpy->edid_regs->link_state = VFIO_DEVICE_GFX_LINK_STATE_UP;
     pwrite_field(vdev->vbasedev.fd, dpy->edid_info, dpy->edid_regs, link_state);
     return;
@@ -60,6 +62,9 @@ static void vfio_display_edid_update(VFIOPCIDevice *vdev, bool enabled, int pref
         .prefy = prefy ?: vdev->display_yres,
     };
 
+    fprintf(stderr, "%s: ui info: %dx%d, %s\n", __func__,
+            prefx, prefy, enabled ? "on" : "off");
+
     timer_del(dpy->edid_link_timer);
     dpy->edid_regs->link_state = VFIO_DEVICE_GFX_LINK_STATE_DOWN;
     pwrite_field(vdev->vbasedev.fd, dpy->edid_info, dpy->edid_regs, link_state);
@@ -74,6 +79,9 @@ static void vfio_display_edid_update(VFIOPCIDevice *vdev, bool enabled, int pref
     if (edid.maxy && edid.prefy > edid.maxy) {
         edid.prefy = edid.maxy;
     }
+    fprintf(stderr, "%s: edid: %dx%d\n", __func__,
+            edid.prefx, edid.prefy);
+
     qemu_edid_generate(dpy->edid_blob,
                        dpy->edid_regs->edid_max_size,
                        &edid);
@@ -123,6 +131,8 @@ static void vfio_display_edid_init(VFIOPCIDevice *vdev)
                                    VFIO_REGION_SUBTYPE_GFX_EDID,
                                    &dpy->edid_info);
     if (ret) {
+        fprintf(stderr, "%s: no edid region (%s)\n",
+                __func__, strerror(errno));
         return;
     }
 
@@ -132,6 +142,12 @@ static void vfio_display_edid_init(VFIOPCIDevice *vdev)
     pread_field(vdev->vbasedev.fd, dpy->edid_info, dpy->edid_regs, max_xres);
     pread_field(vdev->vbasedev.fd, dpy->edid_info, dpy->edid_regs, max_yres);
     dpy->edid_blob = g_malloc0(dpy->edid_regs->edid_max_size);
+    fprintf(stderr, "%s: edid region: offset %d, size %d, max-res %dx%d\n",
+            __func__,
+            dpy->edid_regs->edid_offset,
+            dpy->edid_regs->edid_max_size,
+            dpy->edid_regs->max_xres,
+            dpy->edid_regs->max_yres);
 
     /* if xres + yres properties are unset use the maximum resolution */
     if (!vdev->display_xres)
