@@ -1145,16 +1145,6 @@ static void migrate_params_test_apply(MigrateSetParameters *params,
         dest->cpu_throttle_increment = params->cpu_throttle_increment;
     }
 
-    if (params->has_tls_creds) {
-        assert(params->tls_creds->type == QTYPE_QSTRING);
-        dest->tls_creds = g_strdup(params->tls_creds->u.s);
-    }
-
-    if (params->has_tls_hostname) {
-        assert(params->tls_hostname->type == QTYPE_QSTRING);
-        dest->tls_hostname = g_strdup(params->tls_hostname->u.s);
-    }
-
     if (params->has_max_bandwidth) {
         dest->max_bandwidth = params->max_bandwidth;
     }
