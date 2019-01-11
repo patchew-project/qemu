@@ -29,7 +29,7 @@
  * - Ranges must not wrap around 0, but can include UINT64_MAX.
  */
 
-struct Range {
+typedef struct Range {
     /*
      * Do not access members directly, use the functions!
      * A non-empty range has @lob <= @upb.
@@ -37,7 +37,7 @@ struct Range {
      */
     uint64_t lob;        /* inclusive lower bound */
     uint64_t upb;        /* inclusive upper bound */
-};
+} Range;
 
 static inline void range_invariant(const Range *range)
 {

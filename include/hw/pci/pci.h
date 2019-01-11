@@ -1,6 +1,7 @@
 #ifndef QEMU_PCI_H
 #define QEMU_PCI_H
 
+#include "qemu/range.h"
 #include "hw/qdev.h"
 #include "exec/memory.h"
 #include "sysemu/dma.h"

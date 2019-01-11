@@ -22,6 +22,7 @@
 #ifndef HW_Q35_H
 #define HW_Q35_H
 
+#include "qemu/range.h"
 #include "hw/hw.h"
 #include "hw/isa/isa.h"
 #include "hw/sysbus.h"
