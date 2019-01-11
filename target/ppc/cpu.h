@@ -23,6 +23,11 @@
 #include "qemu-common.h"
 #include "qemu/int128.h"
 
+#ifndef CONFIG_USER_ONLY
+#include "hw/ppc/xive.h" /* for XiveTCTX */
+#include "hw/ppc/xics.h" /* for ICPState */
+#endif
+
 //#define PPC_EMULATE_32BITS_HYPV
 
 #if defined (TARGET_PPC64)
@@ -1177,8 +1182,6 @@ do {                                            \
 
 typedef struct PPCVirtualHypervisor PPCVirtualHypervisor;
 typedef struct PPCVirtualHypervisorClass PPCVirtualHypervisorClass;
-typedef struct XiveTCTX XiveTCTX;
-typedef struct ICPState ICPState;
 
 /**
  * PowerPCCPU:
@@ -1197,11 +1200,13 @@ struct PowerPCCPU {
     int vcpu_id;
     uint32_t compat_pvr;
     PPCVirtualHypervisor *vhyp;
-    ICPState *icp;
-    XiveTCTX *tctx;
     void *machine_data;
     int32_t node_id; /* NUMA node this CPU belongs to */
     PPCHash64Options *hash64_opts;
+#ifndef CONFIG_USER_ONLY
+    ICPState *icp;
+    XiveTCTX *tctx;
+#endif
 
     /* Fields related to migration compatibility hacks */
     bool pre_2_8_migration;
