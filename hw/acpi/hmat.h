@@ -33,6 +33,15 @@
 
 #define ACPI_HMAT_SPA               0
 #define ACPI_HMAT_LB_INFO           1
+#define ACPI_HMAT_CACHE_INFO        2
+
+#define MAX_HMAT_CACHE_LEVEL        3
+
+#define HMAT_CACHE_TOTAL_LEVEL(level)      (level & 0xF)
+#define HMAT_CACHE_CURRENT_LEVEL(level)    ((level & 0xF) << 4)
+#define HMAT_CACHE_ASSOC(assoc)            ((assoc & 0xF) << 8)
+#define HMAT_CACHE_WRITE_POLICY(policy)    ((policy & 0xF) << 12)
+#define HMAT_CACHE_LINE_SIZE(size)         ((size & 0xFFFF) << 16)
 
 /* ACPI HMAT sub-structure header */
 #define ACPI_HMAT_SUB_HEADER_DEF    \
@@ -102,6 +111,17 @@ struct AcpiHmatLBInfo {
 } QEMU_PACKED;
 typedef struct AcpiHmatLBInfo AcpiHmatLBInfo;
 
+struct AcpiHmatCacheInfo {
+    ACPI_HMAT_SUB_HEADER_DEF
+    uint32_t    mem_proximity;
+    uint32_t    reserved;
+    uint64_t    cache_size;
+    uint32_t    cache_attr;
+    uint16_t    reserved2;
+    uint16_t    num_smbios_handles;
+} QEMU_PACKED;
+typedef struct AcpiHmatCacheInfo AcpiHmatCacheInfo;
+
 struct numa_hmat_lb_info {
     /*
      * Indicates total number of Proximity Domains
@@ -141,7 +161,31 @@ struct numa_hmat_lb_info {
     uint16_t    bandwidth[MAX_NODES][MAX_NODES];
 };
 
+struct numa_hmat_cache_info {
+    /* The memory proximity domain to which the memory belongs. */
+    uint32_t    mem_proximity;
+    /* Size of memory side cache in bytes. */
+    uint64_t    size;
+    /* Total cache levels for this memory proximity domain. */
+    uint8_t     total_levels;
+    /* Cache level described in this structure. */
+    uint8_t     level;
+    /* Cache Associativity: None/Direct Mapped/Comple Cache Indexing */
+    uint8_t     associativity;
+    /* Write Policy: None/Write Back(WB)/Write Through(WT) */
+    uint8_t     write_policy;
+    /* Cache Line size in bytes. */
+    uint16_t    line_size;
+    /*
+     * Number of SMBIOS handles that contributes to
+     * the memory side cache physical devices.
+     */
+    uint16_t    num_smbios_handles;
+};
+
 extern struct numa_hmat_lb_info *hmat_lb_info[HMAT_LB_LEVELS][HMAT_LB_TYPES];
+extern struct numa_hmat_cache_info
+              *hmat_cache_info[MAX_NODES][MAX_HMAT_CACHE_LEVEL + 1];
 
 void hmat_build_acpi(GArray *table_data, BIOSLinker *linker,
                      MachineState *machine);
