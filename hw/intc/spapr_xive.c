@@ -1414,6 +1414,12 @@ void spapr_xive_hcall_init(sPAPRMachineState *spapr)
     spapr_register_hypercall(H_INT_RESET, h_int_reset);
 }
 
+static gchar *xive_nodename(sPAPRXive *xive)
+{
+    return g_strdup_printf("interrupt-controller@%" PRIx64,
+                           xive->tm_base + XIVE_TM_USER_PAGE * (1 << TM_SHIFT));
+}
+
 void spapr_dt_xive(sPAPRMachineState *spapr, uint32_t nr_servers, void *fdt,
                    uint32_t phandle)
 {
@@ -1450,8 +1456,7 @@ void spapr_dt_xive(sPAPRMachineState *spapr, uint32_t nr_servers, void *fdt,
                            XIVE_TM_OS_PAGE * (1ull << TM_SHIFT));
     timas[3] = cpu_to_be64(1ull << TM_SHIFT);
 
-    nodename = g_strdup_printf("interrupt-controller@%" PRIx64,
-                           xive->tm_base + XIVE_TM_USER_PAGE * (1 << TM_SHIFT));
+    nodename = xive_nodename(xive);
     _FDT(node = fdt_add_subnode(fdt, 0, nodename));
     g_free(nodename);
 
@@ -1478,4 +1483,29 @@ void spapr_dt_xive(sPAPRMachineState *spapr, uint32_t nr_servers, void *fdt,
      */
     _FDT(fdt_setprop(fdt, 0, "ibm,plat-res-int-priorities",
                      plat_res_int_priorities, sizeof(plat_res_int_priorities)));
+}
+
+uint32_t spapr_get_phandle_xive(sPAPRMachineState *spapr, void *fdt,
+                                Error **errp)
+{
+    gchar *nodename = xive_nodename(spapr->xive);
+    int phandle = -1, offset;
+
+    offset = fdt_subnode_offset(fdt, 0, nodename);
+    if (offset < 0) {
+        error_setg(errp, "Can't find node \"%s\": %s", nodename,
+                   fdt_strerror(offset));
+        goto out;
+    }
+
+    phandle = fdt_get_phandle(spapr->fdt_blob, offset);
+    if (phandle < 0) {
+        error_setg(errp, "Can't get phandle of node \"%s\": %s",
+                   nodename, fdt_strerror(phandle));
+        goto out;
+    }
+
+out:
+    g_free(nodename);
+    return phandle;
 }

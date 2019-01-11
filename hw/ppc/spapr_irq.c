@@ -255,6 +255,7 @@ sPAPRIrq spapr_irq_xics = {
     .post_load   = spapr_irq_post_load_xics,
     .reset       = spapr_irq_reset_xics,
     .set_irq     = spapr_irq_set_irq_xics,
+    .get_phandle = spapr_get_phandle_xics,
 };
 
 /*
@@ -411,6 +412,7 @@ sPAPRIrq spapr_irq_xive = {
     .post_load   = spapr_irq_post_load_xive,
     .reset       = spapr_irq_reset_xive,
     .set_irq     = spapr_irq_set_irq_xive,
+    .get_phandle = spapr_get_phandle_xive,
 };
 
 /*
@@ -569,6 +571,13 @@ static void spapr_irq_set_irq_dual(void *opaque, int srcno, int val)
     spapr_irq_current(spapr)->set_irq(spapr, srcno, val);
 }
 
+static uint32_t spapr_irq_get_phandle_dual(sPAPRMachineState *spapr, void *fdt,
+                                           Error **errp)
+{
+    return spapr_irq_current(spapr)->get_phandle(spapr, fdt, errp);
+}
+
+
 /*
  * Define values in sync with the XIVE and XICS backend
  */
@@ -589,7 +598,8 @@ sPAPRIrq spapr_irq_dual = {
     .cpu_intc_create = spapr_irq_cpu_intc_create_dual,
     .post_load   = spapr_irq_post_load_dual,
     .reset       = spapr_irq_reset_dual,
-    .set_irq     = spapr_irq_set_irq_dual
+    .set_irq     = spapr_irq_set_irq_dual,
+    .get_phandle = spapr_irq_get_phandle_dual,
 };
 
 /*
@@ -706,4 +716,5 @@ sPAPRIrq spapr_irq_xics_legacy = {
     .cpu_intc_create = spapr_irq_cpu_intc_create_xics,
     .post_load   = spapr_irq_post_load_xics,
     .set_irq     = spapr_irq_set_irq_xics,
+    .get_phandle = spapr_get_phandle_xics,
 };

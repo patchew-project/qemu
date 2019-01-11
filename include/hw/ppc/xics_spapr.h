@@ -31,6 +31,8 @@
 
 void spapr_dt_xics(sPAPRMachineState *spapr, uint32_t nr_servers, void *fdt,
                    uint32_t phandle);
+uint32_t spapr_get_phandle_xics(sPAPRMachineState *spapr, void *fdt,
+                                Error **errp);
 int xics_kvm_init(sPAPRMachineState *spapr, Error **errp);
 void xics_spapr_init(sPAPRMachineState *spapr);
 

@@ -35,6 +35,7 @@
 #include "hw/ppc/xics_spapr.h"
 #include "hw/ppc/fdt.h"
 #include "qapi/visitor.h"
+#include "qapi/error.h"
 
 /*
  * Guest interfaces
@@ -245,6 +246,8 @@ void xics_spapr_init(sPAPRMachineState *spapr)
     spapr_register_hypercall(H_IPOLL, h_ipoll);
 }
 
+#define NODENAME "interrupt-controller"
+
 void spapr_dt_xics(sPAPRMachineState *spapr, uint32_t nr_servers, void *fdt,
                    uint32_t phandle)
 {
@@ -253,7 +256,7 @@ void spapr_dt_xics(sPAPRMachineState *spapr, uint32_t nr_servers, void *fdt,
     };
     int node;
 
-    _FDT(node = fdt_add_subnode(fdt, 0, "interrupt-controller"));
+    _FDT(node = fdt_add_subnode(fdt, 0, NODENAME));
 
     _FDT(fdt_setprop_string(fdt, node, "device_type",
                             "PowerPC-External-Interrupt-Presentation"));
@@ -265,4 +268,27 @@ void spapr_dt_xics(sPAPRMachineState *spapr, uint32_t nr_servers, void *fdt,
     _FDT(fdt_setprop_cell(fdt, node, "#interrupt-cells", 2));
     _FDT(fdt_setprop_cell(fdt, node, "linux,phandle", phandle));
     _FDT(fdt_setprop_cell(fdt, node, "phandle", phandle));
+}
+
+uint32_t spapr_get_phandle_xics(sPAPRMachineState *spapr, void *fdt,
+                                Error **errp)
+{
+    int phandle = -1, offset;
+
+    offset = fdt_subnode_offset(fdt, 0, NODENAME);
+    if (offset < 0) {
+        error_setg(errp, "Can't find node \"%s\": %s", NODENAME,
+                   fdt_strerror(offset));
+        goto out;
+    }
+
+    phandle = fdt_get_phandle(spapr->fdt_blob, offset);
+    if (phandle < 0) {
+        error_setg(errp, "Can't get phandle of node \"%s\": %s",
+                   NODENAME, fdt_strerror(phandle));
+        goto out;
+    }
+
+out:
+    return phandle;
 }

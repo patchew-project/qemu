@@ -49,4 +49,6 @@ void spapr_dt_xive(sPAPRMachineState *spapr, uint32_t nr_servers, void *fdt,
 void spapr_xive_set_tctx_os_cam(XiveTCTX *tctx);
 void spapr_xive_mmio_set_enabled(sPAPRXive *xive, bool enable);
 
+uint32_t spapr_get_phandle_xive(sPAPRMachineState *spapr, void *fdt,
+                                Error **errp);
 #endif /* PPC_SPAPR_XIVE_H */
