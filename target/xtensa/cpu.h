@@ -400,6 +400,7 @@ struct XtensaConfig {
     int excm_level;
     int ndepc;
     unsigned inst_fetch_width;
+    unsigned max_insn_size;
     uint32_t vecbase;
     uint32_t exception_vector[EXC_MAX];
     unsigned ninterrupt;
@@ -695,6 +696,15 @@ static inline int cpu_mmu_index(CPUXtensaState *env, bool ifetch)
 #define XTENSA_TBFLAG_CALLINC_MASK 0x180000
 #define XTENSA_TBFLAG_CALLINC_SHIFT 19
 
+#define XTENSA_CSBASE_LEND_MASK 0x0000ffff
+#define XTENSA_CSBASE_LEND_SHIFT 0
+#define XTENSA_CSBASE_LBEG_OFF_MASK 0x00ff0000
+#define XTENSA_CSBASE_LBEG_OFF_SHIFT 16
+
+#define LINKABLE_BITS 12
+#define LINKABLE_SIZE (1u << LINKABLE_BITS)
+#define LINKABLE_MASK (-LINKABLE_SIZE)
+
 static inline void cpu_get_tb_cpu_state(CPUXtensaState *env, target_ulong *pc,
         target_ulong *cs_base, uint32_t *flags)
 {
@@ -706,6 +716,17 @@ static inline void cpu_get_tb_cpu_state(CPUXtensaState *env, target_ulong *pc,
     *flags |= xtensa_get_ring(env);
     if (env->sregs[PS] & PS_EXCM) {
         *flags |= XTENSA_TBFLAG_EXCM;
+    } else if (xtensa_option_enabled(env->config, XTENSA_OPTION_LOOP)) {
+        target_ulong lend_dist = env->sregs[LEND] - (env->pc & LINKABLE_MASK);
+
+        if (lend_dist < LINKABLE_SIZE + env->config->max_insn_size) {
+            target_ulong lbeg_off = env->sregs[LEND] - env->sregs[LBEG];
+
+            *cs_base = lend_dist;
+            if (lbeg_off < 256) {
+                *cs_base |= lbeg_off << XTENSA_CSBASE_LBEG_OFF_SHIFT;
+            }
+        }
     }
     if (xtensa_option_enabled(env->config, XTENSA_OPTION_EXTENDED_L32R) &&
             (env->sregs[LITBASE] & 1)) {
