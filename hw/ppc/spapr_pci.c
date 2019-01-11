@@ -1641,21 +1641,7 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    if (sphb->index != (uint32_t)-1) {
-        Error *local_err = NULL;
-
-        smc->phb_placement(spapr, sphb->index,
-                           &sphb->buid, &sphb->io_win_addr,
-                           &sphb->mem_win_addr, &sphb->mem64_win_addr,
-                           windows_supported, sphb->dma_liobn, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
-            return;
-        }
-    } else {
-        error_setg(errp, "\"index\" for PAPR PHB is mandatory");
-        return;
-    }
+    assert(sphb->index != (uint32_t)-1); /* checked in spapr_phb_pre_plug() */
 
     if (sphb->mem64_win_size != 0) {
         if (sphb->mem_win_size > SPAPR_PCI_MEM32_WIN_SIZE) {
@@ -1872,6 +1858,17 @@ static void spapr_phb_reset(DeviceState *qdev)
 
     if (spapr_phb_eeh_available(SPAPR_PCI_HOST_BRIDGE(qdev))) {
         spapr_phb_vfio_reset(qdev);
+    }
+
+    if (spapr_drc_hotplugged(qdev)) {
+        sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
+        int i;
+
+        for (i = 0; i < PCI_NUM_PINS; i++) {
+            uint32_t irq = sphb->lsi_table[i].irq;
+
+            spapr_irq_sync_to_kvm(spapr, irq, &error_abort);
+        }
     }
 }
 
