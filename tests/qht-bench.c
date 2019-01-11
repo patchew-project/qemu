@@ -398,17 +398,22 @@ static void pr_stats(void)
 
 static void run_test(void)
 {
-    unsigned int remaining;
+    GTimer *timer;
     int i;
 
     while (atomic_read(&n_ready_threads) != n_rw_threads + n_rz_threads) {
         cpu_relax();
     }
+
+    timer = g_timer_new();
+
     atomic_set(&test_start, true);
     do {
-        remaining = sleep(duration);
-    } while (remaining);
+        sleep(1);
+    } while (g_timer_elapsed(timer, NULL) < duration);
     atomic_set(&test_stop, true);
+
+    g_timer_destroy(timer);
 
     for (i = 0; i < n_rw_threads; i++) {
         qemu_thread_join(&rw_threads[i]);

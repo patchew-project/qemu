@@ -76,17 +76,22 @@ static void *thread_func(void *arg)
 
 static void run_test(void)
 {
-    unsigned int remaining;
+    GTimer *timer;
     unsigned int i;
 
     while (atomic_read(&n_ready_threads) != n_threads) {
         cpu_relax();
     }
+
+    timer = g_timer_new();
+
     atomic_set(&test_start, true);
     do {
-        remaining = sleep(duration);
-    } while (remaining);
+        sleep(1);
+    } while (g_timer_elapsed(timer, NULL) < duration);
     atomic_set(&test_stop, true);
+
+    g_timer_destroy(timer);
 
     for (i = 0; i < n_threads; i++) {
         qemu_thread_join(&threads[i]);
