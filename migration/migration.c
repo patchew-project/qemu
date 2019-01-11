@@ -31,6 +31,7 @@
 #include "migration/vmstate.h"
 #include "block/block.h"
 #include "qapi/error.h"
+#include "qapi/string-input-visitor.h"
 #include "qapi/qapi-commands-migration.h"
 #include "qapi/qapi-events-migration.h"
 #include "qapi/qmp/qerror.h"
@@ -705,7 +706,7 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
     params->has_compress_threads = true;
     params->compress_threads = s->parameters.compress_threads;
     params->has_compress_wait_thread = true;
-    params->compress_wait_thread = s->parameters.compress_wait_thread;
+    params->compress_wait_thread = g_strdup(s->parameters.compress_wait_thread);
     params->has_decompress_threads = true;
     params->decompress_threads = s->parameters.decompress_threads;
     params->has_cpu_throttle_initial = true;
@@ -800,6 +801,8 @@ static void populate_ram_info(MigrationInfo *info, MigrationState *s)
                                     compression_counters.compressed_size;
         info->compression->compression_rate =
                                     compression_counters.compression_rate;
+        info->compression->compress_no_wait_weight =
+                                compression_counters.compress_no_wait_weight;
     }
 
     if (cpu_throttle_active()) {
@@ -1016,6 +1019,68 @@ void qmp_migrate_set_capabilities(MigrationCapabilityStatusList *params,
     }
 }
 
+static int get_compress_wait_thread(const MigrationParameters *params)
+{
+    Visitor *v = string_input_visitor_new(params->compress_wait_thread);
+    Error *err = NULL;
+    int wait_thread = COMPRESS_WAIT_THREAD_ERR;
+    char *value;
+    bool wait;
+
+    visit_type_str(v, "compress-wait-thread", &value, &err);
+    if (err) {
+        goto exit;
+    }
+
+    if (!strcmp(value, "adaptive")) {
+        wait_thread = COMPRESS_WAIT_THREAD_ADAPTIVE;
+        goto free_value;
+    }
+
+    visit_type_bool(v, "compress-wait-thread", &wait, &err);
+    if (!err) {
+        wait_thread = wait;
+    }
+
+free_value:
+    g_free(value);
+exit:
+    visit_free(v);
+    error_free(err);
+    return wait_thread;
+}
+
+static bool
+check_compress_wait_thread(MigrationParameters *params, Error **errp)
+{
+    if (!params->has_compress_wait_thread) {
+        return true;
+    }
+
+    if (get_compress_wait_thread(params) == COMPRESS_WAIT_THREAD_ERR) {
+        error_setg(errp,
+         "Parameter 'compress-wait-thread' expects 'adaptive' or a bool value");
+        return false;
+    }
+
+    return true;
+}
+
+static void update_compress_wait_thread(MigrationState *s)
+{
+    s->compress_wait_thread = get_compress_wait_thread(&s->parameters);
+    assert(s->compress_wait_thread != COMPRESS_WAIT_THREAD_ERR);
+}
+
+int migrate_compress_wait_thread(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->compress_wait_thread;
+}
+
 /*
  * Check whether the parameters are valid. Error will be put into errp
  * (if provided). Return true if valid, otherwise false.
@@ -1033,6 +1098,10 @@ static bool migrate_params_check(MigrationParameters *params, Error **errp)
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
                    "compress_threads",
                    "is invalid, it should be in the range of 1 to 255");
+        return false;
+    }
+
+    if (!check_compress_wait_thread(params, errp)) {
         return false;
     }
 
@@ -1130,7 +1199,7 @@ static void migrate_params_test_apply(MigrateSetParameters *params,
     }
 
     if (params->has_compress_wait_thread) {
-        dest->compress_wait_thread = params->compress_wait_thread;
+        dest->compress_wait_thread = g_strdup(params->compress_wait_thread);
     }
 
     if (params->has_decompress_threads) {
@@ -1177,6 +1246,14 @@ static void migrate_params_test_apply(MigrateSetParameters *params,
     }
 }
 
+static void migrate_params_test_destroy(MigrateSetParameters *params,
+                                        MigrationParameters *dest)
+{
+    if (params->has_compress_wait_thread) {
+        g_free(dest->compress_wait_thread);
+    }
+}
+
 static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
 {
     MigrationState *s = migrate_get_current();
@@ -1192,7 +1269,10 @@ static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
     }
 
     if (params->has_compress_wait_thread) {
-        s->parameters.compress_wait_thread = params->compress_wait_thread;
+        g_free(s->parameters.compress_wait_thread);
+        s->parameters.compress_wait_thread =
+                                        g_strdup(params->compress_wait_thread);
+        update_compress_wait_thread(s);
     }
 
     if (params->has_decompress_threads) {
@@ -1282,10 +1362,12 @@ void qmp_migrate_set_parameters(MigrateSetParameters *params, Error **errp)
 
     if (!migrate_params_check(&tmp, errp)) {
         /* Invalid parameter */
-        return;
+        goto exit;
     }
 
     migrate_params_apply(params, errp);
+exit:
+    migrate_params_test_destroy(params, &tmp);
 }
 
 
@@ -1571,6 +1653,7 @@ void migrate_init(MigrationState *s)
     s->vm_was_running = false;
     s->iteration_initial_bytes = 0;
     s->threshold_size = 0;
+    update_compress_wait_thread(s);
 }
 
 static GSList *migration_blockers;
@@ -1917,6 +2000,15 @@ bool migrate_postcopy_blocktime(void)
     return s->enabled_capabilities[MIGRATION_CAPABILITY_POSTCOPY_BLOCKTIME];
 }
 
+int64_t migrate_max_bandwidth(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->parameters.max_bandwidth;
+}
+
 bool migrate_use_compression(void)
 {
     MigrationState *s;
@@ -1942,15 +2034,6 @@ int migrate_compress_threads(void)
     s = migrate_get_current();
 
     return s->parameters.compress_threads;
-}
-
-int migrate_compress_wait_thread(void)
-{
-    MigrationState *s;
-
-    s = migrate_get_current();
-
-    return s->parameters.compress_wait_thread;
 }
 
 int migrate_decompress_threads(void)
@@ -2895,6 +2978,8 @@ static void migration_update_counters(MigrationState *s,
     s->pages_per_second = (double) transferred_pages /
                              (((double) time_spent / 1000.0));
 
+    compress_adaptive_update(s->mbps);
+
     /*
      * if we haven't sent anything, we don't want to
      * recalculate. 10000 is a small enough number for our purposes
@@ -3228,8 +3313,8 @@ static Property migration_properties[] = {
     DEFINE_PROP_UINT8("x-compress-threads", MigrationState,
                       parameters.compress_threads,
                       DEFAULT_MIGRATE_COMPRESS_THREAD_COUNT),
-    DEFINE_PROP_BOOL("x-compress-wait-thread", MigrationState,
-                      parameters.compress_wait_thread, true),
+    DEFINE_PROP_STRING("x-compress-wait-thread", MigrationState,
+                       parameters.compress_wait_thread),
     DEFINE_PROP_UINT8("x-decompress-threads", MigrationState,
                       parameters.decompress_threads,
                       DEFAULT_MIGRATE_DECOMPRESS_THREAD_COUNT),
@@ -3297,6 +3382,7 @@ static void migration_instance_finalize(Object *obj)
     qemu_mutex_destroy(&ms->qemu_file_lock);
     g_free(params->tls_hostname);
     g_free(params->tls_creds);
+    g_free(params->compress_wait_thread);
     qemu_sem_destroy(&ms->rate_limit_sem);
     qemu_sem_destroy(&ms->pause_sem);
     qemu_sem_destroy(&ms->postcopy_pause_sem);
@@ -3318,10 +3404,12 @@ static void migration_instance_init(Object *obj)
 
     params->tls_hostname = g_strdup("");
     params->tls_creds = g_strdup("");
+    params->compress_wait_thread = g_strdup("on");
 
     /* Set has_* up only for parameter checks */
     params->has_compress_level = true;
     params->has_compress_threads = true;
+    params->has_compress_wait_thread = true;
     params->has_decompress_threads = true;
     params->has_cpu_throttle_initial = true;
     params->has_cpu_throttle_increment = true;

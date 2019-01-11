@@ -276,6 +276,8 @@ struct RAMSrcPageRequest {
     QSIMPLEQ_ENTRY(RAMSrcPageRequest) next_req;
 };
 
+#define COMPRESS_BUSY_COUNT_PERIOD 200
+
 /* State of RAM for migration */
 struct RAMState {
     /* QEMUFile used for this migration */
@@ -292,6 +294,19 @@ struct RAMState {
     bool ram_bulk_stage;
     /* How many times we have dirty too many pages */
     int dirty_rate_high_cnt;
+
+    /* used by by compress-wait-thread-adaptive */
+    /*
+     * the count for the case that all compress threads are busy to
+     * handle a page in a period
+     */
+    uint8_t compress_busy_count;
+    /*
+     * the number of pages that can be directly posted as normal page when
+     * all compress threads are busy in a period
+     */
+    uint8_t compress_no_wait_left;
+
     /* these variables are used for bitmap sync */
     /* last time we did a full bitmap_sync */
     int64_t time_last_bitmap_sync;
@@ -470,6 +485,8 @@ static void compress_threads_save_cleanup(void)
     comp_param = NULL;
 }
 
+static void compress_adaptive_init(void);
+
 static int compress_threads_save_setup(void)
 {
     int i, thread_count;
@@ -477,6 +494,9 @@ static int compress_threads_save_setup(void)
     if (!migrate_use_compression()) {
         return 0;
     }
+
+    compress_adaptive_init();
+
     thread_count = migrate_compress_threads();
     compress_threads = g_new0(QemuThread, thread_count);
     comp_param = g_new0(CompressParam, thread_count);
@@ -1599,6 +1619,68 @@ uint64_t ram_get_total_transferred_pages(void)
                 compression_counters.pages + xbzrle_counters.pages;
 }
 
+static void compress_adaptive_init(void)
+{
+    /* fully wait on default. */
+     compression_counters.compress_no_wait_weight = 0;
+     ram_state->compress_no_wait_left = 0;
+     ram_state->compress_busy_count = 0;
+}
+
+void compress_adaptive_update(double mbps)
+{
+    int64_t rate_limit, remain_bw, max_bw = migrate_max_bandwidth();
+    int compress_wait_thread = migrate_compress_wait_thread();
+
+    if (!migrate_use_compression() ||
+        !(compress_wait_thread == COMPRESS_WAIT_THREAD_ADAPTIVE)) {
+        return;
+    }
+
+    /* no bandwith is set to the file then we can not do adaptive adjustment */
+    rate_limit = qemu_file_get_rate_limit(migrate_get_current()->to_dst_file);
+    if (rate_limit == 0 || rate_limit == INT64_MAX) {
+        return;
+    }
+
+    max_bw = (max_bw >> 20) * 8;
+    remain_bw = abs(max_bw - (int64_t)(mbps));
+    if (remain_bw <= (max_bw / 20)) {
+        /* if we have used all the bandwidth, let's compress more. */
+        if (compression_counters.compress_no_wait_weight) {
+            compression_counters.compress_no_wait_weight--;
+        }
+        goto exit;
+    }
+
+    /* have enough bandwidth left, do not need to compress so aggressively */
+    if (compression_counters.compress_no_wait_weight !=
+        COMPRESS_BUSY_COUNT_PERIOD) {
+        compression_counters.compress_no_wait_weight++;
+    }
+
+exit:
+    ram_state->compress_busy_count = 0;
+    ram_state->compress_no_wait_left =
+                            compression_counters.compress_no_wait_weight;
+}
+
+static bool compress_adaptive_need_wait(void)
+{
+    if (++ram_state->compress_busy_count == COMPRESS_BUSY_COUNT_PERIOD) {
+        ram_state->compress_busy_count = 0;
+        ram_state->compress_no_wait_left =
+                    compression_counters.compress_no_wait_weight;
+    }
+
+    if (ram_state->compress_no_wait_left) {
+        ram_state->compress_no_wait_left--;
+        return false;
+    }
+
+    return true;
+}
+
 static void migration_update_rates(RAMState *rs, int64_t end_time)
 {
     uint64_t page_count = rs->target_page_count - rs->target_page_count_prev;
@@ -1975,7 +2057,11 @@ static int compress_page_with_multi_thread(RAMState *rs, RAMBlock *block,
                                            ram_addr_t offset)
 {
     int idx, thread_count, bytes_xmit = -1, pages = -1;
-    bool wait = migrate_compress_wait_thread();
+    int compress_wait_thread = migrate_compress_wait_thread();
+    bool wait, adaptive;
+
+    wait = (adaptive == COMPRESS_WAIT_THREAD_ON);
+    adaptive = (adaptive == COMPRESS_WAIT_THREAD_ADAPTIVE);
 
     thread_count = migrate_compress_threads();
     qemu_mutex_lock(&comp_done_lock);
@@ -1990,20 +2076,29 @@ retry:
             qemu_mutex_unlock(&comp_param[idx].mutex);
             pages = 1;
             update_compress_thread_counts(&comp_param[idx], bytes_xmit);
-            break;
+            goto exit;
         }
     }
 
+    if (adaptive && !wait) {
+        /* it is the first time go to the loop */
+        wait = compress_adaptive_need_wait();
+    }
+
     /*
-     * wait for the free thread if the user specifies 'compress-wait-thread',
-     * otherwise we will post the page out in the main thread as normal page.
+     * wait for the free thread if the user specifies
+     * 'compress-wait-thread-adaptive' that detected the bandwidth is
+     * not enough or compress-wait-thread', otherwise we will post the
+     * page out in the main thread as normal page.
      */
-    if (pages < 0 && wait) {
+    if (wait) {
         qemu_cond_wait(&comp_done_cond, &comp_done_lock);
         goto retry;
     }
-    qemu_mutex_unlock(&comp_done_lock);
 
+
+exit:
+    qemu_mutex_unlock(&comp_done_lock);
     return pages;
 }
 
@@ -3153,18 +3248,17 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
     RAMState **rsp = opaque;
     RAMBlock *block;
 
-    if (compress_threads_save_setup()) {
-        return -1;
-    }
-
     /* migration has already setup the bitmap, reuse it. */
     if (!migration_in_colo_state()) {
         if (ram_init_all(rsp) != 0) {
-            compress_threads_save_cleanup();
             return -1;
         }
     }
     (*rsp)->f = f;
+
+    if (compress_threads_save_setup()) {
+        return -1;
+    }
 
     rcu_read_lock();
 

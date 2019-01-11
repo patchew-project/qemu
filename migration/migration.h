@@ -146,6 +146,8 @@ struct MigrationState
     /* params from 'migrate-set-parameters' */
     MigrationParameters parameters;
 
+    int compress_wait_thread;
+
     int state;
 
     /* State related to return path */
@@ -276,13 +278,24 @@ bool migrate_use_block(void);
 bool migrate_use_block_incremental(void);
 int migrate_max_cpu_throttle(void);
 bool migrate_use_return_path(void);
+int64_t migrate_max_bandwidth(void);
 
 uint64_t ram_get_total_transferred_pages(void);
 
 bool migrate_use_compression(void);
 int migrate_compress_level(void);
 int migrate_compress_threads(void);
+
+enum {
+    COMPRESS_WAIT_THREAD_OFF = 0,
+    COMPRESS_WAIT_THREAD_ON = 1,
+    COMPRESS_WAIT_THREAD_ADAPTIVE = 2,
+    COMPRESS_WAIT_THREAD_ERR = 3,
+};
 int migrate_compress_wait_thread(void);
+
+void compress_adaptive_update(double mbps);
+
 int migrate_decompress_threads(void);
 bool migrate_use_events(void);
 bool migrate_postcopy_blocktime(void);
