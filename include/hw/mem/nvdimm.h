@@ -24,6 +24,7 @@
 #define QEMU_NVDIMM_H
 
 #include "hw/mem/pc-dimm.h"
+#include "hw/nvram/fw_cfg.h"
 #include "hw/acpi/bios-linker-loader.h"
 
 #define NVDIMM_DEBUG 0

@@ -35,6 +35,7 @@
 #include "qemu/notify.h"
 #include "hw/boards.h"
 #include "hw/arm/arm.h"
+#include "hw/nvram/fw_cfg.h"
 #include "sysemu/kvm.h"
 #include "hw/intc/arm_gicv3_common.h"
 

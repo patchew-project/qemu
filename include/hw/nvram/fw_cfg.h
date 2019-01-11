@@ -14,7 +14,9 @@
 #define FW_CFG_IO(obj)  OBJECT_CHECK(FWCfgIoState,  (obj), TYPE_FW_CFG_IO)
 #define FW_CFG_MEM(obj) OBJECT_CHECK(FWCfgMemState, (obj), TYPE_FW_CFG_MEM)
 
-typedef struct fw_cfg_file FWCfgFile;
+typedef struct FWCfgState FWCfgState;
+typedef struct FWCfgIoState FWCfgIoState;
+typedef struct FWCfgMemState FWCfgMemState;
 
 #define FW_CFG_ORDER_OVERRIDE_VGA    70
 #define FW_CFG_ORDER_OVERRIDE_NIC    80
@@ -23,6 +25,8 @@ typedef struct fw_cfg_file FWCfgFile;
 
 void fw_cfg_set_order_override(FWCfgState *fw_cfg, int order);
 void fw_cfg_reset_order_override(FWCfgState *fw_cfg);
+
+typedef struct fw_cfg_file FWCfgFile;
 
 typedef struct FWCfgFiles {
     uint32_t  count;
@@ -33,6 +37,8 @@ typedef struct fw_cfg_dma_access FWCfgDmaAccess;
 
 typedef void (*FWCfgCallback)(void *opaque);
 typedef void (*FWCfgWriteCallback)(void *opaque, off_t start, size_t len);
+
+typedef struct FWCfgEntry FWCfgEntry;
 
 struct FWCfgState {
     /*< private >*/
