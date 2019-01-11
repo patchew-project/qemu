@@ -120,7 +120,8 @@ typedef struct AcpiBuildPciBusHotplugState {
     bool pcihp_bridge_en;
 } AcpiBuildPciBusHotplugState;
 
-/* The memory contains at least one hole
+/*
+ * The memory contains at least one hole
  * from 640k-1M and possibly another one from 3.5G-4G.
  * So far, the number of memory ranges is up to 2
  * more than the number of numa nodes.
@@ -2267,7 +2268,8 @@ void build_mem_ranges(PCMachineState *pcms)
     uint64_t mem_len, mem_base, next_base;
     int i;
 
-    /* the memory map is a bit tricky, it contains at least one hole
+    /*
+     * the memory map is a bit tricky, it contains at least one hole
      * from 640k-1M and possibly another one from 3.5G-4G.
      */
     mem_ranges_number = 0;

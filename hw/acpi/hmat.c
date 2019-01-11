@@ -22,17 +22,12 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>
  */
 
-#include "unistd.h"
-#include "fcntl.h"
 #include "qemu/osdep.h"
 #include "sysemu/numa.h"
 #include "hw/i386/pc.h"
 #include "hw/i386/acpi-build.h"
-#include "hw/acpi/acpi.h"
 #include "hw/acpi/hmat.h"
-#include "hw/acpi/aml-build.h"
 #include "hw/nvram/fw_cfg.h"
-#include "hw/acpi/bios-linker-loader.h"
 
 struct numa_hmat_lb_info *hmat_lb_info[HMAT_LB_LEVELS][HMAT_LB_TYPES] = {0};
 struct numa_hmat_cache_info
@@ -42,7 +37,7 @@ static uint32_t initiator_pxm[MAX_NODES], target_pxm[MAX_NODES];
 static uint32_t num_initiator, num_target;
 
 /* Build Memory Subsystem Address Range Structure */
-static void hmat_build_spa_info(GArray *table_data,
+static void build_hmat_spa(GArray *table_data,
                                 uint64_t base, uint64_t length, int node)
 {
     uint16_t flags = 0;
@@ -54,27 +49,27 @@ static void hmat_build_spa_info(GArray *table_data,
         flags |= HMAT_SPA_MEM_VALID;
     }
 
+    /* Memory Subsystem Address Range Structure */
     /* Type */
-    build_append_int_noprefix(table_data, ACPI_HMAT_SPA, sizeof(uint16_t));
-    /* Reserved0 */
-    build_append_int_noprefix(table_data, 0, sizeof(uint16_t));
+    build_append_int_noprefix(table_data, 0, 2);
+    /* Reserved */
+    build_append_int_noprefix(table_data, 0, 2);
     /* Length */
-    build_append_int_noprefix(table_data, sizeof(AcpiHmatSpaRange),
-                              sizeof(uint32_t));
+    build_append_int_noprefix(table_data, 40, 4);
     /* Flags */
-    build_append_int_noprefix(table_data, flags, sizeof(uint16_t));
-    /* Reserved1 */
-    build_append_int_noprefix(table_data, 0, sizeof(uint16_t));
+    build_append_int_noprefix(table_data, flags, 2);
+    /* Reserved */
+    build_append_int_noprefix(table_data, 0, 2);
     /* Process Proximity Domain */
-    build_append_int_noprefix(table_data, node, sizeof(uint32_t));
+    build_append_int_noprefix(table_data, node, 4);
     /* Memory Proximity Domain */
-    build_append_int_noprefix(table_data, node, sizeof(uint32_t));
-    /* Reserved2 */
-    build_append_int_noprefix(table_data, 0, sizeof(uint32_t));
+    build_append_int_noprefix(table_data, node, 4);
+    /* Reserved */
+    build_append_int_noprefix(table_data, 0, 4);
     /* System Physical Address Range Base */
-    build_append_int_noprefix(table_data, base, sizeof(uint64_t));
+    build_append_int_noprefix(table_data, base, 8);
     /* System Physical Address Range Length */
-    build_append_int_noprefix(table_data, length, sizeof(uint64_t));
+    build_append_int_noprefix(table_data, length, 8);
 }
 
 static int pc_dimm_device_list(Object *obj, void *opaque)
@@ -401,7 +396,7 @@ static void hmat_build_hma_buffer(PCMachineState *pcms)
     g_array_free(hma_buf->hma, true);
 
     hma_buf->hma = g_array_new(false, true /* clear */, 1);
-    acpi_data_push(hma_buf->hma, sizeof(AcpiHmat));
+    acpi_data_push(hma_buf->hma, 40);
 
     /* build HMAT in a given buffer. */
     hmat_build_hma(hma_buf->hma, pcms);
@@ -543,7 +538,7 @@ void hmat_build_acpi(GArray *table_data, BIOSLinker *linker,
     uint64_t hmat_start, hmat_len;
 
     hmat_start = table_data->len;
-    acpi_data_push(table_data, sizeof(AcpiHmat));
+    acpi_data_push(table_data, 40);
 
     hmat_build_hma(table_data, pcms);
     hmat_len = table_data->len - hmat_start;

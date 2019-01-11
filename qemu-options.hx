@@ -246,7 +246,7 @@ For example:
 -numa node,mem=1G,cpus=2,nodeid=1 \
 -numa node,mem=1G,nodeid=2 \
 -numa hmat-lb,initiator=0,target=1,hierarchy=memory,data-type=access-latency,base-lat=10,base-bw=20,latency=10,bandwidth=10 \
--numa hmat-lb,initiator=1,target=2,hierarchy=1st-level,data-type=access-latency,base-bw=10,bandwidth=20
+-numa hmat-lb,initiator=1,target=2,hierarchy=first-level,data-type=access-latency,base-bw=10,bandwidth=20
 @end example
 
 When the processors in NUMA node 0 access memory in NUMA node 1,

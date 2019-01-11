@@ -78,27 +78,6 @@ enum {
 #define HMAT_LB_LEVELS    (HMAT_LB_MEM_CACHE_3RD_LEVEL + 1)
 #define HMAT_LB_TYPES     (HMAT_LB_DATA_WRITE_BANDWIDTH + 1)
 
-/*
- * HMAT (Heterogeneous Memory Attributes Table)
- */
-struct AcpiHmat {
-    ACPI_TABLE_HEADER_DEF
-    uint32_t    reserved;
-} QEMU_PACKED;
-typedef struct AcpiHmat AcpiHmat;
-
-struct AcpiHmatSpaRange {
-    ACPI_HMAT_SUB_HEADER_DEF
-    uint16_t    flags;
-    uint16_t    reserved1;
-    uint32_t    proc_proximity;
-    uint32_t    mem_proximity;
-    uint32_t    reserved2;
-    uint64_t    spa_base;
-    uint64_t    spa_length;
-} QEMU_PACKED;
-typedef struct AcpiHmatSpaRange AcpiHmatSpaRange;
-
 struct AcpiHmatLBInfo {
     ACPI_HMAT_SUB_HEADER_DEF
     uint8_t     flags;
@@ -166,7 +145,10 @@ struct numa_hmat_cache_info {
     uint32_t    mem_proximity;
     /* Size of memory side cache in bytes. */
     uint64_t    size;
-    /* Total cache levels for this memory proximity domain. */
+    /*
+     * Total cache levels for this memory
+     * pr#include "hw/acpi/aml-build.h"oximity domain.
+     */
     uint8_t     total_levels;
     /* Cache level described in this structure. */
     uint8_t     level;

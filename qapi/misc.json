@@ -2746,9 +2746,9 @@
 #
 # @cpu: property based CPU(s) to node mapping (Since: 2.10)
 #
-# @hmat-lb: memory latency and bandwidth information (Since: 2.13)
+# @hmat-lb: memory latency and bandwidth information (Since: 3.10)
 #
-# @hmat-cache: memory side cache information (Since: 2.13)
+# @hmat-cache: memory side cache information (Since: 3.10)
 #
 # Since: 2.1
 ##
@@ -2837,43 +2837,45 @@
 # @HmatLBMemoryHierarchy:
 #
 # The memory hierarchy in the System Locality Latency
-# and Bandwidth Information Structure of HMAT
+# and Bandwidth Information Structure of HMAT (Heterogeneous
+# Memory Attribute Table)
 #
 # @memory: the structure represents the memory performance
 #
 # @last-level: last level memory of memory side cached memory
 #
-# @1st-level: first level memory of memory side cached memory
+# @first-level: first level memory of memory side cached memory
 #
-# @2nd-level: second level memory of memory side cached memory
+# @second-level: second level memory of memory side cached memory
 #
-# @3rd-level: third level memory of memory side cached memory
+# @third-level: third level memory of memory side cached memory
 #
-# Since: 2.13
+# Since: 3.10
 ##
 { 'enum': 'HmatLBMemoryHierarchy',
-  'data': [ 'memory', 'last-level', '1st-level',
-            '2nd-level', '3rd-level' ] }
+  'data': [ 'memory', 'last-level', 'first-level',
+            'second-level', 'third-level' ] }
 
 ##
 # @HmatLBDataType:
 #
 # Data type in the System Locality Latency
-# and Bandwidth Information Structure of HMAT
+# and Bandwidth Information Structure of HMAT (Heterogeneous
+# Memory Attribute Table)
 #
-# @access-latency: access latency
+# @access-latency: access latency (nanoseconds)
 #
-# @read-latency: read latency
+# @read-latency: read latency (nanoseconds)
 #
-# @write-latency: write latency
+# @write-latency: write latency (nanoseconds)
 #
-# @access-bandwidth: access bandwitch
+# @access-bandwidth: access bandwidth (MB/s)
 #
-# @read-bandwidth: read bandwidth
+# @read-bandwidth: read bandwidth (MB/s)
 #
-# @write-bandwidth: write bandwidth
+# @write-bandwidth: write bandwidth (MB/s)
 #
-# Since: 2.13
+# Since: 3.10
 ##
 { 'enum': 'HmatLBDataType',
   'data': [ 'access-latency', 'read-latency', 'write-latency',
@@ -2905,7 +2907,7 @@
 # @bandwidth: the value of bandwidth based on Base Unit between
 #             @initiator and @target proximity domain.
 #
-# Since: 2.13
+# Since: 3.10
 ##
 { 'struct': 'NumaHmatLBOptions',
   'data': {
@@ -2930,7 +2932,7 @@
 #
 # @complex: Complex Cache Indexing (implementation specific)
 #
-# Since: 2.13
+# Since: 3.10
 ##
 { 'enum': 'HmatCacheAssociativity',
   'data': [ 'none', 'direct', 'complex' ] }
@@ -2947,7 +2949,7 @@
 #
 # @write-through: Write Through (WT)
 #
-# Since: 2.13
+# Since: 3.10
 ##
 { 'enum': 'HmatCacheWritePolicy',
   'data': [ 'none', 'write-back', 'write-through' ] }
@@ -2971,7 +2973,7 @@
 #
 # @line: the cache Line size in bytes.
 #
-# Since: 2.13
+# Since: 3.10
 ##
 { 'struct': 'NumaHmatCacheOptions',
   'data': {
