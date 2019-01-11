@@ -136,6 +136,9 @@ static int vfio_register_event_notifier(VFIOPCIDevice *vdev,
     case VFIO_PCI_ERR_IRQ_INDEX:
         notifier = &vdev->err_notifier;
         break;
+    case VFIO_PCI_INTX_IRQ_INDEX:
+        notifier = &vdev->intx.interrupt;
+        break;
     default:
         return -EINVAL;
     }
@@ -351,10 +354,8 @@ static void vfio_intx_update(PCIDevice *pdev)
 static int vfio_intx_enable(VFIOPCIDevice *vdev, Error **errp)
 {
     uint8_t pin = vfio_pci_read_config(&vdev->pdev, PCI_INTERRUPT_PIN, 1);
-    int ret, argsz, retval = 0;
-    struct vfio_irq_set *irq_set;
-    int32_t *pfd;
     Error *err = NULL;
+    int ret;
 
     if (!pin) {
         return 0;
@@ -376,32 +377,10 @@ static int vfio_intx_enable(VFIOPCIDevice *vdev, Error **errp)
     }
 #endif
 
-    ret = event_notifier_init(&vdev->intx.interrupt, 0);
+    ret = vfio_register_event_notifier(vdev, VFIO_PCI_INTX_IRQ_INDEX, true,
+                                       vfio_intx_interrupt, errp);
     if (ret) {
-        error_setg_errno(errp, -ret, "event_notifier_init failed");
         return ret;
-    }
-
-    argsz = sizeof(*irq_set) + sizeof(*pfd);
-
-    irq_set = g_malloc0(argsz);
-    irq_set->argsz = argsz;
-    irq_set->flags = VFIO_IRQ_SET_DATA_EVENTFD | VFIO_IRQ_SET_ACTION_TRIGGER;
-    irq_set->index = VFIO_PCI_INTX_IRQ_INDEX;
-    irq_set->start = 0;
-    irq_set->count = 1;
-    pfd = (int32_t *)&irq_set->data;
-
-    *pfd = event_notifier_get_fd(&vdev->intx.interrupt);
-    qemu_set_fd_handler(*pfd, vfio_intx_interrupt, NULL, vdev);
-
-    ret = ioctl(vdev->vbasedev.fd, VFIO_DEVICE_SET_IRQS, irq_set);
-    if (ret) {
-        error_setg_errno(errp, -ret, "failed to setup INTx fd");
-        qemu_set_fd_handler(*pfd, NULL, NULL, vdev);
-        event_notifier_cleanup(&vdev->intx.interrupt);
-        retval = -errno;
-        goto cleanup;
     }
 
     vfio_intx_enable_kvm(vdev, &err);
@@ -413,10 +392,7 @@ static int vfio_intx_enable(VFIOPCIDevice *vdev, Error **errp)
 
     trace_vfio_intx_enable(vdev->vbasedev.name);
 
-cleanup:
-    g_free(irq_set);
-
-    return retval;
+    return 0;
 }
 
 static void vfio_intx_disable(VFIOPCIDevice *vdev)
