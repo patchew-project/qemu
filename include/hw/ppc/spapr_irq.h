@@ -48,6 +48,7 @@ typedef struct sPAPRIrq {
     void (*reset)(sPAPRMachineState *spapr, Error **errp);
     void (*set_irq)(void *opaque, int srcno, int val);
     uint32_t (*get_phandle)(sPAPRMachineState *spapr, void *fdt, Error **errp);
+    void (*sync_to_kvm)(sPAPRMachineState *spapr, int irq, Error **errp);
 } sPAPRIrq;
 
 extern sPAPRIrq spapr_irq_xics;
@@ -61,6 +62,7 @@ void spapr_irq_free(sPAPRMachineState *spapr, int irq, int num);
 qemu_irq spapr_qirq(sPAPRMachineState *spapr, int irq);
 int spapr_irq_post_load(sPAPRMachineState *spapr, int version_id);
 void spapr_irq_reset(sPAPRMachineState *spapr, Error **errp);
+void spapr_irq_sync_to_kvm(sPAPRMachineState *spapr, int irq, Error **errp);
 
 /*
  * XICS legacy routines

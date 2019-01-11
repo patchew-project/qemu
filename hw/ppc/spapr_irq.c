@@ -236,6 +236,17 @@ static void spapr_irq_reset_xics(sPAPRMachineState *spapr, Error **errp)
     /* TODO: create the KVM XICS device */
 }
 
+static void spapr_irq_sync_to_kvm_xics(sPAPRMachineState *spapr, int irq,
+                                       Error **errp)
+{
+    MachineState *machine = MACHINE(spapr);
+    ICSState *ics = spapr->ics;
+
+    if (kvm_enabled() && machine_kernel_irqchip_allowed(machine)) {
+        ics_set_kvm_state_one(ics, irq - ics->offset, errp);
+    }
+}
+
 #define SPAPR_IRQ_XICS_NR_IRQS     0x1000
 #define SPAPR_IRQ_XICS_NR_MSIS     \
     (XICS_IRQ_BASE + SPAPR_IRQ_XICS_NR_IRQS - SPAPR_IRQ_MSI)
@@ -256,6 +267,7 @@ sPAPRIrq spapr_irq_xics = {
     .reset       = spapr_irq_reset_xics,
     .set_irq     = spapr_irq_set_irq_xics,
     .get_phandle = spapr_get_phandle_xics,
+    .sync_to_kvm = spapr_irq_sync_to_kvm_xics,
 };
 
 /*
@@ -389,6 +401,12 @@ static void spapr_irq_set_irq_xive(void *opaque, int srcno, int val)
     xive_source_set_irq(&spapr->xive->source, srcno, val);
 }
 
+static void spapr_irq_sync_to_kvm_xive(sPAPRMachineState *spapr, int irq,
+                                       Error **errp)
+{
+    /* TODO: to be implemented when adding KVM XIVE support */
+}
+
 /*
  * XIVE uses the full IRQ number space. Set it to 8K to be compatible
  * with XICS.
@@ -413,6 +431,7 @@ sPAPRIrq spapr_irq_xive = {
     .reset       = spapr_irq_reset_xive,
     .set_irq     = spapr_irq_set_irq_xive,
     .get_phandle = spapr_get_phandle_xive,
+    .sync_to_kvm = spapr_irq_sync_to_kvm_xive,
 };
 
 /*
@@ -577,6 +596,11 @@ static uint32_t spapr_irq_get_phandle_dual(sPAPRMachineState *spapr, void *fdt,
     return spapr_irq_current(spapr)->get_phandle(spapr, fdt, errp);
 }
 
+static void spapr_irq_sync_to_kvm_dual(sPAPRMachineState *spapr, int irq,
+                                       Error **errp)
+{
+    spapr_irq_current(spapr)->sync_to_kvm(spapr, irq, errp);
+}
 
 /*
  * Define values in sync with the XIVE and XICS backend
@@ -600,6 +624,7 @@ sPAPRIrq spapr_irq_dual = {
     .reset       = spapr_irq_reset_dual,
     .set_irq     = spapr_irq_set_irq_dual,
     .get_phandle = spapr_irq_get_phandle_dual,
+    .sync_to_kvm = spapr_irq_sync_to_kvm_dual,
 };
 
 /*
@@ -643,6 +668,11 @@ void spapr_irq_reset(sPAPRMachineState *spapr, Error **errp)
     if (spapr->irq->reset) {
         spapr->irq->reset(spapr, errp);
     }
+}
+
+void spapr_irq_sync_to_kvm(sPAPRMachineState *spapr, int irq, Error **errp)
+{
+    spapr->irq->sync_to_kvm(spapr, irq, errp);
 }
 
 /*
@@ -717,4 +747,5 @@ sPAPRIrq spapr_irq_xics_legacy = {
     .post_load   = spapr_irq_post_load_xics,
     .set_irq     = spapr_irq_set_irq_xics,
     .get_phandle = spapr_get_phandle_xics,
+    .sync_to_kvm = spapr_irq_sync_to_kvm_xics,
 };

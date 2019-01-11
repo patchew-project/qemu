@@ -203,4 +203,6 @@ void icp_resend(ICPState *ss);
 Object *icp_create(Object *cpu, const char *type, XICSFabric *xi,
                    Error **errp);
 
+int ics_set_kvm_state_one(ICSState *ics, unsigned srcno, Error **errp);
+
 #endif /* XICS_H */
