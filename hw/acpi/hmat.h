@@ -183,11 +183,82 @@ struct numa_hmat_cache_info {
     uint16_t    num_smbios_handles;
 };
 
+#define HMAM_MEMORY_SIZE    4096
+#define HMAM_MEM_FILE       "etc/acpi/hma-mem"
+
+/*
+ * 32 bits IO port starting from 0x0a19 in guest is reserved for
+ * HMA ACPI emulation.
+ */
+#define HMAM_ACPI_IO_BASE     0x0a19
+#define HMAM_ACPI_IO_LEN      4
+
+#define HMAM_ACPI_MEM_ADDR  "HMTA"
+#define HMAM_MEMORY         "HRAM"
+#define HMAM_IOPORT         "HPIO"
+
+#define HMAM_NOTIFY         "NTFI"
+#define HMAM_OUT_BUF_SIZE   "RLEN"
+#define HMAM_OUT_BUF        "ODAT"
+
+#define HMAM_RHMA_STATUS    "RSTA"
+#define HMA_COMMON_METHOD   "HMAC"
+#define HMAM_OFFSET         "OFFT"
+
+#define HMAM_RET_STATUS_SUCCESS        0 /* Success */
+#define HMAM_RET_STATUS_UNSUPPORT      1 /* Not Supported */
+#define HMAM_RET_STATUS_INVALID        2 /* Invalid Input Parameters */
+#define HMAM_RET_STATUS_HMA_CHANGED    0x100 /* HMA Changed */
+
+/*
+ * HmatHmaBuffer:
+ * @hma: HMA buffer with the updated HMAT. It is updated when
+ *   the memory device is plugged or unplugged.
+ * @dirty: It allows OSPM to detect changes and restart read if there is any.
+ */
+struct HmatHmaBuffer {
+    GArray *hma;
+    bool dirty;
+};
+typedef struct HmatHmaBuffer HmatHmaBuffer;
+
+struct AcpiHmaState {
+    /* detect if HMA support is enabled. */
+    bool is_enabled;
+
+    /* the data of the fw_cfg file HMAM_MEM_FILE. */
+    GArray *hmam_mem;
+
+    HmatHmaBuffer hma_buf;
+
+    /* the IO region used by OSPM to transfer control to QEMU. */
+    MemoryRegion io_mr;
+};
+typedef struct AcpiHmaState AcpiHmaState;
+
+struct HmatHmamIn {
+    /* the offset in the _HMA buffer */
+    uint32_t offset;
+} QEMU_PACKED;
+typedef struct HmatHmamIn HmatHmamIn;
+
+struct HmatHmamOut {
+    /* the size of buffer filled by QEMU. */
+    uint32_t len;
+    uint32_t ret_status;   /* return status code. */
+    uint8_t data[4088];
+} QEMU_PACKED;
+typedef struct HmatHmamOut HmatHmamOut;
+
 extern struct numa_hmat_lb_info *hmat_lb_info[HMAT_LB_LEVELS][HMAT_LB_TYPES];
 extern struct numa_hmat_cache_info
               *hmat_cache_info[MAX_NODES][MAX_HMAT_CACHE_LEVEL + 1];
 
 void hmat_build_acpi(GArray *table_data, BIOSLinker *linker,
                      MachineState *machine);
+void hmat_build_aml(Aml *dsdt);
+void hmat_init_acpi_state(AcpiHmaState *state, MemoryRegion *io,
+                          FWCfgState *fw_cfg, Object *owner);
+void hmat_update(PCMachineState *pcms);
 
 #endif
