@@ -32,6 +32,7 @@
 #include "hw/acpi/bios-linker-loader.h"
 #include "hw/nvram/fw_cfg.h"
 #include "hw/mem/nvdimm.h"
+#include "hw/acpi/hmat.h"
 
 static int nvdimm_device_list(Object *obj, void *opaque)
 {
@@ -959,26 +960,49 @@ void nvdimm_init_acpi_state(AcpiNVDIMMState *state, MemoryRegion *io,
 
 #define NVDIMM_QEMU_RSVD_UUID   "648B9CF2-CDA1-4312-8AD9-49C4AF32BD62"
 
-static void nvdimm_build_common_dsm(Aml *dev)
+static void nvdimm_build_common_dsm(Aml *dev, uint16_t method_number)
 {
-    Aml *method, *ifctx, *function, *handle, *uuid, *dsm_mem, *elsectx2;
+    Aml *method = NULL, *ifctx = NULL, *function = NULL;
+    Aml *handle = NULL, *uuid = NULL, *dsm_mem, *elsectx2;
     Aml *elsectx, *unsupport, *unpatched, *expected_uuid, *uuid_invalid;
-    Aml *pckg, *pckg_index, *pckg_buf, *field, *dsm_out_buf, *dsm_out_buf_size;
+    Aml *pckg = NULL, *pckg_index, *pckg_buf, *field;
+    Aml *dsm_out_buf, *dsm_out_buf_size;
     uint8_t byte_list[1];
+    uint16_t acpi_io_base = 0;
+    const char *acpi_mem_addr = NULL, *ioport = NULL, *memory = NULL;
+    const char *aml_offset = NULL;
 
-    method = aml_method(NVDIMM_COMMON_DSM, 5, AML_SERIALIZED);
-    uuid = aml_arg(0);
-    function = aml_arg(2);
-    handle = aml_arg(4);
+    switch (method_number) {
+    case 0: /* build common dsm in _FIT method */
+        acpi_mem_addr = NVDIMM_ACPI_MEM_ADDR;
+        ioport = NVDIMM_DSM_IOPORT;
+        acpi_io_base = NVDIMM_ACPI_IO_BASE;
+        memory = NVDIMM_DSM_MEMORY;
+        aml_offset = NVDIMM_DSM_ARG3;
+        method = aml_method(NVDIMM_COMMON_DSM, 5, AML_SERIALIZED);
+        uuid = aml_arg(0);
+        function = aml_arg(2);
+        handle = aml_arg(4);
+        break;
+    case 1: /* build common dsm in _HMA method */
+        acpi_mem_addr = HMAM_ACPI_MEM_ADDR;
+        ioport = HMAM_IOPORT;
+        acpi_io_base = HMAM_ACPI_IO_BASE;
+        memory = HMAM_MEMORY;
+        aml_offset = HMAM_OFFSET;
+        method = aml_method(HMA_COMMON_METHOD, 1, AML_SERIALIZED);
+        break;
+    }
+
     dsm_mem = aml_local(6);
     dsm_out_buf = aml_local(7);
 
-    aml_append(method, aml_store(aml_name(NVDIMM_ACPI_MEM_ADDR), dsm_mem));
+    aml_append(method, aml_store(aml_name("%s", acpi_mem_addr), dsm_mem));
 
     /* map DSM memory and IO into ACPI namespace. */
-    aml_append(method, aml_operation_region(NVDIMM_DSM_IOPORT, AML_SYSTEM_IO,
-               aml_int(NVDIMM_ACPI_IO_BASE), NVDIMM_ACPI_IO_LEN));
-    aml_append(method, aml_operation_region(NVDIMM_DSM_MEMORY,
+    aml_append(method, aml_operation_region(ioport, AML_SYSTEM_IO,
+               aml_int(acpi_io_base), NVDIMM_ACPI_IO_LEN));
+    aml_append(method, aml_operation_region(memory,
                AML_SYSTEM_MEMORY, dsm_mem, sizeof(NvdimmDsmIn)));
 
     /*
@@ -989,122 +1013,191 @@ static void nvdimm_build_common_dsm(Aml *dev)
      * It is the IO port so that accessing them will cause VM-exit, the
      * control will be transferred to QEMU.
      */
-    field = aml_field(NVDIMM_DSM_IOPORT, AML_DWORD_ACC, AML_NOLOCK,
+    field = aml_field(ioport, AML_DWORD_ACC, AML_NOLOCK,
                       AML_PRESERVE);
     aml_append(field, aml_named_field(NVDIMM_DSM_NOTIFY,
                sizeof(uint32_t) * BITS_PER_BYTE));
     aml_append(method, field);
 
-    /*
-     * DSM input:
-     * NVDIMM_DSM_HANDLE: store device's handle, it's zero if the _DSM call
-     *                    happens on NVDIMM Root Device.
-     * NVDIMM_DSM_REVISION: store the Arg1 of _DSM call.
-     * NVDIMM_DSM_FUNCTION: store the Arg2 of _DSM call.
-     * NVDIMM_DSM_ARG3: store the Arg3 of _DSM call which is a Package
-     *                  containing function-specific arguments.
-     *
-     * They are RAM mapping on host so that these accesses never cause
-     * VM-EXIT.
-     */
-    field = aml_field(NVDIMM_DSM_MEMORY, AML_DWORD_ACC, AML_NOLOCK,
-                      AML_PRESERVE);
-    aml_append(field, aml_named_field(NVDIMM_DSM_HANDLE,
-               sizeof(typeof_field(NvdimmDsmIn, handle)) * BITS_PER_BYTE));
-    aml_append(field, aml_named_field(NVDIMM_DSM_REVISION,
-               sizeof(typeof_field(NvdimmDsmIn, revision)) * BITS_PER_BYTE));
-    aml_append(field, aml_named_field(NVDIMM_DSM_FUNCTION,
-               sizeof(typeof_field(NvdimmDsmIn, function)) * BITS_PER_BYTE));
-    aml_append(field, aml_named_field(NVDIMM_DSM_ARG3,
-         (sizeof(NvdimmDsmIn) - offsetof(NvdimmDsmIn, arg3)) * BITS_PER_BYTE));
-    aml_append(method, field);
+    field = aml_field(memory, AML_DWORD_ACC, AML_NOLOCK, AML_PRESERVE);
+    switch (method_number) {
+    case 0: /* build common dsm in _FIT method */
+        /*
+         * DSM input:
+         * NVDIMM_DSM_HANDLE: store device's handle, it's zero if
+         *                    the _DSM call happens on NVDIMM Root
+         *                    Device.
+         * NVDIMM_DSM_REVISION: store the Arg1 of _DSM call.
+         * NVDIMM_DSM_FUNCTION: store the Arg2 of _DSM call.
+         * NVDIMM_DSM_ARG3: store the Arg3 of _DSM call which is a
+         *                  Package containing function-specific
+         *                  arguments.
+         *
+         * They are RAM mapping on host so that these accesses
+         * never cause VM-EXIT.
+         */
+        aml_append(field, aml_named_field(NVDIMM_DSM_HANDLE,
+                    sizeof(typeof_field(NvdimmDsmIn, handle)) *
+                    BITS_PER_BYTE));
+        aml_append(field, aml_named_field(NVDIMM_DSM_REVISION,
+                    sizeof(typeof_field(NvdimmDsmIn, revision)) *
+                    BITS_PER_BYTE));
+        aml_append(field, aml_named_field(NVDIMM_DSM_FUNCTION,
+                    sizeof(typeof_field(NvdimmDsmIn, function)) *
+                    BITS_PER_BYTE));
+        aml_append(field, aml_named_field(NVDIMM_DSM_ARG3,
+                    (sizeof(NvdimmDsmIn) - offsetof(NvdimmDsmIn, arg3)) *
+                    BITS_PER_BYTE));
+        aml_append(method, field);
 
-    /*
-     * DSM output:
-     * NVDIMM_DSM_OUT_BUF_SIZE: the size of the buffer filled by QEMU.
-     * NVDIMM_DSM_OUT_BUF: the buffer QEMU uses to store the result.
-     *
-     * Since the page is reused by both input and out, the input data
-     * will be lost after storing new result into ODAT so we should fetch
-     * all the input data before writing the result.
-     */
-    field = aml_field(NVDIMM_DSM_MEMORY, AML_DWORD_ACC, AML_NOLOCK,
-                      AML_PRESERVE);
-    aml_append(field, aml_named_field(NVDIMM_DSM_OUT_BUF_SIZE,
-               sizeof(typeof_field(NvdimmDsmOut, len)) * BITS_PER_BYTE));
-    aml_append(field, aml_named_field(NVDIMM_DSM_OUT_BUF,
-       (sizeof(NvdimmDsmOut) - offsetof(NvdimmDsmOut, data)) * BITS_PER_BYTE));
-    aml_append(method, field);
+        /*
+         * DSM output:
+         * NVDIMM_DSM_OUT_BUF_SIZE: the size of the buffer
+         *                          filled by QEMU.
+         * NVDIMM_DSM_OUT_BUF: the buffer QEMU uses to
+         *                     store the result.
+         *
+         * Since the page is reused by both input and out,
+         * the input data will be lost after storing new
+         * result into ODAT so we should fetch all the input
+         * data before writing the result.
+         */
+        field = aml_field(memory, AML_DWORD_ACC, AML_NOLOCK,
+                        AML_PRESERVE);
+        aml_append(field, aml_named_field(NVDIMM_DSM_OUT_BUF_SIZE,
+                sizeof(typeof_field(NvdimmDsmOut, len)) *
+                BITS_PER_BYTE));
+        aml_append(field, aml_named_field(NVDIMM_DSM_OUT_BUF,
+                (sizeof(NvdimmDsmOut) - offsetof(NvdimmDsmOut, data)) *
+                BITS_PER_BYTE));
+        aml_append(method, field);
 
-    /*
-     * do not support any method if DSM memory address has not been
-     * patched.
-     */
-    unpatched = aml_equal(dsm_mem, aml_int(0x0));
+        /*
+         * do not support any method if DSM memory address has not been
+         * patched.
+         */
+        unpatched = aml_equal(dsm_mem, aml_int(0x0));
 
-    expected_uuid = aml_local(0);
+        expected_uuid = aml_local(0);
 
-    ifctx = aml_if(aml_equal(handle, aml_int(0x0)));
-    aml_append(ifctx, aml_store(
-               aml_touuid("2F10E7A4-9E91-11E4-89D3-123B93F75CBA")
-               /* UUID for NVDIMM Root Device */, expected_uuid));
-    aml_append(method, ifctx);
-    elsectx = aml_else();
-    ifctx = aml_if(aml_equal(handle, aml_int(NVDIMM_QEMU_RSVD_HANDLE_ROOT)));
-    aml_append(ifctx, aml_store(aml_touuid(NVDIMM_QEMU_RSVD_UUID
-               /* UUID for QEMU internal use */), expected_uuid));
-    aml_append(elsectx, ifctx);
-    elsectx2 = aml_else();
-    aml_append(elsectx2, aml_store(
-               aml_touuid("4309AC30-0D11-11E4-9191-0800200C9A66")
-               /* UUID for NVDIMM Devices */, expected_uuid));
-    aml_append(elsectx, elsectx2);
-    aml_append(method, elsectx);
+        ifctx = aml_if(aml_equal(handle, aml_int(0x0)));
+        aml_append(ifctx, aml_store(
+                aml_touuid("2F10E7A4-9E91-11E4-89D3-123B93F75CBA")
+                /* UUID for NVDIMM Root Device */, expected_uuid));
+        aml_append(method, ifctx);
+        elsectx = aml_else();
+        ifctx = aml_if(aml_equal(handle,
+                                aml_int(NVDIMM_QEMU_RSVD_HANDLE_ROOT)));
+        aml_append(ifctx, aml_store(aml_touuid(NVDIMM_QEMU_RSVD_UUID
+                /* UUID for QEMU internal use */), expected_uuid));
+        aml_append(elsectx, ifctx);
+        elsectx2 = aml_else();
+        aml_append(elsectx2, aml_store(
+                aml_touuid("4309AC30-0D11-11E4-9191-0800200C9A66")
+                /* UUID for NVDIMM Devices */, expected_uuid));
+        aml_append(elsectx, elsectx2);
+        aml_append(method, elsectx);
 
-    uuid_invalid = aml_lnot(aml_equal(uuid, expected_uuid));
+        uuid_invalid = aml_lnot(aml_equal(uuid, expected_uuid));
 
-    unsupport = aml_if(aml_or(unpatched, uuid_invalid, NULL));
+        unsupport = aml_if(aml_or(unpatched, uuid_invalid, NULL));
 
-    /*
-     * function 0 is called to inquire what functions are supported by
-     * OSPM
-     */
-    ifctx = aml_if(aml_equal(function, aml_int(0)));
-    byte_list[0] = 0 /* No function Supported */;
-    aml_append(ifctx, aml_return(aml_buffer(1, byte_list)));
-    aml_append(unsupport, ifctx);
+        /*
+         * function 0 is called to inquire what functions are supported by
+         * OSPM
+         */
+        ifctx = aml_if(aml_equal(function, aml_int(0)));
+        byte_list[0] = 0 /* No function Supported */;
+        aml_append(ifctx, aml_return(aml_buffer(1, byte_list)));
+        aml_append(unsupport, ifctx);
 
-    /* No function is supported yet. */
-    byte_list[0] = NVDIMM_DSM_RET_STATUS_UNSUPPORT;
-    aml_append(unsupport, aml_return(aml_buffer(1, byte_list)));
-    aml_append(method, unsupport);
+        /* No function is supported yet. */
+        byte_list[0] = NVDIMM_DSM_RET_STATUS_UNSUPPORT;
+        aml_append(unsupport, aml_return(aml_buffer(1, byte_list)));
+        aml_append(method, unsupport);
 
-    /*
-     * The HDLE indicates the DSM function is issued from which device,
-     * it reserves 0 for root device and is the handle for NVDIMM devices.
-     * See the comments in nvdimm_slot_to_handle().
-     */
-    aml_append(method, aml_store(handle, aml_name(NVDIMM_DSM_HANDLE)));
-    aml_append(method, aml_store(aml_arg(1), aml_name(NVDIMM_DSM_REVISION)));
-    aml_append(method, aml_store(aml_arg(2), aml_name(NVDIMM_DSM_FUNCTION)));
+        /*
+         * The HDLE indicates the DSM function is issued from which device,
+         * it reserves 0 for root device and is the handle for
+         * NVDIMM devices. See the comments in nvdimm_slot_to_handle().
+         */
+        aml_append(method, aml_store(handle,
+                aml_name(NVDIMM_DSM_HANDLE)));
+        aml_append(method, aml_store(aml_arg(1),
+                aml_name(NVDIMM_DSM_REVISION)));
+        aml_append(method, aml_store(aml_arg(2),
+                aml_name(NVDIMM_DSM_FUNCTION)));
 
-    /*
-     * The fourth parameter (Arg3) of _DSM is a package which contains
-     * a buffer, the layout of the buffer is specified by UUID (Arg0),
-     * Revision ID (Arg1) and Function Index (Arg2) which are documented
-     * in the DSM Spec.
-     */
-    pckg = aml_arg(3);
-    ifctx = aml_if(aml_and(aml_equal(aml_object_type(pckg),
-                   aml_int(4 /* Package */)) /* It is a Package? */,
-                   aml_equal(aml_sizeof(pckg), aml_int(1)) /* 1 element? */,
-                   NULL));
+        /*
+         * The fourth parameter (Arg3) of _DSM is a package which contains
+         * a buffer, the layout of the buffer is specified by UUID (Arg0),
+         * Revision ID (Arg1) and Function Index (Arg2) which are documented
+         * in the DSM Spec.
+         */
+        pckg = aml_arg(3);
+        ifctx = aml_if(aml_and(aml_equal(aml_object_type(pckg),
+                    aml_int(4 /* Package */)) /* It is a Package? */,
+                    aml_equal(aml_sizeof(pckg),
+                                aml_int(1)) /* 1 element? */,
+                                NULL));
+
+        break;
+    case 1: /* build common dsm in _HMA method */
+        /*
+         * _HMAC input:
+         * HMAM_OFFSET: store the current offset of _HMA buffer.
+         *
+         * They are RAM mapping on host so that
+         * these accesses never cause VMExit.
+         */
+        aml_append(field, aml_named_field(HMAM_OFFSET,
+                sizeof(typeof_field(HmatHmamIn, offset)) * BITS_PER_BYTE));
+        aml_append(method, field);
+
+        /*
+         * _HMAC output:
+         * HMAM_OUT_BUF_SIZE: the size of the buffer filled by QEMU.
+         * HMAM_OUT_BUF: the buffer QEMU uses to store the result.
+         *
+         * Since the page is reused by both input and out, the input data
+         * will be lost after storing new result into ODAT so we should
+         * fetch all the input data before writing the result.
+         */
+        field = aml_field(HMAM_MEMORY, AML_DWORD_ACC, AML_NOLOCK,
+                        AML_PRESERVE);
+        aml_append(field, aml_named_field(HMAM_OUT_BUF_SIZE,
+                sizeof(typeof_field(HmatHmamOut, len)) * BITS_PER_BYTE));
+        aml_append(field, aml_named_field(HMAM_OUT_BUF,
+                (sizeof(HmatHmamOut) - sizeof(uint32_t)) * BITS_PER_BYTE));
+        aml_append(method, field);
+
+        /*
+         * do not support any method if HMA memory address has not been
+         * patched.
+         */
+        unsupport = aml_if(aml_equal(dsm_mem, aml_int(0x0)));
+        byte_list[0] = HMAM_RET_STATUS_UNSUPPORT;
+        aml_append(unsupport, aml_return(aml_buffer(1, byte_list)));
+        aml_append(method, unsupport);
+
+        /*
+         * The parameter (Arg0) of _HMAC is
+         * a package which contains a buffer.
+         */
+        pckg = aml_arg(0);
+        ifctx = aml_if(aml_and(aml_equal(aml_object_type(pckg),
+                    aml_int(4 /* Package */)) /* It is a Package? */,
+                    aml_equal(aml_sizeof(pckg), aml_int(1)) /* 1 element */,
+                    NULL));
+
+        break;
+    }
 
     pckg_index = aml_local(2);
     pckg_buf = aml_local(3);
     aml_append(ifctx, aml_store(aml_index(pckg, aml_int(0)), pckg_index));
     aml_append(ifctx, aml_store(aml_derefof(pckg_index), pckg_buf));
-    aml_append(ifctx, aml_store(pckg_buf, aml_name(NVDIMM_DSM_ARG3)));
+    aml_append(ifctx, aml_store(pckg_buf, aml_name("%s", aml_offset)));
     aml_append(method, ifctx);
 
     /*
@@ -1138,19 +1231,37 @@ static void nvdimm_build_device_dsm(Aml *dev, uint32_t handle)
     aml_append(dev, method);
 }
 
-static void nvdimm_build_fit(Aml *dev)
+void nvdimm_build_fit(Aml *dev, uint16_t method_number)
 {
-    Aml *method, *pkg, *buf, *buf_size, *offset, *call_result;
-    Aml *whilectx, *ifcond, *ifctx, *elsectx, *fit;
+    Aml *method, *pkg, *buf, *buf_size, *offset, *call_result = NULL;
+    Aml *whilectx, *ifcond, *ifctx, *elsectx, *buf_name;
+    const char *help_function = NULL, *method_name = NULL;
+    int ret_status_success, ret_status_changed;
+
+    switch (method_number) {
+    case 0: /* _FIT method */
+        method_name = "_FIT";
+        help_function = "RFIT";
+        ret_status_success = NVDIMM_DSM_RET_STATUS_SUCCESS;
+        ret_status_changed = NVDIMM_DSM_RET_STATUS_FIT_CHANGED;
+        break;
+    case 1: /* _HMA method */
+        method_name = "_HMA";
+        nvdimm_build_common_dsm(dev, METHOD_NAME_HMA);
+        help_function = "RHMA";
+        ret_status_success = HMAM_RET_STATUS_SUCCESS;
+        ret_status_changed = HMAM_RET_STATUS_HMA_CHANGED;
+        break;
+    }
 
     buf = aml_local(0);
     buf_size = aml_local(1);
-    fit = aml_local(2);
+    buf_name = aml_local(2);
 
     aml_append(dev, aml_name_decl(NVDIMM_DSM_RFIT_STATUS, aml_int(0)));
 
-    /* build helper function, RFIT. */
-    method = aml_method("RFIT", 1, AML_SERIALIZED);
+    /* build helper function. */
+    method = aml_method(help_function, 1, AML_SERIALIZED);
     aml_append(method, aml_name_decl("OFST", aml_int(0)));
 
     /* prepare input package. */
@@ -1158,12 +1269,20 @@ static void nvdimm_build_fit(Aml *dev)
     aml_append(method, aml_store(aml_arg(0), aml_name("OFST")));
     aml_append(pkg, aml_name("OFST"));
 
-    /* call Read_FIT function. */
-    call_result = aml_call5(NVDIMM_COMMON_DSM,
-                            aml_touuid(NVDIMM_QEMU_RSVD_UUID),
-                            aml_int(1) /* Revision 1 */,
-                            aml_int(0x1) /* Read FIT */,
-                            pkg, aml_int(NVDIMM_QEMU_RSVD_HANDLE_ROOT));
+    /* call Read function. */
+    switch (method_number) {
+    case 0: /* build common dsm in _FIT method */
+        call_result = aml_call5(NVDIMM_COMMON_DSM,
+                                aml_touuid(NVDIMM_QEMU_RSVD_UUID),
+                                aml_int(1) /* Revision 1 */,
+                                aml_int(0x1) /* Read FIT */,
+                                pkg, aml_int(NVDIMM_QEMU_RSVD_HANDLE_ROOT));
+        break;
+    case 1: /* build common dsm in _FIT method */
+        call_result = aml_call1(HMA_COMMON_METHOD, pkg);
+        break;
+    }
+
     aml_append(method, aml_store(call_result, buf));
 
     /* handle _DSM result. */
@@ -1174,7 +1293,7 @@ static void nvdimm_build_fit(Aml *dev)
                                  aml_name(NVDIMM_DSM_RFIT_STATUS)));
 
      /* if something is wrong during _DSM. */
-    ifcond = aml_equal(aml_int(NVDIMM_DSM_RET_STATUS_SUCCESS),
+    ifcond = aml_equal(aml_int(ret_status_success),
                        aml_name("STAU"));
     ifctx = aml_if(aml_lnot(ifcond));
     aml_append(ifctx, aml_return(aml_buffer(0, NULL)));
@@ -1185,7 +1304,7 @@ static void nvdimm_build_fit(Aml *dev)
                                     aml_int(4) /* the size of "STAU" */,
                                     buf_size));
 
-    /* if we read the end of fit. */
+    /* if we read the end of fit or hma. */
     ifctx = aml_if(aml_equal(buf_size, aml_int(0)));
     aml_append(ifctx, aml_return(aml_buffer(0, NULL)));
     aml_append(method, ifctx);
@@ -1196,38 +1315,38 @@ static void nvdimm_build_fit(Aml *dev)
     aml_append(method, aml_return(aml_name("BUFF")));
     aml_append(dev, method);
 
-    /* build _FIT. */
-    method = aml_method("_FIT", 0, AML_SERIALIZED);
+    /* build _FIT or _HMA. */
+    method = aml_method(method_name, 0, AML_SERIALIZED);
     offset = aml_local(3);
 
-    aml_append(method, aml_store(aml_buffer(0, NULL), fit));
+    aml_append(method, aml_store(aml_buffer(0, NULL), buf_name));
     aml_append(method, aml_store(aml_int(0), offset));
 
     whilectx = aml_while(aml_int(1));
-    aml_append(whilectx, aml_store(aml_call1("RFIT", offset), buf));
+    aml_append(whilectx, aml_store(aml_call1(help_function, offset), buf));
     aml_append(whilectx, aml_store(aml_sizeof(buf), buf_size));
 
     /*
-     * if fit buffer was changed during RFIT, read from the beginning
-     * again.
+     * if buffer was changed during RFIT or RHMA,
+     * read from the beginning again.
      */
     ifctx = aml_if(aml_equal(aml_name(NVDIMM_DSM_RFIT_STATUS),
-                             aml_int(NVDIMM_DSM_RET_STATUS_FIT_CHANGED)));
-    aml_append(ifctx, aml_store(aml_buffer(0, NULL), fit));
+                             aml_int(ret_status_changed)));
+    aml_append(ifctx, aml_store(aml_buffer(0, NULL), buf_name));
     aml_append(ifctx, aml_store(aml_int(0), offset));
     aml_append(whilectx, ifctx);
 
     elsectx = aml_else();
 
-    /* finish fit read if no data is read out. */
+    /* finish fit or hma read if no data is read out. */
     ifctx = aml_if(aml_equal(buf_size, aml_int(0)));
-    aml_append(ifctx, aml_return(fit));
+    aml_append(ifctx, aml_return(buf_name));
     aml_append(elsectx, ifctx);
 
     /* update the offset. */
     aml_append(elsectx, aml_add(offset, buf_size, offset));
-    /* append the data we read out to the fit buffer. */
-    aml_append(elsectx, aml_concatenate(fit, buf, fit));
+    /* append the data we read out to the fit or hma buffer. */
+    aml_append(elsectx, aml_concatenate(buf_name, buf, buf_name));
     aml_append(whilectx, elsectx);
     aml_append(method, whilectx);
 
@@ -1288,11 +1407,11 @@ static void nvdimm_build_ssdt(GArray *table_offsets, GArray *table_data,
      */
     aml_append(dev, aml_name_decl("_HID", aml_string("ACPI0012")));
 
-    nvdimm_build_common_dsm(dev);
+    nvdimm_build_common_dsm(dev, METHOD_NAME_FIT);
 
     /* 0 is reserved for root device. */
     nvdimm_build_device_dsm(dev, 0);
-    nvdimm_build_fit(dev);
+    nvdimm_build_fit(dev, METHOD_NAME_FIT);
 
     nvdimm_build_nvdimm_devices(dev, ram_slots);
 

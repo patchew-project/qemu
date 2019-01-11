@@ -31,7 +31,6 @@
 #include "hw/acpi/bios-linker-loader.h"
 #include "hw/acpi/aml-build.h"
 
-#define ACPI_HMAT_SPA               0
 #define ACPI_HMAT_LB_INFO           1
 #define ACPI_HMAT_CACHE_INFO        2
 
@@ -238,7 +237,6 @@ extern struct numa_hmat_cache_info
 
 void hmat_build_acpi(GArray *table_data, BIOSLinker *linker,
                      MachineState *machine);
-void hmat_build_aml(Aml *dsdt);
 void hmat_init_acpi_state(AcpiHmaState *state, MemoryRegion *io,
                           FWCfgState *fw_cfg, Object *owner);
 void hmat_update(PCMachineState *pcms);

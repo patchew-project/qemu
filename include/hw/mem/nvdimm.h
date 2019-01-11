@@ -25,6 +25,7 @@
 
 #include "hw/mem/pc-dimm.h"
 #include "hw/acpi/bios-linker-loader.h"
+#include "hw/acpi/aml-build.h"
 
 #define NVDIMM_DEBUG 0
 #define nvdimm_debug(fmt, ...)                                \
@@ -111,6 +112,15 @@ typedef struct NVDIMMClass NVDIMMClass;
 #define NVDIMM_ACPI_IO_LEN      4
 
 /*
+ * The ACPI Device Configuration method name used in nvdimm_build_fit,
+ * use number to representative the name:
+ * 0 means "_FIT"
+ * 1 means "_HMA"
+ */
+#define METHOD_NAME_FIT     0
+#define METHOD_NAME_HMA     1
+
+/*
  * NvdimmFitBuffer:
  * @fit: FIT structures for present NVDIMMs. It is updated when
  *   the NVDIMM device is plugged or unplugged.
@@ -150,4 +160,5 @@ void nvdimm_build_acpi(GArray *table_offsets, GArray *table_data,
                        uint32_t ram_slots);
 void nvdimm_plug(AcpiNVDIMMState *state);
 void nvdimm_acpi_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev);
+void nvdimm_build_fit(Aml *dev, uint16_t method_number);
 #endif
