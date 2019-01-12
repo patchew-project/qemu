@@ -1499,13 +1499,8 @@ NBDExport *nbd_export_new(BlockDriverState *bs, off_t dev_offset, off_t size,
     exp->name = g_strdup(name);
     exp->description = g_strdup(description);
     exp->nbdflags = nbdflags;
-    exp->size = size < 0 ? blk_getlength(blk) : size;
-    if (exp->size < 0) {
-        error_setg_errno(errp, -exp->size,
-                         "Failed to determine the NBD export's length");
-        goto fail;
-    }
-    exp->size -= exp->size % BDRV_SECTOR_SIZE;
+    assert(dev_offset <= size);
+    exp->size = QEMU_ALIGN_DOWN(size, BDRV_SECTOR_SIZE);
 
     if (bitmap) {
         BdrvDirtyBitmap *bm = NULL;
