@@ -190,8 +190,10 @@ static inline int rdmacm_mux_can_process_async(RdmaBackendDev *backend_dev)
 
 static int check_mux_op_status(CharBackend *mad_chr_be)
 {
-    RdmaCmMuxMsg msg = {0};
+    RdmaCmMuxMsg msg;
     int ret;
+
+    memset(&msg, 0, sizeof(msg));
 
     pr_dbg("Reading response\n");
     ret = qemu_chr_fe_read_all(mad_chr_be, (uint8_t *)&msg, sizeof(msg));
@@ -387,9 +389,11 @@ static int build_host_sge_array(RdmaDeviceResources *rdma_dev_res,
 static int mad_send(RdmaBackendDev *backend_dev, uint8_t sgid_idx,
                     union ibv_gid *sgid, struct ibv_sge *sge, uint32_t num_sge)
 {
-    RdmaCmMuxMsg msg = {0};
+    RdmaCmMuxMsg msg;
     char *hdr, *data;
     int ret;
+
+    memset(&msg, 0, sizeof(msg));
 
     pr_dbg("num_sge=%d\n", num_sge);
 
@@ -1112,8 +1116,10 @@ int rdma_backend_get_gid_index(RdmaBackendDev *backend_dev,
 int rdma_backend_add_gid(RdmaBackendDev *backend_dev, const char *ifname,
                          union ibv_gid *gid)
 {
-    RdmaCmMuxMsg msg = {0};
+    RdmaCmMuxMsg msg;
     int ret;
+
+    memset(&msg, 0, sizeof(msg));
 
     pr_dbg("0x%llx, 0x%llx\n",
            (long long unsigned int)be64_to_cpu(gid->global.subnet_prefix),
@@ -1138,8 +1144,10 @@ int rdma_backend_add_gid(RdmaBackendDev *backend_dev, const char *ifname,
 int rdma_backend_del_gid(RdmaBackendDev *backend_dev, const char *ifname,
                          union ibv_gid *gid)
 {
-    RdmaCmMuxMsg msg = {0};
+    RdmaCmMuxMsg msg;
     int ret;
+
+    memset(&msg, 0, sizeof(msg));
 
     pr_dbg("0x%llx, 0x%llx\n",
            (long long unsigned int)be64_to_cpu(gid->global.subnet_prefix),
