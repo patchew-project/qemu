@@ -176,7 +176,7 @@ static void read_partition(uint8_t *p, struct partition_record *r)
 }
 
 static int find_partition(BlockBackend *blk, int partition,
-                          off_t *offset, off_t *size)
+                          uint64_t *offset, int64_t *size)
 {
     struct partition_record mbr[4];
     uint8_t data[MBR_SIZE];
@@ -500,14 +500,14 @@ int main(int argc, char **argv)
 {
     BlockBackend *blk;
     BlockDriverState *bs;
-    off_t dev_offset = 0;
+    uint64_t dev_offset = 0;
     uint16_t nbdflags = 0;
     bool disconnect = false;
     const char *bindto = NULL;
     const char *port = NULL;
     char *sockpath = NULL;
     char *device = NULL;
-    off_t fd_size;
+    int64_t fd_size;
     QemuOpts *sn_opts = NULL;
     const char *sn_id_or_name = NULL;
     const char *sopt = "hVb:o:p:rsnP:c:dvk:e:f:tl:x:T:D:B:";
@@ -663,10 +663,6 @@ int main(int argc, char **argv)
                 dev_offset = strtoll (optarg, &end, 0);
             if (*end) {
                 error_report("Invalid offset `%s'", optarg);
-                exit(EXIT_FAILURE);
-            }
-            if (dev_offset < 0) {
-                error_report("Offset must be positive `%s'", optarg);
                 exit(EXIT_FAILURE);
             }
             break;
@@ -1005,15 +1001,14 @@ int main(int argc, char **argv)
     }
 
     if (dev_offset >= fd_size) {
-        error_report("Offset (%lld) has to be smaller than the image size "
-                     "(%lld)",
-                     (long long int)dev_offset, (long long int)fd_size);
+        error_report("Offset (%" PRIu64 ") has to be smaller than the image "
+                     "size (%" PRIu64 ")", dev_offset, fd_size);
         exit(EXIT_FAILURE);
     }
     fd_size -= dev_offset;
 
     if (partition != -1) {
-        off_t limit;
+        int64_t limit;
 
         if (dev_offset) {
             error_report("Cannot request partition and offset together");
@@ -1026,12 +1021,11 @@ int main(int argc, char **argv)
             exit(EXIT_FAILURE);
         }
         /* partition limits are (32-bit << 9); can't overflow 64 bits */
-        assert(dev_offset >= 0 && dev_offset + limit >= dev_offset);
+        assert(dev_offset + limit >= dev_offset);
         if (dev_offset + limit > fd_size) {
-            error_report("Discovered partition %d at offset %lld size %lld, "
-                         "but size exceeds file length %lld", partition,
-                         (long long int) dev_offset, (long long int) limit,
-                         (long long int) fd_size);
+            error_report("Discovered partition %d at offset %" PRIu64
+                         " size %" PRId64 ", but size exceeds file length %"
+                         PRId64, partition, dev_offset, limit, fd_size);
             exit(EXIT_FAILURE);
         }
         fd_size = limit;
