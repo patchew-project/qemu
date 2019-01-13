@@ -27293,11 +27293,34 @@ static void decode_mmi1(CPUMIPSState *env, DisasContext *ctx)
     }
 }
 
+static void gen_mmi_pcpyld(DisasContext *ctx, int rd, int rs, int rt)
+{
+    if (rd != 0) {
+        if (rs != 0) {
+            tcg_gen_mov_i64(cpu_mmr[rd], cpu_gpr[rs]);
+        } else {
+            tcg_gen_movi_i64(cpu_mmr[rd], 0);
+        }
+
+        if (rt != 0) {
+            tcg_gen_mov_i64(cpu_gpr[rd], cpu_gpr[rt]);
+        } else {
+            tcg_gen_movi_i64(cpu_gpr[rd], 0);
+        }
+    }
+}
+
 static void decode_mmi2(CPUMIPSState *env, DisasContext *ctx)
 {
     uint32_t opc = MASK_MMI2(ctx->opcode);
+    int rs = extract32(ctx->opcode, 21, 5);
+    int rt = extract32(ctx->opcode, 16, 5);
+    int rd = extract32(ctx->opcode, 11, 5);
 
     switch (opc) {
+    case MMI_OPC_2_PCPYLD:
+        gen_mmi_pcpyld(ctx, rd, rs, rt);
+        break;
     case MMI_OPC_2_PMADDW:    /* TODO: MMI_OPC_2_PMADDW */
     case MMI_OPC_2_PSLLVW:    /* TODO: MMI_OPC_2_PSLLVW */
     case MMI_OPC_2_PSRLVW:    /* TODO: MMI_OPC_2_PSRLVW */
@@ -27307,7 +27330,6 @@ static void decode_mmi2(CPUMIPSState *env, DisasContext *ctx)
     case MMI_OPC_2_PINTH:     /* TODO: MMI_OPC_2_PINTH */
     case MMI_OPC_2_PMULTW:    /* TODO: MMI_OPC_2_PMULTW */
     case MMI_OPC_2_PDIVW:     /* TODO: MMI_OPC_2_PDIVW */
-    case MMI_OPC_2_PCPYLD:    /* TODO: MMI_OPC_2_PCPYLD */
     case MMI_OPC_2_PMADDH:    /* TODO: MMI_OPC_2_PMADDH */
     case MMI_OPC_2_PHMADH:    /* TODO: MMI_OPC_2_PHMADH */
     case MMI_OPC_2_PAND:      /* TODO: MMI_OPC_2_PAND */
