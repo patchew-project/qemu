@@ -2628,6 +2628,17 @@ static inline void gen_store_gpr (TCGv t, int reg)
 
 #if defined(TARGET_MIPS64)
 /* 128-bit multimedia register moves. */
+static inline void gen_load_mmr(TCGv_i64 hi, TCGv_i64 lo, int reg)
+{
+    if (reg == 0) {
+        tcg_gen_movi_i64(hi, 0);
+        tcg_gen_movi_i64(lo, 0);
+    } else {
+        tcg_gen_mov_i64(hi, cpu_mmr[reg]);
+        tcg_gen_mov_i64(lo, cpu_gpr[reg]);
+    }
+}
+
 static inline void gen_store_mmr(TCGv_i64 hi, TCGv_i64 lo, int reg)
 {
     if (reg != 0) {
@@ -27512,7 +27523,36 @@ static void gen_mmi_lq(CPUMIPSState *env, DisasContext *ctx)
 
 static void gen_mmi_sq(DisasContext *ctx, int base, int rt, int offset)
 {
-    generate_exception_end(ctx, EXCP_RI);    /* TODO: MMI_OPC_SQ */
+#if !defined(TARGET_MIPS64)
+    generate_exception_end(ctx, EXCP_RI);
+#else
+    TCGv_i64 addr = tcg_temp_new_i64();
+    TCGv_i64 val0 = tcg_temp_new_i64();
+    TCGv_i64 val1 = tcg_temp_new_i64();
+
+    gen_base_offset_addr(ctx, addr, base, offset);
+
+    /*
+     * The least significant four bits of the effective address are
+     * masked to zero, effectively creating an aligned address. No
+     * address exceptions due to alignment are possible.
+     */
+    tcg_gen_andi_i64(addr, addr, ~0xFULL);
+
+#if defined(TARGET_WORDS_BIGENDIAN)
+    gen_load_mmr(val0, val1, rt);
+#else
+    gen_load_mmr(val1, val0, rt);
+#endif
+
+    tcg_gen_qemu_st_i64(val0, addr, ctx->mem_idx, MO_UNALN | MO_64);
+    tcg_gen_addi_i64(addr, addr, 8);
+    tcg_gen_qemu_st_i64(val1, addr, ctx->mem_idx, MO_UNALN | MO_64);
+
+    tcg_temp_free_i64(val1);
+    tcg_temp_free_i64(val0);
+    tcg_temp_free_i64(addr);
+#endif /* defined(TARGET_MIPS64) */
 }
 
 /*
@@ -27540,7 +27580,7 @@ static void decode_mmi_sq(CPUMIPSState *env, DisasContext *ctx)
 {
     int base = extract32(ctx->opcode, 21, 5);
     int rt = extract32(ctx->opcode, 16, 5);
-    int offset = extract32(ctx->opcode, 0, 16);
+    int offset = sextract32(ctx->opcode, 0, 16);
 
 #ifdef CONFIG_USER_ONLY
     uint32_t op1 = MASK_SPECIAL3(ctx->opcode);
