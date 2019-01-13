@@ -180,6 +180,8 @@ struct TCState {
 #define MXU_CR_RD_EN    1
 #define MXU_CR_MXU_EN   0
 
+    /* Upper 64-bit MMRs (multimedia registers); the lower 64-bit are GPRs */
+    uint64_t mmr[32];
 };
 
 typedef struct CPUMIPSState CPUMIPSState;
