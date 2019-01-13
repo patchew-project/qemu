@@ -27218,6 +27218,7 @@ static void decode_opc_special3_legacy(CPUMIPSState *env, DisasContext *ctx)
     }
 }
 
+#if defined(TARGET_MIPS64)
 static void decode_mmi0(CPUMIPSState *env, DisasContext *ctx)
 {
     uint32_t opc = MASK_MMI0(ctx->opcode);
@@ -27351,6 +27352,7 @@ static void decode_mmi3(CPUMIPSState *env, DisasContext *ctx)
         break;
     }
 }
+#endif /* defined(TARGET_MIPS64) */
 
 static void decode_mmi(CPUMIPSState *env, DisasContext *ctx)
 {
@@ -27360,18 +27362,6 @@ static void decode_mmi(CPUMIPSState *env, DisasContext *ctx)
     int rd = extract32(ctx->opcode, 11, 5);
 
     switch (opc) {
-    case MMI_OPC_CLASS_MMI0:
-        decode_mmi0(env, ctx);
-        break;
-    case MMI_OPC_CLASS_MMI1:
-        decode_mmi1(env, ctx);
-        break;
-    case MMI_OPC_CLASS_MMI2:
-        decode_mmi2(env, ctx);
-        break;
-    case MMI_OPC_CLASS_MMI3:
-        decode_mmi3(env, ctx);
-        break;
     case MMI_OPC_MULT1:
     case MMI_OPC_MULTU1:
     case MMI_OPC_MADD:
@@ -27392,6 +27382,7 @@ static void decode_mmi(CPUMIPSState *env, DisasContext *ctx)
     case MMI_OPC_MFHI1:
         gen_HILO1_tx79(ctx, opc, rd);
         break;
+#if defined(TARGET_MIPS64)
     case MMI_OPC_PLZCW:         /* TODO: MMI_OPC_PLZCW */
     case MMI_OPC_PMFHL:         /* TODO: MMI_OPC_PMFHL */
     case MMI_OPC_PMTHL:         /* TODO: MMI_OPC_PMTHL */
@@ -27403,6 +27394,19 @@ static void decode_mmi(CPUMIPSState *env, DisasContext *ctx)
     case MMI_OPC_PSRAW:         /* TODO: MMI_OPC_PSRAW */
         generate_exception_end(ctx, EXCP_RI);    /* TODO: MMI_OPC_CLASS_MMI */
         break;
+    case MMI_OPC_CLASS_MMI0:
+        decode_mmi0(env, ctx);
+        break;
+    case MMI_OPC_CLASS_MMI1:
+        decode_mmi1(env, ctx);
+        break;
+    case MMI_OPC_CLASS_MMI2:
+        decode_mmi2(env, ctx);
+        break;
+    case MMI_OPC_CLASS_MMI3:
+        decode_mmi3(env, ctx);
+        break;
+#endif
     default:
         MIPS_INVAL("TX79 MMI class");
         generate_exception_end(ctx, EXCP_RI);
