@@ -367,6 +367,7 @@ static void pci_edu_uninit(PCIDevice *pdev)
 {
     EduState *edu = EDU(pdev);
 
+    msi_uninit(pdev);
     qemu_mutex_lock(&edu->thr_mutex);
     edu->stopping = true;
     qemu_mutex_unlock(&edu->thr_mutex);
