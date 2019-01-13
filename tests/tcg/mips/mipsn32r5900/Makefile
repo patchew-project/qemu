@@ -8,7 +8,8 @@ SIM_FLAGS=-cpu R5900
 CC      = $(CROSS)gcc
 CFLAGS  = -Wall -mabi=n32 -march=r5900 -static
 
-TESTCASES = pcpyuld.tst
+TESTCASES = lq.tst
+TESTCASES += pcpyuld.tst
 
 all: $(TESTCASES)
 
