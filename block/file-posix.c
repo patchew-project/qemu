@@ -1476,9 +1476,7 @@ static ssize_t handle_aiocb_write_zeroes_block(RawPosixAIOData *aiocb)
 static int handle_aiocb_write_zeroes(void *opaque)
 {
     RawPosixAIOData *aiocb = opaque;
-#if defined(CONFIG_FALLOCATE) || defined(CONFIG_XFS)
     BDRVRawState *s = aiocb->bs->opaque;
-#endif
 #ifdef CONFIG_FALLOCATE
     int64_t len;
 #endif
@@ -1502,6 +1500,8 @@ static int handle_aiocb_write_zeroes(void *opaque)
         }
         s->has_write_zeroes = false;
     }
+#else
+    s->has_write_zeroes = false;
 #endif
 
 #ifdef CONFIG_FALLOCATE_PUNCH_HOLE
@@ -1521,6 +1521,8 @@ static int handle_aiocb_write_zeroes(void *opaque)
             s->has_discard = false;
         }
     }
+#else
+    s->has_discard = false;
 #endif
 
 #ifdef CONFIG_FALLOCATE
@@ -1534,6 +1536,8 @@ static int handle_aiocb_write_zeroes(void *opaque)
         }
         s->has_fallocate = false;
     }
+#else
+    s->has_fallocate = false;
 #endif
 
     return -ENOTSUP;
