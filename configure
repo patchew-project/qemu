@@ -4559,6 +4559,11 @@ if test "$libiscsi" != "no" ; then
     libiscsi="yes"
     libiscsi_cflags=$($pkg_config --cflags libiscsi)
     libiscsi_libs=$($pkg_config --libs libiscsi)
+    if $pkg_config --exact-version=1.9.0 libiscsi; then
+      # There are some bad inline declarations in scsi-lowlevel.h of
+      # libiscsi 1.9.0 which don't work in gnu99 mode, so we need this:
+      libiscsi_cflags="-Wno-error $libiscsi_cflags"
+    fi
   else
     if test "$libiscsi" = "yes" ; then
       feature_not_found "libiscsi" "Install libiscsi >= 1.9.0"
