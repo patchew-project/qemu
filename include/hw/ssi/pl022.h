@@ -22,6 +22,7 @@
 #define HW_SSI_PL022_H
 
 #include "hw/sysbus.h"
+#include "hw/ssi/ssi.h"
 
 #define TYPE_PL022 "pl022"
 #define PL022(obj) OBJECT_CHECK(PL022State, (obj), TYPE_PL022)
