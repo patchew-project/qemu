@@ -20,6 +20,10 @@
 #include "contrib/libvhost-user/libvhost-user-glib.h"
 #include "contrib/libvhost-user/libvhost-user.h"
 
+#if defined(__linux__)
+#include <linux/fs.h>
+#include <sys/ioctl.h>
+#endif
 
 struct virtio_blk_inhdr {
     unsigned char status;
@@ -157,6 +161,29 @@ vub_writev(VubReq *req, struct iovec *iov, uint32_t iovcnt)
     return rc;
 }
 
+static int
+vub_discard(VubReq *req, struct iovec *iov, uint32_t iovcnt)
+{
+    if (iovcnt != 1) {
+        fprintf(stderr, "Invalid Discard IOV count\n");
+        return -1;
+    }
+
+    #if defined(__linux__) && defined(BLKDISCARD)
+    VubDev *vdev_blk = req->vdev_blk;
+    struct virtio_blk_discard_write_zeroes *desc =
+                       (struct virtio_blk_discard_write_zeroes *)iov->iov_base;
+    uint64_t range[2] = { le64toh(desc->sector) << 9,
+                          le32toh(desc->num_sectors) << 9 };
+    if (ioctl(vdev_blk->blk_fd, BLKDISCARD, range) == 0) {
+        return 0;
+    }
+    return -1;
+    #endif
+
+    return -1;
+}
+
 static void
 vub_flush(VubReq *req)
 {
@@ -212,44 +239,54 @@ static int vub_virtio_process_req(VubDev *vdev_blk,
     in_num--;
 
     type = le32toh(req->out->type);
-    switch (type & ~(VIRTIO_BLK_T_OUT | VIRTIO_BLK_T_BARRIER)) {
-        case VIRTIO_BLK_T_IN: {
-            ssize_t ret = 0;
-            bool is_write = type & VIRTIO_BLK_T_OUT;
-            req->sector_num = le64toh(req->out->sector);
-            if (is_write) {
-                ret  = vub_writev(req, &elem->out_sg[1], out_num);
-            } else {
-                ret = vub_readv(req, &elem->in_sg[0], in_num);
-            }
-            if (ret >= 0) {
-                req->in->status = VIRTIO_BLK_S_OK;
-            } else {
-                req->in->status = VIRTIO_BLK_S_IOERR;
-            }
-            vub_req_complete(req);
-            break;
+    switch (type & ~VIRTIO_BLK_T_BARRIER) {
+    case VIRTIO_BLK_T_IN:
+    case VIRTIO_BLK_T_OUT: {
+        ssize_t ret = 0;
+        bool is_write = type & VIRTIO_BLK_T_OUT;
+        req->sector_num = le64toh(req->out->sector);
+        if (is_write) {
+            ret  = vub_writev(req, &elem->out_sg[1], out_num);
+        } else {
+            ret = vub_readv(req, &elem->in_sg[0], in_num);
         }
-        case VIRTIO_BLK_T_FLUSH: {
-            vub_flush(req);
+        if (ret >= 0) {
             req->in->status = VIRTIO_BLK_S_OK;
-            vub_req_complete(req);
-            break;
+        } else {
+            req->in->status = VIRTIO_BLK_S_IOERR;
         }
-        case VIRTIO_BLK_T_GET_ID: {
-            size_t size = MIN(vub_iov_size(&elem->in_sg[0], in_num),
-                              VIRTIO_BLK_ID_BYTES);
-            snprintf(elem->in_sg[0].iov_base, size, "%s", "vhost_user_blk");
+        vub_req_complete(req);
+        break;
+    }
+    case VIRTIO_BLK_T_FLUSH:
+        vub_flush(req);
+        req->in->status = VIRTIO_BLK_S_OK;
+        vub_req_complete(req);
+        break;
+    case VIRTIO_BLK_T_GET_ID: {
+        size_t size = MIN(vub_iov_size(&elem->in_sg[0], in_num),
+                          VIRTIO_BLK_ID_BYTES);
+        snprintf(elem->in_sg[0].iov_base, size, "%s", "vhost_user_blk");
+        req->in->status = VIRTIO_BLK_S_OK;
+        req->size = elem->in_sg[0].iov_len;
+        vub_req_complete(req);
+        break;
+    }
+    case VIRTIO_BLK_T_DISCARD: {
+        int rc;
+        rc = vub_discard(req, &elem->out_sg[1], out_num);
+        if (rc == 0) {
             req->in->status = VIRTIO_BLK_S_OK;
-            req->size = elem->in_sg[0].iov_len;
-            vub_req_complete(req);
-            break;
-        }
-        default: {
+        } else {
             req->in->status = VIRTIO_BLK_S_UNSUPP;
-            vub_req_complete(req);
-            break;
         }
+        vub_req_complete(req);
+        break;
+    }
+    default:
+        req->in->status = VIRTIO_BLK_S_UNSUPP;
+        vub_req_complete(req);
+        break;
     }
 
     return 0;
@@ -313,6 +350,7 @@ vub_get_features(VuDev *dev)
                1ull << VIRTIO_BLK_F_TOPOLOGY |
                1ull << VIRTIO_BLK_F_BLK_SIZE |
                1ull << VIRTIO_BLK_F_FLUSH |
+               1ull << VIRTIO_BLK_F_DISCARD |
                1ull << VIRTIO_BLK_F_CONFIG_WCE |
                1ull << VIRTIO_F_VERSION_1 |
                1ull << VHOST_USER_F_PROTOCOL_FEATURES;
@@ -454,7 +492,7 @@ vub_get_blocksize(int fd)
 
 #if defined(__linux__) && defined(BLKSSZGET)
     if (ioctl(fd, BLKSSZGET, &blocksize) == 0) {
-        return blocklen;
+        return blocksize;
     }
 #endif
 
@@ -474,6 +512,9 @@ vub_initialize_config(int fd, struct virtio_blk_config *config)
     config->min_io_size = 1;
     config->opt_io_size = 1;
     config->num_queues = 1;
+    config->max_discard_sectors = 32768;
+    config->max_discard_seg = 1;
+    config->discard_sector_alignment = config->blk_size >> 9;
 }
 
 static VubDev *
