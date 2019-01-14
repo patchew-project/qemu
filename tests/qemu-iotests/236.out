@@ -1,0 +1,16 @@
+QA output created by 236
+
+=== Try adding and removing a virtio-blk device ===
+
+Testing:
+QMP_VERSION
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+*** done

@@ -912,6 +912,7 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtIOBlock *s = VIRTIO_BLK(dev);
     VirtIOBlkConf *conf = &s->conf;
+    AioContext *ctx;
     Error *err = NULL;
     unsigned i;
 
@@ -919,30 +920,34 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
         error_setg(errp, "drive property not set");
         return;
     }
+
+    ctx = blk_get_aio_context(conf->conf.blk);
+    aio_context_acquire(ctx);
+
     if (!blk_is_inserted(conf->conf.blk)) {
         error_setg(errp, "Device needs media, but drive is empty");
-        return;
+        goto out;
     }
     if (!conf->num_queues) {
         error_setg(errp, "num-queues property must be larger than 0");
-        return;
+        goto out;
     }
     if (!is_power_of_2(conf->queue_size) ||
         conf->queue_size > VIRTQUEUE_MAX_SIZE) {
         error_setg(errp, "invalid queue-size property (%" PRIu16 "), "
                    "must be a power of 2 (max %d)",
                    conf->queue_size, VIRTQUEUE_MAX_SIZE);
-        return;
+        goto out;
     }
 
     if (!blkconf_apply_backend_options(&conf->conf,
                                        blk_is_read_only(conf->conf.blk), true,
                                        errp)) {
-        return;
+        goto out;
     }
     s->original_wce = blk_enable_write_cache(conf->conf.blk);
     if (!blkconf_geometry(&conf->conf, NULL, 65535, 255, 255, errp)) {
-        return;
+        goto out;
     }
 
     blkconf_blocksizes(&conf->conf);
@@ -951,7 +956,7 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
         conf->conf.physical_block_size) {
         error_setg(errp,
                    "logical_block_size > physical_block_size not supported");
-        return;
+        goto out;
     }
 
     virtio_init(vdev, "virtio-blk", VIRTIO_ID_BLOCK,
@@ -968,7 +973,7 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
     if (err != NULL) {
         error_propagate(errp, err);
         virtio_cleanup(vdev);
-        return;
+        goto out;
     }
 
     s->change = qemu_add_vm_change_state_handler(virtio_blk_dma_restart_cb, s);
@@ -976,6 +981,9 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
     blk_set_guest_block_size(s->blk, s->conf.conf.logical_block_size);
 
     blk_iostatus_enable(s->blk);
+
+out:
+    aio_context_release(ctx);
 }
 
 static void virtio_blk_device_unrealize(DeviceState *dev, Error **errp)
