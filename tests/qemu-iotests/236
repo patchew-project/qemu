@@ -72,6 +72,49 @@ run_qemu <<EOF
 { "execute": "quit"}}
 EOF
 
+case "$QEMU_DEFAULT_MACHINE" in
+  s390-ccw-virtio)
+      virtio_scsi=virtio-scsi-ccw
+      ;;
+  *)
+      virtio_scsi=virtio-scsi-pci
+      ;;
+esac
+
+echo
+echo === Try adding and removing a virtio-scsi device with a hard drive ===
+echo
+
+run_qemu <<EOF
+{ "execute": "qmp_capabilities" }
+{ "execute": "blockdev-add", "arguments": {"driver": "null-co", "node-name": "hd0"}}
+{ "execute": "object-add", "arguments": {"qom-type": "iothread", "id": "iothread0"}}
+{ "execute": "x-blockdev-set-iothread", "arguments": {"node-name": "hd0", "iothread": "iothread0"}}
+{ "execute": "device_add", "arguments": {"id": "scsi0", "driver": "${virtio_scsi}"}}
+{ "execute": "device_add", "arguments": {"id": "scsi-hd0", "driver": "scsi-hd", "drive": "hd0"}}
+{ "execute": "device_del", "arguments": {"id": "scsi-hd0"}}
+{ "execute": "device_del", "arguments": {"id": "scsi0"}}
+{ "execute": "blockdev-del", "arguments": {"node-name": "hd0"}}
+{ "execute": "quit"}}
+EOF
+
+echo
+echo === Try adding and removing a virtio-scsi device with a CD ===
+echo
+
+run_qemu <<EOF
+{ "execute": "qmp_capabilities" }
+{ "execute": "blockdev-add", "arguments": {"driver": "null-co", "node-name": "cd0"}}
+{ "execute": "object-add", "arguments": {"qom-type": "iothread", "id": "iothread0"}}
+{ "execute": "x-blockdev-set-iothread", "arguments": {"node-name": "cd0", "iothread": "iothread0"}}
+{ "execute": "device_add", "arguments": {"id": "scsi0", "driver": "${virtio_scsi}"}}
+{ "execute": "device_add", "arguments": {"id": "scsi-cd0", "driver": "scsi-cd", "drive": "cd0"}}
+{ "execute": "device_del", "arguments": {"id": "scsi-cd0"}}
+{ "execute": "device_del", "arguments": {"id": "scsi0"}}
+{ "execute": "blockdev-del", "arguments": {"node-name": "cd0"}}
+{ "execute": "quit"}}
+EOF
+
 # success, all done
 echo "*** done"
 rm -f $seq.full

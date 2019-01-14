@@ -13,4 +13,34 @@ QMP_VERSION
 {"return": {}}
 {"return": {}}
 {"return": {}}
+
+=== Try adding and removing a virtio-scsi device with a hard drive ===
+
+Testing:
+QMP_VERSION
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+
+=== Try adding and removing a virtio-scsi device with a CD ===
+
+Testing:
+QMP_VERSION
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
 *** done
