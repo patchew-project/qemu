@@ -5903,7 +5903,10 @@ if test "$cpu" = "ppc64" -a "$targetos" != "Darwin" ; then
 fi
 
 if test "$cpu" = "s390x" ; then
-  roms="$roms s390-ccw"
+  # Only build the s390-ccw bios if the compiler supports -march=z900
+  if "$cc" -dumpspecs 2>/dev/null | grep -q "march=z900"; then
+    roms="$roms s390-ccw"
+  fi
 fi
 
 # Probe for the need for relocating the user-only binary.
