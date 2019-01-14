@@ -120,6 +120,17 @@ bool kvm_has_smm(void)
     return kvm_check_extension(kvm_state, KVM_CAP_X86_SMM);
 }
 
+bool kvm_has_cpuid_1f(void)
+{
+    uint32_t eax = 0x1f, ecx = 1, ebx = 0, edx = 0;
+    host_cpuid(0x1f, 0, &eax, &ebx, &ecx, &edx);
+    if (eax != 0) {
+        printf("It's recommended to disable CPUID.1F emulation \
+                                on Intel non-MCP platform.\n");
+    }
+    return true;
+}
+
 bool kvm_has_adjust_clock_stable(void)
 {
     int ret = kvm_check_extension(kvm_state, KVM_CAP_ADJUST_CLOCK);
@@ -1035,7 +1046,6 @@ int kvm_arch_init_vcpu(CPUState *cs)
     }
 
     cpu_x86_cpuid(env, 0, 0, &limit, &unused, &unused, &unused);
-
     for (i = 0; i <= limit; i++) {
         if (cpuid_i == KVM_MAX_CPUID_ENTRIES) {
             fprintf(stderr, "unsupported level value: 0x%x\n", limit);
@@ -1124,6 +1134,28 @@ int kvm_arch_init_vcpu(CPUState *cs)
             c->flags = 0;
             cpu_x86_cpuid(env, i, 0, &c->eax, &c->ebx, &c->ecx, &c->edx);
             break;
+        }
+    }
+
+    cpu->enable_cpuid_0x1f =  kvm_has_cpuid_1f();
+    if (cs->nr_dies > 1) {
+        i = 0x1f;
+        for (j = 0; ; j++) {
+            c->function = i;
+            c->flags = KVM_CPUID_FLAG_SIGNIFCANT_INDEX;
+            c->index = j;
+            cpu_x86_cpuid(env, i, j, &c->eax, &c->ebx, &c->ecx, &c->edx);
+            if (i == 0x1f && j == 3) {
+                break;
+            }
+            if (cpuid_i == KVM_MAX_CPUID_ENTRIES) {
+                fprintf(stderr, "cpuid_data is full, no space for "
+                        "cpuid(eax:0x%x,ecx:0x%x)\n", i, j);
+                abort();
+            }
+            c = &cpuid_data.entries[cpuid_i++];
+            if (!cpu->enable_cpuid_0x1f)
+                break;
         }
     }
 

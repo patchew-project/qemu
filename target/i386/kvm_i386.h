@@ -38,6 +38,7 @@ bool kvm_has_adjust_clock_stable(void);
 void kvm_synchronize_all_tsc(void);
 void kvm_arch_reset_vcpu(X86CPU *cs);
 void kvm_arch_do_init_vcpu(X86CPU *cs);
+bool kvm_has_cpuid_1f(void);
 
 int kvm_device_pci_assign(KVMState *s, PCIHostDeviceAddress *dev_addr,
                           uint32_t flags, uint32_t *dev_id);
