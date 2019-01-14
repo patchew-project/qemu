@@ -332,6 +332,7 @@ struct CPUState {
     DeviceState parent_obj;
     /*< public >*/
 
+    int nr_dies;
     int nr_cores;
     int nr_threads;
 
