@@ -1531,7 +1531,7 @@ static void mirror_start_job(const char *job_id, BlockDriverState *bs,
     mirror_top_bs->supported_write_flags = BDRV_REQ_WRITE_UNCHANGED |
         (BDRV_REQ_FUA & bs->supported_write_flags);
     mirror_top_bs->supported_zero_flags = BDRV_REQ_WRITE_UNCHANGED |
-        ((BDRV_REQ_FUA | BDRV_REQ_MAY_UNMAP)
+        ((BDRV_REQ_FUA | BDRV_REQ_MAY_UNMAP | BDRV_REQ_ALLOCATE)
          & bs->supported_zero_flags);
 
     bs_opaque = g_new0(MirrorBDSOpaque, 1);
