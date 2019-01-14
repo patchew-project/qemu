@@ -909,7 +909,8 @@ static uint32_t x86_cpu_apic_id_from_index(unsigned int cpu_index)
     uint32_t correct_id;
     static bool warned;
 
-    correct_id = x86_apicid_from_cpu_idx(smp_cores, smp_threads, cpu_index);
+    correct_id = x86_apicid_from_cpu_idx(smp_dies, smp_cores,
+                                         smp_threads, cpu_index);
     if (compat_apic_id_mode) {
         if (cpu_index != correct_id && !warned && !qtest_enabled()) {
             error_report("APIC IDs set in compatibility mode, "
@@ -2137,9 +2138,12 @@ static void pc_cpu_pre_plug(HotplugHandler *hotplug_dev,
         return;
     }
 
-    /* if APIC ID is not set, set it based on socket/core/thread properties */
+    /*
+     * If APIC ID is not set, set it based on
+     * socket/die/core/thread properties.
+     */
     if (cpu->apic_id == UNASSIGNED_APIC_ID) {
-        int max_socket = (max_cpus - 1) / smp_threads / smp_cores;
+        int max_socket = (max_cpus - 1) / smp_threads / smp_cores / smp_dies;
 
         if (cpu->socket_id < 0) {
             error_setg(errp, "CPU socket-id is not set");
@@ -2147,6 +2151,10 @@ static void pc_cpu_pre_plug(HotplugHandler *hotplug_dev,
         } else if (cpu->socket_id > max_socket) {
             error_setg(errp, "Invalid CPU socket-id: %u must be in range 0:%u",
                        cpu->socket_id, max_socket);
+            return;
+        } else if (cpu->die_id > max_socket) {
+            error_setg(errp, "Invalid CPU die-id: %u must be in range 0:%u",
+                       cpu->die_id, max_socket);
             return;
         }
         if (cpu->core_id < 0) {
@@ -2167,20 +2175,24 @@ static void pc_cpu_pre_plug(HotplugHandler *hotplug_dev,
         }
 
         topo.pkg_id = cpu->socket_id;
+        topo.die_id = cpu->die_id;
         topo.core_id = cpu->core_id;
         topo.smt_id = cpu->thread_id;
-        cpu->apic_id = apicid_from_topo_ids(smp_cores, smp_threads, &topo);
+        cpu->apic_id = apicid_from_topo_ids(smp_dies, smp_cores,
+                                            smp_threads, &topo);
     }
 
     cpu_slot = pc_find_cpu_slot(MACHINE(pcms), cpu->apic_id, &idx);
     if (!cpu_slot) {
         MachineState *ms = MACHINE(pcms);
 
-        x86_topo_ids_from_apicid(cpu->apic_id, smp_cores, smp_threads, &topo);
-        error_setg(errp, "Invalid CPU [socket: %u, core: %u, thread: %u] with"
+        x86_topo_ids_from_apicid(cpu->apic_id, smp_dies, smp_cores,
+                                               smp_threads, &topo);
+        error_setg(errp,
+                  "Invalid CPU [socket: %u, die: %u, core: %u, thread: %u] with"
                   " APIC ID %" PRIu32 ", valid index range 0:%d",
-                   topo.pkg_id, topo.core_id, topo.smt_id, cpu->apic_id,
-                   ms->possible_cpus->len - 1);
+                   topo.pkg_id, topo.die_id, topo.core_id, topo.smt_id,
+                   cpu->apic_id, ms->possible_cpus->len - 1);
         return;
     }
 
@@ -2196,7 +2208,8 @@ static void pc_cpu_pre_plug(HotplugHandler *hotplug_dev,
     /* TODO: move socket_id/core_id/thread_id checks into x86_cpu_realizefn()
      * once -smp refactoring is complete and there will be CPU private
      * CPUState::nr_cores and CPUState::nr_threads fields instead of globals */
-    x86_topo_ids_from_apicid(cpu->apic_id, smp_cores, smp_threads, &topo);
+    x86_topo_ids_from_apicid(cpu->apic_id,
+                             smp_dies, smp_cores, smp_threads, &topo);
     if (cpu->socket_id != -1 && cpu->socket_id != topo.pkg_id) {
         error_setg(errp, "property socket-id: %u doesn't match set apic-id:"
             " 0x%x (socket-id: %u)", cpu->socket_id, cpu->apic_id, topo.pkg_id);
@@ -2529,7 +2542,7 @@ static int64_t pc_get_default_cpu_node_id(const MachineState *ms, int idx)
 
    assert(idx < ms->possible_cpus->len);
    x86_topo_ids_from_apicid(ms->possible_cpus->cpus[idx].arch_id,
-                            smp_cores, smp_threads, &topo);
+                            smp_dies, smp_cores, smp_threads, &topo);
    return topo.pkg_id % nb_numa_nodes;
 }
 
@@ -2556,9 +2569,11 @@ static const CPUArchIdList *pc_possible_cpu_arch_ids(MachineState *ms)
         ms->possible_cpus->cpus[i].vcpus_count = 1;
         ms->possible_cpus->cpus[i].arch_id = x86_cpu_apic_id_from_index(i);
         x86_topo_ids_from_apicid(ms->possible_cpus->cpus[i].arch_id,
-                                 smp_cores, smp_threads, &topo);
+                                 smp_dies, smp_cores, smp_threads, &topo);
         ms->possible_cpus->cpus[i].props.has_socket_id = true;
         ms->possible_cpus->cpus[i].props.socket_id = topo.pkg_id;
+        ms->possible_cpus->cpus[i].props.has_die_id = true;
+        ms->possible_cpus->cpus[i].props.die_id = topo.die_id;
         ms->possible_cpus->cpus[i].props.has_core_id = true;
         ms->possible_cpus->cpus[i].props.core_id = topo.core_id;
         ms->possible_cpus->cpus[i].props.has_thread_id = true;
