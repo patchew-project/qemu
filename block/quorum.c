@@ -857,6 +857,19 @@ static QemuOptsList quorum_runtime_opts = {
     },
 };
 
+static void quorum_set_supported_flags(BlockDriverState *bs)
+{
+    BDRVQuorumState *s = bs->opaque;
+    int i;
+
+    bs->supported_write_flags = BDRV_REQ_FUA;
+    for (i = 0; i < s->num_children; i++) {
+        bs->supported_write_flags &= s->children[i]->bs->supported_write_flags;
+    }
+
+    bs->supported_write_flags |= BDRV_REQ_WRITE_UNCHANGED;
+}
+
 static int quorum_open(BlockDriverState *bs, QDict *options, int flags,
                        Error **errp)
 {
@@ -950,7 +963,7 @@ static int quorum_open(BlockDriverState *bs, QDict *options, int flags,
     }
     s->next_child_index = s->num_children;
 
-    bs->supported_write_flags = BDRV_REQ_WRITE_UNCHANGED;
+    quorum_set_supported_flags(bs);
 
     g_free(opened);
     goto exit;
@@ -1025,6 +1038,8 @@ static void quorum_add_child(BlockDriverState *bs, BlockDriverState *child_bs,
     s->children = g_renew(BdrvChild *, s->children, s->num_children + 1);
     s->children[s->num_children++] = child;
 
+    quorum_set_supported_flags(bs);
+
 out:
     bdrv_drained_end(bs);
 }
@@ -1063,6 +1078,8 @@ static void quorum_del_child(BlockDriverState *bs, BdrvChild *child,
     bdrv_unref_child(bs, child);
 
     bdrv_drained_end(bs);
+
+    quorum_set_supported_flags(bs);
 }
 
 static void quorum_refresh_filename(BlockDriverState *bs, QDict *options)
