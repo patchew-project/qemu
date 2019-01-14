@@ -840,6 +840,7 @@
 # @unit: unit id
 # @serial: serial number (since: 3.1)
 # @dev: device node (POSIX) or device UNC (Windows) (since: 3.1)
+# @number: device slot index (Windows)
 #
 # Since: 2.2
 ##
@@ -847,7 +848,7 @@
   'data': {'pci-controller': 'GuestPCIAddress',
            'bus-type': 'GuestDiskBusType',
            'bus': 'int', 'target': 'int', 'unit': 'int',
-           '*serial': 'str', '*dev': 'str'} }
+           '*serial': 'str', '*dev': 'str', 'number':'int'} }
 
 ##
 # @GuestFilesystemInfo:
