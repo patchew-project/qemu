@@ -293,7 +293,7 @@ static void *server_thread(void *data)
 
 static void setup_vm_with_server(IVState *s, int nvectors, bool msi)
 {
-    char *cmd = g_strdup_printf("-chardev socket,id=chr0,path=%s,nowait "
+    char *cmd = g_strdup_printf("-chardev socket,id=chr0,path=%s "
                                 "-device ivshmem%s,chardev=chr0,vectors=%d",
                                 tmpserver,
                                 msi ? "-doorbell" : ",size=1M,msi=off",
