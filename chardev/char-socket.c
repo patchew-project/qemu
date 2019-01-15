@@ -965,7 +965,25 @@ static int tcp_chr_wait_connected(Chardev *chr, Error **errp)
         }
     }
 
-    while (!s->ioc) {
+    /*
+     * We expect state to be as follows:
+     *
+     *  - server
+     *    - wait   -> CONNECTED
+     *    - nowait -> DISCONNECTED
+     *  - client
+     *    - reconnect == 0 -> CONNECTED
+     *    - reconnect != 0 -> DISCONNECTED
+     *
+     */
+    if (s->state == TCP_CHARDEV_STATE_CONNECTING) {
+        error_setg(errp,
+                   "Unexpected 'connecting' state when waiting for "
+                   "connection during early startup");
+        return -1;
+    }
+
+    while (s->state != TCP_CHARDEV_STATE_CONNECTED) {
         if (s->is_listen) {
             tcp_chr_accept_server_sync(chr);
         } else {
@@ -1106,7 +1124,15 @@ static int qmp_chardev_open_socket_client(Chardev *chr,
 
     if (reconnect > 0) {
         s->reconnect_time = reconnect;
-        tcp_chr_connect_client_async(chr);
+        /*
+         * We must not start the socket connect attempt until the main
+         * loop is running, otherwise qemu_chr_wait_connect will not be
+         * able to take over connection establishment during startup
+         */
+        s->reconnect_timer = qemu_chr_timeout_add_ms(chr,
+                                                     0,
+                                                     socket_reconnect_timeout,
+                                                     chr);
         return 0;
     } else {
         return tcp_chr_connect_client_sync(chr, errp);
