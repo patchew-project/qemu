@@ -152,7 +152,7 @@ static void generic_loader_realize(DeviceState *dev, Error **errp)
         if (size < 0 || s->force_raw) {
             /* Default to the maximum size being the machine's ram size */
             size = load_image_targphys_as(s->file, s->addr, ram_size, as);
-        } else {
+        } else if (!s->addr) {
             s->addr = entry;
         }
 
