@@ -54,6 +54,7 @@
 #endif
 
 #include "qemu/mmap-alloc.h"
+#include "exec/memory.h"
 
 #ifdef CONFIG_DEBUG_STACK_USAGE
 #include "qemu/error-report.h"
@@ -203,7 +204,13 @@ void *qemu_memalign(size_t alignment, size_t size)
 void *qemu_anon_ram_alloc(size_t size, uint64_t *alignment, bool shared)
 {
     size_t align = QEMU_VMALLOC_ALIGN;
-    void *ptr = qemu_ram_mmap(-1, size, align, shared);
+    uint32_t flags = 0;
+    void *ptr;
+
+    if (shared) {
+        flags = RAM_SHARED;
+    }
+    ptr = qemu_ram_mmap(-1, size, align, flags);
 
     if (ptr == MAP_FAILED) {
         return NULL;
