@@ -202,6 +202,15 @@ extern int daemon(int, int);
 #define ESHUTDOWN 4099
 #endif
 
+#ifdef __CHECKER__
+#define QEMU_BITWISE __attribute__((bitwise))
+#define QEMU_FORCE   __attribute__((force))
+#else
+#define QEMU_BITWISE
+#define QEMU_FORCE
+#endif
+
+typedef unsigned QEMU_BITWISE QemuMmapFlags;
 /* time_t may be either 32 or 64 bits depending on the host OS, and
  * can be either signed or unsigned, so we can't just hardcode a
  * specific maximum value. This is not a C preprocessor constant,
