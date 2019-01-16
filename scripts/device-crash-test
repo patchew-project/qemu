@@ -23,7 +23,7 @@
 Run QEMU with all combinations of -machine and -device types,
 check for crashes and unexpected errors.
 """
-from __future__ import print_function
+
 
 import sys
 import glob
@@ -255,7 +255,7 @@ def qemuOptsEscape(s):
 
 def formatTestCase(t):
     """Format test case info as "key=value key=value" for prettier logging output"""
-    return ' '.join('%s=%s' % (k, v) for k, v in t.items())
+    return ' '.join('%s=%s' % (k, v) for k, v in list(t.items()))
 
 
 def qomListTypeNames(vm, **kwargs):
@@ -557,7 +557,8 @@ def main():
         logger.info("Skipped %d test cases", skipped)
 
     if args.debug:
-        stats = sorted([(len(wl_stats.get(i, [])), wl) for i, wl in enumerate(ERROR_WHITELIST)])
+        stats = sorted([(len(wl_stats.get(i, [])), wl) for i, wl in
+                         enumerate(ERROR_WHITELIST)], key=lambda x: x[0])
         for count, wl in stats:
             dbg("whitelist entry stats: %d: %r", count, wl)
 
