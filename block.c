@@ -2062,6 +2062,8 @@ static void bdrv_replace_child_noperm(BdrvChild *child,
     BlockDriverState *old_bs = child->bs;
     int i;
 
+    assert(!child->frozen);
+
     if (old_bs && new_bs) {
         assert(bdrv_get_aio_context(old_bs) == bdrv_get_aio_context(new_bs));
     }
@@ -2277,6 +2279,10 @@ void bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd,
 {
     bool update_inherits_from = bdrv_chain_contains(bs, backing_hd) &&
         bdrv_inherits_from_recursive(backing_hd, bs);
+
+    if (bdrv_is_backing_chain_frozen(bs, backing_bs(bs), errp)) {
+        return;
+    }
 
     if (backing_hd) {
         bdrv_ref(backing_hd);
@@ -3813,6 +3819,62 @@ BlockDriverState *bdrv_find_base(BlockDriverState *bs)
 }
 
 /*
+ * Return true if at least one of the backing links between @bs and
+ * @base is frozen. @errp is set if that's the case.
+ */
+bool bdrv_is_backing_chain_frozen(BlockDriverState *bs, BlockDriverState *base,
+                                  Error **errp)
+{
+    BlockDriverState *i;
+
+    for (i = bs; i != base && i->backing; i = backing_bs(i)) {
+        if (i->backing->frozen) {
+            error_setg(errp, "Cannot remove link from '%s' to '%s'",
+                       i->node_name, backing_bs(i)->node_name);
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/*
+ * Freeze all backing links between @bs and @base.
+ * If any of the links is already frozen the operation is aborted and
+ * none of the links are modified.
+ * Returns 0 on success. On failure returns < 0 and sets @errp.
+ */
+int bdrv_freeze_backing_chain(BlockDriverState *bs, BlockDriverState *base,
+                              Error **errp)
+{
+    BlockDriverState *i;
+
+    if (bdrv_is_backing_chain_frozen(bs, base, errp)) {
+        return -EPERM;
+    }
+
+    for (i = bs; i != base && i->backing; i = backing_bs(i)) {
+        i->backing->frozen = true;
+    }
+
+    return 0;
+}
+
+/*
+ * Unfreeze all backing links between @bs and @base. The caller must
+ * ensure that all links are frozen before using this function.
+ */
+void bdrv_unfreeze_backing_chain(BlockDriverState *bs, BlockDriverState *base)
+{
+    BlockDriverState *i;
+
+    for (i = bs; i != base && i->backing; i = backing_bs(i)) {
+        assert(i->backing->frozen);
+        i->backing->frozen = false;
+    }
+}
+
+/*
  * Drops images above 'base' up to and including 'top', and sets the image
  * above 'top' to have base as its backing file.
  *
@@ -3858,6 +3920,10 @@ int bdrv_drop_intermediate(BlockDriverState *top, BlockDriverState *base,
 
     /* Make sure that base is in the backing chain of top */
     if (!bdrv_chain_contains(top, base)) {
+        goto exit;
+    }
+
+    if (bdrv_is_backing_chain_frozen(top, base, NULL)) {
         goto exit;
     }
 

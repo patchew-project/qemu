@@ -661,6 +661,11 @@ struct BdrvChild {
      */
     uint64_t shared_perm;
 
+    /*
+     * This link is frozen: the child cannot be detached from the parent.
+     */
+    bool frozen;
+
     QLIST_ENTRY(BdrvChild) next;
     QLIST_ENTRY(BdrvChild) next_parent;
 };
