@@ -50,6 +50,46 @@
 #include "sysemu/hostmem.h"
 #include "sysemu/numa.h"
 
+#define PHANDLE_PCIDEV(phb, pdev)    (0x12000000 | \
+                                     (((phb)->index) << 16) | ((pdev)->devfn))
+#define PHANDLE_GPURAM(phb, n)       (0x110000FF | ((n) << 8) | \
+                                     (((phb)->index) << 16))
+/* NVLink2 wants a separate NUMA node for its RAM */
+#define GPURAM_ASSOCIATIVITY(phb, n) (255 - ((phb)->index * 3 + (n)))
+#define PHANDLE_NVLINK(phb, gn, nn)  (0x00130000 | (((phb)->index) << 8) | \
+                                     ((gn) << 4) | (nn))
+
+/* Max number of these GPUs per a physical box */
+#define NVGPU_MAX_NUM                6
+
+/* Max number of NVLinks per GPU in any physical box */
+#define NVGPU_MAX_LINKS              3
+
+/*
+ * One NVLink bridge provides one ATSD register so it should be 18.
+ * In practice though since we allow only one group per vPHB which equals
+ * to an NPU2 which has maximum 6 NVLink bridges.
+ */
+#define NVGPU_MAX_ATSD               6
+
+struct spapr_phb_pci_nvgpu_config {
+    uint64_t nv2_ram_current;
+    uint64_t nv2_atsd_current;
+    int num; /* number of valid entries in gpus[] */
+    int gpunum; /* number of entries in gpus[] with gpdev!=NULL */
+    struct {
+        int links;
+        uint64_t tgt;
+        uint64_t gpa;
+        PCIDevice *gpdev;
+        uint64_t atsd_gpa[NVGPU_MAX_LINKS];
+        PCIDevice *npdev[NVGPU_MAX_LINKS];
+        uint32_t link_speed[NVGPU_MAX_LINKS];
+    } gpus[NVGPU_MAX_NUM];
+    uint64_t atsd_prop[NVGPU_MAX_ATSD]; /* Big Endian for DT */
+    int atsd_num;
+};
+
 /* Copied from the kernel arch/powerpc/platforms/pseries/msi.c */
 #define RTAS_QUERY_FN           0
 #define RTAS_CHANGE_FN          1
@@ -1249,6 +1289,7 @@ static uint32_t spapr_phb_get_pci_drc_index(sPAPRPHBState *phb,
 static void spapr_populate_pci_child_dt(PCIDevice *dev, void *fdt, int offset,
                                        sPAPRPHBState *sphb)
 {
+    int i, j;
     ResourceProps rp;
     bool is_bridge = false;
     int pci_status;
@@ -1348,6 +1389,60 @@ static void spapr_populate_pci_child_dt(PCIDevice *dev, void *fdt, int offset,
 
     if (sphb->pcie_ecs && pci_is_express(dev)) {
         _FDT(fdt_setprop_cell(fdt, offset, "ibm,pci-config-space-type", 0x1));
+    }
+
+    if (sphb->nvgpus) {
+        for (i = 0; i < sphb->nvgpus->num; ++i) {
+            PCIDevice *gpdev = sphb->nvgpus->gpus[i].gpdev;
+
+            if (!gpdev) {
+                continue;
+            }
+            if (dev == gpdev) {
+                uint32_t npus[sphb->nvgpus->gpus[i].links];
+
+                for (j = 0; j < sphb->nvgpus->gpus[i].links; ++j) {
+                    PCIDevice *npdev = sphb->nvgpus->gpus[i].npdev[j];
+
+                    npus[j] = cpu_to_be32(PHANDLE_PCIDEV(sphb, npdev));
+                }
+                _FDT(fdt_setprop(fdt, offset, "ibm,npu", npus,
+                                 j * sizeof(npus[0])));
+                _FDT((fdt_setprop_cell(fdt, offset, "phandle",
+                                       PHANDLE_PCIDEV(sphb, dev))));
+                continue;
+            }
+            for (j = 0; j < sphb->nvgpus->gpus[i].links; ++j) {
+                if (dev != sphb->nvgpus->gpus[i].npdev[j]) {
+                    continue;
+                }
+
+                _FDT((fdt_setprop_cell(fdt, offset, "phandle",
+                                       PHANDLE_PCIDEV(sphb, dev))));
+
+                _FDT(fdt_setprop_cell(fdt, offset, "ibm,gpu",
+                                      PHANDLE_PCIDEV(sphb, gpdev)));
+
+                _FDT((fdt_setprop_cell(fdt, offset, "ibm,nvlink",
+                                       PHANDLE_NVLINK(sphb, i, j))));
+
+                /*
+                 * If we ever want to emulate GPU RAM at the same location as on
+                 * the host - here is the encoding GPA->TGT:
+                 *
+                 * gta  = ((sphb->nv2_gpa >> 42) & 0x1) << 42;
+                 * gta |= ((sphb->nv2_gpa >> 45) & 0x3) << 43;
+                 * gta |= ((sphb->nv2_gpa >> 49) & 0x3) << 45;
+                 * gta |= sphb->nv2_gpa & ((1UL << 43) - 1);
+                 */
+                _FDT(fdt_setprop_cell(fdt, offset, "memory-region",
+                                      PHANDLE_GPURAM(sphb, i)));
+                _FDT(fdt_setprop_u64(fdt, offset, "ibm,device-tgt-addr",
+                                     sphb->nvgpus->gpus[i].tgt));
+                _FDT(fdt_setprop_cell(fdt, offset, "ibm,nvlink-speed",
+                                      sphb->nvgpus->gpus[i].link_speed[j]));
+            }
+        }
     }
 }
 
@@ -1590,7 +1685,9 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
         smc->phb_placement(spapr, sphb->index,
                            &sphb->buid, &sphb->io_win_addr,
                            &sphb->mem_win_addr, &sphb->mem64_win_addr,
-                           windows_supported, sphb->dma_liobn, &local_err);
+                           windows_supported, sphb->dma_liobn,
+                           &sphb->nv2_gpa_win_addr,
+                           &sphb->nv2_atsd_win_addr, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
             return;
@@ -1837,6 +1934,8 @@ static Property spapr_phb_properties[] = {
                      pre_2_8_migration, false),
     DEFINE_PROP_BOOL("pcie-extended-configuration-space", sPAPRPHBState,
                      pcie_ecs, true),
+    DEFINE_PROP_UINT64("gpa", sPAPRPHBState, nv2_gpa_win_addr, 0),
+    DEFINE_PROP_UINT64("atsd", sPAPRPHBState, nv2_atsd_win_addr, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -2066,6 +2165,80 @@ static void spapr_phb_pci_enumerate(sPAPRPHBState *phb)
 
 }
 
+static void spapr_phb_pci_find_nvgpu(PCIBus *bus, PCIDevice *pdev, void *opaque)
+{
+    struct spapr_phb_pci_nvgpu_config *nvgpus = opaque;
+    PCIBus *sec_bus;
+    Object *mr_gpu, *mr_npu;
+    uint64_t tgt = 0, gpa, atsd = 0;
+    int i;
+
+    mr_gpu = object_property_get_link(OBJECT(pdev), "nvlink2-mr[0]", NULL);
+    mr_npu = object_property_get_link(OBJECT(pdev), "nvlink2-atsd-mr[0]", NULL);
+    if (mr_gpu) {
+        gpa = nvgpus->nv2_ram_current;
+        nvgpus->nv2_ram_current += memory_region_size(MEMORY_REGION(mr_gpu));
+    } else if (mr_npu) {
+        if (nvgpus->atsd_num == ARRAY_SIZE(nvgpus->atsd_prop)) {
+            warn_report("Found too many ATSD registers per vPHB");
+        } else {
+            atsd = nvgpus->nv2_atsd_current;
+            nvgpus->atsd_prop[nvgpus->atsd_num] = cpu_to_be64(atsd);
+            ++nvgpus->atsd_num;
+            nvgpus->nv2_atsd_current +=
+                memory_region_size(MEMORY_REGION(mr_npu));
+        }
+    }
+
+    tgt = object_property_get_uint(OBJECT(pdev), "tgt", NULL);
+    if (tgt) {
+        for (i = 0; i < nvgpus->num; ++i) {
+            if (nvgpus->gpus[i].tgt == tgt) {
+                break;
+            }
+        }
+
+        if (i == nvgpus->num) {
+            if (nvgpus->num == ARRAY_SIZE(nvgpus->gpus)) {
+                warn_report("Found too many NVLink bridges per GPU");
+                return;
+            }
+            ++nvgpus->num;
+        }
+
+        nvgpus->gpus[i].tgt = tgt;
+        if (mr_gpu) {
+            g_assert(!nvgpus->gpus[i].gpdev);
+            nvgpus->gpus[i].gpdev = pdev;
+            nvgpus->gpus[i].gpa = gpa;
+            ++nvgpus->gpunum;
+        } else {
+            int j = nvgpus->gpus[i].links;
+
+            ++nvgpus->gpus[i].links;
+
+            g_assert(!nvgpus->gpus[i].npdev[j]);
+            nvgpus->gpus[i].npdev[j] = pdev;
+            nvgpus->gpus[i].atsd_gpa[j] = atsd;
+            nvgpus->gpus[i].link_speed[j] =
+                    object_property_get_uint(OBJECT(pdev), "link_speed", NULL);
+        }
+    }
+
+    if ((pci_default_read_config(pdev, PCI_HEADER_TYPE, 1) !=
+         PCI_HEADER_TYPE_BRIDGE)) {
+        return;
+    }
+
+    sec_bus = pci_bridge_get_sec_bus(PCI_BRIDGE(pdev));
+    if (!sec_bus) {
+        return;
+    }
+
+    pci_for_each_device(sec_bus, pci_bus_num(sec_bus),
+                        spapr_phb_pci_find_nvgpu, opaque);
+}
+
 int spapr_populate_pci_dt(sPAPRPHBState *phb, uint32_t xics_phandle, void *fdt,
                           uint32_t nr_msis)
 {
@@ -2184,6 +2357,69 @@ int spapr_populate_pci_dt(sPAPRPHBState *phb, uint32_t xics_phandle, void *fdt,
     spapr_phb_pci_enumerate(phb);
     _FDT(fdt_setprop_cell(fdt, bus_off, "qemu,phb-enumerated", 0x1));
 
+    /* If there are existing NVLink2 MRs, unmap those before recreating */
+    if (phb->nvgpus) {
+        for (i = 0; i < phb->nvgpus->num; ++i) {
+            PCIDevice *gpdev = phb->nvgpus->gpus[i].gpdev;
+            Object *nv_mrobj = object_property_get_link(OBJECT(gpdev),
+                                                        "nvlink2-mr[0]", NULL);
+
+            if (nv_mrobj) {
+                memory_region_del_subregion(get_system_memory(),
+                                            MEMORY_REGION(nv_mrobj));
+            }
+            for (j = 0; j < phb->nvgpus->gpus[i].links; ++j) {
+                PCIDevice *npdev = phb->nvgpus->gpus[i].npdev[j];
+                Object *atsd_mrobj;
+                atsd_mrobj = object_property_get_link(OBJECT(npdev),
+                                                         "nvlink2-atsd-mr[0]",
+                                                         NULL);
+                if (atsd_mrobj) {
+                    memory_region_del_subregion(get_system_memory(),
+                                                MEMORY_REGION(atsd_mrobj));
+                }
+            }
+        }
+        g_free(phb->nvgpus);
+        phb->nvgpus = NULL;
+    }
+
+    /* Search for GPUs and NPUs */
+    if (phb->nv2_gpa_win_addr && phb->nv2_atsd_win_addr) {
+        phb->nvgpus = g_new0(struct spapr_phb_pci_nvgpu_config, 1);
+        phb->nvgpus->nv2_ram_current = phb->nv2_gpa_win_addr;
+        phb->nvgpus->nv2_atsd_current = phb->nv2_atsd_win_addr;
+
+        pci_for_each_device(bus, pci_bus_num(bus),
+                            spapr_phb_pci_find_nvgpu, phb->nvgpus);
+
+        if (!phb->nvgpus->gpunum) {
+            /* We did not find any interesting GPU */
+            g_free(phb->nvgpus);
+            phb->nvgpus = NULL;
+        } else {
+            /*
+             * ibm,mmio-atsd contains ATSD registers; these belong to an NPU PHB
+             * which we do not emulate as a separate device. Instead we put
+             * ibm,mmio-atsd to the vPHB with GPU and make sure that we do not
+             * put GPUs from different IOMMU groups to the same vPHB to ensure
+             * that the guest will use ATSDs from the corresponding NPU.
+             */
+            if (!spapr_phb_eeh_available(phb)) {
+                warn_report("ATSD requires a separate vPHB per GPU IOMMU group");
+            } else if (!phb->nvgpus->atsd_num) {
+                warn_report("No ATSD registers found");
+            } else if (phb->nvgpus->atsd_num > 8) {
+                warn_report("Bogus ATSD configuration is found");
+            } else {
+                _FDT((fdt_setprop(fdt, bus_off, "ibm,mmio-atsd",
+                                  phb->nvgpus->atsd_prop,
+                                  phb->nvgpus->atsd_num *
+                                  sizeof(phb->nvgpus->atsd_prop[0]))));
+            }
+        }
+    }
+
     /* Populate tree nodes with PCI devices attached */
     s_fdt.fdt = fdt;
     s_fdt.node_off = bus_off;
@@ -2197,6 +2433,101 @@ int spapr_populate_pci_dt(sPAPRPHBState *phb, uint32_t xics_phandle, void *fdt,
     if (ret) {
         return ret;
     }
+
+    if (phb->nvgpus) {
+        /* Add memory nodes for GPU RAM and mark them unusable */
+        for (i = 0; i < phb->nvgpus->num; ++i) {
+            PCIDevice *gpdev = phb->nvgpus->gpus[i].gpdev;
+            Object *nv_mrobj = object_property_get_link(OBJECT(gpdev),
+                                                        "nvlink2-mr[0]", NULL);
+            char *mem_name;
+            int off;
+            uint32_t at = cpu_to_be32(GPURAM_ASSOCIATIVITY(phb, i));
+            uint32_t associativity[] = { cpu_to_be32(0x4), at, at, at, at };
+            uint64_t nv2_size = object_property_get_uint(nv_mrobj,
+                                                         "size", NULL);
+            uint64_t mem_reg_property[2] = {
+                cpu_to_be64(phb->nvgpus->gpus[i].gpa), cpu_to_be64(nv2_size) };
+
+            mem_name = g_strdup_printf("memory@%lx", phb->nvgpus->gpus[i].gpa);
+            off = fdt_add_subnode(fdt, 0, mem_name);
+            _FDT(off);
+            _FDT((fdt_setprop_string(fdt, off, "device_type", "memory")));
+            _FDT((fdt_setprop(fdt, off, "reg", mem_reg_property,
+                              sizeof(mem_reg_property))));
+            _FDT((fdt_setprop(fdt, off, "ibm,associativity", associativity,
+                              sizeof(associativity))));
+
+            _FDT((fdt_setprop_string(fdt, off, "compatible",
+                                     "ibm,coherent-device-memory")));
+            mem_reg_property[1] = 0;
+            _FDT((fdt_setprop(fdt, off, "linux,usable-memory", mem_reg_property,
+                              sizeof(mem_reg_property))));
+            _FDT((fdt_setprop_cell(fdt, off, "phandle",
+                                   PHANDLE_GPURAM(phb, i))));
+
+            g_free(mem_name);
+        }
+
+        /* Add NPUs with links underneath */
+        if (phb->nvgpus->num) {
+            char *npuname = g_strdup_printf("npuphb%d", phb->index);
+            int npuoff = fdt_add_subnode(fdt, 0, npuname);
+            int linkidx = 0;
+
+            _FDT(npuoff);
+            _FDT(fdt_setprop_cell(fdt, npuoff, "#address-cells", 1));
+            _FDT(fdt_setprop_cell(fdt, npuoff, "#size-cells", 0));
+            /* Advertise NPU as POWER9 so the guest can enable NPU2 contexts */
+            _FDT((fdt_setprop_string(fdt, npuoff, "compatible",
+                                     "ibm,power9-npu")));
+            g_free(npuname);
+
+            for (i = 0; i < phb->nvgpus->num; ++i) {
+                for (j = 0; j < phb->nvgpus->gpus[i].links; ++j) {
+                    char *linkname = g_strdup_printf("link@%d", linkidx);
+                    int off = fdt_add_subnode(fdt, npuoff, linkname);
+
+                    _FDT(off);
+                    _FDT((fdt_setprop_cell(fdt, off, "reg", linkidx)));
+                    _FDT((fdt_setprop_string(fdt, off, "compatible",
+                                             "ibm,npu-link")));
+                    _FDT((fdt_setprop_cell(fdt, off, "phandle",
+                                           PHANDLE_NVLINK(phb, i, j))));
+                    _FDT((fdt_setprop_cell(fdt, off, "ibm,npu-link-index",
+                                           linkidx)));
+                    g_free(linkname);
+                    ++linkidx;
+                }
+            }
+        }
+
+        /* Finally, when we finished with the device tree, map subregions */
+        for (i = 0; i < phb->nvgpus->num; ++i) {
+            PCIDevice *gpdev = phb->nvgpus->gpus[i].gpdev;
+            Object *nv_mrobj = object_property_get_link(OBJECT(gpdev),
+                                                        "nvlink2-mr[0]", NULL);
+
+            if (nv_mrobj) {
+                memory_region_add_subregion(get_system_memory(),
+                                            phb->nvgpus->gpus[i].gpa,
+                                            MEMORY_REGION(nv_mrobj));
+            }
+            for (j = 0; j < phb->nvgpus->gpus[i].links; ++j) {
+                PCIDevice *npdev = phb->nvgpus->gpus[i].npdev[j];
+                Object *atsd_mrobj;
+                atsd_mrobj = object_property_get_link(OBJECT(npdev),
+                                                    "nvlink2-atsd-mr[0]",
+                                                    NULL);
+                if (atsd_mrobj) {
+                    hwaddr atsd_gpa = phb->nvgpus->gpus[i].atsd_gpa[j];
+
+                    memory_region_add_subregion(get_system_memory(), atsd_gpa,
+                                                MEMORY_REGION(atsd_mrobj));
+                }
+            }
+        }
+    } /* if (phb->nvgpus) */
 
     return 0;
 }
