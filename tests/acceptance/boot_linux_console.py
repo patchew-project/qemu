@@ -19,7 +19,7 @@ class BootLinuxConsole(Test):
     and the kernel command line is properly passed from QEMU to the kernel
 
     :avocado: enable
-    :avocado: tags=x86_64
+    :avocado: tags=arch:x86_64
     """
 
     timeout = 60
