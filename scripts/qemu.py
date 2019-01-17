@@ -121,6 +121,7 @@ class QEMUMachine(object):
         self._temp_dir = None
         self._launched = False
         self._machine = None
+        self._console_set = False
         self._console_device_type = None
         self._console_address = None
         self._console_socket = None
@@ -240,13 +241,17 @@ class QEMUMachine(object):
                 '-display', 'none', '-vga', 'none']
         if self._machine is not None:
             args.extend(['-machine', self._machine])
-        if self._console_device_type is not None:
+        if self._console_set:
             self._console_address = os.path.join(self._temp_dir,
                                                  self._name + "-console.sock")
             chardev = ('socket,id=console,path=%s,server,nowait' %
                        self._console_address)
-            device = '%s,chardev=console' % self._console_device_type
-            args.extend(['-chardev', chardev, '-device', device])
+            args.extend(['-chardev', chardev])
+            if self._console_device_type is None:
+                args.extend(['-serial', 'chardev:console'])
+            else:
+                device = '%s,chardev=console' % self._console_device_type
+                args.extend(['-device', device])
         return args
 
     def _pre_launch(self):
@@ -479,23 +484,20 @@ class QEMUMachine(object):
         machine launch time, as it depends on the temporary directory
         to be created.
 
-        @param device_type: the device type, such as "isa-serial"
+        @param device_type: the device type, such as "isa-serial".  If
+                            None is given (the default value) a "-serial
+                            chardev:console" command line argument will
+                            be used instead, resorting to the machine's
+                            default device type.
         @raises: QEMUMachineAddDeviceError if the device type is not given
                  and can not be determined.
         """
-        if device_type is None:
-            if self._machine is None:
-                raise QEMUMachineAddDeviceError("Can not add a console device:"
-                                                " QEMU instance without a "
-                                                "defined machine type")
+        self._console_set = True
+        if device_type is None and self._machine is not None:
             for regex, device in CONSOLE_DEV_TYPES.items():
                 if re.match(regex, self._machine):
                     device_type = device
                     break
-            if device_type is None:
-                raise QEMUMachineAddDeviceError("Can not add a console device:"
-                                                " no matching console device "
-                                                "type definition")
         self._console_device_type = device_type
 
     @property
