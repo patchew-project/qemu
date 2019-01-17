@@ -1036,12 +1036,65 @@ static void vfio_put_address_space(VFIOAddressSpace *space)
     }
 }
 
+/*
+ * vfio_iommu_get_type - selects the richest iommu_type (v2 first)
+ */
+static int vfio_iommu_get_type(VFIOContainer *container,
+                               Error **errp)
+{
+    int fd = container->fd;
+
+    if (ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_TYPE1v2_IOMMU)) {
+        return VFIO_TYPE1v2_IOMMU;
+    } else if (ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_TYPE1_IOMMU)) {
+        return VFIO_TYPE1_IOMMU;
+    } else if (ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_SPAPR_TCE_v2_IOMMU)) {
+        return VFIO_SPAPR_TCE_v2_IOMMU;
+    } else if (ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_SPAPR_TCE_IOMMU)) {
+        return VFIO_SPAPR_TCE_IOMMU;
+    } else {
+        error_setg(errp, "No available IOMMU models");
+        return -EINVAL;
+    }
+}
+
+static int vfio_init_container(VFIOContainer *container, int group_fd,
+                               int iommu_type, Error **errp)
+{
+    int ret;
+
+    ret = ioctl(group_fd, VFIO_GROUP_SET_CONTAINER, &container->fd);
+    if (ret) {
+        error_setg_errno(errp, -ret, "failed to set group container");
+        return ret;
+    }
+
+    ret = ioctl(container->fd, VFIO_SET_IOMMU, iommu_type);
+    if (ret && iommu_type == VFIO_SPAPR_TCE_v2_IOMMU) {
+        /*
+         * On sPAPR, despite the IOMMU subdriver always advertises v1 and v2,
+         * the running platform may not support v2 and there is no way to
+         * guess it until an IOMMU group gets added to the container. So in
+         * case it fails with v2, try v1 as a fallback
+         */
+        iommu_type = VFIO_SPAPR_TCE_IOMMU;
+        ret = ioctl(container->fd, VFIO_SET_IOMMU, iommu_type);
+    }
+    if (ret) {
+        error_setg_errno(errp, -ret, "failed to set iommu for container");
+        return ret;
+    }
+    container->iommu_type = iommu_type;
+    return ret;
+}
+
 static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
                                   Error **errp)
 {
     VFIOContainer *container;
     int ret, fd;
     VFIOAddressSpace *space;
+    int iommu_type;
 
     space = vfio_get_address_space(as);
 
@@ -1101,23 +1154,21 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
     container->fd = fd;
     QLIST_INIT(&container->giommu_list);
     QLIST_INIT(&container->hostwin_list);
-    if (ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_TYPE1_IOMMU) ||
-        ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_TYPE1v2_IOMMU)) {
-        bool v2 = !!ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_TYPE1v2_IOMMU);
+
+    iommu_type = vfio_iommu_get_type(container, errp);
+    if (iommu_type < 0) {
+            ret = -EINVAL;
+            goto free_container_exit;
+    }
+
+    switch (iommu_type) {
+    case VFIO_TYPE1v2_IOMMU:
+    case VFIO_TYPE1_IOMMU:
+    {
         struct vfio_iommu_type1_info info;
 
-        ret = ioctl(group->fd, VFIO_GROUP_SET_CONTAINER, &fd);
+        ret = vfio_init_container(container, group->fd, iommu_type, errp);
         if (ret) {
-            error_setg_errno(errp, errno, "failed to set group container");
-            ret = -errno;
-            goto free_container_exit;
-        }
-
-        container->iommu_type = v2 ? VFIO_TYPE1v2_IOMMU : VFIO_TYPE1_IOMMU;
-        ret = ioctl(fd, VFIO_SET_IOMMU, container->iommu_type);
-        if (ret) {
-            error_setg_errno(errp, errno, "failed to set iommu for container");
-            ret = -errno;
             goto free_container_exit;
         }
 
@@ -1137,30 +1188,20 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
         }
         vfio_host_win_add(container, 0, (hwaddr)-1, info.iova_pgsizes);
         container->pgsizes = info.iova_pgsizes;
-    } else if (ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_SPAPR_TCE_IOMMU) ||
-               ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_SPAPR_TCE_v2_IOMMU)) {
+        break;
+    }
+    case VFIO_SPAPR_TCE_v2_IOMMU:
+    case VFIO_SPAPR_TCE_IOMMU:
+    {
         struct vfio_iommu_spapr_tce_info info;
-        bool v2 = !!ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_SPAPR_TCE_v2_IOMMU);
+        bool v2;
 
-        ret = ioctl(group->fd, VFIO_GROUP_SET_CONTAINER, &fd);
+        ret = vfio_init_container(container, group->fd, iommu_type, errp);
         if (ret) {
-            error_setg_errno(errp, errno, "failed to set group container");
-            ret = -errno;
             goto free_container_exit;
         }
-        container->iommu_type =
-            v2 ? VFIO_SPAPR_TCE_v2_IOMMU : VFIO_SPAPR_TCE_IOMMU;
-        ret = ioctl(fd, VFIO_SET_IOMMU, container->iommu_type);
-        if (ret) {
-            container->iommu_type = VFIO_SPAPR_TCE_IOMMU;
-            v2 = false;
-            ret = ioctl(fd, VFIO_SET_IOMMU, container->iommu_type);
-        }
-        if (ret) {
-            error_setg_errno(errp, errno, "failed to set iommu for container");
-            ret = -errno;
-            goto free_container_exit;
-        }
+
+        v2 = container->iommu_type == VFIO_SPAPR_TCE_v2_IOMMU;
 
         /*
          * The host kernel code implementing VFIO_IOMMU_DISABLE is called
@@ -1222,10 +1263,7 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
                               info.dma32_window_size - 1,
                               0x1000);
         }
-    } else {
-        error_setg(errp, "No available IOMMU models");
-        ret = -EINVAL;
-        goto free_container_exit;
+    }
     }
 
     vfio_kvm_device_add_group(group);
