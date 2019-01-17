@@ -443,6 +443,8 @@ static QemuOptsList raw_runtime_opts = {
     },
 };
 
+static const char *const mutable_opts[] = { "x-check-cache-dropped", NULL };
+
 static int raw_open_common(BlockDriverState *bs, QDict *options,
                            int bdrv_flags, int open_flags,
                            bool device, Error **errp)
@@ -2743,6 +2745,8 @@ BlockDriver bdrv_file = {
     .format_name = "file",
     .protocol_name = "file",
     .instance_size = sizeof(BDRVRawState),
+    .runtime_opts = &raw_runtime_opts,
+    .mutable_opts = mutable_opts,
     .bdrv_needs_filename = true,
     .bdrv_probe = NULL, /* no probe for protocols */
     .bdrv_parse_filename = raw_parse_filename,
@@ -3220,6 +3224,8 @@ static BlockDriver bdrv_host_device = {
     .format_name        = "host_device",
     .protocol_name        = "host_device",
     .instance_size      = sizeof(BDRVRawState),
+    .runtime_opts = &raw_runtime_opts,
+    .mutable_opts = mutable_opts,
     .bdrv_needs_filename = true,
     .bdrv_probe_device  = hdev_probe_device,
     .bdrv_parse_filename = hdev_parse_filename,
@@ -3346,6 +3352,8 @@ static BlockDriver bdrv_host_cdrom = {
     .format_name        = "host_cdrom",
     .protocol_name      = "host_cdrom",
     .instance_size      = sizeof(BDRVRawState),
+    .runtime_opts = &raw_runtime_opts,
+    .mutable_opts = mutable_opts,
     .bdrv_needs_filename = true,
     .bdrv_probe_device	= cdrom_probe_device,
     .bdrv_parse_filename = cdrom_parse_filename,
@@ -3479,6 +3487,8 @@ static BlockDriver bdrv_host_cdrom = {
     .format_name        = "host_cdrom",
     .protocol_name      = "host_cdrom",
     .instance_size      = sizeof(BDRVRawState),
+    .runtime_opts = &raw_runtime_opts,
+    .mutable_opts = mutable_opts,
     .bdrv_needs_filename = true,
     .bdrv_probe_device	= cdrom_probe_device,
     .bdrv_parse_filename = cdrom_parse_filename,
