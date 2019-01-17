@@ -37,7 +37,6 @@ CONSOLE_DEV_TYPES = {
     r'^clipper$': 'isa-serial',
     r'^(pc.*|q35.*|isapc)$': 'isa-serial',
     r'^(40p|powernv|prep)$': 'isa-serial',
-    r'^pseries.*': 'spapr-vty',
     r'^s390-ccw-virtio.*': 'sclpconsole',
     }
 
