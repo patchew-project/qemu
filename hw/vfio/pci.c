@@ -105,6 +105,96 @@ static void vfio_intx_eoi(VFIODevice *vbasedev)
     vfio_unmask_single_irqindex(vbasedev, VFIO_PCI_INTX_IRQ_INDEX);
 }
 
+/*
+ * vfio_set_event_handler - setup/tear down eventfd
+ * notification and handling for IRQ indices that span over
+ * a single IRQ
+ *
+ * @vdev: VFIO device handle
+ * @index: IRQ index the eventfd/handler is associated with
+ * @enable: true means notifier chain needs to be set up
+ * @handler: handler to attach if @enable is true
+ * @errp: error handle
+ */
+static void vfio_set_event_handler(VFIOPCIDevice *vdev,
+                                   int index,
+                                   bool enable,
+                                   void (*handler)(void *opaque),
+                                   Error **errp)
+{
+    struct vfio_irq_info irq_info = { .argsz = sizeof(irq_info),
+                                      .index = index };
+    struct vfio_irq_set *irq_set;
+    EventNotifier *notifier;
+    int argsz, ret = 0;
+    int32_t *pfd, fd;
+
+    switch (index) {
+    case VFIO_PCI_REQ_IRQ_INDEX:
+        notifier = &vdev->req_notifier;
+        break;
+    case VFIO_PCI_ERR_IRQ_INDEX:
+        notifier = &vdev->err_notifier;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    if (ioctl(vdev->vbasedev.fd,
+              VFIO_DEVICE_GET_IRQ_INFO, &irq_info) < 0 || irq_info.count < 1) {
+        error_setg_errno(errp, errno, "No irq index %d available", index);
+        return;
+    }
+
+    if (enable) {
+        ret = event_notifier_init(notifier, 0);
+        if (ret) {
+            error_setg_errno(errp, -ret,
+                             "Unable to init event notifier for irq index %d",
+                             index);
+            return;
+        }
+    }
+
+    argsz = sizeof(*irq_set) + sizeof(*pfd);
+
+    irq_set = g_malloc0(argsz);
+    irq_set->argsz = argsz;
+    irq_set->flags = VFIO_IRQ_SET_DATA_EVENTFD |
+                     VFIO_IRQ_SET_ACTION_TRIGGER;
+    irq_set->index = index;
+    irq_set->start = 0;
+    irq_set->count = 1;
+    pfd = (int32_t *)&irq_set->data;
+
+    if (!notifier) {
+        error_setg(errp, "Notifier not initialized for irq index %d", index);
+        return;
+    }
+
+    fd = event_notifier_get_fd(notifier);
+
+    if (enable) {
+        qemu_set_fd_handler(fd, handler, NULL, vdev);
+        *pfd = fd;
+    } else {
+        *pfd = -1;
+    }
+
+    ret = ioctl(vdev->vbasedev.fd, VFIO_DEVICE_SET_IRQS, irq_set);
+    g_free(irq_set);
+
+    if (ret) {
+        error_setg_errno(errp, -ret,
+                         "Failed to %s eventfd signalling for index %d",
+                         enable ? "set up" : "tear down", index);
+    }
+    if (ret || !enable) {
+        qemu_set_fd_handler(fd, NULL, NULL, vdev);
+        event_notifier_cleanup(notifier);
+    }
+}
+
 static void vfio_intx_enable_kvm(VFIOPCIDevice *vdev, Error **errp)
 {
 #ifdef CONFIG_KVM
@@ -2621,86 +2711,6 @@ static void vfio_err_notifier_handler(void *opaque)
     vm_stop(RUN_STATE_INTERNAL_ERROR);
 }
 
-/*
- * Registers error notifier for devices supporting error recovery.
- * If we encounter a failure in this function, we report an error
- * and continue after disabling error recovery support for the
- * device.
- */
-static void vfio_register_err_notifier(VFIOPCIDevice *vdev)
-{
-    int ret;
-    int argsz;
-    struct vfio_irq_set *irq_set;
-    int32_t *pfd;
-
-    if (!vdev->pci_aer) {
-        return;
-    }
-
-    if (event_notifier_init(&vdev->err_notifier, 0)) {
-        error_report("vfio: Unable to init event notifier for error detection");
-        vdev->pci_aer = false;
-        return;
-    }
-
-    argsz = sizeof(*irq_set) + sizeof(*pfd);
-
-    irq_set = g_malloc0(argsz);
-    irq_set->argsz = argsz;
-    irq_set->flags = VFIO_IRQ_SET_DATA_EVENTFD |
-                     VFIO_IRQ_SET_ACTION_TRIGGER;
-    irq_set->index = VFIO_PCI_ERR_IRQ_INDEX;
-    irq_set->start = 0;
-    irq_set->count = 1;
-    pfd = (int32_t *)&irq_set->data;
-
-    *pfd = event_notifier_get_fd(&vdev->err_notifier);
-    qemu_set_fd_handler(*pfd, vfio_err_notifier_handler, NULL, vdev);
-
-    ret = ioctl(vdev->vbasedev.fd, VFIO_DEVICE_SET_IRQS, irq_set);
-    if (ret) {
-        error_report("vfio: Failed to set up error notification");
-        qemu_set_fd_handler(*pfd, NULL, NULL, vdev);
-        event_notifier_cleanup(&vdev->err_notifier);
-        vdev->pci_aer = false;
-    }
-    g_free(irq_set);
-}
-
-static void vfio_unregister_err_notifier(VFIOPCIDevice *vdev)
-{
-    int argsz;
-    struct vfio_irq_set *irq_set;
-    int32_t *pfd;
-    int ret;
-
-    if (!vdev->pci_aer) {
-        return;
-    }
-
-    argsz = sizeof(*irq_set) + sizeof(*pfd);
-
-    irq_set = g_malloc0(argsz);
-    irq_set->argsz = argsz;
-    irq_set->flags = VFIO_IRQ_SET_DATA_EVENTFD |
-                     VFIO_IRQ_SET_ACTION_TRIGGER;
-    irq_set->index = VFIO_PCI_ERR_IRQ_INDEX;
-    irq_set->start = 0;
-    irq_set->count = 1;
-    pfd = (int32_t *)&irq_set->data;
-    *pfd = -1;
-
-    ret = ioctl(vdev->vbasedev.fd, VFIO_DEVICE_SET_IRQS, irq_set);
-    if (ret) {
-        error_report("vfio: Failed to de-assign error fd: %m");
-    }
-    g_free(irq_set);
-    qemu_set_fd_handler(event_notifier_get_fd(&vdev->err_notifier),
-                        NULL, NULL, vdev);
-    event_notifier_cleanup(&vdev->err_notifier);
-}
-
 static void vfio_req_notifier_handler(void *opaque)
 {
     VFIOPCIDevice *vdev = opaque;
@@ -2714,86 +2724,6 @@ static void vfio_req_notifier_handler(void *opaque)
     if (err) {
         warn_reportf_err(err, VFIO_MSG_PREFIX, vdev->vbasedev.name);
     }
-}
-
-static void vfio_register_req_notifier(VFIOPCIDevice *vdev)
-{
-    struct vfio_irq_info irq_info = { .argsz = sizeof(irq_info),
-                                      .index = VFIO_PCI_REQ_IRQ_INDEX };
-    int argsz;
-    struct vfio_irq_set *irq_set;
-    int32_t *pfd;
-
-    if (!(vdev->features & VFIO_FEATURE_ENABLE_REQ)) {
-        return;
-    }
-
-    if (ioctl(vdev->vbasedev.fd,
-              VFIO_DEVICE_GET_IRQ_INFO, &irq_info) < 0 || irq_info.count < 1) {
-        return;
-    }
-
-    if (event_notifier_init(&vdev->req_notifier, 0)) {
-        error_report("vfio: Unable to init event notifier for device request");
-        return;
-    }
-
-    argsz = sizeof(*irq_set) + sizeof(*pfd);
-
-    irq_set = g_malloc0(argsz);
-    irq_set->argsz = argsz;
-    irq_set->flags = VFIO_IRQ_SET_DATA_EVENTFD |
-                     VFIO_IRQ_SET_ACTION_TRIGGER;
-    irq_set->index = VFIO_PCI_REQ_IRQ_INDEX;
-    irq_set->start = 0;
-    irq_set->count = 1;
-    pfd = (int32_t *)&irq_set->data;
-
-    *pfd = event_notifier_get_fd(&vdev->req_notifier);
-    qemu_set_fd_handler(*pfd, vfio_req_notifier_handler, NULL, vdev);
-
-    if (ioctl(vdev->vbasedev.fd, VFIO_DEVICE_SET_IRQS, irq_set)) {
-        error_report("vfio: Failed to set up device request notification");
-        qemu_set_fd_handler(*pfd, NULL, NULL, vdev);
-        event_notifier_cleanup(&vdev->req_notifier);
-    } else {
-        vdev->req_enabled = true;
-    }
-
-    g_free(irq_set);
-}
-
-static void vfio_unregister_req_notifier(VFIOPCIDevice *vdev)
-{
-    int argsz;
-    struct vfio_irq_set *irq_set;
-    int32_t *pfd;
-
-    if (!vdev->req_enabled) {
-        return;
-    }
-
-    argsz = sizeof(*irq_set) + sizeof(*pfd);
-
-    irq_set = g_malloc0(argsz);
-    irq_set->argsz = argsz;
-    irq_set->flags = VFIO_IRQ_SET_DATA_EVENTFD |
-                     VFIO_IRQ_SET_ACTION_TRIGGER;
-    irq_set->index = VFIO_PCI_REQ_IRQ_INDEX;
-    irq_set->start = 0;
-    irq_set->count = 1;
-    pfd = (int32_t *)&irq_set->data;
-    *pfd = -1;
-
-    if (ioctl(vdev->vbasedev.fd, VFIO_DEVICE_SET_IRQS, irq_set)) {
-        error_report("vfio: Failed to de-assign device request fd: %m");
-    }
-    g_free(irq_set);
-    qemu_set_fd_handler(event_notifier_get_fd(&vdev->req_notifier),
-                        NULL, NULL, vdev);
-    event_notifier_cleanup(&vdev->req_notifier);
-
-    vdev->req_enabled = false;
 }
 
 static void vfio_realize(PCIDevice *pdev, Error **errp)
@@ -3069,8 +2999,33 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
         goto out_teardown;
     }
 
-    vfio_register_err_notifier(vdev);
-    vfio_register_req_notifier(vdev);
+    if (vdev->pci_aer) {
+        Error *err = NULL;
+
+        /*
+         * Registers error notifier for devices supporting error recovery.
+         * If we encounter a failure during registration, we report an error
+         * and continue after disabling error recovery support for the
+         * device.
+         */
+        vfio_set_event_handler(vdev, VFIO_PCI_ERR_IRQ_INDEX, true,
+                               vfio_err_notifier_handler, &err);
+        if (err) {
+            warn_reportf_err(err, VFIO_MSG_PREFIX, vdev->vbasedev.name);
+        }
+        vdev->pci_aer = !err;
+    }
+
+    if (vdev->features & VFIO_FEATURE_ENABLE_REQ) {
+        Error *err = NULL;
+
+        vfio_set_event_handler(vdev, VFIO_PCI_REQ_IRQ_INDEX, true,
+                               vfio_req_notifier_handler, &err);
+        if (err) {
+            warn_reportf_err(err, VFIO_MSG_PREFIX, vdev->vbasedev.name);
+        }
+        vdev->req_enabled = !err;
+    }
     vfio_setup_resetfn_quirk(vdev);
 
     return;
@@ -3106,9 +3061,22 @@ static void vfio_instance_finalize(Object *obj)
 static void vfio_exitfn(PCIDevice *pdev)
 {
     VFIOPCIDevice *vdev = PCI_VFIO(pdev);
+    Error *err = NULL;
 
-    vfio_unregister_req_notifier(vdev);
-    vfio_unregister_err_notifier(vdev);
+    if (vdev->req_enabled) {
+        vfio_set_event_handler(vdev, VFIO_PCI_REQ_IRQ_INDEX,
+                               false, NULL, &err);
+        if (err) {
+            warn_reportf_err(err, VFIO_MSG_PREFIX, vdev->vbasedev.name);
+        }
+    }
+    if (vdev->pci_aer) {
+        vfio_set_event_handler(vdev, VFIO_PCI_ERR_IRQ_INDEX,
+                                     false, NULL, &err);
+        if (err) {
+            warn_reportf_err(err, VFIO_MSG_PREFIX, vdev->vbasedev.name);
+        }
+    }
     pci_device_set_intx_routing_notifier(&vdev->pdev, NULL);
     vfio_disable_interrupts(vdev);
     if (vdev->intx.mmap_timer) {
