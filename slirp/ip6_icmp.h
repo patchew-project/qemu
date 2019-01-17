@@ -48,12 +48,12 @@ struct ndp_ra {     /* Router Advertisement Message */
     uint16_t lifetime;      /* Router Lifetime */
     uint32_t reach_time;    /* Reachable Time */
     uint32_t retrans_time;  /* Retrans Timer */
-} QEMU_PACKED;
+} SLIRP_PACKED;
 
 struct ndp_ns {     /* Neighbor Solicitation Message */
     uint32_t reserved;
     struct in6_addr target; /* Target Address */
-} QEMU_PACKED;
+} SLIRP_PACKED;
 
 struct ndp_na {     /* Neighbor Advertisement Message */
 #if G_BYTE_ORDER == G_BIG_ENDIAN
@@ -72,13 +72,13 @@ struct ndp_na {     /* Neighbor Advertisement Message */
         reserved_lo:24;
 #endif
     struct in6_addr target; /* Target Address */
-} QEMU_PACKED;
+} SLIRP_PACKED;
 
 struct ndp_redirect {
     uint32_t reserved;
     struct in6_addr target; /* Target Address */
     struct in6_addr dest;   /* Destination Address */
-} QEMU_PACKED;
+} SLIRP_PACKED;
 
 /*
  * Structure of an icmpv6 header.
@@ -103,7 +103,7 @@ struct icmp6 {
 #define icmp6_nns icmp6_body.ndp_ns
 #define icmp6_nna icmp6_body.ndp_na
 #define icmp6_redirect icmp6_body.ndp_redirect
-} QEMU_PACKED;
+} SLIRP_PACKED;
 
 #define ICMP6_MINLEN    4
 #define ICMP6_ERROR_MINLEN  8
@@ -134,16 +134,16 @@ struct ndpopt {
             uint32_t    pref_lt;                /* Preferred Lifetime */
             uint32_t    reserved2;
             struct in6_addr prefix;
-        } QEMU_PACKED prefixinfo;
+        } SLIRP_PACKED prefixinfo;
 #define ndpopt_prefixinfo ndpopt_body.prefixinfo
         struct rdnss {
             uint16_t reserved;
             uint32_t lifetime;
             struct in6_addr addr;
-        } QEMU_PACKED rdnss;
+        } SLIRP_PACKED rdnss;
 #define ndpopt_rdnss ndpopt_body.rdnss
     } ndpopt_body;
-} QEMU_PACKED;
+} SLIRP_PACKED;
 
 /* NDP options type */
 #define NDPOPT_LINKLAYER_SOURCE     1   /* Source Link-Layer Address */

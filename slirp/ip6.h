@@ -133,7 +133,7 @@ struct ip6 {
     uint8_t     ip_nh;               /* next header */
     uint8_t     ip_hl;               /* hop limit */
     struct in6_addr ip_src, ip_dst;  /* source and dest address */
-} QEMU_PACKED;
+} SLIRP_PACKED;
 
 /*
  * IPv6 pseudo-header used by upper-layer protocols
@@ -145,7 +145,7 @@ struct ip6_pseudohdr {
     uint16_t    ih_zero_hi;       /* zero */
     uint8_t     ih_zero_lo;       /* zero */
     uint8_t     ih_nh;            /* next header */
-} QEMU_PACKED;
+} SLIRP_PACKED;
 
 
 #endif
