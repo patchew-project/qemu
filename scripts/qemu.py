@@ -35,7 +35,6 @@ def kvm_available(target_arch=None):
 #: Maps machine types to the preferred console device types
 CONSOLE_DEV_TYPES = {
     r'^clipper$': 'isa-serial',
-    r'^malta': 'isa-serial',
     r'^(pc.*|q35.*|isapc)$': 'isa-serial',
     r'^(40p|powernv|prep)$': 'isa-serial',
     r'^pseries.*': 'spapr-vty',
