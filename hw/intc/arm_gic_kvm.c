@@ -554,8 +554,9 @@ static void kvm_arm_gic_realize(DeviceState *dev, Error **errp)
                               KVM_DEV_ARM_VGIC_CTRL_INIT, NULL, true,
                               &error_abort);
         }
-    } else if (ret != -ENODEV && ret != -ENOTSUP) {
-        error_setg_errno(errp, -ret, "error creating in-kernel VGIC");
+    } else if (ret != -ENOTSUP) {
+        error_setg_errno(errp, -ret, "error creating in-kernel VGIC, maybe "
+                                     "vGICv2 not support on this platform");
         return;
     }
 
