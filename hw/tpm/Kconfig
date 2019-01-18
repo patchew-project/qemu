@@ -13,6 +13,8 @@ config TPM_CRB
 
 config TPM_PASSTHROUGH
     bool
+    depends on TPM
 
 config TPM_EMULATOR
     bool
+    depends on TPM
