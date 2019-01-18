@@ -82,6 +82,7 @@ config VGA
 
 config QXL
     bool
+    default y if PC
     depends on SPICE && PCI
     select VGA
 
