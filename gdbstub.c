@@ -1306,6 +1306,10 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
         put_packet(s, "OK");
         break;
     case '?':
+        if (!s->c_cpu) {
+            put_packet(s, "E22");
+            break;
+        }
         /* TODO: Make this return the correct value for user-mode.  */
         snprintf(buf, sizeof(buf), "T%02xthread:%s;", GDB_SIGNAL_TRAP,
                  gdb_fmt_thread_id(s, s->c_cpu, thread_id, sizeof(thread_id)));
@@ -1394,6 +1398,10 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
         /* Detach packet */
         pid = 1;
 
+        if (!s->c_cpu || !s->g_cpu) {
+            put_packet(s, "E22");
+            break;
+        }
         if (s->multiprocess) {
             unsigned long lpid;
             if (*p != ';') {
@@ -1429,6 +1437,10 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
         put_packet(s, "OK");
         break;
     case 's':
+        if (!s->s_cpu) {
+            put_packet(s, "E22");
+            break;
+        }
         if (*p != '\0') {
             addr = strtoull(p, (char **)&p, 16);
             gdb_set_cpu_pc(s, addr);
@@ -1441,6 +1453,10 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
             target_ulong ret;
             target_ulong err;
 
+            if (!s->s_cpu) {
+                put_packet(s, "E22");
+                break;
+            }
             ret = strtoull(p, (char **)&p, 16);
             if (*p == ',') {
                 p++;
@@ -1463,6 +1479,10 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
         }
         break;
     case 'g':
+        if (!s->g_cpu) {
+            put_packet(s, "E22");
+            break;
+        }
         cpu_synchronize_state(s->g_cpu);
         len = 0;
         for (addr = 0; addr < s->g_cpu->gdb_num_g_regs; addr++) {
@@ -1473,6 +1493,10 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
         put_packet(s, buf);
         break;
     case 'G':
+        if (!s->g_cpu) {
+            put_packet(s, "E22");
+            break;
+        }
         cpu_synchronize_state(s->g_cpu);
         registers = mem_buf;
         len = strlen(p) / 2;
@@ -1485,6 +1509,10 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
         put_packet(s, "OK");
         break;
     case 'm':
+        if (!s->g_cpu) {
+            put_packet(s, "E22");
+            break;
+        }
         addr = strtoull(p, (char **)&p, 16);
         if (*p == ',')
             p++;
@@ -1504,6 +1532,10 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
         }
         break;
     case 'M':
+        if (!s->g_cpu) {
+            put_packet(s, "E22");
+            break;
+        }
         addr = strtoull(p, (char **)&p, 16);
         if (*p == ',')
             p++;
@@ -1642,6 +1674,10 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
             put_packet(s, "OK");
             break;
         } else if (strcmp(p,"C") == 0) {
+            if (!s->g_cpu) {
+                put_packet(s, "E22");
+                break;
+            }
             /*
              * "Current thread" remains vague in the spec, so always return
              * the first thread of the current process (gdb returns the
@@ -1745,6 +1781,10 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
             const char *xml;
             target_ulong total_len;
 
+            if (!s->g_cpu) {
+                put_packet(s, "E22");
+                break;
+            }
             process = gdb_get_cpu_process(s, s->g_cpu);
             cc = CPU_GET_CLASS(s->g_cpu);
             if (cc->gdb_core_xml_file == NULL) {
