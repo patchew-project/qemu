@@ -1,1 +1,3 @@
-obj-y += machine.o pci.o dino.o
+obj-y += pci.o
+obj-$(CONFIG_HPPA) += machine.o
+obj-$(CONFIG_DINO) += dino.o
