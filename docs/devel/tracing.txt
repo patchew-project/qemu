@@ -317,6 +317,38 @@ probes:
                          --target-name x86_64 \
                          <trace-events-all >qemu.stp
 
+To facilitate simple usage of systemtap where there merely needs to be printf
+logging of certain probes, a helper script "qemu-trace-stap" is provided
+
+This can list all probes available for a given QEMU emulator binary:
+
+     $ qemu-trace-stap list qemu-system-x86_64
+     ahci_check_irq
+     ahci_cmd_done
+     ahci_dma_prepare_buf
+     ahci_dma_prepare_buf_fail
+     ahci_dma_rw_buf
+     ahci_irq_lower
+     ...snip...
+
+Optionally restricted to a pattern prefix:
+
+     $ qemu-trace-stap list qemu-system-x86_64 qio*
+     qio_channel_command_abort
+     qio_channel_command_new_pid
+     qio_channel_command_new_spawn
+     qio_channel_command_wait
+     qio_channel_file_new_fd
+     ...snip...
+
+It can then run a simple systemtap script which prints each requested probe
+
+     $ qemu-trace-stap run qemu-system-x86_64 qio*
+     22806@1547735341399856820 qio_channel_socket_new Socket new ioc=0x56135d1d7c00
+     22806@1547735341399862570 qio_task_new Task new task=0x56135cd66eb0 source=0x56135d1d7c00 func=0x56135af746c0 opaque=0x56135bf06400
+     22806@1547735341399865943 qio_task_thread_start Task thread start task=0x56135cd66eb0 worker=0x56135af72e50 opaque=0x56135c071d70
+     22806@1547735341399976816 qio_task_thread_run Task thread run task=0x56135cd66eb0
+
 == Trace event properties ==
 
 Each event in the "trace-events-all" file can be prefixed with a space-separated
