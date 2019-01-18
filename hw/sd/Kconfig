@@ -9,3 +9,6 @@ config SD
 
 config SDHCI
     bool
+    default y
+    depends on PCI
+    select SD
