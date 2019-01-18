@@ -1,2 +1,5 @@
 config PCI
     bool
+
+config PCIE
+    bool
