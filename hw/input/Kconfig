@@ -21,6 +21,8 @@ config TSC2005
 
 config VIRTIO_INPUT
     bool
+    default y
+    depends on VIRTIO
 
 config TSC210X
     bool
