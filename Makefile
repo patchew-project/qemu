@@ -336,6 +336,11 @@ MINIKCONF_ARGS = \
 
 MINIKCONF = $(SHELL) $(SRC_PATH)/scripts/minikconf.sh
 
+.PHONY: allyesconfig allnoconfig defconfig randconfig
+allyesconfig allnoconfig defconfig randconfig:
+	rm */config-devices.mak config-all-devices.mak
+	$(MAKE) MINIKCONF="$(MINIKCONF) --$<" config-all-devices.mak
+
 %/config-devices.mak: default-configs/%-softmmu.mak Kconfig.host hw/Kconfig
 	$(call quiet-command, \
             $(MINIKCONF) $@ $*-config-devices.mak.d $^ $(MINIKCONF_ARGS) > $@.tmp, "  GEN   $@.tmp")
