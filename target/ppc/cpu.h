@@ -1157,6 +1157,11 @@ struct CPUPPCState {
     uint32_t tm_vscr;
     uint64_t tm_dscr;
     uint64_t tm_tar;
+
+    /* Used for software single step */
+    target_ulong sstep_msr;
+    target_ulong sstep_srr0;
+    target_ulong sstep_srr1;
 };
 
 #define SET_FIT_PERIOD(a_, b_, c_, d_)          \
