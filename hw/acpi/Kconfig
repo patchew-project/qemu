@@ -18,9 +18,13 @@ config ACPI_MEMORY_HOTPLUG
 
 config ACPI_NVDIMM
     bool
+    default y
+    depends on I440FX || Q35
 
 config ACPI_VMGENID
     bool
+    default y
+    depends on I440FX || Q35
 
 config IPMI
     bool
