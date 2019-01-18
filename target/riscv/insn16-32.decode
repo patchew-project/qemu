@@ -22,3 +22,10 @@
 # *** RV32C Standard Extension (Quadrant 0) ***
 flw     011 ... ... .. ... 00   @cl_w
 fsw     111 ... ... .. ... 00   @cs_w
+
+# *** RV32C Standard Extension (Quadrant 1) ***
+jal     001 ......   ..... 01   &j imm=%imm_cj rd=1
+
+# *** RV32C Standard Extension (Quadrant 2) ***
+flw     011 . .....  ..... 10   &i imm=%uimm_6bit_lw %rd rs1=2
+fsw     111 ......   ..... 10   &s imm=%uimm_6bit_sw rs2=2 rs1=%rs2_5

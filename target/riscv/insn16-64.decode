@@ -24,5 +24,10 @@ ld      011  ... ... .. ... 00 @cl_d
 sd      111  ... ... .. ... 00 @cs_d
 
 # *** RV64C Standard Extension (Quadrant 1) ***
+addiw             001 .  .....  ..... 01 @ci
 subw              100 1 11 ... 00 ... 01 @cs_2
 addw              100 1 11 ... 01 ... 01 @cs_2
+
+# *** RV64C Standard Extension (Quadrant 2) ***
+ld      011 .  .....  ..... 10 &i imm=%uimm_6bit_ld %rd rs1=2
+sd      111 ......    ..... 10 &s imm=%uimm_6bit_sd rs2=%rs2_5 rs1=2
