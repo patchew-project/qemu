@@ -2,7 +2,6 @@
 
 CONFIG_PCI=y
 CONFIG_ISA_BUS=y
-include usb.mak
 include hyperv.mak
 CONFIG_VGA_ISA=y
 CONFIG_VMWARE_VGA=y

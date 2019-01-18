@@ -1,6 +1,5 @@
 # Default configuration for sh4eb-softmmu
 
-include usb.mak
 CONFIG_PCI=y
 CONFIG_SERIAL=y
 CONFIG_SERIAL_ISA=y
