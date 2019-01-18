@@ -1,7 +1,7 @@
 # Default configuration for i386-softmmu
 
 CONFIG_PCI=y
-include sound.mak
+CONFIG_ISA_BUS=y
 include usb.mak
 include hyperv.mak
 CONFIG_VGA_ISA=y
