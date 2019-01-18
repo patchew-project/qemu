@@ -3,12 +3,18 @@ config KVM
 
 config I440FX
     bool
+    select QXL if SPICE
+    select TPM_TIS if TPM
+    select XEN_I386 if XEN
 
 config ISAPC
     bool
 
 config Q35
     bool
+    select QXL if SPICE
+    select TPM_TIS if TPM
+    select XEN_I386 if XEN
 
 config VTD
     bool
