@@ -38,6 +38,7 @@ config VGA_PCI
     default y
     depends on PCI
     select VGA
+    select EDID
 
 config VGA_ISA
     bool
@@ -59,6 +60,7 @@ config BOCHS_DISPLAY
     default y
     depends on PCI
     select VGA
+    select EDID
 
 config BLIZZARD
     bool
