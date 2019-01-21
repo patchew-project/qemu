@@ -36,4 +36,7 @@ typedef struct S390CCWDeviceClass {
     IOInstEnding (*handle_request) (SubchDev *sch);
 } S390CCWDeviceClass;
 
+int vfio_ccw_handle_clear(SubchDev *sch);
+int vfio_ccw_handle_halt(SubchDev *sch);
+
 #endif
