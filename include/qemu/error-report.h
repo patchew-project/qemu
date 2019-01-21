@@ -49,6 +49,8 @@ bool error_report_once_cond(bool *printed, const char *fmt, ...)
 bool warn_report_once_cond(bool *printed, const char *fmt, ...)
     GCC_FMT_ATTR(2, 3);
 
+void qemu_init_logging(void);
+
 /*
  * Similar to error_report(), except it prints the message just once.
  * Return true when it prints, false otherwise.
