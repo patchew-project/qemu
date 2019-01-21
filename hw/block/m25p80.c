@@ -340,6 +340,7 @@ typedef enum {
     BULK_ERASE = 0xc7,
     READ_FSR = 0x70,
     RDCR = 0x15,
+    RDSFPD = 0x5a,
 
     READ = 0x03,
     READ4 = 0x13,
@@ -405,6 +406,7 @@ typedef enum {
     STATE_COLLECTING_DATA,
     STATE_COLLECTING_VAR_LEN_DATA,
     STATE_READING_DATA,
+    STATE_READING_SFPD,
 } CMDState;
 
 typedef enum {
@@ -456,6 +458,8 @@ typedef struct Flash {
 
     int64_t dirty_page;
 
+#define M25P80_SFPD_AREA_SIZE 0x100
+    uint8_t sfpd_area[M25P80_SFPD_AREA_SIZE];
     const FlashPartInfo *pi;
 
 } Flash;
@@ -626,6 +630,8 @@ static inline int get_addr_length(Flash *s)
     }
 
    switch (s->cmd_in_progress) {
+   case RDSFPD:
+       return 3;
    case PP4:
    case PP4_4:
    case QPP_4:
@@ -748,9 +754,53 @@ static void complete_collecting_data(Flash *s)
                           " by device\n");
         }
         break;
+
+    case RDSFPD:
+        if (s->cur_addr < M25P80_SFPD_AREA_SIZE) {
+            s->state = STATE_READING_SFPD;
+        } else {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "M25P80: Invalid SFPD address %#" PRIx32 "\n",
+                          s->cur_addr);
+        }
+        break;
+
     default:
         break;
     }
+}
+
+static void reset_memory_sfpd(Flash *s)
+{
+    s->sfpd_area[0x00] = 'S';
+    s->sfpd_area[0x01] = 'F';
+    s->sfpd_area[0x02] = 'P';
+    s->sfpd_area[0x03] = 'D';
+
+    s->sfpd_area[0x04] = 0x00; /* SFDP Minor Revision Number  */
+    s->sfpd_area[0x05] = 0x01; /* SFDP Major Revision Number  */
+    s->sfpd_area[0x06] = 0x01; /* Number of Parameter Headers */
+    s->sfpd_area[0x07] = 0xFF; /* Unused */
+
+    s->sfpd_area[0x08] = 0x00; /* ID Number. 0x0 : JEDEC */
+    s->sfpd_area[0x09] = 0x00; /* Parameter Table Minor Revision */
+    s->sfpd_area[0x0A] = 0x01; /* Parameter Table Major Revision */
+    s->sfpd_area[0x0B] = 0x09; /* Parameter Table Length (DWORD) */
+    s->sfpd_area[0x0C] = 0x30; /* Parameter Table Pointer */
+    s->sfpd_area[0x0D] = 0x00; /* Parameter Table Pointer */
+    s->sfpd_area[0x0E] = 0x00; /* Parameter Table Pointer */
+    s->sfpd_area[0x0F] = 0xFF; /* Unused */
+
+    s->sfpd_area[0x10] = s->pi->id[0]; /* ID Number. Manufacturer */
+    s->sfpd_area[0x11] = 0x00; /* Parameter Table Minor Revision */
+    s->sfpd_area[0x12] = 0x01; /* Parameter Table Major Revision */
+    s->sfpd_area[0x13] = 0x04; /* Parameter Table Length (DWORD) */
+    s->sfpd_area[0x14] = 0x60; /* Parameter Table Pointer */
+    s->sfpd_area[0x15] = 0x00; /* Parameter Table Pointer */
+    s->sfpd_area[0x16] = 0x00; /* Parameter Table Pointer */
+    s->sfpd_area[0x17] = 0xFF; /* Unused */
+
+    /* TODO: populate accordingly to chip model */
 }
 
 static void reset_memory(Flash *s)
@@ -821,6 +871,8 @@ static void reset_memory(Flash *s)
     default:
         break;
     }
+
+    reset_memory_sfpd(s);
 
     DB_PRINT_L(0, "Reset done.\n");
 }
@@ -1049,6 +1101,13 @@ static void decode_new_cmd(Flash *s, uint32_t value)
         s->state = STATE_READING_DATA;
         break;
 
+    case RDSFPD:
+        s->needed_bytes = get_addr_length(s) + 1 ; /* SFPD addr + dummy */
+        s->pos = 0;
+        s->len = 0;
+        s->state = STATE_COLLECTING_DATA;
+        break;
+
     case RDCR:
         s->data[0] = s->volatile_cfg & 0xFF;
         s->data[0] |= (!!s->four_bytes_address_mode) << 5;
@@ -1241,6 +1300,8 @@ static uint32_t m25p80_transfer8(SSISlave *ss, uint32_t tx)
         }
 
         r = s->data[s->pos];
+        DB_PRINT_L(1, "READ DATA 0x%" PRIx32 "=%" PRIx8 "\n", s->pos,
+                   (uint8_t)r);
         s->pos++;
         if (s->pos == s->len) {
             s->pos = 0;
@@ -1248,6 +1309,12 @@ static uint32_t m25p80_transfer8(SSISlave *ss, uint32_t tx)
                 s->state = STATE_IDLE;
             }
         }
+        break;
+    case STATE_READING_SFPD:
+        r = s->sfpd_area[s->cur_addr];
+        DB_PRINT_L(1, "READ SFPD 0x%" PRIx32 "=%" PRIx8 "\n", s->cur_addr,
+                   (uint8_t)r);
+        s->cur_addr = (s->cur_addr + 1) & (M25P80_SFPD_AREA_SIZE - 1);
         break;
 
     default:
