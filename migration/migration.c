@@ -3051,7 +3051,13 @@ static void migration_update_counters(MigrationState *s,
      * recalculate. 10000 is a small enough number for our purposes
      */
     if (ram_counters.dirty_pages_rate && transferred > 10000) {
-        s->expected_downtime = ram_counters.remaining / bandwidth;
+        /* Time required to transfer remaining ram */
+        remaining_ram_transfer_time = ram_counters.remaining / bandwidth
+
+        /* redirty of ram at the time remaining ram gets transferred*/
+        newly_dirtied_ram = ram_counters.dirty_pages_rate * remaining_ram_transfer_time
+
+        s->expected_downtime = (ram_counters.remaining + newly_dirtied_ram) / bandwidth;
     }
 
     qemu_file_reset_rate_limit(s->to_dst_file);
