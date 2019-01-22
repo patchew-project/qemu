@@ -833,7 +833,19 @@ L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/arm/nrf51_soc.c
 F: hw/arm/microbit.c
+F: hw/char/nrf51_uart.c
+F: hw/gpio/nrf51_gpio.c
+F: hw/i2c/microbit_i2c.c
+F: hw/misc/nrf51_rng.c
+F: hw/timer/nrf51_timer.c
 F: include/hw/arm/nrf51_soc.h
+F: include/hw/arm/nrf51.h
+F: include/hw/char/nrf51_uart.h
+F: include/hw/gpio/nrf51_gpio.h
+F: include/hw/i2c/microbit_i2c.h
+F: include/hw/misc/nrf51_rng.h
+F: include/hw/timer/nrf51_timer.h
+F: tests/microbit-test.c
 
 CRIS Machines
 -------------
