@@ -826,6 +826,11 @@ static void s390_pcihost_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
 {
     S390pciState *s = S390_PCI_HOST_BRIDGE(hotplug_dev);
 
+    if (!s390_has_feat(S390_FEAT_ZPCI)) {
+        warn_report("Adding PCI or zPCI devices without the 'zpci' CPU feature."
+                    " The guest will not be able to see/use these devices.");
+    }
+
     if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
         PCIDevice *pdev = PCI_DEVICE(dev);
 
