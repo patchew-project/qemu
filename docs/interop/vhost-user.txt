@@ -142,6 +142,18 @@ Depending on the request type, payload can be:
    Offset: a 64-bit offset of this area from the start of the
        supplied file descriptor
 
+ * Inflight description
+   ---------------------------------------------------------------
+   | mmap size | mmap offset | version | num queues | queue size |
+   ---------------------------------------------------------------
+
+   mmap size: a 64-bit size of area to track inflight I/O
+   mmap offset: a 64-bit offset of this area from the start
+                of the supplied file descriptor
+   version: a 16-bit version of this area
+   num queues: a 16-bit number of virtqueues
+   queue size: a 16-bit size of virtqueues
+
 In QEMU the vhost-user message is implemented with the following struct:
 
 typedef struct VhostUserMsg {
@@ -157,6 +169,7 @@ typedef struct VhostUserMsg {
         struct vhost_iotlb_msg iotlb;
         VhostUserConfig config;
         VhostUserVringArea area;
+        VhostUserInflight inflight;
     };
 } QEMU_PACKED VhostUserMsg;
 
@@ -175,6 +188,7 @@ the ones that do:
  * VHOST_USER_GET_PROTOCOL_FEATURES
  * VHOST_USER_GET_VRING_BASE
  * VHOST_USER_SET_LOG_BASE (if VHOST_USER_PROTOCOL_F_LOG_SHMFD)
+ * VHOST_USER_GET_INFLIGHT_FD (if VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD)
 
 [ Also see the section on REPLY_ACK protocol extension. ]
 
@@ -188,6 +202,7 @@ in the ancillary data:
  * VHOST_USER_SET_VRING_CALL
  * VHOST_USER_SET_VRING_ERR
  * VHOST_USER_SET_SLAVE_REQ_FD
+ * VHOST_USER_SET_INFLIGHT_FD (if VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD)
 
 If Master is unable to send the full message or receives a wrong reply it will
 close the connection. An optional reconnection mechanism can be implemented.
@@ -382,6 +397,71 @@ If VHOST_USER_PROTOCOL_F_SLAVE_SEND_FD protocol feature is negotiated,
 slave can send file descriptors (at most 8 descriptors in each message)
 to master via ancillary data using this fd communication channel.
 
+Inflight I/O tracking
+---------------------
+
+To support reconnecting after restart or crash, slave may need to get
+and resubmit inflight I/O. If virtqueue is processed in order, we can
+easily achieve that by getting the inflight head-descriptor from avail ring.
+However, it can't work when we process descriptors out-of-order because
+some entries which store inflight head-descriptor in avail ring might be
+overrided by new entries. To solve this problem, slave need to allocate a
+buffer to track inflight head-descriptor and share it with master for
+persistent. VHOST_USER_GET_INFLIGHT_FD and VHOST_USER_SET_INFLIGHT_FD are
+used to transfer this buffer between master and slave. And the format of
+this buffer is described below:
+
+-------------------------------------------------------
+| queue0 region | queue1 region | ... | queueN region |
+-------------------------------------------------------
+
+N is the number of available virtqueues. Slave could get it from num queues
+field of VhostUserInflight.
+
+Queue region can be implemented as:
+
+typedef struct DescState {
+    uint8_t inuse;
+    uint8_t version;
+    uint16_t used_idx;
+    uint16_t avail_idx;
+    uint16_t reserved;
+} DescState;
+
+typedef struct QueueRegion {
+    uint8_t valid;
+    uint16_t desc_num;
+    DescState desc[0];
+} QueueRegion;
+
+The struct DescState is used to describe one head-descriptor's state. The
+fields have following meanings:
+
+    inuse: Indicate whether the descriptor is inuse or not.
+
+    version: Indicate whether we have an atomic update to used ring and
+    inflight buffer when slave crash at that point. This field should be
+    increased by one before and after this two updates. An odd version
+    indicates an in-progress update.
+
+    used_idx: Store old index of used ring before we update used ring and
+    inflight buffer so that slave can know whether an odd version inflight
+    head-descriptor in inflight buffer is processed or not.
+
+    avail_idx: Used to preserve the descriptor's order in avail ring so that
+    slave can resubmit descriptors in order.
+
+    reserved: Reserved for future use.
+
+An array of struct DescState is maintained to track all head-descriptors' state
+in queue region. The desc_num is the number of those head-descriptors which is
+also equal to the queue size of the virtqueue. Slave could get it from queue size
+field of VhostUserInflight. The valid field is used to specify whether the region
+is valid or not. Slave can use it to detect whether vm is reset because qemu will
+clear the buffer when the reset happens.
+
+Note that slave should align each region to cache line size.
+
 Protocol features
 -----------------
 
@@ -397,6 +477,7 @@ Protocol features
 #define VHOST_USER_PROTOCOL_F_CONFIG         9
 #define VHOST_USER_PROTOCOL_F_SLAVE_SEND_FD  10
 #define VHOST_USER_PROTOCOL_F_HOST_NOTIFIER  11
+#define VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD 12
 
 Master message types
 --------------------
@@ -760,6 +841,26 @@ Master message types
       is sent at the end of the migration, after VHOST_USER_POSTCOPY_LISTEN
       was previously sent.
       The value returned is an error indication; 0 is success.
+
+ * VHOST_USER_GET_INFLIGHT_FD
+      Id: 31
+      Equivalent ioctl: N/A
+      Master payload: inflight description
+
+      When VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD protocol feature has been
+      successfully negotiated, this message is submitted by master to get
+      a shared buffer from slave. The shared buffer will be used to track
+      inflight I/O by slave. QEMU should clear it when vm reset.
+
+ * VHOST_USER_SET_INFLIGHT_FD
+      Id: 32
+      Equivalent ioctl: N/A
+      Master payload: inflight description
+
+      When VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD protocol feature has been
+      successfully negotiated, this message is submitted by master to send
+      the shared inflight buffer back to slave so that slave could get
+      inflight I/O after a crash or restart.
 
 Slave message types
 -------------------
