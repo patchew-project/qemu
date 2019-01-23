@@ -24,6 +24,14 @@
 #include "qemu/thread.h"
 #include "trace.h"
 
+struct QIOTaskThreadData {
+    QIOTaskWorker worker;
+    gpointer opaque;
+    GDestroyNotify destroy;
+    GMainContext *context;
+};
+
+
 struct QIOTask {
     Object *source;
     QIOTaskFunc func;
@@ -32,6 +40,7 @@ struct QIOTask {
     Error *err;
     gpointer result;
     GDestroyNotify destroyResult;
+    struct QIOTaskThreadData *thread;
 };
 
 
@@ -72,31 +81,23 @@ static void qio_task_free(QIOTask *task)
 }
 
 
-struct QIOTaskThreadData {
-    QIOTask *task;
-    QIOTaskWorker worker;
-    gpointer opaque;
-    GDestroyNotify destroy;
-    GMainContext *context;
-};
-
-
 static gboolean qio_task_thread_result(gpointer opaque)
 {
-    struct QIOTaskThreadData *data = opaque;
+    QIOTask *task = opaque;
 
-    trace_qio_task_thread_result(data->task);
-    qio_task_complete(data->task);
+    trace_qio_task_thread_result(task);
+    qio_task_complete(task);
 
-    if (data->destroy) {
-        data->destroy(data->opaque);
+    if (task->thread->destroy) {
+        task->thread->destroy(task->thread->opaque);
     }
 
-    if (data->context) {
-        g_main_context_unref(data->context);
+    if (task->thread->context) {
+        g_main_context_unref(task->thread->context);
     }
 
-    g_free(data);
+    g_free(task->thread);
+    task->thread = NULL;
 
     return FALSE;
 }
@@ -104,22 +105,23 @@ static gboolean qio_task_thread_result(gpointer opaque)
 
 static gpointer qio_task_thread_worker(gpointer opaque)
 {
-    struct QIOTaskThreadData *data = opaque;
+    QIOTask *task = opaque;
     GSource *idle;
 
-    trace_qio_task_thread_run(data->task);
-    data->worker(data->task, data->opaque);
+    trace_qio_task_thread_run(task);
+
+    task->thread->worker(task, task->thread->opaque);
 
     /* We're running in the background thread, and must only
      * ever report the task results in the main event loop
      * thread. So we schedule an idle callback to report
      * the worker results
      */
-    trace_qio_task_thread_exit(data->task);
+    trace_qio_task_thread_exit(task);
 
     idle = g_idle_source_new();
-    g_source_set_callback(idle, qio_task_thread_result, data, NULL);
-    g_source_attach(idle, data->context);
+    g_source_set_callback(idle, qio_task_thread_result, task, NULL);
+    g_source_attach(idle, task->thread->context);
 
     return NULL;
 }
@@ -138,17 +140,18 @@ void qio_task_run_in_thread(QIOTask *task,
         g_main_context_ref(context);
     }
 
-    data->task = task;
     data->worker = worker;
     data->opaque = opaque;
     data->destroy = destroy;
     data->context = context;
 
+    task->thread = data;
+
     trace_qio_task_thread_start(task, worker, opaque);
     qemu_thread_create(&thread,
                        "io-task-worker",
                        qio_task_thread_worker,
-                       data,
+                       task,
                        QEMU_THREAD_DETACHED);
 }
 
