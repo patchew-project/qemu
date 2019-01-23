@@ -3,18 +3,25 @@ config VIRTIO
 
 config VIRTIO_RNG
     bool
+    default y
+    depends on VIRTIO
 
 config VIRTIO_PCI
     bool
     default y
     depends on PCI
-    select VIRTIO
+    depends on VIRTIO
 
 config VIRTIO_MMIO
     bool
+    depends on VIRTIO
 
 config VIRTIO_BALLOON
     bool
+    default y
+    depends on VIRTIO
 
 config VIRTIO_CRYPTO
     bool
+    default y
+    depends on VIRTIO

@@ -22,6 +22,7 @@ config PCI_SABRE
 config PCI_PIIX
     bool
     select PCI
+    select VIRTIO
 
 config PCI_EXPRESS_Q35
     bool
@@ -30,6 +31,7 @@ config PCI_EXPRESS_Q35
     select XIO3130
     select IOH3420
     select I82801B11
+    select VIRTIO
 
 config PCI_EXPRESS_GENERIC_BRIDGE
     bool
