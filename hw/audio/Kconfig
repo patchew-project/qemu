@@ -35,6 +35,8 @@ config HDA
 
 config PCSPK
     bool
+    default y
+    depends on ISA_BUS
 
 config WM8750
     bool
