@@ -312,6 +312,9 @@ endif
 SUBDIR_MAKEFLAGS=$(if $(V),,--no-print-directory --quiet) BUILD_DIR=$(BUILD_DIR)
 SUBDIR_DEVICES_MAK=$(patsubst %, %/config-devices.mak, $(TARGET_DIRS))
 SUBDIR_DEVICES_MAK_DEP=$(patsubst %, %-config-devices.mak.d, $(TARGET_DIRS))
+SUBDIR_TARGET_MAK=$(patsubst %, %/config-target.mak, $(TARGET_DIRS))
+
+-include $(SUBDIR_TARGET_MAK)
 
 ifeq ($(SUBDIR_DEVICES_MAK),)
 config-all-devices.mak:
@@ -332,16 +335,13 @@ MINIKCONF_ARGS = \
     CONFIG_SPICE=$(CONFIG_SPICE) \
     CONFIG_TPM=$(CONFIG_TPM) \
     CONFIG_XEN=$(CONFIG_XEN) \
-    CONFIG_OPENGL=$(CONFIG_OPENGL)
+    CONFIG_OPENGL=$(CONFIG_OPENGL) \
+    CONFIG_VHOST_USER=$(CONFIG_VHOST_USER) \
+    CONFIG_LINUX=$(CONFIG_LINUX)
 
-MINIKCONF = $(SHELL) $(SRC_PATH)/scripts/minikconf.sh
+MINIKCONF = $(PYTHON) $(SRC_PATH)/scripts/minikconf.py --defconfig
 
-.PHONY: allyesconfig allnoconfig defconfig randconfig
-allyesconfig allnoconfig defconfig randconfig:
-	rm */config-devices.mak config-all-devices.mak
-	$(MAKE) MINIKCONF="$(MINIKCONF) --$<" config-all-devices.mak
-
-%/config-devices.mak: default-configs/%-softmmu.mak Kconfig.host hw/Kconfig
+%/config-devices.mak: default-configs/%.mak Kconfig.host $(SRC_PATH)/hw/Kconfig
 	$(call quiet-command, \
             $(MINIKCONF) $@ $*-config-devices.mak.d $^ $(MINIKCONF_ARGS) > $@.tmp, "  GEN   $@.tmp")
 	$(call quiet-command, if test -f $@; then \

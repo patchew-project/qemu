@@ -48,3 +48,5 @@ config VIRTIO_SCSI
 
 config VHOST_USER_SCSI
     bool
+    default y
+    depends on VHOST_USER && LINUX
