@@ -906,3 +906,17 @@ void pcie_ats_init(PCIDevice *dev, uint16_t offset)
 
     pci_set_word(dev->wmask + dev->exp.ats_cap + PCI_ATS_CTRL, 0x800f);
 }
+
+/* Add an ACS (Access Control Services) capability */
+void pcie_acs_init(PCIDevice *dev, uint16_t offset, uint8_t egress_ctrl_vec_sz)
+{
+    int ectrl_words = (egress_ctrl_vec_sz + 31) & ~31;
+    pcie_add_capability(dev, PCI_EXT_CAP_ID_ACS, PCI_ACS_VER,
+                        offset, PCI_ACS_SIZEOF + ectrl_words);
+    pci_set_word(dev->config + offset + PCI_ACS_CAP,
+                 PCI_ACS_SV | PCI_ACS_TB | PCI_ACS_RR | PCI_ACS_CR | PCI_ACS_UF);
+    pci_set_word(dev->config + offset + PCI_ACS_CTRL,
+                 PCI_ACS_SV | PCI_ACS_TB | PCI_ACS_RR | PCI_ACS_CR | PCI_ACS_UF);
+    /* Make CTRL register writable */
+    memset(dev->wmask + offset + PCI_ACS_CTRL, 0xff, 2);
+}
