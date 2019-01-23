@@ -29,6 +29,7 @@ struct QIOTaskThreadData {
     gpointer opaque;
     GDestroyNotify destroy;
     GMainContext *context;
+    GSource *completion;
 };
 
 
@@ -40,6 +41,8 @@ struct QIOTask {
     Error *err;
     gpointer result;
     GDestroyNotify destroyResult;
+    QemuMutex thread_lock;
+    QemuCond thread_cond;
     struct QIOTaskThreadData *thread;
 };
 
@@ -58,6 +61,8 @@ QIOTask *qio_task_new(Object *source,
     task->func = func;
     task->opaque = opaque;
     task->destroy = destroy;
+    qemu_mutex_init(&task->thread_lock);
+    qemu_cond_init(&task->thread_cond);
 
     trace_qio_task_new(task, source, func, opaque);
 
@@ -77,6 +82,9 @@ static void qio_task_free(QIOTask *task)
     }
     object_unref(task->source);
 
+    qemu_mutex_destroy(&task->thread_lock);
+    qemu_cond_destroy(&task->thread_cond);
+
     g_free(task);
 }
 
@@ -86,7 +94,6 @@ static gboolean qio_task_thread_result(gpointer opaque)
     QIOTask *task = opaque;
 
     trace_qio_task_thread_result(task);
-    qio_task_complete(task);
 
     if (task->thread->destroy) {
         task->thread->destroy(task->thread->opaque);
@@ -98,6 +105,7 @@ static gboolean qio_task_thread_result(gpointer opaque)
 
     g_free(task->thread);
     task->thread = NULL;
+    qio_task_complete(task);
 
     return FALSE;
 }
@@ -106,7 +114,6 @@ static gboolean qio_task_thread_result(gpointer opaque)
 static gpointer qio_task_thread_worker(gpointer opaque)
 {
     QIOTask *task = opaque;
-    GSource *idle;
 
     trace_qio_task_thread_run(task);
 
@@ -119,9 +126,17 @@ static gpointer qio_task_thread_worker(gpointer opaque)
      */
     trace_qio_task_thread_exit(task);
 
-    idle = g_idle_source_new();
-    g_source_set_callback(idle, qio_task_thread_result, task, NULL);
-    g_source_attach(idle, task->thread->context);
+    qemu_mutex_lock(&task->thread_lock);
+
+    task->thread->completion = g_idle_source_new();
+    g_source_set_callback(task->thread->completion,
+                          qio_task_thread_result, task, NULL);
+    g_source_attach(task->thread->completion,
+                    task->thread->context);
+    trace_qio_task_thread_source_attach(task, task->thread->completion);
+
+    qemu_cond_signal(&task->thread_cond);
+    qemu_mutex_unlock(&task->thread_lock);
 
     return NULL;
 }
@@ -153,6 +168,22 @@ void qio_task_run_in_thread(QIOTask *task,
                        qio_task_thread_worker,
                        task,
                        QEMU_THREAD_DETACHED);
+}
+
+
+void qio_task_wait_thread(QIOTask *task)
+{
+    qemu_mutex_lock(&task->thread_lock);
+    g_assert(task->thread != NULL);
+    while (task->thread->completion == NULL) {
+        qemu_cond_wait(&task->thread_cond, &task->thread_lock);
+    }
+
+    trace_qio_task_thread_source_cancel(task, task->thread->completion);
+    g_source_destroy(task->thread->completion);
+    qemu_mutex_unlock(&task->thread_lock);
+
+    qio_task_thread_result(task);
 }
 
 
