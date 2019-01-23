@@ -24,12 +24,16 @@ config PCI_PIIX
 
 config PCI_EXPRESS_Q35
     bool
+    select PCI_EXPRESS
 
 config PCI_EXPRESS_GENERIC_BRIDGE
     bool
+    select PCI_EXPRESS
 
 config PCI_EXPRESS_XILINX
     bool
+    select PCI_EXPRESS
 
 config PCI_EXPRESS_DESIGNWARE
     bool
+    select PCI_EXPRESS

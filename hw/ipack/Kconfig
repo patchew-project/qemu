@@ -1,2 +1,4 @@
 config IPACK
     bool
+    default y
+    depends on PCI

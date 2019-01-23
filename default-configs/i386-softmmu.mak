@@ -1,11 +1,10 @@
 # Default configuration for i386-softmmu
 
-include pci.mak
+CONFIG_PCI=y
 include sound.mak
 include usb.mak
 include hyperv.mak
 CONFIG_VGA_ISA=y
-CONFIG_VGA_CIRRUS=y
 CONFIG_VMWARE_VGA=y
 CONFIG_VMXNET3_PCI=y
 CONFIG_VIRTIO_VGA=y
@@ -52,7 +51,6 @@ CONFIG_MEM_DEVICE=y
 CONFIG_DIMM=y
 CONFIG_NVDIMM=y
 CONFIG_ACPI_NVDIMM=y
-CONFIG_PCIE_PORT=y
 CONFIG_XIO3130=y
 CONFIG_IOH3420=y
 CONFIG_I82801B11=y
