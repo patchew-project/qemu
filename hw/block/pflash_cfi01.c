@@ -446,6 +446,7 @@ static inline void pflash_data_write(pflash_t *pfl, hwaddr offset,
         break;
     }
 
+    memory_region_flush_rom_device(&pfl->mem, offset, width);
 }
 
 static void pflash_write(pflash_t *pfl, hwaddr offset,
@@ -482,6 +483,8 @@ static void pflash_write(pflash_t *pfl, hwaddr offset,
             if (!pfl->ro) {
                 memset(p + offset, 0xff, pfl->sector_len);
                 pflash_update(pfl, offset, pfl->sector_len);
+                memory_region_flush_rom_device(&pfl->mem, offset,
+                                               pfl->sector_len);
             } else {
                 pfl->status |= 0x20; /* Block erase error */
             }
@@ -763,6 +766,8 @@ static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
             error_setg(errp, "failed to read the initial flash content");
             return;
         }
+
+        memory_region_flush_rom_device(&pfl->mem, 0, total_len);
     }
 
     /* Default to devices being used at their maximum device width. This was

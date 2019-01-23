@@ -378,6 +378,8 @@ static void pflash_write (pflash_t *pfl, hwaddr offset,
                     pflash_update(pfl, offset, 4);
                     break;
                 }
+
+                memory_region_flush_rom_device(&pfl->orig_mem, offset, width);
             }
             pfl->status = 0x00 | ~(value & 0x80);
             /* Let's pretend write is immediate */
@@ -426,6 +428,8 @@ static void pflash_write (pflash_t *pfl, hwaddr offset,
             if (!pfl->ro) {
                 memset(pfl->storage, 0xFF, pfl->chip_len);
                 pflash_update(pfl, 0, pfl->chip_len);
+                memory_region_flush_rom_device(&pfl->orig_mem, 0,
+                                               pfl->chip_len);
             }
             pfl->status = 0x00;
             /* Let's wait 5 seconds before chip erase is done */
@@ -441,6 +445,8 @@ static void pflash_write (pflash_t *pfl, hwaddr offset,
             if (!pfl->ro) {
                 memset(p + offset, 0xFF, pfl->sector_len);
                 pflash_update(pfl, offset, pfl->sector_len);
+                memory_region_flush_rom_device(&pfl->orig_mem, offset,
+                                               pfl->sector_len);
             }
             pfl->status = 0x00;
             /* Let's wait 1/2 second before sector erase is done */
@@ -590,6 +596,8 @@ static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
             error_setg(errp, "failed to read the initial flash content");
             return;
         }
+
+        memory_region_flush_rom_device(&pfl->orig_mem, 0, chip_len);
     }
 
     pflash_setup_mappings(pfl);
