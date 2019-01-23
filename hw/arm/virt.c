@@ -1359,6 +1359,22 @@ static uint64_t virt_cpu_mp_affinity(VirtMachineState *vms, int idx)
     return arm_cpu_mp_affinity(idx, clustersz);
 }
 
+static void set_memory_map(VirtMachineState *vms)
+{
+    int i;
+
+    vms->memmap = extended_memmap;
+
+    for (i = 0; i < ARRAY_SIZE(a15memmap); i++) {
+        vms->memmap[i] = a15memmap[i];
+    }
+
+    for (i = VIRT_LOWMEMMAP_LAST; i < ARRAY_SIZE(extended_memmap); i++) {
+        vms->memmap[i].base = extended_memmap[i].base + vms->high_io_base;
+        vms->memmap[i].size = extended_memmap[i].size;
+    }
+}
+
 static void machvirt_init(MachineState *machine)
 {
     VirtMachineState *vms = VIRT_MACHINE(machine);
@@ -1372,6 +1388,8 @@ static void machvirt_init(MachineState *machine)
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     bool firmware_loaded = bios_name || drive_get(IF_PFLASH, 0, 0);
     bool aarch64 = true;
+
+    set_memory_map(vms);
 
     /* We can probe only here because during property set
      * KVM is not available yet
@@ -1786,7 +1804,6 @@ static void virt_instance_init(Object *obj)
 {
     VirtMachineState *vms = VIRT_MACHINE(obj);
     VirtMachineClass *vmc = VIRT_MACHINE_GET_CLASS(vms);
-    int i;
 
     /* EL3 is disabled by default on virt: this makes us consistent
      * between KVM and TCG for this board, and it also allows us to
@@ -1849,18 +1866,7 @@ static void virt_instance_init(Object *obj)
                                     "Valid values are none and smmuv3",
                                     NULL);
 
-    vms->memmap = extended_memmap;
-
-    for (i = 0; i < ARRAY_SIZE(a15memmap); i++) {
-        vms->memmap[i] = a15memmap[i];
-    }
-
-    vms->high_io_base = S_256GiB; /* Top of the RAM */
-
-    for (i = VIRT_LOWMEMMAP_LAST; i < ARRAY_SIZE(extended_memmap); i++) {
-        vms->memmap[i].base = extended_memmap[i].base + vms->high_io_base;
-        vms->memmap[i].size = extended_memmap[i].size;
-    }
+    vms->high_io_base = S_256GiB; /* default RAM top */
     vms->irqmap = a15irqmap;
 }
 
