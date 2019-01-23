@@ -71,7 +71,6 @@ static int ioh3420_interrupts_init(PCIDevice *d, Error **errp)
     if (rc < 0) {
         assert(rc == -ENOTSUP);
     }
-
     return rc;
 }
 

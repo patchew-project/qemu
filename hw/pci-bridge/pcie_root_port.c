@@ -106,6 +106,9 @@ static void rp_realize(PCIDevice *d, Error **errp)
     pcie_aer_root_init(d);
     rp_aer_vector_update(d);
 
+    if (rpc->acs_offset) {
+        pcie_acs_init(d, rpc->acs_offset, 0);
+    }
     return;
 
 err:
