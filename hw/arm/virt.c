@@ -61,6 +61,7 @@
 #include "hw/arm/smmuv3.h"
 #include "hw/mem/pc-dimm.h"
 #include "hw/mem/nvdimm.h"
+#include "hw/acpi/acpi.h"
 
 #define DEFINE_VIRT_MACHINE_LATEST(major, minor, latest) \
     static void virt_##major##_##minor##_class_init(ObjectClass *oc, \
@@ -1255,6 +1256,37 @@ static void create_secure_ram(VirtMachineState *vms,
     g_free(nodename);
 }
 
+static void create_device_memory(VirtMachineState *vms, MemoryRegion *sysmem)
+{
+    MachineState *ms = MACHINE(vms);
+    uint64_t device_memory_size = ms->maxram_size - ms->ram_size;
+    uint64_t align = GiB;
+
+    if (!device_memory_size) {
+        return;
+    }
+
+    if (ms->ram_slots > ACPI_MAX_RAM_SLOTS) {
+        error_report("unsupported number of memory slots: %"PRIu64,
+                     ms->ram_slots);
+        exit(EXIT_FAILURE);
+    }
+
+    if (QEMU_ALIGN_UP(ms->maxram_size, align) != ms->maxram_size) {
+        error_report("maximum memory size must be aligned to multiple of 0x%"
+                     PRIx64, align);
+        exit(EXIT_FAILURE);
+    }
+
+    ms->device_memory = g_malloc0(sizeof(*ms->device_memory));
+    ms->device_memory->base = QEMU_ALIGN_UP(GiB + ms->ram_size, GiB);
+
+    memory_region_init(&ms->device_memory->mr, OBJECT(vms),
+                       "device-memory", device_memory_size);
+    memory_region_add_subregion(sysmem, ms->device_memory->base,
+                                &ms->device_memory->mr);
+}
+
 static void *machvirt_dtb(const struct arm_boot_info *binfo, int *fdt_size)
 {
     const VirtMachineState *board = container_of(binfo, VirtMachineState,
@@ -1541,6 +1573,10 @@ static void machvirt_init(MachineState *machine)
     memory_region_allocate_system_memory(ram, NULL, "mach-virt.ram",
                                          machine->ram_size);
     memory_region_add_subregion(sysmem, vms->memmap[VIRT_MEM].base, ram);
+
+    if (vms->extended_memmap) {
+        create_device_memory(vms, sysmem);
+    }
 
     create_flash(vms, sysmem, secure_sysmem ? secure_sysmem : sysmem);
 
