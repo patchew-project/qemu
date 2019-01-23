@@ -21,10 +21,15 @@ config PCI_SABRE
 
 config PCI_PIIX
     bool
+    select PCI
 
 config PCI_EXPRESS_Q35
     bool
     select PCI_EXPRESS
+    select PCI
+    select XIO3130
+    select IOH3420
+    select I82801B11
 
 config PCI_EXPRESS_GENERIC_BRIDGE
     bool
