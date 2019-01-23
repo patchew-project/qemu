@@ -856,9 +856,10 @@ static void char_null_test(void)
 static void char_invalid_test(void)
 {
     Chardev *chr;
-
+    setenv("QTEST_SILENT_ERRORS", "1", 1);
     chr = qemu_chr_new("label-invalid", "invalid");
     g_assert_null(chr);
+    unsetenv("QTEST_SILENT_ERRORS");
 }
 
 static int chardev_change(void *opaque)
