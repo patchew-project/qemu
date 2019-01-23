@@ -1,0 +1,5 @@
+config DP264
+    bool
+
+config TYPHOON
+    bool

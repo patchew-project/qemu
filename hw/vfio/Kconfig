@@ -1,0 +1,11 @@
+config VFIO_CCW
+    bool
+
+config VFIO_XGMAC
+    bool
+
+config VFIO_AMD_XGBE
+    bool
+
+config VFIO_AP
+    bool

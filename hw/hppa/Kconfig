@@ -1,0 +1,5 @@
+config HPPA
+    bool
+
+config DINO
+    bool
