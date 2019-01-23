@@ -18,9 +18,14 @@ config ACPI_MEMORY_HOTPLUG
 
 config ACPI_NVDIMM
     bool
+    default y
+    depends on PC || Q35
 
 config ACPI_VMGENID
     bool
+    default y
+    depends on PC || Q35
 
 config IPMI
     bool
+    depends on PC
