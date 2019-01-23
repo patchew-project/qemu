@@ -13,6 +13,7 @@
 #include "qemu/osdep.h"
 #include "qemu/mmap-alloc.h"
 #include "qemu/host-utils.h"
+#include "exec/memory.h"
 
 #define HUGETLBFS_MAGIC       0x958458f6
 
@@ -75,7 +76,7 @@ size_t qemu_mempath_getpagesize(const char *mem_path)
     return getpagesize();
 }
 
-void *qemu_ram_mmap(int fd, size_t size, size_t align, bool shared)
+void *qemu_ram_mmap(int fd, size_t size, size_t align, uint32_t flags)
 {
     /*
      * Note: this always allocates at least one extra page of virtual address
@@ -92,11 +93,12 @@ void *qemu_ram_mmap(int fd, size_t size, size_t align, bool shared)
      * anonymous memory is OK.
      */
     int anonfd = fd == -1 || qemu_fd_getpagesize(fd) == getpagesize() ? -1 : fd;
-    int flags = anonfd == -1 ? MAP_ANONYMOUS : MAP_NORESERVE;
-    void *ptr = mmap(0, total, PROT_NONE, flags | MAP_PRIVATE, anonfd, 0);
+    int mmap_flags = anonfd == -1 ? MAP_ANONYMOUS : MAP_NORESERVE;
+    void *ptr = mmap(0, total, PROT_NONE, mmap_flags | MAP_PRIVATE, anonfd, 0);
 #else
     void *ptr = mmap(0, total, PROT_NONE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
 #endif
+    bool shared = flags & RAM_SHARED;
     size_t offset;
     void *ptr1;
 
