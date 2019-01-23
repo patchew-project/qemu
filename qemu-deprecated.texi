@@ -175,3 +175,30 @@ The above, converted to the current supported format:
 @subsubsection "irq": "" (since 3.0.0)
 
 The ``irq'' property is obsoleted.
+
+@section Related binaries
+
+@subsection qemu-nbd --partition (since 4.0.0)
+
+The ``qemu-nbd --partition $digit'' code (also spelled @option{-P})
+can only handle MBR partitions, and does not correctly handle logical
+partitions beyond partition 5.  If you know the relative position of
+the partition (perhaps by using @code{sfdisk} or similar, either in
+the guest or when mapping the entire device through /dev/nbd0 in the
+host), you can achieve the effect of exporting just that subset of the
+disk by use of the @option{--image-opts} option with a raw blockdev
+using the @code{offset} and @code{size} parameters layered on top of
+any other existing blockdev.
+
+For example, if partition 1 is 100MiB starting at 1MiB, the old command
+
+@example{qemu-nbd -P 1 -f qcow2 file.qcow2}
+
+can be rewritten as:
+
+@example{qemu-nbd --image-opts driver=raw,offset=1M,size=100M,file.driver=qcow2,file.backing.driver=file,file.backing.filename=file.qcow2}
+
+Alternatively, the @code{nbdkit} project provides a more powerful
+partition filter on top of its nbd plugin, which can be used to select
+an arbitrary MBR or GPT partition on top of any other full-image NBD
+export.
