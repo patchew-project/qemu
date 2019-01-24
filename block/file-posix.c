@@ -160,6 +160,12 @@ typedef struct BDRVRawState {
     bool drop_cache;
     bool check_cache_dropped;
 
+    struct seek_data_cache {
+        bool        valid;
+        uint64_t    start;
+        uint64_t    end;
+    } seek_data_cache;
+
     PRManager *pr_mgr;
 } BDRVRawState;
 
@@ -1586,7 +1592,16 @@ static int handle_aiocb_write_zeroes_unmap(void *opaque)
 {
     RawPosixAIOData *aiocb = opaque;
     BDRVRawState *s G_GNUC_UNUSED = aiocb->bs->opaque;
+    struct seek_data_cache *sdc;
     int ret;
+
+    /* Invalidate seek_data_cache if it overlaps */
+    sdc = &s->seek_data_cache;
+    if (sdc->valid && !(sdc->end < aiocb->aio_offset ||
+                        sdc->start > aiocb->aio_offset + aiocb->aio_nbytes))
+    {
+        sdc->valid = false;
+    }
 
     /* First try to write zeros and unmap at the same time */
 
@@ -1665,9 +1680,18 @@ static int handle_aiocb_discard(void *opaque)
     RawPosixAIOData *aiocb = opaque;
     int ret = -EOPNOTSUPP;
     BDRVRawState *s = aiocb->bs->opaque;
+    struct seek_data_cache *sdc;
 
     if (!s->has_discard) {
         return -ENOTSUP;
+    }
+
+    /* Invalidate seek_data_cache if it overlaps */
+    sdc = &s->seek_data_cache;
+    if (sdc->valid && !(sdc->end < aiocb->aio_offset ||
+                        sdc->start > aiocb->aio_offset + aiocb->aio_nbytes))
+    {
+        sdc->valid = false;
     }
 
     if (aiocb->aio_type & QEMU_AIO_BLKDEV) {
@@ -2455,6 +2479,8 @@ static int coroutine_fn raw_co_block_status(BlockDriverState *bs,
                                             int64_t *map,
                                             BlockDriverState **file)
 {
+    BDRVRawState *s = bs->opaque;
+    struct seek_data_cache *sdc;
     off_t data = 0, hole = 0;
     int ret;
 
@@ -2465,6 +2491,14 @@ static int coroutine_fn raw_co_block_status(BlockDriverState *bs,
 
     if (!want_zero) {
         *pnum = bytes;
+        *map = offset;
+        *file = bs;
+        return BDRV_BLOCK_DATA | BDRV_BLOCK_OFFSET_VALID;
+    }
+
+    sdc = &s->seek_data_cache;
+    if (sdc->valid && sdc->start <= offset && sdc->end > offset) {
+        *pnum = MIN(bytes, sdc->end - offset);
         *map = offset;
         *file = bs;
         return BDRV_BLOCK_DATA | BDRV_BLOCK_OFFSET_VALID;
@@ -2482,14 +2516,27 @@ static int coroutine_fn raw_co_block_status(BlockDriverState *bs,
     } else if (data == offset) {
         /* On a data extent, compute bytes to the end of the extent,
          * possibly including a partial sector at EOF. */
-        *pnum = MIN(bytes, hole - offset);
+        *pnum = hole - offset;
         ret = BDRV_BLOCK_DATA;
     } else {
         /* On a hole, compute bytes to the beginning of the next extent.  */
         assert(hole == offset);
-        *pnum = MIN(bytes, data - offset);
+        *pnum = data - offset;
         ret = BDRV_BLOCK_ZERO;
     }
+
+    /* Caching allocated ranges is okay even if another process writes to the
+     * same file because we allow declaring things allocated even if there is a
+     * hole. However, we cannot cache holes without risking corruption. */
+    if (ret == BDRV_BLOCK_DATA) {
+        *sdc = (struct seek_data_cache) {
+            .valid  = true,
+            .start  = offset,
+            .end    = offset + *pnum,
+        };
+    }
+
+    *pnum = MIN(*pnum, bytes);
     *map = offset;
     *file = bs;
     return ret | BDRV_BLOCK_OFFSET_VALID;
