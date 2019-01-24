@@ -5066,7 +5066,9 @@ void bdrv_detach_aio_context(BlockDriverState *bs)
         bs->drv->bdrv_detach_aio_context(bs);
     }
     QLIST_FOREACH(child, &bs->children, next) {
-        bdrv_detach_aio_context(child->bs);
+        if (!child->bs->walking_aio_notifiers) {
+            bdrv_detach_aio_context(child->bs);
+        }
     }
 
     bs->aio_context = NULL;
@@ -5085,7 +5087,9 @@ void bdrv_attach_aio_context(BlockDriverState *bs,
     bs->aio_context = new_context;
 
     QLIST_FOREACH(child, &bs->children, next) {
-        bdrv_attach_aio_context(child->bs, new_context);
+        if (!child->bs->walking_aio_notifiers) {
+            bdrv_attach_aio_context(child->bs, new_context);
+        }
     }
     if (bs->drv->bdrv_attach_aio_context) {
         bs->drv->bdrv_attach_aio_context(bs, new_context);
