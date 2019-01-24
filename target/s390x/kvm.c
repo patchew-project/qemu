@@ -285,33 +285,28 @@ void kvm_s390_crypto_reset(void)
     }
 }
 
-static int kvm_s390_configure_mempath_backing(KVMState *s)
+static int kvm_s390_configure_hugepage_backing(KVMState *s)
 {
-    size_t path_psize = qemu_mempath_getpagesize(mem_path);
+    size_t psize = qemu_getrampagesize();
 
-    if (path_psize == 4 * KiB) {
-        return 0;
-    }
+    if (psize == 1 * MiB) {
+        if (!hpage_1m_allowed()) {
+            error_report("This QEMU machine does not support huge page "
+                         "mappings");
+            return -EINVAL;
+        }
 
-    if (!hpage_1m_allowed()) {
-        error_report("This QEMU machine does not support huge page "
-                     "mappings");
-        return -EINVAL;
-    }
-
-    if (path_psize != 1 * MiB) {
+        if (kvm_vm_enable_cap(s, KVM_CAP_S390_HPAGE_1M, 0)) {
+            error_report("Memory backing with 1M pages was specified, "
+                         "but KVM does not support this memory backing");
+            return -EINVAL;
+        }
+        cap_hpage_1m = 1;
+    } else if (psize == 2 * GiB) {
         error_report("Memory backing with 2G pages was specified, "
                      "but KVM does not support this memory backing");
         return -EINVAL;
     }
-
-    if (kvm_vm_enable_cap(s, KVM_CAP_S390_HPAGE_1M, 0)) {
-        error_report("Memory backing with 1M pages was specified, "
-                     "but KVM does not support this memory backing");
-        return -EINVAL;
-    }
-
-    cap_hpage_1m = 1;
     return 0;
 }
 
@@ -319,7 +314,7 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
 {
     MachineClass *mc = MACHINE_GET_CLASS(ms);
 
-    if (mem_path && kvm_s390_configure_mempath_backing(s)) {
+    if (kvm_s390_configure_hugepage_backing(s)) {
         return -EINVAL;
     }
 
