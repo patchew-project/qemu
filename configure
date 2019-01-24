@@ -4099,6 +4099,17 @@ EOF
   if compile_prog "" "" ; then
     opengl_dmabuf=yes
   fi
+  cat > $TMPC << EOF
+#include <epoxy/egl.h>
+int main(void) { return 0; }
+EOF
+  if test "$targetos" = "OpenBSD" ; then
+    if ! compile_prog "-Wundef -Werror" "" ; then
+      if compile_prog "-Wundef -Werror -D__HAIKU__=0" "" ; then
+        QEMU_CFLAGS="$QEMU_CFLAGS -D__HAIKU__=0"
+      fi
+    fi
+  fi
 fi
 
 if test "$opengl" = "yes" && test "$have_x11" = "yes"; then
