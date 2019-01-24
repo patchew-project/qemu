@@ -1370,7 +1370,12 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
     case 'k':
         /* Kill the target */
         error_report("QEMU: Terminated via GDBstub");
+#ifdef CONFIG_USER_ONLY
         exit(0);
+#else
+        qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
+#endif
+        break;
     case 'D':
         /* Detach packet */
         pid = 1;
