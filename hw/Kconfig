@@ -63,6 +63,8 @@ source xtensa/Kconfig
 # Symbols used by multiple targets
 config XILINX
     bool
+    select PTIMER # for hw/timer/xilinx_timer.c
 
 config XILINX_AXI
     bool
+    select PTIMER # for hw/dma/xilinx_axidma.c
