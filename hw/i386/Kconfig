@@ -5,6 +5,10 @@ config SEV
 config PC
     bool
 
+config SEV
+    bool
+    default y if PC && KVM
+
 config PC
     bool
     select ISA_DEBUG
@@ -28,6 +32,7 @@ config PC_ACPI
     select ACPI_CPU_HOTPLUG
     select ACPI_MEMORY_HOTPLUG
     select SMBUS_EEPROM
+    select PFLASH_CFI01
     depends on ACPI_SMBUS
 
 config I440FX

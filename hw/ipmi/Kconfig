@@ -3,12 +3,20 @@ config IPMI
 
 config IPMI_LOCAL
     bool
+    default y
+    depends on IPMI
 
 config IPMI_EXTERN
     bool
+    default y
+    depends on IPMI
 
 config ISA_IPMI_KCS
     bool
+    default y if PC
+    select IPMI
 
 config ISA_IPMI_BT
     bool
+    default y if PC
+    select IPMI

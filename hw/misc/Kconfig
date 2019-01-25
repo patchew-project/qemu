@@ -1,5 +1,6 @@
 config APPLESMC
     bool
+    default y if PC
     depends on ISA_BUS
 
 config MAX111X
@@ -19,10 +20,12 @@ config ISA_DEBUG
 
 config SGA
     bool
+    default y if PC
     depends on ISA_BUS
 
 config ISA_TESTDEV
     bool
+    default y if PC
 
 config PCI_TESTDEV
     bool
@@ -100,6 +103,7 @@ config IOTKIT_SYSINFO
 
 config PVPANIC
     bool
+    default y if PC
     depends on ISA_BUS
 
 config AUX
