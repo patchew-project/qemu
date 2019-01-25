@@ -1397,6 +1397,7 @@ struct X86CPU {
     bool hyperv_tlbflush;
     bool hyperv_evmcs;
     bool hyperv_ipi;
+    bool hyperv_stimer_direct;
     bool hyperv_all;
     bool check_cpuid;
     bool enforce_cpuid;
