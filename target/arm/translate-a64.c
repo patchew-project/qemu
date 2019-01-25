@@ -4359,6 +4359,7 @@ static void disas_add_sub_ext_reg(DisasContext *s, uint32_t insn)
     bool setflags = extract32(insn, 29, 1);
     bool sub_op = extract32(insn, 30, 1);
     bool sf = extract32(insn, 31, 1);
+    bool opt = extract32(insn, 22, 2);
 
     TCGv_i64 tcg_rm, tcg_rn; /* temps */
     TCGv_i64 tcg_rd;
