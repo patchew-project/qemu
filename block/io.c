@@ -949,18 +949,13 @@ int bdrv_preadv(BdrvChild *child, int64_t offset, QEMUIOVector *qiov)
 
 int bdrv_pread(BdrvChild *child, int64_t offset, void *buf, int bytes)
 {
-    QEMUIOVector qiov;
-    struct iovec iov = {
-        .iov_base = (void *)buf,
-        .iov_len = bytes,
-    };
+    LocalQiov lq = LOCAL_QIOV(lq, buf, bytes);
 
     if (bytes < 0) {
         return -EINVAL;
     }
 
-    qemu_iovec_init_external(&qiov, &iov, 1);
-    return bdrv_preadv(child, offset, &qiov);
+    return bdrv_preadv(child, offset, &lq.qiov);
 }
 
 int bdrv_pwritev(BdrvChild *child, int64_t offset, QEMUIOVector *qiov)

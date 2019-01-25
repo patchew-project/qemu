@@ -137,6 +137,25 @@ typedef struct QEMUIOVector {
     size_t size;
 } QEMUIOVector;
 
+typedef struct LocalQiov {
+    QEMUIOVector qiov;
+    struct iovec iov;
+} LocalQiov;
+
+#define LOCAL_QIOV(self, buf, len)    \
+{                                     \
+    .qiov = {                         \
+        .iov = &self.iov,             \
+        .size = len,                  \
+        .niov = 1,                    \
+        .nalloc = -1                  \
+    },                                \
+    .iov = {                          \
+        .iov_base = (void *)(buf),    \
+        .iov_len = len                \
+    }                                 \
+}
+
 void qemu_iovec_init(QEMUIOVector *qiov, int alloc_hint);
 void qemu_iovec_init_external(QEMUIOVector *qiov, struct iovec *iov, int niov);
 void qemu_iovec_add(QEMUIOVector *qiov, void *base, size_t len);
