@@ -3581,6 +3581,15 @@ static void disas_ldst_single_struct(DisasContext *s, uint32_t insn)
         return;
     }
 
+    if (extract32(insn, 31, 1)) {
+        unallocated_encoding(s);
+        return;
+    }
+    if (!is_postidx && rm != 0) {
+        unallocated_encoding(s);
+        return;
+    }
+
     switch (scale) {
     case 3:
         if (!is_load || S) {
