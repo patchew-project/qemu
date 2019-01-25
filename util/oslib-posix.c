@@ -244,7 +244,9 @@ void qemu_set_nonblock(int fd)
     f = fcntl(fd, F_GETFL);
     assert(f != -1);
     f = fcntl(fd, F_SETFL, f | O_NONBLOCK);
+#ifndef __OpenBSD__
     assert(f != -1);
+#endif
 }
 
 int socket_set_fast_reuse(int fd)
