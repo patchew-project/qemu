@@ -7,9 +7,11 @@ config MAX111X
 
 config TMP105
     bool
+    depends on I2C
 
 config TMP421
     bool
+    depends on I2C
 
 config ISA_DEBUG
     bool
@@ -34,6 +36,7 @@ config EDU
 
 config PCA9552
     bool
+    depends on I2C
 
 config PL310
     bool
@@ -100,3 +103,4 @@ config PVPANIC
 
 config AUX
     bool
+    select I2C
