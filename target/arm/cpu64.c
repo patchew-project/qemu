@@ -413,8 +413,8 @@ static void aarch64_max_initfn(Object *obj)
                                 (void *)&apdb_bit, &error_fatal);
 
             /* Enable all PAC keys by default.  */
-            cpu->env.cp15.sctlr_el[1] |= SCTLR_EnIA | SCTLR_EnIB;
-            cpu->env.cp15.sctlr_el[1] |= SCTLR_EnDA | SCTLR_EnDB;
+            cpu->reset_sctlr |= SCTLR_EnIA | SCTLR_EnIB;
+            cpu->reset_sctlr |= SCTLR_EnDA | SCTLR_EnDB;
         }
 #endif
 
