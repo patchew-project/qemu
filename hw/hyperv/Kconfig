@@ -5,5 +5,5 @@ config HYPERV
 
 config HYPERV_TESTDEV
     bool
-    default y if PC
+    default y if TEST_DEVICES
     depends on HYPERV

@@ -3,6 +3,7 @@
 # Optional devices:
 #
 CONFIG_PCI_DEVICES=y
+CONFIG_TEST_DEVICES=y
 
 # Boards:
 #
