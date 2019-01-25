@@ -7,28 +7,30 @@ config VFIO_PCI
     select VFIO
     depends on LINUX
 
-config VFIO_SPAPR
-    bool
-    default y
-    depends on VFIO && LINUX && PSERIES
-
 config VFIO_CCW
     bool
+    default y
     select VFIO
-    depends on LINUX
+    depends on LINUX && S390_CCW_VIRTIO
 
 config VFIO_PLATFORM
     bool
+    default y
     select VFIO
-    depends on LINUX
+    depends on LINUX && PLATFORM_BUS
 
 config VFIO_XGMAC
     bool
+    default y
+    depends on VFIO_PLATFORM
 
 config VFIO_AMD_XGBE
     bool
+    default y
+    depends on VFIO_PLATFORM
 
 config VFIO_AP
     bool
+    default y
     select VFIO
-    depends on LINUX
+    depends on LINUX && S390_CCW_VIRTIO
