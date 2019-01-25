@@ -1,0 +1,23 @@
+# These are "proxy" symbols used to pass config-host.mak values
+# down to Kconfig.
+
+config KVM
+    bool
+
+config OPENGL
+    bool
+
+config SPICE
+    bool
+
+config TPM
+    bool
+
+config XEN
+    bool
+
+config VHOST_USER
+    bool
+
+config LINUX
+    bool
