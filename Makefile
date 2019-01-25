@@ -343,6 +343,11 @@ MINIKCONF_ARGS = \
 MINIKCONF_INPUTS = $(SRC_PATH)/Kconfig.host $(SRC_PATH)/hw/Kconfig
 MINIKCONF = $(PYTHON) $(SRC_PATH)/scripts/minikconf.py \
 
+.PHONY: allnoconfig defconfig
+allnoconfig defconfig:
+	rm */config-devices.mak config-all-devices.mak
+	$(MAKE) MINIKCONF="$(MINIKCONF) --$<" config-all-devices.mak
+
 %/config-devices.mak: default-configs/%.mak $(MINIKCONF_INPUTS)
 	$(call quiet-command, $(MINIKCONF) $(MINIKCONF_ARGS) > $@.tmp, "GEN", "$@.tmp")
 	$(call quiet-command, if test -f $@; then \
@@ -362,9 +367,6 @@ MINIKCONF = $(PYTHON) $(SRC_PATH)/scripts/minikconf.py \
 	  mv $@.tmp $@; \
 	  cp -p $@ $@.old; \
 	 fi,"GEN","$@");
-
-defconfig:
-	rm -f config-all-devices.mak $(SUBDIR_DEVICES_MAK)
 
 ifneq ($(wildcard config-host.mak),)
 include $(SRC_PATH)/Makefile.objs
