@@ -1,5 +1,5 @@
 FROM centos:7
-RUN yum install -y epel-release centos-release-xen
+RUN yum install -y epel-release
 RUN yum -y update
 ENV PACKAGES \
     bison \
@@ -8,7 +8,7 @@ ENV PACKAGES \
     ccache \
     csnappy-devel \
     flex \
-    g++ \
+    gcc-c++ \
     gcc \
     gettext \
     git \
@@ -29,7 +29,6 @@ ENV PACKAGES \
     spice-server-devel \
     tar \
     vte-devel \
-    xen-devel \
     zlib-devel
 RUN yum install -y $PACKAGES
 RUN rpm -q $PACKAGES | sort > /packages.txt
