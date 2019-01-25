@@ -146,7 +146,7 @@ This machine type uses an unmaintained firmware, broken in lots of ways,
 and unable to start post-2004 operating systems. 40p machine type should be
 used instead.
 
-@section Device options
+@section Devices
 
 @subsection Block device options
 
@@ -169,6 +169,26 @@ Example of legacy encoding:
 The above, converted to the current supported format:
 
 @code{json:@{"file.driver":"rbd", "file.pool":"rbd", "file.image":"name"@}}
+
+@subsection scsi-disk device identification (since 4.0.0)
+
+The Device Identification VPD page of ``scsi-disk'' devices contains a vendor
+specific designator that can be explicitly specified using the ``device_id''
+property since 4.0.0.
+
+If ``device_id'' is not given, the implementation falls back to reusing any
+specified serial number for this field. If the serial number is not given
+either and ``drive=X'' was used where ``X'' is a drive ID, this drive ID is
+given to the guest instead. This is backend information that should not
+to be exposed to guests.
+
+Therefore, this behaviour is deprecated and future versions will change the
+guest-visible behaviour (e.g. by leaving out the vendor specific designator)
+for the case that neither ``device_id'' nor a serial number are given, but a
+drive ID is used to create the device.
+
+If you need the guest-visible information to stay unchanged, add an explicit
+``device_id'' option to your QEMU invocation.
 
 @subsection vio-spapr-device device options
 

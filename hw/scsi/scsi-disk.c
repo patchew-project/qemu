@@ -2366,6 +2366,11 @@ static void scsi_realize(SCSIDevice *dev, Error **errp)
             const char *str = blk_name(s->qdev.conf.blk);
             if (str && *str) {
                 s->device_id = g_strdup(str);
+                warn_report("Using the backend drive ID for the Device "
+                            "Identification VPD page is deprecated. "
+                            "Please specify the serial or device_id options "
+                            "explicitly to avoid guest-visible changes in "
+                            "future QEMU versions.");
             }
         }
     }
