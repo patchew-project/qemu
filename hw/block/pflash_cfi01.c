@@ -438,6 +438,7 @@ static inline void pflash_data_write(PFlashCFI01 *pfl, hwaddr offset,
         break;
     }
 
+    memory_region_flush_rom_device(&pfl->mem, offset, width);
 }
 
 static void pflash_write(PFlashCFI01 *pfl, hwaddr offset,
@@ -474,6 +475,8 @@ static void pflash_write(PFlashCFI01 *pfl, hwaddr offset,
             if (!pfl->ro) {
                 memset(p + offset, 0xff, pfl->sector_len);
                 pflash_update(pfl, offset, pfl->sector_len);
+                memory_region_flush_rom_device(&pfl->mem, offset,
+                                               pfl->sector_len);
             } else {
                 pfl->status |= 0x20; /* Block erase error */
             }
