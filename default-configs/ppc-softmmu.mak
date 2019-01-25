@@ -1,6 +1,5 @@
 # Default configuration for ppc-softmmu
 
-include usb.mak
 CONFIG_PCI=y
 CONFIG_PCI_DEVICES=y
 CONFIG_ISA_BUS=y
