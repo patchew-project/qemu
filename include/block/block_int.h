@@ -61,6 +61,12 @@
 
 #define BLOCK_PROBE_BUF_SIZE        512
 
+typedef enum BdrvYesNoUnknown {
+    BDRV_UNKNOWN = 0,
+    BDRV_NO,
+    BDRV_YES,
+} BdrvYesNoUnknown;
+
 enum BdrvTrackedRequestType {
     BDRV_TRACKED_READ,
     BDRV_TRACKED_WRITE,
@@ -746,6 +752,7 @@ struct BlockDriverState {
     bool probed;    /* if true, format was probed rather than specified */
     bool force_share; /* if true, always allow all shared permissions */
     bool implicit;  /* if true, this filter node was automatically inserted */
+    BdrvYesNoUnknown metadata_preallocation;
 
     BlockDriver *drv; /* NULL means no media */
     void *opaque;

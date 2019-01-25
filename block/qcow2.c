@@ -1900,6 +1900,13 @@ static int coroutine_fn qcow2_co_block_status(BlockDriverState *bs,
     unsigned int bytes;
     int status = 0;
 
+    if (bs->metadata_preallocation == BDRV_UNKNOWN) {
+        ret = qcow2_detect_metadata_preallocation(bs);
+        if (ret >= 0) {
+            bs->metadata_preallocation = ret ? BDRV_YES : BDRV_NO;
+        }
+    }
+
     bytes = MIN(INT_MAX, count);
     qemu_co_mutex_lock(&s->lock);
     ret = qcow2_get_cluster_offset(bs, offset, &bytes, &cluster_offset);
