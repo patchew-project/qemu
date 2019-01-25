@@ -1,18 +1,27 @@
 config TPM
     bool
 
+config TPMDEV
+    bool
+
 config TPM_TIS
     bool
     default y if PC
     depends on TPM
+    select TPMDEV
 
 config TPM_CRB
     bool
-    default y
-    depends on TPM && PC
+    default y if PC
+    depends on TPM
+    select TPMDEV
 
 config TPM_PASSTHROUGH
     bool
+    default y
+    depends on TPMDEV
 
 config TPM_EMULATOR
     bool
+    default y
+    depends on TPMDEV
