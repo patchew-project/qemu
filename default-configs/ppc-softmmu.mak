@@ -1,9 +1,9 @@
 # Default configuration for ppc-softmmu
 
-include sound.mak
 include usb.mak
 CONFIG_PCI=y
 CONFIG_PCI_DEVICES=y
+CONFIG_ISA_BUS=y
 
 # For embedded PPCs:
 CONFIG_PPC4XX=y
