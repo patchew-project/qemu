@@ -2,3 +2,4 @@ config VIRTFS
 
 config VIRTIO_9P
     bool
+    default y if VIRTFS

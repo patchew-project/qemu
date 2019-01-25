@@ -1,17 +1,26 @@
 config VFIO
     bool
+    depends on LINUX
 
 config VFIO_PCI
     bool
+    select VFIO
+    depends on LINUX
 
 config VFIO_SPAPR
     bool
+    default y
+    depends on VFIO && LINUX && PSERIES
 
 config VFIO_CCW
     bool
+    select VFIO
+    depends on LINUX
 
 config VFIO_PLATFORM
     bool
+    select VFIO
+    depends on LINUX
 
 config VFIO_XGMAC
     bool
@@ -21,3 +30,5 @@ config VFIO_AMD_XGBE
 
 config VFIO_AP
     bool
+    select VFIO
+    depends on LINUX

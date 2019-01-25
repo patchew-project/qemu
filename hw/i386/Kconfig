@@ -1,4 +1,8 @@
-config KVM
+config SEV
+    bool
+    default y if PC && KVM
+
+config PC
     bool
 
 config I440FX

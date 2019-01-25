@@ -45,12 +45,16 @@ config MAC_PMU
 
 config XIVE
     bool
+    default y
+    depends on PSERIES
 
 config MACIO_GPIO
     bool
 
 config XIVE_SPAPR
     bool
+    default y
+    depends on PSERIES
 
 config CUDA
     bool

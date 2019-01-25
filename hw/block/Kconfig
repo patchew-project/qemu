@@ -27,3 +27,4 @@ config VIRTIO_BLK
 
 config VHOST_USER_BLK
     bool
+    default y if VHOST_USER && LINUX

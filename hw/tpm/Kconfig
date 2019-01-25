@@ -3,6 +3,8 @@ config TPM
 
 config TPM_TIS
     bool
+    default y if PC
+    depends on TPM
 
 config TPM_CRB
     bool
