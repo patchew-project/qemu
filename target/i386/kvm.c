@@ -1647,6 +1647,14 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
         }
     }
 
+    /*
+     * QEMU doesn't initialize MSR_PLATFORM_INFO yet, so disable the MSR
+     * unconditionally until support for the MSR is properly implemented
+     */
+    if (kvm_check_extension(s, KVM_CAP_MSR_PLATFORM_INFO)) {
+        kvm_vm_enable_cap(s, KVM_CAP_MSR_PLATFORM_INFO, 0);
+    }
+
     return 0;
 }
 
