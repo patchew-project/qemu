@@ -373,7 +373,6 @@ QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename,
     }
 
     if (strcmp(filename, "null")    == 0 ||
-        strcmp(filename, "pty")     == 0 ||
         strcmp(filename, "msmouse") == 0 ||
         strcmp(filename, "wctablet") == 0 ||
         strcmp(filename, "braille") == 0 ||
@@ -415,6 +414,11 @@ QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename,
     }
     if (strstart(filename, "pipe:", &p)) {
         qemu_opt_set(opts, "backend", "pipe", &error_abort);
+        qemu_opt_set(opts, "path", p, &error_abort);
+        return opts;
+    }
+    if (strstart(filename, "pty:", &p)) {
+        qemu_opt_set(opts, "backend", "pty", &error_abort);
         qemu_opt_set(opts, "path", p, &error_abort);
         return opts;
     }

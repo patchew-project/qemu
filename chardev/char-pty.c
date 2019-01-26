@@ -28,12 +28,14 @@
 #include "io/channel-file.h"
 #include "qemu/sockets.h"
 #include "qemu/error-report.h"
+#include "qemu/option.h"
 
 #include "chardev/char-io.h"
 
 typedef struct {
     Chardev parent;
     QIOChannel *ioc;
+    char *link_name;
     int read_bytes;
 
     int connected;
@@ -187,6 +189,12 @@ static void char_pty_finalize(Object *obj)
 
     pty_chr_state(chr, 0);
     object_unref(OBJECT(s->ioc));
+
+    if (s->link_name) {
+        unlink(s->link_name);
+        g_free(s->link_name);
+    }
+
     pty_chr_timer_cancel(s);
     qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
 }
@@ -196,8 +204,9 @@ static void char_pty_open(Chardev *chr,
                           bool *be_opened,
                           Error **errp)
 {
+    ChardevHostdev *opts = backend->u.pty.data;
     PtyChardev *s;
-    int master_fd, slave_fd;
+    int master_fd, slave_fd, symlink_ret;
     char pty_name[PATH_MAX];
     char *name;
 
@@ -208,6 +217,17 @@ static void char_pty_open(Chardev *chr,
     }
 
     close(slave_fd);
+
+    s = PTY_CHARDEV(chr);
+    s->link_name = g_strdup(opts->device);
+    symlink_ret = symlink(pty_name, s->link_name);
+
+    if (symlink_ret < 0) {
+        close(master_fd);
+        error_setg_errno(errp, errno, "Failed to create symlink to PTY");
+        return;
+    }
+
     qemu_set_nonblock(master_fd);
 
     chr->filename = g_strdup_printf("pty:%s", pty_name);
@@ -223,6 +243,24 @@ static void char_pty_open(Chardev *chr,
     *be_opened = false;
 }
 
+static void char_pty_parse(QemuOpts *opts, ChardevBackend *backend,
+                                Error **errp)
+{
+    const char *symlink_path = qemu_opt_get(opts, "path");
+    if (symlink_path == NULL) {
+        error_setg(errp, "chardev: pty symlink: no device path given");
+        return;
+
+    }
+
+    ChardevHostdev *dev;
+
+    backend->type = CHARDEV_BACKEND_KIND_PTY;
+    dev = backend->u.pipe.data = g_new0(ChardevHostdev, 1);
+    qemu_chr_parse_common(opts, qapi_ChardevHostdev_base(dev));
+    dev->device = g_strdup(symlink_path);
+}
+
 static void char_pty_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
@@ -231,6 +269,7 @@ static void char_pty_class_init(ObjectClass *oc, void *data)
     cc->chr_write = char_pty_chr_write;
     cc->chr_update_read_handler = pty_chr_update_read_handler;
     cc->chr_add_watch = pty_chr_add_watch;
+    cc->parse = char_pty_parse;
 }
 
 static const TypeInfo char_pty_type_info = {

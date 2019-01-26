@@ -229,7 +229,7 @@
 ##
 # @ChardevHostdev:
 #
-# Configuration info for device and pipe chardevs.
+# Configuration info for device, pty and pipe chardevs.
 #
 # @device: The name of the special file for the device,
 #          i.e. /dev/ttyS0 on Unix or COM1: on Windows
@@ -401,7 +401,7 @@
             'pipe': 'ChardevHostdev',
             'socket': 'ChardevSocket',
             'udp': 'ChardevUdp',
-            'pty': 'ChardevCommon',
+            'pty': 'ChardevHostdev',
             'null': 'ChardevCommon',
             'mux': 'ChardevMux',
             'msmouse': 'ChardevCommon',
