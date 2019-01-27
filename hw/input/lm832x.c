@@ -509,6 +509,7 @@ static void lm8323_class_init(ObjectClass *klass, void *data)
     k->recv = lm_i2c_rx;
     k->send = lm_i2c_tx;
     dc->vmsd = &vmstate_lm_kbd;
+    set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
 static const TypeInfo lm8323_info = {
