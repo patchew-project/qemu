@@ -126,6 +126,7 @@ static void adb_device_class_init(ObjectClass *oc, void *data)
     dc->realize = adb_device_realizefn;
     dc->props = adb_device_properties;
     dc->bus_type = TYPE_ADB_BUS;
+    set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
 static const TypeInfo adb_device_type_info = {
