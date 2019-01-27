@@ -976,43 +976,41 @@ void helper_vmladduhm(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
     }
 }
 
-#define VMRG_DO(name, element, highp)                                   \
+#define VMRG_DOLO(name, element, access)                                \
     void helper_v##name(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)       \
     {                                                                   \
         ppc_avr_t result;                                               \
         int i;                                                          \
-        size_t n_elems = ARRAY_SIZE(r->element);                        \
+        int m = ARRAY_SIZE(r->element) - 1;                             \
                                                                         \
-        for (i = 0; i < n_elems / 2; i++) {                             \
-            if (highp) {                                                \
-                result.element[i*2+HI_IDX] = a->element[i];             \
-                result.element[i*2+LO_IDX] = b->element[i];             \
-            } else {                                                    \
-                result.element[n_elems - i * 2 - (1 + HI_IDX)] =        \
-                    b->element[n_elems - i - 1];                        \
-                result.element[n_elems - i * 2 - (1 + LO_IDX)] =        \
-                    a->element[n_elems - i - 1];                        \
-            }                                                           \
+        for (i = 0; i < ARRAY_SIZE(r->element); i++) {                  \
+            result.access(m - i) = (i & 1) ? a->access(m - (i >> 1))    \
+                                           : b->access(m - (i >> 1));   \
         }                                                               \
         *r = result;                                                    \
     }
-#if defined(HOST_WORDS_BIGENDIAN)
-#define MRGHI 0
-#define MRGLO 1
-#else
-#define MRGHI 1
-#define MRGLO 0
-#endif
-#define VMRG(suffix, element)                   \
-    VMRG_DO(mrgl##suffix, element, MRGHI)       \
-    VMRG_DO(mrgh##suffix, element, MRGLO)
-VMRG(b, u8)
-VMRG(h, u16)
-VMRG(w, u32)
+
+#define VMRG_DOHI(name, element, access)                                \
+    void helper_v##name(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)       \
+    {                                                                   \
+        ppc_avr_t result;                                               \
+        int i;                                                          \
+                                                                        \
+        for (i = 0; i < ARRAY_SIZE(r->element); i++) {                  \
+            result.access(i) = (i & 1) ? b->access(i >> 1)              \
+                                       : a->access(i >> 1);             \
+        }                                                               \
+        *r = result;                                                    \
+    }
+
+#define VMRG(suffix, element, access)                  \
+    VMRG_DOLO(mrgl##suffix, element, access)           \
+    VMRG_DOHI(mrgh##suffix, element, access)
+VMRG(b, u8, VsrB)
+VMRG(h, u16, VsrH)
+VMRG(w, u32, VsrW)
 #undef VMRG_DO
 #undef VMRG
-#undef MRGHI
-#undef MRGLO
 
 void helper_vmsummbm(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a,
                      ppc_avr_t *b, ppc_avr_t *c)
