@@ -19,6 +19,7 @@ cluster_size: 65536
 Format specific information:
     compat: 1.1
     lazy refcounts: false
+    bitmaps:
     refcount bits: 16
     corrupt: false
 
@@ -41,6 +42,7 @@ cluster_size: 65536
 Format specific information:
     compat: 1.1
     lazy refcounts: false
+    bitmaps:
     refcount bits: 16
     corrupt: false
 
@@ -63,6 +65,7 @@ cluster_size: 2097152
 Format specific information:
     compat: 1.1
     lazy refcounts: true
+    bitmaps:
     refcount bits: 1
     corrupt: false
 
@@ -86,6 +89,7 @@ backing file: TEST_IMG.base
 backing file format: IMGFMT
 Format specific information:
     compat: 0.10
+    bitmaps:
     refcount bits: 16
 
 === Successful image creation (encrypted) ===
@@ -103,6 +107,7 @@ cluster_size: 65536
 Format specific information:
     compat: 1.1
     lazy refcounts: false
+    bitmaps:
     refcount bits: 16
     encrypt:
         ivgen alg: plain64
