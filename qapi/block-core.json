@@ -892,13 +892,7 @@
 #
 # Query the @BlockStats for all virtual block devices.
 #
-# @query-nodes: If true, the command will query all the block nodes
-#               that have a node name, in a list which will include "parent"
-#               information, but not "backing".
-#               If false or omitted, the behavior is as before - query all the
-#               device backends, recursively including their "parent" and
-#               "backing". Filter nodes that were created implicitly are
-#               skipped over in this mode. (Since 2.3)
+# @query-nodes: deprecated since 3.2
 #
 # Returns: A list of @BlockStats for each virtual block devices.
 #

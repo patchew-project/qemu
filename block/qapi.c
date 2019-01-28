@@ -502,8 +502,7 @@ static void bdrv_query_blk_stats(BlockDeviceStats *ds, BlockBackend *blk)
                                  &ds->x_flush_latency_histogram);
 }
 
-static BlockStats *bdrv_query_bds_stats(BlockDriverState *bs,
-                                        bool blk_level)
+static BlockStats *bdrv_query_bds_stats(BlockDriverState *bs)
 {
     BlockStats *s = NULL;
 
@@ -517,7 +516,7 @@ static BlockStats *bdrv_query_bds_stats(BlockDriverState *bs,
     /* Skip automatically inserted nodes that the user isn't aware of in
      * a BlockBackend-level command. Stay at the exact node for a node-level
      * command. */
-    while (blk_level && bs->drv && bs->implicit) {
+    while (bs->drv && bs->implicit) {
         bs = backing_bs(bs);
         assert(bs);
     }
@@ -531,12 +530,12 @@ static BlockStats *bdrv_query_bds_stats(BlockDriverState *bs,
 
     if (bs->file) {
         s->has_parent = true;
-        s->parent = bdrv_query_bds_stats(bs->file->bs, blk_level);
+        s->parent = bdrv_query_bds_stats(bs->file->bs);
     }
 
-    if (blk_level && bs->backing) {
+    if (bs->backing) {
         s->has_backing = true;
-        s->backing = bdrv_query_bds_stats(bs->backing->bs, blk_level);
+        s->backing = bdrv_query_bds_stats(bs->backing->bs);
     }
 
     return s;
@@ -577,21 +576,10 @@ BlockStatsList *qmp_query_blockstats(bool has_query_nodes,
 {
     BlockStatsList *head = NULL, **p_next = &head;
     BlockBackend *blk;
-    BlockDriverState *bs;
 
     /* Just to be safe if query_nodes is not always initialized */
     if (has_query_nodes && query_nodes) {
-        for (bs = bdrv_next_node(NULL); bs; bs = bdrv_next_node(bs)) {
-            BlockStatsList *info = g_malloc0(sizeof(*info));
-            AioContext *ctx = bdrv_get_aio_context(bs);
-
-            aio_context_acquire(ctx);
-            info->value = bdrv_query_bds_stats(bs, false);
-            aio_context_release(ctx);
-
-            *p_next = info;
-            p_next = &info->next;
-        }
+        error_setg(errp, "Option query_nodes is deprecated");
     } else {
         for (blk = blk_all_next(NULL); blk; blk = blk_all_next(blk)) {
             BlockStatsList *info;
@@ -604,7 +592,7 @@ BlockStatsList *qmp_query_blockstats(bool has_query_nodes,
             }
 
             aio_context_acquire(ctx);
-            s = bdrv_query_bds_stats(blk_bs(blk), true);
+            s = bdrv_query_bds_stats(blk_bs(blk));
             s->has_device = true;
             s->device = g_strdup(blk_name(blk));
 

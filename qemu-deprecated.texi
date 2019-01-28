@@ -112,6 +112,11 @@ Use ``device_add'' for hotplugging vCPUs instead of ``cpu-add''.  See
 documentation of ``query-hotpluggable-cpus'' for additional
 details.
 
+@subsection query-blockstats (since 3.2)
+
+"query-nodes" parameter is not supported anymore because blockstats
+are not a prorerty of node.
+
 @section Human Monitor Protocol (HMP) commands
 
 @subsection The hub_id parameter of 'hostfwd_add' / 'hostfwd_remove' (since 3.1)
