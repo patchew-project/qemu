@@ -45,7 +45,7 @@
 #include "qom/object_interfaces.h"
 #include "ui/console.h"
 #include "block/nbd.h"
-#include "block/qapi.h"
+#include "block/bdrv_info.h"
 #include "qemu-io.h"
 #include "qemu/cutils.h"
 #include "qemu/error-report.h"

@@ -43,7 +43,7 @@
 #include "qemu/notify.h"
 #include "qemu/option.h"
 #include "qemu/coroutine.h"
-#include "block/qapi.h"
+#include "block/bdrv_info.h"
 #include "qemu/timer.h"
 #include "qemu/cutils.h"
 #include "qemu/id.h"

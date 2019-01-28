@@ -15,7 +15,7 @@
 #include "sysemu/block-backend.h"
 #include "block/block.h"
 #include "block/block_int.h" /* for info_f() */
-#include "block/qapi.h"
+#include "block/bdrv_info.h"
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
 #include "qemu/option.h"

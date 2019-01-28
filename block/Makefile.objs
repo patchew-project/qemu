@@ -14,7 +14,7 @@ block-obj-y += quorum.o
 block-obj-y += blkdebug.o blkverify.o blkreplay.o
 block-obj-$(CONFIG_PARALLELS) += parallels.o
 block-obj-y += blklogwrites.o
-block-obj-y += block-backend.o snapshot.o qapi.o
+block-obj-y += block-backend.o snapshot.o bdrv_info.o
 block-obj-$(CONFIG_WIN32) += file-win32.o win32-aio.o
 block-obj-$(CONFIG_POSIX) += file-posix.o
 block-obj-$(CONFIG_LINUX_AIO) += linux-aio.o
@@ -41,6 +41,7 @@ block-obj-y += throttle.o copy-on-read.o
 block-obj-y += crypto.o
 
 common-obj-y += stream.o
+common-obj-y += qapi.o
 
 nfs.o-libs         := $(LIBNFS_LIBS)
 iscsi.o-cflags     := $(LIBISCSI_CFLAGS)

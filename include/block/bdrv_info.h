@@ -22,8 +22,8 @@
  * THE SOFTWARE.
  */
 
-#ifndef BLOCK_QAPI_H
-#define BLOCK_QAPI_H
+#ifndef BDRV_INFO_H
+#define BDRV_INFO_H
 
 #include "block/block.h"
 #include "block/snapshot.h"
@@ -43,4 +43,4 @@ void bdrv_image_info_specific_dump(fprintf_function func_fprintf, void *f,
                                    ImageInfoSpecific *info_spec);
 void bdrv_image_info_dump(fprintf_function func_fprintf, void *f,
                           ImageInfo *info);
-#endif
+#endif // BDRV_INFO_H

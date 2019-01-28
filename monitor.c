@@ -73,7 +73,7 @@
 #include "qemu/option.h"
 #include "hmp.h"
 #include "qemu/thread.h"
-#include "block/qapi.h"
+#include "block/bdrv_info.h"
 #include "qapi/qapi-commands.h"
 #include "qapi/qapi-events.h"
 #include "qapi/error.h"
