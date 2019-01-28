@@ -1,0 +1,33 @@
+{"execute": "block-dirty-bitmap-add", "arguments": {"granularity": 16384, "name": "bitmap-1", "node": "drive0", "persistent": true}}
+{"return": {}}
+{"execute": "block-dirty-bitmap-add", "arguments": {"granularity": 32768, "name": "bitmap-2", "node": "drive0", "persistent": true}}
+{"return": {}}
+{"execute": "block-dirty-bitmap-add", "arguments": {"granularity": 65536, "name": "bitmap-3", "node": "drive0", "persistent": true}}
+{"return": {}}
+bitmaps
+[
+  {
+    "flags": [
+      "in-use",
+      "auto"
+    ],
+    "granularity": 16384,
+    "name": "bitmap-1"
+  },
+  {
+    "flags": [
+      "in-use",
+      "auto"
+    ],
+    "granularity": 32768,
+    "name": "bitmap-2"
+  },
+  {
+    "flags": [
+      "in-use",
+      "auto"
+    ],
+    "granularity": 65536,
+    "name": "bitmap-3"
+  }
+]
