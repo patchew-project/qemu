@@ -1,0 +1,88 @@
+{"execute": "block-dirty-bitmap-add", "arguments": {"granularity": 16384, "name": "bitmap-1", "node": "drive0", "persistent": true}}
+{"return": {}}
+bitmap info dump:
+[
+  {
+    "flags": [
+      "auto"
+    ],
+    "granularity": 16384,
+    "name": "bitmap-1"
+  }
+]
+
+{"execute": "block-dirty-bitmap-add", "arguments": {"granularity": 32768, "name": "bitmap-2", "node": "drive0", "persistent": true}}
+{"return": {}}
+bitmap info dump:
+[
+  {
+    "flags": [
+      "auto"
+    ],
+    "granularity": 16384,
+    "name": "bitmap-1"
+  },
+  {
+    "flags": [
+      "auto"
+    ],
+    "granularity": 32768,
+    "name": "bitmap-2"
+  }
+]
+
+{"execute": "block-dirty-bitmap-add", "arguments": {"granularity": 65536, "name": "bitmap-3", "node": "drive0", "persistent": true}}
+{"return": {}}
+bitmap info dump:
+[
+  {
+    "flags": [
+      "auto"
+    ],
+    "granularity": 16384,
+    "name": "bitmap-1"
+  },
+  {
+    "flags": [
+      "auto"
+    ],
+    "granularity": 32768,
+    "name": "bitmap-2"
+  },
+  {
+    "flags": [
+      "auto"
+    ],
+    "granularity": 65536,
+    "name": "bitmap-3"
+  }
+]
+
+Check "in-use" flag
+bitmap info dump:
+[
+  {
+    "flags": [
+      "in-use",
+      "auto"
+    ],
+    "granularity": 16384,
+    "name": "bitmap-1"
+  },
+  {
+    "flags": [
+      "in-use",
+      "auto"
+    ],
+    "granularity": 32768,
+    "name": "bitmap-2"
+  },
+  {
+    "flags": [
+      "in-use",
+      "auto"
+    ],
+    "granularity": 65536,
+    "name": "bitmap-3"
+  }
+]

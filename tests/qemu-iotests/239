@@ -1,0 +1,60 @@
+#!/usr/bin/env python
+#
+# Test for qcow2 bitmap printed information
+#
+# Copyright (c) 2018 Virtuozzo International GmbH
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import iotests
+import json
+from iotests import qemu_img_create, qemu_io, qemu_img_pipe, \
+                    file_path, log
+
+disk = file_path('disk')
+chunk = 256
+
+def print_bitmap():
+    log('bitmap info dump:')
+    result = json.loads(qemu_img_pipe('info', '--force-share',
+                                      '--output=json', disk))
+    bitmaps = result['format-specific']['data']['bitmaps']
+    log(bitmaps, indent=2)
+
+def add_bitmap(bitmap_number):
+    num = bitmap_number
+    granularity = 2**(13 + num)
+    bitmap_name = 'bitmap-' + str(num)
+    vm = iotests.VM().add_drive(disk)
+    vm.launch()
+    vm.qmp_log('block-dirty-bitmap-add', node='drive0', name=bitmap_name,
+               granularity=granularity, persistent=True)
+    vm.shutdown()
+    write = 'write {} {}K'.format((num-1)*chunk, chunk)
+    qemu_io('-f', iotests.imgfmt, '-c', write, disk)
+
+iotests.verify_image_format(supported_fmts=['qcow2'])
+qemu_img_create('-f', iotests.imgfmt, disk, '1M')
+
+for num in range(1, 4):
+    add_bitmap(num)
+    print_bitmap()
+    log('')
+
+vm = iotests.VM().add_drive(disk)
+vm.launch()
+log('Check \"in-use\" flag')
+print_bitmap()
+vm.shutdown()
