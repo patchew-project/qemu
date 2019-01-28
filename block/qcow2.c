@@ -4386,8 +4386,14 @@ static ImageInfoSpecific *qcow2_get_specific_info(BlockDriverState *bs)
         *spec_info->u.qcow2.data = (ImageInfoSpecificQCow2){
             .compat             = g_strdup("0.10"),
             .refcount_bits      = s->refcount_bits,
+            .has_bitmaps        = true, /* To handle error check properly */
+            .bitmaps            = NULL, /* Unsupported for version 2 */
         };
     } else if (s->qcow_version == 3) {
+        Qcow2BitmapInfoList *bitmaps;
+        Error *local_err = NULL;
+
+        bitmaps = qcow2_get_bitmap_info_list(bs, &local_err);
         *spec_info->u.qcow2.data = (ImageInfoSpecificQCow2){
             .compat             = g_strdup("1.1"),
             .lazy_refcounts     = s->compatible_features &
@@ -4397,7 +4403,14 @@ static ImageInfoSpecific *qcow2_get_specific_info(BlockDriverState *bs)
                                   QCOW2_INCOMPAT_CORRUPT,
             .has_corrupt        = true,
             .refcount_bits      = s->refcount_bits,
+            .has_bitmaps        = !local_err,
+            .bitmaps            = bitmaps,
         };
+        /*
+         * If an error occurs in obtaining bitmaps, ignore
+         * it to show other QCOW2 specific information.
+         */
+        error_free(local_err);
     } else {
         /* if this assertion fails, this probably means a new version was
          * added without having it covered here */

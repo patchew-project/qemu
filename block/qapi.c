@@ -38,6 +38,7 @@
 #include "qapi/qmp/qstring.h"
 #include "sysemu/block-backend.h"
 #include "qemu/cutils.h"
+#include "qemu/error-report.h"
 
 BlockDeviceInfo *bdrv_block_device_info(BlockBackend *blk,
                                         BlockDriverState *bs, Error **errp)
@@ -868,6 +869,11 @@ void bdrv_image_info_dump(fprintf_function func_fprintf, void *f,
 
     if (info->has_format_specific) {
         func_fprintf(f, "Format specific information:\n");
+        if (info->format_specific &&
+            info->format_specific->type == IMAGE_INFO_SPECIFIC_KIND_QCOW2 &&
+            info->format_specific->u.qcow2.data->has_bitmaps == false) {
+            warn_report("Failed to load bitmap list");
+        }
         bdrv_image_info_specific_dump(func_fprintf, f, info->format_specific);
     }
 }
