@@ -85,6 +85,13 @@ void blk_unref(BlockBackend *blk);
 void blk_remove_all_bs(void);
 const char *blk_name(const BlockBackend *blk);
 BlockBackend *blk_by_name(const char *name);
+
+/*
+ * Search BlockBackend by name or root BlockDriverSate node_name.
+ * Hotplug BlockBackends have no name so need to also check BDS-tree roots
+ * @name must not be null.
+ */
+BlockBackend *blk_lookup(const char *name);
 BlockBackend *blk_next(BlockBackend *blk);
 BlockBackend *blk_all_next(BlockBackend *blk);
 bool monitor_add_blk(BlockBackend *blk, const char *name, Error **errp);

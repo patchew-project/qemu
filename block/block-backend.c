@@ -685,6 +685,35 @@ static BlockBackend *bdrv_first_blk(BlockDriverState *bs)
 }
 
 /*
+ * Return the BlockBackend that has attached BDS-tree root with
+ * node_name @node_name if it exists, else null.
+ * @node_name must not be null.
+ */
+static BlockBackend *blk_by_root_name(const char *node_name)
+{
+    BlockBackend *blk = NULL;
+
+    assert(node_name);
+    while ((blk = blk_all_next(blk)) != NULL) {
+        BlockDriverState *bs = blk_bs(blk);
+        if (bs && !strcmp(node_name, bs->node_name)) {
+            return blk;
+        }
+    }
+    return NULL;
+}
+
+BlockBackend *blk_lookup(const char *name)
+{
+    assert(name);
+    BlockBackend *blk = blk_by_name(name);
+    if (!blk) {
+        blk = blk_by_root_name(name);
+    }
+    return blk;
+}
+
+/*
  * Returns true if @bs has an associated BlockBackend.
  */
 bool bdrv_has_blk(BlockDriverState *bs)
