@@ -13778,7 +13778,13 @@ static void disas_data_proc_simd_fp(DisasContext *s, uint32_t insn)
 static bool is_guarded_page(CPUARMState *env, DisasContext *s)
 {
 #ifdef CONFIG_USER_ONLY
-    return false;  /* FIXME */
+    /*
+     * FIXME: What is the userland ABI for this?
+     * For the moment this is controlled by an attribute:
+     *   -cpu max,guarded_pages=on.
+     */
+    ARMCPU *cpu = arm_env_get_cpu(env);
+    return cpu->guarded_pages;
 #else
     uint64_t addr = s->base.pc_first;
     int mmu_idx = arm_to_core_mmu_idx(s->mmu_idx);
