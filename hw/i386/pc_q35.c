@@ -368,6 +368,7 @@ static void pc_q35_machine_options(MachineClass *m)
 static void pc_q35_4_0_machine_options(MachineClass *m)
 {
     pc_q35_machine_options(m);
+    m->smbus_no_migration_support = true;
     m->alias = "q35";
 }
 

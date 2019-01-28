@@ -431,6 +431,7 @@ static void pc_i440fx_machine_options(MachineClass *m)
 static void pc_i440fx_4_0_machine_options(MachineClass *m)
 {
     pc_i440fx_machine_options(m);
+    m->smbus_no_migration_support = true;
     m->alias = "pc";
     m->is_default = 1;
 }
