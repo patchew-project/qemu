@@ -293,6 +293,17 @@ static void handle_sdl(Audiodev *dev)
                          &dev->out->has_buffer_len, dev->out);
 }
 
+/* wav */
+static void handle_wav(Audiodev *dev)
+{
+    get_int("QEMU_WAV_FREQUENCY",
+            &dev->out->frequency, &dev->out->has_frequency);
+    get_fmt("QEMU_WAV_FORMAT", &dev->out->format, &dev->out->has_format);
+    get_int("QEMU_WAV_DAC_FIXED_CHANNELS",
+            &dev->out->channels, &dev->out->has_channels);
+    get_str("QEMU_WAV_PATH", &dev->u.wav.path, &dev->u.wav.has_path);
+}
+
 /* general */
 static void handle_per_direction(
     AudiodevPerDirectionOptions *pdo, const char *prefix)
@@ -358,6 +369,10 @@ static AudiodevListEntry *legacy_opt(const char *drvname)
 
     case AUDIODEV_DRIVER_SDL:
         handle_sdl(e->dev);
+        break;
+
+    case AUDIODEV_DRIVER_WAV:
+        handle_wav(e->dev);
         break;
 
     default:
