@@ -62,6 +62,18 @@ static void get_int(const char *env, uint32_t *dst, bool *has_dst)
     }
 }
 
+static void get_str(const char *env, char **dst, bool *has_dst)
+{
+    const char *val = getenv(env);
+    if (val) {
+        if (*has_dst) {
+            g_free(*dst);
+        }
+        *dst = g_strdup(val);
+        *has_dst = true;
+    }
+}
+
 static void get_fmt(const char *env, AudioFormat *dst, bool *has_dst)
 {
     const char *val = getenv(env);
@@ -80,8 +92,79 @@ static void get_fmt(const char *env, AudioFormat *dst, bool *has_dst)
     }
 }
 
+
+static void get_millis_to_usecs(const char *env, uint32_t *dst, bool *has_dst)
+{
+    const char *val = getenv(env);
+    if (val) {
+        *dst = toui32(val) * 1000;
+        *has_dst = true;
+    }
+}
+
+static uint32_t frames_to_usecs(uint32_t frames,
+                                AudiodevPerDirectionOptions *pdo)
+{
+    uint32_t freq = pdo->has_frequency ? pdo->frequency : 44100;
+    return (frames * 1000000 + freq / 2) / freq;
+}
+
 /* backend specific functions */
-/* todo */
+/* ALSA */
+static void handle_alsa_per_direction(
+    AudiodevPerDirectionOptions *pdo, AudiodevAlsaPerDirectionOptions **apdo,
+    bool *has_apdo, const char *prefix)
+{
+    char buf[64];
+    size_t len = strlen(prefix);
+    bool size_in_usecs = false;
+    uint32_t buffer_size;
+    bool has_buffer_size = false;
+    bool dummy;
+
+    *apdo = g_malloc0(sizeof(AudiodevAlsaPerDirectionOptions));
+    *has_apdo = true;
+
+    memcpy(buf, prefix, len);
+    strcpy(buf + len, "TRY_POLL");
+    get_bool(buf, &(*apdo)->try_poll, &(*apdo)->has_try_poll);
+
+    strcpy(buf + len, "DEV");
+    get_str(buf, &(*apdo)->dev, &(*apdo)->has_dev);
+
+    strcpy(buf + len, "SIZE_IN_USEC");
+    get_bool(buf, &size_in_usecs, &dummy);
+
+    strcpy(buf + len, "PERIOD_SIZE");
+    get_int(buf, &pdo->buffer_len, &pdo->has_buffer_len);
+
+    if (pdo->has_buffer_len && !size_in_usecs) {
+        pdo->buffer_len = frames_to_usecs(pdo->buffer_len, pdo);
+    }
+
+    strcpy(buf + len, "BUFFER_SIZE");
+    get_int(buf, &buffer_size, &has_buffer_size);
+    if (has_buffer_size) {
+        if (!size_in_usecs) {
+            buffer_size = frames_to_usecs(buffer_size, pdo);
+        }
+
+        pdo->buffer_count = buffer_size;
+        pdo->has_buffer_count = true;
+    }
+}
+
+static void handle_alsa(Audiodev *dev)
+{
+    AudiodevAlsaOptions *aopt = &dev->u.alsa;
+    handle_alsa_per_direction(dev->in, &aopt->alsa_in, &aopt->has_alsa_in,
+                              "QEMU_ALSA_ADC_");
+    handle_alsa_per_direction(dev->out, &aopt->alsa_out, &aopt->has_alsa_out,
+                              "QEMU_ALSA_DAC_");
+
+    get_millis_to_usecs("QEMU_ALSA_THRESHOLD",
+                        &aopt->threshold, &aopt->has_threshold);
+}
 
 /* general */
 static void handle_per_direction(
@@ -124,6 +207,15 @@ static AudiodevListEntry *legacy_opt(const char *drvname)
 
     get_int("QEMU_AUDIO_TIMER_PERIOD",
             &e->dev->timer_period, &e->dev->has_timer_period);
+
+    switch (e->dev->driver) {
+    case AUDIODEV_DRIVER_ALSA:
+        handle_alsa(e->dev);
+        break;
+
+    default:
+        break;
+    }
 
     return e;
 }
