@@ -83,8 +83,19 @@ void cpu_loop(CPUARMState *env)
         cpu_exec_end(cs);
         process_queued_cpu_work(cs);
 
+        /*
+         * The state of BTYPE on syscall and interrupt entry is CONSTRAINED
+         * UNPREDICTABLE.  The real kernel will need to tidy this up as well.
+         * Do this before syscalls and signals, so that the value is correct
+         * both within signal handlers, and on return from syscall (especially
+         * clone & fork) and from signal handlers.
+         *
+         * The SIGILL signal handler, for BTITrap, can see the failing BTYPE
+         * within the ESR value in the signal frame.
+         */
         switch (trapnr) {
         case EXCP_SWI:
+            env->btype = 0;
             ret = do_syscall(env,
                              env->xregs[8],
                              env->xregs[0],
@@ -104,6 +115,7 @@ void cpu_loop(CPUARMState *env)
             /* just indicate that signals should be handled asap */
             break;
         case EXCP_UDEF:
+            env->btype = 0;
             info.si_signo = TARGET_SIGILL;
             info.si_errno = 0;
             info.si_code = TARGET_ILL_ILLOPN;
@@ -112,6 +124,7 @@ void cpu_loop(CPUARMState *env)
             break;
         case EXCP_PREFETCH_ABORT:
         case EXCP_DATA_ABORT:
+            env->btype = 0;
             info.si_signo = TARGET_SIGSEGV;
             info.si_errno = 0;
             /* XXX: check env->error_code */
@@ -121,12 +134,14 @@ void cpu_loop(CPUARMState *env)
             break;
         case EXCP_DEBUG:
         case EXCP_BKPT:
+            env->btype = 0;
             info.si_signo = TARGET_SIGTRAP;
             info.si_errno = 0;
             info.si_code = TARGET_TRAP_BRKPT;
             queue_signal(env, info.si_signo, QEMU_SI_FAULT, &info);
             break;
         case EXCP_SEMIHOST:
+            env->btype = 0;
             env->xregs[0] = do_arm_semihosting(env);
             break;
         case EXCP_YIELD:
