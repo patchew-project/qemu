@@ -109,6 +109,17 @@ static uint32_t frames_to_usecs(uint32_t frames,
     return (frames * 1000000 + freq / 2) / freq;
 }
 
+
+static void get_frames_to_usecs(const char *env, uint32_t *dst, bool *has_dst,
+                                AudiodevPerDirectionOptions *pdo)
+{
+    const char *val = getenv(env);
+    if (val) {
+        *dst = frames_to_usecs(toui32(val), pdo);
+        *has_dst = true;
+    }
+}
+
 /* backend specific functions */
 /* ALSA */
 static void handle_alsa_per_direction(
@@ -166,6 +177,15 @@ static void handle_alsa(Audiodev *dev)
                         &aopt->threshold, &aopt->has_threshold);
 }
 
+/* coreaudio */
+static void handle_coreaudio(Audiodev *dev)
+{
+    get_frames_to_usecs("QEMU_COREAUDIO_BUFFER_SIZE", &dev->out->buffer_len,
+                        &dev->out->has_buffer_len, dev->out);
+    get_int("QEMU_COREAUDIO_BUFFER_COUNT",
+            &dev->out->buffer_count, &dev->out->has_buffer_count);
+}
+
 /* general */
 static void handle_per_direction(
     AudiodevPerDirectionOptions *pdo, const char *prefix)
@@ -211,6 +231,10 @@ static AudiodevListEntry *legacy_opt(const char *drvname)
     switch (e->dev->driver) {
     case AUDIODEV_DRIVER_ALSA:
         handle_alsa(e->dev);
+        break;
+
+    case AUDIODEV_DRIVER_COREAUDIO:
+        handle_coreaudio(e->dev);
         break;
 
     default:
