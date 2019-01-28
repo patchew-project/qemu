@@ -137,19 +137,19 @@ static int sdl_unlock_and_post (SDLAudioState *s, const char *forfn)
     return sdl_post (s, forfn);
 }
 
-static int aud_to_sdlfmt (audfmt_e fmt)
+static int aud_to_sdlfmt (AudioFormat fmt)
 {
     switch (fmt) {
-    case AUD_FMT_S8:
+    case AUDIO_FORMAT_S8:
         return AUDIO_S8;
 
-    case AUD_FMT_U8:
+    case AUDIO_FORMAT_U8:
         return AUDIO_U8;
 
-    case AUD_FMT_S16:
+    case AUDIO_FORMAT_S16:
         return AUDIO_S16LSB;
 
-    case AUD_FMT_U16:
+    case AUDIO_FORMAT_U16:
         return AUDIO_U16LSB;
 
     default:
@@ -161,37 +161,37 @@ static int aud_to_sdlfmt (audfmt_e fmt)
     }
 }
 
-static int sdl_to_audfmt(int sdlfmt, audfmt_e *fmt, int *endianness)
+static int sdl_to_audfmt(int sdlfmt, AudioFormat *fmt, int *endianness)
 {
     switch (sdlfmt) {
     case AUDIO_S8:
         *endianness = 0;
-        *fmt = AUD_FMT_S8;
+        *fmt = AUDIO_FORMAT_S8;
         break;
 
     case AUDIO_U8:
         *endianness = 0;
-        *fmt = AUD_FMT_U8;
+        *fmt = AUDIO_FORMAT_U8;
         break;
 
     case AUDIO_S16LSB:
         *endianness = 0;
-        *fmt = AUD_FMT_S16;
+        *fmt = AUDIO_FORMAT_S16;
         break;
 
     case AUDIO_U16LSB:
         *endianness = 0;
-        *fmt = AUD_FMT_U16;
+        *fmt = AUDIO_FORMAT_U16;
         break;
 
     case AUDIO_S16MSB:
         *endianness = 1;
-        *fmt = AUD_FMT_S16;
+        *fmt = AUDIO_FORMAT_S16;
         break;
 
     case AUDIO_U16MSB:
         *endianness = 1;
-        *fmt = AUD_FMT_U16;
+        *fmt = AUDIO_FORMAT_U16;
         break;
 
     default:
@@ -386,7 +386,7 @@ static int sdl_init_out(HWVoiceOut *hw, struct audsettings *as,
     SDL_AudioSpec req, obt;
     int endianness;
     int err;
-    audfmt_e effective_fmt;
+    AudioFormat effective_fmt;
     struct audsettings obt_as;
 
     req.freq = as->freq;
