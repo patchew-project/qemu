@@ -162,7 +162,7 @@ void qmp_nbd_server_add(const char *device, bool has_name, const char *name,
         return;
     }
 
-    on_eject_blk = blk_by_name(device);
+    on_eject_blk = blk_lookup(device);
 
     bs = bdrv_lookup_bs(device, device, errp);
     if (!bs) {

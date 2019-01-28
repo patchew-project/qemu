@@ -1082,7 +1082,7 @@ void hmp_commit(Monitor *mon, const QDict *qdict)
         BlockDriverState *bs;
         AioContext *aio_context;
 
-        blk = blk_by_name(device);
+        blk = blk_lookup(device);
         if (!blk) {
             monitor_printf(mon, "Device '%s' not found\n", device);
             return;
@@ -3066,7 +3066,7 @@ void hmp_drive_del(Monitor *mon, const QDict *qdict)
         return;
     }
 
-    blk = blk_by_name(id);
+    blk = blk_lookup(id);
     if (!blk) {
         error_report("Device '%s' not found", id);
         return;
@@ -4431,7 +4431,7 @@ void qmp_x_block_latency_histogram_set(
     bool has_boundaries_flush, uint64List *boundaries_flush,
     Error **errp)
 {
-    BlockBackend *blk = blk_by_name(device);
+    BlockBackend *blk = blk_lookup(device);
     BlockAcctStats *stats;
     int ret;
 

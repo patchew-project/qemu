@@ -2460,7 +2460,7 @@ void hmp_qemu_io(Monitor *mon, const QDict *qdict)
     Error *err = NULL;
     int ret;
 
-    blk = blk_by_name(device);
+    blk = blk_lookup(device);
     if (!blk) {
         BlockDriverState *bs = bdrv_lookup_bs(NULL, device, &err);
         if (bs) {
