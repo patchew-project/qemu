@@ -991,7 +991,7 @@ endif
 .PHONY: installer
 installer: $(INSTALLER)
 
-INSTDIR=/tmp/qemu-nsis
+INSTDIR=$(BUILD_DIR)/qemu-nsis-vroot
 
 $(INSTALLER): $(SRC_PATH)/qemu.nsi
 	$(MAKE) install prefix=${INSTDIR}
