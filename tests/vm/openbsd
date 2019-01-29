@@ -47,6 +47,8 @@ class OpenBSDVM(basevm.BaseVM):
         self.ssh_root_check("sed -E -i 's_(/tmp\ ffs)\ ([^\ ]*)_\\1 \\2,wxallowed_' /etc/fstab")
         sys.stderr.write("Installing bash...\n")
         self.ssh_root_check("PKG_PATH=https://ftp.openbsd.org/pub/OpenBSD/6.1/packages/amd64 pkg_add bash")
+        sys.stderr.write("Installing GNU sed...\n")
+        self.ssh_root_check("PKG_PATH=https://ftp.openbsd.org/pub/OpenBSD/6.1/packages/amd64 pkg_add gsed")
         self.ssh_root("shutdown -p now")
         self.wait()
 
