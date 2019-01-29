@@ -1359,6 +1359,28 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
 
             put_packet(s, buf);
             break;
+        } else if (strncmp(p, "Kill;", 5) == 0) {
+            unsigned long pid;
+
+            p += 5;
+
+            if (qemu_strtoul(p, &p, 16, &pid)) {
+                put_packet(s, "E22");
+                break;
+            }
+            process = gdb_get_process(s, pid);
+
+            if (process == NULL) {
+                put_packet(s, "E22");
+                break;
+            }
+            if (s->process_num <= 1) {
+                /* Kill the target */
+                error_report("QEMU: Terminated via GDBstub");
+                exit(0);
+            }
+            /* TODO: handle multiprocess case */
+            goto unknown_command;
         } else {
             goto unknown_command;
         }
