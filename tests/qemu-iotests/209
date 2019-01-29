@@ -23,6 +23,7 @@ from iotests import qemu_img_create, qemu_io, qemu_img_verbose, qemu_nbd, \
                     file_path
 
 iotests.verify_image_format(supported_fmts=['qcow2'])
+iotests.verify_platform(unsupported_oses=['openbsd']) # FIXME
 
 disk, nbd_sock = file_path('disk', 'nbd-sock')
 nbd_uri = 'nbd+unix:///exp?socket=' + nbd_sock
