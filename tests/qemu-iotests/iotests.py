@@ -712,8 +712,10 @@ def verify_protocol(supported=[], unsupported=[]):
     if not_sup or (imgproto in unsupported):
         notrun('not suitable for this protocol: %s' % imgproto)
 
-def verify_platform(supported_oses=['linux']):
+def verify_platform(supported_oses=['linux'], unsupported_oses=[]):
     if True not in [sys.platform.startswith(x) for x in supported_oses]:
+        notrun('not suitable for this OS: %s' % sys.platform)
+    if True in [sys.platform.startswith(x) for x in unsupported_oses]:
         notrun('not suitable for this OS: %s' % sys.platform)
 
 def verify_cache_mode(supported_cache_modes=[]):
