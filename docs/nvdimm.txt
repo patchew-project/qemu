@@ -143,10 +143,37 @@ backend of vNVDIMM:
 Guest Data Persistence
 ----------------------
 
+vNVDIMM is designed and implemented to guarantee the guest data
+persistence on the backends in case of host crash or a power failures.
+However, there are still some requirements and limitations
+as explained below.
+
 Though QEMU supports multiple types of vNVDIMM backends on Linux,
-currently the only one that can guarantee the guest write persistence
+if MAP_SYNC is not supported by the host kernel and the backends,
+the only backend that can guarantee the guest write persistence
 is the device DAX on the real NVDIMM device (e.g., /dev/dax0.0), to
 which all guest access do not involve any host-side kernel cache.
+
+mmap(2) flag MAP_SYNC is added since Linux kernel 4.15. On such
+systems, QEMU can mmap(2) the dax backend files with MAP_SYNC, which
+ensures filesystem metadata consistency in case of a host crash or a power
+failure. Enabling MAP_SYNC in QEMU requires below conditions
+
+ - 'pmem' option of memory-backend-file is 'on':
+   The backend is a file supporting DAX, e.g., a file on an ext4 or
+   xfs file system mounted with '-o dax'. if your pmem=on ,but the backend is
+   not a file supporting DAX, mapping with this flag results in an EOPNOTSUPP
+   warning. then MAP_SYNC will be ignored
+
+ - 'share' option of memory-backend-file is 'on':
+   MAP_SYNC flag available only with the MAP_SHARED_VALIDATE mapping type.
+
+ - 'MAP_SYNC' is supported on linux kernel.(default opened since Linux 4.15)
+
+Otherwise, We will ignore the MAP_SYNC flag.
+
+For more details, please reference mmap(2) man page:
+http://man7.org/linux/man-pages/man2/mmap.2.html.
 
 When using other types of backends, it's suggested to set 'unarmed'
 option of '-device nvdimm' to 'on', which sets the unarmed flag of the
