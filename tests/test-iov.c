@@ -147,9 +147,11 @@ static void test_to_from_buf(void)
 
 static void test_io(void)
 {
-#ifndef _WIN32
-/* socketpair(PF_UNIX) which does not exist on windows */
-
+#if defined(_WIN32)
+    /* socketpair(PF_UNIX) which does not exist on windows */
+#elif defined(__OpenBSD__)
+    /* FIXME: this test hangs on OpenBSD */
+#else
     int sv[2];
     int r;
     unsigned i, j, k, s, t;
