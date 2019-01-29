@@ -665,11 +665,6 @@ void HELPER(reset)(CPUHPPAState *env)
 target_ureg HELPER(swap_system_mask)(CPUHPPAState *env, target_ureg nsm)
 {
     target_ulong psw = env->psw;
-    /* ??? On second reading this condition simply seems
-       to be undefined rather than a diagnosed trap.  */
-    if (nsm & ~psw & PSW_Q) {
-        hppa_dynamic_excp(env, EXCP_ILL, GETPC());
-    }
     env->psw = (psw & ~PSW_SM) | (nsm & PSW_SM);
     return psw & PSW_SM;
 }
