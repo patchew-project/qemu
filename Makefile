@@ -977,11 +977,14 @@ INSTALLER = qemu-setup-$(VERSION)$(EXESUF)
 
 nsisflags = -V2 -NOCD
 
+ifeq ($(ARCH),x86_64)
+nsisflags += -DW64
+endif
+
 ifneq ($(wildcard $(SRC_PATH)/dll),)
 ifeq ($(ARCH),x86_64)
 # 64 bit executables
 DLL_PATH = $(SRC_PATH)/dll/w64
-nsisflags += -DW64
 else
 # 32 bit executables
 DLL_PATH = $(SRC_PATH)/dll/w32
