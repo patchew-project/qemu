@@ -244,7 +244,17 @@ void qemu_set_nonblock(int fd)
     f = fcntl(fd, F_GETFL);
     assert(f != -1);
     f = fcntl(fd, F_SETFL, f | O_NONBLOCK);
+#ifdef __OpenBSD__
+    if (f == -1) {
+        /*
+         * Previous to OpenBSD 6.3, fcntl(F_SETFL) is not permitted on
+         * memory devices and sets errno to ENODEV.
+         */
+        assert(errno == ENODEV);
+    }
+#else
     assert(f != -1);
+#endif
 }
 
 int socket_set_fast_reuse(int fd)
