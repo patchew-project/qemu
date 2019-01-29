@@ -23,6 +23,8 @@ import os
 import iotests
 from iotests import log
 
+iotests.verify_platform(unsupported_oses=['openbsd']) # FIXME
+
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'scripts'))
 
 from qemu import QEMUMachine
