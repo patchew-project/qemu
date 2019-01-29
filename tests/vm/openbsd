@@ -45,6 +45,8 @@ class OpenBSDVM(basevm.BaseVM):
         self.wait_ssh()
         sys.stderr.write("Disabling W^X on the build partition...\n")
         self.ssh_root_check("sed -E -i 's_(/tmp\ ffs)\ ([^\ ]*)_\\1 \\2,wxallowed_' /etc/fstab")
+        sys.stderr.write("Installing bash...\n")
+        self.ssh_root_check("PKG_PATH=https://ftp.openbsd.org/pub/OpenBSD/6.1/packages/amd64 pkg_add bash")
         self.ssh_root("shutdown -p now")
         self.wait()
 
