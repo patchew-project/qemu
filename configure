@@ -3380,7 +3380,8 @@ for drv in $audio_drv_list; do
 
     sdl)
     if test "$sdl" = "no"; then
-        error_exit "sdl not found or disabled, can not use sdl audio driver"
+        echo "WARNING: SDL not found or disabled, can not use sdl audio driver"
+        audio_drv_list=$(echo "$audio_drv_list" | sed -e 's/sdl *//g')
     fi
     ;;
 
@@ -3417,6 +3418,9 @@ for drv in $audio_drv_list; do
     ;;
     esac
 done
+if test -z "$audio_drv_list"; then
+    audio_drv_list="none"
+fi
 
 ##########################################
 # BrlAPI probe
