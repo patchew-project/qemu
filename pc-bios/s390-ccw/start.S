@@ -65,8 +65,28 @@ consume_sclp_int:
         /* prepare external call handler */
         larl %r1, external_new_code
         stg %r1, 0x1b8
-        larl %r1, external_new_mask
+        larl %r1, int_new_mask
         mvc 0x1b0(8),0(%r1)
+        /* load enabled wait PSW */
+        larl %r1, enabled_wait_psw
+        lpswe 0(%r1)
+
+/*
+ * void consume_io_int(void)
+ *
+ * eats one I/O interrupt
+ */
+        .globl consume_io_int
+consume_io_int:
+        /* enable I/O interrupts in cr6 */
+        stctg 6,6,0(15)
+        oi 4(15), 0xff
+        lctlg 6,6,0(15)
+        /* prepare i/o call handler */
+        larl %r1, io_new_code
+        stg %r1, 0x1f8
+        larl %r1, int_new_mask
+        mvc 0x1f0(8),0(%r1)
         /* load enabled wait PSW */
         larl %r1, enabled_wait_psw
         lpswe 0(%r1)
@@ -78,10 +98,19 @@ external_new_code:
         lctlg   %c0,%c0,0(%r15)
         br      %r14
 
+io_new_code:
+        /* disable I/O interrupts in cr6 */
+        stctg 6,6,0(15)
+        ni 4(15), 0x00
+        lctlg 6,6,0(15)
+        br 14
+
+
+
         .align  8
 disabled_wait_psw:
         .quad   0x0002000180000000,0x0000000000000000
 enabled_wait_psw:
         .quad   0x0302000180000000,0x0000000000000000
-external_new_mask:
+int_new_mask:
         .quad   0x0000000180000000
