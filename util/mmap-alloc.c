@@ -101,6 +101,7 @@ void *qemu_ram_mmap(int fd,
 #else
     void *ptr = mmap(0, total, PROT_NONE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
 #endif
+    int mmap_xflags = 0;
     size_t offset;
     void *ptr1;
 
@@ -111,13 +112,38 @@ void *qemu_ram_mmap(int fd,
     assert(is_power_of_2(align));
     /* Always align to host page size */
     assert(align >= getpagesize());
+    if (shared && is_pmem) {
+        mmap_xflags = MAP_SYNC | MAP_SHARED_VALIDATE;
+    }
 
     offset = QEMU_ALIGN_UP((uintptr_t)ptr, align) - (uintptr_t)ptr;
+retry_mmap:
     ptr1 = mmap(ptr + offset, size, PROT_READ | PROT_WRITE,
                 MAP_FIXED |
                 (fd == -1 ? MAP_ANONYMOUS : 0) |
-                (shared ? MAP_SHARED : MAP_PRIVATE),
+                (shared ? MAP_SHARED : MAP_PRIVATE) | mmap_xflags,
                 fd, 0);
+
+    /* if map failed with MAP_SHARED_VALIDATE | MAP_SYNC,
+     * we try with MAP_SHARED_VALIDATE without MAP_SYNC
+     */
+    if (ptr1 == MAP_FAILED &&
+        mmap_xflags == (MAP_SYNC | MAP_SHARED_VALIDATE)) {
+        if (errno == ENOTSUP) {
+            perror("failed to validate with mapping flags");
+        }
+        mmap_xflags = MAP_SHARED_VALIDATE;
+        goto retry_mmap;
+    }
+    /* MAP_SHARED_VALIDATE flag is available since Linux 4.15
+     * Test only with MAP_SHARED_VALIDATE flag for compatibility.
+     * Then ignore the MAP_SHARED_VALIDATE flag and retry again
+     */
+    if (mmap_xflags == MAP_SHARED_VALIDATE &&
+        ptr1 == MAP_FAILED) {
+            mmap_xflags &= ~MAP_SHARED_VALIDATE;
+            goto retry_mmap;
+    }
     if (ptr1 == MAP_FAILED) {
         munmap(ptr, total);
         return MAP_FAILED;
