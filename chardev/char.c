@@ -996,6 +996,12 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
     ChardevReturn *ret;
     Chardev *chr;
 
+    chr = qemu_chr_find(id);
+    if (chr) {
+        error_setg(errp, "Chardev '%s' already exists", id);
+        return NULL;
+    }
+
     cc = char_get_class(ChardevBackendKind_str(backend->type), errp);
     if (!cc) {
         return NULL;
