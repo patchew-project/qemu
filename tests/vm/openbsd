@@ -41,6 +41,12 @@ class OpenBSDVM(basevm.BaseVM):
         if os.path.exists(img):
             os.remove(img)
         os.rename(img_tmp, img)
+        self.boot(img)
+        self.wait_ssh()
+        sys.stderr.write("Disabling W^X on the build partition...\n")
+        self.ssh_root_check("sed -E -i 's_(/tmp\ ffs)\ ([^\ ]*)_\\1 \\2,wxallowed_' /etc/fstab")
+        self.ssh_root("shutdown -p now")
+        self.wait()
 
 if __name__ == "__main__":
     sys.exit(basevm.main(OpenBSDVM))
