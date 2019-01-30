@@ -733,19 +733,23 @@ struct USBEndpoint *usb_ep_get(USBDevice *dev, int pid, int ep)
 uint8_t usb_ep_get_type(USBDevice *dev, int pid, int ep)
 {
     struct USBEndpoint *uep = usb_ep_get(dev, pid, ep);
-    return uep->type;
+    return uep ? uep->type : USB_ENDPOINT_XFER_INVALID;
 }
 
 void usb_ep_set_type(USBDevice *dev, int pid, int ep, uint8_t type)
 {
     struct USBEndpoint *uep = usb_ep_get(dev, pid, ep);
-    uep->type = type;
+    if (uep) {
+        uep->type = type;
+    }
 }
 
 void usb_ep_set_ifnum(USBDevice *dev, int pid, int ep, uint8_t ifnum)
 {
     struct USBEndpoint *uep = usb_ep_get(dev, pid, ep);
-    uep->ifnum = ifnum;
+    if (uep) {
+        uep->ifnum = ifnum;
+    }
 }
 
 void usb_ep_set_max_packet_size(USBDevice *dev, int pid, int ep,
@@ -753,6 +757,10 @@ void usb_ep_set_max_packet_size(USBDevice *dev, int pid, int ep,
 {
     struct USBEndpoint *uep = usb_ep_get(dev, pid, ep);
     int size, microframes;
+
+    if (!uep) {
+        return;
+    }
 
     size = raw & 0x7ff;
     switch ((raw >> 11) & 3) {
@@ -774,6 +782,10 @@ void usb_ep_set_max_streams(USBDevice *dev, int pid, int ep, uint8_t raw)
     struct USBEndpoint *uep = usb_ep_get(dev, pid, ep);
     int MaxStreams;
 
+    if (!uep) {
+        return;
+    }
+
     MaxStreams = raw & 0x1f;
     if (MaxStreams) {
         uep->max_streams = 1 << MaxStreams;
@@ -785,7 +797,9 @@ void usb_ep_set_max_streams(USBDevice *dev, int pid, int ep, uint8_t raw)
 void usb_ep_set_halted(USBDevice *dev, int pid, int ep, bool halted)
 {
     struct USBEndpoint *uep = usb_ep_get(dev, pid, ep);
-    uep->halted = halted;
+    if (uep) {
+        uep->halted = halted;
+    }
 }
 
 USBPacket *usb_ep_find_packet_by_id(USBDevice *dev, int pid, int ep,
@@ -793,6 +807,10 @@ USBPacket *usb_ep_find_packet_by_id(USBDevice *dev, int pid, int ep,
 {
     struct USBEndpoint *uep = usb_ep_get(dev, pid, ep);
     USBPacket *p;
+
+    if (!uep) {
+        return NULL;
+    }
 
     QTAILQ_FOREACH(p, &uep->queue, queue) {
         if (p->id == id) {
