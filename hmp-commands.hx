@@ -931,6 +931,20 @@ stops because the size limit is reached.
 ETEXI
 
     {
+        .name       = "announce_self",
+        .args_type  = "",
+        .params     = "",
+        .help       = "Trigger GARP/RARP announcements",
+        .cmd        = hmp_announce_self,
+    },
+
+STEXI
+@item announce_self
+@findex announce_self
+Trigger GARP/RARP announcements.
+ETEXI
+
+    {
         .name       = "migrate",
         .args_type  = "detach:-d,blk:-b,inc:-i,resume:-r,uri:s",
         .params     = "[-d] [-b] [-i] [-r] uri",
