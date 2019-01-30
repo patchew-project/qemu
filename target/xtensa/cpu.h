@@ -368,9 +368,13 @@ enum {
 
     XTENSA_OP_DIVIDE_BY_ZERO = 0x100,
 
+    /* Postprocessing flags */
     XTENSA_OP_CHECK_INTERRUPTS = 0x200,
     XTENSA_OP_EXIT_TB_M1 = 0x400,
     XTENSA_OP_EXIT_TB_0 = 0x800,
+    XTENSA_OP_SYNC_REGISTER_WINDOW = 0x1000,
+
+    XTENSA_OP_POSTPROCESS = 0x1e00,
 };
 
 typedef struct XtensaOpcodeOps {
