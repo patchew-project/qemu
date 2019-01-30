@@ -190,6 +190,7 @@
 #define VTD_ECAP_EIM                (1ULL << 4)
 #define VTD_ECAP_PT                 (1ULL << 6)
 #define VTD_ECAP_MHMV               (15ULL << 20)
+#define VTD_ECAP_SMTS               (1ULL << 43)
 
 /* CAP_REG */
 /* (offset >> 4) << 24 */
@@ -218,11 +219,13 @@
 #define VTD_CAP_SAGAW_48bit         (0x4ULL << VTD_CAP_SAGAW_SHIFT)
 
 /* IQT_REG */
-#define VTD_IQT_QT(val)             (((val) >> 4) & 0x7fffULL)
+#define VTD_IQT_QT(dw_bit, val)     (dw_bit ? (((val) >> 5) & 0x3fffULL) : \
+                                     (((val) >> 4) & 0x7fffULL))
 
 /* IQA_REG */
 #define VTD_IQA_IQA_MASK(aw)        (VTD_HAW_MASK(aw) ^ 0xfffULL)
 #define VTD_IQA_QS                  0x7ULL
+#define VTD_IQA_DW_MASK             0x800
 
 /* IQH_REG */
 #define VTD_IQH_QH_SHIFT            4
@@ -321,8 +324,7 @@ typedef struct VTDInvDescIEC VTDInvDescIEC;
 /* Queued Invalidation Descriptor */
 union VTDInvDesc {
     struct {
-        uint64_t lo;
-        uint64_t hi;
+        uint64_t val[4];
     };
     union {
         VTDInvDescIEC iec;
