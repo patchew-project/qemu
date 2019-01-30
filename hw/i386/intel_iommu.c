@@ -2492,6 +2492,17 @@ static bool vtd_process_inv_desc(IntelIOMMUState *s)
         }
         break;
 
+    /*
+     * TODO: the entity of below two cases will be implemented in future series.
+     * To make guest (which integrates scalable mode support patch set in
+     * iommu driver) work, just return true is enough so far.
+     */
+    case VTD_INV_DESC_PC:
+        break;
+
+    case VTD_INV_DESC_PIOTLB:
+        break;
+
     case VTD_INV_DESC_WAIT:
         trace_vtd_inv_desc("wait", inv_desc.val[1], inv_desc.val[0]);
         if (!vtd_process_wait_desc(s, &inv_desc)) {
@@ -3051,6 +3062,7 @@ static Property vtd_properties[] = {
     DEFINE_PROP_UINT8("aw-bits", IntelIOMMUState, aw_bits,
                       VTD_HOST_ADDRESS_WIDTH),
     DEFINE_PROP_BOOL("caching-mode", IntelIOMMUState, caching_mode, FALSE),
+    DEFINE_PROP_BOOL("scalable-mode", IntelIOMMUState, scalable_mode, FALSE),
     DEFINE_PROP_BOOL("dma-drain", IntelIOMMUState, dma_drain, true),
     DEFINE_PROP_END_OF_LIST(),
 };
@@ -3581,6 +3593,16 @@ static void vtd_init(IntelIOMMUState *s)
 
     if (s->caching_mode) {
         s->cap |= VTD_CAP_CM;
+    }
+
+    /* TODO: read cap/ecap from host to decide which cap to be exposed. */
+    if (s->scalable_mode) {
+        if (!s->caching_mode) {
+            error_report("Need to set caching-mode for scalable mode");
+            exit(1);
+        }
+        s->cap |= VTD_CAP_DWD | VTD_CAP_DRD;
+        s->ecap |= VTD_ECAP_SMTS | VTD_ECAP_SRS | VTD_ECAP_SLTS;
     }
 
     vtd_reset_caches(s);
