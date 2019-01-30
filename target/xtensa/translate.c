@@ -82,6 +82,7 @@ static TCGv_i32 cpu_R[16];
 static TCGv_i32 cpu_FR[16];
 static TCGv_i32 cpu_SR[256];
 static TCGv_i32 cpu_UR[256];
+static TCGv_i32 cpu_windowbase_next;
 
 #include "exec/gen-icount.h"
 
@@ -253,6 +254,11 @@ void xtensa_translate_init(void)
                     uregnames[i].name);
         }
     }
+
+    cpu_windowbase_next =
+        tcg_global_mem_new_i32(cpu_env,
+                               offsetof(CPUXtensaState, windowbase_next),
+                               "windowbase_next");
 }
 
 static inline bool option_enabled(DisasContext *dc, int opt)
@@ -566,7 +572,7 @@ static void gen_wsr_acchi(DisasContext *dc, uint32_t sr, TCGv_i32 s)
 #ifndef CONFIG_USER_ONLY
 static void gen_wsr_windowbase(DisasContext *dc, uint32_t sr, TCGv_i32 v)
 {
-    gen_helper_wsr_windowbase(cpu_env, v);
+    tcg_gen_mov_i32(cpu_windowbase_next, v);
 }
 
 static void gen_wsr_windowstart(DisasContext *dc, uint32_t sr, TCGv_i32 v)
@@ -877,6 +883,9 @@ static int gen_postprocess(DisasContext *dc, int slot)
 
     if (op_flags & XTENSA_OP_CHECK_INTERRUPTS) {
         gen_check_interrupts(dc);
+    }
+    if (op_flags & XTENSA_OP_SYNC_REGISTER_WINDOW) {
+        gen_helper_sync_windowbase(cpu_env);
     }
     if (op_flags & XTENSA_OP_EXIT_TB_M1) {
         slot = -1;
@@ -2280,9 +2289,7 @@ static void translate_rfw(DisasContext *dc, const uint32_t arg[],
 static void translate_rotw(DisasContext *dc, const uint32_t arg[],
                            const uint32_t par[])
 {
-    TCGv_i32 tmp = tcg_const_i32(arg[0]);
-    gen_helper_rotw(cpu_env, tmp);
-    tcg_temp_free(tmp);
+    tcg_gen_addi_i32(cpu_windowbase_next, cpu_SR[WINDOW_BASE], arg[0]);
 }
 
 static void translate_rsil(DisasContext *dc, const uint32_t arg[],
@@ -2982,7 +2989,8 @@ static const XtensaOpcodeOps core_ops[] = {
         .translate = translate_entry,
         .test_ill = test_ill_entry,
         .test_overflow = test_overflow_entry,
-        .op_flags = XTENSA_OP_EXIT_TB_M1,
+        .op_flags = XTENSA_OP_EXIT_TB_M1 |
+            XTENSA_OP_SYNC_REGISTER_WINDOW,
     }, {
         .name = "esync",
         .translate = translate_nop,
@@ -3671,7 +3679,9 @@ static const XtensaOpcodeOps core_ops[] = {
     }, {
         .name = "rotw",
         .translate = translate_rotw,
-        .op_flags = XTENSA_OP_PRIVILEGED | XTENSA_OP_EXIT_TB_M1,
+        .op_flags = XTENSA_OP_PRIVILEGED |
+            XTENSA_OP_EXIT_TB_M1 |
+            XTENSA_OP_SYNC_REGISTER_WINDOW,
     }, {
         .name = "rsil",
         .translate = translate_rsil,
@@ -4934,7 +4944,9 @@ static const XtensaOpcodeOps core_ops[] = {
         .translate = translate_wsr,
         .test_ill = test_ill_wsr,
         .par = (const uint32_t[]){WINDOW_BASE},
-        .op_flags = XTENSA_OP_PRIVILEGED | XTENSA_OP_EXIT_TB_M1,
+        .op_flags = XTENSA_OP_PRIVILEGED |
+            XTENSA_OP_EXIT_TB_M1 |
+            XTENSA_OP_SYNC_REGISTER_WINDOW,
         .windowed_register_op = 0x1,
     }, {
         .name = "wsr.windowstart",
@@ -5501,7 +5513,9 @@ static const XtensaOpcodeOps core_ops[] = {
         .translate = translate_xsr,
         .test_ill = test_ill_xsr,
         .par = (const uint32_t[]){WINDOW_BASE},
-        .op_flags = XTENSA_OP_PRIVILEGED | XTENSA_OP_EXIT_TB_M1,
+        .op_flags = XTENSA_OP_PRIVILEGED |
+            XTENSA_OP_EXIT_TB_M1 |
+            XTENSA_OP_SYNC_REGISTER_WINDOW,
         .windowed_register_op = 0x1,
     }, {
         .name = "xsr.windowstart",
