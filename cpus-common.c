@@ -171,7 +171,7 @@ void run_on_cpu(CPUState *cpu, run_on_cpu_func func, run_on_cpu_data data)
     while (!atomic_mb_read(&wi.done)) {
         CPUState *self_cpu = current_cpu;
 
-        qemu_cond_wait(&cpu->cond, &cpu->lock);
+        qemu_cond_wait(&cpu->cond, cpu->lock);
         current_cpu = self_cpu;
     }
     cpu_mutex_unlock(cpu);

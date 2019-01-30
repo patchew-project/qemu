@@ -363,7 +363,7 @@ struct CPUState {
     int64_t icount_extra;
     sigjmp_buf jmp_env;
 
-    QemuMutex lock;
+    QemuMutex *lock;
     /* fields below protected by @lock */
     QemuCond cond;
     QSIMPLEQ_HEAD(, qemu_work_item) work_list;

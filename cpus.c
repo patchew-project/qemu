@@ -83,6 +83,12 @@ static unsigned int throttle_percentage;
 #define CPU_THROTTLE_PCT_MAX 99
 #define CPU_THROTTLE_TIMESLICE_NS 10000000
 
+static inline bool qemu_is_tcg_rr(void)
+{
+    /* in `make check-qtest', "use_icount && !tcg_enabled()" might be true */
+    return use_icount || (tcg_enabled() && !qemu_tcg_mttcg_enabled());
+}
+
 /* XXX: is this really the max number of CPUs? */
 #define CPU_LOCK_BITMAP_SIZE 2048
 
@@ -98,25 +104,76 @@ bool no_cpu_mutex_locked(void)
     return bitmap_empty(cpu_lock_bitmap, CPU_LOCK_BITMAP_SIZE);
 }
 
-void cpu_mutex_lock_impl(CPUState *cpu, const char *file, int line)
+static QemuMutex qemu_global_mutex;
+static __thread bool iothread_locked;
+/*
+ * In TCG rr mode, we make the BQL a recursive mutex, so that we can use it for
+ * all vCPUs while keeping the interface as if the locks were per-CPU.
+ *
+ * The fact that the BQL is implemented recursively is invisible to BQL users;
+ * the mutex API we export (qemu_mutex_lock_iothread() etc.) is non-recursive.
+ *
+ * Locking order: the BQL is always acquired before CPU locks.
+ */
+static __thread int iothread_lock_count;
+
+static void rr_cpu_mutex_lock(void)
 {
-/* coverity gets confused by the indirect function call */
+    if (iothread_lock_count++ == 0) {
+        /*
+         * Circumvent qemu_mutex_lock_iothread()'s state keeping by
+         * acquiring the BQL directly.
+         */
+        qemu_mutex_lock(&qemu_global_mutex);
+    }
+}
+
+static void rr_cpu_mutex_unlock(void)
+{
+    g_assert(iothread_lock_count > 0);
+    if (--iothread_lock_count == 0) {
+        /*
+         * Circumvent qemu_mutex_unlock_iothread()'s state keeping by
+         * releasing the BQL directly.
+         */
+        qemu_mutex_unlock(&qemu_global_mutex);
+    }
+}
+
+static void do_cpu_mutex_lock(CPUState *cpu, const char *file, int line)
+{
+    /* coverity gets confused by the indirect function call */
 #ifdef __COVERITY__
-    qemu_mutex_lock_impl(&cpu->lock, file, line);
+    qemu_mutex_lock_impl(cpu->lock, file, line);
 #else
     QemuMutexLockFunc f = atomic_read(&qemu_mutex_lock_func);
 
+    f(cpu->lock, file, line);
+#endif
+}
+
+void cpu_mutex_lock_impl(CPUState *cpu, const char *file, int line)
+{
     g_assert(!cpu_mutex_locked(cpu));
     set_bit(cpu->cpu_index + 1, cpu_lock_bitmap);
-    f(&cpu->lock, file, line);
-#endif
+
+    if (qemu_is_tcg_rr()) {
+        rr_cpu_mutex_lock();
+    } else {
+        do_cpu_mutex_lock(cpu, file, line);
+    }
 }
 
 void cpu_mutex_unlock_impl(CPUState *cpu, const char *file, int line)
 {
     g_assert(cpu_mutex_locked(cpu));
-    qemu_mutex_unlock_impl(&cpu->lock, file, line);
     clear_bit(cpu->cpu_index + 1, cpu_lock_bitmap);
+
+    if (qemu_is_tcg_rr()) {
+        rr_cpu_mutex_unlock();
+        return;
+    }
+    qemu_mutex_unlock_impl(cpu->lock, file, line);
 }
 
 bool cpu_mutex_locked(const CPUState *cpu)
@@ -1215,8 +1272,6 @@ static void qemu_init_sigbus(void)
 }
 #endif /* !CONFIG_LINUX */
 
-static QemuMutex qemu_global_mutex;
-
 static QemuThread io_thread;
 
 /* cpu creation */
@@ -1876,8 +1931,6 @@ bool qemu_in_vcpu_thread(void)
     return current_cpu && qemu_cpu_is_self(current_cpu);
 }
 
-static __thread bool iothread_locked = false;
-
 bool qemu_mutex_iothread_locked(void)
 {
     return iothread_locked;
@@ -1896,6 +1949,8 @@ void qemu_mutex_lock_iothread_impl(const char *file, int line)
 
     g_assert(!qemu_mutex_iothread_locked());
     bql_lock(&qemu_global_mutex, file, line);
+    g_assert(iothread_lock_count == 0);
+    iothread_lock_count++;
     iothread_locked = true;
 }
 
@@ -1903,7 +1958,10 @@ void qemu_mutex_unlock_iothread(void)
 {
     g_assert(qemu_mutex_iothread_locked());
     iothread_locked = false;
-    qemu_mutex_unlock(&qemu_global_mutex);
+    g_assert(iothread_lock_count > 0);
+    if (--iothread_lock_count == 0) {
+        qemu_mutex_unlock(&qemu_global_mutex);
+    }
 }
 
 static bool all_vcpus_paused(void)
@@ -2125,6 +2183,16 @@ void qemu_init_vcpu(CPUState *cpu)
          */
         cpu->num_ases = 1;
         cpu_address_space_init(cpu, 0, "cpu-memory", cpu->memory);
+    }
+
+    /*
+     * In TCG RR, cpu->lock is the BQL under the hood. In all other modes,
+     * cpu->lock is a standalone per-CPU lock.
+     */
+    if (qemu_is_tcg_rr()) {
+        qemu_mutex_destroy(cpu->lock);
+        g_free(cpu->lock);
+        cpu->lock = &qemu_global_mutex;
     }
 
     if (kvm_enabled()) {
