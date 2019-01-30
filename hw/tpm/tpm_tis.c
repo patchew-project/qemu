@@ -249,6 +249,9 @@ static void tpm_tis_abort(TPMState *s)
 {
     s->rw_offset = 0;
 
+    assert(TPM_TIS_IS_VALID_LOCTY(s->next_locty));
+    assert(TPM_TIS_IS_VALID_LOCTY(s->aborting_locty));
+
     trace_tpm_tis_abort(s->next_locty);
 
     /*
@@ -537,6 +540,8 @@ static void tpm_tis_mmio_write(void *opaque, hwaddr addr,
     int c, set_new_locty = 1;
     uint16_t len;
     uint32_t mask = (size == 1) ? 0xff : ((size == 2) ? 0xffff : ~0);
+
+    assert(TPM_TIS_IS_VALID_LOCTY(locty));
 
     trace_tpm_tis_mmio_write(size, addr, val);
 
