@@ -394,6 +394,7 @@ static void pvrdma_regs_write(void *opaque, hwaddr addr, uint64_t val,
         if (val == 0) {
             trace_pvrdma_regs_write(addr, val, "REQUEST", "");
             pvrdma_exec_cmd(dev);
+            dev->stats.commands++;
         }
         break;
     default:
@@ -611,6 +612,8 @@ static void pvrdma_realize(PCIDevice *pdev, Error **errp)
     if (rc) {
         goto out;
     }
+
+    memset(&dev->stats, 0, sizeof(dev->stats));
 
     dev->shutdown_notifier.notify = pvrdma_shutdown_notifier;
     qemu_register_shutdown_notifier(&dev->shutdown_notifier);
