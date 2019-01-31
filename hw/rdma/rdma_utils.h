@@ -29,8 +29,17 @@
 #define rdma_info_report(fmt, ...) \
     info_report("%s: " fmt, "rdma", ## __VA_ARGS__)
 
+typedef struct LockedList {
+    QemuMutex lock;
+    QList *list;
+} LockedList;
+
 void *rdma_pci_dma_map(PCIDevice *dev, dma_addr_t addr, dma_addr_t plen);
 void rdma_pci_dma_unmap(PCIDevice *dev, void *buffer, dma_addr_t len);
+void rdma_locked_list_init(LockedList *list);
+void rdma_locked_list_destroy(LockedList *list);
+void rdma_locked_list_append_int64(LockedList *list, int64_t value);
+int64_t rdma_locked_list_pop_int64(LockedList *list);
 
 static inline void addrconf_addr_eui48(uint8_t *eui, const char *addr)
 {
