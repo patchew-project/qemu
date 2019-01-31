@@ -84,39 +84,6 @@ static int pc_dimm_device_list(Object *obj, void *opaque)
     return 0;
 }
 
-/*
- * The Proximity Domain of System Physical Address ranges defined
- * in the HMAT, NFIT and SRAT tables shall match each other.
- */
-static void hmat_build_spa(GArray *table_data, PCMachineState *pcms)
-{
-    GSList *device_list = NULL;
-    uint64_t mem_base, mem_len;
-    int i;
-
-    if (pcms->numa_nodes && !mem_ranges_number) {
-        build_mem_ranges(pcms);
-    }
-
-    for (i = 0; i < mem_ranges_number; i++) {
-        hmat_build_spa_info(table_data, mem_ranges[i].base,
-                            mem_ranges[i].length, mem_ranges[i].node);
-    }
-
-    /* Build HMAT SPA structures for PC-DIMM devices. */
-    object_child_foreach(qdev_get_machine(), pc_dimm_device_list, &device_list);
-
-    for (; device_list; device_list = device_list->next) {
-        PCDIMMDevice *dimm = device_list->data;
-        mem_base = object_property_get_uint(OBJECT(dimm), PC_DIMM_ADDR_PROP,
-                                            NULL);
-        mem_len = object_property_get_uint(OBJECT(dimm), PC_DIMM_SIZE_PROP,
-                                           NULL);
-        i = object_property_get_uint(OBJECT(dimm), PC_DIMM_NODE_PROP, NULL);
-        hmat_build_spa_info(table_data, mem_base, mem_len, i);
-    }
-}
-
 static void classify_proximity_domains(void)
 {
     int node;
@@ -131,12 +98,44 @@ static void classify_proximity_domains(void)
     }
 }
 
-static void hmat_build_lb(GArray *table_data)
+static void hmat_build_hma(GArray *hma, PCMachineState *pcms)
 {
-    AcpiHmatLBInfo *hmat_lb;
-    struct numa_hmat_lb_info *numa_hmat_lb;
-    int i, j, hrchy, type;
+/*
+ * The Proximity Domain of System Physical Address ranges defined
+ * in the HMAT, NFIT and SRAT tables shall match each other.
+ */
 
+    GSList *device_list = NULL;
+    AcpiHmatLBInfo *hmat_lb;
+    AcpiHmatCacheInfo *hmat_cache;
+    struct numa_hmat_lb_info *numa_hmat_lb;
+    struct numa_hmat_cache_info *numa_hmat_cache;
+    uint64_t mem_base, mem_len;
+    int i, j, hrchy, type, level;
+
+    if (pcms->numa_nodes && !mem_ranges_number) {
+        build_mem_ranges(pcms);
+    }
+
+    for (i = 0; i < mem_ranges_number; i++) {
+        build_hmat_spa(hma, mem_ranges[i].base,
+                            mem_ranges[i].length, mem_ranges[i].node);
+    }
+
+    /* Build HMAT SPA structures for PC-DIMM devices. */
+    object_child_foreach(qdev_get_machine(), pc_dimm_device_list, &device_list);
+
+    for (; device_list; device_list = device_list->next) {
+        PCDIMMDevice *dimm = device_list->data;
+        mem_base = object_property_get_uint(OBJECT(dimm), PC_DIMM_ADDR_PROP,
+                                            NULL);
+        mem_len = object_property_get_uint(OBJECT(dimm), PC_DIMM_SIZE_PROP,
+                                           NULL);
+        i = object_property_get_uint(OBJECT(dimm), PC_DIMM_NODE_PROP, NULL);
+        build_hmat_spa(hma, mem_base, mem_len, i);
+    }
+
+    /* Build HMAT System Locality Latency and Bandwidth Information. */
     if (!num_initiator && !num_target) {
         classify_proximity_domains();
     }
@@ -154,8 +153,8 @@ static void hmat_build_lb(GArray *table_data)
                 uint32_t size;
                 uint8_t m, n;
 
-                start = table_data->len;
-                hmat_lb = acpi_data_push(table_data, sizeof(*hmat_lb));
+                start = hma->len;
+                hmat_lb = acpi_data_push(hma, sizeof(*hmat_lb));
 
                 hmat_lb->type          = cpu_to_le16(ACPI_HMAT_LB_INFO);
                 hmat_lb->flags         = numa_hmat_lb->hierarchy;
@@ -174,19 +173,19 @@ static void hmat_build_lb(GArray *table_data)
 
                 /* the initiator proximity domain list */
                 for (i = 0; i < num_initiator; i++) {
-                    list_entry = acpi_data_push(table_data, sizeof(uint32_t));
+                    list_entry = acpi_data_push(hma, sizeof(uint32_t));
                     *list_entry = cpu_to_le32(initiator_pxm[i]);
                 }
 
                 /* the target proximity domain list */
                 for (i = 0; i < num_target; i++) {
-                    list_entry = acpi_data_push(table_data, sizeof(uint32_t));
+                    list_entry = acpi_data_push(hma, sizeof(uint32_t));
                     *list_entry = cpu_to_le32(target_pxm[i]);
                 }
 
                 /* latency or bandwidth entries */
                 size = sizeof(uint16_t) * num_initiator * num_target;
-                entry_start = acpi_data_push(table_data, size);
+                entry_start = acpi_data_push(hma, size);
 
                 for (i = 0; i < num_initiator; i++) {
                     m = initiator_pxm[i];
@@ -200,26 +199,20 @@ static void hmat_build_lb(GArray *table_data)
                         }
                     }
                 }
-                hmat_lb = (AcpiHmatLBInfo *)(table_data->data + start);
-                hmat_lb->length = cpu_to_le16(table_data->len - start);
+                hmat_lb = (AcpiHmatLBInfo *)(hma->data + start);
+                hmat_lb->length = cpu_to_le16(hma->len - start);
             }
         }
     }
-}
 
-static void hmat_build_cache(GArray *table_data)
-{
-    AcpiHmatCacheInfo *hmat_cache;
-    struct numa_hmat_cache_info *numa_hmat_cache;
-    int i, level;
-
+    /* Build HMAT Memory Side Cache Information. */
     for (i = 0; i < nb_numa_nodes; i++) {
         for (level = 0; level <= MAX_HMAT_CACHE_LEVEL; level++) {
             numa_hmat_cache = hmat_cache_info[i][level];
             if (numa_hmat_cache) {
-                uint64_t start = table_data->len;
+                uint64_t start = hma->len;
 
-                hmat_cache = acpi_data_push(table_data, sizeof(*hmat_cache));
+                hmat_cache = acpi_data_push(hma, sizeof(*hmat_cache));
                 hmat_cache->length = cpu_to_le32(sizeof(*hmat_cache));
                 hmat_cache->type = cpu_to_le16(ACPI_HMAT_CACHE_INFO);
                 hmat_cache->mem_proximity =
@@ -242,10 +235,10 @@ static void hmat_build_cache(GArray *table_data)
                     int size;
 
                     size = hmat_cache->num_smbios_handles * sizeof(uint16_t);
-                    smbios_handles = acpi_data_push(table_data, size);
+                    smbios_handles = acpi_data_push(hma, size);
 
                     hmat_cache = (AcpiHmatCacheInfo *)
-                                 (table_data->data + start);
+                                 (hma->data + start);
                     hmat_cache->length += size;
 
                     /* TBD: set smbios handles */
@@ -256,18 +249,6 @@ static void hmat_build_cache(GArray *table_data)
             }
         }
     }
-}
-
-static void hmat_build_hma(GArray *hma, PCMachineState *pcms)
-{
-    /* Build HMAT Memory Subsystem Address Range. */
-    hmat_build_spa(hma, pcms);
-
-    /* Build HMAT System Locality Latency and Bandwidth Information. */
-    hmat_build_lb(hma);
-
-    /* Build HMAT Memory Side Cache Information. */
-    hmat_build_cache(hma);
 }
 
 static uint64_t
