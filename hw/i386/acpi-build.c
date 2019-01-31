@@ -1853,6 +1853,8 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
         build_q35_pci0_int(dsdt);
     }
 
+    hmat_build_aml(dsdt);
+
     if (pcmc->legacy_cpu_hotplug) {
         build_legacy_cpu_hotplug_aml(dsdt, machine, pm->cpu_hp_io_base);
     } else {
@@ -2386,7 +2388,7 @@ build_srat(GArray *table_data, BIOSLinker *linker, MachineState *machine)
 
     for (i = 0; i < mem_ranges_number; i++) {
         if (mem_ranges[i].length > 0) {
-                numamem = acpi_data_push(table_data, sizeof *numamem);
+            numamem = acpi_data_push(table_data, sizeof *numamem);
             build_srat_memory(numamem, mem_ranges[i].base,
                               mem_ranges[i].length,
                               mem_ranges[i].node,
