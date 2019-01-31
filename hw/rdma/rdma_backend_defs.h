@@ -66,6 +66,7 @@ typedef struct RdmaBackendQP {
     struct ibv_pd *ibpd;
     struct ibv_qp *ibqp;
     uint8_t sgid_idx;
+    GSList *cqe_ctx_list;
 } RdmaBackendQP;
 
 #endif
