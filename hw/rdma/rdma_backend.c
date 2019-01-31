@@ -64,9 +64,9 @@ static inline void complete_work(enum ibv_wc_status status, uint32_t vendor_err,
     comp_handler(ctx, &wc);
 }
 
-static void rdma_poll_cq(RdmaDeviceResources *rdma_dev_res, struct ibv_cq *ibcq)
+static int rdma_poll_cq(RdmaDeviceResources *rdma_dev_res, struct ibv_cq *ibcq)
 {
-    int i, ne;
+    int i, ne, total_ne = 0;
     BackendCtx *bctx;
     struct ibv_wc wc[2];
 
@@ -76,6 +76,7 @@ static void rdma_poll_cq(RdmaDeviceResources *rdma_dev_res, struct ibv_cq *ibcq)
         trace_rdma_poll_cq(ne, ibcq);
 
         for (i = 0; i < ne; i++) {
+            total_ne++;
             bctx = rdma_rm_get_cqe_ctx(rdma_dev_res, wc[i].wr_id);
             if (unlikely(!bctx)) {
                 rdma_error_report("No matching ctx for req %"PRId64,
@@ -93,6 +94,8 @@ static void rdma_poll_cq(RdmaDeviceResources *rdma_dev_res, struct ibv_cq *ibcq)
     if (ne < 0) {
         rdma_error_report("ibv_poll_cq fail, rc=%d, errno=%d", ne, errno);
     }
+
+    return total_ne;
 }
 
 static void *comp_handler_thread(void *arg)
@@ -267,9 +270,9 @@ int rdma_backend_query_port(RdmaBackendDev *backend_dev,
     return 0;
 }
 
-void rdma_backend_poll_cq(RdmaDeviceResources *rdma_dev_res, RdmaBackendCQ *cq)
+int rdma_backend_poll_cq(RdmaDeviceResources *rdma_dev_res, RdmaBackendCQ *cq)
 {
-    rdma_poll_cq(rdma_dev_res, cq->ibcq);
+    return rdma_poll_cq(rdma_dev_res, cq->ibcq);
 }
 
 static GHashTable *ah_hash;

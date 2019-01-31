@@ -85,7 +85,7 @@ void rdma_backend_destroy_mr(RdmaBackendMR *mr);
 int rdma_backend_create_cq(RdmaBackendDev *backend_dev, RdmaBackendCQ *cq,
                            int cqe);
 void rdma_backend_destroy_cq(RdmaBackendCQ *cq);
-void rdma_backend_poll_cq(RdmaDeviceResources *rdma_dev_res, RdmaBackendCQ *cq);
+int rdma_backend_poll_cq(RdmaDeviceResources *rdma_dev_res, RdmaBackendCQ *cq);
 
 int rdma_backend_create_qp(RdmaBackendQP *qp, uint8_t qp_type,
                            RdmaBackendPD *pd, RdmaBackendCQ *scq,

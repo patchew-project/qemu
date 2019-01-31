@@ -34,7 +34,9 @@
 #define MAX_QP_INIT_RD_ATOM   16
 #define MAX_AH                64
 
-#define MAX_RM_TBL_NAME 16
+#define MAX_RM_TBL_NAME             16
+#define MAX_CONSEQ_EMPTY_POLL_CQ    2048 /* considered as error above this */
+
 typedef struct RdmaRmResTbl {
     char name[MAX_RM_TBL_NAME];
     QemuMutex lock;
@@ -59,6 +61,8 @@ typedef struct RdmaRmCQ {
     RdmaBackendCQ backend_cq;
     void *opaque;
     CQNotificationType notify;
+    int missing_cqe;
+    int conseq_empty_poll;
 } RdmaRmCQ;
 
 /* MR (DMA region) */

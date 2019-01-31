@@ -60,6 +60,8 @@ static int pvrdma_post_cqe(PVRDMADev *dev, uint32_t cq_handle,
         return -EINVAL;
     }
 
+    atomic_dec(&cq->missing_cqe);
+
     ring = (PvrdmaRing *)cq->opaque;
 
     /* Step #1: Put CQE on CQ ring */
@@ -141,11 +143,14 @@ void pvrdma_qp_send(PVRDMADev *dev, uint32_t qp_handle)
     PvrdmaRing *ring;
     int sgid_idx;
     union ibv_gid *sgid;
+    RdmaRmCQ *cq;
 
     qp = rdma_rm_get_qp(&dev->rdma_dev_res, qp_handle);
     if (unlikely(!qp)) {
         return;
     }
+
+    cq = rdma_rm_get_cq(&dev->rdma_dev_res, qp->send_cq_handle);
 
     ring = (PvrdmaRing *)qp->opaque;
 
@@ -186,6 +191,7 @@ void pvrdma_qp_send(PVRDMADev *dev, uint32_t qp_handle)
             continue;
         }
 
+        atomic_inc(&cq->missing_cqe);
         rdma_backend_post_send(&dev->backend_dev, &qp->backend_qp, qp->qp_type,
                                (struct ibv_sge *)&wqe->sge[0], wqe->hdr.num_sge,
                                sgid_idx, sgid,
@@ -204,11 +210,14 @@ void pvrdma_qp_recv(PVRDMADev *dev, uint32_t qp_handle)
     RdmaRmQP *qp;
     PvrdmaRqWqe *wqe;
     PvrdmaRing *ring;
+    RdmaRmCQ *cq;
 
     qp = rdma_rm_get_qp(&dev->rdma_dev_res, qp_handle);
     if (unlikely(!qp)) {
         return;
     }
+
+    cq = rdma_rm_get_cq(&dev->rdma_dev_res, qp->recv_cq_handle);
 
     ring = &((PvrdmaRing *)qp->opaque)[1];
 
@@ -231,6 +240,7 @@ void pvrdma_qp_recv(PVRDMADev *dev, uint32_t qp_handle)
             continue;
         }
 
+        atomic_inc(&cq->missing_cqe);
         rdma_backend_post_recv(&dev->backend_dev, &dev->rdma_dev_res,
                                &qp->backend_qp, qp->qp_type,
                                (struct ibv_sge *)&wqe->sge[0], wqe->hdr.num_sge,
@@ -245,11 +255,23 @@ void pvrdma_qp_recv(PVRDMADev *dev, uint32_t qp_handle)
 void pvrdma_cq_poll(RdmaDeviceResources *dev_res, uint32_t cq_handle)
 {
     RdmaRmCQ *cq;
+    int polled;
 
     cq = rdma_rm_get_cq(dev_res, cq_handle);
     if (!cq) {
         return;
     }
 
-    rdma_backend_poll_cq(dev_res, &cq->backend_cq);
+    polled = rdma_backend_poll_cq(dev_res, &cq->backend_cq);
+    if (!polled) {
+        if (cq->conseq_empty_poll == MAX_CONSEQ_EMPTY_POLL_CQ) {
+            rdma_warn_report("%d consequtive empty polls from CQ %d, missing cqe %d",
+                             cq->conseq_empty_poll, cq_handle,
+                             atomic_read(&cq->missing_cqe));
+            cq->conseq_empty_poll = 0;
+        }
+        cq->conseq_empty_poll++;
+    } else {
+        cq->conseq_empty_poll = 0;
+    }
 }

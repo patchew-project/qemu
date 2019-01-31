@@ -261,6 +261,7 @@ int rdma_rm_alloc_cq(RdmaDeviceResources *dev_res, RdmaBackendDev *backend_dev,
     if (!cq) {
         return -ENOMEM;
     }
+    atomic_set(&cq->missing_cqe, 0);
 
     cq->opaque = opaque;
     cq->notify = CNT_CLEAR;
