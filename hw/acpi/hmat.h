@@ -31,7 +31,6 @@
 #include "hw/acpi/bios-linker-loader.h"
 #include "hw/acpi/aml-build.h"
 
-#define ACPI_HMAT_SPA               0
 #define ACPI_HMAT_LB_INFO           1
 #define ACPI_HMAT_CACHE_INFO        2
 

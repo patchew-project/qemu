@@ -1853,7 +1853,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
         build_q35_pci0_int(dsdt);
     }
 
-    hmat_build_aml(dsdt);
+    nvdimm_build_fit(dsdt, METHOD_NAME_HMA);
 
     if (pcmc->legacy_cpu_hotplug) {
         build_legacy_cpu_hotplug_aml(dsdt, machine, pm->cpu_hp_io_base);
