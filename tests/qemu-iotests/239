@@ -1,0 +1,74 @@
+#!/usr/bin/env python
+#
+# Test for qcow2 bitmap printed information
+#
+# Copyright (c) 2018 Virtuozzo International GmbH
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import iotests
+import json
+from iotests import qemu_img_create, qemu_io, qemu_img_pipe, \
+                    file_path, log
+
+iotests.verify_image_format(supported_fmts=['qcow2'])
+
+disk = file_path('disk')
+chunk = 256
+
+def print_bitmap():
+    log('qemu-img info dump:\n')
+    iotests.img_info_log(disk, extra_args=['--force-share'])
+    result = json.loads(qemu_img_pipe('info', '--force-share',
+                                      '--output=json', disk))
+    if 'bitmaps' in result['format-specific']['data']:
+        bitmaps = result['format-specific']['data']['bitmaps']
+        log('The same bitmaps in JSON format:')
+        log(bitmaps, indent=2)
+    else:
+        log('No bitmap in JSON format output')
+
+def add_bitmap(bitmap_number, persistent, disabled):
+    granularity = 2**(13 + bitmap_number)
+    bitmap_name = 'bitmap-' + str(bitmap_number-1)
+    vm = iotests.VM().add_drive(disk)
+    vm.launch()
+    vm.qmp_log('block-dirty-bitmap-add', node='drive0', name=bitmap_name,
+               granularity=granularity, persistent=persistent,
+               disabled=disabled)
+    vm.shutdown()
+
+def write_to_disk(offset, size):
+    write = 'write {} {}K'.format(offset, size)
+    qemu_io('-f', iotests.imgfmt, '-c', write, disk)
+    log('Write ' + str(size) + 'K to disk at offset ' + str(hex(offset)))
+
+
+qemu_img_create('-f', iotests.imgfmt, disk, '1M')
+
+for num in range(1, 4):
+    disabled = False
+    if num == 2:
+        disabled = True
+    add_bitmap(num, bool(num-1), disabled)
+    write_to_disk((num-1)*chunk, chunk)
+    print_bitmap()
+    log('')
+
+vm = iotests.VM().add_drive(disk)
+vm.launch()
+log('Checking \"in-use\" flag...')
+print_bitmap()
+vm.shutdown()
