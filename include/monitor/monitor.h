@@ -19,7 +19,7 @@ extern __thread Monitor *cur_mon;
 bool monitor_cur_is_qmp(void);
 
 void monitor_init_globals(void);
-void monitor_init(Chardev *chr, int flags);
+void monitor_init(Chardev *chr, int flags, const char *whitelist_file);
 void monitor_cleanup(void);
 
 int monitor_suspend(Monitor *mon);

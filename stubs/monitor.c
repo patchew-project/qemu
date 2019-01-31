@@ -12,7 +12,7 @@ int monitor_get_fd(Monitor *mon, const char *name, Error **errp)
     return -1;
 }
 
-void monitor_init(Chardev *chr, int flags)
+void monitor_init(Chardev *chr, int flags, const char *whitelist_file)
 {
 }
 

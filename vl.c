@@ -2340,6 +2340,7 @@ static int mon_init_func(void *opaque, QemuOpts *opts, Error **errp)
     Chardev *chr;
     const char *chardev;
     const char *mode;
+    const char *whitelist_file;
     int flags;
 
     mode = qemu_opt_get(opts, "mode");
@@ -2369,7 +2370,9 @@ static int mon_init_func(void *opaque, QemuOpts *opts, Error **errp)
         return -1;
     }
 
-    monitor_init(chr, flags);
+    whitelist_file = qemu_opt_get(opts, "whitelist");
+
+    monitor_init(chr, flags, whitelist_file);
     return 0;
 }
 

@@ -3195,12 +3195,16 @@ Like -qmp but uses pretty JSON formatting.
 ETEXI
 
 DEF("mon", HAS_ARG, QEMU_OPTION_mon, \
-    "-mon [chardev=]name[,mode=readline|control][,pretty[=on|off]]\n", QEMU_ARCH_ALL)
+    "-mon [chardev=]name[,mode=readline|control][,pretty[=on|off]]" \
+    "[,whitelist=file]\n", QEMU_ARCH_ALL)
 STEXI
-@item -mon [chardev=]name[,mode=readline|control][,pretty[=on|off]]
+@item -mon [chardev=]name[,mode=readline|control][,pretty[=on|off]][,whitelist=@var{file}]
 @findex -mon
 Setup monitor on chardev @var{name}. @code{pretty} turns on JSON pretty printing
 easing human reading and debugging.
+The @code{whitelist} option disables all commands except those specified in
+@var{file}. The file must contain one command name per line. This option is only
+avaliable in 'control' mode.
 ETEXI
 
 DEF("debugcon", HAS_ARG, QEMU_OPTION_debugcon, \

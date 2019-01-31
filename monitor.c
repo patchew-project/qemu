@@ -238,6 +238,7 @@ struct Monitor {
     guint out_watch;
     /* Read under either BQL or mon_lock, written with BQL+mon_lock.  */
     int mux_out;
+    GHashTable *whitelist;
 };
 
 /* Shared monitor I/O thread */
@@ -356,6 +357,22 @@ static void qmp_request_free(QMPRequest *req)
     qobject_unref(req->req);
     error_free(req->err);
     g_free(req);
+}
+
+static void monitor_qmp_cleanup_commands(Monitor *mon)
+{
+    QmpCommand *cmd, *next_cmd;
+
+    if (!monitor_is_qmp(mon) ||
+        mon->qmp.commands == &qmp_cap_negotiation_commands) {
+        return;
+    }
+
+    QTAILQ_FOREACH_SAFE(cmd, mon->qmp.commands, node, next_cmd) {
+        QTAILQ_REMOVE(mon->qmp.commands, cmd, node);
+        g_free(cmd);
+    }
+    g_free(mon->qmp.commands);
 }
 
 /* Caller must hold mon->qmp.qmp_queue_lock */
@@ -739,6 +756,10 @@ static void monitor_data_destroy(Monitor *mon)
     qemu_mutex_destroy(&mon->qmp.qmp_queue_lock);
     monitor_qmp_cleanup_req_queue_locked(mon);
     g_queue_free(mon->qmp.qmp_requests);
+    if (mon->whitelist) {
+        g_hash_table_destroy(mon->whitelist);
+    }
+    monitor_qmp_cleanup_commands(mon);
 }
 
 char *qmp_human_monitor_command(const char *command_line, bool has_cpu_index,
@@ -1242,10 +1263,28 @@ static bool qmp_caps_accept(Monitor *mon, QMPCapabilityList *list,
     return true;
 }
 
+static void monitor_copy_qmp_commands(Monitor *mon, QmpCommandList *cmds)
+{
+    QmpCommand *cmd;
+
+    mon->qmp.commands = g_malloc0(sizeof(*cmds));
+    QTAILQ_INIT(mon->qmp.commands);
+    QTAILQ_FOREACH(cmd, cmds, node) {
+        QmpCommand *new_cmd = g_memdup(cmd, sizeof(*cmd));
+
+        if (mon->whitelist) {
+            new_cmd->enabled = g_hash_table_contains(mon->whitelist,
+                                                     new_cmd->name);
+        }
+        QTAILQ_INSERT_TAIL(mon->qmp.commands, new_cmd, node);
+    }
+}
+
 void qmp_qmp_capabilities(bool has_enable, QMPCapabilityList *enable,
                           Error **errp)
 {
-    if (cur_mon->qmp.commands == &qmp_commands) {
+    if (cur_mon->qmp.commands &&
+        cur_mon->qmp.commands != &qmp_cap_negotiation_commands) {
         error_set(errp, ERROR_CLASS_COMMAND_NOT_FOUND,
                   "Capabilities negotiation is already complete, command "
                   "ignored");
@@ -1256,7 +1295,7 @@ void qmp_qmp_capabilities(bool has_enable, QMPCapabilityList *enable,
         return;
     }
 
-    cur_mon->qmp.commands = &qmp_commands;
+    monitor_copy_qmp_commands(cur_mon, &qmp_commands);
 }
 
 /* Set the current CPU defined by the user. Callers must hold BQL. */
@@ -2620,7 +2659,6 @@ static mon_cmd_t mon_cmds[] = {
 
 static const char *pch;
 static sigjmp_buf expr_env;
-
 
 static void GCC_FMT_ATTR(2, 3) QEMU_NORETURN
 expr_error(Monitor *mon, const char *fmt, ...)
@@ -4562,7 +4600,32 @@ static void monitor_qmp_setup_handlers_bh(void *opaque)
     monitor_list_append(mon);
 }
 
-void monitor_init(Chardev *chr, int flags)
+static void process_whitelist_file(Monitor *mon, const char *whitelist_file)
+{
+    char cmd_name[256];
+    FILE *fd = fopen(whitelist_file, "r");
+
+    if (fd == NULL) {
+        error_report("Could not open whitelist file: %s", strerror(errno));
+        exit(1);
+    }
+
+    mon->whitelist = g_hash_table_new_full(g_str_hash,
+                                           g_str_equal,
+                                           g_free,
+                                           NULL);
+
+    g_hash_table_add(mon->whitelist, g_strdup("qmp_capabilities"));
+    g_hash_table_add(mon->whitelist, g_strdup("query-commands"));
+
+    while (fscanf(fd, "%255s", cmd_name) == 1) {
+        g_hash_table_add(mon->whitelist, g_strdup(cmd_name));
+    }
+
+    fclose(fd);
+}
+
+void monitor_init(Chardev *chr, int flags, const char *whitelist_file)
 {
     Monitor *mon = g_malloc(sizeof(*mon));
     bool use_readline = flags & MONITOR_USE_READLINE;
@@ -4581,6 +4644,14 @@ void monitor_init(Chardev *chr, int flags)
                                 mon,
                                 monitor_find_completion);
         monitor_read_command(mon, 0);
+    }
+
+    if (whitelist_file) {
+        if (monitor_is_qmp(mon)) {
+            process_whitelist_file(mon, whitelist_file);
+        } else {
+            warn_report("HMP doesn't support whitelist option: file ignored");
+        }
     }
 
     if (monitor_is_qmp(mon)) {
@@ -4666,6 +4737,9 @@ QemuOptsList qemu_mon_opts = {
         },{
             .name = "pretty",
             .type = QEMU_OPT_BOOL,
+        },{
+            .name = "whitelist",
+            .type = QEMU_OPT_STRING,
         },
         { /* end of list */ }
     },
