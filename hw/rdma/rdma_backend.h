@@ -33,6 +33,7 @@
 #define VENDOR_ERR_MR_SMALL         0x208
 #define VENDOR_ERR_INV_MAD_BUFF     0x209
 #define VENDOR_ERR_INV_GID_IDX      0x210
+#define VENDOR_ERR_DEV_GOING_DOWN   0x211
 
 /* Add definition for QP0 and QP1 as there is no userspace enums for them */
 enum ibv_special_qp_type {
