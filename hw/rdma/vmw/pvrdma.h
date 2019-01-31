@@ -133,5 +133,6 @@ static inline void post_interrupt(PVRDMADev *dev, unsigned vector)
 }
 
 int pvrdma_exec_cmd(PVRDMADev *dev);
+void pvrdma_dump_statistics(FILE *f, fprintf_function fprintf_func);
 
 #endif

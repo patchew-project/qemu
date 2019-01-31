@@ -14,6 +14,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "qapi/error.h"
 #include "hw/hw.h"
 #include "hw/pci/pci.h"
@@ -36,6 +37,8 @@
 #include "standard-headers/drivers/infiniband/hw/vmw_pvrdma/pvrdma_dev_api.h"
 #include "pvrdma_qp_ops.h"
 
+GSList *devices;
+
 static Property pvrdma_dev_properties[] = {
     DEFINE_PROP_STRING("netdev", PVRDMADev, backend_eth_device_name),
     DEFINE_PROP_STRING("ibdev", PVRDMADev, backend_device_name),
@@ -54,6 +57,72 @@ static Property pvrdma_dev_properties[] = {
     DEFINE_PROP_CHR("mad-chardev", PVRDMADev, mad_chr),
     DEFINE_PROP_END_OF_LIST(),
 };
+
+static void pvrdma_dump_device_statistics(gpointer data, gpointer user_data)
+{
+    CPUListState *s = user_data;
+    PCIDevice *pdev = data;
+    PVRDMADev *dev = PVRDMA_DEV(pdev);
+
+    (*s->cpu_fprintf)(s->file, "%s_%x.%x\n", pdev->name,
+                 PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn));
+    (*s->cpu_fprintf)(s->file, "\tcommands         : %" PRId64 "\n",
+                      dev->stats.commands);
+    (*s->cpu_fprintf)(s->file, "\ttx               : %" PRId64 "\n",
+                      dev->rdma_dev_res.stats.tx);
+    (*s->cpu_fprintf)(s->file, "\ttx_len           : %" PRId64 "\n",
+                      dev->rdma_dev_res.stats.tx_len);
+    (*s->cpu_fprintf)(s->file, "\ttx_err           : %" PRId64 "\n",
+                      dev->rdma_dev_res.stats.tx_err);
+    (*s->cpu_fprintf)(s->file, "\trx_bufs          : %" PRId64 "\n",
+                      dev->rdma_dev_res.stats.rx_bufs);
+    (*s->cpu_fprintf)(s->file, "\trx_bufs_len      : %" PRId64 "\n",
+                      dev->rdma_dev_res.stats.rx_bufs_len);
+    (*s->cpu_fprintf)(s->file, "\trx_bufs_err      : %" PRId64 "\n",
+                      dev->rdma_dev_res.stats.rx_bufs_err);
+    (*s->cpu_fprintf)(s->file, "\tcompletions      : %" PRId64 "\n",
+                      dev->rdma_dev_res.stats.completions);
+    (*s->cpu_fprintf)(s->file, "\tpoll_cq (bk)     : %" PRId64 "\n",
+                      dev->rdma_dev_res.stats.poll_cq_from_bk);
+    (*s->cpu_fprintf)(s->file, "\tpoll_cq_ppoll_to : %" PRId64 "\n",
+                      dev->rdma_dev_res.stats.poll_cq_ppoll_to);
+    (*s->cpu_fprintf)(s->file, "\tpoll_cq (fe)     : %" PRId64 "\n",
+                      dev->rdma_dev_res.stats.poll_cq_from_guest);
+    (*s->cpu_fprintf)(s->file, "\tmad_tx           : %" PRId64 "\n",
+                      dev->rdma_dev_res.stats.mad_tx);
+    (*s->cpu_fprintf)(s->file, "\tmad_tx_err       : %" PRId64 "\n",
+                      dev->rdma_dev_res.stats.mad_tx_err);
+    (*s->cpu_fprintf)(s->file, "\tmad_rx           : %" PRId64 "\n",
+                      dev->rdma_dev_res.stats.mad_rx);
+    (*s->cpu_fprintf)(s->file, "\tmad_rx_err       : %" PRId64 "\n",
+                      dev->rdma_dev_res.stats.mad_rx_err);
+    (*s->cpu_fprintf)(s->file, "\tmad_rx_bufs      : %" PRId64 "\n",
+                      dev->rdma_dev_res.stats.mad_rx_bufs);
+    (*s->cpu_fprintf)(s->file, "\tmad_rx_bufs_err  : %" PRId64 "\n",
+                      dev->rdma_dev_res.stats.mad_rx_bufs_err);
+    (*s->cpu_fprintf)(s->file, "\tPDs              : %" PRId32 "\n",
+                      dev->rdma_dev_res.pd_tbl.used);
+    (*s->cpu_fprintf)(s->file, "\tMRs              : %" PRId32 "\n",
+                      dev->rdma_dev_res.mr_tbl.used);
+    (*s->cpu_fprintf)(s->file, "\tUCs              : %" PRId32 "\n",
+                      dev->rdma_dev_res.uc_tbl.used);
+    (*s->cpu_fprintf)(s->file, "\tQPs              : %" PRId32 "\n",
+                      dev->rdma_dev_res.qp_tbl.used);
+    (*s->cpu_fprintf)(s->file, "\tCQs              : %" PRId32 "\n",
+                      dev->rdma_dev_res.cq_tbl.used);
+    (*s->cpu_fprintf)(s->file, "\tCEQ_CTXs         : %" PRId32 "\n",
+                      dev->rdma_dev_res.cqe_ctx_tbl.used);
+}
+
+void pvrdma_dump_statistics(FILE *f, fprintf_function fprintf_func)
+{
+    CPUListState s = {
+        .file = f,
+        .cpu_fprintf = fprintf_func,
+    };
+
+    g_slist_foreach(devices, pvrdma_dump_device_statistics, &s);
+}
 
 static void free_dev_ring(PCIDevice *pci_dev, PvrdmaRing *ring,
                           void *ring_state)
@@ -618,6 +687,8 @@ static void pvrdma_realize(PCIDevice *pdev, Error **errp)
     dev->shutdown_notifier.notify = pvrdma_shutdown_notifier;
     qemu_register_shutdown_notifier(&dev->shutdown_notifier);
 
+    devices = g_slist_append(devices, pdev);
+
 out:
     if (rc) {
         pvrdma_fini(pdev);
@@ -627,6 +698,7 @@ out:
 
 static void pvrdma_exit(PCIDevice *pdev)
 {
+    devices = g_slist_remove(devices, pdev);
     pvrdma_fini(pdev);
 }
 
