@@ -4547,11 +4547,11 @@ fi
 
 # Check if tools are available to build documentation.
 if test "$docs" != "no" ; then
-  if has makeinfo && has pod2man; then
+  if has makeinfo && has pod2man && has sphinx-build; then
     docs=yes
   else
     if test "$docs" = "yes" ; then
-      feature_not_found "docs" "Install texinfo and Perl/perl-podlators"
+      feature_not_found "docs" "Install texinfo, Perl/perl-podlators and python-sphinx"
     fi
     docs=no
   fi
