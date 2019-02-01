@@ -479,6 +479,38 @@ static void machine_set_memory_encryption(Object *obj, const char *value,
     ms->memory_encryption = g_strdup(value);
 }
 
+static char *machine_get_host_serial(Object *obj, Error **errp)
+{
+    MachineState *ms = MACHINE(obj);
+
+    return g_strdup(ms->host_serial);
+}
+
+static void machine_set_host_serial(Object *obj, const char *value,
+                                    Error **errp)
+{
+    MachineState *ms = MACHINE(obj);
+
+    g_free(ms->host_serial);
+    ms->host_serial = g_strdup(value);
+}
+
+static char *machine_get_host_model(Object *obj, Error **errp)
+{
+    MachineState *ms = MACHINE(obj);
+
+    return g_strdup(ms->host_model);
+}
+
+static void machine_set_host_model(Object *obj, const char *value,
+                                   Error **errp)
+{
+    MachineState *ms = MACHINE(obj);
+
+    g_free(ms->host_model);
+    ms->host_model = g_strdup(value);
+}
+
 void machine_class_allow_dynamic_sysbus_dev(MachineClass *mc, const char *type)
 {
     strList *item = g_new0(strList, 1);
@@ -763,6 +795,18 @@ static void machine_class_init(ObjectClass *oc, void *data)
         &error_abort);
     object_class_property_set_description(oc, "memory-encryption",
         "Set memory encryption object to use", &error_abort);
+
+    object_class_property_add_str(oc, "host-serial",
+        machine_get_host_serial, machine_set_host_serial,
+        &error_abort);
+    object_class_property_set_description(oc, "host-serial",
+        "Set host's system-id to use", &error_abort);
+
+    object_class_property_add_str(oc, "host-model",
+        machine_get_host_model, machine_set_host_model,
+        &error_abort);
+    object_class_property_set_description(oc, "host-model",
+        "Set host's model-id to use", &error_abort);
 }
 
 static void machine_class_base_init(ObjectClass *oc, void *data)
@@ -788,6 +832,8 @@ static void machine_initfn(Object *obj)
     ms->dump_guest_core = true;
     ms->mem_merge = true;
     ms->enable_graphics = true;
+    ms->host_serial = NULL;
+    ms->host_model = NULL;
 
     /* Register notifier when init is done for sysbus sanity checks */
     ms->sysbus_notifier.notify = machine_init_notify;

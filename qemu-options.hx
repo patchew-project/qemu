@@ -43,7 +43,9 @@ DEF("machine", HAS_ARG, QEMU_OPTION_machine, \
     "                suppress-vmdesc=on|off disables self-describing migration (default=off)\n"
     "                nvdimm=on|off controls NVDIMM support (default=off)\n"
     "                enforce-config-section=on|off enforce configuration section migration (default=off)\n"
-    "                memory-encryption=@var{} memory encryption object to use (default=none)\n",
+    "                memory-encryption=@var{} memory encryption object to use (default=none)\n"
+    "                host-serial=none|passthrough|string controls host systemd-id (default=passthrough)\n"
+    "                host-model=none|passthrough|string controls host model-id (default=passthrough)\n",
     QEMU_ARCH_ALL)
 STEXI
 @item -machine [type=]@var{name}[,prop=@var{value}[,...]]
@@ -103,6 +105,12 @@ NOTE: this parameter is deprecated. Please use @option{-global}
 @option{migration.send-configuration}=@var{on|off} instead.
 @item memory-encryption=@var{}
 Memory encryption object to use. The default is none.
+@item host-serial=none|passthrough|string
+Pass 'system-id' parameter from host's device-tree to a guest. A user may
+disable it with 'none' or define a custom string for a guest.
+@item host-model=none|passthrough|string
+Pass 'model' paramter from host's device-tree to a guest. A user may disable
+it with 'none' or define a custom string for a guest.
 @end table
 ETEXI
 

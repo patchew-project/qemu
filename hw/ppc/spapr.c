@@ -1249,11 +1249,34 @@ static void *spapr_build_fdt(sPAPRMachineState *spapr,
      * Add info to guest to indentify which host is it being run on
      * and what is the uuid of the guest
      */
-    if (kvmppc_get_host_model(&buf)) {
+    if (machine->host_model && !strcmp(machine->host_model, "none")) {
+        /* -M host-model=none = do not set host-model */
+    } else if (machine->host_model
+        && !strcmp(machine->host_model, "passthrough")) {
+        /* -M host-model=passthrough */
+        _FDT(fdt_setprop_string(fdt, 0, "host-model", buf));
+        g_free(buf);
+    } else if (machine->host_model) {
+        /* -M host-model=<user-string> */
+        _FDT(fdt_setprop_string(fdt, 0, "host-model", machine->host_model));
+    } else if (kvmppc_get_host_model(&buf)) {
+        /* -M host-model=xxx attribute not supplied */
         _FDT(fdt_setprop_string(fdt, 0, "host-model", buf));
         g_free(buf);
     }
-    if (kvmppc_get_host_serial(&buf)) {
+
+    if (machine->host_serial && !strcmp(machine->host_serial, "none")) {
+        /* -M host-serial=none = do not set host-serial */
+    } else if (machine->host_serial
+        && !strcmp(machine->host_serial, "passthrough")) {
+        /* -M host-serial=passthrough */
+        _FDT(fdt_setprop_string(fdt, 0, "host-serial", buf));
+        g_free(buf);
+    } else if (machine->host_serial) {
+        /* -M host-serial=<user-string> */
+        _FDT(fdt_setprop_string(fdt, 0, "host-serial", machine->host_serial));
+    } else if (kvmppc_get_host_serial(&buf)) {
+        /* -M host-serial=xxx attribute not supplied */
         _FDT(fdt_setprop_string(fdt, 0, "host-serial", buf));
         g_free(buf);
     }

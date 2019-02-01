@@ -238,6 +238,14 @@ static QemuOptsList machine_opts = {
             .help = "Up to 8 chars in set of [A-Za-z0-9. ](lower case chars"
                     " converted to upper case) to pass to machine"
                     " loader, boot manager, and guest kernel",
+        },{
+            .name = "host-serial",
+            .type = QEMU_OPT_STRING,
+            .help = "host's system-id seen by guest",
+        },{
+            .name = "host-model",
+            .type = QEMU_OPT_STRING,
+            .help = "host's model-id seen by guest",
         },
         { /* End of list */ }
     }
