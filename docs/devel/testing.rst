@@ -697,7 +697,9 @@ scenarios.  For instance, when a QEMU binary is not explicitly given,
 the one selected will depend on this attribute.
 
 The ``arch`` attribute will be set to the test parameter of the same
-name, and if one is not given explicitly, it will be set to ``None``.
+name.  If one is not given explicitly, it will either be set to
+``None``, or, if the test is tagged with one (and only one)
+``:avocado: tags=arch:VALUE`` tag, it will be set to ``VALUE``.
 
 qemu_bin
 ~~~~~~~~
