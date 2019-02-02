@@ -62,7 +62,7 @@ class VirtioVersionCheck(Test):
     `disable-legacy`.
 
     :avocado: enable
-    :avocado: tags=x86_64
+    :avocado: tags=arch:x86_64
     """
 
     # just in case there are failures, show larger diff:
