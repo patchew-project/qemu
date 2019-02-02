@@ -459,8 +459,21 @@ int kvm_vm_check_extension(KVMState *s, unsigned int extension);
         kvm_vcpu_ioctl(cpu, KVM_ENABLE_CAP, &cap);                   \
     })
 
+#ifdef CONFIG_KVM
 uint32_t kvm_arch_get_supported_cpuid(KVMState *env, uint32_t function,
                                       uint32_t index, int reg);
+#else
+/*
+ * This function is only called inside conditionals which we
+ * rely on the compiler to optimize out when CONFIG_KVM is not
+ * defined.
+ */
+#define kvm_arch_get_supported_cpuid(a, b, c, d)                     \
+    ({                                                               \
+        abort();                                                     \
+        0;                                                           \
+    })
+#endif
 uint32_t kvm_arch_get_supported_msr_feature(KVMState *s, uint32_t index);
 
 
