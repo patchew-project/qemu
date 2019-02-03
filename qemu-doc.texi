@@ -119,8 +119,7 @@ can be used for talking to external physical peripherals (e.g. a
 webcam, modem or tape drive).
 
 @item
-Symmetric multiprocessing (SMP) support.  Currently, an in-kernel
-accelerator is required to use more than one host CPU for emulation.
+Symmetric multiprocessing (SMP) support.
 
 @end itemize
 
