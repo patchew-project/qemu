@@ -42,6 +42,11 @@ config JAZZ
 
 config FULONG
     bool
+    select PCI_BONITO
+    select VT82C686
+    select SMBUS_EEPROM
+    select RTL8139_PCI
+    select MC146818RTC
 
 config MIPS_CPS
     bool
