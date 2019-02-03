@@ -1,5 +1,15 @@
 config R4K
     bool
+    select ISA_BUS
+    select SERIAL_ISA
+    select I8259
+    select I8254
+    select MC146818RTC
+    select VGA_ISA
+    select NE2000_ISA
+    select IDE_ISA
+    # I8042
+    select PCKBD
 
 config MALTA
     bool
