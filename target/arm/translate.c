@@ -4066,6 +4066,21 @@ static int disas_vfp_insn(DisasContext *s, uint32_t insn)
                     case 17: /* fsito */
                         gen_vfp_sito(dp, 0);
                         break;
+                    case 19: /* vjcvt */
+                        if (!dp || !dc_isar_feature(aa32_jscvt, s)) {
+                            return 1;
+                        } else {
+                            TCGv_ptr fpst = get_fpstatus_ptr(0);
+                            gen_helper_fjcvtzs(cpu_F0d, cpu_F0d, fpst);
+                            tcg_temp_free_ptr(fpst);
+
+                            tcg_gen_extr_i64_i32(cpu_F0s, cpu_ZF, cpu_F0d);
+                            tcg_gen_movi_i32(cpu_NF, 0);
+                            tcg_gen_movi_i32(cpu_CF, 0);
+                            tcg_gen_movi_i32(cpu_VF, 0);
+                            dp = 0; /* always a single precision result */
+                        }
+                        break;
                     case 20: /* fshto */
                         if (!arm_dc_feature(s, ARM_FEATURE_VFP3)) {
                             return 1;

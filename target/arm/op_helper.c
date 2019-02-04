@@ -24,6 +24,7 @@
 #include "internals.h"
 #include "exec/exec-all.h"
 #include "exec/cpu_ldst.h"
+#include "fpu/softfloat.h"
 
 #define SIGNBIT (uint32_t)0x80000000
 #define SIGNBIT64 ((uint64_t)1 << 63)
@@ -1375,4 +1376,94 @@ uint32_t HELPER(ror_cc)(CPUARMState *env, uint32_t x, uint32_t i)
         env->CF = (x >> (shift - 1)) & 1;
         return ((uint32_t)x >> shift) | (x << (32 - shift));
     }
+}
+
+/*
+ * Implement float64 to int32_t conversion without saturation;
+ * the result is supplied modulo 2^32.
+ */
+uint64_t HELPER(fjcvtzs)(float64 value, void *vstatus)
+{
+    float_status *status = vstatus;
+    uint32_t result, exp, sign;
+    uint64_t frac;
+    uint32_t inexact; /* !Z */
+
+    sign = extract64(value, 63, 1);
+    exp = extract64(value, 52, 11);
+    frac = extract64(value, 0, 52);
+
+    if (exp == 0) {
+        /* While not inexact for IEEE FP, -0.0 is inexact for JavaScript.  */
+        inexact = sign;
+        result = 0;
+        if (frac != 0) {
+            if (status->flush_inputs_to_zero) {
+                float_raise(float_flag_input_denormal, status);
+            } else {
+                float_raise(float_flag_inexact, status);
+                inexact = 1;
+            }
+        }
+    } else if (exp == 0x7ff) {
+        if (frac == 0) {
+            /* Infinity.  */
+            result = 0;
+        } else {
+            /* NaN */
+            result = INT32_MAX;
+        }
+        /* This operation raises Invalid for both NaN and overflow (Inf).  */
+        float_raise(float_flag_invalid, status);
+        inexact = 1;
+    } else {
+        int shift, true_exp;
+
+        true_exp = exp - 1023;
+        shift = 52 - true_exp;
+
+        /* Restore implicit bit.  */
+        frac |= 1ull << 52;
+
+        /* Shift the fraction into place.  */
+        if (shift <= -64) {
+            /*
+             * The number is so large the fraction is shifted out entirely.
+             * The result mod 2^32 is 0 and will match the overflow case.
+             */
+            inexact = 1;
+            frac = 0;
+        } else if (shift <= 0) {
+            /* The number is so large we must shift the fraction left.  */
+            inexact = 1;
+            frac <<= -shift;
+        } else if (shift < 64) {
+            /* Normal case -- shift right and notice if bits shift out.  */
+            inexact = (frac << (64 - shift)) != 0;
+            frac >>= shift;
+        } else {
+            /* The number is so small the fraction is shifted out entirely.  */
+            inexact = 1;
+            frac = 0;
+        }
+
+        /* Notice overflow or inexact exceptions.  */
+        if (true_exp > 31
+            || frac > (sign ? 0x80000000ull : 0x7fffffff)) {
+            /* Overflow, for which this operation raises invalid.  */
+            float_raise(float_flag_invalid, status);
+            inexact = 1;
+        } else if (inexact) {
+            float_raise(float_flag_inexact, status);
+        }
+
+        /* Produce the result mod 2^32.  */
+        if (sign) {
+            frac = -frac;
+        }
+        result = frac;
+    }
+
+    /* Pack the result and the env->ZF representation of Z together.  */
+    return deposit64(result, 32, 32, inexact);
 }
