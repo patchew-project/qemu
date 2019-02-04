@@ -816,12 +816,6 @@ const char *qemu_ether_ntoa(const MACAddr *mac)
     return ret;
 }
 
-/*
- * Return human readable string for size @val.
- * @val can be anything that uint64_t allows (no more than "16 EiB").
- * Use IEC binary units like KiB, MiB, and so forth.
- * Caller is responsible for passing it to g_free().
- */
 char *size_to_str(uint64_t val)
 {
     static const char *suffixes[] = { "", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei" };

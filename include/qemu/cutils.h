@@ -157,6 +157,19 @@ int qemu_strtosz(const char *nptr, const char **end, uint64_t *result);
 int qemu_strtosz_MiB(const char *nptr, const char **end, uint64_t *result);
 int qemu_strtosz_metric(const char *nptr, const char **end, uint64_t *result);
 
+/**
+ * size_to_str:
+ *
+ * Return human readable string for size @val.
+ * Use IEC binary units like KiB, MiB, and so forth.
+ *
+ * @val: The value to format.
+ *       Can be anything that uint64_t allows (no more than "16 EiB").
+ *
+ * Caller is responsible for passing it to g_free().
+ */
+char *size_to_str(uint64_t val);
+
 /* used to print char* safely */
 #define STR_OR_NULL(str) ((str) ? (str) : "null")
 
