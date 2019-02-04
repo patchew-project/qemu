@@ -11,8 +11,8 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/cutils.h"
 #include "qapi/error.h"
-#include "qemu-common.h"
 
 const char *qapi_enum_lookup(const QEnumLookup *lookup, int val)
 {

@@ -4,6 +4,31 @@
 #include "qemu/fprintf-fn.h"
 
 /**
+ * unsigned ctype macros:
+ *
+ * The standards require that the argument for these functions
+ * is either EOF or a value that is representable in the type
+ * unsigned char. If the argument is of type char, it must be
+ * cast to unsigned char. This is what these macros do,
+ * avoiding 'signed to unsigned' conversion warnings.
+ */
+#define qemu_isalnum(c)     isalnum((unsigned char)(c))
+#define qemu_isalpha(c)     isalpha((unsigned char)(c))
+#define qemu_iscntrl(c)     iscntrl((unsigned char)(c))
+#define qemu_isdigit(c)     isdigit((unsigned char)(c))
+#define qemu_isgraph(c)     isgraph((unsigned char)(c))
+#define qemu_islower(c)     islower((unsigned char)(c))
+#define qemu_isprint(c)     isprint((unsigned char)(c))
+#define qemu_ispunct(c)     ispunct((unsigned char)(c))
+#define qemu_isspace(c)     isspace((unsigned char)(c))
+#define qemu_isupper(c)     isupper((unsigned char)(c))
+#define qemu_isxdigit(c)    isxdigit((unsigned char)(c))
+#define qemu_tolower(c)     tolower((unsigned char)(c))
+#define qemu_toupper(c)     toupper((unsigned char)(c))
+#define qemu_isascii(c)     isascii((unsigned char)(c))
+#define qemu_toascii(c)     toascii((unsigned char)(c))
+
+/**
  * pstrcpy:
  * @buf: buffer to copy string into
  * @buf_size: size of @buf in bytes

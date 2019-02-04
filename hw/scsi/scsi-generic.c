@@ -12,8 +12,8 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/cutils.h"
 #include "qapi/error.h"
-#include "qemu-common.h"
 #include "qemu/error-report.h"
 #include "hw/scsi/scsi.h"
 #include "hw/scsi/emulation.h"
