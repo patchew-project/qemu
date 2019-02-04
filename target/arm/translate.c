@@ -3970,6 +3970,7 @@ static int disas_vfp_insn(DisasContext *s, uint32_t insn)
                         tcg_gen_or_i32(tmp, tmp, tmp2);
                         tcg_temp_free_i32(tmp2);
                         gen_vfp_msr(tmp);
+                        dp = 0; /* always a single precision result */
                         break;
                     }
                     case 7: /* vcvtt.f16.f32, vcvtt.f16.f64 */
@@ -3993,20 +3994,25 @@ static int disas_vfp_insn(DisasContext *s, uint32_t insn)
                         tcg_gen_or_i32(tmp, tmp, tmp2);
                         tcg_temp_free_i32(tmp2);
                         gen_vfp_msr(tmp);
+                        dp = 0; /* always a single precision result */
                         break;
                     }
                     case 8: /* cmp */
                         gen_vfp_cmp(dp);
+                        dp = -1; /* no write back */
                         break;
                     case 9: /* cmpe */
                         gen_vfp_cmpe(dp);
+                        dp = -1; /* no write back */
                         break;
                     case 10: /* cmpz */
                         gen_vfp_cmp(dp);
+                        dp = -1; /* no write back */
                         break;
                     case 11: /* cmpez */
                         gen_vfp_F1_ld0(dp);
                         gen_vfp_cmpe(dp);
+                        dp = -1; /* no write back */
                         break;
                     case 12: /* vrintr */
                     {
@@ -4047,10 +4053,12 @@ static int disas_vfp_insn(DisasContext *s, uint32_t insn)
                         break;
                     }
                     case 15: /* single<->double conversion */
-                        if (dp)
+                        if (dp) {
                             gen_helper_vfp_fcvtsd(cpu_F0s, cpu_F0d, cpu_env);
-                        else
+                        } else {
                             gen_helper_vfp_fcvtds(cpu_F0d, cpu_F0s, cpu_env);
+                        }
+                        dp = !dp; /* result size is opposite */
                         break;
                     case 16: /* fuito */
                         gen_vfp_uito(dp, 0);
@@ -4084,15 +4092,19 @@ static int disas_vfp_insn(DisasContext *s, uint32_t insn)
                         break;
                     case 24: /* ftoui */
                         gen_vfp_toui(dp, 0);
+                        dp = 0; /* always an integer result */
                         break;
                     case 25: /* ftouiz */
                         gen_vfp_touiz(dp, 0);
+                        dp = 0; /* always an integer result */
                         break;
                     case 26: /* ftosi */
                         gen_vfp_tosi(dp, 0);
+                        dp = 0; /* always an integer result */
                         break;
                     case 27: /* ftosiz */
                         gen_vfp_tosiz(dp, 0);
+                        dp = 0; /* always an integer result */
                         break;
                     case 28: /* ftosh */
                         if (!arm_dc_feature(s, ARM_FEATURE_VFP3)) {
@@ -4126,20 +4138,8 @@ static int disas_vfp_insn(DisasContext *s, uint32_t insn)
                     return 1;
                 }
 
-                /* Write back the result.  */
-                if (op == 15 && (rn >= 8 && rn <= 11)) {
-                    /* Comparison, do nothing.  */
-                } else if (op == 15 && dp && ((rn & 0x1c) == 0x18 ||
-                                              (rn & 0x1e) == 0x6)) {
-                    /* VCVT double to int: always integer result.
-                     * VCVT double to half precision is always a single
-                     * precision result.
-                     */
-                    gen_mov_vreg_F0(0, rd);
-                } else if (op == 15 && rn == 15) {
-                    /* conversion */
-                    gen_mov_vreg_F0(!dp, rd);
-                } else {
+                /* Write back the result, if any.  */
+                if (dp >= 0) {
                     gen_mov_vreg_F0(dp, rd);
                 }
 
