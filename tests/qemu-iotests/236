@@ -23,6 +23,7 @@ import iotests
 from iotests import log
 
 iotests.verify_image_format(supported_fmts=['generic'])
+iotests.verify_platform(unsupported_oses=['openbsd']) # FIXME
 size = 64 * 1024 * 1024
 granularity = 64 * 1024
 
