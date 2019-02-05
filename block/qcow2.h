@@ -112,6 +112,10 @@
 #define QCOW2_OPT_REFCOUNT_CACHE_SIZE "refcount-cache-size"
 #define QCOW2_OPT_CACHE_CLEAN_INTERVAL "cache-clean-interval"
 
+/* Compression types */
+#define QCOW2_COMPRESSION_TYPE_ZLIB    0
+#define QCOW2_COMPRESSION_TYPE_ZSTD    1
+
 typedef struct QCowHeader {
     uint32_t magic;
     uint32_t version;
@@ -197,10 +201,13 @@ enum {
 
 /* Incompatible feature bits */
 enum {
-    QCOW2_INCOMPAT_DIRTY_BITNR   = 0,
-    QCOW2_INCOMPAT_CORRUPT_BITNR = 1,
-    QCOW2_INCOMPAT_DIRTY         = 1 << QCOW2_INCOMPAT_DIRTY_BITNR,
-    QCOW2_INCOMPAT_CORRUPT       = 1 << QCOW2_INCOMPAT_CORRUPT_BITNR,
+    QCOW2_INCOMPAT_DIRTY_BITNR            = 0,
+    QCOW2_INCOMPAT_CORRUPT_BITNR          = 1,
+    QCOW2_INCOMPAT_COMPRESSION_TYPE_BITNR = 2,
+    QCOW2_INCOMPAT_DIRTY                  = 1 << QCOW2_INCOMPAT_DIRTY_BITNR,
+    QCOW2_INCOMPAT_CORRUPT                = 1 << QCOW2_INCOMPAT_CORRUPT_BITNR,
+    QCOW2_INCOMPAT_COMPRESSION_TYPE       =
+                                    1 << QCOW2_INCOMPAT_COMPRESSION_TYPE_BITNR,
 
     QCOW2_INCOMPAT_MASK          = QCOW2_INCOMPAT_DIRTY
                                  | QCOW2_INCOMPAT_CORRUPT,
@@ -255,6 +262,10 @@ typedef struct Qcow2BitmapHeaderExt {
     uint64_t bitmap_directory_size;
     uint64_t bitmap_directory_offset;
 } QEMU_PACKED Qcow2BitmapHeaderExt;
+
+typedef struct Qcow2CompressionTypeExt {
+    uint32_t compression_type;
+} QEMU_PACKED Qcow2CompressionTypeExt;
 
 typedef struct BDRVQcow2State {
     int cluster_bits;
@@ -340,6 +351,13 @@ typedef struct BDRVQcow2State {
 
     CoQueue compress_wait_queue;
     int nb_compress_threads;
+    /**
+     * Compression type used for the image. Default: 0 - ZLIB
+     * The image compression type is set on image creation.
+     * The only way to change the compression type is to convert the image
+     * with the desired compresion type set
+     */
+    uint32_t compression_type;
 } BDRVQcow2State;
 
 typedef struct Qcow2COWRegion {
