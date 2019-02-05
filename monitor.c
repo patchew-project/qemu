@@ -1165,7 +1165,7 @@ static void qmp_unregister_commands_hack(void)
     qmp_unregister_command(&qmp_commands, "query-cpu-model-comparison");
 #endif
 #if !defined(TARGET_PPC) && !defined(TARGET_ARM) && !defined(TARGET_I386) \
-    && !defined(TARGET_S390X)
+    && !defined(TARGET_S390X) && !defined(TARGET_MIPS)
     qmp_unregister_command(&qmp_commands, "query-cpu-definitions");
 #endif
 }
