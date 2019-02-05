@@ -1456,7 +1456,7 @@ sub process {
 		    ERROR("Author email address is mangled by the mailing list\n" . $herecurr);
 		}
 
-#check the patch for a signoff:
+#check the patch for a signoff, and that other attribution lines are typical:
 		if ($line =~ /^\s*signed-off-by:/i) {
 			# This is a signoff, if ugly, so do not double report.
 			$signoff++;
@@ -1470,6 +1470,10 @@ sub process {
 				ERROR("space required after Signed-off-by:\n" .
 					$herecurr);
 			}
+		} elsif($line =~ /^\s*([a-z-]*)-by:/i &&
+			($1 !~ /(Suggest|Report|Test|Ack|Review)ed/ ||
+			 $line !~ /^\s*[A-Za-z-]*-by:\s/)) {
+		    WARN("suspicious attribution tag:\n" . $herecurr);
 		}
 
 # Check if MAINTAINERS is being updated.  If so, there's probably no need to
