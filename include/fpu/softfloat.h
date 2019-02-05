@@ -940,6 +940,16 @@ static inline int float128_is_zero_or_denormal(float128 a)
     return (a.high & 0x7fff000000000000LL) == 0;
 }
 
+static inline bool float128_is_normal(float128 a)
+{
+    return ((a.high + (1ULL << 47)) & -1ULL >> 1) >= 1ULL << 48;
+}
+
+static inline bool float128_is_denormal(float128 a)
+{
+    return float128_is_zero_or_denormal(a) && !float128_is_zero(a);
+}
+
 static inline int float128_is_any_nan(float128 a)
 {
     return ((a.high >> 48) & 0x7fff) == 0x7fff &&
