@@ -103,5 +103,7 @@ void memory_device_plug(MemoryDeviceState *md, MachineState *ms);
 void memory_device_unplug(MemoryDeviceState *md, MachineState *ms);
 uint64_t memory_device_get_region_size(const MemoryDeviceState *md,
                                        Error **errp);
+void memory_device_set_region_size(const MemoryDeviceState *md,
+                                   uint64_t size, Error **errp);
 
 #endif
