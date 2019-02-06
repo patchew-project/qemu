@@ -255,13 +255,8 @@ void qemu_chr_fe_set_handlers(CharBackend *b,
                               GMainContext *context,
                               bool set_open)
 {
-    Chardev *s;
+    Chardev *s = b->chr;
     int fe_open;
-
-    s = b->chr;
-    if (!s) {
-        return;
-    }
 
     if (!opaque && !fd_can_read && !fd_read && !fd_event) {
         fe_open = 0;
