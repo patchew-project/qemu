@@ -187,6 +187,7 @@ struct sPAPRMachineState {
 
     bool cmd_line_caps[SPAPR_CAP_NUM];
     sPAPRCapabilities def, eff, mig;
+    bool nvdimm_enabled;
 };
 
 #define H_SUCCESS         0
@@ -797,6 +798,15 @@ int spapr_rtc_import_offset(sPAPRRTCState *rtc, int64_t legacy_offset);
 #define SPAPR_LMB_FLAGS_ASSIGNED 0x00000008
 #define SPAPR_LMB_FLAGS_DRC_INVALID 0x00000020
 #define SPAPR_LMB_FLAGS_RESERVED 0x00000080
+
+/*
+ * The nvdimm size should be aligned to SCM block size.
+ * The SCM block size should be aligned to SPAPR_MEMORY_BLOCK_SIZE
+ * inorder to have SCM regions not to overlap with dimm memory regions.
+ * The SCM devices can have variable block sizes. For now, fixing the
+ * block size to the minimum value.
+ */
+#define SPAPR_MINIMUM_SCM_BLOCK_SIZE SPAPR_MEMORY_BLOCK_SIZE
 
 void spapr_do_system_reset_on_cpu(CPUState *cs, run_on_cpu_data arg);
 
