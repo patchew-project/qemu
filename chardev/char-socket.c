@@ -173,7 +173,9 @@ static int tcp_chr_write(Chardev *chr, const uint8_t *buf, int len)
 
         if (ret < 0 && errno != EAGAIN) {
             if (tcp_chr_read_poll(chr) <= 0) {
+                qemu_mutex_unlock(&chr->chr_write_lock);
                 tcp_chr_disconnect(chr);
+                qemu_mutex_lock(&chr->chr_write_lock);
                 return len;
             } /* else let the read handler finish it properly */
         }
@@ -474,7 +476,9 @@ static void tcp_chr_disconnect(Chardev *chr)
     SocketChardev *s = SOCKET_CHARDEV(chr);
     bool emit_close = s->state == TCP_CHARDEV_STATE_CONNECTED;
 
+    qemu_mutex_lock(&chr->chr_write_lock);
     tcp_chr_free_connection(chr);
+    qemu_mutex_unlock(&chr->chr_write_lock);
 
     if (s->listener) {
         qio_net_listener_set_client_func_full(s->listener, tcp_chr_accept,
