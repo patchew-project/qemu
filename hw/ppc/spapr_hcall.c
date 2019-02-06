@@ -3,11 +3,13 @@
 #include "sysemu/hw_accel.h"
 #include "sysemu/sysemu.h"
 #include "qemu/log.h"
+#include "qemu/range.h"
 #include "qemu/error-report.h"
 #include "cpu.h"
 #include "exec/exec-all.h"
 #include "helper_regs.h"
 #include "hw/ppc/spapr.h"
+#include "hw/ppc/spapr_drc.h"
 #include "hw/ppc/spapr_cpu_core.h"
 #include "mmu-hash64.h"
 #include "cpu-models.h"
@@ -16,6 +18,7 @@
 #include "hw/ppc/spapr_ovec.h"
 #include "mmu-book3s-v3.h"
 #include "hw/mem/memory-device.h"
+#include "hw/mem/nvdimm.h"
 
 struct LPCRSyncState {
     target_ulong value;
@@ -1808,6 +1811,222 @@ static target_ulong h_update_dt(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     return H_SUCCESS;
 }
 
+static target_ulong h_scm_read_metadata(PowerPCCPU *cpu,
+                                        sPAPRMachineState *spapr,
+                                        target_ulong opcode,
+                                        target_ulong *args)
+{
+    uint32_t drc_index = args[0];
+    uint64_t offset = args[1];
+    uint8_t numBytesToRead = args[2];
+    sPAPRDRConnector *drc = spapr_drc_by_index(drc_index);
+    NVDIMMDevice *nvdimm = NULL;
+    NVDIMMClass *ddc = NULL;
+
+    if (numBytesToRead != 1 && numBytesToRead != 2 &&
+        numBytesToRead != 4 && numBytesToRead != 8) {
+        return H_P3;
+    }
+
+    if (offset & (numBytesToRead - 1)) {
+        return H_P2;
+    }
+
+    if (drc && spapr_drc_type(drc) != SPAPR_DR_CONNECTOR_TYPE_PMEM) {
+        return H_PARAMETER;
+    }
+
+    nvdimm = NVDIMM(drc->dev);
+    ddc = NVDIMM_GET_CLASS(nvdimm);
+
+    ddc->read_label_data(nvdimm, &args[0], numBytesToRead, offset);
+
+    return H_SUCCESS;
+}
+
+
+static target_ulong h_scm_write_metadata(PowerPCCPU *cpu,
+                                         sPAPRMachineState *spapr,
+                                         target_ulong opcode,
+                                         target_ulong *args)
+{
+    uint32_t drc_index = args[0];
+    uint64_t offset = args[1];
+    uint64_t data = args[2];
+    int8_t numBytesToWrite = args[3];
+    sPAPRDRConnector *drc = spapr_drc_by_index(drc_index);
+    NVDIMMDevice *nvdimm = NULL;
+    DeviceState *dev = NULL;
+    NVDIMMClass *ddc = NULL;
+
+    if (numBytesToWrite != 1 && numBytesToWrite != 2 &&
+        numBytesToWrite != 4 && numBytesToWrite != 8) {
+        return H_P4;
+    }
+
+    if (offset & (numBytesToWrite - 1)) {
+        return H_P2;
+    }
+
+    if (drc && spapr_drc_type(drc) != SPAPR_DR_CONNECTOR_TYPE_PMEM) {
+        return H_PARAMETER;
+    }
+
+    dev = drc->dev;
+    nvdimm = NVDIMM(dev);
+    if (offset >= nvdimm->label_size) {
+        return H_P3;
+    }
+
+    ddc = NVDIMM_GET_CLASS(nvdimm);
+
+    ddc->write_label_data(nvdimm, &data, numBytesToWrite, offset);
+
+    return H_SUCCESS;
+}
+
+static target_ulong h_scm_bind_mem(PowerPCCPU *cpu, sPAPRMachineState *spapr,
+                                        target_ulong opcode,
+                                        target_ulong *args)
+{
+    uint32_t drc_index = args[0];
+    uint64_t starting_index = args[1];
+    uint64_t no_of_scm_blocks_to_bind = args[2];
+    uint64_t target_logical_mem_addr = args[3];
+    uint64_t continue_token = args[4];
+    uint64_t size;
+    uint64_t total_no_of_scm_blocks;
+
+    sPAPRDRConnector *drc = spapr_drc_by_index(drc_index);
+    hwaddr addr;
+    DeviceState *dev = NULL;
+    PCDIMMDevice *dimm = NULL;
+    Error *local_err = NULL;
+
+    if (drc && spapr_drc_type(drc) != SPAPR_DR_CONNECTOR_TYPE_PMEM) {
+        return H_PARAMETER;
+    }
+
+    dev = drc->dev;
+    dimm = PC_DIMM(dev);
+
+    size = object_property_get_uint(OBJECT(dimm),
+                                    PC_DIMM_SIZE_PROP, &local_err);
+    if (local_err) {
+        error_report_err(local_err);
+        return H_PARAMETER;
+    }
+
+    total_no_of_scm_blocks = size / SPAPR_MINIMUM_SCM_BLOCK_SIZE;
+
+    if (starting_index > total_no_of_scm_blocks) {
+        return H_P2;
+    }
+
+    if ((starting_index + no_of_scm_blocks_to_bind) > total_no_of_scm_blocks) {
+        return H_P3;
+    }
+
+    /* Currently qemu assigns the address. */
+    if (target_logical_mem_addr != 0xffffffffffffffff) {
+        return H_OVERLAP;
+    }
+
+    /*
+     * Currently continue token should be zero qemu has already bound
+     * everything and this hcall doesnt return H_BUSY.
+     */
+    if (continue_token > 0) {
+        return H_P5;
+    }
+
+    /* NB : Already bound, Return target logical address in R4 */
+    addr = object_property_get_uint(OBJECT(dimm),
+                                    PC_DIMM_ADDR_PROP, &local_err);
+    if (local_err) {
+        error_report_err(local_err);
+        return H_PARAMETER;
+    }
+
+    args[1] = addr;
+
+    return H_SUCCESS;
+}
+
+static target_ulong h_scm_unbind_mem(PowerPCCPU *cpu, sPAPRMachineState *spapr,
+                                        target_ulong opcode,
+                                        target_ulong *args)
+{
+    uint64_t starting_scm_logical_addr = args[0];
+    uint64_t no_of_scm_blocks_to_unbind = args[1];
+    uint64_t size_to_unbind;
+    uint64_t continue_token = args[2];
+    Range as = range_empty;
+    GSList *dimms = NULL;
+    bool valid = false;
+
+    size_to_unbind = no_of_scm_blocks_to_unbind * SPAPR_MINIMUM_SCM_BLOCK_SIZE;
+
+    /* Check if starting_scm_logical_addr is block aligned */
+    if (!QEMU_IS_ALIGNED(starting_scm_logical_addr,
+                         SPAPR_MINIMUM_SCM_BLOCK_SIZE)) {
+        return H_PARAMETER;
+    }
+
+    range_init_nofail(&as, starting_scm_logical_addr, size_to_unbind);
+
+    dimms = nvdimm_get_device_list();
+    for (; dimms; dimms = dimms->next) {
+        NVDIMMDevice *nvdimm = dimms->data;
+        Range tmp;
+        int size = object_property_get_int(OBJECT(nvdimm), PC_DIMM_SIZE_PROP,
+                                           NULL);
+        int addr = object_property_get_int(OBJECT(nvdimm), PC_DIMM_ADDR_PROP,
+                                           NULL);
+        range_init_nofail(&tmp, addr, size);
+
+        if (range_contains_range(&tmp, &as)) {
+            valid = true;
+            break;
+        }
+    }
+
+    if (!valid) {
+        return H_P2;
+    }
+
+    if (continue_token > 0) {
+        return H_P3;
+    }
+
+    /*NB : dont do anything, let object_del take care of this for now. */
+
+    return H_SUCCESS;
+}
+
+static target_ulong h_scm_query_block_mem_binding(PowerPCCPU *cpu,
+                                                  sPAPRMachineState *spapr,
+                                                  target_ulong opcode,
+                                                  target_ulong *args)
+{
+    return H_SUCCESS;
+}
+
+static target_ulong h_scm_query_logical_mem_binding(PowerPCCPU *cpu,
+                                                    sPAPRMachineState *spapr,
+                                                    target_ulong opcode,
+                                                    target_ulong *args)
+{
+    return H_SUCCESS;
+}
+
+static target_ulong h_scm_mem_query(PowerPCCPU *cpu, sPAPRMachineState *spapr,
+                                        target_ulong opcode,
+                                        target_ulong *args)
+{
+    return H_SUCCESS;
+}
+
 static spapr_hcall_fn papr_hypercall_table[(MAX_HCALL_OPCODE / 4) + 1];
 static spapr_hcall_fn kvmppc_hypercall_table[KVMPPC_HCALL_MAX - KVMPPC_HCALL_BASE + 1];
 
@@ -1906,6 +2125,17 @@ static void hypercall_register_types(void)
 
     /* qemu/KVM-PPC specific hcalls */
     spapr_register_hypercall(KVMPPC_H_RTAS, h_rtas);
+
+    /* qemu/scm specific hcalls */
+    spapr_register_hypercall(H_SCM_READ_METADATA, h_scm_read_metadata);
+    spapr_register_hypercall(H_SCM_WRITE_METADATA, h_scm_write_metadata);
+    spapr_register_hypercall(H_SCM_BIND_MEM, h_scm_bind_mem);
+    spapr_register_hypercall(H_SCM_UNBIND_MEM, h_scm_unbind_mem);
+    spapr_register_hypercall(H_SCM_QUERY_BLOCK_MEM_BINDING,
+                             h_scm_query_block_mem_binding);
+    spapr_register_hypercall(H_SCM_QUERY_LOGICAL_MEM_BINDING,
+                             h_scm_query_logical_mem_binding);
+    spapr_register_hypercall(H_SCM_MEM_QUERY, h_scm_mem_query);
 
     /* ibm,client-architecture-support support */
     spapr_register_hypercall(KVMPPC_H_CAS, h_client_architecture_support);
