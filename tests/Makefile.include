@@ -144,6 +144,8 @@ check-qtest-generic-y += tests/qmp-cmd-test$(EXESUF)
 
 check-qtest-generic-y += tests/device-introspect-test$(EXESUF)
 check-qtest-generic-y += tests/cdrom-test$(EXESUF)
+check-qtest-generic-y += tests/test-announce-self$(EXESUF)
+gcov-files-generic-y = migration/savevm.c
 
 check-qtest-ipack-y += tests/ipoctal232-test$(EXESUF)
 
