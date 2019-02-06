@@ -164,6 +164,16 @@ endif
 
 GENERATED_FILES += hmp-commands.h hmp-commands-info.h
 
+# FIXME duplicates Makefile.obj's
+QAPI_TARGET_MODULES = target
+obj-y += $(QAPI_TARGET_MODULES:%=qapi/qapi-types-%.o)
+obj-y += qapi/qapi-types.o
+obj-y += $(QAPI_TARGET_MODULES:%=qapi/qapi-visit-%.o)
+obj-y += qapi/qapi-visit.o
+obj-y += $(QAPI_TARGET_MODULES:%=qapi/qapi-events-%.o)
+obj-y += qapi/qapi-events.o
+obj-y += $(QAPI_TARGET_MODULES:%=qapi/qapi-commands-%.o)
+obj-y += qapi/qapi-commands.o
 obj-y += qapi/qapi-introspect.o
 
 endif # CONFIG_SOFTMMU
