@@ -30,7 +30,7 @@ ioeventfd_enabled(void)
 
 int
 vhost_user_backend_dev_init(VhostUserBackend *b, VirtIODevice *vdev,
-                            unsigned nvqs, Error **errp)
+                            unsigned nvqs, bool can_migrate, Error **errp)
 {
     int ret;
 
@@ -48,6 +48,11 @@ vhost_user_backend_dev_init(VhostUserBackend *b, VirtIODevice *vdev,
     b->vdev = vdev;
     b->dev.nvqs = nvqs;
     b->dev.vqs = g_new(struct vhost_virtqueue, nvqs);
+
+    if (!can_migrate && !b->dev.migration_blocker) {
+        error_setg(&b->dev.migration_blocker,
+                   "Migration disabled: vhost-user device can't migrate");
+    }
 
     ret = vhost_dev_init(&b->dev, &b->vhost_user, VHOST_BACKEND_TYPE_USER, 0);
     if (ret < 0) {
