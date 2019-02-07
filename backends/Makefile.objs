@@ -12,7 +12,8 @@ common-obj-y += cryptodev-builtin.o
 ifeq ($(CONFIG_VIRTIO),y)
 common-obj-y += cryptodev-vhost.o
 common-obj-$(call land,$(CONFIG_VHOST_USER),$(CONFIG_LINUX)) += \
-    cryptodev-vhost-user.o
+    cryptodev-vhost-user.o \
+    vhost-user.o
 endif
 
 common-obj-$(CONFIG_LINUX) += hostmem-memfd.o
