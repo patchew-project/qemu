@@ -26,7 +26,6 @@ import time
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'scripts'))
 import qemu
-import qmp.qmp
 from guestperf.progress import Progress, ProgressStats
 from guestperf.report import Report
 from guestperf.timings import TimingRecord, Timings
