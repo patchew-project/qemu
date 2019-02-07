@@ -24,6 +24,7 @@ import subprocess
 import json
 from graphviz import Digraph
 from qemu import MonitorResponseError
+from qmp.qmp import QEMUMonitorProtocol
 
 
 def perm(arr):
