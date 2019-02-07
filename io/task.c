@@ -19,6 +19,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/main-loop.h"
 #include "io/task.h"
 #include "qapi/error.h"
 #include "qemu/thread.h"
@@ -105,7 +106,6 @@ static gboolean qio_task_thread_result(gpointer opaque)
 static gpointer qio_task_thread_worker(gpointer opaque)
 {
     struct QIOTaskThreadData *data = opaque;
-    GSource *idle;
 
     trace_qio_task_thread_run(data->task);
     data->worker(data->task, data->opaque);
@@ -117,10 +117,7 @@ static gpointer qio_task_thread_worker(gpointer opaque)
      */
     trace_qio_task_thread_exit(data->task);
 
-    idle = g_idle_source_new();
-    g_source_set_callback(idle, qio_task_thread_result, data, NULL);
-    g_source_attach(idle, data->context);
-    g_source_unref(idle);
+    qemu_idle_add(qio_task_thread_result, data, data->context);
 
     return NULL;
 }

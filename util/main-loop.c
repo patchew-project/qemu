@@ -171,6 +171,15 @@ int qemu_init_main_loop(Error **errp)
     return 0;
 }
 
+GSource *qemu_idle_add(GSourceFunc func, gpointer data, GMainContext *ctx)
+{
+    GSource *idle = g_idle_source_new();
+    g_source_set_callback(idle, func, data, NULL);
+    g_source_attach(idle, ctx);
+    g_source_unref(idle);
+    return idle;
+}
+
 static int max_priority;
 
 #ifndef _WIN32
