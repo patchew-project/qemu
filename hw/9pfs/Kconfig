@@ -1,0 +1,4 @@
+config VIRTFS
+
+config VIRTIO_9P
+    bool
