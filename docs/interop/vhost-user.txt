@@ -766,6 +766,14 @@ Master message types
       was previously sent.
       The value returned is an error indication; 0 is success.
 
+ * VHOST_USER_INPUT_GET_CONFIG
+      Id: 31
+      Master payload: N/A
+      Slave payload: (struct virtio_input_config)*
+
+      Ask vhost user input backend the list of virtio_input_config, in
+      host endianness.
+
 Slave message types
 -------------------
 
