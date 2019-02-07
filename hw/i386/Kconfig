@@ -57,6 +57,7 @@ config ISAPC
 
 config Q35
     bool
+    imply FDC
     imply VTD
     imply AMD_IOMMU
     select PC_PCI
