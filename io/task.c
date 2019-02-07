@@ -120,6 +120,7 @@ static gpointer qio_task_thread_worker(gpointer opaque)
     idle = g_idle_source_new();
     g_source_set_callback(idle, qio_task_thread_result, data, NULL);
     g_source_attach(idle, data->context);
+    g_source_unref(idle);
 
     return NULL;
 }

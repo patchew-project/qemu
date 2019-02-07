@@ -60,7 +60,6 @@ static void pty_chr_open_src_cancel(PtyChardev *s)
 {
     if (s->open_source) {
         g_source_destroy(s->open_source);
-        g_source_unref(s->open_source);
         s->open_source = NULL;
     }
 }
@@ -216,6 +215,7 @@ static void pty_chr_state(Chardev *chr, int connected)
                                   qemu_chr_be_generic_open_func,
                                   chr, NULL);
             g_source_attach(s->open_source, chr->gcontext);
+            g_source_unref(s->open_source);
         }
         if (!chr->gsource) {
             chr->gsource = io_add_watch_poll(chr, s->ioc,
