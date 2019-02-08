@@ -24,7 +24,7 @@ static void vhost_input_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    if (vhost_user_backend_dev_init(vhi->vhost, vdev, 2, errp) == -1) {
+    if (vhost_user_backend_dev_init(vhi->vhost, vdev, 2, false, errp) == -1) {
         return;
     }
 
