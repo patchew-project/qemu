@@ -2515,13 +2515,6 @@ int page_check_range(target_ulong start, target_ulong len, int flags)
     target_ulong end;
     target_ulong addr;
 
-    /* This function should never be called with addresses outside the
-       guest address space.  If this assert fires, it probably indicates
-       a missing call to h2g_valid.  */
-#if TARGET_ABI_BITS > L1_MAP_ADDR_SPACE_BITS
-    assert(start < ((target_ulong)1 << L1_MAP_ADDR_SPACE_BITS));
-#endif
-
     if (len == 0) {
         return 0;
     }
@@ -2529,6 +2522,13 @@ int page_check_range(target_ulong start, target_ulong len, int flags)
         /* We've wrapped around.  */
         return -1;
     }
+
+    /* This function should never be called with addresses outside the
+       guest address space.  If this assert fires, it probably indicates
+       a missing call to h2g_valid.  */
+#if TARGET_ABI_BITS > L1_MAP_ADDR_SPACE_BITS
+    assert((start + len - 1) < ((target_ulong)1 << L1_MAP_ADDR_SPACE_BITS));
+#endif
 
     /* must do before we loose bits in the next step */
     end = TARGET_PAGE_ALIGN(start + len);
