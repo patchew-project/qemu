@@ -25,7 +25,7 @@ from iotests import qemu_img_create, qemu_io, file_path, log
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'scripts'))
 
-from qemu import QEMUMachine
+from qemu import QEMUMachine, kvm_available
 
 # Note:
 # This test was added to check that mirror dead-lock was fixed (see previous
@@ -49,7 +49,8 @@ qemu_img_create('-f', iotests.imgfmt, '-o', 'preallocation=metadata', disk,
                 str(size))
 
 vm = QEMUMachine(iotests.qemu_prog)
-vm.add_args('-machine', 'accel=kvm')
+if kvm_available():
+        vm.add_args('-machine', 'accel=kvm')
 if iotests.qemu_default_machine == 's390-ccw-virtio':
         vm.add_args('-no-shutdown')
 vm.add_args('-drive', 'id=src,file=' + disk)
