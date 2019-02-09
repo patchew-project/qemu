@@ -196,6 +196,14 @@ matrix:
           packages:
             - python3-pip
             - python3.5-venv
+
+
+    # qemu-iotests
+    - env:
+        - CONFIG="--target-list=x86_64-softmmu --enable-gnutls --audio-drv-list="
+        - TEST_CMD="make check-block"
+
+
     # Using newer GCC with sanitizers
     - addons:
         apt:
