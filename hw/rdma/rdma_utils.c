@@ -94,3 +94,30 @@ int64_t rdma_locked_list_pop_int64(LockedList *list)
 
     return qnum_get_uint(qobject_to(QNum, obj));
 }
+
+void rdma_locked_glist_init(LockedGSList *list)
+{
+    qemu_mutex_init(&list->lock);
+}
+
+void rdma_locked_glist_destroy(LockedGSList *list)
+{
+    if (list->list) {
+        g_slist_free(list->list);
+        list->list = NULL;
+    }
+}
+
+void rdma_locked_glist_append_int32(LockedGSList *list, int32_t value)
+{
+    qemu_mutex_lock(&list->lock);
+    list->list = g_slist_prepend(list->list, GINT_TO_POINTER(value));
+    qemu_mutex_unlock(&list->lock);
+}
+
+void rdma_locked_glist_remove_int32(LockedGSList *list, int32_t value)
+{
+    qemu_mutex_lock(&list->lock);
+    list->list = g_slist_remove(list->list, GINT_TO_POINTER(value));
+    qemu_mutex_unlock(&list->lock);
+}

@@ -34,12 +34,21 @@ typedef struct LockedList {
     QList *list;
 } LockedList;
 
+typedef struct LockedGSList {
+    QemuMutex lock;
+    GSList *list;
+} LockedGSList;
+
 void *rdma_pci_dma_map(PCIDevice *dev, dma_addr_t addr, dma_addr_t plen);
 void rdma_pci_dma_unmap(PCIDevice *dev, void *buffer, dma_addr_t len);
 void rdma_locked_list_init(LockedList *list);
 void rdma_locked_list_destroy(LockedList *list);
 void rdma_locked_list_append_int64(LockedList *list, int64_t value);
 int64_t rdma_locked_list_pop_int64(LockedList *list);
+void rdma_locked_glist_init(LockedGSList *list);
+void rdma_locked_glist_destroy(LockedGSList *list);
+void rdma_locked_glist_append_int32(LockedGSList *list, int32_t value);
+void rdma_locked_glist_remove_int32(LockedGSList *list, int32_t value);
 
 static inline void addrconf_addr_eui48(uint8_t *eui, const char *addr)
 {
