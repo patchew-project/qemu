@@ -742,6 +742,14 @@ bool pcie_cap_is_arifwd_enabled(const PCIDevice *dev)
         PCI_EXP_DEVCTL2_ARI;
 }
 
+/* Access Control Services (ACS) */
+void pcie_cap_acs_reset(PCIDevice *dev)
+{
+    if (dev->exp.acs_cap) {
+        pci_set_word(dev->config + dev->exp.acs_cap + PCI_ACS_CTRL, 0);
+    }
+}
+
 /**************************************************************************
  * pci express extended capability list management functions
  * uint16_t ext_cap_id (16 bit)
@@ -905,4 +913,25 @@ void pcie_ats_init(PCIDevice *dev, uint16_t offset)
     pci_set_word(dev->config + offset + PCI_ATS_CTRL, 0);
 
     pci_set_word(dev->wmask + dev->exp.ats_cap + PCI_ATS_CTRL, 0x800f);
+}
+
+/* ACS (Access Control Services) */
+void pcie_acs_init(PCIDevice *dev, uint16_t offset)
+{
+    bool is_pcie_slot = !!object_dynamic_cast(OBJECT(dev), TYPE_PCIE_SLOT);
+    uint16_t cap_bits = 0;
+
+    pcie_add_capability(dev, PCI_EXT_CAP_ID_ACS, PCI_ACS_VER, offset,
+                        PCI_ACS_SIZEOF);
+    dev->exp.acs_cap = offset;
+
+    if (is_pcie_slot) {
+        /* Endpoints may also implement ACS, but these capabilities are */
+        /* only valid for slots: */
+        cap_bits =
+            PCI_ACS_SV | PCI_ACS_TB | PCI_ACS_RR | PCI_ACS_CR | PCI_ACS_UF;
+    }
+
+    pci_set_word(dev->config + offset + PCI_ACS_CAP, cap_bits);
+    pci_set_word(dev->wmask + offset + PCI_ACS_CTRL, cap_bits);
 }

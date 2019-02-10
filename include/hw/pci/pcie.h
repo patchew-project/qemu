@@ -79,6 +79,9 @@ struct PCIExpressDevice {
 
     /* Offset of ATS capability in config space */
     uint16_t ats_cap;
+
+    /* ACS */
+    uint16_t acs_cap;
 };
 
 #define COMPAT_PROP_PCP "power_controller_present"
@@ -116,6 +119,8 @@ void pcie_cap_flr_init(PCIDevice *dev);
 void pcie_cap_flr_write_config(PCIDevice *dev,
                            uint32_t addr, uint32_t val, int len);
 
+void pcie_cap_acs_reset(PCIDevice *dev);
+
 /* ARI forwarding capability and control */
 void pcie_cap_arifwd_init(PCIDevice *dev);
 void pcie_cap_arifwd_reset(PCIDevice *dev);
@@ -129,6 +134,7 @@ void pcie_add_capability(PCIDevice *dev,
 void pcie_sync_bridge_lnk(PCIDevice *dev);
 
 void pcie_ari_init(PCIDevice *dev, uint16_t offset, uint16_t nextfn);
+void pcie_acs_init(PCIDevice *dev, uint16_t offset);
 void pcie_dev_ser_num_init(PCIDevice *dev, uint16_t offset, uint64_t ser_num);
 void pcie_ats_init(PCIDevice *dev, uint16_t offset);
 
