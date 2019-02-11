@@ -1059,7 +1059,7 @@ static int nbd_client_connect(BlockDriverState *bs,
 
     /* NBD handshake */
     logout("session init %s\n", export);
-    qio_channel_set_blocking(QIO_CHANNEL(sioc), true, NULL);
+    qio_channel_set_blocking(QIO_CHANNEL(sioc), false, NULL);
 
     client->info.request_sizes = true;
     client->info.structured_reply = true;
@@ -1102,9 +1102,6 @@ static int nbd_client_connect(BlockDriverState *bs,
         object_ref(OBJECT(client->ioc));
     }
 
-    /* Now that we're connected, set the socket to be non-blocking and
-     * kick the reply mechanism.  */
-    qio_channel_set_blocking(QIO_CHANNEL(sioc), false, NULL);
     client->connection_co = qemu_coroutine_create(nbd_connection_entry, client);
     bdrv_inc_in_flight(bs);
     nbd_client_attach_aio_context(bs, bdrv_get_aio_context(bs));
@@ -1114,9 +1111,8 @@ static int nbd_client_connect(BlockDriverState *bs,
 
  fail:
     /*
-     * We have connected, but must fail for other reasons. The
-     * connection is still blocking; send NBD_CMD_DISC as a courtesy
-     * to the server.
+     * We have connected, but must fail for other reasons.
+     * Send NBD_CMD_DISC as a courtesy to the server.
      */
     {
         NBDRequest request = { .type = NBD_CMD_DISC };
