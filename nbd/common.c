@@ -50,11 +50,9 @@ int nbd_drop(QIOChannel *ioc, size_t size, Error **errp)
 void nbd_tls_handshake(QIOTask *task,
                        void *opaque)
 {
-    struct NBDTLSHandshakeData *data = opaque;
+    Coroutine *co = opaque;
 
-    qio_task_propagate_error(task, &data->error);
-    data->complete = true;
-    g_main_loop_quit(data->loop);
+    aio_co_wake(co);
 }
 
 

@@ -668,16 +668,15 @@ static int nbd_negotiate_handle_info(NBDClient *client, uint16_t myflags,
 
 /* Handle NBD_OPT_STARTTLS. Return NULL to drop connection, or else the
  * new channel for all further (now-encrypted) communication. */
-static QIOChannel *nbd_negotiate_handle_starttls(NBDClient *client,
-                                                 Error **errp)
+static QIOChannel coroutine_fn *nbd_co_negotiate_handle_starttls(
+        NBDClient *client, Error **errp)
 {
     QIOChannel *ioc;
     QIOChannelTLS *tioc;
-    struct NBDTLSHandshakeData data = { 0 };
 
     assert(client->opt == NBD_OPT_STARTTLS);
 
-    trace_nbd_negotiate_handle_starttls();
+    trace_nbd_co_negotiate_handle_starttls();
     ioc = client->ioc;
 
     if (nbd_negotiate_send_rep(client, NBD_REP_ACK, errp) < 0) {
@@ -693,23 +692,13 @@ static QIOChannel *nbd_negotiate_handle_starttls(NBDClient *client,
     }
 
     qio_channel_set_name(QIO_CHANNEL(tioc), "nbd-server-tls");
-    trace_nbd_negotiate_handle_starttls_handshake();
-    data.loop = g_main_loop_new(g_main_context_default(), FALSE);
+    trace_nbd_co_negotiate_handle_starttls_handshake();
     qio_channel_tls_handshake(tioc,
                               nbd_tls_handshake,
-                              &data,
+                              qemu_coroutine_self(),
                               NULL,
                               NULL);
-
-    if (!data.complete) {
-        g_main_loop_run(data.loop);
-    }
-    g_main_loop_unref(data.loop);
-    if (data.error) {
-        object_unref(OBJECT(tioc));
-        error_propagate(errp, data.error);
-        return NULL;
-    }
+    qemu_coroutine_yield();
 
     return QIO_CHANNEL(tioc);
 }
@@ -1023,8 +1012,8 @@ static int nbd_negotiate_meta_queries(NBDClient *client,
  * 1       if client sent NBD_OPT_ABORT, i.e. on valid disconnect,
  *         errp is not set
  */
-static int nbd_negotiate_options(NBDClient *client, uint16_t myflags,
-                                 Error **errp)
+static int coroutine_fn nbd_co_negotiate_options(
+        NBDClient *client, uint16_t myflags, Error **errp)
 {
     uint32_t flags;
     bool fixedNewstyle = false;
@@ -1048,7 +1037,7 @@ static int nbd_negotiate_options(NBDClient *client, uint16_t myflags,
     if (nbd_read32(client->ioc, &flags, "flags", errp) < 0) {
         return -EIO;
     }
-    trace_nbd_negotiate_options_flags(flags);
+    trace_nbd_co_negotiate_options_flags(flags);
     if (flags & NBD_FLAG_C_FIXED_NEWSTYLE) {
         fixedNewstyle = true;
         flags &= ~NBD_FLAG_C_FIXED_NEWSTYLE;
@@ -1070,7 +1059,7 @@ static int nbd_negotiate_options(NBDClient *client, uint16_t myflags,
         if (nbd_read64(client->ioc, &magic, "opts magic", errp) < 0) {
             return -EINVAL;
         }
-        trace_nbd_negotiate_options_check_magic(magic);
+        trace_nbd_co_negotiate_options_check_magic(magic);
         if (magic != NBD_OPTS_MAGIC) {
             error_setg(errp, "Bad magic received");
             return -EINVAL;
@@ -1093,7 +1082,7 @@ static int nbd_negotiate_options(NBDClient *client, uint16_t myflags,
             return -EINVAL;
         }
 
-        trace_nbd_negotiate_options_check_option(option,
+        trace_nbd_co_negotiate_options_check_option(option,
                                                  nbd_opt_lookup(option));
         if (client->tlscreds &&
             client->ioc == (QIOChannel *)client->sioc) {
@@ -1109,7 +1098,7 @@ static int nbd_negotiate_options(NBDClient *client, uint16_t myflags,
                      * can't start a TLS negotiation correctly */
                     return nbd_reject_length(client, true, errp);
                 }
-                tioc = nbd_negotiate_handle_starttls(client, errp);
+                tioc = nbd_co_negotiate_handle_starttls(client, errp);
                 if (!tioc) {
                     return -EIO;
                 }
@@ -1241,7 +1230,7 @@ static int nbd_negotiate_options(NBDClient *client, uint16_t myflags,
  * 1       if client sent NBD_OPT_ABORT, i.e. on valid disconnect,
  *         errp is not set
  */
-static coroutine_fn int nbd_negotiate(NBDClient *client, Error **errp)
+static coroutine_fn int nbd_co_negotiate(NBDClient *client, Error **errp)
 {
     char buf[NBD_OLDSTYLE_NEGOTIATE_SIZE] = "";
     int ret;
@@ -1265,7 +1254,7 @@ static coroutine_fn int nbd_negotiate(NBDClient *client, Error **errp)
 
     qio_channel_set_blocking(client->ioc, false, NULL);
 
-    trace_nbd_negotiate_begin();
+    trace_nbd_co_negotiate_begin();
     memcpy(buf, "NBDMAGIC", 8);
 
     stq_be_p(buf + 8, NBD_OPTS_MAGIC);
@@ -1275,7 +1264,7 @@ static coroutine_fn int nbd_negotiate(NBDClient *client, Error **errp)
         error_prepend(errp, "write failed: ");
         return -EINVAL;
     }
-    ret = nbd_negotiate_options(client, myflags, errp);
+    ret = nbd_co_negotiate_options(client, myflags, errp);
     if (ret != 0) {
         if (ret < 0) {
             error_prepend(errp, "option negotiation failed: ");
@@ -1284,7 +1273,7 @@ static coroutine_fn int nbd_negotiate(NBDClient *client, Error **errp)
     }
 
     assert(!client->optlen);
-    trace_nbd_negotiate_success();
+    trace_nbd_co_negotiate_success();
 
     return 0;
 }
@@ -2406,7 +2395,7 @@ static coroutine_fn void nbd_co_client_start(void *opaque)
 
     qemu_co_mutex_init(&client->send_lock);
 
-    if (nbd_negotiate(client, &local_err)) {
+    if (nbd_co_negotiate(client, &local_err)) {
         if (local_err) {
             error_report_err(local_err);
         }

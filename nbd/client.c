@@ -578,13 +578,14 @@ static int nbd_request_simple_option(QIOChannel *ioc, int opt, Error **errp)
     return 1;
 }
 
-static QIOChannel *nbd_receive_starttls(QIOChannel *ioc,
-                                        QCryptoTLSCreds *tlscreds,
-                                        const char *hostname, Error **errp)
+static QIOChannel *nbd_co_receive_starttls(
+        QIOChannel *ioc, QCryptoTLSCreds *tlscreds, const char *hostname,
+        Error **errp)
 {
     int ret;
     QIOChannelTLS *tioc;
-    struct NBDTLSHandshakeData data = { 0 };
+
+    assert(qemu_in_coroutine());
 
     ret = nbd_request_simple_option(ioc, NBD_OPT_STARTTLS, errp);
     if (ret <= 0) {
@@ -601,23 +602,13 @@ static QIOChannel *nbd_receive_starttls(QIOChannel *ioc,
         return NULL;
     }
     qio_channel_set_name(QIO_CHANNEL(tioc), "nbd-client-tls");
-    data.loop = g_main_loop_new(g_main_context_default(), FALSE);
     trace_nbd_receive_starttls_tls_handshake();
     qio_channel_tls_handshake(tioc,
                               nbd_tls_handshake,
-                              &data,
+                              qemu_coroutine_self(),
                               NULL,
                               NULL);
-
-    if (!data.complete) {
-        g_main_loop_run(data.loop);
-    }
-    g_main_loop_unref(data.loop);
-    if (data.error) {
-        error_propagate(errp, data.error);
-        object_unref(OBJECT(tioc));
-        return NULL;
-    }
+    qemu_coroutine_yield();
 
     return QIO_CHANNEL(tioc);
 }
@@ -922,7 +913,8 @@ static int coroutine_fn nbd_co_start_negotiate(
         }
         if (tlscreds) {
             if (fixedNewStyle) {
-                *outioc = nbd_receive_starttls(ioc, tlscreds, hostname, errp);
+                *outioc = nbd_co_receive_starttls(ioc, tlscreds, hostname,
+                                                  errp);
                 if (!*outioc) {
                     return -EINVAL;
                 }

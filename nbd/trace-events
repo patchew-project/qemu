@@ -46,19 +46,18 @@ nbd_negotiate_send_info(int info, const char *name, uint32_t length) "Sending NB
 nbd_negotiate_handle_info_requests(int requests) "Client requested %d items of info"
 nbd_negotiate_handle_info_request(int request, const char *name) "Client requested info %d (%s)"
 nbd_negotiate_handle_info_block_size(uint32_t minimum, uint32_t preferred, uint32_t maximum) "advertising minimum 0x%" PRIx32 ", preferred 0x%" PRIx32 ", maximum 0x%" PRIx32
-nbd_negotiate_handle_starttls(void) "Setting up TLS"
-nbd_negotiate_handle_starttls_handshake(void) "Starting TLS handshake"
+nbd_co_negotiate_handle_starttls(void) "Setting up TLS"
+nbd_co_negotiate_handle_starttls_handshake(void) "Starting TLS handshake"
 nbd_negotiate_meta_context(const char *optname, const char *export, uint32_t queries) "Client requested %s for export %s, with %" PRIu32 " queries"
 nbd_negotiate_meta_query_skip(const char *reason) "Skipping meta query: %s"
 nbd_negotiate_meta_query_parse(const char *query) "Parsed meta query '%s'"
 nbd_negotiate_meta_query_reply(const char *context, uint32_t id) "Replying with meta context '%s' id %" PRIu32
-nbd_negotiate_options_flags(uint32_t flags) "Received client flags 0x%" PRIx32
-nbd_negotiate_options_check_magic(uint64_t magic) "Checking opts magic 0x%" PRIx64
-nbd_negotiate_options_check_option(uint32_t option, const char *name) "Checking option %" PRIu32 " (%s)"
-nbd_negotiate_begin(void) "Beginning negotiation"
-nbd_negotiate_old_style(uint64_t size, unsigned flags) "advertising size %" PRIu64 " and flags 0x%x"
+nbd_co_negotiate_options_flags(uint32_t flags) "Received client flags 0x%" PRIx32
+nbd_co_negotiate_options_check_magic(uint64_t magic) "Checking opts magic 0x%" PRIx64
+nbd_co_negotiate_options_check_option(uint32_t option, const char *name) "Checking option %" PRIu32 " (%s)"
+nbd_co_negotiate_begin(void) "Beginning negotiation"
 nbd_negotiate_new_style_size_flags(uint64_t size, unsigned flags) "advertising size %" PRIu64 " and flags 0x%x"
-nbd_negotiate_success(void) "Negotiation succeeded"
+nbd_co_negotiate_success(void) "Negotiation succeeded"
 nbd_receive_request(uint32_t magic, uint16_t flags, uint16_t type, uint64_t from, uint32_t len) "Got request: { magic = 0x%" PRIx32 ", .flags = 0x%" PRIx16 ", .type = 0x%" PRIx16 ", from = %" PRIu64 ", len = %" PRIu32 " }"
 nbd_blk_aio_attached(const char *name, void *ctx) "Export %s: Attaching clients to AIO context %p\n"
 nbd_blk_aio_detach(const char *name, void *ctx) "Export %s: Detaching clients from AIO context %p\n"
