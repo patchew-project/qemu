@@ -1888,22 +1888,22 @@ static coroutine_fn int qcow2_co_preadv(BlockDriverState *bs, uint64_t offset,
             goto fail;
         }
 
-        offset_in_cluster = offset_into_cluster(s, offset);
-
-        qemu_iovec_reset(&hd_qiov);
-        qemu_iovec_concat(&hd_qiov, qiov, bytes_done, cur_bytes);
-
         if (ret == QCOW2_CLUSTER_ZERO_PLAIN ||
             ret == QCOW2_CLUSTER_ZERO_ALLOC ||
             (ret == QCOW2_CLUSTER_UNALLOCATED && !bs->backing))
         {
-            qemu_iovec_memset(&hd_qiov, 0, 0, cur_bytes);
+            qemu_iovec_memset(qiov, bytes_done, 0, cur_bytes);
 
             bytes -= cur_bytes;
             offset += cur_bytes;
             bytes_done += cur_bytes;
             continue;
         }
+
+        offset_in_cluster = offset_into_cluster(s, offset);
+
+        qemu_iovec_reset(&hd_qiov);
+        qemu_iovec_concat(&hd_qiov, qiov, bytes_done, cur_bytes);
 
         qemu_co_mutex_unlock(&s->lock);
 
