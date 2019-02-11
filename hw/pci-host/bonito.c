@@ -598,11 +598,14 @@ static const VMStateDescription vmstate_bonito = {
 static void bonito_pcihost_realize(DeviceState *dev, Error **errp)
 {
     PCIHostState *phb = PCI_HOST_BRIDGE(dev);
+    MemoryRegion *mr = g_new0(MemoryRegion, 1);
 
+    memory_region_init(mr, OBJECT(dev), "pci.mem", BONITO_PCILO_SIZE);
     phb->bus = pci_register_root_bus(DEVICE(dev), "pci",
                                      pci_bonito_set_irq, pci_bonito_map_irq,
-                                     dev, get_system_memory(), get_system_io(),
+                                     dev, mr, get_system_io(),
                                      0x28, 32, TYPE_PCI_BUS);
+    memory_region_add_subregion(get_system_memory(), BONITO_PCILO_BASE, mr);
 }
 
 static void bonito_realize(PCIDevice *dev, Error **errp)
