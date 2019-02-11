@@ -859,12 +859,13 @@ static int nbd_list_meta_contexts(QIOChannel *ioc,
  *          2: server is newstyle, but lacks structured replies
  *          3: server is newstyle and set up for structured replies
  */
-static int nbd_start_negotiate(QIOChannel *ioc, QCryptoTLSCreds *tlscreds,
-                               const char *hostname, QIOChannel **outioc,
-                               bool structured_reply, bool *zeroes,
-                               Error **errp)
+static int coroutine_fn nbd_co_start_negotiate(
+        QIOChannel *ioc, QCryptoTLSCreds *tlscreds, const char *hostname,
+        QIOChannel **outioc, bool structured_reply, bool *zeroes, Error **errp)
 {
     uint64_t magic;
+
+    assert(qemu_in_coroutine());
 
     trace_nbd_start_negotiate(tlscreds, hostname ? hostname : "<null>");
 
@@ -990,19 +991,20 @@ static int nbd_negotiate_finish_oldstyle(QIOChannel *ioc, NBDExportInfo *info,
  * Returns: negative errno: failure talking to server
  *          0: server is connected
  */
-int nbd_receive_negotiate(QIOChannel *ioc, QCryptoTLSCreds *tlscreds,
-                          const char *hostname, QIOChannel **outioc,
-                          NBDExportInfo *info, Error **errp)
+static int coroutine_fn nbd_co_receive_negotiate(
+        QIOChannel *ioc, QCryptoTLSCreds *tlscreds, const char *hostname,
+        QIOChannel **outioc, NBDExportInfo *info, Error **errp)
 {
     int result;
     bool zeroes;
     bool base_allocation = info->base_allocation;
 
+    assert(qemu_in_coroutine());
     assert(info->name);
     trace_nbd_receive_negotiate_name(info->name);
 
-    result = nbd_start_negotiate(ioc, tlscreds, hostname, outioc,
-                                 info->structured_reply, &zeroes, errp);
+    result = nbd_co_start_negotiate(ioc, tlscreds, hostname, outioc,
+                                   info->structured_reply, &zeroes, errp);
 
     info->structured_reply = false;
     info->base_allocation = false;
@@ -1108,9 +1110,9 @@ void nbd_free_export_list(NBDExportInfo *info, int count)
  * in @info by the server, or -1 on error. Caller must free @info using
  * nbd_free_export_list().
  */
-int nbd_receive_export_list(QIOChannel *ioc, QCryptoTLSCreds *tlscreds,
-                            const char *hostname, NBDExportInfo **info,
-                            Error **errp)
+static int coroutine_fn nbd_co_receive_export_list(
+        QIOChannel *ioc, QCryptoTLSCreds *tlscreds, const char *hostname,
+        NBDExportInfo **info, Error **errp)
 {
     int result;
     int count = 0;
@@ -1120,9 +1122,10 @@ int nbd_receive_export_list(QIOChannel *ioc, QCryptoTLSCreds *tlscreds,
     NBDExportInfo *array = NULL;
     QIOChannel *sioc = NULL;
 
+    assert(qemu_in_coroutine());
     *info = NULL;
-    result = nbd_start_negotiate(ioc, tlscreds, hostname, &sioc, true, NULL,
-                                 errp);
+    result = nbd_co_start_negotiate(ioc, tlscreds, hostname, &sioc, true, NULL,
+                                    errp);
     if (tlscreds && sioc) {
         ioc = sioc;
     }
@@ -1210,6 +1213,98 @@ int nbd_receive_export_list(QIOChannel *ioc, QCryptoTLSCreds *tlscreds,
     object_unref(OBJECT(sioc));
     nbd_free_export_list(array, count);
     return ret;
+}
+
+typedef struct NbdReceiveNegotiateCo {
+    QIOChannel *ioc;
+    QCryptoTLSCreds *tlscreds;
+    const char *hostname;
+    union {
+        struct {
+            QIOChannel **outioc;
+            NBDExportInfo *info;
+        } negotiate;
+        struct {
+            NBDExportInfo **info;
+        } export_list;
+    };
+    Error **errp;
+    int ret;
+} NbdReceiveNegotiateCo;
+
+static void coroutine_fn nbd_receive_negotiate_entry(void *opaque)
+{
+    NbdReceiveNegotiateCo *s = opaque;
+
+    s->ret = nbd_co_receive_negotiate(s->ioc, s->tlscreds, s->hostname,
+                                      s->negotiate.outioc, s->negotiate.info,
+                                      s->errp);
+}
+
+static void coroutine_fn nbd_receive_export_list_entry(void *opaque)
+{
+    NbdReceiveNegotiateCo *s = opaque;
+
+    s->ret = nbd_co_receive_export_list(s->ioc, s->tlscreds, s->hostname,
+                                        s->export_list.info, s->errp);
+}
+
+static int nbd_receive_common(CoroutineEntry *entry,
+                              NbdReceiveNegotiateCo *data)
+{
+    data->ret = -EINPROGRESS;
+
+    if (qemu_in_coroutine()) {
+        entry(data);
+    } else {
+        AioContext *ctx = qio_channel_get_attached_aio_context(data->ioc);
+        bool attach = !ctx;
+
+        if (attach) {
+            ctx = qemu_get_current_aio_context();
+            qio_channel_attach_aio_context(data->ioc, ctx);
+        }
+
+        qemu_aio_coroutine_enter(ctx, qemu_coroutine_create(entry, data));
+        AIO_WAIT_WHILE(ctx, data->ret == -EINPROGRESS);
+
+        if (attach) {
+            qio_channel_detach_aio_context(data->ioc);
+        }
+    }
+
+    return data->ret;
+}
+
+int nbd_receive_negotiate(
+        QIOChannel *ioc, QCryptoTLSCreds *tlscreds, const char *hostname,
+        QIOChannel **outioc, NBDExportInfo *info, Error **errp)
+{
+    NbdReceiveNegotiateCo data = {
+        .ioc = ioc,
+        .tlscreds = tlscreds,
+        .hostname = hostname,
+        .negotiate.outioc = outioc,
+        .negotiate.info = info,
+        .errp = errp,
+    };
+
+    return nbd_receive_common(nbd_receive_negotiate_entry, &data);
+}
+
+int nbd_receive_export_list(
+        QIOChannel *ioc, QCryptoTLSCreds *tlscreds, const char *hostname,
+        NBDExportInfo **info, Error **errp)
+{
+    NbdReceiveNegotiateCo data = {
+        .ioc = ioc,
+        .tlscreds = tlscreds,
+        .hostname = hostname,
+        .export_list.info = info,
+        .errp = errp,
+    };
+
+    return nbd_receive_common(nbd_receive_export_list_entry, &data);
 }
 
 #ifdef __linux__
