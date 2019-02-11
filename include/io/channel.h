@@ -718,6 +718,15 @@ GSource *qio_channel_add_watch_source(QIOChannel *ioc,
 void qio_channel_attach_aio_context(QIOChannel *ioc,
                                     AioContext *ctx);
 
+/*
+ * qio_channel_get_aio_context
+ * @ioc: the channel object
+ *
+ * Returns channel AioContext if any attached by
+ * qio_channel_attach_aio_context(), otherwise NULL.
+ */
+AioContext *qio_channel_get_attached_aio_context(QIOChannel *ioc);
+
 /**
  * qio_channel_detach_aio_context:
  * @ioc: the channel object

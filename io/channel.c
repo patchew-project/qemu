@@ -454,6 +454,11 @@ void qio_channel_detach_aio_context(QIOChannel *ioc)
     ioc->ctx = NULL;
 }
 
+AioContext *qio_channel_get_attached_aio_context(QIOChannel *ioc)
+{
+    return ioc->ctx;
+}
+
 void coroutine_fn qio_channel_yield(QIOChannel *ioc,
                                     GIOCondition condition)
 {
