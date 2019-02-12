@@ -48,6 +48,22 @@ file_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
     HostMemoryBackendFile *fb = MEMORY_BACKEND_FILE(backend);
     gchar *name;
 
+    /*
+     * Verify pmem file size since starting a guest with an incorrect size
+     * leads to confusing failures inside the guest.
+     */
+    if (fb->is_pmem && fb->mem_path) {
+        uint64_t size;
+
+        size = qemu_get_pmem_size(fb->mem_path, NULL);
+        if (size && backend->size > size) {
+            error_setg(errp, "size property %" PRIu64 " is larger than "
+                       "pmem file \"%s\" size %" PRIu64, backend->size,
+                       fb->mem_path, size);
+            return;
+        }
+    }
+
     if (!backend->size) {
         error_setg(errp, "can't create backend with size 0");
         return;
