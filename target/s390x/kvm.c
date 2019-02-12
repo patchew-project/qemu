@@ -1889,6 +1889,8 @@ int kvm_s390_assign_subch_ioeventfd(EventNotifier *notifier, uint32_t sch,
         .addr = sch,
         .len = 8,
     };
+    trace_kvm_s390_assign_subch_ioeventfd(kick.fd, kick.addr, assign,
+                                          kick.datamatch);
     if (!kvm_check_extension(kvm_state, KVM_CAP_IOEVENTFD)) {
         return -ENOSYS;
     }
