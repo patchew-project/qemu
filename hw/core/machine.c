@@ -594,6 +594,27 @@ HotpluggableCPUList *machine_query_hotpluggable_cpus(MachineState *machine)
     return head;
 }
 
+static char *cpu_props_to_string(const CpuInstanceProperties *props)
+{
+    GString *s = g_string_new(NULL);
+    if (props->has_socket_id) {
+        g_string_append_printf(s, "socket-id: %"PRId64, props->socket_id);
+    }
+    if (props->has_core_id) {
+        if (s->len) {
+            g_string_append_printf(s, ", ");
+        }
+        g_string_append_printf(s, "core-id: %"PRId64, props->core_id);
+    }
+    if (props->has_thread_id) {
+        if (s->len) {
+            g_string_append_printf(s, ", ");
+        }
+        g_string_append_printf(s, "thread-id: %"PRId64, props->thread_id);
+    }
+    return g_string_free(s, false);
+}
+
 /**
  * machine_set_cpu_numa_node:
  * @machine: machine object to modify
@@ -916,27 +937,6 @@ bool machine_mem_merge(MachineState *machine)
     return machine->mem_merge;
 }
 
-static char *cpu_slot_to_string(const CPUArchId *cpu)
-{
-    GString *s = g_string_new(NULL);
-    if (cpu->props.has_socket_id) {
-        g_string_append_printf(s, "socket-id: %"PRId64, cpu->props.socket_id);
-    }
-    if (cpu->props.has_core_id) {
-        if (s->len) {
-            g_string_append_printf(s, ", ");
-        }
-        g_string_append_printf(s, "core-id: %"PRId64, cpu->props.core_id);
-    }
-    if (cpu->props.has_thread_id) {
-        if (s->len) {
-            g_string_append_printf(s, ", ");
-        }
-        g_string_append_printf(s, "thread-id: %"PRId64, cpu->props.thread_id);
-    }
-    return g_string_free(s, false);
-}
-
 static void machine_numa_finish_cpu_init(MachineState *machine)
 {
     int i;
@@ -954,7 +954,7 @@ static void machine_numa_finish_cpu_init(MachineState *machine)
             default_mapping = false;
         } else {
             /* record slots with not set mapping, */
-            char *cpu_str = cpu_slot_to_string(cpu_slot);
+            char *cpu_str = cpu_props_to_string(&cpu_slot->props);
             g_string_append_printf(s, "%sCPU %d [%s]",
                                    s->len ? ", " : "", i, cpu_str);
             g_free(cpu_str);
