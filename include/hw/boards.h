@@ -256,6 +256,8 @@ struct MachineState {
     bool enforce_config_section;
     bool enable_graphics;
     char *memory_encryption;
+    char *host_serial;
+    char *host_model;
     DeviceMemoryState *device_memory;
 
     ram_addr_t ram_size;

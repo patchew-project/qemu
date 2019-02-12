@@ -1247,13 +1247,31 @@ static void *spapr_build_fdt(sPAPRMachineState *spapr)
      * Add info to guest to indentify which host is it being run on
      * and what is the uuid of the guest
      */
-    if (kvmppc_get_host_model(&buf)) {
-        _FDT(fdt_setprop_string(fdt, 0, "host-model", buf));
-        g_free(buf);
+    if (machine->host_model && !g_str_equal(machine->host_model, "none")) {
+        if (g_str_equal(machine->host_model, "passthrough")) {
+            /* -M host-model=passthrough */
+            if (kvmppc_get_host_model(&buf)) {
+                _FDT(fdt_setprop_string(fdt, 0, "host-model", buf));
+                g_free(buf);
+            }
+        } else {
+            /* -M host-model=<user-string> */
+            _FDT(fdt_setprop_string(fdt, 0, "host-model", machine->host_model));
+        }
     }
-    if (kvmppc_get_host_serial(&buf)) {
-        _FDT(fdt_setprop_string(fdt, 0, "host-serial", buf));
-        g_free(buf);
+
+    if (machine->host_serial && !g_str_equal(machine->host_serial, "none")) {
+        if (g_str_equal(machine->host_serial, "passthrough")) {
+            /* -M host-serial=passthrough */
+            if (kvmppc_get_host_serial(&buf)) {
+                _FDT(fdt_setprop_string(fdt, 0, "host-serial", buf));
+                g_free(buf);
+            }
+        } else {
+            /* -M host-serial=<user-string> */
+            _FDT(fdt_setprop_string(fdt, 0,
+                                    "host-serial", machine->host_serial));
+        }
     }
 
     buf = qemu_uuid_unparse_strdup(&qemu_uuid);
@@ -4086,9 +4104,15 @@ DEFINE_SPAPR_MACHINE(4_0, "4.0", true);
 static void spapr_machine_3_1_class_options(MachineClass *mc)
 {
     sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
+    static GlobalProperty compat[] = {
+        { TYPE_SPAPR_MACHINE, "host-model", "passthrough" },
+        { TYPE_SPAPR_MACHINE, "host-serial", "passthrough" },
+    };
 
     spapr_machine_4_0_class_options(mc);
     compat_props_add(mc->compat_props, hw_compat_3_1, hw_compat_3_1_len);
+    compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
+
     mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("power8_v2.0");
     smc->update_dt_enabled = false;
 }
