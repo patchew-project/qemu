@@ -2513,15 +2513,13 @@ static void spapr_validate_node_memory(MachineState *machine, Error **errp)
 /* find cpu slot in machine->possible_cpus by core_id */
 static CPUArchId *spapr_find_cpu_slot(MachineState *ms, uint32_t id, int *idx)
 {
-    int index = id / smp_threads;
-
-    if (index >= ms->possible_cpus->len) {
+    if (id >= ms->possible_cpus->len) {
         return NULL;
     }
     if (idx) {
-        *idx = index;
+        *idx = id;
     }
-    return &ms->possible_cpus->cpus[index];
+    return &ms->possible_cpus->cpus[id];
 }
 
 static void spapr_set_vsmt_mode(SpaprMachineState *spapr, Error **errp)
@@ -2623,7 +2621,7 @@ static void spapr_init_cpus(SpaprMachineState *spapr)
             error_report("This machine version does not support CPU hotplug");
             exit(1);
         }
-        boot_cores_nr = possible_cpus->len;
+        boot_cores_nr = possible_cpus->len / smp_threads;
     }
 
     if (smc->pre_2_10_has_unused_icps) {
@@ -2637,7 +2635,7 @@ static void spapr_init_cpus(SpaprMachineState *spapr)
         }
     }
 
-    for (i = 0; i < possible_cpus->len; i++) {
+    for (i = 0; i < possible_cpus->len / smp_threads; i++) {
         int core_id = i * smp_threads;
 
         if (mc->has_hotpluggable_cpus) {
@@ -4087,21 +4085,16 @@ spapr_cpu_index_to_props(MachineState *machine, unsigned cpu_index)
 
 static int64_t spapr_get_default_cpu_node_id(const MachineState *ms, int idx)
 {
-    return idx / smp_cores % nb_numa_nodes;
+    return idx / (smp_cores * smp_threads) % nb_numa_nodes;
 }
 
 static const CPUArchIdList *spapr_possible_cpu_arch_ids(MachineState *machine)
 {
     int i;
     const char *core_type;
-    int spapr_max_cores = max_cpus / smp_threads;
-    MachineClass *mc = MACHINE_GET_CLASS(machine);
 
-    if (!mc->has_hotpluggable_cpus) {
-        spapr_max_cores = QEMU_ALIGN_UP(smp_cpus, smp_threads) / smp_threads;
-    }
     if (machine->possible_cpus) {
-        assert(machine->possible_cpus->len == spapr_max_cores);
+        assert(machine->possible_cpus->len == max_cpus);
         return machine->possible_cpus;
     }
 
@@ -4112,16 +4105,16 @@ static const CPUArchIdList *spapr_possible_cpu_arch_ids(MachineState *machine)
     }
 
     machine->possible_cpus = g_malloc0(sizeof(CPUArchIdList) +
-                             sizeof(CPUArchId) * spapr_max_cores);
-    machine->possible_cpus->len = spapr_max_cores;
+                             sizeof(CPUArchId) * max_cpus);
+    machine->possible_cpus->len = max_cpus;
     for (i = 0; i < machine->possible_cpus->len; i++) {
-        int core_id = i * smp_threads;
-
         machine->possible_cpus->cpus[i].type = core_type;
         machine->possible_cpus->cpus[i].vcpus_count = smp_threads;
-        machine->possible_cpus->cpus[i].arch_id = core_id;
+        machine->possible_cpus->cpus[i].arch_id = i;
         machine->possible_cpus->cpus[i].props.has_core_id = true;
-        machine->possible_cpus->cpus[i].props.core_id = core_id;
+        machine->possible_cpus->cpus[i].props.core_id = i / smp_threads;
+        machine->possible_cpus->cpus[i].props.has_thread_id = true;
+        machine->possible_cpus->cpus[i].props.thread_id = i % smp_threads;
     }
     return machine->possible_cpus;
 }
