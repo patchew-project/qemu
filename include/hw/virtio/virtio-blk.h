@@ -51,6 +51,7 @@ typedef struct VirtIOBlock {
     void *rq;
     QEMUBH *bh;
     VirtIOBlkConf conf;
+    size_t config_size;
     unsigned short sector_mask;
     bool original_wce;
     VMChangeStateEntry *change;

@@ -757,7 +757,7 @@ static void virtio_blk_update_config(VirtIODevice *vdev, uint8_t *config)
     blkcfg.alignment_offset = 0;
     blkcfg.wce = blk_enable_write_cache(s->blk);
     virtio_stw_p(vdev, &blkcfg.num_queues, s->conf.num_queues);
-    memcpy(config, &blkcfg, sizeof(struct virtio_blk_config));
+    memcpy(config, &blkcfg, s->config_size);
 }
 
 static void virtio_blk_set_config(VirtIODevice *vdev, const uint8_t *config)
@@ -765,7 +765,7 @@ static void virtio_blk_set_config(VirtIODevice *vdev, const uint8_t *config)
     VirtIOBlock *s = VIRTIO_BLK(vdev);
     struct virtio_blk_config blkcfg;
 
-    memcpy(&blkcfg, config, sizeof(blkcfg));
+    memcpy(&blkcfg, config, s->config_size);
 
     aio_context_acquire(blk_get_aio_context(s->blk));
     blk_set_enable_write_cache(s->blk, blkcfg.wce != 0);
@@ -841,6 +841,13 @@ static void virtio_blk_set_status(VirtIODevice *vdev, uint8_t status)
                                                            VIRTIO_BLK_F_WCE));
         aio_context_release(blk_get_aio_context(s->blk));
     }
+}
+
+static void virtio_blk_set_config_size(VirtIOBlock *s)
+{
+    /* VIRTIO_BLK_F_MQ is supported by host driver */
+    s->config_size = offsetof(struct virtio_blk_config, num_queues) +
+                     sizeof_field(struct virtio_blk_config, num_queues);
 }
 
 static void virtio_blk_save_device(VirtIODevice *vdev, QEMUFile *f)
@@ -948,8 +955,8 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    virtio_init(vdev, "virtio-blk", VIRTIO_ID_BLOCK,
-                sizeof(struct virtio_blk_config));
+    virtio_blk_set_config_size(s);
+    virtio_init(vdev, "virtio-blk", VIRTIO_ID_BLOCK, s->config_size);
 
     s->blk = conf->conf.blk;
     s->rq = NULL;
