@@ -55,25 +55,6 @@ static void test_mon_default(const void *data)
     g_free(cli);
 }
 
-static void test_mon_partial(const void *data)
-{
-    char *s;
-    char *cli;
-
-    cli = make_cli(data, "-smp 8 "
-                   "-numa node,nodeid=0,cpus=0-1 "
-                   "-numa node,nodeid=1,cpus=4-5 ");
-    qtest_start(cli);
-
-    s = hmp("info numa");
-    g_assert(strstr(s, "node 0 cpus: 0 1 2 3 6 7"));
-    g_assert(strstr(s, "node 1 cpus: 4 5"));
-    g_free(s);
-
-    qtest_end();
-    g_free(cli);
-}
-
 static QList *get_cpus(QDict **resp)
 {
     *resp = qmp("{ 'execute': 'query-cpus' }");
@@ -333,7 +314,6 @@ int main(int argc, char **argv)
 
     qtest_add_data_func("/numa/mon/default", args, test_mon_default);
     qtest_add_data_func("/numa/mon/cpus/explicit", args, test_mon_explicit);
-    qtest_add_data_func("/numa/mon/cpus/partial", args, test_mon_partial);
     qtest_add_data_func("/numa/qmp/cpus/query-cpus", args, test_query_cpus);
 
     if (!strcmp(arch, "i386") || !strcmp(arch, "x86_64")) {
