@@ -112,7 +112,7 @@ static void pc_numa_cpu(const void *data)
         "-numa cpu,node-id=1,socket-id=0 "
         "-numa cpu,node-id=0,socket-id=1,core-id=0 "
         "-numa cpu,node-id=0,socket-id=1,core-id=1,thread-id=0 "
-        "-numa cpu,node-id=1,socket-id=1,core-id=1,thread-id=1");
+        "-numa cpu,node-id=0,socket-id=1,core-id=1,thread-id=1");
     qtest_start(cli);
     cpus = get_cpus(&resp);
     g_assert(cpus);
@@ -141,7 +141,7 @@ static void pc_numa_cpu(const void *data)
         } else if (socket == 1 && core == 1 && thread == 0) {
             g_assert_cmpint(node, ==, 0);
         } else if (socket == 1 && core == 1 && thread == 1) {
-            g_assert_cmpint(node, ==, 1);
+            g_assert_cmpint(node, ==, 0);
         } else {
             g_assert(false);
         }

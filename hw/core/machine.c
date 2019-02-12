@@ -646,6 +646,7 @@ void machine_set_cpu_numa_node(MachineState *machine,
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     bool match = false;
     int i;
+    const CpuInstanceProperties *previous_props = NULL;
 
     if (!mc->possible_cpu_arch_ids) {
         error_setg(errp, "mapping of CPUs to NUMA node is not supported");
@@ -678,16 +679,36 @@ void machine_set_cpu_numa_node(MachineState *machine,
         }
 
         /* skip slots with explicit mismatch */
+        if (props->has_socket_id && props->socket_id != slot->props.socket_id) {
+                continue;
+        }
+
+        if (props->has_core_id) {
+            if (props->core_id != slot->props.core_id) {
+                continue;
+            }
+            if (slot->props.has_node_id) {
+                /* we have a node where our core is already assigned */
+                previous_props = &slot->props;
+            }
+        }
+
         if (props->has_thread_id && props->thread_id != slot->props.thread_id) {
                 continue;
         }
 
-        if (props->has_core_id && props->core_id != slot->props.core_id) {
-                continue;
-        }
-
-        if (props->has_socket_id && props->socket_id != slot->props.socket_id) {
-                continue;
+        /* check current thread matches node of the thread of the same core */
+        if (previous_props && previous_props->has_node_id &&
+            previous_props->node_id != props->node_id) {
+            char *cpu_str = cpu_props_to_string(props);
+            char *node_str = cpu_props_to_string(previous_props);
+            error_setg(errp,  "Invalid node-id=%"PRIu64" of [%s]: core-id "
+                              "[%s] is already assigned to node-id %"PRIu64,
+                              props->node_id, cpu_str,
+                              node_str, previous_props->node_id);
+            g_free(cpu_str);
+            g_free(node_str);
+            return;
         }
 
         /* reject assignment if slot is already assigned, for compatibility
