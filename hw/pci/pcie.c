@@ -906,3 +906,42 @@ void pcie_ats_init(PCIDevice *dev, uint16_t offset)
 
     pci_set_word(dev->wmask + dev->exp.ats_cap + PCI_ATS_CTRL, 0x800f);
 }
+
+/* ACS (Access Control Services) */
+void pcie_acs_init(PCIDevice *dev, uint16_t offset)
+{
+    bool is_pcie_slot = !!object_dynamic_cast(OBJECT(dev), TYPE_PCIE_SLOT);
+    uint16_t cap_bits = 0;
+
+    /*
+     * For endpoints, only multifunction devices may have an
+     * ACS capability, and only on function 0:
+     */
+    assert(is_pcie_slot ||
+           ((dev->cap_present & QEMU_PCI_CAP_MULTIFUNCTION) &&
+            PCI_FUNC(dev->devfn)));
+
+    pcie_add_capability(dev, PCI_EXT_CAP_ID_ACS, PCI_ACS_VER, offset,
+                        PCI_ACS_SIZEOF);
+    dev->exp.acs_cap = offset;
+
+    if (is_pcie_slot) {
+        /*
+         * Endpoints may also implement ACS, and optionally RR and CR,
+         * if they want to support p2p, but only slots may
+         * implement SV, TB or UF:
+         */
+        cap_bits =
+            PCI_ACS_SV | PCI_ACS_TB | PCI_ACS_RR | PCI_ACS_CR | PCI_ACS_UF;
+    }
+
+    pci_set_word(dev->config + offset + PCI_ACS_CAP, cap_bits);
+    pci_set_word(dev->wmask + offset + PCI_ACS_CTRL, cap_bits);
+}
+
+void pcie_acs_reset(PCIDevice *dev)
+{
+    if (dev->exp.acs_cap) {
+        pci_set_word(dev->config + dev->exp.acs_cap + PCI_ACS_CTRL, 0);
+    }
+}
