@@ -192,7 +192,7 @@ static void virtio_net_vhost_status(VirtIONet *n, uint8_t status)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(n);
     NetClientState *nc = qemu_get_queue(n->nic);
-    int queues = n->multiqueue ? n->max_queues : 1;
+    int queues = n->multiqueue ? n->curr_queues : 1;
 
     if (!get_vhost_net(nc->peer)) {
         return;
@@ -1033,9 +1033,12 @@ static int virtio_net_handle_mq(VirtIONet *n, uint8_t cmd,
         return VIRTIO_NET_ERR;
     }
 
-    n->curr_queues = queues;
     /* stop the backend before changing the number of queues to avoid handling a
      * disabled queue */
+    virtio_net_set_status(vdev, 0);
+
+    n->curr_queues = queues;
+
     virtio_net_set_status(vdev, vdev->status);
     virtio_net_set_queues(n);
 
