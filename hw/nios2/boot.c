@@ -140,6 +140,7 @@ void nios2_load_kernel(Nios2CPU *cpu, hwaddr ddr_base,
         uint64_t entry, low, high;
         uint32_t base32;
         int big_endian = 0;
+        int kernel_space = 0;
 
 #ifdef TARGET_WORDS_BIGENDIAN
         big_endian = 1;
@@ -155,10 +156,12 @@ void nios2_load_kernel(Nios2CPU *cpu, hwaddr ddr_base,
                                    translate_kernel_address, NULL,
                                    &entry, NULL, NULL,
                                    big_endian, EM_ALTERA_NIOS2, 0, 0);
+            kernel_space = 1;
         }
 
         /* Always boot into physical ram. */
-        boot_info.bootstrap_pc = ddr_base + 0xc0000000 + (entry & 0x07ffffff);
+        boot_info.bootstrap_pc = ddr_base + (kernel_space ? 0xc0000000 : 0)
+                                 + (entry & 0x07ffffff);
 
         /* If it wasn't an ELF image, try an u-boot image. */
         if (kernel_size < 0) {
