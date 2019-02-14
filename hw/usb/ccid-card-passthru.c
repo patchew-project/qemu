@@ -285,8 +285,14 @@ static void ccid_card_vscard_read(void *opaque, const uint8_t *buf, int size)
         card->vscard_in_hdr += hdr->length + sizeof(VSCMsgHeader);
         hdr = (VSCMsgHeader *)(card->vscard_in_data + card->vscard_in_hdr);
     }
-    if (card->vscard_in_hdr == card->vscard_in_pos) {
-        card->vscard_in_pos = card->vscard_in_hdr = 0;
+
+    /* Drop any messages that were fully processed.  */
+    if (card->vscard_in_hdr > 0) {
+        memmove(card->vscard_in_data,
+                card->vscard_in_data + card->vscard_in_hdr,
+                card->vscard_in_pos - card->vscard_in_hdr);
+        card->vscard_in_pos -= card->vscard_in_hdr;
+        card->vscard_in_hdr = 0;
     }
 }
 
