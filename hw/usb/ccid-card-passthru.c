@@ -270,7 +270,7 @@ static void ccid_card_vscard_read(void *opaque, const uint8_t *buf, int size)
     VSCMsgHeader *hdr;
 
     assert(size <= VSCARD_IN_SIZE - card->vscard_in_pos);
-    assert(card->vscard_in_hdr < VSCARD_IN_SIZE);
+    assert(card->vscard_in_hdr < card->vscard_in_pos);
     memcpy(card->vscard_in_data + card->vscard_in_pos, buf, size);
     card->vscard_in_pos += size;
     hdr = (VSCMsgHeader *)(card->vscard_in_data + card->vscard_in_hdr);
