@@ -116,8 +116,8 @@ static int ccid_card_vscard_can_read(void *opaque)
 {
     PassthruState *card = opaque;
 
-    return VSCARD_IN_SIZE >= card->vscard_in_pos ?
-           VSCARD_IN_SIZE - card->vscard_in_pos : 0;
+    assert(card->vscard_in_pos <= VSCARD_IN_SIZE);
+    return VSCARD_IN_SIZE - card->vscard_in_pos;
 }
 
 static void ccid_card_vscard_handle_init(
@@ -282,7 +282,6 @@ static void ccid_card_vscard_read(void *opaque, const uint8_t *buf, int size)
         ccid_card_vscard_drop_connection(card);
         return;
     }
-    assert(card->vscard_in_pos < VSCARD_IN_SIZE);
     assert(card->vscard_in_hdr < VSCARD_IN_SIZE);
     memcpy(card->vscard_in_data + card->vscard_in_pos, buf, size);
     card->vscard_in_pos += size;
