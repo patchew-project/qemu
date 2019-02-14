@@ -152,7 +152,7 @@ static void ccid_card_vscard_handle_init(
 static int check_atr(PassthruState *card, uint8_t *data, size_t len)
 {
     size_t historical_length;
-    int opt_bytes;
+    size_t opt_bytes;
     int td_count = 0;
     int td;
 
@@ -192,12 +192,13 @@ static int check_atr(PassthruState *card, uint8_t *data, size_t len)
     }
     if (len > 2 + historical_length + opt_bytes) {
         DPRINTF(card, D_WARN,
-            "atr too long: len %zu, but hist/opt %zu/%d, T1 0x%X\n",
+            "atr too long: len %zu, but hist/opt %zu/%zu, T1 0x%X\n",
             len, historical_length, opt_bytes, data[1]);
         /* let it through */
     }
     DPRINTF(card, D_VERBOSE,
-            "atr passes check: %zu total length, %zu historical, %d optional\n",
+            "atr passes check: %zu total length,"
+            " %zu historical, %zu optional\n",
             len, historical_length, opt_bytes);
 
     return 1;
