@@ -338,19 +338,17 @@ static void passthru_realize(CCIDCardState *base, Error **errp)
 {
     PassthruState *card = PASSTHRU_CCID_CARD(base);
 
-    card->vscard_in_pos = 0;
-    card->vscard_in_hdr = 0;
-    if (qemu_chr_fe_backend_connected(&card->cs)) {
-        DPRINTF(card, D_INFO, "ccid-card-passthru: initing chardev");
-        qemu_chr_fe_set_handlers(&card->cs,
-            ccid_card_vscard_can_read,
-            ccid_card_vscard_read,
-            ccid_card_vscard_event, NULL, card, NULL, true);
-        ccid_card_vscard_send_init(card);
-    } else {
+    if (!qemu_chr_fe_backend_connected(&card->cs)) {
         error_setg(errp, "missing chardev");
         return;
     }
+    card->vscard_in_pos = 0;
+    card->vscard_in_hdr = 0;
+    DPRINTF(card, D_INFO, "ccid-card-passthru: initing chardev");
+    qemu_chr_fe_set_handlers(&card->cs, ccid_card_vscard_can_read,
+                             ccid_card_vscard_read, ccid_card_vscard_event,
+                             NULL, card, NULL, true);
+    ccid_card_vscard_send_init(card);
     card->debug = parse_debug_env("QEMU_CCID_PASSTHRU_DEBUG", D_VERBOSE,
                                   card->debug);
     memcpy(card->atr, DEFAULT_ATR, sizeof(DEFAULT_ATR));
