@@ -395,6 +395,7 @@ typedef PCIINTxRoute (*pci_route_irq_fn)(void *opaque, int pin);
 #define TYPE_PCIE_BUS "PCIE"
 
 bool pci_bus_is_express(PCIBus *bus);
+bool pci_bus_extended_config_space(PCIBus *bus);
 void pci_root_bus_new_inplace(PCIBus *bus, size_t bus_size, DeviceState *parent,
                               const char *name,
                               MemoryRegion *address_space_mem,
@@ -754,7 +755,8 @@ static inline int pci_is_express_downstream_port(const PCIDevice *d)
 
 static inline uint32_t pci_config_size(const PCIDevice *d)
 {
-    return pci_is_express(d) ? PCIE_CONFIG_SPACE_SIZE : PCI_CONFIG_SPACE_SIZE;
+    return (pci_is_express(d) && pci_bus_extended_config_space(pci_get_bus(d)))
+        ? PCIE_CONFIG_SPACE_SIZE : PCI_CONFIG_SPACE_SIZE;
 }
 
 static inline uint16_t pci_get_bdf(PCIDevice *dev)

@@ -120,6 +120,25 @@ static void pci_bus_realize(BusState *qbus, Error **errp)
     vmstate_register(NULL, -1, &vmstate_pcibus, bus);
 }
 
+static void pcie_bus_realize(BusState *qbus, Error **errp)
+{
+    PCIBus *bus = PCI_BUS(qbus);
+
+    pci_bus_realize(qbus, errp);
+
+    /* a PCI-E bus can supported extended config space if it's the
+     * root bus, or if the bus/bridge above it does as well */
+    if (pci_bus_is_root(bus)) {
+        bus->flags |= PCI_BUS_EXTENDED_CONFIG_SPACE;
+    } else {
+        PCIBus *parent_bus = pci_get_bus(bus->parent_dev);
+
+        if (pci_bus_extended_config_space(parent_bus)) {
+            bus->flags |= PCI_BUS_EXTENDED_CONFIG_SPACE;
+        }
+    }
+}
+
 static void pci_bus_unrealize(BusState *qbus, Error **errp)
 {
     PCIBus *bus = PCI_BUS(qbus);
@@ -166,6 +185,13 @@ static const TypeInfo pci_bus_info = {
     .class_init = pci_bus_class_init,
 };
 
+static void pcie_bus_class_init(ObjectClass *klass, void *data)
+{
+    BusClass *k = BUS_CLASS(klass);
+
+    k->realize = pcie_bus_realize;
+}
+
 static const TypeInfo pcie_interface_info = {
     .name          = INTERFACE_PCIE_DEVICE,
     .parent        = TYPE_INTERFACE,
@@ -174,6 +200,7 @@ static const TypeInfo pcie_interface_info = {
 static const TypeInfo conventional_pci_interface_info = {
     .name          = INTERFACE_CONVENTIONAL_PCI_DEVICE,
     .parent        = TYPE_INTERFACE,
+    .class_init    = pcie_bus_class_init,
 };
 
 static const TypeInfo pcie_bus_info = {
@@ -389,6 +416,11 @@ static void pci_bus_uninit(PCIBus *bus)
 bool pci_bus_is_express(PCIBus *bus)
 {
     return object_dynamic_cast(OBJECT(bus), TYPE_PCIE_BUS);
+}
+
+bool pci_bus_extended_config_space(PCIBus *bus)
+{
+    return !!(bus->flags & PCI_BUS_EXTENDED_CONFIG_SPACE);
 }
 
 void pci_root_bus_new_inplace(PCIBus *bus, size_t bus_size, DeviceState *parent,
