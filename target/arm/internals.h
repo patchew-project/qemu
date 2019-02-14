@@ -970,5 +970,6 @@ ARMVAParameters aa64_va_parameters(CPUARMState *env, uint64_t va,
 
 uint32_t rebuild_hflags_a32(CPUARMState *env, int el);
 uint32_t rebuild_hflags_a64(CPUARMState *env, int el);
+void rebuild_hflags_any(CPUARMState *env);
 
 #endif
