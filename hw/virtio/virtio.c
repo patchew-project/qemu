@@ -2349,6 +2349,13 @@ static bool virtio_virtqueue_needed(void *opaque)
     return virtio_host_has_feature(vdev, VIRTIO_F_VERSION_1);
 }
 
+static bool virtio_packed_virtqueue_needed(void *opaque)
+{
+    VirtIODevice *vdev = opaque;
+
+    return virtio_host_has_feature(vdev, VIRTIO_F_RING_PACKED);
+}
+
 static bool virtio_ringsize_needed(void *opaque)
 {
     VirtIODevice *vdev = opaque;
@@ -2390,6 +2397,17 @@ static const VMStateDescription vmstate_virtqueue = {
     }
 };
 
+static const VMStateDescription vmstate_packed_virtqueue = {
+    .name = "packed_virtqueue_state",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT16(last_avail_idx, struct VirtQueue),
+        VMSTATE_BOOL(last_avail_wrap_counter, struct VirtQueue),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_virtio_virtqueues = {
     .name = "virtio/virtqueues",
     .version_id = 1,
@@ -2398,6 +2416,18 @@ static const VMStateDescription vmstate_virtio_virtqueues = {
     .fields = (VMStateField[]) {
         VMSTATE_STRUCT_VARRAY_POINTER_KNOWN(vq, struct VirtIODevice,
                       VIRTIO_QUEUE_MAX, 0, vmstate_virtqueue, VirtQueue),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_virtio_packed_virtqueues = {
+    .name = "virtio/packed_virtqueues",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = &virtio_packed_virtqueue_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_STRUCT_VARRAY_POINTER_KNOWN(vq, struct VirtIODevice,
+                      VIRTIO_QUEUE_MAX, 0, vmstate_packed_virtqueue, VirtQueue),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -2522,6 +2552,7 @@ static const VMStateDescription vmstate_virtio = {
         &vmstate_virtio_ringsize,
         &vmstate_virtio_broken,
         &vmstate_virtio_extra_state,
+        &vmstate_virtio_packed_virtqueues,
         NULL
     }
 };
@@ -2809,6 +2840,17 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
                 virtio_queue_update_rings(vdev, i);
             }
 
+            if (virtio_vdev_has_feature(vdev, VIRTIO_F_RING_PACKED)) {
+                vdev->vq[i].shadow_avail_idx = vdev->vq[i].last_avail_idx;
+                vdev->vq[i].avail_wrap_counter =
+                                        vdev->vq[i].last_avail_wrap_counter;
+
+                vdev->vq[i].used_idx = vdev->vq[i].last_avail_idx;
+                vdev->vq[i].used_wrap_counter =
+                                        vdev->vq[i].last_avail_wrap_counter;
+                continue;
+            }
+
             nheads = vring_avail_idx(&vdev->vq[i]) - vdev->vq[i].last_avail_idx;
             /* Check it isn't doing strange things with descriptor numbers. */
             if (nheads > vdev->vq[i].vring.num) {
@@ -2970,17 +3012,34 @@ hwaddr virtio_queue_get_used_size(VirtIODevice *vdev, int n)
 
 uint16_t virtio_queue_get_last_avail_idx(VirtIODevice *vdev, int n)
 {
-    return vdev->vq[n].last_avail_idx;
+    uint16_t idx;
+
+    if (virtio_vdev_has_feature(vdev, VIRTIO_F_RING_PACKED)) {
+        idx = vdev->vq[n].last_avail_idx;
+        idx |= ((int)vdev->vq[n].avail_wrap_counter) << 15;
+    } else {
+        idx = (int)vdev->vq[n].last_avail_idx;
+    }
+    return idx;
 }
 
 void virtio_queue_set_last_avail_idx(VirtIODevice *vdev, int n, uint16_t idx)
 {
-    vdev->vq[n].last_avail_idx = idx;
-    vdev->vq[n].shadow_avail_idx = idx;
+    if (virtio_vdev_has_feature(vdev, VIRTIO_F_RING_PACKED)) {
+        vdev->vq[n].last_avail_idx = idx & 0x7fff;
+        vdev->vq[n].avail_wrap_counter = !!(idx & 0x8000);
+    } else {
+        vdev->vq[n].last_avail_idx = idx;
+        vdev->vq[n].shadow_avail_idx = idx;
+    }
 }
 
 void virtio_queue_restore_last_avail_idx(VirtIODevice *vdev, int n)
 {
+    if (virtio_vdev_has_feature(vdev, VIRTIO_F_RING_PACKED)) {
+        return;
+    }
+
     rcu_read_lock();
     if (vdev->vq[n].vring.desc) {
         vdev->vq[n].last_avail_idx = vring_used_idx(&vdev->vq[n]);
@@ -2991,6 +3050,10 @@ void virtio_queue_restore_last_avail_idx(VirtIODevice *vdev, int n)
 
 void virtio_queue_update_used_idx(VirtIODevice *vdev, int n)
 {
+    if (virtio_vdev_has_feature(vdev, VIRTIO_F_RING_PACKED)) {
+        return;
+    }
+
     rcu_read_lock();
     if (vdev->vq[n].vring.desc) {
         vdev->vq[n].used_idx = vring_used_idx(&vdev->vq[n]);
