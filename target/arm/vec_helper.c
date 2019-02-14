@@ -766,3 +766,157 @@ DO_FMLA_IDX(gvec_fmla_idx_s, float32, H4)
 DO_FMLA_IDX(gvec_fmla_idx_d, float64, )
 
 #undef DO_FMLA_IDX
+
+/*
+ * Convert float16 to float32, raising no exceptions and
+ * preserving exceptional values, including SNaN.
+ * This is effectively an unpack+repack operation.
+ */
+static float32 float16_to_float32_by_bits(uint32_t f16)
+{
+    const int f16_bias = 15;
+    const int f32_bias = 127;
+    uint32_t sign = extract32(f16, 15, 1);
+    uint32_t exp = extract32(f16, 10, 5);
+    uint32_t frac = extract32(f16, 0, 10);
+
+    if (exp == 0x1f) {
+        /* Inf or NaN */
+        exp = 0xff;
+    } else if (exp == 0) {
+        /* Zero or denormal.  */
+        if (frac != 0) {
+            /*
+             * Denormal; these are all normal float32.
+             * Shift the fraction so that the msb is at bit 11,
+             * then remove bit 11 as the implicit bit of the
+             * normalized float32.  Note that we still go through
+             * the shift for normal numbers below, to put the
+             * float32 fraction at the right place.
+             */
+            int shift = clz32(frac) - 21;
+            frac = (frac << shift) & 0x3ff;
+            exp = f32_bias - f16_bias - shift + 1;
+        }
+    } else {
+        /* Normal number; adjust the bias.  */
+        exp += f32_bias - f16_bias;
+    }
+    sign <<= 31;
+    exp <<= 23;
+    frac <<= 23 - 10;
+
+    return sign | exp | frac;
+}
+
+static float32 fmlal(float32 a, float16 n16, float16 m16, float_status *fpst)
+{
+    float32 n = float16_to_float32_by_bits(n16);
+    float32 m = float16_to_float32_by_bits(m16);
+    return float32_muladd(n, m, a, 0, fpst);
+}
+
+static float32 fmlsl(float32 a, float16 n16, float16 m16, float_status *fpst)
+{
+    float32 n = float16_to_float32_by_bits(n16);
+    float32 m = float16_to_float32_by_bits(m16);
+    return float32_muladd(float32_chs(n), m, a, 0, fpst);
+}
+
+static inline uint64_t load4_f16(uint64_t *ptr, int is_q, int is_2)
+{
+    /*
+     * Branchless load of u32[0], u64[0], u32[1], or u64[1].
+     * Load the 2nd qword iff is_q & is_2.
+     * Shift to the 2nd dword iff !is_q & is_2.
+     * For !is_q & !is_2, the upper bits of the result are garbage.
+     */
+    return ptr[is_q & is_2] >> ((is_2 & ~is_q) << 5);
+}
+
+/*
+ * Note that FMLAL and FMLSL require oprsz == 8 or oprsz == 16,
+ * as there is not yet SVE versions that might use blocking.
+ */
+
+void HELPER(gvec_fmlal_h)(void *vd, void *vn, void *vm,
+                          void *fpst, uint32_t desc)
+{
+    intptr_t i, oprsz = simd_oprsz(desc);
+    int is_2 = extract32(desc, SIMD_DATA_SHIFT, 1);
+    int is_q = oprsz == 16;
+    float32 *d = vd;
+    uint64_t n_4, m_4;
+
+    /* Pre-load all of the f16 data, avoiding overlap issues.  */
+    n_4 = load4_f16(vn, is_q, is_2);
+    m_4 = load4_f16(vm, is_q, is_2);
+
+    for (i = 0; i < oprsz / 4; i++) {
+        d[H4(i)] = fmlal(d[H4(i)], extract64(n_4, i*16, 16),
+                         extract64(m_4, i*16, 16), fpst);
+    }
+    clear_tail(d, oprsz, simd_maxsz(desc));
+}
+
+void HELPER(gvec_fmlsl_h)(void *vd, void *vn, void *vm,
+                          void *fpst, uint32_t desc)
+{
+    intptr_t i, oprsz = simd_oprsz(desc);
+    int is_2 = extract32(desc, SIMD_DATA_SHIFT, 1);
+    int is_q = oprsz == 16;
+    float32 *d = vd;
+    uint64_t n_4, m_4;
+
+    /* Pre-load all of the f16 data, avoiding overlap issues.  */
+    n_4 = load4_f16(vn, is_q, is_2);
+    m_4 = load4_f16(vm, is_q, is_2);
+
+    for (i = 0; i < oprsz / 4; i++) {
+        d[H4(i)] = fmlsl(d[H4(i)], extract64(n_4, i*16, 16),
+                         extract64(m_4, i*16, 16), fpst);
+    }
+    clear_tail(d, oprsz, simd_maxsz(desc));
+}
+
+void HELPER(gvec_fmlal_idx_h)(void *vd, void *vn, void *vm,
+                              void *fpst, uint32_t desc)
+{
+    intptr_t i, oprsz = simd_oprsz(desc);
+    int is_2 = extract32(desc, SIMD_DATA_SHIFT, 1);
+    int index = extract32(desc, SIMD_DATA_SHIFT + 1, 3);
+    int is_q = oprsz == 16;
+    float32 *d = vd;
+    uint64_t n_4;
+    float16 m_1;
+
+    /* Pre-load all of the f16 data, avoiding overlap issues.  */
+    n_4 = load4_f16(vn, is_q, is_2);
+    m_1 = ((float16 *)vm)[H2(index)];
+
+    for (i = 0; i < oprsz / 4; i++) {
+        d[H4(i)] = fmlal(d[H4(i)], extract64(n_4, i * 16, 16), m_1, fpst);
+    }
+    clear_tail(d, oprsz, simd_maxsz(desc));
+}
+
+void HELPER(gvec_fmlsl_idx_h)(void *vd, void *vn, void *vm,
+                              void *fpst, uint32_t desc)
+{
+    intptr_t i, oprsz = simd_oprsz(desc);
+    int is_2 = extract32(desc, SIMD_DATA_SHIFT, 1);
+    int index = extract32(desc, SIMD_DATA_SHIFT + 1, 3);
+    int is_q = oprsz == 16;
+    float32 *d = vd;
+    uint64_t n_4;
+    float16 m_1;
+
+    /* Pre-load all of the f16 data, avoiding overlap issues.  */
+    n_4 = load4_f16(vn, is_q, is_2);
+    m_1 = ((float16 *)vm)[H2(index)];
+
+    for (i = 0; i < oprsz / 4; i++) {
+        d[H4(i)] = fmlsl(d[H4(i)], extract64(n_4, i*16, 16), m_1, fpst);
+    }
+    clear_tail(d, oprsz, simd_maxsz(desc));
+}
