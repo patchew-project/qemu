@@ -156,7 +156,7 @@ static void virtio_init_region_cache(VirtIODevice *vdev, int n)
     VRingMemoryRegionCaches *new = NULL;
     hwaddr addr, size;
     int64_t len;
-
+    bool attr;
 
     addr = vq->vring.desc;
     if (!addr) {
@@ -164,8 +164,10 @@ static void virtio_init_region_cache(VirtIODevice *vdev, int n)
     }
     new = g_new0(VRingMemoryRegionCaches, 1);
     size = virtio_queue_get_desc_size(vdev, n);
+    attr = virtio_vdev_has_feature(vq->vdev, VIRTIO_F_RING_PACKED) ?
+                                   true : false;
     len = address_space_cache_init(&new->desc, vdev->dma_as,
-                                   addr, size, false);
+                                   addr, size, attr);
     if (len < size) {
         virtio_error(vdev, "Cannot map desc");
         goto err_desc;
@@ -2350,6 +2352,10 @@ hwaddr virtio_queue_get_avail_size(VirtIODevice *vdev, int n)
 {
     int s;
 
+    if (virtio_vdev_has_feature(vdev, VIRTIO_F_RING_PACKED)) {
+        return sizeof(struct VRingPackedDescEvent);
+    }
+
     s = virtio_vdev_has_feature(vdev, VIRTIO_RING_F_EVENT_IDX) ? 2 : 0;
     return offsetof(VRingAvail, ring) +
         sizeof(uint16_t) * vdev->vq[n].vring.num + s;
@@ -2358,6 +2364,10 @@ hwaddr virtio_queue_get_avail_size(VirtIODevice *vdev, int n)
 hwaddr virtio_queue_get_used_size(VirtIODevice *vdev, int n)
 {
     int s;
+
+    if (virtio_vdev_has_feature(vdev, VIRTIO_F_RING_PACKED)) {
+        return sizeof(struct VRingPackedDescEvent);
+    }
 
     s = virtio_vdev_has_feature(vdev, VIRTIO_RING_F_EVENT_IDX) ? 2 : 0;
     return offsetof(VRingUsed, ring) +
