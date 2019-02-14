@@ -1591,8 +1591,8 @@ static void musicpal_init(MachineState *machine)
     cpu = ARM_CPU(cpu_create(machine->cpu_type));
 
     /* For now we use a fixed - the original - RAM size */
-    memory_region_allocate_system_memory(ram, NULL, "musicpal.ram",
-                                         MP_RAM_DEFAULT_SIZE);
+    memory_region_init_ram(ram, NULL, "musicpal.ram", MP_RAM_DEFAULT_SIZE,
+                           &error_fatal);
     memory_region_add_subregion(address_space_mem, 0, ram);
 
     memory_region_init_ram(sram, NULL, "musicpal.sram", MP_SRAM_SIZE,
