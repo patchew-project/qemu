@@ -13894,21 +13894,16 @@ void HELPER(rebuild_hflags_a64)(CPUARMState *env, uint32_t el)
 void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
                           target_ulong *cs_base, uint32_t *pflags)
 {
-    int current_el = arm_current_el(env);
-    uint32_t flags;
+    uint32_t flags = env->hflags;
     uint32_t pstate_for_ss;
 
     *cs_base = 0;
-    if (is_a64(env)) {
+    if (FIELD_EX32(flags, TBFLAG_ANY, AARCH64_STATE)) {
         *pc = env->pc;
-        flags = rebuild_hflags_a64(env, current_el);
-        assert(flags == env->hflags);
         flags = FIELD_DP32(flags, TBFLAG_A64, BTYPE, env->btype);
         pstate_for_ss = env->pstate;
     } else {
         *pc = env->regs[15];
-        flags = rebuild_hflags_a32(env, current_el);
-        assert(flags == env->hflags);
         flags = FIELD_DP32(flags, TBFLAG_A32, THUMB, env->thumb);
         flags = FIELD_DP32(flags, TBFLAG_A32, CONDEXEC, env->condexec_bits);
         pstate_for_ss = env->uncached_cpsr;
