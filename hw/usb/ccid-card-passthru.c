@@ -16,6 +16,7 @@
 #include "qemu/sockets.h"
 #include "ccid.h"
 #include "qapi/error.h"
+#include "qapi/qmp/qerror.h"
 
 #define DPRINTF(card, lvl, fmt, ...)                    \
 do {                                                    \
@@ -339,7 +340,7 @@ static void passthru_realize(CCIDCardState *base, Error **errp)
     PassthruState *card = PASSTHRU_CCID_CARD(base);
 
     if (!qemu_chr_fe_backend_connected(&card->cs)) {
-        error_setg(errp, "missing chardev");
+        error_setg(errp, QERR_MISSING_PARAMETER, "chardev");
         return;
     }
     card->vscard_in_pos = 0;
