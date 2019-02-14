@@ -29,6 +29,9 @@ do {                                                    \
 #define D_MORE_INFO 3
 #define D_VERBOSE 4
 
+/* maximum size of ATR - from 7816-3 */
+#define MAX_ATR_SIZE        40
+
 /* TODO: do we still need this? */
 static const uint8_t DEFAULT_ATR[] = {
 /*
@@ -41,10 +44,9 @@ static const uint8_t DEFAULT_ATR[] = {
  0x13, 0x08
 };
 
-#define VSCARD_IN_SIZE      (64 * KiB)
+QEMU_BUILD_BUG_ON(sizeof(DEFAULT_ATR) > MAX_ATR_SIZE);
 
-/* maximum size of ATR - from 7816-3 */
-#define MAX_ATR_SIZE        40
+#define VSCARD_IN_SIZE      (64 * KiB)
 
 typedef struct PassthruState PassthruState;
 
@@ -351,7 +353,6 @@ static void passthru_realize(CCIDCardState *base, Error **errp)
     }
     card->debug = parse_debug_env("QEMU_CCID_PASSTHRU_DEBUG", D_VERBOSE,
                                   card->debug);
-    assert(sizeof(DEFAULT_ATR) <= MAX_ATR_SIZE);
     memcpy(card->atr, DEFAULT_ATR, sizeof(DEFAULT_ATR));
     card->atr_length = sizeof(DEFAULT_ATR);
 }
