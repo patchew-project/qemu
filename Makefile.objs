@@ -4,7 +4,7 @@ QAPI_MODULES += ui
 
 #######################################################################
 # Common libraries for tools and emulators
-stub-obj-y = stubs/ crypto/
+stub-obj-y = stubs/ util/ crypto/
 util-obj-y = util/ qobject/ qapi/
 util-obj-y += qapi/qapi-builtin-types.o
 util-obj-y += qapi/qapi-types.o
