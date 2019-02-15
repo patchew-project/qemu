@@ -730,12 +730,20 @@ static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
     }
     device_len = sector_len_per_device * blocks_per_device;
 
-    /* XXX: to be fixed */
-#if 0
-    if (total_len != (8 * 1024 * 1024) && total_len != (16 * 1024 * 1024) &&
-        total_len != (32 * 1024 * 1024) && total_len != (64 * 1024 * 1024))
-        return NULL;
-#endif
+    /*
+     * Validate the backing store is the right size for pflash
+     * devices. It has to be padded to a multiple of the flash block
+     * size.
+     */
+    if (pfl->blk) {
+        uint64_t backing_len = blk_getlength(pfl->blk);
+        if (device_len != backing_len) {
+            error_setg(errp, "device needs %" PRIu64 " bytes, "
+                       "backing file provides only %" PRIu64 " bytes",
+                       device_len, backing_len);
+            return;
+        }
+    }
 
     memory_region_init_rom_device(
         &pfl->mem, OBJECT(dev),
