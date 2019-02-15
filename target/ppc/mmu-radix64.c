@@ -25,7 +25,6 @@
 #include "sysemu/kvm.h"
 #include "kvm_ppc.h"
 #include "exec/log.h"
-#include "mmu-radix64.h"
 #include "mmu-book3s-v3.h"
 
 static bool ppc_radix64_get_fully_qualified_addr(CPUPPCState *env, vaddr eaddr,

@@ -19,9 +19,7 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
-#include "mmu-hash64.h"
 #include "mmu-book3s-v3.h"
-#include "mmu-radix64.h"
 
 int ppc64_v3_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr, int rwx,
                               int mmu_idx)

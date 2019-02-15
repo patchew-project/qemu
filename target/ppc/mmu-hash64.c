@@ -24,7 +24,6 @@
 #include "qemu/error-report.h"
 #include "sysemu/hw_accel.h"
 #include "kvm_ppc.h"
-#include "mmu-hash64.h"
 #include "exec/log.h"
 #include "hw/hw.h"
 #include "mmu-book3s-v3.h"

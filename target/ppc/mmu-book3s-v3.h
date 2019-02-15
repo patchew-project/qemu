@@ -22,6 +22,9 @@
 
 #ifndef CONFIG_USER_ONLY
 
+#include "mmu-hash64.h"
+#include "mmu-radix64.h"
+
 /*
  * Partition table definitions
  */
