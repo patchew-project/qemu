@@ -10917,9 +10917,26 @@ static void disas_simd_3same_float(DisasContext *s, uint32_t insn)
         if (!fp_access_check(s)) {
             return;
         }
-
         handle_3same_float(s, size, elements, fpopcode, rd, rn, rm);
         return;
+
+    case 0x1d: /* FMLAL  */
+    case 0x3d: /* FMLSL  */
+    case 0x59: /* FMLAL2 */
+    case 0x79: /* FMLSL2 */
+        if (size & 1 || !dc_isar_feature(aa64_fhm, s)) {
+            unallocated_encoding(s);
+            return;
+        }
+        if (fp_access_check(s)) {
+            int is_s = extract32(insn, 23, 1);
+            int is_2 = extract32(insn, 29, 1);
+            int data = (is_2 << 1) | is_s;
+            gen_gvec_op3_fpst(s, is_q, rd, rn, rm, false, data,
+                              gen_helper_gvec_fmlal_h);
+        }
+        return;
+
     default:
         unallocated_encoding(s);
         return;
@@ -12739,6 +12756,17 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
         }
         is_fp = 2;
         break;
+    case 0x00: /* FMLAL */
+    case 0x04: /* FMLSL */
+    case 0x18: /* FMLAL2 */
+    case 0x1c: /* FMLSL2 */
+        if (is_scalar || size != MO_32 || !dc_isar_feature(aa64_fhm, s)) {
+            unallocated_encoding(s);
+            return;
+        }
+        size = MO_16;
+        is_fp = 3;
+        break;
     default:
         unallocated_encoding(s);
         return;
@@ -12778,6 +12806,9 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
             unallocated_encoding(s);
             return;
         }
+        break;
+
+    case 3: /* other fp, size already set and verified. */
         break;
 
     default: /* integer */
@@ -12846,6 +12877,23 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
                                size == MO_64
                                ? gen_helper_gvec_fcmlas_idx
                                : gen_helper_gvec_fcmlah_idx);
+            tcg_temp_free_ptr(fpst);
+        }
+        return;
+
+    case 0x00: /* FMLAL */
+    case 0x04: /* FMLSL */
+    case 0x18: /* FMLAL2 */
+    case 0x1c: /* FMLSL2 */
+        {
+            int is_s = extract32(opcode, 2, 1);
+            int is_2 = u;
+            int data = (index << 2) | (is_2 << 1) | is_s;
+            tcg_gen_gvec_3_ptr(vec_full_reg_offset(s, rd),
+                               vec_full_reg_offset(s, rn),
+                               vec_full_reg_offset(s, rm), fpst,
+                               is_q ? 16 : 8, vec_full_reg_size(s), data,
+                               gen_helper_gvec_fmlal_idx_h);
             tcg_temp_free_ptr(fpst);
         }
         return;
