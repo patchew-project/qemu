@@ -1752,7 +1752,8 @@ int main (int argc, const char * argv[]) {
     QemuCocoaAppController *appController = [[QemuCocoaAppController alloc] init];
     [NSApp setDelegate:appController];
 
-    // Start the main event loop
+    // Activate app and start the main event loop
+    [NSApp activateIgnoringOtherApps:YES];
     COCOA_DEBUG("Main thread: entering OSX run loop\n");
     [NSApp run];
     COCOA_DEBUG("Main thread: left OSX run loop, exiting\n");
