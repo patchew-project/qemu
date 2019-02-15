@@ -514,6 +514,11 @@ static hwaddr ppc_hash64_pteg_search(PowerPCCPU *cpu, hwaddr hash,
         smp_rmb();
         pte1 = ppc_hash64_hpte1(cpu, pteg, i);
 
+        /* Convert format if necessary */
+        if (cpu->env.mmu_model == POWERPC_MMU_3_00 && !cpu->vhyp) {
+            ppc64_v3_new_to_old_hpte(&pte0, &pte1);
+        }
+
         /* This compares V, B, H (secondary) and the AVPN */
         if (HPTE64_V_COMPARE(pte0, ptem)) {
             *pshift = hpte_page_shift(sps, pte0, pte1);
