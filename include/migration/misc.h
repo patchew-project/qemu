@@ -28,7 +28,7 @@ void blk_mig_init(void);
 static inline void blk_mig_init(void) {}
 #endif
 
-#define SELF_ANNOUNCE_ROUNDS 5
+#define SELF_ANNOUNCE_ROUNDS 10
 
 static inline
 int64_t self_announce_delay(int round)
