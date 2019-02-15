@@ -264,7 +264,6 @@ static void tap_using_vnet_hdr(NetClientState *nc, bool using_vnet_hdr)
     TAPState *s = DO_UPCAST(TAPState, nc, nc);
 
     assert(nc->info->type == NET_CLIENT_DRIVER_TAP);
-    assert(!!s->host_vnet_hdr_len == using_vnet_hdr);
 
     s->using_vnet_hdr = using_vnet_hdr;
 }
