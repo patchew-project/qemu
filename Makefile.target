@@ -102,6 +102,8 @@ all: $(PROGS) stap
 # Dummy command so that make thinks it has done something
 	@true
 
+obj-y += trace/
+
 #########################################################
 # cpu emulator library
 obj-y += exec.o
@@ -169,14 +171,11 @@ endif # CONFIG_SOFTMMU
 dummy := $(call unnest-vars,,obj-y)
 all-obj-y := $(obj-y)
 
-target-obj-y :=
 block-obj-y :=
 common-obj-y :=
 chardev-obj-y :=
 slirp-obj-y :=
 include $(SRC_PATH)/Makefile.objs
-dummy := $(call unnest-vars,,target-obj-y)
-target-obj-y-save := $(target-obj-y)
 dummy := $(call unnest-vars,.., \
                block-obj-y \
                block-obj-m \
@@ -188,9 +187,7 @@ dummy := $(call unnest-vars,.., \
                common-obj-y \
                common-obj-m \
                slirp-obj-y)
-target-obj-y := $(target-obj-y-save)
 all-obj-y += $(common-obj-y)
-all-obj-y += $(target-obj-y)
 all-obj-y += $(qom-obj-y)
 all-obj-$(CONFIG_SOFTMMU) += $(block-obj-y) $(chardev-obj-y)
 all-obj-$(CONFIG_USER_ONLY) += $(crypto-aes-obj-y)
