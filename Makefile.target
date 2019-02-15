@@ -170,7 +170,9 @@ GENERATED_FILES += hmp-commands.h hmp-commands-info.h
 
 endif # CONFIG_SOFTMMU
 
+$(info @target/ before $(obj-y))
 dummy := $(call unnest-vars,,obj-y)
+$(info @target/ after $(obj-y))
 all-obj-y := $(obj-y)
 
 include $(SRC_PATH)/Makefile.objs
