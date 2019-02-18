@@ -297,7 +297,7 @@ static void r2d_init(MachineState *machine)
      * FLASH_SIZE / 4 bytes anyway.  The current code does so too, but
      * whether it's the right size is anybody's guess.
      */
-    pflash_cfi02_register(0x0, NULL, "r2d.flash", FLASH_SIZE / 4,
+    pflash_cfi02_register(0x0, "r2d.flash", FLASH_SIZE / 4,
                           dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
                           16 * KiB, FLASH_SIZE >> 16,
                           1, 4, 0x0000, 0x0000, 0x0000, 0x0000,
