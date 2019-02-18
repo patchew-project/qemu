@@ -167,21 +167,17 @@ static PFlashCFI01 *xtfpga_flash_init(MemoryRegion *address_space,
                                       DriveInfo *dinfo, int be)
 {
     SysBusDevice *s;
-    DeviceState *dev = qdev_create(NULL, TYPE_CFI_PFLASH01);
+    PFlashCFI01 *dev = pflash_cfi01_create("xtfpga.io.flash",
+                                           board->flash->size,
+                                           blk_by_legacy_dinfo(dinfo),
+                                           board->flash->sector_size,
+                                           2, 0, 0, 0, 0, be);
 
-    qdev_prop_set_drive(dev, "drive", blk_by_legacy_dinfo(dinfo),
-                        &error_abort);
-    qdev_prop_set_uint32(dev, "num-blocks",
-                         board->flash->size / board->flash->sector_size);
-    qdev_prop_set_uint64(dev, "sector-length", board->flash->sector_size);
-    qdev_prop_set_uint8(dev, "width", 2);
-    qdev_prop_set_bit(dev, "big-endian", be);
-    qdev_prop_set_string(dev, "name", "xtfpga.io.flash");
-    qdev_init_nofail(dev);
+    qdev_init_nofail(DEVICE(dev));
     s = SYS_BUS_DEVICE(dev);
     memory_region_add_subregion(address_space, board->flash->base,
                                 sysbus_mmio_get_region(s, 0));
-    return CFI_PFLASH01(dev);
+    return dev;
 }
 
 static uint64_t translate_phys_addr(void *opaque, uint64_t addr)

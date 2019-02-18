@@ -13,6 +13,14 @@
 
 typedef struct PFlashCFI01 PFlashCFI01;
 
+PFlashCFI01 *pflash_cfi01_create(const char *name,
+                                 hwaddr size,
+                                 BlockBackend *blk,
+                                 uint32_t sector_len,
+                                 int width,
+                                 uint16_t id0, uint16_t id1,
+                                 uint16_t id2, uint16_t id3,
+                                 int be);
 PFlashCFI01 *pflash_cfi01_register(hwaddr base,
                                    const char *name,
                                    hwaddr size,
