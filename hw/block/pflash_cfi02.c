@@ -57,9 +57,6 @@ do {                                                       \
 
 #define PFLASH_LAZY_ROMD_THRESHOLD 42
 
-#define CFI_PFLASH02(obj) \
-    OBJECT_CHECK(PFlashCFI02, (obj), TYPE_CFI_PFLASH02)
-
 struct PFlashCFI02 {
     /*< private >*/
     SysBusDevice parent_obj;

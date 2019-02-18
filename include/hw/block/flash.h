@@ -8,6 +8,8 @@
 /* pflash_cfi01.c */
 
 #define TYPE_CFI_PFLASH01 "cfi.pflash01"
+#define CFI_PFLASH01(obj) \
+    OBJECT_CHECK(PFlashCFI01, (obj), TYPE_CFI_PFLASH01)
 
 typedef struct PFlashCFI01 PFlashCFI01;
 
@@ -25,6 +27,8 @@ MemoryRegion *pflash_cfi01_get_memory(PFlashCFI01 *fl);
 /* pflash_cfi02.c */
 
 #define TYPE_CFI_PFLASH02 "cfi.pflash02"
+#define CFI_PFLASH02(obj) \
+    OBJECT_CHECK(PFlashCFI02, (obj), TYPE_CFI_PFLASH02)
 
 typedef struct PFlashCFI02 PFlashCFI02;
 
