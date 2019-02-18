@@ -65,9 +65,14 @@ def toggle_flag(offset):
     with open(disk, "r+b") as f:
         f.seek(offset, 0)
         c = f.read(1)
-        toggled = chr(ord(c) ^ bitmap_flag_unknown)
+        toggled = ord(c) ^ bitmap_flag_unknown
         f.seek(-1, 1)
-        f.write(toggled)
+        try:
+            # python2
+            f.write(chr(toggled))
+        except TypeError:
+            # python3
+            f.write(bytes([toggled]))
 
 
 qemu_img_create('-f', iotests.imgfmt, disk, '1M')
