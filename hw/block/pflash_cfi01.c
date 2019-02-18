@@ -49,12 +49,6 @@
 #include "sysemu/sysemu.h"
 #include "trace.h"
 
-#define PFLASH_BUG(fmt, ...) \
-do { \
-    fprintf(stderr, "PFLASH: Possible BUG - " fmt, ## __VA_ARGS__); \
-    exit(1); \
-} while(0)
-
 /* #define PFLASH_DEBUG */
 #ifdef PFLASH_DEBUG
 #define DPRINTF(fmt, ...)                                   \
@@ -624,8 +618,8 @@ static void pflash_write(PFlashCFI01 *pfl, hwaddr offset,
                 pfl->status |= 0x80;
             } else {
                 DPRINTF("%s: unknown command for \"write block\"\n", __func__);
-                PFLASH_BUG("Write block confirm");
-                goto reset_flash;
+                fprintf(stderr, "PFLASH: Possible BUG - Write block confirm");
+                exit(1);
             }
             break;
         default:
