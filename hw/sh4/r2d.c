@@ -299,7 +299,7 @@ static void r2d_init(MachineState *machine)
      */
     pflash_cfi02_register(0x0, "r2d.flash", FLASH_SIZE / 4,
                           dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
-                          16 * KiB, FLASH_SIZE >> 16,
+                          16 * KiB,
                           1, 4, 0x0000, 0x0000, 0x0000, 0x0000,
                           0x555, 0x2aa, 0);
 
