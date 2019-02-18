@@ -3448,6 +3448,7 @@ void spapr_lmb_release(DeviceState *dev)
      * unplug handler chain. This can never fail.
      */
     hotplug_handler_unplug(hotplug_ctrl, dev, &error_abort);
+    object_unparent(OBJECT(dev));
 }
 
 static void spapr_memory_unplug(HotplugHandler *hotplug_dev, DeviceState *dev)
@@ -3456,7 +3457,7 @@ static void spapr_memory_unplug(HotplugHandler *hotplug_dev, DeviceState *dev)
     sPAPRDIMMState *ds = spapr_pending_dimm_unplugs_find(spapr, PC_DIMM(dev));
 
     pc_dimm_unplug(PC_DIMM(dev), MACHINE(hotplug_dev));
-    object_unparent(OBJECT(dev));
+    object_property_set_bool(OBJECT(dev), false, "realized", NULL);
     spapr_pending_dimm_unplugs_remove(spapr, ds);
 }
 
@@ -3541,6 +3542,7 @@ void spapr_core_release(DeviceState *dev)
 
     /* Call the unplug handler chain. This can never fail. */
     hotplug_handler_unplug(hotplug_ctrl, dev, &error_abort);
+    object_unparent(OBJECT(dev));
 }
 
 static void spapr_core_unplug(HotplugHandler *hotplug_dev, DeviceState *dev)
@@ -3563,7 +3565,7 @@ static void spapr_core_unplug(HotplugHandler *hotplug_dev, DeviceState *dev)
 
     assert(core_slot);
     core_slot->cpu = NULL;
-    object_unparent(OBJECT(dev));
+    object_property_set_bool(OBJECT(dev), false, "realized", NULL);
 }
 
 static
