@@ -92,31 +92,24 @@ struct boot_info {
 static int sam460ex_load_uboot(void)
 {
     DriveInfo *dinfo;
-    BlockBackend *blk = NULL;
-    hwaddr base = FLASH_BASE | ((hwaddr)FLASH_BASE_H << 32);
-    long bios_size = FLASH_SIZE;
-    int fl_sectors;
 
     dinfo = drive_get(IF_PFLASH, 0, 0);
-    if (dinfo) {
-        blk = blk_by_legacy_dinfo(dinfo);
-        bios_size = blk_getlength(blk);
-    }
-    fl_sectors = (bios_size + 65535) >> 16;
-
-    if (!pflash_cfi01_register(base, NULL, "sam460ex.flash", bios_size,
-                               blk, 64 * KiB, fl_sectors,
+    if (!pflash_cfi01_register(FLASH_BASE | ((hwaddr)FLASH_BASE_H << 32),
+                               NULL, "sam460ex.flash", FLASH_SIZE,
+                               dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
+                               65536, FLASH_SIZE / 65536,
                                1, 0x89, 0x18, 0x0000, 0x0, 1)) {
         error_report("Error registering flash memory");
         /* XXX: return an error instead? */
         exit(1);
     }
 
-    if (!blk) {
+    if (!dinfo) {
         /*error_report("No flash image given with the 'pflash' parameter,"
                 " using default u-boot image");*/
-        base = UBOOT_LOAD_BASE | ((hwaddr)FLASH_BASE_H << 32);
-        rom_add_file_fixed(UBOOT_FILENAME, base, -1);
+        rom_add_file_fixed(UBOOT_FILENAME,
+                           UBOOT_LOAD_BASE | ((hwaddr)FLASH_BASE_H << 32),
+                           -1);
     }
 
     return 0;
