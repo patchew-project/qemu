@@ -177,6 +177,8 @@ struct sPAPRMachineState {
 
     /*< public >*/
     char *kvm_type;
+    char *host_model;
+    char *host_serial;
 
     const char *icp_type;
     int32_t irq_map_nr;
