@@ -136,15 +136,6 @@ static MemoryRegion *nvdimm_md_get_memory_region(MemoryDeviceState *md,
     return nvdimm->nvdimm_mr;
 }
 
-static void nvdimm_realize(PCDIMMDevice *dimm, Error **errp)
-{
-    NVDIMMDevice *nvdimm = NVDIMM(dimm);
-
-    if (!nvdimm->nvdimm_mr) {
-        nvdimm_prepare_memory_region(nvdimm, errp);
-    }
-}
-
 /*
  * the caller should check the input parameters before calling
  * label read/write functions.
@@ -192,12 +183,10 @@ static Property nvdimm_properties[] = {
 
 static void nvdimm_class_init(ObjectClass *oc, void *data)
 {
-    PCDIMMDeviceClass *ddc = PC_DIMM_CLASS(oc);
     MemoryDeviceClass *mdc = MEMORY_DEVICE_CLASS(oc);
     NVDIMMClass *nvc = NVDIMM_CLASS(oc);
     DeviceClass *dc = DEVICE_CLASS(oc);
 
-    ddc->realize = nvdimm_realize;
     mdc->get_memory_region = nvdimm_md_get_memory_region;
     dc->props = nvdimm_properties;
 
