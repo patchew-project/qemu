@@ -20,6 +20,7 @@
 #include "qemu/queue.h"
 #include "qemu/timer.h"
 
+#ifdef CONFIG_LINUX
 #define PCI_ANY_ID (~0)
 
 struct VFIOPCIDevice;
@@ -198,5 +199,33 @@ int vfio_pci_igd_opregion_init(VFIOPCIDevice *vdev,
 void vfio_display_reset(VFIOPCIDevice *vdev);
 int vfio_display_probe(VFIOPCIDevice *vdev, Error **errp);
 void vfio_display_finalize(VFIOPCIDevice *vdev);
+
+void vfio_pci_save_config(VFIODevice *vbasedev, QEMUFile *f);
+void vfio_pci_load_config(VFIODevice *vbasedev, QEMUFile *f);
+
+static inline Object *vfio_pci_get_object(VFIODevice *vbasedev)
+{
+    VFIOPCIDevice *vdev = container_of(vbasedev, VFIOPCIDevice, vbasedev);
+
+    return OBJECT(vdev);
+}
+
+#else
+static inline void vfio_pci_save_config(VFIODevice *vbasedev, QEMUFile *f)
+{
+    g_assert(false);
+}
+
+static inline void vfio_pci_load_config(VFIODevice *vbasedev, QEMUFile *f)
+{
+    g_assert(false);
+}
+
+static inline Object *vfio_pci_get_object(VFIODevice *vbasedev)
+{
+    return NULL;
+}
+
+#endif
 
 #endif /* HW_VFIO_VFIO_PCI_H */
