@@ -74,7 +74,7 @@ EOF
     certtool --generate-self-signed \
              --load-privkey "${tls_dir}/key.pem" \
              --template "${tls_dir}/ca.info" \
-             --outfile "${tls_dir}/$name-cert.pem" 2>&1 | head -1
+             --outfile "${tls_dir}/$name-cert.pem" 2>&1 | sed -n 1p
 
     rm -f "${tls_dir}/ca.info"
 }
@@ -103,7 +103,7 @@ EOF
              --load-ca-certificate "${tls_dir}/$caname-cert.pem" \
              --load-privkey "${tls_dir}/key.pem" \
              --template "${tls_dir}/cert.info" \
-             --outfile "${tls_dir}/$name/server-cert.pem" 2>&1 | head -1
+             --outfile "${tls_dir}/$name/server-cert.pem" 2>&1 | sed -n 1p
     ln -s "${tls_dir}/$caname-cert.pem" "${tls_dir}/$name/ca-cert.pem"
     ln -s "${tls_dir}/key.pem" "${tls_dir}/$name/server-key.pem"
 
@@ -132,7 +132,7 @@ EOF
              --load-ca-certificate "${tls_dir}/$caname-cert.pem" \
              --load-privkey "${tls_dir}/key.pem" \
              --template "${tls_dir}/cert.info" \
-             --outfile "${tls_dir}/$name/client-cert.pem" 2>&1 | head -1
+             --outfile "${tls_dir}/$name/client-cert.pem" 2>&1 | sed -n 1p
     ln -s "${tls_dir}/$caname-cert.pem" "${tls_dir}/$name/ca-cert.pem"
     ln -s "${tls_dir}/key.pem" "${tls_dir}/$name/client-key.pem"
 
