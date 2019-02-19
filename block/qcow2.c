@@ -1045,6 +1045,12 @@ static int qcow2_update_options_prepare(BlockDriverState *bs,
             ret = -EINVAL;
             goto fail;
         }
+        if (encryptopts && qdict_size(encryptopts)) {
+            error_setg(errp, "No encryption in image header, but encryption "
+                       "options provided");
+            ret = -EINVAL;
+            goto fail;
+        }
         break;
 
     case QCOW_CRYPT_AES:
