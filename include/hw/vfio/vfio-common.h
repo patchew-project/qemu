@@ -30,6 +30,7 @@
 #ifdef CONFIG_LINUX
 #include <linux/vfio.h>
 #endif
+#include "sysemu/sysemu.h"
 
 #define VFIO_MSG_PREFIX "vfio %s: "
 
@@ -57,6 +58,14 @@ typedef struct VFIORegion {
     VFIOMmap *mmaps;
     uint8_t nr; /* cache the region number for debug */
 } VFIORegion;
+
+typedef struct VFIOMigration {
+    struct {
+        VFIORegion buffer;
+        uint32_t index;
+    } region;
+    uint64_t pending_bytes;
+} VFIOMigration;
 
 typedef struct VFIOAddressSpace {
     AddressSpace *as;
@@ -119,6 +128,12 @@ typedef struct VFIODevice {
     unsigned int num_irqs;
     unsigned int num_regions;
     unsigned int flags;
+    uint32_t device_state;
+    VMChangeStateEntry *vm_state;
+    int vm_running;
+    Notifier migration_state;
+    VFIOMigration *migration;
+    Error *migration_blocker;
 } VFIODevice;
 
 struct VFIODeviceOps {
@@ -197,5 +212,10 @@ int vfio_spapr_create_window(VFIOContainer *container,
                              hwaddr *pgsize);
 int vfio_spapr_remove_window(VFIOContainer *container,
                              hwaddr offset_within_address_space);
+
+int vfio_migration_probe(VFIODevice *vbasedev, Error **errp);
+void vfio_migration_finalize(VFIODevice *vbasedev);
+void vfio_get_dirty_page_list(VFIODevice *vbasedev, uint64_t start_pfn,
+                               uint64_t pfn_count, uint64_t page_size);
 
 #endif /* HW_VFIO_VFIO_COMMON_H */
