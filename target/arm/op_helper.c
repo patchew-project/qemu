@@ -571,6 +571,7 @@ void HELPER(cpsr_write_eret)(CPUARMState *env, uint32_t val)
      */
     env->regs[15] &= (env->thumb ? ~1 : ~3);
 
+    env->hflags = rebuild_hflags_a32(env, arm_current_el(env));
     qemu_mutex_lock_iothread();
     arm_call_el_change_hook(arm_env_get_cpu(env));
     qemu_mutex_unlock_iothread();
