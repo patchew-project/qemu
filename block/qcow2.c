@@ -3104,6 +3104,9 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
 
     ret = 0;
 out:
+    if (ret < 0) {
+        qcow2_mark_corrupt(blk_bs(blk));
+    }
     blk_unref(blk);
     bdrv_unref(bs);
     return ret;
