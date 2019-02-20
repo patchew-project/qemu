@@ -4572,19 +4572,6 @@ static void monitor_list_append(Monitor *mon)
     }
 }
 
-static void monitor_qmp_setup_handlers_bh(void *opaque)
-{
-    Monitor *mon = opaque;
-    GMainContext *context;
-
-    assert(mon->use_io_thread);
-    context = iothread_get_g_main_context(mon_iothread);
-    assert(context);
-    qemu_chr_fe_set_handlers(&mon->chr, monitor_can_read, monitor_qmp_read,
-                             monitor_qmp_event, NULL, mon, context, true);
-    monitor_list_append(mon);
-}
-
 void monitor_init(Chardev *chr, int flags)
 {
     Monitor *mon = g_malloc(sizeof(*mon));
@@ -4607,29 +4594,15 @@ void monitor_init(Chardev *chr, int flags)
     }
 
     if (monitor_is_qmp(mon)) {
+        GMainContext *ctxt = mon->use_io_thread ?
+            iothread_get_g_main_context(mon_iothread) : NULL;
+
         qemu_chr_fe_set_echo(&mon->chr, true);
         json_message_parser_init(&mon->qmp.parser, handle_qmp_command,
                                  mon, NULL);
-        if (mon->use_io_thread) {
-            /*
-             * Make sure the old iowatch is gone.  It's possible when
-             * e.g. the chardev is in client mode, with wait=on.
-             */
-            remove_fd_in_watch(chr);
-            /*
-             * We can't call qemu_chr_fe_set_handlers() directly here
-             * since chardev might be running in the monitor I/O
-             * thread.  Schedule a bottom half.
-             */
-            aio_bh_schedule_oneshot(iothread_get_aio_context(mon_iothread),
-                                    monitor_qmp_setup_handlers_bh, mon);
-            /* The bottom half will add @mon to @mon_list */
-            return;
-        } else {
-            qemu_chr_fe_set_handlers(&mon->chr, monitor_can_read,
-                                     monitor_qmp_read, monitor_qmp_event,
-                                     NULL, mon, NULL, true);
-        }
+        qemu_chr_fe_set_handlers(&mon->chr, monitor_can_read,
+                                 monitor_qmp_read, monitor_qmp_event,
+                                 NULL, mon, ctxt, true);
     } else {
         qemu_chr_fe_set_handlers(&mon->chr, monitor_can_read, monitor_read,
                                  monitor_event, NULL, mon, NULL, true);
