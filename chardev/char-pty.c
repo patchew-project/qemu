@@ -119,13 +119,13 @@ static GSource *pty_chr_add_watch(Chardev *chr, GIOCondition cond)
     return qio_channel_create_watch(s->ioc, cond);
 }
 
-static int pty_chr_read_poll(void *opaque)
+static gboolean pty_chr_read_poll(void *opaque)
 {
     Chardev *chr = CHARDEV(opaque);
     PtyChardev *s = PTY_CHARDEV(opaque);
 
     s->read_bytes = qemu_chr_be_can_write(chr);
-    return s->read_bytes;
+    return s->read_bytes > 0;
 }
 
 static gboolean pty_chr_read(QIOChannel *chan, GIOCondition cond, void *opaque)

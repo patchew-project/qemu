@@ -30,7 +30,7 @@ typedef struct IOWatchPoll {
     QIOChannel *ioc;
     GSource *src;
 
-    IOCanReadHandler *fd_can_read;
+    GSourceFunc fd_can_read;
     GSourceFunc fd_read;
     void *opaque;
 } IOWatchPoll;
@@ -44,7 +44,7 @@ static gboolean io_watch_poll_prepare(GSource *source,
                                       gint *timeout)
 {
     IOWatchPoll *iwp = io_watch_poll_from_source(source);
-    bool now_active = iwp->fd_can_read(iwp->opaque) > 0;
+    bool now_active = iwp->fd_can_read(iwp->opaque);
     bool was_active = iwp->src != NULL;
     if (was_active == now_active) {
         return FALSE;
@@ -76,7 +76,7 @@ static GSourceFuncs io_watch_poll_funcs = {
 
 GSource *io_add_watch_poll(Chardev *chr,
                         QIOChannel *ioc,
-                        IOCanReadHandler *fd_can_read,
+                        GSourceFunc fd_can_read,
                         QIOChannelFunc fd_read,
                         gpointer user_data,
                         GMainContext *context)
