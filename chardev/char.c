@@ -159,12 +159,15 @@ int qemu_chr_write(Chardev *s, const uint8_t *buf, int len, bool write_all)
 int qemu_chr_be_can_write(Chardev *s)
 {
     CharBackend *be = s->be;
+    int receivable_bytes;
 
     if (!be || !be->chr_can_read) {
         return 0;
     }
 
-    return be->chr_can_read(be->opaque);
+    receivable_bytes = be->chr_can_read(be->opaque);
+    assert(receivable_bytes >= 0);
+    return receivable_bytes;
 }
 
 void qemu_chr_be_write_impl(Chardev *s, uint8_t *buf, int len)
