@@ -323,7 +323,7 @@ typedef struct GDBState {
     int line_sum; /* running checksum */
     int line_csum; /* checksum at the end of the packet */
     uint8_t last_packet[MAX_PACKET_LENGTH + 4];
-    int last_packet_len;
+    size_t last_packet_len;
     int signal;
 #ifdef CONFIG_USER_ONLY
     int fd;
