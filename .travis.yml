@@ -252,3 +252,11 @@ matrix:
     - env:
         - CONFIG="--disable-system"
         - TEST_CMD="make -j3 check-tcg V=1"
+
+
+  allow_failures:
+    - env:
+        - CONFIG="--target-list=i386-softmmu,ppc-softmmu,ppc64-softmmu,m68k-softmmu,x86_64-softmmu"
+      os: osx
+      osx_image: xcode10
+      compiler: clang
