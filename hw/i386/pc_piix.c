@@ -298,7 +298,11 @@ static void pc_init1(MachineState *machine,
     }
 
     if (pcms->acpi_nvdimm_state.is_enabled) {
-        nvdimm_init_acpi_state(&pcms->acpi_nvdimm_state, system_io,
+        AcpiNVDIMMState *acpi_nvdimm_state = &pcms->acpi_nvdimm_state;
+
+        acpi_nvdimm_state->dsm_io = NvdimmDsmIO;
+
+        nvdimm_init_acpi_state(acpi_nvdimm_state, system_io,
                                pcms->fw_cfg, OBJECT(pcms));
     }
 }
