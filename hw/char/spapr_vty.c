@@ -83,7 +83,7 @@ static int vty_getchars(VIOsPAPRDevice *sdev, uint8_t *buf, int max)
     return n;
 }
 
-void vty_putchars(VIOsPAPRDevice *sdev, uint8_t *buf, int len)
+void vty_putchars(VIOsPAPRDevice *sdev, uint8_t *buf, size_t len)
 {
     VIOsPAPRVTYDevice *dev = VIO_SPAPR_VTY_DEVICE(sdev);
 
