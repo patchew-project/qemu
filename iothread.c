@@ -70,6 +70,11 @@ static void *iothread_run(void *opaque)
         if (iothread->running && atomic_read(&iothread->worker_context)) {
             GMainLoop *loop;
 
+            /* we may race with another thread acquiring the context */
+            while (!g_main_context_acquire(iothread->worker_context)) {
+                g_usleep(10000);
+            }
+
             g_main_context_push_thread_default(iothread->worker_context);
             iothread->main_loop =
                 g_main_loop_new(iothread->worker_context, TRUE);
@@ -80,6 +85,8 @@ static void *iothread_run(void *opaque)
             g_main_loop_unref(loop);
 
             g_main_context_pop_thread_default(iothread->worker_context);
+
+            g_main_context_release(iothread->worker_context);
         }
     }
 
