@@ -1176,4 +1176,12 @@ int coroutine_fn bdrv_co_copy_range_to(BdrvChild *src, uint64_t src_offset,
 
 int refresh_total_sectors(BlockDriverState *bs, int64_t hint);
 
+
+Coroutine *bdrv_co_invalidate_cache__create_co(bool *_in_progress,
+                                               BlockDriverState *bs,
+                                               Error **errp);
+Coroutine *bdrv_co_check__create_co(bool *_in_progress, int *_ret,
+                                    BlockDriverState *bs, BdrvCheckResult *res,
+                                    BdrvCheckMode fix);
+
 #endif /* BLOCK_INT_H */

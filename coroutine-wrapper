@@ -1,0 +1,2 @@
+int bdrv_co_check(BlockDriverState *bs, BdrvCheckResult *res, BdrvCheckMode fix)
+void bdrv_co_invalidate_cache(BlockDriverState *bs, Error **errp)

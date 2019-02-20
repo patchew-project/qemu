@@ -3706,8 +3706,8 @@ static void bdrv_delete(BlockDriverState *bs)
  * free of errors) or -errno when an internal error occurred. The results of the
  * check are stored in res.
  */
-static int coroutine_fn bdrv_co_check(BlockDriverState *bs,
-                                      BdrvCheckResult *res, BdrvCheckMode fix)
+int coroutine_fn bdrv_co_check(BlockDriverState *bs,
+                               BdrvCheckResult *res, BdrvCheckMode fix)
 {
     if (bs->drv == NULL) {
         return -ENOMEDIUM;
@@ -3720,44 +3720,25 @@ static int coroutine_fn bdrv_co_check(BlockDriverState *bs,
     return bs->drv->bdrv_co_check(bs, res, fix);
 }
 
-typedef struct CheckCo {
-    BlockDriverState *bs;
-    BdrvCheckResult *res;
-    BdrvCheckMode fix;
-    int ret;
-} CheckCo;
-
-static void bdrv_check_co_entry(void *opaque)
-{
-    CheckCo *cco = opaque;
-    cco->ret = bdrv_co_check(cco->bs, cco->res, cco->fix);
-    aio_wait_kick();
-}
-
 int bdrv_check(BlockDriverState *bs,
                BdrvCheckResult *res, BdrvCheckMode fix)
 {
+    int ret;
+    bool in_progress;
     Coroutine *co;
-    CheckCo cco = {
-        .bs = bs,
-        .res = res,
-        .ret = -EINPROGRESS,
-        .fix = fix,
-    };
 
     if (qemu_in_coroutine()) {
-        /* Fast-path if already in coroutine context */
-        bdrv_check_co_entry(&cco);
-    } else {
-        co = qemu_coroutine_create(bdrv_check_co_entry, &cco);
-        bdrv_coroutine_enter(bs, co);
-        BDRV_POLL_WHILE(bs, cco.ret == -EINPROGRESS);
+        return bdrv_co_check(bs, res, fix);
     }
 
-    return cco.ret;
-}
+    co = bdrv_co_check__create_co(&in_progress, &ret, bs, res, fix);
+    bdrv_coroutine_enter(bs, co);
+    BDRV_POLL_WHILE(bs, in_progress);
 
+    return ret;
+}
 /*
+ *
  * Return values:
  * 0        - success
  * -EINVAL  - backing format specified, but no file
@@ -4624,8 +4605,7 @@ void bdrv_init_with_whitelist(void)
     bdrv_init();
 }
 
-static void coroutine_fn bdrv_co_invalidate_cache(BlockDriverState *bs,
-                                                  Error **errp)
+void coroutine_fn bdrv_co_invalidate_cache(BlockDriverState *bs, Error **errp)
 {
     BdrvChild *child, *parent;
     uint64_t perm, shared_perm;
@@ -4706,37 +4686,19 @@ static void coroutine_fn bdrv_co_invalidate_cache(BlockDriverState *bs,
     }
 }
 
-typedef struct InvalidateCacheCo {
-    BlockDriverState *bs;
-    Error **errp;
-    bool done;
-} InvalidateCacheCo;
-
-static void coroutine_fn bdrv_invalidate_cache_co_entry(void *opaque)
-{
-    InvalidateCacheCo *ico = opaque;
-    bdrv_co_invalidate_cache(ico->bs, ico->errp);
-    ico->done = true;
-    aio_wait_kick();
-}
-
 void bdrv_invalidate_cache(BlockDriverState *bs, Error **errp)
 {
+    bool in_progress;
     Coroutine *co;
-    InvalidateCacheCo ico = {
-        .bs = bs,
-        .done = false,
-        .errp = errp
-    };
 
     if (qemu_in_coroutine()) {
-        /* Fast-path if already in coroutine context */
-        bdrv_invalidate_cache_co_entry(&ico);
-    } else {
-        co = qemu_coroutine_create(bdrv_invalidate_cache_co_entry, &ico);
-        bdrv_coroutine_enter(bs, co);
-        BDRV_POLL_WHILE(bs, !ico.done);
+        bdrv_co_invalidate_cache(bs, errp);
+        return;
     }
+
+    co = bdrv_co_invalidate_cache__create_co(&in_progress, bs, errp);
+    bdrv_coroutine_enter(bs, co);
+    BDRV_POLL_WHILE(bs, in_progress);
 }
 
 void bdrv_invalidate_cache_all(Error **errp)

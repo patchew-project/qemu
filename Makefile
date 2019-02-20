@@ -122,6 +122,8 @@ endif
 
 GENERATED_FILES += module_block.h
 
+GENERATED_FILES += block-gen.c
+
 TRACE_HEADERS = trace-root.h $(trace-events-subdirs:%=%/trace.h)
 TRACE_SOURCES = trace-root.c $(trace-events-subdirs:%=%/trace.c)
 TRACE_DTRACE =
@@ -137,6 +139,9 @@ GENERATED_FILES += $(TRACE_HEADERS)
 GENERATED_FILES += $(TRACE_SOURCES)
 GENERATED_FILES += $(BUILD_DIR)/trace-events-all
 GENERATED_FILES += .git-submodule-status
+
+block-gen.c: coroutine-wrapper $(SRC_PATH)/scripts/coroutine-wrapper.py
+	$(call quiet-command, python $(SRC_PATH)/scripts/coroutine-wrapper.py < $< > $@,"GEN","$(TARGET_DIR)$@")
 
 trace-group-name = $(shell dirname $1 | sed -e 's/[^a-zA-Z0-9]/_/g')
 
