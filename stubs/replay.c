@@ -44,7 +44,7 @@ void replay_char_write_event_save(int res, int offset)
     abort();
 }
 
-void replay_char_write_event_load(int *res, int *offset)
+void replay_char_write_event_load(int *res, size_t *offset)
 {
     abort();
 }

@@ -99,8 +99,8 @@ static void qemu_chr_write_log(Chardev *s, const uint8_t *buf, size_t len)
 }
 
 static int qemu_chr_write_buffer(Chardev *s,
-                                 const uint8_t *buf, int len,
-                                 int *offset, bool write_all)
+                                 const uint8_t *buf, size_t len,
+                                 size_t *offset, bool write_all)
 {
     ChardevClass *cc = CHARDEV_GET_CLASS(s);
     int res = 0;
@@ -132,9 +132,9 @@ static int qemu_chr_write_buffer(Chardev *s,
     return res;
 }
 
-int qemu_chr_write(Chardev *s, const uint8_t *buf, int len, bool write_all)
+int qemu_chr_write(Chardev *s, const uint8_t *buf, size_t len, bool write_all)
 {
-    int offset = 0;
+    size_t offset = 0;
     int res;
 
     if (qemu_chr_replay(s) && replay_mode == REPLAY_MODE_PLAY) {

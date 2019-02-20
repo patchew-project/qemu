@@ -104,7 +104,7 @@ void replay_char_write_event_save(int res, int offset)
     replay_put_dword(offset);
 }
 
-void replay_char_write_event_load(int *res, int *offset)
+void replay_char_write_event_load(int *res, size_t *offset)
 {
     g_assert(replay_mutex_locked());
 
