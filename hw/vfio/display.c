@@ -38,6 +38,21 @@
         goto err;
 
 
+static void vfio_display_edid_link_up(void *opaque)
+{
+    VFIOPCIDevice *vdev = opaque;
+    VFIODisplay *dpy = vdev->dpy;
+    int fd = vdev->vbasedev.fd;
+
+    dpy->edid_regs->link_state = VFIO_DEVICE_GFX_LINK_STATE_UP;
+    pwrite_field(fd, dpy->edid_info, dpy->edid_regs, link_state);
+    trace_vfio_display_edid_link_up();
+    return;
+
+err:
+    trace_vfio_display_edid_write_error();
+}
+
 static void vfio_display_edid_update(VFIOPCIDevice *vdev, bool enabled,
                                      int prefx, int prefy)
 {
@@ -50,6 +65,7 @@ static void vfio_display_edid_update(VFIOPCIDevice *vdev, bool enabled,
         .prefy = prefy ?: vdev->display_yres,
     };
 
+    timer_del(dpy->edid_link_timer);
     dpy->edid_regs->link_state = VFIO_DEVICE_GFX_LINK_STATE_DOWN;
     pwrite_field(fd, dpy->edid_info, dpy->edid_regs, link_state);
     trace_vfio_display_edid_link_down();
@@ -77,9 +93,8 @@ static void vfio_display_edid_update(VFIOPCIDevice *vdev, bool enabled,
         goto err;
     }
 
-    dpy->edid_regs->link_state = VFIO_DEVICE_GFX_LINK_STATE_UP;
-    pwrite_field(fd, dpy->edid_info, dpy->edid_regs, link_state);
-    trace_vfio_display_edid_link_up();
+    timer_mod(dpy->edid_link_timer,
+              qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + 100);
     return;
 
 err:
@@ -140,6 +155,9 @@ static void vfio_display_edid_init(VFIOPCIDevice *vdev)
         vdev->display_yres = dpy->edid_regs->max_yres;
     }
 
+    dpy->edid_link_timer = timer_new_ms(QEMU_CLOCK_REALTIME,
+                                        vfio_display_edid_link_up, vdev);
+
     vfio_display_edid_update(vdev, true, 0, 0);
     return;
 
@@ -158,6 +176,8 @@ static void vfio_display_edid_exit(VFIODisplay *dpy)
 
     g_free(dpy->edid_regs);
     g_free(dpy->edid_blob);
+    timer_del(dpy->edid_link_timer);
+    timer_free(dpy->edid_link_timer);
 }
 
 static void vfio_display_update_cursor(VFIODMABuf *dmabuf,
