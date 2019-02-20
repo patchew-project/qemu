@@ -92,6 +92,7 @@ static ssize_t buffer_append(struct XenConsole *con)
     }
 
  out:
+    assert(buffer->size >= buffer->consumed);
     return buffer->size - buffer->consumed;
 }
 
