@@ -1693,7 +1693,7 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
         }
 #else /* !CONFIG_USER_ONLY */
         else if (strncmp(p, "Rcmd,", 5) == 0) {
-            int len = strlen(p + 5);
+            size_t len = strlen(p + 5);
 
             if ((len % 2) != 0) {
                 put_packet(s, "E01");
