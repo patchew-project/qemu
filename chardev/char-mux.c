@@ -283,13 +283,13 @@ static void mux_chr_update_read_handlers(Chardev *chr)
     MuxChardev *d = MUX_CHARDEV(chr);
 
     /* Fix up the real driver with mux routines */
-    qemu_chr_fe_set_handlers_full(&d->chr,
-                                  mux_chr_can_read,
-                                  mux_chr_read,
-                                  mux_chr_event,
-                                  NULL,
-                                  chr,
-                                  chr->gcontext, true, false);
+    qemu_chr_fe_set_handlers_internal(&d->chr,
+                                      mux_chr_can_read,
+                                      mux_chr_read,
+                                      mux_chr_event,
+                                      NULL,
+                                      chr,
+                                      chr->gcontext, true, false);
 }
 
 void mux_set_focus(Chardev *chr, int focus)

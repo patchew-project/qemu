@@ -246,15 +246,67 @@ void qemu_chr_fe_deinit(CharBackend *b, bool del)
     }
 }
 
-void qemu_chr_fe_set_handlers_full(CharBackend *b,
-                                   IOCanReadHandler *fd_can_read,
-                                   IOReadHandler *fd_read,
-                                   IOEventHandler *fd_event,
-                                   BackendChangeHandler *be_change,
-                                   void *opaque,
-                                   GMainContext *context,
-                                   bool set_open,
-                                   bool sync_state)
+struct MainContextWait {
+    QemuCond cond;
+    QemuMutex lock;
+};
+
+static gboolean
+main_context_wait_cb(gpointer user_data)
+{
+    struct MainContextWait *w = user_data;
+
+    qemu_mutex_lock(&w->lock);
+    qemu_cond_signal(&w->cond);
+    /* wait until switching is over */
+    qemu_cond_wait(&w->cond, &w->lock);
+    qemu_mutex_unlock(&w->lock);
+
+    qemu_mutex_destroy(&w->lock);
+    qemu_cond_destroy(&w->cond);
+    g_free(w);
+
+    return G_SOURCE_REMOVE;
+}
+
+static void
+main_context_wait(struct MainContextWait **wait, GMainContext *ctxt)
+{
+    struct MainContextWait *w = NULL;
+
+    if (!g_main_context_acquire(ctxt)) {
+        w = g_new0(struct MainContextWait, 1);
+        qemu_mutex_init(&w->lock);
+        qemu_cond_init(&w->cond);
+        qemu_mutex_lock(&w->lock);
+        g_main_context_invoke(ctxt, main_context_wait_cb, w);
+        /* wait for the context to freeze */
+        qemu_cond_wait(&w->cond, &w->lock);
+        qemu_mutex_unlock(&w->lock);
+    }
+
+    *wait = w;
+}
+
+static void
+main_context_resume(struct MainContextWait *wait, GMainContext *ctxt)
+{
+    if (wait) {
+        qemu_cond_signal(&wait->cond);
+    } else {
+        g_main_context_release(ctxt);
+    }
+}
+
+void qemu_chr_fe_set_handlers_internal(CharBackend *b,
+                                       IOCanReadHandler *fd_can_read,
+                                       IOReadHandler *fd_read,
+                                       IOEventHandler *fd_event,
+                                       BackendChangeHandler *be_change,
+                                       void *opaque,
+                                       GMainContext *new_context,
+                                       bool set_open,
+                                       bool sync_state)
 {
     Chardev *s;
     int fe_open;
@@ -276,7 +328,7 @@ void qemu_chr_fe_set_handlers_full(CharBackend *b,
     b->chr_be_change = be_change;
     b->opaque = opaque;
 
-    qemu_chr_be_update_read_handlers(s, context);
+    qemu_chr_be_update_read_handlers(s, new_context);
 
     if (set_open) {
         qemu_chr_fe_set_open(b, fe_open);
@@ -292,6 +344,34 @@ void qemu_chr_fe_set_handlers_full(CharBackend *b,
     }
 }
 
+void qemu_chr_fe_set_handlers_full(CharBackend *b,
+                                   IOCanReadHandler *fd_can_read,
+                                   IOReadHandler *fd_read,
+                                   IOEventHandler *fd_event,
+                                   BackendChangeHandler *be_change,
+                                   void *opaque,
+                                   GMainContext *new_context,
+                                   bool set_open,
+                                   bool sync_state)
+{
+    GMainContext *old_context = b->chr->gcontext;
+    struct MainContextWait *old_ctxt_wait, *new_ctxt_wait;
+
+    main_context_wait(&old_ctxt_wait, old_context);
+    if (old_context != new_context) {
+        main_context_wait(&new_ctxt_wait, new_context);
+    }
+
+    qemu_chr_fe_set_handlers_internal(b, fd_can_read, fd_read, fd_event,
+                                      be_change, opaque, new_context,
+                                      set_open, sync_state);
+
+    main_context_resume(old_ctxt_wait, old_context);
+    if (old_context != new_context) {
+        main_context_resume(new_ctxt_wait, new_context);
+    }
+}
+
 void qemu_chr_fe_set_handlers(CharBackend *b,
                               IOCanReadHandler *fd_can_read,
                               IOReadHandler *fd_read,
@@ -302,8 +382,7 @@ void qemu_chr_fe_set_handlers(CharBackend *b,
                               bool set_open)
 {
     qemu_chr_fe_set_handlers_full(b, fd_can_read, fd_read, fd_event, be_change,
-                                  opaque, context, set_open,
-                                  true);
+                                  opaque, context, set_open, true);
 }
 
 void qemu_chr_fe_take_focus(CharBackend *b)

@@ -84,6 +84,14 @@ bool qemu_chr_fe_backend_open(CharBackend *be);
  * Set the front end char handlers. The front end takes the focus if
  * any of the handler is non-NULL.
  *
+ * A chardev may have multiple main loop sources. In order to prevent
+ * races when switching contexts, the function will temporarily block
+ * the contexts before the source switch to prevent them from
+ * dispatching in different threads concurrently.
+ *
+ * The current and the new @context must be acquirable or
+ * running & dispatched in a loop (the function will hang otherwise).
+ *
  * Without associated Chardev, nothing is changed.
  */
 void qemu_chr_fe_set_handlers_full(CharBackend *b,
@@ -109,6 +117,21 @@ void qemu_chr_fe_set_handlers(CharBackend *b,
                               void *opaque,
                               GMainContext *context,
                               bool set_open);
+
+/**
+ * qemu_chr_fe_set_handlers_internal:
+ *
+ * Same as qemu_chr_fe_set_handlers(), without context freezing.
+ */
+void qemu_chr_fe_set_handlers_internal(CharBackend *b,
+                                       IOCanReadHandler *fd_can_read,
+                                       IOReadHandler *fd_read,
+                                       IOEventHandler *fd_event,
+                                       BackendChangeHandler *be_change,
+                                       void *opaque,
+                                       GMainContext *context,
+                                       bool set_open,
+                                       bool sync_state);
 
 /**
  * qemu_chr_fe_take_focus:
