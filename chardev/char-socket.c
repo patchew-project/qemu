@@ -632,6 +632,11 @@ static void tcp_chr_update_read_handler(Chardev *chr)
 {
     SocketChardev *s = SOCKET_CHARDEV(chr);
 
+    if (s->reconnect_timer) {
+        tcp_chr_reconn_timer_cancel(s);
+        qemu_chr_socket_restart_timer(chr);
+    }
+
     if (s->listener) {
         /*
          * It's possible that chardev context is changed in
