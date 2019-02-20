@@ -37,6 +37,7 @@
 #include "hw/arm/arm.h"
 #include "sysemu/kvm.h"
 #include "hw/intc/arm_gicv3_common.h"
+#include "hw/mem/nvdimm.h"
 
 #define NUM_GICV2M_SPIS       64
 #define NUM_VIRTIO_TRANSPORTS 32
@@ -77,6 +78,7 @@ enum {
     VIRT_GPIO,
     VIRT_SECURE_UART,
     VIRT_SECURE_MEM,
+    VIRT_ACPI_IO,
     VIRT_LOWMEMMAP_LAST,
 };
 
@@ -137,6 +139,7 @@ typedef struct {
     hwaddr device_memory_base;
     hwaddr device_memory_size;
     bool extended_memmap;
+    AcpiNVDIMMState acpi_nvdimm_state;
 } VirtMachineState;
 
 #define VIRT_ECAM_ID(high) (high ? VIRT_HIGH_PCIE_ECAM : VIRT_PCIE_ECAM)
