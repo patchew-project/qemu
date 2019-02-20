@@ -1760,7 +1760,7 @@ static gboolean gd_vc_in(VteTerminal *terminal, gchar *text, guint size,
         }
     }
 
-    qemu_chr_be_write(vc->vte.chr, (uint8_t  *)text, (unsigned int)size);
+    qemu_chr_be_write(vc->vte.chr, (uint8_t  *)text, size);
     return TRUE;
 }
 
