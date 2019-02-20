@@ -203,7 +203,7 @@ guint qemu_chr_fe_add_watch(CharBackend *be, GIOCondition cond,
  *
  * Returns: the number of bytes consumed (0 if no associated Chardev)
  */
-int qemu_chr_fe_write(CharBackend *be, const uint8_t *buf, int len);
+int qemu_chr_fe_write(CharBackend *be, const uint8_t *buf, size_t len);
 
 /**
  * qemu_chr_fe_write_all:
@@ -217,7 +217,7 @@ int qemu_chr_fe_write(CharBackend *be, const uint8_t *buf, int len);
  *
  * Returns: the number of bytes consumed (0 if no associated Chardev)
  */
-int qemu_chr_fe_write_all(CharBackend *be, const uint8_t *buf, int len);
+int qemu_chr_fe_write_all(CharBackend *be, const uint8_t *buf, size_t len);
 
 /**
  * qemu_chr_fe_read_all:
