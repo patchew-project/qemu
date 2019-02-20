@@ -207,7 +207,8 @@ static int wctablet_chr_write(struct Chardev *chr,
                               const uint8_t *buf, int len)
 {
     TabletChardev *tablet = WCTABLET_CHARDEV(chr);
-    unsigned int i, clen;
+    size_t i;
+    unsigned int clen;
     char *pos;
 
     if (tablet->line_speed != 9600) {
@@ -269,7 +270,7 @@ static int wctablet_chr_write(struct Chardev *chr,
 
     } else if (strncmp((char *)tablet->query, "TS", 2) == 0 &&
                clen == 3) {
-        unsigned int input = tablet->query[2];
+        uint8_t input = tablet->query[2];
         uint8_t codes[7] = {
             0xa3,
             ((input & 0x80) == 0) ? 0x7e : 0x7f,
