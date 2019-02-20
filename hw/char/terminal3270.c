@@ -199,9 +199,10 @@ static int read_payload_3270(EmulatedCcw3270Device *dev)
 }
 
 /* TN3270 uses binary transmission, which needs escape IAC to IAC IAC */
-static int insert_IAC_escape_char(uint8_t *outv, int out_len)
+static size_t insert_IAC_escape_char(uint8_t *outv, size_t out_len)
 {
-    int IAC_num = 0, new_out_len, i, j;
+    size_t new_out_len;
+    int IAC_num = 0, i, j;
 
     for (i = 0; i < out_len; i++) {
         if (outv[i] == IAC) {
@@ -232,7 +233,7 @@ static int write_payload_3270(EmulatedCcw3270Device *dev, uint8_t cmd)
     int count = ccw_dstream_avail(get_cds(t));
     int bound = (OUTPUT_BUFFER_SIZE - 3) / 2;
     int len = MIN(count, bound);
-    int out_len = 0;
+    size_t out_len = 0;
 
     if (!t->handshake_done) {
         if (!(t->outv[0] == IAC && t->outv[1] != IAC)) {
