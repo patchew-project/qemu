@@ -48,7 +48,7 @@ static int filter_send(MirrorState *s,
 {
     NetFilterState *nf = NETFILTER(s);
     int ret = 0;
-    ssize_t size = 0;
+    size_t size = 0;
     uint32_t len = 0;
     char *buf;
 
