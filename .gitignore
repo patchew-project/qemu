@@ -90,6 +90,7 @@
 *.d
 !/scripts/qemu-guest-agent/fsfreeze-hook.d
 *.o
+*.patch
 .sdk
 *.gcda
 *.gcno

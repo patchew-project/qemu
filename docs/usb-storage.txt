@@ -16,7 +16,7 @@ too):
 
 
 Number two is the newer usb attached scsi transport.  This one doesn't
-automagically create a scsi disk, so you have to explicitly attach one
+automatically create a scsi disk, so you have to explicitly attach one
 manually.  Multiple logical units are supported.  Here is an example
 with tree logical units:
 
