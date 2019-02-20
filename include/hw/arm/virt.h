@@ -106,6 +106,7 @@ typedef struct {
     bool claim_edge_triggered_timers;
     bool smbios_old_sys_ver;
     bool no_highmem_ecam;
+    bool no_extended_memmap;
 } VirtMachineClass;
 
 typedef struct {
@@ -135,6 +136,7 @@ typedef struct {
     hwaddr highest_gpa;
     hwaddr device_memory_base;
     hwaddr device_memory_size;
+    bool extended_memmap;
 } VirtMachineState;
 
 #define VIRT_ECAM_ID(high) (high ? VIRT_HIGH_PCIE_ECAM : VIRT_PCIE_ECAM)
