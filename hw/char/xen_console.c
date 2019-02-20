@@ -144,11 +144,10 @@ static void xencons_receive(void *opaque, const uint8_t *buf, int len)
     xen_pv_send_notify(&con->xendev);
 }
 
-static void xencons_send(struct XenConsole *con)
+static void xencons_send(struct XenConsole *con, ssize_t size)
 {
-    ssize_t len, size;
+    ssize_t len;
 
-    size = con->buffer.size - con->buffer.consumed;
     if (qemu_chr_fe_backend_connected(&con->chr)) {
         len = qemu_chr_fe_write(&con->chr,
                                 con->buffer.data + con->buffer.consumed,
@@ -280,10 +279,13 @@ static void con_disconnect(struct XenLegacyDevice *xendev)
 static void con_event(struct XenLegacyDevice *xendev)
 {
     struct XenConsole *con = container_of(xendev, struct XenConsole, xendev);
+    ssize_t size;
 
     buffer_append(con);
-    if (con->buffer.size - con->buffer.consumed)
-        xencons_send(con);
+    size = con->buffer.size - con->buffer.consumed;
+    if (size) {
+        xencons_send(con, size);
+    }
 }
 
 /* -------------------------------------------------------------------- */
