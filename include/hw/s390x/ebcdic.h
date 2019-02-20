@@ -83,18 +83,18 @@ static const uint8_t ascii2ebcdic[] = {
     0x90, 0x3F, 0x3F, 0x3F, 0x3F, 0xEA, 0x3F, 0xFF
 };
 
-static inline void ebcdic_put(uint8_t *p, const char *ascii, int len)
+static inline void ebcdic_put(uint8_t *p, const char *ascii, size_t len)
 {
-    int i;
+    size_t i;
 
     for (i = 0; i < len; i++) {
         p[i] = ascii2ebcdic[(uint8_t)ascii[i]];
     }
 }
 
-static inline void ascii_put(uint8_t *p, const char *ebcdic, int len)
+static inline void ascii_put(uint8_t *p, const char *ebcdic, size_t len)
 {
-    int i;
+    size_t i;
 
     for (i = 0; i < len; i++) {
         p[i] = ebcdic2ascii[(uint8_t)ebcdic[i]];
