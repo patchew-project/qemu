@@ -38,7 +38,7 @@ struct csrhci_s {
 #define FIFO_LEN	4096
     int out_start;
     int out_len;
-    int out_size;
+    size_t out_size;
     uint8_t outfifo[FIFO_LEN * 2];
     uint8_t inpkt[FIFO_LEN];
     enum {

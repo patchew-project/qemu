@@ -29,7 +29,7 @@
 static void win_chr_read(Chardev *chr, DWORD len)
 {
     WinChardev *s = WIN_CHARDEV(chr);
-    int max_size = qemu_chr_be_can_write(chr);
+    size_t max_size = qemu_chr_be_can_write(chr);
     int ret, err;
     uint8_t buf[CHR_READ_BUF_LEN];
     DWORD size;

@@ -265,7 +265,7 @@ static int baum_deferred_init(BaumChardev *baum)
 static void baum_chr_accept_input(struct Chardev *chr)
 {
     BaumChardev *baum = BAUM_CHARDEV(chr);
-    int room, first;
+    size_t room, first;
 
     if (!baum->out_buf_used)
         return;
@@ -292,7 +292,7 @@ static void baum_write_packet(BaumChardev *baum, const uint8_t *buf, int len)
 {
     Chardev *chr = CHARDEV(baum);
     uint8_t io_buf[1 + 2 * len], *cur = io_buf;
-    int room;
+    size_t room;
     *cur++ = ESC;
     while (len--)
         if ((*cur++ = *buf++) == ESC)
@@ -303,7 +303,7 @@ static void baum_write_packet(BaumChardev *baum, const uint8_t *buf, int len)
         /* Fits */
         qemu_chr_be_write(chr, io_buf, len);
     } else {
-        int first;
+        size_t first;
         uint8_t out;
         /* Can't fit all, send what can be, and store the rest. */
         qemu_chr_be_write(chr, io_buf, room);

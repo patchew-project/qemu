@@ -74,7 +74,7 @@ typedef struct {
 
     /* Command to be sent to serial port */
     uint8_t outbuf[WC_OUTPUT_BUF_MAX_LEN];
-    int outlen;
+    size_t outlen;
 
     int line_speed;
     bool send_events;
@@ -186,7 +186,7 @@ static QemuInputHandler wctablet_handler = {
 static void wctablet_chr_accept_input(Chardev *chr)
 {
     TabletChardev *tablet = WCTABLET_CHARDEV(chr);
-    int len, canWrite;
+    size_t len, canWrite;
 
     canWrite = qemu_chr_be_can_write(chr);
     len = canWrite;

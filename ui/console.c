@@ -61,8 +61,8 @@ enum TTYState {
 
 typedef struct QEMUFIFO {
     uint8_t *buf;
-    int buf_size;
-    int count, wptr, rptr;
+    size_t buf_size, count;
+    int wptr, rptr;
 } QEMUFIFO;
 
 static int qemu_fifo_write(QEMUFIFO *f, const uint8_t *buf, int len1)
@@ -1110,7 +1110,7 @@ static int vc_chr_write(Chardev *chr, const uint8_t *buf, int len)
 static void kbd_send_chars(void *opaque)
 {
     QemuConsole *s = opaque;
-    int len;
+    size_t len;
     uint8_t buf[16];
 
     len = qemu_chr_be_can_write(s->chr);

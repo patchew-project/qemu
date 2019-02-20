@@ -39,7 +39,7 @@ typedef struct {
     uint8_t buf[CHR_READ_BUF_LEN];
     int bufcnt;
     int bufptr;
-    int max_size;
+    size_t max_size;
 } UdpChardev;
 
 #define UDP_CHARDEV(obj) OBJECT_CHECK(UdpChardev, (obj), TYPE_CHARDEV_UDP)
@@ -58,7 +58,7 @@ static void udp_chr_flush_buffer(UdpChardev *s)
     Chardev *chr = CHARDEV(s);
 
     while (s->max_size > 0 && s->bufptr < s->bufcnt) {
-        int n = MIN(s->max_size, s->bufcnt - s->bufptr);
+        size_t n = MIN(s->max_size, s->bufcnt - s->bufptr);
         qemu_chr_be_write(chr, &s->buf[s->bufptr], n);
         s->bufptr += n;
         s->max_size = qemu_chr_be_can_write(chr);

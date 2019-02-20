@@ -173,7 +173,7 @@ Chardev *qemu_chr_new_noreplay(const char *label, const char *filename,
  *
  * Returns: the number of bytes the front end can receive via @qemu_chr_be_write
  */
-int qemu_chr_be_can_write(Chardev *s);
+size_t qemu_chr_be_can_write(Chardev *s);
 
 /**
  * qemu_chr_be_write:

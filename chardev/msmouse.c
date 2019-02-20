@@ -38,7 +38,7 @@ typedef struct {
     bool btns[INPUT_BUTTON__MAX];
     bool btnc[INPUT_BUTTON__MAX];
     uint8_t outbuf[32];
-    int outlen;
+    size_t outlen;
 } MouseChardev;
 
 #define TYPE_CHARDEV_MSMOUSE "chardev-msmouse"
@@ -48,7 +48,7 @@ typedef struct {
 static void msmouse_chr_accept_input(Chardev *chr)
 {
     MouseChardev *mouse = MOUSE_CHARDEV(chr);
-    int len;
+    size_t len;
 
     len = qemu_chr_be_can_write(chr);
     if (len > mouse->outlen) {

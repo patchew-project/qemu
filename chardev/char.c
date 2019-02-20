@@ -156,7 +156,7 @@ int qemu_chr_write(Chardev *s, const uint8_t *buf, int len, bool write_all)
     return offset;
 }
 
-int qemu_chr_be_can_write(Chardev *s)
+size_t qemu_chr_be_can_write(Chardev *s)
 {
     CharBackend *be = s->be;
     int receivable_bytes;
