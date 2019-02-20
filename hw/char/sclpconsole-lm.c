@@ -208,7 +208,7 @@ static int write_console_data(SCLPEvent *event, const uint8_t *buf, int len)
 static int process_mdb(SCLPEvent *event, MDBO *mdbo)
 {
     int rc;
-    int len;
+    uint16_t len;
     uint8_t buffer[SIZE_BUFFER];
     const size_t hlen = sizeof(mdbo->length)
             + sizeof(mdbo->type)
@@ -217,6 +217,7 @@ static int process_mdb(SCLPEvent *event, MDBO *mdbo)
             + sizeof(mdbo->mto._reserved);
 
     len = be16_to_cpu(mdbo->length);
+    assert(len >= hlen);
     len -= hlen;
     assert(len <= SIZE_BUFFER);
 
