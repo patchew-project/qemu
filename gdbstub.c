@@ -475,10 +475,10 @@ static int gdb_continue_partial(GDBState *s, char *newstates)
     return res;
 }
 
-static void put_buffer(GDBState *s, const uint8_t *buf, int len)
+static void put_buffer(GDBState *s, const uint8_t *buf, size_t len)
 {
 #ifdef CONFIG_USER_ONLY
-    int ret;
+    ssize_t ret;
 
     while (len > 0) {
         ret = send(s->fd, buf, len, 0);
