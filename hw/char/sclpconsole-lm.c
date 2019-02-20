@@ -210,13 +210,14 @@ static int process_mdb(SCLPEvent *event, MDBO *mdbo)
     int rc;
     int len;
     uint8_t buffer[SIZE_BUFFER];
-
-    len = be16_to_cpu(mdbo->length);
-    len -= sizeof(mdbo->length) + sizeof(mdbo->type)
+    const size_t hlen = sizeof(mdbo->length)
+            + sizeof(mdbo->type)
             + sizeof(mdbo->mto.line_type_flags)
             + sizeof(mdbo->mto.alarm_control)
             + sizeof(mdbo->mto._reserved);
 
+    len = be16_to_cpu(mdbo->length);
+    len -= hlen;
     assert(len <= SIZE_BUFFER);
 
     /* convert EBCDIC SCLP contents to ASCII console message */
