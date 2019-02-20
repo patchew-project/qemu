@@ -191,7 +191,7 @@ static int read_event_data(SCLPEvent *event, EventBufferHeader *evt_buf_hdr,
  *  - write console data to character layer
  *  returns < 0 if an error occurred
  */
-static int write_console_data(SCLPEvent *event, const uint8_t *buf, int len)
+static int write_console_data(SCLPEvent *event, const uint8_t *buf, size_t len)
 {
     SCLPConsoleLM *scon = SCLPLM_CONSOLE(event);
 
