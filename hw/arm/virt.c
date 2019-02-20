@@ -107,8 +107,9 @@
  * of a terabyte of RAM will be doing it on a host with more than a
  * terabyte of physical address space.)
  */
-#define RAMLIMIT_GB 255
-#define RAMLIMIT_BYTES (RAMLIMIT_GB * 1024ULL * 1024 * 1024)
+#define RAMBASE GiB
+#define LEGACY_RAMLIMIT_GB 255
+#define LEGACY_RAMLIMIT_BYTES (LEGACY_RAMLIMIT_GB * GiB)
 
 /* Addresses and sizes of our components.
  * 0..128MB is space for a flash device so we can run bootrom code such as UEFI.
@@ -149,7 +150,7 @@ static const MemMapEntry base_memmap[] = {
     [VIRT_PCIE_MMIO] =          { 0x10000000, 0x2eff0000 },
     [VIRT_PCIE_PIO] =           { 0x3eff0000, 0x00010000 },
     [VIRT_PCIE_ECAM] =          { 0x3f000000, 0x01000000 },
-    [VIRT_MEM] =                { 0x40000000, RAMLIMIT_BYTES },
+    [VIRT_MEM] =                { RAMBASE, LEGACY_RAMLIMIT_BYTES },
 };
 
 /*
@@ -1367,8 +1368,21 @@ static uint64_t virt_cpu_mp_affinity(VirtMachineState *vms, int idx)
 
 static void virt_set_memmap(VirtMachineState *vms)
 {
+    MachineState *ms = MACHINE(vms);
     hwaddr base;
     int i;
+
+    if (ms->maxram_size > ms->ram_size || ms->ram_slots > 0) {
+        error_report("mach-virt: does not support device memory: "
+                     "ignore maxmem and slots options");
+        ms->maxram_size = ms->ram_size;
+        ms->ram_slots = 0;
+    }
+    if (ms->ram_size > (ram_addr_t)LEGACY_RAMLIMIT_BYTES) {
+        error_report("mach-virt: cannot model more than %dGB RAM",
+                     LEGACY_RAMLIMIT_GB);
+        exit(1);
+    }
 
     vms->memmap = extended_memmap;
 
@@ -1376,7 +1390,26 @@ static void virt_set_memmap(VirtMachineState *vms)
         vms->memmap[i] = base_memmap[i];
     }
 
-    vms->high_io_base = 256 * GiB; /* Top of the legacy initial RAM region */
+    /*
+     * We compute the base of the high IO region depending on the
+     * amount of initial and device memory. The device memory start/size
+     * is aligned on 1GiB. We never put the high IO region below 256GiB
+     * so that if maxram_size is < 255GiB we keep the legacy memory map.
+     * The device region size assumes 1GiB page max alignment per slot.
+     */
+    vms->device_memory_base = ROUND_UP(RAMBASE + ms->ram_size, GiB);
+    vms->device_memory_size = ms->maxram_size - ms->ram_size +
+                              ms->ram_slots * GiB;
+
+    vms->high_io_base = vms->device_memory_base +
+                        ROUND_UP(vms->device_memory_size, GiB);
+    if (vms->high_io_base < vms->device_memory_base) {
+        error_report("maxmem/slots too huge");
+        exit(EXIT_FAILURE);
+    }
+    if (vms->high_io_base < 256 * GiB) {
+        vms->high_io_base = 256 * GiB;
+    }
     base = vms->high_io_base;
 
     for (i = VIRT_LOWMEMMAP_LAST; i < ARRAY_SIZE(extended_memmap); i++) {
@@ -1387,6 +1420,7 @@ static void virt_set_memmap(VirtMachineState *vms)
         vms->memmap[i].size = size;
         base += size;
     }
+    vms->highest_gpa = base - 1;
 }
 
 static void machvirt_init(MachineState *machine)
@@ -1469,11 +1503,6 @@ static void machvirt_init(MachineState *machine)
     }
 
     vms->smp_cpus = smp_cpus;
-
-    if (machine->ram_size > vms->memmap[VIRT_MEM].size) {
-        error_report("mach-virt: cannot model more than %dGB RAM", RAMLIMIT_GB);
-        exit(1);
-    }
 
     if (vms->virt && kvm_enabled()) {
         error_report("mach-virt: KVM does not support providing "
