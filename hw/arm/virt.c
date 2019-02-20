@@ -59,6 +59,7 @@
 #include "qapi/visitor.h"
 #include "standard-headers/linux/input.h"
 #include "hw/arm/smmuv3.h"
+#include "target/arm/internals.h"
 
 #define DEFINE_VIRT_MACHINE_LATEST(major, minor, latest) \
     static void virt_##major##_##minor##_class_init(ObjectClass *oc, \
@@ -93,21 +94,8 @@
 
 #define PLATFORM_BUS_NUM_IRQS 64
 
-/* RAM limit in GB. Since VIRT_MEM starts at the 1GB mark, this means
- * RAM can go up to the 256GB mark, leaving 256GB of the physical
- * address space unallocated and free for future use between 256G and 512G.
- * If we need to provide more RAM to VMs in the future then we need to:
- *  * allocate a second bank of RAM starting at 2TB and working up
- *  * fix the DT and ACPI table generation code in QEMU to correctly
- *    report two split lumps of RAM to the guest
- *  * fix KVM in the host kernel to allow guests with >40 bit address spaces
- * (We don't want to fill all the way up to 512GB with RAM because
- * we might want it for non-RAM purposes later. Conversely it seems
- * reasonable to assume that anybody configuring a VM with a quarter
- * of a terabyte of RAM will be doing it on a host with more than a
- * terabyte of physical address space.)
- */
 #define RAMBASE GiB
+/* Legacy RAM limit in GB (< version 4.0) */
 #define LEGACY_RAMLIMIT_GB 255
 #define LEGACY_RAMLIMIT_BYTES (LEGACY_RAMLIMIT_GB * GiB)
 
@@ -1372,16 +1360,18 @@ static void virt_set_memmap(VirtMachineState *vms)
     hwaddr base;
     int i;
 
-    if (ms->maxram_size > ms->ram_size || ms->ram_slots > 0) {
-        error_report("mach-virt: does not support device memory: "
-                     "ignore maxmem and slots options");
-        ms->maxram_size = ms->ram_size;
-        ms->ram_slots = 0;
-    }
-    if (ms->ram_size > (ram_addr_t)LEGACY_RAMLIMIT_BYTES) {
-        error_report("mach-virt: cannot model more than %dGB RAM",
-                     LEGACY_RAMLIMIT_GB);
-        exit(1);
+    if (!vms->extended_memmap) {
+        if (ms->maxram_size > ms->ram_size || ms->ram_slots > 0) {
+            error_report("mach-virt: does not support device memory: "
+                         "ignore maxmem and slots options");
+            ms->maxram_size = ms->ram_size;
+            ms->ram_slots = 0;
+        }
+        if (ms->ram_size > (ram_addr_t)LEGACY_RAMLIMIT_BYTES) {
+            error_report("mach-virt: cannot model more than %dGB RAM",
+                         LEGACY_RAMLIMIT_GB);
+            exit(1);
+        }
     }
 
     vms->memmap = extended_memmap;
@@ -1597,6 +1587,22 @@ static void machvirt_init(MachineState *machine)
     }
     fdt_add_timer_nodes(vms);
     fdt_add_cpu_nodes(vms);
+
+   if (!kvm_enabled()) {
+        ARMCPU *cpu = ARM_CPU(first_cpu);
+        bool aarch64 = object_property_get_bool(OBJECT(cpu), "aarch64", NULL);
+
+        if (aarch64 && vms->highmem) {
+            int requested_pa_size, pamax = arm_pamax(cpu);
+
+            requested_pa_size = 64 - clz64(vms->highest_gpa);
+            if (pamax < requested_pa_size) {
+                error_report("VCPU supports less PA bits (%d) than requested "
+                            "by the memory map (%d)", pamax, requested_pa_size);
+                exit(1);
+            }
+        }
+    }
 
     memory_region_allocate_system_memory(ram, NULL, "mach-virt.ram",
                                          machine->ram_size);
