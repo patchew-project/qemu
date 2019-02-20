@@ -45,7 +45,7 @@ static gboolean chr_write_unblocked(GIOChannel *chan, GIOCondition cond,
 
 /* Callback function that's called when the guest sends us data */
 static ssize_t flush_buf(VirtIOSerialPort *port,
-                         const uint8_t *buf, ssize_t len)
+                         const uint8_t *buf, size_t len)
 {
     VirtConsole *vcon = VIRTIO_CONSOLE(port);
     ssize_t ret;
