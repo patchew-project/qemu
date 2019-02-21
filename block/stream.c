@@ -254,6 +254,15 @@ void stream_start(const char *job_id, BlockDriverState *bs,
                            &error_abort);
     }
 
+    if (base) {
+        /*
+         * The base node should not disappear during the job.
+         */
+        block_job_add_bdrv(&s->common, "base", base, 0,
+                           BLK_PERM_ALL & ~BLK_PERM_GRAPH_MOD,
+                           &error_abort);
+    }
+
     s->base = base;
     s->backing_file_str = g_strdup(backing_file_str);
     s->bs_read_only = bs_read_only;
