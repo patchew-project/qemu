@@ -41,8 +41,8 @@ static void bcm2835_peripherals_init(Object *obj)
                        MBOX_CHAN_COUNT << MBOX_AS_CHAN_SHIFT);
 
     /* Interrupt Controller */
-    object_initialize(&s->ic, sizeof(s->ic), TYPE_BCM2835_IC);
-    object_property_add_child(obj, "ic", OBJECT(&s->ic), NULL);
+    object_initialize_child(obj, "ic", &s->ic, sizeof(s->ic), TYPE_BCM2835_IC,
+                            &error_abort, NULL);
     qdev_set_parent_bus(DEVICE(&s->ic), sysbus_get_default());
 
     /* UART0 */
@@ -51,21 +51,21 @@ static void bcm2835_peripherals_init(Object *obj)
     qdev_set_parent_bus(DEVICE(s->uart0), sysbus_get_default());
 
     /* AUX / UART1 */
-    object_initialize(&s->aux, sizeof(s->aux), TYPE_BCM2835_AUX);
-    object_property_add_child(obj, "aux", OBJECT(&s->aux), NULL);
+    object_initialize_child(obj, "aux", &s->aux, sizeof(s->aux),
+                            TYPE_BCM2835_AUX, &error_abort, NULL);
     qdev_set_parent_bus(DEVICE(&s->aux), sysbus_get_default());
 
     /* Mailboxes */
-    object_initialize(&s->mboxes, sizeof(s->mboxes), TYPE_BCM2835_MBOX);
-    object_property_add_child(obj, "mbox", OBJECT(&s->mboxes), NULL);
+    object_initialize_child(obj, "mbox", &s->mboxes, sizeof(s->mboxes),
+                            TYPE_BCM2835_MBOX, &error_abort, NULL);
     qdev_set_parent_bus(DEVICE(&s->mboxes), sysbus_get_default());
 
     object_property_add_const_link(OBJECT(&s->mboxes), "mbox-mr",
                                    OBJECT(&s->mbox_mr), &error_abort);
 
     /* Framebuffer */
-    object_initialize(&s->fb, sizeof(s->fb), TYPE_BCM2835_FB);
-    object_property_add_child(obj, "fb", OBJECT(&s->fb), NULL);
+    object_initialize_child(obj, "fb", &s->fb, sizeof(s->fb), TYPE_BCM2835_FB,
+                            &error_abort, NULL);
     object_property_add_alias(obj, "vcram-size", OBJECT(&s->fb), "vcram-size",
                               &error_abort);
     qdev_set_parent_bus(DEVICE(&s->fb), sysbus_get_default());
@@ -74,8 +74,9 @@ static void bcm2835_peripherals_init(Object *obj)
                                    OBJECT(&s->gpu_bus_mr), &error_abort);
 
     /* Property channel */
-    object_initialize(&s->property, sizeof(s->property), TYPE_BCM2835_PROPERTY);
-    object_property_add_child(obj, "property", OBJECT(&s->property), NULL);
+    object_initialize_child(obj, "property", &s->property,
+                            sizeof(s->property), TYPE_BCM2835_PROPERTY,
+                            &error_abort, NULL);
     object_property_add_alias(obj, "board-rev", OBJECT(&s->property),
                               "board-rev", &error_abort);
     qdev_set_parent_bus(DEVICE(&s->property), sysbus_get_default());
@@ -86,31 +87,31 @@ static void bcm2835_peripherals_init(Object *obj)
                                    OBJECT(&s->gpu_bus_mr), &error_abort);
 
     /* Random Number Generator */
-    object_initialize(&s->rng, sizeof(s->rng), TYPE_BCM2835_RNG);
-    object_property_add_child(obj, "rng", OBJECT(&s->rng), NULL);
+    object_initialize_child(obj, "rng", &s->rng, sizeof(s->rng),
+                            TYPE_BCM2835_RNG, &error_abort, NULL);
     qdev_set_parent_bus(DEVICE(&s->rng), sysbus_get_default());
 
     /* Extended Mass Media Controller */
-    object_initialize(&s->sdhci, sizeof(s->sdhci), TYPE_SYSBUS_SDHCI);
-    object_property_add_child(obj, "sdhci", OBJECT(&s->sdhci), NULL);
+    object_initialize_child(obj, "sdhci", &s->sdhci, sizeof(s->sdhci),
+                            TYPE_SYSBUS_SDHCI, &error_abort, NULL);
     qdev_set_parent_bus(DEVICE(&s->sdhci), sysbus_get_default());
 
     /* SDHOST */
-    object_initialize(&s->sdhost, sizeof(s->sdhost), TYPE_BCM2835_SDHOST);
-    object_property_add_child(obj, "sdhost", OBJECT(&s->sdhost), NULL);
+    object_initialize_child(obj, "sdhost", &s->sdhost, sizeof(s->sdhost),
+                            TYPE_BCM2835_SDHOST, &error_abort, NULL);
     qdev_set_parent_bus(DEVICE(&s->sdhost), sysbus_get_default());
 
     /* DMA Channels */
-    object_initialize(&s->dma, sizeof(s->dma), TYPE_BCM2835_DMA);
-    object_property_add_child(obj, "dma", OBJECT(&s->dma), NULL);
+    object_initialize_child(obj, "dma", &s->dma, sizeof(s->dma),
+                            TYPE_BCM2835_DMA, &error_abort, NULL);
     qdev_set_parent_bus(DEVICE(&s->dma), sysbus_get_default());
 
     object_property_add_const_link(OBJECT(&s->dma), "dma-mr",
                                    OBJECT(&s->gpu_bus_mr), &error_abort);
 
     /* GPIO */
-    object_initialize(&s->gpio, sizeof(s->gpio), TYPE_BCM2835_GPIO);
-    object_property_add_child(obj, "gpio", OBJECT(&s->gpio), NULL);
+    object_initialize_child(obj, "gpio", &s->gpio, sizeof(s->gpio),
+                            TYPE_BCM2835_GPIO, &error_abort, NULL);
     qdev_set_parent_bus(DEVICE(&s->gpio), sysbus_get_default());
 
     object_property_add_const_link(OBJECT(&s->gpio), "sdbus-sdhci",

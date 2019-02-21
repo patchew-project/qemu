@@ -106,11 +106,11 @@ static void aspeed_soc_init(Object *obj)
     AspeedSoCClass *sc = ASPEED_SOC_GET_CLASS(s);
     int i;
 
-    object_initialize(&s->cpu, sizeof(s->cpu), sc->info->cpu_type);
-    object_property_add_child(obj, "cpu", OBJECT(&s->cpu), NULL);
+    object_initialize_child(obj, "cpu", &s->cpu, sizeof(s->cpu),
+                            sc->info->cpu_type, &error_abort, NULL);
 
-    object_initialize(&s->scu, sizeof(s->scu), TYPE_ASPEED_SCU);
-    object_property_add_child(obj, "scu", OBJECT(&s->scu), NULL);
+    object_initialize_child(obj, "scu", &s->scu, sizeof(s->scu),
+                            TYPE_ASPEED_SCU, &error_abort, NULL);
     qdev_set_parent_bus(DEVICE(&s->scu), sysbus_get_default());
     qdev_prop_set_uint32(DEVICE(&s->scu), "silicon-rev",
                          sc->info->silicon_rev);
@@ -121,35 +121,35 @@ static void aspeed_soc_init(Object *obj)
     object_property_add_alias(obj, "hw-prot-key", OBJECT(&s->scu),
                               "hw-prot-key", &error_abort);
 
-    object_initialize(&s->vic, sizeof(s->vic), TYPE_ASPEED_VIC);
-    object_property_add_child(obj, "vic", OBJECT(&s->vic), NULL);
+    object_initialize_child(obj, "vic", &s->vic, sizeof(s->vic),
+                            TYPE_ASPEED_VIC, &error_abort, NULL);
     qdev_set_parent_bus(DEVICE(&s->vic), sysbus_get_default());
 
-    object_initialize(&s->timerctrl, sizeof(s->timerctrl), TYPE_ASPEED_TIMER);
-    object_property_add_child(obj, "timerctrl", OBJECT(&s->timerctrl), NULL);
+    object_initialize_child(obj, "timerctrl", &s->timerctrl,
+                            sizeof(s->timerctrl), TYPE_ASPEED_TIMER,
+                            &error_abort, NULL);
     object_property_add_const_link(OBJECT(&s->timerctrl), "scu",
                                    OBJECT(&s->scu), &error_abort);
     qdev_set_parent_bus(DEVICE(&s->timerctrl), sysbus_get_default());
 
-    object_initialize(&s->i2c, sizeof(s->i2c), TYPE_ASPEED_I2C);
-    object_property_add_child(obj, "i2c", OBJECT(&s->i2c), NULL);
+    object_initialize_child(obj, "i2c", &s->i2c, sizeof(s->i2c),
+                            TYPE_ASPEED_I2C, &error_abort, NULL);
     qdev_set_parent_bus(DEVICE(&s->i2c), sysbus_get_default());
 
-    object_initialize(&s->fmc, sizeof(s->fmc), sc->info->fmc_typename);
-    object_property_add_child(obj, "fmc", OBJECT(&s->fmc), NULL);
+    object_initialize_child(obj, "fmc", &s->fmc, sizeof(s->fmc),
+                            sc->info->fmc_typename, &error_abort, NULL);
     qdev_set_parent_bus(DEVICE(&s->fmc), sysbus_get_default());
     object_property_add_alias(obj, "num-cs", OBJECT(&s->fmc), "num-cs",
                               &error_abort);
 
     for (i = 0; i < sc->info->spis_num; i++) {
-        object_initialize(&s->spi[i], sizeof(s->spi[i]),
-                          sc->info->spi_typename[i]);
-        object_property_add_child(obj, "spi[*]", OBJECT(&s->spi[i]), NULL);
+        object_initialize_child(obj, "spi[*]", &s->spi[i], sizeof(s->spi[i]),
+                                sc->info->spi_typename[i], &error_abort, NULL);
         qdev_set_parent_bus(DEVICE(&s->spi[i]), sysbus_get_default());
     }
 
-    object_initialize(&s->sdmc, sizeof(s->sdmc), TYPE_ASPEED_SDMC);
-    object_property_add_child(obj, "sdmc", OBJECT(&s->sdmc), NULL);
+    object_initialize_child(obj, "sdmc", &s->sdmc, sizeof(s->sdmc),
+                            TYPE_ASPEED_SDMC, &error_abort, NULL);
     qdev_set_parent_bus(DEVICE(&s->sdmc), sysbus_get_default());
     qdev_prop_set_uint32(DEVICE(&s->sdmc), "silicon-rev",
                          sc->info->silicon_rev);
@@ -159,15 +159,16 @@ static void aspeed_soc_init(Object *obj)
                               "max-ram-size", &error_abort);
 
     for (i = 0; i < sc->info->wdts_num; i++) {
-        object_initialize(&s->wdt[i], sizeof(s->wdt[i]), TYPE_ASPEED_WDT);
-        object_property_add_child(obj, "wdt[*]", OBJECT(&s->wdt[i]), NULL);
+        object_initialize_child(obj, "wdt[*]", &s->wdt[i], sizeof(s->wdt[i]),
+                                TYPE_ASPEED_WDT, &error_abort, NULL);
         qdev_set_parent_bus(DEVICE(&s->wdt[i]), sysbus_get_default());
         qdev_prop_set_uint32(DEVICE(&s->wdt[i]), "silicon-rev",
                                     sc->info->silicon_rev);
     }
 
-    object_initialize(&s->ftgmac100, sizeof(s->ftgmac100), TYPE_FTGMAC100);
-    object_property_add_child(obj, "ftgmac100", OBJECT(&s->ftgmac100), NULL);
+    object_initialize_child(obj, "ftgmac100", &s->ftgmac100,
+                            sizeof(s->ftgmac100), TYPE_FTGMAC100,
+                            &error_abort, NULL);
     qdev_set_parent_bus(DEVICE(&s->ftgmac100), sysbus_get_default());
 }
 
