@@ -4314,7 +4314,6 @@ struct DdInfo {
 struct DdIo {
     int bsz;    /* Block size */
     char *filename;
-    uint8_t *buf;
     int64_t offset;
 };
 
@@ -4323,6 +4322,18 @@ struct DdOpts {
     int (*f)(const char *, struct DdIo *, struct DdIo *, struct DdInfo *);
     unsigned int flag;
 };
+
+typedef struct ImgDdState {
+    BlockBackend *src;
+    int64_t src_offset;
+    BlockBackend *dst;
+    int64_t dst_offset;
+    int bsz;
+    int64_t size;
+    bool copy_range;
+    int running_coroutines;
+    int ret;
+} ImgDdState;
 
 static int img_dd_bs(const char *arg,
                      struct DdIo *in, struct DdIo *out,
@@ -4387,6 +4398,86 @@ static int img_dd_skip(const char *arg,
     return 0;
 }
 
+static void coroutine_fn dd_co_do_copy(void *opaque)
+{
+    ImgDdState *s = opaque;
+    int64_t block_count, in_pos, out_pos;
+    uint8_t *buf;
+    int ret = 0;
+
+    s->running_coroutines++;
+
+    in_pos = s->src_offset;
+    out_pos = s->dst_offset;
+
+    if (s->copy_range) {
+        /*
+         * We don't impose any kind of alignment requirements nor
+         * adjustments here. It's up to the user to set the best
+         * parameters for a particular storage/driver.
+         */
+        for (; in_pos < s->size && ret == 0; block_count++) {
+            int bytes = s->bsz;
+
+            if (in_pos + bytes > s->size) {
+                bytes = s->size - in_pos;
+            }
+
+            ret = blk_co_copy_range(s->src, in_pos,
+                                    s->dst, out_pos,
+                                    bytes, 0, 0);
+            in_pos += bytes;
+            out_pos += bytes;
+        }
+
+        /*
+         * If copy_range succeded, jump to the end. Otherwise,
+         * fall through to try with the usual bouncing buffers.
+         */
+        if (ret == 0) {
+            goto out;
+        } else {
+            warn_report("copy_range failed, continuing with the conventional "
+                        "read/write approach.");
+        }
+    }
+
+    buf = g_new(uint8_t, s->bsz);
+
+    for (; in_pos < s->size; block_count++) {
+        int in_ret, out_ret;
+
+        if (in_pos + s->bsz > s->size) {
+            in_ret = blk_pread(s->src, in_pos, buf, s->size - in_pos);
+        } else {
+            in_ret = blk_pread(s->src, in_pos, buf, s->bsz);
+        }
+        if (in_ret < 0) {
+            error_report("error while reading from input image file: %s",
+                         strerror(-in_ret));
+            ret = -1;
+            goto free_out;
+        }
+        in_pos += in_ret;
+
+        out_ret = blk_pwrite(s->dst, out_pos, buf, in_ret, 0);
+
+        if (out_ret < 0) {
+            error_report("error while writing to output image file: %s",
+                         strerror(-out_ret));
+            ret = -1;
+            goto free_out;
+        }
+        out_pos += out_ret;
+    }
+
+ free_out:
+    g_free(buf);
+ out:
+    s->running_coroutines--;
+    s->ret = ret;
+}
+
 static int img_dd(int argc, char **argv)
 {
     int ret = 0;
@@ -4394,6 +4485,7 @@ static int img_dd(int argc, char **argv)
     char *tmp;
     BlockDriver *drv = NULL, *proto_drv = NULL;
     BlockBackend *blk1 = NULL, *blk2 = NULL;
+    Coroutine *co = NULL;
     QemuOpts *opts = NULL;
     QemuOptsList *create_opts = NULL;
     Error *local_err = NULL;
@@ -4402,8 +4494,9 @@ static int img_dd(int argc, char **argv)
     const char *out_fmt = "raw";
     const char *fmt = NULL;
     int64_t size = 0;
-    int64_t block_count = 0, out_pos, in_pos;
+    int64_t in_pos;
     bool force_share = false;
+    bool copy_range = false;
     struct DdInfo dd = {
         .flags = 0,
         .count = 0,
@@ -4411,13 +4504,11 @@ static int img_dd(int argc, char **argv)
     struct DdIo in = {
         .bsz = 512, /* Block size is by default 512 bytes */
         .filename = NULL,
-        .buf = NULL,
         .offset = 0
     };
     struct DdIo out = {
         .bsz = 512,
         .filename = NULL,
-        .buf = NULL,
         .offset = 0
     };
 
@@ -4437,7 +4528,7 @@ static int img_dd(int argc, char **argv)
         { 0, 0, 0, 0 }
     };
 
-    while ((c = getopt_long(argc, argv, ":hf:O:U", long_options, NULL))) {
+    while ((c = getopt_long(argc, argv, ":hf:O:UC", long_options, NULL))) {
         if (c == EOF) {
             break;
         }
@@ -4459,6 +4550,9 @@ static int img_dd(int argc, char **argv)
             break;
         case 'U':
             force_share = true;
+            break;
+        case 'C':
+            copy_range = true;
             break;
         case OPTION_OBJECT:
             if (!qemu_opts_parse_noisily(&qemu_object_opts, optarg, true)) {
@@ -4610,34 +4704,24 @@ static int img_dd(int argc, char **argv)
         in_pos = in.offset * in.bsz;
     }
 
-    in.buf = g_new(uint8_t, in.bsz);
+    ImgDdState s = (ImgDdState) {
+        .src = blk1,
+        .src_offset = in_pos,
+        .dst = blk2,
+        .dst_offset = 0,
+        .bsz = in.bsz,
+        .size = size,
+        .copy_range = copy_range,
+    };
 
-    for (out_pos = 0; in_pos < size; block_count++) {
-        int in_ret, out_ret;
+    co = qemu_coroutine_create(dd_co_do_copy, &s);
+    qemu_coroutine_enter(co);
 
-        if (in_pos + in.bsz > size) {
-            in_ret = blk_pread(blk1, in_pos, in.buf, size - in_pos);
-        } else {
-            in_ret = blk_pread(blk1, in_pos, in.buf, in.bsz);
-        }
-        if (in_ret < 0) {
-            error_report("error while reading from input image file: %s",
-                         strerror(-in_ret));
-            ret = -1;
-            goto out;
-        }
-        in_pos += in_ret;
-
-        out_ret = blk_pwrite(blk2, out_pos, in.buf, in_ret, 0);
-
-        if (out_ret < 0) {
-            error_report("error while writing to output image file: %s",
-                         strerror(-out_ret));
-            ret = -1;
-            goto out;
-        }
-        out_pos += out_ret;
+    while (s.running_coroutines) {
+        main_loop_wait(false);
     }
+
+    ret = s.ret;
 
 out:
     g_free(arg);
@@ -4647,8 +4731,6 @@ out:
     blk_unref(blk2);
     g_free(in.filename);
     g_free(out.filename);
-    g_free(in.buf);
-    g_free(out.buf);
 
     if (ret) {
         return 1;
