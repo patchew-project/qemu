@@ -21,7 +21,7 @@ class BootLinuxConsole(Test):
     :avocado: enable
     """
 
-    timeout = 60
+    timeout = 90
 
     KERNEL_COMMON_COMMAND_LINE = 'printk.time=0 '
 
