@@ -42,11 +42,6 @@ def kvm_available(target_arch=None):
 
 #: Maps machine types to the preferred console device types
 CONSOLE_DEV_TYPES = {
-    r'^clipper$': 'isa-serial',
-    r'^malta': 'isa-serial',
-    r'^(pc.*|q35.*|isapc)$': 'isa-serial',
-    r'^(40p|powernv|prep)$': 'isa-serial',
-    r'^pseries.*': 'spapr-vty',
     r'^s390-ccw-virtio.*': 'sclpconsole',
     }
 
@@ -129,6 +124,7 @@ class QEMUMachine(object):
         self._temp_dir = None
         self._launched = False
         self._machine = None
+        self._console_set = False
         self._console_device_type = None
         self._console_address = None
         self._console_socket = None
@@ -247,13 +243,17 @@ class QEMUMachine(object):
                 '-display', 'none', '-vga', 'none']
         if self._machine is not None:
             args.extend(['-machine', self._machine])
-        if self._console_device_type is not None:
+        if self._console_set:
             self._console_address = os.path.join(self._temp_dir,
                                                  self._name + "-console.sock")
             chardev = ('socket,id=console,path=%s,server,nowait' %
                        self._console_address)
-            device = '%s,chardev=console' % self._console_device_type
-            args.extend(['-chardev', chardev, '-device', device])
+            args.extend(['-chardev', chardev])
+            if self._console_device_type is None:
+                args.extend(['-serial', 'chardev:console'])
+            else:
+                device = '%s,chardev=console' % self._console_device_type
+                args.extend(['-device', device])
         return args
 
     def _pre_launch(self):
@@ -479,30 +479,29 @@ class QEMUMachine(object):
         line.
 
         This is a convenience method that will either use the provided
-        device type, of if not given, it will used the device type set
-        on CONSOLE_DEV_TYPES.
+        device type, of if not given, it will use the device type set
+        on CONSOLE_DEV_TYPES if a machine type is set, and a matching
+        entry exists on CONSOLE_DEV_TYPES.
 
         The actual setting of command line arguments will be be done at
         machine launch time, as it depends on the temporary directory
         to be created.
 
-        @param device_type: the device type, such as "isa-serial"
+        @param device_type: the device type, such as "isa-serial".  If
+                            None is given (the default value) a "-serial
+                            chardev:console" command line argument will
+                            be used instead, resorting to the machine's
+                            default device type, if a machine type is set,
+                            and a matching entry exists on CONSOLE_DEV_TYPES.
         @raises: QEMUMachineAddDeviceError if the device type is not given
                  and can not be determined.
         """
-        if device_type is None:
-            if self._machine is None:
-                raise QEMUMachineAddDeviceError("Can not add a console device:"
-                                                " QEMU instance without a "
-                                                "defined machine type")
+        self._console_set = True
+        if device_type is None and self._machine is not None:
             for regex, device in CONSOLE_DEV_TYPES.items():
                 if re.match(regex, self._machine):
                     device_type = device
                     break
-            if device_type is None:
-                raise QEMUMachineAddDeviceError("Can not add a console device:"
-                                                " no matching console device "
-                                                "type definition")
         self._console_device_type = device_type
 
     @property
