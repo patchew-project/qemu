@@ -295,6 +295,18 @@ void qemu_mutex_lock_iothread_impl(const char *file, int line);
  */
 void qemu_mutex_unlock_iothread(void);
 
+/**
+ * qemu_idle_add: Add an idle function to a GMainContext
+ *
+ * This function is similar to GLib's g_idle_add() but it allows
+ * specifying a GMainContext instead of using the global one.
+ *
+ * The returned GSource is owned by the GMainContext and is deleted
+ * automatically after @func returns false. It can also be deleted by
+ * removing it from the GMainContext using g_source_destroy().
+ */
+GSource *qemu_idle_add(GSourceFunc func, gpointer data, GMainContext *ctx);
+
 /* internal interfaces */
 
 void qemu_fd_register(int fd);
