@@ -717,3 +717,21 @@ MemoryInfo *qmp_query_memory_size_summary(Error **errp)
 
     return mem_info;
 }
+
+QemuCapabilities *qmp_query_qemu_capabilities(Error **errp)
+{
+    QemuCapabilities *caps = g_new0(QemuCapabilities, 1);
+    QemuCapabilityList **prev = &caps->capabilities;
+    QemuCapability cap_val;
+
+    /* Add all QemuCapability enum values defined in the schema */
+    for (cap_val = 0; cap_val < QEMU_CAPABILITY__MAX; cap_val++) {
+        QemuCapabilityList *cap = g_new0(QemuCapabilityList, 1);
+
+        cap->value = cap_val;
+        *prev = cap;
+        prev = &cap->next;
+    }
+
+    return caps;
+}

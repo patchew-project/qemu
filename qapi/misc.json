@@ -3051,3 +3051,45 @@
   'data': 'NumaOptions',
   'allow-preconfig': true
 }
+
+##
+# @QemuCapability:
+#
+# Capabilities that are not otherwise introspectable.
+#
+# @migrate-with-cache-direct-off-on-linux:
+#  It is safe to migrate disk image files with cache.direct=off on Linux.
+#  Previously only cache.direct=on was supported for live migration.
+#
+# Since: 4.0
+##
+{ 'enum': 'QemuCapability',
+  'data': [
+    'migrate-with-cache-direct-off-on-linux'
+  ]
+}
+
+##
+# @QemuCapabilities:
+#
+# Capability information.
+#
+# @capabilities: supported capabilities
+#
+# Since: 4.0
+##
+{ 'struct': 'QemuCapabilities',
+  'data': { 'capabilities': ['QemuCapability'] } }
+
+##
+# @query-qemu-capabilities:
+#
+# Return the capabilities supported by this QEMU.  Most features can be
+# detected via schema introspection but some are not observable from the
+# schema.  This command offers a way to check for the presence of such
+# features.
+#
+# Since: 4.0
+##
+{ 'command': 'query-qemu-capabilities',
+  'returns': 'QemuCapabilities' }
