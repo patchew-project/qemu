@@ -19,6 +19,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/main-loop.h"
 #include "io/task.h"
 #include "qapi/error.h"
 #include "qemu/thread.h"
@@ -130,13 +131,8 @@ static gpointer qio_task_thread_worker(gpointer opaque)
     trace_qio_task_thread_exit(task);
 
     qemu_mutex_lock(&task->thread_lock);
-
-    task->thread->completion = g_idle_source_new();
-    g_source_set_callback(task->thread->completion,
-                          qio_task_thread_result, task, NULL);
-    g_source_attach(task->thread->completion,
-                    task->thread->context);
-    g_source_unref(task->thread->completion);
+    task->thread->completion = qemu_idle_add(qio_task_thread_result, task,
+                                             task->thread->context);
     trace_qio_task_thread_source_attach(task, task->thread->completion);
 
     qemu_cond_signal(&task->thread_cond);
