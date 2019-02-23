@@ -18,6 +18,9 @@ config INTEGRATOR
 config MAINSTONE
     bool
 
+config MUSCA
+    bool
+
 config MUSICPAL
     bool
     select PTIMER
