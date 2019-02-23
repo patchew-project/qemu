@@ -5526,32 +5526,50 @@ static void define_debug_regs(ARMCPU *cpu)
     /* Define v7 and v8 architectural debug registers.
      * These are just dummy implementations for now.
      */
-    int i;
-    int wrps, brps, ctx_cmps;
-    ARMCPRegInfo dbgdidr = {
-        .name = "DBGDIDR", .cp = 14, .crn = 0, .crm = 0, .opc1 = 0, .opc2 = 0,
-        .access = PL0_R, .accessfn = access_tda,
-        .type = ARM_CP_CONST, .resetvalue = cpu->dbgdidr,
-    };
+    int i, wrps, brps, ctx_cmps;
+    bool have_aa32;
 
-    /* Note that all these register fields hold "number of Xs minus 1". */
-    brps = extract32(cpu->dbgdidr, 24, 4);
-    wrps = extract32(cpu->dbgdidr, 28, 4);
-    ctx_cmps = extract32(cpu->dbgdidr, 20, 4);
-
-    assert(ctx_cmps <= brps);
-
-    /* The DBGDIDR and ID_AA64DFR0_EL1 define various properties
+    /*
+     * The DBGDIDR and ID_AA64DFR0_EL1 define various properties
      * of the debug registers such as number of breakpoints;
      * check that if they both exist then they agree.
+     *
+     * Note that all these register fields hold "number of Xs minus 1".
      */
     if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64)) {
-        assert(extract32(cpu->id_aa64dfr0, 12, 4) == brps);
-        assert(extract32(cpu->id_aa64dfr0, 20, 4) == wrps);
-        assert(extract32(cpu->id_aa64dfr0, 28, 4) == ctx_cmps);
-    }
+        brps = extract32(cpu->id_aa64dfr0, 12, 4);
+        wrps = extract32(cpu->id_aa64dfr0, 20, 4);
+        ctx_cmps = extract32(cpu->id_aa64dfr0, 28, 4);
 
-    define_one_arm_cp_reg(cpu, &dbgdidr);
+        /*
+         * There are cpus with aarch32 only at EL0, and which do not
+         * have the 32-bit system registers.
+         */
+        have_aa32
+            = (FIELD_EX64(cpu->isar.id_aa64pfr0, ID_AA64PFR0, EL1) >= 2 ||
+               FIELD_EX64(cpu->isar.id_aa64pfr0, ID_AA64PFR0, EL2) >= 2 ||
+               FIELD_EX64(cpu->isar.id_aa64pfr0, ID_AA64PFR0, EL3) >= 2);
+        if (have_aa32) {
+            assert(extract32(cpu->dbgdidr, 24, 4) == brps);
+            assert(extract32(cpu->dbgdidr, 28, 4) == wrps);
+            assert(extract32(cpu->dbgdidr, 20, 4) == ctx_cmps);
+        }
+    } else {
+        have_aa32 = true;
+        brps = extract32(cpu->dbgdidr, 24, 4);
+        wrps = extract32(cpu->dbgdidr, 28, 4);
+        ctx_cmps = extract32(cpu->dbgdidr, 20, 4);
+    }
+    assert(ctx_cmps <= brps);
+
+    if (have_aa32) {
+        ARMCPRegInfo dbgdidr = {
+            .name = "DBGDIDR", .cp = 14, .crn = 0, .crm = 0,
+            .opc1 = 0, .opc2 = 0, .access = PL0_R, .accessfn = access_tda,
+            .type = ARM_CP_CONST, .resetvalue = cpu->dbgdidr,
+        };
+        define_one_arm_cp_reg(cpu, &dbgdidr);
+    }
     define_arm_cp_regs(cpu, debug_cp_reginfo);
 
     if (arm_feature(&cpu->env, ARM_FEATURE_LPAE)) {
