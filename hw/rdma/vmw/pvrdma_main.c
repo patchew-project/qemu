@@ -14,6 +14,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "qapi/error.h"
 #include "hw/hw.h"
 #include "hw/pci/pci.h"
@@ -25,6 +26,7 @@
 #include "cpu.h"
 #include "trace.h"
 #include "sysemu/sysemu.h"
+#include "monitor/monitor.h"
 
 #include "../rdma_rm.h"
 #include "../rdma_backend.h"
@@ -32,9 +34,12 @@
 
 #include <infiniband/verbs.h>
 #include "pvrdma.h"
+#include "pvrdma_hmp.h"
 #include "standard-headers/rdma/vmw_pvrdma-abi.h"
 #include "standard-headers/drivers/infiniband/hw/vmw_pvrdma/pvrdma_dev_api.h"
 #include "pvrdma_qp_ops.h"
+
+GSList *devices;
 
 static Property pvrdma_dev_properties[] = {
     DEFINE_PROP_STRING("netdev", PVRDMADev, backend_eth_device_name),
@@ -54,6 +59,71 @@ static Property pvrdma_dev_properties[] = {
     DEFINE_PROP_CHR("mad-chardev", PVRDMADev, mad_chr),
     DEFINE_PROP_END_OF_LIST(),
 };
+
+static void pvrdma_dump_device_counters(gpointer data, gpointer user_data)
+{
+    Monitor *mon = user_data;
+    PCIDevice *pdev = data;
+    PVRDMADev *dev = PVRDMA_DEV(pdev);
+
+    monitor_printf(mon, "%s_%x.%x\n", pdev->name, PCI_SLOT(pdev->devfn),
+                   PCI_FUNC(pdev->devfn));
+    monitor_printf(mon, "\tcommands         : %" PRId64 "\n",
+                   dev->stats.commands);
+    monitor_printf(mon, "\ttx               : %" PRId64 "\n",
+                   dev->rdma_dev_res.stats.tx);
+    monitor_printf(mon, "\ttx_len           : %" PRId64 "\n",
+                   dev->rdma_dev_res.stats.tx_len);
+    monitor_printf(mon, "\ttx_err           : %" PRId64 "\n",
+                   dev->rdma_dev_res.stats.tx_err);
+    monitor_printf(mon, "\trx_bufs          : %" PRId64 "\n",
+                   dev->rdma_dev_res.stats.rx_bufs);
+    monitor_printf(mon, "\trx_bufs_len      : %" PRId64 "\n",
+                   dev->rdma_dev_res.stats.rx_bufs_len);
+    monitor_printf(mon, "\trx_bufs_err      : %" PRId64 "\n",
+                   dev->rdma_dev_res.stats.rx_bufs_err);
+    monitor_printf(mon, "\tcomps            : %" PRId64 "\n",
+                   dev->rdma_dev_res.stats.completions);
+    monitor_printf(mon, "\tmissing_comps    : %" PRId64 "\n",
+                   dev->rdma_dev_res.stats.missing_cqe);
+    monitor_printf(mon, "\tpoll_cq (bk)     : %" PRId64 "\n",
+                   dev->rdma_dev_res.stats.poll_cq_from_bk);
+    monitor_printf(mon, "\tpoll_cq_ppoll_to : %" PRId64 "\n",
+                   dev->rdma_dev_res.stats.poll_cq_ppoll_to);
+    monitor_printf(mon, "\tpoll_cq (fe)     : %" PRId64 "\n",
+                   dev->rdma_dev_res.stats.poll_cq_from_guest);
+    monitor_printf(mon, "\tpoll_cq_empty    : %" PRId64 "\n",
+                   dev->rdma_dev_res.stats.poll_cq_from_guest_empty);
+    monitor_printf(mon, "\tmad_tx           : %" PRId64 "\n",
+                   dev->rdma_dev_res.stats.mad_tx);
+    monitor_printf(mon, "\tmad_tx_err       : %" PRId64 "\n",
+                   dev->rdma_dev_res.stats.mad_tx_err);
+    monitor_printf(mon, "\tmad_rx           : %" PRId64 "\n",
+                   dev->rdma_dev_res.stats.mad_rx);
+    monitor_printf(mon, "\tmad_rx_err       : %" PRId64 "\n",
+                   dev->rdma_dev_res.stats.mad_rx_err);
+    monitor_printf(mon, "\tmad_rx_bufs      : %" PRId64 "\n",
+                   dev->rdma_dev_res.stats.mad_rx_bufs);
+    monitor_printf(mon, "\tmad_rx_bufs_err  : %" PRId64 "\n",
+                   dev->rdma_dev_res.stats.mad_rx_bufs_err);
+    monitor_printf(mon, "\tPDs              : %" PRId32 "\n",
+                   dev->rdma_dev_res.pd_tbl.used);
+    monitor_printf(mon, "\tMRs              : %" PRId32 "\n",
+                   dev->rdma_dev_res.mr_tbl.used);
+    monitor_printf(mon, "\tUCs              : %" PRId32 "\n",
+                   dev->rdma_dev_res.uc_tbl.used);
+    monitor_printf(mon, "\tQPs              : %" PRId32 "\n",
+                   dev->rdma_dev_res.qp_tbl.used);
+    monitor_printf(mon, "\tCQs              : %" PRId32 "\n",
+                   dev->rdma_dev_res.cq_tbl.used);
+    monitor_printf(mon, "\tCEQ_CTXs         : %" PRId32 "\n",
+                   dev->rdma_dev_res.cqe_ctx_tbl.used);
+}
+
+void pvrdma_dump_counters(Monitor *mon)
+{
+    g_slist_foreach(devices, pvrdma_dump_device_counters, mon);
+}
 
 static void free_dev_ring(PCIDevice *pci_dev, PvrdmaRing *ring,
                           void *ring_state)
@@ -304,6 +374,8 @@ static void pvrdma_fini(PCIDevice *pdev)
 
     rdma_info_report("Device %s %x.%x is down", pdev->name,
                      PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn));
+
+    devices = g_slist_remove(devices, pdev);
 }
 
 static void pvrdma_stop(PVRDMADev *dev)
@@ -394,6 +466,7 @@ static void pvrdma_regs_write(void *opaque, hwaddr addr, uint64_t val,
         if (val == 0) {
             trace_pvrdma_regs_write(addr, val, "REQUEST", "");
             pvrdma_exec_cmd(dev);
+            dev->stats.commands++;
         }
         break;
     default:
@@ -612,8 +685,12 @@ static void pvrdma_realize(PCIDevice *pdev, Error **errp)
         goto out;
     }
 
+    memset(&dev->stats, 0, sizeof(dev->stats));
+
     dev->shutdown_notifier.notify = pvrdma_shutdown_notifier;
     qemu_register_shutdown_notifier(&dev->shutdown_notifier);
+
+    devices = g_slist_append(devices, pdev);
 
 out:
     if (rc) {
