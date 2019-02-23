@@ -331,7 +331,6 @@ config MPS2
     select MPS2_SCC
     select PL022    # Serial port
     select PL080    # DMA controller
-    select TZ_MPC
 
 config IOTKIT
     bool
@@ -348,9 +347,17 @@ config FSL_IMX6UL
 config NRF51_SOC
     bool
 
+config EMCRAFT_SF2
+    bool
+    select MSF2
+    select SSI_M25P80
+
 config MSF2
     bool
+    select ARM_V7M
     select PTIMER
+    select SERIAL
+    select SSI
 
 config ZAURUS
     bool
@@ -375,13 +382,14 @@ config ARM11MPCORE
 config ARMSSE
     bool
     select ARMSSE_CPUID
-    select CMSDK_APB_TIMER
     select CMSDK_APB_DUALTIMER
+    select CMSDK_APB_TIMER
     select CMSDK_APB_UART
     select CMSDK_APB_WATCHDOG
     select IOTKIT_SECCTL
     select IOTKIT_SYSCTL
     select IOTKIT_SYSINFO
+    select TZ_MPC
     select TZ_MSC
     select TZ_PPC
 
