@@ -79,6 +79,9 @@ config MAINSTONE
 
 config MUSCA
     bool
+    select ARMSSE
+    select PL011
+    select PL031
 
 config MUSICPAL
     bool
