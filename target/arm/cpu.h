@@ -871,6 +871,7 @@ struct ARMCPU {
     uint32_t reset_sctlr;
     uint32_t id_pfr0;
     uint32_t id_pfr1;
+    uint32_t id_pfr2;
     uint32_t id_dfr0;
     uint64_t pmceid0;
     uint64_t pmceid1;
