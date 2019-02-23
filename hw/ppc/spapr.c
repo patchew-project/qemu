@@ -3154,6 +3154,20 @@ static char *spapr_get_fw_dev_path(FWPathProvider *p, BusState *bus,
     return NULL;
 }
 
+static bool spapr_get_vpd_export(Object *obj, Error **errp)
+{
+    sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
+
+    return spapr->vpd_export;
+}
+
+static void spapr_set_vpd_export(Object *obj, bool value, Error **errp)
+{
+    sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
+
+    spapr->vpd_export = value;
+}
+
 static char *spapr_get_kvm_type(Object *obj, Error **errp)
 {
     SpaprMachineState *spapr = SPAPR_MACHINE(obj);
@@ -3308,6 +3322,7 @@ static void spapr_instance_init(Object *obj)
     SpaprMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
 
     spapr->htab_fd = -1;
+    spapr->vpd_export = false;
     spapr->use_hotplug_event_source = true;
     object_property_add_str(obj, "kvm-type",
                             spapr_get_kvm_type, spapr_set_kvm_type, NULL);
@@ -3339,6 +3354,12 @@ static void spapr_instance_init(Object *obj)
                                     " the host's SMT mode", &error_abort);
     object_property_add_bool(obj, "vfio-no-msix-emulation",
                              spapr_get_msix_emulation, NULL, NULL);
+
+    object_property_add_bool(obj, "vpd-export", spapr_get_vpd_export,
+                             spapr_set_vpd_export, NULL);
+    object_property_set_description(obj, "vpd-export",
+                                    "Export Host's VPD information to guest",
+                                    &error_abort);
 
     /* The machine class defines the default interrupt controller mode */
     spapr->irq = smc->irq;
