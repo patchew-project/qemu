@@ -2623,3 +2623,15 @@ uint32_t HELPER(cu42)(CPUS390XState *env, uint32_t r1, uint32_t r2, uint32_t m3)
     return convert_unicode(env, r1, r2, m3, GETPC(),
                            decode_utf32, encode_utf16);
 }
+
+uint64_t HELPER(lcbb)(uint64_t addr, uint32_t m3)
+{
+    const uint32_t block_size = 1ul << (m3 + 6);
+    const uint64_t rounded_addr = ROUND_UP(addr, block_size);
+    uint32_t to_load = 16;
+
+    if (rounded_addr != addr) {
+        to_load = MIN(rounded_addr - addr, to_load);
+    }
+    return to_load;
+}
