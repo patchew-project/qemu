@@ -503,7 +503,7 @@ static int img_create(int argc, char **argv)
 
     if (qemu_opts_foreach(&qemu_object_opts,
                           user_creatable_add_opts_foreach,
-                          NULL, NULL)) {
+                          NULL, &error_fatal)) {
         goto fail;
     }
 
@@ -753,7 +753,7 @@ static int img_check(int argc, char **argv)
 
     if (qemu_opts_foreach(&qemu_object_opts,
                           user_creatable_add_opts_foreach,
-                          NULL, NULL)) {
+                          NULL, &error_fatal)) {
         return 1;
     }
 
@@ -966,7 +966,7 @@ static int img_commit(int argc, char **argv)
 
     if (qemu_opts_foreach(&qemu_object_opts,
                           user_creatable_add_opts_foreach,
-                          NULL, NULL)) {
+                          NULL, &error_fatal)) {
         return 1;
     }
 
@@ -1349,7 +1349,7 @@ static int img_compare(int argc, char **argv)
 
     if (qemu_opts_foreach(&qemu_object_opts,
                           user_creatable_add_opts_foreach,
-                          NULL, NULL)) {
+                          NULL, &error_fatal)) {
         ret = 2;
         goto out4;
     }
@@ -2153,7 +2153,7 @@ static int img_convert(int argc, char **argv)
 
     if (qemu_opts_foreach(&qemu_object_opts,
                           user_creatable_add_opts_foreach,
-                          NULL, NULL)) {
+                          NULL, &error_fatal)) {
         goto fail_getopt;
     }
 
@@ -2707,7 +2707,7 @@ static int img_info(int argc, char **argv)
 
     if (qemu_opts_foreach(&qemu_object_opts,
                           user_creatable_add_opts_foreach,
-                          NULL, NULL)) {
+                          NULL, &error_fatal)) {
         return 1;
     }
 
@@ -2926,7 +2926,7 @@ static int img_map(int argc, char **argv)
 
     if (qemu_opts_foreach(&qemu_object_opts,
                           user_creatable_add_opts_foreach,
-                          NULL, NULL)) {
+                          NULL, &error_fatal)) {
         return 1;
     }
 
@@ -3075,7 +3075,7 @@ static int img_snapshot(int argc, char **argv)
 
     if (qemu_opts_foreach(&qemu_object_opts,
                           user_creatable_add_opts_foreach,
-                          NULL, NULL)) {
+                          NULL, &error_fatal)) {
         return 1;
     }
 
@@ -3242,7 +3242,7 @@ static int img_rebase(int argc, char **argv)
 
     if (qemu_opts_foreach(&qemu_object_opts,
                           user_creatable_add_opts_foreach,
-                          NULL, NULL)) {
+                          NULL, &error_fatal)) {
         return 1;
     }
 
@@ -3622,7 +3622,7 @@ static int img_resize(int argc, char **argv)
 
     if (qemu_opts_foreach(&qemu_object_opts,
                           user_creatable_add_opts_foreach,
-                          NULL, NULL)) {
+                          NULL, &error_fatal)) {
         return 1;
     }
 
@@ -3866,7 +3866,7 @@ static int img_amend(int argc, char **argv)
 
     if (qemu_opts_foreach(&qemu_object_opts,
                           user_creatable_add_opts_foreach,
-                          NULL, NULL)) {
+                          NULL, &error_fatal)) {
         ret = -1;
         goto out_no_progress;
     }
@@ -4510,7 +4510,7 @@ static int img_dd(int argc, char **argv)
 
     if (qemu_opts_foreach(&qemu_object_opts,
                           user_creatable_add_opts_foreach,
-                          NULL, NULL)) {
+                          NULL, &error_fatal)) {
         ret = -1;
         goto out;
     }
@@ -4787,7 +4787,7 @@ static int img_measure(int argc, char **argv)
 
     if (qemu_opts_foreach(&qemu_object_opts,
                           user_creatable_add_opts_foreach,
-                          NULL, NULL)) {
+                          NULL, &error_fatal)) {
         goto out;
     }
 
