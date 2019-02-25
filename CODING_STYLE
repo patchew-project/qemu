@@ -29,6 +29,35 @@ Spaces of course are superior to tabs because:
 
 Do not leave whitespace dangling off the ends of lines.
 
+1.1 Multiline Indent
+
+There are several places where indent is necessary:
+
+ - struct definition
+ - if/else
+ - while/for
+ - function definition & call
+
+When breaking up a long line to fit within line width, align the secondary
+lines just after the opening parenthesis of the first.
+
+For example:
+
+    if (a == 1 &&
+        b == 2) {
+
+    while (a == 1 &&
+           b == 2) {
+
+    do_something(arg1, arg2,
+                 arg3);
+
+One exception for function is indenting following lines relative to function
+name start:
+
+    do_something(arg1, arg2,
+        arg3);
+
 2. Line width
 
 Lines should be 80 characters; try not to make them longer.
