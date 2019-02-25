@@ -33,7 +33,7 @@ else:
     virtio_scsi_device = 'virtio-scsi-pci'
 
 vm = QEMUMachine(iotests.qemu_prog)
-vm.add_args('-machine', 'accel=kvm')
+vm.add_args('-machine', 'accel=qtest')
 vm.launch()
 
 log(vm.qmp('blockdev-add', node_name='hd0', driver='null-co'))
