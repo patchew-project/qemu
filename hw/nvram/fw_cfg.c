@@ -63,6 +63,9 @@ struct FWCfgEntry {
 #define JPG_FILE 0
 #define BMP_FILE 1
 
+static uint8_t *boot_splash_filedata;
+static size_t boot_splash_filedata_size;
+
 static char *read_splashfile(char *filename, gsize *file_sizep,
                              int *file_typep)
 {
@@ -173,6 +176,12 @@ static void fw_cfg_bootsplash(FWCfgState *s)
         }
         g_free(filename);
     }
+}
+
+void fw_cfg_res_free(void)
+{
+    g_free(boot_splash_filedata);
+    boot_splash_filedata = NULL;
 }
 
 static void fw_cfg_reboot(FWCfgState *s)
