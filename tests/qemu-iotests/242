@@ -20,6 +20,7 @@
 
 import iotests
 import json
+import sys
 from iotests import qemu_img_create, qemu_io, qemu_img_pipe, \
     file_path, img_info_log, log, filter_qemu_io
 
@@ -65,9 +66,12 @@ def toggle_flag(offset):
     with open(disk, "r+b") as f:
         f.seek(offset, 0)
         c = f.read(1)
-        toggled = chr(ord(c) ^ bitmap_flag_unknown)
+        toggled = ord(c) ^ bitmap_flag_unknown
         f.seek(-1, 1)
-        f.write(toggled)
+        if sys.version_info.major >= 3:
+            f.write(bytes([toggled]))
+        else:
+            f.write(chr(toggled))
 
 
 qemu_img_create('-f', iotests.imgfmt, disk, '1M')
