@@ -4362,6 +4362,7 @@ static void gen_shift(DisasContext *ctx, uint32_t opc,
     tcg_temp_free(t1);
 }
 
+#if defined(TARGET_MIPS64)
 /* Copy GPR to and from TX79 HI1/LO1 register. */
 static void gen_HILO1_tx79(DisasContext *ctx, uint32_t opc, int reg)
 {
@@ -4397,6 +4398,7 @@ static void gen_HILO1_tx79(DisasContext *ctx, uint32_t opc, int reg)
         break;
     }
 }
+#endif
 
 /* Arithmetic on HI/LO registers */
 static void gen_HILO(DisasContext *ctx, uint32_t opc, int acc, int reg)
@@ -4746,6 +4748,7 @@ static void gen_r6_muldiv(DisasContext *ctx, int opc, int rd, int rs, int rt)
     tcg_temp_free(t1);
 }
 
+#if defined(TARGET_MIPS64)
 static void gen_div1_tx79(DisasContext *ctx, uint32_t opc, int rs, int rt)
 {
     TCGv t0, t1;
@@ -4802,6 +4805,7 @@ static void gen_div1_tx79(DisasContext *ctx, uint32_t opc, int rs, int rt)
     tcg_temp_free(t0);
     tcg_temp_free(t1);
 }
+#endif
 
 static void gen_muldiv(DisasContext *ctx, uint32_t opc,
                        int acc, int rs, int rt)
@@ -24324,6 +24328,97 @@ static void decode_opc_special(CPUMIPSState *env, DisasContext *ctx)
 }
 
 
+#if defined(TARGET_MIPS64)
+
+
+/*
+ *
+ *           MMI (MultiMedia Interface) ASE instructions
+ *           ===========================================
+ */
+
+/*
+ *          MMI instructions category: data communication
+ *          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ *
+ *    PCPYH    PEXCH    PEXTLB   PINTH    PPACB    PEXT5    PREVH
+ *    PCPYLD   PEXCW    PEXTLH   PINTEH   PPACH    PPAC5    PROT3W
+ *    PCPYUD   PEXCEH   PEXTLW            PPACW
+ *             PEXCEW   PEXTUB
+ *                      PEXTUB
+ *                      PEXTUB
+ */
+
+/*
+ *  PCPYH rd, rt
+ *
+ *    Parallel Copy Halfword
+ *
+ *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ *  +-----------+---------+---------+---------+---------+-----------+
+ *  |    MMI    |0 0 0 0 0|   rt    |   rd    |  PCPYH  |    MMI3   |
+ *  +-----------+---------+---------+---------+---------+-----------+
+ */
+static void gen_mmi_pcpyh(DisasContext *ctx)
+{
+    uint32_t pd, rt, rd;
+    uint32_t opcode;
+
+    opcode = ctx->opcode;
+
+    pd = extract32(opcode, 21, 5);
+    rt = extract32(opcode, 16, 5);
+    rd = extract32(opcode, 11, 5);
+
+    if (unlikely(pd != 0)) {
+        generate_exception_end(ctx, EXCP_RI);
+    } else if (rd == 0) {
+        /* nop */
+    } else if (rt == 0) {
+        tcg_gen_movi_i64(cpu_gpr[rt], 0);
+        tcg_gen_movi_i64(cpu_mmr[rt], 0);
+    } else {
+        TCGv_i64 t0;
+        TCGv_i64 t1;
+        TCGv_i64 t2;
+        uint64_t mask = (1ULL << 16) - 1;
+
+        t0 = tcg_temp_new();
+        t1 = tcg_temp_new();
+        t2 = tcg_temp_new();
+
+        tcg_gen_andi_i64(t0, cpu_gpr[rt], mask);
+        tcg_gen_movi_i64(t1, 0);
+        tcg_gen_or_i64(t1, t0, t1);
+        tcg_gen_shli_i64(t0, t0, 16);
+        tcg_gen_or_i64(t1, t0, t1);
+        tcg_gen_shli_i64(t0, t0, 16);
+        tcg_gen_or_i64(t1, t0, t1);
+        tcg_gen_shli_i64(t0, t0, 16);
+        tcg_gen_or_i64(t1, t0, t1);
+
+        tcg_gen_andi_i64(t0, cpu_mmr[rt], mask);
+        tcg_gen_movi_i64(t2, 0);
+        tcg_gen_or_i64(t2, t0, t2);
+        tcg_gen_shli_i64(t0, t0, 16);
+        tcg_gen_or_i64(t2, t0, t2);
+        tcg_gen_shli_i64(t0, t0, 16);
+        tcg_gen_or_i64(t2, t0, t2);
+        tcg_gen_shli_i64(t0, t0, 16);
+        tcg_gen_or_i64(t2, t0, t2);
+
+        tcg_gen_mov_i64(cpu_gpr[rd], t1);
+        tcg_gen_mov_i64(cpu_mmr[rd], t2);
+
+        tcg_temp_free(t0);
+        tcg_temp_free(t1);
+        tcg_temp_free(t2);
+    }
+}
+
+#endif
+
+
 #if !defined(TARGET_MIPS64)
 
 /* MXU accumulate add/subtract 1-bit pattern 'aptn1' */
@@ -27247,6 +27342,9 @@ static void decode_opc_special3_legacy(CPUMIPSState *env, DisasContext *ctx)
     }
 }
 
+
+#if defined(TARGET_MIPS64)
+
 static void decode_mmi0(CPUMIPSState *env, DisasContext *ctx)
 {
     uint32_t opc = MASK_MMI0(ctx->opcode);
@@ -27370,9 +27468,11 @@ static void decode_mmi3(CPUMIPSState *env, DisasContext *ctx)
     case MMI_OPC_3_POR:        /* TODO: MMI_OPC_3_POR */
     case MMI_OPC_3_PNOR:       /* TODO: MMI_OPC_3_PNOR */
     case MMI_OPC_3_PEXCH:      /* TODO: MMI_OPC_3_PEXCH */
-    case MMI_OPC_3_PCPYH:      /* TODO: MMI_OPC_3_PCPYH */
     case MMI_OPC_3_PEXCW:      /* TODO: MMI_OPC_3_PEXCW */
         generate_exception_end(ctx, EXCP_RI); /* TODO: MMI_OPC_CLASS_MMI3 */
+        break;
+    case MMI_OPC_3_PCPYH:
+        gen_mmi_pcpyh(ctx);
         break;
     default:
         MIPS_INVAL("TX79 MMI class MMI3");
@@ -27490,6 +27590,8 @@ static void decode_mmi_sq(CPUMIPSState *env, DisasContext *ctx)
 
     gen_mmi_sq(ctx, base, rt, offset);
 }
+
+#endif
 
 static void decode_opc_special3(CPUMIPSState *env, DisasContext *ctx)
 {
@@ -28796,10 +28898,11 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
         decode_opc_special(env, ctx);
         break;
     case OPC_SPECIAL2:
+#if defined(TARGET_MIPS64)
         if ((ctx->insn_flags & INSN_R5900) && (ctx->insn_flags & ASE_MMI)) {
             decode_mmi(env, ctx);
-#if !defined(TARGET_MIPS64)
-        } else if (ctx->insn_flags & ASE_MXU) {
+#else
+        if (ctx->insn_flags & ASE_MXU) {
             decode_opc_mxu(env, ctx);
 #endif
         } else {
@@ -28807,11 +28910,15 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
         }
         break;
     case OPC_SPECIAL3:
+#if defined(TARGET_MIPS64)
         if (ctx->insn_flags & INSN_R5900) {
             decode_mmi_sq(env, ctx);    /* MMI_OPC_SQ */
         } else {
             decode_opc_special3(env, ctx);
         }
+#else
+        decode_opc_special3(env, ctx);
+#endif
         break;
     case OPC_REGIMM:
         op1 = MASK_REGIMM(ctx->opcode);
@@ -29483,7 +29590,9 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
         break;
     case OPC_MSA: /* OPC_MDMX */
         if (ctx->insn_flags & INSN_R5900) {
+#if defined(TARGET_MIPS64)
             gen_mmi_lq(env, ctx);    /* MMI_OPC_LQ */
+#endif
         } else {
             /* MDMX: Not implemented. */
             gen_msa(env, ctx);
