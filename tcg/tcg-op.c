@@ -2381,6 +2381,21 @@ void tcg_gen_sub2_i64(TCGv_i64 rl, TCGv_i64 rh, TCGv_i64 al,
     }
 }
 
+void tcg_gen_shri2_i64(TCGv_i64 ret, TCGv_i64 al, TCGv_i64 ah, int64_t count)
+{
+    tcg_debug_assert(count >= 0 && count <= 64);
+    if (count == 0) {
+        tcg_gen_mov_i64(ret, al);
+    } else if (count == 64) {
+        tcg_gen_mov_i64(ret, ah);
+    } else {
+        TCGv_i64 t0 = tcg_temp_new_i64();
+        tcg_gen_shri_i64(t0, al, count);
+        tcg_gen_deposit_i64(ret, t0, ah, 64 - count, count);
+        tcg_temp_free_i64(t0);
+    }
+}
+
 void tcg_gen_mulu2_i64(TCGv_i64 rl, TCGv_i64 rh, TCGv_i64 arg1, TCGv_i64 arg2)
 {
     if (TCG_TARGET_HAS_mulu2_i64) {
