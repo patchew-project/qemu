@@ -57,6 +57,7 @@
 #include "qemu/uuid.h"
 #include "savevm.h"
 #include "qemu/iov.h"
+#include <zstd.h>
 
 /***********************************************************/
 /* ram save/restore */
@@ -446,6 +447,59 @@ static int zlib_decompress(Compression *comp, uint8_t *dest, size_t dest_len,
     return stream->total_out;
 }
 
+static int zstd_compress(Compression *comp, uint8_t *dest, size_t dest_len,
+                         const uint8_t *source, size_t source_len)
+{
+    int res;
+    ZSTD_inBuffer input = {source, source_len, 0};
+    ZSTD_outBuffer output = {dest, dest_len, 0};
+
+    res = ZSTD_initCStream(comp->stream, migrate_compress_level());
+
+    if (ZSTD_isError(res)) {
+        error_report("zstd: compression stream initialization error: %s",
+                     ZSTD_getErrorName(res));
+        return -1;
+    }
+
+    res = ZSTD_compressStream(comp->stream, &output, &input);
+
+    if (ZSTD_isError(res)) {
+        error_report("zstd: compression error: %s",
+                     ZSTD_getErrorName(res));
+        return -1;
+    }
+
+    res = ZSTD_endStream(comp->stream, &output);
+
+    if (ZSTD_isError(res)) {
+        error_report("zstd: end stream error: %s",
+                     ZSTD_getErrorName(res));
+        return -1;
+    }
+
+    return output.pos;
+}
+
+static int zstd_decompress(Compression *comp, uint8_t *dest, size_t dest_len,
+                         const uint8_t *source, size_t source_len)
+{
+    int res;
+    ZSTD_inBuffer input = {source, source_len, 0};
+    ZSTD_outBuffer output = {dest, dest_len, 0};
+
+    res = ZSTD_decompressStream(comp->stream, &output, &input);
+
+    if (ZSTD_isError(res)) {
+        error_report("zstd: decompression error: %s",
+                      ZSTD_getErrorName(res));
+         return -1;
+    }
+
+    return output.pos;
+}
+
+
 static int init_compression(Compression *comp, CompressionType type,
                             bool is_decompression)
 {
@@ -474,6 +528,40 @@ static int init_compression(Compression *comp, CompressionType type,
 
         comp->get_bound = compressBound;
         break;
+    case COMPRESSION_TYPE_ZSTD:
+        if (is_decompression) {
+            int res;
+
+            comp->stream = ZSTD_createDStream();
+
+            if (comp->stream == NULL) {
+                error_report("zstd: can't create decompression stream");
+                return 1;
+            }
+
+            res = ZSTD_initDStream(comp->stream);
+
+            if (ZSTD_isError(res)) {
+                error_report("zstd: can't initialzie decompression: %s",
+                             ZSTD_getErrorName(res));
+                ZSTD_freeDStream(comp->stream);
+                return 1;
+            }
+
+            comp->process = zstd_decompress;
+        } else {
+            comp->stream = ZSTD_createCStream();
+
+            if (comp->stream == NULL) {
+                error_report("zstd: can't create compression stream");
+                return 1;
+            }
+
+            comp->process = zstd_compress;
+        }
+
+        comp->get_bound = ZSTD_compressBound;
+        break;
     default:
         return 1;
     }
@@ -495,6 +583,13 @@ static void destroy_compression(Compression *comp)
             deflateEnd(comp->stream);
         }
         g_free(comp->stream);
+        break;
+    case COMPRESSION_TYPE_ZSTD:
+        if (comp->is_decompression) {
+            ZSTD_freeDStream(comp->stream);
+        } else {
+            ZSTD_freeCStream(comp->stream);
+        }
         break;
     default:
         assert(false);

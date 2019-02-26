@@ -117,6 +117,7 @@ typedef struct QEMUFileHooks {
 
 typedef enum CompressionType {
     COMPRESSION_TYPE_ZLIB = 0,
+    COMPRESSION_TYPE_ZSTD = 1,
 } CompressionType;
 
 struct Compression {

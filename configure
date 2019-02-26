@@ -432,6 +432,7 @@ opengl_dmabuf="no"
 cpuid_h="no"
 avx2_opt=""
 zlib="yes"
+zstd="yes"
 capstone=""
 lzo=""
 snappy=""
@@ -1302,6 +1303,8 @@ for opt do
   --enable-usb-redir) usb_redir="yes"
   ;;
   --disable-zlib-test) zlib="no"
+  ;;
+  --disable-zstd-test) zstd="no"
   ;;
   --disable-lzo) lzo="no"
   ;;
@@ -3585,6 +3588,29 @@ EOF
         else
             error_exit "zlib check failed" \
                 "Make sure to have the zlib libs and headers installed."
+        fi
+    fi
+fi
+
+#########################################
+# zstd check
+
+if test "$zstd" != "no" ; then
+    if $pkg_config --exists libzstd; then
+        zstd_cflags=$($pkg_config --cflags libzstd)
+        zstd_libs=$($pkg_config --libs libzstd)
+        QEMU_CFLAGS="$zstd_cflags $QEMU_CFLAGS"
+        LIBS="$zstd_libs $LIBS"
+    else
+        cat > $TMPC << EOF
+#include <zstd.h>
+int main(void) { ZSTD_versionNumber(); return 0; }
+EOF
+        if compile_prog "" "-lzstd" ; then
+            LIBS="$LIBS -lzstd"
+        else
+            error_exit "zstd check failed" \
+                "Make sure to have the zstd libs and headers installed."
         fi
     fi
 fi

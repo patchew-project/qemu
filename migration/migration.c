@@ -1036,9 +1036,12 @@ static bool migrate_params_check(MigrationParameters *params, Error **errp)
         case COMPRESSION_TYPE_ZLIB:
             max_compress_level = 9;
             break;
+        case COMPRESSION_TYPE_ZSTD:
+            max_compress_level = 22;
+            break;
         default:
             error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "compress_type",
-                       "values: 0 - gzip");
+                       "values: 0 - gzip, 1 - zstd");
             return false;
         }
     }
