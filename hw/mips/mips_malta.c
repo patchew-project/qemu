@@ -1170,6 +1170,36 @@ static void create_cps(MaltaState *s, const char *cpu_type,
     *cbus_irq = NULL;
 }
 
+static void create_dspram(void)
+{
+    MIPSCPU *cpu = MIPS_CPU(first_cpu);
+    CPUMIPSState *env = &cpu->env;
+    bool dspram_present = (bool) env->dspramp;
+    Error *err = NULL;
+
+    env->dspram = g_new0(MIPSDSPRAMState, 1);
+
+    /* DSPRAM */
+    if (dspram_present) {
+        if (!(bool) env->saarp) {
+            error_report("%s: DSPRAM requires SAAR registers", __func__);
+            exit(1);
+        }
+        object_initialize(env->dspram, sizeof(MIPSDSPRAMState),
+                          TYPE_MIPS_DSPRAM);
+        qdev_set_parent_bus(DEVICE(env->dspram), sysbus_get_default());
+        qdev_prop_set_ptr(DEVICE(env->dspram), "saar",
+                          (void *) &env->CP0_SAAR[1]);
+        object_property_set_bool(OBJECT(env->dspram), true, "realized", &err);
+        if (err != NULL) {
+            error_report("%s: DSPRAM initialisation failed", __func__);
+            exit(1);
+        }
+        memory_region_add_subregion(get_system_memory(), 0,
+                    sysbus_mmio_get_region(SYS_BUS_DEVICE(env->dspram), 0));
+    }
+}
+
 static void mips_create_cpu(MaltaState *s, const char *cpu_type,
                             qemu_irq *cbus_irq, qemu_irq *i8259_irq)
 {
@@ -1178,6 +1208,7 @@ static void mips_create_cpu(MaltaState *s, const char *cpu_type,
     } else {
         create_cpu_without_cps(cpu_type, cbus_irq, i8259_irq);
     }
+    create_dspram();
 }
 
 static

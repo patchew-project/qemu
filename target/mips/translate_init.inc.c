@@ -760,6 +760,8 @@ const mips_def_t mips_defs[] =
         .PABITS = 48,
         .insn_flags = CPU_MIPS64R6 | ASE_MSA,
         .mmu_type = MMU_TYPE_R4000,
+        .SAARP = 1,
+        .DSPRAMP = 1,
     },
     {
         .name = "Loongson-2E",
