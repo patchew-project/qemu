@@ -24488,6 +24488,99 @@ static void gen_mmi_pcpyud(DisasContext *ctx)
     }
 }
 
+/*
+ *  PEXCH rd, rt
+ *
+ *  Parallel Exchange Center Halfword
+ *
+ *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ *  +-----------+---------+---------+---------+---------+-----------+
+ *  |    MMI    |0 0 0 0 0|   rt    |   rd    |  PEXCH  |    MMI3   |
+ *  +-----------+---------+---------+---------+---------+-----------+
+ */
+static void gen_mmi_pexch(DisasContext *ctx)
+{
+    uint32_t pd, rt, rd;
+    uint32_t opcode;
+
+    opcode = ctx->opcode;
+
+    pd = extract32(opcode, 21, 5);
+    rt = extract32(opcode, 16, 5);
+    rd = extract32(opcode, 11, 5);
+
+    if (unlikely(pd != 0)) {
+        generate_exception_end(ctx, EXCP_RI);
+    } else if (rd == 0) {
+        /* nop */
+    } else if (rt == 0) {
+        tcg_gen_movi_i64(cpu_gpr[rd], 0);
+        tcg_gen_movi_i64(cpu_mmr[rd], 0);
+    } else if (rd == rt) {
+        TCGv_i64 t0 = tcg_temp_new();
+        TCGv_i64 t1 = tcg_temp_new();
+        uint64_t mask0 = (1ULL << 16) - 1;
+        uint64_t mask1 = mask0 << 16;
+        uint64_t mask2 = mask1 << 16;
+        uint64_t mask3 = (mask2 << 16) | mask0;
+
+        tcg_gen_andi_i64(t0, cpu_gpr[rt], mask1);
+        tcg_gen_shli_i64(t0, t0, 16);
+        tcg_gen_andi_i64(t1, cpu_gpr[rt], mask2);
+        tcg_gen_shri_i64(t1, t1, 16);
+
+        tcg_gen_andi_i64(cpu_gpr[rt], cpu_gpr[rt], mask3);
+        tcg_gen_or_i64(cpu_gpr[rd], cpu_gpr[rd], t0);
+        tcg_gen_or_i64(cpu_gpr[rd], cpu_gpr[rd], t1);
+
+        tcg_gen_andi_i64(t0, cpu_mmr[rt], mask1);
+        tcg_gen_shli_i64(t0, t0, 16);
+        tcg_gen_andi_i64(t1, cpu_mmr[rt], mask2);
+        tcg_gen_shri_i64(t1, t1, 16);
+
+        tcg_gen_andi_i64(cpu_mmr[rt], cpu_mmr[rt], mask3);
+        tcg_gen_or_i64(cpu_mmr[rd], cpu_mmr[rd], t0);
+        tcg_gen_or_i64(cpu_mmr[rd], cpu_mmr[rd], t1);
+
+        tcg_temp_free(t0);
+        tcg_temp_free(t1);
+    } else {
+        TCGv_i64 t0 = tcg_temp_new();
+        TCGv_i64 t1 = tcg_temp_new();
+        uint64_t mask0 = (1ULL << 16) - 1;
+        uint64_t mask1 = mask0 << 16;
+        uint64_t mask2 = mask1 << 16;
+        uint64_t mask3 = mask2 << 16;
+
+        tcg_gen_andi_i64(t0, cpu_gpr[rt], mask3);
+        tcg_gen_andi_i64(t1, cpu_gpr[rt], mask2);
+        tcg_gen_shri_i64(t1, t1, 16);
+        tcg_gen_or_i64(t0, t0, t1);
+        tcg_gen_andi_i64(t1, cpu_gpr[rt], mask1);
+        tcg_gen_shli_i64(t1, t1, 16);
+        tcg_gen_or_i64(t0, t0, t1);
+        tcg_gen_andi_i64(t1, cpu_gpr[rt], mask0);
+        tcg_gen_or_i64(t0, t0, t1);
+
+        tcg_gen_mov_i64(cpu_gpr[rd], t0);
+
+        tcg_gen_andi_i64(t0, cpu_mmr[rt], mask3);
+        tcg_gen_andi_i64(t1, cpu_mmr[rt], mask2);
+        tcg_gen_shri_i64(t1, t1, 16);
+        tcg_gen_or_i64(t0, t0, t1);
+        tcg_gen_andi_i64(t1, cpu_mmr[rt], mask1);
+        tcg_gen_shli_i64(t1, t1, 16);
+        tcg_gen_or_i64(t0, t0, t1);
+        tcg_gen_andi_i64(t1, cpu_mmr[rt], mask0);
+        tcg_gen_or_i64(t0, t0, t1);
+
+        tcg_gen_mov_i64(cpu_mmr[rd], t0);
+
+        tcg_temp_free(t0);
+        tcg_temp_free(t1);
+    }
+}
+
 #endif
 
 
@@ -27540,7 +27633,6 @@ static void decode_mmi3(CPUMIPSState *env, DisasContext *ctx)
     case MMI_OPC_3_PDIVUW:     /* TODO: MMI_OPC_3_PDIVUW */
     case MMI_OPC_3_POR:        /* TODO: MMI_OPC_3_POR */
     case MMI_OPC_3_PNOR:       /* TODO: MMI_OPC_3_PNOR */
-    case MMI_OPC_3_PEXCH:      /* TODO: MMI_OPC_3_PEXCH */
     case MMI_OPC_3_PEXCW:      /* TODO: MMI_OPC_3_PEXCW */
         generate_exception_end(ctx, EXCP_RI); /* TODO: MMI_OPC_CLASS_MMI3 */
         break;
@@ -27549,6 +27641,9 @@ static void decode_mmi3(CPUMIPSState *env, DisasContext *ctx)
         break;
     case MMI_OPC_3_PCPYUD:
         gen_mmi_pcpyud(ctx);
+        break;
+    case MMI_OPC_3_PEXCH:
+        gen_mmi_pexch(ctx);
         break;
     default:
         MIPS_INVAL("TX79 MMI class MMI3");
