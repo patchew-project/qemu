@@ -1273,7 +1273,7 @@ void mips_malta_init(MachineState *machine)
                blk_name(dinfo->bdrv), fl_sectors);
     }
 #endif
-    fl = pflash_cfi01_register(FLASH_ADDRESS, NULL, "mips_malta.bios",
+    fl = pflash_cfi01_register(FLASH_ADDRESS, "mips_malta.bios",
                                FLASH_SIZE,
                                dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
                                65536, fl_sectors,
