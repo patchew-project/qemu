@@ -115,6 +115,21 @@ typedef struct QEMUFileHooks {
     QEMURamSaveFunc *save_page;
 } QEMUFileHooks;
 
+typedef enum CompressionType {
+    COMPRESSION_TYPE_ZLIB = 0,
+} CompressionType;
+
+struct Compression {
+    CompressionType type;
+    bool is_decompression;
+    void *stream;
+    int (*process)(struct Compression *comp, uint8_t *dest, size_t dest_len,
+                    const uint8_t *source, size_t source_len);
+    unsigned long (*get_bound)(unsigned long);
+};
+
+typedef struct Compression Compression;
+
 QEMUFile *qemu_fopen_ops(void *opaque, const QEMUFileOps *ops);
 void qemu_file_set_hooks(QEMUFile *f, const QEMUFileHooks *hooks);
 int qemu_get_fd(QEMUFile *f);
@@ -134,7 +149,7 @@ bool qemu_file_is_writable(QEMUFile *f);
 
 size_t qemu_peek_buffer(QEMUFile *f, uint8_t **buf, size_t size, size_t offset);
 size_t qemu_get_buffer_in_place(QEMUFile *f, uint8_t **buf, size_t size);
-ssize_t qemu_put_compression_data(QEMUFile *f, z_stream *stream,
+ssize_t qemu_put_compression_data(QEMUFile *f, Compression *comp,
                                   const uint8_t *p, size_t size);
 int qemu_put_qemu_file(QEMUFile *f_des, QEMUFile *f_src);
 

@@ -739,6 +739,8 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
     params->max_postcopy_bandwidth = s->parameters.max_postcopy_bandwidth;
     params->has_max_cpu_throttle = true;
     params->max_cpu_throttle = s->parameters.max_cpu_throttle;
+    params->has_compress_type = true;
+    params->compress_type = s->parameters.compress_type;
 
     return params;
 }
@@ -1027,10 +1029,27 @@ void qmp_migrate_set_capabilities(MigrationCapabilityStatusList *params,
  */
 static bool migrate_params_check(MigrationParameters *params, Error **errp)
 {
+    int max_compress_level = -1;
+
+    if (params->has_compress_type) {
+        switch (params->compress_type) {
+        case COMPRESSION_TYPE_ZLIB:
+            max_compress_level = 9;
+            break;
+        default:
+            error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "compress_type",
+                       "values: 0 - gzip");
+            return false;
+        }
+    }
+
     if (params->has_compress_level &&
-        (params->compress_level > 9)) {
+        (params->compress_level > max_compress_level)) {
+        char level_range_msg[30];
+        snprintf(level_range_msg, 30, "values from 0 to %d",
+                 max_compress_level);
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "compress_level",
-                   "is invalid, it should be in the range of 0 to 9");
+                   level_range_msg);
         return false;
     }
 
@@ -1125,6 +1144,9 @@ static void migrate_params_test_apply(MigrateSetParameters *params,
     *dest = migrate_get_current()->parameters;
 
     /* TODO use QAPI_CLONE() instead of duplicating it inline */
+    if (params->has_compress_type) {
+        dest->compress_type = params->compress_type;
+    }
 
     if (params->has_compress_level) {
         dest->compress_level = params->compress_level;
@@ -1271,6 +1293,9 @@ static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
     }
     if (params->has_max_cpu_throttle) {
         s->parameters.max_cpu_throttle = params->max_cpu_throttle;
+    }
+    if (params->has_compress_type) {
+        s->parameters.compress_type = params->compress_type;
     }
 }
 
@@ -1936,6 +1961,15 @@ bool migrate_use_compression(void)
     s = migrate_get_current();
 
     return s->enabled_capabilities[MIGRATION_CAPABILITY_COMPRESS];
+}
+
+int migrate_compress_type(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->parameters.compress_type;
 }
 
 int migrate_compress_level(void)
@@ -3234,6 +3268,9 @@ static Property migration_properties[] = {
                       decompress_error_check, true),
 
     /* Migration parameters */
+    DEFINE_PROP_UINT8("x-compress-type", MigrationState,
+                      parameters.compress_type,
+                      COMPRESSION_TYPE_ZLIB),
     DEFINE_PROP_UINT8("x-compress-level", MigrationState,
                       parameters.compress_level,
                       DEFAULT_MIGRATE_COMPRESS_LEVEL),
@@ -3346,6 +3383,7 @@ static void migration_instance_init(Object *obj)
     params->has_xbzrle_cache_size = true;
     params->has_max_postcopy_bandwidth = true;
     params->has_max_cpu_throttle = true;
+    params->has_compress_type = true;
 
     qemu_sem_init(&ms->postcopy_pause_sem, 0);
     qemu_sem_init(&ms->postcopy_pause_rp_sem, 0);

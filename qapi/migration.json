@@ -480,10 +480,15 @@
 #
 # Migration parameters enumeration
 #
+# @compress-type: Set the compression type to be used in live migration,
+#          the compression type is an integer from the list:
+#          0 - gzip
+#
 # @compress-level: Set the compression level to be used in live migration,
-#          the compression level is an integer between 0 and 9, where 0 means
-#          no compression, 1 means the best compression speed, and 9 means best
-#          compression ratio which will consume more CPU.
+#          the compression level is an integer between 0 and 9,
+#          where 0 means no compression, 1 means the best compression speed,
+#          and the highest value depending on the compression type means
+#          the best compression ratio which will consume more CPU.
 #
 # @compress-threads: Set compression thread count to be used in live migration,
 #          the compression thread count is an integer between 1 and 255.
@@ -560,8 +565,8 @@
 # Since: 2.4
 ##
 { 'enum': 'MigrationParameter',
-  'data': ['compress-level', 'compress-threads', 'decompress-threads',
-           'compress-wait-thread',
+  'data': ['compress-type', 'compress-level', 'compress-threads',
+           'decompress-threads', 'compress-wait-thread',
            'cpu-throttle-initial', 'cpu-throttle-increment',
            'tls-creds', 'tls-hostname', 'max-bandwidth',
            'downtime-limit', 'x-checkpoint-delay', 'block-incremental',
@@ -571,6 +576,9 @@
 
 ##
 # @MigrateSetParameters:
+#
+# @compress-type: Compression type is used for migration.
+#                 Available types:  0 - gzip
 #
 # @compress-level: compression level
 #
@@ -653,7 +661,8 @@
 # TODO either fuse back into MigrationParameters, or make
 # MigrationParameters members mandatory
 { 'struct': 'MigrateSetParameters',
-  'data': { '*compress-level': 'int',
+  'data': { '*compress-type': 'int',
+            '*compress-level': 'int',
             '*compress-threads': 'int',
             '*compress-wait-thread': 'bool',
             '*decompress-threads': 'int',
@@ -691,6 +700,8 @@
 # @MigrationParameters:
 #
 # The optional members aren't actually optional.
+#
+# @compress-type: compression type
 #
 # @compress-level: compression level
 #
@@ -769,7 +780,8 @@
 # Since: 2.4
 ##
 { 'struct': 'MigrationParameters',
-  'data': { '*compress-level': 'uint8',
+  'data': { '*compress-type': 'uint8',
+            '*compress-level': 'uint8',
             '*compress-threads': 'uint8',
             '*compress-wait-thread': 'bool',
             '*decompress-threads': 'uint8',
