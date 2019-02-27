@@ -280,11 +280,10 @@ void virtio_blk_data_plane_stop(VirtIODevice *vdev)
 
     aio_context_acquire(s->ctx);
     aio_wait_bh_oneshot(s->ctx, virtio_blk_data_plane_stop_bh, s);
+    aio_context_release(s->ctx);
 
     /* Drain and switch bs back to the QEMU main loop */
     blk_set_aio_context(s->conf->conf.blk, qemu_get_aio_context());
-
-    aio_context_release(s->ctx);
 
     for (i = 0; i < nvqs; i++) {
         virtio_bus_set_host_notifier(VIRTIO_BUS(qbus), i, false);
