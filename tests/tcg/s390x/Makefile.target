@@ -6,3 +6,9 @@ TESTS+=ipm
 TESTS+=exrl-trt
 TESTS+=exrl-trtr
 TESTS+=pack
+
+VECTOR_TESTS=vge
+TESTS+=$(VECTOR_TESTS)
+
+#enable vectors and optimisation for vector tests
+$(VECTOR_TESTS): CFLAGS+=-march=z13 -O2
