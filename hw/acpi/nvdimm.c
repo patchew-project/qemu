@@ -425,11 +425,6 @@ static void nvdimm_build_fit_buffer(AcpiNVDIMMState *state)
     fit_buf->dirty = true;
 }
 
-void nvdimm_plug(AcpiNVDIMMState *state)
-{
-    nvdimm_build_fit_buffer(state);
-}
-
 static void nvdimm_build_nfit(AcpiNVDIMMState *state, GArray *table_offsets,
                               GArray *table_data, BIOSLinker *linker)
 {
@@ -1338,6 +1333,7 @@ void nvdimm_build_acpi(GArray *table_offsets, GArray *table_data,
         return;
     }
 
+    nvdimm_build_fit_buffer(state);
     nvdimm_build_nfit(state, table_offsets, table_data, linker);
     g_slist_free(device_list);
 }
