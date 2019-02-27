@@ -54,7 +54,7 @@ skip-test = @printf "  SKIPPED %s on $(TARGET_NAME) because %s\n" $1 $2
 TESTS=
 
 # Start with a blank slate, the build targets get to add stuff first
-CFLAGS=
+CFLAGS=-O0
 QEMU_CFLAGS=
 LDFLAGS=
 
@@ -84,7 +84,7 @@ ifneq ($(TARGET_BASE_ARCH),$(TARGET_NAME))
 endif
 
 # Add the common build options
-CFLAGS+=-Wall -O0 -g -fno-strict-aliasing
+CFLAGS+=-Wall -g -fno-strict-aliasing
 ifeq ($(BUILD_STATIC),y)
 LDFLAGS+=-static
 endif
