@@ -45,6 +45,7 @@
 #include "qemu/bitops.h"
 #include "qemu/host-utils.h"
 #include "qemu/log.h"
+#include "qemu/error-report.h"
 #include "hw/sysbus.h"
 #include "sysemu/sysemu.h"
 #include "trace.h"
@@ -730,13 +731,6 @@ static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
     }
     device_len = sector_len_per_device * blocks_per_device;
 
-    /* XXX: to be fixed */
-#if 0
-    if (total_len != (8 * 1024 * 1024) && total_len != (16 * 1024 * 1024) &&
-        total_len != (32 * 1024 * 1024) && total_len != (64 * 1024 * 1024))
-        return NULL;
-#endif
-
     memory_region_init_rom_device(
         &pfl->mem, OBJECT(dev),
         &pflash_cfi01_ops,
@@ -763,6 +757,38 @@ static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
     }
 
     if (pfl->blk) {
+        /*
+         * Validate the backing store is the right size for pflash
+         * devices. It should be padded to a multiple of the flash
+         * block size. If the device is read-only we can elide the
+         * check and just pad the region first. If the user supplies a
+         * larger file we ignore the tail.
+         */
+        int64_t backing_len = blk_getlength(pfl->blk);
+        if (backing_len < 0) {
+            error_setg(errp, "unable to check size of backing file");
+            return;
+        }
+
+        if (backing_len < total_len) {
+            if (pfl->ro) {
+                size_t pad_bytes = total_len - backing_len;
+                /* pad with NOR erase pattern */
+                memset((uint8_t*)pfl->storage + backing_len, 0xff, pad_bytes);
+                warn_report("device needs %" PRIu64
+                            " bytes, padded with %zu 0xff bytes",
+                            total_len, pad_bytes);
+                total_len = backing_len;
+            } else {
+                error_setg(errp, "device needs %" PRIu64 " bytes, "
+                           "backing file provides only %" PRIu64 " bytes",
+                           total_len, backing_len);
+                return;
+            }
+        } else if (backing_len > total_len) {
+            warn_report("device needs %" PRIu64 " bytes, rest ignored", total_len);
+        }
+
         /* read the initial flash content */
         ret = blk_pread(pfl->blk, 0, pfl->storage, total_len);
 
