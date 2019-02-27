@@ -1198,13 +1198,6 @@ MSA_FN_DF(ilvl_df)
 MSA_FN_DF(ilvr_df)
 #undef MSA_DO
 
-#define MSA_DO(DF)                          \
-    do {                                    \
-        pwx->DF[2*i]   = pwt->DF[2*i+1];    \
-        pwx->DF[2*i+1] = pws->DF[2*i+1];    \
-    } while (0)
-MSA_FN_DF(ilvod_df)
-#undef MSA_DO
 #undef MSA_LOOP_COND
 
 #define MSA_LOOP_COND(DF) \
@@ -1268,6 +1261,57 @@ void helper_msa_ilvev_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
     case DF_DOUBLE:
         pwd->d[0] = pwt->d[0];
         pwd->d[1] = pws->d[0];
+        break;
+    default:
+        assert(0);
+    }
+}
+
+void helper_msa_ilvod_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
+                         uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    switch (df) {
+    case DF_BYTE:
+        pwd->b[0]  = pwt->b[1];
+        pwd->b[1]  = pws->b[1];
+        pwd->b[2]  = pwt->b[3];
+        pwd->b[3]  = pws->b[3];
+        pwd->b[4]  = pwt->b[5];
+        pwd->b[5]  = pws->b[5];
+        pwd->b[6]  = pwt->b[7];
+        pwd->b[7]  = pws->b[7];
+        pwd->b[8]  = pwt->b[9];
+        pwd->b[9]  = pws->b[9];
+        pwd->b[10] = pwt->b[11];
+        pwd->b[11] = pws->b[11];
+        pwd->b[12] = pwt->b[13];
+        pwd->b[13] = pws->b[13];
+        pwd->b[14] = pwt->b[15];
+        pwd->b[15] = pws->b[15];
+        break;
+    case DF_HALF:
+        pwd->h[0] = pwt->h[1];
+        pwd->h[1] = pws->h[1];
+        pwd->h[2] = pwt->h[3];
+        pwd->h[3] = pws->h[3];
+        pwd->h[4] = pwt->h[5];
+        pwd->h[5] = pws->h[5];
+        pwd->h[6] = pwt->h[7];
+        pwd->h[7] = pws->h[7];
+        break;
+    case DF_WORD:
+        pwd->w[0] = pwt->w[1];
+        pwd->w[1] = pws->w[1];
+        pwd->w[2] = pwt->w[3];
+        pwd->w[3] = pws->w[3];
+        break;
+    case DF_DOUBLE:
+        pwd->d[0] = pwt->d[1];
+        pwd->d[1] = pws->d[1];
         break;
     default:
         assert(0);
