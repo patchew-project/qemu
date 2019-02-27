@@ -117,6 +117,10 @@ option; or provide the credentials needed for connecting as a client
 in list mode.
 @item --fork
 Fork off the server process and exit the parent once the server is running.
+@item --tls-authz=ID
+Specify the ID of a qauthz object previously created with the
+--object option. This will be used to authorize connecting users
+against their x509 distinguished name.
 @item -v, --verbose
 Display extra debugging information.
 @item -h, --help
