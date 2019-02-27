@@ -524,6 +524,22 @@ STEXI
 Show CPU statistics.
 ETEXI
 
+#if defined(CONFIG_PVRDMA)
+    {
+        .name       = "pvrdmacounters",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show pvrdma device counters",
+        .cmd        = hmp_info_pvrdmacounters,
+    },
+
+STEXI
+@item info pvrdmacounters
+@findex info pvrdmacounters
+Show pvrdma device counters.
+ETEXI
+#endif
+
 #if defined(CONFIG_SLIRP)
     {
         .name       = "usernet",
