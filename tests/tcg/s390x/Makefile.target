@@ -8,6 +8,7 @@ TESTS+=exrl-trtr
 TESTS+=pack
 
 VECTOR_TESTS=vge
+VECTOR_TESTS+=vlgv
 TESTS+=$(VECTOR_TESTS)
 
 #enable vectors and optimisation for vector tests
