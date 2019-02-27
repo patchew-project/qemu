@@ -3890,9 +3890,11 @@ int main(int argc, char **argv, char **envp)
                     exit(1);
                 }
 #else
-                error_report("-sandbox support is not enabled "
-                             "in this QEMU binary");
-                exit(1);
+                if (!g_str_equal(optarg, "off")) {
+                    error_report("-sandbox support is not enabled "
+                                 "in this QEMU binary");
+                    exit(1);
+                }
 #endif
                 break;
             case QEMU_OPTION_add_fd:
