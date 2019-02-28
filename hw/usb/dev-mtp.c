@@ -1703,13 +1703,25 @@ static void usb_mtp_write_metadata(MTPState *s, uint64_t dlen)
     MTPObject *o;
     MTPObject *p = usb_mtp_object_lookup(s, s->dataset.parent_handle);
     uint32_t next_handle = s->next_handle;
+    uint16_t *utf16_filename;
+    uint8_t filename_len;
 
     assert(!s->write_pending);
     assert(p != NULL);
 
-    filename = utf16_to_str(MIN(dataset->length,
-                                dlen - offsetof(ObjectInfo, filename)),
-                            dataset->filename);
+    /*
+     * MTP Specification 3.2.3 Strings
+     * Strings in PTP (and thus MTP) consist of standard 2-byte Unicode
+     * characters as defined by ISO 10646. Strings begin with a single, 8-bit
+     * unsigned integer that identifies the number of characters to follow (not
+     * bytes).
+     *
+     * This causes dataset->filename to be unaligned.
+     */
+    filename_len = MIN(dataset->length, dlen - offsetof(ObjectInfo, filename));
+    utf16_filename = g_memdup(dataset->filename, filename_len * 2);
+    filename = utf16_to_str(filename_len, utf16_filename);
+    g_free(utf16_filename);
 
     if (strchr(filename, '/')) {
         usb_mtp_queue_result(s, RES_PARAMETER_NOT_SUPPORTED, d->trans,
