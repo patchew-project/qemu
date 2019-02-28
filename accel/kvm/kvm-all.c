@@ -2267,6 +2267,13 @@ bool kvm_arm_supports_user_irq(void)
     return kvm_check_extension(kvm_state, KVM_CAP_ARM_USER_IRQ);
 }
 
+/* Whether the KVM_SET_GUEST_DEBUG ioctl supports single stepping */
+int kvm_has_guestdbg_singlestep(void)
+{
+    /* return kvm_check_extension(kvm_state, KVM_CAP_GUEST_DEBUG_SSTEP); */
+    return 0;
+}
+
 #ifdef KVM_CAP_SET_GUEST_DEBUG
 struct kvm_sw_breakpoint *kvm_find_sw_breakpoint(CPUState *cpu,
                                                  target_ulong pc)
@@ -2314,6 +2321,15 @@ int kvm_update_guest_debug(CPUState *cpu, unsigned long reinject_trap)
     run_on_cpu(cpu, kvm_invoke_set_guest_debug,
                RUN_ON_CPU_HOST_PTR(&data));
     return data.err;
+}
+
+void kvm_set_singlestep(CPUState *cs, int enabled)
+{
+    if (kvm_has_guestdbg_singlestep()) {
+        kvm_update_guest_debug(cs, 0);
+    } else {
+        kvm_arch_set_singlestep(cs, enabled);
+    }
 }
 
 int kvm_insert_breakpoint(CPUState *cpu, target_ulong addr,
