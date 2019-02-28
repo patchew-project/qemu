@@ -31,6 +31,7 @@ fields = {}
 arguments = {}
 formats = {}
 patterns = []
+allpatterns = []
 
 translate_prefix = 'trans'
 translate_scope = 'static '
@@ -353,6 +354,46 @@ class Pattern(General):
 # end Pattern
 
 
+class MultiPattern(General):
+    """Class representing an overlapping set of instruction patterns"""
+
+    def __init__(self, lineno, pats, fixb, fixm, udfm):
+        self.lineno = lineno
+        self.pats = pats
+        self.base = None
+        self.fixedbits = fixb
+        self.fixedmask = fixm
+        self.undefmask = udfm
+
+    def __str__(self):
+        r = "{"
+        for p in self.pats:
+           r = r + ' ' + str(p)
+        return r + "}"
+
+    def output_decl(self):
+        for p in self.pats:
+            p.output_decl()
+
+    def output_code(self, i, extracted, outerbits, outermask):
+        global translate_prefix
+        ind = str_indent(i)
+        for p in self.pats:
+            if outermask != p.fixedmask:
+                innermask = p.fixedmask & ~outermask
+                innerbits = p.fixedbits & ~outermask
+                output(ind, 'if ((insn & ',
+                       '0x{0:08x}) == 0x{1:08x}'.format(innermask, innerbits),
+                       ') {\n')
+                output(ind, '    /* ',
+                       str_match_bits(p.fixedbits, p.fixedmask), ' */\n')
+                p.output_code(i + 4, extracted, p.fixedbits, p.fixedmask)
+                output(ind, '}\n')
+            else:
+                p.output_code(i, extracted, p.fixedbits, p.fixedmask)
+#end MultiPattern
+
+
 def parse_field(lineno, name, toks):
     """Parse one instruction field from TOKS at LINENO"""
     global fields
@@ -505,6 +546,7 @@ def parse_generic(lineno, is_format, name, toks):
     global arguments
     global formats
     global patterns
+    global allpatterns
     global re_ident
     global insnwidth
     global insnmask
@@ -649,6 +691,7 @@ def parse_generic(lineno, is_format, name, toks):
         pat = Pattern(name, lineno, fmt, fixedbits, fixedmask,
                       undefmask, fieldmask, flds)
         patterns.append(pat)
+        allpatterns.append(pat)
 
     # Validate the masks that we have assembled.
     if fieldmask & fixedmask:
@@ -667,16 +710,60 @@ def parse_generic(lineno, is_format, name, toks):
                           .format(allbits ^ insnmask))
 # end parse_general
 
+def build_multi_pattern(lineno, pats):
+    """Validate the Patterns going into a MultiPattern."""
+    global patterns
+    global insnmask
+
+    if len(pats) < 2:
+        error(lineno, 'less than two patterns within braces')
+
+    fixedmask = insnmask
+    undefmask = insnmask
+
+    for p in pats:
+        fixedmask &= p.fixedmask
+        undefmask &= p.undefmask
+        if p.lineno < lineno:
+            lineno = p.lineno
+
+    if fixedmask == 0:
+        error(lineno, 'no overlap in patterns within braces')
+
+    fixedbits = None
+    for p in pats:
+        thisbits = p.fixedbits & fixedmask
+        if fixedbits is None:
+            fixedbits = thisbits
+        elif fixedbits != thisbits:
+            error(p.lineno, 'fixedbits mismatch within braces',
+                  '(0x{0:08x} != 0x{1:08x})'.format(thisbits, fixedbits))
+
+    mp = MultiPattern(lineno, pats, fixedbits, fixedmask, undefmask)
+    patterns.append(mp)
+# end build_multi_pattern
 
 def parse_file(f):
     """Parse all of the patterns within a file"""
+
+    global patterns
 
     # Read all of the lines of the file.  Concatenate lines
     # ending in backslash; discard empty lines and comments.
     toks = []
     lineno = 0
+    nesting = 0
+    saved_pats = []
+
     for line in f:
         lineno += 1
+
+        # Expand and strip spaces, to find indent.
+        line = line.rstrip()
+        line = line.expandtabs()
+        len1 = len(line)
+        line = line.lstrip()
+        len2 = len(line)
 
         # Discard comments
         end = line.find('#')
@@ -687,10 +774,18 @@ def parse_file(f):
         if len(toks) != 0:
             # Next line after continuation
             toks.extend(t)
-        elif len(t) == 0:
-            # Empty line
-            continue
         else:
+            # Allow completely blank lines.
+            if len1 == 0:
+                continue
+            indent = len1 - len2
+            # Empty line due to comment.
+            if len(t) == 0:
+                # Indentation must be correct, even for comment lines.
+                if indent != nesting:
+                    error(lineno, 'indentation ', indent, ' != ', nesting)
+                continue
+            start_lineno = lineno
             toks = t
 
         # Continuation?
@@ -698,21 +793,47 @@ def parse_file(f):
             toks.pop()
             continue
 
-        if len(toks) < 2:
-            error(lineno, 'short line')
-
         name = toks[0]
         del toks[0]
 
+        # End nesting?
+        if name == '}':
+            if nesting == 0:
+                error(start_lineno, 'mismatched close brace')
+            if len(toks) != 0:
+                error(start_lineno, 'extra tokens after close brace')
+            nesting -= 2
+            if indent != nesting:
+                error(start_lineno, 'indentation ', indent, ' != ', nesting)
+            pats = patterns
+            patterns = saved_pats.pop()
+            build_multi_pattern(lineno, pats)
+            toks = []
+            continue
+
+        # Everything else should have current indentation.
+        if indent != nesting:
+            error(start_lineno, 'indentation ', indent, ' != ', nesting)
+
+        # Start nesting?
+        if name == '{':
+            if len(toks) != 0:
+                error(start_lineno, 'extra tokens after open brace')
+            saved_pats.append(patterns)
+            patterns = []
+            nesting += 2
+            toks = []
+            continue
+
         # Determine the type of object needing to be parsed.
         if name[0] == '%':
-            parse_field(lineno, name[1:], toks)
+            parse_field(start_lineno, name[1:], toks)
         elif name[0] == '&':
-            parse_arguments(lineno, name[1:], toks)
+            parse_arguments(start_lineno, name[1:], toks)
         elif name[0] == '@':
-            parse_generic(lineno, True, name[1:], toks)
+            parse_generic(start_lineno, True, name[1:], toks)
         else:
-            parse_generic(lineno, False, name, toks)
+            parse_generic(start_lineno, False, name, toks)
         toks = []
 # end parse_file
 
@@ -846,6 +967,7 @@ def main():
     global arguments
     global formats
     global patterns
+    global allpatterns
     global translate_scope
     global translate_prefix
     global output_fd
@@ -907,7 +1029,7 @@ def main():
     # Make sure that the argument sets are the same, and declare the
     # function only once.
     out_pats = {}
-    for i in patterns:
+    for i in allpatterns:
         if i.name in out_pats:
             p = out_pats[i.name]
             if i.base.base != p.base.base:
