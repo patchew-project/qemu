@@ -1171,6 +1171,11 @@ struct CPUPPCState {
     uint32_t tm_vscr;
     uint64_t tm_dscr;
     uint64_t tm_tar;
+
+    /* Used for software single step */
+    target_ulong sstep_msr;
+    target_ulong sstep_srr0;
+    target_ulong sstep_srr1;
 };
 
 #define SET_FIT_PERIOD(a_, b_, c_, d_)          \
@@ -1266,6 +1271,7 @@ struct PPCVirtualHypervisorClass {
     OBJECT_GET_CLASS(PPCVirtualHypervisorClass, (obj), \
                      TYPE_PPC_VIRTUAL_HYPERVISOR)
 
+target_ulong ppc_get_trace_int_handler_addr(CPUState *cs);
 void ppc_cpu_do_interrupt(CPUState *cpu);
 bool ppc_cpu_exec_interrupt(CPUState *cpu, int int_req);
 void ppc_cpu_dump_state(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf,
@@ -1281,6 +1287,12 @@ int ppc_cpu_gdb_write_register_apple(CPUState *cpu, uint8_t *buf, int reg);
 void ppc_gdb_gen_spr_xml(PowerPCCPU *cpu);
 const char *ppc_gdb_get_dynamic_xml(CPUState *cs, const char *xml_name);
 #endif
+uint32_t ppc_gdb_read_insn(CPUState *cs, target_ulong addr);
+uint32_t ppc_gdb_get_op(uint32_t insn);
+uint32_t ppc_gdb_get_xop(uint32_t insn);
+uint32_t ppc_gdb_get_spr(uint32_t insn);
+uint32_t ppc_gdb_get_rt(uint32_t insn);
+
 int ppc64_cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cs,
                                int cpuid, void *opaque);
 int ppc32_cpu_write_elf32_note(WriteCoreDumpFunction f, CPUState *cs,
@@ -2226,6 +2238,10 @@ enum {
                         PPC2_FP_CVT_S64 | PPC2_TM | PPC2_PM_ISA206 | \
                         PPC2_ISA300)
 };
+
+#define XOP_RFID 18
+#define XOP_MFMSR 83
+#define XOP_MTSPR 467
 
 /*****************************************************************************/
 /* Memory access type :

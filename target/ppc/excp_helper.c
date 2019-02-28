@@ -112,6 +112,8 @@ static uint64_t ppc_excp_vector_offset(CPUState *cs, int ail)
     uint64_t offset = 0;
 
     switch (ail) {
+    case AIL_NONE:
+        break;
     case AIL_0001_8000:
         offset = 0x18000;
         break;
@@ -766,6 +768,17 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
      * needs a delayed flush on ppc64
      */
     check_tlb_flush(env, false);
+}
+
+target_ulong ppc_get_trace_int_handler_addr(CPUState *cs)
+{
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    CPUPPCState *env = &cpu->env;
+    int ail;
+
+    ail = (env->spr[SPR_LPCR] & LPCR_AIL) >> LPCR_AIL_SHIFT;
+    return env->excp_vectors[POWERPC_EXCP_TRACE] |
+        ppc_excp_vector_offset(cs, ail);
 }
 
 void ppc_cpu_do_interrupt(CPUState *cs)
