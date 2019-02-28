@@ -113,6 +113,9 @@ RUN_TESTS+=$(EXTRA_RUNS)
 run-%: %
 	$(call run-test, $<, $(QEMU) $(QEMU_OPTS) $<, "$< on $(TARGET_NAME)")
 
+gdb-%: %
+	gdb --args $(QEMU) $(QEMU_OPTS) $<
+
 .PHONY: run
 run: $(RUN_TESTS)
 
