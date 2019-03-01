@@ -19,6 +19,7 @@
 #include "hw/loader.h"
 #include "hw/boards.h"
 #include "hw/s390x/virtio-ccw.h"
+#include "hw/s390x/vfio-ccw.h"
 #include "hw/s390x/css.h"
 #include "hw/s390x/ebcdic.h"
 #include "ipl.h"
@@ -305,16 +306,29 @@ static void s390_ipl_set_boot_menu(S390IPLState *ipl)
     *timeout = cpu_to_be32(splash_time);
 }
 
-static CcwDevice *s390_get_ccw_device(DeviceState *dev_st)
+#define CCW_DEVTYPE_NONE    0x00
+#define CCW_DEVTYPE_VIRTIO  0x01
+#define CCW_DEVTYPE_SCSI    0x02
+#define CCW_DEVTYPE_VFIO    0x03
+
+static CcwDevice *s390_get_ccw_device(DeviceState *dev_st, int* devtype)
 {
     CcwDevice *ccw_dev = NULL;
+
+    *devtype = CCW_DEVTYPE_NONE;
 
     if (dev_st) {
         VirtioCcwDevice *virtio_ccw_dev = (VirtioCcwDevice *)
             object_dynamic_cast(OBJECT(qdev_get_parent_bus(dev_st)->parent),
                                 TYPE_VIRTIO_CCW_DEVICE);
+        VFIOCCWDevice *vfio_ccw_dev = (VFIOCCWDevice *)
+            object_dynamic_cast(OBJECT(dev_st), TYPE_VFIO_CCW);
         if (virtio_ccw_dev) {
             ccw_dev = CCW_DEVICE(virtio_ccw_dev);
+            *devtype = CCW_DEVTYPE_VIRTIO;
+        } else if (vfio_ccw_dev) {
+            ccw_dev = CCW_DEVICE(vfio_ccw_dev);
+            *devtype = CCW_DEVTYPE_VFIO;
         } else {
             SCSIDevice *sd = (SCSIDevice *)
                 object_dynamic_cast(OBJECT(dev_st),
@@ -327,6 +341,7 @@ static CcwDevice *s390_get_ccw_device(DeviceState *dev_st)
 
                 ccw_dev = (CcwDevice *)object_dynamic_cast(OBJECT(scsi_ccw),
                                                            TYPE_CCW_DEVICE);
+                *devtype = CCW_DEVTYPE_SCSI;
             }
         }
     }
@@ -337,10 +352,11 @@ static bool s390_gen_initial_iplb(S390IPLState *ipl)
 {
     DeviceState *dev_st;
     CcwDevice *ccw_dev = NULL;
+    int devtype;
 
     dev_st = get_boot_device(0);
     if (dev_st) {
-        ccw_dev = s390_get_ccw_device(dev_st);
+        ccw_dev = s390_get_ccw_device(dev_st, &devtype);
     }
 
     /*
@@ -349,8 +365,10 @@ static bool s390_gen_initial_iplb(S390IPLState *ipl)
     if (ccw_dev) {
         SCSIDevice *sd = (SCSIDevice *) object_dynamic_cast(OBJECT(dev_st),
                                                             TYPE_SCSI_DEVICE);
+        VirtIONet *vn;
 
-        if (sd) {
+        switch (devtype) {
+        case CCW_DEVTYPE_SCSI:
             ipl->iplb.len = cpu_to_be32(S390_IPLB_MIN_QEMU_SCSI_LEN);
             ipl->iplb.blk0_len =
                 cpu_to_be32(S390_IPLB_MIN_QEMU_SCSI_LEN - S390_IPLB_HEADER_LEN);
@@ -360,8 +378,15 @@ static bool s390_gen_initial_iplb(S390IPLState *ipl)
             ipl->iplb.scsi.channel = cpu_to_be16(sd->channel);
             ipl->iplb.scsi.devno = cpu_to_be16(ccw_dev->sch->devno);
             ipl->iplb.scsi.ssid = ccw_dev->sch->ssid & 3;
-        } else {
-            VirtIONet *vn = (VirtIONet *) object_dynamic_cast(OBJECT(dev_st),
+            break;
+        case CCW_DEVTYPE_VFIO:
+            ipl->iplb.len = cpu_to_be32(S390_IPLB_MIN_CCW_LEN);
+            ipl->iplb.pbt = S390_IPL_TYPE_CCW;
+            ipl->iplb.ccw.devno = cpu_to_be16(ccw_dev->sch->devno);
+            ipl->iplb.ccw.ssid = ccw_dev->sch->ssid & 3;
+            break;
+        case CCW_DEVTYPE_VIRTIO:
+            vn = (VirtIONet *) object_dynamic_cast(OBJECT(dev_st),
                                                               TYPE_VIRTIO_NET);
 
             ipl->iplb.len = cpu_to_be32(S390_IPLB_MIN_CCW_LEN);
@@ -374,6 +399,7 @@ static bool s390_gen_initial_iplb(S390IPLState *ipl)
             if (vn) {
                 ipl->netboot = true;
             }
+            break;
         }
 
         if (!s390_ipl_set_loadparm(ipl->iplb.loadparm)) {
@@ -518,6 +544,7 @@ IplParameterBlock *s390_ipl_get_iplb(void)
 void s390_ipl_reset_request(CPUState *cs, enum s390_reset reset_type)
 {
     S390IPLState *ipl = get_ipl_device();
+    int devtype;
 
     if (reset_type == S390_RESET_EXTERNAL || reset_type == S390_RESET_REIPL) {
         /* use CPU 0 for full resets */
@@ -532,7 +559,7 @@ void s390_ipl_reset_request(CPUState *cs, enum s390_reset reset_type)
         !ipl->netboot &&
         ipl->iplb.pbt == S390_IPL_TYPE_CCW &&
         is_virtio_scsi_device(&ipl->iplb)) {
-        CcwDevice *ccw_dev = s390_get_ccw_device(get_boot_device(0));
+        CcwDevice *ccw_dev = s390_get_ccw_device(get_boot_device(0), &devtype);
 
         if (ccw_dev &&
             cpu_to_be16(ccw_dev->sch->devno) == ipl->iplb.ccw.devno &&
