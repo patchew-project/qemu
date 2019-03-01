@@ -332,7 +332,7 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
     }
 
     if (size != VHOST_USER_HDR_SIZE) {
-        g_test_message("Wrong message size received %d\n", size);
+        g_test_message("Wrong message size received %d", size);
         return;
     }
 
@@ -343,7 +343,7 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
         p += VHOST_USER_HDR_SIZE;
         size = qemu_chr_fe_read_all(chr, p, msg.size);
         if (size != msg.size) {
-            g_test_message("Wrong message size received %d != %d\n",
+            g_test_message("Wrong message size received %d != %d",
                            size, msg.size);
             return;
         }
@@ -465,7 +465,7 @@ static const char *init_hugepagefs(const char *path)
     int ret;
 
     if (access(path, R_OK | W_OK | X_OK)) {
-        g_test_message("access on path (%s): %s\n", path, strerror(errno));
+        g_test_message("access on path (%s): %s", path, strerror(errno));
         return NULL;
     }
 
@@ -474,12 +474,12 @@ static const char *init_hugepagefs(const char *path)
     } while (ret != 0 && errno == EINTR);
 
     if (ret != 0) {
-        g_test_message("statfs on path (%s): %s\n", path, strerror(errno));
+        g_test_message("statfs on path (%s): %s", path, strerror(errno));
         return NULL;
     }
 
     if (fs.f_type != HUGETLBFS_MAGIC) {
-        g_test_message("Warning: path not on HugeTLBFS: %s\n", path);
+        g_test_message("Warning: path not on HugeTLBFS: %s", path);
         return NULL;
     }
 
@@ -979,7 +979,7 @@ int main(int argc, char **argv)
 
     tmpfs = mkdtemp(template);
     if (!tmpfs) {
-        g_test_message("mkdtemp on path (%s): %s\n", template, strerror(errno));
+        g_test_message("mkdtemp on path (%s): %s", template, strerror(errno));
     }
     g_assert(tmpfs);
 
@@ -1032,7 +1032,7 @@ int main(int argc, char **argv)
 
     ret = rmdir(tmpfs);
     if (ret != 0) {
-        g_test_message("unable to rmdir: path (%s): %s\n",
+        g_test_message("unable to rmdir: path (%s): %s",
                        tmpfs, strerror(errno));
     }
     g_assert_cmpint(ret, ==, 0);
