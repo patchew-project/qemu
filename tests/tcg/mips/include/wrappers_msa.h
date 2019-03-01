@@ -210,5 +210,17 @@ DO_MSA__WD__WS_WT(SRLR_D, srlr.d)
 DO_MSA__WD__WS_WT(BMNZ_V, bmnz.v)
 DO_MSA__WD__WS_WT(BMZ_V, bmz.v)
 
+DO_MSA__WD__WS_WT(FMAX_W, fmax.w)
+DO_MSA__WD__WS_WT(FMAX_D, fmax.d)
+
+DO_MSA__WD__WS_WT(FMAX_A_W, fmax_a.w)
+DO_MSA__WD__WS_WT(FMAX_A_D, fmax_a.d)
+
+DO_MSA__WD__WS_WT(FMIN_W, fmin.w)
+DO_MSA__WD__WS_WT(FMIN_D, fmin.d)
+
+DO_MSA__WD__WS_WT(FMIN_A_W, fmin_a.w)
+DO_MSA__WD__WS_WT(FMIN_A_D, fmin_a.d)
+
 
 #endif
