@@ -307,11 +307,13 @@ rtas_event_log_to_source(SpaprMachineState *spapr, int log_type)
 
     switch (log_type) {
     case RTAS_LOG_TYPE_HOTPLUG:
-        source = spapr_event_sources_get_source(spapr->event_sources,
-                                                EVENT_CLASS_HOT_PLUG);
-        if (spapr_ovec_test(spapr->ov5_cas, OV5_HP_EVT)) {
-            g_assert(source->enabled);
-            break;
+        if (spapr->use_hotplug_event_source) {
+            source = spapr_event_sources_get_source(spapr->event_sources,
+                                                    EVENT_CLASS_HOT_PLUG);
+            if (spapr_ovec_test(spapr->ov5_cas, OV5_HP_EVT)) {
+                g_assert(source->enabled);
+                break;
+            }
         }
         /* fall back to epow for legacy hotplug interrupt source */
     case RTAS_LOG_TYPE_EPOW:
