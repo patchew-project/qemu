@@ -74,6 +74,13 @@ parameter @option{mem} to achieve the same fake NUMA effect or a properly
 configured @var{memory-backend-file} backend to actually benefit from NUMA
 configuration.
 
+@subsection -numa node (without memory specified) (since 4.0)
+
+Splitting RAM by default between NUMA nodes has the same issues as @option{mem}
+parameter described above with a difference that role of the user plays QEMU
+using generic splitting rule or a board specific one. Use @option{memdev} with
+@var{memory-backend-ram} backend to define mapping explictly instead.
+
 @section QEMU Machine Protocol (QMP) commands
 
 @subsection block-dirty-bitmap-add "autoload" parameter (since 2.12.0)
