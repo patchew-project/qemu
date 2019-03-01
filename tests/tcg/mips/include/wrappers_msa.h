@@ -207,5 +207,8 @@ DO_MSA__WD__WS_WT(SRLR_H, srlr.h)
 DO_MSA__WD__WS_WT(SRLR_W, srlr.w)
 DO_MSA__WD__WS_WT(SRLR_D, srlr.d)
 
+DO_MSA__WD__WS_WT(BMNZ_V, bmnz.v)
+DO_MSA__WD__WS_WT(BMZ_V, bmz.v)
+
 
 #endif
