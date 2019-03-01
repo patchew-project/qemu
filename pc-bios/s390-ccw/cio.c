@@ -54,14 +54,15 @@ uint16_t cu_type(SubChannelId schid)
     sense_id_ccw.count = sizeof(sense_data);
     sense_id_ccw.flags |= CCW_FLAG_SLI;
 
-    if (do_cio(schid, ptr2u32(&sense_id_ccw), CCW_FMT1)) {
+    if (do_cio(schid, CU_TYPE_UNKNOWN, ptr2u32(&sense_id_ccw), CCW_FMT1)) {
         panic("Failed to run SenseID CCw\n");
     }
 
     return sense_data.cu_type;
 }
 
-void basic_sense(SubChannelId schid, void *sense_data, uint16_t data_size)
+void basic_sense(SubChannelId schid, uint16_t cutype, void *sense_data,
+                 uint16_t data_size)
 {
     Ccw1 senseCcw;
 
@@ -69,7 +70,7 @@ void basic_sense(SubChannelId schid, void *sense_data, uint16_t data_size)
     senseCcw.cda = ptr2u32(sense_data);
     senseCcw.count = data_size;
 
-    if (do_cio(schid, ptr2u32(&senseCcw), CCW_FMT1)) {
+    if (do_cio(schid, cutype, ptr2u32(&senseCcw), CCW_FMT1)) {
         panic("Failed to run Basic Sense CCW\n");
     }
 }
@@ -364,7 +365,7 @@ static int __do_cio(SubChannelId schid, uint32_t ccw_addr, int fmt, Irb *irb)
  *
  * Returns non-zero on error.
  */
-int do_cio(SubChannelId schid, uint32_t ccw_addr, int fmt)
+int do_cio(SubChannelId schid, uint16_t cutype, uint32_t ccw_addr, int fmt)
 {
     Irb irb = {};
     SenseDataEckdDasd sd;
@@ -402,10 +403,13 @@ int do_cio(SubChannelId schid, uint32_t ccw_addr, int fmt)
         print_int("  ssid  ", schid.ssid);
         print_int("  cssid ", schid.cssid);
         print_int("  sch_no", schid.sch_no);
+        print_int("  ctrl-unit type", cutype);
         sclp_print("\n");
         print_irb_err(&irb);
-        basic_sense(schid, &sd, sizeof(sd));
-        print_eckd_dasd_sense_data(&sd);
+        if (cutype == CU_TYPE_DASD_3990 || cutype == CU_TYPE_UNKNOWN) {
+            basic_sense(schid, cutype, &sd, sizeof(sd));
+            print_eckd_dasd_sense_data(&sd);
+        }
         rc = -1;
         break;
     }

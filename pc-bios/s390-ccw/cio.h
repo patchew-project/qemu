@@ -256,6 +256,7 @@ struct ciw {
     __u16 count;
 };
 
+#define CU_TYPE_UNKNOWN         0x0000
 #define CU_TYPE_VIRTIO          0x3832
 #define CU_TYPE_DASD_3990       0x3990
 
@@ -357,8 +358,9 @@ typedef struct CcwSearchIdData {
 int enable_mss_facility(void);
 void enable_subchannel(SubChannelId schid);
 uint16_t cu_type(SubChannelId schid);
-void basic_sense(SubChannelId schid, void *sense_data, uint16_t data_size);
-int do_cio(SubChannelId schid, uint32_t ccw_addr, int fmt);
+void basic_sense(SubChannelId schid, uint16_t cutype, void *sense_data,
+                 uint16_t data_size);
+int do_cio(SubChannelId schid, uint16_t cutype, uint32_t ccw_addr, int fmt);
 
 /*
  * Some S390 specific IO instructions as inline

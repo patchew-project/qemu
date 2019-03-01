@@ -103,7 +103,7 @@ static int run_ccw(VDev *vdev, int cmd, void *ptr, int len, bool sli)
     }
 
     enable_subchannel(vdev->schid);
-    return do_cio(vdev->schid, ptr2u32(&ccw), CCW_FMT1);
+    return do_cio(vdev->schid, vdev->senseid.cu_type, ptr2u32(&ccw), CCW_FMT1);
 }
 
 static void vring_init(VRing *vr, VqInfo *info)

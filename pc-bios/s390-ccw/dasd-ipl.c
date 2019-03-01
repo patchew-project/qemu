@@ -72,7 +72,8 @@ static bool dynamic_cp_fixup(uint32_t ccw_addr, uint32_t  *next_cpa)
     return false;
 }
 
-static int run_dynamic_ccw_program(SubChannelId schid, uint32_t cpa)
+static int run_dynamic_ccw_program(SubChannelId schid, uint16_t cutype,
+                                   uint32_t cpa)
 {
     bool has_next;
     uint32_t next_cpa = 0;
@@ -83,7 +84,7 @@ static int run_dynamic_ccw_program(SubChannelId schid, uint32_t cpa)
 
         print_int("executing ccw chain at ", cpa);
         enable_prefixing();
-        rc = do_cio(schid, cpa, CCW_FMT0);
+        rc = do_cio(schid, cutype, cpa, CCW_FMT0);
         disable_prefixing();
 
         if (rc) {
@@ -106,9 +107,9 @@ static void make_readipl(void)
     ccwIplRead->count = 0x18; /* Read 0x18 bytes of data */
 }
 
-static void run_readipl(SubChannelId schid)
+static void run_readipl(SubChannelId schid, uint16_t cutype)
 {
-    if (do_cio(schid, 0x00, CCW_FMT0)) {
+    if (do_cio(schid, cutype, 0x00, CCW_FMT0)) {
         panic("dasd-ipl: Failed to run Read IPL channel program");
     }
 }
@@ -183,19 +184,19 @@ static void ipl1_fixup(void)
     ccwSearchTic->cda = ptr2u32(ccwSearchID);
 }
 
-static void run_ipl1(SubChannelId schid)
+static void run_ipl1(SubChannelId schid, uint16_t cutype)
  {
     uint32_t startAddr = 0x08;
 
-    if (do_cio(schid, startAddr, CCW_FMT0)) {
+    if (do_cio(schid, cutype, startAddr, CCW_FMT0)) {
         panic("dasd-ipl: Failed to run IPL1 channel program");
     }
 }
 
-static void run_ipl2(SubChannelId schid, uint32_t addr)
+static void run_ipl2(SubChannelId schid, uint16_t cutype, uint32_t addr)
 {
 
-    if (run_dynamic_ccw_program(schid, addr)) {
+    if (run_dynamic_ccw_program(schid, cutype, addr)) {
         panic("dasd-ipl: Failed to run IPL2 channel program");
     }
 }
@@ -222,13 +223,13 @@ static void lpsw(void *psw_addr)
  * Limitations in QEMU's CCW support complicate the IPL process. Details can
  * be found in docs/devel/s390-dasd-ipl.txt
  */
-void dasd_ipl(SubChannelId schid)
+void dasd_ipl(SubChannelId schid, uint16_t cutype)
 {
     uint32_t ipl2_addr;
 
     /* Construct Read IPL CCW and run it to read IPL1 from boot disk */
     make_readipl();
-    run_readipl(schid);
+    run_readipl(schid, cutype);
     ipl2_addr = read_ipl2_addr();
     check_ipl1();
 
@@ -237,13 +238,13 @@ void dasd_ipl(SubChannelId schid)
      * to read IPL2 channel program from boot disk.
      */
     ipl1_fixup();
-    run_ipl1(schid);
+    run_ipl1(schid, cutype);
     check_ipl2(ipl2_addr);
 
     /*
      * Run IPL2 channel program to read operating system code from boot disk
      * then transfer control to the guest operating system
      */
-    run_ipl2(schid, ipl2_addr);
+    run_ipl2(schid, cutype, ipl2_addr);
     lpsw(0);
 }

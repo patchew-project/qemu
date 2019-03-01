@@ -210,7 +210,7 @@ int main(void)
     cutype = cu_type(blk_schid);
     switch (cutype) {
     case CU_TYPE_DASD_3990:
-        dasd_ipl(blk_schid); /* no return */
+        dasd_ipl(blk_schid, cutype); /* no return */
         break;
     case CU_TYPE_VIRTIO:
         virtio_setup();
