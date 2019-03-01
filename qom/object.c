@@ -624,7 +624,6 @@ static Object *object_new_with_type(Type type)
     Object *obj;
 
     g_assert(type != NULL);
-    type_initialize(type);
 
     obj = g_malloc(type->instance_size);
     object_initialize_with_type(obj, type->instance_size, type);
