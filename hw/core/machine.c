@@ -481,6 +481,47 @@ static void machine_set_memory_encryption(Object *obj, const char *value,
     ms->memory_encryption = g_strdup(value);
 }
 
+static bool machine_get_nvdimm(Object *obj, Error **errp)
+{
+    MachineState *ms = MACHINE(obj);
+
+    return ms->acpi_nvdimm_state.is_enabled;
+}
+
+static void machine_set_nvdimm(Object *obj, bool value, Error **errp)
+{
+    MachineState *ms = MACHINE(obj);
+
+    ms->acpi_nvdimm_state.is_enabled = value;
+}
+
+static char *machine_get_nvdimm_persistence(Object *obj, Error **errp)
+{
+    MachineState *ms = MACHINE(obj);
+
+    return g_strdup(ms->acpi_nvdimm_state.persistence_string);
+}
+
+static void machine_set_nvdimm_persistence(Object *obj, const char *value,
+                                               Error **errp)
+{
+    MachineState *ms = MACHINE(obj);
+    AcpiNVDIMMState *nvdimm_state = &ms->acpi_nvdimm_state;
+
+    if (strcmp(value, "cpu") == 0)
+        nvdimm_state->persistence = 3;
+    else if (strcmp(value, "mem-ctrl") == 0)
+        nvdimm_state->persistence = 2;
+    else {
+        error_setg(errp, "-machine nvdimm-persistence=%s: unsupported option",
+                   value);
+        return;
+    }
+
+    g_free(nvdimm_state->persistence_string);
+    nvdimm_state->persistence_string = g_strdup(value);
+}
+
 void machine_class_allow_dynamic_sysbus_dev(MachineClass *mc, const char *type)
 {
     strList *item = g_new0(strList, 1);
@@ -765,6 +806,20 @@ static void machine_class_init(ObjectClass *oc, void *data)
         &error_abort);
     object_class_property_set_description(oc, "memory-encryption",
         "Set memory encryption object to use", &error_abort);
+
+    object_class_property_add_bool(oc, "nvdimm",
+        machine_get_nvdimm, machine_set_nvdimm, &error_abort);
+    object_class_property_set_description(oc, "nvdimm",
+                                         "Set on/off to enable/disable NVDIMM "
+                                         "instantiation", NULL);
+
+    object_class_property_add_str(oc, "nvdimm-persistence",
+                                  machine_get_nvdimm_persistence,
+                                  machine_set_nvdimm_persistence, &error_abort);
+    object_class_property_set_description(oc, "nvdimm-persistence",
+                                          "Set NVDIMM persistence"
+                                          "Valid values are cpu and mem-ctrl",
+                                          NULL);
 }
 
 static void machine_class_base_init(ObjectClass *oc, void *data)
@@ -790,6 +845,8 @@ static void machine_initfn(Object *obj)
     ms->dump_guest_core = true;
     ms->mem_merge = true;
     ms->enable_graphics = true;
+    /* nvdimm is disabled on default. */
+    ms->acpi_nvdimm_state.is_enabled = false;
 
     /* Register notifier when init is done for sysbus sanity checks */
     ms->sysbus_notifier.notify = machine_init_notify;
