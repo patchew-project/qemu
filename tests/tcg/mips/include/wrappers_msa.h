@@ -152,5 +152,20 @@ DO_MSA__WD__WS_WT(MIN_U_H, min_u.h)
 DO_MSA__WD__WS_WT(MIN_U_W, min_u.w)
 DO_MSA__WD__WS_WT(MIN_U_D, min_u.d)
 
+DO_MSA__WD__WS_WT(BCLR_B, bclr.b)
+DO_MSA__WD__WS_WT(BCLR_H, bclr.h)
+DO_MSA__WD__WS_WT(BCLR_W, bclr.w)
+DO_MSA__WD__WS_WT(BCLR_D, bclr.d)
+
+DO_MSA__WD__WS_WT(BSET_B, bset.b)
+DO_MSA__WD__WS_WT(BSET_H, bset.h)
+DO_MSA__WD__WS_WT(BSET_W, bset.w)
+DO_MSA__WD__WS_WT(BSET_D, bset.d)
+
+DO_MSA__WD__WS_WT(BNEG_B, bneg.b)
+DO_MSA__WD__WS_WT(BNEG_H, bneg.h)
+DO_MSA__WD__WS_WT(BNEG_W, bneg.w)
+DO_MSA__WD__WS_WT(BNEG_D, bneg.d)
+
 
 #endif
