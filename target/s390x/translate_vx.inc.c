@@ -703,3 +703,17 @@ static DisasJumpType op_vrep(DisasContext *s, DisasOps *o)
     tcg_temp_free_i64(tmp);
     return DISAS_NEXT;
 }
+
+static DisasJumpType op_vrepi(DisasContext *s, DisasOps *o)
+{
+    const int64_t data = (int16_t)get_field(s->fields, i2);
+    const uint8_t es = get_field(s->fields, m3);
+
+    if (es > ES_64) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    gen_gvec_dupi(es, get_field(s->fields, v1), data);
+    return DISAS_NEXT;
+}
