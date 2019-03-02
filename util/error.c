@@ -101,14 +101,11 @@ void error_setg_errno_internal(Error **errp,
                                int os_errno, const char *fmt, ...)
 {
     va_list ap;
-    int saved_errno = errno;
 
     va_start(ap, fmt);
     error_setv(errp, src, line, func, ERROR_CLASS_GENERIC_ERROR, fmt, ap,
                os_errno != 0 ? strerror(os_errno) : NULL);
     va_end(ap);
-
-    errno = saved_errno;
 }
 
 void error_setg_file_open_internal(Error **errp,
