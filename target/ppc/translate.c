@@ -6687,24 +6687,20 @@ static inline void set_fpr(int regno, TCGv_i64 src)
 
 static inline void get_avr64(TCGv_i64 dst, int regno, bool high)
 {
-#ifdef HOST_WORDS_BIGENDIAN
-    tcg_gen_ld_i64(dst, cpu_env, offsetof(CPUPPCState,
-                                          vsr[32 + regno].u64[(high ? 0 : 1)]));
-#else
-    tcg_gen_ld_i64(dst, cpu_env, offsetof(CPUPPCState,
-                                          vsr[32 + regno].u64[(high ? 1 : 0)]));
-#endif
+    if (high) {
+        tcg_gen_ld_i64(dst, cpu_env, avrh_offset(regno));
+    } else {
+        tcg_gen_ld_i64(dst, cpu_env, avrl_offset(regno));
+    }
 }
 
 static inline void set_avr64(int regno, TCGv_i64 src, bool high)
 {
-#ifdef HOST_WORDS_BIGENDIAN
-    tcg_gen_st_i64(src, cpu_env, offsetof(CPUPPCState,
-                                          vsr[32 + regno].u64[(high ? 0 : 1)]));
-#else
-    tcg_gen_st_i64(src, cpu_env, offsetof(CPUPPCState,
-                                          vsr[32 + regno].u64[(high ? 1 : 0)]));
-#endif
+    if (high) {
+        tcg_gen_st_i64(src, cpu_env, avrh_offset(regno));
+    } else {
+        tcg_gen_st_i64(src, cpu_env, avrl_offset(regno));
+    }
 }
 
 #include "translate/fp-impl.inc.c"
