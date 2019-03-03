@@ -20,6 +20,7 @@
 #include "rdma_backend_defs.h"
 #include "rdma_rm_defs.h"
 
+void rdma_dump_device_counters(Monitor *mon, RdmaDeviceResources *dev_res);
 int rdma_rm_init(RdmaDeviceResources *dev_res, struct ibv_device_attr *dev_attr,
                  Error **errp);
 void rdma_rm_fini(RdmaDeviceResources *dev_res, RdmaBackendDev *backend_dev,

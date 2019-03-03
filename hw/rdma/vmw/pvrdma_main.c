@@ -25,6 +25,8 @@
 #include "cpu.h"
 #include "trace.h"
 #include "sysemu/sysemu.h"
+#include "monitor/monitor.h"
+#include "hw/rdma/rdma_hmp.h"
 
 #include "../rdma_rm.h"
 #include "../rdma_backend.h"
@@ -54,6 +56,18 @@ static Property pvrdma_dev_properties[] = {
     DEFINE_PROP_CHR("mad-chardev", PVRDMADev, mad_chr),
     DEFINE_PROP_END_OF_LIST(),
 };
+
+static void pvrdma_print_statistics(Monitor *mon, RdmaStatsProvider *obj)
+{
+    PVRDMADev *dev = PVRDMA_DEV(obj);
+    PCIDevice *pdev = PCI_DEVICE(dev);
+
+    monitor_printf(mon, "%s, %x.%x\n", pdev->name, PCI_SLOT(pdev->devfn),
+                   PCI_FUNC(pdev->devfn));
+    monitor_printf(mon, "\tcommands         : %" PRId64 "\n",
+                   dev->stats.commands);
+    rdma_dump_device_counters(mon, &dev->rdma_dev_res);
+}
 
 static void free_dev_ring(PCIDevice *pci_dev, PvrdmaRing *ring,
                           void *ring_state)
@@ -394,6 +408,7 @@ static void pvrdma_regs_write(void *opaque, hwaddr addr, uint64_t val,
         if (val == 0) {
             trace_pvrdma_regs_write(addr, val, "REQUEST", "");
             pvrdma_exec_cmd(dev);
+            dev->stats.commands++;
         }
         break;
     default:
@@ -612,6 +627,8 @@ static void pvrdma_realize(PCIDevice *pdev, Error **errp)
         goto out;
     }
 
+    memset(&dev->stats, 0, sizeof(dev->stats));
+
     dev->shutdown_notifier.notify = pvrdma_shutdown_notifier;
     qemu_register_shutdown_notifier(&dev->shutdown_notifier);
 
@@ -631,6 +648,7 @@ static void pvrdma_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    RdmaStatsProviderClass *ir = RDMA_STATS_PROVIDER_CLASS(klass);
 
     k->realize = pvrdma_realize;
     k->exit = pvrdma_exit;
@@ -642,6 +660,8 @@ static void pvrdma_class_init(ObjectClass *klass, void *data)
     dc->desc = "RDMA Device";
     dc->props = pvrdma_dev_properties;
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
+
+    ir->print_statistics = pvrdma_print_statistics;
 }
 
 static const TypeInfo pvrdma_info = {
@@ -651,6 +671,7 @@ static const TypeInfo pvrdma_info = {
     .class_init = pvrdma_class_init,
     .interfaces = (InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+        { TYPE_RDMA_STATS_PROVIDER },
         { }
     }
 };

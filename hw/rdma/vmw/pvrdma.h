@@ -70,6 +70,10 @@ typedef struct DSRInfo {
     PvrdmaRing cq;
 } DSRInfo;
 
+typedef struct PVRDMADevStats {
+    uint64_t commands;
+} PVRDMADevStats;
+
 typedef struct PVRDMADev {
     PCIDevice parent_obj;
     MemoryRegion msix;
@@ -89,6 +93,7 @@ typedef struct PVRDMADev {
     CharBackend mad_chr;
     VMXNET3State *func0;
     Notifier shutdown_notifier;
+    PVRDMADevStats stats;
 } PVRDMADev;
 #define PVRDMA_DEV(dev) OBJECT_CHECK(PVRDMADev, (dev), PVRDMA_HW_NAME)
 

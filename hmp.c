@@ -51,6 +51,7 @@
 #include "qemu/error-report.h"
 #include "exec/ramlist.h"
 #include "hw/intc/intc.h"
+#include "hw/rdma/rdma_hmp.h"
 #include "migration/snapshot.h"
 #include "migration/misc.h"
 
@@ -1011,6 +1012,32 @@ void hmp_info_pic(Monitor *mon, const QDict *qdict)
 {
     object_child_foreach_recursive(object_get_root(),
                                    hmp_info_pic_foreach, mon);
+}
+
+static int hmp_info_rdma_foreach(Object *obj, void *opaque)
+{
+    RdmaStatsProvider *rdma;
+    RdmaStatsProviderClass *k;
+    Monitor *mon = opaque;
+
+    if (object_dynamic_cast(obj, TYPE_RDMA_STATS_PROVIDER)) {
+        rdma = RDMA_STATS_PROVIDER(obj);
+        k = RDMA_STATS_PROVIDER_GET_CLASS(obj);
+        if (k->print_statistics) {
+            k->print_statistics(mon, rdma);
+        } else {
+            monitor_printf(mon, "RDMA statistics not available for %s.\n",
+                           object_get_typename(obj));
+        }
+    }
+
+    return 0;
+}
+
+void hmp_info_rdma(Monitor *mon, const QDict *qdict)
+{
+    object_child_foreach_recursive(object_get_root(),
+                                   hmp_info_rdma_foreach, mon);
 }
 
 void hmp_info_pci(Monitor *mon, const QDict *qdict)
