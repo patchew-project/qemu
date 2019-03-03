@@ -1030,19 +1030,22 @@
 ##
 # @COLOExitReason:
 #
-# The reason for a COLO exit
+# Describe the reason for COLO exit.
 #
-# @none: no failover has ever happened. This can't occur in the
-# COLO_EXIT event, only in the result of query-colo-status.
+# @none: failover has never happened. This state does not occur
+# in the COLO_EXIT event, and is only visible in the result of
+# query-colo-status.
 #
-# @request: COLO exit is due to an external request
+# @request: COLO exit caused by an external request.
 #
-# @error: COLO exit is due to an internal error
+# @error: COLO exit caused by an internal error.
+#
+# @processing: COLO is currently handling a failover (since 4.0).
 #
 # Since: 3.1
 ##
 { 'enum': 'COLOExitReason',
-  'data': [ 'none', 'request', 'error' ] }
+  'data': [ 'none', 'request', 'error' , 'processing' ] }
 
 ##
 # @x-colo-lost-heartbeat:
