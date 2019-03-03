@@ -2583,14 +2583,9 @@ static inline bool lsw_reg_in_range(int start, int nregs, int rx)
 #define VsrSD(i) s64[1 - (i)]
 #endif
 
-static inline int fpr_offset(int i)
+static inline int vsrh_offset(int i)
 {
     return offsetof(CPUPPCState, vsr[i].VsrD(0));
-}
-
-static inline uint64_t *cpu_fpr_ptr(CPUPPCState *env, int i)
-{
-    return (uint64_t *)((uintptr_t)env + fpr_offset(i));
 }
 
 static inline int vsrl_offset(int i)
@@ -2603,6 +2598,11 @@ static inline int vsr_full_offset(int i)
     return offsetof(CPUPPCState, vsr[i].u64[0]);
 }
 
+static inline uint64_t *cpu_fpr_ptr(CPUPPCState *env, int i)
+{
+    return (uint64_t *)((uintptr_t)env + vsrh_offset(i));
+}
+
 static inline uint64_t *cpu_vsrl_ptr(CPUPPCState *env, int i)
 {
     return (uint64_t *)((uintptr_t)env + vsrl_offset(i));
@@ -2610,12 +2610,12 @@ static inline uint64_t *cpu_vsrl_ptr(CPUPPCState *env, int i)
 
 static inline int avrh_offset(int i)
 {
-    return offsetof(CPUPPCState, vsr[32 + i].VsrD(0));
+    return vsrh_offset(i + 32);
 }
 
 static inline int avrl_offset(int i)
 {
-    return offsetof(CPUPPCState, vsr[32 + i].VsrD(1));
+    return vsrl_offset(i + 32);
 }
 
 static inline int avr_offset(int i)
