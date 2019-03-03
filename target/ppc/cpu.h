@@ -2598,6 +2598,11 @@ static inline int vsrl_offset(int i)
     return offsetof(CPUPPCState, vsr[i].u64[1]);
 }
 
+static inline int vsr_full_offset(int i)
+{
+    return offsetof(CPUPPCState, vsr[i].u64[0]);
+}
+
 static inline uint64_t *cpu_vsrl_ptr(CPUPPCState *env, int i)
 {
     return (uint64_t *)((uintptr_t)env + vsrl_offset(i));
@@ -2613,9 +2618,14 @@ static inline int avrl_offset(int i)
     return offsetof(CPUPPCState, vsr[32 + i].VsrD(1));
 }
 
+static inline int avr_offset(int i)
+{
+    return vsr_full_offset(i + 32);
+}
+
 static inline ppc_avr_t *cpu_avr_ptr(CPUPPCState *env, int i)
 {
-    return &env->vsr[32 + i];
+    return (ppc_avr_t *)((uintptr_t)env + avr_offset(i));
 }
 
 void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUPPCState *env);
