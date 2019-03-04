@@ -804,28 +804,45 @@ void helper_msa_ ## func ## _df(CPUMIPSState *env, uint32_t df,         \
     wr_t *pwd = &(env->active_fpu.fpr[wd].wr);                          \
     wr_t *pws = &(env->active_fpu.fpr[ws].wr);                          \
     wr_t *pwt = &(env->active_fpu.fpr[wt].wr);                          \
-    uint32_t i;                                                         \
                                                                         \
     switch (df) {                                                       \
     case DF_BYTE:                                                       \
-        for (i = 0; i < DF_ELEMENTS(DF_BYTE); i++) {                    \
-            pwd->b[i] = msa_ ## func ## _df(df, pws->b[i], pwt->b[i]);  \
-        }                                                               \
+        pwd->b[0]  = msa_ ## func ## _df(df, pws->b[0], pwt->b[0]);     \
+        pwd->b[1]  = msa_ ## func ## _df(df, pws->b[1], pwt->b[1]);     \
+        pwd->b[2]  = msa_ ## func ## _df(df, pws->b[2], pwt->b[2]);     \
+        pwd->b[3]  = msa_ ## func ## _df(df, pws->b[3], pwt->b[3]);     \
+        pwd->b[4]  = msa_ ## func ## _df(df, pws->b[4], pwt->b[4]);     \
+        pwd->b[5]  = msa_ ## func ## _df(df, pws->b[5], pwt->b[5]);     \
+        pwd->b[6]  = msa_ ## func ## _df(df, pws->b[6], pwt->b[6]);     \
+        pwd->b[7]  = msa_ ## func ## _df(df, pws->b[7], pwt->b[7]);     \
+        pwd->b[8]  = msa_ ## func ## _df(df, pws->b[8], pwt->b[8]);     \
+        pwd->b[9]  = msa_ ## func ## _df(df, pws->b[9], pwt->b[9]);     \
+        pwd->b[10] = msa_ ## func ## _df(df, pws->b[10], pwt->b[10]);   \
+        pwd->b[11] = msa_ ## func ## _df(df, pws->b[11], pwt->b[11]);   \
+        pwd->b[12] = msa_ ## func ## _df(df, pws->b[12], pwt->b[12]);   \
+        pwd->b[13] = msa_ ## func ## _df(df, pws->b[13], pwt->b[13]);   \
+        pwd->b[14] = msa_ ## func ## _df(df, pws->b[14], pwt->b[14]);   \
+        pwd->b[15] = msa_ ## func ## _df(df, pws->b[15], pwt->b[15]);   \
         break;                                                          \
     case DF_HALF:                                                       \
-        for (i = 0; i < DF_ELEMENTS(DF_HALF); i++) {                    \
-            pwd->h[i] = msa_ ## func ## _df(df, pws->h[i], pwt->h[i]);  \
-        }                                                               \
+        pwd->h[0] = msa_ ## func ## _df(df, pws->h[0], pwt->h[0]);      \
+        pwd->h[1] = msa_ ## func ## _df(df, pws->h[1], pwt->h[1]);      \
+        pwd->h[2] = msa_ ## func ## _df(df, pws->h[2], pwt->h[2]);      \
+        pwd->h[3] = msa_ ## func ## _df(df, pws->h[3], pwt->h[3]);      \
+        pwd->h[4] = msa_ ## func ## _df(df, pws->h[4], pwt->h[4]);      \
+        pwd->h[5] = msa_ ## func ## _df(df, pws->h[5], pwt->h[5]);      \
+        pwd->h[6] = msa_ ## func ## _df(df, pws->h[6], pwt->h[6]);      \
+        pwd->h[7] = msa_ ## func ## _df(df, pws->h[7], pwt->h[7]);      \
         break;                                                          \
     case DF_WORD:                                                       \
-        for (i = 0; i < DF_ELEMENTS(DF_WORD); i++) {                    \
-            pwd->w[i] = msa_ ## func ## _df(df, pws->w[i], pwt->w[i]);  \
-        }                                                               \
+        pwd->w[0] = msa_ ## func ## _df(df, pws->w[0], pwt->w[0]);      \
+        pwd->w[1] = msa_ ## func ## _df(df, pws->w[1], pwt->w[1]);      \
+        pwd->w[2] = msa_ ## func ## _df(df, pws->w[2], pwt->w[2]);      \
+        pwd->w[3] = msa_ ## func ## _df(df, pws->w[3], pwt->w[3]);      \
         break;                                                          \
     case DF_DOUBLE:                                                     \
-        for (i = 0; i < DF_ELEMENTS(DF_DOUBLE); i++) {                  \
-            pwd->d[i] = msa_ ## func ## _df(df, pws->d[i], pwt->d[i]);  \
-        }                                                               \
+        pwd->d[0] = msa_ ## func ## _df(df, pws->d[0], pwt->d[0]);      \
+        pwd->d[1] = msa_ ## func ## _df(df, pws->d[1], pwt->d[1]);      \
         break;                                                          \
     default:                                                            \
         assert(0);                                                      \
