@@ -161,7 +161,7 @@ static inline int hreg_store_msr(CPUPPCState *env, target_ulong value,
 #if !defined(CONFIG_USER_ONLY)
     if (unlikely(msr_pow == 1)) {
         if (!env->pending_interrupts && (*env->check_pow)(env)) {
-            cs->halted = 1;
+            cpu_halted_set(cs, 1);
             excp = EXCP_HALTED;
         }
     }
