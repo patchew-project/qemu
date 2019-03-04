@@ -285,7 +285,7 @@ static void s390_cpu_initfn(Object *obj)
     CPUS390XState *env = &cpu->env;
 
     cs->env_ptr = env;
-    cs->halted = 1;
+    cpu_halted_set(cs, 1);
     cs->exception_index = EXCP_HLT;
     object_property_add(obj, "crash-information", "GuestPanicInformation",
                         s390_cpu_get_crash_info_qom, NULL, NULL, NULL, NULL);
@@ -310,8 +310,8 @@ static void s390_cpu_finalize(Object *obj)
 #if !defined(CONFIG_USER_ONLY)
 static bool disabled_wait(CPUState *cpu)
 {
-    return cpu->halted && !(S390_CPU(cpu)->env.psw.mask &
-                            (PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK));
+    return cpu_halted(cpu) && !(S390_CPU(cpu)->env.psw.mask &
+                                (PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK));
 }
 
 static unsigned s390_count_running_cpus(void)
@@ -337,10 +337,16 @@ unsigned int s390_cpu_halt(S390CPU *cpu)
     CPUState *cs = CPU(cpu);
     trace_cpu_halt(cs->cpu_index);
 
-    if (!cs->halted) {
-        cs->halted = 1;
+    /*
+     * cpu_halted and cpu_halted_set acquire the cpu lock if it
+     * isn't already held, so acquire it first.
+     */
+    cpu_mutex_lock(cs);
+    if (!cpu_halted(cs)) {
+        cpu_halted_set(cs, 1);
         cs->exception_index = EXCP_HLT;
     }
+    cpu_mutex_unlock(cs);
 
     return s390_count_running_cpus();
 }
@@ -350,10 +356,12 @@ void s390_cpu_unhalt(S390CPU *cpu)
     CPUState *cs = CPU(cpu);
     trace_cpu_unhalt(cs->cpu_index);
 
-    if (cs->halted) {
-        cs->halted = 0;
+    cpu_mutex_lock(cs);
+    if (cpu_halted(cs)) {
+        cpu_halted_set(cs, 0);
         cs->exception_index = -1;
     }
+    cpu_mutex_unlock(cs);
 }
 
 unsigned int s390_cpu_set_state(uint8_t cpu_state, S390CPU *cpu)
