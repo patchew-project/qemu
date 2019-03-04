@@ -333,6 +333,7 @@ class TestBlockdevDel(iotests.QMPTestCase):
         self.delBlockDriverState('debug0')
         self.checkBlockDriverState('node0', False)
 
+    @iotests.skip_if_unsupported(['blkverify'])
     def testBlkVerify(self):
         self.addBlkVerify('verify0', 'node0', 'node1')
         # We cannot remove the children of a blkverify device
@@ -343,6 +344,7 @@ class TestBlockdevDel(iotests.QMPTestCase):
         self.checkBlockDriverState('node0', False)
         self.checkBlockDriverState('node1', False)
 
+    @iotests.skip_if_unsupported(['quorum'])
     def testQuorum(self):
         if not iotests.supports_quorum():
             return
