@@ -4,6 +4,8 @@ config TPM_TIS
 
 config TPM_CRB
     bool
+    default y
+    depends on TPM && PC
 
 config TPM_PASSTHROUGH
     bool
