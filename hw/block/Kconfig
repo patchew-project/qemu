@@ -27,3 +27,6 @@ config VIRTIO_BLK
 
 config VHOST_USER_BLK
     bool
+    # Only PCI devices are provided for now
+    default y if VIRTIO_PCI
+    depends on VHOST_USER && LINUX && VIRTIO

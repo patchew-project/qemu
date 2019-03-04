@@ -1,5 +1,6 @@
 config TPM_TIS
     bool
+    depends on TPM
 
 config TPM_CRB
     bool
