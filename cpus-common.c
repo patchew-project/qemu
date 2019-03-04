@@ -145,6 +145,11 @@ void run_on_cpu(CPUState *cpu, run_on_cpu_func func, run_on_cpu_data data)
         return;
     }
 
+    /* We are going to sleep on the CPU lock, so release the BQL */
+    if (has_bql) {
+        qemu_mutex_unlock_iothread();
+    }
+
     wi.func = func;
     wi.data = data;
     wi.done = false;
@@ -153,21 +158,6 @@ void run_on_cpu(CPUState *cpu, run_on_cpu_func func, run_on_cpu_data data)
 
     cpu_mutex_lock(cpu);
     queue_work_on_cpu_locked(cpu, &wi);
-
-    /*
-     * We are going to sleep on the CPU lock, so release the BQL.
-     *
-     * During the transition to per-CPU locks, we release the BQL _after_
-     * having kicked the destination CPU (from queue_work_on_cpu_locked above).
-     * This makes sure that the enqueued work will be seen by the CPU
-     * after being woken up from the kick, since the CPU sleeps on the BQL.
-     * Once we complete the transition to per-CPU locks, we will release
-     * the BQL earlier in this function.
-     */
-    if (has_bql) {
-        qemu_mutex_unlock_iothread();
-    }
-
     while (!atomic_mb_read(&wi.done)) {
         CPUState *self_cpu = current_cpu;
 
