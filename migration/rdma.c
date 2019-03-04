@@ -3611,6 +3611,8 @@ static int qemu_rdma_registration_handle(QEMUFile *f, void *opaque)
                 }
                 chunk_start = ram_chunk_start(block, chunk);
                 chunk_end = ram_chunk_end(block, chunk + reg->chunks);
+                #pragma clang diagnostic push
+                #pragma clang diagnostic ignored "-Waddress-of-packed-member"
                 if (qemu_rdma_register_and_get_keys(rdma, block,
                             (uintptr_t)host_addr, NULL, &reg_result->rkey,
                             chunk, chunk_start, chunk_end)) {
@@ -3618,6 +3620,7 @@ static int qemu_rdma_registration_handle(QEMUFile *f, void *opaque)
                     ret = -EINVAL;
                     goto out;
                 }
+                #pragma clang diagnostic pop
 
                 reg_result->host_addr = (uintptr_t)block->local_host_addr;
 
