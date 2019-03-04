@@ -14,3 +14,15 @@ freebsd_12_task:
     - ../configure || { cat config.log; exit 1; }
     - gmake -j8
     - gmake -j8 V=1 check
+
+macos_task:
+  osx_instance:
+    image: high-sierra-base
+  env:
+    CIRRUS_CLONE_DEPTH: 1
+  install_script:
+    - brew install pkg-config glib pixman make sdl2
+  script:
+    - ./configure || { cat config.log; exit 1; }
+    - gmake -j$(sysctl -n hw.ncpu)
+    - gmake check -j$(sysctl -n hw.ncpu)
