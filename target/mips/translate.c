@@ -25151,6 +25151,60 @@ static void gen_mmi_pextuh(DisasContext *ctx)
     }
 }
 
+/*
+ *  PEXTUW rd, rs, rt
+ *
+ *  Parallel Extend Upper from Word
+ *
+ *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ *  +-----------+---------+---------+---------+---------+-----------+
+ *  |    MMI    |    rs   |   rt    |   rd    | PEXTUW  |    MMI1   |
+ *  +-----------+---------+---------+---------+---------+-----------+
+ */
+
+static void gen_mmi_pextuw(DisasContext *ctx)
+{
+    uint32_t rs, rt, rd;
+    uint32_t opcode;
+
+    opcode = ctx->opcode;
+
+    rs = extract32(opcode, 21, 5);
+    rt = extract32(opcode, 16, 5);
+    rd = extract32(opcode, 11, 5);
+
+    if (rd == 0) {
+        /* nop */
+    } else {
+        TCGv_i64 t0 = tcg_temp_new();
+        TCGv_i64 t1 = tcg_temp_new();
+        uint64_t mask = (1ULL << 32) - 1;
+
+        tcg_gen_movi_i64(t1, 0);
+
+        tcg_gen_andi_i64(t0, cpu_gpr[rt], mask);
+        tcg_gen_or_i64(t1, t0, t1);
+        tcg_gen_andi_i64(t0, cpu_gpr[rs], mask);
+        tcg_gen_shli_i64(t0, t0, 32);
+        tcg_gen_or_i64(t1, t0, t1);
+        mask <<= 32;
+
+        tcg_gen_mov_i64(cpu_mmr[rd], t1);
+        tcg_gen_movi_i64(t1, 0);
+
+        tcg_gen_andi_i64(t0, cpu_gpr[rt], mask);
+        tcg_gen_or_i64(t1, t0, t1);
+        tcg_gen_andi_i64(t0, cpu_gpr[rs], mask);
+        tcg_gen_shli_i64(t0, t0, 32);
+        tcg_gen_or_i64(t1, t0, t1);
+
+        tcg_gen_mov_i64(cpu_gpr[rd], t1);
+
+        tcg_temp_free(t0);
+        tcg_temp_free(t1);
+    }
+}
+
 #endif
 
 
@@ -28140,7 +28194,6 @@ static void decode_mmi1(CPUMIPSState *env, DisasContext *ctx)
     case MMI_OPC_1_PCEQB:     /* TODO: MMI_OPC_1_PCEQB */
     case MMI_OPC_1_PADDUW:    /* TODO: MMI_OPC_1_PADDUW */
     case MMI_OPC_1_PSUBUW:    /* TODO: MMI_OPC_1_PSUBUW */
-    case MMI_OPC_1_PEXTUW:    /* TODO: MMI_OPC_1_PEXTUW */
     case MMI_OPC_1_PADDUH:    /* TODO: MMI_OPC_1_PADDUH */
     case MMI_OPC_1_PSUBUH:    /* TODO: MMI_OPC_1_PSUBUH */
     case MMI_OPC_1_PADDUB:    /* TODO: MMI_OPC_1_PADDUB */
@@ -28153,6 +28206,9 @@ static void decode_mmi1(CPUMIPSState *env, DisasContext *ctx)
         break;
     case MMI_OPC_1_PEXTUH:
         gen_mmi_pextuh(ctx);
+        break;
+    case MMI_OPC_1_PEXTUW:
+        gen_mmi_pextuw(ctx);
         break;
     default:
         MIPS_INVAL("TX79 MMI class MMI1");
