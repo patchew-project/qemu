@@ -20,6 +20,8 @@ config SERIAL_ISA
 
 config SERIAL_PCI
     bool
+    default y if PCI_DEVICES
+    depends on PCI
     select SERIAL
 
 config VIRTIO_SERIAL
