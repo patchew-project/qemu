@@ -40,9 +40,11 @@ config USB_TABLET_WACOM
 
 config USB_STORAGE_BOT
     bool
+    select SCSI
 
 config USB_STORAGE_UAS
     bool
+    select SCSI
 
 config USB_AUDIO
     bool
