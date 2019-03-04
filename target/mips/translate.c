@@ -24940,6 +24940,59 @@ static void gen_mmi_pextlh(DisasContext *ctx)
     }
 }
 
+/*
+ *  PEXTLW rd, rs, rt
+ *
+ *  Parallel Extend Lower from Word
+ *
+ *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ *  +-----------+---------+---------+---------+---------+-----------+
+ *  |    MMI    |    rs   |   rt    |   rd    | PEXTLW  |    MMI0   |
+ *  +-----------+---------+---------+---------+---------+-----------+
+ */
+
+static void gen_mmi_pextlw(DisasContext *ctx)
+{
+    uint32_t rs, rt, rd;
+    uint32_t opcode;
+
+    opcode = ctx->opcode;
+
+    rs = extract32(opcode, 21, 5);
+    rt = extract32(opcode, 16, 5);
+    rd = extract32(opcode, 11, 5);
+
+    if (rd == 0) {
+        /* nop */
+    } else {
+        TCGv_i64 t0 = tcg_temp_new();
+        TCGv_i64 t1 = tcg_temp_new();
+        uint64_t mask = ((1ULL << 32) - 1) << 32;
+
+        tcg_gen_movi_i64(t1, 0);
+        tcg_gen_andi_i64(t0, cpu_gpr[rs], mask);
+        tcg_gen_or_i64(t1, t0, t1);
+        tcg_gen_andi_i64(t0, cpu_gpr[rt], mask);
+        tcg_gen_shri_i64(t0, t0, 32);
+        tcg_gen_or_i64(t1, t0, t1);
+
+        tcg_gen_mov_i64(cpu_mmr[rd], t1);
+
+        mask >>= 32;
+        tcg_gen_movi_i64(t1, 0);
+        tcg_gen_andi_i64(t0, cpu_gpr[rs], mask);
+        tcg_gen_or_i64(t1, t0, t1);
+        tcg_gen_andi_i64(t0, cpu_gpr[rt], mask);
+        tcg_gen_shri_i64(t0, t0, 32);
+        tcg_gen_or_i64(t1, t0, t1);
+
+        tcg_gen_mov_i64(cpu_gpr[rd], t1);
+
+        tcg_temp_free(t0);
+        tcg_temp_free(t1);
+    }
+}
+
 #endif
 
 
@@ -27887,7 +27940,6 @@ static void decode_mmi0(CPUMIPSState *env, DisasContext *ctx)
     case MMI_OPC_0_PCGTB:     /* TODO: MMI_OPC_0_PCGTB */
     case MMI_OPC_0_PADDSW:    /* TODO: MMI_OPC_0_PADDSW */
     case MMI_OPC_0_PSUBSW:    /* TODO: MMI_OPC_0_PSUBSW */
-    case MMI_OPC_0_PEXTLW:    /* TODO: MMI_OPC_0_PEXTLW */
     case MMI_OPC_0_PPACW:     /* TODO: MMI_OPC_0_PPACW */
     case MMI_OPC_0_PADDSH:    /* TODO: MMI_OPC_0_PADDSH */
     case MMI_OPC_0_PSUBSH:    /* TODO: MMI_OPC_0_PSUBSH */
@@ -27904,6 +27956,9 @@ static void decode_mmi0(CPUMIPSState *env, DisasContext *ctx)
         break;
     case MMI_OPC_0_PEXTLH:
         gen_mmi_pextlh(ctx);
+        break;
+    case MMI_OPC_0_PEXTLW:
+        gen_mmi_pextlw(ctx);
         break;
     default:
         MIPS_INVAL("TX79 MMI class MMI0");
