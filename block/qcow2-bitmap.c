@@ -1389,7 +1389,7 @@ fail:
     bitmap_list_free(bm_list);
 }
 
-void qcow2_store_persistent_dirty_bitmaps(BlockDriverState *bs, Error **errp)
+static void do_store_bitmaps(BlockDriverState *bs, bool remove, Error **errp)
 {
     BdrvDirtyBitmap *bitmap;
     BDRVQcow2State *s = bs->opaque;
@@ -1471,6 +1471,9 @@ void qcow2_store_persistent_dirty_bitmaps(BlockDriverState *bs, Error **errp)
             QSIMPLEQ_INSERT_TAIL(&drop_tables, tb, entry);
         }
         bm->flags = bdrv_dirty_bitmap_enabled(bitmap) ? BME_FLAG_AUTO : 0;
+        if (!remove) {
+            bm->flags |= BME_FLAG_IN_USE;
+        }
         bm->granularity_bits = ctz32(bdrv_dirty_bitmap_granularity(bitmap));
         bm->dirty_bitmap = bitmap;
     }
@@ -1500,20 +1503,14 @@ void qcow2_store_persistent_dirty_bitmaps(BlockDriverState *bs, Error **errp)
         g_free(tb);
     }
 
-    QSIMPLEQ_FOREACH(bm, bm_list, entry) {
-        /* For safety, we remove bitmap after storing.
-         * We may be here in two cases:
-         * 1. bdrv_close. It's ok to drop bitmap.
-         * 2. inactivation. It means migration without 'dirty-bitmaps'
-         *    capability, so bitmaps are not marked with
-         *    BdrvDirtyBitmap.migration flags. It's not bad to drop them too,
-         *    and reload on invalidation.
-         */
-        if (bm->dirty_bitmap == NULL) {
-            continue;
-        }
+    if (remove) {
+        QSIMPLEQ_FOREACH(bm, bm_list, entry) {
+            if (bm->dirty_bitmap == NULL) {
+                continue;
+            }
 
-        bdrv_release_dirty_bitmap(bs, bm->dirty_bitmap);
+            bdrv_release_dirty_bitmap(bs, bm->dirty_bitmap);
+        }
     }
 
     bitmap_list_free(bm_list);
@@ -1533,6 +1530,26 @@ fail:
     }
 
     bitmap_list_free(bm_list);
+}
+
+void qcow2_store_persistent_dirty_bitmaps(BlockDriverState *bs, Error **errp)
+{
+    /* For safety, we remove bitmap after storing.
+     * We may be here in two cases:
+     * 1. bdrv_close. It's ok to drop bitmap.
+     * 2. inactivation. It means migration without 'dirty-bitmaps'
+     *    capability, so bitmaps are not marked with
+     *    BdrvDirtyBitmap.migration flags. It's not bad to drop them too,
+     *    and reload on invalidation.
+     */
+    do_store_bitmaps(bs, true, errp);
+}
+
+void qcow2_flush_persistent_dirty_bitmaps(BlockDriverState *bs, Error **errp)
+{
+    /* We're here because of some event like resize or reopen_ro, and we want
+     * to flush bitmaps to disk without removing them from memory. */
+    do_store_bitmaps(bs, false, errp);
 }
 
 int qcow2_reopen_bitmaps_ro(BlockDriverState *bs, Error **errp)
