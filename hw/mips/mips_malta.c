@@ -1280,7 +1280,7 @@ void mips_malta_init(MachineState *machine)
 #endif
     }
     fl = pflash_cfi01_register(FLASH_ADDRESS, NULL, "mips_malta.bios",
-                               BIOS_SIZE,
+                               FLASH_SIZE,
                                pflash_blk,
                                65536, FLASH_SIZE >> 16,
                                4, 0x0000, 0x0000, 0x0000, 0x0000, be);
