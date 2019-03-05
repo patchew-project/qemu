@@ -60,7 +60,6 @@
 #include "hw/acpi/aml-build.h"
 
 #include "qom/qom-qobject.h"
-#include "hw/i386/amd_iommu.h"
 #include "hw/i386/intel_iommu.h"
 
 #include "hw/acpi/ipmi.h"
@@ -2489,84 +2488,6 @@ build_dmar_q35(GArray *table_data, BIOSLinker *linker)
  */
 #define IOAPIC_SB_DEVID   (uint64_t)PCI_BUILD_BDF(0, PCI_DEVFN(0x14, 0))
 
-static void
-build_amd_iommu(GArray *table_data, BIOSLinker *linker)
-{
-    int ivhd_table_len = 28;
-    int iommu_start = table_data->len;
-    AMDVIState *s = AMD_IOMMU_DEVICE(x86_iommu_get_default());
-
-    /* IVRS header */
-    acpi_data_push(table_data, sizeof(AcpiTableHeader));
-    /* IVinfo - IO virtualization information common to all
-     * IOMMU units in a system
-     */
-    build_append_int_noprefix(table_data, 40UL << 8/* PASize */, 4);
-    /* reserved */
-    build_append_int_noprefix(table_data, 0, 8);
-
-    /* IVHD definition - type 10h */
-    build_append_int_noprefix(table_data, 0x10, 1);
-    /* virtualization flags */
-    build_append_int_noprefix(table_data,
-                             (1UL << 0) | /* HtTunEn      */
-                             (1UL << 4) | /* iotblSup     */
-                             (1UL << 6) | /* PrefSup      */
-                             (1UL << 7),  /* PPRSup       */
-                             1);
-
-    /*
-     * When interrupt remapping is supported, we add a special IVHD device
-     * for type IO-APIC.
-     */
-    if (x86_iommu_ir_supported(x86_iommu_get_default())) {
-        ivhd_table_len += 8;
-    }
-    /* IVHD length */
-    build_append_int_noprefix(table_data, ivhd_table_len, 2);
-    /* DeviceID */
-    build_append_int_noprefix(table_data, s->devid, 2);
-    /* Capability offset */
-    build_append_int_noprefix(table_data, s->capab_offset, 2);
-    /* IOMMU base address */
-    build_append_int_noprefix(table_data, s->mmio.addr, 8);
-    /* PCI Segment Group */
-    build_append_int_noprefix(table_data, 0, 2);
-    /* IOMMU info */
-    build_append_int_noprefix(table_data, 0, 2);
-    /* IOMMU Feature Reporting */
-    build_append_int_noprefix(table_data,
-                             (48UL << 30) | /* HATS   */
-                             (48UL << 28) | /* GATS   */
-                             (1UL << 2)   | /* GTSup  */
-                             (1UL << 6),    /* GASup  */
-                             4);
-    /*
-     *   Type 1 device entry reporting all devices
-     *   These are 4-byte device entries currently reporting the range of
-     *   Refer to Spec - Table 95:IVHD Device Entry Type Codes(4-byte)
-     */
-    build_append_int_noprefix(table_data, 0x0000001, 4);
-
-    /*
-     * Add a special IVHD device type.
-     * Refer to spec - Table 95: IVHD device entry type codes
-     *
-     * Linux IOMMU driver checks for the special IVHD device (type IO-APIC).
-     * See Linux kernel commit 'c2ff5cf5294bcbd7fa50f7d860e90a66db7e5059'
-     */
-    if (x86_iommu_ir_supported(x86_iommu_get_default())) {
-        build_append_int_noprefix(table_data,
-                                 (0x1ull << 56) |           /* type IOAPIC */
-                                 (IOAPIC_SB_DEVID << 40) |  /* IOAPIC devid */
-                                 0x48,                      /* special device */
-                                 8);
-    }
-
-    build_header(linker, table_data, (void *)(table_data->data + iommu_start),
-                 "IVRS", table_data->len - iommu_start, 1, NULL, NULL);
-}
-
 typedef
 struct AcpiBuildState {
     /* Copy of table in RAM (for patching). */
@@ -2696,10 +2617,7 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
     }
     if (x86_iommu_get_default()) {
         IommuType IOMMUType = x86_iommu_get_type();
-        if (IOMMUType == TYPE_AMD) {
-            acpi_add_table(table_offsets, tables_blob);
-            build_amd_iommu(tables_blob, tables->linker);
-        } else if (IOMMUType == TYPE_INTEL) {
+        if (IOMMUType == TYPE_INTEL) {
             acpi_add_table(table_offsets, tables_blob);
             build_dmar_q35(tables_blob, tables->linker);
         }
