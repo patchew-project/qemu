@@ -45,6 +45,7 @@ typedef struct VirtIOBalloon {
     int64_t stats_poll_interval;
     uint32_t host_features;
     PartiallyBalloonedPage *pbp;
+    bool hint_on_deflate;
 } VirtIOBalloon;
 
 #endif

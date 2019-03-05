@@ -146,6 +146,20 @@ static void balloon_deflate_page(VirtIOBalloon *balloon,
             balloon->pbp = NULL;
         }
     }
+
+    if (balloon->hint_on_deflate) {
+        void *host_addr = (void *)((uintptr_t)addr & ~(rb_page_size - 1));
+        int ret;
+
+        /* When a page is deflated, we hint the whole host page it
+         * lives on, since we can't do anything smaller */
+        ret = qemu_madvise(host_addr, rb_page_size, QEMU_MADV_WILLNEED);
+        if (ret != 0) {
+            warn_report("Couldn't MADV_WILLNEED on balloon deflate: %s",
+                        strerror(errno));
+            /* Otherwise ignore, failing to page hint shouldn't be fatal */
+        }
+    }
 }
 
 static const char *balloon_stat_names[] = {
@@ -622,6 +636,7 @@ static const VMStateDescription vmstate_virtio_balloon = {
 static Property virtio_balloon_properties[] = {
     DEFINE_PROP_BIT("deflate-on-oom", VirtIOBalloon, host_features,
                     VIRTIO_BALLOON_F_DEFLATE_ON_OOM, false),
+    DEFINE_PROP_BOOL("hint-on-deflate", VirtIOBalloon, hint_on_deflate, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
