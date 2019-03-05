@@ -1267,6 +1267,11 @@ void mips_malta_init(MachineState *machine)
     dinfo = drive_get(IF_PFLASH, 0, fl_idx);
     if (dinfo) {
         pflash_blk = blk_by_legacy_dinfo(dinfo);
+
+        if (blk_getlength(pflash_blk) != FLASH_SIZE) {
+                error_report("Malta CoreLV card expects a bios of 4MB");
+                exit(1);
+        }
 #ifdef DEBUG_BOARD_INIT
         printf("Register parallel flash %d size " TARGET_FMT_lx " at "
                "addr %08llx '%s'\n",
