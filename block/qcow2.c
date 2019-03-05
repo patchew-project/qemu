@@ -3472,7 +3472,7 @@ static int coroutine_fn qcow2_co_truncate(BlockDriverState *bs, int64_t offset,
 {
     BDRVQcow2State *s = bs->opaque;
     uint64_t old_length;
-    int64_t new_l1_size;
+    int64_t new_l1_size, offset_be;
     int ret;
     QDict *options;
 
@@ -3498,10 +3498,8 @@ static int coroutine_fn qcow2_co_truncate(BlockDriverState *bs, int64_t offset,
         goto fail;
     }
 
-    /* cannot proceed if image has bitmaps */
-    if (s->nb_bitmaps) {
-        /* TODO: resize bitmaps in the image */
-        error_setg(errp, "Can't resize an image which has bitmaps");
+    /* Only certain persistent bitmaps can be resized: */
+    if (qcow2_truncate_bitmaps_check(bs, errp)) {
         ret = -ENOTSUP;
         goto fail;
     }
@@ -3702,9 +3700,9 @@ static int coroutine_fn qcow2_co_truncate(BlockDriverState *bs, int64_t offset,
     bs->total_sectors = offset / BDRV_SECTOR_SIZE;
 
     /* write updated header.size */
-    offset = cpu_to_be64(offset);
+    offset_be = cpu_to_be64(offset);
     ret = bdrv_pwrite_sync(bs->file, offsetof(QCowHeader, size),
-                           &offset, sizeof(uint64_t));
+                           &offset_be, sizeof(uint64_t));
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Failed to update the image size");
         goto fail;
@@ -3719,6 +3717,21 @@ static int coroutine_fn qcow2_co_truncate(BlockDriverState *bs, int64_t offset,
     if (ret < 0) {
         goto fail;
     }
+
+    /* Flush bitmaps */
+    if (s->nb_bitmaps) {
+        Error *local_err = NULL;
+
+        /* Usually, bitmaps get resized after this call.
+         * Force it earlier so we can make the metadata consistent. */
+        bdrv_dirty_bitmap_truncate(bs, offset);
+        qcow2_flush_persistent_dirty_bitmaps(bs, &local_err);
+        if (local_err) {
+            ret = -EINVAL;
+            goto fail;
+        }
+    }
+
     ret = 0;
 fail:
     qemu_co_mutex_unlock(&s->lock);
