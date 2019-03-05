@@ -152,3 +152,21 @@
             'unix': 'UnixSocketAddress',
             'vsock': 'VsockSocketAddress',
             'fd': 'String' } }
+
+##
+# @DummyStruct:
+#
+# Both block-core and migration needs SocketAddressList
+# I am open to comments about how to share it
+#
+# @dummy-list: A dummy list
+#
+# FIXME: This shouldn't be needed, but this struct has two users, and
+# current qapi generator generates it on the 1st place that uses it,
+# so the second user don't see it.  Putting it here it is seen in both
+# sides.
+#
+# Since: 4.0
+##
+{ 'struct': 'DummyStruct',
+  'data': { 'dummy-list': ['SocketAddress'] } }
