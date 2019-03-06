@@ -54,7 +54,7 @@ static uint64_t pnv_occ_xscom_read(void *opaque, hwaddr addr, unsigned size)
         break;
     default:
         qemu_log_mask(LOG_UNIMP, "OCC Unimplemented register: Ox%"
-                      HWADDR_PRIx "\n", addr);
+                      HWADDR_PRIx "\n", addr >> 3);
     }
     return val;
 }
@@ -77,7 +77,7 @@ static void pnv_occ_xscom_write(void *opaque, hwaddr addr,
         break;
     default:
         qemu_log_mask(LOG_UNIMP, "OCC Unimplemented register: Ox%"
-                      HWADDR_PRIx "\n", addr);
+                      HWADDR_PRIx "\n", addr >> 3);
     }
 }
 
@@ -95,6 +95,7 @@ static const MemoryRegionOps pnv_occ_xscom_ops = {
 static void pnv_occ_realize(DeviceState *dev, Error **errp)
 {
     PnvOCC *occ = PNV_OCC(dev);
+    PnvOCCClass *poc = PNV_OCC_GET_CLASS(occ);
     Object *obj;
     Error *error = NULL;
 
@@ -111,8 +112,22 @@ static void pnv_occ_realize(DeviceState *dev, Error **errp)
 
     /* XScom region for OCC registers */
     pnv_xscom_region_init(&occ->xscom_regs, OBJECT(dev), &pnv_occ_xscom_ops,
-                  occ, "xscom-occ", PNV_XSCOM_OCC_SIZE);
+                  occ, "xscom-occ", poc->xscom_size);
 }
+
+static void pnv_occ_power8_class_init(ObjectClass *klass, void *data)
+{
+    PnvOCCClass *poc = PNV_OCC_CLASS(klass);
+
+    poc->xscom_size = PNV_XSCOM_OCC_SIZE;
+}
+
+static const TypeInfo pnv_occ_power8_type_info = {
+    .name          = TYPE_PNV8_OCC,
+    .parent        = TYPE_PNV_OCC,
+    .instance_size = sizeof(PnvOCC),
+    .class_init    = pnv_occ_power8_class_init,
+};
 
 static void pnv_occ_class_init(ObjectClass *klass, void *data)
 {
@@ -124,6 +139,7 @@ static void pnv_occ_class_init(ObjectClass *klass, void *data)
 static const TypeInfo pnv_occ_type_info = {
     .name          = TYPE_PNV_OCC,
     .parent        = TYPE_DEVICE,
+    .abstract      = true,
     .instance_size = sizeof(PnvOCC),
     .class_init    = pnv_occ_class_init,
 };
@@ -131,6 +147,7 @@ static const TypeInfo pnv_occ_type_info = {
 static void pnv_occ_register_types(void)
 {
     type_register_static(&pnv_occ_type_info);
+    type_register_static(&pnv_occ_power8_type_info);
 }
 
 type_init(pnv_occ_register_types)
