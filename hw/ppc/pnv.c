@@ -579,6 +579,7 @@ static void pnv_chip_power9_pic_print_info(PnvChip *chip, Monitor *mon)
     Pnv9Chip *chip9 = PNV9_CHIP(chip);
 
     pnv_xive_pic_print_info(&chip9->xive, mon);
+    pnv_psi_pic_print_info(&chip9->psi, mon);
 }
 
 static void pnv_init(MachineState *machine)
@@ -948,6 +949,11 @@ static void pnv_chip_power9_instance_init(Object *obj)
                             TYPE_PNV_XIVE, &error_abort, NULL);
     object_property_add_const_link(OBJECT(&chip9->xive), "chip", obj,
                                    &error_abort);
+
+    object_initialize_child(obj, "psi",  &chip9->psi, sizeof(chip9->psi),
+                            TYPE_PNV9_PSI, &error_abort, NULL);
+    object_property_add_const_link(OBJECT(&chip9->psi), "chip", obj,
+                                   &error_abort);
 }
 
 static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
@@ -980,6 +986,17 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
     }
     pnv_xscom_add_subregion(chip, PNV9_XSCOM_XIVE_BASE,
                             &chip9->xive.xscom_regs);
+
+    /* Processor Service Interface (PSI) Host Bridge */
+    object_property_set_int(OBJECT(&chip9->psi), PNV9_PSIHB_BASE(chip),
+                            "bar", &error_fatal);
+    object_property_set_bool(OBJECT(&chip9->psi), true, "realized", &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+    pnv_xscom_add_subregion(chip, PNV9_XSCOM_PSIHB_BASE,
+                            &chip9->psi.xscom_regs);
 }
 
 static void pnv_chip_power9_class_init(ObjectClass *klass, void *data)
