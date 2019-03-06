@@ -6,7 +6,7 @@ mips mipsel mipsn32 mipsn32el mips64 mips64el \
 sh4 sh4eb s390x aarch64 aarch64_be hppa riscv32 riscv64 xtensa xtensaeb \
 microblaze microblazeel or1k x86_64"
 
-# check if given target CPUS is/are in the supported target list
+# check if given TARGETS is/are in the supported target list
 qemu_check_target_list() {
     all="$qemu_target_list"
     if [ "x$1" = "xALL" ] ; then
@@ -199,12 +199,12 @@ usage() {
     cat <<EOF
 Usage: qemu-binfmt-conf.sh [--help][--path PATH][--suffix SUFFIX]
                            [--persistent][--credential][--exportdir PATH]
-                           [--reset ARCHS][--systemd][--debian][CPUS]
+                           [--reset ARCHS][--systemd][--debian][TARGETS]
 
-    Configure binfmt_misc to use qemu interpreter for the given CPUS.
-    Supported formats for CPUS are: single arch or comma/space separated list.
-    See QEMU target list below. If CPUS is 'ALL' or empty, configure all known
-    cpus. If CPUS is 'NONE', no interpreter is configured.
+    Configure binfmt_misc to use qemu interpreter for the given TARGETS.
+    Supported formats for TARGETS are: single arch or comma/space separated list.
+    See QEMU target list below. If TARGETS is 'ALL' or empty, configure all known
+    TARGETS. If TARGETS is 'NONE', no interpreter is configured.
 
     --help:        display this usage.
     --path:        set path to qemu interpreter.
@@ -244,6 +244,7 @@ Usage: qemu-binfmt-conf.sh [--help][--path PATH][--suffix SUFFIX]
       QEMU_SUFFIX=
       QEMU_PERSISTENT=no
       QEMU_CREDENTIAL=no
+      QEMU_TARGETS=
 
 EOF
 }
@@ -324,17 +325,17 @@ EOF
 }
 
 qemu_set_binfmts() {
-    if [ "x$1" = "xNONE" ] ; then
-      return
-    fi
-
     # probe cpu type
     host_family=$(qemu_get_family)
 
     # reduce the list of target interpreters to those given in the CLI
-    targets="$@"
     if [ $# -eq 0 ] ; then
-      targets="ALL"
+      targets="${QEMU_TARGETS:-ALL}"
+    else
+      if [ "x$1" = "xNONE" ] ; then
+        return
+      fi
+      targets="$@"
     fi
     qemu_check_target_list $targets
 
@@ -391,6 +392,7 @@ QEMU_PATH="${QEMU_PATH:-/usr/local/bin}"
 QEMU_SUFFIX="${QEMU_SUFFIX:-}"
 QEMU_PERSISTENT="${QEMU_PERSISTENT:-no}"
 QEMU_CREDENTIAL="${QEMU_CREDENTIAL:-no}"
+QEMU_TARGETS="${QEMU_TARGETS:-}"
 
 options=$(getopt -o r:dsQ:S:e:hcp -l reset:,debian,systemd,path:,suffix:,exportdir:,help,credential,persistent -- "$@")
 eval set -- "$options"
