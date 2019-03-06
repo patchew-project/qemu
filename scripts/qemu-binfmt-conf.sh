@@ -6,6 +6,36 @@ mips mipsel mipsn32 mipsn32el mips64 mips64el \
 sh4 sh4eb s390x aarch64 aarch64_be hppa riscv32 riscv64 xtensa xtensaeb \
 microblaze microblazeel or1k x86_64"
 
+# check if given target CPUS is/are in the supported target list
+qemu_check_target_list() {
+    all="$qemu_target_list"
+    if [ "x$1" = "xALL" ] ; then
+      checked_target_list="$all"
+      return
+    fi
+    list=""
+    bIFS="$IFS"
+    IFS=$"$IFS",
+    for target ; do
+        unknown_target="true"
+        for cpu in $all ; do
+            if [ "x$cpu" = "x$target" ] ; then
+                list="$list $target"
+                unknown_target="false"
+                break
+            fi
+        done
+        if [ "$unknown_target" = "true" ] ; then
+            IFS="$bIFS"
+            echo "ERROR: unknown CPU \"$target\"" 1>&2
+            usage
+            exit 1
+        fi
+    done
+    IFS="$bIFS"
+    checked_target_list="$list"
+}
+
 i386_magic='\x7fELF\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x03\x00'
 i386_mask='\xff\xff\xff\xff\xff\xfe\xfe\x00\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff'
 i386_family=i386
@@ -167,11 +197,14 @@ qemu_get_family() {
 
 usage() {
     cat <<EOF
-Usage: qemu-binfmt-conf.sh [--path PATH][--debian][--systemd CPU]
+Usage: qemu-binfmt-conf.sh [--path PATH][--debian][--systemd]
                            [--help][--credential][--exportdir PATH]
-                           [--persistent][--suffix SUFFIX]
+                           [--persistent][--suffix SUFFIX][CPUS]
 
-       Configure binfmt_misc to use qemu interpreter
+       Configure binfmt_misc to use qemu interpreter for the given CPUS.
+       Supported formats for CPUS are: single arch or comma/space separated list.
+       See QEMU target list below. If CPUS is 'ALL' or empty, configure all known
+       cpus. If CPUS is 'NONE', no interpreter is configured.
 
        --help:        display this usage
        --path:        set path to qemu interpreter ($QEMU_PATH)
@@ -180,9 +213,10 @@ Usage: qemu-binfmt-conf.sh [--path PATH][--debian][--systemd CPU]
        --debian:      don't write into /proc,
                       instead generate update-binfmts templates
        --systemd:     don't write into /proc,
-                      instead generate file for systemd-binfmt.service
-                      for the given CPU. If CPU is "ALL", generate a
-                      file for all known cpus
+                      instead generate file for systemd-binfmt.service;
+                      environment variable HOST_ARCH allows to override 'uname'
+                      to generate configuration files for a different
+                      architecture than the current one.
        --exportdir:   define where to write configuration files
                       (default: $SYSTEMDDIR or $DEBIANDIR)
        --credential:  if present, credential and security tokens are
@@ -201,14 +235,7 @@ Usage: qemu-binfmt-conf.sh [--path PATH][--debian][--systemd CPU]
 
         sudo update-binfmts --package qemu-CPU --remove qemu-CPU $QEMU_PATH
 
-    With systemd, binfmt files are loaded by systemd-binfmt.service
-
-    The environment variable HOST_ARCH allows to override 'uname' to generate
-    configuration files for a different architecture than the current one.
-
-    where CPU is one of:
-
-        $qemu_target_list
+    QEMU target list: $qemu_target_list
 
 EOF
 }
@@ -289,12 +316,22 @@ EOF
 }
 
 qemu_set_binfmts() {
+    if [ "x$1" = "xNONE" ] ; then
+      return
+    fi
+
     # probe cpu type
     host_family=$(qemu_get_family)
 
-    # register the interpreter for each cpu except for the native one
+    # reduce the list of target interpreters to those given in the CLI
+    targets="$@"
+    if [ $# -eq 0 ] ; then
+      targets="ALL"
+    fi
+    qemu_check_target_list $targets
 
-    for cpu in ${qemu_target_list} ; do
+    # register the interpreter for each cpu except for the native one
+    for cpu in $checked_target_list ; do
         magic=$(eval echo \$${cpu}_magic)
         mask=$(eval echo \$${cpu}_mask)
         family=$(eval echo \$${cpu}_family)
@@ -327,7 +364,7 @@ QEMU_SUFFIX="${QEMU_SUFFIX:-}"
 QEMU_CREDENTIAL="${QEMU_CREDENTIAL:-no}"
 QEMU_PERSISTENT="${QEMU_PERSISTENT:-no}"
 
-options=$(getopt -o ds:Q:S:e:hcp -l debian,systemd:,path:,suffix:,exportdir:,help,credential,persistent -- "$@")
+options=$(getopt -o :dsQ:S:e:hcp -l debian,systemd,path:,suffix:,exportdir:,help,credential,persistent -- "$@")
 eval set -- "$options"
 
 while true ; do
@@ -341,23 +378,6 @@ while true ; do
         CHECK=qemu_check_systemd
         BINFMT_SET=qemu_generate_systemd
         EXPORTDIR=${EXPORTDIR:-$SYSTEMDDIR}
-        shift
-        # check given cpu is in the supported CPU list
-        if [ "$1" != "ALL" ] ; then
-            for cpu in ${qemu_target_list} ; do
-                if [ "$cpu" = "$1" ] ; then
-                    break
-                fi
-            done
-
-            if [ "$cpu" = "$1" ] ; then
-                qemu_target_list="$1"
-            else
-                echo "ERROR: unknown CPU \"$1\"" 1>&2
-                usage
-                exit 1
-            fi
-        fi
         ;;
     -Q|--path)
         shift
@@ -388,5 +408,7 @@ while true ; do
     shift
 done
 
+shift
+
 $CHECK
-qemu_set_binfmts
+qemu_set_binfmts "$@"
