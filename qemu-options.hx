@@ -206,10 +206,14 @@ For example:
 -numa cpu,node-id=0,socket-id=0 -numa cpu,node-id=1,socket-id=1
 @end example
 
-@samp{mem} assigns a given RAM amount to a node. @samp{memdev}
-assigns RAM from a given memory backend device to a node. If
-@samp{mem} and @samp{memdev} are omitted in all nodes, RAM is
-split equally between them.
+@samp{memdev} assigns RAM from a given memory backend device to a node.
+
+Legacy options/behaviour: @samp{mem} assigns a given RAM amount to a node.
+If @samp{mem} and @samp{memdev} are omitted in all nodes, RAM is split equally
+between them. Option @samp{mem} and default RAM splitting are obsolete as they
+do not provide means to manage RAM on the host side and only allow QEMU to fake
+NUMA support which in practice could degrade VM performance.
+It's advised to always explicitly configure NUMA RAM by using the @samp{memdev} option.
 
 @samp{mem} and @samp{memdev} are mutually exclusive. Furthermore,
 if one node uses @samp{memdev}, all of them have to use it.
