@@ -60,6 +60,12 @@ static void pnv_cpu_reset(void *opaque)
 #define PNV_XSCOM_EX_DTS_RESULT0     0x50000
 #define PNV_XSCOM_EX_DTS_RESULT1     0x50001
 
+/*
+ * POWER9 core controls
+ */
+#define PNV9_XSCOM_EC_PPM_SPECIAL_WKUP_HYP 0xf010d
+#define PNV9_XSCOM_EC_PPM_SPECIAL_WKUP_OTR 0xf010a
+
 static uint64_t pnv_core_xscom_read(void *opaque, hwaddr addr,
                                     unsigned int width)
 {
@@ -74,6 +80,10 @@ static uint64_t pnv_core_xscom_read(void *opaque, hwaddr addr,
     case PNV_XSCOM_EX_DTS_RESULT1:
         val = 0x24f000000000000ull;
         break;
+    case PNV9_XSCOM_EC_PPM_SPECIAL_WKUP_HYP:
+    case PNV9_XSCOM_EC_PPM_SPECIAL_WKUP_OTR:
+        val = 0x0;
+        break;
     default:
         qemu_log_mask(LOG_UNIMP, "Warning: reading reg=0x%" HWADDR_PRIx "\n",
                   addr);
@@ -85,8 +95,16 @@ static uint64_t pnv_core_xscom_read(void *opaque, hwaddr addr,
 static void pnv_core_xscom_write(void *opaque, hwaddr addr, uint64_t val,
                                  unsigned int width)
 {
-    qemu_log_mask(LOG_UNIMP, "Warning: writing to reg=0x%" HWADDR_PRIx "\n",
-                  addr);
+    uint32_t offset = addr >> 3;
+
+    switch (offset) {
+    case PNV9_XSCOM_EC_PPM_SPECIAL_WKUP_HYP:
+    case PNV9_XSCOM_EC_PPM_SPECIAL_WKUP_OTR:
+        break;
+    default:
+        qemu_log_mask(LOG_UNIMP, "Warning: writing to reg=0x%" HWADDR_PRIx "\n",
+                      addr);
+    }
 }
 
 static const MemoryRegionOps pnv_core_xscom_ops = {
