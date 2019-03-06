@@ -197,8 +197,8 @@ qemu_get_family() {
 
 usage() {
     cat <<EOF
-Usage: qemu-binfmt-conf.sh [--path PATH][--debian][--systemd]
-                           [--help][--credential][--exportdir PATH]
+Usage: qemu-binfmt-conf.sh [--help][--path PATH][--debian][--systemd]
+                           [--reset ARCHS][--credential][--exportdir PATH]
                            [--persistent][--suffix SUFFIX][CPUS]
 
        Configure binfmt_misc to use qemu interpreter for the given CPUS.
@@ -219,6 +219,9 @@ Usage: qemu-binfmt-conf.sh [--path PATH][--debian][--systemd]
                       architecture than the current one.
        --exportdir:   define where to write configuration files
                       (default: $SYSTEMDDIR or $DEBIANDIR)
+       --reset:       remove registered interpreter for target ARCHS (comma
+                      separated list). If ARCHS is 'ALL', remove all registered
+                      'qemu-*' interpreters.
        --credential:  if present, credential and security tokens are
                       calculated according to the binary to interpret
                       ($QEMU_CREDENTIAL=yes)
@@ -353,8 +356,28 @@ qemu_set_binfmts() {
     done
 }
 
+qemu_remove_notimplemented() {
+    echo "ERROR: option reset not implemented for this mode yet" 1>&2
+    usage
+    exit 1
+}
+
+qemu_remove_interpreter() {
+    names='qemu-*'
+    if [ "x$1" != "xALL" ] ; then
+        qemu_check_target_list $1
+        unset names pre
+        for t in $checked_target_list ; do
+            names="${names}${pre}qemu-$t"
+            pre=' -o -name '
+        done
+    fi
+    find /proc/sys/fs/binfmt_misc/ -type f -name $names -exec sh -c 'printf %s -1 > {}' \;
+}
+
 CHECK=qemu_check_bintfmt_misc
 BINFMT_SET=qemu_register_interpreter
+BINFMT_REMOVE=qemu_remove_interpreter
 
 SYSTEMDDIR="/etc/binfmt.d"
 DEBIANDIR="/usr/share/binfmts"
@@ -364,19 +387,26 @@ QEMU_SUFFIX="${QEMU_SUFFIX:-}"
 QEMU_CREDENTIAL="${QEMU_CREDENTIAL:-no}"
 QEMU_PERSISTENT="${QEMU_PERSISTENT:-no}"
 
-options=$(getopt -o :dsQ:S:e:hcp -l debian,systemd,path:,suffix:,exportdir:,help,credential,persistent -- "$@")
+options=$(getopt -o r:dsQ:S:e:hcp -l reset:,debian,systemd,path:,suffix:,exportdir:,help,credential,persistent -- "$@")
 eval set -- "$options"
 
 while true ; do
     case "$1" in
+    -r|--reset)
+        shift
+        $CHECK
+        qemu_remove_interpreter $1
+        ;;
     -d|--debian)
         CHECK=qemu_check_debian
         BINFMT_SET=qemu_generate_debian
+        BINFMT_REMOVE=qemu_remove_notimplemented
         EXPORTDIR=${EXPORTDIR:-$DEBIANDIR}
         ;;
     -s|--systemd)
         CHECK=qemu_check_systemd
         BINFMT_SET=qemu_generate_systemd
+        BINFMT_REMOVE=qemu_remove_notimplemented
         EXPORTDIR=${EXPORTDIR:-$SYSTEMDDIR}
         ;;
     -Q|--path)
