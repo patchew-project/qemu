@@ -306,6 +306,8 @@ static void pnv_chip_power9_dt_populate(PnvChip *chip, void *fdt)
     if (chip->ram_size) {
         pnv_dt_memory(fdt, chip->chip_id, chip->ram_start, chip->ram_size);
     }
+
+    pnv_dt_lpc(chip, fdt, 0);
 }
 
 static void pnv_dt_rtc(ISADevice *d, void *fdt, int lpc_off)
@@ -422,8 +424,14 @@ static int pnv_chip_isa_offset(PnvChip *chip, void *fdt)
     char *name;
     int offset;
 
-    name = g_strdup_printf("/xscom@%" PRIx64 "/isa@%x",
-                           (uint64_t) PNV_XSCOM_BASE(chip), PNV_XSCOM_LPC_BASE);
+    if (pnv_chip_is_power9(chip)) {
+        name = g_strdup_printf("/lpcm-opb@%" PRIx64 "/lpc@0",
+                               (uint64_t) PNV9_LPCM_BASE(chip));
+    } else {
+        name = g_strdup_printf("/xscom@%" PRIx64 "/isa@%x",
+                               (uint64_t) PNV_XSCOM_BASE(chip),
+                               PNV_XSCOM_LPC_BASE);
+    }
     offset = fdt_path_offset(fdt, name);
     g_free(name);
     return offset;
@@ -559,7 +567,8 @@ static ISABus *pnv_chip_power8nvl_isa_create(PnvChip *chip, Error **errp)
 
 static ISABus *pnv_chip_power9_isa_create(PnvChip *chip, Error **errp)
 {
-    return NULL;
+    Pnv9Chip *chip9 = PNV9_CHIP(chip);
+    return pnv_lpc_isa_create(&chip9->lpc, false, errp);
 }
 
 static ISABus *pnv_isa_create(PnvChip *chip, Error **errp)
@@ -954,6 +963,11 @@ static void pnv_chip_power9_instance_init(Object *obj)
                             TYPE_PNV9_PSI, &error_abort, NULL);
     object_property_add_const_link(OBJECT(&chip9->psi), "chip", obj,
                                    &error_abort);
+
+    object_initialize_child(obj, "lpc",  &chip9->lpc, sizeof(chip9->lpc),
+                            TYPE_PNV9_LPC, &error_abort, NULL);
+    object_property_add_const_link(OBJECT(&chip9->lpc), "psi",
+                                   OBJECT(&chip9->psi), &error_abort);
 }
 
 static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
@@ -997,6 +1011,15 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
     }
     pnv_xscom_add_subregion(chip, PNV9_XSCOM_PSIHB_BASE,
                             &chip9->psi.xscom_regs);
+
+    /* LPC */
+    object_property_set_bool(OBJECT(&chip9->lpc), true, "realized", &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+    memory_region_add_subregion(get_system_memory(), PNV9_LPCM_BASE(chip),
+                                &chip9->lpc.xscom_regs);
 }
 
 static void pnv_chip_power9_class_init(ObjectClass *klass, void *data)

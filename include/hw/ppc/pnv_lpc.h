@@ -28,6 +28,10 @@
 #define PNV8_LPC(obj) \
     OBJECT_CHECK(PnvLpc, (obj), TYPE_PNV8_LPC)
 
+#define TYPE_PNV9_LPC TYPE_PNV_LPC "-POWER9"
+#define PNV9_LPC(obj) \
+    OBJECT_CHECK(PnvLpc, (obj), TYPE_PNV9_LPC)
+
 typedef struct PnvLpcController {
     DeviceState parent;
 
@@ -86,6 +90,12 @@ typedef struct PnvLpcClass {
     DeviceRealize parent_realize;
 } PnvLpcClass;
 
+/*
+ * Old compilers error on typdef forward declarations. Keep them happy.
+ */
+struct PnvChip;
+
 ISABus *pnv_lpc_isa_create(PnvLpcController *lpc, bool use_cpld, Error **errp);
+int pnv_dt_lpc(struct PnvChip *chip, void *fdt, int root_offset);
 
 #endif /* _PPC_PNV_LPC_H */
