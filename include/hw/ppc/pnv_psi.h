@@ -25,6 +25,9 @@
 #define TYPE_PNV_PSI "pnv-psi"
 #define PNV_PSI(obj) \
      OBJECT_CHECK(PnvPsi, (obj), TYPE_PNV_PSI)
+#define TYPE_PNV8_PSI TYPE_PNV_PSI "-POWER8"
+#define PNV8_PSI(obj) \
+    OBJECT_CHECK(PnvPsi, (obj), TYPE_PNV8_PSI)
 
 #define PSIHB_XSCOM_MAX         0x20
 
@@ -48,6 +51,22 @@ typedef struct PnvPsi {
     MemoryRegion xscom_regs;
 } PnvPsi;
 
+#define PNV_PSI_CLASS(klass) \
+     OBJECT_CLASS_CHECK(PnvPsiClass, (klass), TYPE_PNV_PSI)
+#define PNV_PSI_GET_CLASS(obj) \
+     OBJECT_GET_CLASS(PnvPsiClass, (obj), TYPE_PNV_PSI)
+
+typedef struct PnvPsiClass {
+    SysBusDeviceClass parent_class;
+
+    int chip_type;
+    uint32_t xscom_pcba;
+    uint32_t xscom_size;
+    uint64_t bar_mask;
+
+    void (*irq_set)(PnvPsi *psi, int, bool state);
+} PnvPsiClass;
+
 /* The PSI and FSP interrupts are muxed on the same IRQ number */
 typedef enum PnvPsiIrq {
     PSIHB_IRQ_PSI, /* internal use only */
@@ -61,6 +80,6 @@ typedef enum PnvPsiIrq {
 
 #define PSI_NUM_INTERRUPTS 6
 
-extern void pnv_psi_irq_set(PnvPsi *psi, PnvPsiIrq irq, bool state);
+void pnv_psi_irq_set(PnvPsi *psi, int irq, bool state);
 
 #endif /* _PPC_PNV_PSI_H */
