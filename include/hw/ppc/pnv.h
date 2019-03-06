@@ -86,6 +86,7 @@ typedef struct Pnv9Chip {
     PnvXive      xive;
     PnvPsi       psi;
     PnvLpcController lpc;
+    PnvOCC       occ;
 } Pnv9Chip;
 
 typedef struct PnvChipClass {
