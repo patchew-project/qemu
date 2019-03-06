@@ -167,15 +167,15 @@ qemu_get_family() {
 
 usage() {
     cat <<EOF
-Usage: qemu-binfmt-conf.sh [--qemu-path PATH][--debian][--systemd CPU]
+Usage: qemu-binfmt-conf.sh [--path PATH][--debian][--systemd CPU]
                            [--help][--credential][--exportdir PATH]
-                           [--persistent][--qemu-suffix SUFFIX]
+                           [--persistent][--suffix SUFFIX]
 
        Configure binfmt_misc to use qemu interpreter
 
        --help:        display this usage
-       --qemu-path:   set path to qemu interpreter ($QEMU_PATH)
-       --qemu-suffix: add a suffix to the default interpreter name
+       --path:        set path to qemu interpreter ($QEMU_PATH)
+       --suffix:      add a suffix to the default interpreter name
        --debian:      don't write into /proc,
                       instead generate update-binfmts templates
        --systemd:     don't write into /proc,
@@ -328,7 +328,7 @@ QEMU_PERSISTENT="${QEMU_PERSISTENT:-no}"
 
 QEMU_SUFFIX=""
 
-options=$(getopt -o ds:Q:S:e:hcp -l debian,systemd:,qemu-path:,qemu-suffix:,exportdir:,help,credential,persistent -- "$@")
+options=$(getopt -o ds:Q:S:e:hcp -l debian,systemd:,path:,suffix:,exportdir:,help,credential,persistent -- "$@")
 eval set -- "$options"
 
 while true ; do
@@ -360,11 +360,11 @@ while true ; do
             fi
         fi
         ;;
-    -Q|--qemu-path)
+    -Q|--path)
         shift
         QEMU_PATH="$1"
         ;;
-    -F|--qemu-suffix)
+    -F|--suffix)
         shift
         QEMU_SUFFIX="$1"
         ;;
