@@ -26,6 +26,7 @@ enum {
     SLIRP_POLL_HUP = 1 << 4,
 };
 
+typedef ssize_t (*SlirpReadCb)(void *buf, size_t len, void *opaque);
 typedef ssize_t (*SlirpWriteCb)(const void *buf, size_t len, void *opaque);
 typedef void (*SlirpTimerCb)(void *opaque);
 typedef int (*SlirpAddPollCb)(int fd, int events, void *opaque);
