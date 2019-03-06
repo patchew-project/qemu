@@ -201,34 +201,31 @@ Usage: qemu-binfmt-conf.sh [--help][--path PATH][--suffix SUFFIX]
                            [--persistent][--credential][--exportdir PATH]
                            [--reset ARCHS][--systemd][--debian][CPUS]
 
-       Configure binfmt_misc to use qemu interpreter for the given CPUS.
-       Supported formats for CPUS are: single arch or comma/space separated list.
-       See QEMU target list below. If CPUS is 'ALL' or empty, configure all known
-       cpus. If CPUS is 'NONE', no interpreter is configured.
+    Configure binfmt_misc to use qemu interpreter for the given CPUS.
+    Supported formats for CPUS are: single arch or comma/space separated list.
+    See QEMU target list below. If CPUS is 'ALL' or empty, configure all known
+    cpus. If CPUS is 'NONE', no interpreter is configured.
 
-       --help:        display this usage
-       --path:        set path to qemu interpreter ($QEMU_PATH)
-       --suffix:      add a suffix to the default interpreter name
-                      ($QEMU_SUFFIX)
-       --persistent:  if present, the interpreter is loaded when binfmt is
-                      configured and remains in memory. All future uses
-                      are cloned from the open file.
-                      ($QEMU_PERSISTENT=yes)
-       --credential:  if present, credential and security tokens are
-                      calculated according to the binary to interpret
-                      ($QEMU_CREDENTIAL=yes)
-       --exportdir:   define where to write configuration files
-                      (default: $SYSTEMDDIR or $DEBIANDIR)
-       --reset:       remove registered interpreter for target ARCHS (comma
-                      separated list). If ARCHS is 'ALL', remove all registered
-                      'qemu-*' interpreters.
-       --systemd:     don't write into /proc,
-                      instead generate file for systemd-binfmt.service;
-                      environment variable HOST_ARCH allows to override 'uname'
-                      to generate configuration files for a different
-                      architecture than the current one.
-       --debian:      don't write into /proc,
-                      instead generate update-binfmts templates
+    --help:        display this usage.
+    --path:        set path to qemu interpreter.
+    --suffix:      add a suffix to the default interpreter name.
+    --persistent:  if present, the interpreter is loaded when binfmt is
+                   configured and remains in memory. All future uses
+                   are cloned from the open file.
+    --credential:  if present, credential and security tokens are
+                   calculated according to the binary to interpret.
+    --exportdir:   define where to write configuration files.
+                   (default: $SYSTEMDDIR or $DEBIANDIR)
+    --reset:       remove registered interpreter for target ARCHS (comma
+                   separated list). If ARCHS is 'ALL', remove all registered
+                   'qemu-*' interpreters.
+    --systemd:     don't write into /proc,
+                   instead generate file(s) for systemd-binfmt.service;
+                   environment variable HOST_ARCH allows to override 'uname'
+                   to generate configuration files for a different
+                   architecture than the current one.
+    --debian:      don't write into /proc,
+                   instead generate update-binfmts templates.
 
     To import templates with update-binfmts, use :
 
@@ -239,6 +236,14 @@ Usage: qemu-binfmt-conf.sh [--help][--path PATH][--suffix SUFFIX]
         sudo update-binfmts --package qemu-CPU --remove qemu-CPU $QEMU_PATH
 
     QEMU target list: $qemu_target_list
+
+    Options 'path, 'suffix', 'persistent' and 'credential' are also supported
+    through environment variables. Defaults are:
+
+      QEMU_PATH=/usr/local/bin
+      QEMU_SUFFIX=
+      QEMU_PERSISTENT=no
+      QEMU_CREDENTIAL=no
 
 EOF
 }
@@ -384,8 +389,8 @@ DEBIANDIR="/usr/share/binfmts"
 
 QEMU_PATH="${QEMU_PATH:-/usr/local/bin}"
 QEMU_SUFFIX="${QEMU_SUFFIX:-}"
-QEMU_CREDENTIAL="${QEMU_CREDENTIAL:-no}"
 QEMU_PERSISTENT="${QEMU_PERSISTENT:-no}"
+QEMU_CREDENTIAL="${QEMU_CREDENTIAL:-no}"
 
 options=$(getopt -o r:dsQ:S:e:hcp -l reset:,debian,systemd,path:,suffix:,exportdir:,help,credential,persistent -- "$@")
 eval set -- "$options"
