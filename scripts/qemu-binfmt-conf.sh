@@ -197,9 +197,9 @@ qemu_get_family() {
 
 usage() {
     cat <<EOF
-Usage: qemu-binfmt-conf.sh [--help][--path PATH][--debian][--systemd]
-                           [--reset ARCHS][--credential][--exportdir PATH]
-                           [--persistent][--suffix SUFFIX][CPUS]
+Usage: qemu-binfmt-conf.sh [--help][--path PATH][--suffix SUFFIX]
+                           [--persistent][--credential][--exportdir PATH]
+                           [--reset ARCHS][--systemd][--debian][CPUS]
 
        Configure binfmt_misc to use qemu interpreter for the given CPUS.
        Supported formats for CPUS are: single arch or comma/space separated list.
@@ -210,25 +210,25 @@ Usage: qemu-binfmt-conf.sh [--help][--path PATH][--debian][--systemd]
        --path:        set path to qemu interpreter ($QEMU_PATH)
        --suffix:      add a suffix to the default interpreter name
                       ($QEMU_SUFFIX)
-       --debian:      don't write into /proc,
-                      instead generate update-binfmts templates
-       --systemd:     don't write into /proc,
-                      instead generate file for systemd-binfmt.service;
-                      environment variable HOST_ARCH allows to override 'uname'
-                      to generate configuration files for a different
-                      architecture than the current one.
+       --persistent:  if present, the interpreter is loaded when binfmt is
+                      configured and remains in memory. All future uses
+                      are cloned from the open file.
+                      ($QEMU_PERSISTENT=yes)
+       --credential:  if present, credential and security tokens are
+                      calculated according to the binary to interpret
+                      ($QEMU_CREDENTIAL=yes)
        --exportdir:   define where to write configuration files
                       (default: $SYSTEMDDIR or $DEBIANDIR)
        --reset:       remove registered interpreter for target ARCHS (comma
                       separated list). If ARCHS is 'ALL', remove all registered
                       'qemu-*' interpreters.
-       --credential:  if present, credential and security tokens are
-                      calculated according to the binary to interpret
-                      ($QEMU_CREDENTIAL=yes)
-       --persistent:  if present, the interpreter is loaded when binfmt is
-                      configured and remains in memory. All future uses
-                      are cloned from the open file.
-                      ($QEMU_PERSISTENT=yes)
+       --systemd:     don't write into /proc,
+                      instead generate file for systemd-binfmt.service;
+                      environment variable HOST_ARCH allows to override 'uname'
+                      to generate configuration files for a different
+                      architecture than the current one.
+       --debian:      don't write into /proc,
+                      instead generate update-binfmts templates
 
     To import templates with update-binfmts, use :
 
