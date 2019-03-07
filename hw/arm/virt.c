@@ -1265,6 +1265,21 @@ static void create_secure_ram(VirtMachineState *vms,
     g_free(nodename);
 }
 
+static void create_tag_ram(VirtMachineState *vms, MachineState *machine,
+                           MemoryRegion *tag_sysmem)
+{
+    MemoryRegion *tagram = g_new(MemoryRegion, 1);
+    hwaddr base = vms->memmap[VIRT_MEM].base / 32;
+    hwaddr size = machine->ram_size / 32;
+
+    memory_region_init_ram(tagram, NULL, "mach-virt.tag", size, &error_fatal);
+    memory_region_add_subregion(tag_sysmem, base, tagram);
+
+    /* ??? Do we really need an fdt entry, or is MemTag enabled sufficient.  */
+    /* ??? We appear to need secure tag mem to go with secure mem.  */
+    /* ??? Does that imply we need a fourth address space?  */
+}
+
 static void *machvirt_dtb(const struct arm_boot_info *binfo, int *fdt_size)
 {
     const VirtMachineState *board = container_of(binfo, VirtMachineState,
@@ -1419,6 +1434,7 @@ static void machvirt_init(MachineState *machine)
     qemu_irq pic[NUM_IRQS];
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *secure_sysmem = NULL;
+    MemoryRegion *tag_sysmem = NULL;
     int n, virt_max_cpus;
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     bool firmware_loaded = bios_name || drive_get(IF_PFLASH, 0, 0);
@@ -1580,6 +1596,20 @@ static void machvirt_init(MachineState *machine)
                                      "secure-memory", &error_abort);
         }
 
+        /*
+         * The cpu adds the property iff MemTag is supported.
+         * If it is, we must allocate the ram to back that up.
+         */
+        if (object_property_find(cpuobj, "tag-memory", NULL)) {
+            if (!tag_sysmem) {
+                tag_sysmem = g_new(MemoryRegion, 1);
+                memory_region_init(tag_sysmem, OBJECT(machine),
+                                   "tag-memory", UINT64_MAX / 32);
+            }
+            object_property_set_link(cpuobj, OBJECT(tag_sysmem),
+                                     "tag-memory", &error_abort);
+        }
+
         object_property_set_bool(cpuobj, true, "realized", &error_fatal);
         object_unref(cpuobj);
     }
@@ -1621,6 +1651,9 @@ static void machvirt_init(MachineState *machine)
     if (vms->secure) {
         create_secure_ram(vms, secure_sysmem);
         create_uart(vms, pic, VIRT_SECURE_UART, secure_sysmem, serial_hd(1));
+    }
+    if (tag_sysmem) {
+        create_tag_ram(vms, machine, tag_sysmem);
     }
 
     vms->highmem_ecam &= vms->highmem && (!firmware_loaded || aarch64);
