@@ -377,3 +377,99 @@ void HELPER(st2g_parallel)(CPUARMState *env, uint64_t ptr, uint64_t xt)
 {
     do_st2g(env, ptr, xt, GETPC(), store_tag1_parallel);
 }
+
+uint64_t HELPER(ldgm)(CPUARMState *env, uint64_t ptr)
+{
+    const int size = 4 << GMID_EL1_BS;
+    int el;
+    uint64_t sctlr;
+    void *mem;
+
+    ptr = QEMU_ALIGN_DOWN(ptr, size);
+
+    /* Trap if accessing an invalid page(s).  */
+    mem = allocation_tag_mem(env, ptr, false, GETPC());
+
+    /*
+     * The tag is squashed to zero if the page does not support tags,
+     * or if the OS is denying access to the tags.
+     */
+    el = arm_current_el(env);
+    sctlr = arm_sctlr(env, el);
+    if (!mem || !allocation_tag_access_enabled(env, el, sctlr)) {
+        return 0;
+    }
+
+#if GMID_EL1_BS != 6
+# error "Fill in the blanks for other sizes"
+#endif
+    /*
+     * We are loading 64-bits worth of tags.  The ordering of elements
+     * within the word corresponds to a 64-bit little-endian operation.
+     */
+    return ldq_le_p(mem);
+}
+
+static uint64_t do_stgm(CPUARMState *env, uint64_t ptr,
+                        uint64_t val, uintptr_t ra)
+{
+    const int size = 4 << GMID_EL1_BS;
+    int el;
+    uint64_t sctlr;
+    void *mem;
+
+    ptr = QEMU_ALIGN_DOWN(ptr, size);
+
+    /* Trap if accessing an invalid page(s).  */
+    mem = allocation_tag_mem(env, ptr, true, ra);
+
+    /*
+     * No action if the page does not support tags,
+     * or if the OS is denying access to the tags.
+     */
+    el = arm_current_el(env);
+    sctlr = arm_sctlr(env, el);
+    if (!mem || !allocation_tag_access_enabled(env, el, sctlr)) {
+        return ptr;
+    }
+
+#if GMID_EL1_BS != 6
+# error "Fill in the blanks for other sizes"
+#endif
+    /*
+     * We are storing 64-bits worth of tags.  The ordering of elements
+     * within the word corresponds to a 64-bit little-endian operation.
+     */
+    stq_le_p(mem, val);
+
+    return ptr;
+}
+
+void HELPER(stgm)(CPUARMState *env, uint64_t ptr, uint64_t val)
+{
+    do_stgm(env, ptr, val, GETPC());
+}
+
+void HELPER(stzgm)(CPUARMState *env, uint64_t ptr, uint64_t val)
+{
+    int i, mmu_idx, size = 4 << GMID_EL1_BS;
+    uintptr_t ra = GETPC();
+    void *mem;
+
+    ptr = do_stgm(env, ptr, val, ra);
+
+    /*
+     * We will have just probed this virtual address in do_stgm.
+     * If the tlb_vaddr_to_host fails, then the memory is not ram,
+     * or is monitored in some other way.  Fall back to stores.
+     */
+    mmu_idx = cpu_mmu_index(env, false);
+    mem = tlb_vaddr_to_host(env, ptr, MMU_DATA_STORE, mmu_idx);
+    if (mem) {
+        memset(mem, 0, size);
+    } else {
+        for (i = 0; i < size; i += 8) {
+            cpu_stq_data_ra(env, ptr + i, 0, ra);
+        }
+    }
+}

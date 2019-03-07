@@ -3722,7 +3722,7 @@ static void disas_ldst_tag(DisasContext *s, uint32_t insn)
     uint64_t offset = sextract64(insn, 12, 9) << LOG2_TAG_GRANULE;
     int op2 = extract32(insn, 10, 3);
     int op1 = extract32(insn, 22, 2);
-    bool is_load = false, is_pair = false, is_zero = false;
+    bool is_load = false, is_pair = false, is_zero = false, is_mult = false;
     int index = 0;
     TCGv_i64 dirty_addr, clean_addr, tcg_rt;
 
@@ -3732,13 +3732,18 @@ static void disas_ldst_tag(DisasContext *s, uint32_t insn)
     }
 
     switch (op1) {
-    case 0: /* STG */
+    case 0:
         if (op2 != 0) {
             /* STG */
             index = op2 - 2;
-            break;
+        } else {
+            /* STZGM */
+            if (s->current_el == 0 || offset != 0) {
+                goto do_unallocated;
+            }
+            is_mult = is_zero = true;
         }
-        goto do_unallocated;
+        break;
     case 1:
         if (op2 != 0) {
             /* STZG */
@@ -3754,17 +3759,27 @@ static void disas_ldst_tag(DisasContext *s, uint32_t insn)
             /* ST2G */
             is_pair = true;
             index = op2 - 2;
-            break;
+        } else {
+            /* STGM */
+            if (s->current_el == 0 || offset != 0) {
+                goto do_unallocated;
+            }
+            is_mult = true;
         }
-        goto do_unallocated;
+        break;
     case 3:
         if (op2 != 0) {
             /* STZ2G */
             is_pair = is_zero = true;
             index = op2 - 2;
-            break;
+        } else {
+            /* LDGM */
+            if (s->current_el == 0 || offset != 0) {
+                goto do_unallocated;
+            }
+            is_mult = is_load = true;
         }
-        goto do_unallocated;
+        break;
 
     default:
     do_unallocated:
@@ -3781,7 +3796,16 @@ static void disas_ldst_tag(DisasContext *s, uint32_t insn)
     clean_addr = clean_data_tbi(s, dirty_addr, false);
     tcg_rt = cpu_reg(s, rt);
 
-    if (is_load) {
+    if (is_mult) {
+        if (is_load) {
+            gen_helper_ldgm(tcg_rt, cpu_env, clean_addr);
+        } else if (is_zero) {
+            gen_helper_stzgm(cpu_env, clean_addr, tcg_rt);
+        } else {
+            gen_helper_stgm(cpu_env, clean_addr, tcg_rt);
+        }
+        return;
+    } else if (is_load) {
         gen_helper_ldg(tcg_rt, cpu_env, clean_addr, tcg_rt);
     } else if (tb_cflags(s->base.tb) & CF_PARALLEL) {
         if (is_pair) {
