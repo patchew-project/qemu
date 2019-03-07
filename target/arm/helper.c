@@ -221,6 +221,7 @@ static void write_raw_cp_reg(CPUARMState *env, const ARMCPRegInfo *ri,
     }
 }
 
+#ifndef CONFIG_USER_ONLY
 static int arm_gdb_get_sysreg(CPUARMState *env, uint8_t *buf, int reg)
 {
     ARMCPU *cpu = arm_env_get_cpu(env);
@@ -243,6 +244,7 @@ static int arm_gdb_set_sysreg(CPUARMState *env, uint8_t *buf, int reg)
 {
     return 0;
 }
+#endif
 
 static bool raw_accessors_invalid(const ARMCPRegInfo *ri)
 {
@@ -6694,9 +6696,11 @@ void arm_cpu_register_gdb_regs_for_features(ARMCPU *cpu)
         gdb_register_coprocessor(cs, vfp_gdb_get_reg, vfp_gdb_set_reg,
                                  19, "arm-vfp.xml", 0);
     }
+#ifndef CONFIG_USER_ONLY
     gdb_register_coprocessor(cs, arm_gdb_get_sysreg, arm_gdb_set_sysreg,
                              arm_gen_dynamic_xml(cs),
                              "system-registers.xml", 0);
+#endif
 }
 
 /* Sort alphabetically by type name, except for "any". */
