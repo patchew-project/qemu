@@ -101,6 +101,11 @@ config FSL_IMX25
 
 config FSL_IMX31
     bool
+    select SERIAL
+    select IMX
+    select IMX_I2C
+    select LAN9118
+    select PCI
 
 config FSL_IMX6
     bool
