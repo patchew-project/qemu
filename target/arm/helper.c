@@ -11948,7 +11948,9 @@ static bool get_phys_addr(CPUARMState *env, target_ulong address,
                           target_ulong *page_size,
                           ARMMMUFaultInfo *fi, ARMCacheAttrs *cacheattrs)
 {
-    if (mmu_idx == ARMMMUIdx_S12NSE0 || mmu_idx == ARMMMUIdx_S12NSE1) {
+    switch (mmu_idx) {
+    case ARMMMUIdx_S12NSE0:
+    case ARMMMUIdx_S12NSE1:
         /* Call ourselves recursively to do the stage 1 and then stage 2
          * translations.
          */
@@ -11999,6 +12001,22 @@ static bool get_phys_addr(CPUARMState *env, target_ulong address,
              */
             mmu_idx = stage_1_mmu_idx(mmu_idx);
         }
+        break;
+
+    case ARMMMUIdx_TagNS:
+        /*
+         * The tag tlb is physically addressed -- pass through 1:1.
+         * The real work is done in arm_asidx_from_attrs, selecting the
+         * address space, based on target_tlb_bit2.
+         */
+        attrs->target_tlb_bit2 = 1;
+        *phys_ptr = address;
+        *prot = PAGE_READ | PAGE_WRITE;
+        *page_size = TARGET_PAGE_SIZE;
+        return 0;
+
+    default:
+        break;
     }
 
     /* The page table entries may downgrade secure to non-secure, but

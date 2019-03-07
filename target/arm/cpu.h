@@ -2758,10 +2758,15 @@ static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx,
  * S EL0 (aka S PL0)
  * S EL1 (not used if EL3 is 32 bit)
  * NS EL0+1 stage 2
+ * NS physical tag storage
  *
- * (The last of these is an mmu_idx because we want to be able to use the TLB
- * for the accesses done as part of a stage 1 page table walk, rather than
- * having to walk the stage 2 page table over and over.)
+ * (The NS EL0+1 stage 2 is an mmu_idx because we want to be able to use the
+ * TLB for the accesses done as part of a stage 1 page table walk, rather
+ * than having to walk the stage 2 page table over and over.)
+ *
+ * (The NS physical tag storage is an mmu_idx because we want to be able to
+ * use the TLB to avoid replicating the path through the rcu locks, flatview,
+ * and qemu_map_ram_ptr.)
  *
  * R profile CPUs have an MPU, but can use the same set of MMU indexes
  * as A profile. They only need to distinguish NS EL0 and NS EL1 (and
@@ -2819,6 +2824,7 @@ typedef enum ARMMMUIdx {
     ARMMMUIdx_S1SE0 = 4 | ARM_MMU_IDX_A,
     ARMMMUIdx_S1SE1 = 5 | ARM_MMU_IDX_A,
     ARMMMUIdx_S2NS = 6 | ARM_MMU_IDX_A,
+    ARMMMUIdx_TagNS = 7 | ARM_MMU_IDX_A,
     ARMMMUIdx_MUser = 0 | ARM_MMU_IDX_M,
     ARMMMUIdx_MPriv = 1 | ARM_MMU_IDX_M,
     ARMMMUIdx_MUserNegPri = 2 | ARM_MMU_IDX_M,
@@ -2845,6 +2851,7 @@ typedef enum ARMMMUIdxBit {
     ARMMMUIdxBit_S1SE0 = 1 << 4,
     ARMMMUIdxBit_S1SE1 = 1 << 5,
     ARMMMUIdxBit_S2NS = 1 << 6,
+    ARMMMUIdxBit_TagNS = 1 << 7,
     ARMMMUIdxBit_MUser = 1 << 0,
     ARMMMUIdxBit_MPriv = 1 << 1,
     ARMMMUIdxBit_MUserNegPri = 1 << 2,
@@ -2874,11 +2881,29 @@ static inline ARMMMUIdx core_to_arm_mmu_idx(CPUARMState *env, int mmu_idx)
 /* Return the exception level we're running at if this is our mmu_idx */
 static inline int arm_mmu_idx_to_el(ARMMMUIdx mmu_idx)
 {
-    switch (mmu_idx & ARM_MMU_IDX_TYPE_MASK) {
-    case ARM_MMU_IDX_A:
+    switch (mmu_idx) {
+    case ARMMMUIdx_S12NSE0:
+    case ARMMMUIdx_S12NSE1:
+    case ARMMMUIdx_S1E2:
+    case ARMMMUIdx_S1E3:
+    case ARMMMUIdx_S1SE0:
+    case ARMMMUIdx_S1SE1:
+    case ARMMMUIdx_S2NS:
         return mmu_idx & 3;
-    case ARM_MMU_IDX_M:
+
+    case ARMMMUIdx_MUser:
+    case ARMMMUIdx_MPriv:
+    case ARMMMUIdx_MUserNegPri:
+    case ARMMMUIdx_MPrivNegPri:
+    case ARMMMUIdx_MSUser:
+    case ARMMMUIdx_MSPriv:
+    case ARMMMUIdx_MSUserNegPri:
+    case ARMMMUIdx_MSPrivNegPri:
         return mmu_idx & ARM_MMU_IDX_M_PRIV;
+
+    case ARMMMUIdx_TagNS:
+    case ARMMMUIdx_S1NSE0:
+    case ARMMMUIdx_S1NSE1:
     default:
         g_assert_not_reached();
     }
@@ -3183,7 +3208,13 @@ enum {
 /* Return the address space index to use for a memory access */
 static inline int arm_asidx_from_attrs(CPUState *cs, MemTxAttrs attrs)
 {
-    return attrs.secure ? ARMASIdx_S : ARMASIdx_NS;
+    if (attrs.target_tlb_bit2) {
+        return ARMASIdx_TAG;
+    } else if (attrs.secure) {
+        return ARMASIdx_S;
+    } else {
+        return ARMASIdx_NS;
+    }
 }
 
 /* Return the AddressSpace to use for a memory access
