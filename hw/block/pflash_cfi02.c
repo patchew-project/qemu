@@ -39,6 +39,7 @@
 #include "hw/hw.h"
 #include "hw/block/flash.h"
 #include "qapi/error.h"
+#include "qemu/error-report.h"
 #include "qemu/timer.h"
 #include "sysemu/block-backend.h"
 #include "qemu/host-utils.h"
@@ -550,12 +551,6 @@ static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
     }
 
     chip_len = pfl->sector_len * pfl->nb_blocs;
-    /* XXX: to be fixed */
-#if 0
-    if (total_len != (8 * 1024 * 1024) && total_len != (16 * 1024 * 1024) &&
-        total_len != (32 * 1024 * 1024) && total_len != (64 * 1024 * 1024))
-        return NULL;
-#endif
 
     memory_region_init_rom_device(&pfl->orig_mem, OBJECT(pfl), pfl->be ?
                                   &pflash_cfi02_ops_be : &pflash_cfi02_ops_le,
@@ -581,6 +576,27 @@ static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
     }
 
     if (pfl->blk) {
+        /*
+         * Validate the backing store is the right size for pflash
+         * devices. If the user supplies a larger file we ignore the
+         * tail.
+         */
+        int64_t backing_len = blk_getlength(pfl->blk);
+        if (backing_len < 0) {
+            error_setg(errp, "unable to check size of backing file");
+            return;
+        }
+
+        if (backing_len < chip_len) {
+            error_setg(errp, "device needs %" PRIu32 " bytes, "
+                       "backing file provides only %" PRIu64 " bytes",
+                       chip_len, backing_len);
+            return;
+        } else if (backing_len > chip_len) {
+            warn_report("device needs %" PRIu32 " bytes, rest ignored",
+                        chip_len);
+        }
+
         /* read the initial flash content */
         ret = blk_pread(pfl->blk, 0, pfl->storage, chip_len);
         if (ret < 0) {
