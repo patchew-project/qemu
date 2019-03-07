@@ -500,7 +500,7 @@ static int pickNaNMulAdd(FloatClass a_cls, FloatClass b_cls, FloatClass c_cls,
      */
     if (infzero) {
         float_raise(float_flag_invalid, status);
-        return 3;
+        return 2;
     }
 
     if (snan_bit_is_one(status)) {
