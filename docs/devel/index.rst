@@ -18,4 +18,4 @@ Contents:
    migration
    stable-process
    testing
-
+   decodetree
