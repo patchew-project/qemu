@@ -113,7 +113,7 @@ static void arm_gen_one_xml_reg_tag(GString *s, DynamicGDBXMLInfo *dyn_xml,
 {
     g_string_append_printf(s, "<reg name=\"%s\"", ri->name);
     g_string_append_printf(s, " bitsize=\"%d\"", bitsize);
-    g_string_append_printf(s, " group=\"cp_regs\"/>");
+    g_string_append_printf(s, " group=\"system\"/>");
     dyn_xml->num_cpregs++;
     dyn_xml->cpregs_keys[dyn_xml->num_cpregs - 1] = ri_key;
 }
