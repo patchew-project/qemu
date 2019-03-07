@@ -1210,7 +1210,6 @@ void mips_malta_init(MachineState *machine)
     DriveInfo *dinfo;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     int fl_idx = 0;
-    int fl_sectors = bios_size >> 16;
     int be;
 
     DeviceState *dev = qdev_create(NULL, TYPE_MIPS_MALTA);
@@ -1273,13 +1272,13 @@ void mips_malta_init(MachineState *machine)
         printf("Register parallel flash %d size " TARGET_FMT_lx " at "
                "addr %08llx '%s' %x\n",
                fl_idx, blk_getlength(pflash_blk), FLASH_ADDRESS,
-               blk_name(pflash_blk), fl_sectors);
+               blk_name(pflash_blk), FLASH_SIZE >> 16);
 #endif
     }
     fl = pflash_cfi01_register(FLASH_ADDRESS, NULL, "mips_malta.bios",
                                BIOS_SIZE,
                                pflash_blk,
-                               65536, fl_sectors,
+                               65536, FLASH_SIZE >> 16,
                                4, 0x0000, 0x0000, 0x0000, 0x0000, be);
     bios = pflash_cfi01_get_memory(fl);
     fl_idx++;
