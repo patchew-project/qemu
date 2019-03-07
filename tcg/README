@@ -343,6 +343,11 @@ at bit 8.  This operation would be equivalent to
 
 (using an arithmetic right shift).
 
+* extract2_i64 dest, t1, t2, pos
+
+Extract a 64-bit quantity from the concatenation of t2:t1,
+beginning at pos.
+
 * extrl_i64_i32 t0, t1
 
 For 64-bit hosts only, extract the low 32-bits of input T1 and place it
