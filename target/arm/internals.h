@@ -1008,4 +1008,8 @@ static inline bool allocation_tag_access_enabled(CPUARMState *env, int el,
  */
 #define GMID_EL1_BS  6
 
+/* We associate one allocation tag per 16 bytes, the minimum.  */
+#define LOG2_TAG_GRANULE 4
+#define TAG_GRANULE      (1 << LOG2_TAG_GRANULE)
+
 #endif
