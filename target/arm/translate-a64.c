@@ -343,7 +343,19 @@ static void gen_a64_set_pc(DisasContext *s, TCGv_i64 src)
 static TCGv_i64 clean_data_tbi(DisasContext *s, TCGv_i64 addr)
 {
     TCGv_i64 clean = new_tmp_a64(s);
-    gen_top_byte_ignore(s, clean, addr, s->tbid);
+
+    if (s->mte_active) {
+        if (s->current_el >= 2) {
+            /* FIXME: ARMv8.1-VHE S2 translation regime.  */
+            gen_helper_mte_check1(clean, cpu_env, addr);
+        } else {
+            TCGv_i32 tbi = tcg_const_i32(s->tbid);
+            gen_helper_mte_check2(clean, cpu_env, addr, tbi);
+            tcg_temp_free_i32(tbi);
+        }
+    } else {
+        gen_top_byte_ignore(s, clean, addr, s->tbid);
+    }
     return clean;
 }
 
