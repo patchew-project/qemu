@@ -40,6 +40,7 @@
 #include "hw/pci/pci.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/arch_init.h"
+#include "sysemu/block-backend.h"
 #include "qemu/log.h"
 #include "hw/mips/bios.h"
 #include "hw/ide.h"
@@ -1205,6 +1206,7 @@ void mips_malta_init(MachineState *machine)
     qemu_irq cbus_irq, i8259_irq;
     int piix4_devfn;
     I2CBus *smbus;
+    BlockBackend *pflash_blk = NULL;
     DriveInfo *dinfo;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     int fl_idx = 0;
@@ -1265,17 +1267,18 @@ void mips_malta_init(MachineState *machine)
 
     /* Load firmware in flash / BIOS. */
     dinfo = drive_get(IF_PFLASH, 0, fl_idx);
-#ifdef DEBUG_BOARD_INIT
     if (dinfo) {
+        pflash_blk = blk_by_legacy_dinfo(dinfo);
+#ifdef DEBUG_BOARD_INIT
         printf("Register parallel flash %d size " TARGET_FMT_lx " at "
                "addr %08llx '%s' %x\n",
-               fl_idx, bios_size, FLASH_ADDRESS,
-               blk_name(dinfo->bdrv), fl_sectors);
-    }
+               fl_idx, blk_getlength(pflash_blk), FLASH_ADDRESS,
+               blk_name(pflash_blk), fl_sectors);
 #endif
+    }
     fl = pflash_cfi01_register(FLASH_ADDRESS, NULL, "mips_malta.bios",
                                BIOS_SIZE,
-                               dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
+                               pflash_blk,
                                65536, fl_sectors,
                                4, 0x0000, 0x0000, 0x0000, 0x0000, be);
     bios = pflash_cfi01_get_memory(fl);
