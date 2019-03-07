@@ -25,8 +25,21 @@
 #include "exec/helper-proto.h"
 
 
+static uint8_t *allocation_tag_mem(CPUARMState *env, uint64_t ptr,
+                                   bool write, uintptr_t ra)
+{
+    /* Tag storage not implemented.  */
+    return NULL;
+}
+
 static int get_allocation_tag(CPUARMState *env, uint64_t ptr, uintptr_t ra)
 {
+    uint8_t *mem = allocation_tag_mem(env, ptr, false, ra);
+
+    if (mem) {
+        int ofs = extract32(ptr, LOG2_TAG_GRANULE, 1) * 4;
+        return extract32(atomic_read(mem), ofs, 4);
+    }
     /* Tag storage not implemented.  */
     return -1;
 }
@@ -225,4 +238,142 @@ uint64_t HELPER(gmi)(uint64_t ptr, uint64_t mask)
 {
     int tag = allocation_tag_from_addr(ptr);
     return mask | (1ULL << tag);
+}
+
+uint64_t HELPER(ldg)(CPUARMState *env, uint64_t ptr, uint64_t xt)
+{
+    int el;
+    uint64_t sctlr;
+    int rtag;
+
+    /* Trap if accessing an invalid page.  */
+    rtag = get_allocation_tag(env, ptr, GETPC());
+
+    /*
+     * The tag is squashed to zero if the page does not support tags,
+     * or if the OS is denying access to the tags.
+     */
+    el = arm_current_el(env);
+    sctlr = arm_sctlr(env, el);
+    if (rtag < 0 || !allocation_tag_access_enabled(env, el, sctlr)) {
+        rtag = 0;
+    }
+
+    return address_with_allocation_tag(xt, rtag);
+}
+
+static void check_tag_aligned(CPUARMState *env, uint64_t ptr, uintptr_t ra)
+{
+    if (unlikely(!QEMU_IS_ALIGNED(ptr, TAG_GRANULE))) {
+        arm_cpu_do_unaligned_access(ENV_GET_CPU(env), ptr, MMU_DATA_STORE,
+                                    cpu_mmu_index(env, false), ra);
+        g_assert_not_reached();
+    }
+}
+
+/* For use in a non-parallel context, store to the given nibble.  */
+static void store_tag1(uint64_t ptr, uint8_t *mem, int tag)
+{
+    int ofs = extract32(ptr, LOG2_TAG_GRANULE, 1) * 4;
+    uint8_t old = atomic_read(mem);
+    uint8_t new = deposit32(old, ofs, 4, tag);
+
+    atomic_set(mem, new);
+}
+
+/* For use in a parallel context, atomically store to the given nibble.  */
+static void store_tag1_parallel(uint64_t ptr, uint8_t *mem, int tag)
+{
+    int ofs = extract32(ptr, LOG2_TAG_GRANULE, 1) * 4;
+    uint8_t old = atomic_read(mem);
+
+    while (1) {
+        uint8_t new = deposit32(old, ofs, 4, tag);
+        uint8_t cmp = atomic_cmpxchg(mem, old, new);
+        if (likely(cmp == old)) {
+            return;
+        }
+        old = cmp;
+    }
+}
+
+typedef void stg_store1(uint64_t, uint8_t *, int);
+
+static void do_stg(CPUARMState *env, uint64_t ptr, uint64_t xt,
+                   uintptr_t ra, stg_store1 store1)
+{
+    int el;
+    uint64_t sctlr;
+    uint8_t *mem;
+
+    check_tag_aligned(env, ptr, ra);
+
+    /* Trap if accessing an invalid page.  */
+    mem = allocation_tag_mem(env, ptr, true, ra);
+
+    /* Store if page supports tags and access is enabled.  */
+    el = arm_current_el(env);
+    sctlr = arm_sctlr(env, el);
+    if (mem && allocation_tag_access_enabled(env, el, sctlr)) {
+        store1(ptr, mem, allocation_tag_from_addr(xt));
+    }
+}
+
+void HELPER(stg)(CPUARMState *env, uint64_t ptr, uint64_t xt)
+{
+    do_stg(env, ptr, xt, GETPC(), store_tag1);
+}
+
+void HELPER(stg_parallel)(CPUARMState *env, uint64_t ptr, uint64_t xt)
+{
+    do_stg(env, ptr, xt, GETPC(), store_tag1_parallel);
+}
+
+static void do_st2g(CPUARMState *env, uint64_t ptr1, uint64_t xt,
+                    uintptr_t ra, stg_store1 store1)
+{
+    int el;
+    uint64_t ptr2, sctlr;
+    uint8_t *mem1, *mem2;
+
+    check_tag_aligned(env, ptr1, ra);
+    ptr2 = ptr1 + TAG_GRANULE;
+
+    /* Trap if accessing an invalid page(s).  */
+    mem1 = mem2 = allocation_tag_mem(env, ptr1, true, ra);
+    if (unlikely((ptr1 ^ ptr2) & TARGET_PAGE_MASK)) {
+        /* The two stores are across two pages.  */
+        mem2 = allocation_tag_mem(env, ptr2, true, ra);
+    }
+
+    /* Store if page supports tags and access is enabled.  */
+    el = arm_current_el(env);
+    sctlr = arm_sctlr(env, el);
+    if ((mem1 || mem2) && allocation_tag_access_enabled(env, el, sctlr)) {
+        int tag = allocation_tag_from_addr(xt);
+
+        if (likely(mem1 == mem2)) {
+            /* The two stores are aligned 32, and modify one byte.  */
+            tag |= tag << 4;
+            atomic_set(mem1, tag);
+        } else {
+            /* The two stores are unaligned and modify two bytes.  */
+            if (mem1) {
+                store1(ptr1, mem1, tag);
+            }
+            if (mem2) {
+                store1(ptr2, mem2, tag);
+            }
+        }
+    }
+}
+
+void HELPER(st2g)(CPUARMState *env, uint64_t ptr, uint64_t xt)
+{
+    do_st2g(env, ptr, xt, GETPC(), store_tag1);
+}
+
+void HELPER(st2g_parallel)(CPUARMState *env, uint64_t ptr, uint64_t xt)
+{
+    do_st2g(env, ptr, xt, GETPC(), store_tag1_parallel);
 }
