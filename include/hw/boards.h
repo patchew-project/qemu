@@ -8,6 +8,7 @@
 #include "hw/qdev.h"
 #include "qom/object.h"
 #include "qom/cpu.h"
+#include "hw/mem/nvdimm.h"
 
 /**
  * memory_region_allocate_system_memory - Allocate a board's main memory
@@ -272,6 +273,7 @@ struct MachineState {
     const char *cpu_type;
     AccelState *accelerator;
     CPUArchIdList *possible_cpus;
+    AcpiNVDIMMState nvdimms_state;
 };
 
 #define DEFINE_MACHINE(namestr, machine_initfn) \
