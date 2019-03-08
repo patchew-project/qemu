@@ -779,6 +779,61 @@ int uleb128_decode_small(const uint8_t *in, uint32_t *n)
     }
 }
 
+static guchar hexval(const gchar v)
+{
+    switch (v) {
+    case '0' ... '9':
+        return v - '0';
+    case 'A' ... 'F':
+        return v - 'A' + 10;
+    case 'a' ... 'f':
+        return v - 'a' + 10;
+    default:
+        return 0;
+    }
+}
+
+gchar *qemu_strdup_hexlify(gconstpointer ptr, gsize len)
+{
+    guchar *data = (guchar *)ptr;
+    gchar *hex_string;
+
+    if (!ptr || !len) {
+        return g_strdup("");
+    }
+
+    hex_string = g_malloc(2 * len + 1);
+    for (gsize i = 0; i < len; i++) {
+        g_snprintf(&hex_string[2 * i], 3, "%02x", data[i]);
+    }
+
+    return hex_string;
+}
+
+gpointer qemu_strdup_unhexlify(const gchar *hex_string, gsize *out_size)
+{
+    size_t size = 0;
+    guchar *data = NULL;
+
+    if (hex_string) {
+        size = strlen(hex_string) / 2;
+        if (size) {
+            size_t i;
+
+            data = g_new(guchar, size + 1);
+            for (i = 0; i < size; i++) {
+                data[i]  = hexval(*hex_string++) << 4;
+                data[i] |= hexval(*hex_string++);
+            }
+            data[i] = '\0';
+        }
+    }
+    if (out_size) {
+        *out_size = size;
+    }
+    return data;
+}
+
 /*
  * helper to parse debug environment variables
  */

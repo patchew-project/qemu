@@ -172,6 +172,39 @@ int uleb128_encode_small(uint8_t *out, uint32_t n);
 int uleb128_decode_small(const uint8_t *in, uint32_t *n);
 
 /**
+ * qemu_strdup_hexlify:
+ *
+ * Encode a sequence of binary data into its hexadecimal stringified
+ * representation.
+ *
+ * @ptr: Buffer to hexlify
+ * @size: Length of the buffer
+ *
+ * Use qemu_strdup_unhexlify() to convert the hex string to original data.
+ *
+ * Returns: A newly allocated, zero-terminated hex encoded string representing
+ * the data. The returned string must be freed with g_free().
+ */
+gchar *qemu_strdup_hexlify(gconstpointer ptr, gsize size);
+
+/**
+ * qemu_strdup_unhexlify:
+ *
+ * Decode a sequence of hexadecimal encoded text into binary data.
+ *
+ * @hex_string: String to unhexlify
+ * @out_size: if not NULL: gsize to be written with the data length
+ *
+ * This function is the opposite of qemu_strdup_hexlify().
+ *
+ * Returns: A newly allocated buffer containing the binary data that text
+ * represents. The returned buffer must be freed with g_free().
+ * Note that the returned binary data is not necessarily zero-terminated,
+ * so it should not be used as a character string.
+ */
+gpointer qemu_strdup_unhexlify(const gchar *hex_string, gsize *out_size);
+
+/**
  * qemu_pstrcmp0:
  * @str1: a non-NULL pointer to a C string (*str1 can be NULL)
  * @str2: a non-NULL pointer to a C string (*str2 can be NULL)
