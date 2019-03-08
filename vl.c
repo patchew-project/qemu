@@ -184,7 +184,6 @@ unsigned int nb_prom_envs = 0;
 const char *prom_envs[MAX_PROM_ENVS];
 int boot_menu;
 bool boot_strict;
-uint8_t *boot_splash_filedata;
 bool wakeup_suspend_enabled;
 
 int icount_align_option;
@@ -553,12 +552,6 @@ QemuOpts *qemu_get_machine_opts(void)
 const char *qemu_get_vm_name(void)
 {
     return qemu_name;
-}
-
-static void res_free(void)
-{
-    g_free(boot_splash_filedata);
-    boot_splash_filedata = NULL;
 }
 
 static int default_driver_check(void *opaque, QemuOpts *opts, Error **errp)
@@ -4587,8 +4580,6 @@ int main(int argc, char **argv, char **envp)
 
     job_cancel_sync_all();
     bdrv_close_all();
-
-    res_free();
 
     /* vhost-user must be cleaned up before chardevs.  */
     tpm_cleanup();

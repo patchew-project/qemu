@@ -215,16 +215,16 @@ static void fw_cfg_bootsplash(FWCfgState *s)
             g_free(filename);
             return;
         }
-        g_free(boot_splash_filedata);
-        boot_splash_filedata = (uint8_t *)file_data;
+        g_free(s->boot_splash.file_data);
+        s->boot_splash.file_data = file_data;
 
         /* insert data */
         if (file_type == JPG_FILE) {
             fw_cfg_add_file(s, "bootsplash.jpg",
-                            boot_splash_filedata, file_size);
+                            s->boot_splash.file_data, file_size);
         } else {
             fw_cfg_add_file(s, "bootsplash.bmp",
-                            boot_splash_filedata, file_size);
+                            s->boot_splash.file_data, file_size);
         }
         g_free(filename);
     }
@@ -973,6 +973,8 @@ static void fw_cfg_common_unrealize(DeviceState *dev, Error **errp)
     FWCfgState *s = FW_CFG(dev);
 
     g_free(s->files);
+
+    g_free(s->boot_splash.file_data);
 
     g_free(s->entries[0]);
     g_free(s->entries[1]);

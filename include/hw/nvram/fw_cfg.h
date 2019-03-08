@@ -56,6 +56,7 @@ struct FWCfgState {
 
     uint32_t reboot_timeout;
     struct {
+        char *file_data;
         uint16_t time_le16;
     } boot_splash;
 };

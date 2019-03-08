@@ -109,7 +109,6 @@ extern int no_shutdown;
 extern int old_param;
 extern int boot_menu;
 extern bool boot_strict;
-extern uint8_t *boot_splash_filedata;
 extern bool enable_mlock;
 extern bool enable_cpu_pm;
 extern QEMUClockType rtc_clock;
