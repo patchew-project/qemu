@@ -114,10 +114,11 @@ matrix:
         - TEST_CMD="make check-unit -j3 V=1"
 
 
-    # Check we can build docs and tools
+    # Check we can build docs and tools (in-tree) and install them
     - env:
-        - BASE_CONFIG="--enable-tools --enable-docs"
-        - CONFIG="--target-list=x86_64-softmmu,aarch64-linux-user"
+        - BASE_CONFIG="--enable-docs --enable-tools"
+        - CONFIG="--prefix=$PWD/prefix --target-list=x86_64-softmmu,aarch64-linux-user"
+        - TEST_CMD="make check install -j3"
       addons:
         apt:
           packages:
