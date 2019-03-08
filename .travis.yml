@@ -127,7 +127,7 @@ matrix:
 
     # Test out-of-tree builds
     - env:
-        - CONFIG="--enable-debug --enable-debug-tcg"
+        - CONFIG="--enable-debug --enable-debug-tcg --target-list=microblaze-softmmu,xtensa-softmmu,cris-linux-user,hppa-linux-user"
         - BUILD_DIR="out-of-tree/build/dir" SRC_DIR="../../.."
 
 
