@@ -929,16 +929,23 @@ static void fw_cfg_machine_ready(struct Notifier *n, void *data)
     qemu_register_reset(fw_cfg_machine_reset, s);
 }
 
-
+static void fw_cfg_file_slots_allocate(FWCfgState *s, Error **errp);
 
 static void fw_cfg_common_realize(DeviceState *dev, Error **errp)
 {
     FWCfgState *s = FW_CFG(dev);
     MachineState *machine = MACHINE(qdev_get_machine());
     uint32_t version = FW_CFG_VERSION;
+    Error *local_err = NULL;
 
     if (!fw_cfg_find()) {
         error_setg(errp, "at most one %s device is permitted", TYPE_FW_CFG);
+        return;
+    }
+
+    fw_cfg_file_slots_allocate(s, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
         return;
     }
 
@@ -1108,7 +1115,7 @@ static void fw_cfg_io_realize(DeviceState *dev, Error **errp)
     FWCfgIoState *s = FW_CFG_IO(dev);
     Error *local_err = NULL;
 
-    fw_cfg_file_slots_allocate(FW_CFG(s), &local_err);
+    fw_cfg_common_realize(dev, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -1125,8 +1132,6 @@ static void fw_cfg_io_realize(DeviceState *dev, Error **errp)
                               &fw_cfg_dma_mem_ops, FW_CFG(s), "fwcfg.dma",
                               sizeof(dma_addr_t));
     }
-
-    fw_cfg_common_realize(dev, errp);
 }
 
 static void fw_cfg_io_class_init(ObjectClass *klass, void *data)
@@ -1162,7 +1167,7 @@ static void fw_cfg_mem_realize(DeviceState *dev, Error **errp)
     const MemoryRegionOps *data_ops = &fw_cfg_data_mem_ops;
     Error *local_err = NULL;
 
-    fw_cfg_file_slots_allocate(FW_CFG(s), &local_err);
+    fw_cfg_common_realize(dev, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -1189,8 +1194,6 @@ static void fw_cfg_mem_realize(DeviceState *dev, Error **errp)
                               sizeof(dma_addr_t));
         sysbus_init_mmio(sbd, &FW_CFG(s)->dma_iomem);
     }
-
-    fw_cfg_common_realize(dev, errp);
 }
 
 static void fw_cfg_mem_class_init(ObjectClass *klass, void *data)
