@@ -46,6 +46,9 @@ struct BdrvDirtyBitmap {
                                    and this bitmap must remain unchanged while
                                    this flag is set. */
     bool persistent;            /* bitmap must be saved to owner disk image */
+    bool inconsistent;          /* bitmap is persistent, but inconsistent.
+                                 * It cannot be used at all in any way, except
+                                 * a QMP user can remove it. */
     bool migration;             /* Bitmap is selected for migration, it should
                                    not be stored on the next inactivation
                                    (persistent flag doesn't matter until next
@@ -464,6 +467,8 @@ BlockDirtyInfoList *bdrv_query_dirty_bitmaps(BlockDriverState *bs)
         info->recording = bdrv_dirty_bitmap_recording(bm);
         info->busy = bdrv_dirty_bitmap_busy(bm);
         info->persistent = bm->persistent;
+        info->has_inconsistent = bm->inconsistent;
+        info->inconsistent = bm->inconsistent;
         entry->value = info;
         *plist = entry;
         plist = &entry->next;
@@ -712,6 +717,16 @@ void bdrv_dirty_bitmap_set_persistance(BdrvDirtyBitmap *bitmap, bool persistent)
 }
 
 /* Called with BQL taken. */
+void bdrv_dirty_bitmap_set_inconsistent(BdrvDirtyBitmap *bitmap)
+{
+    qemu_mutex_lock(bitmap->mutex);
+    assert(bitmap->persistent == true);
+    bitmap->inconsistent = true;
+    bitmap->disabled = true;
+    qemu_mutex_unlock(bitmap->mutex);
+}
+
+/* Called with BQL taken. */
 void bdrv_dirty_bitmap_set_migration(BdrvDirtyBitmap *bitmap, bool migration)
 {
     qemu_mutex_lock(bitmap->mutex);
@@ -722,6 +737,11 @@ void bdrv_dirty_bitmap_set_migration(BdrvDirtyBitmap *bitmap, bool migration)
 bool bdrv_dirty_bitmap_get_persistance(BdrvDirtyBitmap *bitmap)
 {
     return bitmap->persistent && !bitmap->migration;
+}
+
+bool bdrv_dirty_bitmap_inconsistent(const BdrvDirtyBitmap *bitmap)
+{
+    return bitmap->inconsistent;
 }
 
 bool bdrv_has_changed_persistent_bitmaps(BlockDriverState *bs)
