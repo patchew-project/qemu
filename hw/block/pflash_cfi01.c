@@ -730,13 +730,6 @@ static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
     }
     device_len = sector_len_per_device * blocks_per_device;
 
-    /* XXX: to be fixed */
-#if 0
-    if (total_len != (8 * 1024 * 1024) && total_len != (16 * 1024 * 1024) &&
-        total_len != (32 * 1024 * 1024) && total_len != (64 * 1024 * 1024))
-        return NULL;
-#endif
-
     memory_region_init_rom_device(
         &pfl->mem, OBJECT(dev),
         &pflash_cfi01_ops,
@@ -763,12 +756,32 @@ static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
     }
 
     if (pfl->blk) {
+        /*
+         * Validate the backing store is the right size for pflash
+         * devices. If the user supplies a larger file we ignore the
+         * tail.
+         */
+        int64_t backing_len = blk_getlength(pfl->blk);
+
+        if (backing_len < 0) {
+            error_setg(errp, "can't get size of block backend '%s'",
+                       blk_name(pfl->blk));
+            return;
+        }
+        if (backing_len != total_len) {
+            error_setg(errp, "device requires %" PRIu64 " bytes, "
+                       "block backend '%s' provides %" PRIu64 " bytes",
+                       total_len, blk_name(pfl->blk), backing_len);
+            return;
+        }
+
         /* read the initial flash content */
         ret = blk_pread(pfl->blk, 0, pfl->storage, total_len);
-
         if (ret < 0) {
             vmstate_unregister_ram(&pfl->mem, DEVICE(pfl));
-            error_setg(errp, "failed to read the initial flash content");
+            error_setg(errp, "can't read initial flash content"
+                       " from block backend '%s'",
+                       blk_name(pfl->blk));
             return;
         }
     }
