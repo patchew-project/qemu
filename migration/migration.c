@@ -335,7 +335,7 @@ void migration_incoming_enable_colo(void)
     migration_colo_enabled = true;
 }
 
-void migrate_add_address(SocketAddress *address)
+void migrate_add_address(const SocketAddress *address)
 {
     MigrationIncomingState *mis = migration_incoming_get_current();
     SocketAddressList *addrs;
