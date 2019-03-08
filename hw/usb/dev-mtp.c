@@ -1137,9 +1137,9 @@ static MTPData *usb_mtp_get_object_prop_value(MTPState *s, MTPControl *c,
 
 /* Return correct return code for a delete event */
 enum {
-    ALL_DELETE,
-    PARTIAL_DELETE,
+    ALL_DELETE = 1,
     READ_ONLY,
+    PARTIAL_DELETE,
 };
 
 /* Assumes that children, if any, have been already freed */
@@ -1155,8 +1155,7 @@ static void usb_mtp_object_free_one(MTPState *s, MTPObject *o)
 static int usb_mtp_deletefn(MTPState *s, MTPObject *o, uint32_t trans)
 {
     MTPObject *iter, *iter2;
-    bool partial_delete = false;
-    bool success = false;
+    int ret = 0;
 
     /*
      * TODO: Add support for Protection Status
@@ -1165,34 +1164,28 @@ static int usb_mtp_deletefn(MTPState *s, MTPObject *o, uint32_t trans)
     QLIST_FOREACH(iter, &o->children, list) {
         if (iter->format == FMT_ASSOCIATION) {
             QLIST_FOREACH(iter2, &iter->children, list) {
-                usb_mtp_deletefn(s, iter2, trans);
+                ret |= usb_mtp_deletefn(s, iter2, trans);
             }
         }
     }
 
     if (o->format == FMT_UNDEFINED_OBJECT) {
         if (remove(o->path)) {
-            partial_delete = true;
+            ret |= READ_ONLY;
         } else {
             usb_mtp_object_free_one(s, o);
-            success = true;
+            ret |= ALL_DELETE;
         }
     } else if (o->format == FMT_ASSOCIATION) {
         if (rmdir(o->path)) {
-            partial_delete = true;
+            ret |= READ_ONLY;
         } else {
             usb_mtp_object_free_one(s, o);
-            success = true;
+            ret |= ALL_DELETE;
         }
     }
 
-    if (success && partial_delete) {
-        return PARTIAL_DELETE;
-    }
-    if (!success && partial_delete) {
-        return READ_ONLY;
-    }
-    return ALL_DELETE;
+    return ret;
 }
 
 static void usb_mtp_object_delete(MTPState *s, uint32_t handle,
