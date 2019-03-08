@@ -55,6 +55,9 @@ struct FWCfgState {
     MemoryRegion dma_iomem;
 
     uint32_t reboot_timeout;
+    struct {
+        uint16_t time_le16;
+    } boot_splash;
 };
 
 struct FWCfgIoState {

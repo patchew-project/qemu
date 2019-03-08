@@ -187,7 +187,6 @@ static void fw_cfg_bootsplash(FWCfgState *s)
     /* insert splash time if user configurated */
     if (boot_splash_time) {
         int64_t bst_val = qemu_opt_get_number(opts, "splash-time", -1);
-        uint16_t bst_le16;
 
         /* validate the input */
         if (bst_val < 0 || bst_val > 0xffff) {
@@ -196,9 +195,10 @@ static void fw_cfg_bootsplash(FWCfgState *s)
             exit(1);
         }
         /* use little endian format */
-        bst_le16 = cpu_to_le16(bst_val);
+        s->boot_splash.time_le16 = cpu_to_le16(bst_val);
         fw_cfg_add_file(s, "etc/boot-menu-wait",
-                        g_memdup(&bst_le16, sizeof bst_le16), sizeof bst_le16);
+                        &s->boot_splash.time_le16,
+                        sizeof(s->boot_splash.time_le16));
     }
 
     /* insert splash file if user configurated */
