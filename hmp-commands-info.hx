@@ -918,6 +918,23 @@ STEXI
 Show SEV information.
 ETEXI
 
+    {
+        .name       = "fw_cfg",
+        .args_type  = "",
+        .params     = "",
+        .help       = "Display the table firmware configuration entries "
+                      "registered by a paravirtualized machine. Helpful "
+                      "when debugging guest firmwares.",
+        .cmd        = hmp_info_fw_cfg,
+    },
+
+STEXI
+@item info fw_cfg
+@findex info fw_cfg
+Display the table firmware configuration entries registered by a paravirtualized
+machine. This information is useful when debugging guest firmwares.
+ETEXI
+
 STEXI
 @end table
 ETEXI

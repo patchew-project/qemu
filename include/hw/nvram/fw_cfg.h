@@ -243,4 +243,6 @@ bool fw_cfg_dma_enabled(void *opaque);
  */
 const char *fw_cfg_arch_key_name(uint16_t key);
 
+void hmp_info_fw_cfg(Monitor *mon, const QDict *qdict);
+
 #endif

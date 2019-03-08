@@ -35,6 +35,7 @@
 #include "qemu/config-file.h"
 #include "qemu/cutils.h"
 #include "qapi/error.h"
+#include "monitor/monitor.h"
 #include "qapi/qapi-commands-misc.h"
 
 #define FW_CFG_FILE_SLOTS_DFLT 0x20
@@ -1273,7 +1274,18 @@ static FirmwareConfigurationItem *create_qmp_fw_cfg_item(FWCfgState *s,
     return item;
 }
 
-FirmwareConfigurationItemList *qmp_query_fw_cfg_items(Error **errp)
+/**
+ * query_fw_cfg_items:
+ *
+ * @use_hexdump: Whether to populate the @data field with the hexadecimal
+ *               representation of the item data.
+ * @errp: Pointer to a NULL initialized error object.
+ *
+ * Returns: A list of @FirmwareConfigurationItem, reverse sorted by the
+ *          item selector key.
+ */
+static FirmwareConfigurationItemList *query_fw_cfg_items(bool use_hexdump,
+                                                         Error **errp)
 {
     FirmwareConfigurationItemList *item_list = NULL;
     uint32_t max_entries;
@@ -1294,6 +1306,9 @@ FirmwareConfigurationItemList *qmp_query_fw_cfg_items(Error **errp)
             if (!e->len) {
                 continue;
             }
+            if (use_hexdump) {
+                qmp_hex_length = MIN(e->len, 8);
+            }
 
             info = g_malloc0(sizeof(*info));
             info->value = create_qmp_fw_cfg_item(s, e, arch, key,
@@ -1304,4 +1319,58 @@ FirmwareConfigurationItemList *qmp_query_fw_cfg_items(Error **errp)
     }
 
     return item_list;
+}
+
+FirmwareConfigurationItemList *qmp_query_fw_cfg_items(Error **errp)
+{
+    return query_fw_cfg_items(false, errp);
+}
+
+void hmp_info_fw_cfg(Monitor *mon, const QDict *qdict)
+{
+    FirmwareConfigurationItemList *item_list, *method;
+    Error *err = NULL;
+
+    item_list = query_fw_cfg_items(true, &err);
+    if (!item_list) {
+        monitor_printf(mon, "This machine does not use fw_cfg\n");
+        return;
+    }
+    if (err) {
+        monitor_printf(mon, "Could not query fw_cfg entries: %s\n",
+                       error_get_pretty(err));
+        error_free(err);
+        return;
+    }
+
+    monitor_printf(mon, "Selector  Well-Known Key  Pathname"
+                        " ArchSpec Perm   Size Order Hex Data\n");
+    for (method = item_list; method; method = method->next) {
+        if (method->value->has_path) {
+            monitor_printf(mon,
+                           " 0x%04x   file: %-28s %2s %7" PRId64
+                           "  %3" PRId64 "  %-16s%s\n",
+                           method->value->key,
+                           method->value->path,
+                           method->value->writeable ? "RW" : "RO",
+                           method->value->size,
+                           method->value->order,
+                           method->value->data,
+                           method->value->size > 8 ? ".." : "");
+        } else {
+            monitor_printf(mon,
+                           " 0x%04x   %-30s  %c  %2s %7" PRId64
+                           "       %-16s%s\n",
+                           method->value->key,
+                           method->value->has_keyname
+                                ? method->value->keyname : "",
+                           method->value->architecture_specific ? '*' : ' ',
+                           method->value->writeable ? "RW" : "RO",
+                           method->value->size,
+                           method->value->data,
+                           method->value->size > 8 ? ".." : "");
+       }
+    }
+
+    qapi_free_FirmwareConfigurationItemList(item_list);
 }
