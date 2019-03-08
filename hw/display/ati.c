@@ -24,6 +24,8 @@
 #include "qapi/error.h"
 #include "hw/hw.h"
 #include "ui/console.h"
+#include "hw/i2c/i2c-ddc.h"
+#include "../i2c/bitbang_i2c.h"
 #include "trace.h"
 
 #define ATI_DEBUG_HW_CURSOR 0
@@ -267,7 +269,9 @@ static uint64_t ati_mm_read(void *opaque, hwaddr addr, unsigned int size)
     case DAC_CNTL:
         val = s->regs.dac_cntl;
         break;
-/*    case GPIO_MONID: FIXME hook up DDC I2C here */
+    case GPIO_MONID:
+        val = s->regs.gpio_monid;
+        break;
     case PALETTE_INDEX:
         /* FIXME unaligned access */
         val = vga_ioport_read(&s->vga, VGA_PEL_IR) << 16;
@@ -501,7 +505,17 @@ static void ati_mm_write(void *opaque, hwaddr addr,
         s->regs.dac_cntl = data & 0xffffe3ff;
         s->vga.dac_8bit = !!(data & DAC_8BIT_EN);
         break;
-/*    case GPIO_MONID: FIXME hook up DDC I2C here */
+    case GPIO_MONID:
+        s->regs.gpio_monid = data & 0x000f000f;
+        if (data & BIT(2) << 16) {
+            s->regs.gpio_monid |= bitbang_i2c_set(s->bbi2c, BITBANG_I2C_SCL,
+                                                  (data & BIT(2)) != 0) << 10;
+        }
+        if (data & BIT(1) << 16) {
+            s->regs.gpio_monid |= bitbang_i2c_set(s->bbi2c, BITBANG_I2C_SDA,
+                                                  (data & BIT(1)) != 0) << 9;
+        }
+        break;
     case PALETTE_INDEX ... PALETTE_INDEX + 3:
         if (size == 4) {
             vga_ioport_write(&s->vga, VGA_PEL_IR, (data >> 16) & 0xff);
@@ -791,6 +805,12 @@ static void ati_vga_realize(PCIDevice *dev, Error **errp)
         vga->cursor_invalidate = ati_cursor_invalidate;
         vga->cursor_draw_line = ati_cursor_draw_line;
     }
+
+    /* ddc, edid */
+    s->ddc = i2c_init_bus(DEVICE(s), "ati-vga.ddc");
+    s->bbi2c = bitbang_i2c_init(s->ddc);
+    I2CDDCState *i2cddc = I2CDDC(qdev_create(BUS(s->ddc), TYPE_I2CDDC));
+    i2c_set_slave_address(I2C_SLAVE(i2cddc), 0x50);
 
     /* mmio register space */
     memory_region_init_io(&s->mm, OBJECT(s), &ati_mm_ops, s,
