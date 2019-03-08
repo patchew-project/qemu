@@ -250,7 +250,9 @@ static void fw_cfg_reboot(FWCfgState *s)
         }
     }
 
-    fw_cfg_add_file(s, "etc/boot-fail-wait", g_memdup(&rt_val, 4), 4);
+    s->reboot_timeout = rt_val;
+    fw_cfg_add_file(s, "etc/boot-fail-wait",
+                    &s->reboot_timeout, sizeof(s->reboot_timeout));
 }
 
 static void fw_cfg_write(FWCfgState *s, uint8_t value)

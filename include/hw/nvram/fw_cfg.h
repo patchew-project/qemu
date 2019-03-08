@@ -53,6 +53,8 @@ struct FWCfgState {
     dma_addr_t dma_addr;
     AddressSpace *dma_as;
     MemoryRegion dma_iomem;
+
+    uint32_t reboot_timeout;
 };
 
 struct FWCfgIoState {
