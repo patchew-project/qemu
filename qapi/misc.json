@@ -3051,3 +3051,47 @@
   'data': 'NumaOptions',
   'allow-preconfig': true
 }
+
+##
+# @FirmwareConfigurationItem:
+#
+# Firmware Configuration (fw_cfg) item.
+#
+# @key: The uint16 selector key.
+# @keyname: The stringified name if the selector refers to a well-known
+#           numerically defined item.
+# @architecture_specific: Indicates whether the configuration setting is
+#                         architecture specific.
+#                  false: The item is a generic configuration item.
+#                  true:  The item is specific to a particular architecture.
+# @writeable: Indicates whether the configuration setting is writeable by
+#             the guest.
+# @size: The length of @data associated with the item.
+# @data: A string representating the firmware configuration data.
+#        Note: This field is currently not used.
+# @path: If the key is a 'file', the named file path.
+# @order: If the key is a 'file', the named file order.
+#
+# Since 4.0
+##
+{ 'struct': 'FirmwareConfigurationItem',
+  'data': { 'key': 'uint16',
+            '*keyname': 'str',
+            'architecture_specific': 'bool',
+            'writeable': 'bool',
+            '*data': 'str',
+            'size': 'int',
+            '*path': 'str',
+            '*order': 'int' } }
+
+
+##
+# @query-fw_cfg-items:
+#
+# Returns the list of Firmware Configuration items.
+#
+# Returns: A list of @FirmwareConfigurationItem for each entry.
+#
+# Since 4.0
+##
+{ 'command': 'query-fw_cfg-items', 'returns': ['FirmwareConfigurationItem']}

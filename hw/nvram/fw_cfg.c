@@ -35,6 +35,7 @@
 #include "qemu/config-file.h"
 #include "qemu/cutils.h"
 #include "qapi/error.h"
+#include "qapi/qapi-commands-misc.h"
 
 #define FW_CFG_FILE_SLOTS_DFLT 0x20
 
@@ -1229,3 +1230,78 @@ static void fw_cfg_register_types(void)
 }
 
 type_init(fw_cfg_register_types)
+
+static FirmwareConfigurationItem *create_qmp_fw_cfg_item(FWCfgState *s,
+                                                         FWCfgEntry *e,
+                                                         bool is_arch_specific,
+                                                         uint16_t key,
+                                                         size_t hex_length)
+{
+    FirmwareConfigurationItem *item = g_malloc0(sizeof(*item));
+
+    item->key = key;
+    item->writeable = e->allow_write;
+    item->architecture_specific = is_arch_specific;
+    item->size = e->len;
+    if (hex_length) {
+        item->has_data = true;
+        item->data = qemu_strdup_hexlify(e->data, hex_length);
+    }
+
+    if (!is_arch_specific && key >= FW_CFG_FILE_FIRST) {
+        int id = key - FW_CFG_FILE_FIRST;
+        const char *path = s->files->f[id].name;
+
+        item->has_keyname = true;
+        item->keyname = g_strdup("file");
+        item->has_order = true;
+        item->order = get_fw_cfg_order(s, path);
+        item->has_path = true;
+        item->path = g_strdup(path);
+    } else {
+        const char *name;
+
+        if (is_arch_specific) {
+            key |= FW_CFG_ARCH_LOCAL;
+        }
+        name = key_name(key);
+        if (name) {
+            item->has_keyname = true;
+            item->keyname = g_strdup(name);
+        }
+    }
+    return item;
+}
+
+FirmwareConfigurationItemList *qmp_query_fw_cfg_items(Error **errp)
+{
+    FirmwareConfigurationItemList *item_list = NULL;
+    uint32_t max_entries;
+    int arch, key;
+    FWCfgState *s = fw_cfg_find();
+
+    if (s == NULL) {
+        return NULL;
+    }
+
+    max_entries = fw_cfg_max_entry(s);
+    for (arch = ARRAY_SIZE(s->entries) - 1; arch >= 0 ; --arch) {
+        for (key = max_entries - 1; key >= 0; --key) {
+            FirmwareConfigurationItemList *info;
+            FWCfgEntry *e = &s->entries[arch][key];
+            size_t qmp_hex_length = 0;
+
+            if (!e->len) {
+                continue;
+            }
+
+            info = g_malloc0(sizeof(*info));
+            info->value = create_qmp_fw_cfg_item(s, e, arch, key,
+                                                 qmp_hex_length);
+            info->next = item_list;
+            item_list = info;
+        }
+    }
+
+    return item_list;
+}
