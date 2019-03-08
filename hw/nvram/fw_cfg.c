@@ -959,6 +959,13 @@ static void fw_cfg_common_realize(DeviceState *dev, Error **errp)
     qemu_add_machine_init_done_notifier(&s->machine_ready);
 }
 
+static void fw_cfg_common_unrealize(DeviceState *dev, Error **errp)
+{
+    FWCfgState *s = FW_CFG(dev);
+
+    g_free(s->files);
+}
+
 FWCfgState *fw_cfg_init_io_dma(uint32_t iobase, uint32_t dma_iobase,
                                 AddressSpace *dma_as)
 {
@@ -1127,6 +1134,7 @@ static void fw_cfg_io_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = fw_cfg_io_realize;
+    dc->unrealize = fw_cfg_common_unrealize;
     dc->props = fw_cfg_io_properties;
 }
 
@@ -1190,6 +1198,7 @@ static void fw_cfg_mem_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = fw_cfg_mem_realize;
+    dc->unrealize = fw_cfg_common_unrealize;
     dc->props = fw_cfg_mem_properties;
 }
 
