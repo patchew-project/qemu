@@ -971,6 +971,10 @@ static void fw_cfg_common_unrealize(DeviceState *dev, Error **errp)
     FWCfgState *s = FW_CFG(dev);
 
     g_free(s->files);
+
+    g_free(s->entries[0]);
+    g_free(s->entries[1]);
+    g_free(s->entry_order);
 }
 
 FWCfgState *fw_cfg_init_io_dma(uint32_t iobase, uint32_t dma_iobase,
