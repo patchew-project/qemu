@@ -126,10 +126,19 @@ matrix:
             - texinfo
             - perl
 
-    # Test out-of-tree builds
+
+    # Test out-of-tree builds (and install)
     - env:
-        - CONFIG="--enable-debug --enable-debug-tcg --target-list=microblaze-softmmu,xtensa-softmmu,cris-linux-user,hppa-linux-user"
+        - BASE_CONFIG="--enable-docs --disable-tools"
+        - CONFIG="--prefix=$PWD/prefix --enable-debug --enable-debug-tcg --target-list=microblaze-softmmu,xtensa-softmmu,cris-linux-user,hppa-linux-user"
         - BUILD_DIR="out-of-tree/build/dir" SRC_DIR="../../.."
+        - TEST_CMD="make check install -j3"
+      addons:
+        apt:
+          packages:
+            - python-sphinx
+            - texinfo
+            - perl
 
 
     # Test with Clang for compile portability (Travis uses clang-5.0)
