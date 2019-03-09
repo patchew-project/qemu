@@ -36,6 +36,8 @@ config VT82C686
     select ACPI_SMBUS
     select SERIAL_ISA
     select FDC
+    select APM
+    select ACPI_X86
 
 config SMC37C669
     bool
