@@ -85,7 +85,6 @@ typedef struct ParallelState {
     PortioList portio_list;
 } ParallelState;
 
-#define TYPE_ISA_PARALLEL "isa-parallel"
 #define ISA_PARALLEL(obj) \
     OBJECT_CHECK(ISAParallelState, (obj), TYPE_ISA_PARALLEL)
 
