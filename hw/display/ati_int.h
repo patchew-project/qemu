@@ -11,6 +11,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/pci/pci.h"
+#include "hw/i2c/i2c.h"
 #include "vga_int.h"
 
 /*#define DEBUG_ATI*/
@@ -36,6 +37,7 @@ typedef struct ATIVGARegs {
     uint32_t crtc_gen_cntl;
     uint32_t crtc_ext_cntl;
     uint32_t dac_cntl;
+    uint32_t gpio_monid;
     uint32_t crtc_h_total_disp;
     uint32_t crtc_h_sync_strt_wid;
     uint32_t crtc_v_total_disp;
@@ -84,6 +86,7 @@ typedef struct ATIVGAState {
     uint16_t cursor_size;
     uint32_t cursor_offset;
     QEMUCursor *cursor;
+    bitbang_i2c_interface *bbi2c;
     MemoryRegion io;
     MemoryRegion mm;
     ATIVGARegs regs;
