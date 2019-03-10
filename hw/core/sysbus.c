@@ -43,7 +43,7 @@ static int find_sysbus_device(Object *obj, void *opaque)
 
     if (!sbdev) {
         /* Container, traverse it for children */
-        return object_child_foreach(obj, find_sysbus_device, opaque);
+        return object_child_foreach_recursive(obj, find_sysbus_device, opaque);
     }
 
     find->func(sbdev, find->opaque);

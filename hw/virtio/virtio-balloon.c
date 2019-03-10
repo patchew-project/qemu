@@ -649,7 +649,7 @@ static int build_dimm_list(Object *obj, void *opaque)
         }
     }
 
-    object_child_foreach(obj, build_dimm_list, opaque);
+    object_child_foreach_recursive(obj, build_dimm_list, opaque);
     return 0;
 }
 
