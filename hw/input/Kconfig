@@ -10,6 +10,10 @@ config PCKBD
     default y
     depends on ISA_BUS
 
+config I8042
+    bool
+    select PCKBD
+
 config PL050
     bool
 
