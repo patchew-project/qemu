@@ -51,7 +51,6 @@ config I440FX
     bool
     select PC_PCI
     select PC_ACPI
-    select ACPI_SMBUS
     select DIMM
     select SMBIOS
     select VMPORT
@@ -68,6 +67,7 @@ config ISAPC
     select PIIX3
     # QEMU isapc weirdness: it uses PIIX3 with ACPI features from PIIX4
     select ACPI_PIIX4
+    select ACPI_SMBUS
 
 config Q35
     bool
