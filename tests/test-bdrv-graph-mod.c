@@ -118,6 +118,7 @@ static void test_update_perm_tree(void)
 
     bdrv_unref(bs);
     blk_unref(root);
+    error_free(local_err);
 }
 
 /*
