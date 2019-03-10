@@ -2217,15 +2217,11 @@ static TCGv gen_get_ccr(DisasContext *s)
 
 static TCGv gen_get_sr(DisasContext *s)
 {
-    TCGv ccr;
-    TCGv sr;
+    TCGv dest;
 
-    ccr = gen_get_ccr(s);
-    sr = tcg_temp_new();
-    tcg_gen_andi_i32(sr, QREG_SR, 0xffe0);
-    tcg_gen_or_i32(sr, sr, ccr);
-    tcg_temp_free(ccr);
-    return sr;
+    dest = gen_get_ccr(s);
+    tcg_gen_deposit_i32(dest, dest, QREG_SR, 5, 11);
+    return dest;
 }
 
 static void gen_set_sr_im(DisasContext *s, uint16_t val, int ccr_only)
