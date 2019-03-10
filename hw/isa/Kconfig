@@ -49,7 +49,7 @@ config PIIX3
 config PIIX4
     bool
     select PIIX3
-    #select ACPI_PIIX4
+    select ACPI_PIIX4
     #select IDE_PIIX4
     select ACPI_SMBUS
     select MC146818RTC
