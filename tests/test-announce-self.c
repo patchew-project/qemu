@@ -21,17 +21,6 @@
 #define ETH_P_RARP 0x8035
 #endif
 
-static QTestState *test_init(int socket)
-{
-    char *args;
-
-    args = g_strdup_printf("-netdev socket,fd=%d,id=hs0 -device "
-                           "virtio-net-pci,netdev=hs0", socket);
-
-    return qtest_start(args);
-}
-
-
 static void test_announce(int socket)
 {
     char buffer[60];
@@ -58,19 +47,22 @@ static void test_announce(int socket)
 
 static void setup(gconstpointer data)
 {
-    QTestState *qs;
     void (*func) (int socket) = data;
     int sv[2], ret;
+    char *args;
 
     ret = socketpair(PF_UNIX, SOCK_STREAM, 0, sv);
     g_assert_cmpint(ret, !=, -1);
 
-    qs = test_init(sv[1]);
+    args = g_strdup_printf("-netdev socket,fd=%d,id=hs0 -device "
+                           "virtio-net-pci,netdev=hs0", sv[1]);
+    qtest_start(args);
     func(sv[0]);
 
     /* End test */
     close(sv[0]);
-    qtest_quit(qs);
+    qtest_end();
+    g_free(args);
 }
 
 int main(int argc, char **argv)
