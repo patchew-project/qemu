@@ -37,6 +37,15 @@ config PIIX
     #select NMI_PIIX
     select ISA_BUS
 
+config PIIX3
+    bool
+    select PIIX
+    #select PCI_PIIX3
+    #select IDE_PIIX3
+    select IOAPIC
+    select USB_UHCI
+    select I8042
+
 config PIIX4
     bool
     # For historical reasons, SuperIO devices are created in the board
