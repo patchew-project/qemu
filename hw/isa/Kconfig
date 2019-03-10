@@ -24,6 +24,19 @@ config PC87312
     select FDC
     select IDE_ISA
 
+config PIIX
+    bool
+    select PCI_PIIX
+    select IDE_PIIX
+    select I8254
+    select I8259
+    select PCSPK
+    select I8257
+    #select PM_PIIX
+    #select SMI_PIIX
+    #select NMI_PIIX
+    select ISA_BUS
+
 config PIIX4
     bool
     # For historical reasons, SuperIO devices are created in the board
