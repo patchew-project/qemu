@@ -52,8 +52,6 @@ config I440FX
     select PC_PCI
     select PC_ACPI
     select ACPI_SMBUS
-    select PCI_PIIX
-    select IDE_PIIX
     select DIMM
     select SMBIOS
     select VMPORT
@@ -62,13 +60,12 @@ config I440FX
 
 config ISAPC
     bool
-    select ISA_BUS
     select PC
-    select IDE_ISA
     select VGA_ISA
     # FIXME: it is in the same file as i440fx, and does not compile
     # if separated
     depends on I440FX
+    select PIIX3
     # QEMU isapc weirdness: it uses PIIX3 with ACPI features from PIIX4
     select ACPI_PIIX4
 
