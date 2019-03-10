@@ -3664,7 +3664,7 @@ static void rotate_x_flags(TCGv reg, TCGv X, int size)
 /* Result of rotate_x() is valid if 0 <= shift <= size */
 static TCGv rotate_x(TCGv reg, TCGv shift, int left, int size)
 {
-    TCGv X, shl, shr, shx, sz, zero;
+    TCGv X, shl, shr, shx, sz;
 
     sz = tcg_const_i32(size);
 
@@ -3672,14 +3672,14 @@ static TCGv rotate_x(TCGv reg, TCGv shift, int left, int size)
     shl = tcg_temp_new();
     shx = tcg_temp_new();
     if (left) {
+        TCGv zero = tcg_const_i32(0);
         tcg_gen_mov_i32(shl, shift);      /* shl = shift */
         tcg_gen_movi_i32(shr, size + 1);
         tcg_gen_sub_i32(shr, shr, shift); /* shr = size + 1 - shift */
         tcg_gen_subi_i32(shx, shift, 1);  /* shx = shift - 1 */
         /* shx = shx < 0 ? size : shx; */
-        zero = tcg_const_i32(0);
         tcg_gen_movcond_i32(TCG_COND_LT, shx, shx, zero, sz, shx);
-        tcg_temp_free(zero);
+        tcg_temp_free_i32(zero);
     } else {
         tcg_gen_mov_i32(shr, shift);      /* shr = shift */
         tcg_gen_movi_i32(shl, size + 1);
