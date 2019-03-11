@@ -54,6 +54,9 @@ static int xen_pt_hide_dev_cap(const XenHostPCIDevice *d, uint8_t grp_id)
             return 1;
         }
         break;
+    case PCI_CAP_ID_MSIX:
+        /* stubdoms don't support MSI-X so skip it. */
+        return xen_stubdom_enabled();
     }
     return 0;
 }
