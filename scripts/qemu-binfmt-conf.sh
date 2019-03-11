@@ -177,7 +177,7 @@ Options and associated environment variables:
 Argument             Env-variable     Description
 -h|--help                             display this usage
 -Q|--path PATH:      QEMU_PATH        set path to qemu interpreter(s)
--F|--suffix SUFFIX:                   add a suffix to the default interpreter name
+-F|--suffix SUFFIX:  QEMU_SUFFIX      add a suffix to the default interpreter name
 -d|--debian:                          don't write into /proc, generate update-binfmts templates
 -s|--systemd CPU:                     don't write into /proc, generate file for
                                       systemd-binfmt.service for the given CPU; if CPU is "ALL",
@@ -318,12 +318,10 @@ BINFMT_SET=qemu_register_interpreter
 SYSTEMDDIR="/etc/binfmt.d"
 DEBIANDIR="/usr/share/binfmts"
 
-QEMU_PATH=/usr/local/bin
-
+QEMU_PATH="${QEMU_PATH:-/usr/local/bin}"
+QEMU_SUFFIX="${QEMU_SUFFIX:-}"
 QEMU_CREDENTIAL="${QEMU_CREDENTIAL:-no}"
 QEMU_PERSISTENT="${QEMU_PERSISTENT:-no}"
-
-QEMU_SUFFIX=""
 
 options=$(getopt -o ds:Q:S:e:hcp -l debian,systemd:,path:,suffix:,exportdir:,help,credential,persistent -- "$@")
 eval set -- "$options"
