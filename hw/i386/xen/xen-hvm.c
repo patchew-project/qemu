@@ -1485,8 +1485,6 @@ void xen_hvm_init(PCMachineState *pcms, MemoryRegion **ram_memory)
     QLIST_INIT(&state->dev_list);
     device_listener_register(&state->device_listener);
 
-    xen_bus_init();
-
     xenstore = xs_open(0);
     if (!xenstore) {
         error_report("Can't connect to xenstored");
@@ -1495,12 +1493,16 @@ void xen_hvm_init(PCMachineState *pcms, MemoryRegion **ram_memory)
 
     qemu_set_fd_handler(xs_fileno(xenstore), xenstore_update, NULL, NULL);
 
-    /* Initialize backend core & drivers */
-    if (xen_be_init() != 0) {
-        error_report("xen backend core setup failed");
-        goto err;
+    if (!xen_stubdom_enabled()) {
+        xen_bus_init();
+
+        /* Initialize backend core & drivers */
+        if (xen_be_init() != 0) {
+            error_report("xen backend core setup failed");
+            goto err;
+        }
+        xen_be_register_common();
     }
-    xen_be_register_common();
 
     QLIST_INIT(&xen_physmap);
     xen_read_physmap(state);
