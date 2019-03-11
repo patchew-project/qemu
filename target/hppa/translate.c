@@ -3464,6 +3464,7 @@ static bool trans_b_gate(DisasContext *ctx, arg_b_gate *a)
     }
 
 #ifndef CONFIG_USER_ONLY
+    TCGv_reg tmp;
     if (ctx->tb_flags & PSW_C) {
         CPUHPPAState *env = ctx->cs->env_ptr;
         int type = hppa_artype_for_page(env, ctx->base.pc_next);
@@ -3480,12 +3481,13 @@ static bool trans_b_gate(DisasContext *ctx, arg_b_gate *a)
         if (type >= 4 && type - 4 < ctx->privilege) {
             dest = deposit32(dest, 0, 2, type - 4);
         }
+        tmp = dest_gpr(ctx, a->l);
+        tcg_gen_deposit_reg(tmp, tmp, cpu_iaoq_f, 0, 2);
     } else {
         dest &= -4;  /* priv = 0 */
     }
 #endif
-
-    return do_dbranch(ctx, dest, a->l, a->n);
+    return do_dbranch(ctx, dest, 0, a->n);
 }
 
 static bool trans_blr(DisasContext *ctx, arg_blr *a)
