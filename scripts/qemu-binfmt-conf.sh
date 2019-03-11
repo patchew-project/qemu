@@ -196,7 +196,7 @@ Options and associated environment variables:
 
 Argument             Env-variable     Description
 TARGETS              QEMU_TARGETS     A single arch name or a list of them (see all names below);
-                                      if empty, configure all known targets;
+                                      if empty, configure/clear all known targets;
                                       if 'NONE', no interpreter is configured.
 -h|--help                             display this usage
 -Q|--path PATH:      QEMU_PATH        set path to qemu interpreter(s)
@@ -206,9 +206,10 @@ TARGETS              QEMU_TARGETS     A single arch name or a list of them (see 
                                       systemd-binfmt.service; environment variable HOST_ARCH
                                       allows to override 'uname' to generate configuration files
                                       for a different architecture than the current one.
-
 -e|--exportdir PATH: DEBIANDIR        define where to write configuration files
                      SYSTEMDDIR
+-c|--clear:          QEMU_CLEAR       (yes) remove registered interpreters for target TARGETS;
+                                      then exit.
 -c|--credential:     QEMU_CREDENTIAL  (yes) credential and security tokens are calculated according
                                       to the binary to interpret
 -p|--persistent:     QEMU_PERSISTENT  (yes) load the interpreter and keep it in memory; all future
@@ -336,6 +337,25 @@ qemu_set_binfmts() {
     done
 }
 
+qemu_clear_notimplemented() {
+    echo "ERROR: option clear not implemented for this mode yet" 1>&2
+    usage
+    exit 1
+}
+
+qemu_clear_interpreter() {
+    names='qemu-*'
+    if [ $# -ne 0 ] ; then
+        qemu_check_target_list $1
+        unset names pre
+        for t in $checked_target_list ; do
+            names="${names}${pre}qemu-$t"
+            pre=' -o -name '
+        done
+    fi
+    find /proc/sys/fs/binfmt_misc/ -type f -name $names -exec sh -c 'printf %s -1 > {}' \;
+}
+
 CHECK=qemu_check_bintfmt_misc
 BINFMT_SET=qemu_register_interpreter
 
@@ -347,12 +367,16 @@ QEMU_PATH="${QEMU_PATH:-/usr/local/bin}"
 QEMU_SUFFIX="${QEMU_SUFFIX:-}"
 QEMU_CREDENTIAL="${QEMU_CREDENTIAL:-no}"
 QEMU_PERSISTENT="${QEMU_PERSISTENT:-no}"
+QEMU_CLEAR="${QEMU_CLEAR:-no}"
 
-options=$(getopt -o dsQ:S:e:hcp -l debian,systemd,path:,suffix:,exportdir:,help,credential,persistent -- "$@")
+options=$(getopt -o cdsQ:S:e:hcp -l clear,debian,systemd,path:,suffix:,exportdir:,help,credential,persistent -- "$@")
 eval set -- "$options"
 
 while true ; do
     case "$1" in
+    -c|--clear)
+        QEMU_CLEAR="yes"
+        ;;
     -d|--debian)
         CHECK=qemu_check_debian
         BINFMT_SET=qemu_generate_debian
@@ -395,4 +419,15 @@ done
 shift
 
 $CHECK
+
+if [ "x$QEMU_CLEAR" = "xyes" ] ; then
+  case "$BINFMT_SET" in
+    *debian)  BINFMT_CLEAR=qemu_clear_notimplemented ;;
+    *systemd) BINFMT_CLEAR=qemu_clear_notimplemented ;;
+    *)        BINFMT_CLEAR=qemu_clear_interpreter
+  esac
+  $BINFMT_CLEAR "$@"
+  exit
+fi
+
 qemu_set_binfmts "$@"
