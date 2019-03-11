@@ -143,6 +143,10 @@
 #endif
 
 #define CR_RC            0
+#define CR_PID1          8
+#define CR_PID2          9
+#define CR_PID3          12
+#define CR_PID4          13
 #define CR_SCRCCR        10
 #define CR_SAR           11
 #define CR_IVA           14

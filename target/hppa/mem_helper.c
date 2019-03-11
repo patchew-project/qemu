@@ -85,7 +85,7 @@ int hppa_get_physical_address(CPUHPPAState *env, vaddr addr, int mmu_idx,
                               int type, hwaddr *pphys, int *pprot)
 {
     hwaddr phys;
-    int prot, r_prot, w_prot, x_prot;
+    int prot, r_prot, w_prot, x_prot, wd;
     hppa_tlb_entry *ent;
     int ret = -1;
 
@@ -130,7 +130,31 @@ int hppa_get_physical_address(CPUHPPAState *env, vaddr addr, int mmu_idx,
         break;
     }
 
-    /* ??? Check PSW_P and ent->access_prot.  This can remove PAGE_WRITE.  */
+    /* access_id == 0 means public page and no check is performed */
+    if ((env->psw & PSW_P) && ent->access_id) {
+            wd = 1;
+
+            if (ent->access_id == (env->cr[CR_PID1] >> 1)) {
+                wd &= env->cr[CR_PID1];
+            }
+
+            if (ent->access_id == (env->cr[CR_PID2] >> 1)) {
+                wd &= env->cr[CR_PID2];
+            }
+
+            if (ent->access_id == (env->cr[CR_PID3] >> 1)) {
+                wd &= env->cr[CR_PID3];
+            }
+
+            if (ent->access_id == (env->cr[CR_PID4] >> 1)) {
+                wd &= env->cr[CR_PID4];
+            }
+
+            if (wd && (type & w_prot)) {
+                ret = EXCP_DMPI;
+                goto egress;
+            }
+    }
 
     /* No guest access type indicates a non-architectural access from
        within QEMU.  Bypass checks for access, D, B and T bits.  */
