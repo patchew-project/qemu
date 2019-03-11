@@ -1487,6 +1487,14 @@ void xen_hvm_init(PCMachineState *pcms, MemoryRegion **ram_memory)
 
     xen_bus_init();
 
+    xenstore = xs_open(0);
+    if (!xenstore) {
+        error_report("Can't connect to xenstored");
+        goto err;
+    }
+
+    qemu_set_fd_handler(xs_fileno(xenstore), xenstore_update, NULL, NULL);
+
     /* Initialize backend core & drivers */
     if (xen_be_init() != 0) {
         error_report("xen backend core setup failed");

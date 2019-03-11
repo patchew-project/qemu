@@ -683,14 +683,6 @@ int xen_be_init(void)
 {
     xengnttab_handle *gnttabdev;
 
-    xenstore = xs_daemon_open();
-    if (!xenstore) {
-        xen_pv_printf(NULL, 0, "can't connect to xenstored\n");
-        return -1;
-    }
-
-    qemu_set_fd_handler(xs_fileno(xenstore), xenstore_update, NULL, NULL);
-
     if (xen_xc == NULL || xen_fmem == NULL) {
         /* Check if xen_init() have been called */
         goto err;
