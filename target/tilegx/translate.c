@@ -491,6 +491,56 @@ static TileExcp gen_specill(DisasContext *dc, unsigned dest, unsigned srca,
     return gen_signal(dc, signo, sigcode, mnemonic);
 }
 
+static void gen_v1cmpleu(TCGv tdest, TCGv tsrca, TCGv tsrcb)
+{
+    TCGv_64 t_sa = tcg_temp_new();
+    TCGv_64 t_sb = tcg_temp_new();
+    TCGv_64 t_d = tcg_temp_new();
+    int64_t mask = 0xffULL;
+    int64_t mask1 = 0x1ULL;
+    int i;
+
+    tcg_gen_movi_i64(tdest, 0x0ULL);
+    for (i = 0; i < 8; i++) {
+        tcg_gen_andi_i64(t_sa, tsrca, mask);
+        tcg_gen_andi_i64(t_sb, tsrcb, mask);
+        tcg_gen_setcond_i64(TCG_COND_LEU, t_d, t_sa, t_sb);
+        tcg_gen_andi_i64(t_d, t_d, mask1);
+        tcg_gen_or_i64(tdest, tdest, t_d);
+        mask = mask << 8;
+        mask1 = mask1 << 8;
+    }
+
+    tcg_temp_free(t_sa);
+    tcg_temp_free(t_sb);
+    tcg_temp_free(t_d);
+}
+
+static void gen_v1cmpltu(TCGv tdest, TCGv tsrca, TCGv tsrcb)
+{
+    TCGv_64 t_sa = tcg_temp_new();
+    TCGv_64 t_sb = tcg_temp_new();
+    TCGv_64 t_d = tcg_temp_new();
+    int64_t mask = 0xffULL;
+    int64_t mask1 = 0x1ULL;
+    int i;
+
+    tcg_gen_movi_i64(tdest, 0x0ULL);
+    for (i = 0; i < 8; i++) {
+        tcg_gen_andi_i64(t_sa, tsrca, mask);
+        tcg_gen_andi_i64(t_sb, tsrcb, mask);
+        tcg_gen_setcond_i64(TCG_COND_LTU, t_d, t_sa, t_sb);
+        tcg_gen_andi_i64(t_d, t_d, mask1);
+        tcg_gen_or_i64(tdest, tdest, t_d);
+        mask = mask << 8;
+        mask1 = mask1 << 8;
+    }
+
+    tcg_temp_free(t_sa);
+    tcg_temp_free(t_sb);
+    tcg_temp_free(t_d);
+}
+
 static TileExcp gen_rr_opcode(DisasContext *dc, unsigned opext,
                               unsigned dest, unsigned srca, uint64_t bundle)
 {
@@ -1247,18 +1297,22 @@ static TileExcp gen_rrr_opcode(DisasContext *dc, unsigned opext,
         break;
     case OE_RRR(V1CMPLES, 0, X0):
     case OE_RRR(V1CMPLES, 0, X1):
-    case OE_RRR(V1CMPLEU, 0, X0):
-    case OE_RRR(V1CMPLEU, 0, X1):
     case OE_RRR(V1CMPLTS, 0, X0):
     case OE_RRR(V1CMPLTS, 0, X1):
-    case OE_RRR(V1CMPLTU, 0, X0):
-    case OE_RRR(V1CMPLTU, 0, X1):
         return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     case OE_RRR(V1CMPNE, 0, X0):
     case OE_RRR(V1CMPNE, 0, X1):
         tcg_gen_xor_tl(tdest, tsrca, tsrcb);
         gen_v1cmpne0(tdest);
         mnemonic = "v1cmpne";
+        break;
+    case OE_RRR(V1CMPLEU, 0, X0):
+    case OE_RRR(V1CMPLEU, 0, X1):
+        gen_v1cmpleu(tdest, tsrca, tsrcb);
+        break;
+    case OE_RRR(V1CMPLTU, 0, X0):
+    case OE_RRR(V1CMPLTU, 0, X1):
+        gen_v1cmpltu(tdest, tsrca, tsrcb);
         break;
     case OE_RRR(V1DDOTPUA, 0, X0):
     case OE_RRR(V1DDOTPUSA, 0, X0):
