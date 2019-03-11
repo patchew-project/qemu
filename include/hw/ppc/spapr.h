@@ -608,13 +608,23 @@ target_ulong spapr_hypercall(PowerPCCPU *cpu, target_ulong opcode,
 #define RTAS_IBM_CREATE_PE_DMA_WINDOW           (RTAS_TOKEN_BASE + 0x27)
 #define RTAS_IBM_REMOVE_PE_DMA_WINDOW           (RTAS_TOKEN_BASE + 0x28)
 #define RTAS_IBM_RESET_PE_DMA_WINDOW            (RTAS_TOKEN_BASE + 0x29)
+#define RTAS_IBM_GET_VPD                        (RTAS_TOKEN_BASE + 0x2A)
 
-#define RTAS_TOKEN_MAX                          (RTAS_TOKEN_BASE + 0x2A)
+#define RTAS_TOKEN_MAX                          (RTAS_TOKEN_BASE + 0x2B)
 
 /* RTAS ibm,get-system-parameter token values */
 #define RTAS_SYSPARM_SPLPAR_CHARACTERISTICS      20
 #define RTAS_SYSPARM_DIAGNOSTICS_RUN_MODE        42
 #define RTAS_SYSPARM_UUID                        48
+
+/* RTAS ibm,get-vpd status values */
+#define RTAS_IBM_GET_VPD_VPD_CHANGED     -4
+#define RTAS_IBM_GET_VPD_PARAMETER_ERROR -3
+#define RTAS_IBM_GET_VPD_HARDWARE_ERROR  -1
+#define RTAS_IBM_GET_VPD_SUCCESS          0
+#define RTAS_IBM_GET_VPD_CONTINUE         1
+
+#define RTAS_IBM_GET_VPD_KEYWORDS_MAX     2
 
 /* RTAS indicator/sensor types
  *
