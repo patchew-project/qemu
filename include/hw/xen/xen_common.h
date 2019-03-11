@@ -616,6 +616,11 @@ static inline void xen_create_ioreq_server(domid_t dom,
 
     *ioservid = 0;
     use_default_ioreq_server = true;
+
+    if (xen_stubdom_enabled()) {
+        xc_hvm_param_set(xen_xc, xen_domid, HVM_PARAM_DM_DOMAIN, DOMID_SELF);
+    }
+
     trace_xen_default_ioreq_server();
 }
 
