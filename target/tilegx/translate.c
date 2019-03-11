@@ -541,6 +541,56 @@ static void gen_v1cmpltu(TCGv tdest, TCGv tsrca, TCGv tsrcb)
     tcg_temp_free(t_d);
 }
 
+static void gen_v2cmpleu(TCGv tdest, TCGv tsrca, TCGv tsrcb)
+{
+    TCGv_64 t_sa = tcg_temp_new();
+    TCGv_64 t_sb = tcg_temp_new();
+    TCGv_64 t_d = tcg_temp_new();
+    int64_t mask = 0xffffULL;
+    int64_t mask1 = 0x1ULL;
+    int i;
+
+    tcg_gen_movi_i64(tdest, 0x0ULL);
+    for (i = 0; i < 4; i++) {
+        tcg_gen_andi_i64(t_sa, tsrca, mask);
+        tcg_gen_andi_i64(t_sb, tsrcb, mask);
+        tcg_gen_setcond_i64(TCG_COND_LEU, t_d, t_sa, t_sb);
+        tcg_gen_andi_i64(t_d, t_d, mask1);
+        tcg_gen_or_i64(tdest, tdest, t_d);
+        mask = mask << 16;
+        mask1 = mask1 << 16;
+    }
+
+    tcg_temp_free(t_sa);
+    tcg_temp_free(t_sb);
+    tcg_temp_free(t_d);
+}
+
+static void gen_v2cmpltu(TCGv tdest, TCGv tsrca, TCGv tsrcb)
+{
+    TCGv_64 t_sa = tcg_temp_new();
+    TCGv_64 t_sb = tcg_temp_new();
+    TCGv_64 t_d = tcg_temp_new();
+    int64_t mask = 0xffffULL;
+    int64_t mask1 = 0x1ULL;
+    int i;
+
+    tcg_gen_movi_i64(tdest, 0x0ULL);
+    for (i = 0; i < 4; i++) {
+        tcg_gen_andi_i64(t_sa, tsrca, mask);
+        tcg_gen_andi_i64(t_sb, tsrcb, mask);
+        tcg_gen_setcond_i64(TCG_COND_LTU, t_d, t_sa, t_sb);
+        tcg_gen_andi_i64(t_d, t_d, mask1);
+        tcg_gen_or_i64(tdest, tdest, t_d);
+        mask = mask << 16;
+        mask1 = mask1 << 16;
+    }
+
+    tcg_temp_free(t_sa);
+    tcg_temp_free(t_sb);
+    tcg_temp_free(t_d);
+}
+
 static TileExcp gen_rr_opcode(DisasContext *dc, unsigned opext,
                               unsigned dest, unsigned srca, uint64_t bundle)
 {
@@ -1390,17 +1440,21 @@ static TileExcp gen_rrr_opcode(DisasContext *dc, unsigned opext,
     case OE_RRR(V2CMPEQ, 0, X1):
     case OE_RRR(V2CMPLES, 0, X0):
     case OE_RRR(V2CMPLES, 0, X1):
-    case OE_RRR(V2CMPLEU, 0, X0):
-    case OE_RRR(V2CMPLEU, 0, X1):
     case OE_RRR(V2CMPLTS, 0, X0):
     case OE_RRR(V2CMPLTS, 0, X1):
-    case OE_RRR(V2CMPLTU, 0, X0):
-    case OE_RRR(V2CMPLTU, 0, X1):
     case OE_RRR(V2CMPNE, 0, X0):
     case OE_RRR(V2CMPNE, 0, X1):
     case OE_RRR(V2DOTPA, 0, X0):
     case OE_RRR(V2DOTP, 0, X0):
         return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
+    case OE_RRR(V2CMPLEU, 0, X0):
+    case OE_RRR(V2CMPLEU, 0, X1):
+        gen_v2cmpleu(tdest, tsrca, tsrcb);
+        break;
+    case OE_RRR(V2CMPLTU, 0, X0):
+    case OE_RRR(V2CMPLTU, 0, X1):
+        gen_v2cmpltu(tdest, tsrca, tsrcb);
+        break;
     case OE_RRR(V2INT_H, 0, X0):
     case OE_RRR(V2INT_H, 0, X1):
         gen_helper_v2int_h(tdest, tsrca, tsrcb);
