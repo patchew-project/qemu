@@ -196,8 +196,7 @@ Options and associated environment variables:
 
 Argument             Env-variable     Description
 TARGETS              QEMU_TARGETS     A single arch name or a list of them (see all names below);
-                                      if empty, configure/clear all known targets;
-                                      if 'NONE', no interpreter is configured.
+                                      if empty, configure/clear all known targets.
 -h|--help                             display this usage
 -Q|--path PATH:      QEMU_PATH        set path to qemu interpreter(s)
 -F|--suffix SUFFIX:  QEMU_SUFFIX      add a suffix to the default interpreter name
@@ -209,6 +208,8 @@ TARGETS              QEMU_TARGETS     A single arch name or a list of them (see 
                      SYSTEMDDIR
 -c|--clear:          QEMU_CLEAR       (yes) remove registered interpreters for target TARGETS;
                                       then exit.
+-t|--test|--dry-run: QEMU_TEST        (yes) test the setup with the provided arguments, but do not
+                                      configure any of the interpreters.
 -s|--systemd:                         don't write into /proc, generate file(s) for
                                       systemd-binfmt.service; environment variable HOST_ARCH
                                       allows to override 'uname' to generate configuration files
@@ -222,6 +223,7 @@ QEMU_SUFFIX=$QEMU_SUFFIX
 QEMU_PERSISTENT=$QEMU_PERSISTENT
 QEMU_CREDENTIAL=$QEMU_CREDENTIAL
 QEMU_CLEAR=$QEMU_CLEAR
+QEMU_TEST=$QEMU_TEST
 
 To import templates with update-binfmts, use :
 
@@ -317,9 +319,6 @@ qemu_set_binfmts() {
 
     # reduce the list of target interpreters to those given in the CLI
     [ $# -eq 0 ] && targets="${QEMU_TARGETS:-}" || targets="$@"
-    if [ "x$targets" = "xNONE" ] ; then
-      return
-    fi
     qemu_check_target_list $targets
 
     # register the interpreter for each target except for the native one
@@ -376,12 +375,16 @@ QEMU_SUFFIX="${QEMU_SUFFIX:-}"
 QEMU_PERSISTENT="${QEMU_PERSISTENT:-no}"
 QEMU_CREDENTIAL="${QEMU_CREDENTIAL:-no}"
 QEMU_CLEAR="${QEMU_CLEAR:-no}"
+QEMU_TEST="${QEMU_TEST:-no}"
 
-options=$(getopt -o cdsQ:S:e:hcp -l clear,debian,systemd,path:,suffix:,exportdir:,help,credential,persistent -- "$@")
+options=$(getopt -o tcdsQ:S:e:hcp -l test,dry-runclear,debian,systemd,path:,suffix:,exportdir:,help,credential,persistent -- "$@")
 eval set -- "$options"
 
 while true ; do
     case "$1" in
+    -t|--test|--dry-run)
+      QEMU_TEST="yes"
+    ;;
     -c|--clear)
         QEMU_CLEAR="yes"
         ;;
@@ -436,6 +439,12 @@ if [ "x$QEMU_CLEAR" = "xyes" ] ; then
   esac
   $BINFMT_CLEAR "$@"
   exit
+fi
+
+if [ "x$QEMU_TEST" = "xyes" ] ; then
+    skip(){
+    :;}
+    BINFMT_SET=skip
 fi
 
 qemu_set_binfmts "$@"
