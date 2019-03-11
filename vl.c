@@ -205,6 +205,7 @@ bool xen_allowed;
 uint32_t xen_domid;
 enum xen_mode xen_mode = XEN_EMULATE;
 bool xen_domid_restrict;
+bool xen_stubdom;
 
 static int has_defaults = 1;
 static int default_serial = 1;
@@ -3830,6 +3831,13 @@ int main(int argc, char **argv, char **envp)
                     exit(1);
                 }
                 xen_domid_restrict = true;
+                break;
+            case QEMU_OPTION_xen_stubdom:
+                if (!(xen_available())) {
+                    error_report("Option not supported for this target");
+                    exit(1);
+                }
+                xen_stubdom = true;
                 break;
             case QEMU_OPTION_trace:
                 g_free(trace_file);

@@ -3640,6 +3640,10 @@ DEF("xen-domid-restrict", 0, QEMU_OPTION_xen_domid_restrict,
     "                        to specified domain id. (Does not affect\n"
     "                        xenpv machine type).\n",
     QEMU_ARCH_ALL)
+DEF("xen-stubdom", 0, QEMU_OPTION_xen_stubdom,
+    "-xen-stubdom    specify QEMU is running in a stubdom, so certain\n"
+    "                behavior changes. (Does not affect xenpv machine type).\n",
+    QEMU_ARCH_ALL)
 STEXI
 @item -xen-domid @var{id}
 @findex -xen-domid
@@ -3650,6 +3654,9 @@ Attach to existing xen domain.
 libxl will use this when starting QEMU (XEN only).
 @findex -xen-domid-restrict
 Restrict set of available xen operations to specified domain id (XEN only).
+@findex -xen-stubdom
+@item -xen-stubdom
+Run qemu in stubdom-mode (XEN only).
 ETEXI
 
 DEF("no-reboot", 0, QEMU_OPTION_no_reboot, \

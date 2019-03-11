@@ -21,12 +21,18 @@ enum xen_mode {
 extern uint32_t xen_domid;
 extern enum xen_mode xen_mode;
 extern bool xen_domid_restrict;
+extern bool xen_stubdom;
 
 extern bool xen_allowed;
 
 static inline bool xen_enabled(void)
 {
     return xen_allowed;
+}
+
+static inline bool xen_stubdom_enabled(void)
+{
+    return xen_stubdom;
 }
 
 int xen_pci_slot_get_pirq(PCIDevice *pci_dev, int irq_num);
