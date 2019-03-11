@@ -449,9 +449,10 @@ static int xen_pt_register_regions(XenPCIPassthroughState *s, uint16_t *cmd)
     /* Register PIO/MMIO BARs */
     for (i = 0; i < PCI_ROM_SLOT; i++) {
         XenHostPCIIORegion *r = &d->io_regions[i];
+        pcibus_t r_size = r->size;
         uint8_t type;
 
-        if (r->base_addr == 0 || r->size == 0) {
+        if (r->base_addr == 0 || r_size == 0) {
             continue;
         }
 
@@ -469,15 +470,18 @@ static int xen_pt_register_regions(XenPCIPassthroughState *s, uint16_t *cmd)
                 type |= PCI_BASE_ADDRESS_MEM_TYPE_64;
             }
             *cmd |= PCI_COMMAND_MEMORY;
+
+            /* Round up to a full page for the hypercall. */
+            r_size = (r_size + XC_PAGE_SIZE - 1) & XC_PAGE_MASK;
         }
 
         memory_region_init_io(&s->bar[i], OBJECT(s), &ops, &s->dev,
-                              "xen-pci-pt-bar", r->size);
+                              "xen-pci-pt-bar", r_size);
         pci_register_bar(&s->dev, i, type, &s->bar[i]);
 
         XEN_PT_LOG(&s->dev, "IO region %i registered (size=0x%08"PRIx64
                    " base_addr=0x%08"PRIx64" type: %#x)\n",
-                   i, r->size, r->base_addr, type);
+                   i, r_size, r->base_addr, type);
     }
 
     /* Register expansion ROM address */
