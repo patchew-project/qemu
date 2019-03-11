@@ -4292,3 +4292,9 @@ void restore_state_to_opc(CPUHPPAState *env, TranslationBlock *tb,
        that the instruction was not nullified.  */
     env->psw_n = 0;
 }
+
+static bool trans_diag(DisasContext *ctx, arg_diag *a)
+{
+    qemu_log_mask(LOG_UNIMP, "DIAG opcode ignored\n");
+    return true;
+}
