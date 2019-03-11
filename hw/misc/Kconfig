@@ -80,9 +80,6 @@ config IMX
 config STM32F2XX_SYSCFG
     bool
 
-config MIPS_ITU
-    bool
-
 config MPS2_FPGAIO
     bool
 
