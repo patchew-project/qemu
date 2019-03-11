@@ -201,19 +201,27 @@ TARGETS              QEMU_TARGETS     A single arch name or a list of them (see 
 -h|--help                             display this usage
 -Q|--path PATH:      QEMU_PATH        set path to qemu interpreter(s)
 -F|--suffix SUFFIX:  QEMU_SUFFIX      add a suffix to the default interpreter name
--d|--debian:                          don't write into /proc, generate update-binfmts templates
--s|--systemd:                         don't write into /proc, generate file(s) for
-                                      systemd-binfmt.service; environment variable HOST_ARCH
-                                      allows to override 'uname' to generate configuration files
-                                      for a different architecture than the current one.
+-p|--persistent:     QEMU_PERSISTENT  (yes) load the interpreter and keep it in memory; all future
+                                      uses are cloned from the open file.
+-c|--credential:     QEMU_CREDENTIAL  (yes) credential and security tokens are calculated according
+                                      to the binary to interpret
 -e|--exportdir PATH: DEBIANDIR        define where to write configuration files
                      SYSTEMDDIR
 -c|--clear:          QEMU_CLEAR       (yes) remove registered interpreters for target TARGETS;
                                       then exit.
--c|--credential:     QEMU_CREDENTIAL  (yes) credential and security tokens are calculated according
-                                      to the binary to interpret
--p|--persistent:     QEMU_PERSISTENT  (yes) load the interpreter and keep it in memory; all future
-                                      uses are cloned from the open file.
+-s|--systemd:                         don't write into /proc, generate file(s) for
+                                      systemd-binfmt.service; environment variable HOST_ARCH
+                                      allows to override 'uname' to generate configuration files
+                                      for a different architecture than the current one.
+-d|--debian:                          don't write into /proc, generate update-binfmts templates
+
+Defaults:
+QEMU_TARGETS=$QEMU_TARGETS
+QEMU_PATH=$QEMU_PATH
+QEMU_SUFFIX=$QEMU_SUFFIX
+QEMU_PERSISTENT=$QEMU_PERSISTENT
+QEMU_CREDENTIAL=$QEMU_CREDENTIAL
+QEMU_CLEAR=$QEMU_CLEAR
 
 To import templates with update-binfmts, use :
 
@@ -365,8 +373,8 @@ DEBIANDIR="/usr/share/binfmts"
 QEMU_TARGETS="${QEMU_TARGETS:-}"
 QEMU_PATH="${QEMU_PATH:-/usr/local/bin}"
 QEMU_SUFFIX="${QEMU_SUFFIX:-}"
-QEMU_CREDENTIAL="${QEMU_CREDENTIAL:-no}"
 QEMU_PERSISTENT="${QEMU_PERSISTENT:-no}"
+QEMU_CREDENTIAL="${QEMU_CREDENTIAL:-no}"
 QEMU_CLEAR="${QEMU_CLEAR:-no}"
 
 options=$(getopt -o cdsQ:S:e:hcp -l clear,debian,systemd,path:,suffix:,exportdir:,help,credential,persistent -- "$@")
