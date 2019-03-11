@@ -49,3 +49,7 @@ config PCI_EXPRESS_XILINX
 config PCI_EXPRESS_DESIGNWARE
     bool
     select PCI_EXPRESS
+
+config PCI_BONITO
+    select PCI
+    bool
