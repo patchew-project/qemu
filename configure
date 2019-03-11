@@ -5207,6 +5207,14 @@ else
       error_exit "only the 'windows' coroutine backend is valid for Windows"
     fi
     ;;
+  x86)
+    if test "$mingw32" = "yes"; then
+      error_exit "only the 'windows' coroutine backend is valid for Windows"
+    fi
+    if test "$cpu" != "x86_64"; then
+      error_exit "the 'x86' backend is only valid for x86_64 hosts"
+    fi
+    ;;
   *)
     error_exit "unknown coroutine backend $coroutine"
     ;;
