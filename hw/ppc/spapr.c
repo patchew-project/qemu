@@ -1202,6 +1202,34 @@ static void spapr_dt_chosen(sPAPRMachineState *spapr, void *fdt)
     g_free(bootlist);
 }
 
+char *spapr_get_valid_host_serial(sPAPRMachineState *spapr)
+{
+    char *host_serial = NULL;
+    if (spapr->host_serial && !g_str_equal(spapr->host_serial, "none")) {
+        if (g_str_equal(spapr->host_serial, "passthrough")) {
+            /* -M host-serial=passthrough */
+            kvmppc_get_host_serial(&host_serial);
+        } else {
+            host_serial = g_strdup(spapr->host_serial);
+        }
+    }
+    return host_serial;
+}
+
+char *spapr_get_valid_host_model(sPAPRMachineState *spapr)
+{
+    char *host_model = NULL;
+    if (spapr->host_model && !g_str_equal(spapr->host_model, "none")) {
+        if (g_str_equal(spapr->host_model, "passthrough")) {
+            /* -M host-model=passthrough */
+            kvmppc_get_host_model(&host_model);
+        } else {
+            host_model = g_strdup(spapr->host_model);
+        }
+    }
+    return host_model;
+}
+
 static void spapr_dt_hypervisor(sPAPRMachineState *spapr, void *fdt)
 {
     /* The /hypervisor node isn't in PAPR - this is a hack to allow PR
@@ -1247,30 +1275,16 @@ static void *spapr_build_fdt(sPAPRMachineState *spapr)
      * Add info to guest to indentify which host is it being run on
      * and what is the uuid of the guest
      */
-    if (spapr->host_model && !g_str_equal(spapr->host_model, "none")) {
-        if (g_str_equal(spapr->host_model, "passthrough")) {
-            /* -M host-model=passthrough */
-            if (kvmppc_get_host_model(&buf)) {
-                _FDT(fdt_setprop_string(fdt, 0, "host-model", buf));
-                g_free(buf);
-            }
-        } else {
-            /* -M host-model=<user-string> */
-            _FDT(fdt_setprop_string(fdt, 0, "host-model", spapr->host_model));
-        }
+    buf = spapr_get_valid_host_model(spapr);
+    if (buf) {
+        _FDT(fdt_setprop_string(fdt, 0, "host-model", buf));
+        g_free(buf);
     }
 
-    if (spapr->host_serial && !g_str_equal(spapr->host_serial, "none")) {
-        if (g_str_equal(spapr->host_serial, "passthrough")) {
-            /* -M host-serial=passthrough */
-            if (kvmppc_get_host_serial(&buf)) {
-                _FDT(fdt_setprop_string(fdt, 0, "host-serial", buf));
-                g_free(buf);
-            }
-        } else {
-            /* -M host-serial=<user-string> */
-            _FDT(fdt_setprop_string(fdt, 0, "host-serial", spapr->host_serial));
-        }
+    buf = spapr_get_valid_host_serial(spapr);
+    if (buf) {
+        _FDT(fdt_setprop_string(fdt, 0, "host-serial", buf));
+        g_free(buf);
     }
 
     buf = qemu_uuid_unparse_strdup(&qemu_uuid);

@@ -842,6 +842,9 @@ int spapr_caps_post_migration(sPAPRMachineState *spapr);
 
 void spapr_check_pagesize(sPAPRMachineState *spapr, hwaddr pagesize,
                           Error **errp);
+
+char *spapr_get_valid_host_serial(sPAPRMachineState *spapr);
+char *spapr_get_valid_host_model(sPAPRMachineState *spapr);
 /*
  * XIVE definitions
  */
