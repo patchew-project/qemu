@@ -25,7 +25,7 @@
 #include "qom/cpu.h"
 
 #ifndef CONFIG_USER_ONLY
-static void eval_interrupt(HPPACPU *cpu)
+void eval_interrupt(HPPACPU *cpu)
 {
     CPUState *cs = CPU(cpu);
     if (cpu->env.cr[CR_EIRR] & cpu->env.cr[CR_EIEM]) {

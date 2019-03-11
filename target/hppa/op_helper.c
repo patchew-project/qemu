@@ -662,6 +662,7 @@ void HELPER(reset)(CPUHPPAState *env)
 
 target_ureg HELPER(swap_system_mask)(CPUHPPAState *env, target_ureg nsm)
 {
+    HPPACPU *cpu = hppa_env_get_cpu(env);
     target_ulong psw = env->psw;
     /*
      * Setting the PSW Q bit to 1, if it was not already 1, is an
@@ -673,6 +674,11 @@ target_ureg HELPER(swap_system_mask)(CPUHPPAState *env, target_ureg nsm)
      * so let this go without comment.
      */
     env->psw = (psw & ~PSW_SM) | (nsm & PSW_SM);
+    if (!(psw & PSW_I) && (nsm & PSW_I)) {
+        qemu_mutex_lock_iothread();
+        eval_interrupt(cpu);
+        qemu_mutex_unlock_iothread();
+    }
     return psw & PSW_SM;
 }
 

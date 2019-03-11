@@ -366,5 +366,6 @@ void hppa_cpu_alarm_timer(void *);
 int hppa_artype_for_page(CPUHPPAState *env, target_ulong vaddr);
 #endif
 void QEMU_NORETURN hppa_dynamic_excp(CPUHPPAState *env, int excp, uintptr_t ra);
+void eval_interrupt(HPPACPU *cpu);
 
 #endif /* HPPA_CPU_H */
