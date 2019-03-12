@@ -167,6 +167,7 @@ qemu_get_family() {
 
 usage() {
     cat <<EOF
+
 Usage: qemu-binfmt-conf.sh [options]
 
 Configure binfmt_misc to use qemu interpreter
@@ -175,8 +176,8 @@ Options and associated environment variables:
 
 Argument             Env-variable     Description
 -h|--help                             display this usage
--Q|--qemu-path PATH  QEMU_PATH        set path to qemu interpreter
--F|--qemu-suffix SUFFIX               add a suffix to the default interpreter name
+-Q|--path PATH       QEMU_PATH        set path to qemu interpreter(s)
+-F|--suffix SUFFIX                    add a suffix to the default interpreter name
 -p|--persistent      QEMU_PERSISTENT  (yes) load the interpreter and keep it in memory; all future
                                       uses are cloned from the open file.
 -c|--credential      QEMU_CREDENTIAL  (yes) credential and security tokens are calculated according
@@ -329,7 +330,7 @@ QEMU_CREDENTIAL="${QEMU_CREDENTIAL:-no}"
 
 QEMU_SUFFIX=""
 
-options=$(getopt -o ds:Q:S:e:hcp -l debian,systemd:,qemu-path:,qemu-suffix:,exportdir:,help,credential,persistent -- "$@")
+options=$(getopt -o ds:Q:S:e:hcp -l debian,systemd:,path:,suffix:,exportdir:,help,credential,persistent -- "$@")
 eval set -- "$options"
 
 while true ; do
@@ -361,11 +362,11 @@ while true ; do
             fi
         fi
         ;;
-    -Q|--qemu-path)
+    -Q|--path)
         shift
         QEMU_PATH="$1"
         ;;
-    -F|--qemu-suffix)
+    -F|--suffix)
         shift
         QEMU_SUFFIX="$1"
         ;;
