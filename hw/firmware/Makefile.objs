@@ -1,0 +1,1 @@
+common-obj-y += uefi_edk2_crypto_policies.o
