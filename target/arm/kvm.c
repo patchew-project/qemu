@@ -39,10 +39,76 @@ static bool cap_has_inject_serror_esr;
 
 static ARMHostCPUFeatures arm_host_cpu_features;
 
+static int get_vcpu_timer_tick(CPUState *cs, uint64_t *tick_at_pause)
+{
+    int err;
+    struct kvm_one_reg reg;
+
+    reg.id = KVM_REG_ARM_TIMER_CNT;
+    reg.addr = (uintptr_t) tick_at_pause;
+
+    err = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
+    return err;
+}
+
+static int set_vcpu_timer_tick(CPUState *cs, uint64_t tick_at_pause)
+{
+    int err;
+    struct kvm_one_reg reg;
+
+    reg.id = KVM_REG_ARM_TIMER_CNT;
+    reg.addr = (uintptr_t) &tick_at_pause;
+
+    err = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
+    return err;
+}
+
+static void arch_timer_change_state_handler(void *opaque, int running,
+                                            RunState state)
+{
+    static uint64_t hw_ticks_at_paused;
+    static RunState pre_state = RUN_STATE__MAX;
+    int err;
+    CPUState *cs = (CPUState *)opaque;
+
+    switch (state) {
+    case RUN_STATE_PAUSED:
+        err = get_vcpu_timer_tick(cs, &hw_ticks_at_paused);
+        if (err) {
+            error_report("Get vcpu timer tick failed: %d", err);
+        }
+        break;
+    case RUN_STATE_RUNNING:
+        if (pre_state == RUN_STATE_PAUSED) {
+            err = set_vcpu_timer_tick(cs, hw_ticks_at_paused);
+            if (err) {
+                error_report("Resume vcpu timer tick failed: %d", err);
+            }
+        }
+        break;
+    default:
+        break;
+    }
+
+    pre_state = state;
+}
+
 int kvm_arm_vcpu_init(CPUState *cs)
 {
     ARMCPU *cpu = ARM_CPU(cs);
     struct kvm_vcpu_init init;
+
+    /*
+     * Only add change state handler for arch timer once, for KVM will help to
+     * synchronize virtual timer of all VCPUs.
+     */
+    static bool arch_timer_change_state_handler_added;
+
+
+    if (!arch_timer_change_state_handler_added) {
+        qemu_add_vm_change_state_handler(arch_timer_change_state_handler, cs);
+        arch_timer_change_state_handler_added = true;
+    }
 
     init.target = cpu->kvm_target;
     memcpy(init.features, cpu->kvm_init_features, sizeof(init.features));
