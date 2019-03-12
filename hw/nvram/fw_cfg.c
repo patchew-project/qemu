@@ -825,6 +825,29 @@ void fw_cfg_add_file(FWCfgState *s,  const char *filename,
     fw_cfg_add_file_callback(s, filename, NULL, NULL, NULL, data, len, true);
 }
 
+bool fw_cfg_add_file_from_host(FWCfgState *s, const char *filename,
+                               const char *host_path, size_t *len,
+                               Error **errp)
+{
+    GError *gerr = NULL;
+    gchar *data = NULL;
+    gsize contents_len = 0;
+
+    if (!g_file_get_contents(host_path, &data, &contents_len, &gerr)) {
+        error_setg(errp, "%s", gerr->message);
+        g_error_free(gerr);
+        return false;
+    }
+    fw_cfg_add_file(s, filename, data, contents_len);
+    /* TODO g_free 'data' */
+
+    if (len) {
+        *len = contents_len;
+    }
+
+    return true;
+}
+
 void *fw_cfg_modify_file(FWCfgState *s, const char *filename,
                         void *data, size_t len)
 {
