@@ -896,6 +896,60 @@ static void arm_cpu_finalizefn(Object *obj)
 #endif
 }
 
+static int get_vcpu_timer_tick(CPUState *cs, uint64_t *tick_at_pause)
+{
+    int err;
+    struct kvm_one_reg reg;
+
+    reg.id = KVM_REG_ARM_TIMER_CNT;
+    reg.addr = (uintptr_t) tick_at_pause;
+
+    err = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
+    return err;
+}
+
+static int set_vcpu_timer_tick(CPUState *cs, uint64_t tick_at_pause)
+{
+    int err;
+    struct kvm_one_reg reg;
+
+    reg.id = KVM_REG_ARM_TIMER_CNT;
+    reg.addr = (uintptr_t) &tick_at_pause;
+
+    err = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
+    return err;
+}
+
+static void arch_timer_change_state_handler(void *opaque, int running,
+                                            RunState state)
+{
+    static uint64_t hw_ticks_at_paused;
+    static RunState pre_state = RUN_STATE__MAX;
+    int err;
+    CPUState *cs = (CPUState *)opaque;
+
+    switch (state) {
+    case RUN_STATE_PAUSED:
+        err = get_vcpu_timer_tick(cs, &hw_ticks_at_paused);
+        if (err) {
+            error_report("Get vcpu timer tick failed: %d", err);
+        }
+        break;
+    case RUN_STATE_RUNNING:
+        if (pre_state == RUN_STATE_PAUSED) {
+            err = set_vcpu_timer_tick(cs, hw_ticks_at_paused);
+            if (err) {
+                error_report("Resume vcpu timer tick failed: %d", err);
+            }
+        }
+        break;
+    default:
+        break;
+    }
+
+    pre_state = state;
+}
+
 static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
@@ -905,6 +959,12 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
     int pagebits;
     Error *local_err = NULL;
     bool no_aa32 = false;
+
+    /*
+     * Only add change state handler for arch timer once, for KVM will help to
+     * synchronize virtual timer of all VCPUs.
+     */
+    static bool arch_timer_change_state_handler_added;
 
     /* If we needed to query the host kernel for the CPU features
      * then it's possible that might have failed in the initfn, but
@@ -1180,6 +1240,11 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
     arm_cpu_register_gdb_regs_for_features(cpu);
 
     init_cpreg_list(cpu);
+
+    if (!arch_timer_change_state_handler_added && kvm_enabled()) {
+        qemu_add_vm_change_state_handler(arch_timer_change_state_handler, cs);
+        arch_timer_change_state_handler_added = true;
+    }
 
 #ifndef CONFIG_USER_ONLY
     if (cpu->has_el3 || arm_feature(env, ARM_FEATURE_M_SECURITY)) {
