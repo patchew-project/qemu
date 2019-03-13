@@ -5180,6 +5180,11 @@ if test "$cet" = ""; then
   cet=yes
   QEMU_CFLAGS="-fcf-protection $QEMU_CFLAGS"
 fi
+if test "$cpu" = "x86_64"; then
+  cet_tcg=yes
+else
+  cet_tcg=no
+fi
 
 ##########################################
 # check and set a backend for coroutine
@@ -6370,6 +6375,7 @@ echo "TCG support       $tcg"
 if test "$tcg" = "yes" ; then
     echo "TCG debug enabled $debug_tcg"
     echo "TCG interpreter   $tcg_interpreter"
+    echo "TCG CET support   $cet_tcg"
 fi
 echo "malloc trim support $malloc_trim"
 echo "RDMA support      $rdma"
@@ -6574,6 +6580,9 @@ if test "$profiler" = "yes" ; then
 fi
 if test "$cet" = "yes" ; then
   echo "CONFIG_CET=y" >> $config_host_mak
+fi
+if test "$cet_tcg" = "yes" ; then
+  echo "CONFIG_CET_TCG=y" >> $config_host_mak
 fi
 if test "$slirp" != "no"; then
   echo "CONFIG_SLIRP=y" >> $config_host_mak

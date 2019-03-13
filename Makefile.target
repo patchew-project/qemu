@@ -112,7 +112,9 @@ obj-y += accel/
 obj-$(CONFIG_TCG) += tcg/tcg.o tcg/tcg-op.o tcg/tcg-op-vec.o tcg/tcg-op-gvec.o
 obj-$(CONFIG_TCG) += tcg/tcg-common.o tcg/optimize.o
 ifeq ($(CONFIG_CET),y)
+ifneq ($(CONFIG_CET_TCG),y)
 tcg/tcg.o-cflags := -fcf-protection=return
+endif
 endif
 obj-$(CONFIG_TCG_INTERPRETER) += tcg/tci.o
 obj-$(CONFIG_TCG_INTERPRETER) += disas/tci.o

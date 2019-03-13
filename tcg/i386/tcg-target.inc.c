@@ -808,6 +808,17 @@ static inline void tgen_arithr(TCGContext *s, int subop, int dest, int src)
     tcg_out_modrm(s, OPC_ARITH_GvEv + (subop << 3) + ext, dest, src);
 }
 
+static void tcg_out_endbr(TCGContext *s)
+{
+#if defined __CET__ && (__CET__ & 1)
+#ifdef __x86_64__
+    tcg_out32(s, 0xfa1e0ff3);
+#else
+    tcg_out32(s, 0xfb1e0ff3);
+#endif
+#endif
+}
+
 static void tcg_out_mov(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg)
 {
     int rexw = 0;
@@ -3499,6 +3510,7 @@ static const int tcg_target_callee_save_regs[] = {
 
 static inline void tcg_out_start(TCGContext *s)
 {
+    tcg_out_endbr(s);
 }
 
 /* Generate global QEMU prologue and epilogue code */
@@ -3514,6 +3526,7 @@ static void tcg_target_qemu_prologue(TCGContext *s)
                   CPU_TEMP_BUF_NLONGS * sizeof(long));
 
     /* Save all callee saved registers.  */
+    tcg_out_endbr(s);
     for (i = 0; i < ARRAY_SIZE(tcg_target_callee_save_regs); i++) {
         tcg_out_push(s, tcg_target_callee_save_regs[i]);
     }
@@ -3553,6 +3566,7 @@ static void tcg_target_qemu_prologue(TCGContext *s)
      * and fall through to the rest of the epilogue.
      */
     s->code_gen_epilogue = s->code_ptr;
+    tcg_out_endbr(s);
     tcg_out_movi(s, TCG_TYPE_REG, TCG_REG_EAX, 0);
 
     /* TB epilogue */
