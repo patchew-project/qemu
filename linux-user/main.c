@@ -33,6 +33,7 @@
 #include "tcg.h"
 #include "qemu/timer.h"
 #include "qemu/envlist.h"
+#include "qemu/random.h"
 #include "elf.h"
 #include "trace/control.h"
 #include "target_elf.h"
@@ -291,13 +292,7 @@ static void handle_arg_pagesize(const char *arg)
 
 static void handle_arg_randseed(const char *arg)
 {
-    unsigned long long seed;
-
-    if (parse_uint_full(arg, &seed, 0) != 0 || seed > UINT_MAX) {
-        fprintf(stderr, "Invalid seed number: %s\n", arg);
-        exit(EXIT_FAILURE);
-    }
-    srand(seed);
+    qemu_seedrandom_main(arg, &error_fatal);
 }
 
 static void handle_arg_gdb(const char *arg)
