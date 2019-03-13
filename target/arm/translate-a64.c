@@ -45,6 +45,9 @@ static TCGv_i64 cpu_pc;
 /* Load/store exclusive handling */
 static TCGv_i64 cpu_exclusive_high;
 
+/* Current value of the zcr_el[1] register */
+static TCGv_i64 cpu_zcr_el1;
+
 static const char *regnames[] = {
     "x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7",
     "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15",
@@ -103,6 +106,9 @@ void a64_translate_init(void)
 
     cpu_exclusive_high = tcg_global_mem_new_i64(cpu_env,
         offsetof(CPUARMState, exclusive_high), "exclusive_high");
+
+    cpu_zcr_el1 = tcg_global_mem_new_i64(cpu_env,
+        offsetof(CPUARMState, vfp.zcr_el[1]), "zcr_el1");
 }
 
 static inline int get_a64_user_mem_index(DisasContext *s)
@@ -575,6 +581,17 @@ TCGv_i64 read_cpu_reg_sp(DisasContext *s, int reg, int sf)
     } else {
         tcg_gen_ext32u_i64(v, cpu_X[reg]);
     }
+    return v;
+}
+
+/* Get a temporary register containing the current vector length */
+TCGv_i64 get_cpu_vec_len(DisasContext *s)
+{
+    TCGv_i64 v = new_tmp_a64(s);
+    tcg_gen_mov_i64(v, cpu_zcr_el1);
+    tcg_gen_andi_i64(v, v, 0xf);
+    tcg_gen_addi_i64(v, v, 1);
+    tcg_gen_muli_i64(v, v, 16);
     return v;
 }
 
