@@ -2469,6 +2469,10 @@ static tcg_insn_unit *align_code_ptr(TCGContext *s)
     return s->code_ptr;
 }
 
+static inline void tcg_out_start(TCGContext *s)
+{
+}
+
 /* Stack frame parameters.  */
 #define REG_SIZE   (TCG_TARGET_REG_BITS / 8)
 #define SAVE_SIZE  ((int)ARRAY_SIZE(tcg_target_callee_save_regs) * REG_SIZE)

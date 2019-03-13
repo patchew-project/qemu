@@ -1790,6 +1790,10 @@ static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
     }
 }
 
+static inline void tcg_out_start(TCGContext *s)
+{
+}
+
 static const int tcg_target_callee_save_regs[] = {
     TCG_REG_S0,       /* used for the global env (TCG_AREG0) */
     TCG_REG_S1,

@@ -3497,6 +3497,10 @@ static const int tcg_target_callee_save_regs[] = {
       + TCG_TARGET_STACK_ALIGN - 1) \
      & ~(TCG_TARGET_STACK_ALIGN - 1))
 
+static inline void tcg_out_start(TCGContext *s)
+{
+}
+
 /* Generate global QEMU prologue and epilogue code */
 static void tcg_target_qemu_prologue(TCGContext *s)
 {

@@ -2270,6 +2270,10 @@ static void tcg_out_nop_fill(tcg_insn_unit *p, int count)
     }
 }
 
+static inline void tcg_out_start(TCGContext *s)
+{
+}
+
 /* Compute frame size via macros, to share between tcg_target_qemu_prologue
    and tcg_register_jit.  */
 

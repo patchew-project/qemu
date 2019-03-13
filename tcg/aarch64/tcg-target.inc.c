@@ -2524,6 +2524,10 @@ QEMU_BUILD_BUG_ON(FRAME_SIZE >= (1 << 14));
 /* We're expecting to use a single ADDI insn.  */
 QEMU_BUILD_BUG_ON(FRAME_SIZE - PUSH_SIZE > 0xfff);
 
+static inline void tcg_out_start(TCGContext *s)
+{
+}
+
 static void tcg_target_qemu_prologue(TCGContext *s)
 {
     TCGReg r;

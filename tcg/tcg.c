@@ -100,6 +100,7 @@ static void tcg_register_jit_int(void *buf, size_t size,
 /* Forward declarations for functions declared and used in tcg-target.inc.c. */
 static const char *target_parse_constraint(TCGArgConstraint *ct,
                                            const char *ct_str, TCGType type);
+static void tcg_out_start(TCGContext *s);
 static void tcg_out_ld(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg1,
                        intptr_t arg2);
 static void tcg_out_mov(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg);
@@ -3926,6 +3927,7 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb)
 #endif
 
     num_insns = -1;
+    tcg_out_start(s);
     QTAILQ_FOREACH(op, &s->ops, link) {
         TCGOpcode opc = op->opc;
 

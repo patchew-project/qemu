@@ -1906,6 +1906,10 @@ static void tcg_out_nop_fill(tcg_insn_unit *p, int count)
     }
 }
 
+static inline void tcg_out_start(TCGContext *s)
+{
+}
+
 /* Parameters for function call generation, used in tcg.c.  */
 #define TCG_TARGET_STACK_ALIGN       16
 #define TCG_TARGET_EXTEND_ARGS       1

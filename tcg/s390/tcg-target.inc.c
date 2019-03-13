@@ -2495,6 +2495,10 @@ static void query_s390_facilities(void)
     }
 }
 
+static inline void tcg_out_start(TCGContext *s)
+{
+}
+
 static void tcg_target_init(TCGContext *s)
 {
     query_s390_facilities();
