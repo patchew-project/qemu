@@ -39,6 +39,11 @@ util-obj-y += qemu-coroutine.o qemu-coroutine-lock.o qemu-coroutine-io.o
 util-obj-y += qemu-coroutine-sleep.o
 util-obj-y += coroutine-$(CONFIG_COROUTINE_BACKEND).o
 coroutine-x86.o-cflags := -mno-red-zone
+ifeq ($(CONFIG_CET),y)
+coroutine-sigaltstack.o-cflags := -fcf-protection=branch
+coroutine-ucontext.o-cflags := -fcf-protection=branch
+coroutine-x86.o-cflags += -fcf-protection=branch
+endif
 util-obj-y += buffer.o
 util-obj-y += timed-average.o
 util-obj-y += base64.o
