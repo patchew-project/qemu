@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: BSD-3-Clause */
 /*
  * tftp.c - a simple, read-only tftp server for qemu
  *

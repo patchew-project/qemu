@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: BSD-3-Clause */
 /*
  * util.c (mostly based on QEMU os-win32.c)
  *

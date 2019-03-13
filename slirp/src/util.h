@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: BSD-3-Clause */
 /*
  * Copyright (c) 2003-2008 Fabrice Bellard
  * Copyright (c) 2010-2019 Red Hat, Inc.
