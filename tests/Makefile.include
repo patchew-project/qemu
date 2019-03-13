@@ -1162,7 +1162,7 @@ check-acceptance: check-venv $(TESTS_RESULTS_DIR)
 	$(call quiet-command, \
             $(TESTS_VENV_DIR)/bin/python -m avocado \
             --show=$(AVOCADO_SHOW) run --job-results-dir=$(TESTS_RESULTS_DIR) \
-            --failfast=on $(SRC_PATH)/tests/acceptance, \
+            --failfast=on tests/acceptance, \
             "AVOCADO", "tests/acceptance")
 
 # Consolidated targets
