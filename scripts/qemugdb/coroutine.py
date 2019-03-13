@@ -10,14 +10,15 @@
 # This work is licensed under the terms of the GNU GPL, version 2
 # or later.  See the COPYING file in the top-level directory.
 
-from . import coroutine_ucontext
+from . import coroutine_ucontext, coroutine_x86
 import gdb
 
 VOID_PTR = gdb.lookup_type('void').pointer()
 UINTPTR_T = gdb.lookup_type('uintptr_t')
 
 backends = {
-    'CoroutineUContext': coroutine_ucontext
+    'CoroutineUContext': coroutine_ucontext,
+    'CoroutineX86': coroutine_x86
 }
 
 def coroutine_backend():

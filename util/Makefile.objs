@@ -38,6 +38,7 @@ util-obj-$(CONFIG_MEMBARRIER) += sys_membarrier.o
 util-obj-y += qemu-coroutine.o qemu-coroutine-lock.o qemu-coroutine-io.o
 util-obj-y += qemu-coroutine-sleep.o
 util-obj-y += coroutine-$(CONFIG_COROUTINE_BACKEND).o
+coroutine-x86.o-cflags := -mno-red-zone
 util-obj-y += buffer.o
 util-obj-y += timed-average.o
 util-obj-y += base64.o
