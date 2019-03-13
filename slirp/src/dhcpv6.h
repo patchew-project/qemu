@@ -1,10 +1,8 @@
+/* SPDX-License-Identifier: BSD-3-Clause */
 /*
  * Definitions and prototypes for SLIRP stateless DHCPv6
  *
  * Copyright 2016 Thomas Huth, Red Hat Inc.
- *
- * This work is licensed under the terms of the GNU GPL, version 2
- * or later. See the COPYING file in the top-level directory.
  */
 #ifndef SLIRP_DHCPV6_H
 #define SLIRP_DHCPV6_H

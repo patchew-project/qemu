@@ -1,10 +1,8 @@
+/* SPDX-License-Identifier: BSD-3-Clause */
 /*
  * NC-SI (Network Controller Sideband Interface) "echo" model
  *
  * Copyright (C) 2016-2018 IBM Corp.
- *
- * This code is licensed under the GPL version 2 or later. See the
- * COPYING file in the top-level directory.
  */
 #include "slirp.h"
 
