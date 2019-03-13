@@ -223,6 +223,11 @@ struct AcpiBuildTables {
     BIOSLinker *linker;
 } AcpiBuildTables;
 
+typedef struct AcpiMcfgInfo {
+    uint64_t mcfg_base;
+    uint32_t mcfg_size;
+} AcpiMcfgInfo;
+
 /**
  * init_aml_allocator:
  *
