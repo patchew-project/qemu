@@ -945,7 +945,9 @@ static bool trans_ADDVL(DisasContext *s, arg_ADDVL *a)
 {
     TCGv_i64 rd = cpu_reg_sp(s, a->rd);
     TCGv_i64 rn = cpu_reg_sp(s, a->rn);
-    tcg_gen_addi_i64(rd, rn, a->imm * vec_full_reg_size(s));
+    TCGv_i64 ln = get_cpu_vec_len(s);
+    tcg_gen_muli_i64(ln, ln, a->imm);
+    tcg_gen_add_i64(rd, rn, ln);
     return true;
 }
 
@@ -960,7 +962,8 @@ static bool trans_ADDPL(DisasContext *s, arg_ADDPL *a)
 static bool trans_RDVL(DisasContext *s, arg_RDVL *a)
 {
     TCGv_i64 reg = cpu_reg(s, a->rd);
-    tcg_gen_movi_i64(reg, a->imm * vec_full_reg_size(s));
+    TCGv_i64 ln = get_cpu_vec_len(s);
+    tcg_gen_muli_i64(reg, ln, a->imm);
     return true;
 }
 
