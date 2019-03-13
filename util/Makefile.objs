@@ -42,7 +42,6 @@ coroutine-x86.o-cflags := -mno-red-zone
 ifeq ($(CONFIG_CET),y)
 coroutine-sigaltstack.o-cflags := -fcf-protection=branch
 coroutine-ucontext.o-cflags := -fcf-protection=branch
-coroutine-x86.o-cflags += -fcf-protection=branch
 endif
 util-obj-y += buffer.o
 util-obj-y += timed-average.o

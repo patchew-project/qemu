@@ -22,6 +22,16 @@
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qemu/coroutine_int.h"
+#include "qemu/error-report.h"
+
+#ifdef CONFIG_CET
+#include <asm/prctl.h>
+#include <sys/prctl.h>
+int arch_prctl(int code, unsigned long addr);
+#ifndef ARCH_X86_CET_ALLOC_SHSTK
+#define ARCH_X86_CET_ALLOC_SHSTK 0x3004
+#endif
+#endif
 
 #ifdef CONFIG_VALGRIND_H
 #include <valgrind/valgrind.h>
@@ -39,10 +49,14 @@
 typedef struct {
     Coroutine base;
     void *sp;
+    void *ssp;
 
     void *stack;
     size_t stack_size;
 
+    /* CET shadow stack */
+    void *sstack;
+    size_t sstack_size;
 #ifdef CONFIG_VALGRIND_H
     unsigned int valgrind_stack_id;
 #endif
@@ -77,6 +91,30 @@ static void start_switch_fiber(void **fake_stack_save,
 #endif
 }
 
+static bool have_cet(void)
+{
+#if defined CONFIG_CET
+    uint64_t ssp;
+    asm ("xor %0, %0; rdsspq %0\n" : "=rm" (ssp));
+    return !!ssp;
+#else
+    return 0;
+#endif
+}
+
+static void *cet_alloc_sstack(size_t sz)
+{
+#if defined CONFIG_CET
+    uint64_t arg = sz;
+    if (arch_prctl(ARCH_X86_CET_ALLOC_SHSTK, (unsigned long) &arg) < 0) {
+        abort();
+    }
+
+    return (void *)arg;
+#else
+    abort();
+#endif
+}
 /*
  * We hardcode all operands to specific registers so that we can write down all the
  * others in the clobber list.  Note that action also needs to be hardcoded so that
@@ -87,6 +125,26 @@ static void start_switch_fiber(void **fake_stack_save,
  * Note that push and call would clobber the red zone.  Makefile.objs compiles this
  * file with -mno-red-zone.  The alternative is to subtract/add 128 bytes from rsp
  * around the switch, with slightly lower cache performance.
+ *
+ * The RSTORSSP and SAVEPREVSSP instructions are intricate.  In a nutshell they are:
+ *
+ *      RSTORSSP(mem):    oldSSP = SSP
+ *                        SSP = *mem
+ *                        *SSP = oldSSP
+ *
+ *      SAVEPREVSSP:      oldSSP = shadow_stack_pop()
+ *                        *(oldSSP - 8) = oldSSP       # "push" to old shadow stack
+ *
+ * Therefore, RSTORSSP(mem) followed by SAVEPREVSSP is the same as
+ *
+ *     shadow_stack_push(SSP)
+ *     SSP = *mem
+ *     shadow_stack_pop()
+ *
+ * From the simplified description you can see that co->ssp, being stored before
+ * the RSTORSSP+SAVEPREVSSP sequence, points to the top actual entry of the shadow
+ * stack, not to the restore token.  Hence we use an offset of -8 in the operand
+ * of rstorssp.
  */
 #define CO_SWITCH(from, to, action, jump) ({                                          \
     int action_ = action;                                                             \
@@ -101,7 +159,15 @@ static void start_switch_fiber(void **fake_stack_save,
         "jmp 2f\n"                          /* switch back continues at label 2 */    \
                                                                                       \
         "1: .cfi_adjust_cfa_offset 8\n"                                               \
-        "movq %%rsp, %c[SP](%[FROM])\n"     /* save source SP */                      \
+        "xor %%rbp, %%rbp\n"                /* use old frame pointer as scratch reg */ \
+        "rdsspq %%rbp\n"                                                              \
+        "test %%rbp, %%rbp\n"               /* if CET is on... */                     \
+        "jz 9f\n"                                                                     \
+        "movq %%rbp, %c[SSP](%[FROM])\n"    /* ... save source shadow SP, */          \
+        "movq %c[SSP](%[TO]), %%rbp\n"      /* restore destination shadow stack, */   \
+        "rstorssp -8(%%rbp)\n"                                                        \
+        "saveprevssp\n"                     /* and save source shadow SP token */     \
+        "9: movq %%rsp, %c[SP](%[FROM])\n"  /* save source SP */                      \
         "movq %c[SP](%[TO]), %%rsp\n"       /* load destination SP */                 \
         jump "\n"                           /* coroutine switch */                    \
                                                                                       \
@@ -110,7 +176,8 @@ static void start_switch_fiber(void **fake_stack_save,
         ".cfi_adjust_cfa_offset -8\n"                                                 \
         ".cfi_restore_state\n"                                                        \
         : "+a" (action_), [FROM] "+b" (from_), [TO] "+D" (to_)                        \
-        : [SP] "i" (offsetof(CoroutineX86, sp))                                       \
+        : [SP] "i" (offsetof(CoroutineX86, sp)),                                      \
+          [SSP] "i" (offsetof(CoroutineX86, ssp))                                     \
         : "rcx", "rdx", "rsi", "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15",  \
           "memory");                                                                  \
     action_;                                                                          \
@@ -136,6 +203,12 @@ Coroutine *qemu_coroutine_new(void)
     co->stack_size = COROUTINE_STACK_SIZE;
     co->stack = qemu_alloc_stack(&co->stack_size);
     co->sp = co->stack + co->stack_size;
+
+    if (have_cet()) {
+        co->sstack_size = COROUTINE_SHADOW_STACK_SIZE;
+        co->sstack = cet_alloc_sstack(co->sstack_size);
+        co->ssp = co->sstack + co->sstack_size;
+    }
 
 #ifdef CONFIG_VALGRIND_H
     co->valgrind_stack_id =
@@ -176,6 +249,9 @@ void qemu_coroutine_delete(Coroutine *co_)
 #endif
 
     qemu_free_stack(co->stack, co->stack_size);
+    if (co->sstack) {
+        munmap(co->sstack, co->sstack_size);
+    }
     g_free(co);
 }
 

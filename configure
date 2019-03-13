@@ -5174,6 +5174,20 @@ if test "$cet" != no; then
       feature_not_found "cet" 'CET is not supported by your toolchain'
     fi
     cet=no
+  else
+    if test $cpu = x86_64; then
+      # only needed by coroutine-x86.c, however it should be rare to have
+      # CET support in the compiler but not in binutils
+      cat > $TMPC << EOF
+int main(void) { asm("rdsspq %%rax" : : : "rax"); }
+EOF
+      if ! compile_prog "" "" ; then
+        if test "$cet" = yes; then
+          feature_not_found "cet" 'CET is not supported by your toolchain'
+        fi
+        cet=no
+      fi
+    fi
   fi
 fi
 if test "$cet" = ""; then
