@@ -275,7 +275,8 @@ static void aspeed_timer_set_value(AspeedTimerCtrlState *s, int timer, int reg,
             int64_t delta = (int64_t) value - (int64_t) calculate_ticks(t, now);
             uint32_t rate = calculate_rate(t);
 
-            t->start += muldiv64(delta, NANOSECONDS_PER_SECOND, rate);
+            t->start = (int64_t)t->start +
+                ((__int128_t)delta * NANOSECONDS_PER_SECOND / rate);
             aspeed_timer_mod(t);
         }
         break;
