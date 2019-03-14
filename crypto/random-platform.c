@@ -26,6 +26,8 @@
 #ifdef _WIN32
 #include <wincrypt.h>
 static HCRYPTPROV hCryptProv;
+#elif defined(CONFIG_GETRANDOM)
+#include <sys/random.h>
 #else
 static int fd; /* a file handle to either /dev/urandom or /dev/random */
 #endif
@@ -37,6 +39,12 @@ int qcrypto_random_init(Error **errp)
                              CRYPT_SILENT | CRYPT_VERIFYCONTEXT)) {
         error_setg_win32(errp, GetLastError(),
                          "Unable to create cryptographic provider");
+        return -1;
+    }
+#elif defined(CONFIG_GETRANDOM)
+    errno = 0;
+    if (getrandom(NULL, 0, 0) < 0 && errno == ENOSYS) {
+        error_setg_errno(errp, errno, "getrandom");
         return -1;
     }
 #else
@@ -64,6 +72,19 @@ int qcrypto_random_bytes(uint8_t *buf G_GNUC_UNUSED,
         error_setg_win32(errp, GetLastError(),
                          "Unable to read random bytes");
         return -1;
+    }
+#elif defined(CONFIG_GETRANDOM)
+    while (buflen > 0) {
+        ssize_t got = getrandom(buf, buflen, 0);
+        if (unlikely(got < 0)) {
+            if (errno != EINTR) {
+                error_setg_errno(errp, errno, "getrandom");
+                return -1;
+            }
+        } else {
+            buflen -= got;
+            buf += got;
+        }
     }
 #else
     while (buflen > 0) {
