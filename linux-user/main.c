@@ -38,6 +38,7 @@
 #include "trace/control.h"
 #include "target_elf.h"
 #include "cpu_loop-common.h"
+#include "crypto/init.h"
 
 char *exec_path;
 
@@ -688,6 +689,13 @@ int main(int argc, char **argv, char **envp)
     }
     if (seed_optarg != NULL) {
         qemu_seedrandom_main(seed_optarg, &error_fatal);
+    } else {
+        /* ??? This assumes qcrypto is only used by qemu_getrandom.  */
+        Error *err = NULL;
+        if (qcrypto_init(&err) < 0) {
+            error_reportf_err(err, "cannot initialize crypto: ");
+            exit(1);
+        }
     }
 
     target_environ = envlist_to_environ(envlist, NULL);
