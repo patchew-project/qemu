@@ -2769,8 +2769,7 @@ if test "$gnutls" != "no"; then
     if $pkg_config --exists "gnutls >= 3.1.18"; then
         gnutls_cflags=$($pkg_config --cflags gnutls)
         gnutls_libs=$($pkg_config --libs gnutls)
-        libs_softmmu="$gnutls_libs $libs_softmmu"
-        libs_tools="$gnutls_libs $libs_tools"
+        LIBS="$gnutls_libs $LIBS"
 	QEMU_CFLAGS="$QEMU_CFLAGS $gnutls_cflags"
         gnutls="yes"
     elif test "$gnutls" = "yes"; then
@@ -2835,8 +2834,7 @@ if test "$nettle" != "no"; then
         nettle_cflags=$($pkg_config --cflags nettle)
         nettle_libs=$($pkg_config --libs nettle)
         nettle_version=$($pkg_config --modversion nettle)
-        libs_softmmu="$nettle_libs $libs_softmmu"
-        libs_tools="$nettle_libs $libs_tools"
+        LIBS="$nettle_libs $LIBS"
         QEMU_CFLAGS="$QEMU_CFLAGS $nettle_cflags"
         nettle="yes"
 
@@ -2863,8 +2861,7 @@ if test "$gcrypt" != "no"; then
         then
             gcrypt_libs="$gcrypt_libs -lgpg-error"
         fi
-        libs_softmmu="$gcrypt_libs $libs_softmmu"
-        libs_tools="$gcrypt_libs $libs_tools"
+        LIBS="$gcrypt_libs $LIBS"
         QEMU_CFLAGS="$QEMU_CFLAGS $gcrypt_cflags"
         gcrypt="yes"
 
