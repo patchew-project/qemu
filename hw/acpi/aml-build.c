@@ -1559,6 +1559,14 @@ void *acpi_data_push(GArray *table_data, unsigned size)
     return table_data->data + off;
 }
 
+MemoryRegion *acpi_add_rom_blob(FWCfgCallback update, void *opaque,
+                                GArray *blob, const char *name,
+                                uint64_t max_size)
+{
+    return rom_add_blob(name, blob->data, acpi_data_len(blob), max_size, -1,
+                        name, update, opaque, NULL, true);
+}
+
 unsigned acpi_data_len(GArray *table)
 {
     assert(g_array_get_element_size(table) == 1);
