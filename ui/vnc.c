@@ -43,6 +43,7 @@
 #include "crypto/hash.h"
 #include "crypto/tlscredsanon.h"
 #include "crypto/tlscredsx509.h"
+#include "crypto/random.h"
 #include "qom/object_interfaces.h"
 #include "qemu/cutils.h"
 #include "io/dns-resolver.h"
@@ -2537,12 +2538,7 @@ void start_client_init(VncState *vs)
 
 static void make_challenge(VncState *vs)
 {
-    int i;
-
-    srand(time(NULL)+getpid()+getpid()*987654+rand());
-
-    for (i = 0 ; i < sizeof(vs->challenge) ; i++)
-        vs->challenge[i] = (int) (256.0*rand()/(RAND_MAX+1.0));
+    qcrypto_random_bytes(vs->challenge, sizeof(vs->challenge), &error_fatal);
 }
 
 static int protocol_client_auth_vnc(VncState *vs, uint8_t *data, size_t len)
