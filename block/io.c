@@ -1193,11 +1193,13 @@ static int coroutine_fn bdrv_co_do_copy_on_readv(BdrvChild *child,
         ret = bdrv_is_allocated(bs, cluster_offset,
                                 MIN(cluster_bytes, max_transfer), &pnum);
         if (ret < 0) {
-            /* Safe to treat errors in querying allocation as if
-             * unallocated; we'll probably fail again soon on the
-             * read, but at least that will set a decent errno.
+            /*
+             * We must fail here, and can't treat error as allocated or
+             * unallocated: if we mistake, it will lead to not done copy-on-read
+             * in first case and to rewriting guest data that is already in top
+             * layer in the second case.
              */
-            pnum = MIN(cluster_bytes, max_transfer);
+            goto err;
         }
 
         /* Stop at EOF if the image ends in the middle of the cluster */
@@ -1208,7 +1210,7 @@ static int coroutine_fn bdrv_co_do_copy_on_readv(BdrvChild *child,
 
         assert(skip_bytes < pnum);
 
-        if (ret <= 0) {
+        if (ret == 0) {
             /* Must copy-on-read; use the bounce buffer */
             pnum = MIN(pnum, MAX_BOUNCE_BUFFER);
             qemu_iovec_init_buf(&local_qiov, bounce_buffer, pnum);
