@@ -7,3 +7,7 @@ config PCI_EXPRESS
 
 config PCI_DEVICES
     bool
+
+config MSI
+    # selected by interrupt controllers that support MSI
+    bool

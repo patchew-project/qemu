@@ -12,12 +12,15 @@ config IOAPIC
 
 config ARM_GIC
     bool
+    select MSI
 
 config OPENPIC
     bool
+    select MSI
 
 config APIC
     bool
+    select MSI
 
 config ARM_GIC_KVM
     bool
