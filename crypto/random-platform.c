@@ -65,29 +65,22 @@ int qcrypto_random_bytes(uint8_t *buf G_GNUC_UNUSED,
                          "Unable to read random bytes");
         return -1;
     }
-
-    return 0;
 #else
-    int ret = -1;
-    int got;
-
     while (buflen > 0) {
-        got = read(fd, buf, buflen);
-        if (got < 0) {
-            error_setg_errno(errp, errno,
-                             "Unable to read random bytes");
-            goto cleanup;
-        } else if (!got) {
-            error_setg(errp,
-                       "Unexpected EOF reading random bytes");
-            goto cleanup;
+        ssize_t got = read(fd, buf, buflen);
+        if (unlikely(got <= 0)) {
+            if (got == 0) {
+                error_setg(errp, "Unexpected EOF reading random bytes");
+                return -1;
+            } else if (errno != EINTR) {
+                error_setg_errno(errp, errno, "Unable to read random bytes");
+                return -1;
+            }
+        } else {
+            buflen -= got;
+            buf += got;
         }
-        buflen -= got;
-        buf += got;
     }
-
-    ret = 0;
- cleanup:
-    return ret;
 #endif
+    return 0;
 }
