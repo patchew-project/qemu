@@ -428,6 +428,12 @@ static void aspeed_scu_realize(DeviceState *dev, Error **errp)
                           TYPE_ASPEED_SCU, SCU_IO_REGION_SIZE);
 
     sysbus_init_mmio(sbd, &s->iomem);
+
+    /*
+     * Reset on realize to ensure the APB clock value is calculated in time for
+     * use by the timer model, which is reset before the SCU.
+     */
+    aspeed_scu_reset(dev);
 }
 
 static const VMStateDescription vmstate_aspeed_scu = {

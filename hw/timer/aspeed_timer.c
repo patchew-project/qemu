@@ -259,7 +259,7 @@ static void aspeed_timer_set_value(AspeedTimerCtrlState *s, int timer, int reg,
     switch (reg) {
     case TIMER_REG_RELOAD:
         old_reload = t->reload;
-        t->reload = value;
+        t->reload = value < t->min_ticks ? t->min_ticks : value;
 
         /* If the reload value was not previously set, or zero, and
          * the current value is valid, try to start the timer if it is
@@ -311,7 +311,11 @@ static void aspeed_timer_ctrl_enable(AspeedTimer *t, bool enable)
 
 static void aspeed_timer_ctrl_external_clock(AspeedTimer *t, bool enable)
 {
+    AspeedTimerCtrlState *s = timer_to_ctrl(t);
+    uint32_t rate = enable ? TIMER_CLOCK_EXT_HZ : s->scu->apb_freq;
+
     trace_aspeed_timer_ctrl_external_clock(t->id, enable);
+    t->min_ticks = muldiv64(20 * SCALE_US, rate, NANOSECONDS_PER_SECOND);
 }
 
 static void aspeed_timer_ctrl_overflow_interrupt(AspeedTimer *t, bool enable)
