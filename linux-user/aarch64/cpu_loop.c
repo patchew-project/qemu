@@ -20,6 +20,7 @@
 #include "qemu/osdep.h"
 #include "qemu.h"
 #include "cpu_loop-common.h"
+#include "qemu/random.h"
 
 #define get_user_code_u32(x, gaddr, env)                \
     ({ abi_long __r = get_user_u32((x), (gaddr));       \
@@ -147,22 +148,9 @@ void cpu_loop(CPUARMState *env)
     }
 }
 
-static uint64_t arm_rand64(void)
-{
-    int shift = 64 - clz64(RAND_MAX);
-    int i, n = 64 / shift + (64 % shift != 0);
-    uint64_t ret = 0;
-
-    for (i = 0; i < n; i++) {
-        ret = (ret << shift) | rand();
-    }
-    return ret;
-}
-
 void arm_init_pauth_key(ARMPACKey *key)
 {
-    key->lo = arm_rand64();
-    key->hi = arm_rand64();
+    qemu_getrandom(key, sizeof(*key), false);
 }
 
 void target_cpu_copy_regs(CPUArchState *env, struct target_pt_regs *regs)
