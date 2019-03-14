@@ -646,6 +646,7 @@ static void font_setup(void)
             }
         }
     }
+    iconv_close(ucs_to_wchar_conv);
 }
 
 static void curses_setup(void)
