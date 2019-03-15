@@ -5,8 +5,8 @@
  * terms and conditions of the copyright.
  */
 
-#ifndef DEBUG_H_
-#define DEBUG_H_
+#ifndef DEBUG_H
+#define DEBUG_H
 
 #define DBG_CALL (1 << 0)
 #define DBG_MISC (1 << 1)
@@ -45,4 +45,4 @@ extern int slirp_debug;
     }                                           \
 } while (0)
 
-#endif /* DEBUG_H_ */
+#endif /* DEBUG_H */

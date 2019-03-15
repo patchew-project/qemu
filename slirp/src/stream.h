@@ -1,5 +1,5 @@
-#ifndef STREAM_H_
-#define STREAM_H_
+#ifndef STREAM_H
+#define STREAM_H
 
 #include "libslirp.h"
 
@@ -31,4 +31,4 @@ bool slirp_ostream_write_i16(SlirpOStream *f, int16_t b);
 int32_t slirp_istream_read_i32(SlirpIStream *f);
 bool slirp_ostream_write_i32(SlirpOStream *f, int32_t b);
 
-#endif /* STREAM_H_ */
+#endif /* STREAM_H */

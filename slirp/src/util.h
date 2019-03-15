@@ -20,8 +20,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#ifndef UTIL_H_
-#define UTIL_H_
+
+#ifndef UTIL_H
+#define UTIL_H
 
 #include <stdlib.h>
 #include <stdio.h>

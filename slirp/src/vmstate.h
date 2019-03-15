@@ -23,8 +23,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#ifndef VMSTATE_H_
-#define VMSTATE_H_
+
+#ifndef VMSTATE_H
+#define VMSTATE_H
 
 #include <unistd.h>
 #include <stdint.h>
