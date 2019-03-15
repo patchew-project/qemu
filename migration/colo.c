@@ -38,6 +38,9 @@
 static bool vmstate_loading;
 static Notifier packets_compare_notifier;
 
+/* User need to know colo mode after COLO failover */
+static COLOMode last_colo_mode;
+
 #define COLO_BUFFER_BASE_SIZE (4 * 1024 * 1024)
 
 bool migration_in_colo_state(void)
@@ -197,7 +200,10 @@ void colo_do_failover(MigrationState *s)
         vm_stop_force_state(RUN_STATE_COLO);
     }
 
-    switch (get_colo_mode()) {
+    /* Update last_COLO_mode to avoid unexpectedly exit COLO status */
+    last_colo_mode = get_colo_mode();
+
+    switch (last_colo_mode) {
     case COLO_MODE_PRIMARY:
         primary_vm_do_failover();
         break;
@@ -263,7 +269,7 @@ COLOStatus *qmp_query_colo_status(Error **errp)
 {
     COLOStatus *s = g_new0(COLOStatus, 1);
 
-    s->mode = get_colo_mode();
+    s->mode = last_colo_mode;
 
     switch (failover_get_state()) {
     case FAILOVER_STATUS_NONE:
@@ -515,6 +521,12 @@ static void colo_process_checkpoint(MigrationState *s)
     Error *local_err = NULL;
     int ret;
 
+    last_colo_mode = get_colo_mode();
+    if (last_colo_mode != COLO_MODE_PRIMARY) {
+        error_report("COLO mode must be COLO_MODE_PRIMARY");
+        return;
+    }
+
     failover_init_state();
 
     s->rp_state.from_dst_file = qemu_file_get_return_path(s->to_dst_file);
@@ -682,11 +694,17 @@ void *colo_process_incoming_thread(void *opaque)
     Error *local_err = NULL;
     int ret;
 
-    rcu_register_thread();
-    qemu_sem_init(&mis->colo_incoming_sem, 0);
-
     migrate_set_state(&mis->state, MIGRATION_STATUS_ACTIVE,
                       MIGRATION_STATUS_COLO);
+
+    last_colo_mode = get_colo_mode();
+    if (last_colo_mode != COLO_MODE_SECONDARY) {
+        error_report("COLO mode must be COLO_MODE_SECONDARY");
+        return NULL;
+    }
+
+    rcu_register_thread();
+    qemu_sem_init(&mis->colo_incoming_sem, 0);
 
     failover_init_state();
 
