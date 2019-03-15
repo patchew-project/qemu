@@ -12,6 +12,7 @@ obj-$(CONFIG_NSERIES) += nseries.o
 obj-$(CONFIG_OMAP) += omap_sx1.o palm.o
 obj-$(CONFIG_PXA2XX) += gumstix.o spitz.o tosa.o z2.o
 obj-$(CONFIG_REALVIEW) += realview.o
+obj-$(CONFIG_SBSA_REF) += sbsa-ref.o
 obj-$(CONFIG_STELLARIS) += stellaris.o
 obj-$(CONFIG_STRONGARM) += collie.o
 obj-$(CONFIG_VERSATILE) += vexpress.o versatilepb.o
