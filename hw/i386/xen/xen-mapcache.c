@@ -185,8 +185,14 @@ static void xen_remap_bucket(MapCacheEntry *entry,
     }
 
     if (!dummy) {
+        /*
+         * If the caller has requested the mapping at a specific address use
+         * MAP_FIXED to make sure it's honored. Note that with MAP_FIXED at
+         * least FreeBSD will try harder to honor the passed address.
+         */
         vaddr_base = xenforeignmemory_map2(xen_fmem, xen_domid, vaddr,
-                                           PROT_READ | PROT_WRITE, 0,
+                                           PROT_READ | PROT_WRITE,
+                                           vaddr ? MAP_FIXED : 0,
                                            nb_pfn, pfns, err);
         if (vaddr_base == NULL) {
             perror("xenforeignmemory_map2");
