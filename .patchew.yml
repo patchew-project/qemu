@@ -1,0 +1,204 @@
+# Note: this file is still unused.  It serves as a documentation for the
+# Patchew configuration in case patchew.org disappears or has to be
+# reinstalled.
+
+git:
+  push_to: git@github.com:patchew-project/qemu
+  public_repo: https://github.com/patchew-project/qemu
+  url_template: https://github.com/patchew-project/qemu/tree/%t
+
+email:
+  ENOSPC:
+    event: TestingReport
+    to: fam@euphon.net
+    reply_subject: false
+    set_reply_to: false
+    subject_template: 'Out of space error for {{ tester }}'
+    body_template: |
+      {% if passed %}
+      {{ cancel }}
+      {% endif %}
+
+      {% if 'No space left on device' in log %}
+      Tester {{ tester }} out of space when running {{ test }}
+
+      {{ log | ansi2text }}
+      {% else %}
+      {{ cancel }}
+      {% endif %}
+
+  timeouts:
+    event: TestingReport
+    to: fam@euphon.net
+    body_template: |
+      {% if not is_timeout %} {{ cancel }} {% endif %}
+
+      Test '{{ test }}' timeout, log:
+
+      {{ log | ansi2text }}
+
+  failures:
+    event: TestingReport
+    reply_to_all: true
+    body_template: |
+      {% if passed or not obj.message_id or is_timeout %}
+        {{ cancel }}
+      {% endif %}
+      {% if 'No space left on device' in log %}
+        {{ cancel }}
+      {% endif %}
+      Patchew URL: https://patchew.org/QEMU/{{ obj.message_id }}/
+
+      {% ansi2text log as logtext %}
+      {% if test == "checkpatch" %}
+      Hi,
+
+      This series seems to have some coding style problems. See output below for
+      more information:
+
+      {{ logtext }}
+      {% elif test == "docker-mingw@fedora" or test == "docker-quick@centos7" or test == "asan" %}
+      Hi,
+
+      This series failed the {{ test }} build test. Please find the testing commands and
+      their output below. If you have Docker installed, you can probably reproduce it
+      locally.
+
+      {% lines_between logtext start="^=== TEST SCRIPT BEGIN ===$" stop="^=== TEST SCRIPT END ===$" %}
+      {% lines_between logtext start="^=== OUTPUT BEGIN ===$" stop="=== OUTPUT END ===$" as output %}
+      {% grep_C output regex="\b(FAIL|XPASS|ERROR|WARN|error:|warning:)" n=3 %}
+      {% elif test == "s390x" or test == "FreeBSD" or test == "ppcle" or test == "ppcbe" %}
+      Hi,
+
+      This series failed build test on {{test}} host. Please find the details below.
+
+      {% lines_between logtext start="^=== TEST SCRIPT BEGIN ===$" stop="^=== TEST SCRIPT END ===$" %}
+      {% lines_between logtext start="^=== OUTPUT BEGIN ===$" stop="=== OUTPUT END ===$" as output %}
+      {% grep_C output regex="\b(FAIL|XPASS|ERROR|WARN|error:|warning:)" n=3 %}
+      {% else %}
+      {{ cancel }}
+      {% endif %}
+
+      The full log is available at
+      {{ log_url }}.
+      ---
+      Email generated automatically by Patchew [http://patchew.org/].
+      Please send your feedback to patchew-devel@redhat.com
+
+testing:
+  defaults:
+    - timeout: 3600
+
+  requirements:
+    docker: |
+      #!/bin/bash
+      docker ps || sudo -n docker ps
+    x86-kvm: |
+      #!/bin/bash
+      set -e
+      test "$(uname -m)" = x86_64
+      test -r /dev/kvm
+      if qemu-system-x86_64 --help >/dev/null 2>&1; then
+        :
+      elif /usr/libexec/qemu-kvm --help >/dev/null 2>&1; then
+        :
+      else
+        false
+      fi
+    ppcle: |
+      #!/bin/sh
+      test "$(uname -m)" = ppc64le
+    ppcbe: |
+      #!/bin/sh
+      test "$(uname -m)" = ppc64
+    s390x: |
+      #!/bin/sh
+      test "$(uname -m)" = s390x
+
+  tests:
+    asan:
+      requirements: docker
+      script: |
+        #!/bin/bash
+        time make docker-test-debug@fedora TARGET_LIST=x86_64-softmmu J=14 NETWORK=1
+
+    docker-clang@ubuntu:
+      requirements: docker
+      script: |
+        #!/bin/bash
+        time make docker-test-clang@ubuntu SHOW_ENV=1 J=14 NETWORK=1
+
+    docker-mingw@fedora:
+      requirements: docker
+      script: |
+        #!/bin/bash
+        time make docker-test-mingw@fedora SHOW_ENV=1 J=14 NETWORK=1
+
+    docker-quick@centos7:
+      requirements: docker
+      script: |
+        #!/bin/bash
+        time make docker-test-quick@centos7 SHOW_ENV=1 J=14 NETWORK=1
+
+    checkpatch:
+      script: |
+        #!/bin/bash
+        git rev-parse base > /dev/null || exit 0
+        git config --local diff.renamelimit 0
+        git config --local diff.renames True
+        git config --local diff.algorithm histogram
+        ./scripts/checkpatch.pl --mailback base..
+
+    FreeBSD:
+      enabled: false
+      requirements: x86-kvm
+      script: |
+        #!/bin/bash
+        if qemu-system-x86_64 --help >/dev/null 2>&1; then
+          QEMU=qemu-system-x86_64
+        elif /usr/libexec/qemu-kvm --help >/dev/null 2>&1; then
+          QEMU=/usr/libexec/qemu-kvm
+        else
+          exit 1
+        fi
+        make vm-build-freebsd J=14 QEMU=$QEMU
+        exit 0
+
+    ppcle:
+      enabled: false
+      requirements: ppcle
+      script: |
+        #!/bin/bash
+        INSTALL=$PWD/install
+        BUILD=$PWD/build
+        mkdir -p $BUILD $INSTALL
+        SRC=$PWD
+        cd $BUILD
+        $SRC/configure --prefix=$INSTALL
+        make -j14
+
+    ppcbe:
+      enabled: false
+      requirements: ppcbe
+      script: |
+        #!/bin/bash
+        INSTALL=$PWD/install
+        BUILD=$PWD/build
+        mkdir -p $BUILD $INSTALL
+        SRC=$PWD
+        cd $BUILD
+        $SRC/configure --prefix=$INSTALL
+        make -j14
+
+    s390x:
+      enabled: false
+      requirements: ppcle
+      script: |
+        #!/bin/bash
+        INSTALL=$PWD/install
+        BUILD=$PWD/build
+        mkdir -p $BUILD $INSTALL
+        SRC=$PWD
+        cd $BUILD
+        $SRC/configure --prefix=$INSTALL
+        make -j14
