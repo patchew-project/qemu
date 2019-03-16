@@ -161,7 +161,7 @@ static void virtio_ccw_register_hcalls(void)
 static void s390_memory_init(ram_addr_t mem_size)
 {
     MemoryRegion *sysmem = get_system_memory();
-    ram_addr_t chunk, offset = 0;
+    uint64_t chunk, offset = 0;
     unsigned int number = 0;
     gchar *name;
 
