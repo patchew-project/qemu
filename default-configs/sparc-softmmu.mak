@@ -2,7 +2,6 @@
 
 # Uncomment the following lines to disable these optional devices:
 #
-#CONFIG_TCX=n
 #CONFIG_CG3=n
 
 # Boards:
