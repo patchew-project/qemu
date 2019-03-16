@@ -24,6 +24,7 @@
 #include "qapi/error.h"
 #include "hw/hw.h"
 #include "ui/console.h"
+#include "hw/i2c/i2c-ddc.h"
 #include "trace.h"
 
 #define ATI_DEBUG_HW_CURSOR 0
@@ -267,7 +268,12 @@ static uint64_t ati_mm_read(void *opaque, hwaddr addr, unsigned int size)
     case DAC_CNTL:
         val = s->regs.dac_cntl;
         break;
-/*    case GPIO_MONID: FIXME hook up DDC I2C here */
+    case GPIO_DVI_DDC:
+        val = s->regs.gpio_dvi_ddc;
+        break;
+    case GPIO_MONID:
+        val = s->regs.gpio_monid;
+        break;
     case PALETTE_INDEX:
         /* FIXME unaligned access */
         val = vga_ioport_read(&s->vga, VGA_PEL_IR) << 16;
@@ -501,7 +507,34 @@ static void ati_mm_write(void *opaque, hwaddr addr,
         s->regs.dac_cntl = data & 0xffffe3ff;
         s->vga.dac_8bit = !!(data & DAC_8BIT_EN);
         break;
-/*    case GPIO_MONID: FIXME hook up DDC I2C here */
+    case GPIO_DVI_DDC:
+        if (s->dev_id == PCI_DEVICE_ID_ATI_RAGE128_PF) {
+            break;
+        }
+        s->regs.gpio_dvi_ddc = data & 0xf000f;
+        if (data & BIT(17)) {
+            s->regs.gpio_dvi_ddc |= !!(data & BIT(1)) << 9;
+            bitbang_i2c_set(s->bbi2c, BITBANG_I2C_SCL, (data & BIT(1)) != 0);
+        }
+        if (data & BIT(16)) {
+            s->regs.gpio_dvi_ddc |= bitbang_i2c_set(s->bbi2c, BITBANG_I2C_SDA,
+                                                    data & BIT(0)) << 8;
+        }
+        break;
+    case GPIO_MONID:
+        if (s->dev_id != PCI_DEVICE_ID_ATI_RAGE128_PF) {
+            break; /* FIXME What does Radeon have here? */
+        }
+        s->regs.gpio_monid = data & 0x0f0f000f;
+        if (data & BIT(2) << 24) {
+            s->regs.gpio_monid |= !!(data & BIT(2)) << 10;
+            bitbang_i2c_set(s->bbi2c, BITBANG_I2C_SCL, (data & BIT(2)) != 0);
+        }
+        if (data & BIT(1) << 24) {
+            s->regs.gpio_monid |= bitbang_i2c_set(s->bbi2c, BITBANG_I2C_SDA,
+                                                  (data & BIT(1)) != 0) << 9;
+        }
+        break;
     case PALETTE_INDEX ... PALETTE_INDEX + 3:
         if (size == 4) {
             vga_ioport_write(&s->vga, VGA_PEL_IR, (data >> 16) & 0xff);
@@ -792,6 +825,12 @@ static void ati_vga_realize(PCIDevice *dev, Error **errp)
         vga->cursor_draw_line = ati_cursor_draw_line;
     }
 
+    /* ddc, edid */
+    I2CBus *i2cbus = i2c_init_bus(DEVICE(s), "ati-vga.ddc");
+    s->bbi2c = bitbang_i2c_init(i2cbus);
+    I2CSlave *i2cddc = I2C_SLAVE(qdev_create(BUS(i2cbus), TYPE_I2CDDC));
+    i2c_set_slave_address(i2cddc, 0x50);
+
     /* mmio register space */
     memory_region_init_io(&s->mm, OBJECT(s), &ati_mm_ops, s,
                           "ati.mmregs", 0x4000);
@@ -817,6 +856,7 @@ static void ati_vga_exit(PCIDevice *dev)
     ATIVGAState *s = ATI_VGA(dev);
 
     graphic_console_close(s->vga.con);
+    g_free(s->bbi2c);
 }
 
 static Property ati_vga_properties[] = {
