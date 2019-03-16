@@ -69,6 +69,7 @@ config ISAPC
     # FIXME: it is in the same file as i440fx, and does not compile
     # if separated
     depends on I440FX
+    select VGA_PCI
 
 config Q35
     bool
