@@ -77,6 +77,7 @@ config Q35
     select PC_PCI
     select PC_ACPI
     select PCI_EXPRESS_Q35
+    select E1000E_PCI_EXPRESS
     select LPC_ICH9
     select AHCI
     select DIMM
