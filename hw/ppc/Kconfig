@@ -103,6 +103,7 @@ config E500
     select PLATFORM_BUS
     select PPCE500_PCI
     select SERIAL
+    select VIRTIO
 
 config VIRTEX
     bool
