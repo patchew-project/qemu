@@ -2,6 +2,7 @@ config DINO
     bool
     imply PCI_DEVICES
     select PCI
+    select E1000_PCI
     select SERIAL
     select ISA_BUS
     select I8259
