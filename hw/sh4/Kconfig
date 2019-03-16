@@ -7,6 +7,7 @@ config R2D
     select PFLASH_CFI02
     select USB_OHCI
     select PCI
+    select RTL8139_PCI
     select SM501
     select SH4
 
