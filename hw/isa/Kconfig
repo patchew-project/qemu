@@ -37,6 +37,19 @@ config VT82C686
     select SERIAL_ISA
     select FDC
 
+config CY82C693UB
+    bool
+    select PCI
+    select ISA_BUS
+    select PCKBD
+    select APM
+    select I8254
+    select I8257
+    select IDE_PCI
+    select MC146818RTC
+    select I8259
+    select USB_OHCI
+
 config SMC37C669
     bool
     select ISA_BUS
