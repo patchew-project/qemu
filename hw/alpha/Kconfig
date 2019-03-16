@@ -1,6 +1,7 @@
 config DP264
     bool
     imply PCI_DEVICES
+    select E1000_PCI
     imply TEST_DEVICES
     select I82374
     select I8254
