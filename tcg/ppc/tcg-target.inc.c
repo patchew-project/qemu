@@ -69,6 +69,7 @@ bool have_isa_2_06;
 bool have_isa_2_06_vsx;
 bool have_isa_2_07_vsx;
 bool have_isa_3_00;
+bool have_isa_3_00_vsx;
 
 #define HAVE_ISA_2_06  have_isa_2_06
 #define HAVE_ISEL      have_isa_2_06
@@ -475,11 +476,16 @@ static int tcg_target_const_match(tcg_target_long val, TCGType type,
 #define LXSDX      XO31(588)      /* v2.06 */
 #define LXVDSX     XO31(332)      /* v2.06 */
 #define LXSIWZX    XO31(12)       /* v2.07 */
+#define LXV        (OPCD(61) | 1) /* v3.00 */
+#define LXSD       (OPCD(51) | 2) /* v3.00 */
+#define LXVWSX     XO31(364)      /* v3.00 */
 
 #define STVX       XO31(231)
 #define STVEWX     XO31(199)
 #define STXSDX     XO31(716)      /* v2.06 */
 #define STXSIWX    XO31(140)      /* v2.07 */
+#define STXV       (OPCD(61) | 5) /* v3.00 */
+#define STXSD      (OPCD(61) | 2) /* v3.00 */
 
 #define VADDSBS    VX4(768)
 #define VADDUBS    VX4(512)
@@ -502,6 +508,9 @@ static int tcg_target_const_match(tcg_target_long val, TCGType type,
 #define VSUBUWS    VX4(1664)
 #define VSUBUWM    VX4(1152)
 #define VSUBUDM    VX4(1216)      /* v2.07 */
+
+#define VNEGW      (VX4(1538) | (6 << 16))  /* v3.00 */
+#define VNEGD      (VX4(1538) | (7 << 16))  /* v3.00 */
 
 #define VMAXSB     VX4(258)
 #define VMAXSH     VX4(322)
@@ -532,6 +541,9 @@ static int tcg_target_const_match(tcg_target_long val, TCGType type,
 #define VCMPGTUH   VX4(582)
 #define VCMPGTUW   VX4(646)
 #define VCMPGTUD   VX4(711)       /* v2.07 */
+#define VCMPNEB    VX4(7)         /* v3.00 */
+#define VCMPNEH    VX4(71)        /* v3.00 */
+#define VCMPNEW    VX4(135)       /* v3.00 */
 
 #define VSLB       VX4(260)
 #define VSLH       VX4(324)
@@ -588,12 +600,15 @@ static int tcg_target_const_match(tcg_target_long val, TCGType type,
 #define VPERM      VX4(43)
 #define VSLDOI     VX4(44)
 
-#define XXPERMDI   (OPCD(60) | (10 << 3))   /* 2.06 */
+#define XXPERMDI   (OPCD(60) | (10 << 3))   /* v2.06 */
+#define XXSPLTIB   (OPCD(60) | (360 << 1))  /* v3.00 */
 
 #define MFVSRD     XO31(51)       /* v2.07 */
 #define MFVSRWZ    XO31(115)      /* v2.07 */
 #define MTVSRD     XO31(179)      /* v2.07 */
 #define MTVSRWZ    XO31(179)      /* v2.07 */
+#define MTVSRDD    XO31(435)      /* v3.00 */
+#define MTVSRWS    XO31(403)      /* v3.00 */
 
 #define RT(r) ((r)<<21)
 #define RS(r) ((r)<<21)
@@ -931,6 +946,11 @@ static void tcg_out_dupi_vec(TCGContext *s, TCGType type, TCGReg ret,
         }
     }
 
+    if (have_isa_3_00_vsx && val == (tcg_target_long)dup_const(MO_8, val)) {
+        tcg_out32(s, XXSPLTIB | VRT(ret) | ((val & 0xff) << 11) | 1);
+        return;
+    }
+
     /* With Altivec, we load the whole 128-bit value.  */
     tcg_out_imm_vec(s, ret, val, val);
 }
@@ -1084,7 +1104,7 @@ static void tcg_out_mem_long(TCGContext *s, int opi, int opx, TCGReg rt,
                              TCGReg base, tcg_target_long offset)
 {
     tcg_target_long orig = offset, l0, l1, extra = 0, align = 0;
-    bool is_store = false;
+    bool is_int_store = false;
     TCGReg rs = TCG_REG_TMP1;
 
     switch (opi) {
@@ -1097,11 +1117,20 @@ static void tcg_out_mem_long(TCGContext *s, int opi, int opx, TCGReg rt,
             break;
         }
         break;
+    case LXSD:
+    case STXSD:
+        align = 3;
+        break;
+    case LXV: case LXV | 8:
+    case STXV: case STXV | 8:
+        /* The |8 cases force altivec registers.  */
+        align = 15;
+        break;
     case STD:
         align = 3;
         /* FALLTHRU */
     case STB: case STH: case STW:
-        is_store = true;
+        is_int_store = true;
         break;
     }
 
@@ -1110,7 +1139,7 @@ static void tcg_out_mem_long(TCGContext *s, int opi, int opx, TCGReg rt,
         if (rs == base) {
             rs = TCG_REG_R0;
         }
-        tcg_debug_assert(!is_store || rs != rt);
+        tcg_debug_assert(!is_int_store || rs != rt);
         tcg_out_movi(s, TCG_TYPE_PTR, rs, orig);
         tcg_out32(s, opx | TAB(rt, base, rs));
         return;
@@ -1169,7 +1198,8 @@ static void tcg_out_ld(TCGContext *s, TCGType type, TCGReg ret,
     case TCG_TYPE_V64:
         tcg_debug_assert(ret >= 32);
         if (have_isa_2_06_vsx) {
-            tcg_out_mem_long(s, 0, LXSDX | 1, ret & 31, base, offset);
+            tcg_out_mem_long(s, have_isa_3_00_vsx ? LXSD : 0, LXSDX | 1,
+                             ret & 31, base, offset);
             break;
         }
         assert((offset & 7) == 0);
@@ -1180,7 +1210,8 @@ static void tcg_out_ld(TCGContext *s, TCGType type, TCGReg ret,
         break;
     case TCG_TYPE_V128:
         tcg_debug_assert(ret >= 32);
-        tcg_out_mem_long(s, 0, LVX, ret & 31, base, offset);
+        tcg_out_mem_long(s, have_isa_3_00_vsx ? LXV | 8 : 0, LVX,
+                         ret & 31, base, offset);
         break;
     default:
         g_assert_not_reached();
@@ -1220,7 +1251,8 @@ static void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg,
     case TCG_TYPE_V64:
         tcg_debug_assert(arg >= 32);
         if (have_isa_2_06_vsx) {
-            tcg_out_mem_long(s, 0, STXSDX | 1, arg & 31, base, offset);
+            tcg_out_mem_long(s, have_isa_3_00_vsx ? STXSD : 0,
+                             STXSDX | 1, arg & 31, base, offset);
             break;
         }
         assert((offset & 7) == 0);
@@ -1234,7 +1266,8 @@ static void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg,
         break;
     case TCG_TYPE_V128:
         tcg_debug_assert(arg >= 32);
-        tcg_out_mem_long(s, 0, STVX, arg & 31, base, offset);
+        tcg_out_mem_long(s, have_isa_3_00_vsx ? STXV | 8 : 0, STVX,
+                         arg & 31, base, offset);
         break;
     default:
         g_assert_not_reached();
@@ -2956,6 +2989,8 @@ int tcg_can_emit_vec_op(TCGOpcode opc, TCGType type, unsigned vece)
     case INDEX_op_shri_vec:
     case INDEX_op_sari_vec:
         return vece <= MO_32 || have_isa_2_07_vsx ? -1 : 0;
+    case INDEX_op_neg_vec:
+        return vece >= MO_32 && have_isa_3_00_vsx;
     case INDEX_op_mul_vec:
         switch (vece) {
         case MO_8:
@@ -2997,6 +3032,10 @@ static void tcg_out_dupm_vec(TCGContext *s, unsigned vece, TCGReg out,
         tcg_out32(s, VSPLTH | VRT(out) | VRB(out) | (elt << 16));
         break;
     case MO_32:
+        if (have_isa_3_00_vsx) {
+            tcg_out_mem_long(s, 0, LXVWSX | 1, out, base, offset);
+            break;
+        }
         assert((offset & 3) == 0);
         tcg_out_mem_long(s, 0, LVEWX, out, base, offset);
         elt = extract32(offset, 2, 2);
@@ -3032,7 +3071,9 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
     static const uint32_t
         add_op[4] = { VADDUBM, VADDUHM, VADDUWM, VADDUDM },
         sub_op[4] = { VSUBUBM, VSUBUHM, VSUBUWM, VSUBUDM },
+        neg_op[4] = { 0, 0, VNEGW, VNEGD },
         eq_op[4]  = { VCMPEQUB, VCMPEQUH, VCMPEQUW, VCMPEQUD },
+        ne_op[4]  = { VCMPNEB, VCMPNEH, VCMPNEW, 0 },
         gts_op[4] = { VCMPGTSB, VCMPGTSH, VCMPGTSW, VCMPGTSD },
         gtu_op[4] = { VCMPGTUB, VCMPGTUH, VCMPGTUW, VCMPGTUD },
         ssadd_op[4] = { VADDSBS, VADDSHS, VADDSWS, 0 },
@@ -3072,6 +3113,11 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
         break;
     case INDEX_op_sub_vec:
         insn = sub_op[vece];
+        break;
+    case INDEX_op_neg_vec:
+        insn = neg_op[vece];
+        a2 = a1;
+        a1 = 0;
         break;
     case INDEX_op_mul_vec:
         tcg_debug_assert(vece == MO_32 && have_isa_2_07_vsx);
@@ -3135,9 +3181,18 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
             bool ok;
             switch (vece) {
             case MO_64:
+                if (have_isa_3_00_vsx) {
+                    tcg_out32(s, MTVSRDD | 1 | VRT(a0) | RA(a1) | RB(a1));
+                    return;
+                }
                 ok = tcg_out_mov(s, TCG_TYPE_I64, a0, a1);
                 break;
             case MO_32:
+                if (have_isa_3_00_vsx) {
+                    tcg_out32(s, MTVSRWS | 1 | VRT(a0) | RA(a1));
+                    return;
+                }
+                /* fall through */
             case MO_16:
             case MO_8:
                 ok = tcg_out_mov(s, TCG_TYPE_I32, a0, a1);
@@ -3175,27 +3230,23 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
         return;
 
     case INDEX_op_cmp_vec:
-        {
-            TCGCond cond = args[3];
-
-            switch (cond) {
-            case TCG_COND_EQ:
-                insn = eq_op[vece];
-                break;
-            case TCG_COND_GT:
-                insn = gts_op[vece];
-                break;
-            case TCG_COND_GTU:
-                insn = gtu_op[vece];
-                break;
-            default:
-                g_assert_not_reached();
-            }
-            tcg_debug_assert(insn != 0);
-
-            tcg_out32(s, insn | VRT(a0) | VRA(a1) | VRB(a2));
+        switch (args[3]) {
+        case TCG_COND_EQ:
+            insn = eq_op[vece];
+            break;
+        case TCG_COND_NE:
+            insn = ne_op[vece];
+            break;
+        case TCG_COND_GT:
+            insn = gts_op[vece];
+            break;
+        case TCG_COND_GTU:
+            insn = gtu_op[vece];
+            break;
+        default:
+            g_assert_not_reached();
         }
-        return;
+        break;
 
     case INDEX_op_ppc_mrgh_vec:
         insn = mrgh_op[vece];
@@ -3253,6 +3304,10 @@ static void expand_vec_cmp(TCGType type, unsigned vece, TCGv_vec v0,
     case TCG_COND_GTU:
         break;
     case TCG_COND_NE:
+        if (have_isa_3_00_vsx && vece <= MO_32) {
+            break;
+        }
+        /* fall through */
     case TCG_COND_LE:
     case TCG_COND_LEU:
         need_inv = true;
@@ -3597,6 +3652,7 @@ static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
     case INDEX_op_ppc_rotl_vec:
         return &v_v_v;
     case INDEX_op_not_vec:
+    case INDEX_op_neg_vec:
         return &v_v;
     case INDEX_op_dup_vec:
         return have_isa_2_07_vsx ? &v_vr : &v_v;
@@ -3634,6 +3690,9 @@ static void tcg_target_init(TCGContext *s)
 #ifdef PPC_FEATURE2_ARCH_3_00
     if (hwcap2 & PPC_FEATURE2_ARCH_3_00) {
         have_isa_3_00 = true;
+        if (hwcap & PPC_FEATURE_HAS_VSX) {
+            have_isa_3_00_vsx = true;
+        }
     }
 #endif
 
