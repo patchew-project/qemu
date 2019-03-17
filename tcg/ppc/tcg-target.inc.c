@@ -467,6 +467,8 @@ static int tcg_target_const_match(tcg_target_long val, TCGType type,
 #define NOP    ORI  /* ori 0,0,0 */
 
 #define LVX        XO31(103)
+#define LVEBX      XO31(7)
+#define LVEHX      XO31(39)
 #define LVEWX      XO31(71)
 
 #define STVX       XO31(231)
@@ -2835,6 +2837,7 @@ int tcg_can_emit_vec_op(TCGOpcode opc, TCGType type, unsigned vece)
     case INDEX_op_xor_vec:
     case INDEX_op_andc_vec:
     case INDEX_op_not_vec:
+    case INDEX_op_dupm_vec:
         return 1;
     case INDEX_op_add_vec:
     case INDEX_op_sub_vec:
@@ -2851,6 +2854,55 @@ int tcg_can_emit_vec_op(TCGOpcode opc, TCGType type, unsigned vece)
         return vece <= MO_32 ? -1 : 0;
     default:
         return 0;
+    }
+}
+
+static void tcg_out_dupm_vec(TCGContext *s, unsigned vece, TCGReg out,
+                             TCGReg base, intptr_t offset)
+{
+    int elt;
+
+    out &= 31;
+    switch (vece) {
+    case MO_8:
+        tcg_out_mem_long(s, 0, LVEBX, out, base, offset);
+        elt = extract32(offset, 0, 4);
+#ifndef HOST_WORDS_BIGENDIAN
+        elt ^= 15;
+#endif
+        tcg_out32(s, VSPLTB | VRT(out) | VRB(out) | (elt << 16));
+        break;
+    case MO_16:
+        assert((offset & 1) == 0);
+        tcg_out_mem_long(s, 0, LVEHX, out, base, offset);
+        elt = extract32(offset, 1, 3);
+#ifndef HOST_WORDS_BIGENDIAN
+        elt ^= 7;
+#endif
+        tcg_out32(s, VSPLTH | VRT(out) | VRB(out) | (elt << 16));
+        break;
+    case MO_32:
+        assert((offset & 3) == 0);
+        tcg_out_mem_long(s, 0, LVEWX, out, base, offset);
+        elt = extract32(offset, 2, 2);
+#ifndef HOST_WORDS_BIGENDIAN
+        elt ^= 3;
+#endif
+        tcg_out32(s, VSPLTW | VRT(out) | VRB(out) | (elt << 16));
+        break;
+    case MO_64:
+        assert((offset & 7) == 0);
+        tcg_out_mem_long(s, 0, LVX, out, base, offset);
+        /* FIXME: 32-bit altivec */
+        tcg_out_dupi_vec(s, TCG_TYPE_V128, TCG_VEC_TMP1,
+                         offset & 8
+                         ? 0x08090a0b0c0d0e0full
+                         : 0x0001020304050607ull);
+        tcg_out32(s, VPERM | VRT(out) | VRA(out) | VRB(out)
+                  | VRC(TCG_VEC_TMP1));
+        break;
+    default:
+        g_assert_not_reached();
     }
 }
 
@@ -2884,7 +2936,9 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_st_vec:
         tcg_out_st(s, type, a0, a1, a2);
         return;
-
+    case INDEX_op_dupm_vec:
+        tcg_out_dupm_vec(s, vece, a0, a1, a2);
+        return;
     case INDEX_op_add_vec:
         insn = add_op[vece];
         break;
@@ -3251,6 +3305,7 @@ static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
         return &v_v;
     case INDEX_op_ld_vec:
     case INDEX_op_st_vec:
+    case INDEX_op_dupm_vec:
         return &v_r;
 
     default:
