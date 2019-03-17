@@ -16,6 +16,7 @@
 #include "hw/ppc/spapr_xive.h"
 #include "hw/ppc/xics.h"
 #include "hw/ppc/xics_spapr.h"
+#include "cpu-models.h"
 #include "sysemu/kvm.h"
 
 #include "trace.h"
@@ -588,6 +589,7 @@ SpaprIrq spapr_irq_dual = {
 void spapr_irq_init(SpaprMachineState *spapr, Error **errp)
 {
     MachineState *machine = MACHINE(spapr);
+    Error *local_err = NULL;
 
     if (machine_kernel_irqchip_split(machine)) {
         error_setg(errp, "kernel_irqchip split mode not supported on pseries");
@@ -598,6 +600,14 @@ void spapr_irq_init(SpaprMachineState *spapr, Error **errp)
         error_setg(errp,
                    "kernel_irqchip requested but only available with KVM");
         return;
+    }
+
+    /* Force XICS on non P9 machines */
+    if (!ppc_type_check_compat(machine->cpu_type, CPU_POWERPC_LOGICAL_3_00,
+                              0, spapr->max_compat_pvr)) {
+        error_setg(&local_err, "forcing XICS interrupt controller");
+        warn_report_err(local_err);
+        spapr->irq = &spapr_irq_xics;
     }
 
     /* Initialize the MSI IRQ allocator. */
