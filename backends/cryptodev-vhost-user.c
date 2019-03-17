@@ -236,6 +236,8 @@ static int64_t cryptodev_vhost_user_sym_create_session(
            CryptoDevBackendSymSessionInfo *sess_info,
            uint32_t queue_index, Error **errp)
 {
+    assert(queue_index < MAX_CRYPTO_QUEUE_NUM);
+
     CryptoDevBackendClient *cc =
                    backend->conf.peers.ccs[queue_index];
     CryptoDevBackendVhost *vhost_crypto;
@@ -262,6 +264,8 @@ static int cryptodev_vhost_user_sym_close_session(
            uint64_t session_id,
            uint32_t queue_index, Error **errp)
 {
+    assert(queue_index < MAX_CRYPTO_QUEUE_NUM);
+
     CryptoDevBackendClient *cc =
                   backend->conf.peers.ccs[queue_index];
     CryptoDevBackendVhost *vhost_crypto;
