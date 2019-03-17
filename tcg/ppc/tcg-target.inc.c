@@ -66,6 +66,7 @@ static tcg_insn_unit *tb_ret_addr;
 
 bool have_isa_altivec;
 bool have_isa_2_06;
+bool have_isa_2_06_vsx;
 bool have_isa_3_00;
 
 #define HAVE_ISA_2_06  have_isa_2_06
@@ -470,9 +471,12 @@ static int tcg_target_const_match(tcg_target_long val, TCGType type,
 #define LVEBX      XO31(7)
 #define LVEHX      XO31(39)
 #define LVEWX      XO31(71)
+#define LXSDX      XO31(588)      /* v2.06 */
+#define LXVDSX     XO31(332)      /* v2.06 */
 
 #define STVX       XO31(231)
 #define STVEWX     XO31(199)
+#define STXSDX     XO31(716)      /* v2.06 */
 
 #define VADDSBS    VX4(768)
 #define VADDUBS    VX4(512)
@@ -561,6 +565,8 @@ static int tcg_target_const_match(tcg_target_long val, TCGType type,
 
 #define VPERM      VX4(43)
 #define VSLDOI     VX4(44)
+
+#define XXPERMDI   (OPCD(60) | (10 << 3))   /* 2.06 */
 
 #define RT(r) ((r)<<21)
 #define RS(r) ((r)<<21)
@@ -853,6 +859,15 @@ static void tcg_out_imm_vec(TCGContext *s, TCGReg ret,
     uint64_t t = l; l = h; h = t;
 #endif
 
+    if (have_isa_2_06_vsx && l == h) {
+        new_pool_label(s, l, R_PPC_ADDR16, s->code_ptr,
+                       -(intptr_t)s->code_gen_ptr);
+        tcg_out32(s, ADDIS | TAI(TCG_REG_TMP1, TCG_REG_TB, 0));
+        tcg_out32(s, ADDI | TAI(TCG_REG_TMP1, TCG_REG_TMP1, 0));
+        tcg_out32(s, LXVDSX | 1 | VRT(ret) | RB(TCG_REG_TMP1));
+        return;
+    }
+
     /* FIXME: 32-bit altivec */
     new_pool_l2(s, R_PPC_ADDR16, s->code_ptr,
                 -(intptr_t)s->code_gen_ptr, h, l);
@@ -1114,6 +1129,10 @@ static void tcg_out_ld(TCGContext *s, TCGType type, TCGReg ret,
         /* fallthru */
     case TCG_TYPE_V64:
         tcg_debug_assert(ret >= 32);
+        if (have_isa_2_06_vsx) {
+            tcg_out_mem_long(s, 0, LXSDX | 1, ret & 31, base, offset);
+            break;
+        }
         assert((offset & 7) == 0);
         tcg_out_mem_long(s, 0, LVX, ret & 31, base, offset);
         if (offset & 8) {
@@ -1157,6 +1176,10 @@ static void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg,
         /* fallthru */
     case TCG_TYPE_V64:
         tcg_debug_assert(arg >= 32);
+        if (have_isa_2_06_vsx) {
+            tcg_out_mem_long(s, 0, STXSDX | 1, arg & 31, base, offset);
+            break;
+        }
         assert((offset & 7) == 0);
         if (offset & 8) {
             tcg_out32(s, VSLDOI | VRT(TCG_VEC_TMP1)
@@ -2927,6 +2950,10 @@ static void tcg_out_dupm_vec(TCGContext *s, unsigned vece, TCGReg out,
         tcg_out32(s, VSPLTW | VRT(out) | VRB(out) | (elt << 16));
         break;
     case MO_64:
+        if (have_isa_2_06_vsx) {
+            tcg_out_mem_long(s, 0, LXVDSX | 1, out, base, offset);
+            break;
+        }
         assert((offset & 7) == 0);
         tcg_out_mem_long(s, 0, LVX, out, base, offset);
         /* FIXME: 32-bit altivec */
@@ -3054,6 +3081,10 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
             tcg_out32(s, VSPLTW | VRT(a0) | VRB(a1) | (1 << 16));
             break;
         case MO_64:
+            if (have_isa_2_06_vsx) {
+                tcg_out32(s, XXPERMDI | 7 | VRT(a0) | VRA(a1) | VRB(a1));
+                break;
+            }
             /* FIXME: 32-bit altivec */
             tcg_out_dupi_vec(s, TCG_TYPE_V128, TCG_VEC_TMP1,
                              0x0001020304050607ull);
@@ -3487,6 +3518,9 @@ static void tcg_target_init(TCGContext *s)
     }
     if (hwcap & PPC_FEATURE_ARCH_2_06) {
         have_isa_2_06 = true;
+        if (hwcap & PPC_FEATURE_HAS_VSX) {
+            have_isa_2_06_vsx = true;
+        }
     }
 #ifdef PPC_FEATURE2_ARCH_3_00
     if (hwcap2 & PPC_FEATURE2_ARCH_3_00) {
