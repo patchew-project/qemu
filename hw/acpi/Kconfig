@@ -10,7 +10,10 @@ config ACPI_X86
 
 config ACPI_ICH9
     bool
-    select ACPI_X86
+    select ACPI
+    select ACPI_NVDIMM
+    select ACPI_CPU_HOTPLUG
+    select ACPI_MEMORY_HOTPLUG
 
 config ACPI_CPU_HOTPLUG
     bool
