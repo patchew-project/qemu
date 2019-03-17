@@ -5,7 +5,7 @@ config LM832X
     bool
     depends on I2C
 
-config PCKBD
+config I8042
     bool
     default y
     depends on ISA_BUS

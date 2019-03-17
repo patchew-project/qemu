@@ -8,5 +8,5 @@ config DP264
     select IDE_CMD646
     select MC146818RTC
     select PCI
-    select PCKBD
+    select I8042
     select SMC37C669

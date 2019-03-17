@@ -1,7 +1,7 @@
 common-obj-$(CONFIG_ADB) += adb.o adb-mouse.o adb-kbd.o
 common-obj-y += hid.o
 common-obj-$(CONFIG_LM832X) += lm832x.o
-common-obj-$(CONFIG_PCKBD) += pckbd.o
+common-obj-$(CONFIG_I8042) += pckbd.o
 common-obj-$(CONFIG_PL050) += pl050.o
 common-obj-y += ps2.o
 common-obj-$(CONFIG_STELLARIS_INPUT) += stellaris_input.o
