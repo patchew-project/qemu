@@ -14,6 +14,7 @@ config ACPI_PIIX4
     select ACPI_NVDIMM
     select ACPI_CPU_HOTPLUG
     select ACPI_MEMORY_HOTPLUG
+    select ACPI_SMBUS
 
 config ACPI_ICH9
     bool

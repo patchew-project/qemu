@@ -51,7 +51,6 @@ config I440FX
     bool
     select PC_PCI
     select PC_ACPI
-    select ACPI_SMBUS
     select PCI_PIIX
     select IDE_PIIX
     select DIMM
