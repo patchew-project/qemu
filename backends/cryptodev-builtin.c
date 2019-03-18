@@ -249,6 +249,8 @@ static int64_t cryptodev_builtin_sym_create_session(
            CryptoDevBackendSymSessionInfo *sess_info,
            uint32_t queue_index, Error **errp)
 {
+    assert(queue_index < MAX_CRYPTO_QUEUE_NUM);
+
     CryptoDevBackendBuiltin *builtin =
                       CRYPTODEV_BACKEND_BUILTIN(backend);
     int64_t session_id = -1;
@@ -280,6 +282,8 @@ static int cryptodev_builtin_sym_close_session(
            uint64_t session_id,
            uint32_t queue_index, Error **errp)
 {
+    assert(queue_index < MAX_CRYPTO_QUEUE_NUM);
+
     CryptoDevBackendBuiltin *builtin =
                       CRYPTODEV_BACKEND_BUILTIN(backend);
 
