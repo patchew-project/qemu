@@ -4270,6 +4270,22 @@ if compile_prog "" "" ; then
   splice=yes
 fi
 
+# Check if glibc exposes gettid yet
+gettid=no
+cat > $TMPC << EOF
+#include <unistd.h>
+
+int main(void)
+{
+    gettid();
+    return 0;
+}
+EOF
+if compile_prog "" "" ; then
+  gettid=yes
+fi
+
+
 ##########################################
 # libnuma probe
 
@@ -6650,6 +6666,9 @@ if test "$accept4" = "yes" ; then
 fi
 if test "$splice" = "yes" ; then
   echo "CONFIG_SPLICE=y" >> $config_host_mak
+fi
+if test "$gettid" = "yes" ; then
+  echo "CONFIG_GETTID=y" >> $config_host_mak
 fi
 if test "$eventfd" = "yes" ; then
   echo "CONFIG_EVENTFD=y" >> $config_host_mak
