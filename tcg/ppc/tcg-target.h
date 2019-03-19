@@ -60,6 +60,7 @@ typedef enum {
 
 extern bool have_isa_altivec;
 extern bool have_isa_2_06;
+extern bool have_isa_2_06_vsx;
 extern bool have_isa_3_00;
 
 /* optional instructions automatically implemented */
@@ -138,7 +139,7 @@ extern bool have_isa_3_00;
  * While technically Altivec could support V64, it has no 64-bit store
  * instruction, which makes the generate code quite large.
  */
-#define TCG_TARGET_HAS_v64              0
+#define TCG_TARGET_HAS_v64              have_isa_2_06_vsx
 #define TCG_TARGET_HAS_v128             have_isa_altivec
 #define TCG_TARGET_HAS_v256             0
 
