@@ -622,6 +622,16 @@ static void etraxfs_eth_realize(DeviceState *dev, Error **errp)
                           "etraxfs-eth", 0x5c);
     sysbus_init_mmio(sbd, &s->mmio);
 
+    object_property_add_link(OBJECT(dev), "dma_out", TYPE_ETRAX_FS_ETH,
+                             (Object **) &s->dma_out,
+                             qdev_prop_allow_set_link_before_realize,
+                             0, &error_abort);
+
+    object_property_add_link(OBJECT(dev), "dma_in", TYPE_ETRAX_FS_ETH,
+                             (Object **) &s->dma_in,
+                             qdev_prop_allow_set_link_before_realize,
+                             0, &error_abort);
+
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     s->nic = qemu_new_nic(&net_etraxfs_info, &s->conf,
                           object_get_typename(OBJECT(s)), dev->id, s);
@@ -634,8 +644,6 @@ static void etraxfs_eth_realize(DeviceState *dev, Error **errp)
 
 static Property etraxfs_eth_properties[] = {
     DEFINE_PROP_UINT32("phyaddr", ETRAXFSEthState, phyaddr, 1),
-    DEFINE_PROP_PTR("dma_out", ETRAXFSEthState, vdma_out),
-    DEFINE_PROP_PTR("dma_in", ETRAXFSEthState, vdma_in),
     DEFINE_NIC_PROPERTIES(ETRAXFSEthState, conf),
     DEFINE_PROP_END_OF_LIST(),
 };
@@ -647,7 +655,6 @@ static void etraxfs_eth_class_init(ObjectClass *klass, void *data)
     dc->realize = etraxfs_eth_realize;
     dc->reset = etraxfs_eth_reset;
     dc->props = etraxfs_eth_properties;
-    /* Reason: pointer properties "dma_out", "dma_in" */
     dc->user_creatable = false;
 }
 
