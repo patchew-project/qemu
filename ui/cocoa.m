@@ -405,6 +405,37 @@ QemuCocoaView *cocoaView;
     return (p.x > -1 && p.x < screen.width && p.y > -1 && p.y < screen.height);
 }
 
+/* Get location of event and convert to virtual screen coordinate */
+- (CGPoint) screenLocationOfEvent:(NSEvent *)ev
+{
+    NSWindow *eventWindow = [ev window];
+    if (!eventWindow) {
+        if (!isFullscreen) {
+            return [[self window] convertPointFromScreen:[ev locationInWindow]];
+        } else {
+            CGPoint loc = [self convertPoint:[[self window] convertPointFromScreen:[ev locationInWindow]] fromView:nil];
+            if (stretch_video) {
+                loc.x /= cdx;
+                loc.y /= cdy;
+            }
+            return loc;
+        }
+    } else if ([[self window] isEqual:eventWindow]) {
+        if (!isFullscreen) {
+            return [ev locationInWindow];
+        } else {
+            CGPoint loc = [self convertPoint:[ev locationInWindow] fromView:nil];
+            if (stretch_video) {
+                loc.x /= cdx;
+                loc.y /= cdy;
+            }
+            return loc;
+        }
+    } else {
+        return [[self window] convertPointFromScreen:[eventWindow convertPointToScreen:[ev locationInWindow]]];
+    }
+}
+
 - (void) hideCursor
 {
     if (!cursor_hide) {
@@ -704,7 +735,8 @@ QemuCocoaView *cocoaView;
     int keycode = 0;
     bool mouse_event = false;
     static bool switched_to_fullscreen = false;
-    NSPoint p = [event locationInWindow];
+    // Location of event in virtual screen coordinates
+    NSPoint p = [self screenLocationOfEvent:event];
 
     switch ([event type]) {
         case NSEventTypeFlagsChanged:
@@ -815,7 +847,10 @@ QemuCocoaView *cocoaView;
             break;
         case NSEventTypeMouseMoved:
             if (isAbsoluteEnabled) {
-                if (![self screenContainsPoint:p] || ![[self window] isKeyWindow]) {
+                // Cursor re-entered into a window may generate events in screen coordinates
+                // and `nil` window property, and in full screen mode, current window may not be
+                // key window, where event location alone should suffice.
+                if (![self screenContainsPoint:p] || !([[self window] isKeyWindow] || isFullscreen)) {
                     if (isMouseGrabbed) {
                         [self ungrabMouse];
                     }
