@@ -188,15 +188,6 @@ static void riscv_generate_cpu_init(Object *obj)
     set_misa(env, rvxlen | target_misa);
 }
 
-
-static void riscv_any_cpu_init(Object *obj)
-{
-    CPURISCVState *env = &RISCV_CPU(obj)->env;
-    set_misa(env, RVXLEN | RVI | RVM | RVA | RVF | RVD | RVC | RVU);
-    set_versions(env, USER_VERSION_2_02_0, PRIV_VERSION_1_10_0);
-    set_resetvec(env, DEFAULT_RSTVEC);
-}
-
 #if defined(TARGET_RISCV32)
 
 static void rv32gcsu_priv1_09_1_cpu_init(Object *obj)
@@ -575,7 +566,6 @@ static const TypeInfo riscv_cpu_type_infos[] = {
         .class_size = sizeof(RISCVCPUClass),
         .class_init = riscv_cpu_class_init,
     },
-    DEFINE_CPU(TYPE_RISCV_CPU_ANY,              riscv_any_cpu_init),
     DEFINE_CPU(TYPE_RISCV_CPU_GEN,              riscv_generate_cpu_init),
 #if defined(TARGET_RISCV32)
     DEFINE_CPU(TYPE_RISCV_CPU_RV32GCSU_V1_09_1, rv32gcsu_priv1_09_1_cpu_init),
