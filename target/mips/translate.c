@@ -28095,6 +28095,100 @@ static inline void gen_ilvod_d(CPUMIPSState *env, uint32_t wd,
     tcg_gen_mov_i64(msa_wr_d[wd * 2 + 1], msa_wr_d[ws * 2 + 1]);
 }
 
+/*
+ * [MSA] ILVEV.B wd, ws, wt
+ *
+ *   Vector Interleave Even (byte data elements)
+ *
+ */
+static inline void gen_ilvev_b(CPUMIPSState *env, uint32_t wd,
+                               uint32_t ws, uint32_t wt)
+{
+    TCGv_i64 t0 = tcg_temp_new_i64();
+    TCGv_i64 t1 = tcg_temp_new_i64();
+    const uint64_t mask = 0x00ff00ff00ff00ffULL;
+
+    tcg_gen_andi_i64(t1, msa_wr_d[wt * 2], mask);
+    tcg_gen_andi_i64(t0, msa_wr_d[ws * 2], mask);
+    tcg_gen_shli_i64(t0, t0, 8);
+    tcg_gen_or_i64(msa_wr_d[wd * 2], t1, t0);
+
+    tcg_gen_andi_i64(t1, msa_wr_d[wt * 2 + 1], mask);
+    tcg_gen_andi_i64(t0, msa_wr_d[ws * 2 + 1], mask);
+    tcg_gen_shli_i64(t0, t0, 8);
+    tcg_gen_or_i64(msa_wr_d[wd * 2 + 1], t1, t0);
+
+    tcg_temp_free_i64(t0);
+    tcg_temp_free_i64(t1);
+}
+
+/*
+ * [MSA] ILVEV.H wd, ws, wt
+ *
+ *   Vector Interleave Even (halfword data elements)
+ *
+ */
+static inline void gen_ilvev_h(CPUMIPSState *env, uint32_t wd,
+                               uint32_t ws, uint32_t wt)
+{
+    TCGv_i64 t0 = tcg_temp_new_i64();
+    TCGv_i64 t1 = tcg_temp_new_i64();
+    const uint64_t mask = 0x0000ffff0000ffffULL;
+
+    tcg_gen_andi_i64(t1, msa_wr_d[wt * 2], mask);
+    tcg_gen_andi_i64(t0, msa_wr_d[ws * 2], mask);
+    tcg_gen_shli_i64(t0, t0, 16);
+    tcg_gen_or_i64(msa_wr_d[wd * 2], t1, t0);
+
+    tcg_gen_andi_i64(t1, msa_wr_d[wt * 2 + 1], mask);
+    tcg_gen_andi_i64(t0, msa_wr_d[ws * 2 + 1], mask);
+    tcg_gen_shli_i64(t0, t0, 16);
+    tcg_gen_or_i64(msa_wr_d[wd * 2 + 1], t1, t0);
+
+    tcg_temp_free_i64(t0);
+    tcg_temp_free_i64(t1);
+}
+
+/*
+ * [MSA] ILVEV.W wd, ws, wt
+ *
+ *   Vector Interleave Even (word data elements)
+ *
+ */
+static inline void gen_ilvev_w(CPUMIPSState *env, uint32_t wd,
+                               uint32_t ws, uint32_t wt)
+{
+    TCGv_i64 t0 = tcg_temp_new_i64();
+    TCGv_i64 t1 = tcg_temp_new_i64();
+    const uint64_t mask = 0x00000000ffffffffULL;
+
+    tcg_gen_andi_i64(t1, msa_wr_d[wt * 2], mask);
+    tcg_gen_andi_i64(t0, msa_wr_d[ws * 2], mask);
+    tcg_gen_shli_i64(t0, t0, 32);
+    tcg_gen_or_i64(msa_wr_d[wd * 2], t1, t0);
+
+    tcg_gen_andi_i64(t1, msa_wr_d[wt * 2 + 1], mask);
+    tcg_gen_andi_i64(t0, msa_wr_d[ws * 2 + 1], mask);
+    tcg_gen_shli_i64(t0, t0, 32);
+    tcg_gen_or_i64(msa_wr_d[wd * 2 + 1], t1, t0);
+
+    tcg_temp_free_i64(t0);
+    tcg_temp_free_i64(t1);
+}
+
+/*
+ * [MSA] ILVEV.D wd, ws, wt
+ *
+ *   Vector Interleave Even (Double data elements)
+ *
+ */
+static inline void gen_ilvev_d(CPUMIPSState *env, uint32_t wd,
+                               uint32_t ws, uint32_t wt)
+{
+    tcg_gen_mov_i64(msa_wr_d[wd * 2], msa_wr_d[wt * 2]);
+    tcg_gen_mov_i64(msa_wr_d[wd * 2 + 1], msa_wr_d[ws * 2]);
+}
+
 static void gen_msa_3r(CPUMIPSState *env, DisasContext *ctx)
 {
 #define MASK_MSA_3R(op)    (MASK_MSA_MINOR(op) | (op & (0x7 << 23)))
@@ -28251,7 +28345,22 @@ static void gen_msa_3r(CPUMIPSState *env, DisasContext *ctx)
         gen_helper_msa_mod_s_df(cpu_env, tdf, twd, tws, twt);
         break;
     case OPC_ILVEV_df:
-        gen_helper_msa_ilvev_df(cpu_env, tdf, twd, tws, twt);
+        switch (df) {
+        case DF_BYTE:
+            gen_ilvev_b(env, wd, ws, wt);
+            break;
+        case DF_HALF:
+            gen_ilvev_h(env, wd, ws, wt);
+            break;
+        case DF_WORD:
+            gen_ilvev_w(env, wd, ws, wt);
+            break;
+        case DF_DOUBLE:
+            gen_ilvev_d(env, wd, ws, wt);
+            break;
+        default:
+            assert(0);
+        }
         break;
     case OPC_BINSR_df:
         gen_helper_msa_binsr_df(cpu_env, tdf, twd, tws, twt);
