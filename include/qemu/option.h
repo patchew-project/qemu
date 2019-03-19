@@ -139,4 +139,5 @@ QemuOptsList *qemu_opts_append(QemuOptsList *dst, QemuOptsList *list);
 QDict *keyval_parse(const char *params, const char *implied_key,
                     Error **errp);
 
+extern bool in_incoming_migration;
 #endif

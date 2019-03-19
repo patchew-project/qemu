@@ -145,6 +145,7 @@ bool enable_cpu_pm = false;
 int nb_nics;
 NICInfo nd_table[MAX_NICS];
 int autostart;
+bool in_incoming_migration;
 static enum {
     RTC_BASE_UTC,
     RTC_BASE_LOCALTIME,
@@ -3797,6 +3798,7 @@ int main(int argc, char **argv, char **envp)
                     runstate_set(RUN_STATE_INMIGRATE);
                 }
                 incoming = optarg;
+                in_incoming_migration = true;
                 break;
             case QEMU_OPTION_only_migratable:
                 /*
