@@ -1,0 +1,12 @@
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "raw", "file": {"driver": "file", "filename": "TEST_DIR/PID-target"}, "size": 2097152}, "node-name": "target"}}
+{"return": {}}
+{"execute": "blockdev-mirror", "arguments": {"device": "drive0", "on-target-error": "enospc", "sync": "full", "target": "target"}}
+{"return": {}}
+{"execute": "query-block-jobs", "arguments": {}}
+{"return": [{"auto-dismiss": true, "auto-finalize": true, "busy": false, "device": "drive0", "io-status": "nospace", "len": 5242880, "offset": 1048576, "paused": true, "ready": false, "speed": 0, "status": "paused", "type": "mirror"}]}
+{"execute": "x-blockdev-reopen", "arguments": {"driver": "qcow2", "file": {"driver": "raw", "file": {"driver": "file", "filename": "TEST_DIR/PID-target"}}, "node-name": "target"}}
+{"return": {}}
+{"execute": "block-job-resume", "arguments": {"device": "drive0"}}
+{"return": {}}
+{"execute": "query-block-jobs", "arguments": {}}
+{"return": [{"auto-dismiss": true, "auto-finalize": true, "busy": true, "device": "drive0", "io-status": "ok", "len": 5242880, "offset": 1048576, "paused": false, "ready": false, "speed": 0, "status": "running", "type": "mirror"}]}
