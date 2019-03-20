@@ -551,8 +551,14 @@ static int do_pr_out(int fd, const uint8_t *cdb, uint8_t *sense,
                      const uint8_t *param, int sz)
 {
     int resp_sz;
+    int flags;
 
-    if ((fcntl(fd, F_GETFL) & O_ACCMODE) == O_RDONLY) {
+    flags = fcntl(fd, F_GETFL);
+    if (flags < 0) {
+        return -1;
+    }
+
+    if (((unsigned int) flags & O_ACCMODE) == O_RDONLY) {
         scsi_build_sense(sense, SENSE_CODE(INVALID_OPCODE));
         return CHECK_CONDITION;
     }
