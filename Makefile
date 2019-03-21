@@ -261,6 +261,7 @@ trace-dtrace-root.o: trace-dtrace-root.dtrace
 KEYCODEMAP_GEN = $(SRC_PATH)/ui/keycodemapdb/tools/keymap-gen
 KEYCODEMAP_CSV = $(SRC_PATH)/ui/keycodemapdb/data/keymaps.csv
 
+ifdef CONFIG_SOFTMMU
 KEYCODEMAP_FILES = \
 		 ui/input-keymap-atset1-to-qcode.c \
 		 ui/input-keymap-linux-to-qcode.c \
@@ -295,6 +296,7 @@ ui/input-keymap-%.c: $(KEYCODEMAP_GEN) $(KEYCODEMAP_CSV) $(SRC_PATH)/ui/Makefile
 
 $(KEYCODEMAP_GEN): .git-submodule-status
 $(KEYCODEMAP_CSV): .git-submodule-status
+endif
 
 # Don't try to regenerate Makefile or configure
 # We don't generate any of them
