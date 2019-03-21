@@ -16,13 +16,26 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
+#include "exec/address-spaces.h"
 #include "hw/sysbus.h"
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/generic_event_device.h"
+#include "hw/mem/pc-dimm.h"
 
 static void virt_device_plug_cb(HotplugHandler *hotplug_dev,
                                 DeviceState *dev, Error **errp)
 {
+    VirtAcpiState *s = VIRT_ACPI(hotplug_dev);
+
+    if (s->memhp_state.is_enabled &&
+        object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
+            acpi_memory_plug_cb(hotplug_dev, &s->memhp_state,
+                                dev, errp);
+    } else {
+        error_setg(errp, "virt: device plug request for unsupported device"
+                   " type: %s", object_get_typename(OBJECT(dev)));
+    }
 }
 
 static void virt_send_ged(AcpiDeviceIf *adev, AcpiEventStatusBits ev)
@@ -31,9 +44,19 @@ static void virt_send_ged(AcpiDeviceIf *adev, AcpiEventStatusBits ev)
 
 static void virt_device_realize(DeviceState *dev, Error **errp)
 {
+    VirtAcpiState *s = VIRT_ACPI(dev);
+
+    if (s->memhp_state.is_enabled) {
+        acpi_memory_hotplug_init(get_system_memory(), OBJECT(dev),
+                                 &s->memhp_state,
+                                 s->memhp_base);
+    }
 }
 
 static Property virt_acpi_properties[] = {
+    DEFINE_PROP_UINT64("memhp_base", VirtAcpiState, memhp_base, 0),
+    DEFINE_PROP_BOOL("memory-hotplug-support", VirtAcpiState,
+                     memhp_state.is_enabled, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 

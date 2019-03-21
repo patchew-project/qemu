@@ -18,12 +18,17 @@
 #ifndef HW_ACPI_GED_H
 #define HW_ACPI_GED_H
 
+#include "hw/acpi/memory_hotplug.h"
+
 #define TYPE_VIRT_ACPI "virt-acpi"
 #define VIRT_ACPI(obj) \
     OBJECT_CHECK(VirtAcpiState, (obj), TYPE_VIRT_ACPI)
 
 typedef struct VirtAcpiState {
     SysBusDevice parent_obj;
+    MemHotplugState memhp_state;
+    hwaddr memhp_base;
 } VirtAcpiState;
+
 
 #endif
