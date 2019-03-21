@@ -1,3 +1,4 @@
+
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef __LINUX_KVM_H
 #define __LINUX_KVM_H
@@ -988,6 +989,7 @@ struct kvm_ppc_resize_hpt {
 #define KVM_CAP_ARM_VM_IPA_SIZE 165
 #define KVM_CAP_MANUAL_DIRTY_LOG_PROTECT 166
 #define KVM_CAP_HYPERV_CPUID 167
+#define KVM_CAP_PPC_IRQ_XIVE 168
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
@@ -1182,6 +1184,11 @@ struct kvm_create_device {
 	__u32	flags;	/* in: KVM_CREATE_DEVICE_xxx */
 };
 
+struct kvm_destroy_device {
+	__u32	fd;	/* in: device handle */
+	__u32	flags;	/* in: unused */
+};
+
 struct kvm_device_attr {
 	__u32	flags;		/* no flags currently defined */
 	__u32	group;		/* device-defined */
@@ -1211,6 +1218,8 @@ enum kvm_device_type {
 #define KVM_DEV_TYPE_ARM_VGIC_V3	KVM_DEV_TYPE_ARM_VGIC_V3
 	KVM_DEV_TYPE_ARM_VGIC_ITS,
 #define KVM_DEV_TYPE_ARM_VGIC_ITS	KVM_DEV_TYPE_ARM_VGIC_ITS
+	KVM_DEV_TYPE_XIVE,
+#define KVM_DEV_TYPE_XIVE		KVM_DEV_TYPE_XIVE
 	KVM_DEV_TYPE_MAX,
 };
 
@@ -1327,6 +1336,8 @@ struct kvm_s390_ucas_mapping {
 #define KVM_SET_DEVICE_ATTR	  _IOW(KVMIO,  0xe1, struct kvm_device_attr)
 #define KVM_GET_DEVICE_ATTR	  _IOW(KVMIO,  0xe2, struct kvm_device_attr)
 #define KVM_HAS_DEVICE_ATTR	  _IOW(KVMIO,  0xe3, struct kvm_device_attr)
+
+#define KVM_DESTROY_DEVICE	  _IOWR(KVMIO,  0xf0, struct kvm_destroy_device)
 
 /*
  * ioctls for vcpu fds
