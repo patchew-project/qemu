@@ -119,3 +119,8 @@ config XIVE_SPAPR
     default y
     depends on PSERIES
     select XIVE
+
+config XIVE_KVM
+    bool
+    default y
+    depends on XIVE_SPAPR && KVM
