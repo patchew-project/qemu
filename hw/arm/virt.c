@@ -1717,6 +1717,20 @@ static void virt_set_highmem(Object *obj, bool value, Error **errp)
     vms->highmem = value;
 }
 
+static bool virt_get_fdt(Object *obj, Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+
+    return vms->use_fdt;
+}
+
+static void virt_set_fdt(Object *obj, bool value, Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+
+    vms->use_fdt = value;
+}
+
 static bool virt_get_its(Object *obj, Error **errp)
 {
     VirtMachineState *vms = VIRT_MACHINE(obj);
@@ -2005,6 +2019,15 @@ static void virt_instance_init(Object *obj)
     object_property_set_description(obj, "gic-version",
                                     "Set GIC version. "
                                     "Valid values are 2, 3 and host", NULL);
+    /* fdt is disabled by default */
+    vms->use_fdt = false;
+    object_property_add_bool(obj, "fdt", virt_get_fdt,
+                             virt_set_fdt, NULL);
+    object_property_set_description(obj, "fdt",
+                                    "Set on/off to enable/disable device tree "
+                                    "nodes in case any conflict with ACPI"
+                                    "(eg: device memory node)",
+                                    NULL);
 
     vms->highmem_ecam = !vmc->no_highmem_ecam;
 
