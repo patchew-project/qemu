@@ -24,11 +24,45 @@
 #define VIRT_ACPI(obj) \
     OBJECT_CHECK(VirtAcpiState, (obj), TYPE_VIRT_ACPI)
 
+#define ACPI_GED_IRQ_SEL_OFFSET 0x0
+#define ACPI_GED_IRQ_SEL_LEN    0x4
+#define ACPI_GED_IRQ_SEL_MEM    0x1
+#define ACPI_GED_REG_LEN        0x4
+
+#define GED_DEVICE      "GED"
+#define AML_GED_IRQ_REG "IREG"
+#define AML_GED_IRQ_SEL "ISEL"
+
+typedef enum {
+    GED_MEMORY_HOTPLUG = 1,
+} GedEventType;
+
+typedef struct GedEvent {
+    uint32_t     selector;
+    GedEventType event;
+} GedEvent;
+
+typedef struct GEDState {
+    MemoryRegion io;
+    uint32_t     sel;
+    uint32_t     irq;
+    qemu_irq     *gsi;
+    QemuMutex    lock;
+} GEDState;
+
 typedef struct VirtAcpiState {
     SysBusDevice parent_obj;
     MemHotplugState memhp_state;
     hwaddr memhp_base;
+    void *gsi;
+    hwaddr ged_base;
+    GEDState ged_state;
+    uint32_t ged_irq;
+    void *ged_events;
+    uint32_t ged_events_size;
 } VirtAcpiState;
 
+void build_ged_aml(Aml *table, const char* name, uint32_t ged_irq,
+                   AmlRegionSpace rs);
 
 #endif
