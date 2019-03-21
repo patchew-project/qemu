@@ -87,6 +87,11 @@ common-obj-y += qmp.o hmp.o
 common-obj-y += qapi/
 endif
 
+ifneq ($(CONFIG_USER_ONLY),y)
+# hw/display/edid-generate.c is needed by qemu-edid
+common-obj-y += hw/display/
+endif
+
 #######################################################################
 # Target-independent parts used in system and user emulation
 common-obj-y += cpus-common.o
