@@ -41,6 +41,7 @@
 #include "hw/hw.h"
 #include "hw/acpi/aml-build.h"
 #include "hw/acpi/memory_hotplug.h"
+#include "hw/acpi/generic_event_device.h"
 #include "hw/pci/pcie_host.h"
 #include "hw/pci/pci.h"
 #include "hw/arm/virt.h"
@@ -49,6 +50,13 @@
 
 #define ARM_SPI_BASE 32
 #define ACPI_POWER_BUTTON_DEVICE "PWRB"
+
+static void acpi_dsdt_add_ged(Aml *scope, VirtMachineState *vms)
+{
+    int irq =  vms->irqmap[VIRT_ACPI_GED] + ARM_SPI_BASE;
+
+    build_ged_aml(scope, "\\_SB."GED_DEVICE, irq, AML_SYSTEM_MEMORY);
+}
 
 static void acpi_dsdt_add_memory_hotplug(Aml *scope, MachineState *ms)
 {
@@ -758,6 +766,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
      */
     scope = aml_scope("\\_SB");
     acpi_dsdt_add_memory_hotplug(scope, MACHINE(vms));
+    acpi_dsdt_add_ged(scope, vms);
     acpi_dsdt_add_cpus(scope, vms->smp_cpus);
     acpi_dsdt_add_uart(scope, &memmap[VIRT_UART],
                        (irqmap[VIRT_UART] + ARM_SPI_BASE));

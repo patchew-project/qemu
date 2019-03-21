@@ -200,6 +200,23 @@ static void acpi_ged_event(GEDState *ged_st, uint32_t ged_irq_sel)
     qemu_irq_pulse(ged_st->gsi[ged_st->irq]);
 }
 
+static void acpi_ged_init(MemoryRegion *as, DeviceState *dev, GEDState *ged_st)
+{
+    VirtAcpiState *s = VIRT_ACPI(dev);
+
+    assert(!ged_io_base && !ged_events && !ged_events_size);
+
+    ged_io_base = s->ged_base;
+    ged_events = s->ged_events;
+    ged_events_size = s->ged_events_size;
+    ged_st->irq = s->ged_irq;
+    ged_st->gsi = s->gsi;
+    qemu_mutex_init(&ged_st->lock);
+    memory_region_init_io(&ged_st->io, OBJECT(dev), &ged_ops, ged_st,
+                          "acpi-ged-event", ACPI_GED_REG_LEN);
+    memory_region_add_subregion(as, ged_io_base, &ged_st->io);
+}
+
 static void virt_device_plug_cb(HotplugHandler *hotplug_dev,
                                 DeviceState *dev, Error **errp)
 {
@@ -242,6 +259,7 @@ static void virt_device_realize(DeviceState *dev, Error **errp)
         acpi_memory_hotplug_init(get_system_memory(), OBJECT(dev),
                                  &s->memhp_state,
                                  s->memhp_base);
+        acpi_ged_init(get_system_memory(), dev, &s->ged_state);
     }
 }
 
