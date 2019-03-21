@@ -101,12 +101,6 @@ static void spapr_irq_init_xics(SpaprMachineState *spapr, int nr_irqs,
     Object *obj;
     Error *local_err = NULL;
 
-    spapr_irq_init_device(spapr, &spapr_irq_xics, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
-
     obj = object_new(TYPE_ICS_SIMPLE);
     object_property_add_child(OBJECT(spapr), "ics", obj, &error_abort);
     object_property_add_const_link(obj, ICS_PROP_XICS, OBJECT(spapr),
@@ -225,7 +219,13 @@ static void spapr_irq_set_irq_xics(void *opaque, int srcno, int val)
 
 static void spapr_irq_reset_xics(SpaprMachineState *spapr, Error **errp)
 {
-    /* TODO: create the KVM XICS device */
+    Error *local_err = NULL;
+
+    spapr_irq_init_device(spapr, &spapr_irq_xics, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
 }
 
 static const char *spapr_irq_get_nodename_xics(SpaprMachineState *spapr)
@@ -381,12 +381,19 @@ static int spapr_irq_post_load_xive(SpaprMachineState *spapr, int version_id)
 static void spapr_irq_reset_xive(SpaprMachineState *spapr, Error **errp)
 {
     CPUState *cs;
+    Error *local_err = NULL;
 
     CPU_FOREACH(cs) {
         PowerPCCPU *cpu = POWERPC_CPU(cs);
 
         /* (TCG) Set the OS CAM line of the thread interrupt context. */
         spapr_xive_set_tctx_os_cam(spapr_cpu_state(cpu)->tctx);
+    }
+
+    spapr_irq_init_device(spapr, &spapr_irq_xive, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
     }
 
     /* Activate the XIVE MMIOs */
@@ -471,13 +478,7 @@ static SpaprIrq *spapr_irq_current(SpaprMachineState *spapr)
 static void spapr_irq_init_dual(SpaprMachineState *spapr, int nr_irqs,
                                 Error **errp)
 {
-    MachineState *machine = MACHINE(spapr);
     Error *local_err = NULL;
-
-    if (kvm_enabled() && machine_kernel_irqchip_allowed(machine)) {
-        error_setg(errp, "No KVM support for the 'dual' machine");
-        return;
-    }
 
     spapr_irq_xics.init(spapr, spapr_irq_xics.nr_irqs, &local_err);
     if (local_err) {
@@ -557,6 +558,9 @@ static int spapr_irq_post_load_dual(SpaprMachineState *spapr, int version_id)
      * defaults to XICS at startup.
      */
     if (spapr_ovec_test(spapr->ov5_cas, OV5_XIVE_EXPLOIT)) {
+        if (kvm_irqchip_in_kernel()) {
+            xics_kvm_disconnect(spapr, &error_fatal);
+        }
         spapr_irq_xive.reset(spapr, &error_fatal);
     }
 
@@ -565,11 +569,29 @@ static int spapr_irq_post_load_dual(SpaprMachineState *spapr, int version_id)
 
 static void spapr_irq_reset_dual(SpaprMachineState *spapr, Error **errp)
 {
+    Error *local_err = NULL;
+
     /*
      * Deactivate the XIVE MMIOs. The XIVE backend will reenable them
      * if selected.
      */
     spapr_xive_mmio_set_enabled(spapr->xive, false);
+
+    /* Destroy all KVM devices */
+    if (kvm_irqchip_in_kernel()) {
+        xics_kvm_disconnect(spapr, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            error_prepend(errp, "KVM XICS disconnect failed: ");
+            return;
+        }
+        kvmppc_xive_disconnect(spapr->xive, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            error_prepend(errp, "KVM XIVE disconnect failed: ");
+            return;
+        }
+    }
 
     spapr_irq_current(spapr)->reset(spapr, errp);
 }
@@ -759,6 +781,9 @@ SpaprIrq spapr_irq_xics_legacy = {
     .dt_populate = spapr_dt_xics,
     .cpu_intc_create = spapr_irq_cpu_intc_create_xics,
     .post_load   = spapr_irq_post_load_xics,
+    .reset       = spapr_irq_reset_xics,
     .set_irq     = spapr_irq_set_irq_xics,
     .get_nodename = spapr_irq_get_nodename_xics,
+    .init_emu    = spapr_irq_init_emu_xics,
+    .init_kvm    = spapr_irq_init_kvm_xics,
 };
