@@ -5,6 +5,12 @@ util-obj-y = util/ qobject/ qapi/
 
 chardev-obj-y = chardev/
 
+qom-obj-y = qom/
+
+crypto-obj-y = crypto/
+crypto-aes-obj-y = crypto/
+
+ifneq ($(CONFIG_USER_ONLY),y)
 #######################################################################
 # authz-obj-y is code used by both qemu system emulation and qemu-img
 
@@ -22,20 +28,10 @@ block-obj-$(CONFIG_REPLICATION) += replication.o
 block-obj-m = block/
 
 #######################################################################
-# crypto-obj-y is code used by both qemu system emulation and qemu-img
-
-crypto-obj-y = crypto/
-crypto-aes-obj-y = crypto/
-
-#######################################################################
-# qom-obj-y is code used by both qemu system emulation and qemu-img
-
-qom-obj-y = qom/
-
-#######################################################################
 # io-obj-y is code used by both qemu system emulation and qemu-img
 
 io-obj-y = io/
+endif
 
 ######################################################################
 # Target independent part of system emulation. The long term path is to
@@ -132,10 +128,18 @@ rdmacm-mux-obj-y = contrib/rdmacm-mux/
 trace-events-subdirs =
 trace-events-subdirs += accel/kvm
 trace-events-subdirs += accel/tcg
+ifeq ($(CONFIG_USER_ONLY),y)
+trace-events-subdirs += linux-user
+else
 trace-events-subdirs += authz
+trace-events-subdirs += nbd
 trace-events-subdirs += block
-trace-events-subdirs += chardev
+trace-events-subdirs += scsi
+trace-events-subdirs += io
+trace-events-subdirs += hw/display # needed by qemu-edid
+endif
 trace-events-subdirs += crypto
+trace-events-subdirs += chardev
 ifeq ($(CONFIG_SOFTMMU),y)
 trace-events-subdirs += audio
 trace-events-subdirs += hw/9pfs
@@ -146,7 +150,6 @@ trace-events-subdirs += hw/audio
 trace-events-subdirs += hw/block
 trace-events-subdirs += hw/block/dataplane
 trace-events-subdirs += hw/char
-trace-events-subdirs += hw/display
 trace-events-subdirs += hw/dma
 trace-events-subdirs += hw/hppa
 trace-events-subdirs += hw/i2c
@@ -183,12 +186,8 @@ trace-events-subdirs += migration
 trace-events-subdirs += net
 trace-events-subdirs += ui
 endif
-trace-events-subdirs += io
-trace-events-subdirs += linux-user
-trace-events-subdirs += nbd
 trace-events-subdirs += qapi
 trace-events-subdirs += qom
-trace-events-subdirs += scsi
 trace-events-subdirs += target/arm
 trace-events-subdirs += target/hppa
 trace-events-subdirs += target/i386
