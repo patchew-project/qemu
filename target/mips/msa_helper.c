@@ -1277,6 +1277,13 @@ void helper_msa_copy_u_df(CPUMIPSState *env, uint32_t df, uint32_t rd,
                           uint32_t ws, uint32_t n)
 {
     n %= DF_ELEMENTS(df);
+#if defined(HOST_WORDS_BIGENDIAN)
+    if (n < DF_ELEMENTS(df) / 2) {
+        n = DF_ELEMENTS(df) / 2 - n - 1;
+    } else {
+        n = 3 * DF_ELEMENTS(df) / 2 - n - 1;
+    }
+#endif
 
     switch (df) {
     case DF_BYTE:
