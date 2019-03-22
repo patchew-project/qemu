@@ -85,6 +85,10 @@ typedef struct VirtioBusClass {
     int (*ioeventfd_assign)(DeviceState *d, EventNotifier *notifier,
                             int n, bool assign);
     /*
+     * is the queue enabled?
+     */
+    bool (*queue_enabled)(DeviceState *d, int n);
+    /*
      * Does the transport have variable vring alignment?
      * (ie can it ever call virtio_queue_set_align()?)
      * Note that changing this will break migration for this transport.
