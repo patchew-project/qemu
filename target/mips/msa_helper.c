@@ -1317,6 +1317,13 @@ void helper_msa_insert_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
 {
     wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
     target_ulong rs = env->active_tc.gpr[rs_num];
+#if defined(HOST_WORDS_BIGENDIAN)
+    if (n < DF_ELEMENTS(df) / 2) {
+        n = DF_ELEMENTS(df) / 2 - n - 1;
+    } else {
+        n = 3 * DF_ELEMENTS(df) / 2 - n - 1;
+    }
+#endif
 
     switch (df) {
     case DF_BYTE:
@@ -1328,9 +1335,11 @@ void helper_msa_insert_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
     case DF_WORD:
         pwd->w[n] = (int32_t)rs;
         break;
+#ifdef TARGET_MIPS64
     case DF_DOUBLE:
         pwd->d[n] = (int64_t)rs;
         break;
+#endif
     default:
         assert(0);
     }
