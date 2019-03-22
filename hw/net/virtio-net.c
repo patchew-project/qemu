@@ -12,6 +12,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/atomic.h"
 #include "qemu/iov.h"
 #include "hw/virtio/virtio.h"
 #include "net/net.h"
@@ -19,6 +20,7 @@
 #include "net/tap.h"
 #include "qemu/error-report.h"
 #include "qemu/timer.h"
+#include "qemu/option.h"
 #include "hw/virtio/virtio-net.h"
 #include "net/vhost_net.h"
 #include "net/announce.h"
@@ -29,6 +31,8 @@
 #include "migration/misc.h"
 #include "standard-headers/linux/ethtool.h"
 #include "trace.h"
+#include "monitor/qdev.h"
+#include "hw/pci/pci.h"
 
 #define VIRTIO_NET_VM_VERSION    11
 
@@ -363,6 +367,9 @@ static void virtio_net_set_status(struct VirtIODevice *vdev, uint8_t status)
         }
     }
 }
+
+
+static void virtio_net_primary_plug_timer(void *opaque);
 
 static void virtio_net_set_link_status(NetClientState *nc)
 {
@@ -785,6 +792,14 @@ static void virtio_net_set_features(VirtIODevice *vdev, uint64_t features)
         memset(n->vlans, 0, MAX_VLAN >> 3);
     } else {
         memset(n->vlans, 0xff, MAX_VLAN >> 3);
+    }
+
+    if (virtio_has_feature(features, VIRTIO_NET_F_STANDBY)) {
+        atomic_set(&n->primary_should_be_hidden, false);
+        if (n->primary_device_timer)
+            timer_mod(n->primary_device_timer,
+                qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) +
+                4000);
     }
 }
 
@@ -2626,6 +2641,74 @@ void virtio_net_set_netclient_name(VirtIONet *n, const char *name,
     n->netclient_type = g_strdup(type);
 }
 
+static void virtio_net_primary_plug_timer(void *opaque)
+{
+    VirtIONet *n = opaque;
+    Error *err = NULL;
+
+    n->primary_dev = qdev_device_add(n->primary_device_opts, &err);
+    if (!n->primary_dev && err)
+    {
+        if (n->primary_device_timer)
+            timer_mod(n->primary_device_timer,
+                qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) +
+                100);
+    }
+}
+
+static void virtio_net_handle_migration_primary(VirtIONet *n, MigrationState * s)
+{
+    Error *err = NULL;
+    bool should_be_hidden = atomic_read(&n->primary_should_be_hidden);
+
+    if (migration_in_setup(s) && !should_be_hidden && n->primary_dev) {
+        /* Request unplug
+         *
+         *
+        */
+        qdev_unplug(n->primary_dev, &err);
+        if (!err)
+        {
+            atomic_set(&n->primary_should_be_hidden, true);
+            n->primary_dev = NULL;
+        }
+    } else if (migration_has_failed(s)) {
+        if (should_be_hidden && !n->primary_dev)
+        {
+            /* We already unplugged the device let's plugged it back */
+            n->primary_dev = qdev_device_add(n->primary_device_opts, &err);
+        }
+        else
+        {
+        }
+    }
+}
+
+static void migration_state_notifier(Notifier *notifier, void *data)
+{
+    MigrationState *s = data;
+    VirtIONet *n = container_of(notifier, VirtIONet, migration_state);
+    virtio_net_handle_migration_primary(n,s);
+}
+
+static void virtio_net_primary_should_be_hidden(DeviceListener *listener, QemuOpts *device_opts,
+            bool *match_found, bool *res)
+{
+   VirtIONet *n = container_of(listener, VirtIONet, primary_listener);
+   const char * dev_id = qemu_opts_id(device_opts);
+
+    *match_found = !strcmp(n->net_conf.primary_id_str ,dev_id);
+    if (atomic_read(&n->primary_should_be_hidden) && !strcmp(qemu_opt_get(device_opts, "driver"), "vfio-pci")
+    && *match_found)
+    {
+        n->primary_device_opts = device_opts;
+        *res = true;
+        return;
+    }
+
+    *res = false;
+}
+
 static void virtio_net_device_realize(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
@@ -2654,6 +2737,17 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
         error_setg(errp, "'speed' must be between 0 and INT_MAX");
     } else if (n->net_conf.speed >= 0) {
         n->host_features |= (1ULL << VIRTIO_NET_F_SPEED_DUPLEX);
+    }
+
+    if (n->net_conf.primary_id_str) {
+        n->primary_listener.should_be_hidden = virtio_net_primary_should_be_hidden;
+        atomic_set(&n->primary_should_be_hidden, true);
+        device_listener_register(&n->primary_listener);
+        n->migration_state.notify = migration_state_notifier;
+        add_migration_state_change_notifier(&n->migration_state);
+        n->host_features |= (1ULL << VIRTIO_NET_F_STANDBY);
+        n->primary_device_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL,
+                                     virtio_net_primary_plug_timer, n);
     }
 
     virtio_net_set_config_size(n, n->host_features);
@@ -2885,6 +2979,7 @@ static Property virtio_net_properties[] = {
                      true),
     DEFINE_PROP_INT32("speed", VirtIONet, net_conf.speed, SPEED_UNKNOWN),
     DEFINE_PROP_STRING("duplex", VirtIONet, net_conf.duplex_str),
+    DEFINE_PROP_STRING("primary", VirtIONet, net_conf.primary_id_str),
     DEFINE_PROP_END_OF_LIST(),
 };
 

@@ -43,6 +43,7 @@ typedef struct virtio_net_conf
     int32_t speed;
     char *duplex_str;
     uint8_t duplex;
+    char *primary_id_str;
 } virtio_net_conf;
 
 /* Coalesced packets type & status */
@@ -185,6 +186,12 @@ struct VirtIONet {
     AnnounceTimer announce_timer;
     bool needs_vnet_hdr_swap;
     bool mtu_bypass_backend;
+    QemuOpts *primary_device_opts;
+    DeviceState *primary_dev;
+    bool primary_should_be_hidden;
+    DeviceListener primary_listener;
+    QEMUTimer *primary_device_timer;
+    Notifier migration_state;
 };
 
 void virtio_net_set_netclient_name(VirtIONet *n, const char *name,
