@@ -306,8 +306,10 @@ static void virtio_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         if (pa == 0) {
             virtio_pci_reset(DEVICE(proxy));
         }
-        else
+        else {
             virtio_queue_set_addr(vdev, vdev->queue_sel, pa);
+            proxy->vqs[vdev->queue_sel].enabled = 1;
+        }
         break;
     case VIRTIO_PCI_QUEUE_SEL:
         if (val < VIRTIO_QUEUE_MAX)
