@@ -1580,6 +1580,9 @@ int vhost_dev_get_inflight(struct vhost_dev *dev, uint16_t queue_size,
 /* Host notifiers must be enabled at this point. */
 int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
 {
+    BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
+    VirtioBusState *vbus = VIRTIO_BUS(qbus);
+    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(vbus);
     int i, r;
 
     /* should only be called after backend is connected */
@@ -1604,6 +1607,10 @@ int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
         goto fail_mem;
     }
     for (i = 0; i < hdev->nvqs; ++i) {
+        if (k->queue_enabled &&
+            !k->queue_enabled(qbus->parent, hdev->vq_index + i)) {
+            continue;
+        }
         r = vhost_virtqueue_start(hdev,
                                   vdev,
                                   hdev->vqs + i,
@@ -1645,6 +1652,10 @@ fail_log:
     vhost_log_put(hdev, false);
 fail_vq:
     while (--i >= 0) {
+        if (k->queue_enabled &&
+            !k->queue_enabled(qbus->parent, hdev->vq_index + i)) {
+            continue;
+        }
         vhost_virtqueue_stop(hdev,
                              vdev,
                              hdev->vqs + i,
