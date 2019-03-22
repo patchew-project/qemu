@@ -422,11 +422,12 @@ static int img_create(int argc, char **argv)
     uint64_t img_size = -1;
     const char *fmt = "raw";
     const char *base_fmt = NULL;
-    const char *filename;
+    const char *filename, *path;
     const char *base_filename = NULL;
     char *options = NULL;
     Error *local_err = NULL;
     bool quiet = false;
+    bool file_already_existed = false;
     int flags = 0;
 
     for(;;) {
@@ -529,6 +530,15 @@ static int img_create(int argc, char **argv)
         error_exit("Unexpected argument: %s", argv[optind]);
     }
 
+    /*
+     * Check if 'filename' represents a local file that already
+     * exists in the file system prior to bdrv_img_create. Strip
+     * the leading 'file:' from the filename if it exists.
+     */
+    path = filename;
+    strstart(path, "file:", &path);
+    file_already_existed = bdrv_path_is_regular_file(path);
+
     bdrv_img_create(filename, fmt, base_filename, base_fmt,
                     options, img_size, flags, quiet, &local_err);
     if (local_err) {
@@ -541,6 +551,23 @@ static int img_create(int argc, char **argv)
 
 fail:
     g_free(options);
+    /*
+     * If an error occurred and we ended up creating a bogus
+     * 'filename' file, delete it
+     */
+    if (!file_already_existed && bdrv_path_is_regular_file(path)) {
+
+        int ret = bdrv_delete_file(path, fmt, &local_err);
+        /*
+         * ENOTSUP will happen if the block driver doesn't support
+         * 'bdrv_co_delete_file'. ENOENT will happen if the file
+         * doesn't exist. Both are predictable and shouldn't be
+         * reported back to the user.
+         */
+        if ((ret < 0) && (ret != -ENOTSUP) && (ret != -ENOENT)) {
+            error_reportf_err(local_err, "%s: ", filename);
+        }
+    }
     return 1;
 }
 
