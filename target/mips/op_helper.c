@@ -4371,18 +4371,37 @@ FOP_CONDN_S(sne,  (float32_lt(fst1, fst0, &env->active_fpu.fp_status)
 #define MEMOP_IDX(DF)
 #endif
 
-#define MSA_LD_DF(DF, TYPE, LD_INSN, ...)                               \
-void helper_msa_ld_ ## TYPE(CPUMIPSState *env, uint32_t wd,             \
-                            target_ulong addr)                          \
-{                                                                       \
-    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);                          \
-    wr_t wx;                                                            \
-    int i;                                                              \
-    MEMOP_IDX(DF)                                                       \
-    for (i = 0; i < DF_ELEMENTS(DF); i++) {                             \
-        wx.TYPE[i] = LD_INSN(env, addr + (i << DF), ##__VA_ARGS__);     \
-    }                                                                   \
-    memcpy(pwd, &wx, sizeof(wr_t));                                     \
+#if defined(HOST_WORDS_BIGENDIAN)
+    bool big_endian = 1;
+#else
+    bool big_endian = 0;
+#endif
+
+#define MSA_LD_DF(DF, TYPE, LD_INSN, ...)                                   \
+void helper_msa_ld_ ## TYPE(CPUMIPSState *env, uint32_t wd,                 \
+                            target_ulong addr)                              \
+{                                                                           \
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);                              \
+    wr_t wx;                                                                \
+    int i, k;                                                               \
+    MEMOP_IDX(DF)                                                           \
+    if (!big_endian) {                                                      \
+        for (i = 0; i < DF_ELEMENTS(DF); i++) {                             \
+            wx.TYPE[i] = LD_INSN(env, addr + (i << DF), ##__VA_ARGS__);     \
+        }                                                                   \
+    } else {                                                                \
+        for (i = 0; i < DF_ELEMENTS(DF); i++) {                             \
+            if (i < DF_ELEMENTS(DF) / 2) {                                  \
+                k = DF_ELEMENTS(DF) / 2 - i - 1;                            \
+                wx.TYPE[i] = LD_INSN(env, addr + (k << DF), ##__VA_ARGS__); \
+            } else {                                                        \
+                k = 3 * DF_ELEMENTS(DF) / 2 - i - 1;                        \
+                wx.TYPE[i] = LD_INSN(env, addr + (k << DF), ##__VA_ARGS__); \
+            }                                                               \
+        }                                                                   \
+    }                                                                       \
+                                                                            \
+    memcpy(pwd, &wx, sizeof(wr_t));                                         \
 }
 
 #if !defined(CONFIG_USER_ONLY)
@@ -4417,18 +4436,30 @@ static inline void ensure_writable_pages(CPUMIPSState *env,
 #endif
 }
 
-#define MSA_ST_DF(DF, TYPE, ST_INSN, ...)                               \
-void helper_msa_st_ ## TYPE(CPUMIPSState *env, uint32_t wd,             \
-                            target_ulong addr)                          \
-{                                                                       \
-    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);                          \
-    int mmu_idx = cpu_mmu_index(env, false);				\
-    int i;                                                              \
-    MEMOP_IDX(DF)                                                       \
-    ensure_writable_pages(env, addr, mmu_idx, GETPC());                 \
-    for (i = 0; i < DF_ELEMENTS(DF); i++) {                             \
-        ST_INSN(env, addr + (i << DF), pwd->TYPE[i], ##__VA_ARGS__);    \
-    }                                                                   \
+#define MSA_ST_DF(DF, TYPE, ST_INSN, ...)                                    \
+void helper_msa_st_ ## TYPE(CPUMIPSState *env, uint32_t wd,                  \
+                            target_ulong addr)                               \
+{                                                                            \
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);                               \
+    int mmu_idx = cpu_mmu_index(env, false);                                 \
+    int i, k;                                                                \
+    MEMOP_IDX(DF)                                                            \
+    ensure_writable_pages(env, addr, mmu_idx, GETPC());                      \
+    if (!big_endian) {                                                       \
+        for (i = 0; i < DF_ELEMENTS(DF); i++) {                              \
+            ST_INSN(env, addr + (i << DF), pwd->TYPE[i], ##__VA_ARGS__);     \
+        }                                                                    \
+    } else {                                                                 \
+        for (i = 0; i < DF_ELEMENTS(DF); i++) {                              \
+            if (i < DF_ELEMENTS(DF) / 2) {                                   \
+                k = DF_ELEMENTS(DF) / 2 - i - 1;                             \
+                ST_INSN(env, addr + (k << DF), pwd->TYPE[i], ##__VA_ARGS__); \
+            } else {                                                         \
+                k = 3 * DF_ELEMENTS(DF) / 2 - i - 1;                         \
+                ST_INSN(env, addr + (k << DF), pwd->TYPE[i], ##__VA_ARGS__); \
+            }                                                                \
+        }                                                                    \
+    }                                                                        \
 }
 
 #if !defined(CONFIG_USER_ONLY)
