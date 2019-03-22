@@ -211,6 +211,33 @@ void device_listener_unregister(DeviceListener *listener)
     QTAILQ_REMOVE(&device_listeners, listener, link);
 }
 
+bool qdev_should_hide_device(QemuOpts *opts, Error **errp)
+{
+    bool res = false;
+    bool match_found = false;
+    
+    DeviceListener *listener;
+
+    QTAILQ_FOREACH(listener, &device_listeners, link) {
+       if (listener->should_be_hidden) {
+            listener->should_be_hidden(listener, opts, &match_found, &res);
+        }
+
+        if (match_found)
+        {
+            break;
+        }
+    }
+    /* No suitable pair device was found */
+    if (!match_found)
+    {
+        error_setg(errp, "An error occurred: Couln't attach to standby device"
+        " Please note that the primary device should be"
+        " must be placed after the standby device in the command line");
+    }
+    return res;
+}
+
 void qdev_set_legacy_instance_id(DeviceState *dev, int alias_id,
                                  int required_for_version)
 {
