@@ -548,6 +548,51 @@ int bdrv_create_file(const char *filename, QemuOpts *opts, Error **errp)
 }
 
 /**
+ * Helper that checks if a given path represents a regular
+ * local file.
+ */
+bool bdrv_path_is_regular_file(const char *path)
+{
+    struct stat st;
+
+    return (stat(path, &st) == 0) && S_ISREG(st.st_mode);
+}
+
+/**
+ * Co-routine function that erases a regular file. Its original
+ * intent is as a implementation of bdrv_co_delete_file for
+ * the "luks" driver that can leave created files behind in the
+ * file system when the authentication fails.
+ *
+ * The function is exposed here, and with 'generic' in its name,
+ * because file removal isn't usually format specific and any other
+ * BlockDriver might want to re-use this function.
+ */
+int coroutine_fn bdrv_co_delete_file_generic(const char *filename,
+                                             Error **errp)
+{
+    int ret;
+
+    /* Skip file: protocol prefix */
+    strstart(filename, "file:", &filename);
+
+    if (!bdrv_path_is_regular_file(filename)) {
+        ret = -ENOENT;
+        error_setg_errno(errp, -ret, "%s is not a regular file", filename);
+        goto done;
+    }
+
+    ret = unlink(filename);
+    if (ret < 0) {
+        ret = -errno;
+        error_setg_errno(errp, -ret, "Error when deleting file %s", filename);
+    }
+
+done:
+    return ret;
+}
+
+/**
  * Try to get @bs's logical and physical block size.
  * On success, store them in @bsz struct and return 0.
  * On failure return -errno.

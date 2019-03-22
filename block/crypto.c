@@ -639,6 +639,8 @@ static BlockDriver bdrv_crypto_luks = {
     .bdrv_co_truncate   = block_crypto_co_truncate,
     .create_opts        = &block_crypto_create_opts_luks,
 
+    .bdrv_co_delete_file = bdrv_co_delete_file_generic,
+
     .bdrv_reopen_prepare = block_crypto_reopen_prepare,
     .bdrv_refresh_limits = block_crypto_refresh_limits,
     .bdrv_co_preadv     = block_crypto_co_preadv,
