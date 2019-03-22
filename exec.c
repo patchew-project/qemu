@@ -3717,7 +3717,7 @@ void *address_space_map(AddressSpace *as,
 void address_space_unmap(AddressSpace *as, void *buffer, hwaddr len,
                          int is_write, hwaddr access_len)
 {
-    if (buffer != bounce.buffer) {
+    if ((buffer < bounce.buffer) || (buffer + access_len > bounce.buffer + bounce.len)) {
         MemoryRegion *mr;
         ram_addr_t addr1;
 
