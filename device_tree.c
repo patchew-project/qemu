@@ -79,9 +79,9 @@ void *load_device_tree(const char *filename_path, int *sizep)
 
     *sizep = 0;
     dt_size = get_image_size(filename_path);
-    if (dt_size < 0) {
-        error_report("Unable to get size of device tree file '%s'",
-                     filename_path);
+    if (dt_size < 0 || dt_size > FDT_MAX_SIZE) {
+        error_report("Invalid size of device tree file: %s: %d",
+                     filename_path, dt_size);
         goto fail;
     }
 
