@@ -45,12 +45,10 @@ void HELPER(itlb_hit_test)(CPUXtensaState *env, uint32_t vaddr)
 
 void HELPER(wsr_rasid)(CPUXtensaState *env, uint32_t v)
 {
-    XtensaCPU *cpu = xtensa_env_get_cpu(env);
-
     v = (v & 0xffffff00) | 0x1;
     if (v != env->sregs[RASID]) {
         env->sregs[RASID] = v;
-        tlb_flush(CPU(cpu));
+        tlb_flush(env_cpu(env));
     }
 }
 
@@ -249,7 +247,7 @@ void HELPER(itlb)(CPUXtensaState *env, uint32_t v, uint32_t dtlb)
         uint32_t wi;
         xtensa_tlb_entry *entry = get_tlb_entry(env, v, dtlb, &wi);
         if (entry->variable && entry->asid) {
-            tlb_flush_page(CPU(xtensa_env_get_cpu(env)), entry->vaddr);
+            tlb_flush_page(env_cpu(env), entry->vaddr);
             entry->asid = 0;
         }
     }
@@ -295,8 +293,7 @@ void xtensa_tlb_set_entry_mmu(const CPUXtensaState *env,
 void xtensa_tlb_set_entry(CPUXtensaState *env, bool dtlb,
                           unsigned wi, unsigned ei, uint32_t vpn, uint32_t pte)
 {
-    XtensaCPU *cpu = xtensa_env_get_cpu(env);
-    CPUState *cs = CPU(cpu);
+    CPUState *cs = env_cpu(env);
     xtensa_tlb_entry *entry = xtensa_tlb_get_entry(env, dtlb, wi, ei);
 
     if (xtensa_option_enabled(env->config, XTENSA_OPTION_MMU)) {
@@ -651,7 +648,7 @@ static int get_physical_addr_mmu(CPUXtensaState *env, bool update_tlb,
 
 static bool get_pte(CPUXtensaState *env, uint32_t vaddr, uint32_t *pte)
 {
-    CPUState *cs = CPU(xtensa_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
     uint32_t paddr;
     uint32_t page_size;
     unsigned access;
