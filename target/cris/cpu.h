@@ -25,8 +25,6 @@
 #include "cpu-qom.h"
 #include "exec/cpu-defs.h"
 
-#define CPUArchState struct CPUCRISState
-
 #define EXCP_NMI        1
 #define EXCP_GURU       2
 #define EXCP_BUSFAULT   3
@@ -285,6 +283,8 @@ int cris_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int size, int rw,
 #define SFR_RW_MM_TLB_SEL  env->pregs[PR_SRS]][4
 #define SFR_RW_MM_TLB_LO   env->pregs[PR_SRS]][5
 #define SFR_RW_MM_TLB_HI   env->pregs[PR_SRS]][6
+
+typedef CPUCRISState CPUArchState;
 
 #include "exec/cpu-all.h"
 

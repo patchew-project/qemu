@@ -24,9 +24,6 @@
 #include "cpu-qom.h"
 #include "exec/cpu-defs.h"
 
-#define CPUArchState struct CPULM32State
-
-struct CPULM32State;
 typedef struct CPULM32State CPULM32State;
 
 static inline int cpu_mmu_index(CPULM32State *env, bool ifetch)
@@ -258,6 +255,8 @@ bool lm32_cpu_do_semihosting(CPUState *cs);
 
 int lm32_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int size, int rw,
                               int mmu_idx);
+
+typedef CPULM32State CPUArchState;
 
 #include "exec/cpu-all.h"
 

@@ -25,8 +25,6 @@
 #include "exec/cpu-defs.h"
 #include "cpu-qom.h"
 
-#define CPUArchState struct CPUM68KState
-
 #define OS_BYTE     0
 #define OS_WORD     1
 #define OS_LONG     2
@@ -536,6 +534,8 @@ int m68k_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int size, int rw,
 void m68k_cpu_unassigned_access(CPUState *cs, hwaddr addr,
                                 bool is_write, bool is_exec, int is_asi,
                                 unsigned size);
+
+typedef CPUM68KState CPUArchState;
 
 #include "exec/cpu-all.h"
 
