@@ -366,6 +366,7 @@ int mb_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int size, int rw,
                             int mmu_idx);
 
 typedef CPUMBState CPUArchState;
+typedef MicroBlazeCPU ArchCPU;
 
 #include "exec/cpu-all.h"
 

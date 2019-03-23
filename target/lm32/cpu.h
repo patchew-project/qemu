@@ -257,6 +257,7 @@ int lm32_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int size, int rw,
                               int mmu_idx);
 
 typedef CPULM32State CPUArchState;
+typedef LM32CPU ArchCPU;
 
 #include "exec/cpu-all.h"
 

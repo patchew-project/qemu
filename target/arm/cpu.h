@@ -3044,6 +3044,7 @@ static inline bool arm_cpu_data_is_big_endian(CPUARMState *env)
 }
 
 typedef CPUARMState CPUArchState;
+typedef ARMCPU ArchCPU;
 
 #include "exec/cpu-all.h"
 
