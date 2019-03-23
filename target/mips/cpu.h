@@ -1051,11 +1051,6 @@ struct MIPSCPU {
     CPUMIPSState env;
 };
 
-static inline MIPSCPU *mips_env_get_cpu(CPUMIPSState *env)
-{
-    return container_of(env, MIPSCPU, env);
-}
-
 #define ENV_OFFSET offsetof(MIPSCPU, env)
 
 void mips_cpu_list (FILE *f, fprintf_function cpu_fprintf);
