@@ -139,8 +139,7 @@ static void set_idt(int n, unsigned int dpl)
 
 void cpu_loop(CPUX86State *env)
 {
-    X86CPU *cpu = x86_env_get_cpu(env);
-    CPUState *cs = CPU(cpu);
+    CPUState *cs = env_cpu(cpu);
     int trapnr;
     abi_ulong pc;
     //target_siginfo_t info;
