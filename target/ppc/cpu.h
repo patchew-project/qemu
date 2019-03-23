@@ -993,8 +993,6 @@ struct CPUPPCState {
     int access_type; /* when a memory exception occurs, the access
                         type is stored here */
 
-    CPU_COMMON
-
     /* MMU context - only relevant for full system emulation */
 #if !defined(CONFIG_USER_ONLY)
 #if defined(TARGET_PPC64)
