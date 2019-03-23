@@ -102,7 +102,7 @@ static inline DATA_TYPE glue(io_read, SUFFIX)(CPUArchState *env,
                                               bool recheck,
                                               MMUAccessType access_type)
 {
-    CPUIOTLBEntry *iotlbentry = &env->iotlb[mmu_idx][index];
+    CPUIOTLBEntry *iotlbentry = &env_tlb(env)->d[mmu_idx].iotlb[index];
     return io_readx(env, iotlbentry, mmu_idx, addr, retaddr, recheck,
                     access_type, DATA_SIZE);
 }
@@ -273,7 +273,7 @@ static inline void glue(io_write, SUFFIX)(CPUArchState *env,
                                           uintptr_t retaddr,
                                           bool recheck)
 {
-    CPUIOTLBEntry *iotlbentry = &env->iotlb[mmu_idx][index];
+    CPUIOTLBEntry *iotlbentry = &env_tlb(env)->d[mmu_idx].iotlb[index];
     return io_writex(env, iotlbentry, mmu_idx, val, addr, retaddr,
                      recheck, DATA_SIZE);
 }
