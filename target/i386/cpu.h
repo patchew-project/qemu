@@ -1477,7 +1477,6 @@ struct X86CPU {
     int32_t hv_max_vps;
 };
 
-#define ENV_OFFSET offsetof(X86CPU, env)
 
 #ifndef CONFIG_USER_ONLY
 extern struct VMStateDescription vmstate_x86_cpu;
