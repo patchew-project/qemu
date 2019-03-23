@@ -1603,7 +1603,7 @@ static inline void decode(DisasContext *dc, uint32_t ir)
 void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
 {
     CPUMBState *env = cs->env_ptr;
-    MicroBlazeCPU *cpu = mb_env_get_cpu(env);
+    MicroBlazeCPU *cpu = env_archcpu(env);
     uint32_t pc_start;
     struct DisasContext ctx;
     struct DisasContext *dc = &ctx;
