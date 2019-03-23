@@ -718,9 +718,7 @@ static int nbd_co_receive_blockstatus_reply(NBDClientSession *s,
     bool received = false;
 
     assert(!extent->length);
-    NBD_FOREACH_REPLY_CHUNK(s, iter, handle, s->info.structured_reply,
-                            NULL, &reply, &payload)
-    {
+    NBD_FOREACH_REPLY_CHUNK(s, iter, handle, false, NULL, &reply, &payload) {
         int ret;
         NBDStructuredReplyChunk *chunk = &reply.structured;
 
@@ -758,9 +756,11 @@ static int nbd_co_receive_blockstatus_reply(NBDClientSession *s,
         payload = NULL;
     }
 
-    if (!extent->length && !iter.err) {
-        error_setg(&iter.err,
-                   "Server did not reply with any status extents");
+    if (!extent->length && !iter.request_ret) {
+        if (!iter.err) {
+            error_setg(&iter.err,
+                       "Server did not reply with any status extents");
+        }
         if (!iter.ret) {
             iter.ret = -EIO;
         }
