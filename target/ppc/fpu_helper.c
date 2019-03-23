@@ -64,13 +64,35 @@ uint64_t helper_todouble(uint32_t arg)
         ret |= (uint64_t)extract32(arg, 0, 30) << 29;
     } else {
         /* Zero or Denormalized operand.  */
-        ret = (uint64_t)extract32(arg, 31, 1) << 63;
+
+        /*
+         * Conversion mechanics:
+         * float denorm (2^(-126) - biased):
+         *    [ sign (1 bit) | exp32 (8 bits)  | sign32 (23 bits) ]
+         *                 s                0    0001abc...def
+         * double norm (2^(-1023) - biased):
+         *    [ sign (1 bit) | exp64 (11 bits) | sign64 (52 bits) ]
+         *                 s              exp    abc...def 00..0
+         * Thus we are performing the following conversion steps:
+         * 1. preserve the sign
+         * 2. normalize denorm sign32:
+         *   2a. drop explicit leading '1' as normalized numbers
+         *       don't contain it
+         *   2b. calculate the bit-shift needed to match implicit '1'
+         * 3. calculate 'exp64' as bias delta plus denorm offset
+         * 4. put calculated 'sign64' into new location
+         */
+        ret = (uint64_t)extract32(arg, 31, 1) << 63; /* [1.] */
         if (unlikely(abs_arg != 0)) {
             /* Denormalized operand.  */
-            int shift = clz32(abs_arg) - 9;
-            int exp = -126 - shift + 1023;
-            ret |= (uint64_t)exp << 52;
-            ret |= abs_arg << (shift + 29);
+            int lz = clz32(abs_arg);
+            abs_arg &= ~(1 << (31 - lz)); /* [2a.] */
+
+            /* shift within sign32 includeing leading '1' */
+            int shift = lz + 1 - (32 - 23);
+            int exp = -126 + 1023 - shift; /* [2b]. */
+            ret |= (uint64_t)exp << 52; /* [3.] */
+            ret |= (uint64_t)abs_arg << (52 - 23 + shift); /* [4.] */
         }
     }
     return ret;
