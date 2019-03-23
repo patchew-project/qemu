@@ -241,6 +241,18 @@ typedef struct icount_decr_u16 {
 } icount_decr_u16;
 #endif
 
+/*
+ * Low 16 bits: number of cycles left, used only in icount mode.
+ * High 16 bits: Set to -1 to force TCG to stop executing linked TBs
+ * for this CPU and return to its top level loop (even in non-icount mode).
+ * This allows a single read-compare-cbranch-write sequence to test
+ * for both decrementer underflow and exceptions.
+ */
+typedef union icount_decr {
+    uint32_t u32;
+    icount_decr_u16 u16;
+} icount_decr;
+
 typedef struct CPUBreakpoint {
     vaddr pc;
     int flags; /* BP_* */
@@ -311,11 +323,6 @@ struct qemu_work_item;
  * @crash_occurred: Indicates the OS reported a crash (panic) for this CPU
  * @singlestep_enabled: Flags for single-stepping.
  * @icount_extra: Instructions until next timer event.
- * @icount_decr: Low 16 bits: number of cycles left, only used in icount mode.
- * High 16 bits: Set to -1 to force TCG to stop executing linked TBs for this
- * CPU and return to its top level loop (even in non-icount mode).
- * This allows a single read-compare-cbranch-write sequence to test
- * for both decrementer underflow and exceptions.
  * @can_do_io: Nonzero if memory-mapped IO is safe. Deterministic execution
  * requires that IO only be performed on the last instruction of a TB
  * so that interrupts take effect immediately.
@@ -436,15 +443,6 @@ struct CPUState {
     bool throttle_thread_scheduled;
 
     bool ignore_memory_transaction_failures;
-
-    /* Note that this is accessed at the start of every TB via a negative
-       offset from AREG0.  Leave this field at the end so as to make the
-       (absolute value) offset as small as possible.  This reduces code
-       size, especially for hosts without large memory offsets.  */
-    union {
-        uint32_t u32;
-        icount_decr_u16 u16;
-    } icount_decr;
 
     struct hax_vcpu_state *hax_vcpu;
 
@@ -1109,6 +1107,8 @@ void cpu_exec_unrealizefn(CPUState *cpu);
  * what you are doing!
  */
 bool target_words_bigendian(void);
+
+void cpu_common_reset(CPUState *cpu);
 
 #ifdef NEED_CPU_H
 
