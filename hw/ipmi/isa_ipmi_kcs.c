@@ -524,6 +524,8 @@ static void isa_ipmi_kcs_class_init(ObjectClass *oc, void *data)
 
     dc->realize = ipmi_isa_realize;
     dc->props = ipmi_isa_properties;
+    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
+    dc->desc = "ISA IPMI KCS System Interface";
 
     iic->get_backend_data = isa_ipmi_kcs_get_backend_data;
     ipmi_kcs_class_init(iic);

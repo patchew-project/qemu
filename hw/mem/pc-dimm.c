@@ -259,6 +259,7 @@ static void pc_dimm_class_init(ObjectClass *oc, void *data)
     dc->unrealize = pc_dimm_unrealize;
     dc->props = pc_dimm_properties;
     dc->desc = "DIMM memory module";
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 
     ddc->get_vmstate_memory_region = pc_dimm_get_memory_region;
 

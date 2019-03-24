@@ -541,6 +541,8 @@ static void isa_ipmi_bt_class_init(ObjectClass *oc, void *data)
 
     dc->realize = isa_ipmi_bt_realize;
     dc->props = ipmi_isa_properties;
+    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
+    dc->desc = "ISA IPMI BT System Interface";
 
     iic->get_backend_data = isa_ipmi_bt_get_backend_data;
     ipmi_bt_class_init(iic);

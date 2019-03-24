@@ -1020,6 +1020,9 @@ static void tpm_tis_class_init(ObjectClass *klass, void *data)
     dc->props = tpm_tis_properties;
     dc->reset = tpm_tis_reset;
     dc->vmsd  = &vmstate_tpm_tis;
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
+    dc->desc = "Trusted Platform Module (TPM) TIS Interface";
+
     tc->model = TPM_MODEL_TPM_TIS;
     tc->get_version = tpm_tis_get_tpm_version;
     tc->request_completed = tpm_tis_request_completed;

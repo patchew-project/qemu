@@ -526,6 +526,8 @@ static void ipmi_bmc_extern_class_init(ObjectClass *oc, void *data)
     dc->hotpluggable = false;
     dc->realize = ipmi_bmc_extern_realize;
     dc->props = ipmi_bmc_extern_properties;
+    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
+    dc->desc = "IPMI Baseboard management controller";
 }
 
 static const TypeInfo ipmi_bmc_extern_type = {

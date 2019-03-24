@@ -2016,6 +2016,8 @@ static void ipmi_sim_class_init(ObjectClass *oc, void *data)
     dc->realize = ipmi_sim_realize;
     dc->props = ipmi_sim_properties;
     bk->handle_command = ipmi_sim_handle_command;
+    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
+    dc->desc = "IPMI Baseboard management controller";
 }
 
 static const TypeInfo ipmi_sim_type = {
