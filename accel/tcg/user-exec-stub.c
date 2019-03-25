@@ -10,8 +10,9 @@ void cpu_resume(CPUState *cpu)
 {
 }
 
-void qemu_init_vcpu(CPUState *cpu)
+bool qemu_init_vcpu(CPUState *cpu, Error **errp)
 {
+    return true;
 }
 
 /* User mode emulation does not support record/replay yet.  */
