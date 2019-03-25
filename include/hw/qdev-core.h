@@ -500,4 +500,10 @@ static inline bool qbus_is_hotpluggable(BusState *bus)
 void device_listener_register(DeviceListener *listener);
 void device_listener_unregister(DeviceListener *listener);
 
+/**
+ * device_vmstate_reset:
+ * vmstate entry for reset related state
+ */
+extern const struct VMStateDescription device_vmstate_reset;
+
 #endif

@@ -5,6 +5,7 @@ common-obj-y += resettable.o
 common-obj-y += reset-domain.o
 common-obj-$(CONFIG_SOFTMMU) += qdev-fw.o
 common-obj-$(CONFIG_SOFTMMU) += fw-path-provider.o
+common-obj-$(CONFIG_SOFTMMU) += qdev-vmstate.o
 # irq.o needed for qdev GPIO handling:
 common-obj-y += irq.o
 common-obj-y += hotplug.o
