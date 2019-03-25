@@ -96,6 +96,10 @@ REG32(SPI_RST_CTRL, 0x21c)
 REG32(CAN_RST_CTRL, 0x220)
 REG32(I2C_RST_CTRL, 0x224)
 REG32(UART_RST_CTRL, 0x228)
+    FIELD(UART_RST_CTRL, UART0_CPU1X_RST, 0, 1)
+    FIELD(UART_RST_CTRL, UART1_CPU1X_RST, 1, 1)
+    FIELD(UART_RST_CTRL, UART0_REF_RST, 2, 1)
+    FIELD(UART_RST_CTRL, UART1_REF_RST, 3, 1)
 REG32(GPIO_RST_CTRL, 0x22c)
 REG32(LQSPI_RST_CTRL, 0x230)
 REG32(SMC_RST_CTRL, 0x234)
@@ -178,7 +182,13 @@ typedef struct ZynqSLCRState {
     MemoryRegion iomem;
 
     uint32_t regs[ZYNQ_SLCR_NUM_REGS];
+
+    qemu_irq uart0_rst;
+    qemu_irq uart1_rst;
 } ZynqSLCRState;
+
+#define ZYNQ_SLCR_REGFIELD_TO_OUT(state, irq, reg, field) \
+    qemu_set_irq((state)->irq, ARRAY_FIELD_EX32((state)->regs, reg, field) != 0)
 
 static void zynq_slcr_reset_init(Object *obj, bool cold)
 {
@@ -276,6 +286,18 @@ static void zynq_slcr_reset_init(Object *obj, bool cold)
     s->regs[R_DDRIOB + 12] = 0x00000021;
 }
 
+static void zynq_slcr_compute_uart_reset(ZynqSLCRState *s)
+{
+    ZYNQ_SLCR_REGFIELD_TO_OUT(s, uart0_rst, UART_RST_CTRL, UART0_REF_RST);
+    ZYNQ_SLCR_REGFIELD_TO_OUT(s, uart1_rst, UART_RST_CTRL, UART1_REF_RST);
+}
+
+static void zynq_slcr_reset_hold(Object *obj)
+{
+    ZynqSLCRState *s = ZYNQ_SLCR(obj);
+
+    zynq_slcr_compute_uart_reset(s);
+}
 
 static bool zynq_slcr_check_offset(hwaddr offset, bool rnw)
 {
@@ -416,6 +438,9 @@ static void zynq_slcr_write(void *opaque, hwaddr offset,
             qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
         }
         break;
+    case R_UART_RST_CTRL:
+        zynq_slcr_compute_uart_reset(s);
+        break;
     }
 }
 
@@ -432,6 +457,9 @@ static void zynq_slcr_init(Object *obj)
     memory_region_init_io(&s->iomem, obj, &slcr_ops, s, "slcr",
                           ZYNQ_SLCR_MMIO_SIZE);
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->iomem);
+
+    qdev_init_gpio_out_named(DEVICE(obj), &s->uart0_rst, "uart0_rst", 1);
+    qdev_init_gpio_out_named(DEVICE(obj), &s->uart1_rst, "uart1_rst", 1);
 }
 
 static const VMStateDescription vmstate_zynq_slcr = {
@@ -450,6 +478,7 @@ static void zynq_slcr_class_init(ObjectClass *klass, void *data)
 
     dc->vmsd = &vmstate_zynq_slcr;
     dc->reset_phases.init = zynq_slcr_reset_init;
+    dc->reset_phases.hold = zynq_slcr_reset_hold;
 }
 
 static const TypeInfo zynq_slcr_info = {
