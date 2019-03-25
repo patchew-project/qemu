@@ -1332,9 +1332,11 @@ void helper_msa_insert_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
     case DF_WORD:
         pwd->w[n] = (int32_t)rs;
         break;
+#ifdef TARGET_MIPS64
     case DF_DOUBLE:
         pwd->d[n] = (int64_t)rs;
         break;
+#endif
     default:
         assert(0);
     }
