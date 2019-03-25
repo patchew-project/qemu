@@ -20,6 +20,8 @@ const struct VMStateDescription device_vmstate_reset = {
     .minimum_version_id = 0,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(resetting, DeviceState),
+        VMSTATE_BOOL(cold_reset_input.state, DeviceState),
+        VMSTATE_BOOL(warm_reset_input.state, DeviceState),
         VMSTATE_END_OF_LIST()
     }
 };

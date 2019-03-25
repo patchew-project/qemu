@@ -464,6 +464,61 @@ void qdev_init_gpio_in(DeviceState *dev, qemu_irq_handler handler, int n)
     qdev_init_gpio_in_named(dev, handler, NULL, n);
 }
 
+static void device_reset_handler(DeviceState *dev, bool cold, bool level)
+{
+    DeviceResetInputState *dris;
+
+    dris = cold ? &dev->cold_reset_input : &dev->warm_reset_input;
+
+    if (level == dris->state) {
+        /* io state has not changed */
+        return;
+    }
+
+    dris->state = level;
+    switch (dris->type) {
+    case DEVICE_ACTIVE_LOW:
+        level = !level;
+    case DEVICE_ACTIVE_HIGH:
+        if (level) {
+            resettable_assert_reset(OBJECT(dev), cold);
+        } else {
+            resettable_deassert_reset(OBJECT(dev));
+        }
+        break;
+    }
+}
+
+static void device_cold_reset_handler(void *opaque, int n, int level)
+{
+    device_reset_handler((DeviceState *) opaque, true, level);
+}
+
+static void device_warm_reset_handler(void *opaque, int n, int level)
+{
+    device_reset_handler((DeviceState *) opaque, false, level);
+}
+
+void qdev_init_reset_gpio_in_named(DeviceState *dev, const char *name,
+                                   bool cold, DeviceActiveType type)
+{
+    qemu_irq_handler handler;
+
+    if (cold) {
+        assert(!dev->cold_reset_input.exists);
+        dev->cold_reset_input.exists = true;
+        dev->cold_reset_input.type = type;
+        handler = device_cold_reset_handler;
+    } else {
+        assert(!dev->warm_reset_input.exists);
+        dev->warm_reset_input.exists = true;
+        dev->warm_reset_input.type = type;
+        handler = device_warm_reset_handler;
+    }
+
+    qdev_init_gpio_in_named(dev, handler, name, 1);
+}
+
 void qdev_init_gpio_out_named(DeviceState *dev, qemu_irq *pins,
                               const char *name, int n)
 {
@@ -1021,6 +1076,8 @@ static void device_initfn(Object *obj)
     dev->instance_id_alias = -1;
     dev->realized = false;
     dev->resetting = 0;
+    dev->cold_reset_input.exists = false;
+    dev->warm_reset_input.exists = false;
 
     object_property_add_bool(obj, "realized",
                              device_get_realized, device_set_realized, NULL);
