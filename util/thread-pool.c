@@ -61,6 +61,7 @@ struct ThreadPool {
     QemuSemaphore sem;
     int max_threads;
     QEMUBH *new_thread_bh;
+    EventNotifier e;
 
     /* The following variables are only accessed from one AioContext. */
     QLIST_HEAD(, ThreadPoolElement) head;
@@ -72,6 +73,7 @@ struct ThreadPool {
     int new_threads;     /* backlog of threads we need to create */
     int pending_threads; /* threads created but not running yet */
     bool stopping;
+    bool event_notifier_enabled;
 };
 
 static void *worker_thread(void *opaque)
@@ -108,6 +110,9 @@ static void *worker_thread(void *opaque)
         /* Write ret before state.  */
         smp_wmb();
         req->state = THREAD_DONE;
+        if (pool->event_notifier_enabled) {
+            event_notifier_set(&pool->e);
+        }
 
         qemu_mutex_lock(&pool->lock);
 
@@ -160,10 +165,10 @@ static void spawn_thread(ThreadPool *pool)
     }
 }
 
-static void thread_pool_completion_bh(void *opaque)
+static bool thread_pool_process_completions(ThreadPool *pool)
 {
-    ThreadPool *pool = opaque;
     ThreadPoolElement *elem, *next;
+    bool progress = false;
 
     aio_context_acquire(pool->ctx);
 restart:
@@ -171,6 +176,8 @@ restart:
         if (elem->state != THREAD_DONE) {
             continue;
         }
+
+        progress = true;
 
         trace_thread_pool_complete(pool, elem, elem->common.opaque,
                                    elem->ret);
@@ -202,6 +209,32 @@ restart:
         }
     }
     aio_context_release(pool->ctx);
+
+    return progress;
+}
+
+static void thread_pool_completion_bh(void *opaque)
+{
+    ThreadPool *pool = opaque;
+
+    thread_pool_process_completions(pool);
+}
+
+static void thread_pool_completion_cb(EventNotifier *e)
+{
+    ThreadPool *pool = container_of(e, ThreadPool, e);
+
+    if (event_notifier_test_and_clear(&pool->e)) {
+        thread_pool_completion_bh(pool);
+    }
+}
+
+static bool thread_pool_poll_cb(void *opaque)
+{
+    EventNotifier *e = opaque;
+    ThreadPool *pool = container_of(e, ThreadPool, e);
+
+    return thread_pool_process_completions(pool);
 }
 
 static void thread_pool_cancel(BlockAIOCB *acb)
@@ -311,6 +344,13 @@ static void thread_pool_init_one(ThreadPool *pool, AioContext *ctx)
     pool->max_threads = 64;
     pool->new_thread_bh = aio_bh_new(ctx, spawn_thread_bh_fn, pool);
 
+    if (event_notifier_init(&pool->e, false) >= 0) {
+        aio_set_event_notifier(ctx, &pool->e, false,
+                               thread_pool_completion_cb,
+                               thread_pool_poll_cb);
+        pool->event_notifier_enabled = true;
+    }
+
     QLIST_INIT(&pool->head);
     QTAILQ_INIT(&pool->request_list);
 }
@@ -346,6 +386,10 @@ void thread_pool_free(ThreadPool *pool)
 
     qemu_mutex_unlock(&pool->lock);
 
+    if (pool->event_notifier_enabled) {
+        aio_set_event_notifier(pool->ctx, &pool->e, false, NULL, NULL);
+        event_notifier_cleanup(&pool->e);
+    }
     qemu_bh_delete(pool->completion_bh);
     qemu_sem_destroy(&pool->sem);
     qemu_cond_destroy(&pool->worker_stopped);
