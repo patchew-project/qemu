@@ -150,7 +150,7 @@ static void qbus_realize(BusState *bus, DeviceState *parent, const char *name)
     } else if (bus != sysbus_get_default()) {
         /* TODO: once all bus devices are qdevified,
            only reset handler for main_system_bus should be registered here. */
-        qemu_register_reset(qbus_reset_all_fn, bus);
+        qemu_register_system_reset_domain_object(OBJECT(bus));
     }
 }
 
@@ -169,7 +169,7 @@ static void bus_unparent(Object *obj)
         bus->parent = NULL;
     } else {
         assert(bus != sysbus_get_default()); /* main_system_bus is never freed */
-        qemu_unregister_reset(qbus_reset_all_fn, bus);
+        qemu_unregister_system_reset_domain_object(OBJECT(bus));
     }
 }
 
