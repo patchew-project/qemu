@@ -4537,7 +4537,7 @@ int main(int argc, char **argv, char **envp)
 
     /* TODO: once all bus devices are qdevified, this should be done
      * when bus is created by qdev.c */
-    qemu_register_reset(qbus_reset_all_fn, sysbus_get_default());
+    qemu_register_system_reset_domain_object(OBJECT(sysbus_get_default()));
     qemu_run_machine_init_done_notifiers();
 
     if (rom_check_and_register_reset() != 0) {
