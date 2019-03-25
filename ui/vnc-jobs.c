@@ -332,16 +332,21 @@ static bool vnc_worker_thread_running(void)
     return queue; /* Check global queue */
 }
 
-void vnc_start_worker_thread(void)
+bool vnc_start_worker_thread(Error **errp)
 {
     VncJobQueue *q;
 
-    if (vnc_worker_thread_running())
-        return ;
+    if (vnc_worker_thread_running()) {
+        return true;
+    }
 
     q = vnc_queue_init();
-    /* TODO: let the further caller handle the error instead of abort() here */
-    qemu_thread_create(&q->thread, "vnc_worker", vnc_worker_thread,
-                       q, QEMU_THREAD_DETACHED, &error_abort);
+    if (qemu_thread_create(&q->thread, "vnc_worker", vnc_worker_thread,
+                           q, QEMU_THREAD_DETACHED, errp) < 0) {
+        vnc_queue_clear(q);
+        return false;
+    }
     queue = q; /* Set global queue */
+
+    return true;
 }
