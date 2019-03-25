@@ -1466,11 +1466,13 @@ void helper_msa_fill_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
             pwd->w[i] = (int32_t)env->active_tc.gpr[rs];
         }
         break;
+#ifdef TARGET_MIPS64
     case DF_DOUBLE:
         for (i = 0; i < DF_ELEMENTS(DF_DOUBLE); i++) {
             pwd->d[i] = (int64_t)env->active_tc.gpr[rs];
         }
        break;
+#endif
     default:
         assert(0);
     }
