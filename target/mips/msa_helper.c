@@ -1299,12 +1299,9 @@ void helper_msa_copy_u_df(CPUMIPSState *env, uint32_t df, uint32_t rd,
     case DF_HALF:
         env->active_tc.gpr[rd] = (uint16_t)env->active_fpu.fpr[ws].wr.h[n];
         break;
+#ifdef TARGET_MIPS64
     case DF_WORD:
         env->active_tc.gpr[rd] = (uint32_t)env->active_fpu.fpr[ws].wr.w[n];
-        break;
-#ifdef TARGET_MIPS64
-    case DF_DOUBLE:
-        env->active_tc.gpr[rd] = (uint64_t)env->active_fpu.fpr[ws].wr.d[n];
         break;
 #endif
     default:
