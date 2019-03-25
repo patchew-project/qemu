@@ -221,6 +221,7 @@ static int vhost_net_start_one(struct vhost_net *net,
                                VirtIODevice *dev)
 {
     struct vhost_vring_file file = { };
+    hwaddr a;
     int r;
 
     net->dev.nvqs = 2;
@@ -244,6 +245,13 @@ static int vhost_net_start_one(struct vhost_net *net,
         qemu_set_fd_handler(net->backend, NULL, NULL, NULL);
         file.fd = net->backend;
         for (file.index = 0; file.index < net->dev.nvqs; ++file.index) {
+            a = virtio_queue_get_desc_addr(dev,
+                                           net->dev.vq_index +
+                                           file.index);
+            if (a == 0) {
+                /* Queue might not be ready for start */
+                continue;
+            }
             r = vhost_net_set_backend(&net->dev, &file);
             if (r < 0) {
                 r = -errno;
@@ -256,6 +264,13 @@ fail:
     file.fd = -1;
     if (net->nc->info->type == NET_CLIENT_DRIVER_TAP) {
         while (file.index-- > 0) {
+            a = virtio_queue_get_desc_addr(dev,
+                                           net->dev.vq_index +
+                                           file.index);
+            if (a == 0) {
+                /* Queue might not be ready for start */
+                continue;
+            }
             int r = vhost_net_set_backend(&net->dev, &file);
             assert(r >= 0);
         }
