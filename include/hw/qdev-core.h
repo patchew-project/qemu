@@ -6,6 +6,7 @@
 #include "qom/object.h"
 #include "hw/irq.h"
 #include "hw/hotplug.h"
+#include "hw/resettable.h"
 
 enum {
     DEV_NVECTORS_UNSPECIFIED = -1,
@@ -110,6 +111,7 @@ typedef struct DeviceClass {
     DeviceReset reset;
     DeviceRealize realize;
     DeviceUnrealize unrealize;
+    ResettablePhases reset_phases;
 
     /* device state */
     const struct VMStateDescription *vmsd;
@@ -454,6 +456,21 @@ void device_class_set_parent_realize(DeviceClass *dc,
 void device_class_set_parent_unrealize(DeviceClass *dc,
                                        DeviceUnrealize dev_unrealize,
                                        DeviceUnrealize *parent_unrealize);
+
+/**
+ * @device_class_set_parent_reset_phases:
+ *
+ * Save @dc current reset phases into @parent_phases and override @dc phases
+ * by the given new methods (@dev_reset_init, @dev_reset_hold and
+ * @dev_reset_exit).
+ * Each phase is overriden only if the new one is not NULL allowing to
+ * override a subset of phases.
+ */
+void device_class_set_parent_reset_phases(DeviceClass *dc,
+                                   ResettableInitPhase dev_reset_init,
+                                   ResettableHoldPhase dev_reset_hold,
+                                   ResettableExitPhase dev_reset_exit,
+                                   ResettablePhases *parent_phases);
 
 const struct VMStateDescription *qdev_get_vmsd(DeviceState *dev);
 

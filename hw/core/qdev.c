@@ -280,21 +280,30 @@ static void device_reset_init_phase(Object *obj, bool cold)
     if (dc->reset) {
         dc->reset(dev);
     }
+    if (dc->reset_phases.init) {
+        dc->reset_phases.init(OBJECT(dev), cold);
+    }
 }
 
 static void device_reset_hold_phase(Object *obj)
 {
     DeviceState *dev = DEVICE(obj);
+    DeviceClass *dc = DEVICE_GET_CLASS(obj);
     BusState *child;
 
     QLIST_FOREACH(child, &dev->child_bus, sibling) {
         resettable_hold_phase(OBJECT(child));
+    }
+
+    if (dc->reset_phases.hold) {
+        dc->reset_phases.hold(OBJECT(dev));
     }
 }
 
 static void device_reset_exit_phase(Object *obj)
 {
     DeviceState *dev = DEVICE(obj);
+    DeviceClass *dc = DEVICE_GET_CLASS(obj);
     BusState *child;
 
     QLIST_FOREACH(child, &dev->child_bus, sibling) {
@@ -303,6 +312,12 @@ static void device_reset_exit_phase(Object *obj)
 
     assert(dev->resetting > 0);
     dev->resetting -= 1;
+
+    if (dev->resetting == 0) {
+        if (dc->reset_phases.exit) {
+            dc->reset_phases.exit(OBJECT(dev));
+        }
+    }
 }
 
 static int qdev_reset_one(DeviceState *dev, void *opaque)
@@ -1143,12 +1158,41 @@ void device_class_set_parent_unrealize(DeviceClass *dc,
     dc->unrealize = dev_unrealize;
 }
 
+void device_class_set_parent_reset_phases(DeviceClass *dc,
+                                   ResettableInitPhase dev_reset_init,
+                                   ResettableHoldPhase dev_reset_hold,
+                                   ResettableExitPhase dev_reset_exit,
+                                   ResettablePhases *parent_phases)
+{
+    *parent_phases = dc->reset_phases;
+    if (dev_reset_init) {
+        dc->reset_phases.init = dev_reset_init;
+    }
+    if (dev_reset_hold) {
+        dc->reset_phases.hold = dev_reset_hold;
+    }
+    if (dev_reset_exit) {
+        dc->reset_phases.exit = dev_reset_exit;
+    }
+}
+
 void device_reset(DeviceState *dev)
 {
     DeviceClass *klass = DEVICE_GET_CLASS(dev);
 
     if (klass->reset) {
         klass->reset(dev);
+    }
+    dev->resetting += 1;
+    if (klass->reset_phases.init) {
+        klass->reset_phases.init(OBJECT(dev), false);
+    }
+    if (klass->reset_phases.hold) {
+        klass->reset_phases.hold(OBJECT(dev));
+    }
+    dev->resetting -= 1;
+    if (klass->reset_phases.exit) {
+        klass->reset_phases.exit(OBJECT(dev));
     }
 }
 
