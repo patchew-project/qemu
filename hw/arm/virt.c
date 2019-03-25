@@ -44,6 +44,7 @@
 #include "sysemu/numa.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/kvm.h"
+#include "sysemu/block-backend.h"
 #include "hw/loader.h"
 #include "exec/address-spaces.h"
 #include "qemu/bitops.h"
@@ -881,14 +882,18 @@ static void create_one_flash(const char *name, hwaddr flashbase,
     DriveInfo *dinfo = drive_get_next(IF_PFLASH);
     DeviceState *dev = qdev_create(NULL, TYPE_PFLASH_CFI01);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    BlockBackend *blk_backend = NULL;
     const uint64_t sectorlength = 256 * 1024;
+    hwaddr real_size = flashsize;
 
     if (dinfo) {
-        qdev_prop_set_drive(dev, "drive", blk_by_legacy_dinfo(dinfo),
-                            &error_abort);
+        blk_backend = blk_by_legacy_dinfo(dinfo);
+        qdev_prop_set_drive(dev, "drive", blk_backend, &error_abort);
+        real_size = blk_getlength(blk_backend);
+        real_size = flashsize > real_size ? real_size : flashsize;
     }
 
-    qdev_prop_set_uint32(dev, "num-blocks", flashsize / sectorlength);
+    qdev_prop_set_uint32(dev, "num-blocks", real_size / sectorlength);
     qdev_prop_set_uint64(dev, "sector-length", sectorlength);
     qdev_prop_set_uint8(dev, "width", 4);
     qdev_prop_set_uint8(dev, "device-width", 2);
