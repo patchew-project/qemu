@@ -222,6 +222,10 @@ static int uart_can_receive(void *opaque)
     int ret = MAX(CADENCE_UART_RX_FIFO_SIZE, CADENCE_UART_TX_FIFO_SIZE);
     uint32_t ch_mode = s->r[R_MR] & UART_MR_CHMODE;
 
+    if (qdev_is_resetting((DeviceState *) opaque)) {
+        return 0;
+    }
+
     if (ch_mode == NORMAL_MODE || ch_mode == ECHO_MODE) {
         ret = MIN(ret, CADENCE_UART_RX_FIFO_SIZE - s->rx_count);
     }
@@ -337,6 +341,10 @@ static void uart_receive(void *opaque, const uint8_t *buf, int size)
     CadenceUARTState *s = opaque;
     uint32_t ch_mode = s->r[R_MR] & UART_MR_CHMODE;
 
+    if (qdev_is_resetting((DeviceState *) opaque)) {
+        return;
+    }
+
     if (ch_mode == NORMAL_MODE || ch_mode == ECHO_MODE) {
         uart_write_rx_fifo(opaque, buf, size);
     }
@@ -349,6 +357,10 @@ static void uart_event(void *opaque, int event)
 {
     CadenceUARTState *s = opaque;
     uint8_t buf = '\0';
+
+    if (qdev_is_resetting((DeviceState *) opaque)) {
+        return;
+    }
 
     if (event == CHR_EVENT_BREAK) {
         uart_write_rx_fifo(opaque, &buf, 1);
@@ -381,6 +393,10 @@ static void uart_write(void *opaque, hwaddr offset,
                           uint64_t value, unsigned size)
 {
     CadenceUARTState *s = opaque;
+
+    if (qdev_is_resetting((DeviceState *)opaque)) {
+        return;
+    }
 
     DB_PRINT(" offset:%x data:%08x\n", (unsigned)offset, (unsigned)value);
     offset >>= 2;
@@ -440,6 +456,10 @@ static uint64_t uart_read(void *opaque, hwaddr offset,
     CadenceUARTState *s = opaque;
     uint32_t c = 0;
 
+    if (qdev_is_resetting((DeviceState *)opaque)) {
+        return 0;
+    }
+
     offset >>= 2;
     if (offset >= CADENCE_UART_R_MAX) {
         c = 0;
@@ -459,9 +479,9 @@ static const MemoryRegionOps uart_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void cadence_uart_reset(DeviceState *dev)
+static void cadence_uart_reset_init(Object *obj, bool cold)
 {
-    CadenceUARTState *s = CADENCE_UART(dev);
+    CadenceUARTState *s = CADENCE_UART(obj);
 
     s->r[R_CR] = 0x00000128;
     s->r[R_IMR] = 0;
@@ -470,6 +490,18 @@ static void cadence_uart_reset(DeviceState *dev)
     s->r[R_BRGR] = 0x0000028B;
     s->r[R_BDIV] = 0x0000000F;
     s->r[R_TTRIG] = 0x00000020;
+}
+
+static void cadence_uart_reset_hold(Object *obj)
+{
+    CadenceUARTState *s = CADENCE_UART(obj);
+
+    qemu_set_irq(s->irq, 0);
+}
+
+static void cadence_uart_reset_exit(Object *obj)
+{
+    CadenceUARTState *s = CADENCE_UART(obj);
 
     uart_rx_reset(s);
     uart_tx_reset(s);
@@ -498,6 +530,8 @@ static void cadence_uart_init(Object *obj)
     sysbus_init_irq(sbd, &s->irq);
 
     s->char_tx_time = (NANOSECONDS_PER_SECOND / 9600) * 10;
+
+    qdev_init_warm_reset_gpio(DEVICE(obj), "rst", DEVICE_ACTIVE_HIGH);
 }
 
 static int cadence_uart_post_load(void *opaque, int version_id)
@@ -532,6 +566,10 @@ static const VMStateDescription vmstate_cadence_uart = {
         VMSTATE_UINT32(rx_wpos, CadenceUARTState),
         VMSTATE_TIMER_PTR(fifo_trigger_handle, CadenceUARTState),
         VMSTATE_END_OF_LIST()
+    },
+    .subsections = (const VMStateDescription * []) {
+        &device_vmstate_reset,
+        NULL
     }
 };
 
@@ -546,9 +584,11 @@ static void cadence_uart_class_init(ObjectClass *klass, void *data)
 
     dc->realize = cadence_uart_realize;
     dc->vmsd = &vmstate_cadence_uart;
-    dc->reset = cadence_uart_reset;
+    dc->reset_phases.init = cadence_uart_reset_init;
+    dc->reset_phases.hold = cadence_uart_reset_hold;
+    dc->reset_phases.exit = cadence_uart_reset_exit;
     dc->props = cadence_uart_properties;
-  }
+}
 
 static const TypeInfo cadence_uart_info = {
     .name          = TYPE_CADENCE_UART,
