@@ -4611,6 +4611,7 @@ int main(int argc, char **argv, char **envp)
     monitor_cleanup();
     qemu_chr_cleanup();
     user_creatable_cleanup();
+    qemu_delete_system_reset_domain();
     /* TODO: unref root container, check all devices are ok */
 
     return 0;
