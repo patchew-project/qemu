@@ -320,25 +320,9 @@ static void device_reset_exit_phase(Object *obj)
     }
 }
 
-static int qdev_reset_one(DeviceState *dev, void *opaque)
-{
-    device_reset(dev);
-
-    return 0;
-}
-
-static int qbus_reset_one(BusState *bus, void *opaque)
-{
-    BusClass *bc = BUS_GET_CLASS(bus);
-    if (bc->reset) {
-        bc->reset(bus);
-    }
-    return 0;
-}
-
 void qdev_reset_all(DeviceState *dev)
 {
-    qdev_walk_children(dev, NULL, NULL, qdev_reset_one, qbus_reset_one, NULL);
+    qdev_reset(dev, false);
 }
 
 void qdev_reset_all_fn(void *opaque)
@@ -348,7 +332,7 @@ void qdev_reset_all_fn(void *opaque)
 
 void qbus_reset_all(BusState *bus)
 {
-    qbus_walk_children(bus, NULL, NULL, qdev_reset_one, qbus_reset_one, NULL);
+    qbus_reset(bus, false);
 }
 
 void qbus_reset_all_fn(void *opaque)
