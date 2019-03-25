@@ -180,9 +180,9 @@ typedef struct ZynqSLCRState {
     uint32_t regs[ZYNQ_SLCR_NUM_REGS];
 } ZynqSLCRState;
 
-static void zynq_slcr_reset(DeviceState *d)
+static void zynq_slcr_reset_init(Object *obj, bool cold)
 {
-    ZynqSLCRState *s = ZYNQ_SLCR(d);
+    ZynqSLCRState *s = ZYNQ_SLCR(obj);
     int i;
 
     DB_PRINT("RESET\n");
@@ -346,6 +346,10 @@ static uint64_t zynq_slcr_read(void *opaque, hwaddr offset,
     offset /= 4;
     uint32_t ret = s->regs[offset];
 
+    if (qdev_is_resetting((DeviceState *) opaque)) {
+        return 0;
+    }
+
     if (!zynq_slcr_check_offset(offset, true)) {
         qemu_log_mask(LOG_GUEST_ERROR, "zynq_slcr: Invalid read access to "
                       " addr %" HWADDR_PRIx "\n", offset * 4);
@@ -360,6 +364,10 @@ static void zynq_slcr_write(void *opaque, hwaddr offset,
 {
     ZynqSLCRState *s = (ZynqSLCRState *)opaque;
     offset /= 4;
+
+    if (qdev_is_resetting((DeviceState *) opaque)) {
+        return;
+    }
 
     DB_PRINT("addr: %08" HWADDR_PRIx " data: %08" PRIx64 "\n", offset * 4, val);
 
@@ -441,7 +449,7 @@ static void zynq_slcr_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->vmsd = &vmstate_zynq_slcr;
-    dc->reset = zynq_slcr_reset;
+    dc->reset_phases.init = zynq_slcr_reset_init;
 }
 
 static const TypeInfo zynq_slcr_info = {
