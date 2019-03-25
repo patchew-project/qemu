@@ -131,6 +131,8 @@ struct NamedGPIOList {
 /**
  * DeviceState:
  * @realized: Indicates whether the device has been fully constructed.
+ * @resetting: Indicates whether the device is under reset. Also
+ * used to count how many times reset has been initiated on the device.
  *
  * This structure should not be accessed directly.  We declare it here
  * so that it can be embedded in individual device state structures.
@@ -152,6 +154,7 @@ struct DeviceState {
     int num_child_bus;
     int instance_id_alias;
     int alias_required_for_version;
+    uint32_t resetting;
 };
 
 struct DeviceListener {
@@ -198,6 +201,8 @@ typedef struct BusChild {
 /**
  * BusState:
  * @hotplug_handler: link to a hotplug handler associated with bus.
+ * @resetting: Indicates whether the device is under reset. Also
+ * used to count how many times reset has been initiated on the device.
  */
 struct BusState {
     Object obj;
@@ -209,6 +214,7 @@ struct BusState {
     int num_children;
     QTAILQ_HEAD(, BusChild) children;
     QLIST_ENTRY(BusState) sibling;
+    uint32_t resetting;
 };
 
 /**
@@ -377,6 +383,30 @@ int qdev_walk_children(DeviceState *dev,
                        qdev_walkerfn *pre_devfn, qbus_walkerfn *pre_busfn,
                        qdev_walkerfn *post_devfn, qbus_walkerfn *post_busfn,
                        void *opaque);
+
+/**
+ * @qdev_reset:
+ * Reset the device @dev, @cold tell whether to do a cold or warm reset.
+ */
+void qdev_reset(DeviceState *dev, bool cold);
+
+/**
+ * @qbus_reset:
+ * Reset the bus @bus, @cold tell whether to do a cold or warm reset.
+ */
+void qbus_reset(BusState *bus, bool cold);
+
+/**
+ * @qdev_is_resetting:
+ * Tell whether the device @dev is currently under reset.
+ */
+bool qdev_is_resetting(DeviceState *dev);
+
+/**
+ * @qbus_is_resetting:
+ * Tell whether the bus @bus is currently under reset.
+ */
+bool qbus_is_resetting(BusState *bus);
 
 void qdev_reset_all(DeviceState *dev);
 void qdev_reset_all_fn(void *opaque);

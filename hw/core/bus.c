@@ -21,6 +21,7 @@
 #include "qemu-common.h"
 #include "hw/qdev.h"
 #include "qapi/error.h"
+#include "hw/resettable.h"
 
 void qbus_set_hotplug_handler(BusState *bus, Object *handler, Error **errp)
 {
@@ -65,6 +66,56 @@ int qbus_walk_children(BusState *bus,
     }
 
     return 0;
+}
+
+void qbus_reset(BusState *bus, bool cold)
+{
+    resettable_reset(OBJECT(bus), cold);
+}
+
+bool qbus_is_resetting(BusState *bus)
+{
+    return (bus->resetting != 0);
+}
+
+static void bus_reset_init_phase(Object *obj, bool cold)
+{
+    BusState *bus = BUS(obj);
+    BusClass *bc = BUS_GET_CLASS(obj);
+    BusChild *kid;
+
+    QTAILQ_FOREACH(kid, &bus->children, sibling) {
+        resettable_init_phase(OBJECT(kid->child), cold);
+    }
+
+    bus->resetting += 1;
+
+    if (bc->reset) {
+        bc->reset(bus);
+    }
+}
+
+static void bus_reset_hold_phase(Object *obj)
+{
+    BusState *bus = BUS(obj);
+    BusChild *kid;
+
+    QTAILQ_FOREACH(kid, &bus->children, sibling) {
+        resettable_hold_phase(OBJECT(kid->child));
+    }
+}
+
+static void bus_reset_exit_phase(Object *obj)
+{
+    BusState *bus = BUS(obj);
+    BusChild *kid;
+
+    QTAILQ_FOREACH(kid, &bus->children, sibling) {
+        resettable_exit_phase(OBJECT(kid->child));
+    }
+
+    assert(bus->resetting > 0);
+    bus->resetting -= 1;
 }
 
 static void qbus_realize(BusState *bus, DeviceState *parent, const char *name)
@@ -204,9 +255,14 @@ static char *default_bus_get_fw_dev_path(DeviceState *dev)
 static void bus_class_init(ObjectClass *class, void *data)
 {
     BusClass *bc = BUS_CLASS(class);
+    ResettableClass *rc = RESETTABLE_CLASS(class);
 
     class->unparent = bus_unparent;
     bc->get_fw_dev_path = default_bus_get_fw_dev_path;
+
+    rc->phases.init = bus_reset_init_phase;
+    rc->phases.hold = bus_reset_hold_phase;
+    rc->phases.exit = bus_reset_exit_phase;
 }
 
 static void qbus_finalize(Object *obj)
@@ -225,6 +281,10 @@ static const TypeInfo bus_info = {
     .instance_init = qbus_initfn,
     .instance_finalize = qbus_finalize,
     .class_init = bus_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_RESETTABLE },
+        { }
+    },
 };
 
 static void bus_register_types(void)

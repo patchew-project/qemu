@@ -37,6 +37,7 @@
 #include "hw/hotplug.h"
 #include "hw/boards.h"
 #include "hw/sysbus.h"
+#include "hw/resettable.h"
 
 bool qdev_hotplug = false;
 static bool qdev_hot_added = false;
@@ -252,6 +253,56 @@ HotplugHandler *qdev_get_hotplug_handler(DeviceState *dev)
         hotplug_ctrl = qdev_get_bus_hotplug_handler(dev);
     }
     return hotplug_ctrl;
+}
+
+void qdev_reset(DeviceState *dev, bool cold)
+{
+    resettable_reset(OBJECT(dev), cold);
+}
+
+bool qdev_is_resetting(DeviceState *dev)
+{
+    return (dev->resetting != 0);
+}
+
+static void device_reset_init_phase(Object *obj, bool cold)
+{
+    DeviceState *dev = DEVICE(obj);
+    DeviceClass *dc = DEVICE_GET_CLASS(obj);
+    BusState *child;
+
+    QLIST_FOREACH(child, &dev->child_bus, sibling) {
+        resettable_init_phase(OBJECT(child), cold);
+    }
+
+    dev->resetting += 1;
+
+    if (dc->reset) {
+        dc->reset(dev);
+    }
+}
+
+static void device_reset_hold_phase(Object *obj)
+{
+    DeviceState *dev = DEVICE(obj);
+    BusState *child;
+
+    QLIST_FOREACH(child, &dev->child_bus, sibling) {
+        resettable_hold_phase(OBJECT(child));
+    }
+}
+
+static void device_reset_exit_phase(Object *obj)
+{
+    DeviceState *dev = DEVICE(obj);
+    BusState *child;
+
+    QLIST_FOREACH(child, &dev->child_bus, sibling) {
+        resettable_exit_phase(OBJECT(child));
+    }
+
+    assert(dev->resetting > 0);
+    dev->resetting -= 1;
 }
 
 static int qdev_reset_one(DeviceState *dev, void *opaque)
@@ -954,6 +1005,7 @@ static void device_initfn(Object *obj)
 
     dev->instance_id_alias = -1;
     dev->realized = false;
+    dev->resetting = 0;
 
     object_property_add_bool(obj, "realized",
                              device_get_realized, device_set_realized, NULL);
@@ -1049,6 +1101,7 @@ static void device_unparent(Object *obj)
 static void device_class_init(ObjectClass *class, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(class);
+    ResettableClass *rc = RESETTABLE_CLASS(class);
 
     class->unparent = device_unparent;
 
@@ -1060,6 +1113,10 @@ static void device_class_init(ObjectClass *class, void *data)
      */
     dc->hotpluggable = true;
     dc->user_creatable = true;
+
+    rc->phases.init = device_reset_init_phase;
+    rc->phases.hold = device_reset_hold_phase;
+    rc->phases.exit = device_reset_exit_phase;
 }
 
 void device_class_set_parent_reset(DeviceClass *dc,
@@ -1117,6 +1174,10 @@ static const TypeInfo device_type_info = {
     .class_init = device_class_init,
     .abstract = true,
     .class_size = sizeof(DeviceClass),
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_RESETTABLE },
+        { }
+    },
 };
 
 static void qdev_register_types(void)
