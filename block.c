@@ -547,6 +547,77 @@ int bdrv_create_file(const char *filename, QemuOpts *opts, Error **errp)
     return ret;
 }
 
+static void coroutine_fn bdrv_delete_co_entry(void *opaque)
+{
+    Error *local_err = NULL;
+    int ret;
+
+    CreateCo *cco = opaque;
+    assert(cco->drv);
+
+    ret = cco->drv->bdrv_co_delete_file(cco->filename, &local_err);
+    error_propagate(&cco->err, local_err);
+    cco->ret = ret;
+}
+
+int bdrv_delete_file(const char *filename, Error **errp)
+{
+
+    BlockDriver *drv = bdrv_find_protocol(filename, true, errp);
+    CreateCo cco = {
+        .drv = drv,
+        .filename = g_strdup(filename),
+        .ret = NOT_DONE,
+        .err = NULL,
+    };
+    Coroutine *co;
+    int ret;
+
+    if (!drv) {
+        error_setg(errp, "File '%s' has unknown format", filename);
+        ret = -ENOENT;
+        goto out;
+    }
+
+    if (!drv->bdrv_co_delete_file) {
+        error_setg(errp, "Driver '%s' does not support image delete",
+                   drv->format_name);
+        ret = -ENOTSUP;
+        goto out;
+    }
+
+    if (!drv->bdrv_co_delete_file) {
+        error_setg(errp, "Driver '%s' does not support image delete",
+                   drv->format_name);
+        ret = -ENOTSUP;
+        goto out;
+    }
+
+    if (qemu_in_coroutine()) {
+        /* Fast-path if already in coroutine context */
+        bdrv_delete_co_entry(&cco);
+    } else {
+        co = qemu_coroutine_create(bdrv_delete_co_entry, &cco);
+        qemu_coroutine_enter(co);
+        while (cco.ret == NOT_DONE) {
+            aio_poll(qemu_get_aio_context(), true);
+        }
+    }
+
+    ret = cco.ret;
+    if (ret < 0) {
+        if (cco.err) {
+            error_propagate(errp, cco.err);
+        } else {
+            error_setg_errno(errp, -ret, "Could not delete image");
+        }
+    }
+
+out:
+    g_free(cco.filename);
+    return ret;
+}
+
 /**
  * Try to get @bs's logical and physical block size.
  * On success, store them in @bsz struct and return 0.
