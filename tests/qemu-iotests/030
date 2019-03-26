@@ -314,6 +314,38 @@ class TestParallelOps(iotests.QMPTestCase):
 
         self.wait_until_completed(drive='commit-drive0')
 
+    # In this case the base node of the stream job is the same as the
+    # top node of commit job. Since block-commit removes the top node
+    # when it finishes, this is not allowed.
+    def test_overlapping_4(self):
+        self.assert_no_active_block_jobs()
+
+        # Commit from node2 into node0
+        result = self.vm.qmp('block-commit', device='drive0', top=self.imgs[2], base=self.imgs[0])
+        self.assert_qmp(result, 'return', {})
+
+        # Stream from node2 into node4
+        result = self.vm.qmp('block-stream', device='node4', base_node='node2', job_id='node4')
+        self.assert_qmp(result, 'error/class', 'GenericError')
+
+        # Wait for all jobs to be finished.
+        pending_jobs = ['drive0']
+        while len(pending_jobs) > 0:
+            for event in self.vm.get_qmp_events(wait=True):
+                if event['event'] == 'BLOCK_JOB_COMPLETED':
+                    node_name = self.dictpath(event, 'data/device')
+                    self.assertTrue(node_name in pending_jobs)
+                    self.assert_qmp_absent(event, 'data/error')
+                    pending_jobs.remove(node_name)
+                if event['event'] == 'BLOCK_JOB_READY':
+                    self.assert_qmp(event, 'data/device', 'drive0')
+                    self.assert_qmp(event, 'data/type', 'commit')
+                    self.assert_qmp_absent(event, 'data/error')
+                    self.assertTrue('drive0' in pending_jobs)
+                    self.vm.qmp('block-job-complete', device='drive0')
+
+        self.assert_no_active_block_jobs()
+
     # Test a block-stream and a block-commit job in parallel
     # Here the stream job is supposed to finish quickly in order to reproduce
     # the scenario that triggers the bug fixed in 3d5d319e1221 and 1a63a907507
