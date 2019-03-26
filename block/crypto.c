@@ -29,6 +29,7 @@
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/error.h"
 #include "qemu/option.h"
+#include "qemu/cutils.h"
 #include "crypto.h"
 
 typedef struct BlockCrypto BlockCrypto;
@@ -533,6 +534,8 @@ static int coroutine_fn block_crypto_co_create_opts_luks(const char *filename,
     BlockDriverState *bs = NULL;
     QDict *cryptoopts;
     int64_t size;
+    const char *path;
+    bool file_already_existed = false;
     int ret;
 
     /* Parse options */
@@ -548,6 +551,15 @@ static int coroutine_fn block_crypto_co_create_opts_luks(const char *filename,
         ret = -EINVAL;
         goto fail;
     }
+
+    /*
+     * Check if 'filename' represents a local file that already
+     * exists in the file system prior to bdrv_create_file. Strip
+     * the leading 'file:' from the filename if it exists.
+     */
+    path = filename;
+    strstart(path, "file:", &path);
+    file_already_existed = bdrv_path_is_regular_file(path);
 
     /* Create protocol layer */
     ret = bdrv_create_file(filename, opts, errp);
@@ -573,6 +585,25 @@ fail:
     bdrv_unref(bs);
     qapi_free_QCryptoBlockCreateOptions(create_opts);
     qobject_unref(cryptoopts);
+
+    /*
+     * If an error occurred and we ended up creating a bogus
+     * 'filename' file, delete it
+     */
+    if (ret && !file_already_existed && bdrv_path_is_regular_file(path)) {
+        Error *local_err;
+        int r_del = bdrv_delete_file(path, &local_err);
+        /*
+         * ENOTSUP will happen if the block driver doesn't support
+         * 'bdrv_co_delete_file'. ENOENT will happen if the file
+         * doesn't exist. Both are predictable and shouldn't be
+         * reported back to the user.
+         */
+        if ((r_del < 0) && (r_del != -ENOTSUP) && (r_del != -ENOENT)) {
+            error_reportf_err(local_err, "%s: ", path);
+        }
+    }
+
     return ret;
 }
 
