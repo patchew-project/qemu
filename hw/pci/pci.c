@@ -2594,12 +2594,41 @@ AddressSpace *pci_device_iommu_address_space(PCIDevice *dev)
 {
     PCIBus *bus = pci_get_bus(dev);
     PCIBus *iommu_bus = bus;
+    uint8_t devfn = dev->devfn;
 
     while(iommu_bus && !iommu_bus->iommu_fn && iommu_bus->parent_dev) {
-        iommu_bus = pci_get_bus(iommu_bus->parent_dev);
+        PCIBus *parent_bus = pci_get_bus(iommu_bus->parent_dev);
+
+        /*
+         * Determine which requester ID alias should be used for the device
+         * based on the PCI topology.  There are no requester IDs on convetional
+         * PCI buses, therefore we push the alias up to the parent on each non-
+         * express bus.  Which alias we use depends on whether this is a legacy
+         * PCI bridge or PCIe-to-PCI/X bridge as in chapter 2.3 of the PCIe-to-
+         * PCI bridge spec.  Note that we cannot use pci_requester_id() here
+         * because the resulting BDF depends on the secondary bridge register
+         * programming.  We also cannot lookup the PCIBus from the bus number
+         * at this point for the iommu_fn.  Also, requester_id_cache is the
+         * alias to the root bus, which is usually, but not necessarily always
+         * where we'll find our iommu_fn.
+         */
+        if (!pci_bus_is_express(iommu_bus)) {
+            PCIDevice *parent = iommu_bus->parent_dev;
+
+            if (pci_is_express(parent) &&
+                pcie_cap_get_type(parent) == PCI_EXP_TYPE_PCI_BRIDGE) {
+                devfn = PCI_DEVFN(0, 0);
+                bus = iommu_bus;
+            } else {
+                devfn = parent->devfn;
+                bus = parent_bus;
+            }
+        }
+
+        iommu_bus = parent_bus;
     }
     if (iommu_bus && iommu_bus->iommu_fn) {
-        return iommu_bus->iommu_fn(bus, iommu_bus->iommu_opaque, dev->devfn);
+        return iommu_bus->iommu_fn(bus, iommu_bus->iommu_opaque, devfn);
     }
     return &address_space_memory;
 }
