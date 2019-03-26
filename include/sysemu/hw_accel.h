@@ -27,6 +27,9 @@ static inline void cpu_synchronize_state(CPUState *cpu)
     if (whpx_enabled()) {
         whpx_cpu_synchronize_state(cpu);
     }
+    if (hvf_enabled()) {
+        hvf_cpu_synchronize_state(cpu);
+    }
 }
 
 static inline void cpu_synchronize_post_reset(CPUState *cpu)
@@ -40,6 +43,9 @@ static inline void cpu_synchronize_post_reset(CPUState *cpu)
     if (whpx_enabled()) {
         whpx_cpu_synchronize_post_reset(cpu);
     }
+    if (hvf_enabled()) {
+        hvf_cpu_synchronize_post_reset(cpu);
+    }
 }
 
 static inline void cpu_synchronize_post_init(CPUState *cpu)
@@ -52,6 +58,9 @@ static inline void cpu_synchronize_post_init(CPUState *cpu)
     }
     if (whpx_enabled()) {
         whpx_cpu_synchronize_post_init(cpu);
+    }
+    if (hvf_enabled()) {
+        hvf_cpu_synchronize_post_init(cpu);
     }
 }
 
