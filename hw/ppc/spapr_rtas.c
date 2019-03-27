@@ -287,6 +287,98 @@ static void rtas_ibm_set_system_parameter(PowerPCCPU *cpu,
     rtas_st(rets, 0, ret);
 }
 
+static int vpd_st(target_ulong addr, target_ulong len,
+                  const void *val, uint16_t val_len)
+{
+    hwaddr phys = ppc64_phys_to_real(addr);
+
+    if (len < val_len) {
+        return RTAS_OUT_PARAM_ERROR;
+    }
+
+    cpu_physical_memory_write(phys, val, val_len);
+    return RTAS_OUT_SUCCESS;
+}
+
+static void vpd_ret(target_ulong rets, const int status,
+                    const int next_seq_number, const int bytes_returned)
+{
+    rtas_st(rets, 0, status);
+    rtas_st(rets, 1, next_seq_number);
+    rtas_st(rets, 2, bytes_returned);
+}
+
+static void rtas_ibm_get_vpd_fields_register(SpaprMachineState *spapr)
+{
+    int i = 0;
+    char *buf = NULL;
+
+    memset(spapr->rtas_get_vpd_fields, 0,
+           sizeof(spapr->rtas_get_vpd_fields));
+
+    buf = spapr_get_valid_host_serial(spapr);
+    if (buf) {
+        spapr->rtas_get_vpd_fields[i++] = g_strdup_printf("SE %s", buf);
+        g_free(buf);
+    }
+
+    buf = spapr_get_valid_host_model(spapr);
+    if (buf) {
+        spapr->rtas_get_vpd_fields[i++] = g_strdup_printf("TM %s", buf);
+        g_free(buf);
+    }
+}
+
+static void rtas_ibm_get_vpd(PowerPCCPU *cpu,
+                             SpaprMachineState *spapr,
+                             uint32_t token, uint32_t nargs,
+                             target_ulong args,
+                             uint32_t nret, target_ulong rets)
+{
+    target_ulong loc_code_addr = rtas_ld(args, 0);
+    target_ulong work_area_addr = rtas_ld(args, 1);
+    target_ulong work_area_size = rtas_ld(args, 2);
+    target_ulong seq_number = rtas_ld(args, 3);
+    unsigned int next_seq_number = 1;
+    int status = RTAS_OUT_PARAM_ERROR;
+    unsigned char loc_code;
+    unsigned int vpd_field_len;
+    char *vpd_field;
+    int ret;
+
+    /* Specific Location Code is not supported and seq_number */
+    /* must be checked to avoid out of bound index error */
+    cpu_physical_memory_read(loc_code_addr, &loc_code, 1);
+    if ((loc_code != 0) || (seq_number <= 0) ||
+        (seq_number > RTAS_IBM_GET_VPD_MAX)) {
+        vpd_ret(rets, RTAS_OUT_PARAM_ERROR, 1, 0);
+        return;
+    }
+
+    /* RTAS not authorized if no keywords have been registered */
+    if (!spapr->rtas_get_vpd_fields[seq_number - 1]) {
+        vpd_ret(rets, RTAS_OUT_NOT_AUTHORIZED, 1, 0);
+        return;
+    }
+
+    vpd_field = spapr->rtas_get_vpd_fields[seq_number - 1];
+    vpd_field_len = strlen(vpd_field);
+    ret = vpd_st(work_area_addr, work_area_size,
+                 vpd_field, vpd_field_len + 1);
+
+    if (ret == 0) {
+        next_seq_number = seq_number + 1;
+        if (spapr->rtas_get_vpd_fields[next_seq_number - 1]) {
+            status = RTAS_IBM_GET_VPD_CONTINUE;
+        } else {
+            status = RTAS_OUT_SUCCESS;
+            next_seq_number = 1;
+        }
+    }
+
+    vpd_ret(ret, status, next_seq_number, vpd_field_len);
+}
+
 static void rtas_ibm_os_term(PowerPCCPU *cpu,
                             SpaprMachineState *spapr,
                             uint32_t token, uint32_t nargs,
@@ -464,6 +556,8 @@ void spapr_load_rtas(SpaprMachineState *spapr, void *fdt, hwaddr addr)
                      fdt_strerror(ret));
         exit(1);
     }
+
+    rtas_ibm_get_vpd_fields_register(spapr);
 }
 
 static void core_rtas_register_types(void)
@@ -485,6 +579,8 @@ static void core_rtas_register_types(void)
                         rtas_ibm_set_system_parameter);
     spapr_rtas_register(RTAS_IBM_OS_TERM, "ibm,os-term",
                         rtas_ibm_os_term);
+    spapr_rtas_register(RTAS_IBM_GET_VPD, "ibm,get-vpd",
+                        rtas_ibm_get_vpd);
     spapr_rtas_register(RTAS_SET_POWER_LEVEL, "set-power-level",
                         rtas_set_power_level);
     spapr_rtas_register(RTAS_GET_POWER_LEVEL, "get-power-level",
