@@ -42,8 +42,8 @@ uint32_t cpu_mips_get_random (CPUMIPSState *env)
 
     /* Don't return same value twice, so get another value */
     do {
-        /* Use a simple algorithm of Linear Congruential Generator
-         * from ISO/IEC 9899 standard. */
+        /* Use a simple algorithm of Linear Congruential Generator */
+        /* from ISO/IEC 9899 standard. */
         seed = 1103515245 * seed + 12345;
         idx = (seed >> 16) % nb_rand_tlb + env->CP0_Wired;
     } while (idx == prev_idx);
