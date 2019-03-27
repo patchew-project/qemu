@@ -815,6 +815,20 @@ static int raw_handle_perm_lock(BlockDriverState *bs,
 
     switch (op) {
     case RAW_PL_PREPARE:
+        if ((s->perm | new_perm) == s->perm &&
+            (~s->shared_perm | ~new_perm) == ~s->shared_perm)
+        {
+            /*
+             * We are going to unlock bytes, it should not fail. If fail,
+             * just report it and ignore, like we do for ABORT and COMMIT
+             * anyway.
+             */
+            ret = raw_check_lock_bytes(s->fd, new_perm, new_shared, &local_err);
+            if (local_err) {
+                error_report_err(local_err);
+            }
+            return 0;
+        }
         ret = raw_apply_lock_bytes(s, s->fd, s->perm | new_perm,
                                    ~s->shared_perm | ~new_shared,
                                    false, errp);
