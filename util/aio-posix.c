@@ -519,6 +519,10 @@ static bool run_poll_handlers_once(AioContext *ctx, int64_t *timeout)
         if (!node->deleted && node->io_poll &&
             aio_node_check(ctx, node->is_external) &&
             node->io_poll(node->opaque)) {
+            /*
+             * Polling was successful, exit try_poll_mode immediately
+             * to adjust the next polling time.
+             */
             *timeout = 0;
             if (node->opaque != &ctx->notifier) {
                 progress = true;
@@ -558,8 +562,9 @@ static bool run_poll_handlers(AioContext *ctx, int64_t max_ns, int64_t *timeout)
     do {
         progress = run_poll_handlers_once(ctx, timeout);
         elapsed_time = qemu_clock_get_ns(QEMU_CLOCK_REALTIME) - start_time;
-    } while (!progress && elapsed_time < max_ns
-             && !atomic_read(&ctx->poll_disable_cnt));
+        max_ns = MIN(*timeout, max_ns);
+        assert(!(max_ns && progress));
+    } while (elapsed_time < max_ns && !atomic_read(&ctx->poll_disable_cnt));
 
     /* If time has passed with no successful polling, adjust *timeout to
      * keep the same ending time.
