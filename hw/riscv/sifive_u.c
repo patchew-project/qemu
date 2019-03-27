@@ -340,7 +340,7 @@ static void riscv_sifive_u_soc_realize(DeviceState *dev, Error **errp)
     const struct MemmapEntry *memmap = sifive_u_memmap;
     MemoryRegion *system_memory = get_system_memory();
     MemoryRegion *mask_rom = g_new(MemoryRegion, 1);
-    qemu_irq plic_gpios[SIFIVE_U_PLIC_NUM_SOURCES];
+    qemu_irq plic_gpios[SIFIVE_U_PLIC_NUM_SOURCES + 1];
     int i;
     Error *err = NULL;
     NICInfo *nd = &nd_table[0];
