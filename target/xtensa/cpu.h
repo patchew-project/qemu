@@ -529,8 +529,6 @@ struct XtensaCPU {
     CPUXtensaState env;
 };
 
-#define ENV_OFFSET offsetof(XtensaCPU, env)
-
 
 int xtensa_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw, int size,
                                 int mmu_idx);
