@@ -536,6 +536,7 @@ void m68k_cpu_unassigned_access(CPUState *cs, hwaddr addr,
                                 unsigned size);
 
 typedef CPUM68KState CPUArchState;
+typedef M68kCPU ArchCPU;
 
 #include "exec/cpu-all.h"
 

@@ -285,6 +285,7 @@ int cris_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int size, int rw,
 #define SFR_RW_MM_TLB_HI   env->pregs[PR_SRS]][6
 
 typedef CPUCRISState CPUArchState;
+typedef CRISCPU ArchCPU;
 
 #include "exec/cpu-all.h"
 
