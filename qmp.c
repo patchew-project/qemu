@@ -723,6 +723,7 @@ QemuFeatures *qmp_query_qemu_features(Error **errp)
     QemuFeatures *caps = g_new(QemuFeatures, 1);
 
     *caps = (QemuFeatures) {
+        .file_posix_dynamic_auto_read_only = true,
     };
 
     return caps;

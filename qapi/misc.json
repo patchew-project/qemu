@@ -3058,10 +3058,15 @@
 # Information about support for QEMU features that isn't available through
 # schema introspection.
 #
+# @file-posix-dynamic-auto-read-only:
+#   true if auto-read-only=on means that the image file is dynamically reopened
+#   read-only or read-write depending on whether any writers are attached to
+#   the node.
+#
 # Since: 4.0
 ##
 { 'struct': 'QemuFeatures',
-  'data': { } }
+  'data': { 'file-posix-dynamic-auto-read-only': 'bool' } }
 
 ##
 # @query-qemu-features:
