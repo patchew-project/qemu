@@ -120,14 +120,14 @@ WORD_TYPE helper_le_ld_name(CPUArchState *env, target_ulong addr,
     DATA_TYPE res;
 
     if (addr & ((1 << a_bits) - 1)) {
-        cpu_unaligned_access(ENV_GET_CPU(env), addr, READ_ACCESS_TYPE,
+        cpu_unaligned_access(env_cpu(env), addr, READ_ACCESS_TYPE,
                              mmu_idx, retaddr);
     }
 
     /* If the TLB entry is for a different page, reload and try again.  */
     if (!tlb_hit(tlb_addr, addr)) {
         if (!VICTIM_TLB_HIT(ADDR_READ, addr)) {
-            tlb_fill(ENV_GET_CPU(env), addr, DATA_SIZE, READ_ACCESS_TYPE,
+            tlb_fill(env_cpu(env), addr, DATA_SIZE, READ_ACCESS_TYPE,
                      mmu_idx, retaddr);
             index = tlb_index(env, mmu_idx, addr);
             entry = tlb_entry(env, mmu_idx, addr);
@@ -191,14 +191,14 @@ WORD_TYPE helper_be_ld_name(CPUArchState *env, target_ulong addr,
     DATA_TYPE res;
 
     if (addr & ((1 << a_bits) - 1)) {
-        cpu_unaligned_access(ENV_GET_CPU(env), addr, READ_ACCESS_TYPE,
+        cpu_unaligned_access(env_cpu(env), addr, READ_ACCESS_TYPE,
                              mmu_idx, retaddr);
     }
 
     /* If the TLB entry is for a different page, reload and try again.  */
     if (!tlb_hit(tlb_addr, addr)) {
         if (!VICTIM_TLB_HIT(ADDR_READ, addr)) {
-            tlb_fill(ENV_GET_CPU(env), addr, DATA_SIZE, READ_ACCESS_TYPE,
+            tlb_fill(env_cpu(env), addr, DATA_SIZE, READ_ACCESS_TYPE,
                      mmu_idx, retaddr);
             index = tlb_index(env, mmu_idx, addr);
             entry = tlb_entry(env, mmu_idx, addr);
@@ -289,14 +289,14 @@ void helper_le_st_name(CPUArchState *env, target_ulong addr, DATA_TYPE val,
     uintptr_t haddr;
 
     if (addr & ((1 << a_bits) - 1)) {
-        cpu_unaligned_access(ENV_GET_CPU(env), addr, MMU_DATA_STORE,
+        cpu_unaligned_access(env_cpu(env), addr, MMU_DATA_STORE,
                              mmu_idx, retaddr);
     }
 
     /* If the TLB entry is for a different page, reload and try again.  */
     if (!tlb_hit(tlb_addr, addr)) {
         if (!VICTIM_TLB_HIT(addr_write, addr)) {
-            tlb_fill(ENV_GET_CPU(env), addr, DATA_SIZE, MMU_DATA_STORE,
+            tlb_fill(env_cpu(env), addr, DATA_SIZE, MMU_DATA_STORE,
                      mmu_idx, retaddr);
             index = tlb_index(env, mmu_idx, addr);
             entry = tlb_entry(env, mmu_idx, addr);
@@ -333,7 +333,7 @@ void helper_le_st_name(CPUArchState *env, target_ulong addr, DATA_TYPE val,
         entry2 = tlb_entry(env, mmu_idx, page2);
         if (!tlb_hit_page(tlb_addr_write(entry2), page2)
             && !VICTIM_TLB_HIT(addr_write, page2)) {
-            tlb_fill(ENV_GET_CPU(env), page2, DATA_SIZE, MMU_DATA_STORE,
+            tlb_fill(env_cpu(env), page2, DATA_SIZE, MMU_DATA_STORE,
                      mmu_idx, retaddr);
         }
 
@@ -369,14 +369,14 @@ void helper_be_st_name(CPUArchState *env, target_ulong addr, DATA_TYPE val,
     uintptr_t haddr;
 
     if (addr & ((1 << a_bits) - 1)) {
-        cpu_unaligned_access(ENV_GET_CPU(env), addr, MMU_DATA_STORE,
+        cpu_unaligned_access(env_cpu(env), addr, MMU_DATA_STORE,
                              mmu_idx, retaddr);
     }
 
     /* If the TLB entry is for a different page, reload and try again.  */
     if (!tlb_hit(tlb_addr, addr)) {
         if (!VICTIM_TLB_HIT(addr_write, addr)) {
-            tlb_fill(ENV_GET_CPU(env), addr, DATA_SIZE, MMU_DATA_STORE,
+            tlb_fill(env_cpu(env), addr, DATA_SIZE, MMU_DATA_STORE,
                      mmu_idx, retaddr);
             index = tlb_index(env, mmu_idx, addr);
             entry = tlb_entry(env, mmu_idx, addr);
@@ -413,7 +413,7 @@ void helper_be_st_name(CPUArchState *env, target_ulong addr, DATA_TYPE val,
         entry2 = tlb_entry(env, mmu_idx, page2);
         if (!tlb_hit_page(tlb_addr_write(entry2), page2)
             && !VICTIM_TLB_HIT(addr_write, page2)) {
-            tlb_fill(ENV_GET_CPU(env), page2, DATA_SIZE, MMU_DATA_STORE,
+            tlb_fill(env_cpu(env), page2, DATA_SIZE, MMU_DATA_STORE,
                      mmu_idx, retaddr);
         }
 
