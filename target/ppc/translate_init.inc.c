@@ -3403,7 +3403,7 @@ static void init_proc_401(CPUPPCState *env)
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
-    ppc40x_irq_init(ppc_env_get_cpu(env));
+    ppc40x_irq_init(env_archcpu(env));
 
     SET_FIT_PERIOD(12, 16, 20, 24);
     SET_WDT_PERIOD(16, 20, 24, 28);
@@ -3457,7 +3457,7 @@ static void init_proc_401x2(CPUPPCState *env)
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
-    ppc40x_irq_init(ppc_env_get_cpu(env));
+    ppc40x_irq_init(env_archcpu(env));
 
     SET_FIT_PERIOD(12, 16, 20, 24);
     SET_WDT_PERIOD(16, 20, 24, 28);
@@ -3509,7 +3509,7 @@ static void init_proc_401x3(CPUPPCState *env)
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
-    ppc40x_irq_init(ppc_env_get_cpu(env));
+    ppc40x_irq_init(env_archcpu(env));
 
     SET_FIT_PERIOD(12, 16, 20, 24);
     SET_WDT_PERIOD(16, 20, 24, 28);
@@ -3568,7 +3568,7 @@ static void init_proc_IOP480(CPUPPCState *env)
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
-    ppc40x_irq_init(ppc_env_get_cpu(env));
+    ppc40x_irq_init(env_archcpu(env));
 
     SET_FIT_PERIOD(8, 12, 16, 20);
     SET_WDT_PERIOD(16, 20, 24, 28);
@@ -3619,7 +3619,7 @@ static void init_proc_403(CPUPPCState *env)
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
-    ppc40x_irq_init(ppc_env_get_cpu(env));
+    ppc40x_irq_init(env_archcpu(env));
 
     SET_FIT_PERIOD(8, 12, 16, 20);
     SET_WDT_PERIOD(16, 20, 24, 28);
@@ -3685,7 +3685,7 @@ static void init_proc_403GCX(CPUPPCState *env)
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
-    ppc40x_irq_init(ppc_env_get_cpu(env));
+    ppc40x_irq_init(env_archcpu(env));
 
     SET_FIT_PERIOD(8, 12, 16, 20);
     SET_WDT_PERIOD(16, 20, 24, 28);
@@ -3751,7 +3751,7 @@ static void init_proc_405(CPUPPCState *env)
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
-    ppc40x_irq_init(ppc_env_get_cpu(env));
+    ppc40x_irq_init(env_archcpu(env));
 
     SET_FIT_PERIOD(8, 12, 16, 20);
     SET_WDT_PERIOD(16, 20, 24, 28);
@@ -3849,7 +3849,7 @@ static void init_proc_440EP(CPUPPCState *env)
     init_excp_BookE(env);
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
-    ppc40x_irq_init(ppc_env_get_cpu(env));
+    ppc40x_irq_init(env_archcpu(env));
 
     SET_FIT_PERIOD(12, 16, 20, 24);
     SET_WDT_PERIOD(20, 24, 28, 32);
@@ -4157,7 +4157,7 @@ static void init_proc_440x5(CPUPPCState *env)
     init_excp_BookE(env);
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
-    ppc40x_irq_init(ppc_env_get_cpu(env));
+    ppc40x_irq_init(env_archcpu(env));
 
     SET_FIT_PERIOD(12, 16, 20, 24);
     SET_WDT_PERIOD(20, 24, 28, 32);
@@ -4363,7 +4363,7 @@ static void init_proc_G2(CPUPPCState *env)
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
-    ppc6xx_irq_init(ppc_env_get_cpu(env));
+    ppc6xx_irq_init(env_archcpu(env));
 }
 
 POWERPC_FAMILY(G2)(ObjectClass *oc, void *data)
@@ -4443,7 +4443,7 @@ static void init_proc_G2LE(CPUPPCState *env)
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
-    ppc6xx_irq_init(ppc_env_get_cpu(env));
+    ppc6xx_irq_init(env_archcpu(env));
 }
 
 POWERPC_FAMILY(G2LE)(ObjectClass *oc, void *data)
@@ -4697,7 +4697,7 @@ static void init_proc_e300(CPUPPCState *env)
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
-    ppc6xx_irq_init(ppc_env_get_cpu(env));
+    ppc6xx_irq_init(env_archcpu(env));
 }
 
 POWERPC_FAMILY(e300)(ObjectClass *oc, void *data)
@@ -4775,7 +4775,6 @@ enum fsl_e500_version {
 
 static void init_proc_e500(CPUPPCState *env, int version)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
     uint32_t tlbncfg[2];
     uint64_t ivor_mask;
     uint64_t ivpr_mask = 0xFFFF0000ULL;
@@ -4847,7 +4846,8 @@ static void init_proc_e500(CPUPPCState *env, int version)
         tlbncfg[1] = 0x40028040;
         break;
     default:
-        cpu_abort(CPU(cpu), "Unknown CPU: " TARGET_FMT_lx "\n", env->spr[SPR_PVR]);
+        cpu_abort(env_cpu(env), "Unknown CPU: " TARGET_FMT_lx "\n",
+                  env->spr[SPR_PVR]);
     }
 #endif
     /* Cache sizes */
@@ -4871,7 +4871,8 @@ static void init_proc_e500(CPUPPCState *env, int version)
         l1cfg1 |= 0x0B83820;
         break;
     default:
-        cpu_abort(CPU(cpu), "Unknown CPU: " TARGET_FMT_lx "\n", env->spr[SPR_PVR]);
+        cpu_abort(env_cpu(env), "Unknown CPU: " TARGET_FMT_lx "\n",
+                  env->spr[SPR_PVR]);
     }
     gen_spr_BookE206(env, 0x000000DF, tlbncfg, mmucfg);
     /* XXX : not implemented */
@@ -4986,7 +4987,7 @@ static void init_proc_e500(CPUPPCState *env, int version)
 
     init_excp_e200(env, ivpr_mask);
     /* Allocate hardware IRQ controller */
-    ppce500_irq_init(ppc_env_get_cpu(env));
+    ppce500_irq_init(env_archcpu(env));
 }
 
 static void init_proc_e500v1(CPUPPCState *env)
@@ -5258,7 +5259,7 @@ static void init_proc_601(CPUPPCState *env)
     env->dcache_line_size = 32;
     env->icache_line_size = 64;
     /* Allocate hardware IRQ controller */
-    ppc6xx_irq_init(ppc_env_get_cpu(env));
+    ppc6xx_irq_init(env_archcpu(env));
 }
 
 POWERPC_FAMILY(601)(ObjectClass *oc, void *data)
@@ -5363,7 +5364,7 @@ static void init_proc_602(CPUPPCState *env)
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
-    ppc6xx_irq_init(ppc_env_get_cpu(env));
+    ppc6xx_irq_init(env_archcpu(env));
 }
 
 POWERPC_FAMILY(602)(ObjectClass *oc, void *data)
@@ -5433,7 +5434,7 @@ static void init_proc_603(CPUPPCState *env)
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
-    ppc6xx_irq_init(ppc_env_get_cpu(env));
+    ppc6xx_irq_init(env_archcpu(env));
 }
 
 POWERPC_FAMILY(603)(ObjectClass *oc, void *data)
@@ -5500,7 +5501,7 @@ static void init_proc_603E(CPUPPCState *env)
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
-    ppc6xx_irq_init(ppc_env_get_cpu(env));
+    ppc6xx_irq_init(env_archcpu(env));
 }
 
 POWERPC_FAMILY(603E)(ObjectClass *oc, void *data)
@@ -5561,7 +5562,7 @@ static void init_proc_604(CPUPPCState *env)
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
-    ppc6xx_irq_init(ppc_env_get_cpu(env));
+    ppc6xx_irq_init(env_archcpu(env));
 }
 
 POWERPC_FAMILY(604)(ObjectClass *oc, void *data)
@@ -5645,7 +5646,7 @@ static void init_proc_604E(CPUPPCState *env)
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
-    ppc6xx_irq_init(ppc_env_get_cpu(env));
+    ppc6xx_irq_init(env_archcpu(env));
 }
 
 POWERPC_FAMILY(604E)(ObjectClass *oc, void *data)
@@ -5716,7 +5717,7 @@ static void init_proc_740(CPUPPCState *env)
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
-    ppc6xx_irq_init(ppc_env_get_cpu(env));
+    ppc6xx_irq_init(env_archcpu(env));
 }
 
 POWERPC_FAMILY(740)(ObjectClass *oc, void *data)
@@ -5795,7 +5796,7 @@ static void init_proc_750(CPUPPCState *env)
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
-    ppc6xx_irq_init(ppc_env_get_cpu(env));
+    ppc6xx_irq_init(env_archcpu(env));
 }
 
 POWERPC_FAMILY(750)(ObjectClass *oc, void *data)
@@ -5959,7 +5960,7 @@ static void init_proc_750cl(CPUPPCState *env)
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
-    ppc6xx_irq_init(ppc_env_get_cpu(env));
+    ppc6xx_irq_init(env_archcpu(env));
 }
 
 POWERPC_FAMILY(750cl)(ObjectClass *oc, void *data)
@@ -6080,7 +6081,7 @@ static void init_proc_750cx(CPUPPCState *env)
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
-    ppc6xx_irq_init(ppc_env_get_cpu(env));
+    ppc6xx_irq_init(env_archcpu(env));
 }
 
 POWERPC_FAMILY(750cx)(ObjectClass *oc, void *data)
@@ -6168,7 +6169,7 @@ static void init_proc_750fx(CPUPPCState *env)
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
-    ppc6xx_irq_init(ppc_env_get_cpu(env));
+    ppc6xx_irq_init(env_archcpu(env));
 }
 
 POWERPC_FAMILY(750fx)(ObjectClass *oc, void *data)
@@ -6256,7 +6257,7 @@ static void init_proc_750gx(CPUPPCState *env)
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
-    ppc6xx_irq_init(ppc_env_get_cpu(env));
+    ppc6xx_irq_init(env_archcpu(env));
 }
 
 POWERPC_FAMILY(750gx)(ObjectClass *oc, void *data)
@@ -6335,7 +6336,7 @@ static void init_proc_745(CPUPPCState *env)
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
-    ppc6xx_irq_init(ppc_env_get_cpu(env));
+    ppc6xx_irq_init(env_archcpu(env));
 }
 
 POWERPC_FAMILY(745)(ObjectClass *oc, void *data)
@@ -6422,7 +6423,7 @@ static void init_proc_755(CPUPPCState *env)
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
-    ppc6xx_irq_init(ppc_env_get_cpu(env));
+    ppc6xx_irq_init(env_archcpu(env));
 }
 
 POWERPC_FAMILY(755)(ObjectClass *oc, void *data)
@@ -6492,7 +6493,7 @@ static void init_proc_7400(CPUPPCState *env)
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
-    ppc6xx_irq_init(ppc_env_get_cpu(env));
+    ppc6xx_irq_init(env_archcpu(env));
 }
 
 POWERPC_FAMILY(7400)(ObjectClass *oc, void *data)
@@ -6577,7 +6578,7 @@ static void init_proc_7410(CPUPPCState *env)
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
-    ppc6xx_irq_init(ppc_env_get_cpu(env));
+    ppc6xx_irq_init(env_archcpu(env));
 }
 
 POWERPC_FAMILY(7410)(ObjectClass *oc, void *data)
@@ -6688,7 +6689,7 @@ static void init_proc_7440(CPUPPCState *env)
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
-    ppc6xx_irq_init(ppc_env_get_cpu(env));
+    ppc6xx_irq_init(env_archcpu(env));
 }
 
 POWERPC_FAMILY(7440)(ObjectClass *oc, void *data)
@@ -6822,7 +6823,7 @@ static void init_proc_7450(CPUPPCState *env)
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
-    ppc6xx_irq_init(ppc_env_get_cpu(env));
+    ppc6xx_irq_init(env_archcpu(env));
 }
 
 POWERPC_FAMILY(7450)(ObjectClass *oc, void *data)
@@ -6959,7 +6960,7 @@ static void init_proc_7445(CPUPPCState *env)
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
-    ppc6xx_irq_init(ppc_env_get_cpu(env));
+    ppc6xx_irq_init(env_archcpu(env));
 }
 
 POWERPC_FAMILY(7445)(ObjectClass *oc, void *data)
@@ -7098,7 +7099,7 @@ static void init_proc_7455(CPUPPCState *env)
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
-    ppc6xx_irq_init(ppc_env_get_cpu(env));
+    ppc6xx_irq_init(env_archcpu(env));
 }
 
 POWERPC_FAMILY(7455)(ObjectClass *oc, void *data)
@@ -7261,7 +7262,7 @@ static void init_proc_7457(CPUPPCState *env)
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
-    ppc6xx_irq_init(ppc_env_get_cpu(env));
+    ppc6xx_irq_init(env_archcpu(env));
 }
 
 POWERPC_FAMILY(7457)(ObjectClass *oc, void *data)
@@ -7399,7 +7400,7 @@ static void init_proc_e600(CPUPPCState *env)
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
-    ppc6xx_irq_init(ppc_env_get_cpu(env));
+    ppc6xx_irq_init(env_archcpu(env));
 }
 
 POWERPC_FAMILY(e600)(ObjectClass *oc, void *data)
@@ -8261,7 +8262,7 @@ static void init_proc_970(CPUPPCState *env)
 
     /* Allocate hardware IRQ controller */
     init_excp_970(env);
-    ppc970_irq_init(ppc_env_get_cpu(env));
+    ppc970_irq_init(env_archcpu(env));
 }
 
 POWERPC_FAMILY(970)(ObjectClass *oc, void *data)
@@ -8335,7 +8336,7 @@ static void init_proc_power5plus(CPUPPCState *env)
 
     /* Allocate hardware IRQ controller */
     init_excp_970(env);
-    ppc970_irq_init(ppc_env_get_cpu(env));
+    ppc970_irq_init(env_archcpu(env));
 }
 
 POWERPC_FAMILY(POWER5P)(ObjectClass *oc, void *data)
@@ -8450,7 +8451,7 @@ static void init_proc_POWER7(CPUPPCState *env)
 
     /* Allocate hardware IRQ controller */
     init_excp_POWER7(env);
-    ppcPOWER7_irq_init(ppc_env_get_cpu(env));
+    ppcPOWER7_irq_init(env_archcpu(env));
 }
 
 static bool ppc_pvr_match_power7(PowerPCCPUClass *pcc, uint32_t pvr)
@@ -8602,7 +8603,7 @@ static void init_proc_POWER8(CPUPPCState *env)
 
     /* Allocate hardware IRQ controller */
     init_excp_POWER8(env);
-    ppcPOWER7_irq_init(ppc_env_get_cpu(env));
+    ppcPOWER7_irq_init(env_archcpu(env));
 }
 
 static bool ppc_pvr_match_power8(PowerPCCPUClass *pcc, uint32_t pvr)
@@ -8801,7 +8802,7 @@ static void init_proc_POWER9(CPUPPCState *env)
 
     /* Allocate hardware IRQ controller */
     init_excp_POWER9(env);
-    ppcPOWER9_irq_init(ppc_env_get_cpu(env));
+    ppcPOWER9_irq_init(env_archcpu(env));
 }
 
 static bool ppc_pvr_match_power9(PowerPCCPUClass *pcc, uint32_t pvr)
