@@ -72,7 +72,7 @@ unsigned int mmu_translate(CPUNios2State *env,
                            Nios2MMULookup *lu,
                            target_ulong vaddr, int rw, int mmu_idx)
 {
-    Nios2CPU *cpu = nios2_env_get_cpu(env);
+    Nios2CPU *cpu = env_archcpu(env);
     int pid = (env->mmu.tlbmisc_wr & CR_TLBMISC_PID_MASK) >> 4;
     int vpn = vaddr >> 12;
 
@@ -114,7 +114,7 @@ unsigned int mmu_translate(CPUNios2State *env,
 static void mmu_flush_pid(CPUNios2State *env, uint32_t pid)
 {
     CPUState *cs = env_cpu(env);
-    Nios2CPU *cpu = nios2_env_get_cpu(env);
+    Nios2CPU *cpu = env_archcpu(env);
     int idx;
     MMU_LOG(qemu_log("TLB Flush PID %d\n", pid));
 
@@ -138,7 +138,7 @@ static void mmu_flush_pid(CPUNios2State *env, uint32_t pid)
 void mmu_write(CPUNios2State *env, uint32_t rn, uint32_t v)
 {
     CPUState *cs = env_cpu(env);
-    Nios2CPU *cpu = nios2_env_get_cpu(env);
+    Nios2CPU *cpu = env_archcpu(env);
 
     MMU_LOG(qemu_log("mmu_write %08X = %08X\n", rn, v));
 
@@ -255,7 +255,7 @@ void mmu_write(CPUNios2State *env, uint32_t rn, uint32_t v)
 
 void mmu_init(CPUNios2State *env)
 {
-    Nios2CPU *cpu = nios2_env_get_cpu(env);
+    Nios2CPU *cpu = env_archcpu(env);
     Nios2MMU *mmu = &env->mmu;
 
     MMU_LOG(qemu_log("mmu_init\n"));
@@ -266,7 +266,7 @@ void mmu_init(CPUNios2State *env)
 
 void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUNios2State *env)
 {
-    Nios2CPU *cpu = nios2_env_get_cpu(env);
+    Nios2CPU *cpu = env_archcpu(env);
     int i;
 
     cpu_fprintf(f, "MMU: ways %d, entries %d, pid bits %d\n",
