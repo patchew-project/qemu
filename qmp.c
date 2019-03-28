@@ -717,3 +717,13 @@ MemoryInfo *qmp_query_memory_size_summary(Error **errp)
 
     return mem_info;
 }
+
+QemuFeatures *qmp_query_qemu_features(Error **errp)
+{
+    QemuFeatures *caps = g_new(QemuFeatures, 1);
+
+    *caps = (QemuFeatures) {
+    };
+
+    return caps;
+}
