@@ -463,7 +463,17 @@ static int64_t nbd_getlength(BlockDriverState *bs)
 {
     BDRVNBDState *s = bs->opaque;
 
-    return s->client.info.size;
+    /*
+     * HACK: Round down to sector alignment. qemu as server always
+     * advertises a sector-aligned image, so we only ever see
+     * unaligned sizes with third-party servers. The block layer
+     * defaults to rounding up, but that can result in us attempting
+     * to read beyond EOF from the remote server; better is to
+     * forcefully round down here and just treat the last few bytes
+     * from the server as unreadable.  This can all go away once the
+     * block layer uses actual byte lengths instead of rounding up.
+     */
+    return QEMU_ALIGN_DOWN(s->client.info.size, BDRV_SECTOR_SIZE);
 }
 
 static void nbd_detach_aio_context(BlockDriverState *bs)
