@@ -72,7 +72,7 @@
 /* AArch64 main loop */
 void cpu_loop(CPUARMState *env)
 {
-    CPUState *cs = CPU(arm_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
     int trapnr;
     abi_long ret;
     target_siginfo_t info;
@@ -167,8 +167,8 @@ void arm_init_pauth_key(ARMPACKey *key)
 
 void target_cpu_copy_regs(CPUArchState *env, struct target_pt_regs *regs)
 {
-    ARMCPU *cpu = arm_env_get_cpu(env);
-    CPUState *cs = CPU(cpu);
+    ARMCPU *cpu = env_archcpu(env);
+    CPUState *cs = env_cpu(env);
     TaskState *ts = cs->opaque;
     struct image_info *info = ts->info;
     int i;
