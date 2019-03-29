@@ -28,6 +28,7 @@
 #include "hw/loader.h"
 #include "exec/cpu-common.h"
 #include "smbios_build.h"
+#include "hw/boards.h"
 
 /* legacy structures and constants for <= 2.0 machines */
 struct smbios_header {
@@ -342,6 +343,9 @@ opts_init(smbios_register_config);
 
 static void smbios_validate_table(void)
 {
+    MachineState *ms = MACHINE(qdev_get_machine());
+    unsigned int smp_cpus = ms->topo.smp_cpus;
+
     uint32_t expect_t4_count = smbios_legacy ? smp_cpus : smbios_smp_sockets;
 
     if (smbios_type4_count && smbios_type4_count != expect_t4_count) {
@@ -571,6 +575,9 @@ static void smbios_build_type_3_table(void)
 
 static void smbios_build_type_4_table(unsigned instance)
 {
+    MachineState *ms = MACHINE(qdev_get_machine());
+    unsigned int smp_threads = ms->topo.smp_threads;
+    unsigned int smp_cores = ms->topo.smp_cores;
     char sock_str[128];
 
     SMBIOS_BUILD_TABLE_PRE(4, 0x400 + instance, true); /* required */
@@ -843,7 +850,11 @@ void smbios_get_tables(const struct smbios_phys_mem_area *mem_array,
                        uint8_t **tables, size_t *tables_len,
                        uint8_t **anchor, size_t *anchor_len)
 {
+    MachineState *ms = MACHINE(qdev_get_machine());
     unsigned i, dimm_cnt;
+    unsigned int smp_cpus = ms->topo.smp_cpus;
+    unsigned int smp_cores = ms->topo.smp_cores;
+    unsigned int smp_threads = ms->topo.smp_threads;
 
     if (smbios_legacy) {
         *tables = *anchor = NULL;

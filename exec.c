@@ -1829,6 +1829,8 @@ static void *file_ram_alloc(RAMBlock *block,
                             bool truncate,
                             Error **errp)
 {
+    MachineState *ms = MACHINE(qdev_get_machine());
+    unsigned int smp_cpus = ms->topo.smp_cpus;
     void *area;
 
     block->page_size = qemu_fd_getpagesize(fd);
