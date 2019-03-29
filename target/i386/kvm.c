@@ -657,6 +657,7 @@ static bool hyperv_enabled(X86CPU *cpu)
             cpu->hyperv_reenlightenment ||
             cpu->hyperv_tlbflush ||
             cpu->hyperv_ipi ||
+            cpu->hyperv_stimer_direct ||
             cpu->hyperv_all);
 }
 
@@ -829,6 +830,15 @@ static struct {
             {.fw = FEAT_HV_RECOMM_EAX,
              .bits = HV_CLUSTER_IPI_RECOMMENDED |
              HV_EX_PROCESSOR_MASKS_RECOMMENDED},
+            {0}
+        }
+    },
+    {
+        .name = "hv-stimer-direct",
+        .desc = "direct mode timers",
+        .flags = {
+            {.fw = FEAT_HYPERV_EDX,
+             .bits = HV_STIMER_DIRECT_MODE_AVAILABLE},
             {0}
         }
     },
@@ -1178,6 +1188,8 @@ static int hyperv_handle_properties(CPUState *cs,
     r |= hv_cpuid_check_and_set(cs, cpuid, "hv-tlbflush",
                                 &cpu->hyperv_tlbflush);
     r |= hv_cpuid_check_and_set(cs, cpuid, "hv-ipi", &cpu->hyperv_ipi);
+    r |= hv_cpuid_check_and_set(cs, cpuid, "hv-stimer-direct",
+                                &cpu->hyperv_stimer_direct);
 
     /* Dependencies */
     if (cpu->hyperv_synic && !cpu->hyperv_synic_kvm_only &&
@@ -1197,6 +1209,9 @@ static int hyperv_handle_properties(CPUState *cs,
     }
     if (cpu->hyperv_ipi && !cpu->hyperv_vpindex) {
         r |= hv_report_missing_dep(cpu, "hv-ipi", "hv-vpindex");
+    }
+    if (cpu->hyperv_stimer_direct && !cpu->hyperv_stimer) {
+        r |= hv_report_missing_dep(cpu, "hv-stimer-direct", "hv-stimer");
     }
 
     /* Not exposed by KVM but needed to make CPU hotplug in Windows work */

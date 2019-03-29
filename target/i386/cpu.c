@@ -5785,6 +5785,7 @@ static Property x86_cpu_properties[] = {
     DEFINE_PROP_BOOL("hv-tlbflush", X86CPU, hyperv_tlbflush, false),
     DEFINE_PROP_BOOL("hv-evmcs", X86CPU, hyperv_evmcs, false),
     DEFINE_PROP_BOOL("hv-ipi", X86CPU, hyperv_ipi, false),
+    DEFINE_PROP_BOOL("hv-stimer-direct", X86CPU, hyperv_stimer_direct, false),
     DEFINE_PROP_BOOL("hv-all", X86CPU, hyperv_all, false),
     DEFINE_PROP_BOOL("check", X86CPU, check_cpuid, true),
     DEFINE_PROP_BOOL("enforce", X86CPU, enforce_cpuid, false),
