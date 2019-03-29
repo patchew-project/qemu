@@ -3164,6 +3164,7 @@ void qmp_block_stream(bool has_job_id, const char *job_id, const char *device,
 {
     BlockDriverState *bs, *iter;
     BlockDriverState *base_bs = NULL;
+    BlockDriverState *bottom_node = NULL;
     AioContext *aio_context;
     Error *local_err = NULL;
     const char *base_name = NULL;
@@ -3237,7 +3238,14 @@ void qmp_block_stream(bool has_job_id, const char *job_id, const char *device,
         job_flags |= JOB_MANUAL_DISMISS;
     }
 
-    stream_start(has_job_id ? job_id : NULL, bs, base_bs, base_name,
+    /* Find the bottom node that has the base as its backing image */
+    bottom_node = bs;
+    while ((iter = backing_bs(bottom_node)) != base_bs) {
+        bottom_node = iter;
+    }
+    assert(bottom_node);
+
+    stream_start(has_job_id ? job_id : NULL, bs, bottom_node, base_name,
                  job_flags, has_speed ? speed : 0, on_error, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
