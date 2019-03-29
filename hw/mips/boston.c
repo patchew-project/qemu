@@ -434,6 +434,7 @@ static void boston_mach_init(MachineState *machine)
     DriveInfo *hd[6];
     Chardev *chr;
     int fw_size, fit_err;
+    unsigned int smp_cpus = machine->topo.smp_cpus;
     bool is_64b;
 
     if ((machine->ram_size % GiB) ||

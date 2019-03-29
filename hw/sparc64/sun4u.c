@@ -546,6 +546,8 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     NICInfo *nd;
     MACAddr macaddr;
     bool onboard_nic;
+    unsigned int smp_cpus = machine->topo.smp_cpus;
+    unsigned int max_cpus = machine->topo.max_cpus;
 
     /* init CPUs */
     cpu = sparc64_cpu_devinit(machine->cpu_type, hwdef->prom_addr);

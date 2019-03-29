@@ -1095,6 +1095,8 @@ static int64_t load_kernel (void)
 
 static void malta_mips_config(MIPSCPU *cpu)
 {
+    MachineState *ms = MACHINE(qdev_get_machine());
+    unsigned int smp_cpus = ms->topo.smp_cpus;
     CPUMIPSState *env = &cpu->env;
     CPUState *cs = CPU(cpu);
 
@@ -1127,9 +1129,11 @@ static void main_cpu_reset(void *opaque)
 static void create_cpu_without_cps(const char *cpu_type,
                                    qemu_irq *cbus_irq, qemu_irq *i8259_irq)
 {
+    MachineState *ms = MACHINE(qdev_get_machine());
     CPUMIPSState *env;
     MIPSCPU *cpu;
     int i;
+    unsigned int smp_cpus = ms->topo.smp_cpus;
 
     for (i = 0; i < smp_cpus; i++) {
         cpu = MIPS_CPU(cpu_create(cpu_type));
@@ -1149,7 +1153,9 @@ static void create_cpu_without_cps(const char *cpu_type,
 static void create_cps(MaltaState *s, const char *cpu_type,
                        qemu_irq *cbus_irq, qemu_irq *i8259_irq)
 {
+    MachineState *ms = MACHINE(qdev_get_machine());
     Error *err = NULL;
+    unsigned int smp_cpus = ms->topo.smp_cpus;
 
     s->cps = MIPS_CPS(object_new(TYPE_MIPS_CPS));
     qdev_set_parent_bus(DEVICE(s->cps), sysbus_get_default());
@@ -1171,6 +1177,9 @@ static void create_cps(MaltaState *s, const char *cpu_type,
 static void mips_create_cpu(MaltaState *s, const char *cpu_type,
                             qemu_irq *cbus_irq, qemu_irq *i8259_irq)
 {
+    MachineState *ms = MACHINE(qdev_get_machine());
+    unsigned int smp_cpus = ms->topo.smp_cpus;
+
     if ((smp_cpus > 1) && cpu_supports_cps_smp(cpu_type)) {
         create_cps(s, cpu_type, cbus_irq, i8259_irq);
     } else {

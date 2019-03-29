@@ -16,6 +16,7 @@
 #include "hw/ide.h"
 #include "hw/timer/i8254.h"
 #include "hw/char/serial.h"
+#include "hw/boards.h"
 #include "hppa_sys.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
@@ -72,6 +73,7 @@ static void machine_hppa_init(MachineState *machine)
     MemoryRegion *ram_region;
     MemoryRegion *cpu_region;
     long i;
+    unsigned int smp_cpus = machine->topo.smp_cpus;
 
     ram_size = machine->ram_size;
 
@@ -242,7 +244,9 @@ static void machine_hppa_init(MachineState *machine)
 
 static void hppa_machine_reset(void)
 {
+    MachineState *ms = MACHINE(qdev_get_machine());
     int i;
+    unsigned int smp_cpus = ms->topo.smp_cpus;
 
     qemu_devices_reset();
 
