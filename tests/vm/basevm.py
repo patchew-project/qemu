@@ -27,6 +27,7 @@ import tempfile
 import shutil
 import multiprocessing
 import traceback
+import urllib.request
 
 SSH_KEY = open(os.path.join(os.path.dirname(__file__),
                "..", "keys", "id_rsa")).read()
@@ -81,6 +82,18 @@ class BaseVM(object):
         self._data_args = []
 
     def _download_with_cache(self, url, sha256sum=None):
+
+        def fetch_image_hash(url):
+            fetch_url = "%s.sha256sum" % url
+            try:
+                with urllib.request.urlopen(fetch_url) as response:
+                    content = response.read()
+            except  urllib.error.URLError as error:
+                logging.error("Failed to fetch image checksum file: %s",
+                        fetch_url)
+                raise error
+            return content.decode().strip()
+
         def check_sha256sum(fname):
             if not sha256sum:
                 return True
@@ -91,8 +104,24 @@ class BaseVM(object):
         if not os.path.exists(cache_dir):
             os.makedirs(cache_dir)
         fname = os.path.join(cache_dir, hashlib.sha1(url.encode()).hexdigest())
-        if os.path.exists(fname) and check_sha256sum(fname):
+
+        if os.path.exists(fname) and sha256sum is None:
             return fname
+
+        if sha256sum:
+            image_checksum = fetch_image_hash(url)
+            # Check the url points to a known image file.
+            if image_checksum != sha256sum:
+                logging.error("Image %s checksum (%s) does not match " +
+                        "expected (%s).", url, image_checksum, sha256sum)
+                raise Exception("Image checksum failed.")
+            # Check the cached image is up to date.
+            if os.path.exists(fname):
+                if check_sha256sum(fname):
+                    return fname
+                logging.warning("Invalid cached image. Attempt to download " +
+                        "the updated one.")
+
         logging.debug("Downloading %s to %s...", url, fname)
         subprocess.check_call(["wget", "-c", url, "-O", fname + ".download"],
                               stdout=self._stdout, stderr=self._stderr)
