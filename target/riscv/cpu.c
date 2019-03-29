@@ -23,6 +23,7 @@
 #include "cpu.h"
 #include "exec/exec-all.h"
 #include "qapi/error.h"
+#include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 
 /* RISC-V CPU definitions */
@@ -185,11 +186,8 @@ static void riscv_generate_cpu_init(Object *obj)
     }
 
     set_misa(env, rvxlen | target_misa);
-    set_versions(env, USER_VERSION_2_02_0, PRIV_VERSION_1_10_0);
-    set_resetvec(env, DEFAULT_RSTVEC);
-    set_feature(env, RISCV_FEATURE_MMU);
-    set_feature(env, RISCV_FEATURE_PMP);
 }
+
 
 static void riscv_any_cpu_init(Object *obj)
 {
@@ -388,13 +386,50 @@ static void riscv_cpu_disas_set_info(CPUState *s, disassemble_info *info)
 static void riscv_cpu_realize(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
+    RISCVCPU *cpu = RISCV_CPU(dev);
+    CPURISCVState *env = &cpu->env;
     RISCVCPUClass *mcc = RISCV_CPU_GET_CLASS(dev);
+    int priv_version = PRIV_VERSION_1_10_0;
+    int user_version = USER_VERSION_2_02_0;
     Error *local_err = NULL;
 
     cpu_exec_realizefn(cs, &local_err);
     if (local_err != NULL) {
         error_propagate(errp, local_err);
         return;
+    }
+
+    if (cpu->cfg.priv_spec) {
+        if (!g_strcmp0(cpu->cfg.priv_spec, "v1.10.0")) {
+            priv_version = PRIV_VERSION_1_10_0;
+        } else if (!g_strcmp0(cpu->cfg.priv_spec, "v1.9.1")) {
+            priv_version = PRIV_VERSION_1_09_1;
+        } else {
+            error_report("Unsupported privilege spec version '%s'",
+                         cpu->cfg.priv_spec);
+            exit(1);
+        }
+    }
+
+    if (cpu->cfg.user_spec) {
+        if (!g_strcmp0(cpu->cfg.user_spec, "v2.02.0")) {
+            user_version = USER_VERSION_2_02_0;
+        } else {
+            error_report("Unsupported user spec version '%s'",
+                         cpu->cfg.user_spec);
+            exit(1);
+        }
+    }
+
+    set_versions(env, user_version, priv_version);
+    set_resetvec(env, DEFAULT_RSTVEC);
+
+    if (cpu->cfg.mmu) {
+        set_feature(env, RISCV_FEATURE_MMU);
+    }
+
+    if (cpu->cfg.pmp) {
+        set_feature(env, RISCV_FEATURE_PMP);
     }
 
     riscv_cpu_register_gdb_regs_for_features(cs);
@@ -416,6 +451,14 @@ static void riscv_cpu_init(Object *obj)
 static const VMStateDescription vmstate_riscv_cpu = {
     .name = "cpu",
     .unmigratable = 1,
+};
+
+static Property riscv_cpu_properties[] = {
+    DEFINE_PROP_STRING("priv_spec", RISCVCPU, cfg.priv_spec),
+    DEFINE_PROP_STRING("user_spec", RISCVCPU, cfg.user_spec),
+    DEFINE_PROP_BOOL("mmu", RISCVCPU, cfg.mmu, true),
+    DEFINE_PROP_BOOL("pmp", RISCVCPU, cfg.pmp, true),
+    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void riscv_cpu_class_init(ObjectClass *c, void *data)
@@ -458,6 +501,7 @@ static void riscv_cpu_class_init(ObjectClass *c, void *data)
 #endif
     /* For now, mark unmigratable: */
     cc->vmsd = &vmstate_riscv_cpu;
+    dc->props = riscv_cpu_properties;
 }
 
 char *riscv_isa_string(RISCVCPU *cpu)
