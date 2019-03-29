@@ -73,7 +73,7 @@ const char *cpu_to_uname_machine(void *cpu_env)
 #define COPY_UTSNAME_FIELD(dest, src) \
   do { \
       /* __NEW_UTS_LEN doesn't include terminating null */ \
-      (void) strncpy((dest), (src), __NEW_UTS_LEN); \
+      memcpy((dest), (src), MIN(sizeof(src), __NEW_UTS_LEN));   \
       (dest)[__NEW_UTS_LEN] = '\0'; \
   } while (0)
 
