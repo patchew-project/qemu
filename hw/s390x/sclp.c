@@ -56,6 +56,7 @@ static void read_SCP_info(SCLPDevice *sclp, SCCB *sccb)
 {
     ReadInfo *read_info = (ReadInfo *) sccb;
     MachineState *machine = MACHINE(qdev_get_machine());
+    unsigned int max_cpus = machine->topo.max_cpus;
     int cpu_count;
     int rnsize, rnmax;
     IplParameterBlock *ipib = s390_ipl_get_iplb();
