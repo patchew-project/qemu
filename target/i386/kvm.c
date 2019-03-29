@@ -656,7 +656,8 @@ static bool hyperv_enabled(X86CPU *cpu)
             cpu->hyperv_stimer ||
             cpu->hyperv_reenlightenment ||
             cpu->hyperv_tlbflush ||
-            cpu->hyperv_ipi);
+            cpu->hyperv_ipi ||
+            cpu->hyperv_all);
 }
 
 static int kvm_arch_set_tsc_khz(CPUState *cs)
@@ -1004,14 +1005,15 @@ static int hv_cpuid_get_fw(struct kvm_cpuid2 *cpuid, int fw, uint32_t *r)
 }
 
 static int hv_cpuid_check_and_set(CPUState *cs, struct kvm_cpuid2 *cpuid,
-                                  const char *name, bool flag)
+                                  const char *name, bool *flag)
 {
     X86CPU *cpu = X86_CPU(cs);
     CPUX86State *env = &cpu->env;
     uint32_t r, fw, bits;;
     int i, j;
+    bool present;
 
-    if (!flag) {
+    if (!*flag && !cpu->hyperv_all) {
         return 0;
     }
 
@@ -1020,6 +1022,7 @@ static int hv_cpuid_check_and_set(CPUState *cs, struct kvm_cpuid2 *cpuid,
             continue;
         }
 
+        present = true;
         for (j = 0; j < ARRAY_SIZE(kvm_hyperv_properties[i].flags); j++) {
             fw = kvm_hyperv_properties[i].flags[j].fw;
             bits = kvm_hyperv_properties[i].flags[j].bits;
@@ -1029,21 +1032,67 @@ static int hv_cpuid_check_and_set(CPUState *cs, struct kvm_cpuid2 *cpuid,
             }
 
             if (hv_cpuid_get_fw(cpuid, fw, &r) || (r & bits) != bits) {
-                fprintf(stderr,
-                        "Hyper-V %s (requested by '%s' cpu flag) "
-                        "is not supported by kernel\n",
-                        kvm_hyperv_properties[i].desc,
-                        kvm_hyperv_properties[i].name);
-                return 1;
+                if (*flag) {
+                    fprintf(stderr,
+                            "Hyper-V %s (requested by '%s' cpu flag) "
+                            "is not supported by kernel\n",
+                            kvm_hyperv_properties[i].desc,
+                            kvm_hyperv_properties[i].name);
+                    return 1;
+                } else {
+                    present = false;
+                    break;
+                }
             }
 
             env->features[fw] |= bits;
+        }
+
+        if (cpu->hyperv_all && present) {
+            *flag = true;
         }
 
         return 0;
     }
 
     /* the requested feature is undefined in kvm_hyperv_properties */
+    return 1;
+}
+
+static int hv_report_missing_dep(X86CPU *cpu, const char *name,
+                                 const char *dep_name)
+{
+    int i, j, nprops = sizeof(kvm_hyperv_properties);
+
+    for (i = 0; i < nprops; i++) {
+        if (!strcmp(kvm_hyperv_properties[i].name, name)) {
+            break;
+        }
+    }
+    for (j = 0; j < nprops; j++) {
+        if (!strcmp(kvm_hyperv_properties[j].name, dep_name)) {
+            break;
+        }
+    }
+
+    /*
+     * Internal error: either feature or its dependency is not in
+     * kvm_hyperv_properties!
+     */
+    if (i == nprops || j == nprops) {
+        return 1;
+    }
+
+    if (cpu->hyperv_all) {
+        fprintf(stderr, "Hyper-V %s (requested by 'hv-all' cpu flag) "
+                "requires %s (is not supported by kernel)\n",
+                kvm_hyperv_properties[i].desc, kvm_hyperv_properties[j].desc);
+    } else {
+        fprintf(stderr, "Hyper-V %s (requested by '%s' cpu flag) "
+                "requires %s ('%s')\n", kvm_hyperv_properties[i].desc,
+                name, kvm_hyperv_properties[j].desc, dep_name);
+    }
+
     return 1;
 }
 
@@ -1086,38 +1135,66 @@ static int hyperv_handle_properties(CPUState *cs,
         cpuid = get_supported_hv_cpuid_legacy(cs);
     }
 
+    if (cpu->hyperv_all) {
+        memcpy(cpuid_ent, &cpuid->entries[0],
+               cpuid->nent * sizeof(cpuid->entries[0]));
+
+        c = cpuid_find_entry(cpuid, HV_CPUID_FEATURES, 0);
+        if (c) {
+            env->features[FEAT_HYPERV_EAX] = c->eax;
+            env->features[FEAT_HYPERV_EBX] = c->ebx;
+            env->features[FEAT_HYPERV_EDX] = c->eax;
+        }
+        c = cpuid_find_entry(cpuid, HV_CPUID_ENLIGHTMENT_INFO, 0);
+        if (c) {
+            env->features[FEAT_HV_RECOMM_EAX] = c->eax;
+
+            /* hv-spinlocks may have been overriden */
+            if (cpu->hyperv_spinlock_attempts != HYPERV_SPINLOCK_NEVER_RETRY) {
+                c->ebx = cpu->hyperv_spinlock_attempts;
+            }
+        }
+        c = cpuid_find_entry(cpuid, HV_CPUID_NESTED_FEATURES, 0);
+        if (c) {
+            env->features[FEAT_HV_NESTED_EAX] = c->eax;
+        }
+    }
+
     /* Features */
     r |= hv_cpuid_check_and_set(cs, cpuid, "hv-relaxed",
-                                cpu->hyperv_relaxed_timing);
-    r |= hv_cpuid_check_and_set(cs, cpuid, "hv-vapic", cpu->hyperv_vapic);
-    r |= hv_cpuid_check_and_set(cs, cpuid, "hv-time", cpu->hyperv_time);
+                                &cpu->hyperv_relaxed_timing);
+    r |= hv_cpuid_check_and_set(cs, cpuid, "hv-vapic", &cpu->hyperv_vapic);
+    r |= hv_cpuid_check_and_set(cs, cpuid, "hv-time", &cpu->hyperv_time);
     r |= hv_cpuid_check_and_set(cs, cpuid, "hv-frequencies",
-                                cpu->hyperv_frequencies);
-    r |= hv_cpuid_check_and_set(cs, cpuid, "hv-crash", cpu->hyperv_crash);
+                                &cpu->hyperv_frequencies);
+    r |= hv_cpuid_check_and_set(cs, cpuid, "hv-crash", &cpu->hyperv_crash);
     r |= hv_cpuid_check_and_set(cs, cpuid, "hv-reenlightenment",
-                                cpu->hyperv_reenlightenment);
-    r |= hv_cpuid_check_and_set(cs, cpuid, "hv-reset", cpu->hyperv_reset);
-    r |= hv_cpuid_check_and_set(cs, cpuid, "hv-vpindex", cpu->hyperv_vpindex);
-    r |= hv_cpuid_check_and_set(cs, cpuid, "hv-runtime", cpu->hyperv_runtime);
-    r |= hv_cpuid_check_and_set(cs, cpuid, "hv-synic", cpu->hyperv_synic);
-    r |= hv_cpuid_check_and_set(cs, cpuid, "hv-stimer", cpu->hyperv_stimer);
-    r |= hv_cpuid_check_and_set(cs, cpuid, "hv-tlbflush", cpu->hyperv_tlbflush);
-    r |= hv_cpuid_check_and_set(cs, cpuid, "hv-ipi", cpu->hyperv_ipi);
+                                &cpu->hyperv_reenlightenment);
+    r |= hv_cpuid_check_and_set(cs, cpuid, "hv-reset", &cpu->hyperv_reset);
+    r |= hv_cpuid_check_and_set(cs, cpuid, "hv-vpindex", &cpu->hyperv_vpindex);
+    r |= hv_cpuid_check_and_set(cs, cpuid, "hv-runtime", &cpu->hyperv_runtime);
+    r |= hv_cpuid_check_and_set(cs, cpuid, "hv-synic", &cpu->hyperv_synic);
+    r |= hv_cpuid_check_and_set(cs, cpuid, "hv-stimer", &cpu->hyperv_stimer);
+    r |= hv_cpuid_check_and_set(cs, cpuid, "hv-tlbflush",
+                                &cpu->hyperv_tlbflush);
+    r |= hv_cpuid_check_and_set(cs, cpuid, "hv-ipi", &cpu->hyperv_ipi);
 
     /* Dependencies */
     if (cpu->hyperv_synic && !cpu->hyperv_synic_kvm_only &&
-        !cpu->hyperv_vpindex) {
-        fprintf(stderr, "Hyper-V SynIC "
-                "(requested by 'hv-synic' cpu flag) "
-                "requires Hyper-V VP_INDEX ('hv-vpindex')\n");
-        r |= 1;
-    }
+        !cpu->hyperv_vpindex)
+        r |= hv_report_missing_dep(cpu, "hv-synic", "hv-vpindex");
 
     /* Not exposed by KVM but needed to make CPU hotplug in Windows work */
     env->features[FEAT_HYPERV_EDX] |= HV_CPU_DYNAMIC_PARTITIONING_AVAILABLE;
 
     if (r) {
         r = -ENOSYS;
+        goto free;
+    }
+
+    if (cpu->hyperv_all) {
+        /* We already copied all feature words from KVM as is */
+        r = cpuid->nent;
         goto free;
     }
 
@@ -1192,10 +1269,25 @@ free:
     return r;
 }
 
+static Error *hv_all_mig_blocker;
+
 static int hyperv_init_vcpu(X86CPU *cpu)
 {
     CPUState *cs = CPU(cpu);
+    Error *local_err = NULL;
     int ret;
+
+    if (cpu->hyperv_all && hv_all_mig_blocker == NULL) {
+        error_setg(&hv_all_mig_blocker,
+                   "'hv-all' CPU flag prevents migration, use explicit set of "
+                   "hv-* flags instead");
+        ret = migrate_add_blocker(hv_all_mig_blocker, &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+            error_free(hv_all_mig_blocker);
+            return ret;
+        }
+    }
 
     if (cpu->hyperv_vpindex && !hv_vpindex_settable) {
         /*
