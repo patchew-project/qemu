@@ -105,6 +105,9 @@
  */
 static int spapr_vcpu_id(SpaprMachineState *spapr, int cpu_index)
 {
+    MachineState *ms = MACHINE(spapr);
+    unsigned int smp_threads = ms->topo.smp_threads;
+
     assert(spapr->vsmt);
     return
         (cpu_index / smp_threads) * spapr->vsmt + cpu_index % smp_threads;
@@ -152,6 +155,10 @@ static void pre_2_10_vmstate_unregister_dummy_icp(int i)
 
 int spapr_max_server_number(SpaprMachineState *spapr)
 {
+    MachineState *ms = MACHINE(spapr);
+    unsigned int smp_threads = ms->topo.smp_threads;
+    unsigned int max_cpus = ms->topo.max_cpus;
+
     assert(spapr->vsmt);
     return DIV_ROUND_UP(max_cpus * spapr->vsmt, smp_threads);
 }
@@ -286,10 +293,12 @@ static void spapr_populate_pa_features(SpaprMachineState *spapr,
 
 static int spapr_fixup_cpu_dt(void *fdt, SpaprMachineState *spapr)
 {
+    MachineState *ms = MACHINE(spapr);
     int ret = 0, offset, cpus_offset;
     CPUState *cs;
     char cpu_model[32];
     uint32_t pft_size_prop[] = {0, cpu_to_be32(spapr->htab_shift)};
+    unsigned int smp_threads = ms->topo.smp_threads;
 
     CPU_FOREACH(cs) {
         PowerPCCPU *cpu = POWERPC_CPU(cs);
@@ -441,6 +450,7 @@ static int spapr_populate_memory(SpaprMachineState *spapr, void *fdt)
 static void spapr_populate_cpu_dt(CPUState *cs, void *fdt, int offset,
                                   SpaprMachineState *spapr)
 {
+    MachineState *ms = MACHINE(spapr);
     PowerPCCPU *cpu = POWERPC_CPU(cs);
     CPUPPCState *env = &cpu->env;
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cs);
@@ -452,6 +462,8 @@ static void spapr_populate_cpu_dt(CPUState *cs, void *fdt, int offset,
     uint32_t cpufreq = kvm_enabled() ? kvmppc_get_clockfreq() : 1000000000;
     uint32_t page_sizes_prop[64];
     size_t page_sizes_prop_size;
+    unsigned int smp_threads = ms->topo.smp_threads;
+    unsigned int smp_cores = ms->topo.smp_cores;
     uint32_t vcpus_per_socket = smp_threads * smp_cores;
     uint32_t pft_size_prop[] = {0, cpu_to_be32(spapr->htab_shift)};
     int compat_smt = MIN(smp_threads, ppc_compat_max_vthreads(cpu));
@@ -1022,6 +1034,9 @@ int spapr_h_cas_compose_response(SpaprMachineState *spapr,
 
 static void spapr_dt_rtas(SpaprMachineState *spapr, void *fdt)
 {
+    MachineState *ms = MACHINE(spapr);
+    unsigned int max_cpus = ms->topo.max_cpus;
+    unsigned int smp_threads = ms->topo.smp_threads;
     int rtas;
     GString *hypertas = g_string_sized_new(256);
     GString *qemu_hypertas = g_string_sized_new(256);
@@ -2513,6 +2528,7 @@ static void spapr_validate_node_memory(MachineState *machine, Error **errp)
 /* find cpu slot in machine->possible_cpus by core_id */
 static CPUArchId *spapr_find_cpu_slot(MachineState *ms, uint32_t id, int *idx)
 {
+    unsigned int smp_threads = ms->topo.smp_threads;
     int index = id / smp_threads;
 
     if (index >= ms->possible_cpus->len) {
@@ -2526,10 +2542,12 @@ static CPUArchId *spapr_find_cpu_slot(MachineState *ms, uint32_t id, int *idx)
 
 static void spapr_set_vsmt_mode(SpaprMachineState *spapr, Error **errp)
 {
+    MachineState *ms = MACHINE(spapr);
     Error *local_err = NULL;
     bool vsmt_user = !!spapr->vsmt;
     int kvm_smt = kvmppc_smt_threads();
     int ret;
+    unsigned int smp_threads = ms->topo.smp_threads;
 
     if (!kvm_enabled() && (smp_threads > 1)) {
         error_setg(&local_err, "TCG cannot support more than 1 thread/core "
@@ -2603,6 +2621,9 @@ static void spapr_init_cpus(SpaprMachineState *spapr)
     SpaprMachineClass *smc = SPAPR_MACHINE_GET_CLASS(machine);
     const char *type = spapr_get_cpu_core_type(machine->cpu_type);
     const CPUArchIdList *possible_cpus;
+    unsigned int smp_cpus = machine->topo.smp_cpus;
+    unsigned int smp_threads = machine->topo.smp_threads;
+    unsigned int max_cpus = machine->topo.max_cpus;
     int boot_cores_nr = smp_cpus / smp_threads;
     int i;
 
@@ -3835,6 +3856,7 @@ static void spapr_core_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     const char *type = object_get_typename(OBJECT(dev));
     CPUArchId *core_slot;
     int index;
+    unsigned int smp_threads = machine->topo.smp_threads;
 
     if (dev->hotplugged && !mc->has_hotpluggable_cpus) {
         error_setg(&local_err, "CPU hotplug not supported for this machine");
@@ -4087,12 +4109,17 @@ spapr_cpu_index_to_props(MachineState *machine, unsigned cpu_index)
 
 static int64_t spapr_get_default_cpu_node_id(const MachineState *ms, int idx)
 {
+    unsigned int smp_cores = ms->topo.smp_cores;
+
     return idx / smp_cores % nb_numa_nodes;
 }
 
 static const CPUArchIdList *spapr_possible_cpu_arch_ids(MachineState *machine)
 {
     int i;
+    unsigned int max_cpus = machine->topo.max_cpus;
+    unsigned int smp_threads = machine->topo.smp_threads;
+    unsigned int smp_cpus = machine->topo.smp_cpus;
     const char *core_type;
     int spapr_max_cores = max_cpus / smp_threads;
     MachineClass *mc = MACHINE_GET_CLASS(machine);
@@ -4213,6 +4240,8 @@ int spapr_get_vcpu_id(PowerPCCPU *cpu)
 void spapr_set_vcpu_id(PowerPCCPU *cpu, int cpu_index, Error **errp)
 {
     SpaprMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
+    MachineState *ms = MACHINE(spapr);
+    unsigned int smp_threads = ms->topo.smp_threads;
     int vcpu_id;
 
     vcpu_id = spapr_vcpu_id(spapr, cpu_index);

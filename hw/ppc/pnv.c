@@ -596,6 +596,7 @@ static void pnv_init(MachineState *machine)
     long fw_size;
     int i;
     char *chip_typename;
+    unsigned int smp_cores = machine->topo.smp_cores;
 
     /* allocate RAM */
     if (machine->ram_size < (1 * GiB)) {
@@ -1135,6 +1136,8 @@ static void pnv_chip_instance_init(Object *obj)
 
 static void pnv_chip_core_realize(PnvChip *chip, Error **errp)
 {
+    MachineState *ms = MACHINE(qdev_get_machine());
+    unsigned int smp_threads = ms->topo.smp_threads;
     Error *error = NULL;
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
     const char *typename = pnv_chip_core_typename(chip);

@@ -99,6 +99,8 @@ static void ppc_heathrow_init(MachineState *machine)
     DeviceState *dev, *pic_dev;
     BusState *adb_bus;
     int bios_size;
+    unsigned int smp_cpus = machine->topo.smp_cpus;
+    unsigned int max_cpus = machine->topo.max_cpus;
     uint16_t ppc_boot_device;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     void *fw_cfg;

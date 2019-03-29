@@ -131,10 +131,12 @@ static void ppc_core99_init(MachineState *machine)
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     void *fw_cfg;
     int machine_arch;
+    unsigned int smp_cpus = machine->topo.smp_cpus;
     SysBusDevice *s;
     DeviceState *dev, *pic_dev;
     hwaddr nvram_addr = 0xFFF04000;
     uint64_t tbfreq;
+    unsigned int max_cpus = machine->topo.max_cpus;
 
     linux_boot = (kernel_filename != NULL);
 

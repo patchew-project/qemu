@@ -423,6 +423,7 @@ static void ppc_prep_init(MachineState *machine)
     ISADevice *isa;
     int ppc_boot_device;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
+    unsigned int smp_cpus = machine->topo.smp_cpus;
 
     sysctrl = g_malloc0(sizeof(sysctrl_t));
 
@@ -630,6 +631,7 @@ static void ibm_40p_init(MachineState *machine)
     uint32_t kernel_base = 0, initrd_base = 0;
     long kernel_size = 0, initrd_size = 0;
     char boot_device;
+    unsigned int max_cpus = machine->topo.max_cpus;
 
     /* init CPU */
     cpu = POWERPC_CPU(cpu_create(machine->cpu_type));
