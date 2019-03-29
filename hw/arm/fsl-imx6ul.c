@@ -23,14 +23,17 @@
 #include "hw/misc/unimp.h"
 #include "sysemu/sysemu.h"
 #include "qemu/error-report.h"
+#include "hw/boards.h"
 
 #define NAME_SIZE 20
 
 static void fsl_imx6ul_init(Object *obj)
 {
+    MachineState *ms = MACHINE(qdev_get_machine());
     FslIMX6ULState *s = FSL_IMX6UL(obj);
     char name[NAME_SIZE];
     int i;
+    unsigned int smp_cpus = ms->topo.smp_cpus;
 
     for (i = 0; i < MIN(smp_cpus, FSL_IMX6UL_NUM_CPUS); i++) {
         snprintf(name, NAME_SIZE, "cpu%d", i);
@@ -156,10 +159,12 @@ static void fsl_imx6ul_init(Object *obj)
 
 static void fsl_imx6ul_realize(DeviceState *dev, Error **errp)
 {
+    MachineState *ms = MACHINE(qdev_get_machine());
     FslIMX6ULState *s = FSL_IMX6UL(dev);
     int i;
     qemu_irq irq;
     char name[NAME_SIZE];
+    unsigned int smp_cpus = ms->topo.smp_cpus;
 
     if (smp_cpus > FSL_IMX6UL_NUM_CPUS) {
         error_setg(errp, "%s: Only %d CPUs are supported (%d requested)",

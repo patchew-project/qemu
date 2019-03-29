@@ -113,6 +113,7 @@ static void setup_boot(MachineState *machine, int version, size_t ram_size)
 {
     static struct arm_boot_info binfo;
     int r;
+    unsigned int smp_cpus = machine->topo.smp_cpus;
 
     binfo.board_id = raspi_boardid[version];
     binfo.ram_size = ram_size;
@@ -174,6 +175,7 @@ static void raspi_init(MachineState *machine, int version)
     BlockBackend *blk;
     BusState *bus;
     DeviceState *carddev;
+    unsigned int smp_cpus = machine->topo.smp_cpus;
 
     object_initialize(&s->soc, sizeof(s->soc),
                       version == 3 ? TYPE_BCM2837 : TYPE_BCM2836);

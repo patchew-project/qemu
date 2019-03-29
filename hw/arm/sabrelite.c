@@ -47,6 +47,7 @@ static void sabrelite_init(MachineState *machine)
 {
     IMX6Sabrelite *s = g_new0(IMX6Sabrelite, 1);
     Error *err = NULL;
+    unsigned int smp_cpus = machine->topo.smp_cpus;
 
     /* Check the amount of memory is compatible with the SOC */
     if (machine->ram_size > FSL_IMX6_MMDC_SIZE) {

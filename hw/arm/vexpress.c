@@ -206,9 +206,11 @@ struct VEDBoardInfo {
 static void init_cpus(const char *cpu_type, const char *privdev,
                       hwaddr periphbase, qemu_irq *pic, bool secure, bool virt)
 {
+    MachineState *ms = MACHINE(qdev_get_machine());
     DeviceState *dev;
     SysBusDevice *busdev;
     int n;
+    unsigned int smp_cpus = ms->topo.smp_cpus;
 
     /* Create the actual CPUs */
     for (n = 0; n < smp_cpus; n++) {
@@ -558,6 +560,7 @@ static void vexpress_common_init(MachineState *machine)
     MemoryRegion *flash0mem;
     const hwaddr *map = daughterboard->motherboard_map;
     int i;
+    unsigned int smp_cpus = machine->topo.smp_cpus;
 
     daughterboard->init(vms, machine->ram_size, machine->cpu_type, pic);
 

@@ -29,6 +29,7 @@ static void mcimx6ul_evk_init(MachineState *machine)
     static struct arm_boot_info boot_info;
     MCIMX6ULEVK *s = g_new0(MCIMX6ULEVK, 1);
     int i;
+    unsigned int smp_cpus = machine->topo.smp_cpus;
 
     if (machine->ram_size > FSL_IMX6UL_MMDC_SIZE) {
         error_report("RAM size " RAM_ADDR_FMT " above max supported (%08x)",

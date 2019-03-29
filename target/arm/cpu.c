@@ -30,6 +30,7 @@
 #include "hw/qdev-properties.h"
 #if !defined(CONFIG_USER_ONLY)
 #include "hw/loader.h"
+#include "hw/boards.h"
 #endif
 #include "hw/arm/arm.h"
 #include "sysemu/sysemu.h"
@@ -1183,6 +1184,9 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
     init_cpreg_list(cpu);
 
 #ifndef CONFIG_USER_ONLY
+    MachineState *ms = MACHINE(qdev_get_machine());
+    unsigned int smp_cpus = ms->topo.smp_cpus;
+
     if (cpu->has_el3 || arm_feature(env, ARM_FEATURE_M_SECURITY)) {
         cs->num_ases = 2;
 
@@ -1713,6 +1717,9 @@ static void cortex_a9_initfn(Object *obj)
 #ifndef CONFIG_USER_ONLY
 static uint64_t a15_l2ctlr_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
+    MachineState *ms = MACHINE(qdev_get_machine());
+    unsigned int smp_cpus = ms->topo.smp_cpus;
+
     /* Linux wants the number of processors from here.
      * Might as well set the interrupt-controller bit too.
      */

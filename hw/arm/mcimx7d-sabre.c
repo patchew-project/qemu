@@ -20,6 +20,7 @@
 #include "sysemu/sysemu.h"
 #include "qemu/error-report.h"
 #include "sysemu/qtest.h"
+#include "hw/boards.h"
 
 typedef struct {
     FslIMX7State soc;
@@ -28,10 +29,12 @@ typedef struct {
 
 static void mcimx7d_sabre_init(MachineState *machine)
 {
+    MachineState *ms = MACHINE(qdev_get_machine());
     static struct arm_boot_info boot_info;
     MCIMX7Sabre *s = g_new0(MCIMX7Sabre, 1);
     Object *soc;
     int i;
+    unsigned int smp_cpus = ms->topo.smp_cpus;
 
     if (machine->ram_size > FSL_IMX7_MMDC_SIZE) {
         error_report("RAM size " RAM_ADDR_FMT " above max supported (%08x)",
