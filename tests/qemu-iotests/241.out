@@ -2,6 +2,6 @@ QA output created by 241
 
 === Exporting unaligned raw image ===
 
-[{ "start": 0, "length": 1024, "depth": 0, "zero": false, "data": true}]
+[{ "start": 0, "length": 1024, "depth": 0, "zero": false, "data": true, "offset": OFFSET}]
 1 KiB (0x400) bytes     allocated at offset 0 bytes (0x0)
 *** done

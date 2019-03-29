@@ -944,7 +944,9 @@ int coroutine_fn nbd_client_co_block_status(BlockDriverState *bs,
 
     if (!client->info.base_allocation) {
         *pnum = bytes;
-        return BDRV_BLOCK_DATA;
+        *map = offset;
+        *file = bs;
+        return BDRV_BLOCK_DATA | BDRV_BLOCK_OFFSET_VALID;
     }
 
     ret = nbd_co_send_request(bs, &request, NULL);
@@ -967,8 +969,11 @@ int coroutine_fn nbd_client_co_block_status(BlockDriverState *bs,
 
     assert(extent.length);
     *pnum = extent.length;
+    *map = offset;
+    *file = bs;
     return (extent.flags & NBD_STATE_HOLE ? 0 : BDRV_BLOCK_DATA) |
-           (extent.flags & NBD_STATE_ZERO ? BDRV_BLOCK_ZERO : 0);
+        (extent.flags & NBD_STATE_ZERO ? BDRV_BLOCK_ZERO : 0) |
+        BDRV_BLOCK_OFFSET_VALID;
 }
 
 void nbd_client_detach_aio_context(BlockDriverState *bs)
