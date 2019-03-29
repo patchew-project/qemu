@@ -931,6 +931,9 @@ void enable_compat_apic_id_mode(void)
  */
 static uint32_t x86_cpu_apic_id_from_index(unsigned int cpu_index)
 {
+    MachineState *ms = MACHINE(qdev_get_machine());
+    unsigned int smp_cores = ms->topo.smp_cores;
+    unsigned int smp_threads = ms->topo.smp_threads;
     uint32_t correct_id;
     static bool warned;
 
@@ -1562,6 +1565,7 @@ void pc_cpus_init(PCMachineState *pcms)
     const CPUArchIdList *possible_cpus;
     MachineState *ms = MACHINE(pcms);
     MachineClass *mc = MACHINE_GET_CLASS(pcms);
+    unsigned int smp_cpus = ms->topo.smp_cpus, max_cpus = ms->topo.max_cpus;
 
     /* Calculates the limit to CPU APIC ID values
      *
@@ -2291,6 +2295,9 @@ static void pc_cpu_pre_plug(HotplugHandler *hotplug_dev,
     X86CPU *cpu = X86_CPU(dev);
     MachineState *ms = MACHINE(hotplug_dev);
     PCMachineState *pcms = PC_MACHINE(hotplug_dev);
+    unsigned int smp_cores = ms->topo.smp_cores;
+    unsigned int smp_threads = ms->topo.smp_threads;
+    unsigned int max_cpus = ms->topo.max_cpus;
 
     if(!object_dynamic_cast(OBJECT(cpu), ms->cpu_type)) {
         error_setg(errp, "Invalid CPU type, expected cpu type: '%s'",
@@ -2646,6 +2653,8 @@ pc_cpu_index_to_props(MachineState *ms, unsigned cpu_index)
 static int64_t pc_get_default_cpu_node_id(const MachineState *ms, int idx)
 {
    X86CPUTopoInfo topo;
+   unsigned int smp_cores = ms->topo.smp_cores;
+   unsigned int smp_threads = ms->topo.smp_threads;
 
    assert(idx < ms->possible_cpus->len);
    x86_topo_ids_from_apicid(ms->possible_cpus->cpus[idx].arch_id,
@@ -2656,6 +2665,9 @@ static int64_t pc_get_default_cpu_node_id(const MachineState *ms, int idx)
 static const CPUArchIdList *pc_possible_cpu_arch_ids(MachineState *ms)
 {
     int i;
+    unsigned int max_cpus = ms->topo.max_cpus;
+    unsigned int smp_cores = ms->topo.smp_cores;
+    unsigned int smp_threads = ms->topo.smp_threads;
 
     if (ms->possible_cpus) {
         /*
