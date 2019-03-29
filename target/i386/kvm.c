@@ -1083,7 +1083,7 @@ static int hv_report_missing_dep(X86CPU *cpu, const char *name,
         return 1;
     }
 
-    if (cpu->hyperv_all) {
+    if (cpu->hyperv_all && strcmp(name, "hv-evmcs")) {
         fprintf(stderr, "Hyper-V %s (requested by 'hv-all' cpu flag) "
                 "requires %s (is not supported by kernel)\n",
                 kvm_hyperv_properties[i].desc, kvm_hyperv_properties[j].desc);
@@ -1183,6 +1183,9 @@ static int hyperv_handle_properties(CPUState *cs,
     if (cpu->hyperv_synic && !cpu->hyperv_synic_kvm_only &&
         !cpu->hyperv_vpindex)
         r |= hv_report_missing_dep(cpu, "hv-synic", "hv-vpindex");
+    if (cpu->hyperv_evmcs && !cpu->hyperv_vapic) {
+        r |= hv_report_missing_dep(cpu, "hv-evmcs", "hv-vapic");
+    }
 
     /* Not exposed by KVM but needed to make CPU hotplug in Windows work */
     env->features[FEAT_HYPERV_EDX] |= HV_CPU_DYNAMIC_PARTITIONING_AVAILABLE;
