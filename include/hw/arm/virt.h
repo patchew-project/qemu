@@ -123,7 +123,7 @@ typedef struct {
     struct arm_boot_info bootinfo;
     MemMapEntry *memmap;
     const int *irqmap;
-    int smp_cpus;
+    unsigned int smp_cpus;
     void *fdt;
     int fdt_size;
     uint32_t clock_phandle;

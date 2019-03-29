@@ -162,7 +162,7 @@ static Chardev **serial_hds;
 Chardev *parallel_hds[MAX_PARALLEL_PORTS];
 int win2k_install_hack = 0;
 int singlestep = 0;
-int smp_cpus;
+unsigned int smp_cpus;
 unsigned int max_cpus;
 int smp_cores = 1;
 int smp_threads = 1;
@@ -4115,6 +4115,11 @@ int main(int argc, char **argv, char **envp)
     max_cpus = machine_class->default_cpus;
 
     smp_parse(qemu_opts_find(qemu_find_opts("smp-opts"), NULL));
+
+    current_machine->topo.smp_cpus = smp_cpus;
+    current_machine->topo.max_cpus = max_cpus;
+    current_machine->topo.smp_cores = smp_cores;
+    current_machine->topo.smp_threads = smp_threads;
 
     /* sanity-check smp_cpus and max_cpus against machine_class */
     if (smp_cpus < machine_class->min_cpus) {

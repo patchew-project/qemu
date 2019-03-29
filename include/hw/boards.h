@@ -231,6 +231,13 @@ typedef struct DeviceMemoryState {
     MemoryRegion mr;
 } DeviceMemoryState;
 
+typedef struct CpuTopology {
+    unsigned int smp_cpus;
+    unsigned int smp_cores;
+    unsigned int smp_threads;
+    unsigned int max_cpus;
+} CpuTopology;
+
 /**
  * MachineState:
  */
@@ -273,6 +280,7 @@ struct MachineState {
     const char *cpu_type;
     AccelState *accelerator;
     CPUArchIdList *possible_cpus;
+    CpuTopology topo;
     struct NVDIMMState *nvdimms_state;
 };
 
