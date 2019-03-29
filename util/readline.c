@@ -67,12 +67,12 @@ static void readline_update(ReadLineState *rs)
     if (rs->cmd_buf_index != rs->last_cmd_buf_index) {
         delta = rs->cmd_buf_index - rs->last_cmd_buf_index;
         if (delta > 0) {
-            for (i = 0;i < delta; i++) {
+            for (i = 0; i < delta; i++) {
                 rs->printf_func(rs->opaque, "\033[C");
             }
         } else {
             delta = -delta;
-            for (i = 0;i < delta; i++) {
+            for (i = 0; i < delta; i++) {
                 rs->printf_func(rs->opaque, "\033[D");
             }
         }
@@ -315,12 +315,12 @@ static void readline_completion(ReadLineState *rs)
         max_prefix = 0;	
         for (i = 0; i < rs->nb_completions; i++) {
             len = strlen(rs->completions[i]);
-            if (i==0) {
+            if (i == 0) {
                 max_prefix = len;
             } else {
                 if (len < max_prefix)
                     max_prefix = len;
-                for (j=0; j<max_prefix; j++) {
+                for (j = 0; j < max_prefix; j++) {
                     if (rs->completions[i][j] != rs->completions[0][j])
                         max_prefix = j;
                 }
@@ -463,7 +463,7 @@ void readline_handle_byte(ReadLineState *rs, int ch)
     the_end:
         break;
     case IS_SS3:
-        switch(ch) {
+        switch (ch) {
         case 'F':
             readline_eol(rs);
             break;
