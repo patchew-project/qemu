@@ -1192,6 +1192,12 @@ static int hyperv_handle_properties(CPUState *cs,
     if (cpu->hyperv_stimer && !cpu->hyperv_time) {
         r |= hv_report_missing_dep(cpu, "hv-stimer", "hv-time");
     }
+    if (cpu->hyperv_tlbflush && !cpu->hyperv_vpindex) {
+        r |= hv_report_missing_dep(cpu, "hv-tlbflush", "hv-vpindex");
+    }
+    if (cpu->hyperv_ipi && !cpu->hyperv_vpindex) {
+        r |= hv_report_missing_dep(cpu, "hv-ipi", "hv-vpindex");
+    }
 
     /* Not exposed by KVM but needed to make CPU hotplug in Windows work */
     env->features[FEAT_HYPERV_EDX] |= HV_CPU_DYNAMIC_PARTITIONING_AVAILABLE;
