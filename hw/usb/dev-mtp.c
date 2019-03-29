@@ -225,7 +225,7 @@ typedef struct {
     uint16_t assoc_type;
     uint32_t assoc_desc;
     uint32_t seq_no; /*unused*/
-    uint8_t length; /*part of filename field*/
+    uint8_t length; /*length of filename field*/
     uint16_t filename[0];
     char date_created[0]; /*unused*/
     char date_modified[0]; /*unused*/
@@ -1699,13 +1699,15 @@ static void usb_mtp_write_metadata(MTPState *s, uint64_t dlen)
     MTPObject *o;
     MTPObject *p = usb_mtp_object_lookup(s, s->dataset.parent_handle);
     uint32_t next_handle = s->next_handle;
+    uint16_t *wfilename = (uint16_t *)(d->data +
+                                       offsetof(ObjectInfo, filename));
 
     assert(!s->write_pending);
     assert(p != NULL);
 
     filename = utf16_to_str(MIN(dataset->length,
                                 dlen - offsetof(ObjectInfo, filename)),
-                            dataset->filename);
+                            wfilename);
 
     if (strchr(filename, '/')) {
         usb_mtp_queue_result(s, RES_PARAMETER_NOT_SUPPORTED, d->trans,
