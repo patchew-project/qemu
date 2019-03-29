@@ -110,21 +110,6 @@ static inline int test_and_clear_bit(long nr, unsigned long *addr)
 }
 
 /**
- * test_and_change_bit - Change a bit and return its old value
- * @nr: Bit to change
- * @addr: Address to count from
- */
-static inline int test_and_change_bit(long nr, unsigned long *addr)
-{
-    unsigned long mask = BIT_MASK(nr);
-    unsigned long *p = addr + BIT_WORD(nr);
-    unsigned long old = *p;
-
-    *p = old ^ mask;
-    return (old & mask) != 0;
-}
-
-/**
  * test_bit - Determine whether a bit is set
  * @nr: bit number to test
  * @addr: Address to start counting from
