@@ -1773,6 +1773,8 @@ S: Supported
 F: util/hbitmap.c
 F: block/dirty-bitmap.c
 F: include/qemu/hbitmap.h
+F: include/qemu/bitmap.h
+F: include/qemu/bitops.h
 F: include/block/dirty-bitmap.h
 F: tests/test-hbitmap.c
 F: docs/interop/bitmaps.rst
