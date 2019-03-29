@@ -19,6 +19,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
+#include "qemu/error-report.h"
 #include "cpu.h"
 #include "exec/exec-all.h"
 #include "qapi/error.h"
@@ -103,6 +104,93 @@ static void set_resetvec(CPURISCVState *env, int resetvec)
 #endif
 }
 
+static void riscv_generate_cpu_init(Object *obj)
+{
+    RISCVCPU *cpu = RISCV_CPU(obj);
+    CPURISCVState *env = &cpu->env;
+    RISCVCPUClass *mcc = RISCV_CPU_GET_CLASS(cpu);
+    const char *riscv_cpu = mcc->isa_str;
+    target_ulong target_misa = 0;
+    target_ulong rvxlen = 0;
+    int i;
+    bool valid = false;
+
+    for (i = 0; i < strlen(riscv_cpu); i++) {
+        if (i == 0 && riscv_cpu[i] == 'r' &&
+            riscv_cpu[i + 1] == 'v') {
+            /* Starts with "rv" */
+            i += 2;
+            if (riscv_cpu[i] == '3' && riscv_cpu[i + 1] == '2') {
+                i += 2;
+                valid = true;
+                rvxlen = RV32;
+            }
+            if (riscv_cpu[i] == '6' && riscv_cpu[i + 1] == '4') {
+                i += 2;
+                valid = true;
+                rvxlen = RV64;
+            }
+        }
+
+        switch (riscv_cpu[i]) {
+        case 'i':
+            if (target_misa & RVE) {
+                error_report("I and E extensions are incompatible");
+                exit(1);
+            }
+            target_misa |= RVI;
+            continue;
+        case 'e':
+            if (target_misa & RVI) {
+                error_report("I and E extensions are incompatible");
+                exit(1);
+            }
+            target_misa |= RVE;
+            continue;
+        case 'g':
+            target_misa |= RVI | RVM | RVA | RVF | RVD;
+            continue;
+        case 'm':
+            target_misa |= RVM;
+            continue;
+        case 'a':
+            target_misa |= RVA;
+            continue;
+        case 'f':
+            target_misa |= RVF;
+            continue;
+        case 'd':
+            target_misa |= RVD;
+            continue;
+        case 'c':
+            target_misa |= RVC;
+            continue;
+        case 's':
+            target_misa |= RVS;
+            continue;
+        case 'u':
+            target_misa |= RVU;
+            continue;
+        default:
+            warn_report("QEMU does not support the %c extension",
+                        riscv_cpu[i]);
+            continue;
+        }
+    }
+
+    if (!valid) {
+        error_report("'%s' does not appear to be a valid RISC-V CPU",
+                     riscv_cpu);
+        exit(1);
+    }
+
+    set_misa(env, rvxlen | target_misa);
+    set_versions(env, USER_VERSION_2_02_0, PRIV_VERSION_1_10_0);
+    set_resetvec(env, DEFAULT_RSTVEC);
+    set_feature(env, RISCV_FEATURE_MMU);
+    set_feature(env, RISCV_FEATURE_PMP);
+}
+
 static void riscv_any_cpu_init(Object *obj)
 {
     CPURISCVState *env = &RISCV_CPU(obj)->env;
@@ -178,6 +266,7 @@ static void rv64imacu_nommu_cpu_init(Object *obj)
 static ObjectClass *riscv_cpu_class_by_name(const char *cpu_model)
 {
     ObjectClass *oc;
+    RISCVCPUClass *mcc;
     char *typename;
     char **cpuname;
 
@@ -188,7 +277,10 @@ static ObjectClass *riscv_cpu_class_by_name(const char *cpu_model)
     g_free(typename);
     if (!oc || !object_class_dynamic_cast(oc, TYPE_RISCV_CPU) ||
         object_class_is_abstract(oc)) {
-        return NULL;
+        /* No CPU found, try the generic CPU and pass in the ISA string */
+        oc = object_class_by_name(TYPE_RISCV_CPU_GEN);
+        mcc = RISCV_CPU_CLASS(oc);
+        mcc->isa_str = g_strdup(cpu_model);
     }
     return oc;
 }
@@ -440,6 +532,7 @@ static const TypeInfo riscv_cpu_type_infos[] = {
         .class_init = riscv_cpu_class_init,
     },
     DEFINE_CPU(TYPE_RISCV_CPU_ANY,              riscv_any_cpu_init),
+    DEFINE_CPU(TYPE_RISCV_CPU_GEN,              riscv_generate_cpu_init),
 #if defined(TARGET_RISCV32)
     DEFINE_CPU(TYPE_RISCV_CPU_RV32GCSU_V1_09_1, rv32gcsu_priv1_09_1_cpu_init),
     DEFINE_CPU(TYPE_RISCV_CPU_RV32GCSU_V1_10_0, rv32gcsu_priv1_10_0_cpu_init),
