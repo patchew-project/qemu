@@ -362,6 +362,7 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
                      int flags, int fd, abi_ulong offset)
 {
     abi_ulong ret, end, real_start, real_end, retaddr, host_offset, host_len;
+    int page_flags;
 
     mmap_lock();
 #ifdef DEBUG_MMAP
@@ -450,6 +451,16 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
            len = REAL_HOST_PAGE_ALIGN(sb.st_size - offset);
        }
     }
+
+    page_flags = (prot & PAGE_BITS) | PAGE_VALID;
+
+#ifdef TARGET_AARCH64
+    /* Remember the BTI bit for page_get_flags, but don't pass to host.  */
+    if (prot & TARGET_PROT_BTI) {
+        page_flags |= PAGE_TARGET_1;
+        prot &= ~TARGET_PROT_BTI;
+    }
+#endif
 
     if (!(flags & MAP_FIXED)) {
         unsigned long host_start;
@@ -562,7 +573,7 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
         }
     }
  the_end1:
-    page_set_flags(start, start + len, prot | PAGE_VALID);
+    page_set_flags(start, start + len, page_flags);
  the_end:
 #ifdef DEBUG_MMAP
     printf("ret=0x" TARGET_ABI_FMT_lx "\n", start);
