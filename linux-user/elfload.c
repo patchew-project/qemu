@@ -116,6 +116,10 @@ typedef abi_uint        target_gid_t;
 #endif
 typedef abi_int         target_pid_t;
 
+
+#define TARGET_NT_GNU_PROPERTY_TYPE_0  5
+
+
 #ifdef TARGET_I386
 
 #define ELF_PLATFORM get_elf_platform()
@@ -542,6 +546,10 @@ static const char *get_elf_platform(void)
 #else
 # define ELF_PLATFORM    "aarch64"
 #endif
+
+#define TARGET_GNU_PROPERTY_AARCH64_FEATURE_1_AND  0xc0000000
+#define TARGET_GNU_PROPERTY_AARCH64_FEATURE_1_BTI  (1u << 0)
+#define TARGET_GNU_PROPERTY_AARCH64_FEATURE_1_PAC  (1u << 1)
 
 static inline void init_thread(struct target_pt_regs *regs,
                                struct image_info *infop)
@@ -2252,7 +2260,7 @@ static void load_elf_image(const char *image_name, int image_fd,
     struct elfhdr *ehdr = (struct elfhdr *)bprm_buf;
     struct elf_phdr *phdr;
     abi_ulong load_addr, load_bias, loaddr, hiaddr, error;
-    int i, retval;
+    int i, retval, prot_exec = PROT_EXEC;
     const char *errmsg;
 
     /* First of all, some simple consistency checks */
@@ -2287,17 +2295,66 @@ static void load_elf_image(const char *image_name, int image_fd,
     loaddr = -1, hiaddr = 0;
     info->alignment = 0;
     for (i = 0; i < ehdr->e_phnum; ++i) {
-        if (phdr[i].p_type == PT_LOAD) {
-            abi_ulong a = phdr[i].p_vaddr - phdr[i].p_offset;
-            if (a < loaddr) {
-                loaddr = a;
+        struct elf_phdr *eppnt = phdr + i;
+
+        switch (eppnt->p_type) {
+        case PT_LOAD:
+            {
+                abi_ulong a = eppnt->p_vaddr - eppnt->p_offset;
+                if (a < loaddr) {
+                    loaddr = a;
+                }
+                a = eppnt->p_vaddr + eppnt->p_memsz;
+                if (a > hiaddr) {
+                    hiaddr = a;
+                }
+                ++info->nsegs;
+                info->alignment |= eppnt->p_align;
             }
-            a = phdr[i].p_vaddr + phdr[i].p_memsz;
-            if (a > hiaddr) {
-                hiaddr = a;
+            break;
+        case PT_NOTE:
+            {
+                uint32_t note[7];
+                uint32_t gnu0;
+
+                if (eppnt->p_filesz < sizeof(note)) {
+                    break;
+                }
+                if (eppnt->p_offset + eppnt->p_filesz <= BPRM_BUF_SIZE) {
+                    memcpy(note, bprm_buf + eppnt->p_offset, sizeof(note));
+                } else {
+                    retval = pread(image_fd, note, sizeof(note),
+                                   eppnt->p_offset);
+                    if (retval != sizeof(note)) {
+                        goto exit_perror;
+                    }
+                }
+#ifdef BSWAP_NEEDED
+                for (i = 0; i < ARRAY_SIZE(note); ++i) {
+                    bswap32s(note + i);
+                }
+#endif
+#ifdef HOST_WORDS_BIGENDIAN
+                gnu0 = 'G' << 24 | 'N' << 16 | 'U' << 8;
+#else
+                gnu0 = 'G' | 'N' << 8 | 'U' << 16;
+#endif
+
+                if (note[0] != 4 ||     /* namesz */
+                    note[1] < 12 ||     /* descsz -- may include padding */
+                    note[2] != TARGET_NT_GNU_PROPERTY_TYPE_0 ||  /* type */
+                    note[3] != gnu0) {  /* name */
+                    break;
+                }
+#ifdef TARGET_AARCH64
+                if (note[4] == TARGET_GNU_PROPERTY_AARCH64_FEATURE_1_AND &&
+                    note[5] == 4 &&
+                    (note[6] & TARGET_GNU_PROPERTY_AARCH64_FEATURE_1_BTI)) {
+                    prot_exec |= TARGET_PROT_BTI;
+                }
+#endif
             }
-            ++info->nsegs;
-            info->alignment |= phdr[i].p_align;
+            break;
         }
     }
 
@@ -2359,7 +2416,7 @@ static void load_elf_image(const char *image_name, int image_fd,
 
             if (eppnt->p_flags & PF_R) elf_prot =  PROT_READ;
             if (eppnt->p_flags & PF_W) elf_prot |= PROT_WRITE;
-            if (eppnt->p_flags & PF_X) elf_prot |= PROT_EXEC;
+            if (eppnt->p_flags & PF_X) elf_prot |= prot_exec;
 
             vaddr = load_bias + eppnt->p_vaddr;
             vaddr_po = TARGET_ELF_PAGEOFFSET(vaddr);
