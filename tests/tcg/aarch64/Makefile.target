@@ -18,4 +18,7 @@ run-fcvt: fcvt
 AARCH64_TESTS += pauth-1
 run-pauth-%: QEMU += -cpu max
 
+AARCH64_TESTS += bti-1
+bti-1: LDFLAGS += -nostartfiles -nodefaultlibs -nostdlib
+
 TESTS:=$(AARCH64_TESTS)
