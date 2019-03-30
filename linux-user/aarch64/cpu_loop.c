@@ -85,6 +85,13 @@ void cpu_loop(CPUARMState *env)
 
         switch (trapnr) {
         case EXCP_SWI:
+            /*
+             * The state of BTYPE on syscall entry is CONSTRAINED
+             * UNPREDICTABLE.  The real kernel will need to tidy this up
+             * as well.  Do this before syscalls so that the value is
+             * correct on return from syscall (especially clone & fork).
+             */
+            env->btype = 0;
             ret = do_syscall(env,
                              env->xregs[8],
                              env->xregs[0],
