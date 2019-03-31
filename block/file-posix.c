@@ -421,6 +421,11 @@ static QemuOptsList raw_runtime_opts = {
             .help = "File name of the image",
         },
         {
+            .name = "dynamic-read-only",
+            .type = QEMU_OPT_BOOL,
+            .help = "FIXME",
+        },
+        {
             .name = "aio",
             .type = QEMU_OPT_STRING,
             .help = "host AIO implementation (threads, native)",
@@ -539,6 +544,13 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
 
     s->open_flags = open_flags;
     raw_parse_flags(bdrv_flags, &s->open_flags, false);
+
+    if (qemu_opt_get_bool(opts, "dynamic-read-only",
+                          bdrv_flags & BDRV_O_AUTO_RDONLY)
+        == !(bdrv_flags & BDRV_O_AUTO_RDONLY)) {
+        error_setg(errp, "FIXME");
+        ret = - EINVAL;
+    }
 
     s->fd = -1;
     fd = qemu_open(filename, s->open_flags, 0644);

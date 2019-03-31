@@ -2827,6 +2827,7 @@
 # Driver specific block device options for the file backend.
 #
 # @filename:    path to the image file
+# @dynamic-read-only: FIXME document (since 4.0)
 # @pr-manager:  the id for the object that will handle persistent reservations
 #               for this device (default: none, forward the commands via SG_IO;
 #               since 2.11)
@@ -2847,6 +2848,8 @@
 ##
 { 'struct': 'BlockdevOptionsFile',
   'data': { 'filename': 'str',
+            '*dynamic-read-only': {'type': 'bool',
+                                   'if': 'defined(CONFIG_POSIX)'},
             '*pr-manager': 'str',
             '*locking': 'OnOffAuto',
             '*aio': 'BlockdevAioOptions',
