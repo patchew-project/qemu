@@ -33,8 +33,7 @@ void trigger_pgm_exception(CPUS390XState *env, uint32_t code, int ilen)
     }
 }
 
-void s390_program_interrupt(CPUS390XState *env, uint32_t code, int ilen,
-                            uintptr_t ra)
+void s390_program_interrupt(CPUS390XState *env, uint32_t code, uintptr_t ra)
 {
     S390CPU *cpu = s390_env_get_cpu(env);
 
