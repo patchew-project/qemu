@@ -685,8 +685,6 @@ static bool gen_shift(DisasContext *ctx, arg_r *a,
 
 #pragma GCC diagnostic pop
 
-#include "insn_trans/trans_rvc.inc.c"
-
 static void decode_opc(DisasContext *ctx)
 {
     /* check for compressed insn */
