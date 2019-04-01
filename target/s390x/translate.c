@@ -57,6 +57,7 @@ struct DisasContext {
     DisasContextBase base;
     const DisasInsn *insn;
     DisasFields *fields;
+    TCGOp *insn_start;
     uint64_t ex_value;
     /*
      * During translate_one(), pc_tmp is used to determine the instruction
@@ -6220,6 +6221,7 @@ static const DisasInsn *extract_insn(CPUS390XState *env, DisasContext *s,
     }
     s->pc_tmp = s->base.pc_next + ilen;
     s->ilen = ilen;
+    tcg_set_insn_param(s->insn_start, 2, ilen);
 
     /* We can't actually determine the insn format until we've looked up
        the full insn opcode.  Which we can't do without locating the
@@ -6455,7 +6457,12 @@ static void s390x_tr_insn_start(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
 
-    tcg_gen_insn_start(dc->base.pc_next, dc->cc_op);
+    /*
+     * ??? Alternately, delay emitting insn_start until after we
+     * have computed the insn length in extract_insn.
+     */
+    tcg_gen_insn_start(dc->base.pc_next, dc->cc_op, 0);
+    dc->insn_start = tcg_last_op();
 }
 
 static bool s390x_tr_breakpoint_check(DisasContextBase *dcbase, CPUState *cs,
@@ -6561,4 +6568,5 @@ void restore_state_to_opc(CPUS390XState *env, TranslationBlock *tb,
     if ((cc_op != CC_OP_DYNAMIC) && (cc_op != CC_OP_STATIC)) {
         env->cc_op = cc_op;
     }
+    env->int_pgm_ilen = data[2];
 }

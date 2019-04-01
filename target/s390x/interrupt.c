@@ -21,13 +21,16 @@
 #endif
 
 /* Ensure to exit the TB after this call! */
-void trigger_pgm_exception(CPUS390XState *env, uint32_t code, uint32_t ilen)
+void trigger_pgm_exception(CPUS390XState *env, uint32_t code, int ilen)
 {
     CPUState *cs = CPU(s390_env_get_cpu(env));
 
     cs->exception_index = EXCP_PGM;
     env->int_pgm_code = code;
-    env->int_pgm_ilen = ilen;
+    /* If ILEN_UNWIND, int_pgm_ilen already has the correct value.  */
+    if (ilen != ILEN_UNWIND) {
+        env->int_pgm_ilen = ilen;
+    }
 }
 
 void s390_program_interrupt(CPUS390XState *env, uint32_t code, int ilen,
