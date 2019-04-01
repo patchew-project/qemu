@@ -20,6 +20,8 @@
 #include "sysemu/cpus.h"
 #include "hw/s390x/ipl.h"
 #include "hw/s390x/s390-virtio-ccw.h"
+#include "kvm_s390x.h"
+#include "sysemu/kvm.h"
 
 int handle_diag_288(CPUS390XState *env, uint64_t r1, uint64_t r3)
 {
@@ -133,4 +135,65 @@ out:
         s390_program_interrupt(env, PGM_SPECIFICATION, ILEN_AUTO, ra);
         break;
     }
+}
+
+typedef struct Diag318Data {
+    uint64_t cpc;
+} Diag318Data;
+static Diag318Data diag318data;
+
+void diag318_reset(void)
+{
+    if (kvm_s390_has_diag318()) {
+        kvm_s390_set_cpc(0);
+    }
+}
+
+static int diag318_post_load(void *opaque, int version_id)
+{
+    Diag318Data *d = opaque;
+
+    kvm_s390_set_cpc(d->cpc);
+    return 0;
+}
+
+static int diag318_pre_save(void *opaque)
+{
+    Diag318Data *d = opaque;
+
+    kvm_s390_get_cpc(&d->cpc);
+    return 0;
+}
+
+static bool diag318_needed(void *opaque)
+{
+    return kvm_s390_has_diag318();
+}
+
+VMStateDescription vmstate_diag318 = {
+    .name = "diag318",
+    .post_load = diag318_post_load,
+    .pre_save = diag318_pre_save,
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .unmigratable = 0,
+    .needed = diag318_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64(cpc, Diag318Data),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+void diag318_register_migration(void)
+{
+    if (!vmstate_diag318.unmigratable)
+        vmstate_register(NULL, 0, &vmstate_diag318, &diag318data);
+    else if (kvm_s390_has_diag318())
+        printf("warning: diag318 info lacks migration support, this data "
+               "will be lost if migrated.\n");
+}
+
+void diag318_disable_migration(void)
+{
+    vmstate_diag318.unmigratable = 1;
 }

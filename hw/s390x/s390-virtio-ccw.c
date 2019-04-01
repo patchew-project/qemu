@@ -36,6 +36,7 @@
 #include "cpu_models.h"
 #include "hw/nmi.h"
 #include "hw/s390x/tod.h"
+#include "internal.h"
 
 S390CPU *s390_cpu_addr2state(uint16_t cpu_addr)
 {
@@ -302,6 +303,8 @@ static void ccw_init(MachineState *machine)
 
     /* init the TOD clock */
     s390_init_tod();
+
+    diag318_register_migration();
 }
 
 static void s390_cpu_plug(HotplugHandler *hotplug_dev,
@@ -352,6 +355,7 @@ static void s390_machine_reset(void)
         }
         subsystem_reset();
         s390_crypto_reset();
+        diag318_reset();
         run_on_cpu(cs, s390_do_cpu_load_normal, RUN_ON_CPU_NULL);
         break;
     case S390_RESET_LOAD_NORMAL:
@@ -359,6 +363,7 @@ static void s390_machine_reset(void)
             run_on_cpu(t, s390_do_cpu_reset, RUN_ON_CPU_NULL);
         }
         subsystem_reset();
+        diag318_reset();
         run_on_cpu(cs, s390_do_cpu_initial_reset, RUN_ON_CPU_NULL);
         run_on_cpu(cs, s390_do_cpu_load_normal, RUN_ON_CPU_NULL);
         break;
@@ -662,6 +667,7 @@ static void ccw_machine_3_1_instance_options(MachineState *machine)
     s390_cpudef_featoff_greater(14, 1, S390_FEAT_MULTIPLE_EPOCH);
     s390_cpudef_group_featoff_greater(14, 1, S390_FEAT_GROUP_MULTIPLE_EPOCH_PTFF);
     s390_set_qemu_cpu_model(0x2827, 12, 2, qemu_cpu_feat);
+    diag318_disable_migration();
 }
 
 static void ccw_machine_3_1_class_options(MachineClass *mc)
