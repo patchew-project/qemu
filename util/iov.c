@@ -17,8 +17,8 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "qemu/iov.h"
+#include "qemu-common.h"
 #include "qemu/sockets.h"
 #include "qemu/cutils.h"
 

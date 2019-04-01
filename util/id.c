@@ -11,8 +11,8 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "qemu/id.h"
+#include "qemu-common.h"
 
 bool id_wellformed(const char *id)
 {
