@@ -649,7 +649,6 @@ static int build_dimm_list(Object *obj, void *opaque)
         }
     }
 
-    object_child_foreach(obj, build_dimm_list, opaque);
     return 0;
 }
 
@@ -658,7 +657,7 @@ static ram_addr_t get_current_ram_size(void)
     GSList *list = NULL, *item;
     ram_addr_t size = ram_size;
 
-    build_dimm_list(qdev_get_machine(), &list);
+    object_child_foreach_recursive(qdev_get_machine(), build_dimm_list, &list);
     for (item = list; item; item = g_slist_next(item)) {
         Object *obj = OBJECT(item->data);
         if (!strcmp(object_get_typename(obj), TYPE_PC_DIMM)) {

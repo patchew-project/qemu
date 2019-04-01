@@ -84,7 +84,6 @@ static int pc_dimm_slot2bitmap(Object *obj, void *opaque)
         }
     }
 
-    object_child_foreach(obj, pc_dimm_slot2bitmap, opaque);
     return 0;
 }
 
@@ -100,7 +99,7 @@ static int pc_dimm_get_free_slot(const int *hint, int max_slots, Error **errp)
     }
 
     bitmap = bitmap_new(max_slots);
-    object_child_foreach(qdev_get_machine(), pc_dimm_slot2bitmap, bitmap);
+    object_child_foreach_recursive(qdev_get_machine(), pc_dimm_slot2bitmap, bitmap);
 
     /* check if requested slot is not occupied */
     if (hint) {

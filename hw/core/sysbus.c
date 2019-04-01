@@ -41,12 +41,9 @@ static int find_sysbus_device(Object *obj, void *opaque)
     dev = object_dynamic_cast(obj, TYPE_SYS_BUS_DEVICE);
     sbdev = (SysBusDevice *)dev;
 
-    if (!sbdev) {
-        /* Container, traverse it for children */
-        return object_child_foreach(obj, find_sysbus_device, opaque);
+    if (sbdev) {
+        find->func(sbdev, find->opaque);
     }
-
-    find->func(sbdev, find->opaque);
 
     return 0;
 }
@@ -65,9 +62,9 @@ void foreach_dynamic_sysbus_device(FindSysbusDeviceFunc *func, void *opaque)
 
     /* Loop through all sysbus devices that were spawened outside the machine */
     container = container_get(qdev_get_machine(), "/peripheral");
-    find_sysbus_device(container, &find);
+    object_child_foreach_recursive(container, find_sysbus_device, &find);
     container = container_get(qdev_get_machine(), "/peripheral-anon");
-    find_sysbus_device(container, &find);
+    object_child_foreach_recursive(container, find_sysbus_device, &find);
 }
 
 
