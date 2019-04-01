@@ -5039,6 +5039,12 @@ case "$capstone" in
     ;;
 esac
 
+if test "$capstone" != no; then
+  if ! check_include "capstone.h" && check_include "capstone/capstone.h"; then
+    have_capstone_capstone_h=yes
+  fi
+fi
+
 ##########################################
 # check if we have fdatasync
 
@@ -7199,6 +7205,9 @@ if test "$ivshmem" = "yes" ; then
 fi
 if test "$capstone" != "no" ; then
   echo "CONFIG_CAPSTONE=y" >> $config_host_mak
+  if test "$have_capstone_capstone_h" = "yes" ; then
+    echo "HAVE_CAPSTONE_CAPSTONE_H=y" >> $config_host_mak
+  fi
 fi
 if test "$debug_mutex" = "yes" ; then
   echo "CONFIG_DEBUG_MUTEX=y" >> $config_host_mak
