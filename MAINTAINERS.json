@@ -1,0 +1,4257 @@
+[
+  {
+    "Name": "General Project Administration",
+    "Mail": [
+      "Peter Maydell <peter.maydell@linaro.org>"
+    ]
+  },
+  {
+    "Name": "All patches CC here",
+    "List": [
+      "qemu-devel@nongnu.org"
+    ],
+    "Files": [
+      "*",
+      "*/"
+    ]
+  },
+  {
+    "Name": "Responsible Disclosure, Reporting Security Issues",
+    "Mail": [
+      "Michael S. Tsirkin <mst@redhat.com>"
+    ],
+    "List": [
+      "secalert@redhat.com"
+    ],
+    "Webpage": [
+      "https://wiki.qemu.org/SecurityProcess"
+    ]
+  },
+  {
+    "Name": "Trivial patches"
+  },
+  {
+    "Name": "Trivial patches",
+    "Mail": [
+      "Michael Tokarev <mjt@tls.msk.ru>",
+      "Laurent Vivier <laurent@vivier.eu>"
+    ],
+    "List": [
+      "qemu-trivial@nongnu.org"
+    ],
+    "Status": "Maintained",
+    "Tree": "git https://github.com/vivier/qemu.git trivial-patches",
+    "Regexp": [
+      "^Subject:.*(?i)trivial"
+    ]
+  },
+  {
+    "Name": "Architecture support"
+  },
+  {
+    "Name": "S390",
+    "Mail": [
+      "Cornelia Huck <cohuck@redhat.com>"
+    ],
+    "List": [
+      "qemu-s390x@nongnu.org"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "default-configs/s390x-softmmu.mak",
+      "gdb-xml/s390*.xml",
+      "hw/char/sclp*.[hc]",
+      "hw/char/terminal3270.c",
+      "hw/intc/s390_flic.c",
+      "hw/intc/s390_flic_kvm.c",
+      "hw/s390x/",
+      "hw/vfio/ap.c",
+      "hw/vfio/ccw.c",
+      "hw/watchdog/wdt_diag288.c",
+      "include/hw/s390x/",
+      "include/hw/watchdog/wdt_diag288.h",
+      "pc-bios/s390-ccw/",
+      "pc-bios/s390-ccw.img",
+      "target/s390x/",
+      "docs/vfio-ap.txt"
+    ],
+    "Tree": "git https://github.com/cohuck/qemu.git s390-next",
+    "Regexp": [
+      "^Subject:.*(?i)s390x?"
+    ]
+  },
+  {
+    "Name": "Guest CPU cores (TCG):"
+  },
+  {
+    "Name": "Overall",
+    "Mail": [
+      "Richard Henderson <rth@twiddle.net>"
+    ],
+    "List": [
+      "qemu-devel@nongnu.org"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "cpus.c",
+      "exec.c",
+      "accel/tcg/",
+      "accel/stubs/tcg-stub.c",
+      "scripts/decodetree.py",
+      "docs/devel/decodetree.rst",
+      "include/exec/cpu*.h",
+      "include/exec/exec-all.h",
+      "include/exec/helper*.h",
+      "include/exec/tb-hash.h",
+      "include/sysemu/cpus.h"
+    ],
+    "Reviewer": [
+      "Paolo Bonzini <pbonzini@redhat.com>"
+    ]
+  },
+  {
+    "Name": "FPU emulation",
+    "Mail": [
+      "Aurelien Jarno <aurelien@aurel32.net>",
+      "Peter Maydell <peter.maydell@linaro.org>",
+      "Alex Bennée <alex.bennee@linaro.org>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "fpu/",
+      "include/fpu/",
+      "tests/fp/"
+    ]
+  },
+  {
+    "Name": "Alpha",
+    "Mail": [
+      "Richard Henderson <rth@twiddle.net>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "target/alpha/",
+      "tests/tcg/alpha/",
+      "disas/alpha.c"
+    ]
+  },
+  {
+    "Name": "ARM",
+    "Mail": [
+      "Peter Maydell <peter.maydell@linaro.org>"
+    ],
+    "List": [
+      "qemu-arm@nongnu.org"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "target/arm/",
+      "tests/tcg/arm/",
+      "tests/tcg/aarch64/",
+      "hw/arm/",
+      "hw/cpu/a*mpcore.c",
+      "include/hw/cpu/a*mpcore.h",
+      "disas/arm.c",
+      "disas/arm-a64.cc",
+      "disas/libvixl/"
+    ]
+  },
+  {
+    "Name": "ARM SMMU",
+    "Mail": [
+      "Eric Auger <eric.auger@redhat.com>"
+    ],
+    "List": [
+      "qemu-arm@nongnu.org"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/arm/smmu*",
+      "include/hw/arm/smmu*"
+    ]
+  },
+  {
+    "Name": "CRIS",
+    "Mail": [
+      "Edgar E. Iglesias <edgar.iglesias@gmail.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "target/cris/",
+      "hw/cris/",
+      "include/hw/cris/",
+      "tests/tcg/cris/",
+      "disas/cris.c"
+    ]
+  },
+  {
+    "Name": "HPPA (PA-RISC)",
+    "Mail": [
+      "Richard Henderson <rth@twiddle.net>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "target/hppa/",
+      "hw/hppa/",
+      "disas/hppa.c"
+    ]
+  },
+  {
+    "Name": "LM32",
+    "Mail": [
+      "Michael Walle <michael@walle.cc>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "target/lm32/",
+      "disas/lm32.c",
+      "hw/lm32/",
+      "hw/*/lm32_*",
+      "hw/*/milkymist-*",
+      "include/hw/display/milkymist_tmu2.h",
+      "include/hw/char/lm32_juart.h",
+      "include/hw/lm32/",
+      "tests/tcg/lm32/"
+    ]
+  },
+  {
+    "Name": "M68K",
+    "Mail": [
+      "Laurent Vivier <laurent@vivier.eu>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "target/m68k/",
+      "disas/m68k.c"
+    ]
+  },
+  {
+    "Name": "MicroBlaze",
+    "Mail": [
+      "Edgar E. Iglesias <edgar.iglesias@gmail.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "target/microblaze/",
+      "hw/microblaze/",
+      "disas/microblaze.c"
+    ]
+  },
+  {
+    "Name": "MIPS",
+    "Mail": [
+      "Aurelien Jarno <aurelien@aurel32.net>",
+      "Aleksandar Markovic <amarkovic@wavecomp.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "target/mips/",
+      "default-configs/*mips*",
+      "disas/mips.c",
+      "disas/nanomips.cpp",
+      "disas/nanomips.h",
+      "hw/intc/mips_gic.c",
+      "hw/mips/",
+      "hw/misc/mips_*",
+      "hw/timer/mips_gictimer.c",
+      "include/hw/intc/mips_gic.h",
+      "include/hw/mips/",
+      "include/hw/misc/mips_*",
+      "include/hw/timer/mips_gictimer.h",
+      "tests/tcg/mips/"
+    ],
+    "Reviewer": [
+      "Aleksandar Rikalo <arikalo@wavecomp.com>"
+    ],
+    "Regexp": [
+      "^Subject:.*(?i)mips"
+    ]
+  },
+  {
+    "Name": "Moxie",
+    "Mail": [
+      "Anthony Green <green@moxielogic.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "target/moxie/",
+      "disas/moxie.c",
+      "hw/moxie/",
+      "default-configs/moxie-softmmu.mak"
+    ]
+  },
+  {
+    "Name": "NiosII",
+    "Mail": [
+      "Chris Wulff <crwulff@gmail.com>",
+      "Marek Vasut <marex@denx.de>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "target/nios2/",
+      "hw/nios2/",
+      "hw/intc/nios2_iic.c",
+      "disas/nios2.c",
+      "default-configs/nios2-softmmu.mak"
+    ]
+  },
+  {
+    "Name": "OpenRISC",
+    "Mail": [
+      "Stafford Horne <shorne@gmail.com>"
+    ],
+    "Status": "Odd Fixes",
+    "Files": [
+      "target/openrisc/",
+      "hw/openrisc/",
+      "tests/tcg/openrisc/"
+    ]
+  },
+  {
+    "Name": "PowerPC",
+    "Mail": [
+      "David Gibson <david@gibson.dropbear.id.au>"
+    ],
+    "List": [
+      "qemu-ppc@nongnu.org"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "target/ppc/",
+      "hw/ppc/",
+      "include/hw/ppc/",
+      "disas/ppc.c"
+    ]
+  },
+  {
+    "Name": "RISC-V",
+    "Mail": [
+      "Palmer Dabbelt <palmer@sifive.com>",
+      "Alistair Francis <Alistair.Francis@wdc.com>",
+      "Sagar Karandikar <sagark@eecs.berkeley.edu>",
+      "Bastian Koppelmann <kbastian@mail.uni-paderborn.de>"
+    ],
+    "List": [
+      "qemu-riscv@nongnu.org"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "target/riscv/",
+      "hw/riscv/",
+      "include/hw/riscv/",
+      "linux-user/host/riscv32/",
+      "linux-user/host/riscv64/"
+    ]
+  },
+  {
+    "Name": "S390",
+    "Mail": [
+      "Richard Henderson <rth@twiddle.net>",
+      "David Hildenbrand <david@redhat.com>"
+    ],
+    "List": [
+      "qemu-s390x@nongnu.org"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "target/s390x/",
+      "hw/s390x/",
+      "disas/s390.c",
+      "tests/tcg/s390x/"
+    ]
+  },
+  {
+    "Name": "SH4",
+    "Mail": [
+      "Aurelien Jarno <aurelien@aurel32.net>"
+    ],
+    "Status": "Odd Fixes",
+    "Files": [
+      "target/sh4/",
+      "hw/sh4/",
+      "disas/sh4.c",
+      "include/hw/sh4/"
+    ]
+  },
+  {
+    "Name": "SPARC",
+    "Mail": [
+      "Mark Cave-Ayland <mark.cave-ayland@ilande.co.uk>",
+      "Artyom Tarasenko <atar4qemu@gmail.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "target/sparc/",
+      "hw/sparc/",
+      "hw/sparc64/",
+      "include/hw/sparc/sparc64.h",
+      "disas/sparc.c"
+    ]
+  },
+  {
+    "Name": "UniCore32",
+    "Mail": [
+      "Guan Xuetao <gxt@mprc.pku.edu.cn>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "target/unicore32/",
+      "hw/unicore32/",
+      "include/hw/unicore32/"
+    ]
+  },
+  {
+    "Name": "X86",
+    "Mail": [
+      "Paolo Bonzini <pbonzini@redhat.com>",
+      "Richard Henderson <rth@twiddle.net>",
+      "Eduardo Habkost <ehabkost@redhat.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "target/i386/",
+      "tests/tcg/i386/",
+      "tests/tcg/x86_64/",
+      "hw/i386/",
+      "disas/i386.c",
+      "docs/qemu-cpu-models.texi"
+    ],
+    "Tree": "git https://github.com/ehabkost/qemu.git x86-next"
+  },
+  {
+    "Name": "Xtensa",
+    "Mail": [
+      "Max Filippov <jcmvbkbc@gmail.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "target/xtensa/",
+      "hw/xtensa/",
+      "tests/tcg/xtensa/",
+      "disas/xtensa.c",
+      "include/hw/xtensa/xtensa-isa.h",
+      "default-configs/xtensa*.mak"
+    ],
+    "Webpage": [
+      "http://wiki.osll.ru/doku.php?id=etc:users:jcmvbkbc:qemu-target-xtensa"
+    ]
+  },
+  {
+    "Name": "TriCore",
+    "Mail": [
+      "Bastian Koppelmann <kbastian@mail.uni-paderborn.de>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "target/tricore/",
+      "hw/tricore/",
+      "include/hw/tricore/"
+    ]
+  },
+  {
+    "Name": "Multiarch Linux User Tests",
+    "Mail": [
+      "Alex Bennée <alex.bennee@linaro.org>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "tests/tcg/multiarch/"
+    ]
+  },
+  {
+    "Name": "Guest CPU Cores (KVM):"
+  },
+  {
+    "Name": "Overall",
+    "Mail": [
+      "Paolo Bonzini <pbonzini@redhat.com>"
+    ],
+    "List": [
+      "kvm@vger.kernel.org"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "*/kvm.*",
+      "accel/kvm/",
+      "accel/stubs/kvm-stub.c",
+      "include/hw/kvm/",
+      "include/sysemu/kvm*.h",
+      "scripts/kvm/kvm_flightrecorder"
+    ]
+  },
+  {
+    "Name": "ARM",
+    "Mail": [
+      "Peter Maydell <peter.maydell@linaro.org>"
+    ],
+    "List": [
+      "qemu-arm@nongnu.org"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "target/arm/kvm.c"
+    ]
+  },
+  {
+    "Name": "MIPS",
+    "Mail": [
+      "James Hogan <jhogan@kernel.org>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "target/mips/kvm.c"
+    ],
+    "Reviewer": [
+      "Aleksandar Rikalo <arikalo@wavecomp.com>"
+    ]
+  },
+  {
+    "Name": "PPC",
+    "Mail": [
+      "David Gibson <david@gibson.dropbear.id.au>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "target/ppc/kvm.c"
+    ]
+  },
+  {
+    "Name": "S390",
+    "Mail": [
+      "Halil Pasic <pasic@linux.ibm.com>",
+      "Cornelia Huck <cohuck@redhat.com>",
+      "Christian Borntraeger <borntraeger@de.ibm.com>"
+    ],
+    "List": [
+      "qemu-s390x@nongnu.org"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "target/s390x/kvm.c",
+      "target/s390x/kvm_s390x.h",
+      "target/s390x/kvm-stub.c",
+      "target/s390x/ioinst.[ch]",
+      "target/s390x/machine.c",
+      "target/s390x/sigp.c",
+      "hw/intc/s390_flic.c",
+      "hw/intc/s390_flic_kvm.c",
+      "include/hw/s390x/s390_flic.h",
+      "gdb-xml/s390*.xml"
+    ],
+    "Tree": "git https://github.com/borntraeger/qemu.git s390-next"
+  },
+  {
+    "Name": "X86",
+    "Mail": [
+      "Paolo Bonzini <pbonzini@redhat.com>",
+      "Marcelo Tosatti <mtosatti@redhat.com>"
+    ],
+    "List": [
+      "kvm@vger.kernel.org"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "target/i386/kvm.c",
+      "scripts/kvm/vmxcap"
+    ]
+  },
+  {
+    "Name": "Guest CPU Cores (Xen):"
+  },
+  {
+    "Name": "X86",
+    "Mail": [
+      "Stefano Stabellini <sstabellini@kernel.org>",
+      "Anthony Perard <anthony.perard@citrix.com>",
+      "Paul Durrant <paul.durrant@citrix.com>"
+    ],
+    "List": [
+      "xen-devel@lists.xenproject.org"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "*/xen*",
+      "hw/9pfs/xen-9p-backend.c",
+      "hw/char/xen_console.c",
+      "hw/display/xenfb.c",
+      "hw/net/xen_nic.c",
+      "hw/block/xen*",
+      "hw/block/dataplane/xen*",
+      "hw/xen/",
+      "hw/xenpv/",
+      "hw/i386/xen/",
+      "include/hw/block/dataplane/xen*",
+      "include/hw/xen/",
+      "include/sysemu/xen-mapcache.h"
+    ]
+  },
+  {
+    "Name": "Hosts:"
+  },
+  {
+    "Name": "LINUX",
+    "Mail": [
+      "Michael S. Tsirkin <mst@redhat.com>",
+      "Cornelia Huck <cohuck@redhat.com>",
+      "Paolo Bonzini <pbonzini@redhat.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "linux-headers/",
+      "scripts/update-linux-headers.sh"
+    ]
+  },
+  {
+    "Name": "POSIX",
+    "Mail": [
+      "Paolo Bonzini <pbonzini@redhat.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "os-posix.c",
+      "include/sysemu/os-posix.h",
+      "util/*posix*.c",
+      "include/qemu/*posix*.h"
+    ]
+  },
+  {
+    "Name": "NETBSD",
+    "Mail": [
+      "Kamil Rytarowski <kamil@netbsd.org>"
+    ],
+    "List": [
+      "qemu-devel@nongnu.org"
+    ],
+    "Status": "Maintained",
+    "Regexp": [
+      "^Subject:.*(?i)NetBSD"
+    ]
+  },
+  {
+    "Name": "OPENBSD",
+    "Mail": [
+      "Brad Smith <brad@comstyle.com>"
+    ],
+    "List": [
+      "qemu-devel@nongnu.org"
+    ],
+    "Status": "Maintained",
+    "Regexp": [
+      "^Subject:.*(?i)OpenBSD"
+    ]
+  },
+  {
+    "Name": "W32, W64",
+    "Mail": [
+      "Stefan Weil <sw@weilnetz.de>"
+    ],
+    "List": [
+      "qemu-devel@nongnu.org"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "*win32*",
+      "*/*win32*",
+      "include/*/*win32*",
+      "qemu.nsi"
+    ],
+    "Excluded": [
+      "qga/*win32*"
+    ]
+  },
+  {
+    "Name": "Alpha Machines",
+    "Mail": [
+      "Richard Henderson <rth@twiddle.net>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/alpha/",
+      "hw/isa/smc37c669-superio.c"
+    ]
+  },
+  {
+    "Name": "ARM Machines"
+  },
+  {
+    "Name": "Allwinner-a10",
+    "Mail": [
+      "Beniamino Galvani <b.galvani@gmail.com>",
+      "Peter Maydell <peter.maydell@linaro.org>"
+    ],
+    "List": [
+      "qemu-arm@nongnu.org"
+    ],
+    "Status": "Odd Fixes",
+    "Files": [
+      "hw/*/allwinner*",
+      "include/hw/*/allwinner*",
+      "hw/arm/cubieboard.c"
+    ]
+  },
+  {
+    "Name": "ARM PrimeCell and CMSDK devices",
+    "Mail": [
+      "Peter Maydell <peter.maydell@linaro.org>"
+    ],
+    "List": [
+      "qemu-arm@nongnu.org"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/char/pl011.c",
+      "include/hw/char/pl011.h",
+      "hw/display/pl110*",
+      "hw/dma/pl080.c",
+      "include/hw/dma/pl080.h",
+      "hw/dma/pl330.c",
+      "hw/gpio/pl061.c",
+      "hw/input/pl050.c",
+      "hw/intc/pl190.c",
+      "hw/sd/pl181.c",
+      "hw/ssi/pl022.c",
+      "include/hw/ssi/pl022.h",
+      "hw/timer/pl031.c",
+      "include/hw/timer/pl031.h",
+      "include/hw/arm/primecell.h",
+      "hw/timer/cmsdk-apb-timer.c",
+      "include/hw/timer/cmsdk-apb-timer.h",
+      "hw/timer/cmsdk-apb-dualtimer.c",
+      "include/hw/timer/cmsdk-apb-dualtimer.h",
+      "hw/char/cmsdk-apb-uart.c",
+      "include/hw/char/cmsdk-apb-uart.h",
+      "hw/watchdog/cmsdk-apb-watchdog.c",
+      "include/hw/watchdog/cmsdk-apb-watchdog.h",
+      "hw/misc/tz-ppc.c",
+      "include/hw/misc/tz-ppc.h",
+      "hw/misc/tz-mpc.c",
+      "include/hw/misc/tz-mpc.h",
+      "hw/misc/tz-msc.c",
+      "include/hw/misc/tz-msc.h"
+    ]
+  },
+  {
+    "Name": "ARM cores",
+    "Mail": [
+      "Peter Maydell <peter.maydell@linaro.org>"
+    ],
+    "List": [
+      "qemu-arm@nongnu.org"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/intc/arm*",
+      "hw/intc/gic_internal.h",
+      "hw/misc/a9scu.c",
+      "hw/misc/arm11scu.c",
+      "hw/misc/arm_l2x0.c",
+      "hw/timer/a9gtimer*",
+      "hw/timer/arm*",
+      "include/hw/arm/arm*.h",
+      "include/hw/intc/arm*",
+      "include/hw/misc/a9scu.h",
+      "include/hw/misc/arm11scu.h",
+      "include/hw/timer/a9gtimer.h",
+      "include/hw/timer/arm_mptimer.h",
+      "include/hw/timer/armv7m_systick.h",
+      "tests/test-arm-mptimer.c"
+    ]
+  },
+  {
+    "Name": "Exynos",
+    "Mail": [
+      "Igor Mitsyanko <i.mitsyanko@gmail.com>",
+      "Peter Maydell <peter.maydell@linaro.org>"
+    ],
+    "List": [
+      "qemu-arm@nongnu.org"
+    ],
+    "Status": "Odd Fixes",
+    "Files": [
+      "hw/*/exynos*",
+      "include/hw/arm/exynos4210.h"
+    ]
+  },
+  {
+    "Name": "Calxeda Highbank",
+    "Mail": [
+      "Rob Herring <robh@kernel.org>",
+      "Peter Maydell <peter.maydell@linaro.org>"
+    ],
+    "List": [
+      "qemu-arm@nongnu.org"
+    ],
+    "Status": "Odd Fixes",
+    "Files": [
+      "hw/arm/highbank.c",
+      "hw/net/xgmac.c"
+    ]
+  },
+  {
+    "Name": "Canon DIGIC",
+    "Mail": [
+      "Antony Pavlov <antonynpavlov@gmail.com>",
+      "Peter Maydell <peter.maydell@linaro.org>"
+    ],
+    "List": [
+      "qemu-arm@nongnu.org"
+    ],
+    "Status": "Odd Fixes",
+    "Files": [
+      "include/hw/arm/digic.h",
+      "hw/*/digic*",
+      "include/hw/*/digic*"
+    ]
+  },
+  {
+    "Name": "Gumstix",
+    "Mail": [
+      "Peter Maydell <peter.maydell@linaro.org>"
+    ],
+    "List": [
+      "qemu-devel@nongnu.org",
+      "qemu-arm@nongnu.org"
+    ],
+    "Status": "Odd Fixes",
+    "Files": [
+      "hw/arm/gumstix.c"
+    ],
+    "Reviewer": [
+      "Philippe Mathieu-Daudé <f4bug@amsat.org>"
+    ]
+  },
+  {
+    "Name": "i.MX25 PDK",
+    "Mail": [
+      "Peter Maydell <peter.maydell@linaro.org>"
+    ],
+    "List": [
+      "qemu-arm@nongnu.org"
+    ],
+    "Status": "Odd Fixes",
+    "Files": [
+      "hw/arm/fsl-imx25.c",
+      "hw/arm/imx25_pdk.c",
+      "hw/misc/imx25_ccm.c",
+      "include/hw/arm/fsl-imx25.h",
+      "include/hw/misc/imx25_ccm.h"
+    ],
+    "Reviewer": [
+      "Jean-Christophe Dubois <jcd@tribudubois.net>"
+    ]
+  },
+  {
+    "Name": "i.MX31 (kzm)",
+    "Mail": [
+      "Peter Chubb <peter.chubb@nicta.com.au>",
+      "Peter Maydell <peter.maydell@linaro.org>"
+    ],
+    "List": [
+      "qemu-arm@nongnu.org"
+    ],
+    "Status": "Odd Fixes",
+    "Files": [
+      "hw/arm/kzm.c",
+      "hw/*/imx_*",
+      "hw/*/*imx31*",
+      "include/hw/*/imx_*",
+      "include/hw/*/*imx31*"
+    ]
+  },
+  {
+    "Name": "Integrator CP",
+    "Mail": [
+      "Peter Maydell <peter.maydell@linaro.org>"
+    ],
+    "List": [
+      "qemu-arm@nongnu.org"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/arm/integratorcp.c",
+      "hw/misc/arm_integrator_debug.c",
+      "include/hw/misc/arm_integrator_debug.h"
+    ]
+  },
+  {
+    "Name": "MCIMX6UL EVK / i.MX6ul",
+    "Mail": [
+      "Peter Maydell <peter.maydell@linaro.org>"
+    ],
+    "List": [
+      "qemu-arm@nongnu.org"
+    ],
+    "Status": "Odd Fixes",
+    "Files": [
+      "hw/arm/mcimx6ul-evk.c",
+      "hw/arm/fsl-imx6ul.c",
+      "hw/misc/imx6ul_ccm.c",
+      "include/hw/arm/fsl-imx6ul.h",
+      "include/hw/misc/imx6ul_ccm.h"
+    ],
+    "Reviewer": [
+      "Jean-Christophe Dubois <jcd@tribudubois.net>"
+    ]
+  },
+  {
+    "Name": "MCIMX7D SABRE / i.MX7",
+    "Mail": [
+      "Peter Maydell <peter.maydell@linaro.org>"
+    ],
+    "List": [
+      "qemu-arm@nongnu.org"
+    ],
+    "Status": "Odd Fixes",
+    "Files": [
+      "hw/arm/mcimx7d-sabre.c",
+      "hw/arm/fsl-imx7.c",
+      "hw/misc/imx7_*.c",
+      "include/hw/arm/fsl-imx7.h",
+      "include/hw/misc/imx7_*.h",
+      "hw/pci-host/designware.c",
+      "include/hw/pci-host/designware.h"
+    ],
+    "Reviewer": [
+      "Andrey Smirnov <andrew.smirnov@gmail.com>"
+    ]
+  },
+  {
+    "Name": "MPS2",
+    "Mail": [
+      "Peter Maydell <peter.maydell@linaro.org>"
+    ],
+    "List": [
+      "qemu-arm@nongnu.org"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/arm/mps2.c",
+      "hw/arm/mps2-tz.c",
+      "hw/misc/mps2-*.c",
+      "include/hw/misc/mps2-*.h",
+      "hw/arm/armsse.c",
+      "include/hw/arm/armsse.h",
+      "hw/misc/iotkit-secctl.c",
+      "include/hw/misc/iotkit-secctl.h",
+      "hw/misc/iotkit-sysctl.c",
+      "include/hw/misc/iotkit-sysctl.h",
+      "hw/misc/iotkit-sysinfo.c",
+      "include/hw/misc/iotkit-sysinfo.h",
+      "hw/misc/armsse-cpuid.c",
+      "include/hw/misc/armsse-cpuid.h",
+      "hw/misc/armsse-mhu.c",
+      "include/hw/misc/armsse-mhu.h"
+    ]
+  },
+  {
+    "Name": "Musca",
+    "Mail": [
+      "Peter Maydell <peter.maydell@linaro.org>"
+    ],
+    "List": [
+      "qemu-arm@nongnu.org"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/arm/musca.c"
+    ]
+  },
+  {
+    "Name": "Musicpal",
+    "Mail": [
+      "Jan Kiszka <jan.kiszka@web.de>",
+      "Peter Maydell <peter.maydell@linaro.org>"
+    ],
+    "List": [
+      "qemu-arm@nongnu.org"
+    ],
+    "Status": "Odd Fixes",
+    "Files": [
+      "hw/arm/musicpal.c"
+    ]
+  },
+  {
+    "Name": "nSeries",
+    "Mail": [
+      "Andrzej Zaborowski <balrogg@gmail.com>",
+      "Peter Maydell <peter.maydell@linaro.org>"
+    ],
+    "List": [
+      "qemu-arm@nongnu.org"
+    ],
+    "Status": "Odd Fixes",
+    "Files": [
+      "hw/arm/nseries.c",
+      "hw/input/lm832x.c",
+      "hw/input/tsc2005.c",
+      "hw/misc/cbus.c",
+      "hw/timer/twl92230.c"
+    ]
+  },
+  {
+    "Name": "Palm",
+    "Mail": [
+      "Andrzej Zaborowski <balrogg@gmail.com>",
+      "Peter Maydell <peter.maydell@linaro.org>"
+    ],
+    "List": [
+      "qemu-arm@nongnu.org"
+    ],
+    "Status": "Odd Fixes",
+    "Files": [
+      "hw/arm/palm.c",
+      "hw/input/tsc210x.c"
+    ]
+  },
+  {
+    "Name": "Raspberry Pi",
+    "Mail": [
+      "Peter Maydell <peter.maydell@linaro.org>"
+    ],
+    "List": [
+      "qemu-arm@nongnu.org"
+    ],
+    "Status": "Odd Fixes",
+    "Files": [
+      "hw/arm/raspi.c",
+      "hw/arm/raspi_platform.h",
+      "hw/*/bcm283*",
+      "include/hw/arm/raspi*",
+      "include/hw/*/bcm283*"
+    ],
+    "Reviewer": [
+      "Andrew Baumann <Andrew.Baumann@microsoft.com>",
+      "Philippe Mathieu-Daudé <f4bug@amsat.org>"
+    ]
+  },
+  {
+    "Name": "Real View",
+    "Mail": [
+      "Peter Maydell <peter.maydell@linaro.org>"
+    ],
+    "List": [
+      "qemu-arm@nongnu.org"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/arm/realview*",
+      "hw/cpu/realview_mpcore.c",
+      "hw/intc/realview_gic.c",
+      "include/hw/intc/realview_gic.h"
+    ]
+  },
+  {
+    "Name": "PXA2XX",
+    "Mail": [
+      "Andrzej Zaborowski <balrogg@gmail.com>",
+      "Peter Maydell <peter.maydell@linaro.org>"
+    ],
+    "List": [
+      "qemu-arm@nongnu.org"
+    ],
+    "Status": "Odd Fixes",
+    "Files": [
+      "hw/arm/mainstone.c",
+      "hw/arm/spitz.c",
+      "hw/arm/tosa.c",
+      "hw/arm/z2.c",
+      "hw/*/pxa2xx*",
+      "hw/display/tc6393xb.c",
+      "hw/gpio/max7310.c",
+      "hw/gpio/zaurus.c",
+      "hw/misc/mst_fpga.c",
+      "hw/misc/max111x.c",
+      "include/hw/arm/pxa.h",
+      "include/hw/arm/sharpsl.h"
+    ]
+  },
+  {
+    "Name": "SABRELITE / i.MX6",
+    "Mail": [
+      "Peter Maydell <peter.maydell@linaro.org>"
+    ],
+    "List": [
+      "qemu-arm@nongnu.org"
+    ],
+    "Status": "Odd Fixes",
+    "Files": [
+      "hw/arm/sabrelite.c",
+      "hw/arm/fsl-imx6.c",
+      "hw/misc/imx6_*.c",
+      "hw/ssi/imx_spi.c",
+      "include/hw/arm/fsl-imx6.h",
+      "include/hw/misc/imx6_*.h",
+      "include/hw/ssi/imx_spi.h"
+    ],
+    "Reviewer": [
+      "Jean-Christophe Dubois <jcd@tribudubois.net>"
+    ]
+  },
+  {
+    "Name": "Sharp SL-5500 (Collie) PDA",
+    "Mail": [
+      "Peter Maydell <peter.maydell@linaro.org>"
+    ],
+    "List": [
+      "qemu-arm@nongnu.org"
+    ],
+    "Status": "Odd Fixes",
+    "Files": [
+      "hw/arm/collie.c",
+      "hw/arm/strongarm*"
+    ]
+  },
+  {
+    "Name": "Stellaris",
+    "Mail": [
+      "Peter Maydell <peter.maydell@linaro.org>"
+    ],
+    "List": [
+      "qemu-arm@nongnu.org"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/*/stellaris*"
+    ]
+  },
+  {
+    "Name": "Versatile Express",
+    "Mail": [
+      "Peter Maydell <peter.maydell@linaro.org>"
+    ],
+    "List": [
+      "qemu-arm@nongnu.org"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/arm/vexpress.c"
+    ]
+  },
+  {
+    "Name": "Versatile PB",
+    "Mail": [
+      "Peter Maydell <peter.maydell@linaro.org>"
+    ],
+    "List": [
+      "qemu-arm@nongnu.org"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/*/versatile*",
+      "hw/misc/arm_sysctl.c"
+    ]
+  },
+  {
+    "Name": "Virt",
+    "Mail": [
+      "Peter Maydell <peter.maydell@linaro.org>"
+    ],
+    "List": [
+      "qemu-arm@nongnu.org"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/arm/virt*",
+      "include/hw/arm/virt.h"
+    ]
+  },
+  {
+    "Name": "Xilinx Zynq",
+    "Mail": [
+      "Edgar E. Iglesias <edgar.iglesias@gmail.com>",
+      "Alistair Francis <alistair@alistair23.me>",
+      "Peter Maydell <peter.maydell@linaro.org>"
+    ],
+    "List": [
+      "qemu-arm@nongnu.org"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/*/xilinx_*",
+      "hw/*/cadence_*",
+      "hw/misc/zynq*",
+      "include/hw/misc/zynq*"
+    ],
+    "Excluded": [
+      "hw/ssi/xilinx_*"
+    ]
+  },
+  {
+    "Name": "Xilinx ZynqMP",
+    "Mail": [
+      "Alistair Francis <alistair@alistair23.me>",
+      "Edgar E. Iglesias <edgar.iglesias@gmail.com>",
+      "Peter Maydell <peter.maydell@linaro.org>"
+    ],
+    "List": [
+      "qemu-arm@nongnu.org"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/*/xlnx*.c",
+      "include/hw/*/xlnx*.h",
+      "include/hw/ssi/xilinx_spips.h",
+      "hw/display/dpcd.c",
+      "include/hw/display/dpcd.h"
+    ]
+  },
+  {
+    "Name": "ARM ACPI Subsystem",
+    "Mail": [
+      "Shannon Zhao <shannon.zhaosl@gmail.com>"
+    ],
+    "List": [
+      "qemu-arm@nongnu.org"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/arm/virt-acpi-build.c"
+    ]
+  },
+  {
+    "Name": "STM32F205",
+    "Mail": [
+      "Alistair Francis <alistair@alistair23.me>",
+      "Peter Maydell <peter.maydell@linaro.org>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/arm/stm32f205_soc.c",
+      "hw/misc/stm32f2xx_syscfg.c",
+      "hw/char/stm32f2xx_usart.c",
+      "hw/timer/stm32f2xx_timer.c",
+      "hw/adc/*",
+      "hw/ssi/stm32f2xx_spi.c",
+      "include/hw/*/stm32*.h"
+    ]
+  },
+  {
+    "Name": "Netduino 2",
+    "Mail": [
+      "Alistair Francis <alistair@alistair23.me>",
+      "Peter Maydell <peter.maydell@linaro.org>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/arm/netduino2.c"
+    ]
+  },
+  {
+    "Name": "SmartFusion2",
+    "Mail": [
+      "Subbaraya Sundeep <sundeep.lkml@gmail.com>",
+      "Peter Maydell <peter.maydell@linaro.org>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/arm/msf2-soc.c",
+      "hw/misc/msf2-sysreg.c",
+      "hw/timer/mss-timer.c",
+      "hw/ssi/mss-spi.c",
+      "include/hw/arm/msf2-soc.h",
+      "include/hw/misc/msf2-sysreg.h",
+      "include/hw/timer/mss-timer.h",
+      "include/hw/ssi/mss-spi.h"
+    ]
+  },
+  {
+    "Name": "Emcraft M2S-FG484",
+    "Mail": [
+      "Subbaraya Sundeep <sundeep.lkml@gmail.com>",
+      "Peter Maydell <peter.maydell@linaro.org>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/arm/msf2-som.c"
+    ]
+  },
+  {
+    "Name": "ASPEED BMCs",
+    "Mail": [
+      "Cédric Le Goater <clg@kaod.org>",
+      "Peter Maydell <peter.maydell@linaro.org>"
+    ],
+    "List": [
+      "qemu-arm@nongnu.org"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/*/*aspeed*",
+      "hw/misc/pca9552.c",
+      "include/hw/*/*aspeed*",
+      "include/hw/misc/pca9552*.h",
+      "hw/net/ftgmac100.c",
+      "include/hw/net/ftgmac100.h"
+    ],
+    "Reviewer": [
+      "Andrew Jeffery <andrew@aj.id.au>",
+      "Joel Stanley <joel@jms.id.au>"
+    ]
+  },
+  {
+    "Name": "NRF51",
+    "Mail": [
+      "Joel Stanley <joel@jms.id.au>",
+      "Peter Maydell <peter.maydell@linaro.org>"
+    ],
+    "List": [
+      "qemu-arm@nongnu.org"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/*/nrf51*.c",
+      "hw/*/microbit*.c",
+      "include/hw/*/nrf51*.h",
+      "include/hw/*/microbit*.h",
+      "tests/microbit-test.c"
+    ]
+  },
+  {
+    "Name": "CRIS Machines"
+  },
+  {
+    "Name": "Axis Dev88",
+    "Mail": [
+      "Edgar E. Iglesias <edgar.iglesias@gmail.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/cris/axis_dev88.c",
+      "hw/*/etraxfs_*.c"
+    ]
+  },
+  {
+    "Name": "HP-PARISC Machines"
+  },
+  {
+    "Name": "Dino",
+    "Mail": [
+      "Richard Henderson <rth@twiddle.net>"
+    ],
+    "Status": "Odd Fixes",
+    "Files": [
+      "hw/hppa/",
+      "pc-bios/hppa-firmware.img"
+    ],
+    "Reviewer": [
+      "Helge Deller <deller@gmx.de>"
+    ]
+  },
+  {
+    "Name": "LM32 Machines"
+  },
+  {
+    "Name": "EVR32 and uclinux BSP",
+    "Mail": [
+      "Michael Walle <michael@walle.cc>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/lm32/lm32_boards.c"
+    ]
+  },
+  {
+    "Name": "milkymist",
+    "Mail": [
+      "Michael Walle <michael@walle.cc>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/lm32/milkymist.c"
+    ]
+  },
+  {
+    "Name": "M68K Machines"
+  },
+  {
+    "Name": "an5206",
+    "Mail": [
+      "Thomas Huth <huth@tuxfamily.org>"
+    ],
+    "Status": "Odd Fixes",
+    "Files": [
+      "hw/m68k/an5206.c",
+      "hw/m68k/mcf5206.c"
+    ]
+  },
+  {
+    "Name": "mcf5208",
+    "Mail": [
+      "Thomas Huth <huth@tuxfamily.org>"
+    ],
+    "Status": "Odd Fixes",
+    "Files": [
+      "hw/m68k/mcf5208.c",
+      "hw/m68k/mcf_intc.c",
+      "hw/char/mcf_uart.c",
+      "hw/net/mcf_fec.c",
+      "include/hw/m68k/mcf*.h"
+    ]
+  },
+  {
+    "Name": "MicroBlaze Machines"
+  },
+  {
+    "Name": "petalogix_s3adsp1800",
+    "Mail": [
+      "Edgar E. Iglesias <edgar.iglesias@gmail.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/microblaze/petalogix_s3adsp1800_mmu.c",
+      "include/hw/char/xilinx_uartlite.h"
+    ]
+  },
+  {
+    "Name": "petalogix_ml605",
+    "Mail": [
+      "Edgar E. Iglesias <edgar.iglesias@gmail.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/microblaze/petalogix_ml605_mmu.c"
+    ]
+  },
+  {
+    "Name": "MIPS Machines"
+  },
+  {
+    "Name": "Jazz",
+    "Mail": [
+      "Hervé Poussineau <hpoussin@reactos.org>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/mips/mips_jazz.c",
+      "hw/display/jazz_led.c",
+      "hw/dma/rc4030.c"
+    ],
+    "Reviewer": [
+      "Aleksandar Rikalo <arikalo@wavecomp.com>"
+    ]
+  },
+  {
+    "Name": "Malta",
+    "Mail": [
+      "Aurelien Jarno <aurelien@aurel32.net>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/mips/mips_malta.c"
+    ],
+    "Reviewer": [
+      "Aleksandar Rikalo <arikalo@wavecomp.com>"
+    ]
+  },
+  {
+    "Name": "Mipssim",
+    "Mail": [
+      "Aleksandar Markovic <amarkovic@wavecomp.com>"
+    ],
+    "Status": "Odd Fixes",
+    "Files": [
+      "hw/mips/mips_mipssim.c",
+      "hw/net/mipsnet.c"
+    ],
+    "Reviewer": [
+      "Aleksandar Rikalo <arikalo@wavecomp.com>"
+    ]
+  },
+  {
+    "Name": "R4000",
+    "Mail": [
+      "Aurelien Jarno <aurelien@aurel32.net>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/mips/mips_r4k.c"
+    ],
+    "Reviewer": [
+      "Aleksandar Rikalo <arikalo@wavecomp.com>"
+    ]
+  },
+  {
+    "Name": "Fulong 2E",
+    "Mail": [
+      "Aleksandar Markovic <amarkovic@wavecomp.com>"
+    ],
+    "Status": "Odd Fixes",
+    "Files": [
+      "hw/mips/mips_fulong2e.c",
+      "hw/isa/vt82c686.c",
+      "hw/pci-host/bonito.c",
+      "include/hw/isa/vt82c686.h"
+    ],
+    "Reviewer": [
+      "Aleksandar Rikalo <arikalo@wavecomp.com>"
+    ]
+  },
+  {
+    "Name": "Boston",
+    "Mail": [
+      "Paul Burton <pburton@wavecomp.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/core/loader-fit.c",
+      "hw/mips/boston.c",
+      "hw/pci-host/xilinx-pcie.c",
+      "include/hw/pci-host/xilinx-pcie.h"
+    ],
+    "Reviewer": [
+      "Aleksandar Rikalo <arikalo@wavecomp.com>"
+    ]
+  },
+  {
+    "Name": "OpenRISC Machines"
+  },
+  {
+    "Name": "or1k-sim",
+    "Mail": [
+      "Jia Liu <proljc@gmail.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/openrisc/openrisc_sim.c"
+    ]
+  },
+  {
+    "Name": "PowerPC Machines"
+  },
+  {
+    "Name": "405",
+    "Mail": [
+      "David Gibson <david@gibson.dropbear.id.au>"
+    ],
+    "List": [
+      "qemu-ppc@nongnu.org"
+    ],
+    "Status": "Odd Fixes",
+    "Files": [
+      "hw/ppc/ppc405_boards.c"
+    ]
+  },
+  {
+    "Name": "Bamboo",
+    "Mail": [
+      "David Gibson <david@gibson.dropbear.id.au>"
+    ],
+    "List": [
+      "qemu-ppc@nongnu.org"
+    ],
+    "Status": "Odd Fixes",
+    "Files": [
+      "hw/ppc/ppc440_bamboo.c"
+    ]
+  },
+  {
+    "Name": "e500",
+    "Mail": [
+      "David Gibson <david@gibson.dropbear.id.au>"
+    ],
+    "List": [
+      "qemu-ppc@nongnu.org"
+    ],
+    "Status": "Odd Fixes",
+    "Files": [
+      "hw/ppc/e500*",
+      "hw/gpio/mpc8xxx.c",
+      "hw/i2c/mpc_i2c.c",
+      "hw/net/fsl_etsec/",
+      "hw/pci-host/ppce500.c",
+      "include/hw/ppc/ppc_e500.h",
+      "include/hw/pci-host/ppce500.h",
+      "pc-bios/u-boot.e500"
+    ]
+  },
+  {
+    "Name": "mpc8544ds",
+    "Mail": [
+      "David Gibson <david@gibson.dropbear.id.au>"
+    ],
+    "List": [
+      "qemu-ppc@nongnu.org"
+    ],
+    "Status": "Odd Fixes",
+    "Files": [
+      "hw/ppc/mpc8544ds.c",
+      "hw/ppc/mpc8544_guts.c"
+    ]
+  },
+  {
+    "Name": "New World (mac99)",
+    "Mail": [
+      "Mark Cave-Ayland <mark.cave-ayland@ilande.co.uk>"
+    ],
+    "List": [
+      "qemu-ppc@nongnu.org"
+    ],
+    "Status": "Odd Fixes",
+    "Files": [
+      "hw/ppc/mac_newworld.c",
+      "hw/pci-host/uninorth.c",
+      "hw/pci-bridge/dec.[hc]",
+      "hw/misc/macio/",
+      "hw/misc/mos6522.c",
+      "hw/nvram/mac_nvram.c",
+      "hw/input/adb*",
+      "include/hw/misc/macio/",
+      "include/hw/misc/mos6522.h",
+      "include/hw/ppc/mac_dbdma.h",
+      "include/hw/pci-host/uninorth.h",
+      "include/hw/input/adb*",
+      "pc-bios/qemu_vga.ndrv"
+    ],
+    "Reviewer": [
+      "David Gibson <david@gibson.dropbear.id.au>"
+    ]
+  },
+  {
+    "Name": "Old World (g3beige)",
+    "Mail": [
+      "Mark Cave-Ayland <mark.cave-ayland@ilande.co.uk>"
+    ],
+    "List": [
+      "qemu-ppc@nongnu.org"
+    ],
+    "Status": "Odd Fixes",
+    "Files": [
+      "hw/ppc/mac_oldworld.c",
+      "hw/pci-host/grackle.c",
+      "hw/misc/macio/",
+      "hw/intc/heathrow_pic.c",
+      "hw/input/adb*",
+      "include/hw/intc/heathrow_pic.h",
+      "include/hw/input/adb*",
+      "pc-bios/qemu_vga.ndrv"
+    ],
+    "Reviewer": [
+      "David Gibson <david@gibson.dropbear.id.au>"
+    ]
+  },
+  {
+    "Name": "PReP",
+    "Mail": [
+      "Hervé Poussineau <hpoussin@reactos.org>"
+    ],
+    "List": [
+      "qemu-devel@nongnu.org",
+      "qemu-ppc@nongnu.org"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/ppc/prep.c",
+      "hw/ppc/prep_systemio.c",
+      "hw/ppc/rs6000_mc.c",
+      "hw/pci-host/prep.[hc]",
+      "hw/isa/i82378.c",
+      "hw/isa/pc87312.c",
+      "hw/dma/i82374.c",
+      "hw/timer/m48t59-isa.c",
+      "include/hw/isa/pc87312.h",
+      "include/hw/timer/m48t59.h",
+      "pc-bios/ppc_rom.bin"
+    ]
+  },
+  {
+    "Name": "sPAPR",
+    "Mail": [
+      "David Gibson <david@gibson.dropbear.id.au>"
+    ],
+    "List": [
+      "qemu-ppc@nongnu.org"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "hw/*/spapr*",
+      "include/hw/*/spapr*",
+      "hw/*/xics*",
+      "include/hw/*/xics*",
+      "pc-bios/spapr-rtas/*",
+      "pc-bios/spapr-rtas.bin",
+      "pc-bios/slof.bin",
+      "docs/specs/ppc-spapr-hcalls.txt",
+      "docs/specs/ppc-spapr-hotplug.txt",
+      "tests/spapr*",
+      "tests/libqos/*spapr*",
+      "tests/rtas*",
+      "tests/libqos/rtas*"
+    ]
+  },
+  {
+    "Name": "PowerNV (Non-Virtualized)",
+    "Mail": [
+      "Cédric Le Goater <clg@kaod.org>",
+      "David Gibson <david@gibson.dropbear.id.au>"
+    ],
+    "List": [
+      "qemu-ppc@nongnu.org"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/ppc/pnv*",
+      "hw/intc/pnv*",
+      "hw/intc/xics_pnv.c",
+      "include/hw/ppc/pnv*",
+      "pc-bios/skiboot.lid",
+      "tests/pnv*"
+    ]
+  },
+  {
+    "Name": "virtex_ml507",
+    "Mail": [
+      "Edgar E. Iglesias <edgar.iglesias@gmail.com>"
+    ],
+    "List": [
+      "qemu-ppc@nongnu.org"
+    ],
+    "Status": "Odd Fixes",
+    "Files": [
+      "hw/ppc/virtex_ml507.c"
+    ]
+  },
+  {
+    "Name": "sam460ex",
+    "Mail": [
+      "BALATON Zoltan <balaton@eik.bme.hu>"
+    ],
+    "List": [
+      "qemu-ppc@nongnu.org"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/ppc/sam460ex.c",
+      "hw/ppc/ppc440_pcix.c",
+      "hw/display/sm501*",
+      "hw/ide/sii3112.c",
+      "hw/timer/m41t80.c",
+      "pc-bios/canyonlands.dt[sb]",
+      "pc-bios/u-boot-sam460ex-20100605.bin",
+      "roms/u-boot-sam460ex"
+    ]
+  },
+  {
+    "Name": "SH4 Machines"
+  },
+  {
+    "Name": "R2D",
+    "Mail": [
+      "Magnus Damm <magnus.damm@gmail.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/sh4/r2d.c",
+      "hw/intc/sh_intc.c",
+      "hw/timer/sh_timer.c"
+    ]
+  },
+  {
+    "Name": "Shix",
+    "Mail": [
+      "Magnus Damm <magnus.damm@gmail.com>"
+    ],
+    "Status": "Odd Fixes",
+    "Files": [
+      "hw/sh4/shix.c"
+    ]
+  },
+  {
+    "Name": "SPARC Machines"
+  },
+  {
+    "Name": "Sun4m",
+    "Mail": [
+      "Mark Cave-Ayland <mark.cave-ayland@ilande.co.uk>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/sparc/sun4m.c",
+      "hw/sparc/sun4m_iommu.c",
+      "hw/display/cg3.c",
+      "hw/display/tcx.c",
+      "hw/dma/sparc32_dma.c",
+      "hw/misc/eccmemctl.c",
+      "hw/*/slavio_*.c",
+      "include/hw/nvram/sun_nvram.h",
+      "include/hw/sparc/sparc32_dma.h",
+      "include/hw/sparc/sun4m_iommu.h",
+      "pc-bios/openbios-sparc32"
+    ]
+  },
+  {
+    "Name": "Sun4u",
+    "Mail": [
+      "Mark Cave-Ayland <mark.cave-ayland@ilande.co.uk>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/sparc64/sun4u.c",
+      "hw/sparc64/sun4u_iommu.c",
+      "include/hw/sparc/sun4u_iommu.h",
+      "hw/pci-host/sabre.c",
+      "include/hw/pci-host/sabre.h",
+      "hw/pci-bridge/simba.c",
+      "include/hw/pci-bridge/simba.h",
+      "pc-bios/openbios-sparc64"
+    ]
+  },
+  {
+    "Name": "Sun4v",
+    "Mail": [
+      "Artyom Tarasenko <atar4qemu@gmail.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/sparc64/niagara.c",
+      "hw/timer/sun4v-rtc.c",
+      "include/hw/timer/sun4v-rtc.h"
+    ]
+  },
+  {
+    "Name": "Leon3",
+    "Mail": [
+      "Fabien Chouteau <chouteau@adacore.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/sparc/leon3.c",
+      "hw/*/grlib*",
+      "include/hw/sparc/grlib.h"
+    ]
+  },
+  {
+    "Name": "S390 Machines"
+  },
+  {
+    "Name": "S390 Virtio-ccw",
+    "Mail": [
+      "Cornelia Huck <cohuck@redhat.com>",
+      "Halil Pasic <pasic@linux.ibm.com>",
+      "Christian Borntraeger <borntraeger@de.ibm.com>"
+    ],
+    "List": [
+      "qemu-s390x@nongnu.org"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "hw/char/sclp*.[hc]",
+      "hw/char/terminal3270.c",
+      "hw/s390x/",
+      "include/hw/s390x/",
+      "hw/watchdog/wdt_diag288.c",
+      "include/hw/watchdog/wdt_diag288.h",
+      "default-configs/s390x-softmmu.mak"
+    ],
+    "Tree": "git https://github.com/borntraeger/qemu.git s390-next"
+  },
+  {
+    "Name": "S390-ccw boot",
+    "Mail": [
+      "Christian Borntraeger <borntraeger@de.ibm.com>",
+      "Thomas Huth <thuth@redhat.com>"
+    ],
+    "List": [
+      "qemu-s390x@nongnu.org"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "hw/s390x/ipl.*",
+      "pc-bios/s390-ccw/",
+      "pc-bios/s390-ccw.img"
+    ],
+    "Tree": "git https://github.com/borntraeger/qemu.git s390-next"
+  },
+  {
+    "Name": "S390 PCI",
+    "Mail": [
+      "Collin Walling <walling@linux.ibm.com>"
+    ],
+    "List": [
+      "qemu-s390x@nongnu.org"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "hw/s390x/s390-pci*"
+    ]
+  },
+  {
+    "Name": "UniCore32 Machines"
+  },
+  {
+    "Name": "PKUnity-3 SoC initramfs-with-busybox",
+    "Mail": [
+      "Guan Xuetao <gxt@mprc.pku.edu.cn>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/*/puv3*",
+      "hw/unicore32/"
+    ]
+  },
+  {
+    "Name": "X86 Machines"
+  },
+  {
+    "Name": "PC",
+    "Mail": [
+      "Michael S. Tsirkin <mst@redhat.com>",
+      "Marcel Apfelbaum <marcel.apfelbaum@gmail.com>"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "include/hw/i386/",
+      "hw/i386/",
+      "hw/pci-host/piix.c",
+      "hw/pci-host/q35.c",
+      "hw/pci-host/pam.c",
+      "include/hw/pci-host/q35.h",
+      "include/hw/pci-host/pam.h",
+      "hw/isa/piix4.c",
+      "hw/isa/lpc_ich9.c",
+      "hw/i2c/smbus_ich9.c",
+      "hw/acpi/piix4.c",
+      "hw/acpi/ich9.c",
+      "include/hw/acpi/ich9.h",
+      "include/hw/acpi/piix4.h",
+      "hw/misc/sga.c",
+      "hw/isa/apm.c",
+      "include/hw/isa/apm.h",
+      "tests/test-x86-cpuid.c",
+      "tests/test-x86-cpuid-compat.c"
+    ]
+  },
+  {
+    "Name": "PC Chipset",
+    "Mail": [
+      "Michael S. Tsirkin <mst@redhat.com>",
+      "Paolo Bonzini <pbonzini@redhat.com>"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "hw/char/debugcon.c",
+      "hw/char/parallel*",
+      "hw/char/serial*",
+      "hw/dma/i8257*",
+      "hw/i2c/pm_smbus.c",
+      "hw/input/pckbd.c",
+      "hw/intc/apic*",
+      "hw/intc/ioapic*",
+      "hw/intc/i8259*",
+      "hw/isa/isa-superio.c",
+      "hw/misc/debugexit.c",
+      "hw/misc/pc-testdev.c",
+      "hw/timer/hpet*",
+      "hw/timer/i8254*",
+      "hw/timer/mc146818rtc*",
+      "hw/watchdog/wdt_ib700.c",
+      "hw/watchdog/wdt_i6300esb.c",
+      "include/hw/display/vga.h",
+      "include/hw/char/parallel.h",
+      "include/hw/dma/i8257.h",
+      "include/hw/i2c/pm_smbus.h",
+      "include/hw/input/i8042.h",
+      "include/hw/isa/i8259_internal.h",
+      "include/hw/isa/superio.h",
+      "include/hw/timer/hpet.h",
+      "include/hw/timer/i8254*",
+      "include/hw/timer/mc146818rtc*"
+    ]
+  },
+  {
+    "Name": "Machine core",
+    "Mail": [
+      "Eduardo Habkost <ehabkost@redhat.com>",
+      "Marcel Apfelbaum <marcel.apfelbaum@gmail.com>"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "hw/core/machine.c",
+      "hw/core/null-machine.c",
+      "hw/cpu/cluster.c",
+      "include/hw/boards.h",
+      "include/hw/cpu/cluster.h"
+    ],
+    "Tree": "git https://github.com/ehabkost/qemu.git machine-next"
+  },
+  {
+    "Name": "Xtensa Machines"
+  },
+  {
+    "Name": "sim",
+    "Mail": [
+      "Max Filippov <jcmvbkbc@gmail.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/xtensa/sim.c"
+    ]
+  },
+  {
+    "Name": "XTFPGA (LX60, LX200, ML605, KC705)",
+    "Mail": [
+      "Max Filippov <jcmvbkbc@gmail.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/xtensa/xtfpga.c",
+      "hw/net/opencores_eth.c"
+    ]
+  },
+  {
+    "Name": "Devices"
+  },
+  {
+    "Name": "EDU",
+    "Mail": [
+      "Jiri Slaby <jslaby@suse.cz>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/misc/edu.c"
+    ]
+  },
+  {
+    "Name": "IDE",
+    "Mail": [
+      "John Snow <jsnow@redhat.com>"
+    ],
+    "List": [
+      "qemu-block@nongnu.org"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "include/hw/ide.h",
+      "include/hw/ide/",
+      "hw/ide/",
+      "hw/block/block.c",
+      "hw/block/cdrom.c",
+      "hw/block/hd-geometry.c",
+      "tests/ide-test.c",
+      "tests/ahci-test.c",
+      "tests/cdrom-test.c",
+      "tests/libqos/ahci*"
+    ],
+    "Tree": "git https://github.com/jnsnow/qemu.git ide"
+  },
+  {
+    "Name": "IPMI",
+    "Mail": [
+      "Corey Minyard <minyard@acm.org>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "include/hw/ipmi/*",
+      "hw/ipmi/*",
+      "hw/smbios/smbios_type_38.c",
+      "tests/ipmi*"
+    ],
+    "Tree": "git https://github.com/cminyard/qemu.git master-ipmi-rebase"
+  },
+  {
+    "Name": "Floppy",
+    "Mail": [
+      "John Snow <jsnow@redhat.com>"
+    ],
+    "List": [
+      "qemu-block@nongnu.org"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "hw/block/fdc.c",
+      "include/hw/block/fdc.h",
+      "tests/fdc-test.c"
+    ],
+    "Tree": "git https://github.com/jnsnow/qemu.git ide"
+  },
+  {
+    "Name": "OMAP",
+    "Mail": [
+      "Peter Maydell <peter.maydell@linaro.org>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/*/omap*",
+      "include/hw/arm/omap.h"
+    ]
+  },
+  {
+    "Name": "IPack",
+    "Mail": [
+      "Alberto Garcia <berto@igalia.com>"
+    ],
+    "Status": "Odd Fixes",
+    "Files": [
+      "hw/char/ipoctal232.c",
+      "hw/ipack/"
+    ]
+  },
+  {
+    "Name": "PCI",
+    "Mail": [
+      "Michael S. Tsirkin <mst@redhat.com>",
+      "Marcel Apfelbaum <marcel.apfelbaum@gmail.com>"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "include/hw/pci/*",
+      "hw/misc/pci-testdev.c",
+      "hw/pci/*",
+      "hw/pci-bridge/*",
+      "docs/pci*",
+      "docs/specs/*pci*",
+      "default-configs/pci.mak"
+    ]
+  },
+  {
+    "Name": "ACPI/SMBIOS",
+    "Mail": [
+      "Michael S. Tsirkin <mst@redhat.com>",
+      "Igor Mammedov <imammedo@redhat.com>"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "include/hw/acpi/*",
+      "include/hw/firmware/smbios.h",
+      "hw/mem/*",
+      "hw/acpi/*",
+      "hw/smbios/*",
+      "hw/i386/acpi-build.[hc]",
+      "hw/arm/virt-acpi-build.c",
+      "tests/bios-tables-test.c",
+      "tests/acpi-utils.[hc]",
+      "tests/data/acpi/"
+    ]
+  },
+  {
+    "Name": "ppc4xx",
+    "Mail": [
+      "David Gibson <david@gibson.dropbear.id.au>"
+    ],
+    "List": [
+      "qemu-ppc@nongnu.org"
+    ],
+    "Status": "Odd Fixes",
+    "Files": [
+      "hw/ppc/ppc4*.c",
+      "hw/i2c/ppc4xx_i2c.c",
+      "include/hw/ppc/ppc4xx.h",
+      "include/hw/i2c/ppc4xx_i2c.h"
+    ]
+  },
+  {
+    "Name": "Character devices",
+    "Mail": [
+      "Marc-André Lureau <marcandre.lureau@redhat.com>"
+    ],
+    "Status": "Odd Fixes",
+    "Files": [
+      "hw/char/"
+    ],
+    "Reviewer": [
+      "Paolo Bonzini <pbonzini@redhat.com>"
+    ]
+  },
+  {
+    "Name": "Network devices",
+    "Mail": [
+      "Jason Wang <jasowang@redhat.com>"
+    ],
+    "Status": "Odd Fixes",
+    "Files": [
+      "hw/net/",
+      "include/hw/net/",
+      "tests/virtio-net-test.c"
+    ],
+    "Tree": "git https://github.com/jasowang/qemu.git net"
+  },
+  {
+    "Name": "SCSI",
+    "Mail": [
+      "Paolo Bonzini <pbonzini@redhat.com>"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "include/hw/scsi/*",
+      "hw/scsi/*",
+      "tests/virtio-scsi-test.c"
+    ],
+    "Tree": "git https://github.com/bonzini/qemu.git scsi-next",
+    "Reviewer": [
+      "Fam Zheng <fam@euphon.net>"
+    ]
+  },
+  {
+    "Name": "SSI",
+    "Mail": [
+      "Alistair Francis <alistair@alistair23.me>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/ssi/*",
+      "hw/block/m25p80.c",
+      "include/hw/ssi/ssi.h",
+      "tests/m25p80-test.c"
+    ],
+    "Excluded": [
+      "hw/ssi/xilinx_*"
+    ]
+  },
+  {
+    "Name": "Xilinx SPI",
+    "Mail": [
+      "Alistair Francis <alistair@alistair23.me>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/ssi/xilinx_*"
+    ]
+  },
+  {
+    "Name": "SD (Secure Card)",
+    "Mail": [
+      "Philippe Mathieu-Daudé <f4bug@amsat.org>"
+    ],
+    "Status": "Odd Fixes",
+    "Files": [
+      "include/hw/sd/sd*",
+      "hw/sd/core.c",
+      "hw/sd/sd*",
+      "tests/sd*"
+    ]
+  },
+  {
+    "Name": "USB",
+    "Mail": [
+      "Gerd Hoffmann <kraxel@redhat.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/usb/*",
+      "tests/usb-*-test.c",
+      "docs/usb2.txt",
+      "docs/usb-storage.txt",
+      "include/hw/usb.h",
+      "include/hw/usb/",
+      "default-configs/usb.mak"
+    ]
+  },
+  {
+    "Name": "USB (serial adapter)",
+    "Mail": [
+      "Gerd Hoffmann <kraxel@redhat.com>",
+      "Samuel Thibault <samuel.thibault@ens-lyon.org>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/usb/dev-serial.c"
+    ]
+  },
+  {
+    "Name": "VFIO",
+    "Mail": [
+      "Alex Williamson <alex.williamson@redhat.com>"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "hw/vfio/*",
+      "include/hw/vfio/"
+    ]
+  },
+  {
+    "Name": "vfio-ccw",
+    "Mail": [
+      "Cornelia Huck <cohuck@redhat.com>",
+      "Eric Farman <farman@linux.ibm.com>",
+      "Farhan Ali <alifm@linux.ibm.com>"
+    ],
+    "List": [
+      "qemu-s390x@nongnu.org"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "hw/vfio/ccw.c",
+      "hw/s390x/s390-ccw.c",
+      "include/hw/s390x/s390-ccw.h"
+    ],
+    "Tree": "git https://github.com/cohuck/qemu.git s390-next"
+  },
+  {
+    "Name": "vfio-ap",
+    "Mail": [
+      "Christian Borntraeger <borntraeger@de.ibm.com>",
+      "Tony Krowiak <akrowiak@linux.ibm.com>",
+      "Halil Pasic <pasic@linux.ibm.com>",
+      "Pierre Morel <pmorel@linux.ibm.com>"
+    ],
+    "List": [
+      "qemu-s390x@nongnu.org"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "hw/s390x/ap-device.c",
+      "hw/s390x/ap-bridge.c",
+      "include/hw/s390x/ap-device.h",
+      "include/hw/s390x/ap-bridge.h",
+      "hw/vfio/ap.c",
+      "docs/vfio-ap.txt"
+    ]
+  },
+  {
+    "Name": "vhost",
+    "Mail": [
+      "Michael S. Tsirkin <mst@redhat.com>"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "hw/*/*vhost*",
+      "docs/interop/vhost-user.json",
+      "docs/interop/vhost-user.txt",
+      "contrib/vhost-user-*/"
+    ]
+  },
+  {
+    "Name": "virtio",
+    "Mail": [
+      "Michael S. Tsirkin <mst@redhat.com>"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "hw/*/virtio*",
+      "hw/virtio/Makefile.objs",
+      "hw/virtio/trace-events",
+      "net/vhost-user.c",
+      "include/hw/virtio/",
+      "tests/virtio-balloon-test.c"
+    ]
+  },
+  {
+    "Name": "virtio-9p",
+    "Mail": [
+      "Greg Kurz <groug@kaod.org>"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "hw/9pfs/",
+      "fsdev/",
+      "tests/virtio-9p-test.c"
+    ],
+    "Tree": "git https://github.com/gkurz/qemu.git 9p-next"
+  },
+  {
+    "Name": "virtio-blk",
+    "Mail": [
+      "Stefan Hajnoczi <stefanha@redhat.com>"
+    ],
+    "List": [
+      "qemu-block@nongnu.org"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "hw/block/virtio-blk.c",
+      "hw/block/dataplane/*",
+      "tests/virtio-blk-test.c"
+    ],
+    "Tree": "git https://github.com/stefanha/qemu.git block"
+  },
+  {
+    "Name": "virtio-ccw",
+    "Mail": [
+      "Cornelia Huck <cohuck@redhat.com>",
+      "Halil Pasic <pasic@linux.ibm.com>"
+    ],
+    "List": [
+      "qemu-s390x@nongnu.org"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "hw/s390x/virtio-ccw*.[hc]",
+      "hw/s390x/vhost-vsock-ccw.c"
+    ],
+    "Tree": "git https://github.com/borntraeger/qemu.git s390-next"
+  },
+  {
+    "Name": "virtio-input",
+    "Mail": [
+      "Gerd Hoffmann <kraxel@redhat.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/input/virtio-input*.c",
+      "include/hw/virtio/virtio-input.h"
+    ]
+  },
+  {
+    "Name": "virtio-serial",
+    "Mail": [
+      "Amit Shah <amit@kernel.org>"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "hw/char/virtio-serial-bus.c",
+      "hw/char/virtio-console.c",
+      "include/hw/virtio/virtio-serial.h",
+      "tests/virtio-console-test.c",
+      "tests/virtio-serial-test.c"
+    ]
+  },
+  {
+    "Name": "virtio-rng",
+    "Mail": [
+      "Amit Shah <amit@kernel.org>"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "hw/virtio/virtio-rng.c",
+      "include/hw/virtio/virtio-rng.h",
+      "include/sysemu/rng*.h",
+      "backends/rng*.c",
+      "tests/virtio-rng-test.c"
+    ]
+  },
+  {
+    "Name": "virtio-crypto",
+    "Mail": [
+      "Gonglei <arei.gonglei@huawei.com>"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "hw/virtio/virtio-crypto.c",
+      "hw/virtio/virtio-crypto-pci.c",
+      "include/hw/virtio/virtio-crypto.h"
+    ]
+  },
+  {
+    "Name": "nvme",
+    "Mail": [
+      "Keith Busch <keith.busch@intel.com>"
+    ],
+    "List": [
+      "qemu-block@nongnu.org"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "hw/block/nvme*",
+      "tests/nvme-test.c"
+    ]
+  },
+  {
+    "Name": "megasas",
+    "Mail": [
+      "Hannes Reinecke <hare@suse.com>"
+    ],
+    "List": [
+      "qemu-block@nongnu.org"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "hw/scsi/megasas.c",
+      "hw/scsi/mfi.h",
+      "tests/megasas-test.c"
+    ]
+  },
+  {
+    "Name": "Network packet abstractions",
+    "Mail": [
+      "Dmitry Fleytman <dmitry.fleytman@gmail.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "include/net/eth.h",
+      "net/eth.c",
+      "hw/net/net_rx_pkt*",
+      "hw/net/net_tx_pkt*"
+    ]
+  },
+  {
+    "Name": "Vmware",
+    "Mail": [
+      "Dmitry Fleytman <dmitry.fleytman@gmail.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/net/vmxnet*",
+      "hw/scsi/vmw_pvscsi*",
+      "tests/vmxnet3-test.c"
+    ]
+  },
+  {
+    "Name": "Rocker",
+    "Mail": [
+      "Jiri Pirko <jiri@resnulli.us>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/net/rocker/",
+      "tests/rocker/",
+      "docs/specs/rocker.txt"
+    ]
+  },
+  {
+    "Name": "NVDIMM",
+    "Mail": [
+      "Xiao Guangrong <xiaoguangrong.eric@gmail.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/acpi/nvdimm.c",
+      "hw/mem/nvdimm.c",
+      "include/hw/mem/nvdimm.h",
+      "docs/nvdimm.txt"
+    ]
+  },
+  {
+    "Name": "e1000x",
+    "Mail": [
+      "Dmitry Fleytman <dmitry.fleytman@gmail.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/net/e1000x*"
+    ]
+  },
+  {
+    "Name": "e1000e",
+    "Mail": [
+      "Dmitry Fleytman <dmitry.fleytman@gmail.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/net/e1000e*"
+    ]
+  },
+  {
+    "Name": "eepro100",
+    "Mail": [
+      "Stefan Weil <sw@weilnetz.de>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/net/eepro100.c"
+    ]
+  },
+  {
+    "Name": "Generic Loader",
+    "Mail": [
+      "Alistair Francis <alistair@alistair23.me>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/core/generic-loader.c",
+      "include/hw/core/generic-loader.h",
+      "docs/generic-loader.txt"
+    ]
+  },
+  {
+    "Name": "Intel Hexadecimal Object File Loader",
+    "Mail": [
+      "Su Hang <suhang16@mails.ucas.ac.cn>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "tests/hexloader-test.c",
+      "tests/data/hex-loader/test.hex"
+    ]
+  },
+  {
+    "Name": "CHRP NVRAM",
+    "Mail": [
+      "Thomas Huth <thuth@redhat.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/nvram/chrp_nvram.c",
+      "include/hw/nvram/chrp_nvram.h",
+      "tests/prom-env-test.c"
+    ]
+  },
+  {
+    "Name": "VM Generation ID",
+    "Mail": [
+      "Ben Warren <ben@skyportsystems.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/acpi/vmgenid.c",
+      "include/hw/acpi/vmgenid.h",
+      "docs/specs/vmgenid.txt",
+      "tests/vmgenid-test.c",
+      "stubs/vmgenid.c"
+    ]
+  },
+  {
+    "Name": "Unimplemented device",
+    "Mail": [
+      "Peter Maydell <peter.maydell@linaro.org>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "include/hw/misc/unimp.h",
+      "hw/misc/unimp.c"
+    ],
+    "Reviewer": [
+      "Philippe Mathieu-Daudé <f4bug@amsat.org>"
+    ]
+  },
+  {
+    "Name": "Standard VGA",
+    "Mail": [
+      "Gerd Hoffmann <kraxel@redhat.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/display/vga*",
+      "hw/display/bochs-display.c",
+      "include/hw/display/vga.h",
+      "include/hw/display/bochs-vbe.h"
+    ]
+  },
+  {
+    "Name": "ramfb",
+    "Mail": [
+      "Gerd Hoffmann <kraxel@redhat.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/display/ramfb*.c",
+      "include/hw/display/ramfb.h"
+    ]
+  },
+  {
+    "Name": "virtio-gpu",
+    "Mail": [
+      "Gerd Hoffmann <kraxel@redhat.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/display/virtio-gpu*",
+      "hw/display/virtio-vga.c",
+      "include/hw/virtio/virtio-gpu.h"
+    ]
+  },
+  {
+    "Name": "Cirrus VGA",
+    "Mail": [
+      "Gerd Hoffmann <kraxel@redhat.com>"
+    ],
+    "Status": "Odd Fixes",
+    "Files": [
+      "hw/display/cirrus*"
+    ],
+    "Webpage": [
+      "https://www.kraxel.org/blog/2014/10/qemu-using-cirrus-considered-harmful/"
+    ]
+  },
+  {
+    "Name": "EDID Generator",
+    "Mail": [
+      "Gerd Hoffmann <kraxel@redhat.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/display/edid*",
+      "include/hw/display/edid.h",
+      "qemu-edid.c"
+    ]
+  },
+  {
+    "Name": "Firmware configuration (fw_cfg)",
+    "Mail": [
+      "Philippe Mathieu-Daudé <philmd@redhat.com>"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "docs/specs/fw_cfg.txt",
+      "hw/nvram/fw_cfg.c",
+      "include/hw/nvram/fw_cfg.h",
+      "include/standard-headers/linux/qemu_fw_cfg.h",
+      "tests/libqos/fw_cfg.c",
+      "tests/fw_cfg-test.c"
+    ],
+    "Tree": "git https://github.com/philmd/qemu.git fw_cfg-next",
+    "Reviewer": [
+      "Laszlo Ersek <lersek@redhat.com>",
+      "Gerd Hoffmann <kraxel@redhat.com>"
+    ]
+  },
+  {
+    "Name": "XIVE",
+    "Mail": [
+      "David Gibson <david@gibson.dropbear.id.au>",
+      "Cédric Le Goater <clg@kaod.org>"
+    ],
+    "List": [
+      "qemu-ppc@nongnu.org"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "hw/*/*xive*",
+      "include/hw/*/*xive*"
+    ]
+  },
+  {
+    "Name": "Subsystems"
+  },
+  {
+    "Name": "Audio",
+    "Mail": [
+      "Gerd Hoffmann <kraxel@redhat.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "audio/",
+      "hw/audio/",
+      "include/hw/audio/",
+      "tests/ac97-test.c",
+      "tests/es1370-test.c",
+      "tests/intel-hda-test.c"
+    ]
+  },
+  {
+    "Name": "Block layer core",
+    "Mail": [
+      "Kevin Wolf <kwolf@redhat.com>",
+      "Max Reitz <mreitz@redhat.com>"
+    ],
+    "List": [
+      "qemu-block@nongnu.org"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "block*",
+      "block/",
+      "hw/block/",
+      "include/block/",
+      "qemu-img*",
+      "qemu-io*",
+      "tests/qemu-iotests/",
+      "util/qemu-progress.c",
+      "qobject/block-qdict.c",
+      "tests/check-block-qdict.c"
+    ],
+    "Tree": "git https://repo.or.cz/qemu/kevin.git block"
+  },
+  {
+    "Name": "Block I/O path",
+    "Mail": [
+      "Stefan Hajnoczi <stefanha@redhat.com>",
+      "Fam Zheng <fam@euphon.net>"
+    ],
+    "List": [
+      "qemu-block@nongnu.org"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "util/async.c",
+      "util/aio-*.c",
+      "block/io.c",
+      "migration/block*",
+      "include/block/aio.h",
+      "include/block/aio-wait.h",
+      "scripts/qemugdb/aio.py"
+    ],
+    "Tree": "git https://github.com/stefanha/qemu.git block"
+  },
+  {
+    "Name": "Block SCSI subsystem",
+    "Mail": [
+      "Paolo Bonzini <pbonzini@redhat.com>"
+    ],
+    "List": [
+      "qemu-block@nongnu.org"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "include/scsi/*",
+      "scsi/*"
+    ],
+    "Reviewer": [
+      "Fam Zheng <fam@euphon.net>"
+    ]
+  },
+  {
+    "Name": "Block Jobs",
+    "Mail": [
+      "John Snow <jsnow@redhat.com>"
+    ],
+    "List": [
+      "qemu-block@nongnu.org"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "blockjob.c",
+      "include/block/blockjob.h",
+      "job.c",
+      "job-qmp.c",
+      "include/qemu/job.h",
+      "block/backup.c",
+      "block/commit.c",
+      "block/stream.c",
+      "block/mirror.c",
+      "qapi/job.json"
+    ],
+    "Tree": "git https://github.com/jnsnow/qemu.git jobs"
+  },
+  {
+    "Name": "Block QAPI, monitor, command line",
+    "Mail": [
+      "Markus Armbruster <armbru@redhat.com>"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "blockdev.c",
+      "block/qapi.c",
+      "qapi/block*.json",
+      "qapi/transaction.json"
+    ],
+    "Tree": "git https://repo.or.cz/qemu/armbru.git block-next"
+  },
+  {
+    "Name": "Dirty Bitmaps",
+    "Mail": [
+      "Fam Zheng <fam@euphon.net>",
+      "John Snow <jsnow@redhat.com>"
+    ],
+    "List": [
+      "qemu-block@nongnu.org"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "util/hbitmap.c",
+      "block/dirty-bitmap.c",
+      "include/qemu/hbitmap.h",
+      "include/block/dirty-bitmap.h",
+      "tests/test-hbitmap.c",
+      "docs/interop/bitmaps.rst"
+    ],
+    "Tree": "git https://github.com/jnsnow/qemu.git bitmaps"
+  },
+  {
+    "Name": "Character device backends",
+    "Mail": [
+      "Marc-André Lureau <marcandre.lureau@redhat.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "chardev/",
+      "include/chardev/",
+      "qapi/char.json"
+    ],
+    "Reviewer": [
+      "Paolo Bonzini <pbonzini@redhat.com>"
+    ]
+  },
+  {
+    "Name": "Character Devices (Braille)",
+    "Mail": [
+      "Samuel Thibault <samuel.thibault@ens-lyon.org>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "chardev/baum.c"
+    ]
+  },
+  {
+    "Name": "Command line option argument parsing",
+    "Mail": [
+      "Markus Armbruster <armbru@redhat.com>"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "include/qemu/option.h",
+      "tests/test-keyval.c",
+      "tests/test-qemu-opts.c",
+      "util/keyval.c",
+      "util/qemu-option.c"
+    ]
+  },
+  {
+    "Name": "Coverity model",
+    "Mail": [
+      "Markus Armbruster <armbru@redhat.com>"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "scripts/coverity-model.c"
+    ]
+  },
+  {
+    "Name": "CPU",
+    "List": [
+      "qemu-devel@nongnu.org"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "qom/cpu.c",
+      "include/qom/cpu.h"
+    ]
+  },
+  {
+    "Name": "Device Tree",
+    "Mail": [
+      "Alistair Francis <alistair.francis@wdc.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "device_tree.c",
+      "include/sysemu/device_tree.h"
+    ],
+    "Reviewer": [
+      "David Gibson <david@gibson.dropbear.id.au>"
+    ]
+  },
+  {
+    "Name": "Dump",
+    "Mail": [
+      "Marc-André Lureau <marcandre.lureau@redhat.com>"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "dump.c",
+      "hw/misc/vmcoreinfo.c",
+      "include/hw/misc/vmcoreinfo.h",
+      "include/sysemu/dump-arch.h",
+      "include/sysemu/dump.h",
+      "scripts/dump-guest-memory.py",
+      "stubs/dump.c"
+    ]
+  },
+  {
+    "Name": "Error reporting",
+    "Mail": [
+      "Markus Armbruster <armbru@redhat.com>"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "include/qapi/error.h",
+      "include/qemu/error-report.h",
+      "util/error.c",
+      "util/qemu-error.c"
+    ]
+  },
+  {
+    "Name": "GDB stub",
+    "Status": "Orphan",
+    "Files": [
+      "gdbstub*",
+      "gdb-xml/"
+    ]
+  },
+  {
+    "Name": "Memory API",
+    "Mail": [
+      "Paolo Bonzini <pbonzini@redhat.com>"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "include/exec/ioport.h",
+      "ioport.c",
+      "include/exec/memory.h",
+      "include/exec/ram_addr.h",
+      "memory.c",
+      "include/exec/memory-internal.h",
+      "exec.c"
+    ]
+  },
+  {
+    "Name": "SPICE",
+    "Mail": [
+      "Gerd Hoffmann <kraxel@redhat.com>"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "include/ui/qemu-spice.h",
+      "include/ui/spice-display.h",
+      "ui/spice-*.c",
+      "audio/spiceaudio.c",
+      "hw/display/qxl*",
+      "qapi/ui.json",
+      "docs/spice-port-fqdn.txt"
+    ]
+  },
+  {
+    "Name": "Graphics",
+    "Mail": [
+      "Gerd Hoffmann <kraxel@redhat.com>"
+    ],
+    "Status": "Odd Fixes",
+    "Files": [
+      "ui/",
+      "include/ui/",
+      "qapi/ui.json",
+      "util/drm.c"
+    ]
+  },
+  {
+    "Name": "Cocoa graphics",
+    "Mail": [
+      "Peter Maydell <peter.maydell@linaro.org>"
+    ],
+    "Status": "Odd Fixes",
+    "Files": [
+      "ui/cocoa.m"
+    ]
+  },
+  {
+    "Name": "Main loop",
+    "Mail": [
+      "Paolo Bonzini <pbonzini@redhat.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "cpus.c",
+      "util/main-loop.c",
+      "util/qemu-timer.c",
+      "vl.c",
+      "qapi/run-state.json"
+    ]
+  },
+  {
+    "Name": "Human Monitor (HMP)",
+    "Mail": [
+      "Dr. David Alan Gilbert <dgilbert@redhat.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "monitor.c",
+      "hmp.[ch]",
+      "hmp-commands*.hx",
+      "include/monitor/hmp-target.h",
+      "tests/test-hmp.c"
+    ]
+  },
+  {
+    "Name": "Network device backends",
+    "Mail": [
+      "Jason Wang <jasowang@redhat.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "net/",
+      "include/net/",
+      "qapi/net.json"
+    ],
+    "Tree": "git https://github.com/jasowang/qemu.git net"
+  },
+  {
+    "Name": "Netmap network backend",
+    "Mail": [
+      "Luigi Rizzo <rizzo@iet.unipi.it>",
+      "Giuseppe Lettieri <g.lettieri@iet.unipi.it>",
+      "Vincenzo Maffione <v.maffione@gmail.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "net/netmap.c"
+    ],
+    "Webpage": [
+      "http://info.iet.unipi.it/~luigi/netmap/"
+    ]
+  },
+  {
+    "Name": "NUMA",
+    "Mail": [
+      "Eduardo Habkost <ehabkost@redhat.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "numa.c",
+      "include/sysemu/numa.h"
+    ],
+    "Tree": "git https://github.com/ehabkost/qemu.git machine-next"
+  },
+  {
+    "Name": "Host Memory Backends",
+    "Mail": [
+      "Eduardo Habkost <ehabkost@redhat.com>",
+      "Igor Mammedov <imammedo@redhat.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "backends/hostmem*.c",
+      "include/sysemu/hostmem.h"
+    ],
+    "Tree": "git https://github.com/ehabkost/qemu.git machine-next"
+  },
+  {
+    "Name": "Cryptodev Backends",
+    "Mail": [
+      "Gonglei <arei.gonglei@huawei.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "include/sysemu/cryptodev*.h",
+      "backends/cryptodev*.c"
+    ]
+  },
+  {
+    "Name": "Python scripts",
+    "Mail": [
+      "Eduardo Habkost <ehabkost@redhat.com>",
+      "Cleber Rosa <crosa@redhat.com>"
+    ],
+    "Status": "Odd fixes",
+    "Files": [
+      "scripts/qmp/*",
+      "scripts/*.py",
+      "tests/*.py"
+    ]
+  },
+  {
+    "Name": "QAPI",
+    "Mail": [
+      "Markus Armbruster <armbru@redhat.com>",
+      "Michael Roth <mdroth@linux.vnet.ibm.com>"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "qapi/",
+      "include/qapi/",
+      "include/qapi/qmp/dispatch.h",
+      "tests/qapi-schema/",
+      "tests/test-*-visitor.c",
+      "tests/test-qapi-*.c",
+      "tests/test-qmp-*.c",
+      "tests/test-visitor-serialization.c",
+      "scripts/qapi-gen.py",
+      "scripts/qapi/*",
+      "docs/devel/qapi*"
+    ],
+    "Tree": "git https://repo.or.cz/qemu/armbru.git qapi-next",
+    "Excluded": [
+      "qapi/*.json",
+      "include/qapi/qmp/"
+    ]
+  },
+  {
+    "Name": "QAPI Schema",
+    "Mail": [
+      "Eric Blake <eblake@redhat.com>",
+      "Markus Armbruster <armbru@redhat.com>"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "qapi/*.json"
+    ],
+    "Tree": "git https://repo.or.cz/qemu/armbru.git qapi-next"
+  },
+  {
+    "Name": "QObject",
+    "Mail": [
+      "Markus Armbruster <armbru@redhat.com>"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "qobject/",
+      "include/qapi/qmp/",
+      "scripts/coccinelle/qobject.cocci",
+      "tests/check-qdict.c",
+      "tests/check-qjson.c",
+      "tests/check-qlist.c",
+      "tests/check-qlit.c",
+      "tests/check-qnull.c",
+      "tests/check-qnum.c",
+      "tests/check-qobject.c",
+      "tests/check-qstring.c",
+      "tests/data/qobject/qdict.txt"
+    ],
+    "Tree": "git https://repo.or.cz/qemu/armbru.git qapi-next",
+    "Excluded": [
+      "include/qapi/qmp/dispatch.h"
+    ]
+  },
+  {
+    "Name": "QEMU Guest Agent",
+    "Mail": [
+      "Michael Roth <mdroth@linux.vnet.ibm.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "qga/",
+      "qemu-ga.texi",
+      "scripts/qemu-guest-agent/",
+      "tests/test-qga.c",
+      "docs/interop/qemu-ga-ref.texi"
+    ],
+    "Tree": "git https://github.com/mdroth/qemu.git qga"
+  },
+  {
+    "Name": "QOM",
+    "Mail": [
+      "Andreas Färber <afaerber@suse.de>"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "include/qom/",
+      "qom/",
+      "tests/check-qom-interface.c",
+      "tests/check-qom-proplist.c"
+    ],
+    "Tree": "git https://github.com/afaerber/qemu-cpu.git qom-next",
+    "Excluded": [
+      "include/qom/cpu.h",
+      "qom/cpu.c"
+    ]
+  },
+  {
+    "Name": "QMP",
+    "Mail": [
+      "Markus Armbruster <armbru@redhat.com>"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "qmp.c",
+      "monitor.c",
+      "docs/devel/*qmp-*",
+      "docs/interop/*qmp-*",
+      "scripts/qmp/",
+      "tests/qmp-test.c",
+      "tests/qmp-cmd-test.c"
+    ],
+    "Tree": "git https://repo.or.cz/qemu/armbru.git qapi-next"
+  },
+  {
+    "Name": "qtest",
+    "Mail": [
+      "Thomas Huth <thuth@redhat.com>",
+      "Laurent Vivier <lvivier@redhat.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "qtest.c",
+      "tests/libqtest.*",
+      "tests/libqos/",
+      "tests/*-test.c"
+    ],
+    "Reviewer": [
+      "Paolo Bonzini <pbonzini@redhat.com>"
+    ]
+  },
+  {
+    "Name": "Register API",
+    "Mail": [
+      "Alistair Francis <alistair@alistair23.me>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/core/register.c",
+      "include/hw/register.h",
+      "include/hw/registerfields.h"
+    ]
+  },
+  {
+    "Name": "SLIRP",
+    "Mail": [
+      "Samuel Thibault <samuel.thibault@ens-lyon.org>",
+      "Jan Kiszka <jan.kiszka@siemens.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "slirp/",
+      "net/slirp.c",
+      "include/net/slirp.h"
+    ],
+    "Tree": "git git://git.kiszka.org/qemu.git queues/slirp"
+  },
+  {
+    "Name": "Stubs",
+    "Mail": [
+      "Paolo Bonzini <pbonzini@redhat.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "stubs/"
+    ]
+  },
+  {
+    "Name": "Tracing",
+    "Mail": [
+      "Stefan Hajnoczi <stefanha@redhat.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "trace/",
+      "trace-events",
+      "qemu-option-trace.texi",
+      "scripts/tracetool.py",
+      "scripts/tracetool/",
+      "scripts/qemu-trace-stap*",
+      "docs/devel/tracing.txt"
+    ],
+    "Tree": "git https://github.com/stefanha/qemu.git tracing"
+  },
+  {
+    "Name": "TPM",
+    "Mail": [
+      "Stefan Berger <stefanb@linux.ibm.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "tpm.c",
+      "stubs/tpm.c",
+      "hw/tpm/*",
+      "include/hw/acpi/tpm.h",
+      "include/sysemu/tpm*",
+      "qapi/tpm.json",
+      "backends/tpm.c",
+      "tests/*tpm*"
+    ],
+    "Tree": "git https://github.com/stefanberger/qemu-tpm.git tpm-next"
+  },
+  {
+    "Name": "Checkpatch",
+    "Status": "Odd Fixes",
+    "Files": [
+      "scripts/checkpatch.pl"
+    ]
+  },
+  {
+    "Name": "Migration",
+    "Mail": [
+      "Juan Quintela <quintela@redhat.com>",
+      "Dr. David Alan Gilbert <dgilbert@redhat.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "include/migration/",
+      "migration/",
+      "scripts/vmstate-static-checker.py",
+      "tests/vmstate-static-checker-data/",
+      "tests/migration-test.c",
+      "docs/devel/migration.rst",
+      "qapi/migration.json"
+    ]
+  },
+  {
+    "Name": "Seccomp",
+    "Mail": [
+      "Eduardo Otubo <otubo@redhat.com>"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "qemu-seccomp.c",
+      "include/sysemu/seccomp.h"
+    ]
+  },
+  {
+    "Name": "Cryptography",
+    "Mail": [
+      "Daniel P. Berrange <berrange@redhat.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "crypto/",
+      "include/crypto/",
+      "tests/test-crypto-*",
+      "tests/benchmark-crypto-*",
+      "tests/crypto-tls-*",
+      "tests/pkix_asn1_tab.c",
+      "qemu.sasl"
+    ]
+  },
+  {
+    "Name": "Coroutines",
+    "Mail": [
+      "Stefan Hajnoczi <stefanha@redhat.com>",
+      "Kevin Wolf <kwolf@redhat.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "util/*coroutine*",
+      "include/qemu/coroutine*",
+      "tests/test-coroutine.c"
+    ]
+  },
+  {
+    "Name": "Buffers",
+    "Mail": [
+      "Daniel P. Berrange <berrange@redhat.com>"
+    ],
+    "Status": "Odd fixes",
+    "Files": [
+      "util/buffer.c",
+      "include/qemu/buffer.h"
+    ]
+  },
+  {
+    "Name": "I/O Channels",
+    "Mail": [
+      "Daniel P. Berrange <berrange@redhat.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "io/",
+      "include/io/",
+      "tests/test-io-*"
+    ]
+  },
+  {
+    "Name": "User authorization",
+    "Mail": [
+      "Daniel P. Berrange <berrange@redhat.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "authz/",
+      "qapi/authz.json",
+      "include/authz/",
+      "tests/test-authz-*"
+    ]
+  },
+  {
+    "Name": "Sockets",
+    "Mail": [
+      "Daniel P. Berrange <berrange@redhat.com>",
+      "Gerd Hoffmann <kraxel@redhat.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "include/qemu/sockets.h",
+      "util/qemu-sockets.c",
+      "qapi/sockets.json"
+    ]
+  },
+  {
+    "Name": "File monitor",
+    "Mail": [
+      "Daniel P. Berrange <berrange@redhat.com>"
+    ],
+    "Status": "Odd fixes",
+    "Files": [
+      "util/filemonitor*.c",
+      "include/qemu/filemonitor.h",
+      "tests/test-util-filemonitor.c"
+    ]
+  },
+  {
+    "Name": "Throttling infrastructure",
+    "Mail": [
+      "Alberto Garcia <berto@igalia.com>"
+    ],
+    "List": [
+      "qemu-block@nongnu.org"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "block/throttle-groups.c",
+      "include/block/throttle-groups.h",
+      "include/qemu/throttle*.h",
+      "util/throttle.c",
+      "docs/throttle.txt",
+      "tests/test-throttle.c"
+    ]
+  },
+  {
+    "Name": "UUID",
+    "Mail": [
+      "Fam Zheng <fam@euphon.net>"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "util/uuid.c",
+      "include/qemu/uuid.h",
+      "tests/test-uuid.c"
+    ]
+  },
+  {
+    "Name": "COLO Framework",
+    "Mail": [
+      "zhanghailiang <zhang.zhanghailiang@huawei.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "migration/colo*",
+      "include/migration/colo.h",
+      "include/migration/failover.h",
+      "docs/COLO-FT.txt"
+    ]
+  },
+  {
+    "Name": "COLO Proxy",
+    "Mail": [
+      "Zhang Chen <chen.zhang@intel.com>",
+      "Li Zhijian <lizhijian@cn.fujitsu.com>"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "docs/colo-proxy.txt",
+      "net/colo*",
+      "net/filter-rewriter.c",
+      "net/filter-mirror.c"
+    ]
+  },
+  {
+    "Name": "Record/replay",
+    "Mail": [
+      "Pavel Dovgalyuk <pavel.dovgaluk@ispras.ru>"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "replay/*",
+      "block/blkreplay.c",
+      "net/filter-replay.c",
+      "include/sysemu/replay.h",
+      "docs/replay.txt",
+      "stubs/replay.c"
+    ],
+    "Webpage": [
+      "https://wiki.qemu.org/Features/record-replay"
+    ],
+    "Reviewer": [
+      "Paolo Bonzini <pbonzini@redhat.com>"
+    ]
+  },
+  {
+    "Name": "IOVA Tree",
+    "Mail": [
+      "Peter Xu <peterx@redhat.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "include/qemu/iova-tree.h",
+      "util/iova-tree.c"
+    ]
+  },
+  {
+    "Name": "elf2dmp",
+    "Mail": [
+      "Viktor Prutyanov <viktor.prutyanov@phystech.edu>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "contrib/elf2dmp/"
+    ]
+  },
+  {
+    "Name": "I2C and SMBus",
+    "Mail": [
+      "Corey Minyard <cminyard@mvista.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/i2c/core.c",
+      "hw/i2c/smbus_slave.c",
+      "hw/i2c/smbus_master.c",
+      "hw/i2c/smbus_eeprom.c",
+      "include/hw/i2c/i2c.h",
+      "include/hw/i2c/smbus_master.h",
+      "include/hw/i2c/smbus_slave.h",
+      "include/hw/i2c/smbus_eeprom.h"
+    ]
+  },
+  {
+    "Name": "Usermode Emulation"
+  },
+  {
+    "Name": "Overall",
+    "Mail": [
+      "Riku Voipio <riku.voipio@iki.fi>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "thunk.c",
+      "accel/tcg/user-exec*.c"
+    ]
+  },
+  {
+    "Name": "BSD user",
+    "Status": "Orphan",
+    "Files": [
+      "bsd-user/",
+      "default-configs/*-bsd-user.mak"
+    ]
+  },
+  {
+    "Name": "Linux user",
+    "Mail": [
+      "Riku Voipio <riku.voipio@iki.fi>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "linux-user/",
+      "default-configs/*-linux-user.mak",
+      "scripts/qemu-binfmt-conf.sh"
+    ],
+    "Reviewer": [
+      "Laurent Vivier <laurent@vivier.eu>"
+    ]
+  },
+  {
+    "Name": "Tiny Code Generator (TCG)"
+  },
+  {
+    "Name": "Common code",
+    "Mail": [
+      "Richard Henderson <rth@twiddle.net>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "tcg/"
+    ]
+  },
+  {
+    "Name": "AArch64 target",
+    "Mail": [
+      "Claudio Fontana <claudio.fontana@huawei.com>",
+      "Claudio Fontana <claudio.fontana@gmail.com>"
+    ],
+    "List": [
+      "qemu-arm@nongnu.org"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "tcg/aarch64/",
+      "disas/arm-a64.cc",
+      "disas/libvixl/"
+    ]
+  },
+  {
+    "Name": "ARM target",
+    "Mail": [
+      "Andrzej Zaborowski <balrogg@gmail.com>"
+    ],
+    "List": [
+      "qemu-arm@nongnu.org"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "tcg/arm/",
+      "disas/arm.c"
+    ]
+  },
+  {
+    "Name": "i386 target",
+    "Mail": [
+      "Richard Henderson <rth@twiddle.net>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "tcg/i386/",
+      "disas/i386.c"
+    ]
+  },
+  {
+    "Name": "MIPS target",
+    "Mail": [
+      "Aurelien Jarno <aurelien@aurel32.net>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "tcg/mips/",
+      "disas/mips.c"
+    ],
+    "Reviewer": [
+      "Aleksandar Rikalo <arikalo@wavecomp.com>"
+    ]
+  },
+  {
+    "Name": "PPC",
+    "Mail": [
+      "Richard Henderson <rth@twiddle.net>"
+    ],
+    "Status": "Odd Fixes",
+    "Files": [
+      "tcg/ppc/",
+      "disas/ppc.c"
+    ]
+  },
+  {
+    "Name": "RISC-V",
+    "Mail": [
+      "Palmer Dabbelt <palmer@sifive.com>",
+      "Alistair Francis <Alistair.Francis@wdc.com>"
+    ],
+    "List": [
+      "qemu-riscv@nongnu.org"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "tcg/riscv/",
+      "disas/riscv.c"
+    ]
+  },
+  {
+    "Name": "S390 target",
+    "Mail": [
+      "Richard Henderson <rth@twiddle.net>"
+    ],
+    "List": [
+      "qemu-s390x@nongnu.org"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "tcg/s390/",
+      "disas/s390.c"
+    ]
+  },
+  {
+    "Name": "SPARC target",
+    "Status": "Odd Fixes",
+    "Files": [
+      "tcg/sparc/",
+      "disas/sparc.c"
+    ]
+  },
+  {
+    "Name": "TCI target",
+    "Mail": [
+      "Stefan Weil <sw@weilnetz.de>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "tcg/tci/",
+      "tcg/tci.c",
+      "disas/tci.c"
+    ]
+  },
+  {
+    "Name": "Block drivers"
+  },
+  {
+    "Name": "VMDK",
+    "Mail": [
+      "Fam Zheng <fam@euphon.net>"
+    ],
+    "List": [
+      "qemu-block@nongnu.org"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "block/vmdk.c"
+    ]
+  },
+  {
+    "Name": "RBD",
+    "Mail": [
+      "Josh Durgin <jdurgin@redhat.com>"
+    ],
+    "List": [
+      "qemu-block@nongnu.org"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "block/rbd.c"
+    ]
+  },
+  {
+    "Name": "Sheepdog",
+    "Mail": [
+      "Liu Yuan <namei.unix@gmail.com>"
+    ],
+    "List": [
+      "qemu-block@nongnu.org",
+      "sheepdog@lists.wpkg.org"
+    ],
+    "Status": "Odd Fixes",
+    "Files": [
+      "block/sheepdog.c"
+    ]
+  },
+  {
+    "Name": "VHDX",
+    "Mail": [
+      "Jeff Cody <codyprime@gmail.com>"
+    ],
+    "List": [
+      "qemu-block@nongnu.org"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "block/vhdx*"
+    ]
+  },
+  {
+    "Name": "VDI",
+    "Mail": [
+      "Stefan Weil <sw@weilnetz.de>"
+    ],
+    "List": [
+      "qemu-block@nongnu.org"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "block/vdi.c"
+    ]
+  },
+  {
+    "Name": "iSCSI",
+    "Mail": [
+      "Ronnie Sahlberg <ronniesahlberg@gmail.com>",
+      "Paolo Bonzini <pbonzini@redhat.com>",
+      "Peter Lieven <pl@kamp.de>"
+    ],
+    "List": [
+      "qemu-block@nongnu.org"
+    ],
+    "Status": "Odd Fixes",
+    "Files": [
+      "block/iscsi.c",
+      "block/iscsi-opts.c"
+    ]
+  },
+  {
+    "Name": "Network Block Device (NBD)",
+    "Mail": [
+      "Eric Blake <eblake@redhat.com>"
+    ],
+    "List": [
+      "qemu-block@nongnu.org"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "block/nbd*",
+      "nbd/",
+      "include/block/nbd*",
+      "qemu-nbd.*",
+      "blockdev-nbd.c",
+      "docs/interop/nbd.txt"
+    ],
+    "Tree": "git https://repo.or.cz/qemu/ericb.git nbd"
+  },
+  {
+    "Name": "NFS",
+    "Mail": [
+      "Peter Lieven <pl@kamp.de>"
+    ],
+    "List": [
+      "qemu-block@nongnu.org"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "block/nfs.c"
+    ]
+  },
+  {
+    "Name": "SSH",
+    "Mail": [
+      "Richard W.M. Jones <rjones@redhat.com>"
+    ],
+    "List": [
+      "qemu-block@nongnu.org"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "block/ssh.c"
+    ]
+  },
+  {
+    "Name": "CURL",
+    "List": [
+      "qemu-block@nongnu.org"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "block/curl.c"
+    ]
+  },
+  {
+    "Name": "GLUSTER",
+    "List": [
+      "qemu-block@nongnu.org"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "block/gluster.c"
+    ]
+  },
+  {
+    "Name": "Null Block Driver",
+    "Mail": [
+      "Fam Zheng <fam@euphon.net>"
+    ],
+    "List": [
+      "qemu-block@nongnu.org"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "block/null.c"
+    ]
+  },
+  {
+    "Name": "NVMe Block Driver",
+    "Mail": [
+      "Fam Zheng <fam@euphon.net>"
+    ],
+    "List": [
+      "qemu-block@nongnu.org"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "block/nvme*"
+    ]
+  },
+  {
+    "Name": "Bootdevice",
+    "Mail": [
+      "Gonglei <arei.gonglei@huawei.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "bootdevice.c"
+    ]
+  },
+  {
+    "Name": "Quorum",
+    "Mail": [
+      "Alberto Garcia <berto@igalia.com>"
+    ],
+    "List": [
+      "qemu-block@nongnu.org"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "block/quorum.c"
+    ]
+  },
+  {
+    "Name": "blklogwrites",
+    "Mail": [
+      "Ari Sundholm <ari@tuxera.com>"
+    ],
+    "List": [
+      "qemu-block@nongnu.org"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "block/blklogwrites.c"
+    ]
+  },
+  {
+    "Name": "blkverify",
+    "Mail": [
+      "Stefan Hajnoczi <stefanha@redhat.com>"
+    ],
+    "List": [
+      "qemu-block@nongnu.org"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "block/blkverify.c"
+    ]
+  },
+  {
+    "Name": "bochs",
+    "Mail": [
+      "Stefan Hajnoczi <stefanha@redhat.com>"
+    ],
+    "List": [
+      "qemu-block@nongnu.org"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "block/bochs.c"
+    ]
+  },
+  {
+    "Name": "cloop",
+    "Mail": [
+      "Stefan Hajnoczi <stefanha@redhat.com>"
+    ],
+    "List": [
+      "qemu-block@nongnu.org"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "block/cloop.c"
+    ]
+  },
+  {
+    "Name": "dmg",
+    "Mail": [
+      "Stefan Hajnoczi <stefanha@redhat.com>"
+    ],
+    "List": [
+      "qemu-block@nongnu.org"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "block/dmg.c"
+    ]
+  },
+  {
+    "Name": "parallels",
+    "Mail": [
+      "Stefan Hajnoczi <stefanha@redhat.com>",
+      "Denis V. Lunev <den@openvz.org>"
+    ],
+    "List": [
+      "qemu-block@nongnu.org"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "block/parallels.c",
+      "docs/interop/parallels.txt"
+    ]
+  },
+  {
+    "Name": "qed",
+    "Mail": [
+      "Stefan Hajnoczi <stefanha@redhat.com>"
+    ],
+    "List": [
+      "qemu-block@nongnu.org"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "block/qed.c"
+    ]
+  },
+  {
+    "Name": "raw",
+    "Mail": [
+      "Kevin Wolf <kwolf@redhat.com>"
+    ],
+    "List": [
+      "qemu-block@nongnu.org"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "block/linux-aio.c",
+      "include/block/raw-aio.h",
+      "block/raw-format.c",
+      "block/file-posix.c",
+      "block/file-win32.c",
+      "block/win32-aio.c"
+    ]
+  },
+  {
+    "Name": "qcow2",
+    "Mail": [
+      "Kevin Wolf <kwolf@redhat.com>",
+      "Max Reitz <mreitz@redhat.com>"
+    ],
+    "List": [
+      "qemu-block@nongnu.org"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "block/qcow2*",
+      "docs/interop/qcow2.txt"
+    ]
+  },
+  {
+    "Name": "qcow",
+    "Mail": [
+      "Kevin Wolf <kwolf@redhat.com>"
+    ],
+    "List": [
+      "qemu-block@nongnu.org"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "block/qcow.c"
+    ]
+  },
+  {
+    "Name": "blkdebug",
+    "Mail": [
+      "Kevin Wolf <kwolf@redhat.com>",
+      "Max Reitz <mreitz@redhat.com>"
+    ],
+    "List": [
+      "qemu-block@nongnu.org"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "block/blkdebug.c"
+    ]
+  },
+  {
+    "Name": "vpc",
+    "Mail": [
+      "Kevin Wolf <kwolf@redhat.com>"
+    ],
+    "List": [
+      "qemu-block@nongnu.org"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "block/vpc.c"
+    ]
+  },
+  {
+    "Name": "vvfat",
+    "Mail": [
+      "Kevin Wolf <kwolf@redhat.com>"
+    ],
+    "List": [
+      "qemu-block@nongnu.org"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "block/vvfat.c"
+    ]
+  },
+  {
+    "Name": "Image format fuzzer",
+    "Mail": [
+      "Stefan Hajnoczi <stefanha@redhat.com>"
+    ],
+    "List": [
+      "qemu-block@nongnu.org"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "tests/image-fuzzer/"
+    ]
+  },
+  {
+    "Name": "Replication",
+    "Mail": [
+      "Wen Congyang <wencongyang2@huawei.com>",
+      "Xie Changlong <xiechanglong.d@gmail.com>"
+    ],
+    "Status": "Supported",
+    "Files": [
+      "replication*",
+      "block/replication.c",
+      "tests/test-replication.c",
+      "docs/block-replication.txt"
+    ]
+  },
+  {
+    "Name": "PVRDMA",
+    "Mail": [
+      "Yuval Shaia <yuval.shaia@oracle.com>",
+      "Marcel Apfelbaum <marcel.apfelbaum@gmail.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "hw/rdma/*",
+      "hw/rdma/vmw/*",
+      "docs/pvrdma.txt",
+      "contrib/rdmacm-mux/*",
+      "qapi/rdma.json"
+    ]
+  },
+  {
+    "Name": "Build and test automation"
+  },
+  {
+    "Name": "Build and test automation",
+    "Mail": [
+      "Alex Bennée <alex.bennee@linaro.org>",
+      "Fam Zheng <fam@euphon.net>"
+    ],
+    "List": [
+      "qemu-devel@nongnu.org"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      ".travis.yml",
+      "scripts/travis/",
+      ".shippable.yml",
+      "tests/docker/",
+      "tests/vm/",
+      "scripts/archive-source.sh"
+    ],
+    "Webpage": [
+      "https://travis-ci.org/qemu/qemu",
+      "https://app.shippable.com/github/qemu/qemu",
+      "http://patchew.org/QEMU/"
+    ],
+    "Reviewer": [
+      "Philippe Mathieu-Daudé <philmd@redhat.com>"
+    ]
+  },
+  {
+    "Name": "FreeBSD Hosted Continuous Integration",
+    "Mail": [
+      "Ed Maste <emaste@freebsd.org>",
+      "Li-Wen Hsu <lwhsu@freebsd.org>"
+    ],
+    "List": [
+      "qemu-devel@nongnu.org"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      ".cirrus.yml"
+    ],
+    "Webpage": [
+      "https://cirrus-ci.com/github/qemu/qemu"
+    ]
+  },
+  {
+    "Name": "GitLab Continuous Integration",
+    "Mail": [
+      "Thomas Huth <thuth@redhat.com>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      ".gitlab-ci.yml"
+    ]
+  },
+  {
+    "Name": "Guest Test Compilation Support",
+    "Mail": [
+      "Alex Bennée <alex.bennee@linaro.org>"
+    ],
+    "List": [
+      "qemu-devel@nongnu.org"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "tests/tcg/Makefile",
+      "tests/tcg/Makefile.include"
+    ],
+    "Reviewer": [
+      "Philippe Mathieu-Daudé <f4bug@amsat.org>"
+    ]
+  },
+  {
+    "Name": "Documentation"
+  },
+  {
+    "Name": "Build system architecture",
+    "Mail": [
+      "Daniel P. Berrange <berrange@redhat.com>"
+    ],
+    "Status": "Odd Fixes",
+    "Files": [
+      "docs/devel/build-system.txt"
+    ]
+  },
+  {
+    "Name": "GIT Data Mining Config",
+    "Mail": [
+      "Alex Bennée <alex.bennee@linaro.org>"
+    ],
+    "Status": "Odd Fixes",
+    "Files": [
+      "gitdm.config",
+      "contrib/gitdm/*"
+    ]
+  },
+  {
+    "Name": "Incompatible changes",
+    "Files": [
+      "qemu-deprecated.texi"
+    ],
+    "Reviewer": [
+      "libvir-list@redhat.com"
+    ]
+  },
+  {
+    "Name": "Build System"
+  },
+  {
+    "Name": "GIT submodules",
+    "Mail": [
+      "Daniel P. Berrange <berrange@redhat.com>"
+    ],
+    "Status": "Odd Fixes",
+    "Files": [
+      "scripts/git-submodule.sh"
+    ]
+  },
+  {
+    "Name": "Sphinx documentation configuration and build machinery",
+    "Mail": [
+      "Peter Maydell <peter.maydell@linaro.org>"
+    ],
+    "Status": "Maintained",
+    "Files": [
+      "docs/conf.py",
+      "docs/*/conf.py"
+    ]
+  }
+]
