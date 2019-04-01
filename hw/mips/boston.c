@@ -32,6 +32,7 @@
 #include "hw/mips/cps.h"
 #include "hw/mips/cpudevs.h"
 #include "hw/pci-host/xilinx-pcie.h"
+#include "hw/virtio/virtio-pci.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/log.h"
@@ -422,6 +423,20 @@ xilinx_pcie_init(MemoryRegion *sys_mem, uint32_t bus_nr,
     return XILINX_PCIE_HOST(dev);
 }
 
+/* Plug network card  in pcie slot.*/
+static void network_init(PCIBus *bus)
+{
+	PCIDevice *eth;
+
+	/*Please set CONFIG_VIRTIO && CONFIG_VIRTIO_PCI && CONFIG_VIRTIO_NET
+	of Linux kernel.*/
+	eth = pci_create(bus,
+					 PCI_DEVFN(0, 1), "virtio-net-pci");
+
+	qdev_set_nic_properties(&eth->qdev, &nd_table[0]);
+	qdev_init_nofail(&eth->qdev);
+}
+
 static void boston_mach_init(MachineState *machine)
 {
     DeviceState *dev;
@@ -545,6 +560,9 @@ static void boston_mach_init(MachineState *machine)
         error_printf("Please provide either a -kernel or -bios argument\n");
         exit(1);
     }
+
+	/* Network card */
+	network_init(&PCI_BRIDGE(&pcie2->root)->sec_bus);
 }
 
 static void boston_mach_class_init(MachineClass *mc)
