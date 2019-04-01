@@ -2317,7 +2317,8 @@ int coroutine_fn bdrv_is_allocated(BlockDriverState *bs, int64_t offset,
  * Given an image chain: ... -> [BASE] -> [INTER1] -> [INTER2] -> [TOP]
  *
  * Return true if (a prefix of) the given range is allocated in any image
- * between BASE and TOP (inclusive).  BASE can be NULL to check if the given
+ * between BASE and TOP (TOP included). To check the BASE image, set the
+ * 'base_included' to 'true'. The BASE can be NULL to check if the given
  * offset is allocated in any image of the chain.  Return false otherwise,
  * or negative errno on failure.
  *
@@ -2329,16 +2330,18 @@ int coroutine_fn bdrv_is_allocated(BlockDriverState *bs, int64_t offset,
  * but 'pnum' will only be 0 when end of file is reached.
  *
  */
-int bdrv_is_allocated_above(BlockDriverState *top,
-                            BlockDriverState *base,
-                            int64_t offset, int64_t bytes, int64_t *pnum)
+static int bdrv_do_is_allocated_above(BlockDriverState *top,
+                                      BlockDriverState *base,
+                                      bool base_included, int64_t offset,
+                                      int64_t bytes, int64_t *pnum)
 {
     BlockDriverState *intermediate;
     int ret;
     int64_t n = bytes;
+    assert(base || !base_included);
 
     intermediate = top;
-    while (intermediate && intermediate != base) {
+    while (base_included || intermediate != base) {
         int64_t pnum_inter;
         int64_t size_inter;
 
@@ -2360,11 +2363,30 @@ int bdrv_is_allocated_above(BlockDriverState *top,
             n = pnum_inter;
         }
 
+        if (intermediate == base) {
+            break;
+        }
+
         intermediate = backing_bs(intermediate);
     }
 
     *pnum = n;
     return 0;
+}
+
+int bdrv_is_allocated_above(BlockDriverState *top,
+                            BlockDriverState *base,
+                            int64_t offset, int64_t bytes, int64_t *pnum)
+{
+    return bdrv_do_is_allocated_above(top, base, false, offset, bytes, pnum);
+}
+
+int bdrv_is_allocated_above_inclusive(BlockDriverState *top,
+                                      BlockDriverState *base,
+                                      int64_t offset, int64_t bytes,
+                                      int64_t *pnum)
+{
+    return bdrv_do_is_allocated_above(top, base, true, offset, bytes, pnum);
 }
 
 typedef struct BdrvVmstateCo {
