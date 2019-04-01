@@ -1019,8 +1019,8 @@ int is_windows_drive(const char *filename);
  * @job_id: The id of the newly-created job, or %NULL to use the
  * device name of @bs.
  * @bs: Block device to operate on.
- * @base: Block device that will become the new base, or %NULL to
- * flatten the whole backing file chain onto @bs.
+ * @bottom_node: The intermediate block device right above the new base.
+ * If base is %NULL, the whole backing file chain is flattened onto @bs.
  * @backing_file_str: The file name that will be written to @bs as the
  * the new backing file if the job completes. Ignored if @base is %NULL.
  * @creation_flags: Flags that control the behavior of the Job lifetime.
@@ -1037,7 +1037,7 @@ int is_windows_drive(const char *filename);
  * BlockDriverState.
  */
 void stream_start(const char *job_id, BlockDriverState *bs,
-                  BlockDriverState *base, const char *backing_file_str,
+                  BlockDriverState *bottom_node, const char *backing_file_str,
                   int creation_flags, int64_t speed,
                   BlockdevOnError on_error, Error **errp);
 
