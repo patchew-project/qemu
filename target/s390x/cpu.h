@@ -368,18 +368,30 @@ static inline int cpu_mmu_index(CPUS390XState *env, bool ifetch)
     }
 }
 
-static inline void cpu_get_tb_cpu_state(CPUS390XState* env, target_ulong *pc,
-                                        target_ulong *cs_base, uint32_t *flags)
+static inline void cpu_get_tb_cpu_state(CPUS390XState* env,
+                                        target_ulong *p_pc,
+                                        target_ulong *cs_base,
+                                        uint32_t *p_flags)
 {
-    *pc = env->psw.addr;
-    *cs_base = env->ex_value;
-    *flags = (env->psw.mask >> FLAG_MASK_PSW_SHIFT) & FLAG_MASK_PSW;
+    uint32_t flags;
+    uint64_t pc;
+
+    flags = (env->psw.mask >> FLAG_MASK_PSW_SHIFT) & FLAG_MASK_PSW;
     if (env->cregs[0] & CR0_AFP) {
-        *flags |= FLAG_MASK_AFP;
+        flags |= FLAG_MASK_AFP;
     }
     if (env->cregs[0] & CR0_VECTOR) {
-        *flags |= FLAG_MASK_VECTOR;
+        flags |= FLAG_MASK_VECTOR;
     }
+
+    pc = env->psw.addr;
+    if (!(flags & FLAG_MASK_64)) {
+        pc &= 0x7fffffff;
+    }
+
+    *p_pc = pc;
+    *cs_base = env->ex_value;
+    *p_flags = flags;
 }
 
 /* PER bits from control register 9 */
