@@ -53,6 +53,7 @@
 #include "hw/nvram/fw_cfg.h"
 #include "exec/memory.h"
 #include "exec/address-spaces.h"
+#include "exec/cpu-common.h"
 #include "hw/boards.h"
 #include "qemu/cutils.h"
 
@@ -1086,6 +1087,9 @@ int rom_add_option(const char *file, int32_t bootindex)
 static void rom_reset(void *unused)
 {
     Rom *rom;
+    MemoryRegion *mr;
+    hwaddr hw_addr;
+    hwaddr l;
 
     QTAILQ_FOREACH(rom, &roms, next) {
         if (rom->fw_file) {
@@ -1094,6 +1098,17 @@ static void rom_reset(void *unused)
         if (rom->data == NULL) {
             continue;
         }
+
+        /* bypass the rom blob in ignore-shared migration case*/
+        if (runstate_check(RUN_STATE_INMIGRATE)) {
+            rcu_read_lock();
+            mr = address_space_translate(rom->as, rom->addr, &hw_addr, &l,
+                                         true, MEMTXATTRS_UNSPECIFIED);
+            rcu_read_unlock();
+            if (mr->ram_block != NULL && ramblock_is_ignored(mr->ram_block))
+                continue;
+        }
+
         if (rom->mr) {
             void *host = memory_region_get_ram_ptr(rom->mr);
             memcpy(host, rom->data, rom->datasize);
