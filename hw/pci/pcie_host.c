@@ -70,11 +70,6 @@ static uint64_t pcie_mmcfg_data_read(void *opaque,
     }
     addr = PCIE_MMCFG_CONFOFFSET(mmcfg_addr);
     limit = pci_config_size(pci_dev);
-    if (limit <= addr) {
-        /* conventional pci device can be behind pcie-to-pci bridge.
-           256 <= addr < 4K has no effects. */
-        return ~0x0;
-    }
     return pci_host_config_read_common(pci_dev, addr, limit, len);
 }
 
