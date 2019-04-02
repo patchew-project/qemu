@@ -1638,26 +1638,11 @@ static void spapr_phb_unrealize(DeviceState *dev, Error **errp)
     memory_region_del_subregion(get_system_memory(), &sphb->mem32window);
 }
 
-static bool spapr_phb_allows_extended_config_space(PCIBus *bus)
-{
-    SpaprPhbState *sphb = SPAPR_PCI_HOST_BRIDGE(BUS(bus)->parent);
-
-    return sphb->pcie_ecs;
-}
-
-static void spapr_phb_root_bus_class_init(ObjectClass *klass, void *data)
-{
-    PCIBusClass *pbc = PCI_BUS_CLASS(klass);
-
-    pbc->allows_extended_config_space = spapr_phb_allows_extended_config_space;
-}
-
 #define TYPE_SPAPR_PHB_ROOT_BUS "spapr-pci-host-bridge-root-bus"
 
 static const TypeInfo spapr_phb_root_bus_info = {
     .name = TYPE_SPAPR_PHB_ROOT_BUS,
     .parent = TYPE_PCI_BUS,
-    .class_init = spapr_phb_root_bus_class_init,
 };
 
 static void spapr_phb_realize(DeviceState *dev, Error **errp)
@@ -1766,6 +1751,15 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
                                 &sphb->memspace, &sphb->iospace,
                                 PCI_DEVFN(0, 0), PCI_NUM_PINS,
                                 TYPE_SPAPR_PHB_ROOT_BUS);
+
+    /*
+     * Despite resembling a vanilla PCI bus in most ways, the PAPR
+     * para-virtualized PCI bus *does* permit PCI-E extended config
+     * space access
+     */
+    if (sphb->pcie_ecs) {
+        bus->flags |= PCI_BUS_EXTENDED_CONFIG_SPACE;
+    }
     phb->bus = bus;
     qbus_set_hotplug_handler(BUS(phb->bus), OBJECT(sphb), NULL);
 
