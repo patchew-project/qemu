@@ -533,7 +533,7 @@ static int vmstate_subsection_save(QEMUFile *f, const VMStateDescription *vmsd,
         sub++;
     }
 
-    if (vmdesc && subsection_found) {
+    if (subsection_found) {
         json_end_array(vmdesc);
     }
 
