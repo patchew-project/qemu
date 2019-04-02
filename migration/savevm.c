@@ -286,8 +286,9 @@ static uint32_t get_validatable_capabilities_count(void)
 
 static int configuration_pre_save(void *opaque)
 {
+    MachineState *ms = MACHINE(qdev_get_machine());
     SaveState *state = opaque;
-    const char *current_name = MACHINE_GET_CLASS(current_machine)->name;
+    const char *current_name = MACHINE_GET_CLASS(ms)->name;
     MigrationState *s = migrate_get_current();
     int i, j;
 
@@ -355,8 +356,9 @@ static bool configuration_validate_capabilities(SaveState *state)
 
 static int configuration_post_load(void *opaque, int version_id)
 {
+    MachineState *ms = MACHINE(qdev_get_machine());
     SaveState *state = opaque;
-    const char *current_name = MACHINE_GET_CLASS(current_machine)->name;
+    const char *current_name = MACHINE_GET_CLASS(ms)->name;
 
     if (strncmp(state->name, current_name, state->len) != 0) {
         error_report("Machine type received is '%.*s' and local is '%s'",
@@ -566,9 +568,10 @@ static void dump_vmstate_vmsd(FILE *out_file,
 
 static void dump_machine_type(FILE *out_file)
 {
+    MachineState *ms = MACHINE(qdev_get_machine());
     MachineClass *mc;
 
-    mc = MACHINE_GET_CLASS(current_machine);
+    mc = MACHINE_GET_CLASS(ms);
 
     fprintf(out_file, "  \"vmschkmachine\": {\n");
     fprintf(out_file, "    \"Name\": \"%s\"\n", mc->name);
