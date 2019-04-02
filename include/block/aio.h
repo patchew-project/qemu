@@ -140,6 +140,12 @@ struct AioContext {
     int64_t poll_grow;      /* polling time growth factor */
     int64_t poll_shrink;    /* polling time shrink factor */
 
+    /* If enabled, we'll keep polling (ignoring polling mode parameters)
+     * when there are in-flight requests.
+     */
+    bool poll_inflight;
+    unsigned int inflight_reqs; /* number of in-flight requests */
+
     /* Are we in polling mode or monitoring file descriptors? */
     bool poll_started;
 
@@ -616,11 +622,12 @@ void aio_context_destroy(AioContext *ctx);
  * @max_ns: how long to busy poll for, in nanoseconds
  * @grow: polling time growth factor
  * @shrink: polling time shrink factor
+ * @inflight: should we keep polling if there are in-flight requests?
  *
  * Poll mode can be disabled by setting poll_max_ns to 0.
  */
 void aio_context_set_poll_params(AioContext *ctx, int64_t max_ns,
                                  int64_t grow, int64_t shrink,
-                                 Error **errp);
+                                 bool inflight, Error **errp);
 
 #endif

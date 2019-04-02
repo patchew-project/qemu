@@ -36,6 +36,7 @@ typedef struct {
     int64_t poll_max_ns;
     int64_t poll_grow;
     int64_t poll_shrink;
+    bool poll_inflight;
 } IOThread;
 
 #define IOTHREAD(obj) \

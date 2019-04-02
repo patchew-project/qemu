@@ -219,6 +219,7 @@ static void qemu_laio_process_completions(LinuxAioState *s)
             /* Change counters one-by-one because we can be nested. */
             s->io_q.in_flight--;
             s->event_idx++;
+            atomic_dec(&s->aio_context->inflight_reqs);
             qemu_laio_process_completion(laiocb);
         }
     }
@@ -311,6 +312,7 @@ static void ioq_submit(LinuxAioState *s)
     int ret, len;
     struct qemu_laiocb *aiocb;
     struct iocb *iocbs[MAX_EVENTS];
+    unsigned int prev_inflight = s->io_q.in_flight;
     QSIMPLEQ_HEAD(, qemu_laiocb) completed;
 
     do {
@@ -345,6 +347,11 @@ static void ioq_submit(LinuxAioState *s)
         QSIMPLEQ_SPLIT_AFTER(&s->io_q.pending, aiocb, next, &completed);
     } while (ret == len && !QSIMPLEQ_EMPTY(&s->io_q.pending));
     s->io_q.blocked = (s->io_q.in_queue > 0);
+
+    if (s->io_q.in_flight > prev_inflight) {
+        atomic_add(&s->aio_context->inflight_reqs,
+                   s->io_q.in_flight - prev_inflight);
+    }
 
     if (s->io_q.in_flight) {
         /* We can try to complete something just right away if there are

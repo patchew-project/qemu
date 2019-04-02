@@ -185,6 +185,7 @@ static void iothread_complete(UserCreatable *obj, Error **errp)
                                 iothread->poll_max_ns,
                                 iothread->poll_grow,
                                 iothread->poll_shrink,
+                                iothread->poll_inflight,
                                 &local_error);
     if (local_error) {
         error_propagate(errp, local_error);
@@ -261,10 +262,38 @@ static void iothread_set_poll_param(Object *obj, Visitor *v,
                                     iothread->poll_max_ns,
                                     iothread->poll_grow,
                                     iothread->poll_shrink,
+                                    iothread->poll_inflight,
                                     &local_err);
     }
 
 out:
+    error_propagate(errp, local_err);
+}
+
+static bool iothread_get_poll_inflight(Object *obj, Error **errp)
+{
+    IOThread *iothread = IOTHREAD(obj);
+
+    return iothread->poll_inflight;
+}
+
+static void iothread_set_poll_inflight(Object *obj, bool value,
+        Error **errp)
+{
+    IOThread *iothread = IOTHREAD(obj);
+    Error *local_err = NULL;
+
+    iothread->poll_inflight = value;
+
+    if (iothread->ctx) {
+        aio_context_set_poll_params(iothread->ctx,
+                                    iothread->poll_max_ns,
+                                    iothread->poll_grow,
+                                    iothread->poll_shrink,
+                                    iothread->poll_inflight,
+                                    &local_err);
+    }
+
     error_propagate(errp, local_err);
 }
 
@@ -285,6 +314,10 @@ static void iothread_class_init(ObjectClass *klass, void *class_data)
                               iothread_get_poll_param,
                               iothread_set_poll_param,
                               NULL, &poll_shrink_info, &error_abort);
+    object_class_property_add_bool(klass, "poll-inflight",
+                                   iothread_get_poll_inflight,
+                                   iothread_set_poll_inflight,
+                                   &error_abort);
 }
 
 static const TypeInfo iothread_info = {

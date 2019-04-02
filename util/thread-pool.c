@@ -101,6 +101,7 @@ static void *worker_thread(void *opaque)
         QTAILQ_REMOVE(&pool->request_list, req, reqs);
         req->state = THREAD_ACTIVE;
         qemu_mutex_unlock(&pool->lock);
+        atomic_dec(&pool->ctx->inflight_reqs);
 
         ret = req->func(req->arg);
 
@@ -220,6 +221,7 @@ static void thread_pool_cancel(BlockAIOCB *acb)
          */
         qemu_sem_timedwait(&pool->sem, 0) == 0) {
         QTAILQ_REMOVE(&pool->request_list, elem, reqs);
+        atomic_dec(&pool->ctx->inflight_reqs);
         qemu_bh_schedule(pool->completion_bh);
 
         elem->state = THREAD_DONE;
@@ -264,6 +266,7 @@ BlockAIOCB *thread_pool_submit_aio(ThreadPool *pool,
     }
     QTAILQ_INSERT_TAIL(&pool->request_list, req, reqs);
     qemu_mutex_unlock(&pool->lock);
+    atomic_inc(&pool->ctx->inflight_reqs);
     qemu_sem_post(&pool->sem);
     return &req->common;
 }

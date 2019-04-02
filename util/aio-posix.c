@@ -604,6 +604,29 @@ static bool try_poll_mode(AioContext *ctx, int64_t *timeout)
     return run_poll_handlers_once(ctx, timeout);
 }
 
+/* aio_poll variant used when there are in-flight requests, that just does
+ * polling unconditionally, without checking or adjusting poll-ns parameters.
+ */
+static bool aio_poll_inflight(AioContext *ctx, bool blocking)
+{
+    bool progress = false;
+    int64_t timeout;
+
+    qemu_lockcnt_inc(&ctx->list_lock);
+
+    poll_set_started(ctx, true);
+    while (blocking && !progress) {
+        progress |= run_poll_handlers_once(ctx, &timeout);
+        progress |= aio_bh_poll(ctx);
+    }
+    poll_set_started(ctx, false);
+
+    qemu_lockcnt_dec(&ctx->list_lock);
+
+    progress |= timerlistgroup_run_timers(&ctx->tlg);
+    return progress;
+}
+
 bool aio_poll(AioContext *ctx, bool blocking)
 {
     AioHandler *node;
@@ -614,6 +637,11 @@ bool aio_poll(AioContext *ctx, bool blocking)
     int64_t start = 0;
 
     assert(in_aio_context_home_thread(ctx));
+
+    if (ctx->poll_inflight && !atomic_read(&ctx->poll_disable_cnt)
+        && atomic_read(&ctx->inflight_reqs)) {
+        return aio_poll_inflight(ctx, blocking);
+    }
 
     /* aio_notify can avoid the expensive event_notifier_set if
      * everything (file descriptors, bottom halves, timers) will
@@ -757,7 +785,8 @@ void aio_context_destroy(AioContext *ctx)
 }
 
 void aio_context_set_poll_params(AioContext *ctx, int64_t max_ns,
-                                 int64_t grow, int64_t shrink, Error **errp)
+                                 int64_t grow, int64_t shrink, bool inflight,
+                                 Error **errp)
 {
     /* No thread synchronization here, it doesn't matter if an incorrect value
      * is used once.
@@ -766,6 +795,7 @@ void aio_context_set_poll_params(AioContext *ctx, int64_t max_ns,
     ctx->poll_ns = 0;
     ctx->poll_grow = grow;
     ctx->poll_shrink = shrink;
+    ctx->poll_inflight = inflight;
 
     aio_notify(ctx);
 }
