@@ -134,7 +134,8 @@ bool kvm_allows_irq0_override(void)
 
 static bool kvm_x2apic_api_set_flags(uint64_t flags)
 {
-    KVMState *s = KVM_STATE(current_machine->accelerator);
+    MachineState *ms = MACHINE(qdev_get_machine());
+    KVMState *s = KVM_STATE(ms->accelerator);
 
     return !kvm_vm_enable_cap(s, KVM_CAP_X2APIC_API, 0, flags);
 }

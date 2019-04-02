@@ -1265,6 +1265,8 @@ static QemuOptsList qemu_smp_opts = {
     },
 };
 
+MachineState *current_machine;
+
 static void smp_parse(QemuOpts *opts)
 {
     if (opts) {
@@ -1461,8 +1463,6 @@ static int usb_parse(const char *cmdline)
 
 /***********************************************************/
 /* machine registration */
-
-MachineState *current_machine;
 
 static MachineClass *find_machine(const char *name)
 {
