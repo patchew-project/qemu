@@ -201,8 +201,10 @@
 #
 # @none: no compression.
 #
+# @zlib: Compress using zlib.
+#
 # Since: 4.1
 #
 ##
 { 'enum': 'MultifdCompress',
-  'data': [ 'none' ] }
+  'data': [ 'none', 'zlib' ] }

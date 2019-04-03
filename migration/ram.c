@@ -582,6 +582,7 @@ exit:
 #define MULTIFD_VERSION 1
 
 #define MULTIFD_FLAG_SYNC (1 << 0)
+#define MULTIFD_FLAG_ZLIB (1 << 1)
 
 /* This value needs to be a multiple of qemu_target_page_size() */
 #define MULTIFD_PACKET_SIZE (512 * 1024)
@@ -663,6 +664,12 @@ typedef struct {
     uint64_t num_pages;
     /* syncs main thread and channels */
     QemuSemaphore sem_sync;
+    /* stream for compression */
+    z_stream zs;
+    /* compressed buffer */
+    uint8_t *zbuff;
+    /* size of compressed buffer */
+    uint32_t zbuff_len;
 }  MultiFDSendParams;
 
 typedef struct {
@@ -698,6 +705,12 @@ typedef struct {
     uint64_t num_pages;
     /* syncs main thread and channels */
     QemuSemaphore sem_sync;
+    /* stream for compression */
+    z_stream zs;
+    /* compressed buffer */
+    uint8_t *zbuff;
+    /* size of compressed buffer */
+    uint32_t zbuff_len;
 } MultiFDRecvParams;
 
 static int multifd_send_initial_packet(MultiFDSendParams *p, Error **errp)
@@ -1035,6 +1048,9 @@ void multifd_save_cleanup(void)
         p->packet_len = 0;
         g_free(p->packet);
         p->packet = NULL;
+        deflateEnd(&p->zs);
+        g_free(p->zbuff);
+        p->zbuff = NULL;
     }
     qemu_sem_destroy(&multifd_send_state->channels_ready);
     qemu_sem_destroy(&multifd_send_state->sem_sync);
@@ -1198,6 +1214,7 @@ int multifd_save_setup(void)
 
     for (i = 0; i < thread_count; i++) {
         MultiFDSendParams *p = &multifd_send_state->params[i];
+        z_stream *zs = &p->zs;
 
         qemu_mutex_init(&p->mutex);
         qemu_sem_init(&p->sem, 0);
@@ -1211,6 +1228,17 @@ int multifd_save_setup(void)
         p->packet = g_malloc0(p->packet_len);
         p->name = g_strdup_printf("multifdsend_%d", i);
         socket_send_channel_create(multifd_new_send_channel_async, p);
+        zs->zalloc = Z_NULL;
+        zs->zfree = Z_NULL;
+        zs->opaque = Z_NULL;
+        if (deflateInit(zs, migrate_compress_level()) != Z_OK) {
+            printf("deflate init failed\n");
+            return -1;
+        }
+        /* We will never have more than page_count pages */
+        p->zbuff_len = page_count * qemu_target_page_size();
+        p->zbuff_len *= 2;
+        p->zbuff = g_malloc0(p->zbuff_len);
     }
     return 0;
 }
@@ -1278,6 +1306,9 @@ int multifd_load_cleanup(Error **errp)
         p->packet_len = 0;
         g_free(p->packet);
         p->packet = NULL;
+        inflateEnd(&p->zs);
+        g_free(p->zbuff);
+        p->zbuff = NULL;
     }
     qemu_sem_destroy(&multifd_recv_state->sem_sync);
     g_free(multifd_recv_state->params);
@@ -1396,6 +1427,7 @@ int multifd_load_setup(void)
 
     for (i = 0; i < thread_count; i++) {
         MultiFDRecvParams *p = &multifd_recv_state->params[i];
+        z_stream *zs = &p->zs;
 
         qemu_mutex_init(&p->mutex);
         qemu_sem_init(&p->sem_sync, 0);
@@ -1405,6 +1437,21 @@ int multifd_load_setup(void)
                       + sizeof(ram_addr_t) * page_count;
         p->packet = g_malloc0(p->packet_len);
         p->name = g_strdup_printf("multifdrecv_%d", i);
+
+        zs->zalloc = Z_NULL;
+        zs->zfree = Z_NULL;
+        zs->opaque = Z_NULL;
+        zs->avail_in = 0;
+        zs->next_in = Z_NULL;
+        if (inflateInit(zs) != Z_OK) {
+            printf("inflate init failed\n");
+            return -1;
+        }
+        /* We will never have more than page_count pages */
+        p->zbuff_len = page_count * qemu_target_page_size();
+        /* We know compression "could" use more space */
+        p->zbuff_len *= 2;
+        p->zbuff = g_malloc0(p->zbuff_len);
     }
     return 0;
 }

@@ -2141,6 +2141,15 @@ bool migrate_use_multifd(void)
     return s->enabled_capabilities[MIGRATION_CAPABILITY_MULTIFD];
 }
 
+bool migrate_use_multifd_zlib(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->parameters.multifd_compress == MULTIFD_COMPRESS_ZLIB;
+}
+
 bool migrate_pause_before_switchover(void)
 {
     MigrationState *s;
