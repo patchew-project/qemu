@@ -25,4 +25,13 @@ WARNING: Image format was not specified for '/home/eblake/qemu/tests/qemu-iotest
 [{ "start": 0, "length": 1000, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
 { "start": 1000, "length": 24, "depth": 0, "zero": true, "data": true, "offset": OFFSET}]
 1 KiB (0x400) bytes     allocated at offset 0 bytes (0x0)
+
+=== Encrypted qcow2 file backed by unaligned raw image  ===
+
+Formatting 'TEST_DIR/t.IMGFMT.qcow2', fmt=qcow2 size=2048 backing_file=TEST_DIR/t.IMGFMT backing_fmt=IMGFMT encrypt.format=luks encrypt.key-secret=sec0 encrypt.iter-time=10
+  size:  2048
+  min block: 512
+[{ "start": 0, "length": 1024, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
+{ "start": 1024, "length": 1024, "depth": 0, "zero": true, "data": false, "offset": OFFSET}]
+2 KiB (0x800) bytes     allocated at offset 0 bytes (0x0)
 *** done

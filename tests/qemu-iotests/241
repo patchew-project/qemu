@@ -28,6 +28,7 @@ nbd_unix_socket=$TEST_DIR/test_qemu_nbd_socket
 _cleanup()
 {
     _cleanup_test_img
+    rm -f "$TEST_IMAGE_FILE.qcow2"
     nbd_server_stop
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
@@ -37,7 +38,7 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 . ./common.filter
 . ./common.nbd
 
-_supported_fmt raw
+_supported_fmt raw # although the test also requires use of qcow2
 _supported_proto nbd
 _supported_os Linux
 _require_command QEMU_NBD
@@ -82,6 +83,23 @@ echo
 
 # Now force sector alignment at the client.
 nbd_server_start_unix_socket -f $IMGFMT "$TEST_IMG_FILE"
+
+$QEMU_NBD_PROG --list -k $nbd_unix_socket | grep '\(size\|min\)'
+$QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
+$QEMU_IO -c map "$TEST_IMG"
+nbd_server_stop
+
+echo
+echo "=== Encrypted qcow2 file backed by unaligned raw image  ==="
+echo
+
+# Enabling encryption in qcow2 forces 512-alignment
+SECRET=secret,id=sec0,data=12345
+$QEMU_IMG create -f qcow2 -b "$TEST_IMG_FILE" -F raw --object "$SECRET" \
+  -o encrypt.format=luks,encrypt.key-secret=sec0,encrypt.iter-time=10 \
+  "$TEST_IMG_FILE.qcow2" 2k | _filter_img_create
+nbd_server_start_unix_socket --object "$SECRET" --image-opts \
+  driver=qcow2,file.filename="$TEST_IMG_FILE.qcow2",encrypt.key-secret=sec0
 
 $QEMU_NBD_PROG --list -k $nbd_unix_socket | grep '\(size\|min\)'
 $QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
