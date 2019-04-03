@@ -580,6 +580,9 @@
 # @max-cpu-throttle: maximum cpu throttle percentage.
 #                    Defaults to 99. (Since 3.1)
 #
+# @multifd-compress: What compression method to use.
+#                    Defaults to none. (Since 4.1)
+#
 # Since: 2.4
 ##
 { 'enum': 'MigrationParameter',
@@ -592,7 +595,7 @@
            'downtime-limit', 'x-checkpoint-delay', 'block-incremental',
            'multifd-channels',
            'xbzrle-cache-size', 'max-postcopy-bandwidth',
-           'max-cpu-throttle' ] }
+           'max-cpu-throttle', 'multifd-compress' ] }
 
 ##
 # @MigrateSetParameters:
@@ -680,7 +683,10 @@
 #                     (Since 3.0)
 #
 # @max-cpu-throttle: maximum cpu throttle percentage.
-#                    The default value is 99. (Since 3.1)
+#                    The default value is 99. (Since 4.0)
+#
+# @multifd-compress: What compression method to use.
+#                    Defaults to none. (Since 4.1)
 #
 # Since: 2.4
 ##
@@ -707,7 +713,8 @@
             '*multifd-channels': 'int',
             '*xbzrle-cache-size': 'size',
             '*max-postcopy-bandwidth': 'size',
-	    '*max-cpu-throttle': 'int' } }
+	    '*max-cpu-throttle': 'int',
+            '*multifd-compress': 'MultifdCompress' } }
 
 ##
 # @migrate-set-parameters:
@@ -817,6 +824,9 @@
 #                    Defaults to 99.
 #                     (Since 3.1)
 #
+# @multifd-compress: What compression method to use.
+#                    Defaults to none. (Since 4.1)
+#
 # Since: 2.4
 ##
 { 'struct': 'MigrationParameters',
@@ -840,7 +850,8 @@
             '*multifd-channels': 'uint8',
             '*xbzrle-cache-size': 'size',
 	    '*max-postcopy-bandwidth': 'size',
-            '*max-cpu-throttle':'uint8'} }
+            '*max-cpu-throttle': 'uint8',
+            '*multifd-compress': 'MultifdCompress' } }
 
 ##
 # @query-migrate-parameters:

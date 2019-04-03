@@ -645,6 +645,17 @@ const PropertyInfo qdev_prop_fdc_drive_type = {
     .set_default_value = set_default_value_enum,
 };
 
+/* --- MultifdCompress --- */
+
+const PropertyInfo qdev_prop_multifd_compress = {
+    .name = "MultifdCompress",
+    .description = "multifd_compress values",
+    .enum_table = &MultifdCompress_lookup,
+    .get = get_enum,
+    .set = set_enum,
+    .set_default_value = set_default_value_enum,
+};
+
 /* --- pci address --- */
 
 /*
