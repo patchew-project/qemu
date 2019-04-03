@@ -845,10 +845,10 @@ static int unix_listen_saddr(UnixSocketAddress *saddr,
         path = pathbuf = g_strdup_printf("%s/qemu-socket-XXXXXX", tmpdir);
     }
 
-    if (strlen(path) > sizeof(un.sun_path)) {
+    if (strlen(path) > sizeof(un.sun_path) - 1) {
         error_setg(errp, "UNIX socket path '%s' is too long", path);
         error_append_hint(errp, "Path must be less than %zu bytes\n",
-                          sizeof(un.sun_path));
+                          sizeof(un.sun_path) - 1);
         goto err;
     }
 
@@ -877,7 +877,7 @@ static int unix_listen_saddr(UnixSocketAddress *saddr,
 
     memset(&un, 0, sizeof(un));
     un.sun_family = AF_UNIX;
-    strncpy(un.sun_path, path, sizeof(un.sun_path));
+    strncpy(un.sun_path, path, sizeof(un.sun_path) - 1);
 
     if (bind(sock, (struct sockaddr*) &un, sizeof(un)) < 0) {
         error_setg_errno(errp, errno, "Failed to bind socket to %s", path);
@@ -913,16 +913,16 @@ static int unix_connect_saddr(UnixSocketAddress *saddr, Error **errp)
         return -1;
     }
 
-    if (strlen(saddr->path) > sizeof(un.sun_path)) {
+    if (strlen(saddr->path) > sizeof(un.sun_path) - 1) {
         error_setg(errp, "UNIX socket path '%s' is too long", saddr->path);
         error_append_hint(errp, "Path must be less than %zu bytes\n",
-                          sizeof(un.sun_path));
+                          sizeof(un.sun_path) - 1);
         goto err;
     }
 
     memset(&un, 0, sizeof(un));
     un.sun_family = AF_UNIX;
-    strncpy(un.sun_path, saddr->path, sizeof(un.sun_path));
+    strncpy(un.sun_path, saddr->path, sizeof(un.sun_path) - 1);
 
     /* connect to peer */
     do {
