@@ -1982,7 +1982,8 @@ static int nbd_co_send_block_status(NBDClient *client, uint64_t handle,
  * byte length encoded (which may be smaller or larger than the
  * original), and return the number of extents used.
  */
-static unsigned int bitmap_to_extents(BdrvDirtyBitmap *bitmap, uint64_t offset,
+static unsigned int bitmap_to_extents(uint32_t align,
+                                      BdrvDirtyBitmap *bitmap, uint64_t offset,
                                       uint64_t *length, NBDExtent *extents,
                                       unsigned int nb_extents,
                                       bool dont_fragment)
@@ -2008,12 +2009,29 @@ static unsigned int bitmap_to_extents(BdrvDirtyBitmap *bitmap, uint64_t offset,
             bdrv_set_dirty_iter(it, begin);
             end = bdrv_dirty_iter_next(it);
         }
-        if (end == -1 || end - begin > UINT32_MAX) {
+        if (end == -1 || end - begin > UINT32_MAX - align) {
             /* Cap to an aligned value < 4G beyond begin. */
             end = MIN(bdrv_dirty_bitmap_size(bitmap),
                       begin + UINT32_MAX + 1 -
-                      bdrv_dirty_bitmap_granularity(bitmap));
+                      MAX(align, bdrv_dirty_bitmap_granularity(bitmap)));
             next_dirty = dirty;
+        }
+        /*
+         * Round unaligned bits: any transition mid-alignment makes
+         * that entire aligned region appear dirty
+         */
+        if (!QEMU_IS_ALIGNED(end, align)) {
+            if (dirty) {
+                end = QEMU_ALIGN_UP(end, align);
+            } else if (end - begin < align) {
+                end = begin + align;
+                dirty = true;
+            } else {
+                end = QEMU_ALIGN_DOWN(end, align);
+            }
+            if (end < bdrv_dirty_bitmap_size(bitmap)) {
+                next_dirty = bdrv_get_dirty_locked(NULL, bitmap, end);
+            }
         }
         if (dont_fragment && end > overall_end) {
             end = overall_end;
@@ -2042,11 +2060,21 @@ static int nbd_co_send_bitmap(NBDClient *client, uint64_t handle,
 {
     int ret;
     unsigned int nb_extents = dont_fragment ? 1 : NBD_MAX_BITMAP_EXTENTS;
-    NBDExtent *extents = g_new(NBDExtent, nb_extents);
+    NBDExtent *extents;
     uint64_t final_length = length;
 
-    nb_extents = bitmap_to_extents(bitmap, offset, &final_length, extents,
-                                   nb_extents, dont_fragment);
+    /* Easiest to just refuse to answer an unaligned query */
+    if (client->check_align &&
+        !QEMU_IS_ALIGNED(offset | length, client->check_align)) {
+        return nbd_co_send_structured_error(client, handle, -EINVAL,
+                                            "unaligned dirty bitmap request",
+                                            errp);
+    }
+
+    extents = g_new(NBDExtent, nb_extents);
+    nb_extents = bitmap_to_extents(client->check_align ?: 1, bitmap, offset,
+                                   &final_length, extents, nb_extents,
+                                   dont_fragment);
 
     ret = nbd_co_send_extents(client, handle, extents, nb_extents,
                               final_length, last, context_id, errp);
