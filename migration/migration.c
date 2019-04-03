@@ -128,6 +128,8 @@ static int migration_maybe_pause(MigrationState *s,
                                  int *current_active_state,
                                  int new_state);
 static void migrate_fd_cancel(MigrationState *s);
+static void migrate_join_thread(MigrationState *s);
+static void migrate_fd_cleanup(void *opaque);
 
 void migration_object_init(void)
 {
@@ -176,6 +178,17 @@ void migration_shutdown(void)
      * stop the migration using this structure
      */
     migrate_fd_cancel(current_migration);
+    /*
+     * migration_thread schedules cleanup_bh, but migration_shutdown is called
+     * from the end of main, so cleanu_up may not be called because main-loop is
+     * complete. So, wait for the complition of migration_thread, cancel bh and
+     * call cleanup ourselves.
+     */
+    migrate_join_thread(current_migration);
+    if (current_migration->cleanup_bh) {
+        qemu_bh_cancel(current_migration->cleanup_bh);
+        migrate_fd_cleanup(current_migration);
+    }
     object_unref(OBJECT(current_migration));
 }
 
@@ -1495,6 +1508,16 @@ static void block_cleanup_parameters(MigrationState *s)
     }
 }
 
+static void migrate_join_thread(MigrationState *s)
+{
+    qemu_mutex_unlock_iothread();
+    if (s->migration_thread_running) {
+        qemu_thread_join(&s->thread);
+        s->migration_thread_running = false;
+    }
+    qemu_mutex_lock_iothread();
+}
+
 static void migrate_fd_cleanup(void *opaque)
 {
     MigrationState *s = opaque;
@@ -1508,12 +1531,7 @@ static void migrate_fd_cleanup(void *opaque)
         QEMUFile *tmp;
 
         trace_migrate_fd_cleanup();
-        qemu_mutex_unlock_iothread();
-        if (s->migration_thread_running) {
-            qemu_thread_join(&s->thread);
-            s->migration_thread_running = false;
-        }
-        qemu_mutex_lock_iothread();
+        migrate_join_thread(s);
 
         multifd_save_cleanup();
         qemu_mutex_lock(&s->qemu_file_lock);
