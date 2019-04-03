@@ -22,8 +22,7 @@ WARNING: Image format was not specified for '/home/eblake/qemu/tests/qemu-iotest
 
   size:  1024
   min block: 1
-[{ "start": 0, "length": 1000, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
-{ "start": 1000, "length": 24, "depth": 0, "zero": true, "data": true, "offset": OFFSET}]
+[{ "start": 0, "length": 1024, "depth": 0, "zero": false, "data": true, "offset": OFFSET}]
 1 KiB (0x400) bytes     allocated at offset 0 bytes (0x0)
 
 === Encrypted qcow2 file backed by unaligned raw image  ===

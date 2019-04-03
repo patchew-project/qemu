@@ -2021,6 +2021,97 @@ int coroutine_fn bdrv_co_block_status_from_backing(BlockDriverState *bs,
     return BDRV_BLOCK_RAW | BDRV_BLOCK_OFFSET_VALID;
 }
 
+static int coroutine_fn bdrv_co_block_status(BlockDriverState *bs,
+                                             bool want_zero,
+                                             int64_t offset, int64_t bytes,
+                                             int64_t *pnum, int64_t *map,
+                                             BlockDriverState **file);
+
+/*
+ * Returns an aligned allocation status of the specified sectors.
+ * Wrapper around bdrv_co_block_status() which requires the initial
+ * offset and count to be aligned, and guarantees the result will also
+ * be aligned (even if it requires piecing together multiple
+ * sub-aligned queries into an appropriate coalesced answer).
+ */
+static int coroutine_fn bdrv_co_block_status_aligned(BlockDriverState *bs,
+                                                     uint32_t align,
+                                                     bool want_zero,
+                                                     int64_t offset,
+                                                     int64_t bytes,
+                                                     int64_t *pnum,
+                                                     int64_t *map,
+                                                     BlockDriverState **file)
+{
+    int ret;
+
+    assert(is_power_of_2(align) && QEMU_IS_ALIGNED(offset | bytes, align));
+    ret = bdrv_co_block_status(bs, want_zero, offset, bytes, pnum, map, file);
+    if (ret < 0) {
+        return ret;
+    }
+    if (!*pnum) {
+        assert(!bytes || ret & BDRV_BLOCK_EOF);
+        return ret;
+    }
+    if (*pnum >= align) {
+        if (!QEMU_IS_ALIGNED(*pnum, align)) {
+            ret &= ~BDRV_BLOCK_EOF;
+            *pnum = QEMU_ALIGN_DOWN(*pnum, align);
+        }
+        return ret;
+    }
+    /* Merge in status for the rest of align */
+    while (*pnum < align) {
+        int ret2;
+        int64_t pnum2;
+        int64_t map2;
+        BlockDriverState *file2;
+
+        ret2 = bdrv_co_block_status(bs, want_zero, offset + *pnum,
+                                    align - *pnum, &pnum2,
+                                    map ? &map2 : NULL, file ? &file2 : NULL);
+        if (ret2 < 0) {
+            return ret2;
+        }
+        if (ret2 & BDRV_BLOCK_EOF) {
+            ret |= BDRV_BLOCK_EOF;
+            if (!pnum2) {
+                pnum2 = align - *pnum;
+                ret2 |= BDRV_BLOCK_ZERO;
+            }
+        } else {
+            assert(pnum2);
+        }
+        if (ret2 & BDRV_BLOCK_DATA) {
+            ret |= BDRV_BLOCK_DATA;
+        }
+        if (!(ret2 & BDRV_BLOCK_ZERO)) {
+            ret &= ~BDRV_BLOCK_ZERO;
+        }
+        if ((ret & BDRV_BLOCK_OFFSET_VALID) &&
+            (!(ret2 & BDRV_BLOCK_OFFSET_VALID) ||
+             (map && *map + *pnum != map2) || (file && *file != file2))) {
+            ret &= ~BDRV_BLOCK_OFFSET_VALID;
+            if (map) {
+                *map = 0;
+            }
+            if (file) {
+                *file = NULL;
+            }
+        }
+        if (ret2 & BDRV_BLOCK_ALLOCATED) {
+            ret |= BDRV_BLOCK_ALLOCATED;
+        }
+        if (ret2 & BDRV_BLOCK_RAW) {
+            assert(ret & BDRV_BLOCK_RAW);
+            assert(ret & BDRV_BLOCK_OFFSET_VALID);
+        }
+        *pnum += pnum2;
+    }
+    return ret;
+}
+
 /*
  * Returns the allocation status of the specified sectors.
  * Drivers not implementing the functionality are assumed to not support
@@ -2121,6 +2212,19 @@ static int coroutine_fn bdrv_co_block_status(BlockDriverState *bs,
      */
     assert(*pnum && QEMU_IS_ALIGNED(*pnum, align) &&
            align > offset - aligned_offset);
+
+    if (ret & BDRV_BLOCK_RAW) {
+        assert(ret & BDRV_BLOCK_OFFSET_VALID && local_file);
+        ret = bdrv_co_block_status_aligned(local_file, align, want_zero,
+                                           local_map, *pnum, pnum, &local_map,
+                                           &local_file);
+        if (ret < 0) {
+            goto out;
+        }
+        assert(!(ret & BDRV_BLOCK_RAW));
+        ret |= BDRV_BLOCK_RAW;
+    }
+
     *pnum -= offset - aligned_offset;
     if (*pnum > bytes) {
         *pnum = bytes;
@@ -2130,9 +2234,7 @@ static int coroutine_fn bdrv_co_block_status(BlockDriverState *bs,
     }
 
     if (ret & BDRV_BLOCK_RAW) {
-        assert(ret & BDRV_BLOCK_OFFSET_VALID && local_file);
-        ret = bdrv_co_block_status(local_file, want_zero, local_map,
-                                   *pnum, pnum, &local_map, &local_file);
+        ret &= ~BDRV_BLOCK_RAW;
         goto out;
     }
 

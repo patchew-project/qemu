@@ -41,17 +41,27 @@ echo
 echo "=== Check mapping of unaligned raw image ==="
 echo
 
+# Note that when we enable format probing by omitting -f, the raw
+# layer forces 512-byte alignment and the bytes past EOF take on the
+# same status as the rest of the sector; otherwise, we can see the
+# implicit hole visible past EOF thanks to the block layer rounding
+# sizes up.
+
 _make_test_img 43009 # qemu-img create rounds size up
 $QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
+$QEMU_IMG map -f $IMGFMT --output=json "$TEST_IMG" | _filter_qemu_img_map
 
 truncate --size=43009 "$TEST_IMG" # so we resize it and check again
 $QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
+$QEMU_IMG map -f $IMGFMT --output=json "$TEST_IMG" | _filter_qemu_img_map
 
 $QEMU_IO -c 'w 43008 1' "$TEST_IMG" | _filter_qemu_io # writing also rounds up
 $QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
+$QEMU_IMG map -f $IMGFMT --output=json "$TEST_IMG" | _filter_qemu_img_map
 
 truncate --size=43009 "$TEST_IMG" # so we resize it and check again
 $QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
+$QEMU_IMG map -f $IMGFMT --output=json "$TEST_IMG" | _filter_qemu_img_map
 
 # success, all done
 echo '*** done'
