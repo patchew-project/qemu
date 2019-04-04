@@ -33,7 +33,7 @@ typedef struct ISASuperIODevice {
     ISADevice *serial[SUPERIO_MAX_SERIAL_PORTS];
     ISADevice *floppy;
     ISADevice *kbc;
-    ISADevice *ide;
+    ISADevice **ide;
 } ISASuperIODevice;
 
 typedef struct ISASuperIOFuncs {

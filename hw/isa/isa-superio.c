@@ -18,6 +18,7 @@
 #include "hw/isa/superio.h"
 #include "hw/input/i8042.h"
 #include "hw/char/serial.h"
+#include "hw/ide.h"
 #include "trace.h"
 
 static void isa_superio_realize(DeviceState *dev, Error **errp)
@@ -30,7 +31,7 @@ static void isa_superio_realize(DeviceState *dev, Error **errp)
     Chardev *chr;
     DriveInfo *drive;
     char *name;
-    int i;
+    int i, j;
 
     /* Parallel port */
     for (i = 0; i < k->parallel.count; i++) {
@@ -146,25 +147,29 @@ static void isa_superio_realize(DeviceState *dev, Error **errp)
     s->kbc = isa_create_simple(bus, TYPE_I8042);
 
     /* IDE */
-    if (k->ide.count && (!k->ide.is_enabled || k->ide.is_enabled(s, 0))) {
-        isa = isa_create(bus, "isa-ide");
-        d = DEVICE(isa);
-        if (k->ide.get_iobase) {
-            qdev_prop_set_uint32(d, "iobase", k->ide.get_iobase(s, 0));
+    size_t bus_count = k->ide.count / MAX_IDE_DEVS;
+    s->ide = g_new(ISADevice *, bus_count);
+    for (i = 0, j = 0; i < bus_count; i++, j += MAX_IDE_DEVS) {
+        if (!k->ide.is_enabled || k->ide.is_enabled(s, j)) {
+            isa = isa_create(bus, "isa-ide");
+            d = DEVICE(isa);
+            if (k->ide.get_iobase) {
+                qdev_prop_set_uint32(d, "iobase", k->ide.get_iobase(s, j));
+            }
+            if (k->ide.get_iobase) {
+                qdev_prop_set_uint32(d, "iobase2", k->ide.get_iobase(s, j + 1));
+            }
+            if (k->ide.get_irq) {
+                qdev_prop_set_uint32(d, "irq", k->ide.get_irq(s, j));
+            }
+            qdev_init_nofail(d);
+            s->ide[i] = isa;
+            trace_superio_create_ide(i,
+                                     k->ide.get_iobase ?
+                                     k->ide.get_iobase(s, j) : -1,
+                                     k->ide.get_irq ?
+                                     k->ide.get_irq(s, j) : -1);
         }
-        if (k->ide.get_iobase) {
-            qdev_prop_set_uint32(d, "iobase2", k->ide.get_iobase(s, 1));
-        }
-        if (k->ide.get_irq) {
-            qdev_prop_set_uint32(d, "irq", k->ide.get_irq(s, 0));
-        }
-        qdev_init_nofail(d);
-        s->ide = isa;
-        trace_superio_create_ide(0,
-                                 k->ide.get_iobase ?
-                                 k->ide.get_iobase(s, 0) : -1,
-                                 k->ide.get_irq ?
-                                 k->ide.get_irq(s, 0) : -1);
     }
 }
 
