@@ -52,7 +52,7 @@ static int have_memdevs = -1;
 static int max_numa_nodeid; /* Highest specified NUMA node ID, plus one.
                              * For all nodes, nodeid < max_numa_nodeid
                              */
-bool have_numa_distance;
+
 NodeInfo numa_info[MAX_NODES];
 
 
@@ -143,6 +143,8 @@ static void parse_numa_distance(NumaDistOptions *dist, Error **errp)
     uint16_t src = dist->src;
     uint16_t dst = dist->dst;
     uint8_t val = dist->val;
+    MachineState *ms = MACHINE(qdev_get_machine());
+
 
     if (src >= MAX_NODES || dst >= MAX_NODES) {
         error_setg(errp, "Parameter '%s' expects an integer between 0 and %d",
@@ -170,7 +172,7 @@ static void parse_numa_distance(NumaDistOptions *dist, Error **errp)
     }
 
     numa_info[src].distance[dst] = val;
-    have_numa_distance = true;
+    ms->numa_state->have_numa_distance = true;
 }
 
 static
@@ -359,6 +361,7 @@ void numa_complete_configuration(MachineState *ms)
     int i;
     MachineClass *mc = MACHINE_GET_CLASS(ms);
     int nb_numa_nodes = ms->numa_state->nb_numa_nodes;
+    bool have_numa_distance = ms->numa_state->have_numa_distance;
 
     /*
      * If memory hotplug is enabled (slots > 0) but without '-numa'

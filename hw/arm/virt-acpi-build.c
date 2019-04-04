@@ -784,6 +784,7 @@ void virt_acpi_build(VirtMachineState *vms, AcpiBuildTables *tables)
     GArray *tables_blob = tables->table_data;
     MachineState *ms = MACHINE(vms);
     int nb_numa_nodes = ms->numa_state->nb_numa_nodes;
+    bool have_numa_distance = ms->numa_state->have_numa_distance;
 
     table_offsets = g_array_new(false, true /* clear */,
                                         sizeof(uint32_t));

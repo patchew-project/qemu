@@ -235,6 +235,9 @@ typedef struct DeviceMemoryState {
 typedef struct NumaState {
     /* Number of NUMA nodes */
     int nb_numa_nodes;
+
+    /* Allow setting NUMA distance for different NUMA nodes */
+    bool have_numa_distance;
 } NumaState;
 
 /**
