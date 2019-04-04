@@ -357,7 +357,7 @@ static void dump_buffer(const void *buffer, int64_t offset, int64_t len)
     int j;
     const uint8_t *p;
 
-    for (i = 0, p = buffer; i < len; i += 16) {
+    for (i = 0, p = buffer + offset; i < len; i += 16) {
         const uint8_t *s = p;
 
         printf("%08" PRIx64 ":  ", offset + i);
