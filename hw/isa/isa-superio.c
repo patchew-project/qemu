@@ -22,8 +22,8 @@
 
 static void isa_superio_realize(DeviceState *dev, Error **errp)
 {
-    ISASuperIODevice *sio = ISA_SUPERIO(dev);
-    ISASuperIOClass *k = ISA_SUPERIO_GET_CLASS(sio);
+    ISASuperIODevice *s = ISA_SUPERIO(dev);
+    ISASuperIOClass *k = ISA_SUPERIO_GET_CLASS(s);
     ISABus *bus = isa_bus_from_device(ISA_DEVICE(dev));
     ISADevice *isa;
     DeviceState *d;
@@ -34,12 +34,12 @@ static void isa_superio_realize(DeviceState *dev, Error **errp)
 
     /* Parallel port */
     for (i = 0; i < k->parallel.count; i++) {
-        if (i >= ARRAY_SIZE(sio->parallel)) {
+        if (i >= ARRAY_SIZE(s->parallel)) {
             warn_report("superio: ignoring %td parallel controllers",
-                        k->parallel.count - ARRAY_SIZE(sio->parallel));
+                        k->parallel.count - ARRAY_SIZE(s->parallel));
             break;
         }
-        if (!k->parallel.is_enabled || k->parallel.is_enabled(sio, i)) {
+        if (!k->parallel.is_enabled || k->parallel.is_enabled(s, i)) {
             /* FIXME use a qdev chardev prop instead of parallel_hds[] */
             chr = parallel_hds[i];
             if (chr == NULL) {
@@ -53,33 +53,33 @@ static void isa_superio_realize(DeviceState *dev, Error **errp)
             qdev_prop_set_uint32(d, "index", i);
             if (k->parallel.get_iobase) {
                 qdev_prop_set_uint32(d, "iobase",
-                                     k->parallel.get_iobase(sio, i));
+                                     k->parallel.get_iobase(s, i));
             }
             if (k->parallel.get_irq) {
-                qdev_prop_set_uint32(d, "irq", k->parallel.get_irq(sio, i));
+                qdev_prop_set_uint32(d, "irq", k->parallel.get_irq(s, i));
             }
             qdev_prop_set_chr(d, "chardev", chr);
             qdev_init_nofail(d);
-            sio->parallel[i] = isa;
+            s->parallel[i] = isa;
             trace_superio_create_parallel(i,
                                           k->parallel.get_iobase ?
-                                          k->parallel.get_iobase(sio, i) : -1,
+                                          k->parallel.get_iobase(s, i) : -1,
                                           k->parallel.get_irq ?
-                                          k->parallel.get_irq(sio, i) : -1);
+                                          k->parallel.get_irq(s, i) : -1);
             object_property_add_child(OBJECT(dev), name,
-                                      OBJECT(sio->parallel[i]), NULL);
+                                      OBJECT(s->parallel[i]), NULL);
             g_free(name);
         }
     }
 
     /* Serial */
     for (i = 0; i < k->serial.count; i++) {
-        if (i >= ARRAY_SIZE(sio->serial)) {
+        if (i >= ARRAY_SIZE(s->serial)) {
             warn_report("superio: ignoring %td serial controllers",
-                        k->serial.count - ARRAY_SIZE(sio->serial));
+                        k->serial.count - ARRAY_SIZE(s->serial));
             break;
         }
-        if (!k->serial.is_enabled || k->serial.is_enabled(sio, i)) {
+        if (!k->serial.is_enabled || k->serial.is_enabled(s, i)) {
             /* FIXME use a qdev chardev prop instead of serial_hd() */
             chr = serial_hd(i);
             if (chr == NULL) {
@@ -92,35 +92,34 @@ static void isa_superio_realize(DeviceState *dev, Error **errp)
             d = DEVICE(isa);
             qdev_prop_set_uint32(d, "index", i);
             if (k->serial.get_iobase) {
-                qdev_prop_set_uint32(d, "iobase",
-                                     k->serial.get_iobase(sio, i));
+                qdev_prop_set_uint32(d, "iobase", k->serial.get_iobase(s, i));
             }
             if (k->serial.get_irq) {
-                qdev_prop_set_uint32(d, "irq", k->serial.get_irq(sio, i));
+                qdev_prop_set_uint32(d, "irq", k->serial.get_irq(s, i));
             }
             qdev_prop_set_chr(d, "chardev", chr);
             qdev_init_nofail(d);
-            sio->serial[i] = isa;
+            s->serial[i] = isa;
             trace_superio_create_serial(i,
                                         k->serial.get_iobase ?
-                                        k->serial.get_iobase(sio, i) : -1,
+                                        k->serial.get_iobase(s, i) : -1,
                                         k->serial.get_irq ?
-                                        k->serial.get_irq(sio, i) : -1);
+                                        k->serial.get_irq(s, i) : -1);
             object_property_add_child(OBJECT(dev), name,
-                                      OBJECT(sio->serial[0]), NULL);
+                                      OBJECT(s->serial[0]), NULL);
             g_free(name);
         }
     }
 
     /* Floppy disc */
-    if (!k->floppy.is_enabled || k->floppy.is_enabled(sio, 0)) {
+    if (!k->floppy.is_enabled || k->floppy.is_enabled(s, 0)) {
         isa = isa_create(bus, "isa-fdc");
         d = DEVICE(isa);
         if (k->floppy.get_iobase) {
-            qdev_prop_set_uint32(d, "iobase", k->floppy.get_iobase(sio, 0));
+            qdev_prop_set_uint32(d, "iobase", k->floppy.get_iobase(s, 0));
         }
         if (k->floppy.get_irq) {
-            qdev_prop_set_uint32(d, "irq", k->floppy.get_irq(sio, 0));
+            qdev_prop_set_uint32(d, "irq", k->floppy.get_irq(s, 0));
         }
         /* FIXME use a qdev drive property instead of drive_get() */
         drive = drive_get(IF_FLOPPY, 0, 0);
@@ -135,37 +134,37 @@ static void isa_superio_realize(DeviceState *dev, Error **errp)
                                 &error_fatal);
         }
         qdev_init_nofail(d);
-        sio->floppy = isa;
+        s->floppy = isa;
         trace_superio_create_floppy(0,
                                     k->floppy.get_iobase ?
-                                    k->floppy.get_iobase(sio, 0) : -1,
+                                    k->floppy.get_iobase(s, 0) : -1,
                                     k->floppy.get_irq ?
-                                    k->floppy.get_irq(sio, 0) : -1);
+                                    k->floppy.get_irq(s, 0) : -1);
     }
 
     /* Keyboard, mouse */
-    sio->kbc = isa_create_simple(bus, TYPE_I8042);
+    s->kbc = isa_create_simple(bus, TYPE_I8042);
 
     /* IDE */
-    if (k->ide.count && (!k->ide.is_enabled || k->ide.is_enabled(sio, 0))) {
+    if (k->ide.count && (!k->ide.is_enabled || k->ide.is_enabled(s, 0))) {
         isa = isa_create(bus, "isa-ide");
         d = DEVICE(isa);
         if (k->ide.get_iobase) {
-            qdev_prop_set_uint32(d, "iobase", k->ide.get_iobase(sio, 0));
+            qdev_prop_set_uint32(d, "iobase", k->ide.get_iobase(s, 0));
         }
         if (k->ide.get_iobase) {
-            qdev_prop_set_uint32(d, "iobase2", k->ide.get_iobase(sio, 1));
+            qdev_prop_set_uint32(d, "iobase2", k->ide.get_iobase(s, 1));
         }
         if (k->ide.get_irq) {
-            qdev_prop_set_uint32(d, "irq", k->ide.get_irq(sio, 0));
+            qdev_prop_set_uint32(d, "irq", k->ide.get_irq(s, 0));
         }
         qdev_init_nofail(d);
-        sio->ide = isa;
+        s->ide = isa;
         trace_superio_create_ide(0,
                                  k->ide.get_iobase ?
-                                 k->ide.get_iobase(sio, 0) : -1,
+                                 k->ide.get_iobase(s, 0) : -1,
                                  k->ide.get_irq ?
-                                 k->ide.get_irq(sio, 0) : -1);
+                                 k->ide.get_irq(s, 0) : -1);
     }
 }
 
