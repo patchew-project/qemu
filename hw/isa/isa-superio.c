@@ -113,7 +113,8 @@ static void isa_superio_realize(DeviceState *dev, Error **errp)
     }
 
     /* Floppy disc */
-    if (!k->floppy.is_enabled || k->floppy.is_enabled(s, 0)) {
+    if (k->floppy.count
+            && (!k->floppy.is_enabled || k->floppy.is_enabled(s, 0))) {
         isa = isa_create(bus, "isa-fdc");
         d = DEVICE(isa);
         if (k->floppy.get_iobase) {
