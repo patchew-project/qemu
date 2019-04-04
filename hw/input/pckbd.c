@@ -568,6 +568,8 @@ static void i8042_class_initfn(ObjectClass *klass, void *data)
     dc->realize = i8042_realizefn;
     dc->vmsd = &vmstate_kbd_isa;
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
+    /* i8042 is a device on the motherboard, and not pluggable by the user */
+    dc->user_creatable = false;
 }
 
 static const TypeInfo i8042_info = {
