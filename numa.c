@@ -52,7 +52,6 @@ static int have_memdevs = -1;
 static int max_numa_nodeid; /* Highest specified NUMA node ID, plus one.
                              * For all nodes, nodeid < max_numa_nodeid
                              */
-int nb_numa_nodes;
 bool have_numa_distance;
 NodeInfo numa_info[MAX_NODES];
 
@@ -68,7 +67,7 @@ static void parse_numa_node(MachineState *ms, NumaNodeOptions *node,
     if (node->has_nodeid) {
         nodenr = node->nodeid;
     } else {
-        nodenr = nb_numa_nodes;
+        nodenr = ms->numa_state->nb_numa_nodes;
     }
 
     if (nodenr >= MAX_NODES) {
@@ -136,7 +135,7 @@ static void parse_numa_node(MachineState *ms, NumaNodeOptions *node,
     }
     numa_info[nodenr].present = true;
     max_numa_nodeid = MAX(max_numa_nodeid, nodenr + 1);
-    nb_numa_nodes++;
+    ms->numa_state->nb_numa_nodes++;
 }
 
 static void parse_numa_distance(NumaDistOptions *dist, Error **errp)
@@ -256,6 +255,8 @@ static void validate_numa_distance(void)
 {
     int src, dst;
     bool is_asymmetrical = false;
+    MachineState *ms = MACHINE(qdev_get_machine());
+    int nb_numa_nodes = ms->numa_state->nb_numa_nodes;
 
     for (src = 0; src < nb_numa_nodes; src++) {
         for (dst = src; dst < nb_numa_nodes; dst++) {
@@ -296,6 +297,8 @@ static void validate_numa_distance(void)
 static void complete_init_numa_distance(void)
 {
     int src, dst;
+    MachineState *ms = MACHINE(qdev_get_machine());
+    int nb_numa_nodes = ms->numa_state->nb_numa_nodes;
 
     /* Fixup NUMA distance by symmetric policy because if it is an
      * asymmetric distance table, it should be a complete table and
@@ -355,6 +358,7 @@ void numa_complete_configuration(MachineState *ms)
 {
     int i;
     MachineClass *mc = MACHINE_GET_CLASS(ms);
+    int nb_numa_nodes = ms->numa_state->nb_numa_nodes;
 
     /*
      * If memory hotplug is enabled (slots > 0) but without '-numa'
@@ -440,6 +444,7 @@ void numa_complete_configuration(MachineState *ms)
             complete_init_numa_distance();
         }
     }
+    ms->numa_state->nb_numa_nodes = nb_numa_nodes;
 }
 
 void parse_numa_opts(MachineState *ms)
@@ -513,6 +518,8 @@ void memory_region_allocate_system_memory(MemoryRegion *mr, Object *owner,
 {
     uint64_t addr = 0;
     int i;
+    MachineState *ms = MACHINE(qdev_get_machine());
+    int nb_numa_nodes = ms->numa_state->nb_numa_nodes;
 
     if (nb_numa_nodes == 0 || !have_memdevs) {
         allocate_system_memory_nonnuma(mr, owner, name, ram_size);
@@ -581,6 +588,8 @@ static void numa_stat_memory_devices(NumaNodeMem node_mem[])
 void query_numa_node_mem(NumaNodeMem node_mem[])
 {
     int i;
+    MachineState *ms = MACHINE(qdev_get_machine());
+    int nb_numa_nodes = ms->numa_state->nb_numa_nodes;
 
     if (nb_numa_nodes <= 0) {
         return;

@@ -1708,6 +1708,8 @@ long qemu_getrampagesize(void)
     long hpsize = LONG_MAX;
     long mainrampagesize;
     Object *memdev_root;
+    MachineState *ms = MACHINE(qdev_get_machine());
+    int nb_numa_nodes = ms->numa_state->nb_numa_nodes;
 
     mainrampagesize = qemu_mempath_getpagesize(mem_path);
 
