@@ -18,6 +18,7 @@
 #include "hw/i386/pc.h"
 #include "hw/char/serial.h"
 #include "hw/isa/isa.h"
+#include "hw/isa/superio.h"
 #include "net/net.h"
 #include "hw/net/ne2000-isa.h"
 #include "sysemu/sysemu.h"
@@ -29,17 +30,12 @@
 #include "hw/loader.h"
 #include "elf.h"
 #include "hw/timer/mc146818rtc.h"
-#include "hw/input/i8042.h"
 #include "hw/timer/i8254.h"
 #include "exec/address-spaces.h"
 #include "sysemu/qtest.h"
 #include "qemu/error-report.h"
 
 #define MAX_IDE_BUS 2
-
-static const int ide_iobase[2] = { 0x1f0, 0x170 };
-static const int ide_iobase2[2] = { 0x3f6, 0x376 };
-static const int ide_irq[2] = { 14, 15 };
 
 static ISADevice *pit; /* PIT i8254 */
 
@@ -72,6 +68,49 @@ static const MemoryRegionOps mips_qemu_ops = {
     .write = mips_qemu_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
+
+#define TYPE_R4K_SUPERIO "r4k-superio"
+
+static uint16_t get_ide_iobase(ISASuperIODevice *sio, uint8_t index)
+{
+    static const uint16_t ide_iobase[] = { 0x1f0, 0x3f6, 0x170, 0x376 };
+
+    return ide_iobase[index];
+}
+
+static unsigned int get_ide_irq(ISASuperIODevice *sio, uint8_t index)
+{
+    return index < MAX_IDE_DEVS ? 14 : 15;
+}
+
+static void r4k_superio_class_init(ObjectClass *klass, void *data)
+{
+    ISASuperIOClass *sc = ISA_SUPERIO_CLASS(klass);
+
+    sc->serial.count = MAX_ISA_SERIAL_PORTS;
+    sc->parallel.count = 0;
+    sc->floppy.count = 0;
+    sc->ide = (ISASuperIOFuncs){
+        .count = MAX_IDE_BUS * MAX_IDE_DEVS,
+        .get_iobase = get_ide_iobase,
+        .get_irq    = get_ide_irq,
+    };
+}
+
+static const TypeInfo r4k_superio_type_info = {
+    .name          = TYPE_R4K_SUPERIO,
+    .parent        = TYPE_ISA_SUPERIO,
+    .instance_size = sizeof(ISASuperIODevice),
+    .class_size    = sizeof(ISASuperIOClass),
+    .class_init    = r4k_superio_class_init,
+};
+
+static void r4k_superio_register_types(void)
+{
+    type_register_static(&r4k_superio_type_info);
+}
+
+type_init(r4k_superio_register_types)
 
 typedef struct ResetData {
     MIPSCPU *cpu;
@@ -179,10 +218,8 @@ void mips_r4k_init(MachineState *machine)
     MIPSCPU *cpu;
     CPUMIPSState *env;
     ResetData *reset_info;
-    int i;
     qemu_irq *i8259;
     ISABus *isa_bus;
-    DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     DriveInfo *dinfo;
     int be;
 
@@ -274,20 +311,12 @@ void mips_r4k_init(MachineState *machine)
 
     pit = i8254_pit_init(isa_bus, 0x40, 0, NULL);
 
-    serial_hds_isa_init(isa_bus, 0, MAX_ISA_SERIAL_PORTS);
-
     isa_vga_init(isa_bus);
 
     if (nd_table[0].used)
         isa_ne2000_init(isa_bus, 0x300, 9, &nd_table[0]);
 
-    ide_drive_get(hd, ARRAY_SIZE(hd));
-    for(i = 0; i < MAX_IDE_BUS; i++)
-        isa_ide_init(isa_bus, ide_iobase[i], ide_iobase2[i], ide_irq[i],
-                     hd[MAX_IDE_DEVS * i],
-                     hd[MAX_IDE_DEVS * i + 1]);
-
-    isa_create_simple(isa_bus, TYPE_I8042);
+    isa_create_simple(isa_bus, TYPE_R4K_SUPERIO);
 }
 
 static void mips_machine_init(MachineClass *mc)
