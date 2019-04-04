@@ -1732,6 +1732,7 @@ void build_slit(GArray *table_data, BIOSLinker *linker)
     slit_start = table_data->len;
     MachineState *ms = MACHINE(qdev_get_machine());
     int nb_numa_nodes = ms->numa_state->nb_numa_nodes;
+    NodeInfo *numa_info = ms->numa_state->numa_info;
 
     acpi_data_push(table_data, sizeof(AcpiTableHeader));
 

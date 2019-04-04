@@ -534,6 +534,7 @@ int arm_load_dtb(hwaddr addr, const struct arm_boot_info *binfo,
     Error *err = NULL;
     MachineState *ms = MACHINE(qdev_get_machine());
     int nb_numa_nodes = ms->numa_state->nb_numa_nodes;
+    NodeInfo *numa_info = ms->numa_state->numa_info;
 
     if (binfo->dtb_filename) {
         char *filename;

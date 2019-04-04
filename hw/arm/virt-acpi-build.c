@@ -519,6 +519,7 @@ build_srat(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     MachineState *ms = MACHINE(vms);
     const CPUArchIdList *cpu_list = mc->possible_cpu_arch_ids(ms);
     int nb_numa_nodes = ms->numa_state->nb_numa_nodes;
+    NodeInfo *numa_info = ms->numa_state->numa_info;
 
     srat_start = table_data->len;
     srat = acpi_data_push(table_data, sizeof(*srat));

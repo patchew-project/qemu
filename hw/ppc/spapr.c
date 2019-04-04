@@ -347,6 +347,7 @@ static int spapr_fixup_cpu_dt(void *fdt, SpaprMachineState *spapr)
 static hwaddr spapr_node0_size(MachineState *machine)
 {
     int nb_numa_nodes = machine->numa_state->nb_numa_nodes;
+    NodeInfo *numa_info = machine->numa_state->numa_info;
 
     if (nb_numa_nodes) {
         int i;
@@ -397,7 +398,7 @@ static int spapr_populate_memory(SpaprMachineState *spapr, void *fdt)
     int nb_numa_nodes = machine->numa_state->nb_numa_nodes;
     hwaddr mem_start, node_size;
     int i, nb_nodes = nb_numa_nodes;
-    NodeInfo *nodes = numa_info;
+    NodeInfo *nodes = machine->numa_state->numa_info;
     NodeInfo ramnode;
 
     /* No NUMA nodes, assume there is just one node with whole RAM */
@@ -2476,6 +2477,7 @@ static void spapr_create_lmb_dr_connectors(SpaprMachineState *spapr)
 static void spapr_validate_node_memory(MachineState *machine, Error **errp)
 {
     int i;
+    NodeInfo *numa_info = machine->numa_state->numa_info;
 
     if (machine->ram_size % SPAPR_MEMORY_BLOCK_SIZE) {
         error_setg(errp, "Memory size 0x" RAM_ADDR_FMT

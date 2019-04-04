@@ -53,9 +53,6 @@ static int max_numa_nodeid; /* Highest specified NUMA node ID, plus one.
                              * For all nodes, nodeid < max_numa_nodeid
                              */
 
-NodeInfo numa_info[MAX_NODES];
-
-
 static void parse_numa_node(MachineState *ms, NumaNodeOptions *node,
                             Error **errp)
 {
@@ -63,6 +60,7 @@ static void parse_numa_node(MachineState *ms, NumaNodeOptions *node,
     uint16_t nodenr;
     uint16List *cpus = NULL;
     MachineClass *mc = MACHINE_GET_CLASS(ms);
+    NodeInfo *numa_info = ms->numa_state->numa_info;
 
     if (node->has_nodeid) {
         nodenr = node->nodeid;
@@ -144,6 +142,7 @@ static void parse_numa_distance(NumaDistOptions *dist, Error **errp)
     uint16_t dst = dist->dst;
     uint8_t val = dist->val;
     MachineState *ms = MACHINE(qdev_get_machine());
+    NodeInfo *numa_info = ms->numa_state->numa_info;
 
 
     if (src >= MAX_NODES || dst >= MAX_NODES) {
@@ -198,7 +197,7 @@ void set_numa_options(MachineState *ms, NumaOptions *object, Error **errp)
             error_setg(&err, "Missing mandatory node-id property");
             goto end;
         }
-        if (!numa_info[object->u.cpu.node_id].present) {
+        if (!ms->numa_state->numa_info[object->u.cpu.node_id].present) {
             error_setg(&err, "Invalid node-id=%" PRId64 ", NUMA node must be "
                 "defined with -numa node,nodeid=ID before it's used with "
                 "-numa cpu,node-id=ID", object->u.cpu.node_id);
@@ -259,6 +258,7 @@ static void validate_numa_distance(void)
     bool is_asymmetrical = false;
     MachineState *ms = MACHINE(qdev_get_machine());
     int nb_numa_nodes = ms->numa_state->nb_numa_nodes;
+    NodeInfo *numa_info = ms->numa_state->numa_info;
 
     for (src = 0; src < nb_numa_nodes; src++) {
         for (dst = src; dst < nb_numa_nodes; dst++) {
@@ -301,6 +301,7 @@ static void complete_init_numa_distance(void)
     int src, dst;
     MachineState *ms = MACHINE(qdev_get_machine());
     int nb_numa_nodes = ms->numa_state->nb_numa_nodes;
+    NodeInfo *numa_info = ms->numa_state->numa_info;
 
     /* Fixup NUMA distance by symmetric policy because if it is an
      * asymmetric distance table, it should be a complete table and
@@ -362,6 +363,7 @@ void numa_complete_configuration(MachineState *ms)
     MachineClass *mc = MACHINE_GET_CLASS(ms);
     int nb_numa_nodes = ms->numa_state->nb_numa_nodes;
     bool have_numa_distance = ms->numa_state->have_numa_distance;
+    NodeInfo *numa_info = ms->numa_state->numa_info;
 
     /*
      * If memory hotplug is enabled (slots > 0) but without '-numa'
@@ -523,6 +525,7 @@ void memory_region_allocate_system_memory(MemoryRegion *mr, Object *owner,
     int i;
     MachineState *ms = MACHINE(qdev_get_machine());
     int nb_numa_nodes = ms->numa_state->nb_numa_nodes;
+    NodeInfo *numa_info = ms->numa_state->numa_info;
 
     if (nb_numa_nodes == 0 || !have_memdevs) {
         allocate_system_memory_nonnuma(mr, owner, name, ram_size);
@@ -593,6 +596,7 @@ void query_numa_node_mem(NumaNodeMem node_mem[])
     int i;
     MachineState *ms = MACHINE(qdev_get_machine());
     int nb_numa_nodes = ms->numa_state->nb_numa_nodes;
+    NodeInfo *numa_info = ms->numa_state->numa_info;
 
     if (nb_numa_nodes <= 0) {
         return;

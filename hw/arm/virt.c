@@ -198,6 +198,7 @@ static void create_fdt(VirtMachineState *vms)
     MachineState *ms = MACHINE(vms);
     int nb_numa_nodes = ms->numa_state->nb_numa_nodes;
     bool have_numa_distance = ms->numa_state->have_numa_distance;
+    NodeInfo *numa_info = ms->numa_state->numa_info;
     void *fdt = create_device_tree(&vms->fdt_size);
 
     if (!fdt) {
