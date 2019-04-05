@@ -47,7 +47,11 @@ SEABIOS_EXTRAVERSION="-prebuilt.qemu.org"
 # We need that to combine multiple images (legacy bios,
 # efi ia32, efi x64) into a single rom binary.
 #
-EDK2_EFIROM = edk2/BaseTools/Source/C/bin/EfiRom
+# By default we build the latest EDK2 stable EfiRom utility.
+# If you have to use another one, you can also pass the location on
+# the command line, i.e. "make EDK2_EFIROM=$(type -P EfiRom) efirom"
+#
+EDK2_EFIROM ?= edk2/BaseTools/Source/C/bin/EfiRom
 
 default:
 	@echo "nothing is build by default"
@@ -120,8 +124,11 @@ build-efi-roms: build-pxe-roms
 		$(patsubst %,bin-i386-efi/%.efidrv,$(pxerom_targets)) \
 		$(patsubst %,bin-x86_64-efi/%.efidrv,$(pxerom_targets))
 
+# Do not compile $(EDK2_EFIROM) if the variable is overridden
+ifeq "$(origin EDK2_EFIROM)" "file"
 $(EDK2_EFIROM):
 	$(MAKE) -C edk2/BaseTools
+endif
 
 slof:
 	$(MAKE) -C SLOF CROSS=$(powerpc64_cross_prefix) qemu
