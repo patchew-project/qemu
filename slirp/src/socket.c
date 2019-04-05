@@ -113,12 +113,14 @@ size_t sopreprbuf(struct socket *so, struct iovec *iov, int *np)
 	DEBUG_CALL("sopreprbuf");
 	DEBUG_ARG("so = %p", so);
 
+	iov[0].iov_base = sb->sb_wptr;
+        iov[0].iov_len = 0;
+        iov[1].iov_base = NULL;
+        iov[1].iov_len = 0;
+
 	if (len <= 0)
 		return 0;
 
-	iov[0].iov_base = sb->sb_wptr;
-        iov[1].iov_base = NULL;
-        iov[1].iov_len = 0;
 	if (sb->sb_wptr < sb->sb_rptr) {
 		iov[0].iov_len = sb->sb_rptr - sb->sb_wptr;
 		/* Should never succeed, but... */
