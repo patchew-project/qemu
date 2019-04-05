@@ -449,6 +449,10 @@ int bdrv_is_allocated(BlockDriverState *bs, int64_t offset, int64_t bytes,
 int bdrv_is_allocated_above(BlockDriverState *top, BlockDriverState *base,
                             int64_t offset, int64_t bytes, int64_t *pnum);
 
+int bdrv_is_allocated_above_inclusive(BlockDriverState *top,
+                                      BlockDriverState *base,
+                                      int64_t offset, int64_t bytes,
+                                      int64_t *pnum);
 bool bdrv_is_read_only(BlockDriverState *bs);
 int bdrv_can_set_read_only(BlockDriverState *bs, bool read_only,
                            bool ignore_allow_rdw, Error **errp);
