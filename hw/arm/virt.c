@@ -131,6 +131,7 @@ static const MemMapEntry base_memmap[] = {
     [VIRT_GPIO] =               { 0x09030000, 0x00001000 },
     [VIRT_SECURE_UART] =        { 0x09040000, 0x00001000 },
     [VIRT_SMMU] =               { 0x09050000, 0x00020000 },
+    [VIRT_UEFI_UART] =          { 0x09070000, 0x00001000 },
     [VIRT_MMIO] =               { 0x0a000000, 0x00000200 },
     /* ...repeating for a total of NUM_VIRTIO_TRANSPORTS, each of that size */
     [VIRT_PLATFORM_BUS] =       { 0x0c000000, 0x02000000 },
@@ -166,6 +167,7 @@ static const int a15irqmap[] = {
     [VIRT_PCIE] = 3, /* ... to 6 */
     [VIRT_GPIO] = 7,
     [VIRT_SECURE_UART] = 8,
+    [VIRT_UEFI_UART] = 9,
     [VIRT_MMIO] = 16, /* ...to 16 + NUM_VIRTIO_TRANSPORTS - 1 */
     [VIRT_GIC_V2M] = 48, /* ...to 48 + NUM_GICV2M_SPIS - 1 */
     [VIRT_SMMU] = 74,    /* ...to 74 + NUM_SMMU_IRQS - 1 */
@@ -713,13 +715,23 @@ static void create_uart(const VirtMachineState *vms, qemu_irq *pic, int uart,
     if (uart == VIRT_UART) {
         qemu_fdt_setprop_string(vms->fdt, "/chosen", "stdout-path", nodename);
     } else {
+        const char *status_string;
+
+        if (uart == VIRT_SECURE_UART) {
+            status_string = "secure-status";
+        } else {
+            status_string = "uefi-status";
+        }
+
         /* Mark as not usable by the normal world */
         qemu_fdt_setprop_string(vms->fdt, nodename, "status", "disabled");
-        qemu_fdt_setprop_string(vms->fdt, nodename, "secure-status", "okay");
+        qemu_fdt_setprop_string(vms->fdt, nodename, status_string, "okay");
 
-        qemu_fdt_add_subnode(vms->fdt, "/secure-chosen");
-        qemu_fdt_setprop_string(vms->fdt, "/secure-chosen", "stdout-path",
-                                nodename);
+        if (uart == VIRT_SECURE_UART) {
+            qemu_fdt_add_subnode(vms->fdt, "/secure-chosen");
+            qemu_fdt_setprop_string(vms->fdt, "/secure-chosen", "stdout-path",
+                                    nodename);
+        }
     }
 
     g_free(nodename);
@@ -1423,6 +1435,7 @@ static void machvirt_init(MachineState *machine)
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     bool firmware_loaded = bios_name || drive_get(IF_PFLASH, 0, 0);
     bool aarch64 = true;
+    int uart_index = 0;
 
     /*
      * In accelerated mode, the memory map is computed earlier in kvm_type()
@@ -1616,12 +1629,16 @@ static void machvirt_init(MachineState *machine)
 
     fdt_add_pmu_nodes(vms);
 
-    create_uart(vms, pic, VIRT_UART, sysmem, serial_hd(0));
+    create_uart(vms, pic, VIRT_UART, sysmem, serial_hd(uart_index++));
 
     if (vms->secure) {
         create_secure_ram(vms, secure_sysmem);
-        create_uart(vms, pic, VIRT_SECURE_UART, secure_sysmem, serial_hd(1));
+        create_uart(vms, pic, VIRT_SECURE_UART, secure_sysmem,
+                    serial_hd(uart_index++));
     }
+
+    /* Create UART for UEFI runtime services debug */
+    create_uart(vms, pic, VIRT_UEFI_UART, sysmem, serial_hd(uart_index));
 
     vms->highmem_ecam &= vms->highmem && (!firmware_loaded || aarch64);
 
