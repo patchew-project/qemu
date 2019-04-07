@@ -2012,6 +2012,7 @@ static void ipmi_sim_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
     IPMIBmcClass *bk = IPMI_BMC_CLASS(oc);
 
+    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->hotpluggable = false;
     dc->realize = ipmi_sim_realize;
     dc->props = ipmi_sim_properties;

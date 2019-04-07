@@ -1594,6 +1594,7 @@ static void amdvi_class_init(ObjectClass *klass, void* data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     X86IOMMUClass *dc_class = X86_IOMMU_CLASS(klass);
 
+    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->reset = amdvi_reset;
     dc->vmsd = &vmstate_amdvi;
     dc->hotpluggable = false;
@@ -1611,8 +1612,16 @@ static const TypeInfo amdvi = {
     .class_init = amdvi_class_init
 };
 
+static void amdvi_pci_class_init(ObjectClass *klass, void* data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
+}
+
 static const TypeInfo amdviPCI = {
     .name = "AMDVI-PCI",
+    .class_init = amdvi_pci_class_init,
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(AMDVIPCIState),
     .interfaces = (InterfaceInfo[]) {

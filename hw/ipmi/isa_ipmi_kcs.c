@@ -522,6 +522,7 @@ static void isa_ipmi_kcs_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
     IPMIInterfaceClass *iic = IPMI_INTERFACE_CLASS(oc);
 
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     dc->realize = ipmi_isa_realize;
     dc->props = ipmi_isa_properties;
 

@@ -255,6 +255,7 @@ static void pc_dimm_class_init(ObjectClass *oc, void *data)
     PCDIMMDeviceClass *ddc = PC_DIMM_CLASS(oc);
     MemoryDeviceClass *mdc = MEMORY_DEVICE_CLASS(oc);
 
+    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     dc->realize = pc_dimm_realize;
     dc->unrealize = pc_dimm_unrealize;
     dc->props = pc_dimm_properties;

@@ -1016,6 +1016,7 @@ static void tpm_tis_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     TPMIfClass *tc = TPM_IF_CLASS(klass);
 
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     dc->realize = tpm_tis_realizefn;
     dc->props = tpm_tis_properties;
     dc->reset = tpm_tis_reset;

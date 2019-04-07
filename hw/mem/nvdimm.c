@@ -197,6 +197,7 @@ static void nvdimm_class_init(ObjectClass *oc, void *data)
     NVDIMMClass *nvc = NVDIMM_CLASS(oc);
     DeviceClass *dc = DEVICE_CLASS(oc);
 
+    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);    
     ddc->realize = nvdimm_realize;
     mdc->get_memory_region = nvdimm_md_get_memory_region;
     dc->props = nvdimm_properties;
