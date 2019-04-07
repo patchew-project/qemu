@@ -63,8 +63,12 @@ typedef struct HVFState {
 extern HVFState *hvf_state;
 
 void hvf_set_phys_mem(MemoryRegionSection *, bool);
+
+#ifdef NEED_CPU_H
 void hvf_handle_io(CPUArchState *, uint16_t, void *,
                   int, int, int);
+#endif
+
 hvf_slot *hvf_find_overlap_slot(uint64_t, uint64_t);
 
 /* Disable HVF if |disable| is 1, otherwise, enable it iff it is supported by
