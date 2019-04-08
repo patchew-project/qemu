@@ -28,6 +28,7 @@
 #include "sysemu/block-backend.h"
 #include "exec/address-spaces.h"
 #include "ui/pixel_ops.h"
+#include "sysemu/watchdog.h"
 
 #define MP_MISC_BASE            0x80002000
 #define MP_MISC_SIZE            0x00001000
@@ -898,7 +899,7 @@ static void mv88w8618_pit_write(void *opaque, hwaddr offset,
 
     case MP_BOARD_RESET:
         if (value == MP_BOARD_RESET_MAGIC) {
-            qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
+            watchdog_perform_action();
         }
         break;
     }

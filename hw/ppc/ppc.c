@@ -35,6 +35,7 @@
 #include "sysemu/kvm.h"
 #include "kvm_ppc.h"
 #include "trace.h"
+#include "sysemu/watchdog.h"
 
 //#define PPC_DEBUG_IRQ
 //#define PPC_DEBUG_TB
@@ -380,7 +381,7 @@ void ppc40x_chip_reset(PowerPCCPU *cpu)
 void ppc40x_system_reset(PowerPCCPU *cpu)
 {
     qemu_log_mask(CPU_LOG_RESET, "Reset PowerPC system\n");
-    qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
+    watchdog_perform_action();
 }
 
 void store_40x_dbcr0(CPUPPCState *env, uint32_t val)
