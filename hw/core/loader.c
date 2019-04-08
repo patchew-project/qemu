@@ -1087,6 +1087,13 @@ static void rom_reset(void *unused)
 {
     Rom *rom;
 
+    /*
+     * If we do rom_reset() now with these ROMs then the RAM data should be
+     * re-filled again too with the migration stream coming in.
+     */
+    if (runstate_check(RUN_STATE_INMIGRATE))
+        return;
+
     QTAILQ_FOREACH(rom, &roms, next) {
         if (rom->fw_file) {
             continue;
