@@ -28,7 +28,6 @@
  * - unlock bypass command
  * - CFI queries
  *
- * It does not implement boot blocs with reduced size
  * It does not implement software data protection as found in many real chips
  * It does not implement erase suspend/resume commands
  * It does not implement multiple sectors erase
@@ -55,6 +54,13 @@ do {                                                       \
 
 #define PFLASH_LAZY_ROMD_THRESHOLD 42
 
+/*
+ * The size of the cfi_table indirectly depends on this and the start of the
+ * PRI table directly depends on it. 4 is the maximum size (and also what
+ * seems common) without changing the PRT table address.
+ */
+#define PFLASH_MAX_ERASE_REGIONS 4
+
 /* Special write cycle for CFI queries. */
 #define WCYCLE_CFI 7
 
@@ -64,8 +70,10 @@ struct PFlashCFI02 {
     /*< public >*/
 
     BlockBackend *blk;
-    uint32_t sector_len;
-    uint32_t nb_blocs;
+    uint32_t uniform_nb_blocs;
+    uint32_t uniform_sector_len;
+    uint32_t nb_blocs[PFLASH_MAX_ERASE_REGIONS];
+    uint32_t sector_len[PFLASH_MAX_ERASE_REGIONS];
     uint64_t total_len;
     uint64_t interleave_multiplier;
     uint8_t mappings;
@@ -86,7 +94,7 @@ struct PFlashCFI02 {
     uint16_t ident3;
     uint16_t unlock_addr0;
     uint16_t unlock_addr1;
-    uint8_t cfi_table[0x52];
+    uint8_t cfi_table[0x4D];
     QEMUTimer timer;
     /* The device replicates the flash memory across its memory space.  Emulate
      * that by having a container (.mem) filled with an array of aliases
@@ -189,6 +197,25 @@ static uint64_t pflash_data_read(PFlashCFI02 *pfl, hwaddr offset,
     return ret;
 }
 
+/*
+ * offset should be a byte offset of the QEMU device and _not_ a device
+ * offset.
+ */
+static uint32_t pflash_sector_len(PFlashCFI02 *pfl, hwaddr offset)
+{
+    assert(offset < pfl->total_len);
+    int nb_regions = pfl->cfi_table[0x2C];
+    hwaddr addr = 0;
+    for (int i = 0; i < nb_regions; ++i) {
+        uint64_t region_size = (uint64_t)pfl->nb_blocs[i] * pfl->sector_len[i];
+        if (addr <= offset && offset < addr + region_size) {
+            return pfl->sector_len[i];
+        }
+        addr += region_size;
+    }
+    abort();
+}
+
 static uint64_t pflash_read(void *opaque, hwaddr offset, unsigned int width)
 {
     PFlashCFI02 *pfl = opaque;
@@ -285,6 +312,7 @@ static void pflash_write(void *opaque, hwaddr offset, uint64_t value,
     PFlashCFI02 *pfl = opaque;
     uint8_t *p;
     uint8_t cmd;
+    uint32_t sector_len;
 
     cmd = value;
     if (pfl->cmd != 0xA0) {
@@ -450,12 +478,14 @@ static void pflash_write(void *opaque, hwaddr offset, uint64_t value,
         case 0x30:
             /* Sector erase */
             p = pfl->storage;
-            offset &= ~(pfl->sector_len - 1);
-            DPRINTF("%s: start sector erase at " TARGET_FMT_plx "\n", __func__,
-                    offset);
+            sector_len = pflash_sector_len(pfl, offset);
+            offset &= ~(sector_len - 1);
+            DPRINTF("%s: start sector erase at %0*" PRIx64 "-%0*" PRIx64 "\n",
+                    __func__, pfl->bank_width * 2, offset,
+                    pfl->bank_width * 2, offset + sector_len - 1);
             if (!pfl->ro) {
-                memset(p + offset, 0xFF, pfl->sector_len);
-                pflash_update(pfl, offset, pfl->sector_len);
+                memset(p + offset, 0xFF, sector_len);
+                pflash_update(pfl, offset, sector_len);
             }
             set_dq7(pfl, 0x00);
             /* Let's wait 1/2 second before sector erase is done */
@@ -519,15 +549,14 @@ static const MemoryRegionOps pflash_cfi02_ops = {
 static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
 {
     PFlashCFI02 *pfl = PFLASH_CFI02(dev);
-    uint32_t chip_len;
     int ret;
     Error *local_err = NULL;
 
-    if (pfl->sector_len == 0) {
+    if (pfl->uniform_sector_len == 0 && pfl->sector_len[0] == 0) {
         error_setg(errp, "attribute \"sector-length\" not specified or zero.");
         return;
     }
-    if (pfl->nb_blocs == 0) {
+    if (pfl->uniform_nb_blocs == 0 && pfl->nb_blocs[0] == 0) {
         error_setg(errp, "attribute \"num-blocks\" not specified or zero.");
         return;
     }
@@ -623,7 +652,53 @@ static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    pfl->total_len = pfl->sector_len * pfl->nb_blocs;
+    int num_devices = pfl->bank_width / pfl->device_width;
+    int nb_regions;
+    pfl->total_len = 0;
+    for (nb_regions = 0; nb_regions < PFLASH_MAX_ERASE_REGIONS; ++nb_regions) {
+        if (pfl->nb_blocs[nb_regions] == 0) {
+            break;
+        }
+        uint64_t sector_len_per_device = pfl->sector_len[nb_regions] /
+                                         num_devices;
+
+        /*
+         * The size of each flash sector must be a power of 2 and it must be
+         * aligned at the same power of 2.
+         */
+        if (sector_len_per_device & 0xff ||
+            sector_len_per_device >= (1 << 24) ||
+            !is_power_of_2(sector_len_per_device))
+        {
+            error_setg(errp, "unsupported configuration: "
+                       "sector length[%d] per device = %" PRIx64 ".",
+                       nb_regions, sector_len_per_device);
+            return;
+        }
+        if ((pfl->total_len / num_devices) & (sector_len_per_device - 1)) {
+            error_setg(errp, "unsupported configuration: "
+                       "flash region %d not correctly aligned.",
+                       nb_regions);
+            return;
+        }
+
+        pfl->total_len += (uint64_t)pfl->sector_len[nb_regions] *
+                          pfl->nb_blocs[nb_regions];
+    }
+
+    uint64_t uniform_len = (uint64_t)pfl->uniform_nb_blocs *
+                           pfl->uniform_sector_len;
+    if (nb_regions == 0) {
+        nb_regions = 1;
+        pfl->nb_blocs[0] = pfl->uniform_nb_blocs;
+        pfl->sector_len[0] = pfl->uniform_sector_len;
+        pfl->total_len = uniform_len;
+    } else if (uniform_len != 0 && uniform_len != pfl->total_len) {
+        error_setg(errp, "\"num-blocks\"*\"sector-length\" "
+                   "different from \"num-blocks0\"*\'sector-length0\" + ... + "
+                   "\"num-blocks3\"*\"sector-length3\"");
+        return;
+    }
 
     /*
      * If the flash is not a power of 2, then the code for handling multiple
@@ -635,26 +710,12 @@ static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    int num_devices = pfl->bank_width / pfl->device_width;
-    uint64_t sector_len_per_device = pfl->sector_len / num_devices;
-    uint64_t device_len = sector_len_per_device * pfl->nb_blocs;
-
-    if (sector_len_per_device & 0xff || sector_len_per_device >= (1 << 24)) {
-        error_setg(errp,
-                   "unsupported configuration: sector length per device = "
-                   "%" PRIx64 ".",
-                   sector_len_per_device);
-        return;
-    }
-
     memory_region_init_rom_device(&pfl->orig_mem, OBJECT(pfl),
                                   &pflash_cfi02_ops, pfl, pfl->name,
                                   pfl->total_len, &local_err);
     /* Only 11 bits are used in the comparison. */
     pfl->unlock_addr0 &= 0x7FF;
     pfl->unlock_addr1 &= 0x7FF;
-
-    chip_len = pfl->sector_len * pfl->nb_blocs;
 
     if (local_err) {
         error_propagate(errp, local_err);
@@ -676,8 +737,8 @@ static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
     }
 
     if (pfl->blk) {
-        if (!blk_check_size_and_read_all(pfl->blk, pfl->storage, chip_len,
-                                         errp)) {
+        if (!blk_check_size_and_read_all(pfl->blk, pfl->storage,
+                                         pfl->total_len, errp)) {
             vmstate_unregister_ram(&pfl->orig_mem, DEVICE(pfl));
             return;
         }
@@ -701,7 +762,7 @@ static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
     pfl->cfi_table[0x13] = 0x02;
     pfl->cfi_table[0x14] = 0x00;
     /* Primary extended table address */
-    pfl->cfi_table[0x15] = 0x31;
+    pfl->cfi_table[0x15] = 0x40;
     pfl->cfi_table[0x16] = 0x00;
     /* Alternate command set (none) */
     pfl->cfi_table[0x17] = 0x00;
@@ -734,7 +795,7 @@ static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
     /* Max timeout for chip erase */
     pfl->cfi_table[0x26] = 0x0D;
     /* Device size */
-    pfl->cfi_table[0x27] = ctz32(device_len);
+    pfl->cfi_table[0x27] = ctz32(pfl->total_len / num_devices);
     /* Flash device interface  */
     pfl->cfi_table[0x28] = device_interface_code;
     pfl->cfi_table[0x29] = device_interface_code >> 8;
@@ -743,37 +804,49 @@ static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
     /*    pfl->cfi_table[0x2A] = 0x05; */
     pfl->cfi_table[0x2A] = 0x00;
     pfl->cfi_table[0x2B] = 0x00;
-    /* Number of erase block regions (uniform) */
-    pfl->cfi_table[0x2C] = 0x01;
-    /* Erase block region 1 */
-    pfl->cfi_table[0x2D] = pfl->nb_blocs - 1;
-    pfl->cfi_table[0x2E] = (pfl->nb_blocs - 1) >> 8;
-    pfl->cfi_table[0x2F] = sector_len_per_device >> 8;
-    pfl->cfi_table[0x30] = sector_len_per_device >> 16;
+    /* Number of erase block regions */
+    pfl->cfi_table[0x2C] = nb_regions;
+    /* Erase block regions */
+    for (int i = 0; i < nb_regions; ++i) {
+        uint32_t sector_len_per_device = pfl->sector_len[i] / num_devices;
+        pfl->cfi_table[0x2D + 4 * i] = pfl->nb_blocs[i] - 1;
+        pfl->cfi_table[0x2E + 4 * i] = (pfl->nb_blocs[i] - 1) >> 8;
+        pfl->cfi_table[0x2F + 4 * i] = sector_len_per_device >> 8;
+        pfl->cfi_table[0x30 + 4 * i] = sector_len_per_device >> 16;
+    }
 
     /* Extended */
-    pfl->cfi_table[0x31] = 'P';
-    pfl->cfi_table[0x32] = 'R';
-    pfl->cfi_table[0x33] = 'I';
+    pfl->cfi_table[0x40] = 'P';
+    pfl->cfi_table[0x41] = 'R';
+    pfl->cfi_table[0x42] = 'I';
 
-    pfl->cfi_table[0x34] = '1';
-    pfl->cfi_table[0x35] = '0';
+    pfl->cfi_table[0x43] = '1'; /* version 1.0 */
+    pfl->cfi_table[0x44] = '0';
 
-    pfl->cfi_table[0x36] = 0x00;
-    pfl->cfi_table[0x37] = 0x00;
-    pfl->cfi_table[0x38] = 0x00;
-    pfl->cfi_table[0x39] = 0x00;
+    pfl->cfi_table[0x45] = 0x00; /* Address sensitive unlock required. */
+    pfl->cfi_table[0x46] = 0x00; /* Erase suspend not supported. */
+    pfl->cfi_table[0x47] = 0x00; /* Sector protect not supported. */
+    pfl->cfi_table[0x48] = 0x00; /* Temporary sector unprotect not supported. */
 
-    pfl->cfi_table[0x3a] = 0x00;
+    pfl->cfi_table[0x49] = 0x00; /* Sector protect/unprotect scheme. */
 
-    pfl->cfi_table[0x3b] = 0x00;
-    pfl->cfi_table[0x3c] = 0x00;
+    pfl->cfi_table[0x4a] = 0x00; /* Simultaneous operation not supported. */
+    pfl->cfi_table[0x4b] = 0x00; /* Burst mode not supported. */
+    pfl->cfi_table[0x4c] = 0x00; /* Page mode not supported. */
 }
 
 static Property pflash_cfi02_properties[] = {
     DEFINE_PROP_DRIVE("drive", PFlashCFI02, blk),
-    DEFINE_PROP_UINT32("num-blocks", PFlashCFI02, nb_blocs, 0),
-    DEFINE_PROP_UINT32("sector-length", PFlashCFI02, sector_len, 0),
+    DEFINE_PROP_UINT32("num-blocks", PFlashCFI02, uniform_nb_blocs, 0),
+    DEFINE_PROP_UINT32("sector-length", PFlashCFI02, uniform_sector_len, 0),
+    DEFINE_PROP_UINT32("num-blocks0", PFlashCFI02, nb_blocs[0], 0),
+    DEFINE_PROP_UINT32("sector-length0", PFlashCFI02, sector_len[0], 0),
+    DEFINE_PROP_UINT32("num-blocks1", PFlashCFI02, nb_blocs[1], 0),
+    DEFINE_PROP_UINT32("sector-length1", PFlashCFI02, sector_len[1], 0),
+    DEFINE_PROP_UINT32("num-blocks2", PFlashCFI02, nb_blocs[2], 0),
+    DEFINE_PROP_UINT32("sector-length2", PFlashCFI02, sector_len[2], 0),
+    DEFINE_PROP_UINT32("num-blocks3", PFlashCFI02, nb_blocs[3], 0),
+    DEFINE_PROP_UINT32("sector-length3", PFlashCFI02, sector_len[3], 0),
     DEFINE_PROP_UINT8("width", PFlashCFI02, bank_width, 0),
     DEFINE_PROP_UINT8("device-width", PFlashCFI02, device_width, 0),
     DEFINE_PROP_UINT8("max-device-width", PFlashCFI02, max_device_width, 0),
