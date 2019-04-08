@@ -16,6 +16,7 @@
 #include "sysemu/hostmem.h"
 #include "sysemu/sysemu.h"
 #include "qom/object_interfaces.h"
+#include "migration/migration.h"
 
 /* hostmem-file.c */
 /**
@@ -78,6 +79,17 @@ file_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
             return;
         }
     }
+
+    /*
+     * In ignore shared incoming migration, if share=on for host memory
+     * backend file, the ram might be modified after incoming process.
+     * The user should know this potential risk.
+     */
+    if (backend->share && migrate_ignore_shared()
+                       && runstate_check(RUN_STATE_INMIGRATE))
+        warn_report("NOTE: Please make sure the data on the shared memory "
+                    "backend file and the data from the incoming migration"
+                    " stream contains matching contents, otherwise...");
 
     backend->force_prealloc = mem_prealloc;
     name = host_memory_backend_get_name(backend);
