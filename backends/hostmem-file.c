@@ -16,6 +16,7 @@
 #include "sysemu/hostmem.h"
 #include "sysemu/sysemu.h"
 #include "qom/object_interfaces.h"
+#include "migration/migration.h"
 
 /* hostmem-file.c */
 /**
@@ -78,6 +79,16 @@ file_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
             return;
         }
     }
+
+    /*
+     * In ignore shared case, if share=on for host memory backend file,
+     * the ram might be written after incoming process is finished. Thus
+     * the memory backend can't be reused for 2nd/3rd... incoming
+     */
+    if (backend->share && migrate_ignore_shared()
+                       && runstate_check(RUN_STATE_INMIGRATE))
+        warn_report("share=on for memory backend file might be "
+                        "conflicted with incoming in ignore shared case");
 
     backend->force_prealloc = mem_prealloc;
     name = host_memory_backend_get_name(backend);
