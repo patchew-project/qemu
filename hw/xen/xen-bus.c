@@ -924,6 +924,7 @@ done:
 
 struct XenEventChannel {
     QLIST_ENTRY(XenEventChannel) list;
+    AioContext *ctx;
     xenevtchn_handle *xeh;
     evtchn_port_t local_port;
     XenEventHandler handler;
@@ -943,6 +944,7 @@ static void xen_device_event(void *opaque)
 }
 
 XenEventChannel *xen_device_bind_event_channel(XenDevice *xendev,
+                                               AioContext *ctx,
                                                unsigned int port,
                                                XenEventHandler handler,
                                                void *opaque, Error **errp)
@@ -968,8 +970,9 @@ XenEventChannel *xen_device_bind_event_channel(XenDevice *xendev,
     channel->handler = handler;
     channel->opaque = opaque;
 
-    qemu_set_fd_handler(xenevtchn_fd(channel->xeh), xen_device_event, NULL,
-                        channel);
+    channel->ctx = ctx;
+    aio_set_fd_handler(channel->ctx, xenevtchn_fd(channel->xeh), false,
+                       xen_device_event, NULL, NULL, channel);
 
     QLIST_INSERT_HEAD(&xendev->event_channels, channel, list);
 
@@ -1010,7 +1013,8 @@ void xen_device_unbind_event_channel(XenDevice *xendev,
 
     QLIST_REMOVE(channel, list);
 
-    qemu_set_fd_handler(xenevtchn_fd(channel->xeh), NULL, NULL, NULL);
+    aio_set_fd_handler(channel->ctx, xenevtchn_fd(channel->xeh), false,
+                       NULL, NULL, NULL, NULL);
 
     if (xenevtchn_unbind(channel->xeh, channel->local_port) < 0) {
         error_setg_errno(errp, errno, "xenevtchn_unbind failed");
