@@ -1,0 +1,1 @@
+tests/qapi-schema/features-name-bad-type.json:1: Feature names for struct 'FeatureStruct0' must be strings
