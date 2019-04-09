@@ -4175,7 +4175,6 @@ static QMPRequest *monitor_qmp_requests_pop_any_with_lock(void)
 static void monitor_qmp_bh_dispatcher(void *data)
 {
     QMPRequest *req_obj = monitor_qmp_requests_pop_any_with_lock();
-    QDict *rsp;
     bool need_resume;
     Monitor *mon;
 
@@ -4194,11 +4193,10 @@ static void monitor_qmp_bh_dispatcher(void *data)
         trace_monitor_qmp_cmd_in_band(qobject_get_try_str(id) ?: "");
         monitor_qmp_dispatch(mon, req_obj->req);
     } else {
+        QmpSession *session = &req_obj->mon->qmp.session;
         assert(req_obj->err);
-        rsp = qmp_error_response(req_obj->err);
+        qmp_return_error(qmp_return_new(session, req_obj->req), req_obj->err);
         req_obj->err = NULL;
-        qmp_send_response(req_obj->mon, rsp);
-        qobject_unref(rsp);
     }
 
     if (need_resume) {

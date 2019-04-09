@@ -19,6 +19,46 @@
 #include "qapi/qmp/qbool.h"
 #include "sysemu/sysemu.h"
 
+QmpReturn *qmp_return_new(QmpSession *session, const QObject *request)
+{
+    QmpReturn *qret = g_new0(QmpReturn, 1);
+    const QDict *req = qobject_to(QDict, request);
+    QObject *id = req ? qdict_get(req, "id") : NULL;
+
+    qret->session = session;
+    qret->rsp = qdict_new();
+    if (id) {
+        qobject_ref(id);
+        qdict_put_obj(qret->rsp, "id", id);
+    }
+
+    return qret;
+}
+
+void qmp_return_free(QmpReturn *qret)
+{
+    qobject_unref(qret->rsp);
+    g_free(qret);
+}
+
+void qmp_return(QmpReturn *qret, QObject *rsp)
+{
+    qdict_put_obj(qret->rsp, "return", rsp ?: QOBJECT(qdict_new()));
+    qret->session->return_cb(qret->session, qret->rsp);
+    qmp_return_free(qret);
+}
+
+void qmp_return_error(QmpReturn *qret, Error *err)
+{
+    qdict_put_obj(qret->rsp, "error",
+                  qobject_from_jsonf_nofail("{ 'class': %s, 'desc': %s }",
+                      QapiErrorClass_str(error_get_class(err)),
+                      error_get_pretty(err)));
+    error_free(err);
+    qret->session->return_cb(qret->session, qret->rsp);
+    qmp_return_free(qret);
+}
+
 static QDict *qmp_dispatch_check_obj(const QObject *request, bool allow_oob,
                                      Error **errp)
 {
@@ -143,17 +183,6 @@ static QObject *do_qmp_dispatch(const QmpCommandList *cmds, QObject *request,
     return ret;
 }
 
-QDict *qmp_error_response(Error *err)
-{
-    QDict *rsp;
-
-    rsp = qdict_from_jsonf_nofail("{ 'error': { 'class': %s, 'desc': %s } }",
-                                  QapiErrorClass_str(error_get_class(err)),
-                                  error_get_pretty(err));
-    error_free(err);
-    return rsp;
-}
-
 /*
  * Does @qdict look like a command to be run out-of-band?
  */
@@ -170,9 +199,7 @@ static void qmp_json_emit(void *opaque, QObject *obj, Error *err)
     assert(!obj != !err);
 
     if (err) {
-        QDict *rsp = qmp_error_response(err);
-        session->return_cb(session, rsp);
-        qobject_unref(rsp);
+        qmp_return_error(qmp_return_new(session, obj), err);
     } else {
         qmp_dispatch(session, obj, false);
     }
@@ -208,25 +235,12 @@ void qmp_session_destroy(QmpSession *session)
 void qmp_dispatch(QmpSession *session, QObject *request, bool allow_oob)
 {
     Error *err = NULL;
-    QDict *dict = qobject_to(QDict, request);
-    QObject *ret, *id = dict ? qdict_get(dict, "id") : NULL;
-    QDict *rsp;
+    QObject *ret;
 
     ret = do_qmp_dispatch(session->cmds, request, allow_oob, &err);
     if (err) {
-        rsp = qmp_error_response(err);
+        qmp_return_error(qmp_return_new(session, request), err);
     } else if (ret) {
-        rsp = qdict_new();
-        qdict_put_obj(rsp, "return", ret);
-    } else {
-        /* Can only happen for commands with QCO_NO_SUCCESS_RESP */
-        return;
+        qmp_return(qmp_return_new(session, request), ret);
     }
-
-    if (id) {
-        qdict_put_obj(rsp, "id", qobject_ref(id));
-    }
-
-    session->return_cb(session, rsp);
-    qobject_unref(rsp);
 }
