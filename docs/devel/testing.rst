@@ -317,17 +317,17 @@ the container, with parameters defined by the make target):
 
 .. code::
 
-  make docker-test-build@min-glib
+  make docker-test-build@fedora
 
-This will create a container instance using the ``min-glib`` image (the image
+This will create a container instance using the ``fedora`` image (the image
 is downloaded and initialized automatically), in which the ``test-build`` job
 is executed.
 
 Images
 ------
 
-Along with many other images, the ``min-glib`` image is defined in a Dockerfile
-in ``tests/docker/dockefiles/``, called ``min-glib.docker``. ``make docker``
+Along with many other images, the ``fedora`` image is defined in a Dockerfile
+in ``tests/docker/dockefiles/``, called ``fedora.docker``. ``make docker``
 command will list all the available images.
 
 To add a new image, simply create a new ``.docker`` file under the
