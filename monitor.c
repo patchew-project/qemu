@@ -324,6 +324,12 @@ bool monitor_cur_is_qmp(void)
     return cur_mon && monitor_is_qmp(cur_mon);
 }
 
+Monitor *qmp_return_get_monitor(QmpReturn *qret)
+{
+    return qret->session ?
+        container_of(qret->session, Monitor, qmp.session) : NULL;
+}
+
 void monitor_read_command(Monitor *mon, int show_prompt)
 {
     if (!mon->rs)

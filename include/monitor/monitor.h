@@ -5,6 +5,7 @@
 #include "block/block.h"
 #include "qapi/qapi-types-misc.h"
 #include "qemu/readline.h"
+#include "qapi/qmp/dispatch.h"
 
 extern __thread Monitor *cur_mon;
 
@@ -50,5 +51,7 @@ int monitor_fdset_dup_fd_find(int dup_fd);
 
 void monitor_vfprintf(FILE *stream,
                       const char *fmt, va_list ap) GCC_FMT_ATTR(2, 0);
+
+Monitor *qmp_return_get_monitor(QmpReturn *qret);
 
 #endif /* MONITOR_H */
