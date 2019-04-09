@@ -361,5 +361,8 @@ void json_lexer_flush(JSONLexer *lexer)
 
 void json_lexer_destroy(JSONLexer *lexer)
 {
-    g_string_free(lexer->token, true);
+    if (lexer->token) {
+        g_string_free(lexer->token, true);
+        lexer->token = NULL;
+    }
 }
