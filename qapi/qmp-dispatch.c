@@ -182,12 +182,14 @@ static void qmp_json_emit(void *opaque, QObject *obj, Error *err)
 
 void qmp_session_init(QmpSession *session,
                       const QmpCommandList *cmds,
+                      JSONMessageEmit *emit,
                       QmpDispatchReturn *return_cb)
 {
     assert(return_cb);
     assert(!session->return_cb);
 
-    json_message_parser_init(&session->parser, qmp_json_emit, session, NULL);
+    json_message_parser_init(&session->parser, emit ?: qmp_json_emit,
+                             session, NULL);
     session->cmds = cmds;
     session->return_cb = return_cb;
 }
