@@ -106,26 +106,19 @@ static int vfio_set_trigger_eventfd(VFIOINTp *intp,
                                     eventfd_user_side_handler_t handler)
 {
     VFIODevice *vbasedev = &intp->vdev->vbasedev;
-    struct vfio_irq_set *irq_set;
-    int argsz, ret;
-    int32_t *pfd;
+    int32_t fd = event_notifier_get_fd(intp->interrupt);
+    Error *err = NULL;
+    int ret;
 
-    argsz = sizeof(*irq_set) + sizeof(*pfd);
-    irq_set = g_malloc0(argsz);
-    irq_set->argsz = argsz;
-    irq_set->flags = VFIO_IRQ_SET_DATA_EVENTFD | VFIO_IRQ_SET_ACTION_TRIGGER;
-    irq_set->index = intp->pin;
-    irq_set->start = 0;
-    irq_set->count = 1;
-    pfd = (int32_t *)&irq_set->data;
-    *pfd = event_notifier_get_fd(intp->interrupt);
-    qemu_set_fd_handler(*pfd, (IOHandler *)handler, NULL, intp);
-    ret = ioctl(vbasedev->fd, VFIO_DEVICE_SET_IRQS, irq_set);
-    if (ret < 0) {
-        error_report("vfio: Failed to set trigger eventfd: %m");
-        qemu_set_fd_handler(*pfd, NULL, NULL, NULL);
+    qemu_set_fd_handler(fd, (IOHandler *)handler, NULL, intp);
+
+    ret = vfio_set_irq_signaling(vbasedev, intp->pin, 0,
+                                 VFIO_IRQ_SET_ACTION_TRIGGER, fd, &err);
+    if (ret) {
+        error_reportf_err(err, VFIO_MSG_PREFIX, vbasedev->name);
+        qemu_set_fd_handler(fd, NULL, NULL, NULL);
     }
-    g_free(irq_set);
+
     return ret;
 }
 
@@ -361,26 +354,18 @@ static void vfio_start_eventfd_injection(SysBusDevice *sbdev, qemu_irq irq)
  */
 static int vfio_set_resample_eventfd(VFIOINTp *intp)
 {
+    int32_t fd = event_notifier_get_fd(intp->unmask);
     VFIODevice *vbasedev = &intp->vdev->vbasedev;
-    struct vfio_irq_set *irq_set;
-    int argsz, ret;
-    int32_t *pfd;
+    Error *err = NULL;
+    int ret;
 
-    argsz = sizeof(*irq_set) + sizeof(*pfd);
-    irq_set = g_malloc0(argsz);
-    irq_set->argsz = argsz;
-    irq_set->flags = VFIO_IRQ_SET_DATA_EVENTFD | VFIO_IRQ_SET_ACTION_UNMASK;
-    irq_set->index = intp->pin;
-    irq_set->start = 0;
-    irq_set->count = 1;
-    pfd = (int32_t *)&irq_set->data;
-    *pfd = event_notifier_get_fd(intp->unmask);
-    qemu_set_fd_handler(*pfd, NULL, NULL, NULL);
-    ret = ioctl(vbasedev->fd, VFIO_DEVICE_SET_IRQS, irq_set);
-    g_free(irq_set);
-    if (ret < 0) {
-        error_report("vfio: Failed to set resample eventfd: %m");
+    qemu_set_fd_handler(fd, NULL, NULL, NULL);
+    ret = vfio_set_irq_signaling(vbasedev, intp->pin, 0,
+                                 VFIO_IRQ_SET_ACTION_UNMASK, fd, &err);
+    if (ret) {
+        error_reportf_err(err, VFIO_MSG_PREFIX, vbasedev->name);
     }
+
     return ret;
 }
 

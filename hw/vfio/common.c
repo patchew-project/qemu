@@ -95,6 +95,67 @@ void vfio_mask_single_irqindex(VFIODevice *vbasedev, int index)
     ioctl(vbasedev->fd, VFIO_DEVICE_SET_IRQS, &irq_set);
 }
 
+static inline const char *action_to_str(int action)
+{
+    switch (action) {
+    case VFIO_IRQ_SET_ACTION_MASK:
+        return "MASK";
+    case VFIO_IRQ_SET_ACTION_UNMASK:
+        return "UNMASK";
+    case VFIO_IRQ_SET_ACTION_TRIGGER:
+        return "TRIGGER";
+    default:
+        return "UNKNOWN ACTION";
+    }
+}
+
+int vfio_set_irq_signaling(VFIODevice *vbasedev, int index, int subindex,
+                           int action, int fd, Error **errp)
+{
+    struct vfio_irq_info irq_info = { .argsz = sizeof(irq_info),
+                                      .index = index };
+    struct vfio_irq_set *irq_set;
+    int argsz, ret = 0;
+    int32_t *pfd;
+
+    ret = ioctl(vbasedev->fd, VFIO_DEVICE_GET_IRQ_INFO, &irq_info);
+    if (ret < 0) {
+        error_setg_errno(errp, errno, "index %d does not exist", index);
+        goto error;
+    }
+    if (irq_info.count < subindex + 1) {
+        error_setg_errno(errp, errno, "subindex %d does not exist", subindex);
+        goto error;
+    }
+
+    argsz = sizeof(*irq_set) + sizeof(*pfd);
+
+    irq_set = g_malloc0(argsz);
+    irq_set->argsz = argsz;
+    irq_set->flags = VFIO_IRQ_SET_DATA_EVENTFD | action;
+    irq_set->index = index;
+    irq_set->start = subindex;
+    irq_set->count = 1;
+    pfd = (int32_t *)&irq_set->data;
+    *pfd = fd;
+
+    ret = ioctl(vbasedev->fd, VFIO_DEVICE_SET_IRQS, irq_set);
+
+    g_free(irq_set);
+
+    if (ret) {
+        error_setg_errno(errp, -ret, "VFIO_DEVICE_SET_IRQS failure");
+        goto error;
+    }
+    return 0;
+error:
+    error_prepend(errp,
+                  "Failed to %s %s eventfd signaling for interrupt [%d,%d]: ",
+                  fd < 0 ? "tear down" : "set up", action_to_str(action),
+                  index, subindex);
+    return ret;
+}
+
 /*
  * IO Port/MMIO - Beware of the endians, VFIO is always little endian
  */
