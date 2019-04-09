@@ -64,6 +64,16 @@ void qmp_return_free(QmpReturn *qret)
     }
 }
 
+bool qmp_return_is_cancelled(QmpReturn *qret)
+{
+    if (!qret->session) {
+        qmp_return_free(qret);
+        return true;
+    }
+
+    return false;
+}
+
 static void qmp_return_orderly(QmpReturn *qret)
 {
     QmpSession *session = qret->session;
