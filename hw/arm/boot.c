@@ -425,7 +425,7 @@ static void set_kernel_args_old(const struct arm_boot_info *info,
 
 static int fdt_add_memory_node(void *fdt, uint32_t acells, hwaddr mem_base,
                                uint32_t scells, hwaddr mem_len,
-                               int numa_node_id)
+                               int numa_node_id, bool hotplug)
 {
     char *nodename;
     int ret;
@@ -443,6 +443,22 @@ static int fdt_add_memory_node(void *fdt, uint32_t acells, hwaddr mem_base,
     if (numa_node_id >= 0) {
         ret = qemu_fdt_setprop_cell(fdt, nodename,
                                     "numa-node-id", numa_node_id);
+    }
+
+    /*
+     * Firmware has no way of differentiating the memory nodes currently
+     * and in the case of device memory nodes this is a problem if Guest
+     * boots with ACPI as these nodes might get exposed to Guest Kernel
+     * via UEFI GetMemoryMap() as early boot memory. This will prevent
+     * the memory being hot-unpluggable. To address this, an additional
+     * "hotpluggable" property is introduced here, similar to the
+     * MEM_AFFINITY_HOTPLUGGABLE flag used in ACPI SRAT table.
+     * Firmware can now check for "hotpluggable" property in the memory
+     * node and treat them differently.
+     */
+
+    if (hotplug) {
+        ret = qemu_fdt_setprop(fdt, nodename, "hotpluggable", NULL, 0);
     }
 out:
     g_free(nodename);
@@ -602,7 +618,7 @@ int arm_load_dtb(hwaddr addr, const struct arm_boot_info *binfo,
         for (i = 0; i < nb_numa_nodes; i++) {
             mem_len = numa_info[i].node_mem;
             rc = fdt_add_memory_node(fdt, acells, mem_base,
-                                     scells, mem_len, i);
+                                     scells, mem_len, i, false);
             if (rc < 0) {
                 fprintf(stderr, "couldn't add /memory@%"PRIx64" node\n",
                         mem_base);
@@ -613,7 +629,7 @@ int arm_load_dtb(hwaddr addr, const struct arm_boot_info *binfo,
         }
     } else {
         rc = fdt_add_memory_node(fdt, acells, binfo->loader_start,
-                                 scells, binfo->ram_size, -1);
+                                 scells, binfo->ram_size, -1, false);
         if (rc < 0) {
             fprintf(stderr, "couldn't add /memory@%"PRIx64" node\n",
                     binfo->loader_start);
