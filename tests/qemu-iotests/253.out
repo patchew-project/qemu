@@ -1,0 +1,4 @@
+qemu-img: error while reading sector 0: Input/output error
+
+qemu-img: failed to read 786432 bytes at offset 0: Input/output error
+

@@ -1,0 +1,69 @@
+#!/usr/bin/env python
+#
+# Test of the 'qemu-img convert' for a damaged image.
+#
+# Copyright (c) 2019 Virtuozzo International GmbH
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import iotests
+import os
+from iotests import qemu_img_create, qemu_io, qemu_img_pipe, \
+    file_path, log
+
+iotests.verify_image_format(supported_fmts=['qcow2'])
+
+disk = file_path('disk')
+chunk = 256 * 1024
+bad_sector = 768
+blkdebug_file = os.path.join(iotests.test_dir, 'blkdebug.conf')
+
+
+def create_blkdebug_file():
+    file = open(blkdebug_file, 'w')
+    file.write('''
+[inject-error]
+event = "read_aio"
+errno = "5"
+once ="off"
+sector = "%d"
+''' % (bad_sector))
+    file.close()
+
+
+def write_to_disk(offset, size):
+    write = 'write -P 7 {} {}'.format(offset, size)
+    qemu_io('-c', write, disk)
+
+
+qemu_img_create('-f', iotests.imgfmt, disk, '1M')
+
+for num in range(1, 4):
+    write_to_disk((num-1) * chunk, chunk)
+
+create_blkdebug_file()
+disk_converted = disk + '_converted'
+log(qemu_img_pipe('convert', '-O', iotests.imgfmt, 'blkdebug:%s:%s'
+                  % (blkdebug_file, disk), disk_converted))
+log(qemu_img_pipe('convert', '-O', iotests.imgfmt, '-R', 'blkdebug:%s:%s'
+                  % (blkdebug_file, disk), disk_converted))
+
+# TODO: with a class, self.assertNotEqual(
+#       qemu_io('-f', iotests.imgfmt, '-rU', '-c', 'map', disk),
+#       qemu_io('-f', iotests.imgfmt, '-rU', '-c', 'map', disk_converted),
+#               'image file map matches the copied file after conversion')
+
+os.remove(disk_converted)
+os.remove(blkdebug_file)
