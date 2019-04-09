@@ -75,14 +75,14 @@ static QDict *qmp_dispatch_check_obj(const QObject *request, bool allow_oob,
     return dict;
 }
 
-static QObject *do_qmp_dispatch(QmpCommandList *cmds, QObject *request,
+static QObject *do_qmp_dispatch(const QmpCommandList *cmds, QObject *request,
                                 bool allow_oob, Error **errp)
 {
     Error *local_err = NULL;
     bool oob;
     const char *command;
     QDict *args, *dict;
-    QmpCommand *cmd;
+    const QmpCommand *cmd;
     QObject *ret = NULL;
 
     dict = qmp_dispatch_check_obj(request, allow_oob, errp);
@@ -163,7 +163,7 @@ bool qmp_is_oob(const QDict *dict)
         && !qdict_haskey(dict, "execute");
 }
 
-QDict *qmp_dispatch(QmpCommandList *cmds, QObject *request,
+QDict *qmp_dispatch(const QmpCommandList *cmds, QObject *request,
                     bool allow_oob)
 {
     Error *err = NULL;
