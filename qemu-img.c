@@ -175,6 +175,7 @@ static void QEMU_NORETURN help(void)
            "Parameters to convert subcommand:\n"
            "  '-m' specifies how many coroutines work in parallel during the convert\n"
            "       process (defaults to 8)\n"
+           "  '-R' continue the image conversion in case of the sector read error\n"
            "  '-W' allow to write to the target out of order rather than sequential\n"
            "\n"
            "Parameters to snapshot subcommand:\n"
@@ -1579,6 +1580,7 @@ typedef struct ImgConvertState {
     int64_t wait_sector_num[MAX_COROUTINES];
     CoMutex lock;
     int ret;
+    bool force_read;
 } ImgConvertState;
 
 static void convert_select_part(ImgConvertState *s, int64_t sector_num,
@@ -1693,7 +1695,15 @@ static int coroutine_fn convert_co_read(ImgConvertState *s, int64_t sector_num,
                 blk, (sector_num - src_cur_offset) << BDRV_SECTOR_BITS,
                 n << BDRV_SECTOR_BITS, &qiov, 0);
         if (ret < 0) {
-            return ret;
+            if (!s->force_read) {
+                return ret;
+            }
+            int64_t offset = (sector_num - src_cur_offset) << BDRV_SECTOR_BITS;
+            unsigned int bytes = n << BDRV_SECTOR_BITS;
+            error_report("failed to read %d bytes at offset %" PRId64 ": %s",
+                         bytes, offset, strerror(-ret));
+            memset(buf, 0, n * BDRV_SECTOR_SIZE);
+            /* TODO: retry to read smaller chunks */
         }
 
         sector_num += n;
@@ -2018,6 +2028,7 @@ static int img_convert(int argc, char **argv)
         .buf_sectors        = IO_BUF_SIZE / BDRV_SECTOR_SIZE,
         .wr_in_order        = true,
         .num_coroutines     = 8,
+        .force_read         = false,
     };
 
     for(;;) {
@@ -2029,7 +2040,7 @@ static int img_convert(int argc, char **argv)
             {"target-image-opts", no_argument, 0, OPTION_TARGET_IMAGE_OPTS},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, ":hf:O:B:Cco:l:S:pt:T:qnm:WU",
+        c = getopt_long(argc, argv, ":hf:O:B:Cco:l:S:pt:T:qnm:RWU",
                         long_options, NULL);
         if (c == -1) {
             break;
@@ -2131,6 +2142,9 @@ static int img_convert(int argc, char **argv)
             break;
         case 'U':
             force_share = true;
+            break;
+        case 'R':
+            s.force_read = true;
             break;
         case OPTION_OBJECT: {
             QemuOpts *object_opts;
