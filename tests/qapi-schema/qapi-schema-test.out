@@ -208,6 +208,14 @@ command user_def_cmd2 q_obj_user_def_cmd2-arg -> UserDefTwo
    gen=True success_response=True boxed=False oob=False preconfig=False
 command cmd-success-response None -> None
    gen=True success_response=False boxed=False oob=False preconfig=False
+object q_obj_cmd-async-arg
+    member filename: str optional=False
+command cmd-async q_obj_cmd-async-arg -> Empty2
+   gen=True success_response=True boxed=False oob=False preconfig=False async=True
+object q_obj_cmd-success-response-async-arg
+    member filename: str optional=False
+command cmd-success-response-async q_obj_cmd-success-response-async-arg -> None
+   gen=True success_response=False boxed=False oob=False preconfig=False async=True
 object q_obj_guest-get-time-arg
     member a: int optional=False
     member b: int optional=True

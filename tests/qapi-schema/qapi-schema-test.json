@@ -143,6 +143,11 @@
 
 { 'command': 'cmd-success-response', 'data': {}, 'success-response': false }
 
+{ 'command': 'cmd-async', 'data': {'filename': 'str'},
+  'returns': 'Empty2', 'async': true }
+{ 'command': 'cmd-success-response-async', 'data': {'filename': 'str'},
+  'async': true, 'success-response': false}
+
 # Returning a non-dictionary requires a name from the whitelist
 { 'command': 'guest-get-time', 'data': {'a': 'int', '*b': 'int' },
   'returns': 'int' }
