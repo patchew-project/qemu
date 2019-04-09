@@ -174,7 +174,7 @@ typedef struct {
      * qmp_capabilities succeeds, we go into command mode, and
      * @command becomes &qmp_commands.
      */
-    const QmpCommandList *commands;
+    QmpSession session;
     bool capab_offered[QMP_CAPABILITY__MAX]; /* capabilities offered */
     bool capab[QMP_CAPABILITY__MAX];         /* offered and accepted */
     /*
@@ -520,7 +520,7 @@ static void monitor_qapi_event_emit(QAPIEvent event, QDict *qdict)
     trace_monitor_protocol_event_emit(event, qdict);
     QTAILQ_FOREACH(mon, &mon_list, entry) {
         if (monitor_is_qmp(mon)
-            && mon->qmp.commands != &qmp_cap_negotiation_commands) {
+            && mon->qmp.session.cmds != &qmp_cap_negotiation_commands) {
             qmp_send_response(mon, qdict);
         }
     }
@@ -729,6 +729,7 @@ static void monitor_data_destroy(Monitor *mon)
     g_free(mon->mon_cpu_path);
     qemu_chr_fe_deinit(&mon->chr, false);
     if (monitor_is_qmp(mon)) {
+        qmp_session_destroy(&mon->qmp.session);
         json_message_parser_destroy(&mon->qmp.parser);
     }
     readline_free(mon->rs);
@@ -1090,7 +1091,7 @@ CommandInfoList *qmp_query_commands(Error **errp)
 {
     CommandInfoList *list = NULL;
 
-    qmp_for_each_command(cur_mon->qmp.commands, query_commands_cb, &list);
+    qmp_for_each_command(cur_mon->qmp.session.cmds, query_commands_cb, &list);
 
     return list;
 }
@@ -1207,7 +1208,7 @@ static bool qmp_caps_accept(Monitor *mon, QMPCapabilityList *list,
 void qmp_qmp_capabilities(bool has_enable, QMPCapabilityList *enable,
                           Error **errp)
 {
-    if (cur_mon->qmp.commands == &qmp_commands) {
+    if (cur_mon->qmp.session.cmds == &qmp_commands) {
         error_set(errp, ERROR_CLASS_COMMAND_NOT_FOUND,
                   "Capabilities negotiation is already complete, command "
                   "ignored");
@@ -1218,7 +1219,7 @@ void qmp_qmp_capabilities(bool has_enable, QMPCapabilityList *enable,
         return;
     }
 
-    cur_mon->qmp.commands = &qmp_commands;
+    cur_mon->qmp.session.cmds = &qmp_commands;
 }
 
 /* Set the current CPU defined by the user. Callers must hold BQL. */
@@ -4121,11 +4122,11 @@ static void monitor_qmp_dispatch(Monitor *mon, QObject *req)
     old_mon = cur_mon;
     cur_mon = mon;
 
-    rsp = qmp_dispatch(mon->qmp.commands, req, qmp_oob_enabled(mon));
+    rsp = qmp_dispatch(&mon->qmp.session, req, qmp_oob_enabled(mon));
 
     cur_mon = old_mon;
 
-    if (mon->qmp.commands == &qmp_cap_negotiation_commands) {
+    if (mon->qmp.session.cmds == &qmp_cap_negotiation_commands) {
         error = qdict_get_qdict(rsp, "error");
         if (error
             && !g_strcmp0(qdict_get_try_str(error, "class"),
@@ -4399,7 +4400,7 @@ static void monitor_qmp_event(void *opaque, int event)
 
     switch (event) {
     case CHR_EVENT_OPENED:
-        mon->qmp.commands = &qmp_cap_negotiation_commands;
+        qmp_session_init(&mon->qmp.session, &qmp_cap_negotiation_commands);
         monitor_qmp_caps_reset(mon);
         data = qmp_greeting(mon);
         qmp_send_response(mon, data);
@@ -4414,6 +4415,7 @@ static void monitor_qmp_event(void *opaque, int event)
          * is closed.
          */
         monitor_qmp_cleanup_queues(mon);
+        qmp_session_destroy(&mon->qmp.session);
         json_message_parser_destroy(&mon->qmp.parser);
         json_message_parser_init(&mon->qmp.parser, handle_qmp_command,
                                  mon, NULL);

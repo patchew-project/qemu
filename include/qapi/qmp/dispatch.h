@@ -37,10 +37,18 @@ typedef struct QmpCommand
 
 typedef QTAILQ_HEAD(QmpCommandList, QmpCommand) QmpCommandList;
 
+typedef struct QmpSession QmpSession;
+
+struct QmpSession {
+    const QmpCommandList *cmds;
+};
+
 void qmp_register_command(QmpCommandList *cmds, const char *name,
                           QmpCommandFunc *fn, QmpCommandOptions options);
 const QmpCommand *qmp_find_command(const QmpCommandList *cmds,
                                    const char *name);
+void qmp_session_init(QmpSession *session, const QmpCommandList *cmds);
+void qmp_session_destroy(QmpSession *session);
 void qmp_disable_command(QmpCommandList *cmds, const char *name);
 void qmp_enable_command(QmpCommandList *cmds, const char *name);
 
@@ -48,7 +56,7 @@ bool qmp_command_is_enabled(const QmpCommand *cmd);
 const char *qmp_command_name(const QmpCommand *cmd);
 bool qmp_has_success_response(const QmpCommand *cmd);
 QDict *qmp_error_response(Error *err);
-QDict *qmp_dispatch(const QmpCommandList *cmds, QObject *request,
+QDict *qmp_dispatch(QmpSession *session, QObject *request,
                     bool allow_oob);
 bool qmp_is_oob(const QDict *dict);
 
