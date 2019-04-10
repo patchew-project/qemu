@@ -258,8 +258,8 @@ migration_exec_outgoing(const char *cmd) "cmd=%s"
 migration_exec_incoming(const char *cmd) "cmd=%s"
 
 # fd.c
-migration_fd_outgoing(int fd) "fd=%d"
-migration_fd_incoming(int fd) "fd=%d"
+migration_fd_outgoing(int fd, int dup_fd) "fd=%d dup_fd=%d"
+migration_fd_incoming(int fd, int dup_fd) "fd=%d dup_fd=%d"
 
 # socket.c
 migration_socket_incoming_accepted(void) ""

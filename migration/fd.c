@@ -15,6 +15,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "channel.h"
 #include "fd.h"
 #include "migration.h"
@@ -26,15 +27,27 @@
 void fd_start_outgoing_migration(MigrationState *s, const char *fdname, Error **errp)
 {
     QIOChannel *ioc;
-    int fd = monitor_get_fd(cur_mon, fdname, errp);
+    int fd, dup_fd;
+
+    fd = monitor_get_fd(cur_mon, fdname, errp);
     if (fd == -1) {
         return;
     }
 
-    trace_migration_fd_outgoing(fd);
-    ioc = qio_channel_new_fd(fd, errp);
+    /* fd is previously created by qmp command 'getfd',
+     * so client is responsible to close it. Dup it to save original value from
+     * QIOChannel's destructor */
+    dup_fd = qemu_dup(fd);
+    if (dup_fd == -1) {
+        error_setg(errp, "Cannot dup fd %s: %s (%d)", fdname, strerror(errno),
+                   errno);
+        return;
+    }
+
+    trace_migration_fd_outgoing(fd, dup_fd);
+    ioc = qio_channel_new_fd(dup_fd, errp);
     if (!ioc) {
-        close(fd);
+        close(dup_fd);
         return;
     }
 
@@ -55,14 +68,24 @@ static gboolean fd_accept_incoming_migration(QIOChannel *ioc,
 void fd_start_incoming_migration(const char *infd, Error **errp)
 {
     QIOChannel *ioc;
-    int fd;
+    int fd, dup_fd;
 
     fd = strtol(infd, NULL, 0);
-    trace_migration_fd_incoming(fd);
 
-    ioc = qio_channel_new_fd(fd, errp);
+    /* fd is previously created by qmp command 'add-fd' or something else,
+     * so client is responsible to close it. Dup it to save original value from
+     * QIOChannel's destructor */
+    dup_fd = qemu_dup(fd);
+    if (dup_fd == -1) {
+        error_setg(errp, "Cannot dup fd %d: %s (%d)", fd, strerror(errno),
+                   errno);
+        return;
+    }
+
+    trace_migration_fd_incoming(fd, dup_fd);
+    ioc = qio_channel_new_fd(dup_fd, errp);
     if (!ioc) {
-        close(fd);
+        close(dup_fd);
         return;
     }
 
