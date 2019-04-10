@@ -30,7 +30,11 @@ def generate_texi(conf):
     print("@table @option")
     for command, usage_strs in conf.items():
         usage = " ".join(usage_strs)
+        macro = "qemuimgcmd{}".format(command)
+        print("@macro {}".format(macro))
         print("@item {} {}".format(command, usage))
+        print("@end macro")
+        print("@{}".format(macro))
     print("@end table")
 
 if __name__ == '__main__':
