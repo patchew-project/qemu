@@ -3305,7 +3305,7 @@ static int img_rebase(int argc, char **argv)
 
     /* For safe rebasing we need to compare old and new backing file */
     if (!unsafe) {
-        char backing_name[PATH_MAX];
+        char *backing_name;
         QDict *options = NULL;
 
         if (bs->backing_format[0] != '\0') {
@@ -3319,16 +3319,24 @@ static int img_rebase(int argc, char **argv)
             }
             qdict_put_bool(options, BDRV_OPT_FORCE_SHARE, true);
         }
-        bdrv_get_backing_filename(bs, backing_name, sizeof(backing_name));
+        backing_name = bdrv_get_full_backing_filename(bs, &local_err);
+        if (local_err) {
+            error_reportf_err(local_err,
+                              "Could not resolve old backing file name: ");
+            ret = -1;
+            goto out;
+        }
         blk_old_backing = blk_new_open(backing_name, NULL,
                                        options, src_flags, &local_err);
         if (!blk_old_backing) {
             error_reportf_err(local_err,
                               "Could not open old backing file '%s': ",
                               backing_name);
+            g_free(backing_name);
             ret = -1;
             goto out;
         }
+        g_free(backing_name);
 
         if (out_baseimg[0]) {
             const char *overlay_filename;
