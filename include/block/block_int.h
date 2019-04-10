@@ -1243,6 +1243,7 @@ int refresh_total_sectors(BlockDriverState *bs, int64_t hint);
 BdrvChild *bdrv_filtered_cow_child(BlockDriverState *bs);
 BdrvChild *bdrv_filtered_rw_child(BlockDriverState *bs);
 BdrvChild *bdrv_filtered_child(BlockDriverState *bs);
+BdrvChild *bdrv_storage_child(BlockDriverState *bs);
 BlockDriverState *bdrv_skip_implicit_filters(BlockDriverState *bs);
 BlockDriverState *bdrv_skip_rw_filters(BlockDriverState *bs);
 BlockDriverState *bdrv_backing_chain_next(BlockDriverState *bs);
@@ -1265,6 +1266,11 @@ static inline BlockDriverState *bdrv_filtered_rw_bs(BlockDriverState *bs)
 static inline BlockDriverState *bdrv_filtered_bs(BlockDriverState *bs)
 {
     return child_bs(bdrv_filtered_child(bs));
+}
+
+static inline BlockDriverState *bdrv_storage_bs(BlockDriverState *bs)
+{
+    return child_bs(bdrv_storage_child(bs));
 }
 
 #endif /* BLOCK_INT_H */

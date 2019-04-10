@@ -4404,15 +4404,21 @@ exit:
 int64_t bdrv_get_allocated_file_size(BlockDriverState *bs)
 {
     BlockDriver *drv = bs->drv;
+    BlockDriverState *storage_bs;
+
     if (!drv) {
         return -ENOMEDIUM;
     }
+
     if (drv->bdrv_get_allocated_file_size) {
         return drv->bdrv_get_allocated_file_size(bs);
     }
-    if (bs->file) {
-        return bdrv_get_allocated_file_size(bs->file->bs);
+
+    storage_bs = bdrv_storage_bs(bs);
+    if (storage_bs) {
+        return bdrv_get_allocated_file_size(storage_bs);
     }
+
     return -ENOTSUP;
 }
 
@@ -4982,7 +4988,7 @@ int bdrv_debug_breakpoint(BlockDriverState *bs, const char *event,
                           const char *tag)
 {
     while (bs && bs->drv && !bs->drv->bdrv_debug_breakpoint) {
-        bs = bs->file ? bs->file->bs : NULL;
+        bs = bdrv_storage_bs(bs);
     }
 
     if (bs && bs->drv && bs->drv->bdrv_debug_breakpoint) {
@@ -4995,7 +5001,7 @@ int bdrv_debug_breakpoint(BlockDriverState *bs, const char *event,
 int bdrv_debug_remove_breakpoint(BlockDriverState *bs, const char *tag)
 {
     while (bs && bs->drv && !bs->drv->bdrv_debug_remove_breakpoint) {
-        bs = bs->file ? bs->file->bs : NULL;
+        bs = bdrv_storage_bs(bs);
     }
 
     if (bs && bs->drv && bs->drv->bdrv_debug_remove_breakpoint) {
@@ -5008,7 +5014,7 @@ int bdrv_debug_remove_breakpoint(BlockDriverState *bs, const char *tag)
 int bdrv_debug_resume(BlockDriverState *bs, const char *tag)
 {
     while (bs && (!bs->drv || !bs->drv->bdrv_debug_resume)) {
-        bs = bs->file ? bs->file->bs : NULL;
+        bs = bdrv_storage_bs(bs);
     }
 
     if (bs && bs->drv && bs->drv->bdrv_debug_resume) {
@@ -5021,7 +5027,7 @@ int bdrv_debug_resume(BlockDriverState *bs, const char *tag)
 bool bdrv_debug_is_suspended(BlockDriverState *bs, const char *tag)
 {
     while (bs && bs->drv && !bs->drv->bdrv_debug_is_suspended) {
-        bs = bs->file ? bs->file->bs : NULL;
+        bs = bdrv_storage_bs(bs);
     }
 
     if (bs && bs->drv && bs->drv->bdrv_debug_is_suspended) {
@@ -6142,14 +6148,23 @@ void bdrv_refresh_filename(BlockDriverState *bs)
         bs->exact_filename[0] = '\0';
 
         drv->bdrv_refresh_filename(bs);
-    } else if (bs->file) {
-        /* Try to reconstruct valid information from the underlying file */
+    } else if (bdrv_storage_child(bs)) {
+        /*
+         * Try to reconstruct valid information from the underlying
+         * file -- this only works for format nodes (filter nodes
+         * cannot be probed and as such must be selected by the user
+         * either through an options dict, or through a special
+         * filename which the filter driver must construct in its
+         * .bdrv_refresh_filename() implementation).
+         */
+        BlockDriverState *storage_bs = bdrv_storage_bs(bs);
 
         bs->exact_filename[0] = '\0';
 
         /*
          * We can use the underlying file's filename if:
          * - it has a filename,
+         * - the current BDS is not a filter,
          * - the file is a protocol BDS, and
          * - opening that file (as this BDS's format) will automatically create
          *   the BDS tree we have right now, that is:
@@ -6158,11 +6173,10 @@ void bdrv_refresh_filename(BlockDriverState *bs)
          *   - no non-file child of this BDS has been overridden by the user
          *   Both of these conditions are represented by generate_json_filename.
          */
-        if (bs->file->bs->exact_filename[0] &&
-            bs->file->bs->drv->bdrv_file_open &&
-            !generate_json_filename)
+        if (storage_bs->exact_filename[0] && storage_bs->drv->bdrv_file_open &&
+            !drv->is_filter && !generate_json_filename)
         {
-            strcpy(bs->exact_filename, bs->file->bs->exact_filename);
+            strcpy(bs->exact_filename, storage_bs->exact_filename);
         }
     }
 
@@ -6179,6 +6193,7 @@ void bdrv_refresh_filename(BlockDriverState *bs)
 char *bdrv_dirname(BlockDriverState *bs, Error **errp)
 {
     BlockDriver *drv = bs->drv;
+    BlockDriverState *storage_bs;
 
     if (!drv) {
         error_setg(errp, "Node '%s' is ejected", bs->node_name);
@@ -6189,8 +6204,9 @@ char *bdrv_dirname(BlockDriverState *bs, Error **errp)
         return drv->bdrv_dirname(bs, errp);
     }
 
-    if (bs->file) {
-        return bdrv_dirname(bs->file->bs, errp);
+    storage_bs = bdrv_storage_bs(bs);
+    if (storage_bs) {
+        return bdrv_dirname(storage_bs, errp);
     }
 
     bdrv_refresh_filename(bs);
@@ -6322,6 +6338,15 @@ BdrvChild *bdrv_filtered_child(BlockDriverState *bs)
     assert(!(cow_child && rw_child));
 
     return cow_child ?: rw_child;
+}
+
+/*
+ * Return the child that stores the data that is allocated on this
+ * node.  This may or may not include metadata.
+ */
+BdrvChild *bdrv_storage_child(BlockDriverState *bs)
+{
+    return bdrv_filtered_rw_child(bs) ?: bs->file;
 }
 
 static BlockDriverState *bdrv_skip_filters(BlockDriverState *bs,

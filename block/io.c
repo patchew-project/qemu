@@ -118,16 +118,9 @@ static void bdrv_merge_limits(BlockLimits *dst, const BlockLimits *src)
 void bdrv_refresh_limits(BlockDriverState *bs, Error **errp)
 {
     BlockDriver *drv = bs->drv;
-    BlockDriverState *storage_bs;
+    BlockDriverState *storage_bs = bdrv_storage_bs(bs);
     BlockDriverState *cow_bs = bdrv_filtered_cow_bs(bs);
     Error *local_err = NULL;
-
-    /*
-     * FIXME: There should be a function for this, and in fact there
-     * will be as of a follow-up patch.
-     */
-    storage_bs =
-        child_bs(bs->file) ?: bdrv_filtered_rw_bs(bs);
 
     memset(&bs->bl, 0, sizeof(bs->bl));
 
@@ -2390,6 +2383,7 @@ bdrv_co_rw_vmstate(BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos,
                    bool is_read)
 {
     BlockDriver *drv = bs->drv;
+    BlockDriverState *storage_bs = bdrv_storage_bs(bs);
     int ret = -ENOTSUP;
 
     bdrv_inc_in_flight(bs);
@@ -2402,8 +2396,8 @@ bdrv_co_rw_vmstate(BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos,
         } else {
             ret = drv->bdrv_save_vmstate(bs, qiov, pos);
         }
-    } else if (bs->file) {
-        ret = bdrv_co_rw_vmstate(bs->file->bs, qiov, pos, is_read);
+    } else if (storage_bs) {
+        ret = bdrv_co_rw_vmstate(storage_bs, qiov, pos, is_read);
     }
 
     bdrv_dec_in_flight(bs);
@@ -2530,6 +2524,7 @@ static void coroutine_fn bdrv_flush_co_entry(void *opaque)
 
 int coroutine_fn bdrv_co_flush(BlockDriverState *bs)
 {
+    BlockDriverState *storage_bs;
     int current_gen;
     int ret = 0;
 
@@ -2559,7 +2554,7 @@ int coroutine_fn bdrv_co_flush(BlockDriverState *bs)
     }
 
     /* Write back cached data to the OS even with cache=unsafe */
-    BLKDBG_EVENT(bs->file, BLKDBG_FLUSH_TO_OS);
+    BLKDBG_EVENT(bdrv_storage_child(bs), BLKDBG_FLUSH_TO_OS);
     if (bs->drv->bdrv_co_flush_to_os) {
         ret = bs->drv->bdrv_co_flush_to_os(bs);
         if (ret < 0) {
@@ -2577,7 +2572,7 @@ int coroutine_fn bdrv_co_flush(BlockDriverState *bs)
         goto flush_parent;
     }
 
-    BLKDBG_EVENT(bs->file, BLKDBG_FLUSH_TO_DISK);
+    BLKDBG_EVENT(bdrv_storage_child(bs), BLKDBG_FLUSH_TO_DISK);
     if (!bs->drv) {
         /* bs->drv->bdrv_co_flush() might have ejected the BDS
          * (even in case of apparent success) */
@@ -2622,7 +2617,8 @@ int coroutine_fn bdrv_co_flush(BlockDriverState *bs)
      * in the case of cache=unsafe, so there are no useless flushes.
      */
 flush_parent:
-    ret = bs->file ? bdrv_co_flush(bs->file->bs) : 0;
+    storage_bs = bdrv_storage_bs(bs);
+    ret = storage_bs ? bdrv_co_flush(storage_bs) : 0;
 out:
     /* Notify any pending flushes that we have completed */
     if (ret == 0) {

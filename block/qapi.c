@@ -509,7 +509,7 @@ static void bdrv_query_blk_stats(BlockDeviceStats *ds, BlockBackend *blk)
 static BlockStats *bdrv_query_bds_stats(BlockDriverState *bs,
                                         bool blk_level)
 {
-    BlockDriverState *cow_bs;
+    BlockDriverState *storage_bs, *cow_bs;
     BlockStats *s = NULL;
 
     s = g_malloc0(sizeof(*s));
@@ -533,9 +533,10 @@ static BlockStats *bdrv_query_bds_stats(BlockDriverState *bs,
 
     s->stats->wr_highest_offset = stat64_get(&bs->wr_highest_offset);
 
-    if (bs->file) {
+    storage_bs = bdrv_storage_bs(bs);
+    if (storage_bs) {
         s->has_parent = true;
-        s->parent = bdrv_query_bds_stats(bs->file->bs, blk_level);
+        s->parent = bdrv_query_bds_stats(storage_bs, blk_level);
     }
 
     cow_bs = bdrv_filtered_cow_bs(bs);
