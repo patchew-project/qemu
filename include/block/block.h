@@ -402,6 +402,7 @@ bool bdrv_is_first_non_filter(BlockDriverState *candidate);
 
 /* check if a named node can be replaced when doing drive-mirror */
 BlockDriverState *check_to_replace_node(BlockDriverState *parent_bs,
+                                        BlockDriverState *backing_bs,
                                         const char *node_name, Error **errp);
 
 /* async block I/O */

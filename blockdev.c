@@ -3782,7 +3782,7 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
     }
 
     if (has_replaces) {
-        BlockDriverState *to_replace_bs;
+        BlockDriverState *to_replace_bs, *backing_bs;
         AioContext *replace_aio_context;
         int64_t bs_size, replace_size;
 
@@ -3792,7 +3792,37 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
             return;
         }
 
-        to_replace_bs = check_to_replace_node(bs, replaces, errp);
+        if (backing_mode == MIRROR_SOURCE_BACKING_CHAIN ||
+            backing_mode == MIRROR_OPEN_BACKING_CHAIN)
+        {
+            /*
+             * While we do not quite know what OPEN_BACKING_CHAIN
+             * (used for mode=existing) will yield, it is probably
+             * best to restrict it exactly like SOURCE_BACKING_CHAIN,
+             * because that is our best guess.
+             */
+            switch (sync) {
+            case MIRROR_SYNC_MODE_FULL:
+                backing_bs = NULL;
+                break;
+
+            case MIRROR_SYNC_MODE_TOP:
+                backing_bs = bdrv_filtered_cow_bs(bdrv_skip_rw_filters(bs));
+                break;
+
+            case MIRROR_SYNC_MODE_NONE:
+                backing_bs = bs;
+                break;
+
+            default:
+                abort();
+            }
+        } else {
+            assert(backing_mode == MIRROR_LEAVE_BACKING_CHAIN);
+            backing_bs = bdrv_filtered_cow_bs(bdrv_skip_rw_filters(target));
+        }
+
+        to_replace_bs = check_to_replace_node(bs, backing_bs, replaces, errp);
         if (!to_replace_bs) {
             return;
         }

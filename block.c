@@ -5916,7 +5916,59 @@ bool bdrv_is_first_non_filter(BlockDriverState *candidate)
     return false;
 }
 
+static bool is_child_of(BlockDriverState *child, BlockDriverState *parent)
+{
+    BdrvChild *c;
+
+    if (!parent) {
+        return false;
+    }
+
+    QLIST_FOREACH(c, &parent->children, next) {
+        if (c->bs == child || is_child_of(child, c->bs)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/*
+ * Return true if there are only filters in [@top, @base).  Note that
+ * this may include quorum (which bdrv_chain_contains() cannot
+ * handle).
+ */
+static bool is_filtered_child(BlockDriverState *top, BlockDriverState *base)
+{
+    BdrvChild *c;
+
+    if (!top) {
+        return false;
+    }
+
+    if (top == base) {
+        return true;
+    }
+
+    if (!top->drv->is_filter) {
+        return false;
+    }
+
+    QLIST_FOREACH(c, &top->children, next) {
+        if (is_filtered_child(c->bs, base)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/*
+ * @parent_bs is mirror's source BDS, @backing_bs is the BDS which
+ * will be attached to the target when mirror completes.
+ */
 BlockDriverState *check_to_replace_node(BlockDriverState *parent_bs,
+                                        BlockDriverState *backing_bs,
                                         const char *node_name, Error **errp)
 {
     BlockDriverState *to_replace_bs = bdrv_find_node(node_name);
@@ -5935,13 +5987,32 @@ BlockDriverState *check_to_replace_node(BlockDriverState *parent_bs,
         goto out;
     }
 
-    /* We don't want arbitrary node of the BDS chain to be replaced only the top
-     * most non filter in order to prevent data corruption.
-     * Another benefit is that this tests exclude backing files which are
-     * blocked by the backing blockers.
+    /*
+     * If to_replace_bs is (recursively) a child of backing_bs,
+     * replacing it may create a loop.  We cannot allow that.
      */
-    if (!bdrv_recurse_is_first_non_filter(parent_bs, to_replace_bs)) {
-        error_setg(errp, "Only top most non filter can be replaced");
+    if (to_replace_bs == backing_bs || is_child_of(to_replace_bs, backing_bs)) {
+        error_setg(errp, "Replacing this node would result in a loop");
+        to_replace_bs = NULL;
+        goto out;
+    }
+
+    /*
+     * Mirror is designed in such a way that when it completes, the
+     * source BDS is seamlessly replaced.  It is therefore not allowed
+     * to replace a BDS where this condition would be violated, as that
+     * would defeat the purpose of mirror and could lead to data
+     * corruption.
+     * Therefore, between parent_bs and to_replace_bs there may be
+     * only filters (and the one on top must be a filter, too), so
+     * their data always stays in sync and mirror can complete and
+     * replace to_replace_bs without any possible corruptions.
+     */
+    if (!is_filtered_child(parent_bs, to_replace_bs) &&
+        !is_filtered_child(to_replace_bs, parent_bs))
+    {
+        error_setg(errp, "The node to be replaced must be connected to the "
+                   "source through filter nodes only");
         to_replace_bs = NULL;
         goto out;
     }
