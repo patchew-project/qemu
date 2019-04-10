@@ -394,5 +394,135 @@ class TestReopenOverlay(ImageCommitTestCase):
     def test_reopen_overlay(self):
         self.run_commit_test(self.img1, self.img0)
 
+class TestCommitWithFilters(iotests.QMPTestCase):
+    img0 = os.path.join(iotests.test_dir, '0.img')
+    img1 = os.path.join(iotests.test_dir, '1.img')
+    img2 = os.path.join(iotests.test_dir, '2.img')
+    img3 = os.path.join(iotests.test_dir, '3.img')
+
+    def setUp(self):
+        qemu_img('create', '-f', iotests.imgfmt, self.img0, '1M')
+        qemu_img('create', '-f', iotests.imgfmt, self.img1, '1M')
+        qemu_img('create', '-f', iotests.imgfmt, self.img2, '1M')
+        qemu_img('create', '-f', iotests.imgfmt, self.img3, '1M')
+
+        self.vm = iotests.VM()
+        self.vm.launch()
+        result = self.vm.qmp('object-add', qom_type='throttle-group', id='tg')
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm.qmp('blockdev-add', **{
+                'node-name': 'top-filter',
+                'driver': 'throttle',
+                'throttle-group': 'tg',
+                'file': {
+                    'node-name': 'cow-3',
+                    'driver': iotests.imgfmt,
+                    'file': {
+                        'driver': 'file',
+                        'filename': self.img3
+                    },
+                    'backing': {
+                        'node-name': 'cow-2',
+                        'driver': iotests.imgfmt,
+                        'file': {
+                            'driver': 'file',
+                            'filename': self.img2
+                        },
+                        'backing': {
+                            'node-name': 'cow-1',
+                            'driver': iotests.imgfmt,
+                            'file': {
+                                'driver': 'file',
+                                'filename': self.img1
+                            },
+                            'backing': {
+                                'node-name': 'bottom-filter',
+                                'driver': 'throttle',
+                                'throttle-group': 'tg',
+                                'file': {
+                                    'node-name': 'cow-0',
+                                    'driver': iotests.imgfmt,
+                                    'file': {
+                                        'driver': 'file',
+                                        'filename': self.img0
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            })
+        self.assert_qmp(result, 'return', {})
+
+    def tearDown(self):
+        self.vm.shutdown()
+        os.remove(self.img3)
+        os.remove(self.img2)
+        os.remove(self.img1)
+        os.remove(self.img0)
+
+    # Filters make for funny filenames, so we cannot just use
+    # self.imgX for the block-commit parameters
+    def get_filename(self, node):
+        return self.vm.node_info(node)['image']['filename']
+
+    def test_filterless_commit(self):
+        self.assert_no_active_block_jobs()
+        result = self.vm.qmp('block-commit',
+                             job_id='commit',
+                             device='top-filter',
+                             top=self.get_filename('cow-2'),
+                             base=self.get_filename('cow-1'))
+        self.assert_qmp(result, 'return', {})
+        self.wait_until_completed(drive='commit')
+
+    def test_commit_through_filter(self):
+        self.assert_no_active_block_jobs()
+        result = self.vm.qmp('block-commit',
+                             job_id='commit',
+                             device='top-filter',
+                             top=self.get_filename('cow-1'),
+                             base=self.get_filename('cow-0'))
+        # Cannot commit through explicitly added filters (yet,
+        # although in the future we probably want to make users use
+        # blockdev-copy for this)
+        self.assert_qmp(result, 'error/class', 'GenericError')
+        self.assert_qmp(result, 'error/desc', 'Cannot commit through explicit filter nodes')
+
+    def test_filtered_active_commit_with_filter(self):
+        self.assert_no_active_block_jobs()
+        result = self.vm.qmp('block-commit',
+                             job_id='commit',
+                             device='top-filter',
+                             base=self.get_filename('cow-2'))
+        # Not specifying @top means active commit, so including the
+        # filter on top (which is not allowed right now)
+        self.assert_qmp(result, 'error/class', 'GenericError')
+        self.assert_qmp(result, 'error/desc', 'Cannot commit through explicit filter nodes')
+
+    def test_filtered_active_commit_without_filter(self):
+        cow3_name = self.get_filename('cow-3')
+
+        self.assert_no_active_block_jobs()
+        result = self.vm.qmp('block-commit',
+                             job_id='commit',
+                             device='top-filter',
+                             top=cow3_name,
+                             base=self.get_filename('cow-2'))
+        # This is how you'd want to specify committing img3 into img2
+        # disregarding the filter on top of img3 -- but that does not
+        # work, because you can only specify names of backing files
+        # (and img3 is not a backing file).  The solution for this
+        # would be for block-commit to accept node names.
+        # Note that even if it did work, the above command would
+        # result in a non-active commit, because img3 is not the top
+        # node.  Which is wrong, because img3 can still be written to,
+        # so it should be an active commit, but that is a different
+        # story.
+        self.assert_qmp(result, 'error/class', 'GenericError')
+        self.assert_qmp(result, 'error/desc',
+                        'Top image file %s not found' % cow3_name)
+
 if __name__ == '__main__':
     iotests.main(supported_fmts=['qcow2', 'qed'])
