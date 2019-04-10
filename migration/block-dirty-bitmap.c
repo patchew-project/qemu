@@ -285,9 +285,7 @@ static int init_dirty_bitmap_migration(void)
         const char *drive_name = bdrv_get_device_or_node_name(bs);
 
         /* skip automatically inserted nodes */
-        while (bs && bs->drv && bs->implicit) {
-            bs = backing_bs(bs);
-        }
+        bs = bdrv_skip_implicit_filters(bs);
 
         for (bitmap = bdrv_dirty_bitmap_next(bs, NULL); bitmap;
              bitmap = bdrv_dirty_bitmap_next(bs, bitmap))

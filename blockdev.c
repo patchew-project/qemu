@@ -1094,7 +1094,7 @@ void hmp_commit(Monitor *mon, const QDict *qdict)
             return;
         }
 
-        bs = blk_bs(blk);
+        bs = bdrv_skip_implicit_filters(blk_bs(blk));
         aio_context = bdrv_get_aio_context(bs);
         aio_context_acquire(aio_context);
 
@@ -1663,7 +1663,7 @@ static void external_snapshot_prepare(BlkActionState *common,
         goto out;
     }
 
-    if (state->new_bs->backing != NULL) {
+    if (bdrv_filtered_cow_child(state->new_bs)) {
         error_setg(errp, "The snapshot already has a backing image");
         goto out;
     }
@@ -3202,6 +3202,13 @@ void qmp_block_stream(bool has_job_id, const char *job_id, const char *device,
         if (!base_bs) {
             goto out;
         }
+        /*
+         * Streaming copies data through COR, so all of the filters
+         * between the target and the base are considered.  Therefore,
+         * we can use bdrv_chain_contains() and do not have to use
+         * bdrv_legacy_chain_contains() (which does not go past
+         * explicitly added filters).
+         */
         if (bs == base_bs || !bdrv_chain_contains(bs, base_bs)) {
             error_setg(errp, "Node '%s' is not a backing image of '%s'",
                        base_node, device);
@@ -3213,7 +3220,7 @@ void qmp_block_stream(bool has_job_id, const char *job_id, const char *device,
     }
 
     /* Check for op blockers in the whole chain between bs and base */
-    for (iter = bs; iter && iter != base_bs; iter = backing_bs(iter)) {
+    for (iter = bs; iter && iter != base_bs; iter = bdrv_filtered_bs(iter)) {
         if (bdrv_op_is_blocked(iter, BLOCK_OP_TYPE_STREAM, errp)) {
             goto out;
         }
@@ -3370,7 +3377,9 @@ void qmp_block_commit(bool has_job_id, const char *job_id, const char *device,
 
     assert(bdrv_get_aio_context(base_bs) == aio_context);
 
-    for (iter = top_bs; iter != backing_bs(base_bs); iter = backing_bs(iter)) {
+    for (iter = top_bs; iter != bdrv_filtered_bs(base_bs);
+         iter = bdrv_filtered_bs(iter))
+    {
         if (bdrv_op_is_blocked(iter, BLOCK_OP_TYPE_COMMIT_TARGET, errp)) {
             goto out;
         }
@@ -3379,6 +3388,11 @@ void qmp_block_commit(bool has_job_id, const char *job_id, const char *device,
     /* Do not allow attempts to commit an image into itself */
     if (top_bs == base_bs) {
         error_setg(errp, "cannot commit an image into itself");
+        goto out;
+    }
+    if (!bdrv_legacy_chain_contains(top_bs, base_bs)) {
+        /* We have to disallow this until the user can give explicit consent */
+        error_setg(errp, "Cannot commit through explicit filter nodes");
         goto out;
     }
 
@@ -3472,7 +3486,13 @@ static BlockJob *do_drive_backup(DriveBackup *backup, JobTxn *txn,
     /* See if we have a backing HD we can use to create our new image
      * on top of. */
     if (backup->sync == MIRROR_SYNC_MODE_TOP) {
-        source = backing_bs(bs);
+        /*
+         * Backup will not replace the source by the target, so none
+         * of the filters skipped here will be removed (in contrast to
+         * mirror).  Therefore, we can skip all of them when looking
+         * for the first COW relationship.
+         */
+        source = bdrv_filtered_cow_bs(bdrv_skip_rw_filters(bs));
         if (!source) {
             backup->sync = MIRROR_SYNC_MODE_FULL;
         }
@@ -3492,9 +3512,14 @@ static BlockJob *do_drive_backup(DriveBackup *backup, JobTxn *txn,
     if (backup->mode != NEW_IMAGE_MODE_EXISTING) {
         assert(backup->format);
         if (source) {
-            bdrv_refresh_filename(source);
-            bdrv_img_create(backup->target, backup->format, source->filename,
-                            source->drv->format_name, NULL,
+            /* Implicit filters should not appear in the filename */
+            BlockDriverState *explicit_backing =
+                bdrv_skip_implicit_filters(source);
+
+            bdrv_refresh_filename(explicit_backing);
+            bdrv_img_create(backup->target, backup->format,
+                            explicit_backing->filename,
+                            explicit_backing->drv->format_name, NULL,
                             size, flags, false, &local_err);
         } else {
             bdrv_img_create(backup->target, backup->format, NULL, NULL, NULL,
@@ -3752,7 +3777,7 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
         return;
     }
 
-    if (!bs->backing && sync == MIRROR_SYNC_MODE_TOP) {
+    if (!bdrv_backing_chain_next(bs) && sync == MIRROR_SYNC_MODE_TOP) {
         sync = MIRROR_SYNC_MODE_FULL;
     }
 
@@ -3801,7 +3826,7 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
 
 void qmp_drive_mirror(DriveMirror *arg, Error **errp)
 {
-    BlockDriverState *bs;
+    BlockDriverState *bs, *unfiltered_bs;
     BlockDriverState *source, *target_bs;
     AioContext *aio_context;
     BlockMirrorBackingMode backing_mode;
@@ -3810,6 +3835,7 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
     int flags;
     int64_t size;
     const char *format = arg->format;
+    const char *replaces_node_name = NULL;
 
     bs = qmp_get_root_bs(arg->device, errp);
     if (!bs) {
@@ -3820,6 +3846,16 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_MIRROR_SOURCE, errp)) {
         return;
     }
+
+    /*
+     * If the user has not instructed us otherwise, we should let the
+     * block job run from @bs (thus taking into account all filters on
+     * it) but replace @unfiltered_bs when it finishes (thus not
+     * removing those filters).
+     * (And if there are any explicit filters, we should assume the
+     *  user knows how to use the @replaces option.)
+     */
+    unfiltered_bs = bdrv_skip_implicit_filters(bs);
 
     aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
@@ -3834,8 +3870,14 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
     }
 
     flags = bs->open_flags | BDRV_O_RDWR;
-    source = backing_bs(bs);
+    source = bdrv_filtered_cow_bs(unfiltered_bs);
     if (!source && arg->sync == MIRROR_SYNC_MODE_TOP) {
+        if (bdrv_filtered_bs(unfiltered_bs)) {
+            /* @unfiltered_bs is an explicit filter */
+            error_setg(errp, "Cannot perform sync=top mirror through an "
+                       "explicitly added filter node on the source");
+            goto out;
+        }
         arg->sync = MIRROR_SYNC_MODE_FULL;
     }
     if (arg->sync == MIRROR_SYNC_MODE_NONE) {
@@ -3854,6 +3896,9 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
                              " named node of the graph");
             goto out;
         }
+        replaces_node_name = arg->replaces;
+    } else if (unfiltered_bs != bs) {
+        replaces_node_name = unfiltered_bs->node_name;
     }
 
     if (arg->mode == NEW_IMAGE_MODE_ABSOLUTE_PATHS) {
@@ -3873,6 +3918,9 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
         bdrv_img_create(arg->target, format,
                         NULL, NULL, NULL, size, flags, false, &local_err);
     } else {
+        /* Implicit filters should not appear in the filename */
+        BlockDriverState *explicit_backing = bdrv_skip_implicit_filters(source);
+
         switch (arg->mode) {
         case NEW_IMAGE_MODE_EXISTING:
             break;
@@ -3880,8 +3928,8 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
             /* create new image with backing file */
             bdrv_refresh_filename(source);
             bdrv_img_create(arg->target, format,
-                            source->filename,
-                            source->drv->format_name,
+                            explicit_backing->filename,
+                            explicit_backing->drv->format_name,
                             NULL, size, flags, false, &local_err);
             break;
         default:
@@ -3913,7 +3961,7 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
     bdrv_set_aio_context(target_bs, aio_context);
 
     blockdev_mirror_common(arg->has_job_id ? arg->job_id : NULL, bs, target_bs,
-                           arg->has_replaces, arg->replaces, arg->sync,
+                           !!replaces_node_name, replaces_node_name, arg->sync,
                            backing_mode, arg->has_speed, arg->speed,
                            arg->has_granularity, arg->granularity,
                            arg->has_buf_size, arg->buf_size,
@@ -3949,7 +3997,7 @@ void qmp_blockdev_mirror(bool has_job_id, const char *job_id,
                          bool has_auto_dismiss, bool auto_dismiss,
                          Error **errp)
 {
-    BlockDriverState *bs;
+    BlockDriverState *bs, *unfiltered_bs;
     BlockDriverState *target_bs;
     AioContext *aio_context;
     BlockMirrorBackingMode backing_mode = MIRROR_LEAVE_BACKING_CHAIN;
@@ -3958,6 +4006,16 @@ void qmp_blockdev_mirror(bool has_job_id, const char *job_id,
     bs = qmp_get_root_bs(device, errp);
     if (!bs) {
         return;
+    }
+
+    /*
+     * Same as in qmp_drive_mirror(): We want to run the job from @bs,
+     * but we want to replace @unfiltered_bs on completion.
+     */
+    unfiltered_bs = bdrv_skip_implicit_filters(bs);
+    if (!has_replaces && unfiltered_bs != bs) {
+        replaces = unfiltered_bs->node_name;
+        has_replaces = true;
     }
 
     target_bs = bdrv_lookup_bs(target, target, errp);

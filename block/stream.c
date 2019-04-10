@@ -65,6 +65,7 @@ static int stream_prepare(Job *job)
     StreamBlockJob *s = container_of(job, StreamBlockJob, common.job);
     BlockJob *bjob = &s->common;
     BlockDriverState *bs = blk_bs(bjob->blk);
+    BlockDriverState *unfiltered = bdrv_skip_rw_filters(bs);
     BlockDriverState *base = s->base;
     Error *local_err = NULL;
     int ret = 0;
@@ -72,7 +73,7 @@ static int stream_prepare(Job *job)
     bdrv_unfreeze_backing_chain(bs, base);
     s->chain_frozen = false;
 
-    if (bs->backing) {
+    if (bdrv_filtered_cow_child(unfiltered)) {
         const char *base_id = NULL, *base_fmt = NULL;
         if (base) {
             base_id = s->backing_file_str;
@@ -80,7 +81,7 @@ static int stream_prepare(Job *job)
                 base_fmt = base->drv->format_name;
             }
         }
-        ret = bdrv_change_backing_file(bs, base_id, base_fmt);
+        ret = bdrv_change_backing_file(unfiltered, base_id, base_fmt);
         bdrv_set_backing_hd(bs, base, &local_err);
         if (local_err) {
             error_report_err(local_err);
@@ -121,7 +122,7 @@ static int coroutine_fn stream_run(Job *job, Error **errp)
     int64_t n = 0; /* bytes */
     void *buf;
 
-    if (!bs->backing) {
+    if (!bdrv_filtered_child(bs)) {
         goto out;
     }
 
@@ -162,7 +163,7 @@ static int coroutine_fn stream_run(Job *job, Error **errp)
         } else if (ret >= 0) {
             /* Copy if allocated in the intermediate images.  Limit to the
              * known-unallocated area [offset, offset+n*BDRV_SECTOR_SIZE).  */
-            ret = bdrv_is_allocated_above(backing_bs(bs), base,
+            ret = bdrv_is_allocated_above(bdrv_filtered_bs(bs), base,
                                           offset, n, &n);
 
             /* Finish early if end of backing file has been reached */
@@ -268,7 +269,9 @@ void stream_start(const char *job_id, BlockDriverState *bs,
      * disappear from the chain after this operation. The streaming job reads
      * every block only once, assuming that it doesn't change, so block writes
      * and resizes. */
-    for (iter = backing_bs(bs); iter && iter != base; iter = backing_bs(iter)) {
+    for (iter = bdrv_filtered_bs(bs); iter && iter != base;
+         iter = bdrv_filtered_bs(iter))
+    {
         block_job_add_bdrv(&s->common, "intermediate node", iter, 0,
                            BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE_UNCHANGED,
                            &error_abort);

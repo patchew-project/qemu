@@ -982,7 +982,7 @@ static int img_commit(int argc, char **argv)
     if (!blk) {
         return 1;
     }
-    bs = blk_bs(blk);
+    bs = bdrv_skip_implicit_filters(blk_bs(blk));
 
     qemu_progress_init(progress, 1.f);
     qemu_progress_print(0.f, 100);
@@ -999,7 +999,7 @@ static int img_commit(int argc, char **argv)
         /* This is different from QMP, which by default uses the deepest file in
          * the backing chain (i.e., the very base); however, the traditional
          * behavior of qemu-img commit is using the immediate backing file. */
-        base_bs = backing_bs(bs);
+        base_bs = bdrv_filtered_cow_bs(bs);
         if (!base_bs) {
             error_setg(&local_err, "Image does not have a backing file");
             goto done;
@@ -1616,19 +1616,18 @@ static int convert_iteration_sectors(ImgConvertState *s, int64_t sector_num)
 
     if (s->sector_next_status <= sector_num) {
         int64_t count = n * BDRV_SECTOR_SIZE;
+        BlockDriverState *src_bs = blk_bs(s->src[src_cur]);
+        BlockDriverState *base;
 
         if (s->target_has_backing) {
-
-            ret = bdrv_block_status(blk_bs(s->src[src_cur]),
-                                    (sector_num - src_cur_offset) *
-                                    BDRV_SECTOR_SIZE,
-                                    count, &count, NULL, NULL);
+            base = bdrv_backing_chain_next(src_bs);
         } else {
-            ret = bdrv_block_status_above(blk_bs(s->src[src_cur]), NULL,
-                                          (sector_num - src_cur_offset) *
-                                          BDRV_SECTOR_SIZE,
-                                          count, &count, NULL, NULL);
+            base = NULL;
         }
+        ret = bdrv_block_status_above(src_bs, base,
+                                      (sector_num - src_cur_offset) *
+                                      BDRV_SECTOR_SIZE,
+                                      count, &count, NULL, NULL);
         if (ret < 0) {
             error_report("error while reading block status of sector %" PRId64
                          ": %s", sector_num, strerror(-ret));
@@ -2434,7 +2433,8 @@ static int img_convert(int argc, char **argv)
          * s.target_backing_sectors has to be negative, which it will
          * be automatically).  The backing file length is used only
          * for optimizations, so such a case is not fatal. */
-        s.target_backing_sectors = bdrv_nb_sectors(out_bs->backing->bs);
+        s.target_backing_sectors =
+            bdrv_nb_sectors(bdrv_filtered_cow_bs(out_bs));
     } else {
         s.target_backing_sectors = -1;
     }
@@ -2797,6 +2797,7 @@ static int get_block_status(BlockDriverState *bs, int64_t offset,
 
     depth = 0;
     for (;;) {
+        bs = bdrv_skip_rw_filters(bs);
         ret = bdrv_block_status(bs, offset, bytes, &bytes, &map, &file);
         if (ret < 0) {
             return ret;
@@ -2805,7 +2806,7 @@ static int get_block_status(BlockDriverState *bs, int64_t offset,
         if (ret & (BDRV_BLOCK_ZERO|BDRV_BLOCK_DATA)) {
             break;
         }
-        bs = backing_bs(bs);
+        bs = bdrv_filtered_cow_bs(bs);
         if (bs == NULL) {
             ret = 0;
             break;
@@ -2944,7 +2945,7 @@ static int img_map(int argc, char **argv)
     if (!blk) {
         return 1;
     }
-    bs = blk_bs(blk);
+    bs = bdrv_skip_implicit_filters(blk_bs(blk));
 
     if (output_format == OFORMAT_HUMAN) {
         printf("%-16s%-16s%-16s%s\n", "Offset", "Length", "Mapped to", "File");

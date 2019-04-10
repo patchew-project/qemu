@@ -577,6 +577,7 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
     int64_t len;
     BlockDriverInfo bdi;
     BackupBlockJob *job = NULL;
+    bool target_does_cow;
     int ret;
 
     assert(bs);
@@ -671,8 +672,9 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
     /* If there is no backing file on the target, we cannot rely on COW if our
      * backup cluster size is smaller than the target cluster size. Even for
      * targets with a backing file, try to avoid COW if possible. */
+    target_does_cow = bdrv_filtered_cow_child(target);
     ret = bdrv_get_info(target, &bdi);
-    if (ret == -ENOTSUP && !target->backing) {
+    if (ret == -ENOTSUP && !target_does_cow) {
         /* Cluster size is not defined */
         warn_report("The target block device doesn't provide "
                     "information about the block size and it doesn't have a "
@@ -681,14 +683,14 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
                     "this default, the backup may be unusable",
                     BACKUP_CLUSTER_SIZE_DEFAULT);
         job->cluster_size = BACKUP_CLUSTER_SIZE_DEFAULT;
-    } else if (ret < 0 && !target->backing) {
+    } else if (ret < 0 && !target_does_cow) {
         error_setg_errno(errp, -ret,
             "Couldn't determine the cluster size of the target image, "
             "which has no backing file");
         error_append_hint(errp,
             "Aborting, since this may create an unusable destination image\n");
         goto error;
-    } else if (ret < 0 && target->backing) {
+    } else if (ret < 0 && target_does_cow) {
         /* Not fatal; just trudge on ahead. */
         job->cluster_size = BACKUP_CLUSTER_SIZE_DEFAULT;
     } else {

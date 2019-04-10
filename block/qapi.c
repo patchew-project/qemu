@@ -149,9 +149,13 @@ BlockDeviceInfo *bdrv_block_device_info(BlockBackend *blk,
             return NULL;
         }
 
-        if (bs0->drv && bs0->backing) {
+        if (bs0->drv && bdrv_filtered_child(bs0)) {
+            /*
+             * Put any filtered child here (for backwards compatibility to when
+             * we put bs0->backing here, which might be any filtered child).
+             */
             info->backing_file_depth++;
-            bs0 = bs0->backing->bs;
+            bs0 = bdrv_filtered_bs(bs0);
             (*p_image_info)->has_backing_image = true;
             p_image_info = &((*p_image_info)->backing_image);
         } else {
@@ -160,9 +164,8 @@ BlockDeviceInfo *bdrv_block_device_info(BlockBackend *blk,
 
         /* Skip automatically inserted nodes that the user isn't aware of for
          * query-block (blk != NULL), but not for query-named-block-nodes */
-        while (blk && bs0->drv && bs0->implicit) {
-            bs0 = backing_bs(bs0);
-            assert(bs0);
+        if (blk) {
+            bs0 = bdrv_skip_implicit_filters(bs0);
         }
     }
 
@@ -347,9 +350,9 @@ static void bdrv_query_info(BlockBackend *blk, BlockInfo **p_info,
     BlockDriverState *bs = blk_bs(blk);
     char *qdev;
 
-    /* Skip automatically inserted nodes that the user isn't aware of */
-    while (bs && bs->drv && bs->implicit) {
-        bs = backing_bs(bs);
+    if (bs) {
+        /* Skip automatically inserted nodes that the user isn't aware of */
+        bs = bdrv_skip_implicit_filters(bs);
     }
 
     info->device = g_strdup(blk_name(blk));
@@ -506,6 +509,7 @@ static void bdrv_query_blk_stats(BlockDeviceStats *ds, BlockBackend *blk)
 static BlockStats *bdrv_query_bds_stats(BlockDriverState *bs,
                                         bool blk_level)
 {
+    BlockDriverState *cow_bs;
     BlockStats *s = NULL;
 
     s = g_malloc0(sizeof(*s));
@@ -518,9 +522,8 @@ static BlockStats *bdrv_query_bds_stats(BlockDriverState *bs,
     /* Skip automatically inserted nodes that the user isn't aware of in
      * a BlockBackend-level command. Stay at the exact node for a node-level
      * command. */
-    while (blk_level && bs->drv && bs->implicit) {
-        bs = backing_bs(bs);
-        assert(bs);
+    if (blk_level) {
+        bs = bdrv_skip_implicit_filters(bs);
     }
 
     if (bdrv_get_node_name(bs)[0]) {
@@ -535,9 +538,10 @@ static BlockStats *bdrv_query_bds_stats(BlockDriverState *bs,
         s->parent = bdrv_query_bds_stats(bs->file->bs, blk_level);
     }
 
-    if (blk_level && bs->backing) {
+    cow_bs = bdrv_filtered_cow_bs(bs);
+    if (blk_level && cow_bs) {
         s->has_backing = true;
-        s->backing = bdrv_query_bds_stats(bs->backing->bs, blk_level);
+        s->backing = bdrv_query_bds_stats(cow_bs, blk_level);
     }
 
     return s;

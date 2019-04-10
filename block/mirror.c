@@ -660,8 +660,9 @@ static int mirror_exit_common(Job *job)
                             &error_abort);
     if (!abort && s->backing_mode == MIRROR_SOURCE_BACKING_CHAIN) {
         BlockDriverState *backing = s->is_none_mode ? src : s->base;
-        if (backing_bs(target_bs) != backing) {
-            bdrv_set_backing_hd(target_bs, backing, &local_err);
+        if (bdrv_backing_chain_next(target_bs) != backing) {
+            bdrv_set_backing_hd(bdrv_skip_rw_filters(target_bs), backing,
+                                &local_err);
             if (local_err) {
                 error_report_err(local_err);
                 ret = -EPERM;
@@ -711,7 +712,7 @@ static int mirror_exit_common(Job *job)
     block_job_remove_all_bdrv(bjob);
     bdrv_child_try_set_perm(mirror_top_bs->backing, 0, BLK_PERM_ALL,
                             &error_abort);
-    bdrv_replace_node(mirror_top_bs, backing_bs(mirror_top_bs), &error_abort);
+    bdrv_replace_node(mirror_top_bs, mirror_top_bs->backing->bs, &error_abort);
 
     /* We just changed the BDS the job BB refers to (with either or both of the
      * bdrv_replace_node() calls), so switch the BB back so the cleanup does
@@ -903,7 +904,7 @@ static int coroutine_fn mirror_run(Job *job, Error **errp)
     } else {
         s->target_cluster_size = BDRV_SECTOR_SIZE;
     }
-    if (backing_filename[0] && !target_bs->backing &&
+    if (backing_filename[0] && !bdrv_filtered_cow_child(target_bs) &&
         s->granularity < s->target_cluster_size) {
         s->buf_size = MAX(s->buf_size, s->target_cluster_size);
         s->cow_bitmap = bitmap_new(length);
@@ -1083,7 +1084,7 @@ static void mirror_complete(Job *job, Error **errp)
     if (s->backing_mode == MIRROR_OPEN_BACKING_CHAIN) {
         int ret;
 
-        assert(!target->backing);
+        assert(!bdrv_filtered_cow_child(target));
         ret = bdrv_open_backing_file(target, NULL, "backing", errp);
         if (ret < 0) {
             return;
@@ -1650,7 +1651,9 @@ static void mirror_start_job(const char *job_id, BlockDriverState *bs,
      * any jobs in them must be blocked */
     if (target_is_backing) {
         BlockDriverState *iter;
-        for (iter = backing_bs(bs); iter != target; iter = backing_bs(iter)) {
+        for (iter = bdrv_filtered_bs(bs); iter != target;
+             iter = bdrv_filtered_bs(iter))
+        {
             /* XXX BLK_PERM_WRITE needs to be allowed so we don't block
              * ourselves at s->base (if writes are blocked for a node, they are
              * also blocked for its backing file). The other options would be a
@@ -1691,7 +1694,7 @@ fail:
 
     bdrv_child_try_set_perm(mirror_top_bs->backing, 0, BLK_PERM_ALL,
                             &error_abort);
-    bdrv_replace_node(mirror_top_bs, backing_bs(mirror_top_bs), &error_abort);
+    bdrv_replace_node(mirror_top_bs, mirror_top_bs->backing->bs, &error_abort);
 
     bdrv_unref(mirror_top_bs);
 }
@@ -1707,14 +1710,14 @@ void mirror_start(const char *job_id, BlockDriverState *bs,
                   MirrorCopyMode copy_mode, Error **errp)
 {
     bool is_none_mode;
-    BlockDriverState *base;
+    BlockDriverState *base = NULL;
 
     if (mode == MIRROR_SYNC_MODE_INCREMENTAL) {
         error_setg(errp, "Sync mode 'incremental' not supported");
         return;
     }
     is_none_mode = mode == MIRROR_SYNC_MODE_NONE;
-    base = mode == MIRROR_SYNC_MODE_TOP ? backing_bs(bs) : NULL;
+    base = mode == MIRROR_SYNC_MODE_TOP ? bdrv_backing_chain_next(bs) : NULL;
     mirror_start_job(job_id, bs, creation_flags, target, replaces,
                      speed, granularity, buf_size, backing_mode,
                      on_source_error, on_target_error, unmap, NULL, NULL,
