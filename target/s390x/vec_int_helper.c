@@ -61,3 +61,19 @@ void HELPER(gvec_vaccc128)(void *v1, const void *v2, const void *v3,
     dst->doubleword[0] = 0;
     dst->doubleword[1] = carry;
 }
+
+#define DEF_VAVG(BITS)                                                         \
+void HELPER(gvec_vavg##BITS)(void *v1, const void *v2, const void *v3,         \
+                             uint32_t desc)                                    \
+{                                                                              \
+    int i;                                                                     \
+                                                                               \
+    for (i = 0; i < (128 / BITS); i++) {                                       \
+        const int32_t a = (int##BITS##_t)s390_vec_read_element##BITS(v2, i);   \
+        const int32_t b = (int##BITS##_t)s390_vec_read_element##BITS(v3, i);   \
+                                                                               \
+        s390_vec_write_element##BITS(v1, i, (a + b + 1) >> 1);                 \
+    }                                                                          \
+}
+DEF_VAVG(8)
+DEF_VAVG(16)
