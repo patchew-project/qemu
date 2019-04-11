@@ -3798,13 +3798,23 @@
 #                  traditional "base:allocation" block status (see
 #                  NBD_OPT_LIST_META_CONTEXT in the NBD protocol) (since 3.0)
 #
+# @reconnect-delay: Reconnect delay. On unexpected disconnect, nbd client tries
+#                   to connect again, until success or serious error. During
+#                   first @reconnect-delay seconds of reconnecting loop all
+#                   requests are paused and have a chance to rerun, if
+#                   successful connect occurs during this time. After
+#                   @reconnect-delay seconds all delayed requests are failed
+#                   and all following requests will be failed too (until
+#                   successful reconnect). Default 0 (Since 4.1)
+#
 # Since: 2.9
 ##
 { 'struct': 'BlockdevOptionsNbd',
   'data': { 'server': 'SocketAddress',
             '*export': 'str',
             '*tls-creds': 'str',
-            '*x-dirty-bitmap': 'str' } }
+            '*x-dirty-bitmap': 'str',
+            '*reconnect-delay': 'uint32' } }
 
 ##
 # @BlockdevOptionsRaw:
