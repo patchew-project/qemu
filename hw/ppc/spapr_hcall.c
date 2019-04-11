@@ -1057,11 +1057,46 @@ static target_ulong h_cede(PowerPCCPU *cpu, SpaprMachineState *spapr,
 
     env->msr |= (1ULL << MSR_EE);
     hreg_compute_hflags(env);
+    if (env->prodded) {
+        env->prodded = false;
+        return H_SUCCESS;
+    }
+
     if (!cpu_has_work(cs)) {
         cs->halted = 1;
         cs->exception_index = EXCP_HLT;
         cs->exit_request = 1;
     }
+    return H_SUCCESS;
+}
+
+static void spapr_do_wakeup_on_cpu(CPUState *cs, run_on_cpu_data data)
+{
+    cs->halted = 0;
+    cs->exception_index = -1;
+}
+
+static target_ulong h_prod(PowerPCCPU *cpu, SpaprMachineState *spapr,
+                           target_ulong opcode, target_ulong *args)
+{
+    target_ulong target = args[0];
+    CPUPPCState *env;
+
+    cpu = spapr_find_cpu(target);
+    if (cpu) {
+        env = &cpu->env;
+        env->prodded = true;
+        run_on_cpu(CPU(cpu), spapr_do_wakeup_on_cpu, RUN_ON_CPU_NULL);
+    } else {
+        return H_PARAMETER;
+    }
+    return H_SUCCESS;
+}
+
+static target_ulong h_confer(PowerPCCPU *cpu, SpaprMachineState *spapr,
+                             target_ulong opcode, target_ulong *args)
+{
+    /* Do nothing (supposed to confer timeslice). */
     return H_SUCCESS;
 }
 
@@ -1860,6 +1895,8 @@ static void hypercall_register_types(void)
     /* hcall-splpar */
     spapr_register_hypercall(H_REGISTER_VPA, h_register_vpa);
     spapr_register_hypercall(H_CEDE, h_cede);
+    spapr_register_hypercall(H_PROD, h_prod);
+    spapr_register_hypercall(H_CONFER, h_confer);
     spapr_register_hypercall(H_SIGNAL_SYS_RESET, h_signal_sys_reset);
 
     /* processor register resource access h-calls */
