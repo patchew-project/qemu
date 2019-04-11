@@ -102,6 +102,7 @@ typedef struct BDRVRBDState {
     rbd_image_t image;
     char *image_name;
     char *snap;
+    uint64_t image_size;
 } BDRVRBDState;
 
 static int qemu_rbd_connect(rados_t *cluster, rados_ioctx_t *io_ctx,
@@ -777,6 +778,14 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
         goto failed_open;
     }
 
+    r = rbd_get_size(s->image, &s->image_size);
+    if (r < 0) {
+        error_setg_errno(errp, -r, "error reading image size from %s",
+                         s->image_name);
+        rbd_close(s->image);
+        goto failed_open;
+    }
+
     /* If we are using an rbd snapshot, we must be r/o, otherwise
      * leave as-is */
     if (s->snap != NULL) {
@@ -919,6 +928,20 @@ static BlockAIOCB *rbd_start_aio(BlockDriverState *bs,
             qemu_iovec_to_buf(acb->qiov, 0, acb->bounce, qiov->size);
         }
         rcb->buf = acb->bounce;
+    }
+
+    /*
+     * RBD APIs don't allow us to write more than actual size, so in order
+     * to support growing images, we resize the image before RW operations
+     * that exceed the current size.
+     */
+    if (s->image_size < off + size) {
+        r = rbd_resize(s->image, off + size);
+        if (r < 0) {
+            goto failed;
+        }
+
+        s->image_size = off + size;
     }
 
     acb->ret = 0;
@@ -1065,6 +1088,8 @@ static int coroutine_fn qemu_rbd_co_truncate(BlockDriverState *bs,
         error_setg_errno(errp, -r, "Failed to resize file");
         return r;
     }
+
+    s->image_size = offset;
 
     return 0;
 }
