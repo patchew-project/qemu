@@ -1085,6 +1085,9 @@ static void bdrv_backing_detach(BdrvChild *c)
     error_free(parent->backing_blocker);
     parent->backing_blocker = NULL;
 
+    parent->backing_file[0] = '\0';
+    parent->backing_format[0] = '\0';
+
     bdrv_child_cb_detach(c);
 }
 
