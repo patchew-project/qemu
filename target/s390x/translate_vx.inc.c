@@ -1327,3 +1327,23 @@ static DisasJumpType op_vcksm(DisasContext *s, DisasOps *o)
     tcg_temp_free_i32(sum);
     return DISAS_NEXT;
 }
+
+static DisasJumpType op_vec(DisasContext *s, DisasOps *o)
+{
+    const uint8_t es = get_field(s->fields, m3);
+    const uint8_t enr = NUM_VEC_ELEMENTS(es) / 2 - 1;
+    const bool logical = s->fields->op2 == 0xd9;
+
+    if (es > ES_64) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    o->in1 = tcg_temp_new_i64();
+    o->in2 = tcg_temp_new_i64();
+    read_vec_element_i64(o->in1, get_field(s->fields, v1), enr,
+                         es | logical ? 0 : MO_SIGN);
+    read_vec_element_i64(o->in2, get_field(s->fields, v2), enr,
+                         es | logical ? 0 : MO_SIGN);
+    return DISAS_NEXT;
+}
