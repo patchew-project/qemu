@@ -1180,12 +1180,8 @@ static int nbd_client_connect(BlockDriverState *bs,
         object_ref(OBJECT(client->ioc));
     }
 
-    /* Now that we're connected, set the socket to be non-blocking and
-     * kick the reply mechanism.  */
     qio_channel_set_blocking(QIO_CHANNEL(sioc), false, NULL);
-    client->connection_co = qemu_coroutine_create(nbd_connection_entry, client);
-    bdrv_inc_in_flight(bs);
-    nbd_client_attach_aio_context(bs, bdrv_get_aio_context(bs));
+    qio_channel_attach_aio_context(client->ioc, bdrv_get_aio_context(bs));
 
     logout("Established connection with NBD server\n");
     return 0;
@@ -1215,12 +1211,22 @@ int nbd_client_init(BlockDriverState *bs,
                     const char *x_dirty_bitmap,
                     Error **errp)
 {
+    int ret;
     NBDClientSession *client = nbd_get_client_session(bs);
 
     client->bs = bs;
     qemu_co_mutex_init(&client->send_mutex);
     qemu_co_queue_init(&client->free_sema);
 
-    return nbd_client_connect(bs, saddr, export, tlscreds, hostname,
-                              x_dirty_bitmap, errp);
+    ret = nbd_client_connect(bs, saddr, export, tlscreds, hostname,
+                             x_dirty_bitmap, errp);
+    if (ret < 0) {
+        return ret;
+    }
+
+    client->connection_co = qemu_coroutine_create(nbd_connection_entry, client);
+    bdrv_inc_in_flight(bs);
+    aio_co_schedule(bdrv_get_aio_context(bs), client->connection_co);
+
+    return 0;
 }
