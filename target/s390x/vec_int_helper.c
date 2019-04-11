@@ -43,6 +43,13 @@ static bool s390_vec_is_zero(const S390Vector *v)
     return !v->doubleword[0] && !v->doubleword[1];
 }
 
+static void s390_vec_or(S390Vector *res, const S390Vector *a,
+                        const S390Vector *b)
+{
+    res->doubleword[0] = a->doubleword[0] | b->doubleword[0];
+    res->doubleword[1] = a->doubleword[1] | b->doubleword[1];
+}
+
 static void s390_vec_xor(S390Vector *res, const S390Vector *a,
                          const S390Vector *b)
 {
@@ -703,4 +710,17 @@ void HELPER(gvec_vsl)(void *v1, const void *v2, uint64_t count,
                       uint32_t desc)
 {
     s390_vec_shl(v1, v2, count);
+}
+
+void HELPER(gvec_vsldb)(void *v1, const void *v2, const void *v3,
+                        uint32_t desc)
+{
+    const uint8_t src_idx = simd_data(desc);
+    S390Vector t0;
+    S390Vector t1;
+
+    g_assert(src_idx > 0 && src_idx < 16);
+    s390_vec_shl(&t0, v2, src_idx * 8);
+    s390_vec_shr(&t1, v3, 128 - src_idx * 8);
+    s390_vec_or(v1, &t0, &t1);
 }

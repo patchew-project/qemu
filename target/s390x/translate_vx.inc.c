@@ -2089,3 +2089,18 @@ static DisasJumpType op_vsl(DisasContext *s, DisasOps *o)
     tcg_temp_free_i64(shift);
     return DISAS_NEXT;
 }
+
+static DisasJumpType op_vsldb(DisasContext *s, DisasOps *o)
+{
+    int src_idx = get_field(s->fields, i4) & 0xf;
+
+    if (src_idx == 0) {
+        gen_gvec_mov(get_field(s->fields, v1), get_field(s->fields, v2));
+    } else {
+        gen_gvec_3_ool(get_field(s->fields, v1), get_field(s->fields, v2),
+                       get_field(s->fields, v3), src_idx,
+                       gen_helper_gvec_vsldb);
+        return DISAS_NEXT;
+    }
+    return DISAS_NEXT;
+}
