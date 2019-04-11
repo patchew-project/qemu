@@ -38,6 +38,27 @@ static bool s390_vec_add(S390Vector *d, const S390Vector *a,
     return high_carry;
 }
 
+/*
+ * Subtract two 128 bit vectors, returning the borrow.
+ */
+static bool s390_vec_sub(S390Vector *d, const S390Vector *a,
+                         const S390Vector *b)
+{
+    bool low_borrow = false, high_borrow = false;
+
+    if (a->doubleword[0] < b->doubleword[0]) {
+        high_borrow = true;
+    } else if (a->doubleword[1] < b->doubleword[0]) {
+        low_borrow = true;
+        if (a->doubleword[0] == b->doubleword[0]) {
+            high_borrow = true;
+        }
+    }
+    d->doubleword[0] = a->doubleword[0] - b->doubleword[0] - low_borrow;
+    d->doubleword[1] = a->doubleword[1] - b->doubleword[1];
+    return high_borrow;
+}
+
 static bool s390_vec_is_zero(const S390Vector *v)
 {
     return !v->doubleword[0] && !v->doubleword[1];
@@ -755,4 +776,30 @@ void HELPER(gvec_vsrl)(void *v1, const void *v2, uint64_t count,
                        uint32_t desc)
 {
     s390_vec_shr(v1, v2, count);
+}
+
+#define DEF_VSCBI(BITS)                                                        \
+void HELPER(gvec_vscbi##BITS)(void *v1, const void *v2, const void *v3,        \
+                              uint32_t desc)                                   \
+{                                                                              \
+    int i;                                                                     \
+                                                                               \
+    for (i = 0; i < (128 / BITS); i++) {                                       \
+        const uint##BITS##_t a = s390_vec_read_element##BITS(v2, i);           \
+        const uint##BITS##_t b = s390_vec_read_element##BITS(v3, i);           \
+                                                                               \
+        s390_vec_write_element##BITS(v1, i, a < b);                            \
+    }                                                                          \
+}
+DEF_VSCBI(8)
+DEF_VSCBI(16)
+
+void HELPER(gvec_vscbi128)(void *v1, const void *v2, const void *v3,
+                           uint32_t desc)
+{
+    S390Vector *dst = v1;
+    S390Vector tmp;
+
+    dst->doubleword[0] = 0;
+    dst->doubleword[1] = s390_vec_sub(&tmp, v2, v3);
 }
