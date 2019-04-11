@@ -45,3 +45,19 @@ void HELPER(gvec_vacc128)(void *v1, const void *v2, const void *v3,
     dst->doubleword[0] = 0;
     dst->doubleword[1] = s390_vec_add(&tmp, v2, v3);
 }
+
+void HELPER(gvec_vaccc128)(void *v1, const void *v2, const void *v3,
+                           const void *v4, uint32_t desc)
+{
+    const S390Vector old_carry = {
+        .doubleword[0] = 0,
+        .doubleword[1] = ((S390Vector *)v4)->doubleword[1] & 1,
+    };
+    S390Vector tmp, *dst = v1;
+    bool carry;
+
+    carry = s390_vec_add(&tmp, v2, v3);
+    carry |= s390_vec_add(&tmp, &tmp, &old_carry);
+    dst->doubleword[0] = 0;
+    dst->doubleword[1] = carry;
+}
