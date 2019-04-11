@@ -289,3 +289,17 @@ void HELPER(gvec_vgfma64)(void *v1, const void *v2, const void *v3,
     s390_vec_xor(&tmp1, &tmp1, &tmp2);
     s390_vec_xor(v1, &tmp1, v4);
 }
+
+#define DEF_VLP(BITS)                                                          \
+void HELPER(gvec_vlp##BITS)(void *v1, const void *v2, uint32_t desc)           \
+{                                                                              \
+    int i;                                                                     \
+                                                                               \
+    for (i = 0; i < (128 / BITS); i++) {                                       \
+        const int##BITS##_t a = s390_vec_read_element##BITS(v2, i);            \
+                                                                               \
+        s390_vec_write_element##BITS(v1, i, a < 0 ? -a : a);                   \
+    }                                                                          \
+}
+DEF_VLP(8)
+DEF_VLP(16)
