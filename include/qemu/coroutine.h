@@ -278,6 +278,12 @@ void qemu_co_rwlock_unlock(CoRwlock *lock);
  */
 void coroutine_fn qemu_co_sleep_ns(QEMUClockType type, int64_t ns);
 
+/*
+ * Wake a coroutine if it is sleeping by qemu_co_sleep_ns. Timer will be
+ * deleted.
+ */
+void qemu_co_sleep_wake(Coroutine *co);
+
 /**
  * Yield until a file descriptor becomes readable
  *

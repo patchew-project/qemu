@@ -17,13 +17,24 @@
 #include "qemu/timer.h"
 #include "block/aio.h"
 
+const char *qemu_co_sleep_ns__scheduled = "qemu_co_sleep_ns";
+
+void qemu_co_sleep_wake(Coroutine *co)
+{
+    /* Write of schedule protected by barrier write in aio_co_schedule */
+    const char *scheduled = atomic_cmpxchg(&co->scheduled,
+                                           qemu_co_sleep_ns__scheduled, NULL);
+
+    if (scheduled == qemu_co_sleep_ns__scheduled) {
+        aio_co_wake(co);
+    }
+}
+
 static void co_sleep_cb(void *opaque)
 {
     Coroutine *co = opaque;
 
-    /* Write of schedule protected by barrier write in aio_co_schedule */
-    atomic_set(&co->scheduled, NULL);
-    aio_co_wake(co);
+    qemu_co_sleep_wake(co);
 }
 
 void coroutine_fn qemu_co_sleep_ns(QEMUClockType type, int64_t ns)
@@ -32,7 +43,8 @@ void coroutine_fn qemu_co_sleep_ns(QEMUClockType type, int64_t ns)
     QEMUTimer *ts;
     Coroutine *co = qemu_coroutine_self();
 
-    const char *scheduled = atomic_cmpxchg(&co->scheduled, NULL, __func__);
+    const char *scheduled = atomic_cmpxchg(&co->scheduled, NULL,
+                                           qemu_co_sleep_ns__scheduled);
     if (scheduled) {
         fprintf(stderr,
                 "%s: Co-routine was already scheduled in '%s'\n",
