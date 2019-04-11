@@ -53,11 +53,11 @@ typedef struct AspeedSoCInfo {
     hwaddr sdram_base;
     uint64_t sram_size;
     int spis_num;
-    const hwaddr *spi_bases;
     const char *fmc_typename;
     const char **spi_typename;
     int wdts_num;
     const int *irqmap;
+    const hwaddr *memmap;
 } AspeedSoCInfo;
 
 typedef struct AspeedSoCClass {
