@@ -803,3 +803,19 @@ void HELPER(gvec_vscbi128)(void *v1, const void *v2, const void *v3,
     dst->doubleword[0] = 0;
     dst->doubleword[1] = s390_vec_sub(&tmp, v2, v3);
 }
+
+void HELPER(gvec_vsbcbi128)(void *v1, const void *v2, const void *v3,
+                            const void *v4, uint32_t desc)
+{
+    const S390Vector old_borrow = {
+        .doubleword[0] = 0,
+        .doubleword[1] = ((S390Vector *)v4)->doubleword[1] & 1,
+    };
+    S390Vector tmp, *dst = v1;
+    bool borrow;
+
+    borrow = s390_vec_sub(&tmp, v2, v3);
+    borrow |= s390_vec_sub(&tmp, &tmp, &old_borrow);
+    dst->doubleword[0] = 0;
+    dst->doubleword[1] = borrow;
+}
