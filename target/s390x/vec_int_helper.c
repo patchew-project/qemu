@@ -78,6 +78,26 @@ static void s390_vec_shl(S390Vector *d, const S390Vector *a, uint64_t count)
     }
 }
 
+static void s390_vec_sar(S390Vector *d, const S390Vector *a, uint64_t count)
+{
+    uint64_t tmp;
+
+    if (count == 0) {
+        d->doubleword[0] = a->doubleword[0];
+        d->doubleword[1] = a->doubleword[1];
+    } else if (count == 64) {
+        d->doubleword[1] = a->doubleword[0];
+        d->doubleword[0] = 0;
+    } else if (count < 64) {
+        tmp = a->doubleword[1] >> count;
+        d->doubleword[1] = deposit64(tmp, 64 - count, count, a->doubleword[0]);
+        d->doubleword[0] = (int64_t)a->doubleword[0] >> count;
+    } else {
+        d->doubleword[1] = (int64_t)a->doubleword[0] >> (count - 64);
+        d->doubleword[0] = 0;
+    }
+}
+
 static void s390_vec_shr(S390Vector *d, const S390Vector *a, uint64_t count)
 {
     uint64_t tmp;
@@ -723,4 +743,10 @@ void HELPER(gvec_vsldb)(void *v1, const void *v2, const void *v3,
     s390_vec_shl(&t0, v2, src_idx * 8);
     s390_vec_shr(&t1, v3, 128 - src_idx * 8);
     s390_vec_or(v1, &t0, &t1);
+}
+
+void HELPER(gvec_vsra)(void *v1, const void *v2, uint64_t count,
+                       uint32_t desc)
+{
+    s390_vec_sar(v1, v2, count);
 }
