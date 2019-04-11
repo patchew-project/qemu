@@ -44,9 +44,12 @@
 #include "qapi/error.h"
 #include "qemu/timer.h"
 #include "qemu/bitops.h"
+#include "qemu/error-report.h"
 #include "qemu/host-utils.h"
 #include "qemu/log.h"
+#include "qemu/option.h"
 #include "hw/sysbus.h"
+#include "sysemu/blockdev.h"
 #include "sysemu/sysemu.h"
 #include "trace.h"
 
@@ -966,6 +969,33 @@ BlockBackend *pflash_cfi01_get_blk(PFlashCFI01 *fl)
 MemoryRegion *pflash_cfi01_get_memory(PFlashCFI01 *fl)
 {
     return &fl->mem;
+}
+
+/*
+ * Handle -drive if=pflash for machines that use machine properties.
+ * Map unit#i (0 < i <= @ndev) to @dev[i]'s property "drive".
+ */
+void pflash_cfi01_legacy_drive(PFlashCFI01 *dev[], int ndev)
+{
+    int i;
+    DriveInfo *dinfo;
+    Location loc;
+
+    for (i = 0; i < ndev; i++) {
+        dinfo = drive_get(IF_PFLASH, 0, i);
+        if (!dinfo) {
+            continue;
+        }
+        loc_push_none(&loc);
+        qemu_opts_loc_restore(dinfo->opts);
+        if (dev[i]->blk) {
+            error_report("clashes with -machine");
+            exit(1);
+        }
+        qdev_prop_set_drive(DEVICE(dev[i]), "drive",
+                            blk_by_legacy_dinfo(dinfo), &error_fatal);
+        loc_pop(&loc);
+    }
 }
 
 static void postload_update_cb(void *opaque, int running, RunState state)
