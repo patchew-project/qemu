@@ -14,6 +14,7 @@
 #include "cpu.h"
 #include "vec.h"
 #include "exec/helper-proto.h"
+#include "tcg/tcg-gvec-desc.h"
 
 /*
  * Add two 128 bit vectors, returning the carry.
@@ -580,3 +581,21 @@ void HELPER(gvec_verll##BITS)(void *v1, const void *v2, uint64_t count,        \
 }
 DEF_VERLL(8)
 DEF_VERLL(16)
+
+#define DEF_VERIM(BITS)                                                        \
+void HELPER(gvec_verim##BITS)(void *v1, const void *v2, const void *v3,        \
+                              uint32_t desc)                                   \
+{                                                                              \
+    const uint8_t count = simd_data(desc);                                     \
+    int i;                                                                     \
+                                                                               \
+    for (i = 0; i < (128 / BITS); i++) {                                       \
+        const uint##BITS##_t a = s390_vec_read_element##BITS(v2, i);           \
+        const uint##BITS##_t mask = s390_vec_read_element##BITS(v3, i);        \
+        const uint##BITS##_t d = (a & ~mask) | (rotl##BITS(a, count) & mask);  \
+                                                                               \
+        s390_vec_write_element##BITS(v1, i, d);                                \
+    }                                                                          \
+}
+DEF_VERIM(8)
+DEF_VERIM(16)
