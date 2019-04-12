@@ -2206,9 +2206,8 @@ void qmp_getfd(const char *fdname, Error **errp)
     mon_fd_t *monfd;
     int fd, tmp_fd;
 
-    fd = qemu_chr_fe_get_msgfd(&cur_mon->chr);
+    fd = monitor_recv_fd(cur_mon, errp);
     if (fd == -1) {
-        error_setg(errp, QERR_FD_NOT_SUPPLIED);
         return;
     }
 
@@ -2264,6 +2263,15 @@ void qmp_closefd(const char *fdname, Error **errp)
 
     qemu_mutex_unlock(&cur_mon->mon_lock);
     error_setg(errp, QERR_FD_NOT_FOUND, fdname);
+}
+
+int monitor_recv_fd(Monitor *mon, Error **errp)
+{
+    int fd = qemu_chr_fe_get_msgfd(&cur_mon->chr);
+    if (fd == -1) {
+        error_setg(errp, QERR_FD_NOT_SUPPLIED);
+    }
+    return fd;
 }
 
 int monitor_get_fd(Monitor *mon, const char *fdname, Error **errp)
@@ -2335,9 +2343,8 @@ AddfdInfo *qmp_add_fd(bool has_fdset_id, int64_t fdset_id, bool has_opaque,
     Monitor *mon = cur_mon;
     AddfdInfo *fdinfo;
 
-    fd = qemu_chr_fe_get_msgfd(&mon->chr);
+    fd = monitor_recv_fd(mon, errp);
     if (fd == -1) {
-        error_setg(errp, QERR_FD_NOT_SUPPLIED);
         goto error;
     }
 

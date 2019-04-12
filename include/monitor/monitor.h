@@ -25,6 +25,7 @@ void monitor_cleanup(void);
 int monitor_suspend(Monitor *mon);
 void monitor_resume(Monitor *mon);
 
+int monitor_recv_fd(Monitor *mon, Error **errp);
 int monitor_get_fd(Monitor *mon, const char *fdname, Error **errp);
 int monitor_fd_param(Monitor *mon, const char *fdname, Error **errp);
 
