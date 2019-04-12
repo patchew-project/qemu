@@ -19,6 +19,7 @@
 #include "migration/blocker.h"
 #include "exec.h"
 #include "fd.h"
+#include "inline-fd.h"
 #include "socket.h"
 #include "rdma.h"
 #include "ram.h"
@@ -364,6 +365,13 @@ void qemu_start_incoming_migration(const char *uri, Error **errp)
         unix_start_incoming_migration(p, errp);
     } else if (strstart(uri, "fd:", &p)) {
         fd_start_incoming_migration(p, errp);
+    } else if (strstart(uri, "inline-fd:", &p)) {
+        if (!*p) {
+            inline_fd_start_incoming_migration(errp);
+        } else {
+            error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "uri",
+                       "an empty path for 'inline-fd:' protocol");
+        }
     } else {
         error_setg(errp, "unknown migration protocol: %s", uri);
     }
@@ -1924,6 +1932,13 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
         unix_start_outgoing_migration(s, p, &local_err);
     } else if (strstart(uri, "fd:", &p)) {
         fd_start_outgoing_migration(s, p, &local_err);
+    } else if (strstart(uri, "inline-fd:", &p)) {
+        if (!*p) {
+            inline_fd_start_outgoing_migration(s, &local_err);
+        } else {
+            error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "uri",
+                       "an empty path for 'inline-fd:' protocol");
+        }
     } else {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "uri",
                    "a valid migration protocol");

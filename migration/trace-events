@@ -261,6 +261,10 @@ migration_exec_incoming(const char *cmd) "cmd=%s"
 migration_fd_outgoing(int fd) "fd=%d"
 migration_fd_incoming(int fd) "fd=%d"
 
+# inline-fd.c
+migration_inline_fd_outgoing(int fd) "fd=%d"
+migration_inline_fd_incoming(int fd) "fd=%d"
+
 # socket.c
 migration_socket_incoming_accepted(void) ""
 migration_socket_outgoing_connected(const char *hostname) "hostname=%s"
