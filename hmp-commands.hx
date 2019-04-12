@@ -588,6 +588,21 @@ is mapped.
 ETEXI
 
     {
+        .name       = "gva2gpa",
+        .args_type  = "addr:l",
+        .params     = "addr",
+        .help       = "print the guest physical address corresponding to a guest virtual address",
+        .cmd        = hmp_gva2gpa,
+    },
+
+STEXI
+@item gpa2hpa @var{addr}
+@findex gpa2hpa
+Print the guest physical address at which the guest's virtual address @var{addr}
+is mapped based on the mapping for the current CPU.
+ETEXI
+
+    {
         .name       = "p|print",
         .args_type  = "fmt:/,val:l",
         .params     = "/fmt expr",
