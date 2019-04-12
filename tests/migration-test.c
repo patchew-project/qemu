@@ -15,6 +15,7 @@
 #include "libqtest.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qjson.h"
+#include "qapi/qmp/qstring.h"
 #include "qemu/option.h"
 #include "qemu/range.h"
 #include "qemu/sockets.h"
@@ -172,6 +173,21 @@ static void stop_cb(void *opaque, const char *name, QDict *data)
     if (!strcmp(name, "STOP")) {
         got_stop = true;
     }
+}
+
+/*
+ * Events can get in the way of responses we are actually waiting for.
+ */
+GCC_FMT_ATTR(3, 4)
+static QDict *wait_command_fd(QTestState *who, int fd, const char *command, ...)
+{
+    va_list ap;
+
+    va_start(ap, command);
+    qtest_qmp_vsend_fds(who, &fd, 1, command, ap);
+    va_end(ap);
+
+    return qtest_qmp_receive_success(who, stop_cb, NULL);
 }
 
 /*
@@ -461,6 +477,42 @@ static void migrate_set_capability(QTestState *who, const char *capability,
     qobject_unref(rsp);
 }
 
+GCC_FMT_ATTR(4, 0)
+static void migrate_to_fdv(QTestState *who, int fd, const char *uri,
+                           const char *fmt, va_list ap)
+{
+    QDict *args, *rsp;
+
+    args = qdict_from_vjsonf_nofail(fmt, ap);
+    g_assert(!qdict_haskey(args, "uri"));
+    qdict_put_str(args, "uri", uri);
+
+    if (fd != -1) {
+        rsp = qtest_qmp_fds(who, &fd, 1,
+                            "{ 'execute': 'migrate', 'arguments': %p}", args);
+    } else {
+        rsp = qtest_qmp(who, "{ 'execute': 'migrate', 'arguments': %p}", args);
+    }
+
+    g_assert(qdict_haskey(rsp, "return"));
+    qobject_unref(rsp);
+}
+
+/*
+ * Send QMP command "migrate" with fd.
+ * Arguments are built from @fmt... (formatted like
+ * qobject_from_jsonf_nofail()) with "uri": @uri spliced in.
+ */
+GCC_FMT_ATTR(4, 5)
+static void migrate_to_fd(QTestState *who, int fd, const char *uri,
+                          const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    migrate_to_fdv(who, fd, uri, fmt, ap);
+    va_end(ap);
+}
+
 /*
  * Send QMP command "migrate".
  * Arguments are built from @fmt... (formatted like
@@ -470,18 +522,9 @@ GCC_FMT_ATTR(3, 4)
 static void migrate(QTestState *who, const char *uri, const char *fmt, ...)
 {
     va_list ap;
-    QDict *args, *rsp;
-
     va_start(ap, fmt);
-    args = qdict_from_vjsonf_nofail(fmt, ap);
+    migrate_to_fdv(who, -1, uri, fmt, ap);
     va_end(ap);
-
-    g_assert(!qdict_haskey(args, "uri"));
-    qdict_put_str(args, "uri", uri);
-
-    rsp = qmp("{ 'execute': 'migrate', 'arguments': %p}", args);
-    g_assert(qdict_haskey(rsp, "return"));
-    qobject_unref(rsp);
 }
 
 static void migrate_postcopy_start(QTestState *from, QTestState *to)
@@ -1027,6 +1070,59 @@ static void test_precopy_tcp(void)
     g_free(uri);
 }
 
+static void test_migrate_inline_fd(void)
+{
+    QTestState *from, *to;
+    int ret;
+    int pair[2];
+    QDict *rsp;
+
+    if (test_migrate_start(&from, &to, "defer", false, false)) {
+        return;
+    }
+
+    /*
+     * We want to pick a speed slow enough that the test completes
+     * quickly, but that it doesn't complete precopy even on a slow
+     * machine, so also set the downtime.
+     */
+    /* 1 ms should make it not converge*/
+    migrate_set_parameter(from, "downtime-limit", 1);
+    /* 1GB/s */
+    migrate_set_parameter(from, "max-bandwidth", 1000000000);
+
+    /* Wait for the first serial output from the source */
+    wait_for_serial("src_serial");
+
+    ret = socketpair(PF_LOCAL, SOCK_STREAM, 0, pair);
+    g_assert_cmpint(ret, ==, 0);
+
+    rsp = wait_command_fd(to, pair[0],
+                          "{ 'execute': 'migrate-incoming',"
+                          "  'arguments': { 'uri': 'inline-fd:' }}");
+    qobject_unref(rsp);
+
+    migrate_to_fd(from, pair[1], "inline-fd:", "{}");
+
+    close(pair[0]);
+    close(pair[1]);
+
+    wait_for_migration_pass(from);
+
+    /* 300ms should converge */
+    migrate_set_parameter(from, "downtime-limit", 300);
+
+    if (!got_stop) {
+        qtest_qmp_eventwait(from, "STOP");
+    }
+    qtest_qmp_eventwait(to, "RESUME");
+
+    wait_for_serial("dest_serial");
+    wait_for_migration_complete(from);
+
+    test_migrate_end(from, to, true);
+}
+
 int main(int argc, char **argv)
 {
     char template[] = "/tmp/migration-test-XXXXXX";
@@ -1081,6 +1177,7 @@ int main(int argc, char **argv)
     qtest_add_func("/migration/precopy/tcp", test_precopy_tcp);
     /* qtest_add_func("/migration/ignore_shared", test_ignore_shared); */
     qtest_add_func("/migration/xbzrle/unix", test_xbzrle_unix);
+    qtest_add_func("/migration/inline_fd", test_migrate_inline_fd);
 
     ret = g_test_run();
 
