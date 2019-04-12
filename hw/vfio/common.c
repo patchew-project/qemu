@@ -24,6 +24,7 @@
 #include <linux/kvm.h>
 #endif
 #include <linux/vfio.h>
+#include <linux/iommu.h>
 
 #include "hw/vfio/vfio-common.h"
 #include "hw/vfio/vfio.h"
@@ -480,6 +481,19 @@ out:
     rcu_read_unlock();
 }
 
+static VFIOGuestIOMMU *vfio_alloc_guest_iommu(VFIOContainer *container,
+                                              IOMMUMemoryRegion *iommu,
+                                              hwaddr offset)
+{
+    VFIOGuestIOMMU *giommu = g_new0(VFIOGuestIOMMU, 1);
+
+    giommu->container = container;
+    giommu->iommu = iommu;
+    giommu->iommu_offset = offset;
+    /* notifier will be registered separately */
+    return giommu;
+}
+
 static void vfio_listener_region_add(MemoryListener *listener,
                                      MemoryRegionSection *section)
 {
@@ -587,6 +601,7 @@ static void vfio_listener_region_add(MemoryListener *listener,
     if (memory_region_is_iommu(section->mr)) {
         VFIOGuestIOMMU *giommu;
         IOMMUMemoryRegion *iommu_mr = IOMMU_MEMORY_REGION(section->mr);
+        hwaddr offset;
         int iommu_idx;
 
         trace_vfio_listener_region_add_iommu(iova, end);
@@ -596,11 +611,11 @@ static void vfio_listener_region_add(MemoryListener *listener,
          * would be the right place to wire that up (tell the KVM
          * device emulation the VFIO iommu handles to use).
          */
-        giommu = g_malloc0(sizeof(*giommu));
-        giommu->iommu = iommu_mr;
-        giommu->iommu_offset = section->offset_within_address_space -
-                               section->offset_within_region;
-        giommu->container = container;
+
+        offset = section->offset_within_address_space -
+                    section->offset_within_region;
+        giommu = vfio_alloc_guest_iommu(container, iommu_mr, offset);
+
         llend = int128_add(int128_make64(section->offset_within_region),
                            section->size);
         llend = int128_sub(llend, int128_one());
