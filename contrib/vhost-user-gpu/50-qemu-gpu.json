@@ -1,0 +1,5 @@
+{
+  "description": "QEMU vhost-user-gpu",
+  "type": "gpu",
+  "binary": "/usr/libexec/qemu/vhost-user-gpu",
+}
