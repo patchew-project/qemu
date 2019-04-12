@@ -3180,6 +3180,7 @@ static int fill_psinfo(struct target_elf_prpsinfo *psinfo, const TaskState *ts)
 {
     char *base_filename;
     unsigned int i, len;
+    size_t pathlen;
 
     (void) memset(psinfo, 0, sizeof (*psinfo));
 
@@ -3201,12 +3202,9 @@ static int fill_psinfo(struct target_elf_prpsinfo *psinfo, const TaskState *ts)
     psinfo->pr_gid = getgid();
 
     base_filename = g_path_get_basename(ts->bprm->filename);
-    /*
-     * Using strncpy here is fine: at max-length,
-     * this field is not NUL-terminated.
-     */
-    (void) strncpy(psinfo->pr_fname, base_filename,
-                   sizeof(psinfo->pr_fname));
+    pathlen = strlen(base_filename) + 1;
+    pathlen = MIN(pathlen, sizeof(psinfo->pr_fname));
+    memcpy(psinfo->pr_fname, base_filename, pathlen);
 
     g_free(base_filename);
     bswap_psinfo(psinfo);
