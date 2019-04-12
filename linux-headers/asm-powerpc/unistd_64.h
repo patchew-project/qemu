@@ -367,6 +367,17 @@
 #define __NR_pkey_mprotect	386
 #define __NR_rseq	387
 #define __NR_io_pgetevents	388
+#define __NR_semtimedop	392
+#define __NR_semget	393
+#define __NR_semctl	394
+#define __NR_shmget	395
+#define __NR_shmctl	396
+#define __NR_shmat	397
+#define __NR_shmdt	398
+#define __NR_msgget	399
+#define __NR_msgsnd	400
+#define __NR_msgrcv	401
+#define __NR_msgctl	402
 
 
 #endif /* _ASM_POWERPC_UNISTD_64_H */
