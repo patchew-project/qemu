@@ -489,6 +489,56 @@ static void vfio_iommu_unmap_notify(IOMMUNotifier *n, IOMMUTLBEntry *iotlb)
     }
 }
 
+static void vfio_iommu_msi_map_notify(IOMMUNotifier *n, IOMMUTLBEntry *iotlb)
+{
+    VFIOGuestIOMMU *giommu = container_of(n, VFIOGuestIOMMU, n);
+    VFIOContainer *container = giommu->container;
+    int ret;
+
+    struct vfio_iommu_type1_bind_msi ustruct;
+    VFIOMSIBinding *binding;
+
+    QLIST_FOREACH(binding, &container->msibinding_list, next) {
+        if (binding->iova == iotlb->iova) {
+            return;
+        }
+    }
+    ustruct.argsz = sizeof(struct vfio_iommu_type1_bind_msi);
+    ustruct.flags = 0;
+
+    ustruct.iova = iotlb->iova;
+    ustruct.gpa = iotlb->translated_addr;
+    ustruct.size = iotlb->addr_mask + 1;
+    ret = ioctl(container->fd, VFIO_IOMMU_BIND_MSI , &ustruct);
+    if (ret) {
+        error_report("%s: failed to register the stage1 MSI binding (%d)",
+                     __func__, ret);
+    }
+    binding =  g_new0(VFIOMSIBinding, 1);
+    binding->iova = ustruct.iova;
+    binding->gpa = ustruct.gpa;
+    binding->size = ustruct.size;
+
+    QLIST_INSERT_HEAD(&container->msibinding_list, binding, next);
+}
+
+static void vfio_container_unbind_msis(VFIOContainer *container)
+{
+    VFIOMSIBinding *binding, *tmp;
+
+    QLIST_FOREACH_SAFE(binding, &container->msibinding_list, next, tmp) {
+        struct vfio_iommu_type1_unbind_msi ustruct;
+
+        /* the MSI doorbell is not used anymore, unregister it */
+        ustruct.argsz = sizeof(struct vfio_iommu_type1_unbind_msi);
+        ustruct.flags = 0;
+        ustruct.iova = binding->iova;
+        ioctl(container->fd, VFIO_IOMMU_UNBIND_MSI , &ustruct);
+        QLIST_REMOVE(binding, next);
+        g_free(binding);
+    }
+}
+
 static void vfio_iommu_map_notify(IOMMUNotifier *n, IOMMUTLBEntry *iotlb)
 {
     VFIOGuestIOMMU *giommu = container_of(n, VFIOGuestIOMMU, n);
@@ -816,6 +866,8 @@ static void vfio_listener_region_add(MemoryListener *listener,
                                                        MEMTXATTRS_UNSPECIFIED);
 
         if (container->iommu_type == VFIO_TYPE1_NESTING_IOMMU) {
+            bool translate_msi;
+
             /* Config notifier to propagate guest stage 1 config changes */
             giommu = vfio_alloc_guest_iommu(container, iommu_mr, offset);
             iommu_config_notifier_init(&giommu->n, vfio_iommu_nested_notify,
@@ -832,6 +884,21 @@ static void vfio_listener_region_add(MemoryListener *listener,
                                       iommu_idx);
             QLIST_INSERT_HEAD(&container->giommu_list, giommu, giommu_next);
             memory_region_register_iommu_notifier(section->mr, &giommu->n);
+
+            memory_region_iommu_get_attr(iommu_mr, IOMMU_ATTR_MSI_TRANSLATE,
+                                         (void *)&translate_msi);
+            if (translate_msi) {
+                giommu = vfio_alloc_guest_iommu(container, iommu_mr, offset);
+                iommu_iotlb_notifier_init(&giommu->n,
+                                          vfio_iommu_msi_map_notify,
+                                          IOMMU_NOTIFIER_IOTLB_MAP,
+                                          section->offset_within_region,
+                                          int128_get64(llend),
+                                          iommu_idx);
+                QLIST_INSERT_HEAD(&container->giommu_list, giommu,
+                                  giommu_next);
+                memory_region_register_iommu_notifier(section->mr, &giommu->n);
+            }
         } else {
             /* MAP/UNMAP IOTLB notifier */
             giommu = vfio_alloc_guest_iommu(container, iommu_mr, offset);
@@ -1607,6 +1674,8 @@ static void vfio_disconnect_container(VFIOGroup *group)
             QLIST_REMOVE(giommu, giommu_next);
             g_free(giommu);
         }
+
+        vfio_container_unbind_msis(container);
 
         trace_vfio_disconnect_container(container->fd);
         close(container->fd);
