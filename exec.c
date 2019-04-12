@@ -685,12 +685,12 @@ static void tcg_register_iommu_notifier(CPUState *cpu,
          * just register interest in the whole thing, on the assumption
          * that iommu reconfiguration will be rare.
          */
-        iommu_notifier_init(&notifier->n,
-                            tcg_iommu_unmap_notify,
-                            IOMMU_NOTIFIER_UNMAP,
-                            0,
-                            HWADDR_MAX,
-                            iommu_idx);
+        iommu_iotlb_notifier_init(&notifier->n,
+                                  tcg_iommu_unmap_notify,
+                                  IOMMU_NOTIFIER_IOTLB_UNMAP,
+                                  0,
+                                  HWADDR_MAX,
+                                  iommu_idx);
         memory_region_register_iommu_notifier(notifier->mr, &notifier->n);
     }
 

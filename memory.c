@@ -1862,7 +1862,9 @@ void memory_region_register_iommu_notifier(MemoryRegion *mr,
     /* We need to register for at least one bitfield */
     iommu_mr = IOMMU_MEMORY_REGION(mr);
     assert(n->notifier_flags != IOMMU_NOTIFIER_NONE);
-    assert(n->start <= n->end);
+    if (is_iommu_iotlb_notifier(n)) {
+        assert(n->iotlb_notifier.start <= n->iotlb_notifier.end);
+    }
     assert(n->iommu_idx >= 0 &&
            n->iommu_idx < memory_region_iommu_num_indexes(iommu_mr));
 
@@ -1898,7 +1900,7 @@ void memory_region_iommu_replay(IOMMUMemoryRegion *iommu_mr, IOMMUNotifier *n)
     for (addr = 0; addr < memory_region_size(mr); addr += granularity) {
         iotlb = imrc->translate(iommu_mr, addr, IOMMU_NONE, n->iommu_idx);
         if (iotlb.perm != IOMMU_NONE) {
-            n->notify(n, &iotlb);
+            n->iotlb_notifier.notify(n, &iotlb);
         }
 
         /* if (2^64 - MR size) < granularity, it's possible to get an
@@ -1932,42 +1934,44 @@ void memory_region_unregister_iommu_notifier(MemoryRegion *mr,
     memory_region_update_iommu_notify_flags(iommu_mr);
 }
 
-void memory_region_notify_one(IOMMUNotifier *notifier,
-                              IOMMUTLBEntry *entry)
+void memory_region_iotlb_notify_one(IOMMUNotifier *notifier,
+                                    IOMMUTLBEntry *entry)
 {
     IOMMUNotifierFlag request_flags;
 
+    assert(is_iommu_iotlb_notifier(notifier));
     /*
      * Skip the notification if the notification does not overlap
      * with registered range.
      */
-    if (notifier->start > entry->iova + entry->addr_mask ||
-        notifier->end < entry->iova) {
+    if (notifier->iotlb_notifier.start > entry->iova + entry->addr_mask ||
+        notifier->iotlb_notifier.end < entry->iova) {
         return;
     }
 
     if (entry->perm & IOMMU_RW) {
-        request_flags = IOMMU_NOTIFIER_MAP;
+        request_flags = IOMMU_NOTIFIER_IOTLB_MAP;
     } else {
-        request_flags = IOMMU_NOTIFIER_UNMAP;
+        request_flags = IOMMU_NOTIFIER_IOTLB_UNMAP;
     }
 
     if (notifier->notifier_flags & request_flags) {
-        notifier->notify(notifier, entry);
+        notifier->iotlb_notifier.notify(notifier, entry);
     }
 }
 
-void memory_region_notify_iommu(IOMMUMemoryRegion *iommu_mr,
-                                int iommu_idx,
-                                IOMMUTLBEntry entry)
+void memory_region_iotlb_notify_iommu(IOMMUMemoryRegion *iommu_mr,
+                                      int iommu_idx,
+                                      IOMMUTLBEntry entry)
 {
     IOMMUNotifier *iommu_notifier;
 
     assert(memory_region_is_iommu(MEMORY_REGION(iommu_mr)));
 
     IOMMU_NOTIFIER_FOREACH(iommu_notifier, iommu_mr) {
-        if (iommu_notifier->iommu_idx == iommu_idx) {
-            memory_region_notify_one(iommu_notifier, &entry);
+        if (iommu_notifier->iommu_idx == iommu_idx &&
+            is_iommu_iotlb_notifier(iommu_notifier)) {
+            memory_region_iotlb_notify_one(iommu_notifier, &entry);
         }
     }
 }

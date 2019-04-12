@@ -81,23 +81,29 @@ struct IOMMUTLBEntry {
 typedef enum {
     IOMMU_NOTIFIER_NONE = 0,
     /* Notify cache invalidations */
-    IOMMU_NOTIFIER_UNMAP = 0x1,
+    IOMMU_NOTIFIER_IOTLB_UNMAP = 0x1,
     /* Notify entry changes (newly created entries) */
-    IOMMU_NOTIFIER_MAP = 0x2,
+    IOMMU_NOTIFIER_IOTLB_MAP = 0x2,
 } IOMMUNotifierFlag;
 
-#define IOMMU_NOTIFIER_ALL (IOMMU_NOTIFIER_MAP | IOMMU_NOTIFIER_UNMAP)
+#define IOMMU_NOTIFIER_IOTLB_ALL (IOMMU_NOTIFIER_IOTLB_MAP | IOMMU_NOTIFIER_IOTLB_UNMAP)
 
 struct IOMMUNotifier;
 typedef void (*IOMMUNotify)(struct IOMMUNotifier *notifier,
                             IOMMUTLBEntry *data);
 
-struct IOMMUNotifier {
+typedef struct IOMMUIOLTBNotifier {
     IOMMUNotify notify;
-    IOMMUNotifierFlag notifier_flags;
     /* Notify for address space range start <= addr <= end */
     hwaddr start;
     hwaddr end;
+} IOMMUIOLTBNotifier;
+
+struct IOMMUNotifier {
+    IOMMUNotifierFlag notifier_flags;
+    union {
+        IOMMUIOLTBNotifier iotlb_notifier;
+    };
     int iommu_idx;
     QLIST_ENTRY(IOMMUNotifier) node;
 };
@@ -126,15 +132,18 @@ typedef struct IOMMUNotifier IOMMUNotifier;
 /* RAM is a persistent kind memory */
 #define RAM_PMEM (1 << 5)
 
-static inline void iommu_notifier_init(IOMMUNotifier *n, IOMMUNotify fn,
-                                       IOMMUNotifierFlag flags,
-                                       hwaddr start, hwaddr end,
-                                       int iommu_idx)
+static inline void iommu_iotlb_notifier_init(IOMMUNotifier *n, IOMMUNotify fn,
+                                             IOMMUNotifierFlag flags,
+                                             hwaddr start, hwaddr end,
+                                             int iommu_idx)
 {
-    n->notify = fn;
+    assert(flags & IOMMU_NOTIFIER_IOTLB_MAP ||
+           flags & IOMMU_NOTIFIER_IOTLB_UNMAP);
+    assert(start < end);
     n->notifier_flags = flags;
-    n->start = start;
-    n->end = end;
+    n->iotlb_notifier.notify = fn;
+    n->iotlb_notifier.start = start;
+    n->iotlb_notifier.end = end;
     n->iommu_idx = iommu_idx;
 }
 
@@ -633,6 +642,11 @@ void memory_region_init_resizeable_ram(MemoryRegion *mr,
                                                        uint64_t length,
                                                        void *host),
                                        Error **errp);
+
+static inline bool is_iommu_iotlb_notifier(IOMMUNotifier *n)
+{
+    return n->notifier_flags & IOMMU_NOTIFIER_IOTLB_ALL;
+}
 #ifdef CONFIG_POSIX
 
 /**
@@ -1018,7 +1032,8 @@ static inline IOMMUMemoryRegionClass *memory_region_get_iommu_class_nocheck(
 uint64_t memory_region_iommu_get_min_page_size(IOMMUMemoryRegion *iommu_mr);
 
 /**
- * memory_region_notify_iommu: notify a change in an IOMMU translation entry.
+ * memory_region_iotlb_notify_iommu: notify a change in an IOMMU translation
+ * entry.
  *
  * The notification type will be decided by entry.perm bits:
  *
@@ -1035,15 +1050,15 @@ uint64_t memory_region_iommu_get_min_page_size(IOMMUMemoryRegion *iommu_mr);
  *         replaces all old entries for the same virtual I/O address range.
  *         Deleted entries have .@perm == 0.
  */
-void memory_region_notify_iommu(IOMMUMemoryRegion *iommu_mr,
-                                int iommu_idx,
-                                IOMMUTLBEntry entry);
+void memory_region_iotlb_notify_iommu(IOMMUMemoryRegion *iommu_mr,
+                                      int iommu_idx,
+                                      IOMMUTLBEntry entry);
 
 /**
- * memory_region_notify_one: notify a change in an IOMMU translation
- *                           entry to a single notifier
+ * memory_region_iotlb_notify_one: notify a change in an IOMMU translation
+ *                                 entry to a single notifier
  *
- * This works just like memory_region_notify_iommu(), but it only
+ * This works just like memory_region_iotlb_notify_iommu(), but it only
  * notifies a specific notifier, not all of them.
  *
  * @notifier: the notifier to be notified
@@ -1051,8 +1066,8 @@ void memory_region_notify_iommu(IOMMUMemoryRegion *iommu_mr,
  *         replaces all old entries for the same virtual I/O address range.
  *         Deleted entries have .@perm == 0.
  */
-void memory_region_notify_one(IOMMUNotifier *notifier,
-                              IOMMUTLBEntry *entry);
+void memory_region_iotlb_notify_one(IOMMUNotifier *notifier,
+                                    IOMMUTLBEntry *entry);
 
 /**
  * memory_region_register_iommu_notifier: register a notifier for changes to
