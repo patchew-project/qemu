@@ -2498,11 +2498,100 @@ int vfio_populate_vga(VFIOPCIDevice *vdev, Error **errp)
     return 0;
 }
 
+static void vfio_init_fault_regions(VFIOPCIDevice *vdev, Error **errp)
+{
+    struct vfio_region_info *fault_region_info = NULL;
+    struct vfio_region_info_cap_fault *cap_fault;
+    VFIODevice *vbasedev = &vdev->vbasedev;
+    struct vfio_info_cap_header *hdr;
+    char *fault_region_name = NULL;
+    uint32_t max_version;
+    ssize_t bytes;
+    int ret;
+
+    /* Producer Fault Region */
+    ret = vfio_get_dev_region_info(&vdev->vbasedev,
+                                   VFIO_REGION_TYPE_NESTED,
+                                   VFIO_REGION_SUBTYPE_NESTED_FAULT_PROD,
+                                   &fault_region_info);
+    if (!ret) {
+        hdr = vfio_get_region_info_cap(fault_region_info,
+                                       VFIO_REGION_INFO_CAP_PRODUCER_FAULT);
+        if (!hdr) {
+            error_setg(errp, "failed to retrieve fault ABI max version");
+            g_free(fault_region_info);
+            return;
+        }
+        cap_fault = container_of(hdr, struct vfio_region_info_cap_fault,
+                                 header);
+        max_version = cap_fault->version;
+
+        fault_region_name = g_strdup_printf("%s FAULT PROD %d",
+                                            vbasedev->name,
+                                            fault_region_info->index);
+
+        ret = vfio_region_setup(OBJECT(vdev), vbasedev,
+                                &vdev->fault_prod_region,
+                                fault_region_info->index,
+                                fault_region_name);
+        if (ret) {
+            error_setg_errno(errp, -ret,
+                             "failed to setup the fault prod region %d",
+                             fault_region_info->index);
+            goto out;
+        }
+
+        ret = vfio_region_mmap(&vdev->fault_prod_region);
+        if (ret) {
+            error_report("Failed to mmap fault queue(%d)", ret);
+        }
+
+        g_free(fault_region_info);
+        g_free(fault_region_name);
+    } else {
+        goto out;
+    }
+
+    /* Consumer Fault Region */
+    ret = vfio_get_dev_region_info(&vdev->vbasedev,
+                                   VFIO_REGION_TYPE_NESTED,
+                                   VFIO_REGION_SUBTYPE_NESTED_FAULT_CONS,
+                                   &fault_region_info);
+    if (!ret) {
+        fault_region_name = g_strdup_printf("%s FAULT CONS %d",
+                                            vbasedev->name,
+                                            fault_region_info->index);
+
+        ret = vfio_region_setup(OBJECT(vdev), vbasedev,
+                                &vdev->fault_cons_region,
+                                fault_region_info->index,
+                                fault_region_name);
+        if (ret) {
+            error_setg_errno(errp, -ret,
+                             "failed to setup the fault cons region %d",
+                             fault_region_info->index);
+        }
+
+        /* Set the chosen fault ABI version in the consume header*/
+        bytes = pwrite(vdev->vbasedev.fd, &max_version, 4,
+                       vdev->fault_cons_region.fd_offset);
+        if (bytes != 4) {
+            error_setg(errp,
+                       "Unable to set the chosen fault ABI version (%d)",
+                       max_version);
+        }
+    }
+out:
+    g_free(fault_region_name);
+    g_free(fault_region_info);
+}
+
 static void vfio_populate_device(VFIOPCIDevice *vdev, Error **errp)
 {
     VFIODevice *vbasedev = &vdev->vbasedev;
     struct vfio_region_info *reg_info;
     struct vfio_irq_info irq_info = { .argsz = sizeof(irq_info) };
+    Error *err = NULL;
     int i, ret = -1;
 
     /* Sanity check device */
@@ -2564,6 +2653,12 @@ static void vfio_populate_device(VFIOPCIDevice *vdev, Error **errp)
                               "requested feature x-vga\n");
             return;
         }
+    }
+
+    vfio_init_fault_regions(vdev, &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
     }
 
     irq_info.index = VFIO_PCI_ERR_IRQ_INDEX;
@@ -3070,6 +3165,8 @@ static void vfio_instance_finalize(Object *obj)
 
     vfio_display_finalize(vdev);
     vfio_bars_finalize(vdev);
+    vfio_region_finalize(&vdev->fault_prod_region);
+    vfio_region_finalize(&vdev->fault_cons_region);
     g_free(vdev->emulated_config_bits);
     g_free(vdev->rom);
     /*
@@ -3090,6 +3187,8 @@ static void vfio_exitfn(PCIDevice *pdev)
     vfio_unregister_req_notifier(vdev);
     vfio_unregister_err_notifier(vdev);
     vfio_unregister_dma_fault_notifier(vdev);
+    vfio_region_exit(&vdev->fault_prod_region);
+    vfio_region_exit(&vdev->fault_cons_region);
     pci_device_set_intx_routing_notifier(&vdev->pdev, NULL);
     vfio_disable_interrupts(vdev);
     if (vdev->intx.mmap_timer) {

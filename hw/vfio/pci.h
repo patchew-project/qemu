@@ -136,6 +136,8 @@ typedef struct VFIOPCIDevice {
     EventNotifier err_notifier;
     EventNotifier req_notifier;
     EventNotifier dma_fault_notifier;
+    VFIORegion fault_prod_region;
+    VFIORegion fault_cons_region;
     int (*resetfn)(struct VFIOPCIDevice *);
     uint32_t vendor_id;
     uint32_t device_id;
