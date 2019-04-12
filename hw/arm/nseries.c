@@ -1309,6 +1309,9 @@ static void n8x0_init(MachineState *machine,
     struct n800_s *s = (struct n800_s *) g_malloc0(sizeof(*s));
     int sdram_size = binfo->ram_size;
 
+    warn_report("The n800 and n810 machines are deprecated. Please use a "
+                "different Arm machine instead.");
+
     s->mpu = omap2420_mpu_init(sysmem, sdram_size, machine->cpu_type);
 
     /* Setup peripherals
