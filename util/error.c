@@ -32,9 +32,11 @@ Error *error_fatal;
 static void error_handle_fatal(Error **errp, Error *err)
 {
     if (errp == &error_abort) {
-        fprintf(stderr, "Unexpected error in %s() at %s:%d:\n",
-                err->func, err->src, err->line);
-        error_report_err(err);
+        error_report("Unexpected error in %s() at %s:%d: %s",
+                     err->func, err->src, err->line, error_get_pretty(err));
+        if (err->hint) {
+            error_printf_unless_qmp("%s", err->hint->str);
+        }
         abort();
     }
     if (errp == &error_fatal) {
