@@ -128,6 +128,8 @@ GlobalProperty pc_compat_3_1[] = {
     { "EPYC" "-" TYPE_X86_CPU, "nrip-save", "off" },
     { "EPYC-IBPB" "-" TYPE_X86_CPU, "npt", "off" },
     { "EPYC-IBPB" "-" TYPE_X86_CPU, "nrip-save", "off" },
+    { "Dhyana" "-" TYPE_X86_CPU, "npt", "off" },
+    { "Dhyana" "-" TYPE_X86_CPU, "nrip-save", "off" },
     { "Skylake-Client" "-" TYPE_X86_CPU,      "mpx", "on" },
     { "Skylake-Client-IBRS" "-" TYPE_X86_CPU, "mpx", "on" },
     { "Skylake-Server" "-" TYPE_X86_CPU,      "mpx", "on" },
@@ -152,6 +154,7 @@ GlobalProperty pc_compat_2_12[] = {
     { TYPE_X86_CPU, "topoext", "off" },
     { "EPYC-" TYPE_X86_CPU, "xlevel", "0x8000000a" },
     { "EPYC-IBPB-" TYPE_X86_CPU, "xlevel", "0x8000000a" },
+    { "Dhyana-" TYPE_X86_CPU, "xlevel", "0x8000000a" },
 };
 const size_t pc_compat_2_12_len = G_N_ELEMENTS(pc_compat_2_12);
 
