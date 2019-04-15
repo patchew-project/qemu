@@ -2772,7 +2772,7 @@ static int coroutine_fn preallocate_co(BlockDriverState *bs, uint64_t offset,
      */
     if (host_offset != 0) {
         uint8_t data = 0;
-        ret = bdrv_pwrite(bs->file, (host_offset + cur_bytes) - 1,
+        ret = bdrv_pwrite(s->data_file, (host_offset + cur_bytes) - 1,
                           &data, 1);
         if (ret < 0) {
             return ret;
