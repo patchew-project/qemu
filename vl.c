@@ -49,6 +49,7 @@ int main(int argc, char **argv)
 #define main qemu_main
 #endif /* CONFIG_COCOA */
 
+#include <locale.h>
 
 #include "qemu/error-report.h"
 #include "qemu/sockets.h"
@@ -3021,6 +3022,41 @@ int main(int argc, char **argv, char **envp)
     bool list_data_dirs = false;
     char *dir, **dirs;
     BlockdevOptionsQueue bdo_queue = QSIMPLEQ_HEAD_INITIALIZER(bdo_queue);
+
+    /*
+     * Ideally we would set LC_ALL, but QEMU currently isn't able to cope
+     * with arbitrary localization settings. In particular there are two
+     * known problems
+     *
+     *   - The QMP monitor needs to use the C locale rules for numeric
+     *     formatting. This would need a double/int -> string formatter
+     *     that is locale independant.
+     *
+     *   - The QMP monitor needs to encode all data as UTF-8. This needs
+     *     to be updated to use iconv(3) to explicitly convert the current
+     *     locale's charset into utf-8
+     *
+     *   - Lots of codes uses is{upper,lower,alnum,...} functions, expecting
+     *     C locale sorting behaviour. Most QEMU usage should likely be
+     *     changed to g_ascii_is{upper,lower,alnum...} to match code
+     *     assumptions, without being broken by locale settnigs.
+     *
+     * We do still have two requirements
+     *
+     *   - Ability to correct display translated text according to the
+     *     user's locale
+     *
+     *   - Ability to handle multibyte characters, ideally according to
+     *     user's locale specified character set. This affects ability
+     *     of usb-mtp to correctly convert filenames to UCS16 and curses
+     *     & GTK frontends wide character display.
+     *
+     * The second requirement would need LC_CTYPE to be honoured, but
+     * this conflicts with the 2nd & 3rd problems listed earlier. For
+     * now we make a tradeoff, trying to set an explicit UTF-8 locale
+     */
+    setlocale(LC_MESSAGES, "");
+    setlocale(LC_CTYPE, "C.UTF-8");
 
     module_call_init(MODULE_INIT_TRACE);
 

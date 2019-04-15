@@ -40,7 +40,6 @@
 #include "ui/gtk.h"
 
 #include <glib/gi18n.h>
-#include <locale.h>
 #if defined(CONFIG_VTE)
 #include <vte/vte.h>
 #endif
@@ -2208,12 +2207,6 @@ static void gtk_display_init(DisplayState *ds, DisplayOptions *opts)
 
     s->free_scale = FALSE;
 
-    /* Mostly LC_MESSAGES only. See early_gtk_display_init() for details. For
-     * LC_CTYPE, we need to make sure that non-ASCII characters are considered
-     * printable, but without changing any of the character classes to make
-     * sure that we don't accidentally break implicit assumptions.  */
-    setlocale(LC_MESSAGES, "");
-    setlocale(LC_CTYPE, "C.UTF-8");
     bindtextdomain("qemu", CONFIG_QEMU_LOCALEDIR);
     textdomain("qemu");
 
@@ -2262,22 +2255,12 @@ static void gtk_display_init(DisplayState *ds, DisplayOptions *opts)
 
 static void early_gtk_display_init(DisplayOptions *opts)
 {
-    /* The QEMU code relies on the assumption that it's always run in
-     * the C locale. Therefore it is not prepared to deal with
-     * operations that produce different results depending on the
-     * locale, such as printf's formatting of decimal numbers, and
-     * possibly others.
-     *
-     * Since GTK+ calls setlocale() by default -importing the locale
-     * settings from the environment- we must prevent it from doing so
-     * using gtk_disable_setlocale().
-     *
-     * QEMU's GTK+ UI, however, _does_ have translations for some of
-     * the menu items. As a trade-off between a functionally correct
-     * QEMU and a fully internationalized UI we support importing
-     * LC_MESSAGES from the environment (see the setlocale() call
-     * earlier in this file). This allows us to display translated
-     * messages leaving everything else untouched.
+    /*
+     * GTK calls setlocale() by default, importing the locale
+     * settings from the environment. QEMU's main() method will
+     * have set LC_MESSAGES and LC_CTYPE to allow GTK to display
+     * translated messages, including use of wide characters. We
+     * must not allow GTK to change other aspects of the locale.
      */
     gtk_disable_setlocale();
     gtkinit = gtk_init_check(NULL, NULL);
