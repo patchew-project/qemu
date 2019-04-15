@@ -27,7 +27,6 @@
 #include <sys/ioctl.h>
 #include <termios.h>
 #endif
-#include <locale.h>
 #include <wchar.h>
 #include <langinfo.h>
 #include <iconv.h>
@@ -716,7 +715,6 @@ static void curses_display_init(DisplayState *ds, DisplayOptions *opts)
     }
 #endif
 
-    setlocale(LC_CTYPE, "");
     if (opts->u.curses.charset) {
         font_charset = opts->u.curses.charset;
     }
