@@ -429,6 +429,7 @@ const struct VMStateDescription *qdev_get_vmsd(DeviceState *dev);
 
 const char *qdev_fw_name(DeviceState *dev);
 
+Object *qdev_get_machine_uncheck(void);
 Object *qdev_get_machine(void);
 
 /* FIXME: make this a link<> */

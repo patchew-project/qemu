@@ -223,7 +223,7 @@ HotplugHandler *qdev_get_machine_hotplug_handler(DeviceState *dev)
 {
     MachineState *machine;
     MachineClass *mc;
-    Object *m_obj = qdev_get_machine();
+    Object *m_obj = qdev_get_machine_uncheck();
 
     if (object_dynamic_cast(m_obj, TYPE_MACHINE)) {
         machine = MACHINE(m_obj);
@@ -815,7 +815,7 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
         if (!obj->parent) {
             gchar *name = g_strdup_printf("device[%d]", unattached_count++);
 
-            object_property_add_child(container_get(qdev_get_machine(),
+            object_property_add_child(container_get(qdev_get_machine_uncheck(),
                                                     "/unattached"),
                                       name, obj, &error_abort);
             unattached_parent = true;
@@ -1095,13 +1095,23 @@ void device_reset(DeviceState *dev)
     }
 }
 
-Object *qdev_get_machine(void)
+Object *qdev_get_machine_uncheck(void)
 {
     static Object *dev;
 
     if (dev == NULL) {
         dev = container_get(object_get_root(), "/machine");
     }
+
+    return dev;
+}
+
+Object *qdev_get_machine(void)
+{
+    static Object *dev;
+
+    dev = qdev_get_machine_uncheck();
+    assert(object_dynamic_cast(dev, TYPE_MACHINE) != NULL);
 
     return dev;
 }

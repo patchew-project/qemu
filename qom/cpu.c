@@ -325,9 +325,10 @@ static void cpu_common_parse_features(const char *typename, char *features,
 static void cpu_common_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cpu = CPU(dev);
-    Object *machine = qdev_get_machine();
+    Object *machine = qdev_get_machine_uncheck();
 
-    /* qdev_get_machine() can return something that's not TYPE_MACHINE
+    /*
+     * qdev_get_machine_uncheck() can return something that's not TYPE_MACHINE
      * if this is one of the user-only emulators; in that case there's
      * no need to check the ignore_memory_transaction_failures board flag.
      */
