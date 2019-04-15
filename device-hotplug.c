@@ -37,6 +37,7 @@
 
 static DriveInfo *add_init_drive(const char *optstr)
 {
+    MachineState *ms = MACHINE(qdev_get_machine());
     Error *err = NULL;
     DriveInfo *dinfo;
     QemuOpts *opts;
@@ -46,7 +47,7 @@ static DriveInfo *add_init_drive(const char *optstr)
     if (!opts)
         return NULL;
 
-    mc = MACHINE_GET_CLASS(current_machine);
+    mc = MACHINE_GET_CLASS(ms);
     dinfo = drive_new(opts, mc->block_default_type, &err);
     if (err) {
         error_report_err(err);

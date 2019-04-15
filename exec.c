@@ -1969,10 +1969,11 @@ static unsigned long last_ram_page(void)
 
 static void qemu_ram_setup_dump(void *addr, ram_addr_t size)
 {
+    MachineState *ms = MACHINE(qdev_get_machine());
     int ret;
 
     /* Use MADV_DONTDUMP, if user doesn't want the guest memory in the core */
-    if (!machine_dump_guest_core(current_machine)) {
+    if (!machine_dump_guest_core(ms)) {
         ret = qemu_madvise(addr, size, QEMU_MADV_DONTDUMP);
         if (ret) {
             perror("qemu_madvise");
@@ -2094,7 +2095,8 @@ size_t qemu_ram_pagesize_largest(void)
 
 static int memory_try_enable_merging(void *addr, size_t len)
 {
-    if (!machine_mem_merge(current_machine)) {
+    MachineState *ms = MACHINE(qdev_get_machine());
+    if (!machine_mem_merge(ms)) {
         /* disabled by the user */
         return 0;
     }

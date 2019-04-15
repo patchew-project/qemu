@@ -140,7 +140,8 @@ static const KVMCapabilityInfo kvm_required_capabilites[] = {
 
 int kvm_get_max_memslots(void)
 {
-    KVMState *s = KVM_STATE(current_machine->accelerator);
+    MachineState *ms = MACHINE(qdev_get_machine());
+    KVMState *s = KVM_STATE(ms->accelerator);
 
     return s->nr_slots;
 }
@@ -1519,7 +1520,8 @@ static int kvm_max_vcpu_id(KVMState *s)
 
 bool kvm_vcpu_id_is_valid(int vcpu_id)
 {
-    KVMState *s = KVM_STATE(current_machine->accelerator);
+    MachineState *ms = MACHINE(qdev_get_machine());
+    KVMState *s = KVM_STATE(ms->accelerator);
     return vcpu_id >= 0 && vcpu_id < kvm_max_vcpu_id(s);
 }
 

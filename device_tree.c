@@ -459,6 +459,7 @@ int qemu_fdt_setprop_phandle(void *fdt, const char *node_path,
 
 uint32_t qemu_fdt_alloc_phandle(void *fdt)
 {
+    MachineState *ms = MACHINE(qdev_get_machine());
     static int phandle = 0x0;
 
     /*
@@ -466,7 +467,7 @@ uint32_t qemu_fdt_alloc_phandle(void *fdt)
      * which phandle id to start allocating phandles.
      */
     if (!phandle) {
-        phandle = machine_phandle_start(current_machine);
+        phandle = machine_phandle_start(ms);
     }
 
     if (!phandle) {

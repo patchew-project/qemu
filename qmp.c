@@ -119,9 +119,10 @@ void qmp_system_powerdown(Error **erp)
 
 void qmp_cpu_add(int64_t id, Error **errp)
 {
+    MachineState *ms = MACHINE(qdev_get_machine());
     MachineClass *mc;
 
-    mc = MACHINE_GET_CLASS(current_machine);
+    mc = MACHINE_GET_CLASS(ms);
     if (mc->hot_add_cpu) {
         mc->hot_add_cpu(id, errp);
     } else {
