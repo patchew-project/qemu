@@ -13,6 +13,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/iov.h"
+#include "qemu/atomic.h"
 #include "hw/virtio/virtio.h"
 #include "net/net.h"
 #include "net/checksum.h"
@@ -240,7 +241,7 @@ static void virtio_net_vhost_status(VirtIONet *n, uint8_t status)
                          "falling back on userspace virtio", -r);
             n->vhost_started = 0;
         }
-    } else {
+    } else if (atomic_fetch_inc(&n->vhost_stopped) == 0) {
         vhost_net_stop(vdev, n->nic->ncs, queues);
         n->vhost_started = 0;
     }
