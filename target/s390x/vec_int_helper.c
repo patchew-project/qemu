@@ -696,3 +696,21 @@ void HELPER(gvec_vscbi##BITS)(void *v1, const void *v2, const void *v3,        \
 }
 DEF_VSCBI(8)
 DEF_VSCBI(16)
+
+void HELPER(gvec_vtm)(void *v1, const void *v2, CPUS390XState *env,
+                      uint32_t desc)
+{
+    S390Vector tmp;
+
+    s390_vec_and(&tmp, v1, v2);
+    if (s390_vec_is_zero(&tmp)) {
+        /* Selected bits all zeros; or all mask bits zero */
+        env->cc_op = 0;
+    } else if (s390_vec_equal(&tmp, v2)) {
+        /* Selected bits all ones */
+        env->cc_op = 3;
+    } else {
+        /* Selected bits a mix of zeros and ones */
+        env->cc_op = 1;
+    }
+}
