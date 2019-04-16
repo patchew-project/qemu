@@ -642,3 +642,9 @@ void HELPER(gvec_vesrl##BITS)(void *v1, const void *v3, uint64_t shift,        \
 }
 DEF_VESRL(8)
 DEF_VESRL(16)
+
+void HELPER(gvec_vsl)(void *v1, const void *v2, uint64_t count,
+                      uint32_t desc)
+{
+    s390_vec_shl(v1, v2, count);
+}
