@@ -218,6 +218,9 @@ static void get_vec_element_ptr_i64(TCGv_ptr ptr, uint8_t reg, TCGv_i64 enr,
 #define gen_gvec_fn_2(fn, es, v1, v2) \
     tcg_gen_gvec_##fn(es, vec_full_reg_offset(v1), vec_full_reg_offset(v2), \
                       16, 16)
+#define gen_gvec_fn_2i(fn, es, v1, v2, c) \
+    tcg_gen_gvec_##fn(es, vec_full_reg_offset(v1), vec_full_reg_offset(v2), \
+                      c, 16, 16)
 #define gen_gvec_fn_3(fn, es, v1, v2, v3) \
     tcg_gen_gvec_##fn(es, vec_full_reg_offset(v1), vec_full_reg_offset(v2), \
                       vec_full_reg_offset(v3), 16, 16)
@@ -1978,5 +1981,115 @@ static DisasJumpType op_verim(DisasContext *s, DisasOps *o)
 
     gen_gvec_3i(get_field(s->fields, v1), get_field(s->fields, v2),
                 get_field(s->fields, v3), i4, &g[es]);
+    return DISAS_NEXT;
+}
+
+static DisasJumpType op_vesv(DisasContext *s, DisasOps *o)
+{
+    const uint8_t es = get_field(s->fields, m4);
+    static const GVecGen3 g_veslv[4] = {
+        { .fno = gen_helper_gvec_veslv8, },
+        { .fno = gen_helper_gvec_veslv16, },
+        { .fno = gen_helper_gvec_veslv32, },
+        { .fno = gen_helper_gvec_veslv64, },
+    };
+    static const GVecGen3 g_vesrav[4] = {
+        { .fno = gen_helper_gvec_vesrav8, },
+        { .fno = gen_helper_gvec_vesrav16, },
+        { .fno = gen_helper_gvec_vesrav32, },
+        { .fno = gen_helper_gvec_vesrav64, },
+    };
+    static const GVecGen3 g_vesrlv[4] = {
+        { .fno = gen_helper_gvec_vesrlv8, },
+        { .fno = gen_helper_gvec_vesrlv16, },
+        { .fno = gen_helper_gvec_vesrlv32, },
+        { .fno = gen_helper_gvec_vesrlv64, },
+    };
+    const GVecGen3 *fn;
+
+    if (es > ES_64) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    switch (s->fields->op2) {
+    case 0x70:
+        fn = &g_veslv[es];
+        break;
+    case 0x7a:
+        fn = &g_vesrav[es];
+        break;
+    case 0x78:
+        fn = &g_vesrlv[es];
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    gen_gvec_3(get_field(s->fields, v1), get_field(s->fields, v2),
+               get_field(s->fields, v3), fn);
+    return DISAS_NEXT;
+}
+
+static DisasJumpType op_ves(DisasContext *s, DisasOps *o)
+{
+    const uint8_t es = get_field(s->fields, m4);
+    const uint8_t d2 = get_field(s->fields, d2) &
+                       (NUM_VEC_ELEMENT_BITS(es) - 1);
+    const uint8_t v1 = get_field(s->fields, v1);
+    const uint8_t v3 = get_field(s->fields, v3);
+    static const GVecGen2s g_vesl[4] = {
+        { .fno = gen_helper_gvec_vesl8, },
+        { .fno = gen_helper_gvec_vesl16, },
+        { .fni4 = tcg_gen_shl_i32, },
+        { .fni8 = tcg_gen_shl_i64, },
+    };
+    static const GVecGen2s g_vesra[4] = {
+        { .fno = gen_helper_gvec_vesra8, },
+        { .fno = gen_helper_gvec_vesra16, },
+        { .fni4 = tcg_gen_sar_i32, },
+        { .fni8 = tcg_gen_sar_i64, },
+    };
+    static const GVecGen2s g_vesrl[4] = {
+        { .fno = gen_helper_gvec_vesrl8, },
+        { .fno = gen_helper_gvec_vesrl16, },
+        { .fni4 = tcg_gen_shr_i32, },
+        { .fni8 = tcg_gen_shr_i64, },
+    };
+    const GVecGen2s *fn;
+
+    if (es > ES_64) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    switch (s->fields->op2) {
+    case 0x30:
+        if (likely(!get_field(s->fields, b2))) {
+            gen_gvec_fn_2i(shli, es, v1, v3, d2);
+            return DISAS_NEXT;
+        }
+        fn = &g_vesl[es];
+        break;
+    case 0x3a:
+        if (likely(!get_field(s->fields, b2))) {
+            gen_gvec_fn_2i(sari, es, v1, v3, d2);
+            return DISAS_NEXT;
+        }
+        fn = &g_vesra[es];
+        break;
+    case 0x38:
+        if (likely(!get_field(s->fields, b2))) {
+            gen_gvec_fn_2i(shri, es, v1, v3, d2);
+            return DISAS_NEXT;
+        }
+        fn = &g_vesrl[es];
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    tcg_gen_andi_i64(o->addr1, o->addr1, NUM_VEC_ELEMENT_BITS(es) - 1);
+    gen_gvec_2s(v1, v3, o->addr1, fn);
     return DISAS_NEXT;
 }

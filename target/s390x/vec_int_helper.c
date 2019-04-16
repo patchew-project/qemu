@@ -543,3 +543,102 @@ void HELPER(gvec_verim##BITS)(void *v1, const void *v2, const void *v3,        \
 }
 DEF_VERIM(8)
 DEF_VERIM(16)
+
+#define DEF_VESLV(BITS)                                                        \
+void HELPER(gvec_veslv##BITS)(void *v1, const void *v2, const void *v3,        \
+                              uint32_t desc)                                   \
+{                                                                              \
+    int i;                                                                     \
+                                                                               \
+    for (i = 0; i < (128 / BITS); i++) {                                       \
+        const uint##BITS##_t a = s390_vec_read_element##BITS(v2, i);           \
+        const uint8_t shift = s390_vec_read_element##BITS(v3, i) & (BITS - 1); \
+                                                                               \
+        s390_vec_write_element##BITS(v1, i, a << shift);                       \
+    }                                                                          \
+}
+DEF_VESLV(8)
+DEF_VESLV(16)
+DEF_VESLV(32)
+DEF_VESLV(64)
+
+#define DEF_VESRAV(BITS)                                                       \
+void HELPER(gvec_vesrav##BITS)(void *v1, const void *v2, const void *v3,       \
+                               uint32_t desc)                                  \
+{                                                                              \
+    int i;                                                                     \
+                                                                               \
+    for (i = 0; i < (128 / BITS); i++) {                                       \
+        const int##BITS##_t a = s390_vec_read_element##BITS(v2, i);            \
+        const uint8_t shift = s390_vec_read_element##BITS(v3, i) & (BITS - 1); \
+                                                                               \
+        s390_vec_write_element##BITS(v1, i, a >> shift);                       \
+    }                                                                          \
+}
+DEF_VESRAV(8)
+DEF_VESRAV(16)
+DEF_VESRAV(32)
+DEF_VESRAV(64)
+
+#define DEF_VESRLV(BITS)                                                       \
+void HELPER(gvec_vesrlv##BITS)(void *v1, const void *v2, const void *v3,       \
+                               uint32_t desc)                                  \
+{                                                                              \
+    int i;                                                                     \
+                                                                               \
+    for (i = 0; i < (128 / BITS); i++) {                                       \
+        const uint##BITS##_t a = s390_vec_read_element##BITS(v2, i);           \
+        const uint8_t shift = s390_vec_read_element##BITS(v3, i) & (BITS - 1); \
+                                                                               \
+        s390_vec_write_element##BITS(v1, i, a >> shift);                       \
+    }                                                                          \
+}
+DEF_VESRLV(8)
+DEF_VESRLV(16)
+DEF_VESRLV(32)
+DEF_VESRLV(64)
+
+#define DEF_VESL(BITS)                                                         \
+void HELPER(gvec_vesl##BITS)(void *v1, const void *v3, uint64_t shift,         \
+                             uint32_t desc)                                    \
+{                                                                              \
+    int i;                                                                     \
+                                                                               \
+    for (i = 0; i < (128 / BITS); i++) {                                       \
+        const uint##BITS##_t a = s390_vec_read_element##BITS(v3, i);           \
+                                                                               \
+        s390_vec_write_element##BITS(v1, i, a << shift);                       \
+    }                                                                          \
+}
+DEF_VESL(8)
+DEF_VESL(16)
+
+#define DEF_VESRA(BITS)                                                        \
+void HELPER(gvec_vesra##BITS)(void *v1, const void *v3, uint64_t shift,        \
+                              uint32_t desc)                                   \
+{                                                                              \
+    int i;                                                                     \
+                                                                               \
+    for (i = 0; i < (128 / BITS); i++) {                                       \
+        const int##BITS##_t a = s390_vec_read_element##BITS(v3, i);            \
+                                                                               \
+        s390_vec_write_element##BITS(v1, i, a >> shift);                       \
+    }                                                                          \
+}
+DEF_VESRA(8)
+DEF_VESRA(16)
+
+#define DEF_VESRL(BITS)                                                        \
+void HELPER(gvec_vesrl##BITS)(void *v1, const void *v3, uint64_t shift,        \
+                              uint32_t desc)                                   \
+{                                                                              \
+    int i;                                                                     \
+                                                                               \
+    for (i = 0; i < (128 / BITS); i++) {                                       \
+        const uint##BITS##_t a = s390_vec_read_element##BITS(v3, i);           \
+                                                                               \
+        s390_vec_write_element##BITS(v1, i, a >> shift);                       \
+    }                                                                          \
+}
+DEF_VESRL(8)
+DEF_VESRL(16)
