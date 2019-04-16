@@ -1534,3 +1534,43 @@ static DisasJumpType op_vlc(DisasContext *s, DisasOps *o)
                   get_field(s->fields, v2));
     return DISAS_NEXT;
 }
+
+static void gen_lp_i32(TCGv_i32 d, TCGv_i32 a)
+{
+    TCGv_i32 zero = tcg_const_i32(0);
+    TCGv_i32 neg = tcg_temp_new_i32();
+
+    tcg_gen_neg_i32(neg, a);
+    tcg_gen_movcond_i32(TCG_COND_LT, d, a, zero, neg, a);
+    tcg_temp_free_i32(neg);
+    tcg_temp_free_i32(zero);
+}
+
+static void gen_lp_i64(TCGv_i64 d, TCGv_i64 a)
+{
+    TCGv_i64 zero = tcg_const_i64(0);
+    TCGv_i64 neg = tcg_temp_new_i64();
+
+    tcg_gen_neg_i64(neg, a);
+    tcg_gen_movcond_i64(TCG_COND_LT, d, a, zero, neg, a);
+    tcg_temp_free_i64(neg);
+    tcg_temp_free_i64(zero);
+}
+
+static DisasJumpType op_vlp(DisasContext *s, DisasOps *o)
+{
+    const uint8_t es = get_field(s->fields, m3);
+    static const GVecGen2 g[4] = {
+        { .fno = gen_helper_gvec_vlp8, },
+        { .fno = gen_helper_gvec_vlp16, },
+        { .fni4 = gen_lp_i32, },
+        { .fni8 = gen_lp_i64, },
+    };
+
+    if (es > ES_64) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+    gen_gvec_2(get_field(s->fields, v1), get_field(s->fields, v2), &g[es]);
+    return DISAS_NEXT;
+}
