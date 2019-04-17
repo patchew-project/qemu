@@ -131,6 +131,17 @@ static int execute_command(BlockBackend *blk,
     return 0;
 }
 
+/*
+ * Linux places a hard limit on SG_IO transfers equal to UIO_MAXIOV
+ * pages, which we need to factor in the block limits we return.
+ */
+static uint32_t sg_max_transfer(SCSIDevice *s)
+{
+    uint32_t max_transfer = blk_get_max_transfer(s->conf.blk);
+    max_transfer = MIN_NON_ZERO(max_transfer, UIO_MAXIOV * qemu_real_host_page_size);
+    return max_transfer / s->blocksize;
+}
+
 static void scsi_handle_inquiry_reply(SCSIGenericReq *r, SCSIDevice *s)
 {
     uint8_t page, page_idx;
@@ -162,10 +173,8 @@ static void scsi_handle_inquiry_reply(SCSIGenericReq *r, SCSIDevice *s)
     if (s->type == TYPE_DISK && (r->req.cmd.buf[1] & 0x01)) {
         page = r->req.cmd.buf[2];
         if (page == 0xb0) {
-            uint32_t max_transfer =
-                blk_get_max_transfer(s->conf.blk) / s->blocksize;
+            uint32_t max_transfer = sg_max_transfer(s);
 
-            assert(max_transfer);
             stl_be_p(&r->buf[8], max_transfer);
             /* Also take care of the opt xfer len. */
             stl_be_p(&r->buf[12],
@@ -206,7 +215,7 @@ static int scsi_generic_emulate_block_limits(SCSIGenericReq *r, SCSIDevice *s)
     uint8_t buf[64];
 
     SCSIBlockLimits bl = {
-        .max_io_sectors = blk_get_max_transfer(s->conf.blk) / s->blocksize
+        .max_io_sectors = sg_max_transfer(s)
     };
 
     memset(r->buf, 0, r->buflen);
