@@ -700,6 +700,15 @@ CPUState *cpu_create(const char *typename);
 const char *parse_cpu_option(const char *cpu_option);
 
 /**
+ * lookup_cpu_class:
+ * @cpu_model: CPU model name
+ *
+ * Look up CPU class corresponding to a given CPU model name.
+ */
+CPUClass *lookup_cpu_class(const char *cpu_model, Error **errp);
+
+
+/**
  * cpu_has_work:
  * @cpu: The vCPU to check.
  *
