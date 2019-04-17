@@ -1,0 +1,30 @@
+QA output created by 249
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=2411724800
+wrote 2097152000/2097152000 bytes at offset 104857600
+1.953 GiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 209715200/209715200 bytes at offset 2202009600
+200 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 104857600/104857600 bytes at offset 0
+100 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+image: TEST_DIR/t.qcow2
+file format: qcow2
+virtual size: 2.2G (2411724800 bytes)
+disk size: 2.3G
+cluster_size: 1048576
+Format specific information:
+    compat: 1.1
+    lazy refcounts: false
+    refcount bits: 16
+    corrupt: false
+Image resized.
+image: TEST_DIR/t.qcow2
+file format: qcow2
+virtual size: 50M (52428800 bytes)
+disk size: 54M
+cluster_size: 1048576
+Format specific information:
+    compat: 1.1
+    lazy refcounts: false
+    refcount bits: 16
+    corrupt: false
+*** done
