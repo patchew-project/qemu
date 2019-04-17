@@ -3528,7 +3528,8 @@ static gint compare_string(gconstpointer a, gconstpointer b)
 
 /* Parse "+feature,-feature,feature=foo" CPU feature string
  */
-static void x86_cpu_parse_featurestr(const char *typename, char *features,
+static void x86_cpu_parse_featurestr(MachineState *machine,
+                                     const char *typename, char *features,
                                      Error **errp)
 {
     char *featurestr; /* Single 'key=value" string being parsed */

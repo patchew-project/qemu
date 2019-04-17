@@ -4466,7 +4466,8 @@ int main(int argc, char **argv, char **envp)
     /* parse features once if machine provides default cpu_type */
     current_machine->cpu_type = machine_class->default_cpu_type;
     if (cpu_option) {
-        current_machine->cpu_type = parse_cpu_option(cpu_option);
+        current_machine->cpu_type =
+            parse_cpu_option(current_machine, cpu_option);
     }
     parse_numa_opts(current_machine);
 

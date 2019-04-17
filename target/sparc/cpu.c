@@ -115,7 +115,8 @@ cpu_add_feat_as_prop(const char *typename, const char *name, const char *val)
 }
 
 /* Parse "+feature,-feature,feature=foo" CPU feature string */
-static void sparc_cpu_parse_features(const char *typename, char *features,
+static void sparc_cpu_parse_features(MachineState *machine,
+                                     const char *typename, char *features,
                                      Error **errp)
 {
     GList *l, *plus_features = NULL, *minus_features = NULL;

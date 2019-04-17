@@ -164,7 +164,8 @@ typedef struct CPUClass {
     /*< public >*/
 
     ObjectClass *(*class_by_name)(const char *cpu_model);
-    void (*parse_features)(const char *typename, char *str, Error **errp);
+    void (*parse_features)(MachineState *machine, const char *typename,
+                           char *str, Error **errp);
 
     void (*reset)(CPUState *cpu);
     int reset_dump_flags;
@@ -697,7 +698,7 @@ CPUState *cpu_create(const char *typename);
  * Returns: type of CPU to create or prints error and terminates process
  *          if an error occurred.
  */
-const char *parse_cpu_option(const char *cpu_option);
+const char *parse_cpu_option(MachineState *machine, const char *cpu_option);
 
 /**
  * lookup_cpu_class:

@@ -992,7 +992,7 @@ CPUClass *lookup_cpu_class(const char *cpu_model, Error **errp)
     return CPU_CLASS(oc);
 }
 
-const char *parse_cpu_option(const char *cpu_option)
+const char *parse_cpu_option(MachineState *machine, const char *cpu_option)
 {
     CPUClass *cc;
     gchar **model_pieces;
@@ -1002,7 +1002,7 @@ const char *parse_cpu_option(const char *cpu_option)
 
     cc = lookup_cpu_class(model_pieces[0], &error_fatal);
     cpu_type = object_class_get_name(OBJECT_CLASS(cc));
-    cc->parse_features(cpu_type, model_pieces[1], &error_fatal);
+    cc->parse_features(machine, cpu_type, model_pieces[1], &error_fatal);
     g_strfreev(model_pieces);
     return cpu_type;
 }

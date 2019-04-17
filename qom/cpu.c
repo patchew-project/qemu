@@ -291,7 +291,8 @@ ObjectClass *cpu_class_by_name(const char *typename, const char *cpu_model)
     return cc->class_by_name(cpu_model);
 }
 
-static void cpu_common_parse_features(const char *typename, char *features,
+static void cpu_common_parse_features(MachineState *machine,
+                                      const char *typename, char *features,
                                       Error **errp)
 {
     char *val;

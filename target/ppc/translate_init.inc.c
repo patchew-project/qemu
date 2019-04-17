@@ -10119,10 +10119,11 @@ static ObjectClass *ppc_cpu_class_by_name(const char *name)
     return oc;
 }
 
-static void ppc_cpu_parse_featurestr(const char *type, char *features,
+static void ppc_cpu_parse_featurestr(MachineState *ms,
+                                     const char *type, char *features,
                                      Error **errp)
 {
-    Object *machine = qdev_get_machine();
+    Object *machine = OBJECT(ms);
     const PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(object_class_by_name(type));
 
     if (!features) {
@@ -10171,7 +10172,7 @@ static void ppc_cpu_parse_featurestr(const char *type, char *features,
     }
 
     /* do property processing with generic handler */
-    pcc->parent_parse_features(type, features, errp);
+    pcc->parent_parse_features(ms, type, features, errp);
 }
 
 PowerPCCPUClass *ppc_cpu_get_family_class(PowerPCCPUClass *pcc)
