@@ -592,6 +592,7 @@ int main(int argc, char **argv, char **envp)
     TaskState *ts;
     CPUArchState *env;
     CPUState *cpu;
+    CPUClass *cc;
     int optind;
     char **target_environ, **wrk;
     char **target_argv;
@@ -660,7 +661,8 @@ int main(int argc, char **argv, char **envp)
     if (cpu_model == NULL) {
         cpu_model = cpu_get_model(get_elf_eflags(execfd));
     }
-    cpu_type = parse_cpu_option(cpu_model);
+    cc = lookup_cpu_class(cpu_model, &error_fatal);
+    cpu_type = object_class_get_name(OBJECT_CLASS(cc));
 
     /* init tcg before creating CPUs and to get qemu_host_page_size */
     tcg_exec_init(0);
