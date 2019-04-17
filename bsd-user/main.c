@@ -732,6 +732,7 @@ int main(int argc, char **argv)
     TaskState ts1, *ts = &ts1;
     CPUArchState *env;
     CPUState *cpu;
+    CPUClass *cc;
     int optind;
     const char *r;
     int gdbstub_port = 0;
@@ -903,7 +904,8 @@ int main(int argc, char **argv)
     /* init tcg before creating CPUs and to get qemu_host_page_size */
     tcg_exec_init(0);
 
-    cpu_type = parse_cpu_option(cpu_model);
+    cc = lookup_cpu_class(cpu_model, &error_fatal);
+    cpu_type = object_class_get_name(OBJECT_CLASS(cc));
     cpu = cpu_create(cpu_type);
     env = cpu->env_ptr;
 #if defined(TARGET_SPARC) || defined(TARGET_PPC)
