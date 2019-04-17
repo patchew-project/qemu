@@ -7563,8 +7563,7 @@ void ppc_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
 #undef RFPL
 }
 
-void ppc_cpu_dump_statistics(CPUState *cs, FILE*f,
-                             fprintf_function cpu_fprintf, int flags)
+void ppc_cpu_dump_statistics(CPUState *cs, int flags)
 {
 #if defined(DO_PPC_STATISTICS)
     PowerPCCPU *cpu = POWERPC_CPU(cs);
@@ -7584,7 +7583,7 @@ void ppc_cpu_dump_statistics(CPUState *cs, FILE*f,
                         handler = t3[op3];
                         if (handler->count == 0)
                             continue;
-                        cpu_fprintf(f, "%02x %02x %02x (%02x %04d) %16s: "
+                        qemu_printf("%02x %02x %02x (%02x %04d) %16s: "
                                     "%016" PRIx64 " %" PRId64 "\n",
                                     op1, op2, op3, op1, (op3 << 5) | op2,
                                     handler->oname,
@@ -7593,7 +7592,7 @@ void ppc_cpu_dump_statistics(CPUState *cs, FILE*f,
                 } else {
                     if (handler->count == 0)
                         continue;
-                    cpu_fprintf(f, "%02x %02x    (%02x %04d) %16s: "
+                    qemu_printf("%02x %02x    (%02x %04d) %16s: "
                                 "%016" PRIx64 " %" PRId64 "\n",
                                 op1, op2, op1, op2, handler->oname,
                                 handler->count, handler->count);
@@ -7602,7 +7601,7 @@ void ppc_cpu_dump_statistics(CPUState *cs, FILE*f,
         } else {
             if (handler->count == 0)
                 continue;
-            cpu_fprintf(f, "%02x       (%02x     ) %16s: %016" PRIx64
+            qemu_printf("%02x       (%02x     ) %16s: %016" PRIx64
                         " %" PRId64 "\n",
                         op1, op1, handler->oname,
                         handler->count, handler->count);
