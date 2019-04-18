@@ -29,6 +29,7 @@
 #include <linux/if_bridge.h>
 #endif
 
+#include "qemu-common.h"
 #include "qemu/queue.h"
 
 #include "net/tap-linux.h"
@@ -75,7 +76,7 @@ static int parse_acl_file(const char *filename, ACLList *acl_list)
         char *ptr = line;
         char *cmd, *arg, *argend;
 
-        while (isspace(*ptr)) {
+        while (qemu_isspace(*ptr)) {
             ptr++;
         }
 
@@ -99,12 +100,12 @@ static int parse_acl_file(const char *filename, ACLList *acl_list)
 
         *arg = 0;
         arg++;
-        while (isspace(*arg)) {
+        while (qemu_isspace(*arg)) {
             arg++;
         }
 
         argend = arg + strlen(arg);
-        while (arg != argend && isspace(*(argend - 1))) {
+        while (arg != argend && qemu_isspace(*(argend - 1))) {
             argend--;
         }
         *argend = 0;
