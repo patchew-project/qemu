@@ -1197,15 +1197,6 @@ MSA_FN_DF(ilvl_df)
     } while (0)
 MSA_FN_DF(ilvr_df)
 #undef MSA_DO
-
-#define MSA_DO(DF)                      \
-    do {                                \
-        pwx->DF[2*i]   = pwt->DF[2*i];  \
-        pwx->DF[2*i+1] = pws->DF[2*i];  \
-    } while (0)
-MSA_FN_DF(ilvev_df)
-#undef MSA_DO
-
 #undef MSA_LOOP_COND
 
 #define MSA_LOOP_COND(DF) \
