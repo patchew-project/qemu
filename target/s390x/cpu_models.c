@@ -629,6 +629,17 @@ CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
         return NULL;
     }
 
+    /*
+     * Do not claim CSSKE and BPB if the host model expands to
+     * generation 15 or newer
+     */
+    if (s390_model.def->gen >= 15) {
+        clear_bit(S390_FEAT_CONDITIONAL_SSKE,
+                  (unsigned long *) &s390_model.features);
+        clear_bit(S390_FEAT_BPB,
+                  (unsigned long *) &s390_model.features);
+    }
+
     if (type == CPU_MODEL_EXPANSION_TYPE_STATIC) {
         delta_changes = true;
     } else if (type != CPU_MODEL_EXPANSION_TYPE_FULL) {
