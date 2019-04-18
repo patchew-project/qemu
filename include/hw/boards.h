@@ -233,6 +233,13 @@ typedef struct DeviceMemoryState {
     MemoryRegion mr;
 } DeviceMemoryState;
 
+struct NodeInfo {
+    uint64_t node_mem;
+    struct HostMemoryBackend *node_memdev;
+    bool present;
+    uint8_t distance[MAX_NODES];
+};
+
 typedef struct NumaState {
     /* Number of NUMA nodes */
     int nb_numa_nodes;
@@ -240,6 +247,8 @@ typedef struct NumaState {
     /* Allow setting NUMA distance for different NUMA nodes */
     bool have_numa_distance;
 
+    /* NUMA nodes information */
+    NodeInfo numa_info[MAX_NODES];
 } NumaState;
 
 /**

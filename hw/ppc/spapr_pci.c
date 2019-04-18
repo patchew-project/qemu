@@ -1672,6 +1672,8 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
     SysBusDevice *s = SYS_BUS_DEVICE(dev);
     SpaprPhbState *sphb = SPAPR_PCI_HOST_BRIDGE(s);
     PCIHostState *phb = PCI_HOST_BRIDGE(s);
+    MachineState *ms = MACHINE(spapr);
+    NodeInfo *numa_info = ms->numa_state ? ms->numa_state->numa_info : NULL;
     char *namebuf;
     int i;
     PCIBus *bus;
