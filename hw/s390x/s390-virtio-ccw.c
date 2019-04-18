@@ -594,6 +594,10 @@ static inline void s390_machine_initfn(Object *obj)
             " to upper case) to pass to machine loader, boot manager,"
             " and guest kernel",
             NULL);
+
+    /* deprecated functionality for gen15 and later */
+    s390_cpudef_featoff_greater(15, 1, S390_FEAT_BPB);
+    s390_cpudef_featoff_greater(15, 1, S390_FEAT_CONDITIONAL_SSKE);
 }
 
 static const TypeInfo ccw_machine_info = {
