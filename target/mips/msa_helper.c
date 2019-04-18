@@ -1181,14 +1181,6 @@ MSA_FN_DF(pckev_df)
     } while (0)
 MSA_FN_DF(pckod_df)
 #undef MSA_DO
-
-#define MSA_DO(DF)                      \
-    do {                                \
-        pwx->DF[2*i]   = R##DF(pwt, i); \
-        pwx->DF[2*i+1] = R##DF(pws, i); \
-    } while (0)
-MSA_FN_DF(ilvr_df)
-#undef MSA_DO
 #undef MSA_LOOP_COND
 
 #define MSA_LOOP_COND(DF) \
