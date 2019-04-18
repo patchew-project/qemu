@@ -634,20 +634,9 @@ tcp_emu(struct socket *so, struct mbuf *m)
 			struct socket *tmpso;
 			struct sockaddr_in addr;
 			socklen_t addrlen = sizeof(struct sockaddr_in);
-			struct sbuf *so_rcv = &so->so_rcv;
 
-			if (m->m_len > so_rcv->sb_datalen
-					- (so_rcv->sb_wptr - so_rcv->sb_data)) {
-			    return 1;
-			}
-
-			memcpy(so_rcv->sb_wptr, m->m_data, m->m_len);
-			so_rcv->sb_wptr += m->m_len;
-			so_rcv->sb_rptr += m->m_len;
-			m_inc(m, m->m_len + 1);
-			m->m_data[m->m_len] = 0; /* NULL terminate */
-			if (strchr(m->m_data, '\r') || strchr(m->m_data, '\n')) {
-				if (sscanf(so_rcv->sb_data, "%u%*[ ,]%u", &n1, &n2) == 2) {
+			if (g_strstr_len(m->m_data, m->m_len, "\r\n")
+				&& sscanf(m->m_data, "%u%*[ ,]%u\r\n", &n1, &n2) == 2) {
 					HTONS(n1);
 					HTONS(n2);
 					/* n2 is the one on our host */
@@ -666,15 +655,10 @@ tcp_emu(struct socket *so, struct mbuf *m)
 					}
 					NTOHS(n1);
 					NTOHS(n2);
-					so_rcv->sb_cc = snprintf(so_rcv->sb_data,
-								 so_rcv->sb_datalen,
-								 "%d,%d\r\n", n1, n2);
-					so_rcv->sb_rptr = so_rcv->sb_data;
-					so_rcv->sb_wptr = so_rcv->sb_data + so_rcv->sb_cc;
+					m->m_len = snprintf(m->m_data, m->m_size,
+										"%d,%d\r\n", n1, n2);
 				}
-			}
-			m_free(m);
-			return 0;
+			return 1;
 		}
 
         case EMU_FTP: /* ftp */
