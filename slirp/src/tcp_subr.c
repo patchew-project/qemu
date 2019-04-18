@@ -644,6 +644,7 @@ tcp_emu(struct socket *so, struct mbuf *m)
 			memcpy(so_rcv->sb_wptr, m->m_data, m->m_len);
 			so_rcv->sb_wptr += m->m_len;
 			so_rcv->sb_rptr += m->m_len;
+			m_inc(m, m->m_len + 1);
 			m->m_data[m->m_len] = 0; /* NULL terminate */
 			if (strchr(m->m_data, '\r') || strchr(m->m_data, '\n')) {
 				if (sscanf(so_rcv->sb_data, "%u%*[ ,]%u", &n1, &n2) == 2) {
@@ -677,6 +678,7 @@ tcp_emu(struct socket *so, struct mbuf *m)
 		}
 
         case EMU_FTP: /* ftp */
+                m_inc(m, m->m_len + 1);
                 *(m->m_data+m->m_len) = 0; /* NUL terminate for strstr */
 		if ((bptr = (char *)strstr(m->m_data, "ORT")) != NULL) {
 			/*
@@ -774,6 +776,7 @@ tcp_emu(struct socket *so, struct mbuf *m)
 		/*
 		 * Need to emulate DCC CHAT, DCC SEND and DCC MOVE
 		 */
+		m_inc(m, m->m_len + 1);
 		*(m->m_data+m->m_len) = 0; /* NULL terminate the string for strstr */
 		if ((bptr = (char *)strstr(m->m_data, "DCC")) == NULL)
 			 return 1;
