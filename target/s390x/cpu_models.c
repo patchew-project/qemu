@@ -93,6 +93,27 @@ static S390FeatBitmap qemu_max_cpu_feat;
 /* features part of a base model but not relevant for finding a base model */
 S390FeatBitmap ignored_base_feat;
 
+/*
+ * We removed CSSKE from the base features. This is a hook for compat machines
+ * to put this back for gen10..gen14. As the base model is also part of the
+ * default model to have to fixup both bitfields
+ */
+void s390_cpumodel_fixup_csske(void)
+{
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(s390_cpu_defs); i++) {
+        const S390CPUDef *def = &s390_cpu_defs[i];
+
+        if (def->gen < 10 || def->gen > 14) {
+            continue;
+        }
+
+        set_bit(S390_FEAT_CONDITIONAL_SSKE, (unsigned long *)&def->base_feat);
+        set_bit(S390_FEAT_CONDITIONAL_SSKE, (unsigned long *)&def->default_feat);
+    }
+}
+
 void s390_cpudef_featoff(uint8_t gen, uint8_t ec_ga, S390Feat feat)
 {
     const S390CPUDef *def;

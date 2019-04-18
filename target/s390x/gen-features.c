@@ -301,7 +301,6 @@ static uint16_t base_GEN9_GA1[] = {
 #define base_GEN9_GA3 EmptyFeat
 
 static uint16_t base_GEN10_GA1[] = {
-    S390_FEAT_CONDITIONAL_SSKE,
     S390_FEAT_PARSING_ENH,
     S390_FEAT_MOVE_WITH_OPTIONAL_SPEC,
     S390_FEAT_EXTRACT_CPU_TIME,

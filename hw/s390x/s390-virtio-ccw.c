@@ -648,6 +648,8 @@ bool css_migration_enabled(void)
 
 static void ccw_machine_4_0_instance_options(MachineState *machine)
 {
+    /* re-enable csske for compat machines in the base model */
+    s390_cpumodel_fixup_csske();
 }
 
 static void ccw_machine_4_0_class_options(MachineClass *mc)
