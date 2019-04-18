@@ -1184,14 +1184,6 @@ MSA_FN_DF(pckod_df)
 
 #define MSA_DO(DF)                      \
     do {                                \
-        pwx->DF[2*i]   = L##DF(pwt, i); \
-        pwx->DF[2*i+1] = L##DF(pws, i); \
-    } while (0)
-MSA_FN_DF(ilvl_df)
-#undef MSA_DO
-
-#define MSA_DO(DF)                      \
-    do {                                \
         pwx->DF[2*i]   = R##DF(pwt, i); \
         pwx->DF[2*i+1] = R##DF(pws, i); \
     } while (0)
