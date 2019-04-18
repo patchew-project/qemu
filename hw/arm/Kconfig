@@ -38,6 +38,9 @@ config PXA2XX
 config REALVIEW
     bool
 
+config SBSA_REF
+    bool
+
 config STELLARIS
     bool
 
