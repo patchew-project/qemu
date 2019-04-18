@@ -1184,14 +1184,6 @@ MSA_FN_DF(pckod_df)
 
 #define MSA_DO(DF)                      \
     do {                                \
-        pwx->DF[2*i]   = L##DF(pwt, i); \
-        pwx->DF[2*i+1] = L##DF(pws, i); \
-    } while (0)
-MSA_FN_DF(ilvl_df)
-#undef MSA_DO
-
-#define MSA_DO(DF)                      \
-    do {                                \
         pwx->DF[2*i]   = R##DF(pwt, i); \
         pwx->DF[2*i+1] = R##DF(pws, i); \
     } while (0)
@@ -1213,6 +1205,31 @@ MSA_FN_DF(vshf_df)
 #undef MSA_DO
 #undef MSA_LOOP_COND
 #undef MSA_FN_DF
+
+void helper_msa_ilvl_b(CPUMIPSState *env, uint32_t wd,
+                       uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->b[0]  = pwt->b[8];
+    pwd->b[1]  = pws->b[8];
+    pwd->b[2]  = pwt->b[9];
+    pwd->b[3]  = pws->b[9];
+    pwd->b[4]  = pwt->b[10];
+    pwd->b[5]  = pws->b[10];
+    pwd->b[6]  = pwt->b[11];
+    pwd->b[7]  = pws->b[11];
+    pwd->b[8]  = pwt->b[12];
+    pwd->b[9]  = pws->b[12];
+    pwd->b[10] = pwt->b[13];
+    pwd->b[11] = pws->b[13];
+    pwd->b[12] = pwt->b[14];
+    pwd->b[13] = pws->b[14];
+    pwd->b[14] = pwt->b[15];
+    pwd->b[15] = pws->b[15];
+}
 
 void helper_msa_sldi_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
                         uint32_t ws, uint32_t n)
