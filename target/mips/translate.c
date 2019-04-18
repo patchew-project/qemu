@@ -28156,19 +28156,6 @@ static inline void gen_ilvr_w(CPUMIPSState *env, uint32_t wd,
 }
 
 /*
- * [MSA] ILVR.D wd, ws, wt
- *
- *   Vector Interleave Right (doubleword data elements)
- *
- */
-static inline void gen_ilvr_d(CPUMIPSState *env, uint32_t wd,
-                              uint32_t ws, uint32_t wt)
-{
-    tcg_gen_mov_i64(msa_wr_d[wd * 2 + 1], msa_wr_d[ws * 2]);
-    tcg_gen_mov_i64(msa_wr_d[wd * 2], msa_wr_d[wt * 2]);
-}
-
-/*
  * [MSA] ILVL.B wd, ws, wt
  *
  *   Vector Interleave Left (byte data elements)
@@ -28469,11 +28456,17 @@ static inline void gen_ilvev_w(CPUMIPSState *env, uint32_t wd,
 /*
  * [MSA] ILVEV.D wd, ws, wt
  *
- *   Vector Interleave Even (Doubleword data elements)
+ *   Vector Interleave Even (doubleword data elements)
+ *
+ * [MSA] ILVR.D wd, ws, wt
+ *
+ *   Vector Interleave Right (doubleword data elements)
+ *
+ *  These two instructions are functionally equivalent.
  *
  */
-static inline void gen_ilvev_d(CPUMIPSState *env, uint32_t wd,
-                               uint32_t ws, uint32_t wt)
+static inline void gen_ilvev_ilvr_d(CPUMIPSState *env, uint32_t wd,
+                                    uint32_t ws, uint32_t wt)
 {
     tcg_gen_mov_i64(msa_wr_d[wd * 2 + 1], msa_wr_d[ws * 2]);
     tcg_gen_mov_i64(msa_wr_d[wd * 2], msa_wr_d[wt * 2]);
@@ -28646,7 +28639,7 @@ static void gen_msa_3r(CPUMIPSState *env, DisasContext *ctx)
             gen_ilvr_w(env, wd, ws, wt);
             break;
         case DF_DOUBLE:
-            gen_ilvr_d(env, wd, ws, wt);
+            gen_ilvev_ilvr_d(env, wd, ws, wt);
             break;
         default:
             assert(0);
@@ -28676,7 +28669,7 @@ static void gen_msa_3r(CPUMIPSState *env, DisasContext *ctx)
             gen_ilvev_w(env, wd, ws, wt);
             break;
         case DF_DOUBLE:
-            gen_ilvev_d(env, wd, ws, wt);
+            gen_ilvev_ilvr_d(env, wd, ws, wt);
             break;
         default:
             assert(0);
