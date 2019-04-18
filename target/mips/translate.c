@@ -28001,6 +28001,80 @@ static void gen_msa_bit(CPUMIPSState *env, DisasContext *ctx)
     tcg_temp_free_i32(tws);
 }
 
+/*
+ * [MSA] ILVOD.<B|H> wd, ws, wt
+ *
+ *   Vector Interleave Odd (<byte|halfword> data elements)
+ *
+ */
+static inline void gen_ilvod_bh(CPUMIPSState *env, uint32_t wd,
+                                uint32_t ws, uint32_t wt,
+                                uint64_t mask, uint32_t shift)
+{
+    TCGv_i64 t1 = tcg_temp_new_i64();
+    TCGv_i64 t2 = tcg_temp_new_i64();
+    TCGv_i64 mask_tcg = tcg_const_i64(mask);
+
+    tcg_gen_and_i64(t1, msa_wr_d[wt * 2], mask_tcg);
+    tcg_gen_shri_i64(t1, t1, shift);
+    tcg_gen_and_i64(t2, msa_wr_d[ws * 2], mask_tcg);
+    tcg_gen_or_i64(msa_wr_d[wd * 2], t1, t2);
+
+    tcg_gen_and_i64(t1, msa_wr_d[wt * 2 + 1], mask_tcg);
+    tcg_gen_shri_i64(t1, t1, shift);
+    tcg_gen_and_i64(t2, msa_wr_d[ws * 2 + 1], mask_tcg);
+    tcg_gen_or_i64(msa_wr_d[wd * 2 + 1], t1, t2);
+
+    tcg_temp_free_i64(mask_tcg);
+    tcg_temp_free_i64(t1);
+    tcg_temp_free_i64(t2);
+}
+
+static inline void gen_ilvod_b(CPUMIPSState *env, uint32_t wd,
+                               uint32_t ws, uint32_t wt)
+{
+    gen_ilvod_bh(env, wd, ws, wt, 0xff00ff00ff00ff00ULL, 8);
+}
+
+static inline void gen_ilvod_h(CPUMIPSState *env, uint32_t wd,
+                               uint32_t ws, uint32_t wt)
+{
+    gen_ilvod_bh(env, wd, ws, wt, 0xffff0000ffff0000ULL, 16);
+}
+
+/*
+ * [MSA] ILVOD.W wd, ws, wt
+ *
+ *   Vector Interleave Odd (word data elements)
+ *
+ */
+static inline void gen_ilvod_w(CPUMIPSState *env, uint32_t wd,
+                               uint32_t ws, uint32_t wt)
+{
+    TCGv_i64 t1 = tcg_temp_new_i64();
+
+    tcg_gen_shri_i64(t1, msa_wr_d[wt * 2], 32);
+    tcg_gen_deposit_i64(msa_wr_d[wd * 2], msa_wr_d[ws * 2], t1, 0, 32);
+
+    tcg_gen_shri_i64(t1, msa_wr_d[wt * 2 + 1], 32);
+    tcg_gen_deposit_i64(msa_wr_d[wd * 2 + 1], msa_wr_d[ws * 2 + 1], t1, 0, 32);
+
+    tcg_temp_free_i64(t1);
+}
+
+/*
+ * [MSA] ILVOD.D wd, ws, wt
+ *
+ *   Vector Interleave Odd (doubleword data elements)
+ *
+ */
+static inline void gen_ilvod_d(CPUMIPSState *env, uint32_t wd,
+                               uint32_t ws, uint32_t wt)
+{
+    tcg_gen_mov_i64(msa_wr_d[wd * 2], msa_wr_d[wt * 2 + 1]);
+    tcg_gen_mov_i64(msa_wr_d[wd * 2 + 1], msa_wr_d[ws * 2 + 1]);
+}
+
 static void gen_msa_3r(CPUMIPSState *env, DisasContext *ctx)
 {
 #define MASK_MSA_3R(op)    (MASK_MSA_MINOR(op) | (op & (0x7 << 23)))
@@ -28172,7 +28246,22 @@ static void gen_msa_3r(CPUMIPSState *env, DisasContext *ctx)
         gen_helper_msa_mod_u_df(cpu_env, tdf, twd, tws, twt);
         break;
     case OPC_ILVOD_df:
-        gen_helper_msa_ilvod_df(cpu_env, tdf, twd, tws, twt);
+        switch (df) {
+        case DF_BYTE:
+            gen_ilvod_b(env, wd, ws, wt);
+            break;
+        case DF_HALF:
+            gen_ilvod_h(env, wd, ws, wt);
+            break;
+        case DF_WORD:
+            gen_ilvod_w(env, wd, ws, wt);
+            break;
+        case DF_DOUBLE:
+            gen_ilvod_d(env, wd, ws, wt);
+            break;
+        default:
+            assert(0);
+        }
         break;
 
     case OPC_DOTP_S_df:
