@@ -1,0 +1,21 @@
+QA output created by 250
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=2202009600 preallocation=metadata
+discard 10485760/10485760 bytes at offset 0
+10 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+discard 10485760/10485760 bytes at offset 2191523840
+10 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 10485760/10485760 bytes at offset 2191523840
+10 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 10485760/10485760 bytes at offset 0
+10 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+Offset          Length          File
+0               0xa00000        TEST_DIR/t.IMGFMT
+0x82a00000      0xa00000        TEST_DIR/t.IMGFMT
+virtual size: 2.1G (2202009600 bytes)
+disk size: 24M
+cluster_size: 1048576
+Image resized.
+virtual size: 5.0M (5242880 bytes)
+disk size: 9.0M
+cluster_size: 1048576
+*** done
