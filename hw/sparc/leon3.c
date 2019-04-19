@@ -46,6 +46,13 @@
 #define PROM_FILENAME        "u-boot.bin"
 #define LEON3_PROM_OFFSET    (0x00000000)
 #define LEON3_RAM_OFFSET     (0x40000000)
+#define LEON3_APBUART_OFFSET (0x80000100)
+#define LEON3_APBUART_IRQ    (0x3)
+#define LEON3_IRQMP_OFFSET   (0x80000200)
+#define LEON3_GPTIMER_OFFSET (0x80000300)
+#define LEON3_GPTIMER_IRQ    (0x6)
+#define LEON3_APB_PNP_OFFSET (0x800FF000)
+#define LEON3_AHB_PNP_OFFSET (0xFFFFF000)
 
 #define MAX_PILS 16
 
@@ -172,6 +179,8 @@ static void leon3_generic_hw_init(MachineState *machine)
     int         bios_size;
     int         prom_size;
     ResetData  *reset_info;
+    AHBPnp *ahb_pnp;
+    APBPnp *apb_pnp;
 
     /* Init CPU */
     cpu = SPARC_CPU(cpu_create(machine->cpu_type));
@@ -185,9 +194,23 @@ static void leon3_generic_hw_init(MachineState *machine)
     reset_info->sp    = LEON3_RAM_OFFSET + ram_size;
     qemu_register_reset(main_cpu_reset, reset_info);
 
+    ahb_pnp = GRLIB_AHB_PNP(object_new(TYPE_GRLIB_AHB_PNP));
+    object_property_set_bool(OBJECT(ahb_pnp), true, "realized", &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(ahb_pnp), 0, LEON3_AHB_PNP_OFFSET);
+    grlib_ahb_pnp_add_entry(ahb_pnp, 0, 0, GRLIB_VENDOR_GAISLER,
+                            GRLIB_LEON3_DEV, GRLIB_AHB_MASTER,
+                            GRLIB_CPU_AREA);
+
+    apb_pnp = GRLIB_APB_PNP(object_new(TYPE_GRLIB_APB_PNP));
+    object_property_set_bool(OBJECT(apb_pnp), true, "realized", &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(apb_pnp), 0, LEON3_APB_PNP_OFFSET);
+    grlib_ahb_pnp_add_entry(ahb_pnp, LEON3_APB_PNP_OFFSET, 0xFFF,
+                            GRLIB_VENDOR_GAISLER, GRLIB_APBMST_DEV,
+                            GRLIB_AHB_SLAVE, GRLIB_AHBMEM_AREA);
+
     /* Allocate IRQ manager */
-    grlib_irqmp_create(0x80000200, env, &cpu_irqs, MAX_PILS,
-                       &leon3_set_pil_in);
+    grlib_irqmp_create(LEON3_IRQMP_OFFSET, env, &cpu_irqs, MAX_PILS,
+                       &leon3_set_pil_in, apb_pnp);
 
     env->qemu_irq_ack = leon3_irq_manager;
 
@@ -266,11 +289,14 @@ static void leon3_generic_hw_init(MachineState *machine)
     }
 
     /* Allocate timers */
-    grlib_gptimer_create(0x80000300, 2, CPU_CLK, cpu_irqs, 6);
+    grlib_gptimer_create(LEON3_GPTIMER_OFFSET, 2, CPU_CLK, cpu_irqs,
+                         LEON3_GPTIMER_IRQ,
+                         apb_pnp);
 
     /* Allocate uart */
     if (serial_hd(0)) {
-        grlib_apbuart_create(0x80000100, serial_hd(0), cpu_irqs[3]);
+        grlib_apbuart_create(LEON3_APBUART_OFFSET, serial_hd(0), cpu_irqs,
+                             LEON3_APBUART_IRQ, apb_pnp);
     }
 }
 
