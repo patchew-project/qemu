@@ -725,6 +725,12 @@ struct BdrvChild {
      */
     bool frozen;
 
+    /*
+     * This link should not be modified in bdrv_replace_node process. Used by
+     * should_update_child()
+     */
+    bool stay_at_node;
+
     QLIST_ENTRY(BdrvChild) next;
     QLIST_ENTRY(BdrvChild) next_parent;
 };

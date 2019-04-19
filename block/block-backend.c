@@ -86,6 +86,11 @@ struct BlockBackend {
      * Accessed with atomic ops.
      */
     unsigned int in_flight;
+
+    /*
+     * On blk_insert_bs() new child will inherit  @stay_at_node.
+     */
+    bool stay_at_node;
 };
 
 typedef struct BlockBackendAIOCB {
@@ -311,9 +316,13 @@ static const BdrvChildRole child_root = {
  * to other users of the attached node.
  * Both sets of permissions can be changed later using blk_set_perm().
  *
+ * @stay_at_node is used to set stay_at_node field of child, attached in
+ * blk_insert_bs(). If true, child bs will not be updated on bdrv_replace_node.
+ *
  * Return the new BlockBackend on success, null on failure.
  */
-BlockBackend *blk_new(uint64_t perm, uint64_t shared_perm)
+static BlockBackend *blk_new_common(uint64_t perm, uint64_t shared_perm,
+                                    bool stay_at_node)
 {
     BlockBackend *blk;
 
@@ -321,6 +330,7 @@ BlockBackend *blk_new(uint64_t perm, uint64_t shared_perm)
     blk->refcnt = 1;
     blk->perm = perm;
     blk->shared_perm = shared_perm;
+    blk->stay_at_node = stay_at_node;
     blk_set_enable_write_cache(blk, true);
 
     blk->on_read_error = BLOCKDEV_ON_ERROR_REPORT;
@@ -334,6 +344,16 @@ BlockBackend *blk_new(uint64_t perm, uint64_t shared_perm)
 
     QTAILQ_INSERT_TAIL(&block_backends, blk, link);
     return blk;
+}
+
+BlockBackend *blk_new(uint64_t perm, uint64_t shared_perm)
+{
+    return blk_new_common(perm, shared_perm, false);
+}
+
+BlockBackend *blk_new_pinned(uint64_t perm, uint64_t shared_perm)
+{
+    return blk_new_common(perm, shared_perm, true);
 }
 
 /*
@@ -796,6 +816,7 @@ int blk_insert_bs(BlockBackend *blk, BlockDriverState *bs, Error **errp)
     if (blk->root == NULL) {
         return -EPERM;
     }
+    blk->root->stay_at_node = blk->stay_at_node;
     bdrv_ref(bs);
 
     notifier_list_notify(&blk->insert_bs_notifiers, blk);

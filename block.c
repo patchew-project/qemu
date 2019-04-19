@@ -3905,7 +3905,7 @@ static bool should_update_child(BdrvChild *c, BlockDriverState *to)
     GHashTable *found;
     bool ret;
 
-    if (c->role->stay_at_node) {
+    if (c->stay_at_node || c->role->stay_at_node) {
         return false;
     }
 
