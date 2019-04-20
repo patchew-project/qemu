@@ -513,6 +513,7 @@ typedef enum {
 
     /* AdvSIMD modified immediate */
     I3606_MOVI      = 0x0f000400,
+    I3606_MVNI      = 0x2f000400,
 
     /* AdvSIMD shift by immediate */
     I3614_SSHR      = 0x0f000400,
@@ -823,6 +824,9 @@ static void tcg_out_dupi_vec(TCGContext *s, TCGType type,
 
     if (is_fimm(v64, &op, &cmode, &imm8)) {
         tcg_out_insn(s, 3606, MOVI, type == TCG_TYPE_V128, rd, op, cmode, imm8);
+    } else if (is_fimm(~v64, &op, &cmode, &imm8)
+               && op == 0 && ((1 << cmode) & 0x03555)) {
+        tcg_out_insn(s, 3606, MVNI, type == TCG_TYPE_V128, rd, 0, cmode, imm8);
     } else if (type == TCG_TYPE_V128) {
         new_pool_l2(s, R_AARCH64_CONDBR19, s->code_ptr, 0, v64, v64);
         tcg_out_insn(s, 3305, LDR_v128, 0, rd);
