@@ -2382,6 +2382,93 @@ void tcg_gen_gvec_sari(unsigned vece, uint32_t dofs, uint32_t aofs,
     }
 }
 
+void tcg_gen_gvec_shlv(unsigned vece, uint32_t dofs, uint32_t aofs,
+                       uint32_t bofs, uint32_t oprsz, uint32_t maxsz)
+{
+    static const GVecGen3 g[4] = {
+        { .fniv = tcg_gen_shlv_vec,
+          .fno = gen_helper_gvec_shl8v,
+          .opc = INDEX_op_shlv_vec,
+          .vece = MO_8 },
+        { .fniv = tcg_gen_shlv_vec,
+          .fno = gen_helper_gvec_shl16v,
+          .opc = INDEX_op_shlv_vec,
+          .vece = MO_16 },
+        { .fni4 = tcg_gen_shl_i32,
+          .fniv = tcg_gen_shlv_vec,
+          .fno = gen_helper_gvec_shl32v,
+          .opc = INDEX_op_shlv_vec,
+          .vece = MO_32 },
+        { .fni8 = tcg_gen_shl_i64,
+          .fniv = tcg_gen_shlv_vec,
+          .fno = gen_helper_gvec_shl64v,
+          .opc = INDEX_op_shlv_vec,
+          .prefer_i64 = TCG_TARGET_REG_BITS == 64,
+          .vece = MO_64 },
+    };
+
+    tcg_debug_assert(vece <= MO_64);
+    tcg_gen_gvec_3(dofs, aofs, bofs, oprsz, maxsz, &g[vece]);
+}
+
+void tcg_gen_gvec_shrv(unsigned vece, uint32_t dofs, uint32_t aofs,
+                       uint32_t bofs, uint32_t oprsz, uint32_t maxsz)
+{
+    static const GVecGen3 g[4] = {
+        { .fniv = tcg_gen_shrv_vec,
+          .fno = gen_helper_gvec_shr8v,
+          .opc = INDEX_op_shrv_vec,
+          .vece = MO_8 },
+        { .fniv = tcg_gen_shrv_vec,
+          .fno = gen_helper_gvec_shr16v,
+          .opc = INDEX_op_shrv_vec,
+          .vece = MO_16 },
+        { .fni4 = tcg_gen_shr_i32,
+          .fniv = tcg_gen_shrv_vec,
+          .fno = gen_helper_gvec_shr32v,
+          .opc = INDEX_op_shrv_vec,
+          .vece = MO_32 },
+        { .fni8 = tcg_gen_shr_i64,
+          .fniv = tcg_gen_shrv_vec,
+          .fno = gen_helper_gvec_shr64v,
+          .opc = INDEX_op_shrv_vec,
+          .prefer_i64 = TCG_TARGET_REG_BITS == 64,
+          .vece = MO_64 },
+    };
+
+    tcg_debug_assert(vece <= MO_64);
+    tcg_gen_gvec_3(dofs, aofs, bofs, oprsz, maxsz, &g[vece]);
+}
+
+void tcg_gen_gvec_sarv(unsigned vece, uint32_t dofs, uint32_t aofs,
+                       uint32_t bofs, uint32_t oprsz, uint32_t maxsz)
+{
+    static const GVecGen3 g[4] = {
+        { .fniv = tcg_gen_sarv_vec,
+          .fno = gen_helper_gvec_sar8v,
+          .opc = INDEX_op_sarv_vec,
+          .vece = MO_8 },
+        { .fniv = tcg_gen_sarv_vec,
+          .fno = gen_helper_gvec_sar16v,
+          .opc = INDEX_op_sarv_vec,
+          .vece = MO_16 },
+        { .fni4 = tcg_gen_sar_i32,
+          .fniv = tcg_gen_sarv_vec,
+          .fno = gen_helper_gvec_sar32v,
+          .opc = INDEX_op_sarv_vec,
+          .vece = MO_32 },
+        { .fni8 = tcg_gen_sar_i64,
+          .fniv = tcg_gen_sarv_vec,
+          .fno = gen_helper_gvec_sar64v,
+          .opc = INDEX_op_sarv_vec,
+          .prefer_i64 = TCG_TARGET_REG_BITS == 64,
+          .vece = MO_64 },
+    };
+
+    tcg_debug_assert(vece <= MO_64);
+    tcg_gen_gvec_3(dofs, aofs, bofs, oprsz, maxsz, &g[vece]);
+}
+
 /* Expand OPSZ bytes worth of three-operand operations using i32 elements.  */
 static void expand_cmp_i32(uint32_t dofs, uint32_t aofs, uint32_t bofs,
                            uint32_t oprsz, TCGCond cond)
