@@ -307,11 +307,14 @@ static bool do_op2(unsigned vece, TCGv_vec r, TCGv_vec a, TCGOpcode opc)
     int can;
 
     tcg_debug_assert(at->base_type >= type);
+    tcg_assert_listed_vecop(opc);
     can = tcg_can_emit_vec_op(opc, type, vece);
     if (can > 0) {
         vec_gen_2(opc, type, vece, ri, ai);
     } else if (can < 0) {
+        const TCGOpcode *hold_list = tcg_swap_vecop_list(NULL);
         tcg_expand_vec_op(opc, type, vece, ri, ai);
+        tcg_swap_vecop_list(hold_list);
     } else {
         return false;
     }
@@ -329,11 +332,17 @@ void tcg_gen_not_vec(unsigned vece, TCGv_vec r, TCGv_vec a)
 
 void tcg_gen_neg_vec(unsigned vece, TCGv_vec r, TCGv_vec a)
 {
+    const TCGOpcode *hold_list;
+
+    tcg_assert_listed_vecop(INDEX_op_neg_vec);
+    hold_list = tcg_swap_vecop_list(NULL);
+
     if (!TCG_TARGET_HAS_neg_vec || !do_op2(vece, r, a, INDEX_op_neg_vec)) {
         TCGv_vec t = tcg_const_zeros_vec_matching(r);
         tcg_gen_sub_vec(vece, r, t, a);
         tcg_temp_free_vec(t);
     }
+    tcg_swap_vecop_list(hold_list);
 }
 
 static void do_shifti(TCGOpcode opc, unsigned vece,
@@ -348,6 +357,7 @@ static void do_shifti(TCGOpcode opc, unsigned vece,
 
     tcg_debug_assert(at->base_type == type);
     tcg_debug_assert(i >= 0 && i < (8 << vece));
+    tcg_assert_listed_vecop(opc);
 
     if (i == 0) {
         tcg_gen_mov_vec(r, a);
@@ -361,8 +371,10 @@ static void do_shifti(TCGOpcode opc, unsigned vece,
         /* We leave the choice of expansion via scalar or vector shift
            to the target.  Often, but not always, dupi can feed a vector
            shift easier than a scalar.  */
+        const TCGOpcode *hold_list = tcg_swap_vecop_list(NULL);
         tcg_debug_assert(can < 0);
         tcg_expand_vec_op(opc, type, vece, ri, ai, i);
+        tcg_swap_vecop_list(hold_list);
     }
 }
 
@@ -395,12 +407,15 @@ void tcg_gen_cmp_vec(TCGCond cond, unsigned vece,
 
     tcg_debug_assert(at->base_type >= type);
     tcg_debug_assert(bt->base_type >= type);
+    tcg_assert_listed_vecop(INDEX_op_cmp_vec);
     can = tcg_can_emit_vec_op(INDEX_op_cmp_vec, type, vece);
     if (can > 0) {
         vec_gen_4(INDEX_op_cmp_vec, type, vece, ri, ai, bi, cond);
     } else {
+        const TCGOpcode *hold_list = tcg_swap_vecop_list(NULL);
         tcg_debug_assert(can < 0);
         tcg_expand_vec_op(INDEX_op_cmp_vec, type, vece, ri, ai, bi, cond);
+        tcg_swap_vecop_list(hold_list);
     }
 }
 
@@ -418,12 +433,15 @@ static void do_op3(unsigned vece, TCGv_vec r, TCGv_vec a,
 
     tcg_debug_assert(at->base_type >= type);
     tcg_debug_assert(bt->base_type >= type);
+    tcg_assert_listed_vecop(opc);
     can = tcg_can_emit_vec_op(opc, type, vece);
     if (can > 0) {
         vec_gen_3(opc, type, vece, ri, ai, bi);
     } else {
+        const TCGOpcode *hold_list = tcg_swap_vecop_list(NULL);
         tcg_debug_assert(can < 0);
         tcg_expand_vec_op(opc, type, vece, ri, ai, bi);
+        tcg_swap_vecop_list(hold_list);
     }
 }
 
