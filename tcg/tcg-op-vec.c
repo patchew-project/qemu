@@ -599,3 +599,40 @@ void tcg_gen_sars_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_i32 b)
 {
     do_shifts(vece, r, a, b, INDEX_op_sars_vec, INDEX_op_sarv_vec);
 }
+
+void tcg_gen_cmpsel_vec(unsigned vece, TCGv_vec r, TCGv_vec s,
+                        TCGv_vec a, TCGv_vec b)
+{
+    TCGTemp *rt = tcgv_vec_temp(r);
+    TCGTemp *st = tcgv_vec_temp(s);
+    TCGTemp *at = tcgv_vec_temp(a);
+    TCGTemp *bt = tcgv_vec_temp(b);
+    TCGArg ri = temp_arg(rt);
+    TCGArg si = temp_arg(st);
+    TCGArg ai = temp_arg(at);
+    TCGArg bi = temp_arg(bt);
+    TCGType type = rt->base_type;
+    const TCGOpcode *hold_list;
+    int can;
+
+    tcg_debug_assert(st->base_type >= type);
+    tcg_debug_assert(at->base_type >= type);
+    tcg_debug_assert(bt->base_type >= type);
+    tcg_assert_listed_vecop(INDEX_op_cmpsel_vec);
+    hold_list = tcg_swap_vecop_list(NULL);
+
+    can = tcg_can_emit_vec_op(INDEX_op_cmpsel_vec, type, vece);
+    if (can > 0) {
+        vec_gen_4(INDEX_op_cmpsel_vec, type, vece, ri, si, ai, bi);
+    } else if (can < 0) {
+        tcg_expand_vec_op(INDEX_op_cmpsel_vec, type, vece, ri, si, ai, bi);
+    } else {
+        TCGv_vec t = tcg_temp_new_vec(type);
+
+        tcg_gen_and_vec(vece, t, a, s);
+        tcg_gen_andc_vec(vece, r, b, s);
+        tcg_gen_or_vec(vece, r, r, t);
+        tcg_temp_free_vec(t);
+    }
+    tcg_swap_vecop_list(hold_list);
+}
