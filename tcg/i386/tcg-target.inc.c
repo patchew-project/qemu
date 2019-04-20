@@ -2914,13 +2914,13 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
         tcg_out8(s, sub);
         break;
 
-    case INDEX_op_x86_vpblendvb_vec:
+    case INDEX_op_cmpsel_vec:
         insn = OPC_VPBLENDVB;
         if (type == TCG_TYPE_V256) {
             insn |= P_VEXL;
         }
-        tcg_out_vex_modrm(s, insn, a0, a1, a2);
-        tcg_out8(s, args[3] << 4);
+        tcg_out_vex_modrm(s, insn, a0, a2, args[3]);
+        tcg_out8(s, a1 << 4);
         break;
 
     case INDEX_op_x86_psrldq_vec:
@@ -3212,7 +3212,7 @@ static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
     case INDEX_op_sari_vec:
     case INDEX_op_x86_psrldq_vec:
         return &x_x;
-    case INDEX_op_x86_vpblendvb_vec:
+    case INDEX_op_cmpsel_vec:
         return &x_x_x_x;
 
     default:
@@ -3230,6 +3230,7 @@ int tcg_can_emit_vec_op(TCGOpcode opc, TCGType type, unsigned vece)
     case INDEX_op_or_vec:
     case INDEX_op_xor_vec:
     case INDEX_op_andc_vec:
+    case INDEX_op_cmpsel_vec:
         return 1;
     case INDEX_op_cmp_vec:
         return -1;
@@ -3526,9 +3527,7 @@ static void expand_vec_minmax(TCGType type, unsigned vece,
         TCGv_vec t2;
         t2 = v1, v1 = v2, v2 = t2;
     }
-    vec_gen_4(INDEX_op_x86_vpblendvb_vec, type, vece,
-              tcgv_vec_arg(v0), tcgv_vec_arg(v1),
-              tcgv_vec_arg(v2), tcgv_vec_arg(t1));
+    tcg_gen_cmpsel_vec(vece, v0, t1, v1, v2);
     tcg_temp_free_vec(t1);
 }
 
