@@ -99,6 +99,14 @@ static bool tcg_can_emit_vecop_list(const TCGOpcode *list,
         case INDEX_op_cmpsel_vec:
             /* Fallback expansion uses only required logial ops.  */
             continue;
+        case INDEX_op_smin_vec:
+        case INDEX_op_smax_vec:
+        case INDEX_op_umin_vec:
+        case INDEX_op_umax_vec:
+            if (tcg_can_emit_vec_op(INDEX_op_cmp_vec, type, vece)) {
+                continue;
+            }
+            break;
         default:
             break;
         }
