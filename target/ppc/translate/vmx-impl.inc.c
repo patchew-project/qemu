@@ -511,6 +511,150 @@ static void gen_vmrgow(DisasContext *ctx)
     tcg_temp_free_i64(avr);
 }
 
+static void gen_vsl_vec(unsigned vece, TCGv_vec d, TCGv_vec a, TCGv_vec b)
+{
+    TCGv_vec t = tcg_temp_new_vec_matching(b);
+    tcg_gen_dupi_vec(vece, t, (8 << vece) - 1);
+    tcg_gen_and_vec(vece, b, b, t);
+    tcg_temp_free_vec(t);
+    tcg_gen_shlv_vec(vece, d, a, b);
+}
+
+static void gen_vslw_i32(TCGv_i32 d, TCGv_i32 a, TCGv_i32 b)
+{
+    tcg_gen_andi_i32(b, b, 31);
+    tcg_gen_shl_i32(d, a, b);
+}
+
+static void gen_vsld_i64(TCGv_i64 d, TCGv_i64 a, TCGv_i64 b)
+{
+    tcg_gen_andi_i64(b, b, 63);
+    tcg_gen_shl_i64(d, a, b);
+}
+
+static void gen__vsl(unsigned vece, uint32_t dofs, uint32_t aofs,
+                     uint32_t bofs, uint32_t oprsz, uint32_t maxsz)
+{
+    static const TCGOpcode shlv_list[] = { INDEX_op_shlv_vec, 0 };
+    static const GVecGen3 g[4] = {
+        { .fniv = gen_vsl_vec,
+          .fno = gen_helper_vslb,
+          .opt_opc = shlv_list,
+          .vece = MO_8 },
+        { .fniv = gen_vsl_vec,
+          .fno = gen_helper_vslh,
+          .opt_opc = shlv_list,
+          .vece = MO_16 },
+        { .fni4 = gen_vslw_i32,
+          .fniv = gen_vsl_vec,
+          .fno = gen_helper_vslw,
+          .opt_opc = shlv_list,
+          .vece = MO_32 },
+        { .fni8 = gen_vsld_i64,
+          .fniv = gen_vsl_vec,
+          .fno = gen_helper_vsld,
+          .opt_opc = shlv_list,
+          .vece = MO_64 }
+    };
+    tcg_gen_gvec_3(dofs, aofs, bofs, oprsz, maxsz, &g[vece]);
+}
+
+static void gen_vsr_vec(unsigned vece, TCGv_vec d, TCGv_vec a, TCGv_vec b)
+{
+    TCGv_vec t = tcg_temp_new_vec_matching(b);
+    tcg_gen_dupi_vec(vece, t, (8 << vece) - 1);
+    tcg_gen_and_vec(vece, b, b, t);
+    tcg_temp_free_vec(t);
+    tcg_gen_shrv_vec(vece, d, a, b);
+}
+
+static void gen_vsrw_i32(TCGv_i32 d, TCGv_i32 a, TCGv_i32 b)
+{
+    tcg_gen_andi_i32(b, b, 31);
+    tcg_gen_shr_i32(d, a, b);
+}
+
+static void gen_vsrd_i64(TCGv_i64 d, TCGv_i64 a, TCGv_i64 b)
+{
+    tcg_gen_andi_i64(b, b, 63);
+    tcg_gen_shr_i64(d, a, b);
+}
+
+static void gen__vsr(unsigned vece, uint32_t dofs, uint32_t aofs,
+                     uint32_t bofs, uint32_t oprsz, uint32_t maxsz)
+{
+    static const TCGOpcode shrv_list[] = { INDEX_op_shrv_vec, 0 };
+    static const GVecGen3 g[4] = {
+        { .fniv = gen_vsr_vec,
+          .fno = gen_helper_vsrb,
+          .opt_opc = shrv_list,
+          .vece = MO_8 },
+        { .fniv = gen_vsr_vec,
+          .fno = gen_helper_vsrh,
+          .opt_opc = shrv_list,
+          .vece = MO_16 },
+        { .fni4 = gen_vsrw_i32,
+          .fniv = gen_vsr_vec,
+          .fno = gen_helper_vsrw,
+          .opt_opc = shrv_list,
+          .vece = MO_32 },
+        { .fni8 = gen_vsrd_i64,
+          .fniv = gen_vsr_vec,
+          .fno = gen_helper_vsrd,
+          .opt_opc = shrv_list,
+          .vece = MO_64 }
+    };
+    tcg_gen_gvec_3(dofs, aofs, bofs, oprsz, maxsz, &g[vece]);
+}
+
+static void gen_vsra_vec(unsigned vece, TCGv_vec d, TCGv_vec a, TCGv_vec b)
+{
+    TCGv_vec t = tcg_temp_new_vec_matching(b);
+    tcg_gen_dupi_vec(vece, t, (8 << vece) - 1);
+    tcg_gen_and_vec(vece, b, b, t);
+    tcg_temp_free_vec(t);
+    tcg_gen_sarv_vec(vece, d, a, b);
+}
+
+static void gen_vsraw_i32(TCGv_i32 d, TCGv_i32 a, TCGv_i32 b)
+{
+    tcg_gen_andi_i32(b, b, 31);
+    tcg_gen_sar_i32(d, a, b);
+}
+
+static void gen_vsrad_i64(TCGv_i64 d, TCGv_i64 a, TCGv_i64 b)
+{
+    tcg_gen_andi_i64(b, b, 63);
+    tcg_gen_sar_i64(d, a, b);
+}
+
+static void gen__vsra(unsigned vece, uint32_t dofs, uint32_t aofs,
+                      uint32_t bofs, uint32_t oprsz, uint32_t maxsz)
+{
+    static const TCGOpcode sarv_list[] = { INDEX_op_sarv_vec, 0 };
+    static const GVecGen3 g[4] = {
+        { .fniv = gen_vsra_vec,
+          .fno = gen_helper_vsrab,
+          .opt_opc = sarv_list,
+          .vece = MO_8 },
+        { .fniv = gen_vsra_vec,
+          .fno = gen_helper_vsrah,
+          .opt_opc = sarv_list,
+          .vece = MO_16 },
+        { .fni4 = gen_vsraw_i32,
+          .fniv = gen_vsra_vec,
+          .fno = gen_helper_vsraw,
+          .opt_opc = sarv_list,
+          .vece = MO_32 },
+        { .fni8 = gen_vsrad_i64,
+          .fniv = gen_vsra_vec,
+          .fno = gen_helper_vsrad,
+          .opt_opc = sarv_list,
+          .vece = MO_64 }
+    };
+    tcg_gen_gvec_3(dofs, aofs, bofs, oprsz, maxsz, &g[vece]);
+}
+
 GEN_VXFORM(vmuloub, 4, 0);
 GEN_VXFORM(vmulouh, 4, 1);
 GEN_VXFORM(vmulouw, 4, 2);
@@ -526,21 +670,21 @@ GEN_VXFORM(vmuleuw, 4, 10);
 GEN_VXFORM(vmulesb, 4, 12);
 GEN_VXFORM(vmulesh, 4, 13);
 GEN_VXFORM(vmulesw, 4, 14);
-GEN_VXFORM(vslb, 2, 4);
-GEN_VXFORM(vslh, 2, 5);
-GEN_VXFORM(vslw, 2, 6);
+GEN_VXFORM_V(vslb, MO_8, gen__vsl, 2, 4);
+GEN_VXFORM_V(vslh, MO_16, gen__vsl, 2, 5);
+GEN_VXFORM_V(vslw, MO_32, gen__vsl, 2, 6);
+GEN_VXFORM_V(vsld, MO_64, gen__vsl, 2, 23);
 GEN_VXFORM(vrlwnm, 2, 6);
 GEN_VXFORM_DUAL(vslw, PPC_ALTIVEC, PPC_NONE, \
                 vrlwnm, PPC_NONE, PPC2_ISA300)
-GEN_VXFORM(vsld, 2, 23);
-GEN_VXFORM(vsrb, 2, 8);
-GEN_VXFORM(vsrh, 2, 9);
-GEN_VXFORM(vsrw, 2, 10);
-GEN_VXFORM(vsrd, 2, 27);
-GEN_VXFORM(vsrab, 2, 12);
-GEN_VXFORM(vsrah, 2, 13);
-GEN_VXFORM(vsraw, 2, 14);
-GEN_VXFORM(vsrad, 2, 15);
+GEN_VXFORM_V(vsrb, MO_8, gen__vsr, 2, 8);
+GEN_VXFORM_V(vsrh, MO_16, gen__vsr, 2, 9);
+GEN_VXFORM_V(vsrw, MO_32, gen__vsr, 2, 10);
+GEN_VXFORM_V(vsrd, MO_64, gen__vsr, 2, 27);
+GEN_VXFORM_V(vsrab, MO_8, gen__vsra, 2, 12);
+GEN_VXFORM_V(vsrah, MO_16, gen__vsra, 2, 13);
+GEN_VXFORM_V(vsraw, MO_32, gen__vsra, 2, 14);
+GEN_VXFORM_V(vsrad, MO_64, gen__vsra, 2, 15);
 GEN_VXFORM(vsrv, 2, 28);
 GEN_VXFORM(vslv, 2, 29);
 GEN_VXFORM(vslo, 6, 16);

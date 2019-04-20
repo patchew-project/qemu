@@ -1770,7 +1770,8 @@ VSHIFT(r, 0)
 #undef VSHIFT
 
 #define VSL(suffix, element, mask)                                      \
-    void helper_vsl##suffix(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)   \
+    void helper_vsl##suffix(ppc_avr_t *r, ppc_avr_t *a,                 \
+                            ppc_avr_t *b, uint32_t desc)                \
     {                                                                   \
         int i;                                                          \
                                                                         \
@@ -1958,7 +1959,8 @@ VNEG(vnegd, s64)
 #undef VNEG
 
 #define VSR(suffix, element, mask)                                      \
-    void helper_vsr##suffix(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)   \
+    void helper_vsr##suffix(ppc_avr_t *r, ppc_avr_t *a,                 \
+                            ppc_avr_t *b, uint32_t desc)                \
     {                                                                   \
         int i;                                                          \
                                                                         \
