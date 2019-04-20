@@ -5285,13 +5285,13 @@ static inline void gen_neon_shift_narrow(int size, TCGv_i32 var, TCGv_i32 shift,
         if (u) {
             switch (size) {
             case 1: gen_helper_neon_shl_u16(var, var, shift); break;
-            case 2: gen_helper_neon_shl_u32(var, var, shift); break;
+            case 2: gen_ushl_i32(var, var, shift); break;
             default: abort();
             }
         } else {
             switch (size) {
             case 1: gen_helper_neon_shl_s16(var, var, shift); break;
-            case 2: gen_helper_neon_shl_s32(var, var, shift); break;
+            case 2: gen_sshl_i32(var, var, shift); break;
             default: abort();
             }
         }
@@ -6170,6 +6170,270 @@ const GVecGen3 cmtst_op[4] = {
       .vece = MO_64 },
 };
 
+void gen_ushl_i32(TCGv_i32 d, TCGv_i32 a, TCGv_i32 b)
+{
+    TCGv_i32 lval = tcg_temp_new_i32();
+    TCGv_i32 rval = tcg_temp_new_i32();
+    TCGv_i32 lsh = tcg_temp_new_i32();
+    TCGv_i32 rsh = tcg_temp_new_i32();
+    TCGv_i32 zero = tcg_const_i32(0);
+    TCGv_i32 max = tcg_const_i32(32);
+
+    /*
+     * Perform possibly out of range shifts, trusting that the operation
+     * does not trap.  Discard unused results after the fact.
+     */
+    tcg_gen_ext8s_i32(lsh, b);
+    tcg_gen_neg_i32(rsh, lsh);
+    tcg_gen_shl_i32(lval, a, lsh);
+    tcg_gen_shr_i32(rval, a, rsh);
+    tcg_gen_movcond_i32(TCG_COND_LTU, d, lsh, max, lval, zero);
+    tcg_gen_movcond_i32(TCG_COND_LTU, d, rsh, max, rval, d);
+
+    tcg_temp_free_i32(lval);
+    tcg_temp_free_i32(rval);
+    tcg_temp_free_i32(lsh);
+    tcg_temp_free_i32(rsh);
+    tcg_temp_free_i32(zero);
+    tcg_temp_free_i32(max);
+}
+
+void gen_ushl_i64(TCGv_i64 d, TCGv_i64 a, TCGv_i64 b)
+{
+    TCGv_i64 lval = tcg_temp_new_i64();
+    TCGv_i64 rval = tcg_temp_new_i64();
+    TCGv_i64 lsh = tcg_temp_new_i64();
+    TCGv_i64 rsh = tcg_temp_new_i64();
+    TCGv_i64 zero = tcg_const_i64(0);
+    TCGv_i64 max = tcg_const_i64(64);
+
+    /*
+     * Perform possibly out of range shifts, trusting that the operation
+     * does not trap.  Discard unused results after the fact.
+     */
+    tcg_gen_ext8s_i64(lsh, b);
+    tcg_gen_neg_i64(rsh, lsh);
+    tcg_gen_shl_i64(lval, a, lsh);
+    tcg_gen_shr_i64(rval, a, rsh);
+    tcg_gen_movcond_i64(TCG_COND_LTU, d, lsh, max, lval, zero);
+    tcg_gen_movcond_i64(TCG_COND_LTU, d, rsh, max, rval, d);
+
+    tcg_temp_free_i64(lval);
+    tcg_temp_free_i64(rval);
+    tcg_temp_free_i64(lsh);
+    tcg_temp_free_i64(rsh);
+    tcg_temp_free_i64(zero);
+    tcg_temp_free_i64(max);
+}
+
+static void gen_ushl_vec(unsigned vece, TCGv_vec d, TCGv_vec a, TCGv_vec b)
+{
+    TCGv_vec lval = tcg_temp_new_vec_matching(d);
+    TCGv_vec rval = tcg_temp_new_vec_matching(d);
+    TCGv_vec lsh = tcg_temp_new_vec_matching(d);
+    TCGv_vec rsh = tcg_temp_new_vec_matching(d);
+    TCGv_vec msk, max;
+
+    /*
+     * Since we don't have a sign-extend vector primitive, negate and mask.
+     * With the out-of-range check below, we'll select the correct answer.
+     */
+    tcg_gen_neg_vec(vece, rsh, b);
+    if (vece == MO_8) {
+        tcg_gen_mov_vec(lsh, b);
+    } else {
+        msk = tcg_temp_new_vec_matching(d);
+        tcg_gen_dupi_vec(vece, msk, 0xff);
+        tcg_gen_and_vec(vece, lsh, b, msk);
+        tcg_gen_and_vec(vece, rsh, rsh, msk);
+        tcg_temp_free_vec(msk);
+    }
+
+    /*
+     * Perform possibly out of range shifts, trusting that the operation
+     * does not trap.  Discard unused results after the fact.
+     */
+    tcg_gen_shlv_vec(vece, lval, a, lsh);
+    tcg_gen_shrv_vec(vece, rval, a, rsh);
+
+    max = tcg_temp_new_vec_matching(d);
+    tcg_gen_dupi_vec(vece, max, 8 << vece);
+    tcg_gen_cmp_vec(TCG_COND_LTU, vece, lsh, lsh, max);
+    tcg_gen_cmp_vec(TCG_COND_LTU, vece, rsh, rsh, max);
+    tcg_temp_free_vec(max);
+
+    tcg_gen_and_vec(vece, lval, lval, lsh);
+    tcg_gen_and_vec(vece, rval, rval, rsh);
+    tcg_gen_or_vec(vece, d, lval, rval);
+
+    tcg_temp_free_vec(lval);
+    tcg_temp_free_vec(rval);
+    tcg_temp_free_vec(lsh);
+    tcg_temp_free_vec(rsh);
+}
+
+static const TCGOpcode ushl_list[] = {
+    INDEX_op_neg_vec, INDEX_op_shlv_vec,
+    INDEX_op_shrv_vec, INDEX_op_cmp_vec, 0
+};
+
+const GVecGen3 ushl_op[4] = {
+    { .fniv = gen_ushl_vec,
+      .fno = gen_helper_gvec_ushl_b,
+      .opt_opc = ushl_list,
+      .vece = MO_8 },
+    { .fniv = gen_ushl_vec,
+      .fno = gen_helper_gvec_ushl_h,
+      .opt_opc = ushl_list,
+      .vece = MO_16 },
+    { .fni4 = gen_ushl_i32,
+      .fniv = gen_ushl_vec,
+      .fno = gen_helper_gvec_ushl_s,
+      .opt_opc = ushl_list,
+      .vece = MO_32 },
+    { .fni8 = gen_ushl_i64,
+      .fniv = gen_ushl_vec,
+      .fno = gen_helper_gvec_ushl_d,
+      .opt_opc = ushl_list,
+      .vece = MO_64 },
+};
+
+void gen_sshl_i32(TCGv_i32 d, TCGv_i32 a, TCGv_i32 b)
+{
+    TCGv_i32 lval = tcg_temp_new_i32();
+    TCGv_i32 rval = tcg_temp_new_i32();
+    TCGv_i32 lsh = tcg_temp_new_i32();
+    TCGv_i32 rsh = tcg_temp_new_i32();
+    TCGv_i32 zero = tcg_const_i32(0);
+    TCGv_i32 max = tcg_const_i32(31);
+
+    /*
+     * Perform possibly out of range shifts, trusting that the operation
+     * does not trap.  Discard unused results after the fact.
+     */
+    tcg_gen_ext8s_i32(lsh, b);
+    tcg_gen_neg_i32(rsh, lsh);
+    tcg_gen_shl_i32(lval, a, lsh);
+    tcg_gen_umin_i32(rsh, rsh, max);
+    tcg_gen_sar_i32(rval, a, rsh);
+    tcg_gen_movcond_i32(TCG_COND_LEU, lval, lsh, max, lval, zero);
+    tcg_gen_movcond_i32(TCG_COND_LT, d, lsh, zero, rval, lval);
+
+    tcg_temp_free_i32(lval);
+    tcg_temp_free_i32(rval);
+    tcg_temp_free_i32(lsh);
+    tcg_temp_free_i32(rsh);
+    tcg_temp_free_i32(zero);
+    tcg_temp_free_i32(max);
+}
+
+void gen_sshl_i64(TCGv_i64 d, TCGv_i64 a, TCGv_i64 b)
+{
+    TCGv_i64 lval = tcg_temp_new_i64();
+    TCGv_i64 rval = tcg_temp_new_i64();
+    TCGv_i64 lsh = tcg_temp_new_i64();
+    TCGv_i64 rsh = tcg_temp_new_i64();
+    TCGv_i64 zero = tcg_const_i64(0);
+    TCGv_i64 max = tcg_const_i64(63);
+
+    /*
+     * Perform possibly out of range shifts, trusting that the operation
+     * does not trap.  Discard unused results after the fact.
+     */
+    tcg_gen_ext8s_i64(lsh, b);
+    tcg_gen_neg_i64(rsh, lsh);
+    tcg_gen_shl_i64(lval, a, lsh);
+    tcg_gen_umin_i64(rsh, rsh, max);
+    tcg_gen_sar_i64(rval, a, rsh);
+    tcg_gen_movcond_i64(TCG_COND_LEU, lval, lsh, max, lval, zero);
+    tcg_gen_movcond_i64(TCG_COND_LT, d, lsh, zero, rval, lval);
+
+    tcg_temp_free_i64(lval);
+    tcg_temp_free_i64(rval);
+    tcg_temp_free_i64(lsh);
+    tcg_temp_free_i64(rsh);
+    tcg_temp_free_i64(zero);
+    tcg_temp_free_i64(max);
+}
+
+static void gen_sshl_vec(unsigned vece, TCGv_vec d, TCGv_vec a, TCGv_vec b)
+{
+    TCGv_vec lval = tcg_temp_new_vec_matching(d);
+    TCGv_vec rval = tcg_temp_new_vec_matching(d);
+    TCGv_vec lsh = tcg_temp_new_vec_matching(d);
+    TCGv_vec rsh = tcg_temp_new_vec_matching(d);
+    TCGv_vec msk = tcg_temp_new_vec_matching(d);
+    TCGv_vec max = tcg_temp_new_vec_matching(d);
+
+    /*
+     * Since we don't have a sign-extend vector primitive, negate and mask.
+     * With the out-of-range check below, we'll select the correct answer.
+     */
+    tcg_gen_neg_vec(vece, rsh, b);
+    if (vece == MO_8) {
+        tcg_gen_mov_vec(lsh, b);
+    } else {
+        tcg_gen_dupi_vec(vece, msk, 0xff);
+        tcg_gen_and_vec(vece, lsh, b, msk);
+        tcg_gen_and_vec(vece, rsh, rsh, msk);
+    }
+
+    /* Bound rsh so out of bound right shift gets -1.  */
+    tcg_gen_dupi_vec(vece, max, (8 << vece) - 1);
+    tcg_gen_umin_vec(vece, rsh, rsh, max);
+
+    /* Select between left and right shift.  */
+    tcg_gen_dupi_vec(vece, msk, vece == MO_8 ? 0 : 0x80);
+    tcg_gen_cmp_vec(TCG_COND_LT, vece, msk, lsh, msk);
+
+    tcg_gen_shlv_vec(vece, lval, a, lsh);
+    tcg_gen_sarv_vec(vece, rval, a, rsh);
+
+    /* Select in-bound left shift.  */
+    tcg_gen_cmp_vec(TCG_COND_GT, vece, lsh, lsh, max);
+
+    /* Merge the selections above.  */
+    tcg_gen_andc_vec(vece, lval, lval, lsh);
+    if (vece == MO_8) {
+        tcg_gen_cmpsel_vec(vece, d, msk, rval, lval);
+    } else {
+        tcg_gen_cmpsel_vec(vece, d, msk, lval, rval);
+    }
+
+    tcg_temp_free_vec(lval);
+    tcg_temp_free_vec(rval);
+    tcg_temp_free_vec(lsh);
+    tcg_temp_free_vec(rsh);
+    tcg_temp_free_vec(msk);
+    tcg_temp_free_vec(max);
+}
+
+static const TCGOpcode sshl_list[] = {
+    INDEX_op_neg_vec, INDEX_op_umin_vec, INDEX_op_shlv_vec,
+    INDEX_op_sarv_vec, INDEX_op_cmp_vec, INDEX_op_cmpsel_vec, 0
+};
+
+const GVecGen3 sshl_op[4] = {
+    { .fniv = gen_sshl_vec,
+      .fno = gen_helper_gvec_sshl_b,
+      .opt_opc = sshl_list,
+      .vece = MO_8 },
+    { .fniv = gen_sshl_vec,
+      .fno = gen_helper_gvec_sshl_h,
+      .opt_opc = sshl_list,
+      .vece = MO_16 },
+    { .fni4 = gen_sshl_i32,
+      .fniv = gen_sshl_vec,
+      .fno = gen_helper_gvec_sshl_s,
+      .opt_opc = sshl_list,
+      .vece = MO_32 },
+    { .fni8 = gen_sshl_i64,
+      .fniv = gen_sshl_vec,
+      .fno = gen_helper_gvec_sshl_d,
+      .opt_opc = sshl_list,
+      .vece = MO_64 },
+};
+
 static void gen_uqadd_vec(unsigned vece, TCGv_vec t, TCGv_vec sat,
                           TCGv_vec a, TCGv_vec b)
 {
@@ -6573,6 +6837,11 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                                   vec_size, vec_size);
             }
             return 0;
+
+        case NEON_3R_VSHL:
+            tcg_gen_gvec_3(rd_ofs, rn_ofs, rm_ofs, vec_size, vec_size,
+                           u ? &ushl_op[size] : &sshl_op[size]);
+            return 0;
         }
 
         if (size == 3) {
@@ -6581,13 +6850,6 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                 neon_load_reg64(cpu_V0, rn + pass);
                 neon_load_reg64(cpu_V1, rm + pass);
                 switch (op) {
-                case NEON_3R_VSHL:
-                    if (u) {
-                        gen_helper_neon_shl_u64(cpu_V0, cpu_V1, cpu_V0);
-                    } else {
-                        gen_helper_neon_shl_s64(cpu_V0, cpu_V1, cpu_V0);
-                    }
-                    break;
                 case NEON_3R_VQSHL:
                     if (u) {
                         gen_helper_neon_qshl_u64(cpu_V0, cpu_env,
@@ -6622,7 +6884,6 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
         }
         pairwise = 0;
         switch (op) {
-        case NEON_3R_VSHL:
         case NEON_3R_VQSHL:
         case NEON_3R_VRSHL:
         case NEON_3R_VQRSHL:
@@ -6701,9 +6962,6 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
             break;
         case NEON_3R_VHSUB:
             GEN_NEON_INTEGER_OP(hsub);
-            break;
-        case NEON_3R_VSHL:
-            GEN_NEON_INTEGER_OP(shl);
             break;
         case NEON_3R_VQSHL:
             GEN_NEON_INTEGER_OP_ENV(qshl);
@@ -7113,9 +7371,9 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                             }
                         } else {
                             if (input_unsigned) {
-                                gen_helper_neon_shl_u64(cpu_V0, in, tmp64);
+                                gen_ushl_i64(cpu_V0, in, tmp64);
                             } else {
-                                gen_helper_neon_shl_s64(cpu_V0, in, tmp64);
+                                gen_sshl_i64(cpu_V0, in, tmp64);
                             }
                         }
                         tmp = tcg_temp_new_i32();
