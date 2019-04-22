@@ -1806,6 +1806,7 @@ static void spapr_machine_reset(void)
 
     spapr->cas_reboot = false;
 
+    spapr->mc_status = -1;
     spapr->guest_machine_check_addr = -1;
 
     /* Signal all vCPUs waiting on this condition */
@@ -2106,6 +2107,7 @@ static const VMStateDescription vmstate_spapr_machine_check = {
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
         VMSTATE_UINT64(guest_machine_check_addr, SpaprMachineState),
+        VMSTATE_INT32(mc_status, SpaprMachineState),
         VMSTATE_END_OF_LIST()
     },
 };
@@ -3085,6 +3087,7 @@ static void spapr_machine_init(MachineState *machine)
         kvmppc_spapr_enable_inkernel_multitce();
     }
 
+    spapr->mc_status = -1;
     qemu_cond_init(&spapr->mc_delivery_cond);
 }
 
