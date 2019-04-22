@@ -10,6 +10,7 @@
 #include "hw/ppc/spapr_irq.h"
 #include "hw/ppc/spapr_xive.h"  /* For SpaprXive */
 #include "hw/ppc/xics.h"        /* For ICSState */
+#include "qapi/error.h"
 
 struct SpaprVioBus;
 struct SpaprPhbState;
@@ -213,6 +214,8 @@ struct SpaprMachineState {
     SpaprCapabilities def, eff, mig;
 
     unsigned gpu_numa_id;
+
+    Error *migration_blocker;
 };
 
 #define H_SUCCESS         0
