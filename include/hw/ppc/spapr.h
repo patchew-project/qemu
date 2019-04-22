@@ -661,6 +661,9 @@ target_ulong spapr_hypercall(PowerPCCPU *cpu, target_ulong opcode,
 #define DIAGNOSTICS_RUN_MODE_IMMEDIATE 2
 #define DIAGNOSTICS_RUN_MODE_PERIODIC  3
 
+/* Offset from rtas-base where error log is placed */
+#define RTAS_ERRLOG_OFFSET       0x25
+
 static inline uint64_t ppc64_phys_to_real(uint64_t addr)
 {
     return addr & ~0xF000000000000000ULL;
@@ -798,6 +801,7 @@ int spapr_max_server_number(SpaprMachineState *spapr);
 void spapr_store_hpte(PowerPCCPU *cpu, hwaddr ptex,
                       uint64_t pte0, uint64_t pte1);
 void spapr_mce_req_event(PowerPCCPU *cpu, bool recovered);
+ssize_t spapr_get_rtas_size(ssize_t old_rtas_sizea);
 
 /* DRC callbacks. */
 void spapr_core_release(DeviceState *dev);
