@@ -238,6 +238,8 @@ typedef struct NumaState {
     /* Number of NUMA nodes */
     int num_nodes;
 
+    /* Allow setting NUMA distance for different NUMA nodes */
+    bool have_numa_distance;
 } NumaState;
 
 /**
