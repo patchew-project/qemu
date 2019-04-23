@@ -193,3 +193,27 @@
              'ppc64', 'riscv32', 'riscv64', 's390x', 'sh4',
              'sh4eb', 'sparc', 'sparc64', 'tricore', 'unicore32',
              'x86_64', 'xtensa', 'xtensaeb' ] }
+
+##
+# @SupportStatusInfo:
+#
+# Information on support status of a given feature
+# (e.g. machine type)
+#
+# @deprecated: if true, the given feature is deprecated and may be removed
+#              in future versions of QEMU according to the QEMU deprecation
+#              policy.
+#
+# @status-message: Human readable message describing support status
+#                  of the feature.
+#
+# @suggested-alternative: Optional.  Suggested alternative for a deprecated
+#                         feature.  For machine types, this should be the name
+#                         of an available machine-type.
+#
+# Since: 4.1
+##
+{ 'struct': 'SupportStatusInfo',
+  'data': { 'deprecated': 'bool',
+            '*status-message': 'str',
+            '*suggested-alternative': 'str' } }
