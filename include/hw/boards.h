@@ -5,6 +5,7 @@
 
 #include "sysemu/blockdev.h"
 #include "sysemu/accel.h"
+#include "sysemu/sysemu.h"
 #include "hw/qdev.h"
 #include "qom/object.h"
 #include "qom/cpu.h"
@@ -69,6 +70,7 @@ int machine_kvm_shadow_mem(MachineState *machine);
 int machine_phandle_start(MachineState *machine);
 bool machine_dump_guest_core(MachineState *machine);
 bool machine_mem_merge(MachineState *machine);
+int machine_num_numa_nodes(const MachineState *machine);
 HotpluggableCPUList *machine_query_hotpluggable_cpus(MachineState *machine);
 void machine_set_cpu_numa_node(MachineState *machine,
                                const CpuInstanceProperties *props,
@@ -211,6 +213,7 @@ struct MachineClass {
     bool ignore_boot_device_suffixes;
     bool smbus_no_migration_support;
     bool nvdimm_supported;
+    bool numa_supported;
 
     HotplugHandler *(*get_hotplug_handler)(MachineState *machine,
                                            DeviceState *dev);
@@ -230,6 +233,12 @@ typedef struct DeviceMemoryState {
     hwaddr base;
     MemoryRegion mr;
 } DeviceMemoryState;
+
+typedef struct NumaState {
+    /* Number of NUMA nodes */
+    int num_nodes;
+
+} NumaState;
 
 /**
  * MachineState:
@@ -274,6 +283,7 @@ struct MachineState {
     AccelState *accelerator;
     CPUArchIdList *possible_cpus;
     struct NVDIMMState *nvdimms_state;
+    NumaState *numa_state;
 };
 
 #define DEFINE_MACHINE(namestr, machine_initfn) \
