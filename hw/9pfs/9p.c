@@ -587,13 +587,13 @@ static uint32_t qpf_hash(QpfEntry e)
 static bool qpp_cmp_func(const void *obj, const void *userp)
 {
     const QppEntry *e1 = obj, *e2 = userp;
-    return (e1->dev == e2->dev) && (e1->ino_prefix == e2->ino_prefix);
+    return e1->dev == e2->dev && e1->ino_prefix == e2->ino_prefix;
 }
 
 static bool qpf_cmp_func(const void *obj, const void *userp)
 {
     const QpfEntry *e1 = obj, *e2 = userp;
-    return (e1->dev == e2->dev) && (e1->ino == e2->ino);
+    return e1->dev == e2->dev && e1->ino == e2->ino;
 }
 
 static void qp_table_remove(void *p, uint32_t h, void *up)
@@ -630,9 +630,6 @@ static int qid_path_fullmap(V9fsPDU *pdu, const struct stat *stbuf,
         }
 
         val = g_malloc0(sizeof(QppEntry));
-        if (!val) {
-            return -ENOMEM;
-        }
         *val = lookup;
 
         /* new unique inode and device combo */
@@ -673,9 +670,6 @@ static int qid_path_prefixmap(V9fsPDU *pdu, const struct stat *stbuf,
         }
 
         val = g_malloc0(sizeof(QppEntry));
-        if (!val) {
-            return -ENOMEM;
-        }
         *val = lookup;
 
         /* new unique inode prefix and device combo */
@@ -870,9 +864,9 @@ static int donttouch_stat(V9fsStat *stat)
 {
     if (stat->type == -1 &&
         stat->dev == -1 &&
-        stat->qid.type == -1 &&
-        stat->qid.version == -1 &&
-        stat->qid.path == -1 &&
+        stat->qid.type == 0xff &&
+        stat->qid.version == (uint32_t) -1 &&
+        stat->qid.path == (uint64_t) -1 &&
         stat->mode == -1 &&
         stat->atime == -1 &&
         stat->mtime == -1 &&
