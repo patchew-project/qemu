@@ -245,12 +245,45 @@ typedef struct {
     uint16_t qp_prefix;
 } QppEntry;
 
+/* Small version of QppEntry for serialization as xattr. */
+struct QppEntryS {
+    dev_t dev;
+    uint16_t ino_prefix;
+} __attribute__((packed));
+typedef struct QppEntryS QppEntryS;
+
 /* QID path full entry, as above */
 typedef struct {
     dev_t dev;
     ino_t ino;
     uint64_t path;
 } QpfEntry;
+
+typedef struct {
+    QppEntryS *elements;
+    uint count; /* In: QppEntryS count in @a elements */
+    uint done; /* Out: how many QppEntryS did we actually fill in @a elements */
+    int error; /* Out: zero on success */
+} QppSerialize;
+
+struct QppSrlzHeader {
+    uint16_t version;
+    uint16_t reserved; /* might be used e.g. for flags in future */
+    uint32_t crc32;
+} __attribute__((packed));
+typedef struct QppSrlzHeader QppSrlzHeader;
+
+struct QppSrlzStream {
+    QppSrlzHeader header;
+    QppEntryS elements[0];
+} __attribute__((packed));
+typedef struct QppSrlzStream QppSrlzStream;
+
+typedef struct XAttrNode {
+    uint8_t* value;
+    ssize_t length;
+    struct XAttrNode* next;
+} XAttrNode;
 
 struct V9fsState
 {

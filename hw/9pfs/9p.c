@@ -26,6 +26,19 @@
 #include "migration/blocker.h"
 #include "sysemu/qtest.h"
 #include "qemu/xxhash.h"
+#include "qemu/crc32c.h"
+#if defined(__linux__) /* TODO: This should probably go into osdep.h instead */
+# include <linux/limits.h> /* for XATTR_SIZE_MAX */
+#endif
+
+/*
+ * How many bytes may we store to fs per extended attribute value?
+ */
+#ifdef XATTR_SIZE_MAX
+# define ATTR_MAX_SIZE XATTR_SIZE_MAX /* Linux only: 64kB limit in kernel */
+#else
+# define ATTR_MAX_SIZE 65536 /* Most systems allow a bit more, so we take this as basis.  */
+#endif
 
 int open_fd_hw;
 int total_open_fd;
@@ -642,6 +655,285 @@ static int qid_path_fullmap(V9fsPDU *pdu, const struct stat *stbuf,
     return 0;
 }
 
+static inline bool is_ro_export(FsContext *ctx)
+{
+    return ctx->export_flags & V9FS_RDONLY;
+}
+
+/*
+ * Once qpp_table size exceeds this value, we no longer save
+ * the table persistently. See comment in v9fs_store_qpp_table()
+ */
+#define QPP_TABLE_PERSISTENCY_LIMIT 32768
+
+/* Remove all user.virtfs.system.qidp.* xattrs from export root. */
+static void remove_qidp_xattr(FsContext *ctx)
+{
+    V9fsString name;
+    int i;
+
+    /* just for a paranoid endless recursion sanity check */
+    const ssize_t max_size =
+        sizeof(QppSrlzHeader) +
+        QPP_TABLE_PERSISTENCY_LIMIT * sizeof(QppEntryS);
+
+    v9fs_string_init(&name);
+    for (i = 0; i * ATTR_MAX_SIZE < max_size; ++i) {
+        v9fs_string_sprintf(&name, "user.virtfs.system.qidp.%d", i);
+        if (lremovexattr(ctx->fs_root, name.data) < 0)
+            break;
+    }
+    v9fs_string_free(&name);
+}
+
+/* Used to convert qpp hash table into continuous stream. */
+static void qpp_table_serialize(void *p, uint32_t h, void *up)
+{
+    const QppEntry *entry = (const QppEntry*) p;
+    QppSerialize *ser = (QppSerialize*) up;
+
+    if (ser->error)
+        return;
+
+    /* safety first */
+    if (entry->qp_prefix - 1 >= ser->count) {
+        ser->error = -1;
+        return;
+    }
+
+    ser->elements[entry->qp_prefix - 1] = (QppEntryS) {
+        .dev = entry->dev,
+        .ino_prefix = entry->ino_prefix
+    };
+    ser->done++;
+}
+
+/*
+ * Tries to store the current qpp_table as extended attribute(s) on the
+ * exported file system root with the goal to preserve identical qids
+ * beyond the scope of reboots.
+ */
+static void v9fs_store_qpp_table(V9fsState *s)
+{
+    FsContext *ctx = &s->ctx;
+    V9fsString name;
+    int i, res;
+    size_t size;
+    QppSrlzStream* stream;
+    QppSerialize ser;
+
+    if (is_ro_export(ctx))
+        return;
+
+    /*
+     * Whenever we exceeded some certain (arbitrary) high qpp_table size we
+     * delete the stored table from the file system to get rid of old device
+     * ids / inodes that might no longer exist with the goal to potentially
+     * yield in a smaller table size after next reboot.
+     */
+    if (!s->qp_prefix_next || s->qp_prefix_next >= QPP_TABLE_PERSISTENCY_LIMIT) {
+        if (s->qp_prefix_next == QPP_TABLE_PERSISTENCY_LIMIT) {
+            remove_qidp_xattr(ctx);
+        }
+        return;
+    }
+
+    /* Convert qpp hash table into continuous array. */
+    size = sizeof(QppSrlzHeader) +
+           ( (s->qp_prefix_next - 1) /* qpp_table entry count */ * sizeof(QppEntryS) );
+    stream = g_malloc0(size);
+    ser = (QppSerialize) {
+        .elements = &stream->elements[0],
+        .count = s->qp_prefix_next - 1,
+        .done  = 0,
+        .error = 0,
+    };
+    qht_iter(&s->qpp_table, qpp_table_serialize, &ser);
+    if (ser.error || ser.done != ser.count)
+        goto out;
+
+    /* initialize header and calculate CRC32 checksum */
+    stream->header = (QppSrlzHeader) {
+        .version = 1,
+        .reserved = 0,
+        .crc32 = crc32c(
+            0xffffffff,
+            (const uint8_t*) &stream->elements[0],
+            (ser.count * sizeof(QppEntryS))
+        ),
+    };
+
+    /*
+     * Actually just required if the qpp_table size decreased, or if the
+     * previous xattr size limit increased on OS (kernel/fs) level.
+     */
+    remove_qidp_xattr(ctx);
+
+    /*
+     * Subdivide (if required) the data stream into individual xattrs
+     * to cope with the system's max. supported xattr value size.
+     */
+    v9fs_string_init(&name);
+    for (i = 0; size > (i * ATTR_MAX_SIZE); ++i) {
+        v9fs_string_sprintf(&name, "user.virtfs.system.qidp.%d", i);
+        res = lsetxattr(
+            ctx->fs_root,
+            name.data,
+            ((const uint8_t*)stream) + i * ATTR_MAX_SIZE,
+            MIN(ATTR_MAX_SIZE, size - i * ATTR_MAX_SIZE),
+            0/*flags*/
+        );
+        if (res < 0) {
+            if (i > 0)
+                remove_qidp_xattr(ctx);
+            break;
+        }
+    }
+    v9fs_string_free(&name);
+out:
+    g_free(stream);
+}
+
+/* Frees the entire chain of passed nodes from memory. */
+static void destroy_xattr_nodes(XAttrNode **first)
+{
+    XAttrNode *prev;
+    if (!first)
+        return;
+    while (*first) {
+        if ((*first)->value)
+            g_free((*first)->value);
+        prev = *first;
+        *first = (*first)->next;
+        g_free(prev);
+    }
+}
+
+/*
+ * Loads all user.virtfs.system.qidp.* xattrs from exported fs root and
+ * returns a linked list with one node per xattr.
+ */
+static XAttrNode* v9fs_load_qidp_xattr_nodes(V9fsState *s)
+{
+    FsContext *ctx = &s->ctx;
+    XAttrNode *first = NULL, *current = NULL;
+    V9fsString name;
+    ssize_t size;
+    int i;
+
+    const ssize_t max_size =
+        sizeof(QppSrlzHeader) +
+        QPP_TABLE_PERSISTENCY_LIMIT * sizeof(QppEntryS);
+
+    v9fs_string_init(&name);
+
+    for (i = 0; i * ATTR_MAX_SIZE < max_size; ++i) {
+        v9fs_string_sprintf(&name, "user.virtfs.system.qidp.%d", i);
+        size = lgetxattr(ctx->fs_root, name.data, NULL, 0);
+        if (size <= 0)
+            break;
+        if (!first) {
+            first = current = g_malloc0(sizeof(XAttrNode));
+        } else {
+            current = current->next = g_malloc0(sizeof(XAttrNode));
+        }
+        current->value = g_malloc0(size);
+        current->length = lgetxattr(
+            ctx->fs_root, name.data, current->value, size
+        );
+        if (current->length <= 0) {
+            goto out_w_err;
+        }
+    }
+    goto out;
+
+out_w_err:
+    destroy_xattr_nodes(&first);
+out:
+    v9fs_string_free(&name);
+    return first;
+}
+
+/*
+ * Try to load previously stored qpp_table from file system. Calling this
+ * function assumes that qpp_table is yet empty.
+ *
+ * @see v9fs_store_qpp_table()
+ */
+static void v9fs_load_qpp_table(V9fsState *s)
+{
+    ssize_t size, count;
+    XAttrNode *current, *first;
+    QppSrlzStream* stream = NULL;
+    uint32_t crc32;
+    int i;
+    QppEntry *val;
+    uint32_t hash;
+
+    if (s->qp_prefix_next != 1)
+        return;
+
+    first = v9fs_load_qidp_xattr_nodes(s);
+    if (!first)
+        return;
+
+    /* convert nodes into continuous stream */
+    size = 0;
+    for (current = first; current; current = current->next) {
+        size += current->length;
+    }
+    if (size <= 0) {
+        goto out;
+    }
+    stream = g_malloc0(size);
+    size = 0;
+    for (current = first; current; current = current->next) {
+        memcpy(((uint8_t*)stream) + size, current->value, current->length);
+        size += current->length;
+    }
+
+    if (stream->header.version != 1) {
+        goto out;
+    }
+
+    count = (size - sizeof(QppSrlzHeader)) / sizeof(QppEntryS);
+    if (count <= 0) {
+        goto out;
+    }
+
+    /* verify CRC32 checksum of stream */
+    crc32 = crc32c(
+        0xffffffff,
+        (const uint8_t*) &stream->elements[0],
+        (count * sizeof(QppEntryS))
+    );
+    if (crc32 != stream->header.crc32) {
+        goto out;
+    }
+
+    /* fill qpp_table with the retrieved elements */
+    for (i = 0; i < count; ++i) {
+        val = g_malloc0(sizeof(QppEntry));
+        *val = (QppEntry) {
+            .dev = stream->elements[i].dev,
+            .ino_prefix = stream->elements[i].ino_prefix,
+        };
+        hash = qpp_hash(*val);
+        if (qht_lookup(&s->qpp_table, val, hash)) {
+            /* should never happen: duplicate entry detected */
+            g_free(val);
+            goto out;
+        }
+        val->qp_prefix = s->qp_prefix_next++;
+        qht_insert(&s->qpp_table, val, hash, NULL);
+    }
+
+out:
+    destroy_xattr_nodes(&first);
+    if (stream)
+        g_free(stream);
+}
+
 /* stat_to_qid needs to map inode number (64 bits) and device id (32 bits)
  * to a unique QID path (64 bits). To avoid having to map and keep track
  * of up to 2^64 objects, we map only the 16 highest bits of the inode plus
@@ -675,6 +967,14 @@ static int qid_path_prefixmap(V9fsPDU *pdu, const struct stat *stbuf,
         /* new unique inode prefix and device combo */
         val->qp_prefix = pdu->s->qp_prefix_next++;
         qht_insert(&pdu->s->qpp_table, val, hash, NULL);
+
+        /*
+         * Store qpp_table as extended attribute(s) to file system.
+         *
+         * TODO: This should better only be called from a guest shutdown and
+         * suspend handler.
+         */
+        v9fs_store_qpp_table(pdu->s);
     }
 
     *path = ((uint64_t)val->qp_prefix << 48) | (stbuf->st_ino & QPATH_INO_MASK);
@@ -1062,11 +1362,6 @@ static void v9fs_fix_path(V9fsPath *dst, V9fsPath *src, int len)
     v9fs_path_copy(&str, dst);
     v9fs_path_sprintf(dst, "%s%s", src->data, str.data + len);
     v9fs_path_free(&str);
-}
-
-static inline bool is_ro_export(FsContext *ctx)
-{
-    return ctx->export_flags & V9FS_RDONLY;
 }
 
 static void coroutine_fn v9fs_version(void *opaque)
@@ -3784,6 +4079,8 @@ int v9fs_device_realize_common(V9fsState *s, const V9fsTransport *t,
     qht_init(&s->qpp_table, qpp_cmp_func, 1, QHT_MODE_AUTO_RESIZE);
     s->qp_prefix_next = 1; /* reserve 0 to detect overflow */
     s->qp_fullpath_next = 1;
+    /* try to load and restore previous qpp_table */
+    v9fs_load_qpp_table(s);
 
     s->ctx.fst = &fse->fst;
     fsdev_throttle_init(s->ctx.fst);
@@ -3807,6 +4104,14 @@ out:
 
 void v9fs_device_unrealize_common(V9fsState *s, Error **errp)
 {
+    /*
+     * Store qpp_table as extended attribute(s) to file system.
+     *
+     * This was actually plan A, but unfortunately unserialize is not called
+     * reliably on guest shutdowns and suspensions.
+     */
+    v9fs_store_qpp_table(s);
+
     if (s->ops->cleanup) {
         s->ops->cleanup(&s->ctx);
     }
