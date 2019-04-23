@@ -43,7 +43,7 @@ int no_mmu_map_address (CPUMIPSState *env, hwaddr *physical, int *prot,
                         target_ulong address, int rw, int access_type)
 {
     *physical = address;
-    *prot = PAGE_READ | PAGE_WRITE;
+    *prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
     return TLBRET_MATCH;
 }
 
@@ -61,7 +61,7 @@ int fixed_mmu_map_address (CPUMIPSState *env, hwaddr *physical, int *prot,
     else
         *physical = address;
 
-    *prot = PAGE_READ | PAGE_WRITE;
+    *prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
     return TLBRET_MATCH;
 }
 
@@ -101,6 +101,9 @@ int r4k_map_address (CPUMIPSState *env, hwaddr *physical, int *prot,
                 *prot = PAGE_READ;
                 if (n ? tlb->D1 : tlb->D0)
                     *prot |= PAGE_WRITE;
+                if (!(n ? tlb->XI1 : tlb->XI0)) {
+                    *prot |= PAGE_EXEC;
+                }
                 return TLBRET_MATCH;
             }
             return TLBRET_DIRTY;
@@ -182,7 +185,7 @@ static int get_seg_physical_address(CPUMIPSState *env, hwaddr *physical,
     } else {
         /* The segment is unmapped */
         *physical = physical_base | (real_address & segmask);
-        *prot = PAGE_READ | PAGE_WRITE;
+        *prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
         return TLBRET_MATCH;
     }
 }
@@ -913,8 +916,8 @@ int mips_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size, int rw,
     }
     if (ret == TLBRET_MATCH) {
         tlb_set_page(cs, address & TARGET_PAGE_MASK,
-                     physical & TARGET_PAGE_MASK, prot | PAGE_EXEC,
-                     mmu_idx, TARGET_PAGE_SIZE);
+                     physical & TARGET_PAGE_MASK, prot, mmu_idx,
+                     TARGET_PAGE_SIZE);
         ret = 0;
     } else if (ret < 0)
 #endif
@@ -936,8 +939,8 @@ int mips_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size, int rw,
                                            address, rw, access_type, mmu_idx);
                 if (ret == TLBRET_MATCH) {
                     tlb_set_page(cs, address & TARGET_PAGE_MASK,
-                            physical & TARGET_PAGE_MASK, prot | PAGE_EXEC,
-                            mmu_idx, TARGET_PAGE_SIZE);
+                            physical & TARGET_PAGE_MASK, prot, mmu_idx,
+                            TARGET_PAGE_SIZE);
                     ret = 0;
                     return ret;
                 }
