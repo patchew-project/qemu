@@ -349,6 +349,7 @@ static hwaddr spapr_node0_size(MachineState *machine)
     int nb_numa_nodes = machine_num_numa_nodes(machine);
     if (nb_numa_nodes) {
         int i;
+        NodeInfo *numa_info = machine->numa_state->nodes;
         for (i = 0; i < nb_numa_nodes; ++i) {
             if (numa_info[i].node_mem) {
                 return MIN(pow2floor(numa_info[i].node_mem),
@@ -396,7 +397,9 @@ static int spapr_populate_memory(SpaprMachineState *spapr, void *fdt)
     int nb_numa_nodes = machine_num_numa_nodes(machine);
     hwaddr mem_start, node_size;
     int i, nb_nodes = nb_numa_nodes;
-    NodeInfo *nodes = numa_info;
+    NodeInfo *nodes = machine->numa_state ?
+                      machine->numa_state->nodes :
+                      NULL;
     NodeInfo ramnode;
 
     /* No NUMA nodes, assume there is just one node with whole RAM */
@@ -2476,6 +2479,9 @@ static void spapr_validate_node_memory(MachineState *machine, Error **errp)
 {
     int i;
     int nb_numa_nodes = machine_num_numa_nodes(machine);
+    NodeInfo *numa_info = machine->numa_state ?
+                          machine->numa_state->nodes :
+                          NULL;
 
     if (machine->ram_size % SPAPR_MEMORY_BLOCK_SIZE) {
         error_setg(errp, "Memory size 0x" RAM_ADDR_FMT

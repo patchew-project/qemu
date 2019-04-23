@@ -232,6 +232,7 @@ static void create_fdt(VirtMachineState *vms)
         int size = nb_numa_nodes * nb_numa_nodes * 3 * sizeof(uint32_t);
         uint32_t *matrix = g_malloc0(size);
         int idx, i, j;
+        NodeInfo *numa_info = ms->numa_state->nodes;
 
         for (i = 0; i < nb_numa_nodes; i++) {
             for (j = 0; j < nb_numa_nodes; j++) {
