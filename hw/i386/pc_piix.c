@@ -781,7 +781,9 @@ static void pc_i440fx_0_15_machine_options(MachineClass *m)
 
     pc_i440fx_1_0_machine_options(m);
     m->hw_version = "0.15";
-    m->deprecation_reason = "use a newer machine type instead";
+    m->support_status.deprecated = true;
+    m->support_status.has_suggested_alternative = true;
+    m->support_status.suggested_alternative = g_strdup("pc");
     compat_props_add(m->compat_props, compat, G_N_ELEMENTS(compat));
 }
 

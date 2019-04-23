@@ -8,6 +8,8 @@
 #include "hw/qdev.h"
 #include "qom/object.h"
 #include "qom/cpu.h"
+#include "qapi/qapi-types-common.h"
+
 
 /**
  * memory_region_allocate_system_memory - Allocate a board's main memory
@@ -105,8 +107,7 @@ typedef struct {
 
 /**
  * MachineClass:
- * @deprecation_reason: If set, the machine is marked as deprecated. The
- *    string should provide some clear information about what to use instead.
+ * @support_status: Support and deprecation status of machine type.
  * @max_cpus: maximum number of CPUs supported. Default: 1
  * @min_cpus: minimum number of CPUs supported. Default: 1
  * @default_cpus: number of CPUs instantiated if none are specified. Default: 1
@@ -169,7 +170,7 @@ struct MachineClass {
     char *name;
     const char *alias;
     const char *desc;
-    const char *deprecation_reason;
+    SupportStatusInfo support_status;
 
     void (*init)(MachineState *state);
     void (*reset)(void);

@@ -2610,7 +2610,7 @@ static gint machine_class_cmp(gconstpointer a, gconstpointer b)
             }
             printf("%-20s %s%s%s\n", mc->name, mc->desc,
                    mc->is_default ? " (default)" : "",
-                   mc->deprecation_reason ? " (deprecated)" : "");
+                   mc->support_status.deprecated ? " (deprecated)" : "");
         }
     }
 
@@ -4308,9 +4308,14 @@ int main(int argc, char **argv, char **envp)
      * called from configure_accelerator().
      */
 
-    if (!qtest_enabled() && machine_class->deprecation_reason) {
-        error_report("Machine type '%s' is deprecated: %s",
-                     machine_class->name, machine_class->deprecation_reason);
+    if (!qtest_enabled() && machine_class->support_status.deprecated) {
+        error_report("Machine type '%s' is deprecated%s%s", machine_class->name,
+                     machine_class->support_status.status_message ? ": " : "",
+                     machine_class->support_status.status_message ?: "");
+        if (machine_class->support_status.suggested_alternative) {
+            error_report("Suggested solution: use '%s' machine type instead",
+                         machine_class->support_status.suggested_alternative);
+        }
     }
 
     /*

@@ -587,7 +587,9 @@ static void ppc_prep_init(MachineState *machine)
 
 static void prep_machine_init(MachineClass *mc)
 {
-    mc->deprecation_reason = "use 40p machine type instead";
+    mc->support_status.deprecated = true;
+    mc->support_status.has_suggested_alternative = true;
+    mc->support_status.suggested_alternative = g_strdup("40p");
     mc->desc = "PowerPC PREP platform";
     mc->init = ppc_prep_init;
     mc->block_default_type = IF_IDE;
