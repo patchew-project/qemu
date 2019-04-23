@@ -1530,6 +1530,12 @@ MachineInfoList *qmp_query_machines(Error **errp)
         info->name = g_strdup(mc->name);
         info->cpu_max = !mc->max_cpus ? 1 : mc->max_cpus;
         info->hotpluggable_cpus = mc->has_hotpluggable_cpus;
+        assert(!mc->support_status.status_message ||
+               mc->support_status.has_status_message);
+        assert(!mc->support_status.suggested_alternative ||
+               mc->support_status.has_suggested_alternative);
+        info->support_status =
+            QAPI_CLONE(SupportStatusInfo, &mc->support_status);
 
         entry = g_malloc0(sizeof(*entry));
         entry->value = info;
