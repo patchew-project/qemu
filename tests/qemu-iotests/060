@@ -47,7 +47,6 @@ _filter_io_error()
 # This tests qocw2-specific low-level functionality
 _supported_fmt qcow2
 _supported_proto file
-_supported_os Linux
 
 rt_offset=65536  # 0x10000 (XXX: just an assumption)
 rb_offset=131072 # 0x20000 (XXX: just an assumption)
