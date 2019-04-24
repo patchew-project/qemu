@@ -209,7 +209,9 @@ typedef struct VirtioPCIDeviceTypeInfo {
      * Implements both INTERFACE_PCIE_DEVICE and INTERFACE_CONVENTIONAL_PCI_DEVICE,
      * but PCI Express is supported only in non-transitional mode.
      *
-     * The only type implemented by QEMU 3.1 and older.
+     * The only type implemented by QEMU 3.1 and older.  This type is less
+     * explicit than the transitional and non-transitional device types.  Its
+     * behavior can be affected by machine type compat properties.
      */
     const char *generic_name;
     /*
@@ -222,6 +224,9 @@ typedef struct VirtioPCIDeviceTypeInfo {
      * The non-transitional device type.  Optional.
      *
      * Implements INTERFACE_CONVENTIONAL_PCI_DEVICE only.
+     *
+     * New virtio device types should only define this and base_name, thereby
+     * allowing only non-transitional mode.
      */
     const char *non_transitional_name;
 
