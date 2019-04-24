@@ -2415,7 +2415,7 @@ int qemu_loadvm_state(QEMUFile *f)
     unsigned int v;
     int ret;
 
-    if (qemu_savevm_state_blocked(&local_err)) {
+    if (migration_is_blocked(&local_err)) {
         error_report_err(local_err);
         return -EINVAL;
     }
