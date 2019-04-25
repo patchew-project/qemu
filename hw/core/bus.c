@@ -22,17 +22,6 @@
 #include "hw/qdev.h"
 #include "qapi/error.h"
 
-void qbus_set_hotplug_handler(BusState *bus, Object *handler, Error **errp)
-{
-    object_property_set_link(OBJECT(bus), OBJECT(handler),
-                             QDEV_HOTPLUG_HANDLER_PROPERTY, errp);
-}
-
-void qbus_set_bus_hotplug_handler(BusState *bus, Error **errp)
-{
-    qbus_set_hotplug_handler(bus, OBJECT(bus), errp);
-}
-
 int qbus_walk_children(BusState *bus,
                        qdev_walkerfn *pre_devfn, qbus_walkerfn *pre_busfn,
                        qdev_walkerfn *post_devfn, qbus_walkerfn *post_busfn,
