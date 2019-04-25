@@ -27,6 +27,7 @@
 
 #include "hw/qdev.h"
 #include "hw/sysbus.h"
+#include "hw/misc/grlib_ahb_apb_pnp.h"
 
 /* Emulation of GrLib device is base on the GRLIB IP Core User's Manual:
  * http://www.gaisler.com/products/grlib/grip.pdf
@@ -41,11 +42,9 @@ void grlib_irqmp_set_irq(void *opaque, int irq, int level);
 void grlib_irqmp_ack(DeviceState *dev, int intno);
 
 static inline
-DeviceState *grlib_irqmp_create(hwaddr   base,
-                                CPUSPARCState            *env,
-                                qemu_irq           **cpu_irqs,
-                                uint32_t             nr_irqs,
-                                set_pil_in_fn        set_pil_in)
+DeviceState *grlib_irqmp_create(hwaddr base, CPUSPARCState *env,
+                                qemu_irq **cpu_irqs, uint32_t nr_irqs,
+                                set_pil_in_fn set_pil_in, APBPnp *apb_pnp)
 {
     DeviceState *dev;
 
@@ -65,17 +64,18 @@ DeviceState *grlib_irqmp_create(hwaddr   base,
                                    dev,
                                    nr_irqs);
 
+    /* Register this device in the APB PNP device */
+    grlib_apb_pnp_add_entry(apb_pnp, base, 0xFFF, GRLIB_VENDOR_GAISLER,
+                            GRLIB_IRQMP_DEV, 2, 0, GRLIB_APBIO_AREA);
     return dev;
 }
 
 /* GPTimer */
 
 static inline
-DeviceState *grlib_gptimer_create(hwaddr  base,
-                                  uint32_t            nr_timers,
-                                  uint32_t            freq,
-                                  qemu_irq           *cpu_irqs,
-                                  int                 base_irq)
+DeviceState *grlib_gptimer_create(hwaddr base, uint32_t nr_timers,
+                                  uint32_t freq, qemu_irq *cpu_irqs,
+                                  int base_irq, APBPnp *apb_pnp)
 {
     DeviceState *dev;
     int i;
@@ -93,15 +93,18 @@ DeviceState *grlib_gptimer_create(hwaddr  base,
         sysbus_connect_irq(SYS_BUS_DEVICE(dev), i, cpu_irqs[base_irq + i]);
     }
 
+    /* Register this device in the APB PNP device */
+    grlib_apb_pnp_add_entry(apb_pnp, base, 0xFFF, GRLIB_VENDOR_GAISLER,
+                            GRLIB_GPTIMER_DEV, 0, base_irq, GRLIB_APBIO_AREA);
     return dev;
 }
 
 /* APB UART */
 
 static inline
-DeviceState *grlib_apbuart_create(hwaddr  base,
-                                  Chardev    *serial,
-                                  qemu_irq            irq)
+DeviceState *grlib_apbuart_create(hwaddr base, Chardev *serial,
+                                  qemu_irq *cpu_irqs, int base_irq,
+                                  APBPnp *apb_pnp)
 {
     DeviceState *dev;
 
@@ -112,7 +115,11 @@ DeviceState *grlib_apbuart_create(hwaddr  base,
 
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
 
-    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, cpu_irqs[base_irq]);
+
+    /* Register this device in the APB PNP device */
+    grlib_apb_pnp_add_entry(apb_pnp, base, 0xFFF, GRLIB_VENDOR_GAISLER,
+                            GRLIB_APBUART_DEV, 1, base_irq, GRLIB_APBIO_AREA);
 
     return dev;
 }
