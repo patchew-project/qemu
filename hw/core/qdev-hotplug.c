@@ -35,16 +35,11 @@ void qbus_set_bus_hotplug_handler(BusState *bus, Error **errp)
 
 HotplugHandler *qdev_get_machine_hotplug_handler(DeviceState *dev)
 {
-    MachineState *machine;
-    MachineClass *mc;
-    Object *m_obj = qdev_get_machine();
+    MachineState *machine = MACHINE(qdev_get_machine());
+    MachineClass *mc = MACHINE_GET_CLASS(machine);
 
-    if (object_dynamic_cast(m_obj, TYPE_MACHINE)) {
-        machine = MACHINE(m_obj);
-        mc = MACHINE_GET_CLASS(machine);
-        if (mc->get_hotplug_handler) {
-            return mc->get_hotplug_handler(machine, dev);
-        }
+    if (mc->get_hotplug_handler) {
+        return mc->get_hotplug_handler(machine, dev);
     }
 
     return NULL;
