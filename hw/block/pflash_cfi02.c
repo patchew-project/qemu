@@ -61,8 +61,9 @@ do {                                                       \
  */
 #define PFLASH_MAX_ERASE_REGIONS 4
 
-/* Special write cycle for CFI queries. */
+/* Special write cycles for CFI queries. */
 #define WCYCLE_CFI 7
+#define WCYCLE_AUTOSELECT_CFI 8
 
 struct PFlashCFI02 {
     /*< private >*/
@@ -325,6 +326,12 @@ static void pflash_write(void *opaque, hwaddr offset, uint64_t value,
         }
 
         if (cmd == 0xF0) {
+            if (pfl->wcycle == WCYCLE_AUTOSELECT_CFI) {
+                /* Return to autoselect mode. */
+                pfl->wcycle = 3;
+                pfl->cmd = 0x90;
+                return;
+            }
             goto reset_flash;
         }
     }
@@ -350,7 +357,6 @@ static void pflash_write(void *opaque, hwaddr offset, uint64_t value,
         /* We're in read mode */
     check_unlock0:
         if (masked_addr == 0x55 && cmd == 0x98) {
-        enter_CFI_mode:
             /* Enter CFI query mode */
             pfl->wcycle = WCYCLE_CFI;
             pfl->cmd = 0x98;
@@ -427,9 +433,15 @@ static void pflash_write(void *opaque, hwaddr offset, uint64_t value,
                 /* Unlock bypass reset */
                 goto reset_flash;
             }
-            /* We can enter CFI query mode from autoselect mode */
+            /*
+             * We can enter CFI query mode from autoselect mode, but we must
+             * return to autoselect mode after a reset.
+             */
             if (masked_addr == 0x55 && cmd == 0x98) {
-                goto enter_CFI_mode;
+                /* Enter autoselect CFI query mode */
+                pfl->wcycle = WCYCLE_AUTOSELECT_CFI;
+                pfl->cmd = 0x98;
+                return;
             }
             /* No break here */
         default:
@@ -510,6 +522,7 @@ static void pflash_write(void *opaque, hwaddr offset, uint64_t value,
         }
         break;
     case WCYCLE_CFI: /* Special value for CFI queries */
+    case WCYCLE_AUTOSELECT_CFI:
         DPRINTF("%s: invalid write in CFI query mode\n", __func__);
         goto reset_flash;
     default:
