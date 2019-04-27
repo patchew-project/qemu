@@ -13,6 +13,7 @@
 
 #include "qemu/osdep.h"
 
+#include "qemu/units.h"
 #include <rbd/librbd.h>
 #include "qapi/error.h"
 #include "qemu/error-report.h"
@@ -331,6 +332,110 @@ static void qemu_rbd_memset(RADOSCB *rcb, int64_t offs)
     }
 }
 
+static int qemu_rbd_do_truncate(rbd_image_t image, int64_t offset,
+                                PreallocMode prealloc, Error **errp)
+{
+    uint64_t current_length;
+    char *buf = NULL;
+    int ret;
+
+    ret = rbd_get_size(image, &current_length);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret, "Failed to get file length");
+        goto out;
+    }
+
+    if (current_length > offset && prealloc != PREALLOC_MODE_OFF) {
+        error_setg(errp, "Cannot use preallocation for shrinking files");
+        ret = -ENOTSUP;
+        goto out;
+    }
+
+    switch (prealloc) {
+    case PREALLOC_MODE_FULL: {
+        uint64_t current_offset = current_length;
+        int buf_size = 64 * KiB;
+        ssize_t bytes;
+
+        buf = g_malloc(buf_size);
+        /*
+         * Some versions of rbd_writesame() discards writes of buffers with
+         * all zeroes. In order to avoid this behaviour, we set the first byte
+         * to one.
+         */
+        buf[0] = 1;
+
+        ret = rbd_resize(image, offset);
+        if (ret < 0) {
+            error_setg_errno(errp, -ret, "Failed to resize file");
+            goto out;
+        }
+
+#ifdef LIBRBD_SUPPORTS_WRITESAME
+        while (offset - current_offset > buf_size) {
+            /*
+             * rbd_writesame() supports only request where the size of the
+             * operation is multiple of buffer size and it must be less or
+             * equal to INT_MAX.
+             */
+            bytes = MIN(offset - current_offset, INT_MAX);
+            bytes -= bytes % buf_size;
+
+            bytes = rbd_writesame(image, current_offset, bytes, buf, buf_size,
+                                  0);
+            if (bytes < 0) {
+                ret = bytes;
+                error_setg_errno(errp, -ret,
+                                 "Failed to write for preallocation");
+                goto out;
+            }
+
+            current_offset += bytes;
+        }
+#endif /* LIBRBD_SUPPORTS_WRITESAME */
+
+        while (current_offset < offset) {
+            bytes = rbd_write(image, current_offset,
+                              MIN(offset - current_offset, buf_size), buf);
+            if (bytes < 0) {
+                ret = bytes;
+                error_setg_errno(errp, -ret,
+                                 "Failed to write for preallocation");
+                goto out;
+            }
+
+            current_offset += bytes;
+        }
+
+        ret = rbd_flush(image);
+        if (ret < 0) {
+            error_setg_errno(errp, -ret, "Failed to flush the file");
+            goto out;
+        }
+
+        break;
+    }
+    case PREALLOC_MODE_OFF:
+        ret = rbd_resize(image, offset);
+        if (ret < 0) {
+            error_setg_errno(errp, -ret, "Failed to resize file");
+            goto out;
+        }
+        break;
+    default:
+        error_setg(errp, "Unsupported preallocation mode: %s",
+                   PreallocMode_str(prealloc));
+        ret = -ENOTSUP;
+        goto out;
+    }
+
+    ret = 0;
+
+out:
+    g_free(buf);
+    return ret;
+}
+
 static QemuOptsList runtime_opts = {
     .name = "rbd",
     .head = QTAILQ_HEAD_INITIALIZER(runtime_opts.head),
@@ -376,6 +481,7 @@ static int qemu_rbd_do_create(BlockdevCreateOptions *options,
     BlockdevCreateOptionsRbd *opts = &options->u.rbd;
     rados_t cluster;
     rados_ioctx_t io_ctx;
+    rbd_image_t image;
     int obj_order = 0;
     int ret;
 
@@ -404,13 +510,21 @@ static int qemu_rbd_do_create(BlockdevCreateOptions *options,
         return ret;
     }
 
-    ret = rbd_create(io_ctx, opts->location->image, opts->size, &obj_order);
+    ret = rbd_create(io_ctx, opts->location->image, 0, &obj_order);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "error rbd create");
         goto out;
     }
 
-    ret = 0;
+    ret = rbd_open(io_ctx, opts->location->image, &image, NULL);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret, "error rbd open");
+        goto out;
+    }
+
+    ret = qemu_rbd_do_truncate(image, opts->size, opts->preallocation, errp);
+
+    rbd_close(image);
 out:
     rados_ioctx_destroy(io_ctx);
     rados_shutdown(cluster);
@@ -431,6 +545,7 @@ static int coroutine_fn qemu_rbd_co_create_opts(const char *filename,
     BlockdevOptionsRbd *loc;
     Error *local_err = NULL;
     const char *keypairs, *password_secret;
+    char *prealloc;
     QDict *options = NULL;
     int ret = 0;
 
@@ -448,6 +563,16 @@ static int coroutine_fn qemu_rbd_co_create_opts(const char *filename,
     rbd_opts->cluster_size = qemu_opt_get_size_del(opts,
                                                    BLOCK_OPT_CLUSTER_SIZE, 0);
     rbd_opts->has_cluster_size = (rbd_opts->cluster_size != 0);
+
+    prealloc = qemu_opt_get_del(opts, BLOCK_OPT_PREALLOC);
+    rbd_opts->preallocation = qapi_enum_parse(&PreallocMode_lookup, prealloc,
+                                              PREALLOC_MODE_OFF, &local_err);
+    g_free(prealloc);
+    if (local_err) {
+        ret = -EINVAL;
+        error_propagate(errp, local_err);
+        goto exit;
+    }
 
     options = qdict_new();
     qemu_rbd_parse_filename(filename, options, &local_err);
@@ -1052,21 +1177,8 @@ static int coroutine_fn qemu_rbd_co_truncate(BlockDriverState *bs,
                                              Error **errp)
 {
     BDRVRBDState *s = bs->opaque;
-    int r;
 
-    if (prealloc != PREALLOC_MODE_OFF) {
-        error_setg(errp, "Unsupported preallocation mode '%s'",
-                   PreallocMode_str(prealloc));
-        return -ENOTSUP;
-    }
-
-    r = rbd_resize(s->image, offset);
-    if (r < 0) {
-        error_setg_errno(errp, -r, "Failed to resize file");
-        return r;
-    }
-
-    return 0;
+    return qemu_rbd_do_truncate(s->image, offset, prealloc, errp);
 }
 
 static int qemu_rbd_snap_create(BlockDriverState *bs,
@@ -1218,6 +1330,11 @@ static QemuOptsList qemu_rbd_create_opts = {
             .name = BLOCK_OPT_CLUSTER_SIZE,
             .type = QEMU_OPT_SIZE,
             .help = "RBD object size"
+        },
+        {
+            .name = BLOCK_OPT_PREALLOC,
+            .type = QEMU_OPT_STRING,
+            .help = "Preallocation mode (allowed values: off, full)"
         },
         {
             .name = "password-secret",
