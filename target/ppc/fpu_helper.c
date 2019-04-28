@@ -3158,18 +3158,16 @@ void helper_xvxsigsp(CPUPPCState *env, uint32_t opcode,
  * VSX_TEST_DC - VSX floating point test data class
  *   op    - instruction mnemonic
  *   nels  - number of elements (1, 2 or 4)
- *   xbn   - VSR register number
  *   tp    - type (float32 or float64)
  *   fld   - vsr_t field (VsrD(*) or VsrW(*))
  *   tfld   - target vsr_t field (VsrD(*) or VsrW(*))
  *   fld_max - target field max
  *   scrf - set result in CR and FPCC
  */
-#define VSX_TEST_DC(op, nels, xbn, tp, fld, tfld, fld_max, scrf)  \
-void helper_##op(CPUPPCState *env, uint32_t opcode)         \
+#define VSX_TEST_DC(op, nels, tp, fld, tfld, fld_max, scrf)  \
+void helper_##op(CPUPPCState *env, uint32_t opcode,         \
+                 ppc_vsr_t *xt, ppc_vsr_t *xb)              \
 {                                                           \
-    ppc_vsr_t *xt = &env->vsr[xT(opcode)];                  \
-    ppc_vsr_t *xb = &env->vsr[xbn];                         \
     ppc_vsr_t r;                                            \
     uint32_t i, sign, dcmx;                                 \
     uint32_t cc, match = 0;                                 \
@@ -3208,10 +3206,10 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)         \
     }                                                       \
 }
 
-VSX_TEST_DC(xvtstdcdp, 2, xB(opcode), float64, VsrD(i), VsrD(i), UINT64_MAX, 0)
-VSX_TEST_DC(xvtstdcsp, 4, xB(opcode), float32, VsrW(i), VsrW(i), UINT32_MAX, 0)
-VSX_TEST_DC(xststdcdp, 1, xB(opcode), float64, VsrD(0), VsrD(0), 0, 1)
-VSX_TEST_DC(xststdcqp, 1, (rB(opcode) + 32), float128, f128, VsrD(0), 0, 1)
+VSX_TEST_DC(xvtstdcdp, 2, float64, VsrD(i), VsrD(i), UINT64_MAX, 0)
+VSX_TEST_DC(xvtstdcsp, 4, float32, VsrW(i), VsrW(i), UINT32_MAX, 0)
+VSX_TEST_DC(xststdcdp, 1, float64, VsrD(0), VsrD(0), 0, 1)
+VSX_TEST_DC(xststdcqp, 1, float128, f128, VsrD(0), 0, 1)
 
 void helper_xststdcsp(CPUPPCState *env, uint32_t opcode, ppc_vsr_t *xb)
 {
