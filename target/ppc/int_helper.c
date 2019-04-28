@@ -1904,38 +1904,32 @@ VEXTRACT(d, u64)
 void helper_xxextractuw(CPUPPCState *env, target_ulong xtn,
                         target_ulong xbn, uint32_t index)
 {
-    ppc_vsr_t xt, xb;
+    ppc_vsr_t *xt = &env->vsr[xtn];
+    ppc_vsr_t *xb = &env->vsr[xbn];
     size_t es = sizeof(uint32_t);
     uint32_t ext_index;
     int i;
 
-    getVSR(xbn, &xb, env);
-    memset(&xt, 0, sizeof(xt));
+    memset(xt, 0, sizeof(ppc_vsr_t));
 
     ext_index = index;
     for (i = 0; i < es; i++, ext_index++) {
-        xt.VsrB(8 - es + i) = xb.VsrB(ext_index % 16);
+        xt->VsrB(8 - es + i) = xb->VsrB(ext_index % 16);
     }
-
-    putVSR(xtn, &xt, env);
 }
 
 void helper_xxinsertw(CPUPPCState *env, target_ulong xtn,
                       target_ulong xbn, uint32_t index)
 {
-    ppc_vsr_t xt, xb;
+    ppc_vsr_t *xt = &env->vsr[xtn];
+    ppc_vsr_t *xb = &env->vsr[xbn];
     size_t es = sizeof(uint32_t);
     int ins_index, i = 0;
 
-    getVSR(xbn, &xb, env);
-    getVSR(xtn, &xt, env);
-
     ins_index = index;
     for (i = 0; i < es && ins_index < 16; i++, ins_index++) {
-        xt.VsrB(ins_index) = xb.VsrB(8 - es + i);
+        xt->VsrB(ins_index) = xb->VsrB(8 - es + i);
     }
-
-    putVSR(xtn, &xt, env);
 }
 
 #define VEXT_SIGNED(name, element, cast)                            \
