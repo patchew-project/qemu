@@ -1090,14 +1090,6 @@ GEN_VSX_HELPER_X2(xssqrtdp, 0x16, 0x04, 0, PPC2_VSX)
 GEN_VSX_HELPER_X2(xsrsqrtedp, 0x14, 0x04, 0, PPC2_VSX)
 GEN_VSX_HELPER_X2_AB(xstdivdp, 0x14, 0x07, 0, PPC2_VSX)
 GEN_VSX_HELPER_X1(xstsqrtdp, 0x14, 0x06, 0, PPC2_VSX)
-GEN_VSX_HELPER_X3(xsmaddadp, 0x04, 0x04, 0, PPC2_VSX)
-GEN_VSX_HELPER_X3(xsmaddmdp, 0x04, 0x05, 0, PPC2_VSX)
-GEN_VSX_HELPER_X3(xsmsubadp, 0x04, 0x06, 0, PPC2_VSX)
-GEN_VSX_HELPER_X3(xsmsubmdp, 0x04, 0x07, 0, PPC2_VSX)
-GEN_VSX_HELPER_X3(xsnmaddadp, 0x04, 0x14, 0, PPC2_VSX)
-GEN_VSX_HELPER_X3(xsnmaddmdp, 0x04, 0x15, 0, PPC2_VSX)
-GEN_VSX_HELPER_X3(xsnmsubadp, 0x04, 0x16, 0, PPC2_VSX)
-GEN_VSX_HELPER_X3(xsnmsubmdp, 0x04, 0x17, 0, PPC2_VSX)
 GEN_VSX_HELPER_X3(xscmpeqdp, 0x0C, 0x00, 0, PPC2_ISA300)
 GEN_VSX_HELPER_X3(xscmpgtdp, 0x0C, 0x01, 0, PPC2_ISA300)
 GEN_VSX_HELPER_X3(xscmpgedp, 0x0C, 0x02, 0, PPC2_ISA300)
@@ -1140,12 +1132,10 @@ GEN_VSX_HELPER_X2(xsrdpim, 0x12, 0x07, 0, PPC2_VSX)
 GEN_VSX_HELPER_X2(xsrdpip, 0x12, 0x06, 0, PPC2_VSX)
 GEN_VSX_HELPER_X2(xsrdpiz, 0x12, 0x05, 0, PPC2_VSX)
 GEN_VSX_HELPER_XT_XB_ENV(xsrsp, 0x12, 0x11, 0, PPC2_VSX207)
-
 GEN_VSX_HELPER_R2(xsrqpi, 0x05, 0x00, 0, PPC2_ISA300)
 GEN_VSX_HELPER_R2(xsrqpxp, 0x05, 0x01, 0, PPC2_ISA300)
 GEN_VSX_HELPER_R2(xssqrtqp, 0x04, 0x19, 0x1B, PPC2_ISA300)
 GEN_VSX_HELPER_R3(xssubqp, 0x04, 0x10, 0, PPC2_ISA300)
-
 GEN_VSX_HELPER_X3(xsaddsp, 0x00, 0x00, 0, PPC2_VSX207)
 GEN_VSX_HELPER_X3(xssubsp, 0x00, 0x01, 0, PPC2_VSX207)
 GEN_VSX_HELPER_X3(xsmulsp, 0x00, 0x02, 0, PPC2_VSX207)
@@ -1153,14 +1143,6 @@ GEN_VSX_HELPER_X3(xsdivsp, 0x00, 0x03, 0, PPC2_VSX207)
 GEN_VSX_HELPER_X2(xsresp, 0x14, 0x01, 0, PPC2_VSX207)
 GEN_VSX_HELPER_X2(xssqrtsp, 0x16, 0x00, 0, PPC2_VSX207)
 GEN_VSX_HELPER_X2(xsrsqrtesp, 0x14, 0x00, 0, PPC2_VSX207)
-GEN_VSX_HELPER_X3(xsmaddasp, 0x04, 0x00, 0, PPC2_VSX207)
-GEN_VSX_HELPER_X3(xsmaddmsp, 0x04, 0x01, 0, PPC2_VSX207)
-GEN_VSX_HELPER_X3(xsmsubasp, 0x04, 0x02, 0, PPC2_VSX207)
-GEN_VSX_HELPER_X3(xsmsubmsp, 0x04, 0x03, 0, PPC2_VSX207)
-GEN_VSX_HELPER_X3(xsnmaddasp, 0x04, 0x10, 0, PPC2_VSX207)
-GEN_VSX_HELPER_X3(xsnmaddmsp, 0x04, 0x11, 0, PPC2_VSX207)
-GEN_VSX_HELPER_X3(xsnmsubasp, 0x04, 0x12, 0, PPC2_VSX207)
-GEN_VSX_HELPER_X3(xsnmsubmsp, 0x04, 0x13, 0, PPC2_VSX207)
 GEN_VSX_HELPER_X2(xscvsxdsp, 0x10, 0x13, 0, PPC2_VSX207)
 GEN_VSX_HELPER_X2(xscvuxdsp, 0x10, 0x12, 0, PPC2_VSX207)
 GEN_VSX_HELPER_X1(xststdcsp, 0x14, 0x12, 0, PPC2_ISA300)
@@ -1176,14 +1158,6 @@ GEN_VSX_HELPER_X2(xvsqrtdp, 0x16, 0x0C, 0, PPC2_VSX)
 GEN_VSX_HELPER_X2(xvrsqrtedp, 0x14, 0x0C, 0, PPC2_VSX)
 GEN_VSX_HELPER_X2_AB(xvtdivdp, 0x14, 0x0F, 0, PPC2_VSX)
 GEN_VSX_HELPER_X1(xvtsqrtdp, 0x14, 0x0E, 0, PPC2_VSX)
-GEN_VSX_HELPER_X3(xvmaddadp, 0x04, 0x0C, 0, PPC2_VSX)
-GEN_VSX_HELPER_X3(xvmaddmdp, 0x04, 0x0D, 0, PPC2_VSX)
-GEN_VSX_HELPER_X3(xvmsubadp, 0x04, 0x0E, 0, PPC2_VSX)
-GEN_VSX_HELPER_X3(xvmsubmdp, 0x04, 0x0F, 0, PPC2_VSX)
-GEN_VSX_HELPER_X3(xvnmaddadp, 0x04, 0x1C, 0, PPC2_VSX)
-GEN_VSX_HELPER_X3(xvnmaddmdp, 0x04, 0x1D, 0, PPC2_VSX)
-GEN_VSX_HELPER_X3(xvnmsubadp, 0x04, 0x1E, 0, PPC2_VSX)
-GEN_VSX_HELPER_X3(xvnmsubmdp, 0x04, 0x1F, 0, PPC2_VSX)
 GEN_VSX_HELPER_X3(xvmaxdp, 0x00, 0x1C, 0, PPC2_VSX)
 GEN_VSX_HELPER_X3(xvmindp, 0x00, 0x1D, 0, PPC2_VSX)
 GEN_VSX_HELPER_X3(xvcmpeqdp, 0x0C, 0x0C, 0, PPC2_VSX)
@@ -1214,14 +1188,6 @@ GEN_VSX_HELPER_X2(xvsqrtsp, 0x16, 0x08, 0, PPC2_VSX)
 GEN_VSX_HELPER_X2(xvrsqrtesp, 0x14, 0x08, 0, PPC2_VSX)
 GEN_VSX_HELPER_X2_AB(xvtdivsp, 0x14, 0x0B, 0, PPC2_VSX)
 GEN_VSX_HELPER_X1(xvtsqrtsp, 0x14, 0x0A, 0, PPC2_VSX)
-GEN_VSX_HELPER_X3(xvmaddasp, 0x04, 0x08, 0, PPC2_VSX)
-GEN_VSX_HELPER_X3(xvmaddmsp, 0x04, 0x09, 0, PPC2_VSX)
-GEN_VSX_HELPER_X3(xvmsubasp, 0x04, 0x0A, 0, PPC2_VSX)
-GEN_VSX_HELPER_X3(xvmsubmsp, 0x04, 0x0B, 0, PPC2_VSX)
-GEN_VSX_HELPER_X3(xvnmaddasp, 0x04, 0x18, 0, PPC2_VSX)
-GEN_VSX_HELPER_X3(xvnmaddmsp, 0x04, 0x19, 0, PPC2_VSX)
-GEN_VSX_HELPER_X3(xvnmsubasp, 0x04, 0x1A, 0, PPC2_VSX)
-GEN_VSX_HELPER_X3(xvnmsubmsp, 0x04, 0x1B, 0, PPC2_VSX)
 GEN_VSX_HELPER_X3(xvmaxsp, 0x00, 0x18, 0, PPC2_VSX)
 GEN_VSX_HELPER_X3(xvminsp, 0x00, 0x19, 0, PPC2_VSX)
 GEN_VSX_HELPER_X3(xvcmpeqsp, 0x0C, 0x08, 0, PPC2_VSX)
@@ -1248,6 +1214,73 @@ GEN_VSX_HELPER_X2(xvtstdcsp, 0x14, 0x1A, 0, PPC2_VSX)
 GEN_VSX_HELPER_X2(xvtstdcdp, 0x14, 0x1E, 0, PPC2_VSX)
 GEN_VSX_HELPER_X3(xxperm, 0x08, 0x03, 0, PPC2_ISA300)
 GEN_VSX_HELPER_X3(xxpermr, 0x08, 0x07, 0, PPC2_ISA300)
+
+#define GEN_VSX_HELPER_VSX_MADD(name, op1, op2, inval, type)                  \
+static void gen_##name(DisasContext *ctx)                                     \
+{                                                                             \
+    TCGv_i32 opc;                                                             \
+    TCGv_ptr xt, xa, b, c;                                                    \
+    if (unlikely(!ctx->vsx_enabled)) {                                        \
+        gen_exception(ctx, POWERPC_EXCP_VSXU);                                \
+        return;                                                               \
+    }                                                                         \
+    opc = tcg_const_i32(ctx->opcode);                                         \
+    xt = gen_vsr_ptr(xT(ctx->opcode));                                        \
+    xa = gen_vsr_ptr(xA(ctx->opcode));                                        \
+    if (ctx->opcode & PPC_BIT(25)) {                                          \
+        /*                                                                    \
+         * AxT + B                                                            \
+         */                                                                   \
+        b = gen_vsr_ptr(xT(ctx->opcode));                                     \
+        c = gen_vsr_ptr(xB(ctx->opcode));                                     \
+    } else {                                                                  \
+        /*                                                                    \
+         * AxB + T                                                            \
+         */                                                                   \
+        b = gen_vsr_ptr(xB(ctx->opcode));                                     \
+        c = gen_vsr_ptr(xT(ctx->opcode));                                     \
+    }                                                                         \
+    gen_helper_##name(cpu_env, opc, xt, xa, b, c);                            \
+    tcg_temp_free_i32(opc);                                                   \
+    tcg_temp_free_ptr(xt);                                                    \
+    tcg_temp_free_ptr(xa);                                                    \
+    tcg_temp_free_ptr(b);                                                     \
+    tcg_temp_free_ptr(c);                                                     \
+}
+
+GEN_VSX_HELPER_VSX_MADD(xsmaddmdp, 0x04, 0x05, 0, PPC2_VSX)
+GEN_VSX_HELPER_VSX_MADD(xsmsubmdp, 0x04, 0x07, 0, PPC2_VSX)
+GEN_VSX_HELPER_VSX_MADD(xsnmaddmdp, 0x04, 0x15, 0, PPC2_VSX)
+GEN_VSX_HELPER_VSX_MADD(xsnmsubmdp, 0x04, 0x17, 0, PPC2_VSX)
+GEN_VSX_HELPER_VSX_MADD(xsmaddmsp, 0x04, 0x01, 0, PPC2_VSX207)
+GEN_VSX_HELPER_VSX_MADD(xsmsubmsp, 0x04, 0x03, 0, PPC2_VSX207)
+GEN_VSX_HELPER_VSX_MADD(xsnmaddmsp, 0x04, 0x11, 0, PPC2_VSX207)
+GEN_VSX_HELPER_VSX_MADD(xsnmsubmsp, 0x04, 0x13, 0, PPC2_VSX207)
+GEN_VSX_HELPER_VSX_MADD(xvmaddmdp, 0x04, 0x0D, 0, PPC2_VSX)
+GEN_VSX_HELPER_VSX_MADD(xvmsubmdp, 0x04, 0x0F, 0, PPC2_VSX)
+GEN_VSX_HELPER_VSX_MADD(xvnmaddmdp, 0x04, 0x1D, 0, PPC2_VSX)
+GEN_VSX_HELPER_VSX_MADD(xvnmsubmdp, 0x04, 0x1F, 0, PPC2_VSX)
+GEN_VSX_HELPER_VSX_MADD(xvmaddmsp, 0x04, 0x09, 0, PPC2_VSX)
+GEN_VSX_HELPER_VSX_MADD(xvmsubmsp, 0x04, 0x0B, 0, PPC2_VSX)
+GEN_VSX_HELPER_VSX_MADD(xvnmaddmsp, 0x04, 0x19, 0, PPC2_VSX)
+GEN_VSX_HELPER_VSX_MADD(xvnmsubmsp, 0x04, 0x1B, 0, PPC2_VSX)
+
+GEN_VSX_HELPER_VSX_MADD(xsmaddadp, 0x04, 0x04, 0, PPC2_VSX)
+GEN_VSX_HELPER_VSX_MADD(xsmsubadp, 0x04, 0x06, 0, PPC2_VSX)
+GEN_VSX_HELPER_VSX_MADD(xsnmaddadp, 0x04, 0x14, 0, PPC2_VSX)
+GEN_VSX_HELPER_VSX_MADD(xsnmsubadp, 0x04, 0x16, 0, PPC2_VSX)
+GEN_VSX_HELPER_VSX_MADD(xsmaddasp, 0x04, 0x00, 0, PPC2_VSX207)
+GEN_VSX_HELPER_VSX_MADD(xsmsubasp, 0x04, 0x02, 0, PPC2_VSX207)
+GEN_VSX_HELPER_VSX_MADD(xsnmaddasp, 0x04, 0x10, 0, PPC2_VSX207)
+GEN_VSX_HELPER_VSX_MADD(xsnmsubasp, 0x04, 0x12, 0, PPC2_VSX207)
+GEN_VSX_HELPER_VSX_MADD(xvmaddadp, 0x04, 0x0C, 0, PPC2_VSX)
+GEN_VSX_HELPER_VSX_MADD(xvmsubadp, 0x04, 0x0E, 0, PPC2_VSX)
+GEN_VSX_HELPER_VSX_MADD(xvnmaddadp, 0x04, 0x1C, 0, PPC2_VSX)
+GEN_VSX_HELPER_VSX_MADD(xvnmsubadp, 0x04, 0x1E, 0, PPC2_VSX)
+GEN_VSX_HELPER_VSX_MADD(xvmaddasp, 0x04, 0x08, 0, PPC2_VSX)
+GEN_VSX_HELPER_VSX_MADD(xvmsubasp, 0x04, 0x0A, 0, PPC2_VSX)
+GEN_VSX_HELPER_VSX_MADD(xvnmaddasp, 0x04, 0x18, 0, PPC2_VSX)
+GEN_VSX_HELPER_VSX_MADD(xvnmsubasp, 0x04, 0x1A, 0, PPC2_VSX)
 
 static void gen_xxbrd(DisasContext *ctx)
 {

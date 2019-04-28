@@ -2270,18 +2270,10 @@ VSX_TSQRT(xvtsqrtsp, 4, float32, VsrW(i), -126, 23)
  */
 #define VSX_MADD(op, nels, tp, fld, maddflgs, afrm, sfprf, r2sp)              \
 void helper_##op(CPUPPCState *env, uint32_t opcode,                           \
-                 ppc_vsr_t *xt, ppc_vsr_t *xa, ppc_vsr_t *xb)                 \
+                 ppc_vsr_t *xt, ppc_vsr_t *xa,                                \
+                 ppc_vsr_t *b, ppc_vsr_t *c)                                  \
 {                                                                             \
-    ppc_vsr_t *b, *c;                                                         \
     int i;                                                                    \
-                                                                              \
-    if (afrm) { /* AxB + T */                                                 \
-        b = xb;                                                               \
-        c = xt;                                                               \
-    } else { /* AxT + B */                                                    \
-        b = xt;                                                               \
-        c = xb;                                                               \
-    }                                                                         \
                                                                               \
     helper_reset_fpstatus(env);                                               \
                                                                               \
