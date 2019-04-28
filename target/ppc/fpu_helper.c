@@ -2028,10 +2028,9 @@ void helper_xsdivqp(CPUPPCState *env, uint32_t opcode)
  *   sfprf - set FPRF
  */
 #define VSX_RE(op, nels, tp, fld, sfprf, r2sp)                                \
-void helper_##op(CPUPPCState *env, uint32_t opcode)                           \
+void helper_##op(CPUPPCState *env, uint32_t opcode,                           \
+                 ppc_vsr_t *xt, ppc_vsr_t *xb)                                \
 {                                                                             \
-    ppc_vsr_t *xt = &env->vsr[xT(opcode)];                                    \
-    ppc_vsr_t *xb = &env->vsr[xB(opcode)];                                    \
     int i;                                                                    \
                                                                               \
     helper_reset_fpstatus(env);                                               \
@@ -2068,10 +2067,9 @@ VSX_RE(xvresp, 4, float32, VsrW(i), 0, 0)
  *   sfprf - set FPRF
  */
 #define VSX_SQRT(op, nels, tp, fld, sfprf, r2sp)                             \
-void helper_##op(CPUPPCState *env, uint32_t opcode)                          \
+void helper_##op(CPUPPCState *env, uint32_t opcode,                          \
+                 ppc_vsr_t *xt, ppc_vsr_t *xb)                               \
 {                                                                            \
-    ppc_vsr_t *xt = &env->vsr[xT(opcode)];                                   \
-    ppc_vsr_t *xb = &env->vsr[xB(opcode)];                                   \
     int i;                                                                   \
                                                                              \
     helper_reset_fpstatus(env);                                              \
@@ -2116,10 +2114,9 @@ VSX_SQRT(xvsqrtsp, 4, float32, VsrW(i), 0, 0)
  *   sfprf - set FPRF
  */
 #define VSX_RSQRTE(op, nels, tp, fld, sfprf, r2sp)                           \
-void helper_##op(CPUPPCState *env, uint32_t opcode)                          \
+void helper_##op(CPUPPCState *env, uint32_t opcode,                          \
+                 ppc_vsr_t *xt, ppc_vsr_t *xb)                               \
 {                                                                            \
-    ppc_vsr_t *xt = &env->vsr[xT(opcode)];                                   \
-    ppc_vsr_t *xb = &env->vsr[xB(opcode)];                                   \
     int i;                                                                   \
                                                                              \
     helper_reset_fpstatus(env);                                              \
@@ -2767,10 +2764,9 @@ VSX_CMP(xvcmpnesp, 4, float32, VsrW(i), eq, 0, 0)
  *   sfprf - set FPRF
  */
 #define VSX_CVT_FP_TO_FP(op, nels, stp, ttp, sfld, tfld, sfprf)    \
-void helper_##op(CPUPPCState *env, uint32_t opcode)                \
+void helper_##op(CPUPPCState *env, uint32_t opcode,                \
+                 ppc_vsr_t *xt, ppc_vsr_t *xb)                     \
 {                                                                  \
-    ppc_vsr_t *xt = &env->vsr[xT(opcode)];                         \
-    ppc_vsr_t *xb = &env->vsr[xB(opcode)];                         \
     int i;                                                         \
                                                                    \
     for (i = 0; i < nels; i++) {                                   \
@@ -2839,10 +2835,9 @@ VSX_CVT_FP_TO_FP_VECTOR(xscvdpqp, 1, float64, float128, VsrD(0), f128, 1)
  *   sfprf - set FPRF
  */
 #define VSX_CVT_FP_TO_FP_HP(op, nels, stp, ttp, sfld, tfld, sfprf) \
-void helper_##op(CPUPPCState *env, uint32_t opcode)                \
+void helper_##op(CPUPPCState *env, uint32_t opcode,                \
+                 ppc_vsr_t *xt, ppc_vsr_t *xb)                     \
 {                                                                  \
-    ppc_vsr_t *xt = &env->vsr[xT(opcode)];                         \
-    ppc_vsr_t *xb = &env->vsr[xB(opcode)];                         \
     int i;                                                         \
                                                                    \
     memset(xt, 0, sizeof(ppc_vsr_t));                              \
@@ -2871,10 +2866,9 @@ VSX_CVT_FP_TO_FP_HP(xvcvhpsp, 4, float16, float32, VsrH(2 * i + 1), VsrW(i), 0)
  * xscvqpdp isn't using VSX_CVT_FP_TO_FP() because xscvqpdpo will be
  * added to this later.
  */
-void helper_xscvqpdp(CPUPPCState *env, uint32_t opcode)
+void helper_xscvqpdp(CPUPPCState *env, uint32_t opcode,
+                     ppc_vsr_t *xt, ppc_vsr_t *xb)
 {
-    ppc_vsr_t *xt = &env->vsr[xT(opcode)];
-    ppc_vsr_t *xb = &env->vsr[xB(opcode)];
     float_status tstat;
 
     memset(xt, 0, sizeof(ppc_vsr_t));
@@ -2922,11 +2916,10 @@ uint64_t helper_xscvspdpn(CPUPPCState *env, uint64_t xb)
  *   rnan  - resulting NaN
  */
 #define VSX_CVT_FP_TO_INT(op, nels, stp, ttp, sfld, tfld, rnan)              \
-void helper_##op(CPUPPCState *env, uint32_t opcode)                          \
+void helper_##op(CPUPPCState *env, uint32_t opcode,                          \
+                 ppc_vsr_t *xt, ppc_vsr_t *xb)                               \
 {                                                                            \
     int all_flags = env->fp_status.float_exception_flags, flags;             \
-    ppc_vsr_t *xt = &env->vsr[xT(opcode)];                                   \
-    ppc_vsr_t *xb = &env->vsr[xB(opcode)];                                   \
     int i;                                                                   \
                                                                              \
     for (i = 0; i < nels; i++) {                                             \
@@ -3009,10 +3002,9 @@ VSX_CVT_FP_TO_INT_VECTOR(xscvqpuwz, float128, uint32, f128, VsrD(0), 0x0ULL)
  *   sfprf - set FPRF
  */
 #define VSX_CVT_INT_TO_FP(op, nels, stp, ttp, sfld, tfld, sfprf, r2sp)  \
-void helper_##op(CPUPPCState *env, uint32_t opcode)                     \
+void helper_##op(CPUPPCState *env, uint32_t opcode,                     \
+                 ppc_vsr_t *xt, ppc_vsr_t *xb)                          \
 {                                                                       \
-    ppc_vsr_t *xt = &env->vsr[xT(opcode)];                              \
-    ppc_vsr_t *xb = &env->vsr[xB(opcode)];                              \
     int i;                                                              \
                                                                         \
     for (i = 0; i < nels; i++) {                                        \
@@ -3081,10 +3073,9 @@ VSX_CVT_INT_TO_FP_VECTOR(xscvudqp, uint64, float128, VsrD(0), f128)
  *   sfprf - set FPRF
  */
 #define VSX_ROUND(op, nels, tp, fld, rmode, sfprf)                     \
-void helper_##op(CPUPPCState *env, uint32_t opcode)                    \
+void helper_##op(CPUPPCState *env, uint32_t opcode,                    \
+                 ppc_vsr_t *xt, ppc_vsr_t *xb)                         \
 {                                                                      \
-    ppc_vsr_t *xt = &env->vsr[xT(opcode)];                             \
-    ppc_vsr_t *xb = &env->vsr[xB(opcode)];                             \
     int i;                                                             \
                                                                        \
     if (rmode != FLOAT_ROUND_CURRENT) {                                \
@@ -3165,10 +3156,9 @@ void helper_##op(CPUPPCState *env, uint32_t opcode,                   \
 VSX_XXPERM(xxperm, 0)
 VSX_XXPERM(xxpermr, 1)
 
-void helper_xvxsigsp(CPUPPCState *env, uint32_t opcode)
+void helper_xvxsigsp(CPUPPCState *env, uint32_t opcode,
+                     ppc_vsr_t *xt, ppc_vsr_t *xb)
 {
-    ppc_vsr_t *xt = &env->vsr[xT(opcode)];
-    ppc_vsr_t *xb = &env->vsr[xB(opcode)];
     uint32_t exp, i, fraction;
 
     memset(xt, 0, sizeof(ppc_vsr_t));
