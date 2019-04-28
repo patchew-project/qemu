@@ -1317,6 +1317,7 @@ S: Maintained
 F: include/hw/ipmi/*
 F: hw/ipmi/*
 F: hw/smbios/smbios_type_38.c
+F: stubs/ipmi.c
 F: tests/ipmi*
 T: git https://github.com/cminyard/qemu.git master-ipmi-rebase
 

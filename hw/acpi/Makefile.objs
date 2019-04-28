@@ -14,8 +14,7 @@ common-obj-y += aml-build.o
 common-obj-$(CONFIG_TPM) += tpm.o
 
 common-obj-$(CONFIG_IPMI) += ipmi.o
-common-obj-$(call lnot,$(CONFIG_IPMI)) += ipmi-stub.o
 else
 common-obj-y += acpi-stub.o
 endif
-common-obj-$(CONFIG_ALL) += acpi-stub.o ipmi-stub.o
+common-obj-$(CONFIG_ALL) += acpi-stub.o
