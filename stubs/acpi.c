@@ -23,6 +23,10 @@
 #include "qapi/qmp/qerror.h"
 #include "hw/acpi/acpi.h"
 
+size_t acpi_tables_len;
+
+char unsigned *acpi_tables;
+
 void acpi_table_add(const QemuOpts *opts, Error **errp)
 {
     error_setg(errp, QERR_UNSUPPORTED);
