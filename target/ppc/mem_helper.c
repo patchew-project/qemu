@@ -415,9 +415,8 @@ STVE(stvewx, cpu_stl_data_ra, bswap32, u32)
 
 #define VSX_LXVL(name, lj)                                              \
 void helper_##name(CPUPPCState *env, target_ulong addr,                 \
-                   target_ulong xt, target_ulong rb)                    \
+                   ppc_vsr_t *r, target_ulong rb)                       \
 {                                                                       \
-    ppc_vsr_t *r = &env->vsr[xt];                                       \
     int nb = GET_NB(env->gpr[rb]);                                      \
     int i;                                                              \
                                                                         \
@@ -444,9 +443,8 @@ VSX_LXVL(lxvll, 1)
 
 #define VSX_STXVL(name, lj)                                       \
 void helper_##name(CPUPPCState *env, target_ulong addr,           \
-                   target_ulong xt, target_ulong rb)              \
+                   ppc_vsr_t *r, target_ulong rb)                 \
 {                                                                 \
-    ppc_vsr_t *r = &env->vsr[xt];                                 \
     int nb = GET_NB(env->gpr[rb]);                                \
     int i;                                                        \
                                                                   \

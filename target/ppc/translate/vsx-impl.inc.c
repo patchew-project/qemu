@@ -297,7 +297,8 @@ VSX_VECTOR_LOAD_STORE(stxvx, st_i64, 1)
 #define VSX_VECTOR_LOAD_STORE_LENGTH(name)                      \
 static void gen_##name(DisasContext *ctx)                       \
 {                                                               \
-    TCGv EA, xt, rb;                                            \
+    TCGv EA, rb;                                                \
+    TCGv_ptr xt;                                                \
                                                                 \
     if (xT(ctx->opcode) < 32) {                                 \
         if (unlikely(!ctx->vsx_enabled)) {                      \
@@ -313,12 +314,12 @@ static void gen_##name(DisasContext *ctx)                       \
     EA = tcg_temp_new();                                        \
     gen_set_access_type(ctx, ACCESS_INT);                       \
     gen_addr_register(ctx, EA);                                 \
-    xt = tcg_const_tl(xT(ctx->opcode));                         \
+    xt = gen_vsr_ptr(xT(ctx->opcode));                          \
     rb = tcg_const_tl(rB(ctx->opcode));                         \
     gen_helper_##name(cpu_env, EA, xt, rb);                     \
     tcg_temp_free(EA);                                          \
-    tcg_temp_free(xt);                                          \
     tcg_temp_free(rb);                                          \
+    tcg_temp_free_ptr(xt);                                      \
 }
 
 VSX_VECTOR_LOAD_STORE_LENGTH(lxvl)
