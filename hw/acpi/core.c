@@ -59,6 +59,7 @@ static const char unsigned dfl_hdr[ACPI_TABLE_HDR_SIZE - ACPI_TABLE_PFX_SIZE] =
     "QEMU\1\0\0\0"           /* ASL compiler ID (4), version (4) */
     ;
 
+int acpi_enabled = 1;
 char unsigned *acpi_tables;
 size_t acpi_tables_len;
 

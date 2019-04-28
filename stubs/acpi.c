@@ -23,6 +23,8 @@
 #include "qapi/qmp/qerror.h"
 #include "hw/acpi/acpi.h"
 
+int acpi_enabled;
+
 size_t acpi_tables_len;
 
 char unsigned *acpi_tables;
