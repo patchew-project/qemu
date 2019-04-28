@@ -28,15 +28,14 @@
 #include "hw/virtio/virtio-bus.h"
 #include "qemu/error-report.h"
 
-/* #define DEBUG_VIRTIO_MMIO */
+#define DEBUG_VIRTIO_MMIO 0
 
-#ifdef DEBUG_VIRTIO_MMIO
-
-#define DPRINTF(fmt, ...) \
-do { printf("virtio_mmio: " fmt , ## __VA_ARGS__); } while (0)
-#else
-#define DPRINTF(fmt, ...) do {} while (0)
-#endif
+#define DPRINTF(fmt, ...)                                            \
+    do {                                                             \
+        if (DEBUG_VIRTIO_MMIO) {                                     \
+            fprintf(stderr, "virtio_mmio: " fmt , ## __VA_ARGS__);   \
+        }                                                            \
+    } while (0)
 
 /* QOM macros */
 /* virtio-mmio-bus */
