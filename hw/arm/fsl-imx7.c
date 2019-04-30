@@ -34,14 +34,6 @@ static void fsl_imx7_init(Object *obj)
     char name[NAME_SIZE];
     int i;
 
-
-    for (i = 0; i < MIN(smp_cpus, FSL_IMX7_NUM_CPUS); i++) {
-        snprintf(name, NAME_SIZE, "cpu%d", i);
-        object_initialize_child(obj, name, &s->cpu[i], sizeof(s->cpu[i]),
-                                ARM_CPU_TYPE_NAME("cortex-a7"), &error_abort,
-                                NULL);
-    }
-
     /*
      * A7MPCORE
      */
@@ -165,6 +157,13 @@ static void fsl_imx7_realize(DeviceState *dev, Error **errp)
         error_setg(errp, "%s: Only %d CPUs are supported (%d requested)",
                    TYPE_FSL_IMX7, FSL_IMX7_NUM_CPUS, smp_cpus);
         return;
+    }
+
+    for (i = 0; i < MIN(smp_cpus, FSL_IMX7_NUM_CPUS); i++) {
+        snprintf(name, NAME_SIZE, "cpu%d", i);
+        object_initialize_child(OBJECT(dev), name, &s->cpu[i],
+            sizeof(s->cpu[i]), ARM_CPU_TYPE_NAME("cortex-a7"),
+            &error_abort, NULL);
     }
 
     for (i = 0; i < smp_cpus; i++) {
