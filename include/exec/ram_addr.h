@@ -414,18 +414,21 @@ uint64_t cpu_physical_memory_sync_dirty_bitmap(RAMBlock *rb,
                                                uint64_t *real_dirty_pages)
 {
     ram_addr_t addr;
-    unsigned long word = BIT_WORD(rb->offset >> TARGET_PAGE_BITS);
     uint64_t num_dirty = 0;
     unsigned long *dest = rb->bmap;
 
-    /* offset and length is aligned at the start of a word? */
-    if (((word * BITS_PER_LONG) << TARGET_PAGE_BITS) == (rb->offset) &&
-        !(length & ((BITS_PER_LONG << TARGET_PAGE_BITS) - 1))) {
+    /*
+     * Since RAMBlock->offset is guaranteed to be aligned to a word by
+     * find_ram_offset(), if length is aligned at the start of a word, go the
+     * fast path.
+     */
+    if (!(length & ((BITS_PER_LONG << TARGET_PAGE_BITS) - 1))) {
         int k;
         int nr = BITS_TO_LONGS(length >> TARGET_PAGE_BITS);
         unsigned long * const *src;
-        unsigned long idx = (word * BITS_PER_LONG) / DIRTY_MEMORY_BLOCK_SIZE;
-        unsigned long offset = BIT_WORD((word * BITS_PER_LONG) %
+        unsigned long idx = (rb->offset >> TARGET_PAGE_BITS) /
+                            DIRTY_MEMORY_BLOCK_SIZE;
+        unsigned long offset = BIT_WORD((rb->offset >> TARGET_PAGE_BITS) %
                                         DIRTY_MEMORY_BLOCK_SIZE);
 
         rcu_read_lock();
