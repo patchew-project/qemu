@@ -2145,7 +2145,8 @@ static void handle_query_qemu_supported(GdbCmdContext *gdb_ctx, void *user_ctx)
              "sstepbits;sstep;PhyMemMode");
 
     if (kvm_enabled()) {
-        pstrcat(gdb_ctx->str_buf, sizeof(gdb_ctx->str_buf), ";kvm.Rdmsr");
+        pstrcat(gdb_ctx->str_buf, sizeof(gdb_ctx->str_buf),
+                ";kvm.Rdmsr;kvm.Wrmsr");
     }
 
     put_packet(gdb_ctx->s, gdb_ctx->str_buf);
@@ -2194,6 +2195,26 @@ static void handle_query_kvm_read_msr(GdbCmdContext *gdb_ctx, void *user_ctx)
 
     snprintf(gdb_ctx->str_buf, sizeof(gdb_ctx->str_buf), "0x%" PRIx64, msr_val);
     put_packet(gdb_ctx->s, gdb_ctx->str_buf);
+}
+
+static void handle_set_kvm_write_msr(GdbCmdContext *gdb_ctx, void *user_ctx)
+{
+    if (!kvm_enabled()) {
+        return;
+    }
+
+    if (gdb_ctx->num_params < 2) {
+        put_packet(gdb_ctx->s, "E22");
+        return;
+    }
+
+    if (kvm_arch_write_msr(gdbserver_state->c_cpu, gdb_ctx->params[0].val_ul,
+                           gdb_ctx->params[1].val_ull)) {
+        put_packet(gdb_ctx->s, "E00");
+        return;
+    }
+
+    put_packet(gdb_ctx->s, "OK");
 }
 
 static GdbCmdParseEntry gdb_gen_query_set_common_table[] = {
@@ -2301,6 +2322,12 @@ static GdbCmdParseEntry gdb_gen_set_table[] = {
         .cmd = "qemu.sstep:",
         .cmd_startswith = 1,
         .schema = "l0"
+    },
+    {
+        .handler = handle_set_kvm_write_msr,
+        .cmd = "qemu.kvm.Wrmsr:",
+        .cmd_startswith = 1,
+        .schema = "l,L0"
     },
 };
 
