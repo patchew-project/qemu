@@ -2444,6 +2444,45 @@ void kvm_remove_all_breakpoints(CPUState *cpu)
 }
 #endif /* !KVM_CAP_SET_GUEST_DEBUG */
 
+int kvm_arch_read_msr(CPUState *cpu, uint32_t index, uint64_t *value)
+{
+    struct {
+        struct kvm_msrs info;
+        struct kvm_msr_entry entries[1];
+    } msr_data;
+    int ret;
+
+    msr_data.info.nmsrs = 1;
+    msr_data.entries[0].index = index;
+    ret = kvm_vcpu_ioctl(cpu, KVM_GET_MSRS, &msr_data);
+    if (ret < 0) {
+        return ret;
+    }
+
+    *value = msr_data.entries[0].data;
+    return 0;
+}
+
+int kvm_arch_write_msr(CPUState *cpu, uint32_t index, uint64_t value)
+{
+    struct {
+        struct kvm_msrs info;
+        struct kvm_msr_entry entries[1];
+    } msr_data;
+    int ret;
+
+    msr_data.info.nmsrs = 1;
+    msr_data.entries[0].index = index;
+    msr_data.entries[0].reserved = 0;
+    msr_data.entries[0].data = value;
+    ret = kvm_vcpu_ioctl(cpu, KVM_SET_MSRS, &msr_data);
+    if (ret < 0) {
+        return ret;
+    }
+
+    return 0;
+}
+
 static int kvm_set_signal_mask(CPUState *cpu, const sigset_t *sigset)
 {
     KVMState *s = kvm_state;

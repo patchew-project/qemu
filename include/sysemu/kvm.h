@@ -462,6 +462,8 @@ int kvm_vm_check_extension(KVMState *s, unsigned int extension);
 uint32_t kvm_arch_get_supported_cpuid(KVMState *env, uint32_t function,
                                       uint32_t index, int reg);
 uint32_t kvm_arch_get_supported_msr_feature(KVMState *s, uint32_t index);
+int kvm_arch_read_msr(CPUState *cpu, uint32_t index, uint64_t *value);
+int kvm_arch_write_msr(CPUState *cpu, uint32_t index, uint64_t value);
 
 
 void kvm_set_sigmask_len(KVMState *s, unsigned int sigmask_len);
