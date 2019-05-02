@@ -2127,6 +2127,11 @@ static void handle_query_attached(GdbCmdContext *gdb_ctx, void *user_ctx)
     put_packet(gdb_ctx->s, GDB_ATTACHED);
 }
 
+static void handle_query_qemu_supported(GdbCmdContext *gdb_ctx, void *user_ctx)
+{
+    put_packet(gdb_ctx->s, "sstepbits;sstep");
+}
+
 static GdbCmdParseEntry gdb_gen_query_set_common_table[] = {
     /* Order is important if has same prefix */
     {
@@ -2202,6 +2207,10 @@ static GdbCmdParseEntry gdb_gen_query_table[] = {
     {
         .handler = handle_query_attached,
         .cmd = "Attached",
+    },
+    {
+        .handler = handle_query_qemu_supported,
+        .cmd = "qemu.Supported",
     },
 };
 
