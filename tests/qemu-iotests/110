@@ -54,7 +54,7 @@ _make_test_img -b "$TEST_IMG_REL.base" 64M
 # qemu should be able to reconstruct the filename, so relative backing names
 # should work
 TEST_IMG="json:{'driver':'$IMGFMT','file':{'driver':'file','filename':'$TEST_IMG'}}" \
-    _img_info | _filter_img_info
+    _img_info | _filter_img_info | grep -v "backing file format"
 
 echo
 echo '=== Non-reconstructable filename ==='
@@ -78,7 +78,7 @@ TEST_IMG="json:{
             }
         ]
     }
-}" _img_info | _filter_img_info
+}" _img_info | _filter_img_info | grep -v "backing file format"
 
 echo
 echo '=== Backing name is always relative to the backed image ==='
@@ -110,7 +110,7 @@ TEST_IMG="json:{
             }
         ]
     }
-}" _img_info | _filter_img_info
+}" _img_info | _filter_img_info | grep -v "backing file format"
 
 
 # success, all done

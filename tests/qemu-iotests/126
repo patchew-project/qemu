@@ -63,7 +63,7 @@ TEST_IMG=$BASE_IMG _make_test_img 64M
 TEST_IMG=$TOP_IMG _make_test_img -b ./image:base.$IMGFMT
 
 # The default cluster size depends on the image format
-TEST_IMG=$TOP_IMG _img_info | grep -v 'cluster_size'
+TEST_IMG=$TOP_IMG _img_info | grep -v 'cluster_size\|backing file format'
 
 _rm_test_img "$BASE_IMG"
 _rm_test_img "$TOP_IMG"
@@ -79,7 +79,7 @@ TOP_IMG="file:image:top.$IMGFMT"
 TEST_IMG=$BASE_IMG _make_test_img 64M
 TEST_IMG=$TOP_IMG _make_test_img -b "$BASE_IMG"
 
-TEST_IMG=$TOP_IMG _img_info | grep -v 'cluster_size'
+TEST_IMG=$TOP_IMG _img_info | grep -v 'cluster_size\|backing file format'
 
 _rm_test_img "$BASE_IMG"
 _rm_test_img "image:top.$IMGFMT"
