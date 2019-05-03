@@ -236,14 +236,94 @@ struct V9fsFidState
     V9fsFidState *rclm_lst;
 };
 
-#define QPATH_INO_MASK        (((unsigned long)1 << 48) - 1)
+/*
+ * Defines how inode numbers from host shall be remapped on guest.
+ *
+ * When this compile time option is disabled then fixed length (16 bit)
+ * prefix values are used for all inode numbers on guest level. Accordingly
+ * guest's inode numbers will be quite large (>2^48).
+ *
+ * If this option is enabled then variable length suffixes will be used for
+ * guest's inode numbers instead which usually yields in much smaller inode
+ * numbers on guest level (typically around >2^1 .. >2^7).
+ */
+#define P9_VARI_LENGTH_INODE_SUFFIXES 1
+
+/*
+ * If this value is higher than 0 then file inode remapping is tried to be
+ * retained consistent beyond reboots/suspends.
+ *
+ * Once qpp_table size exceeds this value, we no longer save
+ * the table persistently. See comment in v9fs_store_qpp_table()
+ *
+ * By setting this to 0, persistency of file ids will (beyond the scope of
+ * reboots/suspends) will be disabled completely at compile time.
+ */
+#define QPP_TABLE_PERSISTENCY_LIMIT 0
+
+#if P9_VARI_LENGTH_INODE_SUFFIXES
+
+typedef enum AffixType_t {
+    AffixType_Prefix,
+    AffixType_Suffix, /* A.k.a. postfix. */
+} AffixType_t;
+
+/** @brief Unique affix of variable length.
+ *
+ * An affix is (currently) either a suffix or a prefix, which is either
+ * going to be prepended (prefix) or appended (suffix) with some other
+ * number for the goal to generate unique numbers. Accordingly the
+ * suffixes (or prefixes) we generate @b must all have the mathematical
+ * property of being suffix-free (or prefix-free in case of prefixes)
+ * so that no matter what number we concatenate the affix with, that we
+ * always reliably get unique numbers as result after concatenation.
+ */
+typedef struct VariLenAffix {
+    AffixType_t type; /* Whether this affix is a suffix or a prefix. */
+    uint64_t value; /* Actual numerical value of this affix. */
+    int bits; /* Lenght of the affix, that is how many (of the lowest) bits of @c value must be used for appending/prepending this affix to its final resulting, unique number. */
+} VariLenAffix;
+
+#endif /* P9_VARI_LENGTH_INODE_SUFFIXES */
+
+#if !P9_VARI_LENGTH_INODE_SUFFIXES
+# define QPATH_INO_MASK        (((unsigned long)1 << 48) - 1)
+#endif
+
+#if P9_VARI_LENGTH_INODE_SUFFIXES
+
+/* See qid_inode_prefix_hash_bits(). */
+typedef struct {
+    dev_t dev; /* FS device on host. */
+    int prefix_bits; /* How many (high) bits of the original inode number shall be used for hashing. */
+} QpdEntry;
+
+# if (QPP_TABLE_PERSISTENCY_LIMIT > 0)
+
+/* Small version of QpdEntry for serialization as xattr. */
+struct QpdEntryS {
+    dev_t dev;
+    uint8_t prefix_bits;
+}  __attribute__((packed));
+typedef struct QpdEntryS QpdEntryS;
+
+# endif /* (QPP_TABLE_PERSISTENCY_LIMIT > 0) */
+
+#endif /* P9_VARI_LENGTH_INODE_SUFFIXES */
 
 /* QID path prefix entry, see stat_to_qid */
 typedef struct {
     dev_t dev;
     uint16_t ino_prefix;
-    uint16_t qp_prefix;
+    #if P9_VARI_LENGTH_INODE_SUFFIXES
+    uint32_t qp_affix_index;
+    VariLenAffix qp_affix;
+    #else
+    uint16_t qp_affix;
+    #endif
 } QppEntry;
+
+#if (QPP_TABLE_PERSISTENCY_LIMIT > 0)
 
 /* Small version of QppEntry for serialization as xattr. */
 struct QppEntryS {
@@ -252,12 +332,27 @@ struct QppEntryS {
 } __attribute__((packed));
 typedef struct QppEntryS QppEntryS;
 
+#endif /* (QPP_TABLE_PERSISTENCY_LIMIT > 0) */
+
 /* QID path full entry, as above */
 typedef struct {
     dev_t dev;
     ino_t ino;
     uint64_t path;
 } QpfEntry;
+
+#if (QPP_TABLE_PERSISTENCY_LIMIT > 0)
+
+# if P9_VARI_LENGTH_INODE_SUFFIXES
+
+typedef struct {
+    QpdEntryS *elements;
+    uint count; /* In: QpdEntryS count in @a elements */
+    uint done; /* Out: how many QpdEntryS did we actually fill in @a elements */
+    int error; /* Out: zero on success */
+} QpdSerialize;
+
+# endif /* P9_VARI_LENGTH_INODE_SUFFIXES */
 
 typedef struct {
     QppEntryS *elements;
@@ -268,7 +363,7 @@ typedef struct {
 
 struct QppSrlzHeader {
     uint16_t version;
-    uint16_t reserved; /* might be used e.g. for flags in future */
+    uint16_t options;
     uint32_t crc32;
 } __attribute__((packed));
 typedef struct QppSrlzHeader QppSrlzHeader;
@@ -279,11 +374,23 @@ struct QppSrlzStream {
 } __attribute__((packed));
 typedef struct QppSrlzStream QppSrlzStream;
 
+# if P9_VARI_LENGTH_INODE_SUFFIXES
+
+struct QpdSrlzStream {
+    QppSrlzHeader header;
+    QpdEntryS elements[0];
+} __attribute__((packed));
+typedef struct QpdSrlzStream QpdSrlzStream;
+
+# endif /* P9_VARI_LENGTH_INODE_SUFFIXES */
+
 typedef struct XAttrNode {
     uint8_t* value;
     ssize_t length;
     struct XAttrNode* next;
 } XAttrNode;
+
+#endif /* (QPP_TABLE_PERSISTENCY_LIMIT > 0) */
 
 struct V9fsState
 {
@@ -306,9 +413,15 @@ struct V9fsState
     Error *migration_blocker;
     V9fsConf fsconf;
     V9fsQID root_qid;
+#if P9_VARI_LENGTH_INODE_SUFFIXES
+    struct qht qpd_table;
+#endif
     struct qht qpp_table;
     struct qht qpf_table;
-    uint16_t qp_prefix_next;
+#if P9_VARI_LENGTH_INODE_SUFFIXES
+    uint64_t qp_ndevices; /* Amount of entries in qpd_table. */
+#endif
+    uint16_t qp_affix_next;
     uint64_t qp_fullpath_next;
 };
 
