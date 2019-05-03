@@ -1118,7 +1118,7 @@ static int net_client_init(QemuOpts *opts, bool is_netdev, Error **errp)
         const char *ip6_net = qemu_opt_get(opts, "ipv6-net");
 
         if (ip6_net) {
-            char buf[strlen(ip6_net) + 1];
+            char buf[INET6_ADDRSTRLEN];
 
             if (get_str_sep(buf, sizeof(buf), &ip6_net, '/') < 0) {
                 /* Default 64bit prefix length.  */
