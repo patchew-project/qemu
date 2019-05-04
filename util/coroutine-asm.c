@@ -40,6 +40,11 @@ typedef struct {
     Coroutine base;
     void *sp;
 
+    /*
+     * aarch64: instruction pointer
+     */
+    void *scratch;
+
     void *stack;
     size_t stack_size;
 
@@ -116,6 +121,49 @@ static void start_switch_fiber(void **fake_stack_save,
 /* Use "call" to ensure the stack  is aligned correctly.  */
 #define CO_SWITCH_NEW(from, to) CO_SWITCH(from, to, 0, "call coroutine_trampoline")
 #define CO_SWITCH_RET(from, to, action) CO_SWITCH(from, to, action, "ret")
+
+#elif defined __aarch64__
+/*
+ * GCC does not support clobbering the frame pointer, so we save it ourselves.
+ * Saving the link register as well generates slightly better code because then
+ * qemu_coroutine_switch can be treated as a leaf procedure.
+ */
+#define CO_SWITCH_RET(from, to, action) ({                                            \
+    register uintptr_t action_ __asm__("x0") = action;                                \
+    register void *from_ __asm__("x16") = from;                                       \
+    register void *to_ __asm__("x1") = to;                                            \
+    asm volatile(                                                                     \
+        ".cfi_remember_state\n"                                                       \
+        "stp x29, x30, [sp, #-16]!\n"    /* GCC does not save it, do it ourselves */  \
+        ".cfi_adjust_cfa_offset 16\n"                                                 \
+        ".cfi_def_cfa_register sp\n"                                                  \
+        "adr x30, 2f\n"                  /* source PC will be after the BR */         \
+        "str x30, [x16, %[SCRATCH]]\n"   /* save it */                                \
+        "mov x30, sp\n"                  /* save source SP */                         \
+        "str x30, [x16, %[SP]]\n"                                                     \
+        "ldr x30, [x1, %[SCRATCH]]\n"    /* load destination PC */                    \
+        "ldr x1, [x1, %[SP]]\n"          /* load destination SP */                    \
+        "mov sp, x1\n"                                                                \
+        "br x30\n"                                                                    \
+        "2: \n"                                                                       \
+        "ldp x29, x30, [sp], #16\n"                                                   \
+        ".cfi_restore_state\n"                                                        \
+        : "+r" (action_), "+r" (from_), "+r" (to_)                                    \
+        : [SP] "i" (offsetof(CoroutineAsm, sp)),                                      \
+          [SCRATCH] "i" (offsetof(CoroutineAsm, scratch))                             \
+        : "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12",        \
+          "x13", "x14", "x15", "x17", "x18", "x19", "x20", "x21", "x22", "x23",       \
+          "x24", "x25", "x26", "x27", "x28",                                          \
+          "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11",   \
+          "v12", "v13", "v14", "v15", v16", "v17", "v18", "v19", "v20", "v21", "v22", \
+          "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31", "memory",    \
+    action_;                                                                          \
+})
+
+#define CO_SWITCH_NEW(from, to) do {                                                  \
+  (to)->scratch = (void *) coroutine_trampoline;                                      \
+  (void) CO_SWITCH_RET(from, to, (uintptr_t) to);                                     \
+} while(0)
 #else
 #error coroutine-asm.c not ported to this architecture.
 #endif

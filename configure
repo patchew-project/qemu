@@ -5200,7 +5200,7 @@ fi
 if test "$coroutine" = ""; then
   if test "$mingw32" = "yes"; then
     coroutine=win32
-  elif test "$cpu" = "x86_64"; then
+  elif test "$cpu" = "x86_64" || test "$cpu" = "aarch64"; then
      coroutine=asm
   elif test "$ucontext_works" = "yes"; then
     coroutine=ucontext

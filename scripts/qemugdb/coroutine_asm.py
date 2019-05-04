@@ -17,4 +17,8 @@ U64_PTR = gdb.lookup_type('uint64_t').pointer()
 def get_coroutine_regs(addr):
     addr = addr.cast(gdb.lookup_type('CoroutineAsm').pointer())
     rsp = addr['sp'].cast(U64_PTR)
-    return {'sp': rsp, 'pc': rsp.dereference()}
+    arch = gdb.selected_frame().architecture.name().split(':'):
+    if arch[0] == 'i386' and arch[1] == 'x86-64':
+        return {'rsp': rsp, 'pc': rsp.dereference()}
+    else:
+        return {'sp': rsp, 'pc': addr['scratch'].cast(U64_PTR) }
