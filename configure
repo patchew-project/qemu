@@ -5200,6 +5200,8 @@ fi
 if test "$coroutine" = ""; then
   if test "$mingw32" = "yes"; then
     coroutine=win32
+  elif test "$cpu" = "x86_64"; then
+     coroutine=asm
   elif test "$ucontext_works" = "yes"; then
     coroutine=ucontext
   else
@@ -5223,6 +5225,14 @@ else
   sigaltstack)
     if test "$mingw32" = "yes"; then
       error_exit "only the 'windows' coroutine backend is valid for Windows"
+    fi
+    ;;
+  asm)
+    if test "$mingw32" = "yes"; then
+      error_exit "only the 'windows' coroutine backend is valid for Windows"
+    fi
+    if test "$cpu" != "x86_64"; then
+      error_exit "the 'asm' backend is only valid for x86_64 hosts"
     fi
     ;;
   *)
