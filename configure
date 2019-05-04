@@ -5200,6 +5200,11 @@ fi
 if test "$cf_protection" = "yes"; then
   QEMU_CFLAGS="-fcf-protection $QEMU_CFLAGS"
 fi
+if test "$cpu" = "x86_64"; then
+  cf_protection_tcg=yes
+else
+  cf_protection_tcg=no
+fi
 
 ##########################################
 # check and set a backend for coroutine
@@ -6395,6 +6400,7 @@ echo "TCG support       $tcg"
 if test "$tcg" = "yes" ; then
     echo "TCG debug enabled $debug_tcg"
     echo "TCG interpreter   $tcg_interpreter"
+    echo "TCG CF protection $cf_protection_tcg"
 fi
 echo "malloc trim support $malloc_trim"
 echo "RDMA support      $rdma"
@@ -6599,6 +6605,9 @@ if test "$profiler" = "yes" ; then
 fi
 if test "$cf_protection" = "yes" ; then
   echo "CONFIG_CF_PROTECTION=y" >> $config_host_mak
+fi
+if test "$cf_protection_tcg" = "yes" ; then
+  echo "CONFIG_CF_PROTECTION_TCG=y" >> $config_host_mak
 fi
 if test "$slirp" != "no"; then
   echo "CONFIG_SLIRP=y" >> $config_host_mak

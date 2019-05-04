@@ -49,6 +49,11 @@
 #define bit_BMI2        (1 << 8)
 #endif
 
+/* Leaf 7, %edx */
+#ifndef bit_IBT
+#define bit_IBT         (1 << 20)
+#endif
+
 /* Leaf 0x80000001, %ecx */
 #ifndef bit_LZCNT
 #define bit_LZCNT       (1 << 5)
