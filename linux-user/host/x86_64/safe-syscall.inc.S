@@ -89,3 +89,22 @@ safe_syscall_end:
         .cfi_endproc
 
         .size   safe_syscall_base, .-safe_syscall_base
+
+	.pushsection ".note.gnu.property", "a"
+	.p2align 3
+	.long 1f - 0f          /* name length.  */
+	.long 4f - 1f          /* data length.  */
+	.long 5                /* NT_GNU_PROPERTY_TYPE_0.  */
+0:
+	.asciz "GNU"           /* vendor name.  */
+	.p2align 3
+1:
+        /* GNU_PROPERTY_X86_FEATURE_1_AND.  */
+	.long 0xc0000002       /* pr_type.  */
+	.long 3f - 2f          /* pr_datasz.  */
+2:
+	.long 0x3              /* IBT, SHSTK */
+3:
+	.p2align 3
+4:
+	.popsection
