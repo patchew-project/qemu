@@ -889,6 +889,10 @@ static void tcg_target_init(TCGContext *s)
                   CPU_TEMP_BUF_NLONGS * sizeof(long));
 }
 
+static inline void tcg_out_start(void)
+{
+}
+
 /* Generate global QEMU prologue and epilogue code. */
 static inline void tcg_target_qemu_prologue(TCGContext *s)
 {
