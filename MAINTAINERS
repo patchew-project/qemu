@@ -1801,6 +1801,12 @@ M: Samuel Thibault <samuel.thibault@ens-lyon.org>
 S: Maintained
 F: chardev/baum.c
 
+Character Devices (Linux I2C)
+M: Ernest Esene <eroken1@gmail.com>
+S: Maintained
+F: chardev/char-i2c.c
+F: include/chardev/char-i2c.h
+
 Command line option argument parsing
 M: Markus Armbruster <armbru@redhat.com>
 S: Supported
