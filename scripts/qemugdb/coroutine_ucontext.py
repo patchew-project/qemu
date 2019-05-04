@@ -57,12 +57,12 @@ def get_jmpbuf_regs(jmpbuf):
     pointer_guard = get_glibc_pointer_guard()
     return {'rbx': jmpbuf[JB_RBX],
         'rbp': glibc_ptr_demangle(jmpbuf[JB_RBP], pointer_guard),
-        'rsp': glibc_ptr_demangle(jmpbuf[JB_RSP], pointer_guard),
+        'sp': glibc_ptr_demangle(jmpbuf[JB_RSP], pointer_guard),
         'r12': jmpbuf[JB_R12],
         'r13': jmpbuf[JB_R13],
         'r14': jmpbuf[JB_R14],
         'r15': jmpbuf[JB_R15],
-        'rip': glibc_ptr_demangle(jmpbuf[JB_PC], pointer_guard) }
+        'pc': glibc_ptr_demangle(jmpbuf[JB_PC], pointer_guard) }
 
 def get_coroutine_regs(addr):
     co = addr.cast(gdb.lookup_type('CoroutineUContext').pointer())

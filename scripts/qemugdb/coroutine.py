@@ -62,11 +62,11 @@ class CoroutineSPFunction(gdb.Function):
         gdb.Function.__init__(self, 'qemu_coroutine_sp')
 
     def invoke(self, addr):
-        return coroutine_backend().get_coroutine_regs(addr)['rsp'].cast(VOID_PTR)
+        return coroutine_backend().get_coroutine_regs(addr)['sp'].cast(VOID_PTR)
 
 class CoroutinePCFunction(gdb.Function):
     def __init__(self):
         gdb.Function.__init__(self, 'qemu_coroutine_pc')
 
     def invoke(self, addr):
-        return coroutine_backend().get_coroutine_regs(addr)['rip'].cast(VOID_PTR)
+        return coroutine_backend().get_coroutine_regs(addr)['pc'].cast(VOID_PTR)
