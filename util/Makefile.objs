@@ -45,7 +45,9 @@ endif
 ifeq ($(CONFIG_CF_PROTECTION),y)
 coroutine-sigaltstack.o-cflags := -fcf-protection=branch
 coroutine-ucontext.o-cflags := -fcf-protection=branch
+ifneq ($(ARCH),x86_64)
 coroutine-asm.o-cflags += -fcf-protection=branch
+endif
 endif
 util-obj-y += buffer.o
 util-obj-y += timed-average.o

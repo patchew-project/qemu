@@ -5192,6 +5192,20 @@ if test "$cf_protection" != no; then
       feature_not_found "cf_protection" 'Control-flow protection is not supported by your toolchain'
     fi
     cf_protection=no
+  else
+    if test $cpu = x86_64; then
+      # only needed by coroutine-asm.c, however it should be rare to have
+      # CET support in the compiler but not in binutils
+      cat > $TMPC << EOF
+int main(void) { asm("rdsspq %%rax" : : : "rax"); }
+EOF
+      if ! compile_prog "" "" ; then
+        if test "$cf_protection" = yes; then
+          feature_not_found "cf_protection" 'CET is not supported by your toolchain'
+        fi
+        cf_protection=no
+      fi
+    fi
   fi
 fi
 if test "$cf_protection" = ""; then
