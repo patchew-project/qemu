@@ -449,6 +449,7 @@ win_sdk="no"
 want_tools="yes"
 libiscsi=""
 libnfs=""
+cf_protection="no"      # leave it disabled until we can test performance
 coroutine=""
 coroutine_pool=""
 debug_stack_usage="no"
@@ -1267,6 +1268,10 @@ for opt do
   ;;
   --with-pkgversion=*) pkgversion="$optarg"
   ;;
+  --enable-cf-protection) cf_protection="yes"
+  ;;
+  --disable-cf-protection) cf_protection="no"
+  ;;
   --with-coroutine=*) coroutine="$optarg"
   ;;
   --disable-coroutine-pool) coroutine_pool="no"
@@ -1796,6 +1801,7 @@ disabled with --disable-FEATURE, default is enabled if available:
   lzfse           support of lzfse compression library
                   (for reading lzfse-compressed dmg images)
   seccomp         seccomp support
+  cf-protection   Control-flow protection
   coroutine-pool  coroutine freelist (better performance)
   glusterfs       GlusterFS backend
   tpm             TPM support
@@ -5177,6 +5183,25 @@ if have_backend "dtrace"; then
 fi
 
 ##########################################
+# detect Control-flow protection support in the toolchain
+
+if test "$cf_protection" != no; then
+  write_c_skeleton;
+  if ! compile_prog "-fcf-protection" "" ; then
+    if test "$cf_protection" = yes; then
+      feature_not_found "cf_protection" 'Control-flow protection is not supported by your toolchain'
+    fi
+    cf_protection=no
+  fi
+fi
+if test "$cf_protection" = ""; then
+  cf_protection=yes
+fi
+if test "$cf_protection" = "yes"; then
+  QEMU_CFLAGS="-fcf-protection $QEMU_CFLAGS"
+fi
+
+##########################################
 # check and set a backend for coroutine
 
 # We prefer ucontext, but it's not always possible. The fallback
@@ -6361,6 +6386,7 @@ echo "netmap support    $netmap"
 echo "Linux AIO support $linux_aio"
 echo "ATTR/XATTR support $attr"
 echo "Install blobs     $blobs"
+echo "CF protection     $cf_protection"
 echo "KVM support       $kvm"
 echo "HAX support       $hax"
 echo "HVF support       $hvf"
@@ -6570,6 +6596,9 @@ if test "$static" = "yes" ; then
 fi
 if test "$profiler" = "yes" ; then
   echo "CONFIG_PROFILER=y" >> $config_host_mak
+fi
+if test "$cf_protection" = "yes" ; then
+  echo "CONFIG_CF_PROTECTION=y" >> $config_host_mak
 fi
 if test "$slirp" != "no"; then
   echo "CONFIG_SLIRP=y" >> $config_host_mak

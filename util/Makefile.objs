@@ -42,6 +42,11 @@ util-obj-y += coroutine-$(CONFIG_COROUTINE_BACKEND).o
 ifeq ($(ARCH),x86_64)
 coroutine-asm.o-cflags := -mno-red-zone
 endif
+ifeq ($(CONFIG_CF_PROTECTION),y)
+coroutine-sigaltstack.o-cflags := -fcf-protection=branch
+coroutine-ucontext.o-cflags := -fcf-protection=branch
+coroutine-asm.o-cflags += -fcf-protection=branch
+endif
 util-obj-y += buffer.o
 util-obj-y += timed-average.o
 util-obj-y += base64.o
