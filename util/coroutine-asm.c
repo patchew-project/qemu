@@ -41,7 +41,7 @@ typedef struct {
     void *sp;
 
     /*
-     * aarch64: instruction pointer
+     * aarch64, s390x: instruction pointer
      */
     void *scratch;
 
@@ -162,6 +162,40 @@ static void start_switch_fiber(void **fake_stack_save,
 
 #define CO_SWITCH_NEW(from, to) do {                                                  \
   (to)->scratch = (void *) coroutine_trampoline;                                      \
+  (void) CO_SWITCH_RET(from, to, (uintptr_t) to);                                     \
+} while(0)
+
+#elif defined __s390x__
+#define CO_SWITCH_RET(from, to, action) ({                                            \
+    register uintptr_t action_ __asm__("r2") = action;                                \
+    register void *from_ __asm__("r1") = from;                                        \
+    register void *to_ __asm__("r3") = to;                                            \
+    register void *pc_ __asm__("r4") = to->scratch;                                   \
+    void *save_r13;                                                                   \
+    asm volatile(                                                                     \
+        "stg %%r13, %[SAVE_R13]\n"                                                    \
+        "stg %%r15, %[SP](%%r1)\n"       /* save source SP */                         \
+        "lg %%r15, %[SP](%%r3)\n"        /* load destination SP */                    \
+        "bras %%r3, 1f\n"                /* source PC will be after the BR */         \
+        "1: aghi %%r3, 12\n"             /* 4 */                                      \
+        "stg %%r3, %[SCRATCH](%%r1)\n"   /* 6 save switch-back PC */                  \
+        "br %%r4\n"                      /* 2 jump to destination PC */               \
+        "lg %%r13, %[SAVE_R13]\n"                                                     \
+        : "+r" (action_), "+r" (from_), "+r" (to_), "+r" (pc_),                       \
+          [SAVE_R13] "+m" (r13)                                                       \
+        : [SP] "i" (offsetof(CoroutineAsm, sp)),                                      \
+          [SCRATCH] "i" (offsetof(CoroutineAsm, scratch))                             \
+        : "r0", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "r14",             \
+          "a2", "a3", "a4", "a5", "a6", "a7",                                         \
+          "a8", "a9", "a10", "a11", "a12", "a13", "a14", "a15",                       \
+          "f0", "f1", "f2", "f3", "f4", "f5", "f6", "f7",                             \
+          "f8", "f9", "f10", "f11", "f12", "f13", "f14", "f15", "memory");            \
+    action_;                                                                          \
+})
+
+#define CO_SWITCH_NEW(from, to) do {                                                  \
+  (to)->scratch = (void *) coroutine_trampoline;                                      \
+  (to)->sp -= 160;                                                                    \
   (void) CO_SWITCH_RET(from, to, (uintptr_t) to);                                     \
 } while(0)
 #else
