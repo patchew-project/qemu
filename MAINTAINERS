@@ -162,6 +162,12 @@ S: Maintained
 F: hw/arm/smmu*
 F: include/hw/arm/smmu*
 
+AVR
+M: Michael Rolnik <mrolnik@gmail.com>
+S: Odd Fixes
+F: target-avr/
+F: hw/avr/
+
 CRIS
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
 S: Maintained
