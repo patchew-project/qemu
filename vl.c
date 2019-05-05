@@ -3434,7 +3434,8 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_virtfs: {
                 QemuOpts *fsdev;
                 QemuOpts *device;
-                const char *writeout, *sock_fd, *socket, *path, *security_model;
+                const char *writeout, *sock_fd, *socket, *path, *security_model,
+                           *vii;
 
                 olist = qemu_find_opts("virtfs");
                 if (!olist) {
@@ -3490,6 +3491,10 @@ int main(int argc, char **argv, char **envp)
                 if (sock_fd) {
                     qemu_opt_set(fsdev, "sock_fd", sock_fd, &error_abort);
                 }
+                vii = qemu_opt_get(opts, "vii");
+                if (vii) {
+                    qemu_opt_set(fsdev, "vii", vii, &error_abort);
+                }
 
                 qemu_opt_set_bool(fsdev, "readonly",
                                   qemu_opt_get_bool(opts, "readonly", 0),
@@ -3501,6 +3506,8 @@ int main(int argc, char **argv, char **envp)
                              qemu_opts_id(fsdev), &error_abort);
                 qemu_opt_set(device, "mount_tag",
                              qemu_opt_get(opts, "mount_tag"), &error_abort);
+                qemu_opt_set(device, "vii",
+                             qemu_opt_get(opts, "vii"), &error_abort);
                 break;
             }
             case QEMU_OPTION_virtfs_synth: {

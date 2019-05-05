@@ -30,10 +30,8 @@
 #if defined(__linux__) /* TODO: This should probably go into osdep.h instead */
 # include <linux/limits.h> /* for XATTR_SIZE_MAX */
 #endif
-#include <sys/types.h>
-#include <unistd.h>
-#include <sys/syscall.h>
 #include <math.h>
+#include "qemu/cutils.h"
 
 /*
  * How many bytes may we store to fs per extended attribute value?
@@ -589,6 +587,8 @@ static void coroutine_fn virtfs_reset(V9fsPDU *pdu)
                                 P9_STAT_MODE_NAMED_PIPE |   \
                                 P9_STAT_MODE_SOCKET)
 
+#if P9_VARI_LENGTH_INODE_SUFFIXES
+
 /* Mirrors all bits of a byte. So e.g. binary 10100000 would become 00000101. */
 static inline uint8_t mirror8bit(uint8_t byte) {
     return (byte * 0x0202020202ULL & 0x010884422010ULL) % 1023;
@@ -605,8 +605,6 @@ static inline uint64_t mirror64bit(uint64_t value) {
            ((uint64_t)mirror8bit((value >> 48) & 0xff) << 8 ) |
            ((uint64_t)mirror8bit((value >> 56) & 0xff)      ) ;
 }
-
-#if P9_VARI_LENGTH_INODE_SUFFIXES
 
 /* Parameter k for the Exponential Golomb algorihm to be used.
  *
@@ -770,7 +768,7 @@ static int v9fs_store_qpd_table(V9fsState *s);
  * generating hash values for the purpose of accessing qpp_table in order
  * get consistent behaviour when accessing qpp_table.
  */
-static int qid_inode_prefix_hash_bits(V9fsPDU *pdu, dev_t dev)
+static int qid_inode_prefix_hash_bits(V9fsState *s, dev_t dev)
 {
     QpdEntry lookup = {
         .dev = dev
@@ -778,14 +776,14 @@ static int qid_inode_prefix_hash_bits(V9fsPDU *pdu, dev_t dev)
     uint32_t hash = dev;
     VariLenAffix affix;
 
-    val = qht_lookup(&pdu->s->qpd_table, &lookup, hash);
+    val = qht_lookup(&s->qpd_table, &lookup, hash);
     if (!val) {
         val = g_malloc0(sizeof(QpdEntry));
         *val = lookup;
-        affix = affixForIndex(pdu->s->qp_affix_next);
+        affix = affixForIndex(s->qp_affix_next);
         val->prefix_bits = affix.bits;
-        qht_insert(&pdu->s->qpd_table, val, hash, NULL);
-        pdu->s->qp_ndevices++;
+        qht_insert(&s->qpd_table, val, hash, NULL);
+        s->qp_ndevices++;
 
         /*
          * Store qpd_table as extended attribute(s) to file system.
@@ -794,7 +792,7 @@ static int qid_inode_prefix_hash_bits(V9fsPDU *pdu, dev_t dev)
          * suspend handler.
          */
         #if (QPP_TABLE_PERSISTENCY_LIMIT > 0)
-        v9fs_store_qpd_table(pdu->s);
+        v9fs_store_qpd_table(s);
         #endif
     }
     return val->prefix_bits;
@@ -817,7 +815,7 @@ static int qid_inode_prefix_hash_bits(V9fsPDU *pdu, dev_t dev)
  * @see qid_path_prefixmap() for details
  *
  */
-static int qid_path_fullmap(V9fsPDU *pdu, const struct stat *stbuf,
+static int qid_path_fullmap(V9fsState *s, const struct stat *stbuf,
                             uint64_t *path)
 {
     QpfEntry lookup = {
@@ -829,10 +827,10 @@ static int qid_path_fullmap(V9fsPDU *pdu, const struct stat *stbuf,
     VariLenAffix affix;
 #endif
 
-    val = qht_lookup(&pdu->s->qpf_table, &lookup, hash);
+    val = qht_lookup(&s->qpf_table, &lookup, hash);
 
     if (!val) {
-        if (pdu->s->qp_fullpath_next == 0) {
+        if (s->qp_fullpath_next == 0) {
             /* no more files can be mapped :'( */
             return -ENFILE;
         }
@@ -843,15 +841,15 @@ static int qid_path_fullmap(V9fsPDU *pdu, const struct stat *stbuf,
         /* new unique inode and device combo */
 #if P9_VARI_LENGTH_INODE_SUFFIXES
         affix = affixForIndex(
-            1ULL << (sizeof(pdu->s->qp_affix_next) * 8)
+            1ULL << (sizeof(s->qp_affix_next) * 8)
         );
-        val->path = (pdu->s->qp_fullpath_next++ << affix.bits) | affix.value;
-        pdu->s->qp_fullpath_next &= ((1ULL << (64 - affix.bits)) - 1);
+        val->path = (s->qp_fullpath_next++ << affix.bits) | affix.value;
+        s->qp_fullpath_next &= ((1ULL << (64 - affix.bits)) - 1);
 #else
-        val->path = pdu->s->qp_fullpath_next++;
-        pdu->s->qp_fullpath_next &= QPATH_INO_MASK;
+        val->path = s->qp_fullpath_next++;
+        s->qp_fullpath_next &= QPATH_INO_MASK;
 #endif
-        qht_insert(&pdu->s->qpf_table, val, hash, NULL);
+        qht_insert(&s->qpf_table, val, hash, NULL);
     }
 
     *path = val->path;
@@ -914,7 +912,7 @@ static void remove_qp_tables_xattrs(FsContext *ctx) {
 # if P9_VARI_LENGTH_INODE_SUFFIXES
 
 /* Used to convert qpd hash table into continuous stream. */
-static void qpd_table_serialize(struct qht *ht, void *p, uint32_t h, void *up)
+static void qpd_table_serialize(void *p, uint32_t h, void *up)
 {
     const QpdEntry *entry = (const QpdEntry*) p;
     QpdSerialize *ser = (QpdSerialize*) up;
@@ -1540,11 +1538,11 @@ static void v9fs_store_qp_tables(V9fsState *s)
  * suffixes instead. See comment on P9_VARI_LENGTH_INODE_SUFFIXES for
  * details.
  */
-static int qid_path_prefixmap(V9fsPDU *pdu, const struct stat *stbuf,
+static int qid_path_prefixmap(V9fsState *s, const struct stat *stbuf,
                                 uint64_t *path)
 {
 #if P9_VARI_LENGTH_INODE_SUFFIXES
-    const int ino_hash_bits = qid_inode_prefix_hash_bits(pdu, stbuf->st_dev);
+    const int ino_hash_bits = qid_inode_prefix_hash_bits(s, stbuf->st_dev);
 #endif
     QppEntry lookup = {
         .dev = stbuf->st_dev,
@@ -1556,10 +1554,10 @@ static int qid_path_prefixmap(V9fsPDU *pdu, const struct stat *stbuf,
     }, *val;
     uint32_t hash = qpp_hash(lookup);
 
-    val = qht_lookup(&pdu->s->qpp_table, &lookup, hash);
+    val = qht_lookup(&s->qpp_table, &lookup, hash);
 
     if (!val) {
-        if (pdu->s->qp_affix_next == 0) {
+        if (s->qp_affix_next == 0) {
             /* we ran out of affixes */
             return -ENFILE;
         }
@@ -1569,12 +1567,12 @@ static int qid_path_prefixmap(V9fsPDU *pdu, const struct stat *stbuf,
 
         /* new unique inode affix and device combo */
 #if P9_VARI_LENGTH_INODE_SUFFIXES
-        val->qp_affix_index = pdu->s->qp_affix_next++;
+        val->qp_affix_index = s->qp_affix_next++;
         val->qp_affix = affixForIndex(val->qp_affix_index);
 #else
-        val->qp_affix = pdu->s->qp_affix_next++;
+        val->qp_affix = s->qp_affix_next++;
 #endif
-        qht_insert(&pdu->s->qpp_table, val, hash, NULL);
+        qht_insert(&s->qpp_table, val, hash, NULL);
 
         /*
          * Store qpp_table as extended attribute(s) to file system.
@@ -1583,7 +1581,7 @@ static int qid_path_prefixmap(V9fsPDU *pdu, const struct stat *stbuf,
          * suspend handler.
          */
         #if (QPP_TABLE_PERSISTENCY_LIMIT > 0)
-        v9fs_store_qpp_table(pdu->s);
+        v9fs_store_qpp_table(s);
         #endif
     }
 #if P9_VARI_LENGTH_INODE_SUFFIXES
@@ -1595,15 +1593,15 @@ static int qid_path_prefixmap(V9fsPDU *pdu, const struct stat *stbuf,
     return 0;
 }
 
-static int stat_to_qid(V9fsPDU *pdu, const struct stat *stbuf, V9fsQID *qidp)
+static int stat_to_qid(V9fsState *s, const struct stat *stbuf, V9fsQID *qidp)
 {
     int err;
 
     /* map inode+device to qid path (fast path) */
-    err = qid_path_prefixmap(pdu, stbuf, &qidp->path);
+    err = qid_path_prefixmap(s, stbuf, &qidp->path);
     if (err == -ENFILE) {
         /* fast path didn't work, fall back to full map */
-        err = qid_path_fullmap(pdu, stbuf, &qidp->path);
+        err = qid_path_fullmap(s, stbuf, &qidp->path);
     }
     if (err) {
         return err;
@@ -1621,6 +1619,57 @@ static int stat_to_qid(V9fsPDU *pdu, const struct stat *stbuf, V9fsQID *qidp)
     return 0;
 }
 
+/** @brief Handle "vii" device config parameter.
+ *
+ * "vii" (very important inode[s]) is a colon separated list of pathes
+ * passed as optional virtfs command line argument "vii" to qemu, which
+ * shall have precedence in their given order when emitting inode nr
+ * remapping suffixes on guest. So the very first vii path will get the
+ * smallest inode nr prefix (i.e. 1 bit) and hence the largest inode
+ * namespace on guest, the next path in the list will get the next higher
+ * inode prefix (i.e. 3 bit), and so on.
+ *
+ * @see qid_path_prefixmap()
+ */
+static void map_important_inodes(FsDriverEntry *fse, V9fsState *s, V9fsPath *path) {
+#if !P9_VARI_LENGTH_INODE_SUFFIXES
+    error_printf("virtfs-9p: ignoring argument vii='%s': virtfs-9p compiled without variable length inode suffixes", fse->vii);
+#else
+    struct stat stbuf;
+    char *buf, *token;
+    V9fsPath vii;
+    V9fsQID qid;
+
+    if (!fse->vii)
+        return; /* no "vii" command line argument passed to qemu */
+
+    v9fs_path_init(&vii);
+
+    buf = g_strdup(fse->vii);
+    while ((token = qemu_strsep(&buf, ":"))) {
+        if (token[0] != '/') {
+            error_printf("virtfs-9p: ignoring vii path '%s': misses mandatory leading slash", token);
+            continue;
+        }
+        /* token+1 : slash must be ripped off to avoid double slash in
+         * in vii and its subsequent assertion fault in lstat() */
+        if (s->ops->name_to_path(&s->ctx, path, token+1, &vii) < 0) {
+            error_printf("virtfs-9p: ignoring vii path '%s': error converting name to path: %s",
+                         token, strerror(errno));
+            continue;
+        }
+        if (s->ops->lstat(&s->ctx, &vii, &stbuf) < 0) {
+            error_printf("virtfs-9p: ignoring vii path '%s': lstat failed", token);
+            goto next;
+        }
+        stat_to_qid(s, &stbuf, &qid);
+    next:
+        v9fs_path_free(&vii);
+    }
+    g_free(buf);
+#endif
+}
+
 static int coroutine_fn fid_to_qid(V9fsPDU *pdu, V9fsFidState *fidp,
                                    V9fsQID *qidp)
 {
@@ -1631,7 +1680,7 @@ static int coroutine_fn fid_to_qid(V9fsPDU *pdu, V9fsFidState *fidp,
     if (err < 0) {
         return err;
     }
-    err = stat_to_qid(pdu, &stbuf, qidp);
+    err = stat_to_qid(pdu->s, &stbuf, qidp);
     if (err < 0) {
         return err;
     }
@@ -1865,7 +1914,7 @@ static int coroutine_fn stat_to_v9stat(V9fsPDU *pdu, V9fsPath *path,
 
     memset(v9stat, 0, sizeof(*v9stat));
 
-    err = stat_to_qid(pdu, stbuf, &v9stat->qid);
+    err = stat_to_qid(pdu->s, stbuf, &v9stat->qid);
     if (err < 0) {
         return err;
     }
@@ -1951,7 +2000,7 @@ static int stat_to_v9stat_dotl(V9fsPDU *pdu, const struct stat *stbuf,
     /* Currently we only support BASIC fields in stat */
     v9lstat->st_result_mask = P9_STATS_BASIC;
 
-    return stat_to_qid(pdu, stbuf, &v9lstat->qid);
+    return stat_to_qid(pdu->s, stbuf, &v9lstat->qid);
 }
 
 static void print_sg(struct iovec *sg, int cnt)
@@ -2416,7 +2465,7 @@ static void coroutine_fn v9fs_walk(void *opaque)
             if (err < 0) {
                 goto out;
             }
-            err = stat_to_qid(pdu, &stbuf, &qid);
+            err = stat_to_qid(pdu->s, &stbuf, &qid);
             if (err < 0) {
                 goto out;
             }
@@ -2521,7 +2570,7 @@ static void coroutine_fn v9fs_open(void *opaque)
     if (err < 0) {
         goto out;
     }
-    err = stat_to_qid(pdu, &stbuf, &qid);
+    err = stat_to_qid(pdu->s, &stbuf, &qid);
     if (err < 0) {
         goto out;
     }
@@ -2634,7 +2683,7 @@ static void coroutine_fn v9fs_lcreate(void *opaque)
         fidp->flags |= FID_NON_RECLAIMABLE;
     }
     iounit =  get_iounit(pdu, &fidp->path);
-    err = stat_to_qid(pdu, &stbuf, &qid);
+    err = stat_to_qid(pdu->s, &stbuf, &qid);
     if (err < 0) {
         goto out;
     }
@@ -3371,7 +3420,7 @@ static void coroutine_fn v9fs_create(void *opaque)
         }
     }
     iounit = get_iounit(pdu, &fidp->path);
-    err = stat_to_qid(pdu, &stbuf, &qid);
+    err = stat_to_qid(pdu->s, &stbuf, &qid);
     if (err < 0) {
         goto out;
     }
@@ -3431,7 +3480,7 @@ static void coroutine_fn v9fs_symlink(void *opaque)
     if (err < 0) {
         goto out;
     }
-    err = stat_to_qid(pdu, &stbuf, &qid);
+    err = stat_to_qid(pdu->s, &stbuf, &qid);
     if (err < 0) {
         goto out;
     }
@@ -4114,7 +4163,7 @@ static void coroutine_fn v9fs_mknod(void *opaque)
     if (err < 0) {
         goto out;
     }
-    err = stat_to_qid(pdu, &stbuf, &qid);
+    err = stat_to_qid(pdu->s, &stbuf, &qid);
     if (err < 0) {
         goto out;
     }
@@ -4275,7 +4324,7 @@ static void coroutine_fn v9fs_mkdir(void *opaque)
     if (err < 0) {
         goto out;
     }
-    err = stat_to_qid(pdu, &stbuf, &qid);
+    err = stat_to_qid(pdu->s, &stbuf, &qid);
     if (err < 0) {
         goto out;
     }
@@ -4701,8 +4750,13 @@ int v9fs_device_realize_common(V9fsState *s, const V9fsTransport *t,
 #endif
     s->qp_affix_next = 1; /* reserve 0 to detect overflow */
     s->qp_fullpath_next = 1;
+
+    /* handle "very important inodes" */
+    map_important_inodes(fse, s, &path);
+
     /* try to load and restore previous qpd_table and qpp_table */
 #if (QPP_TABLE_PERSISTENCY_LIMIT > 0)
+    /*TODO: call will be ignored ATM if virfs "vii" argument was passed as well */
     v9fs_load_qp_tables(s);
 #endif
 

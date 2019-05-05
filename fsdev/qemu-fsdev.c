@@ -34,6 +34,7 @@ int qemu_fsdev_add(QemuOpts *opts, Error **errp)
     const char *fsdev_id = qemu_opts_id(opts);
     const char *fsdriver = qemu_opt_get(opts, "fsdriver");
     const char *writeout = qemu_opt_get(opts, "writeout");
+    const char *vii      = qemu_opt_get(opts, "vii");
     bool ro = qemu_opt_get_bool(opts, "readonly", 0);
 
     if (!fsdev_id) {
@@ -59,6 +60,7 @@ int qemu_fsdev_add(QemuOpts *opts, Error **errp)
 
     fsle = g_malloc0(sizeof(*fsle));
     fsle->fse.fsdev_id = g_strdup(fsdev_id);
+    fsle->fse.vii = g_strdup(vii);
     fsle->fse.ops = FsDrivers[i].ops;
     if (writeout) {
         if (!strcmp(writeout, "immediate")) {
@@ -74,6 +76,7 @@ int qemu_fsdev_add(QemuOpts *opts, Error **errp)
     if (fsle->fse.ops->parse_opts) {
         if (fsle->fse.ops->parse_opts(opts, &fsle->fse, errp)) {
             g_free(fsle->fse.fsdev_id);
+            g_free(fsle->fse.vii);
             g_free(fsle);
             return -1;
         }

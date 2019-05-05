@@ -168,6 +168,12 @@ typedef struct V9fsConf
     /* tag name for the device */
     char *tag;
     char *fsdev_id;
+    /*
+     * very important inodes: colon separated list of pathes (relative to
+     * export root) which should be preferred for getting a larger inode
+     * namespace on guest
+     */
+    char *viis;
 } V9fsConf;
 
 /* 9p2000.L xattr flags (matches Linux values) */

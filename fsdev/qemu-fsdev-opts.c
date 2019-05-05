@@ -44,6 +44,9 @@ static QemuOptsList qemu_fsdev_opts = {
         }, {
             .name = "dmode",
             .type = QEMU_OPT_NUMBER,
+        }, {
+            .name = "vii",
+            .type = QEMU_OPT_STRING,
         },
 
         THROTTLE_OPTS,
@@ -87,6 +90,9 @@ static QemuOptsList qemu_virtfs_opts = {
         }, {
             .name = "dmode",
             .type = QEMU_OPT_NUMBER,
+        }, {
+            .name = "vii",
+            .type = QEMU_OPT_STRING,
         },
 
         { /*End of list */ }

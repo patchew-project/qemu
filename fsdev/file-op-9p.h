@@ -77,6 +77,7 @@ typedef struct FsDriverEntry {
     FsThrottle fst;
     mode_t fmode;
     mode_t dmode;
+    char *vii;
 } FsDriverEntry;
 
 struct FsContext {
