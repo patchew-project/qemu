@@ -35,8 +35,6 @@
 #define UNLOCK_BYPASS_CMD 0x20
 #define UNLOCK_BYPASS_RESET_CMD 0x00
 
-static char image_path[] = "/tmp/qtest.XXXXXX";
-
 static inline void flash_write(uint64_t byte_addr, uint16_t data)
 {
     qtest_writew(global_qtest, BASE_ADDR + byte_addr, data);
@@ -103,8 +101,9 @@ static void chip_erase(void)
     flash_write(UNLOCK0_ADDR, SECTOR_ERASE_CMD);
 }
 
-static void test_flash(void)
+static void test_flash(const void *opaque)
 {
+    const char *image_path = opaque;
     global_qtest = qtest_initf("-M musicpal,accel=qtest "
                                "-drive if=pflash,file=%s,format=raw,copy-on-read",
                                image_path);
@@ -195,31 +194,30 @@ static void test_flash(void)
 
 static void cleanup(void *opaque)
 {
+    char *image_path = opaque;
     unlink(image_path);
+    g_free(image_path);
 }
 
 int main(int argc, char **argv)
 {
-    int fd = mkstemp(image_path);
-    if (fd == -1) {
-        g_printerr("Failed to create temporary file %s: %s\n", image_path,
-                   strerror(errno));
-        exit(EXIT_FAILURE);
-    }
+    GError *error = NULL;
+    char *image_path;
+    int fd = g_file_open_tmp("pflash-cfi02-XXXXXX.raw", &image_path, &error);
+    g_assert_no_error(error);
     if (ftruncate(fd, 8 * 1024 * 1024) < 0) {
-        int error_code = errno;
+        g_printerr("Failed to truncate file %s to 8 MB: %s\n", image_path,
+                   strerror(errno));
         close(fd);
         unlink(image_path);
-        g_printerr("Failed to truncate file %s to 8 MB: %s\n", image_path,
-                   strerror(error_code));
         exit(EXIT_FAILURE);
     }
     close(fd);
 
-    qtest_add_abrt_handler(cleanup, NULL);
+    qtest_add_abrt_handler(cleanup, image_path);
     g_test_init(&argc, &argv, NULL);
-    qtest_add_func("pflash-cfi02", test_flash);
+    qtest_add_data_func("pflash-cfi02", image_path, test_flash);
     int result = g_test_run();
-    cleanup(NULL);
+    cleanup(image_path);
     return result;
 }
