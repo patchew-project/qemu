@@ -56,6 +56,11 @@ do {                                                       \
 
 #define PFLASH_LAZY_ROMD_THRESHOLD 42
 
+/* Special write cycles for CFI queries. */
+enum {
+    WCYCLE_CFI          = 7,
+};
+
 struct PFlashCFI02 {
     /*< private >*/
     SysBusDevice parent_obj;
@@ -293,7 +298,7 @@ static void pflash_write(PFlashCFI02 *pfl, hwaddr offset,
         if (boff == 0x55 && cmd == 0x98) {
         enter_CFI_mode:
             /* Enter CFI query mode */
-            pfl->wcycle = 7;
+            pfl->wcycle = WCYCLE_CFI;
             pfl->cmd = 0x98;
             return;
         }
@@ -465,7 +470,7 @@ static void pflash_write(PFlashCFI02 *pfl, hwaddr offset,
             goto reset_flash;
         }
         break;
-    case 7: /* Special value for CFI queries */
+    case WCYCLE_CFI: /* Special value for CFI queries */
         DPRINTF("%s: invalid write in CFI query mode\n", __func__);
         goto reset_flash;
     default:
