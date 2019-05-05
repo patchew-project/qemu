@@ -8,6 +8,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "libqtest.h"
 
 /*
@@ -16,7 +17,7 @@
  * all. In particular, we're limited to a 16-bit wide flash device.
  */
 
-#define MP_FLASH_SIZE_MAX (32 * 1024 * 1024)
+#define MP_FLASH_SIZE_MAX (32 * MiB)
 #define BASE_ADDR (0x100000000ULL - MP_FLASH_SIZE_MAX)
 
 #define FLASH_WIDTH 2
@@ -205,7 +206,7 @@ int main(int argc, char **argv)
     char *image_path;
     int fd = g_file_open_tmp("pflash-cfi02-XXXXXX.raw", &image_path, &error);
     g_assert_no_error(error);
-    if (ftruncate(fd, 8 * 1024 * 1024) < 0) {
+    if (ftruncate(fd, 8 * MiB) < 0) {
         g_printerr("Failed to truncate file %s to 8 MB: %s\n", image_path,
                    strerror(errno));
         close(fd);
