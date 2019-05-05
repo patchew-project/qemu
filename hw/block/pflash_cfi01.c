@@ -762,7 +762,6 @@ static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
         pfl->max_device_width = pfl->device_width;
     }
 
-    pflash_reset(pfl);
     /* Hardcoded CFI table */
     /* Standard "QRY" string */
     pfl->cfi_table[0x10] = 'Q';
@@ -850,6 +849,11 @@ static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
     pfl->cfi_table[0x3f] = 0x01; /* Number of protection fields */
 }
 
+static void pflash_cfi01_reset(DeviceState *dev)
+{
+    pflash_reset(PFLASH_CFI01(dev));
+}
+
 static Property pflash_cfi01_properties[] = {
     DEFINE_PROP_DRIVE("drive", PFlashCFI01, blk),
     /* num-blocks is the number of blocks actually visible to the guest,
@@ -894,6 +898,7 @@ static void pflash_cfi01_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
+    dc->reset = pflash_cfi01_reset;
     dc->realize = pflash_cfi01_realize;
     dc->props = pflash_cfi01_properties;
     dc->vmsd = &vmstate_pflash;
