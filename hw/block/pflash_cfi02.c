@@ -46,15 +46,13 @@
 #include "hw/sysbus.h"
 #include "trace.h"
 
-//#define PFLASH_DEBUG
-#ifdef PFLASH_DEBUG
+#define PFLASH_DEBUG false
 #define DPRINTF(fmt, ...)                                  \
 do {                                                       \
-    fprintf(stderr, "PFLASH: " fmt , ## __VA_ARGS__);       \
+    if (PFLASH_DEBUG) {                                    \
+        fprintf(stderr, "PFLASH: " fmt, ## __VA_ARGS__);   \
+    }                                                      \
 } while (0)
-#else
-#define DPRINTF(fmt, ...) do { } while (0)
-#endif
 
 #define PFLASH_LAZY_ROMD_THRESHOLD 42
 
@@ -220,14 +218,14 @@ static uint32_t pflash_read(PFlashCFI02 *pfl, hwaddr offset,
         default:
             goto flash_read;
         }
-        DPRINTF("%s: ID " TARGET_FMT_plx " %x\n", __func__, boff, ret);
+        DPRINTF("%s: ID " TARGET_FMT_plx " %" PRIx32 "\n", __func__, boff, ret);
         break;
     case 0xA0:
     case 0x10:
     case 0x30:
         /* Status register read */
         ret = pfl->status;
-        DPRINTF("%s: status %x\n", __func__, ret);
+        DPRINTF("%s: status %" PRIx32 "\n", __func__, ret);
         /* Toggle bit 6 */
         pfl->status ^= 0x40;
         break;
@@ -277,7 +275,7 @@ static void pflash_write(PFlashCFI02 *pfl, hwaddr offset,
     trace_pflash_write(offset, value, width, pfl->wcycle);
     offset &= pfl->chip_len - 1;
 
-    DPRINTF("%s: offset " TARGET_FMT_plx " %08x %d\n", __func__,
+    DPRINTF("%s: offset " TARGET_FMT_plx " %08" PRIx32 " %d\n", __func__,
             offset, value, width);
     boff = offset & (pfl->sector_len - 1);
     if (pfl->width == 2)
