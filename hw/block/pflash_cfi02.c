@@ -120,6 +120,17 @@ static void pflash_register_memory(PFlashCFI02 *pfl, int rom_mode)
     pfl->rom_mode = rom_mode;
 }
 
+static void pflash_reset(PFlashCFI02 *pfl)
+{
+    trace_pflash_reset();
+    timer_del(&pfl->timer);
+    pfl->bypass = 0;
+    pfl->wcycle = 0;
+    pfl->cmd = 0;
+    pfl->status = 0;
+    pflash_register_memory(pfl, 1);
+}
+
 static void pflash_timer (void *opaque)
 {
     PFlashCFI02 *pfl = opaque;
@@ -129,11 +140,10 @@ static void pflash_timer (void *opaque)
     pfl->status ^= 0x80;
     if (pfl->bypass) {
         pfl->wcycle = 2;
+        pfl->cmd = 0;
     } else {
-        pflash_register_memory(pfl, 1);
-        pfl->wcycle = 0;
+        pflash_reset(pfl);
     }
-    pfl->cmd = 0;
 }
 
 static uint32_t pflash_read(PFlashCFI02 *pfl, hwaddr offset,
@@ -481,10 +491,7 @@ static void pflash_write(PFlashCFI02 *pfl, hwaddr offset,
 
     /* Reset flash */
  reset_flash:
-    trace_pflash_reset();
-    pfl->bypass = 0;
-    pfl->wcycle = 0;
-    pfl->cmd = 0;
+    pflash_reset(pfl);
     return;
 
  do_bypass:
@@ -588,9 +595,7 @@ static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &pfl->mem);
 
     timer_init_ns(&pfl->timer, QEMU_CLOCK_VIRTUAL, pflash_timer, pfl);
-    pfl->wcycle = 0;
-    pfl->cmd = 0;
-    pfl->status = 0;
+    pflash_reset(pfl);
     /* Hardcoded CFI table (mostly from SG29 Spansion flash) */
     /* Standard "QRY" string */
     pfl->cfi_table[0x10] = 'Q';
