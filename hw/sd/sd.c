@@ -96,8 +96,8 @@ struct SDState {
     BlockBackend *blk;
     bool spi;
 
-    uint32_t mode;    /* current card mode, one of SDCardModes */
-    int32_t state;    /* current card state, one of SDCardStates */
+    enum SDCardModes mode;
+    enum SDCardStates state;
     uint32_t vhs;
     bool wp_switch;
     unsigned long *wp_groups;
@@ -1640,7 +1640,7 @@ static int cmd_valid_while_locked(SDState *sd, SDRequest *req)
 
 int sd_do_command(SDState *sd, SDRequest *req,
                   uint8_t *response) {
-    int last_state;
+    enum SDCardStates last_state;
     sd_rsp_type_t rtype;
     int rsplen;
 
