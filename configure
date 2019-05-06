@@ -2792,8 +2792,7 @@ if test "$gnutls" != "no"; then
         # At least ubuntu 18.04 ships only shared libraries.
         write_c_skeleton
         if compile_prog "" "$gnutls_libs" ; then
-            libs_softmmu="$gnutls_libs $libs_softmmu"
-            libs_tools="$gnutls_libs $libs_tools"
+            LIBS="$gnutls_libs $LIBS"
             QEMU_CFLAGS="$QEMU_CFLAGS $gnutls_cflags"
             pass="yes"
         fi
@@ -2860,8 +2859,7 @@ if test "$nettle" != "no"; then
         nettle_cflags=$($pkg_config --cflags nettle)
         nettle_libs=$($pkg_config --libs nettle)
         nettle_version=$($pkg_config --modversion nettle)
-        libs_softmmu="$nettle_libs $libs_softmmu"
-        libs_tools="$nettle_libs $libs_tools"
+        LIBS="$nettle_libs $LIBS"
         QEMU_CFLAGS="$QEMU_CFLAGS $nettle_cflags"
         nettle="yes"
 
@@ -2888,8 +2886,7 @@ if test "$gcrypt" != "no"; then
         then
             gcrypt_libs="$gcrypt_libs -lgpg-error"
         fi
-        libs_softmmu="$gcrypt_libs $libs_softmmu"
-        libs_tools="$gcrypt_libs $libs_tools"
+        LIBS="$gcrypt_libs $LIBS"
         QEMU_CFLAGS="$QEMU_CFLAGS $gcrypt_cflags"
         gcrypt="yes"
 
