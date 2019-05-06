@@ -1766,19 +1766,25 @@ static target_ulong h_update_dt(PowerPCCPU *cpu, SpaprMachineState *spapr,
     cpu_physical_memory_read(dt, &hdr, sizeof(hdr));
     cb = fdt32_to_cpu(hdr.totalsize);
 
-    if (!smc->update_dt_enabled) {
-        return H_SUCCESS;
-    }
+    if (!spapr->dumpdtb_slof) {
+        if (!smc->update_dt_enabled) {
+            return H_SUCCESS;
+        }
 
-    /* Check that the fdt did not grow out of proportion */
-    if (cb > spapr->fdt_initial_size * 2) {
-        trace_spapr_update_dt_failed_size(spapr->fdt_initial_size, cb,
-                                          fdt32_to_cpu(hdr.magic));
-        return H_PARAMETER;
+        /* Check that the fdt did not grow out of proportion */
+        if (cb > spapr->fdt_initial_size * 2) {
+            trace_spapr_update_dt_failed_size(spapr->fdt_initial_size, cb,
+                                              fdt32_to_cpu(hdr.magic));
+            return H_PARAMETER;
+        }
     }
 
     fdt = g_malloc0(cb);
     cpu_physical_memory_read(dt, fdt, cb);
+
+    if (spapr->dumpdtb_slof) {
+        exit(g_file_set_contents(spapr->dumpdtb_slof, fdt, cb, NULL) ? 0 : 1);
+    }
 
     /* Check the fdt consistency */
     if (fdt_check_full(fdt, cb)) {

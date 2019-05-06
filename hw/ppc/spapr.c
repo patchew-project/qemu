@@ -3324,6 +3324,19 @@ static void spapr_set_host_serial(Object *obj, const char *value, Error **errp)
     spapr->host_serial = g_strdup(value);
 }
 
+static char *spapr_get_dumpdtb_slof(Object *obj, Error **errp)
+{
+    return g_strdup(SPAPR_MACHINE(obj)->dumpdtb_slof);
+}
+
+static void spapr_set_dumpdtb_slof(Object *obj, const char *value, Error **errp)
+{
+    SpaprMachineState *spapr = SPAPR_MACHINE(obj);
+
+    g_free(spapr->dumpdtb_slof);
+    spapr->dumpdtb_slof = g_strdup(value);
+}
+
 static void spapr_instance_init(Object *obj)
 {
     SpaprMachineState *spapr = SPAPR_MACHINE(obj);
@@ -3380,6 +3393,12 @@ static void spapr_instance_init(Object *obj)
         &error_abort);
     object_property_set_description(obj, "host-serial",
         "Host serial number to advertise in guest device tree", &error_abort);
+
+    object_property_add_str(obj, "dumpdtb-slof", spapr_get_dumpdtb_slof,
+                            spapr_set_dumpdtb_slof, &error_abort);
+    object_property_set_description(obj, "dumpdtb-slof",
+                                    "Dump SLOF dtb to a file and quit",
+                                    &error_abort);
 }
 
 static void spapr_machine_finalizefn(Object *obj)
