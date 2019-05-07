@@ -3535,6 +3535,11 @@ int main(int argc, char **argv, char **envp)
                 QemuOpts *fsdev;
                 QemuOpts *device;
 
+                warn_report("The -virtfs_synth option is deprecated and will "
+                            "be removed soon. If the -virtfs_synth option is "
+                            "still useful for you, please send a mail to "
+                            "qemu-devel@nongnu.org with your usecase.");
+
                 fsdev = qemu_opts_create(qemu_find_opts("fsdev"), "v_synth",
                                          1, NULL);
                 if (!fsdev) {
