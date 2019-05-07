@@ -50,7 +50,6 @@ _supported_proto file
 _supported_os Linux
 _require_command QEMU_NBD
 
-nbd_server_set_tcp_port
 tls_x509_init
 
 echo
