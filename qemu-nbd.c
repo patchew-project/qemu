@@ -59,6 +59,7 @@
 #define QEMU_NBD_OPT_IMAGE_OPTS    262
 #define QEMU_NBD_OPT_FORK          263
 #define QEMU_NBD_OPT_TLSAUTHZ      264
+#define QEMU_NBD_OPT_PID_FILE      265
 
 #define MBR_SIZE 512
 
@@ -111,6 +112,7 @@ static void usage(const char *name)
 "                            specify tracing options\n"
 "  --fork                    fork off the server process and exit the parent\n"
 "                            once the server is running\n"
+"  --pid-file=PATH           store the server's process ID in the given file\n"
 #if HAVE_NBD_DEVICE
 "\n"
 "Kernel NBD client support:\n"
@@ -651,6 +653,7 @@ int main(int argc, char **argv)
         { "image-opts", no_argument, NULL, QEMU_NBD_OPT_IMAGE_OPTS },
         { "trace", required_argument, NULL, 'T' },
         { "fork", no_argument, NULL, QEMU_NBD_OPT_FORK },
+        { "pid-file", required_argument, NULL, QEMU_NBD_OPT_PID_FILE },
         { NULL, 0, NULL, 0 }
     };
     int ch;
@@ -677,6 +680,8 @@ int main(int argc, char **argv)
     bool list = false;
     int old_stderr = -1;
     unsigned socket_activation;
+    const char *pid_path = NULL;
+    FILE *pid_file;
 
     /* The client thread uses SIGTERM to interrupt the server.  A signal
      * handler ensures that "qemu-nbd -v -c" exits with a nice status code.
@@ -875,6 +880,9 @@ int main(int argc, char **argv)
             break;
         case 'L':
             list = true;
+            break;
+        case QEMU_NBD_OPT_PID_FILE:
+            pid_path = optarg;
             break;
         }
     }
@@ -1195,6 +1203,27 @@ int main(int argc, char **argv)
     }
 
     nbd_update_server_watch();
+
+    if (pid_path) {
+        pid_file = fopen(pid_path, "w");
+        if (!pid_file) {
+            error_report("Failed to store PID in %s: %s",
+                         pid_path, strerror(errno));
+            exit(EXIT_FAILURE);
+        }
+
+        ret = fprintf(pid_file, "%ld", (long)getpid());
+        if (ret < 0) {
+            ret = -errno;
+        }
+        fclose(pid_file);
+
+        if (ret < 0) {
+            error_report("Failed to store PID in %s: %s",
+                         pid_path, strerror(-ret));
+            exit(EXIT_FAILURE);
+        }
+    }
 
     /* now when the initialization is (almost) complete, chdir("/")
      * to free any busy filesystems */
