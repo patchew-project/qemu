@@ -66,6 +66,7 @@
 #include "hw/i386/intel_iommu.h"
 
 #include "hw/acpi/ipmi.h"
+#include "hw/acpi/hmat.h"
 
 /* These are used to size the ACPI tables for -M pc-i440fx-1.7 and
  * -M pc-i440fx-2.0.  Even if the actual amount of AML generated grows
@@ -2397,13 +2398,13 @@ build_srat(GArray *table_data, BIOSLinker *linker, MachineState *machine)
 
     for (i = 0; i < mem_ranges_num; i++) {
         if (mem_ranges[i].length > 0) {
-                numamem = acpi_data_push(table_data, sizeof *numamem);
+            numamem = acpi_data_push(table_data, sizeof *numamem);
             build_srat_memory(numamem, mem_ranges[i].base,
                               mem_ranges[i].length,
                               mem_ranges[i].node,
-                                  MEM_AFFINITY_ENABLED);
-            }
-            }
+                              MEM_AFFINITY_ENABLED);
+        }
+    }
     slots = (table_data->len - numa_start) / sizeof *numamem;
     for (; slots < pcms->numa_nodes + 2; slots++) {
         numamem = acpi_data_push(table_data, sizeof *numamem);
@@ -2713,6 +2714,8 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
             acpi_add_table(table_offsets, tables_blob);
             build_slit(tables_blob, tables->linker, machine);
         }
+        acpi_add_table(table_offsets, tables_blob);
+        hmat_build_acpi(tables_blob, tables->linker, machine);
     }
     if (acpi_get_mcfg(&mcfg)) {
         acpi_add_table(table_offsets, tables_blob);
