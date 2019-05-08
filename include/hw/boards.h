@@ -263,6 +263,9 @@ typedef struct NumaState {
 
     /* NUMA memory ranges */
     NumaMemRange mem_ranges[MAX_NODES + 2];
+
+    /* NUMA modes HMAT Locality Latency and Bandwidth Information */
+    HMAT_LB_Info *hmat_lb[HMAT_LB_LEVELS][HMAT_LB_TYPES];
 } NumaState;
 
 /**

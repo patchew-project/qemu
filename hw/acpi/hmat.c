@@ -29,6 +29,9 @@
 #include "hw/acpi/hmat.h"
 #include "hw/nvram/fw_cfg.h"
 
+static uint32_t initiator_pxm[MAX_NODES], target_pxm[MAX_NODES];
+static uint32_t num_initiator, num_target;
+
 /* Build Memory Subsystem Address Range Structure */
 static void build_hmat_spa(GArray *table_data, MachineState *ms,
                            uint64_t base, uint64_t length, int node)
@@ -77,6 +80,20 @@ static int pc_dimm_device_list(Object *obj, void *opaque)
     return 0;
 }
 
+static void classify_proximity_domains(MachineState *ms)
+{
+    int node;
+
+    for (node = 0; node < ms->numa_state->num_nodes; node++) {
+        if (ms->numa_state->nodes[node].is_initiator) {
+            initiator_pxm[num_initiator++] = node;
+        }
+        if (ms->numa_state->nodes[node].is_target) {
+            target_pxm[num_target++] = node;
+        }
+    }
+}
+
 /*
  * The Proximity Domain of System Physical Address ranges defined
  * in the HMAT, NFIT and SRAT tables shall match each other.
@@ -85,9 +102,10 @@ static void hmat_build_hma(GArray *table_data, MachineState *ms)
 {
     GSList *device_list = NULL;
     uint64_t mem_base, mem_len;
-    int i;
+    int i, j, hrchy, type;
     uint32_t mem_ranges_num = ms->numa_state->mem_ranges_num;
     NumaMemRange *mem_ranges = ms->numa_state->mem_ranges;
+    HMAT_LB_Info *numa_hmat_lb;
 
     PCMachineState *pcms = PC_MACHINE(ms);
     AcpiDeviceIfClass *adevc = ACPI_DEVICE_IF_GET_CLASS(pcms->acpi_dev);
@@ -116,6 +134,83 @@ static void hmat_build_hma(GArray *table_data, MachineState *ms)
                                            NULL);
         i = object_property_get_uint(OBJECT(dimm), PC_DIMM_NODE_PROP, NULL);
         build_hmat_spa(table_data, ms, mem_base, mem_len, i);
+    }
+
+    if (!num_initiator && !num_target) {
+        classify_proximity_domains(ms);
+    }
+
+    /* Build HMAT System Locality Latency and Bandwidth Information. */
+    for (hrchy = HMAT_LB_MEM_MEMORY;
+         hrchy <= HMAT_LB_MEM_CACHE_3RD_LEVEL; hrchy++) {
+        for (type = HMAT_LB_DATA_ACCESS_LATENCY;
+             type <= HMAT_LB_DATA_WRITE_BANDWIDTH; type++) {
+            numa_hmat_lb = ms->numa_state->hmat_lb[hrchy][type];
+
+            if (numa_hmat_lb) {
+                uint32_t s = num_initiator;
+                uint32_t t = num_target;
+                uint8_t m, n;
+
+                /* Type */
+                build_append_int_noprefix(table_data, 1, 2);
+                /* Reserved */
+                build_append_int_noprefix(table_data, 0, 2);
+                /* Length */
+                build_append_int_noprefix(table_data,
+                                          32 + 4 * s + 4 * t + 2 * s * t, 4);
+                /* Flags */
+                build_append_int_noprefix(table_data,
+                                          numa_hmat_lb->hierarchy, 1);
+                /* Data Type */
+                build_append_int_noprefix(table_data,
+                                          numa_hmat_lb->data_type, 1);
+                /* Reserved */
+                build_append_int_noprefix(table_data, 0, 2);
+                /* Number of Initiator Proximity Domains (s) */
+                build_append_int_noprefix(table_data, s, 4);
+                /* Number of Target Proximity Domains (t) */
+                build_append_int_noprefix(table_data, t, 4);
+                /* Reserved */
+                build_append_int_noprefix(table_data, 0, 4);
+
+                /* Entry Base Unit */
+                if (type <= HMAT_LB_DATA_WRITE_LATENCY) {
+                    build_append_int_noprefix(table_data,
+                                              numa_hmat_lb->base_lat, 8);
+                } else {
+                    build_append_int_noprefix(table_data,
+                                              numa_hmat_lb->base_bw, 8);
+                }
+
+                /* Initiator Proximity Domain List */
+                for (i = 0; i < s; i++) {
+                    build_append_int_noprefix(table_data, initiator_pxm[i], 4);
+                }
+
+                /* Target Proximity Domain List */
+                for (i = 0; i < t; i++) {
+                    build_append_int_noprefix(table_data, target_pxm[i], 4);
+                }
+
+                /* Latency or Bandwidth Entries */
+                for (i = 0; i < s; i++) {
+                    m = initiator_pxm[i];
+                    for (j = 0; j < t; j++) {
+                        n = target_pxm[j];
+                        uint16_t entry;
+
+                        if (type <= HMAT_LB_DATA_WRITE_LATENCY) {
+                            entry = numa_hmat_lb->latency[m][n];
+                        } else {
+                            entry = numa_hmat_lb->bandwidth[m][n];
+                        }
+
+                        build_append_int_noprefix(table_data, entry, 2);
+                    }
+                }
+            }
+        }
     }
 }
 
