@@ -145,6 +145,7 @@ typedef struct BDRVRawState {
     uint64_t locked_shared_perm;
 
     int perm_change_fd;
+    int perm_change_flags;
     BDRVReopenState *reopen_state;
 
 #ifdef CONFIG_XFS
@@ -2754,6 +2755,7 @@ static int raw_check_perm(BlockDriverState *bs, uint64_t perm, uint64_t shared,
         assert(s->reopen_state->shared_perm == shared);
         rs = s->reopen_state->opaque;
         s->perm_change_fd = rs->fd;
+        s->perm_change_flags = rs->open_flags;
     } else {
         /* We may need a new fd if auto-read-only switches the mode */
         ret = raw_reconfigure_getfd(bs, bs->open_flags, &open_flags, perm,
@@ -2762,6 +2764,7 @@ static int raw_check_perm(BlockDriverState *bs, uint64_t perm, uint64_t shared,
             return ret;
         } else if (ret != s->fd) {
             s->perm_change_fd = ret;
+            s->perm_change_flags = open_flags;
         }
     }
 
@@ -2800,6 +2803,7 @@ static void raw_set_perm(BlockDriverState *bs, uint64_t perm, uint64_t shared)
     if (s->perm_change_fd && s->fd != s->perm_change_fd) {
         qemu_close(s->fd);
         s->fd = s->perm_change_fd;
+        s->open_flags = s->perm_change_flags;
     }
     s->perm_change_fd = 0;
 
