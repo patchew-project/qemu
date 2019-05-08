@@ -1,0 +1,1 @@
+obj-y += rx62n.o rxqemu.o
