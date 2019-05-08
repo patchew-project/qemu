@@ -169,10 +169,6 @@ struct CPURISCVState {
 
     float_status fp_status;
 
-    /* QEMU */
-    CPU_COMMON
-
-    /* Fields from here on are preserved across CPU reset. */
     QEMUTimer *timer; /* Internal timer */
 };
 
