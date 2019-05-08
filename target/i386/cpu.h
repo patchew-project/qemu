@@ -1368,6 +1368,7 @@ struct X86CPU {
     CPUState parent_obj;
     /*< public >*/
 
+    CPUNegativeOffsetState neg;
     CPUX86State env;
 
     bool hyperv_vapic;
