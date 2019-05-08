@@ -115,7 +115,12 @@ struct hpet_fw_config hpet_cfg = {.count = UINT8_MAX};
 /* Physical Address of PVH entry point read from kernel ELF NOTE */
 static size_t pvh_start_addr;
 
-GlobalProperty pc_compat_4_0[] = {};
+GlobalProperty pc_compat_4_0[] = {
+    { "Cascadelake-Server" "-" TYPE_X86_CPU, "arch-capabilities", "off" },
+    { "Cascadelake-Server" "-" TYPE_X86_CPU, "rdctl-no", "off" },
+    { "Cascadelake-Server" "-" TYPE_X86_CPU, "ibrs-all", "off" },
+    { "Cascadelake-Server" "-" TYPE_X86_CPU, "skip-l1dfl-vmentry", "off" },
+};
 const size_t pc_compat_4_0_len = G_N_ELEMENTS(pc_compat_4_0);
 
 GlobalProperty pc_compat_3_1[] = {
