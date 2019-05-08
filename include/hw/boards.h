@@ -240,6 +240,12 @@ struct NodeInfo {
     uint8_t distance[MAX_NODES];
 };
 
+typedef struct NumaMemRange {
+    uint64_t base;
+    uint64_t length;
+    uint32_t node;
+} NumaMemRange;
+
 typedef struct NumaState {
     /* Number of NUMA nodes */
     int num_nodes;
@@ -249,6 +255,12 @@ typedef struct NumaState {
 
     /* NUMA nodes information */
     NodeInfo nodes[MAX_NODES];
+
+    /* Number of NUMA memory ranges */
+    uint32_t mem_ranges_num;
+
+    /* NUMA memory ranges */
+    NumaMemRange mem_ranges[MAX_NODES + 2];
 } NumaState;
 
 /**

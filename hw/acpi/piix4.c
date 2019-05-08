@@ -702,6 +702,7 @@ static void piix4_pm_class_init(ObjectClass *klass, void *data)
     adevc->ospm_status = piix4_ospm_status;
     adevc->send_event = piix4_send_gpe;
     adevc->madt_cpu = pc_madt_cpu_entry;
+    adevc->build_mem_ranges = pc_build_mem_ranges;
 }
 
 static const TypeInfo piix4_pm_info = {
