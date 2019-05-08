@@ -2089,11 +2089,20 @@ static void bdrv_child_abort_perm_update(BdrvChild *c)
 int bdrv_child_try_set_perm(BdrvChild *c, uint64_t perm, uint64_t shared,
                             Error **errp)
 {
+    Error *local_err = NULL;
     int ret;
+    bool tighten_restrictions;
 
-    ret = bdrv_child_check_perm(c, NULL, perm, shared, NULL, NULL, errp);
+    ret = bdrv_child_check_perm(c, NULL, perm, shared, NULL,
+                                &tighten_restrictions, &local_err);
     if (ret < 0) {
         bdrv_child_abort_perm_update(c);
+        if (tighten_restrictions) {
+            error_propagate(errp, local_err);
+        } else {
+            warn_reportf_err(local_err, "Failed to loosen restrictions: ");
+            ret = 0;
+        }
         return ret;
     }
 
@@ -2276,10 +2285,20 @@ static void bdrv_replace_child(BdrvChild *child, BlockDriverState *new_bs)
         /* Update permissions for old node. This is guaranteed to succeed
          * because we're just taking a parent away, so we're loosening
          * restrictions. */
+        bool tighten_restrictions;
+        Error *local_err = NULL;
+        int ret;
+
         bdrv_get_cumulative_perm(old_bs, &perm, &shared_perm);
-        bdrv_check_perm(old_bs, NULL, perm, shared_perm, NULL,
-                        NULL, &error_abort);
-        bdrv_set_perm(old_bs, perm, shared_perm);
+        ret = bdrv_check_perm(old_bs, NULL, perm, shared_perm, NULL,
+                              &tighten_restrictions, &local_err);
+        assert(tighten_restrictions == false);
+        if (ret < 0) {
+            warn_reportf_err(local_err, "Failed to loosen restrictions: ");
+            bdrv_abort_perm_update(old_bs);
+        } else {
+            bdrv_set_perm(old_bs, perm, shared_perm);
+        }
     }
 }
 
@@ -5323,7 +5342,9 @@ static bool bdrv_has_bds_parent(BlockDriverState *bs, bool only_active)
 static int bdrv_inactivate_recurse(BlockDriverState *bs)
 {
     BdrvChild *child, *parent;
+    bool tighten_restrictions;
     uint64_t perm, shared_perm;
+    Error *local_err = NULL;
     int ret;
 
     if (!bs->drv) {
@@ -5359,8 +5380,15 @@ static int bdrv_inactivate_recurse(BlockDriverState *bs)
 
     /* Update permissions, they may differ for inactive nodes */
     bdrv_get_cumulative_perm(bs, &perm, &shared_perm);
-    bdrv_check_perm(bs, NULL, perm, shared_perm, NULL, NULL, &error_abort);
-    bdrv_set_perm(bs, perm, shared_perm);
+    ret = bdrv_check_perm(bs, NULL, perm, shared_perm, NULL,
+                          &tighten_restrictions, &local_err);
+    assert(tighten_restrictions == false);
+    if (ret < 0) {
+        warn_reportf_err(local_err, "Failed to loosen restrictions: ");
+        bdrv_abort_perm_update(bs);
+    } else {
+        bdrv_set_perm(bs, perm, shared_perm);
+    }
 
 
     /* Recursively inactivate children */
