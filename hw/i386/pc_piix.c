@@ -58,6 +58,7 @@
 #include "migration/misc.h"
 #include "kvm_i386.h"
 #include "sysemu/numa.h"
+#include "hw/acpi/hmat.h"
 
 #define MAX_IDE_BUS 2
 
@@ -301,6 +302,9 @@ static void pc_init1(MachineState *machine,
         nvdimm_init_acpi_state(machine->nvdimms_state, system_io,
                                pcms->fw_cfg, OBJECT(pcms));
     }
+
+    hmat_init_acpi_state(machine->acpi_hma_state, system_io,
+                         pcms->fw_cfg, OBJECT(pcms));
 }
 
 /* Looking for a pc_compat_2_4() function? It doesn't exist.

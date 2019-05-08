@@ -315,6 +315,7 @@ struct MachineState {
     CPUArchIdList *possible_cpus;
     struct NVDIMMState *nvdimms_state;
     NumaState *numa_state;
+    AcpiHmaState *acpi_hma_state;
 };
 
 #define DEFINE_MACHINE(namestr, machine_initfn) \

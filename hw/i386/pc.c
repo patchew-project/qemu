@@ -77,6 +77,7 @@
 #include "hw/i386/intel_iommu.h"
 #include "hw/net/ne2000-isa.h"
 #include "standard-headers/asm-x86/bootparam.h"
+#include "hw/acpi/hmat.h"
 
 /* debug PC/ISA interrupts */
 //#define DEBUG_IRQ
@@ -2129,6 +2130,8 @@ static void pc_memory_plug(HotplugHandler *hotplug_dev,
     if (is_nvdimm) {
         nvdimm_plug(ms->nvdimms_state);
     }
+
+    hmat_update(ms);
 
     hotplug_handler_plug(HOTPLUG_HANDLER(pcms->acpi_dev), dev, &error_abort);
 out:

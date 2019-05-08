@@ -23,6 +23,7 @@
 #include "sysemu/qtest.h"
 #include "hw/pci/pci.h"
 #include "hw/mem/nvdimm.h"
+#include "hw/acpi/hmat.h"
 
 GlobalProperty hw_compat_4_0[] = {};
 const size_t hw_compat_4_0_len = G_N_ELEMENTS(hw_compat_4_0);
@@ -876,6 +877,7 @@ static void machine_initfn(Object *obj)
 
     if (mc->numa_supported) {
         ms->numa_state = g_new0(NumaState, 1);
+        ms->acpi_hma_state = g_new0(AcpiHmaState, 1);
     } else {
         ms->numa_state = NULL;
     }
@@ -900,6 +902,7 @@ static void machine_finalize(Object *obj)
     g_free(ms->device_memory);
     g_free(ms->nvdimms_state);
     g_free(ms->numa_state);
+    g_free(ms->acpi_hma_state);
 }
 
 bool machine_usb(MachineState *machine)

@@ -5,6 +5,7 @@
    pull in all the real definitions.  */
 
 /* Please keep this list in case-insensitive alphabetical order */
+typedef struct AcpiHmaState AcpiHmaState;
 typedef struct AdapterInfo AdapterInfo;
 typedef struct AddressSpace AddressSpace;
 typedef struct AioContext AioContext;

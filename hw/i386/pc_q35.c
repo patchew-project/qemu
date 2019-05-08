@@ -54,6 +54,7 @@
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "sysemu/numa.h"
+#include "hw/acpi/hmat.h"
 
 /* ICH9 AHCI has 6 ports */
 #define MAX_SATA_PORTS     6
@@ -333,6 +334,9 @@ static void pc_q35_init(MachineState *machine)
         nvdimm_init_acpi_state(machine->nvdimms_state, system_io,
                                pcms->fw_cfg, OBJECT(pcms));
     }
+
+    hmat_init_acpi_state(machine->acpi_hma_state, system_io,
+                         pcms->fw_cfg, OBJECT(pcms));
 }
 
 #define DEFINE_Q35_MACHINE(suffix, name, compatfn, optionfn) \
