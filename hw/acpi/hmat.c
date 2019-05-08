@@ -102,10 +102,11 @@ static void hmat_build_hma(GArray *table_data, MachineState *ms)
 {
     GSList *device_list = NULL;
     uint64_t mem_base, mem_len;
-    int i, j, hrchy, type;
+    int i, j, hrchy, type, level;
     uint32_t mem_ranges_num = ms->numa_state->mem_ranges_num;
     NumaMemRange *mem_ranges = ms->numa_state->mem_ranges;
     HMAT_LB_Info *numa_hmat_lb;
+    HMAT_Cache_Info *numa_hmat_cache = NULL;
 
     PCMachineState *pcms = PC_MACHINE(ms);
     AcpiDeviceIfClass *adevc = ACPI_DEVICE_IF_GET_CLASS(pcms->acpi_dev);
@@ -209,6 +210,53 @@ static void hmat_build_hma(GArray *table_data, MachineState *ms)
                         build_append_int_noprefix(table_data, entry, 2);
                     }
                 }
+            }
+        }
+    }
+
+    /* Build HMAT Memory Side Cache Information. */
+    for (i = 0; i < ms->numa_state->num_nodes; i++) {
+        for (level = 0; level <= MAX_HMAT_CACHE_LEVEL; level++) {
+            numa_hmat_cache = ms->numa_state->hmat_cache[i][level];
+            if (numa_hmat_cache) {
+                uint16_t n = numa_hmat_cache->num_smbios_handles;
+                uint32_t cache_attr = HMAT_CACHE_TOTAL_LEVEL(
+                                      numa_hmat_cache->total_levels);
+                cache_attr |= HMAT_CACHE_CURRENT_LEVEL(
+                              numa_hmat_cache->level);
+                cache_attr |= HMAT_CACHE_ASSOC(
+                                          numa_hmat_cache->associativity);
+                cache_attr |= HMAT_CACHE_WRITE_POLICY(
+                                          numa_hmat_cache->write_policy);
+                cache_attr |= HMAT_CACHE_LINE_SIZE(
+                                          numa_hmat_cache->line_size);
+                cache_attr = cpu_to_le32(cache_attr);
+
+                /* Memory Side Cache Information Structure */
+                /* Type */
+                build_append_int_noprefix(table_data, 2, 2);
+                /* Reserved */
+                build_append_int_noprefix(table_data, 0, 2);
+                /* Length */
+                build_append_int_noprefix(table_data, 32 + 2 * n, 4);
+                /* Proximity Domain for the Memory */
+                build_append_int_noprefix(table_data,
+                                          numa_hmat_cache->mem_proximity, 4);
+                /* Reserved */
+                build_append_int_noprefix(table_data, 0, 4);
+                /* Memory Side Cache Size */
+                build_append_int_noprefix(table_data,
+                                          numa_hmat_cache->size, 8);
+                /* Cache Attributes */
+                build_append_int_noprefix(table_data, cache_attr, 4);
+                /* Reserved */
+                build_append_int_noprefix(table_data, 0, 2);
+                /* Number of SMBIOS handles (n) */
+                build_append_int_noprefix(table_data, n, 2);
+
+                /* SMBIOS Handles */
+                /* TBD: set smbios handles */
+                build_append_int_noprefix(table_data, 0, 2 * n);
             }
         }
     }
