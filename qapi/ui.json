@@ -1170,3 +1170,14 @@
 ##
 { 'command': 'query-display-options',
   'returns': 'DisplayOptions' }
+
+##
+# @RngRandomMode:
+#
+# Value to select random number generation mode in rng-random backend
+#
+# Since: 4.1
+#
+##
+{ 'enum': 'RngRandomMode',
+  'data': [ 'file', 'getrandom' ] }

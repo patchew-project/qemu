@@ -14,13 +14,16 @@
 #include "sysemu/rng-random.h"
 #include "sysemu/rng.h"
 #include "qapi/error.h"
+#include "qapi/qapi-types-ui.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/main-loop.h"
+#include "qemu/guest-random.h"
 
 struct RngRandom
 {
     RngBackend parent;
 
+    RngRandomMode mode;
     int fd;
     char *filename;
 };
@@ -59,10 +62,27 @@ static void rng_random_request_entropy(RngBackend *b, RngRequest *req)
 {
     RngRandom *s = RNG_RANDOM(b);
 
-    if (QSIMPLEQ_EMPTY(&s->parent.requests)) {
-        /* If there are no pending requests yet, we need to
-         * install our fd handler. */
-        qemu_set_fd_handler(s->fd, entropy_available, NULL, s);
+    switch (s->mode) {
+    case RNG_RANDOM_MODE_FILE:
+        if (QSIMPLEQ_EMPTY(&s->parent.requests)) {
+            /* If there are no pending requests yet, we need to
+             * install our fd handler. */
+            qemu_set_fd_handler(s->fd, entropy_available, NULL, s);
+        }
+        break;
+    case RNG_RANDOM_MODE_GETRANDOM:
+        while (!QSIMPLEQ_EMPTY(&s->parent.requests)) {
+            RngRequest *req = QSIMPLEQ_FIRST(&s->parent.requests);
+
+            qemu_guest_getrandom_nofail(req->data, req->size);
+
+            req->receive_entropy(req->opaque, req->data, req->size);
+
+            rng_backend_finalize_request(&s->parent, req);
+        }
+        break;
+    default:
+        break;
     }
 }
 
@@ -70,15 +90,38 @@ static void rng_random_opened(RngBackend *b, Error **errp)
 {
     RngRandom *s = RNG_RANDOM(b);
 
-    if (s->filename == NULL) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
-                   "filename", "a valid filename");
-    } else {
-        s->fd = qemu_open(s->filename, O_RDONLY | O_NONBLOCK);
-        if (s->fd == -1) {
-            error_setg_file_open(errp, errno, s->filename);
+    switch (s->mode) {
+    case RNG_RANDOM_MODE_FILE:
+        if (s->filename == NULL) {
+            error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
+                       "filename", "a valid filename");
+        } else {
+            s->fd = qemu_open(s->filename, O_RDONLY | O_NONBLOCK);
+            if (s->fd == -1) {
+                error_setg_file_open(errp, errno, s->filename);
+            }
         }
+        break;
+    case RNG_RANDOM_MODE_GETRANDOM:
+        break;
+    default:
+        break;
     }
+}
+
+static int rng_random_get_mode(Object *obj, Error **errp)
+{
+    RngRandom *s = RNG_RANDOM(obj);
+
+    return s->mode;
+}
+
+static void rng_random_set_mode(Object *obj, int value,
+                                       Error **errp)
+{
+    RngRandom *s = RNG_RANDOM(obj);
+
+    s->mode = value;
 }
 
 static char *rng_random_get_filename(Object *obj, Error **errp)
@@ -94,6 +137,11 @@ static void rng_random_set_filename(Object *obj, const char *filename,
     RngBackend *b = RNG_BACKEND(obj);
     RngRandom *s = RNG_RANDOM(obj);
 
+    if (s->mode != RNG_RANDOM_MODE_FILE) {
+        error_setg(errp, QERR_INVALID_PARAMETER, "filename");
+        return;
+    }
+
     if (b->opened) {
         error_setg(errp, QERR_PERMISSION_DENIED);
         return;
@@ -107,11 +155,17 @@ static void rng_random_init(Object *obj)
 {
     RngRandom *s = RNG_RANDOM(obj);
 
+    object_property_add_enum(obj, "mode", "RngRandomMode",
+                            &RngRandomMode_lookup,
+                            rng_random_get_mode,
+                            rng_random_set_mode,
+                            NULL);
     object_property_add_str(obj, "filename",
                             rng_random_get_filename,
                             rng_random_set_filename,
                             NULL);
 
+    s->mode = RNG_RANDOM_MODE_FILE;
     s->filename = g_strdup("/dev/random");
     s->fd = -1;
 }
