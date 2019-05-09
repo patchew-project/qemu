@@ -1119,29 +1119,38 @@ static int net_client_init(QemuOpts *opts, bool is_netdev, Error **errp)
         const char *ip6_net = qemu_opt_get(opts, "ipv6-net");
 
         if (ip6_net) {
-            char buf[strlen(ip6_net) + 1];
+            gchar **substrings;
+            char *prefix_addr;
+            unsigned long prefix_len = 64; /* Default 64bit prefix length. */
 
-            if (get_str_sep(buf, sizeof(buf), &ip6_net, '/') < 0) {
-                /* Default 64bit prefix length.  */
-                qemu_opt_set(opts, "ipv6-prefix", ip6_net, &error_abort);
-                qemu_opt_set_number(opts, "ipv6-prefixlen", 64, &error_abort);
-            } else {
+            substrings = g_strsplit(ip6_net, "/", 2);
+            if (!substrings || !substrings[0]) {
+                    error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
+                               "ipv6-net", "a valid IPv6 prefix");
+                    g_strfreev(substrings);
+                    goto out;
+            }
+
+            *prefix_addr = substrings[0];
+
+            if (substrings[1]) {
                 /* User-specified prefix length.  */
-                unsigned long len;
                 int err;
 
-                qemu_opt_set(opts, "ipv6-prefix", buf, &error_abort);
-                err = qemu_strtoul(ip6_net, NULL, 10, &len);
-
+                err = qemu_strtoul(substrings[1], NULL, 10, &prefix_len);
                 if (err) {
                     error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
                                "ipv6-prefixlen", "a number");
+                    g_strfreev(substrings);
                     goto out;
                 }
-
-                qemu_opt_set_number(opts, "ipv6-prefixlen", len, &error_abort);
             }
+
+            qemu_opt_set(opts, "ipv6-prefix", prefix_addr, &error_abort);
+            qemu_opt_set_number(opts, "ipv6-prefixlen", prefix_len,
+                                &error_abort);
             qemu_opt_unset(opts, "ipv6-net");
+            g_strfreev(substrings);
         }
     }
 
