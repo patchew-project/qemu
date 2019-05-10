@@ -241,6 +241,22 @@
   'base': 'ChardevCommon' }
 
 ##
+# @ChardevI2c:
+#
+# Configuration info for i2c chardev.
+#
+# @device: The name of the special file for the device,
+#          i.e. /dev/i2c-0 on linux
+# @address: The address of the i2c device on the host.
+#
+# Since: 4.1
+##
+{ 'struct': 'ChardevI2c',
+  'data': { 'device': 'str',
+            'address': 'int16'},
+  'base': 'ChardevCommon' }
+
+##
 # @ChardevSocket:
 #
 # Configuration info for (stream) socket chardevs.
@@ -398,6 +414,7 @@
   'data': { 'file': 'ChardevFile',
             'serial': 'ChardevHostdev',
             'parallel': 'ChardevHostdev',
+            'i2c': 'ChardevI2c',
             'pipe': 'ChardevHostdev',
             'socket': 'ChardevSocket',
             'udp': 'ChardevUdp',

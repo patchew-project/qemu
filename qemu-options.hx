@@ -2696,6 +2696,9 @@ DEF("chardev", HAS_ARG, QEMU_OPTION_chardev,
     "-chardev spicevmc,id=id,name=name[,debug=debug][,logfile=PATH][,logappend=on|off]\n"
     "-chardev spiceport,id=id,name=name[,debug=debug][,logfile=PATH][,logappend=on|off]\n"
 #endif
+#ifdef CONFIG_LINUX
+    "-chardev i2c,id=id,address=address[,path=path][,logfile=PATH][,logappend=on|off]\n"
+#endif
     , QEMU_ARCH_ALL
 )
 
@@ -2723,7 +2726,8 @@ Backend is one of:
 @option{parallel},
 @option{parport},
 @option{spicevmc},
-@option{spiceport}.
+@option{spiceport},
+@option{i2c}.
 The specific backend will determine the applicable options.
 
 Use @code{-chardev help} to print all available chardev backend types.
@@ -2990,6 +2994,14 @@ Connect to a spice virtual machine channel, such as vdiport.
 
 Connect to a spice port, allowing a Spice client to handle the traffic
 identified by a name (preferably a fqdn).
+
+@item -chardev i2c,id=@var{id},address=@var{address},path=@var{path}
+
+@option{path} i2c character device (Eg: /dev/i2c-N on Linux)
+
+@option{address} address of the slave device.
+
+I2C device support as a character device.
 ETEXI
 
 STEXI
