@@ -23,7 +23,8 @@
    See validate_guest_space in linux-user/elfload.c.  */
 #define MAX_RESERVED_VA  0xffff0000ul
 
-static inline void cpu_clone_regs(CPUARMState *env, target_ulong newsp)
+static inline void cpu_clone_regs(CPUARMState *env, CPUARMState *old_env,
+                                  target_ulong newsp)
 {
     if (newsp) {
         env->regs[13] = newsp;

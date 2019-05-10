@@ -19,7 +19,8 @@
 #ifndef AARCH64_TARGET_CPU_H
 #define AARCH64_TARGET_CPU_H
 
-static inline void cpu_clone_regs(CPUARMState *env, target_ulong newsp)
+static inline void cpu_clone_regs(CPUARMState *env, CPUARMState *old_env,
+                                  target_ulong newsp)
 {
     if (newsp) {
         env->xregs[31] = newsp;

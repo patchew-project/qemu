@@ -19,7 +19,8 @@
 #ifndef ALPHA_TARGET_CPU_H
 #define ALPHA_TARGET_CPU_H
 
-static inline void cpu_clone_regs(CPUAlphaState *env, target_ulong newsp)
+static inline void cpu_clone_regs(CPUAlphaState *env, CPUAlphaState *old_env,
+                                  target_ulong newsp)
 {
     if (newsp) {
         env->ir[IR_SP] = newsp;

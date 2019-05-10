@@ -20,7 +20,8 @@
 #ifndef TARGET_CPU_H
 #define TARGET_CPU_H
 
-static inline void cpu_clone_regs(CPUNios2State *env, target_ulong newsp)
+static inline void cpu_clone_regs(CPUNios2State *env, CPUNios2State *old_env,
+                                  target_ulong newsp)
 {
     if (newsp) {
         env->regs[R_SP] = newsp;
