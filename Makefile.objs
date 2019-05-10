@@ -3,6 +3,8 @@
 stub-obj-y = stubs/ util/ crypto/
 util-obj-y = util/ qobject/ qapi/
 
+crypto-obj-y = crypto/
+
 chardev-obj-y = chardev/
 
 #######################################################################
@@ -20,12 +22,6 @@ block-obj-y += qemu-io-cmds.o
 block-obj-$(CONFIG_REPLICATION) += replication.o
 
 block-obj-m = block/
-
-#######################################################################
-# crypto-obj-y is code used by both qemu system emulation and qemu-img
-
-crypto-obj-y = crypto/
-crypto-aes-obj-y = crypto/
 
 #######################################################################
 # qom-obj-y is code used by both qemu system emulation and qemu-img
