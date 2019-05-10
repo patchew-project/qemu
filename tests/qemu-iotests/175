@@ -28,7 +28,8 @@ status=1	# failure is the default!
 
 _cleanup()
 {
-	_cleanup_test_img
+    _cleanup_test_img
+    rm -f "$TEST_DIR/empty"
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
 
@@ -40,18 +41,24 @@ _supported_fmt raw
 _supported_proto file
 _supported_os Linux
 
-size=1m
+size=$((1 * 1024 * 1024))
+
+touch "$TEST_DIR/empty"
+empty_blocks=$(stat -c '%b' "$TEST_DIR/empty")
 
 echo
 echo "== creating image with default preallocation =="
 _make_test_img $size | _filter_imgfmt
-stat -c "size=%s, blocks=%b" $TEST_IMG
+stat -c "size=%s, blocks=%b" $TEST_IMG \
+    | sed -e "s/blocks=$empty_blocks/nothing allocated/"
 
 for mode in off full falloc; do
     echo
     echo "== creating image with preallocation $mode =="
     IMGOPTS=preallocation=$mode _make_test_img $size | _filter_imgfmt
-    stat -c "size=%s, blocks=%b" $TEST_IMG
+    stat -c "size=%s, blocks=%b" $TEST_IMG \
+        | sed -e "s/blocks=$empty_blocks/nothing allocated/" \
+        | sed -e "s/blocks=$((empty_blocks + size / 512))/everything allocated/"
 done
 
 # success, all done
