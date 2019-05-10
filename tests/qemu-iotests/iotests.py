@@ -536,23 +536,21 @@ class VM(qtest.QEMUQtestMachine):
     def run_job(self, job, auto_finalize=True, auto_dismiss=False, wait=60.0):
         error = None
         while True:
-            for ev in self.get_qmp_events_filtered(wait=wait):
-                if ev['event'] == 'JOB_STATUS_CHANGE':
-                    status = ev['data']['status']
-                    if status == 'aborting':
-                        result = self.qmp('query-jobs')
-                        for j in result['return']:
-                            if j['id'] == job:
-                                error = j['error']
-                                log('Job failed: %s' % (j['error']))
-                    elif status == 'pending' and not auto_finalize:
-                        self.qmp_log('job-finalize', id=job)
-                    elif status == 'concluded' and not auto_dismiss:
-                        self.qmp_log('job-dismiss', id=job)
-                    elif status == 'null':
-                        return error
-                else:
-                    iotests.log(ev)
+            ev = self.event_wait(name='JOB_STATUS_CHANGE',
+                                 match={'data':{'id':job}})
+            status = ev['data']['status']
+            if status == 'aborting':
+                result = self.qmp('query-jobs')
+                for j in result['return']:
+                    if j['id'] == job:
+                        error = j['error']
+                        log('Job failed: %s' % (j['error']))
+            elif status == 'pending' and not auto_finalize:
+                self.qmp_log('job-finalize', id=job)
+            elif status == 'concluded' and not auto_dismiss:
+                self.qmp_log('job-dismiss', id=job)
+            elif status == 'null':
+                return error
 
     def node_info(self, node_name):
         nodes = self.qmp('query-named-block-nodes')
