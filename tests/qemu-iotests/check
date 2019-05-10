@@ -27,6 +27,7 @@ bad=""
 notrun=""
 casenotrun=""
 interrupt=true
+pretty=false
 
 # by default don't output timestamps
 timestamp=${TIMESTAMP:=false}
@@ -86,6 +87,22 @@ _full_platform_details()
     kernel=$(uname -r)
     platform=$(uname -m)
     echo "$os/$platform $host $kernel"
+}
+
+_full_env_details()
+{
+    cat <<EOF
+QEMU          -- "$QEMU_PROG" $QEMU_OPTIONS
+QEMU_IMG      -- "$QEMU_IMG_PROG" $QEMU_IMG_OPTIONS
+QEMU_IO       -- "$QEMU_IO_PROG" $QEMU_IO_OPTIONS
+QEMU_NBD      -- "$QEMU_NBD_PROG" $QEMU_NBD_OPTIONS
+IMGFMT        -- $FULL_IMGFMT_DETAILS
+IMGPROTO      -- $IMGPROTO
+PLATFORM      -- $FULL_HOST_DETAILS
+TEST_DIR      -- $TEST_DIR
+SOCKET_SCM_HELPER -- $SOCKET_SCM_HELPER
+
+EOF
 }
 
 # $1 = prog to look for
@@ -257,6 +274,7 @@ other options
     -o options          -o options to pass to qemu-img create/convert
     -T                  output timestamps
     -c mode             cache mode
+    -pretty             pretty print output for make check
 
 testlist options
     -g group[,group...]        include tests from these groups
@@ -404,7 +422,10 @@ testlist options
                 command -v xxdiff >/dev/null 2>&1 && diff=xxdiff
             fi
             ;;
-
+        -pretty)   # pretty print output
+            pretty=true
+            xpand=false
+            ;;
         -n)        # show me, don't do it
             showme=true
             xpand=false
@@ -693,23 +714,30 @@ END        { if (NR > 0) {
 
 trap "_wrapup; exit \$status" 0 1 2 3 15
 
+# Report the test start and results, optionally pretty printing for make
+# args: $seq
+_report_test_start()
+{
+    if $pretty; then
+        printf "  TEST    iotest: %s" "$1"
+    else
+        printf "%s" "$1"
+    fi
+}
+# args: output
+_report_test_result()
+{
+    printf "%s\n" "$1"
+}
+
 [ -f $TIMESTAMP_FILE ] || touch $TIMESTAMP_FILE
 
 FULL_IMGFMT_DETAILS=$(_full_imgfmt_details)
 FULL_HOST_DETAILS=$(_full_platform_details)
 
-cat <<EOF
-QEMU          -- "$QEMU_PROG" $QEMU_OPTIONS
-QEMU_IMG      -- "$QEMU_IMG_PROG" $QEMU_IMG_OPTIONS
-QEMU_IO       -- "$QEMU_IO_PROG" $QEMU_IO_OPTIONS
-QEMU_NBD      -- "$QEMU_NBD_PROG" $QEMU_NBD_OPTIONS
-IMGFMT        -- $FULL_IMGFMT_DETAILS
-IMGPROTO      -- $IMGPROTO
-PLATFORM      -- $FULL_HOST_DETAILS
-TEST_DIR      -- $TEST_DIR
-SOCKET_SCM_HELPER -- $SOCKET_SCM_HELPER
-
-EOF
+if ! $pretty; then
+    _full_env_details
+fi
 
 seq="check"
 
@@ -717,8 +745,11 @@ seq="check"
 
 for seq in $list
 do
-    err=false
-    printf %s "$seq"
+    _report_test_start $seq
+    err=false     # error flag
+    reason=""     # reason for error
+    results=""    # results for non-error/skip
+
     if [ -n "$TESTS_REMAINING_LOG" ] ; then
         sed -e "s/$seq//" -e 's/  / /' -e 's/^ *//' $TESTS_REMAINING_LOG > $TESTS_REMAINING_LOG.tmp
         mv $TESTS_REMAINING_LOG.tmp $TESTS_REMAINING_LOG
@@ -727,7 +758,6 @@ do
 
     if $showme
     then
-        echo
         continue
     elif [ -f expunged ] && $expunge && egrep "^$seq([         ]|\$)" expunged >/dev/null
     then
@@ -742,17 +772,11 @@ do
         # really going to try and run this one
         #
         rm -f $seq.out.bad
-        lasttime=$(sed -n -e "/^$seq /s/.* //p" <$TIMESTAMP_FILE)
-        if [ "X$lasttime" != X ]; then
-                printf %s " ${lasttime}s ..."
-        else
-                printf "        "        # prettier output with timestamps.
-        fi
         rm -f core $seq.notrun
         rm -f $seq.casenotrun
 
         start=$(_wallclock)
-        $timestamp && printf %s "        [$(date "+%T")]"
+        $timestamp && _timestamp
 
         if [ "$(head -n 1 "$source_iotests/$seq")" == "#!/usr/bin/env python" ]; then
             run_command="$PYTHON $seq"
@@ -775,21 +799,19 @@ do
 
         if [ -f core ]
         then
-            printf " [dumped core]"
             mv core $seq.core
+            reason="[dumped core] $seq.core"
             err=true
         fi
 
         if [ -f $seq.notrun ]
         then
-            $timestamp || printf " [not run] "
-            $timestamp && echo " [not run]" && printf %s "        $seq -- "
-            cat $seq.notrun
-            notrun="$notrun $seq"
+            # overwrites timestamp output
+            results="[not run] $(cat $seq.notrun)"
         else
             if [ $sts -ne 0 ]
             then
-                printf %s " [failed, exit status $sts]"
+                reason=$(printf %s "[failed, exit status $sts]")
                 err=true
             fi
 
@@ -810,22 +832,29 @@ do
 
             if [ ! -f "$reference" ]
             then
-                echo " - no qualified output"
+                reason="- no qualified output"
                 err=true
             else
                 if diff -w "$reference" $tmp.out >/dev/null 2>&1
                 then
-                    echo ""
                     if $err
                     then
                         :
                     else
-                        echo "$seq $(expr $stop - $start)" >>$tmp.time
+                        lasttime=$(sed -n -e "/^$seq /s/.* //p" <$TIMESTAMP_FILE)
+                        thistime=$(expr $stop - $start)
+                        echo "$seq $thistime" >>$tmp.time
+
+                        if [ "X$lasttime" != X ]; then
+                            results="${results}${thistime}s (last ${lasttime}s)"
+                        else
+                            results="${results}${thistime}s"
+                        fi
                     fi
                 else
-                    echo " - output mismatch (see $seq.out.bad)"
                     mv $tmp.out $seq.out.bad
                     $diff -w "$reference" "$PWD"/$seq.out.bad
+                    reason="- output mismatch (see $seq.out.bad)"
                     err=true
                 fi
             fi
@@ -841,9 +870,15 @@ do
     #
     if $err
     then
+        _report_test_result " FAILED $reason"
+        if $pretty; then
+            _full_env_details
+        fi
         bad="$bad $seq"
         n_bad=$(expr $n_bad + 1)
         quick=false
+    else
+        _report_test_result " $results"
     fi
     [ -f $seq.notrun ] || try=$(expr $try + 1)
 
