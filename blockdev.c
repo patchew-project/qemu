@@ -3525,8 +3525,7 @@ static BlockJob *do_drive_backup(DriveBackup *backup, JobTxn *txn,
     if (set_backing_hd) {
         bdrv_set_backing_hd(target_bs, source, &local_err);
         if (local_err) {
-            bdrv_unref(target_bs);
-            goto out;
+            goto unref;
         }
     }
 
@@ -3534,11 +3533,10 @@ static BlockJob *do_drive_backup(DriveBackup *backup, JobTxn *txn,
         bmap = bdrv_find_dirty_bitmap(bs, backup->bitmap);
         if (!bmap) {
             error_setg(errp, "Bitmap '%s' could not be found", backup->bitmap);
-            bdrv_unref(target_bs);
-            goto out;
+            goto unref;
         }
         if (bdrv_dirty_bitmap_check(bmap, BDRV_BITMAP_DEFAULT, errp)) {
-            goto out;
+            goto unref;
         }
     }
     if (!backup->auto_finalize) {
@@ -3552,12 +3550,12 @@ static BlockJob *do_drive_backup(DriveBackup *backup, JobTxn *txn,
                             backup->sync, bmap, backup->compress,
                             backup->on_source_error, backup->on_target_error,
                             job_flags, NULL, NULL, txn, &local_err);
-    bdrv_unref(target_bs);
     if (local_err != NULL) {
         error_propagate(errp, local_err);
-        goto out;
     }
 
+unref:
+    bdrv_unref(target_bs);
 out:
     aio_context_release(aio_context);
     return job;
