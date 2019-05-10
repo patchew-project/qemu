@@ -4285,7 +4285,7 @@ The @option{share} boolean option is @var{on} by default with memfd.
 Creates a random number generator backend which obtains entropy from
 QEMU builtin functions. The @option{id} parameter is a unique ID that
 will be used to reference this entropy backend from the @option{virtio-rng}
-device.
+device. By default, the @option{virtio-rng} device uses this RNG backend.
 
 @item -object rng-random,id=@var{id},filename=@var{/dev/random}
 
@@ -4293,8 +4293,7 @@ Creates a random number generator backend which obtains entropy from
 a device on the host. The @option{id} parameter is a unique ID that
 will be used to reference this entropy backend from the @option{virtio-rng}
 device. The @option{filename} parameter specifies which file to obtain
-entropy from and if omitted defaults to @option{/dev/urandom}. By default,
-the @option{virtio-rng} device uses this RNG backend.
+entropy from and if omitted defaults to @option{/dev/urandom}.
 
 @item -object rng-egd,id=@var{id},chardev=@var{chardevid}
 
