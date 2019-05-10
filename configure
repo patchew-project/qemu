@@ -5878,6 +5878,10 @@ fi
 ##########################################
 # check for slirp
 
+if test "$softmmu" = "no"; then
+    slirp=no
+fi
+
 case "$slirp" in
   "" | yes)
     if $pkg_config slirp; then
