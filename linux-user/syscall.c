@@ -5553,8 +5553,12 @@ static int do_fork(CPUArchState *env, unsigned int flags, abi_ulong newsp,
         pthread_mutex_destroy(&info.mutex);
         pthread_mutex_unlock(&clone_lock);
     } else {
-        /* if no CLONE_VM, we consider it is a fork */
+        /* If no CLONE_VM, we consider it is a fork.  */
         if (flags & CLONE_INVALID_FORK_FLAGS) {
+            return -TARGET_EINVAL;
+        }
+        /* As a fork, setting a new sp does not make sense.  */
+        if (newsp) {
             return -TARGET_EINVAL;
         }
 
@@ -5571,7 +5575,6 @@ static int do_fork(CPUArchState *env, unsigned int flags, abi_ulong newsp,
         ret = fork();
         if (ret == 0) {
             /* Child Process.  */
-            cpu_clone_regs(env, newsp);
             fork_end(1);
             /* There is a race condition here.  The parent process could
                theoretically read the TID in the child process before the child
