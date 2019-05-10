@@ -3450,7 +3450,7 @@ static BlockJob *do_drive_backup(DriveBackup *backup, JobTxn *txn,
         backup->compress = false;
     }
 
-    bs = qmp_get_root_bs(backup->device, errp);
+    bs = bdrv_lookup_bs(backup->device, backup->device, errp);
     if (!bs) {
         return NULL;
     }
@@ -3459,6 +3459,10 @@ static BlockJob *do_drive_backup(DriveBackup *backup, JobTxn *txn,
     aio_context_acquire(aio_context);
 
     if (!backup->has_format) {
+        if (!bs->drv) {
+            error_setg(errp, "Device has no medium");
+            return NULL;
+        }
         backup->format = backup->mode == NEW_IMAGE_MODE_EXISTING ?
                          NULL : (char*) bs->drv->format_name;
     }
