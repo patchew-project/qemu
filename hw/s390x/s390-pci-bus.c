@@ -23,6 +23,9 @@
 #include "hw/pci/msi.h"
 #include "qemu/error-report.h"
 
+#include "hw/vfio/pci.h"
+#include <sys/ioctl.h>
+
 #ifndef DEBUG_S390PCI_BUS
 #define DEBUG_S390PCI_BUS  0
 #endif
@@ -780,6 +783,75 @@ static void set_pbdev_info(S390PCIBusDevice *pbdev)
     pbdev->pci_grp = s390_grp_find(ZPCI_DEFAULT_FN_GRP);
 }
 
+static int s390_fill_zpci(S390PCIBusDevice *pbdev,
+                          struct vfio_info_cap_header *cap)
+{
+    ClpRspQueryPci *rsp_fn;
+    ClpRspQueryPciGrp *rsp_grp;
+    S390PCIGroup *pci_grp;
+
+    /* We expect the function response first */
+    if (cap->id != VFIO_IOMMU_INFO_CAP_QFN) {
+        return -ENODEV;
+    }
+    rsp_fn = (struct ClpRspQueryPci *)(cap + 1);
+    memcpy(&pbdev->zpci_fn, rsp_fn, sizeof(*rsp_fn));
+    /* We use the virtualized FID and UID */
+    pbdev->zpci_fn.fid = pbdev->fid;
+    pbdev->zpci_fn.uid = pbdev->uid;
+
+    cap = (struct vfio_info_cap_header *)((char *)cap + cap->next);
+    if (cap->id != VFIO_IOMMU_INFO_CAP_QGRP) {
+        return -ENODEV;
+    }
+    pci_grp = s390_grp_find(rsp_fn->ug);
+    if (!pci_grp) {
+        pci_grp = s390_grp_create(rsp_fn->ug);
+    }
+
+    rsp_grp = (struct ClpRspQueryPciGrp *)(cap + 1);
+
+    memcpy(&pci_grp->zpci_grp, rsp_grp, sizeof(*rsp_grp));
+    /* We only support the refresh bit */
+    pci_grp->zpci_grp.fr = 1;
+
+    pbdev->pci_grp = pci_grp;
+
+    return 0;
+}
+
+static int get_pbdev_info(S390PCIBusDevice *pbdev)
+{
+    VFIOPCIDevice *vfio_pci;
+    int fd;
+    int ret;
+    struct vfio_iommu_type1_info *info;
+    int size;
+
+    vfio_pci = container_of(pbdev->pdev, VFIOPCIDevice, pdev);
+    fd = vfio_pci->vbasedev.group->container->fd;
+    info = g_malloc0(sizeof(*info));
+    info->flags = VFIO_IOMMU_INFO_CAPABILITIES;
+    info->argsz = sizeof(*info);
+    ret = ioctl(fd, VFIO_IOMMU_GET_INFO, info);
+    if (ret) {
+        return ret;
+    }
+    size = info->argsz;
+    info = g_realloc(info, size);
+    info->flags = VFIO_IOMMU_INFO_CAPABILITIES;
+    info->argsz = size;
+    ret = ioctl(fd, VFIO_IOMMU_GET_INFO, info);
+    if (ret) {
+        return ret;
+    }
+    /* Fill zPCI parameters maxstbl, start dma, end dma...*/
+    /* using the caps */
+    ret = s390_fill_zpci(pbdev, (struct vfio_info_cap_header *)(info + 1));
+    g_free(info);
+    return ret;
+}
+
 static void s390_pcihost_realize(DeviceState *dev, Error **errp)
 {
     PCIBus *b;
@@ -852,7 +924,8 @@ static int s390_pci_msix_init(S390PCIBusDevice *pbdev)
     name = g_strdup_printf("msix-s390-%04x", pbdev->uid);
     memory_region_init_io(&pbdev->msix_notify_mr, OBJECT(pbdev),
                           &s390_msi_ctrl_ops, pbdev, name, PAGE_SIZE);
-    memory_region_add_subregion(&pbdev->iommu->mr, ZPCI_MSI_ADDR,
+    memory_region_add_subregion(&pbdev->iommu->mr,
+                                pbdev->pci_grp->zpci_grp.msia,
                                 &pbdev->msix_notify_mr);
     g_free(name);
 
@@ -1002,12 +1075,15 @@ static void s390_pcihost_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
         pbdev->iommu = s390_pci_get_iommu(s, pci_get_bus(pdev), pdev->devfn);
         pbdev->iommu->pbdev = pbdev;
         pbdev->state = ZPCI_FS_DISABLED;
-        set_pbdev_info(pbdev);
 
         if (object_dynamic_cast(OBJECT(dev), "vfio-pci")) {
             pbdev->fh |= FH_SHM_VFIO;
+            if (get_pbdev_info(pbdev) != 0) {
+                set_pbdev_info(pbdev);
+            }
         } else {
             pbdev->fh |= FH_SHM_EMUL;
+            set_pbdev_info(pbdev);
         }
 
         if (s390_pci_msix_init(pbdev)) {
