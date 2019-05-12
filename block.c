@@ -770,7 +770,7 @@ static int find_image_format(BlockBackend *file, const char *filename,
     if (!drv) {
         error_setg(errp, "Could not determine image format: No compatible "
                    "driver found");
-        ret = -ENOENT;
+        ret = -ENOMEDIUM;
     }
     *pdrv = drv;
     return ret;
@@ -1619,7 +1619,7 @@ static int bdrv_fill_options(QDict **options, const char *filename,
         drv = bdrv_find_format(drvname);
         if (!drv) {
             error_setg(errp, "Unknown driver '%s'", drvname);
-            return -ENOENT;
+            return -ENOMEDIUM;
         }
         /* If the user has explicitly specified the driver, this choice should
          * override the BDRV_O_PROTOCOL flag */
@@ -1655,7 +1655,7 @@ static int bdrv_fill_options(QDict **options, const char *filename,
         if (filename) {
             drv = bdrv_find_protocol(filename, parse_filename, errp);
             if (!drv) {
-                return -EINVAL;
+                return -ENOMEDIUM;
             }
 
             drvname = drv->format_name;
