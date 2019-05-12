@@ -446,6 +446,59 @@ void kvm_arm_pmu_set_irq(CPUState *cs, int irq)
     }
 }
 
+static int kvm_arm_get_sve_vls(CPUState *cs, uint64_t sve_vls[])
+{
+    struct kvm_one_reg reg = {
+        .id = KVM_REG_ARM64_SVE_VLS,
+        .addr = (uint64_t)&sve_vls[0],
+    };
+    int i, ret;
+
+    ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
+    if (ret) {
+        return ret;
+    }
+
+    ret = 0;
+    for (i = KVM_ARM64_SVE_VLS_WORDS - 1; i >= 0; --i) {
+        if (sve_vls[i]) {
+            ret = arm_cpu_fls64(sve_vls[i]) + i * 64;
+            break;
+        }
+    }
+
+    return ret;
+}
+
+static int kvm_arm_set_sve_vls(CPUState *cs, uint64_t sve_vls[], int max_vq)
+{
+    struct kvm_one_reg reg = {
+        .id = KVM_REG_ARM64_SVE_VLS,
+        .addr = (uint64_t)&sve_vls[0],
+    };
+    int i;
+
+    for (i = KVM_ARM64_SVE_VLS_WORDS - 1; i >= 0; --i) {
+        if (sve_vls[i]) {
+            int vq = arm_cpu_fls64(sve_vls[i]) + i * 64;
+            while (vq > max_vq) {
+                sve_vls[i] &= ~BIT_MASK(vq - 1);
+                vq = arm_cpu_fls64(sve_vls[i]) + i * 64;
+            }
+            if (vq < max_vq) {
+                error_report("sve-max-vq=%d is not a valid length", max_vq);
+                error_printf("next lowest is %d\n", vq);
+                return -EINVAL;
+            }
+            if (vq == max_vq) {
+                break;
+            }
+        }
+    }
+
+    return kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
+}
+
 static inline void set_feature(uint64_t *features, int feature)
 {
     *features |= 1ULL << feature;
@@ -605,7 +658,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
 
     if (cpu->kvm_target == QEMU_KVM_ARM_TARGET_NONE ||
         !object_dynamic_cast(OBJECT(cpu), TYPE_AARCH64_CPU)) {
-        fprintf(stderr, "KVM is not supported for this guest CPU type\n");
+        error_report("KVM is not supported for this guest CPU type");
         return -EINVAL;
     }
 
@@ -631,7 +684,12 @@ int kvm_arch_init_vcpu(CPUState *cs)
     }
     if (cpu->sve_max_vq) {
         if (!kvm_check_extension(cs->kvm_state, KVM_CAP_ARM_SVE)) {
-            cpu->sve_max_vq = 0;
+            if (cpu->sve_max_vq == -1) {
+                cpu->sve_max_vq = 0;
+            } else {
+                error_report("This KVM host does not support SVE");
+                return -EINVAL;
+            }
         } else {
             cpu->kvm_init_features[0] |= 1 << KVM_ARM_VCPU_SVE;
         }
@@ -644,6 +702,24 @@ int kvm_arch_init_vcpu(CPUState *cs)
     }
 
     if (cpu->sve_max_vq) {
+        uint64_t sve_vls[KVM_ARM64_SVE_VLS_WORDS];
+        ret = kvm_arm_get_sve_vls(cs, sve_vls);
+        if (ret < 0) {
+            return ret;
+        }
+        if (cpu->sve_max_vq == -1) {
+            cpu->sve_max_vq = ret;
+        } else if (cpu->sve_max_vq > ret) {
+            error_report("This KVM host does not support SVE vectors "
+                         "of length %d quadwords (%d bytes)",
+                         cpu->sve_max_vq, cpu->sve_max_vq * 16);
+            return -EINVAL;
+        } else {
+            ret = kvm_arm_set_sve_vls(cs, sve_vls, cpu->sve_max_vq);
+            if (ret < 0) {
+                return ret;
+            }
+        }
         ret = kvm_arm_vcpu_finalize(cs, KVM_ARM_VCPU_SVE);
         if (ret) {
             return ret;

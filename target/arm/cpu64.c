@@ -292,7 +292,7 @@ static void aarch64_max_initfn(Object *obj)
 
     if (kvm_enabled()) {
         kvm_arm_set_cpu_features_from_host(cpu);
-        cpu->sve_max_vq = ARM_MAX_VQ;
+        cpu->sve_max_vq = -1; /* set in kvm_arch_init_vcpu() */
     } else {
         uint64_t t;
         uint32_t u;
@@ -374,9 +374,10 @@ static void aarch64_max_initfn(Object *obj)
 #endif
 
         cpu->sve_max_vq = ARM_MAX_VQ;
-        object_property_add(obj, "sve-max-vq", "uint32", cpu_max_get_sve_vq,
-                            cpu_max_set_sve_vq, NULL, NULL, &error_fatal);
     }
+
+    object_property_add(obj, "sve-max-vq", "uint32", cpu_max_get_sve_vq,
+                        cpu_max_set_sve_vq, NULL, NULL, &error_fatal);
 }
 
 struct ARMCPUInfo {
