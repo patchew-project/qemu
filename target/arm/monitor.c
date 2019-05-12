@@ -84,6 +84,41 @@ GICCapabilityList *qmp_query_gic_capabilities(Error **errp)
     return head;
 }
 
+#ifdef CONFIG_KVM
+static SVEVectorLengths *qmp_kvm_sve_vls_get(void)
+{
+    CPUArchState *env = mon_get_cpu_env();
+    ARMCPU *cpu = arm_env_get_cpu(env);
+    uint64_t sve_vls[KVM_ARM64_SVE_VLS_WORDS];
+    SVEVectorLengths *vls = g_new(SVEVectorLengths, 1);
+    intList **v = &vls->vls;
+    int ret, i;
+
+    ret = kvm_arm_get_sve_vls(CPU(cpu), sve_vls);
+    if (ret <= 0) {
+        *v = g_new0(intList, 1); /* one vl of 0 means none supported */
+        return vls;
+    }
+
+    for (i = KVM_ARM64_SVE_VQ_MIN; i <= ret; ++i) {
+        int bitval = (sve_vls[(i - KVM_ARM64_SVE_VQ_MIN) / 64] >>
+                      ((i - KVM_ARM64_SVE_VQ_MIN) % 64)) & 1;
+        if (bitval) {
+            *v = g_new0(intList, 1);
+            (*v)->value = i;
+            v = &(*v)->next;
+        }
+    }
+
+    return vls;
+}
+#else
+static SVEVectorLengths *qmp_kvm_sve_vls_get(void)
+{
+    return NULL;
+}
+#endif
+
 static SVEVectorLengths *qmp_sve_vls_get(void)
 {
     CPUArchState *env = mon_get_cpu_env();
@@ -130,7 +165,13 @@ static SVEVectorLengths *qmp_sve_vls_dup_and_truncate(SVEVectorLengths *vls)
 SVEVectorLengthsList *qmp_query_sve_vector_lengths(Error **errp)
 {
     SVEVectorLengthsList *vls_list = g_new0(SVEVectorLengthsList, 1);
-    SVEVectorLengths *vls = qmp_sve_vls_get();
+    SVEVectorLengths *vls;
+
+    if (kvm_enabled()) {
+        vls = qmp_kvm_sve_vls_get();
+    } else {
+        vls = qmp_sve_vls_get();
+    }
 
     while (vls) {
         vls_list->value = vls;
