@@ -685,9 +685,9 @@ int kvm_arch_init_vcpu(CPUState *cs)
     } else {
         unset_feature(&env->features, ARM_FEATURE_PMU);
     }
-    if (cpu->sve_max_vq) {
+    if (cpu->sve_max_vq || cpu->sve_vls_map) {
         if (!kvm_check_extension(cs->kvm_state, KVM_CAP_ARM_SVE)) {
-            if (cpu->sve_max_vq == -1) {
+            if (cpu->sve_max_vq == -1 && !cpu->sve_vls_map) {
                 cpu->sve_max_vq = 0;
             } else {
                 error_report("This KVM host does not support SVE");
@@ -704,11 +704,61 @@ int kvm_arch_init_vcpu(CPUState *cs)
         return ret;
     }
 
-    if (cpu->sve_max_vq) {
+    if (cpu->sve_max_vq || cpu->sve_vls_map) {
         uint64_t sve_vls[KVM_ARM64_SVE_VLS_WORDS];
         ret = kvm_arm_get_sve_vls(cs, sve_vls);
         if (ret < 0) {
             return ret;
+        }
+        if (cpu->sve_vls_map) {
+            uint64_t ovls;
+            int i;
+
+            /*
+             * We currently only support a single VLS word, as that should
+             * be sufficient for some time (vq=64 means a 8192-bit vector
+             * and KVM currently only supports up to 2048-bit vectors).
+             * The choice to only support a single word for now is due to
+             * the need to input it on the command line. It's much simpler
+             * to input a word as a cpu property than an array of words.
+             * So for now just warn if we detect our assumption was wrong.
+             */
+            for (i = 1; i < KVM_ARM64_SVE_VLS_WORDS; ++i) {
+                if (sve_vls[i]) {
+                    warn_report("KVM supports vector lengths larger than "
+                                "sve-vls-map can select");
+                    sve_vls[i] = 0;
+                }
+            }
+
+            ovls = sve_vls[0];
+            sve_vls[0] = cpu->sve_vls_map;
+
+            if (cpu->sve_vls_map & ~ovls) {
+                error_report("sve-vls-map=0x%lx is not valid on this host "
+                             "which supports 0x%lx", cpu->sve_vls_map, ovls);
+                return -EINVAL;
+            }
+
+            i = arm_cpu_fls64(cpu->sve_vls_map);
+            if (cpu->sve_max_vq && cpu->sve_max_vq != -1 &&
+                cpu->sve_max_vq != i) {
+                error_report("sve-vls-map and sve-max-vq are inconsistent");
+                return -EINVAL;
+            }
+            cpu->sve_max_vq = i;
+
+            /*
+             * sve-vls-map must have all the same vector lengths up to its
+             * max vq that the host supports.
+             */
+            if (cpu->sve_vls_map != (ovls & (BIT_MASK(cpu->sve_max_vq) - 1))) {
+                error_report("sve-vls-map=0x%lx is not valid on this host "
+                             "which supports 0x%lx", cpu->sve_vls_map, ovls);
+                error_printf("All host vector lengths up to %d must also "
+                             "be selected.\n", cpu->sve_max_vq);
+                return -EINVAL;
+            }
         }
         if (cpu->sve_max_vq == -1) {
             cpu->sve_max_vq = ret;
