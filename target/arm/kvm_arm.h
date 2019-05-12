@@ -248,6 +248,26 @@ int kvm_arm_vgic_probe(void);
 void kvm_arm_pmu_set_irq(CPUState *cs, int irq);
 void kvm_arm_pmu_init(CPUState *cs);
 
+/**
+ * kvm_arm_get_sve_vls
+ * @cs: CPUState
+ * @sve_vls: valid vector length bitmap
+ *
+ * Get the valid vector length bitmap. If a bit 'bit' is set
+ * then the host supports a vector length of (bit * 16) bytes.
+ *
+ * For example, if
+ *
+ *   sve_vls[0] = 0xb and
+ *   sve_vls[1 ... KVM_ARM64_SVE_VLS_WORDS-1] = 0,
+ *
+ * then the host supports 16, 32, and 64 byte vector lengths.
+ *
+ * Returns: the highest set bit if successful else < 0 error code
+ */
+int kvm_arm_get_sve_vls(CPUState *cs,
+                        uint64_t sve_vls[KVM_ARM64_SVE_VLS_WORDS]);
+
 #else
 
 static inline void kvm_arm_set_cpu_features_from_host(ARMCPU *cpu)

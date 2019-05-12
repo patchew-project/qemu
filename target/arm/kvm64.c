@@ -446,7 +446,8 @@ void kvm_arm_pmu_set_irq(CPUState *cs, int irq)
     }
 }
 
-static int kvm_arm_get_sve_vls(CPUState *cs, uint64_t sve_vls[])
+int kvm_arm_get_sve_vls(CPUState *cs,
+                        uint64_t sve_vls[KVM_ARM64_SVE_VLS_WORDS])
 {
     struct kvm_one_reg reg = {
         .id = KVM_REG_ARM64_SVE_VLS,
@@ -470,7 +471,9 @@ static int kvm_arm_get_sve_vls(CPUState *cs, uint64_t sve_vls[])
     return ret;
 }
 
-static int kvm_arm_set_sve_vls(CPUState *cs, uint64_t sve_vls[], int max_vq)
+static int kvm_arm_set_sve_vls(CPUState *cs,
+                               uint64_t sve_vls[KVM_ARM64_SVE_VLS_WORDS],
+                               int max_vq)
 {
     struct kvm_one_reg reg = {
         .id = KVM_REG_ARM64_SVE_VLS,
