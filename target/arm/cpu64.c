@@ -310,7 +310,8 @@ static void cpu_set_sve_vls_map(Object *obj, Visitor *v, const char *name,
             error_setg(&err, "SVE vector length map has unsupported lengths");
             error_append_hint(&err, "Valid vector lengths in range [1-%d]\n",
                               ARM_MAX_VQ);
-        } else if (cpu->sve_max_vq != ARM_MAX_VQ && cpu->sve_max_vq != -1 &&
+        } else if (cpu->sve_max_vq && cpu->sve_max_vq != ARM_MAX_VQ &&
+                   cpu->sve_max_vq != -1 &&
                    cpu->sve_max_vq != arm_cpu_fls64(cpu->sve_vls_map)) {
             /*
              * If the user provides both sve-max-vq and sve-vls-map, with
@@ -338,6 +339,12 @@ static void cpu_set_sve_vls_map(Object *obj, Visitor *v, const char *name,
     }
 
     error_propagate(errp, err);
+}
+
+void aarch64_add_sve_vls_map_property(Object *obj)
+{
+    object_property_add(obj, "sve-vls-map", "uint64", cpu_get_sve_vls_map,
+                        cpu_set_sve_vls_map, NULL, NULL, &error_fatal);
 }
 
 /* -cpu max: if KVM is enabled, like -cpu host (best possible with this host);
@@ -437,8 +444,7 @@ static void aarch64_max_initfn(Object *obj)
 
     object_property_add(obj, "sve-max-vq", "uint32", cpu_max_get_sve_vq,
                         cpu_max_set_sve_vq, NULL, NULL, &error_fatal);
-    object_property_add(obj, "sve-vls-map", "uint64", cpu_get_sve_vls_map,
-                        cpu_set_sve_vls_map, NULL, NULL, &error_fatal);
+    aarch64_add_sve_vls_map_property(obj);
 }
 
 struct ARMCPUInfo {
