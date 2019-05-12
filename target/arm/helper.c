@@ -5254,12 +5254,20 @@ uint32_t sve_zcr_len_for_el(CPUARMState *env, int el)
 static void zcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                       uint64_t value)
 {
+    ARMCPU *cpu = arm_env_get_cpu(env);
     int cur_el = arm_current_el(env);
     int old_len = sve_zcr_len_for_el(env, cur_el);
     int new_len;
 
     /* Bits other than [3:0] are RAZ/WI.  */
-    raw_write(env, ri, value & 0xf);
+    value &= 0xf;
+
+    if (value && !(BIT_MASK(value) & cpu->sve_vls_map)) {
+        uint64_t map = cpu->sve_vls_map & (BIT_MASK(value) - 1);
+        value = arm_cpu_fls64(map) - 1;
+    }
+
+    raw_write(env, ri, value);
 
     /*
      * Because we arrived here, we know both FP and SVE are enabled;

@@ -920,6 +920,9 @@ struct ARMCPU {
 
     /* Used to set the maximum vector length the cpu will support.  */
     uint32_t sve_max_vq;
+
+    /* Each bit represents a supported vector length of (bitnum * 16) bytes */
+    uint64_t sve_vls_map;
 };
 
 static inline ARMCPU *arm_env_get_cpu(CPUARMState *env)

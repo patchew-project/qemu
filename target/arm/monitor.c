@@ -133,9 +133,12 @@ static SVEVectorLengths *qmp_sve_vls_get(void)
     }
 
     for (i = 1; i <= cpu->sve_max_vq; ++i) {
-        *v = g_new0(intList, 1);
-        (*v)->value = i;
-        v = &(*v)->next;
+        int bitval = (cpu->sve_vls_map >> (i - 1)) & 1;
+        if (bitval) {
+            *v = g_new0(intList, 1);
+            (*v)->value = i;
+            v = &(*v)->next;
+        }
     }
 
     return vls;

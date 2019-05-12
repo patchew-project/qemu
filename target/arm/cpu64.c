@@ -273,11 +273,70 @@ static void cpu_max_set_sve_vq(Object *obj, Visitor *v, const char *name,
 
     visit_type_uint32(v, name, &cpu->sve_max_vq, &err);
 
-    if (!err && (cpu->sve_max_vq == 0 || cpu->sve_max_vq > ARM_MAX_VQ)) {
-        error_setg(&err, "unsupported SVE vector length");
-        error_append_hint(&err, "Valid sve-max-vq in range [1-%d]\n",
-                          ARM_MAX_VQ);
+    if (!err) {
+        if (cpu->sve_max_vq == 0 || cpu->sve_max_vq > ARM_MAX_VQ) {
+            error_setg(&err, "unsupported SVE vector length");
+            error_append_hint(&err, "Valid sve-max-vq in range [1-%d]\n",
+                              ARM_MAX_VQ);
+        } else if (cpu->sve_vls_map &&
+                   cpu->sve_max_vq != arm_cpu_fls64(cpu->sve_vls_map)) {
+            error_setg(&err, "sve-vls-map and sve-max-vq are inconsistent");
+        }
     }
+    error_propagate(errp, err);
+}
+
+static void cpu_get_sve_vls_map(Object *obj, Visitor *v, const char *name,
+                                void *opaque, Error **errp)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+    visit_type_uint64(v, name, &cpu->sve_vls_map, errp);
+}
+
+static void cpu_set_sve_vls_map(Object *obj, Visitor *v, const char *name,
+                                void *opaque, Error **errp)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+    Error *err = NULL;
+    uint64_t mask = ~(BIT_MASK(ARM_MAX_VQ - 1) - 1);
+    int i;
+
+    visit_type_uint64(v, name, &cpu->sve_vls_map, errp);
+
+    if (!err) {
+        if (cpu->sve_vls_map == 0) {
+            error_setg(&err, "SVE vector length map cannot be zero");
+        } else if (cpu->sve_vls_map & mask) {
+            error_setg(&err, "SVE vector length map has unsupported lengths");
+            error_append_hint(&err, "Valid vector lengths in range [1-%d]\n",
+                              ARM_MAX_VQ);
+        } else if (cpu->sve_max_vq != ARM_MAX_VQ &&
+                   cpu->sve_max_vq != arm_cpu_fls64(cpu->sve_vls_map)) {
+            /*
+             * If the user provides both sve-max-vq and sve-vls-map, with
+             * sve-max-vq first, then, unless ARM_MAX_VQ is selected for
+             * sve-max-vq, we can catch inconsistencies. If ARM_MAX_VQ was
+             * selected then sve-max-vq will get silently overwritten with
+             * the max sve-vls-map provides. This is the best we can do
+             * without initially setting sve-max-vq to -1 like we do for KVM.
+             */
+            error_setg(&err, "sve-vls-map and sve-max-vq are inconsistent");
+        } else {
+            cpu->sve_max_vq = arm_cpu_fls64(cpu->sve_vls_map);
+            mask = 0;
+            for (i = 1; i < cpu->sve_max_vq; ++i) {
+                if (is_power_of_2(i)) {
+                    mask |= BIT_MASK(i - 1);
+                }
+            }
+            if ((cpu->sve_vls_map & mask) != mask) {
+                error_setg(&err, "SVE vector length map is missing lengths");
+                error_append_hint(&err, "All power-of-2 vector lengths up to "
+                                  "the max supported length are required.\n");
+            }
+        }
+    }
+
     error_propagate(errp, err);
 }
 
@@ -374,6 +433,9 @@ static void aarch64_max_initfn(Object *obj)
 #endif
 
         cpu->sve_max_vq = ARM_MAX_VQ;
+
+        object_property_add(obj, "sve-vls-map", "uint64", cpu_get_sve_vls_map,
+                            cpu_set_sve_vls_map, NULL, NULL, &error_fatal);
     }
 
     object_property_add(obj, "sve-max-vq", "uint32", cpu_max_get_sve_vq,

@@ -1188,6 +1188,10 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
         set_feature(env, ARM_FEATURE_VBAR);
     }
 
+    if (!kvm_enabled() && !cpu->sve_vls_map) {
+        cpu->sve_vls_map = BIT_MASK(cpu->sve_max_vq) - 1;
+    }
+
     register_cp_regs_for_features(cpu);
     arm_cpu_register_gdb_regs_for_features(cpu);
 
