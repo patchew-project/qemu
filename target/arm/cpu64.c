@@ -292,6 +292,7 @@ static void aarch64_max_initfn(Object *obj)
 
     if (kvm_enabled()) {
         kvm_arm_set_cpu_features_from_host(cpu);
+        cpu->sve_max_vq = ARM_MAX_VQ;
     } else {
         uint64_t t;
         uint32_t u;

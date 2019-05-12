@@ -28,6 +28,18 @@
 int kvm_arm_vcpu_init(CPUState *cs);
 
 /**
+ * kvm_arm_vcpu_finalize
+ * @cs: CPUState
+ * @feature: int
+ *
+ * Finalizes the configuration of the specified VCPU feature
+ * by invoking the KVM_ARM_VCPU_FINALIZE ioctl.
+ *
+ * Returns: 0 if success else < 0 error code
+ */
+int kvm_arm_vcpu_finalize(CPUState *cs, int feature);
+
+/**
  * kvm_arm_register_device:
  * @mr: memory region for this device
  * @devid: the KVM device ID
