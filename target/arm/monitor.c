@@ -24,6 +24,7 @@
 #include "hw/boards.h"
 #include "kvm_arm.h"
 #include "qapi/qapi-commands-target.h"
+#include "monitor/hmp-target.h"
 
 static GICCapability *gic_cap_new(int version)
 {
@@ -81,4 +82,65 @@ GICCapabilityList *qmp_query_gic_capabilities(Error **errp)
     head = gic_cap_list_add(head, v3);
 
     return head;
+}
+
+static SVEVectorLengths *qmp_sve_vls_get(void)
+{
+    CPUArchState *env = mon_get_cpu_env();
+    ARMCPU *cpu = arm_env_get_cpu(env);
+    SVEVectorLengths *vls = g_new(SVEVectorLengths, 1);
+    intList **v = &vls->vls;
+    int i;
+
+    if (cpu->sve_max_vq == 0) {
+        *v = g_new0(intList, 1); /* one vl of 0 means none supported */
+        return vls;
+    }
+
+    for (i = 1; i <= cpu->sve_max_vq; ++i) {
+        *v = g_new0(intList, 1);
+        (*v)->value = i;
+        v = &(*v)->next;
+    }
+
+    return vls;
+}
+
+static SVEVectorLengths *qmp_sve_vls_dup_and_truncate(SVEVectorLengths *vls)
+{
+    SVEVectorLengths *trunc_vls;
+    intList **v, *p = vls->vls;
+
+    if (!p->next) {
+        return NULL;
+    }
+
+    trunc_vls = g_new(SVEVectorLengths, 1);
+    v = &trunc_vls->vls;
+
+    for (; p->next; p = p->next) {
+        *v = g_new0(intList, 1);
+        (*v)->value = p->value;
+        v = &(*v)->next;
+    }
+
+    return trunc_vls;
+}
+
+SVEVectorLengthsList *qmp_query_sve_vector_lengths(Error **errp)
+{
+    SVEVectorLengthsList *vls_list = g_new0(SVEVectorLengthsList, 1);
+    SVEVectorLengths *vls = qmp_sve_vls_get();
+
+    while (vls) {
+        vls_list->value = vls;
+        vls = qmp_sve_vls_dup_and_truncate(vls);
+        if (vls) {
+            SVEVectorLengthsList *next = vls_list;
+            vls_list = g_new0(SVEVectorLengthsList, 1);
+            vls_list->next = next;
+        }
+    }
+
+    return vls_list;
 }

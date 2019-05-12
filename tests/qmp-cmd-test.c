@@ -90,6 +90,7 @@ static bool query_is_blacklisted(const char *cmd)
         /* Success depends on target arch: */
         "query-cpu-definitions",  /* arm, i386, ppc, s390x */
         "query-gic-capabilities", /* arm */
+        "query-sve-vector-lengths", /* arm */
         /* Success depends on target-specific build configuration: */
         "query-pci",              /* CONFIG_PCI */
         /* Success depends on launching SEV guest */

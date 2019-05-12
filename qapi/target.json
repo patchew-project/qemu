@@ -398,6 +398,40 @@
   'if': 'defined(TARGET_ARM)' }
 
 ##
+# @SVEVectorLengths:
+#
+# The struct contains a list of integers where each integer is a valid
+# SVE vector length for a KVM guest on this host. The vector lengths
+# are in quadword (128-bit) units, e.g. '4' means 512 bits (64 bytes).
+#
+# @vls:      list of vector lengths in quadwords.
+#
+# Since: 4.1
+##
+{ 'struct': 'SVEVectorLengths',
+  'data': { 'vls': ['int'] },
+  'if': 'defined(TARGET_ARM)' }
+
+##
+# @query-sve-vector-lengths:
+#
+# This command is ARM-only. It will return a list of SVEVectorLengths
+# objects. The list describes all valid SVE vector length sets.
+#
+# Returns: a list of SVEVectorLengths objects
+#
+# Since: 4.1
+#
+# -> { "execute": "query-sve-vector-lengths" }
+# <- { "return": [ { "vls": [ 1 ] },
+#                  { "vls": [ 1, 2 ] },
+#                  { "vls": [ 1, 2, 4 ] } ] }
+#
+##
+{ 'command': 'query-sve-vector-lengths', 'returns': ['SVEVectorLengths'],
+  'if': 'defined(TARGET_ARM)' }
+
+##
 # @CpuModelExpansionInfo:
 #
 # The result of a cpu model expansion.
