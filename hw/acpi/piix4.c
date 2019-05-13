@@ -723,6 +723,7 @@ static void piix4_pm_class_init(ObjectClass *klass, void *data)
     adevc->ospm_status = piix4_ospm_status;
     adevc->send_event = piix4_send_gpe;
     adevc->madt_sub = i386_madt_sub;
+    adevc->madt_main = i386_madt_main;
 }
 
 static const TypeInfo piix4_pm_info = {

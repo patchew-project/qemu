@@ -282,6 +282,7 @@ void pc_system_firmware_init(PCMachineState *pcms, MemoryRegion *rom_memory);
 void pc_madt_cpu_entry(AcpiDeviceIf *adev, int uid,
                        const CPUArchIdList *apic_ids, GArray *entry);
 extern madt_operations i386_madt_sub;
+void i386_madt_main(GArray *entry, void *opaque);
 
 /* e820 types */
 #define E820_RAM        1

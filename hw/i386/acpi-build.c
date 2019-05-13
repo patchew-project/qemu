@@ -458,6 +458,14 @@ madt_operations i386_madt_sub = {
     [ACPI_APIC_LOCAL_NMI] = pc_madt_nmi_entry,
 };
 
+void i386_madt_main(GArray *entry, void *opaque)
+{
+    AcpiMultipleApicTable *madt = opaque;
+
+    madt->local_apic_address = cpu_to_le32(APIC_DEFAULT_ADDRESS);
+    madt->flags = cpu_to_le32(1);
+}
+
 static void
 build_madt(GArray *table_data, BIOSLinker *linker, PCMachineState *pcms,
            struct madt_input *input)
@@ -470,8 +478,9 @@ build_madt(GArray *table_data, BIOSLinker *linker, PCMachineState *pcms,
     void *opaque;
 
     madt = acpi_data_push(table_data, sizeof *madt);
-    madt->local_apic_address = cpu_to_le32(APIC_DEFAULT_ADDRESS);
-    madt->flags = cpu_to_le32(1);
+    if (adevc->madt_main) {
+        adevc->madt_main(table_data, madt);
+    }
 
     for (i = 0; ; i++) {
         sub_id = input[i].sub_id;

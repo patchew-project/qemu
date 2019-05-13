@@ -52,6 +52,7 @@ typedef struct AcpiDeviceIfClass {
     /* <public> */
     void (*ospm_status)(AcpiDeviceIf *adev, ACPIOSTInfoList ***list);
     void (*send_event)(AcpiDeviceIf *adev, AcpiEventStatusBits ev);
+    madt_operation madt_main;
     madt_operation *madt_sub;
 } AcpiDeviceIfClass;
 #endif

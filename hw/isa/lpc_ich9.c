@@ -812,6 +812,7 @@ static void ich9_lpc_class_init(ObjectClass *klass, void *data)
     adevc->ospm_status = ich9_pm_ospm_status;
     adevc->send_event = ich9_send_gpe;
     adevc->madt_sub = i386_madt_sub;
+    adevc->madt_main = i386_madt_main;
 }
 
 static const TypeInfo ich9_lpc_info = {
