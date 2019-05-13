@@ -387,12 +387,25 @@ static void pc_madt_x2apic_nmi_entry(GArray *entry, void *opaque)
     local_nmi->lint   = 1; /* ACPI_LINT1 */
 }
 
+static void pc_madt_nmi_entry(GArray *entry, void *opaque)
+{
+    AcpiMadtLocalNmi *local_nmi;
+
+    local_nmi = acpi_data_push(entry, sizeof *local_nmi);
+    local_nmi->type         = ACPI_APIC_LOCAL_NMI;
+    local_nmi->length       = sizeof(*local_nmi);
+    local_nmi->processor_id = 0xff; /* all processors */
+    local_nmi->flags        = cpu_to_le16(0);
+    local_nmi->lint         = 1; /* ACPI_LINT1 */
+}
+
 madt_operations i386_madt_sub = {
     [ACPI_APIC_PROCESSOR] = pc_madt_apic_entry,
     [ACPI_APIC_LOCAL_X2APIC] = pc_madt_x2apic_entry,
     [ACPI_APIC_IO] = pc_madt_io_entry,
     [ACPI_APIC_XRUPT_OVERRIDE] = pc_madt_xrupt_override_entry,
     [ACPI_APIC_LOCAL_X2APIC_NMI] = pc_madt_x2apic_nmi_entry,
+    [ACPI_APIC_LOCAL_NMI] = pc_madt_nmi_entry,
 };
 
 static void
@@ -443,14 +456,7 @@ build_madt(GArray *table_data, BIOSLinker *linker, PCMachineState *pcms)
     if (x2apic_mode) {
         adevc->madt_sub[ACPI_APIC_LOCAL_X2APIC_NMI](table_data, NULL);
     } else {
-        AcpiMadtLocalNmi *local_nmi;
-
-        local_nmi = acpi_data_push(table_data, sizeof *local_nmi);
-        local_nmi->type         = ACPI_APIC_LOCAL_NMI;
-        local_nmi->length       = sizeof(*local_nmi);
-        local_nmi->processor_id = 0xff; /* all processors */
-        local_nmi->flags        = cpu_to_le16(0);
-        local_nmi->lint         = 1; /* ACPI_LINT1 */
+        adevc->madt_sub[ACPI_APIC_LOCAL_NMI](table_data, NULL);
     }
 
     build_header(linker, table_data,
