@@ -160,3 +160,4 @@ CONFIG_MUSICPAL=y
 
 # for realview and versatilepb
 CONFIG_LSI_SCSI_PCI=y
+CONFIG_ACPI_APEI=y
