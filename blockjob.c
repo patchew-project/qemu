@@ -208,6 +208,7 @@ int block_job_add_bdrv(BlockJob *job, const char *name, BlockDriverState *bs,
 {
     BdrvChild *c;
 
+    bdrv_ref(bs);
     c = bdrv_root_attach_child(bs, name, &child_job, perm, shared_perm,
                                job, errp);
     if (c == NULL) {
@@ -215,7 +216,6 @@ int block_job_add_bdrv(BlockJob *job, const char *name, BlockDriverState *bs,
     }
 
     job->nodes = g_slist_prepend(job->nodes, c);
-    bdrv_ref(bs);
     bdrv_op_block_all(bs, job->blocker);
 
     return 0;
