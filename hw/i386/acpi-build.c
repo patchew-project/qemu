@@ -288,6 +288,54 @@ static void acpi_get_pci_holes(Range *hole, Range *hole64)
                                                NULL));
 }
 
+struct madt_input {
+    int sub_id;
+    void *opaque;
+};
+
+int xrupt_override_idx[] = {0, 5, 9, 10, 11};
+static struct madt_input *
+acpi_get_madt_input(PCMachineState *pcms, int *processor_id)
+{
+    MachineClass *mc = MACHINE_GET_CLASS(pcms);
+    const CPUArchIdList *apic_ids = mc->possible_cpu_arch_ids(MACHINE(pcms));
+    int i, sub_heads = 0;
+    uint32_t apic_id;
+    struct madt_input *input = NULL;
+
+    sub_heads = apic_ids->len                      /* PROCESSOR/X2APIC */
+                + 1                                /* APIC_IO */
+                + ARRAY_SIZE(xrupt_override_idx)   /* XRUPT_OVERRIDE */
+                + 1                                /* NMI/X2APIC_NMI */
+                + 1;                               /* END MARK */
+    input = g_new0(struct madt_input, sub_heads);
+    for (i = 0, sub_heads = 0; i < apic_ids->len; i++, sub_heads++) {
+        apic_id = apic_ids->cpus[i].arch_id;
+        if (apic_id < 255) {
+            input[sub_heads].sub_id = ACPI_APIC_PROCESSOR;
+        } else {
+            input[sub_heads].sub_id = ACPI_APIC_LOCAL_X2APIC;
+        }
+        input[sub_heads].opaque = processor_id;
+    }
+    input[sub_heads++].sub_id = ACPI_APIC_IO;
+    for (i = 0; i < ARRAY_SIZE(xrupt_override_idx); i++, sub_heads++) {
+        if (i == 0 && !pcms->apic_xrupt_override) {
+            continue;
+        }
+        input[sub_heads].sub_id = ACPI_APIC_XRUPT_OVERRIDE;
+        input[sub_heads].opaque = &xrupt_override_idx[i];
+    }
+    if (apic_id > 254) {
+        input[sub_heads++].sub_id = ACPI_APIC_LOCAL_X2APIC_NMI;
+    } else {
+        input[sub_heads++].sub_id = ACPI_APIC_LOCAL_NMI;
+    }
+    input[sub_heads].sub_id = ACPI_APIC_RESERVED;
+
+    return input;
+}
+
 static void acpi_align_size(GArray *blob, unsigned align)
 {
     /* Align size to multiple of given size. This reduces the chance
@@ -322,6 +370,7 @@ static void pc_madt_apic_entry(GArray *entry, void *opaque)
     } else {
         apic->flags = cpu_to_le32(0);
     }
+    (*processor_id)++;
 }
 
 static void pc_madt_x2apic_entry(GArray *entry, void *opaque)
@@ -341,6 +390,7 @@ static void pc_madt_x2apic_entry(GArray *entry, void *opaque)
     } else {
         apic->flags = cpu_to_le32(0);
     }
+    (*processor_id)++;
 }
 
 static void pc_madt_io_entry(GArray *entry, void *opaque)
@@ -409,54 +459,27 @@ madt_operations i386_madt_sub = {
 };
 
 static void
-build_madt(GArray *table_data, BIOSLinker *linker, PCMachineState *pcms)
+build_madt(GArray *table_data, BIOSLinker *linker, PCMachineState *pcms,
+           struct madt_input *input)
 {
-    MachineClass *mc = MACHINE_GET_CLASS(pcms);
-    const CPUArchIdList *apic_ids = mc->possible_cpu_arch_ids(MACHINE(pcms));
     int madt_start = table_data->len;
     AcpiDeviceIfClass *adevc = ACPI_DEVICE_IF_GET_CLASS(pcms->acpi_dev);
 
-    bool x2apic_mode = false;
-
     AcpiMultipleApicTable *madt;
-    int i;
+    int i, sub_id;
+    void *opaque;
 
     madt = acpi_data_push(table_data, sizeof *madt);
     madt->local_apic_address = cpu_to_le32(APIC_DEFAULT_ADDRESS);
     madt->flags = cpu_to_le32(1);
 
-    for (i = 0; i < apic_ids->len; i++) {
-        uint32_t apic_id = apic_ids->cpus[i].arch_id;
-        int processor_id = i;
-        if (apic_id < 255) {
-            adevc->madt_sub[ACPI_APIC_PROCESSOR](table_data, &processor_id);
-        } else {
-            adevc->madt_sub[ACPI_APIC_LOCAL_X2APIC](table_data, &processor_id);
+    for (i = 0; ; i++) {
+        sub_id = input[i].sub_id;
+        if (sub_id == ACPI_APIC_RESERVED) {
+            break;
         }
-        if (apic_id > 254) {
-            x2apic_mode = true;
-        }
-    }
-
-    adevc->madt_sub[ACPI_APIC_IO](table_data, NULL);
-
-    if (pcms->apic_xrupt_override) {
-        i = 0;
-        adevc->madt_sub[ACPI_APIC_XRUPT_OVERRIDE](table_data, &i);
-    }
-    for (i = 1; i < 16; i++) {
-#define ACPI_BUILD_PCI_IRQS ((1<<5) | (1<<9) | (1<<10) | (1<<11))
-        if (!(ACPI_BUILD_PCI_IRQS & (1 << i))) {
-            /* No need for a INT source override structure. */
-            continue;
-        }
-        adevc->madt_sub[ACPI_APIC_XRUPT_OVERRIDE](table_data, &i);
-    }
-
-    if (x2apic_mode) {
-        adevc->madt_sub[ACPI_APIC_LOCAL_X2APIC_NMI](table_data, NULL);
-    } else {
-        adevc->madt_sub[ACPI_APIC_LOCAL_NMI](table_data, NULL);
+        opaque = input[i].opaque;
+        adevc->madt_sub[sub_id](table_data, opaque);
     }
 
     build_header(linker, table_data,
@@ -2657,6 +2680,8 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
     GArray *tables_blob = tables->table_data;
     AcpiSlicOem slic_oem = { .id = NULL, .table_id = NULL };
     Object *vmgenid_dev;
+    struct madt_input *input = NULL;
+    int processor_id = 0;
 
     acpi_get_pm_info(&pm);
     acpi_get_misc_info(&misc);
@@ -2701,7 +2726,9 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
     aml_len += tables_blob->len - fadt;
 
     acpi_add_table(table_offsets, tables_blob);
-    build_madt(tables_blob, tables->linker, pcms);
+    input = acpi_get_madt_input(pcms, &processor_id);
+    build_madt(tables_blob, tables->linker, pcms, input);
+    g_free(input);
 
     vmgenid_dev = find_vmgenid_dev();
     if (vmgenid_dev) {
