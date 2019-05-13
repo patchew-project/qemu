@@ -32,10 +32,13 @@
 #define GHES_ADDRESS_SIZE           8
 
 #define GHES_DATA_LENGTH            72
-#define GHES_CPER_LENGTH            80
+#define GHES_MEM_CPER_LENGTH        80
 
 #define ReadAckPreserve             0xfffffffe
 #define ReadAckWrite                0x1
+
+#define GHES_CPER_OK                1
+#define GHES_CPER_FAIL              0
 
 /* The max size in bytes for one error block */
 #define GHES_MAX_RAW_DATA_LENGTH        0x1000
@@ -76,4 +79,5 @@ void build_apei_hest(GArray *table_data, GArray *hardware_error,
 
 void build_hardware_error_table(GArray *hardware_errors, BIOSLinker *linker);
 void ghes_add_fw_cfg(FWCfgState *s, GArray *hardware_errors);
+bool ghes_record_errors(uint32_t notify, uint64_t error_physical_addr);
 #endif
