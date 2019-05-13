@@ -529,18 +529,8 @@ void build_cpus_aml(Aml *table, MachineState *machine, CPUHotplugFeatures opts,
                 assert(adevc->madt_sub[ACPI_APIC_PROCESSOR]);
                 adevc->madt_sub[ACPI_APIC_PROCESSOR](madt_buf, &processor_id);
             } else {
-                AcpiMadtProcessorX2Apic *apic = acpi_data_push(madt_buf,
-                                                               sizeof *apic);
-
-                apic->type = ACPI_APIC_LOCAL_X2APIC;
-                apic->length = sizeof(*apic);
-                apic->uid = cpu_to_le32(i);
-                apic->x2apic_id = cpu_to_le32(apic_id);
-                if (arch_ids->cpus[i].cpu != NULL) {
-                    apic->flags = cpu_to_le32(1);
-                } else {
-                    apic->flags = cpu_to_le32(0);
-                }
+                adevc->madt_sub[ACPI_APIC_LOCAL_X2APIC](madt_buf,
+                                                        &processor_id);
             }
             switch (madt_buf->data[0]) {
             case ACPI_APIC_PROCESSOR: {
