@@ -305,12 +305,37 @@ build_facs(GArray *table_data)
     facs->length = cpu_to_le32(sizeof(*facs));
 }
 
+static void pc_madt_apic_entry(GArray *entry, void *opaque)
+{
+    MachineState *machine = MACHINE(qdev_get_machine());
+    MachineClass *mc = MACHINE_GET_CLASS(machine);
+    const CPUArchIdList *apic_ids = mc->possible_cpu_arch_ids(machine);
+    int *processor_id = opaque;
+    AcpiMadtProcessorApic *apic = acpi_data_push(entry, sizeof *apic);
+
+    apic->type = ACPI_APIC_PROCESSOR;
+    apic->length = sizeof(*apic);
+    apic->processor_id = *processor_id;
+    apic->local_apic_id = apic_ids->cpus[*processor_id].arch_id;
+    if (apic_ids->cpus[*processor_id].cpu != NULL) {
+        apic->flags = cpu_to_le32(1);
+    } else {
+        apic->flags = cpu_to_le32(0);
+    }
+}
+
+madt_operations i386_madt_sub = {
+    [ACPI_APIC_PROCESSOR] = pc_madt_apic_entry,
+};
+
 static void
 build_madt(GArray *table_data, BIOSLinker *linker, PCMachineState *pcms)
 {
     MachineClass *mc = MACHINE_GET_CLASS(pcms);
     const CPUArchIdList *apic_ids = mc->possible_cpu_arch_ids(MACHINE(pcms));
     int madt_start = table_data->len;
+    AcpiDeviceIfClass *adevc = ACPI_DEVICE_IF_GET_CLASS(pcms->acpi_dev);
+
     bool x2apic_mode = false;
 
     AcpiMultipleApicTable *madt;
@@ -324,19 +349,9 @@ build_madt(GArray *table_data, BIOSLinker *linker, PCMachineState *pcms)
 
     for (i = 0; i < apic_ids->len; i++) {
         uint32_t apic_id = apic_ids->cpus[i].arch_id;
+        int processor_id = i;
         if (apic_id < 255) {
-            AcpiMadtProcessorApic *apic = acpi_data_push(table_data,
-                                                         sizeof *apic);
-
-            apic->type = ACPI_APIC_PROCESSOR;
-            apic->length = sizeof(*apic);
-            apic->processor_id = i;
-            apic->local_apic_id = apic_id;
-            if (apic_ids->cpus[i].cpu != NULL) {
-                apic->flags = cpu_to_le32(1);
-            } else {
-                apic->flags = cpu_to_le32(0);
-            }
+            adevc->madt_sub[ACPI_APIC_PROCESSOR](table_data, &processor_id);
         } else {
             AcpiMadtProcessorX2Apic *apic = acpi_data_push(table_data,
                                                            sizeof *apic);

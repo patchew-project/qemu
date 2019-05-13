@@ -3,6 +3,7 @@
 
 #include "qom/object.h"
 #include "hw/boards.h"
+#include "hw/acpi/acpi-defs.h"
 
 /* These values are part of guest ABI, and can not be changed */
 typedef enum {
@@ -29,6 +30,9 @@ typedef struct AcpiDeviceIf AcpiDeviceIf;
 
 void acpi_send_event(DeviceState *dev, AcpiEventStatusBits event);
 
+typedef void (*madt_operation)(GArray *entry, void *opaque);
+typedef madt_operation madt_operations[ACPI_APIC_RESERVED];
+
 /**
  * AcpiDeviceIfClass:
  *
@@ -48,5 +52,6 @@ typedef struct AcpiDeviceIfClass {
     /* <public> */
     void (*ospm_status)(AcpiDeviceIf *adev, ACPIOSTInfoList ***list);
     void (*send_event)(AcpiDeviceIf *adev, AcpiEventStatusBits ev);
+    madt_operation *madt_sub;
 } AcpiDeviceIfClass;
 #endif

@@ -508,6 +508,7 @@ void build_cpus_aml(Aml *table, MachineState *machine, CPUHotplugFeatures opts,
             Aml *uid = aml_int(i);
             GArray *madt_buf = g_array_new(0, 1, 1);
             int arch_id = arch_ids->cpus[i].arch_id;
+            int processor_id = i;
 
             if (opts.acpi_1_compatible && arch_id < 255) {
                 dev = aml_processor(i, 0, 0, CPU_NAME_FMT, i);
@@ -525,18 +526,8 @@ void build_cpus_aml(Aml *table, MachineState *machine, CPUHotplugFeatures opts,
             assert(adevc);
             apic_id = arch_ids->cpus[i].arch_id;
             if (apic_id < 255) {
-                AcpiMadtProcessorApic *apic = acpi_data_push(madt_buf,
-                                                             sizeof *apic);
-
-                apic->type = ACPI_APIC_PROCESSOR;
-                apic->length = sizeof(*apic);
-                apic->processor_id = i;
-                apic->local_apic_id = apic_id;
-                if (arch_ids->cpus[i].cpu != NULL) {
-                    apic->flags = cpu_to_le32(1);
-                } else {
-                    apic->flags = cpu_to_le32(0);
-                }
+                assert(adevc->madt_sub[ACPI_APIC_PROCESSOR]);
+                adevc->madt_sub[ACPI_APIC_PROCESSOR](madt_buf, &processor_id);
             } else {
                 AcpiMadtProcessorX2Apic *apic = acpi_data_push(madt_buf,
                                                                sizeof *apic);
