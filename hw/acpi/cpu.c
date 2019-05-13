@@ -329,7 +329,7 @@ void build_cpus_aml(Aml *table, MachineState *machine, CPUHotplugFeatures opts,
     char *cphp_res_path = g_strdup_printf("%s." CPUHP_RES_DEVICE, res_root);
     Object *obj = object_resolve_path_type("", TYPE_ACPI_DEVICE_IF, NULL);
     AcpiDeviceIfClass *adevc = ACPI_DEVICE_IF_GET_CLASS(obj);
-    AcpiDeviceIf *adev = ACPI_DEVICE_IF(obj);
+    uint32_t apic_id;
 
     cpu_ctrl_dev = aml_device("%s", cphp_res_path);
     {
@@ -522,8 +522,35 @@ void build_cpus_aml(Aml *table, MachineState *machine, CPUHotplugFeatures opts,
             aml_append(dev, method);
 
             /* build _MAT object */
-            assert(adevc && adevc->madt_cpu);
-            adevc->madt_cpu(adev, i, arch_ids, madt_buf);
+            assert(adevc);
+            apic_id = arch_ids->cpus[i].arch_id;
+            if (apic_id < 255) {
+                AcpiMadtProcessorApic *apic = acpi_data_push(madt_buf,
+                                                             sizeof *apic);
+
+                apic->type = ACPI_APIC_PROCESSOR;
+                apic->length = sizeof(*apic);
+                apic->processor_id = i;
+                apic->local_apic_id = apic_id;
+                if (arch_ids->cpus[i].cpu != NULL) {
+                    apic->flags = cpu_to_le32(1);
+                } else {
+                    apic->flags = cpu_to_le32(0);
+                }
+            } else {
+                AcpiMadtProcessorX2Apic *apic = acpi_data_push(madt_buf,
+                                                               sizeof *apic);
+
+                apic->type = ACPI_APIC_LOCAL_X2APIC;
+                apic->length = sizeof(*apic);
+                apic->uid = cpu_to_le32(i);
+                apic->x2apic_id = cpu_to_le32(apic_id);
+                if (arch_ids->cpus[i].cpu != NULL) {
+                    apic->flags = cpu_to_le32(1);
+                } else {
+                    apic->flags = cpu_to_le32(0);
+                }
+            }
             switch (madt_buf->data[0]) {
             case ACPI_APIC_PROCESSOR: {
                 AcpiMadtProcessorApic *apic = (void *)madt_buf->data;

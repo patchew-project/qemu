@@ -305,52 +305,12 @@ build_facs(GArray *table_data)
     facs->length = cpu_to_le32(sizeof(*facs));
 }
 
-void pc_madt_cpu_entry(AcpiDeviceIf *adev, int uid,
-                       const CPUArchIdList *apic_ids, GArray *entry)
-{
-    uint32_t apic_id = apic_ids->cpus[uid].arch_id;
-
-    /* ACPI spec says that LAPIC entry for non present
-     * CPU may be omitted from MADT or it must be marked
-     * as disabled. However omitting non present CPU from
-     * MADT breaks hotplug on linux. So possible CPUs
-     * should be put in MADT but kept disabled.
-     */
-    if (apic_id < 255) {
-        AcpiMadtProcessorApic *apic = acpi_data_push(entry, sizeof *apic);
-
-        apic->type = ACPI_APIC_PROCESSOR;
-        apic->length = sizeof(*apic);
-        apic->processor_id = uid;
-        apic->local_apic_id = apic_id;
-        if (apic_ids->cpus[uid].cpu != NULL) {
-            apic->flags = cpu_to_le32(1);
-        } else {
-            apic->flags = cpu_to_le32(0);
-        }
-    } else {
-        AcpiMadtProcessorX2Apic *apic = acpi_data_push(entry, sizeof *apic);
-
-        apic->type = ACPI_APIC_LOCAL_X2APIC;
-        apic->length = sizeof(*apic);
-        apic->uid = cpu_to_le32(uid);
-        apic->x2apic_id = cpu_to_le32(apic_id);
-        if (apic_ids->cpus[uid].cpu != NULL) {
-            apic->flags = cpu_to_le32(1);
-        } else {
-            apic->flags = cpu_to_le32(0);
-        }
-    }
-}
-
 static void
 build_madt(GArray *table_data, BIOSLinker *linker, PCMachineState *pcms)
 {
     MachineClass *mc = MACHINE_GET_CLASS(pcms);
     const CPUArchIdList *apic_ids = mc->possible_cpu_arch_ids(MACHINE(pcms));
     int madt_start = table_data->len;
-    AcpiDeviceIfClass *adevc = ACPI_DEVICE_IF_GET_CLASS(pcms->acpi_dev);
-    AcpiDeviceIf *adev = ACPI_DEVICE_IF(pcms->acpi_dev);
     bool x2apic_mode = false;
 
     AcpiMultipleApicTable *madt;
@@ -363,8 +323,35 @@ build_madt(GArray *table_data, BIOSLinker *linker, PCMachineState *pcms)
     madt->flags = cpu_to_le32(1);
 
     for (i = 0; i < apic_ids->len; i++) {
-        adevc->madt_cpu(adev, i, apic_ids, table_data);
-        if (apic_ids->cpus[i].arch_id > 254) {
+        uint32_t apic_id = apic_ids->cpus[i].arch_id;
+        if (apic_id < 255) {
+            AcpiMadtProcessorApic *apic = acpi_data_push(table_data,
+                                                         sizeof *apic);
+
+            apic->type = ACPI_APIC_PROCESSOR;
+            apic->length = sizeof(*apic);
+            apic->processor_id = i;
+            apic->local_apic_id = apic_id;
+            if (apic_ids->cpus[i].cpu != NULL) {
+                apic->flags = cpu_to_le32(1);
+            } else {
+                apic->flags = cpu_to_le32(0);
+            }
+        } else {
+            AcpiMadtProcessorX2Apic *apic = acpi_data_push(table_data,
+                                                           sizeof *apic);
+
+            apic->type = ACPI_APIC_LOCAL_X2APIC;
+            apic->length = sizeof(*apic);
+            apic->uid = cpu_to_le32(i);
+            apic->x2apic_id = cpu_to_le32(apic_id);
+            if (apic_ids->cpus[i].cpu != NULL) {
+                apic->flags = cpu_to_le32(1);
+            } else {
+                apic->flags = cpu_to_le32(0);
+            }
+        }
+        if (apic_id > 254) {
             x2apic_mode = true;
         }
     }
