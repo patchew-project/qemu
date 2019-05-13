@@ -355,10 +355,31 @@ static void pc_madt_io_entry(GArray *entry, void *opaque)
     io_apic->interrupt = cpu_to_le32(0);
 }
 
+static void pc_madt_xrupt_override_entry(GArray *entry, void *opaque)
+{
+    AcpiMadtIntsrcovr *intsrcovr;
+    int *idx = opaque;
+
+    intsrcovr = acpi_data_push(entry, sizeof *intsrcovr);
+    intsrcovr->type   = ACPI_APIC_XRUPT_OVERRIDE;
+    intsrcovr->length = sizeof(*intsrcovr);
+    intsrcovr->source = *idx;
+    if (*idx == 0) {
+        intsrcovr->gsi    = cpu_to_le32(2);
+        /* conforms to bus specifications */
+        intsrcovr->flags = cpu_to_le16(0);
+    } else {
+        intsrcovr->gsi    = cpu_to_le32(*idx);
+        /* active high, level triggered */
+        intsrcovr->flags = cpu_to_le16(0xd);
+    }
+}
+
 madt_operations i386_madt_sub = {
     [ACPI_APIC_PROCESSOR] = pc_madt_apic_entry,
     [ACPI_APIC_LOCAL_X2APIC] = pc_madt_x2apic_entry,
     [ACPI_APIC_IO] = pc_madt_io_entry,
+    [ACPI_APIC_XRUPT_OVERRIDE] = pc_madt_xrupt_override_entry,
 };
 
 static void
@@ -372,7 +393,6 @@ build_madt(GArray *table_data, BIOSLinker *linker, PCMachineState *pcms)
     bool x2apic_mode = false;
 
     AcpiMultipleApicTable *madt;
-    AcpiMadtIntsrcovr *intsrcovr;
     int i;
 
     madt = acpi_data_push(table_data, sizeof *madt);
@@ -395,12 +415,8 @@ build_madt(GArray *table_data, BIOSLinker *linker, PCMachineState *pcms)
     adevc->madt_sub[ACPI_APIC_IO](table_data, NULL);
 
     if (pcms->apic_xrupt_override) {
-        intsrcovr = acpi_data_push(table_data, sizeof *intsrcovr);
-        intsrcovr->type   = ACPI_APIC_XRUPT_OVERRIDE;
-        intsrcovr->length = sizeof(*intsrcovr);
-        intsrcovr->source = 0;
-        intsrcovr->gsi    = cpu_to_le32(2);
-        intsrcovr->flags  = cpu_to_le16(0); /* conforms to bus specifications */
+        i = 0;
+        adevc->madt_sub[ACPI_APIC_XRUPT_OVERRIDE](table_data, &i);
     }
     for (i = 1; i < 16; i++) {
 #define ACPI_BUILD_PCI_IRQS ((1<<5) | (1<<9) | (1<<10) | (1<<11))
@@ -408,12 +424,7 @@ build_madt(GArray *table_data, BIOSLinker *linker, PCMachineState *pcms)
             /* No need for a INT source override structure. */
             continue;
         }
-        intsrcovr = acpi_data_push(table_data, sizeof *intsrcovr);
-        intsrcovr->type   = ACPI_APIC_XRUPT_OVERRIDE;
-        intsrcovr->length = sizeof(*intsrcovr);
-        intsrcovr->source = i;
-        intsrcovr->gsi    = cpu_to_le32(i);
-        intsrcovr->flags  = cpu_to_le16(0xd); /* active high, level triggered */
+        adevc->madt_sub[ACPI_APIC_XRUPT_OVERRIDE](table_data, &i);
     }
 
     if (x2apic_mode) {
