@@ -343,9 +343,22 @@ static void pc_madt_x2apic_entry(GArray *entry, void *opaque)
     }
 }
 
+static void pc_madt_io_entry(GArray *entry, void *opaque)
+{
+    AcpiMadtIoApic *io_apic;
+
+    io_apic = acpi_data_push(entry, sizeof *io_apic);
+    io_apic->type = ACPI_APIC_IO;
+    io_apic->length = sizeof(*io_apic);
+    io_apic->io_apic_id = ACPI_BUILD_IOAPIC_ID;
+    io_apic->address = cpu_to_le32(IO_APIC_DEFAULT_ADDRESS);
+    io_apic->interrupt = cpu_to_le32(0);
+}
+
 madt_operations i386_madt_sub = {
     [ACPI_APIC_PROCESSOR] = pc_madt_apic_entry,
     [ACPI_APIC_LOCAL_X2APIC] = pc_madt_x2apic_entry,
+    [ACPI_APIC_IO] = pc_madt_io_entry,
 };
 
 static void
@@ -359,7 +372,6 @@ build_madt(GArray *table_data, BIOSLinker *linker, PCMachineState *pcms)
     bool x2apic_mode = false;
 
     AcpiMultipleApicTable *madt;
-    AcpiMadtIoApic *io_apic;
     AcpiMadtIntsrcovr *intsrcovr;
     int i;
 
@@ -380,12 +392,7 @@ build_madt(GArray *table_data, BIOSLinker *linker, PCMachineState *pcms)
         }
     }
 
-    io_apic = acpi_data_push(table_data, sizeof *io_apic);
-    io_apic->type = ACPI_APIC_IO;
-    io_apic->length = sizeof(*io_apic);
-    io_apic->io_apic_id = ACPI_BUILD_IOAPIC_ID;
-    io_apic->address = cpu_to_le32(IO_APIC_DEFAULT_ADDRESS);
-    io_apic->interrupt = cpu_to_le32(0);
+    adevc->madt_sub[ACPI_APIC_IO](table_data, NULL);
 
     if (pcms->apic_xrupt_override) {
         intsrcovr = acpi_data_push(table_data, sizeof *intsrcovr);
