@@ -7,17 +7,15 @@
 
 #include "qemu/osdep.h"
 #include "sysemu/rng.h"
+#include "sysemu/rng-builtin.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/main-loop.h"
 #include "qemu/guest-random.h"
 
-#define TYPE_RNG_BUILTIN "rng-builtin"
-#define RNG_BUILTIN(obj) OBJECT_CHECK(RngBuiltin, (obj), TYPE_RNG_BUILTIN)
-
-typedef struct RngBuiltin {
+struct RngBuiltin {
     RngBackend parent;
-} RngBuiltin;
+};
 
 static void rng_builtin_request_entropy(RngBackend *b, RngRequest *req)
 {
