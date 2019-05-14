@@ -190,7 +190,7 @@ static void virtio_rng_device_realize(DeviceState *dev, Error **errp)
     }
 
     if (vrng->conf.rng == NULL) {
-        Object *default_backend = object_new(TYPE_RNG_RANDOM);
+        Object *default_backend = object_new(TYPE_RNG_BUILTIN);
 
         user_creatable_complete(USER_CREATABLE(default_backend),
                                 &local_err);
