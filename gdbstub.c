@@ -1987,6 +1987,11 @@ void gdb_do_syscall(gdb_syscall_complete_cb cb, const char *fmt, ...)
     va_end(va);
 }
 
+void gdb_do_console_out(target_ulong s, int len)
+{
+    gdb_do_syscall(NULL, "write,2,%x,1", s, len);
+}
+
 static void gdb_read_byte(GDBState *s, int ch)
 {
     uint8_t reply;

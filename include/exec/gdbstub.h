@@ -44,6 +44,17 @@ void gdb_do_syscall(gdb_syscall_complete_cb cb, const char *fmt, ...);
  * argument list.
  */
 void gdb_do_syscallv(gdb_syscall_complete_cb cb, const char *fmt, va_list va);
+/**
+ * gdb_do_console_out:
+ * @gs: guest address of string to send
+ * @len: length of string
+ *
+ * Sends a string to gdb console. Unlike the system call interface
+ * there is no callback and we assume the system call always
+ * succeeds.
+ */
+void gdb_do_console_out(target_ulong s, int len);
+
 int use_gdb_syscalls(void);
 void gdb_set_stop_cpu(CPUState *cpu);
 void gdb_exit(CPUArchState *, int);
