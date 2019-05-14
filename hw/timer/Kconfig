@@ -36,6 +36,7 @@ config TWL92230
 
 config XLNX_ZYNQMP
     bool
+    select REGISTER
 
 config ALTERA_TIMER
     bool
