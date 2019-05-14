@@ -39,11 +39,11 @@ void monitor_read_command(Monitor *mon, int show_prompt);
 int monitor_read_password(Monitor *mon, ReadLineFunc *readline_func,
                           void *opaque);
 
-AddfdInfo *monitor_fdset_add_fd(int fd, bool has_fdset_id, int64_t fdset_id,
+AddfdInfo *monitor_fdset_add_fd(int fd, bool has_fdset_id, int fdset_id,
                                 bool has_opaque, const char *opaque,
                                 Error **errp);
-int monitor_fdset_get_fd(int64_t fdset_id, int flags);
-int monitor_fdset_dup_fd_add(int64_t fdset_id, int dup_fd);
+int monitor_fdset_get_fd(int fdset_id, int flags);
+int monitor_fdset_dup_fd_add(int fdset_id, int dup_fd);
 void monitor_fdset_dup_fd_remove(int dup_fd);
 int monitor_fdset_dup_fd_find(int dup_fd);
 

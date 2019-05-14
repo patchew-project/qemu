@@ -292,7 +292,7 @@ int qemu_open(const char *name, int flags, ...)
 
     /* Attempt dup of fd from fd set */
     if (strstart(name, "/dev/fdset/", &fdset_id_str)) {
-        int64_t fdset_id;
+        int fdset_id;
         int fd, dupfd;
 
         fdset_id = qemu_parse_fdset(fdset_id_str);
@@ -352,7 +352,7 @@ int qemu_open(const char *name, int flags, ...)
 
 int qemu_close(int fd)
 {
-    int64_t fdset_id;
+    int fdset_id;
 
     /* Close fd that was dup'd from an fdset */
     fdset_id = monitor_fdset_dup_fd_find(fd);

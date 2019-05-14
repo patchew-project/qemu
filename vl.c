@@ -1081,7 +1081,7 @@ bool defaults_enabled(void)
 static int parse_add_fd(void *opaque, QemuOpts *opts, Error **errp)
 {
     int fd, dupfd, flags;
-    int64_t fdset_id;
+    int fdset_id;
     const char *fd_opaque = NULL;
     AddfdInfo *fdinfo;
 

@@ -2179,7 +2179,7 @@
 #
 # Since: 1.2.0
 ##
-{ 'struct': 'AddfdInfo', 'data': {'fdset-id': 'int', 'fd': 'int'} }
+{ 'struct': 'AddfdInfo', 'data': {'fdset-id': 'int32', 'fd': 'int32'} }
 
 ##
 # @add-fd:
@@ -2209,7 +2209,7 @@
 #
 ##
 { 'command': 'add-fd',
-  'data': { '*fdset-id': 'int',
+  'data': { '*fdset-id': 'int32',
             '*opaque': 'str' },
   'returns': 'AddfdInfo' }
 
@@ -2238,7 +2238,7 @@
 # <- { "return": {} }
 #
 ##
-{ 'command': 'remove-fd', 'data': {'fdset-id': 'int', '*fd': 'int'} }
+{ 'command': 'remove-fd', 'data': {'fdset-id': 'int32', '*fd': 'int32'} }
 
 ##
 # @FdsetFdInfo:
@@ -2252,7 +2252,7 @@
 # Since: 1.2.0
 ##
 { 'struct': 'FdsetFdInfo',
-  'data': {'fd': 'int', '*opaque': 'str'} }
+  'data': {'fd': 'int32', '*opaque': 'str'} }
 
 ##
 # @FdsetInfo:
@@ -2266,7 +2266,7 @@
 # Since: 1.2.0
 ##
 { 'struct': 'FdsetInfo',
-  'data': {'fdset-id': 'int', 'fds': ['FdsetFdInfo']} }
+  'data': {'fdset-id': 'int32', 'fds': ['FdsetFdInfo']} }
 
 ##
 # @query-fdsets:

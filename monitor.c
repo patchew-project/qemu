@@ -160,7 +160,7 @@ struct MonFdsetFd {
 /* file descriptor set containing fds passed via SCM_RIGHTS */
 typedef struct MonFdset MonFdset;
 struct MonFdset {
-    int64_t id;
+    int id;
     QLIST_HEAD(, MonFdsetFd) fds;
     QLIST_HEAD(, MonFdsetFd) dup_fds;
     QLIST_ENTRY(MonFdset) next;
@@ -2346,7 +2346,7 @@ static void monitor_fdsets_cleanup(void)
     qemu_mutex_unlock(&mon_fdsets_lock);
 }
 
-AddfdInfo *qmp_add_fd(bool has_fdset_id, int64_t fdset_id, bool has_opaque,
+AddfdInfo *qmp_add_fd(bool has_fdset_id, int32_t fdset_id, bool has_opaque,
                       const char *opaque, Error **errp)
 {
     int fd;
@@ -2372,7 +2372,7 @@ error:
     return NULL;
 }
 
-void qmp_remove_fd(int64_t fdset_id, bool has_fd, int64_t fd, Error **errp)
+void qmp_remove_fd(int32_t fdset_id, bool has_fd, int fd, Error **errp)
 {
     MonFdset *mon_fdset;
     MonFdsetFd *mon_fdset_fd;
@@ -2405,10 +2405,10 @@ void qmp_remove_fd(int64_t fdset_id, bool has_fd, int64_t fd, Error **errp)
 error:
     qemu_mutex_unlock(&mon_fdsets_lock);
     if (has_fd) {
-        snprintf(fd_str, sizeof(fd_str), "fdset-id:%" PRId64 ", fd:%" PRId64,
+        snprintf(fd_str, sizeof(fd_str), "fdset-id:%" PRId32 ", fd:%" PRId32,
                  fdset_id, fd);
     } else {
-        snprintf(fd_str, sizeof(fd_str), "fdset-id:%" PRId64, fdset_id);
+        snprintf(fd_str, sizeof(fd_str), "fdset-id:%" PRId32, fdset_id);
     }
     error_setg(errp, QERR_FD_NOT_FOUND, fd_str);
 }
@@ -2454,7 +2454,7 @@ FdsetInfoList *qmp_query_fdsets(Error **errp)
     return fdset_list;
 }
 
-AddfdInfo *monitor_fdset_add_fd(int fd, bool has_fdset_id, int64_t fdset_id,
+AddfdInfo *monitor_fdset_add_fd(int32_t fd, bool has_fdset_id, int32_t fdset_id,
                                 bool has_opaque, const char *opaque,
                                 Error **errp)
 {
@@ -2476,7 +2476,7 @@ AddfdInfo *monitor_fdset_add_fd(int fd, bool has_fdset_id, int64_t fdset_id,
     }
 
     if (mon_fdset == NULL) {
-        int64_t fdset_id_prev = -1;
+        int fdset_id_prev = -1;
         MonFdset *mon_fdset_cur = QLIST_FIRST(&mon_fdsets);
 
         if (has_fdset_id) {
@@ -2538,7 +2538,7 @@ AddfdInfo *monitor_fdset_add_fd(int fd, bool has_fdset_id, int64_t fdset_id,
     return fdinfo;
 }
 
-int monitor_fdset_get_fd(int64_t fdset_id, int flags)
+int monitor_fdset_get_fd(int fdset_id, int flags)
 {
 #ifdef _WIN32
     return -ENOENT;
@@ -2576,7 +2576,7 @@ out:
 #endif
 }
 
-int monitor_fdset_dup_fd_add(int64_t fdset_id, int dup_fd)
+int monitor_fdset_dup_fd_add(int fdset_id, int dup_fd)
 {
     MonFdset *mon_fdset;
     MonFdsetFd *mon_fdset_fd_dup;
