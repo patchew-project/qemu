@@ -493,7 +493,7 @@
 #
 ##
 { 'enum': 'MultifdCompress',
-  'data': [ 'none' ] }
+  'data': [ 'none', 'zlib' ] }
 
 ##
 # @MigrationParameter:
