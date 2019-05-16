@@ -2723,7 +2723,7 @@ static X86CPUDefinition builtin_x86_defs[] = {
             CPUID_EXT_SSE3,
         .features[FEAT_8000_0001_EDX] =
             CPUID_EXT2_LM | CPUID_EXT2_NX | CPUID_EXT2_SYSCALL,
-        .xlevel = 0x80000008,
+        .xlevel = 0x8000000A,
         .model_id = "AMD Opteron 240 (Gen 1 Class Opteron)",
     },
     {
@@ -2745,7 +2745,7 @@ static X86CPUDefinition builtin_x86_defs[] = {
             CPUID_EXT2_LM | CPUID_EXT2_NX | CPUID_EXT2_SYSCALL,
         .features[FEAT_8000_0001_ECX] =
             CPUID_EXT3_SVM | CPUID_EXT3_LAHF_LM,
-        .xlevel = 0x80000008,
+        .xlevel = 0x8000000A,
         .model_id = "AMD Opteron 22xx (Gen 2 Class Opteron)",
     },
     {
@@ -2770,7 +2770,7 @@ static X86CPUDefinition builtin_x86_defs[] = {
         .features[FEAT_8000_0001_ECX] =
             CPUID_EXT3_MISALIGNSSE | CPUID_EXT3_SSE4A |
             CPUID_EXT3_ABM | CPUID_EXT3_SVM | CPUID_EXT3_LAHF_LM,
-        .xlevel = 0x80000008,
+        .xlevel = 0x8000000A,
         .model_id = "AMD Opteron 23xx (Gen 3 Class Opteron)",
     },
     {
