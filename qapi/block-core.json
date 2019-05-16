@@ -698,6 +698,7 @@
 { 'struct': 'BlockMeasureInfo',
   'data': {'required': 'int', 'fully-allocated': 'int'} }
 
+
 ##
 # @query-block:
 #
@@ -5257,3 +5258,16 @@
   'data' : { 'node-name': 'str',
              'iothread': 'StrOrNull',
              '*force': 'bool' } }
+
+##
+# @Qcow2CompressionType:
+#
+# Compression type used in qcow2 image file
+#
+# @zlib - gzip compressor
+# @zstd - zstd compression
+#
+# Since: 4.0
+##
+{ 'enum': 'Qcow2CompressionType',
+  'data': [ 'zlib', 'zstd' ] }

@@ -109,7 +109,11 @@ in the description of a field.
                                 An External Data File Name header extension may
                                 be present if this bit is set.
 
-                    Bits 3-63:  Reserved (set to 0)
+                    Bit 3:      Compression type bit. If the bit is set, then the
+                                type of compression the image uses is set in the
+                                header extension
+
+                    Bits 4-63:  Reserved (set to 0)
 
          80 -  87:  compatible_features
                     Bitmask of compatible features. An implementation can
@@ -175,6 +179,7 @@ be stored. Each extension has a structure like the following:
                         0x23852875 - Bitmaps extension
                         0x0537be77 - Full disk encryption header pointer
                         0x44415441 - External data file name string
+                        0x434D5052 - Compression type extension
                         other      - Unknown header extension, can be safely
                                      ignored
 
@@ -771,3 +776,21 @@ In the image file the 'enabled' state is reflected by the 'auto' flag. If this
 flag is set, the software must consider the bitmap as 'enabled' and start
 tracking virtual disk changes to this bitmap from the first write to the
 virtual disk. If this flag is not set then the bitmap is disabled.
+
+
+== Compression type extension ==
+
+The compression type extension is an optional header extension. It stores the
+ID of the compressor which has to be used to compress/decompress disk clusters.
+The compression type is used for all disk cluster. Two clusters of the image
+couldn't be compressed with different compressors.
+
+The compression type can be set on the image creation. The only way to change
+the compression type is to convert the image explicitly.
+
+Available compression types:
+    ID    0: ZLIB (gzip)
+          1: ZSTD
+
+The default compression type is ZLIB. When ZLIB is used the compression type
+header extension is not present.
