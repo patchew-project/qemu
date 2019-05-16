@@ -2112,11 +2112,9 @@ static void block_dirty_bitmap_disable_abort(BlkActionState *common)
     }
 }
 
-static BdrvDirtyBitmap *do_block_dirty_bitmap_merge(const char *node,
-                                                    const char *target,
-                                                    strList *bitmaps,
-                                                    HBitmap **backup,
-                                                    Error **errp);
+static BdrvDirtyBitmap *do_block_dirty_bitmap_merge(
+        const char *node, const char *target, strList *bitmaps,
+        BlockDirtyBitmapList *external_bitmaps, HBitmap **backup, Error **errp);
 
 static void block_dirty_bitmap_merge_prepare(BlkActionState *common,
                                              Error **errp)
@@ -2132,8 +2130,9 @@ static void block_dirty_bitmap_merge_prepare(BlkActionState *common,
     action = common->action->u.block_dirty_bitmap_merge.data;
 
     state->bitmap = do_block_dirty_bitmap_merge(action->node, action->target,
-                                                action->bitmaps, &state->backup,
-                                                errp);
+                                                action->bitmaps,
+                                                action->external_bitmaps,
+                                                &state->backup, errp);
 }
 
 static void abort_prepare(BlkActionState *common, Error **errp)
@@ -2965,15 +2964,14 @@ void qmp_block_dirty_bitmap_disable(const char *node, const char *name,
     bdrv_disable_dirty_bitmap(bitmap);
 }
 
-static BdrvDirtyBitmap *do_block_dirty_bitmap_merge(const char *node,
-                                                    const char *target,
-                                                    strList *bitmaps,
-                                                    HBitmap **backup,
-                                                    Error **errp)
+static BdrvDirtyBitmap *do_block_dirty_bitmap_merge(
+        const char *node, const char *target, strList *bitmaps,
+        BlockDirtyBitmapList *external_bitmaps, HBitmap **backup, Error **errp)
 {
     BlockDriverState *bs;
     BdrvDirtyBitmap *dst, *src, *anon;
     strList *lst;
+    BlockDirtyBitmapList *ext_lst;
     Error *local_err = NULL;
 
     dst = block_dirty_bitmap_lookup(node, target, &bs, errp);
@@ -3003,6 +3001,22 @@ static BdrvDirtyBitmap *do_block_dirty_bitmap_merge(const char *node,
         }
     }
 
+    for (ext_lst = external_bitmaps; ext_lst; ext_lst = ext_lst->next) {
+        src = block_dirty_bitmap_lookup(ext_lst->value->node,
+                                        ext_lst->value->name, NULL, errp);
+        if (!src) {
+            dst = NULL;
+            goto out;
+        }
+
+        bdrv_merge_dirty_bitmap(anon, src, NULL, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            dst = NULL;
+            goto out;
+        }
+    }
+
     /* Merge into dst; dst is unchanged on failure. */
     bdrv_merge_dirty_bitmap(dst, anon, backup, errp);
 
@@ -3012,9 +3026,13 @@ static BdrvDirtyBitmap *do_block_dirty_bitmap_merge(const char *node,
 }
 
 void qmp_block_dirty_bitmap_merge(const char *node, const char *target,
-                                  strList *bitmaps, Error **errp)
+                                  bool has_bitmaps, strList *bitmaps,
+                                  bool has_external_bitmaps,
+                                  BlockDirtyBitmapList *external_bitmaps,
+                                  Error **errp)
 {
-    do_block_dirty_bitmap_merge(node, target, bitmaps, NULL, errp);
+    do_block_dirty_bitmap_merge(node, target, bitmaps, external_bitmaps, NULL,
+                                errp);
 }
 
 BlockDirtyBitmapSha256 *qmp_x_debug_block_dirty_bitmap_sha256(const char *node,

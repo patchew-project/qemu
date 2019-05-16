@@ -2006,16 +2006,23 @@
 ##
 # @BlockDirtyBitmapMerge:
 #
-# @node: name of device/node which the bitmap is tracking
+# @node: name of device/node which the @target and @bitmaps bitmaps are
+#        tracking
 #
 # @target: name of the destination dirty bitmap
 #
-# @bitmaps: name(s) of the source dirty bitmap(s)
+# @bitmaps: name(s) of the source dirty bitmap(s). The field is optional
+#           since 4.1.
+#
+# @external-bitmaps: additional list of source dirty bitmaps with specified
+#                    nodes, which allows merging bitmaps between different
+#                    nodes. (Since: 4.1)
 #
 # Since: 4.0
 ##
 { 'struct': 'BlockDirtyBitmapMerge',
-  'data': { 'node': 'str', 'target': 'str', 'bitmaps': ['str'] } }
+  'data': { 'node': 'str', 'target': 'str', '*bitmaps': ['str'],
+            '*external-bitmaps': ['BlockDirtyBitmap'] } }
 
 ##
 # @block-dirty-bitmap-add:
