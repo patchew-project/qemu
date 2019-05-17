@@ -690,6 +690,7 @@ static struct {
         uint32_t fw;
         uint32_t bits;
     } flags[2];
+    uint64_t dependencies;
 } kvm_hyperv_properties[] = {
     [HYPERV_FEAT_RELAXED] = {
         .desc = "relaxed timing (hv-relaxed)",
@@ -757,7 +758,8 @@ static struct {
         .flags = {
             {.fw = FEAT_HYPERV_EAX,
              .bits = HV_SYNTIMERS_AVAILABLE}
-        }
+        },
+        .dependencies = BIT(HYPERV_FEAT_SYNIC) | BIT(HYPERV_FEAT_TIME)
     },
     [HYPERV_FEAT_FREQUENCIES] = {
         .desc = "frequency MSRs (hv-frequencies)",
@@ -987,10 +989,23 @@ static int hv_cpuid_check_and_set(CPUState *cs, struct kvm_cpuid2 *cpuid,
     X86CPU *cpu = X86_CPU(cs);
     CPUX86State *env = &cpu->env;
     uint32_t r, fw, bits;
-    int i;
+    uint64_t deps;
+    int i, dep_feat = 0;
 
     if (!hyperv_feat_enabled(cpu, feature) && !cpu->hyperv_passthrough) {
         return 0;
+    }
+
+    deps = kvm_hyperv_properties[feature].dependencies;
+    while ((dep_feat = find_next_bit(&deps, 64, dep_feat)) < 64) {
+        if (!(hyperv_feat_enabled(cpu, dep_feat))) {
+                fprintf(stderr,
+                        "Hyper-V %s requires Hyper-V %s\n",
+                        kvm_hyperv_properties[feature].desc,
+                        kvm_hyperv_properties[dep_feat].desc);
+                return 1;
+        }
+        dep_feat++;
     }
 
     for (i = 0; i < ARRAY_SIZE(kvm_hyperv_properties[feature].flags); i++) {
@@ -1108,11 +1123,11 @@ static int hyperv_handle_properties(CPUState *cs,
     r |= hv_cpuid_check_and_set(cs, cpuid, HYPERV_FEAT_EVMCS);
     r |= hv_cpuid_check_and_set(cs, cpuid, HYPERV_FEAT_IPI);
 
-    /* Dependencies */
+    /* Additional dependencies not covered by kvm_hyperv_properties[] */
     if (hyperv_feat_enabled(cpu, HYPERV_FEAT_SYNIC) &&
         !cpu->hyperv_synic_kvm_only &&
         !hyperv_feat_enabled(cpu, HYPERV_FEAT_VPINDEX)) {
-        fprintf(stderr, "Hyper-V %s requires %s\n",
+        fprintf(stderr, "Hyper-V %s requires Hyper-V %s\n",
                 kvm_hyperv_properties[HYPERV_FEAT_SYNIC].desc,
                 kvm_hyperv_properties[HYPERV_FEAT_VPINDEX].desc);
         r |= 1;
