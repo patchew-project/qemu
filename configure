@@ -1235,13 +1235,18 @@ for opt do
   ;;
   --disable-stack-protector) stack_protector="no"
   ;;
-  --disable-curses) curses="no"
+  --disable-curses)
+      curses="no"
+      iconv="no"
   ;;
   --enable-curses) curses="yes"
   ;;
   --disable-iconv) iconv="no"
   ;;
-  --enable-iconv) iconv="yes"
+  --enable-iconv)
+      if test "$curses" != "no" ; then
+	  iconv="yes"
+      fi
   ;;
   --disable-curl) curl="no"
   ;;
