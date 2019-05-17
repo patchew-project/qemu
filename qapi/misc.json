@@ -1365,10 +1365,13 @@
 #
 # @description: if specified, the description of the property.
 #
+# @default: initial property value.
+#
 # Since: 1.2
 ##
 { 'struct': 'ObjectPropertyInfo',
-  'data': { 'name': 'str', 'type': 'str', '*description': 'str' } }
+  'data': { 'name': 'str', 'type': 'str', '*description': 'str',
+            '*default': 'any' } }
 
 ##
 # @qom-list:

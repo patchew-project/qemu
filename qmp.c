@@ -593,6 +593,11 @@ ObjectPropertyInfoList *qmp_qom_list_properties(const char *typename,
         info->type = g_strdup(prop->type);
         info->has_description = !!prop->description;
         info->description = g_strdup(prop->description);
+        if (obj) {
+            info->q_default =
+                object_property_get_qobject(obj, info->name, NULL);
+            info->has_q_default = !!info->q_default;
+        }
 
         entry = g_malloc0(sizeof(*entry));
         entry->value = info;
