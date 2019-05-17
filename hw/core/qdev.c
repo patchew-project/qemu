@@ -211,6 +211,25 @@ void device_listener_unregister(DeviceListener *listener)
     QTAILQ_REMOVE(&device_listeners, listener, link);
 }
 
+bool qdev_should_hide_device(QemuOpts *opts, Error **errp)
+{
+    bool res = false;
+    bool match_found = false;
+
+    DeviceListener *listener;
+
+    QTAILQ_FOREACH(listener, &device_listeners, link) {
+       if (listener->should_be_hidden) {
+            listener->should_be_hidden(listener, opts, &match_found, &res);
+        }
+
+        if (match_found) {
+            break;
+        }
+    }
+    return res;
+}
+
 void qdev_set_legacy_instance_id(DeviceState *dev, int alias_id,
                                  int required_for_version)
 {
