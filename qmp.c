@@ -41,6 +41,7 @@
 #include "qom/object_interfaces.h"
 #include "hw/mem/memory-device.h"
 #include "hw/acpi/acpi_dev_interface.h"
+#include "qapi/qmp/qstring.h"
 
 NameInfo *qmp_query_name(Error **errp)
 {
@@ -596,7 +597,16 @@ ObjectPropertyInfoList *qmp_qom_list_properties(const char *typename,
         if (obj) {
             info->q_default =
                 object_property_get_qobject(obj, info->name, NULL);
-            info->has_q_default = !!info->q_default;
+            if (info->q_default) {
+               if (qobject_type(info->q_default) == QTYPE_QSTRING) {
+                   QString *value = qobject_to(QString, info->q_default);
+                   if (!strcmp(qstring_get_str(value), "")) {
+                       qobject_unref(info->q_default);
+                       info->q_default = NULL;
+                   }
+               }
+               info->has_q_default = !!info->q_default;
+            }
         }
 
         entry = g_malloc0(sizeof(*entry));
