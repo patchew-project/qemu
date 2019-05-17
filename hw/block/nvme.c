@@ -184,7 +184,7 @@ static uint16_t nvme_map_prp(NvmeCtrl *n, QEMUSGList *qsg, uint64_t prp1,
     int num_prps = (len >> n->page_bits) + 1;
     uint16_t status = NVME_SUCCESS;
 
-    trace_nvme_map_prp(req->cmd_opcode, trans_len, len, prp1, prp2, num_prps);
+    trace_nvme_map_prp(req->cmd.opcode, trans_len, len, prp1, prp2, num_prps);
 
     if (unlikely(!prp1)) {
         trace_nvme_err_invalid_prp();
@@ -1559,7 +1559,7 @@ static void nvme_init_req(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
     memset(&req->cqe, 0, sizeof(req->cqe));
     req->cqe.cid = le16_to_cpu(cmd->cid);
 
-    req->cmd_opcode = cmd->opcode;
+    memcpy(&req->cmd, cmd, sizeof(NvmeCmd));
     req->is_cmb = false;
 
     req->status = NVME_SUCCESS;

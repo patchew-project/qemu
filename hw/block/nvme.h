@@ -52,7 +52,7 @@ typedef struct NvmeRequest {
     uint16_t status;
     bool     is_cmb;
     bool     is_write;
-    uint8_t  cmd_opcode;
+    NvmeCmd  cmd;
 
     QTAILQ_HEAD(, NvmeBlockBackendRequest) blk_req_tailq;
     QTAILQ_ENTRY(NvmeRequest)entry;
@@ -143,7 +143,7 @@ typedef struct NvmeCtrl {
 
 static inline bool nvme_rw_is_write(NvmeRequest *req)
 {
-    return req->cmd_opcode == NVME_CMD_WRITE;
+    return req->cmd.opcode == NVME_CMD_WRITE;
 }
 
 static inline bool nvme_is_error(uint16_t status, uint16_t err)
