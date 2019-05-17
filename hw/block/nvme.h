@@ -8,13 +8,15 @@
     DEFINE_PROP_UINT32("cmb_size_mb", _state, _props.cmb_size_mb, 0), \
     DEFINE_PROP_UINT32("num_queues", _state, _props.num_queues, 64), \
     DEFINE_PROP_UINT32("num_ns", _state, _props.num_ns, 1), \
-    DEFINE_PROP_UINT8("mdts", _state, _props.mdts, 7)
+    DEFINE_PROP_UINT8("mdts", _state, _props.mdts, 7), \
+    DEFINE_PROP_UINT8("ms", _state, _props.ms, 0)
 
 typedef struct NvmeParams {
     char     *serial;
     uint32_t num_queues;
     uint32_t num_ns;
     uint8_t  mdts;
+    uint8_t  ms;
     uint32_t cmb_size_mb;
 } NvmeParams;
 
@@ -91,6 +93,7 @@ typedef struct NvmeNamespace {
     uint32_t        id;
     uint64_t        ns_blks;
     uint64_t        blk_offset;
+    uint64_t        blk_offset_md;
 } NvmeNamespace;
 
 #define TYPE_NVME "nvme"
@@ -152,6 +155,12 @@ static inline uint8_t nvme_ns_lbads(NvmeNamespace *ns)
 static inline size_t nvme_ns_lbads_bytes(NvmeNamespace *ns)
 {
     return 1 << nvme_ns_lbads(ns);
+}
+
+static inline uint16_t nvme_ns_ms(NvmeNamespace *ns)
+{
+    NvmeIdNs *id = &ns->id_ns;
+    return le16_to_cpu(id->lbaf[NVME_ID_NS_FLBAS_INDEX(id->flbas)].ms);
 }
 
 #endif /* HW_NVME_H */

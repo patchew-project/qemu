@@ -33,6 +33,8 @@
  *   num_ns=<int>          : Namespaces to make out of the backing storage,
  *                           Default:1
  *   num_queues=<int>      : Number of possible IO Queues, Default:64
+ *   ms=<int>              : Number of metadata bytes provided per LBA,
+ *                           Default:0
  *   cmb_size_mb=<int>     : Size of CMB in MBs, Default:0
  *
  * Parameters will be verified against conflicting capabilities and attributes
@@ -386,6 +388,8 @@ static uint16_t nvme_blk_map(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
 
     uint32_t unit_len = nvme_ns_lbads_bytes(ns);
     uint32_t len = req->nlb * unit_len;
+    uint32_t meta_unit_len = nvme_ns_ms(ns);
+    uint32_t meta_len = req->nlb * meta_unit_len;
     uint64_t prp1 = le64_to_cpu(cmd->prp1);
     uint64_t prp2 = le64_to_cpu(cmd->prp2);
 
@@ -397,6 +401,19 @@ static uint16_t nvme_blk_map(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
     err = nvme_blk_setup(n, ns, &qsg, ns->blk_offset, unit_len, req);
     if (err) {
         return err;
+    }
+
+    qsg.nsg = 0;
+    qsg.size = 0;
+
+    if (cmd->mptr && n->params.ms) {
+        qemu_sglist_add(&qsg, le64_to_cpu(cmd->mptr), meta_len);
+
+        err = nvme_blk_setup(n, ns, &qsg, ns->blk_offset_md, meta_unit_len,
+            req);
+        if (err) {
+            return err;
+        }
     }
 
     qemu_sglist_destroy(&qsg);
@@ -1902,6 +1919,11 @@ static int nvme_check_constraints(NvmeCtrl *n, Error **errp)
         return 1;
     }
 
+    if (params->ms && !is_power_of_2(params->ms)) {
+        error_setg(errp, "nvme: invalid metadata configuration");
+        return 1;
+    }
+
     return 0;
 }
 
@@ -2066,17 +2088,20 @@ static void nvme_init_ctrl(NvmeCtrl *n)
 
 static uint64_t nvme_ns_calc_blks(NvmeCtrl *n, NvmeNamespace *ns)
 {
-    return n->ns_size / nvme_ns_lbads_bytes(ns);
+    return n->ns_size / (nvme_ns_lbads_bytes(ns) + nvme_ns_ms(ns));
 }
 
 static void nvme_ns_init_identify(NvmeCtrl *n, NvmeIdNs *id_ns)
 {
+    NvmeParams *params = &n->params;
+
     id_ns->nlbaf = 0;
     id_ns->flbas = 0;
-    id_ns->mc = 0;
+    id_ns->mc = params->ms ? 0x2 : 0;
     id_ns->dpc = 0;
     id_ns->dps = 0;
     id_ns->lbaf[0].lbads = BDRV_SECTOR_BITS;
+    id_ns->lbaf[0].ms = params->ms;
 }
 
 static int nvme_init_namespace(NvmeCtrl *n, NvmeNamespace *ns, Error **errp)
@@ -2086,6 +2111,8 @@ static int nvme_init_namespace(NvmeCtrl *n, NvmeNamespace *ns, Error **errp)
     nvme_ns_init_identify(n, id_ns);
 
     ns->ns_blks = nvme_ns_calc_blks(n, ns);
+    ns->blk_offset_md = ns->blk_offset + nvme_ns_lbads_bytes(ns) * ns->ns_blks;
+
     id_ns->nuse = id_ns->ncap = id_ns->nsze = cpu_to_le64(ns->ns_blks);
 
     return 0;
