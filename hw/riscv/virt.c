@@ -62,6 +62,40 @@ static const struct MemmapEntry {
     [VIRT_PCIE_ECAM] =   { 0x30000000,    0x10000000 },
 };
 
+
+static target_ulong load_firmware_and_kernel(const char *firmware_filename,
+                                             const char *kernel_filename,
+                                             uint64_t mem_size,
+                                             uint64_t* kernel_start,
+                                             uint64_t* kernel_end)
+{
+    uint64_t firmware_entry, firmware_end;
+    int size;
+
+    if (load_elf(firmware_filename, NULL, NULL, NULL,
+                 &firmware_entry, NULL, &firmware_end,
+                 0, EM_RISCV, 1, 0) < 0) {
+        error_report("could not load firmware '%s'", firmware_filename);
+        exit(1);
+    }
+
+    /* align kernel load address to the megapage after the firmware */
+#if defined(TARGET_RISCV32)
+    *kernel_start = (firmware_end + 0x3fffff) & ~0x3fffff;
+#else
+    *kernel_start = (firmware_end + 0x1fffff) & ~0x1fffff;
+#endif
+
+    size = load_image_targphys(kernel_filename, *kernel_start,
+                               mem_size - *kernel_start);
+    if (size == -1) {
+        error_report("could not load kernel '%s'", kernel_filename);
+        exit(1);
+    }
+    *kernel_end = *kernel_start + size;
+    return firmware_entry;
+}
+
 static target_ulong load_kernel(const char *kernel_filename)
 {
     uint64_t kernel_entry;
@@ -423,19 +457,29 @@ static void riscv_virt_board_init(MachineState *machine)
                                 mask_rom);
 
     uint64_t entry = memmap[VIRT_DRAM].base;
-    if (machine->kernel_filename) {
-        entry = load_kernel(machine->kernel_filename);
+    if (machine->firmware && machine->kernel_filename) {
+        uint64_t kernel_start, kernel_end;
+        entry = load_firmware_and_kernel(machine->firmware,
+                                         machine->kernel_filename,
+                                         machine->ram_size, &kernel_start,
+                                         &kernel_end);
 
-        if (machine->initrd_filename) {
-            uint64_t start;
-            uint64_t end = load_initrd(machine->initrd_filename,
-                                       memmap[VIRT_DRAM].base, machine->ram_size,
-                                       &start);
-            qemu_fdt_setprop_cell(fdt, "/chosen",
-                                  "linux,initrd-start", start);
-            qemu_fdt_setprop_cell(fdt, "/chosen", "linux,initrd-end",
-                                  end);
-        }
+        qemu_fdt_setprop_cells(fdt, "/chosen", "riscv,kernel-end",
+                               kernel_end >> 32, kernel_end);
+        qemu_fdt_setprop_cells(fdt, "/chosen", "riscv,kernel-start",
+                               kernel_start >> 32, kernel_start);
+    } else if (machine->kernel_filename) {
+        entry = load_kernel(machine->kernel_filename);
+    }
+
+    if (machine->kernel_filename && machine->initrd_filename) {
+        uint64_t start;
+        uint64_t end = load_initrd(machine->initrd_filename,
+                                   memmap[VIRT_DRAM].base, machine->ram_size,
+                                   &start);
+
+        qemu_fdt_setprop_cell(fdt, "/chosen", "linux,initrd-start", start);
+        qemu_fdt_setprop_cell(fdt, "/chosen", "linux,initrd-end", end);
     }
 
     /* reset vector */
