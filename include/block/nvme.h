@@ -386,8 +386,8 @@ enum NvmeAsyncEventRequest {
     NVME_AER_TYPE_SMART                     = 1,
     NVME_AER_TYPE_IO_SPECIFIC               = 6,
     NVME_AER_TYPE_VENDOR_SPECIFIC           = 7,
-    NVME_AER_INFO_ERR_INVALID_SQ            = 0,
-    NVME_AER_INFO_ERR_INVALID_DB            = 1,
+    NVME_AER_INFO_ERR_INVALID_DB_REGISTER   = 0,
+    NVME_AER_INFO_ERR_INVALID_DB_VALUE      = 1,
     NVME_AER_INFO_ERR_DIAG_FAIL             = 2,
     NVME_AER_INFO_ERR_PERS_INTERNAL_ERR     = 3,
     NVME_AER_INFO_ERR_TRANS_INTERNAL_ERR    = 4,
@@ -445,7 +445,8 @@ enum NvmeStatusCodes {
     NVME_FW_REQ_RESET           = 0x010b,
     NVME_INVALID_QUEUE_DEL      = 0x010c,
     NVME_FID_NOT_SAVEABLE       = 0x010d,
-    NVME_FID_NOT_NSID_SPEC      = 0x010f,
+    NVME_FEAT_NOT_CHANGABLE     = 0x010e,
+    NVME_FEAT_NOT_NSID_SPEC     = 0x010f,
     NVME_FW_REQ_SUSYSTEM_RESET  = 0x0110,
     NVME_CONFLICTING_ATTRS      = 0x0180,
     NVME_INVALID_PROT_INFO      = 0x0181,
@@ -461,6 +462,13 @@ enum NvmeStatusCodes {
     NVME_DNR                    = 0x4000,
     NVME_NO_COMPLETE            = 0xffff,
 };
+
+typedef struct NvmeIdentifyNamespaceDescriptor {
+    uint8_t nidt;
+    uint8_t nidl;
+    uint8_t rsvd[2];
+    uint8_t nid[];
+} NvmeIdentifyNamespaceDescriptor;
 
 typedef struct NvmeFwSlotInfoLog {
     uint8_t     afi;
@@ -543,7 +551,15 @@ typedef struct NvmeIdCtrl {
     uint8_t     ieee[3];
     uint8_t     cmic;
     uint8_t     mdts;
-    uint8_t     rsvd255[178];
+    uint16_t    cntlid;
+    uint32_t    ver;
+    uint16_t    rtd3r;
+    uint32_t    rtd3e;
+    uint32_t    oaes;
+    uint32_t    ctratt;
+    uint8_t     rsvd111[12];
+    uint8_t     fguid[16];
+    uint8_t     rsvd255[128];
     uint16_t    oacs;
     uint8_t     acl;
     uint8_t     aerl;
@@ -551,10 +567,28 @@ typedef struct NvmeIdCtrl {
     uint8_t     lpa;
     uint8_t     elpe;
     uint8_t     npss;
-    uint8_t     rsvd511[248];
+    uint8_t     avscc;
+    uint8_t     apsta;
+    uint16_t    wctemp;
+    uint16_t    cctemp;
+    uint16_t    mtfa;
+    uint32_t    hmpre;
+    uint32_t    hmmin;
+    uint8_t     tnvmcap[16];
+    uint8_t     unvmcap[16];
+    uint32_t    rpmbs;
+    uint16_t    edstt;
+    uint8_t     dsto;
+    uint8_t     fwug;
+    uint16_t    kas;
+    uint16_t    hctma;
+    uint16_t    mntmt;
+    uint16_t    mxtmt;
+    uint32_t    sanicap;
+    uint8_t     rsvd511[180];
     uint8_t     sqes;
     uint8_t     cqes;
-    uint16_t    rsvd515;
+    uint16_t    maxcmd;
     uint32_t    nn;
     uint16_t    oncs;
     uint16_t    fuses;
@@ -562,8 +596,14 @@ typedef struct NvmeIdCtrl {
     uint8_t     vwc;
     uint16_t    awun;
     uint16_t    awupf;
-    uint8_t     rsvd703[174];
-    uint8_t     rsvd2047[1344];
+    uint8_t     nvscc;
+    uint8_t     rsvd531;
+    uint16_t    acwu;
+    uint16_t    rsvd535;
+    uint32_t    sgls;
+    uint8_t     rsvd767[228];
+    uint8_t     subnqn[256];
+    uint8_t     rsvd2047[1024];
     NvmePSD     psd[32];
     uint8_t     vs[1024];
 } NvmeIdCtrl;
@@ -637,7 +677,7 @@ typedef struct NvmeRangeType {
 
 typedef struct NvmeLBAF {
     uint16_t    ms;
-    uint8_t     ds;
+    uint8_t     lbads;
     uint8_t     rp;
 } NvmeLBAF;
 
