@@ -1401,6 +1401,7 @@ struct X86CPU {
     char *hyperv_vendor_id;
     bool hyperv_synic_kvm_only;
     uint64_t hyperv_features;
+    bool hyperv_passthrough;
 
     bool check_cpuid;
     bool enforce_cpuid;
