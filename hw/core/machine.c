@@ -506,6 +506,13 @@ static char *machine_get_nvdimm_persistence(Object *obj, Error **errp)
     return g_strdup(ms->nvdimms_state->persistence_string);
 }
 
+static bool machine_get_numa_mem_supported(Object *obj, Error **errp)
+{
+    MachineClass *mc = MACHINE_GET_CLASS(obj);
+
+    return mc->numa_mem_supported;
+}
+
 static void machine_set_nvdimm_persistence(Object *obj, const char *value,
                                            Error **errp)
 {
@@ -810,6 +817,11 @@ static void machine_class_init(ObjectClass *oc, void *data)
         &error_abort);
     object_class_property_set_description(oc, "memory-encryption",
         "Set memory encryption object to use", &error_abort);
+
+    object_class_property_add_bool(oc, "numa-mem-supported",
+        machine_get_numa_mem_supported, NULL, &error_abort);
+    object_class_property_set_description(oc, "numa-mem-supported",
+        "Shows if legacy '-numa mem=SIZE option is supported", &error_abort);
 }
 
 static void machine_class_base_init(ObjectClass *oc, void *data)
