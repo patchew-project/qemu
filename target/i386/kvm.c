@@ -635,28 +635,12 @@ unsigned long kvm_arch_vcpu_id(CPUState *cs)
 #define KVM_CPUID_SIGNATURE_NEXT                0x40000100
 #endif
 
-static bool hyperv_hypercall_available(X86CPU *cpu)
-{
-    return cpu->hyperv_vapic ||
-           (cpu->hyperv_spinlock_attempts != HYPERV_SPINLOCK_NEVER_RETRY);
-}
-
 static bool hyperv_enabled(X86CPU *cpu)
 {
     CPUState *cs = CPU(cpu);
     return kvm_check_extension(cs->kvm_state, KVM_CAP_HYPERV) > 0 &&
-           (hyperv_hypercall_available(cpu) ||
-            cpu->hyperv_time  ||
-            cpu->hyperv_relaxed_timing ||
-            cpu->hyperv_crash ||
-            cpu->hyperv_reset ||
-            cpu->hyperv_vpindex ||
-            cpu->hyperv_runtime ||
-            cpu->hyperv_synic ||
-            cpu->hyperv_stimer ||
-            cpu->hyperv_reenlightenment ||
-            cpu->hyperv_tlbflush ||
-            cpu->hyperv_ipi);
+        ((cpu->hyperv_spinlock_attempts != HYPERV_SPINLOCK_NEVER_RETRY) ||
+         cpu->hyperv_features);
 }
 
 static int kvm_arch_set_tsc_khz(CPUState *cs)
@@ -705,14 +689,14 @@ static int hyperv_handle_properties(CPUState *cs)
     X86CPU *cpu = X86_CPU(cs);
     CPUX86State *env = &cpu->env;
 
-    if (cpu->hyperv_relaxed_timing) {
+    if (hyperv_feat_enabled(cpu, HYPERV_FEAT_RELAXED)) {
         env->features[FEAT_HYPERV_EAX] |= HV_HYPERCALL_AVAILABLE;
     }
-    if (cpu->hyperv_vapic) {
+    if (hyperv_feat_enabled(cpu, HYPERV_FEAT_VAPIC)) {
         env->features[FEAT_HYPERV_EAX] |= HV_HYPERCALL_AVAILABLE;
         env->features[FEAT_HYPERV_EAX] |= HV_APIC_ACCESS_AVAILABLE;
     }
-    if (cpu->hyperv_time) {
+    if (hyperv_feat_enabled(cpu, HYPERV_FEAT_TIME)) {
         if (kvm_check_extension(cs->kvm_state, KVM_CAP_HYPERV_TIME) <= 0) {
             fprintf(stderr, "Hyper-V clocksources "
                     "(requested by 'hv-time' cpu flag) "
@@ -723,7 +707,7 @@ static int hyperv_handle_properties(CPUState *cs)
         env->features[FEAT_HYPERV_EAX] |= HV_TIME_REF_COUNT_AVAILABLE;
         env->features[FEAT_HYPERV_EAX] |= HV_REFERENCE_TSC_AVAILABLE;
     }
-    if (cpu->hyperv_frequencies) {
+    if (hyperv_feat_enabled(cpu, HYPERV_FEAT_FREQUENCIES)) {
         if (!has_msr_hv_frequencies) {
             fprintf(stderr, "Hyper-V frequency MSRs "
                     "(requested by 'hv-frequencies' cpu flag) "
@@ -733,7 +717,7 @@ static int hyperv_handle_properties(CPUState *cs)
         env->features[FEAT_HYPERV_EAX] |= HV_ACCESS_FREQUENCY_MSRS;
         env->features[FEAT_HYPERV_EDX] |= HV_FREQUENCY_MSRS_AVAILABLE;
     }
-    if (cpu->hyperv_crash) {
+    if (hyperv_feat_enabled(cpu, HYPERV_FEAT_CRASH)) {
         if (!has_msr_hv_crash) {
             fprintf(stderr, "Hyper-V crash MSRs "
                     "(requested by 'hv-crash' cpu flag) "
@@ -742,7 +726,7 @@ static int hyperv_handle_properties(CPUState *cs)
         }
         env->features[FEAT_HYPERV_EDX] |= HV_GUEST_CRASH_MSR_AVAILABLE;
     }
-    if (cpu->hyperv_reenlightenment) {
+    if (hyperv_feat_enabled(cpu, HYPERV_FEAT_REENLIGHTENMENT)) {
         if (!has_msr_hv_reenlightenment) {
             fprintf(stderr,
                     "Hyper-V Reenlightenment MSRs "
@@ -753,7 +737,7 @@ static int hyperv_handle_properties(CPUState *cs)
         env->features[FEAT_HYPERV_EAX] |= HV_ACCESS_REENLIGHTENMENTS_CONTROL;
     }
     env->features[FEAT_HYPERV_EDX] |= HV_CPU_DYNAMIC_PARTITIONING_AVAILABLE;
-    if (cpu->hyperv_reset) {
+    if (hyperv_feat_enabled(cpu, HYPERV_FEAT_RESET)) {
         if (!has_msr_hv_reset) {
             fprintf(stderr, "Hyper-V reset MSR "
                     "(requested by 'hv-reset' cpu flag) "
@@ -762,7 +746,7 @@ static int hyperv_handle_properties(CPUState *cs)
         }
         env->features[FEAT_HYPERV_EAX] |= HV_RESET_AVAILABLE;
     }
-    if (cpu->hyperv_vpindex) {
+    if (hyperv_feat_enabled(cpu, HYPERV_FEAT_VPINDEX)) {
         if (!has_msr_hv_vpindex) {
             fprintf(stderr, "Hyper-V VP_INDEX MSR "
                     "(requested by 'hv-vpindex' cpu flag) "
@@ -771,7 +755,7 @@ static int hyperv_handle_properties(CPUState *cs)
         }
         env->features[FEAT_HYPERV_EAX] |= HV_VP_INDEX_AVAILABLE;
     }
-    if (cpu->hyperv_runtime) {
+    if (hyperv_feat_enabled(cpu, HYPERV_FEAT_RUNTIME)) {
         if (!has_msr_hv_runtime) {
             fprintf(stderr, "Hyper-V VP_RUNTIME MSR "
                     "(requested by 'hv-runtime' cpu flag) "
@@ -780,10 +764,10 @@ static int hyperv_handle_properties(CPUState *cs)
         }
         env->features[FEAT_HYPERV_EAX] |= HV_VP_RUNTIME_AVAILABLE;
     }
-    if (cpu->hyperv_synic) {
+    if (hyperv_feat_enabled(cpu, HYPERV_FEAT_SYNIC)) {
         unsigned int cap = KVM_CAP_HYPERV_SYNIC;
         if (!cpu->hyperv_synic_kvm_only) {
-            if (!cpu->hyperv_vpindex) {
+            if (!hyperv_feat_enabled(cpu, HYPERV_FEAT_VPINDEX)) {
                 fprintf(stderr, "Hyper-V SynIC "
                         "(requested by 'hv-synic' cpu flag) "
                         "requires Hyper-V VP_INDEX ('hv-vpindex')\n");
@@ -800,20 +784,20 @@ static int hyperv_handle_properties(CPUState *cs)
 
         env->features[FEAT_HYPERV_EAX] |= HV_SYNIC_AVAILABLE;
     }
-    if (cpu->hyperv_stimer) {
+    if (hyperv_feat_enabled(cpu, HYPERV_FEAT_STIMER)) {
         if (!has_msr_hv_stimer) {
             fprintf(stderr, "Hyper-V timers aren't supported by kernel\n");
             return -ENOSYS;
         }
         env->features[FEAT_HYPERV_EAX] |= HV_SYNTIMERS_AVAILABLE;
     }
-    if (cpu->hyperv_relaxed_timing) {
+    if (hyperv_feat_enabled(cpu, HYPERV_FEAT_RELAXED)) {
         env->features[FEAT_HV_RECOMM_EAX] |= HV_RELAXED_TIMING_RECOMMENDED;
     }
-    if (cpu->hyperv_vapic) {
+    if (hyperv_feat_enabled(cpu, HYPERV_FEAT_VAPIC)) {
         env->features[FEAT_HV_RECOMM_EAX] |= HV_APIC_ACCESS_RECOMMENDED;
     }
-    if (cpu->hyperv_tlbflush) {
+    if (hyperv_feat_enabled(cpu, HYPERV_FEAT_TLBFLUSH)) {
         if (kvm_check_extension(cs->kvm_state,
                                 KVM_CAP_HYPERV_TLBFLUSH) <= 0) {
             fprintf(stderr, "Hyper-V TLB flush support "
@@ -824,7 +808,7 @@ static int hyperv_handle_properties(CPUState *cs)
         env->features[FEAT_HV_RECOMM_EAX] |= HV_REMOTE_TLB_FLUSH_RECOMMENDED;
         env->features[FEAT_HV_RECOMM_EAX] |= HV_EX_PROCESSOR_MASKS_RECOMMENDED;
     }
-    if (cpu->hyperv_ipi) {
+    if (hyperv_feat_enabled(cpu, HYPERV_FEAT_IPI)) {
         if (kvm_check_extension(cs->kvm_state,
                                 KVM_CAP_HYPERV_SEND_IPI) <= 0) {
             fprintf(stderr, "Hyper-V IPI send support "
@@ -835,7 +819,7 @@ static int hyperv_handle_properties(CPUState *cs)
         env->features[FEAT_HV_RECOMM_EAX] |= HV_CLUSTER_IPI_RECOMMENDED;
         env->features[FEAT_HV_RECOMM_EAX] |= HV_EX_PROCESSOR_MASKS_RECOMMENDED;
     }
-    if (cpu->hyperv_evmcs) {
+    if (hyperv_feat_enabled(cpu, HYPERV_FEAT_EVMCS)) {
         uint16_t evmcs_version;
 
         if (kvm_vcpu_enable_cap(cs, KVM_CAP_HYPERV_ENLIGHTENED_VMCS, 0,
@@ -857,7 +841,7 @@ static int hyperv_init_vcpu(X86CPU *cpu)
     CPUState *cs = CPU(cpu);
     int ret;
 
-    if (cpu->hyperv_vpindex && !hv_vpindex_settable) {
+    if (hyperv_feat_enabled(cpu, HYPERV_FEAT_VPINDEX) && !hv_vpindex_settable) {
         /*
          * the kernel doesn't support setting vp_index; assert that its value
          * is in sync
@@ -882,7 +866,7 @@ static int hyperv_init_vcpu(X86CPU *cpu)
         }
     }
 
-    if (cpu->hyperv_synic) {
+    if (hyperv_feat_enabled(cpu, HYPERV_FEAT_SYNIC)) {
         uint32_t synic_cap = cpu->hyperv_synic_kvm_only ?
             KVM_CAP_HYPERV_SYNIC : KVM_CAP_HYPERV_SYNIC2;
         ret = kvm_vcpu_enable_cap(cs, synic_cap, 0);
@@ -973,7 +957,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
             memset(signature, 0, 12);
             memcpy(signature, cpu->hyperv_vendor_id, len);
         }
-        c->eax = cpu->hyperv_evmcs ?
+        c->eax = hyperv_feat_enabled(cpu, HYPERV_FEAT_EVMCS) ?
             HV_CPUID_NESTED_FEATURES : HV_CPUID_IMPLEMENT_LIMITS;
         c->ebx = signature[0];
         c->ecx = signature[1];
@@ -1017,7 +1001,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
         kvm_base = KVM_CPUID_SIGNATURE_NEXT;
         has_msr_hv_hypercall = true;
 
-        if (cpu->hyperv_evmcs) {
+        if (hyperv_feat_enabled(cpu, HYPERV_FEAT_EVMCS)) {
             __u32 function;
 
             /* Create zeroed 0x40000006..0x40000009 leaves */
@@ -1361,7 +1345,7 @@ void kvm_arch_reset_vcpu(X86CPU *cpu)
         env->mp_state = KVM_MP_STATE_RUNNABLE;
     }
 
-    if (cpu->hyperv_synic) {
+    if (hyperv_feat_enabled(cpu, HYPERV_FEAT_SYNIC)) {
         int i;
         for (i = 0; i < ARRAY_SIZE(env->msr_hv_synic_sint); i++) {
             env->msr_hv_synic_sint[i] = HV_SINT_MASKED;
@@ -2101,11 +2085,11 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
                 kvm_msr_entry_add(cpu, HV_X64_MSR_HYPERCALL,
                                   env->msr_hv_hypercall);
             }
-            if (cpu->hyperv_time) {
+            if (hyperv_feat_enabled(cpu, HYPERV_FEAT_TIME)) {
                 kvm_msr_entry_add(cpu, HV_X64_MSR_REFERENCE_TSC,
                                   env->msr_hv_tsc);
             }
-            if (cpu->hyperv_reenlightenment) {
+            if (hyperv_feat_enabled(cpu, HYPERV_FEAT_REENLIGHTENMENT)) {
                 kvm_msr_entry_add(cpu, HV_X64_MSR_REENLIGHTENMENT_CONTROL,
                                   env->msr_hv_reenlightenment_control);
                 kvm_msr_entry_add(cpu, HV_X64_MSR_TSC_EMULATION_CONTROL,
@@ -2114,7 +2098,7 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
                                   env->msr_hv_tsc_emulation_status);
             }
         }
-        if (cpu->hyperv_vapic) {
+        if (hyperv_feat_enabled(cpu, HYPERV_FEAT_VAPIC)) {
             kvm_msr_entry_add(cpu, HV_X64_MSR_APIC_ASSIST_PAGE,
                               env->msr_hv_vapic);
         }
@@ -2130,11 +2114,12 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
         if (has_msr_hv_runtime) {
             kvm_msr_entry_add(cpu, HV_X64_MSR_VP_RUNTIME, env->msr_hv_runtime);
         }
-        if (cpu->hyperv_vpindex && hv_vpindex_settable) {
+        if (hyperv_feat_enabled(cpu, HYPERV_FEAT_VPINDEX)
+            && hv_vpindex_settable) {
             kvm_msr_entry_add(cpu, HV_X64_MSR_VP_INDEX,
                               hyperv_vp_index(CPU(cpu)));
         }
-        if (cpu->hyperv_synic) {
+        if (hyperv_feat_enabled(cpu, HYPERV_FEAT_SYNIC)) {
             int j;
 
             kvm_msr_entry_add(cpu, HV_X64_MSR_SVERSION, HV_SYNIC_VERSION);
@@ -2474,13 +2459,13 @@ static int kvm_get_msrs(X86CPU *cpu)
         kvm_msr_entry_add(cpu, HV_X64_MSR_HYPERCALL, 0);
         kvm_msr_entry_add(cpu, HV_X64_MSR_GUEST_OS_ID, 0);
     }
-    if (cpu->hyperv_vapic) {
+    if (hyperv_feat_enabled(cpu, HYPERV_FEAT_VAPIC)) {
         kvm_msr_entry_add(cpu, HV_X64_MSR_APIC_ASSIST_PAGE, 0);
     }
-    if (cpu->hyperv_time) {
+    if (hyperv_feat_enabled(cpu, HYPERV_FEAT_TIME)) {
         kvm_msr_entry_add(cpu, HV_X64_MSR_REFERENCE_TSC, 0);
     }
-    if (cpu->hyperv_reenlightenment) {
+    if (hyperv_feat_enabled(cpu, HYPERV_FEAT_REENLIGHTENMENT)) {
         kvm_msr_entry_add(cpu, HV_X64_MSR_REENLIGHTENMENT_CONTROL, 0);
         kvm_msr_entry_add(cpu, HV_X64_MSR_TSC_EMULATION_CONTROL, 0);
         kvm_msr_entry_add(cpu, HV_X64_MSR_TSC_EMULATION_STATUS, 0);
@@ -2495,7 +2480,7 @@ static int kvm_get_msrs(X86CPU *cpu)
     if (has_msr_hv_runtime) {
         kvm_msr_entry_add(cpu, HV_X64_MSR_VP_RUNTIME, 0);
     }
-    if (cpu->hyperv_synic) {
+    if (hyperv_feat_enabled(cpu, HYPERV_FEAT_SYNIC)) {
         uint32_t msr;
 
         kvm_msr_entry_add(cpu, HV_X64_MSR_SCONTROL, 0);
