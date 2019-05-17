@@ -64,10 +64,10 @@ static const struct MemmapEntry {
 
 static target_ulong load_kernel(const char *kernel_filename)
 {
-    uint64_t kernel_entry, kernel_high;
+    uint64_t kernel_entry;
 
     if (load_elf(kernel_filename, NULL, NULL, NULL,
-                 &kernel_entry, NULL, &kernel_high,
+                 &kernel_entry, NULL, NULL,
                  0, EM_RISCV, 1, 0) < 0) {
         error_report("could not load kernel '%s'", kernel_filename);
         exit(1);
@@ -75,8 +75,8 @@ static target_ulong load_kernel(const char *kernel_filename)
     return kernel_entry;
 }
 
-static hwaddr load_initrd(const char *filename, uint64_t mem_size,
-                          uint64_t kernel_entry, hwaddr *start)
+static uint64_t load_initrd(const char *filename, uint64_t mem_base,
+                            uint64_t mem_size, uint64_t *start)
 {
     int size;
 
@@ -85,12 +85,12 @@ static hwaddr load_initrd(const char *filename, uint64_t mem_size,
      * on boards without much RAM we must ensure that we still leave
      * enough room for a decent sized initrd, and on boards with large
      * amounts of RAM we must avoid the initrd being so far up in RAM
-     * that it is outside lowmem and inaccessible to the kernel.
-     * So for boards with less  than 256MB of RAM we put the initrd
-     * halfway into RAM, and for boards with 256MB of RAM or more we put
-     * the initrd at 128MB.
+     * that it is outside lowmem and inaccessible to the kernel. So
+     * for boards with less than 256MB of RAM we put the initrd
+     * halfway into RAM, and for boards with 256MB of RAM or more we
+     * put the initrd at 128MB.
      */
-    *start = kernel_entry + MIN(mem_size / 2, 128 * MiB);
+    *start = mem_base + MIN(mem_size / 2, 128 * MiB);
 
     size = load_ramdisk(filename, *start, mem_size - *start);
     if (size == -1) {
@@ -422,14 +422,15 @@ static void riscv_virt_board_init(MachineState *machine)
     memory_region_add_subregion(system_memory, memmap[VIRT_MROM].base,
                                 mask_rom);
 
+    uint64_t entry = memmap[VIRT_DRAM].base;
     if (machine->kernel_filename) {
-        uint64_t kernel_entry = load_kernel(machine->kernel_filename);
+        entry = load_kernel(machine->kernel_filename);
 
         if (machine->initrd_filename) {
-            hwaddr start;
-            hwaddr end = load_initrd(machine->initrd_filename,
-                                     machine->ram_size, kernel_entry,
-                                     &start);
+            uint64_t start;
+            uint64_t end = load_initrd(machine->initrd_filename,
+                                       memmap[VIRT_DRAM].base, machine->ram_size,
+                                       &start);
             qemu_fdt_setprop_cell(fdt, "/chosen",
                                   "linux,initrd-start", start);
             qemu_fdt_setprop_cell(fdt, "/chosen", "linux,initrd-end",
@@ -449,8 +450,8 @@ static void riscv_virt_board_init(MachineState *machine)
 #endif
         0x00028067,                  /*     jr     t0 */
         0x00000000,
-        memmap[VIRT_DRAM].base,      /* start: .dword memmap[VIRT_DRAM].base */
-        0x00000000,
+        entry & 0xffffffff,          /* start: .qword entry */
+        entry >> 32,
                                      /* dtb: */
     };
 
