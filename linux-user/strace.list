@@ -527,9 +527,6 @@
 #ifdef TARGET_NR_nfsservctl
 { TARGET_NR_nfsservctl, "nfsservctl" , NULL, NULL, NULL },
 #endif
-#ifdef TARGET_NR_nice
-{ TARGET_NR_nice, "nice" , NULL, NULL, NULL },
-#endif
 #ifdef TARGET_NR_old_adjtimex
 { TARGET_NR_old_adjtimex, "old_adjtimex" , NULL, NULL, NULL },
 #endif

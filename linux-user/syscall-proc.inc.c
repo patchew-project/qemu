@@ -461,6 +461,13 @@ SYSCALL_IMPL(getxpid)
 }
 #endif
 
+#ifdef TARGET_NR_nice
+SYSCALL_IMPL(nice)
+{
+    return get_errno(nice(arg1));
+}
+#endif
+
 /*
  * Map host to target signal numbers for the wait family of syscalls.
  * Assume all other status bits are the same.

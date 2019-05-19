@@ -111,6 +111,9 @@ SYSCALL_DEF(munlockall);
 SYSCALL_DEF(munmap, ARG_PTR, ARG_DEC);
 SYSCALL_DEF(name_to_handle_at,
             ARG_ATDIRFD, ARG_STR, ARG_PTR, ARG_PTR, ARG_ATFLAG);
+#ifdef TARGET_NR_nice
+SYSCALL_DEF(nice, ARG_DEC);
+#endif
 #ifdef TARGET_NR_open
 SYSCALL_DEF(open, ARG_STR, ARG_OPENFLAG, ARG_MODEFLAG);
 #endif
