@@ -188,6 +188,7 @@ SYSCALL_DEF(readlink, ARG_STR, ARG_PTR, ARG_DEC);
 #ifdef TARGET_NR_readlinkat
 SYSCALL_DEF(readlinkat, ARG_ATDIRFD, ARG_STR, ARG_PTR, ARG_DEC);
 #endif
+SYSCALL_DEF(reboot, ARG_HEX, ARG_HEX, ARG_DEC, ARG_PTR);
 #ifdef TARGET_NR_rename
 SYSCALL_DEF(rename, ARG_STR, ARG_STR);
 #endif

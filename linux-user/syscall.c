@@ -4158,19 +4158,6 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
     void *p;
 
     switch(num) {
-    case TARGET_NR_reboot:
-        if (arg3 == LINUX_REBOOT_CMD_RESTART2) {
-           /* arg4 must be ignored in all other cases */
-           p = lock_user_string(arg4);
-           if (!p) {
-               return -TARGET_EFAULT;
-           }
-           ret = get_errno(reboot(arg1, arg2, arg3, p));
-           unlock_user(p, arg4, 0);
-        } else {
-           ret = get_errno(reboot(arg1, arg2, arg3, NULL));
-        }
-        return ret;
 #ifdef TARGET_NR_truncate
     case TARGET_NR_truncate:
         if (!(p = lock_user_string(arg1)))

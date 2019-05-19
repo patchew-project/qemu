@@ -866,9 +866,6 @@
 #ifdef TARGET_NR_readdir
 { TARGET_NR_readdir, "readdir" , NULL, NULL, NULL },
 #endif
-#ifdef TARGET_NR_reboot
-{ TARGET_NR_reboot, "reboot" , NULL, NULL, NULL },
-#endif
 #ifdef TARGET_NR_recv
 { TARGET_NR_recv, "recv" , NULL, NULL, NULL },
 #endif

@@ -532,6 +532,24 @@ SYSCALL_IMPL(nice)
 }
 #endif
 
+SYSCALL_IMPL(reboot)
+{
+    abi_long ret;
+
+    if (arg3 == LINUX_REBOOT_CMD_RESTART2) {
+        /* arg4 must be ignored in all other cases */
+        char *p = lock_user_string(arg4);
+        if (!p) {
+            return -TARGET_EFAULT;
+        }
+        ret = get_errno(reboot(arg1, arg2, arg3, p));
+        unlock_user(p, arg4, 0);
+    } else {
+        ret = get_errno(reboot(arg1, arg2, arg3, NULL));
+    }
+    return ret;
+}
+
 SYSCALL_IMPL(sethostname)
 {
     void *p = lock_user_string(arg1);
