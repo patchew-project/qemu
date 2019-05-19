@@ -1116,12 +1116,6 @@
 #ifdef TARGET_NR_swapcontext
 { TARGET_NR_swapcontext, "swapcontext" , NULL, NULL, NULL },
 #endif
-#ifdef TARGET_NR_swapoff
-{ TARGET_NR_swapoff, "swapoff" , NULL, NULL, NULL },
-#endif
-#ifdef TARGET_NR_swapon
-{ TARGET_NR_swapon, "swapon" , NULL, NULL, NULL },
-#endif
 #ifdef TARGET_NR_syscall
 { TARGET_NR_syscall, "syscall" , NULL, NULL, NULL },
 #endif

@@ -1254,6 +1254,32 @@ SYSCALL_IMPL(select)
 }
 #endif
 
+SYSCALL_IMPL(swapoff)
+{
+    char *p = lock_user_string(arg1);
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(swapoff(p));
+    unlock_user(p, arg1, 0);
+    return ret;
+}
+
+SYSCALL_IMPL(swapon)
+{
+    char *p = lock_user_string(arg1);
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(swapon(p, arg2));
+    unlock_user(p, arg1, 0);
+    return ret;
+}
+
 static abi_long do_symlinkat(abi_ulong guest_target, int dirfd,
                              abi_ulong guest_path)
 {

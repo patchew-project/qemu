@@ -279,6 +279,8 @@ SYSCALL_DEF(ssetmask, ARG_HEX);
 #ifdef TARGET_NR_stime
 SYSCALL_DEF(stime, ARG_PTR);
 #endif
+SYSCALL_DEF(swapoff, ARG_STR);
+SYSCALL_DEF(swapon, ARG_STR, ARG_HEX);
 #ifdef TARGET_NR_symlink
 SYSCALL_DEF(symlink, ARG_STR, ARG_STR);
 #endif
