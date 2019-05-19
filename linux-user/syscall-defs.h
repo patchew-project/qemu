@@ -59,6 +59,14 @@ SYSCALL_DEF(futimesat, ARG_ATDIRFD, ARG_STR, ARG_PTR);
 #ifdef TARGET_NR_fork
 SYSCALL_DEF(fork);
 #endif
+#ifdef TARGET_NR_ftruncate
+SYSCALL_DEF(ftruncate, ARG_DEC, ARG_DEC);
+#endif
+#ifdef TARGET_NR_ftruncate64
+SYSCALL_DEF_FULL(ftruncate64, .impl = impl_ftruncate,
+                 .args = args_ftruncate64_truncate64,
+                 .arg_type = { ARG_DEC, ARG_DEC64 });
+#endif
 #ifdef TARGET_NR_gethostname
 SYSCALL_DEF(gethostname, ARG_PTR, ARG_DEC);
 #endif
@@ -292,6 +300,14 @@ SYSCALL_DEF(syncfs, ARG_DEC);
 SYSCALL_DEF(time, ARG_PTR);
 #endif
 SYSCALL_DEF(times, ARG_PTR);
+#ifdef TARGET_NR_truncate
+SYSCALL_DEF(truncate, ARG_STR, ARG_DEC);
+#endif
+#ifdef TARGET_NR_truncate64
+SYSCALL_DEF_FULL(truncate64, .impl = impl_truncate,
+                 .args = args_ftruncate64_truncate64,
+                 .arg_type = { ARG_STR, ARG_DEC64 });
+#endif
 SYSCALL_DEF(umask, ARG_OCT);
 #ifdef TARGET_NR_umount
 SYSCALL_DEF(umount, ARG_STR);

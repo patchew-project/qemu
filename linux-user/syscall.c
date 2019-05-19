@@ -3721,20 +3721,6 @@ static inline abi_long target_truncate64(void *cpu_env, const char *arg1,
 }
 #endif
 
-#ifdef TARGET_NR_ftruncate64
-static inline abi_long target_ftruncate64(void *cpu_env, abi_long arg1,
-                                          abi_long arg2,
-                                          abi_long arg3,
-                                          abi_long arg4)
-{
-    if (regpairs_aligned(cpu_env, TARGET_NR_ftruncate64)) {
-        arg2 = arg3;
-        arg3 = arg4;
-    }
-    return get_errno(ftruncate64(arg1, target_offset64(arg2, arg3)));
-}
-#endif
-
 static inline abi_long target_to_host_timespec(struct timespec *host_ts,
                                                abi_ulong target_addr)
 {
@@ -4158,18 +4144,6 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
     void *p;
 
     switch(num) {
-#ifdef TARGET_NR_truncate
-    case TARGET_NR_truncate:
-        if (!(p = lock_user_string(arg1)))
-            return -TARGET_EFAULT;
-        ret = get_errno(truncate(p, arg2));
-        unlock_user(p, arg1, 0);
-        return ret;
-#endif
-#ifdef TARGET_NR_ftruncate
-    case TARGET_NR_ftruncate:
-        return get_errno(ftruncate(arg1, arg2));
-#endif
     case TARGET_NR_getpriority:
         /* Note that negative values are valid for getpriority, so we must
            differentiate based on errno settings.  */
@@ -5370,18 +5344,6 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
 	}
         return ret;
     }
-#endif
-#ifdef TARGET_NR_truncate64
-    case TARGET_NR_truncate64:
-        if (!(p = lock_user_string(arg1)))
-            return -TARGET_EFAULT;
-	ret = target_truncate64(cpu_env, p, arg2, arg3, arg4);
-        unlock_user(p, arg1, 0);
-        return ret;
-#endif
-#ifdef TARGET_NR_ftruncate64
-    case TARGET_NR_ftruncate64:
-        return target_ftruncate64(cpu_env, arg1, arg2, arg3, arg4);
 #endif
 #ifdef TARGET_NR_stat64
     case TARGET_NR_stat64:

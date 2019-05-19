@@ -182,6 +182,25 @@ SYSCALL_IMPL(fchmodat)
     return do_fchmodat(arg1, arg2, arg3);
 }
 
+#ifdef TARGET_NR_ftruncate64
+# if TARGET_ABI_BITS == 32
+SYSCALL_ARGS(ftruncate64_truncate64)
+{
+    /* We have already assigned out[0].  */
+    int off = regpairs_aligned(cpu_env, TARGET_NR_ftruncate64);
+    out[1] = target_offset64(in[1 + off], in[2 + off]);
+    return def;
+}
+# else
+#  define args_ftruncate64_truncate64 NULL
+# endif
+#endif
+
+SYSCALL_IMPL(ftruncate)
+{
+    return get_errno(ftruncate(arg1, arg2));
+}
+
 #ifdef TARGET_NR_futimesat
 SYSCALL_IMPL(futimesat)
 {
@@ -1317,6 +1336,19 @@ SYSCALL_IMPL(sync)
 SYSCALL_IMPL(syncfs)
 {
     return get_errno(syncfs(arg1));
+}
+
+SYSCALL_IMPL(truncate)
+{
+    char *p = lock_user_string(arg1);
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(truncate(p, arg2));
+    unlock_user(p, arg1, 0);
+    return ret;
 }
 
 static abi_long do_umount2(abi_ulong target_path, int flags)
