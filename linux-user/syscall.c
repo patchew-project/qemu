@@ -4240,42 +4240,6 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
     void *p;
 
     switch(num) {
-    case TARGET_NR_rt_sigtimedwait:
-        {
-            sigset_t set;
-            struct timespec uts, *puts;
-            siginfo_t uinfo;
-
-            if (arg4 != sizeof(target_sigset_t)) {
-                return -TARGET_EINVAL;
-            }
-
-            if (!(p = lock_user(VERIFY_READ, arg1, sizeof(target_sigset_t), 1)))
-                return -TARGET_EFAULT;
-            target_to_host_sigset(&set, p);
-            unlock_user(p, arg1, 0);
-            if (arg3) {
-                puts = &uts;
-                target_to_host_timespec(puts, arg3);
-            } else {
-                puts = NULL;
-            }
-            ret = get_errno(safe_rt_sigtimedwait(&set, &uinfo, puts,
-                                                 SIGSET_T_SIZE));
-            if (!is_error(ret)) {
-                if (arg2) {
-                    p = lock_user(VERIFY_WRITE, arg2, sizeof(target_siginfo_t),
-                                  0);
-                    if (!p) {
-                        return -TARGET_EFAULT;
-                    }
-                    host_to_target_siginfo(p, &uinfo);
-                    unlock_user(p, arg2, sizeof(target_siginfo_t));
-                }
-                ret = host_to_target_signal(ret);
-            }
-        }
-        return ret;
     case TARGET_NR_rt_sigqueueinfo:
         {
             siginfo_t uinfo;

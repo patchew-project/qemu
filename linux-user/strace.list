@@ -932,9 +932,6 @@
 #ifdef TARGET_NR_rt_sigreturn
 { TARGET_NR_rt_sigreturn, "rt_sigreturn" , NULL, NULL, NULL },
 #endif
-#ifdef TARGET_NR_rt_sigtimedwait
-{ TARGET_NR_rt_sigtimedwait, "rt_sigtimedwait" , NULL, NULL, NULL },
-#endif
 #ifdef TARGET_NR_rt_tgsigqueueinfo
 { TARGET_NR_rt_tgsigqueueinfo, "rt_tgsigqueueinfo" , NULL, print_rt_tgsigqueueinfo, NULL },
 #endif

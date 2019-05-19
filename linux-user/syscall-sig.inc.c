@@ -215,6 +215,43 @@ SYSCALL_IMPL(rt_sigsuspend)
     return ret;
 }
 
+SYSCALL_IMPL(rt_sigtimedwait)
+{
+    sigset_t set;
+    struct timespec uts, *puts = NULL;
+    siginfo_t uinfo;
+    abi_long ret;
+    void *p;
+
+    if (arg4 != sizeof(target_sigset_t)) {
+        return -TARGET_EINVAL;
+    }
+    p = lock_user(VERIFY_READ, arg1, sizeof(target_sigset_t), 1);
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    target_to_host_sigset(&set, p);
+    unlock_user(p, arg1, 0);
+    if (arg3) {
+        puts = &uts;
+        target_to_host_timespec(puts, arg3);
+    }
+
+    ret = get_errno(safe_rt_sigtimedwait(&set, &uinfo, puts, SIGSET_T_SIZE));
+    if (!is_error(ret)) {
+        if (arg2) {
+            p = lock_user(VERIFY_WRITE, arg2, sizeof(target_siginfo_t), 0);
+            if (!p) {
+                return -TARGET_EFAULT;
+            }
+            host_to_target_siginfo(p, &uinfo);
+            unlock_user(p, arg2, sizeof(target_siginfo_t));
+        }
+        ret = host_to_target_signal(ret);
+    }
+    return ret;
+}
+
 #ifdef TARGET_NR_sigaction
 SYSCALL_IMPL(sigaction)
 {
