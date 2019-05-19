@@ -323,6 +323,87 @@ SYSCALL_IMPL(openat)
     return do_openat(cpu_env, arg1, arg2, arg3, arg4);
 }
 
+SYSCALL_IMPL(name_to_handle_at)
+{
+    struct file_handle *target_fh;
+    struct file_handle *fh;
+    int mid = 0;
+    abi_long ret;
+    char *name;
+    uint32_t size, total_size;
+
+    if (get_user_s32(size, arg3)) {
+        return -TARGET_EFAULT;
+    }
+    total_size = sizeof(struct file_handle) + size;
+    target_fh = lock_user(VERIFY_WRITE, arg3, total_size, 0);
+    if (!target_fh) {
+        return -TARGET_EFAULT;
+    }
+
+    name = lock_user_string(arg2);
+    if (!name) {
+        unlock_user(target_fh, arg3, 0);
+        return -TARGET_EFAULT;
+    }
+
+    fh = g_malloc0(total_size);
+    fh->handle_bytes = size;
+
+    ret = get_errno(safe_name_to_handle_at(arg1, path(name), fh, &mid, arg5));
+    unlock_user(name, arg2, 0);
+
+    /*
+     * man name_to_handle_at(2):
+     * Other than the use of the handle_bytes field, the caller should treat
+     * the file_handle structure as an opaque data type
+     */
+    if (!is_error(ret)) {
+        memcpy(target_fh, fh, total_size);
+        target_fh->handle_bytes = tswap32(fh->handle_bytes);
+        target_fh->handle_type = tswap32(fh->handle_type);
+        g_free(fh);
+        unlock_user(target_fh, arg3, total_size);
+
+        if (put_user_s32(mid, arg4)) {
+            return -TARGET_EFAULT;
+        }
+    }
+    return ret;
+}
+
+SYSCALL_IMPL(open_by_handle_at)
+{
+    abi_long mount_fd = arg1;
+    abi_long handle = arg2;
+    int host_flags = target_to_host_bitmask(arg3, fcntl_flags_tbl);
+    struct file_handle *target_fh;
+    struct file_handle *fh;
+    unsigned int size, total_size;
+    abi_long ret;
+
+    if (get_user_s32(size, handle)) {
+        return -TARGET_EFAULT;
+    }
+    total_size = sizeof(struct file_handle) + size;
+    target_fh = lock_user(VERIFY_READ, handle, total_size, 1);
+    if (!target_fh) {
+        return -TARGET_EFAULT;
+    }
+
+    fh = g_memdup(target_fh, total_size);
+    fh->handle_bytes = size;
+    fh->handle_type = tswap32(target_fh->handle_type);
+
+    ret = get_errno(safe_open_by_handle_at(mount_fd, fh, host_flags));
+
+    g_free(fh);
+    unlock_user(target_fh, handle, total_size);
+
+    fd_trans_unregister(ret);
+    return ret;
+}
+
 /*
  * Both pread64 and pwrite64 merge args into a 64-bit offset,
  * but the input registers and ordering are target specific.

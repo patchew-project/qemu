@@ -780,7 +780,7 @@ UNUSED static struct flags access_flags[] = {
     FLAG_END,
 };
 
-UNUSED static struct flags at_file_flags[] = {
+static struct flags const at_file_flags[] = {
 #ifdef AT_EACCESS
     FLAG_GENERIC(AT_EACCESS),
 #endif
@@ -2692,6 +2692,9 @@ static void print_syscall_def1(const SyscallDef *def, int64_t args[6])
 #endif
         case ARG_ATDIRFD:
             len = add_atdirfd(b, rest, arg);
+            break;
+        case ARG_ATFLAG:
+            len = add_flags(b, rest, at_file_flags, arg, false);
             break;
         case ARG_MODEFLAG:
             len = add_flags(b, rest, mode_flags, arg, true);

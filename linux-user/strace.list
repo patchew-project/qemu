@@ -635,9 +635,6 @@
 #ifdef TARGET_NR_munmap
 { TARGET_NR_munmap, "munmap" , NULL, print_munmap, NULL },
 #endif
-#ifdef TARGET_NR_name_to_handle_at
-{ TARGET_NR_name_to_handle_at, "name_to_handle_at" , NULL, NULL, NULL },
-#endif
 #ifdef TARGET_NR_nanosleep
 { TARGET_NR_nanosleep, "nanosleep" , NULL, NULL, NULL },
 #endif
