@@ -708,7 +708,7 @@ static struct flags const open_flags[] = {
     FLAG_END,
 };
 
-UNUSED static struct flags mount_flags[] = {
+static struct flags const mount_flags[] = {
 #ifdef MS_BIND
     FLAG_GENERIC(MS_BIND),
 #endif
@@ -2015,22 +2015,6 @@ print_symlinkat(const struct syscallname *name,
 }
 #endif
 
-#ifdef TARGET_NR_mount
-static void
-print_mount(const struct syscallname *name,
-    abi_long arg0, abi_long arg1, abi_long arg2,
-    abi_long arg3, abi_long arg4, abi_long arg5)
-{
-    print_syscall_prologue(name);
-    print_string(arg0, 0);
-    print_string(arg1, 0);
-    print_string(arg2, 0);
-    print_flags(mount_flags, arg3, 0);
-    print_pointer(arg4, 1);
-    print_syscall_epilogue(name);
-}
-#endif
-
 #ifdef TARGET_NR_umount
 static void
 print_umount(const struct syscallname *name,
@@ -2314,6 +2298,9 @@ static void print_syscall_def1(const SyscallDef *def, int64_t args[6])
             break;
         case ARG_MODEFLAG:
             len = add_flags(b, rest, mode_flags, arg, true);
+            break;
+        case ARG_MOUNTFLAG:
+            len = add_flags(b, rest, mount_flags, arg, true);
             break;
         case ARG_OPENFLAG:
             len = add_open_flags(b, rest, arg);

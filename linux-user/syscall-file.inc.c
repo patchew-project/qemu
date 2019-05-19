@@ -174,6 +174,54 @@ SYSCALL_IMPL(mknodat)
     return do_mknodat(arg1, arg2, arg3, arg4);
 }
 
+SYSCALL_IMPL(mount)
+{
+    abi_ulong target_src = arg1;
+    abi_ulong target_tgt = arg2;
+    abi_ulong target_fst = arg3;
+    abi_ulong mountflags = arg4;
+    abi_ulong target_data = arg5;
+    char *p_src = NULL, *p_tgt = NULL, *p_fst = NULL, *p_data = NULL;
+    abi_long ret = -TARGET_EFAULT;
+
+    if (target_src) {
+        p_src = lock_user_string(target_src);
+        if (!p_src) {
+            goto exit0;
+        }
+    }
+
+    p_tgt = lock_user_string(target_tgt);
+    if (!p_tgt) {
+        goto exit1;
+    }
+
+    if (target_fst) {
+        p_fst = lock_user_string(target_fst);
+        if (!p_fst) {
+            goto exit2;
+        }
+    }
+
+    /*
+     * FIXME - arg5 should be locked, but it isn't clear how to
+     * do that since it's not guaranteed to be a NULL-terminated
+     * string.
+     */
+    if (target_data) {
+        p_data = g2h(target_data);
+    }
+    ret = get_errno(mount(p_src, p_tgt, p_fst, mountflags, p_data));
+
+    unlock_user(p_fst, target_fst, 0);
+ exit2:
+    unlock_user(p_tgt, target_tgt, 0);
+ exit1:
+    unlock_user(p_src, target_src, 0);
+ exit0:
+    return ret;
+}
+
 /*
  * Helpers for do_openat, manipulating /proc/self/foo.
  */

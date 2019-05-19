@@ -78,6 +78,7 @@ SYSCALL_DEF_FULL(mmap2, .impl = impl_mmap,
                  .arg_type = { ARG_PTR, ARG_DEC, ARG_MMAPPROT,
                                ARG_MMAPFLAG, ARG_DEC, ARG_DEC64 });
 #endif
+SYSCALL_DEF(mount, ARG_STR, ARG_STR, ARG_STR, ARG_MOUNTFLAG, ARG_PTR);
 SYSCALL_DEF(mprotect, ARG_PTR, ARG_DEC, ARG_MMAPPROT);
 SYSCALL_DEF_FULL(mremap, .impl = impl_mremap,
                  .print_ret = print_syscall_ptr_ret,

@@ -497,9 +497,6 @@
 #ifdef TARGET_NR_modify_ldt
 { TARGET_NR_modify_ldt, "modify_ldt" , NULL, NULL, NULL },
 #endif
-#ifdef TARGET_NR_mount
-{ TARGET_NR_mount, "mount" , NULL, print_mount, NULL },
-#endif
 #ifdef TARGET_NR_move_pages
 { TARGET_NR_move_pages, "move_pages" , NULL, NULL, NULL },
 #endif
