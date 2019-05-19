@@ -142,6 +142,14 @@ SYSCALL_DEF(readlink, ARG_STR, ARG_PTR, ARG_DEC);
 #ifdef TARGET_NR_readlinkat
 SYSCALL_DEF(readlinkat, ARG_ATDIRFD, ARG_STR, ARG_PTR, ARG_DEC);
 #endif
+#ifdef TARGET_NR_rename
+SYSCALL_DEF(rename, ARG_STR, ARG_STR);
+#endif
+#ifdef TARGET_NR_renameat
+SYSCALL_DEF(renameat, ARG_ATDIRFD, ARG_STR, ARG_ATDIRFD, ARG_STR);
+#endif
+SYSCALL_DEF(renameat2, ARG_ATDIRFD, ARG_STR,
+            ARG_ATDIRFD, ARG_STR, ARG_RENAMEFLAG);
 SYSCALL_DEF(readv, ARG_DEC, ARG_PTR, ARG_DEC);
 #ifdef TARGET_NR_rmdir
 SYSCALL_DEF(rmdir, ARG_STR);

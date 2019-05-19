@@ -944,15 +944,6 @@
 #ifdef TARGET_NR_removexattr
 { TARGET_NR_removexattr, "removexattr" , NULL, NULL, NULL },
 #endif
-#ifdef TARGET_NR_rename
-{ TARGET_NR_rename, "rename" , NULL, print_rename, NULL },
-#endif
-#ifdef TARGET_NR_renameat
-{ TARGET_NR_renameat, "renameat" , NULL, print_renameat, NULL },
-#endif
-#ifdef TARGET_NR_renameat2
-{ TARGET_NR_renameat2, "renameat2" , NULL, NULL, NULL },
-#endif
 #ifdef TARGET_NR_request_key
 { TARGET_NR_request_key, "request_key" , NULL, NULL, NULL },
 #endif

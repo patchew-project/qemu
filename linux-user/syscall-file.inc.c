@@ -873,6 +873,51 @@ SYSCALL_IMPL(readlinkat)
 }
 #endif
 
+static abi_long do_renameat2(int oldfd, abi_ulong target_oldpath,
+                             int newfd, abi_ulong target_newpath,
+                             unsigned int flags)
+{
+    char *p_old = lock_user_string(target_oldpath);
+    char *p_new = lock_user_string(target_newpath);
+    abi_long ret = -TARGET_EFAULT;
+
+    if (p_old && p_new) {
+        if (flags == 0) {
+            ret = renameat(oldfd, p_old, newfd, p_new);
+        } else {
+#ifdef __NR_renameat2
+            ret = syscall(__NR_renameat2, oldfd, p_old, newfd, p_new, flags);
+#else
+            errno = ENOSYS;
+            ret = -1;
+#endif
+        }
+        ret = get_errno(ret);
+    }
+    unlock_user(p_old, target_oldpath, 0);
+    unlock_user(p_new, target_newpath, 0);
+    return ret;
+}
+
+#ifdef TARGET_NR_rename
+SYSCALL_IMPL(rename)
+{
+    return do_renameat2(AT_FDCWD, arg1, AT_FDCWD, arg2, 0);
+}
+#endif
+
+#ifdef TARGET_NR_renameat
+SYSCALL_IMPL(renameat)
+{
+    return do_renameat2(arg1, arg2, arg3, arg4, 0);
+}
+#endif
+
+SYSCALL_IMPL(renameat2)
+{
+    return do_renameat2(arg1, arg2, arg3, arg4, arg5);
+}
+
 SYSCALL_IMPL(sync)
 {
     sync();

@@ -4,6 +4,7 @@
 #include <arpa/inet.h>
 #include <netinet/tcp.h>
 #include <linux/if_packet.h>
+#include <linux/fs.h>
 #include <sched.h>
 #include "qemu.h"
 #include "syscall.h"
@@ -738,6 +739,13 @@ static struct flags const mount_flags[] = {
 #endif
     FLAG_GENERIC(MS_REMOUNT),
     FLAG_GENERIC(MS_SYNCHRONOUS),
+    FLAG_END,
+};
+
+static struct flags const renameat2_flags[] = {
+    FLAG_GENERIC(RENAME_EXCHANGE),
+    FLAG_GENERIC(RENAME_NOREPLACE),
+    FLAG_GENERIC(RENAME_WHITEOUT),
     FLAG_END,
 };
 
@@ -1899,34 +1907,6 @@ print_fstatat64(const struct syscallname *name,
 #define print_newfstatat    print_fstatat64
 #endif
 
-#ifdef TARGET_NR_rename
-static void
-print_rename(const struct syscallname *name,
-    abi_long arg0, abi_long arg1, abi_long arg2,
-    abi_long arg3, abi_long arg4, abi_long arg5)
-{
-    print_syscall_prologue(name);
-    print_string(arg0, 0);
-    print_string(arg1, 1);
-    print_syscall_epilogue(name);
-}
-#endif
-
-#ifdef TARGET_NR_renameat
-static void
-print_renameat(const struct syscallname *name,
-    abi_long arg0, abi_long arg1, abi_long arg2,
-    abi_long arg3, abi_long arg4, abi_long arg5)
-{
-    print_syscall_prologue(name);
-    print_at_dirfd(arg0, 0);
-    print_string(arg1, 0);
-    print_at_dirfd(arg2, 0);
-    print_string(arg3, 1);
-    print_syscall_epilogue(name);
-}
-#endif
-
 #ifdef TARGET_NR_statfs
 static void
 print_statfs(const struct syscallname *name,
@@ -2211,6 +2191,9 @@ static void print_syscall_def1(const SyscallDef *def, int64_t args[6])
             break;
         case ARG_OPENFLAG:
             len = add_open_flags(b, rest, arg);
+            break;
+        case ARG_RENAMEFLAG:
+            len = add_flags(b, rest, renameat2_flags, arg, false);
             break;
         case ARG_UMOUNTFLAG:
             len = add_flags(b, rest, umount2_flags, arg, false);
