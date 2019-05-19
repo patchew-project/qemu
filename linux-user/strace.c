@@ -102,6 +102,27 @@ add_signal(char *buf, int size, int sig)
     }
 }
 
+static int
+add_sigprocmaskhow(char *buf, int size, int how)
+{
+    const char *str;
+
+    switch (how) {
+    case TARGET_SIG_BLOCK:
+        str = "SIG_BLOCK";
+        break;
+    case TARGET_SIG_UNBLOCK:
+        str = "SIG_UNBLOCK";
+        break;
+    case TARGET_SIG_SETMASK:
+        str = "SIG_SETMASK";
+        break;
+    default:
+        return snprintf(buf, size, "%d", how);
+    }
+    return snprintf(buf, size, "%s", str);
+}
+
 static void
 print_signal(abi_ulong arg, int last)
 {
@@ -1564,26 +1585,6 @@ print_fstat(const struct syscallname *name,
 #define print_fstat64     print_fstat
 #endif
 
-#ifdef TARGET_NR_rt_sigprocmask
-static void
-print_rt_sigprocmask(const struct syscallname *name,
-    abi_long arg0, abi_long arg1, abi_long arg2,
-    abi_long arg3, abi_long arg4, abi_long arg5)
-{
-    const char *how = "UNKNOWN";
-    print_syscall_prologue(name);
-    switch(arg0) {
-    case TARGET_SIG_BLOCK: how = "SIG_BLOCK"; break;
-    case TARGET_SIG_UNBLOCK: how = "SIG_UNBLOCK"; break;
-    case TARGET_SIG_SETMASK: how = "SIG_SETMASK"; break;
-    }
-    gemu_log("%s,",how);
-    print_pointer(arg1, 0);
-    print_pointer(arg2, 1);
-    print_syscall_epilogue(name);
-}
-#endif
-
 #ifdef TARGET_NR_rt_sigqueueinfo
 static void
 print_rt_sigqueueinfo(const struct syscallname *name,
@@ -2014,6 +2015,9 @@ static void print_syscall_def1(const SyscallDef *def, int64_t args[6])
             break;
         case ARG_SIGNAL:
             len = add_signal(b, rest, arg);
+            break;
+        case ARG_SIGPROCMASKHOW:
+            len = add_sigprocmaskhow(b, rest, arg);
             break;
         case ARG_ACCESSFLAG:
             len = add_flags(b, rest, access_flags, arg, false);

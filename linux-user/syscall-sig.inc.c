@@ -117,6 +117,53 @@ SYSCALL_IMPL(rt_sigaction)
     return ret;
 }
 
+SYSCALL_IMPL(rt_sigprocmask)
+{
+    int how = 0;
+    sigset_t set, oldset, *set_ptr = NULL;
+    abi_long ret;
+    void *p;
+
+    if (arg4 != sizeof(target_sigset_t)) {
+        return -TARGET_EINVAL;
+    }
+
+    if (arg2) {
+        switch (arg1) {
+        case TARGET_SIG_BLOCK:
+            how = SIG_BLOCK;
+            break;
+        case TARGET_SIG_UNBLOCK:
+            how = SIG_UNBLOCK;
+            break;
+        case TARGET_SIG_SETMASK:
+            how = SIG_SETMASK;
+            break;
+        default:
+            return -TARGET_EINVAL;
+        }
+        p = lock_user(VERIFY_READ, arg2, sizeof(target_sigset_t), 1);
+        if (!p) {
+            return -TARGET_EFAULT;
+        }
+        target_to_host_sigset(&set, p);
+        unlock_user(p, arg2, 0);
+        set_ptr = &set;
+    }
+
+    ret = do_sigprocmask(how, set_ptr, &oldset);
+
+    if (!is_error(ret) && arg3) {
+        p = lock_user(VERIFY_WRITE, arg3, sizeof(target_sigset_t), 0);
+        if (!p) {
+            return -TARGET_EFAULT;
+        }
+        host_to_target_sigset(p, &oldset);
+        unlock_user(p, arg3, sizeof(target_sigset_t));
+    }
+    return ret;
+}
+
 #ifdef TARGET_NR_sigaction
 SYSCALL_IMPL(sigaction)
 {
@@ -206,6 +253,82 @@ SYSCALL_IMPL(sigaction)
         old_act->sa_flags = oact.sa_flags;
         old_act->sa_restorer = oact.sa_restorer;
         unlock_user_struct(old_act, arg3, 1);
+    }
+#endif
+    return ret;
+}
+#endif
+
+#ifdef TARGET_NR_sigprocmask
+SYSCALL_IMPL(sigprocmask)
+{
+#if defined(TARGET_ALPHA)
+    sigset_t set, oldset;
+    abi_ulong mask;
+    int how;
+    abi_long ret;
+
+    switch (arg1) {
+    case TARGET_SIG_BLOCK:
+        how = SIG_BLOCK;
+        break;
+    case TARGET_SIG_UNBLOCK:
+        how = SIG_UNBLOCK;
+        break;
+    case TARGET_SIG_SETMASK:
+        how = SIG_SETMASK;
+        break;
+    default:
+        return -TARGET_EINVAL;
+    }
+    mask = arg2;
+    target_to_host_old_sigset(&set, &mask);
+
+    ret = do_sigprocmask(how, &set, &oldset);
+
+    if (!is_error(ret)) {
+        host_to_target_old_sigset(&mask, &oldset);
+        ret = mask;
+        ((CPUAlphaState *)cpu_env)->ir[IR_V0] = 0; /* force no error */
+    }
+#else
+    sigset_t set, oldset, *set_ptr = NULL;
+    int how = 0;
+    abi_long ret;
+    void *p;
+
+    if (arg2) {
+        switch (arg1) {
+        case TARGET_SIG_BLOCK:
+            how = SIG_BLOCK;
+            break;
+        case TARGET_SIG_UNBLOCK:
+            how = SIG_UNBLOCK;
+            break;
+        case TARGET_SIG_SETMASK:
+            how = SIG_SETMASK;
+            break;
+        default:
+            return -TARGET_EINVAL;
+        }
+        p = lock_user(VERIFY_READ, arg2, sizeof(target_sigset_t), 1);
+        if (!p) {
+            return -TARGET_EFAULT;
+        }
+        target_to_host_old_sigset(&set, p);
+        unlock_user(p, arg2, 0);
+        set_ptr = &set;
+    }
+
+    ret = do_sigprocmask(how, set_ptr, &oldset);
+
+    if (!is_error(ret) && arg3) {
+        p = lock_user(VERIFY_WRITE, arg3, sizeof(target_sigset_t), 0);
+        if (!p) {
+            return -TARGET_EFAULT;
+        }
+        host_to_target_old_sigset(p, &oldset);
+        unlock_user(p, arg3, sizeof(target_sigset_t));
     }
 #endif
     return ret;
