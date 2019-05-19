@@ -191,6 +191,30 @@ SYSCALL_IMPL(rt_sigprocmask)
     return ret;
 }
 
+SYSCALL_IMPL(rt_sigsuspend)
+{
+    CPUState *cpu = ENV_GET_CPU(cpu_env);
+    TaskState *ts = cpu->opaque;
+    abi_long ret;
+    void *p;
+
+    if (arg2 != sizeof(target_sigset_t)) {
+        return -TARGET_EINVAL;
+    }
+    p = lock_user(VERIFY_READ, arg1, sizeof(target_sigset_t), 1);
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    target_to_host_sigset(&ts->sigsuspend_mask, p);
+    unlock_user(p, arg1, 0);
+
+    ret = get_errno(safe_rt_sigsuspend(&ts->sigsuspend_mask, SIGSET_T_SIZE));
+    if (ret != -TARGET_ERESTARTSYS) {
+        ts->in_sigsuspend = 1;
+    }
+    return ret;
+}
+
 #ifdef TARGET_NR_sigaction
 SYSCALL_IMPL(sigaction)
 {
@@ -376,6 +400,33 @@ SYSCALL_IMPL(sigprocmask)
         unlock_user(p, arg3, sizeof(target_sigset_t));
     }
 #endif
+    return ret;
+}
+#endif
+
+#ifdef TARGET_NR_sigsuspend
+SYSCALL_IMPL(sigsuspend)
+{
+    CPUState *cpu = ENV_GET_CPU(cpu_env);
+    TaskState *ts = cpu->opaque;
+    abi_long ret;
+
+#if defined(TARGET_ALPHA)
+    abi_ulong mask = arg1;
+    target_to_host_old_sigset(&ts->sigsuspend_mask, &mask);
+#else
+    void *p = lock_user(VERIFY_READ, arg1, sizeof(target_sigset_t), 1);
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    target_to_host_old_sigset(&ts->sigsuspend_mask, p);
+    unlock_user(p, arg1, 0);
+#endif
+
+    ret = get_errno(safe_rt_sigsuspend(&ts->sigsuspend_mask, SIGSET_T_SIZE));
+    if (ret != -TARGET_ERESTARTSYS) {
+        ts->in_sigsuspend = 1;
+    }
     return ret;
 }
 #endif

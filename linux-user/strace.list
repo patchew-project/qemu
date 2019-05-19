@@ -932,9 +932,6 @@
 #ifdef TARGET_NR_rt_sigreturn
 { TARGET_NR_rt_sigreturn, "rt_sigreturn" , NULL, NULL, NULL },
 #endif
-#ifdef TARGET_NR_rt_sigsuspend
-{ TARGET_NR_rt_sigsuspend, "rt_sigsuspend" , NULL, NULL, NULL },
-#endif
 #ifdef TARGET_NR_rt_sigtimedwait
 { TARGET_NR_rt_sigtimedwait, "rt_sigtimedwait" , NULL, NULL, NULL },
 #endif
@@ -1127,9 +1124,6 @@
 #endif
 #ifdef TARGET_NR_sigreturn
 { TARGET_NR_sigreturn, "sigreturn" , NULL, NULL, NULL },
-#endif
-#ifdef TARGET_NR_sigsuspend
-{ TARGET_NR_sigsuspend, "sigsuspend" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_socket
 { TARGET_NR_socket, "socket" , NULL, print_socket, NULL },

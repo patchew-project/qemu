@@ -4227,7 +4227,6 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
                             abi_long arg5, abi_long arg6, abi_long arg7,
                             abi_long arg8)
 {
-    CPUState *cpu = ENV_GET_CPU(cpu_env);
     abi_long ret;
 #if defined(TARGET_NR_stat) || defined(TARGET_NR_stat64) \
     || defined(TARGET_NR_lstat) || defined(TARGET_NR_lstat64) \
@@ -4241,45 +4240,6 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
     void *p;
 
     switch(num) {
-#ifdef TARGET_NR_sigsuspend
-    case TARGET_NR_sigsuspend:
-        {
-            TaskState *ts = cpu->opaque;
-#if defined(TARGET_ALPHA)
-            abi_ulong mask = arg1;
-            target_to_host_old_sigset(&ts->sigsuspend_mask, &mask);
-#else
-            if (!(p = lock_user(VERIFY_READ, arg1, sizeof(target_sigset_t), 1)))
-                return -TARGET_EFAULT;
-            target_to_host_old_sigset(&ts->sigsuspend_mask, p);
-            unlock_user(p, arg1, 0);
-#endif
-            ret = get_errno(safe_rt_sigsuspend(&ts->sigsuspend_mask,
-                                               SIGSET_T_SIZE));
-            if (ret != -TARGET_ERESTARTSYS) {
-                ts->in_sigsuspend = 1;
-            }
-        }
-        return ret;
-#endif
-    case TARGET_NR_rt_sigsuspend:
-        {
-            TaskState *ts = cpu->opaque;
-
-            if (arg2 != sizeof(target_sigset_t)) {
-                return -TARGET_EINVAL;
-            }
-            if (!(p = lock_user(VERIFY_READ, arg1, sizeof(target_sigset_t), 1)))
-                return -TARGET_EFAULT;
-            target_to_host_sigset(&ts->sigsuspend_mask, p);
-            unlock_user(p, arg1, 0);
-            ret = get_errno(safe_rt_sigsuspend(&ts->sigsuspend_mask,
-                                               SIGSET_T_SIZE));
-            if (ret != -TARGET_ERESTARTSYS) {
-                ts->in_sigsuspend = 1;
-            }
-        }
-        return ret;
     case TARGET_NR_rt_sigtimedwait:
         {
             sigset_t set;
@@ -6659,6 +6619,7 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
       return do_set_thread_area(cpu_env, arg1);
 #elif defined(TARGET_M68K)
       {
+          CPUState *cpu = ENV_GET_CPU(cpu_env);
           TaskState *ts = cpu->opaque;
           ts->tp_value = arg1;
           return 0;
@@ -6673,6 +6634,7 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
         return do_get_thread_area(cpu_env, arg1);
 #elif defined(TARGET_M68K)
         {
+            CPUState *cpu = ENV_GET_CPU(cpu_env);
             TaskState *ts = cpu->opaque;
             return ts->tp_value;
         }
