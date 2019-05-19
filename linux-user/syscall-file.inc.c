@@ -112,6 +112,42 @@ SYSCALL_IMPL(linkat)
     return do_linkat(arg1, arg2, arg3, arg4, arg5);
 }
 
+#ifdef TARGET_NR_lseek
+SYSCALL_IMPL(lseek)
+{
+    return get_errno(lseek(arg1, arg2, arg3));
+}
+#endif
+
+#ifdef TARGET_NR_llseek
+SYSCALL_ARGS(llseek)
+{
+    /* The parts for offset are *always* in big-endian order.  */
+    abi_ulong lo = in[2], hi = in[1];
+    out[1] = (((uint64_t)hi << (TARGET_ABI_BITS - 1)) << 1) | lo;
+    out[2] = in[3];
+    out[3] = in[4];
+    return def;
+}
+
+SYSCALL_IMPL(llseek)
+{
+    int fd = arg1;
+    int64_t offset = arg2;
+    abi_ulong target_res = arg3;
+    int whence = arg4;
+
+    off_t res = lseek(fd, offset, whence);
+
+    if (res == -1) {
+        return get_errno(-1);
+    } else if (put_user_s64(res, target_res)) {
+        return -TARGET_EFAULT;
+    }
+    return 0;
+}
+#endif
+
 static abi_long do_mknodat(int dirfd, abi_ulong target_path,
                            mode_t mode, dev_t dev)
 {

@@ -455,9 +455,6 @@
 #ifdef TARGET_NR_llistxattr
 { TARGET_NR_llistxattr, "llistxattr" , NULL, NULL, NULL },
 #endif
-#ifdef TARGET_NR__llseek
-{ TARGET_NR__llseek, "_llseek" , NULL, print__llseek, NULL },
-#endif
 #ifdef TARGET_NR_lock
 { TARGET_NR_lock, "lock" , NULL, NULL, NULL },
 #endif
@@ -466,9 +463,6 @@
 #endif
 #ifdef TARGET_NR_lremovexattr
 { TARGET_NR_lremovexattr, "lremovexattr" , NULL, NULL, NULL },
-#endif
-#ifdef TARGET_NR_lseek
-{ TARGET_NR_lseek, "lseek" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_lsetxattr
 { TARGET_NR_lsetxattr, "lsetxattr" , NULL, NULL, NULL },

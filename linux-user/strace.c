@@ -934,6 +934,20 @@ print_open_flags(abi_long flags, int last)
     gemu_log("%s%s", buf, get_comma(last));
 }
 
+static int add_lseek_whence(char *buf, int size, int whence)
+{
+    switch (whence) {
+    case SEEK_SET:
+        return snprintf(buf, size, "SEEK_SET");
+    case SEEK_CUR:
+        return snprintf(buf, size, "SEEK_CUR");
+    case SEEK_END:
+        return snprintf(buf, size, "SEEK_END");
+    default:
+        return snprintf(buf, size, "%#x", whence);
+    }
+}
+
 static void
 print_syscall_prologue(const struct syscallname *sc)
 {
@@ -1293,28 +1307,6 @@ print_futimesat(const struct syscallname *name,
     print_string(arg1, 0);
     print_timeval(arg2, 0);
     print_timeval(arg2 + sizeof (struct target_timeval), 1);
-    print_syscall_epilogue(name);
-}
-#endif
-
-#ifdef TARGET_NR__llseek
-static void
-print__llseek(const struct syscallname *name,
-    abi_long arg0, abi_long arg1, abi_long arg2,
-    abi_long arg3, abi_long arg4, abi_long arg5)
-{
-    const char *whence = "UNKNOWN";
-    print_syscall_prologue(name);
-    print_raw_param("%d", arg0, 0);
-    print_raw_param("%ld", arg1, 0);
-    print_raw_param("%ld", arg2, 0);
-    print_pointer(arg3, 0);
-    switch(arg4) {
-    case SEEK_SET: whence = "SEEK_SET"; break;
-    case SEEK_CUR: whence = "SEEK_CUR"; break;
-    case SEEK_END: whence = "SEEK_END"; break;
-    }
-    gemu_log("%s",whence);
     print_syscall_epilogue(name);
 }
 #endif
@@ -2328,6 +2320,9 @@ static void print_syscall_def1(const SyscallDef *def, int64_t args[6])
             break;
         case ARG_UNLINKATFLAG:
             len = add_flags(b, rest, unlinkat_flags, arg, true);
+            break;
+        case ARG_LSEEKWHENCE:
+            len = add_lseek_whence(b, rest, arg);
             break;
         case ARG_PTR:
             len = add_pointer(b, rest, arg);
