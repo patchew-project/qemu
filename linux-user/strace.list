@@ -926,9 +926,6 @@
 #ifdef TARGET_NR_rmdir
 { TARGET_NR_rmdir, "rmdir" , NULL, NULL, NULL },
 #endif
-#ifdef TARGET_NR_rt_sigaction
-{ TARGET_NR_rt_sigaction, "rt_sigaction" , NULL, print_rt_sigaction, NULL },
-#endif
 #ifdef TARGET_NR_rt_sigpending
 { TARGET_NR_rt_sigpending, "rt_sigpending" , NULL, NULL, NULL },
 #endif
@@ -1124,9 +1121,6 @@
 #endif
 #ifdef TARGET_NR_shutdown
 { TARGET_NR_shutdown, "shutdown" , NULL, NULL, NULL },
-#endif
-#ifdef TARGET_NR_sigaction
-{ TARGET_NR_sigaction, "sigaction" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_sigaltstack
 { TARGET_NR_sigaltstack, "sigaltstack" , "%s(%p,%p)", NULL, NULL },

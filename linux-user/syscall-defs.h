@@ -187,6 +187,13 @@ SYSCALL_DEF(readv, ARG_DEC, ARG_PTR, ARG_DEC);
 #ifdef TARGET_NR_rmdir
 SYSCALL_DEF(rmdir, ARG_STR);
 #endif
+#if defined(TARGET_ALPHA)
+SYSCALL_DEF(rt_sigaction, ARG_SIGNAL, ARG_PTR, ARG_PTR, ARG_DEC, ARG_PTR);
+#elif defined(TARGET_SPARC)
+SYSCALL_DEF(rt_sigaction, ARG_SIGNAL, ARG_PTR, ARG_PTR, ARG_PTR, ARG_DEC);
+#else
+SYSCALL_DEF(rt_sigaction, ARG_SIGNAL, ARG_PTR, ARG_PTR, ARG_DEC);
+#endif
 #if !defined(SYSCALL_TABLE) || defined(TARGET_NR_semctl)
 SYSCALL_DEF(semctl, ARG_DEC, ARG_DEC, ARG_DEC, ARG_HEX);
 #endif
@@ -211,6 +218,9 @@ SYSCALL_DEF(shmdt, ARG_PTR);
 #endif
 #if !defined(SYSCALL_TABLE) || defined(TARGET_NR_shmget)
 SYSCALL_DEF(shmget, ARG_DEC, ARG_DEC, ARG_HEX);
+#endif
+#ifdef TARGET_NR_sigaction
+SYSCALL_DEF(sigaction, ARG_SIGNAL, ARG_PTR, ARG_PTR);
 #endif
 #ifdef TARGET_NR_stime
 SYSCALL_DEF(stime, ARG_PTR);
