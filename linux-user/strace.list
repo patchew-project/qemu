@@ -1254,9 +1254,6 @@
 #ifdef TARGET_NR_statfs64
 { TARGET_NR_statfs64, "statfs64" , NULL, print_statfs64, NULL },
 #endif
-#ifdef TARGET_NR_stime
-{ TARGET_NR_stime, "stime" , NULL, NULL, NULL },
-#endif
 #ifdef TARGET_NR_streams1
 { TARGET_NR_streams1, "streams1" , NULL, NULL, NULL },
 #endif

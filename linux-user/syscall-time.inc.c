@@ -16,6 +16,18 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifdef TARGET_NR_stime
+SYSCALL_IMPL(stime)
+{
+    time_t host_time;
+
+    if (get_user_sal(host_time, arg1)) {
+        return -TARGET_EFAULT;
+    }
+    return get_errno(stime(&host_time));
+}
+#endif
+
 #ifdef TARGET_NR_time
 SYSCALL_IMPL(time)
 {
