@@ -5346,24 +5346,6 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
     void *p;
 
     switch(num) {
-    case TARGET_NR_times:
-        {
-            struct target_tms *tmsp;
-            struct tms tms;
-            ret = get_errno(times(&tms));
-            if (arg1) {
-                tmsp = lock_user(VERIFY_WRITE, arg1, sizeof(struct target_tms), 0);
-                if (!tmsp)
-                    return -TARGET_EFAULT;
-                tmsp->tms_utime = tswapal(host_to_target_clock_t(tms.tms_utime));
-                tmsp->tms_stime = tswapal(host_to_target_clock_t(tms.tms_stime));
-                tmsp->tms_cutime = tswapal(host_to_target_clock_t(tms.tms_cutime));
-                tmsp->tms_cstime = tswapal(host_to_target_clock_t(tms.tms_cstime));
-            }
-            if (!is_error(ret))
-                ret = host_to_target_clock_t(ret);
-        }
-        return ret;
     case TARGET_NR_acct:
         if (arg1 == 0) {
             ret = get_errno(acct(NULL));

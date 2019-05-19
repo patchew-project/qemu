@@ -204,6 +204,7 @@ SYSCALL_DEF(syncfs, ARG_DEC);
 #ifdef TARGET_NR_time
 SYSCALL_DEF(time, ARG_PTR);
 #endif
+SYSCALL_DEF(times, ARG_PTR);
 #ifdef TARGET_NR_umount
 SYSCALL_DEF(umount, ARG_STR);
 #endif

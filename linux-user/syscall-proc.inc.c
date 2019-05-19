@@ -468,6 +468,31 @@ SYSCALL_IMPL(nice)
 }
 #endif
 
+SYSCALL_IMPL(times)
+{
+    abi_ulong target_buf = arg1;
+    struct tms tms;
+    abi_long ret;
+
+    ret = get_errno(times(&tms));
+    if (target_buf) {
+        struct target_tms *tmsp = lock_user(VERIFY_WRITE, target_buf,
+                                            sizeof(struct target_tms), 0);
+        if (!tmsp) {
+            return -TARGET_EFAULT;
+        }
+        tmsp->tms_utime = tswapal(host_to_target_clock_t(tms.tms_utime));
+        tmsp->tms_stime = tswapal(host_to_target_clock_t(tms.tms_stime));
+        tmsp->tms_cutime = tswapal(host_to_target_clock_t(tms.tms_cutime));
+        tmsp->tms_cstime = tswapal(host_to_target_clock_t(tms.tms_cstime));
+        unlock_user(tmsp, target_buf, sizeof(struct target_tms));
+    }
+    if (!is_error(ret)) {
+        ret = host_to_target_clock_t(ret);
+    }
+    return ret;
+}
+
 /*
  * Map host to target signal numbers for the wait family of syscalls.
  * Assume all other status bits are the same.

@@ -1290,9 +1290,6 @@
 #ifdef TARGET_NR_timerfd_settime
 { TARGET_NR_timerfd_settime, "timerfd_settime" , NULL, NULL, NULL },
 #endif
-#ifdef TARGET_NR_times
-{ TARGET_NR_times, "times" , NULL, NULL, NULL },
-#endif
 #ifdef TARGET_NR_tkill
 { TARGET_NR_tkill, "tkill" , NULL, print_tkill, NULL },
 #endif
