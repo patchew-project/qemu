@@ -21,6 +21,9 @@ SYSCALL_DEF_FULL(brk, .impl = impl_brk,
                  .arg_type = { ARG_PTR });
 SYSCALL_DEF_ARGS(clone, ARG_CLONEFLAG, ARG_PTR, ARG_PTR, ARG_PTR, ARG_PTR);
 SYSCALL_DEF(close, ARG_DEC);
+#ifdef TARGET_NR_creat
+SYSCALL_DEF(creat, ARG_STR, ARG_MODEFLAG);
+#endif
 SYSCALL_DEF(exit, ARG_DEC);
 #ifdef TARGET_NR_fork
 SYSCALL_DEF(fork);

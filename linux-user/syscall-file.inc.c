@@ -24,6 +24,22 @@ SYSCALL_IMPL(close)
     return get_errno(close(fd));
 }
 
+#ifdef TARGET_NR_creat
+SYSCALL_IMPL(creat)
+{
+    char *p = lock_user_string(arg1);
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(creat(p, arg2));
+    fd_trans_unregister(ret);
+    unlock_user(p, arg1, 0);
+    return ret;
+}
+#endif
+
 /*
  * Helpers for do_openat, manipulating /proc/self/foo.
  */

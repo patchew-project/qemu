@@ -94,9 +94,6 @@
 #ifdef TARGET_NR_connect
 { TARGET_NR_connect, "connect" , "%s(%d,%#x,%d)", NULL, NULL },
 #endif
-#ifdef TARGET_NR_creat
-{ TARGET_NR_creat, "creat" , NULL, print_creat, NULL },
-#endif
 #ifdef TARGET_NR_create_module
 { TARGET_NR_create_module, "create_module" , NULL, NULL, NULL },
 #endif
