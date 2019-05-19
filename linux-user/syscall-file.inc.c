@@ -349,6 +349,23 @@ SYSCALL_IMPL(read)
     return ret;
 }
 
+SYSCALL_IMPL(readv)
+{
+    int fd = arg1;
+    abi_ulong target_vec = arg2;
+    int count = arg3;
+    struct iovec *vec = lock_iovec(VERIFY_WRITE, target_vec, count, 0);
+    abi_long ret;
+
+    if (vec != NULL) {
+        ret = get_errno(safe_readv(fd, vec, count));
+        unlock_iovec(vec, target_vec, count, 1);
+    } else {
+        ret = -host_to_target_errno(errno);
+    }
+    return ret;
+}
+
 static abi_long do_readlinkat(int dirfd, abi_ulong target_path,
                               abi_ulong target_buf, abi_ulong bufsiz)
 {
@@ -423,5 +440,22 @@ SYSCALL_IMPL(write)
         ret = get_errno(safe_write(fd, p, size));
     }
     unlock_user(p, target_p, 0);
+    return ret;
+}
+
+SYSCALL_IMPL(writev)
+{
+    int fd = arg1;
+    abi_ulong target_vec = arg2;
+    int count = arg3;
+    struct iovec *vec = lock_iovec(VERIFY_READ, target_vec, count, 1);
+    abi_long ret;
+
+    if (vec != NULL) {
+        ret = get_errno(safe_writev(fd, vec, count));
+        unlock_iovec(vec, target_vec, count, 0);
+    } else {
+        ret = -host_to_target_errno(errno);
+    }
     return ret;
 }
