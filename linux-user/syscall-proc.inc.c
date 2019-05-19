@@ -269,14 +269,13 @@ SYSCALL_IMPL(clone)
     return do_clone(cpu_env, arg1, arg2, arg3, arg4, arg5);
 }
 
-SYSCALL_IMPL(execve)
+static abi_long do_execveat(int dirfd, abi_ulong guest_path,
+                            abi_ulong guest_argp, abi_ulong guest_envp,
+                            int flags)
 {
     char **argp, **envp;
     int argc, envc;
     abi_ulong gp;
-    abi_ulong guest_path = arg1;
-    abi_ulong guest_argp = arg2;
-    abi_ulong guest_envp = arg3;
     abi_ulong addr;
     char **q, *p;
     int total_size = 0;
@@ -356,7 +355,7 @@ SYSCALL_IMPL(execve)
      * before the execve completes and makes it the other
      * program's problem.
      */
-    ret = get_errno(safe_execve(p, argp, envp));
+    ret = get_errno(safe_execveat(dirfd, p, argp, envp, flags));
     unlock_user(p, guest_path, 0);
 
  execve_free:
@@ -377,6 +376,16 @@ SYSCALL_IMPL(execve)
 
  execve_nofree:
     return ret;
+}
+
+SYSCALL_IMPL(execve)
+{
+    return do_execveat(AT_FDCWD, arg1, arg2, arg3, 0);
+}
+
+SYSCALL_IMPL(execveat)
+{
+    return do_execveat(arg1, arg2, arg3, arg4, arg5);
 }
 
 SYSCALL_IMPL(exit)
